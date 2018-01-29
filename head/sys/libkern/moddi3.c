@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -43,8 +45,7 @@ __FBSDID("$FreeBSD$");
  * If -1/2 should produce -1 on this machine, this code is wrong.
  */
 quad_t
-__moddi3(a, b)
-	quad_t a, b;
+__moddi3(quad_t a, quad_t b)
 {
 	u_quad_t ua, ub, ur;
 	int neg;

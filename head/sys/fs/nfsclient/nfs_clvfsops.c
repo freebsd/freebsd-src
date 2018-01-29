@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -1390,10 +1392,10 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	if (mp->mnt_flag & MNT_UPDATE) {
 		nmp = VFSTONFS(mp);
 		printf("%s: MNT_UPDATE is no longer handled here\n", __func__);
-		FREE(nam, M_SONAME);
+		free(nam, M_SONAME);
 		return (0);
 	} else {
-		MALLOC(nmp, struct nfsmount *, sizeof (struct nfsmount) +
+		nmp = malloc(sizeof (struct nfsmount) +
 		    krbnamelen + dirlen + srvkrbnamelen + 2,
 		    M_NEWNFSMNT, M_WAITOK | M_ZERO);
 		TAILQ_INIT(&nmp->nm_bufq);
@@ -1649,8 +1651,8 @@ bad:
 			newnfs_disconnect(dsp->nfsclds_sockp);
 		nfscl_freenfsclds(dsp);
 	}
-	FREE(nmp, M_NEWNFSMNT);
-	FREE(nam, M_SONAME);
+	free(nmp, M_NEWNFSMNT);
+	free(nam, M_SONAME);
 	return (error);
 }
 
@@ -1726,7 +1728,7 @@ nfs_unmount(struct mount *mp, int mntflags)
 
 	newnfs_disconnect(&nmp->nm_sockreq);
 	crfree(nmp->nm_sockreq.nr_cred);
-	FREE(nmp->nm_nam, M_SONAME);
+	free(nmp->nm_nam, M_SONAME);
 	if (nmp->nm_sockreq.nr_auth != NULL)
 		AUTH_DESTROY(nmp->nm_sockreq.nr_auth);
 	mtx_destroy(&nmp->nm_sockreq.nr_mtx);
@@ -1737,7 +1739,7 @@ nfs_unmount(struct mount *mp, int mntflags)
 			newnfs_disconnect(dsp->nfsclds_sockp);
 		nfscl_freenfsclds(dsp);
 	}
-	FREE(nmp, M_NEWNFSMNT);
+	free(nmp, M_NEWNFSMNT);
 out:
 	return (error);
 }

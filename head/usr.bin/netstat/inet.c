@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
+#define	_WANT_SOCKET
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 
@@ -172,7 +173,7 @@ sotoxsocket(struct socket *so, struct xsocket *xso)
 	xso->xso_family = domain.dom_family;
 	xso->so_timeo = so->so_timeo;
 	xso->so_error = so->so_error;
-	if (SOLISTENING(so)) {
+	if ((so->so_options & SO_ACCEPTCONN) != 0) {
 		xso->so_qlen = so->sol_qlen;
 		xso->so_incqlen = so->sol_incqlen;
 		xso->so_qlimit = so->sol_qlimit;
@@ -752,12 +753,24 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:/time%s unexpected signature received}\n");
 	p(tcps_sig_err_nosigopt, "\t{:no-signature-provided/%ju} "
 	    "{N:/time%s no signature provided by segment}\n");
+
+	xo_close_container("tcp-signature");
+	xo_open_container("pmtud");
+
+	p(tcps_pmtud_blackhole_activated, "\t{:pmtud-activated/%ju} "
+	    "{N:/Path MTU discovery black hole detection activation%s}\n");
+	p(tcps_pmtud_blackhole_activated_min_mss,
+	    "\t{:pmtud-activated-min-mss/%ju} "
+	    "{N:/Path MTU discovery black hole detection min MSS activation%s}\n");
+	p(tcps_pmtud_blackhole_failed, "\t{:pmtud-failed/%ju} "
+	    "{N:/Path MTU discovery black hole detection failure%s}\n");
  #undef p
  #undef p1a
  #undef p2
  #undef p2a
  #undef p3
-	xo_close_container("tcp-signature");
+	xo_close_container("pmtud");
+
 
 	xo_open_container("TCP connection count by state");
 	xo_emit("{T:/TCP connection count by state}:\n");

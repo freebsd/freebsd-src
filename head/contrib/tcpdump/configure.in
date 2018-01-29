@@ -935,12 +935,26 @@ if test "$want_libcrypto" != "no"; then
 		if test "$ac_cv_lib_crypto_DES_cbc_encrypt" = "yes"; then
 			AC_CHECK_HEADERS(openssl/evp.h)
 			#
-			# OK, do we have EVP_CIPHER_CTX_new?
+			# OK, then:
+			#
+			# 1) do we have EVP_CIPHER_CTX_new?
 			# If so, we use it to allocate an
 			# EVP_CIPHER_CTX, as EVP_CIPHER_CTX may be
 			# opaque; otherwise, we allocate it ourselves.
 			#
-			AC_CHECK_FUNCS(EVP_CIPHER_CTX_new)
+			# 2) do we have EVP_CipherInit_ex()?
+			# If so, we use it, because we need to be
+			# able to make two "initialize the cipher"
+			# calls, one with the cipher and key, and
+			# one with the IV, and, as of OpenSSL 1.1,
+			# You Can't Do That with EVP_CipherInit(),
+			# because a call to EVP_CipherInit() will
+			# unconditionally clear the context, and
+			# if you don't supply a cipher, it'll
+			# clear the cipher, rendering the context
+			# unusable and causing a crash.
+			#
+			AC_CHECK_FUNCS(EVP_CIPHER_CTX_new EVP_CipherInit_ex)
 		fi
 	])
 fi

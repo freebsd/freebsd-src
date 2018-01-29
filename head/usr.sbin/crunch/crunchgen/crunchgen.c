@@ -1105,6 +1105,7 @@ prog_makefile_rules(FILE *outmk, prog_t *p)
 
 	fprintf(outmk, "%s_stub.c:\n", p->name);
 	fprintf(outmk, "\techo \""
+	    "extern int main(int argc, char **argv, char **envp); "
 	    "int _crunched_%s_stub(int argc, char **argv, char **envp)"
 	    "{return main(argc,argv,envp);}\" >%s_stub.c\n",
 	    p->ident, p->name);

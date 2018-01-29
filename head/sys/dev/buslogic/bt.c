@@ -5,6 +5,8 @@
  * sys/dev/buslogic/bt_mca.c	BT-64X, SDC3211B, SDC3211F
  * sys/dev/buslogic/bt_pci.c	BT-946, BT-948, BT-956, BT-958 cards
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998, 1999 Justin T. Gibbs.
  * All rights reserved.
  *
@@ -903,6 +905,7 @@ bt_attach(device_t dev)
 		device_printf(dev, "bus_setup_intr() failed: %d\n", error);
 		return (error);
 	}
+	gone_in_dev(dev, 12, "bt(4) driver");
 
 	return (0);
 }

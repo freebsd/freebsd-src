@@ -1,6 +1,8 @@
 /*	$NetBSD: ukphy.c,v 1.2 1999/04/23 04:24:32 thorpej Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998, 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

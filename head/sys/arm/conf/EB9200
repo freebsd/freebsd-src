@@ -3,7 +3,7 @@
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
 #
-#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
 # An exhaustive list of options and more detailed explanations of the
 # device lines is also present in the ../../conf/NOTES and NOTES files.

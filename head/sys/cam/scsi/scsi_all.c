@@ -1,6 +1,8 @@
 /*-
  * Implementation of Utility functions for all SCSI device types.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998, 1999 Justin T. Gibbs.
  * Copyright (c) 1997, 1998, 2003 Kenneth D. Merry.
  * All rights reserved.
@@ -468,10 +470,6 @@ static struct op_table_entry scsi_op_codes[] = {
 	{ 0x86,	ALL & ~(L | R | F), "ACCESS CONTROL IN" },
 	/* 87  OO OO OOOOOOO   ACCESS CONTROL OUT */
 	{ 0x87,	ALL & ~(L | R | F), "ACCESS CONTROL OUT" },
-	/*
-	 * XXX READ(16)/WRITE(16) were not listed for CD/DVE in op-num.txt
-	 * but we had it since r1.40.  Do we really want them?
-	 */
 	/* 88  MM  O O   O     READ(16) */
 	{ 0x88,	D | T | W | O | B, "READ(16)" },
 	/* 89  O               COMPARE AND WRITE*/
@@ -5100,8 +5098,8 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 			 * errors on finicky architectures.  We don't
 			 * ensure that the sense data is pointer aligned.
 			 */
-			bcopy(&csio->sense_data, &sense, 
-			      sizeof(struct scsi_sense_data *));
+			bcopy((struct scsi_sense_data **)&csio->sense_data,
+			    &sense, sizeof(struct scsi_sense_data *));
 		}
 	} else {
 		/*
@@ -5225,8 +5223,8 @@ scsi_extract_sense_ccb(union ccb *ccb,
 		return (0);
 
 	if (ccb->ccb_h.flags & CAM_SENSE_PTR)
-		bcopy(&ccb->csio.sense_data, &sense_data,
-		    sizeof(struct scsi_sense_data *));
+		bcopy((struct scsi_sense_data **)&ccb->csio.sense_data,
+		    &sense_data, sizeof(struct scsi_sense_data *));
 	else
 		sense_data = &ccb->csio.sense_data;
 	scsi_extract_sense_len(sense_data,

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: MIT-CMU
+ *
  * Copyright (c) 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.
  *

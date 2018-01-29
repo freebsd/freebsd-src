@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003 Peter Wemm
  * Copyright (c) 1982, 1987, 1990 The Regents of the University of California.
  * All rights reserved.
@@ -937,12 +939,9 @@ ia32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
-	
-	mtx_lock(&dt_lock);
+
 	if (td->td_proc->p_md.md_ldt != NULL)
 		user_ldt_free(td);
-	else
-		mtx_unlock(&dt_lock);
 #ifdef COMPAT_43
 	setup_lcall_gate();
 #endif
@@ -968,5 +967,4 @@ ia32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 
 	/* Return via doreti so that we can change to a different %cs */
 	set_pcb_flags(pcb, PCB_32BIT | PCB_FULL_IRET);
-	td->td_retval[1] = 0;
 }

@@ -78,7 +78,7 @@ wake_up_task(struct task_struct *task, unsigned int state)
 
 	ret = wakeup_swapper = 0;
 	sleepq_lock(task);
-	if ((atomic_load_acq_int(&task->state) & state) != 0) {
+	if ((atomic_read(&task->state) & state) != 0) {
 		set_task_state(task, TASK_WAKING);
 		wakeup_swapper = sleepq_signal(task, SLEEPQ_SLEEP, 0, 0);
 		ret = 1;
@@ -213,12 +213,18 @@ linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, int timeout,
     unsigned int state, spinlock_t *lock)
 {
 	struct task_struct *task;
-	long ret;
+	int ret;
 
 	if (lock != NULL)
 		spin_unlock_irq(lock);
 
 	DROP_GIANT();
+
+	/* range check timeout */
+	if (timeout < 1)
+		timeout = 1;
+	else if (timeout == MAX_SCHEDULE_TIMEOUT)
+		timeout = 0;
 
 	task = current;
 
@@ -226,19 +232,15 @@ linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, int timeout,
 	 * Our wait queue entry is on the stack - make sure it doesn't
 	 * get swapped out while we sleep.
 	 */
-#ifndef NO_SWAPPING
 	PHOLD(task->task_thread->td_proc);
-#endif
 	sleepq_lock(task);
-	if (atomic_load_acq_int(&task->state) != TASK_WAKING) {
+	if (atomic_read(&task->state) != TASK_WAKING) {
 		ret = linux_add_to_sleepqueue(task, "wevent", timeout, state);
 	} else {
 		sleepq_release(task);
 		ret = linux_signal_pending_state(state, task) ? -ERESTARTSYS : 0;
 	}
-#ifndef NO_SWAPPING
 	PRELE(task->task_thread->td_proc);
-#endif
 
 	PICKUP_GIANT();
 
@@ -267,7 +269,7 @@ linux_schedule_timeout(int timeout)
 	DROP_GIANT();
 
 	sleepq_lock(task);
-	state = atomic_load_acq_int(&task->state);
+	state = atomic_read(&task->state);
 	if (state != TASK_WAKING)
 		(void)linux_add_to_sleepqueue(task, "sched", timeout, state);
 	else

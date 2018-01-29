@@ -50,12 +50,14 @@ enum irqreturn	{ IRQ_NONE = 0, IRQ_HANDLED, IRQ_WAKE_THREAD, };
 typedef enum irqreturn	irqreturn_t;
 
 struct device;
+struct fwnode_handle;
 
 struct class {
 	const char	*name;
 	struct module	*owner;
 	struct kobject	kobj;
 	devclass_t	bsdclass;
+	const struct dev_pm_ops *pm;
 	void		(*class_release)(struct class *class);
 	void		(*dev_release)(struct device *dev);
 	char *		(*devnode)(struct device *dev, umode_t *mode);
@@ -113,6 +115,10 @@ struct device {
 	unsigned int	msix;
 	unsigned int	msix_max;
 	const struct attribute_group **groups;
+	struct fwnode_handle *fwnode;
+
+	spinlock_t	devres_lock;
+	struct list_head devres_head;
 };
 
 extern struct device linux_root_device;
@@ -142,7 +148,13 @@ struct device_attribute {
 
 #define	DEVICE_ATTR(_name, _mode, _show, _store)			\
 	struct device_attribute dev_attr_##_name =			\
-	    { { #_name, NULL, _mode }, _show, _store }
+	    __ATTR(_name, _mode, _show, _store)
+#define	DEVICE_ATTR_RO(_name)						\
+	struct device_attribute dev_attr_##_name = __ATTR_RO(_name)
+#define	DEVICE_ATTR_WO(_name)						\
+	struct device_attribute dev_attr_##_name = __ATTR_WO(_name)
+#define	DEVICE_ATTR_RW(_name)						\
+	struct device_attribute dev_attr_##_name = __ATTR_RW(_name)
 
 /* Simple class attribute that is just a static string */
 struct class_attribute_string {
@@ -170,6 +182,7 @@ show_class_attr_string(struct class *class,
 #define	dev_warn(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_info(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_notice(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
+#define	dev_dbg(dev, fmt, ...)	do { } while (0)
 #define	dev_printk(lvl, dev, fmt, ...)					\
 	    device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 
@@ -284,6 +297,9 @@ device_initialize(struct device *dev)
 	dev->bsddev = bsddev;
 	MPASS(dev->bsddev != NULL);
 	kobject_init(&dev->kobj, &linux_dev_ktype);
+
+	spin_lock_init(&dev->devres_lock);
+	INIT_LIST_HEAD(&dev->devres_head);
 }
 
 static inline int

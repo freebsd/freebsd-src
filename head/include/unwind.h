@@ -1,6 +1,10 @@
 /* $FreeBSD$ */
 
-/* libunwind - a platform-independent unwind library
+/*-
+   libunwind - a platform-independent unwind library
+
+   SPDX-License-Identifier: ISC
+
    Copyright (C) 2003 Hewlett-Packard Co
 	Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 

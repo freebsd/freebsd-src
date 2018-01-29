@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, 2013 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -1052,6 +1054,15 @@ vtterm_param(struct terminal *tm, int cmd, unsigned int arg)
 	struct vt_window *vw = tm->tm_softc;
 
 	switch (cmd) {
+	case TP_SETLOCALCURSOR:
+		/*
+		 * 0 means normal (usually block), 1 means hidden, and
+		 * 2 means blinking (always block) for compatibility with
+		 * syscons.  We don't support any changes except hiding,
+		 * so must map 2 to 0.
+		 */
+		arg = (arg == 1) ? 0 : 1;
+		/* FALLTHROUGH */
 	case TP_SHOWCURSOR:
 		vtbuf_cursor_visibility(&vw->vw_buf, arg);
 		vt_resume_flush_timer(vw->vw_device, 0);
@@ -2152,6 +2163,10 @@ skip_thunk:
 
 		return (error);
 	}
+	case KDGETMODE:
+		*(int *)data = (vw->vw_flags & VWF_GRAPHICS) ?
+		    KD_GRAPHICS : KD_TEXT;
+		return (0);
 	case KDGKBMODE: {
 		error = 0;
 
@@ -2205,6 +2220,13 @@ skip_thunk:
 	case CONS_BLANKTIME:
 		/* XXX */
 		return (0);
+	case CONS_HISTORY:
+		if (*(int *)data < 0)
+			return EINVAL;
+		if (*(int *)data != vd->vd_curwindow->vw_buf.vb_history_size)
+			vtbuf_sethistory_size(&vd->vd_curwindow->vw_buf,
+			    *(int *)data);
+		return 0;
 	case CONS_GET:
 		/* XXX */
 		*(int *)data = M_CG640x480;

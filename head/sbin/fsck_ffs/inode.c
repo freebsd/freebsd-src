@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -671,7 +673,7 @@ allocino(ino_t request, int type)
 	if (ino == maxino)
 		return (0);
 	cg = ino_to_cg(&sblock, ino);
-	cgbp = cgget(cg);
+	cgbp = cglookup(cg);
 	cgp = cgbp->b_un.b_cg;
 	if (!check_cgmagic(cg, cgbp))
 		return (0);

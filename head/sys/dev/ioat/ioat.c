@@ -237,8 +237,11 @@ static struct _pcsid
 	{ 0x6f2e8086, "BDX IOAT Ch0 (RAID)" },
 	{ 0x6f2f8086, "BDX IOAT Ch1 (RAID)" },
 
-	{ 0x00000000, NULL           }
+	{ 0x20218086, "SKX IOAT" },
 };
+
+MODULE_PNP_INFO("W32:vendor/device;D:#", pci, ioat, pci_ids,
+    sizeof(pci_ids[0]), nitems(pci_ids));
 
 /*
  * OS <-> Driver linkage functions
@@ -250,7 +253,7 @@ ioat_probe(device_t device)
 	u_int32_t type;
 
 	type = pci_get_devid(device);
-	for (ep = pci_ids; ep->type; ep++) {
+	for (ep = pci_ids; ep < &pci_ids[nitems(pci_ids)]; ep++) {
 		if (ep->type == type) {
 			device_set_desc(device, ep->desc);
 			return (0);

@@ -873,40 +873,6 @@ ENTRY(cloudabi_sys_poll)
   ret
 END(cloudabi_sys_poll)
 
-ENTRY(cloudabi_sys_poll_fd)
-  push %ebp
-  mov %esp, %ebp
-  mov 8(%ebp), %ecx
-  mov %ecx, -48(%ebp)
-  mov 12(%ebp), %ecx
-  mov %ecx, -40(%ebp)
-  movl $0, -36(%ebp)
-  mov 16(%ebp), %ecx
-  mov %ecx, -32(%ebp)
-  movl $0, -28(%ebp)
-  mov 20(%ebp), %ecx
-  mov %ecx, -24(%ebp)
-  movl $0, -20(%ebp)
-  mov 24(%ebp), %ecx
-  mov %ecx, -16(%ebp)
-  movl $0, -12(%ebp)
-  mov 28(%ebp), %ecx
-  mov %ecx, -8(%ebp)
-  movl $0, -4(%ebp)
-  mov $38, %eax
-  mov %ebp, %ecx
-  sub $48, %ecx
-  int $0x80
-  test %eax, %eax
-  jnz 1f
-  mov 32(%ebp), %ecx
-  mov -48(%ebp), %edx
-  mov %edx, 0(%ecx)
-1:
-  pop %ebp
-  ret
-END(cloudabi_sys_poll_fd)
-
 ENTRY(cloudabi_sys_proc_exec)
   push %ebp
   mov %esp, %ebp
@@ -924,7 +890,7 @@ ENTRY(cloudabi_sys_proc_exec)
   mov 24(%ebp), %ecx
   mov %ecx, -8(%ebp)
   movl $0, -4(%ebp)
-  mov $39, %eax
+  mov $38, %eax
   mov %ebp, %ecx
   sub $40, %ecx
   int $0x80
@@ -937,7 +903,7 @@ ENTRY(cloudabi_sys_proc_exit)
   mov %esp, %ebp
   mov 8(%ebp), %ecx
   mov %ecx, -16(%ebp)
-  mov $40, %eax
+  mov $39, %eax
   mov %ebp, %ecx
   sub $16, %ecx
   int $0x80
@@ -946,7 +912,7 @@ END(cloudabi_sys_proc_exit)
 ENTRY(cloudabi_sys_proc_fork)
   push %ebp
   mov %esp, %ebp
-  mov $41, %eax
+  mov $40, %eax
   mov %ebp, %ecx
   sub $16, %ecx
   int $0x80
@@ -968,7 +934,7 @@ ENTRY(cloudabi_sys_proc_raise)
   mov %esp, %ebp
   mov 8(%ebp), %ecx
   mov %ecx, -16(%ebp)
-  mov $42, %eax
+  mov $41, %eax
   mov %ebp, %ecx
   sub $16, %ecx
   int $0x80
@@ -985,92 +951,13 @@ ENTRY(cloudabi_sys_random_get)
   mov 12(%ebp), %ecx
   mov %ecx, -8(%ebp)
   movl $0, -4(%ebp)
-  mov $43, %eax
+  mov $42, %eax
   mov %ebp, %ecx
   sub $16, %ecx
   int $0x80
   pop %ebp
   ret
 END(cloudabi_sys_random_get)
-
-ENTRY(cloudabi_sys_sock_accept)
-  push %ebp
-  mov %esp, %ebp
-  mov 8(%ebp), %ecx
-  mov %ecx, -16(%ebp)
-  mov 12(%ebp), %ecx
-  mov %ecx, -8(%ebp)
-  movl $0, -4(%ebp)
-  mov $44, %eax
-  mov %ebp, %ecx
-  sub $16, %ecx
-  int $0x80
-  test %eax, %eax
-  jnz 1f
-  mov 16(%ebp), %ecx
-  mov -16(%ebp), %edx
-  mov %edx, 0(%ecx)
-1:
-  pop %ebp
-  ret
-END(cloudabi_sys_sock_accept)
-
-ENTRY(cloudabi_sys_sock_bind)
-  push %ebp
-  mov %esp, %ebp
-  mov 8(%ebp), %ecx
-  mov %ecx, -32(%ebp)
-  mov 12(%ebp), %ecx
-  mov %ecx, -24(%ebp)
-  mov 16(%ebp), %ecx
-  mov %ecx, -16(%ebp)
-  movl $0, -12(%ebp)
-  mov 20(%ebp), %ecx
-  mov %ecx, -8(%ebp)
-  movl $0, -4(%ebp)
-  mov $45, %eax
-  mov %ebp, %ecx
-  sub $32, %ecx
-  int $0x80
-  pop %ebp
-  ret
-END(cloudabi_sys_sock_bind)
-
-ENTRY(cloudabi_sys_sock_connect)
-  push %ebp
-  mov %esp, %ebp
-  mov 8(%ebp), %ecx
-  mov %ecx, -32(%ebp)
-  mov 12(%ebp), %ecx
-  mov %ecx, -24(%ebp)
-  mov 16(%ebp), %ecx
-  mov %ecx, -16(%ebp)
-  movl $0, -12(%ebp)
-  mov 20(%ebp), %ecx
-  mov %ecx, -8(%ebp)
-  movl $0, -4(%ebp)
-  mov $46, %eax
-  mov %ebp, %ecx
-  sub $32, %ecx
-  int $0x80
-  pop %ebp
-  ret
-END(cloudabi_sys_sock_connect)
-
-ENTRY(cloudabi_sys_sock_listen)
-  push %ebp
-  mov %esp, %ebp
-  mov 8(%ebp), %ecx
-  mov %ecx, -16(%ebp)
-  mov 12(%ebp), %ecx
-  mov %ecx, -8(%ebp)
-  mov $47, %eax
-  mov %ebp, %ecx
-  sub $16, %ecx
-  int $0x80
-  pop %ebp
-  ret
-END(cloudabi_sys_sock_listen)
 
 ENTRY(cloudabi_sys_sock_recv)
   push %ebp
@@ -1083,7 +970,7 @@ ENTRY(cloudabi_sys_sock_recv)
   mov 16(%ebp), %ecx
   mov %ecx, -8(%ebp)
   movl $0, -4(%ebp)
-  mov $48, %eax
+  mov $43, %eax
   mov %ebp, %ecx
   sub $24, %ecx
   int $0x80
@@ -1102,7 +989,7 @@ ENTRY(cloudabi_sys_sock_send)
   mov 16(%ebp), %ecx
   mov %ecx, -8(%ebp)
   movl $0, -4(%ebp)
-  mov $49, %eax
+  mov $44, %eax
   mov %ebp, %ecx
   sub $24, %ecx
   int $0x80
@@ -1117,7 +1004,7 @@ ENTRY(cloudabi_sys_sock_shutdown)
   mov %ecx, -16(%ebp)
   mov 12(%ebp), %ecx
   mov %ecx, -8(%ebp)
-  mov $50, %eax
+  mov $45, %eax
   mov %ebp, %ecx
   sub $16, %ecx
   int $0x80
@@ -1125,31 +1012,13 @@ ENTRY(cloudabi_sys_sock_shutdown)
   ret
 END(cloudabi_sys_sock_shutdown)
 
-ENTRY(cloudabi_sys_sock_stat_get)
-  push %ebp
-  mov %esp, %ebp
-  mov 8(%ebp), %ecx
-  mov %ecx, -24(%ebp)
-  mov 12(%ebp), %ecx
-  mov %ecx, -16(%ebp)
-  movl $0, -12(%ebp)
-  mov 16(%ebp), %ecx
-  mov %ecx, -8(%ebp)
-  mov $51, %eax
-  mov %ebp, %ecx
-  sub $24, %ecx
-  int $0x80
-  pop %ebp
-  ret
-END(cloudabi_sys_sock_stat_get)
-
 ENTRY(cloudabi_sys_thread_create)
   push %ebp
   mov %esp, %ebp
   mov 8(%ebp), %ecx
   mov %ecx, -16(%ebp)
   movl $0, -12(%ebp)
-  mov $52, %eax
+  mov $46, %eax
   mov %ebp, %ecx
   sub $16, %ecx
   int $0x80
@@ -1171,7 +1040,7 @@ ENTRY(cloudabi_sys_thread_exit)
   movl $0, -12(%ebp)
   mov 12(%ebp), %ecx
   mov %ecx, -8(%ebp)
-  mov $53, %eax
+  mov $47, %eax
   mov %ebp, %ecx
   sub $16, %ecx
   int $0x80
@@ -1180,7 +1049,7 @@ END(cloudabi_sys_thread_exit)
 ENTRY(cloudabi_sys_thread_yield)
   push %ebp
   mov %esp, %ebp
-  mov $54, %eax
+  mov $48, %eax
   mov %ebp, %ecx
   sub $16, %ecx
   int $0x80

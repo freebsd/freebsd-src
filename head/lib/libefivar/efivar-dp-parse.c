@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <wchar.h>
 
+#include "efichar.h"
+
 #include "efi-osdep.h"
 #include "efivar-dp.h"
 
@@ -3031,21 +3033,15 @@ DevPathFromTextFilePath (
 
   StrCpyS (File->PathName, StrLen (TextDeviceNode) + 1, TextDeviceNode);
 #else
+  size_t len = (sizeof (FILEPATH_DEVICE_PATH) + StrLen (TextDeviceNode) * 2);
+  efi_char * v;
   File = (FILEPATH_DEVICE_PATH *) CreateDeviceNode (
                                     MEDIA_DEVICE_PATH,
                                     MEDIA_FILEPATH_DP,
-                                    (UINT16) (sizeof (FILEPATH_DEVICE_PATH) + StrLen (TextDeviceNode) + 1)
+				    (UINT16)len
                                     );
-
-  /* 
-   * Note: We'd have to change the Tianocore header files to fix this
-   * to not need a cast.  Instead we just cast it here. The Interface
-   * to the user may have issues since this won't be a UCS-2
-   * string. Also note that in the original code, a NUL wasn't
-   * allocated for the end of the string, but we copy that below. This
-   * has been corrected.
-   */
-  StrCpyS ((char *)File->PathName, StrLen (TextDeviceNode) + 1, TextDeviceNode);
+  v = File->PathName;
+  utf8_to_ucs2(TextDeviceNode, &v, &len);
 #endif
 
   return (EFI_DEVICE_PATH_PROTOCOL *) File;
@@ -3560,6 +3556,7 @@ GLOBAL_REMOVE_IF_UNREFERENCED DEVICE_PATH_FROM_TEXT_TABLE mUefiDevicePathLibDevP
   {"Media",                   DevPathFromTextMedia                   },
   {"Fv",                      DevPathFromTextFv                      },
   {"FvFile",                  DevPathFromTextFvFile                  },
+  {"File",                    DevPathFromTextFilePath                },
   {"Offset",                  DevPathFromTextRelativeOffsetRange     },
   {"RamDisk",                 DevPathFromTextRamDisk                 },
   {"VirtualDisk",             DevPathFromTextVirtualDisk             },

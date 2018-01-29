@@ -2,7 +2,9 @@
 
 /* Errors and warnings... */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1996 The Internet Software Consortium.
  * All Rights Reserved.
  * Copyright (c) 1995 RadioMail Corporation.  All rights reserved.
@@ -69,7 +71,7 @@ error(char *fmt, ...)
 	va_end(list);
 
 #ifndef DEBUG
-	syslog(log_priority | LOG_ERR, "%s", mbuf);
+	cap_syslog(capsyslog, log_priority | LOG_ERR, "%s", mbuf);
 #endif
 
 	/* Also log it to stderr? */
@@ -78,7 +80,7 @@ error(char *fmt, ...)
 		write(2, "\n", 1);
 	}
 
-	syslog(LOG_CRIT, "exiting.");
+	cap_syslog(capsyslog, LOG_CRIT, "exiting.");
 	if (log_perror) {
 		fprintf(stderr, "exiting.\n");
 		fflush(stderr);
@@ -103,7 +105,7 @@ warning(char *fmt, ...)
 	va_end(list);
 
 #ifndef DEBUG
-	syslog(log_priority | LOG_ERR, "%s", mbuf);
+	cap_syslog(capsyslog, log_priority | LOG_ERR, "%s", mbuf);
 #endif
 
 	if (log_perror) {
@@ -129,7 +131,7 @@ note(char *fmt, ...)
 	va_end(list);
 
 #ifndef DEBUG
-	syslog(log_priority | LOG_INFO, "%s", mbuf);
+	cap_syslog(capsyslog, log_priority | LOG_INFO, "%s", mbuf);
 #endif
 
 	if (log_perror) {
@@ -155,7 +157,7 @@ debug(char *fmt, ...)
 	va_end(list);
 
 #ifndef DEBUG
-	syslog(log_priority | LOG_DEBUG, "%s", mbuf);
+	cap_syslog(capsyslog, log_priority | LOG_DEBUG, "%s", mbuf);
 #endif
 
 	if (log_perror) {
@@ -217,10 +219,10 @@ parse_warn(char *fmt, ...)
 	va_end(list);
 
 #ifndef DEBUG
-	syslog(log_priority | LOG_ERR, "%s", mbuf);
-	syslog(log_priority | LOG_ERR, "%s", token_line);
+	cap_syslog(capsyslog, log_priority | LOG_ERR, "%s", mbuf);
+	cap_syslog(capsyslog, log_priority | LOG_ERR, "%s", token_line);
 	if (lexline < 81)
-		syslog(log_priority | LOG_ERR,
+		cap_syslog(capsyslog, log_priority | LOG_ERR,
 		    "%s^", &spaces[sizeof(spaces) - lexchar]);
 #endif
 

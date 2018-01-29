@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2010 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -42,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofwvar.h>
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include "ofw_if.h"
 
@@ -245,7 +248,7 @@ ofw_fdt_instance_to_package(ofw_t ofw, ihandle_t instance)
 static ssize_t
 ofw_fdt_getproplen(ofw_t ofw, phandle_t package, const char *propname)
 {
-	const struct fdt_property *prop;
+	const void *prop;
 	int offset, len;
 
 	offset = fdt_phandle_offset(package);
@@ -253,7 +256,7 @@ ofw_fdt_getproplen(ofw_t ofw, phandle_t package, const char *propname)
 		return (-1);
 
 	len = -1;
-	prop = fdt_get_property(fdtp, offset, propname, &len);
+	prop = fdt_getprop(fdtp, offset, propname, &len);
 
 	if (prop == NULL && strcmp(propname, "name") == 0) {
 		/* Emulate the 'name' property */
@@ -330,7 +333,7 @@ static int
 ofw_fdt_nextprop(ofw_t ofw, phandle_t package, const char *previous, char *buf,
     size_t size)
 {
-	const struct fdt_property *prop;
+	const void *prop;
 	const char *name;
 	int offset;
 
@@ -345,7 +348,7 @@ ofw_fdt_nextprop(ofw_t ofw, phandle_t package, const char *previous, char *buf,
 
 	if (previous != NULL) {
 		while (offset >= 0) {
-			prop = fdt_get_property_by_offset(fdtp, offset, NULL);
+			prop = fdt_getprop_by_offset(fdtp, offset, &name, NULL);
 			if (prop == NULL)
 				return (-1); /* Internal error */
 
@@ -354,17 +357,16 @@ ofw_fdt_nextprop(ofw_t ofw, phandle_t package, const char *previous, char *buf,
 				return (0); /* No more properties */
 
 			/* Check if the last one was the one we wanted */
-			name = fdt_string(fdtp, fdt32_to_cpu(prop->nameoff));
 			if (strcmp(name, previous) == 0)
 				break;
 		}
 	}
 
-	prop = fdt_get_property_by_offset(fdtp, offset, &offset);
+	prop = fdt_getprop_by_offset(fdtp, offset, &name, &offset);
 	if (prop == NULL)
 		return (-1); /* Internal error */
 
-	strncpy(buf, fdt_string(fdtp, fdt32_to_cpu(prop->nameoff)), size);
+	strncpy(buf, name, size);
 
 	return (1);
 }
@@ -380,7 +382,11 @@ ofw_fdt_setprop(ofw_t ofw, phandle_t package, const char *propname,
 	if (offset < 0)
 		return (-1);
 
-	return (fdt_setprop_inplace(fdtp, offset, propname, buf, len));
+	if (fdt_setprop_inplace(fdtp, offset, propname, buf, len) != 0)
+		/* Try to add property, when setting value inplace failed */
+		return (fdt_setprop(fdtp, offset, propname, buf, len));
+
+	return (0);
 }
 
 /* Convert a device specifier to a fully qualified pathname. */
@@ -424,7 +430,7 @@ ofw_fdt_package_to_path(ofw_t ofw, phandle_t package, char *buf, size_t len)
 	return (-1);
 }
 
-#if defined(FDT_MARVELL) || defined(__powerpc__)
+#if defined(FDT_MARVELL)
 static int
 ofw_fdt_fixup(ofw_t ofw)
 {
@@ -450,7 +456,15 @@ ofw_fdt_fixup(ofw_t ofw)
 	for (i = 0; fdt_fixup_table[i].model != NULL; i++) {
 		if (strncmp(model, fdt_fixup_table[i].model,
 		    FDT_MODEL_LEN) != 0)
-			continue;
+			/*
+			 * Sometimes it's convenient to provide one
+			 * fixup entry that refers to many boards.
+			 * To handle this case, simply check if model
+			 * is compatible parameter
+			 */
+			if(!ofw_bus_node_is_compatible(root,
+			    fdt_fixup_table[i].model))
+				continue;
 
 		if (fdt_fixup_table[i].handler != NULL)
 			(*fdt_fixup_table[i].handler)(root);
@@ -463,7 +477,7 @@ ofw_fdt_fixup(ofw_t ofw)
 static int
 ofw_fdt_interpret(ofw_t ofw, const char *cmd, int nret, cell_t *retvals)
 {
-#if defined(FDT_MARVELL) || defined(__powerpc__)
+#if defined(FDT_MARVELL)
 	int rv;
 
 	/*

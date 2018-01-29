@@ -53,11 +53,18 @@ linux_fget(unsigned int fd)
 	cap_rights_t rights;
 	struct file *file;
 
+	/* lookup file pointer by file descriptor index */
 	if (fget_unlocked(curthread->td_proc->p_fd, fd,
-	    cap_rights_init(&rights), &file, NULL) != 0) {
+	    cap_rights_init(&rights), &file, NULL) != 0)
+		return (NULL);
+
+	/* check if file handle really belongs to us */
+	if (file->f_data == NULL ||
+	    file->f_ops != &linuxfileops) {
+		fdrop(file, curthread);
 		return (NULL);
 	}
-	return (struct linux_file *)file->f_data;
+	return ((struct linux_file *)file->f_data);
 }
 
 extern void linux_file_free(struct linux_file *filp);

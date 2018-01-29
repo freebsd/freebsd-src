@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $OpenBSD: pf.os,v 1.26 2012/08/03 12:25:16 jsg Exp $
+# $OpenBSD: pf.os,v 1.27 2016/09/03 17:08:57 sthen Exp $
 # passive OS fingerprinting
 # -------------------------
 #
@@ -314,6 +314,9 @@ S22:64:1:52:M*,N,N,S,N,W0:	Linux:2.2:ts:Linux 2.2 w/o timestamps
 
 16384:64:1:64:M*,N,N,S,N,W3,N,N,T:	OpenBSD:4.9::OpenBSD 4.9
 16384:64:0:64:M*,N,N,S,N,W3,N,N,T:	OpenBSD:4.9:no-df:OpenBSD 4.9 (scrub no-df)
+
+16384:64:1:64:M*,N,N,S,N,W6,N,N,T:      OpenBSD:6.1::OpenBSD 6.1
+16384:64:0:64:M*,N,N,S,N,W6,N,N,T:      OpenBSD:6.1:no-df:OpenBSD 6.1 (scrub no-df)
 
 # ----------------- DragonFly BSD -----------------
 

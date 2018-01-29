@@ -5,6 +5,7 @@
 
 # PROVIDE: automount
 # REQUIRE: nfsclient automountd
+# BEFORE: DAEMON
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr

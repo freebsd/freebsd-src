@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Luoqi Chen <luoqi@freebsd.org>
  * Copyright (c) Peter Wemm <peter@netplex.com.au>
  * All rights reserved.
@@ -44,7 +46,6 @@ struct pvo_entry;
 	struct thread	*pc_fputhread;		/* current fpu user */  \
 	struct thread	*pc_vecthread;		/* current vec user */  \
 	uintptr_t	pc_hwref;					\
-	uint32_t	pc_pir;						\
 	int		pc_bsp;						\
 	volatile int	pc_awake;					\
 	uint32_t	pc_ipimask;					\

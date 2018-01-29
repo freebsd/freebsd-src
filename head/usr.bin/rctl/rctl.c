@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -586,7 +588,7 @@ usage(void)
 }
 
 int
-main(int argc __unused, char **argv __unused)
+main(int argc, char **argv)
 {
 	int ch, aflag = 0, hflag = 0, nflag = 0, lflag = 0, rflag = 0,
 	    uflag = 0;

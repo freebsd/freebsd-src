@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -223,7 +225,7 @@ main(int argc, char **argv)
 		if (usemine) {
 			s[strlen(s) - 1] = '\0';
 			cryptpw = crypt(s, mypw);
-			if (cryptpw == NULL || !strcmp(mypw, cryptpw))
+			if (cryptpw != NULL && !strcmp(mypw, cryptpw))
 				break;
 		}
 		else if (!strcmp(s, s1))

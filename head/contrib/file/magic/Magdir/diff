@@ -1,15 +1,15 @@
 
 #------------------------------------------------------------------------------
-# $File: diff,v 1.14 2012/09/16 23:08:54 christos Exp $
+# $File: diff,v 1.16 2017/03/17 22:20:22 christos Exp $
 # diff:  file(1) magic for diff(1) output
 #
-0	search/1	diff\ 		diff output text
+0	search/1	diff\040	diff output text
 !:mime	text/x-diff
-0	search/1	***\ 		diff output text
+0	search/1	***\040 	diff output text
 !:mime	text/x-diff
-0	search/1	Only\ in\ 	diff output text
+0	search/1	Only\040in\040 	diff output text
 !:mime	text/x-diff
-0	search/1	Common\ subdirectories:\ 	diff output text
+0	search/1	Common\040subdirectories:\040 	diff output text
 !:mime	text/x-diff
 
 0	search/1	Index:		RCS/CVS diff output text
@@ -20,9 +20,9 @@
 
 
 # unified diff
-0	search/4096	---\ 
+0	search/4096	---\040
 >&0	search/1024 \n
->>&0	search/1 +++\ 
+>>&0	search/1 +++\040
 >>>&0	search/1024 \n
 >>>>&0	search/1 @@	unified diff output text
 !:mime	text/x-diff

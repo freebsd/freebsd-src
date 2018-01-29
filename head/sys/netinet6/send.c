@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2010 Ana Kukec <anchie@FreeBSD.org>
  * All rights reserved.
  *
@@ -37,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
-#include <sys/sockstate.h>
 #include <sys/sockbuf.h>
 #include <sys/socketvar.h>
 #include <sys/types.h>

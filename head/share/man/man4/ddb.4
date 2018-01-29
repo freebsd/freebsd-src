@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2017
+.Dd August 24, 2017
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -782,7 +782,7 @@ Lock owner.
 .It Ic show Cm lockchain Ar addr
 Show all threads a particular thread at address
 .Ar addr
-is waiting on based on non-sleepable and non-spin locks.
+is waiting on based on non-spin locks.
 .\"
 .Pp
 .It Ic show Cm lockedbufs
@@ -960,8 +960,9 @@ Useful for long debugging sessions.
 .\"
 .Pp
 .It Ic show Cm sleepchain
-Show all the threads a particular thread is waiting on based on
-sleepable locks.
+Deprecated.
+Now an alias for
+.Ic show Cm lockchain .
 .\"
 .Pp
 .It Ic show Cm sleepq

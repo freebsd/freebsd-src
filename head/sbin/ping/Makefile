@@ -14,7 +14,7 @@ LIBADD=	m
 .if ${MK_CASPER} != "no" && !defined(RESCUE)
 LIBADD+=	casper
 LIBADD+=	cap_dns
-CFLAGS+=-DHAVE_LIBCASPER
+CFLAGS+=-DWITH_CASPER
 .endif
 
 .if !defined(RELEASE_CRUNCH)

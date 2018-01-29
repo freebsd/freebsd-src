@@ -533,9 +533,6 @@ static int agtiapi_CharIoctl( struct cdev   *dev,
   tiIOCTLPayload_t     *pIoctlPayload;
   struct agtiapi_softc *pCard;
   pCard=dev->si_drv1;
-  void *param1 = NULL;
-  void *param2 = NULL;
-  void *param3 = NULL;
   U32   status = 0;
   U32   retValue;
   int   err    = 0;
@@ -649,8 +646,8 @@ static int agtiapi_CharIoctl( struct cdev   *dev,
       status = tiCOMMgntIOCTL( &pCard->tiRoot,
                                pIoctlPayload,
                                pCard,
-                               param2,
-                               param3 );
+                               NULL,
+                               NULL );
       if (status == IOCTL_CALL_PENDING)
       {
         ostiIOCTLWaitForSignal(&pCard->tiRoot,NULL, NULL, NULL);
@@ -2069,17 +2066,14 @@ int agtiapi_QueueCmnd_(struct agtiapi_softc *pmcsc, union ccb * ccb)
   /* get a ccb */
   if ((pccb = agtiapi_GetCCB(pmcsc)) == NULL)
   {
-    ag_device_t *targ;
     AGTIAPI_PRINTK("agtiapi_QueueCmnd_: GetCCB ERROR\n");
     if (pmcsc != NULL)
     {
+      ag_device_t *targ;
       TID = INDEX(pmcsc, TID);
       targ   = &pmcsc->pDevList[TID];
-    }
-    if (targ != NULL)
-	{
       agtiapi_adjust_queue_depth(ccb->ccb_h.path,targ->qdepth);
-	}
+    }
     ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
     ccb->ccb_h.status &= ~CAM_STATUS_MASK;
     ccb->ccb_h.status |= CAM_REQUEUE_REQ;
@@ -3089,7 +3083,6 @@ STATIC void agtiapi_StartIO( struct agtiapi_softc *pmcsc )
   ccb_t *pccb;
   int TID;			
   ag_device_t *targ;	
-  struct ccb_relsim crs;
 
   AGTIAPI_IO( "agtiapi_StartIO: start\n" );
 
@@ -4345,18 +4338,6 @@ int agtiapi_eh_HostReset( struct agtiapi_softc *pmcsc, union ccb *cmnd )
 }
 
 
-int agtiapi_eh_DeviceReset( struct agtiapi_softc *pmcsc, union ccb *cmnd )
-{
-  AGTIAPI_PRINTK( "agtiapi_eh_HostReset: ccb pointer %p\n",
-                  cmnd );
-
-  if( cmnd == NULL )
-  {
-    printf( "agtiapi_eh_HostReset: null command, skipping reset.\n" );
-    return tiInvalidHandle;
-  }
-  return agtiapi_DoSoftReset( pmcsc );
-}
 /******************************************************************************
 agtiapi_QueueCCB()
 
@@ -5661,8 +5642,7 @@ Note:
 static void agtiapi_scan(struct agtiapi_softc *pmcsc)
 {
   union ccb *ccb;
-  int bus, tid, lun, card_no;
-  static int num=0;
+  int bus, tid, lun;
  
   AGTIAPI_PRINTK("agtiapi_scan: start cardNO %d \n", pmcsc->cardNo);
     

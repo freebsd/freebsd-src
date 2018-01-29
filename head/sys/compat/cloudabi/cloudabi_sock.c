@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/systm.h>
-#include <sys/un.h>
 
 #include <net/vnet.h>
 
@@ -48,71 +47,6 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/cloudabi/cloudabi_proto.h>
 #include <compat/cloudabi/cloudabi_util.h>
-
-/* Copies a pathname into a UNIX socket address structure. */
-static int
-copyin_sockaddr_un(const char *path, size_t pathlen, struct sockaddr_un *sun)
-{
-	int error;
-
-	/* Copy in pathname string if there's enough space. */
-	if (pathlen >= sizeof(sun->sun_path))
-		return (ENAMETOOLONG);
-	error = copyin(path, &sun->sun_path, pathlen);
-	if (error != 0)
-		return (error);
-	if (memchr(sun->sun_path, '\0', pathlen) != NULL)
-		return (EINVAL);
-
-	/* Initialize the rest of the socket address. */
-	sun->sun_path[pathlen] = '\0';
-	sun->sun_family = AF_UNIX;
-	sun->sun_len = sizeof(*sun);
-	return (0);
-}
-
-int
-cloudabi_sys_sock_accept(struct thread *td,
-    struct cloudabi_sys_sock_accept_args *uap)
-{
-
-	return (kern_accept(td, uap->sock, NULL, NULL, NULL));
-}
-
-int
-cloudabi_sys_sock_bind(struct thread *td,
-    struct cloudabi_sys_sock_bind_args *uap)
-{
-	struct sockaddr_un sun;
-	int error;
-
-	error = copyin_sockaddr_un(uap->path, uap->path_len, &sun);
-	if (error != 0)
-		return (error);
-	return (kern_bindat(td, uap->fd, uap->sock, (struct sockaddr *)&sun));
-}
-
-int
-cloudabi_sys_sock_connect(struct thread *td,
-    struct cloudabi_sys_sock_connect_args *uap)
-{
-	struct sockaddr_un sun;
-	int error;
-
-	error = copyin_sockaddr_un(uap->path, uap->path_len, &sun);
-	if (error != 0)
-		return (error);
-	return (kern_connectat(td, uap->fd, uap->sock,
-	    (struct sockaddr *)&sun));
-}
-
-int
-cloudabi_sys_sock_listen(struct thread *td,
-    struct cloudabi_sys_sock_listen_args *uap)
-{
-
-	return (kern_listen(td, uap->sock, uap->backlog));
-}
 
 int
 cloudabi_sys_sock_shutdown(struct thread *td,
@@ -138,46 +72,12 @@ cloudabi_sys_sock_shutdown(struct thread *td,
 }
 
 int
-cloudabi_sys_sock_stat_get(struct thread *td,
-    struct cloudabi_sys_sock_stat_get_args *uap)
-{
-	cloudabi_sockstat_t ss = {};
-	cap_rights_t rights;
-	struct file *fp;
-	struct socket *so;
-	int error;
-
-	error = getsock_cap(td, uap->sock, cap_rights_init(&rights,
-	    CAP_GETSOCKOPT, CAP_GETPEERNAME, CAP_GETSOCKNAME), &fp, NULL, NULL);
-	if (error != 0)
-		return (error);
-	so = fp->f_data;
-
-	/* Set ss_error. */
-	SOCK_LOCK(so);
-	ss.ss_error = cloudabi_convert_errno(so->so_error);
-	if ((uap->flags & CLOUDABI_SOCKSTAT_CLEAR_ERROR) != 0)
-		so->so_error = 0;
-	SOCK_UNLOCK(so);
-
-	/* Set ss_state. */
-	if ((so->so_options & SO_ACCEPTCONN) != 0)
-		ss.ss_state |= CLOUDABI_SOCKSTATE_ACCEPTCONN;
-
-	fdrop(fp, td);
-	return (copyout(&ss, uap->buf, sizeof(ss)));
-}
-
-int
 cloudabi_sock_recv(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
     size_t datalen, cloudabi_fd_t *fds, size_t fdslen,
     cloudabi_riflags_t flags, size_t *rdatalen, size_t *rfdslen,
     cloudabi_roflags_t *rflags)
 {
-	struct sockaddr_storage ss;
 	struct msghdr hdr = {
-		.msg_name = &ss,
-		.msg_namelen = sizeof(ss),
 		.msg_iov = data,
 		.msg_iovlen = datalen,
 	};

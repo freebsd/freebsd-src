@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: (ISC AND BSD-3-Clause)
+ *
  * Portions Copyright (C) 2004, 2005, 2008, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1995-2003  Internet Software Consortium.
  *

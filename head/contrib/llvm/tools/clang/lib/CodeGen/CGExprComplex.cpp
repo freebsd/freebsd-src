@@ -120,18 +120,22 @@ public:
     return Visit(E->getSubExpr());
   }
 
+  ComplexPairTy emitConstant(const CodeGenFunction::ConstantEmission &Constant,
+                             Expr *E) {
+    assert(Constant && "not a constant");
+    if (Constant.isReference())
+      return EmitLoadOfLValue(Constant.getReferenceLValue(CGF, E),
+                              E->getExprLoc());
+
+    llvm::Constant *pair = Constant.getValue();
+    return ComplexPairTy(pair->getAggregateElement(0U),
+                         pair->getAggregateElement(1U));
+  }
 
   // l-values.
   ComplexPairTy VisitDeclRefExpr(DeclRefExpr *E) {
-    if (CodeGenFunction::ConstantEmission result = CGF.tryEmitAsConstant(E)) {
-      if (result.isReference())
-        return EmitLoadOfLValue(result.getReferenceLValue(CGF, E),
-                                E->getExprLoc());
-
-      llvm::Constant *pair = result.getValue();
-      return ComplexPairTy(pair->getAggregateElement(0U),
-                           pair->getAggregateElement(1U));
-    }
+    if (CodeGenFunction::ConstantEmission Constant = CGF.tryEmitAsConstant(E))
+      return emitConstant(Constant, E);
     return EmitLoadOfLValue(E);
   }
   ComplexPairTy VisitObjCIvarRefExpr(ObjCIvarRefExpr *E) {
@@ -141,7 +145,14 @@ public:
     return CGF.EmitObjCMessageExpr(E).getComplexVal();
   }
   ComplexPairTy VisitArraySubscriptExpr(Expr *E) { return EmitLoadOfLValue(E); }
-  ComplexPairTy VisitMemberExpr(const Expr *E) { return EmitLoadOfLValue(E); }
+  ComplexPairTy VisitMemberExpr(MemberExpr *ME) {
+    if (CodeGenFunction::ConstantEmission Constant =
+            CGF.tryEmitAsConstant(ME)) {
+      CGF.EmitIgnoredExpr(ME->getBase());
+      return emitConstant(Constant, ME);
+    }
+    return EmitLoadOfLValue(ME);
+  }
   ComplexPairTy VisitOpaqueValueExpr(OpaqueValueExpr *E) {
     if (E->isGLValue())
       return EmitLoadOfLValue(CGF.getOpaqueLValueMapping(E), E->getExprLoc());
@@ -750,21 +761,21 @@ ComplexPairTy ComplexExprEmitter::EmitBinDiv(const BinOpInfo &Op) {
   llvm::Value *LHSr = Op.LHS.first, *LHSi = Op.LHS.second;
   llvm::Value *RHSr = Op.RHS.first, *RHSi = Op.RHS.second;
 
-
   llvm::Value *DSTr, *DSTi;
   if (LHSr->getType()->isFloatingPointTy()) {
-    // If we have a complex operand on the RHS, we delegate to a libcall to
-    // handle all of the complexities and minimize underflow/overflow cases.
+    // If we have a complex operand on the RHS and FastMath is not allowed, we
+    // delegate to a libcall to handle all of the complexities and minimize
+    // underflow/overflow cases. When FastMath is allowed we construct the
+    // divide inline using the same algorithm as for integer operands.
     //
     // FIXME: We would be able to avoid the libcall in many places if we
     // supported imaginary types in addition to complex types.
-    if (RHSi) {
+    if (RHSi && !CGF.getLangOpts().FastMath) {
       BinOpInfo LibCallOp = Op;
       // If LHS was a real, supply a null imaginary part.
       if (!LHSi)
         LibCallOp.LHS.second = llvm::Constant::getNullValue(LHSr->getType());
 
-      StringRef LibCallName;
       switch (LHSr->getType()->getTypeID()) {
       default:
         llvm_unreachable("Unsupported floating point type!");
@@ -781,11 +792,31 @@ ComplexPairTy ComplexExprEmitter::EmitBinDiv(const BinOpInfo &Op) {
       case llvm::Type::FP128TyID:
         return EmitComplexBinOpLibCall("__divtc3", LibCallOp);
       }
-    }
-    assert(LHSi && "Can have at most one non-complex operand!");
+    } else if (RHSi) {
+      if (!LHSi)
+        LHSi = llvm::Constant::getNullValue(RHSi->getType());
 
-    DSTr = Builder.CreateFDiv(LHSr, RHSr);
-    DSTi = Builder.CreateFDiv(LHSi, RHSr);
+      // (a+ib) / (c+id) = ((ac+bd)/(cc+dd)) + i((bc-ad)/(cc+dd))
+      llvm::Value *AC = Builder.CreateFMul(LHSr, RHSr); // a*c
+      llvm::Value *BD = Builder.CreateFMul(LHSi, RHSi); // b*d
+      llvm::Value *ACpBD = Builder.CreateFAdd(AC, BD); // ac+bd
+
+      llvm::Value *CC = Builder.CreateFMul(RHSr, RHSr); // c*c
+      llvm::Value *DD = Builder.CreateFMul(RHSi, RHSi); // d*d
+      llvm::Value *CCpDD = Builder.CreateFAdd(CC, DD); // cc+dd
+
+      llvm::Value *BC = Builder.CreateFMul(LHSi, RHSr); // b*c
+      llvm::Value *AD = Builder.CreateFMul(LHSr, RHSi); // a*d
+      llvm::Value *BCmAD = Builder.CreateFSub(BC, AD); // bc-ad
+
+      DSTr = Builder.CreateFDiv(ACpBD, CCpDD);
+      DSTi = Builder.CreateFDiv(BCmAD, CCpDD);
+    } else {
+      assert(LHSi && "Can have at most one non-complex operand!");
+
+      DSTr = Builder.CreateFDiv(LHSr, RHSr);
+      DSTi = Builder.CreateFDiv(LHSi, RHSr);
+    }
   } else {
     assert(Op.LHS.second && Op.RHS.second &&
            "Both operands of integer complex operators must be complex!");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
+/* Copyright (c) 2008-2012 Freescale Semiconductor, Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/******************************************************************************
+
+/**************************************************************************//**
  @File          dpaa_ext.h
 
  @Description   DPAA Application Programming Interface.
@@ -53,14 +54,29 @@
 #if defined(__MWERKS__) && !defined(__GNUC__)
 #pragma pack(push,1)
 #endif /* defined(__MWERKS__) && ... */
-#define MEM_MAP_START
+
+#include <machine/endian.h>
+
+#define __BYTE_ORDER__ BYTE_ORDER
+#define __ORDER_BIG_ENDIAN__	BIG_ENDIAN
 
 /**************************************************************************//**
  @Description   Frame descriptor
 *//***************************************************************************/
 typedef _Packed struct t_DpaaFD {
-    volatile uint32_t    id;                /**< FD id */
-    volatile uint32_t    addrl;             /**< Data Address */
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    volatile uint8_t liodn;
+    volatile uint8_t bpid;
+    volatile uint8_t elion;
+    volatile uint8_t addrh;
+    volatile uint32_t addrl;
+#else
+    volatile uint32_t addrl;
+    volatile uint8_t addrh;
+    volatile uint8_t elion;
+    volatile uint8_t bpid;
+    volatile uint8_t liodn;
+ #endif
     volatile uint32_t    length;            /**< Frame length */
     volatile uint32_t    status;            /**< FD status */
 } _PackedType t_DpaaFD;
@@ -95,25 +111,17 @@ typedef enum e_DpaaFDFormatType {
 #define DPAA_FD_OFFSET_MASK   0x1ff00000           /**< FD OFFSET field mask */
 #define DPAA_FD_LENGTH_MASK   0x000fffff           /**< FD LENGTH field mask */
 
-#define DPAA_FD_GET_DD(fd)            ((((t_DpaaFD *)fd)->id & DPAA_FD_DD_MASK) >> (31-1))              /**< Macro to get FD DD field */
-#define DPAA_FD_GET_PID(fd)           (((((t_DpaaFD *)fd)->id & DPAA_FD_PID_MASK) >> (31-7)) | \
-                                        ((((t_DpaaFD *)fd)->id & DPAA_FD_ELIODN_MASK) >> (31-19-6)))    /**< Macro to get FD PID field */
-#define DPAA_FD_GET_BPID(fd)          ((((t_DpaaFD *)fd)->id & DPAA_FD_BPID_MASK) >> (31-15))           /**< Macro to get FD BPID field */
-#define DPAA_FD_GET_ADDRH(fd)         (((t_DpaaFD *)fd)->id & DPAA_FD_ADDRH_MASK)                       /**< Macro to get FD ADDRH field */
+#define DPAA_FD_GET_ADDRH(fd)         ((t_DpaaFD *)fd)->addrh                       /**< Macro to get FD ADDRH field */
 #define DPAA_FD_GET_ADDRL(fd)         ((t_DpaaFD *)fd)->addrl                                           /**< Macro to get FD ADDRL field */
 #define DPAA_FD_GET_PHYS_ADDR(fd)     ((physAddress_t)(((uint64_t)DPAA_FD_GET_ADDRH(fd) << 32) | (uint64_t)DPAA_FD_GET_ADDRL(fd))) /**< Macro to get FD ADDR field */
 #define DPAA_FD_GET_FORMAT(fd)        ((((t_DpaaFD *)fd)->length & DPAA_FD_FORMAT_MASK) >> (31-2))      /**< Macro to get FD FORMAT field */
 #define DPAA_FD_GET_OFFSET(fd)        ((((t_DpaaFD *)fd)->length & DPAA_FD_OFFSET_MASK) >> (31-11))     /**< Macro to get FD OFFSET field */
 #define DPAA_FD_GET_LENGTH(fd)        (((t_DpaaFD *)fd)->length & DPAA_FD_LENGTH_MASK)                  /**< Macro to get FD LENGTH field */
 #define DPAA_FD_GET_STATUS(fd)        ((t_DpaaFD *)fd)->status                                          /**< Macro to get FD STATUS field */
-#define DPAA_FD_GET_ADDR(fd)          XX_PhysToVirt(DPAA_FD_GET_PHYS_ADDR(fd))
+#define DPAA_FD_GET_ADDR(fd)          XX_PhysToVirt(DPAA_FD_GET_PHYS_ADDR(fd))                          /**< Macro to get FD ADDR (virtual) */
 
-#define DPAA_FD_SET_DD(fd,val)        (((t_DpaaFD *)fd)->id = ((((t_DpaaFD *)fd)->id & ~DPAA_FD_DD_MASK) | (((val) << (31-1)) & DPAA_FD_DD_MASK )))      /**< Macro to set FD DD field */
-                                                                                                        /**< Macro to set FD PID field or LIODN offset*/
-#define DPAA_FD_SET_PID(fd,val)       (((t_DpaaFD *)fd)->id = ((((t_DpaaFD *)fd)->id & ~(DPAA_FD_PID_MASK|DPAA_FD_ELIODN_MASK)) | ((((val) << (31-7)) & DPAA_FD_PID_MASK) | ((((val)>>6) << (31-19)) & DPAA_FD_ELIODN_MASK))))
-#define DPAA_FD_SET_BPID(fd,val)      (((t_DpaaFD *)fd)->id = ((((t_DpaaFD *)fd)->id & ~DPAA_FD_BPID_MASK) | (((val)  << (31-15)) & DPAA_FD_BPID_MASK))) /**< Macro to set FD BPID field */
-#define DPAA_FD_SET_ADDRH(fd,val)     (((t_DpaaFD *)fd)->id = ((((t_DpaaFD *)fd)->id & ~DPAA_FD_ADDRH_MASK) | ((val) & DPAA_FD_ADDRH_MASK)))            /**< Macro to set FD ADDRH field */
-#define DPAA_FD_SET_ADDRL(fd,val)     ((t_DpaaFD *)fd)->addrl = (val)                                     /**< Macro to set FD ADDRL field */
+#define DPAA_FD_SET_ADDRH(fd,val)     ((t_DpaaFD *)fd)->addrh = (val)            /**< Macro to set FD ADDRH field */
+#define DPAA_FD_SET_ADDRL(fd,val)     ((t_DpaaFD *)fd)->addrl = (val)                                   /**< Macro to set FD ADDRL field */
 #define DPAA_FD_SET_ADDR(fd,val)                            \
 do {                                                        \
     uint64_t physAddr = (uint64_t)(XX_VirtToPhys(val));     \
@@ -123,7 +131,7 @@ do {                                                        \
 #define DPAA_FD_SET_FORMAT(fd,val)    (((t_DpaaFD *)fd)->length = ((((t_DpaaFD *)fd)->length & ~DPAA_FD_FORMAT_MASK) | (((val)  << (31-2))& DPAA_FD_FORMAT_MASK)))  /**< Macro to set FD FORMAT field */
 #define DPAA_FD_SET_OFFSET(fd,val)    (((t_DpaaFD *)fd)->length = ((((t_DpaaFD *)fd)->length & ~DPAA_FD_OFFSET_MASK) | (((val) << (31-11))& DPAA_FD_OFFSET_MASK) )) /**< Macro to set FD OFFSET field */
 #define DPAA_FD_SET_LENGTH(fd,val)    (((t_DpaaFD *)fd)->length = (((t_DpaaFD *)fd)->length & ~DPAA_FD_LENGTH_MASK) | ((val) & DPAA_FD_LENGTH_MASK))                /**< Macro to set FD LENGTH field */
-#define DPAA_FD_SET_STATUS(fd,val)    ((t_DpaaFD *)fd)->status = (val)                                    /**< Macro to set FD STATUS field */
+#define DPAA_FD_SET_STATUS(fd,val)    ((t_DpaaFD *)fd)->status = (val)                                  /**< Macro to set FD STATUS field */
 /* @} */
 
 /**************************************************************************//**
@@ -143,7 +151,7 @@ typedef _Packed struct t_DpaaSGTE {
 *//***************************************************************************/
 typedef _Packed struct t_DpaaSGT {
     t_DpaaSGTE    tableEntry[DPAA_NUM_OF_SG_TABLE_ENTRY];
-                                    /**< structure that hold the information about
+                                    /**< Structure that holds information about
                                          a single S/G entry. */
 } _PackedType t_DpaaSGT;
 
@@ -151,10 +159,10 @@ typedef _Packed struct t_DpaaSGT {
  @Description   Compound Frame Table
 *//***************************************************************************/
 typedef _Packed struct t_DpaaCompTbl {
-    t_DpaaSGTE    outputBuffInfo;   /**< structure that holds the information about
+    t_DpaaSGTE    outputBuffInfo;   /**< Structure that holds information about
                                          the compound-frame output buffer;
                                          NOTE: this may point to a S/G table */
-    t_DpaaSGTE    inputBuffInfo;    /**< structure that holds the information about
+    t_DpaaSGTE    inputBuffInfo;    /**< Structure that holds information about
                                          the compound-frame input buffer;
                                          NOTE: this may point to a S/G table */
 } _PackedType t_DpaaCompTbl;
@@ -195,10 +203,11 @@ do {                                                            \
 #define DPAA_SGTE_SET_OFFSET(sgte,val)    (((t_DpaaSGTE *)sgte)->offset = ((((t_DpaaSGTE *)sgte)->offset & ~DPAA_SGTE_OFFSET_MASK) | (((val) << (31-31))& DPAA_SGTE_OFFSET_MASK) )) /**< Macro to set SGTE OFFSET field */
 /* @} */
 
-#define MEM_MAP_END
 #if defined(__MWERKS__) && !defined(__GNUC__)
 #pragma pack(pop)
 #endif /* defined(__MWERKS__) && ... */
+
+#define DPAA_LIODN_DONT_OVERRIDE    (-1)
 
 /** @} */ /* end of DPAA_grp group */
 

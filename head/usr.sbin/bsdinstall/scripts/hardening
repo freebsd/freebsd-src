@@ -66,7 +66,7 @@ for feature in $FEATURES; do
 		echo security.bsd.unprivileged_proc_debug=0 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
 	fi
 	if [ "$feature" = "random_pid" ]; then
-		echo kern.randompid=$(jot -r 1 9999) >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
+		echo kern.randompid=1 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
 	fi
 	if [ "$feature" = "clear_tmp" ]; then
 		echo 'clear_tmp_enable="YES"' >> $BSDINSTALL_TMPETC/rc.conf.hardening

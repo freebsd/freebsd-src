@@ -84,6 +84,8 @@ __FBSDID("$FreeBSD$");
 #define BIOS_RESET		(0x0f)
 #define BIOS_WARM		(0x0a)
 
+static MALLOC_DEFINE(M_CPUS, "cpus", "CPU items");
+
 /* lock region used by kernel profiling */
 int	mcount_lock;
 
@@ -122,6 +124,9 @@ struct cpu_ops cpu_ops;
 
 static volatile cpuset_t ipi_stop_nmi_pending;
 
+volatile cpuset_t resuming_cpus;
+volatile cpuset_t toresume_cpus;
+
 /* used to hold the AP's until we are ready to release them */
 struct mtx ap_boot_mtx;
 
@@ -132,9 +137,13 @@ volatile int aps_ready = 0;
  * Store data from cpu_add() until later in the boot when we actually setup
  * the APs.
  */
-struct cpu_info cpu_info[MAX_APIC_ID + 1];
-int apic_cpuids[MAX_APIC_ID + 1];
+struct cpu_info *cpu_info;
+int *apic_cpuids;
 int cpu_apic_ids[MAXCPU];
+_Static_assert(MAXCPU <= MAX_APIC_ID,
+    "MAXCPU cannot be larger that MAX_APIC_ID");
+_Static_assert(xAPIC_MAX_APIC_ID <= MAX_APIC_ID,
+    "xAPIC_MAX_APIC_ID cannot be larger that MAX_APIC_ID");
 
 /* Holds pending bitmap based IPIs per CPU */
 volatile u_int cpu_ipi_pending[MAXCPU];
@@ -149,6 +158,7 @@ SYSCTL_INT(_machdep, OID_AUTO, hyperthreading_allowed, CTLFLAG_RDTUN,
 static struct topo_node topo_root;
 
 static int pkg_id_shift;
+static int node_id_shift;
 static int core_id_shift;
 static int disabled_cpus;
 
@@ -268,6 +278,15 @@ topo_probe_amd(void)
 		cpuid_count(0x8000001e, 0, p);
 		share_count = ((p[1] >> 8) & 0xff) + 1;
 		core_id_shift = mask_width(share_count);
+
+		/*
+		 * For Zen (17h), gather Nodes per Processor.  Each node is a
+		 * Zeppelin die; TR and EPYC CPUs will have multiple dies per
+		 * package.  Communication latency between dies is higher than
+		 * within them.
+		 */
+		nodes_per_socket = ((p[2] >> 8) & 0x7) + 1;
+		node_id_shift = pkg_id_shift - mask_width(nodes_per_socket);
 	}
 
 	if ((amd_feature2 & AMDID2_TOPOLOGY) != 0) {
@@ -477,7 +496,7 @@ topo_probe(void)
 		int type;
 		int subtype;
 		int id_shift;
-	} topo_layers[MAX_CACHE_LEVELS + 3];
+	} topo_layers[MAX_CACHE_LEVELS + 4];
 	struct topo_node *parent;
 	struct topo_node *node;
 	int layer;
@@ -509,6 +528,15 @@ topo_probe(void)
 		printf("Package ID shift: %u\n", topo_layers[nlayers].id_shift);
 	nlayers++;
 
+	if (pkg_id_shift > node_id_shift && node_id_shift != 0) {
+		topo_layers[nlayers].type = TOPO_TYPE_GROUP;
+		topo_layers[nlayers].id_shift = node_id_shift;
+		if (bootverbose)
+			printf("Node ID shift: %u\n",
+			    topo_layers[nlayers].id_shift);
+		nlayers++;
+	}
+
 	/*
 	 * Consider all caches to be within a package/chip
 	 * and "in front" of all sub-components like
@@ -516,6 +544,9 @@ topo_probe(void)
 	 */
 	for (i = MAX_CACHE_LEVELS - 1; i >= 0; --i) {
 		if (caches[i].present) {
+			if (node_id_shift != 0)
+				KASSERT(caches[i].id_shift <= node_id_shift,
+					("bug in APIC topology discovery"));
 			KASSERT(caches[i].id_shift <= pkg_id_shift,
 				("bug in APIC topology discovery"));
 			KASSERT(caches[i].id_shift >= core_id_shift,
@@ -546,7 +577,7 @@ topo_probe(void)
 	nlayers++;
 
 	topo_init_root(&topo_root);
-	for (i = 0; i <= MAX_APIC_ID; ++i) {
+	for (i = 0; i <= max_apic_id; ++i) {
 		if (!cpu_info[i].cpu_present)
 			continue;
 
@@ -634,18 +665,23 @@ cpu_mp_announce(void)
 {
 	struct topo_node *node;
 	const char *hyperthread;
-	int pkg_count;
-	int cores_per_pkg;
-	int thrs_per_core;
+	struct topo_analysis topology;
 
 	printf("FreeBSD/SMP: ");
-	if (topo_analyze(&topo_root, 1, &pkg_count,
-	    &cores_per_pkg, &thrs_per_core)) {
-		printf("%d package(s)", pkg_count);
-		if (cores_per_pkg > 0)
-			printf(" x %d core(s)", cores_per_pkg);
-		if (thrs_per_core > 1)
-		    printf(" x %d hardware threads", thrs_per_core);
+	if (topo_analyze(&topo_root, 1, &topology)) {
+		printf("%d package(s)", topology.entities[TOPO_LEVEL_PKG]);
+		if (topology.entities[TOPO_LEVEL_GROUP] > 1)
+			printf(" x %d groups",
+			    topology.entities[TOPO_LEVEL_GROUP]);
+		if (topology.entities[TOPO_LEVEL_CACHEGROUP] > 1)
+			printf(" x %d cache groups",
+			    topology.entities[TOPO_LEVEL_CACHEGROUP]);
+		if (topology.entities[TOPO_LEVEL_CORE] > 0)
+			printf(" x %d core(s)",
+			    topology.entities[TOPO_LEVEL_CORE]);
+		if (topology.entities[TOPO_LEVEL_THREAD] > 1)
+			printf(" x %d hardware threads",
+			    topology.entities[TOPO_LEVEL_THREAD]);
 	} else {
 		printf("Non-uniform topology");
 	}
@@ -653,13 +689,21 @@ cpu_mp_announce(void)
 
 	if (disabled_cpus) {
 		printf("FreeBSD/SMP Online: ");
-		if (topo_analyze(&topo_root, 0, &pkg_count,
-		    &cores_per_pkg, &thrs_per_core)) {
-			printf("%d package(s)", pkg_count);
-			if (cores_per_pkg > 0)
-				printf(" x %d core(s)", cores_per_pkg);
-			if (thrs_per_core > 1)
-			    printf(" x %d hardware threads", thrs_per_core);
+		if (topo_analyze(&topo_root, 0, &topology)) {
+			printf("%d package(s)",
+			    topology.entities[TOPO_LEVEL_PKG]);
+			if (topology.entities[TOPO_LEVEL_GROUP] > 1)
+				printf(" x %d groups",
+				    topology.entities[TOPO_LEVEL_GROUP]);
+			if (topology.entities[TOPO_LEVEL_CACHEGROUP] > 1)
+				printf(" x %d cache groups",
+				    topology.entities[TOPO_LEVEL_CACHEGROUP]);
+			if (topology.entities[TOPO_LEVEL_CORE] > 0)
+				printf(" x %d core(s)",
+				    topology.entities[TOPO_LEVEL_CORE]);
+			if (topology.entities[TOPO_LEVEL_THREAD] > 1)
+				printf(" x %d hardware threads",
+				    topology.entities[TOPO_LEVEL_THREAD]);
 		} else {
 			printf("Non-uniform topology");
 		}
@@ -714,7 +758,8 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 	int ncores;
 	int i;
 
-	KASSERT(root->type == TOPO_TYPE_SYSTEM || root->type == TOPO_TYPE_CACHE,
+	KASSERT(root->type == TOPO_TYPE_SYSTEM || root->type == TOPO_TYPE_CACHE ||
+	    root->type == TOPO_TYPE_GROUP,
 	    ("x86topo_add_sched_group: bad type: %u", root->type));
 	CPU_COPY(&root->cpuset, &cg_root->cg_mask);
 	cg_root->cg_count = root->cpu_count;
@@ -754,7 +799,8 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 	nchildren = 0;
 	node = root;
 	while (node != NULL) {
-		if (node->type != TOPO_TYPE_CACHE ||
+		if ((node->type != TOPO_TYPE_GROUP &&
+		    node->type != TOPO_TYPE_CACHE) ||
 		    (root->type != TOPO_TYPE_SYSTEM &&
 		    CPU_CMP(&node->cpuset, &root->cpuset) == 0)) {
 			node = topo_next_node(root, node);
@@ -774,7 +820,8 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 	node = root;
 	i = 0;
 	while (node != NULL) {
-		if (node->type != TOPO_TYPE_CACHE ||
+		if ((node->type != TOPO_TYPE_GROUP &&
+		    node->type != TOPO_TYPE_CACHE) ||
 		    (root->type != TOPO_TYPE_SYSTEM &&
 		    CPU_CMP(&node->cpuset, &root->cpuset) == 0)) {
 			node = topo_next_node(root, node);
@@ -803,6 +850,19 @@ cpu_topo(void)
 	return (cg_root);
 }
 
+static void
+cpu_alloc(void *dummy __unused)
+{
+	/*
+	 * Dynamically allocate the arrays that depend on the
+	 * maximum APIC ID.
+	 */
+	cpu_info = malloc(sizeof(*cpu_info) * (max_apic_id + 1), M_CPUS,
+	    M_WAITOK | M_ZERO);
+	apic_cpuids = malloc(sizeof(*apic_cpuids) * (max_apic_id + 1), M_CPUS,
+	    M_WAITOK | M_ZERO);
+}
+SYSINIT(cpu_alloc, SI_SUB_CPU, SI_ORDER_FIRST, cpu_alloc, NULL);
 
 /*
  * Add a logical CPU to the topology.
@@ -811,26 +871,22 @@ void
 cpu_add(u_int apic_id, char boot_cpu)
 {
 
-	if (apic_id > MAX_APIC_ID) {
+	if (apic_id > max_apic_id) {
 		panic("SMP: APIC ID %d too high", apic_id);
 		return;
 	}
-	KASSERT(cpu_info[apic_id].cpu_present == 0, ("CPU %d added twice",
+	KASSERT(cpu_info[apic_id].cpu_present == 0, ("CPU %u added twice",
 	    apic_id));
 	cpu_info[apic_id].cpu_present = 1;
 	if (boot_cpu) {
 		KASSERT(boot_cpu_id == -1,
-		    ("CPU %d claims to be BSP, but CPU %d already is", apic_id,
+		    ("CPU %u claims to be BSP, but CPU %u already is", apic_id,
 		    boot_cpu_id));
 		boot_cpu_id = apic_id;
 		cpu_info[apic_id].cpu_bsp = 1;
 	}
-	if (mp_ncpus < MAXCPU) {
-		mp_ncpus++;
-		mp_maxid = mp_ncpus - 1;
-	}
 	if (bootverbose)
-		printf("SMP: Added CPU %d (%s)\n", apic_id, boot_cpu ? "BSP" :
+		printf("SMP: Added CPU %u (%s)\n", apic_id, boot_cpu ? "BSP" :
 		    "AP");
 }
 
@@ -1326,6 +1382,13 @@ cpususpend_handler(void)
 #endif
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &suspended_cpus);
+		/*
+		 * Hack for xen, which does not use resumectx() so never
+		 * uses the next clause: set resuming_cpus early so that
+		 * resume_cpus() can wait on the same bitmap for acpi and
+		 * xen.  resuming_cpus now means eventually_resumable_cpus.
+		 */
+		CPU_SET_ATOMIC(cpu, &resuming_cpus);
 	} else {
 #ifdef __amd64__
 		fpuresume(susppcbs[cpu]->sp_fpususpend);
@@ -1337,13 +1400,18 @@ cpususpend_handler(void)
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
 
-		/* Indicate that we are resumed */
+		/* Indicate that we are resuming */
 		CPU_CLR_ATOMIC(cpu, &suspended_cpus);
 	}
 
-	/* Wait for resume */
-	while (!CPU_ISSET(cpu, &started_cpus))
+	/* Wait for resume directive */
+	while (!CPU_ISSET(cpu, &toresume_cpus))
 		ia32_pause();
+
+#ifdef __i386__
+	/* Finish removing the identity mapping of low memory for this AP. */
+	invltlb_glob();
+#endif
 
 	if (cpu_ops.cpu_resume)
 		cpu_ops.cpu_resume();
@@ -1358,8 +1426,9 @@ cpususpend_handler(void)
 	lapic_setup(0);
 
 	/* Indicate that we are resumed */
+	CPU_CLR_ATOMIC(cpu, &resuming_cpus);
 	CPU_CLR_ATOMIC(cpu, &suspended_cpus);
-	CPU_CLR_ATOMIC(cpu, &started_cpus);
+	CPU_CLR_ATOMIC(cpu, &toresume_cpus);
 }
 
 
@@ -1437,7 +1506,7 @@ SYSINIT(mp_ipi_intrcnt, SI_SUB_INTR, SI_ORDER_MIDDLE, mp_ipi_intrcnt, NULL);
  */
 
 /* Variables needed for SMP tlb shootdown. */
-static vm_offset_t smp_tlb_addr1, smp_tlb_addr2;
+vm_offset_t smp_tlb_addr1, smp_tlb_addr2;
 pmap_t smp_tlb_pmap;
 volatile uint32_t smp_tlb_generation;
 
@@ -1514,11 +1583,11 @@ smp_masked_invltlb(cpuset_t mask, pmap_t pmap)
 }
 
 void
-smp_masked_invlpg(cpuset_t mask, vm_offset_t addr)
+smp_masked_invlpg(cpuset_t mask, vm_offset_t addr, pmap_t pmap)
 {
 
 	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, NULL, addr, 0);
+		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, pmap, addr, 0);
 #ifdef COUNT_XINVLTLB_HITS
 		ipi_page++;
 #endif
@@ -1526,11 +1595,12 @@ smp_masked_invlpg(cpuset_t mask, vm_offset_t addr)
 }
 
 void
-smp_masked_invlpg_range(cpuset_t mask, vm_offset_t addr1, vm_offset_t addr2)
+smp_masked_invlpg_range(cpuset_t mask, vm_offset_t addr1, vm_offset_t addr2,
+    pmap_t pmap)
 {
 
 	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, NULL,
+		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, pmap,
 		    addr1, addr2);
 #ifdef COUNT_XINVLTLB_HITS
 		ipi_range++;

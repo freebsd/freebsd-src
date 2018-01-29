@@ -107,7 +107,7 @@ xdialog_count_rows(const char *p)
 		rows++;
 	}
 
-	return rows ? rows : 1;
+	return (rows ? rows : 1);
 }
 
 static int
@@ -124,7 +124,7 @@ xdialog_count_columns(const char *p)
 
 	len = strlen(p);
 	max_len = MAX(max_len, len);
-	return max_len;
+	return (max_len);
 }
 
 static int
@@ -164,7 +164,8 @@ xdialog_menu(const char *title, const char *cprompt, int height, int width,
 				tag_x = MAX(tag_x, l + k + 2);
 			}
 		}
-		width = MAX(xdialog_count_columns(cprompt), title != NULL ? xdialog_count_columns(title) : 0);
+		width = MAX(xdialog_count_columns(cprompt), title != NULL ?
+		    xdialog_count_columns(title) : 0);
 		width = MAX(width, tag_x + 4) + 4;
 	}
 	width = MAX(width, 24);
@@ -199,7 +200,7 @@ again:
 
 	free(listitems);
 	dlg_restore_vars(&save_vars);
-	return result;
+	return (result);
 }
 
 static int usedialog = 1;
@@ -269,7 +270,7 @@ continent_country_menu(dialogMenuItem *continent)
 	int		rv;
 
 	if (strcmp(continent->title, "UTC") == 0)
-	        return set_zone_utc();
+		return (set_zone_utc());
 
 	/* Short cut -- if there's only one country, don't post a menu. */
 	if (contp->nitems == 1)
@@ -642,7 +643,7 @@ set_zone_menu(dialogMenuItem *dmi)
 static int
 set_zone_utc(void)
 {
-	if (!confirm_zone(NULL))
+	if (!confirm_zone("UTC"))
 		return (DITEM_FAILURE | DITEM_RECREATE);
 
 	return (install_zoneinfo("UTC"));
@@ -656,7 +657,7 @@ confirm_zone(const char *filename)
 	struct tm	*tm;
 	int		rv;
 
-	setenv("TZ", filename == NULL ? "" : filename, 1);
+	setenv("TZ", filename, 1);
 	tzset();
 	tm = localtime(&t);
 
@@ -714,10 +715,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 
 #ifdef VERBOSE
 	snprintf(title, sizeof(title), "Info");
-	if (zoneinfo_file == NULL)
-		snprintf(prompt, sizeof(prompt),
-		    "Removing %s", path_localtime);
-	else if (copymode)
+	if (copymode)
 		snprintf(prompt, sizeof(prompt),
 		    "Copying %s to %s", zoneinfo_file, path_localtime);
 	else
@@ -733,49 +731,6 @@ install_zoneinfo_file(const char *zoneinfo_file)
 #endif
 
 	if (reallydoit) {
-		if (zoneinfo_file == NULL) {
-			if (unlink(path_localtime) < 0 && errno != ENOENT) {
-				snprintf(title, sizeof(title), "Error");
-				snprintf(prompt, sizeof(prompt),
-				     "Could not delete %s: %s", path_localtime,
-				     strerror(errno));
-#ifdef HAVE_DIALOG
-				if (usedialog)
-					dialog_msgbox(title, prompt, 8, 72, 1);
-				else
-#endif
-					fprintf(stderr, "%s\n", prompt);
-
-				return (DITEM_FAILURE | DITEM_RECREATE);
-			}
-			if (unlink(path_db) < 0 && errno != ENOENT) {
-				snprintf(title, sizeof(title), "Error");
-				snprintf(prompt, sizeof(prompt),
-				     "Could not delete %s: %s", path_db,
-				     strerror(errno));
-#ifdef HAVE_DIALOG
-				if (usedialog)
-					dialog_msgbox(title, prompt, 8, 72, 1);
-				else
-#endif
-					fprintf(stderr, "%s\n", prompt);
-
-				return (DITEM_FAILURE | DITEM_RECREATE);
-			}
-#ifdef VERBOSE
-			snprintf(title, sizeof(title), "Done");
-			snprintf(prompt, sizeof(prompt),
-			    "Removed %s", path_localtime);
-#ifdef HAVE_DIALOG
-			if (usedialog)
-				dialog_msgbox(title, prompt, 8, 72, 1);
-			else
-#endif
-				fprintf(stderr, "%s\n", prompt);
-#endif
-			return (DITEM_LEAVE_MENU);
-		}
-
 		if (copymode) {
 			fd1 = open(zoneinfo_file, O_RDONLY, 0);
 			if (fd1 < 0) {
@@ -794,7 +749,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 
 			if (unlink(path_localtime) < 0 && errno != ENOENT) {
 				snprintf(prompt, sizeof(prompt),
-				    "Could not unlink %s: %s",
+				    "Could not delete %s: %s",
 				    path_localtime, strerror(errno));
 #ifdef HAVE_DIALOG
 				if (usedialog) {
@@ -859,7 +814,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 			}
 			if (unlink(path_localtime) < 0 && errno != ENOENT) {
 				snprintf(prompt, sizeof(prompt),
-				    "Could not unlink %s: %s",
+				    "Could not delete %s: %s",
 				    path_localtime, strerror(errno));
 #ifdef HAVE_DIALOG
 				if (usedialog) {
@@ -999,7 +954,6 @@ main(int argc, char **argv)
 		sprintf(path_wall_cmos_clock, "%s/%s", chrootenv,
 		    _PATH_WALL_CMOS_CLOCK);
 	}
-
 
 	/* Override the user-supplied umask. */
 	(void)umask(S_IWGRP | S_IWOTH);

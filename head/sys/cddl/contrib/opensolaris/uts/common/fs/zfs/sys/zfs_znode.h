@@ -201,6 +201,7 @@ typedef struct znode {
 	boolean_t	z_is_sa;	/* are we native sa? */
 } znode_t;
 
+#define	ZFS_LINK_MAX	UINT64_MAX
 
 /*
  * Range locking rules
@@ -227,7 +228,7 @@ ZTOV(znode_t *zp)
 {
 	vnode_t *vp = zp->z_vnode;
 
-	ASSERT(vp == NULL || vp->v_data == NULL || vp->v_data == zp);
+	ASSERT(vp != NULL && vp->v_data == zp);
 	return (vp);
 }
 static __inline znode_t *
@@ -235,7 +236,7 @@ VTOZ(vnode_t *vp)
 {
 	znode_t *zp = (znode_t *)vp->v_data;
 
-	ASSERT(zp == NULL || zp->z_vnode == NULL || zp->z_vnode == vp);
+	ASSERT(zp != NULL && zp->z_vnode == vp);
 	return (zp);
 }
 #else

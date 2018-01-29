@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -60,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/ttycom.h>
 #include <sys/uio.h>
+#include <sys/sysent.h>
 
 #include <sys/event.h>
 #include <sys/file.h>
@@ -106,6 +109,7 @@ struct bpf_if {
 	struct rwlock	bif_lock;	/* interface lock */
 	LIST_HEAD(, bpf_d) bif_wlist;	/* writer-only list */
 	int		bif_flags;	/* Interface flags */
+	struct bpf_if	**bif_bpf;	/* Pointer to pointer to us */
 };
 
 CTASSERT(offsetof(struct bpf_if, bif_ext) == 0);
@@ -686,7 +690,7 @@ bpf_check_upgrade(u_long cmd, struct bpf_d *d, struct bpf_insn *fcode, int flen)
 	 * Check if cmd looks like snaplen setting from
 	 * pcap_bpf.c:pcap_open_live().
 	 * Note we're not checking .k value here:
-	 * while pcap_open_live() definitely sets to to non-zero value,
+	 * while pcap_open_live() definitely sets to non-zero value,
 	 * we'd prefer to treat k=0 (deny ALL) case the same way: e.g.
 	 * do not consider upgrading immediately
 	 */
@@ -1318,9 +1322,11 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	case BIOCGDLTLIST32:
 	case BIOCGRTIMEOUT32:
 	case BIOCSRTIMEOUT32:
-		BPFD_LOCK(d);
-		d->bd_compat32 = 1;
-		BPFD_UNLOCK(d);
+		if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
+			BPFD_LOCK(d);
+			d->bd_compat32 = 1;
+			BPFD_UNLOCK(d);
+		}
 	}
 #endif
 
@@ -2563,6 +2569,7 @@ bpfattach2(struct ifnet *ifp, u_int dlt, u_int hdrlen, struct bpf_if **driverp)
 	bp->bif_dlt = dlt;
 	rw_init(&bp->bif_lock, "bpf interface lock");
 	KASSERT(*driverp == NULL, ("bpfattach2: driverp already initialized"));
+	bp->bif_bpf = driverp;
 	*driverp = bp;
 
 	BPF_LOCK();
@@ -2633,6 +2640,7 @@ bpfdetach(struct ifnet *ifp)
 		 */
 		BPFIF_WLOCK(bp);
 		bp->bif_flags |= BPFIF_FLAG_DYING;
+		*bp->bif_bpf = NULL;
 		BPFIF_WUNLOCK(bp);
 
 		CTR4(KTR_NET, "%s: sheduling free for encap %d (%p) for if %p",
@@ -2702,13 +2710,6 @@ bpf_ifdetach(void *arg __unused, struct ifnet *ifp)
 		nmatched++;
 	}
 	BPF_UNLOCK();
-
-	/*
-	 * Note that we cannot zero other pointers to
-	 * custom DLTs possibly used by given interface.
-	 */
-	if (nmatched != 0)
-		ifp->if_bpf = NULL;
 }
 
 /*

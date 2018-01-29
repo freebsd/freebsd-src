@@ -1,10 +1,7 @@
 # $FreeBSD$
 
 cpu		CPU_CORTEXA
-machine		arm armv6
+machine		arm armv7
 makeoptions	CONF_CFLAGS="-march=armv7a"
-
-makeoptions	KERNVIRTADDR=0xc0100000
-options		KERNVIRTADDR=0xc0100000
 
 files		"../freescale/vybrid/files.vybrid"

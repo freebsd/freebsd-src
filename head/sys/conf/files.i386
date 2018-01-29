@@ -132,6 +132,16 @@ aesni_wrap.o			optional aesni				\
 	no-implicit-rule						\
 	clean		"aesni_wrap.o"
 crypto/des/arch/i386/des_enc.S	optional crypto | ipsec | ipsec_support | netsmb
+intel_sha1.o			optional	aesni			\
+	dependency	"$S/crypto/aesni/intel_sha1.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -msse4 -msha ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"intel_sha1.o"
+intel_sha256.o			optional	aesni			\
+	dependency	"$S/crypto/aesni/intel_sha256.c"		\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -msse4 -msha ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"intel_sha256.o"
 crypto/via/padlock.c		optional padlock
 crypto/via/padlock_cipher.c	optional padlock
 crypto/via/padlock_hash.c	optional padlock
@@ -152,6 +162,7 @@ dev/agp/agp_sis.c		optional agp
 dev/agp/agp_via.c		optional agp
 dev/aic/aic_isa.c		optional aic isa
 dev/amdsbwd/amdsbwd.c		optional amdsbwd
+dev/amdsmn/amdsmn.c		optional amdsmn | amdtemp
 dev/amdtemp/amdtemp.c		optional amdtemp
 dev/arcmsr/arcmsr.c		optional arcmsr pci
 dev/asmc/asmc.c			optional asmc isa
@@ -190,6 +201,7 @@ dev/ed/if_ed_isa.c		optional ed isa
 dev/ed/if_ed_wd80x3.c		optional ed isa
 dev/ed/if_ed_hpp.c		optional ed isa ed_hpp
 dev/ed/if_ed_sic.c		optional ed isa ed_sic
+dev/ep/elink.c			optional ep
 dev/fb/fb.c			optional fb | vga
 dev/fb/s3_pci.c			optional s3pci
 dev/fb/vesa.c			optional vga vesa
@@ -271,10 +283,11 @@ dev/mse/mse_isa.c		optional mse isa
 dev/nctgpio/nctgpio.c		optional nctgpio
 dev/nfe/if_nfe.c		optional nfe pci
 dev/ntb/if_ntb/if_ntb.c		optional if_ntb
-dev/ntb/ntb_transport.c		optional if_ntb
-dev/ntb/ntb.c			optional if_ntb | ntb_hw
-dev/ntb/ntb_if.m		optional if_ntb | ntb_hw
-dev/ntb/ntb_hw/ntb_hw.c		optional ntb_hw
+dev/ntb/ntb_transport.c		optional ntb_transport | if_ntb
+dev/ntb/ntb.c			optional ntb | ntb_transport | if_ntb | ntb_hw_intel | ntb_hw_plx | ntb_hw
+dev/ntb/ntb_if.m		optional ntb | ntb_transport | if_ntb | ntb_hw_intel | ntb_hw_plx | ntb_hw
+dev/ntb/ntb_hw/ntb_hw_intel.c	optional ntb_hw_intel | ntb_hw
+dev/ntb/ntb_hw/ntb_hw_plx.c	optional ntb_hw_plx | ntb_hw
 dev/nvd/nvd.c			optional nvd nvme
 dev/nvme/nvme.c			optional nvme
 dev/nvme/nvme_ctrlr.c		optional nvme
@@ -315,7 +328,6 @@ dev/acpica/acpi_hpet.c		optional acpi
 dev/acpica/acpi_timer.c		optional acpi
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/wbwd/wbwd.c			optional wbwd
-dev/wpi/if_wpi.c		optional wpi
 dev/isci/isci.c							optional isci
 dev/isci/isci_controller.c					optional isci
 dev/isci/isci_domain.c						optional isci
@@ -477,8 +489,10 @@ i386/i386/minidump_machdep.c	standard
 i386/i386/mp_clock.c		optional smp
 i386/i386/mp_machdep.c		optional smp
 i386/i386/mpboot.s		optional smp
+i386/i386/npx.c			standard
 i386/i386/perfmon.c		optional perfmon
 i386/i386/pmap.c		standard
+i386/i386/prof_machdep.c	optional profiling-routine
 i386/i386/ptrace_machdep.c	standard
 i386/i386/support.s		standard
 i386/i386/swtch.s		standard
@@ -506,10 +520,6 @@ i386/ibcs2/ibcs2_util.c		optional ibcs2
 i386/ibcs2/ibcs2_xenix.c	optional ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional ibcs2
 i386/ibcs2/imgact_coff.c	optional ibcs2
-i386/isa/elink.c		optional ep | ie
-i386/isa/npx.c			standard
-i386/isa/pmtimer.c		optional pmtimer
-i386/isa/prof_machdep.c		optional profiling-routine
 i386/linux/imgact_linux.c	optional compat_linux
 i386/linux/linux_dummy.c	optional compat_linux
 i386/linux/linux_machdep.c	optional compat_linux
@@ -537,10 +547,6 @@ libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
 libkern/x86/crc32_sse42.c	standard
-i386/xbox/xbox.c		optional xbox
-i386/xbox/xboxfb.c		optional xboxfb
-dev/fb/boot_font.c		optional xboxfb
-i386/xbox/pic16l.s		optional xbox
 #
 # x86 real mode BIOS support, required by dpms/pci/vesa
 #

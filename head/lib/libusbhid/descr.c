@@ -1,6 +1,8 @@
 /*	$NetBSD: descr.c,v 1.9 2000/09/24 02:13:24 augustss Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1999 Lennart Augustsson <augustss@netbsd.org>
  * All rights reserved.
  *

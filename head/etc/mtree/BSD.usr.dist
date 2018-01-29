@@ -25,7 +25,7 @@
         aout
         ..
         clang
-            5.0.0
+            6.0.0
                 include
                     sanitizer
                     ..
@@ -55,8 +55,6 @@
         gcc
         ..
         ldscripts
-        ..
-        lint
         ..
         pkgconfig
         ..
@@ -807,158 +805,6 @@
             ..
         ..
         man
-/set uname=man
-            cat1
-            ..
-            cat2
-            ..
-            cat3
-            ..
-            cat4
-                amd64
-                ..
-                arm
-                ..
-                i386
-                ..
-                powerpc
-                ..
-                sparc64
-                ..
-            ..
-            cat5
-            ..
-            cat6
-            ..
-            cat7
-            ..
-            cat8
-                amd64
-                ..
-                i386
-                ..
-                powerpc
-                ..
-                sparc64
-                ..
-            ..
-            cat9
-            ..
-            en.ISO8859-1    uname=root
-                cat1
-                ..
-                cat2
-                ..
-                cat3
-                ..
-                cat4
-                    amd64
-                    ..
-                    arm
-                    ..
-                    i386
-                    ..
-                    powerpc
-                    ..
-                    sparc64
-                    ..
-                ..
-                cat5
-                ..
-                cat6
-                ..
-                cat7
-                ..
-                cat8
-                    amd64
-                    ..
-                    i386
-                    ..
-                    powerpc
-                    ..
-                    sparc64
-                    ..
-                ..
-                cat9
-                ..
-            ..
-            en.UTF-8        uname=root
-                cat1
-                ..
-                cat2
-                ..
-                cat3
-                ..
-                cat4
-                    amd64
-                    ..
-                    arm
-                    ..
-                    i386
-                    ..
-                    powerpc
-                    ..
-                    sparc64
-                    ..
-                ..
-                cat5
-                ..
-                cat6
-                ..
-                cat7
-                ..
-                cat8
-                    amd64
-                    ..
-                    i386
-                    ..
-                    powerpc
-                    ..
-                    sparc64
-                    ..
-                ..
-                cat9
-                ..
-            ..
-            ja              uname=root
-                cat1
-                ..
-                cat2
-                ..
-                cat3
-                ..
-                cat4
-                ..
-                cat5
-                ..
-                cat6
-                ..
-                cat7
-                ..
-                cat8
-                ..
-                cat9
-                ..
-/set uname=root
-                man1
-                ..
-                man2
-                ..
-                man3
-                ..
-                man4
-                ..
-                man5
-                ..
-                man6
-                ..
-                man7
-                ..
-                man8
-                ..
-                man9
-                ..
-            ..
             man1
             ..
             man2
@@ -1298,18 +1144,6 @@
         ..
         openssl
             man
-/set uname=man
-                cat1
-                ..
-                cat3
-                ..
-                en.ISO8859-1    uname=root
-                    cat1
-                    ..
-                    cat3
-                    ..
-                ..
-/set uname=root
                 man1
                 ..
                 man3

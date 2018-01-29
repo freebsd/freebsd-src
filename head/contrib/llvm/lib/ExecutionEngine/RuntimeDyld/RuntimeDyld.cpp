@@ -233,7 +233,7 @@ RuntimeDyldImpl::loadObjectImpl(const object::ObjectFile &Obj) {
         return NameOrErr.takeError();
 
       // Compute JIT symbol flags.
-      JITSymbolFlags JITSymFlags = JITSymbolFlags::fromObjectSymbol(*I);
+      JITSymbolFlags JITSymFlags = getJITSymbolFlags(*I);
 
       // If this is a weak definition, check to see if there's a strong one.
       // If there is, skip this symbol (we won't be providing it: the strong
@@ -616,6 +616,10 @@ void RuntimeDyldImpl::writeBytesUnaligned(uint64_t Value, uint8_t *Dst,
   }
 }
 
+JITSymbolFlags RuntimeDyldImpl::getJITSymbolFlags(const BasicSymbolRef &SR) {
+  return JITSymbolFlags::fromObjectSymbol(SR);
+}
+
 Error RuntimeDyldImpl::emitCommonSymbols(const ObjectFile &Obj,
                                          CommonSymbolList &CommonSymbols) {
   if (CommonSymbols.empty())
@@ -685,7 +689,7 @@ Error RuntimeDyldImpl::emitCommonSymbols(const ObjectFile &Obj,
       Addr += AlignOffset;
       Offset += AlignOffset;
     }
-    JITSymbolFlags JITSymFlags = JITSymbolFlags::fromObjectSymbol(Sym);
+    JITSymbolFlags JITSymFlags = getJITSymbolFlags(Sym);
     DEBUG(dbgs() << "Allocating common symbol " << Name << " address "
                  << format("%p", Addr) << "\n");
     GlobalSymbolTable[Name] =
@@ -746,8 +750,11 @@ RuntimeDyldImpl::emitSection(const ObjectFile &Obj,
   // Code section alignment needs to be at least as high as stub alignment or
   // padding calculations may by incorrect when the section is remapped to a
   // higher alignment.
-  if (IsCode)
+  if (IsCode) {
     Alignment = std::max(Alignment, getStubAlignment());
+    if (StubBufSize > 0)
+      PaddingSize += getStubAlignment() - 1;
+  }
 
   // Some sections, such as debug info, don't need to be loaded for execution.
   // Process those only if explicitly requested.
@@ -771,8 +778,13 @@ RuntimeDyldImpl::emitSection(const ObjectFile &Obj,
     // Fill in any extra bytes we allocated for padding
     if (PaddingSize != 0) {
       memset(Addr + DataSize, 0, PaddingSize);
-      // Update the DataSize variable so that the stub offset is set correctly.
+      // Update the DataSize variable to include padding.
       DataSize += PaddingSize;
+
+      // Align DataSize to stub alignment if we have any stubs (PaddingSize will
+      // have been increased above to account for this).
+      if (StubBufSize > 0)
+        DataSize &= ~(getStubAlignment() - 1);
     }
 
     DEBUG(dbgs() << "emitSection SectionID: " << SectionID << " Name: " << Name
@@ -864,9 +876,9 @@ uint8_t *RuntimeDyldImpl::createStubFunction(uint8_t *Addr,
   } else if (Arch == Triple::arm || Arch == Triple::armeb) {
     // TODO: There is only ARM far stub now. We should add the Thumb stub,
     // and stubs for branches Thumb - ARM and ARM - Thumb.
-    writeBytesUnaligned(0xe51ff004, Addr, 4); // ldr pc,<label>
+    writeBytesUnaligned(0xe51ff004, Addr, 4); // ldr pc, [pc, #-4]
     return Addr + 4;
-  } else if (IsMipsO32ABI) {
+  } else if (IsMipsO32ABI || IsMipsN32ABI) {
     // 0:   3c190000        lui     t9,%hi(addr).
     // 4:   27390000        addiu   t9,t9,%lo(addr).
     // 8:   03200008        jr      t9.
@@ -874,13 +886,39 @@ uint8_t *RuntimeDyldImpl::createStubFunction(uint8_t *Addr,
     const unsigned LuiT9Instr = 0x3c190000, AdduiT9Instr = 0x27390000;
     const unsigned NopInstr = 0x0;
     unsigned JrT9Instr = 0x03200008;
-    if ((AbiVariant & ELF::EF_MIPS_ARCH) == ELF::EF_MIPS_ARCH_32R6)
-        JrT9Instr = 0x03200009;
+    if ((AbiVariant & ELF::EF_MIPS_ARCH) == ELF::EF_MIPS_ARCH_32R6 ||
+        (AbiVariant & ELF::EF_MIPS_ARCH) == ELF::EF_MIPS_ARCH_64R6)
+      JrT9Instr = 0x03200009;
 
     writeBytesUnaligned(LuiT9Instr, Addr, 4);
-    writeBytesUnaligned(AdduiT9Instr, Addr+4, 4);
-    writeBytesUnaligned(JrT9Instr, Addr+8, 4);
-    writeBytesUnaligned(NopInstr, Addr+12, 4);
+    writeBytesUnaligned(AdduiT9Instr, Addr + 4, 4);
+    writeBytesUnaligned(JrT9Instr, Addr + 8, 4);
+    writeBytesUnaligned(NopInstr, Addr + 12, 4);
+    return Addr;
+  } else if (IsMipsN64ABI) {
+    // 0:   3c190000        lui     t9,%highest(addr).
+    // 4:   67390000        daddiu  t9,t9,%higher(addr).
+    // 8:   0019CC38        dsll    t9,t9,16.
+    // c:   67390000        daddiu  t9,t9,%hi(addr).
+    // 10:  0019CC38        dsll    t9,t9,16.
+    // 14:  67390000        daddiu  t9,t9,%lo(addr).
+    // 18:  03200008        jr      t9.
+    // 1c:  00000000        nop.
+    const unsigned LuiT9Instr = 0x3c190000, DaddiuT9Instr = 0x67390000,
+                   DsllT9Instr = 0x19CC38;
+    const unsigned NopInstr = 0x0;
+    unsigned JrT9Instr = 0x03200008;
+    if ((AbiVariant & ELF::EF_MIPS_ARCH) == ELF::EF_MIPS_ARCH_64R6)
+      JrT9Instr = 0x03200009;
+
+    writeBytesUnaligned(LuiT9Instr, Addr, 4);
+    writeBytesUnaligned(DaddiuT9Instr, Addr + 4, 4);
+    writeBytesUnaligned(DsllT9Instr, Addr + 8, 4);
+    writeBytesUnaligned(DaddiuT9Instr, Addr + 12, 4);
+    writeBytesUnaligned(DsllT9Instr, Addr + 16, 4);
+    writeBytesUnaligned(DaddiuT9Instr, Addr + 20, 4);
+    writeBytesUnaligned(JrT9Instr, Addr + 24, 4);
+    writeBytesUnaligned(NopInstr, Addr + 28, 4);
     return Addr;
   } else if (Arch == Triple::ppc64 || Arch == Triple::ppc64le) {
     // Depending on which version of the ELF ABI is in use, we need to
@@ -971,15 +1009,17 @@ Error RuntimeDyldImpl::resolveExternalSymbols() {
       resolveRelocationList(Relocs, 0);
     } else {
       uint64_t Addr = 0;
+      JITSymbolFlags Flags;
       RTDyldSymbolTable::const_iterator Loc = GlobalSymbolTable.find(Name);
       if (Loc == GlobalSymbolTable.end()) {
         // This is an external symbol, try to get its address from the symbol
         // resolver.
         // First search for the symbol in this logical dylib.
         if (auto Sym = Resolver.findSymbolInLogicalDylib(Name.data())) {
-          if (auto AddrOrErr = Sym.getAddress())
+          if (auto AddrOrErr = Sym.getAddress()) {
             Addr = *AddrOrErr;
-          else
+            Flags = Sym.getFlags();
+          } else
             return AddrOrErr.takeError();
         } else if (auto Err = Sym.takeError())
           return Err;
@@ -987,9 +1027,10 @@ Error RuntimeDyldImpl::resolveExternalSymbols() {
         // If that fails, try searching for an external symbol.
         if (!Addr) {
           if (auto Sym = Resolver.findSymbol(Name.data())) {
-            if (auto AddrOrErr = Sym.getAddress())
+            if (auto AddrOrErr = Sym.getAddress()) {
               Addr = *AddrOrErr;
-            else
+              Flags = Sym.getFlags();
+            } else
               return AddrOrErr.takeError();
           } else if (auto Err = Sym.takeError())
             return Err;
@@ -1007,6 +1048,7 @@ Error RuntimeDyldImpl::resolveExternalSymbols() {
         const auto &SymInfo = Loc->second;
         Addr = getSectionLoadAddress(SymInfo.getSectionID()) +
                SymInfo.getOffset();
+        Flags = SymInfo.getFlags();
       }
 
       // FIXME: Implement error handling that doesn't kill the host program!
@@ -1017,6 +1059,12 @@ Error RuntimeDyldImpl::resolveExternalSymbols() {
       // If Resolver returned UINT64_MAX, the client wants to handle this symbol
       // manually and we shouldn't resolve its relocations.
       if (Addr != UINT64_MAX) {
+
+        // Tweak the address based on the symbol flags if necessary.
+        // For example, this is used by RuntimeDyldMachOARM to toggle the low bit
+        // if the target symbol is Thumb.
+        Addr = modifyAddressBasedOnFlags(Addr, Flags);
+
         DEBUG(dbgs() << "Resolving relocations Name: " << Name << "\t"
                      << format("0x%lx", Addr) << "\n");
         // This list may have been updated when we called getSymbolAddress, so

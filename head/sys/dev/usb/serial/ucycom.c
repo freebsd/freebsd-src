@@ -2,6 +2,8 @@
 __FBSDID("$FreeBSD$");
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
  *

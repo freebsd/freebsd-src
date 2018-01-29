@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012,2016 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016-2017 Microsoft Corp.
  * Copyright (c) 2012 NetApp Inc.
  * Copyright (c) 2012 Citrix Inc.
  * All rights reserved.
@@ -76,6 +76,8 @@ struct hypercall_ctx {
 static u_int			hyperv_get_timecount(struct timecounter *);
 static bool			hyperv_identify(void);
 static void			hypercall_memfree(void);
+
+u_int				hyperv_ver_major;
 
 u_int				hyperv_features;
 u_int				hyperv_recommends;
@@ -169,8 +171,9 @@ hyperv_identify(void)
 	hyperv_features3 = regs[3];
 
 	do_cpuid(CPUID_LEAF_HV_IDENTITY, regs);
+	hyperv_ver_major = regs[1] >> 16;
 	printf("Hyper-V Version: %d.%d.%d [SP%d]\n",
-	    regs[1] >> 16, regs[1] & 0xffff, regs[0], regs[2]);
+	    hyperv_ver_major, regs[1] & 0xffff, regs[0], regs[2]);
 
 	printf("  Features=0x%b\n", hyperv_features,
 	    "\020"

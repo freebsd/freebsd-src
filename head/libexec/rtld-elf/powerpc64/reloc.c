@@ -1,6 +1,8 @@
 /*      $NetBSD: ppc_reloc.c,v 1.10 2001/09/10 06:09:41 mycroft Exp $   */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (C) 1998   Tsubai Masanari
  * All rights reserved.
  *

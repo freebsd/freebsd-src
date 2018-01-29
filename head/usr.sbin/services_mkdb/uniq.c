@@ -1,6 +1,8 @@
 /*	$NetBSD: uniq.c,v 1.4 2008/04/28 20:24:17 martin Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2007 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

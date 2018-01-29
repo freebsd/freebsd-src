@@ -1,7 +1,9 @@
 /*	$FreeBSD$	*/
 /*	$KAME: advcap.c,v 1.11 2003/05/19 09:46:50 keiichi Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983 The Regents of the University of California.
  * All rights reserved.
  *

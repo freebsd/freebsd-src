@@ -4,6 +4,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -46,9 +48,7 @@
 #include <sys/stat.h>
 #include <rpc/rpc.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <netconfig.h>
-#include <syslog.h>
 #include <string.h>
 #include <stdlib.h>
 #include "rpcbind.h"

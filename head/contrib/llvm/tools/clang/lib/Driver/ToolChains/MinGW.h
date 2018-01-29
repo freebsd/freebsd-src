@@ -60,11 +60,13 @@ public:
         const llvm::opt::ArgList &Args);
 
   bool IsIntegratedAssemblerDefault() const override;
-  bool IsUnwindTablesDefault() const override;
+  bool IsUnwindTablesDefault(const llvm::opt::ArgList &Args) const override;
   bool isPICDefault() const override;
   bool isPIEDefault() const override;
   bool isPICDefaultForced() const override;
-  bool UseSEHExceptions() const;
+
+  llvm::ExceptionHandling GetExceptionModel(
+      const llvm::opt::ArgList &Args) const override;
 
   void
   AddClangSystemIncludeArgs(const llvm::opt::ArgList &DriverArgs,

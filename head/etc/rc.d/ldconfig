@@ -63,7 +63,7 @@ ldconfig_start()
 		esac
 
 		case `sysctl -n hw.machine_arch` in
-		armv6)
+		armv[67])
 			for i in ${ldconfig_localsoft_dirs}; do
 				if [ -d "${i}" ]; then
 					_files=`find ${i} -type f`

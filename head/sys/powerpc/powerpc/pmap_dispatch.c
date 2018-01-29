@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Peter Grehan
  * All rights reserved.
  *
@@ -70,7 +72,6 @@ static struct kobj_ops	mmu_kernel_kops;
  */
 struct pmap kernel_pmap_store;
 
-struct msgbuf *msgbufp;
 vm_offset_t    msgbuf_phys;
 
 vm_offset_t kernel_vm_end;
@@ -508,6 +509,23 @@ pmap_kremove(vm_offset_t va)
 
 	CTR2(KTR_PMAP, "%s(%#x)", __func__, va);
 	return (MMU_KREMOVE(mmu_obj, va));
+}
+
+int
+pmap_map_user_ptr(pmap_t pm, volatile const void *uaddr, void **kaddr,
+    size_t ulen, size_t *klen)
+{
+
+	CTR2(KTR_PMAP, "%s(%p)", __func__, uaddr);
+	return (MMU_MAP_USER_PTR(mmu_obj, pm, uaddr, kaddr, ulen, klen));
+}
+
+int
+pmap_decode_kernel_ptr(vm_offset_t addr, int *is_user, vm_offset_t *decoded)
+{
+
+	CTR2(KTR_PMAP, "%s(%#jx)", __func__, (uintmax_t)addr);
+	return (MMU_DECODE_KERNEL_PTR(mmu_obj, addr, is_user, decoded));
 }
 
 boolean_t

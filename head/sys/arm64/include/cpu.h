@@ -80,8 +80,13 @@
 
 #define	CPU_PART_THUNDER	0x0A1
 #define	CPU_PART_FOUNDATION	0xD00
+#define	CPU_PART_CORTEX_A35	0xD04
 #define	CPU_PART_CORTEX_A53	0xD03
+#define	CPU_PART_CORTEX_A55	0xD05
 #define	CPU_PART_CORTEX_A57	0xD07
+#define	CPU_PART_CORTEX_A72	0xD08
+#define	CPU_PART_CORTEX_A73	0xD09
+#define	CPU_PART_CORTEX_A75	0xD0A
 
 #define	CPU_REV_THUNDER_1_0	0x00
 #define	CPU_REV_THUNDER_1_1	0x01
@@ -145,6 +150,7 @@ void	cpu_halt(void) __dead2;
 void	cpu_reset(void) __dead2;
 void	fork_trampoline(void);
 void	identify_cpu(void);
+void	install_cpu_errata(void);
 void	print_cpu_features(u_int);
 void	swi_vm(void *v);
 

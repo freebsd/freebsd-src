@@ -15,6 +15,7 @@
 #define LLVM_OBJECT_OBJECTFILE_H
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/BinaryFormat/Magic.h"
 #include "llvm/MC/SubtargetFeature.h"
@@ -23,7 +24,6 @@
 #include "llvm/Object/SymbolicFile.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Error.h"
-#include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include <cassert>
@@ -109,6 +109,7 @@ public:
   bool isBSS() const;
   bool isVirtual() const;
   bool isBitcode() const;
+  bool isStripped() const;
 
   bool containsSymbol(SymbolRef S) const;
 
@@ -236,6 +237,7 @@ protected:
   // A section is 'virtual' if its contents aren't present in the object image.
   virtual bool isSectionVirtual(DataRefImpl Sec) const = 0;
   virtual bool isSectionBitcode(DataRefImpl Sec) const;
+  virtual bool isSectionStripped(DataRefImpl Sec) const;
   virtual relocation_iterator section_rel_begin(DataRefImpl Sec) const = 0;
   virtual relocation_iterator section_rel_end(DataRefImpl Sec) const = 0;
   virtual section_iterator getRelocatedSection(DataRefImpl Sec) const;
@@ -278,9 +280,12 @@ public:
   virtual uint8_t getBytesInAddress() const = 0;
 
   virtual StringRef getFileFormatName() const = 0;
-  virtual /* Triple::ArchType */ unsigned getArch() const = 0;
+  virtual Triple::ArchType getArch() const = 0;
   virtual SubtargetFeatures getFeatures() const = 0;
   virtual void setARMSubArch(Triple &TheTriple) const { }
+
+  /// @brief Create a triple from the data in this object file.
+  Triple makeTriple() const;
 
   /// Returns platform-specific object flags, if any.
   virtual std::error_code getPlatformFlags(unsigned &Result) const {
@@ -317,10 +322,10 @@ public:
     return v->isObject();
   }
 
-  static ErrorOr<std::unique_ptr<COFFObjectFile>>
+  static Expected<std::unique_ptr<COFFObjectFile>>
   createCOFFObjectFile(MemoryBufferRef Object);
 
-  static ErrorOr<std::unique_ptr<ObjectFile>>
+  static Expected<std::unique_ptr<ObjectFile>>
   createELFObjectFile(MemoryBufferRef Object);
 
   static Expected<std::unique_ptr<MachOObjectFile>>
@@ -437,6 +442,10 @@ inline bool SectionRef::isVirtual() const {
 
 inline bool SectionRef::isBitcode() const {
   return OwningObject->isSectionBitcode(SectionPimpl);
+}
+
+inline bool SectionRef::isStripped() const {
+  return OwningObject->isSectionStripped(SectionPimpl);
 }
 
 inline relocation_iterator SectionRef::relocation_begin() const {

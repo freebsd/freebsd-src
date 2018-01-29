@@ -1,6 +1,8 @@
 /*-
  * Data structures and definitions for CAM peripheral ("type") drivers.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998 Justin T. Gibbs.
  * All rights reserved.
  *
@@ -195,12 +197,15 @@ void		cam_periph_freeze_after_event(struct cam_periph *periph,
 					      struct timeval* event_time,
 					      u_int duration_ms);
 int		cam_periph_error(union ccb *ccb, cam_flags camflags,
-				 u_int32_t sense_flags, union ccb *save_ccb);
+				 u_int32_t sense_flags);
 
 static __inline struct mtx *
 cam_periph_mtx(struct cam_periph *periph)
 {
-	return (xpt_path_mtx(periph->path));
+	if (periph != NULL)
+		return (xpt_path_mtx(periph->path));
+	else
+		return (NULL);
 }
 
 #define cam_periph_owned(periph)					\
@@ -254,6 +259,9 @@ cam_periph_acquire_next(struct cam_periph *pperiph)
 	for ((periph) = cam_periph_acquire_first(driver);		\
 	    (periph) != NULL;						\
 	    (periph) = cam_periph_acquire_next(periph))
+
+#define CAM_PERIPH_PRINT(p, msg, args...)				\
+    printf("%s%d:" msg, (periph)->periph_name, (periph)->unit_number, ##args)
 
 #endif /* _KERNEL */
 #endif /* _CAM_CAM_PERIPH_H */

@@ -37,6 +37,8 @@
 #ifndef	_MACHINE_ATOMIC_H_
 #define	_MACHINE_ATOMIC_H_
 
+#include <sys/atomic_common.h>
+
 #define	fence()	__asm __volatile("fence" ::: "memory");
 #define	mb()	fence()
 #define	rmb()	fence()

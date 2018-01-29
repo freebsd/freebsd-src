@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -51,6 +51,9 @@
 #define	EXCP_SUPERVISOR_ECALL		9
 #define	EXCP_HYPERVISOR_ECALL		10
 #define	EXCP_MACHINE_ECALL		11
+#define	EXCP_INST_PAGE_FAULT		12
+#define	EXCP_LOAD_PAGE_FAULT		13
+#define	EXCP_STORE_PAGE_FAULT		15
 #define	EXCP_INTR			(1ul << 63)
 
 #define	SSTATUS_UIE			(1 << 0)
@@ -68,7 +71,7 @@
 #define	SSTATUS_FS_MASK			(0x3 << SSTATUS_FS_SHIFT)
 #define	SSTATUS_XS_SHIFT		15
 #define	SSTATUS_XS_MASK			(0x3 << SSTATUS_XS_SHIFT)
-#define	SSTATUS_PUM			(1 << 18)
+#define	SSTATUS_SUM			(1 << 18)
 #define	SSTATUS32_SD			(1 << 63)
 #define	SSTATUS64_SD			(1 << 31)
 
@@ -140,6 +143,15 @@
 /* Note: sip register has no SIP_STIP bit in Spike simulator */
 #define	SIP_SSIP	(1 << 1)
 #define	SIP_STIP	(1 << 5)
+
+#define	SATP_PPN_S	0
+#define	SATP_PPN_M	(0xfffffffffff << SATP_PPN_S)
+#define	SATP_ASID_S	44
+#define	SATP_ASID_M	(0xffff << SATP_ASID_S)
+#define	SATP_MODE_S	60
+#define	SATP_MODE_M	(0xf << SATP_MODE_S)
+#define	SATP_MODE_SV39	(8ULL << SATP_MODE_S)
+#define	SATP_MODE_SV48	(9ULL << SATP_MODE_S)
 
 #if 0
 /* lowRISC TODO */

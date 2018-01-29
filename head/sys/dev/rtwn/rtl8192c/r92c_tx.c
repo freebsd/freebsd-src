@@ -99,7 +99,7 @@ r92c_tx_protection(struct rtwn_softc *sc, struct r92c_tx_desc *txd,
 
 	if (mode == IEEE80211_PROT_CTSONLY ||
 	    mode == IEEE80211_PROT_RTSCTS) {
-		if (ridx >= RTWN_RIDX_MCS(0))
+		if (ridx >= RTWN_RIDX_HT_MCS(0))
 			rate = rtwn_ctl_mcsrate(ic->ic_rt, ridx);
 		else
 			rate = ieee80211_ctl_rate(ic->ic_rt, ridx2rate[ridx]);
@@ -285,7 +285,7 @@ r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 				txd->txdw4 |= htole32(R92C_TXDW4_DATA_SHPRE);
 
 			prot = IEEE80211_PROT_NONE;
-			if (ridx >= RTWN_RIDX_MCS(0)) {
+			if (ridx >= RTWN_RIDX_HT_MCS(0)) {
 				r92c_tx_set_ht40(sc, txd, ni);
 				r92c_tx_set_sgi(sc, txd, ni);
 				prot = ic->ic_htprotmode;

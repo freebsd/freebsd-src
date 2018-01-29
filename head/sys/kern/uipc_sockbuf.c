@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1988, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -334,7 +336,7 @@ sowakeup(struct socket *so, struct sockbuf *sb)
 	if (sb->sb_flags & SB_AIO)
 		sowakeup_aio(so, sb);
 	SOCKBUF_UNLOCK(sb);
-	if (ret == SU_ISCONNECTED && !(so->so_state & SS_ISDISCONNECTED))
+	if (ret == SU_ISCONNECTED)
 		soisconnected(so);
 	if ((so->so_state & SS_ASYNC) && so->so_sigio != NULL)
 		pgsigio(&so->so_sigio, SIGIO, 0);

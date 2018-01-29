@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1990, 1993
  *	The Regents of the University of California.
  * Copyright (c) 2010-2011 Juniper Networks, Inc.
@@ -761,6 +763,7 @@ int	in_pcbattach_txrtlmt(struct inpcb *, struct ifnet *, uint32_t, uint32_t, uin
 void	in_pcbdetach_txrtlmt(struct inpcb *);
 int	in_pcbmodify_txrtlmt(struct inpcb *, uint32_t);
 int	in_pcbquery_txrtlmt(struct inpcb *, uint32_t *);
+int	in_pcbquery_txrlevel(struct inpcb *, uint32_t *);
 void	in_pcboutput_txrtlmt(struct inpcb *, struct ifnet *, struct mbuf *);
 void	in_pcboutput_eagain(struct inpcb *);
 #endif

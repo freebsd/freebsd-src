@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002-2003 Luigi Rizzo
  * Copyright (c) 1996 Alex Nash, Paul Traina, Poul-Henning Kamp
  * Copyright (c) 1994 Ugen J.S.Antsilevich
@@ -81,6 +81,8 @@ enum tokens {
 	TOK_STARTBRACE,
 	TOK_ENDBRACE,
 
+	TOK_ABORT6,
+	TOK_ABORT,
 	TOK_ACCEPT,
 	TOK_COUNT,
 	TOK_EACTION,
@@ -205,14 +207,14 @@ enum tokens {
 
 	TOK_IP,
 	TOK_IF,
- 	TOK_ALOG,
- 	TOK_DENY_INC,
- 	TOK_SAME_PORTS,
- 	TOK_UNREG_ONLY,
+	TOK_ALOG,
+	TOK_DENY_INC,
+	TOK_SAME_PORTS,
+	TOK_UNREG_ONLY,
 	TOK_SKIP_GLOBAL,
- 	TOK_RESET_ADDR,
- 	TOK_ALIAS_REV,
- 	TOK_PROXY_ONLY,
+	TOK_RESET_ADDR,
+	TOK_ALIAS_REV,
+	TOK_PROXY_ONLY,
 	TOK_REDIR_ADDR,
 	TOK_REDIR_PORT,
 	TOK_REDIR_PROTO,

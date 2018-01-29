@@ -2,6 +2,8 @@
 /*	$FreeBSD$ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -51,15 +53,15 @@
 #include <netconfig.h>
 #include <errno.h>
 #include <syslog.h>
-#include <unistd.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
 #ifdef PORTMAP
 #include <netinet/in.h>
 #include <rpc/rpc_com.h>
 #include <rpc/pmap_prot.h>
 #endif /* PORTMAP */
-#include <string.h>
-#include <stdlib.h>
 
 #include "rpcbind.h"
 
@@ -1099,7 +1101,7 @@ void
 my_svc_run(void)
 {
 	size_t nfds;
-	struct pollfd pollfds[FD_SETSIZE];
+	struct pollfd pollfds[FD_SETSIZE + 1];
 	int poll_ret, check_ret;
 	int n;
 #ifdef SVC_RUN_DEBUG
@@ -1110,6 +1112,9 @@ my_svc_run(void)
 
 	for (;;) {
 		p = pollfds;
+		p->fd = terminate_rfd;
+		p->events = MASKVAL;
+		p++;
 		for (n = 0; n <= svc_maxfd; n++) {
 			if (FD_ISSET(n, &svc_fdset)) {
 				p->fd = n;
@@ -1128,7 +1133,20 @@ my_svc_run(void)
 			fprintf(stderr, ">\n");
 		}
 #endif
-		switch (poll_ret = poll(pollfds, nfds, 30 * 1000)) {
+		poll_ret = poll(pollfds, nfds, 30 * 1000);
+
+		if (doterminate != 0) {
+			close(rpcbindlockfd);
+#ifdef WARMSTART
+			syslog(LOG_ERR,
+			    "rpcbind terminating on signal %d. Restart with \"rpcbind -w\"",
+			    (int)doterminate);
+			write_warmstart();	/* Dump yourself */
+#endif
+			exit(2);
+		}
+
+		switch (poll_ret) {
 		case -1:
 			/*
 			 * We ignore all errors, continuing with the assumption

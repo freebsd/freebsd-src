@@ -1,5 +1,7 @@
 /* $Id: ldm.h,v 1.78 2010/05/10 10:08:46 lcn Exp $ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2005-2011 HighPoint Technologies, Inc.
  * All rights reserved.
  *

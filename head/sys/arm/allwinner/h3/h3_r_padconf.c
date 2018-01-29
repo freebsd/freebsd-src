@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Emmanuel Vadot <manu@freebsd.org>
+ * Copyright (c) 2016-2017 Emmanuel Vadot <manu@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,9 +33,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/types.h>
 
+#if defined(__aarch64__)
+#include "opt_soc.h"
+#endif
+
 #include <arm/allwinner/allwinner_pinctrl.h>
 
-#ifdef SOC_ALLWINNER_H3
+#if defined(SOC_ALLWINNER_H3) || defined(SOC_ALLWINNER_H5)
 
 const static struct allwinner_pins h3_r_pins[] = {
 	{"PL0",  0, 0,  {"gpio_in", "gpio_out", "s_twi", NULL, NULL, NULL, "pl_eint0", NULL}, 6, 0},

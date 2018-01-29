@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -293,7 +293,7 @@ OpcParsePrintf (
 
         if (StringToProcess)
         {
-            NewString = UtStringCacheCalloc (StringLength + 1);
+            NewString = UtLocalCacheCalloc (StringLength + 1);
             strncpy (NewString, StartPosition, StringLength);
 
             NewOp = TrAllocateOp (PARSEOP_STRING_LITERAL);
@@ -382,7 +382,7 @@ OpcParsePrintf (
 
     if (StringToProcess)
     {
-        NewString = UtStringCacheCalloc (StringLength + 1);
+        NewString = UtLocalCacheCalloc (StringLength + 1);
         strncpy (NewString, StartPosition, StringLength);
 
         NewOp = TrAllocateOp (PARSEOP_STRING_LITERAL);

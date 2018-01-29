@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 10, 2007
+.Dd October 25, 2017
 .Dt IPMI 4
 .Os
 .Sh NAME
@@ -90,6 +90,17 @@ is heavily adopted from the standard and
 .Tn Linux
 driver; however, not all features described in the
 standard are supported.
+.Pp
+The
+.Nm
+driver implements the power cycling option to
+.Xr shutdown 8
+to implement power cycling of the system.
+The motherboard's BMC must support the chassis device and the optional
+power cycle subcomand of the chassis control command as described in section 28.3
+of the IPMI standard.
+The length of time the system is off will be at least one second, but
+may be longer if the power cycle interval has been set (see section 28.9).
 .Sh IOCTLS
 Sending and receiving messages through the
 .Nm
@@ -179,6 +190,8 @@ An address supplied was invalid.
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr watchdog 4 ,
+.Xr reboot 8 ,
+.Xr shutdown 8 ,
 .Xr watchdog 8 ,
 .Xr watchdogd 8 ,
 .Xr watchdog 9

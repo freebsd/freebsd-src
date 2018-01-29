@@ -54,7 +54,7 @@ static const struct tok ip_option_values[] = {
 /*
  * print the recorded route in an IP RR, LSRR or SSRR option.
  */
-static void
+static int
 ip_printroute(netdissect_options *ndo,
               register const u_char *cp, u_int length)
 {
@@ -63,19 +63,25 @@ ip_printroute(netdissect_options *ndo,
 
 	if (length < 3) {
 		ND_PRINT((ndo, " [bad length %u]", length));
-		return;
+		return (0);
 	}
 	if ((length + 1) & 3)
 		ND_PRINT((ndo, " [bad length %u]", length));
+	ND_TCHECK(cp[2]);
 	ptr = cp[2] - 1;
 	if (ptr < 3 || ((ptr + 1) & 3) || ptr > length + 1)
 		ND_PRINT((ndo, " [bad ptr %u]", cp[2]));
 
 	for (len = 3; len < length; len += 4) {
+		ND_TCHECK2(cp[len], 4);
 		ND_PRINT((ndo, " %s", ipaddr_string(ndo, &cp[len])));
 		if (ptr > len)
 			ND_PRINT((ndo, ","));
 	}
+	return (0);
+
+trunc:
+	return (-1);
 }
 
 /*
@@ -162,7 +168,7 @@ nextproto4_cksum(netdissect_options *ndo,
 	return (in_cksum(vec, 2));
 }
 
-static void
+static int
 ip_printts(netdissect_options *ndo,
            register const u_char *cp, u_int length)
 {
@@ -173,16 +179,18 @@ ip_printts(netdissect_options *ndo,
 
 	if (length < 4) {
 		ND_PRINT((ndo, "[bad length %u]", length));
-		return;
+		return (0);
 	}
 	ND_PRINT((ndo, " TS{"));
 	hoplen = ((cp[3]&0xF) != IPOPT_TS_TSONLY) ? 8 : 4;
 	if ((length - 4) & (hoplen-1))
 		ND_PRINT((ndo, "[bad length %u]", length));
+	ND_TCHECK(cp[2]);
 	ptr = cp[2] - 1;
 	len = 0;
 	if (ptr < 4 || ((ptr - 4) & (hoplen-1)) || ptr > length + 1)
 		ND_PRINT((ndo, "[bad ptr %u]", cp[2]));
+	ND_TCHECK(cp[3]);
 	switch (cp[3]&0xF) {
 	case IPOPT_TS_TSONLY:
 		ND_PRINT((ndo, "TSONLY"));
@@ -211,6 +219,7 @@ ip_printts(netdissect_options *ndo,
 	for (len = 4; len < length; len += hoplen) {
 		if (ptr == len)
 			type = " ^ ";
+		ND_TCHECK2(cp[len], hoplen);
 		ND_PRINT((ndo, "%s%d@%s", type, EXTRACT_32BITS(&cp[len+hoplen-4]),
 		       hoplen!=8 ? "" : ipaddr_string(ndo, &cp[len])));
 		type = " ";
@@ -223,6 +232,10 @@ done:
 		ND_PRINT((ndo, " [%d hops not recorded]} ", cp[3]>>4));
 	else
 		ND_PRINT((ndo, "}"));
+	return (0);
+
+trunc:
+	return (-1);
 }
 
 /*
@@ -272,13 +285,15 @@ ip_optprint(netdissect_options *ndo,
 			return;
 
 		case IPOPT_TS:
-			ip_printts(ndo, cp, option_len);
+			if (ip_printts(ndo, cp, option_len) == -1)
+				goto trunc;
 			break;
 
 		case IPOPT_RR:       /* fall through */
 		case IPOPT_SSRR:
 		case IPOPT_LSRR:
-			ip_printroute(ndo, cp, option_len);
+			if (ip_printroute(ndo, cp, option_len) == -1)
+				goto trunc;
 			break;
 
 		case IPOPT_RA:
@@ -324,7 +339,7 @@ static void
 ip_print_demux(netdissect_options *ndo,
 	       struct ip_print_demux_state *ipds)
 {
-	struct protoent *proto;
+	const char *p_name;
 
 again:
 	switch (ipds->nh) {
@@ -490,8 +505,8 @@ again:
 #endif
 
 	default:
-		if (ndo->ndo_nflag==0 && (proto = getprotobynumber(ipds->nh)) != NULL)
-			ND_PRINT((ndo, " %s", proto->p_name));
+		if (ndo->ndo_nflag==0 && (p_name = netdb_protoname(ipds->nh)) != NULL)
+			ND_PRINT((ndo, " %s", p_name));
 		else
 			ND_PRINT((ndo, " ip-proto-%d", ipds->nh));
 		ND_PRINT((ndo, " %d", ipds->len));
@@ -532,7 +547,7 @@ ip_print(netdissect_options *ndo,
 	u_int hlen;
 	struct cksum_vec vec[1];
 	uint16_t sum, ip_sum;
-	struct protoent *proto;
+	const char *p_name;
 
 	ipds->ip = (const struct ip *)bp;
 	ND_TCHECK(ipds->ip->ip_vhl);
@@ -677,8 +692,8 @@ ip_print(netdissect_options *ndo,
 		 */
 		ND_PRINT((ndo, "%s > %s:", ipaddr_string(ndo, &ipds->ip->ip_src),
 		          ipaddr_string(ndo, &ipds->ip->ip_dst)));
-		if (!ndo->ndo_nflag && (proto = getprotobynumber(ipds->ip->ip_p)) != NULL)
-			ND_PRINT((ndo, " %s", proto->p_name));
+		if (!ndo->ndo_nflag && (p_name = netdb_protoname(ipds->ip->ip_p)) != NULL)
+			ND_PRINT((ndo, " %s", p_name));
 		else
 			ND_PRINT((ndo, " ip-proto-%d", ipds->ip->ip_p));
 	}

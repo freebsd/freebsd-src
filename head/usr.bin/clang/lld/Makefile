@@ -7,9 +7,10 @@ LLD_SRCS=	${LLVM_SRCS}/tools/lld
 
 PACKAGE=	lld
 PROG_CXX=	ld.lld
-MAN=
+
 .if ${MK_LLD_IS_LD} != "no"
 SYMLINKS=	${PROG_CXX} ${BINDIR}/ld
+MLINKS=		ld.lld.1 ld.1
 .endif
 
 CFLAGS+=	-I${LLD_SRCS}/ELF
@@ -18,6 +19,15 @@ CFLAGS+=	-I${.OBJDIR}
 CFLAGS+=	-I${OBJTOP}/lib/clang/libllvm
 
 SRCDIR=		tools/lld
+SRCS+=		Common/Args.cpp
+SRCS+=		Common/ErrorHandler.cpp
+SRCS+=		Common/Memory.cpp
+SRCS+=		Common/Reproduce.cpp
+SRCS+=		Common/Strings.cpp
+SRCS+=		Common/TargetOptionsCommandFlags.cpp
+SRCS+=		Common/Threads.cpp
+SRCS+=		Common/Version.cpp
+SRCS+=		ELF/AArch64ErrataFix.cpp
 SRCS+=		ELF/Arch/AArch64.cpp
 SRCS+=		ELF/Arch/AMDGPU.cpp
 SRCS+=		ELF/Arch/ARM.cpp
@@ -32,7 +42,6 @@ SRCS+=		ELF/Arch/X86_64.cpp
 SRCS+=		ELF/Driver.cpp
 SRCS+=		ELF/DriverUtils.cpp
 SRCS+=		ELF/EhFrame.cpp
-SRCS+=		ELF/Error.cpp
 SRCS+=		ELF/Filesystem.cpp
 SRCS+=		ELF/GdbIndex.cpp
 SRCS+=		ELF/ICF.cpp
@@ -53,15 +62,12 @@ SRCS+=		ELF/SyntheticSections.cpp
 SRCS+=		ELF/Target.cpp
 SRCS+=		ELF/Thunks.cpp
 SRCS+=		ELF/Writer.cpp
-SRCS+=		lib/Config/Version.cpp
 SRCS+=		lib/Core/Error.cpp
 SRCS+=		lib/Core/File.cpp
 SRCS+=		lib/Core/LinkingContext.cpp
 SRCS+=		lib/Core/Reader.cpp
-SRCS+=		lib/Core/Reproduce.cpp
 SRCS+=		lib/Core/Resolver.cpp
 SRCS+=		lib/Core/SymbolTable.cpp
-SRCS+=		lib/Core/TargetOptionsCommandFlags.cpp
 SRCS+=		tools/lld/lld.cpp
 
 .include "${SRCTOP}/lib/clang/llvm.build.mk"

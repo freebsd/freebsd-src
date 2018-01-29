@@ -761,9 +761,6 @@ static void
 nic_send_rss_size(struct nicpf *nic, int vf)
 {
 	union nic_mbx mbx = {};
-	uint64_t  *msg;
-
-	msg = (uint64_t *)&mbx;
 
 	mbx.rss_size.msg = NIC_MBOX_MSG_RSS_SIZE;
 	mbx.rss_size.ind_tbl_size = nic->rss_ind_tbl_size;

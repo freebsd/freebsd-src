@@ -24,11 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 5, 2010
+.Dd October 4, 2017
 .Dt UNR 9
 .Os
 .Sh NAME
 .Nm new_unrhdr ,
+.Nm clear_unrhdr ,
 .Nm delete_unrhdr ,
 .Nm alloc_unr ,
 .Nm alloc_unr_specific ,
@@ -38,6 +39,8 @@
 .In sys/systm.h
 .Ft "struct unrhdr *"
 .Fn new_unrhdr "int low" "int high" "struct mtx *mutex"
+.Ft void
+.Fn clear_unrhdr "struct unrhdr *uh"
 .Ft void
 .Fn delete_unrhdr "struct unrhdr *uh"
 .Ft int
@@ -70,8 +73,16 @@ is not
 .Dv NULL ,
 it is used for locking when allocating and freeing units.
 Otherwise, internal mutex is used.
+.It Fn clear_unrhdr uh
+Clear all units from the specified unit number allocator entity.
+This function resets the entity as if it were just initialized with
+.Fn new_unrhdr .
 .It Fn delete_unrhdr uh
-Destroy specified unit number allocator entity.
+Delete specified unit number allocator entity.
+This function frees the memory associated with the entity, it does not free
+any units.
+To free all units use
+.Fn clear_unrhdr .
 .It Fn alloc_unr uh
 Return a new unit number.
 The lowest free number is always allocated.

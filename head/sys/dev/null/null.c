@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Mark R. V. Murray & Jeroen C. van Gelderen
  * Copyright (c) 2001-2004 Mark R. V. Murray
  * Copyright (c) 2014 Eitan Adler
@@ -114,7 +116,7 @@ null_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data __unused,
 	case DIOCSKERNELDUMP_FREEBSD11:
 #endif
 	case DIOCSKERNELDUMP:
-		error = set_dumper(NULL, NULL, td, 0, NULL, 0, NULL);
+		error = set_dumper(NULL, NULL, td, 0, 0, NULL, 0, NULL);
 		break;
 	case FIONBIO:
 		break;

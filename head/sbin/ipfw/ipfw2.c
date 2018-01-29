@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002-2003 Luigi Rizzo
  * Copyright (c) 1996 Alex Nash, Paul Traina, Poul-Henning Kamp
  * Copyright (c) 1994 Ugen J.S.Antsilevich
@@ -244,6 +244,8 @@ static struct _s_x rule_eactions[] = {
 };
 
 static struct _s_x rule_actions[] = {
+	{ "abort6",		TOK_ABORT6 },
+	{ "abort",		TOK_ABORT },
 	{ "accept",		TOK_ACCEPT },
 	{ "pass",		TOK_ACCEPT },
 	{ "allow",		TOK_ACCEPT },
@@ -1507,6 +1509,8 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 		case O_REJECT:
 			if (cmd->arg1 == ICMP_REJECT_RST)
 				bprintf(bp, "reset");
+			else if (cmd->arg1 == ICMP_REJECT_ABORT)
+				bprintf(bp, "abort");
 			else if (cmd->arg1 == ICMP_UNREACH_HOST)
 				bprintf(bp, "reject");
 			else
@@ -1516,6 +1520,8 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 		case O_UNREACH6:
 			if (cmd->arg1 == ICMP6_UNREACH_RST)
 				bprintf(bp, "reset6");
+			else if (cmd->arg1 == ICMP6_UNREACH_ABORT)
+				bprintf(bp, "abort6");
 			else
 				print_unreach6_code(bp, cmd->arg1);
 			break;
@@ -2250,12 +2256,13 @@ do_range_cmd(int cmd, ipfw_range_tlv *rt)
 void
 ipfw_sets_handler(char *av[])
 {
-	uint32_t masks[2];
-	int i;
-	uint8_t cmd, rulenum;
 	ipfw_range_tlv rt;
 	char *msg;
 	size_t size;
+	uint32_t masks[2];
+	int i;
+	uint16_t rulenum;
+	uint8_t cmd;
 
 	av++;
 	memset(&rt, 0, sizeof(rt));
@@ -3752,6 +3759,16 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 			break;
 		}
 		errx(EX_DATAERR, "Invalid state name %s", *av);
+		break;
+
+	case TOK_ABORT:
+		action->opcode = O_REJECT;
+		action->arg1 = ICMP_REJECT_ABORT;
+		break;
+
+	case TOK_ABORT6:
+		action->opcode = O_UNREACH6;
+		action->arg1 = ICMP6_UNREACH_ABORT;
 		break;
 
 	case TOK_ACCEPT:

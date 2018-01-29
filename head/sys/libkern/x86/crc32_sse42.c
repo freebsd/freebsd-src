@@ -52,19 +52,21 @@ _mm_crc32_u8(uint32_t x, uint8_t y)
 	return (x);
 }
 
-static __inline uint32_t
-_mm_crc32_u32(uint32_t x, uint32_t y)
-{
-	__asm("crc32l %1,%0" : "+r" (x) : "r" (y));
-	return (x);
-}
-
+#ifdef __amd64__
 static __inline uint64_t
 _mm_crc32_u64(uint64_t x, uint64_t y)
 {
 	__asm("crc32q %1,%0" : "+r" (x) : "r" (y));
 	return (x);
 }
+#else
+static __inline uint32_t
+_mm_crc32_u32(uint32_t x, uint32_t y)
+{
+	__asm("crc32l %1,%0" : "+r" (x) : "r" (y));
+	return (x);
+}
+#endif
 
 /* CRC-32C (iSCSI) polynomial in reversed bit order. */
 #define POLY	0x82f63b78

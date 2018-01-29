@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
  *
@@ -319,7 +321,7 @@ struct l_statfs {
 #define	LINUX_PROC_SUPER_MAGIC	0x9fa0L
 #define	LINUX_UFS_SUPER_MAGIC	0x00011954L	/* XXX - UFS_MAGIC in Linux */
 #define	LINUX_ZFS_SUPER_MAGIC	0x2FC12FC1
-#define LINUX_DEVFS_SUPER_MAGIC	0x1373L
+#define	LINUX_DEVFS_SUPER_MAGIC	0x1373L
 #define	LINUX_SHMFS_MAGIC	0x01021994
 
 static long

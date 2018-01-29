@@ -33,9 +33,7 @@ sysctl debug.fail_point.g_mirror_metadata_write='off' || exit 1
 # Replace the broken mirror, and then stop the gmirror.
 gmirror forget $name || exit 1
 gmirror insert $name /dev/$us2 || exit 1
-while [ $(gmirror status $name | grep ACTIVE | wc -l) -ne 2 ]; do
-    sleep 1
-done
+syncwait
 gmirror stop $name || exit 1
 
 # Restart the gmirror on the original two mirrors. One of them is broken,
@@ -49,14 +47,12 @@ dd if=/dev/random of=/dev/mirror/$name bs=$ddbs count=1 >/dev/null 2>&1
 # the metadata blocks will fail the comparison. It would be nice to do this
 # with a "gmirror verify" command instead.
 gmirror activate $name /dev/$us2 || exit 1
-while [ $(gmirror status $name | grep ACTIVE | wc -l) -ne 2 ]; do
-    sleep 1
-done
+syncwait
 gmirror destroy $name || exit 1
 if cmp -s $m1 $m3; then
-    echo "ok 1"
+	echo "ok 1"
 else
-    echo "not ok 1"
+	echo "not ok 1"
 fi
 
 rm -f $m1 $m2 $m3

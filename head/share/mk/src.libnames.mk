@@ -20,6 +20,7 @@ _PRIVATELIBS=	\
 		event \
 		heimipcc \
 		heimipcs \
+		ifconfig \
 		ldns \
 		sqlite3 \
 		ssh \
@@ -42,6 +43,7 @@ _INTERNALLIBS=	\
 		opts \
 		parse \
 		pe \
+		pmcstat \
 		readline \
 		sl \
 		sm \
@@ -76,6 +78,7 @@ _LIBRARIES=	\
 		cap_pwd \
 		cap_random \
 		cap_sysctl \
+		cap_syslog \
 		com_err \
 		compiler_rt \
 		crypt \
@@ -108,7 +111,6 @@ _LIBRARIES=	\
 		heimntlm \
 		heimsqlite \
 		hx509 \
-		ifconfig \
 		ipsec \
 		jail \
 		kadm5clnt \
@@ -146,6 +148,7 @@ _LIBRARIES=	\
 		pthread \
 		radius \
 		readline \
+		regex \
 		roken \
 		rpcsec_gss \
 		rpcsvc \
@@ -192,18 +195,16 @@ _LIBRARIES+= \
 _LIBRARIES+= \
 		cxgb4 \
 		ibcm \
-		ibcommon \
 		ibmad \
-		ibsdp \
+		ibnetdisc \
 		ibumad \
 		ibverbs \
 		mlx4 \
-		mthca \
-		opensm \
-		osmcomp \
-		osmvendor \
+		mlx5 \
 		rdmacm \
-
+		osmcomp \
+		opensm \
+		osmvendor
 .endif
 
 # Each library's LIBADD needs to be duplicated here for static linkage of
@@ -238,6 +239,7 @@ _DP_cap_grp=	nv
 _DP_cap_pwd=	nv
 _DP_cap_random=	nv
 _DP_cap_sysctl=	nv
+_DP_cap_syslog=	nv
 _DP_pjdlog=	util
 _DP_opie=	md
 _DP_usb=	pthread
@@ -329,17 +331,21 @@ _DP_zfs=	md pthread umem util uutil m nvpair avl bsdxml geom nvpair z \
 		zfs_core
 _DP_zfs_core=	nvpair
 _DP_zpool=	md pthread z nvpair avl umem
+
+# OFED support
 .if ${MK_OFED} != "no"
 _DP_cxgb4=	ibverbs pthread
 _DP_ibcm=	ibverbs
-_DP_ibmad=	ibcommon ibumad
-_DP_ibumad=	ibcommon
+_DP_ibmad=	ibumad
+_DP_ibnetdisc=	osmcomp ibmad ibumad
+_DP_ibumad=	
+_DP_ibverbs=
 _DP_mlx4=	ibverbs pthread
-_DP_mthca=	ibverbs pthread
-_DP_opensm=	pthread
-_DP_osmcomp=	pthread
-_DP_osmvendor=	ibumad opensm osmcomp pthread
+_DP_mlx5=	ibverbs pthread
 _DP_rdmacm=	ibverbs
+_DP_osmcomp=	pthread
+_DP_opensm=	pthread
+_DP_osmvendor=	ibumad pthread
 .endif
 
 # Define special cases
@@ -354,7 +360,7 @@ LIB${_l:tu}?=	${LIBDESTDIR}${LIBDIR_BASE}/libprivate${_l}.a
 .endfor
 
 .for _l in ${_LIBRARIES}
-.if ${_INTERNALLIBS:M${_l}}
+.if ${_INTERNALLIBS:M${_l}} || !defined(SYSROOT)
 LDADD_${_l}_L+=		-L${LIB${_l:tu}DIR}
 .endif
 DPADD_${_l}?=	${LIB${_l:tu}}
@@ -465,6 +471,9 @@ LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 LIBAMUDIR=	${OBJTOP}/usr.sbin/amd/libamu
 LIBAMU?=	${LIBAMUDIR}/libamu.a
 
+LIBPMCSTATDIR=	${OBJTOP}/lib/libpmcstat
+LIBPMCSTAT?=	${LIBPMCSTATDIR}/libpmcstat.a
+
 # Define a directory for each library.  This is useful for adding -L in when
 # not using a --sysroot or for meta mode bootstrapping when there is no
 # Makefile.depend.  These are sorted by directory.
@@ -477,19 +486,21 @@ LIBUUTILDIR=	${OBJTOP}/cddl/lib/libuutil
 LIBZFSDIR=	${OBJTOP}/cddl/lib/libzfs
 LIBZFS_COREDIR=	${OBJTOP}/cddl/lib/libzfs_core
 LIBZPOOLDIR=	${OBJTOP}/cddl/lib/libzpool
-LIBCXGB4DIR=	${OBJTOP}/contrib/ofed/usr.lib/libcxgb4
-LIBIBCMDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibcm
-LIBIBCOMMONDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibcommon
-LIBIBMADDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibmad
-LIBIBUMADDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibumad
-LIBIBVERBSDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibverbs
-LIBMLX4DIR=	${OBJTOP}/contrib/ofed/usr.lib/libmlx4
-LIBMTHCADIR=	${OBJTOP}/contrib/ofed/usr.lib/libmthca
-LIBOPENSMDIR=	${OBJTOP}/contrib/ofed/usr.lib/libopensm
-LIBOSMCOMPDIR=	${OBJTOP}/contrib/ofed/usr.lib/libosmcomp
-LIBOSMVENDORDIR=	${OBJTOP}/contrib/ofed/usr.lib/libosmvendor
-LIBRDMACMDIR=	${OBJTOP}/contrib/ofed/usr.lib/librdmacm
-LIBIBSDPDIR=	${OBJTOP}/contrib/ofed/usr.lib/libsdp
+
+# OFED support
+LIBCXGB4DIR=	${OBJTOP}/contrib/ofed/libcxgb4
+LIBIBCMDIR=	${OBJTOP}/contrib/ofed/libibcm
+LIBIBMADDIR=	${OBJTOP}/contrib/ofed/libibmad
+LIBIBNETDISCDIR=${OBJTOP}/contrib/ofed/libibnetdisc
+LIBIBUMADDIR=	${OBJTOP}/contrib/ofed/libibumad
+LIBIBVERBSDIR=	${OBJTOP}/contrib/ofed/libibverbs
+LIBMLX4DIR=	${OBJTOP}/contrib/ofed/libmlx4
+LIBMLX5DIR=	${OBJTOP}/contrib/ofed/libmlx5
+LIBRDMACMDIR=	${OBJTOP}/contrib/ofed/librdmacm
+LIBOSMCOMPDIR=	${OBJTOP}/contrib/ofed/opensm/complib
+LIBOPENSMDIR=	${OBJTOP}/contrib/ofed/opensm/libopensm
+LIBOSMVENDORDIR=${OBJTOP}/contrib/ofed/opensm/libvendor
+
 LIBDIALOGDIR=	${OBJTOP}/gnu/lib/libdialog
 LIBGCOVDIR=	${OBJTOP}/gnu/lib/libgcov
 LIBGOMPDIR=	${OBJTOP}/gnu/lib/libgomp
@@ -526,6 +537,7 @@ LIBCAP_GRPDIR=	${OBJTOP}/lib/libcasper/services/cap_grp
 LIBCAP_PWDDIR=	${OBJTOP}/lib/libcasper/services/cap_pwd
 LIBCAP_RANDOMDIR=	${OBJTOP}/lib/libcasper/services/cap_random
 LIBCAP_SYSCTLDIR=	${OBJTOP}/lib/libcasper/services/cap_sysctl
+LIBCAP_SYSLOGDIR=	${OBJTOP}/lib/libcasper/services/cap_syslog
 LIBBSDXMLDIR=	${OBJTOP}/lib/libexpat
 LIBKVMDIR=	${OBJTOP}/lib/libkvm
 LIBPTHREADDIR=	${OBJTOP}/lib/libthr

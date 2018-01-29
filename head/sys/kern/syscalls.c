@@ -554,8 +554,8 @@ const char *syscallnames[] = {
 	"ppoll",			/* 545 = ppoll */
 	"futimens",			/* 546 = futimens */
 	"utimensat",			/* 547 = utimensat */
-	"numa_getaffinity",			/* 548 = numa_getaffinity */
-	"numa_setaffinity",			/* 549 = numa_setaffinity */
+	"#548",			/* 548 = numa_getaffinity */
+	"#549",			/* 549 = numa_setaffinity */
 	"fdatasync",			/* 550 = fdatasync */
 	"fstat",			/* 551 = fstat */
 	"fstatat",			/* 552 = fstatat */
@@ -567,4 +567,6 @@ const char *syscallnames[] = {
 	"fhstatfs",			/* 558 = fhstatfs */
 	"mknodat",			/* 559 = mknodat */
 	"kevent",			/* 560 = kevent */
+	"cpuset_getdomain",			/* 561 = cpuset_getdomain */
+	"cpuset_setdomain",			/* 562 = cpuset_setdomain */
 };

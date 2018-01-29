@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD AND RSA-MD)
+ *
  * Copyright (c) 2010, 2013 Zheng Liu <lz@freebsd.org>
  * Copyright (c) 2012, Vyacheslav Matyushin
  * All rights reserved.
@@ -58,6 +60,7 @@
 #include <sys/stat.h>
 #include <sys/mount.h>
 
+#include <fs/ext2fs/ext2fs.h>
 #include <fs/ext2fs/htree.h>
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2_mount.h>

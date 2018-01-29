@@ -115,7 +115,7 @@ f_flag_body()
 
 f_flag_cleanup()
 {
-	atf_check chflags 0 foo
+	chflags 0 foo || :
 }
 
 atf_test_case h_flag

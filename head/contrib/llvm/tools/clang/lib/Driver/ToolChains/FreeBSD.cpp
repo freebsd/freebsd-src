@@ -240,7 +240,8 @@ void freebsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nodefaultlibs)) {
     addOpenMPRuntime(CmdArgs, ToolChain, Args);
     if (D.CCCIsCXX()) {
-      ToolChain.AddCXXStdlibLibArgs(Args, CmdArgs);
+      if (ToolChain.ShouldLinkCXXStdlib(Args))
+        ToolChain.AddCXXStdlibLibArgs(Args, CmdArgs);
       if (Args.hasArg(options::OPT_pg))
         CmdArgs.push_back("-lm_p");
       else
@@ -358,17 +359,18 @@ Tool *FreeBSD::buildAssembler() const {
 
 Tool *FreeBSD::buildLinker() const { return new tools::freebsd::Linker(*this); }
 
-bool FreeBSD::UseSjLjExceptions(const ArgList &Args) const {
+llvm::ExceptionHandling FreeBSD::GetExceptionModel(const ArgList &Args) const {
   // FreeBSD uses SjLj exceptions on ARM oabi.
   switch (getTriple().getEnvironment()) {
   case llvm::Triple::GNUEABIHF:
   case llvm::Triple::GNUEABI:
   case llvm::Triple::EABI:
-    return false;
-
+    return llvm::ExceptionHandling::None;
   default:
-    return (getTriple().getArch() == llvm::Triple::arm ||
-            getTriple().getArch() == llvm::Triple::thumb);
+    if (getTriple().getArch() == llvm::Triple::arm ||
+        getTriple().getArch() == llvm::Triple::thumb)
+      return llvm::ExceptionHandling::SjLj;
+    return llvm::ExceptionHandling::None;
   }
 }
 

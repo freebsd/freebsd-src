@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Sam Leffler, Errno Consulting
  * Copyright (c) 2003 Global Technology Associates, Inc.
  * All rights reserved.
@@ -1593,9 +1595,7 @@ safe_mcopy(struct mbuf *srcm, struct mbuf *dstm, u_int offset)
 	 * Advance src and dst to offset.
 	 */
 	j = offset;
-	while (j >= 0) {
-		if (srcm->m_len > j)
-			break;
+	while (j >= srcm->m_len) {
 		j -= srcm->m_len;
 		srcm = srcm->m_next;
 		if (srcm == NULL)
@@ -1605,9 +1605,7 @@ safe_mcopy(struct mbuf *srcm, struct mbuf *dstm, u_int offset)
 	slen = srcm->m_len - j;
 
 	j = offset;
-	while (j >= 0) {
-		if (dstm->m_len > j)
-			break;
+	while (j >= dstm->m_len) {
 		j -= dstm->m_len;
 		dstm = dstm->m_next;
 		if (dstm == NULL)

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996, Javier Mart^mn Rueda (jmrueda@diatel.upm.es)
  * All rights reserved.
  *

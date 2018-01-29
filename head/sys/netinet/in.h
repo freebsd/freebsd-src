@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -289,7 +291,7 @@ __END_DECLS
  * if you trust the remote host to restrict these ports.
  *
  * The default range of ports and the high range can be changed by
- * sysctl(3).  (net.inet.ip.port{hi,low}{first,last}_auto)
+ * sysctl(3).  (net.inet.ip.portrange.{hi,low,}{first,last})
  *
  * Changing those values has bad security implications if you are
  * using a stateless firewall that is allowing packets outside of that

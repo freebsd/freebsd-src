@@ -37,7 +37,7 @@ strnsubst(char **str, const char *match, const char *replstr, size_t maxsize)
 	if (s1 == NULL)
 		return;
 	/*
-	 * If maxsize is 0 then set it to to the length of s1, because we have
+	 * If maxsize is 0 then set it to the length of s1, because we have
 	 * to duplicate s1.  XXX we maybe should double-check whether the match
 	 * appears in s1.  If it doesn't, then we also have to set the length
 	 * to the length of s1, to avoid modifying the argument.  It may make

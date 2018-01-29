@@ -330,8 +330,6 @@ imx6_ahci_detach(device_t dev)
 	return (ahci_detach(dev));
 }
 
-devclass_t ahci_devclass;
-
 static device_method_t imx6_ahci_ata_methods[] = {
 	/* device probe, attach and detach methods */
 	DEVMETHOD(device_probe,  imx6_ahci_probe),

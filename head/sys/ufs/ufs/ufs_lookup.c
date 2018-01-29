@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -1124,8 +1126,9 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 		error = UFS_TRUNCATE(dvp, (off_t)dp->i_endoff,
 		    IO_NORMAL | (DOINGASYNC(dvp) ? 0 : IO_SYNC), cr);
 		if (error != 0)
-			vn_printf(dvp, "ufs_direnter: failed to truncate "
-			    "err %d", error);
+			vn_printf(dvp,
+			    "ufs_direnter: failed to truncate, error %d\n",
+			    error);
 #ifdef UFS_DIRHASH
 		if (error == 0 && dp->i_dirhash != NULL)
 			ufsdirhash_dirtrunc(dp, dp->i_endoff);

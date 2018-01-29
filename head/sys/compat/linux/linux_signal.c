@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
  *
@@ -748,8 +750,7 @@ linux_rt_sigqueueinfo(struct thread *td, struct linux_rt_sigqueueinfo_args *args
 	sig = linux_to_bsd_signal(args->sig);
 
 	error = ESRCH;
-	if ((p = pfind(args->pid)) != NULL ||
-	    (p = zpfind(args->pid)) != NULL) {
+	if ((p = pfind_any(args->pid)) != NULL) {
 		error = p_cansignal(td, p, sig);
 		if (error != 0) {
 			PROC_UNLOCK(p);

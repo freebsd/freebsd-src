@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ToolDrivers/llvm-dlltool/DlltoolDriver.h"
-#include "llvm/Object/ArchiveWriter.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Object/COFFImportFile.h"
 #include "llvm/Object/COFFModuleDefinition.h"
@@ -21,7 +20,6 @@
 #include "llvm/Option/Option.h"
 #include "llvm/Support/Path.h"
 
-#include <string>
 #include <vector>
 
 using namespace llvm;
@@ -41,7 +39,7 @@ enum {
 #include "Options.inc"
 #undef PREFIX
 
-static const llvm::opt::OptTable::Info infoTable[] = {
+static const llvm::opt::OptTable::Info InfoTable[] = {
 #define OPTION(X1, X2, ID, KIND, GROUP, ALIAS, X7, X8, X9, X10, X11, X12)      \
   {X1, X2, X10,         X11,         OPT_##ID, llvm::opt::Option::KIND##Class, \
    X9, X8, OPT_##GROUP, OPT_##ALIAS, X7,       X12},
@@ -51,24 +49,21 @@ static const llvm::opt::OptTable::Info infoTable[] = {
 
 class DllOptTable : public llvm::opt::OptTable {
 public:
-  DllOptTable() : OptTable(infoTable, false) {}
+  DllOptTable() : OptTable(InfoTable, false) {}
 };
 
 } // namespace
 
-std::vector<std::unique_ptr<MemoryBuffer>> OwningMBs;
-
 // Opens a file. Path has to be resolved already.
-// Newly created memory buffers are owned by this driver.
-MemoryBufferRef openFile(StringRef Path) {
+static std::unique_ptr<MemoryBuffer> openFile(const Twine &Path) {
   ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> MB = MemoryBuffer::getFile(Path);
 
-  if (std::error_code EC = MB.getError())
-    llvm::errs() << "fail openFile: " << EC.message() << "\n";
+  if (std::error_code EC = MB.getError()) {
+    llvm::errs() << "cannot open file " << Path << ": " << EC.message() << "\n";
+    return nullptr;
+  }
 
-  MemoryBufferRef MBRef = MB.get()->getMemBufferRef();
-  OwningMBs.push_back(std::move(MB.get())); // take ownership
-  return MBRef;
+  return std::move(*MB);
 }
 
 static MachineTypes getEmulation(StringRef S) {
@@ -76,10 +71,11 @@ static MachineTypes getEmulation(StringRef S) {
       .Case("i386", IMAGE_FILE_MACHINE_I386)
       .Case("i386:x86-64", IMAGE_FILE_MACHINE_AMD64)
       .Case("arm", IMAGE_FILE_MACHINE_ARMNT)
+      .Case("arm64", IMAGE_FILE_MACHINE_ARM64)
       .Default(IMAGE_FILE_MACHINE_UNKNOWN);
 }
 
-static std::string getImplibPath(std::string Path) {
+static std::string getImplibPath(StringRef Path) {
   SmallString<128> Out = StringRef("lib");
   Out.append(Path);
   sys::path::replace_extension(Out, ".a");
@@ -101,24 +97,30 @@ int llvm::dlltoolDriverMain(llvm::ArrayRef<const char *> ArgsArr) {
   if (Args.hasArgNoClaim(OPT_INPUT) ||
       (!Args.hasArgNoClaim(OPT_d) && !Args.hasArgNoClaim(OPT_l))) {
     Table.PrintHelp(outs(), ArgsArr[0], "dlltool", false);
-    llvm::outs() << "\nTARGETS: i386, i386:x86-64, arm\n";
+    llvm::outs() << "\nTARGETS: i386, i386:x86-64, arm, arm64\n";
     return 1;
   }
 
   if (!Args.hasArgNoClaim(OPT_m) && Args.hasArgNoClaim(OPT_d)) {
     llvm::errs() << "error: no target machine specified\n"
-                 << "supported targets: i386, i386:x86-64, arm\n";
+                 << "supported targets: i386, i386:x86-64, arm, arm64\n";
     return 1;
   }
 
   for (auto *Arg : Args.filtered(OPT_UNKNOWN))
     llvm::errs() << "ignoring unknown argument: " << Arg->getSpelling() << "\n";
 
-  MemoryBufferRef MB;
-  if (auto *Arg = Args.getLastArg(OPT_d))
-    MB = openFile(Arg->getValue());
+  if (!Args.hasArg(OPT_d)) {
+    llvm::errs() << "no definition file specified\n";
+    return 1;
+  }
 
-  if (!MB.getBufferSize()) {
+  std::unique_ptr<MemoryBuffer> MB =
+      openFile(Args.getLastArg(OPT_d)->getValue());
+  if (!MB)
+    return 1;
+
+  if (!MB->getBufferSize()) {
     llvm::errs() << "definition file empty\n";
     return 1;
   }
@@ -133,7 +135,7 @@ int llvm::dlltoolDriverMain(llvm::ArrayRef<const char *> ArgsArr) {
   }
 
   Expected<COFFModuleDefinition> Def =
-      parseCOFFModuleDefinition(MB, Machine, true);
+      parseCOFFModuleDefinition(*MB, Machine, true);
 
   if (!Def) {
     llvm::errs() << "error parsing definition\n"
@@ -154,7 +156,24 @@ int llvm::dlltoolDriverMain(llvm::ArrayRef<const char *> ArgsArr) {
   if (Path.empty())
     Path = getImplibPath(Def->OutputFile);
 
-  if (writeImportLibrary(Def->OutputFile, Path, Def->Exports, Machine))
+  if (Machine == IMAGE_FILE_MACHINE_I386 && Args.getLastArg(OPT_k)) {
+    for (COFFShortExport& E : Def->Exports) {
+      if (E.isWeak() || (!E.Name.empty() && E.Name[0] == '?'))
+        continue;
+      E.SymbolName = E.Name;
+      // Trim off the trailing decoration. Symbols will always have a
+      // starting prefix here (either _ for cdecl/stdcall, @ for fastcall
+      // or ? for C++ functions). Vectorcall functions won't have any
+      // fixed prefix, but the function base name will still be at least
+      // one char.
+      E.Name = E.Name.substr(0, E.Name.find('@', 1));
+      // By making sure E.SymbolName != E.Name for decorated symbols,
+      // writeImportLibrary writes these symbols with the type
+      // IMPORT_NAME_UNDECORATE.
+    }
+  }
+
+  if (writeImportLibrary(Def->OutputFile, Path, Def->Exports, Machine, true))
     return 1;
   return 0;
 }

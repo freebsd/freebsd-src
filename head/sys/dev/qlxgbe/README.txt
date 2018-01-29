@@ -61,14 +61,17 @@ following OS platforms:
   - kldunload if_qlxgbe
 
 5. Parameters to set prior to installing the driver
+     Please run  "sysctl kern.ipc" and "sysctl net.inet.tcp" and see if these
+     values are already greater than shown below. Change only those which
+     are less than shown below.
 
    - Add the following lines to /etc/sysctl.conf and reboot the machine prior
      to installing the driver
    
-	kern.ipc.nmbjumbo9=262144
+	kern.ipc.nmbjumbo9=2000000
+	kern.ipc.nmbclusters=1000000
 	net.inet.tcp.recvbuf_max=262144
 	net.inet.tcp.recvbuf_inc=16384
-	kern.ipc.nmbclusters=1000000
 	kern.ipc.maxsockbuf=2097152
 	net.inet.tcp.recvspace=131072
 	net.inet.tcp.sendbuf_max=262144
@@ -78,10 +81,10 @@ following OS platforms:
 
 	login or su to root
 
-	sysctl kern.ipc.nmbjumbo9=262144
+	sysctl kern.ipc.nmbjumbo9=2000000
+	sysctl kern.ipc.nmbclusters=1000000
 	sysctl net.inet.tcp.recvbuf_max=262144
 	sysctl net.inet.tcp.recvbuf_inc=16384
-	sysctl kern.ipc.nmbclusters=1000000
 	sysctl kern.ipc.maxsockbuf=2097152
 	sysctl net.inet.tcp.recvspace=131072
 	sysctl net.inet.tcp.sendbuf_max=262144

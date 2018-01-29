@@ -12,6 +12,7 @@ CSTD=	c99
 CFLAGS+= -I${SRCTOP}/sys/cddl/compat/opensolaris
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/lib/libumem
+CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libcmdutils
 CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libnvpair
 CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libuutil/common
 CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs/common

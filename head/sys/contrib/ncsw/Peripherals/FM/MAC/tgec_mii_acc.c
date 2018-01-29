@@ -1,5 +1,5 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
- * All rights reserved.
+/*
+ * Copyright 2008-2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -31,11 +31,14 @@
  */
 
 
+
 #include "error_ext.h"
 #include "std_ext.h"
 #include "fm_mac.h"
 #include "tgec.h"
 #include "xx_ext.h"
+
+#include "fm_common.h"
 
 
 /*****************************************************************************/
@@ -46,11 +49,19 @@ t_Error TGEC_MII_WritePhyReg(t_Handle   h_Tgec,
 {
     t_Tgec                  *p_Tgec = (t_Tgec *)h_Tgec;
     t_TgecMiiAccessMemMap   *p_MiiAccess;
+    uint32_t                cfgStatusReg;
 
     SANITY_CHECK_RETURN_ERROR(p_Tgec, E_INVALID_HANDLE);
     SANITY_CHECK_RETURN_ERROR(p_Tgec->p_MiiMemMap, E_INVALID_HANDLE);
 
     p_MiiAccess = p_Tgec->p_MiiMemMap;
+
+    /* Configure MII */
+    cfgStatusReg  = GET_UINT32(p_MiiAccess->mdio_cfg_status);
+    cfgStatusReg &= ~MIIMCOM_DIV_MASK;
+     /* (one half of fm clock => 2.5Mhz) */
+    cfgStatusReg |=((((p_Tgec->fmMacControllerDriver.clkFreq*10)/2)/25) << MIIMCOM_DIV_SHIFT);
+    WRITE_UINT32(p_MiiAccess->mdio_cfg_status, cfgStatusReg);
 
     while ((GET_UINT32(p_MiiAccess->mdio_cfg_status)) & MIIMIND_BUSY)
         XX_UDelay (1);
@@ -82,12 +93,19 @@ t_Error TGEC_MII_ReadPhyReg(t_Handle h_Tgec,
 {
     t_Tgec                  *p_Tgec = (t_Tgec *)h_Tgec;
     t_TgecMiiAccessMemMap   *p_MiiAccess;
-    uint32_t                cfg_status;
+    uint32_t                cfgStatusReg;
 
     SANITY_CHECK_RETURN_ERROR(p_Tgec, E_INVALID_HANDLE);
     SANITY_CHECK_RETURN_ERROR(p_Tgec->p_MiiMemMap, E_INVALID_HANDLE);
 
     p_MiiAccess = p_Tgec->p_MiiMemMap;
+
+    /* Configure MII */
+    cfgStatusReg  = GET_UINT32(p_MiiAccess->mdio_cfg_status);
+    cfgStatusReg &= ~MIIMCOM_DIV_MASK;
+     /* (one half of fm clock => 2.5Mhz) */
+    cfgStatusReg |=((((p_Tgec->fmMacControllerDriver.clkFreq*10)/2)/25) << MIIMCOM_DIV_SHIFT);
+    WRITE_UINT32(p_MiiAccess->mdio_cfg_status, cfgStatusReg);
 
     while ((GET_UINT32(p_MiiAccess->mdio_cfg_status)) & MIIMIND_BUSY)
         XX_UDelay (1);
@@ -110,12 +128,12 @@ t_Error TGEC_MII_ReadPhyReg(t_Handle h_Tgec,
 
     *p_Data =  (uint16_t)GET_UINT32(p_MiiAccess->mdio_data);
 
-    cfg_status  = GET_UINT32(p_MiiAccess->mdio_cfg_status);
+    cfgStatusReg  = GET_UINT32(p_MiiAccess->mdio_cfg_status);
 
-    if (cfg_status & MIIMIND_READ_ERROR)
+    if (cfgStatusReg & MIIMIND_READ_ERROR)
         RETURN_ERROR(MINOR, E_INVALID_VALUE,
-                     ("Read Error: phyAddr 0x%x, dev 0x%x, reg 0x%x, cfg_status 0x%x",
-                      ((phyAddr & 0xe0)>>5), (phyAddr & 0x1f), reg, cfg_status));
+                     ("Read Error: phyAddr 0x%x, dev 0x%x, reg 0x%x, cfgStatusReg 0x%x",
+                      ((phyAddr & 0xe0)>>5), (phyAddr & 0x1f), reg, cfgStatusReg));
 
     return E_OK;
 }

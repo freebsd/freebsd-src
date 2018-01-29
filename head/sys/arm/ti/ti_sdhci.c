@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ian Lepore <ian@freebsd.org>
  * Copyright (c) 2011 Ben Gray <ben.r.gray@gmail.com>.
  * All rights reserved.
@@ -683,11 +685,7 @@ ti_sdhci_attach(device_t dev)
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 
-#ifdef MMCCAM
-	sdhci_cam_start_slot(&sc->slot);
-#else
 	sdhci_start_slot(&sc->slot);
-#endif
 	return (0);
 
 fail:

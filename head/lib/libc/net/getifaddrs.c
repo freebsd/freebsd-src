@@ -1,6 +1,8 @@
 /*	$KAME: getifaddrs.c,v 1.9 2001/08/20 02:31:20 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-1-Clause
+ *
  * Copyright (c) 1995, 1999
  *	Berkeley Software Design, Inc.  All rights reserved.
  *

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -42,11 +44,16 @@ static char sccsid[] = "@(#)kdump.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 #define _WANT_KERNEL_ERRNO
+#ifdef __LP64__
+#define	_WANT_KEVENT32
+#endif
+#define	_WANT_FREEBSD11_KEVENT
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/uio.h>
+#include <sys/event.h>
 #include <sys/ktrace.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -56,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 #include <sys/nv.h>
 #endif
 #include <arpa/inet.h>
@@ -80,7 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <vis.h>
 #include "ktrace.h"
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 #include <libcasper.h>
 
 #include <casper/cap_grp.h>
@@ -109,6 +116,8 @@ void ktrstruct(char *, size_t);
 void ktrcapfail(struct ktr_cap_fail *);
 void ktrfault(struct ktr_fault *);
 void ktrfaultend(struct ktr_faultend *);
+void ktrkevent(struct kevent *);
+void ktrstructarray(struct ktr_struct_array *, size_t);
 void usage(void);
 
 #define	TIMESTAMP_NONE		0x0
@@ -164,36 +173,9 @@ struct proc_info
 
 static TAILQ_HEAD(trace_procs, proc_info) trace_procs;
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 static cap_channel_t *cappwd, *capgrp;
-#endif
 
-static void
-strerror_init(void)
-{
-
-	/*
-	 * Cache NLS data before entering capability mode.
-	 * XXXPJD: There should be strerror_init() and strsignal_init() in libc.
-	 */
-	(void)catopen("libc", NL_CAT_LOCALE);
-}
-
-static void
-localtime_init(void)
-{
-	time_t ltime;
-
-	/*
-	 * Allow localtime(3) to cache /etc/localtime content before entering
-	 * capability mode.
-	 * XXXPJD: There should be localtime_init() in libc.
-	 */
-	(void)time(&ltime);
-	(void)localtime(&ltime);
-}
-
-#ifdef HAVE_LIBCASPER
 static int
 cappwdgrp_setup(cap_channel_t **cappwdp, cap_channel_t **capgrpp)
 {
@@ -235,7 +217,7 @@ cappwdgrp_setup(cap_channel_t **cappwdp, cap_channel_t **capgrpp)
 	*capgrpp = capgrploc;
 	return (0);
 }
-#endif	/* HAVE_LIBCASPER */
+#endif	/* WITH_CASPER */
 
 static void
 print_integer_arg(const char *(*decoder)(int), int value)
@@ -441,9 +423,10 @@ main(int argc, char *argv[])
 		if (!freopen(tracefile, "r", stdin))
 			err(1, "%s", tracefile);
 
-	strerror_init();
-	localtime_init();
-#ifdef HAVE_LIBCASPER
+	caph_cache_catpages();
+	caph_cache_tzdata();
+
+#ifdef WITH_CASPER
 	if (resolv != 0) {
 		if (cappwdgrp_setup(&cappwd, &capgrp) < 0) {
 			cappwd = NULL;
@@ -543,6 +526,9 @@ main(int argc, char *argv[])
 			break;
 		case KTR_FAULTEND:
 			ktrfaultend((struct ktr_faultend *)m);
+			break;
+		case KTR_STRUCT_ARRAY:
+			ktrstructarray((struct ktr_struct_array *)m, ktrlen);
 			break;
 		default:
 			printf("\n");
@@ -678,6 +664,7 @@ dumpheader(struct ktr_header *kth)
 		type = "USER";
 		break;
 	case KTR_STRUCT:
+	case KTR_STRUCT_ARRAY:
 		type = "STRU";
 		break;
 	case KTR_SYSCTL:
@@ -1060,6 +1047,15 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				ip++;
 				narg--;
 				break;
+			case SYS_pathconf:
+			case SYS_lpathconf:
+			case SYS_fpathconf:
+				print_number(ip, narg, c);
+				putchar(',');
+				print_integer_arg(sysdecode_pathconf_name, *ip);
+				ip++;
+				narg--;
+				break;
 			case SYS_getpriority:
 			case SYS_setpriority:
 				putchar('(');
@@ -1419,6 +1415,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				print_integer_arg_valid(sysdecode_atfd, *ip);
 				ip++;
 				narg--;
+				print_number(ip, narg, c);
 				break;
 			case SYS_cap_fcntls_limit:
 				print_number(ip, narg, c);
@@ -1476,6 +1473,41 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 			case SYS_truncate:
 				print_number(ip, narg, c);
 				print_number64(first, ip, narg, c);
+				break;
+			case SYS_fchownat:
+				print_number(ip, narg, c);
+				print_number(ip, narg, c);
+				print_number(ip, narg, c);
+				break;
+			case SYS_fstatat:
+			case SYS_utimensat:
+				print_number(ip, narg, c);
+				print_number(ip, narg, c);
+				break;
+			case SYS_unlinkat:
+				print_number(ip, narg, c);
+				break;
+			case SYS_sysarch:
+				putchar('(');
+				print_integer_arg(sysdecode_sysarch_number, *ip);
+				ip++;
+				narg--;
+				c = ',';
+				break;
+			}
+			switch (ktr->ktr_code) {
+			case SYS_chflagsat:
+			case SYS_fchownat:
+			case SYS_faccessat:
+			case SYS_fchmodat:
+			case SYS_fstatat:
+			case SYS_linkat:
+			case SYS_unlinkat:
+			case SYS_utimensat:
+				putchar(',');
+				print_mask_arg0(sysdecode_atflags, *ip);
+				ip++;
+				narg--;
 				break;
 			}
 		}
@@ -1829,7 +1861,7 @@ ktrstat(struct stat *statp)
 	if (resolv == 0) {
 		pwd = NULL;
 	} else {
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 		if (cappwd != NULL)
 			pwd = cap_getpwuid(cappwd, statp->st_uid);
 		else
@@ -1843,7 +1875,7 @@ ktrstat(struct stat *statp)
 	if (resolv == 0) {
 		grp = NULL;
 	} else {
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 		if (capgrp != NULL)
 			grp = cap_getgrgid(capgrp, statp->st_gid);
 		else
@@ -2022,6 +2054,137 @@ ktrfaultend(struct ktr_faultend *ktr)
 	else
 		printf("<invalid=%d>", ktr->result);
 	printf("\n");
+}
+
+void
+ktrkevent(struct kevent *kev)
+{
+
+	printf("{ ident=");
+	switch (kev->filter) {
+	case EVFILT_READ:
+	case EVFILT_WRITE:
+	case EVFILT_VNODE:
+	case EVFILT_PROC:
+	case EVFILT_TIMER:
+	case EVFILT_PROCDESC:
+	case EVFILT_EMPTY:
+		printf("%ju", (uintmax_t)kev->ident);
+		break;
+	case EVFILT_SIGNAL:
+		print_signal(kev->ident);
+		break;
+	default:
+		printf("%p", (void *)kev->ident);
+	}
+	printf(", filter=");
+	print_integer_arg(sysdecode_kevent_filter, kev->filter);
+	printf(", flags=");
+	print_mask_arg0(sysdecode_kevent_flags, kev->flags);
+	printf(", fflags=");
+	sysdecode_kevent_fflags(stdout, kev->filter, kev->fflags,
+	    decimal ? 10 : 16);
+	printf(", data=%#jx, udata=%p }", (uintmax_t)kev->data, kev->udata);
+}
+
+void
+ktrstructarray(struct ktr_struct_array *ksa, size_t buflen)
+{
+	struct kevent kev;
+	char *name, *data;
+	size_t namelen, datalen;
+	int i;
+	bool first;
+
+	buflen -= sizeof(*ksa);
+	for (name = (char *)(ksa + 1), namelen = 0;
+	     namelen < buflen && name[namelen] != '\0';
+	     ++namelen)
+		/* nothing */;
+	if (namelen == buflen)
+		goto invalid;
+	if (name[namelen] != '\0')
+		goto invalid;
+	/* sanity check */
+	for (i = 0; i < (int)namelen; ++i)
+		if (!isalnum(name[i]) && name[i] != '_')
+			goto invalid;
+	data = name + namelen + 1;
+	datalen = buflen - namelen - 1;
+	printf("struct %s[] = { ", name);
+	first = true;
+	for (; datalen >= ksa->struct_size;
+	    data += ksa->struct_size, datalen -= ksa->struct_size) {
+		if (!first)
+			printf("\n             ");
+		else
+			first = false;
+		if (strcmp(name, "kevent") == 0) {
+			if (ksa->struct_size != sizeof(kev))
+				goto bad_size;
+			memcpy(&kev, data, sizeof(kev));
+			ktrkevent(&kev);
+		} else if (strcmp(name, "kevent_freebsd11") == 0) {
+			struct kevent_freebsd11 kev11;
+
+			if (ksa->struct_size != sizeof(kev11))
+				goto bad_size;
+			memcpy(&kev11, data, sizeof(kev11));
+			memset(&kev, 0, sizeof(kev));
+			kev.ident = kev11.ident;
+			kev.filter = kev11.filter;
+			kev.flags = kev11.flags;
+			kev.fflags = kev11.fflags;
+			kev.data = kev11.data;
+			kev.udata = kev11.udata;
+			ktrkevent(&kev);
+#ifdef _WANT_KEVENT32
+		} else if (strcmp(name, "kevent32") == 0) {
+			struct kevent32 kev32;
+
+			if (ksa->struct_size != sizeof(kev32))
+				goto bad_size;
+			memcpy(&kev32, data, sizeof(kev32));
+			memset(&kev, 0, sizeof(kev));
+			kev.ident = kev32.ident;
+			kev.filter = kev32.filter;
+			kev.flags = kev32.flags;
+			kev.fflags = kev32.fflags;
+#if BYTE_ORDER == BIG_ENDIAN
+			kev.data = kev32.data2 | ((int64_t)kev32.data1 << 32);
+#else
+			kev.data = kev32.data1 | ((int64_t)kev32.data2 << 32);
+#endif
+			kev.udata = (void *)(uintptr_t)kev32.udata;
+			ktrkevent(&kev);
+		} else if (strcmp(name, "kevent32_freebsd11") == 0) {
+			struct kevent32_freebsd11 kev32;
+
+			if (ksa->struct_size != sizeof(kev32))
+				goto bad_size;
+			memcpy(&kev32, data, sizeof(kev32));
+			memset(&kev, 0, sizeof(kev));
+			kev.ident = kev32.ident;
+			kev.filter = kev32.filter;
+			kev.flags = kev32.flags;
+			kev.fflags = kev32.fflags;
+			kev.data = kev32.data;
+			kev.udata = (void *)(uintptr_t)kev32.udata;
+			ktrkevent(&kev);
+#endif
+		} else {
+			printf("<unknown structure> }\n");
+			return;
+		}
+	}
+	printf(" }\n");
+	return;
+invalid:
+	printf("invalid record\n");
+	return;
+bad_size:
+	printf("<bad size> }\n");
+	return;
 }
 
 void

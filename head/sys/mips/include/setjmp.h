@@ -1,6 +1,8 @@
 /* From: NetBSD: setjmp.h,v 1.2 1997/04/06 08:47:41 cgd Exp */
 
 /*-
+ * SPDX-License-Identifier: MIT-CMU
+ *
  * Copyright (c) 1994, 1995 Carnegie-Mellon University.
  * All rights reserved.
  *

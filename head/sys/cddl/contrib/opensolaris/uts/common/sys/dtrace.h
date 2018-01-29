@@ -254,6 +254,8 @@ typedef enum dtrace_probespec {
 #define	DIF_VAR_GID		0x011f	/* process group ID */
 #define	DIF_VAR_ERRNO		0x0120	/* thread errno */
 #define	DIF_VAR_EXECARGS	0x0121	/* process arguments */
+#define	DIF_VAR_JID		0x0122	/* process jail id */
+#define	DIF_VAR_JAILNAME	0x0123	/* process jail name */
 
 #ifndef illumos
 #define	DIF_VAR_CPU		0x0200
@@ -2492,7 +2494,7 @@ extern void dtrace_helpers_destroy(proc_t *);
 #define	DTRACE_INVOP_SD		1
 #define	DTRACE_INVOP_LD		2
 
-#elif defined(__riscv__)
+#elif defined(__riscv)
 
 #define	SD_RA_SP_MASK		0x01fff07f
 #define	SD_RA_SP		0x00113023

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
  * Copyright (c) 1994 John S. Dyson
@@ -13,7 +15,7 @@
  * All rights reserved.
  * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -217,8 +219,6 @@ struct pmap kernel_pmap_store;
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 vm_offset_t kernel_vm_end = 0;
-
-struct msgbuf *msgbufp = NULL;
 
 vm_paddr_t dmap_phys_base;	/* The start of the dmap region */
 vm_paddr_t dmap_phys_max;	/* The limit of the dmap region */
@@ -596,8 +596,10 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 			min_pa = physmap[i];
 		if (physmap[i + 1] > max_pa)
 			max_pa = physmap[i + 1];
-		break;
 	}
+	printf("physmap_idx %lx\n", physmap_idx);
+	printf("min_pa %lx\n", min_pa);
+	printf("max_pa %lx\n", max_pa);
 
 	/* Create a direct map region early so we can use it for pa -> va */
 	pmap_bootstrap_dmap(l1pt, min_pa, max_pa);
@@ -771,7 +773,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	/* TODO */
 
 	sched_pin();
-	__asm __volatile("sfence.vm");
+	__asm __volatile("sfence.vma %0" :: "r" (va) : "memory");
 	sched_unpin();
 }
 
@@ -782,7 +784,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	/* TODO */
 
 	sched_pin();
-	__asm __volatile("sfence.vm");
+	__asm __volatile("sfence.vma");
 	sched_unpin();
 }
 
@@ -793,7 +795,7 @@ pmap_invalidate_all(pmap_t pmap)
 	/* TODO */
 
 	sched_pin();
-	__asm __volatile("sfence.vm");
+	__asm __volatile("sfence.vma");
 	sched_unpin();
 }
 
@@ -1612,7 +1614,7 @@ free_pv_chunk(struct pv_chunk *pc)
 #if 0 /* TODO: For minidump */
 	dump_drop_page(m->phys_addr);
 #endif
-	vm_page_unwire(m, PQ_INACTIVE);
+	vm_page_unwire(m, PQ_NONE);
 	vm_page_free(m);
 }
 
@@ -1800,7 +1802,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	pd_entry_t *l1, *l2;
 	pt_entry_t l3_pte, *l3;
 	struct spglist free;
-	int anyvalid;
 
 	/*
 	 * Perform an unsynchronized read.  This is, however, safe.
@@ -1808,7 +1809,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (pmap->pm_stats.resident_count == 0)
 		return;
 
-	anyvalid = 0;
 	SLIST_INIT(&free);
 
 	rw_rlock(&pvh_global_lock);
@@ -1881,8 +1881,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	}
 	if (lock != NULL)
 		rw_wunlock(lock);
-	if (anyvalid)
-		pmap_invalidate_all(pmap);
 	rw_runlock(&pvh_global_lock);	
 	PMAP_UNLOCK(pmap);
 	pmap_free_zero_pages(&free);
@@ -2010,14 +2008,11 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				pmap_load_store(l3p, entry);
 				PTE_SYNC(l3p);
 				/* XXX: Use pmap_invalidate_range */
-				pmap_invalidate_page(pmap, va);
+				pmap_invalidate_page(pmap, sva);
 			}
 		}
 	}
 	PMAP_UNLOCK(pmap);
-
-	/* TODO: Only invalidate entries we are touching */
-	pmap_invalidate_all(pmap);
 }
 
 /*
@@ -3181,12 +3176,15 @@ void
 pmap_activate(struct thread *td)
 {
 	pmap_t pmap;
+	uint64_t reg;
 
 	critical_enter();
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	td->td_pcb->pcb_l1addr = vtophys(pmap->pm_l1);
 
-	__asm __volatile("csrw sptbr, %0" :: "r"(td->td_pcb->pcb_l1addr >> PAGE_SHIFT));
+	reg = SATP_MODE_SV39;
+	reg |= (td->td_pcb->pcb_l1addr >> PAGE_SHIFT);
+	__asm __volatile("csrw sptbr, %0" :: "r"(reg));
 
 	pmap_invalidate_all(pmap);
 	critical_exit();

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------
-# $File: sysex,v 1.8 2014/06/03 19:17:27 christos Exp $
+# $File: sysex,v 1.9 2017/03/17 21:35:28 christos Exp $
 # sysex: file(1) magic for MIDI sysex files
 #
 # GRR: original 1 byte test at offset was too general as it catches also many FATs of DOS filesystems
@@ -256,7 +256,7 @@
 >1	belong&0xffffff00	0x00011d00	Nemesys
 >1	belong&0xffffff00	0x00011e00	DBX
 >1	belong&0xffffff00	0x00011f00	Syndyne
->1	belong&0xffffff00	0x00012000	Bitheadz	
+>1	belong&0xffffff00	0x00012000	Bitheadz
 >1	belong&0xffffff00	0x00012100	Cakewalk
 >1	belong&0xffffff00	0x00012200	Staccato
 >1	belong&0xffffff00	0x00012300	National Semicon.

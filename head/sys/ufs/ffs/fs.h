@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -234,6 +236,18 @@ struct fsck_cmd {
 };
 
 /*
+ * A recovery structure placed at the end of the boot block area by newfs
+ * that can be used by fsck to search for alternate superblocks.
+ */
+struct fsrecovery {
+	int32_t	fsr_magic;	/* magic number */
+	int32_t	fsr_fsbtodb;	/* fsbtodb and dbtofsb shift constant */
+	int32_t	fsr_sblkno;	/* offset of super-block in filesys */
+	int32_t	fsr_fpg;	/* blocks per group * fs_frag */
+	u_int32_t fsr_ncg;	/* number of cylinder groups */
+};
+
+/*
  * Per cylinder group information; summarized in blocks allocated
  * from first cylinder group data blocks.  These blocks have to be
  * read in from fs_csaddr (size fs_cssize) in addition to the
@@ -334,7 +348,8 @@ struct fs {
 	int64_t	 fs_unrefs;		/* number of unreferenced inodes */
 	int64_t  fs_providersize;	/* size of underlying GEOM provider */
 	int64_t	 fs_metaspace;		/* size of area reserved for metadata */
-	int64_t	 fs_sparecon64[14];	/* old rotation block list head */
+	int64_t	 fs_sparecon64[13];	/* old rotation block list head */
+	int64_t	 fs_sblockactualloc;	/* byte offset of this superblock */
 	int64_t	 fs_sblockloc;		/* byte offset of standard superblock */
 	struct	csum_total fs_cstotal;	/* (u) cylinder summary information */
 	ufs_time_t fs_time;		/* last time written */
@@ -349,7 +364,8 @@ struct fs {
 	int32_t	 fs_save_cgsize;	/* save real cg size to use fs_bsize */
 	ufs_time_t fs_mtime;		/* Last mount or fsck time. */
 	int32_t  fs_sujfree;		/* SUJ free list */
-	int32_t	 fs_sparecon32[23];	/* reserved for future constants */
+	int32_t	 fs_sparecon32[22];	/* reserved for future constants */
+	u_int32_t fs_metackhash;	/* metadata check-hash, see CK_ below */
 	int32_t  fs_flags;		/* see FS_ flags below */
 	int32_t	 fs_contigsumsize;	/* size of cluster summary array */ 
 	int32_t	 fs_maxsymlinklen;	/* max length of an internal symlink */
@@ -376,7 +392,6 @@ CTASSERT(sizeof(struct fs) == 1376);
 #define	FS_UFS1_MAGIC	0x011954	/* UFS1 fast filesystem magic number */
 #define	FS_UFS2_MAGIC	0x19540119	/* UFS2 fast filesystem magic number */
 #define	FS_BAD_MAGIC	0x19960408	/* UFS incomplete newfs magic number */
-#define	FS_OKAY		0x7c269d38	/* superblock checksum */
 #define	FS_42INODEFMT	-1		/* 4.2BSD inode format */
 #define	FS_44INODEFMT	2		/* 4.4BSD inode format */
 
@@ -403,7 +418,11 @@ CTASSERT(sizeof(struct fs) == 1376);
  * on-disk auxiliary indexes (such as B-trees) for speeding directory
  * accesses. Kernels that do not support auxiliary indices clear the
  * flag to indicate that the indices need to be rebuilt (by fsck) before
- * they can be used.
+ * they can be used. When a filesystem is mounted, any flags not
+ * included in FS_SUPPORTED are cleared. This lets newer features
+ * know that the filesystem has been run on an older version of the
+ * filesystem and thus that data structures associated with those
+ * features are out-of-date and need to be rebuilt.
  *
  * FS_ACLS indicates that POSIX.1e ACLs are administratively enabled
  * for the file system, so they should be loaded from extended attributes,
@@ -425,6 +444,28 @@ CTASSERT(sizeof(struct fs) == 1376);
 #define	FS_NFS4ACLS	0x0100	/* file system has NFSv4 ACLs enabled */
 #define	FS_INDEXDIRS	0x0200	/* kernel supports indexed directories */
 #define	FS_TRIM		0x0400	/* issue BIO_DELETE for deleted blocks */
+#define	FS_SUPPORTED	0xFFFF	/* supported flags, others cleared at mount */
+
+/*
+ * The fs_metackhash field indicates the types of metadata check-hash
+ * that are maintained for a filesystem. Not all filesystems check-hash
+ * all metadata.
+ */
+#define	CK_SUPERBLOCK	0x0001	/* the superblock */
+#define	CK_CYLGRP	0x0002	/* the cylinder groups */
+#define	CK_INODE	0x0004	/* inodes */
+#define	CK_INDIR	0x0008	/* indirect blocks */
+#define	CK_DIR		0x0010	/* directory contents */
+/*
+ * The BX_FSPRIV buffer b_xflags are used to track types of data in buffers.
+ */
+#define	BX_SUPERBLOCK	0x00010000	/* superblock */
+#define	BX_CYLGRP	0x00020000	/* cylinder groups */
+#define	BX_INODE	0x00040000	/* inodes */
+#define	BX_INDIR	0x00080000	/* indirect blocks */
+#define	BX_DIR		0x00100000	/* directory contents */
+
+#define	PRINT_UFS_BUF_XFLAGS "\20\25dir\24indir\23inode\22cylgrp\21superblock"
 
 /*
  * Macros to access bits in the fs_active array.
@@ -494,7 +535,8 @@ struct cg {
 	u_int32_t cg_niblk;		/* number of inode blocks this cg */
 	u_int32_t cg_initediblk;		/* last initialized inode */
 	u_int32_t cg_unrefs;		/* number of unreferenced inodes */
-	int32_t	 cg_sparecon32[2];	/* reserved for future use */
+	int32_t	 cg_sparecon32[1];	/* reserved for future use */
+	u_int32_t cg_ckhash;		/* check-hash of this cg */
 	ufs_time_t cg_time;		/* time last written */
 	int64_t	 cg_sparecon64[3];	/* reserved for future use */
 	u_int8_t cg_space[1];		/* space for cylinder group maps */

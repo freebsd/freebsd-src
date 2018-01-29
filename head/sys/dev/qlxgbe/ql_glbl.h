@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013-2016 Qlogic Corporation
  * All rights reserved.
  *
@@ -69,16 +71,15 @@ extern void qla_reset_allmulti(qla_host_t *ha);
 extern void ql_update_link_state(qla_host_t *ha);
 extern void ql_hw_tx_done_locked(qla_host_t *ha, uint32_t txr_idx);
 extern int ql_set_max_mtu(qla_host_t *ha, uint32_t mtu, uint16_t cntxt_id);
-extern void ql_hw_stop_rcv(qla_host_t *ha);
 extern void ql_get_stats(qla_host_t *ha);
 extern void ql_hw_link_status(qla_host_t *ha);
 extern int ql_hw_check_health(qla_host_t *ha);
 extern void qla_hw_async_event(qla_host_t *ha);
 extern int qla_get_nic_partition(qla_host_t *ha, uint32_t *supports_9kb,
 		uint32_t *num_rcvq);
+extern int qla_hw_del_all_mcast(qla_host_t *ha);
 
 extern int ql_iscsi_pdu(qla_host_t *ha, struct mbuf *mp);
-
 extern void ql_minidump(qla_host_t *ha);
 extern int ql_minidump_init(qla_host_t *ha);
 
@@ -112,5 +113,9 @@ extern unsigned char ql83xx_resetseq[];
 extern unsigned int ql83xx_resetseq_len;
 extern unsigned char ql83xx_minidump[];
 extern unsigned int ql83xx_minidump_len;
+
+extern void ql_alloc_drvr_state_buffer(qla_host_t *ha);
+extern void ql_free_drvr_state_buffer(qla_host_t *ha);
+extern void ql_capture_drvr_state(qla_host_t *ha);
 
 #endif /* #ifndef_QL_GLBL_H_ */

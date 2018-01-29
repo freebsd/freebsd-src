@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -966,6 +966,43 @@ int mlx5_nic_vport_disable_roce(struct mlx5_core_dev *mdev)
 }
 EXPORT_SYMBOL_GPL(mlx5_nic_vport_disable_roce);
 
+int mlx5_core_query_vport_counter(struct mlx5_core_dev *dev, u8 other_vport,
+				  int vf, u8 port_num, void *out,
+				  size_t out_sz)
+{
+	int	in_sz = MLX5_ST_SZ_BYTES(query_vport_counter_in);
+	int	is_group_manager;
+	void   *in;
+	int	err;
+
+	is_group_manager = MLX5_CAP_GEN(dev, vport_group_manager);
+	in = mlx5_vzalloc(in_sz);
+	if (!in) {
+		err = -ENOMEM;
+		return err;
+	}
+
+	MLX5_SET(query_vport_counter_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_VPORT_COUNTER);
+	if (other_vport) {
+		if (is_group_manager) {
+			MLX5_SET(query_vport_counter_in, in, other_vport, 1);
+			MLX5_SET(query_vport_counter_in, in, vport_number, vf + 1);
+		} else {
+			err = -EPERM;
+			goto free;
+		}
+	}
+	if (MLX5_CAP_GEN(dev, num_ports) == 2)
+		MLX5_SET(query_vport_counter_in, in, port_num, port_num);
+
+	err = mlx5_cmd_exec(dev, in, in_sz, out,  out_sz);
+free:
+	kvfree(in);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_core_query_vport_counter);
+
 int mlx5_query_hca_vport_context(struct mlx5_core_dev *mdev,
 				 u8 port_num, u8 vport_num, u32 *out,
 				 int outlen)
@@ -1448,6 +1485,72 @@ int mlx5_modify_nic_vport_promisc(struct mlx5_core_dev *mdev,
 }
 EXPORT_SYMBOL_GPL(mlx5_modify_nic_vport_promisc);
 
+int mlx5_nic_vport_modify_local_lb(struct mlx5_core_dev *mdev,
+				   enum mlx5_local_lb_selection selection,
+				   u8 value)
+{
+	void *in;
+	int inlen = MLX5_ST_SZ_BYTES(modify_nic_vport_context_in);
+	int err;
+
+	in = mlx5_vzalloc(inlen);
+	if (!in) {
+		mlx5_core_warn(mdev, "failed to allocate inbox\n");
+		return -ENOMEM;
+	}
+
+	MLX5_SET(modify_nic_vport_context_in, in, vport_number, 0);
+
+	if (selection == MLX5_LOCAL_MC_LB) {
+		MLX5_SET(modify_nic_vport_context_in, in,
+			 field_select.disable_mc_local_lb, 1);
+		MLX5_SET(modify_nic_vport_context_in, in,
+			 nic_vport_context.disable_mc_local_lb,
+			 value);
+	} else {
+		MLX5_SET(modify_nic_vport_context_in, in,
+			 field_select.disable_uc_local_lb, 1);
+		MLX5_SET(modify_nic_vport_context_in, in,
+			 nic_vport_context.disable_uc_local_lb,
+			 value);
+	}
+
+	err = mlx5_modify_nic_vport_context(mdev, in, inlen);
+
+	kvfree(in);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_nic_vport_modify_local_lb);
+
+int mlx5_nic_vport_query_local_lb(struct mlx5_core_dev *mdev,
+				  enum mlx5_local_lb_selection selection,
+				  u8 *value)
+{
+	void *out;
+	int outlen = MLX5_ST_SZ_BYTES(query_nic_vport_context_out);
+	int err;
+
+	out = kzalloc(outlen, GFP_KERNEL);
+	if (!out)
+		return -ENOMEM;
+
+	err = mlx5_query_nic_vport_context(mdev, 0, out, outlen);
+	if (err)
+		goto done;
+
+	if (selection == MLX5_LOCAL_MC_LB)
+		*value = MLX5_GET(query_nic_vport_context_out, out,
+				  nic_vport_context.disable_mc_local_lb);
+	else
+		*value = MLX5_GET(query_nic_vport_context_out, out,
+				  nic_vport_context.disable_uc_local_lb);
+
+done:
+	kfree(out);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_nic_vport_query_local_lb);
+
 int mlx5_query_vport_counter(struct mlx5_core_dev *dev,
 			     u8 port_num, u16 vport_num,
 			     void *out, int out_size)
@@ -1654,3 +1757,25 @@ out:
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_hca_vport_state);
+
+int mlx5_core_query_ib_ppcnt(struct mlx5_core_dev *dev,
+			     u8 port_num, void *out, size_t sz)
+{
+	u32 *in;
+	int err;
+
+	in  = mlx5_vzalloc(sz);
+	if (!in) {
+		err = -ENOMEM;
+		return err;
+	}
+
+	MLX5_SET(ppcnt_reg, in, local_port, port_num);
+
+	MLX5_SET(ppcnt_reg, in, grp, MLX5_INFINIBAND_PORT_COUNTERS_GROUP);
+	err = mlx5_core_access_reg(dev, in, sz, out,
+				   sz, MLX5_REG_PPCNT, 0, 0);
+
+	kvfree(in);
+	return err;
+}

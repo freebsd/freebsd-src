@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2014 Garrett D'Amore <garrett@damore.org>
  * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 1995 Alex Tatmanjants <alex@elvisti.kiev.ua>
@@ -125,8 +127,7 @@ __collate_load_tables_l(const char *encoding, struct xlocale_collate *table)
 		return (_LDP_CACHE);
 	}
 
-	asprintf(&buf, "%s/%s/LC_COLLATE", _PathLocale, encoding);
-	if (buf == NULL)
+	if (asprintf(&buf, "%s/%s/LC_COLLATE", _PathLocale, encoding) == -1)
 		return (_LDP_ERROR);
 
 	if ((fd = _open(buf, O_RDONLY)) < 0) {

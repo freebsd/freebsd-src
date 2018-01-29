@@ -32,15 +32,14 @@
 .Nm bcma
 .Nd Broadcom AMBA Backplane driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your kernel configuration file:
+To compile this driver into the kernel, add the following lines to the
+kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device bhnd"
 .Cd "device bcma"
 .Ed
 .Pp
-Alternatively, to load the driver as a module at boot time,
-place the following line in
+To load the driver as a module at boot, add this line to
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 bcma_load="YES"
@@ -51,8 +50,8 @@ The
 driver provides
 .Xr bhnd 4
 support for devices using the ARM AMBA-based backplane architecture found
-in later Broadcom Home Networking Division's (HND) wireless chipsets and
-embedded systems.
+in later Broadcom Home Networking Division's network chipsets and embedded
+systems.
 .Pp
 A common interconnect connects all of the backplane's functional
 blocks.
@@ -64,7 +63,9 @@ The IP cores used in
 devices were adapted by Broadcom for compatibility with the new
 interconnect.
 .Sh SEE ALSO
-.Xr bhnd 4
+.Xr bhnd 4 ,
+.Xr intro 4 ,
+.Xr siba 4
 .Sh HISTORY
 The
 .Nm

@@ -582,6 +582,7 @@ icmp_print(netdissect_options *ndo, const u_char *bp, u_int plen, const u_char *
 		ip = (const struct ip *)bp;
 		ndo->ndo_snaplen = ndo->ndo_snapend - bp;
                 snapend_save = ndo->ndo_snapend;
+		ND_TCHECK_16BITS(&ip->ip_len);
 		ip_print(ndo, bp, EXTRACT_16BITS(&ip->ip_len));
                 ndo->ndo_snapend = snapend_save;
 	}
@@ -599,7 +600,8 @@ icmp_print(netdissect_options *ndo, const u_char *bp, u_int plen, const u_char *
              * to check if an extension header is present. This is expedient,
              * however not all implementations set the length field proper.
              */
-            if (!ext_dp->icmp_length) {
+            if (!ext_dp->icmp_length &&
+                ND_TTEST2(ext_dp->icmp_ext_version_res, plen - ICMP_EXTD_MINLEN)) {
                 vec[0].ptr = (const uint8_t *)(const void *)&ext_dp->icmp_ext_version_res;
                 vec[0].len = plen - ICMP_EXTD_MINLEN;
                 if (in_cksum(vec, 1)) {
@@ -620,12 +622,14 @@ icmp_print(netdissect_options *ndo, const u_char *bp, u_int plen, const u_char *
             }
 
             hlen = plen - ICMP_EXTD_MINLEN;
-            vec[0].ptr = (const uint8_t *)(const void *)&ext_dp->icmp_ext_version_res;
-            vec[0].len = hlen;
-            ND_PRINT((ndo, ", checksum 0x%04x (%scorrect), length %u",
-                   EXTRACT_16BITS(ext_dp->icmp_ext_checksum),
-                   in_cksum(vec, 1) ? "in" : "",
-                   hlen));
+            if (ND_TTEST2(ext_dp->icmp_ext_version_res, hlen)) {
+                vec[0].ptr = (const uint8_t *)(const void *)&ext_dp->icmp_ext_version_res;
+                vec[0].len = hlen;
+                ND_PRINT((ndo, ", checksum 0x%04x (%scorrect), length %u",
+                       EXTRACT_16BITS(ext_dp->icmp_ext_checksum),
+                       in_cksum(vec, 1) ? "in" : "",
+                       hlen));
+            }
 
             hlen -= 4; /* subtract common header size */
             obj_tptr = (const uint8_t *)ext_dp->icmp_ext_data;

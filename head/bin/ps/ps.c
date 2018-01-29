@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -523,7 +525,11 @@ main(int argc, char *argv[])
 	 */
 	nentries = -1;
 	kp = kvm_getprocs(kd, what, flag, &nentries);
-	if ((kp == NULL && nentries > 0) || (kp != NULL && nentries < 0))
+	/*
+	 * Ignore ESRCH to preserve behaviour of "ps -p nonexistent-pid"
+	 * not reporting an error.
+	 */
+	if ((kp == NULL && errno != ESRCH) || (kp != NULL && nentries < 0))
 		xo_errx(1, "%s", kvm_geterr(kd));
 	nkept = 0;
 	if (nentries > 0) {

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003, 2008 Silicon Graphics International Corp.
  * Copyright (c) 2012 The FreeBSD Foundation
  * Copyright (c) 2014-2017 Alexander Motin <mav@FreeBSD.org>
@@ -1096,7 +1098,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	cbe_lun->lun_config_status = ctl_backend_ramdisk_lun_config_status;
 	cbe_lun->be = &ctl_be_ramdisk_driver;
 	if ((params->flags & CTL_LUN_FLAG_SERIAL_NUM) == 0) {
-		snprintf(tmpstr, sizeof(tmpstr), "MYSERIAL%4d",
+		snprintf(tmpstr, sizeof(tmpstr), "MYSERIAL%04d",
 			 softc->num_luns);
 		strncpy((char *)cbe_lun->serial_num, tmpstr,
 			MIN(sizeof(cbe_lun->serial_num), sizeof(tmpstr)));
@@ -1110,7 +1112,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 			    sizeof(params->serial_num)));
 	}
 	if ((params->flags & CTL_LUN_FLAG_DEVID) == 0) {
-		snprintf(tmpstr, sizeof(tmpstr), "MYDEVID%4d", softc->num_luns);
+		snprintf(tmpstr, sizeof(tmpstr), "MYDEVID%04d", softc->num_luns);
 		strncpy((char *)cbe_lun->device_id, tmpstr,
 			MIN(sizeof(cbe_lun->device_id), sizeof(tmpstr)));
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Robert N. M. Watson
  * All rights reserved.
  *
@@ -162,16 +164,16 @@ static char	*dtnfsclient_miss_str = "miss";
 static char	*dtnfsclient_start_str = "start";
 
 static dtrace_pops_t dtnfsclient_pops = {
-	dtnfsclient_provide,
-	NULL,
-	dtnfsclient_enable,
-	dtnfsclient_disable,
-	NULL,
-	NULL,
-	dtnfsclient_getargdesc,
-	NULL,
-	NULL,
-	dtnfsclient_destroy
+	.dtps_provide =		dtnfsclient_provide,
+	.dtps_provide_module =	NULL,
+	.dtps_enable =		dtnfsclient_enable,
+	.dtps_disable =		dtnfsclient_disable,
+	.dtps_suspend =		NULL,
+	.dtps_resume =		NULL,
+	.dtps_getargdesc =	dtnfsclient_getargdesc,
+	.dtps_getargval =	NULL,
+	.dtps_usermode =	NULL,
+	.dtps_destroy =		dtnfsclient_destroy
 };
 
 static dtrace_provider_id_t	dtnfsclient_id;

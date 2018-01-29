@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -133,7 +135,7 @@ block(void)
 	 */
 	ch = 0;
 	for (inp = in.dbp - in.dbcnt, outp = out.dbp; in.dbcnt;) {
-		maxlen = MIN(cbsz, in.dbcnt);
+		maxlen = MIN(cbsz, (size_t)in.dbcnt);
 		if ((t = ctab) != NULL)
 			for (cnt = 0; cnt < maxlen && (ch = *inp++) != '\n';
 			    ++cnt)
@@ -146,7 +148,7 @@ block(void)
 		 * Check for short record without a newline.  Reassemble the
 		 * input block.
 		 */
-		if (ch != '\n' && in.dbcnt < cbsz) {
+		if (ch != '\n' && (size_t)in.dbcnt < cbsz) {
 			(void)memmove(in.db, in.dbp - in.dbcnt, in.dbcnt);
 			break;
 		}
@@ -228,7 +230,7 @@ unblock(void)
 	 * translation has to already be done or we might not recognize the
 	 * spaces.
 	 */
-	for (inp = in.db; in.dbcnt >= cbsz; inp += cbsz, in.dbcnt -= cbsz) {
+	for (inp = in.db; (size_t)in.dbcnt >= cbsz; inp += cbsz, in.dbcnt -= cbsz) {
 		for (t = inp + cbsz - 1; t >= inp && *t == ' '; --t)
 			;
 		if (t >= inp) {

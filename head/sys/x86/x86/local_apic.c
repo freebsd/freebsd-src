@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003 John Baldwin <jhb@FreeBSD.org>
  * Copyright (c) 1996, by Steve Passe
  * All rights reserved.
@@ -44,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
@@ -82,6 +85,8 @@ __FBSDID("$FreeBSD$");
 #define	SDT_APICT	SDT_SYS386TGT
 #define	GSEL_APIC	GSEL(GCODE_SEL, SEL_KPL)
 #endif
+
+static MALLOC_DEFINE(M_LAPIC, "local_apic", "Local APIC items");
 
 /* Sanity checks on IDT vectors. */
 CTASSERT(APIC_IO_INTS + APIC_NUM_IOINTS == APIC_TIMER_INT);
@@ -134,7 +139,7 @@ struct lapic {
 	uint32_t lvt_timer_last;
 	/* Include IDT_SYSCALL to make indexing easier. */
 	int la_ioint_irqs[APIC_NUM_IOINTS + 1];
-} static lapics[MAX_APIC_ID + 1];
+} static *lapics;
 
 /* Global defaults for local APIC LVT entries. */
 static struct lvt lvts[APIC_LVT_MAX + 1] = {
@@ -166,13 +171,23 @@ static inthand_t *ioint_handlers[] = {
 	IDTVEC(apic_isr7),	/* 224 - 255 */
 };
 
+static inthand_t *ioint_pti_handlers[] = {
+	NULL,			/* 0 - 31 */
+	IDTVEC(apic_isr1_pti),	/* 32 - 63 */
+	IDTVEC(apic_isr2_pti),	/* 64 - 95 */
+	IDTVEC(apic_isr3_pti),	/* 96 - 127 */
+	IDTVEC(apic_isr4_pti),	/* 128 - 159 */
+	IDTVEC(apic_isr5_pti),	/* 160 - 191 */
+	IDTVEC(apic_isr6_pti),	/* 192 - 223 */
+	IDTVEC(apic_isr7_pti),	/* 224 - 255 */
+};
 
 static u_int32_t lapic_timer_divisors[] = {
 	APIC_TDCR_1, APIC_TDCR_2, APIC_TDCR_4, APIC_TDCR_8, APIC_TDCR_16,
 	APIC_TDCR_32, APIC_TDCR_64, APIC_TDCR_128
 };
 
-extern inthand_t IDTVEC(rsvd);
+extern inthand_t IDTVEC(rsvd_pti), IDTVEC(rsvd);
 
 volatile char *lapic_map;
 vm_paddr_t lapic_paddr;
@@ -184,6 +199,7 @@ static struct eventtimer lapic_et;
 #ifdef SMP
 static uint64_t lapic_ipi_wait_mult;
 #endif
+unsigned int max_apic_id;
 
 SYSCTL_NODE(_hw, OID_AUTO, apic, CTLFLAG_RD, 0, "APIC options");
 SYSCTL_INT(_hw_apic, OID_AUTO, x2apic_mode, CTLFLAG_RD, &x2apic_mode, 0, "");
@@ -211,6 +227,7 @@ lapic_write32(enum LAPIC_REGISTERS reg, uint32_t val)
 
 	if (x2apic_mode) {
 		mfence();
+		lfence();
 		wrmsr(MSR_APIC_000 + reg, val);
 	} else {
 		*(volatile uint32_t *)(lapic_map + reg * LAPIC_MEM_MUL) = val;
@@ -489,15 +506,18 @@ native_lapic_init(vm_paddr_t addr)
 	PCPU_SET(apic_id, lapic_id());
 
 	/* Local APIC timer interrupt. */
-	setidt(APIC_TIMER_INT, IDTVEC(timerint), SDT_APIC, SEL_KPL, GSEL_APIC);
+	setidt(APIC_TIMER_INT, pti ? IDTVEC(timerint_pti) : IDTVEC(timerint),
+	    SDT_APIC, SEL_KPL, GSEL_APIC);
 
 	/* Local APIC error interrupt. */
-	setidt(APIC_ERROR_INT, IDTVEC(errorint), SDT_APIC, SEL_KPL, GSEL_APIC);
+	setidt(APIC_ERROR_INT, pti ? IDTVEC(errorint_pti) : IDTVEC(errorint),
+	    SDT_APIC, SEL_KPL, GSEL_APIC);
 
 	/* XXX: Thermal interrupt */
 
 	/* Local APIC CMCI. */
-	setidt(APIC_CMC_INT, IDTVEC(cmcint), SDT_APICT, SEL_KPL, GSEL_APIC);
+	setidt(APIC_CMC_INT, pti ? IDTVEC(cmcint_pti) : IDTVEC(cmcint),
+	    SDT_APICT, SEL_KPL, GSEL_APIC);
 
 	if ((resource_int_value("apic", 0, "clock", &i) != 0 || i != 0)) {
 		arat = 0;
@@ -506,6 +526,9 @@ native_lapic_init(vm_paddr_t addr)
 			do_cpuid(0x06, regs);
 			if ((regs[0] & CPUTPM1_ARAT) != 0)
 				arat = 1;
+		} else if (cpu_vendor_id == CPU_VENDOR_AMD &&
+		    CPUID_TO_FAMILY(cpu_id) >= 0x12) {
+			arat = 1;
 		}
 		bzero(&lapic_et, sizeof(lapic_et));
 		lapic_et.et_name = "LAPIC";
@@ -600,7 +623,7 @@ native_lapic_create(u_int apic_id, int boot_cpu)
 {
 	int i;
 
-	if (apic_id > MAX_APIC_ID) {
+	if (apic_id > max_apic_id) {
 		printf("APIC: Ignoring local APIC with ID %d\n", apic_id);
 		if (boot_cpu)
 			panic("Can't ignore BSP");
@@ -1422,8 +1445,9 @@ native_lapic_enable_mca_elvt(void)
 
 	value = lapic_read32(LAPIC_EXT_LVT0 + APIC_ELVT_MCA);
 	if ((value & APIC_LVT_M) == 0) {
-		printf("AMD MCE Thresholding Extended LVT is already active\n");
-		return (-1);
+		if (bootverbose)
+			printf("AMD MCE Thresholding Extended LVT is already active\n");
+		return (APIC_ELVT_MCA);
 	}
 	lapics[apic_id].la_elvts[APIC_ELVT_MCA].lvt_masked = 0;
 	lapics[apic_id].la_elvts[APIC_ELVT_MCA].lvt_active = 1;
@@ -1561,8 +1585,8 @@ native_apic_enable_vector(u_int apic_id, u_int vector)
 	KASSERT(vector != IDT_DTRACE_RET,
 	    ("Attempt to overwrite DTrace entry"));
 #endif
-	setidt(vector, ioint_handlers[vector / 32], SDT_APIC, SEL_KPL,
-	    GSEL_APIC);
+	setidt(vector, (pti ? ioint_pti_handlers : ioint_handlers)[vector / 32],
+	    SDT_APIC, SEL_KPL, GSEL_APIC);
 }
 
 static void
@@ -1581,7 +1605,8 @@ native_apic_disable_vector(u_int apic_id, u_int vector)
 	 * We can not currently clear the idt entry because other cpus
 	 * may have a valid vector at this offset.
 	 */
-	setidt(vector, &IDTVEC(rsvd), SDT_APICT, SEL_KPL, GSEL_APIC);
+	setidt(vector, pti ? &IDTVEC(rsvd_pti) : &IDTVEC(rsvd), SDT_APICT,
+	    SEL_KPL, GSEL_APIC);
 #endif
 }
 
@@ -1660,7 +1685,7 @@ DB_SHOW_COMMAND(apic, db_show_apic)
 		verbose = 1;
 	else
 		verbose = 0;
-	for (apic_id = 0; apic_id <= MAX_APIC_ID; apic_id++) {
+	for (apic_id = 0; apic_id <= max_apic_id; apic_id++) {
 		if (lapics[apic_id].la_present == 0)
 			continue;
 		db_printf("Interrupts bound to lapic %u\n", apic_id);
@@ -1860,6 +1885,9 @@ apic_setup_local(void *dummy __unused)
 
 	if (best_enum == NULL)
 		return;
+
+	lapics = malloc(sizeof(*lapics) * (max_apic_id + 1), M_LAPIC,
+	    M_WAITOK | M_ZERO);
 
 	/* Initialize the local APIC. */
 	retval = best_enum->apic_setup_local();
@@ -2084,14 +2112,16 @@ native_lapic_ipi_alloc(inthand_t *ipifunc)
 	long func;
 	int idx, vector;
 
-	KASSERT(ipifunc != &IDTVEC(rsvd), ("invalid ipifunc %p", ipifunc));
+	KASSERT(ipifunc != &IDTVEC(rsvd) && ipifunc != &IDTVEC(rsvd_pti),
+	    ("invalid ipifunc %p", ipifunc));
 
 	vector = -1;
 	mtx_lock_spin(&icu_lock);
 	for (idx = IPI_DYN_FIRST; idx <= IPI_DYN_LAST; idx++) {
 		ip = &idt[idx];
 		func = (ip->gd_hioffset << 16) | ip->gd_looffset;
-		if (func == (uintptr_t)&IDTVEC(rsvd)) {
+		if ((!pti && func == (uintptr_t)&IDTVEC(rsvd)) ||
+		    (pti && func == (uintptr_t)&IDTVEC(rsvd_pti))) {
 			vector = idx;
 			setidt(vector, ipifunc, SDT_APIC, SEL_KPL, GSEL_APIC);
 			break;
@@ -2113,8 +2143,10 @@ native_lapic_ipi_free(int vector)
 	mtx_lock_spin(&icu_lock);
 	ip = &idt[vector];
 	func = (ip->gd_hioffset << 16) | ip->gd_looffset;
-	KASSERT(func != (uintptr_t)&IDTVEC(rsvd),
+	KASSERT(func != (uintptr_t)&IDTVEC(rsvd) &&
+	    func != (uintptr_t)&IDTVEC(rsvd_pti),
 	    ("invalid idtfunc %#lx", func));
-	setidt(vector, &IDTVEC(rsvd), SDT_APICT, SEL_KPL, GSEL_APIC);
+	setidt(vector, pti ? &IDTVEC(rsvd_pti) : &IDTVEC(rsvd), SDT_APICT,
+	    SEL_KPL, GSEL_APIC);
 	mtx_unlock_spin(&icu_lock);
 }

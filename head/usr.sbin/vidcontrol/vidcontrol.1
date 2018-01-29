@@ -125,15 +125,161 @@ Set border color to
 This option may not be always supported by the video driver.
 .It Fl C
 Clear the history buffer.
-.It Fl c Cm normal | blink | destructive
+.It Fl c Ar setting Ns Op , Ns Ar setting ...
 Change the cursor appearance.
-The cursor is either an inverting block
-.Pq Cm normal
-that can optionally
-.Cm blink ,
-or it can be like the old hardware cursor
-.Pq Cm destructive .
-The latter is actually a simulation.
+The change is specified by a non-empty comma-separated list of
+.Cm setting Ns s .
+Each
+.Cm setting
+overrides or modifies previous ones in left to right order.
+.Pp
+The following override
+.Cm setting Ns s
+are available:
+.Bl -tag -width indent
+.It Cm normal
+Set to a block covering 1 character cell,
+with a configuration-dependent coloring
+that should be at worst inverse video.
+.It Cm destructive
+Set to a blinking sub-block with
+.Cm height
+scanlines starting at
+.Cm base .
+The name
+.Dq destructive
+is bad for backwards compatibility.
+This
+.Cm setting
+should not force destructiveness,
+and it now only gives destructiveness in some
+configurations (typically for hardware cursors
+in text mode).
+Blinking limits destructiveness.
+This
+.Cm setting
+should now be spelled
+.Cm normal , Ns Cm blink , Ns Cm noblock .
+A non-blinking destructive cursor would be unusable,
+so old versions of
+.Nm
+didn't support it,
+and this version doesn't have an override for it.
+.It Cm base Ns = Ns Ar value, Cm height Ns = Ns Ar value
+Set the specified scanline parameters.
+These parameters are only active in
+.Cm noblock
+mode.
+.Cm value
+is an integer in any base supported by
+.Xr strtol 3 .
+Setting
+.Cm height
+to 0 turns off the cursor in
+.Cm noblock
+mode.
+Negative
+.Ar value Ns s
+are silently ignored.
+Positive
+.Ar value Ns s
+are clamped to fit in the character cell when the cursor is drawn.
+.El
+.Pp
+The following modifier
+.Cm setting Ns s
+are available:
+.Bl -tag -width indent
+.It Cm blink , noblink
+Set or clear the blinking attribute.
+This is not quite backwards compatible.
+In old versions of
+.Nm , Cm blink
+was an override to a blinking block.
+.It Cm block , noblock
+Set or clear the
+.Cm block
+attribute.
+This attribute is the inverse of the flag
+.Dv CONS_CHAR_CURSOR
+in the implementation.
+It deactivates the scanline parameters,
+and expresses a preference for using a
+simpler method of implementation.
+Its inverse does the opposite.
+When the scanline parameters give a full block,
+this attribute reduces to a method selection bit.
+The
+.Cm block
+method tends to give better coloring.
+.It Cm hidden , nohidden
+Set or clear the hidden attribute.
+.El
+.Pp
+The following (non-sticky) flags control application of the
+.Cm setting Ns s :
+.Bl -tag -width indent
+.It Cm charcolors
+Apply
+.Cm base
+and
+.Cm height
+to the (character) cursor's list of preferred colors instead of its shape.
+Beware that the color numbers are raw VGA palette indexes,
+not ANSI color numbers.
+The indexes are reduced mod 8, 16 or 256,
+or ignored,
+depending on the video mode and renderer.
+.It Cm mousecolors
+Colors for the mouse cursor in graphics mode.
+Like
+.Cm charcolors ,
+except there is no preference or sequence;
+.Cm base
+gives the mouse border color and
+.Cm height
+gives the mouse interior color.
+Together with
+.Cm charcolors ,
+this gives 2 selection bits which select between
+only 3 of 4 sub-destinations of the 4 destinations selected by
+.Cm default
+and
+.Cm local
+(by ignoring
+.Cm mousecolors
+if
+.Cm charcolors
+is also set).
+.It Cm default
+Apply the changes to the default settings and then to the active settings,
+instead of only to the active settings.
+Together with
+.Cm local ,
+this gives 2 selection bits which select between 4 destinations.
+.It Cm shapeonly
+Ignore any changes to the 
+.Cm block
+and
+.Cm hidden
+attributes.
+.It Cm local
+Apply the changes to the current vty.
+The default is to apply them to a global place
+and copy from there to all vtys.
+.It Cm reset
+Reset everything.
+The default is to not reset.
+When the
+.Cm local
+parameter is specified, the current local settings are reset
+to default local settings.
+Otherwise, the current global settings are reset to default
+global settings and then copied to the current and default
+settings for all vtys.
+.It Cm show
+Show the current changes.
+.El
 .It Fl d
 Print out current output screen map.
 .It Xo

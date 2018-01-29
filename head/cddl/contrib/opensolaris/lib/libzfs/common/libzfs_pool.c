@@ -25,6 +25,7 @@
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright 2016 Nexenta Systems, Inc.
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
+ * Copyright (c) 2017 Datto Inc.
  */
 
 #include <sys/types.h>
@@ -49,6 +50,7 @@
 #include "zfeature_common.h"
 
 static int read_efi_label(nvlist_t *config, diskaddr_t *sb);
+static boolean_t zpool_vdev_is_interior(const char *name);
 
 #define	BACKUP_SLICE	"s2"
 
@@ -443,7 +445,7 @@ zpool_valid_proplist(libzfs_handle_t *hdl, const char *poolname,
 		const char *propname = nvpair_name(elem);
 
 		prop = zpool_name_to_prop(propname);
-		if (prop == ZPROP_INVAL && zpool_prop_feature(propname)) {
+		if (prop == ZPOOL_PROP_INVAL && zpool_prop_feature(propname)) {
 			int err;
 			char *fname = strchr(propname, '@') + 1;
 
@@ -482,7 +484,7 @@ zpool_valid_proplist(libzfs_handle_t *hdl, const char *poolname,
 		/*
 		 * Make sure this property is valid and applies to this type.
 		 */
-		if (prop == ZPROP_INVAL) {
+		if (prop == ZPOOL_PROP_INVAL) {
 			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 			    "invalid property '%s'"), propname);
 			(void) zfs_error(hdl, EZFS_BADPROP, errbuf);
@@ -1841,22 +1843,39 @@ zpool_import_props(libzfs_handle_t *hdl, nvlist_t *config, const char *newname,
  * Scan the pool.
  */
 int
-zpool_scan(zpool_handle_t *zhp, pool_scan_func_t func)
+zpool_scan(zpool_handle_t *zhp, pool_scan_func_t func, pool_scrub_cmd_t cmd)
 {
 	zfs_cmd_t zc = { 0 };
 	char msg[1024];
+	int err;
 	libzfs_handle_t *hdl = zhp->zpool_hdl;
 
 	(void) strlcpy(zc.zc_name, zhp->zpool_name, sizeof (zc.zc_name));
 	zc.zc_cookie = func;
+	zc.zc_flags = cmd;
 
-	if (zfs_ioctl(hdl, ZFS_IOC_POOL_SCAN, &zc) == 0 ||
-	    (errno == ENOENT && func != POOL_SCAN_NONE))
+	if (zfs_ioctl(hdl, ZFS_IOC_POOL_SCAN, &zc) == 0)
+		return (0);
+
+	err = errno;
+
+	/* ECANCELED on a scrub means we resumed a paused scrub */
+	if (err == ECANCELED && func == POOL_SCAN_SCRUB &&
+	    cmd == POOL_SCRUB_NORMAL)
+		return (0);
+
+	if (err == ENOENT && func != POOL_SCAN_NONE && cmd == POOL_SCRUB_NORMAL)
 		return (0);
 
 	if (func == POOL_SCAN_SCRUB) {
-		(void) snprintf(msg, sizeof (msg),
-		    dgettext(TEXT_DOMAIN, "cannot scrub %s"), zc.zc_name);
+		if (cmd == POOL_SCRUB_PAUSE) {
+			(void) snprintf(msg, sizeof (msg), dgettext(TEXT_DOMAIN,
+			    "cannot pause scrubbing %s"), zc.zc_name);
+		} else {
+			assert(cmd == POOL_SCRUB_NORMAL);
+			(void) snprintf(msg, sizeof (msg), dgettext(TEXT_DOMAIN,
+			    "cannot scrub %s"), zc.zc_name);
+		}
 	} else if (func == POOL_SCAN_NONE) {
 		(void) snprintf(msg, sizeof (msg),
 		    dgettext(TEXT_DOMAIN, "cannot cancel scrubbing %s"),
@@ -1865,7 +1884,7 @@ zpool_scan(zpool_handle_t *zhp, pool_scan_func_t func)
 		assert(!"unexpected result");
 	}
 
-	if (errno == EBUSY) {
+	if (err == EBUSY) {
 		nvlist_t *nvroot;
 		pool_scan_stat_t *ps = NULL;
 		uint_t psc;
@@ -1874,14 +1893,18 @@ zpool_scan(zpool_handle_t *zhp, pool_scan_func_t func)
 		    ZPOOL_CONFIG_VDEV_TREE, &nvroot) == 0);
 		(void) nvlist_lookup_uint64_array(nvroot,
 		    ZPOOL_CONFIG_SCAN_STATS, (uint64_t **)&ps, &psc);
-		if (ps && ps->pss_func == POOL_SCAN_SCRUB)
-			return (zfs_error(hdl, EZFS_SCRUBBING, msg));
-		else
+		if (ps && ps->pss_func == POOL_SCAN_SCRUB) {
+			if (cmd == POOL_SCRUB_PAUSE)
+				return (zfs_error(hdl, EZFS_SCRUB_PAUSED, msg));
+			else
+				return (zfs_error(hdl, EZFS_SCRUBBING, msg));
+		} else {
 			return (zfs_error(hdl, EZFS_RESILVERING, msg));
-	} else if (errno == ENOENT) {
+		}
+	} else if (err == ENOENT) {
 		return (zfs_error(hdl, EZFS_NO_SCRUB, msg));
 	} else {
-		return (zpool_standard_error(hdl, errno, msg));
+		return (zpool_standard_error(hdl, err, msg));
 	}
 }
 
@@ -2043,10 +2066,7 @@ vdev_to_nvlist_iter(nvlist_t *nv, nvlist_t *search, boolean_t *avail_spare,
 				break;
 			}
 
-			verify(strncmp(type, VDEV_TYPE_RAIDZ,
-			    strlen(VDEV_TYPE_RAIDZ)) == 0 ||
-			    strncmp(type, VDEV_TYPE_MIRROR,
-			    strlen(VDEV_TYPE_MIRROR)) == 0);
+			verify(zpool_vdev_is_interior(type));
 			verify(nvlist_lookup_uint64(nv, ZPOOL_CONFIG_ID,
 			    &id) == 0);
 
@@ -2153,10 +2173,13 @@ zpool_find_vdev_by_physpath(zpool_handle_t *zhp, const char *ppath,
 /*
  * Determine if we have an "interior" top-level vdev (i.e mirror/raidz).
  */
-boolean_t
+static boolean_t
 zpool_vdev_is_interior(const char *name)
 {
 	if (strncmp(name, VDEV_TYPE_RAIDZ, strlen(VDEV_TYPE_RAIDZ)) == 0 ||
+	    strncmp(name, VDEV_TYPE_SPARE, strlen(VDEV_TYPE_SPARE)) == 0 ||
+	    strncmp(name,
+	    VDEV_TYPE_REPLACING, strlen(VDEV_TYPE_REPLACING)) == 0 ||
 	    strncmp(name, VDEV_TYPE_MIRROR, strlen(VDEV_TYPE_MIRROR)) == 0)
 		return (B_TRUE);
 	return (B_FALSE);
@@ -2273,6 +2296,7 @@ vdev_get_physpaths(nvlist_t *nv, char *physpath, size_t phypath_size,
 				return (ret);
 		}
 	} else if (strcmp(type, VDEV_TYPE_MIRROR) == 0 ||
+	    strcmp(type, VDEV_TYPE_RAIDZ) == 0 ||
 	    strcmp(type, VDEV_TYPE_REPLACING) == 0 ||
 	    (is_spare = (strcmp(type, VDEV_TYPE_SPARE) == 0))) {
 		nvlist_t **child;
@@ -2396,6 +2420,7 @@ zpool_vdev_online(zpool_handle_t *zhp, const char *path, int flags,
 {
 	zfs_cmd_t zc = { 0 };
 	char msg[1024];
+	char *pathname;
 	nvlist_t *tgt;
 	boolean_t avail_spare, l2cache, islog;
 	libzfs_handle_t *hdl = zhp->zpool_hdl;
@@ -2418,15 +2443,13 @@ zpool_vdev_online(zpool_handle_t *zhp, const char *path, int flags,
 	if (avail_spare)
 		return (zfs_error(hdl, EZFS_ISSPARE, msg));
 
-	if (flags & ZFS_ONLINE_EXPAND ||
-	    zpool_get_prop_int(zhp, ZPOOL_PROP_AUTOEXPAND, NULL)) {
-		char *pathname = NULL;
+	if ((flags & ZFS_ONLINE_EXPAND ||
+	    zpool_get_prop_int(zhp, ZPOOL_PROP_AUTOEXPAND, NULL)) &&
+	    nvlist_lookup_string(tgt, ZPOOL_CONFIG_PATH, &pathname) == 0) {
 		uint64_t wholedisk = 0;
 
 		(void) nvlist_lookup_uint64(tgt, ZPOOL_CONFIG_WHOLE_DISK,
 		    &wholedisk);
-		verify(nvlist_lookup_string(tgt, ZPOOL_CONFIG_PATH,
-		    &pathname) == 0);
 
 		/*
 		 * XXX - L2ARC 1.0 devices can't support expansion.

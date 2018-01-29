@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1991, 1993, 1995
  *	The Regents of the University of California.
  * Copyright (c) 2007-2009 Robert N. M. Watson
@@ -1317,9 +1319,7 @@ in_pcbfree(struct inpcb *inp)
 	if (inp->inp_moptions != NULL)
 		inp_freemoptions(inp->inp_moptions);
 #endif
-	RO_RTFREE(&inp->inp_route);
-	if (inp->inp_route.ro_lle)
-		LLE_FREE(inp->inp_route.ro_lle);	/* zeros ro_lle */
+	RO_INVALIDATE_CACHE(&inp->inp_route);
 
 	inp->inp_vflag = 0;
 	inp->inp_flags2 |= INP_FREED;
@@ -2257,9 +2257,7 @@ void
 in_losing(struct inpcb *inp)
 {
 
-	RO_RTFREE(&inp->inp_route);
-	if (inp->inp_route.ro_lle)
-		LLE_FREE(inp->inp_route.ro_lle);	/* zeros ro_lle */
+	RO_INVALIDATE_CACHE(&inp->inp_route);
 	return;
 }
 
@@ -2797,6 +2795,35 @@ in_pcbquery_txrtlmt(struct inpcb *inp, uint32_t *p_max_pacing_rate)
 }
 
 /*
+ * Query existing TX queue level based on the existing
+ * "inp->inp_snd_tag", if any.
+ */
+int
+in_pcbquery_txrlevel(struct inpcb *inp, uint32_t *p_txqueue_level)
+{
+	union if_snd_tag_query_params params = { };
+	struct m_snd_tag *mst;
+	struct ifnet *ifp;
+	int error;
+
+	mst = inp->inp_snd_tag;
+	if (mst == NULL)
+		return (EINVAL);
+
+	ifp = mst->ifp;
+	if (ifp == NULL)
+		return (EINVAL);
+
+	if (ifp->if_snd_tag_query == NULL)
+		return (EOPNOTSUPP);
+
+	error = ifp->if_snd_tag_query(mst, &params);
+	if (error == 0 &&  p_txqueue_level != NULL)
+		*p_txqueue_level = params.rate_limit.queue_level;
+	return (error);
+}
+
+/*
  * Allocate a new TX rate limit send tag from the network interface
  * given by the "ifp" argument and save it in "inp->inp_snd_tag":
  */
@@ -2805,7 +2832,8 @@ in_pcbattach_txrtlmt(struct inpcb *inp, struct ifnet *ifp,
     uint32_t flowtype, uint32_t flowid, uint32_t max_pacing_rate)
 {
 	union if_snd_tag_alloc_params params = {
-		.rate_limit.hdr.type = IF_SND_TAG_TYPE_RATE_LIMIT,
+		.rate_limit.hdr.type = (max_pacing_rate == -1U) ?
+		    IF_SND_TAG_TYPE_UNLIMITED : IF_SND_TAG_TYPE_RATE_LIMIT,
 		.rate_limit.hdr.flowid = flowid,
 		.rate_limit.hdr.flowtype = flowtype,
 		.rate_limit.max_rate = max_pacing_rate,

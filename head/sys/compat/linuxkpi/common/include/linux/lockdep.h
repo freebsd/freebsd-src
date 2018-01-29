@@ -47,4 +47,6 @@ struct lock_class_key {
 
 #define	lockdep_is_held(m)	(sx_xholder(&(m)->sx) == curthread)
 
+#define	might_lock(m)	do { } while (0)
+
 #endif /* _LINUX_LOCKDEP_H_ */

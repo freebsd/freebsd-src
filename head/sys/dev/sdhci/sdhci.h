@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
@@ -429,10 +431,5 @@ uint32_t sdhci_generic_min_freq(device_t brdev, struct sdhci_slot *slot);
 bool sdhci_generic_get_card_present(device_t brdev, struct sdhci_slot *slot);
 void sdhci_generic_set_uhs_timing(device_t brdev, struct sdhci_slot *slot);
 void sdhci_handle_card_present(struct sdhci_slot *slot, bool is_present);
-
-#ifdef MMCCAM
-/* CAM-related */
-void sdhci_cam_start_slot(struct sdhci_slot *slot);
-#endif
 
 #endif	/* __SDHCI_H__ */

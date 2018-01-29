@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -347,6 +349,7 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	gp->rank = 1;
 	LIST_INIT(&gp->consumer);
 	LIST_INIT(&gp->provider);
+	LIST_INIT(&gp->aliases);
 	LIST_INSERT_HEAD(&mp->geom, gp, geom);
 	TAILQ_INSERT_HEAD(&geoms, gp, geoms);
 	strcpy(gp->name, sbuf_data(sb));
@@ -367,6 +370,7 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 void
 g_destroy_geom(struct g_geom *gp)
 {
+	struct g_geom_alias *gap, *gaptmp;
 
 	g_topology_assert();
 	G_VALID_GEOM(gp);
@@ -380,6 +384,8 @@ g_destroy_geom(struct g_geom *gp)
 	g_cancel_event(gp);
 	LIST_REMOVE(gp, geom);
 	TAILQ_REMOVE(&geoms, gp, geoms);
+	LIST_FOREACH_SAFE(gap, &gp->aliases, ga_next, gaptmp)
+		g_free(gap);
 	g_free(gp->name);
 	g_free(gp);
 }
@@ -627,6 +633,14 @@ g_resize_provider_event(void *arg, int flag)
 	LIST_FOREACH_SAFE(cp, &pp->consumers, consumers, cp2) {
 		gp = cp->geom;
 		if (gp->resize == NULL && size < pp->mediasize) {
+			/*
+			 * XXX: g_dev_orphan method does deferred destroying
+			 * and it is possible, that other event could already
+			 * call the orphan method. Check consumer's flags to
+			 * do not schedule it twice.
+			 */
+			if (cp->flags & G_CF_ORPHAN)
+				continue;
 			cp->flags |= G_CF_ORPHAN;
 			cp->geom->orphan(cp);
 		}
@@ -816,6 +830,7 @@ g_attach(struct g_consumer *cp, struct g_provider *pp)
 	g_trace(G_T_TOPOLOGY, "g_attach(%p, %p)", cp, pp);
 	KASSERT(cp->provider == NULL, ("attach but attached"));
 	cp->provider = pp;
+	cp->flags &= ~G_CF_ORPHAN;
 	LIST_INSERT_HEAD(&pp->consumers, cp, consumers);
 	error = redo_rank(cp->geom);
 	if (error) {
@@ -861,7 +876,7 @@ int
 g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 {
 	struct g_provider *pp;
-	int pr,pw,pe;
+	int pw, pe;
 	int error;
 
 	g_topology_assert();
@@ -892,7 +907,6 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 	 * Figure out what counts the provider would have had, if this
 	 * consumer had (r0w0e0) at this time.
 	 */
-	pr = pp->acr - cp->acr;
 	pw = pp->acw - cp->acw;
 	pe = pp->ace - cp->ace;
 
@@ -914,8 +928,8 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 		return (EPERM);
 	/* If we try to open more but provider is error'ed: fail */
 	else if ((dcr > 0 || dcw > 0 || dce > 0) && pp->error != 0) {
-		printf("%s(%d): provider %s has error\n",
-		       __func__, __LINE__, pp->name);
+		printf("%s(%d): provider %s has error %d set\n",
+		    __func__, __LINE__, pp->name, pp->error);
 		return (pp->error);
 	}
 
@@ -1210,6 +1224,18 @@ g_compare_names(const char *namea, const char *nameb)
 	if (strcmp(namea + deva, nameb + devb) == 0)
 		return (1);
 	return (0);
+}
+
+void
+g_geom_add_alias(struct g_geom *gp, const char *alias)
+{
+	struct g_geom_alias *gap;
+
+	gap = (struct g_geom_alias *)g_malloc(
+		sizeof(struct g_geom_alias) + strlen(alias) + 1, M_WAITOK);
+	strcpy((char *)(gap + 1), alias);
+	gap->ga_alias = (const char *)(gap + 1);
+	LIST_INSERT_HEAD(&gp->aliases, gap, ga_next);
 }
 
 #if defined(DIAGNOSTIC) || defined(DDB)

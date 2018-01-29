@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -120,14 +122,18 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 	e += pp->ace;
 	error = 0;
 	if ((pp->acr + pp->acw + pp->ace) == 0 && (r + w + e) > 0) {
-		if (dp->d_open != NULL) {
+		/*
+		 * It would be better to defer this decision to d_open if
+		 * it was able to take flags.
+		 */
+		if (w > 0 && (dp->d_flags & DISKFLAG_WRITE_PROTECT) != 0)
+			error = EROFS;
+		if (error == 0 && dp->d_open != NULL)
 			error = dp->d_open(dp);
-			if (bootverbose && error != 0)
-				printf("Opened disk %s -> %d\n",
-				    pp->name, error);
-			if (error != 0)
-				return (error);
-		}
+		if (bootverbose && error != 0)
+			printf("Opened disk %s -> %d\n", pp->name, error);
+		if (error != 0)
+			return (error);
 		pp->sectorsize = dp->d_sectorsize;
 		if (dp->d_maxsize == 0) {
 			printf("WARNING: Disk drive %s%d has no d_maxsize\n",
@@ -676,6 +682,7 @@ g_disk_create(void *arg, int flag)
 	struct g_provider *pp;
 	struct disk *dp;
 	struct g_disk_softc *sc;
+	struct disk_alias *dap;
 	char tmpstr[80];
 
 	if (flag == EV_CANCEL)
@@ -704,6 +711,10 @@ g_disk_create(void *arg, int flag)
 	sc->dp = dp;
 	gp = g_new_geomf(&g_disk_class, "%s%d", dp->d_name, dp->d_unit);
 	gp->softc = sc;
+	LIST_FOREACH(dap, &dp->d_aliases, da_next) {
+		snprintf(tmpstr, sizeof(tmpstr), "%s%d", dap->da_alias, dp->d_unit);
+		g_geom_add_alias(gp, tmpstr);
+	}
 	pp = g_new_providerf(gp, "%s", gp->name);
 	devstat_remove_entry(pp->stat);
 	pp->stat = NULL;
@@ -791,6 +802,7 @@ g_disk_destroy(void *ptr, int flag)
 	struct disk *dp;
 	struct g_geom *gp;
 	struct g_disk_softc *sc;
+	struct disk_alias *dap, *daptmp;
 
 	g_topology_assert();
 	dp = ptr;
@@ -802,6 +814,8 @@ g_disk_destroy(void *ptr, int flag)
 		dp->d_geom = NULL;
 		g_wither_geom(gp, ENXIO);
 	}
+	LIST_FOREACH_SAFE(dap, &dp->d_aliases, da_next, daptmp)
+		g_free(dap);
 
 	g_free(dp);
 }
@@ -834,8 +848,11 @@ g_disk_ident_adjust(char *ident, size_t size)
 struct disk *
 disk_alloc(void)
 {
+	struct disk *dp;
 
-	return (g_malloc(sizeof(struct disk), M_WAITOK | M_ZERO));
+	dp = g_malloc(sizeof(struct disk), M_WAITOK | M_ZERO);
+	LIST_INIT(&dp->d_aliases);
+	return (dp);
 }
 
 void
@@ -882,6 +899,18 @@ disk_destroy(struct disk *dp)
 	if (dp->d_devstat != NULL)
 		devstat_remove_entry(dp->d_devstat);
 	g_post_event(g_disk_destroy, dp, M_WAITOK, NULL);
+}
+
+void
+disk_add_alias(struct disk *dp, const char *name)
+{
+	struct disk_alias *dap;
+
+	dap = (struct disk_alias *)g_malloc(
+		sizeof(struct disk_alias) + strlen(name) + 1, M_WAITOK);
+	strcpy((char *)(dap + 1), name);
+	dap->da_alias = (const char *)(dap + 1);
+	LIST_INSERT_HEAD(&dp->d_aliases, dap, da_next);
 }
 
 void
@@ -1018,7 +1047,8 @@ g_disk_sysctl_flags(SYSCTL_HANDLER_ARGS)
 		"\4CANFLUSHCACHE"
 		"\5UNMAPPEDBIO"
 		"\6DIRECTCOMPLETION"
-		"\10CANZONE");
+		"\10CANZONE"
+		"\11WRITEPROTECT");
 
 	sbuf_finish(sb);
 	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);

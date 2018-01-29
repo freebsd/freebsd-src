@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1994-1998 Mark Brinicombe.
  * Copyright (c) 1994 Brini.
  * All rights reserved.
@@ -51,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <arm/arm/mpcore_timervar.h>
 #include <arm/arm/nexusvar.h>
 
 #include <machine/bus.h>
@@ -294,6 +297,9 @@ platform_late_init(void)
 #endif
 
 #if defined(SOC_MV_ARMADA38X)
+	/* Configure timers' base frequency */
+	arm_tmr_change_frequency(get_cpu_freq() / 2);
+
 	/*
 	 * Workaround for Marvell Armada38X family HW issue
 	 * between Cortex-A9 CPUs and on-chip devices that may

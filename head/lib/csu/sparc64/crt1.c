@@ -1,5 +1,7 @@
 /* LINTLIBRARY */
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2001 David E. O'Brien.
  * All rights reserved.
  * Copyright (c) 1995, 1998 Berkeley Software Design, Inc.

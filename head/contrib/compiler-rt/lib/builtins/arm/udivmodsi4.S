@@ -16,9 +16,7 @@
 
 	.syntax unified
 	.text
-#if defined(USE_THUMB_PROLOGUE)
-	.thumb
-#endif
+	DEFINE_CODE_STATE
 
 @ unsigned int __udivmodsi4(unsigned int divident, unsigned int divisor,
 @                           unsigned int *remainder)
@@ -26,11 +24,7 @@
 @   value is the quotient, the remainder is placed in the variable.
 
 	.p2align 2
-#if defined(USE_THUMB_PROLOGUE)
-DEFINE_COMPILERRT_THUMB_FUNCTION(__udivmodsi4)
-#else
 DEFINE_COMPILERRT_FUNCTION(__udivmodsi4)
-#endif
 #if __ARM_ARCH_EXT_IDIV__
 	tst     r1, r1
 	beq     LOCAL_LABEL(divby0)

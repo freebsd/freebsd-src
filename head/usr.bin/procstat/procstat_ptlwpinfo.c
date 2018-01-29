@@ -36,7 +36,7 @@
 #include "procstat.h"
 
 void
-procstat_ptlwpinfo(struct procstat *prstat)
+procstat_ptlwpinfo(struct procstat *prstat, struct kinfo_proc *kipp __unused)
 {
 	struct ptrace_lwpinfo *pl;
 	unsigned int count, i;
@@ -45,7 +45,7 @@ procstat_ptlwpinfo(struct procstat *prstat)
 	if (pl == NULL)
 		return;
 
-	if (!hflag)
+	if ((procstat_opts & PS_OPT_NOHEADER) == 0)
 		xo_emit(
 	    "{T:/%6s %7s %5s %5s %5s %6s %5s} {[:/%d}{T:/%s}{]:} {T:/%s}\n",
 		    "LWPID", "EVENT", "SIGNO", "CODE", "ERRNO", "PID", "UID",

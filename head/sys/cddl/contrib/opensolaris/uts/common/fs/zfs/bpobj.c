@@ -22,6 +22,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright (c) 2017 Datto Inc.
  */
 
 #include <sys/bpobj.h>
@@ -211,6 +212,9 @@ bpobj_iterate_impl(bpobj_t *bpo, bpobj_itor_t func, void *arg, dmu_tx_t *tx,
 	dmu_buf_t *dbuf = NULL;
 
 	mutex_enter(&bpo->bpo_lock);
+
+	if (!bpobj_hasentries(bpo))
+		goto out;
 
 	if (free)
 		dmu_buf_will_dirty(bpo->bpo_dbuf, tx);

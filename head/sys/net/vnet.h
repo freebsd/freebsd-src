@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006-2009 University of Zagreb
  * Copyright (c) 2006-2009 FreeBSD Foundation
  * All rights reserved.

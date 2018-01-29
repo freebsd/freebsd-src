@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 EMC Corp.
  * Copyright (c) 2011 Jeffrey Roberson <jeff@freebsd.org>
  * Copyright (c) 2008 Mayur Shardul <mayur.shardul@gmail.com>
@@ -773,6 +775,12 @@ vm_radix_replace(struct vm_radix *rtree, vm_page_t newpage)
 		rnode = rnode->rn_child[slot];
 	}
 	panic("%s: original replacing page not found", __func__);
+}
+
+void
+vm_radix_wait(void)
+{
+	uma_zwait(vm_radix_node_zone);
 }
 
 #ifdef DDB

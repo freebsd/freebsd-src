@@ -40,6 +40,7 @@ CFLAGS+=	-DATF_SHELL='"/bin/sh"'
 
 LIBADD=		atf_cxx
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

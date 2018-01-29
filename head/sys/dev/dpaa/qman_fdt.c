@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "qman.h"
 #include "portals.h"
 
-#define	FBMAN_DEVSTR	"Freescale Queue Manager"
+#define	FQMAN_DEVSTR	"Freescale Queue Manager"
 
 static int qman_fdt_probe(device_t);
 
@@ -77,15 +77,15 @@ qman_fdt_probe(device_t dev)
 	if (!ofw_bus_is_compatible(dev, "fsl,qman"))
 		return (ENXIO);
 
-	device_set_desc(dev, FBMAN_DEVSTR);
+	device_set_desc(dev, FQMAN_DEVSTR);
 
 	return (BUS_PROBE_DEFAULT);
 }
 
 /*
- * BMAN Portals
+ * QMAN Portals
  */
-#define	BMAN_PORT_DEVSTR	"Freescale Queue Manager - Portals"
+#define	QMAN_PORT_DEVSTR	"Freescale Queue Manager - Portals"
 
 static device_probe_t qman_portals_fdt_probe;
 static device_attach_t qman_portals_fdt_attach;
@@ -122,11 +122,20 @@ get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep)
 static int
 qman_portals_fdt_probe(device_t dev)
 {
+	phandle_t node;
 
-	if (!ofw_bus_is_compatible(dev, "fsl,qman-portals"))
+	if (ofw_bus_is_compatible(dev, "simple-bus")) {
+		node = ofw_bus_get_node(dev);
+		for (node = OF_child(node); node > 0; node = OF_peer(node)) {
+			if (ofw_bus_node_is_compatible(node, "fsl,qman-portal"))
+				break;
+		}
+		if (node <= 0)
+			return (ENXIO);
+	} else if (!ofw_bus_is_compatible(dev, "fsl,qman-portals"))
 		return (ENXIO);
 
-	device_set_desc(dev, BMAN_PORT_DEVSTR);
+	device_set_desc(dev, QMAN_PORT_DEVSTR);
 
 	return (BUS_PROBE_DEFAULT);
 }

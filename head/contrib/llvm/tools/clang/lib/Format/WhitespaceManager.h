@@ -57,6 +57,8 @@ public:
   /// was not called.
   void addUntouchableToken(const FormatToken &Tok, bool InPPDirective);
 
+  llvm::Error addReplacement(const tooling::Replacement &Replacement);
+
   /// \brief Inserts or replaces whitespace in the middle of a token.
   ///
   /// Inserts \p PreviousPostfix, \p Newlines, \p Spaces and \p CurrentPrefix
@@ -154,12 +156,11 @@ public:
     const Change *StartOfBlockComment;
     int IndentationOffset;
 
-    // A combination of nesting level and indent level, which are used in
+    // A combination of indent level and nesting level, which are used in
     // tandem to compute lexical scope, for the purposes of deciding
     // when to stop consecutive alignment runs.
-    std::pair<unsigned, unsigned>
-    nestingAndIndentLevel() const {
-      return std::make_pair(Tok->NestingLevel, Tok->IndentLevel);
+    std::pair<unsigned, unsigned> indentAndNestingLevel() const {
+      return std::make_pair(Tok->IndentLevel, Tok->NestingLevel);
     }
   };
 
@@ -195,9 +196,9 @@ private:
   /// \brief Stores \p Text as the replacement for the whitespace in \p Range.
   void storeReplacement(SourceRange Range, StringRef Text);
   void appendNewlineText(std::string &Text, unsigned Newlines);
-  void appendNewlineText(std::string &Text, unsigned Newlines,
-                         unsigned PreviousEndOfTokenColumn,
-                         unsigned EscapedNewlineColumn);
+  void appendEscapedNewlineText(std::string &Text, unsigned Newlines,
+                                unsigned PreviousEndOfTokenColumn,
+                                unsigned EscapedNewlineColumn);
   void appendIndentText(std::string &Text, unsigned IndentLevel,
                         unsigned Spaces, unsigned WhitespaceStartColumn);
 

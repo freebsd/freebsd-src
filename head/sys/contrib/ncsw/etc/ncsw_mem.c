@@ -42,6 +42,7 @@
 #include "xx_ext.h"
 
 
+#if 0
 #define PAD_ALIGNMENT(align, x) (((x)%(align)) ? ((align)-((x)%(align))) : 0)
 
 #define ALIGN_BLOCK(p_Block, prefixSize, alignment)                 \
@@ -761,3 +762,4 @@ void MEM_CheckLeaks(t_Handle h_Mem)
 #endif /* DEBUG_MEM_LEAKS */
 
 
+#endif

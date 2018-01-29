@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1988, 1990, 1993
  *	The Regents of the University of California.
  * Copyright (c) 2004 The FreeBSD Foundation
@@ -3688,24 +3690,41 @@ soisconnecting(struct socket *so)
 void
 soisconnected(struct socket *so)
 {
-	struct socket *head;
-	int ret;
 
-	/*
-	 * XXXGL: this is the only place where we acquire socket locks
-	 * in reverse order: first child, then listening socket.  To
-	 * avoid possible LOR, use try semantics.
-	 */
-restart:
 	SOCK_LOCK(so);
-	if ((head = so->so_listen) != NULL &&
-	    __predict_false(SOLISTEN_TRYLOCK(head) == 0)) {
-		SOCK_UNLOCK(so);
-		goto restart;
-	}
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISDISCONNECTING|SS_ISCONFIRMING);
 	so->so_state |= SS_ISCONNECTED;
-	if (head != NULL && (so->so_qstate == SQ_INCOMP)) {
+
+	if (so->so_qstate == SQ_INCOMP) {
+		struct socket *head = so->so_listen;
+		int ret;
+
+		KASSERT(head, ("%s: so %p on incomp of NULL", __func__, so));
+		/*
+		 * Promoting a socket from incomplete queue to complete, we
+		 * need to go through reverse order of locking.  We first do
+		 * trylock, and if that doesn't succeed, we go the hard way
+		 * leaving a reference and rechecking consistency after proper
+		 * locking.
+		 */
+		if (__predict_false(SOLISTEN_TRYLOCK(head) == 0)) {
+			soref(head);
+			SOCK_UNLOCK(so);
+			SOLISTEN_LOCK(head);
+			SOCK_LOCK(so);
+			if (__predict_false(head != so->so_listen)) {
+				/*
+				 * The socket went off the listen queue,
+				 * should be lost race to close(2) of sol.
+				 * The socket is about to soabort().
+				 */
+				SOCK_UNLOCK(so);
+				sorele(head);
+				return;
+			}
+			/* Not the last one, as so holds a ref. */
+			refcount_release(&head->so_count);
+		}
 again:
 		if ((so->so_options & SO_ACCEPTFILTER) == 0) {
 			TAILQ_REMOVE(&head->sol_incomp, so, so_list);
@@ -3734,8 +3753,6 @@ again:
 		}
 		return;
 	}
-	if (head != NULL)
-		SOLISTEN_UNLOCK(head);
 	SOCK_UNLOCK(so);
 	wakeup(&so->so_timeo);
 	sorwakeup(so);
@@ -3769,13 +3786,14 @@ soisdisconnected(struct socket *so)
 	so->so_state |= SS_ISDISCONNECTED;
 
 	if (!SOLISTENING(so)) {
+		SOCK_UNLOCK(so);
 		SOCKBUF_LOCK(&so->so_rcv);
 		socantrcvmore_locked(so);
 		SOCKBUF_LOCK(&so->so_snd);
 		sbdrop_locked(&so->so_snd, sbused(&so->so_snd));
 		socantsendmore_locked(so);
-	}
-	SOCK_UNLOCK(so);
+	} else
+		SOCK_UNLOCK(so);
 	wakeup(&so->so_timeo);
 }
 

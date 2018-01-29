@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998 The NetBSD Foundation, Inc. All rights reserved.
  * Copyright (c) 1998 Lennart Augustsson. All rights reserved.
  * Copyright (c) 2008-2010 Hans Petter Selasky. All rights reserved.
@@ -100,7 +102,9 @@ SYSCTL_INT(_hw_usb, OID_AUTO, power_timeout, CTLFLAG_RWTUN,
 #if USB_HAVE_DISABLE_ENUM
 static int usb_disable_enumeration = 0;
 SYSCTL_INT(_hw_usb, OID_AUTO, disable_enumeration, CTLFLAG_RWTUN,
-    &usb_disable_enumeration, 0, "Set to disable all USB device enumeration.");
+    &usb_disable_enumeration, 0, "Set to disable all USB device enumeration. "
+	"This can secure against USB devices turning evil, "
+	"for example a USB memory stick becoming a USB keyboard.");
 
 static int usb_disable_port_power = 0;
 SYSCTL_INT(_hw_usb, OID_AUTO, disable_port_power, CTLFLAG_RWTUN,

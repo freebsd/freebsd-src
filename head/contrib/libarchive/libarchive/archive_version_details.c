@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_LZ4_H
 #include <lz4.h>
 #endif
+#ifdef HAVE_ZSTD_H
+#include <zstd.h>
+#endif
 
 #include "archive.h"
 #include "archive_private.h"
@@ -59,6 +62,7 @@ archive_version_details(void)
 	const char *liblzma = archive_liblzma_version();
 	const char *bzlib = archive_bzlib_version();
 	const char *liblz4 = archive_liblz4_version();
+	const char *libzstd = archive_libzstd_version();
 
 	if (!init) {
 		archive_string_init(&str);
@@ -83,6 +87,10 @@ archive_version_details(void)
 		if (liblz4) {
 			archive_strcat(&str, " liblz4/");
 			archive_strcat(&str, liblz4);
+		}
+		if (libzstd) {
+			archive_strcat(&str, " libzstd/");
+			archive_strcat(&str, libzstd);
 		}
 	}
 	return str.s;
@@ -127,6 +135,16 @@ archive_liblz4_version(void)
 	return NUMBER(LZ4_VERSION_MAJOR) "." NUMBER(LZ4_VERSION_MINOR) "." NUMBER(LZ4_VERSION_RELEASE);
 #undef NUMBER
 #undef str
+#else
+	return NULL;
+#endif
+}
+
+const char *
+archive_libzstd_version(void)
+{
+#if HAVE_ZSTD_H && HAVE_LIBZSTD
+	return ZSTD_VERSION_STRING;
 #else
 	return NULL;
 #endif

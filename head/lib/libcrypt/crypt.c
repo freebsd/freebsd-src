@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Mark Murray
  * Copyright (c) 2014 Dag-Erling Smørgrav
  * All rights reserved.

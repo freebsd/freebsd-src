@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1998 Berkeley Software Design, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -156,9 +158,6 @@ static uma_zone_t turnstile_zone;
 static void	init_turnstile0(void *dummy);
 #ifdef TURNSTILE_PROFILING
 static void	init_turnstile_profiling(void *arg);
-#endif
-#ifdef DDB
-static void	print_sleepchain(struct thread *td, const char *prefix);
 #endif
 static void	propagate_priority(struct thread *td);
 static int	turnstile_adjust_thread(struct turnstile *ts,
@@ -1096,7 +1095,7 @@ found:
 
 /*
  * Show all the threads a particular thread is waiting on based on
- * non-sleepable and non-spin locks.
+ * non-spin locks.
  */
 static void
 print_lockchain(struct thread *td, const char *prefix)
@@ -1104,10 +1103,11 @@ print_lockchain(struct thread *td, const char *prefix)
 	struct lock_object *lock;
 	struct lock_class *class;
 	struct turnstile *ts;
+	struct thread *owner;
 
 	/*
 	 * Follow the chain.  We keep walking as long as the thread is
-	 * blocked on a turnstile that has an owner.
+	 * blocked on a lock that has an owner.
 	 */
 	while (!db_pager_quit) {
 		db_printf("%sthread %d (pid %d, %s) ", prefix, td->td_tid,
@@ -1136,6 +1136,17 @@ print_lockchain(struct thread *td, const char *prefix)
 					return;
 				td = ts->ts_owner;
 				break;
+			} else if (TD_ON_SLEEPQ(td)) {
+				if (!lockmgr_chain(td, &owner) &&
+				    !sx_chain(td, &owner)) {
+					db_printf("sleeping on %p \"%s\"\n",
+					    td->td_wchan, td->td_wmesg);
+					return;
+				}
+				if (owner == NULL)
+					return;
+				td = owner;
+				break;
 			}
 			db_printf("inhibited\n");
 			return;
@@ -1158,6 +1169,7 @@ DB_SHOW_COMMAND(lockchain, db_show_lockchain)
 
 	print_lockchain(td, "");
 }
+DB_SHOW_ALIAS(sleepchain, db_show_lockchain);
 
 DB_SHOW_ALL_COMMAND(chains, db_show_allchains)
 {
@@ -1168,13 +1180,10 @@ DB_SHOW_ALL_COMMAND(chains, db_show_allchains)
 	i = 1;
 	FOREACH_PROC_IN_SYSTEM(p) {
 		FOREACH_THREAD_IN_PROC(p, td) {
-			if (TD_ON_LOCK(td) && LIST_EMPTY(&td->td_contested)) {
+			if ((TD_ON_LOCK(td) && LIST_EMPTY(&td->td_contested))
+			    || (TD_IS_INHIBITED(td) && TD_ON_SLEEPQ(td))) {
 				db_printf("chain %d:\n", i++);
 				print_lockchain(td, " ");
-			}
-			if (TD_IS_INHIBITED(td) && TD_ON_SLEEPQ(td)) {
-				db_printf("chain %d:\n", i++);
-				print_sleepchain(td, " ");
 			}
 			if (db_pager_quit)
 				return;
@@ -1182,70 +1191,6 @@ DB_SHOW_ALL_COMMAND(chains, db_show_allchains)
 	}
 }
 DB_SHOW_ALIAS(allchains, db_show_allchains)
-
-/*
- * Show all the threads a particular thread is waiting on based on
- * sleepable locks.
- */
-static void
-print_sleepchain(struct thread *td, const char *prefix)
-{
-	struct thread *owner;
-
-	/*
-	 * Follow the chain.  We keep walking as long as the thread is
-	 * blocked on a sleep lock that has an owner.
-	 */
-	while (!db_pager_quit) {
-		db_printf("%sthread %d (pid %d, %s) ", prefix, td->td_tid,
-		    td->td_proc->p_pid, td->td_name);
-		switch (td->td_state) {
-		case TDS_INACTIVE:
-			db_printf("is inactive\n");
-			return;
-		case TDS_CAN_RUN:
-			db_printf("can run\n");
-			return;
-		case TDS_RUNQ:
-			db_printf("is on a run queue\n");
-			return;
-		case TDS_RUNNING:
-			db_printf("running on CPU %d\n", td->td_oncpu);
-			return;
-		case TDS_INHIBITED:
-			if (TD_ON_SLEEPQ(td)) {
-				if (lockmgr_chain(td, &owner) ||
-				    sx_chain(td, &owner)) {
-					if (owner == NULL)
-						return;
-					td = owner;
-					break;
-				}
-				db_printf("sleeping on %p \"%s\"\n",
-				    td->td_wchan, td->td_wmesg);
-				return;
-			}
-			db_printf("inhibited\n");
-			return;
-		default:
-			db_printf("??? (%#x)\n", td->td_state);
-			return;
-		}
-	}
-}
-
-DB_SHOW_COMMAND(sleepchain, db_show_sleepchain)
-{
-	struct thread *td;
-
-	/* Figure out which thread to start with. */
-	if (have_addr)
-		td = db_lookup_thread(addr, true);
-	else
-		td = kdb_thread;
-
-	print_sleepchain(td, "");
-}
 
 static void	print_waiters(struct turnstile *ts, int indent);
 	

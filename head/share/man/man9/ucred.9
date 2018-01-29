@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 19, 2009
+.Dd September 27, 2017
 .Dt UCRED 9
 .Os
 .Sh NAME
@@ -34,7 +34,6 @@
 .Nm crget ,
 .Nm crhold ,
 .Nm crfree ,
-.Nm crshared ,
 .Nm crcopy ,
 .Nm crdup ,
 .Nm cru2x ,
@@ -49,8 +48,6 @@
 .Fn crhold "struct ucred *cr"
 .Ft void
 .Fn crfree "struct ucred *cr"
-.Ft int
-.Fn crshared "struct ucred *cr"
 .Ft void
 .Fn crcopy "struct ucred *dest" "struct ucred *src"
 .Ft "struct ucred *"
@@ -84,12 +81,6 @@ The
 .Fn crfree
 function decreases the reference count on the credential.
 If the count drops to 0, the storage for the structure is freed.
-.Pp
-The
-.Fn crshared
-function returns true if the credential is shared.
-A credential is considered to be shared if its reference
-count is greater than one.
 .Pp
 The
 .Fn crcopy
@@ -170,10 +161,6 @@ and
 all return a pointer to a
 .Vt ucred
 structure.
-.Pp
-.Fn crshared
-returns 0 if the credential has a reference count greater than 1;
-otherwise, 1 is returned.
 .Sh USAGE NOTES
 As of
 .Fx 5.0 ,

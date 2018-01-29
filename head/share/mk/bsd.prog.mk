@@ -39,7 +39,7 @@ CFLAGS+=${CRUNCH_CFLAGS}
 .else
 .if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
     empty(DEBUG_FLAGS:M-gdwarf-*)
-CFLAGS+= -g
+CFLAGS+= ${DEBUG_FILES_CFLAGS}
 CTFFLAGS+= -g
 .endif
 .endif
@@ -85,7 +85,11 @@ PROGNAME?=	${PROG}
 
 .if defined(SRCS)
 
-OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
+OBJS+=  ${SRCS:N*.h:${OBJS_SRCS_FILTER:ts:}:S/$/.o/g}
+
+# LLVM bitcode / textual IR representations of the program
+BCOBJS+=${SRCS:N*.[hsS]:N*.asm:${OBJS_SRCS_FILTER:ts:}:S/$/.bco/g}
+LLOBJS+=${SRCS:N*.[hsS]:N*.asm:${OBJS_SRCS_FILTER:ts:}:S/$/.llo/g}
 
 .if target(beforelinking)
 beforelinking: ${OBJS}
@@ -117,7 +121,10 @@ SRCS=	${PROG}.c
 # - the name of the object gets put into the executable symbol table instead of
 #   the name of a variable temporary object.
 # - it's useful to keep objects around for crunching.
-OBJS+=	${PROG}.o
+OBJS+=		${PROG}.o
+BCOBJS+=	${PROG}.bc
+LLOBJS+=	${PROG}.ll
+CLEANFILES+=	${PROG}.o ${PROG}.bc ${PROG}.ll
 
 .if target(beforelinking)
 beforelinking: ${OBJS}
@@ -148,16 +155,13 @@ ${PROGNAME}.debug: ${PROG_FULL}
 .endif
 
 .if defined(LLVM_LINK)
-# LLVM bitcode / textual IR representations of the program
-BCOBJS=	${OBJS:.o=.bco}
-LLOBJS=	${OBJS:.o=.llo}
-
 ${PROG_FULL}.bc: ${BCOBJS}
 	${LLVM_LINK} -o ${.TARGET} ${BCOBJS}
 
 ${PROG_FULL}.ll: ${LLOBJS}
 	${LLVM_LINK} -S -o ${.TARGET} ${LLOBJS}
 
+CLEANFILES+=	${PROG_FULL}.bc ${PROG_FULL}.ll
 .endif # defined(LLVM_LINK)
 
 .if	${MK_MAN} != "no" && !defined(MAN) && \
@@ -181,7 +185,7 @@ all: all-man
 .if defined(PROG)
 CLEANFILES+= ${PROG} ${PROG}.bc ${PROG}.ll
 .if ${MK_DEBUG_FILES} != "no"
-CLEANFILES+= ${PROG_FULL} ${PROG_FULL}.bc ${PROGNAME}.debug ${PROG_FULL}.ll
+CLEANFILES+= ${PROG_FULL} ${PROGNAME}.debug
 .endif
 .endif
 
@@ -290,15 +294,15 @@ realinstall: maninstall
 
 .endif	# !target(install)
 
-.if !target(lint)
-lint: ${SRCS:M*.c}
-.if defined(PROG)
-	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
-.endif
-.endif
-
 .if ${MK_MAN} != "no"
 .include <bsd.man.mk>
+.endif
+
+.if defined(HAS_TESTS)
+MAKE+=			MK_MAKE_CHECK_USE_SANDBOX=yes
+SUBDIR_TARGETS+=	check
+TESTS_LD_LIBRARY_PATH+=	${.OBJDIR}
+TESTS_PATH+=		${.OBJDIR}
 .endif
 
 .if defined(PROG)

@@ -109,6 +109,7 @@
 	# filter tuples : fragmentation, mpshittype, macmatch, ethertype,
 	#		  protocol, tos, vlan, vnic_id, port, fcoe
 	# valid filterModes are described the Terminator 5 Data Book
+	# vnicMode = pf_vf  #default. Other values are outer_vlan, encapsulation
 	filterMode = fcoemask, srvrsram, fragmentation, mpshittype, protocol, vlan, port, fcoe
 
 	# filter tuples enforced in LE active region (equal to or subset of filterMode)
@@ -177,6 +178,10 @@
 						# Enable iscsi cmp mode.
 	# MC configuration
 	#mc_mode_brc[0] = 1		# mc0 - 1: enable BRC, 0: enable RBC
+
+	# HMA configuration
+	hma_size = 64			# Size (in MBs) of host memory expected
+	hma_regions = stag,pbl,rq	# What all regions to place in host memory
 
 # Some "definitions" to make the rest of this a bit more readable.  We support
 # 4 ports, 3 functions (NIC, FCoE and iSCSI), scaling up to 8 "CPU Queue Sets"
@@ -565,8 +570,8 @@
 	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [fini]
-	version = 0x01000028
-	checksum = 0x4f820cc6
+	version = 0x1425001c
+	checksum = 0x8136d0f8
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

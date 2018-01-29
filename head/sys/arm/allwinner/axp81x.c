@@ -352,13 +352,11 @@ axp81x_shutdown(void *devp, int howto)
 static void
 axp81x_intr(void *arg)
 {
-	struct axp81x_softc *sc;
 	device_t dev;
 	uint8_t val;
 	int error;
 
 	dev = arg;
-	sc = device_get_softc(dev);
 
 	error = axp81x_read(dev, AXP_IRQSTAT5, &val, 1);
 	if (error != 0)

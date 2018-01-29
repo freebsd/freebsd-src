@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -364,9 +366,9 @@ __bitcount64(__uint64_t _x)
 
 #include <sys/select.h>
 
-#define	major(x)	((int)((dev_t)(x) >> 32))	/* major number */
-#define	minor(x)	((int)((x) & 0xffffffff))	/* minor number */
-#define	makedev(x, y)	(((dev_t)(x) << 32) | (unsigned)(y)) /* create dev_t */
+#define	major(x)	((int)((dev_t)(x) >> 32))
+#define	minor(x)	((int)(x))
+#define	makedev(x, y)	(((dev_t)(x) << 32) | (unsigned)(y))
 
 /*
  * These declarations belong elsewhere, but are repeated here and in

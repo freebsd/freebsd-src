@@ -1,7 +1,9 @@
 /*	$OpenBSD: acutab.c,v 1.5 2006/03/17 19:17:13 moritz Exp $	*/
 /*	$NetBSD: acutab.c,v 1.3 1994/12/08 09:30:41 jtc Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

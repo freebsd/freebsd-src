@@ -266,10 +266,12 @@ static int
 gic_v3_ofw_bus_attach(device_t dev)
 {
 	struct gic_v3_ofw_devinfo *di;
+	struct gic_v3_softc *sc;
 	device_t child;
 	phandle_t parent, node;
 	pcell_t addr_cells, size_cells;
 
+	sc = device_get_softc(dev);
 	parent = ofw_bus_get_node(dev);
 	if (parent > 0) {
 		addr_cells = 2;
@@ -320,6 +322,7 @@ gic_v3_ofw_bus_attach(device_t dev)
 				continue;
 			}
 
+			sc->gic_nchildren++;
 			device_set_ivars(child, di);
 		}
 	}

@@ -131,8 +131,21 @@ sliplink_print(netdissect_options *ndo,
 	u_int hlen;
 
 	dir = p[SLX_DIR];
-	ND_PRINT((ndo, dir == SLIPDIR_IN ? "I " : "O "));
+	switch (dir) {
 
+	case SLIPDIR_IN:
+		ND_PRINT((ndo, "I "));
+		break;
+
+	case SLIPDIR_OUT:
+		ND_PRINT((ndo, "O "));
+		break;
+
+	default:
+		ND_PRINT((ndo, "Invalid direction %d ", dir));
+		dir = -1;
+		break;
+	}
 	if (ndo->ndo_nflag) {
 		/* XXX just dump the header */
 		register int i;
@@ -155,13 +168,21 @@ sliplink_print(netdissect_options *ndo,
 		 * has restored the IP header copy to IPPROTO_TCP.
 		 */
 		lastconn = ((const struct ip *)&p[SLX_CHDR])->ip_p;
+		ND_PRINT((ndo, "utcp %d: ", lastconn));
+		if (dir == -1) {
+			/* Direction is bogus, don't use it */
+			return;
+		}
 		hlen = IP_HL(ip);
 		hlen += TH_OFF((const struct tcphdr *)&((const int *)ip)[hlen]);
 		lastlen[dir][lastconn] = length - (hlen << 2);
-		ND_PRINT((ndo, "utcp %d: ", lastconn));
 		break;
 
 	default:
+		if (dir == -1) {
+			/* Direction is bogus, don't use it */
+			return;
+		}
 		if (p[SLX_CHDR] & TYPE_COMPRESSED_TCP) {
 			compressed_sl_print(ndo, &p[SLX_CHDR], ip,
 			    length, dir);

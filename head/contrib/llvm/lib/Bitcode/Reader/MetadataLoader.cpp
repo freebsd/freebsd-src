@@ -21,7 +21,6 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitstreamReader.h"
@@ -30,7 +29,6 @@
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/AutoUpgrade.h"
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/CallSite.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/IR/Comdat.h"
 #include "llvm/IR/Constant.h"
@@ -39,7 +37,6 @@
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GVMaterializer.h"
@@ -59,7 +56,6 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ModuleSummaryIndex.h"
 #include "llvm/IR/OperandTraits.h"
-#include "llvm/IR/Operator.h"
 #include "llvm/IR/TrackingMDRef.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/ValueHandle.h"
@@ -497,8 +493,8 @@ class MetadataLoader::MetadataLoaderImpl {
           for (unsigned I = 0; I < GVs->getNumOperands(); I++)
             if (auto *GV =
                     dyn_cast_or_null<DIGlobalVariable>(GVs->getOperand(I))) {
-              auto *DGVE =
-                  DIGlobalVariableExpression::getDistinct(Context, GV, nullptr);
+              auto *DGVE = DIGlobalVariableExpression::getDistinct(
+                  Context, GV, DIExpression::get(Context, {}));
               GVs->replaceOperandWith(I, DGVE);
             }
       }
@@ -510,8 +506,8 @@ class MetadataLoader::MetadataLoaderImpl {
       GV.eraseMetadata(LLVMContext::MD_dbg);
       for (auto *MD : MDs)
         if (auto *DGV = dyn_cast_or_null<DIGlobalVariable>(MD)) {
-          auto *DGVE =
-              DIGlobalVariableExpression::getDistinct(Context, DGV, nullptr);
+          auto *DGVE = DIGlobalVariableExpression::getDistinct(
+              Context, DGV, DIExpression::get(Context, {}));
           GV.addMetadata(LLVMContext::MD_dbg, *DGVE);
         } else
           GV.addMetadata(LLVMContext::MD_dbg, *MD);
@@ -1355,7 +1351,7 @@ Error MetadataLoader::MetadataLoaderImpl::parseOneMetadata(
     break;
   }
   case bitc::METADATA_COMPILE_UNIT: {
-    if (Record.size() < 14 || Record.size() > 18)
+    if (Record.size() < 14 || Record.size() > 19)
       return error("Invalid record");
 
     // Ignore Record[0], which indicates whether this compile unit is
@@ -1369,7 +1365,8 @@ Error MetadataLoader::MetadataLoaderImpl::parseOneMetadata(
         Record.size() <= 15 ? nullptr : getMDOrNull(Record[15]),
         Record.size() <= 14 ? 0 : Record[14],
         Record.size() <= 16 ? true : Record[16],
-        Record.size() <= 17 ? false : Record[17]);
+        Record.size() <= 17 ? false : Record[17],
+        Record.size() <= 18 ? false : Record[18]);
 
     MetadataList.assignValue(CU, NextMetadataNo);
     NextMetadataNo++;
@@ -1585,7 +1582,8 @@ Error MetadataLoader::MetadataLoaderImpl::parseOneMetadata(
 
       DIGlobalVariableExpression *DGVE = nullptr;
       if (Attach || Expr)
-        DGVE = DIGlobalVariableExpression::getDistinct(Context, DGV, Expr);
+        DGVE = DIGlobalVariableExpression::getDistinct(
+            Context, DGV, Expr ? Expr : DIExpression::get(Context, {}));
       if (Attach)
         Attach->addDebugInfo(DGVE);
 
@@ -1648,10 +1646,13 @@ Error MetadataLoader::MetadataLoaderImpl::parseOneMetadata(
       return error("Invalid record");
 
     IsDistinct = Record[0];
-    MetadataList.assignValue(GET_OR_DISTINCT(DIGlobalVariableExpression,
-                                             (Context, getMDOrNull(Record[1]),
-                                              getMDOrNull(Record[2]))),
-                             NextMetadataNo);
+    Metadata *Expr = getMDOrNull(Record[2]);
+    if (!Expr)
+      Expr = DIExpression::get(Context, {});
+    MetadataList.assignValue(
+        GET_OR_DISTINCT(DIGlobalVariableExpression,
+                        (Context, getMDOrNull(Record[1]), Expr)),
+        NextMetadataNo);
     NextMetadataNo++;
     break;
   }

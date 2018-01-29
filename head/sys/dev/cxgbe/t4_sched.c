@@ -382,8 +382,10 @@ t4_free_tx_sched(struct adapter *sc)
 
 	taskqueue_drain(taskqueue_thread, &sc->tc_task);
 
-	for_each_port(sc, i)
-	    free(sc->port[i]->sched_params, M_CXGBE);
+	for_each_port(sc, i) {
+		if (sc->port[i] != NULL)
+			free(sc->port[i]->sched_params, M_CXGBE);
+	}
 
 	if (mtx_initialized(&sc->tc_lock))
 		mtx_destroy(&sc->tc_lock);

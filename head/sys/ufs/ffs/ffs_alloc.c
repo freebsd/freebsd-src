@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD AND BSD-3-Clause)
+ *
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -123,6 +125,7 @@ static ufs2_daddr_t ffs_nodealloccg(struct inode *, u_int, ufs2_daddr_t, int,
 static ufs1_daddr_t ffs_mapsearch(struct fs *, struct cg *, ufs2_daddr_t, int);
 static int	ffs_reallocblks_ufs1(struct vop_reallocblks_args *);
 static int	ffs_reallocblks_ufs2(struct vop_reallocblks_args *);
+static void	ffs_ckhash_cg(struct buf *);
 
 /*
  * Allocate a block in the filesystem.
@@ -1955,6 +1958,16 @@ getinobuf(struct inode *ip, u_int cg, u_int32_t cginoblk, int gbflags)
 }
 
 /*
+ * Synchronous inode initialization is needed only when barrier writes do not
+ * work as advertised, and will impose a heavy cost on file creation in a newly
+ * created filesystem.
+ */
+static int doasyncinodeinit = 1;
+SYSCTL_INT(_vfs_ffs, OID_AUTO, doasyncinodeinit, CTLFLAG_RWTUN,
+    &doasyncinodeinit, 0,
+    "Perform inode block initialization using asynchronous writes");
+
+/*
  * Determine whether an inode can be allocated.
  *
  * Check to see if an inode is available, and if it is,
@@ -2062,6 +2075,7 @@ gotit:
 				dp2->di_gen = arc4random();
 			dp2++;
 		}
+
 		/*
 		 * Rather than adding a soft updates dependency to ensure
 		 * that the new inode block is written before it is claimed
@@ -2071,7 +2085,10 @@ gotit:
 		 * written. The barrier write should only slow down bulk
 		 * loading of newly created filesystems.
 		 */
-		babarrierwrite(ibp);
+		if (doasyncinodeinit)
+			babarrierwrite(ibp);
+		else
+			bwrite(ibp);
 
 		/*
 		 * After the inode block is written, try to update the
@@ -2397,13 +2414,11 @@ ffs_vfree(pvp, ino, mode)
 	int mode;
 {
 	struct ufsmount *ump;
-	struct inode *ip;
 
 	if (DOINGSOFTDEP(pvp)) {
 		softdep_freefile(pvp, ino, mode);
 		return (0);
 	}
-	ip = VTOI(pvp);
 	ump = VFSTOUFS(pvp->v_mount);
 	return (ffs_freefile(ump, ump->um_fs, ump->um_devvp, ino, mode, NULL));
 }
@@ -2583,6 +2598,15 @@ ffs_mapsearch(fs, cgp, bpref, allocsiz)
 	return (-1);
 }
 
+static const struct statfs *
+ffs_getmntstat(struct vnode *devvp)
+{
+
+	if (devvp->v_type == VCHR)
+		return (&devvp->v_rdev->si_mountpt->mnt_stat);
+	return (ffs_getmntstat(VFSTOUFS(devvp->v_mount)->um_devvp));
+}
+
 /*
  * Fetch and verify a cylinder group.
  */
@@ -2596,25 +2620,58 @@ ffs_getcg(fs, devvp, cg, bpp, cgpp)
 {
 	struct buf *bp;
 	struct cg *cgp;
-	int error;
+	const struct statfs *sfs;
+	int flags, error;
 
 	*bpp = NULL;
 	*cgpp = NULL;
-	error = bread(devvp, devvp->v_type == VREG ?
+	flags = 0;
+	if ((fs->fs_metackhash & CK_CYLGRP) != 0)
+		flags |= GB_CKHASH;
+	error = breadn_flags(devvp, devvp->v_type == VREG ?
 	    fragstoblks(fs, cgtod(fs, cg)) : fsbtodb(fs, cgtod(fs, cg)),
-	    (int)fs->fs_cgsize, NOCRED, &bp);
+	    (int)fs->fs_cgsize, NULL, NULL, 0, NOCRED, flags,
+	    ffs_ckhash_cg, &bp);
 	if (error != 0)
 		return (error);
 	cgp = (struct cg *)bp->b_data;
-	if (!cg_chkmagic(cgp) || cgp->cg_cgx != cg) {
+	if (((fs->fs_metackhash & CK_CYLGRP) != 0 &&
+	    (bp->b_flags & B_CKHASH) != 0 &&
+	    cgp->cg_ckhash != bp->b_ckhash) ||
+	    !cg_chkmagic(cgp) || cgp->cg_cgx != cg) {
+		sfs = ffs_getmntstat(devvp);
+		printf("UFS %s%s (%s) cylinder checksum failed: cg %u, cgp: "
+		    "0x%x != bp: 0x%jx\n",
+		    devvp->v_type == VCHR ? "" : "snapshot of ",
+		    sfs->f_mntfromname, sfs->f_mntonname,
+		    cg, cgp->cg_ckhash, (uintmax_t)bp->b_ckhash);
+		bp->b_flags &= ~B_CKHASH;
+		bp->b_flags |= B_INVAL | B_NOCACHE;
 		brelse(bp);
 		return (EIO);
 	}
+	bp->b_flags &= ~B_CKHASH;
 	bp->b_xflags |= BX_BKGRDWRITE;
+	if ((fs->fs_metackhash & CK_CYLGRP) != 0)
+		bp->b_xflags |= BX_CYLGRP;
 	cgp->cg_old_time = cgp->cg_time = time_second;
 	*bpp = bp;
 	*cgpp = cgp;
 	return (0);
+}
+
+static void
+ffs_ckhash_cg(bp)
+	struct buf *bp;
+{
+	uint32_t ckhash;
+	struct cg *cgp;
+
+	cgp = (struct cg *)bp->b_data;
+	ckhash = cgp->cg_ckhash;
+	cgp->cg_ckhash = 0;
+	bp->b_ckhash = calculate_crc32c(~0L, bp->b_data, bp->b_bcount);
+	cgp->cg_ckhash = ckhash;
 }
 
 /*

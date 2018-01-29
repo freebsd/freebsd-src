@@ -73,6 +73,35 @@
 	0			  \
 )
 
+#define MAGIC_SNPRINTB "\177\020\
+b\0debug\0\
+b\1symlink\0\
+b\2compress\0\
+b\3devices\0\
+b\4mime_type\0\
+b\5continue\0\
+b\6check\0\
+b\7preserve_atime\0\
+b\10raw\0\
+b\11error\0\
+b\12mime_encoding\0\
+b\13apple\0\
+b\14no_check_compress\0\
+b\15no_check_tar\0\
+b\16no_check_soft\0\
+b\17no_check_sapptype\0\
+b\20no_check_elf\0\
+b\21no_check_text\0\
+b\22no_check_cdf\0\
+b\23no_check_reserved0\0\
+b\24no_check_tokens\0\
+b\25no_check_encoding\0\
+b\26no_check_reserved1\0\
+b\27no_check_reserved2\0\
+b\30extension\0\
+b\31transp_compression\0\
+"
+
 /* Defined for backwards compatibility (renamed) */
 #define	MAGIC_NO_CHECK_ASCII	MAGIC_NO_CHECK_TEXT
 
@@ -97,6 +126,7 @@ const char *magic_descriptor(magic_t, int);
 const char *magic_buffer(magic_t, const void *, size_t);
 
 const char *magic_error(magic_t);
+int magic_getflags(magic_t);
 int magic_setflags(magic_t, int);
 
 int magic_version(void);

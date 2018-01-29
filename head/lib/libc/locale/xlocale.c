@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -273,7 +275,7 @@ locale_t newlocale(int mask, const char *locale, locale_t base)
 	for (type=0 ; type<XLC_LAST ; type++) {
 		if (mask & 1) {
 			if (useenv) {
-				realLocale = __get_locale_env(type);
+				realLocale = __get_locale_env(type + 1);
 			}
 			new->components[type] =
 			     constructors[type](realLocale, new);

@@ -1,7 +1,9 @@
 /*	$OpenBSD: v831.c,v 1.11 2006/03/17 19:17:13 moritz Exp $	*/
 /*	$NetBSD: v831.c,v 1.5 1996/12/29 10:42:01 cgd Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

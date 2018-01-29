@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -218,7 +218,7 @@ AcpiDbOpenDebugFile (
     }
 
     AcpiOsPrintf ("Debug output file %s opened\n", Name);
-    strncpy (AcpiGbl_DbDebugFilename, Name,
+    AcpiUtSafeStrncpy (AcpiGbl_DbDebugFilename, Name,
         sizeof (AcpiGbl_DbDebugFilename));
     AcpiGbl_DbOutputToFile = TRUE;
 }

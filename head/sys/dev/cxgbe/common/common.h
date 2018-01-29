@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Chelsio Communications, Inc.
  * All rights reserved.
  *
@@ -42,6 +44,7 @@ enum {
 	EC_LEN         = 16,    /* E/C length */
 	ID_LEN         = 16,    /* ID length */
 	PN_LEN         = 16,    /* Part Number length */
+	MD_LEN         = 16,    /* MFG diags version length */
 	MACADDR_LEN    = 12,    /* MAC Address length */
 };
 
@@ -67,6 +70,8 @@ enum {
 	FEC_BASER_RS  = 1 << 1,
 	FEC_RESERVED  = 1 << 2,
 };
+
+enum t4_bar2_qtype { T4_BAR2_QTYPE_EGRESS, T4_BAR2_QTYPE_INGRESS };
 
 struct port_stats {
 	u64 tx_octets;            /* total # of octets in good frames */
@@ -254,6 +259,7 @@ struct vpd_params {
 	u8 id[ID_LEN + 1];
 	u8 pn[PN_LEN + 1];
 	u8 na[MACADDR_LEN + 1];
+	u8 md[MD_LEN + 1];
 };
 
 struct pci_params {
@@ -332,6 +338,7 @@ struct adapter_params {
 	struct devlog_params devlog;	/* PF-only */
 	struct rss_params rss;		/* VF-only */
 	struct vf_resources vfres;	/* VF-only */
+	unsigned int core_vdd;
 
 	unsigned int sf_size;             /* serial flash size in bytes */
 	unsigned int sf_nsec;             /* # of flash sectors */
@@ -369,6 +376,11 @@ struct adapter_params {
 
 	unsigned int max_ordird_qp;
 	unsigned int max_ird_adapter;
+
+	uint32_t mps_bg_map;	/* rx buffer group map for all ports (upto 4) */
+
+	bool ulptx_memwrite_dsgl;        /* use of T5 DSGL allowed */
+	bool fr_nsmr_tpte_wr_support;    /* FW support for FR_NSMR_TPTE_WR */
 };
 
 #define CHELSIO_T4		0x4
@@ -580,7 +592,7 @@ int t4_get_vpd_version(struct adapter *adapter, u32 *vers);
 int t4_get_version_info(struct adapter *adapter);
 int t4_init_hw(struct adapter *adapter, u32 fw_params);
 const struct chip_params *t4_get_chip_params(int chipid);
-int t4_prep_adapter(struct adapter *adapter, u8 *buf);
+int t4_prep_adapter(struct adapter *adapter, u32 *buf);
 int t4_shutdown_adapter(struct adapter *adapter);
 int t4_init_devlog_params(struct adapter *adapter, int fw_attach);
 int t4_init_sge_params(struct adapter *adapter);
@@ -841,5 +853,8 @@ int t4vf_get_sge_params(struct adapter *adapter);
 int t4vf_get_rss_glb_config(struct adapter *adapter);
 int t4vf_get_vfres(struct adapter *adapter);
 int t4vf_prep_adapter(struct adapter *adapter);
+int t4_bar2_sge_qregs(struct adapter *adapter, unsigned int qid,
+		enum t4_bar2_qtype qtype, int user, u64 *pbar2_qoffset,
+		unsigned int *pbar2_qid);
 
 #endif /* __CHELSIO_COMMON_H */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Stephen Montgomery-Smith <stephen@FreeBSD.ORG>
  * All rights reserved.
  *
@@ -469,8 +471,13 @@ clog_for_large_values(double complex z)
 
 	/*
 	 * Avoid overflow in hypot() when x and y are both very large.
-	 * Divide x and y by E, and then add 1 to the logarithm.  This depends
-	 * on E being larger than sqrt(2).
+	 * Divide x and y by E, and then add 1 to the logarithm.  This
+	 * depends on E being larger than sqrt(2), since the return value of
+	 * hypot cannot overflow if neither argument is greater in magnitude
+	 * than 1/sqrt(2) of the maximum value of the return type.  Likewise
+	 * this determines the necessary threshold for using this method
+	 * (however, actually use 1/2 instead as it is simpler).
+	 *
 	 * Dividing by E causes an insignificant loss of accuracy; however
 	 * this method is still poor since it is uneccessarily slow.
 	 */
@@ -604,7 +611,7 @@ catanh(double complex z)
 	if (ax < SQRT_3_EPSILON / 2 && ay < SQRT_3_EPSILON / 2) {
 		/*
 		 * z = 0 was filtered out above.  All other cases must raise
-		 * inexact, but this is the only only that needs to do it
+		 * inexact, but this is the only case that needs to do it
 		 * explicitly.
 		 */
 		raise_inexact();

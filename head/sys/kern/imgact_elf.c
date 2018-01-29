@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2017 Dell EMC
  * Copyright (c) 2000 David O'Brien
  * Copyright (c) 1995-1996 Søren Schmidt
@@ -34,13 +36,12 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
 #include "opt_compat.h"
-#include "opt_gzio.h"
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
+#include <sys/compressor.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
-#include <sys/gzio.h>
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/jail.h>
@@ -1110,9 +1111,7 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
 	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
 	AUXARGS_ENTRY(pos, AT_BASE, args->base);
-#ifdef AT_EHDRFLAGS
 	AUXARGS_ENTRY(pos, AT_EHDRFLAGS, args->hdr_eflags);
-#endif
 	if (imgp->execpathp != 0)
 		AUXARGS_ENTRY(pos, AT_EXECPATH, imgp->execpathp);
 	AUXARGS_ENTRY(pos, AT_OSRELDATE,
@@ -1133,6 +1132,10 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_STACKPROT, imgp->sysent->sv_shared_page_obj
 	    != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :
 	    imgp->sysent->sv_stackprot);
+	if (imgp->sysent->sv_hwcap != NULL)
+		AUXARGS_ENTRY(pos, AT_HWCAP, *imgp->sysent->sv_hwcap);
+	if (imgp->sysent->sv_hwcap2 != NULL)
+		AUXARGS_ENTRY(pos, AT_HWCAP2, *imgp->sysent->sv_hwcap2);
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 
 	free(imgp->auxargs, M_TEMP);
@@ -1181,8 +1184,11 @@ struct coredump_params {
 	struct ucred	*file_cred;
 	struct thread	*td;
 	struct vnode	*vp;
-	struct gzio_stream *gzs;
+	struct compressor *comp;
 };
+
+extern int compress_user_cores;
+extern int compress_user_cores_level;
 
 static void cb_put_phdr(vm_map_entry_t, void *);
 static void cb_size_segment(vm_map_entry_t, void *);
@@ -1215,9 +1221,6 @@ static void note_procstat_rlimit(void *, struct sbuf *, size_t *);
 static void note_procstat_umask(void *, struct sbuf *, size_t *);
 static void note_procstat_vmmap(void *, struct sbuf *, size_t *);
 
-#ifdef GZIO
-extern int compress_user_cores_gzlevel;
-
 /*
  * Write out a core segment to the compression stream.
  */
@@ -1237,7 +1240,7 @@ compress_chunk(struct coredump_params *p, char *base, char *buf, u_int len)
 		error = copyin(base, buf, chunk_len);
 		if (error != 0)
 			bzero(buf, chunk_len);
-		error = gzio_write(p->gzs, buf, chunk_len);
+		error = compressor_write(p->comp, buf, chunk_len);
 		if (error != 0)
 			break;
 		base += chunk_len;
@@ -1247,13 +1250,12 @@ compress_chunk(struct coredump_params *p, char *base, char *buf, u_int len)
 }
 
 static int
-core_gz_write(void *base, size_t len, off_t offset, void *arg)
+core_compressed_write(void *base, size_t len, off_t offset, void *arg)
 {
 
 	return (core_write((struct coredump_params *)arg, base, len, offset,
 	    UIO_SYSSPACE));
 }
-#endif /* GZIO */
 
 static int
 core_write(struct coredump_params *p, const void *base, size_t len,
@@ -1271,10 +1273,9 @@ core_output(void *base, size_t len, off_t offset, struct coredump_params *p,
 {
 	int error;
 
-#ifdef GZIO
-	if (p->gzs != NULL)
+	if (p->comp != NULL)
 		return (compress_chunk(p, base, tmpbuf, len));
-#endif
+
 	/*
 	 * EFAULT is a non-fatal error that we can get, for example,
 	 * if the segment is backed by a file but extends beyond its
@@ -1319,11 +1320,9 @@ sbuf_drain_core_output(void *arg, const char *data, int len)
 	locked = PROC_LOCKED(p->td->td_proc);
 	if (locked)
 		PROC_UNLOCK(p->td->td_proc);
-#ifdef GZIO
-	if (p->gzs != NULL)
-		error = gzio_write(p->gzs, __DECONST(char *, data), len);
+	if (p->comp != NULL)
+		error = compressor_write(p->comp, __DECONST(char *, data), len);
 	else
-#endif
 		error = core_write(p, __DECONST(void *, data), len, p->offset,
 		    UIO_SYSSPACE);
 	if (locked)
@@ -1358,11 +1357,7 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	struct note_info *ninfo;
 	void *hdr, *tmpbuf;
 	size_t hdrsize, notesz, coresize;
-#ifdef GZIO
-	boolean_t compress;
 
-	compress = (flags & IMGACT_CORE_COMPRESS) != 0;
-#endif
 	hdr = NULL;
 	tmpbuf = NULL;
 	TAILQ_INIT(&notelst);
@@ -1387,7 +1382,7 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	params.file_cred = NOCRED;
 	params.td = td;
 	params.vp = vp;
-	params.gzs = NULL;
+	params.comp = NULL;
 
 #ifdef RACCT
 	if (racct_enable) {
@@ -1405,18 +1400,17 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 		goto done;
 	}
 
-#ifdef GZIO
 	/* Create a compression stream if necessary. */
-	if (compress) {
-		params.gzs = gzio_init(core_gz_write, GZIO_DEFLATE,
-		    CORE_BUF_SIZE, compress_user_cores_gzlevel, &params);
-		if (params.gzs == NULL) {
+	if (compress_user_cores != 0) {
+		params.comp = compressor_init(core_compressed_write,
+		    compress_user_cores, CORE_BUF_SIZE,
+		    compress_user_cores_level, &params);
+		if (params.comp == NULL) {
 			error = EFAULT;
 			goto done;
 		}
 		tmpbuf = malloc(CORE_BUF_SIZE, M_TEMP, M_WAITOK | M_ZERO);
         }
-#endif
 
 	/*
 	 * Allocate memory for building the header, fill it up,
@@ -1442,10 +1436,8 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 			offset += php->p_filesz;
 			php++;
 		}
-#ifdef GZIO
-		if (error == 0 && compress)
-			error = gzio_flush(params.gzs);
-#endif
+		if (error == 0 && params.comp != NULL)
+			error = compressor_flush(params.comp);
 	}
 	if (error) {
 		log(LOG_WARNING,
@@ -1454,13 +1446,9 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	}
 
 done:
-#ifdef GZIO
-	if (compress) {
-		free(tmpbuf, M_TEMP);
-		if (params.gzs != NULL)
-			gzio_fini(params.gzs);
-	}
-#endif
+	free(tmpbuf, M_TEMP);
+	if (params.comp != NULL)
+		compressor_fini(params.comp);
 	while ((ninfo = TAILQ_FIRST(&notelst)) != NULL) {
 		TAILQ_REMOVE(&notelst, ninfo, link);
 		free(ninfo, M_TEMP);

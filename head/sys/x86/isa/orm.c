@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Nikolai Saoukh
  * All rights reserved.
  *
@@ -186,3 +188,4 @@ static driver_t orm_driver = {
 static devclass_t orm_devclass;
 
 DRIVER_MODULE(orm, isa, orm_driver, orm_devclass, 0, 0);
+ISA_PNP_INFO(orm_ids);

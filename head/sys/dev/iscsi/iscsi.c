@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -291,17 +293,14 @@ iscsi_session_logout(struct iscsi_session *is)
 
 static void
 iscsi_session_terminate_task(struct iscsi_session *is,
-    struct iscsi_outstanding *io, bool requeue)
+    struct iscsi_outstanding *io, cam_status status)
 {
 
 	ISCSI_SESSION_LOCK_ASSERT(is);
 
 	if (io->io_ccb != NULL) {
 		io->io_ccb->ccb_h.status &= ~(CAM_SIM_QUEUED | CAM_STATUS_MASK);
-		if (requeue)
-			io->io_ccb->ccb_h.status |= CAM_REQUEUE_REQ;
-		else
-			io->io_ccb->ccb_h.status |= CAM_REQ_ABORTED;
+		io->io_ccb->ccb_h.status |= status;
 		if ((io->io_ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
 			io->io_ccb->ccb_h.status |= CAM_DEV_QFRZN;
 			xpt_freeze_devq(io->io_ccb->ccb_h.path, 1);
@@ -313,14 +312,14 @@ iscsi_session_terminate_task(struct iscsi_session *is,
 }
 
 static void
-iscsi_session_terminate_tasks(struct iscsi_session *is, bool requeue)
+iscsi_session_terminate_tasks(struct iscsi_session *is, cam_status status)
 {
 	struct iscsi_outstanding *io, *tmp;
 
 	ISCSI_SESSION_LOCK_ASSERT(is);
 
 	TAILQ_FOREACH_SAFE(io, &is->is_outstanding, io_next, tmp) {
-		iscsi_session_terminate_task(is, io, requeue);
+		iscsi_session_terminate_task(is, io, status);
 	}
 }
 
@@ -354,11 +353,11 @@ iscsi_session_cleanup(struct iscsi_session *is, bool destroy_sim)
 		/*
 		 * Terminate SCSI tasks, asking CAM to requeue them.
 		 */
-		iscsi_session_terminate_tasks(is, true);
+		iscsi_session_terminate_tasks(is, CAM_REQUEUE_REQ);
 		return;
 	}
 
-	iscsi_session_terminate_tasks(is, false);
+	iscsi_session_terminate_tasks(is, CAM_DEV_NOT_THERE);
 
 	if (is->is_sim == NULL)
 		return;
@@ -434,6 +433,8 @@ iscsi_maintenance_thread_terminate(struct iscsi_session *is)
 
 	sc = is->is_softc;
 	sx_xlock(&sc->sc_lock);
+	TAILQ_REMOVE(&sc->sc_sessions, is, is_next);
+	sx_xunlock(&sc->sc_lock);
 
 	icl_conn_close(is->is_conn);
 	callout_drain(&is->is_callout);
@@ -465,8 +466,6 @@ iscsi_maintenance_thread_terminate(struct iscsi_session *is)
 #ifdef ICL_KERNEL_PROXY
 	cv_destroy(&is->is_login_cv);
 #endif
-	TAILQ_REMOVE(&sc->sc_sessions, is, is_next);
-	sx_xunlock(&sc->sc_lock);
 
 	ISCSI_SESSION_DEBUG(is, "terminated");
 	free(is, M_ISCSI);
@@ -1021,7 +1020,7 @@ iscsi_pdu_handle_task_response(struct icl_pdu *response)
 	} else {
 		aio = iscsi_outstanding_find(is, io->io_datasn);
 		if (aio != NULL && aio->io_ccb != NULL)
-			iscsi_session_terminate_task(is, aio, false);
+			iscsi_session_terminate_task(is, aio, CAM_REQ_ABORTED);
 	}
 
 	iscsi_outstanding_remove(is, io);
@@ -1790,6 +1789,18 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 	is = malloc(sizeof(*is), M_ISCSI, M_ZERO | M_WAITOK);
 	memcpy(&is->is_conf, &isa->isa_conf, sizeof(is->is_conf));
 
+	/*
+	 * Set some default values, from RFC 3720, section 12.
+	 *
+	 * These values are updated by the handoff IOCTL, but are
+	 * needed prior to the handoff to support sending the ISER
+	 * login PDU.
+	 */
+	is->is_max_recv_data_segment_length = 8192;
+	is->is_max_send_data_segment_length = 8192;
+	is->is_max_burst_length = 262144;
+	is->is_first_burst_length = 65536;
+
 	sx_xlock(&sc->sc_lock);
 
 	/*
@@ -2461,8 +2472,10 @@ static void
 iscsi_shutdown_post(struct iscsi_softc *sc)
 {
 
-	ISCSI_DEBUG("removing all sessions due to shutdown");
-	iscsi_terminate_sessions(sc);
+	if (panicstr == NULL) {
+		ISCSI_DEBUG("removing all sessions due to shutdown");
+		iscsi_terminate_sessions(sc);
+	}
 }
 
 static int

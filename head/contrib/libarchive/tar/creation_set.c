@@ -80,9 +80,10 @@ get_filter_code(const char *suffix)
 		{ ".lzma",	"lzma" },
 		{ ".uu",	"uuencode" },
 		{ ".xz",	"xz" },
+		{ ".zst",	"zstd"},
 		{ NULL,		NULL }
 	};
-	
+
 	return get_suffix_code(filters, suffix);
 }
 
@@ -121,6 +122,7 @@ decompose_alias(const char *suffix)
 		{ ".tzo",	".tar.lzo" },
 		{ ".taZ",	".tar.Z" },
 		{ ".tZ",	".tar.Z" },
+		{ ".tzst",	".tar.zst" },
 		{ NULL,		NULL }
 	};
 

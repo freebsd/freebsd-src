@@ -518,6 +518,10 @@ dhcp6opt_print(netdissect_options *ndo,
 			ND_PRINT((ndo, "...)"));
 			break;
 		case DH6OPT_RECONF_MSG:
+			if (optlen != 1) {
+				ND_PRINT((ndo, " ?)"));
+				break;
+			}
 			tp = (const u_char *)(dh6o + 1);
 			switch (*tp) {
 			case DH6_RENEW:

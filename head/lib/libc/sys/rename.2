@@ -28,7 +28,7 @@
 .\"     @(#)rename.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2008
+.Dd September 15, 2017
 .Dt RENAME 2
 .Os
 .Sh NAME
@@ -252,6 +252,9 @@ The
 .Fa to
 argument
 is a directory and is not empty.
+.It Bq Er ECAPMODE
+.Fn rename
+was called and the process is in capability mode.
 .El
 .Pp
 In addition to the errors returned by the
@@ -288,6 +291,26 @@ argument is not an absolute path and
 is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
+.It Bq Er ECAPMODE
+.Dv AT_FDCWD
+is specified and the process is in capability mode.
+.It Bq Er ENOTCAPABLE
+.Fa path
+is an absolute path or contained a ".." component leading to a directory
+outside of the directory hierarchy specified by
+.Fa fromfd
+or
+.Fa tofd .
+.It Bq Er ENOTCAPABLE
+The
+.Fa fromfd
+file descriptor lacks the
+.Dv CAP_RENAMEAT_SOURCE
+right, or the
+.Fa tofd
+file descriptor lacks the
+.Dv CAP_RENAMEAT_TARGET
+right.
 .El
 .Sh SEE ALSO
 .Xr chflags 2 ,

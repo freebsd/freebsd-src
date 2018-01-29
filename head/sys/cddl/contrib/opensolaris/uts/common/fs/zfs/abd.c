@@ -150,12 +150,26 @@ boolean_t zfs_abd_scatter_enabled = B_TRUE;
  */
 size_t zfs_abd_chunk_size = 4096;
 
+#if defined(__FreeBSD__) && defined(_KERNEL)
+SYSCTL_DECL(_vfs_zfs);
+
+SYSCTL_ULONG(_vfs_zfs, OID_AUTO, abd_chunk_size, CTLFLAG_RDTUN,
+    &zfs_abd_chunk_size, 0, "The size of the chunks ABD allocates");
+#endif
+
 #ifdef _KERNEL
 extern vmem_t *zio_alloc_arena;
 #endif
 
 kmem_cache_t *abd_chunk_cache;
 static kstat_t *abd_ksp;
+
+extern inline boolean_t abd_is_linear(abd_t *abd);
+extern inline void abd_copy(abd_t *dabd, abd_t *sabd, size_t size);
+extern inline void abd_copy_from_buf(abd_t *abd, const void *buf, size_t size);
+extern inline void abd_copy_to_buf(void* buf, abd_t *abd, size_t size);
+extern inline int abd_cmp_buf(abd_t *abd, const void *buf, size_t size);
+extern inline void abd_zero(abd_t *abd, size_t size);
 
 static void *
 abd_alloc_chunk()

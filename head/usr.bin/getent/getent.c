@@ -1,6 +1,8 @@
 /*	$NetBSD: getent.c,v 1.7 2005/08/24 14:31:02 ginsbach Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

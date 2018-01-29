@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1996, 1997, 1998
  *	HD Associates, Inc.  All rights reserved.
  *
@@ -292,8 +294,8 @@ int
 sys_sched_yield(struct thread *td, struct sched_yield_args *uap)
 {
 
-	sched_relinquish(curthread);
-	return 0;
+	sched_relinquish(td);
+	return (0);
 }
 
 int

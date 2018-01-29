@@ -124,7 +124,7 @@
 /*
  * This value is bogus just to make module compilable on powerpc
  */
-#define	PROF_ARTIFICIAL_FRAMES	3
+#define	PROF_ARTIFICIAL_FRAMES	12
 #endif
 
 struct profile_probe_percpu;
@@ -143,7 +143,7 @@ struct profile_probe_percpu;
 #define	PROF_ARTIFICIAL_FRAMES	10
 #endif
 
-#ifdef __riscv__
+#ifdef __riscv
 /* TODO: verify */
 #define	PROF_ARTIFICIAL_FRAMES	10
 #endif
@@ -221,16 +221,16 @@ static dtrace_pattr_t profile_attr = {
 };
 
 static dtrace_pops_t profile_pops = {
-	profile_provide,
-	NULL,
-	profile_enable,
-	profile_disable,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	profile_destroy
+	.dtps_provide =		profile_provide,
+	.dtps_provide_module =	NULL,
+	.dtps_enable =		profile_enable,
+	.dtps_disable =		profile_disable,
+	.dtps_suspend =		NULL,
+	.dtps_resume =		NULL,
+	.dtps_getargdesc =	NULL,
+	.dtps_getargval =	NULL,
+	.dtps_usermode =	NULL,
+	.dtps_destroy =		profile_destroy
 };
 
 static struct cdev		*profile_cdev;

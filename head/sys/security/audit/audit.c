@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999-2005 Apple Inc.
  * Copyright (c) 2006-2007, 2016-2017 Robert N. M. Watson
  * All rights reserved.
@@ -96,7 +98,7 @@ static SYSCTL_NODE(_security, OID_AUTO, audit, CTLFLAG_RW, 0,
  *
  * Define the audit control flags.
  */
-int			audit_enabled;
+int __read_frequently	audit_enabled;
 int			audit_suspended;
 
 /*

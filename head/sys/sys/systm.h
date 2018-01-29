@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1988, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -38,10 +40,10 @@
 #ifndef _SYS_SYSTM_H_
 #define	_SYS_SYSTM_H_
 
+#include <sys/cdefs.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <sys/callout.h>
-#include <sys/cdefs.h>
 #include <sys/queue.h>
 #include <sys/stdint.h>		/* for people using printf mainly */
 
@@ -138,6 +140,7 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
  * Align variables.
  */
 #define	__read_mostly		__section(".data.read_mostly")
+#define	__read_frequently	__section(".data.read_frequently")
 #define	__exclusive_cache_line	__aligned(CACHE_LINE_SIZE) \
 				    __section(".data.exclusive_cache_line")
 /*
@@ -257,6 +260,12 @@ void	hexdump(const void *ptr, int length, const char *hdr, int flags);
 #define ovbcopy(f, t, l) bcopy((f), (t), (l))
 void	bcopy(const void * _Nonnull from, void * _Nonnull to, size_t len);
 void	bzero(void * _Nonnull buf, size_t len);
+#define bzero(buf, len) ({				\
+	if (__builtin_constant_p(len) && (len) <= 64)	\
+		__builtin_memset((buf), 0, (len));	\
+	else						\
+		bzero((buf), (len));			\
+})
 void	explicit_bzero(void * _Nonnull, size_t);
 
 void	*memcpy(void * _Nonnull to, const void * _Nonnull from, size_t len);
@@ -443,6 +452,7 @@ struct unrhdr;
 struct unrhdr *new_unrhdr(int low, int high, struct mtx *mutex);
 void init_unrhdr(struct unrhdr *uh, int low, int high, struct mtx *mutex);
 void delete_unrhdr(struct unrhdr *uh);
+void clear_unrhdr(struct unrhdr *uh);
 void clean_unrhdr(struct unrhdr *uh);
 void clean_unrhdrl(struct unrhdr *uh);
 int alloc_unr(struct unrhdr *uh);
@@ -453,6 +463,22 @@ void free_unr(struct unrhdr *uh, u_int item);
 void	intr_prof_stack_use(struct thread *td, struct trapframe *frame);
 
 void counted_warning(unsigned *counter, const char *msg);
+
+/*
+ * APIs to manage deprecation and obsolescence.
+ */
+struct device;
+void _gone_in(int major, const char *msg);
+void _gone_in_dev(struct device *dev, int major, const char *msg);
+#ifdef NO_OBSOLETE_CODE
+#define __gone_ok(m, msg)					 \
+	_Static_assert(m < P_OSREL_MAJOR(__FreeBSD_version)),	 \
+	    "Obsolete code" msg);
+#else
+#define	__gone_ok(m, msg)
+#endif
+#define gone_in(major, msg)		__gone_ok(major, msg) _gone_in(major, msg)
+#define gone_in_dev(dev, major, msg)	__gone_ok(major, msg) _gone_in_dev(dev, major, msg)
 
 __NULLABILITY_PRAGMA_POP
 

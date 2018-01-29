@@ -1,5 +1,7 @@
-/*
+/*-
  * alias_smedia.c
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-2-Clause
  *
  * Copyright (c) 2000 Whistle Communications, Inc.
  * All rights reserved.

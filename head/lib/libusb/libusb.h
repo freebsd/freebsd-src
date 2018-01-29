@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Sylvestre Gallon. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -388,6 +390,7 @@ typedef struct libusb_bos_descriptor {
 	uint8_t bNumDeviceCapabilities;
 	struct libusb_usb_2_0_device_capability_descriptor *usb_2_0_ext_cap;
 	struct libusb_ss_usb_device_capability_descriptor *ss_usb_cap;
+	struct libusb_bos_dev_capability_descriptor **dev_capability;
 }	libusb_bos_descriptor __aligned(sizeof(void *));
 
 typedef struct libusb_usb_2_0_extension_descriptor {

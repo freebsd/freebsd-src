@@ -9,6 +9,8 @@
 	 NSP_USE_MEMIO | NSP_WAIT_FOR_SELECT)
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  *  Copyright (c) 1998, 1999, 2000, 2001
  *	NetBSD/pc98 porting staff. All rights reserved.
  *

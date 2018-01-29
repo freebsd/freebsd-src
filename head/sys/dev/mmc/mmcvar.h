@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Bernd Walter.  All rights reserved.
  * Copyright (c) 2006 M. Warner Losh.  All rights reserved.
  *
@@ -68,6 +70,8 @@ enum mmc_device_ivars {
     MMC_IVAR_BUS_WIDTH,
     MMC_IVAR_ERASE_SECTOR,
     MMC_IVAR_MAX_DATA,
+    MMC_IVAR_CMD6_TIMEOUT,
+    MMC_IVAR_QUIRKS,
     MMC_IVAR_CARD_ID_STRING,
     MMC_IVAR_CARD_SN_STRING,
 };
@@ -90,6 +94,8 @@ MMC_ACCESSOR(card_type, CARD_TYPE, int)
 MMC_ACCESSOR(bus_width, BUS_WIDTH, int)
 MMC_ACCESSOR(erase_sector, ERASE_SECTOR, int)
 MMC_ACCESSOR(max_data, MAX_DATA, int)
+MMC_ACCESSOR(cmd6_timeout, CMD6_TIMEOUT, u_int)
+MMC_ACCESSOR(quirks, QUIRKS, u_int)
 MMC_ACCESSOR(card_id_string, CARD_ID_STRING, const char *)
 MMC_ACCESSOR(card_sn_string, CARD_SN_STRING, const char *)
 

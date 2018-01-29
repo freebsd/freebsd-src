@@ -598,3 +598,4 @@
 
 ; please, keep this line at the end.
 332	AUE_NULL	UNIMPL	nosys
+; vim: syntax=off

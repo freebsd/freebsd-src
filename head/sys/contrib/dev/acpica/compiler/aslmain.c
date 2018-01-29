@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -386,11 +386,11 @@ AslInitialize (
 
     AcpiGbl_DmOpt_Verbose = FALSE;
 
-    /* Default integer width is 64 bits */
+    /* Default integer width is 32 bits */
 
-    AcpiGbl_IntegerBitWidth = 64;
-    AcpiGbl_IntegerNybbleWidth = 16;
-    AcpiGbl_IntegerByteWidth = 8;
+    AcpiGbl_IntegerBitWidth = 32;
+    AcpiGbl_IntegerNybbleWidth = 8;
+    AcpiGbl_IntegerByteWidth = 4;
 
     for (i = 0; i < ASL_NUM_FILES; i++)
     {

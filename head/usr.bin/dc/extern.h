@@ -24,7 +24,7 @@
 /* inout.c */
 void		 src_setstream(struct source *, FILE *);
 void		 src_setstring(struct source *, char *);
-struct number	*readnumber(struct source *, u_int);
+struct number	*readnumber(struct source *, u_int, u_int);
 void		 printnumber(FILE *, const struct number *, u_int);
 char		*read_string(struct source *);
 void		 print_value(FILE *, const struct value *, const char *, u_int);
@@ -33,6 +33,7 @@ void		 print_ascii(FILE *, const struct number *);
 /* mem.c */
 struct number	*new_number(void);
 void		 free_number(struct number *);
+struct number	*div_number(struct number *, struct number *, u_int scale);
 struct number	*dup_number(const struct number *);
 void		*bmalloc(size_t);
 void		*breallocarray(void *, size_t, size_t);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -1882,6 +1884,8 @@ seltdfini(struct thread *td)
 	if (stp->st_free2)
 		uma_zfree(selfd_zone, stp->st_free2);
 	td->td_sel = NULL;
+	cv_destroy(&stp->st_wait);
+	mtx_destroy(&stp->st_mtx);
 	free(stp, M_SELECT);
 }
 

@@ -52,7 +52,7 @@ procstat_cs(struct procstat *procstat, struct kinfo_proc *kipp)
 	unsigned int count, i;
 	int once, twice, lastcpu, cpu;
 
-	if (!hflag)
+	if ((procstat_opts & PS_OPT_NOHEADER) == 0)
 		xo_emit("{T:/%5s %6s %-19s %-19s %2s %4s %-7s}\n", "PID",
 		    "TID", "COMM", "TDNAME", "CPU", "CSID", "CPU MASK");
 

@@ -1,4 +1,4 @@
-/*	$NetBSD: vis.c,v 1.71 2016/01/14 20:41:23 christos Exp $	*/
+/*	$NetBSD: vis.c,v 1.74 2017/11/27 16:37:21 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -57,7 +57,7 @@
 
 #include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: vis.c,v 1.71 2016/01/14 20:41:23 christos Exp $");
+__RCSID("$NetBSD: vis.c,v 1.74 2017/11/27 16:37:21 christos Exp $");
 #endif /* LIBC_SCCS and not lint */
 #ifdef __FBSDID
 __FBSDID("$FreeBSD$");
@@ -379,6 +379,7 @@ makeextralist(int flags, const char *src)
 	if (flags & VIS_SP) *d++ = L' ';
 	if (flags & VIS_TAB) *d++ = L'\t';
 	if (flags & VIS_NL) *d++ = L'\n';
+	if (flags & VIS_DQ) *d++ = L'"';
 	if ((flags & VIS_NOSLASH) == 0) *d++ = L'\\';
 	*d = L'\0';
 
@@ -408,6 +409,14 @@ istrsenvisx(char **mbdstp, size_t *dlen, const char *mbsrc, size_t mblength,
 	_DIAGASSERT(mbsrc != NULL || mblength == 0);
 	_DIAGASSERT(mbextra != NULL);
 
+	mbslength = (ssize_t)mblength;
+	/*
+	 * When inputing a single character, must also read in the
+	 * next character for nextc, the look-ahead character.
+	 */
+	if (mbslength == 1)
+		mbslength++;
+
 	/*
 	 * Input (mbsrc) is a char string considered to be multibyte
 	 * characters.  The input loop will read this string pulling
@@ -424,12 +433,12 @@ istrsenvisx(char **mbdstp, size_t *dlen, const char *mbsrc, size_t mblength,
 	/* Allocate space for the wide char strings */
 	psrc = pdst = extra = NULL;
 	mdst = NULL;
-	if ((psrc = calloc(mblength + 1, sizeof(*psrc))) == NULL)
+	if ((psrc = calloc(mbslength + 1, sizeof(*psrc))) == NULL)
 		return -1;
-	if ((pdst = calloc((4 * mblength) + 1, sizeof(*pdst))) == NULL)
+	if ((pdst = calloc((16 * mbslength) + 1, sizeof(*pdst))) == NULL)
 		goto out;
 	if (*mbdstp == NULL) {
-		if ((mdst = calloc((4 * mblength) + 1, sizeof(*mdst))) == NULL)
+		if ((mdst = calloc((16 * mbslength) + 1, sizeof(*mdst))) == NULL)
 			goto out;
 		*mbdstp = mdst;
 	}
@@ -452,13 +461,6 @@ istrsenvisx(char **mbdstp, size_t *dlen, const char *mbsrc, size_t mblength,
 	 * stop at NULs because we may be processing a block of data
 	 * that includes NULs.
 	 */
-	mbslength = (ssize_t)mblength;
-	/*
-	 * When inputing a single character, must also read in the
-	 * next character for nextc, the look-ahead character.
-	 */
-	if (mbslength == 1)
-		mbslength++;
 	bzero(&mbstate, sizeof(mbstate));
 	while (mbslength > 0) {
 		/* Convert one multibyte character to wchar_t. */
@@ -470,12 +472,13 @@ istrsenvisx(char **mbdstp, size_t *dlen, const char *mbsrc, size_t mblength,
 			clen = 1;
 			cerr = 1;
 		}
-		if (clen == 0)
+		if (clen == 0) {
 			/*
 			 * NUL in input gives 0 return value. process
 			 * as single NUL byte and keep going.
 			 */
 			clen = 1;
+		}
 		/* Advance buffer character pointer. */
 		src++;
 		/* Advance input pointer by number of bytes read. */
@@ -485,6 +488,7 @@ istrsenvisx(char **mbdstp, size_t *dlen, const char *mbsrc, size_t mblength,
 	}
 	len = src - psrc;
 	src = psrc;
+
 	/*
 	 * In the single character input case, we will have actually
 	 * processed two characters, c and nextc.  Reset len back to

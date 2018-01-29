@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Fabio Checconi
  * Copyright (c) 2010 Luigi Rizzo, Universita` di Pisa
  * All rights reserved.

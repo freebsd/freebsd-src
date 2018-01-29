@@ -250,8 +250,6 @@ It has seven targets:
 		beforeinstall and afterinstall may also be used to cause
 		actions immediately before and after the install target
 		is executed.
-	lint:
-		run lint on the source files
 	tags:
 		create a tags file for the source files.
 
@@ -488,18 +486,17 @@ ${MOD}_oid.h	A header which programmatically describes the MIB root and
 
 The include file <bsd.subdir.mk> contains the default targets for building
 subdirectories.  It has the same seven targets as <bsd.prog.mk>: all, clean,
-cleandir, depend, install, lint, and tags.  For all of the directories
-listed in the variable SUBDIRS, the specified directory will be visited
-and the target made.  There is also a default target which allows the
-command "make subdir" where subdir is any directory listed in the variable
-SUBDIRS.
+cleandir, depend, install, and tags.  For all of the directories listed in the
+variable SUBDIRS, the specified directory will be visited and the target made.
+There is also a default target which allows the command "make subdir" where
+subdir is any directory listed in the variable SUBDIRS.
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-The include file <bsd.lib.mk> has support for building libraries.  It has
-the same seven targets as <bsd.prog.mk>: all, clean, cleandir, depend,
-install, lint, and tags.  It has a limited number of suffixes, consistent
-with the current needs of the BSD tree.
+The include file <bsd.lib.mk> has support for building libraries.  It has the
+same seven targets as <bsd.prog.mk>: all, clean, cleandir, depend, install, and
+tags.  It has a limited number of suffixes, consistent with the current needs of
+the BSD tree.
 
 It sets/uses the following variables:
 
@@ -529,8 +526,6 @@ LIB_CXX		The name of the library to build. It also causes
 		of LIB if LIB is also set.  Both a shared and static library
 		will be built.  NO_PIC can be set to only build a static
 		library.
-
-LINTLIBDIR	Target directory for lint libraries.
 
 MAN		The manual pages to be installed. See bsd.man.mk for more
 		details.
@@ -566,7 +561,7 @@ It has seven targets:
 	all:
 		build the test programs.
 	check:
-		runs the test programs from CHECKDIR with kyua test.
+		runs the test programs with kyua test.
 
 		The beforecheck and aftercheck targets will be invoked, if
 		defined, to execute commands before and after the realcheck
@@ -574,8 +569,6 @@ It has seven targets:
 
 		The devel/kyua package must be installed before invoking this
 		target.
-
-		See CHECKDIR for more details.
 	clean:
 		remove the test programs and any object files.
 	cleandir:
@@ -590,8 +583,6 @@ It has seven targets:
                 targets beforeinstall and afterinstall may also be used
                 to cause actions immediately before and after the
                 install target is executed.
-	lint:
-		run lint on the source files.
 	tags:
 		create a tags file for the source files.
 
@@ -602,10 +593,6 @@ ATF_TESTS_C	The names of the ATF C test programs to build.
 ATF_TESTS_CXX	The names of the ATF C++ test programs to build.
 
 ATF_TESTS_SH	The names of the ATF sh test programs to build.
-
-CHECKDIR	The directory that 'make check' executes tests from.
-
-		The value of CHECKDIR defaults to .OBJDIR.
 
 KYUAFILE	If 'auto' (the default), generate a Kyuafile out of the
 		test programs defined in the Makefile.  If 'yes', then a

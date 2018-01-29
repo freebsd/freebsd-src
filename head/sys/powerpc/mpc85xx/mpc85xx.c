@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2008 Semihalf, Rafal Jaworowski
  * All rights reserved.
  *
@@ -96,6 +98,10 @@ law_getmax(void)
 		break;
 	case SVR_P5020:
 	case SVR_P5020E:
+	case SVR_P5021:
+	case SVR_P5021E:
+	case SVR_P5040:
+	case SVR_P5040E:
 		law_max = 32;
 		break;
 	default:

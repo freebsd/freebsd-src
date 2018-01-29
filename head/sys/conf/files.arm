@@ -25,8 +25,8 @@ arm/arm/blockio.S		standard
 arm/arm/bus_space_asm_generic.S	standard
 arm/arm/bus_space_base.c	optional	fdt
 arm/arm/bus_space_generic.c	standard
-arm/arm/busdma_machdep-v4.c 	optional	!armv6 !ARM_USE_V6_BUSDMA
-arm/arm/busdma_machdep-v6.c 	optional	armv6 | ARM_USE_V6_BUSDMA
+arm/arm/busdma_machdep-v4.c 	optional	!armv7 !armv6 !ARM_USE_V6_BUSDMA
+arm/arm/busdma_machdep-v6.c 	optional	armv7 | armv6 | ARM_USE_V6_BUSDMA
 arm/arm/copystr.S		standard
 arm/arm/cpufunc.c		standard
 arm/arm/cpufunc_asm.S		standard
@@ -43,11 +43,12 @@ arm/arm/cpufunc_asm_sheeva.S 	optional	cpu_arm9e
 arm/arm/cpufunc_asm_xscale.S	optional	cpu_xscale_pxa2x0 | cpu_xscale_ixp425 | cpu_xscale_81342
 arm/arm/cpufunc_asm_xscale_c3.S	optional	cpu_xscale_81342
 arm/arm/cpuinfo.c		standard
-arm/arm/cpu_asm-v6.S		optional	armv6
+arm/arm/cpu_asm-v6.S		optional	armv7 | armv6
 arm/arm/db_disasm.c		optional	ddb
 arm/arm/db_interface.c		optional	ddb
 arm/arm/db_trace.c		optional	ddb
 arm/arm/debug_monitor.c		optional	ddb armv6
+arm/arm/debug_monitor.c		optional	ddb armv7
 arm/arm/disassem.c		optional	ddb
 arm/arm/dump_machdep.c		standard
 arm/arm/elf_machdep.c		standard
@@ -60,14 +61,14 @@ arm/arm/gdb_machdep.c		optional	gdb
 arm/arm/generic_timer.c		optional	generic_timer
 arm/arm/gic.c			optional	gic
 arm/arm/gic_fdt.c		optional	gic fdt
-arm/arm/identcpu-v4.c		optional	!armv6
-arm/arm/identcpu-v6.c		optional	armv6
+arm/arm/identcpu-v4.c		optional	!armv7 !armv6
+arm/arm/identcpu-v6.c		optional	armv7 | armv6
 arm/arm/in_cksum.c		optional	inet | inet6
 arm/arm/in_cksum_arm.S		optional	inet | inet6
 arm/arm/intr.c			optional	!intrng
 kern/subr_intr.c		optional	intrng
 arm/arm/locore.S		standard	no-obj
-arm/arm/hypervisor-stub.S	optional	armv6
+arm/arm/hypervisor-stub.S	optional	armv7 | armv6
 arm/arm/machdep.c		standard
 arm/arm/machdep_boot.c		standard
 arm/arm/machdep_kdb.c		standard
@@ -85,9 +86,10 @@ arm/arm/pl310.c			optional	pl310
 arm/arm/platform.c		optional	platform
 arm/arm/platform_if.m		optional	platform
 arm/arm/platform_pl310_if.m	optional	platform pl310
-arm/arm/pmap-v4.c		optional	!armv6
-arm/arm/pmap-v6.c		optional	armv6
+arm/arm/pmap-v4.c		optional	!armv7 !armv6
+arm/arm/pmap-v6.c		optional	armv7 | armv6
 arm/arm/pmu.c			optional	pmu | fdt hwpmc
+arm/arm/ptrace_machdep.c	standard
 arm/arm/sc_machdep.c		optional	sc
 arm/arm/setcpsr.S		standard
 arm/arm/setstack.s		standard
@@ -96,12 +98,12 @@ arm/arm/stdatomic.c		standard \
 	compile-with "${NORMAL_C:N-Wmissing-prototypes}"
 arm/arm/support.S		standard
 arm/arm/swtch.S			standard
-arm/arm/swtch-v4.S		optional	!armv6
-arm/arm/swtch-v6.S		optional	armv6
+arm/arm/swtch-v4.S		optional	!armv7 !armv6
+arm/arm/swtch-v6.S		optional	armv7 | armv6
 arm/arm/sys_machdep.c		standard
 arm/arm/syscall.c		standard
-arm/arm/trap-v4.c		optional	!armv6
-arm/arm/trap-v6.c		optional	armv6
+arm/arm/trap-v4.c		optional	!armv7 !armv6
+arm/arm/trap-v6.c		optional	armv7 | armv6
 arm/arm/uio_machdep.c		standard
 arm/arm/undefined.c		standard
 arm/arm/unwind.c		optional	ddb | kdtrace_hooks
@@ -127,6 +129,7 @@ dev/fdt/fdt_arm_platform.c	optional	platform fdt
 dev/hdmi/hdmi_if.m		optional	hdmi
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
 dev/hwpmc/hwpmc_armv7.c		optional	hwpmc armv6
+dev/hwpmc/hwpmc_armv7.c		optional	hwpmc armv7
 dev/iicbus/twsi/twsi.c		optional	twsi
 dev/ofw/ofwpci.c		optional	fdt pci
 dev/pci/pci_host_generic.c	optional	pci_host_generic pci

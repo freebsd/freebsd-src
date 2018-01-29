@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -39,8 +41,7 @@ __FBSDID("$FreeBSD$");
 static u_long randseed = 937186357; /* after srandom(1), NSHUFF counted */
 
 void
-srandom(seed)
-	u_long seed;
+srandom(u_long seed)
 {
 	int i;
 

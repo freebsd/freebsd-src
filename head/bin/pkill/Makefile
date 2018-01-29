@@ -19,6 +19,7 @@ MLINKS=	pkill.1 pgrep.1
 SYMLINKS=	../..${BINDIR}/pkill /usr/bin/pkill
 SYMLINKS+=	../..${BINDIR}/pgrep /usr/bin/pgrep
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

@@ -71,7 +71,7 @@ CLANG_ANALYZE_SRCS= \
 	${DPSRCS:M*.[cC]} ${DPSRCS:M*.cc} \
 	${DPSRCS:M*.cpp} ${DPSRCS:M*.cxx}
 .if !empty(CLANG_ANALYZE_SRCS)
-CLANG_ANALYZE_OBJS=	${CLANG_ANALYZE_SRCS:O:u:R:S,$,.clang-analyzer,}
+CLANG_ANALYZE_OBJS=	${CLANG_ANALYZE_SRCS:O:u:${OBJS_SRCS_FILTER:ts:}:S,$,.clang-analyzer,}
 .NOPATH:	${CLANG_ANALYZE_OBJS}
 .endif
 

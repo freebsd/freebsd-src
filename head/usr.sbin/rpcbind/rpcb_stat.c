@@ -3,6 +3,8 @@
  * $FreeBSD$
  */
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -38,7 +40,6 @@
  * Copyright (c) 1990 by Sun Microsystems, Inc.
  */
 
-#include <stdio.h>
 #include <netconfig.h>
 #include <rpc/rpc.h>
 #include <rpc/rpcb_prot.h>

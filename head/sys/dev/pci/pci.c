@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * Copyright (c) 2000, Michael Smith <msmith@freebsd.org>
  * Copyright (c) 2000, BSDi
@@ -121,6 +123,8 @@ static void		pci_resume_msi(device_t dev);
 static void		pci_resume_msix(device_t dev);
 static int		pci_remap_intr_method(device_t bus, device_t dev,
 			    u_int irq);
+static void		pci_hint_device_unit(device_t acdev, device_t child,
+			    const char *name, int *unitp);
 
 static int		pci_get_id_method(device_t dev, device_t child,
 			    enum pci_id_type type, uintptr_t *rid);
@@ -160,6 +164,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_child_detached,	pci_child_detached),
 	DEVMETHOD(bus_child_pnpinfo_str, pci_child_pnpinfo_str_method),
 	DEVMETHOD(bus_child_location_str, pci_child_location_str_method),
+	DEVMETHOD(bus_hint_device_unit,	pci_hint_device_unit),
 	DEVMETHOD(bus_remap_intr,	pci_remap_intr_method),
 	DEVMETHOD(bus_suspend_child,	pci_suspend_child),
 	DEVMETHOD(bus_resume_child,	pci_resume_child),
@@ -321,9 +326,9 @@ SYSCTL_NODE(_hw, OID_AUTO, pci, CTLFLAG_RD, 0, "PCI bus tuning parameters");
 static int pci_enable_io_modes = 1;
 SYSCTL_INT(_hw_pci, OID_AUTO, enable_io_modes, CTLFLAG_RWTUN,
     &pci_enable_io_modes, 1,
-    "Enable I/O and memory bits in the config register.  Some BIOSes do not\n\
-enable these bits correctly.  We'd like to do this all the time, but there\n\
-are some peripherals that this causes problems with.");
+    "Enable I/O and memory bits in the config register.  Some BIOSes do not"
+    " enable these bits correctly.  We'd like to do this all the time, but"
+    " there are some peripherals that this causes problems with.");
 
 static int pci_do_realloc_bars = 0;
 SYSCTL_INT(_hw_pci, OID_AUTO, realloc_bars, CTLFLAG_RWTUN,
@@ -334,10 +339,10 @@ SYSCTL_INT(_hw_pci, OID_AUTO, realloc_bars, CTLFLAG_RWTUN,
 static int pci_do_power_nodriver = 0;
 SYSCTL_INT(_hw_pci, OID_AUTO, do_power_nodriver, CTLFLAG_RWTUN,
     &pci_do_power_nodriver, 0,
-  "Place a function into D3 state when no driver attaches to it.  0 means\n\
-disable.  1 means conservatively place devices into D3 state.  2 means\n\
-aggressively place devices into D3 state.  3 means put absolutely everything\n\
-in D3 state.");
+    "Place a function into D3 state when no driver attaches to it.  0 means"
+    " disable.  1 means conservatively place devices into D3 state.  2 means"
+    " aggressively place devices into D3 state.  3 means put absolutely"
+    " everything in D3 state.");
 
 int pci_do_power_resume = 1;
 SYSCTL_INT(_hw_pci, OID_AUTO, do_power_resume, CTLFLAG_RWTUN,
@@ -372,9 +377,10 @@ static int pci_usb_takeover = 1;
 static int pci_usb_takeover = 0;
 #endif
 SYSCTL_INT(_hw_pci, OID_AUTO, usb_early_takeover, CTLFLAG_RDTUN,
-    &pci_usb_takeover, 1, "Enable early takeover of USB controllers.\n\
-Disable this if you depend on BIOS emulation of USB devices, that is\n\
-you use USB devices (like keyboard or mouse) but do not load USB drivers");
+    &pci_usb_takeover, 1,
+    "Enable early takeover of USB controllers. Disable this if you depend on"
+    " BIOS emulation of USB devices, that is you use USB devices (like"
+    " keyboard or mouse) but do not load USB drivers");
 
 static int pci_clear_bars;
 SYSCTL_INT(_hw_pci, OID_AUTO, clear_bars, CTLFLAG_RDTUN, &pci_clear_bars, 0,
@@ -3974,7 +3980,6 @@ pci_rescan_method(device_t dev)
 {
 #define	REG(n, w)	PCIB_READ_CONFIG(pcib, busno, s, f, n, w)
 	device_t pcib = device_get_parent(dev);
-	struct pci_softc *sc;
 	device_t child, *devlist, *unchanged;
 	int devcount, error, i, j, maxslots, oldcount;
 	int busno, domain, s, f, pcifunchigh;
@@ -3994,7 +3999,6 @@ pci_rescan_method(device_t dev)
 	} else
 		unchanged = NULL;
 
-	sc = device_get_softc(dev);
 	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
 	maxslots = PCIB_MAXSLOTS(pcib);
@@ -4071,11 +4075,9 @@ device_t
 pci_add_iov_child(device_t bus, device_t pf, uint16_t rid, uint16_t vid,
     uint16_t did)
 {
-	struct pci_devinfo *pf_dinfo, *vf_dinfo;
+	struct pci_devinfo *vf_dinfo;
 	device_t pcib;
 	int busno, slot, func;
-
-	pf_dinfo = device_get_ivars(pf);
 
 	pcib = device_get_parent(bus);
 
@@ -4215,6 +4217,31 @@ pci_detach(device_t dev)
 		return (error);
 #endif
 	return (device_delete_children(dev));
+}
+
+static void
+pci_hint_device_unit(device_t dev, device_t child, const char *name, int *unitp)
+{
+	int line, unit;
+	const char *at;
+	char me1[24], me2[32];
+	uint8_t b, s, f;
+	uint32_t d;
+
+	d = pci_get_domain(child);
+	b = pci_get_bus(child);
+	s = pci_get_slot(child);
+	f = pci_get_function(child);
+	snprintf(me1, sizeof(me1), "pci%u:%u:%u", b, s, f);
+	snprintf(me2, sizeof(me2), "pci%u:%u:%u:%u", d, b, s, f);
+	line = 0;
+	while (resource_find_dev(&line, name, &unit, "at", NULL) == 0) {
+		resource_string_value(name, unit, "at", &at);
+		if (strcmp(at, me1) != 0 && strcmp(at, me2) != 0)
+			continue; /* No match, try next candidate */
+		*unitp = unit;
+		return;
+	}
 }
 
 static void

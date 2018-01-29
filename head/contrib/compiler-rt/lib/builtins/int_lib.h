@@ -22,9 +22,11 @@
 
 #if defined(__ELF__)
 #define FNALIAS(alias_name, original_name) \
-  void alias_name() __attribute__((alias(#original_name)))
+  void alias_name() __attribute__((__alias__(#original_name)))
+#define COMPILER_RT_ALIAS(aliasee) __attribute__((__alias__(#aliasee)))
 #else
 #define FNALIAS(alias, name) _Pragma("GCC error(\"alias unsupported on this file format\")")
+#define COMPILER_RT_ALIAS(aliasee) _Pragma("GCC error(\"alias unsupported on this file format\")")
 #endif
 
 /* ABI macro definitions */
@@ -55,12 +57,16 @@
 #define UNUSED __attribute__((unused))
 #endif
 
-#if defined(__NetBSD__) && (defined(_KERNEL) || defined(_STANDALONE))
+#if (defined(__FreeBSD__) || defined(__NetBSD__)) && (defined(_KERNEL) || defined(_STANDALONE))
 /*
  * Kernel and boot environment can't use normal headers,
  * so use the equivalent system headers.
  */
+#ifdef __FreeBSD__
+#  include <sys/limits.h>
+#else
 #  include <machine/limits.h>
+#endif
 #  include <sys/stdint.h>
 #  include <sys/types.h>
 #else
@@ -92,12 +98,13 @@
  * does not have dedicated bit counting instructions.
  */
 #if defined(__FreeBSD__) && (defined(__sparc64__) || \
-    defined(__mips_n64) || defined(__mips_o64) || defined(__riscv__))
+    defined(__mips_n32) || defined(__mips_n64) || defined(__mips_o64) || \
+    defined(__riscv))
 si_int __clzsi2(si_int);
 si_int __ctzsi2(si_int);
 #define	__builtin_clz __clzsi2
 #define	__builtin_ctz __ctzsi2
-#endif /* FreeBSD && (sparc64 || mips_n64 || mips_o64) */
+#endif /* FreeBSD && (sparc64 || mips_n32 || mips_n64 || mips_o64 || riscv) */
 
 COMPILER_RT_ABI si_int __paritysi2(si_int a);
 COMPILER_RT_ABI si_int __paritydi2(di_int a);

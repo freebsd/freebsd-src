@@ -89,26 +89,26 @@ r12a_write_txpower(struct rtwn_softc *sc, int chain,
 	    SM(R12A_TXAGC_OFDM54, power[RTWN_RIDX_OFDM54]));
 	/* Write per-MCS Tx power. */
 	rtwn_bb_write(sc, R12A_TXAGC_MCS3_0(chain),
-	    SM(R12A_TXAGC_MCS0, power[RTWN_RIDX_MCS(0)]) |
-	    SM(R12A_TXAGC_MCS1, power[RTWN_RIDX_MCS(1)]) |
-	    SM(R12A_TXAGC_MCS2, power[RTWN_RIDX_MCS(2)]) |
-	    SM(R12A_TXAGC_MCS3, power[RTWN_RIDX_MCS(3)]));
+	    SM(R12A_TXAGC_MCS0, power[RTWN_RIDX_HT_MCS(0)]) |
+	    SM(R12A_TXAGC_MCS1, power[RTWN_RIDX_HT_MCS(1)]) |
+	    SM(R12A_TXAGC_MCS2, power[RTWN_RIDX_HT_MCS(2)]) |
+	    SM(R12A_TXAGC_MCS3, power[RTWN_RIDX_HT_MCS(3)]));
 	rtwn_bb_write(sc, R12A_TXAGC_MCS7_4(chain),
-	    SM(R12A_TXAGC_MCS4, power[RTWN_RIDX_MCS(4)]) |
-	    SM(R12A_TXAGC_MCS5, power[RTWN_RIDX_MCS(5)]) |
-	    SM(R12A_TXAGC_MCS6, power[RTWN_RIDX_MCS(6)]) |
-	    SM(R12A_TXAGC_MCS7, power[RTWN_RIDX_MCS(7)]));
+	    SM(R12A_TXAGC_MCS4, power[RTWN_RIDX_HT_MCS(4)]) |
+	    SM(R12A_TXAGC_MCS5, power[RTWN_RIDX_HT_MCS(5)]) |
+	    SM(R12A_TXAGC_MCS6, power[RTWN_RIDX_HT_MCS(6)]) |
+	    SM(R12A_TXAGC_MCS7, power[RTWN_RIDX_HT_MCS(7)]));
 	if (sc->ntxchains >= 2) {
 		rtwn_bb_write(sc, R12A_TXAGC_MCS11_8(chain),
-		    SM(R12A_TXAGC_MCS8,  power[RTWN_RIDX_MCS(8)]) |
-		    SM(R12A_TXAGC_MCS9,  power[RTWN_RIDX_MCS(9)]) |
-		    SM(R12A_TXAGC_MCS10, power[RTWN_RIDX_MCS(10)]) |
-		    SM(R12A_TXAGC_MCS11, power[RTWN_RIDX_MCS(11)]));
+		    SM(R12A_TXAGC_MCS8,  power[RTWN_RIDX_HT_MCS(8)]) |
+		    SM(R12A_TXAGC_MCS9,  power[RTWN_RIDX_HT_MCS(9)]) |
+		    SM(R12A_TXAGC_MCS10, power[RTWN_RIDX_HT_MCS(10)]) |
+		    SM(R12A_TXAGC_MCS11, power[RTWN_RIDX_HT_MCS(11)]));
 		rtwn_bb_write(sc, R12A_TXAGC_MCS15_12(chain),
-		    SM(R12A_TXAGC_MCS12, power[RTWN_RIDX_MCS(12)]) |
-		    SM(R12A_TXAGC_MCS13, power[RTWN_RIDX_MCS(13)]) |
-		    SM(R12A_TXAGC_MCS14, power[RTWN_RIDX_MCS(14)]) |
-		    SM(R12A_TXAGC_MCS15, power[RTWN_RIDX_MCS(15)]));
+		    SM(R12A_TXAGC_MCS12, power[RTWN_RIDX_HT_MCS(12)]) |
+		    SM(R12A_TXAGC_MCS13, power[RTWN_RIDX_HT_MCS(13)]) |
+		    SM(R12A_TXAGC_MCS14, power[RTWN_RIDX_HT_MCS(14)]) |
+		    SM(R12A_TXAGC_MCS15, power[RTWN_RIDX_HT_MCS(15)]));
 	}
 
 	/* TODO: VHT rates */
@@ -176,7 +176,7 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 	}
 
 	/* TODO: VHT rates. */
-	max_mcs = RTWN_RIDX_MCS(sc->ntxchains * 8 - 1);
+	max_mcs = RTWN_RIDX_HT_MCS(sc->ntxchains * 8 - 1);
 
 	/* XXX regulatory */
 	/* XXX net80211 regulatory */
@@ -205,7 +205,7 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 			else
 				pwr_diff = rs->bw20_tx_pwr_diff_2g[chain][i];
 
-			min_mcs = RTWN_RIDX_MCS(i * 8);
+			min_mcs = RTWN_RIDX_HT_MCS(i * 8);
 			for (ridx = min_mcs; ridx <= max_mcs; ridx++)
 				power[ridx] += pwr_diff;
 		}
@@ -231,7 +231,7 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 			else
 				pwr_diff = rs->bw20_tx_pwr_diff_5g[chain][i];
 
-			min_mcs = RTWN_RIDX_MCS(i * 8);
+			min_mcs = RTWN_RIDX_HT_MCS(i * 8);
 			for (ridx = min_mcs; ridx <= max_mcs; ridx++)
 				power[ridx] += pwr_diff;
 		}

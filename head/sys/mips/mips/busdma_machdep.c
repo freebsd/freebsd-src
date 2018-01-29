@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Oleksandr Tymoshenko
  * All rights reserved.
  *
@@ -476,6 +478,13 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	    __func__, newtag, (newtag != NULL ? newtag->flags : 0), error);
 
 	return (error);
+}
+
+int
+bus_dma_tag_set_domain(bus_dma_tag_t dmat, int domain)
+{
+
+	return (0);
 }
 
 int

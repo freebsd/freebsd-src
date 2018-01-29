@@ -2,6 +2,8 @@
  * Structure and function declarations for the
  * SCSI Sequential Access Peripheral driver for CAM.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999, 2000 Matthew Jacob
  * Copyright (c) 2013, 2014, 2015 Spectra Logic Corporation
  * All rights reserved.

@@ -1,4 +1,4 @@
-//===-- AArch64FalkorHWPFFix.cpp - Avoid HW prefetcher pitfalls on Falkor--===//
+//===- AArch64FalkorHWPFFix.cpp - Avoid HW prefetcher pitfalls on Falkor --===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -15,21 +15,41 @@
 
 #include "AArch64.h"
 #include "AArch64InstrInfo.h"
+#include "AArch64Subtarget.h"
 #include "AArch64TargetMachine.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DepthFirstIterator.h"
+#include "llvm/ADT/None.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/CodeGen/LiveRegUnits.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
-#include "llvm/IR/Module.h"
-#include "llvm/Support/CommandLine.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Metadata.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
+#include <cassert>
+#include <iterator>
+#include <utility>
 
 using namespace llvm;
 
@@ -60,6 +80,7 @@ private:
 class FalkorMarkStridedAccessesLegacy : public FunctionPass {
 public:
   static char ID; // Pass ID, replacement for typeid
+
   FalkorMarkStridedAccessesLegacy() : FunctionPass(ID) {
     initializeFalkorMarkStridedAccessesLegacyPass(
         *PassRegistry::getPassRegistry());
@@ -71,16 +92,16 @@ public:
     AU.addRequired<LoopInfoWrapperPass>();
     AU.addPreserved<LoopInfoWrapperPass>();
     AU.addRequired<ScalarEvolutionWrapperPass>();
-    // FIXME: For some reason, preserving SE here breaks LSR (even if
-    // this pass changes nothing).
-    // AU.addPreserved<ScalarEvolutionWrapperPass>();
+    AU.addPreserved<ScalarEvolutionWrapperPass>();
   }
 
   bool runOnFunction(Function &F) override;
 };
-} // namespace
+
+} // end anonymous namespace
 
 char FalkorMarkStridedAccessesLegacy::ID = 0;
+
 INITIALIZE_PASS_BEGIN(FalkorMarkStridedAccessesLegacy, DEBUG_TYPE,
                       "Falkor HW Prefetch Fix", false, false)
 INITIALIZE_PASS_DEPENDENCY(TargetPassConfig)
@@ -165,7 +186,7 @@ public:
 
   bool runOnMachineFunction(MachineFunction &Fn) override;
 
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<MachineLoopInfo>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
@@ -186,17 +207,16 @@ private:
 
 /// Bits from load opcodes used to compute HW prefetcher instruction tags.
 struct LoadInfo {
-  LoadInfo()
-      : DestReg(0), BaseReg(0), BaseRegIdx(-1), OffsetOpnd(nullptr),
-        IsPrePost(false) {}
-  unsigned DestReg;
-  unsigned BaseReg;
-  int BaseRegIdx;
-  const MachineOperand *OffsetOpnd;
-  bool IsPrePost;
+  LoadInfo() = default;
+
+  unsigned DestReg = 0;
+  unsigned BaseReg = 0;
+  int BaseRegIdx = -1;
+  const MachineOperand *OffsetOpnd = nullptr;
+  bool IsPrePost = false;
 };
 
-} // namespace
+} // end anonymous namespace
 
 char FalkorHWPFFix::ID = 0;
 
@@ -220,27 +240,27 @@ static Optional<LoadInfo> getLoadInfo(const MachineInstr &MI) {
   default:
     return None;
 
-  case AArch64::LD1i8:
-  case AArch64::LD1i16:
-  case AArch64::LD1i32:
   case AArch64::LD1i64:
-  case AArch64::LD2i8:
-  case AArch64::LD2i16:
-  case AArch64::LD2i32:
   case AArch64::LD2i64:
-  case AArch64::LD3i8:
-  case AArch64::LD3i16:
-  case AArch64::LD3i32:
-  case AArch64::LD4i8:
-  case AArch64::LD4i16:
-  case AArch64::LD4i32:
     DestRegIdx = 0;
     BaseRegIdx = 3;
     OffsetIdx = -1;
     IsPrePost = false;
     break;
 
+  case AArch64::LD1i8:
+  case AArch64::LD1i16:
+  case AArch64::LD1i32:
+  case AArch64::LD2i8:
+  case AArch64::LD2i16:
+  case AArch64::LD2i32:
+  case AArch64::LD3i8:
+  case AArch64::LD3i16:
+  case AArch64::LD3i32:
   case AArch64::LD3i64:
+  case AArch64::LD4i8:
+  case AArch64::LD4i16:
+  case AArch64::LD4i32:
   case AArch64::LD4i64:
     DestRegIdx = -1;
     BaseRegIdx = 3;
@@ -264,23 +284,16 @@ static Optional<LoadInfo> getLoadInfo(const MachineInstr &MI) {
   case AArch64::LD1Rv4s:
   case AArch64::LD1Rv8h:
   case AArch64::LD1Rv16b:
-  case AArch64::LD1Twov1d:
-  case AArch64::LD1Twov2s:
-  case AArch64::LD1Twov4h:
-  case AArch64::LD1Twov8b:
-  case AArch64::LD2Twov2s:
-  case AArch64::LD2Twov4s:
-  case AArch64::LD2Twov8b:
-  case AArch64::LD2Rv1d:
-  case AArch64::LD2Rv2s:
-  case AArch64::LD2Rv4s:
-  case AArch64::LD2Rv8b:
     DestRegIdx = 0;
     BaseRegIdx = 1;
     OffsetIdx = -1;
     IsPrePost = false;
     break;
 
+  case AArch64::LD1Twov1d:
+  case AArch64::LD1Twov2s:
+  case AArch64::LD1Twov4h:
+  case AArch64::LD1Twov8b:
   case AArch64::LD1Twov2d:
   case AArch64::LD1Twov4s:
   case AArch64::LD1Twov8h:
@@ -301,10 +314,17 @@ static Optional<LoadInfo> getLoadInfo(const MachineInstr &MI) {
   case AArch64::LD1Fourv4s:
   case AArch64::LD1Fourv8h:
   case AArch64::LD1Fourv16b:
+  case AArch64::LD2Twov2s:
+  case AArch64::LD2Twov4s:
+  case AArch64::LD2Twov8b:
   case AArch64::LD2Twov2d:
   case AArch64::LD2Twov4h:
   case AArch64::LD2Twov8h:
   case AArch64::LD2Twov16b:
+  case AArch64::LD2Rv1d:
+  case AArch64::LD2Rv2s:
+  case AArch64::LD2Rv4s:
+  case AArch64::LD2Rv8b:
   case AArch64::LD2Rv2d:
   case AArch64::LD2Rv4h:
   case AArch64::LD2Rv8h:
@@ -345,32 +365,32 @@ static Optional<LoadInfo> getLoadInfo(const MachineInstr &MI) {
     IsPrePost = false;
     break;
 
-  case AArch64::LD1i8_POST:
-  case AArch64::LD1i16_POST:
-  case AArch64::LD1i32_POST:
   case AArch64::LD1i64_POST:
-  case AArch64::LD2i8_POST:
-  case AArch64::LD2i16_POST:
-  case AArch64::LD2i32_POST:
   case AArch64::LD2i64_POST:
-  case AArch64::LD3i8_POST:
-  case AArch64::LD3i16_POST:
-  case AArch64::LD3i32_POST:
-  case AArch64::LD4i8_POST:
-  case AArch64::LD4i16_POST:
-  case AArch64::LD4i32_POST:
     DestRegIdx = 1;
     BaseRegIdx = 4;
     OffsetIdx = 5;
-    IsPrePost = false;
+    IsPrePost = true;
     break;
 
+  case AArch64::LD1i8_POST:
+  case AArch64::LD1i16_POST:
+  case AArch64::LD1i32_POST:
+  case AArch64::LD2i8_POST:
+  case AArch64::LD2i16_POST:
+  case AArch64::LD2i32_POST:
+  case AArch64::LD3i8_POST:
+  case AArch64::LD3i16_POST:
+  case AArch64::LD3i32_POST:
   case AArch64::LD3i64_POST:
+  case AArch64::LD4i8_POST:
+  case AArch64::LD4i16_POST:
+  case AArch64::LD4i32_POST:
   case AArch64::LD4i64_POST:
     DestRegIdx = -1;
     BaseRegIdx = 4;
     OffsetIdx = 5;
-    IsPrePost = false;
+    IsPrePost = true;
     break;
 
   case AArch64::LD1Onev1d_POST:
@@ -389,23 +409,16 @@ static Optional<LoadInfo> getLoadInfo(const MachineInstr &MI) {
   case AArch64::LD1Rv4s_POST:
   case AArch64::LD1Rv8h_POST:
   case AArch64::LD1Rv16b_POST:
+    DestRegIdx = 1;
+    BaseRegIdx = 2;
+    OffsetIdx = 3;
+    IsPrePost = true;
+    break;
+
   case AArch64::LD1Twov1d_POST:
   case AArch64::LD1Twov2s_POST:
   case AArch64::LD1Twov4h_POST:
   case AArch64::LD1Twov8b_POST:
-  case AArch64::LD2Twov2s_POST:
-  case AArch64::LD2Twov4s_POST:
-  case AArch64::LD2Twov8b_POST:
-  case AArch64::LD2Rv1d_POST:
-  case AArch64::LD2Rv2s_POST:
-  case AArch64::LD2Rv4s_POST:
-  case AArch64::LD2Rv8b_POST:
-    DestRegIdx = 1;
-    BaseRegIdx = 2;
-    OffsetIdx = 3;
-    IsPrePost = false;
-    break;
-
   case AArch64::LD1Twov2d_POST:
   case AArch64::LD1Twov4s_POST:
   case AArch64::LD1Twov8h_POST:
@@ -426,10 +439,17 @@ static Optional<LoadInfo> getLoadInfo(const MachineInstr &MI) {
   case AArch64::LD1Fourv4s_POST:
   case AArch64::LD1Fourv8h_POST:
   case AArch64::LD1Fourv16b_POST:
+  case AArch64::LD2Twov2s_POST:
+  case AArch64::LD2Twov4s_POST:
+  case AArch64::LD2Twov8b_POST:
   case AArch64::LD2Twov2d_POST:
   case AArch64::LD2Twov4h_POST:
   case AArch64::LD2Twov8h_POST:
   case AArch64::LD2Twov16b_POST:
+  case AArch64::LD2Rv1d_POST:
+  case AArch64::LD2Rv2s_POST:
+  case AArch64::LD2Rv4s_POST:
+  case AArch64::LD2Rv8b_POST:
   case AArch64::LD2Rv2d_POST:
   case AArch64::LD2Rv4h_POST:
   case AArch64::LD2Rv8h_POST:
@@ -467,7 +487,7 @@ static Optional<LoadInfo> getLoadInfo(const MachineInstr &MI) {
     DestRegIdx = -1;
     BaseRegIdx = 2;
     OffsetIdx = 3;
-    IsPrePost = false;
+    IsPrePost = true;
     break;
 
   case AArch64::LDRBBroW:
@@ -572,8 +592,12 @@ static Optional<LoadInfo> getLoadInfo(const MachineInstr &MI) {
     IsPrePost = true;
     break;
 
-  case AArch64::LDPDi:
+  case AArch64::LDNPDi:
+  case AArch64::LDNPQi:
+  case AArch64::LDNPSi:
   case AArch64::LDPQi:
+  case AArch64::LDPDi:
+  case AArch64::LDPSi:
     DestRegIdx = -1;
     BaseRegIdx = 2;
     OffsetIdx = 3;
@@ -581,7 +605,6 @@ static Optional<LoadInfo> getLoadInfo(const MachineInstr &MI) {
     break;
 
   case AArch64::LDPSWi:
-  case AArch64::LDPSi:
   case AArch64::LDPWi:
   case AArch64::LDPXi:
     DestRegIdx = 0;
@@ -592,18 +615,18 @@ static Optional<LoadInfo> getLoadInfo(const MachineInstr &MI) {
 
   case AArch64::LDPQpost:
   case AArch64::LDPQpre:
+  case AArch64::LDPDpost:
+  case AArch64::LDPDpre:
+  case AArch64::LDPSpost:
+  case AArch64::LDPSpre:
     DestRegIdx = -1;
     BaseRegIdx = 3;
     OffsetIdx = 4;
     IsPrePost = true;
     break;
 
-  case AArch64::LDPDpost:
-  case AArch64::LDPDpre:
   case AArch64::LDPSWpost:
   case AArch64::LDPSWpre:
-  case AArch64::LDPSpost:
-  case AArch64::LDPSpre:
   case AArch64::LDPWpost:
   case AArch64::LDPWpre:
   case AArch64::LDPXpost:
@@ -615,9 +638,14 @@ static Optional<LoadInfo> getLoadInfo(const MachineInstr &MI) {
     break;
   }
 
+  // Loads from the stack pointer don't get prefetched.
+  unsigned BaseReg = MI.getOperand(BaseRegIdx).getReg();
+  if (BaseReg == AArch64::SP || BaseReg == AArch64::WSP)
+    return None;
+
   LoadInfo LI;
   LI.DestReg = DestRegIdx == -1 ? 0 : MI.getOperand(DestRegIdx).getReg();
-  LI.BaseReg = MI.getOperand(BaseRegIdx).getReg();
+  LI.BaseReg = BaseReg;
   LI.BaseRegIdx = BaseRegIdx;
   LI.OffsetOpnd = OffsetIdx == -1 ? nullptr : &MI.getOperand(OffsetIdx);
   LI.IsPrePost = IsPrePost;
@@ -687,9 +715,14 @@ void FalkorHWPFFix::runOnLoop(MachineLoop &L, MachineFunction &Fn) {
       if (!TII->isStridedAccess(MI))
         continue;
 
-      LoadInfo LdI = *getLoadInfo(MI);
-      unsigned OldTag = *getTag(TRI, MI, LdI);
-      auto &OldCollisions = TagMap[OldTag];
+      Optional<LoadInfo> OptLdI = getLoadInfo(MI);
+      if (!OptLdI)
+        continue;
+      LoadInfo LdI = *OptLdI;
+      Optional<unsigned> OptOldTag = getTag(TRI, MI, LdI);
+      if (!OptOldTag)
+        continue;
+      auto &OldCollisions = TagMap[*OptOldTag];
       if (OldCollisions.size() <= 1)
         continue;
 
@@ -707,7 +740,7 @@ void FalkorHWPFFix::runOnLoop(MachineLoop &L, MachineFunction &Fn) {
         if (TagMap.count(NewTag))
           continue;
 
-        DEBUG(dbgs() << "Changing base reg to: " << PrintReg(ScratchReg, TRI)
+        DEBUG(dbgs() << "Changing base reg to: " << printReg(ScratchReg, TRI)
                      << '\n');
 
         // Rewrite:
@@ -727,7 +760,7 @@ void FalkorHWPFFix::runOnLoop(MachineLoop &L, MachineFunction &Fn) {
         // well to update the real base register.
         if (LdI.IsPrePost) {
           DEBUG(dbgs() << "Doing post MOV of incremented reg: "
-                       << PrintReg(ScratchReg, TRI) << '\n');
+                       << printReg(ScratchReg, TRI) << '\n');
           MI.getOperand(0).setReg(
               ScratchReg); // Change tied operand pre/post update dest.
           BuildMI(*MBB, std::next(MachineBasicBlock::iterator(MI)), DL,
@@ -765,7 +798,7 @@ bool FalkorHWPFFix::runOnMachineFunction(MachineFunction &Fn) {
   if (ST.getProcFamily() != AArch64Subtarget::Falkor)
     return false;
 
-  if (skipFunction(*Fn.getFunction()))
+  if (skipFunction(Fn.getFunction()))
     return false;
 
   TII = static_cast<const AArch64InstrInfo *>(ST.getInstrInfo());

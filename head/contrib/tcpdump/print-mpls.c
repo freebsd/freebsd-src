@@ -201,7 +201,7 @@ mpls_print(netdissect_options *ndo, const u_char *bp, u_int length)
 		break;
 
 	case PT_OSI:
-		isoclns_print(ndo, p, length, length);
+		isoclns_print(ndo, p, length);
 		break;
 
 	default:

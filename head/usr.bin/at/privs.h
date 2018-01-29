@@ -1,5 +1,8 @@
-/* 
- *  privs.h - header for privileged operations 
+/*- 
+ *  privs.h - header for privileged operations
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  *  Copyright (C) 1993  Thomas Koenig
  *
  * Redistribution and use in source and binary forms, with or without

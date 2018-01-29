@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -732,7 +732,8 @@ AcpiDsCreateOperand (
 
             if (ACPI_FAILURE (Status))
             {
-                ACPI_ERROR_NAMESPACE (NameString, Status);
+                ACPI_ERROR_NAMESPACE (WalkState->ScopeInfo,
+                    NameString, Status);
             }
         }
 

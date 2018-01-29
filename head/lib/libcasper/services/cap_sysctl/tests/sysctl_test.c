@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -61,18 +63,20 @@ static int ntest = 1;
 
 #define CHECK(expr)     do {						\
 	if ((expr))							\
-		printf("ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
+		printf("ok %d # %s:%u\n", ntest, __FILE__, __LINE__);	\
 	else								\
-		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
+		printf("not ok %d # %s:%u\n", ntest, __FILE__, __LINE__); \
+	fflush(stdout);							\
 	ntest++;							\
 } while (0)
 #define CHECKX(expr)     do {						\
 	if ((expr)) {							\
-		printf("ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
+		printf("ok %d # %s:%u\n", ntest, __FILE__, __LINE__);	\
 	} else {							\
-		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
+		printf("not ok %d # %s:%u\n", ntest, __FILE__, __LINE__); \
 		exit(1);						\
 	}								\
+	fflush(stdout);							\
 	ntest++;							\
 } while (0)
 
@@ -1472,6 +1476,7 @@ main(void)
 	size_t scsize;
 
 	printf("1..256\n");
+	fflush(stdout);
 
 	scsize = sizeof(scvalue0);
 	CHECKX(sysctlbyname(SYSCTL0_NAME, &scvalue0, &scsize, NULL, 0) == 0);

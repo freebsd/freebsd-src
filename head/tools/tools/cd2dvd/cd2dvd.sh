@@ -259,7 +259,7 @@ rm "${tmpdirout}"/cdrom.inf~ || exit 1
 
 mkisofs -b boot/cdboot -no-emul-boot -r -J \
 	-V "FreeBSD_Install" \
-	-publisher "The FreeBSD Project.  http://www.freebsd.org/" \
+	-publisher "The FreeBSD Project.  https://www.freebsd.org/" \
 	-o ${DVDIMAGE} "${tmpdirout}" \
 	|| exit 1 
 

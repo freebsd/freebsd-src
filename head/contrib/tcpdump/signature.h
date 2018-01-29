@@ -12,7 +12,7 @@
  *
  * Functions for signature and digest verification.
  *
- * Original code by Hannes Gredler (hannes@juniper.net)
+ * Original code by Hannes Gredler (hannes@gredler.at)
  */
 
 /* for netdissect_options */

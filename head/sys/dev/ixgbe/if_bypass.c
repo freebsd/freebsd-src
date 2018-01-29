@@ -165,12 +165,12 @@ ixgbe_bp_set_state(SYSCTL_HANDLER_ARGS)
 	error = hw->mac.ops.bypass_rw(hw,
 	    BYPASS_PAGE_CTL0, &state);
 	ixgbe_bypass_mutex_clear(adapter);
-	if (error)
+	if (error != 0)
 		return (error);
 	state = (state >> BYPASS_STATUS_OFF_SHIFT) & 0x3;
 
 	error = sysctl_handle_int(oidp, &state, 0, req);
-	if ((error) || (req->newptr == NULL))
+	if ((error != 0) || (req->newptr == NULL))
 		return (error);
 
 	/* Sanity check new state */
@@ -437,7 +437,7 @@ ixgbe_bp_wd_set(SYSCTL_HANDLER_ARGS)
 	struct ixgbe_hw *hw = &adapter->hw;
 	int             error, tmp;
 	static int      timeout = 0;
-	u32             mask, arg = BYPASS_PAGE_CTL0;
+	u32             mask, arg;
 
 	/* Get the current hardware value */
 	ixgbe_bypass_mutex_enter(adapter);
@@ -456,48 +456,38 @@ ixgbe_bp_wd_set(SYSCTL_HANDLER_ARGS)
 	if ((error) || (req->newptr == NULL))
 		return (error);
 
-	mask = BYPASS_WDT_ENABLE_M;
+	arg = 0x1 << BYPASS_WDT_ENABLE_SHIFT;
+	mask = BYPASS_WDT_ENABLE_M | BYPASS_WDT_VALUE_M;
 	switch (timeout) {
-		case 0: /* disables the timer */
-			break;
-		case 1:
-			arg = BYPASS_WDT_1_5 << BYPASS_WDT_TIME_SHIFT;
-			arg |= 0x1 << BYPASS_WDT_ENABLE_SHIFT;
-			mask |= BYPASS_WDT_VALUE_M;
-			break;
-		case 2:
-			arg = BYPASS_WDT_2 << BYPASS_WDT_TIME_SHIFT;
-			arg |= 0x1 << BYPASS_WDT_ENABLE_SHIFT;
-			mask |= BYPASS_WDT_VALUE_M;
-			break;
-		case 3:
-			arg = BYPASS_WDT_3 << BYPASS_WDT_TIME_SHIFT;
-			arg |= 0x1 << BYPASS_WDT_ENABLE_SHIFT;
-			mask |= BYPASS_WDT_VALUE_M;
-			break;
-		case 4:
-			arg = BYPASS_WDT_4 << BYPASS_WDT_TIME_SHIFT;
-			arg |= 0x1 << BYPASS_WDT_ENABLE_SHIFT;
-			mask |= BYPASS_WDT_VALUE_M;
-			break;
-		case 8:
-			arg = BYPASS_WDT_8 << BYPASS_WDT_TIME_SHIFT;
-			arg |= 0x1 << BYPASS_WDT_ENABLE_SHIFT;
-			mask |= BYPASS_WDT_VALUE_M;
-			break;
-		case 16:
-			arg = BYPASS_WDT_16 << BYPASS_WDT_TIME_SHIFT;
-			arg |= 0x1 << BYPASS_WDT_ENABLE_SHIFT;
-			mask |= BYPASS_WDT_VALUE_M;
-			break;
-		case 32:
-			arg = BYPASS_WDT_32 << BYPASS_WDT_TIME_SHIFT;
-			arg |= 0x1 << BYPASS_WDT_ENABLE_SHIFT;
-			mask |= BYPASS_WDT_VALUE_M;
-			break;
-		default:
-			return (EINVAL);
+	case 0: /* disables the timer */
+		arg = BYPASS_PAGE_CTL0;
+		mask = BYPASS_WDT_ENABLE_M;
+		break;
+	case 1:
+		arg |= BYPASS_WDT_1_5 << BYPASS_WDT_TIME_SHIFT;
+		break;
+	case 2:
+		arg |= BYPASS_WDT_2 << BYPASS_WDT_TIME_SHIFT;
+		break;
+	case 3:
+		arg |= BYPASS_WDT_3 << BYPASS_WDT_TIME_SHIFT;
+		break;
+	case 4:
+		arg |= BYPASS_WDT_4 << BYPASS_WDT_TIME_SHIFT;
+		break;
+	case 8:
+		arg |= BYPASS_WDT_8 << BYPASS_WDT_TIME_SHIFT;
+		break;
+	case 16:
+		arg |= BYPASS_WDT_16 << BYPASS_WDT_TIME_SHIFT;
+		break;
+	case 32:
+		arg |= BYPASS_WDT_32 << BYPASS_WDT_TIME_SHIFT;
+		break;
+	default:
+		return (EINVAL);
 	}
+
 	/* Set the new watchdog */
 	ixgbe_bypass_mutex_enter(adapter);
 	error = hw->mac.ops.bypass_set(hw, BYPASS_PAGE_CTL0, mask, arg);
@@ -541,7 +531,8 @@ ixgbe_bp_wd_reset(SYSCTL_HANDLER_ARGS)
 			error = IXGBE_BYPASS_FW_WRITE_FAILURE;
 			break;
 		}
-		if (hw->mac.ops.bypass_rw(hw, BYPASS_PAGE_CTL1, &reset_wd)) {
+		error = hw->mac.ops.bypass_rw(hw, BYPASS_PAGE_CTL1, &reset_wd);
+		if (error != 0) {
 			error = IXGBE_ERR_INVALID_ARGUMENT;
 			break;
 		}
@@ -615,7 +606,7 @@ ixgbe_bp_log(SYSCTL_HANDLER_ARGS)
 			    &data);
 			ixgbe_bypass_mutex_clear(adapter);
 			if (error)
-				return (-EINVAL);
+				return (EINVAL);
 			eeprom[count].logs += data << (8 * i);
 		}
 
@@ -624,7 +615,7 @@ ixgbe_bp_log(SYSCTL_HANDLER_ARGS)
 		    log_off + i, &eeprom[count].actions);
 		ixgbe_bypass_mutex_clear(adapter);
 		if (error)
-			return (-EINVAL);
+			return (EINVAL);
 
 		/* Quit if not a unread log */
 		if (!(eeprom[count].logs & BYPASS_LOG_CLEAR_M))
@@ -696,21 +687,21 @@ ixgbe_bp_log(SYSCTL_HANDLER_ARGS)
 		ixgbe_bypass_mutex_clear(adapter);
 
 		if (error)
-			return (-EINVAL);
+			return (EINVAL);
 	}
 
 	status = 0; /* reset */
 	/* Another log command can now run */
 	while (atomic_cmpset_int(&adapter->bypass.log, 1, 0) == 0)
 		usec_delay(3000);
-	return(error);
+	return (error);
 
 unlock_err:
 	ixgbe_bypass_mutex_clear(adapter);
 	status = 0; /* reset */
 	while (atomic_cmpset_int(&adapter->bypass.log, 1, 0) == 0)
 		usec_delay(3000);
-	return (-EINVAL);
+	return (EINVAL);
 } /* ixgbe_bp_log */
 
 /************************************************************************
@@ -802,7 +793,5 @@ ixgbe_bypass_init(struct adapter *adapter)
 	    adapter, 0, ixgbe_bp_wd_reset, "S", "Bypass WD Reset");
 
 	adapter->feat_en |= IXGBE_FEATURE_BYPASS;
-
-	return;
 } /* ixgbe_bypass_init */
 

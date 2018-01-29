@@ -40,6 +40,7 @@ void arm_parse_fdt_bootargs(void);
 void arm_print_kenv(void);
 
 void arm_generic_initclocks(void);
+int arm_get_vfpstate(struct thread *td, void *args);
 
 /* Board-specific attributes */
 void board_set_serial(uint64_t);

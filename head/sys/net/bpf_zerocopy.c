@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Seccuris Inc.
  * All rights reserved.
  *
@@ -114,8 +116,7 @@ zbuf_page_free(vm_page_t pp)
 {
 
 	vm_page_lock(pp);
-	vm_page_unwire(pp, PQ_INACTIVE);
-	if (pp->wire_count == 0 && pp->object == NULL)
+	if (vm_page_unwire(pp, PQ_INACTIVE) && pp->object == NULL)
 		vm_page_free(pp);
 	vm_page_unlock(pp);
 }

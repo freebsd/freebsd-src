@@ -560,9 +560,7 @@ nptv6_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 		return (ENOSPC);
 	}
 	ipfw_objhash_add(ni, &cfg->no);
-	IPFW_WLOCK(ch);
 	SRV_OBJECT(ch, cfg->no.kidx) = cfg;
-	IPFW_WUNLOCK(ch);
 	IPFW_UH_WUNLOCK(ch);
 	return (0);
 }
@@ -599,10 +597,7 @@ nptv6_destroy(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 		return (EBUSY);
 	}
 
-	IPFW_WLOCK(ch);
 	SRV_OBJECT(ch, cfg->no.kidx) = NULL;
-	IPFW_WUNLOCK(ch);
-
 	ipfw_objhash_del(CHAIN_TO_SRV(ch), &cfg->no);
 	ipfw_objhash_free_idx(CHAIN_TO_SRV(ch), cfg->no.kidx);
 	IPFW_UH_WUNLOCK(ch);

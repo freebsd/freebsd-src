@@ -1,3 +1,36 @@
+2017-10-28  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20171028
+	  Merge with NetBSD make, pick up
+	  o main.c: ignore empty MAKEOBJDIR
+
+	* Makefile.config.in:
+	  make @prefix@ @machine*@ and @default_sys_path@ defaults.
+
+2017-10-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20171005
+
+	* unit-tests/dotwait.mk: redirect stderr through pipe for more
+	  consistent result on some platforms.
+
+2017-08-13  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* machine.sh: entry for AIX
+
+2017-08-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION (_MAKE_VERSION): Move the setting of _MAKE_VERSION
+	  to a file that can be included by configure as well as make.
+	  This allows configure to set set _MAKE_VERSION in make-bootstrap.sh
+
+2017-08-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170810
+	  Merge with NetBSD make, pick up
+	  o meta.c: if target is in subdir we only need subdir name in
+	    meta_name.
+
 2017-07-20  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (_MAKE_VERSION): 20170720

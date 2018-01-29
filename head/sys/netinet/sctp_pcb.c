@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
@@ -709,12 +711,11 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 
 		SCTP_WQ_ADDR_LOCK();
 		LIST_INSERT_HEAD(&SCTP_BASE_INFO(addr_wq), wi, sctp_nxt_addr);
-		SCTP_WQ_ADDR_UNLOCK();
-
 		sctp_timer_start(SCTP_TIMER_TYPE_ADDR_WQ,
 		    (struct sctp_inpcb *)NULL,
 		    (struct sctp_tcb *)NULL,
 		    (struct sctp_nets *)NULL);
+		SCTP_WQ_ADDR_UNLOCK();
 	} else {
 		/* it's ready for use */
 		sctp_ifap->localifa_flags &= ~SCTP_ADDR_DEFER_USE;
@@ -821,12 +822,11 @@ out_now:
 		 * the newest first :-0
 		 */
 		LIST_INSERT_HEAD(&SCTP_BASE_INFO(addr_wq), wi, sctp_nxt_addr);
-		SCTP_WQ_ADDR_UNLOCK();
-
 		sctp_timer_start(SCTP_TIMER_TYPE_ADDR_WQ,
 		    (struct sctp_inpcb *)NULL,
 		    (struct sctp_tcb *)NULL,
 		    (struct sctp_nets *)NULL);
+		SCTP_WQ_ADDR_UNLOCK();
 	}
 	return;
 }
@@ -2486,7 +2486,9 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 		inp->sctp_flags = (SCTP_PCB_FLAGS_TCPTYPE |
 		    SCTP_PCB_FLAGS_UNBOUND);
 		/* Be sure we have blocking IO by default */
+		SOCK_LOCK(so);
 		SCTP_CLEAR_SO_NBIO(so);
+		SOCK_UNLOCK(so);
 	} else {
 		/*
 		 * unsupported socket type (RAW, etc)- in case we missed it
@@ -2577,6 +2579,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	/* number of streams to pre-open on a association */
 	m->pre_open_stream_count = SCTP_BASE_SYSCTL(sctp_nr_outgoing_streams_default);
 
+	m->default_mtu = 0;
 	/* Add adaptation cookie */
 	m->adaptation_layer_indicator = 0;
 	m->adaptation_layer_indicator_provided = 0;
@@ -2919,9 +2922,9 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 		 */
 		/* got to be root to get at low ports */
 		if (ntohs(lport) < IPPORT_RESERVED) {
-			if (p && (error =
+			if ((p != NULL) && ((error =
 			    priv_check(p, PRIV_NETINET_RESERVEDPORT)
-			    )) {
+			    ) != 0)) {
 				SCTP_INP_DECR_REF(inp);
 				SCTP_INP_WUNLOCK(inp);
 				SCTP_INP_INFO_WUNLOCK();
@@ -3942,7 +3945,28 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		    net,
 		    0,
 		    stcb->asoc.vrf_id);
-		if (net->ro._s_addr != NULL) {
+		if (stcb->asoc.default_mtu > 0) {
+			net->mtu = stcb->asoc.default_mtu;
+			switch (net->ro._l_addr.sa.sa_family) {
+#ifdef INET
+			case AF_INET:
+				net->mtu += SCTP_MIN_V4_OVERHEAD;
+				break;
+#endif
+#ifdef INET6
+			case AF_INET6:
+				net->mtu += SCTP_MIN_OVERHEAD;
+				break;
+#endif
+			default:
+				break;
+			}
+#if defined(INET) || defined(INET6)
+			if (net->port) {
+				net->mtu += (uint32_t)sizeof(struct udphdr);
+			}
+#endif
+		} else if (net->ro._s_addr != NULL) {
 			uint32_t imtu, rmtu, hcmtu;
 
 			net->src_addr_selected = 1;
@@ -3966,19 +3990,42 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		}
 	}
 	if (net->mtu == 0) {
-		switch (newaddr->sa_family) {
+		if (stcb->asoc.default_mtu > 0) {
+			net->mtu = stcb->asoc.default_mtu;
+			switch (net->ro._l_addr.sa.sa_family) {
 #ifdef INET
-		case AF_INET:
-			net->mtu = SCTP_DEFAULT_MTU;
-			break;
+			case AF_INET:
+				net->mtu += SCTP_MIN_V4_OVERHEAD;
+				break;
 #endif
 #ifdef INET6
-		case AF_INET6:
-			net->mtu = 1280;
-			break;
+			case AF_INET6:
+				net->mtu += SCTP_MIN_OVERHEAD;
+				break;
 #endif
-		default:
-			break;
+			default:
+				break;
+			}
+#if defined(INET) || defined(INET6)
+			if (net->port) {
+				net->mtu += (uint32_t)sizeof(struct udphdr);
+			}
+#endif
+		} else {
+			switch (newaddr->sa_family) {
+#ifdef INET
+			case AF_INET:
+				net->mtu = SCTP_DEFAULT_MTU;
+				break;
+#endif
+#ifdef INET6
+			case AF_INET6:
+				net->mtu = 1280;
+				break;
+#endif
+			default:
+				break;
+			}
 		}
 	}
 #if defined(INET) || defined(INET6)

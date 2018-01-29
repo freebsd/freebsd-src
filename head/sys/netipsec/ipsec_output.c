@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002, 2003 Sam Leffler, Errno Consulting
  * Copyright (c) 2016 Andrey V. Elsukov <ae@FreeBSD.org>
  * All rights reserved.
@@ -297,7 +299,7 @@ ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 	int error;
 
 	/* Lookup for the corresponding outbound security policy */
-	sp = ipsec4_checkpolicy(m, inp, &error);
+	sp = ipsec4_checkpolicy(m, inp, &error, !forwarding);
 	if (sp == NULL) {
 		if (error == -EINVAL) {
 			/* Discarded by policy. */
@@ -599,7 +601,7 @@ ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 	int error;
 
 	/* Lookup for the corresponding outbound security policy */
-	sp = ipsec6_checkpolicy(m, inp, &error);
+	sp = ipsec6_checkpolicy(m, inp, &error, !forwarding);
 	if (sp == NULL) {
 		if (error == -EINVAL) {
 			/* Discarded by policy. */

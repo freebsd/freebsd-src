@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -54,14 +56,21 @@ void kmap_free_wakeup(vm_map_t, vm_offset_t, vm_size_t);
 /* These operate on virtual addresses backed by memory. */
 vm_offset_t kmem_alloc_attr(struct vmem *, vm_size_t size, int flags,
     vm_paddr_t low, vm_paddr_t high, vm_memattr_t memattr);
+vm_offset_t kmem_alloc_attr_domain(int domain, vm_size_t size, int flags,
+    vm_paddr_t low, vm_paddr_t high, vm_memattr_t memattr);
 vm_offset_t kmem_alloc_contig(struct vmem *, vm_size_t size, int flags,
     vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     vm_memattr_t memattr);
+vm_offset_t kmem_alloc_contig_domain(int domain, vm_size_t size, int flags,
+    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
+    vm_memattr_t memattr);
 vm_offset_t kmem_malloc(struct vmem *, vm_size_t size, int flags);
+vm_offset_t kmem_malloc_domain(int domain, vm_size_t size, int flags);
 void kmem_free(struct vmem *, vm_offset_t, vm_size_t);
 
 /* This provides memory for previously allocated address space. */
 int kmem_back(vm_object_t, vm_offset_t, vm_size_t, int);
+int kmem_back_domain(int, vm_object_t, vm_offset_t, vm_size_t, int);
 void kmem_unback(vm_object_t, vm_offset_t, vm_size_t);
 
 /* Bootstrapping. */
@@ -71,7 +80,6 @@ void kmem_init(vm_offset_t, vm_offset_t);
 void kmem_init_zero_region(void);
 void kmeminit(void);
 
-void swapout_procs(int);
 int kernacc(void *, int, int);
 int useracc(void *, int, int);
 int vm_fault(vm_map_t, vm_offset_t, vm_prot_t, int);

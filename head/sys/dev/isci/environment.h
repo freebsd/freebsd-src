@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * BSD LICENSE
  *
  * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.

@@ -14,7 +14,7 @@
  *
  * miscellaneous checksumming routines
  *
- * Original code by Hannes Gredler (hannes@juniper.net)
+ * Original code by Hannes Gredler (hannes@gredler.at)
  */
 
 #ifdef HAVE_CONFIG_H

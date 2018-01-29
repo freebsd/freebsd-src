@@ -256,7 +256,6 @@ rm ( ) {
 # are relative to NANO_WORLDDIR.
 #
 tgt_touch ( ) (
-
 	cd "${NANO_WORLDDIR}"
 	for i; do
 		touch $i
@@ -270,7 +269,7 @@ tgt_touch ( ) (
 # directory is removed and a symlink is created. If we're doing
 # a nopriv build, then append this fact to the metalog
 #
-tgt_dir2symlink () (
+tgt_dir2symlink ( ) (
 	dir=$1
 	symlink=$2
 
@@ -291,11 +290,6 @@ CR ( ) {
 CR0 ( ) {
 	chroot "${NANO_WORLDDIR}" /bin/sh -c "$*" || true
 }
-
-nano_cleanup ( ) (
-	[ $? -eq 0 ] || echo "Error encountered.  Check for errors in last log file." 1>&2
-	exit $?
-)
 
 clean_build ( ) (
 	pprint 2 "Clean and create object directory (${MAKEOBJDIRPREFIX})"
@@ -334,8 +328,6 @@ build_world ( ) (
 )
 
 build_kernel ( ) (
-	local extra
-
 	pprint 2 "build kernel ($NANO_KERNEL)"
 	pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.bk"
 
@@ -402,7 +394,6 @@ install_world ( ) (
 )
 
 install_etc ( ) (
-
 	pprint 2 "install /etc"
 	pprint 3 "log: ${NANO_LOG}/_.etc"
 
@@ -418,8 +409,6 @@ install_etc ( ) (
 )
 
 install_kernel ( ) (
-	local extra
-
 	pprint 2 "install kernel ($NANO_KERNEL)"
 	pprint 3 "log: ${NANO_LOG}/_.ik"
 
@@ -449,7 +438,8 @@ native_xtools ( ) (
 	nano_make_install_env
 	set -o xtrace
 	cd "${NANO_SRC}"
-	${NANO_MAKE} native-xtools DESTDIR="${NANO_WORLDDIR}"
+	${NANO_MAKE} native-xtools
+	${NANO_MAKE} native-xtools-install DESTDIR="${NANO_WORLDDIR}"
 
 	) > ${NANO_LOG}/_.native_xtools 2>&1
 )
@@ -458,8 +448,7 @@ native_xtools ( ) (
 # Run the requested set of early customization scripts, run before
 # buildworld.
 #
-run_early_customize() {
-
+run_early_customize ( ) {
 	pprint 2 "run early customize scripts"
 	for c in $NANO_EARLY_CUSTOMIZE
 	do
@@ -492,7 +481,6 @@ run_customize ( ) (
 # setup nanobsd, prune empty dirs from /usr, etc
 #
 run_late_customize ( ) (
-
 	pprint 2 "run late customize scripts"
 	for c in $NANO_LATE_CUSTOMIZE
 	do
@@ -511,7 +499,6 @@ run_late_customize ( ) (
 # a user's cfg file would override this.
 #
 fixup_before_diskimage ( ) (
-
 	# Run the deduplication script that takes the matalog journal and
 	# combines multiple entries for the same file (see source for
 	# details). We take the extra step of removing the size keywords. This
@@ -541,14 +528,19 @@ setup_nanobsd ( ) (
 	# have hardcoded paths under ${prefix}/etc are not tweakable.
 	if [ -d usr/local/etc ] ; then
 		(
-		mkdir -p etc/local
 		cd usr/local/etc
 		find . -print | cpio -dumpl ../../../etc/local
 		cd ..
 		rm -rf etc
-		ln -s ../../etc/local etc
 		)
 	fi
+
+	# Always setup the usr/local/etc -> etc/local symlink.
+	# usr/local/etc gets created by packages, but if no packages
+	# are installed by this point, but are later in the process,
+	# the symlink not being here causes problems. It never hurts
+	# to have the symlink in error though.
+	ln -s ../../etc/local usr/local/etc
 
 	for d in var etc
 	do
@@ -595,11 +587,13 @@ setup_nanobsd_etc ( ) (
 	echo "/dev/${NANO_DRIVE}${NANO_ROOT} / ufs ro 1 1" > etc/fstab
 	echo "/dev/${NANO_DRIVE}${NANO_SLICE_CFG} /cfg ufs rw,noauto 2 2" >> etc/fstab
 	mkdir -p cfg
+
+	# Create directory for eventual /usr/local/etc contents
+	mkdir -p etc/local
 	)
 )
 
 prune_usr ( ) (
-
 	# Remove all empty directories in /usr
 	find "${NANO_WORLDDIR}"/usr -type d -depth -print |
 		while read d
@@ -754,10 +748,9 @@ cust_install_files ( ) (
 # Install packages from ${NANO_PACKAGE_DIR}
 
 cust_pkgng ( ) (
-
 	mkdir -p ${NANO_WORLDDIR}/usr/local/etc
 	local PKG_CONF="${NANO_WORLDDIR}/usr/local/etc/pkg.conf"
-	local PKGCMD="env ASSUME_ALWAYS_YES=YES PKG_DBDIR=${NANO_PKG_META_BASE}/pkg SIGNATURE_TYPE=none /usr/sbin/pkg"
+	local PKGCMD="env BATCH=YES ASSUME_ALWAYS_YES=YES PKG_DBDIR=${NANO_PKG_META_BASE}/pkg SIGNATURE_TYPE=none /usr/sbin/pkg"
 
 	# Ensure pkg.conf points pkg to where the package meta data lives.
 	touch ${PKG_CONF}
@@ -820,7 +813,7 @@ cust_pkgng ( ) (
 #	Register all args as early customize function to run just before
 #	build commences.
 
-early_customize_cmd () {
+early_customize_cmd ( ) {
 	NANO_EARLY_CUSTOMIZE="$NANO_EARLY_CUSTOMIZE $*"
 }
 

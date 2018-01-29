@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 1996, 1997, 1998, 1999, 2000 John D. Polstra.
  * All rights reserved.
  *
@@ -187,6 +189,7 @@ typedef struct Struct_Obj_Entry {
     Elf_Word local_gotno;	/* Number of local GOT entries */
     Elf_Word symtabno;		/* Number of dynamic symbols */
     Elf_Word gotsym;		/* First dynamic symbol in GOT */
+    Elf_Addr *mips_pltgot;	/* Second PLT GOT */
 #endif
 #ifdef __powerpc64__
     Elf_Addr glink;		/* GLINK PLT call stub section */

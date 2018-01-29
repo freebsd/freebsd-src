@@ -1,6 +1,10 @@
 #-
-# Copyright (c) 2016 Landon Fuller <landon@landonf.org>
+# Copyright (c) 2016-2017 Landon Fuller <landon@landonf.org>
+# Copyright (c) 2017 The FreeBSD Foundation
 # All rights reserved.
+#
+# Portions of this software were developed by Landon Fuller
+# under sponsorship from the FreeBSD Foundation.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -43,18 +47,25 @@ INTERFACE bhnd_erom;
 # tables used by bhnd(4) buses.
 #
 
+HEADER {
+	/* forward declarations */
+	struct bhnd_erom_io;
+};
+
 /**
- * Probe to see if this device enumeration class supports the bhnd bus
- * mapped by the given resource, returning a standard newbus device probe
- * result (see BUS_PROBE_*) and the probed chip identification.
+ * Probe to see if this device enumeration class supports the bhnd bus at
+ * @p addr, returning a standard newbus device probe result (see BUS_PROBE_*)
+ * and the probed chip identification.
  *
- * @param	cls	The erom class to probe.
- * @param	res	A resource mapping the first bus core.
- * @param	offset	Offset to the first bus core within @p res.
- * @param	hint	Hint used to identify the device. If chipset supports
- *			standard chip identification registers within the first 
- *			core, this parameter should be NULL.
- * @param[out]	cid	On success, the probed chip identifier.
+ * @param	cls		The erom class to probe.
+ * @param	eio		A bus I/O instance, configured with a mapping of
+ *				the first bus core.
+ * @param	base_addr	Address of the first bus core.
+ * @param	hint		Hint used to identify the device. If chipset
+ *				supports standard chip identification registers
+ *				within the first core, this parameter should be
+ *				NULL.
+ * @param[out]	cid		On success, the probed chip identifier.
  *
  * @retval 0		if this is the only possible device enumeration
  *			parser for the probed bus.
@@ -67,42 +78,7 @@ INTERFACE bhnd_erom;
  */
 STATICMETHOD int probe {
 	bhnd_erom_class_t		*cls;
-	struct bhnd_resource		*res;
-	bus_size_t			 offset;
-	const struct bhnd_chipid	*hint;
-	struct bhnd_chipid		*cid;
-};
-
-/**
- * Probe to see if this device enumeration class supports the bhnd bus
- * mapped at the given bus space tag and handle, returning a standard
- * newbus device probe result (see BUS_PROBE_*) and the probed
- * chip identification.
- *
- * @param	cls	The erom class to probe.
- * @param	bst	Bus space tag.
- * @param	bsh	Bus space handle mapping the first bus core.
- * @param	paddr	The physical address of the core mapped by @p bst and
- *			@p bsh.
- * @param	hint	Hint used to identify the device. If chipset supports
- *			standard chip identification registers within the first 
- *			core, this parameter should be NULL.
- * @param[out]	cid	On success, the probed chip identifier.
- *
- * @retval 0		if this is the only possible device enumeration
- *			parser for the probed bus.
- * @retval negative	if the probe succeeds, a negative value should be
- *			returned; the parser returning the highest negative
- *			value will be selected to handle device enumeration.
- * @retval ENXIO	If the bhnd bus type is not handled by this parser.
- * @retval positive	if an error occurs during probing, a regular unix error
- *			code should be returned.
- */
-STATICMETHOD int probe_static {
-	bhnd_erom_class_t		*cls;
-	bus_space_tag_t 		 bst;
-	bus_space_handle_t		 bsh;
-	bus_addr_t			 paddr;
+	struct bhnd_erom_io		*eio;
 	const struct bhnd_chipid	*hint;
 	struct bhnd_chipid		*cid;
 };
@@ -112,11 +88,9 @@ STATICMETHOD int probe_static {
  * 
  * @param erom		The erom parser to initialize.
  * @param cid		The device's chip identifier.
- * @param parent	The parent device from which EROM resources should
- *			be allocated.
- * @param rid		The resource id to be used when allocating the
- *			enumeration table.
- *
+ * @param eio		The bus I/O instance to use when reading the device
+ *			enumeration table. On success, the erom parser assumes
+ *			ownership of this instance.
  * @retval 0		success
  * @retval non-zero	if an error occurs initializing the EROM parser,
  *			a regular unix error code will be returned.
@@ -124,29 +98,7 @@ STATICMETHOD int probe_static {
 METHOD int init {
 	bhnd_erom_t			*erom;
 	const struct bhnd_chipid	*cid;
-	device_t			 parent;
-	int				 rid;
-};
-
-/**
- * Initialize an device enumeration table parser using the provided bus space
- * tag and handle.
- * 
- * @param erom	The erom parser to initialize.
- * @param cid	The device's chip identifier.
- * @param bst	Bus space tag.
- * @param bsh	Bus space handle mapping the full bus enumeration
- *		space.
- *
- * @retval 0		success
- * @retval non-zero	if an error occurs initializing the EROM parser,
- *			a regular unix error code will be returned.
- */
-METHOD int init_static {
-	bhnd_erom_t			*erom;
-	const struct bhnd_chipid	*cid;
-	bus_space_tag_t 		 bst;
-	bus_space_handle_t		 bsh;
+	struct bhnd_erom_io		*eio;
 };
 
 /**

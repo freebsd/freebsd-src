@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
  *
@@ -81,7 +83,6 @@ typedef enum {
  */
 struct pfs_info;
 struct pfs_node;
-struct pfs_bitmap;
 
 /*
  * Init / uninit callback
@@ -120,8 +121,6 @@ struct vattr;
 #define PFS_ATTR_PROTO(name) \
 	int name(PFS_ATTR_ARGS);
 typedef int (*pfs_attr_t)(PFS_ATTR_ARGS);
-
-struct pfs_bitmap;		/* opaque */
 
 /*
  * Visibility callback

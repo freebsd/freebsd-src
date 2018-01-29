@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002, 2005 Networks Associates Technologies, Inc.
  * All rights reserved.
  *
@@ -172,7 +174,7 @@ main(int argc, char *argv[])
 	au_id_t		 auid;
 #endif
 
-	shell = class = cleanenv = NULL;
+	p = shell = class = cleanenv = NULL;
 	asme = asthem = fastlogin = statusp = 0;
 	user = "root";
 	iscsh = UNSET;
@@ -275,9 +277,9 @@ main(int argc, char *argv[])
 	if (asme) {
 		if (pwd->pw_shell != NULL && *pwd->pw_shell != '\0') {
 			/* must copy - pwd memory is recycled */
-			shell = strncpy(shellbuf, pwd->pw_shell,
+			strlcpy(shellbuf, pwd->pw_shell,
 			    sizeof(shellbuf));
-			shellbuf[sizeof(shellbuf) - 1] = '\0';
+			shell = shellbuf;
 		}
 		else {
 			shell = _PATH_BSHELL;

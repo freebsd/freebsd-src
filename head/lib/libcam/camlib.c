@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998, 1999, 2002 Kenneth D. Merry.
  * All rights reserved.
  *
@@ -28,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -130,6 +133,9 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 	 * it so we don't hose the user's string.
 	 */
 	newpath = (char *)strdup(path);
+	if (newpath == NULL)
+		return (-1);
+
 	tmpstr = newpath;
 
 	/*
@@ -138,8 +144,9 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 	if (*tmpstr == '/') {
 		tmpstr2 = tmpstr;
 		tmpstr = strrchr(tmpstr2, '/');
-		if ((tmpstr != NULL) && (*tmpstr != '\0'))
-			tmpstr++;
+		/* We know that tmpstr2 contains a '/', so strrchr can't fail */
+		assert(tmpstr != NULL && *tmpstr != '\0');
+		tmpstr++;
 	}
 
 	if (*tmpstr == '\0') {

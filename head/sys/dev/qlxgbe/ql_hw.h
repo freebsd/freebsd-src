@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013-2016 Qlogic Corporation
  * All rights reserved.
  *
@@ -1217,7 +1219,7 @@ typedef struct _q80_tx_cmd {
 #define MAX_SDS_RINGS           32 /* Max# of Status Descriptor Rings */
 #define NUM_TX_RINGS		(MAX_SDS_RINGS * 2)
 #else
-#define MAX_SDS_RINGS           4 /* Max# of Status Descriptor Rings */
+#define MAX_SDS_RINGS           32 /* Max# of Status Descriptor Rings */
 #define NUM_TX_RINGS		MAX_SDS_RINGS
 #endif /* #ifdef QL_ENABLE_ISCSI_TLV */
 #define MAX_RDS_RINGS           MAX_SDS_RINGS /* Max# of Rcv Descriptor Rings */
@@ -1557,7 +1559,9 @@ typedef struct _qla_rdesc {
         volatile uint32_t prod_jumbo;
         volatile uint32_t rx_next; /* next standard rcv ring to arm fw */
         volatile int32_t  rx_in; /* next standard rcv ring to add mbufs */
-	volatile uint64_t count;
+	uint64_t count;
+	uint64_t lro_pkt_count;
+	uint64_t lro_bytes;
 } qla_rdesc_t;
 
 typedef struct _qla_flash_desc_table {
@@ -1682,10 +1686,14 @@ typedef struct _qla_hw {
 
 	uint32_t	user_pri_nic;
 	uint32_t	user_pri_iscsi;
-	uint64_t	iscsi_pkt_count;
 
 	/* Flash Descriptor Table */
 	qla_flash_desc_table_t fdt;
+
+	/* stats */
+	q80_mac_stats_t mac;
+	q80_rcv_stats_t rcv;
+	q80_xmt_stats_t xmt[NUM_TX_RINGS];
 
 	/* Minidump Related */
 	uint32_t	mdump_init;
@@ -1697,6 +1705,9 @@ typedef struct _qla_hw {
 	uint32_t	mdump_buffer_size;
 	void		*mdump_template;
 	uint32_t	mdump_template_size;
+
+	/* driver state related */
+	void		*drvr_state;
 } qla_hw_t;
 
 #define QL_UPDATE_RDS_PRODUCER_INDEX(ha, prod_reg, val) \

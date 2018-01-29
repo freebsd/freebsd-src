@@ -260,7 +260,7 @@ translator tcpinfoh_t < struct tcphdr *p > {
 	tcp_ack =	p == NULL ? -1 : p->th_ack;
 	tcp_offset =	p == NULL ? -1 : (p->th_off >> 2);
 	tcp_flags =	p == NULL ? 0  : p->th_flags;
-	tcp_window =	p == NULL ? 0  : (p->th_win);
+	tcp_window =	p == NULL ? 0  : p->th_win;
 	tcp_checksum =	p == NULL ? 0  : ntohs(p->th_sum);
 	tcp_urgent =	p == NULL ? 0  : p->th_urp;
 	tcp_hdr =	(struct tcphdr *)p;

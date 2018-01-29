@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2016 Matt Macy <mmacy@nextbsd.org>
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2016 Matthew Macy <mmacy@mattmacy.io>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -96,10 +98,10 @@
 /* Tunables */
 
 /*
- * EM_TXD: Maximum number of Transmit Descriptors
+ * EM_MAX_TXD: Maximum number of Transmit Descriptors
  * Valid Range: 80-256 for 82542 and 82543-based adapters
  *              80-4096 for others
- * Default Value: 256
+ * Default Value: 1024
  *   This value is the number of transmit descriptors allocated by the driver.
  *   Increasing this value allows the driver to queue more transmits. Each
  *   descriptor is 16 bytes.
@@ -111,12 +113,13 @@
 #define EM_MAX_TXD		4096
 #define EM_DEFAULT_TXD          1024
 #define EM_DEFAULT_MULTI_TXD	4096
+#define IGB_MAX_TXD		4096
 
 /*
- * EM_RXD - Maximum number of receive Descriptors
+ * EM_MAX_RXD - Maximum number of receive Descriptors
  * Valid Range: 80-256 for 82542 and 82543-based adapters
  *              80-4096 for others
- * Default Value: 256
+ * Default Value: 1024
  *   This value is the number of receive descriptors allocated by the driver.
  *   Increasing this value allows the driver to buffer more incoming packets.
  *   Each descriptor is 16 bytes.  A receive buffer is also allocated for each
@@ -129,6 +132,7 @@
 #define EM_MAX_RXD		4096
 #define EM_DEFAULT_RXD          1024
 #define EM_DEFAULT_MULTI_RXD	4096
+#define IGB_MAX_RXD		4096
 
 /*
  * EM_TIDV - Transmit Interrupt Delay Value
@@ -554,26 +558,6 @@ typedef struct _em_vendor_info_t {
 } em_vendor_info_t;
 
 void em_dump_rs(struct adapter *);
-
-#define	EM_CORE_LOCK_INIT(_sc, _name) \
-	mtx_init(&(_sc)->core_mtx, _name, "EM Core Lock", MTX_DEF)
-#define	EM_TX_LOCK_INIT(_sc, _name) \
-	mtx_init(&(_sc)->tx_mtx, _name, "EM TX Lock", MTX_DEF)
-#define	EM_RX_LOCK_INIT(_sc, _name) \
-	mtx_init(&(_sc)->rx_mtx, _name, "EM RX Lock", MTX_DEF)
-#define	EM_CORE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->core_mtx)
-#define	EM_TX_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->tx_mtx)
-#define	EM_RX_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->rx_mtx)
-#define	EM_CORE_LOCK(_sc)		mtx_lock(&(_sc)->core_mtx)
-#define	EM_TX_LOCK(_sc)			mtx_lock(&(_sc)->tx_mtx)
-#define	EM_TX_TRYLOCK(_sc)		mtx_trylock(&(_sc)->tx_mtx)
-#define	EM_RX_LOCK(_sc)			mtx_lock(&(_sc)->rx_mtx)
-#define	EM_CORE_UNLOCK(_sc)		mtx_unlock(&(_sc)->core_mtx)
-#define	EM_TX_UNLOCK(_sc)		mtx_unlock(&(_sc)->tx_mtx)
-#define	EM_RX_UNLOCK(_sc)		mtx_unlock(&(_sc)->rx_mtx)
-#define	EM_CORE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->core_mtx, MA_OWNED)
-#define	EM_TX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
-#define	EM_RX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->rx_mtx, MA_OWNED)
 
 #define EM_RSSRK_SIZE	4
 #define EM_RSSRK_VAL(key, i)		(key[(i) * EM_RSSRK_SIZE] | \

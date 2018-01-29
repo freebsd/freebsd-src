@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004, 2008, 2009 Silicon Graphics International Corp.
  * Copyright (c) 2017 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
@@ -72,12 +74,7 @@ __FBSDID("$FreeBSD$");
  */
 #define	CTL_STAT_NUM_ITEMS	256
 
-/*
- * The default number of LUN selection bits we allocate.  This is large
- * because we don't currently increase it if the user specifies a LUN
- * number of 1024 or larger.
- */
-#define	CTL_STAT_BITS		1024L
+static int ctl_stat_bits;
 
 static const char *ctlstat_opts = "Cc:Ddhjl:n:p:tw:";
 static const char *ctlstat_usage = "Usage:  ctlstat [-CDdjht] [-l lunnum]"
@@ -125,7 +122,7 @@ struct ctlstat_context {
 	struct ctl_cpu_stats cur_cpu, prev_cpu;
 	uint64_t cur_total_jiffies, prev_total_jiffies;
 	uint64_t cur_idle, prev_idle;
-	bitstr_t bit_decl(item_mask, CTL_STAT_BITS);
+	bitstr_t *item_mask;
 	int cur_items, prev_items;
 	int cur_alloc, prev_alloc;
 	int numdevs;
@@ -320,11 +317,12 @@ static const char *iotypes[] = {"NO IO", "READ", "WRITE"};
 static void
 ctlstat_dump(struct ctlstat_context *ctx)
 {
-	int iotype, i;
+	int iotype, i, n;
 	struct ctl_io_stats *stats = ctx->cur_stats;
 
-	for (i = 0; i < ctx->cur_items;i++) {
-		if (F_MASK(ctx) && bit_test(ctx->item_mask, i) == 0)
+	for (i = n = 0; i < ctx->cur_items;i++) {
+		if (F_MASK(ctx) && bit_test(ctx->item_mask,
+		    (int)stats[i].item) == 0)
 			continue;
 		printf("%s %d\n", F_PORTS(ctx) ? "port" : "lun", stats[i].item);
 		for (iotype = 0; iotype < CTL_STATS_NUM_TYPES; iotype++) {
@@ -341,17 +339,20 @@ ctlstat_dump(struct ctlstat_context *ctx)
 			PRINT_BINTIME(stats[i].dma_time[iotype]);
 			printf("\n");
 		}
+		if (++n >= ctx->numdevs)
+			break;
 	}
 }
 
 static void
 ctlstat_json(struct ctlstat_context *ctx) {
-	int iotype, i;
+	int iotype, i, n;
 	struct ctl_io_stats *stats = ctx->cur_stats;
 
 	printf("{\"%s\":[", F_PORTS(ctx) ? "ports" : "luns");
-	for (i = 0; i < ctx->cur_items; i++) {
-		if (F_MASK(ctx) && bit_test(ctx->item_mask, i) == 0)
+	for (i = n = 0; i < ctx->cur_items; i++) {
+		if (F_MASK(ctx) && bit_test(ctx->item_mask,
+		    (int)stats[i].item) == 0)
 			continue;
 		printf("{\"num\":%d,\"io\":[",
 		    stats[i].item);
@@ -372,6 +373,8 @@ ctlstat_json(struct ctlstat_context *ctx) {
 				printf(","); /* continue io array */
 		}
 		printf("]}");
+		if (++n >= ctx->numdevs)
+			break;
 		if (i < (ctx->cur_items - 1))
 			printf(","); /* continue lun array */
 	}
@@ -383,7 +386,7 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 	long double etime;
 	uint64_t delta_jiffies, delta_idle;
 	long double cpu_percentage;
-	int i, j;
+	int i, j, n;
 
 	cpu_percentage = 0;
 
@@ -413,10 +416,6 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 	if (F_HDR(ctx)) {
 		ctx->header_interval--;
 		if (ctx->header_interval <= 0) {
-			int hdr_devs;
-
-			hdr_devs = 0;
-
 			if (F_CPU(ctx))
 				fprintf(stdout, " CPU");
 			if (F_TOTALS(ctx)) {
@@ -425,9 +424,9 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 					(F_TIMEVAL(ctx) != 0) ? "      " : "",
 					(F_TIMEVAL(ctx) != 0) ? "      " : "",
 					(F_TIMEVAL(ctx) != 0) ? "      " : "");
-				hdr_devs = 3;
+				n = 3;
 			} else {
-				for (i = 0; i < min(CTL_STAT_BITS,
+				for (i = n = 0; i < min(ctl_stat_bits,
 				     ctx->cur_items); i++) {
 					int item;
 
@@ -444,13 +443,14 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 					fprintf(stdout, "%15.6s%d %s",
 					    F_PORTS(ctx) ? "port" : "lun", item,
 					    (F_TIMEVAL(ctx) != 0) ? "     " : "");
-					hdr_devs++;
+					if (++n >= ctx->numdevs)
+						break;
 				}
 				fprintf(stdout, "\n");
 			}
 			if (F_CPU(ctx))
 				fprintf(stdout, "    ");
-			for (i = 0; i < hdr_devs; i++)
+			for (i = 0; i < n; i++)
 				fprintf(stdout, "%s KB/t   %s MB/s",
 					(F_TIMEVAL(ctx) != 0) ? "    ms" : "",
 					(F_DMA(ctx) == 0) ? "tps" : "dps");
@@ -534,7 +534,7 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 				dmas_per_sec[i], mbsec[i]);
 		}
 	} else {
-		for (i = 0; i < min(CTL_STAT_BITS, ctx->cur_items); i++) {
+		for (i = n = 0; i < min(ctl_stat_bits, ctx->cur_items); i++) {
 			long double mbsec, kb_per_transfer;
 			long double transfers_per_sec;
 			long double ms_per_transfer;
@@ -565,6 +565,8 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 			fprintf(stdout, " %4.0Lf %5.0Lf %4.0Lf",
 				kb_per_transfer, (F_DMA(ctx) == 0) ?
 				transfers_per_sec : dmas_per_sec, mbsec);
+			if (++n >= ctx->numdevs)
+				break;
 		}
 	}
 }
@@ -575,6 +577,7 @@ main(int argc, char **argv)
 	int c;
 	int count, waittime;
 	int fd, retval;
+	size_t size;
 	struct ctlstat_context ctx;
 	struct ctl_io_stats *tmp_stats;
 
@@ -588,6 +591,16 @@ main(int argc, char **argv)
 	ctx.flags |= CTLSTAT_FLAG_CPU;
 	ctx.flags |= CTLSTAT_FLAG_FIRST_RUN;
 	ctx.flags |= CTLSTAT_FLAG_HEADER;
+
+	size = sizeof(ctl_stat_bits);
+	if (sysctlbyname("kern.cam.ctl.max_luns", &ctl_stat_bits, &size, NULL,
+	    0) == -1) {
+		/* Backward compatibility for where the sysctl wasn't exposed */
+		ctl_stat_bits = 1024;
+	}
+	ctx.item_mask = bit_alloc(ctl_stat_bits);
+	if (ctx.item_mask == NULL)
+		err(1, "bit_alloc() failed");
 
 	while ((c = getopt(argc, argv, ctlstat_opts)) != -1) {
 		switch (c) {
@@ -615,7 +628,7 @@ main(int argc, char **argv)
 			int cur_lun;
 
 			cur_lun = atoi(optarg);
-			if (cur_lun > CTL_STAT_BITS)
+			if (cur_lun > ctl_stat_bits)
 				errx(1, "Invalid LUN number %d", cur_lun);
 
 			if (!F_MASK(&ctx))
@@ -634,7 +647,7 @@ main(int argc, char **argv)
 			int cur_port;
 
 			cur_port = atoi(optarg);
-			if (cur_port > CTL_STAT_BITS)
+			if (cur_port > ctl_stat_bits)
 				errx(1, "Invalid port number %d", cur_port);
 
 			if (!F_MASK(&ctx))
@@ -668,18 +681,6 @@ main(int argc, char **argv)
 			ctx.flags |= CTLSTAT_FLAG_PORTS;
 		else
 			ctx.flags |= CTLSTAT_FLAG_LUNS;
-	}
-
-	if (!F_TOTALS(&ctx) && !F_MASK(&ctx)) {
-		/*
-		 * Note that this just selects the first N LUNs to display,
-		 * but at this point we have no knoweledge of which LUN
-		 * numbers actually exist.  So we may select LUNs that
-		 * aren't there.
-		 */
-		bit_nset(ctx.item_mask, 0, min(ctx.numdevs - 1,
-			 CTL_STAT_BITS - 1));
-		ctx.flags |= CTLSTAT_FLAG_MASK;
 	}
 
 	if ((fd = open(CTL_DEFAULT_DEV, O_RDWR)) == -1)

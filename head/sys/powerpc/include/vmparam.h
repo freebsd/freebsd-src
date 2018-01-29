@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
  * All rights reserved.
@@ -35,6 +37,10 @@
 #ifndef _MACHINE_VMPARAM_H_
 #define	_MACHINE_VMPARAM_H_
 
+#ifndef LOCORE
+#include <machine/md_var.h>
+#endif
+
 #define	USRSTACK	SHAREDPAGE
 
 #ifndef	MAXTSIZ
@@ -46,7 +52,11 @@
 #endif
 
 #ifndef	MAXDSIZ
+#ifdef __powerpc64__
+#define	MAXDSIZ		(32UL*1024*1024*1024)	/* max data size */
+#else
 #define	MAXDSIZ		(1*1024*1024*1024)	/* max data size */
+#endif
 #endif
 
 #ifndef	DFLSSIZ
@@ -54,7 +64,11 @@
 #endif
 
 #ifndef	MAXSSIZ
+#ifdef __powerpc64__
+#define	MAXSSIZ		(512*1024*1024)		/* max stack size */
+#else
 #define	MAXSSIZ		(64*1024*1024)		/* max stack size */
+#endif
 #endif
 
 #ifdef AIM
@@ -102,7 +116,7 @@
 #endif
 
 #ifdef AIM
-#define	KERNBASE		0x00100000UL	/* start of kernel virtual */
+#define	KERNBASE		0x00100100UL	/* start of kernel virtual */
 
 #ifndef __powerpc64__
 #define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)KERNEL_SR << ADDR_SR_SHFT)
@@ -120,9 +134,9 @@
 
 #ifdef __powerpc64__
 #ifndef LOCORE
-#define	KERNBASE	0xc000000000000000UL	/* start of kernel virtual */
+#define	KERNBASE	0xc000000000000100UL	/* start of kernel virtual */
 #else
-#define	KERNBASE	0xc000000000000000	/* start of kernel virtual */
+#define	KERNBASE	0xc000000000000100	/* start of kernel virtual */
 #endif
 #else
 #define	KERNBASE		0xc0000000	/* start of kernel virtual */
@@ -226,7 +240,25 @@ struct pmap_physseg {
  */
 #define	SFBUF
 #define	SFBUF_NOMD
-#define	SFBUF_OPTIONAL_DIRECT_MAP	hw_direct_map
-#define	SFBUF_PHYS_DMAP(x)		(x)
- 
+
+/*
+ * We (usually) have a direct map of all physical memory, so provide
+ * a macro to use to get the kernel VA address for a given PA. Returns
+ * 0 if the direct map is unavailable. The location of the direct map
+ * may not be 1:1 in future, so use of the macro is recommended.
+ */
+#ifdef __powerpc64__
+#define	DMAP_BASE_ADDRESS	0x0000000000000000UL
+#else
+#define	DMAP_BASE_ADDRESS	0x00000000UL
+#endif
+
+#define	PMAP_HAS_DMAP	(hw_direct_map)
+#define PHYS_TO_DMAP(x) ({						\
+	KASSERT(hw_direct_map, ("Direct map not provided by PMAP"));	\
+	(x) | DMAP_BASE_ADDRESS; })
+#define DMAP_TO_PHYS(x) ({						\
+	KASSERT(hw_direct_map, ("Direct map not provided by PMAP"));	\
+	(x) &~ DMAP_BASE_ADDRESS; })
+
 #endif /* _MACHINE_VMPARAM_H_ */

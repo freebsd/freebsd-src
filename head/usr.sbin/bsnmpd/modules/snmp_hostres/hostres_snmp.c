@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause AND Beerware)
+ *
  * Copyright (c) 2005-2006 The FreeBSD Project
  * All rights reserved.
  *

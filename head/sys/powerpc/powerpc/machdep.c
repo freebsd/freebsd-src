@@ -154,7 +154,8 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 	   CTLFLAG_RD, &cacheline_size, 0, "");
 
-uintptr_t	powerpc_init(vm_offset_t, vm_offset_t, vm_offset_t, void *);
+uintptr_t	powerpc_init(vm_offset_t, vm_offset_t, vm_offset_t, void *,
+		    uint32_t);
 
 long		Maxmem = 0;
 long		realmem = 0;
@@ -232,12 +233,14 @@ void aim_cpu_init(vm_offset_t toc);
 void booke_cpu_init(void);
 
 uintptr_t
-powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
+powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
+    uint32_t mdp_cookie)
 {
 	struct		pcpu *pc;
+	struct cpuref	bsp;
 	vm_offset_t	startkernel, endkernel;
 	void		*kmdp;
-        char		*env;
+	char		*env;
         bool		ofw_bootargs = false;
 #ifdef DDB
 	vm_offset_t ksym_start;
@@ -250,9 +253,21 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	startkernel = __startkernel;
 	endkernel = __endkernel;
 
-	/* Check for ePAPR loader, which puts a magic value into r6 */
-	if (mdp == (void *)0x65504150)
+	/*
+	 * If the metadata pointer cookie is not set to the magic value,
+	 * the number in mdp should be treated as nonsense.
+	 */
+	if (mdp_cookie != 0xfb5d104d)
 		mdp = NULL;
+
+#if !defined(BOOKE)
+	/*
+	 * On BOOKE the BSS is already cleared and some variables
+	 * initialized.  Do not wipe them out.
+	 */
+	bzero(__sbss_start, __sbss_end - __sbss_start);
+	bzero(__bss_start, _end - __bss_start);
+#endif
 
 #ifdef AIM
 	/*
@@ -287,14 +302,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 #endif
 		}
 	} else {
-#if !defined(BOOKE)
-		/*
-		 * On BOOKE the BSS is already cleared and some variables
-		 * initialized.  Do not wipe them out.
-		 */
-		bzero(__sbss_start, __sbss_end - __sbss_start);
-		bzero(__bss_start, _end - __bss_start);
-#endif
 		init_static_kenv(init_kenv, sizeof(init_kenv));
 		ofw_bootargs = true;
 	}
@@ -311,32 +318,20 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	 */
 	proc_linkup0(&proc0, &thread0);
 	thread0.td_frame = &frame0;
-
-	/*
-	 * Set up per-cpu data.
-	 */
-	pc = __pcpu;
-	pcpu_init(pc, 0, sizeof(struct pcpu));
-	pc->pc_curthread = &thread0;
 #ifdef __powerpc64__
-	__asm __volatile("mr 13,%0" :: "r"(pc->pc_curthread));
+	__asm __volatile("mr 13,%0" :: "r"(&thread0));
 #else
-	__asm __volatile("mr 2,%0" :: "r"(pc->pc_curthread));
+	__asm __volatile("mr 2,%0" :: "r"(&thread0));
 #endif
-	pc->pc_cpuid = 0;
-
-	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
 
 	/*
 	 * Init mutexes, which we use heavily in PMAP
 	 */
-
 	mutex_init();
 
 	/*
 	 * Install the OF client interface
 	 */
-
 	OF_bootstrap();
 
 	if (ofw_bootargs)
@@ -346,19 +341,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	 * Initialize the console before printing anything.
 	 */
 	cninit();
-
-	/*
-	 * Complain if there is no metadata.
-	 */
-	if (mdp == NULL || kmdp == NULL) {
-		printf("powerpc_init: no loader metadata.\n");
-	}
-
-	/*
-	 * Init KDB
-	 */
-
-	kdb_init();
 
 #ifdef AIM
 	aim_cpu_init(toc);
@@ -374,6 +356,25 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	 */
 
 	platform_probe_and_attach();
+
+	/*
+	 * Set up per-cpu data for the BSP now that the platform can tell
+	 * us which that is.
+	 */
+	if (platform_smp_get_bsp(&bsp) != 0)
+		bsp.cr_cpuid = 0;
+	pc = &__pcpu[bsp.cr_cpuid];
+	pcpu_init(pc, bsp.cr_cpuid, sizeof(struct pcpu));
+	pc->pc_curthread = &thread0;
+	thread0.td_oncpu = bsp.cr_cpuid;
+	pc->pc_cpuid = bsp.cr_cpuid;
+	pc->pc_hwref = bsp.cr_hwref;
+	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
+
+	/*
+	 * Init KDB
+	 */
+	kdb_init();
 
 	/*
 	 * Bring up MMU
@@ -415,43 +416,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 
 	return (((uintptr_t)thread0.td_pcb -
 	    (sizeof(struct callframe) - 3*sizeof(register_t))) & ~15UL);
-}
-
-void
-bzero(void *buf, size_t len)
-{
-	caddr_t	p;
-
-	p = buf;
-
-	while (((vm_offset_t) p & (sizeof(u_long) - 1)) && len) {
-		*p++ = 0;
-		len--;
-	}
-
-	while (len >= sizeof(u_long) * 8) {
-		*(u_long*) p = 0;
-		*((u_long*) p + 1) = 0;
-		*((u_long*) p + 2) = 0;
-		*((u_long*) p + 3) = 0;
-		len -= sizeof(u_long) * 8;
-		*((u_long*) p + 4) = 0;
-		*((u_long*) p + 5) = 0;
-		*((u_long*) p + 6) = 0;
-		*((u_long*) p + 7) = 0;
-		p += sizeof(u_long) * 8;
-	}
-
-	while (len >= sizeof(u_long)) {
-		*(u_long*) p = 0;
-		len -= sizeof(u_long);
-		p += sizeof(u_long);
-	}
-
-	while (len) {
-		*p++ = 0;
-		len--;
-	}
 }
 
 /*
@@ -555,3 +519,41 @@ DB_SHOW_COMMAND(spr, db_show_spr)
 	    (unsigned long)spr);
 }
 #endif
+
+#undef bzero
+void
+bzero(void *buf, size_t len)
+{
+	caddr_t	p;
+
+	p = buf;
+
+	while (((vm_offset_t) p & (sizeof(u_long) - 1)) && len) {
+		*p++ = 0;
+		len--;
+	}
+
+	while (len >= sizeof(u_long) * 8) {
+		*(u_long*) p = 0;
+		*((u_long*) p + 1) = 0;
+		*((u_long*) p + 2) = 0;
+		*((u_long*) p + 3) = 0;
+		len -= sizeof(u_long) * 8;
+		*((u_long*) p + 4) = 0;
+		*((u_long*) p + 5) = 0;
+		*((u_long*) p + 6) = 0;
+		*((u_long*) p + 7) = 0;
+		p += sizeof(u_long) * 8;
+	}
+
+	while (len >= sizeof(u_long)) {
+		*(u_long*) p = 0;
+		len -= sizeof(u_long);
+		p += sizeof(u_long);
+	}
+
+	while (len) {
+		*p++ = 0;
+		len--;
+	}
+}

@@ -127,16 +127,14 @@ int linux_wait_event_common(wait_queue_head_t *, wait_queue_t *, int,
  */
 #define	__wait_event_common(wqh, cond, timeout, state, lock) ({	\
 	DEFINE_WAIT(__wq);					\
-	const int __timeout = (timeout) < 1 ? 1 : (timeout);	\
+	const int __timeout = ((int)(timeout)) < 1 ? 1 : (timeout);	\
 	int __start = ticks;					\
 	int __ret = 0;						\
 								\
 	for (;;) {						\
 		linux_prepare_to_wait(&(wqh), &__wq, state);	\
-		if (cond) {					\
-			__ret = 1;				\
+		if (cond)					\
 			break;					\
-		}						\
 		__ret = linux_wait_event_common(&(wqh), &__wq,	\
 		    __timeout, state, lock);			\
 		if (__ret != 0)					\
@@ -158,10 +156,10 @@ int linux_wait_event_common(wait_queue_head_t *, wait_queue_t *, int,
 	__ret;							\
 })
 
-#define	wait_event(wqh, cond) ({					\
-	__wait_event_common(wqh, cond, MAX_SCHEDULE_TIMEOUT,		\
+#define	wait_event(wqh, cond) do {					\
+	(void) __wait_event_common(wqh, cond, MAX_SCHEDULE_TIMEOUT,	\
 	    TASK_UNINTERRUPTIBLE, NULL);				\
-})
+} while (0)
 
 #define	wait_event_timeout(wqh, cond, timeout) ({			\
 	__wait_event_common(wqh, cond, timeout, TASK_UNINTERRUPTIBLE,	\

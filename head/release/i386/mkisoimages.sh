@@ -23,7 +23,7 @@
 # extra-bits-dir, if provided, contains additional files to be merged
 # into base-bits-dir as part of making the image.
 
-if [ "x$1" = "x-b" ]; then
+if [ "$1" = "-b" ]; then
 	# This is highly x86-centric and will be used directly below.
 	bootable="-o bootimage=i386;$4/boot/cdboot -o no-emul-boot"
 	shift
@@ -39,7 +39,7 @@ fi
 LABEL=`echo "$1" | tr '[:lower:]' '[:upper:]'`; shift
 NAME="$1"; shift
 
-publisher="The FreeBSD Project.  http://www.FreeBSD.org/"
+publisher="The FreeBSD Project.  https://www.FreeBSD.org/"
 echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$1/etc/fstab"
 makefs -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@"
 rm -f "$1/etc/fstab"

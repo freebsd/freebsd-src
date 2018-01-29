@@ -58,6 +58,9 @@
 restore_usersrs:
 	GET_CPUINFO(%r28)
 	ld	%r28,PC_USERSLB(%r28)
+	cmpdi	%r28, 0			/* If user SLB pointer NULL, exit */
+	beqlr
+
 	li	%r29, 0			/* Set the counter to zero */
 
 	slbia
@@ -83,6 +86,12 @@ restore_usersrs:
 restore_kernsrs:
 	GET_CPUINFO(%r28)
 	addi	%r28,%r28,PC_KERNSLB
+	ld	%r29,16(%r28)		/* One past USER_SLB_SLOT */
+	cmpdi	%r28,0
+	beqlr				/* If first kernel entry is invalid,
+					 * SLBs not in use, so exit early */
+
+	/* Otherwise, set up SLBs */
 	li	%r29, 0			/* Set the counter to zero */
 
 	slbia
@@ -297,7 +306,8 @@ dtrace_invop_calltrap_addr:
  * not still hanging around in the trap handling region
  * once the MMU is turned on.
  */
-	.globl	CNAME(rstcode), CNAME(rstcodeend)
+	.globl	CNAME(rstcode), CNAME(rstcodeend), CNAME(cpu_reset_handler)
+	.p2align 3
 CNAME(rstcode):
 	/* Explicitly set MSR[SF] */
 	mfmsr	%r9
@@ -305,8 +315,9 @@ CNAME(rstcode):
 	insrdi	%r9,%r8,1,0
 	mtmsrd	%r9
 	isync
+
 	bl	1f
-	.llong	cpu_reset
+	.llong	cpu_reset_handler /* Make sure to maintain 8-byte alignment */
 1:	mflr	%r9
 	ld	%r9,0(%r9)
 	mtlr	%r9
@@ -314,7 +325,7 @@ CNAME(rstcode):
 	blr
 CNAME(rstcodeend):
 
-cpu_reset:
+cpu_reset_handler:
 	GET_TOCBASE(%r2)
 
 	ld	%r1,TOC_REF(tmpstk)(%r2)	/* get new SP */
@@ -569,6 +580,7 @@ CNAME(aliend):
  * Has to handle standard pagetable spills
  */
 	.globl	CNAME(dsitrap),CNAME(dsiend)
+	.p2align 3
 CNAME(dsitrap):
 	mtsprg1	%r1			/* save SP */
 	GET_CPUINFO(%r1)
@@ -831,6 +843,7 @@ dbleave:
  * In case of KDB we want a separate trap catcher for it
  */
 	.globl	CNAME(dblow),CNAME(dbend)
+	.p2align 3
 CNAME(dblow):
 	mtsprg1	%r1			/* save SP */
 	mtsprg2	%r29			/* save r29 */
@@ -859,6 +872,7 @@ CNAME(dblow):
         std	%r30,(PC_DBSAVE+CPUSAVE_R30)(%r1)	/* free r30 */
         std	%r31,(PC_DBSAVE+CPUSAVE_R31)(%r1)	/* free r31 */
         mflr	%r28					/* save LR */
+	nop						/* alignment */
 	bl	9f					/* Begin branch */
 	.llong	dbtrap
 9:	mflr	%r1

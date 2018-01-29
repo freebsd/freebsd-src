@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 3, 2014
+.Dd December 2, 2017
 .Dt AUTOFS 5
 .Os
 .Sh NAME
@@ -67,6 +67,45 @@ file systems:
 Mount options for all filesystems specified in the map entry.
 .It Cm master_prefix
 Filesystem mountpoint prefix.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va vfs.autofs.debug
+Verbosity level for log messages from the
+.Nm
+driver.
+Set to 0 to disable logging or 1 to warn about potential problems.
+Larger values enable debugging output.
+Defaults to 1.
+.It Va vfs.autofs.interruptible
+Set to 1 to allow mount requests to be interrupted by signal.
+Defaults to 1.
+.It Va vfs.autofs.retry_delay
+Number of seconds before retrying mount requests.
+Defaults to 1.
+.It Va vfs.autofs.retry_attempts
+Number of attempts before failing mount.
+Defaults to 3.
+.It Va vfs.autofs.cache
+Number of seconds to wait before reinvoking
+.Xr automountd 8
+for any given file or directory.
+Defaults to 600.
+.It Va vfs.autofs.timeout
+Number of seconds to wait for
+.Xr automountd 8
+to handle the mount request.
+Defaults to 30.
+.It Va vfs.autofs.mount_on_stat
+Set to 1 to trigger mount on
+.Xr stat 2
+on mountpoint.
+Defaults to 0.
 .El
 .Sh EXAMPLES
 To unmount all mounted

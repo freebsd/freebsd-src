@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
  *
@@ -38,7 +40,7 @@ static const char rcsid[] =
 #include "psdate.h"
 
 
-static int
+int
 numerics(char const * str)
 {
 

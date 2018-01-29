@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 27, 2016
+.Dd October 26, 2017
 .Dt CNV 9
 .Os
 .Sh NAME
@@ -37,6 +37,11 @@
 .Lb libnv
 .Sh SYNOPSIS
 .In sys/cnv.h
+.Ft const char *
+.Fn cnvlist_name "void *cookiep"
+.Ft int
+.Fn cnvlist_type "void *cookiep"
+.\"
 .Ft bool
 .Fn cnvlist_get_bool "void *cookiep"
 .Ft uint64_t
@@ -121,6 +126,16 @@ The concept of cookies is explained in
 and
 .Fn nvlist_get_pararr
 from
+.Xr nv 9 .
+.Pp
+The
+.Fn cnvlist_name
+function returns the name of an element associated with the given cookie.
+.Pp
+The
+.Fn cnvlist_type
+function returns the type of an element associated with the given cookie.
+Types which can be returned are described in
 .Xr nv 9 .
 .Pp
 The

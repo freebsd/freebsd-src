@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011-2013 Chelsio Communications.  All rights reserved.
  *
  * This software is available to you under a choice of one of two

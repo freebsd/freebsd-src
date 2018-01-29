@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2015
+.Dd September 26, 2017
 .Dt AESNI 4
 .Os
 .Sh NAME
 .Nm aesni
-.Nd "driver for the AES accelerator on Intel CPUs"
+.Nd "driver for the AES and SHA accelerator on x86 CPUs"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -47,8 +47,8 @@ module at boot time, place the following line in
 aesni_load="YES"
 .Ed
 .Sh DESCRIPTION
-Starting with some models of Core i5/i7, Intel processors implement
-a new set of instructions called AESNI.
+Starting with Intel Westmere and AMD Bulldozer, some x86 processors implement a
+new set of instructions called AESNI.
 The set of six instructions accelerates the calculation of the key
 schedule for key lengths of 128, 192, and 256 of the Advanced
 Encryption Standard (AES) symmetric cipher, and provides a hardware
@@ -56,13 +56,24 @@ implementation of the regular and the last encryption and decryption
 rounds.
 .Pp
 The processor capability is reported as AESNI in the Features2 line at boot.
-The
-.Nm
-driver does not attach on systems that lack the required CPU capability.
+.Pp
+Starting with the Intel Goldmont and AMD Ryzen microarchitectures, some x86
+processors implement a new set of SHA instructions.
+The set of seven instructions accelerates the calculation of SHA1 and SHA256
+hashes.
+.Pp
+The processor capability is reported as SHA in the Structured Extended Features
+line at boot.
 .Pp
 The
 .Nm
-driver registers itself to accelerate AES operations for
+driver does not attach on systems that lack both CPU capabilities.
+On systems that support only one of AESNI or SHA extensions, the driver will
+attach and support that one function.
+.Pp
+The
+.Nm
+driver registers itself to accelerate AES and SHA operations for
 .Xr crypto 4 .
 Besides speed, the advantage of using the
 .Nm
@@ -83,13 +94,18 @@ The
 .Nm
 driver first appeared in
 .Fx 9.0 .
+SHA support was added in
+.Fx 12.0 .
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
 driver was written by
-.An Konstantin Belousov Aq Mt kib@FreeBSD.org .
+.An Konstantin Belousov Aq Mt kib@FreeBSD.org
+and
+.An Conrad Meyer Aq Mt cem@FreeBSD.org .
 The key schedule calculation code was adopted from the sample provided
 by Intel and used in the analogous
 .Ox
 driver.
+The hash step intrinsics implementations were supplied by Intel.

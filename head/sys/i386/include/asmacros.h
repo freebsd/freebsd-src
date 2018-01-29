@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993 The Regents of the University of California.
  * All rights reserved.
  *
@@ -153,13 +155,6 @@
 	pushl	$0 ;							\
 	movw	%fs,(%esp)
 	
-#define	POP_FRAME							\
-	popl	%fs ;							\
-	popl	%es ;							\
-	popl	%ds ;							\
-	popal ;								\
-	addl	$4+4,%esp
-
 /*
  * Access per-CPU data.
  */

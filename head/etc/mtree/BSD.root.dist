@@ -18,6 +18,8 @@
         ..
         modules
         ..
+        overlays              tags=package=runtime
+        ..
         zfs
         ..
     ..
@@ -29,8 +31,6 @@
         autofs
         ..
         bluetooth
-        ..
-        casper
         ..
         cron.d
         ..
@@ -71,8 +71,6 @@
         rc.d
         ..
         security
-        ..
-        skel
         ..
         ssh
         ..

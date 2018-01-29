@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  * Copyright (c) 1994 John S. Dyson
@@ -199,5 +201,9 @@
 #define	SFBUF_MAP
 #define	SFBUF_CPUSET
 #define	SFBUF_PROCESS_PAGE
+
+#define	PMAP_HAS_DMAP	0
+#define	PHYS_TO_DMAP(x)	({ panic("No direct map exists"); 0; })
+#define	DMAP_TO_PHYS(x)	({ panic("No direct map exists"); 0; })
 
 #endif /* _MACHINE_VMPARAM_H_ */

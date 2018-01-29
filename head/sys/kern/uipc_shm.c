@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006, 2011, 2016-2017 Robert N. M. Watson
  * All rights reserved.
  *
@@ -209,12 +211,10 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	}
 	vm_page_lock(m);
 	vm_page_hold(m);
-	if (m->queue == PQ_NONE) {
-		vm_page_deactivate(m);
-	} else {
-		/* Requeue to maintain LRU ordering. */
-		vm_page_requeue(m);
-	}
+	if (vm_page_active(m))
+		vm_page_reference(m);
+	else
+		vm_page_activate(m);
 	vm_page_unlock(m);
 	VM_OBJECT_WUNLOCK(obj);
 	error = uiomove_fromphys(&m, offset, tlen, uio);
@@ -456,13 +456,10 @@ retry:
 				if (vm_page_sleep_if_busy(m, "shmtrc"))
 					goto retry;
 			} else if (vm_pager_has_page(object, idx, NULL, NULL)) {
-				m = vm_page_alloc(object, idx, VM_ALLOC_NORMAL);
-				if (m == NULL) {
-					VM_OBJECT_WUNLOCK(object);
-					VM_WAIT;
-					VM_OBJECT_WLOCK(object);
+				m = vm_page_alloc(object, idx,
+				    VM_ALLOC_NORMAL | VM_ALLOC_WAITFAIL);
+				if (m == NULL)
 					goto retry;
-				}
 				rv = vm_pager_get_pages(object, &m, 1, NULL,
 				    NULL);
 				vm_page_lock(m);

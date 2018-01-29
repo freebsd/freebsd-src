@@ -60,6 +60,7 @@ vendor UNKNOWN2		0x0105	Unknown vendor
 vendor EGALAX2		0x0123	eGalax, Inc.
 vendor CHIPSBANK	0x0204	Chipsbank Microelectronics Co.
 vendor HUMAX		0x02ad	HUMAX
+vendor INTENSO		0x2109	INTENSO
 vendor LTS		0x0386	LTS
 vendor BWCT		0x03da	Bernd Walter Computer Technology
 vendor AOX		0x03e8	AOX
@@ -667,6 +668,7 @@ vendor SOUNDGRAPH 	0x15c2	Soundgraph, Inc.
 vendor AMIT2		0x15c5	AMIT
 vendor TEXTECH		0x15ca	Textech International Ltd.
 vendor SOHOWARE		0x15e8	SOHOware
+vendor ABIT		0x15eb	ABIT Corporation
 vendor UMAX		0x1606	UMAX Data Systems
 vendor INSIDEOUT	0x1608	Inside Out Networks
 vendor AMOI		0x1614	Amoi Electronics
@@ -706,6 +708,7 @@ vendor WCH2		0x1a86	QinHeng Electronics
 vendor STELERA		0x1a8d	Stelera Wireless
 vendor SEL		0x1adb	Schweitzer Engineering Laboratories
 vendor CORSAIR		0x1b1c	Corsair
+vendor ASM		0x1b21	ASMedia Technology
 vendor MATRIXORBITAL	0x1b3d	Matrix Orbital
 vendor OVISLINK		0x1b75	OvisLink
 vendor TML		0x1b91	The Mobility Lab
@@ -749,6 +752,7 @@ vendor HIROSE		0x2631	Hirose Electric
 vendor NHJ		0x2770	NHJ
 vendor THINGM		0x27b8	ThingM
 vendor PLANEX		0x2c02	Planex Communications
+vendor QUECTEL		0x2c7c	Quectel Wireless Solutions
 vendor VIDZMEDIA	0x3275	VidzMedia Pte Ltd
 vendor LINKINSTRUMENTS	0x3195	Link Instruments Inc.
 vendor AEI		0x3334	AEI
@@ -813,6 +817,9 @@ product 3COMUSR USR56K		0x3021	U.S. Robotics 56000 Voice FaxModem Pro
 /* Abbott Diabetics */
 product ABBOTT STEREO_PLUG	0x3410	Abbott Diabetics Stereo Plug
 product ABBOTT STRIP_PORT	0x3420	Abbott Diabetics Strip Port
+
+/* ABIT products */
+product ABIT AK_020		0x7d0e	3G modem
 
 /* AboCom products */
 product ABOCOM XX1		0x110c	XX1
@@ -1672,8 +1679,10 @@ product DLINK DSB650TX2		0x4102	10/100 Ethernet
 product DLINK DUB1312		0x4a00	10/100/1000 Ethernet
 product DLINK DWM157		0x7d02  DWM-157
 product DLINK DWR510		0x7e12	DWR-510
+product DLINK DWM222		0x7e35	DWM-222
 product DLINK DWM157_CD		0xa707  DWM-157 CD-ROM Mode
 product DLINK DWR510_CD		0xa805	DWR-510 CD-ROM Mode
+product DLINK DWM222_CD		0xab00	DWM-222 CD-ROM Mode
 product DLINK DSB650		0xabc1	10/100 Ethernet
 product DLINK DUBH7		0xf103	DUB-H7 USB 2.0 7-Port Hub
 product DLINK2 RTL8192SU_1	0x3300	RTL8192SU
@@ -2499,6 +2508,9 @@ product INSYSTEM ISD105		0x0202	IDE Adapter ISD105
 product INSYSTEM USBCABLE	0x081a	USB cable
 product INSYSTEM STORAGE_V2	0x5701	USB Storage Adapter V2
 
+/* Intenso products */
+product INTENSO MEMORY_BOX	0x0701	External disk
+
 /* Intel products */
 product INTEL EASYPC_CAMERA	0x0110	Easy PC Camera
 product INTEL TESTBOARD		0x9890	82930 test board
@@ -2568,6 +2580,7 @@ product JATON EDA		0x5704	Ethernet
 product JETI SPC1201		0x04b2	FTDI compatible adapter
 
 /* JMicron products */
+product JMICRON JMS567		0x0567	USB to SATA 6.0Gb/s bridge 
 product JMICRON JM20336		0x2336	USB to SATA Bridge
 product JMICRON JM20337		0x2338	USB to ATA/ATAPI Bridge
 
@@ -2699,6 +2712,7 @@ product LEADTEK 9531		0x2101	9531 GPS
 /* Lenovo products */
 product LENOVO GIGALAN		0x304b	USB 3.0 Ethernet
 product LENOVO ETHERNET		0x7203	USB 2.0 Ethernet
+product LENOVO RTL8153		0x7205	USB 3.0 Ethernet
 
 /* Lexar products */
 product LEXAR JUMPSHOT		0x0001	jumpSHOT CompactFlash Reader
@@ -3672,6 +3686,7 @@ product PROLIFIC PL2305		0x2305	Parallel printer
 product PROLIFIC ATAPI4		0x2307	ATAPI-4 Controller
 product PROLIFIC PL2501		0x2501	PL2501 Host-Host interface
 product PROLIFIC PL2506		0x2506	PL2506 USB to IDE Bridge
+product PROLIFIC PL27A1		0x27A1	PL27A1 USB 3.0 Host-Host interface
 product PROLIFIC HCR331		0x331a	HCR331 Hybrid Card Reader
 product PROLIFIC PHAROS		0xaaa0	Prolific Pharos
 product PROLIFIC RSAQ3		0xaaa2	PL2303 Serial Adapter (IODATA USB-RSAQ3)
@@ -3803,11 +3818,14 @@ product QUANTA GKE		0xea05	HSDPA modem
 product QUANTA GLE		0xea06	HSDPA modem
 product QUANTA RW6815R		0xf003	HP iPAQ rw6815 RNDIS
 
-/* Qtronix products */
-product QTRONIX 980N		0x2011	Scorpion-980N keyboard
+/* Quectel products */
+product QUECTEL EC25		0x0125	LTE modem
 
 /* Quickshot products */
 product QUICKSHOT STRIKEPAD	0x6238	USB StrikePad
+
+/* Qtronix products */
+product QTRONIX 980N		0x2011	Scorpion-980N keyboard
 
 /* Radio Shack */
 product RADIOSHACK USBCABLE	0x4026	USB to Serial Cable
@@ -3878,6 +3896,7 @@ product REALTEK RTL8713		0x8713	RTL8713
 product REALTEK RTL8188CU_COMBO	0x8754	RTL8188CU
 product REALTEK RTL8723BU	0xb720	RTL8723BU
 product REALTEK RTL8192SU	0xc512	RTL8192SU
+product REALTEK RTL8812AU	0x8812  RTL8812AU Wireless Adapter
 
 /* RedOctane products */
 product REDOCTANE DUMMY		0x0000	Dummy product
@@ -3915,6 +3934,7 @@ product ROLAND UM550		0x0023	UM-550 MIDI I/F
 product ROLAND SD20		0x0027	SD-20 MIDI Synth
 product ROLAND SD80		0x0029	SD-80 MIDI Synth
 product ROLAND UA700		0x002b	UA-700 Audio I/F
+product ROLAND PCR300		0x0033  EDIROL PCR-300 MIDI I/F
 
 /* Rockfire products */
 product ROCKFIRE GAMEPAD	0x2033	gamepad 203USB
@@ -4528,6 +4548,9 @@ product TOSHIBA TRANSMEMORY	0x6545	USB ThumbDrive
 product TPLINK T4U		0x0101	Archer T4U
 product TPLINK WN822NV4		0x0108	TL-WN822N v4
 product TPLINK WN823NV2		0x0109	TL-WN823N v2
+product TPLINK T4UV2		0x010d	Archer T4U ver 2
+product TPLINK T4UHV2		0x010e	Archer T4UH ver 2
+product TPLINK RTL8153		0x0601	RTL8153 USB 10/100/1000 LAN
 
 /* Trek Technology products */
 product TREK THUMBDRIVE		0x1111	ThumbDrive

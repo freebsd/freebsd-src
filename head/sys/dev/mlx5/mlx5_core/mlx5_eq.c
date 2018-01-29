@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -80,6 +80,8 @@ struct cre_des_eq {
 /*Function prototype*/
 static void mlx5_port_module_event(struct mlx5_core_dev *dev,
 				   struct mlx5_eqe *eqe);
+static void mlx5_port_general_notification_event(struct mlx5_core_dev *dev,
+						 struct mlx5_eqe *eqe);
 
 static int mlx5_cmd_destroy_eq(struct mlx5_core_dev *dev, u8 eqn)
 {
@@ -157,6 +159,8 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_NIC_VPORT_CHANGE";
 	case MLX5_EVENT_TYPE_CODING_DCBX_CHANGE_EVENT:
 		return "MLX5_EVENT_TYPE_CODING_DCBX_CHANGE_EVENT";
+	case MLX5_EVENT_TYPE_CODING_GENERAL_NOTIFICATION_EVENT:
+		return "MLX5_EVENT_TYPE_CODING_GENERAL_NOTIFICATION_EVENT";
 	default:
 		return "Unrecognized event";
 	}
@@ -294,6 +298,10 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 					       "dcbx event with unrecognized subtype: port %d, sub_type %d\n",
 					       port, eqe->sub_type);
 			}
+			break;
+
+		case MLX5_EVENT_TYPE_CODING_GENERAL_NOTIFICATION_EVENT:
+			mlx5_port_general_notification_event(dev, eqe);
 			break;
 
 		case MLX5_EVENT_TYPE_CQ_ERROR:
@@ -502,7 +510,7 @@ void mlx5_eq_cleanup(struct mlx5_core_dev *dev)
 int mlx5_start_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
-	u32 async_event_mask = MLX5_ASYNC_EVENT_MASK;
+	u64 async_event_mask = MLX5_ASYNC_EVENT_MASK;
 	int err;
 
 	if (MLX5_CAP_GEN(dev, port_module_event))
@@ -665,5 +673,26 @@ static void mlx5_port_module_event(struct mlx5_core_dev *dev,
 	/* store module status */
 	if (module_num < MLX5_MAX_PORTS)
 		dev->module_status[module_num] = module_status;
+}
+
+static void mlx5_port_general_notification_event(struct mlx5_core_dev *dev,
+						 struct mlx5_eqe *eqe)
+{
+	u8 port = (eqe->data.port.port >> 4) & 0xf;
+	u32 rqn = 0;
+	struct mlx5_eqe_general_notification_event *general_event = NULL;
+
+	switch (eqe->sub_type) {
+	case MLX5_GEN_EVENT_SUBTYPE_DELAY_DROP_TIMEOUT:
+		general_event = &eqe->data.general_notifications;
+		rqn = be32_to_cpu(general_event->rq_user_index_delay_drop) &
+			  0xffffff;
+		break;
+	default:
+		mlx5_core_warn(dev,
+			       "general event with unrecognized subtype: port %d, sub_type %d\n",
+			       port, eqe->sub_type);
+		break;
+	}
 }
 

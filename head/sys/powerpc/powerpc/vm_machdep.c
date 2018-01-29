@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-4-Clause AND MIT-CMU)
+ *
  * Copyright (c) 1982, 1986 The Regents of the University of California.
  * Copyright (c) 1989, 1990 William Jolitz
  * Copyright (c) 1994 John Dyson
@@ -188,6 +190,9 @@ cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 
 	cf = (struct callframe *)td->td_pcb->pcb_sp;
 
+	#if defined(__powerpc64__) && (!defined(_CALL_ELF) || _CALL_ELF == 1)
+	cf->cf_toc = ((register_t *)func)[1];
+	#endif
 	cf->cf_func = (register_t)func;
 	cf->cf_arg0 = (register_t)arg;
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,7 +41,17 @@ int mlx5_vport_query_q_counter(struct mlx5_core_dev *mdev,
 int mlx5_vport_query_out_of_rx_buffer(struct mlx5_core_dev *mdev,
 				      u16 counter_set_id,
 				      u32 *out_of_rx_buffer);
+enum mlx5_local_lb_selection {
+	MLX5_LOCAL_MC_LB,
+	MLX5_LOCAL_UC_LB
+};
 
+int mlx5_nic_vport_query_local_lb(struct mlx5_core_dev *mdev,
+				  enum mlx5_local_lb_selection selection,
+				  u8 *value);
+int mlx5_nic_vport_modify_local_lb(struct mlx5_core_dev *mdev,
+				   enum mlx5_local_lb_selection selection,
+				   u8 value);
 u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod, u16 vport);
 u8 mlx5_query_vport_admin_state(struct mlx5_core_dev *mdev, u8 opmod,
 				u16 vport);
@@ -101,6 +111,9 @@ int mlx5_set_nic_vport_permanent_mac(struct mlx5_core_dev *mdev, int vport,
 				     u8 *addr);
 int mlx5_nic_vport_enable_roce(struct mlx5_core_dev *mdev);
 int mlx5_nic_vport_disable_roce(struct mlx5_core_dev *mdev);
+int mlx5_core_query_vport_counter(struct mlx5_core_dev *dev, u8 other_vport,
+                                  int vf, u8 port_num, void *out,
+                                  size_t out_sz);
 int mlx5_query_nic_vport_system_image_guid(struct mlx5_core_dev *mdev,
 					   u64 *system_image_guid);
 int mlx5_query_vport_system_image_guid(struct mlx5_core_dev *dev,
@@ -130,4 +143,6 @@ int mlx5_query_vport_counter(struct mlx5_core_dev *dev,
 			     void *out, int out_size);
 int mlx5_get_vport_counters(struct mlx5_core_dev *dev, u8 port_num,
 			    struct mlx5_vport_counters *vc);
+int mlx5_core_query_ib_ppcnt(struct mlx5_core_dev *dev,
+			     u8 port_num, void *out, size_t sz);
 #endif /* __MLX5_VPORT_H__ */

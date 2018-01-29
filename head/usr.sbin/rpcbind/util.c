@@ -4,6 +4,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -40,10 +42,8 @@
 #include <ifaddrs.h>
 #include <sys/poll.h>
 #include <rpc/rpc.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <netdb.h>
 #include <netconfig.h>
 #include <stdio.h>

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2006-2007, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
@@ -403,11 +405,6 @@ typedef struct rtentry sctp_rtentry_t;
 
 #define SCTP_RTALLOC(ro, vrf_id, fibnum) \
 	rtalloc_ign_fib((struct route *)ro, 0UL, fibnum)
-
-/* Future zero copy wakeup/send  function */
-#define SCTP_ZERO_COPY_EVENT(inp, so)
-/* This is re-pulse ourselves for sendbuf */
-#define SCTP_ZERO_COPY_SENDQ_EVENT(inp, so)
 
 /*
  * SCTP protocol specific mbuf flags.

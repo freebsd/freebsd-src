@@ -221,13 +221,14 @@ static const char rcsid[] =
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/sctp.h>
+#include <netinet/sctp_header.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
 
 #include <arpa/inet.h>
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 #include <libcasper.h>
 #include <casper/cap_dns.h>
 #endif
@@ -369,7 +370,7 @@ extern int optind;
 extern int opterr;
 extern char *optarg;
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 static cap_channel_t *capdns;
 #endif
 
@@ -521,7 +522,7 @@ main(int argc, char **argv)
 	int requestPort = -1;
 	int sump = 0;
 	int sockerrno;
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 	const char *types[] = { "NAME", "ADDR" };
 	int families[1];
 	cap_channel_t *casper;
@@ -556,7 +557,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 	casper = cap_init();
 	if (casper == NULL)
 		errx(1, "unable to create casper process");
@@ -568,7 +569,7 @@ main(int argc, char **argv)
 	families[0] = AF_INET;
 	if (cap_dns_family_limit(capdns, families, 1) < 0)
 		errx(1, "unable to limit access to system.dns service");
-#endif /* HAVE_LIBCASPER */
+#endif /* WITH_CASPER */
 
 #ifdef IPCTL_DEFTTL
 	{
@@ -584,7 +585,7 @@ main(int argc, char **argv)
 	max_ttl = 30;
 #endif
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 	cap_close(casper);
 #endif
 
@@ -1006,7 +1007,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 	cansandbox = true;
 #else
 	if (nflag)
@@ -1570,25 +1571,70 @@ sctp_prep(struct outdata *outdata)
 {
 	struct sctphdr *const sctp = (struct sctphdr *) outp;
 	struct sctp_chunkhdr *chk;
+	struct sctp_init_chunk *init;
+	struct sctp_paramhdr *param;
 
 	sctp->src_port = htons(ident);
 	sctp->dest_port = htons(port + (fixedPort ? 0 : outdata->seq));
-	sctp->v_tag = (sctp->src_port << 16) | sctp->dest_port;
-	sctp->checksum = htonl(0);
-	if (protlen >=
-	    (int)(sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr))) {
-		chk = (struct sctp_chunkhdr *)(sctp + 1);
-		chk->chunk_type = SCTP_SHUTDOWN_ACK;
-		chk->chunk_flags = 0;
-		chk->chunk_length = htons(4);
+	if (protlen >= (int)(sizeof(struct sctphdr) +
+	    sizeof(struct sctp_init_chunk))) {
+		sctp->v_tag = 0;
+	} else {
+		sctp->v_tag = (sctp->src_port << 16) | sctp->dest_port;
 	}
-	if (protlen >=
-	    (int)(sizeof(struct sctphdr) + 2 * sizeof(struct sctp_chunkhdr))) {
-		chk = chk + 1;
-		chk->chunk_type = SCTP_PAD_CHUNK;
-		chk->chunk_flags = 0;
-		chk->chunk_length = htons(protlen -
-		    (sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr)));
+	sctp->checksum = htonl(0);
+	if (protlen >= (int)(sizeof(struct sctphdr) +
+	    sizeof(struct sctp_init_chunk))) {
+		/*
+		 * Send a packet containing an INIT chunk. This works
+		 * better in case of firewalls on the path, but
+		 * results in a probe packet containing at least
+		 * 32 bytes of payload. For shorter payloads, use
+		 * SHUTDOWN-ACK chunks.
+		 */
+		init = (struct sctp_init_chunk *)(sctp + 1);
+		init->ch.chunk_type = SCTP_INITIATION;
+		init->ch.chunk_flags = 0;
+		init->ch.chunk_length = htons((u_int16_t)(protlen -
+		    sizeof(struct sctphdr)));
+		init->init.initiate_tag = (sctp->src_port << 16) |
+		    sctp->dest_port;
+		init->init.a_rwnd = htonl(1500);
+		init->init.num_outbound_streams = htons(1);
+		init->init.num_inbound_streams = htons(1);
+		init->init.initial_tsn = htonl(0);
+		if (protlen >= (int)(sizeof(struct sctphdr) +
+		    sizeof(struct sctp_init_chunk) +
+		    sizeof(struct sctp_paramhdr))) {
+			param = (struct sctp_paramhdr *)(init + 1);
+			param->param_type = htons(SCTP_PAD);
+			param->param_length =
+			    htons((u_int16_t)(protlen -
+			    sizeof(struct sctphdr) -
+			    sizeof(struct sctp_init_chunk)));
+		}
+	} else {
+		/*
+		 * Send a packet containing a SHUTDOWN-ACK chunk,
+		 * possibly followed by a PAD chunk.
+		 */
+		if (protlen >=
+		    (int)(sizeof(struct sctphdr) +
+		    sizeof(struct sctp_chunkhdr))) {
+			chk = (struct sctp_chunkhdr *)(sctp + 1);
+			chk->chunk_type = SCTP_SHUTDOWN_ACK;
+			chk->chunk_flags = 0;
+			chk->chunk_length = htons(4);
+		}
+		if (protlen >=
+		    (int)(sizeof(struct sctphdr) +
+		    2 * sizeof(struct sctp_chunkhdr))) {
+			chk = chk + 1;
+			chk->chunk_type = SCTP_PAD_CHUNK;
+			chk->chunk_flags = 0;
+			chk->chunk_length = htons(protlen -
+			    (sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr)));
+		}
 	}
 	if (doipcksum) {
 		sctp->checksum = sctp_crc32c(sctp, protlen);
@@ -1600,10 +1646,20 @@ sctp_check(const u_char *data, int seq)
 {
 	struct sctphdr *const sctp = (struct sctphdr *) data;
 
-	return (ntohs(sctp->src_port) == ident
-	    && ntohs(sctp->dest_port) == port + (fixedPort ? 0 : seq)
-	    && sctp->v_tag ==
-	    (u_int32_t)((sctp->src_port << 16) | sctp->dest_port));
+	if (ntohs(sctp->src_port) != ident ||
+	    ntohs(sctp->dest_port) != port + (fixedPort ? 0 : seq))
+		return (0);
+	if (protlen < (int)(sizeof(struct sctphdr) +
+	    sizeof(struct sctp_init_chunk))) {
+		return (sctp->v_tag ==
+		    (u_int32_t)((sctp->src_port << 16) | sctp->dest_port));
+	} else {
+		/*
+		 * Don't verify the initiate_tag, since it is not available,
+		 * most of the time.
+		 */
+		return (sctp->v_tag == 0);
+	}
 }
 
 void
@@ -1851,7 +1907,7 @@ inetname(struct in_addr in)
 		else {
 			cp = strchr(domain, '.');
 			if (cp == NULL) {
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 				if (capdns != NULL)
 					hp = cap_gethostbyname(capdns, domain);
 				else
@@ -1870,7 +1926,7 @@ inetname(struct in_addr in)
 		}
 	}
 	if (!nflag && in.s_addr != INADDR_ANY) {
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 		if (capdns != NULL)
 			hp = cap_gethostbyaddr(capdns, (char *)&in, sizeof(in),
 			    AF_INET);
@@ -1922,7 +1978,7 @@ gethostinfo(register char *hostname)
 		return (hi);
 	}
 
-#ifdef HAVE_LIBCASPER
+#ifdef WITH_CASPER
 	if (capdns != NULL)
 		hp = cap_gethostbyname(capdns, hostname);
 	else

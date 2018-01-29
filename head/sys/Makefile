@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 # Directories to include in cscope name file and TAGS.
-CSCOPEDIRS=	boot bsm cam cddl compat conf contrib crypto ddb dev fs gdb \
+CSCOPEDIRS=	bsm cam cddl compat conf contrib crypto ddb dev fs gdb \
 		geom gnu isa kern libkern modules net net80211 \
 		netgraph netinet netinet6 netipsec netpfil \
 		netsmb nfs nfsclient nfsserver nlm ofed opencrypto \
@@ -61,11 +61,6 @@ TAGS ${.CURDIR}/TAGS: ${.CURDIR}/cscope.files
 
 .if !(make(cscope) || make(cscope-clean) || make(cscope-hook) || make(TAGS))
 .include <src.opts.mk>
-
-# The boot loader
-.if ${MK_BOOT} != "no"
-SUBDIR=	boot
-.endif
 
 # Loadable kernel modules
 

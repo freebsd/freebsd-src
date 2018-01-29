@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Edward Tomasz Napierala <trasz@FreeBSD.org>
  * Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
@@ -62,6 +64,7 @@ struct g_mountver_softc {
 	char				*sc_provider_name;
 	char				sc_ident[DISK_IDENT_SIZE];
 	int				sc_orphaned;
+	int				sc_shutting_down;
 	int				sc_access_r;
 	int				sc_access_w;
 	int				sc_access_e;

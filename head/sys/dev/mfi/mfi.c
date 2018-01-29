@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-2-Clause
+ *
  * Copyright (c) 2006 IronPort Systems
  * All rights reserved.
  *
@@ -1263,8 +1265,6 @@ mfi_startup(void *arg)
 
 	sc = (struct mfi_softc *)arg;
 
-	config_intrhook_disestablish(&sc->mfi_ich);
-
 	sc->mfi_enable_intr(sc);
 	sx_xlock(&sc->mfi_config_lock);
 	mtx_lock(&sc->mfi_io_lock);
@@ -1273,6 +1273,8 @@ mfi_startup(void *arg)
 	    mfi_syspdprobe(sc);
 	mtx_unlock(&sc->mfi_io_lock);
 	sx_xunlock(&sc->mfi_config_lock);
+
+	config_intrhook_disestablish(&sc->mfi_ich);
 }
 
 static void

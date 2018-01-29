@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013-2014 Qlogic Corporation
  * All rights reserved.
  *
@@ -361,7 +363,7 @@ struct qla_host {
 typedef struct qla_host qla_host_t;
 
 /* note that align has to be a power of 2 */
-#define QL_ALIGN(size, align) (size + (align - 1)) & ~(align - 1);
+#define QL_ALIGN(size, align) (((size) + ((align) - 1)) & (~((align) - 1)))
 #define QL_MIN(x, y) ((x < y) ? x : y)
 
 #define QL_RUNNING(ifp) \

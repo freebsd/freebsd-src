@@ -1,6 +1,8 @@
 /*	$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2009-2016 Dmitry Chagin
  * Copyright (c) 2005 Emmanuel Dreyfus
  * All rights reserved.

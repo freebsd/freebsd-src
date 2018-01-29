@@ -1,6 +1,12 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Peter Wemm
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +33,18 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <machine/cpufunc.h>
 #include <machine/sysarch.h>
+#include "amd64_detect_rdfsgsbase.h"
 
 int
 amd64_get_gsbase(void **addr)
 {
 
+	if  (amd64_detect_rdfsgsbase() == RDFSGS_SUPPORTED) {
+		*addr = (void *)rdgsbase();
+		return (0);
+	}
 	return (sysarch(AMD64_GET_GSBASE, addr));
 }

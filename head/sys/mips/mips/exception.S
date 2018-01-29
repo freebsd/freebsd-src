@@ -1102,13 +1102,15 @@ END(MipsTLBMissException)
  *----------------------------------------------------------------------------
  */
 NESTED(MipsFPTrap, CALLFRAME_SIZ, ra)
+	.set push
+	.set hardfloat
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
 	mfc0	t0, MIPS_COP_0_STATUS
 	HAZARD_DELAY
 	REG_S	ra, CALLFRAME_RA(sp)
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 
-#if defined(__mips_n64)
+#if defined(__mips_n32) || defined(__mips_n64)
 	or	t1, t0, MIPS_SR_COP_1_BIT | MIPS_SR_FR
 #else
 	or	t1, t0, MIPS_SR_COP_1_BIT
@@ -1201,6 +1203,7 @@ FPReturn:
 	ITLBNOPFIX
 	j	ra
 	PTR_ADDU sp, sp, CALLFRAME_SIZ
+	.set pop
 END(MipsFPTrap)
 
 #ifndef INTRNG

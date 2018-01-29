@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: MIT-CMU
+ *
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
@@ -398,7 +400,7 @@ db_command(struct command **last_cmdp, struct command_table *cmd_table,
 		    case CMD_HELP:
 			if (cmd_table == &db_cmd_table) {
 			    db_printf("This is ddb(4), the kernel debugger; "
-			        "see http://man.freebsd.org/ddb/4 for help.\n");
+			        "see https://man.FreeBSD.org/ddb/4 for help.\n");
 			    db_printf("Use \"bt\" for backtrace, \"dump\" for "
 			        "kernel core dump, \"reset\" to reboot.\n");
 			    db_printf("Available commands:\n");
@@ -556,7 +558,7 @@ db_error(const char *s)
 	if (s)
 	    db_printf("%s", s);
 	db_flush_lex();
-	kdb_reenter();
+	kdb_reenter_silent();
 }
 
 static void

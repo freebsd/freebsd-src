@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2010 Marcel Moolenaar
  * Copyright (c) 1999-2004 Poul-Henning Kamp
  * Copyright (c) 1999 Michael Smith
@@ -174,6 +176,7 @@ root_mount_hold(const char *identifier)
 	h = malloc(sizeof *h, M_DEVBUF, M_ZERO | M_WAITOK);
 	h->who = identifier;
 	mtx_lock(&root_holds_mtx);
+	TSHOLD("root mount");
 	LIST_INSERT_HEAD(&root_holds, h, list);
 	mtx_unlock(&root_holds_mtx);
 	return (h);
@@ -183,10 +186,12 @@ void
 root_mount_rel(struct root_hold_token *h)
 {
 
-	KASSERT(h != NULL, ("%s: NULL token", __func__));
+	if (h == NULL)
+		return;
 
 	mtx_lock(&root_holds_mtx);
 	LIST_REMOVE(h, list);
+	TSRELEASE("root mount");
 	wakeup(&root_holds);
 	mtx_unlock(&root_holds_mtx);
 	free(h, M_DEVBUF);
@@ -935,6 +940,8 @@ vfs_mountroot_wait(void)
 	struct timeval lastfail;
 	int curfail;
 
+	TSENTER();
+
 	curfail = 0;
 	while (1) {
 		DROP_GIANT();
@@ -951,9 +958,13 @@ vfs_mountroot_wait(void)
 				printf(" %s", h->who);
 			printf("\n");
 		}
+		TSWAIT("root mount");
 		msleep(&root_holds, &root_holds_mtx, PZERO | PDROP, "roothold",
 		    hz);
+		TSUNWAIT("root mount");
 	}
+
+	TSEXIT();
 }
 
 static int
@@ -1010,6 +1021,8 @@ vfs_mountroot(void)
 	struct thread *td;
 	time_t timebase;
 	int error;
+	
+	TSENTER();
 
 	td = curthread;
 
@@ -1059,6 +1072,8 @@ vfs_mountroot(void)
 	mtx_unlock(&root_holds_mtx);
 
 	EVENTHANDLER_INVOKE(mountroot);
+
+	TSEXIT();
 }
 
 static struct mntarg *

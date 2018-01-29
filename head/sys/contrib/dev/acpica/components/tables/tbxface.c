@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -300,10 +300,13 @@ AcpiReallocateRootTable (
 
 
     /*
-     * Only reallocate the root table if the host provided a static buffer
-     * for the table array in the call to AcpiInitializeTables.
+     * If there are tables unverified, it is required to reallocate the
+     * root table list to clean up invalid table entries. Otherwise only
+     * reallocate the root table list if the host provided a static buffer
+     * for the table array in the call to AcpiInitializeTables().
      */
-    if (AcpiGbl_RootTableList.Flags & ACPI_ROOT_ORIGIN_ALLOCATED)
+    if ((AcpiGbl_RootTableList.Flags & ACPI_ROOT_ORIGIN_ALLOCATED) &&
+        AcpiGbl_EnableTableValidation)
     {
         return_ACPI_STATUS (AE_SUPPORT);
     }

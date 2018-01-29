@@ -1,7 +1,7 @@
 /* LINTLIBRARY */
 /*-
  * Copyright 1996-1998 John D. Polstra.
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -64,7 +64,10 @@ __asm("	.text			\n"
 "	slli	t0, a0, 3	\n" /* mult by arg size */
 "	add	a2, a1, t0	\n" /* env is after argv */
 "	addi	a2, a2, 8	\n" /* argv is null terminated */
-"	lla	gp, _gp		\n" /* load global pointer */
+"	.option push		\n"
+"	.option norelax		\n"
+"	lla	gp, __global_pointer$\n"
+"	.option pop		\n"
 "	call	__start");
 
 void

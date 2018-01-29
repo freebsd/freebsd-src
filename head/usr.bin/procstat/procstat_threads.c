@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Robert N. M. Watson
  * Copyright (c) 2015 Allan Jude <allanjude@freebsd.org>
  * All rights reserved.
@@ -48,7 +50,7 @@ procstat_threads(struct procstat *procstat, struct kinfo_proc *kipp)
 	const char *str;
 	char *threadid;
 
-	if (!hflag)
+	if ((procstat_opts & PS_OPT_NOHEADER) == 0)
 		xo_emit("{T:/%5s %6s %-19s %-19s %2s %4s %-7s %-9s}\n", "PID",
 		    "TID", "COMM", "TDNAME", "CPU", "PRI", "STATE", "WCHAN");
 

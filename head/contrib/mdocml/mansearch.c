@@ -1,4 +1,4 @@
-/*	$OpenBSD: mansearch.c,v 1.50 2016/07/09 15:23:36 schwarze Exp $ */
+/*	$Id: mansearch.c,v 1.76 2017/08/02 13:29:04 schwarze Exp $ */
 /*
  * Copyright (c) 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -171,7 +171,9 @@ mansearch(const struct mansearch *search,
 			page = dbm_page_get(rp->page);
 
 			if (lstmatch(search->sec, page->sect) == 0 ||
-			    lstmatch(search->arch, page->arch) == 0)
+			    lstmatch(search->arch, page->arch) == 0 ||
+			    (search->argmode == ARG_NAME &&
+			     rp->bits <= (int32_t)(NAME_SYN & NAME_MASK)))
 				continue;
 
 			if (res == NULL) {
@@ -452,14 +454,28 @@ lstlen(const char *cp, size_t sep)
 {
 	size_t	 sz;
 
-	for (sz = 0;; sz++) {
-		if (cp[0] == '\0') {
-			if (cp[1] == '\0')
-				break;
-			sz += sep - 1;
-		} else if (cp[0] < ' ')
-			sz--;
-		cp++;
+	for (sz = 0; *cp != '\0'; cp++) {
+
+		/* Skip names appearing only in the SYNOPSIS. */
+		if (*cp <= (char)(NAME_SYN & NAME_MASK)) {
+			while (*cp != '\0')
+				cp++;
+			continue;
+		}
+
+		/* Skip name class markers. */
+		if (*cp < ' ')
+			cp++;
+
+		/* Print a separator before each but the first string. */
+		if (sz)
+			sz += sep;
+
+		/* Copy one string. */
+		while (*cp != '\0') {
+			sz++;
+			cp++;
+		}
 	}
 	return sz;
 }
@@ -471,19 +487,34 @@ lstlen(const char *cp, size_t sep)
 static void
 lstcat(char *buf, size_t *i, const char *cp, const char *sep)
 {
-	const char *s;
+	const char	*s;
+	size_t		 i_start;
 
-	for (;;) {
-		if (cp[0] == '\0') {
-			if (cp[1] == '\0')
-				break;
+	for (i_start = *i; *cp != '\0'; cp++) {
+
+		/* Skip names appearing only in the SYNOPSIS. */
+		if (*cp <= (char)(NAME_SYN & NAME_MASK)) {
+			while (*cp != '\0')
+				cp++;
+			continue;
+		}
+
+		/* Skip name class markers. */
+		if (*cp < ' ')
+			cp++;
+
+		/* Print a separator before each but the first string. */
+		if (*i > i_start) {
 			s = sep;
 			while (*s != '\0')
 				buf[(*i)++] = *s++;
-		} else if (cp[0] >= ' ')
-			buf[(*i)++] = cp[0];
-		cp++;
+		}
+
+		/* Copy one string. */
+		while (*cp != '\0')
+			buf[(*i)++] = *cp++;
 	}
+
 }
 
 /*

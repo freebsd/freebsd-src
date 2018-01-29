@@ -118,6 +118,11 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define	Ln_ADDR_MASK	(Ln_ENTRIES - 1)
 #define	Ln_TABLE_MASK	((1 << 12) - 1)
 
+#define	pmap_l0_index(va)	(((va) >> L0_SHIFT) & L0_ADDR_MASK)
+#define	pmap_l1_index(va)	(((va) >> L1_SHIFT) & Ln_ADDR_MASK)
+#define	pmap_l2_index(va)	(((va) >> L2_SHIFT) & Ln_ADDR_MASK)
+#define	pmap_l3_index(va)	(((va) >> L3_SHIFT) & Ln_ADDR_MASK)
+
 #endif /* !_MACHINE_PTE_H_ */
 
 /* End of pte.h */

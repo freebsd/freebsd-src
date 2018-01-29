@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-4-Clause AND MIT-CMU)
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1994 John S. Dyson
@@ -236,14 +238,15 @@ vm_fault_dirty(vm_map_entry_t entry, vm_page_t m, vm_prot_t prot,
 	 * written NOW so dirty it explicitly to save on
 	 * pmap_is_modified() calls later.
 	 *
-	 * Also tell the backing pager, if any, that it should remove
-	 * any swap backing since the page is now dirty.
+	 * Also, since the page is now dirty, we can possibly tell
+	 * the pager to release any swap backing the page.  Calling
+	 * the pager requires a write lock on the object.
 	 */
 	if (need_dirty)
 		vm_page_dirty(m);
 	if (!set_wd)
 		vm_page_unlock(m);
-	if (need_dirty)
+	else if (need_dirty)
 		vm_pager_page_unswapped(m);
 }
 
@@ -1586,6 +1589,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 	KASSERT(upgrade || dst_entry->object.vm_object == NULL,
 	    ("vm_fault_copy_entry: vm_object not NULL"));
 	if (src_object != dst_object) {
+		dst_object->domain = src_object->domain;
 		dst_entry->object.vm_object = dst_object;
 		dst_entry->offset = 0;
 		dst_object->charge = dst_entry->end - dst_entry->start;

@@ -40,10 +40,9 @@ bool Preprocessor::isInPrimaryFile() const {
   // If there are any stacked lexers, we're in a #include.
   assert(IsFileLexer(IncludeMacroStack[0]) &&
          "Top level include stack isn't our primary lexer?");
-  return std::none_of(IncludeMacroStack.begin() + 1, IncludeMacroStack.end(),
-                      [this](const IncludeStackInfo &ISI) -> bool {
-    return IsFileLexer(ISI);
-  });
+  return std::none_of(
+      IncludeMacroStack.begin() + 1, IncludeMacroStack.end(),
+      [&](const IncludeStackInfo &ISI) -> bool { return IsFileLexer(ISI); });
 }
 
 /// getCurrentLexer - Return the current file lexer being lexed from.  Note
@@ -445,6 +444,7 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
       }
 
       CurPPLexer = nullptr;
+      recomputeCurLexerKind();
       return true;
     }
 
@@ -458,9 +458,15 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
       SourceMgr.setNumCreatedFIDsForFileID(CurPPLexer->getFileID(), NumFIDs);
     }
 
+    bool ExitedFromPredefinesFile = false;
     FileID ExitedFID;
-    if (Callbacks && !isEndOfMacro && CurPPLexer)
+    if (!isEndOfMacro && CurPPLexer) {
       ExitedFID = CurPPLexer->getFileID();
+
+      assert(PredefinesFileID.isValid() &&
+             "HandleEndOfFile is called before PredefinesFileId is set");
+      ExitedFromPredefinesFile = (PredefinesFileID == ExitedFID);
+    }
 
     if (LeavingSubmodule) {
       // We're done with this submodule.
@@ -488,6 +494,11 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
       Callbacks->FileChanged(CurPPLexer->getSourceLocation(),
                              PPCallbacks::ExitFile, FileType, ExitedFID);
     }
+
+    // Restore conditional stack from the preamble right after exiting from the
+    // predefines file.
+    if (ExitedFromPredefinesFile)
+      replayPreambleConditionalStack();
 
     // Client should lex another token unless we generated an EOM.
     return LeavingSubmodule;

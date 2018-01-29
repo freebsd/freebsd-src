@@ -1,6 +1,8 @@
 /*	$NetBSD: if_le_isa.c,v 1.41 2005/12/24 20:27:41 perry Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-3-Clause
+ *
  * Copyright (c) 1997, 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -132,10 +134,6 @@ static device_method_t le_isa_methods[] = {
 
 	{ 0, 0 }
 };
-
-DEFINE_CLASS_0(le, le_isa_driver, le_isa_methods, sizeof(struct le_isa_softc));
-DRIVER_MODULE(le, isa, le_isa_driver, le_devclass, 0, 0);
-MODULE_DEPEND(le, ether, 1, 1, 1);
 
 struct le_isa_param {
 	const char	*name;
@@ -494,3 +492,8 @@ le_isa_resume(device_t dev)
 
 	return (0);
 }
+
+DEFINE_CLASS_0(le, le_isa_driver, le_isa_methods, sizeof(struct le_isa_softc));
+DRIVER_MODULE(le, isa, le_isa_driver, le_devclass, 0, 0);
+MODULE_DEPEND(le, ether, 1, 1, 1);
+ISA_PNP_INFO(le_isa_ids);

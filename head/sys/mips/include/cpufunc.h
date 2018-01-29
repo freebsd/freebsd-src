@@ -1,6 +1,8 @@
 /*	$OpenBSD: pio.h,v 1.2 1998/09/15 10:50:12 pefo Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-4-Clause
+ *
  * Copyright (c) 2002-2004 Juli Mallett.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -279,6 +281,15 @@ MIPS_RW32_COP0(entrylo1, MIPS_COP_0_TLB_LO1);
 MIPS_RW32_COP0(prid, MIPS_COP_0_PRID);
 /* XXX 64-bit?  */
 MIPS_RW32_COP0_SEL(ebase, MIPS_COP_0_PRID, 1);
+
+#if defined(CPU_MIPS24K) || defined(CPU_MIPS34K) ||		\
+    defined(CPU_MIPS74K) || defined(CPU_MIPS1004K)  ||	\
+    defined(CPU_MIPS1074K) || defined(CPU_INTERAPTIV) ||	\
+    defined(CPU_PROAPTIV)
+/* MIPS32/64 r2 intctl */
+MIPS_RW32_COP0_SEL(intctl, MIPS_COP_0_INTCTL, 1);
+#endif
+
 #ifdef CPU_XBURST
 MIPS_RW32_COP0_SEL(xburst_mbox0, MIPS_COP_0_XBURST_MBOX, 0);
 MIPS_RW32_COP0_SEL(xburst_mbox1, MIPS_COP_0_XBURST_MBOX, 1);

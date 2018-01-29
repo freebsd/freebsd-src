@@ -15,26 +15,21 @@
 
 #include "X86RegisterInfo.h"
 #include "X86FrameLowering.h"
-#include "X86InstrBuilder.h"
 #include "X86MachineFunctionInfo.h"
 #include "X86Subtarget.h"
-#include "X86TargetMachine.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Type.h"
-#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Target/TargetFrameLowering.h"
-#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 
@@ -223,13 +218,13 @@ X86RegisterInfo::getPointerRegClass(const MachineFunction &MF,
 
 const TargetRegisterClass *
 X86RegisterInfo::getGPRsForTailCall(const MachineFunction &MF) const {
-  const Function *F = MF.getFunction();
-  if (IsWin64 || (F && F->getCallingConv() == CallingConv::Win64))
+  const Function &F = MF.getFunction();
+  if (IsWin64 || (F.getCallingConv() == CallingConv::Win64))
     return &X86::GR64_TCW64RegClass;
   else if (Is64Bit)
     return &X86::GR64_TCRegClass;
 
-  bool hasHipeCC = (F ? F->getCallingConv() == CallingConv::HiPE : false);
+  bool hasHipeCC = (F.getCallingConv() == CallingConv::HiPE);
   if (hasHipeCC)
     return &X86::GR32RegClass;
   return &X86::GR32_TCRegClass;
@@ -271,16 +266,17 @@ X86RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   assert(MF && "MachineFunction required");
 
   const X86Subtarget &Subtarget = MF->getSubtarget<X86Subtarget>();
+  const Function &F = MF->getFunction();
   bool HasSSE = Subtarget.hasSSE1();
   bool HasAVX = Subtarget.hasAVX();
   bool HasAVX512 = Subtarget.hasAVX512();
   bool CallsEHReturn = MF->callsEHReturn();
 
-  CallingConv::ID CC = MF->getFunction()->getCallingConv();
+  CallingConv::ID CC = F.getCallingConv();
 
   // If attribute NoCallerSavedRegisters exists then we set X86_INTR calling
   // convention because it has the CSR list.
-  if (MF->getFunction()->hasFnAttribute("no_caller_saved_registers"))
+  if (MF->getFunction().hasFnAttribute("no_caller_saved_registers"))
     CC = CallingConv::X86_INTR;
 
   switch (CC) {
@@ -365,28 +361,26 @@ X86RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   }
 
   if (Is64Bit) {
-    if (IsWin64) {
-      if (!HasSSE)
-        return CSR_Win64_NoSSE_SaveList;
-      return CSR_Win64_SaveList;
-    }
+    bool IsSwiftCC = Subtarget.getTargetLowering()->supportSwiftError() &&
+                     F.getAttributes().hasAttrSomewhere(Attribute::SwiftError);
+    if (IsSwiftCC)
+      return IsWin64 ? CSR_Win64_SwiftError_SaveList
+                     : CSR_64_SwiftError_SaveList;
+
+    if (IsWin64)
+      return HasSSE ? CSR_Win64_SaveList : CSR_Win64_NoSSE_SaveList;
     if (CallsEHReturn)
       return CSR_64EHRet_SaveList;
-    if (Subtarget.getTargetLowering()->supportSwiftError() &&
-        MF->getFunction()->getAttributes().hasAttrSomewhere(
-            Attribute::SwiftError))
-      return CSR_64_SwiftError_SaveList;
     return CSR_64_SaveList;
   }
-  if (CallsEHReturn)
-    return CSR_32EHRet_SaveList;
-  return CSR_32_SaveList;
+
+  return CallsEHReturn ? CSR_32EHRet_SaveList : CSR_32_SaveList;
 }
 
 const MCPhysReg *X86RegisterInfo::getCalleeSavedRegsViaCopy(
     const MachineFunction *MF) const {
   assert(MF && "Invalid MachineFunction pointer.");
-  if (MF->getFunction()->getCallingConv() == CallingConv::CXX_FAST_TLS &&
+  if (MF->getFunction().getCallingConv() == CallingConv::CXX_FAST_TLS &&
       MF->getInfo<X86MachineFunctionInfo>()->isSplitCSR())
     return CSR_64_CXX_TLS_Darwin_ViaCopy_SaveList;
   return nullptr;
@@ -479,14 +473,14 @@ X86RegisterInfo::getCallPreservedMask(const MachineFunction &MF,
   // Unlike getCalleeSavedRegs(), we don't have MMI so we can't check
   // callsEHReturn().
   if (Is64Bit) {
-    if (IsWin64)
-      return CSR_Win64_RegMask;
-    if (Subtarget.getTargetLowering()->supportSwiftError() &&
-        MF.getFunction()->getAttributes().hasAttrSomewhere(
-            Attribute::SwiftError))
-      return CSR_64_SwiftError_RegMask;
-    return CSR_64_RegMask;
+    const Function &F = MF.getFunction();
+    bool IsSwiftCC = Subtarget.getTargetLowering()->supportSwiftError() &&
+                     F.getAttributes().hasAttrSomewhere(Attribute::SwiftError);
+    if (IsSwiftCC)
+      return IsWin64 ? CSR_Win64_SwiftError_RegMask : CSR_64_SwiftError_RegMask;
+    return IsWin64 ? CSR_Win64_RegMask : CSR_64_RegMask;
   }
+
   return CSR_32_RegMask;
 }
 
@@ -508,6 +502,9 @@ BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
        ++I)
     Reserved.set(*I);
 
+  // Set the Shadow Stack Pointer as reserved.
+  Reserved.set(X86::SSP);
+
   // Set the instruction pointer register and its aliases as reserved.
   for (MCSubRegIterator I(X86::RIP, this, /*IncludeSelf=*/true); I.isValid();
        ++I)
@@ -522,7 +519,7 @@ BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 
   // Set the base-pointer register and its aliases as reserved if needed.
   if (hasBasePointer(MF)) {
-    CallingConv::ID CC = MF.getFunction()->getCallingConv();
+    CallingConv::ID CC = MF.getFunction().getCallingConv();
     const uint32_t *RegMask = getCallPreservedMask(MF, CC);
     if (MachineOperand::clobbersPhysReg(RegMask, getBaseRegister()))
       report_fatal_error(

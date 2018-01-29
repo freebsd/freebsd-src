@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -207,7 +209,7 @@ pos_out(void)
 			n = write(out.fd, out.db, out.dbsz);
 			if (n == -1)
 				err(1, "%s", out.name);
-			if ((size_t)n != out.dbsz)
+			if (n != out.dbsz)
 				errx(1, "%s: write failure", out.name);
 		}
 		break;

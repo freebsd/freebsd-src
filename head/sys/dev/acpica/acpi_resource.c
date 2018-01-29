@@ -45,6 +45,10 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/acpica/acpivar.h>
 
+#ifdef INTRNG
+#include "acpi_bus_if.h"
+#endif
+
 /* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_BUS
 ACPI_MODULE_NAME("RESOURCE")
@@ -556,6 +560,7 @@ acpi_res_set_irq(device_t dev, void *context, uint8_t *irq, int count,
     int trig, int pol)
 {
     struct acpi_res_context	*cp = (struct acpi_res_context *)context;
+    rman_res_t intr;
 
     if (cp == NULL || irq == NULL)
 	return;
@@ -564,7 +569,14 @@ acpi_res_set_irq(device_t dev, void *context, uint8_t *irq, int count,
     if (count != 1)
 	return;
 
-    bus_set_resource(dev, SYS_RES_IRQ, cp->ar_nirq++, *irq, 1);
+#ifdef INTRNG
+    intr = ACPI_BUS_MAP_INTR(device_get_parent(dev), dev, *irq,
+	(trig == ACPI_EDGE_SENSITIVE) ? INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL,
+	(pol == ACPI_ACTIVE_HIGH) ? INTR_POLARITY_HIGH : INTR_POLARITY_LOW);
+#else
+    intr = *irq;
+#endif
+    bus_set_resource(dev, SYS_RES_IRQ, cp->ar_nirq++, intr, 1);
 }
 
 static void
@@ -572,6 +584,7 @@ acpi_res_set_ext_irq(device_t dev, void *context, uint32_t *irq, int count,
     int trig, int pol)
 {
     struct acpi_res_context	*cp = (struct acpi_res_context *)context;
+    rman_res_t intr;
 
     if (cp == NULL || irq == NULL)
 	return;
@@ -580,7 +593,14 @@ acpi_res_set_ext_irq(device_t dev, void *context, uint32_t *irq, int count,
     if (count != 1)
 	return;
 
-    bus_set_resource(dev, SYS_RES_IRQ, cp->ar_nirq++, *irq, 1);
+#ifdef INTRNG
+    intr = ACPI_BUS_MAP_INTR(device_get_parent(dev), dev, *irq,
+	(trig == ACPI_EDGE_SENSITIVE) ? INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL,
+	(pol == ACPI_ACTIVE_HIGH) ? INTR_POLARITY_HIGH : INTR_POLARITY_LOW);
+#else
+    intr = *irq;
+#endif
+    bus_set_resource(dev, SYS_RES_IRQ, cp->ar_nirq++, intr, 1);
 }
 
 static void

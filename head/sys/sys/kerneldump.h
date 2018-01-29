@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -55,10 +57,13 @@
 #define	htod64(x)	(x)
 #endif
 
+#define	KERNELDUMP_COMP_NONE		0
+#define	KERNELDUMP_COMP_GZIP		1
+
 #define	KERNELDUMP_ENC_NONE		0
 #define	KERNELDUMP_ENC_AES_256_CBC	1
 
-#define	KERNELDUMP_BUFFER_SIZE		1024
+#define	KERNELDUMP_BUFFER_SIZE		4096
 #define	KERNELDUMP_IV_MAX_SIZE		32
 #define	KERNELDUMP_KEY_MAX_SIZE		64
 #define	KERNELDUMP_ENCKEY_MAX_SIZE	(16384 / 8)
@@ -75,8 +80,8 @@ struct kerneldumpheader {
 #define	KERNELDUMPMAGIC_CLEARED	"Cleared Kernel Dump"
 	char		architecture[12];
 	uint32_t	version;
-#define	KERNELDUMPVERSION		2
-#define	KERNELDUMP_TEXT_VERSION		2
+#define	KERNELDUMPVERSION		3
+#define	KERNELDUMP_TEXT_VERSION		3
 	uint32_t	architectureversion;
 #define	KERNELDUMP_AARCH64_VERSION	1
 #define	KERNELDUMP_AMD64_VERSION	2
@@ -87,12 +92,14 @@ struct kerneldumpheader {
 #define	KERNELDUMP_RISCV_VERSION	1
 #define	KERNELDUMP_SPARC64_VERSION	1
 	uint64_t	dumplength;		/* excl headers */
+	uint64_t	dumpextent;
 	uint64_t	dumptime;
 	uint32_t	dumpkeysize;
 	uint32_t	blocksize;
+	uint8_t		compression;
 	char		hostname[64];
 	char		versionstring[192];
-	char		panicstring[188];
+	char		panicstring[179];
 	uint32_t	parity;
 };
 
@@ -124,12 +131,6 @@ struct dump_pa {
 	vm_paddr_t pa_start;
 	vm_paddr_t pa_size;
 };
-
-int kerneldumpcrypto_init(struct kerneldumpcrypto *kdc);
-uint32_t kerneldumpcrypto_dumpkeysize(const struct kerneldumpcrypto *kdc);
-
-void mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
-    uint64_t dumplen, uint32_t dumpkeysize, uint32_t blksz);
 
 int dumpsys_generic(struct dumperinfo *);
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Konstantin Belousov <kib@FreeBSD.org>
  * All rights reserved.
  *
@@ -117,15 +119,17 @@ cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 static void
 cpu_ptrace_setbase(struct thread *td, int req, register_t r)
 {
+	struct pcb *pcb;
 
+	pcb = td->td_pcb;
+	set_pcb_flags(pcb, PCB_FULL_IRET);
 	if (req == PT_SETFSBASE) {
-		td->td_pcb->pcb_fsbase = r;
+		pcb->pcb_fsbase = r;
 		td->td_frame->tf_fs = _ufssel;
 	} else {
-		td->td_pcb->pcb_gsbase = r;
+		pcb->pcb_gsbase = r;
 		td->td_frame->tf_gs = _ugssel;
 	}
-	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 }
 
 #ifdef COMPAT_FREEBSD32
@@ -136,6 +140,7 @@ static int
 cpu32_ptrace(struct thread *td, int req, void *addr, int data)
 {
 	struct savefpu *fpstate;
+	struct pcb *pcb;
 	uint32_t r;
 	int error;
 
@@ -167,8 +172,10 @@ cpu32_ptrace(struct thread *td, int req, void *addr, int data)
 			error = EINVAL;
 			break;
 		}
-		r = req == PT_GETFSBASE ? td->td_pcb->pcb_fsbase :
-		    td->td_pcb->pcb_gsbase;
+		pcb = td->td_pcb;
+		if (td == curthread)
+			update_pcb_bases(pcb);
+		r = req == PT_GETFSBASE ? pcb->pcb_fsbase : pcb->pcb_gsbase;
 		error = copyout(&r, addr, sizeof(r));
 		break;
 
@@ -197,6 +204,7 @@ int
 cpu_ptrace(struct thread *td, int req, void *addr, int data)
 {
 	register_t *r, rv;
+	struct pcb *pcb;
 	int error;
 
 #ifdef COMPAT_FREEBSD32
@@ -221,8 +229,10 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 
 	case PT_GETFSBASE:
 	case PT_GETGSBASE:
-		r = req == PT_GETFSBASE ? &td->td_pcb->pcb_fsbase :
-		    &td->td_pcb->pcb_gsbase;
+		pcb = td->td_pcb;
+		if (td == curthread)
+			update_pcb_bases(pcb);
+		r = req == PT_GETFSBASE ? &pcb->pcb_fsbase : &pcb->pcb_gsbase;
 		error = copyout(r, addr, sizeof(*r));
 		break;
 

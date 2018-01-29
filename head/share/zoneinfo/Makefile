@@ -131,6 +131,7 @@ afterinstall:
 		echo "Run tzsetup(8) manually to update /etc/localtime."; \
 	fi
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

@@ -839,74 +839,7 @@ LEAF(atomic_subtract_8)
 	nop
 END(atomic_subtract_8)
 
-/*
- *	atomic 64-bit register read/write assembly language support routines.
- */
-
 	.set	noreorder		# Noreorder is default style!
-
-#if !defined(__mips_n64) && !defined(__mips_n32)	
-	/*
-	 * I don't know if these routines have the right number of
-	 * NOPs in it for all processors.  XXX
-	 *
-	 * Maybe it would be better to just leave this undefined in that case.
-	 *
-	 * XXX These routines are not safe in the case of a TLB miss on a1 or
-	 *     a0 unless the trapframe is 64-bit, which it just isn't with O32.
-	 *     If we take any exception, not just an interrupt, the upper
-	 *     32-bits will be clobbered.  Use only N32 and N64 kernels if you
-	 *     want to use 64-bit registers while interrupts are enabled or
-	 *     with memory operations.  Since this isn't even using load-linked
-	 *     and store-conditional, perhaps it should just use two registers
-	 *     instead, as is right and good with the O32 ABI.
-	 */
-LEAF(atomic_store_64)
-	mfc0	t1, MIPS_COP_0_STATUS
-	and	t2, t1, ~MIPS_SR_INT_IE
-	mtc0	t2, MIPS_COP_0_STATUS
-	nop
-	nop
-	nop
-	nop
-	ld	t0, (a1)
-	nop
-	nop
-	sd	t0, (a0)
-	nop
-	nop
-	mtc0	t1,MIPS_COP_0_STATUS
-	nop
-	nop
-	nop
-	nop
-	j	ra
-	nop
-END(atomic_store_64)
-
-LEAF(atomic_load_64)
-	mfc0	t1, MIPS_COP_0_STATUS
-	and	t2, t1, ~MIPS_SR_INT_IE
-	mtc0	t2, MIPS_COP_0_STATUS
-	nop
-	nop
-	nop
-	nop
-	ld	t0, (a0)
-	nop
-	nop
-	sd	t0, (a1)
-	nop
-	nop
-	mtc0	t1,MIPS_COP_0_STATUS
-	nop
-	nop
-	nop
-	nop
-	j	ra
-	nop
-END(atomic_load_64)
-#endif
 
 #if defined(DDB) || defined(DEBUG)
 

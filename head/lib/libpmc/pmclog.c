@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2007 Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
@@ -333,6 +335,8 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 			ev->pl_u.pl_cc.pl_pc[npc] = (uintfptr_t) 0;
 		break;
 	case PMCLOG_TYPE_CLOSELOG:
+		ev->pl_state = PMCLOG_EOF;
+		return (-1);
 	case PMCLOG_TYPE_DROPNOTIFY:
 		/* nothing to do */
 		break;

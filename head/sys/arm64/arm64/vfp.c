@@ -206,7 +206,7 @@ vfp_restore_state(void)
 
 	/*
 	 * If the previous thread on this cpu to use the VFP was not the
-	 * current threas, or the current thread last used it on a different
+	 * current thread, or the current thread last used it on a different
 	 * cpu we need to restore the old state.
 	 */
 	if (PCPU_GET(fpcurthread) != curthread || cpu != curpcb->pcb_vfpcpu) {
@@ -273,11 +273,8 @@ fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 		critical_enter();
 		if (curthread == PCPU_GET(fpcurthread)) {
 			vfp_save_state(curthread, pcb);
-			PCPU_SET(fpcurthread, NULL);
-		} else {
-			KASSERT(PCPU_GET(fpcurthread) == NULL,
-			    ("invalid fpcurthread"));
 		}
+		PCPU_SET(fpcurthread, NULL);
 
 		vfp_enable();
 		pcb->pcb_fpflags |= PCB_FP_KERN | PCB_FP_NOSAVE |

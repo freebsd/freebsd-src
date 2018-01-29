@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994-1996 Søren Schmidt
  * All rights reserved.
  *
@@ -154,7 +156,7 @@ revert(void)
 
 	ioctl(0, VT_ACTIVATE, cur_info.active_vty);
 
-	fprintf(stderr, "\033[=%dA", cur_info.console_info.mv_ovscan);
+	ioctl(0, KDSBORDER, cur_info.console_info.mv_ovscan);
 	fprintf(stderr, "\033[=%dH", cur_info.console_info.mv_rev.fore);
 	fprintf(stderr, "\033[=%dI", cur_info.console_info.mv_rev.back);
 
@@ -193,19 +195,21 @@ static void
 usage(void)
 {
 	if (vt4_mode)
-		fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
+		fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: vidcontrol [-CHPpx] [-b color] [-c appearance] [-f [[size] file]]",
 "                  [-g geometry] [-h size] [-i active | adapter | mode]",
-"                  [-M char] [-m on | off] [-r foreground background]",
-"                  [-S on | off] [-s number] [-T xterm | cons25] [-t N | off]",
-"                  [mode] [foreground [background]] [show]");
+"                  [-M char] [-m on | off]",
+"                  [-r foreground background] [-S on | off] [-s number]",
+"                  [-T xterm | cons25] [-t N | off] [mode]",
+"                  [foreground [background]] [show]");
 	else
-		fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
+		fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: vidcontrol [-CdHLPpx] [-b color] [-c appearance] [-f [size] file]",
-"                  [-g geometry] [-h size] [-i adapter | mode] [-l screen_map]",
-"                  [-M char] [-m on | off] [-r foreground background]",
-"                  [-S on | off] [-s number] [-T xterm | cons25] [-t N | off]",
-"                  [mode] [foreground [background]] [show]");
+"                  [-g geometry] [-h size] [-i active | adapter | mode]",
+"                  [-l screen_map] [-M char] [-m on | off]",
+"                  [-r foreground background] [-S on | off] [-s number]",
+"                  [-T xterm | cons25] [-t N | off] [mode]",
+"                  [foreground [background]] [show]");
 	exit(1);
 }
 
@@ -619,30 +623,88 @@ set_screensaver_timeout(char *arg)
 	}
 }
 
+static void
+parse_cursor_params(char *param, struct cshape *shape)
+{
+	char *dupparam, *word;
+	int type;
+
+	param = dupparam = strdup(param);
+	type = shape->shape[0];
+	while ((word = strsep(&param, ",")) != NULL) {
+		if (strcmp(word, "normal") == 0)
+			type = 0;
+		else if (strcmp(word, "destructive") == 0)
+			type = CONS_BLINK_CURSOR | CONS_CHAR_CURSOR;
+		else if (strcmp(word, "blink") == 0)
+			type |= CONS_BLINK_CURSOR;
+		else if (strcmp(word, "noblink") == 0)
+			type &= ~CONS_BLINK_CURSOR;
+		else if (strcmp(word, "block") == 0)
+			type &= ~CONS_CHAR_CURSOR;
+		else if (strcmp(word, "noblock") == 0)
+			type |= CONS_CHAR_CURSOR;
+		else if (strcmp(word, "hidden") == 0)
+			type |= CONS_HIDDEN_CURSOR;
+		else if (strcmp(word, "nohidden") == 0)
+			type &= ~CONS_HIDDEN_CURSOR;
+		else if (strncmp(word, "base=", 5) == 0)
+			shape->shape[1] = strtol(word + 5, NULL, 0);
+		else if (strncmp(word, "height=", 7) == 0)
+			shape->shape[2] = strtol(word + 7, NULL, 0);
+		else if (strcmp(word, "charcolors") == 0)
+			type |= CONS_CHARCURSOR_COLORS;
+		else if (strcmp(word, "mousecolors") == 0)
+			type |= CONS_MOUSECURSOR_COLORS;
+		else if (strcmp(word, "default") == 0)
+			type |= CONS_DEFAULT_CURSOR;
+		else if (strcmp(word, "shapeonly") == 0)
+			type |= CONS_SHAPEONLY_CURSOR;
+		else if (strcmp(word, "local") == 0)
+			type |= CONS_LOCAL_CURSOR;
+		else if (strcmp(word, "reset") == 0)
+			type |= CONS_RESET_CURSOR;
+		else if (strcmp(word, "show") == 0)
+			printf("flags %#x, base %d, height %d\n",
+			    type, shape->shape[1], shape->shape[2]);
+		else {
+			revert();
+			errx(1,
+			    "invalid parameters for -c starting at '%s%s%s'",
+			    word, param != NULL ? "," : "",
+			    param != NULL ? param : "");
+		}
+	}
+	free(dupparam);
+	shape->shape[0] = type;
+}
+
 
 /*
  * Set the cursor's shape/type.
  */
 
 static void
-set_cursor_type(char *appearance)
+set_cursor_type(char *param)
 {
-	int type;
+	struct cshape shape;
 
-	if (!strcmp(appearance, "normal"))
-		type = 0;
-	else if (!strcmp(appearance, "blink"))
-		type = 1;
-	else if (!strcmp(appearance, "destructive"))
-		type = 3;
-	else {
+	/* Dry run to determine color, default and local flags. */
+	shape.shape[0] = 0;
+	shape.shape[1] = -1;
+	shape.shape[2] = -1;
+	parse_cursor_params(param, &shape);
+
+	/* Get the relevant old setting. */
+	if (ioctl(0, CONS_GETCURSORSHAPE, &shape) != 0) {
 		revert();
-		errx(1, "argument to -c must be normal, blink or destructive");
+		err(1, "ioctl(CONS_GETCURSORSHAPE)");
 	}
 
-	if (ioctl(0, CONS_CURSORTYPE, &type) == -1) {
+	parse_cursor_params(param, &shape);
+	if (ioctl(0, CONS_SETCURSORSHAPE, &shape) != 0) {
 		revert();
-		err(1, "setting cursor type");
+		err(1, "ioctl(CONS_SETCURSORSHAPE)");
 	}
 }
 
@@ -910,11 +972,15 @@ set_border_color(char *arg)
 {
 	int color;
 
-	if ((color = get_color_number(arg)) != -1) {
-		fprintf(stderr, "\033[=%dA", color);
+	color = get_color_number(arg);
+	if (color == -1) {
+		revert();
+		errx(1, "invalid color '%s'", arg);
 	}
-	else
-		usage();
+	if (ioctl(0, KDSBORDER, color) != 0) {
+		revert();
+		err(1, "ioctl(KD_SBORDER)");
+	}
 }
 
 static void
@@ -1295,7 +1361,7 @@ set_history(char *opt)
 
 	if ((*opt == '\0') || size < 0) {
 		revert();
-		errx(1, "argument must be a positive number");
+		errx(1, "argument must not be less than zero");
 	}
 
 	if (ioctl(0, CONS_HISTORY, &size) == -1) {

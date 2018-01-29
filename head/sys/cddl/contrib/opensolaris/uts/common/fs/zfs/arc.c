@@ -23,7 +23,7 @@
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 by Saso Kiselkov. All rights reserved.
- * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2017 Nexenta Systems, Inc.  All rights reserved.
  */
 
 /*
@@ -358,6 +358,7 @@ uint64_t zfs_arc_meta_limit = 0;
 uint64_t zfs_arc_meta_min = 0;
 int zfs_arc_grow_retry = 0;
 int zfs_arc_shrink_shift = 0;
+int zfs_arc_no_grow_shift = 0;
 int zfs_arc_p_min_shift = 0;
 uint64_t zfs_arc_average_blocksize = 8 * 1024; /* 8KB */
 u_int zfs_arc_free_target = 0;
@@ -371,6 +372,7 @@ static int sysctl_vfs_zfs_arc_free_target(SYSCTL_HANDLER_ARGS);
 static int sysctl_vfs_zfs_arc_meta_limit(SYSCTL_HANDLER_ARGS);
 static int sysctl_vfs_zfs_arc_max(SYSCTL_HANDLER_ARGS);
 static int sysctl_vfs_zfs_arc_min(SYSCTL_HANDLER_ARGS);
+static int sysctl_vfs_zfs_arc_no_grow_shift(SYSCTL_HANDLER_ARGS);
 
 #if defined(__FreeBSD__) && defined(_KERNEL)
 static void
@@ -385,17 +387,25 @@ SYSINIT(arc_free_target_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_ANY,
 TUNABLE_QUAD("vfs.zfs.arc_meta_limit", &zfs_arc_meta_limit);
 TUNABLE_QUAD("vfs.zfs.arc_meta_min", &zfs_arc_meta_min);
 TUNABLE_INT("vfs.zfs.arc_shrink_shift", &zfs_arc_shrink_shift);
+TUNABLE_INT("vfs.zfs.arc_grow_retry", &zfs_arc_grow_retry);
+TUNABLE_INT("vfs.zfs.arc_no_grow_shift", &zfs_arc_no_grow_shift);
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_max, CTLTYPE_U64 | CTLFLAG_RWTUN,
     0, sizeof(uint64_t), sysctl_vfs_zfs_arc_max, "QU", "Maximum ARC size");
 SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_min, CTLTYPE_U64 | CTLFLAG_RWTUN,
     0, sizeof(uint64_t), sysctl_vfs_zfs_arc_min, "QU", "Minimum ARC size");
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_no_grow_shift, CTLTYPE_U32 | CTLFLAG_RWTUN,
+    0, sizeof(uint32_t), sysctl_vfs_zfs_arc_no_grow_shift, "U",
+    "log2(fraction of ARC which must be free to allow growing)");
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_average_blocksize, CTLFLAG_RDTUN,
     &zfs_arc_average_blocksize, 0,
     "ARC average blocksize");
 SYSCTL_INT(_vfs_zfs, OID_AUTO, arc_shrink_shift, CTLFLAG_RW,
     &arc_shrink_shift, 0,
     "log2(fraction of arc to reclaim)");
+SYSCTL_INT(_vfs_zfs, OID_AUTO, arc_grow_retry, CTLFLAG_RW,
+    &arc_grow_retry, 0,
+    "Wait in seconds before considering growing ARC");
 SYSCTL_INT(_vfs_zfs, OID_AUTO, compressed_arc_enabled, CTLFLAG_RDTUN,
     &zfs_compressed_arc_enabled, 0, "Enable compressed ARC");
 
@@ -712,8 +722,8 @@ typedef struct arc_stats {
 	kstat_named_t arcstat_l2_abort_lowmem;
 	kstat_named_t arcstat_l2_cksum_bad;
 	kstat_named_t arcstat_l2_io_error;
-	kstat_named_t arcstat_l2_size;
-	kstat_named_t arcstat_l2_asize;
+	kstat_named_t arcstat_l2_lsize;
+	kstat_named_t arcstat_l2_psize;
 	kstat_named_t arcstat_l2_hdr_size;
 	kstat_named_t arcstat_l2_write_trylock_fail;
 	kstat_named_t arcstat_l2_write_passed_headroom;
@@ -1061,6 +1071,24 @@ sysctl_vfs_zfs_arc_meta_limit(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 
 	arc_meta_limit = val;
+	return (0);
+}
+
+static int
+sysctl_vfs_zfs_arc_no_grow_shift(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t val;
+	int err;
+
+	val = arc_no_grow_shift;
+	err = sysctl_handle_32(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+        if (val >= arc_shrink_shift)
+		return (EINVAL);
+
+	arc_no_grow_shift = val;
 	return (0);
 }
 
@@ -1829,8 +1857,9 @@ arc_cksum_is_equal(arc_buf_hdr_t *hdr, zio_t *zio)
 		uint64_t lsize = HDR_GET_LSIZE(hdr);
 		uint64_t csize;
 
-		void *cbuf = zio_buf_alloc(HDR_GET_PSIZE(hdr));
-		csize = zio_compress_data(compress, zio->io_abd, cbuf, lsize);
+		abd_t *cdata = abd_alloc_linear(HDR_GET_PSIZE(hdr), B_TRUE);
+		csize = zio_compress_data(compress, zio->io_abd,
+		    abd_to_buf(cdata), lsize);
 
 		ASSERT3U(csize, <=, HDR_GET_PSIZE(hdr));
 		if (csize < HDR_GET_PSIZE(hdr)) {
@@ -1846,10 +1875,10 @@ arc_cksum_is_equal(arc_buf_hdr_t *hdr, zio_t *zio)
 			 * and zero out any part that should not contain
 			 * data.
 			 */
-			bzero((char *)cbuf + csize, HDR_GET_PSIZE(hdr) - csize);
+			abd_zero_off(cdata, csize, HDR_GET_PSIZE(hdr) - csize);
 			csize = HDR_GET_PSIZE(hdr);
 		}
-		zio_push_transform(zio, cbuf, csize, HDR_GET_PSIZE(hdr), NULL);
+		zio_push_transform(zio, cdata, csize, HDR_GET_PSIZE(hdr), NULL);
 	}
 
 	/*
@@ -3338,19 +3367,19 @@ arc_hdr_l2hdr_destroy(arc_buf_hdr_t *hdr)
 {
 	l2arc_buf_hdr_t *l2hdr = &hdr->b_l2hdr;
 	l2arc_dev_t *dev = l2hdr->b_dev;
-	uint64_t asize = arc_hdr_size(hdr);
+	uint64_t psize = arc_hdr_size(hdr);
 
 	ASSERT(MUTEX_HELD(&dev->l2ad_mtx));
 	ASSERT(HDR_HAS_L2HDR(hdr));
 
 	list_remove(&dev->l2ad_buflist, hdr);
 
-	ARCSTAT_INCR(arcstat_l2_asize, -asize);
-	ARCSTAT_INCR(arcstat_l2_size, -HDR_GET_LSIZE(hdr));
+	ARCSTAT_INCR(arcstat_l2_psize, -psize);
+	ARCSTAT_INCR(arcstat_l2_lsize, -HDR_GET_LSIZE(hdr));
 
-	vdev_space_update(dev->l2ad_vdev, -asize, 0, 0);
+	vdev_space_update(dev->l2ad_vdev, -psize, 0, 0);
 
-	(void) refcount_remove_many(&dev->l2ad_alloc, asize, hdr);
+	(void) refcount_remove_many(&dev->l2ad_alloc, psize, hdr);
 	arc_hdr_clear_flags(hdr, ARC_FLAG_HAS_L2HDR);
 }
 
@@ -4171,8 +4200,6 @@ arc_shrink(int64_t to_free)
 	}
 }
 
-static long needfree = 0;
-
 typedef enum free_memory_reason_t {
 	FMR_UNKNOWN,
 	FMR_NEEDFREE,
@@ -4181,7 +4208,6 @@ typedef enum free_memory_reason_t {
 	FMR_PAGES_PP_MAXIMUM,
 	FMR_HEAP_ARENA,
 	FMR_ZIO_ARENA,
-	FMR_ZIO_FRAG,
 } free_memory_reason_t;
 
 int64_t last_free_memory;
@@ -4210,14 +4236,6 @@ arc_available_memory(void)
 	free_memory_reason_t r = FMR_UNKNOWN;
 
 #ifdef _KERNEL
-	if (needfree > 0) {
-		n = PAGESIZE * (-needfree);
-		if (n < lowest) {
-			lowest = n;
-			r = FMR_NEEDFREE;
-		}
-	}
-
 	/*
 	 * Cooperate with pagedaemon when it's time for it to scan
 	 * and reclaim some pages.
@@ -4284,15 +4302,11 @@ arc_available_memory(void)
 	 * heap is allocated.  (Or, in the calculation, if less than 1/4th is
 	 * free)
 	 */
-	n = (int64_t)vmem_size(heap_arena, VMEM_FREE) -
-	    (vmem_size(heap_arena, VMEM_FREE | VMEM_ALLOC) >> 2);
+	n = uma_avail() - (long)(uma_limit() / 4);
 	if (n < lowest) {
 		lowest = n;
 		r = FMR_HEAP_ARENA;
 	}
-#define	zio_arena	NULL
-#else
-#define	zio_arena	heap_arena
 #endif
 
 	/*
@@ -4310,20 +4324,6 @@ arc_available_memory(void)
 		if (n < lowest) {
 			lowest = n;
 			r = FMR_ZIO_ARENA;
-		}
-	}
-
-	/*
-	 * Above limits know nothing about real level of KVA fragmentation.
-	 * Start aggressive reclamation if too little sequential KVA left.
-	 */
-	if (lowest > 0) {
-		n = (vmem_size(heap_arena, VMEM_MAXFREE) < SPA_MAXBLOCKSIZE) ?
-		    -((int64_t)vmem_size(heap_arena, VMEM_ALLOC) >> 4) :
-		    INT64_MAX;
-		if (n < lowest) {
-			lowest = n;
-			r = FMR_ZIO_FRAG;
 		}
 	}
 
@@ -4482,9 +4482,6 @@ arc_reclaim_thread(void *dummy __unused)
 			int64_t to_free =
 			    (arc_c >> arc_shrink_shift) - free_memory;
 			if (to_free > 0) {
-#ifdef _KERNEL
-				to_free = MAX(to_free, ptob(needfree));
-#endif
 				arc_shrink(to_free);
 			}
 		} else if (free_memory < arc_c >> arc_no_grow_shift) {
@@ -4505,9 +4502,6 @@ arc_reclaim_thread(void *dummy __unused)
 		 * infinite loop.
 		 */
 		if (arc_size <= arc_c || evicted == 0) {
-#ifdef _KERNEL
-			needfree = 0;
-#endif
 			/*
 			 * We're either no longer overflowing, or we
 			 * can't evict anything more, so we should wake
@@ -6098,8 +6092,7 @@ arc_memory_throttle(uint64_t reserve, uint64_t txg)
 	static uint64_t last_txg = 0;
 
 #if defined(__i386) || !defined(UMA_MD_SMALL_ALLOC)
-	available_memory =
-	    MIN(available_memory, ptob(vmem_size(heap_arena, VMEM_FREE)));
+	available_memory = MIN(available_memory, uma_avail());
 #endif
 
 	if (freemem > (uint64_t)physmem * arc_lotsfree_percent / 100)
@@ -6282,9 +6275,7 @@ arc_lowmem(void *arg __unused, int howto __unused)
 {
 
 	mutex_enter(&arc_reclaim_lock);
-	/* XXX: Memory deficit should be passed as argument. */
-	needfree = btoc(arc_c >> arc_shrink_shift);
-	DTRACE_PROBE(arc__needfree);
+	DTRACE_PROBE1(arc__needfree, int64_t, ((int64_t)freemem - zfs_arc_free_target) * PAGESIZE);
 	cv_signal(&arc_reclaim_thread_cv);
 
 	/*
@@ -6482,8 +6473,12 @@ arc_init(void)
 	 * Metadata is stored in the kernel's heap.  Don't let us
 	 * use more than half the heap for the ARC.
 	 */
+#ifdef __FreeBSD__
+	arc_meta_limit = MIN(arc_meta_limit, uma_limit() / 2);
+#else
 	arc_meta_limit = MIN(arc_meta_limit,
 	    vmem_size(heap_arena, VMEM_ALLOC | VMEM_FREE) / 2);
+#endif
 #endif
 
 	/* Allow the tunable to override if it is reasonable */
@@ -6505,6 +6500,8 @@ arc_init(void)
 	if (zfs_arc_shrink_shift > 0)
 		arc_shrink_shift = zfs_arc_shrink_shift;
 
+	if (zfs_arc_no_grow_shift > 0)
+		arc_no_grow_shift = zfs_arc_no_grow_shift;
 	/*
 	 * Ensure that arc_no_grow_shift is less than arc_shrink_shift.
 	 */
@@ -6607,6 +6604,11 @@ arc_init(void)
 void
 arc_fini(void)
 {
+#ifdef _KERNEL
+	if (arc_event_lowmem != NULL)
+		EVENTHANDLER_DEREGISTER(vm_lowmem, arc_event_lowmem);
+#endif
+
 	mutex_enter(&arc_reclaim_lock);
 	arc_reclaim_thread_exit = B_TRUE;
 	/*
@@ -6652,11 +6654,6 @@ arc_fini(void)
 	buf_fini();
 
 	ASSERT0(arc_loaned_bytes);
-
-#ifdef _KERNEL
-	if (arc_event_lowmem != NULL)
-		EVENTHANDLER_DEREGISTER(vm_lowmem, arc_event_lowmem);
-#endif
 }
 
 /*
@@ -7051,8 +7048,8 @@ top:
 			l2arc_trim(hdr);
 			arc_hdr_clear_flags(hdr, ARC_FLAG_HAS_L2HDR);
 
-			ARCSTAT_INCR(arcstat_l2_asize, -arc_hdr_size(hdr));
-			ARCSTAT_INCR(arcstat_l2_size, -HDR_GET_LSIZE(hdr));
+			ARCSTAT_INCR(arcstat_l2_psize, -arc_hdr_size(hdr));
+			ARCSTAT_INCR(arcstat_l2_lsize, -HDR_GET_LSIZE(hdr));
 
 			bytes_dropped += arc_hdr_size(hdr);
 			(void) refcount_remove_many(&dev->l2ad_alloc,
@@ -7284,18 +7281,16 @@ top:
 			goto top;
 		}
 
-		if (HDR_L2_WRITE_HEAD(hdr)) {
-			/*
-			 * We hit a write head node.  Leave it for
-			 * l2arc_write_done().
-			 */
-			list_remove(buflist, hdr);
-			mutex_exit(hash_lock);
-			continue;
-		}
+		/*
+		 * A header can't be on this list if it doesn't have L2 header.
+		 */
+		ASSERT(HDR_HAS_L2HDR(hdr));
 
-		if (!all && HDR_HAS_L2HDR(hdr) &&
-		    (hdr->b_l2hdr.b_daddr >= taddr ||
+		/* Ensure this header has finished being written. */
+		ASSERT(!HDR_L2_WRITING(hdr));
+		ASSERT(!HDR_L2_WRITE_HEAD(hdr));
+
+		if (!all && (hdr->b_l2hdr.b_daddr >= taddr ||
 		    hdr->b_l2hdr.b_daddr < dev->l2ad_hand)) {
 			/*
 			 * We've evicted to the target address,
@@ -7305,13 +7300,12 @@ top:
 			break;
 		}
 
-		ASSERT(HDR_HAS_L2HDR(hdr));
 		if (!HDR_HAS_L1HDR(hdr)) {
 			ASSERT(!HDR_L2_READING(hdr));
 			/*
 			 * This doesn't exist in the ARC.  Destroy.
 			 * arc_hdr_destroy() will call list_remove()
-			 * and decrement arcstat_l2_size.
+			 * and decrement arcstat_l2_lsize.
 			 */
 			arc_change_state(arc_anon, hdr, hash_lock);
 			arc_hdr_destroy(hdr);
@@ -7327,9 +7321,6 @@ top:
 				ARCSTAT_BUMP(arcstat_l2_evict_reading);
 				arc_hdr_set_flags(hdr, ARC_FLAG_L2_EVICTED);
 			}
-
-			/* Ensure this header has finished being written */
-			ASSERT(!HDR_L2_WRITING(hdr));
 
 			arc_hdr_l2hdr_destroy(hdr);
 		}
@@ -7353,7 +7344,7 @@ static uint64_t
 l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 {
 	arc_buf_hdr_t *hdr, *hdr_prev, *head;
-	uint64_t write_asize, write_psize, write_sz, headroom;
+	uint64_t write_asize, write_psize, write_lsize, headroom;
 	boolean_t full;
 	l2arc_write_callback_t *cb;
 	zio_t *pio, *wzio;
@@ -7363,7 +7354,7 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 	ASSERT3P(dev->l2ad_vdev, !=, NULL);
 
 	pio = NULL;
-	write_sz = write_asize = write_psize = 0;
+	write_lsize = write_asize = write_psize = 0;
 	full = B_FALSE;
 	head = kmem_cache_alloc(hdr_l2only_cache, KM_PUSHPAGE);
 	arc_hdr_set_flags(head, ARC_FLAG_L2_WRITE_HEAD | ARC_FLAG_HAS_L2HDR);
@@ -7440,11 +7431,11 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 			ASSERT3U(HDR_GET_PSIZE(hdr), >, 0);
 			ASSERT3P(hdr->b_l1hdr.b_pabd, !=, NULL);
 			ASSERT3U(arc_hdr_size(hdr), >, 0);
-			uint64_t size = arc_hdr_size(hdr);
+			uint64_t psize = arc_hdr_size(hdr);
 			uint64_t asize = vdev_psize_to_asize(dev->l2ad_vdev,
-			    size);
+			    psize);
 
-			if ((write_psize + asize) > target_sz) {
+			if ((write_asize + asize) > target_sz) {
 				full = B_TRUE;
 				mutex_exit(hash_lock);
 				ARCSTAT_BUMP(arcstat_l2_write_full);
@@ -7479,7 +7470,7 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 			list_insert_head(&dev->l2ad_buflist, hdr);
 			mutex_exit(&dev->l2ad_mtx);
 
-			(void) refcount_add_many(&dev->l2ad_alloc, size, hdr);
+			(void) refcount_add_many(&dev->l2ad_alloc, psize, hdr);
 
 			/*
 			 * Normally the L2ARC can use the hdr's data, but if
@@ -7496,15 +7487,15 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 			 * add it to the l2arc_free_on_write queue.
 			 */
 			abd_t *to_write;
-			if (!HDR_SHARED_DATA(hdr) && size == asize) {
+			if (!HDR_SHARED_DATA(hdr) && psize == asize) {
 				to_write = hdr->b_l1hdr.b_pabd;
 			} else {
 				to_write = abd_alloc_for_io(asize,
 				    HDR_ISTYPE_METADATA(hdr));
-				abd_copy(to_write, hdr->b_l1hdr.b_pabd, size);
-				if (asize != size) {
-					abd_zero_off(to_write, size,
-					    asize - size);
+				abd_copy(to_write, hdr->b_l1hdr.b_pabd, psize);
+				if (asize != psize) {
+					abd_zero_off(to_write, psize,
+					    asize - psize);
 				}
 				l2arc_free_abd_on_write(to_write, asize,
 				    arc_buf_type(hdr));
@@ -7515,12 +7506,12 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 			    ZIO_PRIORITY_ASYNC_WRITE,
 			    ZIO_FLAG_CANFAIL, B_FALSE);
 
-			write_sz += HDR_GET_LSIZE(hdr);
+			write_lsize += HDR_GET_LSIZE(hdr);
 			DTRACE_PROBE2(l2arc__write, vdev_t *, dev->l2ad_vdev,
 			    zio_t *, wzio);
 
-			write_asize += size;
-			write_psize += asize;
+			write_psize += psize;
+			write_asize += asize;
 			dev->l2ad_hand += asize;
 
 			mutex_exit(hash_lock);
@@ -7536,7 +7527,7 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 
 	/* No buffers selected for writing? */
 	if (pio == NULL) {
-		ASSERT0(write_sz);
+		ASSERT0(write_lsize);
 		ASSERT(!HDR_HAS_L1HDR(head));
 		kmem_cache_free(hdr_l2only_cache, head);
 		return (0);
@@ -7544,10 +7535,10 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 
 	ASSERT3U(write_psize, <=, target_sz);
 	ARCSTAT_BUMP(arcstat_l2_writes_sent);
-	ARCSTAT_INCR(arcstat_l2_write_bytes, write_asize);
-	ARCSTAT_INCR(arcstat_l2_size, write_sz);
-	ARCSTAT_INCR(arcstat_l2_asize, write_asize);
-	vdev_space_update(dev->l2ad_vdev, write_asize, 0, 0);
+	ARCSTAT_INCR(arcstat_l2_write_bytes, write_psize);
+	ARCSTAT_INCR(arcstat_l2_lsize, write_lsize);
+	ARCSTAT_INCR(arcstat_l2_psize, write_psize);
+	vdev_space_update(dev->l2ad_vdev, write_psize, 0, 0);
 
 	/*
 	 * Bump device hand to the device start if it is approaching the end.

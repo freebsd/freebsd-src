@@ -24,7 +24,7 @@ using namespace clang;
 /// \brief Parse a template declaration, explicit instantiation, or
 /// explicit specialization.
 Decl *
-Parser::ParseDeclarationStartingWithTemplate(unsigned Context,
+Parser::ParseDeclarationStartingWithTemplate(DeclaratorContext Context,
                                              SourceLocation &DeclEnd,
                                              AccessSpecifier AS,
                                              AttributeList *AccessAttrs) {
@@ -57,7 +57,7 @@ Parser::ParseDeclarationStartingWithTemplate(unsigned Context,
 ///       explicit-specialization: [ C++ temp.expl.spec]
 ///         'template' '<' '>' declaration
 Decl *
-Parser::ParseTemplateDeclarationOrSpecialization(unsigned Context,
+Parser::ParseTemplateDeclarationOrSpecialization(DeclaratorContext Context,
                                                  SourceLocation &DeclEnd,
                                                  AccessSpecifier AS,
                                                  AttributeList *AccessAttrs) {
@@ -112,7 +112,7 @@ Parser::ParseTemplateDeclarationOrSpecialization(unsigned Context,
 
     // Parse the '<' template-parameter-list '>'
     SourceLocation LAngleLoc, RAngleLoc;
-    SmallVector<Decl*, 4> TemplateParams;
+    SmallVector<NamedDecl*, 4> TemplateParams;
     if (ParseTemplateParameters(CurTemplateDepthTracker.getDepth(),
                                 TemplateParams, LAngleLoc, RAngleLoc)) {
       // Skip until the semi-colon or a '}'.
@@ -169,7 +169,7 @@ Parser::ParseTemplateDeclarationOrSpecialization(unsigned Context,
 /// \returns the new declaration.
 Decl *
 Parser::ParseSingleDeclarationAfterTemplate(
-                                       unsigned Context,
+                                       DeclaratorContext Context,
                                        const ParsedTemplateInfo &TemplateInfo,
                                        ParsingDeclRAIIObject &DiagsFromTParams,
                                        SourceLocation &DeclEnd,
@@ -186,7 +186,7 @@ Parser::ParseSingleDeclarationAfterTemplate(
     return ParseStaticAssertDeclaration(DeclEnd);
   }
 
-  if (Context == Declarator::MemberContext) {
+  if (Context == DeclaratorContext::MemberContext) {
     // We are parsing a member template.
     ParseCXXClassMemberDeclaration(AS, AccessAttrs, TemplateInfo,
                                    &DiagsFromTParams);
@@ -197,10 +197,11 @@ Parser::ParseSingleDeclarationAfterTemplate(
   MaybeParseCXX11Attributes(prefixAttrs);
 
   if (Tok.is(tok::kw_using)) {
-    // FIXME: We should return the DeclGroup to the caller.
-    ParseUsingDirectiveOrDeclaration(Context, TemplateInfo, DeclEnd,
-                                     prefixAttrs);
-    return nullptr;
+    auto usingDeclPtr = ParseUsingDirectiveOrDeclaration(Context, TemplateInfo, DeclEnd,
+                                                         prefixAttrs);
+    if (!usingDeclPtr || !usingDeclPtr.get().isSingleDecl())
+      return nullptr;
+    return usingDeclPtr.get().getSingleDecl();
   }
 
   // Parse the declaration specifiers, stealing any diagnostics from
@@ -233,7 +234,7 @@ Parser::ParseSingleDeclarationAfterTemplate(
     DS.takeAttributesFrom(prefixAttrs);
 
   // Parse the declarator.
-  ParsingDeclarator DeclaratorInfo(*this, DS, (Declarator::TheContext)Context);
+  ParsingDeclarator DeclaratorInfo(*this, DS, (DeclaratorContext)Context);
   ParseDeclarator(DeclaratorInfo);
   // Error parsing the declarator?
   if (!DeclaratorInfo.hasName()) {
@@ -254,7 +255,7 @@ Parser::ParseSingleDeclarationAfterTemplate(
     // Function definitions are only allowed at file scope and in C++ classes.
     // The C++ inline method definition case is handled elsewhere, so we only
     // need to handle the file scope definition case.
-    if (Context != Declarator::FileContext) {
+    if (Context != DeclaratorContext::FileContext) {
       Diag(Tok, diag::err_function_definition_not_allowed);
       SkipMalformedDecl();
       return nullptr;
@@ -270,7 +271,8 @@ Parser::ParseSingleDeclarationAfterTemplate(
     }
 
     if (TemplateInfo.Kind == ParsedTemplateInfo::ExplicitInstantiation) {
-      if (DeclaratorInfo.getName().getKind() != UnqualifiedId::IK_TemplateId) {
+      if (DeclaratorInfo.getName().getKind() !=
+          UnqualifiedIdKind::IK_TemplateId) {
         // If the declarator-id is not a template-id, issue a diagnostic and
         // recover by ignoring the 'template' keyword.
         Diag(Tok, diag::err_template_defn_explicit_instantiation) << 0;
@@ -329,10 +331,9 @@ Parser::ParseSingleDeclarationAfterTemplate(
 /// that enclose this template parameter list.
 ///
 /// \returns true if an error occurred, false otherwise.
-bool Parser::ParseTemplateParameters(unsigned Depth,
-                               SmallVectorImpl<Decl*> &TemplateParams,
-                                     SourceLocation &LAngleLoc,
-                                     SourceLocation &RAngleLoc) {
+bool Parser::ParseTemplateParameters(
+    unsigned Depth, SmallVectorImpl<NamedDecl *> &TemplateParams,
+    SourceLocation &LAngleLoc, SourceLocation &RAngleLoc) {
   // Get the template parameter list.
   if (!TryConsumeToken(tok::less, LAngleLoc)) {
     Diag(Tok.getLocation(), diag::err_expected_less_after) << "template";
@@ -369,10 +370,11 @@ bool Parser::ParseTemplateParameters(unsigned Depth,
 ///         template-parameter
 ///         template-parameter-list ',' template-parameter
 bool
-Parser::ParseTemplateParameterList(unsigned Depth,
-                             SmallVectorImpl<Decl*> &TemplateParams) {
+Parser::ParseTemplateParameterList(const unsigned Depth,
+                             SmallVectorImpl<NamedDecl*> &TemplateParams) {
   while (1) {
-    if (Decl *TmpParam
+    
+    if (NamedDecl *TmpParam
           = ParseTemplateParameter(Depth, TemplateParams.size())) {
       TemplateParams.push_back(TmpParam);
     } else {
@@ -479,7 +481,7 @@ bool Parser::isStartOfTemplateTypeParameter() {
 ///               'class' ...[opt] identifier[opt]
 ///         'template' '<' template-parameter-list '>' 'class' identifier[opt]
 ///               = id-expression
-Decl *Parser::ParseTemplateParameter(unsigned Depth, unsigned Position) {
+NamedDecl *Parser::ParseTemplateParameter(unsigned Depth, unsigned Position) {
   if (isStartOfTemplateTypeParameter())
     return ParseTypeParameter(Depth, Position);
 
@@ -501,7 +503,7 @@ Decl *Parser::ParseTemplateParameter(unsigned Depth, unsigned Position) {
 ///         'class' identifier[opt] '=' type-id
 ///         'typename' ...[opt][C++0x] identifier[opt]
 ///         'typename' identifier[opt] '=' type-id
-Decl *Parser::ParseTypeParameter(unsigned Depth, unsigned Position) {
+NamedDecl *Parser::ParseTypeParameter(unsigned Depth, unsigned Position) {
   assert(Tok.isOneOf(tok::kw_class, tok::kw_typename) &&
          "A type-parameter starts with 'class' or 'typename'");
 
@@ -545,7 +547,7 @@ Decl *Parser::ParseTypeParameter(unsigned Depth, unsigned Position) {
   ParsedType DefaultArg;
   if (TryConsumeToken(tok::equal, EqualLoc))
     DefaultArg = ParseTypeName(/*Range=*/nullptr,
-                               Declarator::TemplateTypeArgContext).get();
+                               DeclaratorContext::TemplateTypeArgContext).get();
 
   return Actions.ActOnTypeParameter(getCurScope(), TypenameKeyword, EllipsisLoc,
                                     KeyLoc, ParamName, NameLoc, Depth, Position,
@@ -563,13 +565,13 @@ Decl *Parser::ParseTypeParameter(unsigned Depth, unsigned Position) {
 ///       type-parameter-key:
 ///         'class'
 ///         'typename'       [C++1z]
-Decl *
+NamedDecl *
 Parser::ParseTemplateTemplateParameter(unsigned Depth, unsigned Position) {
   assert(Tok.is(tok::kw_template) && "Expected 'template' keyword");
 
   // Handle the template <...> part.
   SourceLocation TemplateLoc = ConsumeToken();
-  SmallVector<Decl*,8> TemplateParams;
+  SmallVector<NamedDecl*,8> TemplateParams;
   SourceLocation LAngleLoc, RAngleLoc;
   {
     ParseScope TemplateParmScope(this, Scope::TemplateParamScope);
@@ -589,10 +591,10 @@ Parser::ParseTemplateTemplateParameter(unsigned Depth, unsigned Position) {
     const Token &Next = Tok.is(tok::kw_struct) ? NextToken() : Tok;
     if (Tok.is(tok::kw_typename)) {
       Diag(Tok.getLocation(),
-           getLangOpts().CPlusPlus1z
+           getLangOpts().CPlusPlus17
                ? diag::warn_cxx14_compat_template_template_param_typename
                : diag::ext_template_template_param_typename)
-        << (!getLangOpts().CPlusPlus1z
+        << (!getLangOpts().CPlusPlus17
                 ? FixItHint::CreateReplacement(Tok.getLocation(), "class")
                 : FixItHint());
     } else if (Next.isOneOf(tok::identifier, tok::comma, tok::greater,
@@ -668,17 +670,17 @@ Parser::ParseTemplateTemplateParameter(unsigned Depth, unsigned Position) {
 ///       template-parameter:
 ///         ...
 ///         parameter-declaration
-Decl *
+NamedDecl *
 Parser::ParseNonTypeTemplateParameter(unsigned Depth, unsigned Position) {
   // Parse the declaration-specifiers (i.e., the type).
   // FIXME: The type should probably be restricted in some way... Not all
   // declarators (parts of declarators?) are accepted for parameters.
   DeclSpec DS(AttrFactory);
   ParseDeclarationSpecifiers(DS, ParsedTemplateInfo(), AS_none,
-                             DSC_template_param);
+                             DeclSpecContext::DSC_template_param);
 
   // Parse this as a typename.
-  Declarator ParamDecl(DS, Declarator::TemplateParamContext);
+  Declarator ParamDecl(DS, DeclaratorContext::TemplateParamContext);
   ParseDeclarator(ParamDecl);
   if (DS.getTypeSpecType() == DeclSpec::TST_unspecified) {
     Diag(Tok.getLocation(), diag::err_expected_template_parameter);
@@ -1014,12 +1016,12 @@ bool Parser::AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
     Tok.setKind(tok::annot_template_id);
     
     IdentifierInfo *TemplateII =
-        TemplateName.getKind() == UnqualifiedId::IK_Identifier
+        TemplateName.getKind() == UnqualifiedIdKind::IK_Identifier
             ? TemplateName.Identifier
             : nullptr;
 
     OverloadedOperatorKind OpKind =
-        TemplateName.getKind() == UnqualifiedId::IK_Identifier
+        TemplateName.getKind() == UnqualifiedIdKind::IK_Identifier
             ? OO_None
             : TemplateName.OperatorFunctionId.Operator;
 
@@ -1192,8 +1194,8 @@ ParsedTemplateArgument Parser::ParseTemplateArgument() {
       Actions, Sema::ExpressionEvaluationContext::ConstantEvaluated);
   if (isCXXTypeId(TypeIdAsTemplateArgument)) {
     SourceLocation Loc = Tok.getLocation();
-    TypeResult TypeArg = ParseTypeName(/*Range=*/nullptr,
-                                       Declarator::TemplateTypeArgContext);
+    TypeResult TypeArg = ParseTypeName(
+        /*Range=*/nullptr, DeclaratorContext::TemplateTypeArgContext);
     if (TypeArg.isInvalid())
       return ParsedTemplateArgument();
     
@@ -1296,7 +1298,7 @@ Parser::ParseTemplateArgumentList(TemplateArgList &TemplateArgs) {
 ///         'extern' [opt] 'template' declaration
 ///
 /// Note that the 'extern' is a GNU extension and C++11 feature.
-Decl *Parser::ParseExplicitInstantiation(unsigned Context,
+Decl *Parser::ParseExplicitInstantiation(DeclaratorContext Context,
                                          SourceLocation ExternLoc,
                                          SourceLocation TemplateLoc,
                                          SourceLocation &DeclEnd,
@@ -1380,7 +1382,8 @@ void Parser::ParseLateTemplatedFuncDef(LateParsedTemplate &LPT) {
 
   // Parse the method body. Function body parsing code is similar enough
   // to be re-used for method bodies as well.
-  ParseScope FnScope(this, Scope::FnScope|Scope::DeclScope);
+  ParseScope FnScope(this, Scope::FnScope | Scope::DeclScope |
+                               Scope::CompoundStmtScope);
 
   // Recreate the containing function DeclContext.
   Sema::ContextRAII FunctionSavedContext(Actions,

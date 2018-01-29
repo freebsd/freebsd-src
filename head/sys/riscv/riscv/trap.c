@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -212,7 +212,8 @@ data_abort(struct trapframe *frame, int lower)
 
 	va = trunc_page(sbadaddr);
 
-	if (frame->tf_scause == EXCP_FAULT_STORE) {
+	if ((frame->tf_scause == EXCP_FAULT_STORE) ||
+	    (frame->tf_scause == EXCP_STORE_PAGE_FAULT)) {
 		ftype = (VM_PROT_READ | VM_PROT_WRITE);
 	} else {
 		ftype = (VM_PROT_READ);
@@ -296,6 +297,8 @@ do_trap_supervisor(struct trapframe *frame)
 	case EXCP_FAULT_LOAD:
 	case EXCP_FAULT_STORE:
 	case EXCP_FAULT_FETCH:
+	case EXCP_STORE_PAGE_FAULT:
+	case EXCP_LOAD_PAGE_FAULT:
 		data_abort(frame, 0);
 		break;
 	case EXCP_BREAKPOINT:
@@ -354,6 +357,9 @@ do_trap_user(struct trapframe *frame)
 	case EXCP_FAULT_LOAD:
 	case EXCP_FAULT_STORE:
 	case EXCP_FAULT_FETCH:
+	case EXCP_STORE_PAGE_FAULT:
+	case EXCP_LOAD_PAGE_FAULT:
+	case EXCP_INST_PAGE_FAULT:
 		data_abort(frame, 1);
 		break;
 	case EXCP_USER_ECALL:
@@ -381,7 +387,7 @@ do_trap_user(struct trapframe *frame)
 		break;
 	default:
 		dump_regs(frame);
-		panic("Unknown userland exception %x badaddr %lx\n",
+		panic("Unknown userland exception %x, badaddr %lx\n",
 			exception, frame->tf_sbadaddr);
 	}
 }

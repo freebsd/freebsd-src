@@ -1141,7 +1141,9 @@ note_type_freebsd_core(unsigned int nt)
 	case 14: return "NT_PROCSTAT_OSREL";
 	case 15: return "NT_PROCSTAT_PSSTRINGS";
 	case 16: return "NT_PROCSTAT_AUXV";
+	case 17: return "NT_PTLWPINFO";
 	case 0x202: return "NT_X86_XSTATE (x86 XSAVE extended state)";
+	case 0x400: return "NT_ARM_VFP (arm VFP registers)";
 	default: return (note_type_unknown(nt));
 	}
 }
@@ -2693,6 +2695,9 @@ dump_arch_dyn_val(struct readelf *re, GElf_Dyn *dyn)
 		case DT_MIPS_TIME_STAMP:
 			printf(" %s\n", timestamp(dyn->d_un.d_val));
 			break;
+		default:
+			printf("\n");
+			break;
 		}
 		break;
 	default:
@@ -2748,6 +2753,7 @@ dump_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab)
 	case DT_SYMENT:
 	case DT_RELSZ:
 	case DT_RELENT:
+	case DT_PREINIT_ARRAYSZ:
 	case DT_INIT_ARRAYSZ:
 	case DT_FINI_ARRAYSZ:
 	case DT_GNU_CONFLICTSZ:

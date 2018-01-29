@@ -26,7 +26,7 @@
 
 .include <src.opts.mk>
 
-EFIBOOT=${SRCTOP}/sys/boot/efi
+EFIBOOT=${SRCTOP}/stand/efi
 EDK2INC=${SRCTOP}/sys/contrib/edk2/Include
 
 .PATH:	${EFIBOOT}/libefi
@@ -35,6 +35,7 @@ PACKAGE=lib${LIB}
 LIB=		efivar
 SRCS=		efivar.c efichar.c efivar-dp-format.c \
 		efivar-dp-parse.c \
+		efivar-dp-xlate.c \
 		uefi-guid.c uefi-dputil.c
 INCS=		efivar.h efivar-dp.h
 SHLIB_MAJOR=	1
@@ -64,4 +65,4 @@ WARNS?=		9
 
 .include <bsd.lib.mk>
 
-CFLAGS+= -Wno-cast-align -Wno-unused-parameter
+CFLAGS+= -fno-strict-aliasing -Wno-cast-align -Wno-unused-parameter

@@ -3,6 +3,8 @@
 
 %{
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2003 Citrus Project,
  * All rights reserved.
  *
@@ -278,8 +280,8 @@ usage(void)
 {
 	errx(EXIT_FAILURE,
 	    "usage:\n"
-	    "\t%s [-o outfile] [infile]\n"
-	    "\t%s -m [-o outfile] [infile]",
+	    "\t%s [-d] [-o outfile] [infile]\n"
+	    "\t%s -m [-d] [-o outfile] [infile]",
 	    getprogname(), getprogname());
 }
 

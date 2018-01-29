@@ -40,7 +40,8 @@ static const uptr SidelineIdUninitialized = 1;
 static SidelineThread *TheThread;
 
 // We aren't passing SA_NODEFER so the same signal is blocked while here.
-void SidelineThread::handleSidelineSignal(int SigNum, void *SigInfo,
+void SidelineThread::handleSidelineSignal(int SigNum,
+                                          __sanitizer_siginfo *SigInfo,
                                           void *Ctx) {
   VPrintf(3, "Sideline signal %d\n", SigNum);
   CHECK_EQ(SigNum, SIGALRM);
@@ -70,7 +71,7 @@ int SidelineThread::runSideline(void *Arg) {
 
   // Set up a signal handler on an alternate stack for safety.
   InternalScopedBuffer<char> StackMap(SigAltStackSize);
-  struct sigaltstack SigAltStack;
+  stack_t SigAltStack;
   SigAltStack.ss_sp = StackMap.data();
   SigAltStack.ss_size = SigAltStackSize;
   SigAltStack.ss_flags = 0;

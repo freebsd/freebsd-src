@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -902,8 +904,13 @@ f_fstype(PLAN *plan, FTSENT *entry)
 		} else
 			p = NULL;
 
-		if (statfs(entry->fts_accpath, &sb))
-			err(1, "%s", entry->fts_accpath);
+		if (statfs(entry->fts_accpath, &sb)) {
+			if (!ignore_readdir_race || errno != ENOENT) {
+				warn("statfs: %s", entry->fts_accpath);
+				exitstatus = 1;
+			}
+			return 0;
+		}
 
 		if (p) {
 			p[0] = save[0];
@@ -1059,12 +1066,17 @@ c_samefile(OPTION *option, char ***argvp)
 	char *fn;
 	PLAN *new;
 	struct stat sb;
+	int error;
 
 	fn = nextarg(option, argvp);
 	ftsoptions &= ~FTS_NOSTAT;
 
 	new = palloc(option);
-	if (stat(fn, &sb))
+	if (ftsoptions & FTS_PHYSICAL)
+		error = lstat(fn, &sb);
+	else
+		error = stat(fn, &sb);
+	if (error != 0)
 		err(1, "%s", fn);
 	new->i_data = sb.st_ino;
 	return new;
@@ -1194,6 +1206,7 @@ c_newer(OPTION *option, char ***argvp)
 	char *fn_or_tspec;
 	PLAN *new;
 	struct stat sb;
+	int error;
 
 	fn_or_tspec = nextarg(option, argvp);
 	ftsoptions &= ~FTS_NOSTAT;
@@ -1207,7 +1220,11 @@ c_newer(OPTION *option, char ***argvp)
 		/* Use the seconds only in the comparison. */
 		new->t_data.tv_nsec = 999999999;
 	} else {
-		if (stat(fn_or_tspec, &sb))
+		if (ftsoptions & FTS_PHYSICAL)
+			error = lstat(fn_or_tspec, &sb);
+		else
+			error = stat(fn_or_tspec, &sb);
+		if (error != 0)
 			err(1, "%s", fn_or_tspec);
 		if (option->flags & F_TIME2_C)
 			new->t_data = sb.st_ctim;

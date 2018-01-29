@@ -4400,6 +4400,20 @@ const template i386_optab[] =
     NoSuf|ImmExt, { 0, 0, 0 } },
   {"stac", 0, 0x0f01, 0xcb, CpuSMAP,
     NoSuf|ImmExt, { 0, 0, 0 } },
+
+  /* Read/write fs/gs segment base registers */
+  {"rdfsbase", 1, 0xf30fae, 0x0, CpuFSGSBase|Cpu64,
+    Modrm|No_bSuf|No_wSuf|No_sSuf|No_xSuf,
+    { Reg32|Reg64 } },
+  {"rdgsbase", 1, 0xf30fae, 0x1, CpuFSGSBase|Cpu64,
+    Modrm|No_bSuf|No_wSuf|No_sSuf|No_xSuf,
+    { Reg32|Reg64 } },
+  {"wrfsbase", 1, 0xf30fae, 0x2, CpuFSGSBase|Cpu64,
+    Modrm|No_bSuf|No_wSuf|No_sSuf|No_xSuf,
+    { Reg32|Reg64 } },
+  {"wrgsbase", 1, 0xf30fae, 0x3, CpuFSGSBase|Cpu64,
+    Modrm|No_bSuf|No_wSuf|No_sSuf|No_xSuf,
+    { Reg32|Reg64 } },
   
   { NULL, 0, 0, 0, 0, 0, { 0 } }
 };

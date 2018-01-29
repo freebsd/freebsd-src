@@ -1,11 +1,13 @@
 # things set by configure
 
-prefix= @prefix@
+_MAKE_VERSION=@_MAKE_VERSION@
+
+prefix?= @prefix@
 srcdir= @srcdir@
 CC?= @CC@
-MACHINE= @machine@
-MACHINE_ARCH= @machine_arch@
-DEFAULT_SYS_PATH= @default_sys_path@
+MACHINE?= @machine@
+MACHINE_ARCH?= @machine_arch@
+DEFAULT_SYS_PATH?= @default_sys_path@
 
 CPPFLAGS+= @CPPFLAGS@
 CFLAGS+= ${CPPFLAGS} @DEFS@
@@ -17,4 +19,3 @@ FILEMON_H= @filemon_h@
 BMAKE_PATH_MAX?= @bmake_path_max@
 # used if MAXPATHLEN not defined
 CPPFLAGS+= -DBMAKE_PATH_MAX=${BMAKE_PATH_MAX}
-

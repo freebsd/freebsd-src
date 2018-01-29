@@ -5,7 +5,7 @@
 LOCALEDIR=	${SHAREDIR}/locale
 FILESNAME=	LC_COLLATE
 .SUFFIXES:	.src .LC_COLLATE
-MAPLOC=		${SRCTOP}/tools/tools/locale/etc/final-maps
+MAPLOC=		${.CURDIR}/../../tools/tools/locale/etc/final-maps
 
 .src.LC_COLLATE:
 	localedef -D -U -i ${.IMPSRC} \

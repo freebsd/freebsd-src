@@ -133,7 +133,7 @@ amd64/amd64/cpu_switch.S	standard
 amd64/amd64/db_disasm.c		optional	ddb
 amd64/amd64/db_interface.c	optional	ddb
 amd64/amd64/db_trace.c		optional	ddb
-amd64/amd64/efirt.c		optional	efirt
+amd64/amd64/efirt_machdep.c	optional	efirt
 amd64/amd64/elf_machdep.c	standard
 amd64/amd64/exception.S		standard
 amd64/amd64/fpu.c		standard
@@ -182,6 +182,16 @@ aesni_wrap.o			optional aesni				\
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
 crypto/des/des_enc.c		optional	crypto | ipsec | \
 	ipsec_support | netsmb
+intel_sha1.o			optional	aesni			\
+	dependency	"$S/crypto/aesni/intel_sha1.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -msse4 -msha ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"intel_sha1.o"
+intel_sha256.o			optional	aesni			\
+	dependency	"$S/crypto/aesni/intel_sha256.c"		\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -msse4 -msha ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"intel_sha256.o"
 crypto/via/padlock.c		optional	padlock
 crypto/via/padlock_cipher.c	optional	padlock
 crypto/via/padlock_hash.c	optional	padlock
@@ -198,6 +208,7 @@ dev/agp/agp_amd64.c		optional	agp
 dev/agp/agp_i810.c		optional	agp
 dev/agp/agp_via.c		optional	agp
 dev/amdsbwd/amdsbwd.c		optional	amdsbwd
+dev/amdsmn/amdsmn.c		optional	amdsmn | amdtemp
 dev/amdtemp/amdtemp.c		optional	amdtemp
 dev/arcmsr/arcmsr.c		optional	arcmsr pci
 dev/asmc/asmc.c			optional	asmc isa
@@ -330,10 +341,11 @@ dev/hyperv/vmbus/amd64/vmbus_vector.S			optional	hyperv
 dev/nctgpio/nctgpio.c		optional	nctgpio
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/ntb/if_ntb/if_ntb.c		optional	if_ntb
-dev/ntb/ntb_transport.c		optional	if_ntb
-dev/ntb/ntb.c			optional	if_ntb | ntb_hw
-dev/ntb/ntb_if.m		optional	if_ntb | ntb_hw
-dev/ntb/ntb_hw/ntb_hw.c		optional	ntb_hw
+dev/ntb/ntb_transport.c		optional	ntb_transport | if_ntb
+dev/ntb/ntb.c			optional	ntb | ntb_transport | if_ntb | ntb_hw_intel | ntb_hw_plx | ntb_hw
+dev/ntb/ntb_if.m		optional	ntb | ntb_transport | if_ntb | ntb_hw_intel | ntb_hw_plx | ntb_hw
+dev/ntb/ntb_hw/ntb_hw_intel.c	optional	ntb_hw_intel | ntb_hw
+dev/ntb/ntb_hw/ntb_hw_plx.c	optional	ntb_hw_plx | ntb_hw
 dev/nvd/nvd.c			optional	nvd nvme
 dev/nvme/nvme.c			optional	nvme
 dev/nvme/nvme_ctrlr.c		optional	nvme
@@ -461,7 +473,6 @@ dev/uart/uart_cpu_x86.c		optional	uart
 dev/viawd/viawd.c		optional	viawd
 dev/vmware/vmxnet3/if_vmx.c	optional	vmx
 dev/wbwd/wbwd.c			optional	wbwd
-dev/wpi/if_wpi.c		optional	wpi
 dev/xen/pci/xen_acpi_pci.c	optional	xenhvm
 dev/xen/pci/xen_pci.c		optional	xenhvm
 dev/isci/isci.c							optional isci

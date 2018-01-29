@@ -9,27 +9,27 @@ SRCS=	acfileio.c adfile.c adisasm.c adwalk.c ahids.c		\
 	dmtbinfo.c getopt.c
 
 # compiler
-SRCS+=	aslanalyze.c aslascii.c aslbtypes.c aslcodegen.c	\
-	aslcompile.c aslcompiler.y.h aslcompilerlex.c		\
-	aslcompilerparse.c asldebug.c aslerror.c aslexternal.c	\
-	aslfileio.c aslfiles.c aslfold.c aslhelp.c aslhex.c	\
-	asllength.c asllisting.c asllistsup.c aslload.c		\
-	asllookup.c aslmain.c aslmap.c aslmapenter.c		\
-	aslmapoutput.c aslmaputils.c aslmessages.c aslmethod.c	\
-	aslnamesp.c asloffset.c aslopcodes.c asloperands.c	\
-	aslopt.c asloptions.c aslparseop.c aslpld.c aslpredef.c	\
-	aslprepkg.c aslprintf.c aslprune.c aslresource.c	\
-	aslrestype1.c aslrestype1i.c aslrestype2.c		\
-	aslrestype2d.c aslrestype2e.c aslrestype2q.c		\
-	aslrestype2s.c aslrestype2w.c aslstartup.c aslstubs.c	\
-	asltransform.c asltree.c aslutils.c asluuid.c		\
-	aslwalks.c aslxref.c aslxrefout.c cvcompiler.c		\
-	cvdisasm.c cvparser.c dtcompile.c dtexpress.c dtfield.c	\
-	dtio.c dtparser.y.h dtparserlex.c dtparserparse.c	\
-	dtsubtable.c dttable.c dttable1.c dttable2.c		\
-	dttemplate.c dtutils.c prexpress.c prmacros.c		\
-	prparser.y.h prparserlex.c prparserparse.c prscan.c	\
-	prutils.c
+SRCS+=	aslallocate.c aslanalyze.c aslascii.c aslbtypes.c	\
+	aslcache.c aslcodegen.c aslcompile.c aslcompiler.y.h	\
+	aslcompilerlex.c aslcompilerparse.c asldebug.c		\
+	aslerror.c aslexternal.c aslfileio.c aslfiles.c		\
+	aslfold.c aslhelp.c aslhex.c asllength.c asllisting.c	\
+	asllistsup.c aslload.c asllookup.c aslmain.c aslmap.c	\
+	aslmapenter.c aslmapoutput.c aslmaputils.c		\
+	aslmessages.c aslmethod.c aslnamesp.c asloffset.c	\
+	aslopcodes.c asloperands.c aslopt.c asloptions.c	\
+	aslparseop.c aslpld.c aslpredef.c aslprepkg.c		\
+	aslprintf.c aslprune.c aslresource.c aslrestype1.c	\
+	aslrestype1i.c aslrestype2.c aslrestype2d.c		\
+	aslrestype2e.c aslrestype2q.c aslrestype2s.c		\
+	aslrestype2w.c aslstartup.c aslstubs.c asltransform.c	\
+	asltree.c aslutils.c asluuid.c aslwalks.c aslxref.c	\
+	aslxrefout.c cvcompiler.c cvdisasm.c cvparser.c		\
+	dtcompile.c dtexpress.c dtfield.c dtio.c dtparser.y.h	\
+	dtparserlex.c dtparserparse.c dtsubtable.c dttable.c	\
+	dttable1.c dttable2.c dttemplate.c dtutils.c		\
+	prexpress.c prmacros.c prparser.y.h prparserlex.c	\
+	prparserparse.c prscan.c prutils.c
 
 # components/debugger
 SRCS+=	dbfileio.c
@@ -68,7 +68,8 @@ SRCS+=	utaddress.c utalloc.c utascii.c utbuffer.c utcache.c	\
 	utexcep.c utglobal.c uthex.c utinit.c utlock.c utmath.c	\
 	utmisc.c utmutex.c utnonansi.c utobject.c utownerid.c	\
 	utpredef.c utresdecode.c utresrc.c utstate.c utstring.c	\
-	utstrtoul64.c utuuid.c utxface.c utxferror.c
+	utstrsuppt.c utstrtoul64.c utuuid.c utxface.c		\
+	utxferror.c
 
 # os_specific/service_layers
 SRCS+=	osunixxf.c

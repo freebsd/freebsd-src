@@ -54,7 +54,7 @@ static char *findport(const char *);
 static struct xinpgen *getxpcblist(const char *);
 static void sockinfo(const struct sockaddr *, struct host_service *);
 static bool tcpdrop(const struct sockaddr *, const struct sockaddr *);
-static bool tcpdropall(void);
+static bool tcpdropall(const char *, int);
 static bool tcpdropbyname(const char *, const char *, const char *,
     const char *);
 static bool tcpdropconn(const struct in_conninfo *);
@@ -66,19 +66,34 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
+	char stack[TCP_FUNCTION_NAME_LEN_MAX];
 	char *lport, *fport;
-	bool dropall;
-	int ch;
+	bool dropall, dropallstack;
+	int ch, state;
 
 	dropall = false;
+	dropallstack = false;
+	memset(stack, 0, TCP_FUNCTION_NAME_LEN_MAX);
+	state = -1;
 
-	while ((ch = getopt(argc, argv, "al")) != -1) {
+	while ((ch = getopt(argc, argv, "alS:s:")) != -1) {
 		switch (ch) {
 		case 'a':
 			dropall = true;
 			break;
 		case 'l':
 			tcpdrop_list_commands = true;
+			break;
+		case 'S':
+			dropallstack = true;
+			strncpy(stack, optarg, TCP_FUNCTION_NAME_LEN_MAX);
+			break;
+		case 's':
+			dropallstack = true;
+			for (state = 0; state < TCP_NSTATES; state++) {
+				if (strcmp(tcpstates[state], optarg) == 0)
+					break;
+			}
 			break;
 		default:
 			usage();
@@ -87,10 +102,16 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (dropall) {
+	if (state == TCP_NSTATES ||
+	    state == TCPS_CLOSED ||
+	    state == TCPS_LISTEN)
+		usage();
+	if (dropall && dropallstack)
+		usage();
+	if (dropall || dropallstack) {
 		if (argc != 0)
 			usage();
-		if (!tcpdropall())
+		if (!tcpdropall(stack, state))
 			exit(1);
 		exit(0);
 	}
@@ -202,7 +223,7 @@ tcpdrop(const struct sockaddr *lsa, const struct sockaddr *fsa)
 }
 
 static bool
-tcpdropall(void)
+tcpdropall(const char *stack, int state)
 {
 	struct xinpgen *head, *xinp;
 	struct xtcpcb *xtp;
@@ -232,6 +253,15 @@ tcpdropall(void)
 
 		/* Skip listening sockets.  */
 		if (xtp->t_state == TCPS_LISTEN)
+			continue;
+
+		/* If requested, skip sockets not having the requested state. */
+		if ((state != -1) && (xtp->t_state != state))
+			continue;
+
+		/* If requested, skip sockets not having the requested stack. */
+		if (strnlen(stack, TCP_FUNCTION_NAME_LEN_MAX) > 0 &&
+		    strncmp(xtp->xt_stack, stack, TCP_FUNCTION_NAME_LEN_MAX))
 			continue;
 
 		if (!tcpdropconn(&xip->inp_inc))
@@ -348,6 +378,9 @@ usage(void)
 "usage: tcpdrop local-address local-port foreign-address foreign-port\n"
 "       tcpdrop local-address:local-port foreign-address:foreign-port\n"
 "       tcpdrop local-address.local-port foreign-address.foreign-port\n"
-"       tcpdrop [-l] -a\n");
+"       tcpdrop [-l] -a\n"
+"       tcpdrop [-l] -S stack\n"
+"       tcpdrop [-l] -s state\n"
+"       tcpdrop [-l] -S stack -s state\n");
 	exit(1);
 }

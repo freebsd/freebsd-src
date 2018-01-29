@@ -1446,10 +1446,8 @@ static inline int
 ixl_ptype_to_hash(u8 ptype)
 {
         struct i40e_rx_ptype_decoded	decoded;
-	u8				ex = 0;
 
 	decoded = decode_rx_desc_ptype(ptype);
-	ex = decoded.outer_frag;
 
 	if (!decoded.known)
 		return M_HASHTYPE_OPAQUE_HASH;
@@ -1460,34 +1458,22 @@ ixl_ptype_to_hash(u8 ptype)
 	/* Note: anything that gets to this point is IP */
         if (decoded.outer_ip_ver == I40E_RX_PTYPE_OUTER_IPV6) { 
 		switch (decoded.inner_prot) {
-			case I40E_RX_PTYPE_INNER_PROT_TCP:
-				if (ex)
-					return M_HASHTYPE_RSS_TCP_IPV6_EX;
-				else
-					return M_HASHTYPE_RSS_TCP_IPV6;
-			case I40E_RX_PTYPE_INNER_PROT_UDP:
-				if (ex)
-					return M_HASHTYPE_RSS_UDP_IPV6_EX;
-				else
-					return M_HASHTYPE_RSS_UDP_IPV6;
-			default:
-				if (ex)
-					return M_HASHTYPE_RSS_IPV6_EX;
-				else
-					return M_HASHTYPE_RSS_IPV6;
+		case I40E_RX_PTYPE_INNER_PROT_TCP:
+			return M_HASHTYPE_RSS_TCP_IPV6;
+		case I40E_RX_PTYPE_INNER_PROT_UDP:
+			return M_HASHTYPE_RSS_UDP_IPV6;
+		default:
+			return M_HASHTYPE_RSS_IPV6;
 		}
 	}
         if (decoded.outer_ip_ver == I40E_RX_PTYPE_OUTER_IPV4) { 
 		switch (decoded.inner_prot) {
-			case I40E_RX_PTYPE_INNER_PROT_TCP:
-					return M_HASHTYPE_RSS_TCP_IPV4;
-			case I40E_RX_PTYPE_INNER_PROT_UDP:
-				if (ex)
-					return M_HASHTYPE_RSS_UDP_IPV4_EX;
-				else
-					return M_HASHTYPE_RSS_UDP_IPV4;
-			default:
-					return M_HASHTYPE_RSS_IPV4;
+		case I40E_RX_PTYPE_INNER_PROT_TCP:
+			return M_HASHTYPE_RSS_TCP_IPV4;
+		case I40E_RX_PTYPE_INNER_PROT_UDP:
+			return M_HASHTYPE_RSS_UDP_IPV4;
+		default:
+			return M_HASHTYPE_RSS_IPV4;
 		}
 	}
 	/* We should never get here!! */

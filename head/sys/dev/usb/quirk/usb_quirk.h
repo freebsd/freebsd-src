@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -110,6 +112,7 @@ enum {
 	UQ_SINGLE_CMD_MIDI,	/* at most one command per USB packet */
 	UQ_MSC_DYMO_EJECT,	/* ejects Dymo MSC device */
 	UQ_AU_SET_SPDIF_CM6206,	/* enable S/PDIF audio output */
+	UQ_WMT_IGNORE,          /* device should be ignored by wmt driver */
 
 	USB_QUIRK_MAX
 };

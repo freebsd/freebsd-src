@@ -52,7 +52,7 @@ void ixgbe_init_fdir(struct adapter *);
 
 #endif
 
-void ixgbe_reinit_fdir(void *, int);
+void ixgbe_reinit_fdir(void *);
 void ixgbe_atr(struct tx_ring *, struct mbuf *);
 
 #endif /* _IXGBE_FDIR_H_ */

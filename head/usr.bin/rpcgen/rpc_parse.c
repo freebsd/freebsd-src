@@ -93,6 +93,7 @@ get_definition(void)
 		def_const(defp);
 		break;
 	case TOK_EOF:
+		free(defp);
 		return (NULL);
 	default:
 		error("definition keyword expected");

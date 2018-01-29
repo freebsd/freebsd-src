@@ -1,6 +1,8 @@
 /*	$NetBSD: clnt_raw.c,v 1.20 2000/12/10 04:12:03 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *

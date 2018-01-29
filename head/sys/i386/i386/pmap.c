@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
  * Copyright (c) 1994 John S. Dyson
@@ -100,7 +102,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_cpu.h"
 #include "opt_pmap.h"
 #include "opt_smp.h"
-#include "opt_xbox.h"
+#include "opt_vm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -146,10 +148,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #ifdef SMP
 #include <machine/smp.h>
-#endif
-
-#ifdef XBOX
-#include <machine/xbox.h>
 #endif
 
 #ifndef PMAP_SHPGPERPROC
@@ -257,7 +255,6 @@ pt_entry_t *CMAP3;
 static pd_entry_t *KPTD;
 caddr_t ptvmmap = 0;
 caddr_t CADDR3;
-struct msgbuf *msgbufp = NULL;
 
 /*
  * Crashdump maps.
@@ -283,12 +280,16 @@ SYSCTL_INT(_debug, OID_AUTO, PMAP1unchanged, CTLFLAG_RD,
 	   "Number of times pmap_pte_quick didn't change PMAP1");
 static struct mtx PMAP2mutex;
 
+int pti;
+
 static void	free_pv_chunk(struct pv_chunk *pc);
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t pmap, boolean_t try);
 static void	pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
 static boolean_t pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
+#if VM_NRESERVLEVEL > 0
 static void	pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
+#endif
 static void	pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 		    vm_offset_t va);
@@ -309,7 +310,9 @@ static boolean_t pmap_is_referenced_pvh(struct md_page *pvh);
 static void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode);
 static void pmap_kenter_pde(vm_offset_t va, pd_entry_t newpde);
 static void pmap_pde_attr(pd_entry_t *pde, int cache_bits);
+#if VM_NRESERVLEVEL > 0
 static void pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va);
+#endif
 static boolean_t pmap_protect_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t sva,
     vm_prot_t prot);
 static void pmap_pte_attr(pt_entry_t *pte, int cache_bits);
@@ -337,8 +340,8 @@ static pt_entry_t *pmap_pte_quick(pmap_t pmap, vm_offset_t va);
 static void pmap_pte_release(pt_entry_t *pte);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, struct spglist *);
 #if defined(PAE) || defined(PAE_TABLES)
-static void *pmap_pdpt_allocf(uma_zone_t zone, vm_size_t bytes, uint8_t *flags,
-    int wait);
+static void *pmap_pdpt_allocf(uma_zone_t zone, vm_size_t bytes, int domain,
+    uint8_t *flags, int wait);
 #endif
 static void pmap_set_pg(void);
 
@@ -492,16 +495,14 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	virtual_avail = va;
 
 	/*
-	 * Leave in place an identity mapping (virt == phys) for the low 1 MB
-	 * physical memory region that is used by the ACPI wakeup code.  This
-	 * mapping must not have PG_G set. 
+	 * Finish removing the identity mapping (virt == phys) of low memory.
+	 * It was only used for 2 instructions in locore.  locore then
+	 * unmapped the first PTD to get some null pointer checks.  ACPI
+	 * wakeup will map the first PTD transiently to use it for 1
+	 * instruction.  The double mapping for low memory is not usable in
+	 * normal operation since it breaks trapping of null pointers and
+	 * causes inconsistencies in page tables when combined with PG_G.
 	 */
-#ifdef XBOX
-	/* FIXME: This is gross, but needed for the XBOX. Since we are in such
-	 * an early stadium, we cannot yet neatly map video memory ... :-(
-	 * Better fixes are very welcome! */
-	if (!arch_i386_is_xbox)
-#endif
 	for (i = 1; i < NKPT; i++)
 		PTD[i] = 0;
 
@@ -667,7 +668,7 @@ pmap_set_pg(void)
 	endva = KERNBASE + KERNend;
 
 	if (pseflag) {
-		va = KERNBASE + KERNLOAD;
+		va = KERNBASE + roundup2(KERNLOAD, NBPDR);
 		while (va  < endva) {
 			pdir_pde(PTD, va) |= pgeflag;
 			invltlb();	/* Flush non-PG_G entries. */
@@ -698,12 +699,13 @@ pmap_page_init(vm_page_t m)
 
 #if defined(PAE) || defined(PAE_TABLES)
 static void *
-pmap_pdpt_allocf(uma_zone_t zone, vm_size_t bytes, uint8_t *flags, int wait)
+pmap_pdpt_allocf(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
+    int wait)
 {
 
 	/* Inform UMA that this allocator uses kernel_map/object. */
 	*flags = UMA_SLAB_KERNEL;
-	return ((void *)kmem_alloc_contig(kernel_arena, bytes, wait, 0x0ULL,
+	return ((void *)kmem_alloc_contig_domain(domain, bytes, wait, 0x0ULL,
 	    0xffffffffULL, 1, 0, VM_MEMATTR_DEFAULT));
 }
 #endif
@@ -1043,7 +1045,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 		CPU_AND(&other_cpus, &pmap->pm_active);
 		mask = &other_cpus;
 	}
-	smp_masked_invlpg(*mask, va);
+	smp_masked_invlpg(*mask, va, pmap);
 	sched_unpin();
 }
 
@@ -1077,7 +1079,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		CPU_AND(&other_cpus, &pmap->pm_active);
 		mask = &other_cpus;
 	}
-	smp_masked_invlpg_range(*mask, sva, eva);
+	smp_masked_invlpg_range(*mask, sva, eva, pmap);
 	sched_unpin();
 }
 
@@ -2504,6 +2506,7 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 	} while (va < va_last);
 }
 
+#if VM_NRESERVLEVEL > 0
 static void
 pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 {
@@ -2537,6 +2540,7 @@ pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 		pmap_pvh_free(&m->md, pmap, va);
 	} while (va < va_last);
 }
+#endif /* VM_NRESERVLEVEL > 0 */
 
 static void
 pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
@@ -3312,6 +3316,7 @@ retry:
 	PMAP_UNLOCK(pmap);
 }
 
+#if VM_NRESERVLEVEL > 0
 /*
  * Tries to promote the 512 or 1024, contiguous 4KB page mappings that are
  * within a single page table page (PTP) to a single 2- or 4MB page mapping.
@@ -3448,6 +3453,7 @@ setpte:
 	CTR2(KTR_PMAP, "pmap_promote_pde: success for va %#x"
 	    " in pmap %p", va, pmap);
 }
+#endif /* VM_NRESERVLEVEL > 0 */
 
 /*
  *	Insert the given physical page (p) at
@@ -3664,6 +3670,7 @@ validate:
 			pte_store(pte, newpte);
 	}
 
+#if VM_NRESERVLEVEL > 0
 	/*
 	 * If both the page table page and the reservation are fully
 	 * populated, then attempt promotion.
@@ -3672,6 +3679,7 @@ validate:
 	    pg_ps_enabled && (m->flags & PG_FICTITIOUS) == 0 &&
 	    vm_reserv_level_iffullpop(m) == 0)
 		pmap_promote_pde(pmap, pde, va);
+#endif
 
 	sched_unpin();
 	rw_wunlock(&pvh_global_lock);

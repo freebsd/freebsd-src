@@ -18,11 +18,18 @@ __FBSDID("$FreeBSD$");
 #include "rtld.h"
 #include "paths.h"
 
+#ifdef __ARM_FP
+/*
+ * On processors that have hard floating point supported, we also support
+ * running soft float binaries. If we're being built with hard float support,
+ * check the ELF headers to make sure that this is a hard float binary. If it is
+ * a soft float binary, force the dynamic linker to use the alternative soft
+ * float path.
+ */
 void
 arm_abi_variant_hook(Elf_Auxinfo **aux_info)
 {
 	Elf_Word ehdr;
-	struct stat sb;
 
 	/*
 	 * If we're running an old kernel that doesn't provide any data fail
@@ -40,17 +47,6 @@ arm_abi_variant_hook(Elf_Auxinfo **aux_info)
 		return;
 
 	/*
-	 * If there's no /usr/libsoft, then we don't have a system with both
-	 * hard and soft float. In that case, hope for the best and just
-	 * return. Such systems are required to have all soft or all hard
-	 * float ABI binaries and libraries. This is, at best, a transition
-	 * compatibility hack. Once we're fully hard-float, this should
-	 * be removed.
-	 */
-	if (stat("/usr/libsoft", &sb) != 0 || !S_ISDIR(sb.st_mode))
-		return;
-
-	/*
 	 * This is a soft float ABI binary. We need to use the soft float
 	 * settings.
 	 */
@@ -60,6 +56,7 @@ arm_abi_variant_hook(Elf_Auxinfo **aux_info)
 	ld_standard_library_path = SOFT_STANDARD_LIBRARY_PATH;
 	ld_env_prefix = LD_SOFT_;
 }
+#endif
 
 void
 init_pltgot(Obj_Entry *obj)

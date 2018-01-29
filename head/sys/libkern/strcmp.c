@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -39,8 +41,7 @@ __FBSDID("$FreeBSD$");
  * Compare strings.
  */
 int
-strcmp(s1, s2)
-	const char *s1, *s2;
+strcmp(const char *s1, const char *s2)
 {
 	while (*s1 == *s2++)
 		if (*s1++ == 0)

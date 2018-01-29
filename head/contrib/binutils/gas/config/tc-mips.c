@@ -2920,7 +2920,7 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	     instruction.  May want to add this support in the future.  */
 	}
       /* Never set the bit for $0, which is always zero.  */
-      mips_gprmask &= ~1 << 0;
+      mips_gprmask &= ~(1 << 0);
     }
   else
     {
@@ -3310,7 +3310,7 @@ macro_end (void)
 	     warning now.  */
 	  const char *msg = macro_warning (subtype);
 	  if (msg != 0)
-	    as_warn (msg);
+	    as_warn ("%s", msg);
 	}
       else
 	{
@@ -14463,7 +14463,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED, segT asec, fragS *fragp)
 	{
 	  const char *msg = macro_warning (fragp->fr_subtype);
 	  if (msg != 0)
-	    as_warn_where (fragp->fr_file, fragp->fr_line, msg);
+	    as_warn_where (fragp->fr_file, fragp->fr_line, "%s", msg);
 	}
 
       /* Go through all the fixups for the first sequence.  Disable them

@@ -1,5 +1,7 @@
 #!/bin/sh -
 #
+# SPDX-License-Identifier: BSD-3-Clause
+#
 # Copyright (c) 1984, 1986, 1990, 1993
 #	The Regents of the University of California.  All rights reserved.
 #
@@ -62,7 +64,7 @@ findvcs()
 	savedir=$(pwd)
 	cd ${SYSDIR}/..
 	while [ $(pwd) != "/" ]; do
-		if [ -d "./$1" ]; then
+		if [ -e "./$1" ]; then
 			VCSDIR=$(pwd)"/$1"
 			cd ${savedir}
 			return 0
@@ -218,8 +220,9 @@ if [ -n "$git_cmd" ] ; then
 		svn=" r${svn}"
 		git="=${git}"
 	else
-		svn=`$git_cmd log | fgrep 'git-svn-id:' | head -1 | \
-		     sed -n 's/^.*@\([0-9][0-9]*\).*$/\1/p'`
+		svn=`$git_cmd log --grep '^git-svn-id:' | \
+		    grep '^    git-svn-id:' | head -1 | \
+		    sed -n 's/^.*@\([0-9][0-9]*\).*$/\1/p'`
 		if [ -z "$svn" ] ; then
 			svn=`$git_cmd log --format='format:%N' | \
 			     grep '^svn ' | head -1 | \

@@ -322,6 +322,7 @@ bootp_print(netdissect_options *ndo,
 	if (EXTRACT_16BITS(&bp->bp_secs))
 		ND_PRINT((ndo, ", secs %d", EXTRACT_16BITS(&bp->bp_secs)));
 
+	ND_TCHECK(bp->bp_flags);
 	ND_PRINT((ndo, ", Flags [%s]",
 		  bittok2str(bootp_flag_values, "none", EXTRACT_16BITS(&bp->bp_flags))));
 	if (ndo->ndo_vflag > 1)

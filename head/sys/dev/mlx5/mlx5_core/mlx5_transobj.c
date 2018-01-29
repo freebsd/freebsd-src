@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -208,6 +208,17 @@ int mlx5_core_create_tis(struct mlx5_core_dev *dev, u32 *in, int inlen,
 		*tisn = MLX5_GET(create_tis_out, out, tisn);
 
 	return err;
+}
+
+int mlx5_core_modify_tis(struct mlx5_core_dev *dev, u32 tisn, u32 *in,
+			 int inlen)
+{
+	u32 out[MLX5_ST_SZ_DW(modify_tis_out)] = {0};
+
+	MLX5_SET(modify_tis_in, in, tisn, tisn);
+	MLX5_SET(modify_tis_in, in, opcode, MLX5_CMD_OP_MODIFY_TIS);
+
+	return mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
 }
 
 void mlx5_core_destroy_tis(struct mlx5_core_dev *dev, u32 tisn)

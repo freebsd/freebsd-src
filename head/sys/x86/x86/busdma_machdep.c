@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998 Justin T. Gibbs.
  * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
@@ -41,8 +43,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/memdesc.h>
 #include <sys/mutex.h>
 #include <sys/uio.h>
+#include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_param.h>
+#include <vm/vm_page.h>
+#include <vm/vm_phys.h>
 #include <vm/pmap.h>
 #include <machine/bus.h>
 #include <x86/include/busdma_impl.h>
@@ -178,10 +184,27 @@ common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
 			common->filterarg = parent->filterarg;
 			common->parent = parent->parent;
 		}
+		common->domain = parent->domain;
 		atomic_add_int(&parent->ref_count, 1);
 	}
+	common->domain = vm_phys_domain_match(common->domain, 0ul,
+	    common->lowaddr);
 	*dmat = common;
 	return (0);
+}
+
+int
+bus_dma_tag_set_domain(bus_dma_tag_t dmat, int domain)
+{
+	struct bus_dma_tag_common *tc;
+
+	tc = (struct bus_dma_tag_common *)dmat;
+	domain = vm_phys_domain_match(domain, 0ul, tc->lowaddr);
+	/* Only call the callback if it changes. */
+	if (domain == tc->domain)
+		return (0);
+	tc->domain = domain;
+	return (tc->impl->tag_set_domain(dmat));
 }
 
 /*

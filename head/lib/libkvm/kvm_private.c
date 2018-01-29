@@ -43,11 +43,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/pcpu.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 
 #include <net/vnet.h>
 
 #include <assert.h>
 #include <fcntl.h>
+#include <vm/vm.h>
 #include <kvm.h>
 #include <limits.h>
 #include <paths.h>
@@ -57,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <inttypes.h>
 
 #include "kvm_private.h"
 
@@ -258,6 +261,32 @@ popcount_bytes(uint64_t *addr, uint32_t bit0, uint32_t bitN)
 	return (count);
 }
 
+void *
+_kvm_pmap_get(kvm_t *kd, u_long idx, size_t len)
+{
+	uintptr_t off = idx * len;
+
+	if ((off_t)off >= kd->pt_sparse_off)
+		return (NULL);
+	return (void *)((uintptr_t)kd->page_map + off);
+}
+
+void *
+_kvm_map_get(kvm_t *kd, u_long pa, unsigned int page_size)
+{
+	off_t off;
+	uintptr_t addr;
+
+	off = _kvm_pt_find(kd, pa, page_size);
+	if (off == -1)
+		return NULL;
+
+	addr = (uintptr_t)kd->page_map + off;
+	if (off >= kd->pt_sparse_off)
+		addr = (uintptr_t)kd->sparse_map + (off - kd->pt_sparse_off);
+	return (void *)addr;
+}
+
 int
 _kvm_pt_init(kvm_t *kd, size_t map_len, off_t map_off, off_t sparse_off,
     int page_size, int word_size)
@@ -300,8 +329,10 @@ _kvm_pt_init(kvm_t *kd, size_t map_len, off_t map_off, off_t sparse_off,
 	res = map_len;
 	pc_bins = 1 + (res * NBBY + POPCOUNT_BITS / 2) / POPCOUNT_BITS;
 	kd->pt_popcounts = calloc(pc_bins, sizeof(uint32_t));
-	if (kd->pt_popcounts == NULL)
+	if (kd->pt_popcounts == NULL) {
+		_kvm_err(kd, kd->program, "cannot allocate popcount bins");
 		return (-1);
+	}
 
 	for (popcount_bin = &kd->pt_popcounts[1]; res > 0;
 	    addr++, res -= sizeof(*addr)) {
@@ -318,9 +349,46 @@ _kvm_pt_init(kvm_t *kd, size_t map_len, off_t map_off, off_t sparse_off,
 	    ((uintptr_t)popcount_bin - (uintptr_t)kd->pt_popcounts));
 
 	kd->pt_sparse_off = sparse_off;
-	kd->pt_sparse_size = (uint64_t)*popcount_bin * PAGE_SIZE;
+	kd->pt_sparse_size = (uint64_t)*popcount_bin * page_size;
 	kd->pt_page_size = page_size;
 	kd->pt_word_size = word_size;
+
+	/*
+	 * Map the sparse page array.  This is useful for performing point
+	 * lookups of specific pages, e.g. for kvm_walk_pages.  Generally,
+	 * this is much larger than is reasonable to read in up front, so
+	 * mmap it in instead.
+	 */
+	kd->sparse_map = mmap(NULL, kd->pt_sparse_size, PROT_READ,
+	    MAP_PRIVATE, kd->pmfd, kd->pt_sparse_off);
+	if (kd->sparse_map == MAP_FAILED) {
+		_kvm_err(kd, kd->program, "cannot map %" PRIu64
+		    " bytes from fd %d offset %jd for sparse map: %s",
+		    kd->pt_sparse_size, kd->pmfd,
+		    (intmax_t)kd->pt_sparse_off, strerror(errno));
+		return (-1);
+	}
+	return (0);
+}
+
+int
+_kvm_pmap_init(kvm_t *kd, uint32_t pmap_size, off_t pmap_off)
+{
+	ssize_t exp_len = pmap_size;
+
+	kd->page_map_size = pmap_size;
+	kd->page_map_off = pmap_off;
+	kd->page_map = _kvm_malloc(kd, pmap_size);
+	if (kd->page_map == NULL) {
+		_kvm_err(kd, kd->program, "cannot allocate %u bytes "
+		    "for page map", pmap_size);
+		return (-1);
+	}
+	if (pread(kd->pmfd, kd->page_map, pmap_size, pmap_off) != exp_len) {
+		_kvm_err(kd, kd->program, "cannot read %d bytes from "
+		    "offset %jd for page map", pmap_size, (intmax_t)pmap_off);
+		return (-1);
+	}
 	return (0);
 }
 
@@ -328,7 +396,7 @@ _kvm_pt_init(kvm_t *kd, size_t map_len, off_t map_off, off_t sparse_off,
  * Find the offset for the given physical page address; returns -1 otherwise.
  *
  * A page's offset is represented by the sparse page base offset plus the
- * number of bits set before its bit multiplied by PAGE_SIZE.  This means
+ * number of bits set before its bit multiplied by page size.  This means
  * that if a page exists in the dump, it's necessary to know how many pages
  * in the dump precede it.  Reduce this O(n) counting to O(1) by caching the
  * number of bits set at POPCOUNT_BITS intervals.
@@ -339,10 +407,10 @@ _kvm_pt_init(kvm_t *kd, size_t map_len, off_t map_off, off_t sparse_off,
  * checked by also counting down from the next higher bin if it's closer.
  */
 off_t
-_kvm_pt_find(kvm_t *kd, uint64_t pa)
+_kvm_pt_find(kvm_t *kd, uint64_t pa, unsigned int page_size)
 {
 	uint64_t *bitmap = kd->pt_map;
-	uint64_t pte_bit_id = pa / PAGE_SIZE;
+	uint64_t pte_bit_id = pa / page_size;
 	uint64_t pte_u64 = pte_bit_id / BITS_IN(*bitmap);
 	uint64_t popcount_id = pte_bit_id / POPCOUNT_BITS;
 	uint64_t pte_mask = 1ULL << (pte_bit_id % BITS_IN(*bitmap));
@@ -383,10 +451,10 @@ _kvm_pt_find(kvm_t *kd, uint64_t pa)
 	 * This can only happen if the core is truncated.  Treat these
 	 * entries as if they don't exist, since their backing doesn't.
 	 */
-	if (count >= (kd->pt_sparse_size / PAGE_SIZE))
+	if (count >= (kd->pt_sparse_size / page_size))
 		return (-1);
 
-	return (kd->pt_sparse_off + (uint64_t)count * PAGE_SIZE);
+	return (kd->pt_sparse_off + (uint64_t)count * page_size);
 }
 
 static int
@@ -629,4 +697,71 @@ again:
 	if (error)
 		_kvm_syserr(kd, kd->program, "kvm_nlist");
 	return (error);
+}
+
+int
+_kvm_bitmap_init(struct kvm_bitmap *bm, u_long bitmapsize, u_long *idx)
+{
+
+	*idx = ULONG_MAX;
+	bm->map = calloc(bitmapsize, sizeof *bm->map);
+	if (bm->map == NULL)
+		return (0);
+	bm->size = bitmapsize;
+	return (1);
+}
+
+void
+_kvm_bitmap_set(struct kvm_bitmap *bm, u_long pa, unsigned int page_size)
+{
+	u_long bm_index = pa / page_size;
+	uint8_t *byte = &bm->map[bm_index / 8];
+
+	*byte |= (1UL << (bm_index % 8));
+}
+
+int
+_kvm_bitmap_next(struct kvm_bitmap *bm, u_long *idx)
+{
+	u_long first_invalid = bm->size * CHAR_BIT;
+
+	if (*idx == ULONG_MAX)
+		*idx = 0;
+	else
+		(*idx)++;
+
+	/* Find the next valid idx. */
+	for (; *idx < first_invalid; (*idx)++) {
+		unsigned int mask = *idx % CHAR_BIT;
+		if ((bm->map[*idx * CHAR_BIT] & mask) == 0)
+			break;
+	}
+
+	return (*idx < first_invalid);
+}
+
+void
+_kvm_bitmap_deinit(struct kvm_bitmap *bm)
+{
+
+	free(bm->map);
+}
+
+int
+_kvm_visit_cb(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *arg, u_long pa,
+    u_long kmap_vaddr, u_long dmap_vaddr, vm_prot_t prot, size_t len,
+    unsigned int page_size)
+{
+	unsigned int pgsz = page_size ? page_size : len;
+	struct kvm_page p = {
+		.version = LIBKVM_WALK_PAGES_VERSION,
+		.paddr = pa,
+		.kmap_vaddr = kmap_vaddr,
+		.dmap_vaddr = dmap_vaddr,
+		.prot = prot,
+		.offset = _kvm_pt_find(kd, pa, pgsz),
+		.len = len,
+	};
+
+	return cb(&p, arg);
 }

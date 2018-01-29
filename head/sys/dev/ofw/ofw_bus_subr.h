@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
@@ -63,7 +65,7 @@ struct intr_map_data_fdt {
 };
 #endif
 
-#define SIMPLEBUS_PNP_DESCR "Z:compat;P:private;"
+#define SIMPLEBUS_PNP_DESCR "Z:compat;P:#;"
 #define SIMPLEBUS_PNP_INFO(t) \
 	MODULE_PNP_INFO(SIMPLEBUS_PNP_DESCR, simplebus, t, t, sizeof(t[0]), sizeof(t) / sizeof(t[0]));
 

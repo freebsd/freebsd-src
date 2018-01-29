@@ -3,25 +3,21 @@
 [![Build
 Status](https://travis-ci.org/the-tcpdump-group/tcpdump.png)](https://travis-ci.org/the-tcpdump-group/tcpdump)
 
-TCPDUMP 4.x.y  
-Now maintained by "The Tcpdump Group"  
-See 		www.tcpdump.org  
+To report a security issue please send an e-mail to security@tcpdump.org.
 
-Please send inquiries/comments/reports to:
+To report bugs and other problems, contribute patches, request a
+feature, provide generic feedback etc please see the file
+CONTRIBUTING in the tcpdump source tree root.
 
-* tcpdump-workers@lists.tcpdump.org
+TCPDUMP 4.x.y
+Now maintained by "The Tcpdump Group"
+See 		www.tcpdump.org
 
 Anonymous Git is available via:
 
 	git clone git://bpf.tcpdump.org/tcpdump
 
-Please submit patches by forking the branch on GitHub at:
-
-*	http://github.com/the-tcpdump-group/tcpdump/tree/master
-
-and issuing a pull request.
-
-formerly from 	Lawrence Berkeley National Laboratory  
+formerly from 	Lawrence Berkeley National Laboratory
 		Network Research Group <tcpdump@ee.lbl.gov>  
 		ftp://ftp.ee.lbl.gov/old/tcpdump.tar.Z (3.4)
 
@@ -70,20 +66,6 @@ Another tool that tcpdump users might find useful is tcpslice:
 It is a program that can be used to extract portions of tcpdump binary
 trace files. See the above distribution for further details and
 documentation.
-
-Problems, bugs, questions, desirable enhancements, etc. should be sent
-to the address "tcpdump-workers@lists.tcpdump.org".  Bugs, support
-requests, and feature requests may also be submitted on the GitHub issue
-tracker for tcpdump at:
-
-* https://github.com/the-tcpdump-group/tcpdump/issues
-
-Source code contributions, etc. should be sent to the email address
-above or submitted by forking the branch on GitHub at:
-
-* http://github.com/the-tcpdump-group/tcpdump/tree/master
-
-and issuing a pull request.
 
 Current versions can be found at www.tcpdump.org.
 

@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 
-#include <machine/debug_monitor.h>
 #include <machine/machdep.h>
 #include <machine/intr.h>
 #include <machine/smp.h>
@@ -68,12 +67,30 @@ __FBSDID("$FreeBSD$");
 #ifdef FDT
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_cpu.h>
 #endif
 
 #include <dev/psci/psci.h>
 
 #include "pic_if.h"
+
+#define	MP_QUIRK_CPULIST	0x01	/* The list of cpus may be wrong, */
+					/* don't panic if one fails to start */
+static uint32_t mp_quirks;
+
+#ifdef FDT
+static struct {
+	const char *compat;
+	uint32_t quirks;
+} fdt_quirks[] = {
+	{ "arm,foundation-aarch64",	MP_QUIRK_CPULIST },
+	{ "arm,fvp-base",		MP_QUIRK_CPULIST },
+	/* This is incorrect in some DTS files */
+	{ "arm,vfp-base",		MP_QUIRK_CPULIST },
+	{ NULL, 0 },
+};
+#endif
 
 typedef void intr_ipi_send_t(void *, cpuset_t, u_int);
 typedef void intr_ipi_handler_t(void *);
@@ -198,10 +215,6 @@ arm64_cpu_attach(device_t dev)
 	/* Set the device to start it later */
 	cpu_list[cpuid] = dev;
 
-	/* Try to read the numa node of this cpu */
-	OF_getencprop(ofw_bus_get_node(dev), "numa-node-id",
-	    &__pcpu[cpuid].pc_domain, sizeof(__pcpu[cpuid].pc_domain));
-
 	return (0);
 }
 
@@ -223,7 +236,10 @@ release_aps(void *dummy __unused)
 
 	atomic_store_rel_int(&aps_ready, 1);
 	/* Wake up the other CPUs */
-	__asm __volatile("sev");
+	__asm __volatile(
+	    "dsb ishst	\n"
+	    "sev	\n"
+	    ::: "memory");
 
 	printf("Release APs\n");
 
@@ -266,6 +282,7 @@ init_secondary(uint64_t cpu)
 	 * runtime chip identification.
 	 */
 	identify_cpu();
+	install_cpu_errata();
 
 	intr_pic_init_secondary();
 
@@ -276,7 +293,7 @@ init_secondary(uint64_t cpu)
 	vfp_init();
 #endif
 
-	dbg_monitor_init();
+	dbg_init();
 	pan_enable();
 
 	/* Enable interrupts */
@@ -470,13 +487,16 @@ start_cpu(u_int id, uint64_t target_cpu)
 		 * start the requested CPU. If psci_cpu_on returns PSCI_MISSING
 		 * to indicate we are unable to use it to start the given CPU.
 		 */
-		KASSERT(err == PSCI_MISSING,
+		KASSERT(err == PSCI_MISSING ||
+		    (mp_quirks & MP_QUIRK_CPULIST) == MP_QUIRK_CPULIST,
 		    ("Failed to start CPU %u (%lx)\n", id, target_cpu));
 
 		pcpu_destroy(pcpup);
 		kmem_free(kernel_arena, (vm_offset_t)dpcpu[cpuid - 1],
 		    DPCPU_SIZE);
 		dpcpu[cpuid - 1] = NULL;
+		mp_ncpus--;
+
 		/* Notify the user that the CPU failed to start */
 		printf("Failed to start CPU %u (%lx)\n", id, target_cpu);
 	} else
@@ -535,6 +555,7 @@ static boolean_t
 cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 {
 	uint64_t target_cpu;
+	int domain;
 
 	target_cpu = reg[0];
 	if (addr_size == 2) {
@@ -542,7 +563,17 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 		target_cpu |= reg[1];
 	}
 
-	return (start_cpu(id, target_cpu) ? TRUE : FALSE);
+	if (!start_cpu(id, target_cpu))
+		return (FALSE);
+
+	/* Try to read the numa node of this cpu */
+	if (OF_getencprop(node, "numa-node-id", &domain, sizeof(domain)) > 0) {
+		__pcpu[id].pc_domain = domain;
+		if (domain < MAXMEMDOM)
+			CPU_SET(id, &cpuset_domain[domain]);
+	}
+
+	return (TRUE);
 }
 #endif
 
@@ -550,6 +581,10 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 void
 cpu_mp_start(void)
 {
+#ifdef FDT
+	phandle_t node;
+	int i;
+#endif
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
@@ -564,6 +599,13 @@ cpu_mp_start(void)
 #endif
 #ifdef FDT
 	case ARM64_BUS_FDT:
+		node = OF_peer(0);
+		for (i = 0; fdt_quirks[i].compat != NULL; i++) {
+			if (ofw_bus_node_is_compatible(node,
+			    fdt_quirks[i].compat) != 0) {
+				mp_quirks = fdt_quirks[i].quirks;
+			}
+		}
 		KASSERT(cpu0 >= 0, ("Current CPU was not found"));
 		ofw_cpu_early_foreach(cpu_init_fdt, true);
 		break;

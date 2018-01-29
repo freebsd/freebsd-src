@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1988, 1991 The Regents of the University of California.
  * All rights reserved.
  *
@@ -129,6 +131,8 @@ struct sysentvec {
 	void		(*sv_schedtail)(struct thread *);
 	void		(*sv_thread_detach)(struct thread *);
 	int		(*sv_trap)(struct thread *);
+	u_long		*sv_hwcap;	/* Value passed in AT_HWCAP. */
+	u_long		*sv_hwcap2;	/* Value passed in AT_HWCAP2. */
 };
 
 #define	SV_ILP32	0x000100	/* 32-bit executable. */

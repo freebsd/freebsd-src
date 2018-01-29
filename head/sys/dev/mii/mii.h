@@ -1,6 +1,8 @@
 /*	$NetBSD: mii.h,v 1.18 2014/06/16 14:43:22 msaitoh Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 1997 Manuel Bouyer.  All rights reserved.
  *
  * Modification to match BSD/OS 3.0 MII interface by Jason R. Thorpe,

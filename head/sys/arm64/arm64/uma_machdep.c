@@ -42,25 +42,18 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 void *
-uma_small_alloc(uma_zone_t zone, vm_size_t bytes, u_int8_t *flags, int wait)
+uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags,
+    int wait)
 {
 	vm_page_t m;
 	vm_paddr_t pa;
 	void *va;
-	int pflags;
 
 	*flags = UMA_SLAB_PRIV;
-	pflags = malloc2vm_flags(wait) | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED;
-	for (;;) {
-		m = vm_page_alloc(NULL, 0, pflags);
-		if (m == NULL) {
-			if (wait & M_NOWAIT)
-				return (NULL);
-			else
-				VM_WAIT;
-		} else
-			break;
-	}
+	m = vm_page_alloc_domain(NULL, 0, domain,
+	    malloc2vm_flags(wait) | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
+	if (m == NULL)
+		return (NULL);
 	pa = m->phys_addr;
 	if ((wait & M_NODUMP) == 0)
 		dump_add_page(pa);

@@ -58,7 +58,6 @@ CWARNEXTRA?=	-Wno-error=address				\
 		-Wno-error=maybe-uninitialized			\
 		-Wno-error=overflow				\
 		-Wno-error=sequence-point			\
-		-Wno-error=strict-overflow			\
 		-Wno-error=unused-but-set-variable
 .if ${COMPILER_VERSION} >= 60100
 CWARNEXTRA+=	-Wno-error=misleading-indentation		\
@@ -121,7 +120,7 @@ INLINE_LIMIT?=	8000
 .endif
 
 .if ${MACHINE_CPUARCH} == "riscv"
-CFLAGS.gcc+=	-mcmodel=medany
+CFLAGS.gcc+=	-mcmodel=medany -march=rv64imafdc -mabi=lp64
 INLINE_LIMIT?=	8000
 .endif
 
@@ -173,10 +172,16 @@ CFLAGS.gcc+=	-mno-spe
 .endif
 
 #
-# Use dot symbols on powerpc64 to make ddb happy
+# Use dot symbols (or, better, the V2 ELF ABI) on powerpc64 to make
+# DDB happy. ELFv2, if available, has some other efficiency benefits.
 #
 .if ${MACHINE_ARCH} == "powerpc64"
+.if ${COMPILER_VERSION} >= 40900
+CFLAGS.gcc+=	-mabi=elfv2
+.else
 CFLAGS.gcc+=	-mcall-aixdesc
+.endif
+CFLAGS.clang+=	-mabi=elfv2
 .endif
 
 #
@@ -185,9 +190,6 @@ CFLAGS.gcc+=	-mcall-aixdesc
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-msoft-float
 INLINE_LIMIT?=	8000
-.if ${MACHINE_ARCH:Mmips*hf} != ""
-CFLAGS+= -DCPU_HAVEFPU
-.endif
 .endif
 
 #
@@ -232,7 +234,7 @@ PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 		beforelinking build build-tools buildfiles buildincludes \
 		checkdpadd clean cleandepend cleandir cleanobj configure \
 		depend distclean distribute exe \
-		html includes install installfiles installincludes lint \
+		html includes install installfiles installincludes \
 		obj objlink objs objwarn \
 		realinstall regress \
 		tags whereobj
@@ -260,6 +262,7 @@ LD_EMULATION_amd64=elf_x86_64_fbsd
 LD_EMULATION_arm=armelf_fbsd
 LD_EMULATION_armeb=armelfb_fbsd
 LD_EMULATION_armv6=armelf_fbsd
+LD_EMULATION_armv7=armelf_fbsd
 LD_EMULATION_i386=elf_i386_fbsd
 LD_EMULATION_mips= elf32btsmip_fbsd
 LD_EMULATION_mips64= elf64btsmip_fbsd

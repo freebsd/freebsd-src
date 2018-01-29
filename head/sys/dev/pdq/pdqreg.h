@@ -1,6 +1,8 @@
 /*	$NetBSD: pdqreg.h,v 1.14 2001/06/13 10:46:03 wiz Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1995, 1996 Matt Thomas <matt@3am-software.com>
  * All rights reserved.
  *

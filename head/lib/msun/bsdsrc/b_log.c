@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -36,7 +38,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <math.h>
-#include <errno.h>
 
 #include "mathimpl.h"
 

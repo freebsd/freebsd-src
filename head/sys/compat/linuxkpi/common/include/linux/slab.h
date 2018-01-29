@@ -46,7 +46,6 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	kzalloc(size, flags)		kmalloc(size, (flags) | __GFP_ZERO)
 #define	kzalloc_node(size, flags, node)	kmalloc(size, (flags) | __GFP_ZERO)
 #define	kfree_const(ptr)		kfree(ptr)
-#define	kcalloc(n, size, flags)	        kmalloc((n) * (size), (flags) | __GFP_ZERO)
 #define	vzalloc(size)			__vmalloc(size, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO, 0)
 #define	vfree(arg)			kfree(arg)
 #define	kvfree(arg)			kfree(arg)
@@ -101,6 +100,13 @@ kmalloc(size_t size, gfp_t flags)
 }
 
 static inline void *
+kcalloc(size_t n, size_t size, gfp_t flags)
+{
+	flags |= __GFP_ZERO;
+	return (mallocarray(n, size, M_KMALLOC, linux_check_m_flags(flags)));
+}
+
+static inline void *
 __vmalloc(size_t size, gfp_t flags, int other)
 {
 	return (malloc(size, M_KMALLOC, linux_check_m_flags(flags)));
@@ -115,9 +121,7 @@ vmalloc_32(size_t size)
 static inline void *
 kmalloc_array(size_t n, size_t size, gfp_t flags)
 {
-	if (size != 0 && n > (SIZE_MAX / size))
-		return (NULL);
-	return (malloc(n * size, M_KMALLOC, linux_check_m_flags(flags)));
+	return (mallocarray(n, size, M_KMALLOC, linux_check_m_flags(flags)));
 }
 
 static inline void *

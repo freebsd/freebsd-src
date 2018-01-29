@@ -72,6 +72,7 @@ FILESGROUPS=	SUBR
 SUBRDIR=	${SHAREDIR}/atf
 SUBR=		libatf-sh.subr
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include "../../../lib/atf/common.mk"

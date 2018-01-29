@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2008 Isilon Systems, Inc.
  * Copyright (c) 2008 Ilya Maykov <ivmaykov@gmail.com>
  * Copyright (c) 1998 Berkeley Software Design, Inc.
@@ -137,7 +139,7 @@ __FBSDID("$FreeBSD$");
 #define	WITNESS_COUNT 		1536
 #endif
 #define	WITNESS_HASH_SIZE	251	/* Prime, gives load factor < 2 */
-#define	WITNESS_PENDLIST	(1024 + MAXCPU)
+#define	WITNESS_PENDLIST	(2048 + MAXCPU)
 
 /* Allocate 256 KB of stack data space */
 #define	WITNESS_LO_DATA_COUNT	2048
@@ -1804,7 +1806,6 @@ static struct witness *
 enroll(const char *description, struct lock_class *lock_class)
 {
 	struct witness *w;
-	struct witness_list *typelist;
 
 	MPASS(description != NULL);
 
@@ -1813,11 +1814,7 @@ enroll(const char *description, struct lock_class *lock_class)
 	if ((lock_class->lc_flags & LC_SPINLOCK)) {
 		if (witness_skipspin)
 			return (NULL);
-		else
-			typelist = &w_spin;
-	} else if ((lock_class->lc_flags & LC_SLEEPLOCK)) {
-		typelist = &w_sleep;
-	} else {
+	} else if ((lock_class->lc_flags & LC_SLEEPLOCK) == 0) {
 		kassert_panic("lock class %s is not sleep or spin",
 		    lock_class->lc_name);
 		return (NULL);
@@ -1863,14 +1860,11 @@ found:
 static void
 depart(struct witness *w)
 {
-	struct witness_list *list;
 
 	MPASS(w->w_refcount == 0);
 	if (w->w_class->lc_flags & LC_SLEEPLOCK) {
-		list = &w_sleep;
 		w_sleep_cnt--;
 	} else {
-		list = &w_spin;
 		w_spin_cnt--;
 	}
 	/*
@@ -2539,31 +2533,17 @@ DB_SHOW_COMMAND(witness, db_witness_display)
 }
 #endif
 
-static int
-sysctl_debug_witness_badstacks(SYSCTL_HANDLER_ARGS)
+static void
+sbuf_print_witness_badstacks(struct sbuf *sb, size_t *oldidx)
 {
 	struct witness_lock_order_data *data1, *data2, *tmp_data1, *tmp_data2;
 	struct witness *tmp_w1, *tmp_w2, *w1, *w2;
-	struct sbuf *sb;
-	u_int w_rmatrix1, w_rmatrix2;
-	int error, generation, i, j;
+	int generation, i, j;
 
 	tmp_data1 = NULL;
 	tmp_data2 = NULL;
 	tmp_w1 = NULL;
 	tmp_w2 = NULL;
-	if (witness_watch < 1) {
-		error = SYSCTL_OUT(req, w_notrunning, sizeof(w_notrunning));
-		return (error);
-	}
-	if (witness_cold) {
-		error = SYSCTL_OUT(req, w_stillcold, sizeof(w_stillcold));
-		return (error);
-	}
-	error = 0;
-	sb = sbuf_new(NULL, NULL, badstack_sbuf_size, SBUF_AUTOEXTEND);
-	if (sb == NULL)
-		return (ENOMEM);
 
 	/* Allocate and init temporary storage space. */
 	tmp_w1 = malloc(sizeof(struct witness), M_TEMP, M_WAITOK | M_ZERO);
@@ -2587,7 +2567,7 @@ restart:
 			mtx_unlock_spin(&w_mtx);
 
 			/* The graph has changed, try again. */
-			req->oldidx = 0;
+			*oldidx = 0;
 			sbuf_clear(sb);
 			goto restart;
 		}
@@ -2613,7 +2593,7 @@ restart:
 				mtx_unlock_spin(&w_mtx);
 
 				/* The graph has changed, try again. */
-				req->oldidx = 0;
+				*oldidx = 0;
 				sbuf_clear(sb);
 				goto restart;
 			}
@@ -2627,8 +2607,6 @@ restart:
 			 * spin lock.
 			 */
 			*tmp_w2 = *w2;
-			w_rmatrix1 = (unsigned int)w_rmatrix[i][j];
-			w_rmatrix2 = (unsigned int)w_rmatrix[j][i];
 
 			if (data1) {
 				stack_zero(&tmp_data1->wlod_stack);
@@ -2672,7 +2650,7 @@ restart:
 		 * The graph changed while we were printing stack data,
 		 * try again.
 		 */
-		req->oldidx = 0;
+		*oldidx = 0;
 		sbuf_clear(sb);
 		goto restart;
 	}
@@ -2683,6 +2661,28 @@ restart:
 	free(tmp_data2, M_TEMP);
 	free(tmp_w1, M_TEMP);
 	free(tmp_w2, M_TEMP);
+}
+
+static int
+sysctl_debug_witness_badstacks(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf *sb;
+	int error;
+
+	if (witness_watch < 1) {
+		error = SYSCTL_OUT(req, w_notrunning, sizeof(w_notrunning));
+		return (error);
+	}
+	if (witness_cold) {
+		error = SYSCTL_OUT(req, w_stillcold, sizeof(w_stillcold));
+		return (error);
+	}
+	error = 0;
+	sb = sbuf_new(NULL, NULL, badstack_sbuf_size, SBUF_AUTOEXTEND);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	sbuf_print_witness_badstacks(sb, &req->oldidx);
 
 	sbuf_finish(sb);
 	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
@@ -2690,6 +2690,27 @@ restart:
 
 	return (error);
 }
+
+#ifdef DDB
+static int
+sbuf_db_printf_drain(void *arg __unused, const char *data, int len)
+{
+
+	return (db_printf("%.*s", len, data));
+}
+
+DB_SHOW_COMMAND(badstacks, db_witness_badstacks)
+{
+	struct sbuf sb;
+	char buffer[128];
+	size_t dummy;
+
+	sbuf_new(&sb, buffer, sizeof(buffer), SBUF_FIXEDLEN);
+	sbuf_set_drain(&sb, sbuf_db_printf_drain, NULL);
+	sbuf_print_witness_badstacks(&sb, &dummy);
+	sbuf_finish(&sb);
+}
+#endif
 
 static int
 sysctl_debug_witness_channel(SYSCTL_HANDLER_ARGS)

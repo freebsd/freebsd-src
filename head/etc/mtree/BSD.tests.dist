@@ -8,6 +8,8 @@
     bin
         cat
         ..
+        chflags
+        ..
         chmod
         ..
         date
@@ -22,6 +24,8 @@
         ..
         ls
         ..
+        mkdir
+        ..
         mv
         ..
         pax
@@ -29,6 +33,8 @@
         pkill
         ..
         pwait
+        ..
+        rmdir
         ..
         sh
             builtins
@@ -38,6 +44,8 @@
             execution
             ..
             expansion
+            ..
+            invocation
             ..
             parameters
             ..
@@ -55,6 +63,8 @@
         lib
         ..
         usr.bin
+            ctfconvert
+            ..
         ..
         usr.sbin
             dtrace
@@ -88,6 +98,8 @@
                     dtraceUtil
                     ..
                     end
+                    ..
+                    env
                     ..
                     enum
                     ..
@@ -339,6 +351,10 @@
         libnv
         ..
         libproc
+        ..
+        libregex
+            data
+            ..
         ..
         librt
         ..
@@ -746,6 +762,14 @@
         ..
         netinet
         ..
+        netipsec
+            tunnel
+            ..
+        ..
+        netpfil
+            pf
+            ..
+        ..
         opencrypto
         ..
         pjdfstest
@@ -793,6 +817,8 @@
     ..
     usr.bin
         apply
+        ..
+        awk
         ..
         basename
         ..
@@ -912,6 +938,8 @@
         ..
         cut
         ..
+        dc
+        ..
         diff
         ..
         dirname
@@ -920,11 +948,17 @@
         ..
         file2c
         ..
+        find
+        ..
+        fold
+        ..
         getconf
         ..
         grep
         ..
         gzip
+        ..
+        head
         ..
         hexdump
         ..
@@ -954,6 +988,8 @@
         ..
         procstat
         ..
+        rs
+        ..
         sdiff
         ..
         sed
@@ -981,6 +1017,8 @@
         uuencode
         ..
         uniq
+        ..
+        vmstat
         ..
         xargs
         ..

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1988, 1993
  *	Regents of the University of California.  All rights reserved.
  *
@@ -422,13 +424,12 @@ main(int argc, char *argv[])
 	if (!live) {
 		if (setgid(getgid()) != 0)
 			xo_err(-1, "setgid");
+		/* Load all necessary kvm symbols */
+		kresolve_list(nl);
 	}
 
 	if (xflag && Tflag)
 		xo_errx(1, "-x and -T are incompatible, pick one.");
-
-	/* Load all necessary kvm symbols */
-	kresolve_list(nl);
 
 	if (Bflag) {
 		if (!live)

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Juli Mallett.  All rights reserved.
  *
  * This software was written by Juli Mallett <jmallett@FreeBSD.org> for the
@@ -180,42 +182,85 @@ gotit:
 int
 cgread(struct uufsd *disk)
 {
+
+	if (disk->d_ccg >= disk->d_fs.fs_ncg)
+		return (0);
 	return (cgread1(disk, disk->d_ccg++));
 }
 
 int
 cgread1(struct uufsd *disk, int c)
 {
+
+	if ((cgget(disk, c, &disk->d_cg)) == 0)
+		return (1);
+	return (-1);
+}
+
+int
+cgget(struct uufsd *disk, int cg, struct cg *cgp)
+{
 	struct fs *fs;
+	uint32_t cghash, calchash;
 
 	fs = &disk->d_fs;
-
-	if ((unsigned)c >= fs->fs_ncg) {
-		return (0);
-	}
-	if (bread(disk, fsbtodb(fs, cgtod(fs, c)), disk->d_cgunion.d_buf,
-	    fs->fs_bsize) == -1) {
+	if (bread(disk, fsbtodb(fs, cgtod(fs, cg)), (void *)cgp,
+	    fs->fs_cgsize) == -1) {
 		ERROR(disk, "unable to read cylinder group");
 		return (-1);
 	}
-	disk->d_lcg = c;
-	return (1);
+	calchash = cgp->cg_ckhash;
+	if ((fs->fs_metackhash & CK_CYLGRP) != 0) {
+		cghash = cgp->cg_ckhash;
+		cgp->cg_ckhash = 0;
+		calchash = calculate_crc32c(~0L, (void *)cgp, fs->fs_cgsize);
+		cgp->cg_ckhash = cghash;
+	}
+	if (cgp->cg_ckhash != calchash || !cg_chkmagic(cgp) ||
+	    cgp->cg_cgx != cg) {
+		ERROR(disk, "cylinder group checks failed");
+		errno = EIO;
+		return (-1);
+	}
+	disk->d_lcg = cg;
+	return (0);
 }
 
 int
 cgwrite(struct uufsd *disk)
 {
-	return (cgwrite1(disk, disk->d_lcg));
+
+	return (cgput(disk, &disk->d_cg));
 }
 
 int
-cgwrite1(struct uufsd *disk, int c)
+cgwrite1(struct uufsd *disk, int cg)
+{
+	static char errmsg[BUFSIZ];
+
+	if (cg == disk->d_cg.cg_cgx)
+		return (cgput(disk, &disk->d_cg));
+	snprintf(errmsg, BUFSIZ, "Cylinder group %d in buffer does not match "
+	    "the cylinder group %d that cgwrite1 requested",
+	    disk->d_cg.cg_cgx, cg);
+	ERROR(disk, errmsg);
+	errno = EDOOFUS;
+	return (-1);
+}
+
+int
+cgput(struct uufsd *disk, struct cg *cgp)
 {
 	struct fs *fs;
 
 	fs = &disk->d_fs;
-	if (bwrite(disk, fsbtodb(fs, cgtod(fs, c)),
-	    disk->d_cgunion.d_buf, fs->fs_bsize) == -1) {
+	if ((fs->fs_metackhash & CK_CYLGRP) != 0) {
+		cgp->cg_ckhash = 0;
+		cgp->cg_ckhash =
+		    calculate_crc32c(~0L, (void *)cgp, fs->fs_cgsize);
+	}
+	if (bwrite(disk, fsbtodb(fs, cgtod(fs, cgp->cg_cgx)), cgp,
+	    fs->fs_cgsize) == -1) {
 		ERROR(disk, "unable to write cylinder group");
 		return (-1);
 	}

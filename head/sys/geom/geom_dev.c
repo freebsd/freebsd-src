@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -138,7 +140,7 @@ g_dev_setdumpdev(struct cdev *dev, struct diocskerneldump_arg *kda,
 	int error, len;
 
 	if (dev == NULL || kda == NULL)
-		return (set_dumper(NULL, NULL, td, 0, NULL, 0, NULL));
+		return (set_dumper(NULL, NULL, td, 0, 0, NULL, 0, NULL));
 
 	cp = dev->si_drv2;
 	len = sizeof(kd);
@@ -148,8 +150,9 @@ g_dev_setdumpdev(struct cdev *dev, struct diocskerneldump_arg *kda,
 	if (error != 0)
 		return (error);
 
-	error = set_dumper(&kd.di, devtoname(dev), td, kda->kda_encryption,
-	    kda->kda_key, kda->kda_encryptedkeysize, kda->kda_encryptedkey);
+	error = set_dumper(&kd.di, devtoname(dev), td, kda->kda_compression,
+	    kda->kda_encryption, kda->kda_key, kda->kda_encryptedkeysize,
+	    kda->kda_encryptedkey);
 	if (error == 0)
 		dev->si_flags |= SI_DUMPDEV;
 
@@ -315,10 +318,11 @@ static struct g_geom *
 g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 {
 	struct g_geom *gp;
+	struct g_geom_alias *gap;
 	struct g_consumer *cp;
 	struct g_dev_softc *sc;
 	int error;
-	struct cdev *dev;
+	struct cdev *dev, *adev;
 	char buf[SPECNAMELEN + 6];
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
@@ -357,6 +361,20 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	g_dev_attrchanged(cp, "GEOM::physpath");
 	snprintf(buf, sizeof(buf), "cdev=%s", gp->name);
 	devctl_notify_f("GEOM", "DEV", "CREATE", buf, M_WAITOK);
+	/*
+	 * Now add all the aliases for this drive
+	 */
+	LIST_FOREACH(gap, &pp->geom->aliases, ga_next) {
+		error = make_dev_alias_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK, &adev, dev,
+		    "%s", gap->ga_alias);
+		if (error) {
+			printf("%s: make_dev_alias_p() failed (name=%s, error=%d)\n",
+			    __func__, gap->ga_alias, error);
+			continue;
+		}
+		snprintf(buf, sizeof(buf), "cdev=%s", gap->ga_alias);
+		devctl_notify_f("GEOM", "DEV", "CREATE", buf, M_WAITOK);
+	}
 
 	return (gp);
 }
@@ -817,7 +835,7 @@ g_dev_orphan(struct g_consumer *cp)
 
 	/* Reset any dump-area set on this device */
 	if (dev->si_flags & SI_DUMPDEV)
-		(void)set_dumper(NULL, NULL, curthread, 0, NULL, 0, NULL);
+		(void)set_dumper(NULL, NULL, curthread, 0, 0, NULL, 0, NULL);
 
 	/* Destroy the struct cdev *so we get no more requests */
 	destroy_dev_sched_cb(dev, g_dev_callback, cp);

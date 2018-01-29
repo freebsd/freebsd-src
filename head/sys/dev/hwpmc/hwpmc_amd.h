@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005, Joseph Koshy
  * All rights reserved.
  *
@@ -64,10 +66,10 @@
 #define	AMD_PMC_UNITMASK_MOESI	0x1F
 
 #define	AMD_PMC_UNITMASK	0xFF00
-#define	AMD_PMC_EVENTMASK 	0x00FF
+#define	AMD_PMC_EVENTMASK 	0xF000000FF
 
 #define	AMD_PMC_TO_UNITMASK(x)	(((x) << 8) & AMD_PMC_UNITMASK)
-#define	AMD_PMC_TO_EVENTMASK(x)	((x) & 0xFF)
+#define	AMD_PMC_TO_EVENTMASK(x)	(((x) & 0xFF) | (((uint64_t)(x) & 0xF00) << 24))
 #define	AMD_VALID_BITS		(AMD_PMC_COUNTERMASK | AMD_PMC_INVERT |	\
 	AMD_PMC_ENABLE | AMD_PMC_INT | AMD_PMC_PC | AMD_PMC_EDGE | 	\
 	AMD_PMC_OS | AMD_PMC_USR | AMD_PMC_UNITMASK | AMD_PMC_EVENTMASK)

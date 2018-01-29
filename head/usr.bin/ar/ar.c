@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007 Kai Wang
  * Copyright (c) 2007 Tim Kientzle
  * Copyright (c) 2007 Joseph Koshy

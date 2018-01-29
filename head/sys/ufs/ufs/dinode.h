@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD AND BSD-3-Clause)
+ *
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -185,5 +187,7 @@ struct ufs1_dinode {
 	u_int32_t	di_gid;		/* 116: File group. */
 	u_int64_t	di_modrev;	/* 120: i_modrev for NFSv4 */
 };
+
+#define	UFS_LINK_MAX	32767
 
 #endif /* _UFS_UFS_DINODE_H_ */

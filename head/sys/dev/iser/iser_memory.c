@@ -52,64 +52,6 @@ iser_reg_desc_put(struct ib_conn *ib_conn,
 #define IS_4K_ALIGNED(addr)	((((unsigned long)addr) & ~MASK_4K) == 0)
 
 /**
- * iser_sg_to_page_vec - Translates scatterlist entries to physical addresses
- * and returns the length of resulting physical address array (may be less than
- * the original due to possible compaction).
- *
- * we build a "page vec" under the assumption that the SG meets the RDMA
- * alignment requirements. Other then the first and last SG elements, all
- * the "internal" elements can be compacted into a list whose elements are
- * dma addresses of physical pages. The code supports also the weird case
- * where --few fragments of the same page-- are present in the SG as
- * consecutive elements. Also, it handles one entry SG.
- */
-static int
-iser_sg_to_page_vec(struct iser_data_buf *data,
-		    struct ib_device *ibdev, u64 *pages,
-		    int *offset, int *data_size)
-{
-	struct scatterlist *sg, *sgl = data->sgl;
-	u64 start_addr, end_addr, page, chunk_start = 0;
-	unsigned long total_sz = 0;
-	unsigned int dma_len;
-	int i, new_chunk, cur_page, last_ent = data->dma_nents - 1;
-
-	/* compute the offset of first element */
-	*offset = (u64) sgl[0].offset & ~MASK_4K;
-
-	new_chunk = 1;
-	cur_page  = 0;
-	for_each_sg(sgl, sg, data->dma_nents, i) {
-		start_addr = ib_sg_dma_address(ibdev, sg);
-		if (new_chunk)
-			chunk_start = start_addr;
-		dma_len = ib_sg_dma_len(ibdev, sg);
-		end_addr = start_addr + dma_len;
-		total_sz += dma_len;
-
-		/* collect page fragments until aligned or end of SG list */
-		if (!IS_4K_ALIGNED(end_addr) && i < last_ent) {
-			new_chunk = 0;
-			continue;
-		}
-		new_chunk = 1;
-
-		/* address of the first page in the contiguous chunk;
-		   masking relevant for the very first SG entry,
-		   which might be unaligned */
-		page = chunk_start & MASK_4K;
-		do {
-			pages[cur_page++] = page;
-			page += SIZE_4K;
-		} while (page < end_addr);
-	}
-
-	*data_size = total_sz;
-
-	return (cur_page);
-}
-
-/**
  * iser_data_buf_aligned_len - Tries to determine the maximal correctly aligned
  * for RDMA sub-list of a scatter-gather list of memory buffers, and  returns
  * the number of entries which are aligned correctly. Supports the case where
@@ -214,46 +156,41 @@ iser_fast_reg_mr(struct icl_iser_pdu *iser_pdu,
 {
 	struct ib_conn *ib_conn = &iser_pdu->iser_conn->ib_conn;
 	struct iser_device *device = ib_conn->device;
-	struct ib_send_wr fastreg_wr, inv_wr;
+	struct ib_mr *mr = rsc->mr;
+	struct ib_reg_wr fastreg_wr;
+	struct ib_send_wr inv_wr;
 	struct ib_send_wr *bad_wr, *wr = NULL;
-	int ret, offset, size, plen;
+	int ret, n;
 
 	/* if there a single dma entry, dma mr suffices */
 	if (mem->dma_nents == 1)
 		return iser_reg_dma(device, mem, reg);
 
-	/* rsc is not null */
-	plen = iser_sg_to_page_vec(mem, device->ib_device,
-				   rsc->frpl->page_list,
-				   &offset, &size);
-	if (plen * SIZE_4K < size) {
-		ISER_ERR("fast reg page_list too short to hold this SG");
-		return (EINVAL);
-	}
-
 	if (!rsc->mr_valid) {
-		iser_inv_rkey(&inv_wr, rsc->mr);
+		iser_inv_rkey(&inv_wr, mr);
 		wr = &inv_wr;
 	}
 
+	n = ib_map_mr_sg(mr, mem->sg, mem->size, NULL, SIZE_4K);
+	if (unlikely(n != mem->size)) {
+		ISER_ERR("failed to map sg (%d/%d)\n", n, mem->size);
+		return n < 0 ? n : -EINVAL;
+	}
 	/* Prepare FASTREG WR */
 	memset(&fastreg_wr, 0, sizeof(fastreg_wr));
-	fastreg_wr.wr_id = ISER_FASTREG_LI_WRID;
-	fastreg_wr.opcode = IB_WR_FAST_REG_MR;
-	fastreg_wr.wr.fast_reg.iova_start = rsc->frpl->page_list[0] + offset;
-	fastreg_wr.wr.fast_reg.page_list = rsc->frpl;
-	fastreg_wr.wr.fast_reg.page_list_len = plen;
-	fastreg_wr.wr.fast_reg.page_shift = SHIFT_4K;
-	fastreg_wr.wr.fast_reg.length = size;
-	fastreg_wr.wr.fast_reg.rkey = rsc->mr->rkey;
-	fastreg_wr.wr.fast_reg.access_flags = (IB_ACCESS_LOCAL_WRITE  |
-					       IB_ACCESS_REMOTE_WRITE |
-					       IB_ACCESS_REMOTE_READ);
+	fastreg_wr.wr.opcode = IB_WR_REG_MR;
+	fastreg_wr.wr.wr_id = ISER_FASTREG_LI_WRID;
+	fastreg_wr.wr.num_sge = 0;
+	fastreg_wr.mr = mr;
+	fastreg_wr.key = mr->rkey;
+	fastreg_wr.access = IB_ACCESS_LOCAL_WRITE  |
+			    IB_ACCESS_REMOTE_WRITE |
+			    IB_ACCESS_REMOTE_READ;
 
 	if (!wr)
-		wr = &fastreg_wr;
+		wr = &fastreg_wr.wr;
 	else
-		wr->next = &fastreg_wr;
+		wr->next = &fastreg_wr.wr;
 
 	ret = ib_post_send(ib_conn->qp, wr, &bad_wr);
 	if (ret) {
@@ -262,10 +199,10 @@ iser_fast_reg_mr(struct icl_iser_pdu *iser_pdu,
 	}
 	rsc->mr_valid = 0;
 
-	reg->sge.lkey = rsc->mr->lkey;
-	reg->rkey = rsc->mr->rkey;
-	reg->sge.addr = rsc->frpl->page_list[0] + offset;
-	reg->sge.length = size;
+	reg->sge.lkey = mr->lkey;
+	reg->rkey = mr->rkey;
+	reg->sge.addr = mr->iova;
+	reg->sge.length = mr->length;
 
 	return (ret);
 }

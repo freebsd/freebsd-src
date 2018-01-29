@@ -1,6 +1,8 @@
 /*-
  * Core routines and tables shareable across OS platforms.
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994-2002, 2004 Justin T. Gibbs.
  * Copyright (c) 2000-2003 Adaptec Inc.
  * All rights reserved.

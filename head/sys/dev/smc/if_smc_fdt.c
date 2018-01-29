@@ -84,17 +84,8 @@ smc_fdt_probe(device_t dev)
 static int
 smc_fdt_attach(device_t dev)
 {
-	int	err;
- 	struct	smc_softc *sc;
 
-	sc = device_get_softc(dev);
-
-	err = smc_attach(dev);
-	if (err) {
-		return (err);
-	}
-
-	return (0);
+	return smc_attach(dev);
 }
 
 static int

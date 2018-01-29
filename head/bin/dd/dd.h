@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -38,10 +40,9 @@
 typedef struct {
 	u_char		*db;		/* buffer address */
 	u_char		*dbp;		/* current buffer I/O address */
-	/* XXX ssize_t? */
-	size_t		dbcnt;		/* current buffer byte count */
-	size_t		dbrcnt;		/* last read byte count */
-	size_t		dbsz;		/* block size */
+	ssize_t		dbcnt;		/* current buffer byte count */
+	ssize_t		dbrcnt;		/* last read byte count */
+	ssize_t		dbsz;		/* block size */
 
 #define	ISCHR		0x01		/* character device (warn on short) */
 #define	ISPIPE		0x02		/* pipe-like (see position.c) */

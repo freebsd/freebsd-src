@@ -196,6 +196,8 @@ public:
 
   void ProcessStmt(const CFGStmt S, ExplodedNode *Pred);
 
+  void ProcessLoopExit(const Stmt* S, ExplodedNode *Pred);
+
   void ProcessInitializer(const CFGInitializer I, ExplodedNode *Pred);
 
   void ProcessImplicitDtor(const CFGImplicitDtor D, ExplodedNode *Pred);
@@ -330,9 +332,9 @@ public:
   void Visit(const Stmt *S, ExplodedNode *Pred, ExplodedNodeSet &Dst);
 
   /// VisitArraySubscriptExpr - Transfer function for array accesses.
-  void VisitLvalArraySubscriptExpr(const ArraySubscriptExpr *Ex,
-                                   ExplodedNode *Pred,
-                                   ExplodedNodeSet &Dst);
+  void VisitArraySubscriptExpr(const ArraySubscriptExpr *Ex,
+                               ExplodedNode *Pred,
+                               ExplodedNodeSet &Dst);
 
   /// VisitGCCAsmStmt - Transfer function logic for inline asm.
   void VisitGCCAsmStmt(const GCCAsmStmt *A, ExplodedNode *Pred,

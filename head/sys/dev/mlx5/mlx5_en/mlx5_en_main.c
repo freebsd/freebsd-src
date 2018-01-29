@@ -154,6 +154,8 @@ static const struct {
 
 MALLOC_DEFINE(M_MLX5EN, "MLX5EN", "MLX5 Ethernet");
 
+static SYSCTL_NODE(_hw, OID_AUTO, mlx5, CTLFLAG_RW, 0, "MLX5 driver parameters");
+
 static void
 mlx5e_update_carrier(struct mlx5e_priv *priv)
 {
@@ -552,7 +554,6 @@ mlx5e_update_stats_work(struct work_struct *work)
 	    priv->stats.pport.alignment_err +
 	    priv->stats.pport.check_seq_err +
 	    priv->stats.pport.crc_align_errors +
-	    priv->stats.pport.drop_events +
 	    priv->stats.pport.in_range_len_errors +
 	    priv->stats.pport.jabbers +
 	    priv->stats.pport.out_of_range_len +
@@ -561,7 +562,8 @@ mlx5e_update_stats_work(struct work_struct *work)
 	    priv->stats.pport.too_long_errors +
 	    priv->stats.pport.undersize_pkts +
 	    priv->stats.pport.unsupported_op_rx;
-	ifp->if_iqdrops = s->rx_out_of_buffer;
+	ifp->if_iqdrops = s->rx_out_of_buffer +
+	    priv->stats.pport.drop_events;
 	ifp->if_opackets = s->tx_packets;
 	ifp->if_oerrors = s->tx_error_packets;
 	ifp->if_snd.ifq_drops = s->tx_queue_dropped;
@@ -635,6 +637,109 @@ mlx5e_disable_async_events(struct mlx5e_priv *priv)
 	mtx_lock(&priv->async_events_mtx);
 	clear_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLE, &priv->state);
 	mtx_unlock(&priv->async_events_mtx);
+}
+
+static void mlx5e_calibration_callout(void *arg);
+static int mlx5e_calibration_duration = 20;
+static int mlx5e_fast_calibration = 1;
+static int mlx5e_normal_calibration = 30;
+
+static SYSCTL_NODE(_hw_mlx5, OID_AUTO, calibr, CTLFLAG_RW, 0,
+    "MLX5 timestamp calibration parameteres");
+
+SYSCTL_INT(_hw_mlx5_calibr, OID_AUTO, duration, CTLFLAG_RWTUN,
+    &mlx5e_calibration_duration, 0,
+    "Duration of initial calibration");
+SYSCTL_INT(_hw_mlx5_calibr, OID_AUTO, fast, CTLFLAG_RWTUN,
+    &mlx5e_fast_calibration, 0,
+    "Recalibration interval during initial calibration");
+SYSCTL_INT(_hw_mlx5_calibr, OID_AUTO, normal, CTLFLAG_RWTUN,
+    &mlx5e_normal_calibration, 0,
+    "Recalibration interval during normal operations");
+
+/*
+ * Ignites the calibration process.
+ */
+static void
+mlx5e_reset_calibration_callout(struct mlx5e_priv *priv)
+{
+
+	if (priv->clbr_done == 0)
+		mlx5e_calibration_callout(priv);
+	else
+		callout_reset_curcpu(&priv->tstmp_clbr, (priv->clbr_done <
+		    mlx5e_calibration_duration ? mlx5e_fast_calibration :
+		    mlx5e_normal_calibration) * hz, mlx5e_calibration_callout,
+		    priv);
+}
+
+static uint64_t
+mlx5e_timespec2usec(const struct timespec *ts)
+{
+
+	return ((uint64_t)ts->tv_sec * 1000000000 + ts->tv_nsec);
+}
+
+static uint64_t
+mlx5e_hw_clock(struct mlx5e_priv *priv)
+{
+	struct mlx5_init_seg *iseg;
+	uint32_t hw_h, hw_h1, hw_l;
+
+	iseg = priv->mdev->iseg;
+	do {
+		hw_h = ioread32be(&iseg->internal_timer_h);
+		hw_l = ioread32be(&iseg->internal_timer_l);
+		hw_h1 = ioread32be(&iseg->internal_timer_h);
+	} while (hw_h1 != hw_h);
+	return (((uint64_t)hw_h << 32) | hw_l);
+}
+
+/*
+ * The calibration callout, it runs either in the context of the
+ * thread which enables calibration, or in callout.  It takes the
+ * snapshot of system and adapter clocks, then advances the pointers to
+ * the calibration point to allow rx path to read the consistent data
+ * lockless.
+ */
+static void
+mlx5e_calibration_callout(void *arg)
+{
+	struct mlx5e_priv *priv;
+	struct mlx5e_clbr_point *next, *curr;
+	struct timespec ts;
+	int clbr_curr_next;
+
+	priv = arg;
+	curr = &priv->clbr_points[priv->clbr_curr];
+	clbr_curr_next = priv->clbr_curr + 1;
+	if (clbr_curr_next >= nitems(priv->clbr_points))
+		clbr_curr_next = 0;
+	next = &priv->clbr_points[clbr_curr_next];
+
+	next->base_prev = curr->base_curr;
+	next->clbr_hw_prev = curr->clbr_hw_curr;
+
+	next->clbr_hw_curr = mlx5e_hw_clock(priv);
+	if (((next->clbr_hw_curr - curr->clbr_hw_prev) >> MLX5E_TSTMP_PREC) ==
+	    0) {
+		if_printf(priv->ifp, "HW failed tstmp frozen %#jx %#jx,"
+		    "disabling\n", next->clbr_hw_curr, curr->clbr_hw_prev);
+		priv->clbr_done = 0;
+		return;
+	}
+
+	nanouptime(&ts);
+	next->base_curr = mlx5e_timespec2usec(&ts);
+
+	curr->clbr_gen = 0;
+	atomic_thread_fence_rel();
+	priv->clbr_curr = clbr_curr_next;
+	atomic_store_rel_int(&next->clbr_gen, ++(priv->clbr_gen));
+
+	if (priv->clbr_done < mlx5e_calibration_duration)
+		priv->clbr_done++;
+	mlx5e_reset_calibration_callout(priv);
 }
 
 static const char *mlx5e_rq_stats_desc[] = {
@@ -1408,7 +1513,7 @@ mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param, int eq_ix)
 	if (err)
 		return (err);
 
-	mlx5e_cq_arm(cq);
+	mlx5e_cq_arm(cq, MLX5_GET_DOORBELL_LOCK(&cq->priv->doorbell_lock));
 
 	return (0);
 }
@@ -2298,10 +2403,13 @@ mlx5e_set_dev_port_mtu(struct ifnet *ifp, int sw_mtu)
 		    __func__, sw_mtu, err);
 		return (err);
 	}
+
+	ifp->if_mtu = sw_mtu;
 	err = mlx5_query_port_oper_mtu(mdev, &hw_mtu);
 	if (err) {
 		if_printf(ifp, "Query port MTU, after setting new "
 		    "MTU value, failed\n");
+		return (err);
 	} else if (MLX5E_HW2SW_MTU(hw_mtu) < sw_mtu) {
 		err = -E2BIG,
 		if_printf(ifp, "Port MTU %d is smaller than "
@@ -2311,7 +2419,8 @@ mlx5e_set_dev_port_mtu(struct ifnet *ifp, int sw_mtu)
                 if_printf(ifp, "Port MTU %d is bigger than "
                     "ifp mtu %d\n", hw_mtu, sw_mtu);
 	}
-	ifp->if_mtu = sw_mtu;
+	priv->params_ethtool.hw_mtu = hw_mtu;
+
 	return (err);
 }
 
@@ -2467,7 +2576,6 @@ mlx5e_get_counter(struct ifnet *ifp, ift_counter cnt)
 		    priv->stats.pport.alignment_err +
 		    priv->stats.pport.check_seq_err +
 		    priv->stats.pport.crc_align_errors +
-		    priv->stats.pport.drop_events +
 		    priv->stats.pport.in_range_len_errors +
 		    priv->stats.pport.jabbers +
 		    priv->stats.pport.out_of_range_len +
@@ -2478,7 +2586,8 @@ mlx5e_get_counter(struct ifnet *ifp, ift_counter cnt)
 		    priv->stats.pport.unsupported_op_rx;
 		break;
 	case IFCOUNTER_IQDROPS:
-		retval = priv->stats.vport.rx_out_of_buffer;
+		retval = priv->stats.vport.rx_out_of_buffer +
+		    priv->stats.pport.drop_events;
 		break;
 	case IFCOUNTER_OPACKETS:
 		retval = priv->stats.vport.tx_packets;
@@ -2687,6 +2796,16 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			if (was_opened && need_restart) {
 				mlx5e_close_locked(ifp);
 				mlx5e_open_locked(ifp);
+			}
+		}
+		if (mask & IFCAP_HWRXTSTMP) {
+			ifp->if_capenable ^= IFCAP_HWRXTSTMP;
+			if (ifp->if_capenable & IFCAP_HWRXTSTMP) {
+				if (priv->clbr_done == 0)
+					mlx5e_reset_calibration_callout(priv);
+			} else {
+				callout_drain(&priv->tstmp_clbr);
+				priv->clbr_done = 0;
 			}
 		}
 out:
@@ -2928,6 +3047,164 @@ sysctl_firmware(SYSCTL_HANDLER_ARGS)
 }
 
 static void
+mlx5e_disable_tx_dma(struct mlx5e_channel *ch)
+{
+	int i;
+
+	for (i = 0; i < ch->num_tc; i++)
+		mlx5e_drain_sq(&ch->sq[i]);
+}
+
+static void
+mlx5e_reset_sq_doorbell_record(struct mlx5e_sq *sq)
+{
+
+	sq->doorbell.d32[0] = cpu_to_be32(MLX5_OPCODE_NOP);
+	sq->doorbell.d32[1] = cpu_to_be32(sq->sqn << 8);
+	mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
+	sq->doorbell.d64 = 0;
+}
+
+void
+mlx5e_resume_sq(struct mlx5e_sq *sq)
+{
+	int err;
+
+	/* check if already enabled */
+	if (sq->stopped == 0)
+		return;
+
+	err = mlx5e_modify_sq(sq, MLX5_SQC_STATE_ERR,
+	    MLX5_SQC_STATE_RST);
+	if (err != 0) {
+		if_printf(sq->ifp,
+		    "mlx5e_modify_sq() from ERR to RST failed: %d\n", err);
+	}
+
+	sq->cc = 0;
+	sq->pc = 0;
+
+	/* reset doorbell prior to moving from RST to RDY */
+	mlx5e_reset_sq_doorbell_record(sq);
+
+	err = mlx5e_modify_sq(sq, MLX5_SQC_STATE_RST,
+	    MLX5_SQC_STATE_RDY);
+	if (err != 0) {
+		if_printf(sq->ifp,
+		    "mlx5e_modify_sq() from RST to RDY failed: %d\n", err);
+	}
+
+	mtx_lock(&sq->lock);
+	sq->cev_next_state = MLX5E_CEV_STATE_INITIAL;
+	sq->stopped = 0;
+	mtx_unlock(&sq->lock);
+
+}
+
+static void
+mlx5e_enable_tx_dma(struct mlx5e_channel *ch)
+{
+        int i;
+
+	for (i = 0; i < ch->num_tc; i++)
+		mlx5e_resume_sq(&ch->sq[i]);
+}
+
+static void
+mlx5e_disable_rx_dma(struct mlx5e_channel *ch)
+{
+	struct mlx5e_rq *rq = &ch->rq;
+	int err;
+
+	mtx_lock(&rq->mtx);
+	rq->enabled = 0;
+	callout_stop(&rq->watchdog);
+	mtx_unlock(&rq->mtx);
+
+	callout_drain(&rq->watchdog);
+
+	err = mlx5e_modify_rq(rq, MLX5_RQC_STATE_RDY, MLX5_RQC_STATE_ERR);
+	if (err != 0) {
+		if_printf(rq->ifp,
+		    "mlx5e_modify_rq() from RDY to RST failed: %d\n", err);
+	}
+
+	while (!mlx5_wq_ll_is_empty(&rq->wq)) {
+		msleep(1);
+		rq->cq.mcq.comp(&rq->cq.mcq);
+	}
+
+	/*
+	 * Transitioning into RST state will allow the FW to track less ERR state queues,
+	 * thus reducing the recv queue flushing time
+	 */
+	err = mlx5e_modify_rq(rq, MLX5_RQC_STATE_ERR, MLX5_RQC_STATE_RST);
+	if (err != 0) {
+		if_printf(rq->ifp,
+		    "mlx5e_modify_rq() from ERR to RST failed: %d\n", err);
+	}
+}
+
+static void
+mlx5e_enable_rx_dma(struct mlx5e_channel *ch)
+{
+	struct mlx5e_rq *rq = &ch->rq;
+	int err;
+
+	rq->wq.wqe_ctr = 0;
+	mlx5_wq_ll_update_db_record(&rq->wq);
+	err = mlx5e_modify_rq(rq, MLX5_RQC_STATE_RST, MLX5_RQC_STATE_RDY);
+	if (err != 0) {
+		if_printf(rq->ifp,
+		    "mlx5e_modify_rq() from RST to RDY failed: %d\n", err);
+        }
+
+	rq->enabled = 1;
+
+	rq->cq.mcq.comp(&rq->cq.mcq);
+}
+
+void
+mlx5e_modify_tx_dma(struct mlx5e_priv *priv, uint8_t value)
+{
+	int i;
+
+	if (priv->channel == NULL)
+		return;
+
+	for (i = 0; i < priv->params.num_channels; i++) {
+
+		if (!priv->channel[i])
+			continue;
+
+		if (value)
+			mlx5e_disable_tx_dma(priv->channel[i]);
+		else
+			mlx5e_enable_tx_dma(priv->channel[i]);
+	}
+}
+
+void
+mlx5e_modify_rx_dma(struct mlx5e_priv *priv, uint8_t value)
+{
+	int i;
+
+	if (priv->channel == NULL)
+		return;
+
+	for (i = 0; i < priv->params.num_channels; i++) {
+
+		if (!priv->channel[i])
+			continue;
+
+		if (value)
+			mlx5e_disable_rx_dma(priv->channel[i]);
+		else
+			mlx5e_enable_rx_dma(priv->channel[i]);
+	}
+}
+
+static void
 mlx5e_add_hw_stats(struct mlx5e_priv *priv)
 {
 	SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(priv->sysctl_hw),
@@ -3036,7 +3313,7 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	ifp->if_capabilities |= IFCAP_LINKSTATE | IFCAP_JUMBO_MTU;
 	ifp->if_capabilities |= IFCAP_LRO;
 	ifp->if_capabilities |= IFCAP_TSO | IFCAP_VLAN_HWTSO;
-	ifp->if_capabilities |= IFCAP_HWSTATS;
+	ifp->if_capabilities |= IFCAP_HWSTATS | IFCAP_HWRXTSTMP;
 
 	/* set TSO limits so that we don't have to drop TX packets */
 	ifp->if_hw_tsomax = MLX5E_MAX_TX_PAYLOAD_SIZE - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
@@ -3185,6 +3462,13 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	mlx5e_update_stats(priv);
 	mtx_unlock(&priv->async_events_mtx);
 
+	SYSCTL_ADD_INT(&priv->sysctl_ctx, SYSCTL_CHILDREN(priv->sysctl_ifnet),
+	    OID_AUTO, "rx_clbr_done", CTLFLAG_RD,
+	    &priv->clbr_done, 0,
+	    "RX timestamps calibration state");
+	callout_init(&priv->tstmp_clbr, CALLOUT_DIRECT);
+	mlx5e_reset_calibration_callout(priv);
+
 	return (priv);
 
 err_dealloc_transport_domain:
@@ -3228,6 +3512,8 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 
 	/* stop watchdog timer */
 	callout_drain(&priv->watchdog);
+
+	callout_drain(&priv->tstmp_clbr);
 
 	if (priv->vlan_attach != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_config, priv->vlan_attach);

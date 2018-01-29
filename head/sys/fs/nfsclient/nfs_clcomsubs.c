@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -131,7 +133,8 @@ static int nfs_bigrequest[NFSV41_NPROCS] = {
  */
 APPLESTATIC void
 nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
-    u_int8_t *nfhp, int fhlen, u_int32_t **opcntpp, struct nfsclsession *sep)
+    u_int8_t *nfhp, int fhlen, u_int32_t **opcntpp, struct nfsclsession *sep,
+    int vers, int minorvers)
 {
 	struct mbuf *mb;
 	u_int32_t *tl;
@@ -142,14 +145,22 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 	 * First, fill in some of the fields of nd.
 	 */
 	nd->nd_slotseq = NULL;
-	if (NFSHASNFSV4(nmp)) {
+	if (vers == NFS_VER4) {
 		nd->nd_flag = ND_NFSV4 | ND_NFSCL;
-		if (NFSHASNFSV4N(nmp))
+		if (minorvers == NFSV41_MINORVERSION)
 			nd->nd_flag |= ND_NFSV41;
-	} else if (NFSHASNFSV3(nmp))
+	} else if (vers == NFS_VER3)
 		nd->nd_flag = ND_NFSV3 | ND_NFSCL;
-	else
-		nd->nd_flag = ND_NFSV2 | ND_NFSCL;
+	else {
+		if (NFSHASNFSV4(nmp)) {
+			nd->nd_flag = ND_NFSV4 | ND_NFSCL;
+			if (NFSHASNFSV4N(nmp))
+				nd->nd_flag |= ND_NFSV41;
+		} else if (NFSHASNFSV3(nmp))
+			nd->nd_flag = ND_NFSV3 | ND_NFSCL;
+		else
+			nd->nd_flag = ND_NFSV2 | ND_NFSCL;
+	}
 	nd->nd_procnum = procnum;
 	nd->nd_repstat = 0;
 
@@ -250,7 +261,6 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 		NFSINCRGLOBAL(nfsstatsv1.rpccnt[procnum]);
 }
 
-#ifndef APPLE
 /*
  * copies a uio scatter/gather list to an mbuf chain.
  * NOTE: can ony handle iovcnt == 1
@@ -332,7 +342,77 @@ nfsm_uiombuf(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 		nd->nd_bpos = NFSMTOD(mp, caddr_t) + mbuf_len(mp);
 	nd->nd_mb = mp;
 }
-#endif	/* !APPLE */
+
+/*
+ * copies a uio scatter/gather list to an mbuf chain.
+ * This version returns the mbuf list and does not use "nd".
+ * NOTE: can ony handle iovcnt == 1
+ */
+struct mbuf *
+nfsm_uiombuflist(struct uio *uiop, int siz, struct mbuf **mbp, char **cpp)
+{
+	char *uiocp;
+	struct mbuf *mp, *mp2, *firstmp;
+	int xfer, left, mlen;
+	int uiosiz, clflg, rem;
+	char *tcp;
+
+	KASSERT(uiop->uio_iovcnt == 1, ("nfsm_uiotombuf: iovcnt != 1"));
+
+	if (siz > ncl_mbuf_mlen)	/* or should it >= MCLBYTES ?? */
+		clflg = 1;
+	else
+		clflg = 0;
+	rem = NFSM_RNDUP(siz) - siz;
+	if (clflg != 0)
+		NFSMCLGET(mp, M_WAITOK);
+	else
+		NFSMGET(mp);
+	mbuf_setlen(mp, 0);
+	firstmp = mp2 = mp;
+	while (siz > 0) {
+		left = uiop->uio_iov->iov_len;
+		uiocp = uiop->uio_iov->iov_base;
+		if (left > siz)
+			left = siz;
+		uiosiz = left;
+		while (left > 0) {
+			mlen = M_TRAILINGSPACE(mp);
+			if (mlen == 0) {
+				if (clflg)
+					NFSMCLGET(mp, M_WAITOK);
+				else
+					NFSMGET(mp);
+				mbuf_setlen(mp, 0);
+				mbuf_setnext(mp2, mp);
+				mp2 = mp;
+				mlen = M_TRAILINGSPACE(mp);
+			}
+			xfer = (left > mlen) ? mlen : left;
+			if (uiop->uio_segflg == UIO_SYSSPACE)
+				NFSBCOPY(uiocp, NFSMTOD(mp, caddr_t) +
+				    mbuf_len(mp), xfer);
+			else
+				copyin(uiocp, NFSMTOD(mp, caddr_t) +
+				    mbuf_len(mp), xfer);
+			mbuf_setlen(mp, mbuf_len(mp) + xfer);
+			left -= xfer;
+			uiocp += xfer;
+			uiop->uio_offset += xfer;
+			uiop->uio_resid -= xfer;
+		}
+		tcp = (char *)uiop->uio_iov->iov_base;
+		tcp += uiosiz;
+		uiop->uio_iov->iov_base = (void *)tcp;
+		uiop->uio_iov->iov_len -= uiosiz;
+		siz -= uiosiz;
+	}
+	if (cpp != NULL)
+		*cpp = NFSMTOD(mp, caddr_t) + mbuf_len(mp);
+	if (mbp != NULL)
+		*mbp = mp;
+	return (firstmp);
+}
 
 /*
  * Load vnode attributes from the xdr file attributes.
@@ -353,7 +433,7 @@ nfsm_loadattr(struct nfsrv_descript *nd, struct nfsvattr *nap)
 		nap->na_mode = fxdr_unsigned(u_short, fp->fa_mode);
 		nap->na_rdev = makedev(fxdr_unsigned(u_char, fp->fa3_rdev.specdata1),
 			fxdr_unsigned(u_char, fp->fa3_rdev.specdata2));
-		nap->na_nlink = fxdr_unsigned(u_short, fp->fa_nlink);
+		nap->na_nlink = fxdr_unsigned(uint32_t, fp->fa_nlink);
 		nap->na_uid = fxdr_unsigned(uid_t, fp->fa_uid);
 		nap->na_gid = fxdr_unsigned(gid_t, fp->fa_gid);
 		nap->na_size = fxdr_hyper(&fp->fa3_size);
@@ -419,7 +499,7 @@ nfscl_getcookie(struct nfsnode *np, off_t off, int add)
 	dp = LIST_FIRST(&np->n_cookies);
 	if (!dp) {
 		if (add) {
-			MALLOC(dp, struct nfsdmap *, sizeof (struct nfsdmap),
+			dp = malloc(sizeof (struct nfsdmap),
 				M_NFSDIROFF, M_WAITOK);
 			dp->ndm_eocookie = 0;
 			LIST_INSERT_HEAD(&np->n_cookies, dp, ndm_list);
@@ -434,7 +514,7 @@ nfscl_getcookie(struct nfsnode *np, off_t off, int add)
 				return (NULL);
 			dp = LIST_NEXT(dp, ndm_list);
 		} else if (add) {
-			MALLOC(dp2, struct nfsdmap *, sizeof (struct nfsdmap),
+			dp2 = malloc(sizeof (struct nfsdmap),
 				M_NFSDIROFF, M_WAITOK);
 			dp2->ndm_eocookie = 0;
 			LIST_INSERT_AFTER(dp, dp2, ndm_list);

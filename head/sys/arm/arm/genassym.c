@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Olivier Houchard
  * All rights reserved.
  *
@@ -31,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpuset.h>
 #include <sys/systm.h>
 #include <sys/assym.h>
+#include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/vmmeter.h>
@@ -49,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuinfo.h>
 #include <machine/intr.h>
 #include <machine/sysarch.h>
+#include <machine/vmparam.h>	/* For KERNVIRTADDR */
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -57,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 
 ASSYM(KERNBASE, KERNBASE);
+ASSYM(KERNVIRTADDR, KERNVIRTADDR);
 #if __ARM_ARCH >= 6
 ASSYM(CPU_ASID_KERNEL,CPU_ASID_KERNEL);
 #endif
@@ -132,6 +137,10 @@ ASSYM(PCB_VFPSTATE, offsetof(struct pcb, pcb_vfpstate));
 
 #if __ARM_ARCH >= 6
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
+ASSYM(PC_BP_HARDEN_KIND, offsetof(struct pcpu, pc_bp_harden_kind));
+ASSYM(PCPU_BP_HARDEN_KIND_NONE, PCPU_BP_HARDEN_KIND_NONE);
+ASSYM(PCPU_BP_HARDEN_KIND_BPIALL, PCPU_BP_HARDEN_KIND_BPIALL);
+ASSYM(PCPU_BP_HARDEN_KIND_ICIALLU, PCPU_BP_HARDEN_KIND_ICIALLU);
 #endif
 
 ASSYM(PAGE_SIZE, PAGE_SIZE);
@@ -159,3 +168,12 @@ ASSYM(DCACHE_LINE_SIZE, offsetof(struct cpuinfo, dcache_line_size));
 ASSYM(DCACHE_LINE_MASK, offsetof(struct cpuinfo, dcache_line_mask));
 ASSYM(ICACHE_LINE_SIZE, offsetof(struct cpuinfo, icache_line_size));
 ASSYM(ICACHE_LINE_MASK, offsetof(struct cpuinfo, icache_line_mask));
+
+/*
+ * Emit the LOCORE_MAP_MB option as a #define only if the option was set.
+ */
+#include "opt_locore.h"
+
+#ifdef LOCORE_MAP_MB
+ASSYM(LOCORE_MAP_MB, LOCORE_MAP_MB);
+#endif

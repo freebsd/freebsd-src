@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
  *
@@ -33,6 +35,7 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
+int numerics(char const * str);
 time_t parse_date(time_t dt, char const * str);
 void print_date(char *buf, time_t t, int dotime);
 __END_DECLS

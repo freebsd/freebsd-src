@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
@@ -71,9 +73,6 @@ extern void sctp_asconf_iterator_end(void *ptr, uint32_t val);
 extern int32_t
 sctp_set_primary_ip_address_sa(struct sctp_tcb *,
     struct sockaddr *);
-
-extern void
-     sctp_set_primary_ip_address(struct sctp_ifa *ifa);
 
 extern void
 sctp_check_address_list(struct sctp_tcb *, struct mbuf *, int, int,

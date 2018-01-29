@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994,1995 Stefan Esser, Wolfgang StanglMeier
  * Copyright (c) 2000 Michael Smith <msmith@freebsd.org>
  * Copyright (c) 2000 BSDi
@@ -1239,10 +1241,8 @@ static void
 pcib_pcie_ab_timeout(void *arg)
 {
 	struct pcib_softc *sc;
-	device_t dev;
 
 	sc = arg;
-	dev = sc->dev;
 	mtx_assert(&Giant, MA_OWNED);
 	if (sc->flags & PCIB_DETACH_PENDING) {
 		sc->flags |= PCIB_DETACHING;
@@ -1482,16 +1482,14 @@ pcib_cfg_save(struct pcib_softc *sc)
 static void
 pcib_cfg_restore(struct pcib_softc *sc)
 {
-	device_t	dev;
 #ifndef NEW_PCIB
 	uint16_t command;
 #endif
-	dev = sc->dev;
 
 #ifdef NEW_PCIB
 	pcib_write_windows(sc, WIN_IO | WIN_MEM | WIN_PMEM);
 #else
-	command = pci_read_config(dev, PCIR_COMMAND, 2);
+	command = pci_read_config(sc->dev, PCIR_COMMAND, 2);
 	if (command & PCIM_CMD_PORTEN)
 		pcib_set_io_decode(sc);
 	if (command & PCIM_CMD_MEMEN)

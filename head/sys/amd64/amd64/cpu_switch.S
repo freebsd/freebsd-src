@@ -87,7 +87,6 @@ END(cpu_throw)
 ENTRY(cpu_switch)
 	/* Switch to new thread.  First, save context. */
 	movq	TD_PCB(%rdi),%r8
-	orl	$PCB_FULL_IRET,PCB_FLAGS(%r8)
 
 	movq	(%rsp),%rax			/* Hardware registers */
 	movq	%r15,PCB_R15(%r8)
@@ -99,6 +98,30 @@ ENTRY(cpu_switch)
 	movq	%rbx,PCB_RBX(%r8)
 	movq	%rax,PCB_RIP(%r8)
 
+	testl	$PCB_FULL_IRET,PCB_FLAGS(%r8)
+	jnz	2f
+	orl	$PCB_FULL_IRET,PCB_FLAGS(%r8)
+	testl	$TDP_KTHREAD,TD_PFLAGS(%rdi)
+	jnz	2f
+	testb	$CPUID_STDEXT_FSGSBASE,cpu_stdext_feature(%rip)
+	jz	2f
+	movl	%fs,%eax
+	cmpl	$KUF32SEL,%eax
+	jne	1f
+	rdfsbase %rax
+	movq	%rax,PCB_FSBASE(%r8)
+1:	movl	%gs,%eax
+	cmpl	$KUG32SEL,%eax
+	jne	2f
+	movq	%rdx,%r12
+	movl	$MSR_KGSBASE,%ecx		/* Read user gs base */
+	rdmsr
+	shlq	$32,%rdx
+	orq	%rdx,%rax
+	movq	%rax,PCB_GSBASE(%r8)
+	movq	%r12,%rdx
+
+2:
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
 	jnz	store_dr			/* static predict not taken */
 done_store_dr:
@@ -149,7 +172,7 @@ sw1:
 	 * to load up the rest of the next context.
 	 */
 
-	/* Skip loading user fsbase/gsbase for kthreads */
+	/* Skip loading LDT and user fsbase/gsbase for kthreads */
 	testl	$TDP_KTHREAD,TD_PFLAGS(%r12)
 	jnz	do_kthread
 
@@ -192,8 +215,10 @@ done_tss:
 	movq	%r8,PCPU(RSP0)
 	movq	%r8,PCPU(CURPCB)
 	/* Update the TSS_RSP0 pointer for the next interrupt */
-	movq	%r8,COMMON_TSS_RSP0(%rdx)
-	movq	%r12,PCPU(CURTHREAD)		/* into next thread */
+	cmpb	$0,pti(%rip)
+	jne	1f
+	movq	%r8,TSS_RSP0(%rdx)
+1:	movq	%r12,PCPU(CURTHREAD)		/* into next thread */
 
 	/* Test if debug registers should be restored. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
@@ -270,7 +295,12 @@ do_tss:	movq	%rdx,PCPU(TSSP)
 	shrq	$8,%rcx
 	movl	%ecx,8(%rax)
 	movb	$0x89,5(%rax)	/* unset busy */
-	movl	$TSSSEL,%eax
+	cmpb	$0,pti(%rip)
+	je	1f
+	movq	PCPU(PRVSPACE),%rax
+	addq	$PC_PTI_STACK+PC_PTI_STACK_SZ*8,%rax
+	movq	%rax,TSS_RSP0(%rdx)
+1:	movl	$TSSSEL,%eax
 	ltr	%ax
 	jmp	done_tss
 

@@ -252,6 +252,26 @@ static void mlx4_en_free_rx_buf(struct mlx4_en_priv *priv,
 	}
 }
 
+void mlx4_en_set_num_rx_rings(struct mlx4_en_dev *mdev)
+{
+	int i;
+	int num_of_eqs;
+	int num_rx_rings;
+	struct mlx4_dev *dev = mdev->dev;
+
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
+		num_of_eqs = max_t(int, MIN_RX_RINGS,
+				   min_t(int,
+					 mlx4_get_eqs_per_port(mdev->dev, i),
+					 DEF_RX_RINGS));
+
+		num_rx_rings = mlx4_low_memory_profile() ? MIN_RX_RINGS :
+							   num_of_eqs;
+		mdev->profile.prof[i].rx_ring_num =
+			rounddown_pow_of_two(num_rx_rings);
+	}
+}
+
 void mlx4_en_calc_rx_buf(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -259,7 +279,7 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 	    MLX4_NET_IP_ALIGN;
 
 	if (eff_mtu > MJUM16BYTES) {
-		en_err(priv, "MTU(%d) is too big\n", dev->if_mtu);
+		en_err(priv, "MTU(%u) is too big\n", (unsigned)dev->if_mtu);
                 eff_mtu = MJUM16BYTES;
         } else if (eff_mtu > MJUM9BYTES) {
                 eff_mtu = MJUM16BYTES;
@@ -399,7 +419,7 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 			__be32 *ptr = (__be32 *)ring->buf;
 			__be32 stamp = cpu_to_be32(1 << STAMP_SHIFT);
 			*ptr = stamp;
-			/* Move pointer to start of rx section */	
+			/* Move pointer to start of rx section */
 			ring->buf += TXBB_SIZE;
 		}
 
@@ -555,12 +575,59 @@ mlx4_en_rx_mb(struct mlx4_en_priv *priv, struct mlx4_en_rx_ring *ring,
 	return (mb);
 }
 
+static __inline int
+mlx4_en_rss_hash(__be16 status, int udp_rss)
+{
+	enum {
+		status_all = cpu_to_be16(
+			MLX4_CQE_STATUS_IPV4    |
+			MLX4_CQE_STATUS_IPV4F   |
+			MLX4_CQE_STATUS_IPV6    |
+			MLX4_CQE_STATUS_TCP     |
+			MLX4_CQE_STATUS_UDP),
+		status_ipv4_tcp = cpu_to_be16(
+			MLX4_CQE_STATUS_IPV4    |
+			MLX4_CQE_STATUS_TCP),
+		status_ipv6_tcp = cpu_to_be16(
+			MLX4_CQE_STATUS_IPV6    |
+			MLX4_CQE_STATUS_TCP),
+		status_ipv4_udp = cpu_to_be16(
+			MLX4_CQE_STATUS_IPV4    |
+			MLX4_CQE_STATUS_UDP),
+		status_ipv6_udp = cpu_to_be16(
+			MLX4_CQE_STATUS_IPV6    |
+			MLX4_CQE_STATUS_UDP),
+		status_ipv4 = cpu_to_be16(MLX4_CQE_STATUS_IPV4),
+		status_ipv6 = cpu_to_be16(MLX4_CQE_STATUS_IPV6)
+	};
+
+	status &= status_all;
+	switch (status) {
+	case status_ipv4_tcp:
+		return (M_HASHTYPE_RSS_TCP_IPV4);
+	case status_ipv6_tcp:
+		return (M_HASHTYPE_RSS_TCP_IPV6);
+	case status_ipv4_udp:
+		return (udp_rss ? M_HASHTYPE_RSS_UDP_IPV4
+		    : M_HASHTYPE_RSS_IPV4);
+	case status_ipv6_udp:
+		return (udp_rss ? M_HASHTYPE_RSS_UDP_IPV6
+		    : M_HASHTYPE_RSS_IPV6);
+	default:
+		if (status & status_ipv4)
+			return (M_HASHTYPE_RSS_IPV4);
+		if (status & status_ipv6)
+			return (M_HASHTYPE_RSS_IPV6);
+		return (M_HASHTYPE_OPAQUE_HASH);
+	}
+}
+
 /* For cpu arch with cache line of 64B the performance is better when cqe size==64B
  * To enlarge cqe size from 32B to 64B --> 32B of garbage (i.e. 0xccccccc)
  * was added in the beginning of each cqe (the real data is in the corresponding 32B).
  * The following calc ensures that when factor==1, it means we are aligned to 64B
  * and we get the real cqe data*/
-#define CQE_FACTOR_INDEX(index, factor) ((index << factor) + factor)
+#define CQE_FACTOR_INDEX(index, factor) (((index) << (factor)) + (factor))
 int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int budget)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -578,6 +645,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	u32 size_mask = ring->size_mask;
 	int size = cq->size;
 	int factor = priv->cqe_factor;
+	const int udp_rss = priv->mdev->profile.udp_rss;
 
 	if (!priv->port_up)
 		return 0;
@@ -625,10 +693,10 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 		/* forward Toeplitz compatible hash value */
 		mb->m_pkthdr.flowid = be32_to_cpu(cqe->immed_rss_invalid);
-		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE_HASH);
+		M_HASHTYPE_SET(mb, mlx4_en_rss_hash(cqe->status, udp_rss));
 		mb->m_pkthdr.rcvif = dev;
 		if (be32_to_cpu(cqe->vlan_my_qpn) &
-		    MLX4_CQE_VLAN_PRESENT_MASK) {
+		    MLX4_CQE_CVLAN_PRESENT_MASK) {
 			mb->m_pkthdr.ether_vtag = be16_to_cpu(cqe->sl_vid);
 			mb->m_flags |= M_VLANTAG;
 		}
@@ -754,7 +822,7 @@ static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv, int qpn,
 		return -ENOMEM;
 	}
 
-	err = mlx4_qp_alloc(mdev->dev, qpn, qp);
+	err = mlx4_qp_alloc(mdev->dev, qpn, qp, GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed to allocate qp #%x\n", qpn);
 		goto out;
@@ -794,7 +862,7 @@ int mlx4_en_create_drop_qp(struct mlx4_en_priv *priv)
 		en_err(priv, "Failed reserving drop qpn\n");
 		return err;
 	}
-	err = mlx4_qp_alloc(priv->mdev->dev, qpn, &priv->drop_qp);
+	err = mlx4_qp_alloc(priv->mdev->dev, qpn, &priv->drop_qp, GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed allocating drop qp\n");
 		mlx4_qp_release_range(priv->mdev->dev, qpn, 1);
@@ -814,6 +882,38 @@ void mlx4_en_destroy_drop_qp(struct mlx4_en_priv *priv)
 	mlx4_qp_release_range(priv->mdev->dev, qpn, 1);
 }
 
+const u32 *
+mlx4_en_get_rss_key(struct mlx4_en_priv *priv __unused,
+    u16 *keylen)
+{
+	static const u32 rsskey[10] = {
+		cpu_to_be32(0xD181C62C),
+		cpu_to_be32(0xF7F4DB5B),
+		cpu_to_be32(0x1983A2FC),
+		cpu_to_be32(0x943E1ADB),
+		cpu_to_be32(0xD9389E6B),
+		cpu_to_be32(0xD1039C2C),
+		cpu_to_be32(0xA74499AD),
+		cpu_to_be32(0x593D56D9),
+		cpu_to_be32(0xF3253C06),
+		cpu_to_be32(0x2ADC1FFC)
+	};
+
+	if (keylen != NULL)
+		*keylen = sizeof(rsskey);
+	return (rsskey);
+}
+
+u8 mlx4_en_get_rss_mask(struct mlx4_en_priv *priv)
+{
+	u8 rss_mask = (MLX4_RSS_IPV4 | MLX4_RSS_TCP_IPV4 | MLX4_RSS_IPV6 |
+			MLX4_RSS_TCP_IPV6);
+
+	if (priv->mdev->profile.udp_rss)
+		rss_mask |=  MLX4_RSS_UDP_IPV4 | MLX4_RSS_UDP_IPV6;
+	return (rss_mask);
+}
+
 /* Allocate rx qp's and configure them according to rss map */
 int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 {
@@ -821,16 +921,12 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	struct mlx4_en_rss_map *rss_map = &priv->rss_map;
 	struct mlx4_qp_context context;
 	struct mlx4_rss_context *rss_context;
+	const u32 *key;
 	int rss_rings;
 	void *ptr;
-	u8 rss_mask = (MLX4_RSS_IPV4 | MLX4_RSS_TCP_IPV4 | MLX4_RSS_IPV6 |
-			MLX4_RSS_TCP_IPV6);
 	int i;
 	int err = 0;
 	int good_qps = 0;
-	static const u32 rsskey[10] = { 0xD181C62C, 0xF7F4DB5B, 0x1983A2FC,
-				0x943E1ADB, 0xD9389E6B, 0xD1039C2C, 0xA74499AD,
-				0x593D56D9, 0xF3253C06, 0x2ADC1FFC};
 
 	en_dbg(DRV, priv, "Configuring rss steering\n");
 	err = mlx4_qp_reserve_range(mdev->dev, priv->rx_ring_num,
@@ -854,7 +950,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	}
 
 	/* Configure RSS indirection qp */
-	err = mlx4_qp_alloc(mdev->dev, priv->base_qpn, &rss_map->indir_qp);
+	err = mlx4_qp_alloc(mdev->dev, priv->base_qpn, &rss_map->indir_qp, GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed to allocate RSS indirection QP\n");
 		goto rss_err;
@@ -874,14 +970,13 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	rss_context->base_qpn = cpu_to_be32(ilog2(rss_rings) << 24 |
 					    (rss_map->base_qpn));
 	rss_context->default_qpn = cpu_to_be32(rss_map->base_qpn);
-	if (priv->mdev->profile.udp_rss) {
-		rss_mask |=  MLX4_RSS_UDP_IPV4 | MLX4_RSS_UDP_IPV6;
+	if (priv->mdev->profile.udp_rss)
 		rss_context->base_qpn_udp = rss_context->default_qpn;
-	}
-	rss_context->flags = rss_mask;
+	rss_context->flags = mlx4_en_get_rss_mask(priv);
 	rss_context->hash_fn = MLX4_RSS_HASH_TOP;
+	key = mlx4_en_get_rss_key(priv, NULL);
 	for (i = 0; i < 10; i++)
-		rss_context->rss_key[i] = cpu_to_be32(rsskey[i]);
+		rss_context->rss_key[i] = key[i];
 
 	err = mlx4_qp_to_ready(mdev->dev, &priv->res.mtt, &context,
 			       &rss_map->indir_qp, &rss_map->indir_state);

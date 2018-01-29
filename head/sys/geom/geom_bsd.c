@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -71,6 +73,8 @@ FEATURE(geom_bsd, "GEOM BSD disklabels support");
 #define HISTORIC_LABEL_OFFSET	512
 
 #define LABELSIZE (148 + 16 * MAXPARTITIONS)
+
+static int g_bsd_once;
 
 static void g_bsd_hotwrite(void *arg, int flag);
 /*
@@ -504,6 +508,12 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		g_slice_conf_hot(gp, 0, ms->labeloffset, LABELSIZE,
 		    G_SLICE_HOT_ALLOW, G_SLICE_HOT_DENY, G_SLICE_HOT_CALL);
 		gsp->hot = g_bsd_hotwrite;
+		if (!g_bsd_once) {
+			g_bsd_once = 1;
+			printf(
+			    "WARNING: geom_bsd (geom %s) is deprecated, "
+			    "use gpart instead.\n", gp->name);
+		}
 		return (gp);
 	}
 	/*

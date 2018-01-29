@@ -66,8 +66,9 @@ SRCS+=	utaddress.c utalloc.c utascii.c utbuffer.c utcache.c	\
 	uteval.c utexcep.c utglobal.c uthex.c utids.c utinit.c	\
 	utlock.c utmath.c utmisc.c utmutex.c utnonansi.c	\
 	utobject.c utosi.c utownerid.c utpredef.c utresdecode.c	\
-	utresrc.c utstate.c utstring.c utstrtoul64.c uttrack.c	\
-	utuuid.c utxface.c utxferror.c utxfinit.c
+	utresrc.c utstate.c utstring.c utstrsuppt.c		\
+	utstrtoul64.c uttrack.c utuuid.c utxface.c utxferror.c	\
+	utxfinit.c
 
 # os_specific/service_layers
 SRCS+=	osgendbg.c osunixxf.c
@@ -79,3 +80,13 @@ CFLAGS+= -DACPI_EXEC_APP -fno-strict-aliasing
 LIBADD=	pthread
 
 .include <bsd.prog.mk>
+
+# clang 6.0.0 and higher warn about the ACPI_ROOT_OBJECT and
+# ACPI_TO_POINTER macros from sys/contrib/dev/acpica/include/actypes.h,
+# that they use arithmetic on a null pointer treated as a cast from
+# integer to pointer, which is a GNU extension.
+#
+# Turn off the warning, because this is in contributed code.
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 60000
+CWARNFLAGS+=	-Wno-null-pointer-arithmetic
+.endif

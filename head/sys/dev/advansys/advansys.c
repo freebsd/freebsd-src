@@ -7,6 +7,8 @@
  *			ABP940UA, ABP950, ABP960, ABP960U, ABP960UA,
  *			ABP970, ABP970U
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996-2000 Justin Gibbs.
  * All rights reserved.
  *
@@ -1397,6 +1399,8 @@ adv_attach(adv)
 	csa.callback_arg = adv;
 	xpt_action((union ccb *)&csa);
 	mtx_unlock(&adv->lock);
+	gone_in_dev(adv->dev, 12, "adv(4) driver");
+
 	return (0);
 }
 MODULE_DEPEND(adv, cam, 1, 1, 1);

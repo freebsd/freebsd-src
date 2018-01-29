@@ -10,7 +10,7 @@
 #
 
 AC_PREREQ(2.61)
-AC_INIT(sqlite, 3.14.1, http://www.sqlite.org)
+AC_INIT(sqlite, 3.20.0, http://www.sqlite.org)
 AC_CONFIG_SRCDIR([sqlite3.c])
 
 # Use automake.
@@ -55,9 +55,9 @@ AS_IF([ test x"$enable_editline" != xno ],[
     LIBS=""
     AC_SEARCH_LIBS([readline],[edit],[
       AC_DEFINE([HAVE_EDITLINE],1,Define to use BSD editline)
-      READLINE_LIBS=$LIBS
+      READLINE_LIBS="$LIBS -ltinfo"
       enable_readline=no
-    ])
+    ],[],[-ltinfo])
     AS_UNSET(ac_cv_search_readline)
     LIBS=$sLIBS
   ])

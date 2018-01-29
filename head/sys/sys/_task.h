@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Doug Rabson
  * All rights reserved.
  *
@@ -65,7 +67,8 @@ struct grouptask {
 	void			*gt_taskqueue;
 	LIST_ENTRY(grouptask)	gt_list;
 	void			*gt_uniq;
-	char			*gt_name;
+#define GROUPTASK_NAMELEN	32
+	char			gt_name[GROUPTASK_NAMELEN];
 	int16_t			gt_irq;
 	int16_t			gt_cpu;
 };

@@ -32,6 +32,10 @@
 
 #include <machine/asm.h>
 
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ > 4)
+	.cfi_sections .debug_frame
+#endif
+
 .globl _C_LABEL(_rtld_relocate_nonplt_self)
 .globl _C_LABEL(_rtld)
 
@@ -43,8 +47,7 @@
  *      a2      rtld object (filled in by dynamic loader)
  *      a3      ps_strings
  */
-LEAF(rtld_start)
-	.frame	sp, 4*PTR_SIZE, ra
+NESTED(rtld_start, 4*PTR_SIZE, ra)	
 	.mask	0x10090000,-PTR_SIZE
 	.set	noreorder
 	SETUP_GP
@@ -100,30 +103,47 @@ END(rtld_start)
 #define	XCALLFRAME_A4		(0*SZREG)
 #endif
 
+/*
+ * Trampoline for "old" PLT stubs which use .got entries.
+ */
 	.globl	_rtld_bind_start
 	.ent	_rtld_bind_start
 _rtld_bind_start:
 	.frame	sp, XCALLFRAME_SIZ, $15
+	.cfi_startproc simple
+	.cfi_def_cfa sp, 0
+	.cfi_register ra, $15
 	move	v1, gp			/* save old GP */
 #if defined(__mips_o32) || defined(__mips_o64)
 	PTR_ADDU t9, 8			/* modify T9 to point at .cpload */
 #endif
 	SETUP_GP
 	PTR_SUBU sp, XCALLFRAME_SIZ	/* save arguments and sp value in stack */
+	.cfi_def_cfa_offset XCALLFRAME_SIZ
 	SETUP_GP64(XCALLFRAME_GP, _rtld_bind_start)
 	SAVE_GP(XCALLFRAME_GP)
 #if defined(__mips_n32) || defined(__mips_n64)
 	REG_S	a4,  XCALLFRAME_A4(sp)
+	.cfi_rel_offset a4, XCALLFRAME_A4
 	REG_S	a5,  XCALLFRAME_A5(sp)
+	.cfi_rel_offset a5, XCALLFRAME_A5
 	REG_S	a6,  XCALLFRAME_A6(sp)
+	.cfi_rel_offset a6, XCALLFRAME_A6
 	REG_S	a7,  XCALLFRAME_A7(sp)
+	.cfi_rel_offset a7, XCALLFRAME_A7
 #endif
 	REG_S	a0,  XCALLFRAME_A0(sp)
+	.cfi_rel_offset a0, XCALLFRAME_A0
 	REG_S	a1,  XCALLFRAME_A1(sp)
+	.cfi_rel_offset a1, XCALLFRAME_A1
 	REG_S	a2,  XCALLFRAME_A2(sp)
+	.cfi_rel_offset a2, XCALLFRAME_A2
 	REG_S	a3,  XCALLFRAME_A3(sp)
+	.cfi_rel_offset a3, XCALLFRAME_A3
 	REG_S	$15,  XCALLFRAME_RA(sp)	/* ra is in t7/t3 */
+	.cfi_rel_offset ra, XCALLFRAME_RA
 	REG_S	s0,  XCALLFRAME_S0(sp)
+	.cfi_rel_offset s0, XCALLFRAME_S0
 	move	s0, sp
 
 	move	a0, v1			/* old GP */
@@ -147,20 +167,123 @@ _rtld_bind_start:
 
 	move	sp, s0
 	REG_L	ra, XCALLFRAME_RA(sp)
+	.cfi_restore ra
 	REG_L	s0, XCALLFRAME_S0(sp)
+	.cfi_restore s0
 	REG_L	a0, XCALLFRAME_A0(sp)
+	.cfi_restore a0
 	REG_L	a1, XCALLFRAME_A1(sp)
+	.cfi_restore a1
 	REG_L	a2, XCALLFRAME_A2(sp)
+	.cfi_restore a2
 	REG_L	a3, XCALLFRAME_A3(sp)
+	.cfi_restore a3
 #if defined(__mips_n32) || defined(__mips_n64)
 	REG_L	a4, XCALLFRAME_A4(sp)
+	.cfi_restore a4
 	REG_L	a5, XCALLFRAME_A5(sp)
+	.cfi_restore a5
 	REG_L	a6, XCALLFRAME_A6(sp)
+	.cfi_restore a6
 	REG_L	a7, XCALLFRAME_A7(sp)
+	.cfi_restore a7
 #endif
 	RESTORE_GP64
 	PTR_ADDU sp, XCALLFRAME_SIZ
 	move	t9, v0
 	jr	t9
 	nop
+	.cfi_endproc
 END(_rtld_bind_start)
+
+
+/*
+ * Trampoline for PLT stubs using .pltrel entries and .got.plt.
+ */
+	.globl	_rtld_pltbind_start
+	.ent	_rtld_pltbind_start
+_rtld_pltbind_start:
+	.frame	sp, XCALLFRAME_SIZ, $15
+	.cfi_startproc simple
+	.cfi_def_cfa sp, 0
+	.cfi_register ra, $15
+#if defined(__mips_o32)
+	move	v1, gp			/* save pointer to .got.plt */
+#else
+	move	v1, t2			/* save pointer to .got.plt */
+#endif
+#if defined(__mips_o32) || defined(__mips_o64)
+	PTR_ADDU t9, 8			/* modify T9 to point at .cpload */
+#endif
+	SETUP_GP
+	PTR_SUBU sp, XCALLFRAME_SIZ	/* save arguments and sp value in stack */
+	.cfi_def_cfa_offset XCALLFRAME_SIZ
+	SETUP_GP64(XCALLFRAME_GP, _rtld_pltbind_start)
+	SAVE_GP(XCALLFRAME_GP)
+#if defined(__mips_n32) || defined(__mips_n64)
+	REG_S	a4,  XCALLFRAME_A4(sp)
+	.cfi_rel_offset a4, XCALLFRAME_A4
+	REG_S	a5,  XCALLFRAME_A5(sp)
+	.cfi_rel_offset a5, XCALLFRAME_A5
+	REG_S	a6,  XCALLFRAME_A6(sp)
+	.cfi_rel_offset a6, XCALLFRAME_A6
+	REG_S	a7,  XCALLFRAME_A7(sp)
+	.cfi_rel_offset a7, XCALLFRAME_A7
+#endif
+	REG_S	a0,  XCALLFRAME_A0(sp)
+	.cfi_rel_offset a0, XCALLFRAME_A0
+	REG_S	a1,  XCALLFRAME_A1(sp)
+	.cfi_rel_offset a1, XCALLFRAME_A1
+	REG_S	a2,  XCALLFRAME_A2(sp)
+	.cfi_rel_offset a2, XCALLFRAME_A2
+	REG_S	a3,  XCALLFRAME_A3(sp)
+	.cfi_rel_offset a3, XCALLFRAME_A3
+	REG_S	$15,  XCALLFRAME_RA(sp)	/* ra is in t7/t3 */
+	.cfi_rel_offset ra, XCALLFRAME_RA
+	REG_S	s0,  XCALLFRAME_S0(sp)
+	.cfi_rel_offset s0, XCALLFRAME_S0
+	move	s0, sp
+
+	move	a0, v1			/* .got.plt */
+#if defined(__mips_n64)
+	ld	a0, 8(a0)		/* object = .got.plt[1] */
+	sll	a1, t8, 4		/* PLT entry index to .rel.plt offset */
+#else
+	lw	a0, 4(a0)		/* object = .got.plt[1] */
+	sll	a1, t8, 3		/* PLT entry index to .rel.plt offset */
+#endif
+
+	PTR_LA	t9, _C_LABEL(_rtld_bind)
+	jalr	t9
+	nop
+
+	move	sp, s0
+	REG_L	ra, XCALLFRAME_RA(sp)
+	.cfi_restore ra
+	REG_L	s0, XCALLFRAME_S0(sp)
+	.cfi_restore s0
+	REG_L	a0, XCALLFRAME_A0(sp)
+	.cfi_restore a0
+	REG_L	a1, XCALLFRAME_A1(sp)
+	.cfi_restore a1
+	REG_L	a2, XCALLFRAME_A2(sp)
+	.cfi_restore a2
+	REG_L	a3, XCALLFRAME_A3(sp)
+	.cfi_restore a3
+#if defined(__mips_n32) || defined(__mips_n64)
+	REG_L	a4, XCALLFRAME_A4(sp)
+	.cfi_restore a4
+	REG_L	a5, XCALLFRAME_A5(sp)
+	.cfi_restore a5
+	REG_L	a6, XCALLFRAME_A6(sp)
+	.cfi_restore a6
+	REG_L	a7, XCALLFRAME_A7(sp)
+	.cfi_restore a7
+#endif
+	RESTORE_GP64
+	PTR_ADDU sp, XCALLFRAME_SIZ
+	move	t9, v0
+	jr	t9
+	nop
+	.cfi_endproc
+END(_rtld_pltbind_start)

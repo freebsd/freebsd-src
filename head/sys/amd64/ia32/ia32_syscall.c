@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1994, David Greenman
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -93,7 +95,8 @@ __FBSDID("$FreeBSD$");
 
 #define	IDTVEC(name)	__CONCAT(X,name)
 
-extern inthand_t IDTVEC(int0x80_syscall), IDTVEC(rsvd);
+extern inthand_t IDTVEC(int0x80_syscall), IDTVEC(int0x80_syscall_pti),
+    IDTVEC(rsvd), IDTVEC(rsvd_pti);
 
 void ia32_syscall(struct trapframe *frame);	/* Called from asm code */
 
@@ -206,14 +209,16 @@ static void
 ia32_syscall_enable(void *dummy)
 {
 
- 	setidt(IDT_SYSCALL, &IDTVEC(int0x80_syscall), SDT_SYSIGT, SEL_UPL, 0);
+ 	setidt(IDT_SYSCALL, pti ? &IDTVEC(int0x80_syscall_pti) :
+	    &IDTVEC(int0x80_syscall), SDT_SYSIGT, SEL_UPL, 0);
 }
 
 static void
 ia32_syscall_disable(void *dummy)
 {
 
- 	setidt(IDT_SYSCALL, &IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
+ 	setidt(IDT_SYSCALL, pti ? &IDTVEC(rsvd_pti) : &IDTVEC(rsvd),
+	    SDT_SYSIGT, SEL_KPL, 0);
 }
 
 SYSINIT(ia32_syscall, SI_SUB_EXEC, SI_ORDER_ANY, ia32_syscall_enable, NULL);

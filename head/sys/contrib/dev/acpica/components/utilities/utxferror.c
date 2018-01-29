@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -214,8 +214,8 @@ ACPI_EXPORT_SYMBOL (AcpiError)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Print "ACPI Exception" message with module/line/version info
- *              and decoded ACPI_STATUS.
+ * DESCRIPTION: Print an "ACPI Error" message with module/line/version
+ *              info as well as decoded ACPI_STATUS.
  *
  ******************************************************************************/
 
@@ -236,12 +236,12 @@ AcpiException (
 
     if (ACPI_SUCCESS (Status))
     {
-        AcpiOsPrintf (ACPI_MSG_EXCEPTION);
+        AcpiOsPrintf (ACPI_MSG_ERROR);
 
     }
     else
     {
-        AcpiOsPrintf (ACPI_MSG_EXCEPTION "%s, ",
+        AcpiOsPrintf (ACPI_MSG_ERROR "%s, ",
             AcpiFormatException (Status));
     }
 

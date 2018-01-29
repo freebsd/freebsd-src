@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -32,23 +32,21 @@
  * <lyndon@orthanc.ca>
  */
 
-#ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
 
-#ifndef lint
 #if 0
 static char sccsid[] = "@(#)morse.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/time.h>
+#include <sys/ioctl.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <fcntl.h>
 #include <langinfo.h>
 #include <locale.h>
@@ -59,8 +57,13 @@ static const char rcsid[] =
 #include <termios.h>
 #include <unistd.h>
 
+#ifdef __FreeBSD__
 /* Always use the speaker, let the open fail if -p is selected */
 #define SPEAKER "/dev/speaker"
+#endif
+
+#define WHITESPACE " \t\n"
+#define DELIMITERS " \t"
 
 #ifdef SPEAKER
 #include <dev/speaker/speaker.h>
@@ -132,6 +135,8 @@ static const struct morsetab mtab[] = {
 	{'$', "...-..-"},
 	{'+', ".-.-."},		/* AR */
 	{'@', ".--.-."},	/* AC */
+	{'_', "..--.-"},
+	{'\'', ".----."},
 
 	/* prosigns without already assigned values */
 
@@ -156,6 +161,7 @@ static const struct morsetab iso8859_1tab[] = {
 	{'\350', "..-.."},	/* è */
 	{'\351', "..-.."},	/* é */
 	{'\352', "-..-."},	/* ê */
+	{'\361', "--.--"},	/* ñ */
 	{'\366', "---."},	/* ö */
 	{'\374', "..--"},	/* ü */
 
@@ -267,14 +273,11 @@ static const struct morsetab koi8rtab[] = {
 };
 
 static void	show(const char *), play(const char *), morse(char);
+static void	decode (char *), fdecode(FILE *);
 static void	ttyout(const char *);
 static void	sighandler(int);
 
-#define GETOPTOPTS "c:d:ef:lsw:"
-#define USAGE \
-"usage: morse [-els] [-d device] [-w speed] [-c speed] [-f frequency] [string ...]\n"
-
-static int	pflag, lflag, sflag, eflag;
+static int	pflag, lflag, rflag, sflag, eflag;
 static int	wpm = 20;	/* effective words per minute */
 static int	cpm;		/* effective words per minute between
 				 * characters */
@@ -293,17 +296,20 @@ static int	olflags;
 
 #ifdef SPEAKER
 static tone_t	sound;
-#undef GETOPTOPTS
-#define GETOPTOPTS "c:d:ef:lpsw:"
-#undef USAGE
+#define GETOPTOPTS "c:d:ef:lprsw:"
 #define USAGE \
-"usage: morse [-elps] [-d device] [-w speed] [-c speed] [-f frequency] [string ...]\n"
+"usage: morse [-elprs] [-d device] [-w speed] [-c speed] [-f frequency] [string ...]\n"
+#else
+#define GETOPTOPTS "c:d:ef:lrsw:"
+#define USAGE \
+"usage: morse [-elrs] [-d device] [-w speed] [-c speed] [-f frequency] [string ...]\n"
+
 #endif
 
 static const struct morsetab *hightab;
 
 int
-main(int argc, char **argv)
+main(int argc, char *argv[])
 {
 	int    ch, lflags;
 	char  *p, *codeset;
@@ -331,6 +337,9 @@ main(int argc, char **argv)
 			pflag = 1;
 			break;
 #endif
+		case 'r':
+			rflag = 1;
+			break;
 		case 's':
 			sflag = 1;
 			break;
@@ -339,42 +348,36 @@ main(int argc, char **argv)
 			break;
 		case '?':
 		default:
-			fputs(USAGE, stderr);
-			exit(1);
+			errx(1, USAGE);
 		}
-	if (sflag && lflag) {
-		fputs("morse: only one of -l and -s allowed\n", stderr);
-		exit(1);
+	if ((sflag && lflag) || (sflag && rflag) || (lflag && rflag)) {
+		errx(1, "morse: only one of -l, -s, and -r allowed\n");
 	}
 	if ((pflag || device) && (sflag || lflag)) {
-		fputs("morse: only one of -p, -d and -l, -s allowed\n", stderr);
-		exit(1);
+		errx(1, "morse: only one of -p, -d and -l, -s allowed\n");
 	}
-	if (cpm == 0)
+	if (cpm == 0) {
 		cpm = wpm;
-	if ((pflag || device) && ((wpm < 1) || (wpm > 60) || (cpm < 1) || (cpm > 60))) {
-		fputs("morse: insane speed\n", stderr);
-		exit(1);
 	}
-	if ((pflag || device) && (freq == 0))
+	if ((pflag || device) && ((wpm < 1) || (wpm > 60) || (cpm < 1) || (cpm > 60))) {
+		errx(1, "morse: insane speed\n");
+	}
+	if ((pflag || device) && (freq == 0)) {
 		freq = FREQUENCY;
-
+	}
 #ifdef SPEAKER
 	if (pflag) {
 		if ((spkr = open(SPEAKER, O_WRONLY, 0)) == -1) {
-			perror(SPEAKER);
-			exit(1);
+			err(1, SPEAKER);
 		}
 	} else
 #endif
 	if (device) {
 		if ((line = open(device, O_WRONLY | O_NONBLOCK)) == -1) {
-			perror("open tty line");
-			exit(1);
+			err(1, "open tty line");
 		}
 		if (tcgetattr(line, &otty) == -1) {
-			perror("tcgetattr() failed");
-			exit(1);
+			err(1, "tcgetattr() failed");
 		}
 		ntty = otty;
 		ntty.c_cflag |= CLOCAL;
@@ -419,9 +422,29 @@ main(int argc, char **argv)
 			hightab = iso8859_7tab;
 	}
 
-	if (lflag)
+	if (lflag) {
 		printf("m");
-	if (*argv) {
+	}
+	if (rflag) {
+		if (*argv) {
+			do {
+				p = strtok(*argv, DELIMITERS);
+				if (p == NULL) {
+					decode(*argv);
+				}
+				else {
+					while (p) {
+						decode(p);
+						p = strtok(NULL, DELIMITERS);
+					}
+				}
+			} while (*++argv);
+			putchar('\n');
+		} else {
+			fdecode(stdin);
+		}
+	}
+	else if (*argv) {
 		do {
 			for (p = *argv; *p; ++p) {
 				if (eflag)
@@ -518,15 +541,13 @@ play(const char *s)
 		}
 		if (sound.duration) {
 			if (ioctl(spkr, SPKRTONE, &sound) == -1) {
-				perror("ioctl play");
-				exit(1);
+				err(1, "ioctl play");
 			}
 		}
 		sound.frequency = 0;
 		sound.duration = dot_clock;
 		if (ioctl(spkr, SPKRTONE, &sound) == -1) {
-			perror("ioctl rest");
-			exit(1);
+			err(1, "ioctl rest");
 		}
 	}
 	sound.frequency = 0;
@@ -575,6 +596,68 @@ ttyout(const char *s)
 	}
 	duration = cdot_clock * CHAR_SPACE * 10000;
 	usleep(duration);
+}
+
+void
+fdecode(FILE *stream)
+{
+	char *n, *p, *s;
+	char buf[BUFSIZ];
+
+	s = buf;
+	while (fgets(s, BUFSIZ - (s - buf), stream)) {
+		p = buf;
+
+		while (*p && isblank(*p)) {
+			p++;
+		}
+		while (*p && isspace(*p)) {
+			p++;
+			putchar (' ');
+		}
+		while (*p) {
+			n = strpbrk(p, WHITESPACE);
+			if (n == NULL) {
+				/* The token was interrupted at the end
+				 * of the buffer. Shift it to the begin
+				 * of the buffer.
+				 */
+				for (s = buf; *p; *s++ = *p++)
+					;
+			} else {
+				*n = '\0';
+				n++;
+				decode(p);
+				p = n;
+			}
+		}
+	}
+	putchar('\n');
+}
+
+void
+decode(char *p)
+{
+	char c;
+	const struct morsetab *m;
+
+	c = ' ';
+	for (m = mtab; m != NULL && m->inchar != '\0'; m++) {
+		if (strcmp(m->morse, p) == 0) {
+			c = m->inchar;
+			break;
+		}
+	}
+
+	if (c == ' ')
+		for (m = hightab; m != NULL && m->inchar != '\0'; m++) {
+			if (strcmp(m->morse, p) == 0) {
+				c = m->inchar;
+				break;
+			}
+		}
+
+	putchar(c);
 }
 
 static void

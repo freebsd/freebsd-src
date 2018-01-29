@@ -74,6 +74,8 @@ static device_detach_t xhci_detach;
 
 static struct ofw_compat_data compat_data[] = {
 	{"marvell,armada-380-xhci",	true},
+	{"marvell,armada3700-xhci",	true},
+	{"marvell,armada-8k-xhci",	true},
 	{NULL,				false}
 };
 

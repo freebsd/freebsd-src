@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2001 Daniel Hartmeier
  * Copyright (c) 2003 Cedric Berger
  * Copyright (c) 2005 Henning Brauer <henning@openbsd.org>

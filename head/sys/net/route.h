@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -67,8 +69,6 @@ struct route {
 #define	RT_MAY_LOOP_BIT		3	/* dst may require loop copy */
 #define	RT_HAS_HEADER_BIT	4	/* mbuf already have its header prepended */
 
-#define	RT_CACHING_CONTEXT	0x1	/* XXX: not used anywhere */
-#define	RT_NORTREF		0x2	/* doesn't hold reference on ro_rt */
 #define	RT_L2_ME		(1 << RT_L2_ME_BIT)		/* 0x0004 */
 #define	RT_MAY_LOOP		(1 << RT_MAY_LOOP_BIT)		/* 0x0008 */
 #define	RT_HAS_HEADER		(1 << RT_HAS_HEADER_BIT)	/* 0x0010 */
@@ -411,16 +411,18 @@ struct rt_addrinfo {
 
 #define	RO_RTFREE(_ro) do {					\
 	if ((_ro)->ro_rt) {					\
-		if ((_ro)->ro_flags & RT_NORTREF) {		\
-			(_ro)->ro_flags &= ~RT_NORTREF;		\
-			(_ro)->ro_rt = NULL;			\
-			(_ro)->ro_lle = NULL;			\
-		} else {					\
-			RT_LOCK((_ro)->ro_rt);			\
-			RTFREE_LOCKED((_ro)->ro_rt);		\
-		}						\
+		RT_LOCK((_ro)->ro_rt);				\
+		RTFREE_LOCKED((_ro)->ro_rt);			\
 	}							\
 } while (0)
+
+#define	RO_INVALIDATE_CACHE(ro) do {					\
+		RO_RTFREE(ro);						\
+		if ((ro)->ro_lle != NULL) {				\
+			LLE_FREE((ro)->ro_lle);				\
+			(ro)->ro_lle = NULL;				\
+		}							\
+	} while (0)
 
 /*
  * Validate a cached route based on a supplied cookie.  If there is an
@@ -430,10 +432,7 @@ struct rt_addrinfo {
 #define RT_VALIDATE(ro, cookiep, fibnum) do {				\
 	rt_gen_t cookie = RT_GEN(fibnum, (ro)->ro_dst.sa_family);	\
 	if (*(cookiep) != cookie) {					\
-		if ((ro)->ro_rt != NULL) {				\
-			RTFREE((ro)->ro_rt);				\
-			(ro)->ro_rt = NULL;				\
-		}							\
+		RO_INVALIDATE_CACHE(ro);				\
 		*(cookiep) = cookie;					\
 	}								\
 } while (0)

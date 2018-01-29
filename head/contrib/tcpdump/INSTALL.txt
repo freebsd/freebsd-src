@@ -37,6 +37,7 @@ Please see "PLATFORMS" for notes about tested platforms.
 FILES
 -----
 CHANGES		- description of differences between releases
+CONTRIBUTING	- guidelines for contributing
 CREDITS		- people that have helped tcpdump along
 INSTALL.txt	- this file
 LICENSE		- the license under which tcpdump is distributed

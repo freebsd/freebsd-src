@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -135,30 +137,33 @@ ncl_dircookie_unlock(struct nfsnode *np)
 	mtx_unlock(&np->n_mtx);
 }
 
-int
-ncl_upgrade_vnlock(struct vnode *vp)
+bool
+ncl_excl_start(struct vnode *vp)
 {
-	int old_lock;
+	struct nfsnode *np;
+	int vn_lk;
 
-	ASSERT_VOP_LOCKED(vp, "ncl_upgrade_vnlock");
-	old_lock = NFSVOPISLOCKED(vp);
-	if (old_lock != LK_EXCLUSIVE) {
-		KASSERT(old_lock == LK_SHARED,
-		    ("ncl_upgrade_vnlock: wrong old_lock %d", old_lock));
-		/* Upgrade to exclusive lock, this might block */
-		NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
-  	}
-	return (old_lock);
+	ASSERT_VOP_LOCKED(vp, "ncl_excl_start");
+	vn_lk = NFSVOPISLOCKED(vp);
+	if (vn_lk == LK_EXCLUSIVE)
+		return (false);
+	KASSERT(vn_lk == LK_SHARED,
+	    ("ncl_excl_start: wrong vnode lock %d", vn_lk));
+	/* Ensure exclusive access, this might block */
+	np = VTONFS(vp);
+	lockmgr(&np->n_excl, LK_EXCLUSIVE, NULL);
+	return (true);
 }
 
 void
-ncl_downgrade_vnlock(struct vnode *vp, int old_lock)
+ncl_excl_finish(struct vnode *vp, bool old_lock)
 {
-	if (old_lock != LK_EXCLUSIVE) {
-		KASSERT(old_lock == LK_SHARED, ("wrong old_lock %d", old_lock));
-		/* Downgrade from exclusive lock. */
-		NFSVOPLOCK(vp, LK_DOWNGRADE | LK_RETRY);
-  	}
+	struct nfsnode *np;
+
+	if (!old_lock)
+		return;
+	np = VTONFS(vp);
+	lockmgr(&np->n_excl, LK_RELEASE, NULL);
 }
 
 #ifdef NFS_ACDEBUG
@@ -273,7 +278,7 @@ ncl_getcookie(struct nfsnode *np, off_t off, int add)
 	dp = LIST_FIRST(&np->n_cookies);
 	if (!dp) {
 		if (add) {
-			MALLOC(dp, struct nfsdmap *, sizeof (struct nfsdmap),
+			dp = malloc(sizeof (struct nfsdmap),
 				M_NFSDIROFF, M_WAITOK);
 			dp->ndm_eocookie = 0;
 			LIST_INSERT_HEAD(&np->n_cookies, dp, ndm_list);
@@ -288,7 +293,7 @@ ncl_getcookie(struct nfsnode *np, off_t off, int add)
 				goto out;
 			dp = LIST_NEXT(dp, ndm_list);
 		} else if (add) {
-			MALLOC(dp2, struct nfsdmap *, sizeof (struct nfsdmap),
+			dp2 = malloc(sizeof (struct nfsdmap),
 				M_NFSDIROFF, M_WAITOK);
 			dp2->ndm_eocookie = 0;
 			LIST_INSERT_AFTER(dp, dp2, ndm_list);

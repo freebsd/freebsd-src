@@ -102,7 +102,7 @@ Supported PCI vendor ID/device IDs:
 .Bl -diag
 .It ena%d: failed to init mmio read less
 .Pp
-Error occured during initialization of the mmio register read request.
+Error occurred during initialization of the mmio register read request.
 .It ena%d: Can not reset device
 .Pp
 Device could not be reset; device may not be responding or is already
@@ -123,7 +123,7 @@ was a problem with initialization of the resources.
 Failed to get attributes of the device from the controller.
 .It ena%d: Cannot configure aenq groups rc: %d
 .Pp
-Errors occured when trying to configure AENQ groups.
+Errors occurred when trying to configure AENQ groups.
 .El
 .Ss Driver initialisation/shutdown phase:
 .Bl -diag
@@ -148,13 +148,13 @@ be attached.
 Device initialization failed; driver will not be attached.
 .It ena%d: could not activate irq vector: %d
 .Pp
-Error occured when trying to activate interrupt vectors for Admin Queue.
+Error occurred when trying to activate interrupt vectors for Admin Queue.
 .It ena%d: failed to register interrupt handler for irq %ju: %d
 .Pp
-Error occured when trying to register Admin Queue interrupt handler.
+Error occurred when trying to register Admin Queue interrupt handler.
 .It ena%d: Cannot setup mgmnt queue intr
 .Pp
-Error occured during configuration of the Admin Queue interrupts.
+Error occurred during configuration of the Admin Queue interrupts.
 .It ena%d: Enable MSI-X failed
 .Pp
 Configuration of the MSI-X for Admin Queue failed; there could be lack
@@ -167,7 +167,7 @@ first and then detach routine should be called again.
 .It ena%d: Unmapped RX DMA tag associations
 .It ena%d: Unmapped TX DMA tag associations
 .Pp
-Error occured when trying to destroy RX/TX DMA tag.
+Error occurred when trying to destroy RX/TX DMA tag.
 .It ena%d: Cannot init RSS
 .It ena%d: Cannot fill indirect table
 .It ena%d: Cannot fill indirect table
@@ -175,7 +175,7 @@ Error occured when trying to destroy RX/TX DMA tag.
 .It ena%d: Cannot fill hash control
 .It ena%d: WARNING: RSS was not properly initialized, it will affect bandwidth
 .Pp
-Error occured during initialization of one of RSS resources; device is still
+Error occurred during initialization of one of RSS resources; device is still
 going to work but it will affect performance because all RX packets will be
 passed to queue 0 and there will be no hash information.
 .It ena%d: failed to tear down irq: %d

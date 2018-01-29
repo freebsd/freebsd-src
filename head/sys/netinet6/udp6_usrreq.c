@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * Copyright (c) 2010-2011 Juniper Networks, Inc.
  * Copyright (c) 2014 Kevin Lo
@@ -1188,7 +1190,6 @@ udp6_disconnect(struct socket *so)
 {
 	struct inpcb *inp;
 	struct inpcbinfo *pcbinfo;
-	int error;
 
 	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
@@ -1210,8 +1211,8 @@ udp6_disconnect(struct socket *so)
 #endif
 
 	if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
-		error = ENOTCONN;
-		goto out;
+		INP_WUNLOCK(inp);
+		return (ENOTCONN);
 	}
 
 	INP_HASH_WLOCK(pcbinfo);
@@ -1221,7 +1222,6 @@ udp6_disconnect(struct socket *so)
 	SOCK_LOCK(so);
 	so->so_state &= ~SS_ISCONNECTED;		/* XXX */
 	SOCK_UNLOCK(so);
-out:
 	INP_WUNLOCK(inp);
 	return (0);
 }

@@ -17,6 +17,7 @@
 #include "PrettyStackTraceLocationContext.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/ParentMap.h"
+#include "clang/Analysis/CFGStmtMap.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/Basic/Builtins.h"
@@ -27,6 +28,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/LoopWidening.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/LoopUnrolling.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/SaveAndRestore.h"
 #include "llvm/Support/raw_ostream.h"
@@ -362,6 +364,9 @@ void ExprEngine::processCFGElement(const CFGElement E, ExplodedNode *Pred,
     case CFGElement::TemporaryDtor:
       ProcessImplicitDtor(E.castAs<CFGImplicitDtor>(), Pred);
       return;
+    case CFGElement::LoopExit:
+      ProcessLoopExit(E.castAs<CFGLoopExit>().getLoopStmt(), Pred);
+      return;
     case CFGElement::LifetimeEnds:
       return;
   }
@@ -503,6 +508,24 @@ void ExprEngine::ProcessStmt(const CFGStmt S,
     Dst.insert(DstI);
   }
 
+  // Enqueue the new nodes onto the work list.
+  Engine.enqueue(Dst, currBldrCtx->getBlock(), currStmtIdx);
+}
+
+void ExprEngine::ProcessLoopExit(const Stmt* S, ExplodedNode *Pred) {
+  PrettyStackTraceLoc CrashInfo(getContext().getSourceManager(),
+                                S->getLocStart(),
+                                "Error evaluating end of the loop");
+  ExplodedNodeSet Dst;
+  Dst.Add(Pred);
+  NodeBuilder Bldr(Pred, Dst, *currBldrCtx);
+  ProgramStateRef NewState = Pred->getState();
+
+  if(AMgr.options.shouldUnrollLoops())
+    NewState = processLoopEnd(S, NewState);
+
+  LoopExit PP(S, Pred->getLocationContext());
+  Bldr.generateNode(PP, NewState, Pred);
   // Enqueue the new nodes onto the work list.
   Engine.enqueue(Dst, currBldrCtx->getBlock(), currStmtIdx);
 }
@@ -804,6 +827,21 @@ void ExprEngine::VisitCXXBindTemporaryExpr(const CXXBindTemporaryExpr *BTE,
   }
 }
 
+namespace {
+class CollectReachableSymbolsCallback final : public SymbolVisitor {
+  InvalidatedSymbols Symbols;
+
+public:
+  explicit CollectReachableSymbolsCallback(ProgramStateRef State) {}
+  const InvalidatedSymbols &getSymbols() const { return Symbols; }
+
+  bool VisitSymbol(SymbolRef Sym) override {
+    Symbols.insert(Sym);
+    return true;
+  }
+};
+} // end anonymous namespace
+
 void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
                        ExplodedNodeSet &DstTop) {
   PrettyStackTraceLoc CrashInfo(getContext().getSourceManager(),
@@ -1080,8 +1118,29 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
         SVal result = svalBuilder.conjureSymbolVal(nullptr, Ex, LCtx,
                                                    resultType,
                                                    currBldrCtx->blockCount());
-        ProgramStateRef state = N->getState()->BindExpr(Ex, LCtx, result);
-        Bldr2.generateNode(S, N, state);
+        ProgramStateRef State = N->getState()->BindExpr(Ex, LCtx, result);
+
+        // Escape pointers passed into the list, unless it's an ObjC boxed
+        // expression which is not a boxable C structure.
+        if (!(isa<ObjCBoxedExpr>(Ex) &&
+              !cast<ObjCBoxedExpr>(Ex)->getSubExpr()
+                                      ->getType()->isRecordType()))
+          for (auto Child : Ex->children()) {
+            assert(Child);
+
+            SVal Val = State->getSVal(Child, LCtx);
+
+            CollectReachableSymbolsCallback Scanner =
+                State->scanReachableSymbols<CollectReachableSymbolsCallback>(
+                    Val);
+            const InvalidatedSymbols &EscapedSymbols = Scanner.getSymbols();
+
+            State = getCheckerManager().runCheckersForPointerEscape(
+                State, EscapedSymbols,
+                /*CallEvent*/ nullptr, PSK_EscapeOther, nullptr);
+          }
+
+        Bldr2.generateNode(S, N, State);
       }
 
       getCheckerManager().runCheckersForPostStmt(Dst, Tmp, S, *this);
@@ -1091,7 +1150,7 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
 
     case Stmt::ArraySubscriptExprClass:
       Bldr.takeNodes(Pred);
-      VisitLvalArraySubscriptExpr(cast<ArraySubscriptExpr>(S), Pred, Dst);
+      VisitArraySubscriptExpr(cast<ArraySubscriptExpr>(S), Pred, Dst);
       Bldr.addNodes(Dst);
       break;
 
@@ -1497,6 +1556,25 @@ void ExprEngine::processCFGBlockEntrance(const BlockEdge &L,
                                          NodeBuilderWithSinks &nodeBuilder,
                                          ExplodedNode *Pred) {
   PrettyStackTraceLocationContext CrashInfo(Pred->getLocationContext());
+  // If we reach a loop which has a known bound (and meets
+  // other constraints) then consider completely unrolling it.
+  if(AMgr.options.shouldUnrollLoops()) {
+    unsigned maxBlockVisitOnPath = AMgr.options.maxBlockVisitOnPath;
+    const Stmt *Term = nodeBuilder.getContext().getBlock()->getTerminator();
+    if (Term) {
+      ProgramStateRef NewState = updateLoopStack(Term, AMgr.getASTContext(),
+                                                 Pred, maxBlockVisitOnPath);
+      if (NewState != Pred->getState()) {
+        ExplodedNode *UpdatedNode = nodeBuilder.generateNode(NewState, Pred);
+        if (!UpdatedNode)
+          return;
+        Pred = UpdatedNode;
+      }
+    }
+    // Is we are inside an unrolled loop then no need the check the counters.
+    if(isUnrolledState(Pred->getState()))
+      return;
+  }
 
   // If this block is terminated by a loop and it has already been visited the
   // maximum number of times, widen the loop.
@@ -2030,10 +2108,12 @@ void ExprEngine::VisitCommonDeclRefExpr(const Expr *Ex, const NamedDecl *D,
                       ProgramPoint::PostLValueKind);
     return;
   }
-  if (isa<FieldDecl>(D)) {
+  if (isa<FieldDecl>(D) || isa<IndirectFieldDecl>(D)) {
     // FIXME: Compute lvalue of field pointers-to-member.
     // Right now we just use a non-null void pointer, so that it gives proper
     // results in boolean contexts.
+    // FIXME: Maybe delegate this to the surrounding operator&.
+    // Note how this expression is lvalue, however pointer-to-member is NonLoc.
     SVal V = svalBuilder.conjureSymbolVal(Ex, LCtx, getContext().VoidPtrTy,
                                           currBldrCtx->blockCount());
     state = state->assume(V.castAs<DefinedOrUnknownSVal>(), true);
@@ -2046,10 +2126,9 @@ void ExprEngine::VisitCommonDeclRefExpr(const Expr *Ex, const NamedDecl *D,
 }
 
 /// VisitArraySubscriptExpr - Transfer function for array accesses
-void ExprEngine::VisitLvalArraySubscriptExpr(const ArraySubscriptExpr *A,
+void ExprEngine::VisitArraySubscriptExpr(const ArraySubscriptExpr *A,
                                              ExplodedNode *Pred,
                                              ExplodedNodeSet &Dst){
-
   const Expr *Base = A->getBase()->IgnoreParens();
   const Expr *Idx  = A->getIdx()->IgnoreParens();
 
@@ -2058,18 +2137,32 @@ void ExprEngine::VisitLvalArraySubscriptExpr(const ArraySubscriptExpr *A,
 
   ExplodedNodeSet EvalSet;
   StmtNodeBuilder Bldr(CheckerPreStmt, EvalSet, *currBldrCtx);
-  assert(A->isGLValue() ||
-          (!AMgr.getLangOpts().CPlusPlus &&
-           A->getType().isCForbiddenLValueType()));
+
+  bool IsVectorType = A->getBase()->getType()->isVectorType();
+
+  // The "like" case is for situations where C standard prohibits the type to
+  // be an lvalue, e.g. taking the address of a subscript of an expression of
+  // type "void *".
+  bool IsGLValueLike = A->isGLValue() ||
+    (A->getType().isCForbiddenLValueType() && !AMgr.getLangOpts().CPlusPlus);
 
   for (auto *Node : CheckerPreStmt) {
     const LocationContext *LCtx = Node->getLocationContext();
     ProgramStateRef state = Node->getState();
-    SVal V = state->getLValue(A->getType(),
-                              state->getSVal(Idx, LCtx),
-                              state->getSVal(Base, LCtx));
-    Bldr.generateNode(A, Node, state->BindExpr(A, LCtx, V), nullptr,
-                      ProgramPoint::PostLValueKind);
+
+    if (IsGLValueLike) {
+      SVal V = state->getLValue(A->getType(),
+          state->getSVal(Idx, LCtx),
+          state->getSVal(Base, LCtx));
+      Bldr.generateNode(A, Node, state->BindExpr(A, LCtx, V), nullptr,
+          ProgramPoint::PostLValueKind);
+    } else if (IsVectorType) {
+      // FIXME: non-glvalue vector reads are not modelled.
+      Bldr.generateNode(A, Node, state, nullptr);
+    } else {
+      llvm_unreachable("Array subscript should be an lValue when not \
+a vector and not a forbidden lvalue type");
+    }
   }
 
   getCheckerManager().runCheckersForPostStmt(Dst, EvalSet, A, *this);
@@ -2194,21 +2287,6 @@ void ExprEngine::VisitAtomicExpr(const AtomicExpr *AE, ExplodedNode *Pred,
 
   getCheckerManager().runCheckersForPostStmt(Dst, AfterInvalidateSet, AE, *this);
 }
-
-namespace {
-class CollectReachableSymbolsCallback final : public SymbolVisitor {
-  InvalidatedSymbols Symbols;
-
-public:
-  CollectReachableSymbolsCallback(ProgramStateRef State) {}
-  const InvalidatedSymbols &getSymbols() const { return Symbols; }
-
-  bool VisitSymbol(SymbolRef Sym) override {
-    Symbols.insert(Sym);
-    return true;
-  }
-};
-} // end anonymous namespace
 
 // A value escapes in three possible cases:
 // (1) We are binding to something that is not a memory region.
@@ -2665,6 +2743,12 @@ struct DOTGraphTraits<ExplodedNode*> :
       case ProgramPoint::EpsilonKind:
         Out << "Epsilon Point";
         break;
+
+      case ProgramPoint::LoopExitKind: {
+        LoopExit LE = Loc.castAs<LoopExit>();
+        Out << "LoopExit: " << LE.getLoopStmt()->getStmtClassName();
+        break;
+      }
 
       case ProgramPoint::PreImplicitCallKind: {
         ImplicitCallPoint PC = Loc.castAs<ImplicitCallPoint>();

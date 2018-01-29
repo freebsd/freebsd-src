@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992-1998 Søren Schmidt
  * All rights reserved.
  *
@@ -76,6 +78,13 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/stdarg.h>
 
+#if defined(__amd64__) || defined(__i386__)
+#include <machine/vmparam.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#endif
+
 #include <dev/kbd/kbdreg.h>
 #include <dev/fb/fbreg.h>
 #include <dev/fb/splashreg.h>
@@ -98,7 +107,8 @@ static	int		sc_console_unit = -1;
 static	int		sc_saver_keyb_only = 1;
 static  scr_stat    	*sc_console;
 static  struct consdev	*sc_consptr;
-static	void		*kernel_console_ts[MAXCPU];
+static	void		*sc_kts[MAXCPU];
+static	struct sc_term_sw *sc_ktsw;
 static	scr_stat	main_console;
 static	struct tty 	*main_devs[MAXCONS];
 
@@ -136,8 +146,6 @@ static	int		sc_no_suspend_vtswitch = 0;
 static	int		sc_susp_scr;
 
 static SYSCTL_NODE(_hw, OID_AUTO, syscons, CTLFLAG_RD, 0, "syscons");
-SYSCTL_OPAQUE(_hw_syscons, OID_AUTO, kattr, CTLFLAG_RW,
-    &sc_kattrtab, sizeof(sc_kattrtab), "CU", "kernel console attributes");
 static SYSCTL_NODE(_hw_syscons, OID_AUTO, saver, CTLFLAG_RD, 0, "saver");
 SYSCTL_INT(_hw_syscons_saver, OID_AUTO, keybonly, CTLFLAG_RW,
     &sc_saver_keyb_only, 0, "screen saver interrupted by input only");
@@ -276,16 +284,17 @@ ec_putc(int c)
 	if (sc_console == NULL) {
 #if !defined(__amd64__) && !defined(__i386__)
 		return;
-#endif
+#else
 		/*
 		 * This is enough for ec_putc() to work very early on x86
 		 * if the kernel starts in normal color text mode.
 		 */
-		fb = 0xb8000;
+		fb = KERNBASE + 0xb8000;
 		xsize = 80;
 		ysize = 25;
+#endif
 	} else {
-		if (main_console.status & GRAPHICS_MODE)
+		if (!ISTEXTSC(&main_console))
 			return;
 		fb = main_console.sc->adp->va_window;
 		xsize = main_console.xsize;
@@ -564,6 +573,7 @@ sc_attach_unit(int unit, int flags)
 	scinit(unit, flags);
 
 	if (sc_console->tsw->te_size > 0) {
+	    sc_ktsw = sc_console->tsw;
 	    /* assert(sc_console->ts != NULL); */
 	    oldts = sc_console->ts;
 	    for (i = 0; i <= mp_maxid; i++) {
@@ -573,7 +583,7 @@ sc_attach_unit(int unit, int flags)
 		sc_console->ts = ts;
 		(*sc_console->tsw->te_default_attr)(sc_console, sc_kattrtab[i],
 						    SC_KERNEL_CONS_REV_ATTR);
-		kernel_console_ts[i] = ts;
+		sc_kts[i] = ts;
 	    }
 	    sc_console->ts = oldts;
     	    (*sc_console->tsw->te_default_attr)(sc_console, SC_NORM_ATTR,
@@ -873,6 +883,7 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 {
     int error;
     int i;
+    struct cursor_attr *cap;
     sc_softc_t *sc;
     scr_stat *scp;
     int s;
@@ -934,7 +945,7 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	splx(s);
 	return 0;
 
-    case CONS_CURSORTYPE:   	/* set cursor type (obsolete) */
+    case CONS_CURSORTYPE:   	/* set cursor type (old interface + HIDDEN) */
 	s = spltty();
 	*(int *)data &= CONS_CURSOR_ATTRS;
 	sc_change_cursor_shape(scp, *(int *)data, -1, -1);
@@ -942,15 +953,31 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	return 0;
 
     case CONS_GETCURSORSHAPE:   /* get cursor shape (new interface) */
-	if (((int *)data)[0] & CONS_LOCAL_CURSOR) {
-	    ((int *)data)[0] = scp->curr_curs_attr.flags;
-	    ((int *)data)[1] = scp->curr_curs_attr.base;
-	    ((int *)data)[2] = scp->curr_curs_attr.height;
-	} else {
-	    ((int *)data)[0] = sc->curs_attr.flags;
-	    ((int *)data)[1] = sc->curs_attr.base;
-	    ((int *)data)[2] = sc->curs_attr.height;
+	switch (((int *)data)[0] & (CONS_DEFAULT_CURSOR | CONS_LOCAL_CURSOR)) {
+	case 0:
+	    cap = &sc->curs_attr;
+	    break;
+	case CONS_LOCAL_CURSOR:
+	    cap = &scp->base_curs_attr;
+	    break;
+	case CONS_DEFAULT_CURSOR:
+	    cap = &sc->dflt_curs_attr;
+	    break;
+	case CONS_DEFAULT_CURSOR | CONS_LOCAL_CURSOR:
+	    cap = &scp->dflt_curs_attr;
+	    break;
 	}
+	if (((int *)data)[0] & CONS_CHARCURSOR_COLORS) {
+	    ((int *)data)[1] = cap->bg[0];
+	    ((int *)data)[2] = cap->bg[1];
+	} else if (((int *)data)[0] & CONS_MOUSECURSOR_COLORS) {
+	    ((int *)data)[1] = cap->mouse_ba;
+	    ((int *)data)[2] = cap->mouse_ia;
+	} else {
+	    ((int *)data)[1] = cap->base;
+	    ((int *)data)[2] = cap->height;
+	}
+	((int *)data)[0] = cap->flags;
 	return 0;
 
     case CONS_SETCURSORSHAPE:   /* set cursor shape (new interface) */
@@ -1719,11 +1746,14 @@ sc_cnterm(struct consdev *cp)
     sccnupdate(sc_console);
 #endif
 
-    for (i = 0; i <= mp_maxid; i++) {
-	ts = kernel_console_ts[i];
-	kernel_console_ts[i] = NULL;
-	(*sc_console->tsw->te_term)(sc_console, &ts);
-	free(ts, M_DEVBUF);
+    if (sc_ktsw != NULL) {
+	for (i = 0; i <= mp_maxid; i++) {
+	    ts = sc_kts[i];
+	    sc_kts[i] = NULL;
+	    (*sc_ktsw->te_term)(sc_console, &ts);
+	    free(ts, M_DEVBUF);
+	}
+	sc_ktsw = NULL;
     }
     scterm(sc_console_unit, SC_KERNEL_CONSOLE);
     sc_console_unit = -1;
@@ -1919,6 +1949,7 @@ sc_cnputc(struct consdev *cd, int c)
     u_char buf[1];
     scr_stat *scp = sc_console;
     void *oldts, *ts;
+    struct sc_term_sw *oldtsw;
 #ifndef SC_NO_HISTORY
 #if 0
     struct tty *tp;
@@ -1983,13 +2014,16 @@ sc_cnputc(struct consdev *cd, int c)
 	    sizeof(sc_cnputc_log))
 	    continue;
 	/* Console output has a per-CPU "input" state.  Switch for it. */
+	oldtsw = scp->tsw;
 	oldts = scp->ts;
-	ts = kernel_console_ts[PCPU_GET(cpuid)];
+	ts = sc_kts[PCPU_GET(cpuid)];
 	if (ts != NULL) {
+	    scp->tsw = sc_ktsw;
 	    scp->ts = ts;
 	    (*scp->tsw->te_sync)(scp);
 	}
 	sc_puts(scp, buf, 1);
+	scp->tsw = oldtsw;
 	scp->ts = oldts;
 	(*scp->tsw->te_sync)(scp);
     }
@@ -2982,15 +3016,15 @@ update_cursor_image(scr_stat *scp)
 void
 sc_set_cursor_image(scr_stat *scp)
 {
-    scp->curs_attr.flags = scp->curr_curs_attr.flags;
+    scp->curs_attr = scp->base_curs_attr;
     if (scp->curs_attr.flags & CONS_HIDDEN_CURSOR) {
 	/* hidden cursor is internally represented as zero-height underline */
 	scp->curs_attr.flags = CONS_CHAR_CURSOR;
 	scp->curs_attr.base = scp->curs_attr.height = 0;
     } else if (scp->curs_attr.flags & CONS_CHAR_CURSOR) {
-	scp->curs_attr.base = imin(scp->curr_curs_attr.base,
+	scp->curs_attr.base = imin(scp->base_curs_attr.base,
 				  scp->font_size - 1);
-	scp->curs_attr.height = imin(scp->curr_curs_attr.height,
+	scp->curs_attr.height = imin(scp->base_curs_attr.height,
 				    scp->font_size - scp->curs_attr.base);
     } else {	/* block cursor */
 	scp->curs_attr.base = 0;
@@ -3005,19 +3039,37 @@ sc_set_cursor_image(scr_stat *scp)
 }
 
 static void
+sc_adjust_ca(struct cursor_attr *cap, int flags, int base, int height)
+{
+    if (flags & CONS_CHARCURSOR_COLORS) {
+	cap->bg[0] = base & 0xff;
+	cap->bg[1] = height & 0xff;
+    } else if (flags & CONS_MOUSECURSOR_COLORS) {
+	cap->mouse_ba = base & 0xff;
+	cap->mouse_ia = height & 0xff;
+    } else {
+	if (base >= 0)
+	    cap->base = base;
+	if (height >= 0)
+	    cap->height = height;
+	if (!(flags & CONS_SHAPEONLY_CURSOR))
+		cap->flags = flags & CONS_CURSOR_ATTRS;
+    }
+}
+
+static void
 change_cursor_shape(scr_stat *scp, int flags, int base, int height)
 {
     if ((scp == scp->sc->cur_scp) && !ISGRAPHSC(scp))
 	sc_remove_cursor_image(scp);
 
-    if (base >= 0)
-	scp->curr_curs_attr.base = base;
-    if (height >= 0)
-	scp->curr_curs_attr.height = height;
     if (flags & CONS_RESET_CURSOR)
-	scp->curr_curs_attr = scp->dflt_curs_attr;
-    else
-	scp->curr_curs_attr.flags = flags & CONS_CURSOR_ATTRS;
+	scp->base_curs_attr = scp->dflt_curs_attr;
+    else if (flags & CONS_DEFAULT_CURSOR) {
+	sc_adjust_ca(&scp->dflt_curs_attr, flags, base, height);
+	scp->base_curs_attr = scp->dflt_curs_attr;
+    } else
+	sc_adjust_ca(&scp->base_curs_attr, flags, base, height);
 
     if ((scp == scp->sc->cur_scp) && !ISGRAPHSC(scp)) {
 	sc_set_cursor_image(scp);
@@ -3033,8 +3085,11 @@ sc_change_cursor_shape(scr_stat *scp, int flags, int base, int height)
     int s;
     int i;
 
+    if (flags == -1)
+	flags = CONS_SHAPEONLY_CURSOR;
+
     s = spltty();
-    if ((flags != -1) && (flags & CONS_LOCAL_CURSOR)) {
+    if (flags & CONS_LOCAL_CURSOR) {
 	/* local (per vty) change */
 	change_cursor_shape(scp, flags, base, height);
 	splx(s);
@@ -3043,16 +3098,13 @@ sc_change_cursor_shape(scr_stat *scp, int flags, int base, int height)
 
     /* global change */
     sc = scp->sc;
-    if (base >= 0)
-	sc->curs_attr.base = base;
-    if (height >= 0)
-	sc->curs_attr.height = height;
-    if (flags != -1) {
-	if (flags & CONS_RESET_CURSOR)
-	    sc->curs_attr = sc->dflt_curs_attr;
-	else
-	    sc->curs_attr.flags = flags & CONS_CURSOR_ATTRS;
-    }
+    if (flags & CONS_RESET_CURSOR)
+	sc->curs_attr = sc->dflt_curs_attr;
+    else if (flags & CONS_DEFAULT_CURSOR) {
+	sc_adjust_ca(&sc->dflt_curs_attr, flags, base, height);
+	sc->curs_attr = sc->dflt_curs_attr;
+    } else
+	sc_adjust_ca(&sc->curs_attr, flags, base, height);
 
     for (i = sc->first_vty; i < sc->first_vty + sc->vtys; ++i) {
 	if ((tp = SC_DEV(sc, i)) == NULL)
@@ -3208,17 +3260,17 @@ scinit(int unit, int flags)
 	scp->cursor_pos = scp->cursor_oldpos = row*scp->xsize + col;
 	(*scp->tsw->te_sync)(scp);
 
-	/* Sync BIOS cursor shape to s/w (sc only). */
-	if (bios_value.cursor_end < scp->font_size)
-	    sc->dflt_curs_attr.base = scp->font_size - 
-					  bios_value.cursor_end - 1;
-	else
-	    sc->dflt_curs_attr.base = 0;
-	i = bios_value.cursor_end - bios_value.cursor_start + 1;
-	sc->dflt_curs_attr.height = imin(i, scp->font_size);
+	sc->dflt_curs_attr.base = 0;
+	sc->dflt_curs_attr.height = howmany(scp->font_size, 8);
 	sc->dflt_curs_attr.flags = 0;
+	sc->dflt_curs_attr.bg[0] = FG_RED;
+	sc->dflt_curs_attr.bg[1] = FG_LIGHTGREY;
+	sc->dflt_curs_attr.bg[2] = FG_BLUE;
+	sc->dflt_curs_attr.mouse_ba = FG_WHITE;
+	sc->dflt_curs_attr.mouse_ia = FG_RED;
 	sc->curs_attr = sc->dflt_curs_attr;
-	scp->curr_curs_attr = scp->dflt_curs_attr = sc->curs_attr;
+	scp->base_curs_attr = scp->dflt_curs_attr = sc->curs_attr;
+	scp->curs_attr = scp->base_curs_attr;
 
 #ifndef SC_NO_SYSMOUSE
 	sc_mouse_move(scp, scp->xpixel/2, scp->ypixel/2);
@@ -3531,7 +3583,7 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
     scp->ts = NULL;
     scp->rndr = NULL;
     scp->border = (SC_NORM_ATTR >> 4) & 0x0f;
-    scp->curr_curs_attr = scp->dflt_curs_attr = sc->curs_attr;
+    scp->base_curs_attr = scp->dflt_curs_attr = sc->curs_attr;
     scp->mouse_cut_start = scp->xsize*scp->ysize;
     scp->mouse_cut_end = -1;
     scp->mouse_signal = 0;
@@ -4115,7 +4167,7 @@ static int
 sc_kattr(void)
 {
     if (sc_console == NULL)
-	return (SC_KERNEL_CONS_ATTR);
+	return (SC_KERNEL_CONS_ATTR);	/* for very early, before pcpu */
     return (sc_kattrtab[PCPU_GET(cpuid) % nitems(sc_kattrtab)]);
 }
 

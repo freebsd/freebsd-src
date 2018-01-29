@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -44,6 +46,7 @@ static char sccsid[] = "@(#)mkfs.c	8.11 (Berkeley) 5/3/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define	IN_RTLD			/* So we pickup the P_OSREL defines */
 #include <sys/param.h>
 #include <sys/disklabel.h>
 #include <sys/file.h>
@@ -98,16 +101,8 @@ static void iput(union dinode *, ino_t);
 static int makedir(struct direct *, int);
 static void setblock(struct fs *, unsigned char *, int);
 static void wtfs(ufs2_daddr_t, int, char *);
+static void cgckhash(struct cg *);
 static u_int32_t newfs_random(void);
-
-static int
-do_sbwrite(struct uufsd *disk)
-{
-	if (!disk->d_sblock)
-		disk->d_sblock = disk->d_fs.fs_sblockloc / disk->d_bsize;
-	return (pwrite(disk->d_fd, &disk->d_fs, SBLOCKSIZE, (off_t)((part_ofs +
-	    disk->d_sblock) * disk->d_bsize)));
-}
 
 void
 mkfs(struct partition *pp, char *fsys)
@@ -121,6 +116,8 @@ mkfs(struct partition *pp, char *fsys)
 	ino_t maxinum;
 	int minfragsperinode;	/* minimum ratio of frags to inodes */
 	char tmpbuf[100];	/* XXX this will break in about 2,500 years */
+	struct fsrecovery *fsr;
+	char *fsrbuf;
 	union {
 		struct fs fdummy;
 		char cdummy[SBLOCKSIZE];
@@ -271,6 +268,7 @@ restart:
 
 	if (Oflag == 1) {
 		sblock.fs_sblockloc = SBLOCK_UFS1;
+		sblock.fs_sblockactualloc = SBLOCK_UFS1;
 		sblock.fs_nindir = sblock.fs_bsize / sizeof(ufs1_daddr_t);
 		sblock.fs_inopb = sblock.fs_bsize / sizeof(struct ufs1_dinode);
 		sblock.fs_maxsymlinklen = ((UFS_NDADDR + UFS_NIADDR) *
@@ -290,6 +288,7 @@ restart:
 		sblock.fs_old_nrpos = 1;
 	} else {
 		sblock.fs_sblockloc = SBLOCK_UFS2;
+		sblock.fs_sblockactualloc = SBLOCK_UFS2;
 		sblock.fs_nindir = sblock.fs_bsize / sizeof(ufs2_daddr_t);
 		sblock.fs_inopb = sblock.fs_bsize / sizeof(struct ufs2_dinode);
 		sblock.fs_maxsymlinklen = ((UFS_NDADDR + UFS_NIADDR) *
@@ -441,6 +440,8 @@ restart:
 	sblock.fs_sbsize = fragroundup(&sblock, sizeof(struct fs));
 	if (sblock.fs_sbsize > SBLOCKSIZE)
 		sblock.fs_sbsize = SBLOCKSIZE;
+	if (sblock.fs_sbsize < realsectorsize)
+		sblock.fs_sbsize = realsectorsize;
 	sblock.fs_minfree = minfree;
 	if (metaspace > 0 && metaspace < sblock.fs_fpg / 2)
 		sblock.fs_metaspace = blknum(&sblock, metaspace);
@@ -487,6 +488,11 @@ restart:
 		sblock.fs_old_cstotal.cs_nifree = sblock.fs_cstotal.cs_nifree;
 		sblock.fs_old_cstotal.cs_nffree = sblock.fs_cstotal.cs_nffree;
 	}
+	/*
+	 * Set flags for metadata that is being check-hashed.
+	 */
+	if (Oflag > 1 && getosreldate() >= P_OSREL_CK_CYLGRP)
+		sblock.fs_metackhash = CK_CYLGRP;
 
 	/*
 	 * Dump out summary information about file system.
@@ -513,7 +519,7 @@ restart:
 	/*
 	 * Wipe out old UFS1 superblock(s) if necessary.
 	 */
-	if (!Nflag && Oflag != 1) {
+	if (!Nflag && Oflag != 1 && realsectorsize <= SBLOCK_UFS1) {
 		i = bread(&disk, part_ofs + SBLOCK_UFS1 / disk.d_bsize, chdummy, SBLOCKSIZE);
 		if (i == -1)
 			err(1, "can't read old UFS1 superblock: %s", disk.d_error);
@@ -531,7 +537,7 @@ restart:
 		}
 	}
 	if (!Nflag)
-		do_sbwrite(&disk);
+		sbput(disk.d_fd, &disk.d_fs, 0);
 	if (Xflag == 1) {
 		printf("** Exiting on Xflag 1\n");
 		exit(0);
@@ -549,24 +555,20 @@ restart:
 	i = 0;
 	width = charsperline();
 	/*
-	 * allocate space for superblock, cylinder group map, and
+	 * Allocate space for cylinder group map and
 	 * two sets of inode blocks.
 	 */
-	if (sblock.fs_bsize < SBLOCKSIZE)
-		iobufsize = SBLOCKSIZE + 3 * sblock.fs_bsize;
-	else
-		iobufsize = 4 * sblock.fs_bsize;
+	iobufsize = 3 * sblock.fs_bsize;
 	if ((iobuf = calloc(1, iobufsize)) == 0) {
 		printf("Cannot allocate I/O buffer\n");
 		exit(38);
 	}
 	/*
-	 * Make a copy of the superblock into the buffer that we will be
-	 * writing out in each cylinder group.
+	 * Write out all the cylinder groups and backup superblocks.
 	 */
-	bcopy((char *)&sblock, iobuf, SBLOCKSIZE);
 	for (cg = 0; cg < sblock.fs_ncg; cg++) {
-		initcg(cg, utime);
+		if (!Nflag)
+			initcg(cg, utime);
 		j = snprintf(tmpbuf, sizeof(tmpbuf), " %jd%s",
 		    (intmax_t)fsbtodb(&sblock, cgsblock(&sblock, cg)),
 		    cg < (sblock.fs_ncg-1) ? "," : "");
@@ -598,24 +600,43 @@ restart:
 		printf("** Exiting on Xflag 3\n");
 		exit(0);
 	}
-	if (!Nflag) {
-		do_sbwrite(&disk);
-		/*
-		 * For UFS1 filesystems with a blocksize of 64K, the first
-		 * alternate superblock resides at the location used for
-		 * the default UFS2 superblock. As there is a valid
-		 * superblock at this location, the boot code will use
-		 * it as its first choice. Thus we have to ensure that
-		 * all of its statistcs on usage are correct.
-		 */
-		if (Oflag == 1 && sblock.fs_bsize == 65536)
-			wtfs(fsbtodb(&sblock, cgsblock(&sblock, 0)),
-			    sblock.fs_bsize, (char *)&sblock);
+	/*
+	 * Reference the summary information so it will also be written.
+	 */
+	sblock.fs_csp = fscs;
+	sbput(disk.d_fd, &disk.d_fs, 0);
+	/*
+	 * For UFS1 filesystems with a blocksize of 64K, the first
+	 * alternate superblock resides at the location used for
+	 * the default UFS2 superblock. As there is a valid
+	 * superblock at this location, the boot code will use
+	 * it as its first choice. Thus we have to ensure that
+	 * all of its statistcs on usage are correct.
+	 */
+	if (Oflag == 1 && sblock.fs_bsize == 65536)
+		wtfs(fsbtodb(&sblock, cgsblock(&sblock, 0)),
+		    sblock.fs_bsize, (char *)&sblock);
+	/*
+	 * Read the last sector of the boot block, replace the last
+	 * 20 bytes with the recovery information, then write it back.
+	 * The recovery information only works for UFS2 filesystems.
+	 */
+	if (sblock.fs_magic == FS_UFS2_MAGIC) {
+		if ((fsrbuf = malloc(realsectorsize)) == NULL || bread(&disk,
+		    part_ofs + (SBLOCK_UFS2 - realsectorsize) / disk.d_bsize,
+		    fsrbuf, realsectorsize) == -1)
+			err(1, "can't read recovery area: %s", disk.d_error);
+		fsr =
+		    (struct fsrecovery *)&fsrbuf[realsectorsize - sizeof *fsr];
+		fsr->fsr_magic = sblock.fs_magic;
+		fsr->fsr_fpg = sblock.fs_fpg;
+		fsr->fsr_fsbtodb = sblock.fs_fsbtodb;
+		fsr->fsr_sblkno = sblock.fs_sblkno;
+		fsr->fsr_ncg = sblock.fs_ncg;
+		wtfs((SBLOCK_UFS2 - realsectorsize) / disk.d_bsize,
+		    realsectorsize, fsrbuf);
+		free(fsrbuf);
 	}
-	for (i = 0; i < sblock.fs_cssize; i += sblock.fs_bsize)
-		wtfs(fsbtodb(&sblock, sblock.fs_csaddr + numfrags(&sblock, i)),
-			MIN(sblock.fs_cssize - i, sblock.fs_bsize),
-			((char *)fscs) + i);
 	/*
 	 * Update information about this partition in pack
 	 * label, to that it may be updated on disk.
@@ -635,6 +656,7 @@ void
 initcg(int cylno, time_t utime)
 {
 	long blkno, start;
+	off_t savedactualloc;
 	uint i, j, d, dlower, dupper;
 	ufs2_daddr_t cbase, dmax;
 	struct ufs1_dinode *dp1;
@@ -766,11 +788,17 @@ initcg(int cylno, time_t utime)
 		}
 	}
 	*cs = acg.cg_cs;
+	cgckhash(&acg);
 	/*
-	 * Write out the duplicate super block, the cylinder group map
-	 * and two blocks worth of inodes in a single write.
+	 * Write out the duplicate super block. Then write the cylinder
+	 * group map and two blocks worth of inodes in a single write.
 	 */
-	start = MAX(sblock.fs_bsize, SBLOCKSIZE);
+	savedactualloc = sblock.fs_sblockactualloc;
+	sblock.fs_sblockactualloc =
+	    dbtob(fsbtodb(&sblock, cgsblock(&sblock, cylno)));
+	sbput(disk.d_fd, &disk.d_fs, 0);
+	sblock.fs_sblockactualloc = savedactualloc;
+	start = 0;
 	bcopy((char *)&acg, &iobuf[start], sblock.fs_cgsize);
 	start += sblock.fs_bsize;
 	dp1 = (struct ufs1_dinode *)(&iobuf[start]);
@@ -784,7 +812,7 @@ initcg(int cylno, time_t utime)
 			dp2++;
 		}
 	}
-	wtfs(fsbtodb(&sblock, cgsblock(&sblock, cylno)), iobufsize, iobuf);
+	wtfs(fsbtodb(&sblock, cgtod(&sblock, cylno)), iobufsize, iobuf);
 	/*
 	 * For the old file system, we have to initialize all the inodes.
 	 */
@@ -981,6 +1009,7 @@ goth:
 			setbit(cg_blksfree(&acg), d + i);
 	}
 	/* XXX cgwrite(&disk, 0)??? */
+	cgckhash(&acg);
 	wtfs(fsbtodb(&sblock, cgtod(&sblock, 0)), sblock.fs_cgsize,
 	    (char *)&acg);
 	return ((ufs2_daddr_t)d);
@@ -1002,6 +1031,7 @@ iput(union dinode *ip, ino_t ino)
 	}
 	acg.cg_cs.cs_nifree--;
 	setbit(cg_inosused(&acg), ino);
+	cgckhash(&acg);
 	wtfs(fsbtodb(&sblock, cgtod(&sblock, 0)), sblock.fs_cgsize,
 	    (char *)&acg);
 	sblock.fs_cstotal.cs_nifree--;
@@ -1032,6 +1062,20 @@ wtfs(ufs2_daddr_t bno, int size, char *bf)
 		return;
 	if (bwrite(&disk, part_ofs + bno, bf, size) < 0)
 		err(36, "wtfs: %d bytes at sector %jd", size, (intmax_t)bno);
+}
+
+/*
+ * Calculate the check-hash of the cylinder group.
+ */
+static void
+cgckhash(cgp)
+	struct cg *cgp;
+{
+
+	if ((sblock.fs_metackhash & CK_CYLGRP) == 0)
+		return;
+	cgp->cg_ckhash = 0;
+	cgp->cg_ckhash = calculate_crc32c(~0L, (void *)cgp, sblock.fs_cgsize);
 }
 
 /*

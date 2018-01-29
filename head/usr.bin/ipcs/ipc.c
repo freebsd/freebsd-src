@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994 SigmaSoft, Th. Lockert <tholo@sigmasoft.com>
  * All rights reserved.
  *
@@ -44,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <kvm.h>
 #include <nlist.h>
 #include <stddef.h>
-#include <stdio.h>
 
 #include "ipc.h"
 

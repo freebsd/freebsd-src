@@ -6,6 +6,8 @@
 #define	STG_IO_CONTROL_FLAGS	(STG_FIFO_INTERRUPTS | STG_WAIT_FOR_SELECT)
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * [NetBSD for NEC PC-98 series]
  *  Copyright (c) 1996, 1997, 1998, 1999, 2000, 2001
  *	NetBSD/pc98 porting staff. All rights reserved.
@@ -421,6 +423,7 @@ stgattachsubr(sc)
 
 	(void) scsi_low_attach(slp, 0, STG_NTARGETS, STG_NLUNS,
 				sizeof(struct stg_targ_info), 0);
+	gone_in(12, "stg(4) driver");
 }
 
 /**************************************************************

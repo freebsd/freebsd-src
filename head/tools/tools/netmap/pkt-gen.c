@@ -612,7 +612,7 @@ dump_payload(const char *_p, int len, struct netmap_ring *ring, int cur)
 		ring->slot[cur].flags, len);
 	/* hexdump routine */
 	for (i = 0; i < len; ) {
-		memset(buf, sizeof(buf), ' ');
+		memset(buf, ' ', sizeof(buf));
 		sprintf(buf, "%5d: ", i);
 		i0 = i;
 		for (j=0; j < 16 && i < len; i++, j++)

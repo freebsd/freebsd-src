@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -665,6 +667,7 @@ get_rip_sock(naddr addr,
 	if (bind(s, (struct sockaddr *)&rsin, sizeof(rsin)) < 0) {
 		if (serious)
 			BADERR(errno != EADDRINUSE, "bind(rip_sock)");
+		close(s);
 		return -1;
 	}
 	fix_sock(s,"rip_sock");

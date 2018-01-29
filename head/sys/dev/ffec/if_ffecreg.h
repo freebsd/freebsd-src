@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ian Lepore <ian@freebsd.org>
  * All rights reserved.
  *
@@ -317,8 +319,6 @@ struct ffec_hwdesc
  * The hardware imposes alignment restrictions on various objects involved in
  * DMA transfers.  These values are expressed in bytes (not bits).
  */
-#define	FEC_DESC_RING_ALIGN		16
-#define	FEC_RXBUF_ALIGN			16
-#define	FEC_TXBUF_ALIGN			16
+#define	FEC_DESC_RING_ALIGN		64
 
 #endif	/* IF_FFECREG_H */

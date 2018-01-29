@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -175,6 +177,17 @@ struct nfsd_nfsd_args {
 	int	minthreads;	/* minimum service thread count */
 	int	maxthreads;	/* maximum service thread count */
 };
+
+/*
+ * NFSDEV_MIRRORSTR - string of digits that number the DSs 0->999.
+ * (To support more than 1000 DSs on an MDS, this needs to be increased.)
+ * NFSDEV_MAXMIRRORS - Maximum # of mirrors for a DS.
+ * (Most will only have a single mirror, but this setting allows up to 3.)
+ * NFSDEV_MAXVERS - maximum number of NFS versions supported by Flex File.
+ */
+#define	NFSDEV_MIRRORSTR	3
+#define	NFSDEV_MAXMIRRORS	4
+#define	NFSDEV_MAXVERS		4
 
 /*
  * Arguments for use by the callback daemon.

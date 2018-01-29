@@ -110,11 +110,8 @@ _CPUCFLAGS = -march=${CPUTYPE}
 _CPUCFLAGS = -march=armv5te -D__XSCALE__
 .  elif ${CPUTYPE:M*soft*} != ""
 _CPUCFLAGS = -mfloat-abi=softfp
-.  elif ${CPUTYPE} == "armv6"
-# Not sure we still need ARM_ARCH_6=1 here.
-_CPUCFLAGS = -march=${CPUTYPE} -DARM_ARCH_6=1
 .  elif ${CPUTYPE} == "cortexa"
-_CPUCFLAGS = -march=armv7 -DARM_ARCH_6=1 -mfpu=vfp
+_CPUCFLAGS = -march=armv7 -mfpu=vfp
 .  elif ${CPUTYPE:Marmv[4567]*} != ""
 # Handle all the armvX types that FreeBSD runs:
 #	armv4, armv4t, armv5, armv5te, armv6, armv6t2, armv7, armv7-a, armv7ve
@@ -340,18 +337,20 @@ MACHINE_CPU += arm
 . if ${MACHINE_ARCH:Marmv6*} != ""
 MACHINE_CPU += armv6
 . endif
-# armv6 is a hybrid. It can use the softfp ABI, but doesn't emulate
-# floating point in the general case, so don't define softfp for
-# it at this time. arm and armeb are pure softfp, so define it
-# for them.
-. if ${MACHINE_ARCH:Marmv6*} == ""
+. if ${MACHINE_ARCH:Marmv7*} != ""
+MACHINE_CPU += armv7
+. endif
+# armv6 and armv7 are a hybrid. It can use the softfp ABI, but doesn't emulate
+# floating point in the general case, so don't define softfp for it at this
+# time. arm and armeb are pure softfp, so define it for them.
+. if ${MACHINE_ARCH:Marmv[67]*} == ""
 MACHINE_CPU += softfp
 . endif
-# Normally armv6 is hard float ABI from FreeBSD 11 onwards. However
-# when CPUTYPE has 'soft' in it, we use the soft-float ABI to allow
-# building of soft-float ABI libraries. In this case, we have to
-# add the -mfloat-abi=softfp to force that.
-.if ${MACHINE_ARCH:Marmv6*} && defined(CPUTYPE) && ${CPUTYPE:M*soft*} != ""
+# Normally armv6 and armv7 are hard float ABI from FreeBSD 11 onwards. However
+# when CPUTYPE has 'soft' in it, we use the soft-float ABI to allow building of
+# soft-float ABI libraries. In this case, we have to add the -mfloat-abi=softfp
+# to force that.
+.if ${MACHINE_ARCH:Marmv[67]*} && defined(CPUTYPE) && ${CPUTYPE:M*soft*} != ""
 # Needs to be CFLAGS not _CPUCFLAGS because it's needed for the ABI
 # not a nice optimization.
 CFLAGS += -mfloat-abi=softfp
@@ -364,8 +363,11 @@ CFLAGS += -mcpu=8540 -Wa,-me500 -mspe=yes -mabi=spe -mfloat-gprs=double
 
 .if ${MACHINE_CPUARCH} == "riscv"
 .if ${TARGET_ARCH:Mriscv*sf}
-CFLAGS += -mno-float
-ACFLAGS += -mno-float
+CFLAGS += -march=rv64imac -mabi=lp64
+ACFLAGS += -march=rv64imac -mabi=lp64
+.else
+CFLAGS += -march=rv64imafdc -mabi=lp64
+ACFLAGS += -march=rv64imafdc -mabi=lp64
 .endif
 .endif
 
@@ -391,12 +393,12 @@ CFLAGS += ${_CPUCFLAGS}
 # (-mfpmath= is not supported)
 #
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-CFLAGS_NO_SIMD.clang= -mno-avx
+CFLAGS_NO_SIMD.clang= -mno-avx -mno-avx2
 CFLAGS_NO_SIMD= -mno-mmx -mno-sse
 .endif
 CFLAGS_NO_SIMD += ${CFLAGS_NO_SIMD.${COMPILER_TYPE}}
 
-# Add in any architecture-specific CFLAGS.  
+# Add in any architecture-specific CFLAGS.
 # These come from make.conf or the command line or the environment.
 CFLAGS += ${CFLAGS.${MACHINE_ARCH}}
 CXXFLAGS += ${CXXFLAGS.${MACHINE_ARCH}}

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2010-2012 Citrix Inc.
- * Copyright (c) 2009-2012,2016 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016-2017 Microsoft Corp.
  * Copyright (c) 2012 NetApp Inc.
  * All rights reserved.
  *
@@ -61,7 +61,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_rss.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/counter.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
@@ -76,7 +78,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 #include <sys/taskqueue.h>
 #include <sys/buf_ring.h>
 #include <sys/eventhandler.h>
@@ -122,6 +123,8 @@ __FBSDID("$FreeBSD$");
 #define HN_RING_CNT_DEF_MAX		8
 
 #define HN_VFMAP_SIZE_DEF		8
+
+#define HN_XPNT_VF_ATTWAIT_MIN		2	/* seconds */
 
 /* YYY should get it from the underlying channel */
 #define HN_TX_DESC_CNT			512
@@ -263,6 +266,7 @@ static void			hn_ifnet_event(void *, struct ifnet *, int);
 static void			hn_ifaddr_event(void *, struct ifnet *);
 static void			hn_ifnet_attevent(void *, struct ifnet *);
 static void			hn_ifnet_detevent(void *, struct ifnet *);
+static void			hn_ifnet_lnkevent(void *, struct ifnet *, int);
 
 static bool			hn_ismyvf(const struct hn_softc *,
 				    const struct ifnet *);
@@ -270,6 +274,19 @@ static void			hn_rxvf_change(struct hn_softc *,
 				    struct ifnet *, bool);
 static void			hn_rxvf_set(struct hn_softc *, struct ifnet *);
 static void			hn_rxvf_set_task(void *, int);
+static void			hn_xpnt_vf_input(struct ifnet *, struct mbuf *);
+static int			hn_xpnt_vf_iocsetflags(struct hn_softc *);
+static int			hn_xpnt_vf_iocsetcaps(struct hn_softc *,
+				    struct ifreq *);
+static void			hn_xpnt_vf_saveifflags(struct hn_softc *);
+static bool			hn_xpnt_vf_isready(struct hn_softc *);
+static void			hn_xpnt_vf_setready(struct hn_softc *);
+static void			hn_xpnt_vf_init_taskfunc(void *, int);
+static void			hn_xpnt_vf_init(struct hn_softc *);
+static void			hn_xpnt_vf_setenable(struct hn_softc *);
+static void			hn_xpnt_vf_setdisable(struct hn_softc *, bool);
+static void			hn_vf_rss_fixup(struct hn_softc *, bool);
+static void			hn_vf_rss_restore(struct hn_softc *);
 
 static int			hn_rndis_rxinfo(const void *, int,
 				    struct hn_rxinfo *);
@@ -313,6 +330,8 @@ static int			hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_rss_ind_sysctl(SYSCTL_HANDLER_ARGS);
 #endif
 static int			hn_rss_hash_sysctl(SYSCTL_HANDLER_ARGS);
+static int			hn_rss_hcap_sysctl(SYSCTL_HANDLER_ARGS);
+static int			hn_rss_mbuf_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_txagg_size_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_txagg_pkts_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_txagg_pktmax_sysctl(SYSCTL_HANDLER_ARGS);
@@ -322,6 +341,8 @@ static int			hn_vf_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_rxvf_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_vflist_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_vfmap_sysctl(SYSCTL_HANDLER_ARGS);
+static int			hn_xpnt_vf_accbpf_sysctl(SYSCTL_HANDLER_ARGS);
+static int			hn_xpnt_vf_enabled_sysctl(SYSCTL_HANDLER_ARGS);
 
 static void			hn_stop(struct hn_softc *, bool);
 static void			hn_init_locked(struct hn_softc *);
@@ -352,6 +373,7 @@ static void			hn_disable_rx(struct hn_softc *);
 static void			hn_drain_rxtx(struct hn_softc *, int);
 static void			hn_polling(struct hn_softc *, u_int);
 static void			hn_chan_polling(struct vmbus_channel *, u_int);
+static void			hn_mtu_change_fixup(struct hn_softc *);
 
 static void			hn_update_link_status(struct hn_softc *);
 static void			hn_change_network(struct hn_softc *);
@@ -363,19 +385,22 @@ static void			hn_link_status(struct hn_softc *);
 static int			hn_create_rx_data(struct hn_softc *, int);
 static void			hn_destroy_rx_data(struct hn_softc *);
 static int			hn_check_iplen(const struct mbuf *, int);
+static void			hn_rxpkt_proto(const struct mbuf *, int *, int *);
 static int			hn_set_rxfilter(struct hn_softc *, uint32_t);
 static int			hn_rxfilter_config(struct hn_softc *);
-#ifndef RSS
 static int			hn_rss_reconfig(struct hn_softc *);
-#endif
 static void			hn_rss_ind_fixup(struct hn_softc *);
+static void			hn_rss_mbuf_hash(struct hn_softc *, uint32_t);
 static int			hn_rxpkt(struct hn_rx_ring *, const void *,
 				    int, const struct hn_rxinfo *);
+static uint32_t			hn_rss_type_fromndis(uint32_t);
+static uint32_t			hn_rss_type_tondis(uint32_t);
 
 static int			hn_tx_ring_create(struct hn_softc *, int);
 static void			hn_tx_ring_destroy(struct hn_tx_ring *);
 static int			hn_create_tx_data(struct hn_softc *, int);
 static void			hn_fixup_tx_data(struct hn_softc *);
+static void			hn_fixup_rx_data(struct hn_softc *);
 static void			hn_destroy_tx_data(struct hn_softc *);
 static void			hn_txdesc_dmamap_destroy(struct hn_txdesc *);
 static void			hn_txdesc_gc(struct hn_tx_ring *,
@@ -435,6 +460,35 @@ SYSCTL_INT(_hw_hn, OID_AUTO, trust_hostip, CTLFLAG_RDTUN,
     &hn_trust_hostip, 0,
     "Trust ip packet verification on host side, "
     "when csum info is missing (global setting)");
+
+/*
+ * Offload UDP/IPv4 checksum.
+ */
+static int			hn_enable_udp4cs = 1;
+SYSCTL_INT(_hw_hn, OID_AUTO, enable_udp4cs, CTLFLAG_RDTUN,
+    &hn_enable_udp4cs, 0, "Offload UDP/IPv4 checksum");
+
+/*
+ * Offload UDP/IPv6 checksum.
+ */
+static int			hn_enable_udp6cs = 1;
+SYSCTL_INT(_hw_hn, OID_AUTO, enable_udp6cs, CTLFLAG_RDTUN,
+    &hn_enable_udp6cs, 0, "Offload UDP/IPv6 checksum");
+
+/* Stats. */
+static counter_u64_t		hn_udpcs_fixup;
+SYSCTL_COUNTER_U64(_hw_hn, OID_AUTO, udpcs_fixup, CTLFLAG_RW,
+    &hn_udpcs_fixup, "# of UDP checksum fixup");
+
+/*
+ * See hn_set_hlen().
+ *
+ * This value is for Azure.  For Hyper-V, set this above
+ * 65536 to disable UDP datagram checksum fixup.
+ */
+static int			hn_udpcs_fixup_mtu = 1420;
+SYSCTL_INT(_hw_hn, OID_AUTO, udpcs_fixup_mtu, CTLFLAG_RWTUN,
+    &hn_udpcs_fixup_mtu, 0, "UDP checksum fixup MTU threshold");
 
 /* Limit TSO burst size */
 static int			hn_tso_maxlen = IP_MAXPACKET;
@@ -529,6 +583,22 @@ SYSCTL_PROC(_hw_hn, OID_AUTO, vflist, CTLFLAG_RD | CTLTYPE_STRING,
 SYSCTL_PROC(_hw_hn, OID_AUTO, vfmap, CTLFLAG_RD | CTLTYPE_STRING,
     0, 0, hn_vfmap_sysctl, "A", "VF mapping");
 
+/* Transparent VF */
+static int			hn_xpnt_vf = 1;
+SYSCTL_INT(_hw_hn, OID_AUTO, vf_transparent, CTLFLAG_RDTUN,
+    &hn_xpnt_vf, 0, "Transparent VF mod");
+
+/* Accurate BPF support for Transparent VF */
+static int			hn_xpnt_vf_accbpf = 0;
+SYSCTL_INT(_hw_hn, OID_AUTO, vf_xpnt_accbpf, CTLFLAG_RDTUN,
+    &hn_xpnt_vf_accbpf, 0, "Accurate BPF for transparent VF");
+
+/* Extra wait for transparent VF attach routing; unit seconds. */
+static int			hn_xpnt_vf_attwait = HN_XPNT_VF_ATTWAIT_MIN;
+SYSCTL_INT(_hw_hn, OID_AUTO, vf_xpnt_attwait, CTLFLAG_RWTUN,
+    &hn_xpnt_vf_attwait, 0,
+    "Extra wait for transparent VF attach routing; unit: seconds");
+
 static u_int			hn_cpu_index;	/* next CPU for channel */
 static struct taskqueue		**hn_tx_taskque;/* shared TX taskqueues */
 
@@ -546,6 +616,12 @@ hn_rss_key_default[NDIS_HASH_KEYSIZE_TOEPLITZ] = {
 	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
 };
 #endif	/* !RSS */
+
+static const struct hyperv_guid	hn_guid = {
+	.hv_guid = {
+	    0x63, 0x51, 0x61, 0xf8, 0x3e, 0xdf, 0xc5, 0x46,
+	    0x91, 0x3f, 0xf2, 0xd2, 0xf9, 0x65, 0xed, 0x0e }
+};
 
 static device_method_t hn_methods[] = {
 	/* Device interface */
@@ -681,6 +757,7 @@ hn_tso_fixup(struct mbuf *m_head)
 		ehlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
 	else
 		ehlen = ETHER_HDR_LEN;
+	m_head->m_pkthdr.l2hlen = ehlen;
 
 #ifdef INET
 	if (m_head->m_pkthdr.csum_flags & CSUM_IP_TSO) {
@@ -690,6 +767,7 @@ hn_tso_fixup(struct mbuf *m_head)
 		PULLUP_HDR(m_head, ehlen + sizeof(*ip));
 		ip = mtodo(m_head, ehlen);
 		iphlen = ip->ip_hl << 2;
+		m_head->m_pkthdr.l3hlen = iphlen;
 
 		PULLUP_HDR(m_head, ehlen + iphlen + sizeof(*th));
 		th = mtodo(m_head, ehlen + iphlen);
@@ -713,6 +791,7 @@ hn_tso_fixup(struct mbuf *m_head)
 			m_freem(m_head);
 			return (NULL);
 		}
+		m_head->m_pkthdr.l3hlen = sizeof(*ip6);
 
 		PULLUP_HDR(m_head, ehlen + sizeof(*ip6) + sizeof(*th));
 		th = mtodo(m_head, ehlen + sizeof(*ip6));
@@ -722,20 +801,16 @@ hn_tso_fixup(struct mbuf *m_head)
 	}
 #endif
 	return (m_head);
-
 }
 
 /*
  * NOTE: If this function failed, the m_head would be freed.
  */
 static __inline struct mbuf *
-hn_check_tcpsyn(struct mbuf *m_head, int *tcpsyn)
+hn_set_hlen(struct mbuf *m_head)
 {
 	const struct ether_vlan_header *evl;
-	const struct tcphdr *th;
 	int ehlen;
-
-	*tcpsyn = 0;
 
 	PULLUP_HDR(m_head, sizeof(*evl));
 	evl = mtod(m_head, const struct ether_vlan_header *);
@@ -743,20 +818,38 @@ hn_check_tcpsyn(struct mbuf *m_head, int *tcpsyn)
 		ehlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
 	else
 		ehlen = ETHER_HDR_LEN;
+	m_head->m_pkthdr.l2hlen = ehlen;
 
 #ifdef INET
-	if (m_head->m_pkthdr.csum_flags & CSUM_IP_TCP) {
+	if (m_head->m_pkthdr.csum_flags & (CSUM_IP_TCP | CSUM_IP_UDP)) {
 		const struct ip *ip;
 		int iphlen;
 
 		PULLUP_HDR(m_head, ehlen + sizeof(*ip));
 		ip = mtodo(m_head, ehlen);
 		iphlen = ip->ip_hl << 2;
+		m_head->m_pkthdr.l3hlen = iphlen;
 
-		PULLUP_HDR(m_head, ehlen + iphlen + sizeof(*th));
-		th = mtodo(m_head, ehlen + iphlen);
-		if (th->th_flags & TH_SYN)
-			*tcpsyn = 1;
+		/*
+		 * UDP checksum offload does not work in Azure, if the
+		 * following conditions meet:
+		 * - sizeof(IP hdr + UDP hdr + payload) > 1420.
+		 * - IP_DF is not set in the IP hdr.
+		 *
+		 * Fallback to software checksum for these UDP datagrams.
+		 */
+		if ((m_head->m_pkthdr.csum_flags & CSUM_IP_UDP) &&
+		    m_head->m_pkthdr.len > hn_udpcs_fixup_mtu + ehlen &&
+		    (ntohs(ip->ip_off) & IP_DF) == 0) {
+			uint16_t off = ehlen + iphlen;
+
+			counter_u64_add(hn_udpcs_fixup, 1);
+			PULLUP_HDR(m_head, off + sizeof(struct udphdr));
+			*(uint16_t *)(m_head->m_data + off +
+                            m_head->m_pkthdr.csum_data) = in_cksum_skip(
+			    m_head, m_head->m_pkthdr.len, off);
+			m_head->m_pkthdr.csum_flags &= ~CSUM_IP_UDP;
+		}
 	}
 #endif
 #if defined(INET6) && defined(INET)
@@ -768,15 +861,33 @@ hn_check_tcpsyn(struct mbuf *m_head, int *tcpsyn)
 
 		PULLUP_HDR(m_head, ehlen + sizeof(*ip6));
 		ip6 = mtodo(m_head, ehlen);
-		if (ip6->ip6_nxt != IPPROTO_TCP)
-			return (m_head);
-
-		PULLUP_HDR(m_head, ehlen + sizeof(*ip6) + sizeof(*th));
-		th = mtodo(m_head, ehlen + sizeof(*ip6));
-		if (th->th_flags & TH_SYN)
-			*tcpsyn = 1;
+		if (ip6->ip6_nxt != IPPROTO_TCP) {
+			m_freem(m_head);
+			return (NULL);
+		}
+		m_head->m_pkthdr.l3hlen = sizeof(*ip6);
 	}
 #endif
+	return (m_head);
+}
+
+/*
+ * NOTE: If this function failed, the m_head would be freed.
+ */
+static __inline struct mbuf *
+hn_check_tcpsyn(struct mbuf *m_head, int *tcpsyn)
+{
+	const struct tcphdr *th;
+	int ehlen, iphlen;
+
+	*tcpsyn = 0;
+	ehlen = m_head->m_pkthdr.l2hlen;
+	iphlen = m_head->m_pkthdr.l3hlen;
+
+	PULLUP_HDR(m_head, ehlen + iphlen + sizeof(*th));
+	th = mtodo(m_head, ehlen + iphlen);
+	if (th->th_flags & TH_SYN)
+		*tcpsyn = 1;
 	return (m_head);
 }
 
@@ -807,8 +918,12 @@ hn_rxfilter_config(struct hn_softc *sc)
 
 	HN_LOCK_ASSERT(sc);
 
-	if ((ifp->if_flags & IFF_PROMISC) ||
-	    (sc->hn_flags & HN_FLAG_RXVF)) {
+	/*
+	 * If the non-transparent mode VF is activated, we don't know how
+	 * its RX filter is configured, so stick the synthetic device in
+	 * the promiscous mode.
+	 */
+	if ((ifp->if_flags & IFF_PROMISC) || (sc->hn_flags & HN_FLAG_RXVF)) {
 		filter = NDIS_PACKET_TYPE_PROMISCUOUS;
 	} else {
 		filter = NDIS_PACKET_TYPE_DIRECTED;
@@ -910,7 +1025,6 @@ hn_get_txswq_depth(const struct hn_tx_ring *txr)
 	return hn_tx_swq_depth;
 }
 
-#ifndef RSS
 static int
 hn_rss_reconfig(struct hn_softc *sc)
 {
@@ -949,7 +1063,6 @@ hn_rss_reconfig(struct hn_softc *sc)
 	}
 	return (0);
 }
-#endif	/* !RSS */
 
 static void
 hn_rss_ind_fixup(struct hn_softc *sc)
@@ -1086,16 +1199,18 @@ hn_rxvf_change(struct hn_softc *sc, struct ifnet *ifp, bool rxvf)
 	}
 
 	hn_nvs_set_datapath(sc,
-	    rxvf ? HN_NVS_DATAPATH_VF : HN_NVS_DATAPATH_SYNTHETIC);
+	    rxvf ? HN_NVS_DATAPATH_VF : HN_NVS_DATAPATH_SYNTH);
 
 	hn_rxvf_set(sc, rxvf ? ifp : NULL);
 
 	if (rxvf) {
+		hn_vf_rss_fixup(sc, true);
 		hn_suspend_mgmt(sc);
 		sc->hn_link_flags &=
 		    ~(HN_LINK_FLAG_LINKUP | HN_LINK_FLAG_NETCHG);
 		if_link_state_change(hn_ifp, LINK_STATE_DOWN);
 	} else {
+		hn_vf_rss_restore(sc);
 		hn_resume_mgmt(sc);
 	}
 
@@ -1126,6 +1241,634 @@ hn_ifaddr_event(void *arg, struct ifnet *ifp)
 	hn_rxvf_change(arg, ifp, ifp->if_flags & IFF_UP);
 }
 
+static int
+hn_xpnt_vf_iocsetcaps(struct hn_softc *sc, struct ifreq *ifr)
+{
+	struct ifnet *ifp, *vf_ifp;
+	uint64_t tmp;
+	int error;
+
+	HN_LOCK_ASSERT(sc);
+	ifp = sc->hn_ifp;
+	vf_ifp = sc->hn_vf_ifp;
+
+	/*
+	 * Fix up requested capabilities w/ supported capabilities,
+	 * since the supported capabilities could have been changed.
+	 */
+	ifr->ifr_reqcap &= ifp->if_capabilities;
+	/* Pass SIOCSIFCAP to VF. */
+	error = vf_ifp->if_ioctl(vf_ifp, SIOCSIFCAP, (caddr_t)ifr);
+
+	/*
+	 * NOTE:
+	 * The error will be propagated to the callers, however, it
+	 * is _not_ useful here.
+	 */
+
+	/*
+	 * Merge VF's enabled capabilities.
+	 */
+	ifp->if_capenable = vf_ifp->if_capenable & ifp->if_capabilities;
+
+	tmp = vf_ifp->if_hwassist & HN_CSUM_IP_HWASSIST(sc);
+	if (ifp->if_capenable & IFCAP_TXCSUM)
+		ifp->if_hwassist |= tmp;
+	else
+		ifp->if_hwassist &= ~tmp;
+
+	tmp = vf_ifp->if_hwassist & HN_CSUM_IP6_HWASSIST(sc);
+	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
+		ifp->if_hwassist |= tmp;
+	else
+		ifp->if_hwassist &= ~tmp;
+
+	tmp = vf_ifp->if_hwassist & CSUM_IP_TSO;
+	if (ifp->if_capenable & IFCAP_TSO4)
+		ifp->if_hwassist |= tmp;
+	else
+		ifp->if_hwassist &= ~tmp;
+
+	tmp = vf_ifp->if_hwassist & CSUM_IP6_TSO;
+	if (ifp->if_capenable & IFCAP_TSO6)
+		ifp->if_hwassist |= tmp;
+	else
+		ifp->if_hwassist &= ~tmp;
+
+	return (error);
+}
+
+static int
+hn_xpnt_vf_iocsetflags(struct hn_softc *sc)
+{
+	struct ifnet *vf_ifp;
+	struct ifreq ifr;
+
+	HN_LOCK_ASSERT(sc);
+	vf_ifp = sc->hn_vf_ifp;
+
+	memset(&ifr, 0, sizeof(ifr));
+	strlcpy(ifr.ifr_name, vf_ifp->if_xname, sizeof(ifr.ifr_name));
+	ifr.ifr_flags = vf_ifp->if_flags & 0xffff;
+	ifr.ifr_flagshigh = vf_ifp->if_flags >> 16;
+	return (vf_ifp->if_ioctl(vf_ifp, SIOCSIFFLAGS, (caddr_t)&ifr));
+}
+
+static void
+hn_xpnt_vf_saveifflags(struct hn_softc *sc)
+{
+	struct ifnet *ifp = sc->hn_ifp;
+	int allmulti = 0;
+
+	HN_LOCK_ASSERT(sc);
+
+	/* XXX vlan(4) style mcast addr maintenance */
+	if (!TAILQ_EMPTY(&ifp->if_multiaddrs))
+		allmulti = IFF_ALLMULTI;
+
+	/* Always set the VF's if_flags */
+	sc->hn_vf_ifp->if_flags = ifp->if_flags | allmulti;
+}
+
+static void
+hn_xpnt_vf_input(struct ifnet *vf_ifp, struct mbuf *m)
+{
+	struct rm_priotracker pt;
+	struct ifnet *hn_ifp = NULL;
+	struct mbuf *mn;
+
+	/*
+	 * XXX racy, if hn(4) ever detached.
+	 */
+	rm_rlock(&hn_vfmap_lock, &pt);
+	if (vf_ifp->if_index < hn_vfmap_size)
+		hn_ifp = hn_vfmap[vf_ifp->if_index];
+	rm_runlock(&hn_vfmap_lock, &pt);
+
+	if (hn_ifp != NULL) {
+		for (mn = m; mn != NULL; mn = mn->m_nextpkt) {
+			/*
+			 * Allow tapping on the VF.
+			 */
+			ETHER_BPF_MTAP(vf_ifp, mn);
+
+			/*
+			 * Update VF stats.
+			 */
+			if ((vf_ifp->if_capenable & IFCAP_HWSTATS) == 0) {
+				if_inc_counter(vf_ifp, IFCOUNTER_IBYTES,
+				    mn->m_pkthdr.len);
+			}
+			/*
+			 * XXX IFCOUNTER_IMCAST
+			 * This stat updating is kinda invasive, since it
+			 * requires two checks on the mbuf: the length check
+			 * and the ethernet header check.  As of this write,
+			 * all multicast packets go directly to hn(4), which
+			 * makes imcast stat updating in the VF a try in vian.
+			 */
+
+			/*
+			 * Fix up rcvif and increase hn(4)'s ipackets.
+			 */
+			mn->m_pkthdr.rcvif = hn_ifp;
+			if_inc_counter(hn_ifp, IFCOUNTER_IPACKETS, 1);
+		}
+		/*
+		 * Go through hn(4)'s if_input.
+		 */
+		hn_ifp->if_input(hn_ifp, m);
+	} else {
+		/*
+		 * In the middle of the transition; free this
+		 * mbuf chain.
+		 */
+		while (m != NULL) {
+			mn = m->m_nextpkt;
+			m->m_nextpkt = NULL;
+			m_freem(m);
+			m = mn;
+		}
+	}
+}
+
+static void
+hn_mtu_change_fixup(struct hn_softc *sc)
+{
+	struct ifnet *ifp;
+
+	HN_LOCK_ASSERT(sc);
+	ifp = sc->hn_ifp;
+
+	hn_set_tso_maxsize(sc, hn_tso_maxlen, ifp->if_mtu);
+#if __FreeBSD_version >= 1100099
+	if (sc->hn_rx_ring[0].hn_lro.lro_length_lim < HN_LRO_LENLIM_MIN(ifp))
+		hn_set_lro_lenlim(sc, HN_LRO_LENLIM_MIN(ifp));
+#endif
+}
+
+static uint32_t
+hn_rss_type_fromndis(uint32_t rss_hash)
+{
+	uint32_t types = 0;
+
+	if (rss_hash & NDIS_HASH_IPV4)
+		types |= RSS_TYPE_IPV4;
+	if (rss_hash & NDIS_HASH_TCP_IPV4)
+		types |= RSS_TYPE_TCP_IPV4;
+	if (rss_hash & NDIS_HASH_IPV6)
+		types |= RSS_TYPE_IPV6;
+	if (rss_hash & NDIS_HASH_IPV6_EX)
+		types |= RSS_TYPE_IPV6_EX;
+	if (rss_hash & NDIS_HASH_TCP_IPV6)
+		types |= RSS_TYPE_TCP_IPV6;
+	if (rss_hash & NDIS_HASH_TCP_IPV6_EX)
+		types |= RSS_TYPE_TCP_IPV6_EX;
+	if (rss_hash & NDIS_HASH_UDP_IPV4_X)
+		types |= RSS_TYPE_UDP_IPV4;
+	return (types);
+}
+
+static uint32_t
+hn_rss_type_tondis(uint32_t types)
+{
+	uint32_t rss_hash = 0;
+
+	KASSERT((types & (RSS_TYPE_UDP_IPV6 | RSS_TYPE_UDP_IPV6_EX)) == 0,
+	    ("UDP6 and UDP6EX are not supported"));
+
+	if (types & RSS_TYPE_IPV4)
+		rss_hash |= NDIS_HASH_IPV4;
+	if (types & RSS_TYPE_TCP_IPV4)
+		rss_hash |= NDIS_HASH_TCP_IPV4;
+	if (types & RSS_TYPE_IPV6)
+		rss_hash |= NDIS_HASH_IPV6;
+	if (types & RSS_TYPE_IPV6_EX)
+		rss_hash |= NDIS_HASH_IPV6_EX;
+	if (types & RSS_TYPE_TCP_IPV6)
+		rss_hash |= NDIS_HASH_TCP_IPV6;
+	if (types & RSS_TYPE_TCP_IPV6_EX)
+		rss_hash |= NDIS_HASH_TCP_IPV6_EX;
+	if (types & RSS_TYPE_UDP_IPV4)
+		rss_hash |= NDIS_HASH_UDP_IPV4_X;
+	return (rss_hash);
+}
+
+static void
+hn_rss_mbuf_hash(struct hn_softc *sc, uint32_t mbuf_hash)
+{
+	int i;
+
+	HN_LOCK_ASSERT(sc);
+
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+		sc->hn_rx_ring[i].hn_mbuf_hash = mbuf_hash;
+}
+
+static void
+hn_vf_rss_fixup(struct hn_softc *sc, bool reconf)
+{
+	struct ifnet *ifp, *vf_ifp;
+	struct ifrsshash ifrh;
+	struct ifrsskey ifrk;
+	int error;
+	uint32_t my_types, diff_types, mbuf_types = 0;
+
+	HN_LOCK_ASSERT(sc);
+	KASSERT(sc->hn_flags & HN_FLAG_SYNTH_ATTACHED,
+	    ("%s: synthetic parts are not attached", sc->hn_ifp->if_xname));
+
+	if (sc->hn_rx_ring_inuse == 1) {
+		/* No RSS on synthetic parts; done. */
+		return;
+	}
+	if ((sc->hn_rss_hcap & NDIS_HASH_FUNCTION_TOEPLITZ) == 0) {
+		/* Synthetic parts do not support Toeplitz; done. */
+		return;
+	}
+
+	ifp = sc->hn_ifp;
+	vf_ifp = sc->hn_vf_ifp;
+
+	/*
+	 * Extract VF's RSS key.  Only 40 bytes key for Toeplitz is
+	 * supported.
+	 */
+	memset(&ifrk, 0, sizeof(ifrk));
+	strlcpy(ifrk.ifrk_name, vf_ifp->if_xname, sizeof(ifrk.ifrk_name));
+	error = vf_ifp->if_ioctl(vf_ifp, SIOCGIFRSSKEY, (caddr_t)&ifrk);
+	if (error) {
+		if_printf(ifp, "%s SIOCGRSSKEY failed: %d\n",
+		    vf_ifp->if_xname, error);
+		goto done;
+	}
+	if (ifrk.ifrk_func != RSS_FUNC_TOEPLITZ) {
+		if_printf(ifp, "%s RSS function %u is not Toeplitz\n",
+		    vf_ifp->if_xname, ifrk.ifrk_func);
+		goto done;
+	}
+	if (ifrk.ifrk_keylen != NDIS_HASH_KEYSIZE_TOEPLITZ) {
+		if_printf(ifp, "%s invalid RSS Toeplitz key length %d\n",
+		    vf_ifp->if_xname, ifrk.ifrk_keylen);
+		goto done;
+	}
+
+	/*
+	 * Extract VF's RSS hash.  Only Toeplitz is supported.
+	 */
+	memset(&ifrh, 0, sizeof(ifrh));
+	strlcpy(ifrh.ifrh_name, vf_ifp->if_xname, sizeof(ifrh.ifrh_name));
+	error = vf_ifp->if_ioctl(vf_ifp, SIOCGIFRSSHASH, (caddr_t)&ifrh);
+	if (error) {
+		if_printf(ifp, "%s SIOCGRSSHASH failed: %d\n",
+		    vf_ifp->if_xname, error);
+		goto done;
+	}
+	if (ifrh.ifrh_func != RSS_FUNC_TOEPLITZ) {
+		if_printf(ifp, "%s RSS function %u is not Toeplitz\n",
+		    vf_ifp->if_xname, ifrh.ifrh_func);
+		goto done;
+	}
+
+	my_types = hn_rss_type_fromndis(sc->hn_rss_hcap);
+	if ((ifrh.ifrh_types & my_types) == 0) {
+		/* This disables RSS; ignore it then */
+		if_printf(ifp, "%s intersection of RSS types failed.  "
+		    "VF %#x, mine %#x\n", vf_ifp->if_xname,
+		    ifrh.ifrh_types, my_types);
+		goto done;
+	}
+
+	diff_types = my_types ^ ifrh.ifrh_types;
+	my_types &= ifrh.ifrh_types;
+	mbuf_types = my_types;
+
+	/*
+	 * Detect RSS hash value/type confliction.
+	 *
+	 * NOTE:
+	 * We don't disable the hash type, but stop delivery the hash
+	 * value/type through mbufs on RX path.
+	 *
+	 * XXX If HN_CAP_UDPHASH is set in hn_caps, then UDP 4-tuple
+	 * hash is delivered with type of TCP_IPV4.  This means if
+	 * UDP_IPV4 is enabled, then TCP_IPV4 should be forced, at
+	 * least to hn_mbuf_hash.  However, given that _all_ of the
+	 * NICs implement TCP_IPV4, this will _not_ impose any issues
+	 * here.
+	 */
+	if ((my_types & RSS_TYPE_IPV4) &&
+	    (diff_types & ifrh.ifrh_types &
+	     (RSS_TYPE_TCP_IPV4 | RSS_TYPE_UDP_IPV4))) {
+		/* Conflict; disable IPV4 hash type/value delivery. */
+		if_printf(ifp, "disable IPV4 mbuf hash delivery\n");
+		mbuf_types &= ~RSS_TYPE_IPV4;
+	}
+	if ((my_types & RSS_TYPE_IPV6) &&
+	    (diff_types & ifrh.ifrh_types &
+	     (RSS_TYPE_TCP_IPV6 | RSS_TYPE_UDP_IPV6 |
+	      RSS_TYPE_TCP_IPV6_EX | RSS_TYPE_UDP_IPV6_EX |
+	      RSS_TYPE_IPV6_EX))) {
+		/* Conflict; disable IPV6 hash type/value delivery. */
+		if_printf(ifp, "disable IPV6 mbuf hash delivery\n");
+		mbuf_types &= ~RSS_TYPE_IPV6;
+	}
+	if ((my_types & RSS_TYPE_IPV6_EX) &&
+	    (diff_types & ifrh.ifrh_types &
+	     (RSS_TYPE_TCP_IPV6 | RSS_TYPE_UDP_IPV6 |
+	      RSS_TYPE_TCP_IPV6_EX | RSS_TYPE_UDP_IPV6_EX |
+	      RSS_TYPE_IPV6))) {
+		/* Conflict; disable IPV6_EX hash type/value delivery. */
+		if_printf(ifp, "disable IPV6_EX mbuf hash delivery\n");
+		mbuf_types &= ~RSS_TYPE_IPV6_EX;
+	}
+	if ((my_types & RSS_TYPE_TCP_IPV6) &&
+	    (diff_types & ifrh.ifrh_types & RSS_TYPE_TCP_IPV6_EX)) {
+		/* Conflict; disable TCP_IPV6 hash type/value delivery. */
+		if_printf(ifp, "disable TCP_IPV6 mbuf hash delivery\n");
+		mbuf_types &= ~RSS_TYPE_TCP_IPV6;
+	}
+	if ((my_types & RSS_TYPE_TCP_IPV6_EX) &&
+	    (diff_types & ifrh.ifrh_types & RSS_TYPE_TCP_IPV6)) {
+		/* Conflict; disable TCP_IPV6_EX hash type/value delivery. */
+		if_printf(ifp, "disable TCP_IPV6_EX mbuf hash delivery\n");
+		mbuf_types &= ~RSS_TYPE_TCP_IPV6_EX;
+	}
+	if ((my_types & RSS_TYPE_UDP_IPV6) &&
+	    (diff_types & ifrh.ifrh_types & RSS_TYPE_UDP_IPV6_EX)) {
+		/* Conflict; disable UDP_IPV6 hash type/value delivery. */
+		if_printf(ifp, "disable UDP_IPV6 mbuf hash delivery\n");
+		mbuf_types &= ~RSS_TYPE_UDP_IPV6;
+	}
+	if ((my_types & RSS_TYPE_UDP_IPV6_EX) &&
+	    (diff_types & ifrh.ifrh_types & RSS_TYPE_UDP_IPV6)) {
+		/* Conflict; disable UDP_IPV6_EX hash type/value delivery. */
+		if_printf(ifp, "disable UDP_IPV6_EX mbuf hash delivery\n");
+		mbuf_types &= ~RSS_TYPE_UDP_IPV6_EX;
+	}
+
+	/*
+	 * Indirect table does not matter.
+	 */
+
+	sc->hn_rss_hash = (sc->hn_rss_hcap & NDIS_HASH_FUNCTION_MASK) |
+	    hn_rss_type_tondis(my_types);
+	memcpy(sc->hn_rss.rss_key, ifrk.ifrk_key, sizeof(sc->hn_rss.rss_key));
+	sc->hn_flags |= HN_FLAG_HAS_RSSKEY;
+
+	if (reconf) {
+		error = hn_rss_reconfig(sc);
+		if (error) {
+			/* XXX roll-back? */
+			if_printf(ifp, "hn_rss_reconfig failed: %d\n", error);
+			/* XXX keep going. */
+		}
+	}
+done:
+	/* Hash deliverability for mbufs. */
+	hn_rss_mbuf_hash(sc, hn_rss_type_tondis(mbuf_types));
+}
+
+static void
+hn_vf_rss_restore(struct hn_softc *sc)
+{
+
+	HN_LOCK_ASSERT(sc);
+	KASSERT(sc->hn_flags & HN_FLAG_SYNTH_ATTACHED,
+	    ("%s: synthetic parts are not attached", sc->hn_ifp->if_xname));
+
+	if (sc->hn_rx_ring_inuse == 1)
+		goto done;
+
+	/*
+	 * Restore hash types.  Key does _not_ matter.
+	 */
+	if (sc->hn_rss_hash != sc->hn_rss_hcap) {
+		int error;
+
+		sc->hn_rss_hash = sc->hn_rss_hcap;
+		error = hn_rss_reconfig(sc);
+		if (error) {
+			if_printf(sc->hn_ifp, "hn_rss_reconfig failed: %d\n",
+			    error);
+			/* XXX keep going. */
+		}
+	}
+done:
+	/* Hash deliverability for mbufs. */
+	hn_rss_mbuf_hash(sc, NDIS_HASH_ALL);
+}
+
+static void
+hn_xpnt_vf_setready(struct hn_softc *sc)
+{
+	struct ifnet *ifp, *vf_ifp;
+	struct ifreq ifr;
+
+	HN_LOCK_ASSERT(sc);
+	ifp = sc->hn_ifp;
+	vf_ifp = sc->hn_vf_ifp;
+
+	/*
+	 * Mark the VF ready.
+	 */
+	sc->hn_vf_rdytick = 0;
+
+	/*
+	 * Save information for restoration.
+	 */
+	sc->hn_saved_caps = ifp->if_capabilities;
+	sc->hn_saved_tsomax = ifp->if_hw_tsomax;
+	sc->hn_saved_tsosegcnt = ifp->if_hw_tsomaxsegcount;
+	sc->hn_saved_tsosegsz = ifp->if_hw_tsomaxsegsize;
+
+	/*
+	 * Intersect supported/enabled capabilities.
+	 *
+	 * NOTE:
+	 * if_hwassist is not changed here.
+	 */
+	ifp->if_capabilities &= vf_ifp->if_capabilities;
+	ifp->if_capenable &= ifp->if_capabilities;
+
+	/*
+	 * Fix TSO settings.
+	 */
+	if (ifp->if_hw_tsomax > vf_ifp->if_hw_tsomax)
+		ifp->if_hw_tsomax = vf_ifp->if_hw_tsomax;
+	if (ifp->if_hw_tsomaxsegcount > vf_ifp->if_hw_tsomaxsegcount)
+		ifp->if_hw_tsomaxsegcount = vf_ifp->if_hw_tsomaxsegcount;
+	if (ifp->if_hw_tsomaxsegsize > vf_ifp->if_hw_tsomaxsegsize)
+		ifp->if_hw_tsomaxsegsize = vf_ifp->if_hw_tsomaxsegsize;
+
+	/*
+	 * Change VF's enabled capabilities.
+	 */
+	memset(&ifr, 0, sizeof(ifr));
+	strlcpy(ifr.ifr_name, vf_ifp->if_xname, sizeof(ifr.ifr_name));
+	ifr.ifr_reqcap = ifp->if_capenable;
+	hn_xpnt_vf_iocsetcaps(sc, &ifr);
+
+	if (ifp->if_mtu != ETHERMTU) {
+		int error;
+
+		/*
+		 * Change VF's MTU.
+		 */
+		memset(&ifr, 0, sizeof(ifr));
+		strlcpy(ifr.ifr_name, vf_ifp->if_xname, sizeof(ifr.ifr_name));
+		ifr.ifr_mtu = ifp->if_mtu;
+		error = vf_ifp->if_ioctl(vf_ifp, SIOCSIFMTU, (caddr_t)&ifr);
+		if (error) {
+			if_printf(ifp, "%s SIOCSIFMTU %u failed\n",
+			    vf_ifp->if_xname, ifp->if_mtu);
+			if (ifp->if_mtu > ETHERMTU) {
+				if_printf(ifp, "change MTU to %d\n", ETHERMTU);
+
+				/*
+				 * XXX
+				 * No need to adjust the synthetic parts' MTU;
+				 * failure of the adjustment will cause us
+				 * infinite headache.
+				 */
+				ifp->if_mtu = ETHERMTU;
+				hn_mtu_change_fixup(sc);
+			}
+		}
+	}
+}
+
+static bool
+hn_xpnt_vf_isready(struct hn_softc *sc)
+{
+
+	HN_LOCK_ASSERT(sc);
+
+	if (!hn_xpnt_vf || sc->hn_vf_ifp == NULL)
+		return (false);
+
+	if (sc->hn_vf_rdytick == 0)
+		return (true);
+
+	if (sc->hn_vf_rdytick > ticks)
+		return (false);
+
+	/* Mark VF as ready. */
+	hn_xpnt_vf_setready(sc);
+	return (true);
+}
+
+static void
+hn_xpnt_vf_setenable(struct hn_softc *sc)
+{
+	int i;
+
+	HN_LOCK_ASSERT(sc);
+
+	/* NOTE: hn_vf_lock for hn_transmit()/hn_qflush() */
+	rm_wlock(&sc->hn_vf_lock);
+	sc->hn_xvf_flags |= HN_XVFFLAG_ENABLED;
+	rm_wunlock(&sc->hn_vf_lock);
+
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+		sc->hn_rx_ring[i].hn_rx_flags |= HN_RX_FLAG_XPNT_VF;
+}
+
+static void
+hn_xpnt_vf_setdisable(struct hn_softc *sc, bool clear_vf)
+{
+	int i;
+
+	HN_LOCK_ASSERT(sc);
+
+	/* NOTE: hn_vf_lock for hn_transmit()/hn_qflush() */
+	rm_wlock(&sc->hn_vf_lock);
+	sc->hn_xvf_flags &= ~HN_XVFFLAG_ENABLED;
+	if (clear_vf)
+		sc->hn_vf_ifp = NULL;
+	rm_wunlock(&sc->hn_vf_lock);
+
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+		sc->hn_rx_ring[i].hn_rx_flags &= ~HN_RX_FLAG_XPNT_VF;
+}
+
+static void
+hn_xpnt_vf_init(struct hn_softc *sc)
+{
+	int error;
+
+	HN_LOCK_ASSERT(sc);
+
+	KASSERT((sc->hn_xvf_flags & HN_XVFFLAG_ENABLED) == 0,
+	    ("%s: transparent VF was enabled", sc->hn_ifp->if_xname));
+
+	if (bootverbose) {
+		if_printf(sc->hn_ifp, "try bringing up %s\n",
+		    sc->hn_vf_ifp->if_xname);
+	}
+
+	/*
+	 * Bring the VF up.
+	 */
+	hn_xpnt_vf_saveifflags(sc);
+	sc->hn_vf_ifp->if_flags |= IFF_UP;
+	error = hn_xpnt_vf_iocsetflags(sc);
+	if (error) {
+		if_printf(sc->hn_ifp, "bringing up %s failed: %d\n",
+		    sc->hn_vf_ifp->if_xname, error);
+		return;
+	}
+
+	/*
+	 * NOTE:
+	 * Datapath setting must happen _after_ bringing the VF up.
+	 */
+	hn_nvs_set_datapath(sc, HN_NVS_DATAPATH_VF);
+
+	/*
+	 * NOTE:
+	 * Fixup RSS related bits _after_ the VF is brought up, since
+	 * many VFs generate RSS key during it's initialization.
+	 */
+	hn_vf_rss_fixup(sc, true);
+
+	/* Mark transparent mode VF as enabled. */
+	hn_xpnt_vf_setenable(sc);
+}
+
+static void
+hn_xpnt_vf_init_taskfunc(void *xsc, int pending __unused)
+{
+	struct hn_softc *sc = xsc;
+
+	HN_LOCK(sc);
+
+	if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0)
+		goto done;
+	if (sc->hn_vf_ifp == NULL)
+		goto done;
+	if (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)
+		goto done;
+
+	if (sc->hn_vf_rdytick != 0) {
+		/* Mark VF as ready. */
+		hn_xpnt_vf_setready(sc);
+	}
+
+	if (sc->hn_ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		/*
+		 * Delayed VF initialization.
+		 */
+		if (bootverbose) {
+			if_printf(sc->hn_ifp, "delayed initialize %s\n",
+			    sc->hn_vf_ifp->if_xname);
+		}
+		hn_xpnt_vf_init(sc);
+	}
+done:
+	HN_UNLOCK(sc);
+}
+
 static void
 hn_ifnet_attevent(void *xsc, struct ifnet *ifp)
 {
@@ -1142,6 +1885,16 @@ hn_ifnet_attevent(void *xsc, struct ifnet *ifp)
 	if (sc->hn_vf_ifp != NULL) {
 		if_printf(sc->hn_ifp, "%s was attached as VF\n",
 		    sc->hn_vf_ifp->if_xname);
+		goto done;
+	}
+
+	if (hn_xpnt_vf && ifp->if_start != NULL) {
+		/*
+		 * ifnet.if_start is _not_ supported by transparent
+		 * mode VF; mainly due to the IFF_DRV_OACTIVE flag.
+		 */
+		if_printf(sc->hn_ifp, "%s uses if_start, which is unsupported "
+		    "in transparent VF mode.\n", ifp->if_xname);
 		goto done;
 	}
 
@@ -1168,7 +1921,37 @@ hn_ifnet_attevent(void *xsc, struct ifnet *ifp)
 
 	rm_wunlock(&hn_vfmap_lock);
 
+	/* NOTE: hn_vf_lock for hn_transmit()/hn_qflush() */
+	rm_wlock(&sc->hn_vf_lock);
+	KASSERT((sc->hn_xvf_flags & HN_XVFFLAG_ENABLED) == 0,
+	    ("%s: transparent VF was enabled", sc->hn_ifp->if_xname));
 	sc->hn_vf_ifp = ifp;
+	rm_wunlock(&sc->hn_vf_lock);
+
+	if (hn_xpnt_vf) {
+		int wait_ticks;
+
+		/*
+		 * Install if_input for vf_ifp, which does vf_ifp -> hn_ifp.
+		 * Save vf_ifp's current if_input for later restoration.
+		 */
+		sc->hn_vf_input = ifp->if_input;
+		ifp->if_input = hn_xpnt_vf_input;
+
+		/*
+		 * Stop link status management; use the VF's.
+		 */
+		hn_suspend_mgmt(sc);
+
+		/*
+		 * Give VF sometime to complete its attach routing.
+		 */
+		wait_ticks = hn_xpnt_vf_attwait * hz;
+		sc->hn_vf_rdytick = ticks + wait_ticks;
+
+		taskqueue_enqueue_timeout(sc->hn_vf_taskq, &sc->hn_vf_init,
+		    wait_ticks);
+	}
 done:
 	HN_UNLOCK(sc);
 }
@@ -1186,7 +1969,66 @@ hn_ifnet_detevent(void *xsc, struct ifnet *ifp)
 	if (!hn_ismyvf(sc, ifp))
 		goto done;
 
-	sc->hn_vf_ifp = NULL;
+	if (hn_xpnt_vf) {
+		/*
+		 * Make sure that the delayed initialization is not running.
+		 *
+		 * NOTE:
+		 * - This lock _must_ be released, since the hn_vf_init task
+		 *   will try holding this lock.
+		 * - It is safe to release this lock here, since the
+		 *   hn_ifnet_attevent() is interlocked by the hn_vf_ifp.
+		 *
+		 * XXX racy, if hn(4) ever detached.
+		 */
+		HN_UNLOCK(sc);
+		taskqueue_drain_timeout(sc->hn_vf_taskq, &sc->hn_vf_init);
+		HN_LOCK(sc);
+
+		KASSERT(sc->hn_vf_input != NULL, ("%s VF input is not saved",
+		    sc->hn_ifp->if_xname));
+		ifp->if_input = sc->hn_vf_input;
+		sc->hn_vf_input = NULL;
+
+		if ((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) &&
+		    (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED))
+			hn_nvs_set_datapath(sc, HN_NVS_DATAPATH_SYNTH);
+
+		if (sc->hn_vf_rdytick == 0) {
+			/*
+			 * The VF was ready; restore some settings.
+			 */
+			sc->hn_ifp->if_capabilities = sc->hn_saved_caps;
+			/*
+			 * NOTE:
+			 * There is _no_ need to fixup if_capenable and
+			 * if_hwassist, since the if_capabilities before
+			 * restoration was an intersection of the VF's
+			 * if_capabilites and the synthetic device's
+			 * if_capabilites.
+			 */
+			sc->hn_ifp->if_hw_tsomax = sc->hn_saved_tsomax;
+			sc->hn_ifp->if_hw_tsomaxsegcount =
+			    sc->hn_saved_tsosegcnt;
+			sc->hn_ifp->if_hw_tsomaxsegsize = sc->hn_saved_tsosegsz;
+		}
+
+		if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) {
+			/*
+			 * Restore RSS settings.
+			 */
+			hn_vf_rss_restore(sc);
+
+			/*
+			 * Resume link status management, which was suspended
+			 * by hn_ifnet_attevent().
+			 */
+			hn_resume_mgmt(sc);
+		}
+	}
+
+	/* Mark transparent mode VF as disabled. */
+	hn_xpnt_vf_setdisable(sc, true /* clear hn_vf_ifp */);
 
 	rm_wlock(&hn_vfmap_lock);
 
@@ -1205,18 +2047,20 @@ done:
 	HN_UNLOCK(sc);
 }
 
-/* {F8615163-DF3E-46c5-913F-F2D2F965ED0E} */
-static const struct hyperv_guid g_net_vsc_device_type = {
-	.hv_guid = {0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46,
-		0x91, 0x3F, 0xF2, 0xD2, 0xF9, 0x65, 0xED, 0x0E}
-};
+static void
+hn_ifnet_lnkevent(void *xsc, struct ifnet *ifp, int link_state)
+{
+	struct hn_softc *sc = xsc;
+
+	if (sc->hn_vf_ifp == ifp)
+		if_link_state_change(sc->hn_ifp, link_state);
+}
 
 static int
 hn_probe(device_t dev)
 {
 
-	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev,
-	    &g_net_vsc_device_type) == 0) {
+	if (VMBUS_PROBE_GUID(device_get_parent(dev), dev, &hn_guid) == 0) {
 		device_set_desc(dev, "Hyper-V Network Interface");
 		return BUS_PROBE_DEFAULT;
 	}
@@ -1232,10 +2076,14 @@ hn_attach(device_t dev)
 	uint8_t eaddr[ETHER_ADDR_LEN];
 	struct ifnet *ifp = NULL;
 	int error, ring_cnt, tx_ring_cnt;
+	uint32_t mtu;
 
 	sc->hn_dev = dev;
 	sc->hn_prichan = vmbus_get_channel(dev);
 	HN_LOCK_INIT(sc);
+	rm_init(&sc->hn_vf_lock, "hnvf");
+	if (hn_xpnt_vf && hn_xpnt_vf_accbpf)
+		sc->hn_xvf_flags |= HN_XVFFLAG_ACCBPF;
 
 	/*
 	 * Initialize these tunables once.
@@ -1274,6 +2122,18 @@ hn_attach(device_t dev)
 	TASK_INIT(&sc->hn_netchg_init, 0, hn_netchg_init_taskfunc, sc);
 	TIMEOUT_TASK_INIT(sc->hn_mgmt_taskq0, &sc->hn_netchg_status, 0,
 	    hn_netchg_status_taskfunc, sc);
+
+	if (hn_xpnt_vf) {
+		/*
+		 * Setup taskqueue for VF tasks, e.g. delayed VF bringing up.
+		 */
+		sc->hn_vf_taskq = taskqueue_create("hn_vf", M_WAITOK,
+		    taskqueue_thread_enqueue, &sc->hn_vf_taskq);
+		taskqueue_start_threads(&sc->hn_vf_taskq, 1, PI_NET, "%s vf",
+		    device_get_nameunit(dev));
+		TIMEOUT_TASK_INIT(sc->hn_vf_taskq, &sc->hn_vf_init, 0,
+		    hn_xpnt_vf_init_taskfunc, sc);
+	}
 
 	/*
 	 * Allocate ifnet and setup its name earlier, so that if_printf
@@ -1373,6 +2233,12 @@ hn_attach(device_t dev)
 	if (error)
 		goto failed;
 
+	error = hn_rndis_get_mtu(sc, &mtu);
+	if (error)
+		mtu = ETHERMTU;
+	else if (bootverbose)
+		device_printf(dev, "RNDIS mtu %u\n", mtu);
+
 #if __FreeBSD_version >= 1100099
 	if (sc->hn_rx_ring_inuse > 1) {
 		/*
@@ -1384,9 +2250,10 @@ hn_attach(device_t dev)
 #endif
 
 	/*
-	 * Fixup TX stuffs after synthetic parts are attached.
+	 * Fixup TX/RX stuffs after synthetic parts are attached.
 	 */
 	hn_fixup_tx_data(sc);
+	hn_fixup_rx_data(sc);
 
 	ctx = device_get_sysctl_ctx(dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
@@ -1401,12 +2268,26 @@ hn_attach(device_t dev)
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "hwassist",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    hn_hwassist_sysctl, "A", "hwassist");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "tso_max",
+	    CTLFLAG_RD, &ifp->if_hw_tsomax, 0, "max TSO size");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "tso_maxsegcnt",
+	    CTLFLAG_RD, &ifp->if_hw_tsomaxsegcount, 0,
+	    "max # of TSO segments");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "tso_maxsegsz",
+	    CTLFLAG_RD, &ifp->if_hw_tsomaxsegsize, 0,
+	    "max size of TSO segment");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rxfilter",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    hn_rxfilter_sysctl, "A", "rxfilter");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rss_hash",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    hn_rss_hash_sysctl, "A", "RSS hash");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rss_hashcap",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    hn_rss_hcap_sysctl, "A", "RSS hash capabilities");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "mbuf_hash",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    hn_rss_mbuf_sysctl, "A", "RSS hash for mbufs");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "rss_ind_size",
 	    CTLFLAG_RD, &sc->hn_rss_ind_size, 0, "RSS indirect entry count");
 #ifndef RSS
@@ -1445,9 +2326,20 @@ hn_attach(device_t dev)
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "vf",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    hn_vf_sysctl, "A", "Virtual Function's name");
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rxvf",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    hn_rxvf_sysctl, "A", "activated Virtual Function's name");
+	if (!hn_xpnt_vf) {
+		SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rxvf",
+		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+		    hn_rxvf_sysctl, "A", "activated Virtual Function's name");
+	} else {
+		SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "vf_xpnt_enabled",
+		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+		    hn_xpnt_vf_enabled_sysctl, "I",
+		    "Transparent VF enabled");
+		SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "vf_xpnt_accbpf",
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+		    hn_xpnt_vf_accbpf_sysctl, "I",
+		    "Accurate BPF for transparent VF");
+	}
 
 	/*
 	 * Setup the ifmedia, which has been initialized earlier.
@@ -1480,7 +2372,7 @@ hn_attach(device_t dev)
 		ifp->if_qflush = hn_xmit_qflush;
 	}
 
-	ifp->if_capabilities |= IFCAP_RXCSUM | IFCAP_LRO;
+	ifp->if_capabilities |= IFCAP_RXCSUM | IFCAP_LRO | IFCAP_LINKSTATE;
 #ifdef foo
 	/* We can't diff IPv6 packets from IPv4 packets on RX path. */
 	ifp->if_capabilities |= IFCAP_RXCSUM_IPV6;
@@ -1515,7 +2407,13 @@ hn_attach(device_t dev)
 	ifp->if_hwassist &= ~(HN_CSUM_IP6_MASK | CSUM_IP6_TSO);
 
 	if (ifp->if_capabilities & (IFCAP_TSO6 | IFCAP_TSO4)) {
+		/*
+		 * Lock hn_set_tso_maxsize() to simplify its
+		 * internal logic.
+		 */
+		HN_LOCK(sc);
 		hn_set_tso_maxsize(sc, hn_tso_maxlen, ETHERMTU);
+		HN_UNLOCK(sc);
 		ifp->if_hw_tsomaxsegcount = HN_TX_DATA_SEGCNT_MAX;
 		ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
 	}
@@ -1525,6 +2423,10 @@ hn_attach(device_t dev)
 	if ((ifp->if_capabilities & (IFCAP_TSO6 | IFCAP_TSO4)) && bootverbose) {
 		if_printf(ifp, "TSO segcnt %u segsz %u\n",
 		    ifp->if_hw_tsomaxsegcount, ifp->if_hw_tsomaxsegsize);
+	}
+	if (mtu < ETHERMTU) {
+		if_printf(ifp, "fixup mtu %u -> %u\n", ifp->if_mtu, mtu);
+		ifp->if_mtu = mtu;
 	}
 
 	/* Inform the upper layer about the long frame support. */
@@ -1536,10 +2438,15 @@ hn_attach(device_t dev)
 	sc->hn_mgmt_taskq = sc->hn_mgmt_taskq0;
 	hn_update_link_status(sc);
 
-	sc->hn_ifnet_evthand = EVENTHANDLER_REGISTER(ifnet_event,
-	    hn_ifnet_event, sc, EVENTHANDLER_PRI_ANY);
-	sc->hn_ifaddr_evthand = EVENTHANDLER_REGISTER(ifaddr_event,
-	    hn_ifaddr_event, sc, EVENTHANDLER_PRI_ANY);
+	if (!hn_xpnt_vf) {
+		sc->hn_ifnet_evthand = EVENTHANDLER_REGISTER(ifnet_event,
+		    hn_ifnet_event, sc, EVENTHANDLER_PRI_ANY);
+		sc->hn_ifaddr_evthand = EVENTHANDLER_REGISTER(ifaddr_event,
+		    hn_ifaddr_event, sc, EVENTHANDLER_PRI_ANY);
+	} else {
+		sc->hn_ifnet_lnkhand = EVENTHANDLER_REGISTER(ifnet_link_event,
+		    hn_ifnet_lnkevent, sc, EVENTHANDLER_PRI_ANY);
+	}
 
 	/*
 	 * NOTE:
@@ -1566,6 +2473,14 @@ hn_detach(device_t dev)
 	struct hn_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->hn_ifp, *vf_ifp;
 
+	if (sc->hn_xact != NULL && vmbus_chan_is_revoked(sc->hn_prichan)) {
+		/*
+		 * In case that the vmbus missed the orphan handler
+		 * installation.
+		 */
+		vmbus_xact_ctx_orphan(sc->hn_xact);
+	}
+
 	if (sc->hn_ifaddr_evthand != NULL)
 		EVENTHANDLER_DEREGISTER(ifaddr_event, sc->hn_ifaddr_evthand);
 	if (sc->hn_ifnet_evthand != NULL)
@@ -1578,19 +2493,13 @@ hn_detach(device_t dev)
 		EVENTHANDLER_DEREGISTER(ifnet_departure_event,
 		    sc->hn_ifnet_dethand);
 	}
+	if (sc->hn_ifnet_lnkhand != NULL)
+		EVENTHANDLER_DEREGISTER(ifnet_link_event, sc->hn_ifnet_lnkhand);
 
 	vf_ifp = sc->hn_vf_ifp;
 	__compiler_membar();
 	if (vf_ifp != NULL)
 		hn_ifnet_detevent(sc, vf_ifp);
-
-	if (sc->hn_xact != NULL && vmbus_chan_is_revoked(sc->hn_prichan)) {
-		/*
-		 * In case that the vmbus missed the orphan handler
-		 * installation.
-		 */
-		vmbus_xact_ctx_orphan(sc->hn_xact);
-	}
 
 	if (device_is_attached(dev)) {
 		HN_LOCK(sc);
@@ -1621,6 +2530,8 @@ hn_detach(device_t dev)
 		free(sc->hn_tx_taskqs, M_DEVBUF);
 	}
 	taskqueue_free(sc->hn_mgmt_taskq0);
+	if (sc->hn_vf_taskq != NULL)
+		taskqueue_free(sc->hn_vf_taskq);
 
 	if (sc->hn_xact != NULL) {
 		/*
@@ -1634,6 +2545,7 @@ hn_detach(device_t dev)
 	if_free(ifp);
 
 	HN_LOCK_DESTROY(sc);
+	rm_destroy(&sc->hn_vf_lock);
 	return (0);
 }
 
@@ -2172,7 +3084,8 @@ hn_encap(struct ifnet *ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd,
 		    NDIS_LSO2_INFO_SIZE, NDIS_PKTINFO_TYPE_LSO);
 #ifdef INET
 		if (m_head->m_pkthdr.csum_flags & CSUM_IP_TSO) {
-			*pi_data = NDIS_LSO2_INFO_MAKEIPV4(0,
+			*pi_data = NDIS_LSO2_INFO_MAKEIPV4(
+			    m_head->m_pkthdr.l2hlen + m_head->m_pkthdr.l3hlen,
 			    m_head->m_pkthdr.tso_segsz);
 		}
 #endif
@@ -2181,7 +3094,8 @@ hn_encap(struct ifnet *ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd,
 #endif
 #ifdef INET6
 		{
-			*pi_data = NDIS_LSO2_INFO_MAKEIPV6(0,
+			*pi_data = NDIS_LSO2_INFO_MAKEIPV6(
+			    m_head->m_pkthdr.l2hlen + m_head->m_pkthdr.l3hlen,
 			    m_head->m_pkthdr.tso_segsz);
 		}
 #endif
@@ -2198,11 +3112,15 @@ hn_encap(struct ifnet *ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd,
 				*pi_data |= NDIS_TXCSUM_INFO_IPCS;
 		}
 
-		if (m_head->m_pkthdr.csum_flags & (CSUM_IP_TCP | CSUM_IP6_TCP))
-			*pi_data |= NDIS_TXCSUM_INFO_TCPCS;
-		else if (m_head->m_pkthdr.csum_flags &
-		    (CSUM_IP_UDP | CSUM_IP6_UDP))
-			*pi_data |= NDIS_TXCSUM_INFO_UDPCS;
+		if (m_head->m_pkthdr.csum_flags &
+		    (CSUM_IP_TCP | CSUM_IP6_TCP)) {
+			*pi_data |= NDIS_TXCSUM_INFO_MKTCPCS(
+			    m_head->m_pkthdr.l2hlen + m_head->m_pkthdr.l3hlen);
+		} else if (m_head->m_pkthdr.csum_flags &
+		    (CSUM_IP_UDP | CSUM_IP6_UDP)) {
+			*pi_data |= NDIS_TXCSUM_INFO_MKUDPCS(
+			    m_head->m_pkthdr.l2hlen + m_head->m_pkthdr.l3hlen);
+		}
 	}
 
 	pkt_hlen = pkt->rm_pktinfooffset + pkt->rm_pktinfolen;
@@ -2469,13 +3387,24 @@ static int
 hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
     const struct hn_rxinfo *info)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp, *hn_ifp = rxr->hn_ifp;
 	struct mbuf *m_new;
-	int size, do_lro = 0, do_csum = 1;
-	int hash_type;
+	int size, do_lro = 0, do_csum = 1, is_vf = 0;
+	int hash_type = M_HASHTYPE_NONE;
+	int l3proto = ETHERTYPE_MAX, l4proto = IPPROTO_DONE;
 
-	/* If the VF is active, inject the packet through the VF */
-	ifp = rxr->hn_rxvf_ifp ? rxr->hn_rxvf_ifp : rxr->hn_ifp;
+	ifp = hn_ifp;
+	if (rxr->hn_rxvf_ifp != NULL) {
+		/*
+		 * Non-transparent mode VF; pretend this packet is from
+		 * the VF.
+		 */
+		ifp = rxr->hn_rxvf_ifp;
+		is_vf = 1;
+	} else if (rxr->hn_rx_flags & HN_RX_FLAG_XPNT_VF) {
+		/* Transparent mode VF. */
+		is_vf = 1;
+	}
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		/*
@@ -2489,10 +3418,15 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 		return (0);
 	}
 
+	if (__predict_false(dlen < ETHER_HDR_LEN)) {
+		if_inc_counter(hn_ifp, IFCOUNTER_IERRORS, 1);
+		return (0);
+	}
+
 	if (dlen <= MHLEN) {
 		m_new = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m_new == NULL) {
-			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+			if_inc_counter(hn_ifp, IFCOUNTER_IQDROPS, 1);
 			return (0);
 		}
 		memcpy(mtod(m_new, void *), data, dlen);
@@ -2513,7 +3447,7 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 
 		m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, size);
 		if (m_new == NULL) {
-			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+			if_inc_counter(hn_ifp, IFCOUNTER_IQDROPS, 1);
 			return (0);
 		}
 
@@ -2521,7 +3455,7 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 	}
 	m_new->m_pkthdr.rcvif = ifp;
 
-	if (__predict_false((ifp->if_capenable & IFCAP_RXCSUM) == 0))
+	if (__predict_false((hn_ifp->if_capenable & IFCAP_RXCSUM) == 0))
 		do_csum = 0;
 
 	/* receive side checksum offload */
@@ -2557,30 +3491,9 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 		    (NDIS_RXCSUM_INFO_TCPCS_OK | NDIS_RXCSUM_INFO_IPCS_OK))
 			do_lro = 1;
 	} else {
-		const struct ether_header *eh;
-		uint16_t etype;
-		int hoff;
-
-		hoff = sizeof(*eh);
-		if (m_new->m_len < hoff)
-			goto skip;
-		eh = mtod(m_new, struct ether_header *);
-		etype = ntohs(eh->ether_type);
-		if (etype == ETHERTYPE_VLAN) {
-			const struct ether_vlan_header *evl;
-
-			hoff = sizeof(*evl);
-			if (m_new->m_len < hoff)
-				goto skip;
-			evl = mtod(m_new, struct ether_vlan_header *);
-			etype = ntohs(evl->evl_proto);
-		}
-
-		if (etype == ETHERTYPE_IP) {
-			int pr;
-
-			pr = hn_check_iplen(m_new, hoff);
-			if (pr == IPPROTO_TCP) {
+		hn_rxpkt_proto(m_new, &l3proto, &l4proto);
+		if (l3proto == ETHERTYPE_IP) {
+			if (l4proto == IPPROTO_TCP) {
 				if (do_csum &&
 				    (rxr->hn_trust_hcsum &
 				     HN_TRUST_HCSUM_TCP)) {
@@ -2591,7 +3504,7 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 					m_new->m_pkthdr.csum_data = 0xffff;
 				}
 				do_lro = 1;
-			} else if (pr == IPPROTO_UDP) {
+			} else if (l4proto == IPPROTO_UDP) {
 				if (do_csum &&
 				    (rxr->hn_trust_hcsum &
 				     HN_TRUST_HCSUM_UDP)) {
@@ -2601,7 +3514,7 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 					m_new->m_pkthdr.csum_data = 0xffff;
 				}
-			} else if (pr != IPPROTO_DONE && do_csum &&
+			} else if (l4proto != IPPROTO_DONE && do_csum &&
 			    (rxr->hn_trust_hcsum & HN_TRUST_HCSUM_IP)) {
 				rxr->hn_csum_trusted++;
 				m_new->m_pkthdr.csum_flags |=
@@ -2609,7 +3522,7 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 			}
 		}
 	}
-skip:
+
 	if (info->vlan_info != HN_NDIS_VLAN_INFO_INVALID) {
 		m_new->m_pkthdr.ether_vtag = EVL_MAKETAG(
 		    NDIS_VLAN_INFO_ID(info->vlan_info),
@@ -2618,13 +3531,37 @@ skip:
 		m_new->m_flags |= M_VLANTAG;
 	}
 
+	/*
+	 * If VF is activated (tranparent/non-transparent mode does not
+	 * matter here).
+	 *
+	 * - Disable LRO
+	 *
+	 *   hn(4) will only receive broadcast packets, multicast packets,
+	 *   TCP SYN and SYN|ACK (in Azure), LRO is useless for these
+	 *   packet types.
+	 *
+	 *   For non-transparent, we definitely _cannot_ enable LRO at
+	 *   all, since the LRO flush will use hn(4) as the receiving
+	 *   interface; i.e. hn_ifp->if_input(hn_ifp, m).
+	 */
+	if (is_vf)
+		do_lro = 0;
+
+	/*
+	 * If VF is activated (tranparent/non-transparent mode does not
+	 * matter here), do _not_ mess with unsupported hash types or
+	 * functions.
+	 */
 	if (info->hash_info != HN_NDIS_HASH_INFO_INVALID) {
 		rxr->hn_rss_pkts++;
 		m_new->m_pkthdr.flowid = info->hash_value;
-		hash_type = M_HASHTYPE_OPAQUE_HASH;
+		if (!is_vf)
+			hash_type = M_HASHTYPE_OPAQUE_HASH;
 		if ((info->hash_info & NDIS_HASH_FUNCTION_MASK) ==
 		    NDIS_HASH_FUNCTION_TOEPLITZ) {
-			uint32_t type = (info->hash_info & NDIS_HASH_TYPE_MASK);
+			uint32_t type = (info->hash_info & NDIS_HASH_TYPE_MASK &
+			    rxr->hn_mbuf_hash);
 
 			/*
 			 * NOTE:
@@ -2640,6 +3577,37 @@ skip:
 
 			case NDIS_HASH_TCP_IPV4:
 				hash_type = M_HASHTYPE_RSS_TCP_IPV4;
+				if (rxr->hn_rx_flags & HN_RX_FLAG_UDP_HASH) {
+					int def_htype = M_HASHTYPE_OPAQUE_HASH;
+
+					if (is_vf)
+						def_htype = M_HASHTYPE_NONE;
+
+					/*
+					 * UDP 4-tuple hash is delivered as
+					 * TCP 4-tuple hash.
+					 */
+					if (l3proto == ETHERTYPE_MAX) {
+						hn_rxpkt_proto(m_new,
+						    &l3proto, &l4proto);
+					}
+					if (l3proto == ETHERTYPE_IP) {
+						if (l4proto == IPPROTO_UDP &&
+						    (rxr->hn_mbuf_hash &
+						     NDIS_HASH_UDP_IPV4_X)) {
+							hash_type =
+							M_HASHTYPE_RSS_UDP_IPV4;
+							do_lro = 0;
+						} else if (l4proto !=
+						    IPPROTO_TCP) {
+							hash_type = def_htype;
+							do_lro = 0;
+						}
+					} else {
+						hash_type = def_htype;
+						do_lro = 0;
+					}
+				}
 				break;
 
 			case NDIS_HASH_IPV6:
@@ -2661,21 +3629,39 @@ skip:
 				break;
 			}
 		}
-	} else {
+	} else if (!is_vf) {
 		m_new->m_pkthdr.flowid = rxr->hn_rx_idx;
 		hash_type = M_HASHTYPE_OPAQUE;
 	}
 	M_HASHTYPE_SET(m_new, hash_type);
 
-	/*
-	 * Note:  Moved RX completion back to hv_nv_on_receive() so all
-	 * messages (not just data messages) will trigger a response.
-	 */
-
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+	if (hn_ifp != ifp) {
+		const struct ether_header *eh;
+
+		/*
+		 * Non-transparent mode VF is activated.
+		 */
+
+		/*
+		 * Allow tapping on hn(4).
+		 */
+		ETHER_BPF_MTAP(hn_ifp, m_new);
+
+		/*
+		 * Update hn(4)'s stats.
+		 */
+		if_inc_counter(hn_ifp, IFCOUNTER_IPACKETS, 1);
+		if_inc_counter(hn_ifp, IFCOUNTER_IBYTES, m_new->m_pkthdr.len);
+		/* Checked at the beginning of this function. */
+		KASSERT(m_new->m_len >= ETHER_HDR_LEN, ("not ethernet frame"));
+		eh = mtod(m_new, struct ether_header *);
+		if (ETHER_IS_MULTICAST(eh->ether_dhost))
+			if_inc_counter(hn_ifp, IFCOUNTER_IMCASTS, 1);
+	}
 	rxr->hn_pkts++;
 
-	if ((ifp->if_capenable & IFCAP_LRO) && do_lro) {
+	if ((hn_ifp->if_capenable & IFCAP_LRO) && do_lro) {
 #if defined(INET) || defined(INET6)
 		struct lro_ctrl *lro = &rxr->hn_lro;
 
@@ -2688,9 +3674,7 @@ skip:
 		}
 #endif
 	}
-
-	/* We're not holding the lock here, so don't release it */
-	(*ifp->if_input)(ifp, m_new);
+	ifp->if_input(ifp, m_new);
 
 	return (0);
 }
@@ -2699,8 +3683,12 @@ static int
 hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct hn_softc *sc = ifp->if_softc;
-	struct ifreq *ifr = (struct ifreq *)data;
+	struct ifreq *ifr = (struct ifreq *)data, ifr_vf;
+	struct ifnet *vf_ifp;
 	int mask, error = 0;
+	struct ifrsskey *ifrk;
+	struct ifrsshash *ifrh;
+	uint32_t mtu;
 
 	switch (cmd) {
 	case SIOCSIFMTU:
@@ -2728,6 +3716,21 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
+		if (hn_xpnt_vf_isready(sc)) {
+			vf_ifp = sc->hn_vf_ifp;
+			ifr_vf = *ifr;
+			strlcpy(ifr_vf.ifr_name, vf_ifp->if_xname,
+			    sizeof(ifr_vf.ifr_name));
+			error = vf_ifp->if_ioctl(vf_ifp, SIOCSIFMTU,
+			    (caddr_t)&ifr_vf);
+			if (error) {
+				HN_UNLOCK(sc);
+				if_printf(ifp, "%s SIOCSIFMTU %d failed: %d\n",
+				    vf_ifp->if_xname, ifr->ifr_mtu, error);
+				break;
+			}
+		}
+
 		/*
 		 * Suspend this interface before the synthetic parts
 		 * are ripped.
@@ -2749,29 +3752,51 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
+		error = hn_rndis_get_mtu(sc, &mtu);
+		if (error)
+			mtu = ifr->ifr_mtu;
+		else if (bootverbose)
+			if_printf(ifp, "RNDIS mtu %u\n", mtu);
+
 		/*
 		 * Commit the requested MTU, after the synthetic parts
 		 * have been successfully attached.
 		 */
-		ifp->if_mtu = ifr->ifr_mtu;
+		if (mtu >= ifr->ifr_mtu) {
+			mtu = ifr->ifr_mtu;
+		} else {
+			if_printf(ifp, "fixup mtu %d -> %u\n",
+			    ifr->ifr_mtu, mtu);
+		}
+		ifp->if_mtu = mtu;
+
+		/*
+		 * Synthetic parts' reattach may change the chimney
+		 * sending size; update it.
+		 */
+		if (sc->hn_tx_ring[0].hn_chim_size > sc->hn_chim_szmax)
+			hn_set_chim_size(sc, sc->hn_chim_szmax);
 
 		/*
 		 * Make sure that various parameters based on MTU are
 		 * still valid, after the MTU change.
 		 */
-		if (sc->hn_tx_ring[0].hn_chim_size > sc->hn_chim_szmax)
-			hn_set_chim_size(sc, sc->hn_chim_szmax);
-		hn_set_tso_maxsize(sc, hn_tso_maxlen, ifp->if_mtu);
-#if __FreeBSD_version >= 1100099
-		if (sc->hn_rx_ring[0].hn_lro.lro_length_lim <
-		    HN_LRO_LENLIM_MIN(ifp))
-			hn_set_lro_lenlim(sc, HN_LRO_LENLIM_MIN(ifp));
-#endif
+		hn_mtu_change_fixup(sc);
 
 		/*
 		 * All done!  Resume the interface now.
 		 */
 		hn_resume(sc);
+
+		if ((sc->hn_flags & HN_FLAG_RXVF) ||
+		    (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)) {
+			/*
+			 * Since we have reattached the NVS part,
+			 * change the datapath to VF again; in case
+			 * that it is lost, after the NVS was detached.
+			 */
+			hn_nvs_set_datapath(sc, HN_NVS_DATAPATH_VF);
+		}
 
 		HN_UNLOCK(sc);
 		break;
@@ -2784,6 +3809,9 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
+		if (hn_xpnt_vf_isready(sc))
+			hn_xpnt_vf_saveifflags(sc);
+
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				/*
@@ -2794,6 +3822,9 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				HN_NO_SLEEPING(sc);
 				hn_rxfilter_config(sc);
 				HN_SLEEPING_OK(sc);
+
+				if (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)
+					error = hn_xpnt_vf_iocsetflags(sc);
 			} else {
 				hn_init_locked(sc);
 			}
@@ -2808,7 +3839,22 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFCAP:
 		HN_LOCK(sc);
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+
+		if (hn_xpnt_vf_isready(sc)) {
+			ifr_vf = *ifr;
+			strlcpy(ifr_vf.ifr_name, sc->hn_vf_ifp->if_xname,
+			    sizeof(ifr_vf.ifr_name));
+			error = hn_xpnt_vf_iocsetcaps(sc, &ifr_vf);
+			HN_UNLOCK(sc);
+			break;
+		}
+
+		/*
+		 * Fix up requested capabilities w/ supported capabilities,
+		 * since the supported capabilities could have been changed.
+		 */
+		mask = (ifr->ifr_reqcap & ifp->if_capabilities) ^
+		    ifp->if_capenable;
 
 		if (mask & IFCAP_TXCSUM) {
 			ifp->if_capenable ^= IFCAP_TXCSUM;
@@ -2873,12 +3919,80 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			HN_SLEEPING_OK(sc);
 		}
 
+		/* XXX vlan(4) style mcast addr maintenance */
+		if (hn_xpnt_vf_isready(sc)) {
+			int old_if_flags;
+
+			old_if_flags = sc->hn_vf_ifp->if_flags;
+			hn_xpnt_vf_saveifflags(sc);
+
+			if ((sc->hn_xvf_flags & HN_XVFFLAG_ENABLED) &&
+			    ((old_if_flags ^ sc->hn_vf_ifp->if_flags) &
+			     IFF_ALLMULTI))
+				error = hn_xpnt_vf_iocsetflags(sc);
+		}
+
 		HN_UNLOCK(sc);
 		break;
 
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
+		HN_LOCK(sc);
+		if (hn_xpnt_vf_isready(sc)) {
+			/*
+			 * SIOCGIFMEDIA expects ifmediareq, so don't
+			 * create and pass ifr_vf to the VF here; just
+			 * replace the ifr_name.
+			 */
+			vf_ifp = sc->hn_vf_ifp;
+			strlcpy(ifr->ifr_name, vf_ifp->if_xname,
+			    sizeof(ifr->ifr_name));
+			error = vf_ifp->if_ioctl(vf_ifp, cmd, data);
+			/* Restore the ifr_name. */
+			strlcpy(ifr->ifr_name, ifp->if_xname,
+			    sizeof(ifr->ifr_name));
+			HN_UNLOCK(sc);
+			break;
+		}
+		HN_UNLOCK(sc);
 		error = ifmedia_ioctl(ifp, ifr, &sc->hn_media, cmd);
+		break;
+
+	case SIOCGIFRSSHASH:
+		ifrh = (struct ifrsshash *)data;
+		HN_LOCK(sc);
+		if (sc->hn_rx_ring_inuse == 1) {
+			HN_UNLOCK(sc);
+			ifrh->ifrh_func = RSS_FUNC_NONE;
+			ifrh->ifrh_types = 0;
+			break;
+		}
+
+		if (sc->hn_rss_hash & NDIS_HASH_FUNCTION_TOEPLITZ)
+			ifrh->ifrh_func = RSS_FUNC_TOEPLITZ;
+		else
+			ifrh->ifrh_func = RSS_FUNC_PRIVATE;
+		ifrh->ifrh_types = hn_rss_type_fromndis(sc->hn_rss_hash);
+		HN_UNLOCK(sc);
+		break;
+
+	case SIOCGIFRSSKEY:
+		ifrk = (struct ifrsskey *)data;
+		HN_LOCK(sc);
+		if (sc->hn_rx_ring_inuse == 1) {
+			HN_UNLOCK(sc);
+			ifrk->ifrk_func = RSS_FUNC_NONE;
+			ifrk->ifrk_keylen = 0;
+			break;
+		}
+		if (sc->hn_rss_hash & NDIS_HASH_FUNCTION_TOEPLITZ)
+			ifrk->ifrk_func = RSS_FUNC_TOEPLITZ;
+		else
+			ifrk->ifrk_func = RSS_FUNC_PRIVATE;
+		ifrk->ifrk_keylen = NDIS_HASH_KEYSIZE_TOEPLITZ;
+		memcpy(ifrk->ifrk_key, sc->hn_rss.rss_key,
+		    NDIS_HASH_KEYSIZE_TOEPLITZ);
+		HN_UNLOCK(sc);
 		break;
 
 	default:
@@ -2899,11 +4013,35 @@ hn_stop(struct hn_softc *sc, bool detaching)
 	KASSERT(sc->hn_flags & HN_FLAG_SYNTH_ATTACHED,
 	    ("synthetic parts were not attached"));
 
+	/* Clear RUNNING bit ASAP. */
+	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_RUNNING);
+
 	/* Disable polling. */
 	hn_polling(sc, 0);
 
-	/* Clear RUNNING bit _before_ hn_suspend_data() */
-	atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_RUNNING);
+	if (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED) {
+		KASSERT(sc->hn_vf_ifp != NULL,
+		    ("%s: VF is not attached", ifp->if_xname));
+
+		/* Mark transparent mode VF as disabled. */
+		hn_xpnt_vf_setdisable(sc, false /* keep hn_vf_ifp */);
+
+		/*
+		 * NOTE:
+		 * Datapath setting must happen _before_ bringing
+		 * the VF down.
+		 */
+		hn_nvs_set_datapath(sc, HN_NVS_DATAPATH_SYNTH);
+
+		/*
+		 * Bring the VF down.
+		 */
+		hn_xpnt_vf_saveifflags(sc);
+		sc->hn_vf_ifp->if_flags &= ~IFF_UP;
+		hn_xpnt_vf_iocsetflags(sc);
+	}
+
+	/* Suspend data transfers. */
 	hn_suspend_data(sc);
 
 	/* Clear OACTIVE bit. */
@@ -2912,8 +4050,8 @@ hn_stop(struct hn_softc *sc, bool detaching)
 		sc->hn_tx_ring[i].hn_oactive = 0;
 
 	/*
-	 * If the VF is active, make sure the filter is not 0, even if
-	 * the synthetic NIC is down.
+	 * If the non-transparent mode VF is active, make sure
+	 * that the RX filter still allows packet reception.
 	 */
 	if (!detaching && (sc->hn_flags & HN_FLAG_RXVF))
 		hn_rxfilter_config(sc);
@@ -2943,6 +4081,11 @@ hn_init_locked(struct hn_softc *sc)
 
 	/* Clear TX 'suspended' bit. */
 	hn_resume_tx(sc, sc->hn_tx_ring_inuse);
+
+	if (hn_xpnt_vf_isready(sc)) {
+		/* Initialize transparent VF. */
+		hn_xpnt_vf_init(sc);
+	}
 
 	/* Everything is ready; unleash! */
 	atomic_set_int(&ifp->if_drv_flags, IFF_DRV_RUNNING);
@@ -3381,6 +4524,16 @@ hn_rss_key_sysctl(SYSCTL_HANDLER_ARGS)
 	if (error || req->newptr == NULL)
 		goto back;
 
+	if ((sc->hn_flags & HN_FLAG_RXVF) ||
+	    (hn_xpnt_vf && sc->hn_vf_ifp != NULL)) {
+		/*
+		 * RSS key is synchronized w/ VF's, don't allow users
+		 * to change it.
+		 */
+		error = EBUSY;
+		goto back;
+	}
+
 	error = SYSCTL_IN(req, sc->hn_rss.rss_key, sizeof(sc->hn_rss.rss_key));
 	if (error)
 		goto back;
@@ -3441,6 +4594,34 @@ hn_rss_hash_sysctl(SYSCTL_HANDLER_ARGS)
 
 	HN_LOCK(sc);
 	hash = sc->hn_rss_hash;
+	HN_UNLOCK(sc);
+	snprintf(hash_str, sizeof(hash_str), "%b", hash, NDIS_HASH_BITS);
+	return sysctl_handle_string(oidp, hash_str, sizeof(hash_str), req);
+}
+
+static int
+hn_rss_hcap_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	char hash_str[128];
+	uint32_t hash;
+
+	HN_LOCK(sc);
+	hash = sc->hn_rss_hcap;
+	HN_UNLOCK(sc);
+	snprintf(hash_str, sizeof(hash_str), "%b", hash, NDIS_HASH_BITS);
+	return sysctl_handle_string(oidp, hash_str, sizeof(hash_str), req);
+}
+
+static int
+hn_rss_mbuf_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	char hash_str[128];
+	uint32_t hash;
+
+	HN_LOCK(sc);
+	hash = sc->hn_rx_ring[0].hn_mbuf_hash;
 	HN_UNLOCK(sc);
 	snprintf(hash_str, sizeof(hash_str), "%b", hash, NDIS_HASH_BITS);
 	return sysctl_handle_string(oidp, hash_str, sizeof(hash_str), req);
@@ -3567,6 +4748,42 @@ hn_vfmap_sysctl(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+hn_xpnt_vf_accbpf_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int error, onoff = 0;
+
+	if (sc->hn_xvf_flags & HN_XVFFLAG_ACCBPF)
+		onoff = 1;
+	error = sysctl_handle_int(oidp, &onoff, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+
+	HN_LOCK(sc);
+	/* NOTE: hn_vf_lock for hn_transmit() */
+	rm_wlock(&sc->hn_vf_lock);
+	if (onoff)
+		sc->hn_xvf_flags |= HN_XVFFLAG_ACCBPF;
+	else
+		sc->hn_xvf_flags &= ~HN_XVFFLAG_ACCBPF;
+	rm_wunlock(&sc->hn_vf_lock);
+	HN_UNLOCK(sc);
+
+	return (0);
+}
+
+static int
+hn_xpnt_vf_enabled_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int enabled = 0;
+
+	if (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)
+		enabled = 1;
+	return (sysctl_handle_int(oidp, &enabled, 0, req));
+}
+
+static int
 hn_check_iplen(const struct mbuf *m, int hoff)
 {
 	const struct ip *ip;
@@ -3641,6 +4858,36 @@ hn_check_iplen(const struct mbuf *m, int hoff)
 	return ip->ip_p;
 }
 
+static void
+hn_rxpkt_proto(const struct mbuf *m_new, int *l3proto, int *l4proto)
+{
+	const struct ether_header *eh;
+	uint16_t etype;
+	int hoff;
+
+	hoff = sizeof(*eh);
+	/* Checked at the beginning of this function. */
+	KASSERT(m_new->m_len >= hoff, ("not ethernet frame"));
+
+	eh = mtod(m_new, const struct ether_header *);
+	etype = ntohs(eh->ether_type);
+	if (etype == ETHERTYPE_VLAN) {
+		const struct ether_vlan_header *evl;
+
+		hoff = sizeof(*evl);
+		if (m_new->m_len < hoff)
+			return;
+		evl = mtod(m_new, const struct ether_vlan_header *);
+		etype = ntohs(evl->evl_proto);
+	}
+	*l3proto = etype;
+
+	if (etype == ETHERTYPE_IP)
+		*l4proto = hn_check_iplen(m_new, hoff);
+	else
+		*l4proto = IPPROTO_DONE;
+}
+
 static int
 hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 {
@@ -3710,6 +4957,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 			rxr->hn_trust_hcsum |= HN_TRUST_HCSUM_UDP;
 		if (hn_trust_hostip)
 			rxr->hn_trust_hcsum |= HN_TRUST_HCSUM_IP;
+		rxr->hn_mbuf_hash = NDIS_HASH_ALL;
 		rxr->hn_ifp = sc->hn_ifp;
 		if (i < sc->hn_tx_ring_cnt)
 			rxr->hn_txr = &sc->hn_tx_ring[i];
@@ -4282,7 +5530,10 @@ static void
 hn_set_tso_maxsize(struct hn_softc *sc, int tso_maxlen, int mtu)
 {
 	struct ifnet *ifp = sc->hn_ifp;
+	u_int hw_tsomax;
 	int tso_minlen;
+
+	HN_LOCK_ASSERT(sc);
 
 	if ((ifp->if_capabilities & (IFCAP_TSO4 | IFCAP_TSO6)) == 0)
 		return;
@@ -4301,7 +5552,13 @@ hn_set_tso_maxsize(struct hn_softc *sc, int tso_maxlen, int mtu)
 		tso_maxlen = IP_MAXPACKET;
 	if (tso_maxlen > sc->hn_ndis_tso_szmax)
 		tso_maxlen = sc->hn_ndis_tso_szmax;
-	ifp->if_hw_tsomax = tso_maxlen - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	hw_tsomax = tso_maxlen - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+
+	if (hn_xpnt_vf_isready(sc)) {
+		if (hw_tsomax > sc->hn_vf_ifp->if_hw_tsomax)
+			hw_tsomax = sc->hn_vf_ifp->if_hw_tsomax;
+	}
+	ifp->if_hw_tsomax = hw_tsomax;
 	if (bootverbose)
 		if_printf(ifp, "TSO size max %u\n", ifp->if_hw_tsomax);
 }
@@ -4322,11 +5579,11 @@ hn_fixup_tx_data(struct hn_softc *sc)
 		csum_assist |= CSUM_IP;
 	if (sc->hn_caps & HN_CAP_TCP4CS)
 		csum_assist |= CSUM_IP_TCP;
-	if (sc->hn_caps & HN_CAP_UDP4CS)
+	if ((sc->hn_caps & HN_CAP_UDP4CS) && hn_enable_udp4cs)
 		csum_assist |= CSUM_IP_UDP;
 	if (sc->hn_caps & HN_CAP_TCP6CS)
 		csum_assist |= CSUM_IP6_TCP;
-	if (sc->hn_caps & HN_CAP_UDP6CS)
+	if ((sc->hn_caps & HN_CAP_UDP6CS) && hn_enable_udp6cs)
 		csum_assist |= CSUM_IP6_UDP;
 	for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
 		sc->hn_tx_ring[i].hn_csum_assist = csum_assist;
@@ -4339,6 +5596,18 @@ hn_fixup_tx_data(struct hn_softc *sc)
 			if_printf(sc->hn_ifp, "support HASHVAL pktinfo\n");
 		for (i = 0; i < sc->hn_tx_ring_cnt; ++i)
 			sc->hn_tx_ring[i].hn_tx_flags |= HN_TX_FLAG_HASHVAL;
+	}
+}
+
+static void
+hn_fixup_rx_data(struct hn_softc *sc)
+{
+
+	if (sc->hn_caps & HN_CAP_UDPHASH) {
+		int i;
+
+		for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+			sc->hn_rx_ring[i].hn_rx_flags |= HN_RX_FLAG_UDP_HASH;
 	}
 }
 
@@ -4425,6 +5694,13 @@ hn_start_locked(struct hn_tx_ring *txr, int len)
 #if defined(INET6) || defined(INET)
 		if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
 			m_head = hn_tso_fixup(m_head);
+			if (__predict_false(m_head == NULL)) {
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+				continue;
+			}
+		} else if (m_head->m_pkthdr.csum_flags &
+		    (CSUM_IP_UDP | CSUM_IP_TCP | CSUM_IP6_UDP | CSUM_IP6_TCP)) {
+			m_head = hn_set_hlen(m_head);
 			if (__predict_false(m_head == NULL)) {
 				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 				continue;
@@ -4654,13 +5930,73 @@ hn_transmit(struct ifnet *ifp, struct mbuf *m)
 	struct hn_tx_ring *txr;
 	int error, idx = 0;
 
+	if (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED) {
+		struct rm_priotracker pt;
+
+		rm_rlock(&sc->hn_vf_lock, &pt);
+		if (__predict_true(sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)) {
+			struct mbuf *m_bpf = NULL;
+			int obytes, omcast;
+
+			obytes = m->m_pkthdr.len;
+			if (m->m_flags & M_MCAST)
+				omcast = 1;
+
+			if (sc->hn_xvf_flags & HN_XVFFLAG_ACCBPF) {
+				if (bpf_peers_present(ifp->if_bpf)) {
+					m_bpf = m_copypacket(m, M_NOWAIT);
+					if (m_bpf == NULL) {
+						/*
+						 * Failed to grab a shallow
+						 * copy; tap now.
+						 */
+						ETHER_BPF_MTAP(ifp, m);
+					}
+				}
+			} else {
+				ETHER_BPF_MTAP(ifp, m);
+			}
+
+			error = sc->hn_vf_ifp->if_transmit(sc->hn_vf_ifp, m);
+			rm_runlock(&sc->hn_vf_lock, &pt);
+
+			if (m_bpf != NULL) {
+				if (!error)
+					ETHER_BPF_MTAP(ifp, m_bpf);
+				m_freem(m_bpf);
+			}
+
+			if (error == ENOBUFS) {
+				if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
+			} else if (error) {
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			} else {
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+				if_inc_counter(ifp, IFCOUNTER_OBYTES, obytes);
+				if (omcast) {
+					if_inc_counter(ifp, IFCOUNTER_OMCASTS,
+					    omcast);
+				}
+			}
+			return (error);
+		}
+		rm_runlock(&sc->hn_vf_lock, &pt);
+	}
+
 #if defined(INET6) || defined(INET)
 	/*
-	 * Perform TSO packet header fixup now, since the TSO
-	 * packet header should be cache-hot.
+	 * Perform TSO packet header fixup or get l2/l3 header length now,
+	 * since packet headers should be cache-hot.
 	 */
 	if (m->m_pkthdr.csum_flags & CSUM_TSO) {
 		m = hn_tso_fixup(m);
+		if (__predict_false(m == NULL)) {
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			return EIO;
+		}
+	} else if (m->m_pkthdr.csum_flags &
+	    (CSUM_IP_UDP | CSUM_IP_TCP | CSUM_IP6_UDP | CSUM_IP6_TCP)) {
+		m = hn_set_hlen(m);
 		if (__predict_false(m == NULL)) {
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return EIO;
@@ -4746,11 +6082,17 @@ static void
 hn_xmit_qflush(struct ifnet *ifp)
 {
 	struct hn_softc *sc = ifp->if_softc;
+	struct rm_priotracker pt;
 	int i;
 
 	for (i = 0; i < sc->hn_tx_ring_inuse; ++i)
 		hn_tx_ring_qflush(&sc->hn_tx_ring[i]);
 	if_qflush(ifp);
+
+	rm_rlock(&sc->hn_vf_lock, &pt);
+	if (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)
+		sc->hn_vf_ifp->if_qflush(sc->hn_vf_ifp);
+	rm_runlock(&sc->hn_vf_lock, &pt);
 }
 
 static void
@@ -5103,6 +6445,7 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	/* Clear RSS stuffs. */
 	sc->hn_rss_ind_size = 0;
 	sc->hn_rss_hash = 0;
+	sc->hn_rss_hcap = 0;
 
 	/*
 	 * Attach the primary channel _before_ attaching NVS and RNDIS.
@@ -5221,6 +6564,12 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 		hn_rss_ind_fixup(sc);
 	}
 
+	sc->hn_rss_hash = sc->hn_rss_hcap;
+	if ((sc->hn_flags & HN_FLAG_RXVF) ||
+	    (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)) {
+		/* NOTE: Don't reconfigure RSS; will do immediately. */
+		hn_vf_rss_fixup(sc, false);
+	}
 	error = hn_rndis_conf_rss(sc, NDIS_RSS_FLAG_NONE);
 	if (error)
 		goto failed;
@@ -5457,6 +6806,11 @@ hn_suspend(struct hn_softc *sc)
 	/* Disable polling. */
 	hn_polling(sc, 0);
 
+	/*
+	 * If the non-transparent mode VF is activated, the synthetic
+	 * device is receiving packets, so the data path of the
+	 * synthetic device must be suspended.
+	 */
 	if ((sc->hn_ifp->if_drv_flags & IFF_DRV_RUNNING) ||
 	    (sc->hn_flags & HN_FLAG_RXVF))
 		hn_suspend_data(sc);
@@ -5547,17 +6901,24 @@ static void
 hn_resume(struct hn_softc *sc)
 {
 
+	/*
+	 * If the non-transparent mode VF is activated, the synthetic
+	 * device have to receive packets, so the data path of the
+	 * synthetic device must be resumed.
+	 */
 	if ((sc->hn_ifp->if_drv_flags & IFF_DRV_RUNNING) ||
 	    (sc->hn_flags & HN_FLAG_RXVF))
 		hn_resume_data(sc);
 
 	/*
-	 * When the VF is activated, the synthetic interface is changed
-	 * to DOWN in hn_rxvf_change().  Here, if the VF is still active,
-	 * we don't call hn_resume_mgmt() until the VF is deactivated in
-	 * hn_rxvf_change().
+	 * Don't resume link status change if VF is attached/activated.
+	 * - In the non-transparent VF mode, the synthetic device marks
+	 *   link down until the VF is deactivated; i.e. VF is down.
+	 * - In transparent VF mode, VF's media status is used until
+	 *   the VF is detached.
 	 */
-	if (!(sc->hn_flags & HN_FLAG_RXVF))
+	if ((sc->hn_flags & HN_FLAG_RXVF) == 0 &&
+	    !(hn_xpnt_vf && sc->hn_vf_ifp != NULL))
 		hn_resume_mgmt(sc);
 
 	/*
@@ -6087,6 +7448,26 @@ hn_sysinit(void *arg __unused)
 {
 	int i;
 
+	hn_udpcs_fixup = counter_u64_alloc(M_WAITOK);
+
+#ifdef HN_IFSTART_SUPPORT
+	/*
+	 * Don't use ifnet.if_start if transparent VF mode is requested;
+	 * mainly due to the IFF_DRV_OACTIVE flag.
+	 */
+	if (hn_xpnt_vf && hn_use_if_start) {
+		hn_use_if_start = 0;
+		printf("hn: tranparent VF mode, if_transmit will be used, "
+		    "instead of if_start\n");
+	}
+#endif
+	if (hn_xpnt_vf_attwait < HN_XPNT_VF_ATTWAIT_MIN) {
+		printf("hn: invalid transparent VF attach routing "
+		    "wait timeout %d, reset to %d\n",
+		    hn_xpnt_vf_attwait, HN_XPNT_VF_ATTWAIT_MIN);
+		hn_xpnt_vf_attwait = HN_XPNT_VF_ATTWAIT_MIN;
+	}
+
 	/*
 	 * Initialize VF map.
 	 */
@@ -6148,5 +7529,7 @@ hn_sysuninit(void *arg __unused)
 	if (hn_vfmap != NULL)
 		free(hn_vfmap, M_DEVBUF);
 	rm_destroy(&hn_vfmap_lock);
+
+	counter_u64_free(hn_udpcs_fixup);
 }
 SYSUNINIT(hn_sysuninit, SI_SUB_DRIVERS, SI_ORDER_SECOND, hn_sysuninit, NULL);

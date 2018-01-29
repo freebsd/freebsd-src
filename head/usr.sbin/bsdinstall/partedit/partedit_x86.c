@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Nathan Whitehorn
  * All rights reserved.
  *
@@ -109,7 +111,7 @@ bootpart_size(const char *scheme)
 }
 
 const char *
-bootpart_type(const char *scheme)
+bootpart_type(const char *scheme, const char **mountpoint)
 {
 
 	if (strcmp(x86_bootmethod(), "UEFI") == 0)

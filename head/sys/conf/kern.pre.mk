@@ -24,11 +24,14 @@ _srcconf_included_:
 .MAKE.MODE+=	curdirOk=yes
 .endif
 
-.if defined(NO_OBJ) || ${MK_AUTO_OBJ} == "yes"
-NO_OBJ=		t
+# The kernel build always expects .OBJDIR=.CURDIR.
+.OBJDIR: ${.CURDIR}
+
+.if defined(NO_OBJWALK) || ${MK_AUTO_OBJ} == "yes"
+NO_OBJWALK=		t
 NO_MODULES_OBJ=	t
 .endif
-.if !defined(NO_OBJ)
+.if !defined(NO_OBJWALK)
 _obj=		obj
 .endif
 
@@ -43,7 +46,6 @@ M=		${MACHINE}
 
 AWK?=		awk
 CP?=		cp
-LINT?=		lint
 NM?=		nm
 OBJCOPY?=	objcopy
 SIZE?=		size
@@ -118,9 +120,6 @@ CFLAGS+=	${CONF_CFLAGS}
 LDFLAGS+=	-Wl,--build-id=sha1
 .endif
 
-# Optional linting. This can be overridden in /etc/make.conf.
-LINTFLAGS=	${LINTOBJKERNFLAGS}
-
 NORMAL_C= ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
 NORMAL_S= ${CC:N${CCACHE_BIN}} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
 PROFILE_C= ${CC} -c ${CFLAGS} ${WERROR} ${.IMPSRC}
@@ -133,13 +132,20 @@ NORMAL_FW= uudecode -o ${.TARGET} ${.ALLSRC}
 NORMAL_FWO= ${LD} -b binary --no-warn-mismatch -d -warn-common -r \
 	-m ${LD_EMULATION} -o ${.TARGET} ${.ALLSRC:M*.fw}
 
+# for ZSTD in the kernel (include zstd/lib/freebsd before other CFLAGS)
+ZSTD_C= ${CC} -c -DZSTD_HEAPMODE=1 -I$S/contrib/zstd/lib/freebsd ${CFLAGS} -I$S/contrib/zstd/lib -I$S/contrib/zstd/lib/common ${WERROR} -Wno-inline -Wno-missing-prototypes ${PROF} -U__BMI__ ${.IMPSRC}
+
 # Common for dtrace / zfs
 CDDL_CFLAGS=	-DFREEBSD_NAMECACHE -nostdinc -I$S/cddl/compat/opensolaris -I$S/cddl/contrib/opensolaris/uts/common -I$S -I$S/cddl/contrib/opensolaris/common ${CFLAGS} -Wno-unknown-pragmas -Wno-missing-prototypes -Wno-undef -Wno-strict-prototypes -Wno-cast-qual -Wno-parentheses -Wno-redundant-decls -Wno-missing-braces -Wno-uninitialized -Wno-unused -Wno-inline -Wno-switch -Wno-pointer-arith -Wno-unknown-pragmas
 CDDL_CFLAGS+=	-include $S/cddl/compat/opensolaris/sys/debug_compat.h
 CDDL_C=		${CC} -c ${CDDL_CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
 
 # Special flags for managing the compat compiles for ZFS
-ZFS_CFLAGS=	-DBUILDING_ZFS -I$S/cddl/contrib/opensolaris/uts/common/fs/zfs -I$S/cddl/contrib/opensolaris/uts/common/zmod -I$S/cddl/contrib/opensolaris/common/zfs ${CDDL_CFLAGS}
+ZFS_CFLAGS=	-DBUILDING_ZFS -I$S/cddl/contrib/opensolaris/uts/common/fs/zfs
+ZFS_CFLAGS+=	-I$S/cddl/contrib/opensolaris/uts/common/fs/zfs/lua
+ZFS_CFLAGS+=	-I$S/cddl/contrib/opensolaris/uts/common/zmod
+ZFS_CFLAGS+=	-I$S/cddl/contrib/opensolaris/common/zfs
+ZFS_CFLAGS+=	${CDDL_CFLAGS}
 ZFS_ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${ZFS_CFLAGS}
 ZFS_C=		${CC} -c ${ZFS_CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
 ZFS_S=		${CC} -c ${ZFS_ASM_CFLAGS} ${WERROR} ${.IMPSRC}
@@ -169,17 +175,16 @@ NORMAL_CTFCONVERT=
 NORMAL_CTFCONVERT=	@:
 .endif
 
-NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
-
 # Linux Kernel Programming Interface C-flags
 LINUXKPI_INCLUDES=	-I$S/compat/linuxkpi/common/include
 LINUXKPI_C=		${NORMAL_C} ${LINUXKPI_INCLUDES}
 
 # Infiniband C flags.  Correct include paths and omit errors that linux
 # does not honor.
-OFEDINCLUDES=	-I$S/ofed/include ${LINUXKPI_INCLUDES}
+OFEDINCLUDES=	-I$S/ofed/include -I$S/ofed/include/uapi ${LINUXKPI_INCLUDES}
 OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith
-OFEDCFLAGS=	${CFLAGS:N-I*} ${OFEDINCLUDES} ${CFLAGS:M-I*} ${OFEDNOERR}
+OFEDCFLAGS=	${CFLAGS:N-I*} -DCONFIG_INFINIBAND_USER_MEM \
+		${OFEDINCLUDES} ${CFLAGS:M-I*} ${OFEDNOERR}
 OFED_C_NOIMP=	${CC} -c -o ${.TARGET} ${OFEDCFLAGS} ${WERROR} ${PROF}
 OFED_C=		${OFED_C_NOIMP} ${.IMPSRC}
 
@@ -251,6 +256,7 @@ EMBEDFS_ARCH.${MACHINE_ARCH}!= sed -n '/OUTPUT_ARCH/s/.*(\(.*\)).*/\1/p' ${LDSCR
 
 EMBEDFS_FORMAT.arm?=		elf32-littlearm
 EMBEDFS_FORMAT.armv6?=		elf32-littlearm
+EMBEDFS_FORMAT.armv7?=		elf32-littlearm
 EMBEDFS_FORMAT.aarch64?=	elf64-littleaarch64
 EMBEDFS_FORMAT.mips?=		elf32-tradbigmips
 EMBEDFS_FORMAT.mipsel?=		elf32-tradlittlemips

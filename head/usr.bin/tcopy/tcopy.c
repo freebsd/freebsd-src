@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1985, 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -261,6 +263,7 @@ r2:		if (inn != outn) {
 		if (!inn) {
 			if (eot++) {
 				fprintf(msg, "tcopy: tapes are identical.\n");
+				free(inb);
 				return;
 			}
 		} else {

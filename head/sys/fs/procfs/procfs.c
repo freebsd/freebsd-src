@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001 Dag-Erling Smørgrav
  * Copyright (c) 1993 Jan-Simon Pendry
  * Copyright (c) 1993
@@ -62,7 +64,7 @@
 #include <fs/procfs/procfs.h>
 
 /*
- * Filler function for proc/pid/self
+ * Filler function for proc/pid/file
  */
 int
 procfs_doprocfile(PFS_FILL_ARGS)

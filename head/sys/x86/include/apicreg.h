@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996, by Peter Wemm and Steve Passe
  * All rights reserved.
  *
@@ -468,6 +470,8 @@ typedef struct IOAPIC ioapic_t;
 /* window register offset */
 #define IOAPIC_WINDOW		0x10
 #define IOAPIC_EOIR		0x40
+
+#define	IOAPIC_WND_SIZE		0x50
 
 /* indexes into IO APIC */
 #define IOAPIC_ID		0x00

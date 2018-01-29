@@ -223,3 +223,9 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 	return (tc->impl->tag_destroy(dmat));
 }
 
+int
+bus_dma_tag_set_domain(bus_dma_tag_t dmat, int domain)
+{
+
+	return (0);
+}

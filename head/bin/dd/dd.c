@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -204,10 +206,10 @@ setup(void)
 	 * record oriented I/O, only need a single buffer.
 	 */
 	if (!(ddflags & (C_BLOCK | C_UNBLOCK))) {
-		if ((in.db = malloc(out.dbsz + in.dbsz - 1)) == NULL)
+		if ((in.db = malloc((size_t)out.dbsz + in.dbsz - 1)) == NULL)
 			err(1, "input buffer");
 		out.db = in.db;
-	} else if ((in.db = malloc(MAX(in.dbsz, cbsz) + cbsz)) == NULL ||
+	} else if ((in.db = malloc(MAX((size_t)in.dbsz, cbsz) + cbsz)) == NULL ||
 	    (out.db = malloc(out.dbsz + cbsz)) == NULL)
 		err(1, "output buffer");
 
@@ -337,6 +339,21 @@ speed_limit(void)
 }
 
 static void
+swapbytes(void *v, size_t len)
+{
+	unsigned char *p = v;
+	unsigned char t;
+
+	while (len > 1) {
+		t = p[0];
+		p[0] = p[1];
+		p[1] = t;
+		p += 2;
+		len -= 2;
+	}
+}
+
+static void
 dd_in(void)
 {
 	ssize_t n;
@@ -405,7 +422,7 @@ dd_in(void)
 			++st.in_full;
 
 		/* Handle full input blocks. */
-		} else if ((size_t)n == in.dbsz) {
+		} else if ((size_t)n == (size_t)in.dbsz) {
 			in.dbcnt += in.dbrcnt = n;
 			++st.in_full;
 
@@ -436,7 +453,7 @@ dd_in(void)
 				++st.swab;
 				--n;
 			}
-			swab(in.dbp, in.dbp, (size_t)n);
+			swapbytes(in.dbp, (size_t)n);
 		}
 
 		in.dbp += in.dbrcnt;
@@ -562,7 +579,7 @@ dd_out(int force)
 			outp += nw;
 			st.bytes += nw;
 
-			if ((size_t)nw == n && n == out.dbsz)
+			if ((size_t)nw == n && n == (size_t)out.dbsz)
 				++st.out_full;
 			else
 				++st.out_part;

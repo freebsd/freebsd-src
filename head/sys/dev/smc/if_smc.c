@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Benno Rice.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -782,7 +784,7 @@ smc_task_rx(void *context, int pending)
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 smc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct smc_softc	*sc;
@@ -792,12 +794,13 @@ smc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	SMC_LOCK(sc);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		SMC_UNLOCK(sc);
-		return;
+		return (0);
 	}
 	SMC_UNLOCK(sc);
 
 	if (cmd == POLL_AND_CHECK_STATUS)
 		taskqueue_enqueue(sc->smc_tq, &sc->smc_intr);
+        return (0);
 }
 #endif
 
@@ -1213,7 +1216,6 @@ smc_stop(struct smc_softc *sc)
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(sc->smc_ifp);
 	sc->smc_ifp->if_capenable &= ~IFCAP_POLLING;
-	sc->smc_ifp->if_capenable &= ~IFCAP_POLLING_NOCOUNT;
 #endif
 
 	/*
@@ -1273,7 +1275,6 @@ smc_init_locked(struct smc_softc *sc)
 	ether_poll_register(smc_poll, ifp);
 	SMC_LOCK(sc);
 	ifp->if_capenable |= IFCAP_POLLING;
-	ifp->if_capenable |= IFCAP_POLLING_NOCOUNT;
 #endif
 }
 

@@ -95,7 +95,7 @@ computer system in a human-readable form, with certain hierarchical structure
 The default location for DTS files in the
 .Fx
 source repository is
-.Pa sys/boot/fdt/dts
+.Pa sys/dts
 directory.
 .It Va Device tree blob (DTB)
 The textual device tree description (DTS file) is first converted (compiled)
@@ -156,7 +156,7 @@ kernel.
 The indicated DTS file will be converted (compiled) into a binary form
 along with building the kernel itself.
 The DTS file name is relative to the default location of DTS sources i.e.
-.Pa sys/boot/fdt/dts .
+.Pa sys/dts .
 This makeoption is not mandatory unless FDT_DTB_STATIC is also defined (see
 below).
 .It Va options FDT_DTB_STATIC

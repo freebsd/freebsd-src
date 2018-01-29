@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Mikolaj Golub <trociny@FreeBSD.org>
  * Copyright (c) 2017 Dell EMC
  * All rights reserved.

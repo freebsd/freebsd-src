@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/cpuset.h>
-#include <sys/numa.h>
+#include <sys/domainset.h>
 #include <sys/resource.h>
 #include <sys/time.h>
 
@@ -58,58 +58,67 @@ static struct option longopts[] = {
 };
 
 static const char *
-policy_to_str(vm_domain_policy_type_t vt)
+policy_to_str(int policy)
 {
 
-	switch (vt) {
-	case VM_POLICY_NONE:
-		return ("none");
-	case VM_POLICY_ROUND_ROBIN:
-		return ("rr");
-	case VM_POLICY_FIXED_DOMAIN:
-		return ("fixed-domain");
-	case VM_POLICY_FIXED_DOMAIN_ROUND_ROBIN:
-		return ("fixed-domain-rr");
-	case VM_POLICY_FIRST_TOUCH:
+	switch (policy) {
+	case DOMAINSET_POLICY_INVALID:
+		return ("invalid");
+	case DOMAINSET_POLICY_ROUNDROBIN:
+		return ("round-robin");
+	case DOMAINSET_POLICY_FIRSTTOUCH:
 		return ("first-touch");
-	case VM_POLICY_FIRST_TOUCH_ROUND_ROBIN:
-		return ("first-touch-rr");
+	case DOMAINSET_POLICY_PREFER:
+		return ("prefer");
 	default:
 		return ("unknown");
 	}
 }
 
+static void
+domain_print(domainset_t *mask)
+{
+	int once;
+	int bit;
+
+	for (once = 0, bit = 0; bit < DOMAINSET_SETSIZE; bit++) {
+		if (DOMAINSET_ISSET(bit, mask)) {
+			if (once == 0) {
+				printf("%d", bit);
+				once = 1;
+			} else
+				printf(", %d", bit);
+		}
+	}
+	printf("\n");
+}
+
 static int
-parse_policy(struct vm_domain_policy_entry *vd, const char *str)
+parse_policy(int *policy, const char *str)
 {
 
 	if (strcmp(str, "rr") == 0) {
-		vd->policy = VM_POLICY_ROUND_ROBIN;
-		vd->domain = -1;
+		*policy = DOMAINSET_POLICY_ROUNDROBIN;
 		return (0);
 	}
 
 	if (strcmp(str, "first-touch-rr") == 0) {
-		vd->policy = VM_POLICY_FIRST_TOUCH_ROUND_ROBIN;
-		vd->domain = -1;
+		*policy = DOMAINSET_POLICY_FIRSTTOUCH;
 		return (0);
 	}
 
 	if (strcmp(str, "first-touch") == 0) {
-		vd->policy = VM_POLICY_FIRST_TOUCH;
-		vd->domain = -1;
+		*policy = DOMAINSET_POLICY_FIRSTTOUCH;
 		return (0);
 	}
 
 	if (strcmp(str, "fixed-domain") == 0) {
-		vd->policy = VM_POLICY_FIXED_DOMAIN;
-		vd->domain = 0;
+		*policy = DOMAINSET_POLICY_PREFER;
 		return (0);
 	}
 
 	if (strcmp(str, "fixed-domain-rr") == 0) {
-		vd->policy = VM_POLICY_FIXED_DOMAIN_ROUND_ROBIN;
-		vd->domain = 0;
+		*policy = DOMAINSET_POLICY_PREFER;
 		return (0);
 	}
 
@@ -150,10 +159,28 @@ set_numa_domain_cpuaffinity(int cpu_domain, cpuwhich_t which, id_t id)
 	return (0);
 }
 
+/*
+ * Attempt to maintain compatability with old style syscalls.
+ */
+static int
+numa_setaffinity(cpuwhich_t which, id_t id, int policy, int domain)
+{
+	domainset_t mask;
+	int p;
+
+	DOMAINSET_ZERO(&mask);
+	if (policy == DOMAINSET_POLICY_PREFER)
+		DOMAINSET_SET(domain, &mask);
+	else if (cpuset_getdomain(CPU_LEVEL_ROOT, CPU_WHICH_PID, -1,
+	    sizeof(mask), &mask, &p) != 0)
+		err(EXIT_FAILURE, "getdomain");
+	return cpuset_setdomain(CPU_LEVEL_WHICH, which, id, sizeof(mask),
+	    &mask, policy);
+}
+
 int
 main(int argc, char *argv[])
 {
-	struct vm_domain_policy_entry vd;
 	lwpid_t tid;
 	pid_t pid;
 	cpuwhich_t which;
@@ -163,6 +190,8 @@ main(int argc, char *argv[])
 	int mem_policy_set;
 	int ch;
 	int cpu_domain;
+	int policy;
+	int domain;
 
 	id = -1;
 	which = -1;
@@ -172,6 +201,8 @@ main(int argc, char *argv[])
 	tid = -1;
 	pid = -1;
 	cpu_domain = -1;
+	domain = -1;
+	policy = DOMAINSET_POLICY_INVALID;
 
 	while ((ch = getopt_long(argc, argv, "c:gl:m:p:st:", longopts,
 	    NULL)) != -1) {
@@ -183,7 +214,7 @@ main(int argc, char *argv[])
 			is_get = 1;
 			break;
 		case 'l':
-			if (parse_policy(&vd, optarg) != 0) {
+			if (parse_policy(&policy, optarg) != 0) {
 				fprintf(stderr,
 				    "Could not parse policy: '%s'\n", optarg);
 				exit(1);
@@ -191,12 +222,7 @@ main(int argc, char *argv[])
 			mem_policy_set = 1;
 			break;
 		case 'm':
-			if (mem_policy_set == 0) {
-				fprintf(stderr,
-				    "Error: set policy first before domain\n");
-				exit(1);
-			}
-			vd.domain = atoi(optarg);
+			domain = atoi(optarg);
 			break;
 		case 'p':
 			pid = atoi(optarg);
@@ -223,7 +249,7 @@ main(int argc, char *argv[])
 		}
 
 		/* Set current memory process policy, will be inherited */
-		if (numa_setaffinity(CPU_WHICH_PID, -1, &vd) != 0)
+		if (numa_setaffinity(CPU_WHICH_PID, -1, policy, domain) != 0)
 			err(1, "numa_setaffinity");
 
 		/* If a CPU domain policy was given, include that too */
@@ -261,19 +287,22 @@ main(int argc, char *argv[])
 
 	/* If it's get, then get the policy and return */
 	if (is_get) {
-		error = numa_getaffinity(which, id, &vd);
+		domainset_t mask;
+
+		error = cpuset_getdomain(CPU_LEVEL_WHICH, which, id,
+		    sizeof(mask), &mask, &policy);
 		if (error != 0)
-			err(1, "numa_getaffinity");
-		printf("  Policy: %s; domain: %d\n",
-		    policy_to_str(vd.policy),
-		    vd.domain);
+			err(1, "cpuset_getdomain");
+		printf("  Policy: %s; domain: ",
+		    policy_to_str(policy));
+		domain_print(&mask);
 		exit(0);
 	}
 
 	/* Assume it's set */
 
 	/* Syscall */
-	error = numa_setaffinity(which, id, &vd);
+	error = numa_setaffinity(which, id, policy, domain);
 	if (error != 0)
 		err(1, "numa_setaffinity");
 

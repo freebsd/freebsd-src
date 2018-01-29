@@ -24,13 +24,6 @@
 #include "llvm/CodeGen/LivePhysRegs.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineInstrBundle.h"
-#include "llvm/IR/GlobalValue.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/raw_ostream.h" // FIXME: for debug only. remove!
-#include "llvm/Target/TargetFrameLowering.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 
 using namespace llvm;
 
@@ -39,6 +32,8 @@ using namespace llvm;
 static cl::opt<bool>
 VerifyARMPseudo("verify-arm-pseudo-expand", cl::Hidden,
                 cl::desc("Verify machine code after expanding ARM pseudos"));
+
+#define ARM_EXPAND_PSEUDO_NAME "ARM pseudo instruction expansion pass"
 
 namespace {
   class ARMExpandPseudo : public MachineFunctionPass {
@@ -59,7 +54,7 @@ namespace {
     }
 
     StringRef getPassName() const override {
-      return "ARM pseudo instruction expansion pass";
+      return ARM_EXPAND_PSEUDO_NAME;
     }
 
   private:
@@ -87,6 +82,9 @@ namespace {
   };
   char ARMExpandPseudo::ID = 0;
 }
+
+INITIALIZE_PASS(ARMExpandPseudo, DEBUG_TYPE, ARM_EXPAND_PSEUDO_NAME, false,
+                false)
 
 /// TransferImpOps - Transfer implicit operands on the pseudo instruction to
 /// the instructions created from the expansion.
@@ -608,8 +606,11 @@ void ARMExpandPseudo::ExpandVTBL(MachineBasicBlock::iterator &MBBI,
 
   // Transfer the destination register operand.
   MIB.add(MI.getOperand(OpIdx++));
-  if (IsExt)
-    MIB.add(MI.getOperand(OpIdx++));
+  if (IsExt) {
+    MachineOperand VdSrc(MI.getOperand(OpIdx++));
+    VdSrc.setIsRenamable(false);
+    MIB.add(VdSrc);
+  }
 
   bool SrcIsKill = MI.getOperand(OpIdx).isKill();
   unsigned SrcReg = MI.getOperand(OpIdx++).getReg();
@@ -618,7 +619,9 @@ void ARMExpandPseudo::ExpandVTBL(MachineBasicBlock::iterator &MBBI,
   MIB.addReg(D0);
 
   // Copy the other source register operand.
-  MIB.add(MI.getOperand(OpIdx++));
+  MachineOperand VmSrc(MI.getOperand(OpIdx++));
+  VmSrc.setIsRenamable(false);
+  MIB.add(VmSrc);
 
   // Copy the predicate operands.
   MIB.add(MI.getOperand(OpIdx++));
@@ -666,6 +669,12 @@ static bool IsAnAddressOperand(const MachineOperand &MO) {
   llvm_unreachable("unhandled machine operand type");
 }
 
+static MachineOperand makeImplicit(const MachineOperand &MO) {
+  MachineOperand NewMO = MO;
+  NewMO.setImplicit();
+  return NewMO;
+}
+
 void ARMExpandPseudo::ExpandMOV32BitImm(MachineBasicBlock &MBB,
                                         MachineBasicBlock::iterator &MBBI) {
   MachineInstr &MI = *MBBI;
@@ -700,6 +709,8 @@ void ARMExpandPseudo::ExpandMOV32BitImm(MachineBasicBlock &MBB,
     HI16->setMemRefs(MI.memoperands_begin(), MI.memoperands_end());
     LO16.addImm(Pred).addReg(PredReg).add(condCodeOp());
     HI16.addImm(Pred).addReg(PredReg).add(condCodeOp());
+    if (isCC)
+      LO16.add(makeImplicit(MI.getOperand(1)));
     TransferImpOps(MI, LO16, HI16);
     MI.eraseFromParent();
     return;
@@ -753,6 +764,8 @@ void ARMExpandPseudo::ExpandMOV32BitImm(MachineBasicBlock &MBB,
   if (RequiresBundling)
     finalizeBundle(MBB, LO16->getIterator(), MBBI->getIterator());
 
+  if (isCC)
+    LO16.add(makeImplicit(MI.getOperand(1)));
   TransferImpOps(MI, LO16, HI16);
   MI.eraseFromParent();
 }
@@ -769,8 +782,7 @@ bool ARMExpandPseudo::ExpandCMP_SWAP(MachineBasicBlock &MBB,
   MachineInstr &MI = *MBBI;
   DebugLoc DL = MI.getDebugLoc();
   const MachineOperand &Dest = MI.getOperand(0);
-  unsigned StatusReg = MI.getOperand(1).getReg();
-  bool StatusDead = MI.getOperand(1).isDead();
+  unsigned TempReg = MI.getOperand(1).getReg();
   // Duplicating undef operands into 2 instructions does not guarantee the same
   // value on both; However undef should be replaced by xzr anyway.
   assert(!MI.getOperand(2).isUndef() && "cannot handle undef");
@@ -797,23 +809,9 @@ bool ARMExpandPseudo::ExpandCMP_SWAP(MachineBasicBlock &MBB,
   }
 
   // .Lloadcmp:
-  //     mov wStatus, #0
   //     ldrex rDest, [rAddr]
   //     cmp rDest, rDesired
   //     bne .Ldone
-  if (!StatusDead) {
-    if (IsThumb) {
-      BuildMI(LoadCmpBB, DL, TII->get(ARM::tMOVi8), StatusReg)
-        .addDef(ARM::CPSR, RegState::Dead)
-        .addImm(0)
-        .add(predOps(ARMCC::AL));
-    } else {
-      BuildMI(LoadCmpBB, DL, TII->get(ARM::MOVi), StatusReg)
-        .addImm(0)
-        .add(predOps(ARMCC::AL))
-        .add(condCodeOp());
-    }
-  }
 
   MachineInstrBuilder MIB;
   MIB = BuildMI(LoadCmpBB, DL, TII->get(LdrexOp), Dest.getReg());
@@ -836,10 +834,10 @@ bool ARMExpandPseudo::ExpandCMP_SWAP(MachineBasicBlock &MBB,
   LoadCmpBB->addSuccessor(StoreBB);
 
   // .Lstore:
-  //     strex rStatus, rNew, [rAddr]
-  //     cmp rStatus, #0
+  //     strex rTempReg, rNew, [rAddr]
+  //     cmp rTempReg, #0
   //     bne .Lloadcmp
-  MIB = BuildMI(StoreBB, DL, TII->get(StrexOp), StatusReg)
+  MIB = BuildMI(StoreBB, DL, TII->get(StrexOp), TempReg)
     .addReg(NewReg)
     .addReg(AddrReg);
   if (StrexOp == ARM::t2STREX)
@@ -848,7 +846,7 @@ bool ARMExpandPseudo::ExpandCMP_SWAP(MachineBasicBlock &MBB,
 
   unsigned CMPri = IsThumb ? ARM::t2CMPri : ARM::CMPri;
   BuildMI(StoreBB, DL, TII->get(CMPri))
-      .addReg(StatusReg, getKillRegState(StatusDead))
+      .addReg(TempReg, RegState::Kill)
       .addImm(0)
       .add(predOps(ARMCC::AL));
   BuildMI(StoreBB, DL, TII->get(Bcc))
@@ -867,16 +865,15 @@ bool ARMExpandPseudo::ExpandCMP_SWAP(MachineBasicBlock &MBB,
   MI.eraseFromParent();
 
   // Recompute livein lists.
-  const MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
   LivePhysRegs LiveRegs;
-  computeLiveIns(LiveRegs, MRI, *DoneBB);
-  computeLiveIns(LiveRegs, MRI, *StoreBB);
-  computeLiveIns(LiveRegs, MRI, *LoadCmpBB);
+  computeAndAddLiveIns(LiveRegs, *DoneBB);
+  computeAndAddLiveIns(LiveRegs, *StoreBB);
+  computeAndAddLiveIns(LiveRegs, *LoadCmpBB);
   // Do an extra pass around the loop to get loop carried registers right.
   StoreBB->clearLiveIns();
-  computeLiveIns(LiveRegs, MRI, *StoreBB);
+  computeAndAddLiveIns(LiveRegs, *StoreBB);
   LoadCmpBB->clearLiveIns();
-  computeLiveIns(LiveRegs, MRI, *LoadCmpBB);
+  computeAndAddLiveIns(LiveRegs, *LoadCmpBB);
 
   return true;
 }
@@ -904,8 +901,7 @@ bool ARMExpandPseudo::ExpandCMP_SWAP_64(MachineBasicBlock &MBB,
   MachineInstr &MI = *MBBI;
   DebugLoc DL = MI.getDebugLoc();
   MachineOperand &Dest = MI.getOperand(0);
-  unsigned StatusReg = MI.getOperand(1).getReg();
-  bool StatusDead = MI.getOperand(1).isDead();
+  unsigned TempReg = MI.getOperand(1).getReg();
   // Duplicating undef operands into 2 instructions does not guarantee the same
   // value on both; However undef should be replaced by xzr anyway.
   assert(!MI.getOperand(2).isUndef() && "cannot handle undef");
@@ -931,7 +927,7 @@ bool ARMExpandPseudo::ExpandCMP_SWAP_64(MachineBasicBlock &MBB,
   // .Lloadcmp:
   //     ldrexd rDestLo, rDestHi, [rAddr]
   //     cmp rDestLo, rDesiredLo
-  //     sbcs rStatus<dead>, rDestHi, rDesiredHi
+  //     sbcs dead rTempReg, rDestHi, rDesiredHi
   //     bne .Ldone
   unsigned LDREXD = IsThumb ? ARM::t2LDREXD : ARM::LDREXD;
   MachineInstrBuilder MIB;
@@ -959,17 +955,17 @@ bool ARMExpandPseudo::ExpandCMP_SWAP_64(MachineBasicBlock &MBB,
   LoadCmpBB->addSuccessor(StoreBB);
 
   // .Lstore:
-  //     strexd rStatus, rNewLo, rNewHi, [rAddr]
-  //     cmp rStatus, #0
+  //     strexd rTempReg, rNewLo, rNewHi, [rAddr]
+  //     cmp rTempReg, #0
   //     bne .Lloadcmp
   unsigned STREXD = IsThumb ? ARM::t2STREXD : ARM::STREXD;
-  MIB = BuildMI(StoreBB, DL, TII->get(STREXD), StatusReg);
+  MIB = BuildMI(StoreBB, DL, TII->get(STREXD), TempReg);
   addExclusiveRegPair(MIB, New, 0, IsThumb, TRI);
   MIB.addReg(AddrReg).add(predOps(ARMCC::AL));
 
   unsigned CMPri = IsThumb ? ARM::t2CMPri : ARM::CMPri;
   BuildMI(StoreBB, DL, TII->get(CMPri))
-      .addReg(StatusReg, getKillRegState(StatusDead))
+      .addReg(TempReg, RegState::Kill)
       .addImm(0)
       .add(predOps(ARMCC::AL));
   BuildMI(StoreBB, DL, TII->get(Bcc))
@@ -988,16 +984,15 @@ bool ARMExpandPseudo::ExpandCMP_SWAP_64(MachineBasicBlock &MBB,
   MI.eraseFromParent();
 
   // Recompute livein lists.
-  const MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
   LivePhysRegs LiveRegs;
-  computeLiveIns(LiveRegs, MRI, *DoneBB);
-  computeLiveIns(LiveRegs, MRI, *StoreBB);
-  computeLiveIns(LiveRegs, MRI, *LoadCmpBB);
+  computeAndAddLiveIns(LiveRegs, *DoneBB);
+  computeAndAddLiveIns(LiveRegs, *StoreBB);
+  computeAndAddLiveIns(LiveRegs, *LoadCmpBB);
   // Do an extra pass around the loop to get loop carried registers right.
   StoreBB->clearLiveIns();
-  computeLiveIns(LiveRegs, MRI, *StoreBB);
+  computeAndAddLiveIns(LiveRegs, *StoreBB);
   LoadCmpBB->clearLiveIns();
-  computeLiveIns(LiveRegs, MRI, *LoadCmpBB);
+  computeAndAddLiveIns(LiveRegs, *LoadCmpBB);
 
   return true;
 }
@@ -1046,8 +1041,11 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
         if (STI->isThumb())
           MIB.add(predOps(ARMCC::AL));
       } else if (RetOpcode == ARM::TCRETURNri) {
+        unsigned Opcode =
+          STI->isThumb() ? ARM::tTAILJMPr
+                         : (STI->hasV4TOps() ? ARM::TAILJMPr : ARM::TAILJMPr4);
         BuildMI(MBB, MBBI, dl,
-                TII.get(STI->isThumb() ? ARM::tTAILJMPr : ARM::TAILJMPr))
+                TII.get(Opcode))
             .addReg(JumpTarget.getReg(), RegState::Kill);
       }
 
@@ -1067,7 +1065,8 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
               MI.getOperand(1).getReg())
           .add(MI.getOperand(2))
           .addImm(MI.getOperand(3).getImm()) // 'pred'
-          .add(MI.getOperand(4));
+          .add(MI.getOperand(4))
+          .add(makeImplicit(MI.getOperand(1)));
 
       MI.eraseFromParent();
       return true;
@@ -1080,7 +1079,8 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
           .add(MI.getOperand(2))
           .addImm(MI.getOperand(3).getImm()) // 'pred'
           .add(MI.getOperand(4))
-          .add(condCodeOp()); // 's' bit
+          .add(condCodeOp()) // 's' bit
+          .add(makeImplicit(MI.getOperand(1)));
 
       MI.eraseFromParent();
       return true;
@@ -1092,7 +1092,8 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
           .addImm(MI.getOperand(3).getImm())
           .addImm(MI.getOperand(4).getImm()) // 'pred'
           .add(MI.getOperand(5))
-          .add(condCodeOp()); // 's' bit
+          .add(condCodeOp()) // 's' bit
+          .add(makeImplicit(MI.getOperand(1)));
 
       MI.eraseFromParent();
       return true;
@@ -1105,7 +1106,8 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
           .addImm(MI.getOperand(4).getImm())
           .addImm(MI.getOperand(5).getImm()) // 'pred'
           .add(MI.getOperand(6))
-          .add(condCodeOp()); // 's' bit
+          .add(condCodeOp()) // 's' bit
+          .add(makeImplicit(MI.getOperand(1)));
 
       MI.eraseFromParent();
       return true;
@@ -1117,7 +1119,8 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
               MI.getOperand(1).getReg())
           .addImm(MI.getOperand(2).getImm())
           .addImm(MI.getOperand(3).getImm()) // 'pred'
-          .add(MI.getOperand(4));
+          .add(MI.getOperand(4))
+          .add(makeImplicit(MI.getOperand(1)));
       MI.eraseFromParent();
       return true;
     }
@@ -1129,7 +1132,8 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
           .addImm(MI.getOperand(2).getImm())
           .addImm(MI.getOperand(3).getImm()) // 'pred'
           .add(MI.getOperand(4))
-          .add(condCodeOp()); // 's' bit
+          .add(condCodeOp()) // 's' bit
+          .add(makeImplicit(MI.getOperand(1)));
 
       MI.eraseFromParent();
       return true;
@@ -1142,7 +1146,8 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
           .addImm(MI.getOperand(2).getImm())
           .addImm(MI.getOperand(3).getImm()) // 'pred'
           .add(MI.getOperand(4))
-          .add(condCodeOp()); // 's' bit
+          .add(condCodeOp()) // 's' bit
+          .add(makeImplicit(MI.getOperand(1)));
 
       MI.eraseFromParent();
       return true;
@@ -1165,7 +1170,8 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
           .addImm(MI.getOperand(3).getImm())
           .addImm(MI.getOperand(4).getImm()) // 'pred'
           .add(MI.getOperand(5))
-          .add(condCodeOp()); // 's' bit
+          .add(condCodeOp()) // 's' bit
+          .add(makeImplicit(MI.getOperand(1)));
       MI.eraseFromParent();
       return true;
     }
@@ -1253,7 +1259,7 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
         MachineConstantPool *MCP = MF->getConstantPool();
         unsigned PCLabelID = AFI->createPICLabelUId();
         MachineConstantPoolValue *CPV =
-            ARMConstantPoolSymbol::Create(MF->getFunction()->getContext(),
+            ARMConstantPoolSymbol::Create(MF->getFunction().getContext(),
                                           "__aeabi_read_tp", PCLabelID, 0);
         unsigned Reg = MI.getOperand(0).getReg();
         MIB = BuildMI(MBB, MBBI, MI.getDebugLoc(),
@@ -1310,6 +1316,7 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
       unsigned DstReg = MI.getOperand(0).getReg();
       bool DstIsDead = MI.getOperand(0).isDead();
       const MachineOperand &MO1 = MI.getOperand(1);
+      auto Flags = MO1.getTargetFlags();
       const GlobalValue *GV = MO1.getGlobal();
       bool IsARM =
           Opcode != ARM::tLDRLIT_ga_pcrel && Opcode != ARM::tLDRLIT_ga_abs;
@@ -1328,9 +1335,13 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
 
       if (IsPIC) {
         unsigned PCAdj = IsARM ? 8 : 4;
+        auto Modifier = (Flags & ARMII::MO_GOT)
+                            ? ARMCP::GOT_PREL
+                            : ARMCP::no_modifier;
         ARMPCLabelIndex = AFI->createPICLabelUId();
-        CPV = ARMConstantPoolConstant::Create(GV, ARMPCLabelIndex,
-                                              ARMCP::CPValue, PCAdj);
+        CPV = ARMConstantPoolConstant::Create(
+            GV, ARMPCLabelIndex, ARMCP::CPValue, PCAdj, Modifier,
+            /*AddCurrentAddr*/ Modifier == ARMCP::GOT_PREL);
       } else
         CPV = ARMConstantPoolConstant::Create(GV, ARMCP::no_modifier);
 
@@ -1458,7 +1469,9 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
       unsigned SrcReg = MI.getOperand(OpIdx++).getReg();
 
       // Copy the destination register.
-      MIB.add(MI.getOperand(OpIdx++));
+      MachineOperand Dst(MI.getOperand(OpIdx++));
+      Dst.setIsRenamable(false);
+      MIB.add(Dst);
 
       // Copy the predicate operands.
       MIB.add(MI.getOperand(OpIdx++));
@@ -1711,9 +1724,8 @@ bool ARMExpandPseudo::runOnMachineFunction(MachineFunction &MF) {
   AFI = MF.getInfo<ARMFunctionInfo>();
 
   bool Modified = false;
-  for (MachineFunction::iterator MFI = MF.begin(), E = MF.end(); MFI != E;
-       ++MFI)
-    Modified |= ExpandMBB(*MFI);
+  for (MachineBasicBlock &MBB : MF)
+    Modified |= ExpandMBB(MBB);
   if (VerifyARMPseudo)
     MF.verify(this, "After expanding ARM pseudo instructions.");
   return Modified;

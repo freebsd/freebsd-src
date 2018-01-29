@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Jonathan Mini <mini@freebsd.org>
  * All rights reserved.
  *
@@ -93,6 +95,7 @@ next:			c = *fmt++;
 			case 'p':
 				pstr(fd, "0x");
 				islong = 1;
+				/* FALLTHROUGH */
 			case 'd':
 			case 'u':
 			case 'x':

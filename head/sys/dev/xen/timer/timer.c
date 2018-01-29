@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Adrian Chadd
  * Copyright (c) 2012 Spectra Logic Corporation
  * All rights reserved.
@@ -63,8 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/pvclock.h>
 
 #include <dev/xen/timer/timer.h>
-
-#include <isa/rtc.h>
 
 #include "clock_if.h"
 
@@ -228,9 +228,6 @@ xentimer_settime(device_t dev __unused, struct timespec *ts)
 	 */
 	if (!xen_initial_domain())
 		return (0);
-
-	/* Set the native RTC. */
-	atrtc_set(ts);
 
 	settime.cmd = XENPF_settime64;
 	settime.u.settime64.mbz = 0;

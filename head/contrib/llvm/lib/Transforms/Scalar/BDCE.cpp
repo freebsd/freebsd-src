@@ -15,15 +15,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Scalar/BDCE.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/DemandedBits.h"
 #include "llvm/Analysis/GlobalsModRef.h"
-#include "llvm/IR/CFG.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/Operator.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -34,6 +32,57 @@ using namespace llvm;
 
 STATISTIC(NumRemoved, "Number of instructions removed (unused)");
 STATISTIC(NumSimplified, "Number of instructions trivialized (dead bits)");
+
+/// If an instruction is trivialized (dead), then the chain of users of that
+/// instruction may need to be cleared of assumptions that can no longer be
+/// guaranteed correct.
+static void clearAssumptionsOfUsers(Instruction *I, DemandedBits &DB) {
+  assert(I->getType()->isIntegerTy() && "Trivializing a non-integer value?");
+
+  // Initialize the worklist with eligible direct users.
+  SmallVector<Instruction *, 16> WorkList;
+  for (User *JU : I->users()) {
+    // If all bits of a user are demanded, then we know that nothing below that
+    // in the def-use chain needs to be changed.
+    auto *J = dyn_cast<Instruction>(JU);
+    if (J && J->getType()->isSized() &&
+        !DB.getDemandedBits(J).isAllOnesValue())
+      WorkList.push_back(J);
+
+    // Note that we need to check for unsized types above before asking for
+    // demanded bits. Normally, the only way to reach an instruction with an
+    // unsized type is via an instruction that has side effects (or otherwise
+    // will demand its input bits). However, if we have a readnone function
+    // that returns an unsized type (e.g., void), we must avoid asking for the
+    // demanded bits of the function call's return value. A void-returning
+    // readnone function is always dead (and so we can stop walking the use/def
+    // chain here), but the check is necessary to avoid asserting.
+  }
+
+  // DFS through subsequent users while tracking visits to avoid cycles.
+  SmallPtrSet<Instruction *, 16> Visited;
+  while (!WorkList.empty()) {
+    Instruction *J = WorkList.pop_back_val();
+
+    // NSW, NUW, and exact are based on operands that might have changed.
+    J->dropPoisonGeneratingFlags();
+
+    // We do not have to worry about llvm.assume or range metadata:
+    // 1. llvm.assume demands its operand, so trivializing can't change it.
+    // 2. range metadata only applies to memory accesses which demand all bits.
+
+    Visited.insert(J);
+
+    for (User *KU : J->users()) {
+      // If all bits of a user are demanded, then we know that nothing below
+      // that in the def-use chain needs to be changed.
+      auto *K = dyn_cast<Instruction>(KU);
+      if (K && !Visited.count(K) && K->getType()->isSized() &&
+          !DB.getDemandedBits(K).isAllOnesValue())
+        WorkList.push_back(K);
+    }
+  }
+}
 
 static bool bitTrackingDCE(Function &F, DemandedBits &DB) {
   SmallVector<Instruction*, 128> Worklist;
@@ -51,6 +100,9 @@ static bool bitTrackingDCE(Function &F, DemandedBits &DB) {
       // replacing all uses with something else. Then, if they don't need to
       // remain live (because they have side effects, etc.) we can remove them.
       DEBUG(dbgs() << "BDCE: Trivializing: " << I << " (all bits dead)\n");
+
+      clearAssumptionsOfUsers(&I, DB);
+
       // FIXME: In theory we could substitute undef here instead of zero.
       // This should be reconsidered once we settle on the semantics of
       // undef, poison, etc.

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015 iXsystems Inc.
  * All rights reserved.
  *
@@ -619,6 +621,8 @@ uclparse_target(const char *name, const ucl_object_t *top)
 	const char *key;
 
 	target = target_new(conf, name);
+	if (target == NULL)
+		return (1);
 
 	while ((obj = ucl_iterate_object(top, &it, true))) {
 		key = ucl_object_key(obj);
@@ -807,6 +811,8 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 	const char *key;
 
 	lun = lun_new(conf, name);
+	if (lun == NULL)
+		return (1);
 
 	while ((obj = ucl_iterate_object(top, &it, true))) {
 		key = ucl_object_key(obj);

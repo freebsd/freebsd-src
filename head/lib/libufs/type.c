@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Juli Mallett.  All rights reserved.
  *
  * This software was written by Juli Mallett <jmallett@FreeBSD.org> for the
@@ -81,6 +83,7 @@ ufs_disk_fillout(struct uufsd *disk, const char *name)
 	}
 	if (sbread(disk) == -1) {
 		ERROR(disk, "could not read superblock to fill out disk");
+		ufs_disk_close(disk);
 		return (-1);
 	}
 	return (0);

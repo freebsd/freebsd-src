@@ -77,8 +77,8 @@
 #define D_h	x13
 #define E_l	src
 #define E_h	count
-#define F_l	srcend
-#define F_h	dst
+#define F_l	dst
+#define F_h	srcend
 #define tmp1	x9
 
 #define L(l) .L ## l

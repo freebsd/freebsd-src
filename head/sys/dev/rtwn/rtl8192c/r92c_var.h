@@ -53,7 +53,7 @@ struct r92c_softc {
 
 	void		(*rs_set_bw20)(struct rtwn_softc *, uint8_t);
 	void		(*rs_get_txpower)(struct rtwn_softc *, int,
-			    struct ieee80211_channel *, uint16_t[]);
+			    struct ieee80211_channel *, uint8_t[]);
 	void		(*rs_set_gain)(struct rtwn_softc *, uint8_t);
 	void		(*rs_tx_enable_ampdu)(void *, int);
 	void		(*rs_tx_setup_hwseq)(void *);

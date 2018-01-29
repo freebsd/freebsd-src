@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Joseph Koshy
  * All rights reserved.
  *
@@ -179,9 +181,17 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_IVYBRIDGE_XEON;
 			nclasses = 3;
 			break;
+			/* Skylake */
 		case 0x4e:
 		case 0x5e:
+			/* Kabylake */
+		case 0x8E:	/* Per Intel document 325462-063US July 2017. */
+		case 0x9E:	/* Per Intel document 325462-063US July 2017. */
 			cputype = PMC_CPU_INTEL_SKYLAKE;
+			nclasses = 3;
+			break;
+		case 0x55:	/* SDM rev 63 */
+			cputype = PMC_CPU_INTEL_SKYLAKE_XEON;
 			nclasses = 3;
 			break;
 		case 0x3D:
@@ -244,6 +254,7 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_ATOM_SILVERMONT:
 	case PMC_CPU_INTEL_BROADWELL:
 	case PMC_CPU_INTEL_BROADWELL_XEON:
+	case PMC_CPU_INTEL_SKYLAKE_XEON:
 	case PMC_CPU_INTEL_SKYLAKE:
 	case PMC_CPU_INTEL_CORE:
 	case PMC_CPU_INTEL_CORE2:
@@ -340,6 +351,7 @@ pmc_intel_finalize(struct pmc_mdep *md)
 	case PMC_CPU_INTEL_ATOM_SILVERMONT:
 	case PMC_CPU_INTEL_BROADWELL:
 	case PMC_CPU_INTEL_BROADWELL_XEON:
+	case PMC_CPU_INTEL_SKYLAKE_XEON:
 	case PMC_CPU_INTEL_SKYLAKE:
 	case PMC_CPU_INTEL_CORE:
 	case PMC_CPU_INTEL_CORE2:

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Ruslan Ermilov and Vsevolod Lobko.
  * Copyright (c) 2014 Yandex LLC
  * Copyright (c) 2014 Alexander V. Chernikov
@@ -1925,9 +1927,7 @@ create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
 		tc->no.kidx = kidx;
 		tc->no.etlv = IPFW_TLV_TBL_NAME;
 
-		IPFW_WLOCK(ch);
 		link_table(ch, tc);
-		IPFW_WUNLOCK(ch);
 	}
 
 	if (compat != 0)
@@ -3229,7 +3229,6 @@ link_table(struct ip_fw_chain *ch, struct table_config *tc)
 	uint16_t kidx;
 
 	IPFW_UH_WLOCK_ASSERT(ch);
-	IPFW_WLOCK_ASSERT(ch);
 
 	ni = CHAIN_TO_NI(ch);
 	kidx = tc->no.kidx;

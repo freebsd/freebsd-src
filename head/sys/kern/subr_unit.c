@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Poul-Henning Kamp
  * All rights reserved.
  *
@@ -364,6 +366,26 @@ delete_unrhdr(struct unrhdr *uh)
 	KASSERT(TAILQ_FIRST(&uh->ppfree) == NULL,
 	    ("unrhdr has postponed item for free"));
 	Free(uh);
+}
+
+void
+clear_unrhdr(struct unrhdr *uh)
+{
+	struct unr *up, *uq;
+
+	KASSERT(TAILQ_EMPTY(&uh->ppfree),
+	    ("unrhdr has postponed item for free"));
+	TAILQ_FOREACH_SAFE(up, &uh->head, list, uq) {
+		if (up->ptr != uh) {
+			Free(up->ptr);
+		}
+		Free(up);
+	}
+	uh->busy = 0;
+	uh->alloc = 0;
+	init_unrhdr(uh, uh->low, uh->high, uh->mtx);
+
+	check_unrhdr(uh, __LINE__);
 }
 
 static __inline int

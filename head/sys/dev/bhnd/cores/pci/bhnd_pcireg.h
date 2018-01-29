@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
  * Copyright (c) 2010 Broadcom Corporation
  * All rights reserved.
@@ -29,15 +31,15 @@
  * PCI/PCIe-Gen1 DMA Constants
  */
 
-#define	BHND_PCI_DMA32_TRANSLATION	0x40000000	/* Client Mode sb2pcitranslation2 (1 GB) */
-#define	BHND_PCI_DMA32_SZ		0x40000000	/* Client Mode sb2pcitranslation2 size in bytes */
+#define	BHND_PCI_DMA32_TRANSLATION	0x40000000			/**< PCI DMA32 address translation (sbtopci2) */
+#define	BHND_PCI_DMA32_MASK		BHND_PCI_SBTOPCI2_MASK		/**< PCI DMA32 translation mask */
 
-#define	BHND_PCIE_DMA32_TRANSLATION	BHND_PCI_DMA32_TRANSLATION
-#define	BHND_PCIE_DMA32_SZ		BHND_PCI_DMA32_SZ
+#define	BHND_PCIE_DMA32_TRANSLATION	0x80000000			/**< PCIe-Gen1 DMA32 address translation (sb2pcitranslation2) */
+#define	BHND_PCIE_DMA32_MASK		BHND_PCIE_SBTOPCI2_MASK		/**< PCIe-Gen1 DMA32 translation mask */
 
-#define	BHND_PCIE_DMA64_L32		0x00000000	/**< 64-bit client mode sb2pcitranslation2 (2 ZettaBytes, low 32 bits) */
-#define	BHND_PCIE_DMA64_H32		0x80000000	/**< 64-bit client mode sb2pcitranslation2 (2 ZettaBytes, high 32 bits) */
-
+#define	BHND_PCIE_DMA64_TRANSLATION	_BHND_PCIE_DMA64(TRANSLATION)	/**< PCIe-Gen1 DMA64 address translation (sb2pcitranslation2) */
+#define	BHND_PCIE_DMA64_MASK		_BHND_PCIE_DMA64(MASK)		/**< PCIe-Gen1 DMA64 translation mask */
+#define	_BHND_PCIE_DMA64(_x)		((uint64_t)BHND_PCIE_DMA32_ ## _x << 32)
 /*
  * PCI Core Registers
  */
@@ -127,12 +129,12 @@
 #define	BHND_PCI_SBTOPCI_RC_READLINE	0x10	/* memory read line */
 #define	BHND_PCI_SBTOPCI_RC_READMULTI	0x20	/* memory read multiple */
 
-/* PCI core index in SROM shadow area */
+/* PCI base address bits in SPROM shadow area */
 #define	BHND_PCI_SRSH_PI_OFFSET		0	/* first word */
 #define	BHND_PCI_SRSH_PI_MASK		0xf000	/* bit 15:12 */
 #define	BHND_PCI_SRSH_PI_SHIFT		12	/* bit 15:12 */
-
-
+#define	BHND_PCI_SRSH_PI_ADDR_MASK	0x0000F000
+#define	BHND_PCI_SRSH_PI_ADDR_SHIFT	12
 
 /*
  * PCIe-Gen1 Core Registers
@@ -395,9 +397,11 @@
 
 
 /* SPROM offsets */
-#define	BHND_PCIE_SRSH_PI_OFFSET		BHND_PCI_SRSH_PI_OFFSET	/**< PCI core index in SROM shadow area */
-#define	BHND_PCIE_SRSH_PI_MASK			BHND_PCI_SRSH_PI_MASK
+#define	BHND_PCIE_SRSH_PI_OFFSET		BHND_PCI_SRSH_PI_OFFSET	/**< PCI base address bits in SPROM shadow area */
+#define	BHND_PCIE_SRSH_PI_MASK			BHND_PCI_SRSH_PI_MASK	/**< bits 15:12 of the PCI core address */
 #define	BHND_PCIE_SRSH_PI_SHIFT			BHND_PCI_SRSH_PI_SHIFT
+#define	BHND_PCIE_SRSH_PI_ADDR_MASK		BHND_PCI_SRSH_PI_ADDR_MASK
+#define	BHND_PCIE_SRSH_PI_ADDR_SHIFT		BHND_PCI_SRSH_PI_ADDR_SHIFT
 
 #define	BHND_PCIE_SRSH_ASPM_OFFSET		8	/* word 4 */
 #define	BHND_PCIE_SRSH_ASPM_ENB			0x18	/* bit 3, 4 */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD AND BSD-3-Clause)
+ *
  * Copyright (c) 2002, 2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -587,7 +589,7 @@ ffs_read(ap)
 			 */
 			u_int nextsize = blksize(fs, ip, nextlbn);
 			error = breadn_flags(vp, lbn, size, &nextlbn,
-			    &nextsize, 1, NOCRED, GB_UNMAPPED, &bp);
+			    &nextsize, 1, NOCRED, GB_UNMAPPED, NULL, &bp);
 		} else {
 			/*
 			 * Failing all of the above, just read what the
@@ -1367,7 +1369,6 @@ vop_deleteextattr {
 */
 {
 	struct inode *ip;
-	struct fs *fs;
 	struct extattr *eap;
 	uint32_t ul;
 	int olen, error, i, easize;
@@ -1375,7 +1376,6 @@ vop_deleteextattr {
 	void *tmp;
 
 	ip = VTOI(ap->a_vp);
-	fs = ITOFS(ip);
 
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);

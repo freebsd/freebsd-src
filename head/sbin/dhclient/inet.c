@@ -5,7 +5,9 @@
  * way...
  */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1996 The Internet Software Consortium.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,7 +56,7 @@ struct iaddr
 subnet_number(struct iaddr addr, struct iaddr mask)
 {
 	struct iaddr rv;
-	int i;
+	unsigned i;
 
 	rv.len = 0;
 
@@ -77,7 +79,7 @@ struct iaddr
 broadcast_addr(struct iaddr subnet, struct iaddr mask)
 {
 	struct iaddr rv;
-	int i;
+	unsigned i;
 
 	if (subnet.len != mask.len) {
 		rv.len = 0;

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
@@ -66,8 +68,9 @@ print_controller(struct nvme_controller_data *cdata)
 		printf("Unlimited\n");
 	else
 		printf("%d\n", PAGE_SIZE * (1 << cdata->mdts));
-
+	printf("Controller ID:              0x%02x\n", cdata->ctrlr_id);
 	printf("\n");
+
 	printf("Admin Command Set Attributes\n");
 	printf("============================\n");
 	printf("Security Send/Receive:       %s\n",

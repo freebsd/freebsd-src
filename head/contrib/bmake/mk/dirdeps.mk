@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.89 2017/05/17 17:41:47 sjg Exp $
+# $Id: dirdeps.mk,v 1.90 2017/10/25 23:44:20 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -536,9 +536,13 @@ _machines := ${DEP_MACHINE}
 # this is the machine list we actually use below
 _machines := ${_only_machines}
 
-.if defined(HOSTPROG) || ${DEP_MACHINE} == "host"
+.if defined(HOSTPROG) || ${DEP_MACHINE:Nhost*} == ""
 # we need to build this guy's dependencies for host as well.
+.if ${DEP_MACHINE:Nhost*} == ""
+_machines += ${DEP_MACHINE}
+.else
 _machines += host
+.endif
 .endif
 
 _machines := ${_machines:O:u}

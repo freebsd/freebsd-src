@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
+#include <contrib/ncsw/inc/integrations/dpaa_integration_ext.h>
 #include <contrib/ncsw/inc/Peripherals/fm_mac_ext.h>
 #include <contrib/ncsw/inc/Peripherals/fm_port_ext.h>
 #include <contrib/ncsw/inc/xx_ext.h>

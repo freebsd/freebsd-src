@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: macintosh,v 1.26 2015/11/25 00:36:02 christos Exp $
+# $File: macintosh,v 1.27 2017/03/17 21:35:28 christos Exp $
 # macintosh description
 #
 # BinHex is the Macintosh ASCII-encoded file format (see also "apple")
@@ -109,9 +109,9 @@
 # the assumption that 65-72 will all be ASCII (0x20-0x7F), that 73 will
 # have bits 1 (changed), 2 (busy), 3 (bozo), and 6 (invisible) unset,
 # and that 74 will be 0.  So something like
-# 
+#
 # 71 	belong&0x80804EFF 0x00000000 	Macintosh MacBinary data
-# 
+#
 # >73	byte&0x01	0x01		\b, inited
 # >73	byte&0x02	0x02		\b, changed
 # >73	byte&0x04	0x04		\b, busy
@@ -254,7 +254,7 @@
 >0x9C   string          INDEX           data file index
 >0x9C   string          VIEW            data view
 
-# spss magic for SPSS system and portable files, 
+# spss magic for SPSS system and portable files,
 #	 from Bruce Foster (bef@nwu.edu).
 
 0	long		0xc1e2c3c9	SPSS Portable File
@@ -273,7 +273,7 @@
 # entries depend on the data arithmetic added after v.35
 # There's also some Pascal strings in here, ditto...
 
-# The boot block signature, according to IM:Files, is 
+# The boot block signature, according to IM:Files, is
 # "for HFS volumes, this field always contains the value 0x4C4B."
 # But if this is true for MFS or HFS+ volumes, I don't know.
 # Alternatively, the boot block is supposed to be zeroed if it's
@@ -291,10 +291,10 @@
 # *.hfs updated by Joerg Jenderek
 # http://en.wikipedia.org/wiki/Hierarchical_File_System
 # "BD" gives many false positives
-0x400	beshort			0x4244		
+0x400	beshort			0x4244
 # ftp://ftp.mars.org/pub/hfs/hfsutils-3.2.6.tar.gz/hfsutils-3.2.6/libhfs/apple.h
 # first block of volume bit map (always 3)
->0x40e	ubeshort		0x0003		
+>0x40e	ubeshort		0x0003
 # maximal length of volume name is 27
 >>0x424		ubyte			<28	Macintosh HFS data
 !:mime	application/x-apple-diskimage
@@ -351,15 +351,15 @@
 #>0x230		string		x		first type: %s,
 #>0x210		string		x		name: %s,
 #>0x254		belong		x		number of blocks: %d,
-#>0x400		beshort		0x504D		
+#>0x400		beshort		0x504D
 #>>0x430		string		x		second type: %s,
 #>>0x410		string		x		name: %s,
 #>>0x454		belong		x		number of blocks: %d,
-#>>0x800		beshort		0x504D		
+#>>0x800		beshort		0x504D
 #>>>0x830	string		x		third type: %s,
 #>>>0x810	string		x		name: %s,
 #>>>0x854	belong		x		number of blocks: %d,
-#>>>0xa00	beshort		0x504D		
+#>>>0xa00	beshort		0x504D
 #>>>>0xa30	string		x		fourth type: %s,
 #>>>>0xa10	string		x		name: %s,
 #>>>>0xa54	belong		x		number of blocks: %d

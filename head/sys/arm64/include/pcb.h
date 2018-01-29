@@ -43,7 +43,6 @@ struct pcb {
 	uint64_t	pcb_sp;
 	uint64_t	pcb_tpidr_el0;
 	uint64_t	pcb_tpidrro_el0;
-	vm_offset_t	pcb_l0addr;
 
 	/* Fault handler, the error value is passed in x0 */
 	vm_offset_t	pcb_onfault;

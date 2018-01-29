@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 2003,2004
  * 	Hidetoshi Shimokawa. All rights reserved.
  * 

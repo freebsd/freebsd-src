@@ -16,7 +16,7 @@
 #define LLVM_AVR_ISEL_LOWERING_H
 
 #include "llvm/CodeGen/CallingConvLower.h"
-#include "llvm/Target/TargetLowering.h"
+#include "llvm/CodeGen/TargetLowering.h"
 
 namespace llvm {
 
@@ -75,6 +75,11 @@ public:
   MVT getScalarShiftAmountTy(const DataLayout &, EVT LHSTy) const override {
     return MVT::i8;
   }
+
+  MVT::SimpleValueType getCmpLibcallReturnType() const override {
+    return MVT::i8;
+  }
+
   const char *getTargetNodeName(unsigned Opcode) const override;
 
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
@@ -83,7 +88,8 @@ public:
                           SelectionDAG &DAG) const override;
 
   bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM, Type *Ty,
-                             unsigned AS) const override;
+                             unsigned AS,
+                             Instruction *I = nullptr) const override;
 
   bool getPreIndexedAddressParts(SDNode *N, SDValue &Base, SDValue &Offset,
                                  ISD::MemIndexedMode &AM,

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1985, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -54,7 +56,7 @@ static void schgdate(struct tsp *, char *);
 static void setmaster(struct tsp *);
 static void answerdelay(void);
 
-int
+void
 slave(void)
 {
 	int tries;

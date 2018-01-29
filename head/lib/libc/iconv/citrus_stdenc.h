@@ -2,6 +2,8 @@
 /* $NetBSD: citrus_stdenc.h,v 1.4 2005/10/29 18:02:04 tshiozak Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2003 Citrus Project,
  * All rights reserved.
  *

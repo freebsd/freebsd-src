@@ -36,6 +36,7 @@
  */
 
 extern const struct tok ipproto_values[];
+extern const char *netdb_protoname (const nd_uint8_t);
 
 #ifndef IPPROTO_IP
 #define	IPPROTO_IP		0		/* dummy for IP */
@@ -109,7 +110,7 @@ extern const struct tok ipproto_values[];
  * It appears that 62 used to be used, even though that's assigned to
  * a protocol called CFTP; however, the only reference for CFTP is a
  * Network Message from BBN back in 1982, so, for now, we support 62,
- * aas well as 135, as a protocol number for mobility headers.
+ * as well as 135, as a protocol number for mobility headers.
  */
 #define IPPROTO_MOBILITY_OLD	62
 #endif

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Marcel Moolenaar
  * Copyright (c) 2001 Benno Rice
  * Copyright (c) 2001 David E. O'Brien
@@ -35,6 +37,8 @@
 #ifndef _SYS_CDEFS_H_
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
+
+#include <sys/atomic_common.h>
 
 /*
  * The __ATOMIC_REL/ACQ() macros provide memory barriers only in conjunction

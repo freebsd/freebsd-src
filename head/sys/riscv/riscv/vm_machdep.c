@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -88,6 +88,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	tf->tf_a[0] = 0;
 	tf->tf_a[1] = 0;
 	tf->tf_sstatus |= (SSTATUS_SPIE); /* Enable interrupts. */
+	tf->tf_sstatus |= (SSTATUS_SUM); /* Supervisor can access userspace. */
 	tf->tf_sstatus &= ~(SSTATUS_SPP); /* User mode. */
 
 	td2->td_frame = tf;
@@ -179,7 +180,9 @@ void
 cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	stack_t *stack)
 {
-	struct trapframe *tf = td->td_frame;
+	struct trapframe *tf;
+
+	tf = td->td_frame;
 
 	tf->tf_sp = STACKALIGN((uintptr_t)stack->ss_sp + stack->ss_size);
 	tf->tf_sepc = (register_t)entry;

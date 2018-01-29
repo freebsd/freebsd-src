@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2008 Yahoo!, Inc.
  * All rights reserved.
  * Written by: John Baldwin <jhb@FreeBSD.org>
@@ -677,7 +679,7 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	if (cm == NULL) {
 		mps_printf(sc, "%s: no mps requests\n", __func__);
 		err = ENOMEM;
-		goto Ret;
+		goto RetFree;
 	}
 	mps_unlock(sc);
 
@@ -719,12 +721,12 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 		goto RetFreeUnlocked;
 
 	mps_lock(sc);
-	err = mps_wait_command(sc, cm, 60, CAN_SLEEP);
+	err = mps_wait_command(sc, &cm, 60, CAN_SLEEP);
 
-	if (err) {
+	if (err || (cm == NULL)) {
 		mps_printf(sc, "%s: invalid request: error %d\n",
 		    __func__, err);
-		goto Ret;
+		goto RetFree;
 	}
 
 	rpl = (MPI2_DEFAULT_REPLY *)cm->cm_reply;
@@ -747,9 +749,9 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 
 RetFreeUnlocked:
 	mps_lock(sc);
+RetFree:
 	if (cm != NULL)
 		mps_free_command(sc, cm);
-Ret:
 	mps_unlock(sc);
 	if (buf != NULL)
 		free(buf, M_MPSUSER);
@@ -760,7 +762,7 @@ static int
 mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 {
 	MPI2_REQUEST_HEADER	*hdr, tmphdr;	
-	MPI2_DEFAULT_REPLY	*rpl;
+	MPI2_DEFAULT_REPLY	*rpl = NULL;
 	struct mps_command	*cm = NULL;
 	int			err = 0, dir = 0, sz;
 	uint8_t			function = 0;
@@ -861,7 +863,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 			err = 1;
 		} else {
 			mpssas_prepare_for_tm(sc, cm, targ, CAM_LUN_WILDCARD);
-			err = mps_wait_command(sc, cm, 30, CAN_SLEEP);
+			err = mps_wait_command(sc, &cm, 30, CAN_SLEEP);
 		}
 
 		if (err != 0) {
@@ -872,7 +874,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 		/*
 		 * Copy the reply data and sense data to user space.
 		 */
-		if (cm->cm_reply != NULL) {
+		if ((cm != NULL) && (cm->cm_reply != NULL)) {
 			rpl = (MPI2_DEFAULT_REPLY *)cm->cm_reply;
 			sz = rpl->MsgLength * 4;
 	
@@ -993,9 +995,9 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 
 	mps_lock(sc);
 
-	err = mps_wait_command(sc, cm, 30, CAN_SLEEP);
+	err = mps_wait_command(sc, &cm, 30, CAN_SLEEP);
 
-	if (err) {
+	if (err || (cm == NULL)) {
 		mps_printf(sc, "%s: invalid request: error %d\n", __func__,
 		    err);
 		mps_unlock(sc);
@@ -1161,7 +1163,7 @@ mps_post_fw_diag_buffer(struct mps_softc *sc,
     mps_fw_diagnostic_buffer_t *pBuffer, uint32_t *return_code)
 {
 	MPI2_DIAG_BUFFER_POST_REQUEST	*req;
-	MPI2_DIAG_BUFFER_POST_REPLY	*reply;
+	MPI2_DIAG_BUFFER_POST_REPLY	*reply = NULL;
 	struct mps_command		*cm = NULL;
 	int				i, status;
 
@@ -1208,8 +1210,8 @@ mps_post_fw_diag_buffer(struct mps_softc *sc,
 	/*
 	 * Send command synchronously.
 	 */
-	status = mps_wait_command(sc, cm, 30, CAN_SLEEP);
-	if (status) {
+	status = mps_wait_command(sc, &cm, 30, CAN_SLEEP);
+	if (status || (cm == NULL)) {
 		mps_printf(sc, "%s: invalid request: error %d\n", __func__,
 		    status);
 		status = MPS_DIAG_FAILURE;
@@ -1240,7 +1242,8 @@ mps_post_fw_diag_buffer(struct mps_softc *sc,
 	status = MPS_DIAG_SUCCESS;
 
 done:
-	mps_free_command(sc, cm);
+	if (cm != NULL)
+		mps_free_command(sc, cm);
 	return (status);
 }
 
@@ -1250,7 +1253,7 @@ mps_release_fw_diag_buffer(struct mps_softc *sc,
     uint32_t diag_type)
 {
 	MPI2_DIAG_RELEASE_REQUEST	*req;
-	MPI2_DIAG_RELEASE_REPLY		*reply;
+	MPI2_DIAG_RELEASE_REPLY		*reply = NULL;
 	struct mps_command		*cm = NULL;
 	int				status;
 
@@ -1294,8 +1297,8 @@ mps_release_fw_diag_buffer(struct mps_softc *sc,
 	/*
 	 * Send command synchronously.
 	 */
-	status = mps_wait_command(sc, cm, 30, CAN_SLEEP);
-	if (status) {
+	status = mps_wait_command(sc, &cm, 30, CAN_SLEEP);
+	if (status || (cm == NULL)) {
 		mps_printf(sc, "%s: invalid request: error %d\n", __func__,
 		    status);
 		status = MPS_DIAG_FAILURE;
@@ -1330,6 +1333,9 @@ mps_release_fw_diag_buffer(struct mps_softc *sc,
 	}
 
 done:
+	if (cm != NULL)
+		mps_free_command(sc, cm);
+
 	return (status);
 }
 
@@ -1406,14 +1412,14 @@ mps_diag_register(struct mps_softc *sc, mps_fw_diag_register_t *diag_register,
                                 0,			/* flags */
                                 NULL, NULL,		/* lockfunc, lockarg */
                                 &sc->fw_diag_dmat)) {
-		device_printf(sc->mps_dev, "Cannot allocate FW diag buffer DMA "
-		    "tag\n");
+		mps_dprint(sc, MPS_ERROR,
+		    "Cannot allocate FW diag buffer DMA tag\n");
 		return (ENOMEM);
         }
         if (bus_dmamem_alloc(sc->fw_diag_dmat, (void **)&sc->fw_diag_buffer,
 	    BUS_DMA_NOWAIT, &sc->fw_diag_map)) {
-		device_printf(sc->mps_dev, "Cannot allocate FW diag buffer "
-		    "memory\n");
+		mps_dprint(sc, MPS_ERROR,
+		    "Cannot allocate FW diag buffer memory\n");
 		return (ENOMEM);
         }
         bzero(sc->fw_diag_buffer, buffer_size);

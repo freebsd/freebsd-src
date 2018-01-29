@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2017
+.Dd January 23, 2018
 .Dt PS 1
 .Os
 .Sh NAME
@@ -148,12 +148,7 @@ This option is honored only if the UID of the user is 0.
 Display information about processes which are running with the specified
 real group IDs.
 .It Fl H
-Show all of the
-.Em kernel visible
-threads associated with each process.
-Depending on the threading package that
-is in use, this may show only the process, only the kernel scheduled entities,
-or all of the process threads.
+Show all of the threads associated with each process.
 .It Fl h
 Repeat the information header as often as necessary to guarantee one
 header per page of information.
@@ -436,6 +431,10 @@ information:
 The process is in the foreground process group of its control terminal.
 .It Li <
 The process has raised CPU scheduling priority.
+.It Li C
+The process is in
+.Xr capsicum 4
+capability mode.
 .It Li E
 The process is trying to exit.
 .It Li J
@@ -541,7 +540,7 @@ short-term CPU usage factor (for scheduling)
 .It Cm dsiz
 data size (in Kbytes)
 .It Cm emul
-system-call emulation environment
+system-call emulation environment (ABI)
 .It Cm etime
 elapsed running time, format
 .Op days- Ns
@@ -584,7 +583,8 @@ login name of user who started the session
 .It Cm lstart
 time started
 .It Cm lwp
-process thread-id
+thread (light-weight process) ID (alias
+.Cm tid )
 .It Cm majflt
 total page faults
 .It Cm minflt
@@ -601,7 +601,7 @@ nice value (alias
 .It Cm nivcsw
 total involuntary context switches
 .It Cm nlwp
-number of threads tied to a process
+number of threads (light-weight processes) tied to a process
 .It Cm nsigs
 total signals taken (alias
 .Cm nsignals )
@@ -671,6 +671,8 @@ saved UID from a setuid executable
 accumulated system CPU time
 .It Cm tdaddr
 thread address
+.It Cm tdname
+thread name
 .It Cm tdev
 control terminal device number
 .It Cm time
@@ -704,6 +706,8 @@ process pointer
 user name (from UID)
 .It Cm usertime
 accumulated user CPU time
+.It Cm vmaddr
+vmspace pointer
 .It Cm vsz
 virtual size in Kbytes (alias
 .Cm vsize )

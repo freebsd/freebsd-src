@@ -332,7 +332,6 @@ FBSD_1.1 {
 };
 
 FBSD_1.2 {
-	basename_r;
 	cfmakesane;
 	endutxent;
 	getpagesizes;
@@ -395,9 +394,11 @@ FBSD_1.4 {
 FBSD_1.5 {
 	alphasort;
 	basename;
+	daemonfd;
 	devname;
 	devname_r;
 	dirname;
+	elf_aux_info;
 	fts_children;
 	fts_close;
 	fts_get_clientptr;

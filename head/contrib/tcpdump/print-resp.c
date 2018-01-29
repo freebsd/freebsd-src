@@ -481,8 +481,10 @@ resp_get_length(netdissect_options *ndo, register const u_char *bp, int len, con
         ND_TCHECK(*bp);
         c = *bp;
         if (!(c >= '0' && c <= '9')) {
-            if (!saw_digit)
+            if (!saw_digit) {
+                bp++;
                 goto invalid;
+            }
             break;
         }
         c -= '0';
@@ -491,7 +493,7 @@ resp_get_length(netdissect_options *ndo, register const u_char *bp, int len, con
             too_large = 1;
         } else {
             result *= 10;
-            if (result == INT_MAX && c > (INT_MAX % 10)) {
+            if (result == ((INT_MAX / 10) * 10) && c > (INT_MAX % 10)) {
                 /* This will overflow an int when we add c */
                 too_large = 1;
             } else
@@ -501,24 +503,24 @@ resp_get_length(netdissect_options *ndo, register const u_char *bp, int len, con
         len--;
         saw_digit = 1;
     }
-    if (!saw_digit)
-        goto invalid;
 
     /*
-     * OK, the next thing should be \r\n.
+     * OK, we found a non-digit character.  It should be a \r, followed
+     * by a \n.
      */
-    if (len == 0)
-        goto trunc;
-    ND_TCHECK(*bp);
-    if (*bp != '\r')
+    if (*bp != '\r') {
+        bp++;
         goto invalid;
+    }
     bp++;
     len--;
     if (len == 0)
         goto trunc;
     ND_TCHECK(*bp);
-    if (*bp != '\n')
+    if (*bp != '\n') {
+        bp++;
         goto invalid;
+    }
     bp++;
     len--;
     *endp = bp;
@@ -531,8 +533,10 @@ resp_get_length(netdissect_options *ndo, register const u_char *bp, int len, con
     return (too_large ? -3 : result);
 
 trunc:
+    *endp = bp;
     return (-2);
 
 invalid:
+    *endp = bp;
     return (-5);
 }

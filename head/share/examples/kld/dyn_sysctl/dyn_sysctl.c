@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2000 Andrzej Bialecki <abial@freebsd.org>
  * All rights reserved.
  *

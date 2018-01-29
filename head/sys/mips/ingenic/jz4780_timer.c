@@ -283,6 +283,7 @@ DELAY(int usec)
 			}
 		return;
 	}
+	TSENTER();
 
 	/*
 	 * Some of the other timers in the source tree do this calculation as:
@@ -327,6 +328,7 @@ DELAY(int usec)
 		previous = now;
 		remaining -= delta;
 	}
+	TSEXIT();
 }
 
 void

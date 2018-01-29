@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2016 Adam Starak <starak.adam@gmail.com>
  * All rights reserved.
  *
@@ -52,6 +54,20 @@ __FBSDID("$FreeBSD$");
 #include "nv_impl.h"
 #include "nvlist_impl.h"
 #include "nvpair_impl.h"
+
+const char *
+cnvlist_name(void *cookiep)
+{
+
+	return (nvpair_name(cookiep));
+}
+
+int
+cnvlist_type(void *cookiep)
+{
+
+	return (nvpair_type(cookiep));
+}
 
 #define	CNVLIST_GET(ftype, type, NVTYPE)				\
 ftype									\

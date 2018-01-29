@@ -496,10 +496,7 @@ print_attr_string(netdissect_options *ndo,
    {
       case TUNNEL_PASS:
            if (length < 3)
-           {
-              ND_PRINT((ndo, "%s", tstr));
-              return;
-           }
+              goto trunc;
            if (*data && (*data <=0x1F) )
               ND_PRINT((ndo, "Tag[%u] ", *data));
            else
@@ -519,10 +516,7 @@ print_attr_string(netdissect_options *ndo,
            if (*data <= 0x1F)
            {
               if (length < 1)
-              {
-                 ND_PRINT((ndo, "%s", tstr));
-                 return;
-              }
+                 goto trunc;
               if (*data)
                 ND_PRINT((ndo, "Tag[%u] ", *data));
               else
@@ -532,6 +526,8 @@ print_attr_string(netdissect_options *ndo,
            }
         break;
       case EGRESS_VLAN_NAME:
+           if (length < 1)
+              goto trunc;
            ND_PRINT((ndo, "%s (0x%02x) ",
                   tok2str(rfc4675_tagged,"Unknown tag",*data),
                   *data));
@@ -540,7 +536,7 @@ print_attr_string(netdissect_options *ndo,
         break;
    }
 
-   for (i=0; *data && i < length ; i++, data++)
+   for (i=0; i < length && *data; i++, data++)
        ND_PRINT((ndo, "%c", (*data < 32 || *data > 126) ? '.' : *data));
 
    return;

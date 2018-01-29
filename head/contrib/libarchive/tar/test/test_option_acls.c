@@ -85,7 +85,9 @@ static const acl_flag_t acl_flags[] = {
     ACL_ENTRY_INHERIT_ONLY,
     ACL_ENTRY_SUCCESSFUL_ACCESS,
     ACL_ENTRY_FAILED_ACCESS,
+#ifdef ACL_ENTRY_INHERITED
     ACL_ENTRY_INHERITED
+#endif
 #endif	/* ARCHIVE_ACL_FREEBSD_NFS4 */
 };
 #endif /* ARCHIVE_ACL_DARWIN || ARCHIVE_ACL_FREEBSD_NFS4 */
@@ -483,7 +485,7 @@ DEFINE_TEST(test_option_acls)
 	r = compare_acls("f", "acls_acls/f");
 	assertEqualInt(r, 1);
 
-	/* Extractl acls without acls */
+	/* Extract acls without acls */
 	assertMakeDir("acls_noacls", 0755);
 	clear_inheritance_flags("acls_noacls", acltype);
 	r = systemf("%s -x -C acls_noacls -p --no-acls -f acls.tar >acls_noacls.out 2>acls_noacls.err", testprog);

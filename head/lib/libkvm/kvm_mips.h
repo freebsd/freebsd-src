@@ -35,6 +35,9 @@
 
 typedef uint64_t	mips_physaddr_t;
 
+typedef uint32_t	mips32_pte_t;
+typedef uint64_t	mips64_pte_t;
+
 #define	MIPS_PAGE_SHIFT		12
 #define	MIPS_PAGE_SIZE		(1 << MIPS_PAGE_SHIFT)
 #define	MIPS_PAGE_MASK		(MIPS_PAGE_SIZE - 1)
@@ -57,6 +60,28 @@ typedef uint64_t	mips_physaddr_t;
 #define	MIPS32_PTE_TO_PA(pte)	(MIPS_PFN_TO_PA(MIPS32_PTE_TO_PFN((pte))))
 #define	MIPS64_PTE_TO_PFN(pte)	((pte) & MIPS64_PFN_MASK)
 #define	MIPS64_PTE_TO_PA(pte)	(MIPS_PFN_TO_PA(MIPS64_PTE_TO_PFN((pte))))
+
+#define	MIPS32_SWBITS_SHIFT	29
+#define	MIPS64_SWBITS_SHIFT	55
+#define	MIPS_PTE_V		0x02
+#define	MIPS32_PTE_RO		((mips32_pte_t)0x01 << MIPS32_SWBITS_SHIFT)
+#define	MIPS64_PTE_RO		((mips64_pte_t)0x01 << MIPS64_SWBITS_SHIFT)
+
+static inline mips32_pte_t
+_mips32_pte_get(kvm_t *kd, u_long pteindex)
+{
+	mips32_pte_t *pte = _kvm_pmap_get(kd, pteindex, sizeof(*pte));
+
+	return _kvm32toh(kd, *pte);
+}
+
+static inline mips64_pte_t
+_mips64_pte_get(kvm_t *kd, u_long pteindex)
+{
+	mips64_pte_t *pte = _kvm_pmap_get(kd, pteindex, sizeof(*pte));
+
+	return _kvm64toh(kd, *pte);
+}
 
 #ifdef __mips__
 _Static_assert(PAGE_SHIFT == MIPS_PAGE_SHIFT, "PAGE_SHIFT mismatch");

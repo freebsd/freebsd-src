@@ -2,6 +2,8 @@
 /*-
  * $Id: bus.h,v 1.6 2007/08/09 11:23:32 katta Exp $
  *
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-4-Clause
+ *
  * Copyright (c) 1996, 1997 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

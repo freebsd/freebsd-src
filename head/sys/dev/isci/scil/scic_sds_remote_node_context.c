@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
 *
@@ -897,7 +899,7 @@ SCI_STATUS scic_sds_remote_node_context_tx_suspended_state_resume_handler(
 *
 * @param[in] this_rnc The remote node context which is to receive the task
 *       request.
-* @param[in] the_request The task request to be transmitted to to the remote
+* @param[in] the_request The task request to be transmitted to the remote
 *       target device.
 *
 * @return SCI_STATUS

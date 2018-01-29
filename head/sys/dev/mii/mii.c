@@ -1,6 +1,8 @@
 /*	$NetBSD: mii.c,v 1.12 1999/08/03 19:41:49 drochner Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

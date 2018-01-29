@@ -2,7 +2,9 @@
 
 /* Tokens for config file lexer and parser. */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995, 1996, 1997, 1998, 1999
  * The Internet Software Consortium.  All rights reserved.
  *
@@ -38,6 +40,8 @@
  * Enterprises.  To learn more about the Internet Software Consortium,
  * see ``http://www.vix.com/isc''.  To learn more about Vixie
  * Enterprises, see ``http://www.vix.com''.
+ *
+ * $FreeBSD$
  */
 
 #define SEMI ';'

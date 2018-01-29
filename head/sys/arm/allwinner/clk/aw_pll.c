@@ -865,7 +865,7 @@ h3_pll1_set_freq(struct aw_pll_sc *sc, uint64_t fin, uint64_t *fout,
     int flags)
 {
 	struct aw_pll_factor *f;
-	uint32_t val, n, k, m, p;
+	uint32_t val, m, p;
 	int i;
 
 	f = NULL;
@@ -884,8 +884,6 @@ h3_pll1_set_freq(struct aw_pll_sc *sc, uint64_t fin, uint64_t *fout,
 	DEVICE_LOCK(sc);
 	PLL_READ(sc, &val);
 
-	n = (val & A23_PLL1_FACTOR_N) >> A23_PLL1_FACTOR_N_SHIFT;
-	k = (val & A23_PLL1_FACTOR_K) >> A23_PLL1_FACTOR_K_SHIFT;
 	m = (val & A23_PLL1_FACTOR_M) >> A23_PLL1_FACTOR_M_SHIFT;
 	p = (val & A23_PLL1_FACTOR_P) >> A23_PLL1_FACTOR_P_SHIFT;
 

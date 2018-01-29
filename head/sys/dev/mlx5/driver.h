@@ -306,6 +306,11 @@ struct cmd_msg_cache {
 
 };
 
+struct mlx5_traffic_counter {
+	u64         packets;
+	u64         octets;
+};
+
 struct mlx5_cmd_stats {
 	u64		sum;
 	u64		n;
@@ -582,6 +587,7 @@ struct mlx5_special_contexts {
 	int resd_lkey;
 };
 
+struct mlx5_flow_root_namespace;
 struct mlx5_core_dev {
 	struct pci_dev	       *pdev;
 	char			board_id[MLX5_BOARD_ID_LEN];
@@ -589,6 +595,7 @@ struct mlx5_core_dev {
 	struct mlx5_port_caps	port_caps[MLX5_MAX_PORTS];
 	u32 hca_caps_cur[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
 	u32 hca_caps_max[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
+	phys_addr_t		iseg_base;
 	struct mlx5_init_seg __iomem *iseg;
 	enum mlx5_device_state	state;
 	void			(*event) (struct mlx5_core_dev *dev,
@@ -600,6 +607,12 @@ struct mlx5_core_dev {
 	u32			issi;
 	struct mlx5_special_contexts special_contexts;
 	unsigned int module_status[MLX5_MAX_PORTS];
+	struct mlx5_flow_root_namespace *root_ns;
+	struct mlx5_flow_root_namespace *fdb_root_ns;
+	struct mlx5_flow_root_namespace *esw_egress_root_ns;
+	struct mlx5_flow_root_namespace *esw_ingress_root_ns;
+	struct mlx5_flow_root_namespace *sniffer_rx_root_ns;
+	struct mlx5_flow_root_namespace *sniffer_tx_root_ns;
 	u32 num_q_counter_allocated[MLX5_INTERFACE_NUMBER];
 };
 
@@ -735,6 +748,13 @@ struct mlx5_pas {
 	u8	log_sz;
 };
 
+enum port_state_policy {
+	MLX5_POLICY_DOWN        = 0,
+	MLX5_POLICY_UP          = 1,
+	MLX5_POLICY_FOLLOW      = 2,
+	MLX5_POLICY_INVALID     = 0xffffffff
+};
+
 static inline void *
 mlx5_buf_offset(struct mlx5_buf *buf, int offset)
 {
@@ -803,6 +823,11 @@ static inline void *mlx5_vmalloc(unsigned long size)
 	return rtn;
 }
 
+static inline u32 mlx5_base_mkey(const u32 key)
+{
+	return key & 0xffffff00u;
+}
+
 void mlx5_enter_error_state(struct mlx5_core_dev *dev);
 int mlx5_cmd_init(struct mlx5_core_dev *dev);
 void mlx5_cmd_cleanup(struct mlx5_core_dev *dev);
@@ -855,7 +880,7 @@ int mlx5_core_dump_fill_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr,
 			     u32 *mkey);
 int mlx5_core_alloc_pd(struct mlx5_core_dev *dev, u32 *pdn);
 int mlx5_core_dealloc_pd(struct mlx5_core_dev *dev, u32 pdn);
-int mlx5_core_mad_ifc(struct mlx5_core_dev *dev, void *inb, void *outb,
+int mlx5_core_mad_ifc(struct mlx5_core_dev *dev, const void *inb, void *outb,
 		      u16 opmod, u8 port);
 void mlx5_fwp_flush(struct mlx5_fw_page *fwp);
 void mlx5_fwp_invalidate(struct mlx5_fw_page *fwp);
@@ -959,6 +984,8 @@ int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num);
 void mlx5_core_put_rsc(struct mlx5_core_rsc_common *common);
 u8 mlx5_is_wol_supported(struct mlx5_core_dev *dev);
 int mlx5_set_wol(struct mlx5_core_dev *dev, u8 wol_mode);
+int mlx5_set_dropless_mode(struct mlx5_core_dev *dev, u16 timeout);
+int mlx5_query_dropless_mode(struct mlx5_core_dev *dev, u16 *timeout);
 int mlx5_query_wol(struct mlx5_core_dev *dev, u8 *wol_mode);
 int mlx5_core_access_pvlc(struct mlx5_core_dev *dev,
 			  struct mlx5_pvlc_reg *pvlc, int write);

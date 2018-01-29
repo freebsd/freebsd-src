@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -356,7 +358,7 @@ getumask(void)
 	 * security.bsd.unprivileged_proc_debug is set to 0.
 	 */
 	len = sizeof(smask);
-	if (sysctl((int[4]){ CTL_KERN, KERN_PROC, KERN_PROC_UMASK, getpid() },
+	if (sysctl((int[4]){ CTL_KERN, KERN_PROC, KERN_PROC_UMASK, 0 },
 	    4, &smask, &len, NULL, 0) == 0)
 		return (smask);
 

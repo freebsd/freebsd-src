@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -82,6 +84,7 @@ struct	gettystrs gettystrs[] = {
 	{ "ac" },			/* modem answer-chat */
 	{ "al" },			/* user to auto-login */
 	{ "df", datefmt},		/* format for strftime() */
+	{ "iM" },			/* initial message program */
 	{ 0 }
 };
 

@@ -1,6 +1,8 @@
 /*	$NetBSD: undefined.h,v 1.4 2001/12/20 01:20:23 thorpej Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995-1996 Mark Brinicombe.
  * Copyright (c) 1995 Brini.
  * All rights reserved.

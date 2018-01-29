@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Atsushi Onoe
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
@@ -241,7 +243,12 @@ ieee80211_node_setuptxparms(struct ieee80211_node *ni)
 	struct ieee80211vap *vap = ni->ni_vap;
 	enum ieee80211_phymode mode;
 
-	if (ni->ni_flags & IEEE80211_NODE_HT) {
+	if (ni->ni_flags & IEEE80211_NODE_VHT) {
+		if (IEEE80211_IS_CHAN_5GHZ(ni->ni_chan))
+			mode = IEEE80211_MODE_VHT_5GHZ;
+		else
+			mode = IEEE80211_MODE_VHT_2GHZ;
+	} else if (ni->ni_flags & IEEE80211_NODE_HT) {
 		if (IEEE80211_IS_CHAN_5GHZ(ni->ni_chan))
 			mode = IEEE80211_MODE_11NA;
 		else

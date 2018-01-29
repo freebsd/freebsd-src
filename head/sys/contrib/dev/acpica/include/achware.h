@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -185,12 +185,12 @@ AcpiHwValidateRegister (
 
 ACPI_STATUS
 AcpiHwRead (
-    UINT32                  *Value,
+    UINT64                  *Value,
     ACPI_GENERIC_ADDRESS    *Reg);
 
 ACPI_STATUS
 AcpiHwWrite (
-    UINT32                  Value,
+    UINT64                  Value,
     ACPI_GENERIC_ADDRESS    *Reg);
 
 ACPI_BIT_REGISTER_INFO *

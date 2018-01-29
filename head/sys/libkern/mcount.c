@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -56,8 +58,7 @@ __FBSDID("$FreeBSD$");
  * both frompcindex and frompc.  Any reasonable, modern compiler will
  * perform this optimization.
  */
-_MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
-	uintfptr_t frompc, selfpc;
+_MCOUNT_DECL(uintfptr_t frompc, uintfptr_t selfpc)	/* _mcount; may be static, inline, etc */
 {
 #ifdef GUPROF
 	int delta;
@@ -245,8 +246,7 @@ MCOUNT
 
 #ifdef GUPROF
 void
-mexitcount(selfpc)
-	uintfptr_t selfpc;
+mexitcount(uintfptr_t selfpc)
 {
 	struct gmonparam *p;
 	uintfptr_t selfpcdiff;

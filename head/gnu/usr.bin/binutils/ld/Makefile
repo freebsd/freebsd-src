@@ -41,8 +41,8 @@ CFLAGS+= -I${SRCDIR}/ld -I${SRCDIR}/bfd
 .if ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?= yes
 .endif
-DPADD=	${RELTOP}/libbfd/libbfd.a
-DPADD+=	${RELTOP}/libiberty/libiberty.a
+DPADD=	${GNURELTOP}/libbfd/libbfd.a
+DPADD+=	${GNURELTOP}/libiberty/libiberty.a
 LDADD=	${DPADD}
 CLEANDIRS+=	ldscripts
 CLEANFILES+=	ldemul-list.h stringify.sed

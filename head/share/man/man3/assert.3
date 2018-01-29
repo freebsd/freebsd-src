@@ -28,7 +28,7 @@
 .\"     @(#)assert.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd January 26, 1999
+.Dd January 1, 2018
 .Dt ASSERT 3
 .Os
 .Sh NAME
@@ -68,6 +68,14 @@ as a macro
 .Xr cc 1
 option
 .Fl D Ns Dv NDEBUG ) .
+Unlike most other include files,
+.In assert.h
+may be included multiple times.
+Each time whether or not
+.Dv NDEBUG
+is defined determines the behavior of assert from that point forward
+until the end of the unit or another include of
+.In assert.h .
 .Sh EXAMPLES
 The assertion:
 .Pp
@@ -87,4 +95,4 @@ macro conforms to
 An
 .Nm
 macro appeared in
-.At v6 .
+.At v7 .

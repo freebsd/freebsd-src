@@ -41,6 +41,7 @@
 #include <sys/nv.h>
 #include <sys/iov_schema.h>
 #include <dev/pci/pci_iov.h>
+#include <net/iflib.h>
 #include "ixgbe_mbx.h"
 
 #define IXGBE_VF_CTS            (1 << 0) /* VF is clear to send. */
@@ -57,7 +58,7 @@
 
 #define IXGBE_VF_GET_QUEUES_RESP_LEN	5
 
-#define IXGBE_API_VER_1_0	0		
+#define IXGBE_API_VER_1_0	0
 #define IXGBE_API_VER_2_0	1	/* Solaris API.  Not supported. */
 #define IXGBE_API_VER_1_1	2
 #define IXGBE_API_VER_UNKNOWN	UINT16_MAX
@@ -66,15 +67,16 @@
 #define IXGBE_32_VM             32
 #define IXGBE_64_VM             64
 
-int  ixgbe_add_vf(device_t, u16, const nvlist_t *);
-int  ixgbe_init_iov(device_t, u16, const nvlist_t *);
-void ixgbe_uninit_iov(device_t);
+int  ixgbe_if_iov_vf_add(if_ctx_t, u16, const nvlist_t *);
+int  ixgbe_if_iov_init(if_ctx_t, u16, const nvlist_t *);
+void ixgbe_if_iov_uninit(if_ctx_t);
 void ixgbe_initialize_iov(struct adapter *);
 void ixgbe_recalculate_max_frame(struct adapter *);
 void ixgbe_ping_all_vfs(struct adapter *);
 int  ixgbe_pci_iov_detach(device_t);
 void ixgbe_define_iov_schemas(device_t, int *);
 void ixgbe_align_all_queue_indices(struct adapter *);
+int  ixgbe_vf_que_index(int, int, int);
 u32  ixgbe_get_mtqc(int);
 u32  ixgbe_get_mrqc(int);
 
@@ -91,12 +93,13 @@ u32  ixgbe_get_mrqc(int);
 #define ixgbe_pci_iov_detach(_a) 0
 #define ixgbe_define_iov_schemas(_a,_b)
 #define ixgbe_align_all_queue_indices(_a)
+#define ixgbe_vf_que_index(_a, _b, _c) (_c)
 #define ixgbe_get_mtqc(_a) IXGBE_MTQC_64Q_1PB
 #define ixgbe_get_mrqc(_a) 0
 
 #endif /* PCI_IOV */
 
-void ixgbe_handle_mbx(void *, int);
-int  ixgbe_vf_que_index(int, int, int);
+void ixgbe_if_init(if_ctx_t ctx);
+void ixgbe_handle_mbx(void *);
 
 #endif

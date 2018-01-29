@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007, 2008 Marcel Moolenaar
  * All rights reserved.
  *
@@ -547,7 +549,7 @@ gpart_autofill(struct gctl_req *req)
 	last = (off_t)strtoimax(s, NULL, 0);
 	grade = ~0ULL;
 	a_first = ALIGNUP(first + offset, alignment);
-	last = ALIGNDOWN(last + offset, alignment);
+	last = ALIGNDOWN(last + offset + 1, alignment) - 1;
 	if (a_first < start)
 		a_first = start;
 	while ((pp = find_provider(gp, first)) != NULL) {

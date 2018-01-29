@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 nCircle Network Security, Inc.
  * All rights reserved.
  *
@@ -266,7 +268,7 @@
 #define	PRIV_VFS_GETFH		327	/* Can retrieve file handles. */
 #define	PRIV_VFS_GETQUOTA	328	/* getquota(). */
 #define	PRIV_VFS_LINK		329	/* bsd.hardlink_check_uid */
-#define	PRIV_VFS_MKNOD_BAD	330	/* Can mknod() to mark bad inodes. */
+#define	PRIV_VFS_MKNOD_BAD	330	/* Was: mknod() can mark bad inodes. */
 #define	PRIV_VFS_MKNOD_DEV	331	/* Can mknod() to create dev nodes. */
 #define	PRIV_VFS_MKNOD_WHT	332	/* Can mknod() to create whiteout. */
 #define	PRIV_VFS_MOUNT		333	/* Can mount(). */

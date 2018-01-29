@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -83,6 +85,11 @@ enum vm_reg_name {
 	VM_REG_GUEST_PDPTE2,
 	VM_REG_GUEST_PDPTE3,
 	VM_REG_GUEST_INTR_SHADOW,
+	VM_REG_GUEST_DR0,
+	VM_REG_GUEST_DR1,
+	VM_REG_GUEST_DR2,
+	VM_REG_GUEST_DR3,
+	VM_REG_GUEST_DR6,
 	VM_REG_LAST
 };
 

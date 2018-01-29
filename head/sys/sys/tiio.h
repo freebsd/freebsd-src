@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD AND BSD-4-Clause)
+ *
  * Copyright (c) 1999, 2000 Kenneth D. Merry.
  * All rights reserved.
  *

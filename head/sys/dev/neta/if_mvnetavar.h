@@ -118,6 +118,9 @@ struct mvneta_rx_ring {
 	bus_dmamap_t			desc_map;
 	bus_addr_t			desc_pa;
 
+	/* Virtual address of the RX buffer */
+	void 				*rxbuf_virt_addr[MVNETA_RX_RING_CNT];
+
 	/* Managment entries for each of descritors */
 	struct mvneta_buf		rxbuf[MVNETA_RX_RING_CNT];
 

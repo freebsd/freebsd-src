@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
@@ -99,8 +101,12 @@ void
 DELAY(int n)
 {
 
-	if (delay_tc(n))
+	TSENTER();
+	if (delay_tc(n)) {
+		TSEXIT();
 		return;
+	}
 
 	init_ops.early_delay(n);
+	TSEXIT();
 }

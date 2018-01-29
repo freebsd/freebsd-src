@@ -289,35 +289,35 @@ getargs(int argc, char *argv[])
 #endif /* DEBUG */
 		switch(ch) {
 		case 'a':		/* any fortune */
-			All_forts++;
+			All_forts = TRUE;
 			break;
 #ifdef DEBUG
 		case 'D':
 			Debug++;
 			break;
 #endif /* DEBUG */
-		case 'e':
-			Equal_probs++;	/* scatter un-allocted prob equally */
+		case 'e':		/* scatter un-allocted prob equally */
+			Equal_probs = TRUE;
 			break;
 		case 'f':		/* find fortune files */
-			Find_files++;
+			Find_files = TRUE;
 			break;
 		case 'l':		/* long ones only */
-			Long_only++;
+			Long_only = TRUE;
 			Short_only = FALSE;
 			break;
 		case 'o':		/* offensive ones only */
-			Offend++;
+			Offend = TRUE;
 			break;
 		case 's':		/* short ones only */
-			Short_only++;
+			Short_only = TRUE;
 			Long_only = FALSE;
 			break;
 		case 'w':		/* give time to read */
-			Wait++;
+			Wait = TRUE;
 			break;
 		case 'm':			/* dump out the fortunes */
-			Match++;
+			Match = TRUE;
 			pat = optarg;
 			break;
 		case 'i':			/* case-insensitive match */

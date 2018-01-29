@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2012-2016 Intel Corporation
  * All rights reserved.
  *
@@ -43,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include "nvme_private.h"
+
+#define B4_CHK_RDY_DELAY_MS	2300		/* work arond controller bug */
 
 static void nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
 						struct nvme_async_event_request *aer);
@@ -146,6 +150,14 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	num_trackers = min(num_trackers, (num_entries-1));
 
 	/*
+	 * Our best estimate for the maximum number of I/Os that we should
+	 * noramlly have in flight at one time. This should be viewed as a hint,
+	 * not a hard limit and will need to be revisitted when the upper layers
+	 * of the storage system grows multi-queue support.
+	 */
+	ctrlr->max_hw_pend_io = num_trackers * ctrlr->num_io_queues * 3 / 4;
+
+	/*
 	 * This was calculated previously when setting up interrupts, but
 	 *  a controller could theoretically support fewer I/O queues than
 	 *  MSI-X vectors.  So calculate again here just to be safe.
@@ -231,49 +243,65 @@ static int
 nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr, int desired_val)
 {
 	int ms_waited;
-	union cc_register cc;
 	union csts_register csts;
 
-	cc.raw = nvme_mmio_read_4(ctrlr, cc);
 	csts.raw = nvme_mmio_read_4(ctrlr, csts);
 
-	if (cc.bits.en != desired_val) {
-		nvme_printf(ctrlr, "%s called with desired_val = %d "
-		    "but cc.en = %d\n", __func__, desired_val, cc.bits.en);
-		return (ENXIO);
-	}
-
 	ms_waited = 0;
-
 	while (csts.bits.rdy != desired_val) {
-		DELAY(1000);
 		if (ms_waited++ > ctrlr->ready_timeout_in_ms) {
 			nvme_printf(ctrlr, "controller ready did not become %d "
 			    "within %d ms\n", desired_val, ctrlr->ready_timeout_in_ms);
 			return (ENXIO);
 		}
+		DELAY(1000);
 		csts.raw = nvme_mmio_read_4(ctrlr, csts);
 	}
 
 	return (0);
 }
 
-static void
+static int
 nvme_ctrlr_disable(struct nvme_controller *ctrlr)
 {
 	union cc_register cc;
 	union csts_register csts;
+	int err;
 
 	cc.raw = nvme_mmio_read_4(ctrlr, cc);
 	csts.raw = nvme_mmio_read_4(ctrlr, csts);
 
-	if (cc.bits.en == 1 && csts.bits.rdy == 0)
-		nvme_ctrlr_wait_for_ready(ctrlr, 1);
+	/*
+	 * Per 3.1.5 in NVME 1.3 spec, transitioning CC.EN from 0 to 1
+	 * when CSTS.RDY is 1 or transitioning CC.EN from 1 to 0 when
+	 * CSTS.RDY is 0 "has undefined results" So make sure that CSTS.RDY
+	 * isn't the desired value. Short circuit if we're already disabled.
+	 */
+	if (cc.bits.en == 1) {
+		if (csts.bits.rdy == 0) {
+			/* EN == 1, wait for  RDY == 1 or fail */
+			err = nvme_ctrlr_wait_for_ready(ctrlr, 1);
+			if (err != 0)
+				return (err);
+		}
+	} else {
+		/* EN == 0 already wait for RDY == 0 */
+		if (csts.bits.rdy == 0)
+			return (0);
+		else
+			return (nvme_ctrlr_wait_for_ready(ctrlr, 0));
+	}
 
 	cc.bits.en = 0;
 	nvme_mmio_write_4(ctrlr, cc, cc.raw);
-	DELAY(5000);
-	nvme_ctrlr_wait_for_ready(ctrlr, 0);
+	/*
+	 * Some drives have issues with accessing the mmio after we
+	 * disable, so delay for a bit after we write the bit to
+	 * cope with these issues.
+	 */
+	if (ctrlr->quirks & QUIRK_DELAY_B4_CHK_RDY)
+		pause("nvmeR", B4_CHK_RDY_DELAY_MS * hz / 1000);
+	return (nvme_ctrlr_wait_for_ready(ctrlr, 0));
 }
 
 static int
@@ -282,15 +310,24 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	union cc_register	cc;
 	union csts_register	csts;
 	union aqa_register	aqa;
+	int			err;
 
 	cc.raw = nvme_mmio_read_4(ctrlr, cc);
 	csts.raw = nvme_mmio_read_4(ctrlr, csts);
 
+	/*
+	 * See note in nvme_ctrlr_disable. Short circuit if we're already enabled.
+	 */
 	if (cc.bits.en == 1) {
 		if (csts.bits.rdy == 1)
 			return (0);
 		else
 			return (nvme_ctrlr_wait_for_ready(ctrlr, 1));
+	} else {
+		/* EN == 0 already wait for RDY == 0 or fail */
+		err = nvme_ctrlr_wait_for_ready(ctrlr, 0);
+		if (err != 0)
+			return (err);
 	}
 
 	nvme_mmio_write_8(ctrlr, asq, ctrlr->adminq.cmd_bus_addr);
@@ -316,7 +353,6 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	cc.bits.mps = (PAGE_SIZE >> 13);
 
 	nvme_mmio_write_4(ctrlr, cc, cc.raw);
-	DELAY(5000);
 
 	return (nvme_ctrlr_wait_for_ready(ctrlr, 1));
 }
@@ -324,7 +360,7 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 int
 nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 {
-	int i;
+	int i, err;
 
 	nvme_admin_qpair_disable(&ctrlr->adminq);
 	/*
@@ -339,7 +375,9 @@ nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 
 	DELAY(100*1000);
 
-	nvme_ctrlr_disable(ctrlr);
+	err = nvme_ctrlr_disable(ctrlr);
+	if (err != 0)
+		return err;
 	return (nvme_ctrlr_enable(ctrlr));
 }
 
@@ -366,10 +404,10 @@ nvme_ctrlr_identify(struct nvme_controller *ctrlr)
 {
 	struct nvme_completion_poll_status	status;
 
-	status.done = FALSE;
+	status.done = 0;
 	nvme_ctrlr_cmd_identify_controller(ctrlr, &ctrlr->cdata,
 	    nvme_completion_poll_cb, &status);
-	while (status.done == FALSE)
+	while (!atomic_load_acq_int(&status.done))
 		pause("nvme", 1);
 	if (nvme_completion_is_error(&status.cpl)) {
 		nvme_printf(ctrlr, "nvme_identify_controller failed!\n");
@@ -393,10 +431,10 @@ nvme_ctrlr_set_num_qpairs(struct nvme_controller *ctrlr)
 	struct nvme_completion_poll_status	status;
 	int					cq_allocated, sq_allocated;
 
-	status.done = FALSE;
+	status.done = 0;
 	nvme_ctrlr_cmd_set_num_queues(ctrlr, ctrlr->num_io_queues,
 	    nvme_completion_poll_cb, &status);
-	while (status.done == FALSE)
+	while (!atomic_load_acq_int(&status.done))
 		pause("nvme", 1);
 	if (nvme_completion_is_error(&status.cpl)) {
 		nvme_printf(ctrlr, "nvme_ctrlr_set_num_qpairs failed!\n");
@@ -432,20 +470,20 @@ nvme_ctrlr_create_qpairs(struct nvme_controller *ctrlr)
 	for (i = 0; i < ctrlr->num_io_queues; i++) {
 		qpair = &ctrlr->ioq[i];
 
-		status.done = FALSE;
+		status.done = 0;
 		nvme_ctrlr_cmd_create_io_cq(ctrlr, qpair, qpair->vector,
 		    nvme_completion_poll_cb, &status);
-		while (status.done == FALSE)
+		while (!atomic_load_acq_int(&status.done))
 			pause("nvme", 1);
 		if (nvme_completion_is_error(&status.cpl)) {
 			nvme_printf(ctrlr, "nvme_create_io_cq failed!\n");
 			return (ENXIO);
 		}
 
-		status.done = FALSE;
+		status.done = 0;
 		nvme_ctrlr_cmd_create_io_sq(qpair->ctrlr, qpair,
 		    nvme_completion_poll_cb, &status);
-		while (status.done == FALSE)
+		while (!atomic_load_acq_int(&status.done))
 			pause("nvme", 1);
 		if (nvme_completion_is_error(&status.cpl)) {
 			nvme_printf(ctrlr, "nvme_create_io_sq failed!\n");
@@ -460,7 +498,7 @@ static int
 nvme_ctrlr_construct_namespaces(struct nvme_controller *ctrlr)
 {
 	struct nvme_namespace	*ns;
-	int			i;
+	uint32_t 		i;
 
 	for (i = 0; i < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); i++) {
 		ns = &ctrlr->ns[i];
@@ -655,10 +693,10 @@ nvme_ctrlr_configure_aer(struct nvme_controller *ctrlr)
 	ctrlr->async_event_config.raw = 0xFF;
 	ctrlr->async_event_config.bits.reserved = 0;
 
-	status.done = FALSE;
+	status.done = 0;
 	nvme_ctrlr_cmd_get_feature(ctrlr, NVME_FEAT_TEMPERATURE_THRESHOLD,
 	    0, NULL, 0, nvme_completion_poll_cb, &status);
-	while (status.done == FALSE)
+	while (!atomic_load_acq_int(&status.done))
 		pause("nvme", 1);
 	if (nvme_completion_is_error(&status.cpl) ||
 	    (status.cpl.cdw0 & 0xFFFF) == 0xFFFF ||
@@ -807,18 +845,33 @@ nvme_ctrlr_reset_task(void *arg, int pending)
 	atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
 }
 
+/*
+ * Poll all the queues enabled on the device for completion.
+ */
+void
+nvme_ctrlr_poll(struct nvme_controller *ctrlr)
+{
+	int i;
+
+	nvme_qpair_process_completions(&ctrlr->adminq);
+
+	for (i = 0; i < ctrlr->num_io_queues; i++)
+		if (ctrlr->ioq && ctrlr->ioq[i].cpl)
+			nvme_qpair_process_completions(&ctrlr->ioq[i]);
+}
+
+/*
+ * Poll the single-vector intertrupt case: num_io_queues will be 1 and
+ * there's only a single vector. While we're polling, we mask further
+ * interrupts in the controller.
+ */
 void
 nvme_ctrlr_intx_handler(void *arg)
 {
 	struct nvme_controller *ctrlr = arg;
 
 	nvme_mmio_write_4(ctrlr, intms, 1);
-
-	nvme_qpair_process_completions(&ctrlr->adminq);
-
-	if (ctrlr->ioq && ctrlr->ioq[0].cpl)
-		nvme_qpair_process_completions(&ctrlr->ioq[0]);
-
+	nvme_ctrlr_poll(ctrlr);
 	nvme_mmio_write_4(ctrlr, intmc, 1);
 }
 

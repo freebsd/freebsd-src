@@ -133,6 +133,8 @@ void openbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     }
   }
 
+  if (Args.hasArg(options::OPT_pie))
+    CmdArgs.push_back("-pie");
   if (Args.hasArg(options::OPT_nopie))
     CmdArgs.push_back("-nopie");
 
@@ -177,7 +179,8 @@ void openbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nodefaultlibs)) {
     if (D.CCCIsCXX()) {
-      getToolChain().AddCXXStdlibLibArgs(Args, CmdArgs);
+      if (getToolChain().ShouldLinkCXXStdlib(Args))
+        getToolChain().AddCXXStdlibLibArgs(Args, CmdArgs);
       if (Args.hasArg(options::OPT_pg))
         CmdArgs.push_back("-lm_p");
       else

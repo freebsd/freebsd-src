@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Matt Thomas.
  * Copyright (c) 2001 Tsubai Masanari.
  * Copyright (c) 1998, 1999, 2001 Internet Research Institute, Inc.
@@ -153,13 +155,19 @@ static const struct cputab models[] = {
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
 	   PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
 	   PPC_FEATURE_HAS_VSX,
-	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HAS_HTM |
+	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HAS_HTM | PPC_FEATURE2_ISEL |
 	   PPC_FEATURE2_HAS_VCRYPTO, NULL },
         { "IBM POWER8",		IBMPOWER8,	REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
 	   PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
 	   PPC_FEATURE_HAS_VSX,
-	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HAS_HTM |
+	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HAS_HTM | PPC_FEATURE2_ISEL |
+	   PPC_FEATURE2_HAS_VCRYPTO, NULL },
+        { "IBM POWER9",		IBMPOWER9,	REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
+	   PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
+	   PPC_FEATURE_HAS_VSX,
+	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HAS_HTM | PPC_FEATURE2_ISEL |
 	   PPC_FEATURE2_HAS_VCRYPTO, NULL },
         { "Motorola PowerPC 7400",	MPC7400,	REVFMT_MAJMIN,
 	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
@@ -181,19 +189,20 @@ static const struct cputab models[] = {
 	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Freescale e500v1 core",	FSL_E500v1,	REVFMT_MAJMIN,
 	   PPC_FEATURE_BOOKE | PPC_FEATURE_HAS_SPE | PPC_FEATURE_HAS_EFP_SINGLE,
-	   0, cpu_booke_setup },
+	   PPC_FEATURE2_ISEL, cpu_booke_setup },
         { "Freescale e500v2 core",	FSL_E500v2,	REVFMT_MAJMIN,
 	   PPC_FEATURE_BOOKE | PPC_FEATURE_HAS_SPE |
-	   PPC_FEATURE_HAS_EFP_SINGLE | PPC_FEATURE_HAS_EFP_DOUBLE, 0,
-	   cpu_booke_setup },
+	   PPC_FEATURE_HAS_EFP_SINGLE | PPC_FEATURE_HAS_EFP_DOUBLE,
+	   PPC_FEATURE2_ISEL, cpu_booke_setup },
 	{ "Freescale e500mc core",	FSL_E500mc,	REVFMT_MAJMIN,
-	   PPC_FEATURE_BOOKE | PPC_FEATURE_HAS_FPU, 0, cpu_booke_setup },
-	{ "Freescale e5500 core",	FSL_E5500,	REVFMT_MAJMIN,
-	   PPC_FEATURE_BOOKE | PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, 0,
+	   PPC_FEATURE_BOOKE | PPC_FEATURE_HAS_FPU, PPC_FEATURE2_ISEL,
 	   cpu_booke_setup },
+	{ "Freescale e5500 core",	FSL_E5500,	REVFMT_MAJMIN,
+	   PPC_FEATURE_BOOKE | PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU,
+	   PPC_FEATURE2_ISEL, cpu_booke_setup },
 	{ "Freescale e6500 core",	FSL_E6500,	REVFMT_MAJMIN,
 	   PPC_FEATURE_BOOKE | PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC |
-	   PPC_FEATURE_HAS_FPU, 0, cpu_booke_setup },
+	   PPC_FEATURE_HAS_FPU, PPC_FEATURE2_ISEL, cpu_booke_setup },
         { "IBM Cell Broadband Engine",	IBMCELLBE,	REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
 	   PPC_FEATURE_SMT, 0, NULL},
@@ -530,16 +539,32 @@ cpu_booke_setup(int cpuid, uint16_t vers)
 {
 #ifdef BOOKE_E500
 	register_t hid0;
+	const char *bitmask;
 
 	hid0 = mfspr(SPR_HID0);
 
-	/* Programe power-management mode. */
-	hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
-	hid0 |= HID0_DOZE;
+	switch (vers) {
+	case FSL_E500mc:
+		bitmask = HID0_E500MC_BITMASK;
+		break;
+	case FSL_E5500:
+	case FSL_E6500:
+		bitmask = HID0_E5500_BITMASK;
+		break;
+	case FSL_E500v1:
+	case FSL_E500v2:
+		/* Only e500v1/v2 support HID0 power management setup. */
 
-	mtspr(SPR_HID0, hid0);
+		/* Programe power-management mode. */
+		hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
+		hid0 |= HID0_DOZE;
 
-	printf("cpu%d: HID0 %b\n", cpuid, (int)hid0, HID0_E500_BITMASK);
+		mtspr(SPR_HID0, hid0);
+	default:
+		bitmask = HID0_E500_BITMASK;
+		break;
+	}
+	printf("cpu%d: HID0 %b\n", cpuid, (int)hid0, bitmask);
 #endif
 
 	if (cpu_idle_hook == NULL)

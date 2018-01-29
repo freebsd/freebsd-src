@@ -331,8 +331,8 @@ retry:
 
 	switch (error) {
 	case 0:
-		delqueue(it);
 		syslog(LOG_INFO, "<%s> delivery successful", it->addr);
+		delqueue(it);
 		exit(EX_OK);
 
 	case 1:

@@ -1,5 +1,5 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
- * All rights reserved.
+/*
+ * Copyright 2008-2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,6 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 /**************************************************************************//**
  @File          core_ext.h
 
@@ -42,7 +43,10 @@
 #ifndef __CORE_EXT_H
 #define __CORE_EXT_H
 
-
+#ifdef CONFIG_FMAN_ARM
+#include "arm_ext.h"
+#include <linux/smp.h>
+#else
 #ifdef NCSW_PPC_CORE
 #include "ppc_ext.h"
 #elif defined(NCSW_VXWORKS)
@@ -54,6 +58,12 @@
 #if (!defined(CORE_IS_LITTLE_ENDIAN) && !defined(CORE_IS_BIG_ENDIAN))
 #error "Must define core as little-endian or big-endian!"
 #endif /* (!defined(CORE_IS_LITTLE_ENDIAN) && ... */
+
+#ifndef CORE_CACHELINE_SIZE
+#error "Must define the core cache-line size!"
+#endif /* !CORE_CACHELINE_SIZE */
+
+#endif /* CONFIG_FMAN_ARM */
 
 
 /**************************************************************************//**
@@ -75,7 +85,6 @@ uint32_t CORE_GetId(void);
  @Return        None.
 *//***************************************************************************/
 void CORE_MemoryBarrier(void);
-
+#define fsl_mem_core_barrier() CORE_MemoryBarrier()
 
 #endif /* __CORE_EXT_H */
-

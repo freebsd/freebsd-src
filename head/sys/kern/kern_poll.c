@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001-2002 Luigi Rizzo
  *
  * Supported by: the Xorp Project (www.xorp.org)

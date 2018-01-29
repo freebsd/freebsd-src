@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008-2015 Nathan Whitehorn
  * All rights reserved.
  *
@@ -138,6 +140,8 @@ struct ofw_map {
 extern unsigned char _etext[];
 extern unsigned char _end[];
 
+extern void *slbtrap, *slbtrapend;
+
 /*
  * Map of physical memory regions.
  */
@@ -251,6 +255,7 @@ boolean_t moea64_is_referenced(mmu_t, vm_page_t);
 int moea64_ts_referenced(mmu_t, vm_page_t);
 vm_offset_t moea64_map(mmu_t, vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
 boolean_t moea64_page_exists_quick(mmu_t, pmap_t, vm_page_t);
+void moea64_page_init(mmu_t, vm_page_t);
 int moea64_page_wired_mappings(mmu_t, vm_page_t);
 void moea64_pinit(mmu_t, pmap_t);
 void moea64_pinit0(mmu_t, pmap_t);
@@ -281,6 +286,11 @@ void moea64_dumpsys_map(mmu_t mmu, vm_paddr_t pa, size_t sz,
 void moea64_scan_init(mmu_t mmu);
 vm_offset_t moea64_quick_enter_page(mmu_t mmu, vm_page_t m);
 void moea64_quick_remove_page(mmu_t mmu, vm_offset_t addr);
+static int moea64_map_user_ptr(mmu_t mmu, pmap_t pm,
+    volatile const void *uaddr, void **kaddr, size_t ulen, size_t *klen);
+static int moea64_decode_kernel_ptr(mmu_t mmu, vm_offset_t addr,
+    int *is_user, vm_offset_t *decoded_addr);
+
 
 static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_clear_modify,	moea64_clear_modify),
@@ -298,6 +308,7 @@ static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_ts_referenced,	moea64_ts_referenced),
 	MMUMETHOD(mmu_map,     		moea64_map),
 	MMUMETHOD(mmu_page_exists_quick,moea64_page_exists_quick),
+	MMUMETHOD(mmu_page_init,	moea64_page_init),
 	MMUMETHOD(mmu_page_wired_mappings,moea64_page_wired_mappings),
 	MMUMETHOD(mmu_pinit,		moea64_pinit),
 	MMUMETHOD(mmu_pinit0,		moea64_pinit0),
@@ -329,6 +340,8 @@ static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_dev_direct_mapped,moea64_dev_direct_mapped),
 	MMUMETHOD(mmu_scan_init,	moea64_scan_init),
 	MMUMETHOD(mmu_dumpsys_map,	moea64_dumpsys_map),
+	MMUMETHOD(mmu_map_user_ptr,	moea64_map_user_ptr),
+	MMUMETHOD(mmu_decode_kernel_ptr, moea64_decode_kernel_ptr),
 
 	{ 0, 0 }
 };
@@ -536,7 +549,8 @@ moea64_add_ofw_mappings(mmu_t mmup, phandle_t mmu, size_t sz)
 		DISABLE_TRANS(msr);
 		for (off = 0; off < translations[i].om_len; off += PAGE_SIZE) {
 			/* If this address is direct-mapped, skip remapping */
-			if (hw_direct_map && translations[i].om_va == pa_base &&
+			if (hw_direct_map &&
+			    translations[i].om_va == PHYS_TO_DMAP(pa_base) &&
 			    moea64_calc_wimg(pa_base + off, VM_MEMATTR_DEFAULT) 			    == LPTE_M)
 				continue;
 
@@ -570,8 +584,10 @@ moea64_probe_large_page(void)
 		
 		/* FALLTHROUGH */
 	default:
-		moea64_large_page_size = 0x1000000; /* 16 MB */
-		moea64_large_page_shift = 24;
+		if (moea64_large_page_size == 0) {
+			moea64_large_page_size = 0x1000000; /* 16 MB */
+			moea64_large_page_shift = 24;
+		}
 	}
 
 	moea64_large_page_mask = moea64_large_page_size - 1;
@@ -627,7 +643,7 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 
 			pvo = alloc_pvo_entry(1 /* bootstrap */);
 			pvo->pvo_vaddr |= PVO_WIRED | PVO_LARGE;
-			init_pvo_entry(pvo, kernel_pmap, pa);
+			init_pvo_entry(pvo, kernel_pmap, PHYS_TO_DMAP(pa));
 
 			/*
 			 * Set memory access as guarded if prefetch within
@@ -701,6 +717,12 @@ moea64_early_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelen
 		hw_direct_map = 1;
 	else
 		hw_direct_map = 0;
+
+	/* Install trap handlers for SLBs */
+	bcopy(&slbtrap, (void *)EXC_DSE,(size_t)&slbtrapend - (size_t)&slbtrap);
+	bcopy(&slbtrap, (void *)EXC_ISE,(size_t)&slbtrapend - (size_t)&slbtrap);
+	__syncicache((void *)EXC_DSE, 0x80);
+	__syncicache((void *)EXC_ISE, 0x80);
 #endif
 
 	/* Get physical memory regions from firmware */
@@ -871,9 +893,9 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 	/*
 	 * Calculate the last available physical address.
 	 */
+	Maxmem = 0;
 	for (i = 0; phys_avail[i + 2] != 0; i += 2)
-		;
-	Maxmem = powerpc_btop(phys_avail[i + 1]);
+		Maxmem = max(Maxmem, powerpc_btop(phys_avail[i + 1]));
 
 	/*
 	 * Initialize MMU and remap early physical mappings
@@ -954,7 +976,7 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 		pa += PAGE_SIZE;
 		va += PAGE_SIZE;
 	}
-	dpcpu_init(dpcpu, 0);
+	dpcpu_init(dpcpu, curcpu);
 
 	/*
 	 * Allocate some things for page zeroing. We put this directly
@@ -1105,7 +1127,8 @@ moea64_copy_page(mmu_t mmu, vm_page_t msrc, vm_page_t mdst)
 	src = VM_PAGE_TO_PHYS(msrc);
 
 	if (hw_direct_map) {
-		bcopy((void *)src, (void *)dst, PAGE_SIZE);
+		bcopy((void *)PHYS_TO_DMAP(src), (void *)PHYS_TO_DMAP(dst),
+		    PAGE_SIZE);
 	} else {
 		mtx_lock(&moea64_scratchpage_mtx);
 
@@ -1130,11 +1153,13 @@ moea64_copy_pages_dmap(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
 	while (xfersize > 0) {
 		a_pg_offset = a_offset & PAGE_MASK;
 		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
-		a_cp = (char *)VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT]) +
+		a_cp = (char *)PHYS_TO_DMAP(
+		    VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT])) +
 		    a_pg_offset;
 		b_pg_offset = b_offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-		b_cp = (char *)VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT]) +
+		b_cp = (char *)PHYS_TO_DMAP(
+		    VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT])) +
 		    b_pg_offset;
 		bcopy(a_cp, b_cp, cnt);
 		a_offset += cnt;
@@ -1194,7 +1219,7 @@ moea64_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 		panic("moea64_zero_page: size + off > PAGE_SIZE");
 
 	if (hw_direct_map) {
-		bzero((caddr_t)pa + off, size);
+		bzero((caddr_t)PHYS_TO_DMAP(pa) + off, size);
 	} else {
 		mtx_lock(&moea64_scratchpage_mtx);
 		moea64_set_scratchpage_pa(mmu, 0, pa);
@@ -1218,7 +1243,7 @@ moea64_zero_page(mmu_t mmu, vm_page_t m)
 		moea64_set_scratchpage_pa(mmu, 0, pa);
 		va = moea64_scratchpage_va[0];
 	} else {
-		va = pa;
+		va = PHYS_TO_DMAP(pa);
 	}
 
 	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
@@ -1235,7 +1260,7 @@ moea64_quick_enter_page(mmu_t mmu, vm_page_t m)
 	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
 
 	if (hw_direct_map)
-		return (pa);
+		return (PHYS_TO_DMAP(pa));
 
 	/*
  	 * MOEA64_PTE_REPLACE does some locking, so we can't just grab
@@ -1396,7 +1421,7 @@ moea64_syncicache(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	} else if (pmap == kernel_pmap) {
 		__syncicache((void *)va, sz);
 	} else if (hw_direct_map) {
-		__syncicache((void *)pa, sz);
+		__syncicache((void *)PHYS_TO_DMAP(pa), sz);
 	} else {
 		/* Use the scratch page to set up a temp mapping */
 
@@ -1498,13 +1523,13 @@ retry:
 static mmu_t installed_mmu;
 
 static void *
-moea64_uma_page_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *flags,
-    int wait)
+moea64_uma_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain,
+    uint8_t *flags, int wait)
 {
 	struct pvo_entry *pvo;
         vm_offset_t va;
         vm_page_t m;
-        int pflags, needed_lock;
+        int needed_lock;
 
 	/*
 	 * This entire routine is a horrible hack to avoid bothering kmem
@@ -1515,17 +1540,11 @@ moea64_uma_page_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *flags,
 
 	*flags = UMA_SLAB_PRIV;
 	needed_lock = !PMAP_LOCKED(kernel_pmap);
-	pflags = malloc2vm_flags(wait) | VM_ALLOC_WIRED;
 
-        for (;;) {
-                m = vm_page_alloc(NULL, 0, pflags | VM_ALLOC_NOOBJ);
-                if (m == NULL) {
-                        if (wait & M_NOWAIT)
-                                return (NULL);
-                        VM_WAIT;
-                } else
-                        break;
-        }
+	m = vm_page_alloc_domain(NULL, 0, domain,
+	    malloc2vm_flags(wait) | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ);
+	if (m == NULL)
+		return (NULL);
 
 	va = VM_PAGE_TO_PHYS(m);
 
@@ -1565,7 +1584,7 @@ moea64_init(mmu_t mmu)
 
 	if (!hw_direct_map) {
 		installed_mmu = mmu;
-		uma_zone_set_allocf(moea64_pvo_zone,moea64_uma_page_alloc);
+		uma_zone_set_allocf(moea64_pvo_zone, moea64_uma_page_alloc);
 	}
 
 #ifdef COMPAT_FREEBSD32
@@ -1830,6 +1849,95 @@ moea64_kremove(mmu_t mmu, vm_offset_t va)
 }
 
 /*
+ * Provide a kernel pointer corresponding to a given userland pointer.
+ * The returned pointer is valid until the next time this function is
+ * called in this thread. This is used internally in copyin/copyout.
+ */
+static int
+moea64_map_user_ptr(mmu_t mmu, pmap_t pm, volatile const void *uaddr,
+    void **kaddr, size_t ulen, size_t *klen)
+{
+	size_t l;
+#ifdef __powerpc64__
+	struct slb *slb;
+#endif
+	register_t slbv;
+
+	*kaddr = (char *)USER_ADDR + ((uintptr_t)uaddr & ~SEGMENT_MASK);
+	l = ((char *)USER_ADDR + SEGMENT_LENGTH) - (char *)(*kaddr);
+	if (l > ulen)
+		l = ulen;
+	if (klen)
+		*klen = l;
+	else if (l != ulen)
+		return (EFAULT);
+
+#ifdef __powerpc64__
+	/* Try lockless look-up first */
+	slb = user_va_to_slb_entry(pm, (vm_offset_t)uaddr);
+
+	if (slb == NULL) {
+		/* If it isn't there, we need to pre-fault the VSID */
+		PMAP_LOCK(pm);
+		slbv = va_to_vsid(pm, (vm_offset_t)uaddr) << SLBV_VSID_SHIFT;
+		PMAP_UNLOCK(pm);
+	} else {
+		slbv = slb->slbv;
+	}
+
+	/* Mark segment no-execute */
+	slbv |= SLBV_N;
+#else
+	slbv = va_to_vsid(pm, (vm_offset_t)uaddr);
+
+	/* Mark segment no-execute */
+	slbv |= SR_N;
+#endif
+
+	/* If we have already set this VSID, we can just return */
+	if (curthread->td_pcb->pcb_cpu.aim.usr_vsid == slbv)
+		return (0);
+  
+	__asm __volatile("isync");
+	curthread->td_pcb->pcb_cpu.aim.usr_segm =
+	    (uintptr_t)uaddr >> ADDR_SR_SHFT;
+	curthread->td_pcb->pcb_cpu.aim.usr_vsid = slbv;
+#ifdef __powerpc64__
+	__asm __volatile ("slbie %0; slbmte %1, %2; isync" ::
+	    "r"(USER_ADDR), "r"(slbv), "r"(USER_SLB_SLBE));
+#else
+	__asm __volatile("mtsr %0,%1; isync" :: "n"(USER_SR), "r"(slbv));
+#endif
+
+	return (0);
+}
+
+/*
+ * Figure out where a given kernel pointer (usually in a fault) points
+ * to from the VM's perspective, potentially remapping into userland's
+ * address space.
+ */
+static int
+moea64_decode_kernel_ptr(mmu_t mmu, vm_offset_t addr, int *is_user,
+    vm_offset_t *decoded_addr)
+{
+	vm_offset_t user_sr;
+
+	if ((addr >> ADDR_SR_SHFT) == (USER_ADDR >> ADDR_SR_SHFT)) {
+		user_sr = curthread->td_pcb->pcb_cpu.aim.usr_segm;
+		addr &= ADDR_PIDX | ADDR_POFF;
+		addr |= user_sr << ADDR_SR_SHFT;
+		*decoded_addr = addr;
+		*is_user = 1;
+	} else {
+		*decoded_addr = addr;
+		*is_user = 0;
+	}
+
+	return (0);
+}
+
+/*
  * Map a range of physical addresses into kernel virtual address space.
  *
  * The value passed in *virt is a suggested virtual address for the mapping.
@@ -1855,7 +1963,7 @@ moea64_map(mmu_t mmu, vm_offset_t *virt, vm_paddr_t pa_start,
 			if (moea64_calc_wimg(va, VM_MEMATTR_DEFAULT) != LPTE_M)
 				break;
 		if (va == pa_end)
-			return (pa_start);
+			return (PHYS_TO_DMAP(pa_start));
 	}
 	sva = *virt;
 	va = sva;
@@ -1896,6 +2004,15 @@ moea64_page_exists_quick(mmu_t mmu, pmap_t pmap, vm_page_t m)
 	}
 	PV_PAGE_UNLOCK(m);
 	return (rv);
+}
+
+void
+moea64_page_init(mmu_t mmu __unused, vm_page_t m)
+{
+
+	m->md.mdpg_attrs = 0;
+	m->md.mdpg_cache_attrs = VM_MEMATTR_DEFAULT;
+	LIST_INIT(&m->md.mdpg_pvoh);
 }
 
 /*

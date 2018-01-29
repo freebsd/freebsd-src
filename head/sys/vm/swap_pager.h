@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 University of Utah.
  * Copyright (c) 1991 The Regents of the University of California.
  * All rights reserved.
@@ -73,7 +75,6 @@ struct swdevt {
 
 #ifdef _KERNEL
 
-extern int swap_pager_full;
 extern int swap_pager_avail;
 
 struct xswdev;

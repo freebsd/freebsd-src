@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -141,39 +143,14 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, rexmit_drop_options, CTLFLAG_RW,
     &tcp_rexmit_drop_options, 0,
     "Drop TCP options from 3rd and later retransmitted SYN");
 
-static VNET_DEFINE(int, tcp_pmtud_blackhole_detect);
-#define	V_tcp_pmtud_blackhole_detect	VNET(tcp_pmtud_blackhole_detect)
+VNET_DEFINE(int, tcp_pmtud_blackhole_detect);
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_detection,
     CTLFLAG_RW|CTLFLAG_VNET,
     &VNET_NAME(tcp_pmtud_blackhole_detect), 0,
     "Path MTU Discovery Black Hole Detection Enabled");
 
-static VNET_DEFINE(int, tcp_pmtud_blackhole_activated);
-#define	V_tcp_pmtud_blackhole_activated \
-    VNET(tcp_pmtud_blackhole_activated)
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_activated,
-    CTLFLAG_RD|CTLFLAG_VNET,
-    &VNET_NAME(tcp_pmtud_blackhole_activated), 0,
-    "Path MTU Discovery Black Hole Detection, Activation Count");
-
-static VNET_DEFINE(int, tcp_pmtud_blackhole_activated_min_mss);
-#define	V_tcp_pmtud_blackhole_activated_min_mss \
-    VNET(tcp_pmtud_blackhole_activated_min_mss)
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_activated_min_mss,
-    CTLFLAG_RD|CTLFLAG_VNET,
-    &VNET_NAME(tcp_pmtud_blackhole_activated_min_mss), 0,
-    "Path MTU Discovery Black Hole Detection, Activation Count at min MSS");
-
-static VNET_DEFINE(int, tcp_pmtud_blackhole_failed);
-#define	V_tcp_pmtud_blackhole_failed	VNET(tcp_pmtud_blackhole_failed)
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_failed,
-    CTLFLAG_RD|CTLFLAG_VNET,
-    &VNET_NAME(tcp_pmtud_blackhole_failed), 0,
-    "Path MTU Discovery Black Hole Detection, Failure Count");
-
 #ifdef INET
-static VNET_DEFINE(int, tcp_pmtud_blackhole_mss) = 1200;
-#define	V_tcp_pmtud_blackhole_mss	VNET(tcp_pmtud_blackhole_mss)
+VNET_DEFINE(int, tcp_pmtud_blackhole_mss) = 1200;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_mss,
     CTLFLAG_RW|CTLFLAG_VNET,
     &VNET_NAME(tcp_pmtud_blackhole_mss), 0,
@@ -181,8 +158,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_mss,
 #endif
 
 #ifdef INET6
-static VNET_DEFINE(int, tcp_v6pmtud_blackhole_mss) = 1220;
-#define	V_tcp_v6pmtud_blackhole_mss	VNET(tcp_v6pmtud_blackhole_mss)
+VNET_DEFINE(int, tcp_v6pmtud_blackhole_mss) = 1220;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, v6pmtud_blackhole_mss,
     CTLFLAG_RW|CTLFLAG_VNET,
     &VNET_NAME(tcp_v6pmtud_blackhole_mss), 0,
@@ -749,18 +725,20 @@ tcp_timer_rexmt(void * xtp)
 		 */
 		if (((tp->t_flags2 & (TF2_PLPMTU_PMTUD|TF2_PLPMTU_MAXSEGSNT)) ==
 		    (TF2_PLPMTU_PMTUD|TF2_PLPMTU_MAXSEGSNT)) &&
-		    (tp->t_rxtshift >= 2 && tp->t_rxtshift % 2 == 0)) {
+		    (tp->t_rxtshift >= 2 && tp->t_rxtshift < 6 &&
+		    tp->t_rxtshift % 2 == 0)) {
 			/*
 			 * Enter Path MTU Black-hole Detection mechanism:
 			 * - Disable Path MTU Discovery (IP "DF" bit).
 			 * - Reduce MTU to lower value than what we
 			 *   negotiated with peer.
 			 */
-			/* Record that we may have found a black hole. */
-			tp->t_flags2 |= TF2_PLPMTU_BLACKHOLE;
-
-			/* Keep track of previous MSS. */
-			tp->t_pmtud_saved_maxseg = tp->t_maxseg;
+			if ((tp->t_flags2 & TF2_PLPMTU_BLACKHOLE) == 0) {
+				/* Record that we may have found a black hole. */
+				tp->t_flags2 |= TF2_PLPMTU_BLACKHOLE;
+				/* Keep track of previous MSS. */
+				tp->t_pmtud_saved_maxseg = tp->t_maxseg;
+			}
 
 			/* 
 			 * Reduce the MSS to blackhole value or to the default
@@ -772,7 +750,7 @@ tcp_timer_rexmt(void * xtp)
 			    tp->t_maxseg > V_tcp_v6pmtud_blackhole_mss) {
 				/* Use the sysctl tuneable blackhole MSS. */
 				tp->t_maxseg = V_tcp_v6pmtud_blackhole_mss;
-				V_tcp_pmtud_blackhole_activated++;
+				TCPSTAT_INC(tcps_pmtud_blackhole_activated);
 			} else if (isipv6) {
 				/* Use the default MSS. */
 				tp->t_maxseg = V_tcp_v6mssdflt;
@@ -781,7 +759,7 @@ tcp_timer_rexmt(void * xtp)
 				 * minmss.
 				 */
 				tp->t_flags2 &= ~TF2_PLPMTU_PMTUD;
-				V_tcp_pmtud_blackhole_activated_min_mss++;
+				TCPSTAT_INC(tcps_pmtud_blackhole_activated_min_mss);
 			}
 #endif
 #if defined(INET6) && defined(INET)
@@ -791,7 +769,7 @@ tcp_timer_rexmt(void * xtp)
 			if (tp->t_maxseg > V_tcp_pmtud_blackhole_mss) {
 				/* Use the sysctl tuneable blackhole MSS. */
 				tp->t_maxseg = V_tcp_pmtud_blackhole_mss;
-				V_tcp_pmtud_blackhole_activated++;
+				TCPSTAT_INC(tcps_pmtud_blackhole_activated);
 			} else {
 				/* Use the default MSS. */
 				tp->t_maxseg = V_tcp_mssdflt;
@@ -800,7 +778,7 @@ tcp_timer_rexmt(void * xtp)
 				 * minmss.
 				 */
 				tp->t_flags2 &= ~TF2_PLPMTU_PMTUD;
-				V_tcp_pmtud_blackhole_activated_min_mss++;
+				TCPSTAT_INC(tcps_pmtud_blackhole_activated_min_mss);
 			}
 #endif
 			/*
@@ -819,11 +797,11 @@ tcp_timer_rexmt(void * xtp)
 			 * stage (1448, 1188, 524) 2 chances to recover.
 			 */
 			if ((tp->t_flags2 & TF2_PLPMTU_BLACKHOLE) &&
-			    (tp->t_rxtshift > 6)) {
+			    (tp->t_rxtshift >= 6)) {
 				tp->t_flags2 |= TF2_PLPMTU_PMTUD;
 				tp->t_flags2 &= ~TF2_PLPMTU_BLACKHOLE;
 				tp->t_maxseg = tp->t_pmtud_saved_maxseg;
-				V_tcp_pmtud_blackhole_failed++;
+				TCPSTAT_INC(tcps_pmtud_blackhole_failed);
 				/*
 				 * Reset the slow-start flight size as it
 				 * may depend on the new MSS.

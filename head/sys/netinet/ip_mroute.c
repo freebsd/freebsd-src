@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989 Stephen Deering
  * Copyright (c) 1992, 1993
  *      The Regents of the University of California.  All rights reserved.
@@ -2816,7 +2818,7 @@ static void
 vnet_mroute_init(const void *unused __unused)
 {
 
-	MALLOC(V_nexpire, u_char *, mfchashsize, M_MRTABLE, M_WAITOK|M_ZERO);
+	V_nexpire = malloc(mfchashsize, M_MRTABLE, M_WAITOK|M_ZERO);
 	bzero(V_bw_meter_timers, sizeof(V_bw_meter_timers));
 	callout_init(&V_expire_upcalls_ch, 1);
 	callout_init(&V_bw_upcalls_ch, 1);
@@ -2830,7 +2832,7 @@ static void
 vnet_mroute_uninit(const void *unused __unused)
 {
 
-	FREE(V_nexpire, M_MRTABLE);
+	free(V_nexpire, M_MRTABLE);
 	V_nexpire = NULL;
 }
 

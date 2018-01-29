@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012, 2015 Chelsio Communications, Inc.
  * All rights reserved.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
@@ -112,6 +114,7 @@ struct pageset {
 	int len;
 	struct ppod_reservation prsv;
 	struct vmspace *vm;
+	vm_offset_t start;
 	u_int vm_timestamp;
 };
 

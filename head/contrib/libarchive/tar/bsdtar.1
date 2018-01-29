@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2017
+.Dd October 1, 2017
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -302,19 +302,18 @@ containing the string
 Compress the resulting archive with
 .Xr xz 1 .
 In extract or list modes, this option is ignored.
-Note that, unlike other
+Note that this
 .Nm tar
-implementations, this implementation recognizes XZ compression
-automatically when reading archives.
+implementation recognizes XZ compression automatically when reading archives.
 .It Fl j , Fl Fl bzip , Fl Fl bzip2 , Fl Fl bunzip2
 (c mode only)
 Compress the resulting archive with
 .Xr bzip2 1 .
 In extract or list modes, this option is ignored.
-Note that, unlike other
+Note that this
 .Nm tar
-implementations, this implementation recognizes bzip2 compression
-automatically when reading archives.
+implementation recognizes bzip2 compression automatically when reading
+archives.
 .It Fl k , Fl Fl keep-old-files
 (x mode only)
 Do not overwrite existing files.
@@ -337,25 +336,41 @@ Issue a warning message unless all links to each file are archived.
 Compress the resulting archive with
 .Xr lrzip 1 .
 In extract or list modes, this option is ignored.
+Note that this
+.Nm tar
+implementation recognizes lrzip compression automatically when reading
+archives.
 .It Fl Fl lz4
 (c mode only)
 Compress the archive with lz4-compatible compression before writing it.
-In input mode, this option is ignored; lz4 compression is recognized
-automatically on input.
+In extract or list modes, this option is ignored.
+Note that this
+.Nm tar
+implementation recognizes lz4 compression automatically when reading archives.
+.It Fl Fl zstd
+(c mode only)
+Compress the archive with zstd-compatible compression before writing it.
+In extract or list modes, this option is ignored.
+Note that this
+.Nm tar
+implementation recognizes zstd compression automatically when reading archives.
 .It Fl Fl lzma
 (c mode only) Compress the resulting archive with the original LZMA algorithm.
+In extract or list modes, this option is ignored.
 Use of this option is discouraged and new archives should be created with
 .Fl Fl xz
 instead.
-Note that, unlike other
+Note that this
 .Nm tar
-implementations, this implementation recognizes LZMA compression
-automatically when reading archives.
+implementation recognizes LZMA compression automatically when reading archives.
 .It Fl Fl lzop
 (c mode only)
 Compress the resulting archive with
 .Xr lzop 1 .
 In extract or list modes, this option is ignored.
+Note that this
+.Nm tar
+implementation recognizes LZO compression automatically when reading archives.
 .It Fl m , Fl Fl modification-time
 (x mode only)
 Do not extract modification time.
@@ -577,6 +592,8 @@ A decimal integer from 4 to 7 specifying the lz4 compression block size
 .It Cm lz4:block-dependence
 Use the previous block of the block being compressed for
 a compression dictionary to improve compression ratio.
+.It Cm zstd:compression-level
+A decimal integer from 1 to 22 specifying the zstd compression level.
 .It Cm lzop:compression-level
 A decimal integer from 1 to 9 specifying the lzop compression level.
 .It Cm xz:compression-level
@@ -826,28 +843,28 @@ is run in x mode as root.
 Compress the resulting archive with
 .Xr bzip2 1 .
 In extract or list modes, this option is ignored.
-Note that, unlike other
+Note that this
 .Nm tar
-implementations, this implementation recognizes bzip2 compression
-automatically when reading archives.
+implementation recognizes bzip2 compression automatically when reading
+archives.
 .It Fl Z , Fl Fl compress , Fl Fl uncompress
 (c mode only)
 Compress the resulting archive with
 .Xr compress 1 .
 In extract or list modes, this option is ignored.
-Note that, unlike other
+Note that this
 .Nm tar
-implementations, this implementation recognizes compress compression
-automatically when reading archives.
+implementation recognizes compress compression automatically when reading
+archives.
 .It Fl z , Fl Fl gunzip , Fl Fl gzip
 (c mode only)
 Compress the resulting archive with
 .Xr gzip 1 .
 In extract or list modes, this option is ignored.
-Note that, unlike other
+Note that this
 .Nm tar
-implementations, this implementation recognizes gzip compression
-automatically when reading archives.
+implementation recognizes gzip compression automatically when reading
+archives.
 .El
 .Sh ENVIRONMENT
 The following environment variables affect the execution of

@@ -67,6 +67,7 @@ device		bhnd_pcib		# PCIe-G1 core
 
 #device		bgmac			# Broadcom GMAC - not yet
 
+device		gpio
 device		mdio
 
 #Flash

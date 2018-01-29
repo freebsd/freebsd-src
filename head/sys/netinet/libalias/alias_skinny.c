@@ -1,6 +1,8 @@
 /*-
  * alias_skinny.c
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002, 2003 MarcusCom, Inc.
  * All rights reserved.
  *

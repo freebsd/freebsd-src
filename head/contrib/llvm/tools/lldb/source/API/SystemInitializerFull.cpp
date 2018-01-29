@@ -25,70 +25,99 @@
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/GoASTContext.h"
-//#include "lldb/Symbol/JavaASTContext.h"
+#ifdef LLDB_ENABLE_ALL
+#include "lldb/Symbol/JavaASTContext.h"
+#endif // LLDB_ENABLE_ALL
 #include "lldb/Symbol/OCamlASTContext.h"
 #include "lldb/Utility/Timer.h"
 
-//#include "Plugins/ABI/MacOSX-arm/ABIMacOSX_arm.h"
-//#include "Plugins/ABI/MacOSX-arm64/ABIMacOSX_arm64.h"
-//#include "Plugins/ABI/MacOSX-i386/ABIMacOSX_i386.h"
+#ifdef LLDB_ENABLE_ALL
+#include "Plugins/ABI/MacOSX-arm/ABIMacOSX_arm.h"
+#include "Plugins/ABI/MacOSX-arm64/ABIMacOSX_arm64.h"
+#include "Plugins/ABI/MacOSX-i386/ABIMacOSX_i386.h"
+#endif // LLDB_ENABLE_ALL
 #include "Plugins/ABI/SysV-arm/ABISysV_arm.h"
 #include "Plugins/ABI/SysV-arm64/ABISysV_arm64.h"
-//#include "Plugins/ABI/SysV-hexagon/ABISysV_hexagon.h"
+#ifdef LLDB_ENABLE_ALL
+#include "Plugins/ABI/SysV-hexagon/ABISysV_hexagon.h"
+#endif // LLDB_ENABLE_ALL
 #include "Plugins/ABI/SysV-i386/ABISysV_i386.h"
 #include "Plugins/ABI/SysV-mips/ABISysV_mips.h"
 #include "Plugins/ABI/SysV-mips64/ABISysV_mips64.h"
 #include "Plugins/ABI/SysV-ppc/ABISysV_ppc.h"
 #include "Plugins/ABI/SysV-ppc64/ABISysV_ppc64.h"
-//#include "Plugins/ABI/SysV-s390x/ABISysV_s390x.h"
+#ifdef LLDB_ENABLE_ALL
+#include "Plugins/ABI/SysV-s390x/ABISysV_s390x.h"
+#endif // LLDB_ENABLE_ALL
 #include "Plugins/ABI/SysV-x86_64/ABISysV_x86_64.h"
+#include "Plugins/Architecture/Arm/ArchitectureArm.h"
 #include "Plugins/Disassembler/llvm/DisassemblerLLVMC.h"
-//#include "Plugins/DynamicLoader/MacOSX-DYLD/DynamicLoaderMacOS.h"
-//#include "Plugins/DynamicLoader/MacOSX-DYLD/DynamicLoaderMacOSXDYLD.h"
+#ifdef LLDB_ENABLE_ALL
+#include "Plugins/DynamicLoader/MacOSX-DYLD/DynamicLoaderMacOS.h"
+#include "Plugins/DynamicLoader/MacOSX-DYLD/DynamicLoaderMacOSXDYLD.h"
+#endif // LLDB_ENABLE_ALL
 #include "Plugins/DynamicLoader/POSIX-DYLD/DynamicLoaderPOSIXDYLD.h"
 #include "Plugins/DynamicLoader/Static/DynamicLoaderStatic.h"
-//#include "Plugins/DynamicLoader/Windows-DYLD/DynamicLoaderWindowsDYLD.h"
+#ifdef LLDB_ENABLE_ALL
+#include "Plugins/DynamicLoader/Windows-DYLD/DynamicLoaderWindowsDYLD.h"
+#endif // LLDB_ENABLE_ALL
 #include "Plugins/Instruction/ARM64/EmulateInstructionARM64.h"
 #include "Plugins/InstrumentationRuntime/ASan/ASanRuntime.h"
-//#include "Plugins/InstrumentationRuntime/TSan/TSanRuntime.h"
-#include "Plugins/InstrumentationRuntime/UBSan/UBSanRuntime.h"
 #include "Plugins/InstrumentationRuntime/MainThreadChecker/MainThreadCheckerRuntime.h"
+#ifdef LLDB_ENABLE_ALL
+#include "Plugins/InstrumentationRuntime/TSan/TSanRuntime.h"
+#endif // LLDB_ENABLE_ALL
+#include "Plugins/InstrumentationRuntime/UBSan/UBSanRuntime.h"
 #include "Plugins/JITLoader/GDB/JITLoaderGDB.h"
 #include "Plugins/Language/CPlusPlus/CPlusPlusLanguage.h"
-//#include "Plugins/Language/Go/GoLanguage.h"
-//#include "Plugins/Language/Java/JavaLanguage.h"
-//#include "Plugins/Language/OCaml/OCamlLanguage.h"
-//#include "Plugins/Language/ObjC/ObjCLanguage.h"
-//#include "Plugins/Language/ObjCPlusPlus/ObjCPlusPlusLanguage.h"
+#ifdef LLDB_ENABLE_ALL
+#include "Plugins/Language/Go/GoLanguage.h"
+#include "Plugins/Language/Java/JavaLanguage.h"
+#include "Plugins/Language/OCaml/OCamlLanguage.h"
+#include "Plugins/Language/ObjC/ObjCLanguage.h"
+#include "Plugins/Language/ObjCPlusPlus/ObjCPlusPlusLanguage.h"
+#endif // LLDB_ENABLE_ALL
 #include "Plugins/LanguageRuntime/CPlusPlus/ItaniumABI/ItaniumABILanguageRuntime.h"
-//#include "Plugins/LanguageRuntime/Go/GoLanguageRuntime.h"
-//#include "Plugins/LanguageRuntime/Java/JavaLanguageRuntime.h"
-//#include "Plugins/LanguageRuntime/ObjC/AppleObjCRuntime/AppleObjCRuntimeV1.h"
-//#include "Plugins/LanguageRuntime/ObjC/AppleObjCRuntime/AppleObjCRuntimeV2.h"
-//#include "Plugins/LanguageRuntime/RenderScript/RenderScriptRuntime/RenderScriptRuntime.h"
+#ifdef LLDB_ENABLE_ALL
+#include "Plugins/LanguageRuntime/Go/GoLanguageRuntime.h"
+#include "Plugins/LanguageRuntime/Java/JavaLanguageRuntime.h"
+#include "Plugins/LanguageRuntime/ObjC/AppleObjCRuntime/AppleObjCRuntimeV1.h"
+#include "Plugins/LanguageRuntime/ObjC/AppleObjCRuntime/AppleObjCRuntimeV2.h"
+#include "Plugins/LanguageRuntime/RenderScript/RenderScriptRuntime/RenderScriptRuntime.h"
+#endif // LLDB_ENABLE_ALL
 #include "Plugins/MemoryHistory/asan/MemoryHistoryASan.h"
-//#include "Plugins/OperatingSystem/Go/OperatingSystemGo.h"
-//#include "Plugins/OperatingSystem/Python/OperatingSystemPython.h"
-//#include "Plugins/Platform/Android/PlatformAndroid.h"
+#ifdef LLDB_ENABLE_ALL
+#include "Plugins/OperatingSystem/Go/OperatingSystemGo.h"
+#include "Plugins/OperatingSystem/Python/OperatingSystemPython.h"
+#include "Plugins/Platform/Android/PlatformAndroid.h"
+#endif // LLDB_ENABLE_ALL
 #include "Plugins/Platform/FreeBSD/PlatformFreeBSD.h"
-//#include "Plugins/Platform/Kalimba/PlatformKalimba.h"
-//#include "Plugins/Platform/Linux/PlatformLinux.h"
-//#include "Plugins/Platform/MacOSX/PlatformMacOSX.h"
-//#include "Plugins/Platform/MacOSX/PlatformRemoteiOS.h"
-//#include "Plugins/Platform/NetBSD/PlatformNetBSD.h"
-//#include "Plugins/Platform/OpenBSD/PlatformOpenBSD.h"
-//#include "Plugins/Platform/Windows/PlatformWindows.h"
+#ifdef LLDB_ENABLE_ALL
+#include "Plugins/Platform/Kalimba/PlatformKalimba.h"
+#include "Plugins/Platform/Linux/PlatformLinux.h"
+#include "Plugins/Platform/MacOSX/PlatformMacOSX.h"
+#include "Plugins/Platform/MacOSX/PlatformRemoteiOS.h"
+#include "Plugins/Platform/NetBSD/PlatformNetBSD.h"
+#include "Plugins/Platform/OpenBSD/PlatformOpenBSD.h"
+#include "Plugins/Platform/Windows/PlatformWindows.h"
+#endif // LLDB_ENABLE_ALL
 #include "Plugins/Platform/gdb-server/PlatformRemoteGDBServer.h"
 #include "Plugins/Process/elf-core/ProcessElfCore.h"
 #include "Plugins/Process/gdb-remote/ProcessGDBRemote.h"
-//#include "Plugins/Process/minidump/ProcessMinidump.h"
+#ifdef LLDB_ENABLE_ALL
+#include "Plugins/Process/minidump/ProcessMinidump.h"
+#endif // LLDB_ENABLE_ALL
 #include "Plugins/ScriptInterpreter/None/ScriptInterpreterNone.h"
 #include "Plugins/SymbolFile/DWARF/SymbolFileDWARF.h"
 #include "Plugins/SymbolFile/DWARF/SymbolFileDWARFDebugMap.h"
-//#include "Plugins/SymbolFile/PDB/SymbolFilePDB.h"
+#ifdef LLDB_ENABLE_ALL
+#include "Plugins/SymbolFile/PDB/SymbolFilePDB.h"
+#endif // LLDB_ENABLE_ALL
 #include "Plugins/SymbolFile/Symtab/SymbolFileSymtab.h"
 #include "Plugins/SymbolVendor/ELF/SymbolVendorELF.h"
-//#include "Plugins/SystemRuntime/MacOSX/SystemRuntimeMacOSX.h"
+#ifdef LLDB_ENABLE_ALL
+#include "Plugins/SystemRuntime/MacOSX/SystemRuntimeMacOSX.h"
+#endif // LLDB_ENABLE_ALL
 #include "Plugins/UnwindAssembly/InstEmulation/UnwindAssemblyInstEmulation.h"
 #include "Plugins/UnwindAssembly/x86/UnwindAssembly-x86.h"
 
@@ -104,7 +133,9 @@
 #include "Plugins/Process/mach-core/ProcessMachCore.h"
 #include "Plugins/SymbolVendor/MacOSX/SymbolVendorMacOSX.h"
 #endif
-//#include "Plugins/StructuredData/DarwinLog/StructuredDataDarwinLog.h"
+#ifdef LLDB_ENABLE_ALL
+#include "Plugins/StructuredData/DarwinLog/StructuredDataDarwinLog.h"
+#endif // LLDB_ENABLE_ALL
 
 #if defined(__FreeBSD__)
 #include "Plugins/Process/FreeBSD/ProcessFreeBSD.h"
@@ -254,7 +285,9 @@ void SystemInitializerFull::Initialize() {
 #ifndef LLDB_DISABLE_PYTHON
   OperatingSystemPython::Initialize();
 #endif
-//OperatingSystemGo::Initialize();
+#ifdef LLDB_ENABLE_ALL
+  OperatingSystemGo::Initialize();
+#endif // LLDB_ENABLE_ALL
 
 #if !defined(LLDB_DISABLE_PYTHON)
   InitializeSWIG();
@@ -267,14 +300,16 @@ void SystemInitializerFull::Initialize() {
 #endif
 
   platform_freebsd::PlatformFreeBSD::Initialize();
-//platform_linux::PlatformLinux::Initialize();
-//platform_netbsd::PlatformNetBSD::Initialize();
-//platform_openbsd::PlatformOpenBSD::Initialize();
-//PlatformWindows::Initialize();
-//PlatformKalimba::Initialize();
-//platform_android::PlatformAndroid::Initialize();
-//PlatformRemoteiOS::Initialize();
-//PlatformMacOSX::Initialize();
+#ifdef LLDB_ENABLE_ALL
+  platform_linux::PlatformLinux::Initialize();
+  platform_netbsd::PlatformNetBSD::Initialize();
+  platform_openbsd::PlatformOpenBSD::Initialize();
+  PlatformWindows::Initialize();
+  PlatformKalimba::Initialize();
+  platform_android::PlatformAndroid::Initialize();
+  PlatformRemoteiOS::Initialize();
+  PlatformMacOSX::Initialize();
+#endif // LLDB_ENABLE_ALL
 #if defined(__APPLE__)
   PlatformiOSSimulator::Initialize();
   PlatformDarwinKernel::Initialize();
@@ -287,56 +322,75 @@ void SystemInitializerFull::Initialize() {
   llvm::InitializeAllDisassemblers();
 
   ClangASTContext::Initialize();
-//GoASTContext::Initialize();
-//JavaASTContext::Initialize();
-//OCamlASTContext::Initialize();
+#ifdef LLDB_ENABLE_ALL
+  GoASTContext::Initialize();
+  JavaASTContext::Initialize();
+  OCamlASTContext::Initialize();
 
-//ABIMacOSX_i386::Initialize();
-//ABIMacOSX_arm::Initialize();
-//ABIMacOSX_arm64::Initialize();
+  ABIMacOSX_i386::Initialize();
+  ABIMacOSX_arm::Initialize();
+  ABIMacOSX_arm64::Initialize();
+#endif // LLDB_ENABLE_ALL
   ABISysV_arm::Initialize();
   ABISysV_arm64::Initialize();
-//ABISysV_hexagon::Initialize();
+#ifdef LLDB_ENABLE_ALL
+  ABISysV_hexagon::Initialize();
+#endif // LLDB_ENABLE_ALL
   ABISysV_i386::Initialize();
   ABISysV_x86_64::Initialize();
   ABISysV_ppc::Initialize();
   ABISysV_ppc64::Initialize();
   ABISysV_mips::Initialize();
   ABISysV_mips64::Initialize();
-//ABISysV_s390x::Initialize();
+#ifdef LLDB_ENABLE_ALL
+  ABISysV_s390x::Initialize();
+#endif // LLDB_ENABLE_ALL
+
+  ArchitectureArm::Initialize();
+
   DisassemblerLLVMC::Initialize();
 
   JITLoaderGDB::Initialize();
   ProcessElfCore::Initialize();
-//minidump::ProcessMinidump::Initialize();
+#ifdef LLDB_ENABLE_ALL
+  minidump::ProcessMinidump::Initialize();
+#endif // LLDB_ENABLE_ALL
   MemoryHistoryASan::Initialize();
   AddressSanitizerRuntime::Initialize();
-//ThreadSanitizerRuntime::Initialize();
+#ifdef LLDB_ENABLE_ALL
+  ThreadSanitizerRuntime::Initialize();
+#endif // LLDB_ENABLE_ALL
   UndefinedBehaviorSanitizerRuntime::Initialize();
   MainThreadCheckerRuntime::Initialize();
 
   SymbolVendorELF::Initialize();
   SymbolFileDWARF::Initialize();
-//SymbolFilePDB::Initialize();
+#ifdef LLDB_ENABLE_ALL
+  SymbolFilePDB::Initialize();
+#endif // LLDB_ENABLE_ALL
   SymbolFileSymtab::Initialize();
   UnwindAssemblyInstEmulation::Initialize();
   UnwindAssembly_x86::Initialize();
   EmulateInstructionARM64::Initialize();
   SymbolFileDWARFDebugMap::Initialize();
   ItaniumABILanguageRuntime::Initialize();
-//AppleObjCRuntimeV2::Initialize();
-//AppleObjCRuntimeV1::Initialize();
-//SystemRuntimeMacOSX::Initialize();
-//RenderScriptRuntime::Initialize();
-//GoLanguageRuntime::Initialize();
-//JavaLanguageRuntime::Initialize();
+#ifdef LLDB_ENABLE_ALL
+  AppleObjCRuntimeV2::Initialize();
+  AppleObjCRuntimeV1::Initialize();
+  SystemRuntimeMacOSX::Initialize();
+  RenderScriptRuntime::Initialize();
+  GoLanguageRuntime::Initialize();
+  JavaLanguageRuntime::Initialize();
+#endif // LLDB_ENABLE_ALL
 
   CPlusPlusLanguage::Initialize();
-//GoLanguage::Initialize();
-//JavaLanguage::Initialize();
-//ObjCLanguage::Initialize();
-//ObjCPlusPlusLanguage::Initialize();
-//OCamlLanguage::Initialize();
+#ifdef LLDB_ENABLE_ALL
+  GoLanguage::Initialize();
+  JavaLanguage::Initialize();
+  ObjCLanguage::Initialize();
+  ObjCPlusPlusLanguage::Initialize();
+  OCamlLanguage::Initialize();
+#endif // LLDB_ENABLE_ALL
 
 #if defined(_WIN32)
   ProcessWindows::Initialize();
@@ -357,7 +411,9 @@ void SystemInitializerFull::Initialize() {
 
   // This plugin is valid on any host that talks to a Darwin remote.
   // It shouldn't be limited to __APPLE__.
-  //StructuredDataDarwinLog::Initialize();
+#ifdef LLDB_ENABLE_ALL
+  StructuredDataDarwinLog::Initialize();
+#endif // LLDB_ENABLE_ALL
 
   //----------------------------------------------------------------------
   // Platform agnostic plugins
@@ -365,11 +421,15 @@ void SystemInitializerFull::Initialize() {
   platform_gdb_server::PlatformRemoteGDBServer::Initialize();
 
   process_gdb_remote::ProcessGDBRemote::Initialize();
-//DynamicLoaderMacOSXDYLD::Initialize();
-//DynamicLoaderMacOS::Initialize();
+#ifdef LLDB_ENABLE_ALL
+  DynamicLoaderMacOSXDYLD::Initialize();
+  DynamicLoaderMacOS::Initialize();
+#endif // LLDB_ENABLE_ALL
   DynamicLoaderPOSIXDYLD::Initialize();
   DynamicLoaderStatic::Initialize();
-//DynamicLoaderWindowsDYLD::Initialize();
+#ifdef LLDB_ENABLE_ALL
+  DynamicLoaderWindowsDYLD::Initialize();
+#endif // LLDB_ENABLE_ALL
 
   // Scan for any system or user LLDB plug-ins
   PluginManager::Initialize();
@@ -414,53 +474,69 @@ void SystemInitializerFull::Terminate() {
 
   ClangASTContext::Terminate();
   GoASTContext::Terminate();
-//JavaASTContext::Terminate();
-//OCamlASTContext::Terminate();
+#ifdef LLDB_ENABLE_ALL
+  JavaASTContext::Terminate();
+  OCamlASTContext::Terminate();
 
-//ABIMacOSX_i386::Terminate();
-//ABIMacOSX_arm::Terminate();
-//ABIMacOSX_arm64::Terminate();
+  ABIMacOSX_i386::Terminate();
+  ABIMacOSX_arm::Terminate();
+  ABIMacOSX_arm64::Terminate();
+#endif // LLDB_ENABLE_ALL
   ABISysV_arm::Terminate();
   ABISysV_arm64::Terminate();
-//ABISysV_hexagon::Terminate();
+#ifdef LLDB_ENABLE_ALL
+  ABISysV_hexagon::Terminate();
+#endif // LLDB_ENABLE_ALL
   ABISysV_i386::Terminate();
   ABISysV_x86_64::Terminate();
   ABISysV_ppc::Terminate();
   ABISysV_ppc64::Terminate();
   ABISysV_mips::Terminate();
   ABISysV_mips64::Terminate();
-//ABISysV_s390x::Terminate();
+#ifdef LLDB_ENABLE_ALL
+  ABISysV_s390x::Terminate();
+#endif // LLDB_ENABLE_ALL
   DisassemblerLLVMC::Terminate();
 
   JITLoaderGDB::Terminate();
   ProcessElfCore::Terminate();
-//minidump::ProcessMinidump::Terminate();
+#ifdef LLDB_ENABLE_ALL
+  minidump::ProcessMinidump::Terminate();
+#endif // LLDB_ENABLE_ALL
   MemoryHistoryASan::Terminate();
   AddressSanitizerRuntime::Terminate();
-//ThreadSanitizerRuntime::Terminate();
+#ifdef LLDB_ENABLE_ALL
+  ThreadSanitizerRuntime::Terminate();
+#endif // LLDB_ENABLE_ALL
   UndefinedBehaviorSanitizerRuntime::Terminate();
   MainThreadCheckerRuntime::Terminate();
   SymbolVendorELF::Terminate();
   SymbolFileDWARF::Terminate();
-//SymbolFilePDB::Terminate();
+#ifdef LLDB_ENABLE_ALL
+  SymbolFilePDB::Terminate();
+#endif // LLDB_ENABLE_ALL
   SymbolFileSymtab::Terminate();
   UnwindAssembly_x86::Terminate();
   UnwindAssemblyInstEmulation::Terminate();
   EmulateInstructionARM64::Terminate();
   SymbolFileDWARFDebugMap::Terminate();
   ItaniumABILanguageRuntime::Terminate();
-//AppleObjCRuntimeV2::Terminate();
-//AppleObjCRuntimeV1::Terminate();
-//SystemRuntimeMacOSX::Terminate();
-//RenderScriptRuntime::Terminate();
-//JavaLanguageRuntime::Terminate();
+#ifdef LLDB_ENABLE_ALL
+  AppleObjCRuntimeV2::Terminate();
+  AppleObjCRuntimeV1::Terminate();
+  SystemRuntimeMacOSX::Terminate();
+  RenderScriptRuntime::Terminate();
+  JavaLanguageRuntime::Terminate();
+#endif // LLDB_ENABLE_ALL
 
   CPlusPlusLanguage::Terminate();
-//GoLanguage::Terminate();
-//JavaLanguage::Terminate();
-//ObjCLanguage::Terminate();
-//ObjCPlusPlusLanguage::Terminate();
-//OCamlLanguage::Terminate();
+#ifdef LLDB_ENABLE_ALL
+  GoLanguage::Terminate();
+  JavaLanguage::Terminate();
+  ObjCLanguage::Terminate();
+  ObjCPlusPlusLanguage::Terminate();
+  OCamlLanguage::Terminate();
+#endif // LLDB_ENABLE_ALL
 
 #if defined(__APPLE__)
   DynamicLoaderDarwinKernel::Terminate();
@@ -480,28 +556,36 @@ void SystemInitializerFull::Terminate() {
 
   platform_gdb_server::PlatformRemoteGDBServer::Terminate();
   process_gdb_remote::ProcessGDBRemote::Terminate();
-//StructuredDataDarwinLog::Terminate();
+#ifdef LLDB_ENABLE_ALL
+  StructuredDataDarwinLog::Terminate();
 
-//DynamicLoaderMacOSXDYLD::Terminate();
-//DynamicLoaderMacOS::Terminate();
+  DynamicLoaderMacOSXDYLD::Terminate();
+  DynamicLoaderMacOS::Terminate();
+#endif // LLDB_ENABLE_ALL
   DynamicLoaderPOSIXDYLD::Terminate();
   DynamicLoaderStatic::Terminate();
-//DynamicLoaderWindowsDYLD::Terminate();
+#ifdef LLDB_ENABLE_ALL
+  DynamicLoaderWindowsDYLD::Terminate();
+#endif // LLDB_ENABLE_ALL
 
 #ifndef LLDB_DISABLE_PYTHON
   OperatingSystemPython::Terminate();
 #endif
-//OperatingSystemGo::Terminate();
+#ifdef LLDB_ENABLE_ALL
+  OperatingSystemGo::Terminate();
+#endif // LLDB_ENABLE_ALL
 
   platform_freebsd::PlatformFreeBSD::Terminate();
-//platform_linux::PlatformLinux::Terminate();
-//platform_netbsd::PlatformNetBSD::Terminate();
-//platform_openbsd::PlatformOpenBSD::Terminate();
-//PlatformWindows::Terminate();
-//PlatformKalimba::Terminate();
-//platform_android::PlatformAndroid::Terminate();
-//PlatformMacOSX::Terminate();
-//PlatformRemoteiOS::Terminate();
+#ifdef LLDB_ENABLE_ALL
+  platform_linux::PlatformLinux::Terminate();
+  platform_netbsd::PlatformNetBSD::Terminate();
+  platform_openbsd::PlatformOpenBSD::Terminate();
+  PlatformWindows::Terminate();
+  PlatformKalimba::Terminate();
+  platform_android::PlatformAndroid::Terminate();
+  PlatformMacOSX::Terminate();
+  PlatformRemoteiOS::Terminate();
+#endif // LLDB_ENABLE_ALL
 #if defined(__APPLE__)
   PlatformiOSSimulator::Terminate();
   PlatformDarwinKernel::Terminate();

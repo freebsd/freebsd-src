@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2005 Daniel M. Eischen <deischen@freebsd.org>
  * Copyright (c) 2005 David Xu <davidxu@freebsd.org>
  * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>.
@@ -719,6 +721,8 @@ extern char		*_usrstack __hidden;
 extern int		_libthr_debug;
 extern int		_thread_event_mask;
 extern struct pthread	*_thread_last_event;
+/* Used in symbol lookup of libthread_db */
+extern struct pthread_key	_thread_keytable[];
 
 /* List of all threads: */
 extern pthreadlist	_thread_list;

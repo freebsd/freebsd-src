@@ -2,6 +2,8 @@
 /*	$NetBSD: citrus_mapper_std_local.h,v 1.3 2006/09/09 14:35:17 tnozaki Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2003, 2006 Citrus Project,
  * All rights reserved.
  *

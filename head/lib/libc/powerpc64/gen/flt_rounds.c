@@ -1,6 +1,8 @@
 /*	$NetBSD: flt_rounds.c,v 1.4.10.3 2002/03/22 20:41:53 nathanw Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1996 Mark Brinicombe
  * All rights reserved.
  *

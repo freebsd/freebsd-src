@@ -1,3 +1,4 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
 .TH "RDMA_GET_CM_EVENT" 3 "2007-10-31" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
 .SH NAME
 rdma_get_cm_event \- Retrieves the next pending communication event.
@@ -15,6 +16,9 @@ Allocated information about the next communication event.
 .SH "DESCRIPTION"
 Retrieves a communication event.  If no events are pending, by default,
 the call will block until an event is received.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
 .SH "NOTES"
 The default synchronous behavior of this routine can be changed by
 modifying the file descriptor associated with the given channel.  All
@@ -38,7 +42,10 @@ Specifies the type of communication event which occurred.  See EVENT TYPES
 below.
 .IP "status" 12
 Returns any asynchronous error information associated with an event.  The
-status is zero unless the corresponding operation failed.
+status is zero if the operation was successful, otherwise the status value
+is non-zero and is either set to an errno or a transport specific value.
+For details on transport specific status values, see the event type information
+below.
 .IP "param" 12
 Provides additional details based on the type of event.  Users should
 select the conn or ud subfields based on the rdma_port_space of the
@@ -123,10 +130,15 @@ Indicates that an error has occurred trying to establish or a connection.
 May be generated on the active or passive side of a connection.
 .IP RDMA_CM_EVENT_UNREACHABLE
 Generated on the active side to notify the user that the remote server is
-not reachable or unable to respond to a connection request.
+not reachable or unable to respond to a connection request.  If this event
+is generated in response to a UD QP resolution request over InfiniBand,
+the event status field will contain an errno, if negative, or the status
+result carried in the IB CM SIDR REP message.
 .IP RDMA_CM_EVENT_REJECTED
 Indicates that a connection request or response was rejected by the remote
-end point.
+end point.  The event status field will contain the transport specific
+reject reason if available.  Under InfiniBand, this is the reject reason
+carried in the IB CM REJ message.
 .IP RDMA_CM_EVENT_ESTABLISHED
 Indicates that a connection has been established with the remote end point.
 .IP RDMA_CM_EVENT_DISCONNECTED

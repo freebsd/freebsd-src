@@ -11,6 +11,16 @@ use vars qw( $opt_f $opt_n );
 use Getopt::Std;
 my $type_field = 2;
 
+# Override Unicode tables for certain control chars
+# that are expected to be found in normal text files.
+my %force_space = (
+    0x08 => 1, # backspace
+    0x09 => 1, # tab
+    0x0a => 1, # newline
+    0x0c => 1, # form feed
+    0x0d => 1, # carriage return
+);
+
 exit (main() ? 0 : 1);
 
 sub main {
@@ -47,6 +57,7 @@ sub main {
         my $type = $fields[$type_field];
         $type =~ s/\s//g;
         for ($last_code = $lo_code; $last_code <= $hi_code; ++$last_code) {
+            $type = 'Zs' if $force_space{$last_code};
             output(\%out, $last_code, $type);
         }
     }

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -96,18 +98,20 @@ __FBSDID("$FreeBSD$");
 #define	PROCBASED_CTLS2_ZERO_SETTING	0
 
 #define	VM_EXIT_CTLS_ONE_SETTING					\
-	(VM_EXIT_HOST_LMA			|			\
+	(VM_EXIT_SAVE_DEBUG_CONTROLS		|			\
+	VM_EXIT_HOST_LMA			|			\
 	VM_EXIT_SAVE_EFER			|			\
 	VM_EXIT_LOAD_EFER			|			\
 	VM_EXIT_ACKNOWLEDGE_INTERRUPT)
 
-#define	VM_EXIT_CTLS_ZERO_SETTING	VM_EXIT_SAVE_DEBUG_CONTROLS
+#define	VM_EXIT_CTLS_ZERO_SETTING	0
 
-#define	VM_ENTRY_CTLS_ONE_SETTING	(VM_ENTRY_LOAD_EFER)
+#define	VM_ENTRY_CTLS_ONE_SETTING					\
+	(VM_ENTRY_LOAD_DEBUG_CONTROLS		|			\
+	VM_ENTRY_LOAD_EFER)
 
 #define	VM_ENTRY_CTLS_ZERO_SETTING					\
-	(VM_ENTRY_LOAD_DEBUG_CONTROLS		|			\
-	VM_ENTRY_INTO_SMM			|			\
+	(VM_ENTRY_INTO_SMM			|			\
 	VM_ENTRY_DEACTIVATE_DUAL_MONITOR)
 
 #define	HANDLED		1
@@ -693,7 +697,8 @@ vmx_init(int ipinum)
 		    MSR_VMX_TRUE_PINBASED_CTLS, PINBASED_POSTED_INTERRUPT, 0,
 		    &tmp);
 		if (error == 0) {
-			pirvec = lapic_ipi_alloc(&IDTVEC(justreturn));
+			pirvec = lapic_ipi_alloc(pti ? &IDTVEC(justreturn1_pti) :
+			    &IDTVEC(justreturn));
 			if (pirvec < 0) {
 				if (bootverbose) {
 					printf("vmx_init: unable to allocate "
@@ -912,6 +917,9 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 		else
 			exc_bitmap = 1 << IDT_MC;
 		error += vmwrite(VMCS_EXCEPTION_BITMAP, exc_bitmap);
+
+		vmx->ctx[i].guest_dr6 = 0xffff0ff0;
+		error += vmwrite(VMCS_GUEST_DR7, 0x400);
 
 		if (virtual_interrupt_delivery) {
 			error += vmwrite(VMCS_APIC_ACCESS, APIC_ACCESS_ADDRESS);
@@ -2569,6 +2577,73 @@ vmx_exit_handle_nmi(struct vmx *vmx, int vcpuid, struct vm_exit *vmexit)
 	}
 }
 
+static __inline void
+vmx_dr_enter_guest(struct vmxctx *vmxctx)
+{
+	register_t rflags;
+
+	/* Save host control debug registers. */
+	vmxctx->host_dr7 = rdr7();
+	vmxctx->host_debugctl = rdmsr(MSR_DEBUGCTLMSR);
+
+	/*
+	 * Disable debugging in DR7 and DEBUGCTL to avoid triggering
+	 * exceptions in the host based on the guest DRx values.  The
+	 * guest DR7 and DEBUGCTL are saved/restored in the VMCS.
+	 */
+	load_dr7(0);
+	wrmsr(MSR_DEBUGCTLMSR, 0);
+
+	/*
+	 * Disable single stepping the kernel to avoid corrupting the
+	 * guest DR6.  A debugger might still be able to corrupt the
+	 * guest DR6 by setting a breakpoint after this point and then
+	 * single stepping.
+	 */
+	rflags = read_rflags();
+	vmxctx->host_tf = rflags & PSL_T;
+	write_rflags(rflags & ~PSL_T);
+
+	/* Save host debug registers. */
+	vmxctx->host_dr0 = rdr0();
+	vmxctx->host_dr1 = rdr1();
+	vmxctx->host_dr2 = rdr2();
+	vmxctx->host_dr3 = rdr3();
+	vmxctx->host_dr6 = rdr6();
+
+	/* Restore guest debug registers. */
+	load_dr0(vmxctx->guest_dr0);
+	load_dr1(vmxctx->guest_dr1);
+	load_dr2(vmxctx->guest_dr2);
+	load_dr3(vmxctx->guest_dr3);
+	load_dr6(vmxctx->guest_dr6);
+}
+
+static __inline void
+vmx_dr_leave_guest(struct vmxctx *vmxctx)
+{
+
+	/* Save guest debug registers. */
+	vmxctx->guest_dr0 = rdr0();
+	vmxctx->guest_dr1 = rdr1();
+	vmxctx->guest_dr2 = rdr2();
+	vmxctx->guest_dr3 = rdr3();
+	vmxctx->guest_dr6 = rdr6();
+
+	/*
+	 * Restore host debug registers.  Restore DR7, DEBUGCTL, and
+	 * PSL_T last.
+	 */
+	load_dr0(vmxctx->host_dr0);
+	load_dr1(vmxctx->host_dr1);
+	load_dr2(vmxctx->host_dr2);
+	load_dr3(vmxctx->host_dr3);
+	load_dr6(vmxctx->host_dr6);
+	wrmsr(MSR_DEBUGCTLMSR, vmxctx->host_debugctl);
+	load_dr7(vmxctx->host_dr7);
+	write_rflags(read_rflags() | vmxctx->host_tf);
+}
+
 static int
 vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
     struct vm_eventinfo *evinfo)
@@ -2667,7 +2742,9 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		}
 
 		vmx_run_trace(vmx, vcpu);
+		vmx_dr_enter_guest(vmxctx);
 		rc = vmx_enter_guest(vmxctx, vmx, launched);
+		vmx_dr_leave_guest(vmxctx);
 
 		/* Collect some information for VM exit processing */
 		vmexit->rip = rip = vmcs_guest_rip();
@@ -2767,6 +2844,16 @@ vmxctx_regptr(struct vmxctx *vmxctx, int reg)
 		return (&vmxctx->guest_r15);
 	case VM_REG_GUEST_CR2:
 		return (&vmxctx->guest_cr2);
+	case VM_REG_GUEST_DR0:
+		return (&vmxctx->guest_dr0);
+	case VM_REG_GUEST_DR1:
+		return (&vmxctx->guest_dr1);
+	case VM_REG_GUEST_DR2:
+		return (&vmxctx->guest_dr2);
+	case VM_REG_GUEST_DR3:
+		return (&vmxctx->guest_dr3);
+	case VM_REG_GUEST_DR6:
+		return (&vmxctx->guest_dr6);
 	default:
 		break;
 	}
@@ -3172,8 +3259,28 @@ vmx_pending_intr(struct vlapic *vlapic, int *vecptr)
 	pir_desc = vlapic_vtx->pir_desc;
 
 	pending = atomic_load_acq_long(&pir_desc->pending);
-	if (!pending)
-		return (0);	/* common case */
+	if (!pending) {
+		/*
+		 * While a virtual interrupt may have already been
+		 * processed the actual delivery maybe pending the
+		 * interruptibility of the guest.  Recognize a pending
+		 * interrupt by reevaluating virtual interrupts
+		 * following Section 29.2.1 in the Intel SDM Volume 3.
+		 */
+		uint64_t val;
+		uint8_t rvi, ppr;
+
+		vmx_getreg(vlapic_vtx->vmx, vlapic->vcpuid,
+		    VMCS_IDENT(VMCS_GUEST_INTR_STATUS), &val);
+		rvi = val & APIC_TPR_INT;
+		lapic = vlapic->apic_page;
+		ppr = lapic->ppr & APIC_TPR_INT;
+		if (rvi > ppr) {
+			return (1);
+		}
+
+		return (0);
+	}
 
 	/*
 	 * If there is an interrupt pending then it will be recognized only
@@ -3183,7 +3290,7 @@ vmx_pending_intr(struct vlapic *vlapic, int *vecptr)
 	 * interrupt will be recognized.
 	 */
 	lapic = vlapic->apic_page;
-	ppr = lapic->ppr & 0xf0;
+	ppr = lapic->ppr & APIC_TPR_INT;
 	if (ppr == 0)
 		return (1);
 
@@ -3193,7 +3300,7 @@ vmx_pending_intr(struct vlapic *vlapic, int *vecptr)
 	for (i = 3; i >= 0; i--) {
 		pirval = pir_desc->pir[i];
 		if (pirval != 0) {
-			vpr = (i * 64 + flsl(pirval) - 1) & 0xf0;
+			vpr = (i * 64 + flsl(pirval) - 1) & APIC_TPR_INT;
 			return (vpr > ppr);
 		}
 	}

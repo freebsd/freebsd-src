@@ -22,9 +22,9 @@ shared.2.1
 shared.2.1
 shared.2.99
 shared.2.99
+cycle.1.99
+cycle.1.99
 make: Graph cycles through `cycle.2.99'
 make: Graph cycles through `cycle.2.98'
 make: Graph cycles through `cycle.2.97'
-cycle.1.99
-cycle.1.99
 exit status 0

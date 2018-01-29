@@ -5,6 +5,8 @@
  *  University of Utah, Department of Computer Science
  */
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -40,6 +42,7 @@
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
@@ -50,6 +53,70 @@
 #include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2_mount.h>
+
+static int
+ext2_ext_balloc(struct inode *ip, uint32_t lbn, int size,
+    struct ucred *cred, struct buf **bpp, int flags)
+{
+	struct m_ext2fs *fs;
+	struct buf *bp = NULL;
+	struct vnode *vp = ITOV(ip);
+	daddr_t newblk;
+	int osize, nsize, blks, error, allocated;
+
+	fs = ip->i_e2fs;
+	blks = howmany(size, fs->e2fs_bsize);
+
+	error = ext4_ext_get_blocks(ip, lbn, blks, cred, NULL, &allocated, &newblk);
+	if (error)
+		return (error);
+
+	if (allocated) {
+		if (ip->i_size < (lbn + 1) * fs->e2fs_bsize)
+			nsize = fragroundup(fs, size);
+		else
+			nsize = fs->e2fs_bsize;
+
+		bp = getblk(vp, lbn, nsize, 0, 0, 0);
+		if(!bp)
+			return (EIO);
+
+		bp->b_blkno = fsbtodb(fs, newblk);
+		if (flags & BA_CLRBUF)
+			vfs_bio_clrbuf(bp);
+	} else {
+		if (ip->i_size >= (lbn + 1) * fs->e2fs_bsize) {
+
+			error = bread(vp, lbn, fs->e2fs_bsize, NOCRED, &bp);
+			if (error) {
+				brelse(bp);
+				return (error);
+			}
+			bp->b_blkno = fsbtodb(fs, newblk);
+			*bpp = bp;
+			return (0);
+		}
+
+		/*
+		 * Consider need to reallocate a fragment.
+		 */
+		osize = fragroundup(fs, blkoff(fs, ip->i_size));
+		nsize = fragroundup(fs, size);
+		if (nsize <= osize)
+			error = bread(vp, lbn, osize, NOCRED, &bp);
+		else
+			error = bread(vp, lbn, fs->e2fs_bsize, NOCRED, &bp);
+		if (error) {
+			brelse(bp);
+			return (error);
+		}
+		bp->b_blkno = fsbtodb(fs, newblk);
+	}
+
+	*bpp = bp;
+
+	return (error);
+}
 
 /*
  * Balloc defines the structure of filesystem storage
@@ -84,6 +151,10 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 		ip->i_next_alloc_block++;
 		ip->i_next_alloc_goal++;
 	}
+
+	if (ip->i_flag & IN_E4EXTENTS)
+		return (ext2_ext_balloc(ip, lbn, size, cred, bpp, flags));
+
 	/*
 	 * The first EXT2_NDADDR blocks are direct blocks
 	 */
@@ -142,6 +213,12 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 			    nsize, cred, &newb);
 			if (error)
 				return (error);
+			/*
+			 * If the newly allocated block exceeds 32-bit limit,
+			 * we can not use it in file block maps.
+			 */
+			if (newb > UINT_MAX)
+				return (EFBIG);
 			bp = getblk(vp, lbn, nsize, 0, 0, 0);
 			bp->b_blkno = fsbtodb(fs, newb);
 			if (flags & BA_CLRBUF)
@@ -174,6 +251,8 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 		if ((error = ext2_alloc(ip, lbn, pref, fs->e2fs_bsize, cred,
 		    &newb)))
 			return (error);
+		if (newb > UINT_MAX)
+			return (EFBIG);
 		nb = newb;
 		bp = getblk(vp, indirs[1].in_lbn, fs->e2fs_bsize, 0, 0, 0);
 		bp->b_blkno = fsbtodb(fs, newb);
@@ -217,6 +296,8 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 			brelse(bp);
 			return (error);
 		}
+		if (newb > UINT_MAX)
+			return (EFBIG);
 		nb = newb;
 		nbp = getblk(vp, indirs[i].in_lbn, fs->e2fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
@@ -256,6 +337,8 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 			brelse(bp);
 			return (error);
 		}
+		if (newb > UINT_MAX)
+			return (EFBIG);
 		nb = newb;
 		nbp = getblk(vp, lbn, fs->e2fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);

@@ -290,7 +290,7 @@ forw(n, pos, force, only_last, nblank)
 		forw_prompt = 1;
 	}
 
-	if (nlines == 0 && same_pos_bell)
+	if (nlines == 0 && !ignore_eoi && same_pos_bell)
 		eof_bell();
 	else if (do_repaint)
 		repaint();
@@ -451,15 +451,15 @@ get_back_scroll()
 }
 
 /*
- * Get line count of file up to the screen height + 1 char
+ * Return number of displayable lines in the file.
+ * Stop counting at screen height + 1.
  */
 	public int
 get_line_count()
 {
 	int nlines;
-	POSITION pos;
+	POSITION pos = ch_zero();
 
-	pos = ch_zero();
 	for (nlines = 0;  nlines <= sc_height;  nlines++)
 	{
 		pos = forw_line(pos);

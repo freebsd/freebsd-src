@@ -28,7 +28,7 @@
 .\"	@(#)sysctl.3	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2015
+.Dd October 22, 2017
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -741,6 +741,7 @@ privilege may change the value.
 .It Dv VM_V_FREE_TARGET Ta integer Ta yes
 .It Dv VM_V_INACTIVE_TARGET Ta integer Ta yes
 .It Dv VM_V_PAGEOUT_FREE_MIN Ta integer Ta yes
+.It Dv VM_OVERCOMMIT Ta integer Ta yes
 .El
 .Bl -tag -width 6n
 .It Li VM_LOADAVG
@@ -773,6 +774,9 @@ process address space when needed.
 .It Li VM_V_PAGEOUT_FREE_MIN
 If the amount of free and cache memory falls below this value, the
 pageout daemon will enter "memory conserving mode" to avoid deadlock.
+.It Li VM_OVERCOMMIT
+Overcommit behaviour, as described in
+.Xr tuning 7 .
 .El
 .Sh RETURN VALUES
 .Rv -std

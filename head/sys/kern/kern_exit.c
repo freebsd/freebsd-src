@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -86,7 +88,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/uma.h>
-#include <vm/vm_domain.h>
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
@@ -98,6 +99,8 @@ SDT_PROBE_DEFINE1(proc, , , exit, "int");
 
 /* Hook for NFS teardown procedure. */
 void (*nlminfo_release_p)(struct proc *p);
+
+EVENTHANDLER_LIST_DECLARE(process_exit);
 
 struct proc *
 proc_realparent(struct proc *child)
@@ -329,7 +332,7 @@ exit1(struct thread *td, int rval, int signo)
 	 * Event handler could change exit status.
 	 * XXX what if one of these generates an error?
 	 */
-	EVENTHANDLER_INVOKE(process_exit, p);
+	EVENTHANDLER_DIRECT_INVOKE(process_exit, p);
 
 	/*
 	 * If parent is waiting for us to exit or exec,
@@ -927,10 +930,6 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 #ifdef MAC
 	mac_proc_destroy(p);
 #endif
-	/*
-	 * Free any domain policy that's still hiding around.
-	 */
-	vm_domain_policy_cleanup(&p->p_vm_dom_policy);
 
 	KASSERT(FIRST_THREAD_IN_PROC(p),
 	    ("proc_reap: no residual thread!"));

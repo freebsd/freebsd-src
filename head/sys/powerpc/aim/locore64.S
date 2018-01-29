@@ -61,6 +61,48 @@ GLOBAL(tmpstk)
 
 TOC_ENTRY(tmpstk)
 
+/*
+ * Entry point for bootloaders that do not fully implement ELF and start
+ * at the beginning of the image (kexec, notably). In its own section so
+ * that it ends up before any linker-generated call stubs and actually at
+ * the beginning of the image. kexec on some systems also enters at
+ * (start of image) + 0x60, so put a spin loop there.
+ */
+	.section ".text.kboot", "x", @progbits
+kbootentry:
+	b __start
+. = kbootentry + 0x40	/* Magic address used in platform layer */
+	.global smp_spin_sem
+ap_kexec_spin_sem:
+	.long   -1
+. = kbootentry + 0x60	/* Entry point for kexec APs */
+ap_kexec_start:		/* At 0x60 past start, copied to 0x60 by kexec */
+	/* r3 set to CPU ID by kexec */
+
+	/* Invalidate icache for low-memory copy and jump there */
+	li	%r0,0x80
+	dcbst	0,%r0
+	sync
+	icbi	0,%r0
+	isync
+	ba	0x80			/* Absolute branch to next inst */
+
+. = kbootentry + 0x80			/* Aligned to cache line */
+1:	or	31,31,31		/* yield */
+	sync
+	lwz	%r1,0x40(0)		/* Spin on ap_kexec_spin_sem */
+	cmpw	%r1,%r3			/* Until it equals our CPU ID */
+	bne	1b
+	
+	/* Released */
+	or	2,2,2			/* unyield */
+	ba	EXC_RST
+
+
+/*
+ * Now start the real text section
+ */
+
 	.text
 	.globl	btext
 btext:
@@ -73,6 +115,7 @@ btext:
  * r4: ignored
  * r5: OF client interface pointer (or zero)
  * r6: Loader metadata pointer (or zero)
+ * r7: Magic cookie (0xfb5d104d) to indicate that r6 has loader metadata
  */
 	.text
 ASENTRY_NOPROF(__start)
@@ -108,6 +151,8 @@ ASENTRY_NOPROF(__start)
 	std	%r4,56(%r1)
 	std	%r5,64(%r1)
 	std	%r6,72(%r1)
+	std	%r7,80(%r1)
+
 	bl	1f
 	.llong _DYNAMIC-.
 1:	mflr	%r3
@@ -120,6 +165,7 @@ ASENTRY_NOPROF(__start)
 	ld	%r4,56(%r1)
 	ld	%r5,64(%r1)
 	ld	%r6,72(%r1)
+	ld	%r7,80(%r1)
 
 	/* Begin CPU init */
 	mr	%r4,%r2 /* Replace ignored r4 with tocbase for trap handlers */

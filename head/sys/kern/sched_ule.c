@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2007, Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
  *
@@ -1224,6 +1226,8 @@ sched_pickcpu(struct thread *td, int flags)
 
 	self = PCPU_GET(cpuid);
 	ts = td_get_sched(td);
+	KASSERT(!CPU_ABSENT(ts->ts_cpu), ("sched_pickcpu: Start scheduler on "
+	    "absent CPU %d for thread %s.", ts->ts_cpu, td->td_name));
 	if (smp_started == 0)
 		return (self);
 	/*
@@ -1294,6 +1298,7 @@ sched_pickcpu(struct thread *td, int flags)
 	if (cpu == -1)
 		cpu = sched_lowest(cpu_top, mask, -1, INT_MAX, ts->ts_cpu);
 	KASSERT(cpu != -1, ("sched_pickcpu: Failed to find a cpu."));
+	KASSERT(!CPU_ABSENT(cpu), ("sched_pickcpu: Picked absent CPU %d.", cpu));
 	/*
 	 * Compare the lowest loaded cpu to current cpu.
 	 */
@@ -1636,6 +1641,7 @@ schedinit(void)
 	ts0->ts_ltick = ticks;
 	ts0->ts_ftick = ticks;
 	ts0->ts_slice = 0;
+	ts0->ts_cpu = curcpu;	/* set valid CPU number */
 }
 
 /*
@@ -1837,6 +1843,9 @@ sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 {
 	struct tdq *tdn;
 
+	KASSERT(!CPU_ABSENT(td_get_sched(td)->ts_cpu), ("sched_switch_migrate: "
+	    "thread %s queued on absent CPU %d.", td->td_name,
+	    td_get_sched(td)->ts_cpu));
 	tdn = TDQ_CPU(td_get_sched(td)->ts_cpu);
 #ifdef SMP
 	tdq_load_rem(tdq, td);
@@ -2122,6 +2131,7 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	child->td_lastcpu = NOCPU;
 	child->td_lock = TDQ_LOCKPTR(tdq);
 	child->td_cpuset = cpuset_ref(td->td_cpuset);
+	child->td_domain.dr_policy = td->td_cpuset->cs_domain;
 	ts2->ts_cpu = ts->ts_cpu;
 	ts2->ts_flags = 0;
 	/*
@@ -2939,7 +2949,7 @@ SYSCTL_INT(_kern_sched, OID_AUTO, steal_idle, CTLFLAG_RW, &steal_idle, 0,
 SYSCTL_INT(_kern_sched, OID_AUTO, steal_thresh, CTLFLAG_RW, &steal_thresh, 0,
     "Minimum load on remote CPU before we'll steal");
 SYSCTL_PROC(_kern_sched, OID_AUTO, topology_spec, CTLTYPE_STRING |
-    CTLFLAG_RD, NULL, 0, sysctl_kern_sched_topology_spec, "A",
+    CTLFLAG_MPSAFE | CTLFLAG_RD, NULL, 0, sysctl_kern_sched_topology_spec, "A",
     "XML dump of detected CPU topology");
 #endif
 

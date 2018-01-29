@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -42,8 +44,7 @@ __FBSDID("$FreeBSD$");
  * signed.
  */
 int
-__cmpdi2(a, b)
-	quad_t a, b;
+__cmpdi2(quad_t a, quad_t b)
 {
 	union uu aa, bb;
 

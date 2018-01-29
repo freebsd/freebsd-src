@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-3-Clause
+ *
  * Copyright (c) 1999, 2000 Matthew R. Green
  * Copyright (c) 2009 by Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.

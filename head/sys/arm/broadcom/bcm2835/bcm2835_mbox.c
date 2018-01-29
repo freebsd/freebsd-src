@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * All rights reserved.
  *
@@ -101,14 +103,18 @@ static struct ofw_compat_data compat_data[] = {
 static int
 bcm_mbox_read_msg(struct bcm_mbox_softc *sc, int *ochan)
 {
+#ifdef DEBUG
 	uint32_t data;
+#endif
 	uint32_t msg;
 	int chan;
 
 	msg = mbox_read_4(sc, REG_READ);
 	dprintf("bcm_mbox_intr: raw data %08x\n", msg);
 	chan = MBOX_CHAN(msg);
+#ifdef DEBUG
 	data = MBOX_DATA(msg);
+#endif
 	if (sc->msg[chan]) {
 		printf("bcm_mbox_intr: channel %d oveflow\n", chan);
 		return (1);

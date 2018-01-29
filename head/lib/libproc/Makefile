@@ -37,10 +37,11 @@ CFLAGS+=	-I${SRCTOP}/cddl/contrib/opensolaris/lib/libctf/common \
 CFLAGS+=	-DNO_CTF
 .endif
 
-SHLIB_MAJOR=	4
+SHLIB_MAJOR=	5
 
 MAN=
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.lib.mk>

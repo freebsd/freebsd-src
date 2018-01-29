@@ -256,6 +256,7 @@ stp_print_mstp_bpdu(netdissect_options *ndo, const struct stp_bpdu_ *stp_bpdu,
         return 1;
     }
 
+    ND_TCHECK(stp_bpdu->flags);
     ND_PRINT((ndo, "\n\tport-role %s, ",
            tok2str(rstp_obj_port_role_values, "Unknown",
                    RSTP_EXTRACT_PORT_ROLE(stp_bpdu->flags))));
@@ -475,6 +476,7 @@ stp_print(netdissect_options *ndo, const u_char *p, u_int length)
             if (stp_bpdu->protocol_version == STP_PROTO_SPB)
             {
               /* Validate v4 length */
+              ND_TCHECK_16BITS(p + MST_BPDU_VER3_LEN_OFFSET + mstp_len);
               spb_len = EXTRACT_16BITS (p + MST_BPDU_VER3_LEN_OFFSET + mstp_len);
               spb_len += 2;
               if (length < (sizeof(struct stp_bpdu_) + mstp_len + spb_len) ||

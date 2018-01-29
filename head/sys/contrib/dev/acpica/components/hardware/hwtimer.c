@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -215,6 +215,7 @@ AcpiGetTimer (
     UINT32                  *Ticks)
 {
     ACPI_STATUS             Status;
+    UINT64                  TimerValue;
 
 
     ACPI_FUNCTION_TRACE (AcpiGetTimer);
@@ -232,7 +233,14 @@ AcpiGetTimer (
         return_ACPI_STATUS (AE_SUPPORT);
     }
 
-    Status = AcpiHwRead (Ticks, &AcpiGbl_FADT.XPmTimerBlock);
+    Status = AcpiHwRead (&TimerValue, &AcpiGbl_FADT.XPmTimerBlock);
+    if (ACPI_SUCCESS (Status))
+    {
+        /* ACPI PM Timer is defined to be 32 bits (PM_TMR_LEN) */
+
+        *Ticks = (UINT32) TimerValue;
+    }
+
     return_ACPI_STATUS (Status);
 }
 
@@ -275,7 +283,7 @@ AcpiGetTimerDuration (
     UINT32                  *TimeElapsed)
 {
     ACPI_STATUS             Status;
-    UINT32                  DeltaTicks;
+    UINT64                  DeltaTicks;
     UINT64                  Quotient;
 
 
@@ -294,34 +302,33 @@ AcpiGetTimerDuration (
         return_ACPI_STATUS (AE_SUPPORT);
     }
 
+    if (StartTicks == EndTicks)
+    {
+        *TimeElapsed = 0;
+        return_ACPI_STATUS (AE_OK);
+    }
+
     /*
      * Compute Tick Delta:
      * Handle (max one) timer rollovers on 24-bit versus 32-bit timers.
      */
-    if (StartTicks < EndTicks)
-    {
-        DeltaTicks = EndTicks - StartTicks;
-    }
-    else if (StartTicks > EndTicks)
+    DeltaTicks = EndTicks;
+    if (StartTicks > EndTicks)
     {
         if ((AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) == 0)
         {
             /* 24-bit Timer */
 
-            DeltaTicks = (((0x00FFFFFF - StartTicks) + EndTicks) & 0x00FFFFFF);
+            DeltaTicks |= (UINT64) 1 << 24;
         }
         else
         {
             /* 32-bit Timer */
 
-            DeltaTicks = (0xFFFFFFFF - StartTicks) + EndTicks;
+            DeltaTicks |= (UINT64) 1 << 32;
         }
     }
-    else /* StartTicks == EndTicks */
-    {
-        *TimeElapsed = 0;
-        return_ACPI_STATUS (AE_OK);
-    }
+    DeltaTicks -= StartTicks;
 
     /*
      * Compute Duration (Requires a 64-bit multiply and divide):
@@ -329,7 +336,7 @@ AcpiGetTimerDuration (
      * TimeElapsed (microseconds) =
      *  (DeltaTicks * ACPI_USEC_PER_SEC) / ACPI_PM_TIMER_FREQUENCY;
      */
-    Status = AcpiUtShortDivide (((UINT64) DeltaTicks) * ACPI_USEC_PER_SEC,
+    Status = AcpiUtShortDivide (DeltaTicks * ACPI_USEC_PER_SEC,
                 ACPI_PM_TIMER_FREQUENCY, &Quotient, NULL);
 
     *TimeElapsed = (UINT32) Quotient;

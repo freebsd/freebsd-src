@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sched.h>
 
+#include <linux/compiler.h>
 #include <linux/interrupt.h>
 #include <linux/compat.h>
 
@@ -45,10 +46,10 @@ __FBSDID("$FreeBSD$");
 	atomic_cmpset_ptr((volatile uintptr_t *)&(ts)->entry.tqe_prev, old, new)
 
 #define	TASKLET_ST_SET(ts, new)	\
-	atomic_store_rel_ptr((volatile uintptr_t *)&(ts)->entry.tqe_prev, new)
+	WRITE_ONCE(*(volatile uintptr_t *)&(ts)->entry.tqe_prev, new)
 
 #define	TASKLET_ST_GET(ts) \
-	atomic_load_acq_ptr((volatile uintptr_t *)&(ts)->entry.tqe_prev)
+	READ_ONCE(*(volatile uintptr_t *)&(ts)->entry.tqe_prev)
 
 struct tasklet_worker {
 	struct mtx mtx;
@@ -110,7 +111,7 @@ tasklet_subsystem_init(void *arg __unused)
 		    "tasklet", i, -1, buf);
        }
 }
-SYSINIT(linux_tasklet, SI_SUB_INIT_IF, SI_ORDER_THIRD, tasklet_subsystem_init, NULL);
+SYSINIT(linux_tasklet, SI_SUB_TASKQ, SI_ORDER_THIRD, tasklet_subsystem_init, NULL);
 
 static void
 tasklet_subsystem_uninit(void *arg __unused)
@@ -128,7 +129,7 @@ tasklet_subsystem_uninit(void *arg __unused)
 		mtx_destroy(&tw->mtx);
 	}
 }
-SYSUNINIT(linux_tasklet, SI_SUB_INIT_IF, SI_ORDER_THIRD, tasklet_subsystem_uninit, NULL);
+SYSUNINIT(linux_tasklet, SI_SUB_TASKQ, SI_ORDER_THIRD, tasklet_subsystem_uninit, NULL);
 
 void
 tasklet_init(struct tasklet_struct *ts,

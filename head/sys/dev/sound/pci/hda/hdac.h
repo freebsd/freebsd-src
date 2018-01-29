@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Stephane E. Potvin <sepotvin@videotron.ca>
  * All rights reserved.
  *
@@ -73,6 +75,8 @@
 #define HDA_INTEL_KBLKLP	HDA_MODEL_CONSTRUCT(INTEL, 0x9d71)
 #define HDA_INTEL_SRPT		HDA_MODEL_CONSTRUCT(INTEL, 0xa170)
 #define HDA_INTEL_KBLK		HDA_MODEL_CONSTRUCT(INTEL, 0xa171)
+#define HDA_INTEL_KBLKH		HDA_MODEL_CONSTRUCT(INTEL, 0xa2f0)
+#define HDA_INTEL_CFLK		HDA_MODEL_CONSTRUCT(INTEL, 0xa348)
 #define HDA_INTEL_ALL		HDA_MODEL_CONSTRUCT(INTEL, 0xffff)
 
 /* Nvidia */
@@ -147,6 +151,10 @@
 /* RDC */
 #define RDC_VENDORID		0x17f3
 #define HDA_RDC_M3010		HDA_MODEL_CONSTRUCT(RDC, 0x3010)
+
+/* Creative */
+#define CREATIVE_VENDORID	0x1102
+#define HDA_CREATIVE_ALL	HDA_MODEL_CONSTRUCT(CREATIVE, 0xffff)
 
 /* VIA */
 #define VIA_VENDORID		0x1106

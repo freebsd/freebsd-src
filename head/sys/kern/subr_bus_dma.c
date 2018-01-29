@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 EMC Corp.
  * All rights reserved.
  *
@@ -225,7 +227,7 @@ _bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 		nvmeio = &ccb->nvmeio;
 		data_ptr = nvmeio->data_ptr;
 		dxfer_len = nvmeio->dxfer_len;
-		sglist_cnt = 0;
+		sglist_cnt = nvmeio->sglist_cnt;
 		break;
 	}
 	default:

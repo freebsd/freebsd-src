@@ -748,7 +748,7 @@ bhnd_nvstore_var_register_path(struct bhnd_nvram_store *sc,
 }
 
 /**
- * Resolve the device path entry referenced referenced by @p info.
+ * Resolve the device path entry referenced by @p info.
  *
  * @param	sc		The NVRAM store to be updated.
  * @param	info		Variable name information descriptor containing

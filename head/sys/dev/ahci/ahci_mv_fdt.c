@@ -145,7 +145,6 @@ static device_method_t ahci_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ahci_devclass;
 static driver_t ahci_driver = {
 	"ahci",
 	ahci_methods,

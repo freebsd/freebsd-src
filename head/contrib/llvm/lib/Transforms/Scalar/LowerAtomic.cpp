@@ -15,7 +15,6 @@
 #include "llvm/Transforms/Scalar/LowerAtomic.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Scalar.h"
 using namespace llvm;
@@ -155,8 +154,7 @@ public:
   }
 
   bool runOnFunction(Function &F) override {
-    if (skipFunction(F))
-      return false;
+    // Don't skip optnone functions; atomics still need to be lowered.
     FunctionAnalysisManager DummyFAM;
     auto PA = Impl.run(F, DummyFAM);
     return !PA.areAllPreserved();

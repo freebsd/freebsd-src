@@ -1,6 +1,8 @@
 /*	$FreeBSD$	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -75,7 +77,7 @@ void	 print(struct tsp *, struct sockaddr_in *);
 void	 prthp(clock_t);
 void	 rmnetmachs(struct netinfo *);
 void	 setstatus(void);
-int	 slave(void);
+void	 slave(void) __dead2;
 void	 slaveack(void);
 void	 spreadtime(void);
 void	 suppress(struct sockaddr_in *, char *, struct netinfo *);

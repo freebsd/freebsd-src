@@ -61,8 +61,8 @@ struct completion {
 	linux_completion_done(c)
 
 extern void linux_complete_common(struct completion *, int);
-extern long linux_wait_for_common(struct completion *, int);
-extern long linux_wait_for_timeout_common(struct completion *, long, int);
+extern int linux_wait_for_common(struct completion *, int);
+extern int linux_wait_for_timeout_common(struct completion *, int, int);
 extern int linux_try_wait_for_completion(struct completion *);
 extern int linux_completion_done(struct completion *);
 

@@ -13,7 +13,7 @@
 
 #include "ClangSACheckers.h"
 #include "clang/AST/StmtVisitor.h"
-#include "clang/Analysis/AnalysisContext.h"
+#include "clang/Analysis/AnalysisDeclContext.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
@@ -32,7 +32,6 @@ static bool isArc4RandomAvailable(const ASTContext &Ctx) {
          T.getOS() == llvm::Triple::FreeBSD ||
          T.getOS() == llvm::Triple::NetBSD ||
          T.getOS() == llvm::Triple::OpenBSD ||
-         T.getOS() == llvm::Triple::Bitrig ||
          T.getOS() == llvm::Triple::DragonFly;
 }
 

@@ -2217,10 +2217,13 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 static int
 run_wme_update(struct ieee80211com *ic)
 {
+	struct chanAccParams chp;
 	struct run_softc *sc = ic->ic_softc;
-	const struct wmeParams *ac =
-	    ic->ic_wme.wme_chanParams.cap_wmeParams;
+	const struct wmeParams *ac;
 	int aci, error = 0;
+
+	ieee80211_wme_ic_getparams(ic, &chp);
+	ac = chp.cap_wmeParams;
 
 	/* update MAC TX configuration registers */
 	RUN_LOCK(sc);

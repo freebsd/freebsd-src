@@ -14,7 +14,7 @@ LIBADD=		sysdecode
 LIBADD+=	casper
 LIBADD+=	cap_grp
 LIBADD+=	cap_pwd
-CFLAGS+=-DHAVE_LIBCASPER
+CFLAGS+=-DWITH_CASPER
 .endif
 
 #NO_WERROR?=	YES

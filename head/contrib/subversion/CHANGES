@@ -1,3 +1,63 @@
+Version 1.9.7
+(10 Aug 2017, from /branches/1.9.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.9.7
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * Fix arbitrary code execution vulnerability CVE-2017-9800
+        See <https://subversion.apache.org/security/CVE-2017-9800-advisory.txt>
+        for details.
+
+  - Server-side bugfixes:
+    (none)
+
+  - Bindings bugfixes:
+    (none)
+
+ Developer-visible changes:
+  - General:
+    (none)
+
+  - API changes:
+    (none)
+
+
+Version 1.9.6
+(5 Jul 2017, from /branches/1.9.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.9.6
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * cp/mv: improve error message when target is an unversioned dir (r1779948)
+    * merge: reduce memory usage with large amounts of mergeinfo (issue #4667)
+
+  - Server-side bugfixes:
+    * 'svnadmin freeze': document the purpose more clearly (r1774109)
+    * dump: fix segfault when a revision has no revprops (r1781507)
+    * fsfs: improve error message upon failure to open rep-cache (r1781655)
+    * fsfs: never attempt to share directory representations (r1785053)
+    * fsfs: make consistency independent of hash algorithms (r1785737 et al)
+	This change makes Subversion resilient to collision attacks, including
+	SHA-1 collision attacks such as <http://shattered.io/>.  See also our
+	documentation at <https://subversion.apache.org/faq#shattered-sha1> and
+	<https://subversion.apache.org/docs/release-notes/1.9#shattered-sha1>.
+
+  - Client-side and server-side bugfixes:
+    * work around an APR bug related to file truncation (r1759116)
+
+  - Bindings bugfixes:
+    * javahl: follow redirects when opening a connection (r1667738, r1796720)
+
+ Developer-visible changes:
+  - General:
+    * win_tests.py: make the --bin option work, rather than abort (r1706432)
+      (regression introduced in 1.9.2)
+    * windows: support building with 'zlibstat.lib' in install-layout (r1783704)
+
+  - API changes:
+    (none)
+
+
 Version 1.9.5
 (29 Nov 2016, from /branches/1.9.x)
 http://svn.apache.org/repos/asf/subversion/tags/1.9.5
@@ -19,7 +79,7 @@ http://svn.apache.org/repos/asf/subversion/tags/1.9.5
     * fsfs: fix "offset too large" error during pack (issue #4657)
     * svnserve: enable hook script environments (r1769152)
     * fsfs: fix possible data reconstruction error (issue #4658)
-    * fix source of spurious 'incoming edit' tree conflicts (r1770108)
+    * fix source of spurious 'incoming edit' tree conflicts (r1760570)
     * fsfs: improve caching for large directories (r1721285)
     * fsfs: fix crash when encountering all-zero checksums (r1759686)
     * fsfs: fix potential source of repository corruptions (r1756266)
@@ -34,19 +94,19 @@ http://svn.apache.org/repos/asf/subversion/tags/1.9.5
 
   - Bindings bugfixes:
     * swig-pl: do not corrupt "{DATE}" revision variable (r1767768)
-    * javahl: fix temporary accepting SSL server certificates (r1764851)
+    * javahl: fix temporarily accepting SSL server certificates (r1764851)
     * swig-pl: fix possible stack corruption (r1683266, r1683267)
 
  Developer-visible changes:
   - General:
     * add zlib discovery through pkg-config (issue #4655)
     * fix potential build issue with invalid SVN_LOCALE_DIR (issue #4653)
-    * ruby: fix test failures with ruby >= 2.2 (r1766621)
-    * fix link error with --disable-keychain on OS X (r1765385)
+    * ruby: fix test failures with ruby >= 2.2 (r1766240)
+    * fix link error with --disable-keychain on OS X (r1761755)
     * swig: enable building with SWIG >= 3.0.6 (r1721488 et al)
     * swig: fix building with -Wdate-time in $CPPFLAGS (r1722164)
     * update serf download URI in build scripts (r1700130 et al)
-    * raise minimal httpd version from 2.0 to 2.2 (r1754193)
+    * raise minimal httpd version from 2.0 to 2.2 (r1754190)
 
 
 Version 1.9.4
@@ -105,7 +165,6 @@ http://svn.apache.org/repos/asf/subversion/tags/1.9.3
     * svn: report lock/unlock errors as failures (r1701598 et al)
     * svn: cleanup user deleted external registrations (r1705843, r1710558)
     * svn: allow simple resolving of binary file text conflicts (r1703581)
-    * svnlook: properly remove tempfiles on diff errors (r1711346)
     * ra_serf: report built- and run-time versions of libserf (r1704847)
     * ra_serf: set Content-Type header in outgoing requests (r1715224 et al)
     * svn: fix merging deletes of svn:eol-style CRLF/CR files (r1703689 et al)
@@ -118,6 +177,7 @@ http://svn.apache.org/repos/asf/subversion/tags/1.9.3
     * mod_dav_svn: use LimitXMLRequestBody for skel-encoded requests (r1687812)
     * svnadmin dump: preserve no-op changes (r1709388 et al, issue #4598)
     * fsfs: avoid unneeded I/O when opening transactions (r1715793)
+    * svnlook: properly remove tempfiles on diff errors (r1711346)
 
   - Client-side and server-side bugfixes:
     * fix heap overflow in svn:// protocol parser (CVE-2015-5259)
@@ -942,18 +1002,18 @@ http://svn.apache.org/repos/asf/subversion/tags/1.8.17
   - Client-side bugfixes:
     * fix handling of newly secured subdirectories in working copy (r1724448)
     * ra_serf: fix deleting directories with many files (issue #4557)
-    * svnlook: properly remove tempfiles on diff errors (r1711346)
     * gpg-agent: properly handle passwords with percent characters (issue #4611)
     * merge: fix crash when merging to a local add (r1702299 et al)
 
   - Server-side bugfixes:
     * fsfs: fix possible data reconstruction error (issue #4658)
+    * svnlook: properly remove tempfiles on diff errors (r1711346)
 
   - Client-side and server-side bugfixes:
     * fix potential memory access bugs (r1722860 et al)
 
   - Bindings bugfixes:
-    * javahl: fix temporary accepting SSL server certificates (r1764851)
+    * javahl: fix temporarily accepting SSL server certificates (r1764851)
     * swig-pl: do not corrupt "{DATE}" revision variable (r1767768)
     * swig-pl: fix possible stack corruption (r1683266)
 

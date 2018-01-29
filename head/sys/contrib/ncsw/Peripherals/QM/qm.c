@@ -38,6 +38,10 @@
 
  @Description   QM & Portal implementation
 *//***************************************************************************/
+
+#include <sys/cdefs.h>
+#include <sys/types.h>
+#include <machine/atomic.h>
 #include "error_ext.h"
 #include "std_ext.h"
 #include "string_ext.h"
@@ -209,7 +213,7 @@ static t_Error QmInitPfdr(t_Qm *p_Qm, uint32_t pfdr_start, uint32_t num)
     WRITE_UINT32(p_Qm->p_QmRegs->mcp1, (pfdr_start + num - 16));
     WRITE_UINT32(p_Qm->p_QmRegs->mcp1, (pfdr_start + num - 1));
 
-    CORE_MemoryBarrier();
+    mb();
     WRITE_UINT32(p_Qm->p_QmRegs->mcr, MCR_INIT_PFDR);
 
     /* Poll for the result */
@@ -556,6 +560,7 @@ uint32_t QmFqidGet(t_Qm *p_Qm, uint32_t size, uint32_t alignment, bool force, ui
                      "QM FQID MEM");
     XX_UnlockIntrSpinlock(p_Qm->lock, intFlags);
 
+    KASSERT(ans < UINT32_MAX, ("Oops, %lx > UINT32_MAX!\n", ans));
     return (uint32_t)ans;
 }
 
@@ -784,10 +789,10 @@ t_Error QM_Init(t_Handle h_Qm)
             RETURN_ERROR(MAJOR, E_NO_MEMORY, ("FQD obj!!!"));
         }
         memset(p_Qm->p_FqdBase, 0, dsSize);
-        CORE_MemoryBarrier();
+	mb();
         for (i=0; i<dsSize; i+=64)
             dcbf(PTR_MOVE(p_Qm->p_FqdBase, i));
-        CORE_MemoryBarrier();
+	mb();
 
         phyAddr = XX_VirtToPhys(p_Qm->p_FqdBase);
         WRITE_UINT32(p_Qm->p_QmRegs->fqd_bare, ((uint32_t)(phyAddr >> 32) & 0x000000ff));

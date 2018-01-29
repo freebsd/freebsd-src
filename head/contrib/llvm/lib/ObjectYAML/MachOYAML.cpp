@@ -52,14 +52,12 @@ StringRef ScalarTraits<char_16>::input(StringRef Scalar, void *, char_16 &Val) {
   return StringRef();
 }
 
-bool ScalarTraits<char_16>::mustQuote(StringRef S) { return needsQuotes(S); }
+QuotingType ScalarTraits<char_16>::mustQuote(StringRef S) {
+  return needsQuotes(S);
+}
 
 void ScalarTraits<uuid_t>::output(const uuid_t &Val, void *, raw_ostream &Out) {
-  for (int Idx = 0; Idx < 16; ++Idx) {
-    Out << format("%02" PRIX32, Val[Idx]);
-    if (Idx == 3 || Idx == 5 || Idx == 7 || Idx == 9)
-      Out << "-";
-  }
+  Out.write_uuid(Val);
 }
 
 StringRef ScalarTraits<uuid_t>::input(StringRef Scalar, void *, uuid_t &Val) {
@@ -79,7 +77,9 @@ StringRef ScalarTraits<uuid_t>::input(StringRef Scalar, void *, uuid_t &Val) {
   return StringRef();
 }
 
-bool ScalarTraits<uuid_t>::mustQuote(StringRef S) { return needsQuotes(S); }
+QuotingType ScalarTraits<uuid_t>::mustQuote(StringRef S) {
+  return needsQuotes(S);
+}
 
 void MappingTraits<MachOYAML::FileHeader>::mapping(
     IO &IO, MachOYAML::FileHeader &FileHdr) {

@@ -31,6 +31,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Derived by information released by Intel under the following license:
  *
  * Copyright (c) 1999 - 2001, Intel Corporation 

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -455,8 +457,8 @@ again:
 		first = 0;
 		if ((pwd = getpwnam(luser)) == NULL)
 			return (-1);
-		(void)strcpy(pbuf, pwd->pw_dir);
-		(void)strcat(pbuf, "/.rhosts");
+		(void)strlcpy(pbuf, pwd->pw_dir, sizeof(pbuf));
+		(void)strlcat(pbuf, "/.rhosts", sizeof(pbuf));
 
 		/*
 		 * Change effective uid while opening .rhosts.  If root and

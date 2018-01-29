@@ -1309,7 +1309,7 @@ tegra_pcib_enable(struct tegra_pcib_softc *sc)
 
 	for (i = 0; i < TEGRA_PCIB_MAX_PORTS; i++) {
 		if (sc->ports[i] != NULL) {
-			rv = phy_enable(sc->dev, sc->ports[i]->phy);
+			rv = phy_enable(sc->ports[i]->phy);
 			if (rv != 0) {
 				device_printf(sc->dev,
 				    "Cannot enable phy for port %d\n",

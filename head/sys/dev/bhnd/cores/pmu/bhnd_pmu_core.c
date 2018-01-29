@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
  * All rights reserved.
  *
@@ -92,6 +94,14 @@ bhnd_pmu_core_attach(device_t dev)
 	if (res == NULL) {
 		device_printf(dev, "failed to allocate resources\n");
 		return (ENXIO);
+	}
+
+	/* Allocate our per-core PMU state */
+	if ((error = bhnd_alloc_pmu(dev))) {
+		device_printf(sc->dev, "failed to allocate PMU state: %d\n",
+		    error);
+
+		return (error);
 	}
 
 	/* Delegate to common driver implementation */

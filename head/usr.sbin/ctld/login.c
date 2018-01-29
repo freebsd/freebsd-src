@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -435,7 +437,7 @@ login_chap(struct connection *conn, struct auth_group *ag)
 	 * Yay, authentication succeeded!
 	 */
 	log_debugx("authentication succeeded for user \"%s\"; "
-	    "transitioning to Negotiation Phase", auth->a_user);
+	    "transitioning to operational parameter negotiation", auth->a_user);
 	login_send_chap_success(request, auth);
 	pdu_delete(request);
 
@@ -746,7 +748,7 @@ login_negotiate(struct connection *conn, struct pdu *request)
 	/*
 	 * RFC 3720, 10.13.5.  Status-Class and Status-Detail, says
 	 * the redirection SHOULD be accepted by the initiator before
-	 * authentication, but MUST be be accepted afterwards; that's
+	 * authentication, but MUST be accepted afterwards; that's
 	 * why we're doing it here and not earlier.
 	 */
 	redirected = login_target_redirect(conn, request);

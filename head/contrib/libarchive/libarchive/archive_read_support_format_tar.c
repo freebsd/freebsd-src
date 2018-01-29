@@ -251,15 +251,15 @@ archive_read_support_format_tar(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_tar");
 
 	tar = (struct tar *)calloc(1, sizeof(*tar));
-#ifdef HAVE_COPYFILE_H
-	/* Set this by default on Mac OS. */
-	tar->process_mac_extensions = 1;
-#endif
 	if (tar == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate tar data");
 		return (ARCHIVE_FATAL);
 	}
+#ifdef HAVE_COPYFILE_H
+	/* Set this by default on Mac OS. */
+	tar->process_mac_extensions = 1;
+#endif
 
 	r = __archive_read_register_format(a, tar, "tar",
 	    archive_read_format_tar_bid,
@@ -2243,7 +2243,7 @@ gnu_add_sparse_entry(struct archive_read *a, struct tar *tar,
 	else
 		tar->sparse_list = p;
 	tar->sparse_last = p;
-	if (remaining < 0 || offset < 0) {
+	if (remaining < 0 || offset < 0 || offset > INT64_MAX - remaining) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC, "Malformed sparse map data");
 		return (ARCHIVE_FATAL);
 	}

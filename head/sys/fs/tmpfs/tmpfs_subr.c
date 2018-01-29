@@ -1,6 +1,8 @@
 /*	$NetBSD: tmpfs_subr.c,v 1.35 2007/07/09 21:10:50 ad Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2005 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -37,8 +39,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/dirent.h>
 #include <sys/fnv_hash.h>
 #include <sys/lock.h>
+#include <sys/limits.h>
+#include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
@@ -57,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
+#include <vm/swap_pager.h>
 
 #include <fs/tmpfs/tmpfs.h>
 #include <fs/tmpfs/tmpfs_fifoops.h>
@@ -350,7 +356,8 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 	case VREG:
 		uobj = node->tn_reg.tn_aobj;
 		if (uobj != NULL) {
-			atomic_subtract_long(&tmp->tm_pages_used, uobj->size);
+			if (uobj->size != 0)
+				atomic_subtract_long(&tmp->tm_pages_used, uobj->size);
 			KASSERT((uobj->flags & OBJ_TMPFS) == 0,
 			    ("leaked OBJ_TMPFS node %p vm_obj %p", node, uobj));
 			vm_object_deallocate(uobj);
@@ -361,7 +368,13 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 		panic("tmpfs_free_node: type %p %d", node, (int)node->tn_type);
 	}
 
-	free_unr(tmp->tm_ino_unr, node->tn_id);
+	/*
+	 * If we are unmounting there is no need for going through the overhead
+	 * of freeing the inodes from the unr individually, so free them all in
+	 * one go later.
+	 */
+	if (!detach)
+		free_unr(tmp->tm_ino_unr, node->tn_id);
 	uma_zfree(tmp->tm_node_pool, node);
 	TMPFS_LOCK(tmp);
 	tmpfs_free_tmp(tmp);
@@ -726,8 +739,8 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 	if (vap->va_type == VDIR) {
 		/* Ensure that we do not overflow the maximum number of links
 		 * imposed by the system. */
-		MPASS(dnode->tn_links <= LINK_MAX);
-		if (dnode->tn_links == LINK_MAX) {
+		MPASS(dnode->tn_links <= TMPFS_LINK_MAX);
+		if (dnode->tn_links == TMPFS_LINK_MAX) {
 			return (EMLINK);
 		}
 
@@ -1375,6 +1388,12 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 	oldpages = OFF_TO_IDX(oldsize + PAGE_MASK);
 	MPASS(oldpages == uobj->size);
 	newpages = OFF_TO_IDX(newsize + PAGE_MASK);
+
+	if (__predict_true(newpages == oldpages && newsize >= oldsize)) {
+		node->tn_size = newsize;
+		return (0);
+	}
+
 	if (newpages > oldpages &&
 	    tmpfs_pages_check_avail(tmp, newpages - oldpages) == 0)
 		return (ENOSPC);
@@ -1394,13 +1413,10 @@ retry:
 					goto retry;
 				MPASS(m->valid == VM_PAGE_BITS_ALL);
 			} else if (vm_pager_has_page(uobj, idx, NULL, NULL)) {
-				m = vm_page_alloc(uobj, idx, VM_ALLOC_NORMAL);
-				if (m == NULL) {
-					VM_OBJECT_WUNLOCK(uobj);
-					VM_WAIT;
-					VM_OBJECT_WLOCK(uobj);
+				m = vm_page_alloc(uobj, idx, VM_ALLOC_NORMAL |
+				    VM_ALLOC_WAITFAIL);
+				if (m == NULL)
 					goto retry;
-				}
 				rv = vm_pager_get_pages(uobj, &m, 1, NULL,
 				    NULL);
 				vm_page_lock(m);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c)2006 YAMAMOTO Takashi,
  * All rights reserved.
  *
@@ -72,6 +74,12 @@ void vmem_destroy(vmem_t *);
 
 void vmem_set_import(vmem_t *vm, vmem_import_t *importfn,
     vmem_release_t *releasefn, void *arg, vmem_size_t import_quantum);
+
+/*
+ * Set a limit on the total size of a vmem.
+ */
+
+void vmem_set_limit(vmem_t *vm, vmem_size_t limit);
 
 /*
  * Set a callback for reclaiming memory when space is exhausted:

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -202,6 +202,7 @@ typedef struct asl_method_info
     UINT8                   ArgInitialized[ACPI_METHOD_NUM_ARGS];
     UINT8                   HasBeenTyped;
     UINT8                   ShouldBeSerialized;
+    UINT8                   CreatesNamedObjects;
 
 } ASL_METHOD_INFO;
 
@@ -337,8 +338,11 @@ typedef struct asl_include_dir
 } ASL_INCLUDE_DIR;
 
 
-/* An entry in the exception list, one for each error/warning */
-
+/*
+ * An entry in the exception list, one for each error/warning
+ * Note: SubError nodes would be treated with the same messageId and Level
+ * as the parent error node.
+ */
 typedef struct asl_error_msg
 {
     UINT32                      LineNumber;
@@ -347,6 +351,7 @@ typedef struct asl_error_msg
     UINT32                      Column;
     char                        *Message;
     struct asl_error_msg        *Next;
+    struct asl_error_msg        *SubError;
     char                        *Filename;
     char                        *SourceLine;
     UINT32                      FilenameLength;

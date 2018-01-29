@@ -16,6 +16,7 @@ WARNS?=	2
 .include <bsd.endian.mk>
 
 .if ${TARGET_ENDIANNESS} == 1234
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 .endif
 
@@ -36,7 +37,7 @@ CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/head
 
 CFLAGS+=-I${SRCTOP}/sys
 
-LIBADD=	geom md
+LIBADD=	geom md ufs
 
 .if ${MK_ZFS} != "no"
 LIBADD+=nvpair zfs

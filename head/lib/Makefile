@@ -35,6 +35,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libcalendar \
 	libcam \
 	libcapsicum \
+	libcasper \
 	libcompat \
 	libcrypt \
 	libdevctl \
@@ -43,6 +44,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	${_libdl} \
 	libdwarf \
 	libedit \
+	libelftc \
 	libevent \
 	libexecinfo \
 	libexpat \
@@ -64,10 +66,12 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libopenbsd \
 	libopie \
 	libpam \
+	libpathconv \
 	libpcap \
 	libpjdlog \
 	${_libproc} \
 	libprocstat \
+	libregex \
 	librpcsvc \
 	librss \
 	librt \
@@ -75,7 +79,6 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libsbuf \
 	libsmb \
 	libsqlite3 \
-	libstand \
 	libstdbuf \
 	libstdthreads \
 	libsysdecode \
@@ -128,7 +131,6 @@ SUBDIR.${MK_ATM}+=	libngatm
 SUBDIR.${MK_BLACKLIST}+=libblacklist
 SUBDIR.${MK_BLUETOOTH}+=libbluetooth libsdp
 SUBDIR.${MK_BSNMP}+=	libbsnmp
-SUBDIR.${MK_CASPER}+=	libcasper
 
 .if !defined(COMPAT_32BIT) && !defined(COMPAT_SOFTFP)
 SUBDIR.${MK_CLANG}+=	clang
@@ -136,7 +138,7 @@ SUBDIR.${MK_CLANG}+=	clang
 
 SUBDIR.${MK_CUSE}+= 	libcuse
 SUBDIR.${MK_CXX}+=	libdevdctl
-SUBDIR.${MK_TOOLCHAIN}+=libelftc libpe
+SUBDIR.${MK_TOOLCHAIN}+=libpe
 SUBDIR.${MK_DIALOG}+=	libdpv
 SUBDIR.${MK_FILE}+=	libmagic
 SUBDIR.${MK_GPIO}+=	libgpio
@@ -158,9 +160,7 @@ _libclang_rt=	libclang_rt
 .if ${MK_LIBCPLUSPLUS} != "no"
 _libcxxrt=	libcxxrt
 _libcplusplus=	libc++
-.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 _libcplusplus+=	libc++experimental
-.endif
 .endif
 
 SUBDIR.${MK_EFI}+=	libefivar
@@ -189,7 +189,7 @@ _libdl=		libdl
 .endif
 
 SUBDIR.${MK_OPENSSL}+=	libmp
-SUBDIR.${MK_PMC}+=	libpmc
+SUBDIR.${MK_PMC}+=	libpmc libpmcstat
 SUBDIR.${MK_RADIUS_SUPPORT}+=	libradius
 SUBDIR.${MK_SENDMAIL}+=	libmilter libsm libsmdb libsmutil
 SUBDIR.${MK_TELNET}+=	libtelnet

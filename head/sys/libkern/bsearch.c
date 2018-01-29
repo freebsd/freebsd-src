@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -53,12 +55,8 @@ __FBSDID("$FreeBSD$");
  * look at item 3.
  */
 void *
-bsearch(key, base0, nmemb, size, compar)
-	const void *key;
-	const void *base0;
-	size_t nmemb;
-	size_t size;
-	int (*compar)(const void *, const void *);
+bsearch(const void *key, const void *base0, size_t nmemb, size_t size,
+    int (*compar)(const void *, const void *))
 {
 	const char *base = base0;
 	size_t lim;

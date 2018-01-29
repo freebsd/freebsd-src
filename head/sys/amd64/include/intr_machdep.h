@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 John Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -130,13 +132,14 @@ struct intsrc {
 	u_long *is_straycount;
 	u_int is_index;
 	u_int is_handlers;
+	u_int is_cpu;
 };
 
 struct trapframe;
 
 /*
  * The following data structure holds per-cpu data, and is placed just
- * above the top of the space used for the NMI stack.
+ * above the top of the space used for the NMI and MC# stacks.
  */
 struct nmi_pcpu {
 	register_t	np_pcpu;

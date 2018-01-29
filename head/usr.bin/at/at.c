@@ -1,5 +1,8 @@
-/* 
+/*-
  *  at.c : Put file into atrun queue
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  *  Copyright (C) 1993, 1994 Thomas Koenig
  *
  *  Atrun & Atq modifications

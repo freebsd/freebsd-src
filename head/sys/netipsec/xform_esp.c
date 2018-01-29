@@ -385,6 +385,8 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	/* Crypto operation descriptor */
 	crp->crp_ilen = m->m_pkthdr.len; /* Total input length */
 	crp->crp_flags = CRYPTO_F_IMBUF | CRYPTO_F_CBIFSYNC;
+	if (V_async_crypto)
+		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
 	crp->crp_buf = (caddr_t) m;
 	crp->crp_callback = esp_input_cb;
 	crp->crp_sid = cryptoid;
@@ -439,7 +441,6 @@ esp_input_cb(struct cryptop *crp)
 	IPSEC_DEBUG_DECLARE(char buf[128]);
 	u_int8_t lastthree[3], aalg[AH_HMAC_MAXHASHLEN];
 	const struct auth_hash *esph;
-	const struct enc_xform *espx;
 	struct mbuf *m;
 	struct cryptodesc *crd;
 	struct xform_data *xd;
@@ -460,7 +461,6 @@ esp_input_cb(struct cryptop *crp)
 	cryptoid = xd->cryptoid;
 	saidx = &sav->sah->saidx;
 	esph = sav->tdb_authalgxform;
-	espx = sav->tdb_encalgxform;
 
 	/* Check for crypto errors */
 	if (crp->crp_etype) {
@@ -841,6 +841,8 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	/* Crypto operation descriptor. */
 	crp->crp_ilen = m->m_pkthdr.len; /* Total input length. */
 	crp->crp_flags = CRYPTO_F_IMBUF | CRYPTO_F_CBIFSYNC;
+	if (V_async_crypto)
+		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
 	crp->crp_buf = (caddr_t) m;
 	crp->crp_callback = esp_output_cb;
 	crp->crp_opaque = (caddr_t) xd;

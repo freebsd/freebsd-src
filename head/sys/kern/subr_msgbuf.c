@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Ian Dowse.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -185,11 +187,10 @@ msgbuf_addstr(struct msgbuf *mbp, int pri, char *str, int filter_cr)
 	size_t len, prefix_len;
 	char prefix[MAXPRIBUF];
 	char buf[32];
-	int nl, i, j, needtime;
+	int i, j, needtime;
 
 	len = strlen(str);
 	prefix_len = 0;
-	nl = 0;
 
 	/* If we have a zero-length string, no need to do anything. */
 	if (len == 0)

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012, Fabien Thomas
  * All rights reserved.
  *
@@ -57,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include "pmcstat_log.h"
 #include "pmcstat_top.h"
 #include "pmcpl_calltree.h"
+
+#define	min(A,B)		((A) < (B) ? (A) : (B))
+#define	max(A,B)		((A) > (B) ? (A) : (B))
 
 #define	PMCPL_CT_GROWSIZE	4
 
@@ -581,8 +586,11 @@ pmcpl_ct_topdisplay(void)
  */
 
 int
-pmcpl_ct_topkeypress(int c, WINDOW *w)
+pmcpl_ct_topkeypress(int c, void *arg)
 {
+	WINDOW *w;
+
+	w = (WINDOW *)arg;
 
 	switch (c) {
 	case 'f':

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Brian Somers <brian@Awfulhak.org>
  *                    Ian Donaldson <iand@labtam.labtam.oz.au>
  *                    Carsten Bormann <cabo@cs.tu-berlin.de>

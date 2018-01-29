@@ -1,6 +1,8 @@
 /*	$NetBSD: pkill.c,v 1.16 2005/10/10 22:13:20 kleink Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2002 The NetBSD Foundation, Inc.
  * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
@@ -43,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -567,6 +570,8 @@ main(int argc, char **argv)
 			continue;
 		rv |= (*action)(kp);
 	}
+	if (rv && pgrep && !quiet)
+		putchar('\n');
 	if (!did_action && !pgrep && longfmt)
 		fprintf(stderr,
 		    "No matching processes belonging to you were found\n");
@@ -656,10 +661,12 @@ killact(const struct kinfo_proc *kp)
 static int
 grepact(const struct kinfo_proc *kp)
 {
+	static bool first = true;
 
-	show_process(kp);
-	if (!quiet)
+	if (!quiet && !first)
 		printf("%s", delim);
+	show_process(kp);
+	first = false;
 	return (1);
 }
 

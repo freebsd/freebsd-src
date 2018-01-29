@@ -130,7 +130,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #ifdef __powerpc64__
-extern int n_slbs;
+#include "mmu_oea64.h"
 #endif
 
 #ifndef __powerpc64__
@@ -150,7 +150,6 @@ extern Elf_Addr	_GLOBAL_OFFSET_TABLE_[];
 extern void	*rstcode, *rstcodeend;
 extern void	*trapcode, *trapcodeend;
 extern void	*generictrap, *generictrap64;
-extern void	*slbtrap, *slbtrapend;
 extern void	*alitrap, *aliend;
 extern void	*dsitrap, *dsiend;
 extern void	*decrint, *decrsize;
@@ -332,9 +331,6 @@ aim_cpu_init(vm_offset_t toc)
 	/* Set TOC base so that the interrupt code can get at it */
 	*((void **)TRAP_GENTRAP) = &generictrap;
 	*((register_t *)TRAP_TOCBASE) = toc;
-
-	bcopy(&slbtrap, (void *)EXC_DSE,(size_t)&slbtrapend - (size_t)&slbtrap);
-	bcopy(&slbtrap, (void *)EXC_ISE,(size_t)&slbtrapend - (size_t)&slbtrap);
 	#else
 	/* Set branch address for trap code */
 	if (cpu_features & PPC_FEATURE_64)
@@ -595,7 +591,7 @@ cpu_sleep()
 		while (1)
 			mtmsr(msr);
 	}
-	mttb(timebase);
+	platform_smp_timebase_sync(timebase, 0);
 	PCPU_SET(curthread, curthread);
 	PCPU_SET(curpcb, curthread->td_pcb);
 	pmap_activate(curthread);

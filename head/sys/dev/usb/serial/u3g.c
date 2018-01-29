@@ -200,6 +200,7 @@ static driver_t u3g_driver = {
 
 static const STRUCT_USB_HOST_ID u3g_devs[] = {
 #define	U3G_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
+	U3G_DEV(ABIT, AK_020, 0),
 	U3G_DEV(ACERP, H10, 0),
 	U3G_DEV(AIRPLUS, MCD650, 0),
 	U3G_DEV(AIRPRIME, PC5220, 0),
@@ -236,6 +237,8 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(DLINK, DWR510, 0),
 	U3G_DEV(DLINK, DWM157_CD, U3GINIT_SCSIEJECT),
 	U3G_DEV(DLINK, DWM157, 0),
+	U3G_DEV(DLINK, DWM222_CD, U3GINIT_SCSIEJECT),
+	U3G_DEV(DLINK, DWM222, 0),
 	U3G_DEV(DLINK3, DWM652, 0),
 	U3G_DEV(HP, EV2200, 0),
 	U3G_DEV(HP, HS2300, 0),
@@ -306,7 +309,7 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(HUAWEI, E173, 0),
 	U3G_DEV(HUAWEI, E173_INIT, U3GINIT_HUAWEISCSI),
 	U3G_DEV(HUAWEI, E3131, 0),
-	U3G_DEV(HUAWEI, E3131_INIT, U3GINIT_HUAWEISCSI),
+	U3G_DEV(HUAWEI, E3131_INIT, U3GINIT_HUAWEISCSI2),
 	U3G_DEV(HUAWEI, E180V, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E220, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E220BIS, U3GINIT_HUAWEI),
@@ -327,6 +330,8 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(HUAWEI, K4505, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, K4505_INIT, U3GINIT_HUAWEISCSI),
 	U3G_DEV(HUAWEI, ETS2055, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E3272_INIT, U3GINIT_HUAWEISCSI2),
+	U3G_DEV(HUAWEI, E3272, 0),
 	U3G_DEV(KYOCERA2, CDMA_MSM_K, 0),
 	U3G_DEV(KYOCERA2, KPC680, 0),
 	U3G_DEV(LONGCHEER, WM66, U3GINIT_HUAWEI),
@@ -489,6 +494,7 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(QUANTA, GLX, 0),
 	U3G_DEV(QUANTA, Q101, 0),
 	U3G_DEV(QUANTA, Q111, 0),
+	U3G_DEV(QUECTEL, EC25, 0),
 	U3G_DEV(SIERRA, AC402, 0),
 	U3G_DEV(SIERRA, AC595U, 0),
 	U3G_DEV(SIERRA, AC313U, 0),
@@ -625,6 +631,45 @@ u3g_huawei_init(struct usb_device *udev)
 	    NULL, 0, NULL, USB_MS_HZ)) {
 		/* ignore any errors */
 	}
+	return (0);
+}
+
+static int
+u3g_huawei_is_cdce(uint16_t idVendor, uint8_t bInterfaceSubClass,
+    uint8_t bInterfaceProtocol)
+{
+	/*
+	 * This function returns non-zero if the interface being
+	 * probed is of type CDC ethernet, which the U3G driver should
+	 * not attach to. See sys/dev/usb/net/if_cdce.c for matching
+	 * entries.
+	 */
+	if (idVendor != USB_VENDOR_HUAWEI)
+		goto done;
+
+	switch (bInterfaceSubClass) {
+	case 0x02:
+		switch (bInterfaceProtocol) {
+		case 0x16:
+		case 0x46:
+		case 0x76:
+			return (1);
+		default:
+			break;
+		}
+		break;
+	case 0x03:
+		switch (bInterfaceProtocol) {
+		case 0x16:
+			return (1);
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+done:
 	return (0);
 }
 
@@ -841,6 +886,10 @@ u3g_probe(device_t self)
 	if (uaa->info.bInterfaceClass != UICLASS_VENDOR) {
 		return (ENXIO);
 	}
+	if (u3g_huawei_is_cdce(uaa->info.idVendor, uaa->info.bInterfaceSubClass,
+	    uaa->info.bInterfaceProtocol)) {
+		return (ENXIO);
+	}
 	return (usbd_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa));
 }
 
@@ -883,6 +932,9 @@ u3g_attach(device_t dev)
 			break;
 		id = usbd_get_interface_descriptor(iface);
 		if (id == NULL || id->bInterfaceClass != UICLASS_VENDOR)
+			continue;
+		if (u3g_huawei_is_cdce(uaa->info.idVendor,
+		    id->bInterfaceSubClass, id->bInterfaceProtocol))
 			continue;
 		usbd_set_parent_iface(uaa->device, i, uaa->info.bIfaceIndex);
 		iface_valid |= (1<<i);

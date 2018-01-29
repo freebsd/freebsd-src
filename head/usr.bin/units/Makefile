@@ -8,6 +8,7 @@ FILESDIR=	${SHAREDIR}/misc
 
 LIBADD=	edit
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

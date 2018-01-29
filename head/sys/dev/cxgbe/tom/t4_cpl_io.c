@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012, 2015 Chelsio Communications, Inc.
  * All rights reserved.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
@@ -70,19 +72,6 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_tcb.h"
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
-
-VNET_DECLARE(int, tcp_do_autosndbuf);
-#define V_tcp_do_autosndbuf VNET(tcp_do_autosndbuf)
-VNET_DECLARE(int, tcp_autosndbuf_inc);
-#define V_tcp_autosndbuf_inc VNET(tcp_autosndbuf_inc)
-VNET_DECLARE(int, tcp_autosndbuf_max);
-#define V_tcp_autosndbuf_max VNET(tcp_autosndbuf_max)
-VNET_DECLARE(int, tcp_do_autorcvbuf);
-#define V_tcp_do_autorcvbuf VNET(tcp_do_autorcvbuf)
-VNET_DECLARE(int, tcp_autorcvbuf_inc);
-#define V_tcp_autorcvbuf_inc VNET(tcp_autorcvbuf_inc)
-VNET_DECLARE(int, tcp_autorcvbuf_max);
-#define V_tcp_autorcvbuf_max VNET(tcp_autorcvbuf_max)
 
 #define	IS_AIOTX_MBUF(m)						\
 	((m)->m_flags & M_EXT && (m)->m_ext.ext_flags & EXT_FLAG_AIOTX)
@@ -1979,9 +1968,9 @@ free_aiotx_buffer(struct aiotx_buffer *ab)
 }
 
 static void
-t4_aiotx_mbuf_free(struct mbuf *m, void *buffer, void *arg)
+t4_aiotx_mbuf_free(struct mbuf *m)
 {
-	struct aiotx_buffer *ab = buffer;
+	struct aiotx_buffer *ab = m->m_ext.ext_arg1;
 
 #ifdef VERBOSE_TRACES
 	CTR3(KTR_CXGBE, "%s: completed %d bytes for tid %d", __func__,

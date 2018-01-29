@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2004 Christian Limpach.
  * Copyright (c) 2004-2006,2008 Kip Macy
  * Copyright (c) 2008 The NetBSD Foundation, Inc.

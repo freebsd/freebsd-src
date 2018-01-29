@@ -427,12 +427,18 @@ ds3231_start(void *xdev)
 		device_printf(sc->sc_dev,
 		    "WARNING: RTC clock stopped, check the battery.\n");
 	}
-	/* Ack any pending alarm interrupt. */
-	if (ds3231_status_write(sc, 1, 1) != 0)
-		return;
-	/* Always enable the oscillator. */
-	if (ds3231_ctrl_write(sc) != 0)
-		return;
+
+	/*
+	 * Ack any pending alarm interrupts and clear the EOSC bit to ensure the
+	 * clock runs even when on battery power.  Do not give up if these
+	 * writes fail, because a factory-fresh chip is in a special mode that
+	 * disables much of the chip to save battery power, and the only thing
+	 * that gets it out of that mode is writing to the time registers.  In
+	 * these pristine chips, the EOSC and alarm bits are zero already, so
+	 * the first valid write of time will get everything running properly.
+	 */
+	ds3231_status_write(sc, 1, 1);
+	ds3231_ctrl_write(sc);
 
 	/* Temperature. */
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "temperature",
@@ -568,7 +574,7 @@ ds3231_settime(device_t dev, struct timespec *ts)
 	data[DS3231_MINS]    = TOBCD(ct.min);
 	data[DS3231_HOUR]    = TOBCD(ct.hour) | pmflags;
 	data[DS3231_DATE]    = TOBCD(ct.day);
-	data[DS3231_WEEKDAY] = ct.dow;
+	data[DS3231_WEEKDAY] = ct.dow + 1;
 	data[DS3231_MONTH]   = TOBCD(ct.mon);
 	data[DS3231_YEAR]    = TOBCD(ct.year % 100);
 	if (sc->sc_last_c)

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 M. Warner Losh.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -160,8 +162,8 @@ at91_twi_attach(device_t dev)
 
 	if ((sc->iicbus = device_add_child(dev, "iicbus", -1)) == NULL)
 		device_printf(dev, "could not allocate iicbus instance\n");
-	/* probe and attach the iicbus */
-	bus_generic_attach(dev);
+	/* Probe and attach the iicbus when interrupts are available. */
+	config_intrhook_oneshot((ich_func_t)bus_generic_attach, dev);
 out:
 	if (err)
 		at91_twi_deactivate(dev);

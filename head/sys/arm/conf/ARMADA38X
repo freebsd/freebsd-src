@@ -5,7 +5,7 @@
 #
 
 include 	"../mv/armada38x/std.armada38x"
-include 	"std.armv6"
+include 	"std.armv7"
 
 ident 	ARMADA38X
 
@@ -47,6 +47,9 @@ device		neta
 
 # PCI
 device		pci
+
+# RTC
+device		mv_rtc
 
 # Interrupt controllers
 device		gic

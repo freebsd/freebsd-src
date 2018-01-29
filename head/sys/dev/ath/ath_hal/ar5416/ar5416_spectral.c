@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2012 Qualcomm Atheros, All Rights Reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997-2000 Nicolas Souchu
  * Copyright (c) 2001 Alcove - Nicolas Souchu
  * Copyright (c) 2006 Marcel Moolenaar
@@ -272,3 +274,4 @@ error:
 }
 
 DRIVER_MODULE(ppc, isa, ppc_isa_driver, ppc_devclass, 0, 0);
+ISA_PNP_INFO(lpc_ids);

@@ -28,7 +28,7 @@
 .\"	@(#)logger.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2016
+.Dd December 5, 2017
 .Dt LOGGER 1
 .Os
 .Sh NAME
@@ -38,6 +38,7 @@
 .Nm
 .Op Fl 46Ais
 .Op Fl f Ar file
+.Op Fl H Ar hostname
 .Op Fl h Ar host
 .Op Fl P Ar port
 .Op Fl p Ar pri
@@ -77,6 +78,11 @@ Log the message to standard error, as well as the system log.
 .It Fl f Ar file
 Read the contents of the specified file into syslog.
 This option is ignored when a message is also specified.
+.It Fl H Ar hostname
+Set the hostname in the header of the message to specified value.
+If not specified, host part of
+.Xr gethostname 3
+will be used.
 .It Fl h Ar host
 Send the message to the remote system
 .Ar host

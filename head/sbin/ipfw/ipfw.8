@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2017
+.Dd November 26, 2017
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -537,7 +537,7 @@ for filtering packets, among the following:
 .It Layer-2 header fields
 When available
 .It IPv4 and IPv6 Protocol
-TCP, UDP, ICMP, etc.
+SCTP, TCP, UDP, ICMP, etc.
 .It Source and dest. addresses and ports
 .It Direction
 See Section
@@ -1173,6 +1173,14 @@ ipfw add reass all from any to any in
 .Ed
 .Pp
 is all you need at the beginning of your ruleset.
+.It Cm abort
+Discard packets that match this rule, and if the packet is an SCTP packet,
+try to send an SCTP packet containing an ABORT chunk.
+The search terminates.
+.It Cm abort6
+Discard packets that match this rule, and if the packet is an SCTP packet,
+try to send an SCTP packet containing an ABORT chunk.
+The search terminates.
 .El
 .Ss RULE BODY
 The body of a rule contains zero or more patterns (such as
@@ -1396,7 +1404,7 @@ error-prone.
 No support for sets of IPv6 addresses is provided because IPv6 addresses
 are typically random past the initial prefix.
 .It Ar ports : Bro Ar port | port Ns \&- Ns Ar port Ns Brc Ns Op , Ns Ar ports
-For protocols which support port numbers (such as TCP and UDP), optional
+For protocols which support port numbers (such as SCTP, TCP and UDP), optional
 .Cm ports
 may be specified as one or more ports or port ranges, separated
 by commas but no spaces, and an optional
@@ -3012,7 +3020,7 @@ supports in-kernel IPv6/IPv4 network address and protocol translation.
 Stateful NAT64 translation allows IPv6-only clients to contact IPv4 servers
 using unicast TCP, UDP or ICMP protocols.
 One or more IPv4 addresses assigned to a stateful NAT64 translator are shared
-among serveral IPv6-only clients.
+among several IPv6-only clients.
 When stateful NAT64 is used in conjunction with DNS64, no changes are usually
 required in the IPv6 client or the IPv4 server.
 The kernel module

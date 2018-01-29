@@ -117,8 +117,11 @@ VECTOR(_locore, unknown)
 	 *	Enable FPU
 	 */
 	li	t1, MIPS_SR_COP_1_BIT
+#if defined(__mips_n32) || defined(__mips_n64)
+	or	t1, MIPS_SR_FR
+#endif
 #ifdef __mips_n64
-	or	t1, MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_FR
+	or	t1, MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX
 #endif
 #endif
 	/*

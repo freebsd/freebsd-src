@@ -1,6 +1,8 @@
 /*	$OpenBSD: rcmdsh.c,v 1.7 2002/03/12 00:05:44 millert Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001, MagniComp
  * All rights reserved.
  * 

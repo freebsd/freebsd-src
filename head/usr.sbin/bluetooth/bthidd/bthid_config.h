@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -42,6 +44,9 @@ struct hid_device
 	bdaddr_t		bdaddr;		/* HID device BDADDR */
 	uint16_t		control_psm;	/* control PSM */
 	uint16_t		interrupt_psm;	/* interrupt PSM */
+	uint16_t		vendor_id;	/* primary vendor id */
+	uint16_t		product_id;
+	uint16_t		version;
 	unsigned		new_device           : 1;
 	unsigned		reconnect_initiate   : 1;
 	unsigned		battery_power        : 1;

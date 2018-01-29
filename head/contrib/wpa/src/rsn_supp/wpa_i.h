@@ -30,6 +30,12 @@ struct wpa_sm {
 	u8 rx_replay_counter[WPA_REPLAY_COUNTER_LEN];
 	int rx_replay_counter_set;
 	u8 request_counter[WPA_REPLAY_COUNTER_LEN];
+	struct wpa_gtk gtk;
+	struct wpa_gtk gtk_wnm_sleep;
+#ifdef CONFIG_IEEE80211W
+	struct wpa_igtk igtk;
+	struct wpa_igtk igtk_wnm_sleep;
+#endif /* CONFIG_IEEE80211W */
 
 	struct eapol_sm *eapol; /* EAPOL state machine from upper level code */
 
@@ -121,6 +127,7 @@ struct wpa_sm {
 	size_t r0kh_id_len;
 	u8 r1kh_id[FT_R1KH_ID_LEN];
 	int ft_completed;
+	int ft_reassoc_completed;
 	int over_the_ds_in_progress;
 	u8 target_ap[ETH_ALEN]; /* over-the-DS target AP */
 	int set_ptk_after_assoc;

@@ -300,6 +300,7 @@ aw_clk_nkmp_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		val |= aw_clk_factor_get_value(&sc->p, best_p) << sc->p.shift;
 		WRITE4(clk, sc->offset, val);
 		DELAY(2000);
+		DEVICE_UNLOCK(clk);
 
 		if ((sc->flags & AW_CLK_HAS_UPDATE) != 0) {
 			DEVICE_LOCK(clk);
@@ -307,6 +308,7 @@ aw_clk_nkmp_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 			val |= 1 << sc->update_shift;
 			WRITE4(clk, sc->offset, val);
 			DELAY(2000);
+			DEVICE_UNLOCK(clk);
 		}
 
 		if ((sc->flags & AW_CLK_HAS_LOCK) != 0) {

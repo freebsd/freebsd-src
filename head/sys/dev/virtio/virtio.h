@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2014, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *

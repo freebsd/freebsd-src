@@ -1,6 +1,8 @@
 /*	$NetBSD: longjmp.c,v 1.1 2005/09/17 11:49:39 tsutsui Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2003 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

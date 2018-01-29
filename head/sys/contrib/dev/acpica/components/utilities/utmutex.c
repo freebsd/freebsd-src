@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -432,8 +432,8 @@ AcpiUtAcquireMutex (
     else
     {
         ACPI_EXCEPTION ((AE_INFO, Status,
-            "Thread %u could not acquire Mutex [0x%X]",
-            (UINT32) ThisThreadId, MutexId));
+            "Thread %u could not acquire Mutex [%s] (0x%X)",
+            (UINT32) ThisThreadId, AcpiUtGetMutexName (MutexId), MutexId));
     }
 
     return (Status);
@@ -473,7 +473,8 @@ AcpiUtReleaseMutex (
     if (AcpiGbl_MutexInfo[MutexId].ThreadId == ACPI_MUTEX_NOT_ACQUIRED)
     {
         ACPI_ERROR ((AE_INFO,
-            "Mutex [0x%X] is not acquired, cannot release", MutexId));
+            "Mutex [%s] (0x%X) is not acquired, cannot release",
+            AcpiUtGetMutexName (MutexId), MutexId));
 
         return (AE_NOT_ACQUIRED);
     }

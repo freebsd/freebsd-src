@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Scott Long <scottl@freebsd.org>
  * Copyright (c) 2001 Darrell Anderson <anderson@cs.duke.edu>
  * All rights reserved.

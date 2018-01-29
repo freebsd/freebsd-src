@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -2248,6 +2250,10 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	if (V_ip6_forwarding)
 		goto freeit;
 	if (!V_icmp6_rediraccept)
+		goto freeit;
+
+	/* RFC 6980: Nodes MUST silently ignore fragments */
+	if(m->m_flags & M_FRAGMENTED)
 		goto freeit;
 
 #ifndef PULLDOWN_TEST

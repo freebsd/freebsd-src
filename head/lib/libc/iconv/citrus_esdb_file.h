@@ -2,6 +2,8 @@
 /* $NetBSD: citrus_esdb_file.h,v 1.1 2003/06/25 09:51:32 tshiozak Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2003 Citrus Project,
  * All rights reserved.
  *

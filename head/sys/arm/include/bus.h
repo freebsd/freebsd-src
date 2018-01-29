@@ -31,6 +31,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1996 Charles M. Hannum.  All rights reserved.
  * Copyright (c) 1996 Christopher G. Demetriou.  All rights reserved.
  *

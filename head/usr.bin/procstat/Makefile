@@ -22,6 +22,7 @@ SRCS=	procstat.c		\
 
 LIBADD+=	procstat xo util sbuf
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

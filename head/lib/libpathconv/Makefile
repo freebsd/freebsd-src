@@ -13,6 +13,7 @@ SRCS=		abs2rel.c rel2abs.c
 #VERSION_DEF=	${SRCTOP/lib/libc/Versions.def
 #SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 
-SUBDIR.${MK_TESTS}+= tests
+HAS_TESTS=
+#SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.lib.mk>

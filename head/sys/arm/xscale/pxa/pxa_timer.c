@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Benno Rice.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -212,10 +214,12 @@ DELAY(int usec)
 				;
 		return;
 	}
+	TSENTER();
 
 	val = pxa_timer_get_oscr();
 	val += (PXA_TIMER_FREQUENCY * usec) / 1000000;
 	while (pxa_timer_get_oscr() <= val);
+	TSEXIT();
 }
 
 uint32_t

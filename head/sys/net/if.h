@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -232,7 +234,7 @@ struct if_data {
 #define	IFCAP_TOE4		0x04000	/* interface can offload TCP */
 #define	IFCAP_TOE6		0x08000	/* interface can offload TCP6 */
 #define	IFCAP_VLAN_HWFILTER	0x10000 /* interface hw can filter vlan tag */
-#define	IFCAP_POLLING_NOCOUNT	0x20000 /* polling ticks cannot be fragmented */
+/* 	available		0x20000 */
 #define	IFCAP_VLAN_HWTSO	0x40000 /* can do IFCAP_TSO on VLANs */
 #define	IFCAP_LINKSTATE		0x80000 /* the runtime link state is dynamic */
 #define	IFCAP_NETMAP		0x100000 /* netmap mode supported/enabled */
@@ -240,6 +242,7 @@ struct if_data {
 #define	IFCAP_TXCSUM_IPV6	0x400000  /* can offload checksum on IPv6 TX */
 #define	IFCAP_HWSTATS		0x800000 /* manages counters internally */
 #define	IFCAP_TXRTLMT		0x1000000 /* hardware supports TX rate limiting */
+#define	IFCAP_HWRXTSTMP		0x2000000 /* hardware rx timestamping */
 
 #define IFCAP_HWCSUM_IPV6	(IFCAP_RXCSUM_IPV6 | IFCAP_TXCSUM_IPV6)
 
@@ -525,6 +528,42 @@ struct ifi2creq {
 	uint32_t spare1;
 	uint8_t data[8];	/* read buffer */
 }; 
+
+/*
+ * RSS hash.
+ */
+
+#define	RSS_FUNC_NONE		0		/* RSS disabled */
+#define	RSS_FUNC_PRIVATE	1		/* non-standard */
+#define	RSS_FUNC_TOEPLITZ	2
+
+#define	RSS_TYPE_IPV4		0x00000001
+#define	RSS_TYPE_TCP_IPV4	0x00000002
+#define	RSS_TYPE_IPV6		0x00000004
+#define	RSS_TYPE_IPV6_EX	0x00000008
+#define	RSS_TYPE_TCP_IPV6	0x00000010
+#define	RSS_TYPE_TCP_IPV6_EX	0x00000020
+#define	RSS_TYPE_UDP_IPV4	0x00000040
+#define	RSS_TYPE_UDP_IPV6	0x00000080
+#define	RSS_TYPE_UDP_IPV6_EX	0x00000100
+
+#define	RSS_KEYLEN		128
+
+struct ifrsskey {
+	char		ifrk_name[IFNAMSIZ];	/* if name, e.g. "en0" */
+	uint8_t		ifrk_func;		/* RSS_FUNC_ */
+	uint8_t		ifrk_spare0;
+	uint16_t	ifrk_keylen;
+	uint8_t		ifrk_key[RSS_KEYLEN];
+};
+
+struct ifrsshash {
+	char		ifrh_name[IFNAMSIZ];	/* if name, e.g. "en0" */
+	uint8_t		ifrh_func;		/* RSS_FUNC_ */
+	uint8_t		ifrh_spare0;
+	uint16_t	ifrh_spare1;
+	uint32_t	ifrh_types;		/* RSS_TYPE_ */
+};
 
 #endif /* __BSD_VISIBLE */
 

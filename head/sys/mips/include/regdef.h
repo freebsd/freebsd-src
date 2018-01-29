@@ -1,6 +1,8 @@
 /*	$NetBSD: regdef.h,v 1.12 2005/12/11 12:18:09 christos Exp $	*/
 
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

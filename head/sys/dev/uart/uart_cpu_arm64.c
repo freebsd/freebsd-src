@@ -100,7 +100,8 @@ uart_cpu_acpi_scan(uint8_t interface_type)
 
 static int
 uart_cpu_acpi_probe(struct uart_class **classp, bus_space_tag_t *bst,
-    bus_space_handle_t *bsh, int *baud, u_int *rclk, u_int *shiftp)
+    bus_space_handle_t *bsh, int *baud, u_int *rclk, u_int *shiftp,
+    u_int *iowidthp)
 {
 	struct acpi_uart_compat_data *cd;
 	ACPI_TABLE_SPCR *spcr;
@@ -142,6 +143,7 @@ uart_cpu_acpi_probe(struct uart_class **classp, bus_space_tag_t *bst,
 	*classp = cd->clas;
 	*rclk = 0;
 	*shiftp = 2;
+	*iowidthp = spcr->SerialPort.BitWidth / 8;
 
 out:
 	acpi_unmap_table(spcr);
@@ -169,7 +171,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 
 	err = ENXIO;
 #ifdef DEV_ACPI
-	err = uart_cpu_acpi_probe(&class, &bst, &bsh, &br, &rclk, &shift);
+	err = uart_cpu_acpi_probe(&class, &bst, &bsh, &br, &rclk, &shift,
+	    &iowidth);
 #endif
 #ifdef FDT
 	if (err != 0) {

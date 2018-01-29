@@ -12,7 +12,7 @@ OBJS+=	armv8_crypto_wrap.o
 armv8_crypto_wrap.o: armv8_crypto_wrap.c
 	${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc:N-mgeneral-regs-only} \
 	    ${WERROR} ${PROF} \
-	     -march=armv8a+crypto ${.IMPSRC}
+	     -march=armv8-a+crypto ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
 armv8_crypto_wrap.o: armv8_crypto.h

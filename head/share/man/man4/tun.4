@@ -2,7 +2,7 @@
 .\" $FreeBSD$
 .\" Based on PR#2411
 .\"
-.Dd November 30, 2014
+.Dd November 29, 2017
 .Dt TUN 4
 .Os
 .Sh NAME
@@ -208,8 +208,15 @@ this stores the internal debugging variable's value into it.
 .It Dv TUNSIFINFO
 The argument should be a pointer to an
 .Vt struct tuninfo
-and allows setting the MTU, the type, and the baudrate of the tunnel
+and allows setting the MTU and the baudrate of the tunnel
 device.
+The type must be the same as returned by
+.Dv TUNGIFINFO
+or set to
+.Dv IFT_PPP
+else the
+.Xr ioctl 2
+call will fail.
 The
 .Vt struct tuninfo
 is declared in

@@ -1,6 +1,8 @@
 /*	$NetBSD: walk.c,v 1.24 2008/12/28 21:51:46 christos Exp $	*/
 
 /*
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001 Wasabi Systems, Inc.
  * All rights reserved.
  *

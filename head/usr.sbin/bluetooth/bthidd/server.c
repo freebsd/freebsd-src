@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -288,6 +290,10 @@ server_accept(bthid_server_p srv, int32_t fd)
 		if (s->vkbd > srv->maxfd)
 			srv->maxfd = s->vkbd;
 	}
+
+	/* Pass device for probing after both channels are established */
+	if (s->state == OPEN)
+		hid_initialise(s);
 
 	return (0);
 }

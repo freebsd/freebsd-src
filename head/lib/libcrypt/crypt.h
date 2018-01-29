@@ -1,5 +1,7 @@
 /* LINTLIBRARY */
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999
  *      Mark Murray.  All rights reserved.
  *

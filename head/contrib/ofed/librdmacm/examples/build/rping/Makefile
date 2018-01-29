@@ -1,12 +1,9 @@
-#
 # $FreeBSD$
-#
-.PATH: ${.CURDIR}/../..
+
+.PATH: ${.CURDIR}/../.. ${.CURDIR}/../../../man
+
 PROG=	rping
-MAN=
-SRCS=	rping.c
-LIBADD+= ibverbs rdmacm pthread
-LIBADD+= mlx4
-LIBADD+= cxgb4
+MAN=	rping.1
+SRCS=	rping.c common.c
 
 .include <bsd.prog.mk>

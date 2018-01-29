@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011-2015 LSI Corp.
  * Copyright (c) 2013-2015 Avago Technologies
  * All rights reserved.
@@ -67,9 +69,6 @@ struct mpssas_target {
 	uint16_t	parent_handle;
 	uint64_t	parent_sasaddr;
 	uint32_t	parent_devinfo;
-	struct sysctl_ctx_list sysctl_ctx;
-	struct sysctl_oid *sysctl_tree;
-	TAILQ_ENTRY(mpssas_target) sysctl_link;
 	uint64_t        issued;
 	uint64_t        completed;
 	unsigned int    outstanding;

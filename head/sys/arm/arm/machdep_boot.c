@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/metadata.h>
 #include <machine/physmem.h>
+#include <machine/vmparam.h>	/* For KERNVIRTADDR */
 
 #ifdef FDT
 #include <contrib/libfdt/libfdt.h>

@@ -19,6 +19,7 @@ TESTS_SUBDIRS+= aggs \
 		drops \
 		dtraceUtil \
 		end \
+		env \
 		enum \
 		error \
 		exit \

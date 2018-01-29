@@ -72,7 +72,6 @@ krping_loader(struct module *m, int what, void *arg)
 
 	switch (what) {
 	case MOD_LOAD:                /* kldload */
-		krping_init();
 		krping_dev = make_dev(&krping_cdevsw, 0, UID_ROOT, GID_WHEEL,
 					0600, "krping");
 		printf("Krping device loaded.\n");
@@ -204,7 +203,7 @@ krping_write(struct cdev *dev, struct uio *uio, int ioflag)
 	*cp = 0;
 	krpingmsg->len = (unsigned long)(cp - krpingmsg->msg);
 	uprintf("krping: write string = |%s|\n", krpingmsg->msg);
-	err = krping_doit(krpingmsg->msg, curproc);
+	err = krping_doit(krpingmsg->msg);
 	free(krpingmsg, M_DEVBUF);
 	return(err);
 }

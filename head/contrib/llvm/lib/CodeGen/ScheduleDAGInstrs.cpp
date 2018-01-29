@@ -21,7 +21,7 @@
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/CodeGen/LiveIntervalAnalysis.h"
+#include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/LivePhysRegs.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -36,6 +36,8 @@
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/CodeGen/ScheduleDFS.h"
 #include "llvm/CodeGen/SlotIndexes.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
@@ -52,8 +54,6 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 #include <algorithm>
 #include <cassert>
 #include <iterator>
@@ -114,73 +114,18 @@ ScheduleDAGInstrs::ScheduleDAGInstrs(MachineFunction &mf,
     : ScheduleDAG(mf), MLI(mli), MFI(mf.getFrameInfo()),
       RemoveKillFlags(RemoveKillFlags),
       UnknownValue(UndefValue::get(
-                             Type::getVoidTy(mf.getFunction()->getContext()))) {
+                             Type::getVoidTy(mf.getFunction().getContext()))) {
   DbgValues.clear();
 
   const TargetSubtargetInfo &ST = mf.getSubtarget();
   SchedModel.init(ST.getSchedModel(), &ST, TII);
 }
 
-/// This is the function that does the work of looking through basic
-/// ptrtoint+arithmetic+inttoptr sequences.
-static const Value *getUnderlyingObjectFromInt(const Value *V) {
-  do {
-    if (const Operator *U = dyn_cast<Operator>(V)) {
-      // If we find a ptrtoint, we can transfer control back to the
-      // regular getUnderlyingObjectFromInt.
-      if (U->getOpcode() == Instruction::PtrToInt)
-        return U->getOperand(0);
-      // If we find an add of a constant, a multiplied value, or a phi, it's
-      // likely that the other operand will lead us to the base
-      // object. We don't have to worry about the case where the
-      // object address is somehow being computed by the multiply,
-      // because our callers only care when the result is an
-      // identifiable object.
-      if (U->getOpcode() != Instruction::Add ||
-          (!isa<ConstantInt>(U->getOperand(1)) &&
-           Operator::getOpcode(U->getOperand(1)) != Instruction::Mul &&
-           !isa<PHINode>(U->getOperand(1))))
-        return V;
-      V = U->getOperand(0);
-    } else {
-      return V;
-    }
-    assert(V->getType()->isIntegerTy() && "Unexpected operand type!");
-  } while (true);
-}
-
-/// This is a wrapper around GetUnderlyingObjects and adds support for basic
-/// ptrtoint+arithmetic+inttoptr sequences.
-static void getUnderlyingObjects(const Value *V,
-                                 SmallVectorImpl<Value *> &Objects,
-                                 const DataLayout &DL) {
-  SmallPtrSet<const Value *, 16> Visited;
-  SmallVector<const Value *, 4> Working(1, V);
-  do {
-    V = Working.pop_back_val();
-
-    SmallVector<Value *, 4> Objs;
-    GetUnderlyingObjects(const_cast<Value *>(V), Objs, DL);
-
-    for (Value *V : Objs) {
-      if (!Visited.insert(V).second)
-        continue;
-      if (Operator::getOpcode(V) == Instruction::IntToPtr) {
-        const Value *O =
-          getUnderlyingObjectFromInt(cast<User>(V)->getOperand(0));
-        if (O->getType()->isPointerTy()) {
-          Working.push_back(O);
-          continue;
-        }
-      }
-      Objects.push_back(const_cast<Value *>(V));
-    }
-  } while (!Working.empty());
-}
-
-/// If this machine instr has memory reference information and it can be tracked
-/// to a normal reference to a known object, return the Value for that object.
-static void getUnderlyingObjectsForInstr(const MachineInstr *MI,
+/// If this machine instr has memory reference information and it can be
+/// tracked to a normal reference to a known object, return the Value
+/// for that object. This function returns false the memory location is
+/// unknown or may alias anything.
+static bool getUnderlyingObjectsForInstr(const MachineInstr *MI,
                                          const MachineFrameInfo &MFI,
                                          UnderlyingObjectsVector &Objects,
                                          const DataLayout &DL) {
@@ -208,12 +153,11 @@ static void getUnderlyingObjectsForInstr(const MachineInstr *MI,
         Objects.push_back(UnderlyingObjectsVector::value_type(PSV, MayAlias));
       } else if (const Value *V = MMO->getValue()) {
         SmallVector<Value *, 4> Objs;
-        getUnderlyingObjects(V, Objs, DL);
+        if (!getUnderlyingObjectsForCodeGen(V, Objs, DL))
+          return false;
 
         for (Value *V : Objs) {
-          if (!isIdentifiedObject(V))
-            return false;
-
+          assert(isIdentifiedObject(V));
           Objects.push_back(UnderlyingObjectsVector::value_type(V, true));
         }
       } else
@@ -222,8 +166,12 @@ static void getUnderlyingObjectsForInstr(const MachineInstr *MI,
     return true;
   };
 
-  if (!allMMOsOkay())
+  if (!allMMOsOkay()) {
     Objects.clear();
+    return false;
+  }
+
+  return true;
 }
 
 void ScheduleDAGInstrs::startBlock(MachineBasicBlock *bb) {
@@ -828,7 +776,8 @@ void ScheduleDAGInstrs::buildSchedGraph(AliasAnalysis *AA,
       if (PDiffs != nullptr)
         PDiffs->addInstruction(SU->NodeNum, RegOpers, MRI);
 
-      RPTracker->recedeSkipDebugValues();
+      if (RPTracker->getPos() == RegionEnd || &*RPTracker->getPos() != &MI)
+        RPTracker->recedeSkipDebugValues();
       assert(&*RPTracker->getPos() == &MI && "RPTracker in sync");
       RPTracker->recede(RegOpers);
     }
@@ -919,13 +868,13 @@ void ScheduleDAGInstrs::buildSchedGraph(AliasAnalysis *AA,
 
     // Find the underlying objects for MI. The Objs vector is either
     // empty, or filled with the Values of memory locations which this
-    // SU depends on. An empty vector means the memory location is
-    // unknown, and may alias anything.
+    // SU depends on.
     UnderlyingObjectsVector Objs;
-    getUnderlyingObjectsForInstr(&MI, MFI, Objs, MF.getDataLayout());
+    bool ObjsFound = getUnderlyingObjectsForInstr(&MI, MFI, Objs,
+                                                  MF.getDataLayout());
 
     if (MI.mayStore()) {
-      if (Objs.empty()) {
+      if (!ObjsFound) {
         // An unknown store depends on all stores and loads.
         addChainDependencies(SU, Stores);
         addChainDependencies(SU, NonAliasStores);
@@ -960,7 +909,7 @@ void ScheduleDAGInstrs::buildSchedGraph(AliasAnalysis *AA,
         addChainDependencies(SU, Stores, UnknownValue);
       }
     } else { // SU is a load.
-      if (Objs.empty()) {
+      if (!ObjsFound) {
         // An unknown load depends on all stores.
         addChainDependencies(SU, Stores);
         addChainDependencies(SU, NonAliasStores);
@@ -1095,7 +1044,7 @@ static void toggleKills(const MachineRegisterInfo &MRI, LivePhysRegs &LiveRegs,
 }
 
 void ScheduleDAGInstrs::fixupKills(MachineBasicBlock &MBB) {
-  DEBUG(dbgs() << "Fixup kills for BB#" << MBB.getNumber() << '\n');
+  DEBUG(dbgs() << "Fixup kills for " << printMBBReference(MBB) << '\n');
 
   LiveRegs.init(*TRI);
   LiveRegs.addLiveOuts(MBB);
@@ -1407,7 +1356,7 @@ static bool hasDataSucc(const SUnit *SU) {
 /// search from this root.
 void SchedDFSResult::compute(ArrayRef<SUnit> SUnits) {
   if (!IsBottomUp)
-    llvm_unreachable("Top-down ILP metric is unimplemnted");
+    llvm_unreachable("Top-down ILP metric is unimplemented");
 
   SchedDFSImpl Impl(*this);
   for (const SUnit &SU : SUnits) {

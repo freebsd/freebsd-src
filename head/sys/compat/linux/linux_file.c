@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
  *
@@ -139,7 +141,7 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 		goto done;
 
 	/*
-	 * XXX In between kern_open() and fget(), another process
+	 * XXX In between kern_openat() and fget(), another process
 	 * having the same filedesc could use that fd without
 	 * checking below.
 	*/

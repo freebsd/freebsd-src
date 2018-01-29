@@ -1,6 +1,9 @@
 /* SKEINDRIVER.C - test driver for SKEIN */
 
-/* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All rights
+/*-
+ * SPDX-License-Identifier: RSA-MD
+ *
+ * Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All rights
  * reserved.
  * 
  * RSA Data Security, Inc. makes no representations concerning either the

@@ -2,6 +2,8 @@
 /*	$NetBSD: msdosfs_conv.c,v 1.25 1997/11/17 15:36:40 ws Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1995, 1997 Wolfgang Solfrank.
  * Copyright (C) 1995, 1997 TooLs GmbH.
  * All rights reserved.
@@ -594,7 +596,7 @@ winChkName(struct mbnambuf *nbp, const u_char *un, size_t unlen, int chksum,
 		return -1;
 
 #ifdef MSDOSFS_DEBUG
-	printf("winChkName(): un=%s:%d,d_name=%s:%d\n", un, unlen,
+	printf("winChkName(): un=%s:%zu,d_name=%s:%d\n", un, unlen,
 							dirbuf.d_name,
 							dirbuf.d_namlen);
 #endif

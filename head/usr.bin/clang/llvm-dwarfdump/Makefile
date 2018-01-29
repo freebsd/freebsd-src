@@ -3,6 +3,7 @@
 PROG_CXX=	llvm-dwarfdump
 
 SRCDIR=		tools/llvm-dwarfdump
+SRCS+=		Statistics.cpp
 SRCS+=		llvm-dwarfdump.cpp
 
 LIBADD+=	z

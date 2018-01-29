@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -678,7 +680,6 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	struct iso_node *ip;
 	struct buf *bp;
 	struct vnode *vp;
-	struct cdev *dev;
 	int error;
 	struct thread *td;
 
@@ -705,7 +706,6 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	 */
 
 	imp = VFSTOISOFS(mp);
-	dev = imp->im_dev;
 
 	/* Allocate a new vnode/iso_node. */
 	if ((error = getnewvnode("isofs", mp, &cd9660_vnodeops, &vp)) != 0) {

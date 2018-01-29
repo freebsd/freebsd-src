@@ -47,6 +47,9 @@ CFLAGS+=	-DPIC $(DEBUG)
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 CFLAGS+=	-fvisibility=hidden
 .endif
+.if ${MACHINE_CPUARCH} == "mips"
+CFLAGS.reloc.c+=-fno-jump-tables
+.endif
 LDFLAGS+=	-shared -Wl,-Bsymbolic -Wl,-z,defs
 LIBADD=		c_pic
 .if ${MK_TOOLCHAIN} == "no"
@@ -85,6 +88,7 @@ beforeinstall:
 
 .PATH: ${.CURDIR}/${RTLD_ARCH}
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 HighPoint Technologies, Inc.
  * All rights reserved.
  *
@@ -31,7 +33,7 @@
 #include <dev/hpt27xx/os_bsd.h>
 #include <dev/hpt27xx/hptintf.h>
 
-static HIM *hpt_match(device_t dev)
+static HIM *hpt_match(device_t dev, int scan)
 {
 	PCI_ID pci_id;
 	HIM *him;
@@ -39,7 +41,7 @@ static HIM *hpt_match(device_t dev)
 
 	for (him = him_list; him; him = him->next) {
 		for (i=0; him->get_supported_device_id(i, &pci_id); i++) {
-			if (him->get_controller_count)
+			if (scan && him->get_controller_count)
 				him->get_controller_count(&pci_id,0,0);
 			if ((pci_get_vendor(dev) == pci_id.vid) &&
 				(pci_get_device(dev) == pci_id.did)){
@@ -54,7 +56,7 @@ static int hpt_probe(device_t dev)
 {
 	HIM *him;
 
-	him = hpt_match(dev);
+	him = hpt_match(dev, 0);
 	if (him != NULL) {
 		KdPrint(("hpt_probe: adapter at PCI %d:%d:%d, IRQ %d",
 			pci_get_bus(dev), pci_get_slot(dev), pci_get_function(dev), pci_get_irq(dev)
@@ -77,7 +79,7 @@ static int hpt_attach(device_t dev)
 	
 	KdPrint(("hpt_attach(%d/%d/%d)", pci_get_bus(dev), pci_get_slot(dev), pci_get_function(dev)));
 
-	him = hpt_match(dev);
+	him = hpt_match(dev, 1);
 	hba->ext_type = EXT_TYPE_HBA;
 	hba->ldm_adapter.him = him;
 	pci_enable_busmaster(dev);
@@ -1402,7 +1404,7 @@ static int hpt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, stru
 {
 	PHPT_IOCTL_PARAM piop=(PHPT_IOCTL_PARAM)data;
 	IOCTL_ARG ioctl_args;
-	HPT_U32 bytesReturned;
+	HPT_U32 bytesReturned = 0;
 
 	switch (cmd){
 	case HPT_DO_IOCONTROL:
@@ -1432,7 +1434,7 @@ static int hpt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, stru
 		}
 	
 		if (ioctl_args.nOutBufferSize) {
-			ioctl_args.lpOutBuffer = malloc(ioctl_args.nOutBufferSize, M_DEVBUF, M_WAITOK);
+			ioctl_args.lpOutBuffer = malloc(ioctl_args.nOutBufferSize, M_DEVBUF, M_WAITOK | M_ZERO);
 			if (!ioctl_args.lpOutBuffer)
 				goto invalid;
 		}

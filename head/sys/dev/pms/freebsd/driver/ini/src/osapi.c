@@ -764,7 +764,6 @@ ostiSetDeviceQueueDepth( tiRoot_t *tiRoot,
                          )
 {
   bit32 retVal = 0;
-  struct agtiapi_softc *pCard = TIROOT_TO_CARD(tiRoot);
   ccb_t *pccb = (ccb_t *) tiIORequest->osData;
   tiDeviceHandle_t *tiDeviceHandle = pccb->devHandle;
   ag_device_t *pDevice = (ag_device_t *)tiDeviceHandle->osData;

@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2015
+.Dd October 6, 2017
 .Dt STACK 9
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@ In the kernel configuration file:
 .Cd "options STACK"
 .Pp
 .Ft struct stack *
-.Fn stack_create "void"
+.Fn stack_create "int flags"
 .Ft void
 .Fn stack_destroy "struct stack *st"
 .Ft int
@@ -85,8 +85,11 @@ Each stack trace is described by a
 .Vt "struct stack" .
 Before a trace may be created or otherwise manipulated, storage for the trace
 must be allocated with
-.Fn stack_create ,
-which may sleep.
+.Fn stack_create .
+The
+.Ar flags
+argument is passed to
+.Xr malloc 9 .
 Memory associated with a trace is freed by calling
 .Fn stack_destroy .
 .Pp

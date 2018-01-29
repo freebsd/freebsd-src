@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -271,7 +271,7 @@ AcpiUtStricmp (
 }
 
 
-#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION)
+#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION) || defined (ACPI_DEBUG_OUTPUT)
 /*******************************************************************************
  *
  * FUNCTION:    AcpiUtSafeStrcpy, AcpiUtSafeStrcat, AcpiUtSafeStrncat
@@ -344,4 +344,17 @@ AcpiUtSafeStrncat (
     strncat (Dest, Source, MaxTransferLength);
     return (FALSE);
 }
+
+void
+AcpiUtSafeStrncpy (
+    char                    *Dest,
+    char                    *Source,
+    ACPI_SIZE               DestSize)
+{
+    /* Always terminate destination string */
+
+    strncpy (Dest, Source, DestSize);
+    Dest[DestSize - 1] = 0;
+}
+
 #endif

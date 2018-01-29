@@ -1,6 +1,8 @@
 /*	$KAME: radix_mpath.h,v 1.10 2004/11/06 15:44:28 itojun Exp $	*/
 
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2001 WIDE Project.
  * All rights reserved.
  *

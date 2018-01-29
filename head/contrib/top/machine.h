@@ -70,7 +70,8 @@ struct process_select
     int self;		/* show self */
     int system;		/* show system processes */
     int thread;		/* show threads */
-    int uid;		/* only this uid (unless uid == -1) */
+#define TOP_MAX_UIDS 8
+    int uid[TOP_MAX_UIDS];	/* only these uids (unless uid[0] == -1) */
     int wcpu;		/* show weighted cpu */
     int jid;		/* only this jid (unless jid == -1) */
     int jail;		/* show jail ID */

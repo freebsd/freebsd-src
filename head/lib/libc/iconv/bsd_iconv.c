@@ -2,6 +2,8 @@
 /* $NetBSD: iconv.c,v 1.11 2009/03/03 16:22:33 explorer Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2003 Citrus Project,
  * Copyright (c) 2009, 2010 Gabor Kovesdan <gabor@FreeBSD.org>,
  * All rights reserved.

@@ -11,7 +11,7 @@ NoEcho('
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -199,7 +199,8 @@ DefinitionBlockTerm
         String ','
         String ','
         DWordConst
-        PARSEOP_CLOSE_PAREN         {TrSetOpEndLineNumber ($<n>3); COMMENT_CAPTURE_ON;}
+        PARSEOP_CLOSE_PAREN         {TrSetOpIntegerWidth ($6,$8);
+                                        TrSetOpEndLineNumber ($<n>3); COMMENT_CAPTURE_ON;}
             '{' TermList '}'        {$$ = TrLinkOpChildren ($<n>3,7,
                                         $4,$6,$8,$10,$12,$14,$18);}
     ;

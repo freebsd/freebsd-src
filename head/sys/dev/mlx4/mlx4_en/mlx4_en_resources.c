@@ -70,7 +70,7 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 		/* disable multicast loopback to qp with same counter */
 		context->pri_path.fl |= MLX4_FL_ETH_SRC_CHECK_MC_LB;
 		context->pri_path.vlan_control |=
-			MLX4_VLAN_CTRL_ETH_SRC_CHECK_IF_COUNTER;
+			MLX4_CTRL_ETH_SRC_CHECK_IF_COUNTER;
 	}
 
 	context->cqn_send = cpu_to_be32(cqn);

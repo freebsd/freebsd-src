@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -61,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #elif defined(__powerpc__)
 #define	BREAKPOINT_INSTR	0x7fe00008	/* trap */
 #define	BREAKPOINT_INSTR_SZ	4
-#elif defined(__riscv__)
+#elif defined(__riscv)
 #define	BREAKPOINT_INSTR	0x00100073	/* sbreak */
 #define	BREAKPOINT_INSTR_SZ	4
 #else

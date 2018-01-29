@@ -396,6 +396,7 @@ static const svn_opt_subcommand_desc2_t cmd_table[] =
    ("usage: 1. svnadmin freeze REPOS_PATH PROGRAM [ARG...]\n"
     "               2. svnadmin freeze -F FILE PROGRAM [ARG...]\n\n"
     "1. Run PROGRAM passing ARGS while holding a write-lock on REPOS_PATH.\n"
+    "   Allows safe use of third-party backup tools on a live repository.\n"
     "\n"
     "2. Like 1 except all repositories listed in FILE are locked. The file\n"
     "   format is repository paths separated by newlines.  Repositories are\n"

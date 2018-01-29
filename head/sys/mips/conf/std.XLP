@@ -95,7 +95,7 @@ device		umass			# Requires scbus and da
 device		iic
 device		iicbus
 device		iicoc
-device		ds1374			# RTC on XLP boards
+device		ds13rtc			# RTC on XLP boards
 
 # Crypto
 device		crypto

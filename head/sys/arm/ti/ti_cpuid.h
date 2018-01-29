@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011
  *	Ben Gray <ben.r.gray@gmail.com>.
  * All rights reserved.
@@ -79,5 +81,11 @@ static __inline int ti_chip(void)
 }
 
 uint32_t ti_revision(void);
+
+static __inline bool ti_soc_is_supported(void)
+{
+
+	return (_ti_chip != -1);
+}
 
 #endif  /* _TI_CPUID_H_ */

@@ -37,7 +37,7 @@
 .\" $TSHeader: src/sbin/growfs/growfs.8,v 1.3 2000/12/12 19:31:00 tomsoft Exp $
 .\" $FreeBSD$
 .\"
-.Dd May 10, 2016
+.Dd December 13, 2017
 .Dt GROWFS 8
 .Os
 .Sh NAME
@@ -68,16 +68,10 @@ The following options are available:
 Causes the new file system parameters to be printed out without actually
 enlarging the file system.
 .It Fl y
-.Dq Expert mode .
-Usually
+Causes
 .Nm
-will ask you if you took a backup of your data before and will do some tests
-whether
-.Ar special
-is currently mounted or whether there are any active snapshots on the file
-system specified.
-This will be suppressed.
-So use this option with great care!
+to assume yes
+as the answer to all operator questions.
 .It Fl s Ar size
 Determines the
 .Ar size

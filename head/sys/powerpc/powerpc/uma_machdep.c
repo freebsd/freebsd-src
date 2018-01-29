@@ -51,25 +51,19 @@ SYSCTL_INT(_hw, OID_AUTO, uma_mdpages, CTLFLAG_RD, &hw_uma_mdpages, 0,
 	   "UMA MD pages in use");
 
 void *
-uma_small_alloc(uma_zone_t zone, vm_size_t bytes, u_int8_t *flags, int wait)
+uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags,
+    int wait)
 {
 	void *va;
 	vm_paddr_t pa;
 	vm_page_t m;
-	int pflags;
 	
 	*flags = UMA_SLAB_PRIV;
-	pflags = malloc2vm_flags(wait) | VM_ALLOC_WIRED;
 
-	for (;;) {
-		m = vm_page_alloc(NULL, 0, pflags | VM_ALLOC_NOOBJ);
-		if (m == NULL) {
-			if (wait & M_NOWAIT)
-				return (NULL);
-			VM_WAIT;
-		} else
-			break;
-	}
+	m = vm_page_alloc_domain(NULL, 0, domain,
+	    malloc2vm_flags(wait) | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ);
+	if (m == NULL) 
+		return (NULL);
 
 	pa = VM_PAGE_TO_PHYS(m);
 
@@ -77,10 +71,12 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, u_int8_t *flags, int wait)
 	if ((vm_offset_t)pa != pa)
 		return (NULL);
 
-	va = (void *)(vm_offset_t)pa;
-
-	if (!hw_direct_map)
-		pmap_kenter((vm_offset_t)va, VM_PAGE_TO_PHYS(m));
+	if (!hw_direct_map) {
+		pmap_kenter(pa, pa);
+		va = (void *)(vm_offset_t)pa;
+	} else {
+		va = (void *)(vm_offset_t)PHYS_TO_DMAP(pa);
+	}
 
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
 		bzero(va, PAGE_SIZE);

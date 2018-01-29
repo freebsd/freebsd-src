@@ -27,8 +27,6 @@ CFLAGS+=	-DINET6
 CFLAGS+=	-I${TELNETDIR}
 CFLAGS+=	-I${TELNETDIR}/telnet
 
-LIBTELNET=	${OBJTOP}/lib/libtelnet/libtelnet.a
-
 LIBADD=		telnet util ncursesw
 
 .if ${MK_OPENSSL} != "no"

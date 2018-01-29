@@ -147,17 +147,17 @@ options 	BOOTHOWTO=RB_MULTIPLE
 
 options 	GEOM_AES		# Don't use, use GEOM_BDE
 options 	GEOM_BDE		# Disk encryption.
-options 	GEOM_BSD		# BSD disklabels
+options 	GEOM_BSD		# BSD disklabels (obsolete, gone in 12)
 options 	GEOM_CACHE		# Disk cache.
 options 	GEOM_CONCAT		# Disk concatenation.
 options 	GEOM_ELI		# Disk encryption.
-options 	GEOM_FOX		# Redundant path mitigation
+options 	GEOM_FOX		# Redundant path mitigation (obsolete, gone in 12)
 options 	GEOM_GATE		# Userland services.
 options 	GEOM_JOURNAL		# Journaling.
 options 	GEOM_LABEL		# Providers labelization.
 options 	GEOM_LINUX_LVM		# Linux LVM2 volumes
 options 	GEOM_MAP		# Map based partitioning
-options 	GEOM_MBR		# DOS/MBR partitioning
+options 	GEOM_MBR		# DOS/MBR partitioning (obsolete, gone in 12)
 options 	GEOM_MIRROR		# Disk mirroring.
 options 	GEOM_MULTIPATH		# Disk multipath
 options 	GEOM_NOP		# Test class.
@@ -174,11 +174,11 @@ options 	GEOM_RAID		# Soft RAID functionality.
 options 	GEOM_RAID3		# RAID3 functionality.
 options 	GEOM_SHSEC		# Shared secret.
 options 	GEOM_STRIPE		# Disk striping.
-options 	GEOM_SUNLABEL		# Sun/Solaris partitioning
+options 	GEOM_SUNLABEL		# Sun/Solaris partitioning (obsolete, gone in 12)
 options 	GEOM_UZIP		# Read-only compressed disks
 options 	GEOM_VINUM		# Vinum logical volume manager
 options 	GEOM_VIRSTOR		# Virtual storage.
-options 	GEOM_VOL		# Volume names from UFS superblock
+options 	GEOM_VOL		# Volume names from UFS superblock (obsolete, gone in 12)
 options 	GEOM_ZERO		# Performance testing helper.
 
 #
@@ -231,17 +231,13 @@ options		EARLY_AP_STARTUP
 # A default value should be already present, for every architecture.
 options 	MAXCPU=32
 
+# NUMA enables use of Non-Uniform Memory Access policies in various kernel
+# subsystems.
+options 	NUMA
+
 # MAXMEMDOM defines the maximum number of memory domains that can boot in the
 # system.  A default value should already be defined by every architecture.
 options 	MAXMEMDOM=2
-
-# VM_NUMA_ALLOC enables use of memory domain-aware allocation in the VM
-# system.
-options 	VM_NUMA_ALLOC
-
-# DEVICE_NUMA enables reporting of domain affinity of I/O devices via
-# bus_get_domain(), etc.
-options 	DEVICE_NUMA
 
 # ADAPTIVE_MUTEXES changes the behavior of blocking mutexes to spin
 # if the thread that currently owns the mutex is executing on another
@@ -590,6 +586,20 @@ options 	STACK
 #
 options 	NUM_CORE_FILES=5
 
+#
+# The TSLOG option enables timestamped logging of events, especially
+# function entries/exits, in order to track the time spent by the kernel.
+# In particular, this is useful when investigating the early boot process,
+# before it is possible to use more sophisticated tools like DTrace.
+# The TSLOGSIZE option controls the size of the (preallocated, fixed
+# length) buffer used for storing these events (default: 262144 records).
+#
+# For security reasons the TSLOG option should not be enabled on systems
+# used in production.
+#
+options 	TSLOG
+options 	TSLOGSIZE=262144
+
 
 #####################################################################
 # PERFORMANCE MONITORING OPTIONS
@@ -674,21 +684,6 @@ options 	SCTP
 # bits and prints.. which makes the code run
 # faster.. if you are not debugging don't use.
 options 	SCTP_DEBUG
-#
-# This option turns off the CRC32c checksum. Basically,
-# you will not be able to talk to anyone else who
-# has not done this. Its more for experimentation to
-# see how much CPU the CRC32c really takes. Most new
-# cards for TCP support checksum offload.. so this 
-# option gives you a "view" into what SCTP would be
-# like with such an offload (which only exists in
-# high in iSCSI boards so far). With the new
-# splitting 8's algorithm its not as bad as it used
-# to be.. but it does speed things up try only
-# for in a captured lab environment :-)
-options 	SCTP_WITH_NO_CSUM
-#
-
 #
 # All that options after that turn on specific types of
 # logging. You can monitor CWND growth, flight size
@@ -802,8 +797,8 @@ options 	NGATM_CCATM
 device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 
 # Network stack virtualization.
-#options	VIMAGE
-#options	VNET_DEBUG	# debug for VIMAGE
+options	VIMAGE
+options	VNET_DEBUG	# debug for VIMAGE
 
 #
 # Network interfaces:
@@ -1115,6 +1110,9 @@ options 	MD_ROOT_SIZE=10
 # Make the md device a potential root device, either with preloaded
 # images of type mfs_root or md_root.
 options 	MD_ROOT
+
+# Write-protect the md root device so that it may not be mounted writeable.
+options 	MD_ROOT_READONLY
 
 # Disk quotas are supported when this option is enabled.
 options 	QUOTA			#enable disk quotas
@@ -1984,6 +1982,7 @@ device		xmphy		# XaQti XMAC II
 # lge:	Support for PCI gigabit ethernet adapters based on the Level 1
 #	LXT1001 NetCellerator chipset. This includes the D-Link DGE-500SX,
 #	SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
+# lio:  Support for Cavium 23XX Ethernet adapters
 # malo: Marvell Libertas wireless NICs.
 # mwl:  Marvell 88W8363 802.11n wireless NICs.
 #	Requires the mwl firmware module
@@ -2208,8 +2207,6 @@ device		rtwnfw
 # detect a mismatch is ti(4).
 options 	MCLSHIFT=12	# mbuf cluster shift in bits, 12 == 4KB
 options 	MSIZE=512	# mbuf size in bytes
-
-options 	LIBMBPOOL
 
 #
 # Sound drivers
@@ -2524,8 +2521,7 @@ device		iicoc		# OpenCores I2C controller support
 # I2C peripheral devices
 #
 device		ds1307		# Dallas DS1307 RTC and compatible
-device		ds133x		# Dallas DS1337, DS1338 and DS1339 RTC
-device		ds1374		# Dallas DS1374 RTC
+device		ds13rtc		# All Dallas/Maxim ds13xx chips
 device		ds1672		# Dallas DS1672 RTC
 device		ds3231		# Dallas DS3231 RTC + temperature
 device		icee		# AT24Cxxx and compatible EEPROMs
@@ -2609,7 +2605,9 @@ options 	BOOTP_WIRED_TO=fxp0 # Use interface fxp0 for BOOTP
 options 	BOOTP_BLOCKSIZE=8192 # Override NFS block size
 
 #
-# Add software watchdog routines.
+# Enable software watchdog routines, even if hardware watchdog is present.
+# By default, software watchdog timer is enabled only if no hardware watchdog
+# is present.
 #
 options 	SW_WATCHDOG
 

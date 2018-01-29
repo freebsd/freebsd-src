@@ -150,6 +150,7 @@ SUBDIR=	alias \
 	split \
 	stat \
 	stdbuf \
+	strings \
 	su \
 	systat \
 	tabs \
@@ -239,7 +240,6 @@ SUBDIR.${MK_MAIL}+=	from
 SUBDIR.${MK_MAIL}+=	mail
 SUBDIR.${MK_MAIL}+=	msgs
 SUBDIR.${MK_MAKE}+=	bmake
-SUBDIR.${MK_MAN_UTILS}+=	catman
 SUBDIR.${MK_MAN_UTILS}+=	man
 SUBDIR.${MK_NETCAT}+=	nc
 SUBDIR.${MK_NIS}+=	ypcat
@@ -251,8 +251,6 @@ SUBDIR.${MK_OPENSSL}+=	chkey
 SUBDIR.${MK_OPENSSL}+=	dc
 SUBDIR.${MK_OPENSSL}+=	newkey
 SUBDIR.${MK_QUOTAS}+=	quota
-SUBDIR.${MK_RCMDS}+=	rlogin
-SUBDIR.${MK_RCMDS}+=	rsh
 SUBDIR.${MK_SENDMAIL}+=	vacation
 SUBDIR.${MK_TALK}+=	talk
 SUBDIR.${MK_TELNET}+=	telnet
@@ -280,10 +278,6 @@ SUBDIR.${MK_TOOLCHAIN}+=	readelf
 SUBDIR.${MK_TOOLCHAIN}+=	rpcgen
 SUBDIR.${MK_TOOLCHAIN}+=	unifdef
 SUBDIR.${MK_TOOLCHAIN}+=	size
-SUBDIR.${MK_TOOLCHAIN}+=	strings
-.if ${MACHINE_ARCH} != "aarch64" # ARM64TODO xlint does not build
-SUBDIR.${MK_TOOLCHAIN}+=	xlint
-.endif
 SUBDIR.${MK_TOOLCHAIN}+=	xstr
 SUBDIR.${MK_TOOLCHAIN}+=	yacc
 SUBDIR.${MK_VI}+=	vi

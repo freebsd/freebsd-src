@@ -995,11 +995,25 @@ zfsvfs_create(const char *osname, zfsvfs_t **zfvp)
 	 * We claim to always be readonly so we can open snapshots;
 	 * other ZPL code will prevent us from writing to snapshots.
 	 */
+
 	error = dmu_objset_own(osname, DMU_OST_ZFS, B_TRUE, zfsvfs, &os);
-	if (error) {
+	if (error != 0) {
 		kmem_free(zfsvfs, sizeof (zfsvfs_t));
 		return (error);
 	}
+
+	error = zfsvfs_create_impl(zfvp, zfsvfs, os);
+	if (error != 0) {
+		dmu_objset_disown(os, zfsvfs);
+	}
+	return (error);
+}
+
+
+int
+zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
+{
+	int error;
 
 	zfsvfs->z_vfs = NULL;
 	zfsvfs->z_parent = zfsvfs;
@@ -1020,7 +1034,6 @@ zfsvfs_create(const char *osname, zfsvfs_t **zfvp)
 
 	error = zfsvfs_init(zfsvfs, os);
 	if (error != 0) {
-		dmu_objset_disown(os, zfsvfs);
 		*zfvp = NULL;
 		kmem_free(zfsvfs, sizeof (zfsvfs_t));
 		return (error);
@@ -1616,13 +1629,21 @@ zfs_mount(vfs_t *vfsp)
 	 * can be interrogated.
 	 */
 	if ((uap->flags & MS_DATA) && uap->datalen > 0)
+		return (SET_ERROR(EINVAL));
+
+	/*
+	 * Get the objset name (the "special" mount argument).
+	 */
+	if (error = pn_get(uap->spec, fromspace, &spn))
+		return (error);
+
+	osname = spn.pn_path;
 #else	/* !illumos */
 	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_ZFS))
 		return (SET_ERROR(EPERM));
 
 	if (vfs_getopt(vfsp->mnt_optnew, "from", (void **)&osname, NULL))
 		return (SET_ERROR(EINVAL));
-#endif	/* illumos */
 
 	/*
 	 * If full-owner-access is enabled and delegated administration is
@@ -1632,6 +1653,7 @@ zfs_mount(vfs_t *vfsp)
 	    dsl_deleg_access(osname, ZFS_DELEG_PERM_MOUNT, cr) != ECANCELED) {
 		secpolicy_fs_mount_clearopts(cr, vfsp);
 	}
+#endif	/* illumos */
 
 	/*
 	 * Check for mount privilege?

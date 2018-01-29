@@ -370,7 +370,7 @@ private const el_action_t  el_map_vi_insert[] = {
 				 * NOTE: These mappings do NOT Correspond well
 				 * to the KSH VI editing assignments.
 				 * On the other and they are convenient and
-				 * many people have have gotten used to them.
+				 * many people have gotten used to them.
 				 */
 	/*   0 */	ED_UNASSIGNED,		/* ^@ */
 	/*   1 */	ED_MOVE_TO_BEG,		/* ^A */

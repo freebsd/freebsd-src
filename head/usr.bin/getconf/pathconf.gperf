@@ -68,3 +68,15 @@ find_pathconf(const char *name, int *key)
 	}
 	return 0;
 }
+
+void
+foreach_pathconf(void (*func)(const char *, int, const char *),
+    const char *path)
+{
+	const struct map *mp;
+
+	for (mp = wordlist; mp->name != NULL; mp++) {
+		if (mp->valid)
+			func(mp->name, mp->key, path);
+	}
+}

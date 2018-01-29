@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Poul-Henning Kamp
  * Copyright (c) 1994,1997 John S. Dyson
  * Copyright (c) 2013 The FreeBSD Foundation
@@ -119,6 +121,8 @@ static void vfs_vmio_truncate(struct buf *bp, int npages);
 static void vfs_vmio_extend(struct buf *bp, int npages, int size);
 static int vfs_bio_clcheck(struct vnode *vp, int size,
 		daddr_t lblkno, daddr_t blkno);
+static void breada(struct vnode *, daddr_t *, int *, int, struct ucred *, int,
+		void (*)(struct buf *));
 static int buf_flush(struct vnode *vp, int);
 static int buf_recycle(bool);
 static int buf_scan(bool);
@@ -129,7 +133,7 @@ static __inline void bd_wakeup(void);
 static int sysctl_runningspace(SYSCTL_HANDLER_ARGS);
 static void bufkva_reclaim(vmem_t *, int);
 static void bufkva_free(struct buf *);
-static int buf_import(void *, void **, int, int);
+static int buf_import(void *, void **, int, int, int);
 static void buf_release(void *, void **, int);
 static void maxbcachebuf_adjust(void);
 
@@ -253,23 +257,23 @@ SYSCTL_INT(_vfs, OID_AUTO, maxbcachebuf, CTLFLAG_RDTUN, &maxbcachebuf, 0,
 /*
  * This lock synchronizes access to bd_request.
  */
-static struct mtx_padalign bdlock;
+static struct mtx_padalign __exclusive_cache_line bdlock;
 
 /*
  * This lock protects the runningbufreq and synchronizes runningbufwakeup and
  * waitrunningbufspace().
  */
-static struct mtx_padalign rbreqlock;
+static struct mtx_padalign __exclusive_cache_line rbreqlock;
 
 /*
  * Lock that protects needsbuffer and the sleeps/wakeups surrounding it.
  */
-static struct rwlock_padalign nblock;
+static struct rwlock_padalign __exclusive_cache_line nblock;
 
 /*
  * Lock that protects bdirtywait.
  */
-static struct mtx_padalign bdirtylock;
+static struct mtx_padalign __exclusive_cache_line bdirtylock;
 
 /*
  * Wakeup point for bufdaemon, as well as indicator of whether it is already
@@ -339,7 +343,7 @@ static int bq_len[BUFFER_QUEUES];
 /*
  * Lock for each bufqueue
  */
-static struct mtx_padalign bqlocks[BUFFER_QUEUES];
+static struct mtx_padalign __exclusive_cache_line bqlocks[BUFFER_QUEUES];
 
 /*
  * per-cpu empty buffer cache.
@@ -1415,7 +1419,7 @@ buf_free(struct buf *bp)
  *	only as a per-cpu cache of bufs still maintained on a global list.
  */
 static int
-buf_import(void *arg, void **store, int cnt, int flags)
+buf_import(void *arg, void **store, int cnt, int domain, int flags)
 {
 	struct buf *bp;
 	int i;
@@ -1783,15 +1787,14 @@ bufkva_reclaim(vmem_t *vmem, int flags)
 	return;
 }
 
-
 /*
  * Attempt to initiate asynchronous I/O on read-ahead blocks.  We must
  * clear BIO_ERROR and B_INVAL prior to initiating I/O . If B_CACHE is set,
  * the buffer is valid and we do not have to do anything.
  */
-void
-breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
-    int cnt, struct ucred * cred)
+static void
+breada(struct vnode * vp, daddr_t * rablkno, int * rabsize, int cnt,
+    struct ucred * cred, int flags, void (*ckhashfunc)(struct buf *))
 {
 	struct buf *rabp;
 	int i;
@@ -1800,31 +1803,34 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
 		if (inmem(vp, *rablkno))
 			continue;
 		rabp = getblk(vp, *rablkno, *rabsize, 0, 0, 0);
-
-		if ((rabp->b_flags & B_CACHE) == 0) {
-			if (!TD_IS_IDLETHREAD(curthread)) {
-#ifdef RACCT
-				if (racct_enable) {
-					PROC_LOCK(curproc);
-					racct_add_buf(curproc, rabp, 0);
-					PROC_UNLOCK(curproc);
-				}
-#endif /* RACCT */
-				curthread->td_ru.ru_inblock++;
-			}
-			rabp->b_flags |= B_ASYNC;
-			rabp->b_flags &= ~B_INVAL;
-			rabp->b_ioflags &= ~BIO_ERROR;
-			rabp->b_iocmd = BIO_READ;
-			if (rabp->b_rcred == NOCRED && cred != NOCRED)
-				rabp->b_rcred = crhold(cred);
-			vfs_busy_pages(rabp, 0);
-			BUF_KERNPROC(rabp);
-			rabp->b_iooffset = dbtob(rabp->b_blkno);
-			bstrategy(rabp);
-		} else {
+		if ((rabp->b_flags & B_CACHE) != 0) {
 			brelse(rabp);
+			continue;
 		}
+		if (!TD_IS_IDLETHREAD(curthread)) {
+#ifdef RACCT
+			if (racct_enable) {
+				PROC_LOCK(curproc);
+				racct_add_buf(curproc, rabp, 0);
+				PROC_UNLOCK(curproc);
+			}
+#endif /* RACCT */
+			curthread->td_ru.ru_inblock++;
+		}
+		rabp->b_flags |= B_ASYNC;
+		rabp->b_flags &= ~B_INVAL;
+		if ((flags & GB_CKHASH) != 0) {
+			rabp->b_flags |= B_CKHASH;
+			rabp->b_ckhashcalc = ckhashfunc;
+		}
+		rabp->b_ioflags &= ~BIO_ERROR;
+		rabp->b_iocmd = BIO_READ;
+		if (rabp->b_rcred == NOCRED && cred != NOCRED)
+			rabp->b_rcred = crhold(cred);
+		vfs_busy_pages(rabp, 0);
+		BUF_KERNPROC(rabp);
+		rabp->b_iooffset = dbtob(rabp->b_blkno);
+		bstrategy(rabp);
 	}
 }
 
@@ -1840,10 +1846,11 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
  */
 int
 breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
-    int *rabsize, int cnt, struct ucred *cred, int flags, struct buf **bpp)
+    int *rabsize, int cnt, struct ucred *cred, int flags,
+    void (*ckhashfunc)(struct buf *), struct buf **bpp)
 {
 	struct buf *bp;
-	int rv = 0, readwait = 0;
+	int readwait, rv;
 
 	CTR3(KTR_BUF, "breadn(%p, %jd, %d)", vp, blkno, size);
 	/*
@@ -1853,7 +1860,10 @@ breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
 	if (bp == NULL)
 		return (EBUSY);
 
-	/* if not found in cache, do some I/O */
+	/*
+	 * If not found in cache, do some I/O
+	 */
+	readwait = 0;
 	if ((bp->b_flags & B_CACHE) == 0) {
 		if (!TD_IS_IDLETHREAD(curthread)) {
 #ifdef RACCT
@@ -1867,6 +1877,10 @@ breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
 		}
 		bp->b_iocmd = BIO_READ;
 		bp->b_flags &= ~B_INVAL;
+		if ((flags & GB_CKHASH) != 0) {
+			bp->b_flags |= B_CKHASH;
+			bp->b_ckhashcalc = ckhashfunc;
+		}
 		bp->b_ioflags &= ~BIO_ERROR;
 		if (bp->b_rcred == NOCRED && cred != NOCRED)
 			bp->b_rcred = crhold(cred);
@@ -1876,8 +1890,12 @@ breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
 		++readwait;
 	}
 
-	breada(vp, rablkno, rabsize, cnt, cred);
+	/*
+	 * Attempt to initiate asynchronous I/O on read-ahead blocks.
+	 */
+	breada(vp, rablkno, rabsize, cnt, cred, flags, ckhashfunc);
 
+	rv = 0;
 	if (readwait) {
 		rv = bufwait(bp);
 		if (rv != 0) {
@@ -2324,9 +2342,18 @@ brelse(struct buf *bp)
 	    !(bp->b_flags & B_INVAL)) {
 		/*
 		 * Failed write, redirty.  All errors except ENXIO (which
-		 * means the device is gone) are expected to be potentially
-		 * transient - underlying media might work if tried again
-		 * after EIO, and memory might be available after an ENOMEM.
+		 * means the device is gone) are treated as being
+		 * transient.
+		 *
+		 * XXX Treating EIO as transient is not correct; the
+		 * contract with the local storage device drivers is that
+		 * they will only return EIO once the I/O is no longer
+		 * retriable.  Network I/O also respects this through the
+		 * guarantees of TCP and/or the internal retries of NFS.
+		 * ENOMEM might be transient, but we also have no way of
+		 * knowing when its ok to retry/reschedule.  In general,
+		 * this entire case should be made obsolete through better
+		 * error handling/recovery and resource scheduling.
 		 *
 		 * Do this also for buffers that failed with ENXIO, but have
 		 * non-empty dependencies - the soft updates code might need
@@ -2735,7 +2762,7 @@ vfs_vmio_extend(struct buf *bp, int desiredpages, int size)
 	 */
 	obj = bp->b_bufobj->bo_object;
 	VM_OBJECT_WLOCK(obj);
-	while (bp->b_npages < desiredpages) {
+	if (bp->b_npages < desiredpages) {
 		/*
 		 * We must allocate system pages since blocking
 		 * here could interfere with paging I/O, no
@@ -2746,14 +2773,12 @@ vfs_vmio_extend(struct buf *bp, int desiredpages, int size)
 		 * deadlocks once allocbuf() is called after
 		 * pages are vfs_busy_pages().
 		 */
-		m = vm_page_grab(obj, OFF_TO_IDX(bp->b_offset) + bp->b_npages,
-		    VM_ALLOC_NOBUSY | VM_ALLOC_SYSTEM |
-		    VM_ALLOC_WIRED | VM_ALLOC_IGN_SBUSY |
-		    VM_ALLOC_COUNT(desiredpages - bp->b_npages));
-		if (m->valid == 0)
-			bp->b_flags &= ~B_CACHE;
-		bp->b_pages[bp->b_npages] = m;
-		++bp->b_npages;
+		(void)vm_page_grab_pages(obj,
+		    OFF_TO_IDX(bp->b_offset) + bp->b_npages,
+		    VM_ALLOC_SYSTEM | VM_ALLOC_IGN_SBUSY |
+		    VM_ALLOC_NOBUSY | VM_ALLOC_WIRED,
+		    &bp->b_pages[bp->b_npages], desiredpages - bp->b_npages);
+		bp->b_npages = desiredpages;
 	}
 
 	/*
@@ -4050,6 +4075,10 @@ bufdone(struct buf *bp)
 	runningbufwakeup(bp);
 	if (bp->b_iocmd == BIO_WRITE)
 		dropobj = bp->b_bufobj;
+	else if ((bp->b_flags & B_CKHASH) != 0) {
+		KASSERT(buf_mapped(bp), ("biodone: bp %p not mapped", bp));
+		(*bp->b_ckhashcalc)(bp);
+	}
 	/* call optional completion function if requested */
 	if (bp->b_iodone != NULL) {
 		biodone = bp->b_iodone;
@@ -4497,18 +4526,14 @@ vm_hold_load_pages(struct buf *bp, vm_offset_t from, vm_offset_t to)
 	index = (from - trunc_page((vm_offset_t)bp->b_data)) >> PAGE_SHIFT;
 
 	for (pg = from; pg < to; pg += PAGE_SIZE, index++) {
-tryagain:
 		/*
 		 * note: must allocate system pages since blocking here
 		 * could interfere with paging I/O, no matter which
 		 * process we are.
 		 */
 		p = vm_page_alloc(NULL, 0, VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ |
-		    VM_ALLOC_WIRED | VM_ALLOC_COUNT((to - pg) >> PAGE_SHIFT));
-		if (p == NULL) {
-			VM_WAIT;
-			goto tryagain;
-		}
+		    VM_ALLOC_WIRED | VM_ALLOC_COUNT((to - pg) >> PAGE_SHIFT) |
+		    VM_ALLOC_WAITOK);
 		pmap_qenter(pg, &p, 1);
 		bp->b_pages[index] = p;
 	}
@@ -4777,7 +4802,14 @@ vfs_bio_getpages(struct vnode *vp, vm_page_t *ma, int count,
 	la = IDX_TO_OFF(ma[count - 1]->pindex);
 	if (la >= object->un_pager.vnp.vnp_size)
 		return (VM_PAGER_BAD);
-	lpart = la + PAGE_SIZE > object->un_pager.vnp.vnp_size;
+
+	/*
+	 * Change the meaning of la from where the last requested page starts
+	 * to where it ends, because that's the end of the requested region
+	 * and the start of the potential read-ahead region.
+	 */
+	la += PAGE_SIZE;
+	lpart = la > object->un_pager.vnp.vnp_size;
 	bo_bs = get_blksize(vp, get_lblkno(vp, IDX_TO_OFF(ma[0]->pindex)));
 
 	/*

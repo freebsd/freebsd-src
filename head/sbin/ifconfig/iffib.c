@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Alexander V. Chernikov
  * Copyright (c) 2011 Christian S.J. Peron
  * Copyright (c) 2011 Bjoern A. Zeeb

@@ -122,6 +122,7 @@ tegra124_cpu_reset(platform_t plat)
  *   option SOCDEV_VA=0x70000000
  *   option EARLY_PRINTF
  */
+#if 0
 #ifdef EARLY_PRINTF
 static void
 tegra124_early_putc(int c)
@@ -135,6 +136,7 @@ tegra124_early_putc(int c)
 	*UART_TX_REG = c;
 }
 early_putc_t *early_putc = tegra124_early_putc;
+#endif
 #endif
 
 static platform_method_t tegra124_methods[] = {

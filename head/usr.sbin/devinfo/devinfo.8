@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2005
+.Dd December 21, 2017
 .Dt DEVINFO 8
 .Os
 .Sh NAME
@@ -38,6 +38,8 @@
 .Op Fl rv
 .Nm
 .Fl u
+.Nm
+.Fl p Ar dev Op Fl v
 .Sh DESCRIPTION
 The
 .Nm
@@ -62,6 +64,11 @@ the IRQ consumers together.
 Display all devices in the driver tree, not just those that are attached or
 busy.
 Without this flag, only those devices that have attached are reported.
+This flag also displays verbose information about each device.
+.It Fl p Ar dev
+Display the path of
+.Ar dev
+back to the root of the device tree.
 .El
 .Sh SEE ALSO
 .Xr systat 1 ,

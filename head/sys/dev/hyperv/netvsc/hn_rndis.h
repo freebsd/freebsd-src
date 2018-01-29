@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012,2016 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016-2017 Microsoft Corp.
  * Copyright (c) 2010-2012 Citrix Inc.
  * Copyright (c) 2012 NetApp Inc.
  * All rights reserved.
@@ -41,6 +41,7 @@ int		hn_rndis_get_eaddr(struct hn_softc *sc, uint8_t *eaddr);
 /* link_status: NDIS_MEDIA_STATE_ */
 int		hn_rndis_get_linkstatus(struct hn_softc *sc,
 		    uint32_t *link_status);
+int		hn_rndis_get_mtu(struct hn_softc *sc, uint32_t *mtu);
 /* filter: NDIS_PACKET_TYPE_. */
 int		hn_rndis_set_rxfilter(struct hn_softc *sc, uint32_t filter);
 void		hn_rndis_rx_ctrl(struct hn_softc *sc, const void *data,

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -78,7 +80,7 @@ u_int	real_dev_bsize;		/* actual disk sector size, not overridden */
 char	nflag;			/* assume a no response */
 char	yflag;			/* assume a yes response */
 int	bkgrdflag;		/* use a snapshot to run on an active system */
-ufs2_daddr_t bflag;		/* location of alternate super block */
+off_t	bflag;			/* location of alternate super block */
 int	debug;			/* output debugging info */
 int	Eflag;			/* delete empty data blocks */
 int	Zflag;			/* zero empty data blocks */

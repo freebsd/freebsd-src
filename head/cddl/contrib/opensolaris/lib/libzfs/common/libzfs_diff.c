@@ -55,15 +55,6 @@
 #define	ZDIFF_REMOVED	'-'
 #define	ZDIFF_RENAMED	'R'
 
-static boolean_t
-do_name_cmp(const char *fpath, const char *tpath)
-{
-	char *fname, *tname;
-	fname = strrchr(fpath, '/') + 1;
-	tname = strrchr(tpath, '/') + 1;
-	return (strcmp(fname, tname) == 0);
-}
-
 typedef struct differ_info {
 	zfs_handle_t *zhp;
 	char *fromsnap;
@@ -262,7 +253,6 @@ static int
 write_inuse_diffs_one(FILE *fp, differ_info_t *di, uint64_t dobj)
 {
 	struct zfs_stat fsb, tsb;
-	boolean_t same_name;
 	mode_t fmode, tmode;
 	char fobjname[MAXPATHLEN], tobjname[MAXPATHLEN];
 	int fobjerr, tobjerr;
@@ -323,7 +313,6 @@ write_inuse_diffs_one(FILE *fp, differ_info_t *di, uint64_t dobj)
 
 	if (fmode != tmode && fsb.zs_gen == tsb.zs_gen)
 		tsb.zs_gen++;	/* Force a generational difference */
-	same_name = do_name_cmp(fobjname, tobjname);
 
 	/* Simple modification or no change */
 	if (fsb.zs_gen == tsb.zs_gen) {
@@ -334,7 +323,7 @@ write_inuse_diffs_one(FILE *fp, differ_info_t *di, uint64_t dobj)
 		if (change) {
 			print_link_change(fp, di, change,
 			    change > 0 ? fobjname : tobjname, &tsb);
-		} else if (same_name) {
+		} else if (strcmp(fobjname, tobjname) == 0) {
 			print_file(fp, di, ZDIFF_MODIFIED, fobjname, &tsb);
 		} else {
 			print_rename(fp, di, fobjname, tobjname, &tsb);

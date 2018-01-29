@@ -1878,7 +1878,7 @@ _bfd_ecoff_sizeof_headers (bfd *abfd,
   ret = (bfd_coff_filhsz (abfd)
 	 + bfd_coff_aoutsz (abfd)
 	 + c * bfd_coff_scnhsz (abfd));
-  return BFD_ALIGN (ret, 16);
+  return (int) BFD_ALIGN (ret, 16);
 }
 
 /* Get the contents of a section.  */

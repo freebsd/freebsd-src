@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2017 Dell EMC
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2017, 2018 Dell EMC
  * Copyright (c) 2000, 2001, 2008, 2011, David E. O'Brien
  * Copyright (c) 1998 John D. Polstra.
  * All rights reserved.
@@ -49,6 +51,7 @@ typedef struct {
 	u_int32_t	n_descsz;	/* Length of descriptor. */
 	u_int32_t	n_type;		/* Type of this note. */
 } Elf_Note;
+typedef Elf_Note Elf_Nhdr;
 
 /*
  * Option kinds.
@@ -757,6 +760,7 @@ typedef struct {
 #define	NT_PTLWPINFO		17	/* Thread ptrace miscellaneous info. */
 #define	NT_PPC_VMX	0x100	/* PowerPC Altivec/VMX registers */
 #define	NT_X86_XSTATE	0x202	/* x86 XSAVE extended state. */
+#define	NT_ARM_VFP	0x400	/* ARM VFP registers */
 
 /* Symbol Binding - ELFNN_ST_BIND - st_info */
 #define	STB_LOCAL	0	/* Local symbol */
@@ -1059,6 +1063,8 @@ typedef struct {
 #define	R_MIPS_CALLLO16 31	/* lower 16 bit GOT entry for function */
 #define	R_MIPS_JALR	37
 #define	R_MIPS_TLS_GD	42
+#define	R_MIPS_COPY	126
+#define	R_MIPS_JUMP_SLOT	127
 
 #define	R_PPC_NONE		0	/* No relocation. */
 #define	R_PPC_ADDR32		1

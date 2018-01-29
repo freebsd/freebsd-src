@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2008 MARVELL INTERNATIONAL LTD.
  * Copyright (C) 2009-2015 Semihalf
  * Copyright (C) 2015 Stormshield

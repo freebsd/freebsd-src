@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_UBERBLOCK_IMPL_H
@@ -54,6 +55,12 @@ struct uberblock {
 
 	/* highest SPA_VERSION supported by software that wrote this txg */
 	uint64_t	ub_software_version;
+
+	/* These fields are reserved for features that are under development: */
+	uint64_t	ub_mmp_magic;
+	uint64_t	ub_mmp_delay;
+	uint64_t	ub_mmp_seq;
+	uint64_t	ub_checkpoint_txg;
 };
 
 #ifdef	__cplusplus

@@ -1040,6 +1040,9 @@ atol10(const char *p, size_t char_cnt)
 	uint64_t l;
 	int digit;
 
+	if (char_cnt == 0)
+		return (0);
+
 	l = 0;
 	digit = *p - '0';
 	while (digit >= 0 && digit < 10  && char_cnt-- > 0) {
@@ -1054,7 +1057,10 @@ atol8(const char *p, size_t char_cnt)
 {
 	int64_t l;
 	int digit;
-        
+
+	if (char_cnt == 0)
+		return (0);
+
 	l = 0;
 	while (char_cnt-- > 0) {
 		if (*p >= '0' && *p <= '7')
@@ -2623,6 +2629,14 @@ strappend_base64(struct xar *xar,
 		archive_strncat(as, (const char *)buff, len);
 }
 
+static int
+is_string(const char *known, const char *data, size_t len)
+{
+	if (strlen(known) != len)
+		return -1;
+	return memcmp(data, known, len);
+}
+
 static void
 xml_data(void *userData, const char *s, int len)
 {
@@ -2674,26 +2688,26 @@ xml_data(void *userData, const char *s, int len)
 		archive_strncpy(&(xar->file->symlink), s, len);
 		break;
 	case FILE_TYPE:
-		if (strncmp("file", s, len) == 0 ||
-		    strncmp("hardlink", s, len) == 0)
+		if (is_string("file", s, len) == 0 ||
+		    is_string("hardlink", s, len) == 0)
 			xar->file->mode =
 			    (xar->file->mode & ~AE_IFMT) | AE_IFREG;
-		if (strncmp("directory", s, len) == 0)
+		if (is_string("directory", s, len) == 0)
 			xar->file->mode =
 			    (xar->file->mode & ~AE_IFMT) | AE_IFDIR;
-		if (strncmp("symlink", s, len) == 0)
+		if (is_string("symlink", s, len) == 0)
 			xar->file->mode =
 			    (xar->file->mode & ~AE_IFMT) | AE_IFLNK;
-		if (strncmp("character special", s, len) == 0)
+		if (is_string("character special", s, len) == 0)
 			xar->file->mode =
 			    (xar->file->mode & ~AE_IFMT) | AE_IFCHR;
-		if (strncmp("block special", s, len) == 0)
+		if (is_string("block special", s, len) == 0)
 			xar->file->mode =
 			    (xar->file->mode & ~AE_IFMT) | AE_IFBLK;
-		if (strncmp("socket", s, len) == 0)
+		if (is_string("socket", s, len) == 0)
 			xar->file->mode =
 			    (xar->file->mode & ~AE_IFMT) | AE_IFSOCK;
-		if (strncmp("fifo", s, len) == 0)
+		if (is_string("fifo", s, len) == 0)
 			xar->file->mode =
 			    (xar->file->mode & ~AE_IFMT) | AE_IFIFO;
 		xar->file->has |= HAS_TYPE;

@@ -97,6 +97,7 @@ INCSDIR_atf-c.h= ${INCLUDEDIR}
 MAN=		atf-c.3
 MLINKS+=	atf-c.3 atf-c-api.3  # Backwards compatibility.
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include "../common.mk"

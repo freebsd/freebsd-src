@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * cyclades cyclom-y serial driver
  *	Andrew Herbert <andrew@werple.apana.org.au>, 17 August 1993
  *

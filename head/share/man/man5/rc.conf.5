@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2017
+.Dd December 9, 2017
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -63,6 +63,9 @@ The file
 is used to override settings in
 .Pa /etc/rc.conf
 for historical reasons.
+.Pp
+The sysrc(8) command provides a scripting interface to modify system
+config files.
 .Pp
 In addition to
 .Pa /etc/rc.conf.local
@@ -986,7 +989,7 @@ is set to the list of
 instances that should be started at system boot time.
 If
 .Va pflog_instances
-is set, for each whitespace-seperated
+is set, for each whitespace-separated
 .Ar element
 in the list,
 .Ao Ar element Ac Ns Va _dev
@@ -1028,7 +1031,7 @@ If multiple instances of
 .Xr ftp-proxy 8
 are desired at boot time,
 .Va ftpproxy_instances
-should contain a whitespace-seperated list of instance names.
+should contain a whitespace-separated list of instance names.
 For each
 .Ar element
 in the list, a variable named
@@ -1613,6 +1616,23 @@ is set to 1.
 .Pp
 Default is
 .Dq Li NO .
+.It Va ifconfig_ Ns Ao Ar interface Ac Ns _descr
+.Pq Vt str
+This assigns arbitrary description to an interface.
+The
+.Xr sysctl 8
+variable
+.Va net.ifdescr_maxlen
+limits its length.
+This static setting may be overridden by commands
+started with dynamic interface configuration utilities
+like
+.Xr dhclient 8
+hooks. The description can be seen with
+.Xr ifconfig 8
+command and it may be exported with
+.Xr bsnmpd 1
+daemon using its MIB-2 module.
 .It Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
 .Pq Vt str
 IPv6 functionality on an interface should be configured by
@@ -1796,21 +1816,40 @@ This variable is deprecated in favor of
 Set to the list of
 .Xr gif 4
 tunnel interfaces to configure on this host.
-A
-.Va gifconfig_ Ns Aq Ar interface
-variable is assumed to exist for each value of
-.Ar interface .
+For each
+.Xr gif
+tunnel interface, set a variable named
+.Va ifconfig_ Ns Aq Ar interface
+with the parameters for the
+.Xr ifconfig 8
+command to configure the link level for
+.Ar interface
+with the
+.Cm tunnel
+option.
 The value of this variable is used to configure the link layer of the
-tunnel according to the syntax of the
+tunnel using the
 .Cm tunnel
 option to
-.Xr ifconfig 8 .
+.Xr ifconfig .
+For example, configure two
+.Xr gif
+interfaces with:
+.Bd -literal -offset indent
+gif_interfaces="gif0 gif1"
+ifconfig_gif0="tunnel src_addr0 dst_addr0"
+ifconfig_gif1="tunnel src_addr1 dst_addr1"
+.Ed
+.Pp
 Additionally, this option ensures that each listed interface is created
 via the
 .Cm create
 option to
-.Xr ifconfig 8
-before attempting to configure it.
+.Xr ifconfig .
+This example also works with
+.Va cloned_interfaces
+instead of
+.Va gif_interfaces .
 .It Va sppp_interfaces
 .Pq Vt str
 Set to the list of
@@ -3377,6 +3416,13 @@ Otherwise, the value of this variable is passed as the argument to
 .Xr dumpon 8 .
 To disable crash dumps, set this variable to
 .Dq Li NO .
+.It Va dumpon_flags
+.Pq Vt str
+Flags to pass to
+.Xr dumpon 8
+when configuring
+.Va dumpdev
+as the system dump device.
 .It Va dumpdir
 .Pq Vt str
 When the system reboots after a crash and a crash dump is found on the
@@ -3397,18 +3443,6 @@ to not run
 at boot time when
 .Va dumpdir
 is set.
-.It Va dumppubkey
-.Pq Vt str
-Path to a public key.
-It is used by
-.Xr dumpon 8
-to encrypt a one-time key for a crash dump.
-The public key has to match a private key used by
-.Xr decryptcore 8
-to decrypt a crash dump after reboot.
-See
-.Xr dumpon 8
-for more details.
 .It Va savecore_enable
 .Pq Vt bool
 If set to
@@ -4453,7 +4487,6 @@ configuration file.
 .It Pa /etc/rc.conf.local
 .El
 .Sh SEE ALSO
-.Xr catman 1 ,
 .Xr chmod 1 ,
 .Xr gdb 1 ,
 .Xr info 1 ,
@@ -4538,6 +4571,7 @@ configuration file.
 .Xr swapon 8 ,
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
+.Xr sysrc 8 ,
 .Xr timed 8 ,
 .Xr unbound 8 ,
 .Xr usbconfig 8 ,

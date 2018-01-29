@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2008 John Birrell <jb@freebsd.org>
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -70,7 +72,8 @@ MODULE_DEPEND(dtraceall, dtmalloc, 1, 1, 1);
 MODULE_DEPEND(dtraceall, dtnfscl, 1, 1, 1);
 #endif
 #if defined(__aarch64__) || defined(__amd64__) || defined(__arm__) || \
-    defined(__i386__) || defined(__powerpc__) || defined(__riscv__)
+    defined(__i386__) || defined(__mips__) || \
+    defined(__powerpc__) || defined(__riscv)
 MODULE_DEPEND(dtraceall, fbt, 1, 1, 1);
 #endif
 #if defined(__amd64__) || defined(__i386__)

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012,2016 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016-2017 Microsoft Corp.
  * Copyright (c) 2012 NetApp Inc.
  * Copyright (c) 2012 Citrix Inc.
  * All rights reserved.
@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
+#include <machine/md_var.h>
 #include <machine/resource.h>
 #include <x86/include/apicvar.h>
 
@@ -128,7 +129,14 @@ static void			vmbus_event_proc_dummy(struct vmbus_softc *,
 
 static struct vmbus_softc	*vmbus_sc;
 
-extern inthand_t IDTVEC(vmbus_isr);
+SYSCTL_NODE(_hw, OID_AUTO, vmbus, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+    "Hyper-V vmbus");
+
+static int			vmbus_pin_evttask = 1;
+SYSCTL_INT(_hw_vmbus, OID_AUTO, pin_evttask, CTLFLAG_RDTUN,
+    &vmbus_pin_evttask, 0, "Pin event tasks to their respective CPU");
+
+extern inthand_t IDTVEC(vmbus_isr), IDTVEC(vmbus_isr_pti);
 
 static const uint32_t		vmbus_version[] = {
 	VMBUS_VERSION_WIN8_1,
@@ -905,10 +913,16 @@ vmbus_intr_setup(struct vmbus_softc *sc)
 		VMBUS_PCPU_GET(sc, event_tq, cpu) = taskqueue_create_fast(
 		    "hyperv event", M_WAITOK, taskqueue_thread_enqueue,
 		    VMBUS_PCPU_PTR(sc, event_tq, cpu));
-		CPU_SETOF(cpu, &cpu_mask);
-		taskqueue_start_threads_cpuset(
-		    VMBUS_PCPU_PTR(sc, event_tq, cpu), 1, PI_NET, &cpu_mask,
-		    "hvevent%d", cpu);
+		if (vmbus_pin_evttask) {
+			CPU_SETOF(cpu, &cpu_mask);
+			taskqueue_start_threads_cpuset(
+			    VMBUS_PCPU_PTR(sc, event_tq, cpu), 1, PI_NET,
+			    &cpu_mask, "hvevent%d", cpu);
+		} else {
+			taskqueue_start_threads(
+			    VMBUS_PCPU_PTR(sc, event_tq, cpu), 1, PI_NET,
+			    "hvevent%d", cpu);
+		}
 
 		/*
 		 * Setup tasks and taskqueues to handle messages.
@@ -928,7 +942,8 @@ vmbus_intr_setup(struct vmbus_softc *sc)
 	 * All Hyper-V ISR required resources are setup, now let's find a
 	 * free IDT vector for Hyper-V ISR and set it up.
 	 */
-	sc->vmbus_idtvec = lapic_ipi_alloc(IDTVEC(vmbus_isr));
+	sc->vmbus_idtvec = lapic_ipi_alloc(pti ? IDTVEC(vmbus_isr_pti) :
+	    IDTVEC(vmbus_isr));
 	if (sc->vmbus_idtvec < 0) {
 		device_printf(sc->vmbus_dev, "cannot find free IDT vector\n");
 		return ENXIO;

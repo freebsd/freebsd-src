@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -217,7 +217,7 @@ AcpiHwLowSetGpe (
 {
     ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo;
     ACPI_STATUS             Status = AE_OK;
-    UINT32                  EnableMask;
+    UINT64                  EnableMask;
     UINT32                  RegisterBit;
 
 
@@ -342,7 +342,7 @@ AcpiHwGetGpeStatus (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo,
     ACPI_EVENT_STATUS       *EventStatus)
 {
-    UINT32                  InByte;
+    UINT64                  InByte;
     UINT32                  RegisterBit;
     ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo;
     ACPI_EVENT_STATUS       LocalEventStatus = 0;

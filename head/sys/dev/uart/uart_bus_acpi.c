@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 M. Warner Losh.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -102,13 +104,11 @@ static int
 uart_acpi_probe(device_t dev)
 {
 	struct uart_softc *sc;
-	device_t parent;
 
-	parent = device_get_parent(dev);
 	sc = device_get_softc(dev);
 
 #if defined(__i386__) || defined(__amd64__)
-	if (!ISA_PNP_PROBE(parent, dev, acpi_ns8250_ids)) {
+	if (!ISA_PNP_PROBE(device_get_parent(dev), dev, acpi_ns8250_ids)) {
 		sc->sc_class = &uart_ns8250_class;
 		return (uart_bus_probe(dev, 0, 0, 0, 0, 0));
 	}

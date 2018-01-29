@@ -76,19 +76,24 @@ __FBSDID("$FreeBSD$");
 	BHNDB_PORTS(__VA_ARGS__)		\
 }
 
-/* Define a port priority record for the type/port/region
- * triplet. */
-#define	BHNDB_PORT_PRIO(_type, _port, _region, _priority) {	\
+/* Define a port priority record for the type/port/region triplet, optionally
+ * specifying port allocation flags as the final argument */
+#define	BHNDB_PORT_PRIO(_type, _port, _region, _priority, ...)	\
+	_BHNDB_PORT_PRIO(_type, _port, _region, _priority, ## __VA_ARGS__, 0)
+
+#define	_BHNDB_PORT_PRIO(_type, _port, _region, _priority, _flags, ...)	\
+{								\
 	.type		= (BHND_PORT_ ## _type),		\
 	.port		= _port,				\
 	.region		= _region,				\
-	.priority	= (BHNDB_PRIORITY_ ## _priority)	\
+	.priority	= (BHNDB_PRIORITY_ ## _priority),	\
+	.alloc_flags	= (_flags)				\
 }
 
 /* Define a port priority record for the default (_type, 0, 0) type/port/region
  * triplet. */
-#define	BHNDB_PORT0_PRIO(_type, _priority)	\
-	BHNDB_PORT_PRIO(_type, 0, 0, _priority)
+#define	BHNDB_PORT0_PRIO(_type, _priority, ...)	\
+	BHNDB_PORT_PRIO(_type, 0, 0, _priority, ## __VA_ARGS__, 0)
 
 /**
  * Generic resource priority configuration usable with all currently supported
@@ -170,10 +175,14 @@ const struct bhndb_hw_priority bhndb_siba_priority_table[] = {
 	 * Agent ports are marked as 'NONE' on siba(4) devices, as they
 	 * will be fully mappable via register windows shared with the
 	 * device0.0 port.
+	 * 
+	 * To support early PCI_V0 devices, we enable FULFILL_ON_OVERCOMMIT for
+	 * ChipCommon.
 	 */
 	BHNDB_CLASS_PRIO(CC,		LOW,
 		/* Device Block */
-		BHNDB_PORT_PRIO(DEVICE,	0,	0,	LOW)
+		BHNDB_PORT_PRIO(DEVICE,	0,	0,	LOW,
+		    BHNDB_ALLOC_FULFILL_ON_OVERCOMMIT)
 	),
 
 	BHNDB_CLASS_PRIO(PMU,		LOW,

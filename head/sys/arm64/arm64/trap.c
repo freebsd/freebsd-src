@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/pcpu.h>
+#include <machine/undefined.h>
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
@@ -322,7 +323,10 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 			break;
 		}
 #endif
-		/* FALLTHROUGH */
+		kdb_trap(exception, 0,
+		    (td->td_frame != NULL) ? td->td_frame : frame);
+		frame->tf_elr += 4;
+		break;
 	case EXCP_WATCHPT_EL1:
 	case EXCP_SOFTSTP_EL1:
 #ifdef KDB
@@ -332,6 +336,10 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 		panic("No debugger in kernel.\n");
 #endif
 		break;
+	case EXCP_UNKNOWN:
+		if (undef_insn(1, frame))
+			break;
+		/* FALLTHROUGH */
 	default:
 		print_registers(frame);
 		panic("Unknown kernel exception %x esr_el1 %lx\n", exception,
@@ -341,23 +349,10 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 	td->td_frame = oframe;
 }
 
-/*
- * The attempted execution of an instruction bit pattern that has no allocated
- * instruction results in an exception with an unknown reason.
- */
-static void
-el0_excp_unknown(struct trapframe *frame, uint64_t far)
-{
-	struct thread *td;
-
-	td = curthread;
-	call_trapsignal(td, SIGILL, ILL_ILLTRP, (void *)far);
-	userret(td, frame);
-}
-
 void
 do_el0_sync(struct thread *td, struct trapframe *frame)
 {
+	pcpu_bp_harden bp_harden;
 	uint32_t exception;
 	uint64_t esr, far;
 
@@ -369,11 +364,25 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 	esr = frame->tf_esr;
 	exception = ESR_ELx_EXCEPTION(esr);
 	switch (exception) {
-	case EXCP_UNKNOWN:
 	case EXCP_INSN_ABORT_L:
+		far = READ_SPECIALREG(far_el1);
+
+		/*
+		 * Userspace may be trying to train the branch predictor to
+		 * attack the kernel. If we are on a CPU affected by this
+		 * call the handler to clear the branch predictor state.
+		 */
+		if (far > VM_MAXUSER_ADDRESS) {
+			bp_harden = PCPU_GET(bp_harden);
+			if (bp_harden != NULL)
+				bp_harden();
+		}
+		break;
+	case EXCP_UNKNOWN:
 	case EXCP_DATA_ABORT_L:
 	case EXCP_DATA_ABORT:
 		far = READ_SPECIALREG(far_el1);
+		break;
 	}
 	intr_enable();
 
@@ -390,7 +399,8 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 		panic("VFP exception in userland");
 #endif
 		break;
-	case EXCP_SVC:
+	case EXCP_SVC32:
+	case EXCP_SVC64:
 		svc_handler(td, frame);
 		break;
 	case EXCP_INSN_ABORT_L:
@@ -399,7 +409,9 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 		data_abort(td, frame, esr, far, 1);
 		break;
 	case EXCP_UNKNOWN:
-		el0_excp_unknown(frame, far);
+		if (!undef_insn(0, frame))
+			call_trapsignal(td, SIGILL, ILL_ILLTRP, (void *)far);
+		userret(td, frame);
 		break;
 	case EXCP_SP_ALIGN:
 		call_trapsignal(td, SIGBUS, BUS_ADRALN, (void *)frame->tf_sp);

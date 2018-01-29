@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -96,7 +98,7 @@ pass1(void)
 	for (c = 0; c < sblock.fs_ncg; c++) {
 		inumber = c * sblock.fs_ipg;
 		setinodebuf(inumber);
-		cgbp = cgget(c);
+		cgbp = cglookup(c);
 		cgp = cgbp->b_un.b_cg;
 		rebuildcg = 0;
 		if (!check_cgmagic(c, cgbp))

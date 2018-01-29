@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 William Jolitz.
  * Copyright (c) 1991 The Regents of the University of California.
  * All rights reserved.
@@ -806,6 +808,7 @@ fpusetregs(struct thread *td, struct savefpu *addr, char *xfpustate,
 	struct pcb *pcb;
 	int error;
 
+	addr->sv_env.en_mxcsr &= cpu_mxcsr_mask;
 	pcb = td->td_pcb;
 	critical_enter();
 	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
@@ -914,6 +917,7 @@ static driver_t fpupnp_driver = {
 static devclass_t fpupnp_devclass;
 
 DRIVER_MODULE(fpupnp, acpi, fpupnp_driver, fpupnp_devclass, 0, 0);
+ISA_PNP_INFO(fpupnp_ids);
 #endif	/* DEV_ISA */
 
 static MALLOC_DEFINE(M_FPUKERN_CTX, "fpukern_ctx",

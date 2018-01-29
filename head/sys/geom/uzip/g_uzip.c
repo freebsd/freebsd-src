@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Max Khon
  * Copyright (c) 2014 Juniper Networks, Inc.
  * Copyright (c) 2006-2016 Maxim Sobolev <sobomax@FreeBSD.org>

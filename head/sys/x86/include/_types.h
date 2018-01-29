@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2002 Mike Barcroft <mike@FreeBSD.org>
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -60,15 +62,9 @@ typedef	unsigned int		__uint32_t;
 typedef	long			__int64_t;
 typedef	unsigned long		__uint64_t;
 #else
-#ifndef lint
 __extension__
-#endif
-/* LONGLONG */
 typedef	long long		__int64_t;
-#ifndef lint
 __extension__
-#endif
-/* LONGLONG */
 typedef	unsigned long long	__uint64_t;
 #endif
 

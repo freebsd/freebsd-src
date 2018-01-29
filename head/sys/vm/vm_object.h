@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-3-Clause AND MIT-CMU)
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -70,7 +72,9 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_pctrie.h>
 #include <sys/_rwlock.h>
+#include <sys/_domainset.h>
 
 #include <vm/_vm_radix.h>
 
@@ -86,14 +90,20 @@
  *
  */
 
+#ifndef VM_PAGE_HAVE_PGLIST
+TAILQ_HEAD(pglist, vm_page);
+#define VM_PAGE_HAVE_PGLIST
+#endif
+
 struct vm_object {
 	struct rwlock lock;
 	TAILQ_ENTRY(vm_object) object_list; /* list of all objects */
 	LIST_HEAD(, vm_object) shadow_head; /* objects that this is a shadow for */
 	LIST_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
-	TAILQ_HEAD(respgs, vm_page) memq; /* list of resident pages */
+	struct pglist memq;		/* list of resident pages */
 	struct vm_radix rtree;		/* root of the resident page radix trie*/
 	vm_pindex_t size;		/* Object size */
+	struct domainset_ref domain;	/* NUMA policy. */
 	int generation;			/* generation ID */
 	int ref_count;			/* How many refs?? */
 	int shadow_count;		/* how many objects that this is a shadow for */
@@ -151,13 +161,12 @@ struct vm_object {
 		 *		     the handle changed and hash-chain
 		 *		     invalid.
 		 *
-		 *	swp_bcount - number of swap 'swblock' metablocks, each
-		 *		     contains up to 16 swapblk assignments.
-		 *		     see vm/swap_pager.h
+		 *	swp_blks -   pc-trie of the allocated swap blocks.
+		 *
 		 */
 		struct {
 			void *swp_tmpfs;
-			int swp_bcount;
+			struct pctrie swp_blks;
 		} swp;
 	} un_pager;
 	struct ucred *cred;
@@ -175,6 +184,7 @@ struct vm_object {
 #define	OBJ_NOSPLIT	0x0010		/* dont split this object */
 #define	OBJ_UMTXDEAD	0x0020		/* umtx pshared was terminated */
 #define	OBJ_PIPWNT	0x0040		/* paging in progress wanted */
+#define	OBJ_PG_DTOR	0x0080		/* dont reset object, leave that for dtor */
 #define	OBJ_MIGHTBEDIRTY 0x0100		/* object might be dirty, only for vnode */
 #define	OBJ_TMPFS_NODE	0x0200		/* object belongs to tmpfs VREG node */
 #define	OBJ_TMPFS_DIRTY	0x0400		/* dirty tmpfs obj */
@@ -219,10 +229,10 @@ extern struct object_q vm_object_list;	/* list of allocated objects */
 extern struct mtx vm_object_list_mtx;	/* lock for object list and count */
 
 extern struct vm_object kernel_object_store;
-extern struct vm_object kmem_object_store;
 
+/* kernel and kmem are aliased for backwards KPI compat. */
 #define	kernel_object	(&kernel_object_store)
-#define	kmem_object	(&kmem_object_store)
+#define	kmem_object	(&kernel_object_store)
 
 #define	VM_OBJECT_ASSERT_LOCKED(object)					\
 	rw_assert(&(object)->lock, RA_LOCKED)
