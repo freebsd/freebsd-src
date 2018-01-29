@@ -297,6 +297,17 @@ vm_object_color(vm_object_t object, u_short color)
 	}
 }
 
+static __inline bool
+vm_object_reserv(vm_object_t object)
+{
+
+	if (object != NULL &&
+	    (object->flags & (OBJ_COLORED | OBJ_FICTITIOUS)) == OBJ_COLORED) {
+		return (true);
+	}
+	return (false);
+}
+
 void vm_object_clear_flag(vm_object_t object, u_short bits);
 void vm_object_pip_add(vm_object_t object, short i);
 void vm_object_pip_subtract(vm_object_t object, short i);

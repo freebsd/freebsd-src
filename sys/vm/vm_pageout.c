@@ -185,11 +185,6 @@ SYSCTL_INT(_vm, OID_AUTO, act_scan_laundry_weight, CTLFLAG_RWTUN,
     &act_scan_laundry_weight, 0,
     "weight given to clean vs. dirty pages in active queue scans");
 
-static u_int vm_background_launder_target;
-SYSCTL_UINT(_vm, OID_AUTO, background_launder_target, CTLFLAG_RWTUN,
-    &vm_background_launder_target, 0,
-    "background laundering target, in pages");
-
 static u_int vm_background_launder_rate = 4096;
 SYSCTL_UINT(_vm, OID_AUTO, background_launder_rate, CTLFLAG_RWTUN,
     &vm_background_launder_rate, 0,
@@ -1030,7 +1025,7 @@ trybackground:
 		ndirty = vmd->vmd_pagequeues[PQ_LAUNDRY].pq_cnt;
 		if (target == 0 && inactq_scans != last_launder &&
 		    ndirty * isqrt(inactq_scans - last_launder) >= nclean) {
-			target = vm_background_launder_target;
+			target = vmd->vmd_background_launder_target;
 		}
 
 		/*
@@ -1880,6 +1875,14 @@ vm_pageout_init_domain(int domain)
 	 * page limit.  This keeps the steady state out of shortfall.
 	 */
 	vmd->vmd_pageout_wakeup_thresh = (vmd->vmd_free_min / 10) * 11;
+
+	/*
+	 * Target amount of memory to move out of the laundry queue during a
+	 * background laundering.  This is proportional to the amount of system
+	 * memory.
+	 */
+	vmd->vmd_background_launder_target = (vmd->vmd_free_target -
+	    vmd->vmd_free_min) / 10;
 }
 
 static void
@@ -1920,14 +1923,6 @@ vm_pageout_init(void)
 
 	if (vm_page_max_wired == 0)
 		vm_page_max_wired = freecount / 3;
-
-	/*
-	 * Target amount of memory to move out of the laundry queue during a
-	 * background laundering.  This is proportional to the amount of system
-	 * memory.
-	 */
-	vm_background_launder_target = (vm_cnt.v_free_target -
-	    vm_cnt.v_free_min) / 10;
 }
 
 /*
@@ -2006,6 +2001,8 @@ pagedaemon_wait(int domain, int pri, const char *wmesg)
 		wakeup(&vmd->vmd_pageout_wanted);
 	}
 	vmd->vmd_pages_needed = true;
+	vmd->vmd_waiters++;
 	msleep(&vmd->vmd_free_count, vm_domain_free_lockptr(vmd), PDROP | pri,
 	    wmesg, 0);
+	vmd->vmd_waiters--;
 }

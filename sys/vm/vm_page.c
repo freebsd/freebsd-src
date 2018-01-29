@@ -1683,12 +1683,6 @@ vm_page_alloc_domain_after(vm_object_t object, vm_pindex_t pindex, int domain,
 	vm_page_t m;
 	int flags;
 	u_int free_count;
-#if VM_NRESERVLEVEL > 0
-	int reserv;
-
-	reserv = object != NULL &&
-	    (object->flags & (OBJ_COLORED | OBJ_FICTITIOUS)) == OBJ_COLORED;
-#endif
 
 	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0) &&
 	    (object != NULL || (req & VM_ALLOC_SBUSY) == 0) &&
@@ -1706,7 +1700,7 @@ vm_page_alloc_domain_after(vm_object_t object, vm_pindex_t pindex, int domain,
 again:
 	m = NULL;
 #if VM_NRESERVLEVEL > 0
-	if (reserv &&
+	if (vm_object_reserv(object) &&
 	    (m = vm_reserv_extend(req, object, pindex, domain, mpred))
 	    != NULL) {
 		domain = vm_phys_domain(m);
@@ -1721,7 +1715,8 @@ again:
 		 * Can we allocate the page from a reservation?
 		 */
 #if VM_NRESERVLEVEL > 0
-		if (!reserv || (m = vm_reserv_alloc_page(object, pindex,
+		if (!vm_object_reserv(object) ||
+		    (m = vm_reserv_alloc_page(object, pindex,
 		    domain, mpred)) == NULL)
 #endif
 		{
@@ -1892,12 +1887,7 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 	struct vm_domain *vmd;
 	vm_page_t m, m_ret, mpred;
 	u_int busy_lock, flags, oflags;
-#if VM_NRESERVLEVEL > 0
-	int reserv;
 
-	reserv = object != NULL &&
-	    (object->flags & (OBJ_COLORED | OBJ_FICTITIOUS)) == OBJ_COLORED;
-#endif
 	mpred = NULL;	/* XXX: pacify gcc */
 	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0) &&
 	    (object != NULL || (req & VM_ALLOC_SBUSY) == 0) &&
@@ -1927,7 +1917,7 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 	 */
 again:
 #if VM_NRESERVLEVEL > 0
-	if (reserv &&
+	if (vm_object_reserv(object) &&
 	    (m_ret = vm_reserv_extend_contig(req, object, pindex, domain,
 	    npages, low, high, alignment, boundary, mpred)) != NULL) {
 		domain = vm_phys_domain(m_ret);
@@ -1944,7 +1934,7 @@ again:
 		 */
 #if VM_NRESERVLEVEL > 0
 retry:
-		if (!reserv ||
+		if (!vm_object_reserv(object) ||
 		    (m_ret = vm_reserv_alloc_contig(object, pindex, domain,
 		    npages, low, high, alignment, boundary, mpred)) == NULL)
 #endif
@@ -2541,10 +2531,10 @@ unlock:
 	if (m_mtx != NULL)
 		mtx_unlock(m_mtx);
 	if ((m = SLIST_FIRST(&free)) != NULL) {
-		MPASS(vm_phys_domain(m) == domain);
 		vmd = VM_DOMAIN(domain);
 		vm_domain_free_lock(vmd);
 		do {
+			MPASS(vm_phys_domain(m) == domain);
 			SLIST_REMOVE_HEAD(&free, plinks.s.ss);
 			vm_page_free_phys(m);
 		} while ((m = SLIST_FIRST(&free)) != NULL);
@@ -2720,7 +2710,7 @@ vm_domain_clear(struct vm_domain *vmd)
 	if (vmd->vmd_minset && !vm_paging_min(vmd)) {
 		vmd->vmd_minset = 0;
 		DOMAINSET_CLR(vmd->vmd_domain, &vm_min_domains);
-		if (!vm_page_count_min() && vm_min_waiters) {
+		if (vm_min_waiters != 0) {
 			vm_min_waiters = 0;
 			wakeup(&vm_min_domains);
 		}
@@ -2728,7 +2718,7 @@ vm_domain_clear(struct vm_domain *vmd)
 	if (vmd->vmd_severeset && !vm_paging_severe(vmd)) {
 		vmd->vmd_severeset = 0;
 		DOMAINSET_CLR(vmd->vmd_domain, &vm_severe_domains);
-		if (!vm_page_count_severe() && vm_severe_waiters) {
+		if (vm_severe_waiters != 0) {
 			vm_severe_waiters = 0;
 			wakeup(&vm_severe_domains);
 		}
@@ -2759,11 +2749,25 @@ vm_wait_severe(void)
 {
 
 	mtx_lock(&vm_domainset_lock);
-	while (vm_page_count_min()) {
+	while (vm_page_count_severe()) {
 		vm_severe_waiters++;
 		msleep(&vm_min_domains, &vm_domainset_lock, PVM, "vmwait", 0);
 	}
 	mtx_unlock(&vm_domainset_lock);
+}
+
+u_int
+vm_wait_count(void)
+{
+	u_int cnt;
+	int i;
+
+	cnt = 0;
+	for (i = 0; i < vm_ndomains; i++)
+		cnt += VM_DOMAIN(i)->vmd_waiters;
+	cnt += vm_severe_waiters + vm_min_waiters;
+
+	return (cnt);
 }
 
 /*
@@ -2815,13 +2819,20 @@ vm_wait(void)
 		msleep(&vm_pageproc_waiters, &vm_domainset_lock, PVM,
 		    "pageprocwait", 1);
 		mtx_unlock(&vm_domainset_lock);
-	} else
+	} else {
 		/*
 		 * XXX Ideally we would wait only until the allocation could
 		 * be satisfied.  This condition can cause new allocators to
 		 * consume all freed pages while old allocators wait.
 		 */
-		vm_wait_min();
+		mtx_lock(&vm_domainset_lock);
+		if (vm_page_count_min()) {
+			vm_min_waiters++;
+			msleep(&vm_min_domains, &vm_domainset_lock, PVM,
+			    "vmwait", 0);
+		}
+		mtx_unlock(&vm_domainset_lock);
+	}
 }
 
 /*
@@ -2872,7 +2883,7 @@ vm_waitpfault(void)
 {
 
 	mtx_lock(&vm_domainset_lock);
-	while (vm_page_count_min()) {
+	if (vm_page_count_min()) {
 		vm_min_waiters++;
 		msleep(&vm_min_domains, &vm_domainset_lock, PUSER, "pfault", 0);
 	}

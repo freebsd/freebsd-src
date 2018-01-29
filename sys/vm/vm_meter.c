@@ -215,11 +215,6 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 							total.t_dw++;
 						else
 							total.t_sl++;
-#if 0 /* XXX */
-						if (td->td_wchan ==
-						    &vm_cnt.v_free_count)
-							total.t_pw++;
-#endif
 					}
 					break;
 				case TDS_CAN_RUN:
@@ -287,6 +282,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		}
 	}
 	mtx_unlock(&vm_object_list_mtx);
+	total.t_pw = vm_wait_count();
 	total.t_free = vm_free_count();
 #if defined(COMPAT_FREEBSD11)
 	/* sysctl(8) allocates twice as much memory as reported by sysctl(3) */
@@ -441,42 +437,38 @@ vm_free_count(void)
 	return (v);
 }
 
+static
 u_int
-vm_active_count(void)
+vm_pagequeue_count(int pq)
 {
 	u_int v;
 	int i;
 
 	v = 0;
 	for (i = 0; i < vm_ndomains; i++)
-		v += vm_dom[i].vmd_pagequeues[PQ_ACTIVE].pq_cnt;
+		v += vm_dom[i].vmd_pagequeues[pq].pq_cnt;
 
 	return (v);
+}
+
+u_int
+vm_active_count(void)
+{
+
+	return vm_pagequeue_count(PQ_ACTIVE);
 }
 
 u_int
 vm_inactive_count(void)
 {
-	u_int v;
-	int i;
 
-	v = 0;
-	for (i = 0; i < vm_ndomains; i++)
-		v += vm_dom[i].vmd_pagequeues[PQ_INACTIVE].pq_cnt;
-
-	return (v);
+	return vm_pagequeue_count(PQ_INACTIVE);
 }
 
 u_int
 vm_laundry_count(void)
 {
-	u_int v;
-	int i;
 
-	v = 0;
-	for (i = 0; i < vm_ndomains; i++)
-		v += vm_dom[i].vmd_pagequeues[PQ_LAUNDRY].pq_cnt;
-
-	return (v);
+	return vm_pagequeue_count(PQ_LAUNDRY);
 }
 
