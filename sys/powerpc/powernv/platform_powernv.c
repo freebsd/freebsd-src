@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2015 Nathan Whitehorn
+ * Copyright (c) 2017-2018 Semihalf
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,6 +74,7 @@ static struct cpu_group *powernv_smp_topo(platform_t plat);
 #endif
 static void powernv_reset(platform_t);
 static void powernv_cpu_idle(sbintime_t sbt);
+static int powernv_cpuref_init(void);
 
 static platform_method_t powernv_methods[] = {
 	PLATFORMMETHOD(platform_probe, 		powernv_probe),
@@ -100,9 +102,13 @@ static platform_def_t powernv_platform = {
 	0
 };
 
+static struct cpuref platform_cpuref[MAXCPU];
+static int platform_cpuref_cnt;
+static int platform_cpuref_valid;
+
 PLATFORM_DEF(powernv_platform);
 
-static int powernv_boot_pir;
+static uint64_t powernv_boot_pir;
 
 static int
 powernv_probe(platform_t plat)
@@ -126,11 +132,19 @@ powernv_attach(platform_t plat)
 	/* Ping OPAL again just to make sure */
 	opal_check();
 
+#if BYTE_ORDER == LITTLE_ENDIAN
+	opal_call(OPAL_REINIT_CPUS, 2 /* Little endian */);
+#else
+	opal_call(OPAL_REINIT_CPUS, 1 /* Big endian */);
+#endif
+
 	cpu_idle_hook = powernv_cpu_idle;
 	powernv_boot_pir = mfspr(SPR_PIR);
 
 	/* Init CPU bits */
 	powernv_smp_ap_init(plat);
+
+	powernv_cpuref_init();
 
 	/* Set SLB count from device tree */
 	cpu = OF_peer(0);
@@ -219,28 +233,12 @@ powernv_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
 static u_long
 powernv_timebase_freq(platform_t plat, struct cpuref *cpuref)
 {
-	phandle_t phandle;
-	int32_t ticks = -1;
-
-	phandle = cpuref->cr_hwref;
-
-	OF_getencprop(phandle, "timebase-frequency", &ticks, sizeof(ticks));
-
-	if (ticks <= 0)
-		panic("Unable to determine timebase frequency!");
-
-	return (ticks);
-}
-
-static int
-powernv_smp_first_cpu(platform_t plat, struct cpuref *cpuref)
-{
 	char buf[8];
 	phandle_t cpu, dev, root;
-	int res, cpuid;
+	int res;
+	int32_t ticks = -1;
 
 	root = OF_peer(0);
-
 	dev = OF_child(root);
 	while (dev != 0) {
 		res = OF_getprop(dev, "name", buf, sizeof(buf));
@@ -248,35 +246,96 @@ powernv_smp_first_cpu(platform_t plat, struct cpuref *cpuref)
 			break;
 		dev = OF_peer(dev);
 	}
-	if (dev == 0) {
-		/*
-		 * psim doesn't have a name property on the /cpus node,
-		 * but it can be found directly
-		 */
-		dev = OF_finddevice("/cpus");
-		if (dev == 0)
-			return (ENOENT);
-	}
 
-	cpu = OF_child(dev);
-
-	while (cpu != 0) {
+	for (cpu = OF_child(dev); cpu != 0; cpu = OF_peer(cpu)) {
 		res = OF_getprop(cpu, "device_type", buf, sizeof(buf));
 		if (res > 0 && strcmp(buf, "cpu") == 0)
 			break;
-		cpu = OF_peer(cpu);
 	}
 	if (cpu == 0)
-		return (ENOENT);
+		return (512000000);
 
-	cpuref->cr_hwref = cpu;
-	res = OF_getencprop(cpu, "ibm,ppc-interrupt-server#s", &cpuid,
-	    sizeof(cpuid));
-	if (res <= 0)
-		res = OF_getencprop(cpu, "reg", &cpuid, sizeof(cpuid));
-	if (res <= 0)
-		cpuid = 0;
-	cpuref->cr_cpuid = cpuid;
+	OF_getencprop(cpu, "timebase-frequency", &ticks, sizeof(ticks));
+
+	if (ticks <= 0)
+		panic("Unable to determine timebase frequency!");
+
+	return (ticks);
+
+}
+
+static int
+powernv_cpuref_init(void)
+{
+	phandle_t cpu, dev;
+	char buf[32];
+	int a, res, tmp_cpuref_cnt;
+	static struct cpuref tmp_cpuref[MAXCPU];
+	cell_t interrupt_servers[32];
+	uint64_t bsp;
+
+	if (platform_cpuref_valid)
+		return (0);
+
+	dev = OF_peer(0);
+	dev = OF_child(dev);
+	while (dev != 0) {
+		res = OF_getprop(dev, "name", buf, sizeof(buf));
+		if (res > 0 && strcmp(buf, "cpus") == 0)
+			break;
+		dev = OF_peer(dev);
+	}
+
+	bsp = 0;
+	tmp_cpuref_cnt = 0;
+	for (cpu = OF_child(dev); cpu != 0; cpu = OF_peer(cpu)) {
+		res = OF_getprop(cpu, "device_type", buf, sizeof(buf));
+		if (res > 0 && strcmp(buf, "cpu") == 0) {
+			res = OF_getproplen(cpu, "ibm,ppc-interrupt-server#s");
+			if (res > 0) {
+
+
+				OF_getencprop(cpu, "ibm,ppc-interrupt-server#s",
+				    interrupt_servers, res);
+
+				for (a = 0; a < res/sizeof(cell_t); a++) {
+					tmp_cpuref[tmp_cpuref_cnt].cr_hwref = interrupt_servers[a];
+					tmp_cpuref[tmp_cpuref_cnt].cr_cpuid = tmp_cpuref_cnt;
+
+					if (interrupt_servers[a] == (uint32_t)powernv_boot_pir)
+						bsp = tmp_cpuref_cnt;
+
+					tmp_cpuref_cnt++;
+				}
+			}
+		}
+	}
+
+	/* Map IDs, so BSP has CPUID 0 regardless of hwref */
+	for (a = bsp; a < tmp_cpuref_cnt; a++) {
+		platform_cpuref[platform_cpuref_cnt].cr_hwref = tmp_cpuref[a].cr_hwref;
+		platform_cpuref[platform_cpuref_cnt].cr_cpuid = platform_cpuref_cnt;
+		platform_cpuref_cnt++;
+	}
+	for (a = 0; a < bsp; a++) {
+		platform_cpuref[platform_cpuref_cnt].cr_hwref = tmp_cpuref[a].cr_hwref;
+		platform_cpuref[platform_cpuref_cnt].cr_cpuid = platform_cpuref_cnt;
+		platform_cpuref_cnt++;
+	}
+
+	platform_cpuref_valid = 1;
+
+	return (0);
+}
+
+static int
+powernv_smp_first_cpu(platform_t plat, struct cpuref *cpuref)
+{
+	if (platform_cpuref_valid == 0)
+		return (EINVAL);
+
+	cpuref->cr_cpuid = 0;
+	cpuref->cr_hwref = platform_cpuref[0].cr_hwref;
 
 	return (0);
 }
@@ -284,43 +343,17 @@ powernv_smp_first_cpu(platform_t plat, struct cpuref *cpuref)
 static int
 powernv_smp_next_cpu(platform_t plat, struct cpuref *cpuref)
 {
-	char buf[8];
-	phandle_t cpu;
-	int i, res, cpuid;
+	int id;
 
-	/* Check for whether it should be the next thread */
-	res = OF_getproplen(cpuref->cr_hwref, "ibm,ppc-interrupt-server#s");
-	if (res > 0) {
-		cell_t interrupt_servers[res/sizeof(cell_t)];
-		OF_getencprop(cpuref->cr_hwref, "ibm,ppc-interrupt-server#s",
-		    interrupt_servers, res);
-		for (i = 0; i < res/sizeof(cell_t) - 1; i++) {
-			if (interrupt_servers[i] == cpuref->cr_cpuid) {
-				cpuref->cr_cpuid = interrupt_servers[i+1];
-				return (0);
-			}
-		}
-	}
+	if (platform_cpuref_valid == 0)
+		return (EINVAL);
 
-	/* Next CPU core/package */
-	cpu = OF_peer(cpuref->cr_hwref);
-	while (cpu != 0) {
-		res = OF_getprop(cpu, "device_type", buf, sizeof(buf));
-		if (res > 0 && strcmp(buf, "cpu") == 0)
-			break;
-		cpu = OF_peer(cpu);
-	}
-	if (cpu == 0)
+	id = cpuref->cr_cpuid + 1;
+	if (id >= platform_cpuref_cnt)
 		return (ENOENT);
 
-	cpuref->cr_hwref = cpu;
-	res = OF_getencprop(cpu, "ibm,ppc-interrupt-server#s", &cpuid,
-	    sizeof(cpuid));
-	if (res <= 0)
-		res = OF_getencprop(cpu, "reg", &cpuid, sizeof(cpuid));
-	if (res <= 0)
-		cpuid = 0;
-	cpuref->cr_cpuid = cpuid;
+	cpuref->cr_cpuid = platform_cpuref[id].cr_cpuid;
+	cpuref->cr_hwref = platform_cpuref[id].cr_hwref;
 
 	return (0);
 }
@@ -328,35 +361,9 @@ powernv_smp_next_cpu(platform_t plat, struct cpuref *cpuref)
 static int
 powernv_smp_get_bsp(platform_t plat, struct cpuref *cpuref)
 {
-	phandle_t chosen;
-	int cpuid, res;
-	struct cpuref i;
 
-	chosen = OF_finddevice("/chosen");
-	if (chosen == 0)
-		return (ENOENT);
-
-	res = OF_getencprop(chosen, "fdtbootcpu", &cpuid, sizeof(cpuid));
-	if (res < 0)
-		return (ENOENT);
-
-	/* XXX: FDT from kexec lies sometimes. PIR seems not to. */
-	if (cpuid == 0)
-		cpuid = powernv_boot_pir;
-
-	cpuref->cr_cpuid = cpuid;
-
-	if (powernv_smp_first_cpu(plat, &i) != 0)
-		return (ENOENT);
-	cpuref->cr_hwref = i.cr_hwref;
-
-	do {
-		if (i.cr_cpuid == cpuid) {
-			cpuref->cr_hwref = i.cr_hwref;
-			break;
-		}
-	} while (powernv_smp_next_cpu(plat, &i) == 0);
-
+	cpuref->cr_cpuid = platform_cpuref[0].cr_cpuid;
+	cpuref->cr_hwref = platform_cpuref[0].cr_hwref;
 	return (0);
 }
 
@@ -369,10 +376,10 @@ powernv_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	ap_pcpu = pc;
 	powerpc_sync();
 
-	result = opal_call(OPAL_START_CPU, pc->pc_cpuid, EXC_RST);
+	result = opal_call(OPAL_START_CPU, pc->pc_hwref, EXC_RST);
 	if (result != OPAL_SUCCESS) {
 		printf("OPAL error (%d): unable to start AP %d\n",
-		    result, pc->pc_cpuid);
+		    result, (int)pc->pc_hwref);
 		return (ENXIO);
 	}
 
@@ -382,37 +389,49 @@ powernv_smp_start_cpu(platform_t plat, struct pcpu *pc)
 static struct cpu_group *
 powernv_smp_topo(platform_t plat)
 {
-	struct pcpu *pc, *last_pc;
-	int i, ncores, ncpus;
+	char buf[8];
+	phandle_t cpu, dev, root;
+	int res, nthreads;
 
-	ncores = ncpus = 0;
-	last_pc = NULL;
-	CPU_FOREACH(i) {
-		pc = pcpu_find(i);
-		if (pc == NULL)
-			continue;
-		if (last_pc == NULL || pc->pc_hwref != last_pc->pc_hwref)
-			ncores++;
-		last_pc = pc;
-		ncpus++;
+	root = OF_peer(0);
+
+	dev = OF_child(root);
+	while (dev != 0) {
+		res = OF_getprop(dev, "name", buf, sizeof(buf));
+		if (res > 0 && strcmp(buf, "cpus") == 0)
+			break;
+		dev = OF_peer(dev);
 	}
 
-	if (ncpus % ncores != 0) {
+	nthreads = 1;
+	for (cpu = OF_child(dev); cpu != 0; cpu = OF_peer(cpu)) {
+		res = OF_getprop(cpu, "device_type", buf, sizeof(buf));
+		if (res <= 0 || strcmp(buf, "cpu") != 0)
+			continue;
+
+		res = OF_getproplen(cpu, "ibm,ppc-interrupt-server#s");
+
+		if (res >= 0)
+			nthreads = res / sizeof(cell_t);
+		else
+			nthreads = 1;
+		break;
+	}
+
+	if (mp_ncpus % nthreads != 0) {
 		printf("WARNING: Irregular SMP topology. Performance may be "
-		     "suboptimal (%d CPUS, %d cores)\n", ncpus, ncores);
+		     "suboptimal (%d threads, %d on first core)\n",
+		     mp_ncpus, nthreads);
 		return (smp_topo_none());
 	}
 
 	/* Don't do anything fancier for non-threaded SMP */
-	if (ncpus == ncores)
+	if (nthreads == 1)
 		return (smp_topo_none());
 
-#ifdef NOTYET /* smp_topo_1level() fails with non-consecutive CPU IDs */
-	return (smp_topo_1level(CG_SHARE_L1, ncpus / ncores, CG_FLAG_SMT));
-#else
-	return (smp_topo_none());
-#endif
+	return (smp_topo_1level(CG_SHARE_L1, nthreads, CG_FLAG_SMT));
 }
+
 #endif
 
 static void

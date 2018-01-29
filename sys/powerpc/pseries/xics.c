@@ -263,6 +263,10 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask)
 	cell_t status, cpu;
 	int ncpus, i, error;
 
+	/* Ignore IPIs */
+	if (irq == MAX_XICP_IRQS)
+		return;
+
 	/*
 	 * This doesn't appear to actually support affinity groups, so pick a
 	 * random CPU.
@@ -281,6 +285,8 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask)
 		ncpus++;
 	}
 	
+	cpu = pcpu_find(cpu)->pc_hwref;
+
 	/* XXX: super inefficient */
 	for (i = 0; i < sc->nintvecs; i++) {
 		if (sc->intvecs[i].irq == irq) {
@@ -312,9 +318,9 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 
 #ifdef POWERNV
 	if (mfmsr() & PSL_HV) {
-		regs = xicp_mem_for_cpu(PCPU_GET(cpuid));
+		regs = xicp_mem_for_cpu(PCPU_GET(hwref));
 		KASSERT(regs != NULL,
-		    ("Can't find regs for CPU %d", PCPU_GET(cpuid)));
+		    ("Can't find regs for CPU %ld", (uintptr_t)PCPU_GET(hwref)));
 	}
 #endif
 
@@ -343,7 +349,7 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 			if (regs)
 				bus_write_1(regs, 12, 0xff);
 			else
-				phyp_hcall(H_IPI, (uint64_t)(PCPU_GET(cpuid)),
+				phyp_hcall(H_IPI, (uint64_t)(PCPU_GET(hwref)),
 				    0xff);
 		}
 
@@ -370,7 +376,7 @@ xicp_enable(device_t dev, u_int irq, u_int vector)
 		("Too many XICP interrupts"));
 
 	/* Bind to this CPU to start: distrib. ID is last entry in gserver# */
-	cpu = PCPU_GET(cpuid);
+	cpu = PCPU_GET(hwref);
 
 	mtx_lock(&sc->sc_mtx);
 	sc->intvecs[sc->nintvecs].irq = irq;
@@ -411,7 +417,7 @@ xicp_eoi(device_t dev, u_int irq)
 
 #ifdef POWERNV
 	if (mfmsr() & PSL_HV)
-		bus_write_4(xicp_mem_for_cpu(PCPU_GET(cpuid)), 4, xirr);
+		bus_write_4(xicp_mem_for_cpu(PCPU_GET(hwref)), 4, xirr);
 	else
 #endif
 		phyp_hcall(H_EOI, xirr);
@@ -422,6 +428,8 @@ xicp_ipi(device_t dev, u_int cpu)
 {
 
 #ifdef POWERNV
+	cpu = pcpu_find(cpu)->pc_hwref;
+
 	if (mfmsr() & PSL_HV)
 		bus_write_1(xicp_mem_for_cpu(cpu), 12, XICP_PRIORITY);
 	else
