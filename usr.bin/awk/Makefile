@@ -32,6 +32,6 @@ maketab: ytab.h maketab.c ${BUILD_TOOLS_META}
 
 # awk needs some work before we can connect these tests to the build
 #HAS_TESTS=
-SUBDIR.${MK_TESTS}+= tests
+#SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>
