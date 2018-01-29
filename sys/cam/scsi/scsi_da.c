@@ -1549,12 +1549,12 @@ da_periph_unhold(struct cam_periph *periph, da_ref_token token)
 	struct da_softc *softc = periph->softc;
 
 	token_sanity(token);
-	cam_periph_unhold(periph);
 	DA_PERIPH_PRINT(periph, "Unholding device %s (%d)\n",
 	    da_ref_text[token], token);
 	cnt = atomic_fetchadd_int(&softc->ref_flags[token], -1);
 	if (cnt != 1)
 		panic("Unholding %d with cnt = %d", token, cnt);
+	cam_periph_unhold(periph);
 }
 
 static inline int
@@ -1583,12 +1583,12 @@ da_periph_release(struct cam_periph *periph, da_ref_token token)
 	struct da_softc *softc = periph->softc;
 
 	token_sanity(token);
-	cam_periph_release(periph);
 	DA_PERIPH_PRINT(periph, "releasing device %s (%d)\n",
 	    da_ref_text[token], token);
 	cnt = atomic_fetchadd_int(&softc->ref_flags[token], -1);
 	if (cnt != 1)
 		panic("Releasing %d with cnt = %d", token, cnt);
+	cam_periph_release(periph);
 }
 
 static inline void
@@ -1598,12 +1598,12 @@ da_periph_release_locked(struct cam_periph *periph, da_ref_token token)
 	struct da_softc *softc = periph->softc;
 
 	token_sanity(token);
-	cam_periph_release_locked(periph);
 	DA_PERIPH_PRINT(periph, "releasing device (locked) %s (%d)\n",
 	    da_ref_text[token], token);
 	cnt = atomic_fetchadd_int(&softc->ref_flags[token], -1);
 	if (cnt != 1)
 		panic("Unholding %d with cnt = %d", token, cnt);
+	cam_periph_release_locked(periph);
 }
 
 #define cam_periph_hold POISON
