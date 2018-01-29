@@ -205,6 +205,7 @@ nsp_pccard_attach(device_t dev)
 		nsp_release_resource(dev);
 		return(ENXIO);
 	}
+	gone_in_dev(dev, 12, "nsp(4) driver");
 
 	return(0);
 }

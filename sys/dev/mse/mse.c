@@ -153,6 +153,8 @@ mse_common_attach(device_t dev)
 	sc->sc_ndev = make_dev(&mse_cdevsw, 1, UID_ROOT, GID_WHEEL, 0600,
 	    "nmse%d", unit);
 	sc->sc_ndev->si_drv1 = sc;
+	gone_in_dev(dev, 12, "mse(4) driver");
+
 	return 0;
 }
 

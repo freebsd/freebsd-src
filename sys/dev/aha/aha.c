@@ -620,6 +620,7 @@ aha_attach(struct aha_softc *aha)
 		return (ENXIO);
 	}
 	mtx_unlock(&aha->lock);
+	gone_in_dev(aha->dev, 12, "aha(4) driver");
 
 	return (0);
 }
