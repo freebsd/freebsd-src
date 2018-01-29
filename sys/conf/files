@@ -4114,7 +4114,6 @@ net/vnet.c			optional vimage
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan wlan_acl
 net80211/ieee80211_action.c	optional wlan
-net80211/ieee80211_ageq.c	optional wlan
 net80211/ieee80211_adhoc.c	optional wlan \
 	compile-with "${NORMAL_C} -Wno-unused-function"
 net80211/ieee80211_ageq.c	optional wlan
