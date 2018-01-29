@@ -154,7 +154,8 @@ ext2_mount(struct mount *mp)
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
 			error = ext2_flushfiles(mp, flags, td);
-			if (error == 0 && fs->e2fs_wasvalid && ext2_cgupdate(ump, MNT_WAIT) == 0) {
+			if (error == 0 && fs->e2fs_wasvalid &&
+			    ext2_cgupdate(ump, MNT_WAIT) == 0) {
 				fs->e2fs->e2fs_state |= E2FS_ISCLEAN;
 				ext2_sbupdate(ump, MNT_WAIT);
 			}
@@ -318,6 +319,36 @@ ext2_check_sb_compat(struct ext2fs *es, struct cdev *dev, int ronly)
 	return (0);
 }
 
+static e4fs_daddr_t
+cg_location(struct m_ext2fs *fs, int number)
+{
+	int cg, descpb, logical_sb, has_super = 0;
+
+	/*
+	 * Adjust logical superblock block number.
+	 * Godmar thinks: if the blocksize is greater than 1024, then
+	 * the superblock is logically part of block zero.
+	 */
+	logical_sb = fs->e2fs_bsize > SBSIZE ? 0 : 1;
+
+	if (!EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_META_BG) ||
+	    number < fs->e2fs->e3fs_first_meta_bg)
+		return (logical_sb + number + 1);
+
+	if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_64BIT))
+		descpb = fs->e2fs_bsize / sizeof(struct ext2_gd);
+	else
+		descpb = fs->e2fs_bsize / E2FS_REV0_GD_SIZE;
+
+	cg = descpb * number;
+
+	if (ext2_cg_has_sb(fs, cg))
+		has_super = 1;
+
+	return (has_super + cg * (e4fs_daddr_t)EXT2_BLOCKS_PER_GROUP(fs) +
+	    fs->e2fs->e2fs_first_dblock);
+}
+
 /*
  * This computes the fields of the m_ext2fs structure from the
  * data in the ext2fs structure read in.
@@ -328,7 +359,6 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 {
 	int g_count = 0, error;
 	int i, j;
-	int logic_sb_block = 1;	/* XXX for now */
 	struct buf *bp;
 	uint32_t e2fs_descpb, e2fs_gdbcount_alloc;
 
@@ -385,6 +415,12 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		    es->e3fs_desc_size);
 		return (EINVAL);
 	}
+	/* Check for group size */
+	if (fs->e2fs_bpg != fs->e2fs_bsize * 8) {
+		printf("ext2fs: non-standard group size unsupported %d\n",
+		    fs->e2fs_bpg);
+		return (EINVAL);
+	}
 
 	fs->e2fs_ipb = fs->e2fs_bsize / EXT2_INODE_SIZE(fs);
 	fs->e2fs_itpg = fs->e2fs_ipg / fs->e2fs_ipb;
@@ -405,16 +441,9 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	fs->e2fs_contigdirs = malloc(fs->e2fs_gcount *
 	    sizeof(*fs->e2fs_contigdirs), M_EXT2MNT, M_WAITOK | M_ZERO);
 
-	/*
-	 * Adjust logic_sb_block.
-	 * Godmar thinks: if the blocksize is greater than 1024, then
-	 * the superblock is logically part of block zero.
-	 */
-	if (fs->e2fs_bsize > SBSIZE)
-		logic_sb_block = 0;
 	for (i = 0; i < fs->e2fs_gdbcount; i++) {
 		error = bread(devvp,
-		    fsbtodb(fs, logic_sb_block + i + 1),
+		    fsbtodb(fs, cg_location(fs, i)),
 		    fs->e2fs_bsize, NOCRED, &bp);
 		if (error) {
 			free(fs->e2fs_contigdirs, M_EXT2MNT);
@@ -1151,8 +1180,8 @@ ext2_cgupdate(struct ext2mount *mp, int waitfor)
 
 	for (i = 0; i < fs->e2fs_gdbcount; i++) {
 		bp = getblk(mp->um_devvp, fsbtodb(fs,
-		    fs->e2fs->e2fs_first_dblock +
-		    1 /* superblock */ + i), fs->e2fs_bsize, 0, 0, 0);
+		    cg_location(fs, i)),
+		    fs->e2fs_bsize, 0, 0, 0);
 		if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_64BIT)) {
 			memcpy(bp->b_data, &fs->e2fs_gd[
 			    i * fs->e2fs_bsize / sizeof(struct ext2_gd)],

@@ -755,49 +755,68 @@ ext2_hashalloc(struct inode *ip, int cg, long pref, int size,
 }
 
 static unsigned long
-ext2_cg_num_gdb(struct m_ext2fs *fs, int cg)
+ext2_cg_number_gdb_nometa(struct m_ext2fs *fs, int cg)
 {
-	int gd_per_block, metagroup, first, last;
 
-	gd_per_block = fs->e2fs_bsize / sizeof(struct ext2_gd);
-	metagroup = cg / gd_per_block;
-	first = metagroup * gd_per_block;
-	last = first + gd_per_block - 1;
+	if (!ext2_cg_has_sb(fs, cg))
+		return (0);
 
-	if (!EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_META_BG) ||
-	    metagroup < fs->e2fs->e3fs_first_meta_bg) {
-		if (!ext2_cg_has_sb(fs, cg))
-			return (0);
-		if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_META_BG))
-			return (fs->e2fs->e3fs_first_meta_bg);
-		return (fs->e2fs_gdbcount);
-	}
+	if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_META_BG))
+		return (fs->e2fs->e3fs_first_meta_bg);
+
+	return ((fs->e2fs_gcount + EXT2_DESCS_PER_BLOCK(fs) - 1) /
+	    EXT2_DESCS_PER_BLOCK(fs));
+}
+
+static unsigned long
+ext2_cg_number_gdb_meta(struct m_ext2fs *fs, int cg)
+{
+	unsigned long metagroup;
+	int first, last;
+
+	metagroup = cg / EXT2_DESCS_PER_BLOCK(fs);
+	first = metagroup * EXT2_DESCS_PER_BLOCK(fs);
+	last = first + EXT2_DESCS_PER_BLOCK(fs) - 1;
 
 	if (cg == first || cg == first + 1 || cg == last)
 		return (1);
-	return (0);
 
+	return (0);
+}
+
+static unsigned long
+ext2_cg_number_gdb(struct m_ext2fs *fs, int cg)
+{
+	unsigned long first_meta_bg, metagroup;
+
+	first_meta_bg = fs->e2fs->e3fs_first_meta_bg;
+	metagroup = cg / EXT2_DESCS_PER_BLOCK(fs);
+
+	if (!EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_META_BG) ||
+	    metagroup < first_meta_bg)
+		return (ext2_cg_number_gdb_nometa(fs, cg));
+
+	return ext2_cg_number_gdb_meta(fs, cg);
 }
 
 static int
-ext2_num_base_meta_blocks(struct m_ext2fs *fs, int cg)
+ext2_number_base_meta_blocks(struct m_ext2fs *fs, int cg)
 {
-	int num, gd_per_block;
+	int number;
 
-	gd_per_block = fs->e2fs_bsize / sizeof(struct ext2_gd);
-	num = ext2_cg_has_sb(fs, cg);
+	number = ext2_cg_has_sb(fs, cg);
 
 	if (!EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_META_BG) ||
-	    cg < fs->e2fs->e3fs_first_meta_bg * gd_per_block) {
-		if (num) {
-			num += ext2_cg_num_gdb(fs, cg);
-			num += fs->e2fs->e2fs_reserved_ngdb;
+	    cg < fs->e2fs->e3fs_first_meta_bg * EXT2_DESCS_PER_BLOCK(fs)) {
+		if (number) {
+			number += ext2_cg_number_gdb(fs, cg);
+			number += fs->e2fs->e2fs_reserved_ngdb;
 		}
 	} else {
-		num += ext2_cg_num_gdb(fs, cg);
+		number += ext2_cg_number_gdb(fs, cg);
 	}
-	
-	return (num);
+
+	return (number);
 }
 
 static void
@@ -815,6 +834,20 @@ ext2_mark_bitmap_end(int start_bit, int end_bit, char *bitmap)
 }
 
 static int
+ext2_get_group_number(struct m_ext2fs *fs, e4fs_daddr_t block)
+{
+
+	return ((block - fs->e2fs->e2fs_first_dblock) / fs->e2fs_bsize);
+}
+
+static int
+ext2_block_in_group(struct m_ext2fs *fs, e4fs_daddr_t block, int cg)
+{
+
+	return ((ext2_get_group_number(fs, block) == cg) ? 1 : 0);
+}
+
+static int
 ext2_cg_block_bitmap_init(struct m_ext2fs *fs, int cg, struct buf *bp)
 {
 	int bit, bit_max, inodes_per_block;
@@ -825,7 +858,7 @@ ext2_cg_block_bitmap_init(struct m_ext2fs *fs, int cg, struct buf *bp)
 
 	memset(bp->b_data, 0, fs->e2fs_bsize);
 
-	bit_max = ext2_num_base_meta_blocks(fs, cg);
+	bit_max = ext2_number_base_meta_blocks(fs, cg);
 	if ((bit_max >> 3) >= fs->e2fs_bsize)
 		return (EINVAL);
 
@@ -837,12 +870,12 @@ ext2_cg_block_bitmap_init(struct m_ext2fs *fs, int cg, struct buf *bp)
 	/* Set bits for block and inode bitmaps, and inode table. */
 	tmp = e2fs_gd_get_b_bitmap(&fs->e2fs_gd[cg]);
 	if (!EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_FLEX_BG) ||
-	    cg == dtogd(fs, tmp))
+	    ext2_block_in_group(fs, tmp, cg))
 		setbit(bp->b_data, tmp - start);
 
 	tmp = e2fs_gd_get_i_bitmap(&fs->e2fs_gd[cg]);
 	if (!EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_FLEX_BG) ||
-	    cg == dtogd(fs, tmp))
+	    ext2_block_in_group(fs, tmp, cg))
 		setbit(bp->b_data, tmp - start);
 
 	tmp = e2fs_gd_get_i_tables(&fs->e2fs_gd[cg]);
@@ -850,7 +883,7 @@ ext2_cg_block_bitmap_init(struct m_ext2fs *fs, int cg, struct buf *bp)
 	while( tmp < e2fs_gd_get_i_tables(&fs->e2fs_gd[cg]) +
 	    fs->e2fs->e2fs_ipg / inodes_per_block ) {
 		if (!EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_FLEX_BG) ||
-		    cg == dtogd(fs, tmp))
+		    ext2_block_in_group(fs, tmp, cg))
 			setbit(bp->b_data, tmp - start);
 		tmp++;
 	}
