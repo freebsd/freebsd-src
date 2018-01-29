@@ -425,9 +425,21 @@ powernv_reset(platform_t platform)
 static void
 powernv_smp_ap_init(platform_t platform)
 {
+	register_t msr;
 
+	/* LPID must not be altered when PSL_DR or PSL_IR is set */
+	msr = mfmsr();
+	mtmsr(msr & ~(PSL_DR | PSL_IR));
+
+	isync();
 	/* Direct interrupts to SRR instead of HSRR and reset LPCR otherwise */
+	mtspr(SPR_LPID, 0);
+	isync();
+
+	mtmsr(msr);
+
 	mtspr(SPR_LPCR, LPCR_LPES);
+	isync();
 }
 
 static void
