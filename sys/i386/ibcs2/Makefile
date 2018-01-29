@@ -2,6 +2,9 @@
 #
 # $FreeBSD$
 
+# Don't use an OBJDIR
+.OBJDIR: ${.CURDIR}
+
 all:
 	@echo "make sysent, isc_sysent or xenix_sysent only"
 
