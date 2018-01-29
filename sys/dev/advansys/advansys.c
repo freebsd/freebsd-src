@@ -1399,7 +1399,7 @@ adv_attach(adv)
 	csa.callback_arg = adv;
 	xpt_action((union ccb *)&csa);
 	mtx_unlock(&adv->lock);
-	gone_in_dev(adv->adv, 12, "adv(4) driver");
+	gone_in_dev(adv->dev, 12, "adv(4) driver");
 
 	return (0);
 }
