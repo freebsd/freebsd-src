@@ -334,12 +334,12 @@ static const struct ext2_feature incompat[] = {
 					 EXT2F_ROCOMPAT_HUGE_FILE | \
 					 EXT2F_ROCOMPAT_EXTRA_ISIZE)
 #define	EXT2F_INCOMPAT_SUPP		(EXT2F_INCOMPAT_FTYPE | \
+					 EXT2F_INCOMPAT_META_BG | \
 					 EXT2F_INCOMPAT_EXTENTS | \
 					 EXT2F_INCOMPAT_64BIT | \
-					 EXT2F_INCOMPAT_CSUM_SEED)
-#define	EXT4F_RO_INCOMPAT_SUPP		(EXT2F_INCOMPAT_RECOVER | \
 					 EXT2F_INCOMPAT_FLEX_BG | \
-					 EXT2F_INCOMPAT_META_BG )
+					 EXT2F_INCOMPAT_CSUM_SEED)
+#define	EXT4F_RO_INCOMPAT_SUPP		EXT2F_INCOMPAT_RECOVER
 
 /* Assume that user mode programs are passing in an ext2fs superblock, not
  * a kernel struct super_block.  This will allow us to call the feature-test
@@ -423,5 +423,8 @@ struct ext2_gd {
  * Macro-instructions used to manage group descriptors
  */
 #define	EXT2_BLOCKS_PER_GROUP(s)	(EXT2_SB(s)->e2fs_bpg)
+#define	EXT2_DESCS_PER_BLOCK(s)		(EXT2_HAS_INCOMPAT_FEATURE((s), \
+	EXT2F_INCOMPAT_64BIT) ? ((s)->e2fs_bsize / sizeof(struct ext2_gd)) : \
+	((s)->e2fs_bsize / E2FS_REV0_GD_SIZE))
 
 #endif	/* !_FS_EXT2FS_EXT2FS_H_ */
