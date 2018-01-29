@@ -1277,6 +1277,7 @@ static devclass_t npxisa_devclass;
 
 DRIVER_MODULE(npxisa, isa, npxisa_driver, npxisa_devclass, 0, 0);
 DRIVER_MODULE(npxisa, acpi, npxisa_driver, npxisa_devclass, 0, 0);
+ISA_PNP_INFO(npxisa_ids);
 #endif /* DEV_ISA */
 
 static MALLOC_DEFINE(M_FPUKERN_CTX, "fpukern_ctx",

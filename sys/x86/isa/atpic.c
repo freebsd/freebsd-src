@@ -565,6 +565,21 @@ atpic_attach(device_t dev)
 	return (0);
 }
 
+/*
+ * Return a bitmap of the current interrupt requests.  This is 8259-specific
+ * and is only suitable for use at probe time.
+ */
+intrmask_t
+isa_irq_pending(void)
+{
+	u_char irr1;
+	u_char irr2;
+
+	irr1 = inb(IO_ICU1);
+	irr2 = inb(IO_ICU2);
+	return ((irr2 << 8) | irr1);
+}
+
 static device_method_t atpic_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		atpic_probe),
@@ -586,19 +601,5 @@ static devclass_t atpic_devclass;
 
 DRIVER_MODULE(atpic, isa, atpic_driver, atpic_devclass, 0, 0);
 DRIVER_MODULE(atpic, acpi, atpic_driver, atpic_devclass, 0, 0);
-
-/*
- * Return a bitmap of the current interrupt requests.  This is 8259-specific
- * and is only suitable for use at probe time.
- */
-intrmask_t
-isa_irq_pending(void)
-{
-	u_char irr1;
-	u_char irr2;
-
-	irr1 = inb(IO_ICU1);
-	irr2 = inb(IO_ICU2);
-	return ((irr2 << 8) | irr1);
-}
+ISA_PNP_INFO(atpic_ids);
 #endif /* DEV_ISA */

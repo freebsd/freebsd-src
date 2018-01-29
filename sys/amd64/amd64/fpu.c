@@ -917,6 +917,7 @@ static driver_t fpupnp_driver = {
 static devclass_t fpupnp_devclass;
 
 DRIVER_MODULE(fpupnp, acpi, fpupnp_driver, fpupnp_devclass, 0, 0);
+ISA_PNP_INFO(fpupnp_ids);
 #endif	/* DEV_ISA */
 
 static MALLOC_DEFINE(M_FPUKERN_CTX, "fpukern_ctx",

@@ -612,3 +612,4 @@ static devclass_t atdma_devclass;
 
 DRIVER_MODULE(atdma, isa, atdma_driver, atdma_devclass, 0, 0);
 DRIVER_MODULE(atdma, acpi, atdma_driver, atdma_devclass, 0, 0);
+ISA_PNP_INFO(atdma_ids);
