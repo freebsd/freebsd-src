@@ -315,6 +315,9 @@ struct arch_switch
 
     /* Probe ZFS pool(s), if needed. */
     void	(*arch_zfs_probe)(void);
+
+    /* For kexec-type loaders, get ksegment structure */
+    void	(*arch_kexec_kseg_get)(int *nseg, void **kseg);
 };
 extern struct arch_switch archsw;
 

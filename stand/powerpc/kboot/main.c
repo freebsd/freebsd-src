@@ -27,6 +27,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
+#include <sys/endian.h>
 #include <sys/param.h>
 #include <fdt_platform.h>
 
@@ -34,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include "bootstrap.h"
 #include "host_syscall.h"
+
 
 struct arch_switch	archsw;
 extern void *_end;
@@ -47,8 +49,169 @@ ssize_t kboot_readin(const int fd, vm_offset_t dest, const size_t len);
 int kboot_autoload(void);
 uint64_t kboot_loadaddr(u_int type, void *data, uint64_t addr);
 int kboot_setcurrdev(struct env_var *ev, int flags, const void *value);
+static void kboot_kseg_get(int *nseg, void **ptr);
 
 extern int command_fdt_internal(int argc, char *argv[]);
+
+struct region_desc {
+	uint64_t start;
+	uint64_t end;
+};
+
+static uint64_t
+kboot_get_phys_load_segment(void)
+{
+	int fd;
+	uint64_t entry[2];
+	static uint64_t load_segment = ~(0UL);
+	uint64_t val_64;
+	uint32_t val_32;
+	struct region_desc rsvd_reg[32];
+	int rsvd_reg_cnt = 0;
+	int ret, a, b;
+	uint64_t start, end;
+
+	if (load_segment == ~(0UL)) {
+
+		/* Default load address is 0x00000000 */
+		load_segment = 0UL;
+
+		/* Read reserved regions */
+		fd = host_open("/proc/device-tree/reserved-ranges", O_RDONLY, 0);
+		if (fd >= 0) {
+			while (host_read(fd, &entry[0], sizeof(entry)) == sizeof(entry)) {
+				rsvd_reg[rsvd_reg_cnt].start = be64toh(entry[0]);
+				rsvd_reg[rsvd_reg_cnt].end =
+				    be64toh(entry[1]) + rsvd_reg[rsvd_reg_cnt].start - 1;
+				rsvd_reg_cnt++;
+			}
+			host_close(fd);
+		}
+		/* Read where the kernel ends */
+		fd = host_open("/proc/device-tree/chosen/linux,kernel-end", O_RDONLY, 0);
+		if (fd >= 0) {
+			ret = host_read(fd, &val_64, sizeof(val_64));
+
+			if (ret == sizeof(uint64_t)) {
+				rsvd_reg[rsvd_reg_cnt].start = 0;
+				rsvd_reg[rsvd_reg_cnt].end = be64toh(val_64) - 1;
+			} else {
+				memcpy(&val_32, &val_64, sizeof(val_32));
+				rsvd_reg[rsvd_reg_cnt].start = 0;
+				rsvd_reg[rsvd_reg_cnt].end = be32toh(val_32) - 1;
+			}
+			rsvd_reg_cnt++;
+
+			host_close(fd);
+		}
+		/* Read memory size (SOCKET0 only) */
+		fd = host_open("/proc/device-tree/memory@0/reg", O_RDONLY, 0);
+		if (fd < 0)
+			fd = host_open("/proc/device-tree/memory/reg", O_RDONLY, 0);
+		if (fd >= 0) {
+			ret = host_read(fd, &entry, sizeof(entry));
+
+			/* Memory range in start:length format */
+			entry[0] = be64toh(entry[0]);
+			entry[1] = be64toh(entry[1]);
+
+			/* Reserve everything what is before start */
+			if (entry[0] != 0) {
+				rsvd_reg[rsvd_reg_cnt].start = 0;
+				rsvd_reg[rsvd_reg_cnt].end = entry[0] - 1;
+				rsvd_reg_cnt++;
+			}
+			/* Reserve everything what is after end */
+			if (entry[1] != 0xffffffffffffffffUL) {
+				rsvd_reg[rsvd_reg_cnt].start = entry[0] + entry[1];
+				rsvd_reg[rsvd_reg_cnt].end = 0xffffffffffffffffUL;
+				rsvd_reg_cnt++;
+			}
+
+			host_close(fd);
+		}
+
+		/* Sort entries in ascending order (bubble) */
+		for (a = rsvd_reg_cnt - 1; a > 0; a--) {
+			for (b = 0; b < a; b++) {
+				if (rsvd_reg[b].start > rsvd_reg[b + 1].start) {
+					struct region_desc tmp;
+					tmp = rsvd_reg[b];
+					rsvd_reg[b] = rsvd_reg[b + 1];
+					rsvd_reg[b + 1] = tmp;
+				}
+			}
+		}
+
+		/* Join overlapping/adjacent regions */
+		for (a = 0; a < rsvd_reg_cnt - 1; ) {
+
+			if ((rsvd_reg[a + 1].start >= rsvd_reg[a].start) &&
+			    ((rsvd_reg[a + 1].start - 1) <= rsvd_reg[a].end)) {
+				/* We have overlapping/adjacent regions! */
+				rsvd_reg[a].end =
+				    MAX(rsvd_reg[a].end, rsvd_reg[a + a].end);
+
+				for (b = a + 1; b < rsvd_reg_cnt - 1; b++)
+					rsvd_reg[b] = rsvd_reg[b + 1];
+				rsvd_reg_cnt--;
+			} else
+				a++;
+		}
+
+		/* Find the first free region */
+		if (rsvd_reg_cnt > 0) {
+			start = 0;
+			end = rsvd_reg[0].start;
+			for (a = 0; a < rsvd_reg_cnt - 1; a++) {
+				if ((start >= rsvd_reg[a].start) &&
+				    (start <= rsvd_reg[a].end)) {
+					start = rsvd_reg[a].end + 1;
+					end = rsvd_reg[a + 1].start;
+				} else
+					break;
+			}
+
+			if (start != end) {
+				uint64_t align = 64UL*1024UL*1024UL;
+
+				/* Align both to 64MB boundary */
+				start = (start + align - 1UL) & ~(align - 1UL);
+				end = ((end + 1UL) & ~(align - 1UL)) - 1UL;
+
+				if (start < end)
+					load_segment = start;
+			}
+		}
+	}
+
+	return (load_segment);
+}
+
+uint8_t
+kboot_get_kernel_machine_bits(void)
+{
+	static uint8_t bits = 0;
+	struct old_utsname utsname;
+	int ret;
+
+	if (bits == 0) {
+		/* Default is 32-bit kernel */
+		bits = 32;
+
+		/* Try to get system type */
+		memset(&utsname, 0, sizeof(utsname));
+		ret = host_uname(&utsname);
+		if (ret == 0) {
+			if (strcmp(utsname.machine, "ppc64") == 0)
+				bits = 64;
+			else if (strcmp(utsname.machine, "ppc64le") == 0)
+				bits = 64;
+		}
+	}
+
+	return (bits);
+}
 
 int
 kboot_getdev(void **vdev, const char *devspec, const char **path)
@@ -94,7 +257,7 @@ main(int argc, const char **argv)
 {
 	void *heapbase;
 	const size_t heapsize = 15*1024*1024;
-	const char *bootdev = argv[1];
+	const char *bootdev;
 
 	/*
 	 * Set the heap to one page after the end of the loader.
@@ -107,6 +270,12 @@ main(int argc, const char **argv)
 	 */
 	cons_probe();
 
+	/* Choose bootdev if provided */
+	if (argc > 1)
+		bootdev = argv[1];
+	else
+		bootdev = "";
+
 	printf("Boot device: %s\n", bootdev);
 
 	archsw.arch_getdev = kboot_getdev;
@@ -115,6 +284,7 @@ main(int argc, const char **argv)
 	archsw.arch_readin = kboot_readin;
 	archsw.arch_autoload = kboot_autoload;
 	archsw.arch_loadaddr = kboot_loadaddr;
+	archsw.arch_kexec_kseg_get = kboot_kseg_get;
 
 	printf("\n%s", bootprog_info);
 
@@ -181,7 +351,7 @@ static ssize_t
 get_phys_buffer(vm_offset_t dest, const size_t len, void **buf)
 {
 	int i = 0;
-	const size_t segsize = 2*1024*1024;
+	const size_t segsize = 4*1024*1024;
 
 	for (i = 0; i < nkexec_segments; i++) {
 		if (dest >= (vm_offset_t)loaded_segments[i].mem &&
@@ -194,6 +364,7 @@ get_phys_buffer(vm_offset_t dest, const size_t len, void **buf)
 	loaded_segments[nkexec_segments].bufsz = segsize;
 	loaded_segments[nkexec_segments].mem = (void *)rounddown2(dest,segsize);
 	loaded_segments[nkexec_segments].memsz = segsize;
+
 	i = nkexec_segments;
 	nkexec_segments++;
 
@@ -283,17 +454,32 @@ kboot_autoload(void)
 uint64_t
 kboot_loadaddr(u_int type, void *data, uint64_t addr)
 {
-	/*
-	 * Need to stay out of the way of Linux. /chosen/linux,kernel-end does
-	 * a better job here, but use a fixed offset for now.
-	 */
 
 	if (type == LOAD_ELF)
 		addr = roundup(addr, PAGE_SIZE);
 	else
-		addr += 64*1024*1024; /* Stay out of the way of Linux */
+		addr += kboot_get_phys_load_segment();
 
 	return (addr);
+}
+
+static void
+kboot_kseg_get(int *nseg, void **ptr)
+{
+#if 0
+	int a;
+
+	for (a = 0; a < nkexec_segments; a++) {
+		printf("kseg_get: %jx %jx %jx %jx\n",
+			(uintmax_t)loaded_segments[a].buf,
+			(uintmax_t)loaded_segments[a].bufsz,
+			(uintmax_t)loaded_segments[a].mem,
+			(uintmax_t)loaded_segments[a].memsz);
+	}
+#endif
+
+	*nseg = nkexec_segments;
+	*ptr = &loaded_segments[0];
 }
 
 void

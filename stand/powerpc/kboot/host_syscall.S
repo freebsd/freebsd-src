@@ -14,7 +14,6 @@ ENTRY(host_read)
 	li %r3, 0
 	blr
 
-
 ENTRY(host_write)
 	li %r0, 4 # SYS_write
 	sc
@@ -24,6 +23,11 @@ ENTRY(host_seek)
 	mr %r4,%r5
 	mr %r5,%r6
 	mr %r6,%r7
+	li %r0, 140 # SYS_llseek
+	sc
+	blr
+
+ENTRY(host_llseek)
 	li %r0, 140 # SYS_llseek
 	sc
 	blr
@@ -44,6 +48,11 @@ ENTRY(host_close)
 
 ENTRY(host_mmap)
 	li %r0, 90 # SYS_mmap
+	sc
+	blr
+
+ENTRY(host_uname)
+	li %r0, 122 # SYS_uname
 	sc
 	blr
 
