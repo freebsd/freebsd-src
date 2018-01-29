@@ -13,6 +13,7 @@ FILESDIR=	${TESTSBASE}/sys/cddl/zfs/include
 ${PACKAGE}FILES+=		constants.cfg
 ${PACKAGE}FILES+=		libremote.kshlib
 ${PACKAGE}FILES+=		libsas.kshlib
+${PACKAGE}FILES+=		libgnop.kshlib
 ${PACKAGE}FILES+=		logapi.kshlib
 ${PACKAGE}FILES+=		libtest.kshlib
 ${PACKAGE}FILES+=		stf.shlib

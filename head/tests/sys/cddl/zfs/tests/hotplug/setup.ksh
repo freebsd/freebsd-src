@@ -29,23 +29,5 @@
 
 . $STF_SUITE/tests/hotplug/hotplug.kshlib
 
-if ! $LOFIADM -f > /dev/null 2>&1; then
-	log_unsupported
-fi
-
-verify_runnable "global"
-
-if [[ -d $VDEV_DIR ]]; then
-	log_must $RM -rf $VDEV_DIR
-fi
-
-log_must $MKDIR -p $VDEV_DIR
-log_must $TRUNCATE -s 100M $DEV_FILES $SPARE_FILES $NEWFILE
-log_must create_lofi_device $DEV_FILES $SPARE_FILES
-
-#
-# record repair to resource(s) to cleanup fma faulty
-#
-log_must repair_faulty
-
+log_must create_gnops $ALL_DISKS
 log_pass

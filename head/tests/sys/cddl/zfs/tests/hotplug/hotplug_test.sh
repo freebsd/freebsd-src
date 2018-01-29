@@ -27,9 +27,8 @@
 atf_test_case hotplug_001_pos cleanup
 hotplug_001_pos_head()
 {
-	atf_set "descr" "When removing a device from a redundant pool, the device'sstate will be indicated as 'REMOVED'. No FMA faulty message."
-	atf_set "require.progs"  zpool lofiadm
-	atf_set "timeout" 1800
+	atf_set "descr" "When removing a device from a redundant pool, the device'sstate will be indicated as 'REMOVED'."
+	atf_set "require.progs"  zpool gnop
 }
 hotplug_001_pos_body()
 {
@@ -37,6 +36,7 @@ hotplug_001_pos_body()
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
 
+	verify_disk_count "$DISKS" 4
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/hotplug_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -53,9 +53,8 @@ hotplug_001_pos_cleanup()
 atf_test_case hotplug_002_pos cleanup
 hotplug_002_pos_head()
 {
-	atf_set "descr" "When removing and reinserting a device, the device status isONLINE with no FMA errors."
-	atf_set "require.progs"  zpool lofiadm
-	atf_set "timeout" 1800
+	atf_set "descr" "When removing and reinserting a device, the device status is ONLINE."
+	atf_set "require.progs"  zpool gnop
 }
 hotplug_002_pos_body()
 {
@@ -63,6 +62,8 @@ hotplug_002_pos_body()
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
 
+	atf_skip "redundant with zfsd_replace_001_pos"
+	verify_disk_count "$DISKS" 4
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/hotplug_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -89,6 +90,7 @@ hotplug_003_pos_body()
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
 
+	atf_skip "redundant with zfsd_autoreplace_00[12]*"
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/hotplug_003_pos.ksh || atf_fail "Testcase failed"
 }
@@ -115,6 +117,7 @@ hotplug_004_pos_body()
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
 
+	atf_skip "Does not apply to FreeBSD"
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/hotplug_004_pos.ksh || atf_fail "Testcase failed"
 }
@@ -141,6 +144,7 @@ hotplug_005_pos_body()
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
 
+	atf_skip "TODO: move to the zfsd directory"
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/hotplug_005_pos.ksh || atf_fail "Testcase failed"
 }
@@ -167,6 +171,7 @@ hotplug_006_pos_body()
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
 
+	atf_skip "redundant with hotplug_050_pos"
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/hotplug_006_pos.ksh || atf_fail "Testcase failed"
 }
@@ -193,6 +198,7 @@ hotplug_007_pos_body()
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
 
+	atf_skip "TODO: move to cli_root/zpool_replace"
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/hotplug_007_pos.ksh || atf_fail "Testcase failed"
 }
@@ -210,8 +216,7 @@ atf_test_case hotplug_008_pos cleanup
 hotplug_008_pos_head()
 {
 	atf_set "descr" "When removing hotspare device, verify device status is 'REMOVED'."
-	atf_set "require.progs"  zpool lofiadm
-	atf_set "timeout" 1800
+	atf_set "require.progs"  zpool gnop
 }
 hotplug_008_pos_body()
 {
@@ -219,6 +224,7 @@ hotplug_008_pos_body()
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
 
+	verify_disk_count "$DISKS" 4
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/hotplug_008_pos.ksh || atf_fail "Testcase failed"
 }
@@ -245,6 +251,7 @@ hotplug_009_pos_body()
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
 
+	atf_skip "redundant with zfsd_import_001_pos"
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/hotplug_009_pos.ksh || atf_fail "Testcase failed"
 }
@@ -271,6 +278,7 @@ hotplug_010_pos_body()
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
 
+	atf_skip "redundant with zfsd_replace_001_pos"
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/hotplug_010_pos.ksh || atf_fail "Testcase failed"
 }
@@ -288,8 +296,7 @@ atf_test_case hotplug_011_pos cleanup
 hotplug_011_pos_head()
 {
 	atf_set "descr" "Removing device offlined, verify device status is UNAVAIL,when the system is onlined."
-	atf_set "require.progs"  zpool lofiadm svcadm svcs
-	atf_set "timeout" 1800
+	atf_set "require.progs"  zpool gnop
 }
 hotplug_011_pos_body()
 {
@@ -297,6 +304,7 @@ hotplug_011_pos_body()
 	. $(atf_get_srcdir)/hotplug.kshlib
 	. $(atf_get_srcdir)/hotplug.cfg
 
+	verify_disk_count "$DISKS" 4
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/hotplug_011_pos.ksh || atf_fail "Testcase failed"
 }

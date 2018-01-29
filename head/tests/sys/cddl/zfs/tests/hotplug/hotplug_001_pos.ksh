@@ -37,7 +37,7 @@
 #
 # DESCRIPTION:
 #	When removing a device from a redundant pool, the device's state will
-#	be indicated as 'REMOVED'. No FMA faulty message.
+#	be indicated as 'REMOVED'.
 #
 # STRATEGY:
 #	1. Create mirror/raidz/raidz2 pool.
@@ -56,31 +56,19 @@
 #
 ################################################################################
 
-verify_runnable "global"
-
-function cleanup
-{
-	cleanup_testenv $TESTPOOL
-}
-
 log_assert "When removing a device from a redundant pool, the device's " \
-	"state will be indicated as 'REMOVED'. No FMA faulty message."
-log_onexit cleanup
+	"state will be indicated as 'REMOVED'."
 
 for type in "mirror" "raidz" "raidz2"; do
 	log_note "Start $type testing ..."
-	setup_testenv $TESTPOOL $type
+	setup_testenv $type
 
-	typeset file=$(random_get $DEV_FILES)
-	typeset device=$(convert_lofi $file)
-	log_must remove_device $device
-	log_must $ZPOOL clear $TESTPOOL
+	log_must destroy_gnop $DISK0
+	log_must check_state $TESTPOOL ${DISK0}.nop 'REMOVED' 
 
-	log_must verify_device_status $TESTPOOL $device 'REMOVED' 
-	log_must fma_faulty 'FALSE'
-
+	log_must create_gnop $DISK0
 	cleanup_testenv $TESTPOOL
 done
 
 log_pass "When removing a device from a redundant pool, the device's " \
-	"state will be indicated as 'REMOVED'. No FMA faulty message."
+	"state will be indicated as 'REMOVED'."

@@ -58,62 +58,25 @@
 #
 ################################################################################
 
-verify_runnable "global"
-
-fstype=$(get_fstype '/')
-if [[ $fstype == 'zfs' ]]; then
-	log_unsupported "This test cases is not supported on ZFS root system."
-fi
-
-function cleanup
-{
-	typeset fmri
-	for fmri in 'sysevent' 'fmd'; do
-		typeset stat=$($SVCS -H -o STATE $fmri)
-		if [[ $stat != 'online' ]]; then
-			log_must $SVCADM enable $fmri
-		fi
-		$SLEEP 5
-	done
-
-	cleanup_testenv $TESTPOOL
-}
-
-log_assert "Removing device offlined, verify device status is UNAVAIL, " \
-	"when the system is onlined."
-log_onexit cleanup
+log_assert "If a vdev is missing when a pool is imported, its status will be " \
+	"UNAVAIL"
 
 for type in "mirror" "raidz" "raidz2"; do
-	setup_testenv $TESTPOOL $type
-	typeset val=$(random_get 'off' 'on')
-	log_must $ZPOOL set autoreplace=$val $TESTPOOL
+	setup_testenv $type
 
-	#
-	# Piror to unmount, stop background writing to avoid mount failed
-	# due to mountpoint is not empty
-	#
-	log_must kill_bg_write
-
-	#
-	# Unloading ZFS module to simulate system powered off
-	#
-	log_must unload_zfs
+	log_must $ZPOOL export $TESTPOOL
 
 	# Random remove one of devices
-	typeset file=$(random_get $DEV_FILES)
-	typeset device=$(convert_lofi $file)
-	log_must remove_device $device
+	log_must destroy_gnop $DISK0
 
-	# Reload ZFS module
-	log_must load_zfs
+	# reimport the pool
+	log_must $ZPOOL import $TESTPOOL
 
-	# After mount, restart background writing process
-	log_must start_bg_write $TESTPOOL
-	log_must verify_device_status $TESTPOOL $device 'UNAVAIL' 
-	log_must fma_faulty 'FALSE'
+	log_must check_state $TESTPOOL $DISK0.nop 'UNAVAIL' 
 
+	log_must create_gnop $DISK0
 	cleanup_testenv $TESTPOOL
 done
 
-log_pass "Removing device offlined, verify device status is UNAVAIL, " \
-	"when the system is onlined."
+log_pass "If a vdev is missing when a pool is imported, its status will be " \
+	"UNAVAIL"

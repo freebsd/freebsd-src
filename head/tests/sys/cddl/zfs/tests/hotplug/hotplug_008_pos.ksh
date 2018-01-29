@@ -56,33 +56,16 @@
 #
 ################################################################################
 
-log_unsupported "Hotplugging of hotspare devices is not supported."
-
-verify_runnable "global"
-
-function cleanup
-{
-	cleanup_testenv $TESTPOOL
-}
-
 log_assert "When removing hotspare device, verify device status is 'REMOVED'."
-log_onexit cleanup
 
 for type in "mirror" "raidz" "raidz2"; do
-	log_must create_lofi_device $DEV_FILES $SPARE_FILES
-	log_must $ZPOOL create -f $TESTPOOL $type $DEV_FILES spare $SPARE_FILES
-	log_must start_bg_write $TESTPOOL
-	typeset val=$(random_get "on" "off")
-	log_must $ZPOOL set autoreplace=$val $TESTPOOL
+	log_must $ZPOOL create -f $TESTPOOL $type $DISK0.nop $DISK1.nop $DISK2.nop spare $DISK3.nop
 
-	typeset file=$(random_get $SPARE_FILES)
-	typeset device=$(convert_lofi $file)
-	log_must remove_device $device
-	log_must $ZPOOL clear $TESTPOOL
+	log_must destroy_gnop $DISK3
+	wait_for 15 1 check_state $TESTPOOL $DISK3.nop 'REMOVED'
+	log_must check_state $TESTPOOL $DISK3.nop 'REMOVED'
 
-	log_must verify_device_status $TESTPOOL $device 'REMOVED'
-	log_must fma_faulty 'TRUE'
-
+	log_must create_gnop $DISK3
 	cleanup_testenv $TESTPOOL
 done
 

@@ -27,6 +27,8 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/include/libgnop.kshlib
+. $STF_SUITE/tests/hotplug/hotplug.cfg
 
 #
 # create lofi devices 
@@ -76,33 +78,20 @@ function destroy_lofi_device
 }
 
 #
-# Setup test environment using FILE[1-4]
+# Setup test environment using DISKS[1-4]
 #
-# $1 pool name
-# $2 pool type
+# $1 pool type
 #
 function setup_testenv
 {
-	typeset pool=$1
-	typeset type=$2
+	typeset type=$1
 
-	if [[ -z $pool || -z $type ]]; then
-		log_fail "Usage: setup_testenv <pool> <type>"
+	if [[ -z $type ]]; then
+		log_fail "Usage: setup_testenv <type>"
 	fi
 
-	log_must repair_faulty
-
-	log_must create_lofi_device $DEV_FILES $SPARE_FILES
-
-	typeset devlist=$(convert_lofi $DEV_FILES)
-	typeset sparelist=$(convert_lofi $SPARE_FILES)
-	typeset spare=$(random_get_with_non "spare")
 	log_must $ZPOOL create -f \
-		$pool $type $devlist $spare $sparelist
-	log_must start_bg_write $pool
-
-	# Provide 10 seconds for background process to write
-	$SLEEP 10
+		$TESTPOOL $type ${DISK0}.nop ${DISK1}.nop ${DISK2}.nop ${DISK3}.nop
 }
 
 #
@@ -112,35 +101,7 @@ function setup_testenv
 #
 function cleanup_testenv
 {
-	typeset pool=$1
-
-	if [[ -z $pool ]]; then
-		log_fail "Usage: cleanup_testenv <pool>"
-	fi
-
-	log_must repair_faulty
-
-	kill_bg_write
-	log_must $SYNC
-	$SLEEP 10
-
-	typeset -i i=0
-	if datasetexists $pool; then
-		typeset mntpnt=$(get_prop mountpoint $pool)
-		# Try three times in order to ensure successful pool destruction
-		while ((i < 3)); do
-			$ZPOOL destroy -f $pool
-			if (($? == 0)); then
-				break
-			fi
-			$SLEEP 5
-			((i += 1))
-		done
-	fi
-
-	if ((i == 3)); then
-		log_fail "Unable to destroy $pool, even after 3 attempts."
-	fi
+	destroy_pool $TESTPOOL
 }
 
 
@@ -350,22 +311,6 @@ function getfmri
 			start = 0
 		}
 		(start == 3) {print $4}' > $output_file
-}
-
-#
-# Repair all the fma error in current system
-#
-function repair_faulty
-{
-	getfmri $FILE_EVENT_ID
-	while read item; do
-		$FMADM repair $item > /dev/null 2>&1
-		if (($? != 0)); then
-			return 1
-		fi
-	done < $FILE_EVENT_ID
-
-	return 0
 }
 
 #
