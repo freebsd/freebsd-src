@@ -1016,3 +1016,4 @@ static driver_t esscontrol_driver = {
 
 DRIVER_MODULE(esscontrol, isa, esscontrol_driver, esscontrol_devclass, 0, 0);
 DRIVER_MODULE(esscontrol, acpi, esscontrol_driver, esscontrol_devclass, 0, 0);
+ISA_PNP_INFO(essc_ids);

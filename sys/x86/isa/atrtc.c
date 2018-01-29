@@ -415,6 +415,7 @@ static devclass_t atrtc_devclass;
 
 DRIVER_MODULE(atrtc, isa, atrtc_driver, atrtc_devclass, 0, 0);
 DRIVER_MODULE(atrtc, acpi, atrtc_driver, atrtc_devclass, 0, 0);
+ISA_PNP_INFO(atrtc_ids);
 
 #include "opt_ddb.h"
 #ifdef DDB
