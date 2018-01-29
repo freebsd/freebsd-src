@@ -157,6 +157,7 @@ dpt_pci_attach (device_t dev)
 		error = ENXIO;
 		goto bad;
 	}
+	gone_in_dev(dev, 12, "dpt(4) driver");
 
 	return (error);
 

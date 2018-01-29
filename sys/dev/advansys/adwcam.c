@@ -1173,6 +1173,7 @@ adw_attach(struct adw_softc *adw)
 		xpt_action((union ccb *)&csa);
 	}
 
+	gone_in_dev(adv->adv, 12, "adw(4) driver");
 fail:
 	mtx_unlock(&adw->lock);
 	return (error);
