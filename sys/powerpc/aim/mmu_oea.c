@@ -322,6 +322,8 @@ vm_offset_t moea_quick_enter_page(mmu_t mmu, vm_page_t m);
 void moea_quick_remove_page(mmu_t mmu, vm_offset_t addr);
 static int moea_map_user_ptr(mmu_t mmu, pmap_t pm,
     volatile const void *uaddr, void **kaddr, size_t ulen, size_t *klen);
+static int moea_decode_kernel_ptr(mmu_t mmu, vm_offset_t addr,
+    int *is_user, vm_offset_t *decoded_addr);
 
 
 static mmu_method_t moea_methods[] = {
@@ -374,6 +376,7 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_scan_init,	moea_scan_init),
 	MMUMETHOD(mmu_dumpsys_map,	moea_dumpsys_map),
 	MMUMETHOD(mmu_map_user_ptr,	moea_map_user_ptr),
+	MMUMETHOD(mmu_decode_kernel_ptr, moea_decode_kernel_ptr),
 
 	{ 0, 0 }
 };
@@ -1583,6 +1586,31 @@ moea_map_user_ptr(mmu_t mmu, pmap_t pm, volatile const void *uaddr,
 	    (uintptr_t)uaddr >> ADDR_SR_SHFT;
 	curthread->td_pcb->pcb_cpu.aim.usr_vsid = vsid;
 	__asm __volatile("mtsr %0,%1; isync" :: "n"(USER_SR), "r"(vsid));
+
+	return (0);
+}
+
+/*
+ * Figure out where a given kernel pointer (usually in a fault) points
+ * to from the VM's perspective, potentially remapping into userland's
+ * address space.
+ */
+static int
+moea_decode_kernel_ptr(mmu_t mmu, vm_offset_t addr, int *is_user,
+    vm_offset_t *decoded_addr)
+{
+	vm_offset_t user_sr;
+
+	if ((addr >> ADDR_SR_SHFT) == (USER_ADDR >> ADDR_SR_SHFT)) {
+		user_sr = curthread->td_pcb->pcb_cpu.aim.usr_segm;
+		addr &= ADDR_PIDX | ADDR_POFF;
+		addr |= user_sr << ADDR_SR_SHFT;
+		*decoded_addr = addr;
+		*is_user = 1;
+	} else {
+		*decoded_addr = addr;
+		*is_user = 0;
+	}
 
 	return (0);
 }
