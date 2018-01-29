@@ -2293,5 +2293,4 @@ static driver_t guspcm_driver = {
 DRIVER_MODULE(snd_guspcm, gusc, guspcm_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_guspcm, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_guspcm, 1);
-
-
+ISA_PNP_INFO(pnpmss_ids);

@@ -673,5 +673,4 @@ DRIVER_MODULE(snd_gusc, isa, gusc_driver, gusc_devclass, 0, 0);
 DRIVER_MODULE(snd_gusc, acpi, gusc_driver, gusc_devclass, 0, 0);
 MODULE_DEPEND(snd_gusc, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_gusc, 1);
-
-
+ISA_PNP_INFO(gusc_ids);

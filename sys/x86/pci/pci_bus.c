@@ -683,8 +683,7 @@ DRIVER_MODULE(pcib, legacy, legacy_pcib_driver, hostb_devclass, 0, 0);
  * ID is available and the PCI BIOS isn't, but for now we just
  * eat the PnP ID and do nothing else.
  *
- * XXX we should silence this probe, as it will generally confuse
- * people.
+ * we silence this probe, as it will generally confuse people.
  */
 static struct isa_pnp_id pcibus_pnp_ids[] = {
 	{ 0x030ad041 /* PNP0A03 */, "PCI Bus" },
@@ -747,6 +746,7 @@ static devclass_t pcib_devclass;
 DEFINE_CLASS_1(pcib, pcibios_pcib_driver, pcibios_pcib_pci_methods,
     sizeof(struct pcib_softc), pcib_driver);
 DRIVER_MODULE(pcibios_pcib, pci, pcibios_pcib_driver, pcib_devclass, 0, 0);
+ISA_PNP_INFO(pcibus_pnp_ids);
 
 static int
 pcibios_pcib_probe(device_t dev)

@@ -7186,5 +7186,5 @@ psmcpnp_attach(device_t dev)
 
 DRIVER_MODULE(psmcpnp, isa, psmcpnp_driver, psmcpnp_devclass, 0, 0);
 DRIVER_MODULE(psmcpnp, acpi, psmcpnp_driver, psmcpnp_devclass, 0, 0);
-
+ISA_PNP_INFO(psmcpnp_ids);
 #endif /* DEV_ISA */

@@ -166,3 +166,4 @@ sbni_attach_isa(device_t dev)
 
 DRIVER_MODULE(sbni, isa, sbni_isa_driver, sbni_isa_devclass, 0, 0);
 MODULE_DEPEND(sbni, isa, 1, 1, 1);
+ISA_PNP_INFO(sbni_ids);

@@ -207,3 +207,4 @@ static driver_t ata_isa_driver = {
 
 DRIVER_MODULE(ata, isa, ata_isa_driver, ata_devclass, NULL, NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);
+ISA_PNP_INFO(ata_ids);
