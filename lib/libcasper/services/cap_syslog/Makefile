@@ -24,7 +24,6 @@ CFLAGS+=-I${.CURDIR}
 MAN+=	cap_syslog.3
 
 MLINKS+= cap_syslog.3 libcap_syslog.3
-MLINKS+= cap_syslog.3 cap_syslog.3
 MLINKS+= cap_syslog.3 cap_vsyslog.3
 MLINKS+= cap_syslog.3 cap_openlog.3
 MLINKS+= cap_syslog.3 cap_closelog.3
