@@ -423,6 +423,7 @@ stgattachsubr(sc)
 
 	(void) scsi_low_attach(slp, 0, STG_NTARGETS, STG_NLUNS,
 				sizeof(struct stg_targ_info), 0);
+	gone_in(12, "stg(4) driver");
 }
 
 /**************************************************************

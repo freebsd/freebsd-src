@@ -905,6 +905,7 @@ bt_attach(device_t dev)
 		device_printf(dev, "bus_setup_intr() failed: %d\n", error);
 		return (error);
 	}
+	gone_in_dev(dev, 12, "bt(4) driver");
 
 	return (0);
 }

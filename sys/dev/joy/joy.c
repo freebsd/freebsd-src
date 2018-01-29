@@ -110,6 +110,8 @@ joy_attach(device_t dev)
 	joy->timeout[0] = joy->timeout[1] = 0;
 	joy->d = make_dev(&joy_cdevsw, unit, 0, 0, 0600, "joy%d", unit);
 	joy->d->si_drv1 = joy;
+	gone_in_dev(dev, 12, "joy(4) driver");
+
 	return (0);
 }
 
