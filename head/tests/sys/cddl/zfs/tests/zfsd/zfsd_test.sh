@@ -318,6 +318,37 @@ zfsd_hotspare_007_pos_cleanup()
 	ksh93 $(atf_get_srcdir)/hotspare_cleanup.ksh || atf_fail "Cleanup failed"
 }
 
+atf_test_case zfsd_hotspare_008_neg cleanup
+zfsd_hotspare_008_neg_head()
+{
+	atf_set "descr" "zfsd will not use newly added spares on replacing vdevs"
+	atf_set "require.progs"  zpool zfsd
+	atf_set "timeout" 3600
+}
+zfsd_hotspare_008_neg_body()
+{
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
+	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
+
+	atf_expect_fail "PR 225547 zfsd shouldn't add a spare to a replacing vdev"
+	verify_disk_count "$DISKS" 4
+	ksh93 $(atf_get_srcdir)/hotspare_setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/zfsd_hotspare_008_neg.ksh
+	if [[ $? != 0 ]]; then
+		save_artifacts
+		atf_fail "Testcase failed"
+	fi
+}
+zfsd_hotspare_008_neg_cleanup()
+{
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
+	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
+
+	ksh93 $(atf_get_srcdir)/hotspare_cleanup.ksh || atf_fail "Cleanup failed"
+}
+
 atf_test_case zfsd_autoreplace_001_neg cleanup
 zfsd_autoreplace_001_neg_head()
 {
@@ -536,6 +567,7 @@ atf_init_test_cases()
 	atf_add_test_case zfsd_hotspare_005_pos
 	atf_add_test_case zfsd_hotspare_006_pos
 	atf_add_test_case zfsd_hotspare_007_pos
+	atf_add_test_case zfsd_hotspare_008_neg
 	atf_add_test_case zfsd_autoreplace_001_neg
 	atf_add_test_case zfsd_autoreplace_002_pos
 	atf_add_test_case zfsd_autoreplace_003_pos

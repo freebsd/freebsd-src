@@ -27,6 +27,7 @@ ${PACKAGE}FILES+=	zfsd_hotspare_004_pos.ksh
 ${PACKAGE}FILES+=	zfsd_hotspare_005_pos.ksh
 ${PACKAGE}FILES+=	zfsd_hotspare_006_pos.ksh
 ${PACKAGE}FILES+=	zfsd_hotspare_007_pos.ksh
+${PACKAGE}FILES+=	zfsd_hotspare_008_neg.ksh
 ${PACKAGE}FILES+=	zfsd_import_001_pos.ksh
 ${PACKAGE}FILES+=	zfsd_replace_001_pos.ksh
 ${PACKAGE}FILES+=	zfsd_replace_002_pos.ksh
