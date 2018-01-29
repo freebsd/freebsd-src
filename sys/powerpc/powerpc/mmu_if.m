@@ -840,6 +840,21 @@ METHOD int map_user_ptr {
 };
 
 /**
+ * @brief Decode a kernel pointer, as visible to the current thread,
+ * by setting whether it corresponds to a user or kernel address and
+ * the address in the respective memory maps to which the address as
+ * seen in the kernel corresponds. This is essentially the inverse of
+ * MMU_MAP_USER_PTR() above and is used in kernel-space fault handling.
+ * Returns 0 on success or EFAULT if the address could not be mapped. 
+ */
+METHOD int decode_kernel_ptr {
+	mmu_t		_mmu;
+	vm_offset_t	addr;
+	int		*is_user;
+	vm_offset_t	*decoded_addr;
+};
+
+/**
  * @brief Reverse-map a kernel virtual address
  *
  * @param _va		kernel virtual address to reverse-map
@@ -998,3 +1013,4 @@ METHOD int change_attr {
 	vm_size_t	_sz;
 	vm_memattr_t	_mode;
 } DEFAULT mmu_null_change_attr;
+

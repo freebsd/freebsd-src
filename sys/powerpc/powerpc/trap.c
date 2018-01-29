@@ -393,7 +393,8 @@ trap(struct trapframe *frame)
 			break;
 #if defined(__powerpc64__) && defined(AIM)
 		case EXC_DSE:
-			if ((frame->dar & SEGMENT_MASK) == USER_ADDR) {
+			if (td->td_pcb->pcb_cpu.aim.usr_vsid != 0 &&
+			    (frame->dar & SEGMENT_MASK) == USER_ADDR) {
 				__asm __volatile ("slbmte %0, %1" ::
 					"r"(td->td_pcb->pcb_cpu.aim.usr_vsid),
 					"r"(USER_SLB_SLBE));
@@ -731,10 +732,7 @@ trap_pfault(struct trapframe *frame, int user)
 	struct		proc *p;
 	vm_map_t	map;
 	vm_prot_t	ftype;
-	int		rv;
-#ifdef AIM
-	register_t	user_sr;
-#endif
+	int		rv, is_user;
 
 	td = curthread;
 	p = td->td_proc;
@@ -759,21 +757,14 @@ trap_pfault(struct trapframe *frame, int user)
 		KASSERT(p->p_vmspace != NULL, ("trap_pfault: vmspace  NULL"));
 		map = &p->p_vmspace->vm_map;
 	} else {
-#ifdef BOOKE
-		if (eva < VM_MAXUSER_ADDRESS) {
-#else
-		if ((eva >> ADDR_SR_SHFT) == (USER_ADDR >> ADDR_SR_SHFT)) {
-#endif
-			map = &p->p_vmspace->vm_map;
+		rv = pmap_decode_kernel_ptr(eva, &is_user, &eva);
+		if (rv != 0)
+			return (SIGSEGV);
 
-#ifdef AIM
-			user_sr = td->td_pcb->pcb_cpu.aim.usr_segm;
-			eva &= ADDR_PIDX | ADDR_POFF;
-			eva |= user_sr << ADDR_SR_SHFT;
-#endif
-		} else {
+		if (is_user)
+			map = &p->p_vmspace->vm_map;
+		else
 			map = kernel_map;
-		}
 	}
 	va = trunc_page(eva);
 
