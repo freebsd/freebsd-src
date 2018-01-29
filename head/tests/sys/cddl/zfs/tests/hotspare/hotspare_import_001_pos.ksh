@@ -84,7 +84,7 @@ function verify_export_import #pool #file #chksum
 		$SYNC
 		log_must $ZPOOL export $POOL
 	fi
-	log_must $ZPOOL import -d $HOTSPARE_TMPDIR $pool
+	log_must $ZPOOL import -d $HOTSPARE_TMPDIR $POOL
 
 	[[ ! -e $file ]] && \
 		log_fail "$file missing after detach hotspare."
