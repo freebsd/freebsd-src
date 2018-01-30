@@ -716,6 +716,8 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
   #else
 	scr = htobe32(size);
   #endif
+#else
+	scr = size;
 #endif
 	archsw.arch_copyin(&scr, lastaddr, sizeof(scr));
 	lastaddr += sizeof(scr);
