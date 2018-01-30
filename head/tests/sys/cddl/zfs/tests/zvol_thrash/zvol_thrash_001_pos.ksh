@@ -73,15 +73,7 @@ function mk_vols
 {
 	ADISKS=($DISKS)				#Create an array for convenience
 	N_DISKS=${#ADISKS[@]}
-	if test $N_DISKS -ge 8
-	then
-		#Limit number of mirrors to 4.  Using more causes a panic in
-		#make_dev_credv that has nothing to do with ZFS or ZVols.
-		#That will be addressed by a separate test
-		N_MIRRORS=4
-	else
-		N_MIRRORS=$(($N_DISKS / 2 ))
-	fi
+	N_MIRRORS=$(($N_DISKS / 2 ))
 	setup_mirrors $N_MIRRORS $DISKS
 	for pool in `all_pools`; do
 		# Create 4 ZVols per pool.  Write a geom label to each, just so
