@@ -642,11 +642,10 @@ clknode_adjust_parent(struct clknode *clknode, int idx)
 	if (clknode->parent_cnt == 0)
 		return;
 	if ((idx == CLKNODE_IDX_NONE) || (idx >= clknode->parent_cnt))
-		panic("%s: Invalid parent index %d for clock %s",
-		    __func__, idx, clknode->name);
+		panic("Invalid clock parent index\n");
 
 	if (clknode->parents[idx] == NULL)
-		panic("%s: Invalid parent index %d for clock %s",
+		panic("%s: Attempt to set invalid parent %d for clock %s",
 		    __func__, idx, clknode->name);
 
 	/* Remove me from old children list. */
@@ -675,8 +674,8 @@ clknode_init_parent_idx(struct clknode *clknode, int idx)
 	if ((idx == CLKNODE_IDX_NONE) ||
 	    (idx >= clknode->parent_cnt) ||
 	    (clknode->parent_names[idx] == NULL))
-		panic("%s: Invalid parent index %d for clock %s",
-		    __func__, idx, clknode->name);
+		panic("%s: Invalid clock parent index: %d\n", __func__, idx);
+
 	clknode->parent_idx = idx;
 }
 
