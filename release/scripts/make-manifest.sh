@@ -32,6 +32,7 @@ desc_tests="${tests}"
 
 default_doc=off
 default_src=off
+default_ports=off
 default_tests=off
 default_base_dbg=off
 default_lib32_dbg=off
