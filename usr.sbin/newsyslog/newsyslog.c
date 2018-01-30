@@ -127,6 +127,7 @@ __FBSDID("$FreeBSD$");
 #define	CE_CREATE	0x0100	/* Create the log file if it does not exist. */
 #define	CE_NODUMP	0x0200	/* Set 'nodump' on newly created log file. */
 #define	CE_PID2CMD	0x0400	/* Replace PID file with a shell command.*/
+#define	CE_PLAIN0	0x0800	/* Do not compress zero'th history file */
 
 #define	CE_RFC5424	0x0800	/* Use RFC5424 format rotation message */
 
@@ -1300,6 +1301,9 @@ no_trimat:
 			case 'n':
 				working->flags |= CE_NOSIGNAL;
 				break;
+			case 'p':
+				working->flags |= CE_PLAIN0;
+				break;
 			case 'r':
 				working->flags |= CE_PID2CMD;
 				break;
@@ -1322,7 +1326,6 @@ no_trimat:
 				break;
 			case 'f':	/* Used by OpenBSD for "CE_FOLLOW" */
 			case 'm':	/* Used by OpenBSD for "CE_MONITOR" */
-			case 'p':	/* Used by NetBSD  for "CE_PLAIN0" */
 			default:
 				errx(1, "illegal flag in config file -- %c",
 				    *q);
@@ -1827,8 +1830,18 @@ do_rotate(const struct conf_entry *ent)
 		else {
 			/* XXX - Ought to be checking for failure! */
 			(void)rename(zfile1, zfile2);
+			change_attrs(zfile2, ent);
+			if (ent->compress && !strlen(logfile_suffix)) {
+				/* compress old rotation */
+				struct zipwork_entry zwork;
+
+				memset(&zwork, 0, sizeof(zwork));
+				zwork.zw_conf = ent;
+				zwork.zw_fsize = sizefile(zfile2);
+				strcpy(zwork.zw_fname, zfile2);
+				do_zipwork(&zwork);
+			}
 		}
-		change_attrs(zfile2, ent);
 	}
 
 	if (ent->numlogs > 0) {
@@ -1877,12 +1890,15 @@ do_rotate(const struct conf_entry *ent)
 	if (ent->pid_cmd_file != NULL)
 		swork = save_sigwork(ent);
 	if (ent->numlogs > 0 && ent->compress > COMPRESS_NONE) {
-		/*
-		 * The zipwork_entry will include a pointer to this
-		 * conf_entry, so the conf_entry should not be freed.
-		 */
-		free_or_keep = KEEP_ENT;
-		save_zipwork(ent, swork, ent->fsize, file1);
+		if (!(ent->flags & CE_PLAIN0) ||
+		    strcmp(&file1[strlen(file1) - 2], ".0") != 0) {
+			/*
+			 * The zipwork_entry will include a pointer to this
+			 * conf_entry, so the conf_entry should not be freed.
+			 */
+			free_or_keep = KEEP_ENT;
+			save_zipwork(ent, swork, ent->fsize, file1);
+		}
 	}
 
 	return (free_or_keep);
