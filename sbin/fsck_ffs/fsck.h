@@ -362,6 +362,7 @@ extern struct	ufs2_dinode ufs2_zino;
 #define	FOUND	0x10
 
 #define	EEXIT	8		/* Standard error exit. */
+#define	ERERUN	16		/* fsck needs to be re-run. */
 #define	ERESTART -1
 
 int flushentry(void);
