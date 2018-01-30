@@ -64,6 +64,7 @@ for type in "mirror" "raidz" "raidz2"; do
 	setup_testenv $type
 
 	log_must destroy_gnop $DISK0
+	wait_for 15 1 check_state $TESTPOOL ${DISK0}.nop 'REMOVED' 
 	log_must check_state $TESTPOOL ${DISK0}.nop 'REMOVED' 
 
 	log_must create_gnop $DISK0
