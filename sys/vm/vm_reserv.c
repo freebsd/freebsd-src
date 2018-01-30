@@ -822,9 +822,11 @@ vm_reserv_extend(int req, vm_object_t object, vm_pindex_t pindex, int domain,
 	    /* Handle vm_page_rename(m, new_object, ...). */
 	    popmap_is_set(rv->popmap, index))
 		m = NULL;
-	if (m != NULL)
+	if (m != NULL) {
 		vm_reserv_populate(rv, index);
-	free_count = vm_domain_freecnt_adj(vmd, -1);
+		free_count = vm_domain_freecnt_adj(vmd, -1);
+	} else
+		free_count = vmd->vmd_free_count;
 	vm_domain_free_unlock(vmd);
 
 	if (vm_paging_needed(vmd, free_count))
@@ -1362,12 +1364,20 @@ vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end, vm_paddr_t high_water)
 vm_page_t
 vm_reserv_to_superpage(vm_page_t m)
 {
+	struct vm_domain *vmd;
 	vm_reserv_t rv;
 
 	VM_OBJECT_ASSERT_LOCKED(m->object);
 	rv = vm_reserv_from_page(m);
-	return (rv->object == m->object && rv->popcnt == VM_LEVEL_0_NPAGES ?
-	    rv->pages : NULL);
+	vmd = VM_DOMAIN(rv->domain);
+	vm_domain_free_lock(vmd);
+	if (rv->object == m->object && rv->popcnt == VM_LEVEL_0_NPAGES)
+		m = rv->pages;
+	else
+		m = NULL;
+	vm_domain_free_unlock(vmd);
+
+	return (m);
 }
 
 #endif	/* VM_NRESERVLEVEL > 0 */

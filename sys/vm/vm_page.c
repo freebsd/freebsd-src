@@ -171,7 +171,7 @@ static uma_zone_t fakepg_zone;
 static void vm_page_alloc_check(vm_page_t m);
 static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
 static void vm_page_enqueue(uint8_t queue, vm_page_t m);
-static void vm_page_free_phys(vm_page_t m);
+static void vm_page_free_phys(struct vm_domain *vmd, vm_page_t m);
 static void vm_page_init(void *dummy);
 static int vm_page_insert_after(vm_page_t m, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mpred);
@@ -2536,7 +2536,7 @@ unlock:
 		do {
 			MPASS(vm_phys_domain(m) == domain);
 			SLIST_REMOVE_HEAD(&free, plinks.s.ss);
-			vm_page_free_phys(m);
+			vm_page_free_phys(vmd, m);
 		} while ((m = SLIST_FIRST(&free)) != NULL);
 		vm_domain_free_wakeup(vmd);
 		vm_domain_free_unlock(vmd);
@@ -2751,7 +2751,8 @@ vm_wait_severe(void)
 	mtx_lock(&vm_domainset_lock);
 	while (vm_page_count_severe()) {
 		vm_severe_waiters++;
-		msleep(&vm_min_domains, &vm_domainset_lock, PVM, "vmwait", 0);
+		msleep(&vm_severe_domains, &vm_domainset_lock, PVM,
+		    "vmwait", 0);
 	}
 	mtx_unlock(&vm_domainset_lock);
 }
@@ -3165,12 +3166,12 @@ vm_page_free_prep(vm_page_t m, bool pagequeue_locked)
  * queues.  This is the last step to free a page.
  */
 static void
-vm_page_free_phys(vm_page_t m)
+vm_page_free_phys(struct vm_domain *vmd, vm_page_t m)
 {
 
-	vm_domain_free_assert_locked(vm_pagequeue_domain(m));
+	vm_domain_free_assert_locked(vmd);
 
-	vm_domain_freecnt_adj(vm_pagequeue_domain(m), 1);
+	vm_domain_freecnt_adj(vmd, 1);
 #if VM_NRESERVLEVEL > 0
 	if (!vm_reserv_free_page(m))
 #endif
@@ -3195,7 +3196,7 @@ vm_page_free_phys_pglist(struct pglist *tq)
 			vmd = vm_pagequeue_domain(m);
 			vm_domain_free_lock(vmd);
 		}
-		vm_page_free_phys(m);
+		vm_page_free_phys(vmd, m);
 	}
 	if (vmd != NULL) {
 		vm_domain_free_wakeup(vmd);
@@ -3221,7 +3222,7 @@ vm_page_free_toq(vm_page_t m)
 		return;
 	vmd = vm_pagequeue_domain(m);
 	vm_domain_free_lock(vmd);
-	vm_page_free_phys(m);
+	vm_page_free_phys(vmd, m);
 	vm_domain_free_wakeup(vmd);
 	vm_domain_free_unlock(vmd);
 }
