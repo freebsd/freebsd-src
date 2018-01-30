@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 8, 2016
+.Dd January 30, 2018
 .Dt USB_TEMPLATE 4
 .Os
 .
@@ -66,9 +66,11 @@ or by using the
 .Xr usbconfig 8
 .Cm set_template
 subcommand.
-The sysctl values can be changed at any time, but will not
-have any effect until the USB device has been re-enumerated.
-.
+Changing the
+.Va hw.usb.template
+sysctl triggers reenumeration by the USB host; changes to other sysctls
+may not be visible to the host until reenumeration is performed.
+.Pp
 Available templates are:
 .Bl -column -offset 3n "Value"
 .It Em Value Ta Em Description
@@ -93,6 +95,7 @@ tunables:
 .Bl -tag -width indent
 .It Va hw.usb.template
 Currently selected template.
+Set to -1 to make the device disappear from the USB host point of view.
 .It Va hw.usb.templates.N
 Configuration for template number
 .Va N .
