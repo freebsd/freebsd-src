@@ -180,6 +180,7 @@ zvol_misc_007_pos_body()
 {
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
+	atf_expect_fail "PR 225223 zfs rename -r of a snapshot doesn't rename zvol snapshots' device nodes"
 
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zvol_misc_007_pos.ksh || atf_fail "Testcase failed"
@@ -205,6 +206,7 @@ zvol_misc_008_pos_body()
 {
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zvol_misc.cfg
+	atf_expect_fail "PR 225200 zfs promote of a zvol doesn't rename device nodes for snapshots"
 
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zvol_misc_008_pos.ksh || atf_fail "Testcase failed"
