@@ -438,7 +438,6 @@ fdt_apply_overlays()
 	size_t max_overlay_size, next_fdtp_size;
 	size_t current_fdtp_size;
 	void *current_fdtp;
-	void *new_fdtp;
 	void *next_fdtp;
 	void *overlay;
 	int rv;
@@ -446,7 +445,6 @@ fdt_apply_overlays()
 	if ((fdtp == NULL) || (fdtp_size == 0))
 		return;
 
-	new_fdtp = NULL;
 	max_overlay_size = 0;
 	for (fp = file_findfile(NULL, "dtbo"); fp != NULL; fp = fp->f_next) {
 		if (max_overlay_size < fp->f_size)
@@ -489,7 +487,7 @@ fdt_apply_overlays()
 			printf("failed to open base dtb into overlay base\n");
 			continue;
 		}
-		/* Both overlay and new_fdtp may be modified in place */
+		/* Both overlay and next_fdtp may be modified in place */
 		rv = fdt_overlay_apply(next_fdtp, overlay);
 		if (rv == 0) {
 			/* Rotate next -> current */
