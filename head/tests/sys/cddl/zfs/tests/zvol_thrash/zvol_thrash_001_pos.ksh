@@ -32,14 +32,9 @@
 #
 
 . $STF_SUITE/include/libtest.kshlib
-. $STF_SUITE/include/libsas.kshlib
+. $STF_SUITE/include/libgnop.kshlib
 
-
-typeset -i NUM_FAILURES=0
-export NUM_FAILURES
-
-# Cleanup function.  Kill each of the children, they will re-enable the PHY
-# they're working on.
+# Cleanup function.  Kill each of the children.
 function docleanup
 {
 	for CPID in $CHILDREN
@@ -53,18 +48,15 @@ function docleanup
 	done
 }
 
-# If we get killed, try to re-enable the PHY we were toggling.
-function diskcleanup
+function childcleanup
 {
-	log_note "Got a signal, sending linkreset to $EXPANDER phy $PHY"
-	camcontrol smppc $EXPANDER -o linkreset -p $PHY
 	exit 0
 }
 
 # Wait for the timeout, and then kill the child processes.
-function disktimeout
+function childrentimeout
 {
-	log_note "disktimeout process waiting $1 seconds"
+	log_note "childrentimeout process waiting $1 seconds"
 	sleep $1
 	docleanup
 }
@@ -74,12 +66,15 @@ function mk_vols
 	ADISKS=($DISKS)				#Create an array for convenience
 	N_DISKS=${#ADISKS[@]}
 	N_MIRRORS=$(($N_DISKS / 2 ))
-	setup_mirrors $N_MIRRORS $DISKS
+	# Use a special ksh93 expansion to generate the list of gnop devices
+	GNOPS=${DISKS//~(E)([[:space:]]+|$)/.nop\1}
+	setup_mirrors $N_MIRRORS $GNOPS
 	for pool in `all_pools`; do
 		# Create 4 ZVols per pool.  Write a geom label to each, just so
 		# that we have another geom class between zvol and the vdev
 		# taster.  That thwarts detection of zvols based on a geom
-		# producer's class name, as was attempted by change 538882
+		# producer's class name, as was attempted by Perforce change
+		# 538882
 		for ((j=0; $j<4; j=$j+1)); do
 			$ZFS create -V 10G $pool/testvol.$j
 			glabel label testlabel$j /dev/zvol/$pool/testvol.$j
@@ -88,81 +83,30 @@ function mk_vols
 }
 
 export CHILDREN=""
-export FAILFILES=""
-export POOLS=""
 
 log_onexit docleanup
 
-typeset i=0
-typeset -i num_disks_used=0
-
-log_assert "Cause frequent device removal and arrival in the prescence of zvols.  ZFS should not misbehave while tasting them for VDev GUIDs."
+log_assert "Cause frequent device removal and arrival in the prescence of zvols.  ZFS should not crash or hang while tasting them for VDev GUIDs."
 mk_vols
 for p in `all_pools`
 do
-	disk=`get_disklist $p | cut -d " " -f 1`  #Take the first disk in the pool
-	# See if this disk is attached to a parent that supports SMP
-	# XXX this only works with the current scheme where SMP commands get
-	# sent to a device or its parent, if the device doesn't support SMP
-	camcontrol smprg $disk > /dev/null 2>&1
-	if [ $? != 0 ]; then
-		continue
-	fi
+	#Take the first gnop in the pool
+	typeset gnop
+	typeset disk
+	gnop=`get_disklist $p | cut -d " " -f 1`
+	disk=${gnop%.nop}
 
-	# Find the expander and PHY that this disk is attached to, if any.
-	# We will exit from here if there is a failure.
-	find_verify_sas_disk $disk
-
-	typeset -i x=0
-	log_note "thrashing phy on $disk on $EXPANDER phy $PHY"
-	export FAILFILE=$TMPDIR/${EXPANDER}.${PHY}.failed
-	trap diskcleanup INT TERM && rm -f $FAILFILE && while `true`; do
-		((x=x+1))
-		camcontrol smppc $EXPANDER -v -o disable -p $PHY
-		if [ $? != 0 ]; then
-			log_note "Failed to disable $EXPANDER phy $PHY"
-			echo "Expander $EXPANDER phy $PHY failed" >> $FAILFILE
-			break
-		fi
-		$SLEEP 10
-		camcontrol smppc $EXPANDER -v -o linkreset -p $PHY
-		if [ $? != 0 ]; then
-			log_note "Failed to reset $EXPANDER phy $PHY"
-			echo "Expander $EXPANDER phy $PHY failed" >> $FAILFILE
-			break
-		fi
-		$SLEEP 10
+	log_note "thrashing $gnop"
+	trap childcleanup INT TERM && while `true`; do
+	log_must destroy_gnop $disk
+	$SLEEP 5
+	log_must create_gnop $disk
+	$SLEEP 5
 	done &
 	CHILDREN="$CHILDREN $!"
-	FAILFILES="$FAILFILES $FAILFILE"
-	((num_disks_used++))
 done
 
-typeset -i sleep_time=$SAS_DEFAULT_TIME
+log_note "Waiting $RUNTIME seconds for potential ZFS failure"
+childrentimeout $RUNTIME
 
-if [ $num_disks_used -gt 0 ]; then
-	log_note "Tests queued on $num_disks_used disks"
-	log_note "Waiting $sleep_time seconds for potential driver failure"
-	disktimeout $sleep_time &
-	wait
-
-	for i in $FAILFILES; do
-		typeset FILEBASE=${i%%.failed}
-		FILEBASE=${FILEBASE##$TMPDIR/}
-		if [ -f $i ]; then
-			log_note "Test of $FILEBASE failed"
-			((NUM_FAILURES=NUM_FAILURES+1))
-			rm -f $i
-		else
-			log_note "Test of $FILEBASE passed"
-		fi
-	done
-	if [ $NUM_FAILURES -gt 0 ]; then
-		log_fail "Saw $NUM_FAILURES failures"
-	else
-		log_note "Number of failures: $NUM_FAILURES"
-		log_pass
-	fi
-else
-	log_unsupported "No tests queued, no SMP-capable devices found"
-fi
+log_pass

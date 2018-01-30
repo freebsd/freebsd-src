@@ -29,10 +29,11 @@
 # $FreeBSD$
 
 . ${STF_SUITE}/include/libtest.kshlib
-
-verify_runnable "global"
+. ${STF_SUITE}/include/libgnop.kshlib
 
 # Rotate logs now, because this test can generate a great volume of log entries
 newsyslog
 
-default_cleanup
+default_cleanup_noexit
+destroy_gnops ${DISKS}
+log_pass
