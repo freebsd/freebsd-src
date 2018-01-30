@@ -331,7 +331,6 @@ zfsd_hotspare_008_neg_body()
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
-	atf_expect_fail "PR 225547 zfsd shouldn't add a spare to a replacing vdev"
 	verify_disk_count "$DISKS" 4
 	ksh93 $(atf_get_srcdir)/hotspare_setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_hotspare_008_neg.ksh
