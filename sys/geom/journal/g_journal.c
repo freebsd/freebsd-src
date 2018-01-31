@@ -2432,6 +2432,7 @@ g_journal_destroy(struct g_journal_softc *sc)
 		    sc->sc_current_count);
 	}
 
+	gp->softc = NULL;
 	LIST_FOREACH(cp, &gp->consumer, consumer) {
 		if (cp->acr + cp->acw + cp->ace > 0)
 			g_access(cp, -1, -1, -1);
@@ -2443,7 +2444,6 @@ g_journal_destroy(struct g_journal_softc *sc)
 		 */
 		g_post_event(g_journal_destroy_consumer, cp, M_WAITOK, NULL);
 	}
-	gp->softc = NULL;
 	g_wither_geom(gp, ENXIO);
 	free(sc, M_JOURNAL);
 	return (0);
