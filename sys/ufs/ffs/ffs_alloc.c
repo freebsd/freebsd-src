@@ -2635,16 +2635,31 @@ ffs_getcg(fs, devvp, cg, bpp, cgpp)
 	if (error != 0)
 		return (error);
 	cgp = (struct cg *)bp->b_data;
-	if (((fs->fs_metackhash & CK_CYLGRP) != 0 &&
+	if ((fs->fs_metackhash & CK_CYLGRP) != 0 &&
 	    (bp->b_flags & B_CKHASH) != 0 &&
-	    cgp->cg_ckhash != bp->b_ckhash) ||
-	    !cg_chkmagic(cgp) || cgp->cg_cgx != cg) {
+	    cgp->cg_ckhash != bp->b_ckhash) {
 		sfs = ffs_getmntstat(devvp);
 		printf("UFS %s%s (%s) cylinder checksum failed: cg %u, cgp: "
 		    "0x%x != bp: 0x%jx\n",
 		    devvp->v_type == VCHR ? "" : "snapshot of ",
 		    sfs->f_mntfromname, sfs->f_mntonname,
 		    cg, cgp->cg_ckhash, (uintmax_t)bp->b_ckhash);
+		bp->b_flags &= ~B_CKHASH;
+		bp->b_flags |= B_INVAL | B_NOCACHE;
+		brelse(bp);
+		return (EIO);
+	}
+	if (!cg_chkmagic(cgp) || cgp->cg_cgx != cg) {
+		sfs = ffs_getmntstat(devvp);
+		printf("UFS %s%s (%s)",
+		    devvp->v_type == VCHR ? "" : "snapshot of ",
+		    sfs->f_mntfromname, sfs->f_mntonname);
+		if (!cg_chkmagic(cgp))
+			printf(" cg %u: bad magic number 0x%x should be 0x%x\n",
+			    cg, cgp->cg_magic, CG_MAGIC);
+		else
+			printf(": wrong cylinder group cg %u != cgx %u\n", cg,
+			    cgp->cg_cgx);
 		bp->b_flags &= ~B_CKHASH;
 		bp->b_flags |= B_INVAL | B_NOCACHE;
 		brelse(bp);
