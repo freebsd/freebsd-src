@@ -305,7 +305,7 @@ ar8xxx_atu_flush(struct arswitch_softc *sc)
 	if (!ret)
 		arswitch_writereg(sc->sc_dev,
 		    AR8216_REG_ATU,
-		    AR8216_ATU_OP_FLUSH);
+		    AR8216_ATU_OP_FLUSH | AR8216_ATU_ACTIVE);
 
 	return (ret);
 }
