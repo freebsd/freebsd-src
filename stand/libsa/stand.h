@@ -295,8 +295,6 @@ extern void	srandom(unsigned int);
 extern long	random(void);
     
 /* imports from stdlib, locally modified */
-extern long	strtol(const char *, char **, int);
-extern unsigned long	strtoul(const char *, char **, int);
 extern char	*optarg;			/* getopt(3) external variables */
 extern int	optind, opterr, optopt, optreset;
 extern int	getopt(int, char * const [], const char *);
@@ -349,6 +347,10 @@ extern ev_unsethook_t	env_nounset;		/* refuse unset operation */
 /* stdlib.h routines */
 extern int		abs(int a);
 extern void		abort(void) __dead2;
+extern long		strtol(const char * __restrict, char ** __restrict, int);
+extern long long	strtoll(const char * __restrict, char ** __restrict, int);
+extern unsigned long	strtoul(const char * __restrict, char ** __restrict, int);
+extern unsigned long long strtoull(const char * __restrict, char ** __restrict, int);
 
 /* BCD conversions (undocumented) */
 extern u_char const	bcd2bin_data[];
