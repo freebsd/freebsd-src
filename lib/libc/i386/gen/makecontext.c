@@ -85,7 +85,7 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 		ucp->uc_mcontext.mc_len = 0;
 	}
 	/* XXX - Do we want to sanity check argc? */
-	else if ((argc < 0) || (argc > NCARGS)) {
+	else if (argc < 0) {
 		ucp->uc_mcontext.mc_len = 0;
 	}
 	/* Make sure the context is valid. */
