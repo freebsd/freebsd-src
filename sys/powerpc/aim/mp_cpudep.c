@@ -85,13 +85,15 @@ cpudep_ap_early_bootstrap(void)
 		break;
 	case IBMPOWER8:
 	case IBMPOWER8E:
-		isync();
-		/* Direct interrupts to SRR instead of HSRR and reset LPCR otherwise */
-		mtspr(SPR_LPID, 0);
-		isync();
+		if (mfmsr() & PSL_HV) {
+			isync();
+			/* Direct interrupts to SRR instead of HSRR and reset LPCR otherwise */
+			mtspr(SPR_LPID, 0);
+			isync();
 
-		mtspr(SPR_LPCR, LPCR_LPES);
-		isync();
+			mtspr(SPR_LPCR, LPCR_LPES);
+			isync();
+		}
 		break;
 	}
 
