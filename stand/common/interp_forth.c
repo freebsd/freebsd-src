@@ -81,7 +81,7 @@ bf_command(FICL_VM *vm)
 
     /* Get the name of the current word */
     name = vm->runningWord->name;
-    
+
     /* Find our command structure */
     cmd = NULL;
     SET_FOREACH(cmdp, Xcommand_set) {
@@ -90,7 +90,7 @@ bf_command(FICL_VM *vm)
     }
     if (cmd == NULL)
 	panic("callout for unknown command '%s'", name);
-   
+
     /* Check whether we have been compiled or are being interpreted */
     if (stackPopINT(vm->pStack)) {
 	/*
@@ -118,7 +118,7 @@ bf_command(FICL_VM *vm)
 	tail = vmGetInBuf(vm);
 	for (cp = tail, len = 0; cp != vm->tib.end && *cp != 0 && *cp != '\n'; cp++, len++)
 	    ;
-    
+
 	line = malloc(strlen(name) + len + 2);
 	strcpy(line, name);
 	if (len > 0) {
@@ -128,7 +128,7 @@ bf_command(FICL_VM *vm)
 	}
     }
     DEBUG("cmd '%s'", line);
-    
+
     command_errmsg = command_errbuf;
     command_errbuf[0] = 0;
     if (!parse(&argc, &argv, line)) {
@@ -289,12 +289,19 @@ bf_init(void)
 /*
  * Feed a line of user input to the Forth interpreter
  */
-int
-bf_run(char *line)
+static int
+bf_run(const char *line)
 {
     int		result;
 
-    result = ficlExec(bf_vm, line);
+    /*
+     * ficl would require extensive changes to accept a const char *
+     * interface. Instead, cast it away here and hope for the best.
+     * We know at the present time the caller for us in the boot
+     * forth loader can tolerate the string being modified because
+     * the string is passed in here and then not touched again.
+     */
+    result = ficlExec(bf_vm, __DECONST(char *, line));
 
     DEBUG("ficlExec '%s' = %d", line, result);
     switch (result) {
@@ -318,10 +325,119 @@ bf_run(char *line)
 	    command_errmsg = NULL;
 	}
     }
-    
+
     if (result == VM_USEREXIT)
 	panic("interpreter exit");
     setenv("interpret", bf_vm->state ? "" : "OK", 1);
 
     return (result);
+}
+
+void
+interp_init(void)
+{
+
+	bf_init();
+	/* Read our default configuration. */
+	interp_include("/boot/loader.rc");
+}
+
+int
+interp_run(const char *input)
+{
+
+	bf_vm->sourceID.i = 0;
+	return bf_run(input);
+}
+
+/*
+ * Header prepended to each line. The text immediately follows the header.
+ * We try to make this short in order to save memory -- the loader has
+ * limited memory available, and some of the forth files are very long.
+ */
+struct includeline
+{
+    struct includeline	*next;
+    char		text[0];
+};
+
+int
+interp_include(const char *filename)
+{
+    struct includeline	*script, *se, *sp;
+    char		input[256];			/* big enough? */
+    int			res;
+    char		*cp;
+    int			prevsrcid, fd, line;
+
+    if (((fd = open(filename, O_RDONLY)) == -1)) {
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "can't open '%s': %s", filename, strerror(errno));
+	return(CMD_ERROR);
+    }
+
+    /*
+     * Read the script into memory.
+     */
+    script = se = NULL;
+    line = 0;
+	
+    while (fgetstr(input, sizeof(input), fd) >= 0) {
+	line++;
+	cp = input;
+	/* Allocate script line structure and copy line, flags */
+	if (*cp == '\0')
+		continue;	/* ignore empty line, save memory */
+	sp = malloc(sizeof(struct includeline) + strlen(cp) + 1);
+	/* On malloc failure (it happens!), free as much as possible and exit */
+	if (sp == NULL) {
+		while (script != NULL) {
+			se = script;
+			script = script->next;
+			free(se);
+		}
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "file '%s' line %d: memory allocation failure - aborting",
+		    filename, line);
+		close(fd);
+		return (CMD_ERROR);
+	}
+	strcpy(sp->text, cp);
+	sp->next = NULL;
+
+	if (script == NULL) {
+	    script = sp;
+	} else {
+	    se->next = sp;
+	}
+	se = sp;
+    }
+    close(fd);
+
+    /*
+     * Execute the script
+     */
+    prevsrcid = bf_vm->sourceID.i;
+    bf_vm->sourceID.i = fd;
+    res = CMD_OK;
+    for (sp = script; sp != NULL; sp = sp->next) {
+	
+	res = bf_run(sp->text);
+	if (res != VM_OUTOFTEXT) {
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "Error while including %s, in the line:\n%s",
+		    filename, sp->text);
+		res = CMD_ERROR;
+		break;
+	} else
+		res = CMD_OK;
+    }
+    bf_vm->sourceID.i = prevsrcid;
+
+    while (script != NULL) {
+	se = script;
+	script = script->next;
+	free(se);
+    }
+    return(res);
 }
