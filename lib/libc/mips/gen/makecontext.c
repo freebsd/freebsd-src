@@ -66,7 +66,7 @@ __makecontext(ucontext_t *ucp, void (*func)(void), int argc, ...)
 	 * so that we can mark a context as invalid.  Store it in
 	 * mc->mc_regs[ZERO] perhaps?
 	 */
-	if (argc < 0 || argc > 6 || ucp == NULL ||
+	if (argc < 0 || ucp == NULL ||
 	    ucp->uc_stack.ss_sp == NULL ||
 	    ucp->uc_stack.ss_size < MINSIGSTKSZ)
 		return;
