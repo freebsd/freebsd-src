@@ -37,48 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include "bootstrap.h"
 
-#ifdef BOOT_FORTH
-#include "ficl.h"
-extern FICL_VM *bf_vm;
-#endif
-
 #define	MAXARGS	20			/* maximum number of arguments allowed */
-
-static void	prompt(void);
-
-#ifndef BOOT_FORTH
-/*
- * Perform the command
- */
-static int
-perform(int argc, char *argv[])
-{
-    int				result;
-    struct bootblk_command	**cmdp;
-    bootblk_cmd_t		*cmd;
-
-    if (argc < 1)
-	return(CMD_OK);
-
-    /* set return defaults; a successful command will override these */
-    command_errmsg = command_errbuf;
-    strcpy(command_errbuf, "no error message");
-    cmd = NULL;
-    result = CMD_ERROR;
-
-    /* search the command set for the command */
-    SET_FOREACH(cmdp, Xcommand_set) {
-	if (((*cmdp)->c_name != NULL) && !strcmp(argv[0], (*cmdp)->c_name))
-	    cmd = (*cmdp)->c_fn;
-    }
-    if (cmd != NULL) {
-	result = (cmd)(argc, argv);
-    } else {
-	command_errmsg = "unknown command";
-    }
-    return(result);
-}
-#endif	/* ! BOOT_FORTH */
 
 /*
  * Interactive mode
@@ -87,17 +46,8 @@ void
 interact(void)
 {
     static char	input[256];			/* big enough? */
-#ifndef BOOT_FORTH
-    int		argc;
-    char	**argv;
-#endif
 
-#ifdef BOOT_FORTH
-    bf_init();
-#endif
-
-    /* Read our default configuration. */
-    include("/boot/loader.rc");
+    interp_init();
 
     printf("\n");
 
@@ -105,7 +55,7 @@ interact(void)
      * Before interacting, we might want to autoboot.
      */
     autoboot_maybe();
-    
+
     /*
      * Not autobooting, go manual
      */
@@ -114,24 +64,12 @@ interact(void)
 	setenv("prompt", "${interpret}", 1);
     if (getenv("interpret") == NULL)
         setenv("interpret", "OK", 1);
-    
 
     for (;;) {
 	input[0] = '\0';
-	prompt();
+	interp_emit_prompt();
 	ngets(input, sizeof(input));
-#ifdef BOOT_FORTH
-	bf_vm->sourceID.i = 0;
-	bf_run(input);
-#else
-	if (!parse(&argc, &argv, input)) {
-	    if (perform(argc, argv))
-		printf("%s: %s\n", argv[0], command_errmsg);
-	    free(argv);
-	} else {
-	    printf("parse error\n");
-	}
-#endif
+	interp_run(input);
     }
 }
 
@@ -153,7 +91,7 @@ command_include(int argc, char *argv[])
     int		res;
     char	**argvbuf;
 
-    /* 
+    /*
      * Since argv is static, we need to save it here.
      */
     argvbuf = (char**) calloc((u_int)argc, sizeof(char*));
@@ -162,7 +100,7 @@ command_include(int argc, char *argv[])
 
     res=CMD_OK;
     for (i = 1; (i < argc) && (res == CMD_OK); i++)
-	res = include(argvbuf[i]);
+	res = interp_include(argvbuf[i]);
 
     for (i = 0; i < argc; i++)
 	free(argvbuf[i]);
@@ -172,174 +110,14 @@ command_include(int argc, char *argv[])
 }
 
 /*
- * Header prepended to each line. The text immediately follows the header.
- * We try to make this short in order to save memory -- the loader has
- * limited memory available, and some of the forth files are very long.
- */
-struct includeline 
-{
-    struct includeline	*next;
-#ifndef BOOT_FORTH
-    int			flags;
-    int			line;
-#define SL_QUIET	(1<<0)
-#define SL_IGNOREERR	(1<<1)
-#endif
-    char		text[0];
-};
-
-int
-include(const char *filename)
-{
-    struct includeline	*script, *se, *sp;
-    char		input[256];			/* big enough? */
-#ifdef BOOT_FORTH
-    int			res;
-    char		*cp;
-    int			prevsrcid, fd, line;
-#else
-    int			argc,res;
-    char		**argv, *cp;
-    int			fd, flags, line;
-#endif
-
-    if (((fd = open(filename, O_RDONLY)) == -1)) {
-	snprintf(command_errbuf, sizeof(command_errbuf),
-	    "can't open '%s': %s", filename, strerror(errno));
-	return(CMD_ERROR);
-    }
-
-    /*
-     * Read the script into memory.
-     */
-    script = se = NULL;
-    line = 0;
-	
-    while (fgetstr(input, sizeof(input), fd) >= 0) {
-	line++;
-#ifdef BOOT_FORTH
-	cp = input;
-#else
-	flags = 0;
-	/* Discard comments */
-	if (strncmp(input+strspn(input, " "), "\\ ", 2) == 0)
-	    continue;
-	cp = input;
-	/* Echo? */
-	if (input[0] == '@') {
-	    cp++;
-	    flags |= SL_QUIET;
-	}
-	/* Error OK? */
-	if (input[0] == '-') {
-	    cp++;
-	    flags |= SL_IGNOREERR;
-	}
-#endif
-	/* Allocate script line structure and copy line, flags */
-	if (*cp == '\0')
-		continue;	/* ignore empty line, save memory */
-	sp = malloc(sizeof(struct includeline) + strlen(cp) + 1);
-	/* On malloc failure (it happens!), free as much as possible and exit */
-	if (sp == NULL) {
-		while (script != NULL) {
-			se = script;
-			script = script->next;
-			free(se);
-		}
-		snprintf(command_errbuf, sizeof(command_errbuf),
-		    "file '%s' line %d: memory allocation failure - aborting",
-		    filename, line);
-		close(fd);
-		return (CMD_ERROR);
-	}
-	strcpy(sp->text, cp);
-#ifndef BOOT_FORTH
-	sp->flags = flags;
-	sp->line = line;
-#endif
-	sp->next = NULL;
-	    
-	if (script == NULL) {
-	    script = sp;
-	} else {
-	    se->next = sp;
-	}
-	se = sp;
-    }
-    close(fd);
-    
-    /*
-     * Execute the script
-     */
-#ifndef BOOT_FORTH
-    argv = NULL;
-#else
-    prevsrcid = bf_vm->sourceID.i;
-    bf_vm->sourceID.i = fd;
-#endif
-    res = CMD_OK;
-    for (sp = script; sp != NULL; sp = sp->next) {
-	
-#ifdef BOOT_FORTH
-	res = bf_run(sp->text);
-	if (res != VM_OUTOFTEXT) {
-		snprintf(command_errbuf, sizeof(command_errbuf),
-		    "Error while including %s, in the line:\n%s",
-		    filename, sp->text);
-		res = CMD_ERROR;
-		break;
-	} else
-		res = CMD_OK;
-#else
-	/* print if not being quiet */
-	if (!(sp->flags & SL_QUIET)) {
-	    prompt();
-	    printf("%s\n", sp->text);
-	}
-
-	/* Parse the command */
-	if (!parse(&argc, &argv, sp->text)) {
-	    if ((argc > 0) && (perform(argc, argv) != 0)) {
-		/* normal command */
-		printf("%s: %s\n", argv[0], command_errmsg);
-		if (!(sp->flags & SL_IGNOREERR)) {
-		    res=CMD_ERROR;
-		    break;
-		}
-	    }
-	    free(argv);
-	    argv = NULL;
-	} else {
-	    printf("%s line %d: parse error\n", filename, sp->line);
-	    res=CMD_ERROR;
-	    break;
-	}
-#endif
-    }
-#ifndef BOOT_FORTH
-    if (argv != NULL)
-	free(argv);
-#else
-    bf_vm->sourceID.i = prevsrcid;
-#endif
-    while(script != NULL) {
-	se = script;
-	script = script->next;
-	free(se);
-    }
-    return(res);
-}
-
-/*
  * Emit the current prompt; use the same syntax as the parser
- * for embedding environment variables.
+ * for embedding environment variables. Does not accept input.
  */
-static void
-prompt(void) 
+void
+interp_emit_prompt(void)
 {
     char	*pr, *p, *cp, *ev;
-    
+
     if ((cp = getenv("prompt")) == NULL)
 	cp = ">";
     pr = p = strdup(cp);
@@ -350,7 +128,7 @@ prompt(void)
 		;
 	    *cp = 0;
 	    ev = getenv(p + 2);
-	    
+
 	    if (ev != NULL)
 		printf("%s", ev);
 	    p = cp + 1;
