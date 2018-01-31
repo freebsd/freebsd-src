@@ -137,6 +137,7 @@ typedef struct synapticshw {
 	int maximumYCoord;
 	int infoXupmm;
 	int infoYupmm;
+	int forcePad;
 } synapticshw_t;
 
 /* iftype */

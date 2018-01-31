@@ -132,6 +132,13 @@ __FBSDID("$FreeBSD$");
 
 #define	PSMCPNP_DRIVER_NAME	"psmcpnp"
 
+struct psmcpnp_softc {
+	enum {
+		PSMCPNP_GENERIC,
+		PSMCPNP_FORCEPAD,
+	} type;		/* Based on PnP ID */
+};
+
 /* input queue */
 #define	PSM_BUFSIZE		960
 #define	PSM_SMALLBUFSIZE	240
@@ -416,6 +423,7 @@ struct psm_softc {		/* Driver status information */
 	int		squelch; /* level to filter movement at low speed */
 	int		syncerrors; /* # of bytes discarded to synchronize */
 	int		pkterrors;  /* # of packets failed during quaranteen. */
+	int		fpcount;	/* forcePad valid packet counter */
 	struct timeval	inputtimeout;
 	struct timeval	lastsoftintr;	/* time of last soft interrupt */
 	struct timeval	lastinputerr;	/* time last sync error happened */
@@ -3183,7 +3191,7 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 	static int touchpad_buttons;
 	static int guest_buttons;
 	static finger_t f[PSM_FINGERS];
-	int w, id, nfingers, ewcode, extended_buttons;
+	int w, id, nfingers, ewcode, extended_buttons, clickpad_pressed;
 
 	extended_buttons = 0;
 
@@ -3445,10 +3453,6 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 			extended_buttons |= sc->extended_buttons;
 		}
 	}
-	/* Handle ClickPad */
-	if (sc->synhw.capClickPad &&
-	    ((pb->ipacket[0] ^ pb->ipacket[3]) & 0x01))
-		touchpad_buttons |= MOUSE_BUTTON1DOWN;
 
 	if (sc->synhw.capReportsV && nfingers > 1)
 		f[0] = (finger_t) {
@@ -3480,6 +3484,36 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 	/* Ignore hovering and unmeasurable touches */
 	if (f[0].p < sc->syninfo.min_pressure || f[0].x < 2)
 		nfingers = 0;
+
+	/* Handle ClickPad */
+	if (sc->synhw.capClickPad) {
+		clickpad_pressed = (pb->ipacket[0] ^ pb->ipacket[3]) & 0x01;
+		if (sc->synhw.forcePad) {
+			/*
+			 * Forcepads erroneously report button click if there
+			 * are 2 or more fingers on the touchpad breaking
+			 * multifinger gestures. To workaround this start
+			 * reporting a click only after 4 consecutive single
+			 * touch packets has been received.
+			 * Skip these packets in case more contacts appear.
+			 */
+			switch (nfingers) {
+			case 0:
+				sc->fpcount = 0;
+				break;
+			case 1:
+				if (clickpad_pressed && sc->fpcount < INT_MAX)
+					++sc->fpcount;
+				/* FALLTHROUGH */
+			default:
+				if (!clickpad_pressed)
+					sc->fpcount = 0;
+				if (sc->fpcount >= sc->syninfo.window_min)
+					touchpad_buttons |= MOUSE_BUTTON1DOWN;
+			}
+		} else if (clickpad_pressed)
+			touchpad_buttons |= MOUSE_BUTTON1DOWN;
+	}
 
 	for (id = 0; id < PSM_FINGERS; id++)
 		if (id >= nfingers)
@@ -5998,6 +6032,8 @@ synaptics_set_mode(struct psm_softc *sc, int mode_byte) {
 static int
 enable_synaptics(struct psm_softc *sc, enum probearg arg)
 {
+	device_t psmcpnp;
+	struct psmcpnp_softc *psmcpnp_sc;
 	KBDC kbdc = sc->kbdc;
 	synapticshw_t synhw;
 	int status[3];
@@ -6074,6 +6110,10 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 		printf("  Failed to read extended capability bits\n");
 		return (FALSE);
 	}
+
+	psmcpnp = devclass_get_device(devclass_find(PSMCPNP_DRIVER_NAME),
+	    sc->unit);
+	psmcpnp_sc = (psmcpnp != NULL) ? device_get_softc(psmcpnp) : NULL;
 
 	/* Set the different capabilities when they exist. */
 	buttons = 0;
@@ -6229,6 +6269,20 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 				synhw.minimumYCoord = 1408;
 			}
 
+			/*
+			 * ClickPad properties are not exported through PS/2
+			 * protocol. Detection is based on controller's PnP ID.
+			 */
+			if (synhw.capClickPad && psmcpnp_sc != NULL) {
+				switch (psmcpnp_sc->type) {
+				case PSMCPNP_FORCEPAD:
+					synhw.forcePad = 1;
+					break;
+				default:
+					break;
+				}
+			}
+
 			if (verbose >= 2) {
 				printf("  Continued capabilities:\n");
 				printf("   capClickPad: %d\n",
@@ -6264,6 +6318,10 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 					       synhw.minimumXCoord);
 					printf("   minimumYCoord: %d\n",
 					       synhw.minimumYCoord);
+				}
+				if (synhw.capClickPad) {
+					printf("   forcePad: %d\n",
+					       synhw.forcePad);
 				}
 			}
 			buttons += synhw.capClickPad;
@@ -7090,7 +7148,7 @@ static device_method_t psmcpnp_methods[] = {
 static driver_t psmcpnp_driver = {
 	PSMCPNP_DRIVER_NAME,
 	psmcpnp_methods,
-	1,			/* no softc */
+	sizeof(struct psmcpnp_softc),
 };
 
 static struct isa_pnp_id psmcpnp_ids[] = {
@@ -7107,6 +7165,13 @@ static struct isa_pnp_id psmcpnp_ids[] = {
 	{ 0x0290d94d, "SONY VAIO PS/2 mouse port"},	/* SNY9002, Vaio */
 	{ 0x0390d94d, "SONY VAIO PS/2 mouse port"},	/* SNY9003, Vaio */
 	{ 0x0490d94d, "SONY VAIO PS/2 mouse port"},     /* SNY9004, Vaio */
+	{ 0 }
+};
+
+/* _HID list for quirk detection. Any device below has _CID from psmcpnp_ids */
+static struct isa_pnp_id forcepad_ids[] = {
+	{ 0x0d302e4f, "HP PS/2 forcepad port" },	/* SYN300D, EB 1040 */
+	{ 0x14302e4f, "HP PS/2 forcepad port" },	/* SYN3014, EB 1040 */
 	{ 0 }
 };
 
@@ -7136,11 +7201,16 @@ create_a_copy(device_t atkbdc, device_t me)
 static int
 psmcpnp_probe(device_t dev)
 {
+	struct psmcpnp_softc *sc = device_get_softc(dev);
 	struct resource *res;
 	u_long irq;
 	int rid;
 
-	if (ISA_PNP_PROBE(device_get_parent(dev), dev, psmcpnp_ids))
+	if (ISA_PNP_PROBE(device_get_parent(dev), dev, forcepad_ids) == 0)
+		sc->type = PSMCPNP_FORCEPAD;
+	else if (ISA_PNP_PROBE(device_get_parent(dev), dev, psmcpnp_ids) == 0)
+		sc->type = PSMCPNP_GENERIC;
+	else
 		return (ENXIO);
 
 	/*
