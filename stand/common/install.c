@@ -286,7 +286,7 @@ install(char *pkgname)
 	fd = open(s, O_RDONLY);
 	if (fd != -1) {
 		close(fd);
-		error = include(s);
+		error = inter_include(s);
 		if (error == CMD_ERROR)
 			goto fail;
 	}

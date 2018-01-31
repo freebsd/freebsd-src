@@ -59,6 +59,8 @@ SRCS+=	pnp.c
 .if ${MK_FORTH} != "no"
 SRCS+=	interp_forth.c
 .include "${BOOTSRC}/ficl.mk"
+.else
+SRCS+=	interp_simple.c
 .endif
 
 .if defined(BOOT_PROMPT_123)
