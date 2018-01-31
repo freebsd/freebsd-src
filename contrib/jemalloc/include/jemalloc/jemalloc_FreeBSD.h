@@ -17,7 +17,7 @@
  * each supported architecture.
  */
 #undef JEMALLOC_TLS_MODEL
-#undef STATIC_PAGE_SHIFT
+#undef LG_PAGE
 #undef LG_VADDR
 #undef LG_SIZEOF_PTR
 #undef LG_SIZEOF_INT
@@ -76,7 +76,7 @@
 #  define JEMALLOC_TLS_MODEL	/* Default. */
 #endif
 
-#define	STATIC_PAGE_SHIFT	PAGE_SHIFT
+#define	LG_PAGE			PAGE_SHIFT
 #define	LG_SIZEOF_INT		2
 #define	LG_SIZEOF_LONG		LG_SIZEOF_PTR
 #define	LG_SIZEOF_INTMAX_T	3
