@@ -35,7 +35,7 @@ SRCS+=		s_scalbnf.c
 
 # Don't include long double routines on architectures where long double
 # is the same size as double.
-.if ${MACHINE_CPUARCH} != "mips" && ${MACHINE_CPUARCH} != "arm" &&
+.if ${MACHINE_CPUARCH} != "mips" && ${MACHINE_CPUARCH} != "arm" && \
     ${MACHINE_CPUARCH} != "powerpc"
 SRCS+=		s_fmaxl.c
 SRCS+=		s_logbl.c
