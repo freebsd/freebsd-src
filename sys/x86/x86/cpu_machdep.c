@@ -582,7 +582,7 @@ int hw_ibrs_active;
 int hw_ibrs_disable = 1;
 
 SYSCTL_INT(_hw, OID_AUTO, ibrs_active, CTLFLAG_RD, &hw_ibrs_active, 0,
-    "IBRS active");
+    "Indirect Branch Restricted Speculation active");
 
 void
 hw_ibrs_recalculate(void)
@@ -620,4 +620,4 @@ hw_ibrs_disable_handler(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_hw, OID_AUTO, ibrs_disable, CTLTYPE_INT | CTLFLAG_RWTUN |
     CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, NULL, 0, hw_ibrs_disable_handler, "I",
-    "Disable IBRS");
+    "Disable Indirect Branch Restricted Speculation");
