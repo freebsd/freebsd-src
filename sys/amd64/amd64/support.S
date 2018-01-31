@@ -875,8 +875,8 @@ ENTRY(handle_ibrs_entry)
 	cmpb	$0,hw_ibrs_active(%rip)
 	je	1f
 	movl	$MSR_IA32_SPEC_CTRL,%ecx
-	movl	$IA32_SPEC_CTRL_IBRS,%eax
-	movl	$IA32_SPEC_CTRL_IBRS>>32,%edx
+	movl	$(IA32_SPEC_CTRL_IBRS|IA32_SPEC_CTRL_STIBP),%eax
+	movl	$(IA32_SPEC_CTRL_IBRS|IA32_SPEC_CTRL_STIBP)>>32,%edx
 	wrmsr
 	movb	$1,PCPU(IBPB_SET)
 	testl	$CPUID_STDEXT_SMEP,cpu_stdext_feature(%rip)
