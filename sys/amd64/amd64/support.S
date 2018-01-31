@@ -33,6 +33,7 @@
 #include "opt_ddb.h"
 
 #include <machine/asmacros.h>
+#include <machine/specialreg.h>
 #include <machine/pmap.h>
 
 #include "assym.s"
@@ -850,3 +851,67 @@ ENTRY(pmap_pti_pcid_invlrng)
 	movq	%rsi,%cr3	/* back to kernel */
 	popfq
 	retq
+
+	.altmacro
+	.macro	ibrs_seq_label l
+handle_ibrs_\l:
+	.endm
+	.macro	ibrs_call_label l
+	call	handle_ibrs_\l
+	.endm
+	.macro	ibrs_seq count
+	ll=1
+	.rept	\count
+	ibrs_call_label	%(ll)
+	nop
+	ibrs_seq_label %(ll)
+	addq	$8,%rsp
+	ll=ll+1
+	.endr
+	.endm
+
+/* all callers already saved %rax, %rdx, and %rcx */
+ENTRY(handle_ibrs_entry)
+	cmpb	$0,hw_ibrs_active(%rip)
+	je	1f
+	movl	$MSR_IA32_SPEC_CTRL,%ecx
+	movl	$IA32_SPEC_CTRL_IBRS,%eax
+	movl	$IA32_SPEC_CTRL_IBRS>>32,%edx
+	wrmsr
+	movb	$1,PCPU(IBPB_SET)
+	testl	$CPUID_STDEXT_SMEP,cpu_stdext_feature(%rip)
+	jne	1f
+	ibrs_seq 32
+1:	ret
+END(handle_ibrs_entry)
+
+ENTRY(handle_ibrs_exit)
+	cmpb	$0,PCPU(IBPB_SET)
+	je	1f
+	movl	$MSR_IA32_SPEC_CTRL,%ecx
+	xorl	%eax,%eax
+	xorl	%edx,%edx
+	wrmsr
+	movb	$0,PCPU(IBPB_SET)
+1:	ret
+END(handle_ibrs_exit)
+
+/* registers-neutral version, but needs stack */
+ENTRY(handle_ibrs_exit_rs)
+	cmpb	$0,PCPU(IBPB_SET)
+	je	1f
+	pushq	%rax
+	pushq	%rdx
+	pushq	%rcx
+	movl	$MSR_IA32_SPEC_CTRL,%ecx
+	xorl	%eax,%eax
+	xorl	%edx,%edx
+	wrmsr
+	popq	%rcx
+	popq	%rdx
+	popq	%rax
+	movb	$0,PCPU(IBPB_SET)
+1:	ret
+END(handle_ibrs_exit_rs)
+
+	.noaltmacro
