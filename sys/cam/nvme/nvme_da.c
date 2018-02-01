@@ -189,7 +189,7 @@ nda_nvme_flush(struct nda_softc *softc, struct ccb_nvmeio *nvmeio)
 	    CAM_DIR_NONE,	/* flags */
 	    NULL,		/* data_ptr */
 	    0,			/* dxfer_len */
-	    nda_default_timeout * 1000); /* timeout 5s */
+	    nda_default_timeout * 1000); /* timeout 30s */
 	nvme_ns_flush_cmd(&nvmeio->cmd, softc->nsid);
 }
 
@@ -203,7 +203,7 @@ nda_nvme_trim(struct nda_softc *softc, struct ccb_nvmeio *nvmeio,
 	    CAM_DIR_OUT,	/* flags */
 	    payload,		/* data_ptr */
 	    num_ranges * sizeof(struct nvme_dsm_range), /* dxfer_len */
-	    nda_default_timeout * 1000); /* timeout 5s */
+	    nda_default_timeout * 1000); /* timeout 30s */
 	nvme_ns_trim_cmd(&nvmeio->cmd, softc->nsid, num_ranges);
 }
 
@@ -217,7 +217,7 @@ nda_nvme_write(struct nda_softc *softc, struct ccb_nvmeio *nvmeio,
 	    CAM_DIR_OUT,	/* flags */
 	    payload,		/* data_ptr */
 	    len,		/* dxfer_len */
-	    nda_default_timeout * 1000); /* timeout 5s */
+	    nda_default_timeout * 1000); /* timeout 30s */
 	nvme_ns_write_cmd(&nvmeio->cmd, softc->nsid, lba, count);
 }
 
@@ -246,7 +246,7 @@ nda_nvme_rw_bio(struct nda_softc *softc, struct ccb_nvmeio *nvmeio,
 	    flags,		/* flags */
 	    payload,		/* data_ptr */
 	    bp->bio_bcount,	/* dxfer_len */
-	    nda_default_timeout * 1000);		/* timeout 5s */
+	    nda_default_timeout * 1000); /* timeout 30s */
 	nvme_ns_rw_cmd(&nvmeio->cmd, rwcmd, softc->nsid, lba, count);
 }
 
