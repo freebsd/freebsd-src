@@ -80,54 +80,6 @@ print_bin(void *data, uint32_t length)
 	write(STDOUT_FILENO, data, length);
 }
 
-/*
- * 128-bit integer augments to standard values. On i386 this
- * doesn't exist, so we use 64-bit values. The 128-bit counters
- * are crazy anyway, since for this purpose, you'd need a
- * billion IOPs for billions of seconds to overflow them.
- * So, on 32-bit i386, you'll get truncated values.
- */
-#define UINT128_DIG	39
-#ifdef __i386__
-typedef uint64_t uint128_t;
-#else
-typedef __uint128_t uint128_t;
-#endif
-
-static inline uint128_t
-to128(void *p)
-{
-	return *(uint128_t *)p;
-}
-
-static char *
-uint128_to_str(uint128_t u, char *buf, size_t buflen)
-{
-	char *end = buf + buflen - 1;
-
-	*end-- = '\0';
-	if (u == 0)
-		*end-- = '0';
-	while (u && end >= buf) {
-		*end-- = u % 10 + '0';
-		u /= 10;
-	}
-	end++;
-	if (u != 0)
-		return NULL;
-
-	return end;
-}
-
-/* "Missing" from endian.h */
-static __inline uint64_t
-le48dec(const void *pp)
-{
-	uint8_t const *p = (uint8_t const *)pp;
-
-	return (((uint64_t)le16dec(p + 4) << 32) | le32dec(p));
-}
-
 static void *
 get_log_buffer(uint32_t size)
 {
