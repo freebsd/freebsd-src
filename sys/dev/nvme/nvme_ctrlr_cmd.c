@@ -52,7 +52,7 @@ nvme_ctrlr_cmd_identify_controller(struct nvme_controller *ctrlr, void *payload,
 }
 
 void
-nvme_ctrlr_cmd_identify_namespace(struct nvme_controller *ctrlr, uint16_t nsid,
+nvme_ctrlr_cmd_identify_namespace(struct nvme_controller *ctrlr, uint32_t nsid,
 	void *payload, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_request *req;
