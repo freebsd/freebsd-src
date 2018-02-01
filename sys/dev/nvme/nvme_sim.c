@@ -73,11 +73,13 @@ nvme_sim_nvmeio_done(void *ccb_arg, const struct nvme_completion *cpl)
 	 * it means. Make our best guess, though for the status code.
 	 */
 	memcpy(&ccb->nvmeio.cpl, cpl, sizeof(*cpl));
-	if (nvme_completion_is_error(cpl))
+	if (nvme_completion_is_error(cpl)) {
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-	else
+		xpt_done(ccb);
+	} else {
 		ccb->ccb_h.status = CAM_REQ_CMP;
-	xpt_done(ccb);
+		xpt_done_direct(ccb);
+	}
 }
 
 static void
