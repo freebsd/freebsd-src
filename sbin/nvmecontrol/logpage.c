@@ -234,14 +234,19 @@ print_log_health(const struct nvme_controller_data *cdata __unused, void *buf, u
 static void
 print_log_firmware(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size __unused)
 {
-	int				i;
+	int				i, slots;
 	const char			*status;
 	struct nvme_firmware_page	*fw = buf;
 
 	printf("Firmware Slot Log\n");
 	printf("=================\n");
 
-	for (i = 0; i < MAX_FW_SLOTS; i++) {
+	if (cdata->oacs.firmware == 0)
+		slots = 1;
+	else
+		slots = MIN(cdata->frmw.num_slots, MAX_FW_SLOTS);
+
+	for (i = 0; i < slots; i++) {
 		printf("Slot %d: ", i + 1);
 		if (fw->afi.slot == i + 1)
 			status = "  Active";
