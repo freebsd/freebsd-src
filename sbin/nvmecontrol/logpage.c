@@ -162,10 +162,18 @@ print_log_error(void *buf, uint32_t size)
 }
 
 static void
+print_temp(uint16_t t)
+{
+	printf("%u K, %2.2f C, %3.2f F\n", t, (float)t - 273.15, (float)t * 9 / 5 - 459.67);
+}
+
+
+static void
 print_log_health(void *buf, uint32_t size __unused)
 {
 	struct nvme_health_information_page *health = buf;
 	char cbuf[UINT128_DIG + 1];
+	int i;
 
 	printf("SMART/Health Information Log\n");
 	printf("============================\n");
@@ -182,10 +190,8 @@ print_log_health(void *buf, uint32_t size __unused)
 	    health->critical_warning.bits.read_only);
 	printf(" Volatile memory backup:        %d\n",
 	    health->critical_warning.bits.volatile_memory_backup);
-	printf("Temperature:                    %u K, %2.2f C, %3.2f F\n",
-	    health->temperature,
-	    (float)health->temperature - (float)273.15,
-	    ((float)health->temperature * (float)9/5) - (float)459.67);
+	printf("Temperature:                    ");
+	print_temp(health->temperature);
 	printf("Available spare:                %u\n",
 	    health->available_spare);
 	printf("Available spare threshold:      %u\n",
@@ -193,9 +199,9 @@ print_log_health(void *buf, uint32_t size __unused)
 	printf("Percentage used:                %u\n",
 	    health->percentage_used);
 
-	printf("Data units (512,000 byte) read:     %s\n",
+	printf("Data units (512,000 byte) read: %s\n",
 	    uint128_to_str(to128(health->data_units_read), cbuf, sizeof(cbuf)));
-	printf("Data units (512,000 byte) written:  %s\n",
+	printf("Data units written:             %s\n",
 	    uint128_to_str(to128(health->data_units_written), cbuf, sizeof(cbuf)));
 	printf("Host read commands:             %s\n",
 	    uint128_to_str(to128(health->host_read_commands), cbuf, sizeof(cbuf)));
@@ -213,6 +219,15 @@ print_log_health(void *buf, uint32_t size __unused)
 	    uint128_to_str(to128(health->media_errors), cbuf, sizeof(cbuf)));
 	printf("No. error info log entries:     %s\n",
 	    uint128_to_str(to128(health->num_error_info_log_entries), cbuf, sizeof(cbuf)));
+
+	printf("Warning Temp Composite Time:    %d\n", health->warning_temp_time);
+	printf("Error Temp Composite Time:      %d\n", health->error_temp_time);
+	for (i = 0; i < 7; i++) {
+		if (health->temp_sensor[i] == 0)
+			continue;
+		printf("Temperature Sensor %d:           ", i + 1);
+		print_temp(health->temp_sensor[i]);
+	}
 }
 
 static void
