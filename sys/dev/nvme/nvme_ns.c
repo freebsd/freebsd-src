@@ -476,7 +476,7 @@ nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 }
 
 int
-nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
+nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
     struct nvme_controller *ctrlr)
 {
 	struct nvme_completion_poll_status	status;
