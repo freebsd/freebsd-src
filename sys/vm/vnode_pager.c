@@ -241,6 +241,7 @@ retry:
 
 		object->un_pager.vnp.vnp_size = size;
 		object->un_pager.vnp.writemappings = 0;
+		object->iosize = vp->v_mount->mnt_stat.f_iosize;
 
 		object->handle = handle;
 		VI_LOCK(vp);
@@ -760,7 +761,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 
 	object = vp->v_object;
 	foff = IDX_TO_OFF(m[0]->pindex);
-	bsize = vp->v_mount->mnt_stat.f_iosize;
+	bsize = object->iosize;
 	pagesperblock = bsize / PAGE_SIZE;
 
 	KASSERT(foff < object->un_pager.vnp.vnp_size,

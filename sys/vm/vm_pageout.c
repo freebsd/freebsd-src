@@ -1092,6 +1092,83 @@ dolaundry:
 	}
 }
 
+static int
+vm_pageout_free_pages(vm_object_t object, vm_page_t m)
+{
+	vm_page_t p, pp;
+	struct mtx *mtx;
+	struct pglist pgl;
+	vm_pindex_t start;
+	int pcount, count;
+
+	pcount = MAX(object->iosize / PAGE_SIZE, 1);
+	if (pcount == 1) {
+		vm_page_free(m);
+		vm_page_unlock(m);
+		VM_OBJECT_WUNLOCK(object);
+		count = 1;
+		goto out;
+	}
+	TAILQ_INIT(&pgl);
+	count = 0;
+
+	/* Find the first page in the block. */
+	start = m->pindex - (m->pindex % pcount);
+	for (p = m; p->pindex > start && (pp = vm_page_prev(p)) != NULL; 
+	    p = pp);
+
+	/* Free the original page so we don't validate it twice. */
+	if (p == m)
+		p = vm_page_next(m);
+	if (vm_page_free_prep(m, false)) {
+		m->flags &= ~PG_ZERO;
+		TAILQ_INSERT_TAIL(&pgl, m, listq);
+		count++;
+	}
+
+	/* Iterate through the block range and free compatible pages. */
+	mtx = vm_page_lockptr(m);
+	for ( ; p != NULL && p->pindex < start + pcount; p = pp) {
+		pp = TAILQ_NEXT(p, listq);
+		if (mtx != vm_page_lockptr(p)) {
+			mtx_unlock(mtx);
+			mtx = vm_page_lockptr(p);
+			mtx_lock(mtx);
+		}
+		if (p->hold_count || vm_page_busied(p) ||
+		    p->queue != PQ_INACTIVE)
+			continue;
+		if (p->valid == 0)
+			goto free_page;
+		if ((p->aflags & PGA_REFERENCED) != 0)
+			continue;
+		if (object->ref_count != 0) {
+			if (pmap_ts_referenced(p)) {
+				vm_page_aflag_set(p, PGA_REFERENCED);
+				continue;
+			}
+			vm_page_test_dirty(p);
+			if (p->dirty == 0)
+				pmap_remove_all(p);
+		}
+		if (p->dirty)
+			continue;
+free_page:
+		if (vm_page_free_prep(p, false)) {
+			p->flags &= ~PG_ZERO;
+			TAILQ_INSERT_TAIL(&pgl, p, listq);
+			count++;
+		}
+	}
+	mtx_unlock(mtx);
+	VM_OBJECT_WUNLOCK(object);
+	vm_page_free_phys_pglist(&pgl);
+out:
+	VM_CNT_ADD(v_dfree, count);
+
+	return (count);
+}
+
 /*
  *	vm_pageout_scan does the dirty work for the pageout daemon.
  *
@@ -1310,14 +1387,14 @@ unlock_page:
 		 */
 		if (m->dirty == 0) {
 free_page:
-			vm_page_free(m);
-			VM_CNT_INC(v_dfree);
-			--page_shortage;
+			page_shortage -= vm_pageout_free_pages(object, m);
+			goto lock_queue;
 		} else if ((object->flags & OBJ_DEAD) == 0)
 			vm_page_launder(m);
 drop_page:
 		vm_page_unlock(m);
 		VM_OBJECT_WUNLOCK(object);
+lock_queue:
 		if (!queue_locked) {
 			vm_pagequeue_lock(pq);
 			queue_locked = TRUE;
