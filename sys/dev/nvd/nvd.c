@@ -134,6 +134,8 @@ MODULE_DEPEND(nvd, nvme, 1, 1, 1);
 static int
 nvd_load()
 {
+	if (!nvme_use_nvd)
+		return 0;
 
 	TAILQ_INIT(&ctrlr_head);
 	TAILQ_INIT(&disk_head);
@@ -149,6 +151,9 @@ nvd_unload()
 {
 	struct nvd_controller	*ctrlr;
 	struct nvd_disk		*disk;
+
+	if (!nvme_use_nvd)
+		return;
 
 	while (!TAILQ_EMPTY(&ctrlr_head)) {
 		ctrlr = TAILQ_FIRST(&ctrlr_head);
