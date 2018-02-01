@@ -218,6 +218,16 @@ _bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 		sglist_cnt = 0;
 		break;
 	}
+	case XPT_NVME_IO:
+	case XPT_NVME_ADMIN: {
+		struct ccb_nvmeio *nvmeio;
+
+		nvmeio = &ccb->nvmeio;
+		data_ptr = nvmeio->data_ptr;
+		dxfer_len = nvmeio->dxfer_len;
+		sglist_cnt = 0;
+		break;
+	}
 	default:
 		panic("_bus_dmamap_load_ccb: Unsupported func code %d",
 		    ccb_h->func_code);
