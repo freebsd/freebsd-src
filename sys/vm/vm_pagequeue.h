@@ -73,10 +73,12 @@ struct vm_pagequeue {
 	const char	* const pq_name;
 } __aligned(CACHE_LINE_SIZE);
 
+#include <vm/uma.h>
 
 struct vm_domain {
 	struct vm_pagequeue vmd_pagequeues[PQ_COUNT];
 	struct mtx_padalign vmd_free_mtx;
+	uma_zone_t vmd_pgcache;
 	struct vmem *vmd_kernel_arena;
 	u_int vmd_domain;		/* Domain number. */
 	u_int vmd_page_count;
