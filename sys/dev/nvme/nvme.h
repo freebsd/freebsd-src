@@ -1070,7 +1070,7 @@ int	nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 
 /* Command building helper functions -- shared with CAM */
 static inline
-void	nvme_ns_flush_cmd(struct nvme_command *cmd, uint16_t nsid)
+void	nvme_ns_flush_cmd(struct nvme_command *cmd, uint32_t nsid)
 {
 
 	cmd->opc = NVME_OPC_FLUSH;
@@ -1078,7 +1078,7 @@ void	nvme_ns_flush_cmd(struct nvme_command *cmd, uint16_t nsid)
 }
 
 static inline
-void	nvme_ns_rw_cmd(struct nvme_command *cmd, uint32_t rwcmd, uint16_t nsid,
+void	nvme_ns_rw_cmd(struct nvme_command *cmd, uint32_t rwcmd, uint32_t nsid,
     uint64_t lba, uint32_t count)
 {
 	cmd->opc = rwcmd;
@@ -1092,21 +1092,21 @@ void	nvme_ns_rw_cmd(struct nvme_command *cmd, uint32_t rwcmd, uint16_t nsid,
 }
 
 static inline
-void	nvme_ns_write_cmd(struct nvme_command *cmd, uint16_t nsid,
+void	nvme_ns_write_cmd(struct nvme_command *cmd, uint32_t nsid,
     uint64_t lba, uint32_t count)
 {
 	nvme_ns_rw_cmd(cmd, NVME_OPC_WRITE, nsid, lba, count);
 }
 
 static inline
-void	nvme_ns_read_cmd(struct nvme_command *cmd, uint16_t nsid,
+void	nvme_ns_read_cmd(struct nvme_command *cmd, uint32_t nsid,
     uint64_t lba, uint32_t count)
 {
 	nvme_ns_rw_cmd(cmd, NVME_OPC_READ, nsid, lba, count);
 }
 
 static inline
-void	nvme_ns_trim_cmd(struct nvme_command *cmd, uint16_t nsid,
+void	nvme_ns_trim_cmd(struct nvme_command *cmd, uint32_t nsid,
     uint32_t num_ranges)
 {
 	cmd->opc = NVME_OPC_DATASET_MANAGEMENT;
