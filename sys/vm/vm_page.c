@@ -182,6 +182,9 @@ static int vm_page_reclaim_run(int req_class, int domain, u_long npages,
 static void vm_domain_free_wakeup(struct vm_domain *);
 static int vm_domain_alloc_fail(struct vm_domain *vmd, vm_object_t object,
     int req);
+static int vm_page_import(void *arg, void **store, int cnt, int domain,
+    int flags);
+static void vm_page_release(void *arg, void **store, int cnt);
 
 SYSINIT(vm_page, SI_SUB_VM, SI_ORDER_SECOND, vm_page_init, NULL);
 
@@ -194,6 +197,27 @@ vm_page_init(void *dummy)
 	bogus_page = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ |
 	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
 }
+
+/*
+ * The cache page zone is initialized later since we need to be able to allocate
+ * pages before UMA is fully initialized.
+ */
+static void
+vm_page_init_cache_zones(void *dummy __unused)
+{
+	struct vm_domain *vmd;
+	int i;
+
+	for (i = 0; i < vm_ndomains; i++) {
+		vmd = VM_DOMAIN(i);
+		vmd->vmd_pgcache = uma_zcache_create("vm pgcache",
+		    sizeof(struct vm_page), NULL, NULL, NULL, NULL,
+		    vm_page_import, vm_page_release, vmd,
+		    /* UMA_ZONE_NOBUCKETCACHE |*/
+		    UMA_ZONE_MAXBUCKET | UMA_ZONE_VM);
+	}
+}
+SYSINIT(vm_page2, SI_SUB_VM_CONF, SI_ORDER_ANY, vm_page_init_cache_zones, NULL);
 
 /* Make sure that u_long is at least 64 bits when PAGE_SIZE is 32K. */
 #if PAGE_SIZE == 32768
@@ -1709,6 +1733,12 @@ again:
 	}
 #endif
 	vmd = VM_DOMAIN(domain);
+	if (object != NULL && !vm_object_reserv(object) &&
+	    vmd->vmd_pgcache != NULL) {
+		m = uma_zalloc(vmd->vmd_pgcache, M_NOWAIT);
+		if (m != NULL)
+			goto found;
+	}
 	vm_domain_free_lock(vmd);
 	if (vm_domain_available(vmd, req, 1)) {
 		/*
@@ -1757,9 +1787,7 @@ again:
 	 */
 	if (vm_paging_needed(vmd, free_count))
 		pagedaemon_wakeup(vmd->vmd_domain);
-#if VM_NRESERVLEVEL > 0
 found:
-#endif
 	vm_page_alloc_check(m);
 
 	/*
@@ -2131,6 +2159,51 @@ again:
 	if (vm_paging_needed(vmd, free_count))
 		pagedaemon_wakeup(domain);
 	return (m);
+}
+
+static int
+vm_page_import(void *arg, void **store, int cnt, int domain, int flags)
+{
+	struct vm_domain *vmd;
+	vm_page_t m;
+	int i;
+
+	vmd = arg;
+	domain = vmd->vmd_domain;
+	vm_domain_free_lock(vmd);
+	for (i = 0; i < cnt; i++) {
+		m = vm_phys_alloc_pages(domain, VM_FREELIST_DEFAULT, 0);
+		if (m == NULL)
+			break;
+		store[i] = m;
+	}
+	if (i != 0)
+		vm_domain_freecnt_adj(vmd, -i);
+	vm_domain_free_unlock(vmd);
+
+	return (i);
+}
+
+static void
+vm_page_release(void *arg, void **store, int cnt)
+{
+	struct vm_domain *vmd;
+	vm_page_t m;
+	int i;
+
+	vmd = arg;
+	vm_domain_free_lock(vmd);
+	for (i = 0; i < cnt; i++) {
+		m = (vm_page_t)store[i];
+#if VM_NRESERVLEVEL > 0
+		KASSERT(vm_reserv_free_page(m) == false,
+		    ("vm_page_release: Cached page belonged to reservation."));
+#endif
+		vm_phys_free_pages(m, 0);
+	}
+	vm_domain_freecnt_adj(vmd, i);
+	vm_domain_free_wakeup(vmd);
+	vm_domain_free_unlock(vmd);
 }
 
 #define	VPSC_ANY	0	/* No restrictions. */
