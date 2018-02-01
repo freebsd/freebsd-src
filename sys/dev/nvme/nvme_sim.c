@@ -44,6 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_xpt_internal.h>	// Yes, this is wrong.
 #include <cam/cam_debug.h>
 
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+
 #include "nvme_private.h"
 
 #define ccb_accb_ptr spriv_ptr0
