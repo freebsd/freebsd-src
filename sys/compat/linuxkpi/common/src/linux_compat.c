@@ -669,7 +669,7 @@ static struct cdev_pager_ops linux_cdev_pager_ops[2] = {
 
 #define	OPW(fp,td,code) ({			\
 	struct file *__fpop;			\
-	int __retval;				\
+	__typeof(code) __retval;		\
 						\
 	__fpop = (td)->td_fpop;			\
 	(td)->td_fpop = (fp);			\
@@ -1277,6 +1277,8 @@ linux_file_read(struct file *file, struct uio *uio, struct ucred *active_cred,
 	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
 		return (EOPNOTSUPP);
+	if (uio->uio_resid > DEVFS_IOSIZE_MAX)
+		return (EINVAL);
 	linux_set_current(td);
 	if (filp->f_op->read) {
 		bytes = OPW(file, td, filp->f_op->read(filp, uio->uio_iov->iov_base,
@@ -1314,6 +1316,8 @@ linux_file_write(struct file *file, struct uio *uio, struct ucred *active_cred,
 	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
 		return (EOPNOTSUPP);
+	if (uio->uio_resid > DEVFS_IOSIZE_MAX)
+		return (EINVAL);
 	linux_set_current(td);
 	if (filp->f_op->write) {
 		bytes = OPW(file, td, filp->f_op->write(filp, uio->uio_iov->iov_base,
@@ -1556,6 +1560,7 @@ struct fileops linuxfileops = {
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
+	.fo_flags = DFLAG_PASSABLE,
 };
 
 /*
