@@ -67,10 +67,6 @@ static struct fdt_header *fdt_to_load = NULL;
 static struct fdt_header *fdtp = NULL;
 /* Size of FDT blob */
 static size_t fdtp_size = 0;
-/* Location of FDT in kernel or module. */
-/* This won't be set if FDT is loaded from disk or memory. */
-/* If it is set, we'll update it when fdt_copy() gets called. */
-static vm_offset_t fdtp_va = 0;
 
 static int fdt_load_dtb(vm_offset_t va);
 static void fdt_print_overlay_load_error(int err, const char *filename);
@@ -221,7 +217,6 @@ fdt_load_dtb(vm_offset_t va)
 		return (1);
 	}
 
-	fdtp_va = va;
 	COPYOUT(va, fdtp, fdtp_size);
 	debugf("DTB blob found at 0x%jx, size: 0x%jx\n", (uintmax_t)va, (uintmax_t)fdtp_size);
 
@@ -248,7 +243,6 @@ fdt_load_dtb_addr(struct fdt_header *header)
 		return (1);
 	}
 
-	fdtp_va = 0; // Don't write this back into module or kernel.
 	bcopy(header, fdtp, fdtp_size);
 	return (0);
 }
@@ -962,11 +956,6 @@ fdt_copy(vm_offset_t va)
 	if (fdt_fixup() == 0)
 		return (0);
 
-	if (fdtp_va != 0) {
-		/* Overwrite the FDT with the fixed version. */
-		/* XXX Is this really appropriate? */
-		COPYIN(fdtp, fdtp_va, fdtp_size);
-	}
 	COPYIN(fdtp, va, fdtp_size);
 	return (fdtp_size);
 }
