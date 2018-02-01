@@ -178,7 +178,7 @@ wdc_do_clear_dump(int fd, uint32_t opcode, uint32_t cmd)
 }
 
 static void
-wdc_cap_diag_usage()
+wdc_cap_diag_usage(void)
 {
 	fprintf(stderr, "usage:\n");
 	fprintf(stderr, WDC_CAP_DIAG_USAGE);
@@ -215,7 +215,7 @@ wdc_cap_diag(int argc, char *argv[])
 }
 
 static void
-wdc_drive_log_usage()
+wdc_drive_log_usage(void)
 {
 	fprintf(stderr, "usage:\n");
 	fprintf(stderr, WDC_DRIVE_LOG_USAGE);
@@ -252,7 +252,7 @@ wdc_drive_log(int argc, char *argv[])
 }
 
 static void
-wdc_get_crash_dump_usage()
+wdc_get_crash_dump_usage(void)
 {
 	fprintf(stderr, "usage:\n");
 	fprintf(stderr, WDC_CAP_DIAG_USAGE);
