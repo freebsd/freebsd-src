@@ -1001,3 +1001,6 @@ UINPUT_DEBUG	opt_evdev.h
 
 # Hyper-V network driver
 HN_DEBUG	opt_hn.h
+
+# NVME options
+NVME_USE_NVD	opt_nvme.h
