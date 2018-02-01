@@ -341,9 +341,11 @@ enum nvme_admin_opcode {
 	NVME_OPC_GET_FEATURES			= 0x0a,
 	/* 0x0b - reserved */
 	NVME_OPC_ASYNC_EVENT_REQUEST		= 0x0c,
-	/* 0x0d-0x0f - reserved */
+	NVME_OPC_NAMESPACE_MANAGEMENT		= 0x0d,
+	/* 0x0e-0x0f - reserved */
 	NVME_OPC_FIRMWARE_ACTIVATE		= 0x10,
 	NVME_OPC_FIRMWARE_IMAGE_DOWNLOAD	= 0x11,
+	NVME_OPC_NAMESPACE_ATTACHMENT		= 0x15,
 
 	NVME_OPC_FORMAT_NVM			= 0x80,
 	NVME_OPC_SECURITY_SEND			= 0x81,
@@ -456,7 +458,10 @@ struct nvme_controller_data {
 	/** maximum data transfer size */
 	uint8_t			mdts;
 
-	uint8_t			reserved1[178];
+	/** Controller ID */
+	uint16_t		ctrlr_id;
+
+	uint8_t			reserved1[176];
 
 	/* bytes 256-511: admin command set attributes */
 
@@ -471,7 +476,10 @@ struct nvme_controller_data {
 		/* supports firmware activate/download commands */
 		uint16_t	firmware  : 1;
 
-		uint16_t	oacs_rsvd : 13;
+		/* supports namespace management commands */
+		uint16_t	nsmgmt	  : 1;
+
+		uint16_t	oacs_rsvd : 12;
 	} __packed oacs;
 
 	/** abort command limit */
@@ -513,8 +521,16 @@ struct nvme_controller_data {
 		uint8_t		avscc_rsvd  : 7;
 	} __packed avscc;
 
-	uint8_t			reserved2[247];
+	uint8_t			reserved2[15];
 
+	/** Name space capabilities  */
+	struct {
+		/* if nsmgmt, report tnvmcap and unvmcap */
+		uint8_t    tnvmcap[16];
+		uint8_t    unvmcap[16];
+	} __packed untncap;
+
+	uint8_t reserved3[200];
 	/* bytes 512-703: nvm command set attributes */
 
 	/** submission queue entry size */
@@ -529,7 +545,7 @@ struct nvme_controller_data {
 		uint8_t		max : 4;
 	} __packed cqes;
 
-	uint8_t			reserved3[2];
+	uint8_t			reserved4[2];
 
 	/** number of namespaces */
 	uint32_t		nn;
@@ -555,10 +571,10 @@ struct nvme_controller_data {
 	} __packed vwc;
 
 	/* TODO: flesh out remaining nvm command set attributes */
-	uint8_t			reserved4[178];
+	uint8_t			reserved5[178];
 
 	/* bytes 704-2047: i/o command set attributes */
-	uint8_t			reserved5[1344];
+	uint8_t			reserved6[1344];
 
 	/* bytes 2048-3071: power state descriptors */
 	struct nvme_power_state power_state[32];
