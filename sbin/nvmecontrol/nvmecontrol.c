@@ -75,6 +75,11 @@ dispatch(int argc, char *argv[], struct nvme_function *tbl)
 {
 	struct nvme_function *f = tbl;
 
+	if (argv[1] == NULL) {
+		gen_usage(tbl);
+		return;
+	}
+
 	while (f->name != NULL) {
 		if (strcmp(argv[1], f->name) == 0)
 			f->fn(argc-1, &argv[1]);
