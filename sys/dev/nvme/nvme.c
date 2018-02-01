@@ -328,8 +328,10 @@ nvme_notify(struct nvme_consumer *cons,
 		 */
 		return;
 	}
-	for (ns_idx = 0; ns_idx < ctrlr->cdata.nn; ns_idx++) {
+	for (ns_idx = 0; ns_idx < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); ns_idx++) {
 		ns = &ctrlr->ns[ns_idx];
+		if (ns->data.nsze == 0)
+			continue;
 		if (cons->ns_fn != NULL)
 			ns->cons_cookie[cons->id] =
 			    (*cons->ns_fn)(ns, ctrlr_cookie);
