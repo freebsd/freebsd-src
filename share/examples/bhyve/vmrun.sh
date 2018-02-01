@@ -38,6 +38,7 @@ DEFAULT_CPUS=2
 DEFAULT_TAPDEV=tap0
 DEFAULT_CONSOLE=stdio
 
+DEFAULT_NIC=virtio-net
 DEFAULT_VIRTIO_DISK="./diskdev"
 DEFAULT_ISOFILE="./release.iso"
 
@@ -72,6 +73,7 @@ usage() {
 	echo "       -l: the OS loader to use (default is /boot/userboot.so)"
 	echo "       -L: IP address for UEFI GOP VNC server (default: 127.0.0.1)"
 	echo "       -m: memory size (default is ${DEFAULT_MEMSIZE})"
+	echo "       -n: network adapter emulation type (default is ${DEFAULT_NIC})"
 	echo "       -p: pass-through a host PCI device at bus/slot/func (e.g. 10/0/0)"
 	echo "       -P: UEFI GOP VNC port (default: 5900)"
 	echo "       -t: tap device for virtio-net (default is $DEFAULT_TAPDEV)"
@@ -100,6 +102,7 @@ isofile=${DEFAULT_ISOFILE}
 memsize=${DEFAULT_MEMSIZE}
 console=${DEFAULT_CONSOLE}
 cpus=${DEFAULT_CPUS}
+nic=${DEFAULT_NIC}
 tap_total=0
 disk_total=0
 disk_emulation="virtio-blk"
@@ -117,7 +120,7 @@ vncport=5900
 fbsize="w=1024,h=768"
 tablet=""
 
-while getopts aAc:C:d:e:Ef:F:g:hH:iI:l:m:p:P:t:Tuvw c ; do
+while getopts aAc:C:d:e:Ef:F:g:hH:iI:l:m:n:p:P:t:Tuvw c ; do
 	case $c in
 	a)
 		bhyverun_opt="${bhyverun_opt} -a"
@@ -170,6 +173,9 @@ while getopts aAc:C:d:e:Ef:F:g:hH:iI:l:m:p:P:t:Tuvw c ; do
 		;;
 	m)
 		memsize=${OPTARG}
+		;;
+	n)
+		nic=${OPTARG}
 		;;
 	p)
 		eval "pass_dev${pass_total}=\"${OPTARG}\""
@@ -313,7 +319,7 @@ while [ 1 ]; do
 	i=0
 	while [ $i -lt $tap_total ] ; do
 	    eval "tapname=\$tap_dev${i}"
-	    devargs="$devargs -s $nextslot:0,virtio-net,${tapname} "
+	    devargs="$devargs -s $nextslot:0,${nic},${tapname} "
 	    nextslot=$(($nextslot + 1))
 	    i=$(($i + 1))
 	done
