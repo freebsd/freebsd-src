@@ -670,7 +670,7 @@ enum nvme_log_page {
 	NVME_LOG_RES_NOTIFICATION	= 0x80,
 	/* 0xC0-0xFF - vendor specific */
 /*
- * The following are Intel Specific log pages, but they seem to 
+ * The following are Intel Specific log pages, but they seem to
  * be widely implemented.
  */
 	INTEL_LOG_READ_LAT_LOG		= 0xc1,
@@ -754,6 +754,19 @@ struct nvme_firmware_page {
 	uint8_t			reserved[7];
 	uint64_t		revision[7]; /* revisions for 7 slots */
 	uint8_t			reserved2[448];
+} __packed __aligned(4);
+
+struct intel_log_temp_stats
+{
+	uint64_t	current;
+	uint64_t	overtemp_flag_last;
+	uint64_t	overtemp_flag_life;
+	uint64_t	max_temp;
+	uint64_t	min_temp;
+	uint64_t	_rsvd[5];
+	uint64_t	max_oper_temp;
+	uint64_t	min_oper_temp;
+	uint64_t	est_offset;
 } __packed __aligned(4);
 
 #define NVME_TEST_MAX_THREADS	128
