@@ -49,34 +49,43 @@ errmsg() {
 usage() {
 	local msg=$1
 
-	echo "Usage: vmrun.sh [-aAEhiTv] [-c <CPUs>] [-C <console>] [-d <disk file>]"
-	echo "                [-e <name=value>] [-f <path of firmware>] [-F <size>]"
+	echo "Usage: vmrun.sh [-aAEhiTv] [-c <CPUs>] [-C <console>]" \
+	    "[-d <disk file>]"
+	echo "                [-e <name=value>] [-f <path of firmware>]" \
+	    "[-F <size>]"
 	echo "                [-g <gdbport> ] [-H <directory>]"
 	echo "                [-I <location of installation iso>] [-l <loader>]"
 	echo "                [-L <VNC IP for UEFI framebuffer>]"
-	echo "                [-m <memsize>] [-P <port>] [-t <tapdev>] <vmname>"
+	echo "                [-m <memsize>]" \
+	    "[-n <network adapter emulation type>]"
+	echo "                [-P <port>] [-t <tapdev>] <vmname>"
 	echo ""
 	echo "       -h: display this help message"
 	echo "       -a: force memory mapped local APIC access"
 	echo "       -A: use AHCI disk emulation instead of virtio"
-	echo "       -c: number of virtual cpus (default is ${DEFAULT_CPUS})"
-	echo "       -C: console device (default is ${DEFAULT_CONSOLE})"
-	echo "       -d: virtio diskdev file (default is ${DEFAULT_VIRTIO_DISK})"
+	echo "       -c: number of virtual cpus (default: ${DEFAULT_CPUS})"
+	echo "       -C: console device (default: ${DEFAULT_CONSOLE})"
+	echo "       -d: virtio diskdev file (default: ${DEFAULT_VIRTIO_DISK})"
 	echo "       -e: set FreeBSD loader environment variable"
 	echo "       -E: Use UEFI mode"
 	echo "       -f: Use a specific UEFI firmware"
-	echo "       -F: Use a custom UEFI GOP framebuffer size (default: w=1024,h=768)"
+	echo "       -F: Use a custom UEFI GOP framebuffer size" \
+	    "(default: w=1024,h=768)"
 	echo "       -g: listen for connection from kgdb at <gdbport>"
 	echo "       -H: host filesystem to export to the loader"
 	echo "       -i: force boot of the Installation CDROM image"
-	echo "       -I: Installation CDROM image location (default is ${DEFAULT_ISOFILE})"
-	echo "       -l: the OS loader to use (default is /boot/userboot.so)"
-	echo "       -L: IP address for UEFI GOP VNC server (default: 127.0.0.1)"
-	echo "       -m: memory size (default is ${DEFAULT_MEMSIZE})"
-	echo "       -n: network adapter emulation type (default is ${DEFAULT_NIC})"
-	echo "       -p: pass-through a host PCI device at bus/slot/func (e.g. 10/0/0)"
+	echo "       -I: Installation CDROM image location" \
+	    "(default: ${DEFAULT_ISOFILE})"
+	echo "       -l: the OS loader to use (default: /boot/userboot.so)"
+	echo "       -L: IP address for UEFI GOP VNC server" \
+	    "(default: 127.0.0.1)"
+	echo "       -m: memory size (default: ${DEFAULT_MEMSIZE})"
+	echo "       -n: network adapter emulation type" \
+	    "(default: ${DEFAULT_NIC})"
+	echo "       -p: pass-through a host PCI device at bus/slot/func" \
+	    "(e.g. 10/0/0)"
 	echo "       -P: UEFI GOP VNC port (default: 5900)"
-	echo "       -t: tap device for virtio-net (default is $DEFAULT_TAPDEV)"
+	echo "       -t: tap device for virtio-net (default: $DEFAULT_TAPDEV)"
 	echo "       -T: Enable tablet device (for UEFI GOP)"
 	echo "       -u: RTC keeps UTC time"
 	echo "       -v: Wait for VNC client connection before booting VM"
