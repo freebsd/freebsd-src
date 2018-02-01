@@ -232,19 +232,11 @@ nvd_dump(void *arg, void *virt, vm_offset_t phys, off_t offset, size_t len)
 {
 	struct nvd_disk *ndisk;
 	struct disk *dp;
-	int error;
 
 	dp = arg;
 	ndisk = dp->d_drv1;
 
-	if (len > 0) {
-		if ((error = nvme_ns_dump(ndisk->ns, virt, offset, len)) != 0)
-			return (error);
-	} else {
-		/* XXX sync to stable storage */
-	}
-
-	return (0);
+	return (nvme_ns_dump(ndisk->ns, virt, offset, len));
 }
 
 static void
