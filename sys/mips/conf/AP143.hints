@@ -24,9 +24,12 @@ hint.arge.1.phymask=0x0		# No directly mapped PHYs
 hint.arge.1.media=1000
 hint.arge.1.fduplex=1
 
-# ath0: Where the ART is - last 64k in the flash
-hint.ath.0.eepromaddr=0x1fff0000
-hint.ath.0.eepromsize=16384
+# Where the ART is - last 64k in the first 8MB of flash
+hint.ar71xx_caldata.0.map.0.ath_fixup_addr=0x1fff0000
+hint.ar71xx_caldata.0.map.0.ath_fixup_size=16384
+
+# And now tell the ath(4) driver where to look!
+hint.ath.0.eeprom_firmware="ar71xx_caldata.0.map.0.eeprom_firmware"
 
 # The AP121 4MB flash layout:
 #
