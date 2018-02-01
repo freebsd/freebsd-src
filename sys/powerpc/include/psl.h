@@ -90,28 +90,13 @@
 #define	PSL_FE_PREC	(PSL_FE0 | PSL_FE1) /* precise */
 #define	PSL_FE_DFLT	PSL_FE_DIS	/* default == none */
 
-#if defined(BOOKE_E500)
-/* Initial kernel MSR, use IS=1 ad DS=1. */
-#define PSL_KERNSET_INIT	(PSL_IS | PSL_DS)
+#ifndef LOCORE
+extern register_t psl_kernset;		/* Default MSR values for kernel */
+extern register_t psl_userset;		/* Default MSR values for userland */
 #ifdef __powerpc64__
-#define PSL_KERNSET		(PSL_CM | PSL_CE | PSL_ME | PSL_EE)
-#else
-#define PSL_KERNSET		(PSL_CE | PSL_ME | PSL_EE)
+extern register_t psl_userset32;	/* Default user MSR values for 32-bit */
 #endif
-#define PSL_SRR1_MASK	0x00000000UL	/* No mask on Book-E */
-#elif defined(BOOKE_PPC4XX)
-#define PSL_KERNSET	(PSL_CE | PSL_ME | PSL_EE | PSL_FP)
-#define PSL_SRR1_MASK	0x00000000UL	/* No mask on Book-E */
-#elif defined(AIM)
-#ifdef __powerpc64__
-#define	PSL_KERNSET	(PSL_SF | PSL_EE | PSL_ME | PSL_IR | PSL_DR | PSL_RI)
-#else
-#define	PSL_KERNSET	(PSL_EE | PSL_ME | PSL_IR | PSL_DR | PSL_RI)
+extern register_t psl_userstatic;	/* Bits of SRR1 userland may not set */
 #endif
-#define PSL_SRR1_MASK	0x783f0000UL	/* Bits 1-4, 10-15 (ppc32), 33-36, 42-47 (ppc64) */
-#endif
-
-#define	PSL_USERSET	(PSL_KERNSET | PSL_PR)
-#define	PSL_USERSTATIC	(~(PSL_VEC | PSL_FP | PSL_FE0 | PSL_FE1) & ~PSL_SRR1_MASK)
 
 #endif	/* _MACHINE_PSL_H_ */

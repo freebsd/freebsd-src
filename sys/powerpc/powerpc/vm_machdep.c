@@ -167,7 +167,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
-	td2->td_md.md_saved_msr = PSL_KERNSET;
+	td2->td_md.md_saved_msr = psl_kernset;
 
 	/*
  	 * Now cpu_switch() can schedule the new process.
