@@ -379,6 +379,8 @@ struct nvme_consumer *consumer_cookie;
 static void
 nvme_sim_init(void)
 {
+	if (nvme_use_nvd)
+		return;
 
 	consumer_cookie = nvme_register_consumer(nvme_sim_new_ns,
 	    nvme_sim_new_controller, NULL, nvme_sim_controller_fail);
@@ -390,6 +392,8 @@ SYSINIT(nvme_sim_register, SI_SUB_DRIVERS, SI_ORDER_ANY,
 static void
 nvme_sim_uninit(void)
 {
+	if (nvme_use_nvd)
+		return;
 	/* XXX Cleanup */
 
 	nvme_unregister_consumer(consumer_cookie);
