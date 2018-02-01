@@ -3076,12 +3076,13 @@ validate:
 	}
 
 #if VM_NRESERVLEVEL > 0
-		if ((mpte == NULL || mpte->wire_count == NL3PG) &&
-		    pmap_superpages_enabled() &&
-		    (m->flags & PG_FICTITIOUS) == 0 &&
-		    vm_reserv_level_iffullpop(m) == 0) {
-			pmap_promote_l2(pmap, pde, va, &lock);
-		}
+	if (pmap != pmap_kernel() &&
+	    (mpte == NULL || mpte->wire_count == NL3PG) &&
+	    pmap_superpages_enabled() &&
+	    (m->flags & PG_FICTITIOUS) == 0 &&
+	    vm_reserv_level_iffullpop(m) == 0) {
+		pmap_promote_l2(pmap, pde, va, &lock);
+	}
 #endif
 
 	if (lock != NULL)
