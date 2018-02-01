@@ -245,10 +245,6 @@ struct nvme_controller {
 
 	struct mtx		lock;
 
-	struct cam_sim		*sim;
-	struct cam_path		*path;
-	int			cam_ref;
-
 	uint32_t		ready_timeout_in_ms;
 
 	bus_space_tag_t		bus_tag;
