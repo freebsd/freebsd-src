@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,74 +31,43 @@
 #ifndef	_LINUX_KTHREAD_H_
 #define	_LINUX_KTHREAD_H_
 
-#include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/kernel.h>
-#include <sys/kthread.h>
-#include <sys/sleepqueue.h>
-
-#include <linux/slab.h>
 #include <linux/sched.h>
 
-static inline void
-linux_kthread_fn(void *arg)
-{
-	struct task_struct *task;
-	struct thread *td = curthread;
+#include <sys/unistd.h>
+#include <sys/kthread.h>
 
-	task = arg;
-	task_struct_fill(td, task);
-	task_struct_set(td, task);
-	if (task->should_stop == 0)
-		task->task_ret = task->task_fn(task->task_data);
-	PROC_LOCK(td->td_proc);
-	task->should_stop = TASK_STOPPED;
-	wakeup(task);
-	PROC_UNLOCK(td->td_proc);
-	task_struct_set(td, NULL);
-	kthread_exit();
-}
-
-static inline struct task_struct *
-linux_kthread_create(int (*threadfn)(void *data), void *data)
-{
-	struct task_struct *task;
-
-	task = kzalloc(sizeof(*task), GFP_KERNEL);
-	task->task_fn = threadfn;
-	task->task_data = data;
-
-	return (task);
-}
-
-#define	kthread_run(fn, data, fmt, ...)					\
-({									\
-	struct task_struct *_task;					\
+#define	kthread_run(fn, data, fmt, ...)	({				\
+	struct task_struct *__task;					\
+	struct thread *__td;						\
 									\
-	_task = linux_kthread_create((fn), (data));			\
-	if (kthread_add(linux_kthread_fn, _task, NULL, &_task->task_thread,	\
-	    0, 0, fmt, ## __VA_ARGS__)) {				\
-		kfree(_task);						\
-		_task = NULL;						\
-	}								\
-	_task;								\
+	if (kthread_add(linux_kthread_fn, NULL, NULL, &__td,		\
+	    RFSTOPPED, 0, fmt, ## __VA_ARGS__))				\
+		__task = NULL;						\
+	else								\
+		__task = linux_kthread_setup_and_run(__td, fn, data);	\
+	__task;								\
 })
 
-#define	kthread_should_stop()	current->should_stop
+int linux_kthread_stop(struct task_struct *);
+bool linux_kthread_should_stop_task(struct task_struct *);
+bool linux_kthread_should_stop(void);
+int linux_kthread_park(struct task_struct *);
+void linux_kthread_parkme(void);
+bool linux_kthread_should_park(void);
+void linux_kthread_unpark(struct task_struct *);
+void linux_kthread_fn(void *);
+struct task_struct *linux_kthread_setup_and_run(struct thread *,
+    linux_task_fn_t *, void *arg);
+int linux_in_atomic(void);
 
-static inline int
-kthread_stop(struct task_struct *task)
-{
+#define	kthread_stop(task)		linux_kthread_stop(task)
+#define	kthread_should_stop()		linux_kthread_should_stop()
+#define	kthread_should_stop_task(task)	linux_kthread_should_stop_task(task)
+#define	kthread_park(task)		linux_kthread_park(task)
+#define	kthread_parkme()		linux_kthread_parkme()
+#define	kthread_should_park()		linux_kthread_should_park()
+#define	kthread_unpark(task)		linux_kthread_unpark(task)
 
-	PROC_LOCK(task->task_thread->td_proc);
-	task->should_stop = TASK_SHOULD_STOP;
-	wake_up_process(task);
-	while (task->should_stop != TASK_STOPPED)
-		msleep(task, &task->task_thread->td_proc->p_mtx, PWAIT,
-		    "kstop", hz);
-	PROC_UNLOCK(task->task_thread->td_proc);
-	return task->task_ret;
-}
+#define	in_atomic()			linux_in_atomic()
 
-#endif	/* _LINUX_KTHREAD_H_ */
+#endif /* _LINUX_KTHREAD_H_ */

@@ -56,13 +56,21 @@
 struct pci_device_id {
 	uint32_t	vendor;
 	uint32_t	device;
-        uint32_t	subvendor;
+	uint32_t	subvendor;
 	uint32_t	subdevice;
+	uint32_t	class;
 	uint32_t	class_mask;
 	uintptr_t	driver_data;
 };
 
 #define	MODULE_DEVICE_TABLE(bus, table)
+
+#define	PCI_BASE_CLASS_DISPLAY		0x03
+#define	PCI_CLASS_DISPLAY_VGA		0x0300
+#define	PCI_CLASS_DISPLAY_OTHER		0x0380
+#define	PCI_BASE_CLASS_BRIDGE		0x06
+#define	PCI_CLASS_BRIDGE_ISA		0x0601
+
 #define	PCI_ANY_ID		(-1)
 #define	PCI_VENDOR_ID_APPLE		0x106b
 #define	PCI_VENDOR_ID_ASUSTEK		0x1043
@@ -72,16 +80,20 @@ struct pci_device_id {
 #define	PCI_VENDOR_ID_IBM		0x1014
 #define	PCI_VENDOR_ID_INTEL		0x8086
 #define	PCI_VENDOR_ID_MELLANOX			0x15b3
+#define	PCI_VENDOR_ID_REDHAT_QUMRANET	0x1af4
 #define	PCI_VENDOR_ID_SERVERWORKS	0x1166
 #define	PCI_VENDOR_ID_SONY		0x104d
 #define	PCI_VENDOR_ID_TOPSPIN			0x1867
 #define	PCI_VENDOR_ID_VIA		0x1106
+#define	PCI_SUBVENDOR_ID_REDHAT_QUMRANET	0x1af4
+#define	PCI_DEVICE_ID_ATI_RADEON_QY	0x5159
 #define	PCI_DEVICE_ID_MELLANOX_TAVOR		0x5a44
 #define	PCI_DEVICE_ID_MELLANOX_TAVOR_BRIDGE	0x5a46
 #define	PCI_DEVICE_ID_MELLANOX_ARBEL_COMPAT	0x6278
 #define	PCI_DEVICE_ID_MELLANOX_ARBEL		0x6282
 #define	PCI_DEVICE_ID_MELLANOX_SINAI_OLD	0x5e8c
 #define	PCI_DEVICE_ID_MELLANOX_SINAI		0x6274
+#define	PCI_SUBDEVICE_ID_QEMU		0x1100
 
 #define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))
 #define PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
@@ -171,9 +183,16 @@ struct pci_driver {
 	int  (*suspend) (struct pci_dev *dev, pm_message_t state);	/* Device suspended */
 	int  (*resume) (struct pci_dev *dev);		/* Device woken up */
 	void (*shutdown) (struct pci_dev *dev);		/* Device shutdown */
-	driver_t			driver;
+	driver_t			bsddriver;
 	devclass_t			bsdclass;
-        const struct pci_error_handlers       *err_handler;
+	struct device_driver		driver;
+	const struct pci_error_handlers       *err_handler;
+	bool				isdrm;
+};
+
+struct pci_bus {
+	struct pci_dev	*self;
+	int		number;
 };
 
 extern struct list_head pci_drivers;
@@ -186,12 +205,16 @@ struct pci_dev {
 	struct device		dev;
 	struct list_head	links;
 	struct pci_driver	*pdrv;
+	struct pci_bus		*bus;
 	uint64_t		dma_mask;
 	uint16_t		device;
 	uint16_t		vendor;
+	uint16_t		subsystem_vendor;
+	uint16_t		subsystem_device;
 	unsigned int		irq;
 	unsigned int		devfn;
-	u8			revision;
+	uint32_t		class;
+	uint8_t			revision;
 };
 
 static inline struct resource_list_entry *
@@ -220,18 +243,19 @@ static inline struct device *
 linux_pci_find_irq_dev(unsigned int irq)
 {
 	struct pci_dev *pdev;
+	struct device *found;
 
+	found = NULL;
 	spin_lock(&pci_lock);
 	list_for_each_entry(pdev, &pci_devices, links) {
-		if (irq == pdev->dev.irq)
+		if (irq == pdev->dev.irq ||
+		    (irq >= pdev->dev.msix && irq < pdev->dev.msix_max)) {
+			found = &pdev->dev;
 			break;
-		if (irq >= pdev->dev.msix && irq < pdev->dev.msix_max)
-			break;
+		}
 	}
 	spin_unlock(&pci_lock);
-	if (pdev)
-		return &pdev->dev;
-	return (NULL);
+	return (found);
 }
 
 static inline unsigned long
@@ -316,6 +340,9 @@ pci_enable_device(struct pci_dev *pdev)
 static inline void
 pci_disable_device(struct pci_dev *pdev)
 {
+
+	pci_disable_io(pdev->dev.bsddev, SYS_RES_IOPORT);
+	pci_disable_io(pdev->dev.bsddev, SYS_RES_MEMORY);
 }
 
 static inline int
@@ -482,8 +509,12 @@ pci_write_config_dword(struct pci_dev *pdev, int where, u32 val)
 	return (0);
 }
 
-extern int pci_register_driver(struct pci_driver *pdrv);
-extern void pci_unregister_driver(struct pci_driver *pdrv);
+int	linux_pci_register_driver(struct pci_driver *pdrv);
+int	linux_pci_register_drm_driver(struct pci_driver *pdrv);
+void	linux_pci_unregister_driver(struct pci_driver *pdrv);
+
+#define	pci_register_driver(pdrv)	linux_pci_register_driver(pdrv)
+#define	pci_unregister_driver(pdrv)	linux_pci_unregister_driver(pdrv)
 
 struct msix_entry {
 	int entry;

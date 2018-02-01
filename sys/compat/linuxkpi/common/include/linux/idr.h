@@ -75,9 +75,8 @@ struct idr {
 	SYSINIT(name##_ida_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
 	    ida_init, &(name))
 
-#define	idr_preload(x) do { } while (0)
-#define	idr_preload_end() do { } while (0)
-
+void	idr_preload(gfp_t gfp_mask);
+void	idr_preload_end(void);
 void	*idr_find(struct idr *idp, int id);
 void	*idr_get_next(struct idr *idp, int *nextid);
 int	idr_pre_get(struct idr *idp, gfp_t gfp_mask);

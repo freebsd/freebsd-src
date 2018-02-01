@@ -28,52 +28,90 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_IO_MAPPING_H_
+
+#ifndef _LINUX_IO_MAPPING_H_
 #define	_LINUX_IO_MAPPING_H_
+
+#include <sys/types.h>
+#include <machine/vm.h>
 
 #include <linux/types.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
-struct io_mapping;
+struct io_mapping {
+	unsigned long base;
+	unsigned long size;
+	void *mem;
+	vm_memattr_t attr;
+};
+
+static inline struct io_mapping *
+io_mapping_init_wc(struct io_mapping *mapping, resource_size_t base,
+    unsigned long size)
+{
+
+	mapping->base = base;
+	mapping->size = size;
+#ifdef VM_MEMATTR_WRITE_COMBINING
+	mapping->mem = ioremap_wc(base, size);
+	mapping->attr = VM_MEMATTR_WRITE_COMBINING;
+#else
+	mapping->mem = ioremap_nocache(base, size);
+	mapping->attr = VM_MEMATTR_UNCACHEABLE;
+#endif
+	return (mapping);
+}
 
 static inline struct io_mapping *
 io_mapping_create_wc(resource_size_t base, unsigned long size)
 {
+	struct io_mapping *mapping;
 
-	return ioremap_wc(base, size);
+	mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
+	if (mapping == NULL)
+		return (NULL);
+	return (io_mapping_init_wc(mapping, base, size));
+}
+
+static inline void
+io_mapping_fini(struct io_mapping *mapping)
+{
+
+	iounmap(mapping->mem);
 }
 
 static inline void
 io_mapping_free(struct io_mapping *mapping)
 {
 
-	iounmap(mapping);
+	io_mapping_fini(mapping->mem);
+	kfree(mapping);
 }
 
 static inline void *
 io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset)
 {
 
-	return (((char *)mapping) + offset);
+	return ((char *)mapping->mem + offset);
 }
 
 static inline void
 io_mapping_unmap_atomic(void *vaddr)
 {
-
 }
 
 static inline void *
-io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
+io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset,
+    unsigned long size)
 {
 
-	return (((char *) mapping) + offset);
+	return ((char *)mapping->mem + offset);
 }
 
 static inline void
 io_mapping_unmap(void *vaddr)
 {
-
 }
 
-#endif	/* _LINUX_IO_MAPPING_H_ */
+#endif /* _LINUX_IO_MAPPING_H_ */

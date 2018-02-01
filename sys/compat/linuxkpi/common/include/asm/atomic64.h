@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Mellanox Technologies, Ltd.
+ * Copyright (c) 2016-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,13 +28,15 @@
 #ifndef	_ASM_ATOMIC64_H_
 #define	_ASM_ATOMIC64_H_
 
-#include <sys/cdefs.h>
+#include <linux/compiler.h>
 #include <sys/types.h>
 #include <machine/atomic.h>
 
 typedef struct {
 	volatile int64_t counter;
 } atomic64_t;
+
+#define	ATOMIC64_INIT(x)	{ .counter = (x) }
 
 /*------------------------------------------------------------------------*
  *	64-bit atomic operations
@@ -72,7 +74,7 @@ atomic64_set(atomic64_t *v, int64_t i)
 static inline int64_t
 atomic64_read(atomic64_t *v)
 {
-	return atomic_load_acq_64(&v->counter);
+	return READ_ONCE(v->counter);
 }
 
 static inline int64_t
@@ -106,12 +108,13 @@ static inline int64_t
 atomic64_xchg(atomic64_t *v, int64_t i)
 {
 #if defined(__i386__) || defined(__amd64__) || \
-    defined(__arm__) || defined(__aarch64__)
+    defined(__arm__) || defined(__aarch64__) || \
+    defined(__powerpc64__)
 	return (atomic_swap_64(&v->counter, i));
 #else
 	int64_t ret;
 	for (;;) {
-		ret = atomic_load_acq_64(&v->counter);
+		ret = READ_ONCE(v->counter);
 		if (atomic_cmpset_64(&v->counter, ret, i))
 			break;
 	}
@@ -127,7 +130,7 @@ atomic64_cmpxchg(atomic64_t *v, int64_t old, int64_t new)
 	for (;;) {
 		if (atomic_cmpset_64(&v->counter, old, new))
 			break;
-		ret = atomic_load_acq_64(&v->counter);
+		ret = READ_ONCE(v->counter);
 		if (ret != old)
 			break;
 	}

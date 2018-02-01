@@ -35,6 +35,7 @@
 
 #include <linux/kernel.h>
 #include <linux/kref.h>
+#include <linux/list.h>
 #include <linux/slab.h>
 
 struct kobject;
@@ -132,6 +133,11 @@ kobject_create_and_add(const char *name, struct kobject *parent)
 	kobject_put(kobj);
 
 	return (NULL);
+}
+
+static inline void
+kobject_del(struct kobject *kobj __unused)
+{
 }
 
 static inline char *

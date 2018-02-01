@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/semaphore.h>
+#include <linux/spinlock.h>
 
 struct module;
 struct kiocb;
@@ -52,9 +53,11 @@ struct pipe_inode_info;
 struct vm_area_struct;
 struct poll_table_struct;
 struct files_struct;
+struct pfs_node;
 
 #define	inode	vnode
 #define	i_cdev	v_rdev
+#define	i_private v_data
 
 #define	S_IRUGO	(S_IRUSR | S_IRGRP | S_IROTH)
 #define	S_IWUGO	(S_IWUSR | S_IWGRP | S_IWOTH)
@@ -64,9 +67,21 @@ typedef struct files_struct *fl_owner_t;
 
 struct dentry {
 	struct inode	*d_inode;
+	struct pfs_node	*d_pfs_node;
 };
 
 struct file_operations;
+
+struct linux_file_wait_queue {
+	struct wait_queue wq;
+	struct wait_queue_head *wqh;
+	atomic_t state;
+#define	LINUX_FWQ_STATE_INIT 0
+#define	LINUX_FWQ_STATE_NOT_READY 1
+#define	LINUX_FWQ_STATE_QUEUED 2
+#define	LINUX_FWQ_STATE_READY 3
+#define	LINUX_FWQ_STATE_MAX 4
+};
 
 struct linux_file {
 	struct file	*_file;
@@ -79,6 +94,21 @@ struct linux_file {
 	struct selinfo	f_selinfo;
 	struct sigio	*f_sigio;
 	struct vnode	*f_vnode;
+#define	f_inode	f_vnode
+	volatile u_int	f_count;
+
+	/* anonymous shmem object */
+	vm_object_t	f_shmem;
+
+	/* kqfilter support */
+	int		f_kqflags;
+#define	LINUX_KQ_FLAG_HAS_READ (1 << 0)
+#define	LINUX_KQ_FLAG_HAS_WRITE (1 << 1)
+#define	LINUX_KQ_FLAG_NEED_READ (1 << 2)
+#define	LINUX_KQ_FLAG_NEED_WRITE (1 << 3)
+	/* protects f_selinfo.si_note */
+	spinlock_t	f_kqlock;
+	struct linux_file_wait_queue f_wait_queue;
 };
 
 #define	file		linux_file
@@ -107,6 +137,7 @@ struct file_operations {
 	ssize_t (*write)(struct file *, const char __user *, size_t, loff_t *);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	long (*unlocked_ioctl)(struct file *, unsigned int, unsigned long);
+	long (*compat_ioctl)(struct file *, unsigned int, unsigned long);
 	int (*mmap)(struct file *, struct vm_area_struct *);
 	int (*open)(struct inode *, struct file *);
 	int (*release)(struct inode *, struct file *);
@@ -127,7 +158,6 @@ struct file_operations {
 	int (*readdir)(struct file *, void *, filldir_t);
 	int (*ioctl)(struct inode *, struct file *, unsigned int,
 	    unsigned long);
-	long (*compat_ioctl)(struct file *, unsigned int, unsigned long);
 	int (*flush)(struct file *, fl_owner_t id);
 	int (*fsync)(struct file *, struct dentry *, int datasync);
 	int (*aio_fsync)(struct kiocb *, int datasync);
@@ -145,7 +175,8 @@ struct file_operations {
 	int (*setlease)(struct file *, long, struct file_lock **);
 #endif
 };
-#define	fops_get(fops)	(fops)
+#define	fops_get(fops)		(fops)
+#define	replace_fops(f, fops)	((f)->f_op = (fops))
 
 #define	FMODE_READ	FREAD
 #define	FMODE_WRITE	FWRITE
@@ -213,11 +244,15 @@ nonseekable_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static inline dev_t
-iminor(struct inode *inode)
+extern unsigned int linux_iminor(struct inode *);
+#define	iminor(...) linux_iminor(__VA_ARGS__)
+
+static inline struct linux_file *
+get_file(struct linux_file *f)
 {
 
-	return (minor(dev2unit(inode->v_rdev)));
+	refcount_acquire(f->_file == NULL ? &f->f_count : &f->_file->f_count);
+	return (f);
 }
 
 static inline struct inode *
@@ -242,7 +277,36 @@ iput(struct inode *inode)
 static inline loff_t 
 no_llseek(struct file *file, loff_t offset, int whence)
 {
-        return -ESPIPE;
+
+	return (-ESPIPE);
 }
+
+static inline loff_t
+noop_llseek(struct linux_file *file, loff_t offset, int whence)
+{
+
+	return (file->_file->f_offset);
+}
+
+/* Shared memory support */
+unsigned long linux_invalidate_mapping_pages(vm_object_t, pgoff_t, pgoff_t);
+struct page *linux_shmem_read_mapping_page_gfp(vm_object_t, int, gfp_t);
+struct linux_file *linux_shmem_file_setup(const char *, loff_t, unsigned long);
+void linux_shmem_truncate_range(vm_object_t, loff_t, loff_t);
+
+#define	invalidate_mapping_pages(...) \
+  linux_invalidate_mapping_pages(__VA_ARGS__)
+
+#define	shmem_read_mapping_page(...) \
+  linux_shmem_read_mapping_page_gfp(__VA_ARGS__, 0)
+
+#define	shmem_read_mapping_page_gfp(...) \
+  linux_shmem_read_mapping_page_gfp(__VA_ARGS__)
+
+#define	shmem_file_setup(...) \
+  linux_shmem_file_setup(__VA_ARGS__)
+
+#define	shmem_truncate_range(...) \
+  linux_shmem_truncate_range(__VA_ARGS__)
 
 #endif /* _LINUX_FS_H_ */

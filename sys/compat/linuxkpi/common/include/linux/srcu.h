@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2015-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,48 +25,22 @@
  *
  * $FreeBSD$
  */
+
 #ifndef	_LINUX_SRCU_H_
 #define	_LINUX_SRCU_H_
 
-#include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/sx.h>
-
 struct srcu_struct {
-	struct sx sx;
 };
 
-static inline int
-init_srcu_struct(struct srcu_struct *srcu)
-{
-	sx_init(&srcu->sx, "SleepableRCU");
-	return (0);
-}
+#define	srcu_dereference(ptr,srcu)	((__typeof(*(ptr)) *)(ptr))
 
-static inline void
-cleanup_srcu_struct(struct srcu_struct *srcu)
-{
-	sx_destroy(&srcu->sx);
-}
+/* prototypes */
 
-static inline int
-srcu_read_lock(struct srcu_struct *srcu)
-{
-	sx_slock(&srcu->sx);
-	return (0);
-}
-
-static inline void
-srcu_read_unlock(struct srcu_struct *srcu, int key)
-{
-	sx_sunlock(&srcu->sx);
-}
-
-static inline void
-synchronize_srcu(struct srcu_struct *srcu)
-{
-	sx_xlock(&srcu->sx);
-	sx_xunlock(&srcu->sx);
-}
+extern int srcu_read_lock(struct srcu_struct *);
+extern void srcu_read_unlock(struct srcu_struct *, int index);
+extern void synchronize_srcu(struct srcu_struct *);
+extern void srcu_barrier(struct srcu_struct *);
+extern int init_srcu_struct(struct srcu_struct *);
+extern void cleanup_srcu_struct(struct srcu_struct *);
 
 #endif					/* _LINUX_SRCU_H_ */

@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@
 #define	__GFP_IO	0
 #define	__GFP_NO_KSWAPD	0
 #define	__GFP_WAIT	M_WAITOK
-#define	__GFP_DMA32     0
+#define	__GFP_DMA32	(1U << 24) /* LinuxKPI only */
 
 #define	GFP_NOWAIT	M_NOWAIT
 #define	GFP_ATOMIC	(M_NOWAIT | M_USE_RESERVE)
@@ -63,99 +63,110 @@
 #define	GFP_HIGHUSER_MOVABLE	M_WAITOK
 #define	GFP_IOFS	M_NOWAIT
 #define	GFP_NOIO	M_NOWAIT
-#define	GFP_DMA32	0
+#define	GFP_DMA32	__GFP_DMA32
 #define	GFP_TEMPORARY	M_NOWAIT
+#define	GFP_NATIVE_MASK	(M_NOWAIT | M_WAITOK | M_USE_RESERVE | M_ZERO)
 
-static inline void *
-page_address(struct page *page)
+/*
+ * Resolve a page into a virtual address:
+ *
+ * NOTE: This function only works for pages allocated by the kernel.
+ */
+extern void *linux_page_address(struct page *);
+
+#define	page_address(page) linux_page_address(page)
+
+/*
+ * Page management for unmapped pages:
+ */
+extern vm_page_t linux_alloc_pages(gfp_t flags, unsigned int order);
+extern void linux_free_pages(vm_page_t page, unsigned int order);
+
+static inline struct page *
+alloc_page(gfp_t flags)
 {
 
-	if (page->object != kmem_object && page->object != kernel_object)
-		return (NULL);
-	return ((void *)(uintptr_t)(VM_MIN_KERNEL_ADDRESS +
-	    IDX_TO_OFF(page->pindex)));
+	return (linux_alloc_pages(flags, 0));
 }
 
-static inline unsigned long
-linux_get_page(gfp_t mask)
+static inline struct page *
+alloc_pages(gfp_t flags, unsigned int order)
 {
 
-	return kmem_malloc(kmem_arena, PAGE_SIZE, mask);
+	return (linux_alloc_pages(flags, order));
 }
 
-#define	get_zeroed_page(mask)	linux_get_page((mask) | M_ZERO)
-#define	alloc_page(mask)	virt_to_page(linux_get_page((mask)))
-#define	__get_free_page(mask)	linux_get_page((mask))
-
-static inline void
-free_page(unsigned long page)
+static inline struct page *
+alloc_pages_node(int node_id, gfp_t flags, unsigned int order)
 {
 
-	if (page == 0)
-		return;
-	kmem_free(kmem_arena, page, PAGE_SIZE);
-}
-
-static inline void
-__free_page(struct page *m)
-{
-
-	if (m->object != kmem_object)
-		panic("__free_page:  Freed page %p not allocated via wrappers.",
-		    m);
-	kmem_free(kmem_arena, (vm_offset_t)page_address(m), PAGE_SIZE);
+	return (linux_alloc_pages(flags, order));
 }
 
 static inline void
-__free_pages(struct page *m, unsigned int order)
+__free_pages(struct page *page, unsigned int order)
 {
-	size_t size;
 
-	if (m == NULL)
-		return;
-	size = PAGE_SIZE << order;
-	kmem_free(kmem_arena, (vm_offset_t)page_address(m), size);
+	linux_free_pages(page, order);
 }
 
-static inline void free_pages(uintptr_t addr, unsigned int order)
+static inline void
+__free_page(struct page *page)
 {
-	if (addr == 0)
-		return;
-	__free_pages(virt_to_page((void *)addr), order);
+
+	linux_free_pages(page, 0);
 }
 
 /*
- * Alloc pages allocates directly from the buddy allocator on linux so
- * order specifies a power of two bucket of pages and the results
- * are expected to be aligned on the size as well.
+ * Page management for mapped pages:
  */
-static inline struct page *
-alloc_pages(gfp_t gfp_mask, unsigned int order)
-{
-	unsigned long page;
-	size_t size;
+extern vm_offset_t linux_alloc_kmem(gfp_t flags, unsigned int order);
+extern void linux_free_kmem(vm_offset_t, unsigned int order);
 
-	size = PAGE_SIZE << order;
-	page = kmem_alloc_contig(kmem_arena, size, gfp_mask,
-	    0, ~(vm_paddr_t)0, size, 0, VM_MEMATTR_DEFAULT);
-	if (page == 0)
-		return (NULL);
-        return (virt_to_page(page));
+static inline vm_offset_t
+get_zeroed_page(gfp_t flags)
+{
+
+	return (linux_alloc_kmem(flags | __GFP_ZERO, 0));
 }
 
-static inline uintptr_t __get_free_pages(gfp_t gfp_mask, unsigned int order)
+static inline vm_offset_t
+__get_free_page(gfp_t flags)
 {
-	struct page *page;
 
-	page = alloc_pages(gfp_mask, order);
-	if (page == NULL)
-		return (0);
-	return ((uintptr_t)page_address(page));
+	return (linux_alloc_kmem(flags, 0));
 }
 
-#define alloc_pages_node(node, mask, order)     alloc_pages(mask, order)
+static inline vm_offset_t
+__get_free_pages(gfp_t flags, unsigned int order)
+{
 
-#define kmalloc_node(chunk, mask, node)         kmalloc(chunk, mask)
+	return (linux_alloc_kmem(flags, order));
+}
+
+static inline void
+free_pages(uintptr_t addr, unsigned int order)
+{
+	if (addr == 0)
+		return;
+
+	linux_free_kmem(addr, order);
+}
+
+static inline void
+free_page(uintptr_t addr)
+{
+	if (addr == 0)
+		return;
+
+	linux_free_kmem(addr, 0);
+}
+
+static inline bool
+gfpflags_allow_blocking(const gfp_t gfp_flags)
+{
+	return ((gfp_flags & (M_WAITOK | M_NOWAIT)) == M_WAITOK);
+}
 
 #define	SetPageReserved(page)	do { } while (0)	/* NOP */
 #define	ClearPageReserved(page)	do { } while (0)	/* NOP */
