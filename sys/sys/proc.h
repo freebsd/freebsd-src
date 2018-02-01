@@ -349,6 +349,7 @@ struct thread {
 	struct syscall_args td_sa;	/* (kx) Syscall parameters. Copied on
 					   fork for child tracing. */
 	siginfo_t	td_si;		/* (c) For debugger or core file */
+	void		*td_lkpi_task;	/* LinuxKPI task struct pointer */
 };
 
 struct thread0_storage {

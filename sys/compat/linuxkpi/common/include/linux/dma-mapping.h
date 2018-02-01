@@ -129,8 +129,10 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 
 	if (dev != NULL && dev->dma_mask)
 		high = *dev->dma_mask;
-	else
+	else if (flag & GFP_DMA32)
 		high = BUS_SPACE_MAXADDR_32BIT;
+	else
+		high = BUS_SPACE_MAXADDR;
 	align = PAGE_SIZE << get_order(size);
 	mem = (void *)kmem_alloc_contig(kmem_arena, size, flag, 0, high, align,
 	    0, VM_MEMATTR_DEFAULT);

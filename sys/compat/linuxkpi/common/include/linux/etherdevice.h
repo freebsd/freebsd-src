@@ -100,6 +100,12 @@ eth_broadcast_addr(u8 *pa)
 }
 
 static inline void
+eth_zero_addr(u8 *pa)
+{
+	memset(pa, 0, 6);
+}
+
+static inline void
 random_ether_addr(u8 * dst)
 {
 	if (read_random(dst, 6) == 0)

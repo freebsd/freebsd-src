@@ -36,6 +36,7 @@
 #include <sys/types.h>
 
 #include <linux/compiler.h>
+#include <linux/types.h>
 
 static inline uint32_t
 __raw_readl(const volatile void *addr)
@@ -106,6 +107,13 @@ static inline uint16_t
 ioread16(const volatile void *addr)
 {
 	return *(const volatile uint16_t *)addr;
+}
+
+#undef ioread16be
+static inline uint16_t
+ioread16be(const volatile void *addr)
+{
+	return be16toh(*(const volatile uint16_t *)addr);
 }
 
 #undef ioread32
@@ -179,7 +187,7 @@ _outb(u_char data, u_int port)
 }
 #endif
 
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
 void *_ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr);
 #else
 #define	_ioremap_attr(...) NULL

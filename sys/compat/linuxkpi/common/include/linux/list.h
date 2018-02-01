@@ -70,7 +70,9 @@
 #include <vm/vm_object.h>
 #include <vm/pmap.h>
 
+#ifndef prefetch
 #define	prefetch(x)
+#endif
 
 #define LINUX_LIST_HEAD_INIT(name) { &(name), &(name) }
 
@@ -389,10 +391,6 @@ hlist_move_list(struct hlist_head *old, struct hlist_head *new)
 	old->first = NULL;
 }
 
-/**
- * list_is_singular - tests whether a list has just one entry.
- * @head: the list to test.
- */
 static inline int list_is_singular(const struct list_head *head)
 {
 	return !list_empty(head) && (head->next == head->prev);
@@ -410,20 +408,6 @@ static inline void __list_cut_position(struct list_head *list,
 	new_first->prev = head;
 }
 
-/**
- * list_cut_position - cut a list into two
- * @list: a new list to add all removed entries
- * @head: a list with entries
- * @entry: an entry within head, could be the head itself
- *	and if so we won't cut the list
- *
- * This helper moves the initial part of @head, up to and
- * including @entry, from @head to @list. You should
- * pass on @entry an element you know is on @head. @list
- * should be an empty list or a list you do not care about
- * losing its data.
- *
- */
 static inline void list_cut_position(struct list_head *list,
 		struct list_head *head, struct list_head *entry)
 {
@@ -438,11 +422,6 @@ static inline void list_cut_position(struct list_head *list,
 		__list_cut_position(list, head, entry);
 }
 
-/**
- *  list_is_last - tests whether @list is the last entry in list @head
- *   @list: the entry to test
- *    @head: the head of the list
- */
 static inline int list_is_last(const struct list_head *list,
                                 const struct list_head *head)
 {

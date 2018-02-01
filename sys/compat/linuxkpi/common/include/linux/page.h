@@ -34,24 +34,50 @@
 #include <linux/types.h>
 
 #include <sys/param.h>
+#include <sys/vmmeter.h>
 
 #include <machine/atomic.h>
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/pmap.h>
 
+typedef unsigned long linux_pte_t;
+typedef unsigned long linux_pmd_t;
+typedef unsigned long linux_pgd_t;
 typedef unsigned long pgprot_t;
 
 #define page	vm_page
 
-#define	virt_to_page(x)		PHYS_TO_VM_PAGE(vtophys((x)))
-#define	page_to_pfn(pp)		(VM_PAGE_TO_PHYS((pp)) >> PAGE_SHIFT)
-#define	pfn_to_page(pfn)	(PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT))
-#define	nth_page(page,n)	pfn_to_page(page_to_pfn((page)) + (n))
+#define	LINUXKPI_PROT_VALID (1 << 3)
+#define	LINUXKPI_CACHE_MODE_SHIFT 4
 
-#define	clear_page(page)		memset((page), 0, PAGE_SIZE)
-#define	pgprot_noncached(prot)		((pgprot_t)VM_MEMATTR_UNCACHEABLE)
-#define	pgprot_writecombine(prot)	((pgprot_t)VM_MEMATTR_WRITE_COMBINING)
+CTASSERT((VM_PROT_ALL & -LINUXKPI_PROT_VALID) == 0);
+
+static inline pgprot_t
+cachemode2protval(vm_memattr_t attr)
+{
+	return ((attr << LINUXKPI_CACHE_MODE_SHIFT) | LINUXKPI_PROT_VALID);
+}
+
+static inline vm_memattr_t
+pgprot2cachemode(pgprot_t prot)
+{
+	if (prot & LINUXKPI_PROT_VALID)
+		return (prot >> LINUXKPI_CACHE_MODE_SHIFT);
+	else
+		return (VM_MEMATTR_DEFAULT);
+}
+
+#define	virt_to_page(x)		PHYS_TO_VM_PAGE(vtophys(x))
+#define	page_to_pfn(pp)		(VM_PAGE_TO_PHYS(pp) >> PAGE_SHIFT)
+#define	pfn_to_page(pfn)	(PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT))
+#define	nth_page(page,n)	pfn_to_page(page_to_pfn(page) + (n))
+
+#define	clear_page(page)		memset(page, 0, PAGE_SIZE)
+#define	pgprot_noncached(prot)		\
+	(((prot) & VM_PROT_ALL) | cachemode2protval(VM_MEMATTR_UNCACHEABLE))
+#define	pgprot_writecombine(prot)	\
+	(((prot) & VM_PROT_ALL) | cachemode2protval(VM_MEMATTR_WRITE_COMBINING))
 
 #undef	PAGE_MASK
 #define	PAGE_MASK	(~(PAGE_SIZE-1))

@@ -189,7 +189,8 @@ int mlx5_alloc_map_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar)
 
 	if (mdev->priv.bf_mapping)
 		uar->bf_map = io_mapping_map_wc(mdev->priv.bf_mapping,
-						uar->index << PAGE_SHIFT);
+						uar->index << PAGE_SHIFT,
+						PAGE_SIZE);
 
 	return 0;
 
