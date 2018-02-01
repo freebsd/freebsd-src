@@ -1613,7 +1613,6 @@ int
 pf_unlink_state(struct pf_state *s, u_int flags)
 {
 	struct pf_idhash *ih = &V_pf_idhash[PF_IDHASH(s)];
-	int last;
 
 	if ((flags & PF_ENTER_LOCKED) == 0)
 		PF_HASHROW_LOCK(ih);
@@ -1654,8 +1653,9 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 	PF_HASHROW_UNLOCK(ih);
 
 	pf_detach_state(s);
-	last = refcount_release(&s->refs);
-	KASSERT(last == 0, ("Incorrect state reference count"));
+	/* pf_state_insert() initialises refs to 2, so we can never release the
+	 * last reference here, only in pf_release_state(). */
+	(void)refcount_release(&s->refs);
 
 	return (pf_release_state(s));
 }
