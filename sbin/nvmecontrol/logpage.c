@@ -369,7 +369,7 @@ print_intel_write_lat_log(void *buf, uint32_t size)
 }
 
 /*
- * Table 19. 5.4 SMART Attributes
+ * Table 19. 5.4 SMART Attributes. Samsung also implements this and some extra data not documented.
  */
 static void
 print_intel_add_smart(void *buf, uint32_t size __unused)
@@ -835,34 +835,39 @@ print_hgst_info_log(void *buf, uint32_t size __unused)
 /*
  * Table of log page printer / sizing.
  *
- * This includes Intel specific pages that are widely implemented. Not
- * sure how best to switch between different vendors.
+ * This includes Intel specific pages that are widely implemented.
+ * Make sure you keep all the pages of one vendor together so -v help
+ * lists all the vendors pages.
  */
 static struct logpage_function {
 	uint8_t		log_page;
 	const char     *vendor;
+	const char     *name;
 	print_fn_t	print_fn;
 	size_t		size;
 } logfuncs[] = {
-	{NVME_LOG_ERROR,		NULL,	print_log_error,
-	 0},
-	{NVME_LOG_HEALTH_INFORMATION,	NULL,	print_log_health,
-	 sizeof(struct nvme_health_information_page)},
-	{NVME_LOG_FIRMWARE_SLOT,	NULL,	print_log_firmware,
-	 sizeof(struct nvme_firmware_page)},
-	{HGST_INFO_LOG,			"hgst",	print_hgst_info_log,
-	 DEFAULT_SIZE},
-	{HGST_INFO_LOG,			"wdc",	print_hgst_info_log,
-	 DEFAULT_SIZE},
-	{INTEL_LOG_TEMP_STATS,		"intel", print_intel_temp_stats,
-	 sizeof(struct intel_log_temp_stats)},
-	{INTEL_LOG_READ_LAT_LOG,	"intel", print_intel_read_lat_log,
-	 DEFAULT_SIZE},
-	{INTEL_LOG_WRITE_LAT_LOG,	"intel", print_intel_write_lat_log,
-	 DEFAULT_SIZE},
-	{INTEL_LOG_ADD_SMART,		"intel", print_intel_add_smart,
-	 DEFAULT_SIZE},
-	{0,				NULL,	NULL,	 0},
+	{NVME_LOG_ERROR,		NULL,	"Drive Error Log",
+	 print_log_error,		0},
+	{NVME_LOG_HEALTH_INFORMATION,	NULL,	"Health/SMART Data",
+	 print_log_health,		sizeof(struct nvme_health_information_page)},
+	{NVME_LOG_FIRMWARE_SLOT,	NULL,	"Firmware Information",
+	 print_log_firmware,		sizeof(struct nvme_firmware_page)},
+	{HGST_INFO_LOG,			"hgst",	"Detailed Health/SMART",
+	 print_hgst_info_log,		DEFAULT_SIZE},
+	{HGST_INFO_LOG,			"wds",	"Detailed Health/SMART",
+	 print_hgst_info_log,		DEFAULT_SIZE},
+	{INTEL_LOG_TEMP_STATS,		"intel", "Temperature Stats",
+	 print_intel_temp_stats,	sizeof(struct intel_log_temp_stats)},
+	{INTEL_LOG_READ_LAT_LOG,	"intel", "Read Latencies",
+	 print_intel_read_lat_log,	DEFAULT_SIZE},
+	{INTEL_LOG_WRITE_LAT_LOG,	"intel", "Write Latencies",
+	 print_intel_write_lat_log,	DEFAULT_SIZE},
+	{INTEL_LOG_ADD_SMART,		"intel", "Extra Health/SMART Data",
+	 print_intel_add_smart,		DEFAULT_SIZE},
+	{INTEL_LOG_ADD_SMART,		"samsung", "Extra Health/SMART Data",
+	 print_intel_add_smart,		DEFAULT_SIZE},
+
+	{0, NULL, NULL, NULL, 0},
 };
 
 static void
@@ -870,6 +875,23 @@ logpage_usage(void)
 {
 	fprintf(stderr, "usage:\n");
 	fprintf(stderr, LOGPAGE_USAGE);
+	exit(1);
+}
+
+static void
+logpage_help(void)
+{
+	struct logpage_function		*f;
+	const char 			*v;
+
+	fprintf(stderr, "\n");
+	fprintf(stderr, "%-8s %-10s %s\n", "Page", "Vendor","Page Name");
+	fprintf(stderr, "-------- ---------- ----------\n");
+	for (f = logfuncs; f->log_page > 0; f++) {
+		v = f->vendor == NULL ? "-" : f->vendor;
+		fprintf(stderr, "0x%02x     %-10s %s\n", f->log_page, v, f->name);
+	}
+
 	exit(1);
 }
 
@@ -894,6 +916,9 @@ logpage(int argc, char *argv[])
 			binflag = true;
 			break;
 		case 'p':
+			if (strcmp(optarg, "help") == 0)
+				logpage_help();
+
 			/* TODO: Add human-readable ASCII page IDs */
 			log_page = strtol(optarg, &p, 0);
 			if (p != NULL && *p != '\0') {
@@ -908,6 +933,8 @@ logpage(int argc, char *argv[])
 			hexflag = true;
 			break;
 		case 'v':
+			if (strcmp(optarg, "help") == 0)
+				logpage_help();
 			vendor = optarg;
 			break;
 		}
