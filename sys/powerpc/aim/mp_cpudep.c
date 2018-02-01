@@ -111,7 +111,7 @@ cpudep_ap_bootstrap(void)
 {
 	register_t msr, sp;
 
-	msr = PSL_KERNSET & ~PSL_EE;
+	msr = psl_kernset & ~PSL_EE;
 	mtmsr(msr);
 
 	pcpup->pc_curthread = pcpup->pc_idlethread;
