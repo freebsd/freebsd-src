@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 26, 2013
+.Dd February 4, 2017
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -63,6 +63,7 @@
 .Aq Fl p Ar page_id
 .Op Fl x
 .Op Fl v Ar vendor-string
+.Op Fl b
 .Aq device id
 .Aq namespace id
 .Nm
@@ -147,9 +148,20 @@ Display a human-readable summary of the nvme0 controller's Error Information Log
 Log pages defined by the NVMe specification include Error Information Log (ID=1),
 SMART/Health Information Log (ID=2), and Firmware Slot Log (ID=3).
 .Pp
+.Dl nvmecontrol logpage -p 0xc1 -v wdc nvme0
+.Pp
+Display a human-readable summary of the nvme0's wdc-specific advanced
+SMART data.
+.Pp
 .Dl nvmecontrol logpage -p 1 -x nvme0
 .Pp
 Display a hexadecimal dump of the nvme0 controller's Error Information Log.
+.Pp
+.Dl nvmecontrol logpage -p 0xcb -b nvme0 > /tmp/page-cb.bin
+.Pp
+Print the contents of vendor specific page 0xcb as binary data on
+standard out.
+Redirect it to a temporary file.
 .Pp
 .Dl nvmecontrol firmware -s 2 -f /tmp/nvme_firmware nvme0
 .Pp
