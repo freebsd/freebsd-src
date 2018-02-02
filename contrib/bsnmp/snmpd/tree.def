@@ -135,6 +135,7 @@ typedef RowStatus ENUM (
                   (2 begemotSnmpdCommunityIndex UNSIGNED32)
                   (3 begemotSnmpdCommunityString OCTETSTRING GET SET)
                   (4 begemotSnmpdCommunityDescr OCTETSTRING GET)
+                  (5 begemotSnmpdCommunityPermission INTEGER GET SET)
               ))
 #
 #	Module table

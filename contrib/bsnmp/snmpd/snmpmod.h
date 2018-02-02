@@ -334,6 +334,8 @@ extern struct systemg systemg;
 #define COMM_WRITE	2
 
 u_int comm_define(u_int, const char *descr, struct lmodule *, const char *str);
+struct community *comm_define_ordered(u_int priv, const char *descr,
+    struct asn_oid *index, struct lmodule *owner, const char *str);
 const char * comm_string(u_int);
 
 /* community for current packet */
