@@ -29,7 +29,6 @@ FILES+=	logo-orbbw.4th
 FILES+=	menu.4th
 FILES+=	menu-commands.4th
 FILES+=	menusets.4th
-FILES+=	pcibios.4th
 FILES+=	screen.4th
 FILES+=	shortcuts.4th
 FILES+=	support.4th
