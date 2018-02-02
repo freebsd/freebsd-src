@@ -38,6 +38,22 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180202: Convert geli(8) tests to ATF
+OLD_FILES+=tests/sys/geom/class/eli/nokey_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/readonly_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/attach_d_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/configure_b_B_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/detach_l_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/init_B_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/init_J_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/init_a_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/init_alias_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/init_i_P_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/integrity_copy_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/integrity_data_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/integrity_hmac_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/onetime_a_test.sh
+OLD_FILES+=tests/sys/geom/class/eli/onetime_d_test.sh
 # 20171226: new clang import which bumps version from 5.0.0 to 5.0.1.
 OLD_FILES+=usr/lib/clang/5.0.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/5.0.0/include/sanitizer/asan_interface.h
