@@ -128,14 +128,15 @@ LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 .endif
 .endif
 
-# NB: The makefiles depend on these being empty when we don't build forth.
-.if ${MK_FORTH} != "no"
 LIBFICL=	${BOOTOBJ}/ficl/libficl.a
 .if ${MACHINE} == "i386"
 LIBFICL32=	${LIBFICL}
 .else
 LIBFICL32=	${BOOTOBJ}/ficl32/libficl.a
 .endif
+.if ${MK_FORTH} != no
+LDR_INTERP=	${LIBFICL}
+LDR_INTERP32=	${LIBFICL32}
 .endif
 
 CLEANFILES+=	vers.c
