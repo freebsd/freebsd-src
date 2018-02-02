@@ -40,6 +40,7 @@
 
 # 20180201: Obsolete forth files
 OLD_FILES+=boot/efi.4th
+OLD_FILES+=boot/pcibios.4th
 
 # 20180114: new clang import which bumps version from 5.0.1 to 6.0.0.
 OLD_FILES+=usr/lib/clang/5.0.1/include/sanitizer/allocator_interface.h
