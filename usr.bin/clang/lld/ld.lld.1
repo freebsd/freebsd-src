@@ -36,7 +36,7 @@
 .Op Ar options
 .Ar objfile ...
 .Sh DESCRIPTION
-A linker takes one or more object, archive and library files, and combines
+A linker takes one or more object, archive, and library files, and combines
 them into an output file (an executable, a shared library, or another object
 file).
 It relocates code and data from the input files and resolves symbol
@@ -47,7 +47,7 @@ is a drop-in replacement for the GNU BFD and gold linkers.
 It accepts most of the same command line arguments and linker scripts
 as GNU linkers.
 .Pp
-The following options are available:
+These options are available:
 .Bl -tag -width indent
 .It Fl -allow-multiple-definition
 Allow multiple definitions.
@@ -218,7 +218,7 @@ Include hotness information in the optimization remarks file.
 .It Fl O Ar value
 Optimize output file size.
 .It Fl o Ar path
-Write the output executable, library or object to
+Write the output executable, library, or object to
 .Ar path .
 If not specified,
 .Dv a.out
@@ -333,7 +333,7 @@ Read a version script.
 .It Fl V , Fl -version
 Display the version number and exit.
 .It Fl v
-Display the version number, and proceed with linking if object files are
+Display the version number and proceed with linking if object files are
 specified.
 .It Fl -warn-common
 Warn about duplicate common symbols.
