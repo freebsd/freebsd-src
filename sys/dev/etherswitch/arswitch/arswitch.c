@@ -289,9 +289,11 @@ ar8xxx_port_init(struct arswitch_softc *sc, int port)
 }
 
 static int
-ar8xxx_atu_flush(struct arswitch_softc *sc)
+ar8xxx_atu_wait_ready(struct arswitch_softc *sc)
 {
 	int ret;
+
+	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
 
 	ret = arswitch_waitreg(sc->sc_dev,
 	    AR8216_REG_ATU,
@@ -299,6 +301,22 @@ ar8xxx_atu_flush(struct arswitch_softc *sc)
 	    0,
 	    1000);
 
+	return (ret);
+}
+
+/*
+ * Flush all ATU entries.
+ */
+static int
+ar8xxx_atu_flush(struct arswitch_softc *sc)
+{
+	int ret;
+
+	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
+
+	DPRINTF(sc, ARSWITCH_DBG_ATU, "%s: flushing all ports\n", __func__);
+
+	ret = ar8xxx_atu_wait_ready(sc);
 	if (ret)
 		device_printf(sc->sc_dev, "%s: waitreg failed\n", __func__);
 
@@ -310,6 +328,165 @@ ar8xxx_atu_flush(struct arswitch_softc *sc)
 	return (ret);
 }
 
+/*
+ * Flush ATU entries for a single port.
+ */
+static int
+ar8xxx_atu_flush_port(struct arswitch_softc *sc, int port)
+{
+	int ret, val;
+
+	DPRINTF(sc, ARSWITCH_DBG_ATU, "%s: flushing port %d\n", __func__,
+	    port);
+
+	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
+
+	/* Flush unicast entries on port */
+	val = AR8216_ATU_OP_FLUSH_UNICAST;
+
+	/* TODO: bit 4 indicates whether to flush dynamic (0) or static (1) */
+
+	/* Which port */
+	val |= SM(port, AR8216_ATU_PORT_NUM);
+
+	ret = ar8xxx_atu_wait_ready(sc);
+	if (ret)
+		device_printf(sc->sc_dev, "%s: waitreg failed\n", __func__);
+
+	if (!ret)
+		arswitch_writereg(sc->sc_dev,
+		    AR8216_REG_ATU,
+		    val | AR8216_ATU_ACTIVE);
+
+	return (ret);
+}
+
+/*
+ * XXX TODO: flush a single MAC address.
+ */
+
+/*
+ * Fetch a single entry from the ATU.
+ */
+static int
+ar8xxx_atu_fetch_table(struct arswitch_softc *sc, etherswitch_atu_entry_t *e,
+    int atu_fetch_op)
+{
+	uint32_t ret0, ret1, ret2, val;
+
+	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
+
+	switch (atu_fetch_op) {
+	case 0:
+		/* Initialise things for the first fetch */
+
+		DPRINTF(sc, ARSWITCH_DBG_ATU, "%s: initializing\n", __func__);
+		(void) ar8xxx_atu_wait_ready(sc);
+
+		arswitch_writereg(sc->sc_dev,
+		    AR8216_REG_ATU, AR8216_ATU_OP_GET_NEXT);
+		arswitch_writereg(sc->sc_dev,
+		    AR8216_REG_ATU_DATA, 0);
+		arswitch_writereg(sc->sc_dev,
+		    AR8216_REG_ATU_CTRL2, 0);
+
+		return (0);
+	case 1:
+		DPRINTF(sc, ARSWITCH_DBG_ATU, "%s: reading next\n", __func__);
+		/*
+		 * Attempt to read the next address entry; don't modify what
+		 * is there in AT_ADDR{4,5} as its used for the next fetch
+		 */
+		(void) ar8xxx_atu_wait_ready(sc);
+
+		/* Begin the next read event; not modifying anything */
+		val = arswitch_readreg(sc->sc_dev, AR8216_REG_ATU);
+		val |= AR8216_ATU_ACTIVE;
+		arswitch_writereg(sc->sc_dev, AR8216_REG_ATU, val);
+
+		/* Wait for it to complete */
+		(void) ar8xxx_atu_wait_ready(sc);
+
+		/* Fetch the ethernet address and ATU status */
+		ret0 = arswitch_readreg(sc->sc_dev, AR8216_REG_ATU);
+		ret1 = arswitch_readreg(sc->sc_dev, AR8216_REG_ATU_DATA);
+		ret2 = arswitch_readreg(sc->sc_dev, AR8216_REG_ATU_CTRL2);
+
+		/* If the status is zero, then we're done */
+		if (MS(ret2, AR8216_ATU_CTRL2_AT_STATUS) == 0)
+			return (-1);
+
+		/* MAC address */
+		e->es_macaddr[5] = MS(ret0, AR8216_ATU_ADDR5);
+		e->es_macaddr[4] = MS(ret0, AR8216_ATU_ADDR4);
+		e->es_macaddr[3] = MS(ret1, AR8216_ATU_ADDR3);
+		e->es_macaddr[2] = MS(ret1, AR8216_ATU_ADDR2);
+		e->es_macaddr[1] = MS(ret1, AR8216_ATU_ADDR1);
+		e->es_macaddr[0] = MS(ret1, AR8216_ATU_ADDR0);
+
+		/* Bitmask of ports this entry is for */
+		e->es_portmask = MS(ret2, AR8216_ATU_CTRL2_DESPORT);
+
+		/* TODO: other flags that are interesting */
+
+		DPRINTF(sc, ARSWITCH_DBG_ATU, "%s: MAC %6D portmask 0x%08x\n",
+		    __func__,
+		    e->es_macaddr, ":", e->es_portmask);
+		return (0);
+	default:
+		return (-1);
+	}
+	return (-1);
+}
+
+/*
+ * Configure aging register defaults.
+ */
+static int
+ar8xxx_atu_learn_default(struct arswitch_softc *sc)
+{
+	int ret;
+	uint32_t val;
+
+	DPRINTF(sc, ARSWITCH_DBG_ATU, "%s: resetting learning\n", __func__);
+
+	/*
+	 * For now, configure the aging defaults:
+	 *
+	 * + ARP_EN - enable "acknowledgement" of ARP frames - they are
+	 *   forwarded to the CPU port
+	 * + LEARN_CHANGE_EN - hash table violations when learning MAC addresses
+	 *   will force an entry to be expired/updated and a new one to be
+	 *   programmed in.
+	 * + AGE_EN - enable address table aging
+	 * + AGE_TIME - set to 5 minutes
+	 */
+	val = 0;
+	val |= AR8216_ATU_CTRL_ARP_EN;
+	val |= AR8216_ATU_CTRL_LEARN_CHANGE;
+	val |= AR8216_ATU_CTRL_AGE_EN;
+	val |= 0x2b;	/* 5 minutes; bits 15:0 */
+
+	ret = arswitch_writereg(sc->sc_dev,
+	    AR8216_REG_ATU_CTRL,
+	    val);
+
+	if (ret)
+		device_printf(sc->sc_dev, "%s: writereg failed\n", __func__);
+
+	return (ret);
+}
+
+/*
+ * XXX TODO: add another routine to configure the leaky behaviour
+ * when unknown frames are received.  These must be consistent
+ * between ethernet switches.
+ */
+
+/*
+ * XXX TODO: this attach routine does NOT free all memory, resources
+ * upon failure!
+ */
 static int
 arswitch_attach(device_t dev)
 {
@@ -333,6 +510,18 @@ arswitch_attach(device_t dev)
 	    "debug", CTLFLAG_RW, &sc->sc_debug, 0,
 	    "control debugging printfs");
 
+	/* Allocate a 128 entry ATU table; hopefully its big enough! */
+	/* XXX TODO: make this per chip */
+	sc->atu.entries = malloc(sizeof(etherswitch_atu_entry_t) * 128,
+	    M_DEVBUF, M_NOWAIT);
+	if (sc->atu.entries == NULL) {
+		device_printf(sc->sc_dev, "%s: failed to allocate ATU table\n",
+		    __func__);
+		return (ENXIO);
+	}
+	sc->atu.count = 0;
+	sc->atu.size = 128;
+
 	/* Default HAL methods */
 	sc->hal.arswitch_port_init = ar8xxx_port_init;
 	sc->hal.arswitch_port_vlan_setup = ar8xxx_port_vlan_setup;
@@ -353,10 +542,12 @@ arswitch_attach(device_t dev)
 	sc->hal.arswitch_set_port_vlan = ar8xxx_set_port_vlan;
 
 	sc->hal.arswitch_atu_flush = ar8xxx_atu_flush;
+	sc->hal.arswitch_atu_flush_port = ar8xxx_atu_flush_port;
+	sc->hal.arswitch_atu_learn_default = ar8xxx_atu_learn_default;
+	sc->hal.arswitch_atu_fetch_table = ar8xxx_atu_fetch_table;
 
 	sc->hal.arswitch_phy_read = arswitch_readphy_internal;
 	sc->hal.arswitch_phy_write = arswitch_writephy_internal;
-
 
 	/*
 	 * Attach switch related functions
@@ -424,6 +615,17 @@ arswitch_attach(device_t dev)
 		return (err);
 	}
 
+	/*
+	 * Configure the default address table learning parameters for this
+	 * switch.
+	 */
+	err = sc->hal.arswitch_atu_learn_default(sc);
+	if (err != 0) {
+		DPRINTF(sc, ARSWITCH_DBG_ANY,
+		    "%s: atu_learn_default: err=%d\n", __func__, err);
+		return (err);
+	}
+
 	/* Initialize the switch ports. */
 	for (port = 0; port <= sc->numphys; port++) {
 		sc->hal.arswitch_port_init(sc, port);
@@ -480,6 +682,8 @@ arswitch_detach(device_t dev)
 			if_free(sc->ifp[i]);
 		free(sc->ifname[i], M_DEVBUF);
 	}
+
+	free(sc->atu.entries, M_DEVBUF);
 
 	bus_generic_detach(dev);
 	mtx_destroy(&sc->sc_mtx);
@@ -940,6 +1144,86 @@ arswitch_setconf(device_t dev, etherswitch_conf_t *conf)
 }
 
 static int
+arswitch_atu_flush_all(device_t dev)
+{
+	struct arswitch_softc *sc;
+	int err;
+
+	sc = device_get_softc(dev);
+	ARSWITCH_LOCK(sc);
+	err = sc->hal.arswitch_atu_flush(sc);
+	/* Invalidate cached ATU */
+	sc->atu.count = 0;
+	ARSWITCH_UNLOCK(sc);
+	return (err);
+}
+
+static int
+arswitch_atu_flush_port(device_t dev, int port)
+{
+	struct arswitch_softc *sc;
+	int err;
+
+	sc = device_get_softc(dev);
+	ARSWITCH_LOCK(sc);
+	err = sc->hal.arswitch_atu_flush_port(sc, port);
+	/* Invalidate cached ATU */
+	sc->atu.count = 0;
+	ARSWITCH_UNLOCK(sc);
+	return (err);
+}
+
+static int
+arswitch_atu_fetch_table(device_t dev, etherswitch_atu_table_t *table)
+{
+	struct arswitch_softc *sc;
+	int err, nitems;
+
+	sc = device_get_softc(dev);
+
+	ARSWITCH_LOCK(sc);
+	/* Initial setup */
+	nitems = 0;
+	err = sc->hal.arswitch_atu_fetch_table(sc, NULL, 0);
+
+	/* fetch - ideally yes we'd fetch into a separate table then switch */
+	while (err != -1 && nitems < sc->atu.size) {
+		err = sc->hal.arswitch_atu_fetch_table(sc,
+		    &sc->atu.entries[nitems], 1);
+		if (err == 0) {
+			sc->atu.entries[nitems].id = nitems;
+			nitems++;
+		}
+	}
+	sc->atu.count = nitems;
+	ARSWITCH_UNLOCK(sc);
+
+	table->es_nitems = nitems;
+
+	return (0);
+}
+
+static int
+arswitch_atu_fetch_table_entry(device_t dev, etherswitch_atu_entry_t *e)
+{
+	struct arswitch_softc *sc;
+	int id;
+
+	sc = device_get_softc(dev);
+	id = e->id;
+
+	ARSWITCH_LOCK(sc);
+	if (id > sc->atu.count) {
+		ARSWITCH_UNLOCK(sc);
+		return (ENOENT);
+	}
+
+	memcpy(e, &sc->atu.entries[id], sizeof(*e));
+	ARSWITCH_UNLOCK(sc);
+	return (0);
+}
+
+static int
 arswitch_getvgroup(device_t dev, etherswitch_vlangroup_t *e)
 {
 	struct arswitch_softc *sc = device_get_softc(dev);
@@ -1003,6 +1287,10 @@ static device_method_t arswitch_methods[] = {
 	DEVMETHOD(etherswitch_setvgroup,	arswitch_setvgroup),
 	DEVMETHOD(etherswitch_getconf,	arswitch_getconf),
 	DEVMETHOD(etherswitch_setconf,	arswitch_setconf),
+	DEVMETHOD(etherswitch_flush_all, arswitch_atu_flush_all),
+	DEVMETHOD(etherswitch_flush_port, arswitch_atu_flush_port),
+	DEVMETHOD(etherswitch_fetch_table, arswitch_atu_fetch_table),
+	DEVMETHOD(etherswitch_fetch_table_entry, arswitch_atu_fetch_table_entry),
 
 	DEVMETHOD_END
 };
