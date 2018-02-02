@@ -702,6 +702,14 @@ ar8327_hw_setup(struct arswitch_softc *sc)
 	return (0);
 }
 
+static int
+ar8327_atu_learn_default(struct arswitch_softc *sc)
+{
+
+	device_printf(sc->sc_dev, "%s: TODO!\n", __func__);
+	return (0);
+}
+
 /*
  * Initialise other global values, for the AR8327.
  */
@@ -1037,9 +1045,8 @@ ar8327_set_pvid(struct arswitch_softc *sc, int port, int pvid)
 }
 
 static int
-ar8327_atu_flush(struct arswitch_softc *sc)
+ar8327_atu_wait_ready(struct arswitch_softc *sc)
 {
-
 	int ret;
 
 	ret = arswitch_waitreg(sc->sc_dev,
@@ -1048,6 +1055,18 @@ ar8327_atu_flush(struct arswitch_softc *sc)
 	    0,
 	    1000);
 
+	return (ret);
+}
+
+static int
+ar8327_atu_flush(struct arswitch_softc *sc)
+{
+
+	int ret;
+
+	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
+
+	ret = ar8327_atu_wait_ready(sc);
 	if (ret)
 		device_printf(sc->sc_dev, "%s: waitreg failed\n", __func__);
 
@@ -1057,6 +1076,39 @@ ar8327_atu_flush(struct arswitch_softc *sc)
 		    AR8327_ATU_FUNC_OP_FLUSH | AR8327_ATU_FUNC_BUSY);
 	return (ret);
 }
+
+static int
+ar8327_atu_flush_port(struct arswitch_softc *sc, int port)
+{
+	int ret;
+	uint32_t val;
+
+	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
+
+	ret = ar8327_atu_wait_ready(sc);
+	if (ret)
+		device_printf(sc->sc_dev, "%s: waitreg failed\n", __func__);
+
+	val = AR8327_ATU_FUNC_OP_FLUSH_UNICAST;
+	val |= SM(port, AR8327_ATU_FUNC_PORT_NUM);
+
+	if (!ret)
+		arswitch_writereg(sc->sc_dev,
+		    AR8327_REG_ATU_FUNC,
+		    val | AR8327_ATU_FUNC_BUSY);
+
+	return (ret);
+}
+
+static int
+ar8327_atu_fetch_table(struct arswitch_softc *sc, etherswitch_atu_entry_t *e,
+    int atu_fetch_op)
+{
+
+	/* XXX TODO */
+	return (ENXIO);
+}
+
 
 static int
 ar8327_flush_dot1q_vlan(struct arswitch_softc *sc)
@@ -1175,7 +1227,10 @@ ar8327_attach(struct arswitch_softc *sc)
 	sc->hal.arswitch_get_port_vlan = ar8327_vlan_get_port;
 	sc->hal.arswitch_set_port_vlan = ar8327_vlan_set_port;
 
+	sc->hal.arswitch_atu_learn_default = ar8327_atu_learn_default;
 	sc->hal.arswitch_atu_flush = ar8327_atu_flush;
+	sc->hal.arswitch_atu_flush_port = ar8327_atu_flush_port;
+	sc->hal.arswitch_atu_fetch_table = ar8327_atu_fetch_table;
 
 	/*
 	 * Reading the PHY via the MDIO interface currently doesn't
