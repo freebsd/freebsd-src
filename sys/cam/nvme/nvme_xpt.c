@@ -153,19 +153,23 @@ static void	 nvme_dev_async(u_int32_t async_code,
 static void	 nvme_action(union ccb *start_ccb);
 static void	 nvme_announce_periph(struct cam_periph *periph);
 
-static struct xpt_xport nvme_xport = {
+static struct xpt_xport_ops nvme_xport_ops = {
 	.alloc_device = nvme_alloc_device,
 	.action = nvme_action,
 	.async = nvme_dev_async,
 	.announce = nvme_announce_periph,
 };
+#define NVME_XPT_XPORT(x, X)			\
+static struct xpt_xport nvme_xport_ ## x = {	\
+	.xport = XPORT_ ## X,			\
+	.name = #x,				\
+	.ops = &nvme_xport_ops,			\
+};						\
+CAM_XPT_XPORT(nvme_xport_ ## x);
 
-struct xpt_xport *
-nvme_get_xport(void)
-{
+NVME_XPT_XPORT(nvme, NVME);
 
-	return (&nvme_xport);
-}
+#undef NVME_XPT_XPORT
 
 static void
 nvme_probe_periph_init()
