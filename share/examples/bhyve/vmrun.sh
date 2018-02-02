@@ -39,8 +39,13 @@ DEFAULT_TAPDEV=tap0
 DEFAULT_CONSOLE=stdio
 
 DEFAULT_NIC=virtio-net
+DEFAULT_DISK=virtio-blk
 DEFAULT_VIRTIO_DISK="./diskdev"
 DEFAULT_ISOFILE="./release.iso"
+
+DEFAULT_VNCHOST="127.0.0.1"
+DEFAULT_VNCPORT=5900
+DEFAULT_VNCSIZE="w=1024,h=768"
 
 errmsg() {
 	echo "*** $1"
@@ -62,7 +67,7 @@ usage() {
 	echo ""
 	echo "       -h: display this help message"
 	echo "       -a: force memory mapped local APIC access"
-	echo "       -A: use AHCI disk emulation instead of virtio"
+	echo "       -A: use AHCI disk emulation instead of ${DEFAULT_DISK}"
 	echo "       -c: number of virtual cpus (default: ${DEFAULT_CPUS})"
 	echo "       -C: console device (default: ${DEFAULT_CONSOLE})"
 	echo "       -d: virtio diskdev file (default: ${DEFAULT_VIRTIO_DISK})"
@@ -70,7 +75,7 @@ usage() {
 	echo "       -E: Use UEFI mode"
 	echo "       -f: Use a specific UEFI firmware"
 	echo "       -F: Use a custom UEFI GOP framebuffer size" \
-	    "(default: w=1024,h=768)"
+	    "(default: ${DEFAULT_VNCSIZE}"
 	echo "       -g: listen for connection from kgdb at <gdbport>"
 	echo "       -H: host filesystem to export to the loader"
 	echo "       -i: force boot of the Installation CDROM image"
@@ -78,13 +83,13 @@ usage() {
 	    "(default: ${DEFAULT_ISOFILE})"
 	echo "       -l: the OS loader to use (default: /boot/userboot.so)"
 	echo "       -L: IP address for UEFI GOP VNC server" \
-	    "(default: 127.0.0.1)"
+	    "(default: ${DEFAULT_VNCHOST}"
 	echo "       -m: memory size (default: ${DEFAULT_MEMSIZE})"
 	echo "       -n: network adapter emulation type" \
 	    "(default: ${DEFAULT_NIC})"
 	echo "       -p: pass-through a host PCI device at bus/slot/func" \
 	    "(e.g. 10/0/0)"
-	echo "       -P: UEFI GOP VNC port (default: 5900)"
+	echo "       -P: UEFI GOP VNC port (default: ${DEFAULT_VNCPORT})"
 	echo "       -t: tap device for virtio-net (default: $DEFAULT_TAPDEV)"
 	echo "       -T: Enable tablet device (for UEFI GOP)"
 	echo "       -u: RTC keeps UTC time"
@@ -114,7 +119,7 @@ cpus=${DEFAULT_CPUS}
 nic=${DEFAULT_NIC}
 tap_total=0
 disk_total=0
-disk_emulation="virtio-blk"
+disk_emulation=${DEFAULT_DISK}
 gdbport=0
 loader_opt=""
 bhyverun_opt="-H -A -P"
@@ -124,9 +129,9 @@ pass_total=0
 efi_mode=0
 efi_firmware="/usr/local/share/uefi-firmware/BHYVE_UEFI.fd"
 vncwait=""
-vnchost="127.0.0.1"
-vncport=5900
-fbsize="w=1024,h=768"
+vnchost=${DEFAULT_VNCHOST}
+vncport=${DEFAULT_VNCPORT}
+vncsize=${DEFAULT_VNCSIZE}
 tablet=""
 
 while getopts aAc:C:d:e:Ef:F:g:hH:iI:l:m:n:p:P:t:Tuvw c ; do
@@ -160,7 +165,7 @@ while getopts aAc:C:d:e:Ef:F:g:hH:iI:l:m:n:p:P:t:Tuvw c ; do
 		efi_firmware="${OPTARG}"
 		;;
 	F)
-		fbsize="${OPTARG}"
+		vncsize="${OPTARG}"
 		;;
 	g)	
 		gdbport=${OPTARG}
@@ -356,7 +361,7 @@ while [ 1 ]; do
 	efiargs=""
 	if [ ${efi_mode} -gt 0 ]; then
 		efiargs="-s 29,fbuf,tcp=${vnchost}:${vncport},"
-		efiargs="${efiargs}${fbsize}${vncwait}"
+		efiargs="${efiargs}${vncsize}${vncwait}"
 		efiargs="${efiargs} -l bootrom,${efi_firmware}"
 		efiargs="${efiargs} ${tablet}"
 	fi
