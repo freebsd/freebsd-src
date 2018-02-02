@@ -6,17 +6,12 @@
 #   quite large.
 #
 
-MK_PROFILE=	no
-MK_SSP=		no
-
 .include <bsd.init.mk>
 
-INTERNALLIB=
 LIBSA_CPUARCH?=${MACHINE_CPUARCH}
 LIBC_SRC=	${SRCTOP}/lib/libc
 
 LIB?=		sa
-NO_PIC=
 
 # standalone components and stuff we have modified locally
 SRCS+=	gzguts.h zutil.h __main.c abort.c assert.c bcd.c environment.c getopt.c gets.c \

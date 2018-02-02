@@ -7,7 +7,6 @@
 .endif
 
 LIB=	efi
-INTERNALLIB=
 WARNS?=	2
 
 SRCS=	delay.c devpath.c efi_console.c efichar.c efinet.c efipart.c env.c errno.c \

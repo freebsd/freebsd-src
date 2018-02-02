@@ -5,7 +5,6 @@
 PROG=	cdboot
 STRIP=
 BINMODE=${NOBINMODE}
-MAN=
 SRCS=	${PROG}.S
 
 CFLAGS+=-I${BOOTSRC}/i386/common

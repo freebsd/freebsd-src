@@ -6,7 +6,6 @@ PROG=	kgzldr.o
 STRIP=
 BINMODE=${LIBMODE}
 BINDIR=	${LIBDIR}
-MAN=
 
 SRCS=	start.s boot.c inflate.c lib.c crt.s sio.s
 CFLAGS=	-Os

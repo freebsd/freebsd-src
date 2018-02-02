@@ -5,7 +5,6 @@
 .PATH:		${SYSDIR}/contrib/libfdt/
 
 LIB=		fdt
-INTERNALLIB=
 
 # Vendor sources of libfdt.
 SRCS+=		fdt.c fdt_ro.c fdt_wip.c fdt_sw.c fdt_rw.c fdt_strerror.c \

@@ -11,8 +11,6 @@ LOADER_GZIP_SUPPORT?=	yes
 LOADER_BZIP2_SUPPORT?=	no
 
 .include <bsd.init.mk>
-MK_SSP=		no
-MAN=
 
 PROG=		loader
 NEWVERSWHAT=	"Open Firmware loader" ${MACHINE_ARCH}

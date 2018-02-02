@@ -3,7 +3,6 @@
 PROG=	pmbr
 STRIP=
 BINMODE=${NOBINMODE}
-MAN=
 SRCS=	${PROG}.s
 
 ORG=	0x600

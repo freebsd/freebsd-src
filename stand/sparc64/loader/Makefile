@@ -13,8 +13,6 @@ LOADER_BZIP2_SUPPORT?=	no
 LOADER_DEBUG?=		no
 
 .include <bsd.init.mk>
-MK_SSP=		no
-MAN=
 
 PROG?=		loader
 NEWVERSWHAT?=	"bootstrap loader" sparc64

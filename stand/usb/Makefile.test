@@ -32,7 +32,6 @@
 .PATH: ${.CURDIR}
 
 PROG=	usbloader
-MAN=
 SRCS= 
 
 CFLAGS+= -Wall
