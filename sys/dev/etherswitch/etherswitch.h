@@ -6,6 +6,7 @@
 #define __SYS_DEV_ETHERSWITCH_ETHERSWITCH_H
 
 #include <sys/ioccom.h>
+#include <net/ethernet.h>
 
 #ifdef _KERNEL
 extern devclass_t       etherswitch_devclass;
@@ -101,6 +102,28 @@ typedef struct etherswitch_vlangroup etherswitch_vlangroup_t;
 
 #define ETHERSWITCH_PORTMASK(_port)	(1 << (_port))
 
+struct etherswitch_portid {
+	int es_port;
+};
+typedef struct etherswitch_portid etherswitch_portid_t;
+
+struct etherswitch_atu_entry {
+	int id;
+	int es_portmask;
+	uint8_t es_macaddr[ETHER_ADDR_LEN];
+};
+typedef struct etherswitch_atu_entry etherswitch_atu_entry_t;
+
+struct etherswitch_atu_table {
+	uint32_t es_nitems;
+};
+typedef struct etherswitch_atu_table etherswitch_atu_table_t;
+
+struct etherswitch_atu_flush_macentry {
+	uint8_t es_macaddr[ETHER_ADDR_LEN];
+};
+typedef struct etherswitch_atu_flush_macentry etherswitch_atu_flush_macentry_t;
+
 #define IOETHERSWITCHGETINFO		_IOR('i', 1, etherswitch_info_t)
 #define IOETHERSWITCHGETREG		_IOWR('i', 2, etherswitch_reg_t)
 #define IOETHERSWITCHSETREG		_IOW('i', 3, etherswitch_reg_t)
@@ -112,5 +135,10 @@ typedef struct etherswitch_vlangroup etherswitch_vlangroup_t;
 #define IOETHERSWITCHSETPHYREG		_IOW('i', 9, etherswitch_phyreg_t)
 #define IOETHERSWITCHGETCONF		_IOR('i', 10, etherswitch_conf_t)
 #define IOETHERSWITCHSETCONF		_IOW('i', 11, etherswitch_conf_t)
+#define IOETHERSWITCHFLUSHALL		_IOW('i', 12, etherswitch_portid_t)	/* Dummy */
+#define IOETHERSWITCHFLUSHPORT		_IOW('i', 13, etherswitch_portid_t)
+#define IOETHERSWITCHFLUSHMAC		_IOW('i', 14, etherswitch_atu_flush_macentry_t)
+#define IOETHERSWITCHGETTABLE		_IOWR('i', 15, etherswitch_atu_table_t)
+#define IOETHERSWITCHGETTABLEENTRY	_IOWR('i', 16, etherswitch_atu_entry_t)
 
 #endif
