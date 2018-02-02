@@ -38,9 +38,6 @@ LOADER_BZIP2_SUPPORT?=	yes
 
 .include <bsd.init.mk>
 
-MK_SSP=		no
-MAN=
-
 PROG?=		loader
 NEWVERSWHAT=	"BERI loader" ${MACHINE_CPUARCH}
 INSTALLFLAGS=	-b
