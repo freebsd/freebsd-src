@@ -14,7 +14,6 @@ LOADER_BZIP2_SUPPORT?=	no
 PROG=		ubldr
 NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
 INSTALLFLAGS=	-b
-MAN=
 
 # Architecture-specific loader code
 SRCS=		start.S conf.c vers.c

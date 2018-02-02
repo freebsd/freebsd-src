@@ -3,7 +3,6 @@
 PROG=	mbr
 STRIP=
 BINMODE=${NOBINMODE}
-MAN=
 SRCS=	${PROG}.s
 
 # MBR flags: 0x80 -- try packet interface (also known as EDD or LBA)

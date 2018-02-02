@@ -7,6 +7,13 @@ WARNS?=1
 .if !defined(__BOOT_DEFS_MK__)
 __BOOT_DEFS_MK__=${MFILE}
 
+MK_CTF=		no
+MK_SSP=		no
+MK_PROFILE=	no
+NO_PIC=
+MAN=
+INTERNALLIB=
+
 BOOTSRC=	${SRCTOP}/stand
 EFISRC=		${BOOTSRC}/efi
 EFIINC=		${EFISRC}/include

@@ -14,11 +14,8 @@ LOADER_BZIP2_SUPPORT?=	yes
 
 .include <bsd.init.mk>
 
-MK_SSP=		no
-
 LOADER?=	loader
 PROG=		${LOADER}.sym
-MAN=	
 INTERNALPROG=
 NEWVERSWHAT?=	"bootstrap loader" x86
 VERSION_FILE=	${.CURDIR}/../loader/version
