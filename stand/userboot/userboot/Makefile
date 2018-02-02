@@ -43,10 +43,10 @@ CFLAGS+=	-DUSERBOOT_ZFS_SUPPORT
 LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 .endif
 
-# Always add MI sources 
+# Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
 CFLAGS+=	-I.
-DPADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSA} 
-LDADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSA}
+DPADD+=		${LDR_INTERP} ${LIBZFSBOOT} ${LIBSA}
+LDADD+=		${LDR_INTERP} ${LIBZFSBOOT} ${LIBSA}
 
 .include <bsd.lib.mk>

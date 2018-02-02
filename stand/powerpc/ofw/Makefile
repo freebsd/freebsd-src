@@ -46,7 +46,7 @@ LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 LIBOFW=		${BOOTOBJ}/ofw/libofw/libofw.a
 CFLAGS+=	-I${BOOTSRC}/ofw/libofw
 
-DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA}
-LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA}
+DPADD=		${LDR_INTERP} ${LIBOFW} ${LIBFDT} ${LIBSA}
+LDADD=		${LDR_INTERP} ${LIBOFW} ${LIBFDT} ${LIBSA}
 
 .include <bsd.prog.mk>

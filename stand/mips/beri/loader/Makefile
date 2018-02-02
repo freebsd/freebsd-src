@@ -87,8 +87,8 @@ LDFLAGS+=	-static					\
 		-L${.CURDIR}				\
 		-e __start
 
-DPADD=		${LIBFICL} ${LIBSA}
-LDADD=		${LIBFICL} ${LIBSA}
+DPADD=		${LDR_INTERP} ${LIBSA}
+LDADD=		${LDR_INTERP} ${LIBSA}
 
 .if defined(LOADER_USB_SUPPORT)
 # Do garbage collection
