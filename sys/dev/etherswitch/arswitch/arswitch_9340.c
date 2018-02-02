@@ -183,6 +183,16 @@ ar9340_hw_global_setup(struct arswitch_softc *sc)
 	return (0);
 }
 
+static int
+ar9340_atu_fetch_table(struct arswitch_softc *sc, etherswitch_atu_entry_t *e,
+    int atu_fetch_op)
+{
+
+	/* XXX TODO */
+	return (ENXIO);
+}
+
+
 /*
  * The AR9340 switch probes (almost) the same as the AR7240 on-chip switch.
  *
@@ -213,6 +223,7 @@ ar9340_attach(struct arswitch_softc *sc)
 	sc->hal.arswitch_hw_setup = ar9340_hw_setup;
 	sc->hal.arswitch_hw_global_setup = ar9340_hw_global_setup;
 	sc->hal.arswitch_atu_learn_default = ar9340_atu_learn_default;
+	sc->hal.arswitch_atu_fetch_table = ar9340_atu_fetch_table;
 
 	/* Set the switch vlan capabilities. */
 	sc->info.es_vlan_caps = ETHERSWITCH_VLAN_DOT1Q |
