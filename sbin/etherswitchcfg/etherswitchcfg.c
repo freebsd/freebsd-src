@@ -63,7 +63,8 @@ enum cmdmode {
 	MODE_CONFIG,
 	MODE_VLANGROUP,
 	MODE_REGISTER,
-	MODE_PHYREG
+	MODE_PHYREG,
+	MODE_ATU
 };
 
 struct cfg {
@@ -79,9 +80,9 @@ struct cfg {
 
 struct cmds {
 	enum cmdmode	mode;
-	const char		*name;
-	int				args;
-	void 			(*f)(struct cfg *, char *argv[]);
+	const char	*name;
+	int		args;
+	int		(*f)(struct cfg *, int argc, char *argv[]);
 };
 static struct cmds cmds[];
 
@@ -166,12 +167,15 @@ write_phyregister(struct cfg *cfg, int phy, int reg, int val)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHSETPHYREG)");
 }
 
-static void
-set_port_vid(struct cfg *cfg, char *argv[])
+static int
+set_port_vid(struct cfg *cfg, int argc, char *argv[])
 {
 	int v;
 	etherswitch_port_t p;
-	
+
+	if (argc < 2)
+		return (-1);
+
 	v = strtol(argv[1], NULL, 0);
 	if (v < 0 || v > IEEE802DOT1Q_VID_MAX)
 		errx(EX_USAGE, "pvid must be between 0 and %d",
@@ -183,15 +187,19 @@ set_port_vid(struct cfg *cfg, char *argv[])
 	p.es_pvid = v;
 	if (ioctl(cfg->fd, IOETHERSWITCHSETPORT, &p) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHSETPORT)");
+	return (0);
 }
 
-static void
-set_port_flag(struct cfg *cfg, char *argv[])
+static int
+set_port_flag(struct cfg *cfg, int argc, char *argv[])
 {
 	char *flag;
 	int n;
 	uint32_t f;
 	etherswitch_port_t p;
+
+	if (argc < 1)
+		return (-1);
 
 	n = 0;
 	f = 0;
@@ -224,15 +232,19 @@ set_port_flag(struct cfg *cfg, char *argv[])
 		p.es_flags |= f;
 	if (ioctl(cfg->fd, IOETHERSWITCHSETPORT, &p) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHSETPORT)");
+	return (0);
 }
 
-static void
-set_port_media(struct cfg *cfg, char *argv[])
+static int
+set_port_media(struct cfg *cfg, int argc, char *argv[])
 {
 	etherswitch_port_t p;
 	int ifm_ulist[IFMEDIAREQ_NULISTENTRIES];
 	int subtype;
-	
+
+	if (argc < 2)
+		return (-1);
+
 	bzero(&p, sizeof(p));
 	p.es_port = cfg->unit;
 	p.es_ifmr.ifm_ulist = ifm_ulist;
@@ -240,21 +252,25 @@ set_port_media(struct cfg *cfg, char *argv[])
 	if (ioctl(cfg->fd, IOETHERSWITCHGETPORT, &p) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHGETPORT)");
 	if (p.es_ifmr.ifm_count == 0)
-		return;
+		return (0);
 	subtype = get_media_subtype(IFM_TYPE(ifm_ulist[0]), argv[1]);
 	p.es_ifr.ifr_media = (p.es_ifmr.ifm_current & IFM_IMASK) |
 	        IFM_TYPE(ifm_ulist[0]) | subtype;
 	if (ioctl(cfg->fd, IOETHERSWITCHSETPORT, &p) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHSETPORT)");
+	return (0);
 }
 
-static void
-set_port_mediaopt(struct cfg *cfg, char *argv[])
+static int
+set_port_mediaopt(struct cfg *cfg, int argc, char *argv[])
 {
 	etherswitch_port_t p;
 	int ifm_ulist[IFMEDIAREQ_NULISTENTRIES];
 	int options;
-	
+
+	if (argc < 2)
+		return (-1);
+
 	bzero(&p, sizeof(p));
 	p.es_port = cfg->unit;
 	p.es_ifmr.ifm_ulist = ifm_ulist;
@@ -271,15 +287,19 @@ set_port_mediaopt(struct cfg *cfg, char *argv[])
 	p.es_ifr.ifr_media |= options;
 	if (ioctl(cfg->fd, IOETHERSWITCHSETPORT, &p) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHSETPORT)");
+	return (0);
 }
 
-static void
-set_port_led(struct cfg *cfg, char *argv[])
+static int
+set_port_led(struct cfg *cfg, int argc, char *argv[])
 {
 	etherswitch_port_t p;
 	int led;
 	int i;
-	
+
+	if (argc < 3)
+		return (-1);
+
 	bzero(&p, sizeof(p));
 	p.es_port = cfg->unit;
 	if (ioctl(cfg->fd, IOETHERSWITCHGETPORT, &p) != 0)
@@ -303,13 +323,18 @@ set_port_led(struct cfg *cfg, char *argv[])
 
 	if (ioctl(cfg->fd, IOETHERSWITCHSETPORT, &p) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHSETPORT)");
+
+	return (0);
 }
 
-static void
-set_vlangroup_vid(struct cfg *cfg, char *argv[])
+static int
+set_vlangroup_vid(struct cfg *cfg, int argc, char *argv[])
 {
 	int v;
 	etherswitch_vlangroup_t vg;
+
+	if (argc < 2)
+		return (-1);
 
 	memset(&vg, 0, sizeof(vg));
 	v = strtol(argv[1], NULL, 0);
@@ -321,15 +346,19 @@ set_vlangroup_vid(struct cfg *cfg, char *argv[])
 	vg.es_vid = v;
 	if (ioctl(cfg->fd, IOETHERSWITCHSETVLANGROUP, &vg) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHSETVLANGROUP)");
+	return (0);
 }
 
-static void
-set_vlangroup_members(struct cfg *cfg, char *argv[])
+static int
+set_vlangroup_members(struct cfg *cfg, int argc, char *argv[])
 {
 	etherswitch_vlangroup_t vg;
 	int member, untagged;
 	char *c, *d;
 	int v;
+
+	if (argc < 2)
+		return (-1);
 
 	member = untagged = 0;
 	memset(&vg, 0, sizeof(vg));
@@ -360,6 +389,7 @@ set_vlangroup_members(struct cfg *cfg, char *argv[])
 	vg.es_untagged_ports = untagged;
 	if (ioctl(cfg->fd, IOETHERSWITCHSETVLANGROUP, &vg) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHSETVLANGROUP)");
+	return (0);
 }
 
 static int
@@ -402,10 +432,13 @@ set_phyregister(struct cfg *cfg, char *arg)
 	return (0);
 }
 
-static void
-set_vlan_mode(struct cfg *cfg, char *argv[])
+static int
+set_vlan_mode(struct cfg *cfg, int argc, char *argv[])
 {
 	etherswitch_conf_t conf;
+
+	if (argc < 2)
+		return (-1);
 
 	bzero(&conf, sizeof(conf));
 	conf.cmd = ETHERSWITCH_CONF_VLAN_MODE;
@@ -423,6 +456,69 @@ set_vlan_mode(struct cfg *cfg, char *argv[])
 		conf.vlan_mode = 0;
 	if (ioctl(cfg->fd, IOETHERSWITCHSETCONF, &conf) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHSETCONF)");
+
+	return (0);
+}
+
+static int
+atu_flush(struct cfg *cfg, int argc, char *argv[])
+{
+	etherswitch_portid_t p;
+	int i, r;
+
+	bzero(&p, sizeof(p));
+
+	/* note: argv[0] is "flush" */
+	if (argc > 2 && strcasecmp(argv[1], "port") == 0) {
+		p.es_port = atoi(argv[2]);
+		i = IOETHERSWITCHFLUSHPORT;
+		r = 3;
+	} else if (argc > 1 && strcasecmp(argv[1], "all") == 0) {
+		p.es_port = 0;
+		r = 2;
+		i = IOETHERSWITCHFLUSHALL;
+	} else {
+		fprintf(stderr,
+		    "%s: invalid verb (port <x> or all) (got %s)\n",
+		    __func__, argv[1]);
+		return (-1);
+	}
+
+	if (ioctl(cfg->fd, i, &p) != 0)
+		err(EX_OSERR, "ioctl(ATU flush (ioctl %d, port %d))",
+		    i, p.es_port);
+	return (r);
+}
+
+static int
+atu_dump(struct cfg *cfg, int argc, char *argv[])
+{
+	etherswitch_atu_table_t p;
+	etherswitch_atu_entry_t e;
+	uint32_t i;
+
+	(void) argc;
+	(void) argv;
+
+	/* Note: argv[0] is "dump" */
+	bzero(&p, sizeof(p));
+
+	if (ioctl(cfg->fd, IOETHERSWITCHGETTABLE, &p) != 0)
+		err(EX_OSERR, "ioctl(IOETHERSWITCHGETTABLE)");
+
+	/* And now, iterate to get entries */
+	for (i = 0; i < p.es_nitems; i++) {
+		bzero(&e, sizeof(e));
+		e.id = i;
+		if (ioctl(cfg->fd, IOETHERSWITCHGETTABLEENTRY, &e) != 0)
+			break;
+
+		printf(" [%d] %s: portmask 0x%08x\n", i,
+		    ether_ntoa((void *) &e.es_macaddr),
+		    e.es_portmask);
+	}
+
+	return (1);
 }
 
 static void
@@ -619,6 +715,7 @@ newmode(struct cfg *cfg, enum cmdmode mode)
 		break;
 	case MODE_REGISTER:
 	case MODE_PHYREG:
+	case MODE_ATU:
 		break;
 	}
 	cfg->mode = mode;
@@ -686,6 +783,8 @@ main(int argc, char *argv[])
 				newmode(&cfg, MODE_REGISTER);
 			} else if (strcmp(argv[0], "help") == 0) {
 				usage(&cfg, argv);
+			} else if (strcmp(argv[0], "atu") == 0) {
+				newmode(&cfg, MODE_ATU);
 			} else {
 				errx(EX_USAGE, "Unknown command \"%s\"", argv[0]);
 			}
@@ -693,15 +792,33 @@ main(int argc, char *argv[])
 		case MODE_PORT:
 		case MODE_CONFIG:
 		case MODE_VLANGROUP:
+		case MODE_ATU:
 			for(i=0; cmds[i].name != NULL; i++) {
-				if (cfg.mode == cmds[i].mode && strcmp(argv[0], cmds[i].name) == 0) {
-					if (argc < (cmds[i].args + 1)) {
-						printf("%s needs %d argument%s\n", cmds[i].name, cmds[i].args, (cmds[i].args==1)?"":",");
+				int r;
+				if (cfg.mode == cmds[i].mode &&
+				    strcmp(argv[0], cmds[i].name) == 0) {
+					if ((cmds[i].args != -1) &&
+					    (argc < (cmds[i].args + 1))) {
+						printf("%s needs %d argument%s\n",
+						    cmds[i].name, cmds[i].args,
+						    (cmds[i].args==1)?"":",");
 						break;
 					}
-					(cmds[i].f)(&cfg, argv);
-					argc -= cmds[i].args;
-					argv += cmds[i].args;
+
+					r = (cmds[i].f)(&cfg, argc, argv);
+
+					/* -1 here means "error" */
+					if (r == -1) {
+						argc = 0;
+						break;
+					}
+
+					/* Legacy return value */
+					if (r == 0)
+						r = cmds[i].args;
+
+					argc -= r;
+					argv += r;
 					break;
 				}
 			}
@@ -752,5 +869,7 @@ static struct cmds cmds[] = {
 	{ MODE_CONFIG, "vlan_mode", 1, set_vlan_mode },
 	{ MODE_VLANGROUP, "vlan", 1, set_vlangroup_vid },
 	{ MODE_VLANGROUP, "members", 1, set_vlangroup_members },
+	{ MODE_ATU, "flush", -1, atu_flush },
+	{ MODE_ATU, "dump", -1, atu_dump },
 	{ 0, NULL, 0, NULL }
 };
