@@ -76,6 +76,27 @@ ar9340_hw_setup(struct arswitch_softc *sc)
 	return (0);
 }
 
+static int
+ar9340_atu_learn_default(struct arswitch_softc *sc)
+{
+
+	/* Enable aging, MAC replacing */
+	arswitch_writereg(sc->sc_dev, AR934X_REG_AT_CTRL,
+	    0x2b /* 5 min age time */ |
+	    AR934X_AT_CTRL_AGE_EN |
+	    AR934X_AT_CTRL_LEARN_CHANGE);
+
+	/* Enable ARP frame acknowledge */
+	arswitch_modifyreg(sc->sc_dev, AR934X_REG_QM_CTRL,
+	    AR934X_QM_CTRL_ARP_EN, AR934X_QM_CTRL_ARP_EN);
+
+	/* Copy frame to CPU port, not just redirect it */
+	arswitch_modifyreg(sc->sc_dev, AR934X_REG_QM_CTRL,
+	    AR934X_QM_CTRL_ARP_COPY_EN, AR934X_QM_CTRL_ARP_COPY_EN);
+
+	return (0);
+}
+
 /*
  * Initialise other global values for the AR9340.
  */
@@ -91,16 +112,6 @@ ar9340_hw_global_setup(struct arswitch_softc *sc)
 
 	/* Setup TAG priority mapping */
 	arswitch_writereg(sc->sc_dev, AR8X16_REG_TAG_PRIO, 0xfa50);
-
-	/* Enable aging, MAC replacing */
-	arswitch_writereg(sc->sc_dev, AR934X_REG_AT_CTRL,
-	    0x2b /* 5 min age time */ |
-	    AR934X_AT_CTRL_AGE_EN |
-	    AR934X_AT_CTRL_LEARN_CHANGE);
-
-	/* Enable ARP frame acknowledge */
-	arswitch_modifyreg(sc->sc_dev, AR934X_REG_QM_CTRL,
-	    AR934X_QM_CTRL_ARP_EN, AR934X_QM_CTRL_ARP_EN);
 
 	/* Enable Broadcast frames transmitted to the CPU */
 	arswitch_modifyreg(sc->sc_dev, AR934X_REG_FLOOD_MASK,
@@ -201,6 +212,7 @@ ar9340_attach(struct arswitch_softc *sc)
 
 	sc->hal.arswitch_hw_setup = ar9340_hw_setup;
 	sc->hal.arswitch_hw_global_setup = ar9340_hw_global_setup;
+	sc->hal.arswitch_atu_learn_default = ar9340_atu_learn_default;
 
 	/* Set the switch vlan capabilities. */
 	sc->info.es_vlan_caps = ETHERSWITCH_VLAN_DOT1Q |
