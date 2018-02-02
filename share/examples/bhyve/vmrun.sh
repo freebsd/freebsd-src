@@ -244,7 +244,8 @@ fi
 
 if [ ${efi_mode} -gt 0 ]; then
 	if [ ! -f ${efi_firmware} ]; then
-		echo "Error: EFI Firmware ${efi_firmware} doesn't exist. Try: pkg install uefi-edk2-bhyve"
+		echo "Error: EFI Firmware ${efi_firmware} doesn't exist." \
+		    "Try: pkg install uefi-edk2-bhyve"
 		exit 1
 	fi
 fi
@@ -281,7 +282,8 @@ while [ 1 ]; do
 	file -s ${first_diskdev} | grep "boot sector" > /dev/null
 	rc=$?
 	if [ $rc -ne 0 ]; then
-		file -s ${first_diskdev} | grep ": Unix Fast File sys" > /dev/null
+		file -s ${first_diskdev} | \
+		    grep ": Unix Fast File sys" > /dev/null
 		rc=$?
 	fi
 	if [ $rc -ne 0 ]; then
@@ -312,8 +314,8 @@ while [ 1 ]; do
 	fi
 
 	if [ ${efi_mode} -eq 0 ]; then
-		${LOADER} -c ${console} -m ${memsize} ${BOOTDISKS} ${loader_opt} \
-			${vmname}
+		${LOADER} -c ${console} -m ${memsize} ${BOOTDISKS} \
+		    ${loader_opt} ${vmname}
 		bhyve_exit=$?
 		if [ $bhyve_exit -ne 0 ]; then
 			break
@@ -353,7 +355,8 @@ while [ 1 ]; do
 
 	efiargs=""
 	if [ ${efi_mode} -gt 0 ]; then
-		efiargs="-s 29,fbuf,tcp=${vnchost}:${vncport},${fbsize}${vncwait}"
+		efiargs="-s 29,fbuf,tcp=${vnchost}:${vncport},"
+		efiargs="${efiargs}${fbsize}${vncwait}"
 		efiargs="${efiargs} -l bootrom,${efi_firmware}"
 		efiargs="${efiargs} ${tablet}"
 	fi
