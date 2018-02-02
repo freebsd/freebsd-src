@@ -96,8 +96,6 @@ D_flag_cleanup()
 atf_test_case F_flag cleanup
 F_flag_body()
 {
-	check_cd9660_support
-
 	create_test_inputs
 
 	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
@@ -106,6 +104,7 @@ F_flag_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS -F $TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
 
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents
 }
@@ -117,8 +116,6 @@ F_flag_cleanup()
 atf_test_case from_mtree_spec_file cleanup
 from_mtree_spec_file_body()
 {
-	check_cd9660_support
-
 	create_test_inputs
 
 	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
@@ -128,6 +125,7 @@ from_mtree_spec_file_body()
 	    $MAKEFS $TEST_IMAGE $TEST_SPEC_FILE
 	cd -
 
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents
 }
@@ -139,8 +137,6 @@ from_mtree_spec_file_cleanup()
 atf_test_case from_multiple_dirs cleanup
 from_multiple_dirs_body()
 {
-	check_cd9660_support
-
 	test_inputs_dir2=$TMPDIR/inputs2
 
 	create_test_inputs
@@ -152,6 +148,7 @@ from_multiple_dirs_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS $TEST_IMAGE $TEST_INPUTS_DIR $test_inputs_dir2
 
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents -d $test_inputs_dir2
 }
@@ -163,13 +160,12 @@ from_multiple_dirs_cleanup()
 atf_test_case from_single_dir cleanup
 from_single_dir_body()
 {
-	check_cd9660_support
-
 	create_test_inputs
 
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS $TEST_IMAGE $TEST_INPUTS_DIR
 
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents
 }
@@ -190,6 +186,7 @@ o_flag_allow_deep_trees_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS -o allow-deep-trees $TEST_IMAGE $TEST_INPUTS_DIR
 
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents
 }
@@ -213,6 +210,7 @@ o_flag_allow_max_name_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS -o allow-max-name $TEST_IMAGE $TEST_INPUTS_DIR
 
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents
 }
@@ -231,6 +229,7 @@ o_flag_isolevel_1_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS -o isolevel=1 $TEST_IMAGE $TEST_INPUTS_DIR
 
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents
 }
@@ -247,6 +246,7 @@ o_flag_isolevel_2_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS -o isolevel=2 $TEST_IMAGE $TEST_INPUTS_DIR
 
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents
 }
@@ -267,6 +267,8 @@ o_flag_isolevel_3_body()
 	else
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS -o isolevel=3 $TEST_IMAGE $TEST_INPUTS_DIR
+
+	check_cd9660_support
 	mount_image
 	check_base_iso9660_image_contents
 	fi
@@ -334,6 +336,7 @@ o_flag_rockridge_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
 
+	check_cd9660_support
 	mount_image
 	check_image_contents -X .rr_moved
 
@@ -365,6 +368,7 @@ o_flag_rockridge_dev_nodes_body()
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
 
+	check_cd9660_support
 	mount_image
 	check_image_contents
 }
