@@ -213,8 +213,8 @@ closedisk(const char *devnam)
 	fs->fs_clean = 1;
 	fs->fs_time = time(NULL);
 	fs->fs_mtime = time(NULL);
-	if (sbwrite(&disk, 0) == -1)
-		err(EX_OSERR, "sbwrite(%s)", devnam);
+	if (sbput(disk.d_fd, fs, 0) == -1)
+		err(EX_OSERR, "sbput(%s)", devnam);
 	if (ufs_disk_close(&disk) == -1)
 		err(EX_OSERR, "ufs_disk_close(%s)", devnam);
 	fs = NULL;
