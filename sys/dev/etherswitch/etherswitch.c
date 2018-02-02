@@ -144,6 +144,7 @@ etherswitchioctl(struct cdev *cdev, u_long cmd, caddr_t data, int flags, struct 
 	etherswitch_info_t *info;
 	etherswitch_reg_t *reg;
 	etherswitch_phyreg_t *phyreg;
+	etherswitch_portid_t *portid;
 	int error = 0;
 
 	switch (cmd) {
@@ -200,6 +201,23 @@ etherswitchioctl(struct cdev *cdev, u_long cmd, caddr_t data, int flags, struct 
 
 	case IOETHERSWITCHSETCONF:
 		error = ETHERSWITCH_SETCONF(etherswitch, (etherswitch_conf_t *)data);
+		break;
+
+	case IOETHERSWITCHFLUSHALL:
+		error = ETHERSWITCH_FLUSH_ALL(etherswitch);
+		break;
+
+	case IOETHERSWITCHFLUSHPORT:
+		portid = (etherswitch_portid_t *)data;
+		error = ETHERSWITCH_FLUSH_PORT(etherswitch, portid->es_port);
+		break;
+
+	case IOETHERSWITCHGETTABLE:
+		error = ETHERSWITCH_FETCH_TABLE(etherswitch, (void *) data);
+		break;
+
+	case IOETHERSWITCHGETTABLEENTRY:
+		error = ETHERSWITCH_FETCH_TABLE_ENTRY(etherswitch, (void *) data);
 		break;
 
 	default:
