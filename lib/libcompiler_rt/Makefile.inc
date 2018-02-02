@@ -186,7 +186,7 @@ SRCF+=		subsf3
 SRCF+=		truncdfsf2
 .endif
 
-.if ${MACHINE_CPUARCH} != "arm"
+.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 SRCF+=		comparedf2
 SRCF+=		comparesf2
 .endif
