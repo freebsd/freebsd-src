@@ -71,9 +71,6 @@ CWARNFLAGS.clang+=	-Wno-empty-body -Wno-string-plus-int
 .if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30400
 CWARNFLAGS.clang+=	-Wno-unused-const-variable
 .endif
-.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 60000
-CWARNFLAGS.clang+=	-Wno-error=tautological-constant-compare
-.endif
 .endif # WARNS <= 6
 .if ${WARNS} <= 3
 CWARNFLAGS.clang+=	-Wno-tautological-compare -Wno-unused-value\
