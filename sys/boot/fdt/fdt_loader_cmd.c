@@ -76,6 +76,7 @@ static int fdt_load_dtb(vm_offset_t va);
 static void fdt_print_overlay_load_error(int err, const char *filename);
 
 static int fdt_cmd_nyi(int argc, char *argv[]);
+static int fdt_load_dtb_overlays_string(const char * filenames);
 
 static int fdt_cmd_addr(int argc, char *argv[]);
 static int fdt_cmd_mkprop(int argc, char *argv[]);
@@ -330,15 +331,15 @@ fdt_print_overlay_load_error(int err, const char *filename)
 	}
 }
 
-int
-fdt_load_dtb_overlays(const char * filenames)
+static int
+fdt_load_dtb_overlays_string(const char * filenames)
 {
 	char *names;
 	char *name, *name_ext;
 	char *comaptr;
 	int err, namesz;
 
-	debugf("fdt_load_dtb_overlay(%s)\n", filenames);
+	debugf("fdt_load_dtb_overlays_string(%s)\n", filenames);
 
 	names = strdup(filenames);
 	if (names == NULL)
@@ -824,6 +825,25 @@ fdt_fixup_stdout(const char *str)
 		    strlen((char *)&tmp) + 1);
 		fdt_setprop(fdtp, no, "stdin", &tmp,
 		    strlen((char *)&tmp) + 1);
+	}
+}
+
+void
+fdt_load_dtb_overlays(const char *extras)
+{
+	const char *s;
+
+	/* Any extra overlays supplied by pre-loader environment */
+	if (extras != NULL && *extras != '\0') {
+		printf("Loading DTB overlays: '%s'\n", extras);
+		fdt_load_dtb_overlays_string(extras);
+	}
+
+	/* Any overlays supplied by loader environment */
+	s = getenv("fdt_overlays");
+	if (s != NULL && *s != '\0') {
+		printf("Loading DTB overlays: '%s'\n", s);
+		fdt_load_dtb_overlays_string(s);
 	}
 }
 
