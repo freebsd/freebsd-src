@@ -649,7 +649,7 @@ taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *gtask,
 	qgroup->tqg_queue[qid].tgc_cnt++;
 	LIST_INSERT_HEAD(&qgroup->tqg_queue[qid].tgc_tasks, gtask, gt_list);
 	gtask->gt_taskqueue = qgroup->tqg_queue[qid].tgc_taskq;
-	if (irq != -1 && smp_started) {
+	if (irq != -1 && (smp_started || mp_ncpus == 1)) {
 		gtask->gt_cpu = qgroup->tqg_queue[qid].tgc_cpu;
 		CPU_ZERO(&mask);
 		CPU_SET(qgroup->tqg_queue[qid].tgc_cpu, &mask);
@@ -699,7 +699,7 @@ taskqgroup_attach_cpu(struct taskqgroup *qgroup, struct grouptask *gtask,
 	gtask->gt_irq = irq;
 	gtask->gt_cpu = cpu;
 	mtx_lock(&qgroup->tqg_lock);
-	if (smp_started) {
+	if (smp_started || mp_ncpus == 1) {
 		for (i = 0; i < qgroup->tqg_cnt; i++)
 			if (qgroup->tqg_queue[i].tgc_cpu == cpu) {
 				qid = i;
@@ -719,7 +719,7 @@ taskqgroup_attach_cpu(struct taskqgroup *qgroup, struct grouptask *gtask,
 
 	CPU_ZERO(&mask);
 	CPU_SET(cpu, &mask);
-	if (irq != -1 && smp_started)
+	if (irq != -1 && (smp_started || mp_ncpus == 1))
 		intr_setaffinity(irq, &mask);
 	return (0);
 }
@@ -733,7 +733,7 @@ taskqgroup_attach_cpu_deferred(struct taskqgroup *qgroup, struct grouptask *gtas
 	qid = -1;
 	irq = gtask->gt_irq;
 	cpu = gtask->gt_cpu;
-	MPASS(smp_started);
+	MPASS(smp_started || mp_ncpus == 1);
 	mtx_lock(&qgroup->tqg_lock);
 	for (i = 0; i < qgroup->tqg_cnt; i++)
 		if (qgroup->tqg_queue[i].tgc_cpu == cpu) {
@@ -826,7 +826,7 @@ _taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride)
 
 	mtx_assert(&qgroup->tqg_lock, MA_OWNED);
 
-	if (cnt < 1 || cnt * stride > mp_ncpus || !smp_started) {
+	if (cnt < 1 || cnt * stride > mp_ncpus || (!smp_started && (mp_ncpus != 1))) {
 		printf("taskqgroup_adjust failed cnt: %d stride: %d mp_ncpus: %d smp_started: %d\n",
 			   cnt, stride, mp_ncpus, smp_started);
 		return (EINVAL);
