@@ -2,10 +2,6 @@
 
 .include <bsd.init.mk>
 
-.if ${MK_FORTH} != "no"
-.include	"${BOOTSRC}/ficl.mk"
-.endif
-
 LIB=	efi
 WARNS?=	2
 
