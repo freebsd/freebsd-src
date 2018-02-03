@@ -533,6 +533,13 @@ init_pltgot(Obj_Entry *obj)
 void
 ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
 {
+
+}
+
+void
+pre_init(void)
+{
+
 }
 
 void
