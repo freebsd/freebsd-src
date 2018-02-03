@@ -2225,16 +2225,19 @@ main(int argc, char *argv[])
 	}
 
 	if (restore_file != NULL) {
+		fprintf(stdout, "Restoring vm mem...\r\n");
 		if (restore_vm_mem(ctx, &rstate) != 0) {
 			fprintf(stderr, "Failed to restore VM memory.\n");
 			exit(1);
 		}
 
+		fprintf(stdout, "Restoring kernel structs...\r\n");
 		if (restore_kernel_structs(ctx, &rstate) != 0) {
 			fprintf(stderr, "Failed to restore kernel structs.\n");
 			exit(1);
 		}
 
+		fprintf(stdout, "Restoring pci devs...\r\n");
 		if (restore_pci_devs(ctx, &rstate) != 0) {
 			fprintf(stderr, "Failed to restore PCI device state.\n");
 			exit(1);
@@ -2245,6 +2248,7 @@ main(int argc, char *argv[])
 	/*
 	 * build the guest tables, MP etc.
 	 */
+
 	if (mptgen) {
 		error = mptable_build(ctx, guest_ncpus);
 		if (error) {
@@ -2286,7 +2290,7 @@ main(int argc, char *argv[])
 	 * checkpointing thread for communication with bhyvectl
 	 */
 	if(init_checkpoint_thread(ctx) < 0)
-		printf("Failed to start checkpoint thread!\n");
+		printf("Failed to start checkpoint thread!\r\n");
 
 	/*
 	 * Add CPU 0
@@ -2297,9 +2301,12 @@ main(int argc, char *argv[])
 	/* If we restore a VM, start all vCPUs now (including APs), otherwise,
 	 * let the guest OS to spin them up later via vmexits.
 	 */
+
 	for (vcpu = 0; vcpu < guest_ncpus; vcpu++)
-		if (vcpu == BSP || restore_file)
+		if (vcpu == BSP || restore_file) {
+			fprintf(stdout, "spinning up vcpu no %d...\r\n", vcpu);
 			spinup_vcpu(ctx, vcpu);
+		}
 
 	/*
 	 * Head off to the main event dispatch loop

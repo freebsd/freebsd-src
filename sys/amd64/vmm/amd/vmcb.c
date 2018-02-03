@@ -452,3 +452,35 @@ vmcb_getdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
 
 	return (0);
 }
+
+int
+vmcb_getany(struct svm_softc *sc, int vcpu, int ident, uint64_t *val)
+{
+	int error = 0;
+
+	if (vcpu < 0 || vcpu >= VM_MAXCPU)
+		error = EINVAL;
+
+	if (ident >= VM_REG_LAST)
+		error = EINVAL;
+
+	error = vm_get_register(sc->vm, vcpu, ident, val);
+
+	return (error);
+}
+
+int
+vmcb_setany(struct svm_softc *sc, int vcpu, int ident, uint64_t val)
+{
+	int error = 0;
+
+	if (vcpu < 0 || vcpu >= VM_MAXCPU)
+		error = EINVAL;
+
+	if (ident >= VM_REG_LAST)
+		error = EINVAL;
+
+	error = vm_set_register(sc->vm, vcpu, ident, val);
+
+	return (error);
+}

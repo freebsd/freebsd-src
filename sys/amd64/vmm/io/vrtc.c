@@ -1064,7 +1064,6 @@ vrtc_restore(struct vrtc *vrtc, void *buffer, size_t buf_size)
 	old_vrtc = (struct vrtc *)buffer;
 
 	vrtc->mtx = old_vrtc->mtx;
-	/* TODO - verify if callout struct is restored correctly */
 	vrtc->callout = old_vrtc->callout;
 	vrtc->addr = old_vrtc->addr;
 	vrtc->base_uptime = old_vrtc->base_uptime;

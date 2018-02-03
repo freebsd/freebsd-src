@@ -2280,6 +2280,367 @@ svm_vlapic_cleanup(void *arg, struct vlapic *vlapic)
         free(vlapic, M_SVM_VLAPIC);
 }
 
+static int
+svm_snapshot_vmi(void *arg, void *buffer, size_t buf_size, size_t *snapshot_size)
+{
+	/* struct svm_softc is AMD's representation for SVM softc */
+	struct svm_softc *sc = arg;
+	int error;
+
+	KASSERT(sc != NULL, ("%s: arg was NULL", __func__));
+
+	if (buf_size < sizeof(struct svm_softc)) {
+		printf("%s: buffer size too small: %lu < %lu\n",
+			__func__, buf_size, sizeof(struct svm_softc));
+		return (EINVAL);
+	}
+
+	error = copyout(sc, buffer, sizeof(struct svm_softc));
+	if (error) {
+		printf("%s: failed to copy svm data to user buffer", __func__);
+		*snapshot_size = 0;
+		return (error);
+	}
+
+	*snapshot_size = sizeof(struct svm_softc);
+	return (0);
+}
+
+static int
+svm_snapshot_vmcx(void *arg, struct vmcx_state *vmcx, int vcpu)
+{
+	struct vmcb *vmcb;
+	struct svm_softc *sc = (struct svm_softc *)arg;
+	int err = 0, running, hostcpu;
+
+	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
+	vmcb = svm_get_vmcb(sc, vcpu);
+
+	running = vcpu_is_running(sc->vm, vcpu, &hostcpu);
+	if (running && hostcpu !=curcpu) {
+		printf("%s: %s%d is running", __func__, vm_name(sc->vm), vcpu);
+		return (EINVAL);
+	}
+
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_CR0, &vmcx->guest_cr0);
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_CR2, &vmcx->guest_cr2);
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_CR3, &vmcx->guest_cr3);
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_CR4, &vmcx->guest_cr4);
+
+	vmcx->guest_dr6 = vmcb->state.dr6;
+
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_DR7, &vmcx->guest_dr7);
+
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_RAX, &vmcx->guest_rax);
+
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_RSP, &vmcx->guest_rsp);
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_RIP, &vmcx->guest_rip);
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_RFLAGS, &vmcx->guest_rflags);
+
+	/* Guest segments */
+	/* ES */
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_ES, &vmcx->guest_es);
+	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_ES, &vmcx->guest_es_desc);
+
+	/* CS */
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_CS, &vmcx->guest_cs);
+	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_CS, &vmcx->guest_cs_desc);
+
+	/* SS */
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_SS, &vmcx->guest_ss);
+	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_SS, &vmcx->guest_ss_desc);
+
+	/* DS */
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_DS, &vmcx->guest_ds);
+	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_DS, &vmcx->guest_ds_desc);
+
+	/* FS */
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_FS, &vmcx->guest_fs);
+	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_FS, &vmcx->guest_fs_desc);
+
+	/* GS */
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_GS, &vmcx->guest_gs);
+	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_GS, &vmcx->guest_gs_desc);
+
+	/* TR */
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_TR, &vmcx->guest_tr);
+	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_TR, &vmcx->guest_tr_desc);
+
+	/* LDTR */
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_LDTR, &vmcx->guest_ldtr);
+	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_LDTR, &vmcx->guest_ldtr_desc);
+
+	/* EFER */
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_EFER, &vmcx->guest_efer);
+
+	/* IDTR and GDTR */
+	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_IDTR, &vmcx->guest_idtr_desc);
+	err += vmcb_getdesc(sc, vcpu, VM_REG_GUEST_GDTR, &vmcx->guest_gdtr_desc);
+
+	/* Specific AMD registers */
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_SYSENTER_CS, 8),
+				&vmcx->guest_ia32_sysenter_cs);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_SYSENTER_ESP, 8),
+				&vmcx->guest_ia32_sysenter_esp);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_SYSENTER_EIP, 8),
+				&vmcx->guest_ia32_sysenter_eip);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_NPT_BASE, 8),
+				&vmcx->vmcb_npt);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_CR_INTERCEPT, 4),
+				&vmcx->vmcb_off_cr_intercept);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_DR_INTERCEPT, 4),
+				&vmcx->vmcb_off_dr_intercept);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_EXC_INTERCEPT, 4),
+				&vmcx->vmcb_off_exc_intercept);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_INST1_INTERCEPT, 4),
+				&vmcx->vmcb_off_inst1_intercept);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_INST2_INTERCEPT, 4),
+				&vmcx->vmcb_off_inst2_intercept);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_TLB_CTRL, 4),
+				&vmcx->vmcb_off_tlb_ctrl);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_EXITINFO1, 8),
+				&vmcx->vmcb_off_exitinfo1);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_EXITINFO2, 8),
+				&vmcx->vmcb_off_exitinfo2);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_EXITINTINFO, 8),
+				&vmcx->vmcb_off_exitintinfo);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_VIRQ, 8),
+				&vmcx->vmcb_off_virq);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_GUEST_PAT, 8),
+				&vmcx->vmcb_off_guest_pat);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_AVIC_BAR, 8),
+				&vmcx->vmcb_off_avic_bar);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_AVIC_PAGE, 8),
+				&vmcx->vmcb_off_avic_page);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_AVIC_LT, 8),
+				&vmcx->vmcb_off_avic_lt);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_AVIC_PT, 8),
+				&vmcx->vmcb_off_avic_pt);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_IO_PERM, 8),
+				&vmcx->vmcb_off_io_perm);
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_MSR_PERM, 8),
+				&vmcx->vmcb_off_msr_perm);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_ASID, 4),
+				&vmcx->vmcb_off_asid);
+
+	err += vmcb_getany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_EXIT_REASON, 8),
+				&vmcx->vmcb_off_exit_reason);
+
+	err += svm_getreg(sc, vcpu, VM_REG_GUEST_INTR_SHADOW, &vmcx->guest_intr_shadow);
+
+	return (err);
+}
+
+static int
+svm_restore_vmcx(void *arg, struct vmcx_state *vmcx, int vcpu)
+{
+	struct vmcb *vmcb;
+	struct svm_softc *sc = (struct svm_softc *)arg;
+	int err = 0, running, hostcpu;
+
+	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
+	vmcb = svm_get_vmcb(sc, vcpu);
+
+	running = vcpu_is_running(sc->vm, vcpu, &hostcpu);
+	if (running && hostcpu != curcpu) {
+		printf("%s: %s%d is running", __func__, vm_name(sc->vm), vcpu);
+		return (EINVAL);
+	}
+	printf("%s: Restore vmcx for processor %d\r\n", __func__, vcpu);
+
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_CR0, vmcx->guest_cr0);
+
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_CR2, vmcx->guest_cr2);
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_CR3, vmcx->guest_cr3);
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_CR4, vmcx->guest_cr4);
+
+	vmcb->state.dr6 = vmcx->guest_dr6;
+
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_DR7, vmcx->guest_dr7);
+
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_RAX, vmcx->guest_rax);
+
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_RSP, vmcx->guest_rsp);
+
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_RIP, vmcx->guest_rip);
+
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_RFLAGS, vmcx->guest_rflags);
+
+	/* Guest segments */
+	/* ES */
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_ES, vmcx->guest_es);
+	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_ES, &vmcx->guest_es_desc);
+
+	/* CS */
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_CS, vmcx->guest_cs);
+	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_CS, &vmcx->guest_cs_desc);
+
+	/* SS */
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_SS, vmcx->guest_ss);
+	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_SS, &vmcx->guest_ss_desc);
+
+	/* DS */
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_DS, vmcx->guest_ds);
+	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_DS, &vmcx->guest_ds_desc);
+
+	/* FS */
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_FS, vmcx->guest_fs);
+	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_FS, &vmcx->guest_fs_desc);
+
+	/* GS */
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_GS, vmcx->guest_gs);
+	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_GS, &vmcx->guest_gs_desc);
+
+	/* TR */
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_TR, vmcx->guest_tr);
+	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_TR, &vmcx->guest_tr_desc);
+
+	/* LDTR */
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_LDTR, vmcx->guest_ldtr);
+	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_LDTR, &vmcx->guest_ldtr_desc);
+
+	/* EFER */
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_EFER, vmcx->guest_efer);
+
+	/* IDTR and GDTR */
+	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_IDTR, &vmcx->guest_idtr_desc);
+	err += vmcb_setdesc(sc, vcpu, VM_REG_GUEST_GDTR, &vmcx->guest_gdtr_desc);
+
+
+	/*  Specific AMD registers */
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_SYSENTER_CS, 8),
+				vmcx->guest_ia32_sysenter_cs);
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_SYSENTER_ESP, 8),
+				vmcx->guest_ia32_sysenter_esp);
+	err += vmcb_setany(sc, vcpu,
+				VMCB_ACCESS(VMCB_OFF_SYSENTER_EIP, 8),
+				vmcx->guest_ia32_sysenter_eip);
+
+	err += svm_setreg(sc, vcpu, VM_REG_GUEST_INTR_SHADOW, vmcx->guest_intr_shadow);
+
+	/* Set all the caches dirty */
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_ASID);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_IOPM);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_I);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_TPR);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_CR2);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_CR);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_DT);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_SEG);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_NP);
+
+	flush_by_asid();
+	return (err);
+}
+
+static int
+svm_restore_vmi(void *arg, void *buffer, size_t size)
+{
+	struct svm_softc *from_sc = (struct svm_softc *)buffer;
+	struct svm_softc *sc = (struct svm_softc *)arg;
+	int i;
+
+	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
+	KASSERT(buffer != NULL, ("%s: buffer was NULL", __func__));
+
+	printf("%s: Restore vmi\r\n", __func__);
+	sc->nptp = from_sc->nptp;
+
+//	memcpy(sc->iopm_bitmap, from_sc->iopm_bitmap, SVM_IO_BITMAP_SIZE);
+
+//	memcpy(sc->msr_bitmap, from_sc->msr_bitmap, SVM_MSR_BITMAP_SIZE);
+
+	for (i = 0; i < VM_MAXCPU; i++) {
+		/* Restore apic pages */
+		memcpy(sc->apic_page[i], from_sc->apic_page[i], PAGE_SIZE);
+
+		/* Restore VMCB fields for virtual cpu i */
+		sc->vcpu[i].vmcb.ctrl.v_tpr = from_sc->vcpu[i].vmcb.ctrl.v_tpr;
+		sc->vcpu[i].vmcb.ctrl.v_irq = from_sc->vcpu[i].vmcb.ctrl.v_irq;
+
+//		sc->vcpu[i].vmcb.ctrl.iopm_base_pa = from_sc->vcpu[i].vmcb.ctrl.iopm_base_pa;
+//		sc->vcpu[i].vmcb.ctrl.msrpm_base_pa = from_sc->vcpu[i].vmcb.ctrl.msrpm_base_pa;
+
+		sc->vcpu[i].vmcb.ctrl.asid = from_sc->vcpu[i].vmcb.ctrl.asid;
+
+		sc->vcpu[i].vmcb.ctrl.np_enable = from_sc->vcpu[i].vmcb.ctrl.np_enable;
+
+		sc->vcpu[i].vmcb.ctrl.intr_shadow = from_sc->vcpu[i].vmcb.ctrl.intr_shadow;
+
+		sc->vcpu[i].vmcb.ctrl.tlb_ctrl = from_sc->vcpu[i].vmcb.ctrl.tlb_ctrl;
+
+		sc->vcpu[i].vmcb.state = from_sc->vcpu[i].vmcb.state;
+
+		/* Restore swctx for virtual cpu i*/
+		sc->vcpu[i].swctx = from_sc->vcpu[i].swctx;
+
+		/* Restore other svm_vcpu struct fields */
+
+		/* Restore NEXTRIP field */
+		sc->vcpu[i].nextrip = from_sc->vcpu[i].nextrip;
+
+		/* Restore lastcpu field */
+		sc->vcpu[i].lastcpu = from_sc->vcpu[i].lastcpu;
+
+		sc->vcpu[i].dirty = from_sc->vcpu[i].dirty;
+
+		/* Restore EPTGEN field - EPT is Extended Page Tabel */
+		sc->vcpu[i].eptgen = from_sc->vcpu[i].eptgen;
+
+		sc->vcpu[i].asid = from_sc->vcpu[i].asid;
+
+		/* Set all caches dirty */
+		svm_set_dirty(sc, i, VMCB_CACHE_ASID);
+		svm_set_dirty(sc, i, VMCB_CACHE_IOPM);
+		svm_set_dirty(sc, i, VMCB_CACHE_I);
+		svm_set_dirty(sc, i, VMCB_CACHE_TPR);
+		svm_set_dirty(sc, i, VMCB_CACHE_CR2);
+		svm_set_dirty(sc, i, VMCB_CACHE_CR);
+		svm_set_dirty(sc, i, VMCB_CACHE_DT);
+		svm_set_dirty(sc, i, VMCB_CACHE_SEG);
+		svm_set_dirty(sc, i, VMCB_CACHE_NP);
+	}
+
+	flush_by_asid();
+
+	return (0);
+}
+
 struct vmm_ops vmm_ops_amd = {
 	svm_init,
 	svm_cleanup,
@@ -2296,5 +2657,9 @@ struct vmm_ops vmm_ops_amd = {
 	svm_npt_alloc,
 	svm_npt_free,
 	svm_vlapic_init,
-	svm_vlapic_cleanup	
+	svm_vlapic_cleanup,
+	svm_snapshot_vmi,
+	svm_restore_vmi,
+	svm_snapshot_vmcx,
+	svm_restore_vmcx
 };
