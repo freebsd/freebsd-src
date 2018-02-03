@@ -191,4 +191,10 @@
 #define	ARCHIVE_ERRNO_MISC (-1)
 #endif
 
+#if defined(__GNUC__) && (__GNUC__ >= 7)
+#define	__LA_FALLTHROUGH	__attribute__((fallthrough))
+#else
+#define	__LA_FALLTHROUGH
+#endif
+
 #endif /* !ARCHIVE_PLATFORM_H_INCLUDED */

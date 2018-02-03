@@ -38,6 +38,7 @@ TESTS_SRCS=	\
 	test_expand_xz.c			\
 	test_expand_zstd.c			\
 	test_help.c				\
+	test_stdin.c				\
 	test_version.c
 
 SRCS.bsdcat_test= list.h			\
