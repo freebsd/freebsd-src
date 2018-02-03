@@ -127,7 +127,10 @@ __elfN(load_elf_header)(char *filename, elf_file_t ef)
 		goto error;
 	}
 
+#ifdef __powerpc__
 	/*
+	 * XXX: should be in a separate helper.
+	 *
 	 * Fixup ELF endianness.
 	 *
 	 * The Xhdr structure was loaded using block read call to
@@ -179,6 +182,7 @@ __elfN(load_elf_header)(char *filename, elf_file_t ef)
 		ehdr->e_shnum = le16toh(ehdr->e_shnum);
 		ehdr->e_shstrndx = le16toh(ehdr->e_shstrndx);
 	}
+#endif
 
 	if (ehdr->e_version != EV_CURRENT || ehdr->e_machine != ELF_TARG_MACH) { /* Machine ? */
 		err = EFTYPE;
@@ -375,15 +379,6 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
     u_int	fpcopy;
     Elf_Sym	sym;
     Elf_Addr	p_start, p_end;
-#if __ELF_WORD_SIZE == 64
-    uint64_t scr_ssym;
-    uint64_t scr_esym;
-    uint64_t scr;
-#else
-    uint32_t scr_ssym;
-    uint32_t scr_esym;
-    uint32_t scr;
-#endif
 
     dp = NULL;
     shdr = NULL;
@@ -458,7 +453,10 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
     phdr = (Elf_Phdr *)(ef->firstpage + ehdr->e_phoff);
 
     for (i = 0; i < ehdr->e_phnum; i++) {
+#ifdef __powerpc__
 	/*
+	 * XXX: should be in a seprate helper.
+	 *
 	 * Fixup ELF endianness.
 	 *
 	 * The Xhdr structure was loaded using block read call to
@@ -505,6 +503,7 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 			phdr[i].p_align = le32toh(phdr[i].p_align);
 		}
 	}
+#endif
 
 	/* We want to load PT_LOAD segments only.. */
 	if (phdr[i].p_type != PT_LOAD)
@@ -581,7 +580,10 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	goto nosyms;
     }
 
+#ifdef __powerpc__
     /*
+     * XXX: should be in a seprate helper.
+     *
      * Fixup ELF endianness.
      *
      * The Xhdr structure was loaded using block read call to
@@ -634,6 +636,8 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 		}
 	}
     }
+#endif
+
     file_addmetadata(fp, MODINFOMD_SHDR, chunk, shdr);
 
     /*
@@ -712,15 +716,14 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	size = shdr[i].sh_size;
 #if defined(__powerpc__)
   #if __ELF_WORD_SIZE == 64
-	scr = htobe64(size);
+	size = htobe64(size);
   #else
-	scr = htobe32(size);
+	size = htobe32(size);
   #endif
-#else
-	scr = size;
 #endif
-	archsw.arch_copyin(&scr, lastaddr, sizeof(scr));
-	lastaddr += sizeof(scr);
+
+	archsw.arch_copyin(&size, lastaddr, sizeof(size));
+	lastaddr += sizeof(size);
 
 #ifdef ELF_VERBOSE
 	printf("\n%s: 0x%jx@0x%jx -> 0x%jx-0x%jx", secname,
@@ -762,19 +765,16 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 #if defined(__powerpc__)
   /* On PowerPC we always need to provide BE data to the kernel */
   #if __ELF_WORD_SIZE == 64
-    scr_ssym = htobe64((uint64_t)ssym);
-    scr_esym = htobe64((uint64_t)esym);
+    ssym = htobe64((uint64_t)ssym);
+    esym = htobe64((uint64_t)esym);
   #else
-    scr_ssym = htobe32((uint32_t)ssym);
-    scr_esym = htobe32((uint32_t)esym);
+    ssym = htobe32((uint32_t)ssym);
+    esym = htobe32((uint32_t)esym);
   #endif
-#else
-    scr_ssym = ssym;
-    scr_esym = esym;
 #endif
 
-    file_addmetadata(fp, MODINFOMD_SSYM, sizeof(scr_ssym), &scr_ssym);
-    file_addmetadata(fp, MODINFOMD_ESYM, sizeof(scr_esym), &scr_esym);
+    file_addmetadata(fp, MODINFOMD_SSYM, sizeof(ssym), &ssym);
+    file_addmetadata(fp, MODINFOMD_ESYM, sizeof(esym), &esym);
 
 nosyms:
     printf("\n");
