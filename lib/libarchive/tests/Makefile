@@ -372,6 +372,7 @@ ${PACKAGE}FILES+=	test_compat_zip_4.zip.uu
 ${PACKAGE}FILES+=	test_compat_zip_5.zip.uu
 ${PACKAGE}FILES+=	test_compat_zip_6.zip.uu
 ${PACKAGE}FILES+=	test_compat_zip_7.xps.uu
+${PACKAGE}FILES+=	test_compat_zip_8.zip.uu
 ${PACKAGE}FILES+=	test_compat_zstd_1.tar.zst.uu
 ${PACKAGE}FILES+=	test_fuzz.cab.uu
 ${PACKAGE}FILES+=	test_fuzz.lzh.uu

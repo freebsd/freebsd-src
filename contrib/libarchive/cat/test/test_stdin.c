@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2003-2017 Tim Kientzle
+/*-
+ * Copyright (c) 2017 Sean Purcell
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,21 +22,21 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "test.h"
 
-/* Every test program should #include "test.h" as the first thing. */
-
-#define KNOWNREF	"test_compat_gtar_1.tar.uu"
-#define	ENVBASE "LIBARCHIVE" /* Prefix for environment variables. */
-#undef	PROGRAM              /* Testing a library, not a program. */
-#define	LIBRARY	"libarchive"
-#define	EXTRA_DUMP(x)	archive_error_string((struct archive *)(x))
-#define	EXTRA_ERRNO(x)	archive_errno((struct archive *)(x))
-#define	EXTRA_VERSION	archive_version_details()
-
-#if defined(__GNUC__) && (__GNUC__ >= 7)
-#define	__LA_FALLTHROUGH	__attribute__((fallthrough))
+#if !defined(_WIN32) || defined(__CYGWIN__)
+#define DEV_NULL "/dev/null"
 #else
-#define	__LA_FALLTHROUGH
+#define DEV_NULL "NUL"
 #endif
 
-#include "test_common.h"
+DEFINE_TEST(test_stdin)
+{
+	int f;
+
+	f = systemf("%s <%s >test.out 2>test.err", testprog, DEV_NULL);
+	assertEqualInt(0, f);
+	assertEmptyFile("test.out");
+	assertEmptyFile("test.err");
+}
+
