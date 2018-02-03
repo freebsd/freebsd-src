@@ -87,7 +87,6 @@ __elfN(ofw_exec)(struct preloaded_file *fp)
 	printf("Kernel entry at 0x%lx ...\n", e->e_entry);
 
 	dev_cleanup();
-	ofw_release_heap();
 	if (dtbp != 0) {
 		OF_quiesce();
 		((int (*)(u_long, u_long, u_long, void *, u_long))entry)(dtbp, 0, 0,

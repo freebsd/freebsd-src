@@ -90,7 +90,6 @@ ppc64_ofw_elf_exec(struct preloaded_file *fp)
 	printf("Kernel entry at 0x%lx ...\n", entry);
 
 	dev_cleanup();
-	ofw_release_heap();
 
 	if (dtbp != 0) {
 		OF_quiesce();

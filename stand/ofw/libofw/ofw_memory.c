@@ -35,9 +35,6 @@ __FBSDID("$FreeBSD$");
 #include "libofw.h"
 #include "openfirm.h"
 
-static void		*heap_base = NULL;
-static unsigned int	heap_size = 0;
-
 struct ofw_mapping {
         vm_offset_t     va;
         int             len;
@@ -115,32 +112,3 @@ ofw_memmap(int acells)
 	pager_close();
 }
 
-void *
-ofw_alloc_heap(unsigned int size)
-{
-	phandle_t	memoryp, root;
-	cell_t		available[4];
-	cell_t		acells;
-
-	root = OF_finddevice("/");
-	acells = 1;
-	OF_getprop(root, "#address-cells", &acells, sizeof(acells));
-
-	memoryp = OF_instance_to_package(memory);
-	OF_getprop(memoryp, "available", available, sizeof(available));
-
-	heap_base = OF_claim((void *)available[acells-1], size,
-	    sizeof(register_t));
-
-	if (heap_base != (void *)-1) {
-		heap_size = size;
-	}
-
-	return (heap_base);
-}
-
-void
-ofw_release_heap(void)
-{
-	OF_release(heap_base, heap_size);
-}
