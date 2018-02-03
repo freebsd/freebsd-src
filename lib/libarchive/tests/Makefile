@@ -375,6 +375,7 @@ FILES+=	test_compat_zip_4.zip.uu
 FILES+=	test_compat_zip_5.zip.uu
 FILES+=	test_compat_zip_6.zip.uu
 FILES+=	test_compat_zip_7.xps.uu
+FILES+=	test_compat_zip_8.zip.uu
 FILES+=	test_compat_zstd_1.tar.zst.uu
 FILES+=	test_fuzz.cab.uu
 FILES+=	test_fuzz.lzh.uu
