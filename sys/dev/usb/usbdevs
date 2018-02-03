@@ -4238,6 +4238,7 @@ product SILABS	AC_SERV_CAN	0x8664	AC-Services CAN Interface
 product SILABS	AC_SERV_OBD	0x8665	AC-Services OBD Interface
 product SILABS	MMB_ZIGBEE	0x88a4	MMB Networks ZigBee
 product SILABS	INGENI_ZIGBEE	0x88a5	Planet Innovation Ingeni ZigBee
+product SILABS	HUBZ		0x8a2a	HubZ dual ZigBee and Z-Wave
 product SILABS	CP2102		0xea60	SILABS USB UART
 product SILABS	CP210X_2	0xea61	CP210x Serial
 product SILABS	CP210X_3	0xea70	CP210x Serial
