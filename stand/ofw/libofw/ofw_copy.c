@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #define	READIN_BUF	(4 * 1024)
 #define	PAGE_SIZE	0x1000
 #define	PAGE_MASK	0x0fff
-#define MAPMEM_PAGE_INC 16
+#define	MAPMEM_PAGE_INC 128 /* Half-MB at a time */
 
 
 #define	roundup(x, y)	((((x)+((y)-1))/(y))*(y))
