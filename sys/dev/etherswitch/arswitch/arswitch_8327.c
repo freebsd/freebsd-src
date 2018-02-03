@@ -1100,16 +1100,78 @@ ar8327_atu_flush_port(struct arswitch_softc *sc, int port)
 	return (ret);
 }
 
+/*
+ * Fetch a single entry from the ATU.
+ */
 static int
 ar8327_atu_fetch_table(struct arswitch_softc *sc, etherswitch_atu_entry_t *e,
     int atu_fetch_op)
 {
+	uint32_t ret0, ret1, ret2, val;
 
-	/* XXX TODO */
-	return (ENXIO);
+	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
+
+	switch (atu_fetch_op) {
+	case 0:
+		/* Initialise things for the first fetch */
+
+		DPRINTF(sc, ARSWITCH_DBG_ATU, "%s: initializing\n", __func__);
+		(void) ar8327_atu_wait_ready(sc);
+
+		arswitch_writereg(sc->sc_dev,
+		    AR8327_REG_ATU_FUNC, AR8327_ATU_FUNC_OP_GET_NEXT);
+		arswitch_writereg(sc->sc_dev, AR8327_REG_ATU_DATA0, 0);
+		arswitch_writereg(sc->sc_dev, AR8327_REG_ATU_DATA1, 0);
+		arswitch_writereg(sc->sc_dev, AR8327_REG_ATU_DATA2, 0);
+
+		return (0);
+	case 1:
+		DPRINTF(sc, ARSWITCH_DBG_ATU, "%s: reading next\n", __func__);
+		/*
+		 * Attempt to read the next address entry; don't modify what
+		 * is there in these registers as its used for the next fetch
+		 */
+		(void) ar8327_atu_wait_ready(sc);
+
+		/* Begin the next read event; not modifying anything */
+		val = arswitch_readreg(sc->sc_dev, AR8327_REG_ATU_FUNC);
+		val |= AR8327_ATU_FUNC_BUSY;
+		arswitch_writereg(sc->sc_dev, AR8327_REG_ATU_FUNC, val);
+
+		/* Wait for it to complete */
+		(void) ar8327_atu_wait_ready(sc);
+
+		/* Fetch the ethernet address and ATU status */
+		ret0 = arswitch_readreg(sc->sc_dev, AR8327_REG_ATU_DATA0);
+		ret1 = arswitch_readreg(sc->sc_dev, AR8327_REG_ATU_DATA1);
+		ret2 = arswitch_readreg(sc->sc_dev, AR8327_REG_ATU_DATA2);
+
+		/* If the status is zero, then we're done */
+		if (MS(ret2, AR8327_ATU_FUNC_DATA2_STATUS) == 0)
+			return (-1);
+
+		/* MAC address */
+		e->es_macaddr[5] = MS(ret1, AR8327_ATU_DATA1_MAC_ADDR5);
+		e->es_macaddr[4] = MS(ret1, AR8327_ATU_DATA1_MAC_ADDR4);
+		e->es_macaddr[3] = MS(ret0, AR8327_ATU_DATA0_MAC_ADDR3);
+		e->es_macaddr[2] = MS(ret0, AR8327_ATU_DATA0_MAC_ADDR2);
+		e->es_macaddr[1] = MS(ret0, AR8327_ATU_DATA0_MAC_ADDR1);
+		e->es_macaddr[0] = MS(ret0, AR8327_ATU_DATA0_MAC_ADDR0);
+
+		/* Bitmask of ports this entry is for */
+		e->es_portmask = MS(ret1, AR8327_ATU_DATA1_DEST_PORT);
+
+		/* TODO: other flags that are interesting */
+
+		DPRINTF(sc, ARSWITCH_DBG_ATU, "%s: MAC %6D portmask 0x%08x\n",
+		    __func__,
+		    e->es_macaddr, ":", e->es_portmask);
+		return (0);
+	default:
+		return (-1);
+	}
+	return (-1);
 }
-
-
 static int
 ar8327_flush_dot1q_vlan(struct arswitch_softc *sc)
 {
