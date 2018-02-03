@@ -29,8 +29,8 @@
 #
 
 # Media geometry, only relevant if bios doesn't understand LBA.
-[ -z "$NANO_SECTS" ] || NANO_SECTS=63
-[ -z "$NANO_HEADS" ] || NANO_HEADS=16
+[ -n "$NANO_SECTS" ] || NANO_SECTS=63
+[ -n "$NANO_HEADS" ] || NANO_HEADS=16
 
 # Functions and variable definitions used by the legacy nanobsd
 # image building system.
