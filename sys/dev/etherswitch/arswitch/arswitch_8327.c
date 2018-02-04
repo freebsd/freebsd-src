@@ -1151,12 +1151,12 @@ ar8327_atu_fetch_table(struct arswitch_softc *sc, etherswitch_atu_entry_t *e,
 			return (-1);
 
 		/* MAC address */
-		e->es_macaddr[5] = MS(ret1, AR8327_ATU_DATA1_MAC_ADDR5);
-		e->es_macaddr[4] = MS(ret1, AR8327_ATU_DATA1_MAC_ADDR4);
-		e->es_macaddr[3] = MS(ret0, AR8327_ATU_DATA0_MAC_ADDR3);
-		e->es_macaddr[2] = MS(ret0, AR8327_ATU_DATA0_MAC_ADDR2);
-		e->es_macaddr[1] = MS(ret0, AR8327_ATU_DATA0_MAC_ADDR1);
-		e->es_macaddr[0] = MS(ret0, AR8327_ATU_DATA0_MAC_ADDR0);
+		e->es_macaddr[5] = MS(ret0, AR8327_ATU_DATA0_MAC_ADDR3);
+		e->es_macaddr[4] = MS(ret0, AR8327_ATU_DATA0_MAC_ADDR2);
+		e->es_macaddr[3] = MS(ret0, AR8327_ATU_DATA0_MAC_ADDR1);
+		e->es_macaddr[2] = MS(ret0, AR8327_ATU_DATA0_MAC_ADDR0);
+		e->es_macaddr[0] = MS(ret1, AR8327_ATU_DATA1_MAC_ADDR5);
+		e->es_macaddr[1] = MS(ret1, AR8327_ATU_DATA1_MAC_ADDR4);
 
 		/* Bitmask of ports this entry is for */
 		e->es_portmask = MS(ret1, AR8327_ATU_DATA1_DEST_PORT);
