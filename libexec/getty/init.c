@@ -52,31 +52,33 @@ static char nullstr[] = "";
 static char loginprg[] = _PATH_LOGIN;
 static char datefmt[] = "%+";
 
+#define M(a) (&omode.c_cc[a])
+
 struct	gettystrs gettystrs[] = {
 	{ "nx" },			/* next table */
 	{ "cl" },			/* screen clear characters */
 	{ "im" },			/* initial message */
 	{ "lm", loginmsg },		/* login message */
-	{ "er", &omode.c_cc[VERASE] },	/* erase character */
-	{ "kl", &omode.c_cc[VKILL] },	/* kill character */
-	{ "et", &omode.c_cc[VEOF] },	/* eof chatacter (eot) */
+	{ "er", M(VERASE) },		/* erase character */
+	{ "kl", M(VKILL) },		/* kill character */
+	{ "et", M(VEOF) },		/* eof chatacter (eot) */
 	{ "pc", nullstr },		/* pad character */
 	{ "tt" },			/* terminal type */
 	{ "ev" },			/* environment */
 	{ "lo", loginprg },		/* login program */
 	{ "hn", hostname },		/* host name */
 	{ "he" },			/* host name edit */
-	{ "in", &omode.c_cc[VINTR] },	/* interrupt char */
-	{ "qu", &omode.c_cc[VQUIT] },	/* quit char */
-	{ "xn", &omode.c_cc[VSTART] },	/* XON (start) char */
-	{ "xf", &omode.c_cc[VSTOP] },	/* XOFF (stop) char */
-	{ "bk", &omode.c_cc[VEOL] },	/* brk char (alt \n) */
-	{ "su", &omode.c_cc[VSUSP] },	/* suspend char */
-	{ "ds", &omode.c_cc[VDSUSP] },	/* delayed suspend */
-	{ "rp", &omode.c_cc[VREPRINT] },/* reprint char */
-	{ "fl", &omode.c_cc[VDISCARD] },/* flush output */
-	{ "we", &omode.c_cc[VWERASE] },	/* word erase */
-	{ "ln", &omode.c_cc[VLNEXT] },	/* literal next */
+	{ "in", M(VINTR) },		/* interrupt char */
+	{ "qu", M(VQUIT) },		/* quit char */
+	{ "xn", M(VSTART) },		/* XON (start) char */
+	{ "xf", M(VSTOP) },		/* XOFF (stop) char */
+	{ "bk", M(VEOL) },		/* brk char (alt \n) */
+	{ "su", M(VSUSP) },		/* suspend char */
+	{ "ds", M(VDSUSP) },		/* delayed suspend */
+	{ "rp", M(VREPRINT) },		/* reprint char */
+	{ "fl", M(VDISCARD) },		/* flush output */
+	{ "we", M(VWERASE) },		/* word erase */
+	{ "ln", M(VLNEXT) },		/* literal next */
 	{ "Lo" },			/* locale for strftime() */
 	{ "pp" },			/* ppp login program */
 	{ "if" },			/* sysv-like 'issue' filename */
