@@ -1922,6 +1922,7 @@ static void
 vm_pageout_init_domain(int domain)
 {
 	struct vm_domain *vmd;
+	int lim, i, j;
 
 	vmd = VM_DOMAIN(domain);
 	vmd->vmd_interrupt_free_min = 2;
@@ -1960,6 +1961,22 @@ vm_pageout_init_domain(int domain)
 	 */
 	vmd->vmd_background_launder_target = (vmd->vmd_free_target -
 	    vmd->vmd_free_min) / 10;
+
+	/*
+	 * Set batch queue limits for paging queues.
+	 *
+	 * We want these to be small relative to the amount of system memory.
+	 * Roughly v_page_count / PA_LOCK_COUNT pages are mapped to a given
+	 * batch queue; ensure that no more than 0.1% of them may be queued in
+	 * the batch queue for a particular page queue.  Then no more than
+	 * 0.1% * PQ_COUNT can be queued across all page queues.  This gives a
+	 * per-page queue batch limit of 1 page per GB of memory on amd64.
+	 */
+
+	lim = MAX(vmd->vmd_page_count / 1000 / BPQ_COUNT, 8);
+	for (i = 0; i < PQ_COUNT; i++)
+		for (j = 0; j < BPQ_COUNT; j++)
+			vmd->vmd_pagequeues[i].pq_bpqs[j].bpq_lim = lim;
 }
 
 static void

@@ -66,11 +66,23 @@
 #define	_VM_PAGEQUEUE_
 
 #ifdef _KERNEL
+
+#define	BPQ_COUNT	PA_LOCK_COUNT
+#define	BPQ_IDX(m)	(pa_index(VM_PAGE_TO_PHYS(m)) % BPQ_COUNT)
+
+struct vm_batchqueue {
+	struct pglist	bpq_pl;
+	int		bpq_cnt;
+	int		bpq_lim;
+} __aligned(CACHE_LINE_SIZE);
+
 struct vm_pagequeue {
 	struct mtx	pq_mutex;
 	struct pglist	pq_pl;
 	int		pq_cnt;
 	const char	* const pq_name;
+	char            _pq_pad[0] __aligned(CACHE_LINE_SIZE);
+	struct vm_batchqueue pq_bpqs[BPQ_COUNT];
 } __aligned(CACHE_LINE_SIZE);
 
 #include <vm/uma.h>
