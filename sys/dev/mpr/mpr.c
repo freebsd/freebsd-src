@@ -2763,7 +2763,7 @@ mpr_build_nvme_prp(struct mpr_softc *sc, struct mpr_command *cm,
 	prp_entry_phys = prp_page_phys;
 
 	/* Get physical address and length of the data buffer. */
-	paddr = (bus_addr_t)data;
+	paddr = (bus_addr_t)(uintptr_t)data;
 	if (data_in_sz)
 		length = data_in_sz;
 	else
@@ -2947,7 +2947,7 @@ mpr_check_pcie_native_sgl(struct mpr_softc *sc, struct mpr_command *cm,
 		else if ((buff_len > (PAGE_SIZE * 4)) &&
 		    (buff_len <= (PAGE_SIZE * 5)) )
 		{
-			msg_phys = (uint64_t *)segs[0].ds_addr;
+			msg_phys = (uint64_t *)(uintptr_t)segs[0].ds_addr;
 			first_page_offset =
 			    ((uint32_t)(uint64_t)(uintptr_t)msg_phys &
 			    page_mask);
