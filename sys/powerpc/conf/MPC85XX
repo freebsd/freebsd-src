@@ -95,6 +95,7 @@ device		random
 #device		rl
 device		scbus
 device		scc
+device  	sdhci
 device		sec
 device  	spibus
 device  	spigen
