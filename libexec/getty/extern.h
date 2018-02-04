@@ -35,6 +35,8 @@
 struct delayval;
 struct termios;
 
+extern	char **environ;
+extern	char editedhost[];
 extern	char hostname[];
 extern	struct termios tmode, omode;
 extern	struct gettyflags gettyflags[];
