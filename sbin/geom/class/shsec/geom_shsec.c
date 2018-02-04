@@ -112,6 +112,7 @@ shsec_label(struct gctl_req *req)
 	const char *name;
 	int error, i, nargs, hardcode;
 
+	bzero(sector, sizeof(sector));
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs <= 2) {
 		gctl_error(req, "Too few arguments.");

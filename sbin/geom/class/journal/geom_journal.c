@@ -144,6 +144,7 @@ journal_label(struct gctl_req *req)
 	intmax_t jsize, msize, ssize;
 	int error, force, i, nargs, checksum, hardcode;
 
+	bzero(sector, sizeof(sector));
 	nargs = gctl_get_int(req, "nargs");
 	str = NULL;	/* gcc */
 
