@@ -588,7 +588,7 @@ makeenv(char *env[])
  * baud rate. This string indicates the user's actual speed.
  * The routine below returns the terminal type mapped from derived speed.
  */
-struct	portselect {
+static struct	portselect {
 	const char	*ps_baud;
 	const char	*ps_type;
 } portspeeds[] = {
