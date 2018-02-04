@@ -273,6 +273,13 @@ out:
 	return (error);
 }
 
+/* 
+ * Actually write the GEOM label to the provider
+ *
+ * @param name	GEOM provider's name (ie "ada0")
+ * @param md	Pointer to the label data to write
+ * @param size	Size of the data pointed to by md
+ */
 int
 g_metadata_store(const char *name, const unsigned char *md, size_t size)
 {
