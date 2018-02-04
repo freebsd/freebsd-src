@@ -146,7 +146,7 @@ static void	putf(const char *);
 static void	putpad(const char *);
 static void	puts(const char *);
 static void	timeoverrun(int);
-static char	*getline(int);
+static char	*get_line(int);
 static void	setttymode(int);
 static int	opentty(const char *, int);
 
@@ -318,7 +318,7 @@ main(int argc, char *argv[])
 			if ((fd = open(IF, O_RDONLY)) != -1) {
 				char * cp;
 
-				while ((cp = getline(fd)) != NULL) {
+				while ((cp = get_line(fd)) != NULL) {
 					  putf(cp);
 				}
 				close(fd);
@@ -707,7 +707,7 @@ prompt(void)
 
 
 static char *
-getline(int fd)
+get_line(int fd)
 {
 	int i = 0;
 	static char linebuf[512];
