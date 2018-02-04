@@ -517,15 +517,26 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	vm_paddr_t msrpm_pa, iopm_pa, pml4_pa;
 	int i;
 
-	svm_sc = contigmalloc(sizeof (*svm_sc), M_SVM, M_WAITOK | M_ZERO,
-	    0, ~(vm_paddr_t)0, PAGE_SIZE, 0);
+	svm_sc = malloc(sizeof (*svm_sc), M_SVM, M_WAITOK | M_ZERO);
+	if (((uintptr_t)svm_sc & PAGE_MASK) != 0)
+		panic("malloc of svm_softc not aligned on page boundary");
+
+	svm_sc->msr_bitmap = contigmalloc(SVM_MSR_BITMAP_SIZE, M_SVM,
+	    M_WAITOK, 0, ~(vm_paddr_t)0, PAGE_SIZE, 0);
+	if (svm_sc->msr_bitmap == NULL)
+		panic("contigmalloc of SVM MSR bitmap failed");
+	svm_sc->iopm_bitmap = contigmalloc(SVM_IO_BITMAP_SIZE, M_SVM,
+	    M_WAITOK, 0, ~(vm_paddr_t)0, PAGE_SIZE, 0);
+	if (svm_sc->iopm_bitmap == NULL)
+		panic("contigmalloc of SVM IO bitmap failed");
+
 	svm_sc->vm = vm;
 	svm_sc->nptp = (vm_offset_t)vtophys(pmap->pm_pml4);
 
 	/*
 	 * Intercept read and write accesses to all MSRs.
 	 */
-	memset(svm_sc->msr_bitmap, 0xFF, sizeof(svm_sc->msr_bitmap));
+	memset(svm_sc->msr_bitmap, 0xFF, SVM_MSR_BITMAP_SIZE);
 
 	/*
 	 * Access to the following MSRs is redirected to the VMCB when the
@@ -553,7 +564,7 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	svm_msr_rd_ok(svm_sc->msr_bitmap, MSR_EFER);
 
 	/* Intercept access to all I/O ports. */
-	memset(svm_sc->iopm_bitmap, 0xFF, sizeof(svm_sc->iopm_bitmap));
+	memset(svm_sc->iopm_bitmap, 0xFF, SVM_IO_BITMAP_SIZE);
 
 	iopm_pa = vtophys(svm_sc->iopm_bitmap);
 	msrpm_pa = vtophys(svm_sc->msr_bitmap);
@@ -2043,7 +2054,9 @@ svm_vmcleanup(void *arg)
 {
 	struct svm_softc *sc = arg;
 
-	contigfree(sc, sizeof (*sc), M_SVM);
+	contigfree(sc->iopm_bitmap, SVM_IO_BITMAP_SIZE, M_SVM);
+	contigfree(sc->msr_bitmap, SVM_MSR_BITMAP_SIZE, M_SVM);
+	free(sc, M_SVM);
 }
 
 static register_t *
