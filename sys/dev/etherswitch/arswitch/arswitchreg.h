@@ -364,7 +364,7 @@
 #define		AR934X_REG_OPER_MODE1_PHY4_MII_EN	(1 << 28)
 
 #define	AR934X_REG_FLOOD_MASK		0x2c
-#define		AR934X_FLOOD_MASK_MC_DP(_p)	(1 << (0 + (_p)))
+#define		AR934X_FLOOD_MASK_UC_DP(_p)	(1 << (0 + (_p)))
 #define		AR934X_FLOOD_MASK_MC_DP(_p)	(1 << (16 + (_p)))
 #define		AR934X_FLOOD_MASK_BC_DP(_p)	(1 << (25 + (_p)))
 
