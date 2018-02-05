@@ -78,9 +78,19 @@ boot_nogeli_mbr_ufs_legacy() {
     doit gpart bootcode -b ${mbr0} ${dev}
     s=$(findpart $dev "freebsd-ufs")
     if [ -z "$s" ] ; then
-	die "No freebsd-zfs slice found"
+	die "No freebsd-ufs slice found"
     fi
     doit gpart bootcode -p ${mbr2} ${dev}s${s}
+    exit 0
+}
+
+boot_nogeli_vtoc8_ufs_ofw() {
+    dev=$1
+    dst=$2
+
+    # For non-native builds, ensure that geom_part(4) supports VTOC8.
+    kldload geom_part_vtoc8.ko
+    doit gpart bootcode -p ${vtoc8} ${dev}
     exit 0
 }
 
@@ -127,6 +137,9 @@ gptzfs2=${DESTDIR}/boot/gptzfsboot
 # For MBR, we have lots of choices, but select boot0
 mbr0=${DESTDIR}/boot/boot0
 mbr2=${DESTDIR}/boot/boot
+
+# VTOC8
+vtoc8=${DESTDIR}/boot/boot1
 
 # sanity check here
 
