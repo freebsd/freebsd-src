@@ -272,9 +272,17 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 			symstrindex = shdr[i].sh_link;
 			break;
 		case SHT_REL:
+			/*
+			 * Ignore relocation tables for sections not
+			 * loaded by the loader.
+			 */
+			if (shdr[shdr[i].sh_info].sh_addr == 0)
+				break;
 			ef->nreltab++;
 			break;
 		case SHT_RELA:
+			if (shdr[shdr[i].sh_info].sh_addr == 0)
+				break;
 			ef->nrelatab++;
 			break;
 		}
@@ -398,12 +406,16 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 			pb++;
 			break;
 		case SHT_REL:
+			if (shdr[shdr[i].sh_info].sh_addr == 0)
+				break;
 			ef->reltab[rl].rel = (Elf_Rel *)shdr[i].sh_addr;
 			ef->reltab[rl].nrel = shdr[i].sh_size / sizeof(Elf_Rel);
 			ef->reltab[rl].sec = shdr[i].sh_info;
 			rl++;
 			break;
 		case SHT_RELA:
+			if (shdr[shdr[i].sh_info].sh_addr == 0)
+				break;
 			ef->relatab[ra].rela = (Elf_Rela *)shdr[i].sh_addr;
 			ef->relatab[ra].nrela =
 			    shdr[i].sh_size / sizeof(Elf_Rela);
@@ -620,9 +632,17 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 			symstrindex = shdr[i].sh_link;
 			break;
 		case SHT_REL:
+			/*
+			 * Ignore relocation tables for unallocated
+			 * sections.
+			 */
+			if ((shdr[shdr[i].sh_info].sh_flags & SHF_ALLOC) == 0)
+				break;
 			ef->nreltab++;
 			break;
 		case SHT_RELA:
+			if ((shdr[shdr[i].sh_info].sh_flags & SHF_ALLOC) == 0)
+				break;
 			ef->nrelatab++;
 			break;
 		case SHT_STRTAB:
@@ -880,6 +900,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 			pb++;
 			break;
 		case SHT_REL:
+			if ((shdr[shdr[i].sh_info].sh_flags & SHF_ALLOC) == 0)
+				break;
 			ef->reltab[rl].rel = malloc(shdr[i].sh_size, M_LINKER,
 			    M_WAITOK);
 			ef->reltab[rl].nrel = shdr[i].sh_size / sizeof(Elf_Rel);
@@ -898,6 +920,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 			rl++;
 			break;
 		case SHT_RELA:
+			if ((shdr[shdr[i].sh_info].sh_flags & SHF_ALLOC) == 0)
+				break;
 			ef->relatab[ra].rela = malloc(shdr[i].sh_size, M_LINKER,
 			    M_WAITOK);
 			ef->relatab[ra].nrela =
