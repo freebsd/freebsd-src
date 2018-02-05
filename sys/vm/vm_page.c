@@ -217,6 +217,12 @@ vm_page_init_cache_zones(void *dummy __unused)
 
 	for (i = 0; i < vm_ndomains; i++) {
 		vmd = VM_DOMAIN(i);
+		/*
+		 * Don't allow the page cache to take up more than .25% of
+		 * memory.
+		 */
+		if (vmd->vmd_page_count / 400 < 256 * mp_ncpus)
+			continue;
 		vmd->vmd_pgcache = uma_zcache_create("vm pgcache",
 		    sizeof(struct vm_page), NULL, NULL, NULL, NULL,
 		    vm_page_import, vm_page_release, vmd,
@@ -2182,28 +2188,25 @@ vm_page_import(void *arg, void **store, int cnt, int domain, int flags)
 {
 	struct vm_domain *vmd;
 	vm_page_t m;
-	int i;
+	int i, j, n;
 
 	vmd = arg;
 	domain = vmd->vmd_domain;
-	cnt = rounddown2(cnt, 8);
+	n = 64;	/* Starting stride. */
 	vm_domain_free_lock(vmd);
-	for (i = 0; i < cnt; i+=8) {
-		m = vm_phys_alloc_pages(domain, VM_FREELIST_DEFAULT, 3);
-		if (m == NULL)
+	for (i = 0; i < cnt; i+=n) {
+		if (!vm_domain_available(vmd, VM_ALLOC_NORMAL, n))
 			break;
-		store[i] = m;
+		n = vm_phys_alloc_npages(domain, VM_FREELIST_DEFAULT, &m,
+		    MIN(n, cnt-i));
+		if (n == 0)
+			break;
+		for (j = 0; j < n; j++)
+			store[i+j] = m++;
 	}
 	if (i != 0)
 		vm_domain_freecnt_adj(vmd, -i);
 	vm_domain_free_unlock(vmd);
-	cnt = i;
-	for (i = 0; i < cnt; i++) {
-		if ((i % 8) == 0)
-			m = store[i];
-		else
-			store[i] = ++m;
-	}
 
 	return (i);
 }
