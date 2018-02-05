@@ -120,6 +120,11 @@ ar9340_hw_global_setup(struct arswitch_softc *sc)
 	arswitch_modifyreg(sc->sc_dev, AR934X_REG_FLOOD_MASK,
 	    AR934X_FLOOD_MASK_MC_DP(0),
 	    AR934X_FLOOD_MASK_MC_DP(0));
+#if 0
+	arswitch_modifyreg(sc->sc_dev, AR934X_REG_FLOOD_MASK,
+	    AR934X_FLOOD_MASK_UC_DP(0),
+	    AR934X_FLOOD_MASK_UC_DP(0));
+#endif
 
 	/* Enable MIB counters */
 	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_MIB_FUNC0,
@@ -183,16 +188,6 @@ ar9340_hw_global_setup(struct arswitch_softc *sc)
 	return (0);
 }
 
-static int
-ar9340_atu_fetch_table(struct arswitch_softc *sc, etherswitch_atu_entry_t *e,
-    int atu_fetch_op)
-{
-
-	/* XXX TODO */
-	return (ENXIO);
-}
-
-
 /*
  * The AR9340 switch probes (almost) the same as the AR7240 on-chip switch.
  *
@@ -223,7 +218,12 @@ ar9340_attach(struct arswitch_softc *sc)
 	sc->hal.arswitch_hw_setup = ar9340_hw_setup;
 	sc->hal.arswitch_hw_global_setup = ar9340_hw_global_setup;
 	sc->hal.arswitch_atu_learn_default = ar9340_atu_learn_default;
-	sc->hal.arswitch_atu_fetch_table = ar9340_atu_fetch_table;
+	/*
+	 * Note: the ar9340 table fetch code/registers matche
+	 * the ar8216/ar8316 for now because we're not supporting
+	 * static entry programming that includes any of the extra
+	 * bits in the AR9340.
+	 */
 
 	/* Set the switch vlan capabilities. */
 	sc->info.es_vlan_caps = ETHERSWITCH_VLAN_DOT1Q |
