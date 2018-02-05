@@ -290,8 +290,7 @@ ext2_check_sb_compat(struct ext2fs *es, struct cdev *dev, int ronly)
 		return (1);
 	}
 	if (es->e2fs_rev > E2FS_REV0) {
-		mask = es->e2fs_features_incompat & ~(EXT2F_INCOMPAT_SUPP |
-		    EXT4F_RO_INCOMPAT_SUPP);
+		mask = es->e2fs_features_incompat & ~(EXT2F_INCOMPAT_SUPP);
 		if (mask) {
 			printf("WARNING: mount of %s denied due to "
 			    "unsupported optional features:\n", devtoname(dev));
