@@ -125,7 +125,7 @@ static int	elf_linux_fixup(register_t **stack_base,
 		    struct image_params *iparams);
 static register_t *linux_copyout_strings(struct image_params *imgp);
 static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
-static void	exec_linux_setregs(struct thread *td, 
+static void	exec_linux_setregs(struct thread *td,
 				   struct image_params *imgp, u_long stack);
 static void	linux32_fixlimit(struct rlimit *rl, int which);
 static boolean_t linux32_trans_osrel(const Elf_Note *note, int32_t *osrel);
@@ -298,7 +298,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	int oonstack;
 	int sig;
 	int code;
-	
+
 	sig = ksi->ksi_signo;
 	code = ksi->ksi_code;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -971,10 +971,8 @@ SYSCTL_ULONG(_compat_linux32, OID_AUTO, maxvmem, CTLFLAG_RW,
     &linux32_maxvmem, 0, "");
 
 #if defined(DEBUG)
-SYSCTL_PROC(_compat_linux32, OID_AUTO, debug,
-            CTLTYPE_STRING | CTLFLAG_RW,
-            0, 0, linux_sysctl_debug, "A",
-            "Linux debugging control");
+SYSCTL_PROC(_compat_linux32, OID_AUTO, debug, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
+    linux_sysctl_debug, "A", "Linux debugging control");
 #endif
 
 static void
@@ -1042,14 +1040,14 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= linux_schedtail,
 	.sv_thread_detach = linux_thread_detach,
-	.sv_trap	= NULL,	
+	.sv_trap	= NULL,
 };
 
 static void
 linux_vdso_install(void *param)
 {
 
-	linux_szsigcode = (&_binary_linux32_locore_o_end - 
+	linux_szsigcode = (&_binary_linux32_locore_o_end -
 	    &_binary_linux32_locore_o_start);
 
 	if (linux_szsigcode > elf_linux_sysvec.sv_shared_page_len)

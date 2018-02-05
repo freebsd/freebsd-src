@@ -22,7 +22,7 @@
 ; types:
 ;	STD	always included
 ;	UNIMPL	not implemented, placeholder only
-;	NOPROTO same as STD except do not create structure or
+;	NOPROTO	same as STD except do not create structure or
 ;		function prototype in sys/sysproto.h.  Does add a
 ;		definition to syscall.h besides adding a sysent.
 
@@ -532,9 +532,9 @@
 317	AUE_NULL	STD	{ int linux_move_pages(void); }
 ; linux 2.6.19:
 318	AUE_NULL	STD	{ int linux_getcpu(void); }
-319     AUE_NULL        STD     { int linux_epoll_pwait(l_int epfd, struct epoll_event *events, \
-                                        l_int maxevents, l_int timeout, l_sigset_t *mask, \
-                                        l_size_t sigsetsize); }
+319	AUE_NULL	STD	{ int linux_epoll_pwait(l_int epfd, struct epoll_event *events, \
+				    l_int maxevents, l_int timeout, l_sigset_t *mask, \
+				    l_size_t sigsetsize); }
 ; linux 2.6.22:
 320	AUE_FUTIMESAT	STD	{ int linux_utimensat(l_int dfd, const char *pathname, \
 					const struct l_timespec *times, l_int flags); }

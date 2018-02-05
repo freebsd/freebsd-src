@@ -149,7 +149,7 @@ struct l_shminfo64 {
 	l_ulong		shmmni;
 	l_ulong		shmseg;
 	l_ulong		shmall;
-	l_ulong   	__unused1;
+	l_ulong		__unused1;
 	l_ulong		__unused2;
 	l_ulong		__unused3;
 	l_ulong		__unused4;

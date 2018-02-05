@@ -436,7 +436,7 @@ linux_rt_sigtimedwait(struct thread *td,
 		tv.tv_sec = (long)ltv.tv_sec;
 		tv.tv_usec = (suseconds_t)ltv.tv_usec;
 		if (itimerfix(&tv)) {
-			/* 
+			/*
 			 * The timeout was invalid. Convert it to something
 			 * valid that will act as it does under Linux.
 			 */
@@ -475,7 +475,7 @@ linux_rt_sigtimedwait(struct thread *td,
 		error = copyout(&linfo, args->ptr, sizeof(linfo));
 	}
 	if (error == 0)
-		td->td_retval[0] = sig; 
+		td->td_retval[0] = sig;
 
 	return (error);
 }
