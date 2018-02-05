@@ -1223,6 +1223,8 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 			maxsize = object->un_pager.vnp.vnp_size - poffset;
 			ncount = btoc(maxsize);
 			if ((pgoff = (int)maxsize & PAGE_MASK) != 0) {
+				pgoff = roundup2(pgoff, DEV_BSIZE);
+
 				/*
 				 * If the object is locked and the following
 				 * conditions hold, then the page's dirty
