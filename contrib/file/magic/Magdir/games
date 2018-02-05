@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: games,v 1.14 2014/04/30 21:41:02 christos Exp $
+# $File: games,v 1.15 2017/03/17 21:35:28 christos Exp $
 # games:  file(1) for games
 
 # Fabio Bonelli <fabiobonelli@libero.it>
@@ -39,7 +39,7 @@
 
 #0       string  -1\x0a  Quake I demo
 #>30     string  x        version %.4s
-#>61     string  x        level %s       
+#>61     string  x        level %s
 
 #0       string  5\x0a   Quake I save
 
@@ -240,7 +240,7 @@
 # Summary: NetImmerse game engine file
 # Extension .nif
 # Created by: Abel Cheung <abelcheung@gmail.com>
-0		string		NetImmerse\ File\ Format,\ Versio		
+0		string		NetImmerse\ File\ Format,\ Versio
 >&0		string		n\ 					NetImmerse game engine file
 >>&0		regex		[0-9a-z.]+				\b, version %s
 

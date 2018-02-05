@@ -1,9 +1,9 @@
 
 #------------------------------------------------------------------------------
-# $File: amanda,v 1.5 2009/09/19 16:28:07 christos Exp $
+# $File: amanda,v 1.6 2017/03/17 21:35:28 christos Exp $
 # amanda:  file(1) magic for amanda file format
 #
-0	string	AMANDA:\ 		AMANDA 
+0	string	AMANDA:\ 		AMANDA
 >8	string	TAPESTART\ DATE		tape header file,
 >>23	string	X
 >>>25	string	>\ 			Unused %s

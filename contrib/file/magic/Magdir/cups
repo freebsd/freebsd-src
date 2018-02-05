@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: cups,v 1.4 2016/10/17 18:51:02 christos Exp $
+# $File: cups,v 1.5 2017/03/17 21:35:28 christos Exp $
 # Cups: file(1) magic for the cups raster file format
 # From: Laurent Martelli <martellilaurent@gmail.com>
 # http://www.cups.org/documentation.php/spec-raster.html
@@ -39,7 +39,7 @@
 >404	lelong		20		ColorSpace=AdobeRGB
 
 # Cups Raster image format, Big Endian
-0	string		RaS		
+0	string		RaS
 >3	string		t		Cups Raster version 1, Big Endian
 >3	string		2		Cups Raster version 2, Big Endian
 >3	string		3		Cups Raster version 3, Big Endian
@@ -48,7 +48,7 @@
 
 
 # Cups Raster image format, Little Endian
-1	string		SaR		
+1	string		SaR
 >0	string		t		Cups Raster version 1, Little Endian
 >0	string		2		Cups Raster version 2, Little Endian
 >0	string		3		Cups Raster version 3, Little Endian
