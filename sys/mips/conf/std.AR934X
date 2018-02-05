@@ -49,7 +49,7 @@ options 	FFS                     #Berkeley Fast Filesystem
 options 	NO_FFS_SNAPSHOT		# We don't require snapshot support
 
 include 	"std.AR_MIPS_BASE"
-makeoptions 	MODULES_OVERRIDE+="hwpmc_mips24k"
+makeoptions 	MODULES_OVERRIDE+="hwpmc_mips74k"
 
 # EEPROM caldata for AHB connected device
 options 	AR71XX_ATH_EEPROM
