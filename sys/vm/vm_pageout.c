@@ -1092,25 +1092,60 @@ dolaundry:
 	}
 }
 
+struct pgo_pglist {
+	struct pglist	pgl;
+	int		count;
+};
+
+static void
+vm_pageout_pglist_init(struct pgo_pglist *pglist)
+{
+
+	TAILQ_INIT(&pglist->pgl);
+	pglist->count = 0;
+}
+
+static bool
+vm_pageout_pglist_append(struct pgo_pglist *pglist, vm_page_t m)
+{
+	if (vm_page_free_prep(m, false)) {
+		m->flags &= ~PG_ZERO;
+		TAILQ_INSERT_TAIL(&pglist->pgl, m, listq);
+		pglist->count++;
+		return (true);
+	}
+	return (false);
+}
+
+static void
+vm_pageout_pglist_flush(struct pgo_pglist *pglist, bool force)
+{
+	if (pglist->count > 64 || (force && pglist->count != 0)) {
+		vm_page_free_phys_pglist(&pglist->pgl);
+		vm_pageout_pglist_init(pglist);
+	}
+}
+
+
 static int
-vm_pageout_free_pages(vm_object_t object, vm_page_t m)
+vm_pageout_free_pages(struct pgo_pglist *pglist, vm_object_t object,
+    vm_page_t m)
 {
 	vm_page_t p, pp;
 	struct mtx *mtx;
-	struct pglist pgl;
 	vm_pindex_t start;
 	int pcount, count;
 
 	pcount = MAX(object->iosize / PAGE_SIZE, 1);
+	count = 0;
 	if (pcount == 1) {
-		vm_page_free(m);
+		if (vm_pageout_pglist_append(pglist, m))
+			count = 1;
 		vm_page_unlock(m);
+		vm_pageout_pglist_flush(pglist, vm_object_reserv(object));
 		VM_OBJECT_WUNLOCK(object);
-		count = 1;
 		goto out;
 	}
-	TAILQ_INIT(&pgl);
-	count = 0;
 
 	/* Find the first page in the block. */
 	start = m->pindex - (m->pindex % pcount);
@@ -1118,51 +1153,44 @@ vm_pageout_free_pages(vm_object_t object, vm_page_t m)
 	    p = pp);
 
 	/* Free the original page so we don't validate it twice. */
+	mtx = vm_page_lockptr(m);
 	if (p == m)
 		p = vm_page_next(m);
-	if (vm_page_free_prep(m, false)) {
-		m->flags &= ~PG_ZERO;
-		TAILQ_INSERT_TAIL(&pgl, m, listq);
+	if (vm_pageout_pglist_append(pglist, m))
 		count++;
-	}
-
 	/* Iterate through the block range and free compatible pages. */
-	mtx = vm_page_lockptr(m);
-	for ( ; p != NULL && p->pindex < start + pcount; p = pp) {
-		pp = TAILQ_NEXT(p, listq);
-		if (mtx != vm_page_lockptr(p)) {
+	for (m = p; m != NULL && m->pindex < start + pcount; m = p) {
+		p = TAILQ_NEXT(m, listq);
+		if (mtx != vm_page_lockptr(m)) {
 			mtx_unlock(mtx);
-			mtx = vm_page_lockptr(p);
+			mtx = vm_page_lockptr(m);
 			mtx_lock(mtx);
 		}
-		if (p->hold_count || vm_page_busied(p) ||
-		    p->queue != PQ_INACTIVE)
+		if (m->hold_count || vm_page_busied(m) ||
+		    m->queue != PQ_INACTIVE)
 			continue;
-		if (p->valid == 0)
+		if (m->valid == 0)
 			goto free_page;
-		if ((p->aflags & PGA_REFERENCED) != 0)
+		if ((m->aflags & PGA_REFERENCED) != 0)
 			continue;
 		if (object->ref_count != 0) {
-			if (pmap_ts_referenced(p)) {
-				vm_page_aflag_set(p, PGA_REFERENCED);
+			if (pmap_ts_referenced(m)) {
+				vm_page_aflag_set(m, PGA_REFERENCED);
 				continue;
 			}
-			vm_page_test_dirty(p);
-			if (p->dirty == 0)
-				pmap_remove_all(p);
+			vm_page_test_dirty(m);
+			if (m->dirty == 0)
+				pmap_remove_all(m);
 		}
-		if (p->dirty)
+		if (m->dirty)
 			continue;
 free_page:
-		if (vm_page_free_prep(p, false)) {
-			p->flags &= ~PG_ZERO;
-			TAILQ_INSERT_TAIL(&pgl, p, listq);
+		if (vm_pageout_pglist_append(pglist, m))
 			count++;
-		}
 	}
 	mtx_unlock(mtx);
+	vm_pageout_pglist_flush(pglist, vm_object_reserv(object));
 	VM_OBJECT_WUNLOCK(object);
-	vm_page_free_phys_pglist(&pgl);
 out:
 	VM_CNT_ADD(v_dfree, count);
 
@@ -1181,6 +1209,7 @@ out:
 static bool
 vm_pageout_scan(struct vm_domain *vmd, int pass)
 {
+	struct pgo_pglist pglist;
 	vm_page_t m, next;
 	struct vm_pagequeue *pq;
 	vm_object_t object;
@@ -1236,6 +1265,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	 */
 	pq = &vmd->vmd_pagequeues[PQ_INACTIVE];
 	maxscan = pq->pq_cnt;
+	vm_pageout_pglist_init(&pglist);
 	vm_pagequeue_lock(pq);
 	queue_locked = TRUE;
 	for (m = TAILQ_FIRST(&pq->pq_pl);
@@ -1387,7 +1417,8 @@ unlock_page:
 		 */
 		if (m->dirty == 0) {
 free_page:
-			page_shortage -= vm_pageout_free_pages(object, m);
+			page_shortage -= vm_pageout_free_pages(&pglist,
+			    object, m);
 			goto lock_queue;
 		} else if ((object->flags & OBJ_DEAD) == 0)
 			vm_page_launder(m);
@@ -1396,6 +1427,7 @@ drop_page:
 		VM_OBJECT_WUNLOCK(object);
 lock_queue:
 		if (!queue_locked) {
+			vm_pageout_pglist_flush(&pglist, false);
 			vm_pagequeue_lock(pq);
 			queue_locked = TRUE;
 		}
@@ -1403,6 +1435,7 @@ lock_queue:
 		TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_marker, plinks.q);
 	}
 	vm_pagequeue_unlock(pq);
+	vm_pageout_pglist_flush(&pglist, true);
 
 	/*
 	 * Wake up the laundry thread so that it can perform any needed
