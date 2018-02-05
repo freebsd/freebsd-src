@@ -73,7 +73,6 @@ SUBDIR=	\
 	bridgestp \
 	bwi \
 	bwn \
-	bwn_pci \
 	${_bytgpio} \
 	cam \
 	${_cardbus} \
@@ -351,7 +350,6 @@ SUBDIR=	\
 	sge \
 	${_sgx} \
 	${_sgx_linux} \
-	siba_bwn \
 	siftr \
 	siis \
 	sis \
