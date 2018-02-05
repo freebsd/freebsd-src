@@ -1,13 +1,13 @@
 
 #------------------------------------------------------------------------------
-# $File: clipper,v 1.7 2014/04/30 21:41:02 christos Exp $
+# $File: clipper,v 1.8 2017/03/17 21:35:28 christos Exp $
 # clipper:  file(1) magic for Intergraph (formerly Fairchild) Clipper.
 #
 # XXX - what byte order does the Clipper use?
 #
 # XXX - what's the "!" stuff:
 #
-# >18	short		!074000,000000	C1 R1 
+# >18	short		!074000,000000	C1 R1
 # >18	short		!074000,004000	C2 R1
 # >18	short		!074000,010000	C3 R1
 # >18	short		!074000,074000	TEST
@@ -15,7 +15,7 @@
 # I shall assume it's ANDing the field with the first value and
 # comparing it with the second, and rewrite it as:
 #
-# >18	short&074000	000000		C1 R1 
+# >18	short&074000	000000		C1 R1
 # >18	short&074000	004000		C2 R1
 # >18	short&074000	010000		C3 R1
 # >18	short&074000	074000		TEST
@@ -37,7 +37,7 @@
 >12	long		>0		not stripped
 >22	short		>0		- version %d
 0	short		0577		CLIPPER COFF executable
->18	short&074000	000000		C1 R1 
+>18	short&074000	000000		C1 R1
 >18	short&074000	004000		C2 R1
 >18	short&074000	010000		C3 R1
 >18	short&074000	074000		TEST
