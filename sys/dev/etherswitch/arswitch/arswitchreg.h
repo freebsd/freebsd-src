@@ -139,10 +139,10 @@
 #define		AR8216_ATU_PORT_NUM		BITS(8, 4)
 #define		AR8216_ATU_PORT_NUM_S		8
 #define		AR8216_ATU_FULL_VIO		BIT(12)
-#define		AR8216_ATU_ADDR4		BITS(16, 8)
-#define		AR8216_ATU_ADDR4_S		16
-#define		AR8216_ATU_ADDR5		BITS(24, 8)
-#define		AR8216_ATU_ADDR5_S		24
+#define		AR8216_ATU_ADDR5		BITS(16, 8)
+#define		AR8216_ATU_ADDR5_S		16
+#define		AR8216_ATU_ADDR4		BITS(24, 8)
+#define		AR8216_ATU_ADDR4_S		24
 
 #define	AR8216_REG_ATU_DATA		0x0054
 #define		AR8216_ATU_ADDR3		BITS(0, 8)
@@ -157,13 +157,26 @@
 #define	AR8216_REG_ATU_CTRL2		0x0058
 #define		AR8216_ATU_CTRL2_DESPORT	BITS(0, 5)
 #define		AR8216_ATU_CTRL2_DESPORT_S	0
+#define		AR934X_ATU_CROSS_STATE_PORT_EN	BIT(8)
+#define		AR934X_ATU_HASH_HIGH_ADDR	BIT(9)	/* Used for CPU_FUNC (get_next_valid) */
 #define		AR8216_ATU_CTRL2_AT_PRIORITY	BITS(10, 2)
 #define		AR8216_ATU_CTRL2_AT_PRIORITY_EN	BIT(12)
 #define		AR8216_ATU_CTRL2_MIRROR_EN	BIT(13)
 #define		AR8216_ATU_CTRL2_SA_DROP_EN	BIT(14)
+#define		AR934X_ATU_CTRL2_MAC_CLONE	BIT(15)
 #define		AR8216_ATU_CTRL2_AT_STATUS	BITS(16, 4)
 #define		AR8216_ATU_CTRL2_AT_STATUS_S	16
+/*
+ * For at least the AR9340 -
+ * 0: empty
+ * 1-7: dynamic, valid
+ * 15: static, won't be aged
+ */
 #define		AR8216_ATU_CTRL2_VLAN_LEAKY_EN	BIT(24)
+/*
+ * This defines whether this MAC will leak between VLANs;
+ * controlled by ARL_UNI_LEAKY_EN and ARL_MULTI_LEAKY_EN.
+ */
 #define		AR8216_ATU_CTRL2_REDIRECT2CPU	BIT(25)
 #define		AR8216_ATU_CTRL2_COPY2CPU	BIT(26)
 
@@ -351,6 +364,7 @@
 #define		AR934X_REG_OPER_MODE1_PHY4_MII_EN	(1 << 28)
 
 #define	AR934X_REG_FLOOD_MASK		0x2c
+#define		AR934X_FLOOD_MASK_MC_DP(_p)	(1 << (0 + (_p)))
 #define		AR934X_FLOOD_MASK_MC_DP(_p)	(1 << (16 + (_p)))
 #define		AR934X_FLOOD_MASK_BC_DP(_p)	(1 << (25 + (_p)))
 
