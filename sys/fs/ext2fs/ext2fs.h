@@ -319,11 +319,6 @@ static const struct ext2_feature incompat[] = {
  * - EXT2F_ROCOMPAT_HUGE_FILE
  * - EXT2F_INCOMPAT_EXTENTS
  *
- * We do not support these EXT4 features but they are irrelevant
- * for read-only support:
- * - EXT2F_INCOMPAT_RECOVER
- * - EXT2F_INCOMPAT_FLEX_BG
- * - EXT2F_INCOMPAT_META_BG
  */
 #define	EXT2F_COMPAT_SUPP		EXT2F_COMPAT_DIRHASHINDEX
 #define	EXT2F_ROCOMPAT_SUPP		(EXT2F_ROCOMPAT_SPARSESUPER | \
@@ -339,7 +334,6 @@ static const struct ext2_feature incompat[] = {
 					 EXT2F_INCOMPAT_64BIT | \
 					 EXT2F_INCOMPAT_FLEX_BG | \
 					 EXT2F_INCOMPAT_CSUM_SEED)
-#define	EXT4F_RO_INCOMPAT_SUPP		EXT2F_INCOMPAT_RECOVER
 
 /* Assume that user mode programs are passing in an ext2fs superblock, not
  * a kernel struct super_block.  This will allow us to call the feature-test
