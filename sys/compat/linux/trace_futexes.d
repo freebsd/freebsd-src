@@ -157,10 +157,10 @@ linuxulator*:futex::return
 {
 	this->timediff = self->time[probefunc] - timestamp;
 
-        @timestats[probeprov, execname, probefunc] = quantize(this->timediff);
-        @longest[probeprov, probefunc] = max(this->timediff);
+	@timestats[probeprov, execname, probefunc] = quantize(this->timediff);
+	@longest[probeprov, probefunc] = max(this->timediff);
 
-        self->time[probefunc] = 0;
+	self->time[probefunc] = 0;
 }
 
 

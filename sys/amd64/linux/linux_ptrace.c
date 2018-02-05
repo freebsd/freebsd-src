@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #define	LINUX_PTRACE_O_TRACEVFORKDONE	32
 #define	LINUX_PTRACE_O_TRACEEXIT	64
 #define	LINUX_PTRACE_O_TRACESECCOMP	128
-#define	LINUX_PTRACE_O_EXITKILL		1048576 
+#define	LINUX_PTRACE_O_EXITKILL		1048576
 #define	LINUX_PTRACE_O_SUSPEND_SECCOMP	2097152
 
 #define	LINUX_NT_PRSTATUS		1
@@ -239,7 +239,7 @@ linux_ptrace_setoptions(struct thread *td, pid_t pid, l_ulong data)
 	if (data & LINUX_PTRACE_O_TRACEFORK)
 		mask |= PTRACE_FORK;
 
- 	if (data & LINUX_PTRACE_O_TRACEVFORK)
+	if (data & LINUX_PTRACE_O_TRACEVFORK)
 		mask |= PTRACE_VFORK;
 
 	if (data & LINUX_PTRACE_O_TRACECLONE)

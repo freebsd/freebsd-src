@@ -92,6 +92,6 @@ tick-10s
 
 END
 {
-        printf("Number of locks per type:");
+	printf("Number of locks per type:");
 	printa(@stats);
 }
