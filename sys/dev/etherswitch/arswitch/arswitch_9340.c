@@ -90,9 +90,11 @@ ar9340_atu_learn_default(struct arswitch_softc *sc)
 	arswitch_modifyreg(sc->sc_dev, AR934X_REG_QM_CTRL,
 	    AR934X_QM_CTRL_ARP_EN, AR934X_QM_CTRL_ARP_EN);
 
+#if 0
 	/* Copy frame to CPU port, not just redirect it */
 	arswitch_modifyreg(sc->sc_dev, AR934X_REG_QM_CTRL,
 	    AR934X_QM_CTRL_ARP_COPY_EN, AR934X_QM_CTRL_ARP_COPY_EN);
+#endif
 
 	return (0);
 }
