@@ -1,10 +1,10 @@
 
 #------------------------------------------------------------------------------
-# $File: msvc,v 1.6 2016/01/26 00:03:19 christos Exp $
+# $File: msvc,v 1.9 2017/08/02 08:15:20 christos Exp $
 # msvc:  file(1) magic for msvc
 # "H. Nanosecond" <aldomel@ix.netcom.com>
 # Microsoft visual C
-# 
+#
 # I have version 1.0
 
 # .aps
@@ -30,10 +30,10 @@
 # Summary: Symbol Table / Debug info used by Microsoft compilers
 # URL: https://en.wikipedia.org/wiki/Program_database
 # Reference: https://code.google.com/p/pdbparser/wiki/MSF_Format
-# Update: Joerg Jenderek 
+# Update: Joerg Jenderek
 # Note:	test only for Windows XP+SP3 x86 , 8.1 x64 arm and 10.1 x86
 #	info does only applies partly for older files like msvbvm50.pdb about year 2001
-0	string	Microsoft\ C/C++\ 	
+0	string	Microsoft\ C/C++\040
 # "Microsoft Program DataBase" by TrID
 >24	search/14	\r\n\x1A	MSVC program database
 !:mime	application/x-ms-pdb
@@ -42,17 +42,20 @@
 >>16	regex	\([0-9.]+\)	ver %s
 #>>>0x38	search/128123456	/LinkInfo	\b with linkinfo
 # "MSF 7.00" variant
->>0x1e	leshort	0	
+>>0x1e	leshort	0
 # PageSize 400h 1000h
 >>>0x20	lelong	x	\b, %d
 # Page Count
 >>>0x28	lelong	x	\b*%d bytes
 # "program database 2.00"  variant
->>0x1e	leshort	!0	
+>>0x1e	leshort	!0
 # PageSize 400h
 >>>0x2c	lelong	x	\b, %d
 # Page Count for msoo-dll.pdb 4379h
 >>>0x32	leshort	x	\b*%d bytes
+
+# Reference: https://github.com/Microsoft/vstest/pull/856/commits/fdc7a9f074ca5a8dfeec83b1be9162bf0cf4000d
+0       string/c bsjb\001\000\001\000\000\000\000\000\f\000\000\000pdb\ v1.0     Microsoft Rosyln C# debugging symbols version 1.0
 
 #.sbr
 0	string	\000\002\000\007\000	MSVC .sbr
