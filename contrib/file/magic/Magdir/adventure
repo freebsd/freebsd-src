@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: adventure,v 1.15 2015/09/07 10:03:21 christos Exp $
+# $File: adventure,v 1.17 2017/07/03 16:03:40 christos Exp $
 # adventure: file(1) magic for Adventure game files
 #
 # from Allen Garvin <earendil@faeryland.tamu-commerce.edu>
@@ -36,11 +36,12 @@
 >0	ubyte			<9
 >>16	belong&0xfe00f0f0	0x3030
 >>>0	ubyte			< 10
->>>>2	ubeshort		< 10
+>>>>2	ubeshort		x
 >>>>>18	regex			[0-9][0-9][0-9][0-9][0-9][0-9]
->>>>>>0	ubyte			< 10	Infocom (Z-machine %d,
->>>>>>>2	ubeshort	< 10 	Release %d /
->>>>>>>>18	string		>\0	Serial %.6s)
+>>>>>>0	ubyte			< 10	Infocom (Z-machine %d
+>>>>>>>2	ubeshort	x 	\b, Release %d
+>>>>>>>>18	string		>\0	\b, Serial %.6s
+>>>>>>>>18	string		x	\b)
 !:strength + 40
 !:mime	application/x-zmachine
 
@@ -78,7 +79,7 @@
 !:mime	application/x-tads
 #  Some saved game files start with "TADS2 save/g\n\r\032\0", a little-endian
 #  2-byte length N, the N-char name of the game file *without* a NUL (darn!),
-# "TADS2 save\n\r\032\0" and the interpreter version. 
+# "TADS2 save\n\r\032\0" and the interpreter version.
 0	string	TADS2\ save/g	TADS
 >12	belong	!0x0A0D1A00	saved game data, CORRUPTED
 >12	belong	 0x0A0D1A00
@@ -109,7 +110,7 @@
 # edited by David Griffith <dave@661.org>
 # Danny Milosavljevic <danny.milo@gmx.net>
 # These are ADRIFT (adventure game standard) game files, extension .taf
-# Checked from source at (http://www.adrift.co/) and various taf files 
+# Checked from source at (http://www.adrift.co/) and various taf files
 # found at the Interactive Fiction Archive (http://ifarchive.org/)
 0	belong  0x3C423FC9
 >4	belong  0x6A87C2CF	Adrift game file version

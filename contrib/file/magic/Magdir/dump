@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: dump,v 1.13 2014/04/30 21:41:02 christos Exp $
+# $File: dump,v 1.16 2017/07/22 19:21:02 christos Exp $
 # dump:  file(1) magic for dump file format--for new and old dump filesystems
 #
 # We specify both byte orders in order to recognize byte-swapped dumps.
@@ -62,23 +62,25 @@
 >824	string	>\0		Host %s,
 >888	belong	>0		Flags %x
 
-24	belong	60012		new-fs dump file (big endian), 
+24	belong	60012		new-fs dump file (big endian),
 >0	use	new-dump-be
 
-24	belong	60011		old-fs dump file (big endian), 
+24	belong	60011		old-fs dump file (big endian),
 >0	use	old-dump-be
 
-24	lelong	60012		new-fs dump file (little endian), 
+24	lelong	60012		new-fs dump file (little endian),
+# to correctly recognize '*.mo' GNU message catalog (little endian)
+!:strength - 15
 >0	use	\^new-dump-be
 
-24	lelong	60011		old-fs dump file (little endian), 
+24	lelong	60011		old-fs dump file (little endian),
 >0	use	\^old-dump-be
 
 
-24	belong	0x19540119	new-fs dump file (ufs2, big endian), 
+24	belong	0x19540119	new-fs dump file (ufs2, big endian),
 >0	use	ufs2-dump-be
 
-24	lelong	0x19540119	new-fs dump file (ufs2, little endian), 
+24	lelong	0x19540119	new-fs dump file (ufs2, little endian),
 >0	use	\^ufs2-dump-be
 
 18	leshort	60011		old-fs dump file (16-bit, assuming PDP-11 endianness),

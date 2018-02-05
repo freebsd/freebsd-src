@@ -1,12 +1,12 @@
 
 #------------------------------------------------------------------------------
-# $File: msdos,v 1.111 2016/09/14 01:26:26 christos Exp $
+# $File: msdos,v 1.120 2017/08/13 00:21:47 christos Exp $
 # msdos:  file(1) magic for MS-DOS files
 #
 
 # .BAT files (Daniel Quinlan, quinlan@yggdrasil.com)
 # updated by Joerg Jenderek at Oct 2008,Apr 2011
-0	string/t	@			
+0	string/t	@
 >1	string/cW	\ echo\ off	DOS batch file text
 !:mime	text/x-msdos-batch
 >1	string/cW	echo\ off	DOS batch file text
@@ -230,7 +230,7 @@
 >>(8.s*16)	string		go32stub for MS-DOS, DJGPP go32 DOS extender
 >>(8.s*16)	string		emx
 >>>&1		string		x for DOS, Win or OS/2, emx %s
->>&(&0x42.l-3)	byte		x 
+>>&(&0x42.l-3)	byte		x
 >>>&0x26	string		UPX \b, UPX compressed
 # and yet another guess: small .text, and after large .data is unusal, could be 32lite
 >>&0x2c		search/0xa0	.text
@@ -240,8 +240,8 @@
 >(8.s*16) string $WdX \b, WDos/X DOS extender
 
 # By now an executable type should have been printed out.  The executable
-# may be a self-uncompressing archive, so look for evidence of that and 
-# print it out.  
+# may be a self-uncompressing archive, so look for evidence of that and
+# print it out.
 #
 # Some signatures below from Greg Roelofs, newt@uchicago.edu.
 #
@@ -283,8 +283,8 @@
 # Skip to the end of the EXE.  This will usually work fine in the PE case
 # because the MZ image is hardcoded into the toolchain and almost certainly
 # won't match any of these signatures.
->(4.s*512)	long	x 
->>&(2.s-517)	byte	x 
+>(4.s*512)	long	x
+>>&(2.s-517)	byte	x
 >>>&0	string		PK\3\4 \b, ZIP self-extracting archive
 >>>&0	string		Rar! \b, RAR self-extracting archive
 >>>&0	string		=!\x11 \b, AIN 2.x self-extracting archive
@@ -312,71 +312,77 @@
 # only version=0x100 found
 >3	uleshort	x		\b, version 0x%x
 # length of string containing author,info and special characters
->6	ubyte		>0		
+>6	ubyte		>0
 #>>6	pstring		x		\b, name=%s
 >>7	string		>\0		\b, author=%-.14s
 >>7	search/254	\xff		\b, info=
 #>>>&0	string		x		\b%-s
 >>>&0	string		x		\b%-.15s
-# for FreeDOS *.KL files 
+# for FreeDOS *.KL files
 0	string/b	KLF		FreeDOS KEYBoard Layout file
 # only version=0x100 or 0x101 found
 >3	uleshort	x		\b, version 0x%x
 # stringlength
->5	ubyte		>0		
+>5	ubyte		>0
 >>8	string		x		\b, name=%-.2s
-0	string	\xffKEYB\ \ \ \0\0\0\0	
+0	string	\xffKEYB\ \ \ \0\0\0\0
 >12	string	\0\0\0\0`\004\360	MS-DOS KEYBoard Layout file
 
-# DOS device driver updated by Joerg Jenderek at May 2011
-# http://maben.homeip.net/static/S100/IBM/software/DOS/DOS%20techref/CHAPTER.009
-0	ulequad&0x07a0ffffffff		0xffffffff		DOS executable (
->40	search/7			UPX!			\bUPX compressed 
+# DOS device driver updated by Joerg Jenderek at May 2011,Mar 2017
+# https://amaus.net/static/S100/IBM/software/DOS/DOS%20techref/CHAPTER.009
+0	ulequad&0x07a0ffffffff		0xffffffff
+>0	use				msdos-driver
+0       name    			msdos-driver		DOS executable (
+#!:mime	application/octet-stream
+!:mime	application/x-dosdriver
+# also found FreeDOS print driver SPOOL.DEV and disc compression driver STACLOAD.BIN
+!:ext	sys/dev/bin
+>40	search/7			UPX!			\bUPX compressed
 # DOS device driver attributes
 >4	uleshort&0x8000			0x0000			\bblock device driver
 # character device
 >4	uleshort&0x8000			0x8000			\b
->>4	uleshort&0x0008			0x0008			\bclock 
+>>4	uleshort&0x0008			0x0008			\bclock
 # fast video output by int 29h
->>4	uleshort&0x0010			0x0010			\bfast 
+>>4	uleshort&0x0010			0x0010			\bfast
 # standard input/output device
->>4	uleshort&0x0003			>0			\bstandard 
+>>4	uleshort&0x0003			>0			\bstandard
 >>>4	uleshort&0x0001			0x0001			\binput
 >>>4	uleshort&0x0003			0x0003			\b/
->>>4	uleshort&0x0002			0x0002			\boutput 
+>>>4	uleshort&0x0002			0x0002			\boutput
 >>4	uleshort&0x8000			0x8000			\bcharacter device driver
->0	ubyte				x			
+>0	ubyte				x
 # upx compressed device driver has garbage instead of real in name field of header
->>40	search/7			UPX!			
->>40	default				x			
+>>40	search/7			UPX!
+>>40	default				x
 # leading/trailing nulls, zeros or non ASCII characters in 8-byte name field at offset 10 are skipped
->>>12		ubyte			>0x27			\b 
->>>>10		ubyte			>0x20			
->>>>>10		ubyte			!0x2E			
+>>>12		ubyte			>0x2E			\b
+>>>>10		ubyte			>0x20
+>>>>>10		ubyte			!0x2E
 >>>>>>10	ubyte			!0x2A			\b%c
->>>>11		ubyte			>0x20			
+>>>>11		ubyte			>0x20
 >>>>>11		ubyte			!0x2E			\b%c
->>>>12		ubyte			>0x20			
->>>>>12		ubyte			!0x39			
+>>>>12		ubyte			>0x20
+>>>>>12		ubyte			!0x39
 >>>>>>12	ubyte			!0x2E			\b%c
->>>13		ubyte			>0x20			
+>>>13		ubyte			>0x20
 >>>>13		ubyte			!0x2E			\b%c
->>>>14		ubyte			>0x20			
+>>>>14		ubyte			>0x20
 >>>>>14		ubyte			!0x2E			\b%c
->>>>15		ubyte			>0x20			
+>>>>15		ubyte			>0x20
 >>>>>15		ubyte			!0x2E			\b%c
->>>>16		ubyte			>0x20			
->>>>>16		ubyte			!0x2E			
+>>>>16		ubyte			>0x20
+>>>>>16		ubyte			!0x2E
 >>>>>>16	ubyte			<0xCB			\b%c
->>>>17		ubyte			>0x20			
->>>>>17		ubyte			!0x2E			
+>>>>17		ubyte			>0x20
+>>>>>17		ubyte			!0x2E
 >>>>>>17	ubyte			<0x90			\b%c
 # some character device drivers like ASPICD.SYS, btcdrom.sys and Cr_atapi.sys contain only spaces or points in name field
->>>4		uleshort&0x8000		0x8000			
->>>>12		ubyte			<0x2F			
+>>>12		ubyte			<0x2F
 # they have their real name at offset 22
->>>>>22		string			>\0			\b%-.5s
->4	uleshort&0x8000			0x0000			
+# also block device drivers like DUMBDRV.SYS
+>>>>22		string			>\056			%-.6s
+>4	uleshort&0x8000			0x0000
 # 32 bit sector addressing ( > 32 MB) for block devices
 >>4	uleshort&0x0002			0x0002			\b,32-bit sector-
 # support by driver functions 13h, 17h, 18h
@@ -384,33 +390,42 @@
 # open, close, removable media support by driver functions 0Dh, 0Eh, 0Fh
 >4	uleshort&0x0800			0x0800			\b,close media-
 # output until busy support by int 10h for character device driver
->4	uleshort&0x8000			0x8000			
+>4	uleshort&0x8000			0x8000
 >>4	uleshort&0x2000			0x2000			\b,until busy-
 # direct read/write support by driver functions 03h,0Ch
 >4	uleshort&0x4000			0x4000			\b,control strings-
->4	uleshort&0x8000			0x8000			
+>4	uleshort&0x8000			0x8000
 >>4	uleshort&0x6840			>0			\bsupport
->4	uleshort&0x8000			0x0000			
+>4	uleshort&0x8000			0x0000
 >>4	uleshort&0x4842			>0			\bsupport
 >0	ubyte				x			\b)
-# DOS driver cmd640x.sys has 0x12 instead of 0xffffffff for pointer field to next device header 
-# Too weak, matches files that only contain 0's
-#0	ulequad&0x000007a0ffffffed	0x0000000000000000	DOS-executable (
-#>4	uleshort&0x8000			0x8000			\bcharacter device driver
-#>>10	string				x			%-.8s
-#>4	uleshort&0x4000			0x4000			\b,control strings-support)
+# DOS driver cmd640x.sys has 0x12 instead of 0xffffffff for pointer field to next device header
+0	ulequad				0x0513c00000000012
+>0	use				msdos-driver
+# DOS drivers DC2975.SYS, DUMBDRV.SYS, ECHO.SYS has also none 0xffffffff for pointer field
+0	ulequad				0x32f28000ffff0016
+>0	use				msdos-driver
+0	ulequad				0x007f00000000ffff
+>0	use				msdos-driver
+0	ulequad				0x001600000000ffff
+>0	use				msdos-driver
+# DOS drivers LS120.SYS, MKELS120.SYS use reserved bits of attribute field
+0	ulequad				0x0bf708c2ffffffff
+>0	use				msdos-driver
+0	ulequad				0x07bd08c2ffffffff
+>0	use				msdos-driver
 
 # updated by Joerg Jenderek
-# GRR: line below too general as it catches also 
+# GRR: line below too general as it catches also
 # rt.lib DYADISKS.PIC and many more
 # start with assembler instruction MOV
-0	ubyte		0x8c		
+0	ubyte		0x8c
 # skip "AppleWorks word processor data" like ARTICLE.1 ./apple
->4	string			!O====	
+>4	string			!O====
 # skip some unknown basic binaries like RocketRnger.SHR
->>5	string			!MAIN	
+>>5	string			!MAIN
 # skip "GPG symmetrically encrypted data" ./gnu
-# skip "PGP symmetric key encrypted data" ./pgp 
+# skip "PGP symmetric key encrypted data" ./pgp
 # openpgpdefs.h: fourth byte < 14 indicate cipher algorithm type
 >>>4	ubyte			>13	DOS executable (COM, 0x8C-variant)
 # the remaining files should be DOS *.COM executables
@@ -428,7 +443,7 @@
 # updated by Joerg Jenderek at Oct 2008
 0	ulelong		0xffff10eb	DR-DOS executable (COM)
 # byte 0xeb conflicts with "sequent" magic leshort 0xn2eb
-0	ubeshort&0xeb8d	>0xeb00		
+0	ubeshort&0xeb8d	>0xeb00
 # DR-DOS STACKER.COM SCREATE.SYS missed
 
 0       name    msdos-com
@@ -463,9 +478,9 @@
 
 # updated by Joerg Jenderek at Oct 2008,2015
 # following line is too general
-0	ubyte		0xb8		
+0	ubyte		0xb8
 # skip 2 linux kernels like memtest.bin with "\xb8\xc0\x07\x8e" in ./linux
->0	string		!\xb8\xc0\x07\x8e	
+>0	string		!\xb8\xc0\x07\x8e
 # modified by Joerg Jenderek
 # syslinux COM32 or COM32R executable
 >>1	lelong&0xFFFFFFFe 0x21CD4CFe	COM executable (32-bit COMBOOT
@@ -496,8 +511,8 @@
 #!:mime	application/x-msdos-program
 !:ext com
 
-0	string/b	\x81\xfc		
->4	string	\x77\x02\xcd\x20\xb9	
+0	string/b	\x81\xfc
+>4	string	\x77\x02\xcd\x20\xb9
 >>36	string	UPX!			FREE-DOS executable (COM), UPX compressed
 252	string Must\ have\ DOS\ version DR-DOS executable (COM)
 # added by Joerg Jenderek at Oct 2008
@@ -514,10 +529,10 @@
 #IFMEMDSK.cOM ASSIGN.cOM COMP.cOM
 5	string	\xcd\x21		COM executable for DOS
 #DELTMP.COm HASFAT32.cOM
-7	string	\xcd\x21		
+7	string	\xcd\x21
 >0	byte	!0xb8			COM executable for DOS
 #COMP.cOM MORE.COm
-10	string	\xcd\x21		
+10	string	\xcd\x21
 >5	string	!\xcd\x21		COM executable for DOS
 #comecho.com
 13	string	\xcd\x21		COM executable for DOS
@@ -565,10 +580,23 @@
 0	string/b	PO^Q`				Microsoft Word 6.0 Document
 !:mime	application/msword
 #
-0	string/b	\376\067\0\043			Microsoft Office Document
+4   long        0
+>0  belong      0xfe320000      Microsoft Word for Macintosh 1.0
 !:mime	application/msword
-0	string/b	\333\245-\0\0\0			Microsoft Office Document
+!:ext   mcw
+>0  belong      0xfe340000      Microsoft Word for Macintosh 3.0
 !:mime	application/msword
+!:ext   mcw
+>0  belong      0xfe37001c      Microsoft Word for Macintosh 4.0
+!:mime	application/msword
+!:ext   mcw
+>0  belong      0xfe370023      Microsoft Word for Macintosh 5.0
+!:mime	application/msword
+!:ext   mcw
+
+0	string/b	\333\245-\0\0\0			Microsoft Word 2.0 Document
+!:mime	application/msword
+!:ext   doc
 512	string/b	\354\245\301			Microsoft Word Document
 !:mime	application/msword
 
@@ -599,11 +627,11 @@
 # Reference: http://www.aboutvb.de/bas/formate/pdf/wk3.pdf
 # Note: newer Lotus versions >2 use longer BOF record
 # record type (BeginningOfFile=0000h) + length (001Ah)
-0	belong	0x00001a00	
+0	belong	0x00001a00
 # reserved should be 0h but 8c0dh for TUTMAC.WK3, 5h for SAMPADNS.WK3, 1h for a_readme.wk3, 1eh for K&G86.WK3
-#>18	uleshort&0x73E0	0	
+#>18	uleshort&0x73E0	0
 # Lotus Multi Byte Character Set (LMBCS=1-31)
->20	ubyte		>0	
+>20	ubyte		>0
 >>20	ubyte		<32	Lotus 1-2-3
 #!:mime	application/x-123
 !:mime	application/vnd.lotus-1-2-3
@@ -640,10 +668,10 @@
 !:ext	fXX
 # main revision number
 >>>>4	uleshort	x	\b, revision 0x%x
->>>6	uleshort	=0x0004	\b, cell range 
+>>>6	uleshort	=0x0004	\b, cell range
 # active cellcoord range (start row, page,column ; end row, page, column)
 # start values normally 0~1st sheet A1
->>>>8	ulelong		!0	
+>>>>8	ulelong		!0
 >>>>>10	ubyte		>0	\b%d*
 >>>>>8	uleshort	x	\b%d,
 >>>>>11	ubyte		x	\b%d-
@@ -656,9 +684,9 @@
 >>>>20	ubyte		>1	\b, character set 0x%x
 # flags
 >>>>21	ubyte		x	\b, flags 0x%x
->>>6	uleshort	!0x0004	
+>>>6	uleshort	!0x0004
 # record type (FONTNAME=00AEh)
->>>>30	search/29	\0\xAE	
+>>>>30	search/29	\0\xAE
 # variable length m (2) + entries (1) + ?? (1) + LCMBS string (n)
 >>>>>&4	string		>\0	\b, 1st font "%s"
 #
@@ -667,12 +695,12 @@
 # Reference: http://www.schnarff.com/file-formats/lotus-1-2-3/WSFF2.TXT
 # Note: Used by both old Lotus 1-2-3 and Lotus Symphony (DOS) til version 2.x
 # record type (BeginningOfFile=0000h) + length (0002h)
-0	belong	0x00000200	
+0	belong	0x00000200
 # GRR: line above is too general as it catches also MS Windows CURsor
 # to display MS Windows cursor (strength=70) before Lotus 1-2-3 (strength=70-1)
 !:strength -1
 # skip Windows cursors with image height <256 and keep Lotus with low opcode 0001-0083h
->7	ubyte		0	
+>7	ubyte		0
 # skip Windows cursors with image width 256 and keep Lotus with positiv opcode
 >>6	ubyte		>0	Lotus
 # !:mime	application/x-123
@@ -737,9 +765,9 @@
 #	check and then display Lotus worksheet cells range
 0	name		lotus-cells
 # look for type (RANGE=0006h) + length (0008h) at record begin
->0	ubelong	0x06000800	\b, cell range 
+>0	ubelong	0x06000800	\b, cell range
 # cell range (start column, row, end column, row) start values normally 0,0~A1 cell
->>4	ulong		!0	
+>>4	ulong		!0
 >>>4	uleshort	x	\b%d,
 >>>6	uleshort	x	\b%d-
 # end of cell range
@@ -792,19 +820,19 @@
 # Windows icons
 # Update: Joerg Jenderek
 # URL: https://en.wikipedia.org/wiki/CUR_(file_format)
-# Note: similiar to Windows CURsor. container for BMP (only DIB part) or PNG
+# Note: similar to Windows CURsor. container for BMP (only DIB part) or PNG
 0   belong  0x00000100
 >9  byte    0
->>0 byte    x           
+>>0 byte    x
 >>0 use     cur-ico-dir
 >9  ubyte   0xff
->>0 byte    x           
+>>0 byte    x
 >>0 use     cur-ico-dir
 #	displays number of icons and information for icon or cursor
 0	name		cur-ico-dir
 # skip some Lotus 1-2-3 worksheets, CYCLE.PIC and keep Windows cursors with
 # 1st data offset = dir header size + n * dir entry size = 6 + n * 10h = ?6h
->18		ulelong		&0x00000006	
+>18		ulelong		&0x00000006
 # skip remaining worksheets, because valid only for DIB image (40) or PNG image (\x89PNG)
 >>(18.l)	ulelong		x		MS Windows
 >>>0		ubelong		0x00000100	icon resource
@@ -817,7 +845,7 @@
 # 1st icon
 >>>>0x06	use		ico-entry
 # 2nd icon
->>>>4 		uleshort	>1		
+>>>>4 		uleshort	>1
 >>>>>0x16	use		ico-entry
 >>>0		ubelong		0x00000200	cursor resource
 #!:mime		image/x-cur
@@ -854,16 +882,16 @@
 # offset of PNG or DIB image
 #>12		ulelong		x		\b, offset 0x%x
 # PNG header (\x89PNG)
->(12.l)		ubelong		=0x89504e47	
->>&-4		indirect	x	\b with 
+>(12.l)		ubelong		=0x89504e47
+>>&-4		indirect	x	\b with
 # DIB image
->(12.l)		ubelong		!0x89504e47	
+>(12.l)		ubelong		!0x89504e47
 #>>&-4		use     	dib-image
 
 # Windows non-animated cursors
 # Update: Joerg Jenderek
 # URL: https://en.wikipedia.org/wiki/CUR_(file_format)
-# Note: similiar to Windows ICOn. container for BMP ( only DIB part)
+# Note: similar to Windows ICOn. container for BMP ( only DIB part)
 # GRR: line below is too general as it catches also Lotus 1-2-3 files
 0   belong  0x00000200
 >9  byte    0
@@ -872,13 +900,13 @@
 >>0 use     cur-ico-dir
 
 # .chr files
-0	string/b	PK\010\010BGI	Borland font 
+0	string/b	PK\010\010BGI	Borland font
 >4	string	>\0	%s
 # then there is a copyright notice
 
 
 # .bgi files
-0	string/b	pk\010\010BGI	Borland device 
+0	string/b	pk\010\010BGI	Borland device
 >4	string	>\0	%s
 # then there is a copyright notice
 
@@ -909,7 +937,7 @@
 0	lelong		0x08086b70	TurboC BGI file
 0	lelong		0x08084b50	TurboC Font file
 
-# Debian#712046: The magic below identifies "Delphi compiled form data". 
+# Debian#712046: The magic below identifies "Delphi compiled form data".
 # An additional source of information is available at:
 # http://www.woodmann.com/fravia/dafix_t1.htm
 0	string		TPF0
@@ -918,7 +946,7 @@
 # tests for DBase files moved, updated and merged to database
 
 0	string		PMCC		Windows 3.x .GRP file
-1	string		RDC-meg		MegaDots 
+1	string		RDC-meg		MegaDots
 >8	byte		>0x2F		version %c
 >9	byte		>0x2F		\b.%c file
 0	lelong		0x4C
@@ -935,16 +963,16 @@
 #>0x181	leshort	x	\b, offset %x
 #>0x183	leshort	x	\b, offsetdata %x
 #>0x185	leshort	x	\b, section length %x
->0x187	search/0xB55	WINDOWS\ VMM\ 4.0\0	
->>&0x5e		ubyte	>0			
+>0x187	search/0xB55	WINDOWS\ VMM\ 4.0\0
+>>&0x5e		ubyte	>0
 >>>&-1		string	<PIFMGR.DLL		\b, icon=%s
 #>>>&-1		string	PIFMGR.DLL		\b, icon=%s
 >>>&-1		string	>PIFMGR.DLL		\b, icon=%s
->>&0xF0		ubyte	>0			
+>>&0xF0		ubyte	>0
 >>>&-1		string	<Terminal		\b, font=%.32s
 #>>>&-1		string	=Terminal		\b, font=%.32s
 >>>&-1		string	>Terminal		\b, font=%.32s
->>&0x110	ubyte	>0			
+>>&0x110	ubyte	>0
 >>>&-1		string	<Lucida\ Console	\b, TrueTypeFont=%.32s
 #>>>&-1		string	=Lucida\ Console	\b, TrueTypeFont=%.32s
 >>>&-1		string	>Lucida\ Console	\b, TrueTypeFont=%.32s
@@ -960,6 +988,7 @@
 # DOS EPS Binary File Header
 # From: Ed Sznyter <ews@Black.Market.NET>
 0	belong		0xC5D0D3C6	DOS EPS Binary File
+!:mime	image/x-eps
 >4	long		>0		Postscript starts at byte %d
 >>8	long		>0		length %d
 >>>12	long		>0		Metafile starts at byte %d
@@ -967,15 +996,15 @@
 >>>20	long		>0		TIFF starts at byte %d
 >>>>24	long		>0		length %d
 
-# TNEF magic From "Joomy" <joomy@se-ed.net> 
+# TNEF magic From "Joomy" <joomy@se-ed.net>
 # Microsoft Outlook's Transport Neutral Encapsulation Format (TNEF)
-0	leshort		0x223e9f78	TNEF
+0	lelong		0x223e9f78	TNEF
 !:mime	application/vnd.ms-tnef
 
 # Norton Guide (.NG , .HLP) files added by Joerg Jenderek from source NG2HTML.C
 # of http://www.davep.org/norton-guides/ng2h-105.tgz
 # http://en.wikipedia.org/wiki/Norton_Guides
-0	string		NG\0\001	
+0	string		NG\0\001
 # only value 0x100 found at offset 2
 >2	ulelong		0x00000100	Norton Guide
 # Title[40]
@@ -985,7 +1014,7 @@
 >>48	string		>\0		\b, %-.66s
 >>114	string		>\0		%-.66s
 
-# 4DOS help (.HLP) files added by Joerg Jenderek from source TPHELP.PAS 
+# 4DOS help (.HLP) files added by Joerg Jenderek from source TPHELP.PAS
 # of http://www.4dos.info/
 # pointer,HelpID[8]=4DHnnnmm
 0	ulelong	0x48443408		4DOS help file
@@ -1033,7 +1062,7 @@
 
 
 # Windows Enhanced Metafile (EMF)
-# See msdn.microsoft.com/archive/en-us/dnargdi/html/msdn_enhmeta.asp 
+# See msdn.microsoft.com/archive/en-us/dnargdi/html/msdn_enhmeta.asp
 # for further information.
 0	ulelong 1
 >40	string	\ EMF		Windows Enhanced Metafile (EMF) image data
@@ -1095,7 +1124,7 @@
 0	string/b	MSWIM\000\000\000	Windows imaging (WIM) image
 0	string/b	WLPWM\000\000\000	Windows imaging (WIM) image, wimlib pipable format
 
-# The second byte of these signatures is a file version; I don't know what, 
+# The second byte of these signatures is a file version; I don't know what,
 # if anything, produced files with version numbers 0-2.
 # From: John Elliott <johne@seasip.demon.co.uk>
 0	string	\xfc\x03\x00	Mallard BASIC program data (v1.11)
@@ -1106,3 +1135,66 @@
 0	string	MIOPEN		Mallard BASIC Jetsam data
 0	string	Jetsam0		Mallard BASIC Jetsam index data
 
+# DOS backup 2.0 to 3.2
+
+# backupid.@@@
+
+# plausibility check for date
+0x3	ushort	>1979
+>0x5	ubyte-1 <31
+>>0x6	ubyte-1 <12
+# actually 121 nul bytes
+>>>0x7	string	\0\0\0\0\0\0\0\0
+>>>>0x1 ubyte	x	DOS 2.0 backup id file, sequence %d
+!:ext @@@
+>>>>0x0 ubyte	0xff	\b, last disk
+
+# backed up file
+
+# skip some AppleWorks word like Tomahawk.Awp, WIN98SE-DE.vhd
+# by looking for trailing nul of maximal file name string
+0x52	ubyte	0	
+# test for flag byte: FFh~complete file, 00h~split file
+# FFh -127 =	-1 -127 =	-128
+# 00h -127 =	 0 -127 =	-127
+>0	byte-127	<-126
+# plausibility check for file name length
+>>0x53	ubyte-1	<78	
+# looking for terminating nul of file name string
+>>>(0x53.b+4)	ubyte	0	
+# looking if last char of string is valid DOS file name
+>>>>(0x53.b+3)	ubyte	>0x1F	
+# actually 44 nul bytes
+# but sometimes garbage according to Ralf Quint. So can not be used as test
+#>0x54	string	\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+# first char of full file name is DOS (5Ch) or UNIX (2Fh) path separator
+# only DOS variant found. UNIX variant according to V32SLASH.TXT in archive PD0315.EXE 
+>>>>>5	ubyte&0x8C	0x0C	
+# ./msdos (version 5.30) labeled the entry as
+# "DOS 2.0 backed up file %s, split file, sequence %d" or
+# "DOS 2.0 backed up file %s, complete file"
+>>>>>>0	ubyte	x	DOS 2.0-3.2 backed up
+#>>>>>>0	ubyte	0xff	complete
+>>>>>>0	ubyte	0
+>>>>>>>1 uleshort	x	sequence %d of
+# full file name with path but without drive letter and colon stored from 0x05 til 0x52
+>>>>>>0x5	string	x	file %s
+# backup name is original filename
+#!:ext	*
+# magic/Magdir/msdos, 1169: Warning: EXTENSION type `     *' has bad char '*'
+# file: line 1169: Bad magic entry '  *'
+# after header original file content
+>>>>>>128	indirect x	\b; 
+
+
+# DOS backup 3.3 to 5.x
+
+# CONTROL.nnn files
+0	string	\x8bBACKUP\x20
+# actually 128 nul bytes
+>0xa	string	\0\0\0\0\0\0\0\0
+>>0x9	ubyte	x	DOS 3.3 backup control file, sequence %d
+>>0x8a	ubyte	0xff	\b, last disk
+
+# NB: The BACKUP.nnn files consist of the files backed up,
+# concatenated.
