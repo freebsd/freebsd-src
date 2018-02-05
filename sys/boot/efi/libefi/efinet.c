@@ -252,7 +252,7 @@ efinet_end(struct netif *nif)
 }
 
 static int efinet_dev_init(void);
-static void efinet_dev_print(int);
+static int efinet_dev_print(int);
 
 struct devsw efinet_dev = {
 	.dv_name = "net",
@@ -346,14 +346,17 @@ efinet_dev_init()
 	return (0);
 }
 
-static void
+static int
 efinet_dev_print(int verbose)
 {
 	CHAR16 *text;
 	EFI_HANDLE h;
-	int unit;
+	int unit, ret = 0;
 
-	pager_open();
+	printf("%s devices:", efinet_dev.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
+
 	for (unit = 0, h = efi_find_handle(&efinet_dev, 0);
 	    h != NULL; h = efi_find_handle(&efinet_dev, ++unit)) {
 		printf("    %s%d:", efinet_dev.dv_name, unit);
@@ -362,8 +365,8 @@ efinet_dev_print(int verbose)
 			printf("    %S", text);
 			efi_free_devpath_name(text);
 		}
-		if (pager_output("\n"))
+		if ((ret = pager_output("\n")) != 0)
 			break;
 	}
-	pager_close();
+	return (ret);
 }

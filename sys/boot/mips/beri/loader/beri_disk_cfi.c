@@ -47,7 +47,7 @@ static int	beri_cfi_disk_close(struct open_file *);
 static void	beri_cfi_disk_cleanup(void);
 static int	beri_cfi_disk_strategy(void *, int, daddr_t, size_t,
 		    char *, size_t *);
-static void	beri_cfi_disk_print(int);
+static int	beri_cfi_disk_print(int);
 
 struct devsw beri_cfi_disk = {
 	.dv_name = "cfi",
@@ -112,25 +112,33 @@ beri_cfi_disk_close(struct open_file *f)
 	return (disk_close(dev));
 }
 
-static void
+static int
 beri_cfi_disk_print(int verbose)
 {
 	struct disk_devdesc dev;
 	char line[80];
+	int ret;
 
-	sprintf(line, "    cfi%d   CFI flash device\n", 0);
-	pager_output(line);
+	printf("%s devices:", beri_cfi_disk.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
+
+	snprintf(line, sizeof(line), "    cfi%d   CFI flash device\n", 0);
+	ret = pager_output(line);
+	if (ret != 0)
+		return (ret);
 	dev.d_dev = &beri_cfi_disk;
 	dev.d_unit = 0;
 	dev.d_slice = -1;
 	dev.d_partition = -1;
 	if (disk_open(&dev, cfi_get_mediasize(),
 	    cfi_get_sectorsize(), 0) == 0) {
-		sprintf(line, "    cfi%d", 0);
-		disk_print(&dev, line, verbose);
+		snprintf(line, sizeof(line), "    cfi%d", 0);
+		ret = disk_print(&dev, line, verbose);
 		disk_close(&dev);
 	}
 
+	return (ret);
 }
 
 static void

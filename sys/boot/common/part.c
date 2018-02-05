@@ -835,6 +835,7 @@ ptable_iterate(const struct ptable *table, void *arg, ptable_iterate_t *iter)
 {
 	struct pentry *entry;
 	char name[32];
+	int ret = 0;
 
 	name[0] = '\0';
 	STAILQ_FOREACH(entry, &table->entries, entry) {
@@ -857,9 +858,8 @@ ptable_iterate(const struct ptable *table, void *arg, ptable_iterate_t *iter)
 		if (table->type == PTABLE_BSD)
 			sprintf(name, "%c", (u_char) 'a' +
 			    entry->part.index);
-		if (iter(arg, name, &entry->part))
-			return 1;
+		if ((ret = iter(arg, name, &entry->part)) != 0)
+			return (ret);
 	}
-	return 0;
+	return (ret);
 }
-
