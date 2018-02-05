@@ -4514,21 +4514,6 @@ zfs_setsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
 }
 
 static int
-ioflags(int ioflags)
-{
-	int flags = 0;
-
-	if (ioflags & IO_APPEND)
-		flags |= FAPPEND;
-	if (ioflags & IO_NDELAY)
-		flags |= FNONBLOCK;
-	if (ioflags & IO_SYNC)
-		flags |= (FSYNC | FDSYNC | FRSYNC);
-
-	return (flags);
-}
-
-static int
 zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int *rbehind,
     int *rahead)
 {
@@ -4848,6 +4833,21 @@ zfs_freebsd_ioctl(ap)
 
 	return (zfs_ioctl(ap->a_vp, ap->a_command, (intptr_t)ap->a_data,
 	    ap->a_fflag, ap->a_cred, NULL, NULL));
+}
+
+static int
+ioflags(int ioflags)
+{
+	int flags = 0;
+
+	if (ioflags & IO_APPEND)
+		flags |= FAPPEND;
+	if (ioflags & IO_NDELAY)
+		flags |= FNONBLOCK;
+	if (ioflags & IO_SYNC)
+		flags |= (FSYNC | FDSYNC | FRSYNC);
+
+	return (flags);
 }
 
 static int
