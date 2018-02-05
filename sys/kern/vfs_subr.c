@@ -362,7 +362,6 @@ static int
 vnode_init(void *mem, int size, int flags)
 {
 	struct vnode *vp;
-	struct bufobj *bo;
 
 	vp = mem;
 	bzero(vp, size);
@@ -379,11 +378,7 @@ vnode_init(void *mem, int size, int flags)
 	/*
 	 * Initialize bufobj.
 	 */
-	bo = &vp->v_bufobj;
-	rw_init(BO_LOCKPTR(bo), "bufobj interlock");
-	bo->bo_private = vp;
-	TAILQ_INIT(&bo->bo_clean.bv_hd);
-	TAILQ_INIT(&bo->bo_dirty.bv_hd);
+	bufobj_init(&vp->v_bufobj, vp);
 	/*
 	 * Initialize namecache.
 	 */
