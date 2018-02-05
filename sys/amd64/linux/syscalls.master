@@ -76,7 +76,7 @@
 				    l_size_t nbyte, l_loff_t offset); }
 18	AUE_PWRITE	STD	{ int linux_pwrite(l_uint fd, char *buf, \
 				    l_size_t nbyte, l_loff_t offset); }
-19	AUE_READV	NOPROTO { int readv(int fd, struct iovec *iovp, \
+19	AUE_READV	NOPROTO	{ int readv(int fd, struct iovec *iovp, \
 				    u_int iovcnt); }
 20	AUE_WRITEV	NOPROTO	{ int writev(int fd, struct iovec *iovp, \
 				    u_int iovcnt); }
@@ -472,7 +472,7 @@
 279	AUE_NULL	STD	{ int linux_move_pages(void); }
 280	AUE_FUTIMESAT	STD	{ int linux_utimensat(l_int dfd, const char *pathname, \
 				    const struct l_timespec *times, l_int flags); }
-281	AUE_NULL	STD     { int linux_epoll_pwait(l_int epfd, struct epoll_event *events, \
+281	AUE_NULL	STD	{ int linux_epoll_pwait(l_int epfd, struct epoll_event *events, \
 				    l_int maxevents, l_int timeout, l_sigset_t *mask, \
 				    l_size_t sigsetsize); }
 282	AUE_NULL	STD	{ int linux_signalfd(void); }
