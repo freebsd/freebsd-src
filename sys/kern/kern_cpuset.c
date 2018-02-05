@@ -1340,7 +1340,7 @@ domainset_zero(void)
 	DOMAINSET_ZERO(&dset->ds_mask);
 	for (i = 0; i < vm_ndomains; i++)
 		DOMAINSET_SET(i, &dset->ds_mask);
-	dset->ds_policy = DOMAINSET_POLICY_ROUNDROBIN;
+	dset->ds_policy = DOMAINSET_POLICY_FIRSTTOUCH;
 	dset->ds_prefer = -1;
 	curthread->td_domain.dr_policy = _domainset_create(dset, NULL);
 	kernel_object->domain.dr_policy = curthread->td_domain.dr_policy;
