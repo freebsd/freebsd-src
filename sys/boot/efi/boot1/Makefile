@@ -19,12 +19,22 @@ CWARNFLAGS.zfs_module.c += -Wno-missing-prototypes
 CWARNFLAGS.zfs_module.c += -Wno-sign-compare
 CWARNFLAGS.zfs_module.c += -Wno-unused-parameter
 CWARNFLAGS.zfs_module.c += -Wno-unused-function
+CWARNFLAGS.skein.c += -Wno-cast-align
+.if ${COMPILER_TYPE} == "clang"
+CWARNFLAGS.skein.c += -Wno-missing-variable-declarations
+.else if ${COMPILER_TYPE} == "gcc"
+CWARNFLAGS.skein.c += -Wno-missing-declarations
+.endif
 .endif
 
 # architecture-specific loader code
 SRCS=	boot1.c self_reloc.c start.S ufs_module.c
 .if ${MK_ZFS} != "no"
 SRCS+=		zfs_module.c
+SRCS+=		skein.c skein_block.c
+# Do not unroll skein loops, reduce code size
+CFLAGS+=	-DSKEIN_LOOP=111
+.PATH:		${.CURDIR}/../../../crypto/skein
 .endif
 
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201
@@ -44,6 +54,7 @@ CFLAGS+=	-DEFI_DEBUG
 .if ${MK_ZFS} != "no"
 CFLAGS+=	-I${.CURDIR}/../../zfs/
 CFLAGS+=	-I${.CURDIR}/../../../cddl/boot/zfs/
+CFLAGS+=	-I${.CURDIR}/../../../crypto/skein
 CFLAGS+=	-DEFI_ZFS_BOOT
 .endif
 

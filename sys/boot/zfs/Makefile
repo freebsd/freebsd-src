@@ -5,10 +5,16 @@ INTERNALLIB=
 
 SRCS+=		zfs.c
 
+SRCS+=		skein.c skein_block.c
+# Do not unroll skein loops, reduce code size
+CFLAGS+=	-DSKEIN_LOOP=111
+.PATH:		${.CURDIR}/../../crypto/skein
+
 CFLAGS+=	-DBOOTPROG=\"zfsloader\"
 CFLAGS+=	-I${.CURDIR}/../common -I${.CURDIR}/../.. -I.
 CFLAGS+=	-I${.CURDIR}/../../../lib/libstand
 CFLAGS+=	-I${.CURDIR}/../../cddl/boot/zfs
+CFLAGS+=	-I${.CURDIR}/../../crypto/skein
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-march=i386
