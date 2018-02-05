@@ -144,7 +144,7 @@
 #endif
 
 #ifdef	SMP
-#define	PA_LOCK_COUNT	256
+#define	PA_LOCK_COUNT	1024
 #endif
 
 /*
