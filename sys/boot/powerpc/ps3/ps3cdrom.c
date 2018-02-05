@@ -49,7 +49,7 @@ static int ps3cdrom_strategy(void *devdata, int flag, daddr_t dblk,
 	size_t size, char *buf, size_t *rsize);
 static int ps3cdrom_open(struct open_file *f, ...);
 static int ps3cdrom_close(struct open_file *f);
-static void ps3cdrom_print(int verbose);
+static int ps3cdrom_print(int verbose);
 
 struct devsw ps3cdrom = {
 	"cd",
@@ -149,6 +149,7 @@ static int ps3cdrom_close(struct open_file *f)
 	return 0;
 }
 
-static void ps3cdrom_print(int verbose)
+static int ps3cdrom_print(int verbose)
 {
+	return (0);
 }

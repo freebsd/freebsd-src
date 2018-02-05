@@ -69,7 +69,7 @@ static int	fw_strategy(void *devdata, int flag, daddr_t dblk,
 		    size_t size, char *buf, size_t *rsize);
 static int	fw_open(struct open_file *f, ...);
 static int	fw_close(struct open_file *f);
-static void	fw_print(int verbose);
+static int	fw_print(int verbose);
 static void	fw_cleanup(void);
 
 void		fw_enable(void);
@@ -148,21 +148,30 @@ fw_init(void)
 /*
  * Print information about OHCI chips
  */
-static void
+static int
 fw_print(int verbose)
 {
-	int i;
+	char line[80];
+	int i, ret = 0;
 	struct fwohci_softc *sc;
+
+	printf("%s devices:", fwohci.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
 
 	for (i = 0; i < MAX_OHCI; i ++) {
 		sc = &fwinfo[i];
 		if (sc->state == FWOHCI_STATE_DEAD)
 			break;
-		printf("%d: locator=0x%04x devid=0x%08x"
+		snprintf(line, sizeof(line), "%d: locator=0x%04x devid=0x%08x"
 			" base_addr=0x%08x handle=0x%08x bus_id=0x%08x\n",
 			i, sc->locator, sc->devid,
 			sc->base_addr, sc->handle, sc->bus_id);
+		ret = pager_output(line);
+		if (ret != 0)
+			break;
 	}
+	return (ret);
 }
 
 static int 

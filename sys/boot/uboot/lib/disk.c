@@ -77,7 +77,7 @@ static int stor_strategy(void *, int, daddr_t, size_t, char *, size_t *);
 static int stor_open(struct open_file *, ...);
 static int stor_close(struct open_file *);
 static int stor_ioctl(struct open_file *f, u_long cmd, void *data);
-static void stor_print(int);
+static int stor_print(int);
 static void stor_cleanup(void);
 
 struct devsw uboot_storage = {
@@ -237,30 +237,38 @@ stor_readdev(struct disk_devdesc *dev, daddr_t blk, size_t size, char *buf)
 	return (err);
 }
 
-static void
+static int
 stor_print(int verbose)
 {
 	struct disk_devdesc dev;
 	static char line[80];
-	int i;
+	int i, ret = 0;
 
-	pager_open();
+	if (stor_info_no == 0)
+		return (ret);
+
+	printf("%s devices:", uboot_storage.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
+
 	for (i = 0; i < stor_info_no; i++) {
 		dev.d_dev = &uboot_storage;
 		dev.d_unit = i;
 		dev.d_slice = -1;
 		dev.d_partition = -1;
-		sprintf(line, "\tdisk%d (%s)\n", i,
+		snprintf(line, sizeof(line), "\tdisk%d (%s)\n", i,
 		    ub_stor_type(SI(&dev).type));
-		if (pager_output(line))
+		if ((ret = pager_output(line)) != 0)
 			break;
 		if (stor_opendev(&dev) == 0) {
 			sprintf(line, "\tdisk%d", i);
-			disk_print(&dev, line, verbose);
+			ret = disk_print(&dev, line, verbose);
 			disk_close(&dev);
+			if (ret != 0)
+				break;
 		}
 	}
-	pager_close();
+	return (ret);
 }
 
 static int

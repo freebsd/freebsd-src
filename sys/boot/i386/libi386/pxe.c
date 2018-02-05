@@ -75,7 +75,7 @@ static int	pxe_strategy(void *devdata, int flag, daddr_t dblk,
 			     size_t size, char *buf, size_t *rsize);
 static int	pxe_open(struct open_file *f, ...);
 static int	pxe_close(struct open_file *f);
-static void	pxe_print(int verbose);
+static int	pxe_print(int verbose);
 static void	pxe_cleanup(void);
 static void	pxe_setnfshandle(char *rootpath);
 
@@ -382,14 +382,23 @@ pxe_close(struct open_file *f)
     return (0);
 }
 
-static void
+static int
 pxe_print(int verbose)
 {
-
+	char line[255];
 	if (pxe_call == NULL)
-		return;
+		return (0);
 
-	printf("    pxe0:    %s:%s\n", inet_ntoa(rootip), rootpath);
+	printf("%s devices:", pxedisk.dv_name);
+	if (pager_output("\n") != 0)
+		return (1);
+	if (verbose) {
+		snprintf(line, sizeof(line), "    pxe0:    %s:%s\n",
+		    inet_ntoa(rootip), rootpath);
+	} else {
+		snprintf(line, sizeof(line), "    pxe0:\n");
+	}
+	return (pager_output(line));
 }
 
 static void
