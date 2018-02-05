@@ -1187,7 +1187,7 @@ arswitch_atu_fetch_table(device_t dev, etherswitch_atu_table_t *table)
 	err = sc->hal.arswitch_atu_fetch_table(sc, NULL, 0);
 
 	/* fetch - ideally yes we'd fetch into a separate table then switch */
-	while (err != -1 && nitems < sc->atu.size) {
+	while (err == 0 && nitems < sc->atu.size) {
 		err = sc->hal.arswitch_atu_fetch_table(sc,
 		    &sc->atu.entries[nitems], 1);
 		if (err == 0) {
