@@ -3,7 +3,6 @@
 PROG?=	boot0
 STRIP=
 BINMODE=${NOBINMODE}
-MAN=
 SRCS=	${PROG}.S
 
 # Additional options that you can specify with make OPTS="..."

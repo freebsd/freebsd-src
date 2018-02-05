@@ -132,6 +132,14 @@ __FBSDID("$FreeBSD$");
 
 #define	PSMCPNP_DRIVER_NAME	"psmcpnp"
 
+struct psmcpnp_softc {
+	enum {
+		PSMCPNP_GENERIC,
+		PSMCPNP_FORCEPAD,
+		PSMCPNP_HPSYN81,
+	} type;		/* Based on PnP ID */
+};
+
 /* input queue */
 #define	PSM_BUFSIZE		960
 #define	PSM_SMALLBUFSIZE	240
@@ -166,6 +174,15 @@ typedef struct packetbuf {
 #ifndef PSM_PACKETQUEUE
 #define	PSM_PACKETQUEUE	128
 #endif
+
+/*
+ * Typical bezel limits. Taken from 'Synaptics
+ * PS/2 TouchPad Interfacing Guide' p.3.2.3.
+ */
+#define	SYNAPTICS_DEFAULT_MAX_X	5472
+#define	SYNAPTICS_DEFAULT_MAX_Y	4448
+#define	SYNAPTICS_DEFAULT_MIN_X	1472
+#define	SYNAPTICS_DEFAULT_MIN_Y	1408
 
 typedef struct synapticsinfo {
 	struct sysctl_ctx_list	 sysctl_ctx;
@@ -416,6 +433,7 @@ struct psm_softc {		/* Driver status information */
 	int		squelch; /* level to filter movement at low speed */
 	int		syncerrors; /* # of bytes discarded to synchronize */
 	int		pkterrors;  /* # of packets failed during quaranteen. */
+	int		fpcount;	/* forcePad valid packet counter */
 	struct timeval	inputtimeout;
 	struct timeval	lastsoftintr;	/* time of last soft interrupt */
 	struct timeval	lastinputerr;	/* time last sync error happened */
@@ -1088,7 +1106,7 @@ doopen(struct psm_softc *sc, int command_byte)
 		mouse_ext_command(sc->kbdc, 1);
 		get_mouse_status(sc->kbdc, stat, 0, 3);
 		if ((SYNAPTICS_VERSION_GE(sc->synhw, 7, 5) ||
-		     stat[1] == 0x47) &&
+		     stat[1] == 0x46 || stat[1] == 0x47) &&
 		     stat[2] == 0x40) {
 			synaptics_set_mode(sc, synaptics_preferred_mode(sc));
 			VLOG(5, (LOG_DEBUG, "psm%d: Synaptis Absolute Mode "
@@ -1947,8 +1965,10 @@ psmattach(device_t dev)
 
 	/* Elantech trackpad`s sync bit differs from touchpad`s one */
 	if (sc->hw.model == MOUSE_MODEL_ELANTECH &&
-	    (sc->elanhw.hascrc || sc->elanhw.hastrackpoint))
+	    (sc->elanhw.hascrc || sc->elanhw.hastrackpoint)) {
 		sc->config |= PSM_CONFIG_NOCHECKSYNC;
+		sc->flags &= ~PSM_NEED_SYNCBITS;
+	}
 
 	if (!verbose)
 		printf("psm%d: model %s, device ID %d\n",
@@ -1959,8 +1979,9 @@ psmattach(device_t dev)
 		    sc->hw.hwid >> 8, sc->hw.buttons);
 		printf("psm%d: config:%08x, flags:%08x, packet size:%d\n",
 		    unit, sc->config, sc->flags, sc->mode.packetsize);
-		printf("psm%d: syncmask:%02x, syncbits:%02x\n",
-		    unit, sc->mode.syncmask[0], sc->mode.syncmask[1]);
+		printf("psm%d: syncmask:%02x, syncbits:%02x%s\n",
+		    unit, sc->mode.syncmask[0], sc->mode.syncmask[1],
+		    sc->config & PSM_CONFIG_NOCHECKSYNC ? " (sync not checked)" : "");
 	}
 
 	if (bootverbose)
@@ -2867,7 +2888,7 @@ psmtimeout(void *arg)
 	sc = (struct psm_softc *)arg;
 	s = spltty();
 	if (sc->watchdog && kbdc_lock(sc->kbdc, TRUE)) {
-		VLOG(4, (LOG_DEBUG, "psm%d: lost interrupt?\n", sc->unit));
+		VLOG(6, (LOG_DEBUG, "psm%d: lost interrupt?\n", sc->unit));
 		psmintr(sc);
 		kbdc_lock(sc->kbdc, FALSE);
 	}
@@ -2975,8 +2996,9 @@ psmintr(void *arg)
 			sc->flags &= ~PSM_NEED_SYNCBITS;
 			VLOG(2, (LOG_DEBUG,
 			    "psmintr: Sync bytes now %04x,%04x\n",
-			    sc->mode.syncmask[0], sc->mode.syncmask[0]));
-		} else if ((c & sc->mode.syncmask[0]) != sc->mode.syncmask[1]) {
+			    sc->mode.syncmask[0], sc->mode.syncmask[1]));
+		} else if ((sc->config & PSM_CONFIG_NOCHECKSYNC) == 0 &&
+		    (c & sc->mode.syncmask[0]) != sc->mode.syncmask[1]) {
 			VLOG(3, (LOG_DEBUG, "psmintr: out of sync "
 			    "(%04x != %04x) %d cmds since last error.\n",
 			    c & sc->mode.syncmask[0], sc->mode.syncmask[1],
@@ -3179,7 +3201,7 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 	static int touchpad_buttons;
 	static int guest_buttons;
 	static finger_t f[PSM_FINGERS];
-	int w, id, nfingers, ewcode, extended_buttons;
+	int w, id, nfingers, ewcode, extended_buttons, clickpad_pressed;
 
 	extended_buttons = 0;
 
@@ -3441,10 +3463,6 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 			extended_buttons |= sc->extended_buttons;
 		}
 	}
-	/* Handle ClickPad */
-	if (sc->synhw.capClickPad &&
-	    ((pb->ipacket[0] ^ pb->ipacket[3]) & 0x01))
-		touchpad_buttons |= MOUSE_BUTTON1DOWN;
 
 	if (sc->synhw.capReportsV && nfingers > 1)
 		f[0] = (finger_t) {
@@ -3476,6 +3494,36 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 	/* Ignore hovering and unmeasurable touches */
 	if (f[0].p < sc->syninfo.min_pressure || f[0].x < 2)
 		nfingers = 0;
+
+	/* Handle ClickPad */
+	if (sc->synhw.capClickPad) {
+		clickpad_pressed = (pb->ipacket[0] ^ pb->ipacket[3]) & 0x01;
+		if (sc->synhw.forcePad) {
+			/*
+			 * Forcepads erroneously report button click if there
+			 * are 2 or more fingers on the touchpad breaking
+			 * multifinger gestures. To workaround this start
+			 * reporting a click only after 4 consecutive single
+			 * touch packets has been received.
+			 * Skip these packets in case more contacts appear.
+			 */
+			switch (nfingers) {
+			case 0:
+				sc->fpcount = 0;
+				break;
+			case 1:
+				if (clickpad_pressed && sc->fpcount < INT_MAX)
+					++sc->fpcount;
+				/* FALLTHROUGH */
+			default:
+				if (!clickpad_pressed)
+					sc->fpcount = 0;
+				if (sc->fpcount >= sc->syninfo.window_min)
+					touchpad_buttons |= MOUSE_BUTTON1DOWN;
+			}
+		} else if (clickpad_pressed)
+			touchpad_buttons |= MOUSE_BUTTON1DOWN;
+	}
 
 	for (id = 0; id < PSM_FINGERS; id++)
 		if (id >= nfingers)
@@ -4183,7 +4231,7 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 	/* Determine packet format and do a sanity check for out of sync packets. */
 	if (ELANTECH_PKT_IS_DEBOUNCE(pb, sc->elanhw.hwversion))
 		pkt = ELANTECH_PKT_NOP;
-	else if (ELANTECH_PKT_IS_TRACKPOINT(pb))
+	else if (sc->elanhw.hastrackpoint && ELANTECH_PKT_IS_TRACKPOINT(pb))
 		pkt = ELANTECH_PKT_TRACKPOINT;
 	else
 	switch (sc->elanhw.hwversion) {
@@ -4887,13 +4935,19 @@ psmsoftintr(void *arg)
 			break;
 
 		case MOUSE_MODEL_SYNAPTICS:
-			if (proc_synaptics(sc, pb, &ms, &x, &y, &z) != 0)
+			if (proc_synaptics(sc, pb, &ms, &x, &y, &z) != 0) {
+				VLOG(3, (LOG_DEBUG, "synaptics: "
+				    "packet rejected\n"));
 				goto next;
+			}
 			break;
 
 		case MOUSE_MODEL_ELANTECH:
-			if (proc_elantech(sc, pb, &ms, &x, &y, &z) != 0)
+			if (proc_elantech(sc, pb, &ms, &x, &y, &z) != 0) {
+				VLOG(3, (LOG_DEBUG, "elantech: "
+				    "packet rejected\n"));
 				goto next;
+			}
 			break;
 
 		case MOUSE_MODEL_TRACKPOINT:
@@ -4989,9 +5043,9 @@ next_native:
 		    sizeof(sc->queue.buf);
 		sc->queue.count += pb->inputbytes;
 	}
-	pb->inputbytes = 0;
 
 next:
+	pb->inputbytes = 0;
 	if (++sc->pqueue_start >= PSM_PACKETQUEUE)
 		sc->pqueue_start = 0;
 	} while (sc->pqueue_start != sc->pqueue_end);
@@ -5994,10 +6048,12 @@ synaptics_set_mode(struct psm_softc *sc, int mode_byte) {
 static int
 enable_synaptics(struct psm_softc *sc, enum probearg arg)
 {
+	device_t psmcpnp;
+	struct psmcpnp_softc *psmcpnp_sc;
 	KBDC kbdc = sc->kbdc;
 	synapticshw_t synhw;
 	int status[3];
-	int buttons;
+	int buttons, middle_byte;
 
 	VLOG(3, (LOG_DEBUG, "synaptics: BEGIN init\n"));
 
@@ -6014,7 +6070,8 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 		return (FALSE);
 	if (get_mouse_status(kbdc, status, 0, 3) != 3)
 		return (FALSE);
-	if (status[1] != 0x47)
+	middle_byte = status[1];
+	if (middle_byte != 0x46 && middle_byte != 0x47)
 		return (FALSE);
 
 	bzero(&synhw, sizeof(synhw));
@@ -6025,7 +6082,15 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 		printf("Synaptics Touchpad v%d.%d\n", synhw.infoMajor,
 		    synhw.infoMinor);
 
-	if (synhw.infoMajor < 4) {
+	/*
+	 * Most synaptics touchpads return 0x47 in middle byte in responce to
+	 * identify command as stated in p.4.4 of "Synaptics PS/2 TouchPad
+	 * Interfacing Guide" and we only support v4.0 or better. But some
+	 * devices return 0x46 here and have a different numbering scheme.
+	 * In the case of 0x46, we allow versions as low as v2.0
+	 */
+	if ((middle_byte == 0x47 && synhw.infoMajor < 4) ||
+	    (middle_byte == 0x46 && synhw.infoMajor < 2)) {
 		printf("  Unsupported (pre-v4) Touchpad detected\n");
 		return (FALSE);
 	}
@@ -6066,15 +6131,38 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 		return (FALSE);
 	if (get_mouse_status(kbdc, status, 0, 3) != 3)
 		return (FALSE);
-	if (!SYNAPTICS_VERSION_GE(synhw, 7, 5) && status[1] != 0x47) {
+	if (!SYNAPTICS_VERSION_GE(synhw, 7, 5) && status[1] != middle_byte) {
 		printf("  Failed to read extended capability bits\n");
 		return (FALSE);
 	}
 
+	psmcpnp = devclass_get_device(devclass_find(PSMCPNP_DRIVER_NAME),
+	    sc->unit);
+	psmcpnp_sc = (psmcpnp != NULL) ? device_get_softc(psmcpnp) : NULL;
+
+	/*
+	 * Set conservative defaults for 0x46 middle byte touchpads
+	 * as ExtendedQueries return bogus data.
+	 */
+	if (middle_byte == 0x46) {
+		synhw.capExtended = 1;
+		synhw.capPalmDetect = 1;
+		synhw.capPassthrough = 1;
+		synhw.capMultiFinger = 1;
+		synhw.maximumXCoord = SYNAPTICS_DEFAULT_MAX_X;
+		synhw.maximumYCoord = SYNAPTICS_DEFAULT_MAX_Y;
+		synhw.minimumXCoord = SYNAPTICS_DEFAULT_MIN_X;
+		synhw.minimumYCoord = SYNAPTICS_DEFAULT_MIN_Y;
+		/* Enable multitouch mode for HW v8.1 devices */
+		if (psmcpnp_sc != NULL &&
+		    psmcpnp_sc->type == PSMCPNP_HPSYN81)
+			synhw.capReportsV = 1;
+	} else
+		synhw.capExtended = (status[0] & 0x80) != 0;
+
 	/* Set the different capabilities when they exist. */
 	buttons = 0;
-	synhw.capExtended = (status[0] & 0x80) != 0;
-	if (synhw.capExtended) {
+	if (synhw.capExtended && middle_byte == 0x47) {
 		synhw.nExtendedQueries = (status[0] & 0x70) >> 4;
 		synhw.capMiddle        = (status[0] & 0x04) != 0;
 		synhw.capPassthrough   = (status[2] & 0x80) != 0;
@@ -6196,12 +6284,8 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 				synhw.maximumYCoord = (status[2] << 5) |
 						     ((status[1] & 0xf0) >> 3);
 			} else {
-				/*
-				 * Typical bezel limits. Taken from 'Synaptics
-				 * PS/2 * TouchPad Interfacing Guide' p.3.2.3.
-				 */
-				synhw.maximumXCoord = 5472;
-				synhw.maximumYCoord = 4448;
+				synhw.maximumXCoord = SYNAPTICS_DEFAULT_MAX_X;
+				synhw.maximumYCoord = SYNAPTICS_DEFAULT_MAX_Y;
 			}
 
 			if (synhw.capReportsMin) {
@@ -6217,12 +6301,22 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 				synhw.minimumYCoord = (status[2] << 5) |
 						     ((status[1] & 0xf0) >> 3);
 			} else {
-				/*
-				 * Typical bezel limits. Taken from 'Synaptics
-				 * PS/2 * TouchPad Interfacing Guide' p.3.2.3.
-				 */
-				synhw.minimumXCoord = 1472;
-				synhw.minimumYCoord = 1408;
+				synhw.minimumXCoord = SYNAPTICS_DEFAULT_MIN_X;
+				synhw.minimumYCoord = SYNAPTICS_DEFAULT_MIN_Y;
+			}
+
+			/*
+			 * ClickPad properties are not exported through PS/2
+			 * protocol. Detection is based on controller's PnP ID.
+			 */
+			if (synhw.capClickPad && psmcpnp_sc != NULL) {
+				switch (psmcpnp_sc->type) {
+				case PSMCPNP_FORCEPAD:
+					synhw.forcePad = 1;
+					break;
+				default:
+					break;
+				}
 			}
 
 			if (verbose >= 2) {
@@ -6261,6 +6355,10 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 					printf("   minimumYCoord: %d\n",
 					       synhw.minimumYCoord);
 				}
+				if (synhw.capClickPad) {
+					printf("   forcePad: %d\n",
+					       synhw.forcePad);
+				}
 			}
 			buttons += synhw.capClickPad;
 		}
@@ -6290,7 +6388,7 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 		return (FALSE);
 	if (get_mouse_status(kbdc, status, 0, 3) != 3)
 		return (FALSE);
-	if (!SYNAPTICS_VERSION_GE(synhw, 7, 5) && status[1] != 0x47) {
+	if (!SYNAPTICS_VERSION_GE(synhw, 7, 5) && status[1] != middle_byte) {
 		printf("  Failed to read mode byte\n");
 		return (FALSE);
 	}
@@ -7086,7 +7184,7 @@ static device_method_t psmcpnp_methods[] = {
 static driver_t psmcpnp_driver = {
 	PSMCPNP_DRIVER_NAME,
 	psmcpnp_methods,
-	1,			/* no softc */
+	sizeof(struct psmcpnp_softc),
 };
 
 static struct isa_pnp_id psmcpnp_ids[] = {
@@ -7103,6 +7201,19 @@ static struct isa_pnp_id psmcpnp_ids[] = {
 	{ 0x0290d94d, "SONY VAIO PS/2 mouse port"},	/* SNY9002, Vaio */
 	{ 0x0390d94d, "SONY VAIO PS/2 mouse port"},	/* SNY9003, Vaio */
 	{ 0x0490d94d, "SONY VAIO PS/2 mouse port"},     /* SNY9004, Vaio */
+	{ 0 }
+};
+
+/* _HID list for quirk detection. Any device below has _CID from psmcpnp_ids */
+static struct isa_pnp_id forcepad_ids[] = {
+	{ 0x0d302e4f, "HP PS/2 forcepad port" },	/* SYN300D, EB 1040 */
+	{ 0x14302e4f, "HP PS/2 forcepad port" },	/* SYN3014, EB 1040 */
+	{ 0 }
+};
+
+/* List of HW v8.1 synaptics touchpads erroneously detected as HW v2.0 */
+static struct isa_pnp_id hpsyn81_ids[] = {
+	{ 0x9e012e4f, "HP PS/2 trackpad port" },	/* SYN019E, EB 9470 */
 	{ 0 }
 };
 
@@ -7132,11 +7243,18 @@ create_a_copy(device_t atkbdc, device_t me)
 static int
 psmcpnp_probe(device_t dev)
 {
+	struct psmcpnp_softc *sc = device_get_softc(dev);
 	struct resource *res;
 	u_long irq;
 	int rid;
 
-	if (ISA_PNP_PROBE(device_get_parent(dev), dev, psmcpnp_ids))
+	if (ISA_PNP_PROBE(device_get_parent(dev), dev, forcepad_ids) == 0)
+		sc->type = PSMCPNP_FORCEPAD;
+	else if(ISA_PNP_PROBE(device_get_parent(dev), dev, hpsyn81_ids) == 0)
+		sc->type = PSMCPNP_HPSYN81;
+	else if (ISA_PNP_PROBE(device_get_parent(dev), dev, psmcpnp_ids) == 0)
+		sc->type = PSMCPNP_GENERIC;
+	else
 		return (ENXIO);
 
 	/*
@@ -7182,5 +7300,5 @@ psmcpnp_attach(device_t dev)
 
 DRIVER_MODULE(psmcpnp, isa, psmcpnp_driver, psmcpnp_devclass, 0, 0);
 DRIVER_MODULE(psmcpnp, acpi, psmcpnp_driver, psmcpnp_devclass, 0, 0);
-
+ISA_PNP_INFO(psmcpnp_ids);
 #endif /* DEV_ISA */

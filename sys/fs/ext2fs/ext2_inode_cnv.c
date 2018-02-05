@@ -90,8 +90,10 @@ ext2_print_inode(struct inode *in)
 int
 ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 {
+	struct m_ext2fs *fs;
 	const static struct ext2fs_dinode ei_zero;
 
+	fs = ip->i_e2fs;
 	ip->i_nlink = ei->e2di_nlink;
 	/*
 	 * Godmar thinks - if the link count is zero, then the inode is
@@ -135,7 +137,8 @@ ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 
 	memcpy(ip->i_data, ei->e2di_blocks, sizeof(ei->e2di_blocks));
 
-	if (memcmp(ei, &ei_zero, sizeof(struct ext2fs_dinode)))
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM) &&
+	    memcmp(ei, &ei_zero, EXT2_INODE_SIZE(fs)))
 		return (ext2_ei_csum_verify(ip, ei));
 
 	return (0);

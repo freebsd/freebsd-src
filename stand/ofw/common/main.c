@@ -42,23 +42,17 @@ u_int32_t	acells, scells;
 
 static char bootargs[128];
 
-#define	HEAP_SIZE	0x100000
+#define	HEAP_SIZE	0x800000
+static char heap[HEAP_SIZE]; // In BSS, so uses no space
 
 #define OF_puts(fd, text) OF_write(fd, text, strlen(text))
 
 void
 init_heap(void)
 {
-	void	*base;
-	ihandle_t stdout;
+	bzero(heap, HEAP_SIZE);
 
-	if ((base = ofw_alloc_heap(HEAP_SIZE)) == (void *)0xffffffff) {
-		OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
-		OF_puts(stdout, "Heap memory claim failed!\n");
-		OF_enter();
-	}
-
-	setheap(base, (void *)((int)base + HEAP_SIZE));
+	setheap(heap, (void *)((int)heap + HEAP_SIZE));
 }
 
 uint64_t

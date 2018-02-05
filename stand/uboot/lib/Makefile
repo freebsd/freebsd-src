@@ -5,7 +5,6 @@
 .PATH: ${LDRSRC}
 
 LIB=		uboot
-INTERNALLIB=
 WARNS?=		2
 
 SRCS=	console.c copy.c devicename.c elf_freebsd.c glue.c

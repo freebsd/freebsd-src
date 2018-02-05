@@ -68,6 +68,7 @@
 
 /* this header intentionally exports NULL from <string.h> */
 #include <string.h>
+#define strcoll(a, b)	strcmp((a), (b))
 
 #define CHK(fmt, args...)	printf("%s(%d): " fmt "\n", __func__, __LINE__ , ##args)
 #define PCHK(fmt, args...)	{printf("%s(%d): " fmt "\n", __func__, __LINE__ , ##args); getchar();}
@@ -295,8 +296,6 @@ extern void	srandom(unsigned int);
 extern long	random(void);
     
 /* imports from stdlib, locally modified */
-extern long	strtol(const char *, char **, int);
-extern unsigned long	strtoul(const char *, char **, int);
 extern char	*optarg;			/* getopt(3) external variables */
 extern int	optind, opterr, optopt, optreset;
 extern int	getopt(int, char * const [], const char *);
@@ -346,6 +345,14 @@ extern int		unsetenv(const char *name);
 extern ev_sethook_t	env_noset;		/* refuse set operation */
 extern ev_unsethook_t	env_nounset;		/* refuse unset operation */
 
+/* stdlib.h routines */
+extern int		abs(int a);
+extern void		abort(void) __dead2;
+extern long		strtol(const char * __restrict, char ** __restrict, int);
+extern long long	strtoll(const char * __restrict, char ** __restrict, int);
+extern unsigned long	strtoul(const char * __restrict, char ** __restrict, int);
+extern unsigned long long strtoull(const char * __restrict, char ** __restrict, int);
+
 /* BCD conversions (undocumented) */
 extern u_char const	bcd2bin_data[];
 extern u_char const	bin2bcd_data[];
@@ -368,7 +375,6 @@ static __inline quad_t qmin(quad_t a, quad_t b) { return (a < b ? a : b); }
 static __inline u_long ulmax(u_long a, u_long b) { return (a > b ? a : b); }
 static __inline u_long ulmin(u_long a, u_long b) { return (a < b ? a : b); }
 
-
 /* null functions for device/filesystem switches (undocumented) */
 extern int	nodev(void);
 extern int	noioctl(struct open_file *, u_long, void *);
@@ -387,13 +393,14 @@ extern int	null_readdir(struct open_file *f, struct dirent *d);
  * Machine dependent functions and data, must be provided or stubbed by 
  * the consumer 
  */
-extern void		exit(int);
+extern void		exit(int) __dead2;
 extern int		getchar(void);
 extern int		ischar(void);
 extern void		putchar(int);
 extern int		devopen(struct open_file *, const char *, const char **);
 extern int		devclose(struct open_file *f);
 extern void		panic(const char *, ...) __dead2 __printflike(1, 2);
+extern void		panic_action(void) __weak_symbol __dead2;
 extern time_t		getsecs(void);
 extern struct fs_ops	*file_system[];
 extern struct fs_ops	*exclusive_file_system;

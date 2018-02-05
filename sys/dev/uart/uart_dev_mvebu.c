@@ -107,6 +107,7 @@ __FBSDID("$FreeBSD$");
 /*
  * For debugging purposes
  */
+#if 0
 #ifdef EARLY_PRINTF
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
 #define	UART_REG_OFFSET 0x12000
@@ -126,6 +127,7 @@ uart_mvebu_early_putc(int c)
 }
 
 early_putc_t *early_putc = uart_mvebu_early_putc;
+#endif
 #endif
 #endif
 

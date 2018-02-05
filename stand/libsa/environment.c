@@ -138,6 +138,7 @@ env_setenv(const char *name, int flags, const void *value,
     return(0);
 }
 
+/* coverity[ -tainted_string_return_content ] */
 char *
 getenv(const char *name)
 {

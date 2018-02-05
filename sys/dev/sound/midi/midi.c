@@ -340,15 +340,14 @@ midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
 	mtx_lock(&m->qlock);
 
 	if (inqsize)
-		buf = mallocarray(inqsize, sizeof(MIDI_TYPE), M_MIDI, M_NOWAIT);
+		buf = malloc(sizeof(MIDI_TYPE) * inqsize, M_MIDI, M_NOWAIT);
 	else
 		buf = NULL;
 
 	MIDIQ_INIT(m->inq, buf, inqsize);
 
 	if (outqsize)
-		buf = mallocarray(outqsize, sizeof(MIDI_TYPE), M_MIDI,
-		    M_NOWAIT);
+		buf = malloc(sizeof(MIDI_TYPE) * outqsize, M_MIDI, M_NOWAIT);
 	else
 		buf = NULL;
 	m->hiwat = outqsize / 2;

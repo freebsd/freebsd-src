@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 15, 2017
+.Dd January 31, 2018
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -95,6 +95,7 @@ architectures, the final release.
 .It arm         Ta 6.0
 .It armeb       Ta 8.0
 .It armv6       Ta 10.0
+.It armv7       Ta 12.0
 .It arm64       Ta 11.0
 .It ia64        Ta 5.0   Ta 10.x
 .It i386        Ta 1.0
@@ -164,6 +165,8 @@ Examples are:
 .Dv arm64
 currently does not support execution of
 .Dv armv6
+or
+.Dv armv7
 binaries, even if the CPU implements
 .Dv AArch32
 execution state.
@@ -220,6 +223,7 @@ is 8 bytes on all supported architectures except i386.
 .It arm         Ta little Ta unsigned
 .It armeb       Ta big    Ta unsigned
 .It armv6       Ta little Ta unsigned
+.It armv7       Ta little Ta unsigned
 .It arm64       Ta little Ta unsigned
 .It i386        Ta little Ta   signed
 .It mips        Ta big    Ta   signed
@@ -245,6 +249,7 @@ is 8 bytes on all supported architectures except i386.
 .It arm         Ta 4K
 .It armeb       Ta 4K
 .It armv6       Ta 4K, 1M
+.It armv7       Ta 4K, 1M
 .It arm64       Ta 4K, 2M, 1G
 .It i386        Ta 4K, 2M (PAE), 4M
 .It mips        Ta 4K
@@ -270,6 +275,7 @@ is 8 bytes on all supported architectures except i386.
 .It arm         Ta soft Ta soft, double precision
 .It armeb       Ta soft Ta soft, double precision
 .It armv6       Ta hard(1) Ta hard, double precision
+.It armv7       Ta hard(1) Ta hard, double precision
 .It arm64       Ta hard Ta soft, quad precision
 .It i386        Ta hard Ta hard, 80 bit
 .It mips        Ta soft Ta identical to double
@@ -322,6 +328,7 @@ Architecture-specific macros:
 .It arm         Ta Dv __arm__
 .It armeb       Ta Dv __arm__
 .It armv6       Ta Dv __arm__, Dv __ARM_ARCH >= 6
+.It armv7       Ta Dv __arm__, Dv __ARM_ARCH >= 7
 .It arm64       Ta Dv __aarch64__
 .It i386        Ta Dv __i386__
 .It mips        Ta Dv __mips__, Dv __MIPSEB__, Dv __mips_o32

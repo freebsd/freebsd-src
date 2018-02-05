@@ -416,6 +416,14 @@ struct rt_addrinfo {
 	}							\
 } while (0)
 
+#define	RO_INVALIDATE_CACHE(ro) do {					\
+		RO_RTFREE(ro);						\
+		if ((ro)->ro_lle != NULL) {				\
+			LLE_FREE((ro)->ro_lle);				\
+			(ro)->ro_lle = NULL;				\
+		}							\
+	} while (0)
+
 /*
  * Validate a cached route based on a supplied cookie.  If there is an
  * out-of-date cache, simply free it.  Update the generation number
@@ -424,10 +432,7 @@ struct rt_addrinfo {
 #define RT_VALIDATE(ro, cookiep, fibnum) do {				\
 	rt_gen_t cookie = RT_GEN(fibnum, (ro)->ro_dst.sa_family);	\
 	if (*(cookiep) != cookie) {					\
-		if ((ro)->ro_rt != NULL) {				\
-			RTFREE((ro)->ro_rt);				\
-			(ro)->ro_rt = NULL;				\
-		}							\
+		RO_INVALIDATE_CACHE(ro);				\
 		*(cookiep) = cookie;					\
 	}								\
 } while (0)

@@ -3752,8 +3752,10 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 
 	rcap = aneg | speed | fc | fec;
 	if ((rcap | lc->supported) != lc->supported) {
+#ifdef INVARIANTS
 		CH_WARN(adap, "rcap 0x%08x, pcap 0x%08x\n", rcap,
 		    lc->supported);
+#endif
 		rcap &= lc->supported;
 	}
 	rcap |= mdi;

@@ -901,4 +901,5 @@ static driver_t sysresource_driver = {
 static devclass_t sysresource_devclass;
 
 DRIVER_MODULE(sysresource, isa, sysresource_driver, sysresource_devclass, 0, 0);
+ISA_PNP_INFO(sysresource_ids);
 #endif /* DEV_ISA */

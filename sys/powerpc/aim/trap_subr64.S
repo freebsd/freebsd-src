@@ -347,7 +347,7 @@ cpu_reset_handler:
 	beq	%cr0,2f
 	nop
 	li	%r4,1
-	b	CNAME(longjmp)
+	bl	CNAME(longjmp)
 	nop
 2:
 #ifdef SMP

@@ -400,43 +400,34 @@ __FBSDID("$FreeBSD$");
 #define SCTP_HOSTNAME_ADDRESS		0x000b
 #define SCTP_SUPPORTED_ADDRTYPE		0x000c
 
-/* draft-ietf-stewart-tsvwg-strreset-xxx */
+/* RFC 6525 */
 #define SCTP_STR_RESET_OUT_REQUEST	0x000d
 #define SCTP_STR_RESET_IN_REQUEST	0x000e
 #define SCTP_STR_RESET_TSN_REQUEST	0x000f
 #define SCTP_STR_RESET_RESPONSE		0x0010
 #define SCTP_STR_RESET_ADD_OUT_STREAMS	0x0011
-#define SCTP_STR_RESET_ADD_IN_STREAMS   0x0012
+#define SCTP_STR_RESET_ADD_IN_STREAMS	0x0012
 
 #define SCTP_MAX_RESET_PARAMS 2
-#define SCTP_STREAM_RESET_TSN_DELTA    0x1000
+#define SCTP_STREAM_RESET_TSN_DELTA	0x1000
 
 /*************0x4000 series*************/
 
 /*************0x8000 series*************/
 #define SCTP_ECN_CAPABLE		0x8000
 
-/* draft-ietf-tsvwg-auth-xxx */
+/* RFC 4895 */
 #define SCTP_RANDOM			0x8002
 #define SCTP_CHUNK_LIST			0x8003
 #define SCTP_HMAC_LIST			0x8004
-/*
- * draft-ietf-tsvwg-addip-sctp-xx param=0x8008  len=0xNNNN Byte | Byte | Byte
- * | Byte Byte | Byte ...
- *
- * Where each byte is a chunk type extension supported. For example, to support
- * all chunks one would have (in hex):
- *
- * 80 01 00 09 C0 C1 80 81 82 00 00 00
- *
- * Has the parameter. C0 = PR-SCTP    (RFC3758) C1, 80 = ASCONF (addip draft) 81
- * = Packet Drop 82 = Stream Reset 83 = Authentication
- */
-#define SCTP_SUPPORTED_CHUNK_EXT    0x8008
+/* RFC 4820 */
+#define SCTP_PAD			0x8005
+/* RFC 5061 */
+#define SCTP_SUPPORTED_CHUNK_EXT	0x8008
 
 /*************0xC000 series*************/
 #define SCTP_PRSCTP_SUPPORTED		0xc000
-/* draft-ietf-tsvwg-addip-sctp */
+/* RFC 5061 */
 #define SCTP_ADD_IP_ADDRESS		0xc001
 #define SCTP_DEL_IP_ADDRESS		0xc002
 #define SCTP_ERROR_CAUSE_IND		0xc003
@@ -444,8 +435,8 @@ __FBSDID("$FreeBSD$");
 #define SCTP_SUCCESS_REPORT		0xc005
 #define SCTP_ULP_ADAPTATION		0xc006
 /* behave-nat-draft */
-#define SCTP_HAS_NAT_SUPPORT            0xc007
-#define SCTP_NAT_VTAGS                  0xc008
+#define SCTP_HAS_NAT_SUPPORT		0xc007
+#define SCTP_NAT_VTAGS			0xc008
 
 /* bits for TOS field */
 #define SCTP_ECT0_BIT		0x02
@@ -624,7 +615,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_RTO_INITIAL	(3000)	/* 3 sec in ms */
 
 
-#define SCTP_INP_KILL_TIMEOUT 20/* number of ms to retry kill of inpcb */
+#define SCTP_INP_KILL_TIMEOUT 20	/* number of ms to retry kill of inpcb */
 #define SCTP_ASOC_KILL_TIMEOUT 10	/* number of ms to retry kill of inpcb */
 
 #define SCTP_DEF_MAX_INIT		8

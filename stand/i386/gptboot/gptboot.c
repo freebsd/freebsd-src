@@ -102,7 +102,6 @@ static struct bios_smap smap;
 static char *heap_next;
 static char *heap_end;
 
-void exit(int);
 static void load(void);
 static int parse_cmds(char *, int *);
 static int dskread(void *, daddr_t, unsigned);
@@ -365,6 +364,8 @@ main(void)
 void
 exit(int x)
 {
+	while (1);
+	__unreachable();
 }
 
 static void

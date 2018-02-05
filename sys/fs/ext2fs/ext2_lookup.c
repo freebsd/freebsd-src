@@ -145,9 +145,9 @@ ext2_readdir(struct vop_readdir_args *ap)
 	off_t offset, startoffset;
 	size_t readcnt, skipcnt;
 	ssize_t startresid;
+	u_int ncookies;
 	int DIRBLKSIZ = VTOI(ap->a_vp)->i_e2fs->e2fs_bsize;
 	int error;
-	u_int ncookies;
 
 	if (uio->uio_offset < 0)
 		return (EINVAL);
@@ -160,8 +160,7 @@ ext2_readdir(struct vop_readdir_args *ap)
 			ncookies = ip->i_size - uio->uio_offset;
 		ncookies = ncookies / (offsetof(struct ext2fs_direct_2,
 		    e2d_namlen) + 4) + 1;
-		cookies = mallocarray(ncookies, sizeof(*cookies), M_TEMP,
-		    M_WAITOK);
+		cookies = malloc(ncookies * sizeof(*cookies), M_TEMP, M_WAITOK);
 		*ap->a_ncookies = ncookies;
 		*ap->a_cookies = cookies;
 	} else {
@@ -869,8 +868,8 @@ ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 	struct inode *dp;
 	struct ext2fs_direct_2 newdir;
 	struct buf *bp;
-	int error, newentrysize;
 	int DIRBLKSIZ = ip->i_e2fs->e2fs_bsize;
+	int error;
 
 
 #ifdef INVARIANTS
@@ -886,7 +885,6 @@ ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 	else
 		newdir.e2d_type = EXT2_FT_UNKNOWN;
 	bcopy(cnp->cn_nameptr, newdir.e2d_name, (unsigned)cnp->cn_namelen + 1);
-	newentrysize = EXT2_DIR_REC_LEN(newdir.e2d_namlen);
 
 	if (ext2_htree_has_idx(dp)) {
 		error = ext2_htree_add_entry(dvp, &newdir, cnp);

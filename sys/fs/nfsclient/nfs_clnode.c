@@ -111,13 +111,13 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
 
 	hash = fnv_32_buf(fhp, fhsize, FNV1_32_INIT);
 
-	MALLOC(nfhp, struct nfsfh *, sizeof (struct nfsfh) + fhsize,
+	nfhp = malloc(sizeof (struct nfsfh) + fhsize,
 	    M_NFSFH, M_WAITOK);
 	bcopy(fhp, &nfhp->nfh_fh[0], fhsize);
 	nfhp->nfh_len = fhsize;
 	error = vfs_hash_get(mntp, hash, lkflags,
 	    td, &nvp, newnfs_vncmpf, nfhp);
-	FREE(nfhp, M_NFSFH);
+	free(nfhp, M_NFSFH);
 	if (error)
 		return (error);
 	if (nvp != NULL) {
@@ -163,14 +163,14 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
 		vp->v_vflag |= VV_ROOT;
 	}
 	
-	MALLOC(np->n_fhp, struct nfsfh *, sizeof (struct nfsfh) + fhsize,
+	np->n_fhp = malloc(sizeof (struct nfsfh) + fhsize,
 	    M_NFSFH, M_WAITOK);
 	bcopy(fhp, np->n_fhp->nfh_fh, fhsize);
 	np->n_fhp->nfh_len = fhsize;
 	error = insmntque(vp, mntp);
 	if (error != 0) {
 		*npp = NULL;
-		FREE((caddr_t)np->n_fhp, M_NFSFH);
+		free(np->n_fhp, M_NFSFH);
 		mtx_destroy(&np->n_mtx);
 		lockdestroy(&np->n_excl);
 		uma_zfree(newnfsnode_zone, np);
@@ -329,14 +329,14 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 		while (dp) {
 			dp2 = dp;
 			dp = LIST_NEXT(dp, ndm_list);
-			FREE((caddr_t)dp2, M_NFSDIROFF);
+			free(dp2, M_NFSDIROFF);
 		}
 	}
 	if (np->n_writecred != NULL)
 		crfree(np->n_writecred);
-	FREE((caddr_t)np->n_fhp, M_NFSFH);
+	free(np->n_fhp, M_NFSFH);
 	if (np->n_v4 != NULL)
-		FREE((caddr_t)np->n_v4, M_NFSV4NODE);
+		free(np->n_v4, M_NFSV4NODE);
 	mtx_destroy(&np->n_mtx);
 	lockdestroy(&np->n_excl);
 	uma_zfree(newnfsnode_zone, vp->v_data);

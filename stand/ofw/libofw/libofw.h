@@ -58,8 +58,6 @@ extern int	ofw_boot(void);
 extern int	ofw_autoload(void);
 
 void	ofw_memmap(int);
-void	*ofw_alloc_heap(unsigned int);
-void	ofw_release_heap(void);
 
 struct preloaded_file;
 struct file_format;

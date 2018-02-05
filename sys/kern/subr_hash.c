@@ -57,9 +57,8 @@ void *
 hashinit_flags(int elements, struct malloc_type *type, u_long *hashmask,
     int flags)
 {
-	long hashsize;
+	long hashsize, i;
 	LIST_HEAD(generic, generic) *hashtbl;
-	int i;
 
 	KASSERT(elements > 0, ("%s: bad elements", __func__));
 	/* Exactly one of HASH_WAITOK and HASH_NOWAIT must be set. */
@@ -114,9 +113,8 @@ static const int primes[] = { 1, 13, 31, 61, 127, 251, 509, 761, 1021, 1531,
 void *
 phashinit_flags(int elements, struct malloc_type *type, u_long *nentries, int flags)
 {
-	long hashsize;
+	long hashsize, i;
 	LIST_HEAD(generic, generic) *hashtbl;
-	int i;
 
 	KASSERT(elements > 0, ("%s: bad elements", __func__));
 	/* Exactly one of HASH_WAITOK and HASH_NOWAIT must be set. */

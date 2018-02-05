@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 8, 2016
+.Dd January 30, 2018
 .Dt USB_TEMPLATE 4
 .Os
 .
@@ -61,13 +61,16 @@ descriptors.
 .
 USB templates are selected using the
 .Va hw.usb.template
-sysctl and tunable.
-.
-The
+sysctl and tunable,
+or by using the
+.Xr usbconfig 8
+.Cm set_template
+subcommand.
+Changing the
 .Va hw.usb.template
-value can be changed at any time, but will not
-have any effect until the USB device has been re-enumerated.
-.
+sysctl triggers reenumeration by the USB host; changes to other sysctls
+may not be visible to the host until reenumeration is performed.
+.Pp
 Available templates are:
 .Bl -column -offset 3n "Value"
 .It Em Value Ta Em Description
@@ -83,10 +86,33 @@ Available templates are:
 .It Dv 9 Ta USB MIDI
 .El
 .
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.template
+Currently selected template.
+Set to -1 to make the device disappear from the USB host point of view.
+.It Va hw.usb.templates.N
+Configuration for template number
+.Va N .
+.It Va hw.usb.templates.N.vendor_id
+16-bit vendor identifier (VID), usually assigned by USB-IF.
+.It Va hw.usb.templates.N.product_id
+16-bit product identifier (PID).
+.It Va hw.usb.templates.N.manufacturer
+String containing human-readable manufacturer name.
+.It Va hw.usb.templates.N.product
+String containing human-readable product name.
+.El
 .Sh SEE ALSO
 .Xr cfumass 4 ,
 .Xr usb 4 ,
-.Xr usfs 4
+.Xr usfs 4 ,
+.Xr usbconfig 8
 .Sh STANDARDS
 The
 .Nm

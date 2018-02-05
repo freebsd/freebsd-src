@@ -142,6 +142,12 @@ acpi_cpu_idle_mwait(uint32_t mwait_hint)
 	int *state;
 
 	/*
+	 * A comment in Linux patch claims that 'CPUs run faster with
+	 * speculation protection disabled. All CPU threads in a core
+	 * must disable speculation protection for it to be
+	 * disabled. Disable it while we are idle so the other
+	 * hyperthread can run fast.'
+	 *
 	 * XXXKIB.  Software coordination mode should be supported,
 	 * but all Intel CPUs provide hardware coordination.
 	 */
@@ -150,9 +156,11 @@ acpi_cpu_idle_mwait(uint32_t mwait_hint)
 	KASSERT(*state == STATE_SLEEPING,
 		("cpu_mwait_cx: wrong monitorbuf state"));
 	*state = STATE_MWAIT;
+	handle_ibrs_entry();
 	cpu_monitor(state, 0, 0);
 	if (*state == STATE_MWAIT)
 		cpu_mwait(MWAIT_INTRBREAK, mwait_hint);
+	handle_ibrs_exit();
 
 	/*
 	 * We should exit on any event that interrupts mwait, because
@@ -569,3 +577,47 @@ nmi_handle_intr(u_int type, struct trapframe *frame)
 	nmi_call_kdb(PCPU_GET(cpuid), type, frame);
 #endif
 }
+
+int hw_ibrs_active;
+int hw_ibrs_disable = 1;
+
+SYSCTL_INT(_hw, OID_AUTO, ibrs_active, CTLFLAG_RD, &hw_ibrs_active, 0,
+    "Indirect Branch Restricted Speculation active");
+
+void
+hw_ibrs_recalculate(void)
+{
+	uint64_t v;
+
+	if ((cpu_ia32_arch_caps & IA32_ARCH_CAP_IBRS_ALL) != 0) {
+		if (hw_ibrs_disable) {
+			v= rdmsr(MSR_IA32_SPEC_CTRL);
+			v &= ~IA32_SPEC_CTRL_IBRS;
+			wrmsr(MSR_IA32_SPEC_CTRL, v);
+		} else {
+			v= rdmsr(MSR_IA32_SPEC_CTRL);
+			v |= IA32_SPEC_CTRL_IBRS;
+			wrmsr(MSR_IA32_SPEC_CTRL, v);
+		}
+		return;
+	}
+	hw_ibrs_active = (cpu_stdext_feature3 & CPUID_STDEXT3_IBPB) != 0 &&
+	    !hw_ibrs_disable;
+}
+
+static int
+hw_ibrs_disable_handler(SYSCTL_HANDLER_ARGS)
+{
+	int error, val;
+
+	val = hw_ibrs_disable;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	hw_ibrs_disable = val != 0;
+	hw_ibrs_recalculate();
+	return (0);
+}
+SYSCTL_PROC(_hw, OID_AUTO, ibrs_disable, CTLTYPE_INT | CTLFLAG_RWTUN |
+    CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, NULL, 0, hw_ibrs_disable_handler, "I",
+    "Disable Indirect Branch Restricted Speculation");

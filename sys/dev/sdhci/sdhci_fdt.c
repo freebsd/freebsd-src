@@ -63,10 +63,12 @@ __FBSDID("$FreeBSD$");
 #define	SDHCI_FDT_ARMADA38X	1
 #define	SDHCI_FDT_GENERIC	2
 #define	SDHCI_FDT_XLNX_ZY7	3
+#define	SDHCI_FDT_QUALCOMM	4
 
 static struct ofw_compat_data compat_data[] = {
 	{ "marvell,armada-380-sdhci",	SDHCI_FDT_ARMADA38X },
 	{ "sdhci_generic",		SDHCI_FDT_GENERIC },
+	{ "qcom,sdhci-msm-v4",		SDHCI_FDT_QUALCOMM },
 	{ "xlnx,zy7_sdhci",		SDHCI_FDT_XLNX_ZY7 },
 	{ NULL, 0 }
 };
@@ -200,6 +202,10 @@ sdhci_fdt_probe(device_t dev)
 		break;
 	case SDHCI_FDT_GENERIC:
 		device_set_desc(dev, "generic fdt SDHCI controller");
+		break;
+	case SDHCI_FDT_QUALCOMM:
+		sc->quirks = SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE;
+		device_set_desc(dev, "Qualcomm FDT SDHCI controller");
 		break;
 	case SDHCI_FDT_XLNX_ZY7:
 		sc->quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK;

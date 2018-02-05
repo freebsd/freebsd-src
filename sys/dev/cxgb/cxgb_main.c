@@ -2958,8 +2958,14 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 	case CHELSIO_GET_EEPROM: {
 		int i;
 		struct ch_eeprom *e = (struct ch_eeprom *)data;
-		uint8_t *buf = malloc(EEPROMSIZE, M_DEVBUF, M_NOWAIT);
+		uint8_t *buf;
 
+		if (e->offset & 3 || e->offset >= EEPROMSIZE ||
+		    e->len > EEPROMSIZE || e->offset + e->len > EEPROMSIZE) {
+			return (EINVAL);
+		}
+
+		buf = malloc(EEPROMSIZE, M_DEVBUF, M_NOWAIT);
 		if (buf == NULL) {
 			return (ENOMEM);
 		}

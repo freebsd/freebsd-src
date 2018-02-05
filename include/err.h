@@ -60,7 +60,7 @@ void	vwarn(const char *, __va_list) __printf0like(1, 0);
 void	warnc(int, const char *, ...) __printf0like(2, 3);
 void	vwarnc(int, const char *, __va_list) __printf0like(2, 0);
 void	warnx(const char *, ...) __printflike(1, 2);
-void	vwarnx(const char *, __va_list) __printflike(1, 0);
+void	vwarnx(const char *, __va_list) __printf0like(1, 0);
 void	err_set_file(void *);
 void	err_set_exit(void (* _Nullable)(int));
 __END_DECLS

@@ -371,7 +371,7 @@ enable_fdt_resources(struct tegra_ahci_sc *sc)
 		return (rv);
 	}
 
-	rv = phy_enable(sc->dev, sc->phy);
+	rv = phy_enable(sc->phy);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot enable SATA phy\n");
 		return (rv);

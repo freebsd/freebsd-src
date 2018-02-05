@@ -444,8 +444,7 @@ def TautologicalInRangeCompare : DiagGroup<"tautological-constant-in-range-compa
                                             TautologicalUnsignedEnumZeroCompare]>;
 def TautologicalOutOfRangeCompare : DiagGroup<"tautological-constant-out-of-range-compare">;
 def TautologicalConstantCompare : DiagGroup<"tautological-constant-compare",
-                                            [TautologicalInRangeCompare,
-                                             TautologicalOutOfRangeCompare]>;
+                                            [TautologicalOutOfRangeCompare]>;
 def TautologicalPointerCompare : DiagGroup<"tautological-pointer-compare">;
 def TautologicalOverlapCompare : DiagGroup<"tautological-overlap-compare">;
 def TautologicalUndefinedCompare : DiagGroup<"tautological-undefined-compare">;
@@ -719,7 +718,6 @@ def IntToPointerCast : DiagGroup<"int-to-pointer-cast",
 def Move : DiagGroup<"move", [PessimizingMove, RedundantMove, SelfMove]>;
 
 def Extra : DiagGroup<"extra", [
-    TautologicalInRangeCompare,
     MissingFieldInitializers,
     IgnoredQualifiers,
     InitializerOverrides,
@@ -987,3 +985,6 @@ def UnknownArgument : DiagGroup<"unknown-argument">;
 // A warning group for warnings about code that clang accepts when
 // compiling OpenCL C/C++ but which is not compatible with the SPIR spec.
 def SpirCompat : DiagGroup<"spir-compat">;
+
+// Warning for the experimental-isel options.
+def ExperimentalISel : DiagGroup<"experimental-isel">;

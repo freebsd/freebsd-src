@@ -80,9 +80,12 @@ hint.arge.0.fduplex=1
 hint.arge.0.miimode=3           # RGMII
 hint.arge.0.pll_1000=0x06000000
 
-# ath0: Where the ART is - last 64k in the flash
-hint.ath.0.eepromaddr=0x1fff0000
-hint.ath.0.eepromsize=16384
+# Where the ART is - last 64k in the first 8MB of flash
+hint.ar71xx_caldata.0.map.0.ath_fixup_addr=0x1fff0000
+hint.ar71xx_caldata.0.map.0.ath_fixup_size=16384
+
+# And now tell the ath(4) driver where to look!
+hint.ath.0.eeprom_firmware="ar71xx_caldata.0.map.0.eeprom_firmware"
 
 # ath1: it's different; it's a PCIe attached device, so
 # we instead need to teach the PCIe bridge code about it

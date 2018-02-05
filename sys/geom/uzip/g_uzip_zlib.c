@@ -132,7 +132,7 @@ z_alloc(void *nil, u_int type, u_int size)
 {
         void *ptr;
 
-        ptr = mallocarray(type, size, M_GEOM_UZIP, M_NOWAIT);
+        ptr = malloc(type * size, M_GEOM_UZIP, M_NOWAIT);
 
         return (ptr);
 }

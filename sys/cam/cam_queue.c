@@ -126,7 +126,7 @@ camq_resize(struct camq *queue, int new_size)
 	KASSERT(new_size >= queue->entries, ("camq_resize: "
 	    "New queue size can't accommodate queued entries (%d < %d).",
 	    new_size, queue->entries));
-	new_array = (cam_pinfo **)mallocarray(new_size, sizeof(cam_pinfo *),
+	new_array = (cam_pinfo **)malloc(new_size * sizeof(cam_pinfo *),
 					 M_CAMQ, M_NOWAIT);
 	if (new_array == NULL) {
 		/* Couldn't satisfy request */

@@ -46,8 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <geom/journal/g_journal.h>
 
-static const int superblocks[] = SBLOCKSEARCH;
-
 static int
 g_journal_ufs_clean(struct mount *mp)
 {
@@ -70,33 +68,25 @@ static void
 g_journal_ufs_dirty(struct g_consumer *cp)
 {
 	struct fs *fs;
-	int error, i, sb;
+	int error;
 
-	if (SBLOCKSIZE % cp->provider->sectorsize != 0)
+	if (SBLOCKSIZE % cp->provider->sectorsize != 0 ||
+	    ffs_sbget(cp, &fs, -1, NULL, g_use_g_read_data) != 0) {
+		GJ_DEBUG(0, "Cannot find superblock to mark file system %s "
+		    "as dirty.", cp->provider->name);
 		return;
-	for (i = 0; (sb = superblocks[i]) != -1; i++) {
-		if (sb % cp->provider->sectorsize != 0)
-			continue;
-		fs = g_read_data(cp, sb, SBLOCKSIZE, NULL);
-		if (fs == NULL)
-			continue;
-		if (fs->fs_magic != FS_UFS1_MAGIC &&
-		    fs->fs_magic != FS_UFS2_MAGIC) {
-			g_free(fs);
-			continue;
-		}
-		GJ_DEBUG(0, "clean=%d flags=0x%x", fs->fs_clean, fs->fs_flags);
-		fs->fs_clean = 0;
-		fs->fs_flags |= FS_NEEDSFSCK | FS_UNCLEAN;
-		error = g_write_data(cp, sb, fs, SBLOCKSIZE);
-		g_free(fs);
-		if (error != 0) {
-			GJ_DEBUG(0, "Cannot mark file system %s as dirty "
-			    "(error=%d).", cp->provider->name, error);
-		} else {
-			GJ_DEBUG(0, "File system %s marked as dirty.",
-			    cp->provider->name);
-		}
+	}
+	GJ_DEBUG(0, "clean=%d flags=0x%x", fs->fs_clean, fs->fs_flags);
+	fs->fs_clean = 0;
+	fs->fs_flags |= FS_NEEDSFSCK | FS_UNCLEAN;
+	error = ffs_sbput(cp, fs, fs->fs_sblockloc, g_use_g_write_data);
+	g_free(fs);
+	if (error != 0) {
+		GJ_DEBUG(0, "Cannot mark file system %s as dirty "
+		    "(error=%d).", cp->provider->name, error);
+	} else {
+		GJ_DEBUG(0, "File system %s marked as dirty.",
+		    cp->provider->name);
 	}
 }
 

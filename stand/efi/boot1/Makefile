@@ -1,11 +1,6 @@
 # $FreeBSD$
 
-MAN=
-
 .include <bsd.init.mk>
-
-MK_SSP=		no
-MK_FORTH=	no
 
 PROG=		boot1.sym
 INTERNALPROG=

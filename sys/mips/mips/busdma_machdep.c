@@ -277,7 +277,7 @@ run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
 		  || (*dmat->filter)(dmat->filterarg, paddr) != 0))
 			retval = 1;
 
-		dmat = dmat->parent;		
+		dmat = dmat->parent;
 	} while (retval == 0 && dmat != NULL);
 	return (retval);
 }
@@ -292,7 +292,7 @@ _bus_dma_can_bounce(vm_offset_t lowaddr, vm_offset_t highaddr)
 	int i;
 	for (i = 0; phys_avail[i] && phys_avail[i + 1]; i += 2) {
 		if ((lowaddr >= phys_avail[i] && lowaddr <= phys_avail[i + 1])
-		    || (lowaddr < phys_avail[i] && 
+		    || (lowaddr < phys_avail[i] &&
 		    highaddr > phys_avail[i]))
 			return (1);
 	}
@@ -345,8 +345,7 @@ _busdma_alloc_dmamap(bus_dma_tag_t dmat)
 	struct sync_list *slist;
 	bus_dmamap_t map;
 
-	slist = mallocarray(dmat->nsegments, sizeof(*slist), M_BUSDMA,
-	    M_NOWAIT);
+	slist = malloc(sizeof(*slist) * dmat->nsegments, M_BUSDMA, M_NOWAIT);
 	if (slist == NULL)
 		return (NULL);
 	map = uma_zalloc_arg(dmamap_zone, dmat, M_NOWAIT);
@@ -357,7 +356,7 @@ _busdma_alloc_dmamap(bus_dma_tag_t dmat)
 	return (map);
 }
 
-static __inline void 
+static __inline void
 _busdma_free_dmamap(bus_dmamap_t map)
 {
 
@@ -498,10 +497,10 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 	if (dmat != NULL) {
 		if (dmat->map_count != 0)
 			return (EBUSY);
-		
+
 		while (dmat != NULL) {
 			bus_dma_tag_t parent;
-			
+
 			parent = dmat->parent;
 			atomic_subtract_int(&dmat->ref_count, 1);
 			if (dmat->ref_count == 0) {
@@ -535,9 +534,9 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	int error = 0;
 
 	if (dmat->segments == NULL) {
-		dmat->segments =
-		    (bus_dma_segment_t *)mallocarray(dmat->nsegments,
-		    sizeof(bus_dma_segment_t), M_BUSDMA, M_NOWAIT);
+		dmat->segments = (bus_dma_segment_t *)malloc(
+		    sizeof(bus_dma_segment_t) * dmat->nsegments, M_BUSDMA,
+		    M_NOWAIT);
 		if (dmat->segments == NULL) {
 			CTR3(KTR_BUSDMA, "%s: tag %p error %d",
 			    __func__, dmat, ENOMEM);
@@ -648,9 +647,9 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddrp, int flags,
 	else
 		mflags = M_WAITOK;
 	if (dmat->segments == NULL) {
-		dmat->segments = 
-		   (bus_dma_segment_t *)mallocarray(dmat->nsegments,
-		    sizeof(bus_dma_segment_t), M_BUSDMA, mflags);
+		dmat->segments = (bus_dma_segment_t *)malloc(
+		    sizeof(bus_dma_segment_t) * dmat->nsegments, M_BUSDMA,
+		    mflags);
 		if (dmat->segments == NULL) {
 			CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 			    __func__, dmat, dmat->flags, ENOMEM);
@@ -1395,7 +1394,7 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 			break;
 		}
 		bpage->busaddr = pmap_kextract(bpage->vaddr);
-		bpage->vaddr_nocache = 
+		bpage->vaddr_nocache =
 		    (vm_offset_t)pmap_mapdev(bpage->busaddr, PAGE_SIZE);
 		mtx_lock(&bounce_lock);
 		STAILQ_INSERT_TAIL(&bz->bounce_page_list, bpage, links);

@@ -56,11 +56,53 @@ struct mpc85xx_cache_softc {
 	struct resource	*sc_mem;
 };
 
+static struct ofw_compat_data compats[] = {
+    {"fsl,8540-l2-cache-controller", 1},
+    {"fsl,8541-l2-cache-controller", 1},
+    {"fsl,8544-l2-cache-controller", 1},
+    {"fsl,8548-l2-cache-controller", 1},
+    {"fsl,8555-l2-cache-controller", 1},
+    {"fsl,8568-l2-cache-controller", 1},
+    {"fsl,b4420-l2-cache-controller", 1},
+    {"fsl,b4860-l2-cache-controller", 1},
+    {"fsl,bsc9131-l2-cache-controller", 1},
+    {"fsl,bsc9132-l2-cache-controller", 1},
+    {"fsl,c293-l2-cache-controller", 1},
+    {"fsl,mpc8536-l2-cache-controller", 1},
+    {"fsl,mpc8540-l2-cache-controller", 1},
+    {"fsl,mpc8541-l2-cache-controller", 1},
+    {"fsl,mpc8544-l2-cache-controller", 1},
+    {"fsl,mpc8548-l2-cache-controller", 1},
+    {"fsl,mpc8555-l2-cache-controller", 1},
+    {"fsl,mpc8560-l2-cache-controller", 1},
+    {"fsl,mpc8568-l2-cache-controller", 1},
+    {"fsl,mpc8569-l2-cache-controller", 1},
+    {"fsl,mpc8572-l2-cache-controller", 1},
+    {"fsl,p1010-l2-cache-controller", 1},
+    {"fsl,p1011-l2-cache-controller", 1},
+    {"fsl,p1012-l2-cache-controller", 1},
+    {"fsl,p1013-l2-cache-controller", 1},
+    {"fsl,p1014-l2-cache-controller", 1},
+    {"fsl,p1015-l2-cache-controller", 1},
+    {"fsl,p1016-l2-cache-controller", 1},
+    {"fsl,p1020-l2-cache-controller", 1},
+    {"fsl,p1021-l2-cache-controller", 1},
+    {"fsl,p1022-l2-cache-controller", 1},
+    {"fsl,p1023-l2-cache-controller", 1},
+    {"fsl,p1024-l2-cache-controller", 1},
+    {"fsl,p1025-l2-cache-controller", 1},
+    {"fsl,p2010-l2-cache-controller", 1},
+    {"fsl,p2020-l2-cache-controller", 1},
+    {"fsl,t2080-l2-cache-controller", 1},
+    {"fsl,t4240-l2-cache-controller", 1},
+    {0, 0}
+};
+
 static int
 mpc85xx_cache_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "cache"))
+	if (ofw_bus_search_compatible(dev, compats)->ocd_str == NULL)
 		return (ENXIO);
 
 	device_set_desc(dev, "MPC85xx L2 cache");

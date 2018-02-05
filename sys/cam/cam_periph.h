@@ -260,5 +260,8 @@ cam_periph_acquire_next(struct cam_periph *pperiph)
 	    (periph) != NULL;						\
 	    (periph) = cam_periph_acquire_next(periph))
 
+#define CAM_PERIPH_PRINT(p, msg, args...)				\
+    printf("%s%d:" msg, (periph)->periph_name, (periph)->unit_number, ##args)
+
 #endif /* _KERNEL */
 #endif /* _CAM_CAM_PERIPH_H */

@@ -262,6 +262,8 @@ void		pmap_page_set_memattr(vm_page_t, vm_memattr_t);
 int		pmap_change_attr(vm_offset_t, vm_size_t, vm_memattr_t);
 int		pmap_map_user_ptr(pmap_t pm, volatile const void *uaddr,
 		    void **kaddr, size_t ulen, size_t *klen);
+int		pmap_decode_kernel_ptr(vm_offset_t addr, int *is_user,
+		    vm_offset_t *decoded_addr);
 void		pmap_deactivate(struct thread *);
 vm_paddr_t	pmap_kextract(vm_offset_t);
 int		pmap_dev_direct_mapped(vm_paddr_t, vm_size_t);

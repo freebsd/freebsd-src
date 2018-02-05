@@ -183,6 +183,16 @@ trapname(u_int vector)
 	return ("unknown");
 }
 
+static inline bool
+frame_is_trap_inst(struct trapframe *frame)
+{
+#ifdef AIM
+	return (frame->exc == EXC_PGM && frame->srr1 & EXC_PGM_TRAP);
+#else
+	return (frame->exc == EXC_DEBUG || frame->cpu.booke.esr & ESR_PTR);
+#endif
+}
+
 void
 trap(struct trapframe *frame)
 {
@@ -323,11 +333,7 @@ trap(struct trapframe *frame)
 
 		case EXC_PGM:
 			/* Identify the trap reason */
-#ifdef AIM
-			if (frame->srr1 & EXC_PGM_TRAP) {
-#else
-			if (frame->cpu.booke.esr & ESR_PTR) {
-#endif
+			if (frame_is_trap_inst(frame)) {
 #ifdef KDTRACE_HOOKS
 				inst = fuword32((const void *)frame->srr0);
 				if (inst == 0x0FFFDDDD &&
@@ -371,11 +377,7 @@ trap(struct trapframe *frame)
 		switch (type) {
 		case EXC_PGM:
 #ifdef KDTRACE_HOOKS
-#ifdef AIM
-			if (frame->srr1 & EXC_PGM_TRAP) {
-#else
-			if (frame->cpu.booke.esr & ESR_PTR) {
-#endif
+			if (frame_is_trap_inst(frame)) {
 				if (*(uint32_t *)frame->srr0 == EXC_DTRACE) {
 					if (dtrace_invop_jump_addr != NULL) {
 						dtrace_invop_jump_addr(frame);
@@ -391,7 +393,8 @@ trap(struct trapframe *frame)
 			break;
 #if defined(__powerpc64__) && defined(AIM)
 		case EXC_DSE:
-			if ((frame->dar & SEGMENT_MASK) == USER_ADDR) {
+			if (td->td_pcb->pcb_cpu.aim.usr_vsid != 0 &&
+			    (frame->dar & SEGMENT_MASK) == USER_ADDR) {
 				__asm __volatile ("slbmte %0, %1" ::
 					"r"(td->td_pcb->pcb_cpu.aim.usr_vsid),
 					"r"(USER_SLB_SLBE));
@@ -629,8 +632,9 @@ syscall(struct trapframe *frame)
 	 * Speculatively restore last user SLB segment, which we know is
 	 * invalid already, since we are likely to do copyin()/copyout().
 	 */
-	__asm __volatile ("slbmte %0, %1; isync" ::
-            "r"(td->td_pcb->pcb_cpu.aim.usr_vsid), "r"(USER_SLB_SLBE));
+	if (td->td_pcb->pcb_cpu.aim.usr_vsid != 0)
+		__asm __volatile ("slbmte %0, %1; isync" ::
+		    "r"(td->td_pcb->pcb_cpu.aim.usr_vsid), "r"(USER_SLB_SLBE));
 #endif
 
 	error = syscallenter(td);
@@ -691,6 +695,9 @@ handle_user_slb_spill(pmap_t pm, vm_offset_t addr)
 	uint64_t esid;
 	int i;
 
+	if (pm->pm_slb == NULL)
+		return (-1);
+
 	esid = (uintptr_t)addr >> ADDR_SR_SHFT;
 
 	PMAP_LOCK(pm);
@@ -725,10 +732,7 @@ trap_pfault(struct trapframe *frame, int user)
 	struct		proc *p;
 	vm_map_t	map;
 	vm_prot_t	ftype;
-	int		rv;
-#ifdef AIM
-	register_t	user_sr;
-#endif
+	int		rv, is_user;
 
 	td = curthread;
 	p = td->td_proc;
@@ -753,21 +757,14 @@ trap_pfault(struct trapframe *frame, int user)
 		KASSERT(p->p_vmspace != NULL, ("trap_pfault: vmspace  NULL"));
 		map = &p->p_vmspace->vm_map;
 	} else {
-#ifdef BOOKE
-		if (eva < VM_MAXUSER_ADDRESS) {
-#else
-		if ((eva >> ADDR_SR_SHFT) == (USER_ADDR >> ADDR_SR_SHFT)) {
-#endif
-			map = &p->p_vmspace->vm_map;
+		rv = pmap_decode_kernel_ptr(eva, &is_user, &eva);
+		if (rv != 0)
+			return (SIGSEGV);
 
-#ifdef AIM
-			user_sr = td->td_pcb->pcb_cpu.aim.usr_segm;
-			eva &= ADDR_PIDX | ADDR_POFF;
-			eva |= user_sr << ADDR_SR_SHFT;
-#endif
-		} else {
+		if (is_user)
+			map = &p->p_vmspace->vm_map;
+		else
 			map = kernel_map;
-		}
 	}
 	va = trunc_page(eva);
 
@@ -882,13 +879,7 @@ db_trap_glue(struct trapframe *frame)
 
 	if (!(frame->srr1 & PSL_PR)
 	    && (frame->exc == EXC_TRC || frame->exc == EXC_RUNMODETRC
-#ifdef AIM
-		|| (frame->exc == EXC_PGM
-		    && (frame->srr1 & EXC_PGM_TRAP))
-#else
-		|| (frame->exc == EXC_DEBUG)
-		|| (frame->cpu.booke.esr & ESR_PTR)
-#endif
+	    	|| frame_is_trap_inst(frame)
 		|| frame->exc == EXC_BPT
 		|| frame->exc == EXC_DSI)) {
 		int type = frame->exc;
@@ -896,12 +887,7 @@ db_trap_glue(struct trapframe *frame)
 		/* Ignore DTrace traps. */
 		if (*(uint32_t *)frame->srr0 == EXC_DTRACE)
 			return (0);
-#ifdef AIM
-		if (type == EXC_PGM && (frame->srr1 & EXC_PGM_TRAP)) {
-#else
-		if (type == EXC_DEBUG ||
-		    (frame->cpu.booke.esr & ESR_PTR)) {
-#endif
+		if (frame_is_trap_inst(frame)) {
 			type = T_BREAKPOINT;
 		}
 		return (kdb_trap(type, 0, frame));

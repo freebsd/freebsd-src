@@ -508,16 +508,19 @@ Link	Europe/London	Europe/Jersey
 Link	Europe/London	Europe/Guernsey
 Link	Europe/London	Europe/Isle_of_Man
 
+# From Paul Eggert (2018-01-19):
 # The following is like GB-Eire and EU, except with standard time in
 # summer and negative daylight saving time in winter.
+# Although currently commented out, this will need to become uncommented
+# once the ICU/OpenJDK workaround is removed; see below.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Eire	1971	only	-	Oct	31	 2:00u	-1:00	GMT
-Rule	Eire	1972	1980	-	Mar	Sun>=16	 2:00u	0	IST
-Rule	Eire	1972	1980	-	Oct	Sun>=23	 2:00u	-1:00	GMT
-Rule	Eire	1981	max	-	Mar	lastSun	 1:00u	0	IST
-Rule	Eire	1981	1989	-	Oct	Sun>=23	 1:00u	-1:00	GMT
-Rule	Eire	1990	1995	-	Oct	Sun>=22	 1:00u	-1:00	GMT
-Rule	Eire	1996	max	-	Oct	lastSun	 1:00u	-1:00	GMT
+#Rule	Eire	1971	only	-	Oct	31	 2:00u	-1:00	GMT
+#Rule	Eire	1972	1980	-	Mar	Sun>=16	 2:00u	0	IST
+#Rule	Eire	1972	1980	-	Oct	Sun>=23	 2:00u	-1:00	GMT
+#Rule	Eire	1981	max	-	Mar	lastSun	 1:00u	0	IST
+#Rule	Eire	1981	1989	-	Oct	Sun>=23	 1:00u	-1:00	GMT
+#Rule	Eire	1990	1995	-	Oct	Sun>=22	 1:00u	-1:00	GMT
+#Rule	Eire	1996	max	-	Oct	lastSun	 1:00u	-1:00	GMT
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Dublin	-0:25:00 -	LMT	1880 Aug  2
@@ -530,7 +533,25 @@ Zone	Europe/Dublin	-0:25:00 -	LMT	1880 Aug  2
 			 0:00	1:00	IST	1947 Nov  2  2:00s
 			 0:00	-	GMT	1948 Apr 18  2:00s
 			 0:00	GB-Eire	GMT/IST	1968 Oct 27
-			 1:00	Eire	IST/GMT
+# From Paul Eggert (2018-01-18):
+# The next line should look like this:
+#			 1:00	Eire	IST/GMT
+# However, in January 2018 we discovered that the Eire rules cause
+# problems with tests for ICU:
+# https://mm.icann.org/pipermail/tz/2018-January/025825.html
+# and with tests for OpenJDK:
+# https://mm.icann.org/pipermail/tz/2018-January/025822.html
+# To work around this problem, use a traditional approximation for
+# time stamps after 1971-10-31 02:00 UTC, to give ICU and OpenJDK
+# developers breathing room to fix bugs.  This approximation has
+# correct UTC offsets, but results in tm_isdst flags are the reverse
+# of what they should be.  This workaround is temporary and should be
+# removed reasonably soon.
+			 1:00	-	IST	1971 Oct 31  2:00u
+			 0:00	GB-Eire	GMT/IST	1996
+			 0:00	EU	GMT/IST
+# End of workaround for ICU and OpenJDK bugs.
+
 
 ###############################################################################
 

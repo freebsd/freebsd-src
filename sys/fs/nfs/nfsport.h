@@ -628,18 +628,7 @@ void nfsrvd_rcv(struct socket *, void *, int);
  * mbufs any more.)
  */
 #define	NFSSOCKADDR(a, t)	((t)(a))
-#define	NFSSOCKADDRALLOC(a) 					\
-    do {							\
-	MALLOC((a), struct sockaddr *, sizeof (struct sockaddr), \
-	    M_SONAME, M_WAITOK); 				\
-	NFSBZERO((a), sizeof (struct sockaddr)); 		\
-    } while (0)
 #define	NFSSOCKADDRSIZE(a, s)		((a)->sa_len = (s))
-#define	NFSSOCKADDRFREE(a) 					\
-	do { 							\
-		if (a) 						\
-			FREE((caddr_t)(a), M_SONAME); 		\
-	} while (0)
 
 /*
  * These should be defined as a process or thread structure, as required

@@ -2430,7 +2430,7 @@ go_daemon(void)
 	/* Stop logging to stderr... */
 	log_perror = 0;
 
-	if (daemon(1, 1) == -1)
+	if (daemonfd(-1, nullfd) == -1)
 		error("daemon");
 
 	cap_rights_init(&rights);
@@ -2443,11 +2443,7 @@ go_daemon(void)
 		}
 	}
 
-	/* we are chrooted, daemon(3) fails to open /dev/null */
 	if (nullfd != -1) {
-		dup2(nullfd, STDIN_FILENO);
-		dup2(nullfd, STDOUT_FILENO);
-		dup2(nullfd, STDERR_FILENO);
 		close(nullfd);
 		nullfd = -1;
 	}

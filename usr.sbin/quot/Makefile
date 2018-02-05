@@ -2,6 +2,7 @@
 
 PROG=	quot
 MAN=	quot.8
+LIBADD=	ufs
 
 WARNS?=	2
 

@@ -511,7 +511,7 @@ zil_alloc_lwb(zilog_t *zilog, blkptr_t *bp, boolean_t slog, uint64_t txg)
 
 	ASSERT(!MUTEX_HELD(&lwb->lwb_vdev_lock));
 	ASSERT(avl_is_empty(&lwb->lwb_vdev_tree));
-	ASSERT(list_is_empty(&lwb->lwb_waiters));
+	VERIFY(list_is_empty(&lwb->lwb_waiters));
 
 	return (lwb);
 }
@@ -521,31 +521,13 @@ zil_free_lwb(zilog_t *zilog, lwb_t *lwb)
 {
 	ASSERT(MUTEX_HELD(&zilog->zl_lock));
 	ASSERT(!MUTEX_HELD(&lwb->lwb_vdev_lock));
-	ASSERT(list_is_empty(&lwb->lwb_waiters));
-
-	if (lwb->lwb_state == LWB_STATE_OPENED) {
-		avl_tree_t *t = &lwb->lwb_vdev_tree;
-		void *cookie = NULL;
-		zil_vdev_node_t *zv;
-
-		while ((zv = avl_destroy_nodes(t, &cookie)) != NULL)
-			kmem_free(zv, sizeof (*zv));
-
-		ASSERT3P(lwb->lwb_root_zio, !=, NULL);
-		ASSERT3P(lwb->lwb_write_zio, !=, NULL);
-
-		zio_cancel(lwb->lwb_root_zio);
-		zio_cancel(lwb->lwb_write_zio);
-
-		lwb->lwb_root_zio = NULL;
-		lwb->lwb_write_zio = NULL;
-	} else {
-		ASSERT3S(lwb->lwb_state, !=, LWB_STATE_ISSUED);
-	}
-
+	VERIFY(list_is_empty(&lwb->lwb_waiters));
 	ASSERT(avl_is_empty(&lwb->lwb_vdev_tree));
 	ASSERT3P(lwb->lwb_write_zio, ==, NULL);
 	ASSERT3P(lwb->lwb_root_zio, ==, NULL);
+	ASSERT3U(lwb->lwb_max_txg, <=, spa_syncing_txg(zilog->zl_spa));
+	ASSERT(lwb->lwb_state == LWB_STATE_CLOSED ||
+	    lwb->lwb_state == LWB_STATE_DONE);
 
 	/*
 	 * Clear the zilog's field to indicate this lwb is no longer
@@ -892,6 +874,12 @@ zil_commit_waiter_skip(zil_commit_waiter_t *zcw)
 static void
 zil_commit_waiter_link_lwb(zil_commit_waiter_t *zcw, lwb_t *lwb)
 {
+	/*
+	 * The lwb_waiters field of the lwb is protected by the zilog's
+	 * zl_lock, thus it must be held when calling this function.
+	 */
+	ASSERT(MUTEX_HELD(&lwb->lwb_zilog->zl_lock));
+
 	mutex_enter(&zcw->zcw_lock);
 	ASSERT(!list_link_active(&zcw->zcw_node));
 	ASSERT3P(zcw->zcw_lwb, ==, NULL);
@@ -1104,7 +1092,7 @@ zil_lwb_write_open(zilog_t *zilog, lwb_t *lwb)
 	zbookmark_phys_t zb;
 	zio_priority_t prio;
 
-	ASSERT(MUTEX_HELD(&zilog->zl_writer_lock));
+	ASSERT(MUTEX_HELD(&zilog->zl_issuer_lock));
 	ASSERT3P(lwb, !=, NULL);
 	EQUIV(lwb->lwb_root_zio == NULL, lwb->lwb_state == LWB_STATE_CLOSED);
 	EQUIV(lwb->lwb_root_zio != NULL, lwb->lwb_state == LWB_STATE_OPENED);
@@ -1201,7 +1189,7 @@ zil_lwb_write_issue(zilog_t *zilog, lwb_t *lwb)
 	int i, error;
 	boolean_t slog;
 
-	ASSERT(MUTEX_HELD(&zilog->zl_writer_lock));
+	ASSERT(MUTEX_HELD(&zilog->zl_issuer_lock));
 	ASSERT3P(lwb->lwb_root_zio, !=, NULL);
 	ASSERT3P(lwb->lwb_write_zio, !=, NULL);
 	ASSERT3S(lwb->lwb_state, ==, LWB_STATE_OPENED);
@@ -1335,7 +1323,7 @@ zil_lwb_commit(zilog_t *zilog, itx_t *itx, lwb_t *lwb)
 	char *lr_buf;
 	uint64_t dlen, dnow, lwb_sp, reclen, txg;
 
-	ASSERT(MUTEX_HELD(&zilog->zl_writer_lock));
+	ASSERT(MUTEX_HELD(&zilog->zl_issuer_lock));
 	ASSERT3P(lwb, !=, NULL);
 	ASSERT3P(lwb->lwb_buf, !=, NULL);
 
@@ -1357,8 +1345,10 @@ zil_lwb_commit(zilog_t *zilog, itx_t *itx, lwb_t *lwb)
 	 * For more details, see the comment above zil_commit().
 	 */
 	if (lrc->lrc_txtype == TX_COMMIT) {
+		mutex_enter(&zilog->zl_lock);
 		zil_commit_waiter_link_lwb(itx->itx_private, lwb);
 		itx->itx_private = NULL;
+		mutex_exit(&zilog->zl_lock);
 		return (lwb);
 	}
 
@@ -1751,7 +1741,7 @@ zil_get_commit_list(zilog_t *zilog)
 	uint64_t otxg, txg;
 	list_t *commit_list = &zilog->zl_itx_commit_list;
 
-	ASSERT(MUTEX_HELD(&zilog->zl_writer_lock));
+	ASSERT(MUTEX_HELD(&zilog->zl_issuer_lock));
 
 	if (spa_freeze_txg(zilog->zl_spa) != UINT64_MAX) /* ziltest support */
 		otxg = ZILTEST_TXG;
@@ -1858,7 +1848,7 @@ zil_prune_commit_list(zilog_t *zilog)
 {
 	itx_t *itx;
 
-	ASSERT(MUTEX_HELD(&zilog->zl_writer_lock));
+	ASSERT(MUTEX_HELD(&zilog->zl_issuer_lock));
 
 	while (itx = list_head(&zilog->zl_itx_commit_list)) {
 		lr_t *lrc = &itx->itx_lr;
@@ -1908,12 +1898,12 @@ zil_commit_writer_stall(zilog_t *zilog)
 	 * crash (because the previous lwb on-disk would not point to
 	 * it).
 	 *
-	 * We must hold the zilog's zl_writer_lock while we do this, to
+	 * We must hold the zilog's zl_issuer_lock while we do this, to
 	 * ensure no new threads enter zil_process_commit_list() until
 	 * all lwb's in the zl_lwb_list have been synced and freed
 	 * (which is achieved via the txg_wait_synced() call).
 	 */
-	ASSERT(MUTEX_HELD(&zilog->zl_writer_lock));
+	ASSERT(MUTEX_HELD(&zilog->zl_issuer_lock));
 	txg_wait_synced(zilog->zl_dmu_pool, 0);
 	ASSERT3P(list_tail(&zilog->zl_lwb_list), ==, NULL);
 }
@@ -1932,7 +1922,7 @@ zil_process_commit_list(zilog_t *zilog)
 	lwb_t *lwb;
 	itx_t *itx;
 
-	ASSERT(MUTEX_HELD(&zilog->zl_writer_lock));
+	ASSERT(MUTEX_HELD(&zilog->zl_issuer_lock));
 
 	/*
 	 * Return if there's nothing to commit before we dirty the fs by
@@ -1966,16 +1956,54 @@ zil_process_commit_list(zilog_t *zilog)
 			    zilog_t *, zilog, itx_t *, itx);
 		}
 
-		/*
-		 * This is inherently racy and may result in us writing
-		 * out a log block for a txg that was just synced. This
-		 * is ok since we'll end cleaning up that log block the
-		 * next time we call zil_sync().
-		 */
 		boolean_t synced = txg <= spa_last_synced_txg(spa);
 		boolean_t frozen = txg > spa_freeze_txg(spa);
 
-		if (!synced || frozen) {
+		/*
+		 * If the txg of this itx has already been synced out, then
+		 * we don't need to commit this itx to an lwb. This is
+		 * because the data of this itx will have already been
+		 * written to the main pool. This is inherently racy, and
+		 * it's still ok to commit an itx whose txg has already
+		 * been synced; this will result in a write that's
+		 * unnecessary, but will do no harm.
+		 *
+		 * With that said, we always want to commit TX_COMMIT itxs
+		 * to an lwb, regardless of whether or not that itx's txg
+		 * has been synced out. We do this to ensure any OPENED lwb
+		 * will always have at least one zil_commit_waiter_t linked
+		 * to the lwb.
+		 *
+		 * As a counter-example, if we skipped TX_COMMIT itx's
+		 * whose txg had already been synced, the following
+		 * situation could occur if we happened to be racing with
+		 * spa_sync:
+		 *
+		 * 1. we commit a non-TX_COMMIT itx to an lwb, where the
+		 *    itx's txg is 10 and the last synced txg is 9.
+		 * 2. spa_sync finishes syncing out txg 10.
+		 * 3. we move to the next itx in the list, it's a TX_COMMIT
+		 *    whose txg is 10, so we skip it rather than committing
+		 *    it to the lwb used in (1).
+		 *
+		 * If the itx that is skipped in (3) is the last TX_COMMIT
+		 * itx in the commit list, than it's possible for the lwb
+		 * used in (1) to remain in the OPENED state indefinitely.
+		 *
+		 * To prevent the above scenario from occuring, ensuring
+		 * that once an lwb is OPENED it will transition to ISSUED
+		 * and eventually DONE, we always commit TX_COMMIT itx's to
+		 * an lwb here, even if that itx's txg has already been
+		 * synced.
+		 *
+		 * Finally, if the pool is frozen, we _always_ commit the
+		 * itx.  The point of freezing the pool is to prevent data
+		 * from being written to the main pool via spa_sync, and
+		 * instead rely solely on the ZIL to persistently store the
+		 * data; i.e.  when the pool is frozen, the last synced txg
+		 * value can't be trusted.
+		 */
+		if (frozen || !synced || lrc->lrc_txtype == TX_COMMIT) {
 			if (lwb != NULL) {
 				lwb = zil_lwb_commit(zilog, itx, lwb);
 			} else if (lrc->lrc_txtype == TX_COMMIT) {
@@ -1983,22 +2011,6 @@ zil_process_commit_list(zilog_t *zilog)
 				zil_commit_waiter_link_nolwb(
 				    itx->itx_private, &nolwb_waiters);
 			}
-		} else if (lrc->lrc_txtype == TX_COMMIT) {
-			ASSERT3B(synced, ==, B_TRUE);
-			ASSERT3B(frozen, ==, B_FALSE);
-
-			/*
-			 * If this is a commit itx, then there will be a
-			 * thread that is either: already waiting for
-			 * it, or soon will be waiting.
-			 *
-			 * This itx has already been committed to disk
-			 * via spa_sync() so we don't bother committing
-			 * it to an lwb. As a result, we cannot use the
-			 * lwb zio callback to signal the waiter and
-			 * mark it as done, so we must do that here.
-			 */
-			zil_commit_waiter_skip(itx->itx_private);
 		}
 
 		list_remove(&zilog->zl_itx_commit_list, itx);
@@ -2100,19 +2112,18 @@ zil_commit_writer(zilog_t *zilog, zil_commit_waiter_t *zcw)
 {
 	ASSERT(!MUTEX_HELD(&zilog->zl_lock));
 	ASSERT(spa_writeable(zilog->zl_spa));
-	ASSERT0(zilog->zl_suspend);
 
-	mutex_enter(&zilog->zl_writer_lock);
+	mutex_enter(&zilog->zl_issuer_lock);
 
 	if (zcw->zcw_lwb != NULL || zcw->zcw_done) {
 		/*
 		 * It's possible that, while we were waiting to acquire
-		 * the "zl_writer_lock", another thread committed this
+		 * the "zl_issuer_lock", another thread committed this
 		 * waiter to an lwb. If that occurs, we bail out early,
 		 * without processing any of the zilog's queue of itxs.
 		 *
 		 * On certain workloads and system configurations, the
-		 * "zl_writer_lock" can become highly contended. In an
+		 * "zl_issuer_lock" can become highly contended. In an
 		 * attempt to reduce this contention, we immediately drop
 		 * the lock if the waiter has already been processed.
 		 *
@@ -2129,13 +2140,13 @@ zil_commit_writer(zilog_t *zilog, zil_commit_waiter_t *zcw)
 	zil_process_commit_list(zilog);
 
 out:
-	mutex_exit(&zilog->zl_writer_lock);
+	mutex_exit(&zilog->zl_issuer_lock);
 }
 
 static void
 zil_commit_waiter_timeout(zilog_t *zilog, zil_commit_waiter_t *zcw)
 {
-	ASSERT(!MUTEX_HELD(&zilog->zl_writer_lock));
+	ASSERT(!MUTEX_HELD(&zilog->zl_issuer_lock));
 	ASSERT(MUTEX_HELD(&zcw->zcw_lock));
 	ASSERT3B(zcw->zcw_done, ==, B_FALSE);
 
@@ -2147,7 +2158,7 @@ zil_commit_waiter_timeout(zilog_t *zilog, zil_commit_waiter_t *zcw)
 	 * If the lwb has already been issued by another thread, we can
 	 * immediately return since there's no work to be done (the
 	 * point of this function is to issue the lwb). Additionally, we
-	 * do this prior to acquiring the zl_writer_lock, to avoid
+	 * do this prior to acquiring the zl_issuer_lock, to avoid
 	 * acquiring it when it's not necessary to do so.
 	 */
 	if (lwb->lwb_state == LWB_STATE_ISSUED ||
@@ -2156,13 +2167,13 @@ zil_commit_waiter_timeout(zilog_t *zilog, zil_commit_waiter_t *zcw)
 
 	/*
 	 * In order to call zil_lwb_write_issue() we must hold the
-	 * zilog's "zl_writer_lock". We can't simply acquire that lock,
+	 * zilog's "zl_issuer_lock". We can't simply acquire that lock,
 	 * since we're already holding the commit waiter's "zcw_lock",
 	 * and those two locks are aquired in the opposite order
 	 * elsewhere.
 	 */
 	mutex_exit(&zcw->zcw_lock);
-	mutex_enter(&zilog->zl_writer_lock);
+	mutex_enter(&zilog->zl_issuer_lock);
 	mutex_enter(&zcw->zcw_lock);
 
 	/*
@@ -2179,10 +2190,24 @@ zil_commit_waiter_timeout(zilog_t *zilog, zil_commit_waiter_t *zcw)
 	ASSERT3P(lwb, ==, zcw->zcw_lwb);
 
 	/*
-	 * We've already checked this above, but since we hadn't
-	 * acquired the zilog's zl_writer_lock, we have to perform this
-	 * check a second time while holding the lock. We can't call
+	 * We've already checked this above, but since we hadn't acquired
+	 * the zilog's zl_issuer_lock, we have to perform this check a
+	 * second time while holding the lock.
+	 *
+	 * We don't need to hold the zl_lock since the lwb cannot transition
+	 * from OPENED to ISSUED while we hold the zl_issuer_lock. The lwb
+	 * _can_ transition from ISSUED to DONE, but it's OK to race with
+	 * that transition since we treat the lwb the same, whether it's in
+	 * the ISSUED or DONE states.
+	 *
+	 * The important thing, is we treat the lwb differently depending on
+	 * if it's ISSUED or OPENED, and block any other threads that might
+	 * attempt to issue this lwb. For that reason we hold the
+	 * zl_issuer_lock when checking the lwb_state; we must not call
 	 * zil_lwb_write_issue() if the lwb had already been issued.
+	 *
+	 * See the comment above the lwb_state_t structure definition for
+	 * more details on the lwb states, and locking requirements.
 	 */
 	if (lwb->lwb_state == LWB_STATE_ISSUED ||
 	    lwb->lwb_state == LWB_STATE_DONE)
@@ -2243,7 +2268,7 @@ zil_commit_waiter_timeout(zilog_t *zilog, zil_commit_waiter_t *zcw)
 	}
 
 out:
-	mutex_exit(&zilog->zl_writer_lock);
+	mutex_exit(&zilog->zl_issuer_lock);
 	ASSERT(MUTEX_HELD(&zcw->zcw_lock));
 }
 
@@ -2270,9 +2295,8 @@ static void
 zil_commit_waiter(zilog_t *zilog, zil_commit_waiter_t *zcw)
 {
 	ASSERT(!MUTEX_HELD(&zilog->zl_lock));
-	ASSERT(!MUTEX_HELD(&zilog->zl_writer_lock));
+	ASSERT(!MUTEX_HELD(&zilog->zl_issuer_lock));
 	ASSERT(spa_writeable(zilog->zl_spa));
-	ASSERT0(zilog->zl_suspend);
 
 	mutex_enter(&zcw->zcw_lock);
 
@@ -2531,7 +2555,7 @@ zil_commit_itx_assign(zilog_t *zilog, zil_commit_waiter_t *zcw)
  *      on two fundamental concepts:
  *
  *          1. The creation and issuance of lwb zio's is protected by
- *             the zilog's "zl_writer_lock", which ensures only a single
+ *             the zilog's "zl_issuer_lock", which ensures only a single
  *             thread is creating and/or issuing lwb's at a time
  *          2. The "previous" lwb is a child of the "current" lwb
  *             (leveraging the zio parent-child depenency graph)
@@ -2589,6 +2613,12 @@ zil_commit(zilog_t *zilog, uint64_t foid)
 		return;
 	}
 
+	zil_commit_impl(zilog, foid);
+}
+
+void
+zil_commit_impl(zilog_t *zilog, uint64_t foid)
+{
 	/*
 	 * Move the "async" itxs for the specified foid to the "sync"
 	 * queues, such that they will be later committed (or skipped)
@@ -2780,7 +2810,7 @@ zil_alloc(objset_t *os, zil_header_t *zh_phys)
 	zilog->zl_last_lwb_latency = 0;
 
 	mutex_init(&zilog->zl_lock, NULL, MUTEX_DEFAULT, NULL);
-	mutex_init(&zilog->zl_writer_lock, NULL, MUTEX_DEFAULT, NULL);
+	mutex_init(&zilog->zl_issuer_lock, NULL, MUTEX_DEFAULT, NULL);
 
 	for (int i = 0; i < TXG_SIZE; i++) {
 		mutex_init(&zilog->zl_itxg[i].itxg_lock, NULL,
@@ -2825,7 +2855,7 @@ zil_free(zilog_t *zilog)
 		mutex_destroy(&zilog->zl_itxg[i].itxg_lock);
 	}
 
-	mutex_destroy(&zilog->zl_writer_lock);
+	mutex_destroy(&zilog->zl_issuer_lock);
 	mutex_destroy(&zilog->zl_lock);
 
 	cv_destroy(&zilog->zl_cv_suspend);
@@ -3001,7 +3031,22 @@ zil_suspend(const char *osname, void **cookiep)
 	zilog->zl_suspending = B_TRUE;
 	mutex_exit(&zilog->zl_lock);
 
-	zil_commit(zilog, 0);
+	/*
+	 * We need to use zil_commit_impl to ensure we wait for all
+	 * LWB_STATE_OPENED and LWB_STATE_ISSUED lwb's to be committed
+	 * to disk before proceeding. If we used zil_commit instead, it
+	 * would just call txg_wait_synced(), because zl_suspend is set.
+	 * txg_wait_synced() doesn't wait for these lwb's to be
+	 * LWB_STATE_DONE before returning.
+	 */
+	zil_commit_impl(zilog, 0);
+
+	/*
+	 * Now that we've ensured all lwb's are LWB_STATE_DONE, we use
+	 * txg_wait_synced() to ensure the data from the zilog has
+	 * migrated to the main pool before calling zil_destroy().
+	 */
+	txg_wait_synced(zilog->zl_dmu_pool, 0);
 
 	zil_destroy(zilog, B_FALSE);
 

@@ -49,22 +49,26 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <arm/freescale/imx/imx_machdep.h>
 #include <arm/freescale/imx/imx_wdogreg.h>
 
 struct imx_wdog_softc {
 	struct mtx		sc_mtx;
 	device_t		sc_dev;
-	bus_space_tag_t		sc_bst;
-	bus_space_handle_t	sc_bsh;
 	struct resource		*sc_res[2];
+	void 			*sc_ih;
 	uint32_t		sc_timeout;
+	bool			sc_pde_enabled;
 };
 
 static struct resource_spec imx_wdog_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1, 0 }
+	RESOURCE_SPEC_END
 };
+
+#define	MEMRES	0
+#define	IRQRES	1
 
 static struct ofw_compat_data compat_data[] = {
 	{"fsl,imx6sx-wdt", 1},
@@ -80,28 +84,19 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,             0}
 };
 
-static void	imx_watchdog(void *, u_int, int *);
-static int	imx_wdog_probe(device_t);
-static int	imx_wdog_attach(device_t);
+static inline uint16_t
+RD2(struct imx_wdog_softc *sc, bus_size_t offs)
+{
 
-static device_method_t imx_wdog_methods[] = {
-	DEVMETHOD(device_probe,		imx_wdog_probe),
-	DEVMETHOD(device_attach,	imx_wdog_attach),
-	DEVMETHOD_END
-};
+	return (bus_read_2(sc->sc_res[MEMRES], offs));
+}
 
-static driver_t imx_wdog_driver = {
-	"imx_wdog",
-	imx_wdog_methods,
-	sizeof(struct imx_wdog_softc),
-};
-static devclass_t imx_wdog_devclass;
-DRIVER_MODULE(imx_wdog, simplebus, imx_wdog_driver, imx_wdog_devclass, 0, 0);
+static inline void
+WR2(struct imx_wdog_softc *sc, bus_size_t offs, uint16_t val)
+{
 
-#define	RD2(_sc, _r)							\
-		bus_space_read_2((_sc)->sc_bst, (_sc)->sc_bsh, (_r))
-#define	WR2(_sc, _r, _v)						\
-		bus_space_write_2((_sc)->sc_bst, (_sc)->sc_bsh, (_r), (_v))
+	bus_write_2(sc->sc_res[MEMRES], offs, val);
+}
 
 static void
 imx_watchdog(void *arg, u_int cmd, int *error)
@@ -130,10 +125,37 @@ imx_watchdog(void *arg, u_int cmd, int *error)
 			/* Refresh counter */
 			WR2(sc, WDOG_SR_REG, WDOG_SR_STEP1);
 			WR2(sc, WDOG_SR_REG, WDOG_SR_STEP2);
+			/* Watchdog active, can disable rom-boot watchdog. */
+			if (sc->sc_pde_enabled) {
+				sc->sc_pde_enabled = false;
+				reg = RD2(sc, WDOG_MCR_REG);
+				WR2(sc, WDOG_MCR_REG, reg & ~WDOG_MCR_PDE);
+			}
 			*error = 0;
 		}
 	}
 	mtx_unlock(&sc->sc_mtx);
+}
+
+static int
+imx_wdog_intr(void *arg)
+{
+	struct imx_wdog_softc *sc = arg;
+
+	/*
+	 * When configured for external reset, the actual reset is supposed to
+	 * happen when some external device responds to the assertion of the
+	 * WDOG_B signal by asserting the POR signal to the chip.  This
+	 * interrupt handler is a backstop mechanism; it is set up to fire
+	 * simultaneously with WDOG_B, and if the external reset happens we'll
+	 * never actually make it to here.  If we do make it here, just trigger
+	 * a software reset.  That code will see that external reset is
+	 * configured, and it will wait for 1 second for it to take effect, then
+	 * it will do a software reset as a fallback.
+	 */
+	imx_wdog_cpu_reset(BUS_SPACE_PHYSADDR(sc->sc_res[MEMRES], WDOG_CR_REG));
+
+	return (FILTER_HANDLED); /* unreached */
 }
 
 static int
@@ -165,12 +187,43 @@ imx_wdog_attach(device_t dev)
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), "imx_wdt", MTX_DEF);
 
-	sc->sc_dev = dev;
-	sc->sc_bst = rman_get_bustag(sc->sc_res[0]);
-	sc->sc_bsh = rman_get_bushandle(sc->sc_res[0]);
+	/*
+	 * If we're configured to assert an external reset signal, set up the
+	 * hardware to do so, and install an interrupt handler whose only
+	 * purpose is to backstop the external reset.  Don't worry if the
+	 * interrupt setup fails, since it's only a backstop measure.
+	 */
+	if (ofw_bus_has_prop(sc->sc_dev, "fsl,ext-reset-output")) {
+		WR2(sc, WDOG_CR_REG, WDOG_CR_WDT | RD2(sc, WDOG_CR_REG));
+		bus_setup_intr(sc->sc_dev, sc->sc_res[IRQRES],
+		    INTR_TYPE_MISC | INTR_MPSAFE, imx_wdog_intr, NULL, sc,
+		    &sc->sc_ih);
+		WR2(sc, WDOG_ICR_REG, WDOG_ICR_WIE); /* Enable, count is 0. */
+	}
 
-	/* TODO: handle interrupt */
+	/*
+	 * Note whether the rom-boot so-called "power-down" watchdog is active,
+	 * so we can disable it when the regular watchdog is first enabled.
+	 */
+	if (RD2(sc, WDOG_MCR_REG) & WDOG_MCR_PDE)
+		sc->sc_pde_enabled = true;
 
 	EVENTHANDLER_REGISTER(watchdog_list, imx_watchdog, sc, 0);
 	return (0);
 }
+
+static device_method_t imx_wdog_methods[] = {
+	DEVMETHOD(device_probe,		imx_wdog_probe),
+	DEVMETHOD(device_attach,	imx_wdog_attach),
+	DEVMETHOD_END
+};
+
+static driver_t imx_wdog_driver = {
+	"imx_wdog",
+	imx_wdog_methods,
+	sizeof(struct imx_wdog_softc),
+};
+
+static devclass_t imx_wdog_devclass;
+
+DRIVER_MODULE(imx_wdog, simplebus, imx_wdog_driver, imx_wdog_devclass, 0, 0);

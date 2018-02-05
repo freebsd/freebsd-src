@@ -3474,7 +3474,7 @@ ATF_TC_BODY(ptrace__PT_STEP_with_signal, tc)
  * that restarting doesn't retrigger the breakpoint.
  */
 static void *
-continue_thread(void *arg)
+continue_thread(void *arg __unused)
 {
 	breakpoint();
 	return (NULL);

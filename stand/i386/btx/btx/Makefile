@@ -4,7 +4,6 @@
 
 PROG=	btx
 INTERNALPROG=
-MAN=
 SRCS=	btx.S
 
 .if defined(BOOT_BTX_NOHANG)

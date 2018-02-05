@@ -1169,7 +1169,7 @@ mps_alloc_queues(struct mps_softc *sc)
 	nq = sc->msi_msgs;
 	mps_dprint(sc, MPS_INIT|MPS_XINFO, "Allocating %d I/O queues\n", nq);
 
-	sc->queues = mallocarray(nq, sizeof(struct mps_queue), M_MPT2,
+	sc->queues = malloc(sizeof(struct mps_queue) * nq, M_MPT2,
 	    M_NOWAIT|M_ZERO);
 	if (sc->queues == NULL)
 		return (ENOMEM);

@@ -65,6 +65,7 @@
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_device.h>
+#include <dev/usb/usb_util.h>
 
 #define	USB_DEBUG_VAR usb_debug
 #include <dev/usb/usb_debug.h>
@@ -74,6 +75,9 @@
 #include <dev/usb/usb_request.h>
 #include <dev/usb/template/usb_template.h>
 #endif			/* USB_GLOBAL_INCLUDE_FILE */
+
+SYSCTL_NODE(_hw_usb, OID_AUTO, templates, CTLFLAG_RW, 0,
+    "USB device side templates");
 
 MODULE_DEPEND(usb_template, usb, 1, 1, 1);
 MODULE_VERSION(usb_template, 1);
@@ -112,6 +116,50 @@ static usb_error_t usb_temp_get_desc(struct usb_device *,
 static usb_error_t usb_temp_setup_by_index(struct usb_device *,
 		    uint16_t index);
 static void	usb_temp_init(void *);
+
+/*------------------------------------------------------------------------*
+ *	usb_decode_str_desc
+ *
+ * Helper function to decode string descriptors into a C string.
+ *------------------------------------------------------------------------*/
+void
+usb_decode_str_desc(struct usb_string_descriptor *sd, char *buf, size_t buflen)
+{
+	size_t i;
+
+	for (i = 0; i < buflen - 1 && i < sd->bLength / 2; i++)
+		buf[i] = UGETW(sd->bString[i]);
+
+	buf[i] = '\0';
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_temp_sysctl
+ *
+ * Callback for SYSCTL_PROC(9), to set and retrieve template string
+ * descriptors.
+ *------------------------------------------------------------------------*/
+int
+usb_temp_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	char buf[128];
+	struct usb_string_descriptor *sd = arg1;
+	size_t len, sdlen = arg2;
+	int error;
+
+	usb_decode_str_desc(sd, buf, sizeof(buf));
+
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	len = usb_make_str_desc(sd, sdlen, buf);
+	if (len == 0)
+		return (EINVAL);
+
+	return (0);
+}
+
 
 /*------------------------------------------------------------------------*
  *	usb_make_raw_desc

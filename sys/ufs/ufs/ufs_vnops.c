@@ -2185,8 +2185,7 @@ ufs_readdir(ap)
 		else if (ip->i_size - uio->uio_offset < ncookies)
 			ncookies = ip->i_size - uio->uio_offset;
 		ncookies = ncookies / (offsetof(struct direct, d_name) + 4) + 1;
-		cookies = mallocarray(ncookies, sizeof(*cookies), M_TEMP,
-		    M_WAITOK);
+		cookies = malloc(ncookies * sizeof(*cookies), M_TEMP, M_WAITOK);
 		*ap->a_ncookies = ncookies;
 		*ap->a_cookies = cookies;
 	} else {

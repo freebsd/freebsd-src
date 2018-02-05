@@ -348,24 +348,9 @@ getblk(struct bufarea *bp, ufs2_daddr_t blk, long size)
 void
 flush(int fd, struct bufarea *bp)
 {
-	int i, j;
 
 	if (!bp->b_dirty)
 		return;
-	/*
-	 * Calculate any needed check hashes.
-	 */
-	switch (bp->b_type) {
-	case BT_CYLGRP:
-		if ((sblock.fs_metackhash & CK_CYLGRP) == 0)
-			break;
-		bp->b_un.b_cg->cg_ckhash = 0;
-		bp->b_un.b_cg->cg_ckhash =
-		    calculate_crc32c(~0L, bp->b_un.b_buf, bp->b_size);
-		break;
-	default:
-		break;
-	}
 	bp->b_dirty = 0;
 	if (fswritefd < 0) {
 		pfatal("WRITING IN READ_ONLY MODE.\n");
@@ -376,13 +361,24 @@ flush(int fd, struct bufarea *bp)
 		    (bp->b_errs == bp->b_size / dev_bsize) ? "" : "PARTIALLY ",
 		    (long long)bp->b_bno);
 	bp->b_errs = 0;
-	blwrite(fd, bp->b_un.b_buf, bp->b_bno, bp->b_size);
-	if (bp != &sblk)
-		return;
-	for (i = 0, j = 0; i < sblock.fs_cssize; i += sblock.fs_bsize, j++) {
-		blwrite(fswritefd, (char *)sblock.fs_csp + i,
-		    fsbtodb(&sblock, sblock.fs_csaddr + j * sblock.fs_frag),
-		    MIN(sblock.fs_cssize - i, sblock.fs_bsize));
+	/*
+	 * Write using the appropriate function.
+	 */
+	switch (bp->b_type) {
+	case BT_SUPERBLK:
+		if (bp != &sblk)
+			pfatal("BUFFER %p DOES NOT MATCH SBLK %p\n",
+			    bp, &sblk);
+		if (sbput(fd, (struct fs *)bp->b_un.b_buf, 0) == 0)
+			fsmodified = 1;
+		break;
+	case BT_CYLGRP:
+		if (cgput(&disk, (struct cg *)bp->b_un.b_buf) == 0)
+			fsmodified = 1;
+		break;
+	default:
+		blwrite(fd, bp->b_un.b_buf, bp->b_bno, bp->b_size);
+		break;
 	}
 }
 
@@ -436,6 +432,8 @@ ckfini(int markclean)
 	if (havesb && cursnapshot == 0 && sblock.fs_magic == FS_UFS2_MAGIC &&
 	    sblk.b_bno != sblock.fs_sblockloc / dev_bsize &&
 	    !preen && reply("UPDATE STANDARD SUPERBLOCK")) {
+		/* Change the write destination to standard superblock */
+		sblock.fs_sblockactualloc = sblock.fs_sblockloc;
 		sblk.b_bno = sblock.fs_sblockloc / dev_bsize;
 		sbdirty();
 		flush(fswritefd, &sblk);

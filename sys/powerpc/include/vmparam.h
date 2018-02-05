@@ -134,9 +134,9 @@
 
 #ifdef __powerpc64__
 #ifndef LOCORE
-#define	KERNBASE	0xc000000000000000UL	/* start of kernel virtual */
+#define	KERNBASE	0xc000000000000100UL	/* start of kernel virtual */
 #else
-#define	KERNBASE	0xc000000000000000	/* start of kernel virtual */
+#define	KERNBASE	0xc000000000000100	/* start of kernel virtual */
 #endif
 #else
 #define	KERNBASE		0xc0000000	/* start of kernel virtual */

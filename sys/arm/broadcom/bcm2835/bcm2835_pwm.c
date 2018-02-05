@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2017 Poul-Henning Kamp <phk@freebsd.org>
+ * Copyright (c) 2017 Poul-Henning Kamp <phk@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,12 +42,12 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_gpio.h>
+#include <arm/broadcom/bcm2835/bcm2835_clkman.h>
 
 static struct ofw_compat_data compat_data[] = {
 	{"broadcom,bcm2835-pwm",	1},
@@ -62,9 +62,7 @@ struct bcm_pwm_softc {
 	bus_space_tag_t		sc_m_bst;
 	bus_space_handle_t	sc_m_bsh;
 
-	struct resource *	sc_clk_res;
-	bus_space_tag_t		sc_c_bst;
-	bus_space_handle_t	sc_c_bsh;
+	device_t		clkman;
 
 	uint32_t		freq;
 	uint32_t		period;
@@ -91,15 +89,9 @@ struct bcm_pwm_softc {
 #define W_DAT(_sc, _val) BCM_PWM_MEM_WRITE(_sc, 0x14, _val)
 #define R_DAT(_sc) BCM_PWM_MEM_READ(_sc, 0x14)
 
-#define W_CMCLK(_sc, _val) BCM_PWM_CLK_WRITE(_sc, 0x00, 0x5a000000 | (_val))
-#define R_CMCLK(_sc) BCM_PWM_CLK_READ(_sc, 0x00)
-#define W_CMDIV(_sc, _val) BCM_PWM_CLK_WRITE(_sc, 0x04, 0x5a000000 | (_val))
-#define R_CMDIV(_s) BCM_PWM_CLK_READ(_sc, 0x04)
-
 static int
 bcm_pwm_reconf(struct bcm_pwm_softc *sc)
 {
-	int i;
 	uint32_t u;
 	device_t gpio;
 
@@ -107,22 +99,10 @@ bcm_pwm_reconf(struct bcm_pwm_softc *sc)
 	W_CTL(sc, 0);
 
 	/* Stop PWM clock */
-	W_CMCLK(sc, 6);
-	for (i = 0; i < 10; i++) {
-		u = R_CMCLK(sc);
-		if (!(u&0x80))
-			break;
-		DELAY(1000);
-	}
-	if (u&0x80) {
-		device_printf(sc->sc_dev, "Failed to stop clock\n");
-		return(EIO);
-	}
+	(void)bcm2835_clkman_set_frequency(sc->clkman, BCM_PWM_CLKSRC, 0);
 
-	if (sc->mode == 0) {
-		// XXX: GPIO cfg ?
+	if (sc->mode == 0)
 		return (0);
-	}
 
 	/* Ask GPIO0 to set ALT0 for pin 12 */
 	gpio = devclass_get_device(devclass_find("gpio"), 0);
@@ -132,34 +112,15 @@ bcm_pwm_reconf(struct bcm_pwm_softc *sc)
 	}
 	bcm_gpio_set_alternate(gpio, 12, BCM_GPIO_ALT0);
 
-	/* Configure divider */
-	u = 500000000/sc->freq;
-	if (u < 4) {
-		device_printf(sc->sc_dev, "Freq too high (max 125MHz)\n");
-		return(EINVAL);
-	}
-	if (u > 0xfff) {
-		device_printf(sc->sc_dev, "Freq too low (min 123Hz)\n");
-		return(EINVAL);
-	}
-	sc->freq = 500000000/u;
-	W_CMDIV(sc, u << 12);
-
-	/* Start PWM clock */
-	W_CMCLK(sc, 0x16);
-	for (i = 0; i < 10; i++) {
-		u = R_CMCLK(sc);
-		if ((u&0x80))
-			break;
-		DELAY(1000);
-	}
-	if (!(u&0x80)) {
-		device_printf(sc->sc_dev, "Failed to start clock\n");
-		return(EIO);
-	}
+	u = bcm2835_clkman_set_frequency(sc->clkman, BCM_PWM_CLKSRC, sc->freq);
+	if (u == 0)
+		return (EINVAL);
+	sc->freq = u;
 
 	/* Config PWM */
 	W_RNG(sc, sc->period);
+	if (sc->ratio > sc->period)
+		sc->ratio = sc->period;
 	W_DAT(sc, sc->ratio);
 
 	/* Start PWM */
@@ -264,19 +225,13 @@ bcm_pwm_reg_proc(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	sc = (struct bcm_pwm_softc *)arg1;
-	if (arg2 & 0x100)
-		reg = BCM_PWM_CLK_READ(sc, arg2 & 0xff);
-	else
-		reg = BCM_PWM_MEM_READ(sc, arg2 & 0xff);
+	reg = BCM_PWM_MEM_READ(sc, arg2 & 0xff);
 
 	error = sysctl_handle_int(oidp, &reg, sizeof(reg), req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 
-	if (arg2 & 0x100)
-		BCM_PWM_CLK_WRITE(sc, arg2 & 0xff, reg);
-	else
-		BCM_PWM_MEM_WRITE(sc, arg2, reg);
+	BCM_PWM_MEM_WRITE(sc, arg2, reg);
 	return (0);
 }
 
@@ -299,8 +254,6 @@ bcm_pwm_sysctl_init(struct bcm_pwm_softc *sc)
 	    CTLFLAG_RW | CTLTYPE_UINT, sc, 0x##x,		\
 	    bcm_pwm_reg_proc, "IU", "Register 0x" #x " " y);
 
-		RR(100, "PWMCTL")
-		RR(104, "PWMDIV")
 		RR(24, "DAT2")
 		RR(20, "RNG2")
 		RR(18, "FIF1")
@@ -333,8 +286,12 @@ static int
 bcm_pwm_probe(device_t dev)
 {
 
+#if 0
+	// XXX: default state is disabled in RPI3 DTB, assume for now
+	// XXX: that people want the PWM to work if the KLD this module.
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
+#endif
 
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
@@ -358,6 +315,12 @@ bcm_pwm_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
+	sc->clkman = devclass_get_device(devclass_find("bcm2835_clkman"), 0);
+	if (sc->clkman == NULL) {
+		device_printf(dev, "cannot find Clock Manager\n");
+		return (ENXIO);
+	}
+
 	rid = 0;
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
@@ -368,16 +331,6 @@ bcm_pwm_attach(device_t dev)
 
 	sc->sc_m_bst = rman_get_bustag(sc->sc_mem_res);
 	sc->sc_m_bsh = rman_get_bushandle(sc->sc_mem_res);
-
-	rid = 1;
-	sc->sc_clk_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
-	if (!sc->sc_clk_res) {
-		device_printf(dev, "cannot allocate clock window\n");
-		return (ENXIO);
-	}
-	sc->sc_c_bst = rman_get_bustag(sc->sc_clk_res);
-	sc->sc_c_bsh = rman_get_bushandle(sc->sc_clk_res);
 
 	/* Add sysctl nodes. */
 	bcm_pwm_sysctl_init(sc);
@@ -398,12 +351,10 @@ bcm_pwm_detach(device_t dev)
 	bus_generic_detach(dev);
 
 	sc = device_get_softc(dev);
-	sc->mode = 0;	
+	sc->mode = 0;
 	(void)bcm_pwm_reconf(sc);
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
-	if (sc->sc_clk_res)
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_clk_res);
 
 	return (0);
 }
@@ -412,17 +363,15 @@ static phandle_t
 bcm_pwm_get_node(device_t bus, device_t dev)
 {
 
-	/* We only have one child, the SPI bus, which needs our own node. */
 	return (ofw_bus_get_node(bus));
 }
+
 
 static device_method_t bcm_pwm_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		bcm_pwm_probe),
 	DEVMETHOD(device_attach,	bcm_pwm_attach),
 	DEVMETHOD(device_detach,	bcm_pwm_detach),
-
-	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	bcm_pwm_get_node),
 
 	DEVMETHOD_END
@@ -437,3 +386,4 @@ static driver_t bcm_pwm_driver = {
 };
 
 DRIVER_MODULE(bcm2835_pwm, simplebus, bcm_pwm_driver, bcm_pwm_devclass, 0, 0);
+MODULE_DEPEND(bcm2835_pwm, bcm2835_clkman, 1, 1, 1);

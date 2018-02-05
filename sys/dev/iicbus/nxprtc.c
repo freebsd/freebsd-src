@@ -192,10 +192,19 @@ struct nxprtc_softc {
 	uint8_t		secaddr;	/* Address of seconds register */
 	uint8_t		tmcaddr;	/* Address of timer count register */
 	bool		use_timer;	/* Use timer for fractional sec */
+	bool		use_ampm;	/* Chip is set to use am/pm mode */
 };
 
 #define	SC_F_CPOL	(1 << 0)	/* Century bit means 19xx */
-#define	SC_F_AMPM	(1 << 1)	/* Use PM flag in hours reg */
+
+/*
+ * When doing i2c IO, indicate that we need to wait for exclusive bus ownership,
+ * but that we should not wait if we already own the bus.  This lets us put
+ * iicbus_acquire_bus() calls with a non-recursive wait at the entry of our API
+ * functions to ensure that only one client at a time accesses the hardware for
+ * the entire series of operations it takes to read or write the clock.
+ */
+#define	WAITFLAGS	(IIC_WAIT | IIC_RECURSIVE)
 
 /*
  * We use the compat_data table to look up hint strings in the non-FDT case, so
@@ -230,14 +239,14 @@ static int
 read_reg(struct nxprtc_softc *sc, uint8_t reg, uint8_t *val)
 {
 
-	return (iicdev_readfrom(sc->dev, reg, val, sizeof(*val), IIC_WAIT));
+	return (iicdev_readfrom(sc->dev, reg, val, sizeof(*val), WAITFLAGS));
 }
 
 static int
 write_reg(struct nxprtc_softc *sc, uint8_t reg, uint8_t val)
 {
 
-	return (iicdev_writeto(sc->dev, reg, &val, sizeof(val), IIC_WAIT));
+	return (iicdev_writeto(sc->dev, reg, &val, sizeof(val), WAITFLAGS));
 }
 
 static int
@@ -264,7 +273,7 @@ read_timeregs(struct nxprtc_softc *sc, struct time_regs *tregs, uint8_t *tmr)
 				continue;
 		}
 		if ((err = iicdev_readfrom(sc->dev, sc->secaddr, tregs,
-		    sizeof(*tregs), IIC_WAIT)) != 0)
+		    sizeof(*tregs), WAITFLAGS)) != 0)
 			break;
 	} while (sc->use_timer && tregs->sec != sec);
 
@@ -294,7 +303,7 @@ write_timeregs(struct nxprtc_softc *sc, struct time_regs *tregs)
 {
 
 	return (iicdev_writeto(sc->dev, sc->secaddr, tregs,
-	    sizeof(*tregs), IIC_WAIT));
+	    sizeof(*tregs), WAITFLAGS));
 }
 
 static int
@@ -382,10 +391,10 @@ pcf8523_start(struct nxprtc_softc *sc)
 	/* Remember whether we're running in AM/PM mode. */
 	if (is2129) {
 		if (cs1 & PCF2129_B_CS1_12HR)
-			sc->flags |= SC_F_AMPM;
+			sc->use_ampm = true;
 	} else {
 		if (cs1 & PCF8523_B_CS1_12HR)
-			sc->flags |= SC_F_AMPM;
+			sc->use_ampm = true;
 	}
 
 	return (0);
@@ -543,7 +552,7 @@ nxprtc_start(void *dev)
 static int
 nxprtc_gettime(device_t dev, struct timespec *ts)
 {
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct time_regs tregs;
 	struct nxprtc_softc *sc;
 	int err;
@@ -557,34 +566,33 @@ nxprtc_gettime(device_t dev, struct timespec *ts)
 	 * bit is not set in the control reg.  The latter can happen if there
 	 * was an error when setting the time.
 	 */
-	if ((err = read_timeregs(sc, &tregs, &tmrcount)) != 0) {
-		device_printf(dev, "cannot read RTC time\n");
-		return (err);
+	if ((err = iicbus_request_bus(sc->busdev, sc->dev, IIC_WAIT)) == 0) {
+		if ((err = read_timeregs(sc, &tregs, &tmrcount)) == 0) {
+			err = read_reg(sc, PCF85xx_R_CS1, &cs1);
+		}
+		iicbus_release_bus(sc->busdev, sc->dev);
 	}
-	if ((err = read_reg(sc, PCF85xx_R_CS1, &cs1)) != 0) {
-		device_printf(dev, "cannot read RTC time\n");
+	if (err != 0)
 		return (err);
-	}
+
 	if ((tregs.sec & PCF85xx_B_SECOND_OS) || (cs1 & PCF85xx_B_CS1_STOP)) {
 		device_printf(dev, "RTC clock not running\n");
 		return (EINVAL); /* hardware is good, time is not. */
 	}
 
-	if (sc->flags & SC_F_AMPM)
+	if (sc->use_ampm)
 		hourmask = PCF85xx_M_12HOUR;
 	else
 		hourmask = PCF85xx_M_24HOUR;
 
-	ct.nsec = ((uint64_t)tmrcount * 1000000000) / TMR_TICKS_SEC;
-	ct.sec  = FROMBCD(tregs.sec   & PCF85xx_M_SECOND);
-	ct.min  = FROMBCD(tregs.min   & PCF85xx_M_MINUTE);
-	ct.hour = FROMBCD(tregs.hour  & hourmask);
-	ct.day  = FROMBCD(tregs.day   & PCF85xx_M_DAY);
-	ct.mon  = FROMBCD(tregs.month & PCF85xx_M_MONTH);
-	ct.year = FROMBCD(tregs.year  & PCF85xx_M_YEAR);
-	ct.year += 1900;
-	if (ct.year < POSIX_BASE_YEAR)
-		ct.year += 100;	/* assume [1970, 2069] */
+	bct.nsec = ((uint64_t)tmrcount * 1000000000) / TMR_TICKS_SEC;
+	bct.ispm = (tregs.hour & PCF8523_B_HOUR_PM) != 0;
+	bct.sec  = tregs.sec   & PCF85xx_M_SECOND;
+	bct.min  = tregs.min   & PCF85xx_M_MINUTE;
+	bct.hour = tregs.hour  & hourmask;
+	bct.day  = tregs.day   & PCF85xx_M_DAY;
+	bct.mon  = tregs.month & PCF85xx_M_MONTH;
+	bct.year = tregs.year  & PCF85xx_M_YEAR;
 
 	/*
 	 * Old PCF8563 datasheets recommended that the C bit be 1 for 19xx and 0
@@ -594,21 +602,13 @@ nxprtc_gettime(device_t dev, struct timespec *ts)
 	 */
 	if (sc->chiptype == TYPE_PCF8563) {
 		if (tregs.month & PCF8563_B_MONTH_C) {
-			if (ct.year >= 2000)
+			if (bct.year < 0x70)
 				sc->flags |= SC_F_CPOL;
-		} else if (ct.year < 2000)
+		} else if (bct.year >= 0x70)
 				sc->flags |= SC_F_CPOL;
 	}
 
-	/* If this chip is running in 12-hour/AMPM mode, deal with it. */
-	if (sc->flags & SC_F_AMPM) {
-		if (ct.hour == 12)
-			ct.hour = 0;
-		if (tregs.hour & PCF8523_B_HOUR_PM)
-			ct.hour += 12;
-	}
-
-	err = clock_ct_to_ts(&ct, ts);
+	err = clock_bcd_to_ts(&bct, ts, sc->use_ampm);
 	ts->tv_sec += utc_offset();
 
 	return (err);
@@ -617,11 +617,11 @@ nxprtc_gettime(device_t dev, struct timespec *ts)
 static int
 nxprtc_settime(device_t dev, struct timespec *ts)
 {
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct time_regs tregs;
 	struct nxprtc_softc *sc;
 	int err;
-	uint8_t cflag, cs1, pmflag;
+	uint8_t cflag, cs1;
 
 	sc = device_get_softc(dev);
 
@@ -647,36 +647,25 @@ nxprtc_settime(device_t dev, struct timespec *ts)
 	getnanotime(ts);
 	ts->tv_sec -= utc_offset();
 	ts->tv_nsec = 0;
-	clock_ts_to_ct(ts, &ct);
-
-	/* If the chip is in AMPM mode deal with the PM flag. */
-	pmflag = 0;
-	if (sc->flags & SC_F_AMPM) {
-		if (ct.hour >= 12) {
-			ct.hour -= 12;
-			pmflag = PCF8523_B_HOUR_PM;
-		}
-		if (ct.hour == 0)
-			ct.hour = 12;
-	}
+	clock_ts_to_bcd(ts, &bct, sc->use_ampm);
 
 	/* On 8563 set the century based on the polarity seen when reading. */
 	cflag = 0;
 	if (sc->chiptype == TYPE_PCF8563) {
 		if ((sc->flags & SC_F_CPOL) != 0) {
-			if (ct.year >= 2000)
+			if (bct.year >= 0x2000)
 				cflag = PCF8563_B_MONTH_C;
-		} else if (ct.year < 2000)
+		} else if (bct.year < 0x2000)
 				cflag = PCF8563_B_MONTH_C;
 	}
 
-	tregs.sec   = TOBCD(ct.sec);
-	tregs.min   = TOBCD(ct.min);
-	tregs.hour  = TOBCD(ct.hour) | pmflag;
-	tregs.day   = TOBCD(ct.day);
-	tregs.month = TOBCD(ct.mon);
-	tregs.year  = TOBCD(ct.year % 100) | cflag;
-	tregs.wday  = ct.dow;
+	tregs.sec   = bct.sec;
+	tregs.min   = bct.min;
+	tregs.hour  = bct.hour | (bct.ispm ? PCF8523_B_HOUR_PM : 0);
+	tregs.day   = bct.day;
+	tregs.month = bct.mon;
+	tregs.year  = (bct.year & 0xff) | cflag;
+	tregs.wday  = bct.dow;
 
 	/*
 	 * Set the time, reset the timer count register, then start the clocks.

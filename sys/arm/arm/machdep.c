@@ -1264,6 +1264,8 @@ initarm(struct arm_boot_params *abp)
 	msgbufinit(msgbufp, msgbufsize);
 	dbg_monitor_init();
 	kdb_init();
+	/* Apply possible BP hardening. */
+	cpuinfo_init_bp_hardening();
 	return ((void *)STACKALIGN(thread0.td_pcb));
 
 }

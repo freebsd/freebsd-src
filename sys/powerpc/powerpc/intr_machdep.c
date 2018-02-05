@@ -130,7 +130,7 @@ static u_int nirqs = 0;		/* Allocated IRQs. */
 static u_int stray_count;
 
 u_long intrcnt[INTR_VECTORS];
-char intrnames[INTR_VECTORS * MAXCOMLEN];
+char intrnames[INTR_VECTORS * (MAXCOMLEN + 1)];
 size_t sintrcnt = sizeof(intrcnt);
 size_t sintrnames = sizeof(intrnames);
 
@@ -178,6 +178,8 @@ intrcnt_add(const char *name, u_long **countp)
 	int idx;
 
 	idx = atomic_fetchadd_int(&intrcnt_index, 1);
+	KASSERT(idx < INTR_VECTORS, ("intrcnt_add: Interrupt counter index "
+	    "reached INTR_VECTORS"));
 	*countp = &intrcnt[idx];
 	intrcnt_setname(name, idx);
 }

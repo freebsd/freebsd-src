@@ -1724,12 +1724,12 @@ lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 	struct lio_gather	*g;
 	int	i, j;
 
-	lio->glist_lock = mallocarray(num_iqs, sizeof(*lio->glist_lock),
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	lio->glist_lock = malloc(num_iqs * sizeof(*lio->glist_lock), M_DEVBUF,
+				 M_NOWAIT | M_ZERO);
 	if (lio->glist_lock == NULL)
 		return (1);
 
-	lio->ghead = mallocarray(num_iqs, sizeof(*lio->ghead), M_DEVBUF,
+	lio->ghead = malloc(num_iqs * sizeof(*lio->ghead), M_DEVBUF,
 			    M_NOWAIT | M_ZERO);
 	if (lio->ghead == NULL) {
 		free((void *)lio->glist_lock, M_DEVBUF);
@@ -1743,10 +1743,10 @@ lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 	 * allocate memory to store virtual and dma base address of
 	 * per glist consistent memory
 	 */
-	lio->glists_virt_base = mallocarray(num_iqs, sizeof(void *), M_DEVBUF,
+	lio->glists_virt_base = malloc(num_iqs * sizeof(void *), M_DEVBUF,
 				       M_NOWAIT | M_ZERO);
-	lio->glists_dma_base = mallocarray(num_iqs, sizeof(vm_paddr_t),
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	lio->glists_dma_base = malloc(num_iqs * sizeof(vm_paddr_t), M_DEVBUF,
+				      M_NOWAIT | M_ZERO);
 	if ((lio->glists_virt_base == NULL) || (lio->glists_dma_base == NULL)) {
 		lio_delete_glists(oct, lio);
 		return (1);

@@ -94,6 +94,9 @@ machdep_ap_bootstrap(void)
 	printf("SMP: AP CPU #%d launched\n", PCPU_GET(cpuid));
 	mtx_unlock_spin(&ap_boot_mtx);
 
+	while(smp_started == 0)
+		;
+
 	/* Start per-CPU event timers. */
 	cpu_initclocks_ap();
 
@@ -197,6 +200,7 @@ cpu_mp_unleash(void *dummy)
 {
 	struct pcpu *pc;
 	int cpus, timeout;
+	int ret;
 
 	if (mp_ncpus <= 1)
 		return;
@@ -215,12 +219,12 @@ cpu_mp_unleash(void *dummy)
 				printf("Waking up CPU %d (dev=%x)\n",
 				    pc->pc_cpuid, (int)pc->pc_hwref);
 
-			platform_smp_start_cpu(pc);
-			
-			timeout = 2000;	/* wait 2sec for the AP */
-			while (!pc->pc_awake && --timeout > 0)
-				DELAY(1000);
-
+			ret = platform_smp_start_cpu(pc);
+			if (ret == 0) {
+				timeout = 2000;	/* wait 2sec for the AP */
+				while (!pc->pc_awake && --timeout > 0)
+					DELAY(1000);
+			}
 		} else {
 			pc->pc_awake = 1;
 		}
@@ -253,11 +257,12 @@ cpu_mp_unleash(void *dummy)
 		    mp_ncpus, cpus, smp_cpus);
 	}
 
+	if (smp_cpus > 1)
+		atomic_store_rel_int(&smp_started, 1);
+
 	/* Let the APs get into the scheduler */
 	DELAY(10000);
 
-	/* XXX Atomic set operation? */
-	smp_started = 1;
 }
 
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);

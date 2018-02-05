@@ -1582,7 +1582,7 @@ time_excluded(struct archive_match *a, struct archive_entry *entry)
  */
 
 int
-archive_match_include_uid(struct archive *_a, int64_t uid)
+archive_match_include_uid(struct archive *_a, la_int64_t uid)
 {
 	struct archive_match *a;
 
@@ -1593,7 +1593,7 @@ archive_match_include_uid(struct archive *_a, int64_t uid)
 }
 
 int
-archive_match_include_gid(struct archive *_a, int64_t gid)
+archive_match_include_gid(struct archive *_a, la_int64_t gid)
 {
 	struct archive_match *a;
 

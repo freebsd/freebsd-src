@@ -53,13 +53,14 @@ int0x80_syscall_common:
 	movq	PCPU(CURPCB),%rdi
 	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)
 	SAVE_SEGS
-	sti
-	movq	%rsi,TF_RSI(%rsp)
+	movq	%rax,TF_RAX(%rsp)
 	movq	%rdx,TF_RDX(%rsp)
 	movq	%rcx,TF_RCX(%rsp)
+	call	handle_ibrs_entry
+	sti
+	movq	%rsi,TF_RSI(%rsp)
 	movq	%r8,TF_R8(%rsp)
 	movq	%r9,TF_R9(%rsp)
-	movq	%rax,TF_RAX(%rsp)
 	movq	%rbx,TF_RBX(%rsp)
 	movq	%rbp,TF_RBP(%rsp)
 	movq	%r10,TF_R10(%rsp)

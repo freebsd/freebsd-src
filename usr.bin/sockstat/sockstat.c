@@ -76,6 +76,7 @@ static int	 opt_c;		/* Show connected sockets */
 static int	 opt_j;		/* Show specified jail */
 static int	 opt_L;		/* Don't show IPv4 or IPv6 loopback sockets */
 static int	 opt_l;		/* Show listening sockets */
+static int	 opt_q;		/* Don't show header */
 static int	 opt_S;		/* Show protocol stack if applicable */
 static int	 opt_s;		/* Show protocol state if applicable */
 static int	 opt_U;		/* Show remote UDP encapsulation port number */
@@ -1155,19 +1156,21 @@ display(void)
 	struct sock *s;
 	int hash, n, pos;
 
-	printf("%-8s %-10s %-5s %-2s %-6s %-*s %-*s",
-	    "USER", "COMMAND", "PID", "FD", "PROTO",
-	    opt_w ? 45 : 21, "LOCAL ADDRESS",
-	    opt_w ? 45 : 21, "FOREIGN ADDRESS");
-	if (opt_U)
-		printf(" %-6s", "ENCAPS");
-	if (opt_s) {
-		printf(" %-12s", "PATH STATE");
-		printf(" %-12s", "CONN STATE");
+	if (opt_q != 1) {
+		printf("%-8s %-10s %-5s %-2s %-6s %-*s %-*s",
+		    "USER", "COMMAND", "PID", "FD", "PROTO",
+		    opt_w ? 45 : 21, "LOCAL ADDRESS",
+		    opt_w ? 45 : 21, "FOREIGN ADDRESS");
+		if (opt_U)
+			printf(" %-6s", "ENCAPS");
+		if (opt_s) {
+			printf(" %-12s", "PATH STATE");
+			printf(" %-12s", "CONN STATE");
+		}
+		if (opt_S)
+			printf(" %.*s", TCP_FUNCTION_NAME_LEN_MAX, "STACK");
+		printf("\n");
 	}
-	if (opt_S)
-		printf(" %.*s", TCP_FUNCTION_NAME_LEN_MAX, "STACK");
-	printf("\n");
 	setpassent(1);
 	for (xf = xfiles, n = 0; n < nxfiles; ++n, ++xf) {
 		if (xf->xf_data == NULL)
@@ -1248,7 +1251,7 @@ main(int argc, char *argv[])
 	int o, i;
 
 	opt_j = -1;
-	while ((o = getopt(argc, argv, "46cj:Llp:P:SsUuvw")) != -1)
+	while ((o = getopt(argc, argv, "46cj:Llp:P:qSsUuvw")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = 1;
@@ -1273,6 +1276,9 @@ main(int argc, char *argv[])
 			break;
 		case 'P':
 			protos_defined = parse_protos(optarg);
+			break;
+		case 'q':
+			opt_q = 1;
 			break;
 		case 'S':
 			opt_S = 1;

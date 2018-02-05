@@ -87,6 +87,13 @@ struct arswitch_softc {
 	int		vid[AR8X16_MAX_VLANS];
 	uint32_t	vlan_mode;
 
+	/* ATU (address table unit) support */
+	struct {
+		int count;
+		int size;
+		etherswitch_atu_entry_t *entries;
+	} atu;
+
 	struct {
 		/* Global setup */
 		int (* arswitch_hw_setup) (struct arswitch_softc *);
@@ -97,6 +104,10 @@ struct arswitch_softc {
 
 		/* ATU functions */
 		int (* arswitch_atu_flush) (struct arswitch_softc *);
+		int (* arswitch_atu_flush_port) (struct arswitch_softc *, int);
+		int (* arswitch_atu_learn_default) (struct arswitch_softc *);
+		int (* arswitch_atu_fetch_table) (struct arswitch_softc *,
+		    etherswitch_atu_entry_t *, int atu_fetch_op);
 
 		/* VLAN functions */
 		int (* arswitch_port_vlan_setup) (struct arswitch_softc *,
@@ -151,6 +162,7 @@ struct arswitch_softc {
 #define	ARSWITCH_DBG_PHYIO		0x00000004
 #define	ARSWITCH_DBG_POLL		0x00000008
 #define	ARSWITCH_DBG_VLAN		0x00000010
+#define	ARSWITCH_DBG_ATU		0x00000020
 #define	ARSWITCH_DBG_ANY		0xffffffff
 
 #if 1

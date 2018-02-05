@@ -54,9 +54,11 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
+#include <libufs.h>
 
 #include "fsck.h"
 
+struct uufsd disk;
 struct bufarea asblk;
 #define altsblock (*asblk.b_un.b_fs)
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
@@ -124,7 +126,8 @@ setup(char *dev)
 			}
 		}
 	}
-	if ((fsreadfd = open(dev, O_RDONLY)) < 0) {
+	if ((fsreadfd = open(dev, O_RDONLY)) < 0 ||
+	    ufs_disk_fillout(&disk, dev) < 0) {
 		if (bkgrdflag) {
 			unlink(snapname);
 			bkgrdflag = 0;
@@ -168,7 +171,8 @@ setup(char *dev)
 	if (preen == 0)
 		printf("** %s", dev);
 	if (bkgrdflag == 0 &&
-	    (nflag || (fswritefd = open(dev, O_WRONLY)) < 0)) {
+	    (nflag || ufs_disk_write(&disk) < 0 ||
+	     (fswritefd = dup(disk.d_fd)) < 0)) {
 		fswritefd = -1;
 		if (preen)
 			pfatal("NO WRITE ACCESS");
@@ -307,70 +311,48 @@ badsb:
 }
 
 /*
- * Possible superblock locations ordered from most to least likely.
- */
-static int sblock_try[] = SBLOCKSEARCH;
-
-#define BAD_MAGIC_MSG \
-"The previous newfs operation on this volume did not complete.\n" \
-"You must complete newfs before mounting this volume.\n"
-
-/*
  * Read in the super block and its summary info.
  */
 int
 readsb(int listerr)
 {
-	ufs2_daddr_t super;
-	int i, bad;
+	off_t super;
+	int bad, ret;
+	struct fs *fs;
 
-	if (bflag) {
-		super = bflag;
-		readcnt[sblk.b_type]++;
-		if ((blread(fsreadfd, (char *)&sblock, super, (long)SBLOCKSIZE)))
-			return (0);
-		if (sblock.fs_magic == FS_BAD_MAGIC) {
-			fprintf(stderr, BAD_MAGIC_MSG);
+	super = bflag ? bflag * dev_bsize : -1;
+	readcnt[sblk.b_type]++;
+	if ((ret = sbget(fsreadfd, &fs, super)) != 0) {
+		switch (ret) {
+		case EINVAL:
+			fprintf(stderr, "The previous newfs operation "
+			    "on this volume did not complete.\nYou must "
+			    "complete newfs before using this volume.\n");
 			exit(11);
-		}
-		if (sblock.fs_magic != FS_UFS1_MAGIC &&
-		    sblock.fs_magic != FS_UFS2_MAGIC) {
-			fprintf(stderr, "%jd is not a file system superblock\n",
-			    bflag);
+		case ENOENT:
+			if (bflag)
+				fprintf(stderr, "%jd is not a file system "
+				    "superblock\n", super / dev_bsize);
+			else
+				fprintf(stderr, "Cannot find file system "
+				    "superblock\n");
 			return (0);
-		}
-	} else {
-		for (i = 0; sblock_try[i] != -1; i++) {
-			super = sblock_try[i] / dev_bsize;
-			readcnt[sblk.b_type]++;
-			if ((blread(fsreadfd, (char *)&sblock, super,
-			    (long)SBLOCKSIZE)))
-				return (0);
-			if (sblock.fs_magic == FS_BAD_MAGIC) {
-				fprintf(stderr, BAD_MAGIC_MSG);
-				exit(11);
-			}
-			if ((sblock.fs_magic == FS_UFS1_MAGIC ||
-			     (sblock.fs_magic == FS_UFS2_MAGIC &&
-			      sblock.fs_sblockloc == sblock_try[i])) &&
-			    sblock.fs_ncg >= 1 &&
-			    sblock.fs_bsize >= MINBSIZE &&
-			    sblock.fs_sbsize >= roundup(sizeof(struct fs), dev_bsize))
-				break;
-		}
-		if (sblock_try[i] == -1) {
-			fprintf(stderr, "Cannot find file system superblock\n");
+		case EIO:
+		default:
+			fprintf(stderr, "I/O error reading %jd\n",
+			    super / dev_bsize);
 			return (0);
 		}
 	}
+	memcpy(&sblock, fs, fs->fs_sbsize);
+	free(fs);
 	/*
 	 * Compute block size that the file system is based on,
 	 * according to fsbtodb, and adjust superblock block number
 	 * so we can tell if this is an alternate later.
 	 */
-	super *= dev_bsize;
 	dev_bsize = sblock.fs_fsize / fsbtodb(&sblock, 1);
-	sblk.b_bno = super / dev_bsize;
+	sblk.b_bno = sblock.fs_sblockactualloc / dev_bsize;
 	sblk.b_size = SBLOCKSIZE;
 	/*
 	 * Compare all fields that should not differ in alternate super block.

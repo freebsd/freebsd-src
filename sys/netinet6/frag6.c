@@ -541,6 +541,7 @@ insert:
 		while (t->m_next)
 			t = t->m_next;
 		m_adj(IP6_REASS_MBUF(af6), af6->ip6af_offset);
+		m_demote_pkthdr(IP6_REASS_MBUF(af6));
 		m_cat(t, IP6_REASS_MBUF(af6));
 		free(af6, M_FTABLE);
 		af6 = af6dwn;
@@ -577,10 +578,8 @@ insert:
 	/*
 	 * Store NXT to the original.
 	 */
-	{
-		char *prvnxtp = ip6_get_prevhdr(m, offset); /* XXX */
-		*prvnxtp = nxt;
-	}
+	m_copyback(m, ip6_get_prevhdr(m, offset), sizeof(uint8_t),
+	    (caddr_t)&nxt);
 
 	frag6_remque(q6);
 	V_frag6_nfrags -= q6->ip6q_nfrag;

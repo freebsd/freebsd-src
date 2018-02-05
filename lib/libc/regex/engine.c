@@ -398,7 +398,7 @@ dissect(struct match *m,
 			es += OPND(m->g->strip[es]);
 			break;
 		case OCH_:
-			while (OP(m->g->strip[es]) != O_CH)
+			while (OP(m->g->strip[es]) != (sop)O_CH)
 				es += OPND(m->g->strip[es]);
 			break;
 		}
@@ -512,7 +512,7 @@ dissect(struct match *m,
 				assert(OP(m->g->strip[esub]) == OOR2);
 				ssub = esub + 1;
 				esub += OPND(m->g->strip[esub]);
-				if (OP(m->g->strip[esub]) == OOR2)
+				if (OP(m->g->strip[esub]) == (sop)OOR2)
 					esub--;
 				else
 					assert(OP(m->g->strip[esub]) == O_CH);
@@ -647,7 +647,7 @@ backref(struct match *m,
 			do {
 				assert(OP(s) == OOR2);
 				ss += OPND(s);
-			} while (OP(s = m->g->strip[ss]) != O_CH);
+			} while (OP(s = m->g->strip[ss]) != (sop)O_CH);
 			/* note that the ss++ gets us past the O_CH */
 			break;
 		default:	/* have to make a choice */
@@ -680,7 +680,7 @@ backref(struct match *m,
 		ssp = m->offp + m->pmatch[i].rm_so;
 		if (memcmp(sp, ssp, len) != 0)
 			return(NULL);
-		while (m->g->strip[ss] != SOP(O_BACK, i))
+		while (m->g->strip[ss] != (sop)SOP(O_BACK, i))
 			ss++;
 		return(backref(m, sp+len, stop, ss+1, stopst, lev, rec));
 	case OQUEST_:		/* to null or not */
@@ -712,13 +712,13 @@ backref(struct match *m,
 			if (dp != NULL)
 				return(dp);
 			/* that one missed, try next one */
-			if (OP(m->g->strip[esub]) == O_CH)
+			if (OP(m->g->strip[esub]) == (sop)O_CH)
 				return(NULL);	/* there is none */
 			esub++;
-			assert(OP(m->g->strip[esub]) == OOR2);
+			assert(OP(m->g->strip[esub]) == (sop)OOR2);
 			ssub = esub + 1;
 			esub += OPND(m->g->strip[esub]);
-			if (OP(m->g->strip[esub]) == OOR2)
+			if (OP(m->g->strip[esub]) == (sop)OOR2)
 				esub--;
 			else
 				assert(OP(m->g->strip[esub]) == O_CH);
@@ -847,7 +847,7 @@ walk(struct match *m, const char *start, const char *stop, sopno startst,
 			else
 				matchp = p;
 		}
-		if (EQ(st, empty) || p == stop || clen > stop - p)
+		if (EQ(st, empty) || p == stop || clen > (size_t)(stop - p))
 			break;		/* NOTE BREAK OUT */
 
 		/* no, we must deal with this character */
@@ -969,22 +969,22 @@ step(struct re_guts *g,
 			break;
 		case OCH_:		/* mark the first two branches */
 			FWD(aft, aft, 1);
-			assert(OP(g->strip[pc+OPND(s)]) == OOR2);
+			assert(OP(g->strip[pc+OPND(s)]) == (sop)OOR2);
 			FWD(aft, aft, OPND(s));
 			break;
 		case OOR1:		/* done a branch, find the O_CH */
 			if (ISSTATEIN(aft, here)) {
 				for (look = 1;
-						OP(s = g->strip[pc+look]) != O_CH;
-						look += OPND(s))
-					assert(OP(s) == OOR2);
+				    OP(s = g->strip[pc+look]) != (sop)O_CH;
+				    look += OPND(s))
+					assert(OP(s) == (sop)OOR2);
 				FWD(aft, aft, look + 1);
 			}
 			break;
 		case OOR2:		/* propagate OCH_'s marking */
 			FWD(aft, aft, 1);
-			if (OP(g->strip[pc+OPND(s)]) != O_CH) {
-				assert(OP(g->strip[pc+OPND(s)]) == OOR2);
+			if (OP(g->strip[pc+OPND(s)]) != (sop)O_CH) {
+				assert(OP(g->strip[pc+OPND(s)]) == (sop)OOR2);
 				FWD(aft, aft, OPND(s));
 			}
 			break;

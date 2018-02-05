@@ -9,8 +9,6 @@ INSTALLFLAGS=   -b
 FILES=		boot1.hfs
 SRCS=		boot1.c ashldi3.c syncicache.c
 
-MAN=
-
 CFLAGS+=-I${LDRSRC}
 LDFLAGS=-nostdlib -static -Wl,-N
 

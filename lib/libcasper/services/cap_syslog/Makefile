@@ -21,4 +21,12 @@ LIBADD=	nv
 
 CFLAGS+=-I${.CURDIR}
 
+MAN+=	cap_syslog.3
+
+MLINKS+= cap_syslog.3 libcap_syslog.3
+MLINKS+= cap_syslog.3 cap_vsyslog.3
+MLINKS+= cap_syslog.3 cap_openlog.3
+MLINKS+= cap_syslog.3 cap_closelog.3
+MLINKS+= cap_syslog.3 cap_setlogmask.3
+
 .include <bsd.lib.mk>

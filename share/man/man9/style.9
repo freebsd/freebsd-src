@@ -26,7 +26,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd January 18, 2018
+.Dd January 25, 2018
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -323,6 +323,10 @@ Userspace code should include
 .In stdbool.h ,
 while kernel code should include
 .In sys/types.h .
+.Pp
+Likewise, the project is moving to using the
+.St -isoC-99
+designated initializers when it makes sense to do so.
 .Pp
 Enumeration values are all uppercase.
 .Bd -literal

@@ -160,6 +160,14 @@ uintptr_t	powerpc_init(vm_offset_t, vm_offset_t, vm_offset_t, void *,
 long		Maxmem = 0;
 long		realmem = 0;
 
+/* Default MSR values set in the AIM/Book-E early startup code */
+register_t	psl_kernset;
+register_t	psl_userset;
+register_t	psl_userstatic;
+#ifdef __powerpc64__
+register_t	psl_userset32;
+#endif
+
 struct kva_md_info kmi;
 
 static void
@@ -380,7 +388,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 	 * Bring up MMU
 	 */
 	pmap_bootstrap(startkernel, endkernel);
-	mtmsr(PSL_KERNSET & ~PSL_EE);
+	mtmsr(psl_kernset & ~PSL_EE);
 
 	/*
 	 * Initialize params/tunables that are derived from memsize

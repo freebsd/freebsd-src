@@ -80,8 +80,8 @@ add)
 		    echo "block in quick $proto from <port$6> to any $port" | \
 		    /sbin/pfctl -a "$2/$6" -f -
 		# insert $ip/$mask into per-protocol/port anchored table
-		/sbin/pfctl -a "$2/$6" -t "port$6" -T add "$addr/$mask" && \
-		    echo OK
+		/sbin/pfctl -qa "$2/$6" -t "port$6" -T add "$addr/$mask" && \
+		    /sbin/pfctl -q -k $addr && echo OK
 		;;
 	esac
 	;;
@@ -101,7 +101,7 @@ rem)
 		/sbin/npfctl rule "$2" rem-id "$7"
 		;;
 	pf)
-		/sbin/pfctl -a "$2/$6" -t "port$6" -T delete "$addr/$mask" && \
+		/sbin/pfctl -qa "$2/$6" -t "port$6" -T delete "$addr/$mask" && \
 		    echo OK
 		;;
 	esac
@@ -118,7 +118,13 @@ flush)
 		/sbin/npfctl rule "$2" flush
 		;;
 	pf)
-		/sbin/pfctl -a "$2/$6" -t "port$6" -T flush && echo OK
+		# dynamically determine which anchors exist
+		anchors=$(/sbin/pfctl -a $2 -s Anchors)
+		for anchor in $anchors; do
+			/sbin/pfctl -a $anchor -t "port${anchor##*/}" -T flush
+			/sbin/pfctl -a $anchor -F rules
+		done
+		echo OK
 		;;
 	esac
 	;;

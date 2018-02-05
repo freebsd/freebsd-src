@@ -488,7 +488,7 @@ rt2560_alloc_tx_ring(struct rt2560_softc *sc, struct rt2560_tx_ring *ring,
 		goto fail;
 	}
 
-	ring->data = mallocarray(count, sizeof(struct rt2560_tx_data), M_DEVBUF,
+	ring->data = malloc(count * sizeof (struct rt2560_tx_data), M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
 	if (ring->data == NULL) {
 		device_printf(sc->sc_dev, "could not allocate soft data\n");
@@ -632,8 +632,8 @@ rt2560_alloc_rx_ring(struct rt2560_softc *sc, struct rt2560_rx_ring *ring,
 		goto fail;
 	}
 
-	ring->data = mallocarray(count, sizeof (struct rt2560_rx_data),
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	ring->data = malloc(count * sizeof (struct rt2560_rx_data), M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
 	if (ring->data == NULL) {
 		device_printf(sc->sc_dev, "could not allocate soft data\n");
 		error = ENOMEM;

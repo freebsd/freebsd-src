@@ -64,10 +64,14 @@ hostdisk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
 	struct devdesc *desc = devdata;
 	daddr_t pos;
 	int n;
-	
+	uint64_t res;
+	uint32_t posl, posh;
+
 	pos = dblk * 512;
 
-	if (host_seek(desc->d_unit, pos, 0) < 0) {
+	posl = pos & 0xffffffff;
+	posh = (pos >> 32) & 0xffffffff;
+	if (host_llseek(desc->d_unit, posh, posl, &res, 0) < 0) {
 		printf("Seek error\n");
 		return (EIO);
 	}

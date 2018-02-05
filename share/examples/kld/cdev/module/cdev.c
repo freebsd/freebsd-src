@@ -104,7 +104,7 @@ mydev_open(struct cdev *dev, int flag, int otyp, struct thread *td)
 {
     struct proc *procp = td->td_proc;
 
-    printf("mydev_open: dev_t=%d, flag=%x, otyp=%x, procp=%p\n",
+    printf("mydev_open: dev_t=%lu, flag=%x, otyp=%x, procp=%p\n",
 	   dev2udev(dev), flag, otyp, procp);
     memset(&buf, '\0', 513);
     len = 0;
@@ -116,7 +116,7 @@ mydev_close(struct cdev *dev, int flag, int otyp, struct thread *td)
 {
     struct proc *procp = td->td_proc;
 
-    printf("mydev_close: dev_t=%d, flag=%x, otyp=%x, procp=%p\n",
+    printf("mydev_close: dev_t=%lu, flag=%x, otyp=%x, procp=%p\n",
 	      dev2udev(dev), flag, otyp, procp);
     return (0);
 }
@@ -128,7 +128,7 @@ mydev_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode,
     int error = 0;
     struct proc *procp = td->td_proc;
 
-    printf("mydev_ioctl: dev_t=%d, cmd=%lx, arg=%p, mode=%x procp=%p\n",
+    printf("mydev_ioctl: dev_t=%lu, cmd=%lx, arg=%p, mode=%x procp=%p\n",
 	   dev2udev(dev), cmd, arg, mode, procp);
 
     switch(cmd) {
@@ -152,7 +152,7 @@ mydev_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
     int err = 0;
 
-    printf("mydev_write: dev_t=%d, uio=%p, ioflag=%d\n",
+    printf("mydev_write: dev_t=%lu, uio=%p, ioflag=%d\n",
 	dev2udev(dev), uio, ioflag);
 
     err = copyinstr(uio->uio_iov->iov_base, &buf, 512, &len);
@@ -172,7 +172,7 @@ mydev_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
     int err = 0;
 
-    printf("mydev_read: dev_t=%d, uio=%p, ioflag=%d\n",
+    printf("mydev_read: dev_t=%lu, uio=%p, ioflag=%d\n",
 	dev2udev(dev), uio, ioflag);
 
     if (len <= 0) {

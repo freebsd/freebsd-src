@@ -150,13 +150,6 @@ MALLOC_DECLARE(M_DEVBUF);
 MALLOC_DECLARE(M_TEMP);
 
 /*
- * Deprecated macro versions of not-quite-malloc() and free().
- */
-#define	MALLOC(space, cast, size, type, flags) \
-	((space) = (cast)malloc((u_long)(size), (type), (flags)))
-#define	FREE(addr, type) free((addr), (type))
-
-/*
  * XXX this should be declared in <sys/uio.h>, but that tends to fail
  * because <sys/uio.h> is included in a header before the source file
  * has a chance to include <sys/malloc.h> to get MALLOC_DECLARE() defined.
@@ -181,24 +174,23 @@ void	*contigmalloc_domain(unsigned long size, struct malloc_type *type,
 	    __malloc_like __result_use_check __alloc_size(1) __alloc_align(6);
 void	free(void *addr, struct malloc_type *type);
 void	free_domain(void *addr, struct malloc_type *type);
-void	*malloc(unsigned long size, struct malloc_type *type, int flags)
-	    __malloc_like __result_use_check __alloc_size(1);
-void	*malloc_domain(unsigned long size, struct malloc_type *type,
-	    int domain, int flags)
-	    __malloc_like __result_use_check __alloc_size(1);
+void	*malloc(size_t size, struct malloc_type *type, int flags) __malloc_like
+	    __result_use_check __alloc_size(1);
+void	*malloc_domain(size_t size, struct malloc_type *type, int domain,
+	    int flags) __malloc_like __result_use_check __alloc_size(1);
 void	*mallocarray(size_t nmemb, size_t size, struct malloc_type *type,
 	    int flags) __malloc_like __result_use_check
-	    __alloc_size(1) __alloc_size(2);
+	    __alloc_size2(1, 2);
 void	malloc_init(void *);
 int	malloc_last_fail(void);
 void	malloc_type_allocated(struct malloc_type *type, unsigned long size);
 void	malloc_type_freed(struct malloc_type *type, unsigned long size);
 void	malloc_type_list(malloc_type_list_func_t *, void *);
 void	malloc_uninit(void *);
-void	*realloc(void *addr, unsigned long size, struct malloc_type *type,
-	    int flags) __result_use_check __alloc_size(2);
-void	*reallocf(void *addr, unsigned long size, struct malloc_type *type,
-	    int flags) __result_use_check __alloc_size(2);
+void	*realloc(void *addr, size_t size, struct malloc_type *type, int flags)
+	    __result_use_check __alloc_size(2);
+void	*reallocf(void *addr, size_t size, struct malloc_type *type, int flags)
+	    __result_use_check __alloc_size(2);
 
 struct malloc_type *malloc_desc2type(const char *desc);
 

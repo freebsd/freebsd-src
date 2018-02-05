@@ -2501,7 +2501,7 @@ softdep_mount(devvp, mp, fs, cred)
 	ump->bmsafemap_hashtbl = hashinit(1024, M_BMSAFEMAP,
 	    &ump->bmsafemap_hash_size);
 	i = 1 << (ffs(desiredvnodes / 10) - 1);
-	ump->indir_hashtbl = mallocarray(i, sizeof(struct indir_hashhead),
+	ump->indir_hashtbl = malloc(i * sizeof(struct indir_hashhead),
 	    M_FREEWORK, M_WAITOK);
 	ump->indir_hash_size = i - 1;
 	for (i = 0; i <= ump->indir_hash_size; i++)
@@ -2628,8 +2628,8 @@ jblocks_create(void)
 	jblocks = malloc(sizeof(*jblocks), M_JBLOCKS, M_WAITOK | M_ZERO);
 	TAILQ_INIT(&jblocks->jb_segs);
 	jblocks->jb_avail = 10;
-	jblocks->jb_extent = mallocarray(jblocks->jb_avail,
-	    sizeof(struct jextent), M_JBLOCKS, M_WAITOK | M_ZERO);
+	jblocks->jb_extent = malloc(sizeof(struct jextent) * jblocks->jb_avail,
+	    M_JBLOCKS, M_WAITOK | M_ZERO);
 
 	return (jblocks);
 }
@@ -2714,7 +2714,7 @@ jblocks_add(jblocks, daddr, blocks)
 	/* Adding a new extent. */
 	if (++jblocks->jb_used == jblocks->jb_avail) {
 		jblocks->jb_avail *= 2;
-		jext = mallocarray(jblocks->jb_avail, sizeof(struct jextent),
+		jext = malloc(sizeof(struct jextent) * jblocks->jb_avail,
 		    M_JBLOCKS, M_WAITOK | M_ZERO);
 		memcpy(jext, jblocks->jb_extent,
 		    sizeof(struct jextent) * jblocks->jb_used);

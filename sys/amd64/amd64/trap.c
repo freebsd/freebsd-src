@@ -707,8 +707,8 @@ trap_pfault(struct trapframe *frame, int usermode)
 	 */
 	if (pti && usermode && pg_nx != 0 && (frame->tf_err & (PGEX_P | PGEX_W |
 	    PGEX_U | PGEX_I)) == (PGEX_P | PGEX_U | PGEX_I) &&
-	    (curpcb->pcb_saved_ucr3 & ~(PMAP_PCID_OVERMAX - 1))==
-	    (PCPU_GET(curpmap)->pm_cr3 & ~(PMAP_PCID_OVERMAX - 1)))
+	    (curpcb->pcb_saved_ucr3 & ~CR3_PCID_MASK)==
+	    (PCPU_GET(curpmap)->pm_cr3 & ~CR3_PCID_MASK))
 		panic("PTI: pid %d comm %s tf_err %#lx\n", p->p_pid,
 		    p->p_comm, frame->tf_err);
 

@@ -1506,7 +1506,7 @@ SYSINIT(mp_ipi_intrcnt, SI_SUB_INTR, SI_ORDER_MIDDLE, mp_ipi_intrcnt, NULL);
  */
 
 /* Variables needed for SMP tlb shootdown. */
-static vm_offset_t smp_tlb_addr1, smp_tlb_addr2;
+vm_offset_t smp_tlb_addr1, smp_tlb_addr2;
 pmap_t smp_tlb_pmap;
 volatile uint32_t smp_tlb_generation;
 
@@ -1583,11 +1583,11 @@ smp_masked_invltlb(cpuset_t mask, pmap_t pmap)
 }
 
 void
-smp_masked_invlpg(cpuset_t mask, vm_offset_t addr)
+smp_masked_invlpg(cpuset_t mask, vm_offset_t addr, pmap_t pmap)
 {
 
 	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, NULL, addr, 0);
+		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, pmap, addr, 0);
 #ifdef COUNT_XINVLTLB_HITS
 		ipi_page++;
 #endif
@@ -1595,11 +1595,12 @@ smp_masked_invlpg(cpuset_t mask, vm_offset_t addr)
 }
 
 void
-smp_masked_invlpg_range(cpuset_t mask, vm_offset_t addr1, vm_offset_t addr2)
+smp_masked_invlpg_range(cpuset_t mask, vm_offset_t addr1, vm_offset_t addr2,
+    pmap_t pmap)
 {
 
 	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, NULL,
+		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, pmap,
 		    addr1, addr2);
 #ifdef COUNT_XINVLTLB_HITS
 		ipi_range++;

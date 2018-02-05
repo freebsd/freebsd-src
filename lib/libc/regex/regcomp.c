@@ -57,7 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include <wctype.h>
 
+#ifndef LIBREGEX
 #include "collate.h"
+#endif
 
 #include "utils.h"
 #include "regex2.h"
@@ -124,6 +126,7 @@ static void p_re(struct parse *p, int end1, int end2);
 static bool p_simp_re(struct parse *p, struct branchc *bc);
 static int p_count(struct parse *p);
 static void p_bracket(struct parse *p);
+static int p_range_cmp(wchar_t c1, wchar_t c2);
 static void p_b_term(struct parse *p, cset *cs);
 static void p_b_cclass(struct parse *p, cset *cs);
 static void p_b_eclass(struct parse *p, cset *cs);
@@ -364,6 +367,7 @@ p_ere_exp(struct parse *p, struct branchc *bc)
 	sopno subno;
 	int wascaret = 0;
 
+	(void)bc;
 	assert(MORE());		/* caller should have ensured this */
 	c = GETNEXT();
 
@@ -534,6 +538,7 @@ p_branch_eat_delim(struct parse *p, struct branchc *bc)
 {
 	int nskip;
 
+	(void)bc;
 	nskip = 0;
 	while (EAT('|'))
 		++nskip;
@@ -587,6 +592,7 @@ static bool
 p_branch_empty(struct parse *p, struct branchc *bc)
 {
 
+	(void)bc;
 	SETERROR(REG_EMPTY);
 	return (false);
 }
@@ -901,6 +907,23 @@ p_bracket(struct parse *p)
 		EMIT(OANYOF, (int)(cs - p->g->sets));
 }
 
+static int
+p_range_cmp(wchar_t c1, wchar_t c2)
+{
+#ifndef LIBREGEX
+	return __wcollate_range_cmp(c1, c2);
+#else
+	/* Copied from libc/collate __wcollate_range_cmp */
+	wchar_t s1[2], s2[2];
+
+	s1[0] = c1;
+	s1[1] = L'\0';
+	s2[0] = c2;
+	s2[1] = L'\0';
+	return (wcscoll(s1, s2));
+#endif
+}
+
 /*
  - p_b_term - parse one term of a bracketed character list
  == static void p_b_term(struct parse *p, cset *cs);
@@ -911,9 +934,10 @@ p_b_term(struct parse *p, cset *cs)
 	char c;
 	wint_t start, finish;
 	wint_t i;
+#ifndef LIBREGEX
 	struct xlocale_collate *table =
 		(struct xlocale_collate*)__get_locale()->components[XLC_COLLATE];
-
+#endif
 	/* classify what we've got */
 	switch ((MORE()) ? PEEK() : '\0') {
 	case '[':
@@ -960,15 +984,18 @@ p_b_term(struct parse *p, cset *cs)
 		if (start == finish)
 			CHadd(p, cs, start);
 		else {
+#ifndef LIBREGEX
 			if (table->__collate_load_error || MB_CUR_MAX > 1) {
+#else
+			if (MB_CUR_MAX > 1) {
+#endif
 				(void)REQUIRE(start <= finish, REG_ERANGE);
 				CHaddrange(p, cs, start, finish);
 			} else {
-				(void)REQUIRE(__wcollate_range_cmp(start, finish) <= 0, REG_ERANGE);
+				(void)REQUIRE(p_range_cmp(start, finish) <= 0, REG_ERANGE);
 				for (i = 0; i <= UCHAR_MAX; i++) {
-					if (   __wcollate_range_cmp(start, i) <= 0
-					    && __wcollate_range_cmp(i, finish) <= 0
-					   )
+					if (p_range_cmp(start, i) <= 0 &&
+					    p_range_cmp(i, finish) <= 0 )
 						CHadd(p, cs, i);
 				}
 			}
@@ -1617,12 +1644,12 @@ findmust(struct parse *p, struct re_guts *g)
 				scan += OPND(s);
 				s = *scan;
 				/* assert() interferes w debug printouts */
-				if (OP(s) != O_QUEST && OP(s) != O_CH &&
-							OP(s) != OOR2) {
+				if (OP(s) != (sop)O_QUEST &&
+				    OP(s) != (sop)O_CH && OP(s) != (sop)OOR2) {
 					g->iflags |= BAD;
 					return;
 				}
-			} while (OP(s) != O_QUEST && OP(s) != O_CH);
+			} while (OP(s) != (sop)O_QUEST && OP(s) != (sop)O_CH);
 			/* FALLTHROUGH */
 		case OBOW:		/* things that break a sequence */
 		case OEOW:
@@ -1631,7 +1658,7 @@ findmust(struct parse *p, struct re_guts *g)
 		case O_QUEST:
 		case O_CH:
 		case OEND:
-			if (newlen > g->mlen) {		/* ends one */
+			if (newlen > (sopno)g->mlen) {		/* ends one */
 				start = newstart;
 				g->mlen = newlen;
 				if (offset > -1) {
@@ -1646,7 +1673,7 @@ findmust(struct parse *p, struct re_guts *g)
 			newlen = 0;
 			break;
 		case OANY:
-			if (newlen > g->mlen) {		/* ends one */
+			if (newlen > (sopno)g->mlen) {		/* ends one */
 				start = newstart;
 				g->mlen = newlen;
 				if (offset > -1) {
@@ -1664,7 +1691,7 @@ findmust(struct parse *p, struct re_guts *g)
 			break;
 		case OANYOF:		/* may or may not invalidate offset */
 			/* First, everything as OANY */
-			if (newlen > g->mlen) {		/* ends one */
+			if (newlen > (sopno)g->mlen) {		/* ends one */
 				start = newstart;
 				g->mlen = newlen;
 				if (offset > -1) {
@@ -1687,7 +1714,7 @@ findmust(struct parse *p, struct re_guts *g)
 			 * save the last known good offset, in case the
 			 * must sequence doesn't occur later.
 			 */
-			if (newlen > g->mlen) {		/* ends one */
+			if (newlen > (sopno)g->mlen) {		/* ends one */
 				start = newstart;
 				g->mlen = newlen;
 				if (offset > -1)
@@ -1748,7 +1775,7 @@ altoffset(sop *scan, int offset)
 	largest = 0;
 	try = 0;
 	s = *scan++;
-	while (OP(s) != O_QUEST && OP(s) != O_CH) {
+	while (OP(s) != (sop)O_QUEST && OP(s) != (sop)O_CH) {
 		switch (OP(s)) {
 		case OOR1:
 			if (try > largest)
@@ -1764,10 +1791,10 @@ altoffset(sop *scan, int offset)
 			do {
 				scan += OPND(s);
 				s = *scan;
-				if (OP(s) != O_QUEST && OP(s) != O_CH &&
-							OP(s) != OOR2)
+				if (OP(s) != (sop)O_QUEST &&
+				    OP(s) != (sop)O_CH && OP(s) != (sop)OOR2)
 					return -1;
-			} while (OP(s) != O_QUEST && OP(s) != O_CH);
+			} while (OP(s) != (sop)O_QUEST && OP(s) != (sop)O_CH);
 			/* We must skip to the next position, or we'll
 			 * leave altoffset() too early.
 			 */
