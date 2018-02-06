@@ -261,9 +261,11 @@ f_Xmin(PLAN *plan, FTSENT *entry)
 	} else if (plan->flags & F_TIME_A) {
 		COMPARE((now - entry->fts_statp->st_atime +
 		    60 - 1) / 60, plan->t_data.tv_sec);
+#if HAVE_STRUCT_STAT_ST_BIRTHTIME
 	} else if (plan->flags & F_TIME_B) {
 		COMPARE((now - entry->fts_statp->st_birthtime +
 		    60 - 1) / 60, plan->t_data.tv_sec);
+#endif
 	} else {
 		COMPARE((now - entry->fts_statp->st_mtime +
 		    60 - 1) / 60, plan->t_data.tv_sec);
@@ -304,8 +306,10 @@ f_Xtime(PLAN *plan, FTSENT *entry)
 
 	if (plan->flags & F_TIME_A)
 		xtime = entry->fts_statp->st_atime;
+#if HAVE_STRUCT_STAT_ST_BIRTHTIME
 	else if (plan->flags & F_TIME_B)
 		xtime = entry->fts_statp->st_birthtime;
+#endif
 	else if (plan->flags & F_TIME_C)
 		xtime = entry->fts_statp->st_ctime;
 	else
@@ -362,6 +366,7 @@ c_mXXdepth(OPTION *option, char ***argvp)
 	return new;
 }
 
+#ifdef ACL_TYPE_NFS4
 /*
  * -acl function --
  *
@@ -412,6 +417,7 @@ f_acl(PLAN *plan __unused, FTSENT *entry)
 		return (0);
 	return (1);
 }
+#endif
 
 PLAN *
 c_acl(OPTION *option, char ***argvp __unused)
@@ -448,12 +454,14 @@ f_delete(PLAN *plan __unused, FTSENT *entry)
 		errx(1, "-delete: %s: relative path potentially not safe",
 			entry->fts_accpath);
 
+#if HAVE_STRUCT_STAT_ST_FLAGS
 	/* Turn off user immutable bits if running as root */
 	if ((entry->fts_statp->st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
 	    !(entry->fts_statp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
 	    geteuid() == 0)
 		lchflags(entry->fts_accpath,
 		       entry->fts_statp->st_flags &= ~(UF_APPEND|UF_IMMUTABLE));
+#endif
 
 	/* rmdir directories, unlink everything else */
 	if (S_ISDIR(entry->fts_statp->st_mode)) {
@@ -806,6 +814,7 @@ finish_execplus(void)
 	}
 }
 
+#if HAVE_STRUCT_STAT_ST_FLAGS
 int
 f_flags(PLAN *plan, FTSENT *entry)
 {
@@ -849,6 +858,7 @@ c_flags(OPTION *option, char ***argvp)
 	new->fl_notflags = notflags;
 	return new;
 }
+#endif
 
 /*
  * -follow functions --
@@ -865,6 +875,7 @@ c_follow(OPTION *option, char ***argvp __unused)
 	return palloc(option);
 }
 
+#if HAVE_STRUCT_STATFS_F_FSTYPENAME
 /*
  * -fstype functions --
  *
@@ -967,6 +978,7 @@ c_fstype(OPTION *option, char ***argvp)
 	new->c_data = fsname;
 	return new;
 }
+#endif
 
 /*
  * -group gname functions --
@@ -1189,10 +1201,12 @@ f_newer(PLAN *plan, FTSENT *entry)
 
 	if (plan->flags & F_TIME_C)
 		ft = entry->fts_statp->st_ctim;
+#if HAVE_STRUCT_STAT_ST_BIRTHTIME
 	else if (plan->flags & F_TIME_A)
 		ft = entry->fts_statp->st_atim;
 	else if (plan->flags & F_TIME_B)
 		ft = entry->fts_statp->st_birthtim;
+#endif
 	else
 		ft = entry->fts_statp->st_mtim;
 	return (ft.tv_sec > plan->t_data.tv_sec ||
@@ -1230,8 +1244,10 @@ c_newer(OPTION *option, char ***argvp)
 			new->t_data = sb.st_ctim;
 		else if (option->flags & F_TIME2_A)
 			new->t_data = sb.st_atim;
+#if HAVE_STRUCT_STAT_ST_BIRTHTIME
 		else if (option->flags & F_TIME2_B)
 			new->t_data = sb.st_birthtim;
+#endif
 		else
 			new->t_data = sb.st_mtim;
 	}
@@ -1615,7 +1631,7 @@ c_type(OPTION *option, char ***argvp)
 	case 's':
 		mask = S_IFSOCK;
 		break;
-#ifdef FTS_WHITEOUT
+#if defined(FTS_WHITEOUT) && defined(S_IFWHT)
 	case 'w':
 		mask = S_IFWHT;
 		ftsoptions |= FTS_WHITEOUT;
