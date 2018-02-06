@@ -223,6 +223,7 @@ struct iop_stats {
 	int		total;		/* Total for all time -- wraps */
 	int		in;		/* number queued all time -- wraps */
 	int		out;		/* number completed all time -- wraps */
+	int		errs;		/* Number of I/Os completed with error --  wraps */
 
 	/*
 	 * Statistics on different bits of the process.
@@ -781,6 +782,7 @@ cam_iosched_iop_stats_init(struct cam_iosched_softc *isc, struct iop_stats *ios)
 	ios->max = ios->current = 300000;
 	ios->min = 1;
 	ios->out = 0;
+	ios->errs = 0;
 	ios->pending = 0;
 	ios->queued = 0;
 	ios->total = 0;
@@ -971,7 +973,11 @@ cam_iosched_iop_stats_sysctl_init(struct cam_iosched_softc *isc, struct iop_stat
 	SYSCTL_ADD_INT(ctx, n,
 	    OID_AUTO, "out", CTLFLAG_RD,
 	    &ios->out, 0,
-	    "# of transactions completed");
+	    "# of transactions completed (including with error)");
+	SYSCTL_ADD_INT(ctx, n,
+	    OID_AUTO, "errs", CTLFLAG_RD,
+	    &ios->errs, 0,
+	    "# of transactions completed with an error");
 
 	SYSCTL_ADD_PROC(ctx, n,
 	    OID_AUTO, "limiter", CTLTYPE_STRING | CTLFLAG_RW,
@@ -1463,13 +1469,19 @@ cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
 		printf("done: %p %#x\n", bp, bp->bio_cmd);
 	if (bp->bio_cmd == BIO_WRITE) {
 		retval = cam_iosched_limiter_iodone(&isc->write_stats, bp);
+		if (!(bp->bio_flags & BIO_ERROR))
+			isc->write_stats.errs++;
 		isc->write_stats.out++;
 		isc->write_stats.pending--;
 	} else if (bp->bio_cmd == BIO_READ) {
 		retval = cam_iosched_limiter_iodone(&isc->read_stats, bp);
+		if (!(bp->bio_flags & BIO_ERROR))
+			isc->read_stats.errs++;
 		isc->read_stats.out++;
 		isc->read_stats.pending--;
 	} else if (bp->bio_cmd == BIO_DELETE) {
+		if (!(bp->bio_flags & BIO_ERROR))
+			isc->trim_stats.errs++;
 		isc->trim_stats.out++;
 		isc->trim_stats.pending--;
 	} else if (bp->bio_cmd != BIO_FLUSH) {
