@@ -180,7 +180,7 @@ static int mps_user_event_report(struct mps_softc *sc,
 static int mps_user_reg_access(struct mps_softc *sc, mps_reg_access_t *data);
 static int mps_user_btdh(struct mps_softc *sc, mps_btdh_mapping_t *data);
 
-static MALLOC_DEFINE(M_MPSUSER, "mps_user", "Buffers for mps(4) ioctls");
+MALLOC_DEFINE(M_MPSUSER, "mps_user", "Buffers for mps(4) ioctls");
 
 /* Macros from compat/freebsd32/freebsd32.h */
 #define	PTRIN(v)	(void *)(uintptr_t)(v)
@@ -1222,6 +1222,12 @@ mps_post_fw_diag_buffer(struct mps_softc *sc,
 	 * Process POST reply.
 	 */
 	reply = (MPI2_DIAG_BUFFER_POST_REPLY *)cm->cm_reply;
+	if (reply == NULL) {
+		mps_printf(sc, "%s: reply is NULL, probably due to "
+		    "reinitialization\n", __func__);
+		status = MPS_DIAG_FAILURE;
+		goto done;
+	}
 	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
 	    MPI2_IOCSTATUS_SUCCESS) {
 		status = MPS_DIAG_FAILURE;
@@ -1309,6 +1315,12 @@ mps_release_fw_diag_buffer(struct mps_softc *sc,
 	 * Process RELEASE reply.
 	 */
 	reply = (MPI2_DIAG_RELEASE_REPLY *)cm->cm_reply;
+	if (reply == NULL) {
+		mps_printf(sc, "%s: reply is NULL, probably due to "
+		    "reinitialization\n", __func__);
+		status = MPS_DIAG_FAILURE;
+		goto done;
+	}
 	if (((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
 	    MPI2_IOCSTATUS_SUCCESS) || pBuffer->owned_by_firmware) {
 		status = MPS_DIAG_FAILURE;
@@ -1344,15 +1356,19 @@ mps_diag_register(struct mps_softc *sc, mps_fw_diag_register_t *diag_register,
     uint32_t *return_code)
 {
 	mps_fw_diagnostic_buffer_t	*pBuffer;
+	struct mps_busdma_context	*ctx;
 	uint8_t				extended_type, buffer_type, i;
 	uint32_t			buffer_size;
 	uint32_t			unique_id;
 	int				status;
+	int				error;
 
 	extended_type = diag_register->ExtendedType;
 	buffer_type = diag_register->BufferType;
 	buffer_size = diag_register->RequestedBufferSize;
 	unique_id = diag_register->UniqueId;
+	ctx = NULL;
+	error = 0;
 
 	/*
 	 * Check for valid buffer type
@@ -1401,7 +1417,7 @@ mps_diag_register(struct mps_softc *sc, mps_fw_diag_register_t *diag_register,
 		*return_code = MPS_FW_DIAG_ERROR_NO_BUFFER;
 		return (MPS_DIAG_FAILURE);
 	}
-        if (bus_dma_tag_create( sc->mps_parent_dmat,    /* parent */
+	if (bus_dma_tag_create( sc->mps_parent_dmat,    /* parent */
 				1, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
@@ -1414,17 +1430,84 @@ mps_diag_register(struct mps_softc *sc, mps_fw_diag_register_t *diag_register,
                                 &sc->fw_diag_dmat)) {
 		mps_dprint(sc, MPS_ERROR,
 		    "Cannot allocate FW diag buffer DMA tag\n");
-		return (ENOMEM);
-        }
-        if (bus_dmamem_alloc(sc->fw_diag_dmat, (void **)&sc->fw_diag_buffer,
+		*return_code = MPS_FW_DIAG_ERROR_NO_BUFFER;
+		status = MPS_DIAG_FAILURE;
+		goto bailout;
+	}
+	if (bus_dmamem_alloc(sc->fw_diag_dmat, (void **)&sc->fw_diag_buffer,
 	    BUS_DMA_NOWAIT, &sc->fw_diag_map)) {
 		mps_dprint(sc, MPS_ERROR,
 		    "Cannot allocate FW diag buffer memory\n");
-		return (ENOMEM);
+		*return_code = MPS_FW_DIAG_ERROR_NO_BUFFER;
+		status = MPS_DIAG_FAILURE;
+		goto bailout;
         }
         bzero(sc->fw_diag_buffer, buffer_size);
-        bus_dmamap_load(sc->fw_diag_dmat, sc->fw_diag_map, sc->fw_diag_buffer,
-	    buffer_size, mps_memaddr_cb, &sc->fw_diag_busaddr, 0);
+
+	ctx = malloc(sizeof(*ctx), M_MPSUSER, M_WAITOK | M_ZERO);
+	if (ctx == NULL) {
+		device_printf(sc->mps_dev, "%s: context malloc failed\n",
+		    __func__);
+		*return_code = MPS_FW_DIAG_ERROR_NO_BUFFER;
+		status = MPS_DIAG_FAILURE;
+		goto bailout;
+	}
+	ctx->addr = &sc->fw_diag_busaddr;
+	ctx->buffer_dmat = sc->fw_diag_dmat;
+	ctx->buffer_dmamap = sc->fw_diag_map;
+	ctx->softc = sc;
+        error = bus_dmamap_load(sc->fw_diag_dmat, sc->fw_diag_map,
+	    sc->fw_diag_buffer, buffer_size, mps_memaddr_wait_cb,
+	    ctx, 0);
+
+	if (error == EINPROGRESS) {
+
+		/* XXX KDM */
+		device_printf(sc->mps_dev, "%s: Deferred bus_dmamap_load\n",
+		    __func__);
+		/*
+		 * Wait for the load to complete.  If we're interrupted,
+		 * bail out.
+		 */
+		mps_lock(sc);
+		if (ctx->completed == 0) {
+			error = msleep(ctx, &sc->mps_mtx, PCATCH, "mpswait", 0);
+			if (error != 0) {
+				/*
+				 * We got an error from msleep(9).  This is
+				 * most likely due to a signal.  Tell
+				 * mpr_memaddr_wait_cb() that we've abandoned
+				 * the context, so it needs to clean up when
+				 * it is called.
+				 */
+				ctx->abandoned = 1;
+
+				/* The callback will free this memory */
+				ctx = NULL;
+				mps_unlock(sc);
+
+				device_printf(sc->mps_dev, "Cannot "
+				    "bus_dmamap_load FW diag buffer, error = "
+				    "%d returned from msleep\n", error);
+				*return_code = MPS_FW_DIAG_ERROR_NO_BUFFER;
+				status = MPS_DIAG_FAILURE;
+				goto bailout;
+			}
+		}
+		mps_unlock(sc);
+	} 
+
+	if ((error != 0) || (ctx->error != 0)) {
+		device_printf(sc->mps_dev, "Cannot bus_dmamap_load FW diag "
+		    "buffer, %serror = %d\n", error ? "" : "callback ",
+		    error ? error : ctx->error);
+		*return_code = MPS_FW_DIAG_ERROR_NO_BUFFER;
+		status = MPS_DIAG_FAILURE;
+		goto bailout;
+	}
+
+	bus_dmamap_sync(sc->fw_diag_dmat, sc->fw_diag_map, BUS_DMASYNC_PREREAD);
+
 	pBuffer->size = buffer_size;
 
 	/*
@@ -1443,18 +1526,28 @@ mps_diag_register(struct mps_softc *sc, mps_fw_diag_register_t *diag_register,
 	pBuffer->unique_id = unique_id;
 	status = mps_post_fw_diag_buffer(sc, pBuffer, return_code);
 
+bailout:
 	/*
 	 * In case there was a failure, free the DMA buffer.
 	 */
 	if (status == MPS_DIAG_FAILURE) {
-		if (sc->fw_diag_busaddr != 0)
+		if (sc->fw_diag_busaddr != 0) {
 			bus_dmamap_unload(sc->fw_diag_dmat, sc->fw_diag_map);
-		if (sc->fw_diag_buffer != NULL)
+			sc->fw_diag_busaddr = 0;
+		}
+		if (sc->fw_diag_buffer != NULL) {
 			bus_dmamem_free(sc->fw_diag_dmat, sc->fw_diag_buffer,
 			    sc->fw_diag_map);
-		if (sc->fw_diag_dmat != NULL)
+			sc->fw_diag_buffer = NULL;
+		}
+		if (sc->fw_diag_dmat != NULL) {
 			bus_dma_tag_destroy(sc->fw_diag_dmat);
+			sc->fw_diag_dmat = NULL;
+		}
 	}
+
+	if (ctx != NULL)
+		free(ctx, M_MPSUSER);
 
 	return (status);
 }
@@ -1500,13 +1593,19 @@ mps_diag_unregister(struct mps_softc *sc,
 	 */
 	pBuffer->unique_id = MPS_FW_DIAG_INVALID_UID;
 	if (status == MPS_DIAG_SUCCESS) {
-		if (sc->fw_diag_busaddr != 0)
+		if (sc->fw_diag_busaddr != 0) {
 			bus_dmamap_unload(sc->fw_diag_dmat, sc->fw_diag_map);
-		if (sc->fw_diag_buffer != NULL)
+			sc->fw_diag_busaddr = 0;
+		}
+		if (sc->fw_diag_buffer != NULL) {
 			bus_dmamem_free(sc->fw_diag_dmat, sc->fw_diag_buffer,
 			    sc->fw_diag_map);
-		if (sc->fw_diag_dmat != NULL)
+			sc->fw_diag_buffer = NULL;
+		}
+		if (sc->fw_diag_dmat != NULL) {
 			bus_dma_tag_destroy(sc->fw_diag_dmat);
+			sc->fw_diag_dmat = NULL;
+		}
 	}
 
 	return (status);
@@ -1615,6 +1714,10 @@ mps_diag_read_buffer(struct mps_softc *sc,
 		*return_code = MPS_FW_DIAG_ERROR_INVALID_PARAMETER;
 		return (MPS_DIAG_FAILURE);
 	}
+
+	/* Sync the DMA map before we copy to userland. */
+	bus_dmamap_sync(sc->fw_diag_dmat, sc->fw_diag_map,
+	    BUS_DMASYNC_POSTREAD);
 
 	/*
 	 * Copy the requested data from DMA to the diag_read_buffer.  The DMA
