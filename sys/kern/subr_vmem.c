@@ -72,6 +72,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/uma_int.h>
+
+int	vmem_startup_count(void);
 
 #define	VMEM_OPTORDER		5
 #define	VMEM_OPTVALUE		(1 << VMEM_OPTORDER)
@@ -652,6 +655,16 @@ vmem_bt_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 		pause("btalloc", 1);
 
 	return (NULL);
+}
+
+/*
+ * How many pages do we need to startup_alloc.
+ */
+int
+vmem_startup_count(void)
+{
+
+	return (howmany(BT_MAXALLOC, UMA_SLAB_SIZE / sizeof(struct vmem_btag)));
 }
 #endif
 
