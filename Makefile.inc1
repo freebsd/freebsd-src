@@ -463,7 +463,7 @@ TMPPATH=	${STRICTTMPPATH}:${PATH}
 # when in the middle of installing over this system.
 #
 .if make(distributeworld) || make(installworld) || make(stageworld)
-INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
+INSTALLTMP!=	mktemp -d -u -t install
 .endif
 
 .if make(stagekernel) || make(distributekernel)
