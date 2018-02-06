@@ -265,6 +265,16 @@ struct mpr_event_handle {
 	uint8_t				mask[16];
 };
 
+struct mpr_busdma_context {
+	int				completed;
+	int				abandoned;
+	int				error;
+	bus_addr_t			*addr;
+	struct mpr_softc		*softc;
+	bus_dmamap_t			buffer_dmamap;
+	bus_dma_tag_t			buffer_dmat;
+};
+
 struct mpr_queue {
 	struct mpr_softc		*sc;
 	int				qnum;
@@ -752,6 +762,7 @@ int mpr_detach_sas(struct mpr_softc *sc);
 int mpr_read_config_page(struct mpr_softc *, struct mpr_config_params *);
 int mpr_write_config_page(struct mpr_softc *, struct mpr_config_params *);
 void mpr_memaddr_cb(void *, bus_dma_segment_t *, int , int );
+void mpr_memaddr_wait_cb(void *, bus_dma_segment_t *, int , int );
 void mpr_init_sge(struct mpr_command *cm, void *req, void *sge);
 int mpr_attach_user(struct mpr_softc *);
 void mpr_detach_user(struct mpr_softc *);
