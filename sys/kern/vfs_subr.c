@@ -3365,7 +3365,7 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		printf(" rdev %p\n", vp->v_rdev);
 		break;
 	case VSOCK:
-		printf(" socket %p\n", vp->v_unpcb);
+		printf(" socket %p\n", vp->v_socket);
 		break;
 	case VFIFO:
 		printf(" fifoinfo %p\n", vp->v_fifoinfo);
