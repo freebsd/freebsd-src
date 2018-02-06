@@ -1587,8 +1587,8 @@ buf_recycle(struct bufdomain *bd, bool kva)
 		    ("buf_recycle: inconsistent queue %d bp %p",
 		    bp->b_qindex, bp));
 		KASSERT(bp->b_domain == BD_DOMAIN(bd),
-		    ("getnewbuf: queue domain %d doesn't match request %ld",
-		    bp->b_domain, BD_DOMAIN(bd)));
+		    ("getnewbuf: queue domain %d doesn't match request %d",
+		    bp->b_domain, (int)BD_DOMAIN(bd)));
 		/*
 		 * NOTE:  nbp is now entirely invalid.  We can only restart
 		 * the scan from this point on.
