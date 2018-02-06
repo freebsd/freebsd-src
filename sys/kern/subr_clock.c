@@ -132,7 +132,7 @@ leapyear(int year)
 }
 
 static void
-print_ct(struct clocktime *ct)
+print_ct(const struct clocktime *ct)
 {
 	printf("[%04d-%02d-%02d %02d:%02d:%02d]",
 	    ct->year, ct->mon, ct->day,
@@ -140,7 +140,7 @@ print_ct(struct clocktime *ct)
 }
 
 int
-clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
+clock_ct_to_ts(const struct clocktime *ct, struct timespec *ts)
 {
 	int i, year, days;
 
@@ -200,7 +200,7 @@ clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
 }
 
 int
-clock_bcd_to_ts(struct bcd_clocktime *bct, struct timespec *ts, bool ampm)
+clock_bcd_to_ts(const struct bcd_clocktime *bct, struct timespec *ts, bool ampm)
 {
 	struct clocktime ct;
 	int bcent, byear;
@@ -249,7 +249,7 @@ clock_bcd_to_ts(struct bcd_clocktime *bct, struct timespec *ts, bool ampm)
 }
 
 void
-clock_ts_to_ct(struct timespec *ts, struct clocktime *ct)
+clock_ts_to_ct(const struct timespec *ts, struct clocktime *ct)
 {
 	time_t i, year, days;
 	time_t rsec;	/* remainder seconds */
@@ -310,7 +310,7 @@ clock_ts_to_ct(struct timespec *ts, struct clocktime *ct)
 }
 
 void
-clock_ts_to_bcd(struct timespec *ts, struct bcd_clocktime *bct, bool ampm)
+clock_ts_to_bcd(const struct timespec *ts, struct bcd_clocktime *bct, bool ampm)
 {
 	struct clocktime ct;
 
