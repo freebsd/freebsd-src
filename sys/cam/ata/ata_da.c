@@ -911,7 +911,7 @@ adaopen(struct disk *dp)
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		return(ENXIO);
 	}
 
@@ -1328,7 +1328,7 @@ adaasync(void *callback_arg, u_int32_t code,
 			softc->state = ADA_STATE_LOGDIR;
 		else
 		    break;
-		if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+		if (cam_periph_acquire(periph) != 0)
 			softc->state = ADA_STATE_NORMAL;
 		else
 			xpt_schedule(periph, CAM_PRIORITY_DEV);
@@ -1841,7 +1841,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	 * We'll release this reference once GEOM calls us back (via
 	 * adadiskgonecb()) telling us that our provider has been freed.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -1866,7 +1866,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	 * Create our sysctl variables, now that we know
 	 * we have successfully attached.
 	 */
-	if (cam_periph_acquire(periph) == CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) == 0)
 		taskqueue_enqueue(taskqueue_thread, &softc->sysctl_task);
 
 	/*

@@ -198,7 +198,6 @@ static cam_status
 nvme_probe_register(struct cam_periph *periph, void *arg)
 {
 	union ccb *request_ccb;	/* CCB representing the probe request */
-	cam_status status;
 	nvme_probe_softc *softc;
 
 	request_ccb = (union ccb *)arg;
@@ -222,10 +221,9 @@ nvme_probe_register(struct cam_periph *periph, void *arg)
 	periph->softc = softc;
 	softc->periph = periph;
 	softc->action = NVME_PROBE_INVALID;
-	status = cam_periph_acquire(periph);
-	if (status != CAM_REQ_CMP) {
-		return (status);
-	}
+	if (cam_periph_acquire(periph) != 0)
+		return (CAM_REQ_CMP_ERR);
+
 	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe started\n"));
 
 //	nvme_device_transport(periph->path);

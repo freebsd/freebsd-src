@@ -471,9 +471,9 @@ probe_periph_init()
 static cam_status
 mmcprobe_register(struct cam_periph *periph, void *arg)
 {
-	union ccb *request_ccb;	/* CCB representing the probe request */
-	cam_status status;
 	mmcprobe_softc *softc;
+	union ccb *request_ccb;	/* CCB representing the probe request */
+	int status;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("mmcprobe_register\n"));
 
@@ -501,10 +501,10 @@ mmcprobe_register(struct cam_periph *periph, void *arg)
 	status = cam_periph_acquire(periph);
 
         memset(&periph->path->device->mmc_ident_data, 0, sizeof(struct mmc_params));
-	if (status != CAM_REQ_CMP) {
+	if (status != 0) {
 		printf("proberegister: cam_periph_acquire failed (status=%d)\n",
 			status);
-		return (status);
+		return (CAM_REQ_CMP_ERR);
 	}
 	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe started\n"));
 
