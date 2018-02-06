@@ -178,7 +178,7 @@ int bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 
 /*
  * Set the memory domain to be used for allocations.
- * 
+ *
  * Automatic for PCI devices.  Must be set prior to creating maps or
  * allocating memory.
  */
