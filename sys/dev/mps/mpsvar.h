@@ -307,6 +307,8 @@ struct mps_softc {
 #define	MPS_FLAGS_REALLOCATED	(1 << 7)
 	u_int				mps_debug;
 	u_int				msi_msgs;
+	u_int				reqframesz;
+	u_int				replyframesz;
 	int				tm_cmds_active;
 	int				io_cmds_active;
 	int				io_cmds_highwater;

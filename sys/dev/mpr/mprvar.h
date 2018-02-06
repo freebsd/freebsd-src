@@ -309,6 +309,8 @@ struct mpr_softc {
 #define	MPR_FLAGS_REALLOCATED	(1 << 7)
 	u_int				mpr_debug;
 	int				msi_msgs;
+	u_int				reqframesz;
+	u_int				replyframesz;
 	u_int				atomic_desc_capable;
 	int				tm_cmds_active;
 	int				io_cmds_active;

@@ -1114,6 +1114,14 @@ mps_send_iocinit(struct mps_softc *sc)
 	MPS_FUNCTRACE(sc);
 	mps_dprint(sc, MPS_INIT, "%s entered\n", __func__);
 
+	/* Do a quick sanity check on proper initialization */
+	if ((sc->pqdepth == 0) || (sc->fqdepth == 0) || (sc->reqframesz == 0)
+	    || (sc->replyframesz == 0)) {
+		mps_dprint(sc, MPS_INIT|MPS_ERROR,
+		    "Driver not fully initialized for IOCInit\n");
+		return (EINVAL);
+	}
+
 	req_sz = sizeof(MPI2_IOC_INIT_REQUEST);
 	reply_sz = sizeof(MPI2_IOC_INIT_REPLY);
 	bzero(&init, req_sz);
@@ -1128,7 +1136,7 @@ mps_send_iocinit(struct mps_softc *sc)
 	init.WhoInit = MPI2_WHOINIT_HOST_DRIVER;
 	init.MsgVersion = htole16(MPI2_VERSION);
 	init.HeaderVersion = htole16(MPI2_HEADER_VERSION);
-	init.SystemRequestFrameSize = htole16(sc->facts->IOCRequestFrameSize);
+	init.SystemRequestFrameSize = htole16((uint16_t)(sc->reqframesz / 4));
 	init.ReplyDescriptorPostQueueDepth = htole16(sc->pqdepth);
 	init.ReplyFreeQueueDepth = htole16(sc->fqdepth);
 	init.SenseBufferAddressHigh = 0;
@@ -1282,6 +1290,9 @@ mps_alloc_replies(struct mps_softc *sc)
 {
 	int rsize, num_replies;
 
+	/* Store the reply frame size in bytes rather than as 32bit words */
+	sc->replyframesz = sc->facts->ReplyFrameSize * 4;
+
 	/*
 	 * sc->num_replies should be one less than sc->fqdepth.  We need to
 	 * allocate space for sc->fqdepth replies, but only sc->num_replies
@@ -1289,7 +1300,7 @@ mps_alloc_replies(struct mps_softc *sc)
 	 */
 	num_replies = max(sc->fqdepth, sc->num_replies);
 
-	rsize = sc->facts->ReplyFrameSize * num_replies * 4; 
+	rsize = sc->replyframesz * num_replies; 
         if (bus_dma_tag_create( sc->mps_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
@@ -1323,7 +1334,10 @@ mps_alloc_requests(struct mps_softc *sc)
 	struct mps_chain *chain;
 	int i, rsize, nsegs;
 
-	rsize = sc->facts->IOCRequestFrameSize * sc->num_reqs * 4;
+	/* Store the request frame size in bytes rather than as 32bit words */
+	sc->reqframesz = sc->facts->IOCRequestFrameSize * 4;
+
+	rsize = sc->reqframesz * sc->num_reqs;
         if (bus_dma_tag_create( sc->mps_parent_dmat,    /* parent */
 				16, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
@@ -1347,7 +1361,7 @@ mps_alloc_requests(struct mps_softc *sc)
         bus_dmamap_load(sc->req_dmat, sc->req_map, sc->req_frames, rsize,
 	    mps_memaddr_cb, &sc->req_busaddr, 0);
 
-	rsize = sc->facts->IOCRequestFrameSize * sc->max_chains * 4;
+	rsize = sc->reqframesz * sc->max_chains;
         if (bus_dma_tag_create( sc->mps_parent_dmat,    /* parent */
 				16, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
@@ -1404,9 +1418,9 @@ mps_alloc_requests(struct mps_softc *sc)
 	for (i = 0; i < sc->max_chains; i++) {
 		chain = &sc->chains[i];
 		chain->chain = (MPI2_SGE_IO_UNION *)(sc->chain_frames +
-		    i * sc->facts->IOCRequestFrameSize * 4);
+		    i * sc->reqframesz);
 		chain->chain_busaddr = sc->chain_busaddr +
-		    i * sc->facts->IOCRequestFrameSize * 4;
+		    i * sc->reqframesz;
 		mps_free_chain(sc, chain);
 		sc->chain_free_lowwater++;
 	}
@@ -1441,10 +1455,8 @@ mps_alloc_requests(struct mps_softc *sc)
 	}
 	for (i = 1; i < sc->num_reqs; i++) {
 		cm = &sc->commands[i];
-		cm->cm_req = sc->req_frames +
-		    i * sc->facts->IOCRequestFrameSize * 4;
-		cm->cm_req_busaddr = sc->req_busaddr +
-		    i * sc->facts->IOCRequestFrameSize * 4;
+		cm->cm_req = sc->req_frames + i * sc->reqframesz;
+		cm->cm_req_busaddr = sc->req_busaddr + i * sc->reqframesz;
 		cm->cm_sense = &sc->sense_frames[i];
 		cm->cm_sense_busaddr = sc->sense_busaddr + i * MPS_SENSE_LEN;
 		cm->cm_desc.Default.SMID = i;
@@ -1487,7 +1499,7 @@ mps_init_queues(struct mps_softc *sc)
 	 * Initialize all of the free queue entries.
 	 */
 	for (i = 0; i < sc->fqdepth; i++)
-		sc->free_queue[i] = sc->reply_busaddr + (i * sc->facts->ReplyFrameSize * 4);
+		sc->free_queue[i] = sc->reply_busaddr + (i * sc->replyframesz);
 	sc->replyfreeindex = sc->num_replies;
 
 	return (0);
@@ -2279,13 +2291,13 @@ mps_intr_locked(void *data)
 			 */
 			if ((reply < sc->reply_frames)
 			 || (reply > (sc->reply_frames +
-			     (sc->fqdepth * sc->facts->ReplyFrameSize * 4)))) {
+			     (sc->fqdepth * sc->replyframesz)))) {
 				printf("%s: WARNING: reply %p out of range!\n",
 				       __func__, reply);
 				printf("%s: reply_frames %p, fqdepth %d, "
 				       "frame size %d\n", __func__,
 				       sc->reply_frames, sc->fqdepth,
-				       sc->facts->ReplyFrameSize * 4);
+				       sc->replyframesz);
 				printf("%s: baddr %#x,\n", __func__, baddr);
 				/* LSI-TODO. See Linux Code. Need Graceful exit*/
 				panic("Reply address out of range");
@@ -2553,7 +2565,7 @@ mps_add_chain(struct mps_command *cm)
 {
 	MPI2_SGE_CHAIN32 *sgc;
 	struct mps_chain *chain;
-	int space;
+	u_int space;
 
 	if (cm->cm_sglsize < MPS_SGC_SIZE)
 		panic("MPS: Need SGE Error Code\n");
@@ -2562,7 +2574,7 @@ mps_add_chain(struct mps_command *cm)
 	if (chain == NULL)
 		return (ENOBUFS);
 
-	space = (int)cm->cm_sc->facts->IOCRequestFrameSize * 4;
+	space = cm->cm_sc->reqframesz;
 
 	/*
 	 * Note: a double-linked list is used to make it easier to
