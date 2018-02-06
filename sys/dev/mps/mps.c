@@ -394,6 +394,7 @@ mps_resize_queues(struct mps_softc *sc)
 	reqcr = MIN(reqcr, sc->facts->RequestCredit);
 
 	sc->num_reqs = prireqcr + reqcr;
+	sc->num_prireqs = prireqcr;
 	sc->num_replies = MIN(sc->max_replyframes + sc->max_evtframes,
 	    sc->facts->MaxReplyDescriptorPostQueueDepth) - 1;
 
@@ -1453,7 +1454,7 @@ mps_alloc_requests(struct mps_softc *sc)
 
 		/* XXX Is a failure here a critical problem? */
 		if (bus_dmamap_create(sc->buffer_dmat, 0, &cm->cm_dmamap) == 0)
-			if (i <= sc->facts->HighPriorityCredit)
+			if (i <= sc->num_prireqs)
 				mps_free_high_priority_command(sc, cm);
 			else
 				mps_free_command(sc, cm);
