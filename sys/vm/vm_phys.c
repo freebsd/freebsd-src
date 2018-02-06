@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_pagequeue.h>
 
 _Static_assert(sizeof(long) * NBBY >= VM_PHYSSEG_MAX,
     "Too many physsegs.");
@@ -653,7 +654,7 @@ vm_phys_alloc_freelist_pages(int domain, int freelist, int pool, int order)
 	if (flind < 0)
 		return (NULL);
 
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	vm_domain_free_assert_locked(VM_DOMAIN(domain));
 	fl = &vm_phys_free_queues[domain][flind][pool][0];
 	for (oind = order; oind < VM_NFREEORDER; oind++) {
 		m = TAILQ_FIRST(&fl[oind].pl);
@@ -906,8 +907,8 @@ vm_phys_free_pages(vm_page_t m, int order)
 	    m, m->pool));
 	KASSERT(order < VM_NFREEORDER,
 	    ("vm_phys_free_pages: order %d is out of range", order));
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	seg = &vm_phys_segs[m->segind];
+	vm_domain_free_assert_locked(VM_DOMAIN(seg->domain));
 	if (order < VM_NFREEORDER - 1) {
 		pa = VM_PAGE_TO_PHYS(m);
 		do {
@@ -945,7 +946,7 @@ vm_phys_free_contig(vm_page_t m, u_long npages)
 	 * Avoid unnecessary coalescing by freeing the pages in the largest
 	 * possible power-of-two-sized subsets.
 	 */
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	vm_domain_free_assert_locked(vm_pagequeue_domain(m));
 	for (;; npages -= n) {
 		/*
 		 * Unsigned "min" is used here so that "order" is assigned
@@ -1051,14 +1052,13 @@ vm_phys_unfree_page(vm_page_t m)
 	vm_page_t m_set, m_tmp;
 	int order;
 
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-
 	/*
 	 * First, find the contiguous, power of two-sized set of free
 	 * physical pages containing the given physical page "m" and
 	 * assign it to "m_set".
 	 */
 	seg = &vm_phys_segs[m->segind];
+	vm_domain_free_assert_locked(VM_DOMAIN(seg->domain));
 	for (m_set = m, order = 0; m_set->order == VM_NFREEORDER &&
 	    order < VM_NFREEORDER - 1; ) {
 		order++;
@@ -1122,7 +1122,7 @@ vm_phys_alloc_contig(int domain, u_long npages, vm_paddr_t low, vm_paddr_t high,
 	KASSERT(npages > 0, ("npages is 0"));
 	KASSERT(powerof2(alignment), ("alignment is not a power of 2"));
 	KASSERT(powerof2(boundary), ("boundary is not a power of 2"));
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	vm_domain_free_assert_locked(VM_DOMAIN(domain));
 	if (low >= high)
 		return (NULL);
 	m_run = NULL;
@@ -1167,7 +1167,7 @@ vm_phys_alloc_seg_contig(struct vm_phys_seg *seg, u_long npages,
 	KASSERT(npages > 0, ("npages is 0"));
 	KASSERT(powerof2(alignment), ("alignment is not a power of 2"));
 	KASSERT(powerof2(boundary), ("boundary is not a power of 2"));
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	vm_domain_free_assert_locked(VM_DOMAIN(seg->domain));
 	/* Compute the queue that is the best fit for npages. */
 	for (order = 0; (1 << order) < npages; order++);
 	/* Search for a run satisfying the specified conditions. */

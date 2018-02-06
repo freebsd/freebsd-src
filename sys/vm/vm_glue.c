@@ -552,7 +552,7 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
 	}
 
 	while (vm_page_count_severe()) {
-		VM_WAIT;
+		vm_wait_severe();
 	}
 
 	if ((flags & RFMEM) == 0) {

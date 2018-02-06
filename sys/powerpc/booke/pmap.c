@@ -1190,7 +1190,7 @@ pv_alloc(void)
 
 	pv_entry_count++;
 	if (pv_entry_count > pv_entry_high_water)
-		pagedaemon_wakeup();
+		pagedaemon_wakeup(0); /* XXX powerpc NUMA */
 	pv = uma_zalloc(pvzone, M_NOWAIT);
 
 	return (pv);

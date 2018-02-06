@@ -140,22 +140,22 @@ struct vmmeter {
 	u_int v_interrupt_free_min; /* (c) reserved pages for int code */
 	u_int v_free_severe;	/* (c) severe page depletion point */
 	u_int v_wire_count VMMETER_ALIGNED; /* (a) pages wired down */
-	u_int v_active_count VMMETER_ALIGNED; /* (a) pages active */
-	u_int v_inactive_count VMMETER_ALIGNED;	/* (a) pages inactive */
-	u_int v_laundry_count VMMETER_ALIGNED; /* (a) pages eligible for
-						  laundering */
-	u_int v_free_count VMMETER_ALIGNED; /* (f) pages free */
 };
 #endif /* _KERNEL || _WANT_VMMETER */
 
 #ifdef _KERNEL
 
+#include <sys/domainset.h>
+
 extern struct vmmeter vm_cnt;
-extern u_int vm_pageout_wakeup_thresh;
+extern domainset_t vm_min_domains;
+extern domainset_t vm_severe_domains;
 
 #define	VM_CNT_ADD(var, x)	counter_u64_add(vm_cnt.var, x)
 #define	VM_CNT_INC(var)		VM_CNT_ADD(var, 1)
 #define	VM_CNT_FETCH(var)	counter_u64_fetch(vm_cnt.var)
+
+u_int vm_free_count(void);
 
 /*
  * Return TRUE if we are under our severe low-free-pages threshold
@@ -167,7 +167,7 @@ static inline int
 vm_page_count_severe(void)
 {
 
-	return (vm_cnt.v_free_severe > vm_cnt.v_free_count);
+	return (!DOMAINSET_EMPTY(&vm_severe_domains));
 }
 
 /*
@@ -183,50 +183,8 @@ static inline int
 vm_page_count_min(void)
 {
 
-	return (vm_cnt.v_free_min > vm_cnt.v_free_count);
+	return (!DOMAINSET_EMPTY(&vm_min_domains));
 }
 
-/*
- * Return TRUE if we have not reached our free page target during
- * free page recovery operations.
- */
-static inline int
-vm_page_count_target(void)
-{
-
-	return (vm_cnt.v_free_target > vm_cnt.v_free_count);
-}
-
-/*
- * Return the number of pages we need to free-up or cache
- * A positive number indicates that we do not have enough free pages.
- */
-static inline int
-vm_paging_target(void)
-{
-
-	return (vm_cnt.v_free_target - vm_cnt.v_free_count);
-}
-
-/*
- * Returns TRUE if the pagedaemon needs to be woken up.
- */
-static inline int
-vm_paging_needed(u_int free_count)
-{
-
-	return (free_count < vm_pageout_wakeup_thresh);
-}
-
-/*
- * Return the number of pages we need to launder.
- * A positive number indicates that we have a shortfall of clean pages.
- */
-static inline int
-vm_laundry_target(void)
-{
-
-	return (vm_paging_target());
-}
 #endif	/* _KERNEL */
 #endif	/* _SYS_VMMETER_H_ */
