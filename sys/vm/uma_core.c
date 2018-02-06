@@ -1810,14 +1810,14 @@ uma_startup_count(int zones)
 		pages += howmany(zones, UMA_SLAB_SIZE / zsize);
 
 	/* ... and their kegs. */
-	pages += howmany(ksize * zones, UMA_SLAB_SIZE);
+	pages += howmany(zones, UMA_SLAB_SIZE / ksize);
 
 	/*
 	 * Take conservative approach that every zone
 	 * is going to allocate hash.
 	 */
-	pages += howmany(sizeof(struct slabhead *) * UMA_HASH_SIZE_INIT *
-	    zones, UMA_SLAB_SIZE);
+	pages += howmany(zones, UMA_SLAB_SIZE /
+	    (sizeof(struct slabhead *) * UMA_HASH_SIZE_INIT));
 
 	return (pages);
 }
