@@ -2609,6 +2609,17 @@ mps_push_sge(struct mps_command *cm, void *sgep, size_t len, int segsleft)
 	if (cm->cm_sglsize < MPS_SGC_SIZE)
 		panic("MPS: Need SGE Error Code\n");
 
+	if (segsleft >= 1 && cm->cm_sglsize < len + MPS_SGC_SIZE) {
+		/*
+		 * 1 or more segment, enough room for only a chain.
+		 * Hope the previous element wasn't a Simple entry
+		 * that needed to be marked with
+		 * MPI2_SGE_FLAGS_LAST_ELEMENT.  Case (4).
+		 */
+		if ((error = mps_add_chain(cm)) != 0)
+			return (error);
+	}
+
 	if (segsleft >= 2 &&
 	    cm->cm_sglsize < len + MPS_SGC_SIZE + MPS_SGE64_SIZE) {
 		/*
@@ -2631,17 +2642,6 @@ mps_push_sge(struct mps_command *cm, void *sgep, size_t len, int segsleft)
 		bcopy(sgep, cm->cm_sge, len);
 		cm->cm_sge = (MPI2_SGE_IO_UNION *)((uintptr_t)cm->cm_sge + len);
 		return (mps_add_chain(cm));
-	}
-
-	if (segsleft >= 1 && cm->cm_sglsize < len + MPS_SGC_SIZE) {
-		/*
-		 * 1 or more segment, enough room for only a chain.
-		 * Hope the previous element wasn't a Simple entry
-		 * that needed to be marked with
-		 * MPI2_SGE_FLAGS_LAST_ELEMENT.  Case (4).
-		 */
-		if ((error = mps_add_chain(cm)) != 0)
-			return (error);
 	}
 
 #ifdef INVARIANTS
