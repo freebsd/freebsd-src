@@ -48,10 +48,12 @@ typedef struct etherswitch_info etherswitch_info_t;
 #define	ETHERSWITCH_CONF_FLAGS		(1 << 0)
 #define	ETHERSWITCH_CONF_MIRROR		(1 << 1)
 #define	ETHERSWITCH_CONF_VLAN_MODE	(1 << 2)
+#define	ETHERSWITCH_CONF_SWITCH_MACADDR	(1 << 3)
 
 struct etherswitch_conf {
 	uint32_t	cmd;		/* What to configure */
 	uint32_t	vlan_mode;	/* Switch VLAN mode */
+	struct ether_addr switch_macaddr;	/* Switch MAC address */
 };
 typedef struct etherswitch_conf etherswitch_conf_t;
 
