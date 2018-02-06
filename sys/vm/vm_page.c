@@ -125,6 +125,10 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/md_var.h>
 
+extern int	uma_startup_count(int);
+extern void	uma_startup(void *, int);
+extern void	uma_startup1(void);
+
 /*
  *	Associated with page of user-allocatable memory is a
  *	page structure.
@@ -145,7 +149,7 @@ vm_page_t vm_page_array;
 long vm_page_array_size;
 long first_page;
 
-static int boot_pages = UMA_BOOT_PAGES;
+static int boot_pages;
 SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &boot_pages, 0,
     "number of pages allocated for bootstrapping the VM system");
@@ -466,7 +470,7 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_paddr_t end, high_avail, low_avail, new_end, page_range, size;
 	vm_paddr_t biggestsize, last_pa, pa;
 	u_long pagecount;
-	int biggestone, i, pages_per_zone, segind;
+	int biggestone, i, segind;
 
 	biggestsize = 0;
 	biggestone = 0;
@@ -496,26 +500,13 @@ vm_page_startup(vm_offset_t vaddr)
 		vm_page_domain_init(&vm_dom[i]);
 
 	/*
-	 * Almost all of the pages needed for bootstrapping UMA are used
-	 * for zone structures, so if the number of CPUs results in those
-	 * structures taking more than one page each, we set aside more pages
-	 * in proportion to the zone structure size.
-	 */
-	pages_per_zone = howmany(sizeof(struct uma_zone) +
-	    sizeof(struct uma_cache) * (mp_maxid + 1) +
-	    roundup2(sizeof(struct uma_slab), sizeof(void *)), UMA_SLAB_SIZE);
-	if (pages_per_zone > 1) {
-		/* Reserve more pages so that we don't run out. */
-		boot_pages = UMA_BOOT_PAGES_ZONES * pages_per_zone;
-	}
-
-	/*
 	 * Allocate memory for use when boot strapping the kernel memory
 	 * allocator.
 	 *
 	 * CTFLAG_RDTUN doesn't work during the early boot process, so we must
 	 * manually fetch the value.
 	 */
+	boot_pages = uma_startup_count(0);
 	TUNABLE_INT_FETCH("vm.boot_pages", &boot_pages);
 	new_end = end - (boot_pages * UMA_SLAB_SIZE);
 	new_end = trunc_page(new_end);
@@ -748,6 +739,9 @@ vm_page_startup(vm_offset_t vaddr)
 	 * can work.
 	 */
 	domainset_zero();
+
+	/* Announce page availability to UMA. */
+	uma_startup1();
 
 	return (vaddr);
 }
