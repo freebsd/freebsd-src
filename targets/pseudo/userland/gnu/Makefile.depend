@@ -32,7 +32,6 @@ DIRDEPS = \
 	gnu/usr.bin/gdb/doc \
 	gnu/usr.bin/gdb/gdb \
 	gnu/usr.bin/gdb/gdbserver \
-	gnu/usr.bin/gdb/gdbtui \
 	gnu/usr.bin/gdb/kgdb \
 	gnu/usr.bin/gdb/libgdb \
 	gnu/usr.bin/gperf \
