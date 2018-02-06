@@ -556,6 +556,13 @@ print_config(struct cfg *cfg)
 			printf("none\n");
 		}
 	}
+
+	/* Print switch MAC address. */
+	if (cfg->conf.cmd & ETHERSWITCH_CONF_SWITCH_MACADDR) {
+		printf("%s: Switch MAC address: %s\n",
+		    c,
+		    ether_ntoa(&cfg->conf.switch_macaddr));
+	}
 }
 
 static void
