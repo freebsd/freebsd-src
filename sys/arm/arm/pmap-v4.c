@@ -3817,7 +3817,7 @@ pmap_get_pv_entry(void)
 
 	pv_entry_count++;
 	if (pv_entry_count > pv_entry_high_water)
-		pagedaemon_wakeup();
+		pagedaemon_wakeup(0); /* XXX ARM NUMA */
 	ret_value = uma_zalloc(pvzone, M_NOWAIT);
 	return ret_value;
 }

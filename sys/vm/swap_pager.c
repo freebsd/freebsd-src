@@ -2327,7 +2327,7 @@ swapoff_one(struct swdevt *sp, struct ucred *cred)
 	 * of data we will have to page back in, plus an epsilon so
 	 * the system doesn't become critically low on swap space.
 	 */
-	if (vm_cnt.v_free_count + swap_pager_avail < nblks + nswap_lowat)
+	if (vm_free_count() + swap_pager_avail < nblks + nswap_lowat)
 		return (ENOMEM);
 
 	/*
