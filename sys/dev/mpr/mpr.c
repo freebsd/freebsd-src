@@ -1133,6 +1133,14 @@ mpr_send_iocinit(struct mpr_softc *sc)
 	MPR_FUNCTRACE(sc);
 	mpr_dprint(sc, MPR_INIT, "%s entered\n", __func__);
 
+	/* Do a quick sanity check on proper initialization */
+	if ((sc->pqdepth == 0) || (sc->fqdepth == 0) || (sc->reqframesz == 0)
+	    || (sc->replyframesz == 0)) {
+		mpr_dprint(sc, MPR_INIT|MPR_ERROR,
+		    "Driver not fully initialized for IOCInit\n");
+		return (EINVAL);
+	}
+
 	req_sz = sizeof(MPI2_IOC_INIT_REQUEST);
 	reply_sz = sizeof(MPI2_IOC_INIT_REPLY);
 	bzero(&init, req_sz);
@@ -1147,7 +1155,7 @@ mpr_send_iocinit(struct mpr_softc *sc)
 	init.WhoInit = MPI2_WHOINIT_HOST_DRIVER;
 	init.MsgVersion = htole16(MPI2_VERSION);
 	init.HeaderVersion = htole16(MPI2_HEADER_VERSION);
-	init.SystemRequestFrameSize = htole16(sc->facts->IOCRequestFrameSize);
+	init.SystemRequestFrameSize = htole16((uint16_t)(sc->reqframesz / 4));
 	init.ReplyDescriptorPostQueueDepth = htole16(sc->pqdepth);
 	init.ReplyFreeQueueDepth = htole16(sc->fqdepth);
 	init.SenseBufferAddressHigh = 0;
@@ -1303,6 +1311,9 @@ mpr_alloc_replies(struct mpr_softc *sc)
 {
 	int rsize, num_replies;
 
+	/* Store the reply frame size in bytes rather than as 32bit words */
+	sc->replyframesz = sc->facts->ReplyFrameSize * 4;
+
 	/*
 	 * sc->num_replies should be one less than sc->fqdepth.  We need to
 	 * allocate space for sc->fqdepth replies, but only sc->num_replies
@@ -1310,7 +1321,7 @@ mpr_alloc_replies(struct mpr_softc *sc)
 	 */
 	num_replies = max(sc->fqdepth, sc->num_replies);
 
-	rsize = sc->facts->ReplyFrameSize * num_replies * 4; 
+	rsize = sc->replyframesz * num_replies; 
         if (bus_dma_tag_create( sc->mpr_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
@@ -1344,7 +1355,10 @@ mpr_alloc_requests(struct mpr_softc *sc)
 	struct mpr_chain *chain;
 	int i, rsize, nsegs;
 
-	rsize = sc->facts->IOCRequestFrameSize * sc->num_reqs * 4;
+	/* Store the request frame size in bytes rather than as 32bit words */
+	sc->reqframesz = sc->facts->IOCRequestFrameSize * 4;
+
+	rsize = sc->reqframesz * sc->num_reqs;
         if (bus_dma_tag_create( sc->mpr_parent_dmat,    /* parent */
 				16, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
@@ -1387,7 +1401,7 @@ mpr_alloc_requests(struct mpr_softc *sc)
 			    MPR_MAX_CHAIN_ELEMENT_SIZE;
 		}
 	} else {
-		sc->chain_frame_size = sc->facts->IOCRequestFrameSize * 4;
+		sc->chain_frame_size = sc->reqframesz;
 	}
 	rsize = sc->chain_frame_size * sc->max_chains;
         if (bus_dma_tag_create( sc->mpr_parent_dmat,    /* parent */
@@ -1493,10 +1507,8 @@ mpr_alloc_requests(struct mpr_softc *sc)
 	}
 	for (i = 1; i < sc->num_reqs; i++) {
 		cm = &sc->commands[i];
-		cm->cm_req = sc->req_frames +
-		    i * sc->facts->IOCRequestFrameSize * 4;
-		cm->cm_req_busaddr = sc->req_busaddr +
-		    i * sc->facts->IOCRequestFrameSize * 4;
+		cm->cm_req = sc->req_frames + i * sc->reqframesz;
+		cm->cm_req_busaddr = sc->req_busaddr + i * sc->reqframesz;
 		cm->cm_sense = &sc->sense_frames[i];
 		cm->cm_sense_busaddr = sc->sense_busaddr + i * MPR_SENSE_LEN;
 		cm->cm_desc.Default.SMID = i;
@@ -1621,8 +1633,7 @@ mpr_init_queues(struct mpr_softc *sc)
 	 * Initialize all of the free queue entries.
 	 */
 	for (i = 0; i < sc->fqdepth; i++) {
-		sc->free_queue[i] = sc->reply_busaddr +
-		    (i * sc->facts->ReplyFrameSize * 4);
+		sc->free_queue[i] = sc->reply_busaddr + (i * sc->replyframesz);
 	}
 	sc->replyfreeindex = sc->num_replies;
 
@@ -2419,13 +2430,13 @@ mpr_intr_locked(void *data)
 			 */
 			if ((reply < sc->reply_frames)
 			 || (reply > (sc->reply_frames +
-			     (sc->fqdepth * sc->facts->ReplyFrameSize * 4)))) {
+			     (sc->fqdepth * sc->replyframesz)))) {
 				printf("%s: WARNING: reply %p out of range!\n",
 				       __func__, reply);
 				printf("%s: reply_frames %p, fqdepth %d, "
 				       "frame size %d\n", __func__,
 				       sc->reply_frames, sc->fqdepth,
-				       sc->facts->ReplyFrameSize * 4);
+				       sc->replyframesz);
 				printf("%s: baddr %#x,\n", __func__, baddr);
 				/* LSI-TODO. See Linux Code for Graceful exit */
 				panic("Reply address out of range");
@@ -2963,7 +2974,7 @@ mpr_check_pcie_native_sgl(struct mpr_softc *sc, struct mpr_command *cm,
 	 * put in the main message frame (H/W can only translate an SGL that
 	 * is contained entirely in the main message frame).
 	 */
-	sges_in_segment = (sc->facts->IOCRequestFrameSize -
+	sges_in_segment = (sc->reqframesz -
 	    offsetof(Mpi25SCSIIORequest_t, SGL)) / sizeof(MPI25_SGE_IO_UNION);
 	if (segs_left > sges_in_segment)
 		build_native_sgl = 1;
