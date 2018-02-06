@@ -997,7 +997,7 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		 * user's value and the calculated value as long as the user's
 		 * value is larger than 0. The user's value is in pages.
 		 */
-		sges_per_frame = ((sc->facts->IOCRequestFrameSize * 4) /
+		sges_per_frame = ((sc->reqframesz) /
 		    sizeof(MPI2_SGE_SIMPLE64)) - 1;
 		cpi->maxio = (sges_per_frame * sc->facts->MaxChainDepth) + 1;
 		cpi->maxio *= PAGE_SIZE;

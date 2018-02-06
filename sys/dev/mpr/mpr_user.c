@@ -433,7 +433,7 @@ mpr_init_sge(struct mpr_command *cm, void *req, void *sge)
 {
 	int off, space;
 
-	space = (int)cm->cm_sc->facts->IOCRequestFrameSize * 4;
+	space = (int)cm->cm_sc->reqframesz;
 	off = (uintptr_t)sge - (uintptr_t)req;
 
 	KASSERT(off < space, ("bad pointers %p %p, off %d, space %d",
@@ -673,7 +673,7 @@ mpr_user_command(struct mpr_softc *sc, struct mpr_usr_command *cmd)
 	mpr_dprint(sc, MPR_USER, "%s: req %p %d  rpl %p %d\n", __func__,
 	    cmd->req, cmd->req_len, cmd->rpl, cmd->rpl_len);
 
-	if (cmd->req_len > (int)sc->facts->IOCRequestFrameSize * 4) {
+	if (cmd->req_len > (int)sc->reqframesz) {
 		err = EINVAL;
 		goto RetFreeUnlocked;
 	}
@@ -809,7 +809,7 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 	if (err != 0)
 		goto RetFreeUnlocked;
 
-	if (data->RequestSize > (int)sc->facts->IOCRequestFrameSize * 4) {
+	if (data->RequestSize > (int)sc->reqframesz) {
 		err = EINVAL;
 		goto RetFreeUnlocked;
 	}
