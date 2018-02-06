@@ -4075,10 +4075,6 @@ bufdone(struct buf *bp)
 	runningbufwakeup(bp);
 	if (bp->b_iocmd == BIO_WRITE)
 		dropobj = bp->b_bufobj;
-	else if ((bp->b_flags & B_CKHASH) != 0) {
-		KASSERT(buf_mapped(bp), ("biodone: bp %p not mapped", bp));
-		(*bp->b_ckhashcalc)(bp);
-	}
 	/* call optional completion function if requested */
 	if (bp->b_iodone != NULL) {
 		biodone = bp->b_iodone;
@@ -4114,6 +4110,13 @@ bufdone_finish(struct buf *bp)
 		    !(bp->b_ioflags & BIO_ERROR))
 			bp->b_flags |= B_CACHE;
 		vfs_vmio_iodone(bp);
+	}
+	if ((bp->b_flags & B_CKHASH) != 0) {
+		KASSERT(bp->b_iocmd == BIO_READ,
+		    ("bufdone_finish: b_iocmd %d not BIO_READ", bp->b_iocmd));
+		KASSERT(buf_mapped(bp),
+		    ("bufdone_finish: bp %p not mapped", bp));
+		(*bp->b_ckhashcalc)(bp);
 	}
 
 	/*
