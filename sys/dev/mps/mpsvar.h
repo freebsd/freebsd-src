@@ -345,6 +345,7 @@ struct mps_softc {
 
 	MPI2_IOC_FACTS_REPLY		*facts;
 	int				num_reqs;
+	int				num_prireqs;
 	int				num_replies;
 	int				fqdepth;	/* Free queue */
 	int				pqdepth;	/* Post queue */
