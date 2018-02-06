@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/vmem.h>
+#include <sys/vmmeter.h>
 
 #include "opt_vm.h"
 
@@ -72,6 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_phys.h>
+#include <vm/vm_pagequeue.h>
 #include <vm/uma_int.h>
 
 int	vmem_startup_count(void);
@@ -644,7 +647,7 @@ vmem_bt_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 		 * possible due to M_USE_RESERVE page allocation.
 		 */
 		if (wait & M_WAITOK)
-			VM_WAIT;
+			vm_wait_domain(domain);
 		return (NULL);
 	}
 	mtx_unlock(&vmem_bt_lock);

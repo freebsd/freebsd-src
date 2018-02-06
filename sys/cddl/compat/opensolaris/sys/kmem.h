@@ -78,7 +78,7 @@ void kmem_reap(void);
 int kmem_debugging(void);
 void *calloc(size_t n, size_t s);
 
-#define	freemem				vm_cnt.v_free_count
+#define	freemem				vm_free_count()
 #define	minfree				vm_cnt.v_free_min
 #define	heap_arena			kernel_arena
 #define	zio_arena			NULL
