@@ -95,8 +95,13 @@ zoneinfo: yearistype ${TDATA}
 	zic -D -d ${TZBUILDDIR} -p ${POSIXRULES} -m ${NOBINMODE} \
 	    ${LEAPFILE} -y ${.OBJDIR}/yearistype ${TZFILES}
 
+#
+# Sort TZS to ensure they are the same every build. find -s might
+# be a shorter way to express this, but it's non-portable. Any
+# differences between the two don't matter for this purpose.
+#
 .if make(*install*)
-TZS!= cd ${TZBUILDDIR} && find -s * -type f
+TZS!= cd ${TZBUILDDIR} && find * -type f | env LC_ALL=C sort
 .endif
 
 beforeinstall: install-zoneinfo
