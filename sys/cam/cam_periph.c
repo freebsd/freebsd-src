@@ -403,19 +403,19 @@ retry:
 	return (count);
 }
 
-cam_status
+int
 cam_periph_acquire(struct cam_periph *periph)
 {
-	cam_status status;
+	int status;
 
-	status = CAM_REQ_CMP_ERR;
 	if (periph == NULL)
-		return (status);
+		return (EINVAL);
 
+	status = ENOENT;
 	xpt_lock_buses();
 	if ((periph->flags & CAM_PERIPH_INVALID) == 0) {
 		periph->refcount++;
-		status = CAM_REQ_CMP;
+		status = 0;
 	}
 	xpt_unlock_buses();
 
@@ -482,7 +482,7 @@ cam_periph_hold(struct cam_periph *periph, int priority)
 	 * from user us while we sleep.
 	 */
 
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) != 0)
 		return (ENXIO);
 
 	cam_periph_assert(periph, MA_OWNED);

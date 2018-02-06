@@ -1565,7 +1565,7 @@ da_periph_acquire(struct cam_periph *periph, da_ref_token token)
 	token_sanity(token);
 	DA_PERIPH_PRINT(periph, "acquiring device %s (%d): %d\n",
 	    da_ref_text[token], token, err);
-	if (err == CAM_REQ_CMP) {
+	if (err == 0) {
 		int cnt;
 		struct da_softc *softc = periph->softc;
 
@@ -1628,7 +1628,7 @@ daopen(struct disk *dp)
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (da_periph_acquire(periph, DA_REF_OPEN) != CAM_REQ_CMP) {
+	if (da_periph_acquire(periph, DA_REF_OPEN) != 0) {
 		return (ENXIO);
 	}
 
@@ -2061,7 +2061,7 @@ daasync(void *callback_arg, u_int32_t code,
 	case AC_SCSI_AEN:
 		softc = (struct da_softc *)periph->softc;
 		if (!cam_iosched_has_work_flags(softc->cam_iosched, DA_WORK_TUR)) {
-			if (da_periph_acquire(periph, DA_REF_TUR) == CAM_REQ_CMP) {
+			if (da_periph_acquire(periph, DA_REF_TUR) == 0) {
 				cam_iosched_set_work_flags(softc->cam_iosched, DA_WORK_TUR);
 				daschedule(periph);
 			}
@@ -2732,7 +2732,7 @@ daregister(struct cam_periph *periph, void *arg)
 	 * We'll release this reference once GEOM calls us back (via
 	 * dadiskgonecb()) telling us that our provider has been freed.
 	 */
-	if (da_periph_acquire(periph, DA_REF_GEOM) != CAM_REQ_CMP) {
+	if (da_periph_acquire(periph, DA_REF_GEOM) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -4700,7 +4700,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * we have successfully attached.
 			 */
 			/* increase the refcount */
-			if (da_periph_acquire(periph, DA_REF_SYSCTL) == CAM_REQ_CMP) {
+			if (da_periph_acquire(periph, DA_REF_SYSCTL) == 0) {
 
 				taskqueue_enqueue(taskqueue_thread,
 						  &softc->sysctl_task);
@@ -5558,7 +5558,7 @@ static void
 dareprobe(struct cam_periph *periph)
 {
 	struct da_softc	  *softc;
-	cam_status status;
+	int status;
 
 	softc = (struct da_softc *)periph->softc;
 
@@ -5567,8 +5567,7 @@ dareprobe(struct cam_periph *periph)
 		return;
 
 	status = da_periph_acquire(periph, DA_REF_REPROBE);
-	KASSERT(status == CAM_REQ_CMP,
-	    ("dareprobe: cam_periph_acquire failed"));
+	KASSERT(status == 0, ("dareprobe: cam_periph_acquire failed"));
 
 	softc->state = DA_STATE_PROBE_WP;
 	xpt_schedule(periph, CAM_PRIORITY_DEV);
@@ -5666,7 +5665,7 @@ damediapoll(void *arg)
 
 	if (!cam_iosched_has_work_flags(softc->cam_iosched, DA_WORK_TUR) &&
 	    LIST_EMPTY(&softc->pending_ccbs)) {
-		if (da_periph_acquire(periph, DA_REF_TUR) == CAM_REQ_CMP) {
+		if (da_periph_acquire(periph, DA_REF_TUR) == 0) {
 			cam_iosched_set_work_flags(softc->cam_iosched, DA_WORK_TUR);
 			daschedule(periph);
 		}
