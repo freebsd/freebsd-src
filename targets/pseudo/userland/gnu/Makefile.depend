@@ -11,8 +11,6 @@ DIRDEPS = \
 	gnu/lib/libdialog \
 	gnu/lib/libgcov \
 	gnu/lib/libgomp \
-	gnu/lib/libreadline/history/doc \
-	gnu/lib/libreadline/readline/doc \
 	gnu/lib/libregex/doc \
 	gnu/lib/libssp \
 	gnu/lib/libssp/libssp_nonshared \
