@@ -1336,9 +1336,7 @@ g_mirror_sync_request(struct g_mirror_softc *sc, struct bio *bp)
 	 */
 	switch (bp->bio_cmd) {
 	case BIO_READ: {
-		struct g_mirror_disk *d;
 		struct g_consumer *cp;
-		int readable;
 
 		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_sync_request_read,
 		    bp->bio_error);
@@ -1349,31 +1347,17 @@ g_mirror_sync_request(struct g_mirror_softc *sc, struct bio *bp)
 			    bp->bio_error);
 
 			/*
-			 * If there's at least one other disk from which we can
-			 * read the block, retry the request.
-			 */
-			readable = 0;
-			LIST_FOREACH(d, &sc->sc_disks, d_next)
-				if (d->d_state == G_MIRROR_DISK_STATE_ACTIVE &&
-				    !(d->d_flags & G_MIRROR_DISK_FLAG_BROKEN))
-					readable++;
-
-			/*
 			 * The read error will trigger a syncid bump, so there's
 			 * no need to do that here.
 			 *
-			 * If we can retry the read from another disk, do so.
-			 * Otherwise, all we can do is kick out the new disk.
+			 * The read error handling for regular requests will
+			 * retry the read from all active mirrors before passing
+			 * the error back up, so there's no need to retry here.
 			 */
-			if (readable == 0) {
-				g_mirror_sync_request_free(disk, bp);
-				g_mirror_event_send(disk,
-				    G_MIRROR_DISK_STATE_DISCONNECTED,
-				    G_MIRROR_EVENT_DONTWAIT);
-			} else {
-				g_mirror_sync_reinit(disk, bp, bp->bio_offset);
-				goto retry_read;
-			}
+			g_mirror_sync_request_free(disk, bp);
+			g_mirror_event_send(disk,
+			    G_MIRROR_DISK_STATE_DISCONNECTED,
+			    G_MIRROR_EVENT_DONTWAIT);
 			return;
 		}
 		G_MIRROR_LOGREQ(3, bp,
@@ -1429,7 +1413,6 @@ g_mirror_sync_request(struct g_mirror_softc *sc, struct bio *bp)
 		g_mirror_sync_reinit(disk, bp, sync->ds_offset);
 		sync->ds_offset += bp->bio_length;
 
-retry_read:
 		G_MIRROR_LOGREQ(3, bp, "Sending synchronization request.");
 		sync->ds_consumer->index++;
 
