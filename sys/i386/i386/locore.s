@@ -44,7 +44,6 @@
 #include "opt_nfsroot.h"
 #include "opt_pmap.h"
 
-#include <sys/syscall.h>
 #include <sys/reboot.h>
 
 #include <machine/asmacros.h>
@@ -292,77 +291,6 @@ begin:
 	call	mi_startup		/* autoconfiguration, mountroot etc */
 	/* NOTREACHED */
 	addl	$0,%esp			/* for db_numargs() again */
-
-/*
- * Signal trampoline, copied to top of user stack
- */
-NON_GPROF_ENTRY(sigcode)
-	calll	*SIGF_HANDLER(%esp)
-	leal	SIGF_UC(%esp),%eax	/* get ucontext */
-	pushl	%eax
-	testl	$PSL_VM,UC_EFLAGS(%eax)
-	jne	1f
-	mov	UC_GS(%eax),%gs		/* restore %gs */
-1:
-	movl	$SYS_sigreturn,%eax
-	pushl	%eax			/* junk to fake return addr. */
-	int	$0x80			/* enter kernel with args */
-					/* on stack */
-1:
-	jmp	1b
-
-#ifdef COMPAT_FREEBSD4
-	ALIGN_TEXT
-freebsd4_sigcode:
-	calll	*SIGF_HANDLER(%esp)
-	leal	SIGF_UC4(%esp),%eax	/* get ucontext */
-	pushl	%eax
-	testl	$PSL_VM,UC4_EFLAGS(%eax)
-	jne	1f
-	mov	UC4_GS(%eax),%gs	/* restore %gs */
-1:
-	movl	$344,%eax		/* 4.x SYS_sigreturn */
-	pushl	%eax			/* junk to fake return addr. */
-	int	$0x80			/* enter kernel with args */
-					/* on stack */
-1:
-	jmp	1b
-#endif
-
-#ifdef COMPAT_43
-	ALIGN_TEXT
-osigcode:
-	call	*SIGF_HANDLER(%esp)	/* call signal handler */
-	lea	SIGF_SC(%esp),%eax	/* get sigcontext */
-	pushl	%eax
-	testl	$PSL_VM,SC_PS(%eax)
-	jne	9f
-	mov	SC_GS(%eax),%gs		/* restore %gs */
-9:
-	movl	$103,%eax		/* 3.x SYS_sigreturn */
-	pushl	%eax			/* junk to fake return addr. */
-	int	$0x80			/* enter kernel with args */
-0:	jmp	0b
-#endif /* COMPAT_43 */
-
-	ALIGN_TEXT
-esigcode:
-
-	.data
-	.globl	szsigcode
-szsigcode:
-	.long	esigcode-sigcode
-#ifdef COMPAT_FREEBSD4
-	.globl	szfreebsd4_sigcode
-szfreebsd4_sigcode:
-	.long	esigcode-freebsd4_sigcode
-#endif
-#ifdef COMPAT_43
-	.globl	szosigcode
-szosigcode:
-	.long	esigcode-osigcode
-#endif
-	.text
 
 /**********************************************************************
  *
