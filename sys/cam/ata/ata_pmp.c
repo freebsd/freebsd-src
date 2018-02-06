@@ -315,7 +315,7 @@ pmpasync(void *callback_arg, u_int32_t code,
 		if (code == AC_SENT_BDR || code == AC_BUS_RESET)
 			softc->found = 0; /* We have to reset everything. */
 		if (softc->state == PMP_STATE_NORMAL) {
-			if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
+			if (cam_periph_acquire(periph) == 0) {
 				if (softc->pm_pid == 0x37261095 ||
 				    softc->pm_pid == 0x38261095)
 					softc->state = PMP_STATE_PM_QUIRKS_1;
@@ -343,7 +343,7 @@ pmpsysctlinit(void *context, int pending)
 	char tmpstr[32], tmpstr2[16];
 
 	periph = (struct cam_periph *)context;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) != 0)
 		return;
 
 	softc = (struct pmp_softc *)periph->softc;

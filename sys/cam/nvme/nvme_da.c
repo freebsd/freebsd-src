@@ -260,7 +260,7 @@ ndaopen(struct disk *dp)
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		return(ENXIO);
 	}
 
@@ -785,7 +785,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 	 * We'll release this reference once GEOM calls us back (via
 	 * ndadiskgonecb()) telling us that our provider has been freed.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -807,7 +807,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 	 * Create our sysctl variables, now that we know
 	 * we have successfully attached.
 	 */
-	if (cam_periph_acquire(periph) == CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) == 0)
 		taskqueue_enqueue(taskqueue_thread, &softc->sysctl_task);
 
 	/*
