@@ -99,6 +99,11 @@ struct arswitch_softc {
 		int (* arswitch_hw_setup) (struct arswitch_softc *);
 		int (* arswitch_hw_global_setup) (struct arswitch_softc *);
 
+		int (* arswitch_hw_get_switch_macaddr) (struct arswitch_softc *,
+		    struct ether_addr *sa);
+		int (* arswitch_hw_set_switch_macaddr) (struct arswitch_softc *,
+		    const struct ether_addr *sa);
+
 		/* Port functions */
 		void (* arswitch_port_init) (struct arswitch_softc *, int);
 
