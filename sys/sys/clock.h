@@ -88,8 +88,8 @@ struct clocktime {
 	long	nsec;			/* nano seconds */
 };
 
-int clock_ct_to_ts(struct clocktime *, struct timespec *);
-void clock_ts_to_ct(struct timespec *, struct clocktime *);
+int clock_ct_to_ts(const struct clocktime *, struct timespec *);
+void clock_ts_to_ct(const struct timespec *, struct clocktime *);
 
 /*
  * Structure to hold the values typically reported by time-of-day clocks,
@@ -125,8 +125,8 @@ struct bcd_clocktime {
 	bool     ispm;			/* true if hour represents pm time */
 };
 
-int clock_bcd_to_ts(struct bcd_clocktime *, struct timespec *, bool ampm);
-void clock_ts_to_bcd(struct timespec *, struct bcd_clocktime *, bool ampm);
+int clock_bcd_to_ts(const struct bcd_clocktime *, struct timespec *, bool ampm);
+void clock_ts_to_bcd(const struct timespec *, struct bcd_clocktime *, bool ampm);
 
 /*
  * Time-of-day clock functions and flags.  These functions might sleep.
@@ -177,8 +177,10 @@ void clock_unregister(device_t _clockdev);
 /* Traditional POSIX base year */
 #define	POSIX_BASE_YEAR	1970
 
-void timespec2fattime(struct timespec *tsp, int utc, u_int16_t *ddp, u_int16_t *dtp, u_int8_t *dhp);
-void fattime2timespec(unsigned dd, unsigned dt, unsigned dh, int utc, struct timespec *tsp);
+void timespec2fattime(const struct timespec *tsp, int utc, u_int16_t *ddp,
+    u_int16_t *dtp, u_int8_t *dhp);
+void fattime2timespec(unsigned dd, unsigned dt, unsigned dh, int utc,
+    struct timespec *tsp);
 
 #endif /* _KERNEL */
 
