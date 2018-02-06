@@ -112,6 +112,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/vm_domainset.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
@@ -127,7 +128,7 @@ __FBSDID("$FreeBSD$");
 
 extern int	uma_startup_count(int);
 extern void	uma_startup(void *, int);
-extern void	uma_startup1(void);
+extern int	vmem_startup_count(void);
 
 /*
  *	Associated with page of user-allocatable memory is a
@@ -501,12 +502,33 @@ vm_page_startup(vm_offset_t vaddr)
 
 	/*
 	 * Allocate memory for use when boot strapping the kernel memory
-	 * allocator.
-	 *
+	 * allocator.  Tell UMA how many zones we are going to create
+	 * before going fully functional.  UMA will add its zones.
+	 */
+#ifdef UMA_MD_SMALL_ALLOC
+	boot_pages = uma_startup_count(0);
+#else
+	/*
+	 * VM startup zones: vmem, vmem_btag, VM OBJECT, RADIX NODE, MAP,
+	 * KMAP ENTRY, MAP ENTRY, VMSPACE.
+	 */
+	boot_pages = uma_startup_count(8);
+
+	/* vmem_startup() calls uma_prealloc(). */
+	boot_pages += vmem_startup_count();
+	/* vm_map_startup() calls uma_prealloc(). */
+	boot_pages += howmany(MAX_KMAP, UMA_SLAB_SIZE / sizeof(struct vm_map));
+
+	/*
+	 * Before going fully functional kmem_init() does allocation
+	 * from "KMAP ENTRY" and vmem_create() does allocation from "vmem".
+	 */
+	boot_pages += 2;
+#endif
+	/*
 	 * CTFLAG_RDTUN doesn't work during the early boot process, so we must
 	 * manually fetch the value.
 	 */
-	boot_pages = uma_startup_count(0);
 	TUNABLE_INT_FETCH("vm.boot_pages", &boot_pages);
 	new_end = end - (boot_pages * UMA_SLAB_SIZE);
 	new_end = trunc_page(new_end);
@@ -739,9 +761,6 @@ vm_page_startup(vm_offset_t vaddr)
 	 * can work.
 	 */
 	domainset_zero();
-
-	/* Announce page availability to UMA. */
-	uma_startup1();
 
 	return (vaddr);
 }
