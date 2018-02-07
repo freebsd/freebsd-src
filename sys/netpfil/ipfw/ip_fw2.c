@@ -710,6 +710,32 @@ is_icmp6_query(int icmp6_type)
 	return (0);
 }
 
+static int
+map_icmp_unreach(int code)
+{
+
+	/* RFC 7915 p4.2 */
+	switch (code) {
+	case ICMP_UNREACH_NET:
+	case ICMP_UNREACH_HOST:
+	case ICMP_UNREACH_SRCFAIL:
+	case ICMP_UNREACH_NET_UNKNOWN:
+	case ICMP_UNREACH_HOST_UNKNOWN:
+	case ICMP_UNREACH_TOSNET:
+	case ICMP_UNREACH_TOSHOST:
+		return (ICMP6_DST_UNREACH_NOROUTE);
+	case ICMP_UNREACH_PORT:
+		return (ICMP6_DST_UNREACH_NOPORT);
+	default:
+		/*
+		 * Map the rest of codes into admit prohibited.
+		 * XXX: unreach proto should be mapped into ICMPv6
+		 * parameter problem, but we use only unreach type.
+		 */
+		return (ICMP6_DST_UNREACH_ADMIN);
+	}
+}
+
 static void
 send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 {
@@ -2570,9 +2596,12 @@ do {								\
 				    (proto != IPPROTO_ICMPV6 ||
 				     (is_icmp6_query(icmp6_type) == 1)) &&
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
-				    !IN6_IS_ADDR_MULTICAST(&args->f_id.dst_ip6)) {
-					send_reject6(
-					    args, cmd->arg1, hlen,
+				    !IN6_IS_ADDR_MULTICAST(
+					&args->f_id.dst_ip6)) {
+					send_reject6(args,
+					    cmd->opcode == O_REJECT ?
+					    map_icmp_unreach(cmd->arg1):
+					    cmd->arg1, hlen,
 					    (struct ip6_hdr *)ip);
 					m = args->m;
 				}
