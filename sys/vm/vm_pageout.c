@@ -335,11 +335,8 @@ vm_pageout_cluster(vm_page_t m)
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	pindex = m->pindex;
 
-	/*
-	 * We can't clean the page if it is busy or held.
-	 */
 	vm_page_assert_unbusied(m);
-	KASSERT(m->hold_count == 0, ("page %p is held", m));
+	KASSERT(!vm_page_held(m), ("page %p is held", m));
 
 	pmap_remove_write(m);
 	vm_page_unlock(m);
@@ -378,8 +375,7 @@ more:
 			break;
 		}
 		vm_page_lock(p);
-		if (!vm_page_in_laundry(p) ||
-		    p->hold_count != 0) {	/* may be undergoing I/O */
+		if (!vm_page_in_laundry(p) || vm_page_held(p)) {
 			vm_page_unlock(p);
 			ib = 0;
 			break;
@@ -405,8 +401,7 @@ more:
 		if (p->dirty == 0)
 			break;
 		vm_page_lock(p);
-		if (!vm_page_in_laundry(p) ||
-		    p->hold_count != 0) {	/* may be undergoing I/O */
+		if (!vm_page_in_laundry(p) || vm_page_held(p)) {
 			vm_page_unlock(p);
 			break;
 		}
@@ -655,10 +650,10 @@ vm_pageout_clean(vm_page_t m, int *numpagedout)
 		}
 
 		/*
-		 * The page may have been busied or held while the object
+		 * The page may have been busied or referenced while the object
 		 * and page locks were released.
 		 */
-		if (vm_page_busied(m) || m->hold_count != 0) {
+		if (vm_page_busied(m) || vm_page_held(m)) {
 			vm_page_unlock(m);
 			error = EBUSY;
 			goto unlock_all;
@@ -747,11 +742,18 @@ scan:
 			vm_page_unlock(m);
 			continue;
 		}
+		if (m->wire_count != 0) {
+			vm_page_dequeue_locked(m);
+			vm_page_unlock(m);
+			continue;
+		}
 		object = m->object;
 		if ((!VM_OBJECT_TRYWLOCK(object) &&
 		    (!vm_pageout_fallback_object_lock(m, &next) ||
-		    m->hold_count != 0)) || vm_page_busied(m)) {
+		    vm_page_held(m))) || vm_page_busied(m)) {
 			VM_OBJECT_WUNLOCK(object);
+			if (m->wire_count != 0 && vm_page_pagequeue(m) == pq)
+				vm_page_dequeue_locked(m);
 			vm_page_unlock(m);
 			continue;
 		}
@@ -1190,7 +1192,16 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 */
 		if (!vm_pageout_page_lock(m, &next))
 			goto unlock_page;
-		else if (m->hold_count != 0) {
+		else if (m->wire_count != 0) {
+			/*
+			 * Wired pages may not be freed, and unwiring a queued
+			 * page will cause it to be requeued.  Thus, remove them
+			 * from the queue now to avoid unnecessary revisits.
+			 */
+			vm_page_dequeue_locked(m);
+			addl_page_shortage++;
+			goto unlock_page;
+		} else if (m->hold_count != 0) {
 			/*
 			 * Held pages are essentially stuck in the
 			 * queue.  So, they ought to be discounted
@@ -1205,7 +1216,11 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		if (!VM_OBJECT_TRYWLOCK(object)) {
 			if (!vm_pageout_fallback_object_lock(m, &next))
 				goto unlock_object;
-			else if (m->hold_count != 0) {
+			else if (m->wire_count != 0) {
+				vm_page_dequeue_locked(m);
+				addl_page_shortage++;
+				goto unlock_object;
+			} else if (m->hold_count != 0) {
 				addl_page_shortage++;
 				goto unlock_object;
 			}
@@ -1226,7 +1241,7 @@ unlock_page:
 			vm_page_unlock(m);
 			continue;
 		}
-		KASSERT(m->hold_count == 0, ("Held page %p", m));
+		KASSERT(!vm_page_held(m), ("Held page %p", m));
 
 		/*
 		 * Dequeue the inactive page and unlock the inactive page
@@ -1431,6 +1446,15 @@ drop_page:
 		 * the page for eligibility.
 		 */
 		VM_CNT_INC(v_pdpages);
+
+		/*
+		 * Wired pages are dequeued lazily.
+		 */
+		if (m->wire_count != 0) {
+			vm_page_dequeue_locked(m);
+			vm_page_unlock(m);
+			continue;
+		}
 
 		/*
 		 * Check to see "how much" the page has been used.
