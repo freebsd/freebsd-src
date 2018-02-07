@@ -81,7 +81,7 @@ struct msqid_ds_old {
 /*
  * XXX there seems to be no prefix reserved for this header, so the name
  * "msg" in "struct msg" and the names of all of the nonstandard members
- * (mainly "msg_pad*) are namespace pollution.
+ * are namespace pollution.
  */
 
 struct msqid_ds {
