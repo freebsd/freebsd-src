@@ -519,7 +519,8 @@ vm_page_startup(vm_offset_t vaddr)
 	/* vmem_startup() calls uma_prealloc(). */
 	boot_pages += vmem_startup_count();
 	/* vm_map_startup() calls uma_prealloc(). */
-	boot_pages += howmany(MAX_KMAP, UMA_SLAB_SIZE / sizeof(struct vm_map));
+	boot_pages += howmany(MAX_KMAP,
+	    UMA_SLAB_SPACE / sizeof(struct vm_map));
 
 	/*
 	 * Before going fully functional kmem_init() does allocation

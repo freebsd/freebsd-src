@@ -138,6 +138,11 @@
 #define UMA_MAX_WASTE	10
 
 /*
+ * Size of memory in a not offpage slab available for actual items.
+ */
+#define	UMA_SLAB_SPACE	(UMA_SLAB_SIZE - sizeof(struct uma_slab))
+
+/*
  * I doubt there will be many cases where this is exceeded. This is the initial
  * size of the hash table for uma_slabs that are managed off page. This hash
  * does expand by powers of two.  Currently it doesn't get smaller.
