@@ -157,8 +157,8 @@ cpuinfo_init(void)
 	cpuinfo.icache_line_mask = cpuinfo.icache_line_size - 1;
 
 	/* Fill AT_HWCAP bits. */
-	elf_hwcap |= HWCAP_HALF | HWCAP_FAST_MULT; /* Requierd for all CPUs */
-	elf_hwcap |= HWCAP_TLS | HWCAP_EDSP;	   /* Requierd for v6+ CPUs */
+	elf_hwcap |= HWCAP_HALF | HWCAP_FAST_MULT; /* Required for all CPUs */
+	elf_hwcap |= HWCAP_TLS | HWCAP_EDSP;	   /* Required for v6+ CPUs */
 
 	tmp = (cpuinfo.id_isar0 >> 24) & 0xF;	/* Divide_instrs */
 	if (tmp >= 1)
