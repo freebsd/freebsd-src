@@ -1624,7 +1624,7 @@ ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	}
 
 	/* STA, AHDEMO? */
-	if (opmode == IEEE80211_M_HOSTAP || opmode == IEEE80211_M_MBSS) {
+	if (opmode == IEEE80211_M_HOSTAP || opmode == IEEE80211_M_MBSS || opmode == IEEE80211_M_STA) {
 		assign_address(sc, mac, flags & IEEE80211_CLONE_BSSID);
 		ath_hal_setbssidmask(sc->sc_ah, sc->sc_hwbssidmask);
 	}
@@ -1858,6 +1858,7 @@ ath_vap_delete(struct ieee80211vap *vap)
 		if (sc->sc_nstavaps == 0 && sc->sc_swbmiss)
 			sc->sc_swbmiss = 0;
 	} else if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
+	    vap->iv_opmode == IEEE80211_M_STA ||
 	    vap->iv_opmode == IEEE80211_M_MBSS) {
 		reclaim_address(sc, vap->iv_myaddr);
 		ath_hal_setbssidmask(ah, sc->sc_hwbssidmask);
