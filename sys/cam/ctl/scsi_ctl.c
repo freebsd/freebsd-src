@@ -459,7 +459,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 	struct ctlfe_lun_softc *softc;
 	union ccb ccb;
 	cam_status status;
-	int i;
+	int i, acstatus;
 
 	softc = (struct ctlfe_lun_softc *)arg;
 	bus_softc = softc->parent_softc;
@@ -539,11 +539,11 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		}
 	}
 
-	status = cam_periph_acquire(periph);
-	if ((status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+	acstatus = cam_periph_acquire(periph);
+	if (acstatus != 0) {
 		xpt_print(periph->path, "%s: could not acquire reference "
-			  "count, status = %#x\n", __func__, status);
-		return (status);
+			  "count, status = %#x\n", __func__, acstatus);
+		return (CAM_REQ_CMP_ERR);
 	}
 
 	if (i == 0) {

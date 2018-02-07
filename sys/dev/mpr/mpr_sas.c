@@ -728,7 +728,7 @@ mpr_attach_sas(struct mpr_softc *sc)
 {
 	struct mprsas_softc *sassc;
 	cam_status status;
-	int unit, error = 0;
+	int unit, error = 0, reqs;
 
 	MPR_FUNCTRACE(sc);
 	mpr_dprint(sc, MPR_INIT, "%s entered\n", __func__);
@@ -758,7 +758,8 @@ mpr_attach_sas(struct mpr_softc *sc)
 	sc->sassc = sassc;
 	sassc->sc = sc;
 
-	if ((sassc->devq = cam_simq_alloc(sc->num_reqs)) == NULL) {
+	reqs = sc->num_reqs - sc->num_prireqs - 1;
+	if ((sassc->devq = cam_simq_alloc(reqs)) == NULL) {
 		mpr_dprint(sc, MPR_INIT|MPR_ERROR, "Cannot allocate SIMQ\n");
 		error = ENOMEM;
 		goto out;
@@ -766,7 +767,7 @@ mpr_attach_sas(struct mpr_softc *sc)
 
 	unit = device_get_unit(sc->mpr_dev);
 	sassc->sim = cam_sim_alloc(mprsas_action, mprsas_poll, "mpr", sassc,
-	    unit, &sc->mpr_mtx, sc->num_reqs, sc->num_reqs, sassc->devq);
+	    unit, &sc->mpr_mtx, reqs, reqs, sassc->devq);
 	if (sassc->sim == NULL) {
 		mpr_dprint(sc, MPR_INIT|MPR_ERROR, "Cannot allocate SIM\n");
 		error = EINVAL;

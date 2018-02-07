@@ -1250,9 +1250,9 @@ dev/bhnd/bhndb/bhndb.c			optional bhndb bhnd
 dev/bhnd/bhndb/bhndb_bus_if.m		optional bhndb bhnd
 dev/bhnd/bhndb/bhndb_hwdata.c		optional bhndb bhnd
 dev/bhnd/bhndb/bhndb_if.m		optional bhndb bhnd
-dev/bhnd/bhndb/bhndb_pci.c		optional bhndb bhnd pci
-dev/bhnd/bhndb/bhndb_pci_hwdata.c 	optional bhndb bhnd pci
-dev/bhnd/bhndb/bhndb_pci_sprom.c	optional bhndb bhnd pci
+dev/bhnd/bhndb/bhndb_pci.c		optional bhndb_pci bhndb bhnd pci
+dev/bhnd/bhndb/bhndb_pci_hwdata.c 	optional bhndb_pci bhndb bhnd pci
+dev/bhnd/bhndb/bhndb_pci_sprom.c	optional bhndb_pci bhndb bhnd pci
 dev/bhnd/bhndb/bhndb_subr.c		optional bhndb bhnd
 dev/bhnd/bcma/bcma.c			optional bcma bhnd
 dev/bhnd/bcma/bcma_bhndb.c		optional bcma bhnd bhndb
@@ -1327,19 +1327,16 @@ dev/bwi/bwirf.c			optional bwi
 dev/bwi/if_bwi.c		optional bwi
 dev/bwi/if_bwi_pci.c		optional bwi pci
 # XXX Work around clang warnings, until maintainer approves fix.
-dev/bwn/if_bwn.c		optional bwn siba_bwn \
+dev/bwn/if_bwn.c		optional bwn bhnd \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
-dev/bwn/if_bwn_bhnd.c		optional bwn bhnd
-dev/bwn/if_bwn_pci.c		optional bwn pci bhnd bhndb
-dev/bwn/if_bwn_phy_common.c	optional bwn siba_bwn
-dev/bwn/if_bwn_phy_g.c		optional bwn siba_bwn \
+dev/bwn/if_bwn_pci.c		optional bwn pci bhnd bhndb bhndb_pci
+dev/bwn/if_bwn_phy_common.c	optional bwn bhnd
+dev/bwn/if_bwn_phy_g.c		optional bwn bhnd \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED} ${NO_WCONSTANT_CONVERSION}"
-dev/bwn/if_bwn_phy_lp.c		optional bwn siba_bwn \
+dev/bwn/if_bwn_phy_lp.c		optional bwn bhnd \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
-dev/bwn/if_bwn_phy_n.c		optional bwn siba_bwn
-dev/bwn/if_bwn_siba.c		optional bwn siba_bwn
-dev/bwn/if_bwn_siba_compat.c	optional bwn bhnd !bwn_use_siba
-dev/bwn/if_bwn_util.c		optional bwn siba_bwn
+dev/bwn/if_bwn_phy_n.c		optional bwn bhnd
+dev/bwn/if_bwn_util.c		optional bwn bhnd
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
@@ -3020,8 +3017,6 @@ dev/sdhci/sdhci_acpi.c		optional sdhci acpi
 dev/sdhci/sdhci_pci.c		optional sdhci pci
 dev/sf/if_sf.c			optional sf pci
 dev/sge/if_sge.c		optional sge pci
-dev/siba/siba_bwn.c		optional siba_bwn pci
-dev/siba/siba_core.c		optional siba_bwn pci
 dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
 dev/sk/if_sk.c			optional sk pci

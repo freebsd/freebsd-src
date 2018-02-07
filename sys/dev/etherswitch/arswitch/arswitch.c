@@ -484,6 +484,41 @@ ar8xxx_atu_learn_default(struct arswitch_softc *sc)
  */
 
 /*
+ * Fetch the configured switch MAC address.
+ */
+static int
+ar8xxx_hw_get_switch_macaddr(struct arswitch_softc *sc, struct ether_addr *ea)
+{
+	uint32_t ret0, ret1;
+	char *s;
+
+	s = (void *) ea;
+
+	ret0 = arswitch_readreg(sc->sc_dev, AR8X16_REG_SW_MAC_ADDR0);
+	ret1 = arswitch_readreg(sc->sc_dev, AR8X16_REG_SW_MAC_ADDR1);
+
+	s[5] = MS(ret0, AR8X16_REG_SW_MAC_ADDR0_BYTE5);
+	s[4] = MS(ret0, AR8X16_REG_SW_MAC_ADDR0_BYTE4);
+	s[3] = MS(ret1, AR8X16_REG_SW_MAC_ADDR1_BYTE3);
+	s[2] = MS(ret1, AR8X16_REG_SW_MAC_ADDR1_BYTE2);
+	s[1] = MS(ret1, AR8X16_REG_SW_MAC_ADDR1_BYTE1);
+	s[0] = MS(ret1, AR8X16_REG_SW_MAC_ADDR1_BYTE0);
+
+	return (0);
+}
+
+/*
+ * Set the switch mac address.
+ */
+static int
+ar8xxx_hw_set_switch_macaddr(struct arswitch_softc *sc,
+    const struct ether_addr *ea)
+{
+
+	return (ENXIO);
+}
+
+/*
  * XXX TODO: this attach routine does NOT free all memory, resources
  * upon failure!
  */
@@ -527,6 +562,8 @@ arswitch_attach(device_t dev)
 	sc->hal.arswitch_port_vlan_setup = ar8xxx_port_vlan_setup;
 	sc->hal.arswitch_port_vlan_get = ar8xxx_port_vlan_get;
 	sc->hal.arswitch_vlan_init_hw = ar8xxx_reset_vlans;
+	sc->hal.arswitch_hw_get_switch_macaddr = ar8xxx_hw_get_switch_macaddr;
+	sc->hal.arswitch_hw_set_switch_macaddr = ar8xxx_hw_set_switch_macaddr;
 
 	sc->hal.arswitch_vlan_getvgroup = ar8xxx_getvgroup;
 	sc->hal.arswitch_vlan_setvgroup = ar8xxx_setvgroup;
@@ -1115,12 +1152,20 @@ static int
 arswitch_getconf(device_t dev, etherswitch_conf_t *conf)
 {
 	struct arswitch_softc *sc;
+	int ret;
 
 	sc = device_get_softc(dev);
 
 	/* Return the VLAN mode. */
 	conf->cmd = ETHERSWITCH_CONF_VLAN_MODE;
 	conf->vlan_mode = sc->vlan_mode;
+
+	/* Return the switch ethernet address. */
+	ret = sc->hal.arswitch_hw_get_switch_macaddr(sc,
+	    &conf->switch_macaddr);
+	if (ret == 0) {
+		conf->cmd |= ETHERSWITCH_CONF_SWITCH_MACADDR;
+	}
 
 	return (0);
 }
@@ -1139,6 +1184,8 @@ arswitch_setconf(device_t dev, etherswitch_conf_t *conf)
 		if (err != 0)
 			return (err);
 	}
+
+	/* TODO: Set the switch ethernet address. */
 
 	return (0);
 }

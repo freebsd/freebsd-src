@@ -263,6 +263,16 @@ struct mps_event_handle {
 	u32				mask[MPI2_EVENT_NOTIFY_EVENTMASK_WORDS];
 };
 
+struct mps_busdma_context {
+	int				completed;
+	int				abandoned;
+	int				error;
+	bus_addr_t			*addr;
+	struct mps_softc		*softc;
+	bus_dmamap_t			buffer_dmamap;
+	bus_dma_tag_t			buffer_dmat;
+};
+
 struct mps_queue {
 	struct mps_softc		*sc;
 	int				qnum;
@@ -297,6 +307,8 @@ struct mps_softc {
 #define	MPS_FLAGS_REALLOCATED	(1 << 7)
 	u_int				mps_debug;
 	u_int				msi_msgs;
+	u_int				reqframesz;
+	u_int				replyframesz;
 	int				tm_cmds_active;
 	int				io_cmds_active;
 	int				io_cmds_highwater;
@@ -335,6 +347,7 @@ struct mps_softc {
 
 	MPI2_IOC_FACTS_REPLY		*facts;
 	int				num_reqs;
+	int				num_prireqs;
 	int				num_replies;
 	int				fqdepth;	/* Free queue */
 	int				pqdepth;	/* Post queue */
@@ -719,6 +732,7 @@ int mps_detach_sas(struct mps_softc *sc);
 int mps_read_config_page(struct mps_softc *, struct mps_config_params *);
 int mps_write_config_page(struct mps_softc *, struct mps_config_params *);
 void mps_memaddr_cb(void *, bus_dma_segment_t *, int , int );
+void mps_memaddr_wait_cb(void *, bus_dma_segment_t *, int , int );
 void mpi_init_sge(struct mps_command *cm, void *req, void *sge);
 int mps_attach_user(struct mps_softc *);
 void mps_detach_user(struct mps_softc *);

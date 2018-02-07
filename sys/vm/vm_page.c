@@ -119,6 +119,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/vm_domainset.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
@@ -132,6 +133,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma_int.h>
 
 #include <machine/md_var.h>
+
+extern int	uma_startup_count(int);
+extern void	uma_startup(void *, int);
+extern int	vmem_startup_count(void);
 
 /*
  *	Associated with page of user-allocatable memory is a
@@ -159,7 +164,7 @@ vm_page_t vm_page_array;
 long vm_page_array_size;
 long first_page;
 
-static int boot_pages = UMA_BOOT_PAGES;
+static int boot_pages;
 SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &boot_pages, 0,
     "number of pages allocated for bootstrapping the VM system");
@@ -514,7 +519,7 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_paddr_t end, high_avail, low_avail, new_end, page_range, size;
 	vm_paddr_t biggestsize, last_pa, pa;
 	u_long pagecount;
-	int biggestone, i, pages_per_zone, segind;
+	int biggestone, i, segind;
 
 	biggestsize = 0;
 	biggestone = 0;
@@ -544,23 +549,31 @@ vm_page_startup(vm_offset_t vaddr)
 		vm_page_domain_init(i);
 
 	/*
-	 * Almost all of the pages needed for bootstrapping UMA are used
-	 * for zone structures, so if the number of CPUs results in those
-	 * structures taking more than one page each, we set aside more pages
-	 * in proportion to the zone structure size.
+	 * Allocate memory for use when boot strapping the kernel memory
+	 * allocator.  Tell UMA how many zones we are going to create
+	 * before going fully functional.  UMA will add its zones.
 	 */
-	pages_per_zone = howmany(sizeof(struct uma_zone) +
-	    sizeof(struct uma_cache) * (mp_maxid + 1) +
-	    roundup2(sizeof(struct uma_slab), sizeof(void *)), UMA_SLAB_SIZE);
-	if (pages_per_zone > 1) {
-		/* Reserve more pages so that we don't run out. */
-		boot_pages = UMA_BOOT_PAGES_ZONES * pages_per_zone;
-	}
+#ifdef UMA_MD_SMALL_ALLOC
+	boot_pages = uma_startup_count(0);
+#else
+	/*
+	 * VM startup zones: vmem, vmem_btag, VM OBJECT, RADIX NODE, MAP,
+	 * KMAP ENTRY, MAP ENTRY, VMSPACE.
+	 */
+	boot_pages = uma_startup_count(8);
+
+	/* vmem_startup() calls uma_prealloc(). */
+	boot_pages += vmem_startup_count();
+	/* vm_map_startup() calls uma_prealloc(). */
+	boot_pages += howmany(MAX_KMAP, UMA_SLAB_SIZE / sizeof(struct vm_map));
 
 	/*
-	 * Allocate memory for use when boot strapping the kernel memory
-	 * allocator.
-	 *
+	 * Before going fully functional kmem_init() does allocation
+	 * from "KMAP ENTRY" and vmem_create() does allocation from "vmem".
+	 */
+	boot_pages += 2;
+#endif
+	/*
 	 * CTFLAG_RDTUN doesn't work during the early boot process, so we must
 	 * manually fetch the value.
 	 */

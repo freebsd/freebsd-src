@@ -518,7 +518,6 @@ passasync(void *callback_arg, u_int32_t code,
 		buftype = (uintptr_t)arg;
 		if (buftype == CDAI_TYPE_PHYS_PATH) {
 			struct pass_softc *softc;
-			cam_status status;
 
 			softc = (struct pass_softc *)periph->softc;
 			/*
@@ -527,8 +526,7 @@ passasync(void *callback_arg, u_int32_t code,
 			 * a situation where the periph goes away before
 			 * the task queue has a chance to run.
 			 */
-			status = cam_periph_acquire(periph);
-			if (status != CAM_REQ_CMP)
+			if (cam_periph_acquire(periph) != 0)
 				break;
 
 			taskqueue_enqueue(taskqueue_thread,
@@ -626,7 +624,7 @@ passregister(struct cam_periph *periph, void *arg)
 	 * Acquire a reference to the periph that we can release once we've
 	 * cleaned up the kqueue.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -638,7 +636,7 @@ passregister(struct cam_periph *periph, void *arg)
 	 * instance for it.  We'll release this reference once the devfs
 	 * instance has been freed.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -665,7 +663,7 @@ passregister(struct cam_periph *periph, void *arg)
 	 * Hold a reference to the periph before we create the physical
 	 * path alias so it can't go away.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -705,7 +703,7 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	int error;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) != 0)
 		return (ENXIO);
 
 	cam_periph_lock(periph);

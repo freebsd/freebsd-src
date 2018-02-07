@@ -8,6 +8,7 @@ DTS=	\
 	sun5i-r8-chip.dts \
 	sun7i-a20-bananapi.dts \
 	sun7i-a20-cubieboard2.dts \
+	sun7i-a20-lamobo-r1.dts \
 	sun7i-a20-olimex-som-evb.dts \
 	sun7i-a20-pcduino3.dts \
 	sun8i-a83t-bananapi-m3.dts \

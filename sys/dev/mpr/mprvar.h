@@ -265,6 +265,16 @@ struct mpr_event_handle {
 	uint8_t				mask[16];
 };
 
+struct mpr_busdma_context {
+	int				completed;
+	int				abandoned;
+	int				error;
+	bus_addr_t			*addr;
+	struct mpr_softc		*softc;
+	bus_dmamap_t			buffer_dmamap;
+	bus_dma_tag_t			buffer_dmat;
+};
+
 struct mpr_queue {
 	struct mpr_softc		*sc;
 	int				qnum;
@@ -299,6 +309,8 @@ struct mpr_softc {
 #define	MPR_FLAGS_REALLOCATED	(1 << 7)
 	u_int				mpr_debug;
 	int				msi_msgs;
+	u_int				reqframesz;
+	u_int				replyframesz;
 	u_int				atomic_desc_capable;
 	int				tm_cmds_active;
 	int				io_cmds_active;
@@ -347,6 +359,7 @@ struct mpr_softc {
 
 	MPI2_IOC_FACTS_REPLY		*facts;
 	int				num_reqs;
+	int				num_prireqs;
 	int				num_replies;
 	int				fqdepth;	/* Free queue */
 	int				pqdepth;	/* Post queue */
@@ -752,6 +765,7 @@ int mpr_detach_sas(struct mpr_softc *sc);
 int mpr_read_config_page(struct mpr_softc *, struct mpr_config_params *);
 int mpr_write_config_page(struct mpr_softc *, struct mpr_config_params *);
 void mpr_memaddr_cb(void *, bus_dma_segment_t *, int , int );
+void mpr_memaddr_wait_cb(void *, bus_dma_segment_t *, int , int );
 void mpr_init_sge(struct mpr_command *cm, void *req, void *sge);
 int mpr_attach_user(struct mpr_softc *);
 void mpr_detach_user(struct mpr_softc *);

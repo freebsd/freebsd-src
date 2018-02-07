@@ -44,7 +44,6 @@ _INTERNALLIBS=	\
 		parse \
 		pe \
 		pmcstat \
-		readline \
 		sl \
 		sm \
 		smdb \
@@ -147,7 +146,6 @@ _LIBRARIES=	\
 		procstat \
 		pthread \
 		radius \
-		readline \
 		regex \
 		roken \
 		rpcsec_gss \
@@ -290,7 +288,6 @@ _DP_pam+=	ssh
 .if ${MK_NIS} != "no"
 _DP_pam+=	ypclnt
 .endif
-_DP_readline=	ncursesw
 _DP_roken=	crypt
 _DP_kadm5clnt=	com_err krb5 roken
 _DP_kadm5srv=	com_err hdb krb5 roken
@@ -413,9 +410,6 @@ LIBELFTC?=	${LIBELFTCDIR}/libelftc.a
 
 LIBPEDIR=	${OBJTOP}/lib/libpe
 LIBPE?=		${LIBPEDIR}/libpe.a
-
-LIBREADLINEDIR=	${OBJTOP}/gnu/lib/libreadline/readline
-LIBREADLINE?=	${LIBREADLINEDIR}/libreadline.a
 
 LIBOPENBSDDIR=	${OBJTOP}/lib/libopenbsd
 LIBOPENBSD?=	${LIBOPENBSDDIR}/libopenbsd.a

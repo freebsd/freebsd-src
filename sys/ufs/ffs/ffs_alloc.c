@@ -2667,9 +2667,18 @@ ffs_getcg(fs, devvp, cg, bpp, cgpp)
 	}
 	bp->b_flags &= ~B_CKHASH;
 	bp->b_xflags |= BX_BKGRDWRITE;
+	/*
+	 * If we are using check hashes on the cylinder group then we want
+	 * to limit changing the cylinder group time to when we are actually
+	 * going to write it to disk so that its check hash remains correct
+	 * in memory. If the CK_CYLGRP flag is set the time is updated in
+	 * ffs_bufwrite() as the buffer is queued for writing. Otherwise we
+	 * update the time here as we have done historically.
+	 */
 	if ((fs->fs_metackhash & CK_CYLGRP) != 0)
 		bp->b_xflags |= BX_CYLGRP;
-	cgp->cg_old_time = cgp->cg_time = time_second;
+	else
+		cgp->cg_old_time = cgp->cg_time = time_second;
 	*bpp = bp;
 	*cgpp = cgp;
 	return (0);
