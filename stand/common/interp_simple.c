@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 static int
 perform(int argc, char *argv[])
 {
-	int				result;
+	int			result;
 	struct bootblk_command	**cmdp;
 	bootblk_cmd_t		*cmd;
 
@@ -78,8 +78,8 @@ interp_init(void)
 int
 interp_run(const char *input)
 {
-	int		argc;
-	char		**argv;
+	int			argc;
+	char			**argv;
 
 	if (parse(&argc, &argv, input)) {
 		printf("parse error\n");
