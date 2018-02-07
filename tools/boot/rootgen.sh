@@ -303,7 +303,7 @@ qemu_i386_both()
 
 # Misc variables
 SRCTOP=$(make -v SRCTOP)
-cd ${SRCTOP}/stand
+cd ${SRCTOP}/sys/boot
 OBJDIR=$(make -v .OBJDIR)
 IMGDIR=${OBJDIR}/boot-images
 mkdir -p ${IMGDIR}
