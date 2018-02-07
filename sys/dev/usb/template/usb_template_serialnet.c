@@ -456,4 +456,4 @@ serialnet_uninit(void *arg __unused)
 }
 
 SYSINIT(serialnet_init, SI_SUB_LOCK, SI_ORDER_FIRST, serialnet_init, NULL);
-SYSUNINIT(serialnet_init, SI_SUB_LOCK, SI_ORDER_FIRST, serialnet_uninit, NULL);
+SYSUNINIT(serialnet_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, serialnet_uninit, NULL);
