@@ -129,6 +129,14 @@ have_sort_left(void)
 
 #endif /* SORT_THREADS */
 
+static void
+_push_ls(struct level_stack *ls)
+{
+
+	ls->next = g_ls;
+	g_ls = ls;
+}
+
 /*
  * Push sort level to the stack
  */
@@ -141,22 +149,14 @@ push_ls(struct sort_level *sl)
 	new_ls->sl = sl;
 
 #if defined(SORT_THREADS)
-	if (nthreads > 1)
+	if (nthreads > 1) {
 		pthread_mutex_lock(&g_ls_mutex);
-#endif
-
-	new_ls->next = g_ls;
-	g_ls = new_ls;
-
-#if defined(SORT_THREADS)
-	if (nthreads > 1)
+		_push_ls(new_ls);
 		pthread_cond_signal(&g_ls_cond);
-#endif
-
-#if defined(SORT_THREADS)
-	if (nthreads > 1)
 		pthread_mutex_unlock(&g_ls_mutex);
+	} else
 #endif
+		_push_ls(new_ls);
 }
 
 /*
