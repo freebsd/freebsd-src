@@ -1387,8 +1387,7 @@ ipfw_chk(struct ip_fw_args *args)
 	 * 	MATCH_NONE when checked and not matched (q = NULL),
 	 *	MATCH_FORWARD or MATCH_REVERSE otherwise (q != NULL)
 	 */
-	int dyn_dir = MATCH_UNKNOWN;
-	uint16_t dyn_name = 0;
+	struct ipfw_dyn_info dyn_info;
 	struct ip_fw *q = NULL;
 	struct ip_fw_chain *chain = &V_layer3_chain;
 
@@ -1420,6 +1419,7 @@ ipfw_chk(struct ip_fw_args *args)
 	proto = args->f_id.proto = 0;	/* mark f_id invalid */
 		/* XXX 0 is a valid proto: IP/IPv6 Hop-by-Hop Option */
 
+	DYN_INFO_INIT(&dyn_info);
 /*
  * PULLUP_TO(len, p, T) makes sure that len + sizeof(T) is contiguous,
  * then it sets p to point at the offset "len" in the mbuf. WARNING: the
@@ -2605,7 +2605,8 @@ do {								\
 			case O_LIMIT:
 			case O_KEEP_STATE:
 				if (ipfw_dyn_install_state(chain, f,
-				    (ipfw_insn_limit *)cmd, args, tablearg)) {
+				    (ipfw_insn_limit *)cmd, args, ulp,
+				    pktlen, &dyn_info, tablearg)) {
 					/* error or limit violation */
 					retval = IP_FW_DENY;
 					l = 0;	/* exit inner loop */
@@ -2619,34 +2620,15 @@ do {								\
 				/*
 				 * dynamic rules are checked at the first
 				 * keep-state or check-state occurrence,
-				 * with the result being stored in dyn_dir
-				 * and dyn_name.
+				 * with the result being stored in dyn_info.
 				 * The compiler introduces a PROBE_STATE
 				 * instruction for us when we have a
 				 * KEEP_STATE (because PROBE_STATE needs
 				 * to be run first).
-				 *
-				 * (dyn_dir == MATCH_UNKNOWN) means this is
-				 * first lookup for such f_id. Do lookup.
-				 *
-				 * (dyn_dir != MATCH_UNKNOWN &&
-				 *  dyn_name != 0 && dyn_name != cmd->arg1)
-				 * means previous lookup didn't find dynamic
-				 * rule for specific state name and current
-				 * lookup will search rule with another state
-				 * name. Redo lookup.
-				 *
-				 * (dyn_dir != MATCH_UNKNOWN && dyn_name == 0)
-				 * means previous lookup was for `any' name
-				 * and it didn't find rule. No need to do
-				 * lookup again.
 				 */
-				if ((dyn_dir == MATCH_UNKNOWN ||
-				    (dyn_name != 0 &&
-				    dyn_name != cmd->arg1)) &&
-				    (q = ipfw_dyn_lookup_state(&args->f_id,
-				     ulp, pktlen, &dyn_dir,
-				     (dyn_name = cmd->arg1))) != NULL) {
+				if (DYN_LOOKUP_NEEDED(&dyn_info, cmd) &&
+				    (q = ipfw_dyn_lookup_state(args, ulp,
+				    pktlen, cmd, &dyn_info)) != NULL) {
 					/*
 					 * Found dynamic entry, jump to the
 					 * 'action' part of the parent rule
@@ -2654,13 +2636,7 @@ do {								\
 					 * cmdlen.
 					 */
 					f = q;
-					/* XXX we would like to have f_pos
-					 * readily accessible in the dynamic
-				         * rule, instead of having to
-					 * lookup q->rule.
-					 */
-					f_pos = ipfw_find_rule(chain,
-					    f->rulenum, f->id);
+					f_pos = dyn_info.f_pos;
 					cmd = ACTION_PTR(f);
 					l = f->cmd_len - f->act_ofs;
 					cmdlen = 0;
@@ -2877,7 +2853,8 @@ do {								\
 			case O_FORWARD_IP:
 				if (args->eh)	/* not valid on layer2 pkts */
 					break;
-				if (q != f || dyn_dir == MATCH_FORWARD) {
+				if (q != f ||
+				    dyn_info.direction == MATCH_FORWARD) {
 				    struct sockaddr_in *sa;
 
 				    sa = &(((ipfw_insn_sa *)cmd)->sa);
@@ -2937,7 +2914,8 @@ do {								\
 			case O_FORWARD_IP6:
 				if (args->eh)	/* not valid on layer2 pkts */
 					break;
-				if (q != f || dyn_dir == MATCH_FORWARD) {
+				if (q != f ||
+				    dyn_info.direction == MATCH_FORWARD) {
 					struct sockaddr_in6 *sin6;
 
 					sin6 = &(((ipfw_insn_sa6 *)cmd)->sa);
@@ -3089,7 +3067,7 @@ do {								\
 					 * @args content, and it may be
 					 * used for new state lookup later.
 					 */
-					dyn_dir = MATCH_UNKNOWN;
+					DYN_INFO_INIT(&dyn_info);
 				}
 				break;
 
