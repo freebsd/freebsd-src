@@ -29,8 +29,6 @@
 #ifndef _MKIMG_SCHEME_H_
 #define	_MKIMG_SCHEME_H_
 
-#include <sys/linker_set.h>
-
 enum alias {
 	ALIAS_NONE,		/* Keep first! */
 	/* start */
@@ -62,6 +60,7 @@ struct mkimg_alias {
 };
 
 struct mkimg_scheme {
+	struct mkimg_scheme *next;
 	const char	*name;
 	const char	*description;
 	struct mkimg_alias *aliases;
@@ -77,9 +76,12 @@ struct mkimg_scheme {
 	u_int		maxsecsz;
 };
 
-SET_DECLARE(schemes, struct mkimg_scheme);
-#define	SCHEME_DEFINE(nm)	DATA_SET(schemes, nm)
+#define	SCHEME_DEFINE(nm)						\
+static void scheme_register_##nm(void) __attribute__((constructor));	\
+static void scheme_register_##nm(void) { scheme_register(&nm); }
 
+struct mkimg_scheme *scheme_iterate(struct mkimg_scheme *);
+void	scheme_register(struct mkimg_scheme *);
 int	scheme_select(const char *);
 struct mkimg_scheme *scheme_selected(void);
 

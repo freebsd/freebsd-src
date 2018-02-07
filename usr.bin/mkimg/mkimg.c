@@ -27,17 +27,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/linker_set.h>
-#include <sys/queue.h>
+#include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/uuid.h>
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <libutil.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,20 +47,23 @@ __FBSDID("$FreeBSD$");
 #include "mkimg.h"
 #include "scheme.h"
 
-#define	LONGOPT_FORMATS	0x01000001
-#define	LONGOPT_SCHEMES	0x01000002
-#define	LONGOPT_VERSION	0x01000003
+#define	LONGOPT_FORMATS		0x01000001
+#define	LONGOPT_SCHEMES		0x01000002
+#define	LONGOPT_VERSION		0x01000003
+#define	LONGOPT_CAPACITY	0x01000004
 
 static struct option longopts[] = {
 	{ "formats", no_argument, NULL, LONGOPT_FORMATS },
 	{ "schemes", no_argument, NULL, LONGOPT_SCHEMES },
 	{ "version", no_argument, NULL, LONGOPT_VERSION },
+	{ "capacity", required_argument, NULL, LONGOPT_CAPACITY },
 	{ NULL, 0, NULL, 0 }
 };
 
-static uint64_t capacity;
+static uint64_t min_capacity = 0;
+static uint64_t max_capacity = 0;
 
-struct partlisthead partlist = STAILQ_HEAD_INITIALIZER(partlist);
+struct partlisthead partlist = TAILQ_HEAD_INITIALIZER(partlist);
 u_int nparts = 0;
 
 u_int unit_testing;
@@ -73,24 +74,25 @@ u_int nheads = 1;
 u_int nsecs = 1;
 u_int secsz = 512;
 u_int blksz = 0;
+uint32_t active_partition = 0;
 
 static void
 print_formats(int usage)
 {
-	struct mkimg_format *f, **f_iter;
+	struct mkimg_format *f;
 	const char *sep;
 
 	if (usage) {
 		fprintf(stderr, "    formats:\n");
-		SET_FOREACH(f_iter, formats) {
-			f = *f_iter;
+		f = NULL;
+		while ((f = format_iterate(f)) != NULL) {
 			fprintf(stderr, "\t%s\t-  %s\n", f->name,
 			    f->description);
 		}
 	} else {
 		sep = "";
-		SET_FOREACH(f_iter, formats) {
-			f = *f_iter;
+		f = NULL;
+		while ((f = format_iterate(f)) != NULL) {
 			printf("%s%s", sep, f->name);
 			sep = " ";
 		}
@@ -101,20 +103,20 @@ print_formats(int usage)
 static void
 print_schemes(int usage)
 {
-	struct mkimg_scheme *s, **s_iter;
+	struct mkimg_scheme *s;
 	const char *sep;
 
 	if (usage) {
 		fprintf(stderr, "    schemes:\n");
-		SET_FOREACH(s_iter, schemes) {
-			s = *s_iter;
+		s = NULL;
+		while ((s = scheme_iterate(s)) != NULL) {
 			fprintf(stderr, "\t%s\t-  %s\n", s->name,
 			    s->description);
 		}
 	} else {
 		sep = "";
-		SET_FOREACH(s_iter, schemes) {
-			s = *s_iter;
+		s = NULL;
+		while ((s = scheme_iterate(s)) != NULL) {
 			printf("%s%s", sep, s->name);
 			sep = " ";
 		}
@@ -148,8 +150,10 @@ usage(const char *why)
 	fprintf(stderr, "\t--schemes\t-  list partition schemes\n");
 	fprintf(stderr, "\t--version\t-  show version information\n");
 	fputc('\n', stderr);
+	fprintf(stderr, "\t-a <num>\t-  mark num'th partion as active\n");
 	fprintf(stderr, "\t-b <file>\t-  file containing boot code\n");
-	fprintf(stderr, "\t-c <num>\t-  capacity (in bytes) of the disk\n");
+	fprintf(stderr, "\t-c <num>\t-  minimum capacity (in bytes) of the disk\n");
+	fprintf(stderr, "\t-C <num>\t-  maximum capacity (in bytes) of the disk\n");
 	fprintf(stderr, "\t-f <format>\n");
 	fprintf(stderr, "\t-o <file>\t-  file to write image into\n");
 	fprintf(stderr, "\t-p <partition>\n");
@@ -302,7 +306,7 @@ parse_part(const char *spec)
 	}
 
 	part->index = nparts;
-	STAILQ_INSERT_TAIL(&partlist, part, link);
+	TAILQ_INSERT_TAIL(&partlist, part, link);
 	nparts++;
 	return (0);
 
@@ -376,31 +380,20 @@ mkimg_chs(lba_t lba, u_int maxcyl, u_int *cylp, u_int *hdp, u_int *secp)
 	*secp = sec;
 }
 
-void
-mkimg_uuid(struct uuid *uuid)
-{
-	static uint8_t gen[sizeof(struct uuid)];
-	u_int i;
-
-	if (!unit_testing) {
-		uuidgen(uuid, 1);
-		return;
-	}
-
-	for (i = 0; i < sizeof(gen); i++)
-		gen[i]++;
-	memcpy(uuid, gen, sizeof(uuid_t));
-}
-
 static int
 capacity_resize(lba_t end)
 {
-	lba_t capsz;
+	lba_t min_capsz, max_capsz;
 
-	capsz = (capacity + secsz - 1) / secsz;
-	if (end >= capsz)
+	min_capsz = (min_capacity + secsz - 1) / secsz;
+	max_capsz = (max_capacity + secsz - 1) / secsz;
+
+	if (max_capsz != 0 && end > max_capsz)
+		return (ENOSPC);
+	if (end >= min_capsz)
 		return (0);
-	return (image_set_size(capsz));
+
+	return (image_set_size(min_capsz));
 }
 
 static void
@@ -413,14 +406,14 @@ mkimg(void)
 	int error, fd;
 
 	/* First check partition information */
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		error = scheme_check_part(part);
 		if (error)
 			errc(EX_DATAERR, error, "partition %d", part->index+1);
 	}
 
 	block = scheme_metadata(SCHEME_META_IMG_START, 0);
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		block = scheme_metadata(SCHEME_META_PART_BEFORE, block);
 		if (verbose)
 			fprintf(stderr, "partition %d: starting block %llu "
@@ -487,9 +480,14 @@ main(int argc, char *argv[])
 
 	bcfd = -1;
 	outfd = 1;	/* Write to stdout by default */
-	while ((c = getopt_long(argc, argv, "b:c:f:o:p:s:vyH:P:S:T:",
+	while ((c = getopt_long(argc, argv, "a:b:c:C:f:o:p:s:vyH:P:S:T:",
 	    longopts, NULL)) != -1) {
 		switch (c) {
+		case 'a':	/* ACTIVE PARTITION, if supported */
+			error = parse_uint32(&active_partition, 1, 100, optarg);
+			if (error)
+				errc(EX_DATAERR, error, "Partition ordinal");
+			break;
 		case 'b':	/* BOOT CODE */
 			if (bcfd != -1)
 				usage("multiple bootcode given");
@@ -497,10 +495,15 @@ main(int argc, char *argv[])
 			if (bcfd == -1)
 				err(EX_UNAVAILABLE, "%s", optarg);
 			break;
-		case 'c':	/* CAPACITY */
-			error = parse_uint64(&capacity, 1, OFF_MAX, optarg);
+		case 'c':	/* MINIMUM CAPACITY */
+			error = parse_uint64(&min_capacity, 1, INT64_MAX, optarg);
 			if (error)
-				errc(EX_DATAERR, error, "capacity in bytes");
+				errc(EX_DATAERR, error, "minimum capacity in bytes");
+			break;
+		case 'C':	/* MAXIMUM CAPACITY */
+			error = parse_uint64(&max_capacity, 1, INT64_MAX, optarg);
+			if (error)
+				errc(EX_DATAERR, error, "maximum capacity in bytes");
 			break;
 		case 'f':	/* OUTPUT FORMAT */
 			if (format_selected() != NULL)
@@ -571,6 +574,12 @@ main(int argc, char *argv[])
 			print_version();
 			exit(EX_OK);
 			/*NOTREACHED*/
+		case LONGOPT_CAPACITY:
+			error = parse_uint64(&min_capacity, 1, INT64_MAX, optarg);
+			if (error)
+				errc(EX_DATAERR, error, "capacity in bytes");
+			max_capacity = min_capacity;
+			break;
 		default:
 			usage("unknown option");
 		}
@@ -580,8 +589,10 @@ main(int argc, char *argv[])
 		usage("trailing arguments");
 	if (scheme_selected() == NULL && nparts > 0)
 		usage("no scheme");
-	if (nparts == 0 && capacity == 0)
+	if (nparts == 0 && min_capacity == 0)
 		usage("no partitions");
+	if (max_capacity != 0 && min_capacity > max_capacity)
+		usage("minimum capacity cannot be larger than the maximum one");
 
 	if (secsz > blksz) {
 		if (blksz != 0)
