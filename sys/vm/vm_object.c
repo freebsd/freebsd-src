@@ -1275,7 +1275,7 @@ next_page:
 		if (tm->valid != VM_PAGE_BITS_ALL)
 			goto next_pindex;
 		vm_page_lock(tm);
-		if (tm->hold_count != 0 || tm->wire_count != 0) {
+		if (vm_page_held(tm)) {
 			vm_page_unlock(tm);
 			goto next_pindex;
 		}
