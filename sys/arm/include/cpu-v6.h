@@ -65,10 +65,10 @@ extern int pmu_attched;
 #define _FX(s...) #s
 
 #define _RF0(fname, aname...)						\
-static __inline register_t						\
+static __inline uint32_t						\
 fname(void)								\
 {									\
-	register_t reg;							\
+	uint32_t reg;							\
 	__asm __volatile("mrc\t" _FX(aname): "=r" (reg));		\
 	return(reg);							\
 }
@@ -91,7 +91,7 @@ fname(void)								\
 
 #define _WF1(fname, aname...)						\
 static __inline void							\
-fname(register_t reg)							\
+fname(uint32_t reg)							\
 {									\
 	__asm __volatile("mcr\t" _FX(aname):: "r" (reg));		\
 }
