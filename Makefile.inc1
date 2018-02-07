@@ -85,8 +85,10 @@ MK_GCC_BOOTSTRAP=	no
 .-include "${OBJTOP}/compiler-metadata.mk"
 .endif
 
-# Pull in COMPILER_TYPE and COMPILER_FREEBSD_VERSION early.
-.include <bsd.compiler.mk>
+# Pull in COMPILER_TYPE and COMPILER_FREEBSD_VERSION early. Pull it from the
+# tree to be friendlier to foreign OS builds. It's safe to do so unconditionally
+# here since we will always have the right make, unlike in src/Makefile
+.include "share/mk/bsd.compiler.mk"
 .include "share/mk/src.opts.mk"
 
 # Check if there is a local compiler that can satisfy as an external compiler.
