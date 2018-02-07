@@ -27,6 +27,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/linker_set.h>
+#include <sys/queue.h>
 #include <sys/stat.h>
 #include <err.h>
 #include <errno.h>
@@ -39,23 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "format.h"
 #include "mkimg.h"
 
-static struct mkimg_format *first;
 static struct mkimg_format *format;
-
-struct mkimg_format *
-format_iterate(struct mkimg_format *f)
-{
-
-	return ((f == NULL) ? first : f->next);
-}
-
-void
-format_register(struct mkimg_format *f)
-{
-
-	f->next = first;
-	first = f;
-}
 
 int
 format_resize(lba_t end)
@@ -69,10 +56,10 @@ format_resize(lba_t end)
 int
 format_select(const char *spec)
 {
-	struct mkimg_format *f;
+	struct mkimg_format *f, **iter;
 
-	f = NULL;
-	while ((f = format_iterate(f)) != NULL) {
+	SET_FOREACH(iter, formats) {
+		f = *iter;
 		if (strcasecmp(spec, f->name) == 0) {
 			format = f;
 			return (0);

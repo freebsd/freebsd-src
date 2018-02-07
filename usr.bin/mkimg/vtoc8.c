@@ -27,19 +27,22 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
-#include <stdint.h>
+#include <sys/vtoc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include <sys/vtoc.h>
-
-#include "endian.h"
 #include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
+
+#ifndef VTOC_TAG_FREEBSD_NANDFS
+#define	VTOC_TAG_FREEBSD_NANDFS	0x0905
+#endif
 
 static struct mkimg_alias vtoc8_aliases[] = {
     {	ALIAS_FREEBSD_NANDFS, ALIAS_INT2TYPE(VTOC_TAG_FREEBSD_NANDFS) },
@@ -84,7 +87,7 @@ vtoc8_write(lba_t imgsz, void *bootcode __unused)
 	be16enc(&vtoc8.magic, VTOC_MAGIC);
 
 	be32enc(&vtoc8.map[VTOC_RAW_PART].nblks, imgsz);
-	TAILQ_FOREACH(part, &partlist, link) {
+	STAILQ_FOREACH(part, &partlist, link) {
 		n = part->index + ((part->index >= VTOC_RAW_PART) ? 1 : 0);
 		be16enc(&vtoc8.part[n].tag, ALIAS_TYPE2INT(part->type));
 		be32enc(&vtoc8.map[n].cyl, part->block / (nsecs * nheads));

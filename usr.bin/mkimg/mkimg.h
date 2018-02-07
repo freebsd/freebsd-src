@@ -30,10 +30,9 @@
 #define	_MKIMG_MKIMG_H_
 
 #include <sys/queue.h>
-#include <sys/types.h>
 
 struct part {
-	TAILQ_ENTRY(part) link;
+	STAILQ_ENTRY(part) link;
 	char	*alias;		/* Partition type alias. */
 	char	*contents;	/* Contents/size specification. */
 	u_int	kind;		/* Content kind. */
@@ -48,7 +47,7 @@ struct part {
 	char	*label;		/* Partition label. */
 };
 
-extern TAILQ_HEAD(partlisthead, part) partlist;
+extern STAILQ_HEAD(partlisthead, part) partlist;
 extern u_int nparts;
 
 extern u_int unit_testing;
@@ -59,7 +58,6 @@ extern u_int nheads;
 extern u_int nsecs;
 extern u_int secsz;	/* Logical block size. */
 extern u_int blksz;	/* Physical block size. */
-extern uint32_t active_partition;
 
 static inline lba_t
 round_block(lba_t n)
@@ -91,17 +89,7 @@ ssize_t sparse_write(int, const void *, size_t);
 
 void mkimg_chs(lba_t, u_int, u_int *, u_int *, u_int *);
 
-struct mkimg_uuid {
-	uint32_t	time_low;
-	uint16_t	time_mid;
-	uint16_t	time_hi_and_version;
-	uint8_t		clock_seq_hi_and_reserved;
-	uint8_t		clock_seq_low;
-	uint8_t		node[6];
-};
-typedef struct mkimg_uuid mkimg_uuid_t;
-
-void mkimg_uuid(mkimg_uuid_t *);
-void mkimg_uuid_enc(void *, const mkimg_uuid_t *);
+struct uuid;
+void mkimg_uuid(struct uuid *);
 
 #endif /* _MKIMG_MKIMG_H_ */

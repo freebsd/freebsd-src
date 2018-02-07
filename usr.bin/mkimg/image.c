@@ -28,7 +28,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/mman.h>
+#include <sys/queue.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
@@ -43,22 +45,8 @@ __FBSDID("$FreeBSD$");
 #include "image.h"
 #include "mkimg.h"
 
-#ifndef MAP_NOCORE
-#define	MAP_NOCORE	0
-#endif
-#ifndef MAP_NOSYNC
-#define	MAP_NOSYNC	0
-#endif
-
-#ifndef SEEK_DATA
-#define	SEEK_DATA	-1
-#endif
-#ifndef SEEK_HOLE
-#define	SEEK_HOLE	-1
-#endif
-
 struct chunk {
-	TAILQ_ENTRY(chunk) ch_list;
+	STAILQ_ENTRY(chunk) ch_list;
 	size_t	ch_size;		/* Size of chunk in bytes. */
 	lba_t	ch_block;		/* Block address in image. */
 	union {
@@ -76,7 +64,7 @@ struct chunk {
 #define	CH_TYPE_MEMORY		2	/* Memory-backed chunk */
 };
 
-static TAILQ_HEAD(chunk_head, chunk) image_chunks;
+static STAILQ_HEAD(chunk_head, chunk) image_chunks;
 static u_int image_nchunks;
 
 static char image_swap_file[PATH_MAX];
@@ -137,14 +125,14 @@ image_chunk_find(lba_t blk)
 	struct chunk *ch;
 
 	ch = (last != NULL && last->ch_block <= blk)
-	    ? last : TAILQ_FIRST(&image_chunks);
+	    ? last : STAILQ_FIRST(&image_chunks);
 	while (ch != NULL) {
 		if (ch->ch_block <= blk &&
 		    (lba_t)(ch->ch_block + (ch->ch_size / secsz)) > blk) {
 			last = ch;
 			break;
 		}
-		ch = TAILQ_NEXT(ch, ch_list);
+		ch = STAILQ_NEXT(ch, ch_list);
 	}
 	return (ch);
 }
@@ -186,7 +174,7 @@ image_chunk_memory(struct chunk *ch, lba_t blk)
 		ch->ch_size = (blk - ch->ch_block) * secsz;
 		new->ch_block = blk;
 		new->ch_size -= ch->ch_size;
-		TAILQ_INSERT_AFTER(&image_chunks, ch, new, ch_list);
+		STAILQ_INSERT_AFTER(&image_chunks, ch, new, ch_list);
 		image_nchunks++;
 		ch = new;
 	}
@@ -201,7 +189,7 @@ image_chunk_memory(struct chunk *ch, lba_t blk)
 		ch->ch_size = secsz;
 		new->ch_block++;
 		new->ch_size -= secsz;
-		TAILQ_INSERT_AFTER(&image_chunks, ch, new, ch_list);
+		STAILQ_INSERT_AFTER(&image_chunks, ch, new, ch_list);
 		image_nchunks++;
 	}
 
@@ -217,7 +205,7 @@ image_chunk_skipto(lba_t to)
 	lba_t from;
 	size_t sz;
 
-	ch = TAILQ_LAST(&image_chunks, chunk_head);
+	ch = STAILQ_LAST(&image_chunks, chunk, ch_list);
 	from = (ch != NULL) ? ch->ch_block + (ch->ch_size / secsz) : 0LL;
 
 	assert(from <= to);
@@ -242,7 +230,7 @@ image_chunk_skipto(lba_t to)
 	ch->ch_block = from;
 	ch->ch_size = sz;
 	ch->ch_type = CH_TYPE_ZEROES;
-	TAILQ_INSERT_TAIL(&image_chunks, ch, ch_list);
+	STAILQ_INSERT_TAIL(&image_chunks, ch, ch_list);
 	image_nchunks++;
 	return (0);
 }
@@ -252,7 +240,7 @@ image_chunk_append(lba_t blk, size_t sz, off_t ofs, int fd)
 {
 	struct chunk *ch;
 
-	ch = TAILQ_LAST(&image_chunks, chunk_head);
+	ch = STAILQ_LAST(&image_chunks, chunk, ch_list);
 	if (ch != NULL && ch->ch_type == CH_TYPE_FILE) {
 		if (fd == ch->ch_u.file.fd &&
 		    blk == (lba_t)(ch->ch_block + (ch->ch_size / secsz)) &&
@@ -273,7 +261,7 @@ image_chunk_append(lba_t blk, size_t sz, off_t ofs, int fd)
 	ch->ch_type = CH_TYPE_FILE;
 	ch->ch_u.file.ofs = ofs;
 	ch->ch_u.file.fd = fd;
-	TAILQ_INSERT_TAIL(&image_chunks, ch, ch_list);
+	STAILQ_INSERT_TAIL(&image_chunks, ch, ch_list);
 	image_nchunks++;
 	return (0);
 }
@@ -468,7 +456,8 @@ image_copyin_mapped(lba_t blk, int fd, uint64_t *sizep)
 			 * I don't know what this means or whether it
 			 * can happen at all...
 			 */
-			assert(0);
+			error = EDOOFUS;
+			break;
 		}
 	}
 	if (error)
@@ -594,13 +583,10 @@ image_copyout_region(int fd, lba_t blk, lba_t size)
 
 	size *= secsz;
 
-	error = 0;
-	while (!error && size > 0) {
+	while (size > 0) {
 		ch = image_chunk_find(blk);
-		if (ch == NULL) {
-			error = EINVAL;
-			break;
-		}
+		if (ch == NULL)
+			return (EINVAL);
 		ofs = (blk - ch->ch_block) * secsz;
 		sz = ch->ch_size - ofs;
 		sz = ((lba_t)sz < size) ? sz : (size_t)size;
@@ -616,12 +602,12 @@ image_copyout_region(int fd, lba_t blk, lba_t size)
 			error = image_copyout_memory(fd, sz, ch->ch_u.mem.ptr);
 			break;
 		default:
-			assert(0);
+			return (EDOOFUS);
 		}
 		size -= sz;
 		blk += sz / secsz;
 	}
-	return (error);
+	return (0);
 }
 
 int
@@ -696,7 +682,7 @@ image_cleanup(void)
 {
 	struct chunk *ch;
 
-	while ((ch = TAILQ_FIRST(&image_chunks)) != NULL) {
+	while ((ch = STAILQ_FIRST(&image_chunks)) != NULL) {
 		switch (ch->ch_type) {
 		case CH_TYPE_FILE:
 			/* We may be closing the same file multiple times. */
@@ -709,7 +695,7 @@ image_cleanup(void)
 		default:
 			break;
 		}
-		TAILQ_REMOVE(&image_chunks, ch, ch_list);
+		STAILQ_REMOVE_HEAD(&image_chunks, ch_list);
 		free(ch);
 	}
 	if (image_swap_fd != -1)
@@ -722,7 +708,7 @@ image_init(void)
 {
 	const char *tmpdir;
 
-	TAILQ_INIT(&image_chunks);
+	STAILQ_INIT(&image_chunks);
 	image_nchunks = 0;
 
 	image_swap_size = 0;

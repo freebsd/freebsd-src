@@ -27,18 +27,21 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/disklabel.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include <sys/disklabel.h>
-
-#include "endian.h"
 #include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
+
+#ifndef FS_NANDFS
+#define	FS_NANDFS	30
+#endif
 
 static struct mkimg_alias bsd_aliases[] = {
     {	ALIAS_FREEBSD_NANDFS, ALIAS_INT2TYPE(FS_NANDFS) },
@@ -54,7 +57,7 @@ bsd_metadata(u_int where, lba_t blk)
 {
 
 	if (where == SCHEME_META_IMG_START)
-		blk += BSD_BOOTBLOCK_SIZE / secsz;
+		blk += BBSIZE / secsz;
 	else if (where == SCHEME_META_IMG_END)
 		blk = round_cylinder(blk);
 	else
@@ -72,21 +75,21 @@ bsd_write(lba_t imgsz, void *bootcode)
 	int bsdparts, error, n;
 	uint16_t checksum;
 
-	buf = malloc(BSD_BOOTBLOCK_SIZE);
+	buf = malloc(BBSIZE);
 	if (buf == NULL)
 		return (ENOMEM);
 	if (bootcode != NULL) {
-		memcpy(buf, bootcode, BSD_BOOTBLOCK_SIZE);
+		memcpy(buf, bootcode, BBSIZE);
 		memset(buf + secsz, 0, sizeof(struct disklabel));
 	} else
-		memset(buf, 0, BSD_BOOTBLOCK_SIZE);
+		memset(buf, 0, BBSIZE);
 
 	bsdparts = nparts + 1;	/* Account for c partition */
-	if (bsdparts < BSD_NPARTS_MIN)
-		bsdparts = BSD_NPARTS_MIN;
+	if (bsdparts < MAXPARTITIONS)
+		bsdparts = MAXPARTITIONS;
 
 	d = (void *)(buf + secsz);
-	le32enc(&d->d_magic, BSD_MAGIC);
+	le32enc(&d->d_magic, DISKMAGIC);
 	le32enc(&d->d_secsize, secsz);
 	le32enc(&d->d_nsectors, nsecs);
 	le32enc(&d->d_ntracks, nheads);
@@ -94,14 +97,14 @@ bsd_write(lba_t imgsz, void *bootcode)
 	le32enc(&d->d_secpercyl, nsecs * nheads);
 	le32enc(&d->d_secperunit, imgsz);
 	le16enc(&d->d_rpm, 3600);
-	le32enc(&d->d_magic2, BSD_MAGIC);
+	le32enc(&d->d_magic2, DISKMAGIC);
 	le16enc(&d->d_npartitions, bsdparts);
-	le32enc(&d->d_bbsize, BSD_BOOTBLOCK_SIZE);
+	le32enc(&d->d_bbsize, BBSIZE);
 
-	dp = &d->d_partitions[BSD_PART_RAW];
+	dp = &d->d_partitions[RAW_PART];
 	le32enc(&dp->p_size, imgsz);
-	TAILQ_FOREACH(part, &partlist, link) {
-		n = part->index + ((part->index >= BSD_PART_RAW) ? 1 : 0);
+	STAILQ_FOREACH(part, &partlist, link) {
+		n = part->index + ((part->index >= RAW_PART) ? 1 : 0);
 		dp = &d->d_partitions[n];
 		le32enc(&dp->p_size, part->size);
 		le32enc(&dp->p_offset, part->block);
@@ -117,7 +120,7 @@ bsd_write(lba_t imgsz, void *bootcode)
 		checksum ^= le16dec(p);
 	le16enc(&d->d_checksum, checksum);
 
-	error = image_write(0, buf, BSD_BOOTBLOCK_SIZE / secsz);
+	error = image_write(0, buf, BBSIZE / secsz);
 	free(buf);
 	return (error);
 }
@@ -128,8 +131,8 @@ static struct mkimg_scheme bsd_scheme = {
 	.aliases = bsd_aliases,
 	.metadata = bsd_metadata,
 	.write = bsd_write,
-	.nparts = BSD_NPARTS_MAX - 1,
-	.bootcode = BSD_BOOTBLOCK_SIZE,
+	.nparts = 19,
+	.bootcode = BBSIZE,
 	.maxsecsz = 512
 };
 
