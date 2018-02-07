@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Juniper Networks, Inc.
+ * Copyright (c) 2002 Thomas Moestl <tmm@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,79 +22,85 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _MKIMG_ENDIAN_H_
+#define _MKIMG_ENDIAN_H_
 
-#include <sys/stat.h>
-#include <err.h>
-#include <errno.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
-#include "image.h"
-#include "format.h"
-#include "mkimg.h"
-
-static struct mkimg_format *first;
-static struct mkimg_format *format;
-
-struct mkimg_format *
-format_iterate(struct mkimg_format *f)
+static __inline uint16_t
+be16dec(const void *pp)
 {
+	uint8_t const *p = (uint8_t const *)pp;
 
-	return ((f == NULL) ? first : f->next);
+	return ((p[0] << 8) | p[1]);
 }
 
-void
-format_register(struct mkimg_format *f)
+static __inline void
+be16enc(void *pp, uint16_t u)
 {
+	uint8_t *p = (uint8_t *)pp;
 
-	f->next = first;
-	first = f;
+	p[0] = (u >> 8) & 0xff;
+	p[1] = u & 0xff;
 }
 
-int
-format_resize(lba_t end)
+static __inline void
+be32enc(void *pp, uint32_t u)
 {
+	uint8_t *p = (uint8_t *)pp;
 
-	if (format == NULL)
-		return (ENOSYS);
-	return (format->resize(end));
+	p[0] = (u >> 24) & 0xff;
+	p[1] = (u >> 16) & 0xff;
+	p[2] = (u >> 8) & 0xff;
+	p[3] = u & 0xff;
 }
 
-int
-format_select(const char *spec)
+static __inline void
+be64enc(void *pp, uint64_t u)
 {
-	struct mkimg_format *f;
+	uint8_t *p = (uint8_t *)pp;
 
-	f = NULL;
-	while ((f = format_iterate(f)) != NULL) {
-		if (strcasecmp(spec, f->name) == 0) {
-			format = f;
-			return (0);
-		}
-	}
-	return (EINVAL);
+	be32enc(p, (uint32_t)(u >> 32));
+	be32enc(p + 4, (uint32_t)(u & 0xffffffffU));
 }
 
-struct mkimg_format *
-format_selected(void)
+static __inline uint16_t
+le16dec(const void *pp)
 {
+	uint8_t const *p = (uint8_t const *)pp;
 
-	return (format);
+	return ((p[1] << 8) | p[0]);
 }
 
-int
-format_write(int fd)
+static __inline void
+le16enc(void *pp, uint16_t u)
 {
-	int error;
+	uint8_t *p = (uint8_t *)pp;
 
-	if (format == NULL)
-		return (ENOSYS);
-	error = format->write(fd);
-	return (error);
+	p[0] = u & 0xff;
+	p[1] = (u >> 8) & 0xff;
 }
+
+static __inline void
+le32enc(void *pp, uint32_t u)
+{
+	uint8_t *p = (uint8_t *)pp;
+
+	p[0] = u & 0xff;
+	p[1] = (u >> 8) & 0xff;
+	p[2] = (u >> 16) & 0xff;
+	p[3] = (u >> 24) & 0xff;
+}
+
+static __inline void
+le64enc(void *pp, uint64_t u)
+{
+	uint8_t *p = (uint8_t *)pp;
+
+	le32enc(p, (uint32_t)(u & 0xffffffffU));
+	le32enc(p + 4, (uint32_t)(u >> 32));
+}
+
+#endif /* _MKIMG_ENDIAN_H_ */
