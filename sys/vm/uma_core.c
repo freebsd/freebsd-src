@@ -1102,7 +1102,7 @@ startup_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 	}
 	mtx_unlock(&uma_boot_pages_mtx);
 	if (booted < BOOT_PAGEALLOC)
-		panic("UMA: Increase vm.boot_pages");
+		panic("UMA zone \"%s\": Increase vm.boot_pages", zone->uz_name);
 	/*
 	 * Now that we've booted reset these users to their real allocator.
 	 */
@@ -1785,6 +1785,8 @@ zone_foreach(void (*zfunc)(uma_zone_t))
  * zone of zones and zone of kegs are accounted separately.
  */
 #define	UMA_BOOT_ZONES	11
+/* Zone of zones and zone of kegs have arbitrary alignment. */
+#define	UMA_BOOT_ALIGN	32
 static int zsize, ksize;
 int
 uma_startup_count(int zones)
@@ -1797,26 +1799,36 @@ uma_startup_count(int zones)
 	    (sizeof(struct uma_cache) * (mp_maxid + 1)) +
 	    (sizeof(struct uma_zone_domain) * vm_ndomains);
 
-	/* Memory for the zone of zones and zone of kegs. */
+	/*
+	 * Memory for the zone of kegs and its keg,
+	 * and for zone of zones.
+	 */
 	pages = howmany(roundup(zsize, CACHE_LINE_SIZE) * 2 +
 	    roundup(ksize, CACHE_LINE_SIZE), PAGE_SIZE);
 
 	zones += UMA_BOOT_ZONES;
 
-	/* Memory for startup zones, UMA and VM, ... */
+	/* Memory for the rest of startup zones, UMA and VM, ... */
 	if (zsize > UMA_SLAB_SIZE)
-		pages += zones * howmany(zsize, UMA_SLAB_SIZE);
+		pages += zones * howmany(roundup2(zsize, UMA_BOOT_ALIGN),
+		    UMA_SLAB_SIZE);
 	else
-		pages += howmany(zones, UMA_SLAB_SIZE / zsize);
+		pages += howmany(zones,
+		    UMA_SLAB_SPACE / roundup2(zsize, UMA_BOOT_ALIGN));
 
-	/* ... and their kegs. */
-	pages += howmany(zones, UMA_SLAB_SIZE / ksize);
+	/* ... and their kegs. Note that zone of zones allocates a keg! */
+	pages += howmany(zones + 1,
+	    UMA_SLAB_SPACE / roundup2(ksize, UMA_BOOT_ALIGN));
 
 	/*
-	 * Take conservative approach that every zone
-	 * is going to allocate hash.
+	 * Most of startup zones are not going to be offpages, that's
+	 * why we use UMA_SLAB_SPACE instead of UMA_SLAB_SIZE in all
+	 * calculations.  Some large bucket zones will be offpage, and
+	 * thus will allocate hashes.  We take conservative approach
+	 * and assume that all zones may allocate hash.  This may give
+	 * us some positive inaccuracy, usually an extra single page.
 	 */
-	pages += howmany(zones, UMA_SLAB_SIZE /
+	pages += howmany(zones, UMA_SLAB_SPACE /
 	    (sizeof(struct slabhead *) * UMA_HASH_SIZE_INIT));
 
 	return (pages);
@@ -1856,7 +1868,7 @@ uma_startup(void *mem, int npages)
 	args.uminit = zero_init;
 	args.fini = NULL;
 	args.keg = masterkeg;
-	args.align = 32 - 1;
+	args.align = UMA_BOOT_ALIGN - 1;
 	args.flags = UMA_ZFLAG_INTERNAL;
 	zone_ctor(kegs, zsize, &args, M_WAITOK);
 
@@ -1871,7 +1883,7 @@ uma_startup(void *mem, int npages)
 	args.uminit = zero_init;
 	args.fini = NULL;
 	args.keg = NULL;
-	args.align = 32 - 1;
+	args.align = UMA_BOOT_ALIGN - 1;
 	args.flags = UMA_ZFLAG_INTERNAL;
 	zone_ctor(zones, zsize, &args, M_WAITOK);
 
