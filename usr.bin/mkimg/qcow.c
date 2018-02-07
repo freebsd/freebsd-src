@@ -27,15 +27,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
-#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include "endian.h"
 #include "image.h"
 #include "format.h"
 #include "mkimg.h"
@@ -102,7 +102,7 @@ qcow_resize(lba_t imgsz, u_int version)
 		clstr_log2sz = QCOW2_CLSTR_LOG2SZ;
 		break;
 	default:
-		assert(0);
+		return (EDOOFUS);
 	}
 
 	imagesz = round_clstr(imgsz * secsz);
@@ -143,7 +143,8 @@ qcow_write(int fd, u_int version)
 	u_int clstrsz, l1idx, l2idx;
 	int error;
 
-	assert(clstr_log2sz != 0);
+	if (clstr_log2sz == 0)
+		return (EDOOFUS);
 
 	clstrsz = 1U << clstr_log2sz;
 	blk_clstrsz = clstrsz / secsz;
@@ -202,7 +203,7 @@ qcow_write(int fd, u_int version)
 		be32enc(&hdr->u.v2.refcnt_clstrs, refcnt_clstrs);
 		break;
 	default:
-		assert(0);
+		return (EDOOFUS);
 	}
 
 	if (sparse_write(fd, hdr, clstrsz) < 0) {
