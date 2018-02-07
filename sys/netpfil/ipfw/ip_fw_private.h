@@ -184,23 +184,48 @@ enum { /* result for matching dynamic rules */
 struct ip_fw_chain;
 struct sockopt_data;
 int ipfw_is_dyn_rule(struct ip_fw *rule);
-void ipfw_expire_dyn_rules(struct ip_fw_chain *, ipfw_range_tlv *);
+void ipfw_expire_dyn_states(struct ip_fw_chain *, ipfw_range_tlv *);
 
 struct tcphdr;
 struct mbuf *ipfw_send_pkt(struct mbuf *, struct ipfw_flow_id *,
     u_int32_t, u_int32_t, int);
+/*
+ * Macro to determine that we need to do or redo dynamic state lookup.
+ * direction == MATCH_UNKNOWN means that this is first lookup, then we need
+ * to do lookup.
+ * Otherwise check the state name, if previous lookup was for "any" name,
+ * this means there is no state with specific name. Thus no need to do
+ * lookup. If previous name was not "any", redo lookup for specific name.
+ */
+#define	DYN_LOOKUP_NEEDED(p, cmd)	\
+    ((p)->direction == MATCH_UNKNOWN ||	\
+	((p)->kidx != 0 && (p)->kidx != (cmd)->arg1))
+#define	DYN_INFO_INIT(p)	do {	\
+	(p)->direction = MATCH_UNKNOWN;	\
+	(p)->kidx = 0;			\
+} while (0)
+struct ipfw_dyn_info {
+	uint16_t	direction;	/* match direction */
+	uint16_t	kidx;		/* state name kidx */
+	uint32_t	hashval;	/* hash value */
+	uint32_t	version;	/* bucket version */
+	uint32_t	f_pos;
+};
 int ipfw_dyn_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
-    ipfw_insn_limit *cmd, struct ip_fw_args *args, uint32_t tablearg);
-struct ip_fw *ipfw_dyn_lookup_state(const struct ipfw_flow_id *pkt,
-    const void *ulp, int pktlen, int *match_direction, uint16_t kidx);
-void ipfw_remove_dyn_children(struct ip_fw *rule);
+    const ipfw_insn_limit *cmd, const struct ip_fw_args *args,
+    const void *ulp, int pktlen, struct ipfw_dyn_info *info,
+    uint32_t tablearg);
+struct ip_fw *ipfw_dyn_lookup_state(const struct ip_fw_args *args,
+    const void *ulp, int pktlen, const ipfw_insn *cmd,
+    struct ipfw_dyn_info *info);
+
 void ipfw_get_dynamic(struct ip_fw_chain *chain, char **bp, const char *ep);
 int ipfw_dump_states(struct ip_fw_chain *chain, struct sockopt_data *sd);
 
 void ipfw_dyn_init(struct ip_fw_chain *);	/* per-vnet initialization */
 void ipfw_dyn_uninit(int);	/* per-vnet deinitialization */
 int ipfw_dyn_len(void);
-int ipfw_dyn_get_count(void);
+uint32_t ipfw_dyn_get_count(void);
 
 /* common variables */
 VNET_DECLARE(int, fw_one_pass);
