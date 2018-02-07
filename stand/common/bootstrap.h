@@ -47,6 +47,8 @@ extern char	command_errbuf[COMMAND_ERRBUFSZ];
 /* interp.c */
 void	interact(void);
 void	interp_emit_prompt(void);
+int	interp_builtin_cmd(int argc, char *argv[]);
+
 /* Called by interp.c for interp_*.c embedded interpreters */
 int	interp_include(const char *filename);	/* Execute commands from filename */
 void	interp_init(void);			/* Initialize interpreater */
