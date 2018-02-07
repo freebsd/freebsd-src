@@ -1149,6 +1149,8 @@ linux_file_mmap_single(struct file *fp, vm_ooffset_t *offset,
 		error = EINTR;
 	} else {
 		error = -OPW(fp, td, filp->f_op->mmap(filp, vmap));
+		if (error == ERESTARTSYS)
+			error = ERESTART;
 		up_write(&vmap->vm_mm->mmap_sem);
 	}
 
