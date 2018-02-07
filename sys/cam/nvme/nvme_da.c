@@ -1094,19 +1094,25 @@ ndaflush(void)
 
 	CAM_PERIPH_FOREACH(periph, &ndadriver) {
 		softc = (struct nda_softc *)periph->softc;
+
 		if (SCHEDULER_STOPPED()) {
-			/* If we paniced with the lock held, do not recurse. */
+			/*
+			 * If we paniced with the lock held or the periph is not
+			 * open, do not recurse.  Otherwise, call ndadump since
+			 * that avoids the sleeping cam_periph_getccb does if no
+			 * CCBs are available.
+			 */
 			if (!cam_periph_owned(periph) &&
 			    (softc->flags & NDA_FLAG_OPEN)) {
 				ndadump(softc->disk, NULL, 0, 0, 0);
 			}
 			continue;
 		}
-		cam_periph_lock(periph);
+
 		/*
-		 * We only sync the cache if the drive is still open, and
-		 * if the drive is capable of it..
+		 * We only sync the cache if the drive is still open
 		 */
+		cam_periph_lock(periph);
 		if ((softc->flags & NDA_FLAG_OPEN) == 0) {
 			cam_periph_unlock(periph);
 			continue;
