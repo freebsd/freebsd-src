@@ -1309,6 +1309,7 @@ static struct bufqueue *
 bufqueue(struct buf *bp)
 {
 	struct bufdomain *bd;
+	int cpu;
 
 	switch (bp->b_qindex) {
 	case QUEUE_NONE:
@@ -1326,10 +1327,37 @@ bufqueue(struct buf *bp)
 		panic("bufqueue(%p): Unhandled type %d\n", bp, bp->b_qindex);
 	}
 	bd = &bdclean[bp->b_domain];
-	if (bp->b_cpu > mp_maxid)
+	/* cpu may be changed by bd_flush().  Read it only once. */
+	cpu = bp->b_cpu;
+	if (cpu > mp_maxid)
 		return (&bd->bd_cleanq);
-	return (&bd->bd_cpuq[bp->b_cpu]);
+	return (&bd->bd_cpuq[cpu]);
+}
 
+/*
+ * Return the locked bufqueue that bp is a member of.
+ */
+static struct bufqueue *
+bufqueue_acquire(struct buf *bp)
+{
+	struct bufqueue *bq, *nbq;
+
+	/*
+	 * bp can be pushed from a per-cpu queue to the
+	 * cleanq while we're waiting on the lock.  Retry
+	 * if the queues don't match.
+	 */
+	bq = bufqueue(bp);
+	BQ_LOCK(bq);
+	for (;;) {
+		nbq = bufqueue(bp);
+		if (bq == nbq)
+			break;
+		BQ_UNLOCK(bq);
+		BQ_LOCK(nbq);
+		bq = nbq;
+	}
+	return (bq);
 }
 
 /*
@@ -1358,8 +1386,7 @@ binsfree(struct buf *bp, int qindex)
 			BUF_UNLOCK(bp);
 			return;
 		}
-		bq = bufqueue(bp);
-		BQ_LOCK(bq);
+		bq = bufqueue_acquire(bp);
 		bq_remove(bq, bp);
 		BQ_UNLOCK(bq);
 	}
@@ -1647,8 +1674,7 @@ bremfreef(struct buf *bp)
 {
 	struct bufqueue *bq;
 
-	bq = bufqueue(bp);
-	BQ_LOCK(bq);
+	bq = bufqueue_acquire(bp);
 	bq_remove(bq, bp);
 	BQ_UNLOCK(bq);
 }
