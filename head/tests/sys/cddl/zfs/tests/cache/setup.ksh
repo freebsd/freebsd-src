@@ -31,10 +31,6 @@
 
 verify_runnable "global"
 
-if ! verify_cache_support ; then
-	log_unsupported "This system doesn't support cache device"
-fi
-
 if ! $(is_physical_device $LDEV) ; then
 	log_unsupported "Only physical disk could be cache device"
 fi

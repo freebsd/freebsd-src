@@ -59,9 +59,7 @@ function set_devs
 
 	pooldevs=("${devarray[3]}" "${devarray[4]}" "${devarray[5]}")
 
-	if verify_slog_support ; then
-		logdevs="${devarray[7]}"
-	fi	
+	logdevs="${devarray[7]}"
 
 }
 

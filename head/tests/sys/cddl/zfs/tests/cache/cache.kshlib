@@ -178,9 +178,3 @@ function verify_cache_device
 
 	return 1
 }
-
-function verify_cache_support
-{
-	$ZPOOL upgrade -v | $GREP "Cache devices" > /dev/null 2>&1
-	return $?
-}

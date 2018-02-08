@@ -128,13 +128,8 @@ inject_clear
 for type in "${types[@]}"; do 
 	create_pool $TESTPOOL $type $pooldevs spare $sparedevs
 
-	if verify_slog_support ; then
-		log_must $ZPOOL add -f $TESTPOOL log $logdevs
-	fi
-
-	if verify_cache_support ; then
-		log_must $ZPOOL add -f $TESTPOOL cache $cachedevs
-	fi
+	log_must $ZPOOL add -f $TESTPOOL log $logdevs
+	log_must $ZPOOL add -f $TESTPOOL cache $cachedevs
 
 	log_must $ZPOOL replace $TESTPOOL $VDEV0 $sparedevs
 	log_must $ZFS create $TESTPOOL/$TESTFS

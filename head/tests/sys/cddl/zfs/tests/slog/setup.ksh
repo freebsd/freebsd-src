@@ -31,10 +31,6 @@
 
 verify_runnable "global"
 
-if ! verify_slog_support ; then
-	log_unsupported "This system doesn't support separate intent logs"
-fi
-
 if [[ -d $VDEV ]]; then
 	log_must $RM -rf $VDIR
 fi
