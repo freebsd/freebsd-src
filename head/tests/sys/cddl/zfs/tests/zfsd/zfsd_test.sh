@@ -474,11 +474,11 @@ zfsd_replace_002_pos_head()
 }
 zfsd_replace_002_pos_body()
 {
-	atf_expect_fail "ZFS hangs when an array becomes critical"
+	atf_expect_fail "Not yet implemented in zfsd"
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zfsd.cfg
 
-	verify_disk_count "$DISKS" 2
+	verify_disk_count "$DISKS" 3
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_replace_002_pos.ksh
 	if [[ $? != 0 ]]; then
