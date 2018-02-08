@@ -1159,8 +1159,7 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex, u_int flags)
 			if (_pmap_allocpte(pmap, NUPDE + segindex,
 			    flags) == NULL) {
 				/* alloc failed, release current */
-				--m->wire_count;
-				atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+				vm_page_unwire_noq(m);
 				vm_page_free_zero(m);
 				return (NULL);
 			}
@@ -1238,8 +1237,7 @@ pmap_release(pmap_t pmap)
 	ptdva = (vm_offset_t)pmap->pm_segtab;
 	ptdpg = PHYS_TO_VM_PAGE(MIPS_DIRECT_TO_PHYS(ptdva));
 
-	ptdpg->wire_count--;
-	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+	vm_page_unwire_noq(ptdpg);
 	vm_page_free_zero(ptdpg);
 }
 
