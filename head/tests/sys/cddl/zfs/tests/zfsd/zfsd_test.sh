@@ -352,7 +352,7 @@ atf_test_case zfsd_autoreplace_001_neg cleanup
 zfsd_autoreplace_001_neg_head()
 {
 	atf_set "descr" "A pool without autoreplace set will not replace by physical path"
-	atf_set "require.progs"  zpool camcontrol zfsd
+	atf_set "require.progs"  zpool camcontrol zfsd gnop
 	atf_set "timeout" 3600
 }
 zfsd_autoreplace_001_neg_body()
@@ -412,7 +412,7 @@ atf_test_case zfsd_autoreplace_003_pos cleanup
 zfsd_autoreplace_003_pos_head()
 {
 	atf_set "descr" "A pool with autoreplace set will replace by physical path even if a spare is active"
-	atf_set "require.progs"  zpool camcontrol zfsd
+	atf_set "require.progs"  zpool camcontrol zfsd gnop
 	atf_set "timeout" 3600
 }
 zfsd_autoreplace_003_pos_body()
@@ -442,7 +442,7 @@ atf_test_case zfsd_replace_001_pos cleanup
 zfsd_replace_001_pos_head()
 {
 	atf_set "descr" "ZFSD will automatically replace a SAS disk that dissapears and reappears in the same location, with the same devname"
-	atf_set "require.progs"  zpool camcontrol zfsd zfs
+	atf_set "require.progs"  zpool camcontrol zfsd zfs gnop
 }
 zfsd_replace_001_pos_body()
 {
@@ -498,7 +498,7 @@ atf_test_case zfsd_replace_003_pos cleanup
 zfsd_replace_003_pos_head()
 {
 	atf_set "descr" "ZFSD will correctly replace disks that dissapear and reappear with different devnames"
-	atf_set "require.progs"  zpool camcontrol zfsd zfs
+	atf_set "require.progs"  zpool camcontrol zfsd zfs gnop
 }
 zfsd_replace_003_pos_body()
 {
