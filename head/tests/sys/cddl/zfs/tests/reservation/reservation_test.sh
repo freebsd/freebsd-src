@@ -36,6 +36,7 @@ reservation_001_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -61,6 +62,7 @@ reservation_002_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -86,6 +88,7 @@ reservation_003_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_003_pos.ksh || atf_fail "Testcase failed"
 }
@@ -111,6 +114,7 @@ reservation_004_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_004_pos.ksh || atf_fail "Testcase failed"
 }
@@ -136,6 +140,7 @@ reservation_005_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_005_pos.ksh || atf_fail "Testcase failed"
 }
@@ -161,6 +166,7 @@ reservation_006_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_006_pos.ksh || atf_fail "Testcase failed"
 }
@@ -186,6 +192,7 @@ reservation_007_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_007_pos.ksh || atf_fail "Testcase failed"
 }
@@ -212,6 +219,7 @@ reservation_008_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_008_pos.ksh || atf_fail "Testcase failed"
 }
@@ -238,6 +246,7 @@ reservation_009_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_009_pos.ksh || atf_fail "Testcase failed"
 }
@@ -264,6 +273,7 @@ reservation_010_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_010_pos.ksh || atf_fail "Testcase failed"
 }
@@ -289,6 +299,7 @@ reservation_011_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_011_pos.ksh || atf_fail "Testcase failed"
 }
@@ -315,6 +326,7 @@ reservation_012_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_012_pos.ksh || atf_fail "Testcase failed"
 }
@@ -340,6 +352,7 @@ reservation_013_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_013_pos.ksh || atf_fail "Testcase failed"
 }
@@ -365,6 +378,7 @@ reservation_014_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_014_pos.ksh || atf_fail "Testcase failed"
 }
@@ -391,6 +405,7 @@ reservation_015_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_015_pos.ksh || atf_fail "Testcase failed"
 }
@@ -417,6 +432,7 @@ reservation_016_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_016_pos.ksh || atf_fail "Testcase failed"
 }
@@ -442,6 +458,7 @@ reservation_017_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_017_pos.ksh || atf_fail "Testcase failed"
 }
@@ -467,6 +484,7 @@ reservation_018_pos_body()
 	. $(atf_get_srcdir)/reservation.kshlib
 	. $(atf_get_srcdir)/reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/reservation_018_pos.ksh || atf_fail "Testcase failed"
 }

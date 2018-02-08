@@ -35,6 +35,7 @@ ctime_001_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/ctime.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	$(atf_get_srcdir)/ctime_001_pos || atf_fail "Testcase failed"
 }

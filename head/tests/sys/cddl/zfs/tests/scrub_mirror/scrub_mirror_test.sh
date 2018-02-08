@@ -37,6 +37,7 @@ scrub_mirror_001_pos_body()
 	. $(atf_get_srcdir)/scrub_mirror_common.kshlib
 	. $(atf_get_srcdir)/default.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/scrub_mirror_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -63,6 +64,7 @@ scrub_mirror_002_pos_body()
 	. $(atf_get_srcdir)/scrub_mirror_common.kshlib
 	. $(atf_get_srcdir)/default.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/scrub_mirror_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -89,6 +91,7 @@ scrub_mirror_003_pos_body()
 	. $(atf_get_srcdir)/scrub_mirror_common.kshlib
 	. $(atf_get_srcdir)/default.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/scrub_mirror_003_pos.ksh || atf_fail "Testcase failed"
 }
@@ -115,6 +118,7 @@ scrub_mirror_004_pos_body()
 	. $(atf_get_srcdir)/scrub_mirror_common.kshlib
 	. $(atf_get_srcdir)/default.cfg
 
+	verify_disk_count "$DISKS" 2
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/scrub_mirror_004_pos.ksh || atf_fail "Testcase failed"
 }

@@ -35,6 +35,7 @@ zfs_snapshot_001_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_snapshot_001_neg.ksh || atf_fail "Testcase failed"
 }
@@ -58,6 +59,7 @@ zfs_snapshot_002_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_snapshot_002_neg.ksh || atf_fail "Testcase failed"
 }
@@ -81,6 +83,7 @@ zfs_snapshot_003_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_snapshot_003_neg.ksh || atf_fail "Testcase failed"
 }
@@ -104,6 +107,7 @@ zfs_snapshot_004_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_snapshot_004_neg.ksh || atf_fail "Testcase failed"
 }
@@ -127,6 +131,7 @@ zfs_snapshot_005_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_snapshot_005_neg.ksh || atf_fail "Testcase failed"
 }
@@ -150,6 +155,7 @@ zfs_snapshot_006_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_snapshot_006_pos.ksh || atf_fail "Testcase failed"
 }
@@ -173,6 +179,7 @@ zfs_snapshot_007_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_snapshot_007_neg.ksh || atf_fail "Testcase failed"
 }

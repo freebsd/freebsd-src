@@ -35,6 +35,7 @@ zfs_reservation_001_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_reservation_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -58,6 +59,7 @@ zfs_reservation_002_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_reservation.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_reservation_002_pos.ksh || atf_fail "Testcase failed"
 }

@@ -37,6 +37,7 @@ zpool_destroy_001_pos_body()
 	. $(atf_get_srcdir)/zpool_destroy.cfg
 
 	verify_zvol_recursive
+	verify_disk_count "$DISK" 1
 	ksh93 $(atf_get_srcdir)/zpool_destroy_001_pos.ksh || atf_fail "Testcase failed"
 }
 zpool_destroy_001_pos_cleanup()
@@ -59,6 +60,7 @@ zpool_destroy_002_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_destroy.cfg
 
+	verify_disk_count "$DISK" 1
 	ksh93 $(atf_get_srcdir)/zpool_destroy_002_pos.ksh || atf_fail "Testcase failed"
 }
 zpool_destroy_002_pos_cleanup()

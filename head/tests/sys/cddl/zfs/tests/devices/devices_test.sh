@@ -37,6 +37,7 @@ devices_001_pos_body()
 	. $(atf_get_srcdir)/devices_common.kshlib
 	. $(atf_get_srcdir)/devices.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/devices_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -63,6 +64,7 @@ devices_002_neg_body()
 	. $(atf_get_srcdir)/devices_common.kshlib
 	. $(atf_get_srcdir)/devices.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/devices_002_neg.ksh || atf_fail "Testcase failed"
 }
@@ -87,7 +89,6 @@ devices_003_pos_body()
 	. $(atf_get_srcdir)/devices_common.kshlib
 	. $(atf_get_srcdir)/devices.cfg
 
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/devices_003_pos.ksh || atf_fail "Testcase failed"
 }
 devices_003_pos_cleanup()

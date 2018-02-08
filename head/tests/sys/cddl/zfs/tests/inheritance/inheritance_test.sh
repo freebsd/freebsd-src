@@ -37,6 +37,7 @@ inherit_001_pos_body()
 	. $(atf_get_srcdir)/inherit.kshlib
 	. $(atf_get_srcdir)/inherit.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/inherit_001_pos.ksh || atf_fail "Testcase failed"
 }
 inherit_001_pos_cleanup()

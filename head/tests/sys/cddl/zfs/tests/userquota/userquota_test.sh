@@ -36,6 +36,7 @@ groupspace_001_pos_body()
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/groupspace_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -61,6 +62,7 @@ groupspace_002_pos_body()
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/groupspace_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -86,6 +88,7 @@ userquota_001_pos_body()
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/userquota_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -111,6 +114,7 @@ userquota_002_pos_body()
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/userquota_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -136,6 +140,7 @@ userquota_003_pos_body()
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/userquota_003_pos.ksh || atf_fail "Testcase failed"
 }
@@ -161,6 +166,7 @@ userquota_004_pos_body()
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/userquota_004_pos.ksh || atf_fail "Testcase failed"
 }
@@ -186,6 +192,7 @@ userquota_005_neg_body()
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/userquota_005_neg.ksh || atf_fail "Testcase failed"
 }
@@ -211,6 +218,7 @@ userquota_006_pos_body()
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/userquota_006_pos.ksh || atf_fail "Testcase failed"
 }
@@ -236,6 +244,7 @@ userquota_007_pos_body()
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/userquota_007_pos.ksh || atf_fail "Testcase failed"
 }
@@ -261,6 +270,7 @@ userquota_008_pos_body()
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/userquota_008_pos.ksh || atf_fail "Testcase failed"
 }
@@ -286,6 +296,7 @@ userquota_009_pos_body()
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/userquota_009_pos.ksh || atf_fail "Testcase failed"
 }
@@ -311,6 +322,7 @@ userquota_010_pos_body()
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/userquota_010_pos.ksh || atf_fail "Testcase failed"
 }
@@ -336,6 +348,7 @@ userquota_011_pos_body()
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/userquota_011_pos.ksh || atf_fail "Testcase failed"
 }
@@ -361,6 +374,7 @@ userquota_012_neg_body()
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/userquota_012_neg.ksh || atf_fail "Testcase failed"
 }
@@ -386,6 +400,7 @@ userspace_001_pos_body()
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/userspace_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -411,6 +426,7 @@ userspace_002_pos_body()
 	. $(atf_get_srcdir)/userquota_common.kshlib
 	. $(atf_get_srcdir)/userquota.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/userspace_002_pos.ksh || atf_fail "Testcase failed"
 }

@@ -35,6 +35,7 @@ exec_001_pos_body()
 	export PATH=$(atf_get_srcdir):$PATH
 	. $(atf_get_srcdir)/../../include/default.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/exec_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -57,6 +58,7 @@ exec_002_neg_body()
 	PATH=$(atf_get_srcdir):$PATH
 	. $(atf_get_srcdir)/../../include/default.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/exec_002_neg.ksh || atf_fail "Testcase failed"
 }

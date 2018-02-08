@@ -37,6 +37,7 @@ zfs_get_001_pos_body()
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
 	. $(atf_get_srcdir)/zfs_get.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_get_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -64,6 +65,7 @@ zfs_get_002_pos_body()
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
 	. $(atf_get_srcdir)/zfs_get.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_get_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -92,6 +94,7 @@ zfs_get_003_pos_body()
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
 	. $(atf_get_srcdir)/zfs_get.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_get_003_pos.ksh || atf_fail "Testcase failed"
 }
@@ -119,6 +122,7 @@ zfs_get_004_pos_body()
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
 	. $(atf_get_srcdir)/zfs_get.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_get_004_pos.ksh || atf_fail "Testcase failed"
 }
@@ -146,6 +150,7 @@ zfs_get_005_neg_body()
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
 	. $(atf_get_srcdir)/zfs_get.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_get_005_neg.ksh || atf_fail "Testcase failed"
 }
@@ -173,6 +178,7 @@ zfs_get_006_neg_body()
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
 	. $(atf_get_srcdir)/zfs_get.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_get_006_neg.ksh || atf_fail "Testcase failed"
 }
@@ -200,6 +206,7 @@ zfs_get_007_neg_body()
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
 	. $(atf_get_srcdir)/zfs_get.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_get_007_neg.ksh || atf_fail "Testcase failed"
 }
@@ -227,6 +234,7 @@ zfs_get_008_pos_body()
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
 	. $(atf_get_srcdir)/zfs_get.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_get_008_pos.ksh || atf_fail "Testcase failed"
 }
@@ -255,6 +263,7 @@ zfs_get_009_pos_body()
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
 	. $(atf_get_srcdir)/zfs_get.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_get_009_pos.ksh || atf_fail "Testcase failed"
 }
@@ -282,6 +291,7 @@ zfs_get_010_neg_body()
 	. $(atf_get_srcdir)/zfs_get_common.kshlib
 	. $(atf_get_srcdir)/zfs_get.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_get_010_neg.ksh || atf_fail "Testcase failed"
 }

@@ -36,6 +36,7 @@ zfs_upgrade_001_pos_body()
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_upgrade_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -61,6 +62,7 @@ zfs_upgrade_002_pos_body()
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_upgrade_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -86,6 +88,7 @@ zfs_upgrade_003_pos_body()
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_upgrade_003_pos.ksh || atf_fail "Testcase failed"
 }
@@ -111,6 +114,7 @@ zfs_upgrade_004_pos_body()
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_upgrade_004_pos.ksh || atf_fail "Testcase failed"
 }
@@ -139,6 +143,7 @@ zfs_upgrade_005_pos_body()
 	[[ -n "$KEEP" ]] && \
 		atf_skip "Can't test unmount -a when pools are in KEEP"
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_upgrade_005_pos.ksh || atf_fail "Testcase failed"
 }
@@ -164,6 +169,7 @@ zfs_upgrade_006_neg_body()
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_upgrade_006_neg.ksh || atf_fail "Testcase failed"
 }
@@ -189,6 +195,7 @@ zfs_upgrade_007_neg_body()
 	. $(atf_get_srcdir)/zfs_upgrade.cfg
 	. $(atf_get_srcdir)/zfs_upgrade.kshlib
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_upgrade_007_neg.ksh || atf_fail "Testcase failed"
 }

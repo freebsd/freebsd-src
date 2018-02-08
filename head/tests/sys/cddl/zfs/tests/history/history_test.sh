@@ -53,6 +53,7 @@ history_002_pos_body()
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/history_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -79,6 +80,7 @@ history_003_pos_body()
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/history_003_pos.ksh || atf_fail "Testcase failed"
 }
@@ -105,6 +107,7 @@ history_004_pos_body()
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/history_004_pos.ksh || atf_fail "Testcase failed"
 }
@@ -131,6 +134,7 @@ history_005_neg_body()
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/history_005_neg.ksh || atf_fail "Testcase failed"
 }
@@ -157,6 +161,7 @@ history_006_neg_body()
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/history_006_neg.ksh || atf_fail "Testcase failed"
 }
@@ -183,6 +188,7 @@ history_007_pos_body()
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/history_007_pos.ksh || atf_fail "Testcase failed"
 }
@@ -209,6 +215,7 @@ history_008_pos_body()
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/history_008_pos.ksh || atf_fail "Testcase failed"
 }
@@ -235,6 +242,7 @@ history_009_pos_body()
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/history_009_pos.ksh || atf_fail "Testcase failed"
 }
@@ -261,6 +269,7 @@ history_010_pos_body()
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/history_010_pos.ksh || atf_fail "Testcase failed"
 }

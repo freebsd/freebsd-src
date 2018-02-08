@@ -35,6 +35,7 @@ umount_001_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/vars.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/mounttest.ksh -u umount || \
 		atf_fail "Testcase failed"
@@ -62,6 +63,7 @@ umountall_001_body()
 		atf_skip "Can't test unmount -a when pools are in KEEP"
 	fi
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/mounttest.ksh -u 'umount -a' || \
 		atf_fail "Testcase failed"

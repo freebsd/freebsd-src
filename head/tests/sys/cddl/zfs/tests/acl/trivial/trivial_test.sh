@@ -34,6 +34,7 @@ zfs_acl_chmod_001_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_chmod_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -57,6 +58,7 @@ zfs_acl_compress_001_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_compress_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -80,6 +82,7 @@ zfs_acl_cp_001_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_cp_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -103,6 +106,7 @@ zfs_acl_cp_002_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_cp_002_neg.ksh || atf_fail "Testcase failed"
 }
@@ -127,6 +131,7 @@ zfs_acl_cp_003_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_cp_003_neg.ksh || atf_fail "Testcase failed"
 }
@@ -150,6 +155,7 @@ zfs_acl_find_001_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_find_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -174,6 +180,7 @@ zfs_acl_find_002_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_find_002_neg.ksh || atf_fail "Testcase failed"
 }
@@ -197,6 +204,7 @@ zfs_acl_ls_001_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_ls_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -221,6 +229,7 @@ zfs_acl_ls_002_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_ls_002_neg.ksh || atf_fail "Testcase failed"
 }
@@ -244,6 +253,7 @@ zfs_acl_mv_001_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_mv_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -268,6 +278,7 @@ zfs_acl_pack_001_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_pack_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -292,6 +303,7 @@ zfs_acl_pax_001_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_pax_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -316,6 +328,7 @@ zfs_acl_pax_002_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_pax_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -340,6 +353,7 @@ zfs_acl_pax_003_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_pax_003_pos.ksh || atf_fail "Testcase failed"
 }
@@ -364,6 +378,7 @@ zfs_acl_pax_004_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_pax_004_pos.ksh || atf_fail "Testcase failed"
 }
@@ -388,6 +403,7 @@ zfs_acl_pax_005_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_pax_005_pos.ksh || atf_fail "Testcase failed"
 }
@@ -412,6 +428,7 @@ zfs_acl_pax_006_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_pax_006_pos.ksh || atf_fail "Testcase failed"
 }
@@ -435,6 +452,7 @@ zfs_acl_tar_001_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_tar_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -458,6 +476,7 @@ zfs_acl_tar_002_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_acl_tar_002_neg.ksh || atf_fail "Testcase failed"
 }

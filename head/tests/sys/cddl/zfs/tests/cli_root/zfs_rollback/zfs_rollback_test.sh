@@ -37,6 +37,7 @@ zfs_rollback_001_pos_body()
 	. $(atf_get_srcdir)/zfs_rollback_common.kshlib
 	. $(atf_get_srcdir)/zfs_rollback.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rollback_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -63,6 +64,7 @@ zfs_rollback_002_pos_body()
 	. $(atf_get_srcdir)/zfs_rollback_common.kshlib
 	. $(atf_get_srcdir)/zfs_rollback.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rollback_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -89,6 +91,7 @@ zfs_rollback_003_neg_body()
 	. $(atf_get_srcdir)/zfs_rollback_common.kshlib
 	. $(atf_get_srcdir)/zfs_rollback.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rollback_003_neg.ksh || atf_fail "Testcase failed"
 }
@@ -115,6 +118,7 @@ zfs_rollback_004_neg_body()
 	. $(atf_get_srcdir)/zfs_rollback_common.kshlib
 	. $(atf_get_srcdir)/zfs_rollback.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rollback_004_neg.ksh || atf_fail "Testcase failed"
 }

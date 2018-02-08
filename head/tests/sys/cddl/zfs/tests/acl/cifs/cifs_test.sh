@@ -37,6 +37,7 @@ cifs_attr_001_pos_body()
 	. $(atf_get_srcdir)/cifs.kshlib
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/cifs_attr_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -63,6 +64,7 @@ cifs_attr_002_pos_body()
 	. $(atf_get_srcdir)/cifs.kshlib
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/cifs_attr_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -89,6 +91,7 @@ cifs_attr_003_pos_body()
 	. $(atf_get_srcdir)/cifs.kshlib
 	. $(atf_get_srcdir)/../acl.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/cifs_attr_003_pos.ksh || atf_fail "Testcase failed"
 }

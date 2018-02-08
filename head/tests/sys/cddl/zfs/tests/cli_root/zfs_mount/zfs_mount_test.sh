@@ -36,6 +36,7 @@ zfs_mount_001_pos_body()
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_mount_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -61,6 +62,7 @@ zfs_mount_002_pos_body()
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_mount_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -86,6 +88,7 @@ zfs_mount_003_pos_body()
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_mount_003_pos.ksh || atf_fail "Testcase failed"
 }
@@ -111,6 +114,7 @@ zfs_mount_004_pos_body()
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_mount_004_pos.ksh || atf_fail "Testcase failed"
 }
@@ -137,6 +141,7 @@ zfs_mount_005_pos_body()
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_mount_005_pos.ksh || atf_fail "Testcase failed"
 }
@@ -163,6 +168,7 @@ zfs_mount_006_pos_body()
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_mount_006_pos.ksh || atf_fail "Testcase failed"
 }
@@ -189,6 +195,7 @@ zfs_mount_007_pos_body()
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_mount_007_pos.ksh || atf_fail "Testcase failed"
 }
@@ -216,6 +223,7 @@ zfs_mount_008_pos_body()
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_mount_008_pos.ksh || atf_fail "Testcase failed"
 }
@@ -244,6 +252,7 @@ zfs_mount_009_neg_body()
 	[[ -n "$KEEP" ]] && \
 		atf_skip "Can't test unmount -a when pools are in KEEP"
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_mount_009_neg.ksh || atf_fail "Testcase failed"
 }
@@ -270,6 +279,7 @@ zfs_mount_010_neg_body()
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_mount_010_neg.ksh || atf_fail "Testcase failed"
 }
@@ -295,6 +305,7 @@ zfs_mount_011_neg_body()
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_mount_011_neg.ksh || atf_fail "Testcase failed"
 }
@@ -323,6 +334,7 @@ zfs_mount_all_001_pos_body()
 	[[ -n "$KEEP" ]] && \
 		atf_skip "Can't test unmount -a when pools are in KEEP"
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_mount_all_001_pos.ksh || atf_fail "Testcase failed"
 }

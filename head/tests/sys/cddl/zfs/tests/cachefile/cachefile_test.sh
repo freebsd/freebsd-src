@@ -36,6 +36,7 @@ cachefile_001_pos_body()
 	. $(atf_get_srcdir)/cachefile.kshlib
 	. $(atf_get_srcdir)/cachefile.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/cachefile_001_pos.ksh || atf_fail "Testcase failed"
 }
 
@@ -52,6 +53,7 @@ cachefile_002_pos_body()
 	. $(atf_get_srcdir)/cachefile.kshlib
 	. $(atf_get_srcdir)/cachefile.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/cachefile_002_pos.ksh || atf_fail "Testcase failed"
 }
 
@@ -68,6 +70,7 @@ cachefile_003_pos_body()
 	. $(atf_get_srcdir)/cachefile.kshlib
 	. $(atf_get_srcdir)/cachefile.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/cachefile_003_pos.ksh || atf_fail "Testcase failed"
 }
 
@@ -84,6 +87,7 @@ cachefile_004_pos_body()
 	. $(atf_get_srcdir)/cachefile.kshlib
 	. $(atf_get_srcdir)/cachefile.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/cachefile_004_pos.ksh || atf_fail "Testcase failed"
 }
 

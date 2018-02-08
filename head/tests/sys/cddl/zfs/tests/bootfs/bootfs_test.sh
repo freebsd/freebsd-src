@@ -50,6 +50,7 @@ bootfs_002_neg_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/bootfs.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/bootfs_002_neg.ksh || atf_fail "Testcase failed"
 }
 
@@ -95,6 +96,7 @@ bootfs_005_neg_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/bootfs.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/bootfs_005_neg.ksh || atf_fail "Testcase failed"
 }
 
@@ -125,6 +127,7 @@ bootfs_007_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/bootfs.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/bootfs_007_pos.ksh || atf_fail "Testcase failed"
 }
 

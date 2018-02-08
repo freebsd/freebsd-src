@@ -36,6 +36,7 @@ pool_names_001_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/pool_names.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/pool_names_001_pos.ksh || atf_fail "Testcase failed"
 }
 
@@ -52,6 +53,7 @@ pool_names_002_neg_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/pool_names.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/pool_names_002_neg.ksh || atf_fail "Testcase failed"
 }
 

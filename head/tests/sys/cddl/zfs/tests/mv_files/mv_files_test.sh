@@ -37,6 +37,7 @@ mv_files_001_pos_body()
 	. $(atf_get_srcdir)/mv_files_common.kshlib
 	. $(atf_get_srcdir)/mv_files.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/mv_files_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -63,6 +64,7 @@ mv_files_002_pos_body()
 	. $(atf_get_srcdir)/mv_files_common.kshlib
 	. $(atf_get_srcdir)/mv_files.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/mv_files_002_pos.ksh || atf_fail "Testcase failed"
 }

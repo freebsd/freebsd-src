@@ -36,6 +36,7 @@ zfs_rename_001_pos_body()
 	. $(atf_get_srcdir)/zfs_rename.kshlib
 	. $(atf_get_srcdir)/zfs_rename.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rename_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -61,6 +62,7 @@ zfs_rename_002_pos_body()
 	. $(atf_get_srcdir)/zfs_rename.kshlib
 	. $(atf_get_srcdir)/zfs_rename.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rename_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -86,6 +88,7 @@ zfs_rename_003_pos_body()
 	. $(atf_get_srcdir)/zfs_rename.kshlib
 	. $(atf_get_srcdir)/zfs_rename.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rename_003_pos.ksh || atf_fail "Testcase failed"
 }
@@ -111,6 +114,7 @@ zfs_rename_004_neg_body()
 	. $(atf_get_srcdir)/zfs_rename.kshlib
 	. $(atf_get_srcdir)/zfs_rename.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rename_004_neg.ksh || atf_fail "Testcase failed"
 }
@@ -136,6 +140,7 @@ zfs_rename_005_neg_body()
 	. $(atf_get_srcdir)/zfs_rename.kshlib
 	. $(atf_get_srcdir)/zfs_rename.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rename_005_neg.ksh || atf_fail "Testcase failed"
 }
@@ -161,6 +166,7 @@ zfs_rename_006_pos_body()
 	. $(atf_get_srcdir)/zfs_rename.kshlib
 	. $(atf_get_srcdir)/zfs_rename.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rename_006_pos.ksh || atf_fail "Testcase failed"
 }
@@ -186,6 +192,7 @@ zfs_rename_007_pos_body()
 	. $(atf_get_srcdir)/zfs_rename.kshlib
 	. $(atf_get_srcdir)/zfs_rename.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rename_007_pos.ksh || atf_fail "Testcase failed"
 }
@@ -211,6 +218,7 @@ zfs_rename_008_pos_body()
 	. $(atf_get_srcdir)/zfs_rename.kshlib
 	. $(atf_get_srcdir)/zfs_rename.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rename_008_pos.ksh || atf_fail "Testcase failed"
 }
@@ -236,6 +244,7 @@ zfs_rename_009_neg_body()
 	. $(atf_get_srcdir)/zfs_rename.kshlib
 	. $(atf_get_srcdir)/zfs_rename.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rename_009_neg.ksh || atf_fail "Testcase failed"
 }
@@ -261,6 +270,7 @@ zfs_rename_010_neg_body()
 	. $(atf_get_srcdir)/zfs_rename.kshlib
 	. $(atf_get_srcdir)/zfs_rename.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rename_010_neg.ksh || atf_fail "Testcase failed"
 }
@@ -286,6 +296,7 @@ zfs_rename_011_pos_body()
 	. $(atf_get_srcdir)/zfs_rename.kshlib
 	. $(atf_get_srcdir)/zfs_rename.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rename_011_pos.ksh || atf_fail "Testcase failed"
 }
@@ -311,6 +322,7 @@ zfs_rename_012_neg_body()
 	. $(atf_get_srcdir)/zfs_rename.kshlib
 	. $(atf_get_srcdir)/zfs_rename.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rename_012_neg.ksh || atf_fail "Testcase failed"
 }
@@ -336,6 +348,7 @@ zfs_rename_013_pos_body()
 	. $(atf_get_srcdir)/zfs_rename.kshlib
 	. $(atf_get_srcdir)/zfs_rename.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_rename_013_pos.ksh || atf_fail "Testcase failed"
 }

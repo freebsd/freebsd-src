@@ -35,7 +35,6 @@ zpool_get_001_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_get.cfg
 
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_get_001_pos.ksh || atf_fail "Testcase failed"
 }
 zpool_get_001_pos_cleanup()
@@ -58,6 +57,7 @@ zpool_get_002_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_get.cfg
 
+	verify_disk_count "$DISK" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_get_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -81,6 +81,7 @@ zpool_get_003_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_get.cfg
 
+	verify_disk_count "$DISK" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_get_003_pos.ksh || atf_fail "Testcase failed"
 }
@@ -104,6 +105,7 @@ zpool_get_004_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_get.cfg
 
+	verify_disk_count "$DISK" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_get_004_neg.ksh || atf_fail "Testcase failed"
 }
