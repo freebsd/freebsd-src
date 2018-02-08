@@ -29,15 +29,7 @@
 
 . $STF_SUITE/tests/delegate/delegate_common.kshlib
 
-$ZFS 2>&1 | $GREP "allow" > /dev/null
-(($? != 0)) && log_unsupported
-
 cleanup_user_group
 
-# restore the state of svc:/network/nis/client:default
-if [[ -e $NISSTAFILE ]]; then
-	log_must $SVCADM enable svc:/network/nis/client:default
-	log_must $RM -f $NISSTAFILE
-fi
-
 default_cleanup
+log_pass

@@ -29,12 +29,4 @@
 
 . $STF_SUITE/tests/delegate/delegate_common.kshlib
 
-$ZFS 2>&1 | $GREP "allow" > /dev/null
-(($? != 0)) && log_unsupported
-
-if is_global_zone ; then
-	log_must $ZPOOL set delegation=on $TESTPOOL
-fi
-log_must restore_root_datasets
-
 log_pass

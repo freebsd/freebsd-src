@@ -29,18 +29,6 @@
 
 . $STF_SUITE/tests/delegate/delegate_common.kshlib
 
-$ZFS 2>&1 | $GREP "allow" > /dev/null
-(($? != 0)) && log_unsupported
-
-# check svc:/network/nis/client:default state
-# disable it if the state is ON
-# and the state will be restored during cleanup.ksh
-log_must $RM -f $NISSTAFILE
-if [[ "ON" == $($SVCS -H -o sta svc:/network/nis/client:default) ]]; then
-    log_must $SVCADM disable -t svc:/network/nis/client:default
-    log_must $TOUCH $NISSTAFILE
-fi
-
 cleanup_user_group
 
 # Create staff group and add two user to it
