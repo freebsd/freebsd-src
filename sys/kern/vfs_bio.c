@@ -4452,6 +4452,45 @@ vfs_bio_bzero_buf(struct buf *bp, int base, int size)
 }
 
 /*
+ * Update buffer flags based on I/O request parameters, optionally releasing the
+ * buffer.  If it's VMIO or direct I/O, the buffer pages are released to the VM,
+ * where they may be placed on a page queue (VMIO) or freed immediately (direct
+ * I/O).  Otherwise the buffer is released to the cache.
+ */
+static void
+b_io_dismiss(struct buf *bp, int ioflag, bool release)
+{
+
+	KASSERT((ioflag & IO_NOREUSE) == 0 || (ioflag & IO_VMIO) != 0,
+	    ("buf %p non-VMIO noreuse", bp));
+
+	if ((ioflag & IO_DIRECT) != 0)
+		bp->b_flags |= B_DIRECT;
+	if ((ioflag & (IO_VMIO | IO_DIRECT)) != 0 && LIST_EMPTY(&bp->b_dep)) {
+		bp->b_flags |= B_RELBUF;
+		if ((ioflag & IO_NOREUSE) != 0)
+			bp->b_flags |= B_NOREUSE;
+		if (release)
+			brelse(bp);
+	} else if (release)
+		bqrelse(bp);
+}
+
+void
+vfs_bio_brelse(struct buf *bp, int ioflag)
+{
+
+	b_io_dismiss(bp, ioflag, true);
+}
+
+void
+vfs_bio_set_flags(struct buf *bp, int ioflag)
+{
+
+	b_io_dismiss(bp, ioflag, false);
+}
+
+/*
  * vm_hold_load_pages and vm_hold_free_pages get pages into
  * a buffers address space.  The pages are anonymous and are
  * not associated with a file object.
