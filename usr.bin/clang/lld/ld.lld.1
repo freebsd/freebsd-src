@@ -47,6 +47,17 @@ is a drop-in replacement for the GNU BFD and gold linkers.
 It accepts most of the same command line arguments and linker scripts
 as GNU linkers.
 .Pp
+Many options have both a single-letter and long form.
+When using the long form options other than those beginning with the
+letter
+.Cm o
+may be specified using either one or two dashes preceeding the option name.
+Long options beginning with
+.Cm o
+require two dashes to avoid confusion with the
+.Fl o Ar path
+option.
+.Pp
 These options are available:
 .Bl -tag -width indent
 .It Fl -allow-multiple-definition
