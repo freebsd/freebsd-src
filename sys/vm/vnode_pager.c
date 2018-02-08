@@ -1366,9 +1366,7 @@ vnode_pager_putpages_ioflags(int pager_flags)
 	else if ((pager_flags & VM_PAGER_CLUSTER_OK) == 0)
 		ioflags |= IO_ASYNC;
 	ioflags |= (pager_flags & VM_PAGER_PUT_INVAL) != 0 ? IO_INVAL: 0;
-#ifdef notyet
 	ioflags |= (pager_flags & VM_PAGER_PUT_NOREUSE) != 0 ? IO_NOREUSE : 0;
-#endif
 	ioflags |= IO_SEQMAX << IO_SEQSHIFT;
 	return (ioflags);
 }
