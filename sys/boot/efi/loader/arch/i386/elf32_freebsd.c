@@ -35,12 +35,16 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <stand.h>
 
+#include <efi.h>
+#include <efilib.h>
+
 #include "bootstrap.h"
 #include "../libi386/libi386.h"
 #include "../btx/lib/btxv86.h"
 
 extern void __exec(caddr_t addr, ...);
-
+extern int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp);
+extern int ldr_enter(const char *kernel);
 
 static int	elf32_exec(struct preloaded_file *amp);
 static int	elf32_obj_exec(struct preloaded_file *amp);
@@ -72,14 +76,14 @@ elf32_exec(struct preloaded_file *fp)
     ehdr = (Elf_Ehdr *)&(md->md_data);
 
     efi_time_fini();
-    err = bi_load(fp->f_args, &boothowto, &bootdev, &bootinfop, &modulep, &kernend);
+    err = bi_load(fp->f_args, &modulep, &kernend);
     if (err != 0) {
 	efi_time_init();
 	return(err);
     }
     entry = ehdr->e_entry & 0xffffff;
 
-    printf("Start @ 0x%lx ...\n", entry);
+    printf("Start @ 0x%x ...\n", entry);
 
     ldr_enter(fp->f_name);
 

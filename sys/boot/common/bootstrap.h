@@ -142,8 +142,6 @@ struct pnpinfo
 
 STAILQ_HEAD(pnpinfo_stql, pnpinfo);
 
-extern struct pnpinfo_stql pnp_devices;
-
 extern struct pnphandler	*pnphandlers[];		/* provided by MD code */
 
 void			pnp_addident(struct pnpinfo *pi, char *ident);

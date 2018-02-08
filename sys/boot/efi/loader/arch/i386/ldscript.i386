@@ -35,6 +35,11 @@ SECTIONS
     *(set_Xcommand_set)
     __stop_set_Xcommand_set = .;
   }
+  set_Xficl_compile_set	: {
+    __start_set_Xficl_compile_set = .;
+    *(set_Xficl_compile_set)
+    __stop_set_Xficl_compile_set = .;
+  }
   . = ALIGN(4096);
   __gp = .;
   .sdata	: {
