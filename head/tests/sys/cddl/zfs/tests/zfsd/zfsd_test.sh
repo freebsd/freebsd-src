@@ -469,7 +469,7 @@ zfsd_replace_001_pos_cleanup()
 atf_test_case zfsd_replace_002_pos cleanup
 zfsd_replace_002_pos_head()
 {
-	atf_set "descr" "A pool can come back online after all disks have dissapeared and reappeared"
+	atf_set "descr" "zfsd will reactivate a pool after all disks are failed and reappeared"
 	atf_set "require.progs"  zpool camcontrol zfsd zfs
 }
 zfsd_replace_002_pos_body()

@@ -119,6 +119,28 @@ zpool_clear_004_pos_cleanup()
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
+atf_test_case zpool_clear_005_pos cleanup
+zpool_clear_005_pos_head()
+{
+	atf_set "descr" "'zpool clear' can online an UNAVAIL pool after all vdevs have reappeared"
+	atf_set "require.progs"  gnop zpool
+}
+zpool_clear_005_pos_body()
+{
+	. $(atf_get_srcdir)/../../../include/default.cfg
+	. $(atf_get_srcdir)/zpool_clear.cfg
+
+	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/zpool_clear_005_pos.ksh || atf_fail "Testcase failed"
+}
+zpool_clear_005_pos_cleanup()
+{
+	. $(atf_get_srcdir)/../../../include/default.cfg
+	. $(atf_get_srcdir)/zpool_clear.cfg
+
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
+}
+
 
 
 atf_init_test_cases()
@@ -128,4 +150,5 @@ atf_init_test_cases()
 	atf_add_test_case zpool_clear_002_neg
 	atf_add_test_case zpool_clear_003_neg
 	atf_add_test_case zpool_clear_004_pos
+	atf_add_test_case zpool_clear_005_pos
 }

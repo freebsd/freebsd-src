@@ -30,6 +30,7 @@
 # Portions taken from:
 # ident	"@(#)replacement_001_pos.ksh	1.4	08/02/27 SMI"
 #
+# $Id$
 # $FreeBSD$
 
 . $STF_SUITE/include/libtest.kshlib
@@ -40,11 +41,8 @@ function is_pool_unavail # pool
 	is_pool_state "$1" "UNAVAIL"
 }
 
-log_assert "zfsd will reactivate a pool after all disks are failed and reappeared"
+log_assert "A pool can come back online after all disks are failed and reactivated"
 
-log_unsupported "This feature has not yet been implemented in zfsd"
-
-ensure_zfsd_running
 set_disks
 typeset ALLDISKS="${DISK0} ${DISK1} ${DISK2}"
 typeset ALLNOPS=${ALLDISKS//~(E)([[:space:]]+|$)/.nop\1}
@@ -66,6 +64,9 @@ for type in "raidz" "mirror"; do
 	log_must create_gnop $DISK0
 	log_must create_gnop $DISK1
 	log_must create_gnop $DISK2
+
+	# Manually online the pool
+	log_must $ZPOOL clear $TESTPOOL
 
 	wait_for 5 1 is_pool_healthy $TESTPOOL
 

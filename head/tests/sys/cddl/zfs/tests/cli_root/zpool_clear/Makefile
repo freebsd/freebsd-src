@@ -15,5 +15,6 @@ ${PACKAGE}FILES+=	zpool_clear.cfg
 ${PACKAGE}FILES+=	zpool_clear_001_pos.ksh
 ${PACKAGE}FILES+=	setup.ksh
 ${PACKAGE}FILES+=	zpool_clear_004_pos.ksh
+${PACKAGE}FILES+=	zpool_clear_005_pos.ksh
 
 .include <bsd.test.mk>
