@@ -192,6 +192,10 @@ ts_temp_sysctl(SYSCTL_HANDLER_ARGS)
 	if ((val & 0x1000) != 0)
 		temp = -temp;
 	temp = temp * 625 + 2731500;
+
+	/* sysctl(8) reports deciKelvin, so round accordingly. */
+	temp = (temp + 500) / 1000;
+
 	err = sysctl_handle_int(oidp, &temp, 0, req);
 	return (err);
 }
@@ -245,7 +249,7 @@ ts_attach(device_t dev)
 	tree = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "temp",
 	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev, 0,
-	    ts_temp_sysctl, "IK4", "Current temperature");
+	    ts_temp_sysctl, "IK", "Current temperature");
 
 	return (0);
 }
