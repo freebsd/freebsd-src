@@ -302,7 +302,9 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
 	    break;
     }
 
-    size = i * bcache_blksize;
+    if (size > i * bcache_blksize)
+	size = i * bcache_blksize;
+
     if (size != 0) {
 	bcopy(bc->bcache_data + (bcache_blksize * BHASH(bc, blk)), buf, size);
 	result = 0;
