@@ -138,12 +138,12 @@ struct msg {
  * two between 8 and 1024 inclusive (and panic's if it isn't).
  */
 struct msginfo {
-	int	msgmax,		/* max chars in a message */
-		msgmni,		/* max message queue identifiers */
-		msgmnb,		/* max chars in a queue */
-		msgtql,		/* max messages in system */
-		msgssz,		/* size of a message segment (see notes above) */
-		msgseg;		/* number of message segments */
+	int	msgmax;		/* max chars in a message */
+	int	msgmni;		/* max message queue identifiers */
+	int	msgmnb;		/* max chars in a queue */
+	int	msgtql;		/* max messages in system */
+	int	msgssz;		/* size of a message segment (see note) */
+	int	msgseg;		/* number of message segments */
 };
 extern struct msginfo	msginfo;
 
