@@ -315,6 +315,7 @@ extern int	Zflag;			/* zero empty data blocks */
 extern int	inoopt;			/* trim out unused inodes */
 extern char	ckclean;		/* only do work if not cleanly unmounted */
 extern int	cvtlevel;		/* convert to newer file system format */
+extern int	ckhashadd;		/* check hashes to be added */
 extern int	bkgrdcheck;		/* determine if background check is possible */
 extern int	bkgrdsumadj;		/* whether the kernel have ability to adjust superblock summary */
 extern char	usedsoftdep;		/* just fix soft dependency inconsistencies */
