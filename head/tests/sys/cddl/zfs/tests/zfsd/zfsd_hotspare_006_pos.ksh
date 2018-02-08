@@ -26,7 +26,6 @@
 #
 #
 . $STF_SUITE/tests/hotspare/hotspare.kshlib
-. $STF_SUITE/include/libsas.kshlib
 
 ################################################################################
 #
