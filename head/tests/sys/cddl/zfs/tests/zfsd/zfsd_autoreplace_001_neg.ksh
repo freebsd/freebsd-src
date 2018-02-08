@@ -28,7 +28,7 @@
 #
 . $STF_SUITE/tests/hotspare/hotspare.kshlib
 . $STF_SUITE/tests/zfsd/zfsd.kshlib
-. $STF_SUITE/include/libsas.kshlib
+. $STF_SUITE/include/libgnop.kshlib
 
 ################################################################################
 #
@@ -37,18 +37,13 @@
 # ID: zfsd_autoreplace_001_neg
 #
 # DESCRIPTION: 
-#	In a pool with the autoreplace property unset, a vdev will not be
+#	In a pool without the autoreplace property unset, a vdev will not be
 #	replaced by physical path
 #
 # STRATEGY:
 #	1. Create 1 storage pool without hot spares
-#	2. Remove a vdev by disabling its SAS phy
-#	3. Export the pool
-#	4. Reenable the missing dev's SAS phy
-#	5. Erase the missing dev's ZFS label
-#	6. Disable the missing dev's SAS phy again
-#	7. Import the pool
-#	8. Reenable the missing dev's SAS phy
+#	2. Remove a vdev
+#	4. Create a new vdev with the same physical path as the first one
 #	9. Verify that it does not get added to the pool.
 #
 # TESTABILITY: explicit
@@ -61,16 +56,10 @@
 #
 ###############################################################################
 
-verify_runnable "global"
-
-log_assert "A pool with the autoreplace property set will replace disks by physical path"
-
-
-log_onexit autoreplace_cleanup
+log_assert "A pool without the autoreplace property set will not replace disks by physical path"
 
 function verify_assertion
 {
-	do_autoreplace
 	# 9. Verify that it does not get added to the pool
 	for ((timeout=0; timeout<4; timeout=$timeout+1)); do
 		log_mustnot check_state $TESTPOOL $REMOVAL_DISK "ONLINE"
@@ -78,15 +67,27 @@ function verify_assertion
 	done
 }
 
-
+typeset PHYSPATH="some_physical_path"
 typeset REMOVAL_DISK=$DISK0
-typeset POOLDEVS="$DISK0 $DISK1 $DISK2 $DISK3"
+typeset REMOVAL_NOP=${DISK0}.nop
+typeset NEW_DISK=$DISK4
+typeset NEW_NOP=${DISK4}.nop
+typeset OTHER_DISKS="${DISK1} ${DISK2} ${DISK3}"
+typeset ALLDISKS="${DISK0} ${DISK1} ${DISK2} ${DISK3}"
+typeset ALLNOPS=${ALLDISKS//~(E)([[:space:]]+|$)/.nop\1}
 set -A MY_KEYWORDS "mirror" "raidz1" "raidz2"
 ensure_zfsd_running
+log_must create_gnops $OTHER_DISKS
 for keyword in "${MY_KEYWORDS[@]}" ; do
-	log_must create_pool $TESTPOOL $keyword $POOLDEVS
-	log_must poolexists "$TESTPOOL"
-	log_must $ZPOOL set autoreplace=off $TESTPOOL
+	log_must create_gnop $REMOVAL_DISK $PHYSPATH
+	log_must create_pool $TESTPOOL $keyword $ALLNOPS
+	log_must $ZPOOL set autoreplace=on $TESTPOOL
+
+	log_must destroy_gnop $REMOVAL_DISK
+	log_must create_gnop $NEW_DISK $PHYSPATH
 	verify_assertion
 	destroy_pool "$TESTPOOL"
+	log_must destroy_gnop $NEW_DISK
 done
+
+log_pass

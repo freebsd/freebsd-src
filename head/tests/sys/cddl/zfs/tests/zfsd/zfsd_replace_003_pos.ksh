@@ -33,103 +33,73 @@
 # $FreeBSD$
 
 . $STF_SUITE/include/libtest.kshlib
-. $STF_SUITE/include/libsas.kshlib
+. $STF_SUITE/include/libgnop.kshlib
 . $STF_SUITE/tests/hotspare/hotspare.kshlib
 . $STF_SUITE/tests/zfsd/zfsd.kshlib
 
-verify_runnable "global"
-
 function cleanup
 {
-	# See if the phy has been disabled, and try to re-enable it if possible.
-	[ -n "$EXPANDER0" -a -n "$PHY0" ] && enable_sas_disk $EXPANDER0 $PHY0
-	[ -n "$EXPANDER1" -a -n "$PHY1" ] && enable_sas_disk $EXPANDER1 $PHY1
-	[ -n "$EXPANDER" -a -n "$PHY" ] && enable_sas_disk $EXPANDER $PHY
-
 	destroy_pool $TESTPOOL
 	[[ -e $TESTDIR ]] && log_must $RM -rf $TESTDIR/*
-}
-
-# arg1: disk devname
-# Leaves EXPANDER and PHY set appropriately
-function remove_disk
-{
-	typeset DISK=$1
-	# Find the first disk, get the expander and phy
-	log_note "Looking for expander and phy information for $DISK"
-	find_verify_sas_disk $DISK
-
-	log_note "Disabling \"$DISK\" on expander $EXPANDER phy $PHY"
-	# Disable the first disk.
-	disable_sas_disk $EXPANDER $PHY
-
-	# Check to make sure ZFS sees the disk as removed
-	wait_for_pool_dev_state_change 20 $DISK "REMOVED|UNAVAIL"
-}
-
-# arg1: disk's old devname
-# arg2: disk's expander's devname
-# arg3: disk's phy number
-# arg4: whether the devname must differ after reconnecting
-function reconnect_disk
-{
-	typeset DISK=$1
-	typeset EXPANDER=$2
-	typeset PHY=$3
-
-	# Re-enable the disk, we don't want to leave it turned off
-	log_note "Re-enabling phy $PHY on expander $EXPANDER"
-	enable_sas_disk $EXPANDER $PHY
-
-	log_note "Checking to see whether disk has reappeared"
-
-	prev_disk=$(find_disks $DISK)
-	cur_disk=$(find_disks $FOUNDDISK)
-
-	# If you get this, the test must be fixed to guarantee that
-	# it will reappear with a different name.
-	[ "${prev_disk}" = "${cur_disk}" ] && log_unsupported \
-		"Disk $DISK reappeared with the same devname."
-
-	#Disk should have auto-joined the zpool. Verify it's status is online.
-	wait_for_pool_dev_state_change 20 $FOUNDDISK ONLINE
+	for md in $MD0 $MD1 $MD2 $MD3; do
+		gnop destroy -f $md
+		for ((i=0; i<5; i=i+1)); do
+			$MDCONFIG -d -u $md && break
+			$SLEEP 1
+		done
+	done
 }
 
 log_assert "ZFSD will correctly replace disks that disappear and reappear \
 	   with different devnames"
 
 # Outline
+# Use gnop on top of file-backed md devices
+# * file-backed md devices so we can destroy them and recreate them with
+#   different devnames
+# * gnop so we can destroy them while still in use
 # Create a double-parity pool
-# Remove two disks by disabling their SAS phys
-# Reenable the phys in the opposite order
-# Check that the disks's devnames have swapped
+# Remove two vdevs
+# Destroy the md devices and recreate in the opposite order
+# Check that the md's devnames have swapped
 # Verify that the pool regains its health
 
 log_onexit cleanup
 ensure_zfsd_running
 
-child_pids=""
 
-set -A DISKS_ARRAY $DISKS
-typeset DISK0=${DISKS_ARRAY[0]}
-typeset DISK1=${DISKS_ARRAY[1]}
-if [ ${DISK0##/dev/da} -gt ${DISK1##/dev/da} ]; then
-	# Swap disks so we'll disable the lowest numbered first
-	typeset TMP="$DISK1"
-	DISK1="$DISK0"
-	DISK0="$TMP"
-fi
+N_DEVARRAY_FILES=4
+set_devs
+typeset FILE0="${devarray[0]}"
+typeset FILE1="${devarray[1]}"
+typeset FILE2="${devarray[2]}"
+typeset FILE3="${devarray[3]}"
+typeset MD0=`$MDCONFIG -a -t vnode -f ${FILE0}`
+[ $? -eq 0 ] || atf_fail "Failed to create md device"
+typeset MD1=`$MDCONFIG -a -t vnode -f ${FILE1}`
+[ $? -eq 0 ] || atf_fail "Failed to create md device"
+typeset MD2=`$MDCONFIG -a -t vnode -f ${FILE2}`
+[ $? -eq 0 ] || atf_fail "Failed to create md device"
+typeset MD3=`$MDCONFIG -a -t vnode -f ${FILE3}`
+[ $? -eq 0 ] || atf_fail "Failed to create md device"
+log_must create_gnops $MD0 $MD1 $MD2 $MD3
 
 for type in "raidz2" "mirror"; do
 	# Create a pool on the supplied disks
-	create_pool $TESTPOOL $type $DISKS
+	create_pool $TESTPOOL $type ${MD0}.nop ${MD1}.nop ${MD2}.nop ${MD3}.nop
 
-	remove_disk $DISK0
-	typeset EXPANDER0=$EXPANDER
-	typeset PHY0=$PHY
-	remove_disk $DISK1
-	typeset EXPANDER1=$EXPANDER
-	typeset PHY1=$PHY
+	log_must destroy_gnop $MD0
+	for ((i=0; i<5; i=i+1)); do
+		$MDCONFIG -d -u $MD0 && break
+		$SLEEP 1
+	done
+	[ -c /dev/$MD0.nop ] && atf_fail "failed to destroy $MD0"
+	log_must destroy_gnop $MD1
+	for ((i=0; i<5; i=i+1)); do
+		$MDCONFIG -d -u $MD1 && break
+		$SLEEP 1
+	done
+	[ -c /dev/$MD1.nop ] && atf_fail "failed to destroy $MD0"
 
 	# Make sure that the pool is degraded
 	$ZPOOL status $TESTPOOL |grep "state:" |grep DEGRADED > /dev/null
@@ -137,11 +107,15 @@ for type in "raidz2" "mirror"; do
 		log_fail "Pool $TESTPOOL not listed as DEGRADED"
 	fi
 
-	reconnect_disk $DISK1 $EXPANDER1 $PHY1
-	reconnect_disk $DISK0 $EXPANDER0 $PHY0
+	# Recreate the vdevs in the opposite order
+	typeset MD0=`$MDCONFIG -a -t vnode -f ${FILE1}`
+	[ $? -eq 0 ] || atf_fail "Failed to create md device"
+	typeset MD1=`$MDCONFIG -a -t vnode -f ${FILE0}`
+	[ $? -eq 0 ] || atf_fail "Failed to create md device"
+	log_must create_gnops $MD0 $MD1
+
 	wait_until_resilvered
 	destroy_pool $TESTPOOL
-	log_must $RM -rf /$TESTPOOL
 done
 
 log_pass

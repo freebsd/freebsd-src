@@ -28,7 +28,7 @@
 #
 . $STF_SUITE/tests/hotspare/hotspare.kshlib
 . $STF_SUITE/tests/zfsd/zfsd.kshlib
-. $STF_SUITE/include/libsas.kshlib
+. $STF_SUITE/include/libgnop.kshlib
 
 ################################################################################
 #
@@ -42,13 +42,8 @@
 #
 # STRATEGY:
 #	1. Create 1 storage pool without hot spares
-#	2. Remove a vdev by disabling its SAS phy
-#	3. Export the pool
-#	4. Reenable the missing dev's SAS phy
-#	5. Erase the missing dev's ZFS label
-#	6. Disable the missing dev's SAS phy again
-#	7. Import the pool
-#	8. Reenable the missing dev's SAS phy
+#	2. Remove a vdev
+#	4. Create a new vdev with the same physical path as the first one
 #	9. Verify that it does get added to the pool.
 #
 # TESTABILITY: explicit
@@ -61,27 +56,35 @@
 #
 ###############################################################################
 
-verify_runnable "global"
-
 log_assert "A pool with the autoreplace property will replace disks by physical path"
-
-log_onexit autoreplace_cleanup
 
 function verify_assertion
 {
-	do_autoreplace
-	wait_for_pool_dev_state_change 20 $REMOVAL_DISK ONLINE
+	wait_for_pool_dev_state_change 20 $NEW_DISK ONLINE
 }
 
 
+typeset PHYSPATH="some_physical_path"
 typeset REMOVAL_DISK=$DISK0
-typeset POOLDEVS="$DISK0 $DISK1 $DISK2 $DISK3"
+typeset REMOVAL_NOP=${DISK0}.nop
+typeset NEW_DISK=$DISK4
+typeset NEW_NOP=${DISK4}.nop
+typeset OTHER_DISKS="${DISK1} ${DISK2} ${DISK3}"
+typeset ALLDISKS="${DISK0} ${DISK1} ${DISK2} ${DISK3}"
+typeset ALLNOPS=${ALLDISKS//~(E)([[:space:]]+|$)/.nop\1}
 set -A MY_KEYWORDS "mirror" "raidz1" "raidz2"
 ensure_zfsd_running
+log_must create_gnops $OTHER_DISKS
 for keyword in "${MY_KEYWORDS[@]}" ; do
-	log_must create_pool $TESTPOOL $keyword $POOLDEVS
-	log_must poolexists "$TESTPOOL"
+	log_must create_gnop $REMOVAL_DISK $PHYSPATH
+	log_must create_pool $TESTPOOL $keyword $ALLNOPS
 	log_must $ZPOOL set autoreplace=on $TESTPOOL
+
+	log_must destroy_gnop $REMOVAL_DISK
+	log_must create_gnop $NEW_DISK $PHYSPATH
 	verify_assertion
 	destroy_pool "$TESTPOOL"
+	log_must destroy_gnop $NEW_DISK
 done
+
+log_pass

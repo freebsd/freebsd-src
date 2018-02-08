@@ -28,7 +28,7 @@
 #
 . $STF_SUITE/tests/hotspare/hotspare.kshlib
 . $STF_SUITE/tests/zfsd/zfsd.kshlib
-. $STF_SUITE/include/libsas.kshlib
+. $STF_SUITE/include/libgnop.kshlib
 
 ################################################################################
 #
@@ -45,13 +45,14 @@
 #       
 #
 # STRATEGY:
-#	1. Create 1 storage pools with hot spares.  Use disks instead of files
-#	   because they can be removed.
-#	2. Remove one disk by turning off its SAS phy.
+#	1. Create 1 storage pools with hot spares.
+#	2. Remove one disk
 #	3. Verify that the spare is in use.
-#	4. Reinsert the vdev by enabling its phy
-#	5. Verify that the vdev gets resilvered and the spare gets removed
-#	6. Use additional zpool history data to verify that the pool
+#	4. Export the pool
+#	5. Recreate the vdev
+#	6. Import the pool
+#	7. Verify that the vdev gets resilvered and the spare gets removed
+#	8. Use additional zpool history data to verify that the pool
 #	   finished resilvering _before_ zfsd detached the spare.
 #
 # TESTABILITY: explicit
@@ -69,9 +70,7 @@ verify_runnable "global"
 function verify_assertion # spare_dev
 {
 	typeset spare_dev=$1
-	find_verify_sas_disk $REMOVAL_DISK
-	log_note "Disabling \"$REMOVAL_DISK\" on expander $EXPANDER phy $PHY"
-	disable_sas_disk $EXPANDER $PHY
+	log_must destroy_gnop $REMOVAL_DISK
 
 	# Check to make sure ZFS sees the disk as removed
 	wait_for_pool_removal 20
@@ -84,8 +83,7 @@ function verify_assertion # spare_dev
 	log_must $ZPOOL export $TESTPOOL
 
 	# Reenable the  missing disk
-	log_note "Reenabling phy on expander $EXPANDER phy $PHY"
-	enable_sas_disk $EXPANDER $PHY
+	log_must create_gnop $REMOVAL_DISK
 
 	# Import the pool
 	log_must $ZPOOL import $TESTPOOL
@@ -129,26 +127,24 @@ function verify_assertion # spare_dev
 }
 
 
-if ! $(is_physical_device $DISKS) ; then
-	log_unsupported "This directory cannot be run on raw files."
-fi
-
 log_assert "If a removed drive gets reinserted while the pool is exported, \
 	    it will replace its spare when reinserted."
 
-log_onexit autoreplace_cleanup
-
 ensure_zfsd_running
-set_devs
 
 typeset REMOVAL_DISK=$DISK0
-typeset SDEV=$DISK4
-typeset POOLDEVS="$DISK0 $DISK1 $DISK2 $DISK3"
+typeset REMOVAL_NOP=${DISK0}.nop
+typeset SPARE_DISK=$DISK4
+typeset SPARE_NOP=${DISK4}.nop
+typeset OTHER_DISKS="${DISK1} ${DISK2} ${DISK3}"
+typeset OTHER_NOPS=${OTHER_DISKS//~(E)([[:space:]]+|$)/.nop\1}
 set -A MY_KEYWORDS "mirror" "raidz1" "raidz2"
+ensure_zfsd_running
+log_must create_gnops $REMOVAL_DISK $OTHER_DISKS $SPARE_DISK
 for keyword in "${MY_KEYWORDS[@]}" ; do
-	log_must create_pool $TESTPOOL $keyword $POOLDEVS spare $SDEV
-	log_must poolexists "$TESTPOOL"
-	iterate_over_hotspares verify_assertion $SDEV
-
+	log_must create_pool $TESTPOOL $keyword $REMOVAL_NOP $OTHER_NOPS spare $SPARE_NOP
+	verify_assertion
 	destroy_pool "$TESTPOOL"
 done
+
+log_pass

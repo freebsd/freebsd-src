@@ -27,18 +27,6 @@
 # $FreeBSD$
 
 . ${STF_SUITE}/include/libtest.kshlib
-. ${STF_SUITE}/include/libsas.kshlib
-
-verify_runnable "global"
-echo "list of disks: $DISKS"
-
-# Make sure that all of the disks that we've been given are attached to a
-# SAS expander, and that we can find the phy they're attached to.  This
-# function will cause the script to exit if it fails.
-for disk in $DISKS
-do
-	find_verify_sas_disk $disk
-done
 
 # Rotate logs now, because this test can generate a great volume of log entries
 newsyslog

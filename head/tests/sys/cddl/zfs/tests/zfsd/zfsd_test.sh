@@ -204,7 +204,7 @@ atf_test_case zfsd_hotspare_004_pos cleanup
 zfsd_hotspare_004_pos_head()
 {
 	atf_set "descr" "Removing a disk from a pool results in the spare activating"
-	atf_set "require.progs"  zpool camcontrol zfsd
+	atf_set "require.progs"  gnop zpool camcontrol zfsd
 	atf_set "timeout" 3600
 }
 zfsd_hotspare_004_pos_body()
@@ -227,7 +227,7 @@ zfsd_hotspare_004_pos_cleanup()
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
-	ksh93 $(atf_get_srcdir)/hotspare_cleanup.ksh || atf_fail "Cleanup failed"
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
 atf_test_case zfsd_hotspare_005_pos cleanup
@@ -292,7 +292,7 @@ atf_test_case zfsd_hotspare_007_pos cleanup
 zfsd_hotspare_007_pos_head()
 {
 	atf_set "descr" "zfsd will swap failed drives at startup"
-	atf_set "require.progs"  zpool camcontrol zfsd
+	atf_set "require.progs"  gnop zpool camcontrol zfsd
 	atf_set "timeout" 3600
 }
 zfsd_hotspare_007_pos_body()
@@ -315,7 +315,7 @@ zfsd_hotspare_007_pos_cleanup()
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
-	ksh93 $(atf_get_srcdir)/hotspare_cleanup.ksh || atf_fail "Cleanup failed"
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
 atf_test_case zfsd_hotspare_008_neg cleanup
@@ -375,14 +375,14 @@ zfsd_autoreplace_001_neg_cleanup()
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
-	ksh93 $(atf_get_srcdir)/hotspare_cleanup.ksh || atf_fail "Cleanup failed"
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
 atf_test_case zfsd_autoreplace_002_pos cleanup
 zfsd_autoreplace_002_pos_head()
 {
 	atf_set "descr" "A pool with autoreplace set will replace by physical path"
-	atf_set "require.progs"  zpool camcontrol zfsd
+	atf_set "require.progs"  gnop zpool zfsd
 	atf_set "timeout" 3600
 }
 zfsd_autoreplace_002_pos_body()
@@ -405,7 +405,7 @@ zfsd_autoreplace_002_pos_cleanup()
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
-	ksh93 $(atf_get_srcdir)/hotspare_cleanup.ksh || atf_fail "Cleanup failed"
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
 atf_test_case zfsd_autoreplace_003_pos cleanup
@@ -435,7 +435,7 @@ zfsd_autoreplace_003_pos_cleanup()
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
 	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
-	ksh93 $(atf_get_srcdir)/hotspare_cleanup.ksh || atf_fail "Cleanup failed"
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
 atf_test_case zfsd_replace_001_pos cleanup
@@ -503,9 +503,9 @@ zfsd_replace_003_pos_head()
 zfsd_replace_003_pos_body()
 {
 	. $(atf_get_srcdir)/../../include/default.cfg
-	. $(atf_get_srcdir)/zfsd.cfg
+	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
+	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
 
-	verify_disk_count "$DISKS" 3
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfsd_replace_003_pos.ksh
 	if [[ $? != 0 ]]; then
@@ -525,7 +525,7 @@ atf_test_case zfsd_import_001_pos cleanup
 zfsd_import_001_pos_head()
 {
 	atf_set "descr" "If a removed drive gets reinserted while the pool is exported, it will detach its spare when imported."
-	atf_set "require.progs"  zfsd zpool
+	atf_set "require.progs"  gnop zfsd zpool
 	atf_set "timeout" 3600
 }
 zfsd_import_001_pos_body()

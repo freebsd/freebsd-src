@@ -39,7 +39,10 @@
 # won't be present on the gnop device and vice versa.
 function create_gnop
 {
+	# Name of disk to use, with or without /dev/
 	typeset disk=$1
+	# Optional physical path to use
+	typeset physpath=$2
 	# size of disk in bytes
 	typeset -li disk_size
 	# disk size, rounded down to multiple of 16384
@@ -48,14 +51,19 @@ function create_gnop
 	typeset -li nop_size
 	# offset of the beginning of the nop device in bytes
 	typeset -li nop_offset
+	typeset args
 
-	disk_size=`diskinfo da0 | cut -f 3`
+	disk_size=`diskinfo $disk | cut -f 3`
 	# Round it down so the nop device will be 4k-aligned
 	disk_size_rounded=$(( ${disk_size} / 16384 * 16384 ))
 	nop_size=$(( ${disk_size_rounded} / 4 ))
 	nop_offset=${nop_size}
+	args="-s ${nop_size} -o ${nop_offset}"
+	if [ -n "$physpath" ]; then
+		args="$args -z $physpath"
+	fi
 
-	gnop create -s ${nop_size} -o ${nop_offset} ${disk}
+	gnop create ${args} ${disk}
 }
 
 # Create multiple gnop devices

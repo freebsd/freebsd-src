@@ -28,7 +28,7 @@
 #
 . $STF_SUITE/tests/hotspare/hotspare.kshlib
 . $STF_SUITE/tests/zfsd/zfsd.kshlib
-. $STF_SUITE/include/libsas.kshlib
+. $STF_SUITE/include/libgnop.kshlib
 
 ################################################################################
 #
@@ -42,10 +42,9 @@
 #       
 #
 # STRATEGY:
-#	1. Create 1 storage pools with hot spares.  Use disks instead of files
-#	   because they can be removed.
+#	1. Create 1 storage pools with hot spares.
 #	2. Turn off zfsd
-#	3. Remove one vdev by turning off its SAS phy.
+#	3. Remove one vdev
 #	4. Restart zfsd
 #	5. Verify that the spare is in use.
 #
@@ -69,11 +68,9 @@ log_onexit autoreplace_cleanup
 function verify_assertion # spare_dev
 {
 	typeset spare_dev=$1
-	find_verify_sas_disk $REMOVAL_DISK
 	stop_zfsd
 
-	log_note "Disabling \"$REMOVAL_DISK\" on expander $EXPANDER phy $PHY"
-	disable_sas_disk $EXPANDER $PHY
+	log_must destroy_gnop $REMOVAL_DISK
 
 	# Check to make sure ZFS sees the disk as removed
 	wait_for_pool_removal 20
@@ -84,19 +81,26 @@ function verify_assertion # spare_dev
 	wait_for_pool_dev_state_change 20 $spare_dev INUSE
 
 	# Reenable the  missing disk
-	log_note "Reenabling phy on expander $EXPANDER phy $PHY"
-	enable_sas_disk $EXPANDER $PHY
+	log_must create_gnop $REMOVAL_DISK $PHYSPATH
 }
 
+typeset PHYSPATH="some_physical_path"
 typeset REMOVAL_DISK=$DISK0
-typeset SDEV=$DISK4
-typeset POOLDEVS="$DISK0 $DISK1 $DISK2 $DISK3"
+typeset REMOVAL_NOP=${DISK0}.nop
+typeset SPARE_DISK=$DISK4
+typeset SPARE_NOP=${DISK4}.nop
+typeset OTHER_DISKS="${DISK1} ${DISK2} ${DISK3}"
+typeset OTHER_NOPS=${OTHER_DISKS//~(E)([[:space:]]+|$)/.nop\1}
 set -A MY_KEYWORDS "mirror" "raidz1" "raidz2"
 ensure_zfsd_running
+log_must create_gnops $OTHER_DISKS $SPARE_DISK
+log_must create_gnop $REMOVAL_DISK $PHYSPATH
 for keyword in "${MY_KEYWORDS[@]}" ; do
-	log_must create_pool $TESTPOOL $keyword $POOLDEVS spare $SDEV
-	log_must poolexists "$TESTPOOL"
-	iterate_over_hotspares verify_assertion $SDEV
+	log_must create_pool $TESTPOOL $keyword $REMOVAL_NOP $OTHER_NOPS spare $SPARE_NOP
+	log_must $ZPOOL set autoreplace=on $TESTPOOL
+	iterate_over_hotspares verify_assertion $SPARE_NOP
 
 	destroy_pool "$TESTPOOL"
 done
+
+log_pass
