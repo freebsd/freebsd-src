@@ -1,3 +1,4 @@
+# vim: filetype=sh
 # Common routines for replacement tests.
 
 function check_vdev_action # <action> <expect> <opt> <disk1> [disk2]

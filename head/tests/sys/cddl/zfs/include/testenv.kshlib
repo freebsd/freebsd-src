@@ -1,3 +1,4 @@
+# vim: filetype=sh
 . ${STF_SUITE}/include/libtest.kshlib
 . ${STF_SUITE}/include/commands.cfg
 
