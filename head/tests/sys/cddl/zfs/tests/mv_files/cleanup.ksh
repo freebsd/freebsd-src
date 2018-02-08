@@ -29,16 +29,10 @@
 
 . $STF_SUITE/include/libtest.kshlib
 
-verify_runnable "global"
-
 [[ -f $TMPDIR/exitsZero.ksh ]] && \
 	log_must $RM -f $TMPDIR/exitsZero.ksh
 [[ -f $TMPDIR/testbackgprocs.ksh ]] && \
 	log_must $RM -f $TMPDIR/testbackgprocs.ksh
-
-ismounted $TESTPOOL/$TESTFS_TGT
-(( $? == 0 )) && log_must $ZFS umount $TESTPOOL/$TESTFS_TGT 
-log_must $ZFS destroy $TESTPOOL/$TESTFS_TGT
 
 if [[ -d $TESTDIR_TGT ]]; then
 	log_must $RM -rf $TESTDIR_TGT
