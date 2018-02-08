@@ -2,9 +2,16 @@
 
 .include <src.opts.mk>
 
+PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/mmap
+FILESDIR=${TESTSDIR}
 
-TESTS_SUBDIRS+=	mmap_read
-TESTS_SUBDIRS+=	mmap_write
+ATF_TESTS_KSH93+=	mmap_test
+
+${PACKAGE}FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	mmap.cfg
+${PACKAGE}FILES+=	mmap_read_001_pos.ksh
+${PACKAGE}FILES+=	mmap_write_001_pos.ksh
+${PACKAGE}FILES+=	setup.ksh
 
 .include <bsd.test.mk>

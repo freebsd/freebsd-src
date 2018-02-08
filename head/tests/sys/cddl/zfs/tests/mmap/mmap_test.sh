@@ -32,16 +32,39 @@ mmap_read_001_pos_head()
 }
 mmap_read_001_pos_body()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-	. $(atf_get_srcdir)/mmap_read.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/mmap.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/mmap_read_001_pos.ksh || atf_fail "Testcase failed"
 }
 mmap_read_001_pos_cleanup()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-	. $(atf_get_srcdir)/mmap_read.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/mmap.cfg
+
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
+}
+
+atf_test_case mmap_write_001_pos cleanup
+mmap_write_001_pos_head()
+{
+	atf_set "descr" "write()s to a file and mmap() that file at the same time does notresult in a deadlock."
+}
+mmap_write_001_pos_body()
+{
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/mmap.cfg
+
+	verify_disk_count "$DISKS" 1
+	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/mmap_write_001_pos.ksh || atf_fail "Testcase failed"
+}
+mmap_write_001_pos_cleanup()
+{
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/mmap.cfg
 
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
@@ -51,4 +74,5 @@ atf_init_test_cases()
 {
 
 	atf_add_test_case mmap_read_001_pos
+	atf_add_test_case mmap_write_001_pos
 }

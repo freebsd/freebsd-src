@@ -596,10 +596,6 @@
                     migration
                     ..
                     mmap
-                        mmap_read
-                        ..
-                        mmap_write
-                        ..
                     ..
                     mount
                     ..
