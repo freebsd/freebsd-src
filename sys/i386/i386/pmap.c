@@ -1718,7 +1718,7 @@ pmap_free_zero_pages(struct spglist *free)
 		/* Preserve the page's PG_ZERO setting. */
 		vm_page_free_toq(m);
 	}
-	atomic_subtract_int(&vm_cnt.v_wire_count, count);
+	VM_CNT_ADD(v_wire_count, -count);
 }
 
 /*
@@ -2060,7 +2060,7 @@ pmap_release(pmap_t pmap)
 		m->wire_count--;
 		vm_page_free_zero(m);
 	}
-	atomic_subtract_int(&vm_cnt.v_wire_count, NPGPTD);
+	VM_CNT_ADD(v_wire_count, -NPGPTD);
 }
 
 static int

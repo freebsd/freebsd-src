@@ -96,6 +96,7 @@ struct vmmeter __exclusive_cache_line vm_cnt = {
 	.v_vforkpages = EARLY_COUNTER,
 	.v_rforkpages = EARLY_COUNTER,
 	.v_kthreadpages = EARLY_COUNTER,
+	.v_wire_count = EARLY_COUNTER,
 };
 
 static void
@@ -105,7 +106,7 @@ vmcounter_startup(void)
 
 	COUNTER_ARRAY_ALLOC(cnt, VM_METER_NCOUNTERS, M_WAITOK);
 }
-SYSINIT(counter, SI_SUB_CPU, SI_ORDER_FOURTH + 1, vmcounter_startup, NULL);
+SYSINIT(counter, SI_SUB_KMEM, SI_ORDER_FIRST, vmcounter_startup, NULL);
 
 SYSCTL_UINT(_vm, VM_V_FREE_MIN, v_free_min,
 	CTLFLAG_RW, &vm_cnt.v_free_min, 0, "Minimum low-free-pages threshold");
@@ -403,7 +404,7 @@ VM_STATS_UINT(v_free_reserved, "Pages reserved for deadlock");
 VM_STATS_UINT(v_free_target, "Pages desired free");
 VM_STATS_UINT(v_free_min, "Minimum low-free-pages threshold");
 VM_STATS_PROC(v_free_count, "Free pages", vm_free_count);
-VM_STATS_UINT(v_wire_count, "Wired pages");
+VM_STATS_PROC(v_wire_count, "Wired pages", vm_wire_count);
 VM_STATS_PROC(v_active_count, "Active pages", vm_active_count);
 VM_STATS_UINT(v_inactive_target, "Desired inactive pages");
 VM_STATS_PROC(v_inactive_count, "Inactive pages", vm_inactive_count);

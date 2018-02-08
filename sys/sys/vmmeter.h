@@ -125,6 +125,7 @@ struct vmmeter {
 	counter_u64_t v_vforkpages;	/* (p) pages affected by vfork() */
 	counter_u64_t v_rforkpages;	/* (p) pages affected by rfork() */
 	counter_u64_t v_kthreadpages;	/* (p) ... and by kernel fork() */
+	counter_u64_t v_wire_count;	/* (p) pages wired down */
 #define	VM_METER_NCOUNTERS	\
 	(offsetof(struct vmmeter, v_page_size) / sizeof(counter_u64_t))
 	/*
@@ -139,7 +140,6 @@ struct vmmeter {
 	u_int v_pageout_free_min;   /* (c) min pages reserved for kernel */
 	u_int v_interrupt_free_min; /* (c) reserved pages for int code */
 	u_int v_free_severe;	/* (c) severe page depletion point */
-	u_int v_wire_count VMMETER_ALIGNED; /* (a) pages wired down */
 };
 #endif /* _KERNEL || _WANT_VMMETER */
 
@@ -156,6 +156,12 @@ extern domainset_t vm_severe_domains;
 #define	VM_CNT_FETCH(var)	counter_u64_fetch(vm_cnt.var)
 
 u_int vm_free_count(void);
+static inline u_int
+vm_wire_count(void)
+{
+
+	return VM_CNT_FETCH(v_wire_count);
+}
 
 /*
  * Return TRUE if we are under our severe low-free-pages threshold

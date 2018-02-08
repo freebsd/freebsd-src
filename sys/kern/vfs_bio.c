@@ -4712,7 +4712,7 @@ vm_hold_free_pages(struct buf *bp, int newbsize)
 		p->wire_count--;
 		vm_page_free(p);
 	}
-	atomic_subtract_int(&vm_cnt.v_wire_count, bp->b_npages - newnpages);
+	VM_CNT_ADD(v_wire_count, -(bp->b_npages - newnpages));
 	bp->b_npages = newnpages;
 }
 
