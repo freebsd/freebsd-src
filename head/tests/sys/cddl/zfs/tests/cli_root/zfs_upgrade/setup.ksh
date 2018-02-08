@@ -30,7 +30,7 @@
 
 . $STF_SUITE/include/libtest.kshlib
 
-verify_runnable "both"
+DISK=${DISKS%% *}
 
 # This should have been set by the .cfg script - verify it's set to something
 # (we check that something later on)
@@ -41,4 +41,4 @@ else
    log_note "This machine is running ZFS Filesystem version $ZFS_VERSION"
 fi
 
-default_setup "$DISKS"
+default_setup "$DISK"
