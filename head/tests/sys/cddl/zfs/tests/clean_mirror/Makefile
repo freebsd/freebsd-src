@@ -6,14 +6,15 @@ PACKAGE=tests
 TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/clean_mirror
 FILESDIR=${TESTSDIR}
 
-${PACKAGE}FILES+=	setup.ksh
-${PACKAGE}FILES+=	default.cfg
-${PACKAGE}FILES+=	cleanup.ksh
-${PACKAGE}FILES+=	clean_mirror_common.kshlib
+ATF_TESTS_KSH93+=	clean_mirror_test
 
-TESTS_SUBDIRS+=	assertion_001
-TESTS_SUBDIRS+=	assertion_002
-TESTS_SUBDIRS+=	assertion_003
-TESTS_SUBDIRS+=	assertion_004
+${PACKAGE}FILES+=	clean_mirror_001_pos.ksh
+${PACKAGE}FILES+=	clean_mirror_002_pos.ksh
+${PACKAGE}FILES+=	clean_mirror_003_pos.ksh
+${PACKAGE}FILES+=	clean_mirror_004_pos.ksh
+${PACKAGE}FILES+=	clean_mirror_common.kshlib
+${PACKAGE}FILES+=	cleanup.ksh
+${PACKAGE}FILES+=	default.cfg
+${PACKAGE}FILES+=	setup.ksh
 
 .include <bsd.test.mk>

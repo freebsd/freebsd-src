@@ -450,14 +450,6 @@
                     cachefile
                     ..
                     clean_mirror
-                        assertion_001
-                        ..
-                        assertion_002
-                        ..
-                        assertion_003
-                        ..
-                        assertion_004
-                        ..
                     ..
                     cli_root
                         zfs_upgrade
