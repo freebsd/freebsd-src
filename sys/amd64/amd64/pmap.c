@@ -2723,8 +2723,7 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 			/* Have to allocate a new pdp, recurse */
 			if (_pmap_allocpte(pmap, NUPDE + NUPDPE + pml4index,
 			    lockp) == NULL) {
-				--m->wire_count;
-				atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+				vm_page_unwire_noq(m);
 				vm_page_free_zero(m);
 				return (NULL);
 			}
@@ -2756,8 +2755,7 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 			/* Have to allocate a new pd, recurse */
 			if (_pmap_allocpte(pmap, NUPDE + pdpindex,
 			    lockp) == NULL) {
-				--m->wire_count;
-				atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+				vm_page_unwire_noq(m);
 				vm_page_free_zero(m);
 				return (NULL);
 			}
@@ -2770,9 +2768,7 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 				/* Have to allocate a new pd, recurse */
 				if (_pmap_allocpte(pmap, NUPDE + pdpindex,
 				    lockp) == NULL) {
-					--m->wire_count;
-					atomic_subtract_int(&vm_cnt.v_wire_count,
-					    1);
+					vm_page_unwire_noq(m);
 					vm_page_free_zero(m);
 					return (NULL);
 				}
@@ -2904,18 +2900,16 @@ pmap_release(pmap_t pmap)
 		pmap->pm_pml4[DMPML4I + i] = 0;
 	pmap->pm_pml4[PML4PML4I] = 0;	/* Recursive Mapping */
 
-	m->wire_count--;
-	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+	vm_page_unwire_noq(m);
 	vm_page_free_zero(m);
 
 	if (pmap->pm_pml4u != NULL) {
 		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->pm_pml4u));
-		m->wire_count--;
-		atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+		vm_page_unwire_noq(m);
 		vm_page_free(m);
 	}
 }
-
+
 static int
 kvm_size(SYSCTL_HANDLER_ARGS)
 {
@@ -7711,10 +7705,8 @@ pmap_pti_free_page(vm_page_t m)
 {
 
 	KASSERT(m->wire_count > 0, ("page %p not wired", m));
-	m->wire_count--;
-	if (m->wire_count != 0)
+	if (!vm_page_unwire_noq(m))
 		return (false);
-	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 	vm_page_free_zero(m);
 	return (true);
 }
