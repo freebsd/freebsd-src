@@ -4,6 +4,7 @@ LOADER_MSDOS_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	no
 LOADER_EXT2FS_SUPPORT?=	no
+PIC=yes
 
 .include <bsd.init.mk>
 
