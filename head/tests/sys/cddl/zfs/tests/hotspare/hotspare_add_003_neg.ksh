@@ -83,10 +83,6 @@ function cleanup
 	partition_cleanup
 }
 
-if ! $(is_physical_device $DISKS) ; then
-	log_unsupported "This directory cannot be run on raw files."
-fi
-
 log_assert "'zpool add [-f]' with hot spares should fail with inapplicable scenarios."
 
 log_onexit cleanup
