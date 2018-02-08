@@ -1,16 +1,25 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
+.if ${MK_FORTH} != "no"
+.include "${.CURDIR}/../../Makefile.ficl"
+.endif
+
 LIB=	efi
 INTERNALLIB=
 WARNS?=	2
 
-SRCS=	delay.c devpath.c efi_console.c efinet.c efipart.c env.c errno.c \
+SRCS=	delay.c devpath.c efi_console.c efinet.c efipart.c errno.c \
 	handles.c libefi.c
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 SRCS+=	time.c
 .elif ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
 SRCS+=	time_event.c
+.endif
+.if ${MK_FORTH} != "no"
+SRCS+=	env.c
 .endif
 
 # We implement a slightly non-standard %S in that it always takes a

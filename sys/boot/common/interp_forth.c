@@ -63,7 +63,6 @@ extern unsigned bootprog_rev;
 
 FICL_SYSTEM *bf_sys;
 FICL_VM	*bf_vm;
-FICL_WORD *pInterp;
 
 /*
  * Shim for taking commands from BF and passing them out to 'standard'
@@ -280,8 +279,6 @@ bf_init(const char *rc)
     ficlSetEnv(bf_sys, "FreeBSD_version", __FreeBSD_version);
     ficlSetEnv(bf_sys, "loader_version", bootprog_rev);
 
-    pInterp = ficlLookup(bf_sys, "interpret");
-
     /* try to load and run init file if present */
     if (rc == NULL)
 	rc = "/boot/boot.4th";
@@ -292,9 +289,6 @@ bf_init(const char *rc)
 	    close(fd);
 	}
     }
-
-    /* Do this again, so that interpret can be redefined. */
-    pInterp = ficlLookup(bf_sys, "interpret");
 }
 
 /*

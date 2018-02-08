@@ -360,10 +360,12 @@ efinet_dev_print(int verbose)
 	for (unit = 0, h = efi_find_handle(&efinet_dev, 0);
 	    h != NULL; h = efi_find_handle(&efinet_dev, ++unit)) {
 		printf("    %s%d:", efinet_dev.dv_name, unit);
-		text = efi_devpath_name(efi_lookup_devpath(h));
-		if (text != NULL) {
-			printf("    %S", text);
-			efi_free_devpath_name(text);
+		if (verbose) {
+			text = efi_devpath_name(efi_lookup_devpath(h));
+			if (text != NULL) {
+				printf("    %S", text);
+				efi_free_devpath_name(text);
+			}
 		}
 		if ((ret = pager_output("\n")) != 0)
 			break;
