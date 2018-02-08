@@ -32,20 +32,20 @@ zfs_unallow_001_pos_head()
 }
 zfs_unallow_001_pos_body()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-    . $(atf_get_srcdir)/../delegate_common.kshlib
-    . $(atf_get_srcdir)/../delegate.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+    . $(atf_get_srcdir)/delegate_common.kshlib
+    . $(atf_get_srcdir)/delegate.cfg
 
-	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_unallow_001_pos.ksh || atf_fail "Testcase failed"
 }
 zfs_unallow_001_pos_cleanup()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-    . $(atf_get_srcdir)/../delegate_common.kshlib
-    . $(atf_get_srcdir)/../delegate.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+    . $(atf_get_srcdir)/delegate_common.kshlib
+    . $(atf_get_srcdir)/delegate.cfg
 
-	ksh93 $(atf_get_srcdir)/../cleanup.ksh || atf_fail "Cleanup failed"
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
 
@@ -57,20 +57,20 @@ zfs_unallow_002_pos_head()
 }
 zfs_unallow_002_pos_body()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-    . $(atf_get_srcdir)/../delegate_common.kshlib
-    . $(atf_get_srcdir)/../delegate.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+    . $(atf_get_srcdir)/delegate_common.kshlib
+    . $(atf_get_srcdir)/delegate.cfg
 
-	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_unallow_002_pos.ksh || atf_fail "Testcase failed"
 }
 zfs_unallow_002_pos_cleanup()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-    . $(atf_get_srcdir)/../delegate_common.kshlib
-    . $(atf_get_srcdir)/../delegate.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+    . $(atf_get_srcdir)/delegate_common.kshlib
+    . $(atf_get_srcdir)/delegate.cfg
 
-	ksh93 $(atf_get_srcdir)/../cleanup.ksh || atf_fail "Cleanup failed"
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
 
@@ -82,20 +82,20 @@ zfs_unallow_003_pos_head()
 }
 zfs_unallow_003_pos_body()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-    . $(atf_get_srcdir)/../delegate_common.kshlib
-    . $(atf_get_srcdir)/../delegate.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+    . $(atf_get_srcdir)/delegate_common.kshlib
+    . $(atf_get_srcdir)/delegate.cfg
 
-	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_unallow_003_pos.ksh || atf_fail "Testcase failed"
 }
 zfs_unallow_003_pos_cleanup()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-    . $(atf_get_srcdir)/../delegate_common.kshlib
-    . $(atf_get_srcdir)/../delegate.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+    . $(atf_get_srcdir)/delegate_common.kshlib
+    . $(atf_get_srcdir)/delegate.cfg
 
-	ksh93 $(atf_get_srcdir)/../cleanup.ksh || atf_fail "Cleanup failed"
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
 
@@ -107,20 +107,20 @@ zfs_unallow_004_pos_head()
 }
 zfs_unallow_004_pos_body()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-    . $(atf_get_srcdir)/../delegate_common.kshlib
-    . $(atf_get_srcdir)/../delegate.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+    . $(atf_get_srcdir)/delegate_common.kshlib
+    . $(atf_get_srcdir)/delegate.cfg
 
-	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_unallow_004_pos.ksh || atf_fail "Testcase failed"
 }
 zfs_unallow_004_pos_cleanup()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-    . $(atf_get_srcdir)/../delegate_common.kshlib
-    . $(atf_get_srcdir)/../delegate.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+    . $(atf_get_srcdir)/delegate_common.kshlib
+    . $(atf_get_srcdir)/delegate.cfg
 
-	ksh93 $(atf_get_srcdir)/../cleanup.ksh || atf_fail "Cleanup failed"
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
 
@@ -132,20 +132,20 @@ zfs_unallow_005_pos_head()
 }
 zfs_unallow_005_pos_body()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-    . $(atf_get_srcdir)/../delegate_common.kshlib
-    . $(atf_get_srcdir)/../delegate.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+    . $(atf_get_srcdir)/delegate_common.kshlib
+    . $(atf_get_srcdir)/delegate.cfg
 
-	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_unallow_005_pos.ksh || atf_fail "Testcase failed"
 }
 zfs_unallow_005_pos_cleanup()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-    . $(atf_get_srcdir)/../delegate_common.kshlib
-    . $(atf_get_srcdir)/../delegate.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+    . $(atf_get_srcdir)/delegate_common.kshlib
+    . $(atf_get_srcdir)/delegate.cfg
 
-	ksh93 $(atf_get_srcdir)/../cleanup.ksh || atf_fail "Cleanup failed"
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
 
@@ -157,20 +157,20 @@ zfs_unallow_006_pos_head()
 }
 zfs_unallow_006_pos_body()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-    . $(atf_get_srcdir)/../delegate_common.kshlib
-    . $(atf_get_srcdir)/../delegate.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+    . $(atf_get_srcdir)/delegate_common.kshlib
+    . $(atf_get_srcdir)/delegate.cfg
 
-	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_unallow_006_pos.ksh || atf_fail "Testcase failed"
 }
 zfs_unallow_006_pos_cleanup()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-    . $(atf_get_srcdir)/../delegate_common.kshlib
-    . $(atf_get_srcdir)/../delegate.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+    . $(atf_get_srcdir)/delegate_common.kshlib
+    . $(atf_get_srcdir)/delegate.cfg
 
-	ksh93 $(atf_get_srcdir)/../cleanup.ksh || atf_fail "Cleanup failed"
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
 
@@ -182,20 +182,20 @@ zfs_unallow_007_neg_head()
 }
 zfs_unallow_007_neg_body()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-    . $(atf_get_srcdir)/../delegate_common.kshlib
-    . $(atf_get_srcdir)/../delegate.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+    . $(atf_get_srcdir)/delegate_common.kshlib
+    . $(atf_get_srcdir)/delegate.cfg
 
-	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_unallow_007_neg.ksh || atf_fail "Testcase failed"
 }
 zfs_unallow_007_neg_cleanup()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-    . $(atf_get_srcdir)/../delegate_common.kshlib
-    . $(atf_get_srcdir)/../delegate.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+    . $(atf_get_srcdir)/delegate_common.kshlib
+    . $(atf_get_srcdir)/delegate.cfg
 
-	ksh93 $(atf_get_srcdir)/../cleanup.ksh || atf_fail "Cleanup failed"
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
 
@@ -207,20 +207,20 @@ zfs_unallow_008_neg_head()
 }
 zfs_unallow_008_neg_body()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-    . $(atf_get_srcdir)/../delegate_common.kshlib
-    . $(atf_get_srcdir)/../delegate.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+    . $(atf_get_srcdir)/delegate_common.kshlib
+    . $(atf_get_srcdir)/delegate.cfg
 
-	ksh93 $(atf_get_srcdir)/../setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_unallow_008_neg.ksh || atf_fail "Testcase failed"
 }
 zfs_unallow_008_neg_cleanup()
 {
-	. $(atf_get_srcdir)/../../../include/default.cfg
-    . $(atf_get_srcdir)/../delegate_common.kshlib
-    . $(atf_get_srcdir)/../delegate.cfg
+	. $(atf_get_srcdir)/../../include/default.cfg
+    . $(atf_get_srcdir)/delegate_common.kshlib
+    . $(atf_get_srcdir)/delegate.cfg
 
-	ksh93 $(atf_get_srcdir)/../cleanup.ksh || atf_fail "Cleanup failed"
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
 

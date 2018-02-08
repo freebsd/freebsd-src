@@ -558,10 +558,6 @@
                     ctime
                     ..
                     delegate
-                        zfs_allow
-                        ..
-                        zfs_unallow
-                        ..
                     ..
                     devices
                     ..
