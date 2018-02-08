@@ -34,10 +34,6 @@ if ! is_userquota_supported; then
 	log_unsupported "userquota is not supported in this system."
 fi
 
-log_must cleanup_quota
 log_must clean_user_group
-
-typeset mntp=$(get_prop mountpoint $QFS)
-log_must $CHMOD 0755 $mntp
 
 default_cleanup

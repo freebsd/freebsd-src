@@ -33,4 +33,5 @@
 # clear its label with labelclear instead of relying on zpool destroy
 DISK=${DISKS%% *}
 $ZPOOL destroy -f $TESTPOOL
-$ZPOOL labelclear -f $DISK
+[ -n "$DISK" ] && $ZPOOL labelclear -f $DISK
+log_pass
