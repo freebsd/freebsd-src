@@ -64,14 +64,11 @@ MANDIR=	${SHAREDIR}/openssl/man/man
 
 .if defined(LIB)
 _docs=	${LIB}
-.if ${LIB} == ssl
-_docs+=	man3
-.endif
 _skip=	SSLeay_version des_modes
 _sec=	3
 .else
 _docs=	apps
-_skip=	config
+_skip=	c_rehash config
 _sec=	1
 .endif
 
