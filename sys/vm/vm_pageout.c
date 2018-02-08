@@ -1138,11 +1138,9 @@ vm_pageout_free_pages(struct pgo_pglist *pglist, vm_object_t object,
 
 	pcount = MAX(object->iosize / PAGE_SIZE, 1);
 	count = 0;
-	if (pcount == 1) {
-		if (vm_pageout_pglist_append(pglist, m))
-			count = 1;
+	if (pcount == 1 || vm_object_reserv(object)) {
+		vm_page_free(m);
 		vm_page_unlock(m);
-		vm_pageout_pglist_flush(pglist, vm_object_reserv(object));
 		VM_OBJECT_WUNLOCK(object);
 		goto out;
 	}
@@ -1189,8 +1187,8 @@ free_page:
 			count++;
 	}
 	mtx_unlock(mtx);
-	vm_pageout_pglist_flush(pglist, vm_object_reserv(object));
 	VM_OBJECT_WUNLOCK(object);
+	vm_pageout_pglist_flush(pglist, false);
 out:
 	VM_CNT_ADD(v_dfree, count);
 
