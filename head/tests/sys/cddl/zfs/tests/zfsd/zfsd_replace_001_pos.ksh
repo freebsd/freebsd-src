@@ -35,48 +35,42 @@
 . $STF_SUITE/tests/hotspare/hotspare.kshlib
 . $STF_SUITE/tests/zfsd/zfsd.kshlib
 . $STF_SUITE/include/libtest.kshlib
-. $STF_SUITE/include/libsas.kshlib
+. $STF_SUITE/include/libgnop.kshlib
 
-verify_runnable "global"
+log_assert "ZFSD will automatically replace a SAS disk that dissapears and reappears in the same location, with the same devname"
 
-log_assert "Failing a disk from a SAS expander is recognized by ZFS"
-
-log_onexit autoreplace_cleanup
 ensure_zfsd_running
 
-child_pids=""
+set_disks
 
-set -A TMPDISKS $DISKS
-typeset REMOVAL_DISK=${TMPDISKS[0]}
-REMOVAL_DISK=${REMOVAL_DISK##*/}
+typeset REMOVAL_DISK=$DISK0
+typeset REMOVAL_NOP=${DISK0}.nop
+typeset OTHER_DISKS="${DISK1} ${DISK2}"
+typeset ALLDISKS="${DISK0} ${DISK1} ${DISK2}"
+typeset ALLNOPS=${ALLDISKS//~(E)([[:space:]]+|$)/.nop\1}
 
+log_must create_gnops $ALLDISKS
 for type in "raidz" "mirror"; do
 	# Create a pool on the supplied disks
-	create_pool $TESTPOOL $type $DISKS
+	create_pool $TESTPOOL $type $ALLNOPS
 	log_must $ZFS create $TESTPOOL/$TESTFS
 	log_must $ZFS set mountpoint=$TESTDIR $TESTPOOL/$TESTFS
 
-	# Find the first disk, get the expander and phy
-	log_note "Looking for expander and phy information for $REMOVAL_DISK"
-	find_verify_sas_disk $REMOVAL_DISK
-
-	log_note "Disabling \"$REMOVAL_DISK\" on expander $EXPANDER phy $PHY"
-	# Disable the first disk.  We have to do this first, because if
-	# there is I/O active to the
-	disable_sas_disk $EXPANDER $PHY
+	# Disable the first disk.
+	log_must destroy_gnop $REMOVAL_DISK
 
 	# Write out data to make sure we can do I/O after the disk failure
-	log_must $DD if=/dev/zero of=$TESTDIR/$TESTFILE bs=1m count=512
+	log_must $DD if=/dev/zero of=$TESTDIR/$TESTFILE bs=1m count=1
+	log_must $FSYNC $TESTDIR/$TESTFILE
 
 	# Check to make sure ZFS sees the disk as removed
-	wait_for_pool_removal 20
+	wait_for_pool_dev_state_change 20 $REMOVAL_NOP REMOVED
 
-	# Re-enable the disk, we don't want to leave it turned off
-	log_note "Re-enabling phy $PHY on expander $EXPANDER"
-	enable_sas_disk $EXPANDER $PHY
+	# Re-enable the disk
+	log_must create_gnop $REMOVAL_DISK
 
 	# Disk should auto-join the zpool & be resilvered.
-	wait_for_pool_dev_state_change 20 $REMOVAL_DISK ONLINE
+	wait_for_pool_dev_state_change 20 $REMOVAL_NOP ONLINE
 	wait_until_resilvered
 
 	$ZPOOL status $TESTPOOL
