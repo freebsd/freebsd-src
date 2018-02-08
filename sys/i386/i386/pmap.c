@@ -2057,10 +2057,9 @@ pmap_release(pmap_t pmap)
 		KASSERT(VM_PAGE_TO_PHYS(m) == (pmap->pm_pdpt[i] & PG_FRAME),
 		    ("pmap_release: got wrong ptd page"));
 #endif
-		m->wire_count--;
+		vm_page_unwire_noq(m);
 		vm_page_free_zero(m);
 	}
-	atomic_subtract_int(&vm_cnt.v_wire_count, NPGPTD);
 }
 
 static int
