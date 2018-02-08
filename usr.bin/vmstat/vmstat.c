@@ -1304,7 +1304,7 @@ print_intrcnts(unsigned long *intrcnts, unsigned long *old_intrcnts,
 	for (i = 0, intrcnt=intrcnts, old_intrcnt=old_intrcnts; i < nintr; i++) {
 		if (intrname[0] != '\0' && (*intrcnt != 0 || aflag)) {
 			count = *intrcnt - *old_intrcnt;
-			rate = (count * 1000 + period_ms / 2) / period_ms;
+			rate = ((uint64_t)count * 1000 + period_ms / 2) / period_ms;
 			xo_open_instance("interrupt");
 			xo_emit("{d:name/%-*s}{ket:name/%s} "
 			    "{:total/%20lu} {:rate/%10lu}\n",
