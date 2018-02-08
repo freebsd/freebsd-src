@@ -36,7 +36,6 @@ zpool_clear_001_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_clear.cfg
 
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_clear_001_pos.ksh || atf_fail "Testcase failed"
 }
 zpool_clear_001_pos_cleanup()
@@ -60,7 +59,6 @@ zpool_clear_002_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_clear.cfg
 
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_clear_002_neg.ksh || atf_fail "Testcase failed"
 }
 zpool_clear_002_neg_cleanup()
@@ -84,7 +82,6 @@ zpool_clear_003_neg_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_clear.cfg
 
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_clear_003_neg.ksh || atf_fail "Testcase failed"
 }
 zpool_clear_003_neg_cleanup()
@@ -108,7 +105,6 @@ zpool_clear_004_pos_body()
 	. $(atf_get_srcdir)/zpool_clear.cfg
 
 	atf_expect_fail "https://www.illumos.org/issues/8641 zpool clear doesn't work on spare or replacing vdevs"
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_clear_004_pos.ksh || atf_fail "Testcase failed"
 }
 zpool_clear_004_pos_cleanup()
@@ -130,7 +126,7 @@ zpool_clear_005_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_clear.cfg
 
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
+	verify_disk_count "$DISKS" 3
 	ksh93 $(atf_get_srcdir)/zpool_clear_005_pos.ksh || atf_fail "Testcase failed"
 }
 zpool_clear_005_pos_cleanup()
