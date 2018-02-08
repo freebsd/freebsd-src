@@ -2,7 +2,6 @@
 # DO NOT EDIT: generated from man-makefile-update target
 MAN+= CA.pl.1
 MAN+= asn1parse.1
-MAN+= c_rehash.1
 MAN+= ca.1
 MAN+= ciphers.1
 MAN+= cms.1

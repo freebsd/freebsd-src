@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180208: remove c_rehash(1)
+OLD_FILES+=usr/share/openssl/man/man1/c_rehash.1.gz
 # 20180206: remove gdbtui
 OLD_FILES+=usr/bin/gdbtui
 # 20180201: Obsolete forth files
