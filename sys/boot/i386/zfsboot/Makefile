@@ -38,7 +38,7 @@ CFLAGS.gcc+=	--param max-inline-insns-single=100
 # Do not unroll skein loops, reduce code size
 CFLAGS+=	-DSKEIN_LOOP=111
 
-LD_FLAGS=-static -N --gc-sections
+LD_FLAGS=${LD_FLAGS_BIN}
 
 LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 

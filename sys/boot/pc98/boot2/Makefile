@@ -52,7 +52,7 @@ CFLAGS.gcc+=   -mno-align-long-strings
 
 CFLAGS.clang+=	-Oz ${CLANG_OPT_SMALL}
 
-LD_FLAGS=-static -N --gc-sections
+LD_FLAGS=${LD_FLAGS_BIN}
 
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>

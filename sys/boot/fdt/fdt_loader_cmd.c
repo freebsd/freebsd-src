@@ -195,14 +195,14 @@ fdt_load_dtb(vm_offset_t va)
 	COPYOUT(va, &header, sizeof(header));
 	err = fdt_check_header(&header);
 	if (err < 0) {
-		if (err == -FDT_ERR_BADVERSION)
-			sprintf(command_errbuf,
+		if (err == -FDT_ERR_BADVERSION) {
+			snprintf(command_errbuf, sizeof(command_errbuf),
 			    "incompatible blob version: %d, should be: %d",
 			    fdt_version(fdtp), FDT_LAST_SUPPORTED_VERSION);
-
-		else
-			sprintf(command_errbuf, "error validating blob: %s",
-			    fdt_strerror(err));
+		} else {
+			snprintf(command_errbuf, sizeof(command_errbuf),
+			    "error validating blob: %s", fdt_strerror(err));
+		}
 		return (1);
 	}
 
@@ -237,8 +237,8 @@ fdt_load_dtb_addr(struct fdt_header *header)
 	fdtp_size = fdt_totalsize(header);
 	err = fdt_check_header(header);
 	if (err < 0) {
-		sprintf(command_errbuf, "error validating blob: %s",
-		    fdt_strerror(err));
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "error validating blob: %s", fdt_strerror(err));
 		return (err);
 	}
 	free(fdtp);
@@ -264,7 +264,8 @@ fdt_load_dtb_file(const char * filename)
 
 	/* Attempt to load and validate a new dtb from a file. */
 	if ((bfp = file_loadraw(filename, "dtb", 1)) == NULL) {
-		sprintf(command_errbuf, "failed to load file '%s'", filename);
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "failed to load file '%s'", filename);
 		return (1);
 	}
 	if ((err = fdt_load_dtb(bfp->f_addr)) != 0) {
@@ -659,7 +660,8 @@ fdt_fixup_memory(struct fdt_mem_region *region, size_t num)
 		/* Create proper '/memory' node. */
 		memory = fdt_add_subnode(fdtp, root, "memory");
 		if (memory <= 0) {
-			sprintf(command_errbuf, "Could not fixup '/memory' "
+			snprintf(command_errbuf, sizeof(command_errbuf),
+			    "Could not fixup '/memory' "
 			    "node, error code : %d!\n", memory);
 			return;
 		}
@@ -676,7 +678,8 @@ fdt_fixup_memory(struct fdt_mem_region *region, size_t num)
 	size_cellsp = (uint32_t *)fdt_getprop(fdtp, root, "#size-cells", NULL);
 
 	if (addr_cellsp == NULL || size_cellsp == NULL) {
-		sprintf(command_errbuf, "Could not fixup '/memory' node : "
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "Could not fixup '/memory' node : "
 		    "%s %s property not found in root node!\n",
 		    (!addr_cellsp) ? "#address-cells" : "",
 		    (!size_cellsp) ? "#size-cells" : "");
@@ -975,7 +978,8 @@ fdt_cmd_addr(int argc, char *argv[])
 
 	hdr = (struct fdt_header *)strtoul(addr, &cp, 16);
 	if (cp == addr) {
-		sprintf(command_errbuf, "Invalid address: %s", addr);
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "Invalid address: %s", addr);
 		return (CMD_ERROR);
 	}
 
@@ -1014,7 +1018,8 @@ fdt_cmd_cd(int argc, char *argv[])
 
 	o = fdt_path_offset(fdtp, path);
 	if (o < 0) {
-		sprintf(command_errbuf, "could not find node: '%s'", path);
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "could not find node: '%s'", path);
 		return (CMD_ERROR);
 	}
 
@@ -1022,8 +1027,8 @@ fdt_cmd_cd(int argc, char *argv[])
 	return (CMD_OK);
 
 fail:
-	sprintf(command_errbuf, "path too long: %d, max allowed: %d",
-	    len, FDT_CWD_LEN - 1);
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "path too long: %d, max allowed: %d", len, FDT_CWD_LEN - 1);
 	return (CMD_ERROR);
 }
 
@@ -1106,7 +1111,8 @@ fdt_cmd_ls(int argc, char *argv[])
 
 	o = fdt_path_offset(fdtp, path);
 	if (o < 0) {
-		sprintf(command_errbuf, "could not find node: '%s'", path);
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "could not find node: '%s'", path);
 		return (CMD_ERROR);
 	}
 
@@ -1552,7 +1558,8 @@ fdt_extract_nameloc(char **pathp, char **namep, int *nodeoff)
 		return (1);
 	}
 	if (o < 0) {
-		sprintf(command_errbuf, "could not find node: '%s'", path);
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "could not find node: '%s'", path);
 		return (1);
 	}
 	*namep = name;
@@ -1599,7 +1606,8 @@ fdt_cmd_prop(int argc, char *argv[])
 	o = fdt_path_offset(fdtp, path);
 
 	if (o < 0) {
-		sprintf(command_errbuf, "could not find node: '%s'", path);
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "could not find node: '%s'", path);
 		rv = CMD_ERROR;
 		goto out;
 	}
@@ -1692,8 +1700,9 @@ fdt_cmd_rm(int argc, char *argv[])
 			return (CMD_ERROR);
 
 		if ((rv = fdt_delprop(fdtp, o, propname)) != 0) {
-			sprintf(command_errbuf, "could not delete"
-			    "%s\n", (rv == -FDT_ERR_NOTFOUND) ?
+			snprintf(command_errbuf, sizeof(command_errbuf),
+			    "could not delete %s\n",
+			    (rv == -FDT_ERR_NOTFOUND) ?
 			    "(property/node does not exist)" : "");
 			return (CMD_ERROR);
 

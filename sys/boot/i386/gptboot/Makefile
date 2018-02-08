@@ -47,7 +47,7 @@ LIBGELIBOOT=	${.OBJDIR}/../../geli/libgeliboot.a
 OPENCRYPTO_XTS=	xform_aes_xts.o
 .endif
 
-LD_FLAGS=-static -N --gc-sections
+LD_FLAGS=${LD_FLAGS_BIN}
 
 LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 
