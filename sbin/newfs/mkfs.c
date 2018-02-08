@@ -489,9 +489,15 @@ restart:
 	}
 	/*
 	 * Set flags for metadata that is being check-hashed.
+	 *
+	 * Metadata check hashes are not supported in the UFS version 1
+	 * filesystem to keep it as small and simple as possible.
 	 */
-	if (Oflag > 1 && getosreldate() >= P_OSREL_CK_CYLGRP)
-		sblock.fs_metackhash = CK_CYLGRP;
+	if (Oflag > 1) {
+		sblock.fs_flags |= FS_METACKHASH;
+		if (getosreldate() >= P_OSREL_CK_CYLGRP)
+			sblock.fs_metackhash = CK_CYLGRP;
+	}
 
 	/*
 	 * Dump out summary information about file system.
