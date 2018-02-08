@@ -651,8 +651,6 @@
                     ..
                     rsend
                     ..
-                    sas_phy_thrash
-                    ..
                     scrub_mirror
                     ..
                     slog

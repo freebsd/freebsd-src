@@ -59,7 +59,6 @@ TESTS_SUBDIRS+=	reservation
 TESTS_SUBDIRS+=	rootpool
 # Not yet ported to FreeBSD
 # TESTS_SUBDIRS+=	rsend
-TESTS_SUBDIRS+=	sas_phy_thrash
 TESTS_SUBDIRS+=	scrub_mirror
 TESTS_SUBDIRS+=	slog
 TESTS_SUBDIRS+=	snapshot
