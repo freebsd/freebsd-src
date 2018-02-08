@@ -257,9 +257,9 @@ dumpfs(const char *name)
 	if (fsflags & FS_DOSOFTDEP)
 		printf("soft-updates%s ", (fsflags & FS_SUJ) ? "+journal" : "");
 	if (fsflags & FS_NEEDSFSCK)
-		printf("needs fsck run ");
+		printf("needs-fsck-run ");
 	if (fsflags & FS_INDEXDIRS)
-		printf("indexed directories ");
+		printf("indexed-directories ");
 	if (fsflags & FS_ACLS)
 		printf("acls ");
 	if (fsflags & FS_MULTILABEL)
@@ -267,31 +267,33 @@ dumpfs(const char *name)
 	if (fsflags & FS_GJOURNAL)
 		printf("gjournal ");
 	if (fsflags & FS_FLAGS_UPDATED)
-		printf("fs_flags expanded ");
+		printf("fs_flags-expanded ");
 	if (fsflags & FS_NFS4ACLS)
 		printf("nfsv4acls ");
 	if (fsflags & FS_TRIM)
 		printf("trim ");
-	fsflags &= ~(FS_UNCLEAN | FS_DOSOFTDEP | FS_NEEDSFSCK | FS_INDEXDIRS |
+	fsflags &= ~(FS_UNCLEAN | FS_DOSOFTDEP | FS_NEEDSFSCK | FS_METACKHASH |
 		     FS_ACLS | FS_MULTILABEL | FS_GJOURNAL | FS_FLAGS_UPDATED |
-		     FS_NFS4ACLS | FS_SUJ | FS_TRIM);
+		     FS_NFS4ACLS | FS_SUJ | FS_TRIM | FS_INDEXDIRS);
 	if (fsflags != 0)
-		printf("unknown flags (%#x)", fsflags);
+		printf("unknown-flags (%#x)", fsflags);
 	putchar('\n');
-	printf("check hashes\t");
-	fsflags = afs.fs_metackhash;
-	if (fsflags == 0)
-		printf("none");
-	if (fsflags & CK_SUPERBLOCK)
-		printf("superblock ");
-	if (fsflags & CK_CYLGRP)
-		printf("cylinder-groups ");
-	if (fsflags & CK_INODE)
-		printf("inodes ");
-	if (fsflags & CK_INDIR)
-		printf("indirect-blocks ");
-	if (fsflags & CK_DIR)
-		printf("directories ");
+	if (afs.fs_flags & FS_METACKHASH) {
+		printf("check hashes\t");
+		fsflags = afs.fs_metackhash;
+		if (fsflags == 0)
+			printf("none");
+		if (fsflags & CK_SUPERBLOCK)
+			printf("superblock ");
+		if (fsflags & CK_CYLGRP)
+			printf("cylinder-groups ");
+		if (fsflags & CK_INODE)
+			printf("inodes ");
+		if (fsflags & CK_INDIR)
+			printf("indirect-blocks ");
+		if (fsflags & CK_DIR)
+			printf("directories ");
+	}
 	fsflags &= ~(CK_SUPERBLOCK | CK_CYLGRP | CK_INODE | CK_INDIR | CK_DIR);
 	if (fsflags != 0)
 		printf("unknown flags (%#x)", fsflags);
