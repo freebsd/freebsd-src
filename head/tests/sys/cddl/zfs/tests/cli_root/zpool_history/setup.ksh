@@ -29,9 +29,5 @@
 
 . $STF_SUITE/include/libtest.kshlib
 
-# Check if the current system support 'zpool history'.
-$ZPOOL history > /dev/null
-(($? != 0)) && log_unsupported
-
 DISK=${DISKS%% *}
 default_container_volume_setup $DISK
