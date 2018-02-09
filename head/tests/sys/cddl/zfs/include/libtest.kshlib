@@ -2982,31 +2982,13 @@ function get_substr #src_str pos offset
 }
 
 #
-# Check if the given device is physical device
-#
-function is_physical_device #device
-{
-	dev_file=`find_disks $1`
-	[ -c "${dev_file}" -o -b "${dev_file}" ]
-
-	return $?
-}
-
-#
 # Get the directory path of given device
 #
 function get_device_dir #device
 {
 	typeset device=$1
 
-	if ! $(is_physical_device $device) ; then
-		if [[ $device != "/" ]]; then
-			device=${device%/*}
-		fi
-		$ECHO $device
-	else
-		$ECHO "/dev"
-	fi
+	$ECHO "/dev"
 }
 
 #

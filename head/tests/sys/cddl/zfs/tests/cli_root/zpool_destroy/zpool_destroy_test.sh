@@ -28,7 +28,6 @@ atf_test_case zpool_destroy_001_pos cleanup
 zpool_destroy_001_pos_head()
 {
 	atf_set "descr" "'zpool destroy <pool>' can destroy a specified pool."
-	atf_set "require.config"  disks_are_physical
 	atf_set "require.progs"  zfs zpool
 }
 zpool_destroy_001_pos_body()

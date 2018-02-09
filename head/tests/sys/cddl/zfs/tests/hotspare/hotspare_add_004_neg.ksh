@@ -70,10 +70,6 @@ function cleanup
 	partition_cleanup
 }
 
-if ! $(is_physical_device $DISKS) ; then
-	log_unsupported "This test cannot be run on raw files."
-fi
-
 log_assert "'zpool add [-f]' will not allow a swap device to be used as a hotspare'"
 
 log_onexit cleanup

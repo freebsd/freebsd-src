@@ -31,10 +31,6 @@
 
 verify_runnable "global"
 
-if ! $(is_physical_device $DISKS) ; then
-	log_unsupported "This directory cannot be run on raw files."
-fi
-
 if [[ -n $SINGLE_DISK ]]; then
 	log_note "Partitioning a single disk ($SINGLE_DISK)"
 else

@@ -185,7 +185,6 @@ atf_test_case utils_test_007_pos cleanup
 utils_test_007_pos_head()
 {
 	atf_set "descr" "Ensure that the fstyp(1M) utility succeeds on a ZFS file system."
-	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zfs fstyp
 }
 utils_test_007_pos_body()

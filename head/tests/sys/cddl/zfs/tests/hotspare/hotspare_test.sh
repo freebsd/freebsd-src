@@ -79,7 +79,6 @@ atf_test_case hotspare_add_003_neg cleanup
 hotspare_add_003_neg_head()
 {
 	atf_set "descr" "'zpool add [-f]' with hot spares should fail with inapplicable scenarios."
-	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 3600
 }
@@ -106,7 +105,6 @@ atf_test_case hotspare_add_004_neg cleanup
 hotspare_add_004_neg_head()
 {
 	atf_set "descr" "'zpool add [-f]' will not allow a swap device to be used as a hotspare'"
-	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool swapon swapoff swapctl
 }
 hotspare_add_004_neg_body()
@@ -185,7 +183,6 @@ atf_test_case hotspare_create_001_neg cleanup
 hotspare_create_001_neg_head()
 {
 	atf_set "descr" "'zpool create [-f]' with hot spares should be failedwith inapplicable scenarios."
-	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  dumpadm zpool
 	atf_set "timeout" 3600
 }

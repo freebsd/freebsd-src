@@ -31,10 +31,6 @@
 
 verify_runnable "global"
 
-if ! $(is_physical_device $DISKS) ; then
-	log_unsupported "This directory cannot be run on raw files."
-fi
-
 if [[ -n $DISK ]]; then
         log_note "No spare disks available. Using slices on $DISK"
         log_must partition_disk $SIZE $DISK 2
