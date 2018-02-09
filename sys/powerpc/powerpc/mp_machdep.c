@@ -81,11 +81,20 @@ machdep_ap_bootstrap(void)
 		__asm __volatile("or 27,27,27");
 	__asm __volatile("or 6,6,6");
 
-	/* Give platform code a chance to do anything necessary */
+	/*
+	 * Set timebase as soon as possible to meet an implicit rendezvous
+	 * from cpu_mp_unleash(), which sets ap_letgo and then immediately
+	 * sets timebase.
+	 *
+	 * Note that this is instrinsically racy and is only relevant on
+	 * platforms that do not support better mechanisms.
+	 */
+	platform_smp_timebase_sync(ap_timebase, 1);
+
+	/* Give platform code a chance to do anything else necessary */
 	platform_smp_ap_init();
 
-	/* Initialize DEC and TB, sync with the BSP values */
-	platform_smp_timebase_sync(ap_timebase, 1);
+	/* Initialize decrementer */
 	decr_ap_init();
 
 	/* Serialize console output and AP count increment */
