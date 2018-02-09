@@ -332,7 +332,7 @@ ntb_transport_attach(device_t dev)
 	struct ntb_transport_child **cpp = &nt->child;
 	struct ntb_transport_child *nc;
 	struct ntb_transport_mw *mw;
-	uint64_t db_bitmap;
+	uint64_t db_bitmap, size;
 	int rc, i, db_count, spad_count, qp, qpu, qpo, qpt;
 	char cfg[128] = "";
 	char buf[32];
@@ -383,6 +383,17 @@ ntb_transport_attach(device_t dev)
 		rc = ntb_mw_set_wc(dev, i, VM_MEMATTR_WRITE_COMBINING);
 		if (rc)
 			ntb_printf(0, "Unable to set mw%d caching\n", i);
+
+		/*
+		 * Try to preallocate receive memory early, since there may
+		 * be not enough contiguous memory later.  It is quite likely
+		 * that NTB windows are symmetric and this allocation remain,
+		 * but even if not, we will just reallocate it later.
+		 */
+		size = mw->phys_size;
+		if (max_mw_size != 0 && size > max_mw_size)
+			size = max_mw_size;
+		ntb_set_mw(nt, i, size);
 	}
 
 	qpu = 0;
