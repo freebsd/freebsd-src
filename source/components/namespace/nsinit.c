@@ -418,7 +418,7 @@ ErrorExit:
  * RETURN:      Status
  *
  * DESCRIPTION: Callback from AcpiWalkNamespace. Invoked for every object
- *              within the  namespace.
+ *              within the namespace.
  *
  *              Currently, the only objects that require initialization are:
  *              1) Methods
@@ -540,6 +540,10 @@ AcpiNsInitOneObject (
             break;
         }
 
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_PARSE,
+            "%s: Completing resolution of Package elements\n",
+            ACPI_GET_FUNCTION_NAME));
+
         /*
          * Resolve all named references in package objects (and all
          * sub-packages). This action has been deferred until the entire
@@ -548,6 +552,7 @@ AcpiNsInitOneObject (
          */
         Status = AcpiUtWalkPackageTree (ObjDesc, NULL,
             AcpiDsInitPackageElement, NULL);
+
         ObjDesc->Package.Flags |= AOPOBJ_DATA_VALID;
         break;
 
