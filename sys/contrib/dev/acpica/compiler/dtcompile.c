@@ -453,7 +453,7 @@ DtCompileDataTable (
     DtInsertCompilerIds (*FieldList);
 
     Status = DtCompileTable (FieldList, AcpiDmTableInfoHeader,
-        &Gbl_RootTable, TRUE);
+        &Gbl_RootTable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -492,7 +492,7 @@ DtCompileDataTable (
         {
             Subtable = NULL;
             Status = DtCompileTable (FieldList, TableData->TableInfo,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -531,7 +531,6 @@ FinishHeader:
  * PARAMETERS:  Field               - Current field list pointer
  *              Info                - Info table for this ACPI table
  *              RetSubtable         - Compile result of table
- *              Required            - If this subtable must exist
  *
  * RETURN:      Status
  *
@@ -543,8 +542,7 @@ ACPI_STATUS
 DtCompileTable (
     DT_FIELD                **Field,
     ACPI_DMTABLE_INFO       *Info,
-    DT_SUBTABLE             **RetSubtable,
-    BOOLEAN                 Required)
+    DT_SUBTABLE             **RetSubtable)
 {
     DT_FIELD                *LocalField;
     UINT32                  Length;
@@ -682,19 +680,19 @@ DtCompileTable (
             case ACPI_DMT_GAS:
 
                 Status = DtCompileTable (Field, AcpiDmTableInfoGas,
-                    &InlineSubtable, TRUE);
+                    &InlineSubtable);
                 break;
 
             case ACPI_DMT_HESTNTFY:
 
                 Status = DtCompileTable (Field, AcpiDmTableInfoHestNotify,
-                    &InlineSubtable, TRUE);
+                    &InlineSubtable);
                 break;
 
             case ACPI_DMT_IORTMEM:
 
                 Status = DtCompileTable (Field, AcpiDmTableInfoIortAcc,
-                    &InlineSubtable, TRUE);
+                    &InlineSubtable);
                 break;
 
             default:
@@ -783,7 +781,7 @@ DtCompileTwoSubtables (
     DT_FIELD                **PFieldList = (DT_FIELD **) List;
 
 
-    Status = DtCompileTable (PFieldList, TableInfo1, &Subtable, TRUE);
+    Status = DtCompileTable (PFieldList, TableInfo1, &Subtable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -794,7 +792,7 @@ DtCompileTwoSubtables (
 
     while (*PFieldList)
     {
-        Status = DtCompileTable (PFieldList, TableInfo2, &Subtable, FALSE);
+        Status = DtCompileTable (PFieldList, TableInfo2, &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
