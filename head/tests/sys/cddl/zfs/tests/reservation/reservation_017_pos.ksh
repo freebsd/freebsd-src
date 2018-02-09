@@ -66,8 +66,8 @@ log_assert "Verify that the volsize changes of sparse volume are not reflected" 
 #Create a regular and sparse volume for testing.
 regvol=$TESTPOOL/$TESTVOL
 sparsevol=$TESTPOOL/$TESTVOL2
-log_must $ZFS create -V $VOLSIZE $regvol
-log_must $ZFS create -s -V $VOLSIZE $sparsevol
+log_must $ZFS create -V $VOLSIZE -o volblocksize=16k $regvol
+log_must $ZFS create -s -V $VOLSIZE -o volblocksize=16k $sparsevol
 
 typeset -l vsize=$(get_prop available $TESTPOOL)
 typeset -i iterate=10
@@ -76,7 +76,7 @@ typeset -l sparsereserv
 typeset -l vblksize1=$(get_prop volblocksize $regvol)
 typeset -l vblksize2=$(get_prop volblocksize $sparsevol)
 typeset -l blknum=0
-if (( $vblksize1 != $vblksize2 )); then
+if [ "$vblksize1" != "$vblksize2" ]; then
 	log_must $ZFS set volblocksize=$vblksize1 $sparsevol
 fi
 (( blknum = vsize / vblksize1 ))
