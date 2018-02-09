@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 extern void	uma_startup1(void);
+extern void	uma_startup2(void);
 extern void	vm_radix_reserve_kva(void);
 
 #if VM_NRESERVLEVEL > 0
@@ -183,9 +184,9 @@ vm_mem_init(dummy)
 #ifndef	UMA_MD_SMALL_ALLOC
 	/* Set up radix zone to use noobj_alloc. */
 	vm_radix_reserve_kva();
-	/* Announce page availability to UMA. */
-	uma_startup1();
 #endif
+	/* Announce full page availability to UMA. */
+	uma_startup2();
 	kmem_init_zero_region();
 	pmap_init();
 	vm_pager_init();
