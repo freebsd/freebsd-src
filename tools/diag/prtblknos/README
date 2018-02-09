@@ -1,0 +1,31 @@
+# $FreeBSD$
+
+This is a little C-program that can be used to print out the list
+of blocks used by a requested list of inodes.
+
+For example, to list the blocks referenced by your kernel:
+
+guest_12 % df /
+Filesystem      1K-blocks     Used   Avail Capacity  Mounted on
+/dev/gpt/rootfs  20307196 10707336 7975288    57%    /
+
+guest_12 % ls -i /boot/kernel/kernel
+160603 /boot/kernel/kernel
+
+guest_12 % ./prtblknos /dev/gpt/rootfs 160603
+160603:	lbn 0-7 blkno 3217584-3217647
+	lbn 8-11 blkno 3217864-3217895 distance 216
+First-level indirect, blkno 3217896-3217903 distance 0
+	lbn 12-19 blkno 3217904-3217967 distance 8
+	lbn 20-75 blkno 3251816-3252263 distance 33848
+	lbn 76-83 blkno 3252368-3252431 distance 104
+	lbn 84-91 blkno 3252464-3252527 distance 32
+	lbn 92-852 blkno 3252896-3258983 distance 368
+
+Each contiguous range of blocks is printed on a line.
+The distance metric is the size of the gap from the end of the
+previous set of blocks to the beginning of the next set of blocks.
+Short distances are desirable.
+
+	Marshall Kirk McKusick
+	January 19, 2018
