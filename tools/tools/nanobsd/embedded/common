@@ -535,6 +535,9 @@ std_armeb ( ) {
 std_armv6 ( ) {
 }
 
+std_armv7 ( ) {
+}
+
 std_i386 ( ) {
 	# Default values, if not overridden in .cfg file
 	: ${NANO_KERNEL:=GENERIC}
