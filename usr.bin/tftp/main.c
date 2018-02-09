@@ -475,7 +475,7 @@ put(int argc, char *argv[])
 			lcp[strlen(lcp) - 1] = '\0';
 			lcp++;
 		}
-		setpeer0(lcp, NULL);		
+		setpeer0(lcp, NULL);
 	}
 	if (!connected) {
 		printf("No target machine specified.\n");
@@ -735,11 +735,11 @@ command(bool interactive, EditLine *el, History *hist, HistEvent *hep)
 
 	for (;;) {
 		if (interactive) {
-                        if ((bp = el_gets(el, &num)) == NULL || num == 0)
-                                exit(0);
-                        len = MIN(MAXLINE, num);
-                        memcpy(line, bp, len);
-                        line[len] = '\0';
+			if ((bp = el_gets(el, &num)) == NULL || num == 0)
+				exit(0);
+			len = MIN(MAXLINE, num);
+			memcpy(line, bp, len);
+			line[len] = '\0';
 			history(hist, hep, H_ENTER, bp);
 		} else {
 			line[0] = 0;
