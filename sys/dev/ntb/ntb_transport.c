@@ -182,6 +182,8 @@ struct ntb_transport_mw {
 	size_t		xlat_size;
 	size_t		buff_size;
 	/* Rx buff is off virt_addr / dma_addr */
+	bus_dma_tag_t	dma_tag;
+	bus_dmamap_t	dma_map;
 	caddr_t		virt_addr;
 	bus_addr_t	dma_addr;
 };
@@ -1147,10 +1149,25 @@ out:
 		    NTB_LINK_DOWN_TIMEOUT * hz / 1000, ntb_transport_link_work, nt);
 }
 
+struct ntb_load_cb_args {
+	bus_addr_t addr;
+	int error;
+};
+
+static void
+ntb_load_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
+{
+	struct ntb_load_cb_args *cba = (struct ntb_load_cb_args *)xsc;
+
+	if (!(cba->error = error))
+		cba->addr = segs[0].ds_addr;
+}
+
 static int
 ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw, size_t size)
 {
 	struct ntb_transport_mw *mw = &nt->mw_vec[num_mw];
+	struct ntb_load_cb_args cba;
 	size_t xlat_size, buff_size;
 	int rc;
 
@@ -1171,30 +1188,36 @@ ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw, size_t size)
 	mw->xlat_size = xlat_size;
 	mw->buff_size = buff_size;
 
-	mw->virt_addr = contigmalloc(mw->buff_size, M_NTB_T, M_ZERO, 0,
-	    mw->addr_limit, mw->xlat_align, 0);
-	if (mw->virt_addr == NULL) {
+	if (bus_dma_tag_create(bus_get_dma_tag(nt->dev), mw->xlat_align, 0,
+	    mw->addr_limit, BUS_SPACE_MAXADDR,
+	    NULL, NULL, mw->buff_size, 1, mw->buff_size,
+	    0, NULL, NULL, &mw->dma_tag)) {
+		ntb_printf(0, "Unable to create MW tag of size %zu/%zu\n",
+		    mw->buff_size, mw->xlat_size);
+		mw->xlat_size = 0;
+		mw->buff_size = 0;
+		return (ENOMEM);
+	}
+	if (bus_dmamem_alloc(mw->dma_tag, (void **)&mw->virt_addr,
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO, &mw->dma_map)) {
+		bus_dma_tag_destroy(mw->dma_tag);
 		ntb_printf(0, "Unable to allocate MW buffer of size %zu/%zu\n",
 		    mw->buff_size, mw->xlat_size);
 		mw->xlat_size = 0;
 		mw->buff_size = 0;
 		return (ENOMEM);
 	}
-	/* TODO: replace with bus_space_* functions */
-	mw->dma_addr = vtophys(mw->virt_addr);
-
-	/*
-	 * Ensure that the allocation from contigmalloc is aligned as
-	 * requested.  XXX: This may not be needed -- brought in for parity
-	 * with the Linux driver.
-	 */
-	if (mw->dma_addr % mw->xlat_align != 0) {
-		ntb_printf(0,
-		    "DMA memory 0x%jx not aligned to BAR size 0x%zx\n",
-		    (uintmax_t)mw->dma_addr, size);
-		ntb_free_mw(nt, num_mw);
+	if (bus_dmamap_load(mw->dma_tag, mw->dma_map, mw->virt_addr,
+	    mw->buff_size, ntb_load_cb, &cba, BUS_DMA_NOWAIT) || cba.error) {
+		bus_dmamem_free(mw->dma_tag, mw->virt_addr, mw->dma_map);
+		bus_dma_tag_destroy(mw->dma_tag);
+		ntb_printf(0, "Unable to load MW buffer of size %zu/%zu\n",
+		    mw->buff_size, mw->xlat_size);
+		mw->xlat_size = 0;
+		mw->buff_size = 0;
 		return (ENOMEM);
 	}
+	mw->dma_addr = cba.addr;
 
 	/* Notify HW the memory location of the receive buffer */
 	rc = ntb_mw_set_trans(nt->dev, num_mw, mw->dma_addr, mw->xlat_size);
@@ -1216,7 +1239,9 @@ ntb_free_mw(struct ntb_transport_ctx *nt, int num_mw)
 		return;
 
 	ntb_mw_clear_trans(nt->dev, num_mw);
-	contigfree(mw->virt_addr, mw->xlat_size, M_NTB_T);
+	bus_dmamap_unload(mw->dma_tag, mw->dma_map);
+	bus_dmamem_free(mw->dma_tag, mw->virt_addr, mw->dma_map);
+	bus_dma_tag_destroy(mw->dma_tag);
 	mw->xlat_size = 0;
 	mw->buff_size = 0;
 	mw->virt_addr = NULL;
