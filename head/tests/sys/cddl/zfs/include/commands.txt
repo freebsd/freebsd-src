@@ -147,6 +147,7 @@
 #%%STFSUITEDIR%%/bin/swap
 #/sbin/swapadd
 /usr/bin/sort
+/usr/bin/stat
 /usr/bin/strings
 /bin/sync
 /usr/bin/tar

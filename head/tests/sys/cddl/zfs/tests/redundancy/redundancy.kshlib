@@ -212,7 +212,7 @@ function damage_devs
 		typeset -i i=0
 		log_mustnot pool_has_errors $pool
 		while [ $i -lt $cnt ]; do
-			corrupt_file $TESTPOOL /file $i
+			corrupt_file $TESTPOOL $TESTDIR/file $i
 			(( i += 1 ))
 		done
 		sync_pool $pool

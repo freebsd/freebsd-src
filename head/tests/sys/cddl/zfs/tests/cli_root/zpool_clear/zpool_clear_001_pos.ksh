@@ -83,7 +83,7 @@ function test_clear
 	log_note "Testing ${type} clear type ..."
 	[ "$type" = "device" ] && vdev_arg="${fbase}.0"
 
-	corrupt_file $TESTPOOL1 /f
+	corrupt_file $TESTPOOL1 /$TESTPOOL1/f
 	log_must $ZPOOL scrub $TESTPOOL1
 	wait_for 20 1 is_pool_scrubbed $TESTPOOL1
 	log_must pool_has_errors $TESTPOOL1
