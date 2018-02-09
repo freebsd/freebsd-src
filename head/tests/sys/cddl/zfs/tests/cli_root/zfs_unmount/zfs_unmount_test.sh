@@ -240,7 +240,6 @@ zfs_unmount_009_pos_head()
 }
 zfs_unmount_009_pos_body()
 {
-	atf_fail "This test causes a panic on FreeBSD"
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_unmount.kshlib
 	. $(atf_get_srcdir)/zfs_unmount.cfg
