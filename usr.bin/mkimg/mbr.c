@@ -27,14 +27,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/diskmbr.h>
-#include <sys/endian.h>
 #include <sys/errno.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include <sys/diskmbr.h>
+
+#include "endian.h"
 #include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
@@ -101,10 +102,15 @@ mbr_write(lba_t imgsz __unused, void *bootcode)
 		memset(mbr, 0, secsz);
 	le16enc(mbr + DOSMAGICOFFSET, DOSMAGIC);
 	dpbase = (void *)(mbr + DOSPARTOFF);
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		size = round_track(part->size);
 		dp = dpbase + part->index;
-		dp->dp_flag = (part->index == 0 && bootcode != NULL) ? 0x80 : 0;
+		if (active_partition != 0)
+			dp->dp_flag =
+			    (part->index + 1 == active_partition) ? 0x80 : 0;
+		else
+			dp->dp_flag =
+			    (part->index == 0 && bootcode != NULL) ? 0x80 : 0;
 		mbr_chs(&dp->dp_scyl, &dp->dp_shd, &dp->dp_ssect,
 		    part->block);
 		dp->dp_typ = ALIAS_TYPE2INT(part->type);

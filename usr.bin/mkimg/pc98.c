@@ -27,14 +27,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/diskpc98.h>
-#include <sys/endian.h>
 #include <sys/errno.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include <sys/diskpc98.h>
+
+#include "endian.h"
 #include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
@@ -97,7 +98,7 @@ pc98_write(lba_t imgsz __unused, void *bootcode)
 		memset(buf, 0, PC98_BOOTCODESZ);
 	le16enc(buf + PC98_MAGICOFS, PC98_MAGIC);
 	dpbase = (void *)(buf + secsz);
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		size = round_track(part->size);
 		dp = dpbase + part->index;
 		ptyp = ALIAS_TYPE2INT(part->type);

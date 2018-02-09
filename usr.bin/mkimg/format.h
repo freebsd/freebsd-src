@@ -29,21 +29,24 @@
 #ifndef _MKIMG_FORMAT_H_
 #define	_MKIMG_FORMAT_H_
 
-#include <sys/linker_set.h>
-
 struct mkimg_format {
+	struct mkimg_format *next;
 	const char	*name;
 	const char	*description;
 	int		(*resize)(lba_t);
 	int		(*write)(int);
 };
 
-SET_DECLARE(formats, struct mkimg_format);
-#define	FORMAT_DEFINE(nm)	DATA_SET(formats, nm)
+#define	FORMAT_DEFINE(nm)						\
+static void format_register_##nm(void) __attribute__((constructor));	\
+static void format_register_##nm(void) { format_register(&nm); }
 
-int	format_resize(lba_t);
+struct mkimg_format *format_iterate(struct mkimg_format *);
+void	format_register(struct mkimg_format *);
 int	format_select(const char *);
 struct mkimg_format *format_selected(void);
+
+int	format_resize(lba_t);
 int	format_write(int);
 
 #endif /* _MKIMG_FORMAT_H_ */
