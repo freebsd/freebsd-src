@@ -27,5 +27,22 @@ The distance metric is the size of the gap from the end of the
 previous set of blocks to the beginning of the next set of blocks.
 Short distances are desirable.
 
+The logical block numbers (lbn above) describe filesystem-block
+size blocks which by today's default is 32Kb.
+
+The physical block numbers (blkno above) describe the smallest piece
+of disk space that an inode can reference which is a filesystem
+fragment. Since the default size for fragments today is 4Kb, the
+physical block numbers reference 4Kb blocks. The distances listed
+above are also in physical block size units. Thus a distance of 8
+means a separation of just one 32Kb block. For example lbn 11, ends
+at 3217895, the 32Kb first level indirect immediately follows it at
+3217896-3217903, and lbn 12 starts distance 8 after lbn 11 immediately
+after the indirect block at 3217904.
+
+If you were to create a filesystem with the fragment size equal to
+half the block size (say 32Kb blocks with 16Kb fragments) then the
+physical block numbers listed would be 16Kb in size.
+
 	Marshall Kirk McKusick
 	January 19, 2018
