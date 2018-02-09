@@ -506,16 +506,13 @@ vm_page_startup(vm_offset_t vaddr)
 	 * Allocate memory for use when boot strapping the kernel memory
 	 * allocator.  Tell UMA how many zones we are going to create
 	 * before going fully functional.  UMA will add its zones.
-	 */
-#ifdef UMA_MD_SMALL_ALLOC
-	boot_pages = uma_startup_count(0);
-#else
-	/*
+	 *
 	 * VM startup zones: vmem, vmem_btag, VM OBJECT, RADIX NODE, MAP,
 	 * KMAP ENTRY, MAP ENTRY, VMSPACE.
 	 */
 	boot_pages = uma_startup_count(8);
 
+#ifndef UMA_MD_SMALL_ALLOC
 	/* vmem_startup() calls uma_prealloc(). */
 	boot_pages += vmem_startup_count();
 	/* vm_map_startup() calls uma_prealloc(). */
