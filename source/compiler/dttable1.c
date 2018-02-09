@@ -202,7 +202,7 @@ DtCompileAsf (
     {
         SubtableStart = *PFieldList;
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoAsfHdr,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -247,7 +247,7 @@ DtCompileAsf (
             return (AE_ERROR);
         }
 
-        Status = DtCompileTable (PFieldList, InfoTable, &Subtable, TRUE);
+        Status = DtCompileTable (PFieldList, InfoTable, &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -307,7 +307,7 @@ DtCompileAsf (
                 while (DataCount > 0)
                 {
                     Status = DtCompileTable (PFieldList, DataInfoTable,
-                        &Subtable, TRUE);
+                        &Subtable);
                     if (ACPI_FAILURE (Status))
                     {
                         return (Status);
@@ -323,7 +323,7 @@ DtCompileAsf (
                 for (i = 0; i < DataCount; i++)
                 {
                     Status = DtCompileTable (PFieldList, DataInfoTable,
-                        &Subtable, TRUE);
+                        &Subtable);
                     if (ACPI_FAILURE (Status))
                     {
                         return (Status);
@@ -399,7 +399,7 @@ DtCompileCsrt (
         /* Resource group subtable */
 
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoCsrt0,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -424,7 +424,7 @@ DtCompileCsrt (
         /* Shared info subtable (One per resource group) */
 
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoCsrt1,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -438,7 +438,7 @@ DtCompileCsrt (
         {
 
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoCsrt2,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -451,7 +451,7 @@ DtCompileCsrt (
             if (*PFieldList)
             {
                 Status = DtCompileTable (PFieldList, AcpiDmTableInfoCsrt2a,
-                    &Subtable, TRUE);
+                    &Subtable);
                 if (ACPI_FAILURE (Status))
                 {
                     return (Status);
@@ -504,7 +504,7 @@ DtCompileDbg2 (
 
     /* Main table */
 
-    Status = DtCompileTable (PFieldList, AcpiDmTableInfoDbg2, &Subtable, TRUE);
+    Status = DtCompileTable (PFieldList, AcpiDmTableInfoDbg2, &Subtable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -529,7 +529,7 @@ DtCompileDbg2 (
         /* Subtable: Debug Device Information */
 
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoDbg2Device,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -550,7 +550,7 @@ DtCompileDbg2 (
         for (i = 0; *PFieldList && (i < DeviceInfo->RegisterCount); i++)
         {
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoDbg2Addr,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -566,7 +566,7 @@ DtCompileDbg2 (
         for (i = 0; *PFieldList && (i < DeviceInfo->RegisterCount); i++)
         {
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoDbg2Size,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -580,7 +580,7 @@ DtCompileDbg2 (
 
         DeviceInfo->NamepathOffset = CurrentOffset;
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoDbg2Name,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -595,7 +595,7 @@ DtCompileDbg2 (
         /* OemData - Variable-length data (Optional, size = OemDataLength) */
 
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoDbg2OemData,
-            &Subtable, TRUE);
+            &Subtable);
         if (Status == AE_END_OF_TABLE)
         {
             /* optional field was not found and we're at the end of the file */
@@ -659,7 +659,7 @@ DtCompileDmar (
     UINT32                  PciPathLength;
 
 
-    Status = DtCompileTable (PFieldList, AcpiDmTableInfoDmar, &Subtable, TRUE);
+    Status = DtCompileTable (PFieldList, AcpiDmTableInfoDmar, &Subtable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -675,7 +675,7 @@ DtCompileDmar (
 
         SubtableStart = *PFieldList;
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoDmarHdr,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -722,7 +722,7 @@ DtCompileDmar (
 
         /* DMAR Subtable */
 
-        Status = DtCompileTable (PFieldList, InfoTable, &Subtable, TRUE);
+        Status = DtCompileTable (PFieldList, InfoTable, &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -749,7 +749,7 @@ DtCompileDmar (
         while (DeviceScopeLength)
         {
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoDmarScope,
-                &Subtable, FALSE);
+                &Subtable);
             if (Status == AE_NOT_FOUND)
             {
                 break;
@@ -767,7 +767,7 @@ DtCompileDmar (
             while (PciPathLength)
             {
                 Status = DtCompileTable (PFieldList, TableInfoDmarPciPath,
-                    &Subtable, FALSE);
+                    &Subtable);
                 if (Status == AE_NOT_FOUND)
                 {
                     DtPopSubtable ();
@@ -823,7 +823,7 @@ DtCompileDrtm (
     /* Compile DRTM header */
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoDrtm,
-        &Subtable, TRUE);
+        &Subtable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -841,7 +841,7 @@ DtCompileDrtm (
     /* Compile VTL */
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoDrtm0,
-        &Subtable, TRUE);
+        &Subtable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -857,7 +857,7 @@ DtCompileDrtm (
     while (*PFieldList)
     {
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoDrtm0a,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -877,7 +877,7 @@ DtCompileDrtm (
     /* Compile RL */
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoDrtm1,
-        &Subtable, TRUE);
+        &Subtable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -893,7 +893,7 @@ DtCompileDrtm (
     while (*PFieldList)
     {
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoDrtm1a,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -915,7 +915,7 @@ DtCompileDrtm (
     /* Compile DPS */
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoDrtm2,
-        &Subtable, TRUE);
+        &Subtable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -1005,7 +1005,7 @@ DtCompileGtdt (
 
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoGtdt,
-        &Subtable, TRUE);
+        &Subtable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -1018,7 +1018,7 @@ DtCompileGtdt (
     {
         SubtableStart = *PFieldList;
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoGtdtHdr,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -1048,7 +1048,7 @@ DtCompileGtdt (
             return (AE_ERROR);
         }
 
-        Status = DtCompileTable (PFieldList, InfoTable, &Subtable, TRUE);
+        Status = DtCompileTable (PFieldList, InfoTable, &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -1074,7 +1074,7 @@ DtCompileGtdt (
             while (GtCount)
             {
                 Status = DtCompileTable (PFieldList, AcpiDmTableInfoGtdt0a,
-                    &Subtable, TRUE);
+                    &Subtable);
                 if (ACPI_FAILURE (Status))
                 {
                     return (Status);
@@ -1128,7 +1128,7 @@ DtCompileFpdt (
     {
         SubtableStart = *PFieldList;
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoFpdtHdr,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -1159,7 +1159,7 @@ DtCompileFpdt (
             break;
         }
 
-        Status = DtCompileTable (PFieldList, InfoTable, &Subtable, TRUE);
+        Status = DtCompileTable (PFieldList, InfoTable, &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -1201,7 +1201,7 @@ DtCompileHest (
 
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoHest,
-        &Subtable, TRUE);
+        &Subtable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -1272,7 +1272,7 @@ DtCompileHest (
             return (AE_ERROR);
         }
 
-        Status = DtCompileTable (PFieldList, InfoTable, &Subtable, TRUE);
+        Status = DtCompileTable (PFieldList, InfoTable, &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -1312,7 +1312,7 @@ DtCompileHest (
         while (BankCount)
         {
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoHestBank,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -1362,7 +1362,7 @@ DtCompileHmat (
     ParentTable = DtPeekSubtable ();
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoHmat,
-        &Subtable, TRUE);
+        &Subtable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -1375,7 +1375,7 @@ DtCompileHmat (
 
         SubtableStart = *PFieldList;
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoHmatHdr,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -1410,7 +1410,7 @@ DtCompileHmat (
             return (AE_ERROR);
         }
 
-        Status = DtCompileTable (PFieldList, InfoTable, &Subtable, TRUE);
+        Status = DtCompileTable (PFieldList, InfoTable, &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -1433,7 +1433,7 @@ DtCompileHmat (
             while (*PFieldList)
             {
                 Status = DtCompileTable (PFieldList,
-                    AcpiDmTableInfoHmat1a, &Subtable, TRUE);
+                    AcpiDmTableInfoHmat1a, &Subtable);
                 if (ACPI_FAILURE (Status))
                 {
                     return (Status);
@@ -1454,7 +1454,7 @@ DtCompileHmat (
             while (*PFieldList)
             {
                 Status = DtCompileTable (PFieldList,
-                    AcpiDmTableInfoHmat1b, &Subtable, TRUE);
+                    AcpiDmTableInfoHmat1b, &Subtable);
                 if (ACPI_FAILURE (Status))
                 {
                     return (Status);
@@ -1479,7 +1479,7 @@ DtCompileHmat (
             while (*PFieldList)
             {
                 Status = DtCompileTable (PFieldList,
-                    AcpiDmTableInfoHmat1c, &Subtable, TRUE);
+                    AcpiDmTableInfoHmat1c, &Subtable);
                 if (ACPI_FAILURE (Status))
                 {
                     return (Status);
@@ -1513,7 +1513,7 @@ DtCompileHmat (
             while (*PFieldList)
             {
                 Status = DtCompileTable (PFieldList,
-                    AcpiDmTableInfoHmat2a, &Subtable, TRUE);
+                    AcpiDmTableInfoHmat2a, &Subtable);
                 if (ACPI_FAILURE (Status))
                 {
                     return (Status);
@@ -1576,7 +1576,7 @@ DtCompileIort (
     ParentTable = DtPeekSubtable ();
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoIort,
-        &Subtable, TRUE);
+        &Subtable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -1598,7 +1598,7 @@ DtCompileIort (
      */
     Iort->NodeOffset = sizeof (ACPI_TABLE_IORT);
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoIortPad,
-        &Subtable, TRUE);
+        &Subtable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -1624,7 +1624,7 @@ DtCompileIort (
     {
         SubtableStart = *PFieldList;
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoIortHdr,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -1642,7 +1642,7 @@ DtCompileIort (
         case ACPI_IORT_NODE_ITS_GROUP:
 
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoIort0,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -1656,7 +1656,7 @@ DtCompileIort (
             while (*PFieldList)
             {
                 Status = DtCompileTable (PFieldList, AcpiDmTableInfoIort0a,
-                    &Subtable, TRUE);
+                    &Subtable);
                 if (ACPI_FAILURE (Status))
                 {
                     return (Status);
@@ -1677,7 +1677,7 @@ DtCompileIort (
         case ACPI_IORT_NODE_NAMED_COMPONENT:
 
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoIort1,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -1692,7 +1692,7 @@ DtCompileIort (
              * for filling this field.
              */
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoIort1a,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -1729,7 +1729,7 @@ DtCompileIort (
         case ACPI_IORT_NODE_PCI_ROOT_COMPLEX:
 
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoIort2,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -1742,7 +1742,7 @@ DtCompileIort (
         case ACPI_IORT_NODE_SMMU:
 
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoIort3,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -1756,7 +1756,7 @@ DtCompileIort (
 
             IortSmmu->GlobalInterruptOffset = NodeLength;
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoIort3a,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -1772,7 +1772,7 @@ DtCompileIort (
             while (*PFieldList)
             {
                 Status = DtCompileTable (PFieldList, AcpiDmTableInfoIort3b,
-                    &Subtable, TRUE);
+                    &Subtable);
                 if (ACPI_FAILURE (Status))
                 {
                     return (Status);
@@ -1797,7 +1797,7 @@ DtCompileIort (
             while (*PFieldList)
             {
                 Status = DtCompileTable (PFieldList, AcpiDmTableInfoIort3c,
-                    &Subtable, TRUE);
+                    &Subtable);
                 if (ACPI_FAILURE (Status))
                 {
                     return (Status);
@@ -1819,7 +1819,7 @@ DtCompileIort (
         case ACPI_IORT_NODE_SMMU_V3:
 
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoIort4,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -1842,7 +1842,7 @@ DtCompileIort (
         while (*PFieldList)
         {
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoIortMap,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -1905,7 +1905,7 @@ DtCompileIvrs (
 
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoIvrs,
-        &Subtable, TRUE);
+        &Subtable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -1918,7 +1918,7 @@ DtCompileIvrs (
     {
         SubtableStart = *PFieldList;
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoIvrsHdr,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -1950,7 +1950,7 @@ DtCompileIvrs (
             return (AE_ERROR);
         }
 
-        Status = DtCompileTable (PFieldList, InfoTable, &Subtable, TRUE);
+        Status = DtCompileTable (PFieldList, InfoTable, &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -2012,7 +2012,7 @@ DtCompileIvrs (
                 }
 
                 Status = DtCompileTable (PFieldList, InfoTable,
-                    &Subtable, TRUE);
+                    &Subtable);
                 if (ACPI_FAILURE (Status))
                 {
                     return (Status);

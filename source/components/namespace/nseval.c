@@ -308,6 +308,7 @@ AcpiNsEvaluate (
      */
     switch (AcpiNsGetType (Info->Node))
     {
+    case ACPI_TYPE_ANY:
     case ACPI_TYPE_DEVICE:
     case ACPI_TYPE_EVENT:
     case ACPI_TYPE_MUTEX:
@@ -315,13 +316,13 @@ AcpiNsEvaluate (
     case ACPI_TYPE_THERMAL:
     case ACPI_TYPE_LOCAL_SCOPE:
         /*
-         * 1) Disallow evaluation of certain object types. For these,
-         *    object evaluation is undefined and not supported.
+         * 1) Disallow evaluation of these object types. For these,
+         *    object evaluation is undefined.
          */
         ACPI_ERROR ((AE_INFO,
-            "%s: Evaluation of object type [%s] is not supported",
-            Info->FullPathname,
-            AcpiUtGetTypeName (Info->Node->Type)));
+            "%s: This object type [%s] "
+            "never contains data and cannot be evaluated",
+            Info->FullPathname, AcpiUtGetTypeName (Info->Node->Type)));
 
         Status = AE_TYPE;
         goto Cleanup;

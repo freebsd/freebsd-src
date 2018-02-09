@@ -232,8 +232,9 @@ AcpiNsExecuteTable (
         goto Cleanup;
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
-        "Create table code block: %p\n", MethodObj));
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_PARSE,
+        "%s: Create table pseudo-method for [%4.4s] @%p, method %p\n",
+        ACPI_GET_FUNCTION_NAME, Table->Signature, Table, MethodObj));
 
     MethodObj->Method.AmlStart = AmlStart;
     MethodObj->Method.AmlLength = AmlLength;
@@ -404,7 +405,8 @@ AcpiNsParseTable (
 
     if (AcpiGbl_ParseTableAsTermList)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "**** Start load pass\n"));
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_PARSE,
+            "%s: **** Start table execution pass\n", ACPI_GET_FUNCTION_NAME));
 
         Status = AcpiNsExecuteTable (TableIndex, StartNode);
         if (ACPI_FAILURE (Status))

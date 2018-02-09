@@ -576,7 +576,7 @@ AcpiPsParseAml (
 
     if (!WalkState->ParserState.Aml)
     {
-        return_ACPI_STATUS (AE_NULL_OBJECT);
+        return_ACPI_STATUS (AE_BAD_ADDRESS);
     }
 
     /* Create and initialize a new thread state */

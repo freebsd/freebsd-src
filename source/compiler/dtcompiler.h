@@ -275,8 +275,7 @@ ACPI_STATUS
 DtCompileTable (
     DT_FIELD                **Field,
     ACPI_DMTABLE_INFO       *Info,
-    DT_SUBTABLE             **RetSubtable,
-    BOOLEAN                 Required);
+    DT_SUBTABLE             **RetSubtable);
 
 ACPI_STATUS
 DtCompileTwoSubtables (

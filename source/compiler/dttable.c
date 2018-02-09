@@ -182,7 +182,7 @@ DtCompileRsdp (
     /* Compile the "common" RSDP (ACPI 1.0) */
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoRsdp1,
-        &Gbl_RootTable, TRUE);
+        &Gbl_RootTable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -196,7 +196,7 @@ DtCompileRsdp (
         /* Compile the "extended" part of the RSDP as a subtable */
 
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoRsdp2,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -240,7 +240,7 @@ DtCompileFadt (
 
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt1,
-        &Subtable, TRUE);
+        &Subtable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -255,7 +255,7 @@ DtCompileFadt (
     if (Revision == 2)
     {
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt2,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -266,7 +266,7 @@ DtCompileFadt (
     else if (Revision >= 2)
     {
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt3,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -277,7 +277,7 @@ DtCompileFadt (
         if (Revision >= 5)
         {
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt5,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -289,7 +289,7 @@ DtCompileFadt (
         if (Revision >= 6)
         {
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt6,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -326,7 +326,7 @@ DtCompileFacs (
 
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoFacs,
-        &Gbl_RootTable, TRUE);
+        &Gbl_RootTable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);

@@ -128,7 +128,13 @@ OBJECTS = \
 	$(OBJDIR)/dmtable.o\
 	$(OBJDIR)/dmtables.o\
 	$(OBJDIR)/dmtbdump.o\
+	$(OBJDIR)/dmtbdump1.o\
+	$(OBJDIR)/dmtbdump2.o\
+	$(OBJDIR)/dmtbdump3.o\
 	$(OBJDIR)/dmtbinfo.o\
+	$(OBJDIR)/dmtbinfo1.o\
+	$(OBJDIR)/dmtbinfo2.o\
+	$(OBJDIR)/dmtbinfo3.o\
 	$(OBJDIR)/dmutils.o\
 	$(OBJDIR)/dmwalk.o\
 	$(OBJDIR)/dsargs.o\
