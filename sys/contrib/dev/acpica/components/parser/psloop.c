@@ -283,7 +283,7 @@ AcpiPsGetArguments (
         }
 
         ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
-            "Final argument count: %u pass %u\n",
+            "Final argument count: %8.8X pass %u\n",
             WalkState->ArgCount, WalkState->PassNumber));
 
         /*
@@ -697,7 +697,7 @@ AcpiPsParseLoop (
         /* Check for arguments that need to be processed */
 
         ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
-            "Parseloop: argument count: %u\n", WalkState->ArgCount));
+            "Parseloop: argument count: %8.8X\n", WalkState->ArgCount));
 
         if (WalkState->ArgCount)
         {
