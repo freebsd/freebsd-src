@@ -290,7 +290,6 @@ zpool_add_010_pos_body()
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_add.kshlib
 	. $(atf_get_srcdir)/zpool_add.cfg
-	atf_expect_fail "PR 225546 zpool add crashes in the presence of a replacing vdev with a spare child"
 
 	verify_disk_count "$DISKS" 5
 	ksh93 $(atf_get_srcdir)/zpool_add_010_pos.ksh || atf_fail "Testcase failed"
