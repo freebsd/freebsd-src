@@ -2305,6 +2305,14 @@ icmp6_redirect_input(struct mbuf *m, int off)
 			goto bad;
 		}
 
+		/*
+		 * Embed scope zone id into next hop address, since
+		 * fib6_lookup_nh_basic() returns address without embedded
+		 * scope zone id.
+		 */
+		if (in6_setscope(&nh6.nh_addr, m->m_pkthdr.rcvif, NULL))
+			goto freeit;
+
 		if (IN6_ARE_ADDR_EQUAL(&src6, &nh6.nh_addr) == 0) {
 			nd6log((LOG_ERR,
 			    "ICMP6 redirect rejected; "
