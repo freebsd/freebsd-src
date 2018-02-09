@@ -101,7 +101,7 @@ zoneinfo: yearistype ${TDATA}
 # differences between the two don't matter for this purpose.
 #
 .if make(*install*)
-TZS!= cd ${TZBUILDDIR} && find * -type f | env LC_ALL=C sort
+TZS!= cd ${TZBUILDDIR} && find * -type f | LC_ALL=C sort
 .endif
 
 beforeinstall: install-zoneinfo
