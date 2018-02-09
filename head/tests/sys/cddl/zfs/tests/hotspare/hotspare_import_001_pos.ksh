@@ -76,15 +76,25 @@ function verify_export_import #pool #file #chksum
 	typeset pool=$1
 	typeset file=$2
 	typeset checksum1=$3
+	typeset -i n=0
 
 	if ! $ZPOOL export $pool; then
 		# Rarely, this can fail with EBUSY if the pool's configuration
 		# has already changed within the same transaction group.  In
 		# that case, it is appropriate to retry.
-		$SYNC
-		log_must $ZPOOL export $POOL
+		while ((n < 3)); do
+			$SYNC
+			log_note "$ZPOOL busy, retrying export (${n})..."
+			if ((n == 2)); then
+				log_must $ZPOOL export $pool
+			else
+				$ZPOOL export $pool && break
+			fi
+			$SLEEP 1
+			n=$((n + 1))
+		done
 	fi
-	log_must $ZPOOL import -d $HOTSPARE_TMPDIR $POOL
+	log_must $ZPOOL import -d $HOTSPARE_TMPDIR $pool
 
 	[[ ! -e $file ]] && \
 		log_fail "$file missing after detach hotspare."
