@@ -535,12 +535,12 @@ bufspace_reserve(struct bufdomain *bd, int size, bool metadata)
 		limit = bd->bd_maxbufspace;
 	else
 		limit = bd->bd_hibufspace;
-	do {
-		space = bd->bd_bufspace;
-		new = space + size;
-		if (new > limit)
-			return (ENOSPC);
-	} while (atomic_cmpset_long(&bd->bd_bufspace, space, new) == 0);
+	space = atomic_fetchadd_long(&bd->bd_bufspace, size);
+	new = space + size;
+	if (new > limit) {
+		atomic_subtract_long(&bd->bd_bufspace, size);
+		return (ENOSPC);
+	}
 
 	/* Wake up the daemon on the transition. */
 	if (space < bd->bd_bufspacethresh && new >= bd->bd_bufspacethresh)
