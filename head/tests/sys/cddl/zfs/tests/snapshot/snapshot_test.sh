@@ -546,6 +546,7 @@ snapshot_019_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	atf_skip "PR 225795 panic: found unreferenced mountpoint when accessing and unmounting snapshots in parallel"
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_019_pos.ksh || atf_fail "Testcase failed"
 }
