@@ -4086,21 +4086,6 @@ bufdone(struct buf *bp)
 			bufobj_wdrop(dropobj);
 		return;
 	}
-
-	bufdone_finish(bp);
-
-	if (dropobj)
-		bufobj_wdrop(dropobj);
-}
-
-void
-bufdone_finish(struct buf *bp)
-{
-	BUF_ASSERT_HELD(bp);
-
-	if (!LIST_EMPTY(&bp->b_dep))
-		buf_complete(bp);
-
 	if (bp->b_flags & B_VMIO) {
 		/*
 		 * Set B_CACHE if the op was a normal read and no error
@@ -4113,14 +4098,14 @@ bufdone_finish(struct buf *bp)
 			bp->b_flags |= B_CACHE;
 		vfs_vmio_iodone(bp);
 	}
+	if (!LIST_EMPTY(&bp->b_dep))
+		buf_complete(bp);
 	if ((bp->b_flags & B_CKHASH) != 0) {
 		KASSERT(bp->b_iocmd == BIO_READ,
-		    ("bufdone_finish: b_iocmd %d not BIO_READ", bp->b_iocmd));
-		KASSERT(buf_mapped(bp),
-		    ("bufdone_finish: bp %p not mapped", bp));
+		    ("bufdone: b_iocmd %d not BIO_READ", bp->b_iocmd));
+		KASSERT(buf_mapped(bp), ("bufdone: bp %p not mapped", bp));
 		(*bp->b_ckhashcalc)(bp);
 	}
-
 	/*
 	 * For asynchronous completions, release the buffer now. The brelse
 	 * will do a wakeup there if necessary - so no need to do a wakeup
@@ -4134,6 +4119,8 @@ bufdone_finish(struct buf *bp)
 			bqrelse(bp);
 	} else
 		bdone(bp);
+	if (dropobj)
+		bufobj_wdrop(dropobj);
 }
 
 /*
