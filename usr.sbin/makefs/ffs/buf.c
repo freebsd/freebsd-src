@@ -1,4 +1,4 @@
-/*	$NetBSD: buf.c,v 1.12 2004/06/20 22:20:18 jmc Exp $	*/
+/*	$NetBSD: buf.c,v 1.13 2004/06/20 22:20:18 jmc Exp $	*/
 
 /*
  * Copyright (c) 2001 Wasabi Systems, Inc.
@@ -60,10 +60,12 @@ extern int sectorsize;		/* XXX: from ffs.c & mkfs.c */
 TAILQ_HEAD(buftailhead,buf) buftail;
 
 int
-bread(int fd, struct fs *fs, daddr_t blkno, int size, struct buf **bpp)
+bread(struct vnode *vp, daddr_t blkno, int size, struct ucred *u1 __unused,
+    struct buf **bpp)
 {
 	off_t	offset;
 	ssize_t	rv;
+	struct fs *fs = vp->fs;
 
 	assert (fs != NULL);
 	assert (bpp != NULL);
@@ -71,7 +73,7 @@ bread(int fd, struct fs *fs, daddr_t blkno, int size, struct buf **bpp)
 	if (debug & DEBUG_BUF_BREAD)
 		printf("bread: fs %p blkno %lld size %d\n",
 		    fs, (long long)blkno, size);
-	*bpp = getblk(fd, fs, blkno, size);
+	*bpp = getblk(vp, blkno, size, 0, 0, 0);
 	offset = (*bpp)->b_blkno * sectorsize;	/* XXX */
 	if (debug & DEBUG_BUF_BREAD)
 		printf("bread: bp %p blkno %lld offset %lld bcount %ld\n",
@@ -95,7 +97,7 @@ bread(int fd, struct fs *fs, daddr_t blkno, int size, struct buf **bpp)
 }
 
 void
-brelse(struct buf *bp)
+brelse(struct buf *bp, int u1 __unused)
 {
 
 	assert (bp != NULL);
@@ -174,12 +176,16 @@ bcleanup(void)
 }
 
 struct buf *
-getblk(int fd, struct fs *fs, daddr_t blkno, int size)
+getblk(struct vnode *vp, daddr_t blkno, int size, int u1 __unused,
+    int u2 __unused, int u3 __unused)
 {
 	static int buftailinitted;
 	struct buf *bp;
 	void *n;
+	int fd = vp->fd;
+	struct fs *fs = vp->fs;
 
+	blkno += vp->offset;
 	assert (fs != NULL);
 	if (debug & DEBUG_BUF_GETBLK)
 		printf("getblk: fs %p blkno %lld size %d\n", fs,

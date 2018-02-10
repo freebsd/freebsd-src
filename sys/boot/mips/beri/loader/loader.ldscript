@@ -44,7 +44,6 @@ __loader_base_vaddr__ = __mips64_xkphys_cached__ + __loader_base__;
 __loader_end__ = 0x100000;
 __loader_end_vaddr__ = __mips64_xkphys_cached__ + __loader_end__;
 
-OUTPUT_FORMAT("elf64-tradbigmips");
 OUTPUT_ARCH(mips)
 ENTRY(start)
 SECTIONS

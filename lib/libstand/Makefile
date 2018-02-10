@@ -155,5 +155,9 @@ SRCS+=	pkgfs.c
 SRCS+=	nandfs.c
 .endif
 
+# explicit_bzero
+.PATH: ${SRCTOP}/sys/libkern
+SRCS+=  explicit_bzero.c
+
 .include <bsd.stand.mk>
 .include <bsd.lib.mk>

@@ -30,36 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <efi.h>
 #include <efilib.h>
 
-/* XXX: This belongs in an efifoo.h header. */
-#define	EFI_LOADED_IMAGE_DEVICE_PATH_PROTOCOL_GUID			\
-    { 0xbc62157e, 0x3e33, 0x4fec, { 0x99, 0x20, 0x2d, 0x3b, 0x36, 0xd7, 0x50, 0xdf } }
-
-#define	EFI_DEVICE_PATH_TO_TEXT_PROTOCOL_GUID				\
-    { 0x8b843e20, 0x8132, 0x4852, { 0x90, 0xcc, 0x55, 0x1a, 0x4e, 0x4a, 0x7f, 0x1c } }
-
-INTERFACE_DECL(_EFI_DEVICE_PATH_PROTOCOL);
-
-typedef
-CHAR16*
-(EFIAPI *EFI_DEVICE_PATH_TO_TEXT_NODE) (
-    IN struct _EFI_DEVICE_PATH *This,
-    IN BOOLEAN                 DisplayOnly,
-    IN BOOLEAN                 AllowShortCuts
-    );
-
-typedef
-CHAR16*
-(EFIAPI *EFI_DEVICE_PATH_TO_TEXT_PATH) (
-    IN struct _EFI_DEVICE_PATH *This,
-    IN BOOLEAN                 DisplayOnly,
-    IN BOOLEAN                 AllowShortCuts
-    );
-
-typedef struct _EFI_DEVICE_PATH_TO_TEXT_PROTOCOL {
-	EFI_DEVICE_PATH_TO_TEXT_NODE ConvertDeviceNodeToText;
-	EFI_DEVICE_PATH_TO_TEXT_PATH ConvertDevicePathToText;
-} EFI_DEVICE_PATH_TO_TEXT_PROTOCOL;
-
 static EFI_GUID ImageDevicePathGUID =
     EFI_LOADED_IMAGE_DEVICE_PATH_PROTOCOL_GUID;
 static EFI_GUID DevicePathGUID = DEVICE_PATH_PROTOCOL;
@@ -136,15 +106,18 @@ efi_devpath_trim(EFI_DEVICE_PATH *devpath)
 	EFI_DEVICE_PATH *node, *copy;
 	size_t prefix, len;
 
-	node = efi_devpath_last_node(devpath);
+	if ((node = efi_devpath_last_node(devpath)) == NULL)
+		return (NULL);
 	prefix = (UINT8 *)node - (UINT8 *)devpath;
 	if (prefix == 0)
 		return (NULL);
 	len = prefix + DevicePathNodeLength(NextDevicePathNode(node));
 	copy = malloc(len);
-	memcpy(copy, devpath, prefix);
-	node = (EFI_DEVICE_PATH *)((UINT8 *)copy + prefix);
-	SetDevicePathEndNode(node);
+	if (copy != NULL) {
+		memcpy(copy, devpath, prefix);
+		node = (EFI_DEVICE_PATH *)((UINT8 *)copy + prefix);
+		SetDevicePathEndNode(node);
+	}
 	return (copy);
 }
 
@@ -164,4 +137,32 @@ efi_devpath_handle(EFI_DEVICE_PATH *devpath)
 	if (EFI_ERROR(status))
 		return (NULL);
 	return (h);
+}
+
+int
+efi_devpath_match(EFI_DEVICE_PATH *devpath1, EFI_DEVICE_PATH *devpath2)
+{
+	int len;
+
+	if (devpath1 == NULL || devpath2 == NULL)
+		return (0);
+
+	while (1) {
+		if (DevicePathType(devpath1) != DevicePathType(devpath2) ||
+		    DevicePathSubType(devpath1) != DevicePathSubType(devpath2))
+			return (0);
+
+		len = DevicePathNodeLength(devpath1);
+		if (len != DevicePathNodeLength(devpath2))
+			return (0);
+
+		if (memcmp(devpath1, devpath2, (size_t)len) != 0)
+			return (0);
+
+		if (IsDevicePathEnd(devpath1))
+			break;
+		devpath1 = NextDevicePathNode(devpath1);
+		devpath2 = NextDevicePathNode(devpath2);
+	}
+	return (1);
 }

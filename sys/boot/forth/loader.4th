@@ -46,9 +46,9 @@ include /boot/support.4th
 include /boot/color.4th
 include /boot/delay.4th
 include /boot/check-password.4th
-s" efi-boot" environment? [if] [if]
+s" efi-version" getenv? [if]
 	include /boot/efi.4th
-[then] [then]
+[then]
 
 only forth definitions
 

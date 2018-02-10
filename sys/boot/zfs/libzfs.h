@@ -47,6 +47,10 @@ struct zfs_devdesc
     uint64_t		root_guid;
 };
 
+#ifdef LOADER_GELI_SUPPORT
+#include <crypto/intake.h>
+#endif
+
 struct zfs_boot_args
 {
     uint32_t		size;
@@ -55,7 +59,21 @@ struct zfs_boot_args
     uint64_t		root;
     uint64_t		primary_pool;
     uint64_t		primary_vdev;
-    char		gelipw[256];
+    union {
+	char		gelipw[256];
+	struct {
+            char                notapw;	/* 
+					 * single null byte to stop keybuf
+					 * being interpreted as a password
+					 */
+	    uint32_t		keybuf_sentinel;
+#ifdef LOADER_GELI_SUPPORT
+	    struct keybuf	*keybuf;
+#else
+	    void		*keybuf;
+#endif
+	};
+    };
 };
 
 int	zfs_parsedev(struct zfs_devdesc *dev, const char *devspec,

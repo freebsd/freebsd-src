@@ -168,6 +168,7 @@ struct devdesc
 #define DEVT_NET	2
 #define DEVT_CD		3
 #define DEVT_ZFS	4
+#define DEVT_FD		5
     int			d_unit;
     void		*d_opendata;
 };

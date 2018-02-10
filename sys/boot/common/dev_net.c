@@ -175,7 +175,7 @@ net_open(struct open_file *f, ...)
 		}
 		if (intf_mtu != 0) {
 			char mtu[16];
-			sprintf(mtu, "%u", intf_mtu);
+			snprintf(mtu, sizeof(mtu), "%u", intf_mtu);
 			setenv("boot.netif.mtu", mtu, 1);
 		}
 

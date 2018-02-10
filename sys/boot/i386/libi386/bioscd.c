@@ -309,9 +309,6 @@ bc_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	return (0);
 }
 
-/* Max number of sectors to bounce-buffer at a time. */
-#define	CD_BOUNCEBUF	8
-
 /* return negative value for an error, otherwise blocks read */
 static int
 bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
@@ -339,8 +336,9 @@ bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
 		 * physical memory so we have to arrange a suitable
 		 * bounce buffer.
 		 */
-		x = min(CD_BOUNCEBUF, (unsigned)blks);
-		bbuf = alloca(x * BIOSCD_SECSIZE);
+		x = V86_IO_BUFFER_SIZE / BIOSCD_SECSIZE;
+		x = min(x, (unsigned)blks);
+		bbuf = PTOV(V86_IO_BUFFER);
 		maxfer = x;
 	} else {
 		bbuf = NULL;

@@ -24,10 +24,6 @@ WARNS?=		0
 .PATH: ${.CURDIR}/../../../lib/libc/string
 SRCS+=  bcmp.c bcopy.c bzero.c
 
-# need explicit_bzero for crypto
-.PATH: ${.CURDIR}/../../../sys/libkern
-SRCS+=  explicit_bzero.c
-
 # Our password input method
 SRCS+=  pwgets.c
 
@@ -43,6 +39,7 @@ SRCS+=		md5c.c
 # AES implementation from sys/crypto
 .PATH: ${SRCTOP}/sys/crypto/rijndael
 CFLAGS+=	-I${.CURDIR}/../../
+CFLAGS+=	-I${.CURDIR}/../common/
 # Remove asserts
 CFLAGS+=	-DNDEBUG
 SRCS+=		rijndael-alg-fst.c rijndael-api-fst.c rijndael-api.c
