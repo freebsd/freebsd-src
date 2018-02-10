@@ -1009,7 +1009,6 @@ mprsas_action(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct ccb_pathinq *cpi = &ccb->cpi;
 		struct mpr_softc *sc = sassc->sc;
-		uint8_t sges_per_frame;
 
 		cpi->version_num = 1;
 		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
@@ -1043,24 +1042,7 @@ mprsas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->transport_version = 0;
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_SPC;
-
-		/*
-		 * Max IO Size is Page Size * the following:
-		 * ((SGEs per frame - 1 for chain element) *
-		 * Max Chain Depth) + 1 for no chain needed in last frame
-		 *
-		 * If user suggests a Max IO size to use, use the smaller of the
-		 * user's value and the calculated value as long as the user's
-		 * value is larger than 0. The user's value is in pages.
-		 */
-		sges_per_frame = (sc->chain_frame_size /
-		    sizeof(MPI2_IEEE_SGE_SIMPLE64)) - 1;
-		cpi->maxio = (sges_per_frame * sc->facts->MaxChainDepth) + 1;
-		cpi->maxio *= PAGE_SIZE;
-		if ((sc->max_io_pages > 0) && (sc->max_io_pages * PAGE_SIZE <
-		    cpi->maxio))
-			cpi->maxio = sc->max_io_pages * PAGE_SIZE;
-		sc->maxio = cpi->maxio;
+		cpi->maxio = sc->maxio;
 		mprsas_set_ccbstatus(ccb, CAM_REQ_CMP);
 		break;
 	}
