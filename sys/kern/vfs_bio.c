@@ -1009,7 +1009,6 @@ bufinit(void)
 	unmapped_buf = (caddr_t)kva_alloc(MAXPHYS);
 
 	/* finally, initialize each buffer header and stick on empty q */
-	BQ_LOCK(&bqempty);
 	for (i = 0; i < nbuf; i++) {
 		bp = &buf[i];
 		bzero(bp, sizeof *bp);
@@ -1025,7 +1024,6 @@ bufinit(void)
 		BUF_LOCKINIT(bp);
 		bq_insert(&bqempty, bp, false);
 	}
-	BQ_UNLOCK(&bqempty);
 
 	/*
 	 * maxbufspace is the absolute maximum amount of buffer space we are 
@@ -1398,9 +1396,7 @@ binsfree(struct buf *bp, int qindex)
 			bq = &bd->bd_cleanq;
 	} else
 		bq = &bqdirty;
-	BQ_LOCK(bq);
 	bq_insert(bq, bp, true);
-	BQ_UNLOCK(bq);
 
 	return;
 }
@@ -1469,12 +1465,21 @@ buf_import(void *arg, void **store, int cnt, int domain, int flags)
 static void
 buf_release(void *arg, void **store, int cnt)
 {
+	struct bufqueue *bq;
+	struct buf *bp;
         int i;
 
-	BQ_LOCK(&bqempty);
-        for (i = 0; i < cnt; i++)
-		bq_insert(&bqempty, store[i], false);
-	BQ_UNLOCK(&bqempty);
+	bq = &bqempty;
+	BQ_LOCK(bq);
+        for (i = 0; i < cnt; i++) {
+		bp = store[i];
+		/* Inline bq_insert() to batch locking. */
+		TAILQ_INSERT_TAIL(&bq->bq_queue, bp, b_freelist);
+		bp->b_flags &= ~(B_AGE | B_REUSE);
+		bq->bq_len++;
+		bp->b_qindex = bq->bq_index;
+	}
+	BQ_UNLOCK(bq);
 }
 
 /*
@@ -1785,25 +1790,31 @@ bq_insert(struct bufqueue *bq, struct buf *bp, bool unlock)
 {
 	struct bufdomain *bd;
 
-	BQ_ASSERT_LOCKED(bq);
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("bq_insert: free buffer %p onto another queue?", bp);
 
 	bd = &bdclean[bp->b_domain];
 	if (bp->b_flags & B_AGE) {
 		/* Place this buf directly on the real queue. */
-		if (bq->bq_index == QUEUE_CLEAN && bq != &bd->bd_cleanq) {
-			BQ_LOCK(&bd->bd_cleanq);
-			BQ_UNLOCK(bq);
+		if (bq->bq_index == QUEUE_CLEAN)
 			bq = &bd->bd_cleanq;
-		}
+		BQ_LOCK(bq);
 		TAILQ_INSERT_HEAD(&bq->bq_queue, bp, b_freelist);
-	} else
+	} else {
+		BQ_LOCK(bq);
 		TAILQ_INSERT_TAIL(&bq->bq_queue, bp, b_freelist);
+	}
 	bp->b_flags &= ~(B_AGE | B_REUSE);
 	bq->bq_len++;
 	bp->b_qindex = bq->bq_index;
 	bp->b_cpu = bq->bq_cpu;
+
+	/*
+	 * Unlock before we notify so that we don't wakeup a waiter that
+	 * fails a trylock on the buf and sleeps again.
+	 */
+	if (unlock)
+		BUF_UNLOCK(bp);
 
 	if (bp->b_qindex == QUEUE_CLEAN) {
 		/*
@@ -1813,13 +1824,7 @@ bq_insert(struct bufqueue *bq, struct buf *bp, bool unlock)
 		    bq->bq_len >= bd->bd_lim))
 			bd_flush(bd, bq);
 	}
-
-	/*
-	 * Unlock before we notify so that we don't wakeup a waiter that
-	 * fails a trylock on the buf and sleeps again.
-	 */
-	if (unlock)
-		BUF_UNLOCK(bp);
+	BQ_UNLOCK(bq);
 }
 
 /*
