@@ -707,6 +707,7 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 			ip->ip_tos = iptos;
 			/* Re-initialization for later version check */
 			ip->ip_v = IPVERSION;
+			ip->ip_hl = off0 >> 2;
 		}
 
 		if (th->th_sum) {
