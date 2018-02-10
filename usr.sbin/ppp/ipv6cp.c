@@ -467,7 +467,7 @@ ipv6cp_LayerUp(struct fsm *fp)
 {
   /* We're now up */
   struct ipv6cp *ipv6cp = fsm2ipv6cp(fp);
-  char tbuff[40];
+  char tbuff[NCP_ASCIIBUFFERSIZE];
 
   log_Printf(LogIPV6CP, "%s: LayerUp.\n", fp->link->name);
   if (!ipv6cp_InterfaceUp(ipv6cp))
@@ -524,7 +524,7 @@ ipv6cp_LayerDown(struct fsm *fp)
   /* About to come down */
   struct ipv6cp *ipv6cp = fsm2ipv6cp(fp);
   static int recursing;
-  char addr[40];
+  char addr[NCP_ASCIIBUFFERSIZE];
 
   if (!recursing++) {
     snprintf(addr, sizeof addr, "%s", ncpaddr_ntoa(&ipv6cp->myaddr));
