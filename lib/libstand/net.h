@@ -91,7 +91,6 @@ extern	struct in_addr rootip;
 extern	struct in_addr swapip;
 extern	struct in_addr gateip;
 extern	struct in_addr nameip;
-extern	struct in_addr tftpip;
 extern	n_long netmask;
 extern	u_int intf_mtu;
 
@@ -107,19 +106,20 @@ int	rarp_getipaddress(int);
 /* Link functions: */
 ssize_t sendether(struct iodesc *d, void *pkt, size_t len,
 			u_char *dea, int etype);
-ssize_t readether(struct iodesc *d, void *pkt, size_t len,
-			time_t tleft, u_int16_t *etype);
+ssize_t readether(struct iodesc *, void **, void **, time_t, uint16_t *);
 
+ssize_t	sendip(struct iodesc *, void *, size_t, uint8_t);
+ssize_t	readip(struct iodesc *, void **, void **, time_t, uint8_t);
 ssize_t	sendudp(struct iodesc *, void *, size_t);
-ssize_t	readudp(struct iodesc *, void *, size_t, time_t);
+ssize_t	readudp(struct iodesc *, void **, void **, time_t);
 ssize_t	sendrecv(struct iodesc *,
-		      ssize_t (*)(struct iodesc *, void *, size_t),
+			ssize_t (*)(struct iodesc *, void *, size_t),
 			void *, size_t,
-		        ssize_t (*)(struct iodesc *, void *, size_t, time_t),
-			void *, size_t);
+			ssize_t (*)(struct iodesc *, void **, void **, time_t),
+			void **, void **);
 
 /* bootp/DHCP */
-void	bootp(int, int);
+void	bootp(int);
 
 /* Utilities: */
 char	*ether_sprintf(u_char *);

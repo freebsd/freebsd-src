@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bootinfo.h>
 #include <machine/cpufunc.h>
 #include <machine/psl.h>
+#include <sys/disk.h>
 #include <sys/reboot.h>
 #include <common/drv.h>
 
@@ -418,7 +419,7 @@ command_reloadbe(int argc, char *argv[])
 	    /* There does not appear to be a ZFS pool here, exit without error */
 	    return (CMD_OK);
 	}
-	err = zfs_bootenv(getenv("zfs_be_root"));
+	err = zfs_bootenv(root);
     }
 
     if (err != 0) {
@@ -462,5 +463,15 @@ i386_zfs_probe(void)
 	sprintf(devname, "disk%d:", unit);
 	zfs_probe_dev(devname, NULL);
     }
+}
+
+uint64_t
+ldi_get_size(void *priv)
+{
+	int fd = (uintptr_t) priv;
+	uint64_t size;
+
+	ioctl(fd, DIOCGMEDIASIZE, &size);
+	return (size);
 }
 #endif

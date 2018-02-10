@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "lib.h"
 #include "rbx.h"
 #include "drv.h"
+#include "edd.h"
 #include "util.h"
 #include "cons.h"
 #include "bootargs.h"
@@ -125,6 +126,7 @@ static int parse_cmd(void);
 static void bios_getmem(void);
 void *malloc(size_t n);
 void free(void *ptr);
+int main(void);
 
 void *
 malloc(size_t n)
@@ -468,6 +470,73 @@ copy_dsk(struct dsk *dsk)
     return (newdsk);
 }
 
+/*
+ * Get disk size from eax=0x800 and 0x4800. We need to probe both
+ * because 0x4800 may not be available and we would like to get more
+ * or less correct disk size - if it is possible at all.
+ * Note we do not really want to touch drv.c because that code is shared
+ * with boot2 and we can not afford to grow that code.
+ */
+static uint64_t
+drvsize_ext(struct dsk *dskp)
+{
+	uint64_t size, tmp;
+	int cyl, hds, sec;
+
+	v86.ctl = V86_FLAGS;
+	v86.addr = 0x13;
+	v86.eax = 0x800;
+	v86.edx = dskp->drive;
+	v86int();
+
+	/* Don't error out if we get bad sector number, try EDD as well */
+	if (V86_CY(v86.efl) ||	/* carry set */
+	    (v86.edx & 0xff) <= (unsigned)(dskp->drive & 0x7f)) /* unit # bad */
+		return (0);
+
+	cyl = ((v86.ecx & 0xc0) << 2) + ((v86.ecx & 0xff00) >> 8) + 1;
+	/* Convert max head # -> # of heads */
+	hds = ((v86.edx & 0xff00) >> 8) + 1;
+	sec = v86.ecx & 0x3f;
+
+	size = (uint64_t)cyl * hds * sec;
+
+	/* Determine if we can use EDD with this device. */
+	v86.ctl = V86_FLAGS;
+	v86.addr = 0x13;
+	v86.eax = 0x4100;
+	v86.edx = dskp->drive;
+	v86.ebx = 0x55aa;
+	v86int();
+	if (V86_CY(v86.efl) ||  /* carry set */
+	    (v86.ebx & 0xffff) != 0xaa55 || /* signature */
+	    (v86.ecx & EDD_INTERFACE_FIXED_DISK) == 0)
+		return (size);
+
+	tmp = drvsize(dskp);
+	if (tmp > size)
+		size = tmp;
+
+	return (size);
+}
+
+/*
+ * The "layered" ioctl to read disk/partition size. Unfortunately
+ * the zfsboot case is hardest, because we do not have full software
+ * stack available, so we need to do some manual work here.
+ */
+uint64_t
+ldi_get_size(void *priv)
+{
+	struct dsk *dskp = priv;
+	uint64_t size = dskp->size;
+
+	if (dskp->start == 0)
+		size = drvsize_ext(dskp);
+
+	return (size * DEV_BSIZE);
+}
+
 static void
 probe_drive(struct dsk *dsk)
 {
@@ -498,7 +567,7 @@ probe_drive(struct dsk *dsk)
      * out the partition table and probe each slice/partition
      * in turn for a vdev or GELI encrypted vdev.
      */
-    elba = drvsize(dsk);
+    elba = drvsize_ext(dsk);
     if (elba > 0) {
 	elba--;
     }
@@ -549,6 +618,7 @@ probe_drive(struct dsk *dsk)
 	    if (memcmp(&ent->ent_type, &freebsd_zfs_uuid,
 		     sizeof(uuid_t)) == 0) {
 		dsk->start = ent->ent_lba_start;
+		dsk->size = ent->ent_lba_end - ent->ent_lba_start + 1;
 		dsk->slice = part + 1;
 		dsk->part = 255;
 		if (vdev_probe(vdev_read, dsk, NULL) == 0) {
@@ -593,6 +663,7 @@ trymbr:
 	if (!dp[i].dp_typ)
 	    continue;
 	dsk->start = dp[i].dp_start;
+	dsk->size = dp[i].dp_size;
 	dsk->slice = i + 1;
 	if (vdev_probe(vdev_read, dsk, NULL) == 0) {
 	    dsk = copy_dsk(dsk);
@@ -648,7 +719,7 @@ main(void)
     dsk->slice = *(uint8_t *)PTOV(ARGS + 1) + 1;
     dsk->part = 0;
     dsk->start = 0;
-    dsk->init = 0;
+    dsk->size = 0;
 
     bootinfo.bi_version = BOOTINFO_VERSION;
     bootinfo.bi_size = sizeof(bootinfo);
@@ -699,7 +770,7 @@ main(void)
 	dsk->slice = 0;
 	dsk->part = 0;
 	dsk->start = 0;
-	dsk->init = 0;
+	dsk->size = 0;
 	probe_drive(dsk);
     }
 

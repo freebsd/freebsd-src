@@ -50,8 +50,8 @@ __FBSDID("$FreeBSD$");
 static int	net_probe(struct netif *, void *);
 static int	net_match(struct netif *, void *);
 static void	net_init(struct iodesc *, void *);
-static int	net_get(struct iodesc *, void *, size_t, time_t);
-static int	net_put(struct iodesc *, void *, size_t);
+static ssize_t	net_get(struct iodesc *, void **, time_t);
+static ssize_t	net_put(struct iodesc *, void *, size_t);
 static void	net_end(struct netif *);
 
 extern struct netif_stats net_stats[];
@@ -61,7 +61,7 @@ struct netif_dif net_ifs[] = {
 	{	0,		1,		&net_stats[0],	0,	},
 };
 
-struct netif_stats net_stats[NENTS(net_ifs)];
+struct netif_stats net_stats[nitems(net_ifs)];
 
 struct netif_driver uboot_net = {
 	"uboot_eth",		/* netif_bname */
@@ -72,7 +72,7 @@ struct netif_driver uboot_net = {
 	net_put,		/* netif_put */
 	net_end,		/* netif_end */
 	net_ifs,		/* netif_ifs */
-	NENTS(net_ifs)		/* netif_nifs */
+	nitems(net_ifs)		/* netif_nifs */
 };
 
 struct uboot_softc {
@@ -232,7 +232,7 @@ net_probe(struct netif *nif, void *machdep_hint)
 	return (0);
 }
 
-static int
+static ssize_t
 net_put(struct iodesc *desc, void *pkt, size_t len)
 {
 	struct netif *nif = desc->io_netif;
@@ -271,18 +271,21 @@ net_put(struct iodesc *desc, void *pkt, size_t len)
 	return (rv);
 }
 
-static int
-net_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
+static ssize_t
+net_get(struct iodesc *desc, void **pkt, time_t timeout)
 {
 	struct netif *nif = desc->io_netif;
 	struct uboot_softc *sc = nif->nif_devdata;
 	time_t t;
 	int err, rlen;
+	size_t len;
+	char *buf;
 
 #if defined(NETIF_DEBUG)
-	printf("net_get: pkt %p, len %d, timeout %d\n", pkt, len, timeout);
+	printf("net_get: pkt %p, timeout %d\n", pkt, timeout);
 #endif
 	t = getsecs();
+	len = sizeof(sc->sc_rxbuf);
 	do {
 		err = ub_dev_recv(sc->sc_handle, sc->sc_rxbuf, len, &rlen);
 
@@ -299,13 +302,12 @@ net_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
 #endif
 
 	if (rlen > 0) {
-		memcpy(pkt, sc->sc_rxbuf, MIN(len, rlen));
-		if (rlen != len) {
-#if defined(NETIF_DEBUG)
-			printf("net_get: len %x, rlen %x\n", len, rlen);
-#endif
-		}
-		return (rlen);
+		buf = malloc(rlen + ETHER_ALIGN);
+		if (buf == NULL)
+			return (-1);
+		memcpy(buf + ETHER_ALIGN, sc->sc_rxbuf, rlen);
+		*pkt = buf;
+		return ((ssize_t)rlen);
 	}
 
 	return (-1);

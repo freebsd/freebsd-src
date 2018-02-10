@@ -54,17 +54,17 @@ __FBSDID("$FreeBSD$");
 
 
 static ssize_t rarpsend(struct iodesc *, void *, size_t);
-static ssize_t rarprecv(struct iodesc *, void *, size_t, time_t);
+static ssize_t rarprecv(struct iodesc *, void **, void **, time_t);
 
 /*
  * Ethernet (Reverse) Address Resolution Protocol (see RFC 903, and 826).
  */
 int
-rarp_getipaddress(sock)
-	int sock;
+rarp_getipaddress(int sock)
 {
 	struct iodesc *d;
 	struct ether_arp *ap;
+	void *pkt;
 	struct {
 		u_char header[ETHER_SIZE];
 		struct {
@@ -72,13 +72,6 @@ rarp_getipaddress(sock)
 			u_char pad[18]; 	/* 60 - sizeof(arp) */
 		} data;
 	} wbuf;
-	struct {
-		u_char header[ETHER_SIZE];
-		struct {
-			struct ether_arp arp;
-			u_char pad[24]; 	/* extra space */
-		} data;
-	} rbuf;
 
 #ifdef RARP_DEBUG
  	if (debug)
@@ -102,21 +95,21 @@ rarp_getipaddress(sock)
 	ap->arp_op = htons(ARPOP_REVREQUEST);
 	bcopy(d->myea, ap->arp_sha, 6);
 	bcopy(d->myea, ap->arp_tha, 6);
+	pkt = NULL;
 
 	if (sendrecv(d,
 	    rarpsend, &wbuf.data, sizeof(wbuf.data),
-	    rarprecv, &rbuf.data, sizeof(rbuf.data)) < 0)
-	{
+	    rarprecv, &pkt, (void *)&ap) < 0) {
 		printf("No response for RARP request\n");
 		return (-1);
 	}
 
-	ap = &rbuf.data.arp;
 	bcopy(ap->arp_tpa, (char *)&myip, sizeof(myip));
 #if 0
 	/* XXX - Can NOT assume this is our root server! */
 	bcopy(ap->arp_spa, (char *)&rootip, sizeof(rootip));
 #endif
+	free(pkt);
 
 	/* Compute our "natural" netmask. */
 	if (IN_CLASSA(myip.s_addr))
@@ -134,10 +127,7 @@ rarp_getipaddress(sock)
  * Broadcast a RARP request (i.e. who knows who I am)
  */
 static ssize_t
-rarpsend(d, pkt, len)
-	struct iodesc *d;
-	void *pkt;
-	size_t len;
+rarpsend(struct iodesc *d, void *pkt, size_t len)
 {
 
 #ifdef RARP_DEBUG
@@ -153,28 +143,26 @@ rarpsend(d, pkt, len)
  * else -1 (and errno == 0)
  */
 static ssize_t
-rarprecv(d, pkt, len, tleft)
-	struct iodesc *d;
-	void *pkt;
-	size_t len;
-	time_t tleft;
+rarprecv(struct iodesc *d, void **pkt, void **payload, time_t tleft)
 {
 	ssize_t n;
 	struct ether_arp *ap;
-	u_int16_t etype;	/* host order */
+	void *ptr = NULL;
+	uint16_t etype;		/* host order */
 
 #ifdef RARP_DEBUG
  	if (debug)
 		printf("rarprecv: ");
 #endif
 
-	n = readether(d, pkt, len, tleft, &etype);
+	n = readether(d, &ptr, (void **)&ap, tleft, &etype);
 	errno = 0;	/* XXX */
 	if (n == -1 || n < sizeof(struct ether_arp)) {
 #ifdef RARP_DEBUG
 		if (debug)
 			printf("bad len=%d\n", n);
 #endif
+		free(ptr);
 		return (-1);
 	}
 
@@ -183,10 +171,10 @@ rarprecv(d, pkt, len, tleft)
 		if (debug)
 			printf("bad type=0x%x\n", etype);
 #endif
+		free(ptr);
 		return (-1);
 	}
 
-	ap = (struct ether_arp *)pkt;
 	if (ap->arp_hrd != htons(ARPHRD_ETHER) ||
 	    ap->arp_pro != htons(ETHERTYPE_IP) ||
 	    ap->arp_hln != sizeof(ap->arp_sha) ||
@@ -196,6 +184,7 @@ rarprecv(d, pkt, len, tleft)
 		if (debug)
 			printf("bad hrd/pro/hln/pln\n");
 #endif
+		free(ptr);
 		return (-1);
 	}
 
@@ -204,6 +193,7 @@ rarprecv(d, pkt, len, tleft)
 		if (debug)
 			printf("bad op=0x%x\n", ntohs(ap->arp_op));
 #endif
+		free(ptr);
 		return (-1);
 	}
 
@@ -213,6 +203,7 @@ rarprecv(d, pkt, len, tleft)
 		if (debug)
 			printf("unwanted address\n");
 #endif
+		free(ptr);
 		return (-1);
 	}
 
@@ -221,5 +212,7 @@ rarprecv(d, pkt, len, tleft)
  	if (debug)
 		printf("got it\n");
 #endif
+	*pkt = ptr;
+	*payload = ap;
 	return (n);
 }

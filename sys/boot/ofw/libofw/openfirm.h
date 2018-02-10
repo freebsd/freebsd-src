@@ -105,6 +105,8 @@ void		OF_close(ihandle_t);
 int		OF_read(ihandle_t, void *, int);
 int		OF_write(ihandle_t, void *, int);
 int		OF_seek(ihandle_t, u_quad_t);
+unsigned int	OF_blocks(ihandle_t);
+int		OF_block_size(ihandle_t);
 
 /* Memory functions */
 void 		*OF_claim(void *, u_int, u_int);

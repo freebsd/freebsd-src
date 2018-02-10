@@ -91,8 +91,8 @@ userdisk_init(void)
 			return (ENOMEM);
 		for (i = 0; i < userdisk_maxunit; i++) {
 			if (CALLBACK(diskioctl, i, DIOCGSECTORSIZE,
-			    &sectorsize) != NULL || CALLBACK(diskioctl, i,
-			    DIOCGMEDIASIZE, &mediasize) != NULL)
+			    &sectorsize) != 0 || CALLBACK(diskioctl, i,
+			    DIOCGMEDIASIZE, &mediasize) != 0)
 				return (ENXIO);
 			ud_info[i].mediasize = mediasize;
 			ud_info[i].sectorsize = sectorsize;
@@ -211,6 +211,7 @@ userdisk_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	size_t		resid;
 	int		rc;
 
+	rw &= F_MASK;
 	if (rw == F_WRITE)
 		return (EROFS);
 	if (rw != F_READ)
@@ -230,7 +231,12 @@ static int
 userdisk_ioctl(struct open_file *f, u_long cmd, void *data)
 {
 	struct disk_devdesc *dev;
+	int rc;
 
 	dev = (struct disk_devdesc *)f->f_devdata;
+	rc = disk_ioctl(dev, cmd, data);
+	if (rc != ENOTTY)
+		return (rc);
+
 	return (CALLBACK(diskioctl, dev->d_unit, cmd, data));
 }

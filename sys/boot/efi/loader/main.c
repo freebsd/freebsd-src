@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/disk.h>
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/boot.h>
@@ -307,7 +308,9 @@ main(int argc, CHAR16 *argv[])
 	int i, j, vargood, howto;
 	UINTN k;
 	int has_kbd;
+#if !defined(__arm__)
 	char buf[40];
+#endif
 
 	archsw.arch_autoload = efi_autoload;
 	archsw.arch_getdev = efi_getdev;
@@ -481,6 +484,7 @@ main(int argc, CHAR16 *argv[])
 
 	for (k = 0; k < ST->NumberOfTableEntries; k++) {
 		guid = &ST->ConfigurationTable[k].VendorGuid;
+#if !defined(__arm__)
 		if (!memcmp(guid, &smbios, sizeof(EFI_GUID))) {
 			snprintf(buf, sizeof(buf), "%p",
 			    ST->ConfigurationTable[k].VendorTable);
@@ -488,6 +492,7 @@ main(int argc, CHAR16 *argv[])
 			smbios_detect(ST->ConfigurationTable[k].VendorTable);
 			break;
 		}
+#endif
 	}
 
 	interact(NULL);			/* doesn't return */
@@ -506,8 +511,7 @@ command_reboot(int argc, char *argv[])
 		if (devsw[i]->dv_cleanup != NULL)
 			(devsw[i]->dv_cleanup)();
 
-	RS->ResetSystem(EfiResetCold, EFI_SUCCESS, 23,
-	    (CHAR16 *)"Reboot from the loader");
+	RS->ResetSystem(EfiResetCold, EFI_SUCCESS, 0, NULL);
 
 	/* NOTREACHED */
 	return (CMD_ERROR);
@@ -795,6 +799,100 @@ command_fdt(int argc, char *argv[])
 COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
 #endif
 
+/*
+ * Chain load another efi loader.
+ */
+static int
+command_chain(int argc, char *argv[])
+{
+	EFI_GUID LoadedImageGUID = LOADED_IMAGE_PROTOCOL;
+	EFI_HANDLE loaderhandle;
+	EFI_LOADED_IMAGE *loaded_image;
+	EFI_STATUS status;
+	struct stat st;
+	struct devdesc *dev;
+	char *name, *path;
+	void *buf;
+	int fd;
+
+	if (argc < 2) {
+		command_errmsg = "wrong number of arguments";
+		return (CMD_ERROR);
+	}
+
+	name = argv[1];
+
+	if ((fd = open(name, O_RDONLY)) < 0) {
+		command_errmsg = "no such file";
+		return (CMD_ERROR);
+	}
+
+	if (fstat(fd, &st) < -1) {
+		command_errmsg = "stat failed";
+		close(fd);
+		return (CMD_ERROR);
+	}
+
+	status = BS->AllocatePool(EfiLoaderCode, (UINTN)st.st_size, &buf);
+	if (status != EFI_SUCCESS) {
+		command_errmsg = "failed to allocate buffer";
+		close(fd);
+		return (CMD_ERROR);
+	}
+	if (read(fd, buf, st.st_size) != st.st_size) {
+		command_errmsg = "error while reading the file";
+		(void)BS->FreePool(buf);
+		close(fd);
+		return (CMD_ERROR);
+	}
+	close(fd);
+	status = BS->LoadImage(FALSE, IH, NULL, buf, st.st_size, &loaderhandle);
+	(void)BS->FreePool(buf);
+	if (status != EFI_SUCCESS) {
+		command_errmsg = "LoadImage failed";
+		return (CMD_ERROR);
+	}
+	status = BS->HandleProtocol(loaderhandle, &LoadedImageGUID,
+	    (void **)&loaded_image);
+
+	if (argc > 2) {
+		int i, len = 0;
+		CHAR16 *argp;
+
+		for (i = 2; i < argc; i++)
+			len += strlen(argv[i]) + 1;
+
+		len *= sizeof (*argp);
+		loaded_image->LoadOptions = argp = malloc (len);
+		loaded_image->LoadOptionsSize = len;
+		for (i = 2; i < argc; i++) {
+			char *ptr = argv[i];
+			while (*ptr)
+				*(argp++) = *(ptr++);
+			*(argp++) = ' ';
+		}
+		*(--argv) = 0;
+	}
+
+	if (efi_getdev((void **)&dev, name, (const char **)&path) == 0)
+		loaded_image->DeviceHandle =
+		    efi_find_handle(dev->d_dev, dev->d_unit);
+
+	dev_cleanup();
+	status = BS->StartImage(loaderhandle, NULL, NULL);
+	if (status != EFI_SUCCESS) {
+		command_errmsg = "StartImage failed";
+		free(loaded_image->LoadOptions);
+		loaded_image->LoadOptions = NULL;
+		status = BS->UnloadImage(loaded_image);
+		return (CMD_ERROR);
+	}
+
+	return (CMD_ERROR);	/* not reached */
+}
+
+COMMAND_SET(chain, "chain", "chain load file", command_chain);
+
 #ifdef EFI_ZFS_BOOT
 static void
 efi_zfs_probe(void)
@@ -803,39 +901,37 @@ efi_zfs_probe(void)
 	pdinfo_t *hd, *pd = NULL;
 	EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
 	EFI_LOADED_IMAGE *img;
-	EFI_HANDLE boot_disk = NULL;
 	char devname[SPECNAMELEN + 1];
-	uint64_t *guidp = NULL;
 
 	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
-
-	/* Find the handle for the boot disk. */
 	hdi = efiblk_get_pdinfo_list(&efipart_hddev);
-	STAILQ_FOREACH(hd, hdi, pd_link) {
-		STAILQ_FOREACH(pd, &hd->pd_part, pd_link) {
-			if (pd->pd_handle == img->DeviceHandle)
-				boot_disk = hd->pd_handle;
-		}
-	}
 
 	/*
-	 * We provide non-NULL guid pointer if the disk was used for boot,
-	 * and reset after the first found pool.
-	 * Technically this solution is not very correct, we assume the boot
-	 * pool is the first pool on this disk.
+	 * Find the handle for the boot device. The boot1 did find the
+	 * device with loader binary, now we need to search for the
+	 * same device and if it is part of the zfs pool, we record the
+	 * pool GUID for currdev setup.
 	 */
-
 	STAILQ_FOREACH(hd, hdi, pd_link) {
-		if (hd->pd_handle == boot_disk)
-			guidp = &pool_guid;
-
 		STAILQ_FOREACH(pd, &hd->pd_part, pd_link) {
+
 			snprintf(devname, sizeof(devname), "%s%dp%d:",
 			    efipart_hddev.dv_name, hd->pd_unit, pd->pd_unit);
-			(void) zfs_probe_dev(devname, guidp);
-			if (guidp != NULL && pool_guid != 0)
-				guidp = NULL;
+			if (pd->pd_handle == img->DeviceHandle)
+				(void) zfs_probe_dev(devname, &pool_guid);
+			else
+				(void) zfs_probe_dev(devname, NULL);
 		}
 	}
+}
+
+uint64_t
+ldi_get_size(void *priv)
+{
+	int fd = (uintptr_t) priv;
+	uint64_t size;
+
+	ioctl(fd, DIOCGMEDIASIZE, &size);
+	return (size);
 }
 #endif

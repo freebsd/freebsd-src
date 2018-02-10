@@ -735,6 +735,16 @@ tlb_init_sun4u(void)
 }
 
 #ifdef LOADER_ZFS_SUPPORT
+
+/* Set by sparc64_zfs_probe to provide partition size. */
+static size_t part_size;
+
+uint64_t
+ldi_get_size(void *priv __unused)
+{
+	return ((uint64_t)part_size);
+}
+
 static void
 sparc64_zfs_probe(void)
 {
@@ -742,13 +752,11 @@ sparc64_zfs_probe(void)
 	char alias[64], devname[sizeof(alias) + sizeof(":x") - 1];
 	char type[sizeof("device_type")];
 	char *bdev, *dev, *odev;
-	uint64_t guid;
+	uint64_t guid, *guidp;
 	int fd, len, part;
 	phandle_t aliases, options;
 
-	/* Get the GUID of the ZFS pool on the boot device. */
 	guid = 0;
-	zfs_probe_dev(bootpath, &guid);
 
 	/*
 	 * Get the GUIDs of the ZFS pools on any additional disks listed in
@@ -771,12 +779,6 @@ sparc64_zfs_probe(void)
 			continue;
 		strcpy(alias, dev);
 		(void)OF_getprop(aliases, dev, alias, sizeof(alias));
-		/*
-		 * Don't probe the boot disk twice.  Note that bootpath
-		 * includes the partition specifier.
-		 */
-		if (strncmp(alias, bootpath, strlen(alias)) == 0)
-			continue;
 		if (OF_getprop(OF_finddevice(alias), "device_type", type,
 		    sizeof(type)) == -1)
 			continue;
@@ -798,8 +800,14 @@ sparc64_zfs_probe(void)
 			if (part == 2 || vtoc.part[part].tag !=
 			    VTOC_TAG_FREEBSD_ZFS)
 				continue;
+			part_size = vtoc.map[part].nblks;
 			(void)sprintf(devname, "%s:%c", alias, part + 'a');
-			if (zfs_probe_dev(devname, NULL) == ENXIO)
+			/* Get the GUID of the ZFS pool on the boot device. */
+			if (strcmp(devname, bootpath) == 0)
+				guidp = &guid;
+			else
+				guidp = NULL;
+			if (zfs_probe_dev(devname, guidp) == ENXIO)
 				break;
 		}
 	}

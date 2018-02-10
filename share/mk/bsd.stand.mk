@@ -5,7 +5,10 @@
 #
 
 CFLAGS+= -ffreestanding -Wformat
-CFLAGS+= ${CFLAGS_NO_SIMD} -msoft-float -D_STANDALONE
+CFLAGS+= ${CFLAGS_NO_SIMD} -D_STANDALONE
+.if ${MACHINE_CPUARCH} != "aarch64"
+CFLAGS+=	-msoft-float
+.endif
 
 .if ${MACHINE_CPUARCH} == "i386"
 CFLAGS.gcc+=	-mpreferred-stack-boundary=2

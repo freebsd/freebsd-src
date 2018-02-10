@@ -230,5 +230,5 @@ time(time_t *tloc)
 time_t
 getsecs(void)
 {
-    return time(0);
+    return time(NULL);
 }

@@ -83,6 +83,7 @@ static int ps3cdrom_strategy(void *devdata, int flag, daddr_t dblk,
 
 	DEBUG("d_unit=%u dblk=%llu size=%u", dev->d_unit, dblk, size);
 
+	flag &= F_MASK;
 	if (flag != F_READ) {
 		dev_printf(dev, "write operation is not supported!");
 		return EROFS;
