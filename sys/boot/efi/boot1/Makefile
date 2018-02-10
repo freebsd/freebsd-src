@@ -71,7 +71,7 @@ LDSCRIPT=	${.CURDIR}/../loader/arch/${MACHINE}/ldscript.${MACHINE}
 LDFLAGS+=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
 
 .if ${MACHINE_CPUARCH} == "aarch64"
-CFLAGS+=	-msoft-float -mgeneral-regs-only
+CFLAGS+=	-mgeneral-regs-only
 .endif
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 CFLAGS+=	-fPIC

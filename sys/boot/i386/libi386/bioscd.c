@@ -268,7 +268,7 @@ bc_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 		return (EINVAL);
 #endif
 
-	if (rw != F_READ)
+	if ((rw & F_MASK) != F_READ)
 		return(EROFS);
 	dev = (struct i386_devdesc *)devdata;
 	unit = dev->d_unit;

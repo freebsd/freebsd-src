@@ -73,6 +73,7 @@ beri_sdcard_disk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
 {
 	int error;
 
+	flag &= F_MASK;
 	if (flag == F_WRITE)
 		return (EROFS);
 	if (flag != F_READ)

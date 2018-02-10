@@ -40,6 +40,15 @@
 
 static dev_info_t *devices;
 
+uint64_t
+ldi_get_size(void *priv)
+{
+	dev_info_t *devinfo = priv;
+
+	return (devinfo->dev->Media->BlockSize *
+	    (devinfo->dev->Media->LastBlock + 1));
+}
+
 static int
 vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 {

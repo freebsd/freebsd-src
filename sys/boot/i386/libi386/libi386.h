@@ -60,6 +60,38 @@ struct i386_devdesc
     } d_kind;
 };
 
+/*
+ * relocater trampoline support.
+ */
+struct relocate_data {
+	uint32_t	src;
+	uint32_t	dest;
+	uint32_t	size;
+};
+
+extern void relocater(void);
+
+/*
+ * The relocater_data[] is fixed size array allocated in relocater_tramp.S
+ */
+extern struct relocate_data relocater_data[];
+extern uint32_t relocater_size;
+
+extern uint16_t relocator_ip;
+extern uint16_t relocator_cs;
+extern uint16_t relocator_ds;
+extern uint16_t relocator_es;
+extern uint16_t relocator_fs;
+extern uint16_t relocator_gs;
+extern uint16_t relocator_ss;
+extern uint16_t relocator_sp;
+extern uint32_t relocator_esi;
+extern uint32_t relocator_eax;
+extern uint32_t relocator_ebx;
+extern uint32_t relocator_edx;
+extern uint32_t relocator_ebp;
+extern uint16_t relocator_a20_enabled;
+
 int	i386_getdev(void **vdev, const char *devspec, const char **path);
 char	*i386_fmtdev(void *vdev);
 int	i386_setcurrdev(struct env_var *ev, int flags, const void *value);

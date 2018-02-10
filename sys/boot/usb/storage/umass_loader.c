@@ -92,6 +92,7 @@ umass_disk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
 	if (rsizep != NULL)
 		*rsizep = 0;
 
+	flag &= F_MASK;
 	if (flag == F_WRITE) {
 		if (usb_msc_write_10(umass_uaa.device, 0, dblk, size >> 9, buf) != 0)
 			return (EINVAL);

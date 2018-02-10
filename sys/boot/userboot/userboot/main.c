@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <string.h>
 #include <setjmp.h>
+#include <sys/disk.h>
 
 #include "bootstrap.h"
 #include "disk.h"
@@ -269,6 +270,16 @@ command_reloadbe(int argc, char *argv[])
 	}
 
 	return (CMD_OK);
+}
+
+uint64_t
+ldi_get_size(void *priv)
+{
+	int fd = (uintptr_t) priv;
+	uint64_t size;
+
+	ioctl(fd, DIOCGMEDIASIZE, &size);
+	return (size);
 }
 #endif /* USERBOOT_ZFS_SUPPORT */
 

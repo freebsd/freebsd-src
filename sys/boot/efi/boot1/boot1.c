@@ -529,6 +529,7 @@ probe_handle_status(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath)
 	EFI_STATUS status;
 	BOOLEAN preferred;
 
+	preferred = FALSE;
 	status = probe_handle(h, imgpath, &preferred);
 	
 	DPRINTF("probe: ");
