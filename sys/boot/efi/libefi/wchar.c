@@ -1,8 +1,5 @@
-/*	$NetBSD: gets.c,v 1.6 1995/10/11 21:16:57 pk Exp $	*/
-
 /*-
- * Copyright (c) 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright 2016 Netflix, Inc. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,14 +9,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -27,49 +21,53 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)gets.c	8.1 (Berkeley) 6/11/93
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "stand.h"
+#include <efi.h>
+#include <efilib.h>
 
-/* gets() with constrained input length, for passwords */
+/*
+ * CHAR16 related functions moved from loader.
+ * Perhaps we should move those to libstand afterall, but they are
+ * needed only by UEFI.
+ */
+
+int
+wcscmp(CHAR16 *a, CHAR16 *b)
+{
+
+	while (*a && *b && *a == *b) {
+		a++;
+		b++;
+	}
+	return *a - *b;
+}
+
+/*
+ * cpy8to16 copies a traditional C string into a CHAR16 string and
+ * 0 terminates it. len is the size of *dst in bytes.
+ */
+void
+cpy8to16(const char *src, CHAR16 *dst, size_t len)
+{
+	len <<= 1;		/* Assume CHAR16 is 2 bytes */
+	while (len > 0 && *src) {
+		*dst++ = *src++;
+		len--;
+	}
+	*dst++ = (CHAR16)0;
+}
 
 void
-pwgets(char *buf, int n)
+cpy16to8(const CHAR16 *src, char *dst, size_t len)
 {
-    int c;
-    char *lp;
+	size_t i;
 
-    for (lp = buf;;)
-	switch (c = getchar() & 0177) {
-	case '\n':
-	case '\r':
-	    *lp = '\0';
-	    putchar('\n');
-	    return;
-	case '\b':
-	case '\177':
-	    if (lp > buf) {
-		lp--;
-		putchar('\b');
-		putchar(' ');
-		putchar('\b');
-	    }
-	    break;
-	case 'u'&037:
-	case 'w'&037:
-	    lp = buf;
-	    putchar('\n');
-	    break;
-	default:
-	    if ((n < 1) || ((lp - buf) < n - 1)) {
-		*lp++ = c;
-		putchar('*');
-	    }
-	}
-    /*NOTREACHED*/
+	for (i = 0; i < len && src[i]; i++)
+		dst[i] = (char)src[i];
+	if (i < len)
+		dst[i] = '\0';
 }

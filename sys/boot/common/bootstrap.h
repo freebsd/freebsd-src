@@ -73,7 +73,7 @@ int	kern_pread(int fd, vm_offset_t dest, size_t len, off_t off);
 void	*alloc_pread(int fd, off_t off, size_t len);
 
 /* bcache.c */
-void	bcache_init(u_int nblks, size_t bsize);
+void	bcache_init(size_t nblks, size_t bsize);
 void	bcache_add_dev(int);
 void	*bcache_allocate(void);
 void	bcache_free(void *);

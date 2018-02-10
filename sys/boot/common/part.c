@@ -310,10 +310,30 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 	DEBUG("GPT detected");
 	size = MIN(hdr.hdr_entries * hdr.hdr_entsz,
 	    MAXTBLSZ * table->sectorsize);
+
+	/*
+	 * If the disk's sector count is smaller than the sector count recorded
+	 * in the disk's GPT table header, set the table->sectors to the value
+	 * recorded in GPT tables. This is done to work around buggy firmware
+	 * that returns truncated disk sizes.
+	 *
+	 * Note, this is still not a foolproof way to get disk's size. For
+	 * example, an image file can be truncated when copied to smaller media.
+	 */
+	if (hdr.hdr_lba_alt + 1 > table->sectors)
+		table->sectors = hdr.hdr_lba_alt + 1;
+
 	for (i = 0; i < size / hdr.hdr_entsz; i++) {
 		ent = (struct gpt_ent *)(tbl + i * hdr.hdr_entsz);
 		if (uuid_equal(&ent->ent_type, &gpt_uuid_unused, NULL))
 			continue;
+
+		/* Simple sanity checks. */
+		if (ent->ent_lba_start < hdr.hdr_lba_start ||
+		    ent->ent_lba_end > hdr.hdr_lba_end ||
+		    ent->ent_lba_start > ent->ent_lba_end)
+			continue;
+
 		entry = malloc(sizeof(*entry));
 		if (entry == NULL)
 			break;
@@ -584,7 +604,7 @@ out:
 #endif /* LOADER_VTOC8_SUPPORT */
 
 struct ptable*
-ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
+ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
     diskread_t *dread)
 {
 	struct dos_partition *dp;
@@ -733,6 +753,19 @@ ptable_gettype(const struct ptable *table)
 {
 
 	return (table->type);
+}
+
+int
+ptable_getsize(const struct ptable *table, uint64_t *sizep)
+{
+	uint64_t tmp = table->sectors * table->sectorsize;
+
+	if (tmp < table->sectors)
+		return (EOVERFLOW);
+
+	if (sizep != NULL)
+		*sizep = tmp;
+	return (0);
 }
 
 int
