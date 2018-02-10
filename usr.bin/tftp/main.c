@@ -178,8 +178,8 @@ int
 main(int argc, char *argv[])
 {
 	HistEvent he;
-	EditLine *el;
-	History *hist;
+	static EditLine *el;
+	static History *hist;
 	bool interactive;
 
 	acting_as_client = 1;
