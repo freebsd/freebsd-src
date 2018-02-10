@@ -382,7 +382,7 @@ mpr_transition_operational(struct mpr_softc *sc)
 static void
 mpr_resize_queues(struct mpr_softc *sc)
 {
-	int reqcr, prireqcr;
+	u_int reqcr, prireqcr, maxio, sges_per_frame;
 
 	/*
 	 * Size the queues. Since the reply queues always need one free
@@ -400,6 +400,60 @@ mpr_resize_queues(struct mpr_softc *sc)
 	sc->num_prireqs = prireqcr;
 	sc->num_replies = MIN(sc->max_replyframes + sc->max_evtframes,
 	    sc->facts->MaxReplyDescriptorPostQueueDepth) - 1;
+
+	/* Store the request frame size in bytes rather than as 32bit words */
+	sc->reqframesz = sc->facts->IOCRequestFrameSize * 4;
+
+	/*
+	 * Gen3 and beyond uses the IOCMaxChainSegmentSize from IOC Facts to
+	 * get the size of a Chain Frame.  Previous versions use the size as a
+	 * Request Frame for the Chain Frame size.  If IOCMaxChainSegmentSize
+	 * is 0, use the default value.  The IOCMaxChainSegmentSize is the
+	 * number of 16-byte elelements that can fit in a Chain Frame, which is
+	 * the size of an IEEE Simple SGE.
+	 */
+	if (sc->facts->MsgVersion >= MPI2_VERSION_02_05) {
+		sc->chain_seg_size =
+		    htole16(sc->facts->IOCMaxChainSegmentSize);
+		if (sc->chain_seg_size == 0) {
+			sc->chain_frame_size = MPR_DEFAULT_CHAIN_SEG_SIZE *
+			    MPR_MAX_CHAIN_ELEMENT_SIZE;
+		} else {
+			sc->chain_frame_size = sc->chain_seg_size *
+			    MPR_MAX_CHAIN_ELEMENT_SIZE;
+		}
+	} else {
+		sc->chain_frame_size = sc->reqframesz;
+	}
+
+	/*
+	 * Max IO Size is Page Size * the following:
+	 * ((SGEs per frame - 1 for chain element) * Max Chain Depth)
+	 * + 1 for no chain needed in last frame
+	 *
+	 * If user suggests a Max IO size to use, use the smaller of the
+	 * user's value and the calculated value as long as the user's
+	 * value is larger than 0. The user's value is in pages.
+	 */
+	sges_per_frame = sc->chain_frame_size/sizeof(MPI2_IEEE_SGE_SIMPLE64)-1;
+	maxio = (sges_per_frame * sc->facts->MaxChainDepth + 1) * PAGE_SIZE;
+
+	/*
+	 * If I/O size limitation requested then use it and pass up to CAM.
+	 * If not, use MAXPHYS as an optimization hint, but report HW limit.
+	 */
+	if (sc->max_io_pages > 0) {
+		maxio = min(maxio, sc->max_io_pages * PAGE_SIZE);
+		sc->maxio = maxio;
+	} else {
+		sc->maxio = maxio;
+		maxio = min(maxio, MAXPHYS);
+	}
+
+	sc->num_chains = (maxio / PAGE_SIZE + sges_per_frame - 2) /
+	    sges_per_frame * reqcr;
+	if (sc->max_chains > 0 && sc->max_chains < sc->num_chains)
+		sc->num_chains = sc->max_chains;
 
 	/*
 	 * Figure out the number of MSIx-based queues.  If the firmware or
@@ -1355,9 +1409,6 @@ mpr_alloc_requests(struct mpr_softc *sc)
 	struct mpr_chain *chain;
 	int i, rsize, nsegs;
 
-	/* Store the request frame size in bytes rather than as 32bit words */
-	sc->reqframesz = sc->facts->IOCRequestFrameSize * 4;
-
 	rsize = sc->reqframesz * sc->num_reqs;
         if (bus_dma_tag_create( sc->mpr_parent_dmat,    /* parent */
 				16, 0,			/* algnmnt, boundary */
@@ -1382,28 +1433,7 @@ mpr_alloc_requests(struct mpr_softc *sc)
         bus_dmamap_load(sc->req_dmat, sc->req_map, sc->req_frames, rsize,
 	    mpr_memaddr_cb, &sc->req_busaddr, 0);
 
-	/*
-	 * Gen3 and beyond uses the IOCMaxChainSegmentSize from IOC Facts to
-	 * get the size of a Chain Frame.  Previous versions use the size as a
-	 * Request Frame for the Chain Frame size.  If IOCMaxChainSegmentSize
-	 * is 0, use the default value.  The IOCMaxChainSegmentSize is the
-	 * number of 16-byte elelements that can fit in a Chain Frame, which is
-	 * the size of an IEEE Simple SGE.
-	 */
-	if (sc->facts->MsgVersion >= MPI2_VERSION_02_05) {
-		sc->chain_seg_size =
-		    htole16(sc->facts->IOCMaxChainSegmentSize);
-		if (sc->chain_seg_size == 0) {
-			sc->chain_frame_size = MPR_DEFAULT_CHAIN_SEG_SIZE *
-			    MPR_MAX_CHAIN_ELEMENT_SIZE;
-		} else {
-			sc->chain_frame_size = sc->chain_seg_size *
-			    MPR_MAX_CHAIN_ELEMENT_SIZE;
-		}
-	} else {
-		sc->chain_frame_size = sc->reqframesz;
-	}
-	rsize = sc->chain_frame_size * sc->max_chains;
+	rsize = sc->chain_frame_size * sc->num_chains;
         if (bus_dma_tag_create( sc->mpr_parent_dmat,    /* parent */
 				16, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
@@ -1451,13 +1481,13 @@ mpr_alloc_requests(struct mpr_softc *sc)
         bus_dmamap_load(sc->sense_dmat, sc->sense_map, sc->sense_frames, rsize,
 	    mpr_memaddr_cb, &sc->sense_busaddr, 0);
 
-	sc->chains = malloc(sizeof(struct mpr_chain) * sc->max_chains, M_MPR,
+	sc->chains = malloc(sizeof(struct mpr_chain) * sc->num_chains, M_MPR,
 	    M_WAITOK | M_ZERO);
 	if (!sc->chains) {
 		mpr_dprint(sc, MPR_ERROR, "Cannot allocate chain memory\n");
 		return (ENOMEM);
 	}
-	for (i = 0; i < sc->max_chains; i++) {
+	for (i = 0; i < sc->num_chains; i++) {
 		chain = &sc->chains[i];
 		chain->chain = (MPI2_SGE_IO_UNION *)(sc->chain_frames +
 		    i * sc->chain_frame_size);
@@ -1477,8 +1507,7 @@ mpr_alloc_requests(struct mpr_softc *sc)
 			return (ENOMEM);
 	}
 
-	/* XXX Need to pick a more precise value */
-	nsegs = (MAXPHYS / PAGE_SIZE) + 1;
+	nsegs = (sc->maxio / PAGE_SIZE) + 1;
         if (bus_dma_tag_create( sc->mpr_parent_dmat,    /* parent */
 				1, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
