@@ -315,6 +315,7 @@ struct mps_softc {
 	int				chain_free;
 	int				max_chains;
 	int				max_io_pages;
+	u_int				maxio;
 	int				chain_free_lowwater;
 	u_int				enable_ssu;
 	int				spinup_wait_time;
@@ -349,6 +350,7 @@ struct mps_softc {
 	int				num_reqs;
 	int				num_prireqs;
 	int				num_replies;
+	int				num_chains;
 	int				fqdepth;	/* Free queue */
 	int				pqdepth;	/* Post queue */
 
