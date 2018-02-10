@@ -1056,9 +1056,9 @@ vm_reserv_free_page(vm_page_t m)
 	vm_reserv_t rv;
 
 	rv = vm_reserv_from_page(m);
-	vm_domain_free_assert_locked(VM_DOMAIN(rv->domain));
 	if (rv->object == NULL)
 		return (FALSE);
+	vm_domain_free_assert_locked(VM_DOMAIN(rv->domain));
 	vm_reserv_depopulate(rv, m - rv->pages);
 	return (TRUE);
 }
@@ -1105,9 +1105,9 @@ vm_reserv_is_page_free(vm_page_t m)
 	vm_reserv_t rv;
 
 	rv = vm_reserv_from_page(m);
-	vm_domain_free_assert_locked(VM_DOMAIN(rv->domain));
 	if (rv->object == NULL)
 		return (false);
+	vm_domain_free_assert_locked(VM_DOMAIN(rv->domain));
 	return (popmap_is_clear(rv->popmap, m - rv->pages));
 }
 
@@ -1364,18 +1364,14 @@ vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end, vm_paddr_t high_water)
 vm_page_t
 vm_reserv_to_superpage(vm_page_t m)
 {
-	struct vm_domain *vmd;
 	vm_reserv_t rv;
 
 	VM_OBJECT_ASSERT_LOCKED(m->object);
 	rv = vm_reserv_from_page(m);
-	vmd = VM_DOMAIN(rv->domain);
-	vm_domain_free_lock(vmd);
 	if (rv->object == m->object && rv->popcnt == VM_LEVEL_0_NPAGES)
 		m = rv->pages;
 	else
 		m = NULL;
-	vm_domain_free_unlock(vmd);
 
 	return (m);
 }
