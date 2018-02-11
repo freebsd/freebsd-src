@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=		ficl test zfs userboot
+SUBDIR=		test userboot
 
 .include <bsd.subdir.mk>
 

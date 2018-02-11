@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-# Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
 
 PROG=	${LDR}
@@ -8,7 +7,7 @@ INTERNALPROG=
 FILES=	${BOOT}
 MAN=	${BOOT}.8
 SRCS=	${LDR}.S
-CLEANFILES= ${BOOT}
+CLEANFILES+= ${BOOT}
 
 BOOT=	pxeboot
 LDR=	pxeldr
@@ -23,9 +22,9 @@ CFLAGS+=-DPROBE_KEYBOARD
 CFLAGS+=-DALWAYS_SERIAL
 .endif
 
-CFLAGS+=-I${.CURDIR}/../common
+CFLAGS+=-I${BOOTSRC}/i386/common
 
-LOADERBIN= ${.OBJDIR}/../loader/loader.bin
+LOADERBIN= ${BOOTOBJ}/i386/loader/loader.bin
 
 CLEANFILES+= ${BOOT}.tmp
 

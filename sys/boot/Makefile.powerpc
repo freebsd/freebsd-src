@@ -4,6 +4,5 @@
 SUBDIR+=		fdt
 .endif
 
-SUBDIR+=		libsa32
 SUBDIR+=		ofw
 SUBDIR+=		uboot

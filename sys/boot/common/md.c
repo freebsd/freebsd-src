@@ -73,7 +73,8 @@ struct devsw md_dev = {
 	md_open,
 	md_close,
 	noioctl,
-	md_print
+	md_print,
+	NULL
 };
 
 static int

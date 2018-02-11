@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-FICL32=
+DO32=1
 
 .include "${.CURDIR}/../ficl/Makefile"

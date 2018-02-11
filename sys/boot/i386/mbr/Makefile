@@ -12,6 +12,6 @@ BOOT_MBR_FLAGS?=	0x80
 ORG=	0x600
 
 AFLAGS+=--defsym FLAGS=${BOOT_MBR_FLAGS}
-LDFLAGS=${LDFLAGS_BIN}
+LDFLAGS+=${LDFLAGS_BIN}
 
 .include <bsd.prog.mk>

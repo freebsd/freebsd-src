@@ -123,6 +123,7 @@ __DEFAULT_YES_OPTIONS = \
     LIB32 \
     LIBPTHREAD \
     LIBTHR \
+    LOADER_GELI \
     LOCALES \
     LOCATE \
     LPR \
@@ -188,6 +189,7 @@ __DEFAULT_NO_OPTIONS = \
     HESIOD \
     LIBSOFT \
     LINT \
+    LOADER_FIREWIRE \
     LOADER_FORCE_LE \
     NAND \
     OFED \
