@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-BINDIR?=	/boot
-
 .if ${MACHINE_CPUARCH} == "i386"
 CFLAGS+=        -march=i386
 CFLAGS+=	-mno-aes

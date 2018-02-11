@@ -1,9 +1,10 @@
 # $FreeBSD$
 
-.include "../Makefile.inc"
+HAVE_GELI=yes
 
-.PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common \
-		${.CURDIR}/../../../crypto/skein ${SASRC}
+.include <bsd.init.mk>
+
+.PATH:		${BOOTSRC}/i386/boot2 ${BOOTSRC}/i386/common ${SASRC}
 
 FILES=		zfsboot
 MAN=		zfsboot.8
@@ -24,28 +25,28 @@ CFLAGS+=-DBOOTPROG=\"zfsboot\" \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 	-DSIOFMT=${B2SIOFMT} \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
-	-I${.CURDIR}/../../common \
-	-I${.CURDIR}/../common \
-	-I${.CURDIR}/../../zfs \
-	-I${.CURDIR}/../../../cddl/boot/zfs \
-	-I${.CURDIR}/../../../crypto/skein \
-	-I${.CURDIR}/../btx/lib -I. \
-	-I${.CURDIR}/../boot2 \
+	-I${LDRSRC} \
+	-I${BOOTSRC}/i386/common \
+	-I${BOOTSRC}/i386 \
+	-I${ZFSSRC} \
+	-I${SYSDIR}/cddl/boot/zfs \
+	-I${BTXLIB} \
+	-I${BOOTSRC}/i386/boot2 \
 	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline
 
 CFLAGS.gcc+=	--param max-inline-insns-single=100
-# Do not unroll skein loops, reduce code size
-CFLAGS+=	-DSKEIN_LOOP=111
+.if ${MACHINE} == "amd64"
+LIBZFSBOOT=${BOOTOBJ}/zfs32/libzfsboot.a
+.else
+LIBZFSBOOT=${BOOTOBJ}/zfs/libzfsboot.a
+.endif
 
-LD_FLAGS=${LD_FLAGS_BIN}
+LD_FLAGS+=${LD_FLAGS_BIN}
 
-# Pick up ../Makefile.inc early.
-.include <bsd.init.mk>
-
-CLEANFILES=	zfsboot
+CLEANFILES+=	zfsboot
 
 zfsboot: zfsboot1 zfsboot2
 	cat zfsboot1 zfsboot2 > zfsboot
@@ -59,8 +60,7 @@ zfsldr.out: zfsldr.o
 	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} zfsldr.o
 
 CLEANFILES+=	zfsboot2 zfsboot.ld zfsboot.ldr zfsboot.bin zfsboot.out \
-		zfsboot.o zfsboot.s zfsboot.s.tmp sio.o cons.o drv.o util.o \
-		skein.o skein_block.o
+		zfsboot.o zfsboot.s zfsboot.s.tmp sio.o cons.o drv.o
 
 # We currently allow 128k bytes for zfsboot - in practice it could be
 # any size up to 3.5Mb but keeping it fixed size simplifies zfsldr.
@@ -82,17 +82,10 @@ zfsboot.ldr:
 zfsboot.bin: zfsboot.out
 	${OBJCOPY} -S -O binary zfsboot.out ${.TARGET}
 
-zfsboot.out: ${BTXCRT} zfsboot.o sio.o drv.o cons.o util.o skein.o skein_block.o
-	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSA32}
+zfsboot.out: ${BTXCRT} zfsboot.o sio.o drv.o cons.o
+	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBZFSBOOT} ${LIBGELIBOOT} ${LIBSA32}
 
 SRCS=	zfsboot.c
-
-.if ${MACHINE_CPUARCH} == "amd64"
-beforedepend zfsboot.o: machine
-CLEANFILES+=	machine
-machine: .NOMETA
-	ln -sf ${.CURDIR}/../../../i386/include machine
-.endif
 
 .include <bsd.prog.mk>
 

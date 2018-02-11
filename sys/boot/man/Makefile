@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
 
 MAN+=	loader.8
 .if ${MK_ZFS} != "no"

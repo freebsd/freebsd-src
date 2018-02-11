@@ -877,7 +877,11 @@ efipart_strategy(void *devdata, int rw, daddr_t blk, size_t size,
 	bcd.dv_cache = pd->pd_bcache;
 
 	if (dev->d_dev->dv_type == DEVT_DISK) {
-		return (bcache_strategy(&bcd, rw, blk + dev->d_offset,
+		daddr_t offset;
+
+		offset = dev->d_offset * pd->pd_blkio->Media->BlockSize;
+		offset /= 512;
+		return (bcache_strategy(&bcd, rw, blk + offset,
 		    size, buf, rsize));
 	}
 	return (bcache_strategy(&bcd, rw, blk, size, buf, rsize));

@@ -16,6 +16,11 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20180211:
+	The LOADER_FIREWIRE_SUPPORT build variable as been renamed to
+	WITH/OUT_LOADER_FIREWIRE. LOADER_{NO_,}GELI_SUPPORT has been renamed
+	to WITH/OUT_LOADER_GELI.
+
 20180210:
 	The geli password typed at boot is now hidden.  To restore the previous
 	behavior, see geli(8) for configuration options.

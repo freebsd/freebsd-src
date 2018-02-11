@@ -1,20 +1,20 @@
 # $FreeBSD$
 
-.include "../Makefile.inc"
+.include <bsd.init.mk>
 
 PROG=	boot1.elf
 INTERNALPROG=
 MAN=
 FILES?=	boot1
 SRCS=	_start.s boot1.c
-CLEANFILES=${FILES} boot1.aout
+CLEANFILES+=${FILES} boot1.aout
 
 BOOTBLOCKBASE= 0x4000
 
 CFLAGS.clang+=-mcmodel=small
 CFLAGS.gcc+=-mcmodel=medlow
-CFLAGS+=-Os -I${.CURDIR}/../../common
-LDFLAGS=-Ttext ${BOOTBLOCKBASE} -Wl,-N
+CFLAGS+=-Os -I${LDRSRC}
+LDFLAGS+=-Ttext ${BOOTBLOCKBASE} -Wl,-N
 
 # Construct boot1. sunlabel expects it to contain zeroed-out space for the
 # label, and to be of the correct size.

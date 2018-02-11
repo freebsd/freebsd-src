@@ -1,19 +1,17 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
 
 .if ${MK_FORTH} != "no"
-CFLAGS+= -DBOOT_FORTH
-.include	"../../ficl.mk"
+.include	"${BOOTSRC}/ficl.mk"
 .endif
 
 LIB=	efi
 INTERNALLIB=
 WARNS?=	2
 
-SRCS=	delay.c devpath.c efi_console.c efichar.c efinet.c efipart.c env.c \
-        errno.c handles.c wchar.c libefi.c efi_driver_utils.c efizfs.c \
-        devicename.c efi_main.c
+SRCS=	delay.c devpath.c efi_console.c efichar.c efinet.c efipart.c env.c errno.c \
+	handles.c wchar.c libefi.c efi_driver_utils.c efizfs.c devicename.c
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 SRCS+=	time.c
@@ -36,17 +34,15 @@ CFLAGS+=	-mgeneral-regs-only
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+= -fPIC -mno-red-zone
 .endif
-CFLAGS+= -I${.CURDIR}/../include
-CFLAGS+= -I${.CURDIR}/../include/${MACHINE}
+CFLAGS+= -I${EFIINC}
+CFLAGS+= -I${EFIINCMD}
 .if ${MK_ZFS} != "no"
-CFLAGS+=	-I${.CURDIR}/../../zfs
-CFLAGS+=	-I${.CURDIR}/../../../cddl/boot/zfs
-CFLAGS+=	-I${.CURDIR}/../../../crypto/skein
+CFLAGS+=	-I${ZFSSRC}
 CFLAGS+=	-DEFI_ZFS_BOOT
 .endif
 
 # Pick up the bootstrap header for some interface items
-CFLAGS+= -I${.CURDIR}/../../common
+CFLAGS+= -I${LDRSRC}
 
 # Handle FreeBSD specific %b and %D printf format specifiers
 CFLAGS+= ${FORMAT_EXTENSIONS}

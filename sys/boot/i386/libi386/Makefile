@@ -1,5 +1,10 @@
 # $FreeBSD$
-#
+
+HAVE_GPT=		yes
+HAVE_GELI=		yes
+
+.include <bsd.init.mk>
+
 LIB=			i386
 INTERNALLIB=
 
@@ -9,15 +14,8 @@ SRCS=	biosacpi.c bioscd.c biosdisk.c biosmem.c biospnp.c \
 	elf64_freebsd.c multiboot.c multiboot_tramp.S relocater_tramp.S \
 	i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.s \
 	smbios.c time.c vidconsole.c amd64_tramp.S spinconsole.c
-.PATH:	${.CURDIR}/../../zfs
-SRCS+=	devicename_stubs.c
-
-.if defined(LOADER_TFTP_SUPPORT)
-CFLAGS+=	-DLOADER_TFTP_SUPPORT
-.endif
-.if defined(LOADER_NFS_SUPPORT)
-CFLAGS+=	-DLOADER_NFS_SUPPORT
-.endif
+.PATH:	${ZFSSRC}
+SRCS+=  devicename_stubs.c
 
 BOOT_COMCONSOLE_PORT?= 0x3f8
 CFLAGS+=	-DCOMPORT=${BOOT_COMCONSOLE_PORT}
@@ -28,12 +26,6 @@ CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
 .ifdef(BOOT_BIOSDISK_DEBUG)
 # Make the disk code more talkative
 CFLAGS+= -DDISK_DEBUG
-.endif
-
-.if !defined(LOADER_NO_GELI_SUPPORT)
-# Decrypt encrypted drives
-CFLAGS+= -DLOADER_GELI_SUPPORT
-CFLAGS+= -I${.CURDIR}/../../geli
 .endif
 
 .if !defined(BOOT_HIDE_SERIAL_NUMBERS)
@@ -54,27 +46,16 @@ CFLAGS+= -DTERM_EMU
 # XXX: make alloca() useable
 CFLAGS+= -Dalloca=__builtin_alloca
 
-CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386 \
-		-I${.CURDIR}/../../common -I${.CURDIR}/../common \
-		-I${.CURDIR}/../btx/lib \
-		-I${.CURDIR}/../../../contrib/dev/acpica/include \
-		-I${.CURDIR}/../../.. -I.
+CFLAGS+=	-I${BOOTSRC}/ficl -I${BOOTSRC}/ficl/i386 \
+		-I${LDRSRC} -I${BOOTSRC}/i386/common \
+		-I${BTXLIB} \
+		-I${SYSDIR}/contrib/dev/acpica/include
 
 # Handle FreeBSD specific %b and %D printf format specifiers
 CFLAGS+= ${FORMAT_EXTENSIONS}
-
-.if ${MACHINE_CPUARCH} == "amd64"
-CLEANFILES+=	machine
-machine: .NOMETA
-	ln -sf ${.CURDIR}/../../../i386/include machine
-.endif
 
 .include <bsd.lib.mk>
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 CFLAGS.amd64_tramp.S=	${CLANG_NO_IAS}
 CFLAGS.multiboot_tramp.S=	${CLANG_NO_IAS}
-
-.if ${MACHINE_CPUARCH} == "amd64"
-beforedepend ${OBJS}: machine
-.endif

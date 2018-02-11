@@ -29,7 +29,8 @@
 #
 # $FreeBSD$
 
-BINDIR?=	/boot
+.include <bsd.init.mk>
+
 INSTALLFLAGS=	-b
 
 LOADERS=	flashboot jtagboot
@@ -48,8 +49,8 @@ AFLAGS=		-G0
 
 CFLAGS=		-ffreestanding			\
 		-I${.CURDIR}			\
-		-I${.CURDIR}/../../../common	\
-		-I${.CURDIR}/../../../..	\
+		-I${SASRC}			\
+		-I${LDRSRC}			\
 		-D_KERNEL			\
 		-Wall				\
 		-G0 				\
@@ -63,8 +64,8 @@ LDFLAGS=	-nostdlib			\
 		-G0				\
 		-L${.CURDIR}
 
-.PATH:		${.CURDIR}/../common
-CFLAGS+=	-I${.CURDIR}/../common
+.PATH:		${BOOTSRC}/mips/beri/common
+CFLAGS+=	-I${BOOTSRC}/mips/beri/common
 
 flashboot.elf: relocate.o start.o boot2.o altera_jtag_uart.o cfi.o sdcard.o
 	${CC} ${LDFLAGS} -T ${.CURDIR}/flashboot.ldscript -o ${.TARGET}	\

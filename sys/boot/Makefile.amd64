@@ -1,16 +1,18 @@
 # $FreeBSD$
 
-SUBDIR+=		efi
 SUBDIR+=		libsa32
-SUBDIR+=		zfs
-SUBDIR+=		userboot
-
-.if !defined(LOADER_NO_GELI_SUPPORT)
-SUBDIR+=		geli
+.if ${MK_ZFS} != "no"
+SUBDIR+=		zfs zfs32
 .endif
-
 .if ${MK_FORTH} != "no"
 SUBDIR+=		ficl32
+.endif
+
+SUBDIR+=		efi
+SUBDIR+=		userboot
+
+.if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
+SUBDIR+=		geli
 .endif
 
 SUBDIR+=		i386

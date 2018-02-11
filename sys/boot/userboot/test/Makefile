@@ -3,13 +3,12 @@
 
 MAN=
 
-.include <bsd.own.mk>
+.include <bsd.init.mk>
 MK_SSP=		no
 
 PROG=		test
 INTERNALPROG=
 
-CFLAGS+=	-I${.CURDIR}/..
-CFLAGS+=	-I${.CURDIR}/../../..
+CFLAGS+=	-I${BOOTSRC}/userboot
 
 .include <bsd.prog.mk>
