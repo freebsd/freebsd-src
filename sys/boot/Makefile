@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+SUBDIR+=		libsa
 .if ${MK_FORTH} != "no"
 # Build the add-in FORTH interpreter.
 SUBDIR+=		ficl

@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180222: Remove libstand
+OLD_FILES+=usr/lib/libstand.a
+OLD_FILES+=usr/lib/libstand_p.a
+OLD_FILES+=usr/include/stand.h
+OLD_FILES+=usr/share/man/man3/libstand.3
 # 20180202: Convert geli(8) tests to ATF
 OLD_FILES+=tests/sys/geom/class/eli/nokey_test.sh
 OLD_FILES+=tests/sys/geom/class/eli/readonly_test.sh
