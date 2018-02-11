@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 
-.include	"${.CURDIR}/../Makefile.ficl"
+.include	"../ficl.mk"
 
 BASE_SRCS=	dict.c ficl.c fileaccess.c float.c loader.c math64.c \
 		prefix.c search.c stack.c tools.c vm.c words.c
