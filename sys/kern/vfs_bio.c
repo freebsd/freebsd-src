@@ -3388,7 +3388,7 @@ flushbufqueues(struct vnode *lvp, int target, int flushdeps)
 			} else {
 				bremfree(bp);
 				bwrite(bp);
-				notbufdflushes++;
+				counter_u64_add(notbufdflushes, 1);
 			}
 			vn_finished_write(mp);
 			if (unlock)
