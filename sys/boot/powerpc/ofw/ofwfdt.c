@@ -26,6 +26,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/*
+ * Include stdlib.h because of DEBUG_MALLOC shenanigans in stand.h for now.
+ * This will be removed in the future, when libsa silently replaces stdlib.h.
+ */
+#include <stdlib.h>
 #include <stand.h>
 #include <sys/param.h>
 #include <fdt_platform.h>

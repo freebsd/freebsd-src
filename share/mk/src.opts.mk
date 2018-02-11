@@ -188,6 +188,7 @@ __DEFAULT_NO_OPTIONS = \
     HESIOD \
     LIBSOFT \
     LINT \
+    LOADER_FORCE_LE \
     NAND \
     OFED \
     OPENLDAP \

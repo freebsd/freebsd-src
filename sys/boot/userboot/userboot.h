@@ -202,7 +202,7 @@ struct loader_callbacks {
 	 * environment variable to return next. It will begin at 0 and
 	 * each invocation will add 1 to the previous value of 'num'.
 	 */
-	const char *	(*getenv)(void *arg, int num);
+	char *		(*getenv)(void *arg, int num);
 
 	/*
 	 * Version 4 additions.

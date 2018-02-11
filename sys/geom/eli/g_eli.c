@@ -1023,7 +1023,7 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	struct hmac_ctx ctx;
 	char passphrase[256];
 	u_char key[G_ELI_USERKEYLEN], mkey[G_ELI_DATAIVKEYLEN];
-	u_int i, nkey, nkeyfiles, tries;
+	u_int i, nkey, nkeyfiles, tries, showpass;
 	int error;
         struct keybuf *keybuf;
 
@@ -1112,8 +1112,11 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
                                     sizeof(passphrase));
                         } else {
                                 printf("Enter passphrase for %s: ", pp->name);
+				showpass = g_eli_visible_passphrase;
+				if ((md.md_flags & G_ELI_FLAG_GELIDISPLAYPASS) != 0)
+					showpass = GETS_ECHOPASS;
                                 cngets(passphrase, sizeof(passphrase),
-                                    g_eli_visible_passphrase);
+				    showpass);
                                 memcpy(cached_passphrase, passphrase,
                                     sizeof(passphrase));
                         }
@@ -1232,6 +1235,7 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		ADD_FLAG(G_ELI_FLAG_RO, "READ-ONLY");
 		ADD_FLAG(G_ELI_FLAG_NODELETE, "NODELETE");
 		ADD_FLAG(G_ELI_FLAG_GELIBOOT, "GELIBOOT");
+		ADD_FLAG(G_ELI_FLAG_GELIDISPLAYPASS, "GELIDISPLAYPASS");
 #undef  ADD_FLAG
 	}
 	sbuf_printf(sb, "</Flags>\n");

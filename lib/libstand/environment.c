@@ -162,7 +162,7 @@ setenv(const char *name, const char *value, int overwrite)
 }
 
 int
-putenv(const char *string)
+putenv(char *string)
 {
     char	*value, *copy;
     int		result;

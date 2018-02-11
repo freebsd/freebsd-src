@@ -84,7 +84,11 @@ void
 report_exc(struct trapframe *tf)
 {
 
-	/* XXX using printf */
+	/*
+	 * printf() depends on loader runtime and UEFI firmware health
+	 * to produce the console output, in case of exception, the
+	 * loader or firmware runtime may fail to support the printf().
+	 */
 	printf("===================================================="
 	    "============================\n");
 	printf("Exception %u\n", tf->tf_trapno);
@@ -122,7 +126,13 @@ prepare_exception(unsigned idx, uint64_t my_handler,
 	ist_use_table[fw_idt_e->gd_ist]++;
 	loader_idt_e->gd_looffset = my_handler;
 	loader_idt_e->gd_hioffset = my_handler >> 16;
-	loader_idt_e->gd_selector = fw_idt_e->gd_selector; /* XXX */
+	/*
+	 * We reuse uefi selector for the code segment for the exception
+	 * handler code, while the reason for the fault might be the
+	 * corruption of that gdt entry. On the other hand, allocating
+	 * our own descriptor might be not much better, if gdt is corrupted.
+	 */
+	loader_idt_e->gd_selector = fw_idt_e->gd_selector;
 	loader_idt_e->gd_ist = 0;
 	loader_idt_e->gd_type = SDT_SYSIGT;
 	loader_idt_e->gd_dpl = 0;

@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2015 Allan Jude <allanjude@FreeBSD.org>
- * Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
+ * Copyright (c) 2016 Eric McCorkle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -12,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -27,43 +26,27 @@
  * $FreeBSD$
  */
 
-#ifndef _GELIBOOT_INTERNAL_H_
-#define _GELIBOOT_INTERNAL_H_
+#include <stdint.h>
 
-#define _STRING_H_
-#define _STRINGS_H_
-#define _STDIO_H_
+#ifndef _EFIZFS_H_
+#define _EFIZFS_H_
 
-#include <sys/endian.h>
-#include <sys/queue.h>
+#ifdef EFI_ZFS_BOOT
+typedef STAILQ_HEAD(zfsinfo_list, zfsinfo) zfsinfo_list_t;
 
-#include <geom/eli/g_eli.h>
-#include <geom/eli/pkcs5v2.h>
+typedef struct zfsinfo
+{
+	STAILQ_ENTRY(zfsinfo) zi_link;
+	EFI_HANDLE zi_handle;
+        uint64_t zi_pool_guid;
+} zfsinfo_t;
 
-#include <bootstrap.h>
+extern uint64_t pool_guid;
 
-/* Pull in the md5, sha256, and sha512 implementations */
-#include <md5.h>
-#include <crypto/sha2/sha256.h>
-#include <crypto/sha2/sha512.h>
+extern void efi_zfs_probe(void);
+extern zfsinfo_list_t *efizfs_get_zfsinfo_list(void);
+extern EFI_HANDLE efizfs_get_handle_by_guid(uint64_t);
 
-/* Pull in AES implementation */
-#include <crypto/rijndael/rijndael-api-fst.h>
+#endif
 
-/* AES-XTS implementation */
-#define _STAND 1
-#define STAND_H /* We don't want stand.h in {gpt,zfs,gptzfs}boot */
-#include <opencrypto/xform_enc.h>
-
-struct geli_entry {
-	struct dsk		*dsk;
-	off_t			part_end;
-	struct g_eli_softc	sc;
-	struct g_eli_metadata	md;
-	int			keybuf_slot;
-	SLIST_ENTRY(geli_entry)	entries;
-} *geli_e, *geli_e_tmp;
-
-static int geli_count;
-
-#endif /* _GELIBOOT_INTERNAL_H_ */
+#endif

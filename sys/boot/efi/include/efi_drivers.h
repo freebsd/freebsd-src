@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2015 Allan Jude <allanjude@FreeBSD.org>
- * Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
+ * Copyright (c) 2016 Eric McCorkle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -12,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -27,43 +26,20 @@
  * $FreeBSD$
  */
 
-#ifndef _GELIBOOT_INTERNAL_H_
-#define _GELIBOOT_INTERNAL_H_
-
-#define _STRING_H_
-#define _STRINGS_H_
-#define _STDIO_H_
-
-#include <sys/endian.h>
-#include <sys/queue.h>
-
-#include <geom/eli/g_eli.h>
-#include <geom/eli/pkcs5v2.h>
+#ifndef _EFI_DRIVERS_H_
+#define _EFI_DRIVERS_H_
 
 #include <bootstrap.h>
 
-/* Pull in the md5, sha256, and sha512 implementations */
-#include <md5.h>
-#include <crypto/sha2/sha256.h>
-#include <crypto/sha2/sha512.h>
+typedef struct efi_driver_t {
+        const char *name;
+        void (*init)(void);
+} efi_driver_t;
 
-/* Pull in AES implementation */
-#include <crypto/rijndael/rijndael-api-fst.h>
+extern struct devsw efipart_dev;
+extern int efipart_getdesc(struct devdesc *dev, char **out);
 
-/* AES-XTS implementation */
-#define _STAND 1
-#define STAND_H /* We don't want stand.h in {gpt,zfs,gptzfs}boot */
-#include <opencrypto/xform_enc.h>
+/* EFI drivers. */
+extern const efi_driver_t fs_driver;
 
-struct geli_entry {
-	struct dsk		*dsk;
-	off_t			part_end;
-	struct g_eli_softc	sc;
-	struct g_eli_metadata	md;
-	int			keybuf_slot;
-	SLIST_ENTRY(geli_entry)	entries;
-} *geli_e, *geli_e_tmp;
-
-static int geli_count;
-
-#endif /* _GELIBOOT_INTERNAL_H_ */
+#endif

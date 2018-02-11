@@ -247,7 +247,7 @@ EFI_STATUS
 typedef
 EFI_STATUS
 (EFIAPI *EFI_SET_VARIABLE) (
-    IN CHAR16                       *VariableName,
+    IN const CHAR16                 *VariableName,
     IN EFI_GUID                     *VendorGuid,
     IN UINT32                       Attributes,
     IN UINTN                        DataSize,
@@ -353,7 +353,7 @@ EFI_STATUS
     IN EFI_STATUS                   ExitStatus,
     IN UINTN                        ExitDataSize,
     IN CHAR16                       *ExitData OPTIONAL
-    );
+    ) __dead2;
 
 typedef
 EFI_STATUS

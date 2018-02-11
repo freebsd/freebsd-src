@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 /* gets() with constrained input length, for passwords */
 
 void
-pwgets(char *buf, int n)
+pwgets(char *buf, int n, int hide)
 {
     int c;
     char *lp;
@@ -55,9 +55,11 @@ pwgets(char *buf, int n)
 	case '\177':
 	    if (lp > buf) {
 		lp--;
-		putchar('\b');
-		putchar(' ');
-		putchar('\b');
+		if (hide == 0) {
+			putchar('\b');
+			putchar(' ');
+			putchar('\b');
+		}
 	    }
 	    break;
 	case 'u'&037:
@@ -68,7 +70,9 @@ pwgets(char *buf, int n)
 	default:
 	    if ((n < 1) || ((lp - buf) < n - 1)) {
 		*lp++ = c;
-		putchar('*');
+		if (hide == 0) {
+			putchar('*');
+		}
 	    }
 	}
     /*NOTREACHED*/

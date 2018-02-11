@@ -16,7 +16,7 @@ SRCS=	autoload.c \
 	bootinfo.c \
 	conf.c \
 	copy.c \
-	devicename.c \
+	efi_main.c \
 	main.c \
 	self_reloc.c \
 	smbios.c \
@@ -122,7 +122,7 @@ FILES+=	loader.efi
 FILESMODE_loader.efi=	${BINMODE}
 
 LDSCRIPT=	${.CURDIR}/arch/${MACHINE}/ldscript.${MACHINE}
-LDFLAGS+=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
+LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -shared
 
 CLEANFILES+=	loader.efi
 

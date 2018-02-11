@@ -69,6 +69,7 @@ extern struct console efi_console;
 #if defined(__amd64__) || defined(__i386__)
 extern struct console comconsole;
 extern struct console nullconsole;
+extern struct console spinconsole;
 #endif
 
 struct console *consoles[] = {
@@ -76,6 +77,7 @@ struct console *consoles[] = {
 #if defined(__amd64__) || defined(__i386__)
 	&comconsole,
 	&nullconsole,
+	&spinconsole,
 #endif
 	NULL
 };

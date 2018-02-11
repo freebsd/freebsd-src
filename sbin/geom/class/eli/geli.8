@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2016
+.Dd September 17, 2017
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -51,7 +51,7 @@ utility:
 .Pp
 .Nm
 .Cm init
-.Op Fl bgPTv
+.Op Fl bdgPTv
 .Op Fl a Ar aalgo
 .Op Fl B Ar backupfile
 .Op Fl e Ar ealgo
@@ -88,7 +88,7 @@ utility:
 .Ar prov
 .Nm
 .Cm configure
-.Op Fl bBgGtT
+.Op Fl bBdDgGtT
 .Ar prov ...
 .Nm
 .Cm setkey
@@ -279,6 +279,11 @@ To inhibit backups, you can use
 .Pa none
 as the
 .Ar backupfile .
+.It Fl d
+When entering the passphrase to boot from this encrypted root filesystem, echo
+.Ql *
+characters.
+This makes the length of the passphrase visible.
 .It Fl e Ar ealgo
 Encryption algorithm to use.
 Currently supported algorithms are:
@@ -490,6 +495,15 @@ For more information, see the description of the
 subcommand.
 .It Fl B
 Remove the BOOT flag from the given providers.
+.It Fl d
+When entering the passphrase to boot from this encrypted root filesystem, echo
+.Ql *
+characters.
+This makes the length of the passphrase visible.
+.It Fl D
+Disable echoing of any characters when a passphrase is entered to boot from this
+encrypted root filesystem.
+This hides the passphrase length.
 .It Fl g
 Enable booting from this encrypted root filesystem.
 The boot loader prompts for the passphrase and loads
