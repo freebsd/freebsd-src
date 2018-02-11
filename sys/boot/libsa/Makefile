@@ -14,13 +14,10 @@ MK_SSP=		no
 
 LIBSTAND_SRC?=	${.CURDIR}
 LIBSTAND_CPUARCH?=${MACHINE_CPUARCH}
-LIBC_SRC=	${LIBSTAND_SRC}/../libc
+LIBC_SRC=	${SRCTOP_LIBC}/../libc
 
 LIB?=		sa
 NO_PIC=
-INCS?=		stand.h
-MAN?=		libstand.3
-
 WARNS?=		0
 
 CFLAGS+= -I${LIBSTAND_SRC}
@@ -58,14 +55,14 @@ CFLAGS.clang+=	-mno-movt
 CFLAGS.clang+=	-mfpu=none
 
 # Compiler support functions
-.PATH: ${LIBSTAND_SRC}/../../contrib/compiler-rt/lib/builtins/
+.PATH: ${SRCTOP}/contrib/compiler-rt/lib/builtins/
 # __clzsi2 and ctzsi2 for various builtin functions
 SRCS+=	clzsi2.c ctzsi2.c
 # Divide and modulus functions called by the compiler
 SRCS+=	 divmoddi4.c  divmodsi4.c  divdi3.c  divsi3.c  moddi3.c  modsi3.c
 SRCS+=	udivmoddi4.c udivmodsi4.c udivdi3.c udivsi3.c umoddi3.c umodsi3.c
 
-.PATH: ${LIBSTAND_SRC}/../../contrib/compiler-rt/lib/builtins/arm/
+.PATH: ${SRCTOP}/contrib/compiler-rt/lib/builtins/arm/
 SRCS+=	aeabi_idivmod.S aeabi_ldivmod.S aeabi_uidivmod.S aeabi_uldivmod.S
 SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
 .endif
@@ -91,7 +88,7 @@ SRCS+=	_setjmp.S
 # decompression functionality from libbz2
 # NOTE: to actually test this functionality after libbz2 upgrade compile
 # loader(8) with LOADER_BZIP2_SUPPORT defined
-.PATH: ${LIBSTAND_SRC}/../../contrib/bzip2
+.PATH: ${SRCTOP}/contrib/bzip2
 CFLAGS+= -DBZ_NO_STDIO -DBZ_NO_COMPRESS
 SRCS+=	libstand_bzlib_private.h
 
@@ -110,7 +107,7 @@ libstand_bzlib_private.h: bzlib_private.h
 		${.ALLSRC} > ${.TARGET}
 
 # decompression functionality from zlib
-.PATH: ${LIBSTAND_SRC}/../../contrib/zlib
+.PATH: ${SRCTOP}/contrib/zlib
 CFLAGS+=-DHAVE_MEMCPY -I${LIBSTAND_SRC}/../../contrib/zlib
 SRCS+=	adler32.c crc32.c libstand_zutil.h libstand_gzguts.h
 
