@@ -1313,6 +1313,10 @@ mps_alloc_hw_queues(struct mps_softc *sc)
 	sc->free_busaddr = queues_busaddr;
 	sc->post_queue = (MPI2_REPLY_DESCRIPTORS_UNION *)(queues + fqsize);
 	sc->post_busaddr = queues_busaddr + fqsize;
+	mps_dprint(sc, MPS_INIT, "free queue busaddr= %#016lx size= %d\n",
+	    sc->free_busaddr, fqsize);
+	mps_dprint(sc, MPS_INIT, "reply queue busaddr= %#016lx size= %d\n",
+	    sc->post_busaddr, pqsize);
 
 	return (0);
 }
@@ -1356,6 +1360,9 @@ mps_alloc_replies(struct mps_softc *sc)
         bus_dmamap_load(sc->reply_dmat, sc->reply_map, sc->reply_frames, rsize,
 	    mps_memaddr_cb, &sc->reply_busaddr, 0);
 
+	mps_dprint(sc, MPS_INIT, "reply frames busaddr= %#016lx size= %d\n",
+	    sc->reply_busaddr, rsize);
+
 	return (0);
 }
 
@@ -1389,6 +1396,8 @@ mps_alloc_requests(struct mps_softc *sc)
         bzero(sc->req_frames, rsize);
         bus_dmamap_load(sc->req_dmat, sc->req_map, sc->req_frames, rsize,
 	    mps_memaddr_cb, &sc->req_busaddr, 0);
+	mps_dprint(sc, MPS_INIT, "request frames busaddr= %#016lx size= %d\n",
+	    sc->req_busaddr, rsize);
 
 	rsize = sc->reqframesz * sc->num_chains;
         if (bus_dma_tag_create( sc->mps_parent_dmat,    /* parent */
@@ -1413,6 +1422,8 @@ mps_alloc_requests(struct mps_softc *sc)
         bzero(sc->chain_frames, rsize);
         bus_dmamap_load(sc->chain_dmat, sc->chain_map, sc->chain_frames, rsize,
 	    mps_memaddr_cb, &sc->chain_busaddr, 0);
+	mps_dprint(sc, MPS_INIT, "chain frames busaddr= %#016lx size= %d\n",
+	    sc->chain_busaddr, rsize);
 
 	rsize = MPS_SENSE_LEN * sc->num_reqs;
         if (bus_dma_tag_create( sc->mps_parent_dmat,    /* parent */
@@ -1437,6 +1448,8 @@ mps_alloc_requests(struct mps_softc *sc)
         bzero(sc->sense_frames, rsize);
         bus_dmamap_load(sc->sense_dmat, sc->sense_map, sc->sense_frames, rsize,
 	    mps_memaddr_cb, &sc->sense_busaddr, 0);
+	mps_dprint(sc, MPS_INIT, "sense frames busaddr= %#016lx size= %d\n",
+	    sc->sense_busaddr, rsize);
 
 	sc->chains = malloc(sizeof(struct mps_chain) * sc->num_chains, M_MPT2,
 	    M_WAITOK | M_ZERO);
