@@ -313,6 +313,7 @@ struct bufqueue __exclusive_cache_line bqdirty;
 struct bufdomain {
 	struct bufqueue	bd_cpuq[MAXCPU];
 	struct bufqueue	bd_cleanq;
+	struct mtx_padalign bd_run_lock;
 	/* Constants */
 	long		bd_maxbufspace;
 	long		bd_hibufspace;
@@ -323,7 +324,7 @@ struct bufdomain {
 	int		bd_lim;
 	/* atomics */
 	int		bd_wanted;
-	int  __aligned(CACHE_LINE_SIZE)	bd_request;
+	int  __aligned(CACHE_LINE_SIZE)	bd_running;
 	long __aligned(CACHE_LINE_SIZE) bd_bufspace;
 	int __aligned(CACHE_LINE_SIZE)	bd_freebuffers;
 } __aligned(CACHE_LINE_SIZE);
@@ -332,6 +333,9 @@ struct bufdomain {
 #define	BD_LOCK(bd)		mtx_lock(BD_LOCKPTR((bd)))
 #define	BD_UNLOCK(bd)		mtx_unlock(BD_LOCKPTR((bd)))
 #define	BD_ASSERT_LOCKED(bd)	mtx_assert(BD_LOCKPTR((bd)), MA_OWNED)
+#define	BD_RUN_LOCKPTR(bd)	(&(bd)->bd_run_lock)
+#define	BD_RUN_LOCK(bd)		mtx_lock(BD_RUN_LOCKPTR((bd)))
+#define	BD_RUN_UNLOCK(bd)	mtx_unlock(BD_RUN_LOCKPTR((bd)))
 #define	BD_DOMAIN(bd)		(bd - bdclean)
 
 /* Maximum number of clean buffer domains. */
@@ -474,19 +478,49 @@ bdirtyadd(void)
 }
 
 /*
- *	bufspace_daemonwakeup:
+ *	bufspace_daemon_wakeup:
  *
  *	Wakeup the daemons responsible for freeing clean bufs.
  */
 static void
-bufspace_daemonwakeup(struct bufdomain *bd)
+bufspace_daemon_wakeup(struct bufdomain *bd)
 {
 
-	if (atomic_fetchadd_int(&bd->bd_request, 1) == 0) {
-		BD_LOCK(bd);
-		bd->bd_request = 1;
-		wakeup(&bd->bd_request);
-		BD_UNLOCK(bd);
+	/*
+	 * avoid the lock if the daemon is running.
+	 */
+	if (atomic_fetchadd_int(&bd->bd_running, 1) == 0) {
+		BD_RUN_LOCK(bd);
+		bd->bd_running = 1;
+		wakeup(&bd->bd_running);
+		BD_RUN_UNLOCK(bd);
+	}
+}
+
+/*
+ *	bufspace_daemon_wait:
+ *
+ *	Sleep until the domain falls below a limit or one second passes.
+ */
+static void
+bufspace_daemon_wait(struct bufdomain *bd)
+{
+	/*
+	 * Re-check our limits and sleep.  bd_running must be
+	 * cleared prior to checking the limits to avoid missed
+	 * wakeups.  The waker will adjust one of bufspace or
+	 * freebuffers prior to checking bd_running.
+	 */
+	BD_RUN_LOCK(bd);
+	atomic_store_int(&bd->bd_running, 0);
+	if (bd->bd_bufspace < bd->bd_bufspacethresh &&
+	    bd->bd_freebuffers > bd->bd_lofreebuffers) {
+		msleep(&bd->bd_running, BD_RUN_LOCKPTR(bd), PRIBIO|PDROP,
+		    "-", hz);
+	} else {
+		/* Avoid spurious wakeups while running. */
+		atomic_store_int(&bd->bd_running, 1);
+		BD_RUN_UNLOCK(bd);
 	}
 }
 
@@ -514,7 +548,7 @@ bufspace_adjust(struct buf *bp, int bufsize)
 		/* Wake up the daemon on the transition. */
 		if (space < bd->bd_bufspacethresh &&
 		    space + diff >= bd->bd_bufspacethresh)
-			bufspace_daemonwakeup(bd);
+			bufspace_daemon_wakeup(bd);
 	}
 	bp->b_bufsize = bufsize;
 }
@@ -544,7 +578,7 @@ bufspace_reserve(struct bufdomain *bd, int size, bool metadata)
 
 	/* Wake up the daemon on the transition. */
 	if (space < bd->bd_bufspacethresh && new >= bd->bd_bufspacethresh)
-		bufspace_daemonwakeup(bd);
+		bufspace_daemon_wakeup(bd);
 
 	return (0);
 }
@@ -677,17 +711,7 @@ bufspace_daemon(void *arg)
 		} while (bd->bd_bufspace > bd->bd_lobufspace ||
 		    bd->bd_freebuffers < bd->bd_hifreebuffers);
 
-		/*
-		 * Re-check our limits and sleep.
-		 */
-		BD_LOCK(bd);
-		if (bd->bd_bufspace < bd->bd_bufspacethresh &&
-		    bd->bd_freebuffers > bd->bd_lofreebuffers) {
-			bd->bd_request = 0;
-			msleep(&bd->bd_request, BD_LOCKPTR(bd), PRIBIO|PDROP,
-			    "-", hz);
-		} else
-			BD_UNLOCK(bd);
+		bufspace_daemon_wait(bd);
 	}
 }
 
@@ -804,7 +828,7 @@ vfs_buf_test_cache(struct buf *bp, vm_ooffset_t foff, vm_offset_t off,
 }
 
 /* Wake up the buffer daemon if necessary */
-static __inline void
+static void
 bd_wakeup(void)
 {
 
@@ -1504,7 +1528,7 @@ buf_alloc(struct bufdomain *bd)
 		bp = uma_zalloc(buf_zone, M_NOWAIT);
 	if (bp == NULL) {
 		atomic_fetchadd_int(&bd->bd_freebuffers, 1);
-		bufspace_daemonwakeup(bd);
+		bufspace_daemon_wakeup(bd);
 		counter_u64_add(numbufallocfails, 1);
 		return (NULL);
 	}
@@ -1512,7 +1536,7 @@ buf_alloc(struct bufdomain *bd)
 	 * Wake-up the bufspace daemon on transition below threshold.
 	 */
 	if (freebufs == bd->bd_lofreebuffers)
-		bufspace_daemonwakeup(bd);
+		bufspace_daemon_wakeup(bd);
 
 	if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
 		panic("getnewbuf_empty: Locked buf %p on free queue.", bp);
@@ -1706,6 +1730,7 @@ bd_init(struct bufdomain *bd)
 	for (i = 0; i <= mp_maxid; i++)
 		bq_init(&bd->bd_cpuq[i], QUEUE_CLEAN, i,
 		    "bufq clean cpu lock");
+	mtx_init(&bd->bd_run_lock, "bufspace daemon run lock", NULL, MTX_DEF);
 }
 
 /*
