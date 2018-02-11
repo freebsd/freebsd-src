@@ -2,6 +2,17 @@
 
 .include <src.opts.mk>
 
+.if !defined(__BOOT_MAKEFILE_INC__)
+__BOOT_MAKEFILE_INC__=${MFILE}
+
+SASRC=${SRCTOP}/lib/libstand
+# Normal stand alone library
+LIBSA=${OBJTOP}/lib/libstand/libstand.a
+# stand alone library compiled for 32-bit version of the processor
+LIBSA32=${OBJTOP}/sys/boot/libstand32/libstand.a
+# stand along library compiled for userboot
+LIBSAU=${OBJTOP}/sys/boot/userboot/libstand/libstand.a
+
 SSP_CFLAGS=
 
 .if ${MACHINE_CPUARCH} == "arm"
@@ -24,9 +35,9 @@ DD_NOSTATUS!=(dd status=none count=0 2> /dev/null && echo status=none) || true
 DD=dd ${DD_NOSTATUS}
 
 .if ${MK_LOADER_FORCE_LE} != "no"
-
 .if ${MACHINE_ARCH} == "powerpc64"
 CFLAGS+=	-mlittle-endian
+.endif
 .endif
 
 .endif

@@ -37,7 +37,7 @@ CFLAGS+= -fPIC -mno-red-zone
 .endif
 CFLAGS+= -I${.CURDIR}/../include
 CFLAGS+= -I${.CURDIR}/../include/${MACHINE}
-CFLAGS+= -I${.CURDIR}/../../../../lib/libstand
+CFLAGS+= -I${SASRC}
 .if ${MK_ZFS} != "no"
 CFLAGS+=	-I${.CURDIR}/../../zfs
 CFLAGS+=	-I${.CURDIR}/../../../cddl/boot/zfs

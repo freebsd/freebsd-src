@@ -81,12 +81,9 @@ efi_zfs_probe(void)
 {
 	pdinfo_list_t *hdi;
 	pdinfo_t *hd, *pd = NULL;
-	EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
-	EFI_LOADED_IMAGE *img;
 	char devname[SPECNAMELEN + 1];
         uint64_t guid;
 
-	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
 	hdi = efiblk_get_pdinfo_list(&efipart_hddev);
 	STAILQ_INIT(&zfsinfo);
 
@@ -105,7 +102,7 @@ efi_zfs_probe(void)
                         if (zfs_probe_dev(devname, &guid) == 0) {
                                 insert_zfs(pd->pd_handle, guid);
 
-                                if (pd->pd_handle == img->DeviceHandle)
+                                if (efi_zfs_is_preferred(pd->pd_handle))
                                         pool_guid = guid;
                         }
 

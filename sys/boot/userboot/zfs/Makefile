@@ -12,7 +12,7 @@ SRCS+=		zfs.c skein.c skein_block.c
 CFLAGS+=	-DSKEIN_LOOP=111
 
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
+CFLAGS+=	-I${SASRC}
 CFLAGS+=	-I${.CURDIR}/../../../cddl/boot/zfs
 CFLAGS+=	-I${.CURDIR}/../../../crypto/skein
 
