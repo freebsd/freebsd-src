@@ -324,4 +324,4 @@ mtp_uninit(void *arg __unused)
 }
 
 SYSINIT(mtp_init, SI_SUB_LOCK, SI_ORDER_FIRST, mtp_init, NULL);
-SYSUNINIT(mtp_init, SI_SUB_LOCK, SI_ORDER_FIRST, mtp_uninit, NULL);
+SYSUNINIT(mtp_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, mtp_uninit, NULL);

@@ -56,9 +56,10 @@ __FBSDID("$FreeBSD$");
 
 #include <nfs/nfssvc.h>
 
-static int nfssvc_offset = SYS_nfssvc;
-static struct sysent nfssvc_prev_sysent;
-MAKE_SYSENT(nfssvc);
+static struct syscall_helper_data nfssvc_syscalls[] = {
+	SYSCALL_INIT_HELPER(nfssvc),
+	SYSCALL_INIT_LAST
+};
 
 /*
  * This tiny module simply handles the nfssvc() system call. The other
@@ -119,16 +120,12 @@ sys_nfssvc(struct thread *td, struct nfssvc_args *uap)
 static int
 nfssvc_modevent(module_t mod, int type, void *data)
 {
-	static int registered;
 	int error = 0;
 
 	switch (type) {
 	case MOD_LOAD:
-		error = syscall_register(&nfssvc_offset, &nfssvc_sysent,
-		    &nfssvc_prev_sysent, SY_THR_STATIC_KLD);
-		if (error)
-			break;
-		registered = 1;
+		error = syscall_helper_register(nfssvc_syscalls,
+		    SY_THR_STATIC_KLD);
 		break;
 
 	case MOD_UNLOAD:
@@ -137,9 +134,7 @@ nfssvc_modevent(module_t mod, int type, void *data)
 			error = EBUSY;
 			break;
 		}
-		if (registered)
-			syscall_deregister(&nfssvc_offset, &nfssvc_prev_sysent);
-		registered = 0;
+		syscall_helper_unregister(nfssvc_syscalls);
 		break;
 	default:
 		error = EOPNOTSUPP;

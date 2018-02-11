@@ -361,6 +361,7 @@ struct mpr_softc {
 	int				num_reqs;
 	int				num_prireqs;
 	int				num_replies;
+	int				num_chains;
 	int				fqdepth;	/* Free queue */
 	int				pqdepth;	/* Post queue */
 

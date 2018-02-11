@@ -209,7 +209,7 @@ vm_swapout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 				continue;
 			VM_CNT_INC(v_pdpages);
 			vm_page_lock(p);
-			if (p->wire_count != 0 || p->hold_count != 0 ||
+			if (vm_page_held(p) ||
 			    !pmap_page_exists_quick(pmap, p)) {
 				vm_page_unlock(p);
 				continue;

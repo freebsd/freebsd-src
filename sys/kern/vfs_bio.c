@@ -2776,7 +2776,7 @@ vfs_vmio_unwire(struct buf *bp, vm_page_t m)
 	bool freed;
 
 	vm_page_lock(m);
-	if (vm_page_unwire(m, PQ_NONE)) {
+	if (vm_page_unwire_noq(m)) {
 		/*
 		 * Determine if the page should be freed before adding
 		 * it to the inactive queue.
@@ -2792,14 +2792,16 @@ vfs_vmio_unwire(struct buf *bp, vm_page_t m)
 		if (!freed) {
 			/*
 			 * If the page is unlikely to be reused, let the
-			 * VM know.  Otherwise, maintain LRU page
-			 * ordering and put the page at the tail of the
-			 * inactive queue.
+			 * VM know.  Otherwise, maintain LRU.
 			 */
 			if ((bp->b_flags & B_NOREUSE) != 0)
 				vm_page_deactivate_noreuse(m);
-			else
+			else if (m->queue == PQ_ACTIVE)
+				vm_page_reference(m);
+			else if (m->queue != PQ_INACTIVE)
 				vm_page_deactivate(m);
+			else
+				vm_page_requeue(m);
 		}
 	}
 	vm_page_unlock(m);
@@ -4263,21 +4265,6 @@ bufdone(struct buf *bp)
 			bufobj_wdrop(dropobj);
 		return;
 	}
-
-	bufdone_finish(bp);
-
-	if (dropobj)
-		bufobj_wdrop(dropobj);
-}
-
-void
-bufdone_finish(struct buf *bp)
-{
-	BUF_ASSERT_HELD(bp);
-
-	if (!LIST_EMPTY(&bp->b_dep))
-		buf_complete(bp);
-
 	if (bp->b_flags & B_VMIO) {
 		/*
 		 * Set B_CACHE if the op was a normal read and no error
@@ -4290,14 +4277,14 @@ bufdone_finish(struct buf *bp)
 			bp->b_flags |= B_CACHE;
 		vfs_vmio_iodone(bp);
 	}
+	if (!LIST_EMPTY(&bp->b_dep))
+		buf_complete(bp);
 	if ((bp->b_flags & B_CKHASH) != 0) {
 		KASSERT(bp->b_iocmd == BIO_READ,
-		    ("bufdone_finish: b_iocmd %d not BIO_READ", bp->b_iocmd));
-		KASSERT(buf_mapped(bp),
-		    ("bufdone_finish: bp %p not mapped", bp));
+		    ("bufdone: b_iocmd %d not BIO_READ", bp->b_iocmd));
+		KASSERT(buf_mapped(bp), ("bufdone: bp %p not mapped", bp));
 		(*bp->b_ckhashcalc)(bp);
 	}
-
 	/*
 	 * For asynchronous completions, release the buffer now. The brelse
 	 * will do a wakeup there if necessary - so no need to do a wakeup
@@ -4311,6 +4298,8 @@ bufdone_finish(struct buf *bp)
 			bqrelse(bp);
 	} else
 		bdone(bp);
+	if (dropobj)
+		bufobj_wdrop(dropobj);
 }
 
 /*

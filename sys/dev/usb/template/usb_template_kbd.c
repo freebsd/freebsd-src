@@ -289,4 +289,4 @@ kbd_uninit(void *arg __unused)
 }
 
 SYSINIT(kbd_init, SI_SUB_LOCK, SI_ORDER_FIRST, kbd_init, NULL);
-SYSUNINIT(kbd_init, SI_SUB_LOCK, SI_ORDER_FIRST, kbd_uninit, NULL);
+SYSUNINIT(kbd_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, kbd_uninit, NULL);

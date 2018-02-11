@@ -4700,7 +4700,6 @@ zfs_putpages(struct vnode *vp, vm_page_t *ma, size_t len, int flags,
 	}
 
 	if (zp->z_blksz < PAGE_SIZE) {
-		i = 0;
 		for (i = 0; len > 0; off += tocopy, len -= tocopy, i++) {
 			tocopy = len > PAGE_SIZE ? PAGE_SIZE : len;
 			va = zfs_map_page(ma[i], &sf);

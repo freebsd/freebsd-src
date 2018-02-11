@@ -94,6 +94,6 @@ uma_small_free(void *mem, vm_size_t size, u_int8_t flags)
 	pa = MIPS_DIRECT_TO_PHYS((vm_offset_t)mem);
 	dump_drop_page(pa);
 	m = PHYS_TO_VM_PAGE(pa);
-	vm_page_unwire(m, PQ_NONE);
+	vm_page_unwire_noq(m);
 	vm_page_free(m);
 }

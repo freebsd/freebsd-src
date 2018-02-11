@@ -287,4 +287,4 @@ mouse_uninit(void *arg __unused)
 }
 
 SYSINIT(mouse_init, SI_SUB_LOCK, SI_ORDER_FIRST, mouse_init, NULL);
-SYSUNINIT(mouse_init, SI_SUB_LOCK, SI_ORDER_FIRST, mouse_uninit, NULL);
+SYSUNINIT(mouse_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, mouse_uninit, NULL);

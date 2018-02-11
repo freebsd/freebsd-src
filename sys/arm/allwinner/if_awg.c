@@ -1834,9 +1834,11 @@ awg_attach(device_t dev)
 	awg_get_eaddr(dev, eaddr);
 
 	/* Soft reset EMAC core */
-	error = awg_reset(dev);
-	if (error != 0)
-		return (error);
+	if (!awg_has_internal_phy(dev)) {
+		error = awg_reset(dev);
+		if (error != 0)
+			return (error);
+	}
 
 	/* Setup DMA descriptors */
 	error = awg_setup_dma(dev);

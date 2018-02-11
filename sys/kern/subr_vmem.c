@@ -667,7 +667,8 @@ int
 vmem_startup_count(void)
 {
 
-	return (howmany(BT_MAXALLOC, UMA_SLAB_SIZE / sizeof(struct vmem_btag)));
+	return (howmany(BT_MAXALLOC,
+	    UMA_SLAB_SPACE / sizeof(struct vmem_btag)));
 }
 #endif
 

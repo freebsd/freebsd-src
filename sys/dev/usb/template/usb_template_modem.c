@@ -317,4 +317,4 @@ modem_uninit(void *arg __unused)
 }
 
 SYSINIT(modem_init, SI_SUB_LOCK, SI_ORDER_FIRST, modem_init, NULL);
-SYSUNINIT(modem_init, SI_SUB_LOCK, SI_ORDER_FIRST, modem_uninit, NULL);
+SYSUNINIT(modem_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, modem_uninit, NULL);

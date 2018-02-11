@@ -95,7 +95,7 @@ uma_small_free(void *mem, vm_size_t size, u_int8_t flags)
 		    (vm_offset_t)mem + PAGE_SIZE);
 
 	m = PHYS_TO_VM_PAGE((vm_offset_t)mem);
-	vm_page_unwire(m, PQ_NONE);
+	vm_page_unwire_noq(m);
 	vm_page_free(m);
 	atomic_subtract_int(&hw_uma_mdpages, 1);
 }

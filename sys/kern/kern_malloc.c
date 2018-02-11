@@ -96,8 +96,6 @@ __FBSDID("$FreeBSD$");
 dtrace_malloc_probe_func_t	dtrace_malloc_probe;
 #endif
 
-extern void	uma_startup2(void);
-
 #if defined(INVARIANTS) || defined(MALLOC_MAKE_FAILURES) ||		\
     defined(DEBUG_MEMGUARD) || defined(DEBUG_REDZONE)
 #define	MALLOC_DEBUG	1
@@ -928,8 +926,6 @@ mallocinit(void *dummy)
 	mtx_init(&malloc_mtx, "malloc", NULL, MTX_DEF);
 
 	kmeminit();
-
-	uma_startup2();
 
 	if (kmem_zmax < PAGE_SIZE || kmem_zmax > KMEM_ZMAX)
 		kmem_zmax = KMEM_ZMAX;
