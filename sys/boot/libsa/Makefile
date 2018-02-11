@@ -16,7 +16,7 @@ LIBSTAND_SRC?=	${.CURDIR}
 LIBSTAND_CPUARCH?=${MACHINE_CPUARCH}
 LIBC_SRC=	${LIBSTAND_SRC}/../libc
 
-LIB=		stand
+LIB?=		sa
 NO_PIC=
 INCS?=		stand.h
 MAN?=		libstand.3
