@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 15, 2016
+.Dd February 10, 2018
 .Dt DTRACE_TCP 4
 .Os
 .Sh NAME
@@ -135,7 +135,7 @@ Its first, third and fifth arguments are currently always
 .Dv NULL .
 Its last argument describes the from-state in the transition, and the to-state
 can be obtained from
-.Dv args[2]->tcps_state .
+.Dv args[3]->tcps_state .
 .Sh ARGUMENTS
 The
 .Vt pktinfo_t
