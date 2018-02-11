@@ -93,9 +93,6 @@ CFLAGS+= -Wa,-mppc64bridge
 #.PATH:		${.CURDIR}/../../ofw/common
 #.include	"${.CURDIR}/../../ofw/common/Makefile.inc"
 
-# where to get libstand from
-CFLAGS+=	-I${SASRC}
-
 DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA32}
 LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA32}
 

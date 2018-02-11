@@ -112,8 +112,6 @@ LIBUBOOT=	${.OBJDIR}/../../uboot/lib/libuboot.a
 CFLAGS+=	-I${.CURDIR}/../../uboot/lib
 CFLAGS+=	-I${.OBJDIR}/../../uboot/lib
 
-CFLAGS+=	-I${SASRC}
-
 CFLAGS+=	-fPIC
 
 # clang doesn't understand %D as a specifier to printf
