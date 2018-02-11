@@ -68,7 +68,7 @@ SRCS+=	pnp.c
 .endif
 
 # Forth interpreter
-.if defined(BOOT_FORTH)
+.if defined(MK_FORTH)
 SRCS+=	interp_forth.c
 .include "${BOOTSRC}/ficl.mk"
 .endif
