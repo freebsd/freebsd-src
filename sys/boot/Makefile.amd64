@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 SUBDIR+=		efi
-SUBDIR+=		libstand32
+SUBDIR+=		libsa32
 SUBDIR+=		zfs
 SUBDIR+=		userboot
 

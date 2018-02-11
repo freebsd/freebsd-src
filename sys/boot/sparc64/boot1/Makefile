@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include "../Makefile.inc"
+
 PROG=	boot1.elf
 INTERNALPROG=
 MAN=
@@ -25,6 +27,6 @@ ${FILES}: boot1.aout
 boot1.aout: boot1.elf
 	elf2aout -o ${.TARGET} ${.ALLSRC}
 
-boot1.o: ${.CURDIR}/../../common/ufsread.c
+boot1.o: ${SASRC}/ufsread.c
 
 .include <bsd.prog.mk>

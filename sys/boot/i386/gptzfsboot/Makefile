@@ -1,10 +1,10 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include "../Makefile.inc"
 
 .PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../gptboot \
 		${.CURDIR}/../zfsboot ${.CURDIR}/../common \
-		${.CURDIR}/../../common ${.CURDIR}/../../../crypto/skein
+		${.CURDIR}/../../../crypto/skein ${SASRC}
 
 FILES=		gptzfsboot
 MAN=		gptzfsboot.8
@@ -19,7 +19,7 @@ REL1=	0x700
 ORG1=	0x7c00
 ORG2=	0x0
 
-CFLAGS=	-DBOOTPROG=\"gptzfsboot\" \
+CFLAGS+=-DBOOTPROG=\"gptzfsboot\" \
 	-O1 \
 	-DGPT -DZFS -DBOOT2 \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \

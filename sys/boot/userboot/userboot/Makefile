@@ -58,7 +58,7 @@ LIBZFSBOOT=	${.OBJDIR}/../zfs/libzfsboot.a
 .include	"${.CURDIR}/../../common/Makefile.inc"
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I.
-DPADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSAU} 
-LDADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSAU}
+DPADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSA} 
+LDADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSA}
 
 .include <bsd.lib.mk>
