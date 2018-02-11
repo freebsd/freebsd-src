@@ -2,23 +2,25 @@
 
 .include <src.opts.mk>
 
-LIBSTAND_SRC=	${.CURDIR}/../../../lib/libstand
+.include "../Makefile.inc"
+
 .if ${MACHINE_CPUARCH} == "amd64"
 LIBSTAND_CPUARCH=i386
 .else
 LIBSTAND_CPUARCH=${MACHINE_CPUARCH}
 .endif
-LIBC_SRC=	${LIBSTAND_SRC}/../libc
+LIBSTAND_SRC=	${SASRC}
+LIBC_SRC=	${SRCTOP}/lib/libc
 INTERNALLIB=
 INCS=
 MAN=
-.PATH:	${LIBSTAND_SRC}
+.PATH:	${SASRC}
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
 CFLAGS+=	-m32 -I.
 .endif
 
-.include "${LIBSTAND_SRC}/Makefile"
+.include "${SASRC}/Makefile"
 
 .if ${MACHINE_CPUARCH} == "amd64"
 CLEANFILES+= machine

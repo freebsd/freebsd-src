@@ -40,8 +40,6 @@ CFLAGS+=	-DSKEIN_LOOP=111
 
 LD_FLAGS=${LD_FLAGS_BIN}
 
-LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
-
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
 
@@ -83,7 +81,7 @@ zfsboot.bin: zfsboot.out
 	${OBJCOPY} -S -O binary zfsboot.out ${.TARGET}
 
 zfsboot.out: ${BTXCRT} zfsboot.o sio.o drv.o cons.o util.o skein.o skein_block.o
-	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSTAND}
+	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSA32}
 
 SRCS=	zfsboot.c
 

@@ -9,7 +9,7 @@ SRCS=	devicename.c elf_freebsd.c ofw_console.c ofw_copy.c ofw_disk.c \
 .PATH:	${.CURDIR}/../../zfs
 SRCS+=  devicename_stubs.c
 
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
+CFLAGS+=	-I${SASRC}
 
 # Pick up the bootstrap header for some interface items
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
