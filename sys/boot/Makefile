@@ -9,7 +9,7 @@ SUBDIR+=		ficl
 SUBDIR+=		forth
 .endif
 
-SUBDIR+=		common
+SUBDIR+=		man
 
 .include <bsd.arch.inc.mk>
 
