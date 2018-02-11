@@ -367,10 +367,10 @@ test_getmem(void *arg, uint64_t *lowmem, uint64_t *highmem)
         *highmem = 0;
 }
 
-const char *
+char *
 test_getenv(void *arg, int idx)
 {
-	static const char *vars[] = {
+	static char *vars[] = {
 		"foo=bar",
 		"bar=barbar",
 		NULL

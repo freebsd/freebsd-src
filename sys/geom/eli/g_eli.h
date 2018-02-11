@@ -100,6 +100,8 @@
 #define	G_ELI_FLAG_NODELETE		0x00000040
 /* This GELI supports GELIBoot */
 #define	G_ELI_FLAG_GELIBOOT		0x00000080
+/* Hide passphrase length in GELIboot. */
+#define	G_ELI_FLAG_GELIDISPLAYPASS	0x00000100
 /* RUNTIME FLAGS. */
 /* Provider was open for writing. */
 #define	G_ELI_FLAG_WOPEN		0x00010000

@@ -487,6 +487,11 @@ That happens before entering single-user mode or multi-user
 mode (but after executing the
 .Va init_script
 if enabled).
+This functionality has generally been eclipsed by rerooting.
+See
+.Xr reboot 8
+.Fl r
+for details.
 .It Va init_path
 Sets the list of binaries which the kernel will try to run as the initial
 process.
@@ -508,6 +513,11 @@ if the script terminates with a non-zero exit code,
 or if a SIGTERM is delivered to the
 .Xr init 8
 process (PID 1).
+This functionality has generally been eclipsed by rerooting.
+See
+.Xr reboot 8
+.Fl r
+for details.
 .It Va init_shell
 Defines the shell binary to be used for executing the various shell scripts.
 The default is

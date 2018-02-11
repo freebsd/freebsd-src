@@ -31,6 +31,7 @@
 #define	_LOADER_EFILIB_H
 
 #include <stand.h>
+#include <stdbool.h>
 #include <sys/queue.h>
 
 extern EFI_HANDLE		IH;
@@ -50,19 +51,25 @@ typedef STAILQ_HEAD(pdinfo_list, pdinfo) pdinfo_list_t;
 typedef struct pdinfo
 {
 	STAILQ_ENTRY(pdinfo)	pd_link;	/* link in device list */
-	pdinfo_list_t		pd_part;	/* link of partitions */
+	pdinfo_list_t		pd_part;	/* list of partitions */
 	EFI_HANDLE		pd_handle;
 	EFI_HANDLE		pd_alias;
 	EFI_DEVICE_PATH		*pd_devpath;
 	EFI_BLOCK_IO		*pd_blkio;
-	int			pd_unit;	/* unit number */
-	int			pd_open;	/* reference counter */
+	uint32_t		pd_unit;	/* unit number */
+	uint32_t		pd_open;	/* reference counter */
 	void			*pd_bcache;	/* buffer cache data */
 } pdinfo_t;
 
 pdinfo_list_t *efiblk_get_pdinfo_list(struct devsw *dev);
+pdinfo_t *efiblk_get_pdinfo(struct devdesc *dev);
 
 void *efi_get_table(EFI_GUID *tbl);
+
+int efi_getdev(void **vdev, const char *devspec, const char **path);
+char *efi_fmtdev(void *vdev);
+int efi_setcurrdev(struct env_var *ev, int flags, const void *value);
+
 
 int efi_register_handles(struct devsw *, EFI_HANDLE *, EFI_HANDLE *, int);
 EFI_HANDLE efi_find_handle(struct devsw *, int);
@@ -74,17 +81,20 @@ EFI_DEVICE_PATH *efi_lookup_devpath(EFI_HANDLE);
 EFI_HANDLE efi_devpath_handle(EFI_DEVICE_PATH *);
 EFI_DEVICE_PATH *efi_devpath_last_node(EFI_DEVICE_PATH *);
 EFI_DEVICE_PATH *efi_devpath_trim(EFI_DEVICE_PATH *);
-int efi_devpath_match(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *);
+bool efi_devpath_match(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *);
 CHAR16 *efi_devpath_name(EFI_DEVICE_PATH *);
 void efi_free_devpath_name(CHAR16 *);
 
 int efi_status_to_errno(EFI_STATUS);
+EFI_STATUS errno_to_efi_status(int errno);
 
 void efi_time_init(void);
 void efi_time_fini(void);
 
+EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab);
+
 EFI_STATUS main(int argc, CHAR16 *argv[]);
-void exit(EFI_STATUS status);
+void exit(EFI_STATUS status) __dead2;
 void delay(int usecs);
 
 /* EFI environment initialization. */

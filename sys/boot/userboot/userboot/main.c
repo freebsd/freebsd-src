@@ -78,7 +78,7 @@ void
 loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 {
 	static char mallocbuf[MALLOCSZ];
-	const char *var;
+	char *var;
 	int i;
 
 	if (version < USERBOOT_VERSION)

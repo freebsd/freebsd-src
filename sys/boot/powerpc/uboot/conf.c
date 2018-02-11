@@ -35,6 +35,9 @@ __FBSDID("$FreeBSD$");
 #include "dev_net.h"
 #endif
 
+/* Make sure we have an explicit reference to exit so libsa's panic pulls in the MD exit */
+void (*exitfn)(int) = exit;
+
 /*
  * We could use linker sets for some or all of these, but
  * then we would have to control what ended up linked into

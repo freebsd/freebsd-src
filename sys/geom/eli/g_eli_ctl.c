@@ -377,6 +377,7 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	const char *prov;
 	u_char *sector;
 	int *nargs, *boot, *noboot, *trim, *notrim, *geliboot, *nogeliboot;
+	int *displaypass, *nodisplaypass;
 	int zero, error, changed;
 	u_int i;
 
@@ -432,6 +433,19 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (*geliboot || *nogeliboot)
+		changed = 1;
+
+	displaypass = gctl_get_paraml(req, "displaypass", sizeof(*displaypass));
+	if (displaypass == NULL)
+		displaypass = &zero;
+	nodisplaypass = gctl_get_paraml(req, "nodisplaypass", sizeof(*nodisplaypass));
+	if (nodisplaypass == NULL)
+		nodisplaypass = &zero;
+	if (*displaypass && *nodisplaypass) {
+		gctl_error(req, "Options -d and -D are mutually exclusive.");
+		return;
+	}
+	if (*displaypass || *nodisplaypass)
 		changed = 1;
 
 	if (!changed) {
@@ -492,6 +506,17 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			continue;
 		}
 
+		if (*displaypass && (sc->sc_flags & G_ELI_FLAG_GELIDISPLAYPASS)) {
+			G_ELI_DEBUG(1, "GELIDISPLAYPASS flag already configured for %s.",
+			    prov);
+			continue;
+		} else if (*nodisplaypass &&
+		    !(sc->sc_flags & G_ELI_FLAG_GELIDISPLAYPASS)) {
+			G_ELI_DEBUG(1, "GELIDISPLAYPASS flag not configured for %s.",
+			    prov);
+			continue;
+		}
+
 		if (!(sc->sc_flags & G_ELI_FLAG_ONETIME)) {
 			/*
 			 * ONETIME providers don't write metadata to
@@ -533,6 +558,14 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		} else if (*nogeliboot) {
 			md.md_flags &= ~G_ELI_FLAG_GELIBOOT;
 			sc->sc_flags &= ~G_ELI_FLAG_GELIBOOT;
+		}
+
+		if (*displaypass) {
+			md.md_flags |= G_ELI_FLAG_GELIDISPLAYPASS;
+			sc->sc_flags |= G_ELI_FLAG_GELIDISPLAYPASS;
+		} else if (*nodisplaypass) {
+			md.md_flags &= ~G_ELI_FLAG_GELIDISPLAYPASS;
+			sc->sc_flags &= ~G_ELI_FLAG_GELIDISPLAYPASS;
 		}
 
 		if (sc->sc_flags & G_ELI_FLAG_ONETIME) {

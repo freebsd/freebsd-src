@@ -35,10 +35,6 @@
 
 int	efi_autoload(void);
 
-int	efi_getdev(void **vdev, const char *devspec, const char **path);
-char	*efi_fmtdev(void *vdev);
-int	efi_setcurrdev(struct env_var *ev, int flags, const void *value);
-
 int	efi_copy_init(void);
 
 ssize_t	efi_copyin(const void *src, vm_offset_t dest, const size_t len);

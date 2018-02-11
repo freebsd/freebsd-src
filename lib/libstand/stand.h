@@ -282,7 +282,7 @@ extern ssize_t	write(int, void *, size_t);
 extern struct	dirent *readdirfd(int);
 
 extern void	srandom(u_long seed);
-extern u_long	random(void);
+extern long	random(void);
     
 /* imports from stdlib, locally modified */
 extern long	strtol(const char *, char **, int);
@@ -330,7 +330,7 @@ extern int		env_setenv(const char *name, int flags,
 extern char		*getenv(const char *name);
 extern int		setenv(const char *name, const char *value,
 			       int overwrite);
-extern int		putenv(const char *string);
+extern int		putenv(char *string);
 extern int		unsetenv(const char *name);
 
 extern ev_sethook_t	env_noset;		/* refuse set operation */
@@ -376,6 +376,7 @@ extern int	null_readdir(struct open_file *f, struct dirent *d);
  * Machine dependent functions and data, must be provided or stubbed by 
  * the consumer 
  */
+extern void		exit(int);
 extern int		getchar(void);
 extern int		ischar(void);
 extern void		putchar(int);

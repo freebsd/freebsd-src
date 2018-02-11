@@ -110,7 +110,7 @@ for set/unset hook functions.
 .Xc
 .It Xo
 .Ft int
-.Fn putenv "const char *string"
+.Fn putenv "char *string"
 .Xc
 .It Xo
 .Ft int
@@ -172,7 +172,7 @@ may be used to prevent a variable being unset.
 .Fn srandom "unsigned long seed"
 .Xc
 .It Xo
-.Ft "unsigned long"
+.Ft "long"
 .Fn random void
 .Xc
 .It Xo

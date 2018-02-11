@@ -139,7 +139,7 @@ static int bd_ioctl(struct open_file *f, u_long cmd, void *data);
 static int bd_print(int verbose);
 
 #ifdef LOADER_GELI_SUPPORT
-static enum isgeli {
+enum isgeli {
 	ISGELI_UNKNOWN,
 	ISGELI_NO,
 	ISGELI_YES
