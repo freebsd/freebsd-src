@@ -71,6 +71,7 @@ struct g_part_alias_list {
 	const char *lexeme;
 	enum g_part_alias alias;
 } g_part_alias_list[G_PART_ALIAS_COUNT] = {
+	{ "apple-apfs", G_PART_ALIAS_APPLE_APFS },
 	{ "apple-boot", G_PART_ALIAS_APPLE_BOOT },
 	{ "apple-core-storage", G_PART_ALIAS_APPLE_CORE_STORAGE },
 	{ "apple-hfs", G_PART_ALIAS_APPLE_HFS },
