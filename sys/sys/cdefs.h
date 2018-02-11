@@ -213,6 +213,7 @@
 #define	__aligned(x)
 #define	__alloc_align(x)
 #define	__alloc_size(x)
+#define	__alloc_size2(n, x)
 #define	__section(x)
 #define	__weak_symbol
 #else
