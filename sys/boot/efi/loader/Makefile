@@ -36,10 +36,6 @@ CWARNFLAGS.zfs.c+=	-Wno-array-bounds
 CWARNFLAGS.zfs.c+=	-Wno-missing-prototypes
 .endif
 
-.if defined(LOADER_NET_SUPPORT)
-CFLAGS+=	-I${SASRC}
-.endif
-
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201
 CWARNFLAGS.self_reloc.c+=	-Wno-error=maybe-uninitialized
 .endif

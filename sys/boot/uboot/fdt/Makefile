@@ -12,8 +12,6 @@ SRCS=		uboot_fdt.c
 
 CFLAGS+=	-ffreestanding -msoft-float
 
-CFLAGS+=	-I${SASRC}
-
 # U-Boot library headers
 CFLAGS+=	-I${.CURDIR}/../lib
 

@@ -32,7 +32,6 @@ CFLAGS+=	-Wall
 CFLAGS+=	-I${.CURDIR}/..
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../..
-CFLAGS+=	-I${SASRC}
 CFLAGS+=	-ffreestanding -I.
 
 CWARNFLAGS.main.c += -Wno-implicit-function-declaration

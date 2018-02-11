@@ -27,7 +27,7 @@ CFLAGS+=	-m32 -mcpu=powerpc -I.
 .endif
 
 CFLAGS+=	-I${FICLDIR} -I${FICLDIR}/${FICL_CPUARCH} \
-		-I${FICLDIR}/../common -I${SASRC}
+		-I${FICLDIR}/../common
 
 .if ${MACHINE_CPUARCH} == "amd64" && defined(FICL32)
 .if !exists(machine)
