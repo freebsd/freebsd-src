@@ -17,9 +17,9 @@ write_partition_layout() {
 	_OBJDIR="$(make -C ${WORLDDIR} -V .OBJDIR)"
 	_OBJDIR="$(realpath ${_OBJDIR})"
 	if [ -d "${_OBJDIR%%/usr/src}/${TARGET}.${TARGET_ARCH}" ]; then
-		BOOTFILES="/${_OBJDIR%%/usr/src}/${TARGET}.${TARGET_ARCH}/usr/src/sys/boot"
+		BOOTFILES="/${_OBJDIR%%/usr/src}/${TARGET}.${TARGET_ARCH}/usr/src/stand"
 	else
-		BOOTFILES="/${_OBJDIR}/sys/boot"
+		BOOTFILES="/${_OBJDIR}/stand"
 	fi
 
 	case "${TARGET}:${TARGET_ARCH}" in

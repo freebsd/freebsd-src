@@ -5,7 +5,7 @@
 .if !defined(__BOOT_DEFS_MK__)
 __BOOT_DEFS_MK__=${MFILE}
 
-BOOTSRC=	${SRCTOP}/sys/boot
+BOOTSRC=	${SRCTOP}/stand
 EFISRC=		${BOOTSRC}/efi
 EFIINC=		${EFISRC}/include
 EFIINCMD=	${EFIINC}/${MACHINE}
@@ -17,7 +17,7 @@ SYSDIR=		${SRCTOP}/sys
 UBOOTSRC=	${BOOTSRC}/uboot
 ZFSSRC=		${BOOTSRC}/zfs
 
-BOOTOBJ=	${OBJTOP}/sys/boot
+BOOTOBJ=	${OBJTOP}/stand
 
 # BINDIR is where we install
 BINDIR?=	/boot

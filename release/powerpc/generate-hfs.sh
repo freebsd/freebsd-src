@@ -32,7 +32,7 @@ cat > bootinfo.txt << EOF
 <CHRP-BOOT>
 <DESCRIPTION>FreeBSD/powerpc bootloader</DESCRIPTION>
 <OS-NAME>FreeBSD</OS-NAME>
-<VERSION> $FreeBSD: head/sys/boot/powerpc/boot1.chrp/bootinfo.txt 184490 2008-10
+<VERSION> $FreeBSD: head/stand/powerpc/boot1.chrp/bootinfo.txt 184490 2008-10
 -31 00:52:31Z nwhitehorn $ </VERSION>
 
 <COMPATIBLE>
