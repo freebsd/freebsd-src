@@ -575,10 +575,8 @@ insert:
 	/*
 	 * Store NXT to the original.
 	 */
-	{
-		char *prvnxtp = ip6_get_prevhdr(m, offset); /* XXX */
-		*prvnxtp = nxt;
-	}
+	m_copyback(m, ip6_get_prevhdr(m, offset), sizeof(uint8_t),
+	    (caddr_t)&nxt);
 
 	frag6_remque(q6);
 	V_frag6_nfrags -= q6->ip6q_nfrag;
