@@ -33,7 +33,7 @@
 . /etc/rc.subr
 
 name="devmatch"
-desc="Use devmatch(8) to load kernel modules
+desc="Use devmatch(8) to load kernel modules"
 
 start_cmd="${name}_start"
 stop_cmd=':'
@@ -46,7 +46,7 @@ devmatch_start()
 
 	[ -n "$x" ] || return
 
-	echo "Autoloading modules"
+	echo "Autoloading modules: ${x}"
 	kldload ${x}
 }
 
