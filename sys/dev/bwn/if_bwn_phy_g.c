@@ -216,7 +216,7 @@ do {									\
 		} while (delta >= 2);
 
 		pg->pg_tssi2dbm[i] = MIN(MAX(BWN_TSSI2DBM(m1 * f, 8192), -127),
-		    128);
+		    127);
 	}
 
 	pg->pg_flags |= BWN_PHY_G_FLAG_TSSITABLE_ALLOC;

@@ -38,8 +38,3 @@ SRCS.BWN_GPL_PHY+=  if_bwn_phy_n_ppr.c
 SRCS.BWN_GPL_PHY+=  if_bwn_phy_n_core.c
 
 .include <bsd.kmod.mk>
-
-# XXX Work around clang warnings, until maintainer approves fix.
-CWARNFLAGS.if_bwn.c=	${NO_WSOMETIMES_UNINITIALIZED}
-CWARNFLAGS.if_bwn_phy_g.c=	${NO_WSOMETIMES_UNINITIALIZED} ${NO_WCONSTANT_CONVERSION}
-CWARNFLAGS.if_bwn_phy_lp.c=	${NO_WSOMETIMES_UNINITIALIZED}
