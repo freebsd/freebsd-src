@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180211: remove usb.conf
+OLD_FILES+=etc/devd/usb.conf
 # 20180208: remove c_rehash(1)
 OLD_FILES+=usr/share/openssl/man/man1/c_rehash.1.gz
 # 20180206: remove gdbtui

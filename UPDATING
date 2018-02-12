@@ -51,6 +51,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20180211:
+	devmatch functionality has been turned on in devd. It will automatically
+	load drivers for unattached devices. This may cause unexpected drivers to
+	be loaded. Please report any problems to current@ and imp@freebsd.org.
+
 20180114:
 	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
 	6.0.0.  Please see the 20141231 entry below for information about
