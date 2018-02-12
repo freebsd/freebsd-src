@@ -11,8 +11,8 @@
 #	powerpc/powerpc powerpc/powerpc64 powerpc/powerpcspe \
 #	riscv/riscv64 riscv/riscv64sf
 #
-# This script is expected to be run in sys/boot (though you could run it anywhere
-# in the tree). It does a full clean build. For sys/boot you can do all the archs in
+# This script is expected to be run in stand (though you could run it anywhere
+# in the tree). It does a full clean build. For stand you can do all the archs in
 # about a minute or two on a fast machine. It's also possible that you need a full
 # make universe for this to work completely.
 #
@@ -40,7 +40,7 @@ dobuild()
 }
 
 top=$(make -V SRCTOP)
-cd $top/sys/boot
+cd $top/stand
 
 # Default build for a goodly selection of architectures
 for i in \

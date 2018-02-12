@@ -130,7 +130,7 @@ structure: module
 ;structure
 
 \ Internal loader structures (preloaded_file, kernel_module, file_metadata)
-\ must be in sync with the C struct in sys/boot/common/bootstrap.h
+\ must be in sync with the C struct in stand/common/bootstrap.h
 structure: preloaded_file
 	ptr pf.name
 	ptr pf.type
