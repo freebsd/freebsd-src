@@ -362,7 +362,7 @@ void	ip6_direct_input(struct mbuf *);
 void	ip6_freepcbopts(struct ip6_pktopts *);
 
 int	ip6_unknown_opt(u_int8_t *, struct mbuf *, int);
-char *	ip6_get_prevhdr(const struct mbuf *, int);
+int	ip6_get_prevhdr(const struct mbuf *, int);
 int	ip6_nexthdr(const struct mbuf *, int, int, int *);
 int	ip6_lasthdr(const struct mbuf *, int, int, int *);
 
