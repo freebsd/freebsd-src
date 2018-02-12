@@ -29,47 +29,47 @@
 #pragma D depends_on provider io
 
 typedef struct devinfo {
-        int dev_major;                  /* major number */
-        int dev_minor;                  /* minor number */
-        int dev_instance;               /* instance number */
-        string dev_name;                /* name of device */
-        string dev_statname;            /* name of device + instance/minor */
-        string dev_pathname;            /* pathname of device */
+	int dev_major;			/* major number */
+	int dev_minor;			/* minor number */
+	int dev_instance;		/* instance number */
+	string dev_name;		/* name of device */
+	string dev_statname;		/* name of device + instance/minor */
+	string dev_pathname;		/* pathname of device */
 } devinfo_t;
 
 #pragma D binding "1.0" translator
 translator devinfo_t < struct devstat *D > {
-           dev_major = D->device_number;
-           dev_minor = D->unit_number;
-           dev_instance = 0;
-           dev_name = stringof(D->device_name);
-           dev_statname = stringof(D->device_name);
-           dev_pathname = stringof(D->device_name);
+	dev_major = D->device_number;
+	dev_minor = D->unit_number;
+	dev_instance = 0;
+	dev_name = stringof(D->device_name);
+	dev_statname = stringof(D->device_name);
+	dev_pathname = stringof(D->device_name);
 };
 
 typedef struct bufinfo {
-        int b_flags;                    /* flags */
-        long b_bcount;                /* number of bytes */
-        caddr_t b_addr;                 /* buffer address */
-        uint64_t b_blkno;               /* expanded block # on device */
-        uint64_t b_lblkno;              /* block # on device */
-        size_t b_resid;                 /* # of bytes not transferred */
-        size_t b_bufsize;               /* size of allocated buffer */
-/*        caddr_t b_iodone;              I/O completion routine */
-        int b_error;                    /* expanded error field */
-/*        dev_t b_edev;                  extended device */
+	int b_flags;			/* flags */
+	long b_bcount;			/* number of bytes */
+	caddr_t b_addr;			/* buffer address */
+	uint64_t b_blkno;		/* expanded block # on device */
+	uint64_t b_lblkno;		/* block # on device */
+	size_t b_resid;			/* # of bytes not transferred */
+	size_t b_bufsize;		/* size of allocated buffer */
+/*	caddr_t b_iodone;		I/O completion routine */
+	int b_error;			/* expanded error field */
+/*	dev_t b_edev;			extended device */
 } bufinfo_t;
 
 #pragma D binding "1.0" translator
 translator bufinfo_t < struct bio *B > {
-           b_flags = B->bio_flags;
-           b_bcount = B->bio_bcount;
-           b_addr = B->bio_data;
-           b_blkno = 0;
-           b_lblkno = 0;
-           b_resid = B->bio_resid;
-           b_bufsize = 0; /* XXX gnn */
-           b_error = B->bio_error;
+	b_flags = B->bio_flags;
+	b_bcount = B->bio_bcount;
+	b_addr = B->bio_data;
+	b_blkno = 0;
+	b_lblkno = 0;
+	b_resid = B->bio_resid;
+	b_bufsize = 0; /* XXX gnn */
+	b_error = B->bio_error;
 };
 
 /*
@@ -105,5 +105,3 @@ inline int O_SYNC = 0x0080;
 #pragma D binding "1.1" O_SYNC
 inline int O_TRUNC = 0x0400;
 #pragma D binding "1.1" O_TRUNC
-
-
