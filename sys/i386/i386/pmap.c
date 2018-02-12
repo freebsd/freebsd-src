@@ -1718,7 +1718,7 @@ pmap_free_zero_pages(struct spglist *free)
 		/* Preserve the page's PG_ZERO setting. */
 		vm_page_free_toq(m);
 	}
-	atomic_subtract_int(&vm_cnt.v_wire_count, count);
+	vm_wire_sub(count);
 }
 
 /*

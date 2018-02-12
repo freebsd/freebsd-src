@@ -151,7 +151,7 @@ pcpu_zones_startup(void)
 		pcpu_zone_ptr = uma_zcreate("ptr pcpu", sizeof(void *),
 		    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_PCPU);
 }
-SYSINIT(pcpu_zones, SI_SUB_KMEM, SI_ORDER_ANY, pcpu_zones_startup, NULL);
+SYSINIT(pcpu_zones, SI_SUB_VM, SI_ORDER_ANY, pcpu_zones_startup, NULL);
 
 /*
  * First-fit extent based allocator for allocating space in the per-cpu
