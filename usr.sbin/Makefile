@@ -21,7 +21,6 @@ SUBDIR=	adduser \
 	dconschat \
 	devctl \
 	devinfo \
-	devmatch \
 	diskinfo \
 	dumpcis \
 	etcupdate \
