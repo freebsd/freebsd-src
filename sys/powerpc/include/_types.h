@@ -144,24 +144,4 @@ typedef	int		___wchar_t;
 #define	__WCHAR_MIN	__INT_MIN	/* min value for a wchar_t */
 #define	__WCHAR_MAX	__INT_MAX	/* max value for a wchar_t */
 
-/*
- * Unusual type definitions.
- */
-#if defined(__GNUCLIKE_BUILTIN_VARARGS)
-typedef __builtin_va_list	__va_list;	/* internally known to gcc */
-#else
-typedef	struct {
-	char	__gpr;
-	char	__fpr;
-	char	__pad[2];
-	char	*__stack;
-	char	*__base;
-} __va_list;
-#endif /* post GCC 2.95 */
-#if defined(__GNUC_VA_LIST_COMPATIBILITY) && !defined(__GNUC_VA_LIST) \
-    && !defined(__NO_GNUC_VA_LIST)
-#define __GNUC_VA_LIST
-typedef __va_list		__gnuc_va_list;	/* compatibility w/GNU headers*/
-#endif
-
 #endif /* !_MACHINE__TYPES_H_ */
