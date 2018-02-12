@@ -408,8 +408,11 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 			int change = (ndi->linkmtu != mtu);
 
 			ndi->linkmtu = mtu;
-			if (change) /* in6_maxmtu may change */
+			if (change) {
+				/* in6_maxmtu may change */
 				in6_setmaxmtu();
+				rt_updatemtu(ifp);
+			}
 		} else {
 			nd6log((LOG_INFO, "nd6_ra_input: bogus mtu "
 			    "mtu=%lu sent from %s; "
