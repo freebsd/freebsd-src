@@ -1308,8 +1308,7 @@ pmap_release(pmap_t pm)
 	while (!TAILQ_EMPTY(&obj->memq)) {
 		m = TAILQ_FIRST(&obj->memq);
 		m->md.pmap = NULL;
-		m->wire_count--;
-		atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+		vm_page_unwire_noq(m);
 		vm_page_free_zero(m);
 	}
 	VM_OBJECT_WUNLOCK(obj);

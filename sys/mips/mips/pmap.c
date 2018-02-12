@@ -1009,7 +1009,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	 * If the page is finally unwired, simply free it.
 	 */
 	vm_page_free_zero(m);
-	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+	vm_wire_sub(1);
 }
 
 /*

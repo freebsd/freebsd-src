@@ -2634,11 +2634,12 @@ pmap_unwire_pt2pg(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	pmap->pm_stats.resident_count--;
 
 	/*
-	 * This is a release store so that the ordinary store unmapping
+	 * This barrier is so that the ordinary store unmapping
 	 * the L2 page table page is globally performed before TLB shoot-
 	 * down is begun.
 	 */
-	atomic_subtract_rel_int(&vm_cnt.v_wire_count, 1);
+	wmb();
+	vm_wire_sub(1);
 }
 
 /*
@@ -2945,7 +2946,7 @@ out:
 		SLIST_REMOVE_HEAD(&free, plinks.s.ss);
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
-		atomic_add_int(&vm_cnt.v_wire_count, 1);
+		vm_wire_add(1);
 	}
 	pmap_free_zero_pages(&free);
 	return (m_pc);
