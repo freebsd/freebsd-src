@@ -5,7 +5,6 @@
 .PATH: ${LDRSRC}
 
 LIB=		uboot_fdt
-INTERNALLIB=
 WARNS?=		2
 
 SRCS=		uboot_fdt.c

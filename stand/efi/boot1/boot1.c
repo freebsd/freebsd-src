@@ -55,6 +55,7 @@ static EFI_GUID DevicePathGUID = DEVICE_PATH_PROTOCOL;
 static EFI_GUID LoadedImageGUID = LOADED_IMAGE_PROTOCOL;
 static EFI_GUID ConsoleControlGUID = EFI_CONSOLE_CONTROL_PROTOCOL_GUID;
 static EFI_GUID FreeBSDBootVarGUID = FREEBSD_BOOT_VAR_GUID;
+static EFI_GUID GlobalBootVarGUID = UEFI_BOOT_VAR_GUID;
 
 /*
  * Provide Malloc / Free backed by EFIs AllocatePool / FreePool which ensures
@@ -80,14 +81,33 @@ Free(void *buf, const char *file __unused, int line __unused)
 }
 
 static EFI_STATUS
+efi_getenv(EFI_GUID *g, const char *v, void *data, size_t *len)
+{
+	size_t ul;
+	CHAR16 *uv;
+	UINT32 attr;
+	UINTN dl;
+	EFI_STATUS rv;
+
+	uv = NULL;
+	if (utf8_to_ucs2(v, &uv, &ul) != 0)
+		return (EFI_OUT_OF_RESOURCES);
+	dl = *len;
+	rv = RS->GetVariable(uv, g, &attr, &dl, data);
+	if (rv == EFI_SUCCESS)
+		*len = dl;
+	free(uv);
+	return (rv);
+}
+
+static EFI_STATUS
 efi_setenv_freebsd_wcs(const char *varname, CHAR16 *valstr)
 {
 	CHAR16 *var = NULL;
 	size_t len;
 	EFI_STATUS rv;
 
-	utf8_to_ucs2(varname, &var, &len);
-	if (var == NULL)
+	if (utf8_to_ucs2(varname, &var, &len) != 0)
 		return (EFI_OUT_OF_RESOURCES);
 	rv = RS->SetVariable(var, &FreeBSDBootVarGUID,
 	    EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
@@ -411,6 +431,9 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	SIMPLE_TEXT_OUTPUT_INTERFACE *conout = NULL;
 	UINTN i, max_dim, best_mode, cols, rows, hsize, nhandles;
 	CHAR16 *text;
+	UINT16 boot_current;
+	size_t sz;
+	UINT16 boot_order[100];
 
 	/* Basic initialization*/
 	ST = Xsystab;
@@ -480,12 +503,32 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 		}
 	}
 
+	boot_current = 0;
+	sz = sizeof(boot_current);
+	efi_getenv(&GlobalBootVarGUID, "BootCurrent", &boot_current, &sz);
+	printf("   BootCurrent: %04x\n", boot_current);
+
+	sz = sizeof(boot_order);
+	efi_getenv(&GlobalBootVarGUID, "BootOrder", &boot_order, &sz);
+	printf("   BootOrder:");
+	for (i = 0; i < sz / sizeof(boot_order[0]); i++)
+		printf(" %04x", boot_order[i]);
+	printf("\n");
+
+#ifdef TEST_FAILURE
+	/*
+	 * For testing failover scenarios, it's nice to be able to fail fast.
+	 * Define TEST_FAILURE to create a boot1.efi that always fails after
+	 * reporting the boot manager protocol details.
+	 */
+	BS->Exit(IH, EFI_OUT_OF_RESOURCES, 0, NULL);
+#endif
+
 	/* Get all the device handles */
 	hsize = (UINTN)NUM_HANDLES_INIT * sizeof(EFI_HANDLE);
 	handles = malloc(hsize);
-	if (handles == NULL) {
+	if (handles == NULL)
 		printf("Failed to allocate %d handles\n", NUM_HANDLES_INIT);
-	}
 
 	status = BS->LocateHandle(ByProtocol, &BlockIoProtocolGUID, NULL,
 	    &hsize, handles);

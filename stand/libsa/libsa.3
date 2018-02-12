@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 6, 2004
+.Dd February 1, 2018
 .Dt LIBSTAND 3
 .Os
 .Sh NAME
@@ -161,6 +161,10 @@ may be used to prevent a variable being unset.
 .Bl -hang -width 10n
 .It Xo
 .Ft int
+.Fn abs "int i"
+.Xc
+.It Xo
+.Ft int
 .Fn getopt "int argc" "char * const *argv" "const char *optstring"
 .Xc
 .It Xo
@@ -168,8 +172,20 @@ may be used to prevent a variable being unset.
 .Fn strtol "const char *nptr" "char **endptr" "int base"
 .Xc
 .It Xo
+.Ft long long
+.Fn strtoll "const char *nptr" "char **endptr" "int base"
+.Xc
+.It Xo
+.Ft long
+.Fn strtoul "const char *nptr" "char **endptr" "int base"
+.Xc
+.It Xo
+.Ft long long
+.Fn strtoull "const char *nptr" "char **endptr" "int base"
+.Xc
+.It Xo
 .Ft void
-.Fn srandom "unsigned long seed"
+.Fn srandom "unsigned int seed"
 .Xc
 .It Xo
 .Ft "long"
@@ -347,6 +363,22 @@ ptr,
 .It Xo
 .Ft int
 .Fn isalpha "int c"
+.Xc
+.It Xo
+.Ft int
+.Fn isalnum "int c"
+.Xc
+.It Xo
+.Ft int
+.Fn iscntrl "int c"
+.Xc
+.It Xo
+.Ft int
+.Fn isgraph "int c"
+.Xc
+.It Xo
+.Ft int
+.Fn ispunct "int c"
 .Xc
 .It Xo
 .Ft int
@@ -581,6 +613,14 @@ Close the device allocated for
 .Fa of .
 The device driver itself will already have been called for the close; this call
 should clean up any allocation made by devopen only.
+.It Xo
+.Ft void
+.Fn abort
+.Xc
+.Pp
+Calls
+.Fn panic
+with a fixed string.
 .It Xo
 .Ft void
 .Fn panic "const char *msg" "..."

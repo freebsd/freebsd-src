@@ -30,9 +30,9 @@
 #
 
 .PATH: ${.CURDIR}
+.SUFFIXES: .a
 
 PROG=	usbloader
-MAN=
 SRCS= 
 
 CFLAGS+= -Wall
@@ -46,12 +46,15 @@ LDFLAGS+= -Wl,--gc-sections
 
 SRCS+=	bsd_usbloader_test.c
 
-LDADD+=	libusbboot.a
-DPADD+= libusbboot.a
+USBLIB?= ${.OBJDIR}/../libusbboot.a
+
+LDADD+= ${USBLIB}
+DPADD+= ${USBLIB}
+
+MAN=
 
 .include <bsd.prog.mk>
 
-${PROG}: libusbboot.a
+${USBLIB}:
+	make -C ${.CURDIR}/.. USBCOREDIR=${.CURDIR}/..
 
-libusbboot.a:
-	make -f Makefile

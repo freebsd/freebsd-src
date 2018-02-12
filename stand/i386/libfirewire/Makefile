@@ -3,7 +3,6 @@
 .include <bsd.init.mk>
 
 LIB=		firewire
-INTERNALLIB=
 
 .PATH:		${SYSDIR}/dev/dcons ${SYSDIR}/dev/firewire
 SRCS+=		firewire.c fwohci.c dconsole.c

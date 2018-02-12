@@ -68,6 +68,7 @@
 
 /* this header intentionally exports NULL from <string.h> */
 #include <string.h>
+#define strcoll(a, b)	strcmp((a), (b))
 
 #define CHK(fmt, args...)	printf("%s(%d): " fmt "\n", __func__, __LINE__ , ##args)
 #define PCHK(fmt, args...)	{printf("%s(%d): " fmt "\n", __func__, __LINE__ , ##args); getchar();}

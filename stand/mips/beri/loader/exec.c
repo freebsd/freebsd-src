@@ -80,14 +80,14 @@ beri_elf64_exec(struct preloaded_file *fp)
 
 	md = file_findmetadata(fp, MODINFOMD_ELFHDR);
 	if (md == NULL) {
-		printf("%s: file_findmetadata failed\n");
+		printf("%s: file_findmetadata failed\n", fp->f_name);
 		return (EFTYPE);
 	}
 	ehdr = (Elf_Ehdr *)md->md_data;
 
 	error = md_load64(fp->f_args, &mdp);
 	if (error) {
-		printf("%s: md_load64 failed\n");
+		printf("%s: md_load64 failed\n", fp->f_name);
 		return (error);
 	}
 

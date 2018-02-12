@@ -32,7 +32,7 @@
 #
 
 USBCOREDIR:=	${.PARSEDIR}
-S=${USBCOREDIR}/../..
+S=${USBCOREDIR}/../../sys
 
 MACHDEP_DIRS=
 
