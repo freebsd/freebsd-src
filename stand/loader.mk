@@ -56,9 +56,16 @@ SRCS+=	pnp.c
 .endif
 
 # Forth interpreter
-.if ${MK_FORTH} != "no"
+.if ${MK_LOADER_LUA} != "no"
+SRCS+=	interp_lua.c
+.include "${BOOTSRC}/lua.mk"
+LDR_INTERP=	${LIBLUA}
+LDR_INTERP32=	${LIBLUA32}
+.elif ${MK_FORTH} != "no"
 SRCS+=	interp_forth.c
 .include "${BOOTSRC}/ficl.mk"
+LDR_INTERP=	${LIBFICL}
+LDR_INTERP32=	${LIBFICL32}
 .else
 SRCS+=	interp_simple.c
 .endif
@@ -134,9 +141,12 @@ LIBFICL32=	${LIBFICL}
 .else
 LIBFICL32=	${BOOTOBJ}/ficl32/libficl.a
 .endif
-.if ${MK_FORTH} != no
-LDR_INTERP=	${LIBFICL}
-LDR_INTERP32=	${LIBFICL32}
+
+LIBLUA=		${BOOTOBJ}/liblua/liblua.a
+.if ${MACHINE} == "i386"
+LIBLUA32=	${LIBFICL}
+.else
+LIBLUA32=	${BOOTOBJ}/liblua32/liblua.a
 .endif
 
 CLEANFILES+=	vers.c

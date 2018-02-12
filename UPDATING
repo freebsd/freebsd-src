@@ -51,6 +51,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20180212:
+	FreeBSD boot loader enhanced with Lua scripting. It's purely opt-in for
+	now by building WITH_LOADER_LUA and WITHOUT_FORTH in /etc/src.conf.
+	Co-existance for the transition period will come shortly. Booting is a
+	complex environment and test coverage for Lua-enabled loaders has been
+	thin, so it would be prudent to assume it might not work and make
+	provisions for backup boot methods.
+
 20180211:
 	devmatch functionality has been turned on in devd. It will automatically
 	load drivers for unattached devices. This may cause unexpected drivers to

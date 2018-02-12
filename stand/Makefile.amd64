@@ -7,6 +7,9 @@ SUBDIR+=		zfs zfs32
 .if ${MK_FORTH} != "no"
 SUBDIR+=		ficl32
 .endif
+.if ${MK_LOADER_LUA} != "no"
+SUBDIR+=		liblua32
+.endif
 
 SUBDIR+=		efi
 SUBDIR+=		userboot
