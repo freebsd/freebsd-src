@@ -113,6 +113,23 @@ ENTRY(svm_launch)
 	movq %rdi, SCTX_RDI(%rax)
 	movq %rsi, SCTX_RSI(%rax)
 
+	/*
+	 * To prevent malicious branch target predictions from
+	 * affecting the host, overwrite all entries in the RSB upon
+	 * exiting a guest.
+	 */
+	mov $16, %ecx	/* 16 iterations, two calls per loop */
+	mov %rsp, %rax
+0:	call 2f		/* create an RSB entry. */
+1:	pause
+	call 1b		/* capture rogue speculation. */
+2:	call 2f		/* create an RSB entry. */
+1:	pause
+	call 1b		/* capture rogue speculation. */
+2:	sub $1, %ecx
+	jnz 0b
+	mov %rax, %rsp
+
 	/* Restore host state */
 	pop %r15
 	pop %r14

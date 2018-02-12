@@ -42,6 +42,29 @@
 #define VLEAVE  pop %rbp
 
 /*
+ * Save the guest context.
+ */
+#define	VMX_GUEST_SAVE							\
+	movq	%rdi,VMXCTX_GUEST_RDI(%rsp);				\
+	movq	%rsi,VMXCTX_GUEST_RSI(%rsp);				\
+	movq	%rdx,VMXCTX_GUEST_RDX(%rsp);				\
+	movq	%rcx,VMXCTX_GUEST_RCX(%rsp);				\
+	movq	%r8,VMXCTX_GUEST_R8(%rsp);				\
+	movq	%r9,VMXCTX_GUEST_R9(%rsp);				\
+	movq	%rax,VMXCTX_GUEST_RAX(%rsp);				\
+	movq	%rbx,VMXCTX_GUEST_RBX(%rsp);				\
+	movq	%rbp,VMXCTX_GUEST_RBP(%rsp);				\
+	movq	%r10,VMXCTX_GUEST_R10(%rsp);				\
+	movq	%r11,VMXCTX_GUEST_R11(%rsp);				\
+	movq	%r12,VMXCTX_GUEST_R12(%rsp);				\
+	movq	%r13,VMXCTX_GUEST_R13(%rsp);				\
+	movq	%r14,VMXCTX_GUEST_R14(%rsp);				\
+	movq	%r15,VMXCTX_GUEST_R15(%rsp);				\
+	movq	%cr2,%rdi;						\
+	movq	%rdi,VMXCTX_GUEST_CR2(%rsp);				\
+	movq	%rsp,%rdi;
+
+/*
  * Assumes that %rdi holds a pointer to the 'vmxctx'.
  *
  * On "return" all registers are updated to reflect guest state. The two
@@ -211,31 +234,55 @@ inst_error:
  * The VMCS-restored %rsp points to the struct vmxctx
  */
 	ALIGN_TEXT
+	.globl	vmx_exit_guest_flush_rsb
+vmx_exit_guest_flush_rsb:
+	/*
+	 * Save guest state that is not automatically saved in the vmcs.
+	 */
+	VMX_GUEST_SAVE
+
+	/*
+	 * Deactivate guest pmap from this cpu.
+	 */
+	movq	VMXCTX_PMAP(%rdi), %r11
+	movl	PCPU(CPUID), %r10d
+	LK btrl	%r10d, PM_ACTIVE(%r11)
+
+	VMX_HOST_RESTORE
+
+	VMX_GUEST_CLOBBER
+
+	/*
+	 * To prevent malicious branch target predictions from
+	 * affecting the host, overwrite all entries in the RSB upon
+	 * exiting a guest.
+	 */
+	mov	$16, %ecx	/* 16 iterations, two calls per loop */
+	mov	%rsp, %rax
+0:	call	2f		/* create an RSB entry. */
+1:	pause
+	call	1b		/* capture rogue speculation. */
+2:	call	2f		/* create an RSB entry. */
+1:	pause
+	call	1b		/* capture rogue speculation. */
+2:	sub	$1, %ecx
+	jnz	0b
+	mov	%rax, %rsp
+
+	/*
+	 * This will return to the caller of 'vmx_enter_guest()' with a return
+	 * value of VMX_GUEST_VMEXIT.
+	 */
+	movl	$VMX_GUEST_VMEXIT, %eax
+	VLEAVE
+	ret
+
 	.globl	vmx_exit_guest
 vmx_exit_guest:
 	/*
 	 * Save guest state that is not automatically saved in the vmcs.
 	 */
-	movq	%rdi,VMXCTX_GUEST_RDI(%rsp)
-	movq	%rsi,VMXCTX_GUEST_RSI(%rsp)
-	movq	%rdx,VMXCTX_GUEST_RDX(%rsp)
-	movq	%rcx,VMXCTX_GUEST_RCX(%rsp)
-	movq	%r8,VMXCTX_GUEST_R8(%rsp)
-	movq	%r9,VMXCTX_GUEST_R9(%rsp)
-	movq	%rax,VMXCTX_GUEST_RAX(%rsp)
-	movq	%rbx,VMXCTX_GUEST_RBX(%rsp)
-	movq	%rbp,VMXCTX_GUEST_RBP(%rsp)
-	movq	%r10,VMXCTX_GUEST_R10(%rsp)
-	movq	%r11,VMXCTX_GUEST_R11(%rsp)
-	movq	%r12,VMXCTX_GUEST_R12(%rsp)
-	movq	%r13,VMXCTX_GUEST_R13(%rsp)
-	movq	%r14,VMXCTX_GUEST_R14(%rsp)
-	movq	%r15,VMXCTX_GUEST_R15(%rsp)
-
-	movq	%cr2,%rdi
-	movq	%rdi,VMXCTX_GUEST_CR2(%rsp)
-
-	movq	%rsp,%rdi
+	VMX_GUEST_SAVE
 
 	/*
 	 * Deactivate guest pmap from this cpu.
