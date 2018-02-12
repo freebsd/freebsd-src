@@ -275,7 +275,7 @@ md_copymodules(vm_offset_t addr)
  * - The kernel environment is copied into kernel space.
  * - Module metadata are formatted and placed in kernel space.
  */
-int
+vm_offset_t
 md_load(char *args, vm_offset_t *modulep, vm_offset_t *dtbp)
 {
     struct preloaded_file	*kfp;

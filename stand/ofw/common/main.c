@@ -157,7 +157,7 @@ main(int (*openfirm)(void *))
 	archsw.arch_readin = ofw_readin;
 	archsw.arch_autoload = ofw_autoload;
 
-	interact(NULL);				/* doesn't return */
+	interact();				/* doesn't return */
 
 	OF_exit();
 

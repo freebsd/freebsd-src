@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <efi.h>
 #include <efilib.h>
 #include <efiprot.h>
+#include <efichar.h>
 #include <disk.h>
 
 static EFI_GUID blkio_guid = BLOCK_IO_PROTOCOL;
@@ -196,6 +197,82 @@ efipart_floppy(EFI_DEVICE_PATH *node)
 }
 
 /*
+ * Determine if the provided device path is hdd.
+ *
+ * There really is no simple fool proof way to classify the devices.
+ * Since we do build three lists of devices - floppy, cd and hdd, we
+ * will try to see  if the device is floppy or cd, and list anything else
+ * as hdd.
+ */
+static bool
+efipart_hdd(EFI_DEVICE_PATH *dp)
+{
+	unsigned i, nin;
+	EFI_DEVICE_PATH *devpath, *node;
+	EFI_BLOCK_IO *blkio;
+	EFI_STATUS status;
+
+	if (dp == NULL)
+		return (false);
+
+	if ((node = efi_devpath_last_node(dp)) == NULL)
+		return (false);
+
+	if (efipart_floppy(node) != NULL)
+		return (false);
+
+	/*
+	 * Test every EFI BLOCK IO handle to make sure dp is not device path
+	 * for CD/DVD.
+	 */
+	nin = efipart_nhandles / sizeof (*efipart_handles);
+	for (i = 0; i < nin; i++) {
+		devpath = efi_lookup_devpath(efipart_handles[i]);
+		if (devpath == NULL)
+			return (false);
+
+		/* Only continue testing when dp is prefix in devpath. */
+		if (!efi_devpath_is_prefix(dp, devpath))
+			continue;
+
+		/*
+		 * The device path has to have last node describing the
+		 *  device, or we can not test the type.
+		 */
+		if ((node = efi_devpath_last_node(devpath)) == NULL)
+			return (false);
+
+		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
+		    DevicePathSubType(node) == MEDIA_CDROM_DP) {
+			return (false);
+		}
+
+		/* Make sure we do have the media. */
+		status = BS->HandleProtocol(efipart_handles[i],
+		    &blkio_guid, (void **)&blkio);
+		if (EFI_ERROR(status))
+			return (false);
+
+		/* USB or SATA cd without the media. */
+		if (blkio->Media->RemovableMedia &&
+		    !blkio->Media->MediaPresent) {
+			return (false);
+		}
+
+		/*
+		 * We assume the block size 512 or greater power of 2. 
+		 * iPXE is known to insert stub BLOCK IO device with
+		 * BlockSize 1.
+		 */
+		if (blkio->Media->BlockSize < 512 ||
+		    !powerof2(blkio->Media->BlockSize)) {
+			return (false);
+		}
+	}
+	return (true);
+}
+
+/*
  * Add or update entries with new handle data.
  */
 static int
@@ -308,7 +385,11 @@ efipart_updatecd(void)
 
 		if ((node = efi_devpath_last_node(devpath)) == NULL)
 			continue;
+
 		if (efipart_floppy(node) != NULL)
+			continue;
+
+		if (efipart_hdd(devpath))
 			continue;
 
 		status = BS->HandleProtocol(efipart_handles[i],
@@ -380,13 +461,21 @@ efipart_hdinfo_add(EFI_HANDLE disk_handle, EFI_HANDLE part_handle)
 	pdinfo_t *hd, *pd, *last;
 
 	disk_devpath = efi_lookup_devpath(disk_handle);
-	part_devpath = efi_lookup_devpath(part_handle);
-	if (disk_devpath == NULL || part_devpath == NULL) {
+	if (disk_devpath == NULL)
 		return (ENOENT);
+
+	if (part_handle != NULL) {
+		part_devpath = efi_lookup_devpath(part_handle);
+		if (part_devpath == NULL)
+			return (ENOENT);
+		node = (HARDDRIVE_DEVICE_PATH *)
+		    efi_devpath_last_node(part_devpath);
+		if (node == NULL)
+			return (ENOENT);	/* This should not happen. */
+	} else {
+		part_devpath = NULL;
+		node = NULL;
 	}
-	node = (HARDDRIVE_DEVICE_PATH *)efi_devpath_last_node(part_devpath);
-	if (node == NULL)
-		return (ENOENT);	/* This should not happen. */
 
 	pd = calloc(1, sizeof(pdinfo_t));
 	if (pd == NULL) {
@@ -397,6 +486,9 @@ efipart_hdinfo_add(EFI_HANDLE disk_handle, EFI_HANDLE part_handle)
 
 	STAILQ_FOREACH(hd, &hdinfo, pd_link) {
 		if (efi_devpath_match(hd->pd_devpath, disk_devpath) == true) {
+			if (part_devpath == NULL)
+				return (0);
+
 			/* Add the partition. */
 			pd->pd_handle = part_handle;
 			pd->pd_unit = node->PartitionNumber;
@@ -418,6 +510,9 @@ efipart_hdinfo_add(EFI_HANDLE disk_handle, EFI_HANDLE part_handle)
 	hd->pd_unit = unit;
 	hd->pd_devpath = disk_devpath;
 	STAILQ_INSERT_TAIL(&hdinfo, hd, pd_link);
+
+	if (part_devpath == NULL)
+		return (0);
 
 	pd = calloc(1, sizeof(pdinfo_t));
 	if (pd == NULL) {
@@ -470,8 +565,7 @@ efipart_hdinfo_add_filepath(EFI_HANDLE disk_handle)
 		unit = 0;
 
 	/* FILEPATH_DEVICE_PATH has 0 terminated string */
-	for (len = 0; node->PathName[len] != 0; len++)
-		;
+	len = ucs2len(node->PathName);
 	if ((pathname = malloc(len + 1)) == NULL) {
 		printf("Failed to add disk, out of memory\n");
 		free(pd);
@@ -541,13 +635,20 @@ efipart_updatehd(void)
 
 		if ((node = efi_devpath_last_node(devpath)) == NULL)
 			continue;
-		if (efipart_floppy(node) != NULL)
+
+		if (!efipart_hdd(devpath))
 			continue;
 
 		status = BS->HandleProtocol(efipart_handles[i],
 		    &blkio_guid, (void **)&blkio);
 		if (EFI_ERROR(status))
 			continue;
+
+		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
+		    DevicePathSubType(node) == MEDIA_FILEPATH_DP) {
+			efipart_hdinfo_add_filepath(efipart_handles[i]);
+			continue;
+		}
 
 		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
 		    DevicePathSubType(node) == MEDIA_HARDDRIVE_DP) {
@@ -568,18 +669,16 @@ efipart_updatehd(void)
 				continue;
 			if ((node = efi_devpath_last_node(devpathcpy)) == NULL)
 				continue;
+
 			if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
 			    DevicePathSubType(node) == MEDIA_HARDDRIVE_DP)
 				continue;
+
 			efipart_hdinfo_add(handle, efipart_handles[i]);
 			continue;
 		}
 
-		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
-		    DevicePathSubType(node) == MEDIA_FILEPATH_DP) {
-			efipart_hdinfo_add_filepath(efipart_handles[i]);
-			continue;
-		}
+		efipart_hdinfo_add(efipart_handles[i], NULL);
 	}
 }
 

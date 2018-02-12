@@ -18,13 +18,10 @@ LIBC_SRC=	${SRCTOP}/lib/libc
 
 LIB?=		sa
 NO_PIC=
-WARNS?=		0
-
-CFLAGS+= -I${SASRC}
 
 # standalone components and stuff we have modified locally
-SRCS+=	gzguts.h zutil.h __main.c assert.c bcd.c environment.c getopt.c gets.c \
-	globals.c pager.c panic.c printf.c strdup.c strerror.c strtol.c strtoul.c \
+SRCS+=	gzguts.h zutil.h __main.c abort.c assert.c bcd.c environment.c getopt.c gets.c \
+	globals.c pager.c panic.c printf.c strdup.c strerror.c \
 	random.c sbrk.c twiddle.c zalloc.c zalloc_malloc.c
 
 # private (pruned) versions of libc string functions
@@ -41,6 +38,11 @@ SRCS+=	bcmp.c bcopy.c bzero.c ffs.c fls.c \
 	qdivrem.c strcat.c strchr.c strcmp.c strcpy.c stpcpy.c stpncpy.c \
 	strcspn.c strlcat.c strlcpy.c strlen.c strncat.c strncmp.c strncpy.c \
 	strnlen.c strpbrk.c strrchr.c strsep.c strspn.c strstr.c strtok.c swab.c
+
+# stdlib functions from libc
+.PATH: ${LIBC_SRC}/stdlib
+SRCS+=	abs.c strtol.c strtoll.c strtoul.c strtoull.c
+
 .if ${MACHINE_CPUARCH} == "arm"
 .PATH: ${LIBC_SRC}/arm/gen
 
@@ -90,48 +92,41 @@ SRCS+=	_setjmp.S
 # loader(8) with LOADER_BZIP2_SUPPORT defined
 .PATH: ${SRCTOP}/contrib/bzip2
 CFLAGS+= -DBZ_NO_STDIO -DBZ_NO_COMPRESS
-SRCS+=	libsa_bzlib_private.h
 
-.for file in bzlib.c crctable.c decompress.c huffman.c randtable.c
-SRCS+=	_${file}
-CLEANFILES+=	_${file}
-
-_${file}: ${file}
-	sed "s|bzlib_private\.h|libsa_bzlib_private.h|" \
-	    ${.ALLSRC} > ${.TARGET}
-.endfor
-
-CLEANFILES+= libsa_bzlib_private.h
-libsa_bzlib_private.h: bzlib_private.h
-	sed -e 's|<stdlib.h>|"stand.h"|' \
-		${.ALLSRC} > ${.TARGET}
+SRCS+=bzlib.c crctable.c decompress.c huffman.c randtable.c
 
 # decompression functionality from zlib
 .PATH: ${SRCTOP}/contrib/zlib
 CFLAGS+=-DHAVE_MEMCPY -I${SRCTOP}/contrib/zlib
-SRCS+=	adler32.c crc32.c libsa_zutil.h libsa_gzguts.h
+SRCS+=	adler32.c crc32.c
+SRCS+=	infback.c inffast.c inflate.c inftrees.c zutil.c
 
-.for file in infback.c inffast.c inflate.c inftrees.c zutil.c
-SRCS+=	_${file}
-CLEANFILES+=	_${file}
+# Create a subset of includes that are safe, as well as adjusting those that aren't
+# The lists may drive people nuts, but they are explicitly opt-in
+FAKE_DIRS=xlocale arpa
+SAFE_INCS=a.out.h assert.h elf.h limits.h nlist.h setjmp.h stddef.h stdbool.h string.h strings.h time.h unistd.h uuid.h
+STAND_H_INC=ctype.h fcntl.h signal.h stdio.h stdlib.h
+OTHER_INC=stdarg.h errno.h stdint.h
 
-_${file}: ${file}
-	sed -e "s|zutil\.h|libsa_zutil.h|" \
-	    -e "s|gzguts\.h|libsa_gzguts.h|" \
-	    ${.ALLSRC} > ${.TARGET}
-.endfor
-
-# depend on stand.h being able to be included multiple times
-.for file in zutil.h gzguts.h
-CLEANFILES+= libsa_${file}
-libsa_${file}: ${file}
-	sed -e 's|<fcntl.h>|"stand.h"|' \
-	    -e 's|<stddef.h>|"stand.h"|' \
-	    -e 's|<string.h>|"stand.h"|' \
-	    -e 's|<stdio.h>|"stand.h"|' \
-	    -e 's|<stdlib.h>|"stand.h"|' \
-	    ${.ALLSRC} > ${.TARGET}
-.endfor
+beforedepend:
+	echo beforedepend; \
+	mkdir -p ${FAKE_DIRS}; \
+	for i in ${SAFE_INCS}; do \
+		ln -sf ${SRCTOP}/include/$$i $$i; \
+	done; \
+	ln -sf ${SYSDIR}/${MACHINE}/include/stdarg.h stdarg.h; \
+	ln -sf ${SYSDIR}/sys/errno.h errno.h; \
+	ln -sf ${SYSDIR}/sys/stdint.h stdint.h; \
+	ln -sf ${SRCTOP}/include/arpa/inet.h arpa/inet.h; \
+	ln -sf ${SRCTOP}/include/arpa/tftp.h arpa/tftp.h; \
+	for i in _time.h _strings.h _string.h; do \
+		[ -f xlocale/$$i ] || cp /dev/null xlocale/$$i; \
+	done; \
+	for i in ${STAND_H_INC}; do \
+		ln -sf ${SASRC}/stand.h $$i; \
+	done
+CLEANDIRS+=${FAKE_DIRS}
+CLEANFILES+= ${SAFE_INCS} ${STAND_H_INC} ${OTHER_INC}
 
 # io routines
 SRCS+=	closeall.c dev.c ioctl.c nullfs.c stat.c \
@@ -151,6 +146,8 @@ SRCS+=	pkgfs.c
 .if ${MK_NAND} != "no"
 SRCS+=	nandfs.c
 .endif
+
+CFLAGS.bzipfs.c+= -I${SRCTOP}/contrib/bzip2
 
 # explicit_bzero
 .PATH: ${SYSDIR}/libkern

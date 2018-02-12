@@ -33,7 +33,7 @@
 ssize_t host_read(int fd, void *buf, size_t nbyte);
 ssize_t host_write(int fd, const void *buf, size_t nbyte);
 ssize_t host_seek(int fd, int64_t offset, int whence);
-int host_open(char *path, int flags, int mode);
+int host_open(const char *path, int flags, int mode);
 int host_close(int fd);
 void *host_mmap(void *addr, size_t len, int prot, int flags, int fd, int);
 #define host_getmem(size) host_mmap(0, size, 3 /* RW */, 0x22 /* ANON */, -1, 0);

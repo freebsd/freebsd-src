@@ -28,7 +28,6 @@ SRCS+=		ucmpdi2.c
 CFLAGS+=	-mcpu=powerpc64
 
 # Always add MI sources
-HELP_FILES=	# Disable
 .include	"${BOOTSRC}/loader.mk"
 .PATH:		${SYSDIR}/libkern
 
@@ -44,7 +43,5 @@ CFLAGS+= -Wa,-mppc64bridge
 
 DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA}
 LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSA}
-
-HELP_FILES+=	${FDTSRC}/help.fdt
 
 .include <bsd.prog.mk>

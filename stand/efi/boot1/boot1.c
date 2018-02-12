@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <efi.h>
 #include <eficonsctl.h>
-typedef CHAR16 efi_char;
 #include <efichar.h>
 
 #include "boot_module.h"

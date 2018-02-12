@@ -2,6 +2,8 @@
 
 .include <src.opts.mk>
 
+WARNS?=1
+
 .if !defined(__BOOT_DEFS_MK__)
 __BOOT_DEFS_MK__=${MFILE}
 
@@ -22,15 +24,6 @@ BOOTOBJ=	${OBJTOP}/stand
 # BINDIR is where we install
 BINDIR?=	/boot
 
-# NB: The makefiles depend on these being empty when we don't build forth.
-.if ${MK_FORTH} != "no"
-LIBFICL=	${BOOTOBJ}/ficl/libficl.a
-.if ${MACHINE} == "i386"
-LIBFICL32=	${LIBFICL}
-.else
-LIBFICL32=	${BOOTOBJ}/ficl32/libficl.a
-.endif
-.endif
 LIBSA=		${BOOTOBJ}/libsa/libsa.a
 .if ${MACHINE} == "i386"
 LIBSA32=	${LIBSA}
@@ -39,54 +32,16 @@ LIBSA32=	${BOOTOBJ}/libsa32/libsa32.a
 .endif
 
 # Standard options:
+CFLAGS+=	-nostdinc
+.if ${MACHINE_ARCH} == "amd64" && ${DO32:U0} == 1
+CFLAGS+=	-I${BOOTOBJ}/libsa32
+.else
+CFLAGS+=	-I${BOOTOBJ}/libsa
+.endif
+CFLAGS+=	-I${SASRC} -D_STANDALONE
+CFLAGS+=	-I${SYSDIR}
 
-# Filesystem support
-.if ${LOADER_CD9660_SUPPORT:Uno} == "yes"
-CFLAGS+=	-DLOADER_CD9660_SUPPORT
-.endif
-.if ${LOADER_EXT2FS_SUPPORT:Uno} == "yes"
-CFLAGS+=	-DLOADER_EXT2FS_SUPPORT
-.endif
-.if ${LOADER_MSDOS_SUPPORT:Uno} == "yes"
-CFLAGS+=	-DLOADER_MSDOS_SUPPORT
-.endif
-.if ${LOADER_NANDFS_SUPPORT:U${MK_NAND}} == "yes"
-CFLAGS+=	-DLOADER_NANDFS_SUPPORT
-.endif
-.if ${LOADER_UFS_SUPPORT:Uyes} == "yes"
-CFLAGS+=	-DLOADER_UFS_SUPPORT
-.endif
-
-# Compression
-.if ${LOADER_GZIP_SUPPORT:Uno} == "yes"
-CFLAGS+=	-DLOADER_GZIP_SUPPORT
-.endif
-.if ${LOADER_BZIP2_SUPPORT:Uno} == "yes"
-CFLAGS+=	-DLOADER_BZIP2_SUPPORT
-.endif
-
-# Network related things
-.if ${LOADER_NET_SUPPORT:Uno} == "yes"
-CFLAGS+=	-DLOADER_NET_SUPPORT
-.endif
-.if ${LOADER_NFS_SUPPORT:Uno} == "yes"
-CFLAGS+=	-DLOADER_NFS_SUPPORT
-.endif
-.if ${LOADER_TFTP_SUPPORT:Uno} == "yes"
-CFLAGS+=	-DLOADER_TFTP_SUPPORT
-.endif
-
-# Disk and partition support
-.if ${LOADER_DISK_SUPPORT:Uyes} == "yes"
-CFLAGS+= -DLOADER_DISK_SUPPORT
-.if ${LOADER_GPT_SUPPORT:Uyes} == "yes"
-CFLAGS+= -DLOADER_GPT_SUPPORT
-.endif
-.if ${LOADER_MBR_SUPPORT:Uyes} == "yes"
-CFLAGS+= -DLOADER_MBR_SUPPORT
-.endif
-
-# GELI Support, with backward compat hooks
+# GELI Support, with backward compat hooks (mostly)
 .if defined(HAVE_GELI)
 .if defined(LOADER_NO_GELI_SUPPORT)
 MK_LOADER_GELI=no
@@ -100,11 +55,17 @@ MK_LOADER_GELI=yes
 CFLAGS+=	-DLOADER_GELI_SUPPORT
 CFLAGS+=	-I${BOOTSRC}/geli
 LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
-.endif
-.endif
+.endif # MK_LOADER_GELI
+.endif # HAVE_GELI
+
+# These should be confined to loader.mk, but can't because uboot/lib
+# also uses it. It's part of loader, but isn't a loader so we can't
+# just include loader.mk
+.if ${LOADER_DISK_SUPPORT:Uyes} == "yes"
+CFLAGS+= -DLOADER_DISK_SUPPORT
 .endif
 
-CFLAGS+=	-I${SYSDIR}
+# Machine specific flags for all builds here
 
 # All PowerPC builds are 32 bit. We have no 64-bit loaders on powerpc
 # or powerpc64.
@@ -120,6 +81,49 @@ CFLAGS+=	-m32 -mcpu=i386
 # LD_FLAGS is passed directly to ${LD}, not via ${CC}:
 LD_FLAGS+=	-m elf_i386_fbsd
 AFLAGS+=	--32
+.endif
+
+SSP_CFLAGS=
+
+# Add in the no float / no SIMD stuff and announce we're freestanding
+# aarch64 and riscv don't have -msoft-float, but all others do. riscv
+# currently has no /boot/loader, but may soon.
+CFLAGS+=	-ffreestanding ${CFLAGS_NO_SIMD}
+.if ${MACHINE_CPUARCH} == "aarch64"
+CFLAGS+=	-mgeneral-regs-only
+.elif ${MACHINE_CPUARCH} != "riscv"
+CFLAGS+=	-msoft-float
+.endif
+
+.if ${MACHINE_CPUARCH} == "i386" || (${MACHINE_CPUARCH} == "amd64" && ${DO32:U0} == 1)
+CFLAGS+=	-march=i386
+CFLAGS.gcc+=	-mpreferred-stack-boundary=2
+.endif
+
+
+.if ${MACHINE_CPUARCH} == "arm"
+# Do not generate movt/movw, because the relocation fixup for them does not
+# translate to the -Bsymbolic -pie format required by self_reloc() in loader(8).
+# Also, the fpu is not available in a standalone environment.
+.if ${COMPILER_VERSION} < 30800
+CFLAGS.clang+=	-mllvm -arm-use-movt=0
+.else
+CFLAGS.clang+=	-mno-movt
+.endif
+CFLAGS.clang+=  -mfpu=none
+.endif
+
+# The boot loader build uses dd status=none, where possible, for reproducible
+# build output (since performance varies from run to run). Trouble is that
+# option was recently (10.3) added to FreeBSD and is non-standard. Only use it
+# when this test succeeds rather than require dd to be a bootstrap tool.
+DD_NOSTATUS!=(dd status=none count=0 2> /dev/null && echo status=none) || true
+DD=dd ${DD_NOSTATUS}
+
+.if ${MK_LOADER_FORCE_LE} != "no"
+.if ${MACHINE_ARCH} == "powerpc64"
+CFLAGS+=	-mlittle-endian
+.endif
 .endif
 
 # Make sure we use the machine link we're about to create
@@ -163,9 +167,5 @@ ${_ILINKS}:
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET:T} "->" $$path ; \
 	ln -fhs $$path ${.TARGET:T}
-
-# For loader implementations, we generate a loader.help file. This can be suppressed by
-# setting HELP_FILES to nothing.
-HELP_FILES=	${LDRSRC}/help.common
 
 .endif # __BOOT_DEFS_MK__
