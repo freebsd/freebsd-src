@@ -163,7 +163,7 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	 * is very little memory left, so we cheat and tell them that
 	 * all memory that isn't wired down is free.
 	 */
-	memused = vm_cnt.v_wire_count * PAGE_SIZE;
+	memused = vm_wire_count() * PAGE_SIZE;
 	memfree = memtotal - memused;
 	swap_pager_status(&i, &j);
 	swaptotal = (unsigned long long)i * PAGE_SIZE;
