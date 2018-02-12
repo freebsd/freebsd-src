@@ -12,6 +12,7 @@ SUBDIR=adjkerntz \
 	conscontrol \
 	ddb \
 	devfs \
+	devmatch \
 	dhclient \
 	dmesg \
 	dump \

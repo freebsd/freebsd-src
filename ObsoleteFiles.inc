@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180212: move devmatch
+OLD_FILES+=usr/sbin/devmatch
 # 20180211: remove usb.conf
 OLD_FILES+=etc/devd/usb.conf
 # 20180208: remove c_rehash(1)
