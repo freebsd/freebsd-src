@@ -10,6 +10,7 @@ SUBDIR+=		forth
 .endif
 .if ${MK_LOADER_LUA} != "no"
 SUBDIR+=		liblua
+SUBDIR+=		lua
 .endif
 
 SUBDIR+=		man
