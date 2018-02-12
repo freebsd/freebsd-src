@@ -12,7 +12,7 @@ FILES+=	apple.conf
 .if ${MK_ACPI} != "no"
 FILES+=	asus.conf
 .endif
-FILES+=devmatch.conf
+FILES+=	devmatch.conf
 .if ${MK_HYPERV} != "no"
 FILES+=	hyperv.conf
 .endif
