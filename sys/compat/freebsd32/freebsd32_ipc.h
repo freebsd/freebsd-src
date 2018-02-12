@@ -47,6 +47,18 @@ struct semid_ds32 {
 	int32_t		sem_ctime;
 };
 
+#ifdef _KERNEL
+struct semid_kernel32 {
+	/* Data structure exposed to user space. */
+	struct semid_ds32	u;
+
+	/* Kernel-private components of the semaphore. */
+	int32_t			label;
+	int32_t			cred;
+};
+#endif /* _KERNEL */
+
+
 union semun32 {
 	int		val;
 	uint32_t	buf;
@@ -67,6 +79,17 @@ struct msqid_ds32 {
 	int32_t		msg_ctime;
 };
 
+#ifdef _KERNEL
+struct msqid_kernel32 {
+	/* Data structure exposed to user space. */
+	struct msqid_ds32	u;
+
+	/* Kernel-private components of the message queue. */
+	uint32_t		label;
+	uint32_t		cred;
+};
+#endif
+
 struct shmid_ds32 {
 	struct ipc_perm32 shm_perm;
 	int32_t		shm_segsz;
@@ -77,6 +100,15 @@ struct shmid_ds32 {
 	int32_t		shm_dtime;
 	int32_t		shm_ctime;
 };
+
+#ifdef _KERNEL
+struct shmid_kernel32 {
+	struct shmid_ds32	 u;
+	int32_t			*object;
+	int32_t			*label;
+	int32_t			*cred;
+};
+#endif
 
 struct shm_info32 {
 	int32_t		used_ids;
