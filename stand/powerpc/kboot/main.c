@@ -122,7 +122,7 @@ main(int argc, const char **argv)
 	setenv("loaddev", bootdev, 1);
 	setenv("LINES", "24", 1);
 
-	interact(NULL);			/* doesn't return */
+	interact();			/* doesn't return */
 
 	return (0);
 }
@@ -130,7 +130,8 @@ main(int argc, const char **argv)
 void
 exit(int code)
 {
-	/* XXX: host_exit */
+	while (1); /* XXX: host_exit */
+	__unreachable();
 }
 
 void

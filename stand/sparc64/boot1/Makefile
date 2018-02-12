@@ -27,6 +27,4 @@ ${FILES}: boot1.aout
 boot1.aout: boot1.elf
 	elf2aout -o ${.TARGET} ${.ALLSRC}
 
-boot1.o: ${SASRC}/ufsread.c
-
 .include <bsd.prog.mk>

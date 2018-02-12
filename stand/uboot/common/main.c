@@ -500,7 +500,7 @@ main(int argc, char **argv)
 	archsw.arch_readin = uboot_readin;
 	archsw.arch_autoload = uboot_autoload;
 
-	interact(NULL);				/* doesn't return */
+	interact();				/* doesn't return */
 
 	return (0);
 }
@@ -526,7 +526,8 @@ command_reboot(int argc, char *argv[])
 	ub_reset();
 
 	printf("Reset failed!\n");
-	while(1);
+	while (1);
+	__unreachable();
 }
 
 COMMAND_SET(devinfo, "devinfo", "show U-Boot devices", command_devinfo);

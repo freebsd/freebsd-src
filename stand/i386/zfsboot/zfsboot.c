@@ -16,6 +16,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "stand.h"
+
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/diskmbr.h>
@@ -40,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include "rbx.h"
 #include "drv.h"
 #include "edd.h"
-#include "util.h"
 #include "cons.h"
 #include "bootargs.h"
 #include "paths.h"
@@ -96,7 +97,6 @@ static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
 static uint32_t bootdev;
 static struct zfs_boot_args zfsargs;
-static struct zfsmount zfsmount;
 
 vm_offset_t	high_heap_base;
 uint32_t	bios_basemem, bios_extmem, high_heap_size;
@@ -124,39 +124,7 @@ void reboot(void);
 static void load(void);
 static int parse_cmd(void);
 static void bios_getmem(void);
-void *malloc(size_t n);
-void free(void *ptr);
 int main(void);
-
-void *
-malloc(size_t n)
-{
-	char *p = heap_next;
-	if (p + n > heap_end) {
-		printf("malloc failure\n");
-		for (;;)
-		    ;
-		/* NOTREACHED */
-		return (0);
-	}
-	heap_next += n;
-	return (p);
-}
-
-void
-free(void *ptr)
-{
-
-	return;
-}
-
-static char *
-strdup(const char *s)
-{
-	char *p = malloc(strlen(s) + 1);
-	strcpy(p, s);
-	return (p);
-}
 
 #ifdef LOADER_GELI_SUPPORT
 #include "geliboot.c"
@@ -200,7 +168,7 @@ static vdev_t *primary_vdev;
  * buffer pointer crosses a 64k boundary.
  */
 static int
-vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
+vdev_read(void *xvdev, void *priv, off_t off, void *buf, size_t bytes)
 {
 	char *p;
 	daddr_t lba, alignlba;
@@ -262,6 +230,13 @@ vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 
 	return 0;
 }
+/* Match the signature exactly due to signature madness */
+static int
+vdev_read2(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
+{
+	return vdev_read(vdev, priv, off, buf, bytes);
+}
+
 
 static int
 vdev_write(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
@@ -493,7 +468,6 @@ drvsize_ext(struct dsk *dskp)
 	if (V86_CY(v86.efl) ||	/* carry set */
 	    (v86.edx & 0xff) <= (unsigned)(dskp->drive & 0x7f)) /* unit # bad */
 		return (0);
-
 	cyl = ((v86.ecx & 0xc0) << 2) + ((v86.ecx & 0xff00) >> 8) + 1;
 	/* Convert max head # -> # of heads */
 	hds = ((v86.edx & 0xff00) >> 8) + 1;
@@ -557,7 +531,7 @@ probe_drive(struct dsk *dsk)
     /*
      * If we find a vdev on the whole disk, stop here.
      */
-    if (vdev_probe(vdev_read, dsk, NULL) == 0)
+    if (vdev_probe(vdev_read2, dsk, NULL) == 0)
 	return;
 
 #ifdef LOADER_GELI_SUPPORT
@@ -572,9 +546,9 @@ probe_drive(struct dsk *dsk)
 	elba--;
     }
     if (geli_taste(vdev_read, dsk, elba) == 0) {
-	if (geli_havekey(dsk) == 0 || geli_passphrase(&gelipw, dsk->unit,
+	if (geli_havekey(dsk) == 0 || geli_passphrase(gelipw, dsk->unit,
 	  ':', 0, dsk) == 0) {
-	    if (vdev_probe(vdev_read, dsk, NULL) == 0) {
+	    if (vdev_probe(vdev_read2, dsk, NULL) == 0) {
 		return;
 	    }
 	}
@@ -621,7 +595,7 @@ probe_drive(struct dsk *dsk)
 		dsk->size = ent->ent_lba_end - ent->ent_lba_start + 1;
 		dsk->slice = part + 1;
 		dsk->part = 255;
-		if (vdev_probe(vdev_read, dsk, NULL) == 0) {
+		if (vdev_probe(vdev_read2, dsk, NULL) == 0) {
 		    /*
 		     * This slice had a vdev. We need a new dsk
 		     * structure now since the vdev now owns this one.
@@ -631,12 +605,12 @@ probe_drive(struct dsk *dsk)
 #ifdef LOADER_GELI_SUPPORT
 		else if (geli_taste(vdev_read, dsk, ent->ent_lba_end -
 			 ent->ent_lba_start) == 0) {
-		    if (geli_havekey(dsk) == 0 || geli_passphrase(&gelipw,
+		    if (geli_havekey(dsk) == 0 || geli_passphrase(gelipw,
 		      dsk->unit, 'p', dsk->slice, dsk) == 0) {
 			/*
 			 * This slice has GELI, check it for ZFS.
 			 */
-			if (vdev_probe(vdev_read, dsk, NULL) == 0) {
+			if (vdev_probe(vdev_read2, dsk, NULL) == 0) {
 			    /*
 			     * This slice had a vdev. We need a new dsk
 			     * structure now since the vdev now owns this one.
@@ -665,18 +639,18 @@ trymbr:
 	dsk->start = dp[i].dp_start;
 	dsk->size = dp[i].dp_size;
 	dsk->slice = i + 1;
-	if (vdev_probe(vdev_read, dsk, NULL) == 0) {
+	if (vdev_probe(vdev_read2, dsk, NULL) == 0) {
 	    dsk = copy_dsk(dsk);
 	}
 #ifdef LOADER_GELI_SUPPORT
 	else if (geli_taste(vdev_read, dsk, dp[i].dp_size -
 		 dp[i].dp_start) == 0) {
-	    if (geli_havekey(dsk) == 0 || geli_passphrase(&gelipw, dsk->unit,
+	    if (geli_havekey(dsk) == 0 || geli_passphrase(gelipw, dsk->unit,
 	      's', i, dsk) == 0) {
 		/*
 		 * This slice has GELI, check it for ZFS.
 		 */
-		if (vdev_probe(vdev_read, dsk, NULL) == 0) {
+		if (vdev_probe(vdev_read2, dsk, NULL) == 0) {
 		    /*
 		     * This slice had a vdev. We need a new dsk
 		     * structure now since the vdev now owns this one.
@@ -711,6 +685,7 @@ main(void)
 	heap_next = (char *)dmadat + sizeof(*dmadat);
 	heap_end = (char *)PTOV(bios_basemem);
     }
+    setheap(heap_next, heap_end);
 
     dsk = malloc(sizeof(struct dsk));
     dsk->drive = *(uint8_t *)PTOV(ARGS);

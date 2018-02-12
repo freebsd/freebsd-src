@@ -71,6 +71,50 @@ CFLAGS+=	-DBOOT_PROMPT_123
 SRCS+=	install.c
 .endif
 
+# Filesystem support
+.if ${LOADER_CD9660_SUPPORT:Uno} == "yes"
+CFLAGS+=	-DLOADER_CD9660_SUPPORT
+.endif
+.if ${LOADER_EXT2FS_SUPPORT:Uno} == "yes"
+CFLAGS+=	-DLOADER_EXT2FS_SUPPORT
+.endif
+.if ${LOADER_MSDOS_SUPPORT:Uno} == "yes"
+CFLAGS+=	-DLOADER_MSDOS_SUPPORT
+.endif
+.if ${LOADER_NANDFS_SUPPORT:U${MK_NAND}} == "yes"
+CFLAGS+=	-DLOADER_NANDFS_SUPPORT
+.endif
+.if ${LOADER_UFS_SUPPORT:Uyes} == "yes"
+CFLAGS+=	-DLOADER_UFS_SUPPORT
+.endif
+
+# Compression
+.if ${LOADER_GZIP_SUPPORT:Uno} == "yes"
+CFLAGS+=	-DLOADER_GZIP_SUPPORT
+.endif
+.if ${LOADER_BZIP2_SUPPORT:Uno} == "yes"
+CFLAGS+=	-DLOADER_BZIP2_SUPPORT
+.endif
+
+# Network related things
+.if ${LOADER_NET_SUPPORT:Uno} == "yes"
+CFLAGS+=	-DLOADER_NET_SUPPORT
+.endif
+.if ${LOADER_NFS_SUPPORT:Uno} == "yes"
+CFLAGS+=	-DLOADER_NFS_SUPPORT
+.endif
+.if ${LOADER_TFTP_SUPPORT:Uno} == "yes"
+CFLAGS+=	-DLOADER_TFTP_SUPPORT
+.endif
+
+# Partition support
+.if ${LOADER_GPT_SUPPORT:Uyes} == "yes"
+CFLAGS+= -DLOADER_GPT_SUPPORT
+.endif
+.if ${LOADER_MBR_SUPPORT:Uyes} == "yes"
+CFLAGS+= -DLOADER_MBR_SUPPORT
+.endif
+
 .if defined(HAVE_ZFS)
 CFLAGS+=	-DLOADER_ZFS_SUPPORT
 CFLAGS+=	-I${ZFSSRC}
@@ -84,6 +128,16 @@ LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 .endif
 .endif
 
+# NB: The makefiles depend on these being empty when we don't build forth.
+.if ${MK_FORTH} != "no"
+LIBFICL=	${BOOTOBJ}/ficl/libficl.a
+.if ${MACHINE} == "i386"
+LIBFICL32=	${LIBFICL}
+.else
+LIBFICL32=	${BOOTOBJ}/ficl32/libficl.a
+.endif
+.endif
+
 CLEANFILES+=	vers.c
 VERSION_FILE?=	${.CURDIR}/version
 .if ${MK_REPRODUCIBLE_BUILD} != no
@@ -94,6 +148,8 @@ vers.c: ${LDRSRC}/newvers.sh ${VERSION_FILE}
 	    ${NEWVERSWHAT}
 
 .if !empty(HELP_FILES)
+HELP_FILES+=	${LDRSRC}/help.common
+
 CLEANFILES+=	loader.help
 FILES+=		loader.help
 

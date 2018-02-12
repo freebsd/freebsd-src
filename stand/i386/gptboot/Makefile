@@ -33,7 +33,6 @@ CFLAGS+=-DBOOTPROG=\"gptboot\" \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
 	-I${LDRSRC} \
 	-I${BOOTSRC}/i386/common \
-	-I${BTXLIB} \
 	-I${BOOTSRC}/i386/boot2 \
 	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
@@ -66,8 +65,6 @@ gptboot.bin: gptboot.out
 
 gptboot.out: ${BTXCRT} gptboot.o sio.o crc32.o drv.o cons.o ${OPENCRYPTO_XTS}
 	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBGELIBOOT} ${LIBSA32}
-
-gptboot.o: ${SASRC}/ufsread.c
 
 .include <bsd.prog.mk>
 

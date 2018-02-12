@@ -43,6 +43,7 @@ struct zfsmount {
 	objset_phys_t	objset;
 	uint64_t	rootobj;
 };
+static struct zfsmount zfsmount __unused;
 
 /*
  * List of all vdevs, chained through v_alllink.
@@ -913,7 +914,7 @@ spa_all_status(void)
 	return (ret);
 }
 
-uint64_t
+static uint64_t
 vdev_label_offset(uint64_t psize, int l, uint64_t offset)
 {
 	uint64_t label_offset;

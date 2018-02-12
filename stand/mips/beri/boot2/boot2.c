@@ -500,7 +500,7 @@ parse()
 		 */
 		unit = q[len-1];
 		if (unit < '0' || unit > '9') {
-		    printf("Invalid device: invalid unit\n", q,
+		    printf("Invalid device: invalid unit %c\n",
 		      unit);
 		    return (-1);
 		}

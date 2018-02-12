@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include "xlocale_private.h"
 
-
 /*
  * Convert a string to a long integer.
  *
@@ -150,9 +149,4 @@ long
 strtol(const char * __restrict nptr, char ** __restrict endptr, int base)
 {
 	return strtol_l(nptr, endptr, base, __get_locale());
-}
-long double
-strtold(const char * __restrict nptr, char ** __restrict endptr)
-{
-	return strtold_l(nptr, endptr, __get_locale());
 }

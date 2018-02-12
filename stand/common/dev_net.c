@@ -382,7 +382,7 @@ net_print(int verbose)
  * It leaves just the pathname in the global rootpath.
  */
 uint32_t
-net_parse_rootpath()
+net_parse_rootpath(void)
 {
 	n_long addr = htonl(INADDR_NONE);
 	size_t i;

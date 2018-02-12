@@ -78,7 +78,7 @@ void ub_putc(char);
 void ub_puts(const char *);
 
 /* system */
-void ub_reset(void);
+void ub_reset(void) __dead2;
 struct sys_info *ub_get_sys_info(void);
 
 /* time */

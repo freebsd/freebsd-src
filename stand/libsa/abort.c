@@ -1,6 +1,5 @@
-/*-
- * Copyright (c) 1998 Michael Smith
- * All rights reserved.
+/*
+ * Copyright (c) 2018 Netflix. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,41 +26,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/*
- * Minimal sbrk() emulation required for malloc support.
- */
-
-#include <string.h>
-#include "stand.h"
-#include "zalloc_defs.h"
-
-static size_t	maxheap, heapsize = 0;
-static void	*heapbase;
+#include <stand.h>
 
 void
-setheap(void *base, void *top)
+abort(void)
 {
-    /* Align start address for the malloc code.  Sigh. */
-    heapbase = (void *)(((uintptr_t)base + MALLOCALIGN_MASK) & 
-        ~MALLOCALIGN_MASK);
-    maxheap = (char *)top - (char *)heapbase;
+	panic("Bootloader aborted by abort");
 }
-
-char *
-sbrk(int incr)
-{
-    char	*ret;
-    
-    if (heapbase == 0)
-	    panic("No heap setup\n");
-
-    if ((heapsize + incr) <= maxheap) {
-	ret = (char *)heapbase + heapsize;
-	bzero(ret, incr);
-	heapsize += incr;
-	return(ret);
-    }
-    errno = ENOMEM;
-    return((char *)-1);
-}
-

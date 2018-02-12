@@ -43,7 +43,7 @@
 #include <bootstrap.h>
 
 /* Pull in the md5, sha256, and sha512 implementations */
-#include <md5.h>
+#include <sys/md5.h>
 #include <crypto/sha2/sha256.h>
 #include <crypto/sha2/sha512.h>
 

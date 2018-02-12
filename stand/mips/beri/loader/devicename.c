@@ -88,7 +88,7 @@ beri_arch_parsedev(struct disk_devdesc **dev, const char *devspec,
     struct disk_devdesc *idev;
     struct devsw	*dv;
     int			i, unit, err;
-    const char		*cp;
+    char		*cp;
     const char		*np;
 
     /* minimum length check */
@@ -130,8 +130,10 @@ beri_arch_parsedev(struct disk_devdesc **dev, const char *devspec,
 		goto fail;
 	    }
 	} else {
-		cp = np;
+	    err = EUNIT;
+	    goto fail;
 	}
+
 	if (*cp && (*cp != ':')) {
 	    err = EINVAL;
 	    goto fail;

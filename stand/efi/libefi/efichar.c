@@ -29,16 +29,16 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <errno.h>
-#ifdef LIBEFI
+#ifdef _STANDALONE
 #include <stand.h>
 #else
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#endif
 #include <sys/efi.h>
 #include <machine/efi.h>
+#endif
 
 #include "efichar.h"
 

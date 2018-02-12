@@ -41,6 +41,7 @@ extern struct devsw	 beri_cfi_disk;
 extern struct devsw	 beri_sdcard_disk;
 
 /* devicename.c */
+struct env_var;
 int	 beri_arch_setcurrdev(struct env_var *, int, const void *);
 char	*beri_arch_fmtdev(void *);
 int	 beri_arch_getdev(void **, const char *, const char **);

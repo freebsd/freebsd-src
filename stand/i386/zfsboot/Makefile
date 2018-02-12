@@ -29,8 +29,8 @@ CFLAGS+=-DBOOTPROG=\"zfsboot\" \
 	-I${BOOTSRC}/i386/common \
 	-I${BOOTSRC}/i386 \
 	-I${ZFSSRC} \
+	-I${SYSDIR}/crypto/skein \
 	-I${SYSDIR}/cddl/boot/zfs \
-	-I${BTXLIB} \
 	-I${BOOTSRC}/i386/boot2 \
 	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
@@ -62,10 +62,10 @@ zfsldr.out: zfsldr.o
 CLEANFILES+=	zfsboot2 zfsboot.ld zfsboot.ldr zfsboot.bin zfsboot.out \
 		zfsboot.o zfsboot.s zfsboot.s.tmp sio.o cons.o drv.o
 
-# We currently allow 128k bytes for zfsboot - in practice it could be
+# We currently allow 256k bytes for zfsboot - in practice it could be
 # any size up to 3.5Mb but keeping it fixed size simplifies zfsldr.
 # 
-BOOT2SIZE=	131072
+BOOT2SIZE=	262144
 
 zfsboot2: zfsboot.ld
 	@set -- `ls -l ${.ALLSRC}`; x=$$((${BOOT2SIZE}-$$5)); \

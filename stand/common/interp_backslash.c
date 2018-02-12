@@ -28,7 +28,7 @@ __FBSDID("$FreeBSD$");
  * processing" done on it.  Original can be free'd if desired.
  */
 char *
-backslash(char *str)
+backslash(const char *str)
 {
     /*
      * Remove backslashes from the strings. Turn \040 etc. into a single

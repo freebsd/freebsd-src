@@ -53,6 +53,13 @@ extern char const	hex2ascii_data[];
 #define	bin2bcd(bin)	(bin2bcd_data[bin])
 #define	hex2ascii(hex)	(hex2ascii_data[hex])
 
+static inline bool
+validbcd(int bcd)
+{
+
+	return (bcd == 0 || (bcd > 0 && bcd <= 0x99 && bcd2bin_data[bcd] != 0));
+}
+
 static __inline int imax(int a, int b) { return (a > b ? a : b); }
 static __inline int imin(int a, int b) { return (a < b ? a : b); }
 static __inline long lmax(long a, long b) { return (a > b ? a : b); }

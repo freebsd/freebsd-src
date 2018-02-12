@@ -21,8 +21,8 @@ __FBSDID("$FreeBSD$");
 
 #include <btxv86.h>
 
+#include "stand.h"
 #include "rbx.h"
-#include "util.h"
 #include "drv.h"
 #include "edd.h"
 
@@ -69,7 +69,7 @@ drvread(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
 	v86.esi = VTOPOFF(&packet);
 	v86int();
 	if (V86_CY(v86.efl)) {
-		printf("%s: error %u lba %u\n",
+		printf("%s: error %u lba %llu\n",
 		    BOOTPROG, v86.eax >> 8 & 0xff, lba);
 		return (-1);
 	}
@@ -94,7 +94,7 @@ drvwrite(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
 	v86.esi = VTOPOFF(&packet);
 	v86int();
 	if (V86_CY(v86.efl)) {
-		printf("error %u lba %u\n", v86.eax >> 8 & 0xff, lba);
+		printf("error %u lba %llu\n", v86.eax >> 8 & 0xff, lba);
 		return (-1);
 	}
 	return (0);

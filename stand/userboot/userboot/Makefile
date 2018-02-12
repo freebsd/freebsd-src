@@ -49,7 +49,6 @@ LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 .endif
 
 # Always add MI sources 
-HELP_FILES=	# Disable
 .include	"${BOOTSRC}/loader.mk"
 CFLAGS+=	-I.
 DPADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSA} 

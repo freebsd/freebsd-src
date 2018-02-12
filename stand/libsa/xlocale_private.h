@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 1998 Michael Smith
- * All rights reserved.
+ * Copyright (c) 2018 Netflix
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,46 +21,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef STAND_XLOCALE_PRIVATE_H
+#define STAND_XLOCALE_PRIVATE_H 1
 
-/*
- * Minimal sbrk() emulation required for malloc support.
- */
+typedef int locale_t;
+#define FIX_LOCALE(x)
+#define isspace_l(c, l) isspace(c)
+#define __get_locale()	0
 
-#include <string.h>
-#include "stand.h"
-#include "zalloc_defs.h"
-
-static size_t	maxheap, heapsize = 0;
-static void	*heapbase;
-
-void
-setheap(void *base, void *top)
-{
-    /* Align start address for the malloc code.  Sigh. */
-    heapbase = (void *)(((uintptr_t)base + MALLOCALIGN_MASK) & 
-        ~MALLOCALIGN_MASK);
-    maxheap = (char *)top - (char *)heapbase;
-}
-
-char *
-sbrk(int incr)
-{
-    char	*ret;
-    
-    if (heapbase == 0)
-	    panic("No heap setup\n");
-
-    if ((heapsize + incr) <= maxheap) {
-	ret = (char *)heapbase + heapsize;
-	bzero(ret, incr);
-	heapsize += incr;
-	return(ret);
-    }
-    errno = ENOMEM;
-    return((char *)-1);
-}
-
+#endif /* STAND_XLOCALE_PRIVATE_H */

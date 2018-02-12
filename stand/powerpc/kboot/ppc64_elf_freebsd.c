@@ -46,6 +46,8 @@ extern size_t		szkerneltramp;
 extern int		nkexec_segments;
 extern void *		loaded_segments;
 
+vm_offset_t md_load64(char *args, vm_offset_t *modulep, vm_offset_t *dtb);
+
 int
 ppc64_elf_loadfile(char *filename, u_int64_t dest,
     struct preloaded_file **result)
@@ -96,7 +98,7 @@ ppc64_elf_exec(struct preloaded_file *fp)
 
 	trampoline[3] = dtb;
 	trampoline[6] = mdp;
-	trampoline[7] = sizeof(mdp);
+	trampoline[7] = 0xfb5d104d;
 	printf("Kernel entry at %#jx (%#x) ...\n", e->e_entry, trampoline[2]);
 	printf("DTB at %#x, mdp at %#x\n", dtb, mdp);
 
