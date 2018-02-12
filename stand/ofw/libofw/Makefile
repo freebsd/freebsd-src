@@ -14,9 +14,7 @@ SRCS+=  devicename_stubs.c
 # Pick up the bootstrap header for some interface items
 CFLAGS+=	-I${LDRSRC}
 
-CFLAGS+=	-ffreestanding
 .if ${MACHINE_CPUARCH} == "powerpc"
-CFLAGS+=	-msoft-float
 SRCS+=		ppc64_elf_freebsd.c
 .endif
 

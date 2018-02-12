@@ -25,8 +25,6 @@ HELP_FILES=	# Disable
 .include	"${BOOTSRC}/loader.mk"
 .PATH:		${SYSDIR}/libkern
 
-CFLAGS+=	-ffreestanding
-
 LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 
 .include	"${BOOTSRC}/uboot.mk"
