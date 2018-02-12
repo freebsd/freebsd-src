@@ -182,6 +182,15 @@ void timespec2fattime(const struct timespec *tsp, int utc, u_int16_t *ddp,
 void fattime2timespec(unsigned dd, unsigned dt, unsigned dh, int utc,
     struct timespec *tsp);
 
+/*
+ * Print a [bcd_]clocktime or timespec, optionally with fractional seconds.  The
+ * nsdig argument can range from 0-9, and specifies how many decimal digits to
+ * display for fractional seconds.
+ */
+void clock_print_bcd(const struct bcd_clocktime *bct, int nsdig);
+void clock_print_ct(const struct clocktime *ct, int nsdig);
+void clock_print_ts(const struct timespec  *ts, int nsdig);
+
 #endif /* _KERNEL */
 
 #endif /* !_SYS_CLOCK_H_ */
