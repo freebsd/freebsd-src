@@ -29,7 +29,7 @@ HELP_FILES+=	help.uboot ${BOOTSRC}/fdt/help.fdt
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
 
-CFLAGS+=	-ffreestanding -msoft-float -g
+CFLAGS+=	-g
 
 LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.${MACHINE_CPUARCH}
 
