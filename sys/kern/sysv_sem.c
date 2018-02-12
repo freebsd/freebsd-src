@@ -271,7 +271,7 @@ seminit(void)
 
 	sem = malloc(sizeof(struct sem) * seminfo.semmns, M_SEM, M_WAITOK);
 	sema = malloc(sizeof(struct semid_kernel) * seminfo.semmni, M_SEM,
-	    M_WAITOK);
+	    M_WAITOK | M_ZERO);
 	sema_mtx = malloc(sizeof(struct mtx) * seminfo.semmni, M_SEM,
 	    M_WAITOK | M_ZERO);
 	semu = malloc(seminfo.semmnu * seminfo.semusz, M_SEM, M_WAITOK);
@@ -1467,6 +1467,11 @@ sysctl_sema(SYSCTL_HANDLER_ARGS)
 {
 	struct prison *pr, *rpr;
 	struct semid_kernel tsemak;
+#ifdef COMPAT_FREEBSD32
+	struct semid_kernel32 tsemak32;
+#endif
+	void *outaddr;
+	size_t outsize;
 	int error, i;
 
 	pr = req->td->td_ucred->cr_prison;
@@ -1483,7 +1488,28 @@ sysctl_sema(SYSCTL_HANDLER_ARGS)
 				tsemak.u.sem_perm.key = IPC_PRIVATE;
 		}
 		mtx_unlock(&sema_mtx[i]);
-		error = SYSCTL_OUT(req, &tsemak, sizeof(tsemak));
+#ifdef COMPAT_FREEBSD32
+		if (SV_CURPROC_FLAG(SV_ILP32)) {
+			bzero(&tsemak32, sizeof(tsemak32));
+			freebsd32_ipcperm_out(&tsemak.u.sem_perm,
+			    &tsemak32.u.sem_perm);
+			/* Don't copy u.sem_base */
+			CP(tsemak, tsemak32, u.sem_nsems);
+			CP(tsemak, tsemak32, u.sem_otime);
+			CP(tsemak, tsemak32, u.sem_ctime);
+			/* Don't copy label or cred */
+			outaddr = &tsemak32;
+			outsize = sizeof(tsemak32);
+		} else
+#endif
+		{
+			tsemak.u.sem_base = NULL;
+			tsemak.label = NULL;
+			tsemak.cred = NULL;
+			outaddr = &tsemak;
+			outsize = sizeof(tsemak);
+		}
+		error = SYSCTL_OUT(req, outaddr, outsize);
 		if (error != 0)
 			break;
 	}
