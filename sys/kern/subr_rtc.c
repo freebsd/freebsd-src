@@ -76,6 +76,10 @@ __FBSDID("$FreeBSD$");
 
 #include "clock_if.h"
 
+static int show_io;
+SYSCTL_INT(_debug, OID_AUTO, clock_show_io, CTLFLAG_RWTUN, &show_io, 0,
+    "Enable debug printing of RTC clock I/O; 1=reads, 2=writes, 3=both.");
+
 /* XXX: should be kern. now, it's no longer machdep.  */
 static int disable_rtc_set;
 SYSCTL_INT(_machdep, OID_AUTO, disable_rtc_set, CTLFLAG_RW, &disable_rtc_set,
@@ -142,6 +146,60 @@ settime_task_func(void *arg, int pending)
 		ts.tv_nsec = 0;
 	}
 	CLOCK_SETTIME(rtc->clockdev, &ts);
+}
+
+static void
+clock_dbgprint_hdr(device_t dev, int rw)
+{
+    struct timespec now;
+
+    getnanotime(&now);
+    device_printf(dev, "%s at ", (rw & CLOCK_DBG_READ) ? "read " : "write");
+    clock_print_ts(&now, 9);
+    printf(": "); 
+}
+
+void
+clock_dbgprint_bcd(device_t dev, int rw, const struct bcd_clocktime *bct)
+{
+
+    if (show_io & rw) {
+	clock_dbgprint_hdr(dev, rw);
+	clock_print_bcd(bct, 9);
+	printf("\n");
+    }
+}
+
+void
+clock_dbgprint_ct(device_t dev, int rw, const struct clocktime *ct)
+{
+
+    if (show_io & rw) {
+	clock_dbgprint_hdr(dev, rw);
+	clock_print_ct(ct, 9);
+	printf("\n");
+    }
+}
+
+void
+clock_dbgprint_err(device_t dev, int rw, int err)
+{
+
+    if (show_io & rw) {
+	clock_dbgprint_hdr(dev, rw);
+	printf("error = %d\n", err);
+    }
+}
+
+void
+clock_dbgprint_ts(device_t dev, int rw, const struct timespec *ts)
+{
+
+    if (show_io & rw) {
+	clock_dbgprint_hdr(dev, rw);
+	clock_print_ts(ts, 9);
+	printf("\n");
+    }
 }
 
 void

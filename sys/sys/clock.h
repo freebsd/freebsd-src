@@ -191,6 +191,18 @@ void clock_print_bcd(const struct bcd_clocktime *bct, int nsdig);
 void clock_print_ct(const struct clocktime *ct, int nsdig);
 void clock_print_ts(const struct timespec  *ts, int nsdig);
 
+/*
+ * Debugging helpers for RTC clock drivers.  Print a [bcd_]clocktime or
+ * timespec, only if rtc clock debugging has been enabled.  The rw argument is
+ * one of CLOCK_DBG_READ or CLOCK_DBG_WRITE.
+ */
+#define	CLOCK_DBG_READ	0x01
+#define	CLOCK_DBG_WRITE	0x02
+void clock_dbgprint_bcd(device_t dev, int rw, const struct bcd_clocktime *bct);
+void clock_dbgprint_ct(device_t dev, int rw, const struct clocktime *ct);
+void clock_dbgprint_err(device_t dev, int rw, int err);
+void clock_dbgprint_ts(device_t dev, int rw, const struct timespec *ts);
+
 #endif /* _KERNEL */
 
 #endif /* !_SYS_CLOCK_H_ */
