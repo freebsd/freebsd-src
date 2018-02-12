@@ -135,6 +135,13 @@ extern vm_offset_t	memtop_copyin;	/* memtop less heap size for the cases */
 extern uint32_t		high_heap_size;	/* extended memory region available */
 extern vm_offset_t	high_heap_base;	/* for use as the heap */
 
+/*
+ * Values for width parameter to biospci_{read,write}_config
+ */
+#define BIOSPCI_8BITS	0
+#define BIOSPCI_16BITS	1
+#define BIOSPCI_32BITS	2
+
 void	biospci_detect(void);
 int	biospci_find_devclass(uint32_t class, int index, uint32_t *locator);
 int	biospci_read_config(uint32_t locator, int offset, int width, uint32_t *val);

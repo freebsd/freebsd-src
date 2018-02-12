@@ -52,60 +52,60 @@ COMMAND_SET(boot, "boot", "boot a file or loaded kernel", command_boot);
 static int
 command_boot(int argc, char *argv[])
 {
-    struct preloaded_file	*fp;
+	struct preloaded_file	*fp;
 
-    /*
-     * See if the user has specified an explicit kernel to boot.
-     */
-    if ((argc > 1) && (argv[1][0] != '-')) {
+	/*
+	 * See if the user has specified an explicit kernel to boot.
+	 */
+	if ((argc > 1) && (argv[1][0] != '-')) {
 
-	/* XXX maybe we should discard everything and start again? */
-	if (file_findfile(NULL, NULL) != NULL) {
-	    snprintf(command_errbuf, sizeof(command_errbuf),
-		"can't boot '%s', kernel module already loaded", argv[1]);
-	    return(CMD_ERROR);
+		/* XXX maybe we should discard everything and start again? */
+		if (file_findfile(NULL, NULL) != NULL) {
+			snprintf(command_errbuf, sizeof(command_errbuf),
+			    "can't boot '%s', kernel module already loaded", argv[1]);
+			return(CMD_ERROR);
+		}
+
+		/* find/load the kernel module */
+		if (mod_loadkld(argv[1], argc - 2, argv + 2) != 0)
+			return(CMD_ERROR);
+		/* we have consumed all arguments */
+		argc = 1;
 	}
 
-	/* find/load the kernel module */
-	if (mod_loadkld(argv[1], argc - 2, argv + 2) != 0)
-	    return(CMD_ERROR);
-	/* we have consumed all arguments */
-	argc = 1;
-    }
+	/*
+	 * See if there is a kernel module already loaded
+	 */
+	if (file_findfile(NULL, NULL) == NULL)
+		if (loadakernel(0, argc - 1, argv + 1))
+			/* we have consumed all arguments */
+			argc = 1;
 
-    /*
-     * See if there is a kernel module already loaded
-     */
-    if (file_findfile(NULL, NULL) == NULL)
-	if (loadakernel(0, argc - 1, argv + 1))
-	    /* we have consumed all arguments */
-	    argc = 1;
+	/*
+	 * Loaded anything yet?
+	 */
+	if ((fp = file_findfile(NULL, NULL)) == NULL) {
+		command_errmsg = "no bootable kernel";
+		return(CMD_ERROR);
+	}
 
-    /*
-     * Loaded anything yet?
-     */
-    if ((fp = file_findfile(NULL, NULL)) == NULL) {
-	command_errmsg = "no bootable kernel";
+	/*
+	 * If we were given arguments, discard any previous.
+	 * XXX should we merge arguments?  Hard to DWIM.
+	 */
+	if (argc > 1) {
+		if (fp->f_args != NULL)
+			free(fp->f_args);
+		fp->f_args = unargv(argc - 1, argv + 1);
+	}
+
+	/* Hook for platform-specific autoloading of modules */
+	if (archsw.arch_autoload() != 0)
+		return(CMD_ERROR);
+
+	/* Call the exec handler from the loader matching the kernel */
+	file_formats[fp->f_loader]->l_exec(fp);
 	return(CMD_ERROR);
-    }
-
-    /*
-     * If we were given arguments, discard any previous.
-     * XXX should we merge arguments?  Hard to DWIM.
-     */
-    if (argc > 1) {
-	if (fp->f_args != NULL)
-	    free(fp->f_args);
-	fp->f_args = unargv(argc - 1, argv + 1);
-    }
-
-    /* Hook for platform-specific autoloading of modules */
-    if (archsw.arch_autoload() != 0)
-	return(CMD_ERROR);
-
-    /* Call the exec handler from the loader matching the kernel */
-    file_formats[fp->f_loader]->l_exec(fp);
-    return(CMD_ERROR);
 }
 
 
@@ -118,29 +118,29 @@ COMMAND_SET(autoboot, "autoboot", "boot automatically after a delay", command_au
 static int
 command_autoboot(int argc, char *argv[])
 {
-    int		howlong;
-    char	*cp, *prompt;
+	int		howlong;
+	char	*cp, *prompt;
 
-    prompt = NULL;
-    howlong = -1;
-    switch(argc) {
-    case 3:
-	prompt = argv[2];
-	/* FALLTHROUGH */
-    case 2:
-	howlong = strtol(argv[1], &cp, 0);
-	if (*cp != 0) {
-	    snprintf(command_errbuf, sizeof(command_errbuf),
-		"bad delay '%s'", argv[1]);
-	    return(CMD_ERROR);
+	prompt = NULL;
+	howlong = -1;
+	switch(argc) {
+	case 3:
+		prompt = argv[2];
+		/* FALLTHROUGH */
+	case 2:
+		howlong = strtol(argv[1], &cp, 0);
+		if (*cp != 0) {
+			snprintf(command_errbuf, sizeof(command_errbuf),
+			    "bad delay '%s'", argv[1]);
+			return(CMD_ERROR);
+		}
+		/* FALLTHROUGH */
+	case 1:
+		return(autoboot(howlong, prompt));
 	}
-	/* FALLTHROUGH */
-    case 1:
-	return(autoboot(howlong, prompt));
-    }
 
-    command_errmsg = "too many arguments";
-    return(CMD_ERROR);
+	command_errmsg = "too many arguments";
+	return(CMD_ERROR);
 }
 
 /*
@@ -150,103 +150,103 @@ command_autoboot(int argc, char *argv[])
 void
 autoboot_maybe()
 {
-    char	*cp;
+	char	*cp;
 
-    cp = getenv("autoboot_delay");
-    if ((autoboot_tried == 0) && ((cp == NULL) || strcasecmp(cp, "NO")))
-	autoboot(-1, NULL);		/* try to boot automatically */
+	cp = getenv("autoboot_delay");
+	if ((autoboot_tried == 0) && ((cp == NULL) || strcasecmp(cp, "NO")))
+		autoboot(-1, NULL);		/* try to boot automatically */
 }
 
 int
 autoboot(int timeout, char *prompt)
 {
-    time_t	when, otime, ntime;
-    int		c, yes;
-    char	*argv[2], *cp, *ep;
-    char	*kernelname;
+	time_t	when, otime, ntime;
+	int		c, yes;
+	char	*argv[2], *cp, *ep;
+	char	*kernelname;
 #ifdef BOOT_PROMPT_123
-    const char	*seq = "123", *p = seq;
+	const char	*seq = "123", *p = seq;
 #endif
 
-    autoboot_tried = 1;
+	autoboot_tried = 1;
 
-    if (timeout == -1) {
-        timeout = 10;
-	/* try to get a delay from the environment */
-	if ((cp = getenv("autoboot_delay"))) {
-	    timeout = strtol(cp, &ep, 0);
-	    if (cp == ep)
-		timeout = 10;		/* Unparseable? Set default! */
+	if (timeout == -1) {
+		timeout = 10;
+		/* try to get a delay from the environment */
+		if ((cp = getenv("autoboot_delay"))) {
+			timeout = strtol(cp, &ep, 0);
+			if (cp == ep)
+				timeout = 10;		/* Unparseable? Set default! */
+		}
 	}
-    }
 
-    kernelname = getenv("kernelname");
-    if (kernelname == NULL) {
-	argv[0] = NULL;
-	loadakernel(0, 0, argv);
 	kernelname = getenv("kernelname");
 	if (kernelname == NULL) {
-	    command_errmsg = "no valid kernel found";
-	    return(CMD_ERROR);
+		argv[0] = NULL;
+		loadakernel(0, 0, argv);
+		kernelname = getenv("kernelname");
+		if (kernelname == NULL) {
+			command_errmsg = "no valid kernel found";
+			return(CMD_ERROR);
+		}
 	}
-    }
 
-    if (timeout >= 0) {
-        otime = time(NULL);
-        when = otime + timeout;	/* when to boot */
+	if (timeout >= 0) {
+		otime = time(NULL);
+		when = otime + timeout;	/* when to boot */
 
-        yes = 0;
+		yes = 0;
 
 #ifdef BOOT_PROMPT_123
-        printf("%s\n", (prompt == NULL) ? "Hit [Enter] to boot immediately, or "
-	    "1 2 3 sequence for command prompt." : prompt);
+		printf("%s\n", (prompt == NULL) ? "Hit [Enter] to boot immediately, or "
+		    "1 2 3 sequence for command prompt." : prompt);
 #else
-        printf("%s\n", (prompt == NULL) ? "Hit [Enter] to boot immediately, or any other key for command prompt." : prompt);
+		printf("%s\n", (prompt == NULL) ? "Hit [Enter] to boot immediately, or any other key for command prompt." : prompt);
 #endif
 
-        for (;;) {
-	    if (ischar()) {
-	        c = getchar();
+		for (;;) {
+			if (ischar()) {
+				c = getchar();
 #ifdef BOOT_PROMPT_123
-		if ((c == '\r') || (c == '\n')) {
-			yes = 1;
-			break;
-		} else if (c != *p++)
-			p = seq;
-		if (*p == 0)
-			break;
+				if ((c == '\r') || (c == '\n')) {
+					yes = 1;
+					break;
+				} else if (c != *p++)
+					p = seq;
+				if (*p == 0)
+					break;
 #else
-	        if ((c == '\r') || (c == '\n'))
-		    yes = 1;
-	        break;
+				if ((c == '\r') || (c == '\n'))
+					yes = 1;
+				break;
 #endif
-	    }
-	    ntime = time(NULL);
-	    if (ntime >= when) {
-	        yes = 1;
-	        break;
-	    }
+			}
+			ntime = time(NULL);
+			if (ntime >= when) {
+				yes = 1;
+				break;
+			}
 
-	    if (ntime != otime) {
-	        printf("\rBooting [%s] in %d second%s... ",
-	    		    kernelname, (int)(when - ntime),
-			    (when-ntime)==1?"":"s");
-	        otime = ntime;
-	    }
-        }
-    } else {
-        yes = 1;
-    }
+			if (ntime != otime) {
+				printf("\rBooting [%s] in %d second%s... ",
+				    kernelname, (int)(when - ntime),
+				    (when-ntime)==1?"":"s");
+				otime = ntime;
+			}
+		}
+	} else {
+		yes = 1;
+	}
 
-    if (yes)
-	printf("\rBooting [%s]...               ", kernelname);
-    putchar('\n');
-    if (yes) {
-	argv[0] = "boot";
-	argv[1] = NULL;
-	return(command_boot(1, argv));
-    }
-    return(CMD_OK);
+	if (yes)
+		printf("\rBooting [%s]...               ", kernelname);
+	putchar('\n');
+	if (yes) {
+		argv[0] = "boot";
+		argv[1] = NULL;
+		return(command_boot(1, argv));
+	}
+	return(CMD_OK);
 }
 
 /*
@@ -255,43 +255,43 @@ autoboot(int timeout, char *prompt)
 static char *
 getbootfile(int try)
 {
-    static char *name = NULL;
-    const char	*spec, *ep;
-    size_t	len;
+	static char *name = NULL;
+	const char	*spec, *ep;
+	size_t	len;
 
-    /* we use dynamic storage */
-    if (name != NULL) {
-	free(name);
-	name = NULL;
-    }
-
-    /*
-     * Try $bootfile, then try our builtin default
-     */
-    if ((spec = getenv("bootfile")) == NULL)
-	spec = default_bootfiles;
-
-    while ((try > 0) && (spec != NULL)) {
-	spec = strchr(spec, ';');
-	if (spec)
-	    spec++;	/* skip over the leading ';' */
-	try--;
-    }
-    if (spec != NULL) {
-	if ((ep = strchr(spec, ';')) != NULL) {
-	    len = ep - spec;
-	} else {
-	    len = strlen(spec);
+	/* we use dynamic storage */
+	if (name != NULL) {
+		free(name);
+		name = NULL;
 	}
-	name = malloc(len + 1);
-	strncpy(name, spec, len);
-	name[len] = 0;
-    }
-    if (name && name[0] == 0) {
-	free(name);
-	name = NULL;
-    }
-    return(name);
+
+	/*
+	 * Try $bootfile, then try our builtin default
+	 */
+	if ((spec = getenv("bootfile")) == NULL)
+		spec = default_bootfiles;
+
+	while ((try > 0) && (spec != NULL)) {
+		spec = strchr(spec, ';');
+		if (spec)
+			spec++;	/* skip over the leading ';' */
+		try--;
+	}
+	if (spec != NULL) {
+		if ((ep = strchr(spec, ';')) != NULL) {
+			len = ep - spec;
+		} else {
+			len = strlen(spec);
+		}
+		name = malloc(len + 1);
+		strncpy(name, spec, len);
+		name[len] = 0;
+	}
+	if (name && name[0] == 0) {
+		free(name);
+		name = NULL;
+	}
+	return(name);
 }
 
 /*
@@ -307,104 +307,109 @@ getbootfile(int try)
 int
 getrootmount(char *rootdev)
 {
-    char	lbuf[128], *cp, *ep, *dev, *fstyp, *options;
-    int		fd, error;
+	char	lbuf[128], *cp, *ep, *dev, *fstyp, *options;
+	int		fd, error;
 
-    if (getenv("vfs.root.mountfrom") != NULL)
-	return(0);
+	if (getenv("vfs.root.mountfrom") != NULL)
+		return(0);
 
-    error = 1;
-    sprintf(lbuf, "%s/etc/fstab", rootdev);
-    if ((fd = open(lbuf, O_RDONLY)) < 0)
-	goto notfound;
+	error = 1;
+	sprintf(lbuf, "%s/etc/fstab", rootdev);
+	if ((fd = open(lbuf, O_RDONLY)) < 0)
+		goto notfound;
 
-    /* loop reading lines from /etc/fstab    What was that about sscanf again? */
-    while (fgetstr(lbuf, sizeof(lbuf), fd) >= 0) {
-	if ((lbuf[0] == 0) || (lbuf[0] == '#'))
-	    continue;
+	/* loop reading lines from /etc/fstab    What was that about sscanf again? */
+	fstyp = NULL;
+	dev = NULL;
+	while (fgetstr(lbuf, sizeof(lbuf), fd) >= 0) {
+		if ((lbuf[0] == 0) || (lbuf[0] == '#'))
+			continue;
 
-	/* skip device name */
-	for (cp = lbuf; (*cp != 0) && !isspace(*cp); cp++)
-	    ;
-	if (*cp == 0)		/* misformatted */
-	    continue;
-	/* delimit and save */
-	*cp++ = 0;
-	dev = strdup(lbuf);
+		/* skip device name */
+		for (cp = lbuf; (*cp != 0) && !isspace(*cp); cp++)
+			;
+		if (*cp == 0)		/* misformatted */
+			continue;
+		/* delimit and save */
+		*cp++ = 0;
+		free(dev);
+		dev = strdup(lbuf);
 
-	/* skip whitespace up to mountpoint */
-	while ((*cp != 0) && isspace(*cp))
-	    cp++;
-	/* must have /<space> to be root */
-	if ((*cp == 0) || (*cp != '/') || !isspace(*(cp + 1)))
-	    continue;
-	/* skip whitespace up to fstype */
-	cp += 2;
-	while ((*cp != 0) && isspace(*cp))
-	    cp++;
-	if (*cp == 0)		/* misformatted */
-	    continue;
-	/* skip text to end of fstype and delimit */
-	ep = cp;
-	while ((*cp != 0) && !isspace(*cp))
-	    cp++;
-	*cp = 0;
-	fstyp = strdup(ep);
+		/* skip whitespace up to mountpoint */
+		while ((*cp != 0) && isspace(*cp))
+			cp++;
+		/* must have /<space> to be root */
+		if ((*cp == 0) || (*cp != '/') || !isspace(*(cp + 1)))
+			continue;
+		/* skip whitespace up to fstype */
+		cp += 2;
+		while ((*cp != 0) && isspace(*cp))
+			cp++;
+		if (*cp == 0)		/* misformatted */
+			continue;
+		/* skip text to end of fstype and delimit */
+		ep = cp;
+		while ((*cp != 0) && !isspace(*cp))
+			cp++;
+		*cp = 0;
+		free(fstyp);
+		fstyp = strdup(ep);
 
-	/* skip whitespace up to mount options */
-	cp += 1;
-	while ((*cp != 0) && isspace(*cp))
-		cp++;
-	if (*cp == 0)           /* misformatted */
-		continue;
-	/* skip text to end of mount options and delimit */
-	ep = cp;
-	while ((*cp != 0) && !isspace(*cp))
-		cp++;
-	*cp = 0;
-	options = strdup(ep);
-	/* Build the <fstype>:<device> and save it in vfs.root.mountfrom */
-	sprintf(lbuf, "%s:%s", fstyp, dev);
+		/* skip whitespace up to mount options */
+		cp += 1;
+		while ((*cp != 0) && isspace(*cp))
+			cp++;
+		if (*cp == 0)           /* misformatted */
+			continue;
+		/* skip text to end of mount options and delimit */
+		ep = cp;
+		while ((*cp != 0) && !isspace(*cp))
+			cp++;
+		*cp = 0;
+		options = strdup(ep);
+		/* Build the <fstype>:<device> and save it in vfs.root.mountfrom */
+		sprintf(lbuf, "%s:%s", fstyp, dev);
+		setenv("vfs.root.mountfrom", lbuf, 0);
+
+		/* Don't override vfs.root.mountfrom.options if it is already set */
+		if (getenv("vfs.root.mountfrom.options") == NULL) {
+			/* save mount options */
+			setenv("vfs.root.mountfrom.options", options, 0);
+		}
+		free(options);
+		error = 0;
+		break;
+	}
+	close(fd);
 	free(dev);
 	free(fstyp);
-	setenv("vfs.root.mountfrom", lbuf, 0);
-
-	/* Don't override vfs.root.mountfrom.options if it is already set */
-	if (getenv("vfs.root.mountfrom.options") == NULL) {
-		/* save mount options */
-		setenv("vfs.root.mountfrom.options", options, 0);
-	}
-	free(options);
-	error = 0;
-	break;
-    }
-    close(fd);
 
 notfound:
-    if (error) {
-	const char *currdev;
+	if (error) {
+		const char *currdev;
 
-	currdev = getenv("currdev");
-	if (currdev != NULL && strncmp("zfs:", currdev, 4) == 0) {
-	    cp = strdup(currdev);
-	    cp[strlen(cp) - 1] = '\0';
-	    setenv("vfs.root.mountfrom", cp, 0);
-	    error = 0;
+		currdev = getenv("currdev");
+		if (currdev != NULL && strncmp("zfs:", currdev, 4) == 0) {
+			cp = strdup(currdev);
+			cp[strlen(cp) - 1] = '\0';
+			setenv("vfs.root.mountfrom", cp, 0);
+			error = 0;
+			free(cp);
+		}
 	}
-    }
 
-    return(error);
+	return(error);
 }
 
 static int
 loadakernel(int try, int argc, char* argv[])
 {
-    char *cp;
+	char *cp;
 
 	for (try = 0; (cp = getbootfile(try)) != NULL; try++)
-	    if (mod_loadkld(cp, argc - 1, argv + 1) != 0)
-		printf("can't load '%s'\n", cp);
-	    else
-		return 1;
+		if (mod_loadkld(cp, argc - 1, argv + 1) != 0)
+			printf("can't load '%s'\n", cp);
+		else
+			return 1;
 	return 0;
 }

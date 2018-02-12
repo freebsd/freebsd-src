@@ -50,6 +50,8 @@
 #define	USB_BUS_EXPLORE_PROC(bus) (usb_process + 0)
 #define	USB_BUS_CONTROL_XFER_PROC(bus) (usb_process + 1)
 #define	SYSCTL_DECL(...)
+struct sysctl_ctx_list {
+};
 struct sysctl_req {
 	void		*newptr;
 };
@@ -59,6 +61,13 @@ struct sysctl_req {
 #define	SYSCTL_INT(...)
 #define	SYSCTL_UINT(...)
 #define	SYSCTL_PROC(...)
+#define	SYSCTL_ADD_NODE(...) NULL
+#define	SYSCTL_ADD_U16(...) NULL
+#define	SYSCTL_ADD_PROC(...) NULL
+#define	sysctl_handle_int(...) EOPNOTSUPP
+#define	sysctl_handle_string(...) EOPNOTSUPP
+#define	sysctl_ctx_init(ctx) do { (void)(ctx); } while (0)
+#define	sysctl_ctx_free(ctx) do { (void)(ctx); } while (0)
 #define	TUNABLE_INT(...)
 #define	MALLOC_DECLARE(...)
 #define	MALLOC_DEFINE(...)
@@ -177,6 +186,10 @@ struct uio;
 struct thread;
 struct malloc_type;
 struct usb_process;
+
+#ifndef INT32_MAX
+#define	INT32_MAX 0x7fffffff
+#endif
 
 #ifndef HAVE_STANDARD_DEFS
 #define	_UINT8_T_DECLARED

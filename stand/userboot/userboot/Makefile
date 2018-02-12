@@ -1,18 +1,14 @@
 # $FreeBSD$
 
-MAN=
-
 LOADER_MSDOS_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	no
 LOADER_EXT2FS_SUPPORT?=	no
+PIC=yes
 
 .include <bsd.init.mk>
 
-MK_SSP=		no
-
 SHLIB_NAME=	userboot.so
-MK_CTF=		no
 STRIP=
 LIBDIR=		/boot
 
@@ -48,10 +44,10 @@ CFLAGS+=	-DUSERBOOT_ZFS_SUPPORT
 LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 .endif
 
-# Always add MI sources 
+# Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
 CFLAGS+=	-I.
-DPADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSA} 
-LDADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSA}
+DPADD+=		${LDR_INTERP} ${LIBZFSBOOT} ${LIBSA}
+LDADD+=		${LDR_INTERP} ${LIBZFSBOOT} ${LIBSA}
 
 .include <bsd.lib.mk>

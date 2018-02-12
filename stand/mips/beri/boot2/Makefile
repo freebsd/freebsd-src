@@ -43,8 +43,6 @@ SRCS=		relocate.S		\
 		cfi.c			\
 		sdcard.c
 
-MAN=
-
 AFLAGS=		-G0
 
 CFLAGS+=	-I${LDRSRC}			\

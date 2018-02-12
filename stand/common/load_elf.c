@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/exec.h>
 #include <sys/linker.h>
 #include <sys/module.h>
@@ -86,6 +87,112 @@ const char	*__elfN(moduletype) = "elf module";
 
 u_int64_t	__elfN(relocation_offset) = 0;
 
+extern void elf_wrong_field_size(void);
+#define CONVERT_FIELD(b, f, e)			\
+	switch (sizeof((b)->f)) {		\
+	case 2:					\
+		(b)->f = e ## 16toh((b)->f);	\
+		break;				\
+	case 4:					\
+		(b)->f = e ## 32toh((b)->f);	\
+		break;				\
+	case 8:					\
+		(b)->f = e ## 64toh((b)->f);	\
+		break;				\
+	default:				\
+		/* Force a link time error. */	\
+		elf_wrong_field_size();		\
+		break;				\
+	}
+
+#define CONVERT_SWITCH(h, d, f)			\
+	switch ((h)->e_ident[EI_DATA]) {	\
+	case ELFDATA2MSB:			\
+		f(d, be);			\
+		break;				\
+	case ELFDATA2LSB:			\
+		f(d, le);			\
+		break;				\
+	default:				\
+		return (EINVAL);		\
+	}
+
+
+static int elf_header_convert(Elf_Ehdr *ehdr)
+{
+	/*
+	 * Fixup ELF header endianness.
+	 *
+	 * The Xhdr structure was loaded using block read call to optimize file
+	 * accesses. It might happen, that the endianness of the system memory
+	 * is different that endianness of the ELF header.  Swap fields here to
+	 * guarantee that Xhdr always contain valid data regardless of
+	 * architecture.
+	 */
+#define HEADER_FIELDS(b, e)			\
+	CONVERT_FIELD(b, e_type, e);		\
+	CONVERT_FIELD(b, e_machine, e);		\
+	CONVERT_FIELD(b, e_version, e);		\
+	CONVERT_FIELD(b, e_entry, e);		\
+	CONVERT_FIELD(b, e_phoff, e);		\
+	CONVERT_FIELD(b, e_shoff, e);		\
+	CONVERT_FIELD(b, e_flags, e);		\
+	CONVERT_FIELD(b, e_ehsize, e);		\
+	CONVERT_FIELD(b, e_phentsize, e);	\
+	CONVERT_FIELD(b, e_phnum, e);		\
+	CONVERT_FIELD(b, e_shentsize, e);	\
+	CONVERT_FIELD(b, e_shnum, e);		\
+	CONVERT_FIELD(b, e_shstrndx, e)
+
+	CONVERT_SWITCH(ehdr, ehdr, HEADER_FIELDS);
+
+#undef HEADER_FIELDS
+
+	return (0);
+}
+
+static int elf_program_header_convert(const Elf_Ehdr *ehdr, Elf_Phdr *phdr)
+{
+#define PROGRAM_HEADER_FIELDS(b, e)		\
+	CONVERT_FIELD(b, p_type, e);		\
+	CONVERT_FIELD(b, p_flags, e);		\
+	CONVERT_FIELD(b, p_offset, e);		\
+	CONVERT_FIELD(b, p_vaddr, e);		\
+	CONVERT_FIELD(b, p_paddr, e);		\
+	CONVERT_FIELD(b, p_filesz, e);		\
+	CONVERT_FIELD(b, p_memsz, e);		\
+	CONVERT_FIELD(b, p_align, e)
+
+	CONVERT_SWITCH(ehdr, phdr, PROGRAM_HEADER_FIELDS);
+
+#undef PROGRAM_HEADER_FIELDS
+
+	return (0);
+}
+
+static int elf_section_header_convert(const Elf_Ehdr *ehdr, Elf_Shdr *shdr)
+{
+#define SECTION_HEADER_FIELDS(b, e)		\
+	CONVERT_FIELD(b, sh_name, e);		\
+	CONVERT_FIELD(b, sh_type, e);		\
+	CONVERT_FIELD(b, sh_link, e);		\
+	CONVERT_FIELD(b, sh_info, e);		\
+	CONVERT_FIELD(b, sh_flags, e);		\
+	CONVERT_FIELD(b, sh_addr, e);		\
+	CONVERT_FIELD(b, sh_offset, e);		\
+	CONVERT_FIELD(b, sh_size, e);		\
+	CONVERT_FIELD(b, sh_addralign, e);	\
+	CONVERT_FIELD(b, sh_entsize, e)
+
+	CONVERT_SWITCH(ehdr, shdr, SECTION_HEADER_FIELDS);
+
+#undef SECTION_HEADER_FIELDS
+
+	return (0);
+}
+#undef CONVERT_SWITCH
+#undef CONVERT_FIELD
+
 static int
 __elfN(load_elf_header)(char *filename, elf_file_t ef)
 {
@@ -118,11 +225,19 @@ __elfN(load_elf_header)(char *filename, elf_file_t ef)
 		err = EFTYPE;
 		goto error;
 	}
+
 	if (ehdr->e_ident[EI_CLASS] != ELF_TARG_CLASS || /* Layout ? */
 	    ehdr->e_ident[EI_DATA] != ELF_TARG_DATA ||
-	    ehdr->e_ident[EI_VERSION] != EV_CURRENT || /* Version ? */
-	    ehdr->e_version != EV_CURRENT ||
-	    ehdr->e_machine != ELF_TARG_MACH) { /* Machine ? */
+	    ehdr->e_ident[EI_VERSION] != EV_CURRENT) /* Version ? */ {
+		err = EFTYPE;
+		goto error;
+	}
+
+	err = elf_header_convert(ehdr);
+	if (err)
+		goto error;
+
+	if (ehdr->e_version != EV_CURRENT || ehdr->e_machine != ELF_TARG_MACH) { /* Machine ? */
 		err = EFTYPE;
 		goto error;
 	}
@@ -391,6 +506,9 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
     phdr = (Elf_Phdr *)(ef->firstpage + ehdr->e_phoff);
 
     for (i = 0; i < ehdr->e_phnum; i++) {
+	if (elf_program_header_convert(ehdr, phdr))
+	    continue;
+
 	/* We want to load PT_LOAD segments only.. */
 	if (phdr[i].p_type != PT_LOAD)
 	    continue;
@@ -465,6 +583,10 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	    "_loadimage: failed to read section headers");
 	goto nosyms;
     }
+
+    for (i = 0; i < ehdr->e_shnum; i++)
+	elf_section_header_convert(ehdr, &shdr[i]);
+
     file_addmetadata(fp, MODINFOMD_SHDR, chunk, shdr);
 
     /*
@@ -540,8 +662,15 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 		break;
 	}
 #endif
-
 	size = shdr[i].sh_size;
+#if defined(__powerpc__)
+  #if __ELF_WORD_SIZE == 64
+	size = htobe64(size);
+  #else
+	size = htobe32(size);
+  #endif
+#endif
+
 	archsw.arch_copyin(&size, lastaddr, sizeof(size));
 	lastaddr += sizeof(size);
 
@@ -580,6 +709,17 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
     esym = lastaddr;
 #ifndef ELF_VERBOSE
     printf("]");
+#endif
+
+#if defined(__powerpc__)
+  /* On PowerPC we always need to provide BE data to the kernel */
+  #if __ELF_WORD_SIZE == 64
+    ssym = htobe64((uint64_t)ssym);
+    esym = htobe64((uint64_t)esym);
+  #else
+    ssym = htobe32((uint32_t)ssym);
+    esym = htobe32((uint32_t)esym);
+  #endif
 #endif
 
     file_addmetadata(fp, MODINFOMD_SSYM, sizeof(ssym), &ssym);

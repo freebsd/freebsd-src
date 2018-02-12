@@ -9,7 +9,7 @@ PROVIDE (__stack = 0);
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  . = 0x01c00000 + SIZEOF_HEADERS;
+  . = 0x02c00000 + SIZEOF_HEADERS;
   .interp     : { *(.interp) 	}
   .hash          : { *(.hash)		}
   .dynsym        : { *(.dynsym)		}

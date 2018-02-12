@@ -32,6 +32,11 @@ SECTIONS
   .rela.got      : { *(.rela.got)		}
   .rela.got1     : { *(.rela.got1)		}
   .rela.got2     : { *(.rela.got2)		}
+  .dynamic        : { *(.dynamic) }
+                PROVIDE (_GOT_START_ = .);
+  .got            : { *(.got) }
+  .got.plt        : { *(.got.plt) }
+                PROVIDE (_GOT_END_ = .);
   .rela.ctors    : { *(.rela.ctors)	}
   .rela.dtors    : { *(.rela.dtors)	}
   .rela.init     : { *(.rela.init)	}
@@ -58,7 +63,6 @@ SECTIONS
   }
   .data1   : { *(.data1) }
   .got1           : { *(.got1) }
-  .dynamic        : { *(.dynamic) }
   /* Put .ctors and .dtors next to the .got2 section, so that the pointers
      get relocated with -mrelocatable. Also put in the .fixup pointers.
      The current compiler no longer needs this, but keep it around for 2.7.2  */
@@ -74,10 +78,6 @@ SECTIONS
   .fixup          : { *(.fixup) }
                 PROVIDE (_FIXUP_END_ = .);
                 PROVIDE (_GOT2_END_ = .);
-                PROVIDE (_GOT_START_ = .);
-  .got            : { *(.got) }
-  .got.plt        : { *(.got.plt) }
-                PROVIDE (_GOT_END_ = .);
   /* We want the small data sections together, so single-instruction offsets
      can access them all, and initialized data all before uninitialized, so
      we can shorten the on-disk segment size.  */
