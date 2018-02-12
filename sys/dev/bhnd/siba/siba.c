@@ -47,8 +47,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/bhnd/cores/chipc/chipc.h>
 #include <dev/bhnd/cores/chipc/pwrctl/bhnd_pwrctl.h>
 
+#include "siba_eromvar.h"
+
 #include "sibareg.h"
 #include "sibavar.h"
+
+/* RID used when allocating EROM resources */
+#define	SIBA_EROM_RID	0
 
 static bhnd_erom_class_t *
 siba_get_erom_class(driver_t *driver)
@@ -1057,7 +1062,7 @@ siba_decode_port_rid(device_t dev, device_t child, int type, int rid,
 		return (EINVAL);
 
 	/* Look for a matching addrspace entry */
-	for (u_int i = 0; i < dinfo->core_id.num_addrspace; i++) {
+	for (u_int i = 0; i < dinfo->core_id.num_admatch; i++) {
 		if (dinfo->addrspace[i].sa_rid != rid)
 			continue;
 
@@ -1131,7 +1136,7 @@ siba_get_intr_count(device_t dev, device_t child)
 		return (BHND_BUS_GET_INTR_COUNT(device_get_parent(dev), child));
 
 	dinfo = device_get_ivars(child);
-	if (!dinfo->intr_en) {
+	if (!dinfo->core_id.intr_en) {
 		/* No interrupts */
 		return (0);
 	} else {
@@ -1161,117 +1166,10 @@ siba_get_intr_ivec(device_t dev, device_t child, u_int intr, u_int *ivec)
 
 	dinfo = device_get_ivars(child);
 
-	KASSERT(dinfo->intr_en, ("core does not have an interrupt assigned"));
-	*ivec = dinfo->intr.flag;
-	return (0);
-}
+	KASSERT(dinfo->core_id.intr_en,
+	    ("core does not have an interrupt assigned"));
 
-/**
- * Register all address space mappings for @p di.
- *
- * @param dev The siba bus device.
- * @param di The device info instance on which to register all address
- * space entries.
- * @param r A resource mapping the enumeration table block for @p di.
- */
-static int
-siba_register_addrspaces(device_t dev, struct siba_devinfo *di,
-    struct bhnd_resource *r)
-{
-	struct siba_core_id	*cid;
-	uint32_t		 addr;
-	uint32_t		 size;
-	int			 error;
-
-	cid = &di->core_id;
-
-
-	/* Register the device address space entries */
-	for (uint8_t i = 0; i < di->core_id.num_addrspace; i++) {
-		uint32_t	adm;
-		u_int		adm_offset;
-		uint32_t	bus_reserved;
-
-		/* Determine the register offset */
-		adm_offset = siba_admatch_offset(i);
-		if (adm_offset == 0) {
-		    device_printf(dev, "addrspace %hhu is unsupported", i);
-		    return (ENODEV);
-		}
-
-		/* Fetch the address match register value */
-		adm = bhnd_bus_read_4(r, adm_offset);
-
-		/* Parse the value */
-		if ((error = siba_parse_admatch(adm, &addr, &size))) {
-			device_printf(dev, "failed to decode address "
-			    " match register value 0x%x\n", adm);
-			return (error);
-		}
-
-		/* If this is the device's core/enumeration addrespace,
-		 * reserve the Sonics configuration register blocks for the
-		 * use of our bus. */
-		bus_reserved = 0;
-		if (i == SIBA_CORE_ADDRSPACE)
-			bus_reserved = cid->num_cfg_blocks * SIBA_CFG_SIZE;
-
-		/* Append the region info */
-		error = siba_append_dinfo_region(di, i, addr, size,
-		    bus_reserved);
-		if (error)
-			return (error);
-	}
-
-	return (0);
-}
-
-
-/**
- * Register all interrupt descriptors for @p dinfo. Must be called after
- * configuration blocks have been mapped.
- *
- * @param dev The siba bus device.
- * @param child The siba child device.
- * @param dinfo The device info instance on which to register all interrupt
- * descriptor entries.
- * @param r A resource mapping the enumeration table block for @p di.
- */
-static int
-siba_register_interrupts(device_t dev, device_t child,
-    struct siba_devinfo *dinfo, struct bhnd_resource *r)
-{
-	uint32_t	tpsflag;
-	int		error;
-
-	/* Is backplane interrupt distribution enabled for this core? */
-	tpsflag = bhnd_bus_read_4(r, SB0_REG_ABS(SIBA_CFG0_TPSFLAG));
-	if ((tpsflag & SIBA_TPS_F0EN0) == 0) {
-		dinfo->intr_en = false;
-		return (0);
-	}
-
-	/* Have one interrupt */
-	dinfo->intr_en = true;
-	dinfo->intr.flag = SIBA_REG_GET(tpsflag, TPS_NUM0);
-	dinfo->intr.mapped = false;
-	dinfo->intr.irq = 0;
-	dinfo->intr.rid = -1;
-
-	/* Map the interrupt */
-	error = BHND_BUS_MAP_INTR(dev, child, 0 /* single intr is always 0 */,
-	    &dinfo->intr.irq);
-	if (error) {
-		device_printf(dev, "failed mapping interrupt line for core %u: "
-		    "%d\n", dinfo->core_id.core_info.core_idx, error);
-		return (error);
-	}
-	dinfo->intr.mapped = true;
-
-	/* Update the resource list */
-	dinfo->intr.rid = resource_list_add_next(&dinfo->resources, SYS_RES_IRQ,
-	    dinfo->intr.irq, dinfo->intr.irq, 1);
-
+	*ivec = dinfo->core_id.intr_flag;
 	return (0);
 }
 
@@ -1386,21 +1284,27 @@ siba_child_deleted(device_t dev, device_t child)
 int
 siba_add_children(device_t dev)
 {
-	const struct bhnd_chipid	*chipid;
+	bhnd_erom_t			*erom;
+	struct siba_erom		*siba_erom;
+	struct bhnd_erom_io		*eio;
+	const struct bhnd_chipid	*cid;
 	struct siba_core_id		*cores;
-	struct bhnd_resource		*r;
 	device_t			*children;
-	int				 rid;
 	int				 error;
 
-	cores = NULL;
-	r = NULL;
+	cid = BHND_BUS_GET_CHIPID(dev, dev);
 
-	chipid = BHND_BUS_GET_CHIPID(dev, dev);
+	/* Allocate our EROM parser */
+	eio = bhnd_erom_iores_new(dev, SIBA_EROM_RID);
+	erom = bhnd_erom_alloc(&siba_erom_parser, cid, eio);
+	if (erom == NULL) {
+		bhnd_erom_io_fini(eio);
+		return (ENODEV);
+	}
 
 	/* Allocate our temporary core and device table */
-	cores = malloc(sizeof(*cores) * chipid->ncores, M_BHND, M_WAITOK);
-	children = malloc(sizeof(*children) * chipid->ncores, M_BHND,
+	cores = malloc(sizeof(*cores) * cid->ncores, M_BHND, M_WAITOK);
+	children = malloc(sizeof(*children) * cid->ncores, M_BHND,
 	    M_WAITOK | M_ZERO);
 
 	/*
@@ -1411,39 +1315,13 @@ siba_add_children(device_t dev)
 	 * defer mapping of the per-core siba(4) config blocks until all cores
 	 * have been enumerated and otherwise configured.
 	 */
-	for (u_int i = 0; i < chipid->ncores; i++) {
+	siba_erom = (struct siba_erom *)erom;
+	for (u_int i = 0; i < cid->ncores; i++) {
 		struct siba_devinfo	*dinfo;
 		device_t		 child;
-		uint32_t		 idhigh, idlow;
-		rman_res_t		 r_count, r_end, r_start;
 
-		/* Map the core's register block */
-		rid = 0;
-		r_start = SIBA_CORE_ADDR(i);
-		r_count = SIBA_CORE_SIZE;
-		r_end = r_start + SIBA_CORE_SIZE - 1;
-		r = bhnd_alloc_resource(dev, SYS_RES_MEMORY, &rid, r_start,
-		    r_end, r_count, RF_ACTIVE);
-		if (r == NULL) {
-			error = ENXIO;
+		if ((error = siba_erom_get_core_id(siba_erom, i, &cores[i])))
 			goto failed;
-		}
-
-		/* Read the core info */
-		idhigh = bhnd_bus_read_4(r, SB0_REG_ABS(SIBA_CFG0_IDHIGH));
-		idlow = bhnd_bus_read_4(r, SB0_REG_ABS(SIBA_CFG0_IDLOW));
-
-		cores[i] = siba_parse_core_id(idhigh, idlow, i, 0);
-
-		/* Determine and set unit number */
-		for (u_int j = 0; j < i; j++) {
-			struct bhnd_core_info *cur = &cores[i].core_info;
-			struct bhnd_core_info *prev = &cores[j].core_info;
-
-			if (prev->vendor == cur->vendor &&
-			    prev->device == cur->device)
-				cur->unit++;
-		}
 
 		/* Add the child device */
 		child = BUS_ADD_CHILD(dev, 0, NULL, -1);
@@ -1460,20 +1338,8 @@ siba_add_children(device_t dev)
 			goto failed;
 		}
 
-		if ((error = siba_init_dinfo(dev, dinfo, &cores[i])))
+		if ((error = siba_init_dinfo(dev, child, dinfo, &cores[i])))
 			goto failed;
-
-		/* Register the core's address space(s). */
-		if ((error = siba_register_addrspaces(dev, dinfo, r)))
-			goto failed;
-
-		/* Register the core's interrupts */
-		if ((error = siba_register_interrupts(dev, child, dinfo, r)))
-			goto failed;
-
-		/* Unmap the core's register block */
-		bhnd_release_resource(dev, SYS_RES_MEMORY, rid, r);
-		r = NULL;
 
 		/* If pins are floating or the hardware is otherwise
 		 * unpopulated, the device shouldn't be used. */
@@ -1481,9 +1347,13 @@ siba_add_children(device_t dev)
 			device_disable(child);
 	}
 
+	/* Free EROM (and any bridge register windows it might hold) */
+	bhnd_erom_free(erom);
+	erom = NULL;
+
 	/* Map all valid core's config register blocks and perform interrupt
 	 * assignment */
-	for (u_int i = 0; i < chipid->ncores; i++) {
+	for (u_int i = 0; i < cid->ncores; i++) {
 		struct siba_devinfo	*dinfo;
 		device_t		 child;
 
@@ -1509,7 +1379,7 @@ siba_add_children(device_t dev)
 	return (0);
 
 failed:
-	for (u_int i = 0; i < chipid->ncores; i++) {
+	for (u_int i = 0; i < cid->ncores; i++) {
 		if (children[i] == NULL)
 			continue;
 
@@ -1518,9 +1388,8 @@ failed:
 
 	free(cores, M_BHND);
 	free(children, M_BHND);
-
-	if (r != NULL)
-		bhnd_release_resource(dev, SYS_RES_MEMORY, rid, r);
+	if (erom != NULL)
+		bhnd_erom_free(erom);
 
 	return (error);
 }
