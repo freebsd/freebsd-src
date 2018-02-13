@@ -71,7 +71,9 @@ __FBSDID("$FreeBSD$");
 #endif
 
 
+#ifndef VTABSIZE
 #define VTABSIZE 39
+#endif
 
 
 struct varinit {
