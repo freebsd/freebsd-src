@@ -315,6 +315,7 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 #	Requires the iwn firmware module
 # ixl:	Intel XL710 40Gbe PCIE Ethernet
 # ixlv:	Intel XL710 40Gbe VF PCIE Ethernet
+# mthca: Mellanox HCA InfiniBand
 # mlx4ib: Mellanox ConnectX HCA InfiniBand
 # mlx4en: Mellanox ConnectX HCA Ethernet
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
@@ -334,6 +335,7 @@ device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
 device		ixl		# Intel XL710 40Gbe PCIE Ethernet
 options		IXL_IW		# Enable iWARP Client Interface in ixl(4)
 device		ixlv		# Intel XL710 40Gbe VF PCIE Ethernet
+device  	mthca		# Mellanox HCA InfiniBand
 device  	mlx4		# Shared code module between IB and Ethernet
 device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
 device  	mlx4en		# Mellanox ConnectX HCA Ethernet
