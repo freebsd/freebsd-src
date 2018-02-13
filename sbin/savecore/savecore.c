@@ -109,6 +109,7 @@ printheader(xo_handle_t *xo, const struct kerneldumpheader *h,
 	uint64_t dumplen;
 	time_t t;
 	const char *stat_str;
+	const char *comp_str;
 
 	xo_flush_h(xo);
 	xo_emit_h(xo, "{Lwc:Dump header from device}{:dump_device/%s}\n",
@@ -123,10 +124,21 @@ printheader(xo_handle_t *xo, const struct kerneldumpheader *h,
 	    (long long)dumplen);
 	xo_emit_h(xo, "{P:  }{Lwc:Blocksize}{:blocksize/%d}\n",
 	    dtoh32(h->blocksize));
-	xo_emit_h(xo, "{P:  }{Lwc:Compression}{:compression/%s}\n",
-	    h->compression == KERNELDUMP_COMP_GZIP ?
-	    "gzip" : "none");
-
+	switch (h->compression) {
+	case KERNELDUMP_COMP_NONE:
+		comp_str = "none";
+		break;
+	case KERNELDUMP_COMP_GZIP:
+		comp_str = "gzip";
+		break;
+	case KERNELDUMP_COMP_ZSTD:
+		comp_str = "zstd";
+		break;
+	default:
+		comp_str = "???";
+		break;
+	}
+	xo_emit_h(xo, "{P:  }{Lwc:Compression}{:compression/%s}\n", comp_str);
 	t = dtoh64(h->dumptime);
 	xo_emit_h(xo, "{P:  }{Lwc:Dumptime}{:dumptime/%s}", ctime(&t));
 	xo_emit_h(xo, "{P:  }{Lwc:Hostname}{:hostname/%s}\n", h->hostname);
@@ -249,6 +261,8 @@ saved_dump_size(int bounds)
 	dumpsize += file_size(path);
 	(void)snprintf(path, sizeof(path), "vmcore.%d.gz", bounds);
 	dumpsize += file_size(path);
+	(void)snprintf(path, sizeof(path), "vmcore.%d.zst", bounds);
+	dumpsize += file_size(path);
 	(void)snprintf(path, sizeof(path), "textdump.tar.%d", bounds);
 	dumpsize += file_size(path);
 	(void)snprintf(path, sizeof(path), "textdump.tar.%d.gz", bounds);
@@ -268,6 +282,8 @@ saved_dump_remove(int bounds)
 	(void)unlink(path);
 	(void)snprintf(path, sizeof(path), "vmcore.%d.gz", bounds);
 	(void)unlink(path);
+	(void)snprintf(path, sizeof(path), "vmcore.%d.zst", bounds);
+	(void)unlink(path);
 	(void)snprintf(path, sizeof(path), "textdump.tar.%d", bounds);
 	(void)unlink(path);
 	(void)snprintf(path, sizeof(path), "textdump.tar.%d.gz", bounds);
@@ -282,6 +298,7 @@ symlinks_remove(void)
 	(void)unlink("key.last");
 	(void)unlink("vmcore.last");
 	(void)unlink("vmcore.last.gz");
+	(void)unlink("vmcore.last.zstd");
 	(void)unlink("vmcore_encrypted.last");
 	(void)unlink("vmcore_encrypted.last.gz");
 	(void)unlink("textdump.tar.last");
@@ -615,6 +632,7 @@ DoFile(const char *savedir, const char *device)
 		case KERNELDUMP_COMP_NONE:
 			break;
 		case KERNELDUMP_COMP_GZIP:
+		case KERNELDUMP_COMP_ZSTD:
 			if (compress && verbose)
 				printf("dump is already compressed\n");
 			compress = false;
@@ -743,7 +761,8 @@ DoFile(const char *savedir, const char *device)
 		    (isencrypted ? "vmcore_encrypted" : "vmcore"), bounds);
 		fp = zopen(corename, "w");
 	} else if (iscompressed && !isencrypted) {
-		snprintf(corename, sizeof(corename), "vmcore.%d.gz", bounds);
+		snprintf(corename, sizeof(corename), "vmcore.%d.%s", bounds,
+		    (kdhl.compression == KERNELDUMP_COMP_GZIP) ? "gz" : "zst");
 		fp = fopen(corename, "w");
 	} else {
 		snprintf(corename, sizeof(corename), "%s.%d",
@@ -845,9 +864,10 @@ DoFile(const char *savedir, const char *device)
 		}
 	}
 	if (compress || iscompressed) {
-		snprintf(linkname, sizeof(linkname), "%s.last.gz",
+		snprintf(linkname, sizeof(linkname), "%s.last.%s",
 		    istextdump ? "textdump.tar" :
-		    (isencrypted ? "vmcore_encrypted" : "vmcore"));
+		    (isencrypted ? "vmcore_encrypted" : "vmcore"),
+		    (kdhl.compression == KERNELDUMP_COMP_ZSTD) ? "zst" : "gz");
 	} else {
 		snprintf(linkname, sizeof(linkname), "%s.last",
 		    istextdump ? "textdump.tar" :

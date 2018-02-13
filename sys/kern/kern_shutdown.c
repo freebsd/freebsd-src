@@ -174,6 +174,7 @@ struct kerneldumpcrypto {
 #endif
 
 struct kerneldumpcomp {
+	uint8_t			kdc_format;
 	struct compressor	*kdc_stream;
 	uint8_t			*kdc_buf;
 	size_t			kdc_resid;
@@ -987,12 +988,23 @@ static struct kerneldumpcomp *
 kerneldumpcomp_create(struct dumperinfo *di, uint8_t compression)
 {
 	struct kerneldumpcomp *kdcomp;
+	int format;
 
-	if (compression != KERNELDUMP_COMP_GZIP)
+	switch (compression) {
+	case KERNELDUMP_COMP_GZIP:
+		format = COMPRESS_GZIP;
+		break;
+	case KERNELDUMP_COMP_ZSTD:
+		format = COMPRESS_ZSTD;
+		break;
+	default:
 		return (NULL);
+	}
+
 	kdcomp = malloc(sizeof(*kdcomp), M_DUMPER, M_WAITOK | M_ZERO);
+	kdcomp->kdc_format = compression;
 	kdcomp->kdc_stream = compressor_init(kerneldumpcomp_write_cb,
-	    COMPRESS_GZIP, di->maxiosize, kerneldump_gzlevel, di);
+	    format, di->maxiosize, kerneldump_gzlevel, di);
 	if (kdcomp->kdc_stream == NULL) {
 		free(kdcomp, M_DUMPER);
 		return (NULL);
@@ -1293,7 +1305,7 @@ dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh)
 			 * will occupy, so try to use the whole swap partition
 			 * (minus the first 64KB) in the hope that the
 			 * compressed dump will fit. If that doesn't turn out to
-			 * be enouch, the bounds checking in dump_write()
+			 * be enough, the bounds checking in dump_write()
 			 * will catch us and cause the dump to fail.
 			 */
 			dumpextent = di->mediasize - SIZEOF_METADATA -
@@ -1463,7 +1475,7 @@ dump_init_header(const struct dumperinfo *di, struct kerneldumpheader *kdh,
 	if (panicstr != NULL)
 		strlcpy(kdh->panicstring, panicstr, sizeof(kdh->panicstring));
 	if (di->kdcomp != NULL)
-		kdh->compression = KERNELDUMP_COMP_GZIP;
+		kdh->compression = di->kdcomp->kdc_format;
 	kdh->parity = kerneldump_parity(kdh);
 }
 
