@@ -5983,7 +5983,6 @@ bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 	int padding, rate, rssi = 0, noise = 0, type;
 	uint16_t phytype, phystat0, phystat3, chanstat;
 	unsigned char *mp = mtod(m, unsigned char *);
-	static int rx_mac_dec_rpt = 0;
 
 	BWN_ASSERT_LOCKED(sc);
 
@@ -6032,11 +6031,12 @@ bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 	}
 	wh = mtod(m, struct ieee80211_frame_min *);
 
-	if (macstat & BWN_RX_MAC_DEC && rx_mac_dec_rpt++ < 50)
-		device_printf(sc->sc_dev,
+	if (macstat & BWN_RX_MAC_DEC) {
+		DPRINTF(sc, BWN_DEBUG_HWCRYPTO,
 		    "RX decryption attempted (old %d keyidx %#x)\n",
 		    BWN_ISOLDFMT(mac),
 		    (macstat & BWN_RX_MAC_KEYIDX) >> BWN_RX_MAC_KEYIDX_SHIFT);
+	}
 
 	if (phystat0 & BWN_RX_PHYST0_OFDM)
 		rate = bwn_plcp_get_ofdmrate(mac, plcp,
