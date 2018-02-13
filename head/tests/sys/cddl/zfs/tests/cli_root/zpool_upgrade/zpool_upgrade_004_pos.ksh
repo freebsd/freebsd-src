@@ -65,11 +65,6 @@ function cleanup
 
 log_assert "zpool upgrade -a works"
 
-$DF -F zfs / > /dev/null 2>&1
-if (( $? == 0 )); then
-	log_unsupported "This case should not run on ZFS root system"
-fi
-
 log_onexit cleanup
 
 # Now build all of our pools
