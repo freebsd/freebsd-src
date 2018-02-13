@@ -51,7 +51,7 @@ strstr(const char *s, const char *find)
 		len = strlen(find);
 		do {
 			do {
-				if ((sc = *s++) == 0)
+				if ((sc = *s++) == '\0')
 					return (NULL);
 			} while (sc != c);
 		} while (strncmp(s, find, len) != 0);
