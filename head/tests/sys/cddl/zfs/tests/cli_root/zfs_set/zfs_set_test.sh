@@ -117,8 +117,9 @@ canmount_002_pos_body()
 	. $(atf_get_srcdir)/zfs_set_common.kshlib
 	. $(atf_get_srcdir)/zfs_set.cfg
 
-	[[ -n "$KEEP" ]] && \
-	    atf_skip "Can't test unmount -a when pools are in KEEP"
+	if other_pools_exist; then
+                atf_skip "Can't test unmount -a with existing pools"
+        fi
 
 	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
@@ -147,8 +148,9 @@ canmount_003_pos_body()
 	. $(atf_get_srcdir)/zfs_set_common.kshlib
 	. $(atf_get_srcdir)/zfs_set.cfg
 
-	[[ -n "$KEEP" ]] && \
-	    atf_skip "Can't test unmount -a when pools are in KEEP"
+	if other_pools_exist; then
+                atf_skip "Can't test unmount -a with existing pools"
+        fi
 
 	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"

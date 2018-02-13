@@ -176,10 +176,6 @@ function verify_all
 log_assert "Verify that 'zfs $mountall' succeeds as root, " \
 	"and all available ZFS filesystems are mounted."
 
-if [[ -n $KEEP ]]; then
-	log_unsupported "Can't test unmount -a when pools are in KEEP"
-fi
-
 log_onexit cleanup_all
 
 log_must setup_all

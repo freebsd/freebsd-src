@@ -37,6 +37,10 @@ zfs_mount_001_pos_body()
 	. $(atf_get_srcdir)/zfs_mount.cfg
 
 	verify_disk_count "$DISKS" 1
+	if other_pools_exist; then
+		atf_skip "Can't test unmount -a with existing pools"
+	fi
+
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_mount_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -249,8 +253,9 @@ zfs_mount_009_neg_body()
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
 
-	[[ -n "$KEEP" ]] && \
-		atf_skip "Can't test unmount -a when pools are in KEEP"
+	if other_pools_exist; then
+                atf_skip "Can't test unmount -a with existing pools"
+        fi
 
 	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
@@ -331,8 +336,9 @@ zfs_mount_all_001_pos_body()
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
 
-	[[ -n "$KEEP" ]] && \
-		atf_skip "Can't test unmount -a when pools are in KEEP"
+	if other_pools_exist; then
+                atf_skip "Can't test unmount -a with existing pools"
+        fi
 
 	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"

@@ -119,8 +119,9 @@ zpool_upgrade_004_pos_body()
 	. $(atf_get_srcdir)/zpool_upgrade.cfg
 
 	verify_disk_count "$DISKS" 2
-	[[ -n "$KEEP" ]] && \
-		atf_skip "Can't test unmount -a when pools are in KEEP"
+	if other_pools_exist; then
+                atf_skip "Can't test unmount -a with existing pools"
+        fi
 
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_upgrade_004_pos.ksh || atf_fail "Testcase failed"

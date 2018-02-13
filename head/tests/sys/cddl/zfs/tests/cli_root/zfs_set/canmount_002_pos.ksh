@@ -114,9 +114,6 @@ function cleanup
 }
 
 log_assert "Setting canmount=noauto to file system, it must be successful."
-if [[ -n $KEEP ]]; then
-	log_unsupported "Can't test unmount -a when pools are in KEEP"
-fi
 log_onexit cleanup
 
 set -A old_mnt

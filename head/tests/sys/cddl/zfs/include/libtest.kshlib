@@ -376,11 +376,18 @@ function default_cleanup
 
 function all_pools
 {
-	cmd="$ZPOOL list -H -o name | $GREP -v '$NO_POOLS'"
-	if [[ -n $KEEP ]]; then
-		cmd="$cmd | $EGREP -v '(${KEEP})'"
-	fi
+	cmd="$ZPOOL list -H -o name | $GREP 'testpool'"
 	eval $cmd
+}
+
+#
+# Returns 0 if the system contains any pools that must not be modified by the
+# ZFS tests.
+#
+function other_pools_exist
+{
+	typeset pool_count=`$ZPOOL list -H | $GREP -v '^testpool' | $WC -l`
+	[ "$pool_count" -ne 0 ]
 }
 
 function default_cleanup_noexit

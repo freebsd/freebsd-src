@@ -80,15 +80,9 @@ done
 
 log_note Unmount the file systems
 if [[ $unmountcmd = *all ]] ; then
-	if [[ -n $KEEP ]]; then
-		log_unsupported "Can't test unmount -a when pools are in KEEP"
-	fi
 	log_must $ZFS $unmountcmd -F zfs
 else
 	if [[ $unmountcmd = *-a ]] ; then
-		if [[ -n $KEEP ]]; then
-			log_unsupported "Can't test unmount -a when pools are in KEEP"
-		fi
 		log_must $ZFS $unmountcmd
 	else
 		for fs in $TESTFSS ; do

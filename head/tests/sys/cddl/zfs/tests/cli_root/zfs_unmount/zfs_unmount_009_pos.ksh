@@ -96,9 +96,6 @@ function restore_dataset
 
 
 log_assert "zfs fource unmount and destroy in snapshot directory will not cause error."
-if [[ -n $KEEP ]]; then
-	log_unsupported "Can't test unmount -a when pools are in KEEP"
-fi
 log_onexit cleanup
 
 for fs in $TESTPOOL/$TESTFS $TESTPOOL ; do

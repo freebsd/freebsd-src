@@ -59,8 +59,8 @@ umountall_001_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/vars.cfg
 
-	if [[ -n "$KEEP" ]]; then
-		atf_skip "Can't test unmount -a when pools are in KEEP"
+	if other_pools_exist; then
+		atf_skip "Can't test unmount -a with existing pools"
 	fi
 
 	verify_disk_count "$DISKS" 1
