@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -101,6 +101,9 @@ int mlx5_set_nic_vport_permanent_mac(struct mlx5_core_dev *mdev, int vport,
 				     u8 *addr);
 int mlx5_nic_vport_enable_roce(struct mlx5_core_dev *mdev);
 int mlx5_nic_vport_disable_roce(struct mlx5_core_dev *mdev);
+int mlx5_core_query_vport_counter(struct mlx5_core_dev *dev, u8 other_vport,
+                                  int vf, u8 port_num, void *out,
+                                  size_t out_sz);
 int mlx5_query_nic_vport_system_image_guid(struct mlx5_core_dev *mdev,
 					   u64 *system_image_guid);
 int mlx5_query_vport_system_image_guid(struct mlx5_core_dev *dev,
