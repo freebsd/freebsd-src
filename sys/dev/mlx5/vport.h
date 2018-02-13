@@ -41,7 +41,17 @@ int mlx5_vport_query_q_counter(struct mlx5_core_dev *mdev,
 int mlx5_vport_query_out_of_rx_buffer(struct mlx5_core_dev *mdev,
 				      u16 counter_set_id,
 				      u32 *out_of_rx_buffer);
+enum mlx5_local_lb_selection {
+	MLX5_LOCAL_MC_LB,
+	MLX5_LOCAL_UC_LB
+};
 
+int mlx5_nic_vport_query_local_lb(struct mlx5_core_dev *mdev,
+				  enum mlx5_local_lb_selection selection,
+				  u8 *value);
+int mlx5_nic_vport_modify_local_lb(struct mlx5_core_dev *mdev,
+				   enum mlx5_local_lb_selection selection,
+				   u8 value);
 u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod, u16 vport);
 u8 mlx5_query_vport_admin_state(struct mlx5_core_dev *mdev, u8 opmod,
 				u16 vport);
