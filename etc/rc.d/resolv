@@ -34,11 +34,10 @@
 . /etc/rc.subr
 
 name="resolv"
+rcvar="resolv_enable"
 desc="Create /etc/resolv.conf from kenv"
 start_cmd="${name}_start"
 stop_cmd=':'
-
-load_rc_config $name
 
 # if the info is available via dhcp/kenv
 # build the resolv.conf
@@ -60,3 +59,5 @@ resolv_start()
 	fi
 }
 
+load_rc_config $name
+run_rc_command "$1"
