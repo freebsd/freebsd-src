@@ -156,55 +156,55 @@ settime_task_func(void *arg, int pending)
 static void
 clock_dbgprint_hdr(device_t dev, int rw)
 {
-    struct timespec now;
+	struct timespec now;
 
-    getnanotime(&now);
-    device_printf(dev, "%s at ", (rw & CLOCK_DBG_READ) ? "read " : "write");
-    clock_print_ts(&now, 9);
-    printf(": "); 
+	getnanotime(&now);
+	device_printf(dev, "%s at ", (rw & CLOCK_DBG_READ) ? "read " : "write");
+	clock_print_ts(&now, 9);
+	printf(": "); 
 }
 
 void
 clock_dbgprint_bcd(device_t dev, int rw, const struct bcd_clocktime *bct)
 {
 
-    if (show_io & rw) {
-	clock_dbgprint_hdr(dev, rw);
-	clock_print_bcd(bct, 9);
-	printf("\n");
-    }
+	if (show_io & rw) {
+		clock_dbgprint_hdr(dev, rw);
+		clock_print_bcd(bct, 9);
+		printf("\n");
+	}
 }
 
 void
 clock_dbgprint_ct(device_t dev, int rw, const struct clocktime *ct)
 {
 
-    if (show_io & rw) {
-	clock_dbgprint_hdr(dev, rw);
-	clock_print_ct(ct, 9);
-	printf("\n");
-    }
+	if (show_io & rw) {
+		clock_dbgprint_hdr(dev, rw);
+		clock_print_ct(ct, 9);
+		printf("\n");
+	}
 }
 
 void
 clock_dbgprint_err(device_t dev, int rw, int err)
 {
 
-    if (show_io & rw) {
-	clock_dbgprint_hdr(dev, rw);
-	printf("error = %d\n", err);
-    }
+	if (show_io & rw) {
+		clock_dbgprint_hdr(dev, rw);
+		printf("error = %d\n", err);
+	}
 }
 
 void
 clock_dbgprint_ts(device_t dev, int rw, const struct timespec *ts)
 {
 
-    if (show_io & rw) {
-	clock_dbgprint_hdr(dev, rw);
-	clock_print_ts(ts, 9);
-	printf("\n");
-    }
+	if (show_io & rw) {
+		clock_dbgprint_hdr(dev, rw);
+		clock_print_ts(ts, 9);
+		printf("\n");
+	}
 }
 
 void
@@ -266,7 +266,7 @@ clock_unregister(device_t clockdev)
 	if (rtc != NULL) {
 		taskqueue_cancel_timeout(taskqueue_thread, &rtc->stask, NULL);
 		taskqueue_drain_timeout(taskqueue_thread, &rtc->stask);
-                free(rtc, M_DEVBUF);
+		free(rtc, M_DEVBUF);
 	}
 }
 
