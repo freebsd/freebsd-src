@@ -8,8 +8,8 @@ mlx5_cmd.c \
 mlx5_cq.c \
 mlx5_diagnostics.c \
 mlx5_eq.c \
-mlx5_eswitch_vacl.c \
-mlx5_flow_table.c \
+mlx5_fs_cmd.c \
+mlx5_fs_tree.c \
 mlx5_fw.c \
 mlx5_health.c \
 mlx5_mad.c \
