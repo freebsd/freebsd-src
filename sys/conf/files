@@ -4551,6 +4551,43 @@ ofed/drivers/infiniband/ulp/sdp/sdp_cma.c	optional sdp inet 	\
 ofed/drivers/infiniband/ulp/sdp/sdp_tx.c	optional sdp inet 	\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
 
+dev/mthca/mthca_allocator.c		optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_av.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_catas.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_cmd.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_cq.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_eq.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_mad.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_main.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_mcg.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_memfree.c		optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_mr.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_pd.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_profile.c		optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_provider.c		optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_qp.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_reset.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_srq.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_uar.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+
 dev/mlx4/mlx4_ib/mlx4_ib_alias_GUID.c		optional mlx4ib pci ofed \
 	compile-with "${OFED_C}"
 dev/mlx4/mlx4_ib/mlx4_ib_mcg.c			optional mlx4ib pci ofed \

@@ -265,6 +265,7 @@ SUBDIR=	\
 	msdosfs_iconv \
 	${_mse} \
 	msk \
+	${_mthca} \
 	mvs \
 	mwl \
 	${_mwlfw} \
@@ -675,6 +676,7 @@ _mlx4en=	mlx4en
 _mlx5en=	mlx5en
 .endif
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_mthca=		mthca
 _mlx4ib=	mlx4ib
 _mlx5ib=	mlx5ib
 .endif
