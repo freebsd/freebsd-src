@@ -28,7 +28,7 @@
 .\"     @(#)core.5	8.3 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2018
+.Dd February 13, 2018
 .Dt CORE 5
 .Os
 .Sh NAME
@@ -112,10 +112,17 @@ The following sysctl control core file compression:
 .Bl -tag -width "kern.compress_user_cores_level" -compact -offset "12345"
 .It Em kern.compress_user_cores
 Enable compression of user cores.
-A value of 1 configures gzip compression.
-gzip-compressed core files will have a suffix of
+A value of 1 configures
+.Xr gzip 1
+compression,
+and a value of 2 configures
+.Xr zstd 1
+compression.
+Compressed core files will have a suffix of
 .Ql .gz
-appended to their filenames.
+or
+.Ql .zst
+appended to their filenames depending on the selected format.
 .It Em kern.compress_user_cores_level
 Compression level.
 Defaults to 6.

@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2014, 2017 Mark Johnston <markj@FreeBSD.org>
+ * Copyright (c) 2017 Conrad Meyer <cem@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -34,8 +35,10 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_gzio.h"
+#include "opt_zstdio.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 
 #include <sys/compressor.h>
 #include <sys/kernel.h>
@@ -244,6 +247,232 @@ struct compressor_methods gzip_methods = {
 DATA_SET(compressors, gzip_methods);
 
 #endif /* GZIO */
+
+#ifdef ZSTDIO
+
+#define	ZSTD_STATIC_LINKING_ONLY
+#include <contrib/zstd/lib/zstd.h>
+
+struct zstdio_stream {
+	ZSTD_CCtx	*zst_stream;
+	ZSTD_inBuffer	zst_inbuffer;
+	ZSTD_outBuffer	zst_outbuffer;
+	uint8_t *	zst_buffer;	/* output buffer */
+	size_t		zst_maxiosz;	/* Max output IO size */
+	off_t		zst_off;	/* offset into the output stream */
+	void *		zst_static_wkspc;
+};
+
+static void 	*zstdio_init(size_t maxiosize, int level);
+static void	zstdio_reset(void *stream);
+static int	zstdio_write(void *stream, void *data, size_t len,
+		    compressor_cb_t, void *);
+static void	zstdio_fini(void *stream);
+
+static void *
+zstdio_init(size_t maxiosize, int level)
+{
+	ZSTD_CCtx *dump_compressor;
+	struct zstdio_stream *s;
+	void *wkspc, *owkspc, *buffer;
+	size_t wkspc_size, buf_size;
+
+	wkspc_size = ZSTD_estimateCStreamSize(level);
+	owkspc = wkspc = malloc(wkspc_size + 8, M_COMPRESS,
+	    M_WAITOK | M_NODUMP);
+	/* Zstd API requires 8-byte alignment. */
+	if ((uintptr_t)wkspc % 8 != 0)
+		wkspc = (void *)roundup2((uintptr_t)wkspc, 8);
+
+	dump_compressor = ZSTD_initStaticCCtx(wkspc, wkspc_size);
+	if (dump_compressor == NULL) {
+		free(owkspc, M_COMPRESS);
+		printf("%s: workspace too small.\n", __func__);
+		return (NULL);
+	}
+
+	(void)ZSTD_CCtx_setParameter(dump_compressor, ZSTD_p_checksumFlag, 1);
+
+	buf_size = ZSTD_CStreamOutSize() * 2;
+	buffer = malloc(buf_size, M_COMPRESS, M_WAITOK | M_NODUMP);
+
+	s = malloc(sizeof(*s), M_COMPRESS, M_NODUMP | M_WAITOK);
+	s->zst_buffer = buffer;
+	s->zst_outbuffer.dst = buffer;
+	s->zst_outbuffer.size = buf_size;
+	s->zst_maxiosz = maxiosize;
+	s->zst_stream = dump_compressor;
+	s->zst_static_wkspc = owkspc;
+
+	zstdio_reset(s);
+
+	return (s);
+}
+
+static void
+zstdio_reset(void *stream)
+{
+	struct zstdio_stream *s;
+	size_t res;
+
+	s = stream;
+	res = ZSTD_resetCStream(s->zst_stream, 0);
+	if (ZSTD_isError(res))
+		panic("%s: could not reset stream %p: %s\n", __func__, s,
+		    ZSTD_getErrorName(res));
+
+	s->zst_off = 0;
+	s->zst_inbuffer.src = NULL;
+	s->zst_inbuffer.size = 0;
+	s->zst_inbuffer.pos = 0;
+	s->zst_outbuffer.pos = 0;
+}
+
+static int
+zst_flush_intermediate(struct zstdio_stream *s, compressor_cb_t cb, void *arg)
+{
+	size_t bytes_to_dump;
+	int error;
+
+	/* Flush as many full output blocks as possible. */
+	/* XXX: 4096 is arbitrary safe HDD block size for kernel dumps */
+	while (s->zst_outbuffer.pos >= 4096) {
+		bytes_to_dump = rounddown(s->zst_outbuffer.pos, 4096);
+
+		if (bytes_to_dump > s->zst_maxiosz)
+			bytes_to_dump = s->zst_maxiosz;
+
+		error = cb(s->zst_buffer, bytes_to_dump, s->zst_off, arg);
+		if (error != 0)
+			return (error);
+
+		/*
+		 * Shift any non-full blocks up to the front of the output
+		 * buffer.
+		 */
+		s->zst_outbuffer.pos -= bytes_to_dump;
+		memmove(s->zst_outbuffer.dst,
+		    (char *)s->zst_outbuffer.dst + bytes_to_dump,
+		    s->zst_outbuffer.pos);
+		s->zst_off += bytes_to_dump;
+	}
+	return (0);
+}
+
+static int
+zstdio_flush(struct zstdio_stream *s, compressor_cb_t cb, void *arg)
+{
+	size_t rc, lastpos;
+	int error;
+
+	/*
+	 * Positive return indicates unflushed data remaining; need to call
+	 * endStream again after clearing out room in output buffer.
+	 */
+	rc = 1;
+	lastpos = s->zst_outbuffer.pos;
+	while (rc > 0) {
+		rc = ZSTD_endStream(s->zst_stream, &s->zst_outbuffer);
+		if (ZSTD_isError(rc)) {
+			printf("%s: ZSTD_endStream failed (%s)\n", __func__,
+			    ZSTD_getErrorName(rc));
+			return (EIO);
+		}
+		if (lastpos == s->zst_outbuffer.pos) {
+			printf("%s: did not make forward progress endStream %zu\n",
+			    __func__, lastpos);
+			return (EIO);
+		}
+
+		error = zst_flush_intermediate(s, cb, arg);
+		if (error != 0)
+			return (error);
+
+		lastpos = s->zst_outbuffer.pos;
+	}
+
+	/*
+	 * We've already done an intermediate flush, so all full blocks have
+	 * been written.  Only a partial block remains.  Padding happens in a
+	 * higher layer.
+	 */
+	if (s->zst_outbuffer.pos != 0) {
+		error = cb(s->zst_buffer, s->zst_outbuffer.pos, s->zst_off,
+		    arg);
+		if (error != 0)
+			return (error);
+	}
+
+	return (0);
+}
+
+static int
+zstdio_write(void *stream, void *data, size_t len, compressor_cb_t cb,
+    void *arg)
+{
+	struct zstdio_stream *s;
+	size_t lastpos, rc;
+	int error;
+
+	s = stream;
+	if (data == NULL)
+		return (zstdio_flush(s, cb, arg));
+
+	s->zst_inbuffer.src = data;
+	s->zst_inbuffer.size = len;
+	s->zst_inbuffer.pos = 0;
+	lastpos = 0;
+
+	while (s->zst_inbuffer.pos < s->zst_inbuffer.size) {
+		rc = ZSTD_compressStream(s->zst_stream, &s->zst_outbuffer,
+		    &s->zst_inbuffer);
+		if (ZSTD_isError(rc)) {
+			printf("%s: Compress failed on %p! (%s)\n",
+			    __func__, data, ZSTD_getErrorName(rc));
+			return (EIO);
+		}
+
+		if (lastpos == s->zst_inbuffer.pos) {
+			/*
+			 * XXX: May need flushStream to make forward progress
+			 */
+			printf("ZSTD: did not make forward progress @pos %zu\n",
+			    lastpos);
+			return (EIO);
+		}
+		lastpos = s->zst_inbuffer.pos;
+
+		error = zst_flush_intermediate(s, cb, arg);
+		if (error != 0)
+			return (error);
+	}
+	return (0);
+}
+
+static void
+zstdio_fini(void *stream)
+{
+	struct zstdio_stream *s;
+
+	s = stream;
+	if (s->zst_static_wkspc != NULL)
+		free(s->zst_static_wkspc, M_COMPRESS);
+	else
+		ZSTD_freeCCtx(s->zst_stream);
+	free(s->zst_buffer, M_COMPRESS);
+	free(s, M_COMPRESS);
+}
+
+static struct compressor_methods zstd_methods = {
+	.format = COMPRESS_ZSTD,
+	.init = zstdio_init,
+	.reset = zstdio_reset,
+	.write = zstdio_write,
+	.fini = zstdio_fini,
+};
+DATA_SET(compressors, zstd_methods);
+
+#endif /* ZSTDIO */
 
 bool
 compressor_avail(int format)
