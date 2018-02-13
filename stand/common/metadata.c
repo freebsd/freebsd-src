@@ -33,33 +33,63 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/linker.h>
+#include <sys/boot.h>
+#if defined(LOADER_FDT_SUPPORT)
+#include <fdt_platform.h>
+#endif
 
 #include <machine/metadata.h>
 
 #include "bootstrap.h"
 
-/*
- * Return a 'boothowto' value corresponding to the kernel arguments in
- * (kargs) and any relevant environment variables.
- */
-static struct 
+#if defined(__sparc64__)
+#include <openfirm.h>
+
+extern struct tlb_entry *dtlb_store;
+extern struct tlb_entry *itlb_store;
+
+extern int dtlb_slot;
+extern int itlb_slot;
+
+static int
+md_bootserial(void)
 {
-    const char	*ev;
-    int		mask;
-} howto_names[] = {
-    {"boot_askname",	RB_ASKNAME},
-    {"boot_cdrom",	RB_CDROM},
-    {"boot_ddb",	RB_KDB},
-    {"boot_dfltroot",	RB_DFLTROOT},
-    {"boot_gdb",	RB_GDB},
-    {"boot_multicons",	RB_MULTIPLE},
-    {"boot_mute",	RB_MUTE},
-    {"boot_pause",	RB_PAUSE},
-    {"boot_serial",	RB_SERIAL},
-    {"boot_single",	RB_SINGLE},
-    {"boot_verbose",	RB_VERBOSE},
-    {NULL,	0}
-};
+    char        buf[64];
+    ihandle_t        inst;
+    phandle_t        input;
+    phandle_t        node;
+    phandle_t        output;
+
+    if ((node = OF_finddevice("/options")) == -1)
+        return(-1);
+    if (OF_getprop(node, "input-device", buf, sizeof(buf)) == -1)
+        return(-1);
+    input = OF_finddevice(buf);
+    if (OF_getprop(node, "output-device", buf, sizeof(buf)) == -1)
+        return(-1);
+    output = OF_finddevice(buf);
+    if (input == -1 || output == -1 ||
+        OF_getproplen(input, "keyboard") >= 0) {
+        if ((node = OF_finddevice("/chosen")) == -1)
+            return(-1);
+        if (OF_getprop(node, "stdin", &inst, sizeof(inst)) == -1)
+            return(-1);
+        if ((input = OF_instance_to_package(inst)) == -1)
+            return(-1);
+        if (OF_getprop(node, "stdout", &inst, sizeof(inst)) == -1)
+            return(-1);
+        if ((output = OF_instance_to_package(inst)) == -1)
+            return(-1);
+    }
+    if (input != output)
+        return(-1);
+    if (OF_getprop(input, "device_type", buf, sizeof(buf)) == -1)
+        return(-1);
+    if (strcmp(buf, "serial") != 0)
+        return(-1);
+    return(0);
+}
+#endif
 
 int
 md_getboothowto(char *kargs)
@@ -68,7 +98,7 @@ md_getboothowto(char *kargs)
     int		howto;
     int		active;
     int		i;
-    
+
     /* Parse kargs */
     howto = 0;
     if (kargs != NULL) {
@@ -119,14 +149,20 @@ md_getboothowto(char *kargs)
 	    cp++;
 	}
     }
+
     /* get equivalents from the environment */
     for (i = 0; howto_names[i].ev != NULL; i++)
 	if (getenv(howto_names[i].ev) != NULL)
 	    howto |= howto_names[i].mask;
+#if defined(__sparc64__)
+    if (md_bootserial() != -1)
+	howto |= RB_SERIAL;
+#else
     if (!strcmp(getenv("console"), "comconsole"))
 	howto |= RB_SERIAL;
     if (!strcmp(getenv("console"), "nullconsole"))
 	howto |= RB_MUTE;
+#endif
     return(howto);
 }
 
@@ -135,11 +171,11 @@ md_getboothowto(char *kargs)
  * Each variable is formatted as <name>=<value>, with a single nul
  * separating each variable, and a double nul terminating the environment.
  */
-vm_offset_t
+static vm_offset_t
 md_copyenv(vm_offset_t addr)
 {
     struct env_var	*ep;
-    
+
     /* traverse the environment */
     for (ep = environ; ep != NULL; ep = ep->ev_next) {
 	archsw.arch_copyin(ep->ev_name, addr, strlen(ep->ev_name));
@@ -220,7 +256,7 @@ static int align;
     COPY32(0, a, c);				\
 }
 
-vm_offset_t
+static vm_offset_t
 md_copymodules(vm_offset_t addr, int kern64)
 {
     struct preloaded_file	*fp;
@@ -256,7 +292,7 @@ md_copymodules(vm_offset_t addr, int kern64)
 }
 
 /*
- * Load the information expected by a powerpc kernel.
+ * Load the information expected by a kernel.
  *
  * - The 'boothowto' argument is constructed
  * - The 'bootdev' argument is constructed
@@ -264,7 +300,7 @@ md_copymodules(vm_offset_t addr, int kern64)
  * - Module metadata are formatted and placed in kernel space.
  */
 int
-md_load_dual(char *args, vm_offset_t *modulep, int kern64)
+md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
 {
     struct preloaded_file	*kfp;
     struct preloaded_file	*xp;
@@ -272,6 +308,9 @@ md_load_dual(char *args, vm_offset_t *modulep, int kern64)
     vm_offset_t			kernend;
     vm_offset_t			addr;
     vm_offset_t			envp;
+#if defined(LOADER_FDT_SUPPORT)
+    vm_offset_t			fdtp;
+#endif
     vm_offset_t			size;
     uint64_t			scratch64;
     char			*rootdevname;
@@ -280,32 +319,45 @@ md_load_dual(char *args, vm_offset_t *modulep, int kern64)
     align = kern64 ? 8 : 4;
     howto = md_getboothowto(args);
 
-    /* 
-     * Allow the environment variable 'rootdev' to override the supplied device 
-     * This should perhaps go to MI code and/or have $rootdev tested/set by
-     * MI code before launching the kernel.
+    /*
+     * Allow the environment variable 'rootdev' to override the supplied
+     * device. This should perhaps go to MI code and/or have $rootdev
+     * tested/set by MI code before launching the kernel.
      */
     rootdevname = getenv("rootdev");
     if (rootdevname == NULL)
-	    rootdevname = getenv("currdev");
+	rootdevname = getenv("currdev");
     /* Try reading the /etc/fstab file to select the root device */
     getrootmount(rootdevname);
 
-    /* find the last module in the chain */
+    /* Find the last module in the chain */
     addr = 0;
     for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
 	if (addr < (xp->f_addr + xp->f_size))
 	    addr = xp->f_addr + xp->f_size;
     }
-    /* pad to a page boundary */
+    /* Pad to a page boundary */
     addr = roundup(addr, PAGE_SIZE);
 
-    /* copy our environment */
+    /* Copy our environment */
     envp = addr;
     addr = md_copyenv(addr);
 
-    /* pad to a page boundary */
+    /* Pad to a page boundary */
     addr = roundup(addr, PAGE_SIZE);
+
+#if defined(LOADER_FDT_SUPPORT)
+    /* Copy out FDT */
+    fdtp = 0;
+#if defined(__powerpc__)
+    if (getenv("usefdt") != NULL)
+#endif
+    {
+	size = fdt_copy(addr);
+	fdtp = addr;
+	addr = roundup(addr + size, PAGE_SIZE);
+    }
+#endif
 
     kernend = 0;
     kfp = file_findfile(NULL, kern64 ? "elf64 kernel" : "elf32 kernel");
@@ -317,12 +369,34 @@ md_load_dual(char *args, vm_offset_t *modulep, int kern64)
     if (kern64) {
 	scratch64 = envp;
 	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof scratch64, &scratch64);
+#if defined(LOADER_FDT_SUPPORT)
+	if (fdtp != 0) {
+	    scratch64 = fdtp;
+	    file_addmetadata(kfp, MODINFOMD_DTBP, sizeof scratch64, &scratch64);
+	}
+#endif
 	scratch64 = kernend;
-	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof scratch64, &scratch64);
+	file_addmetadata(kfp, MODINFOMD_KERNEND,
+		sizeof scratch64, &scratch64);
     } else {
 	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
+#if defined(LOADER_FDT_SUPPORT)
+	if (fdtp != 0)
+	    file_addmetadata(kfp, MODINFOMD_DTBP, sizeof fdtp, &fdtp);
+#endif
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
     }
+
+#if defined(__sparc64__)
+    file_addmetadata(kfp, MODINFOMD_DTLB_SLOTS,
+	sizeof dtlb_slot, &dtlb_slot);
+    file_addmetadata(kfp, MODINFOMD_ITLB_SLOTS,
+	sizeof itlb_slot, &itlb_slot);
+    file_addmetadata(kfp, MODINFOMD_DTLB,
+	dtlb_slot * sizeof(*dtlb_store), dtlb_store);
+    file_addmetadata(kfp, MODINFOMD_ITLB,
+	itlb_slot * sizeof(*itlb_store), itlb_store);
+#endif
 
     *modulep = addr;
     size = md_copymodules(0, kern64);
@@ -335,21 +409,26 @@ md_load_dual(char *args, vm_offset_t *modulep, int kern64)
     } else {
 	bcopy(&kernend, md->md_data, sizeof kernend);
     }
-	
+
     (void)md_copymodules(addr, kern64);
+#if defined(LOADER_FDT_SUPPORT)
+    if (dtb != NULL)
+	*dtb = fdtp;
+#endif
 
     return(0);
 }
 
 int
-md_load(char *args, vm_offset_t *modulep)
+md_load(char *args, vm_offset_t *modulep, vm_offset_t *dtb)
 {
-    return (md_load_dual(args, modulep, 0));
+    return (md_load_dual(args, modulep, dtb, 0));
 }
 
+#if defined(__mips__) || defined(__powerpc__)
 int
-md_load64(char *args, vm_offset_t *modulep)
+md_load64(char *args, vm_offset_t *modulep, vm_offset_t *dtb)
 {
-    return (md_load_dual(args, modulep, 1));
+    return (md_load_dual(args, modulep, dtb, 1));
 }
-
+#endif
