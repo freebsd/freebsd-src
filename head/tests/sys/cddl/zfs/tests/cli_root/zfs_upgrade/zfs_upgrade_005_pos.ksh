@@ -90,7 +90,7 @@ function setup_datasets
 
 log_assert "Executing 'zfs upgrade [-V version] -a' command succeeds."
 
-$DF -F zfs / > /dev/null 2>&1
+$DF -t zfs / > /dev/null 2>&1
 if (( $? == 0 )) ; then
 	log_unsupported "This case should not run on ZFS root system"
 fi

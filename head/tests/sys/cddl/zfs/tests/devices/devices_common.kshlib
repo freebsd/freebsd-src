@@ -42,7 +42,7 @@ function create_dev_file
 
 	case $filetype in
 		b)
-			devtype=$($DF -n / | $AWK '{print $3}')
+			devtype=$($DF -T / | $AWK '{print $2}')
 			case $devtype in
 				zfs)
 					rootpool=$($DF / | \
@@ -62,7 +62,7 @@ function create_dev_file
 			# Get the existing block device file in current system.
 			# And bring out the first one.
 			#
-					devstr=$($DF -lhF ufs | \
+					devstr=$($DF -lht ufs | \
 						$GREP "^/dev/dsk" | \
 						$AWK '{print $1}')
 					devstr=$($ECHO "$devstr" | \

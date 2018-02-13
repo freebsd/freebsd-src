@@ -137,7 +137,7 @@ function default_check_zfs_upgrade #rootfs
 	typeset newv
 	typeset -i df_ret
 
-	$DF -F zfs / > /dev/null 2>&1
+	$DF -t zfs / > /dev/null 2>&1
 	df_ret=$?
 	
 	for newv in "" $ZFS_VERSION; do

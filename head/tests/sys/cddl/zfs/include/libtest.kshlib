@@ -2756,11 +2756,7 @@ function get_fstype
 		log_fail "Usage: get_fstype <directory>"
 	fi
 
-	#
-	#  $ df -n /
-	#  /		  : ufs     
-	#
-	$DF -n $dir | $AWK '{print $3}'
+	$DF -T $dir | $AWK '{print $2}'
 }
 
 #
@@ -2936,8 +2932,7 @@ function pool_prop_exist
 #
 function is_zfsroot
 {
-	$DF -n / | $GREP zfs > /dev/null 2>&1
-	return $?
+	$DF -T / | $GREP -q zfs
 }
 
 #

@@ -8,7 +8,6 @@ BINDIR=		${TESTSBASE}/sys/cddl/zfs/bin
 SCRIPTSDIR=	${TESTSBASE}/sys/cddl/zfs/bin
 
 SCRIPTS+=	bsddisks.ksh
-SCRIPTS+=	df.ksh
 SCRIPTS+=	dircmp.ksh
 SCRIPTS+=	dumpadm.ksh
 SCRIPTS+=	ff.ksh

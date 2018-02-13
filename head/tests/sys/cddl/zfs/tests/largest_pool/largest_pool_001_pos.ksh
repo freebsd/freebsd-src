@@ -79,7 +79,7 @@ function parse_expected_output
 		$AWK '{print $2}' | $GREP $CHKUNIT"
 	
 	log_note "Detect the file system in this test machine."
-	log_must eval "$DF -F zfs -h > $TMPDIR/j.${TESTCASE_ID}"
+	log_must eval "$DF -t zfs -h > $TMPDIR/j.${TESTCASE_ID}"
 	log_must eval "$GREP $TESTPOOL $TMPDIR/j.${TESTCASE_ID} | \
 		$AWK '{print $2}' | $GREP $CHKUNIT"
 
