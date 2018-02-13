@@ -1134,6 +1134,12 @@ static void remove_one(struct pci_dev *pdev)
 	kfree(dev);
 }
 
+static void shutdown_one(struct pci_dev *pdev)
+{
+	/* prevent device from accessing host memory after shutdown */
+	pci_clear_master(pdev);
+}
+
 static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 4113) }, /* Connect-IB */
 	{ PCI_VDEVICE(MELLANOX, 4114) }, /* Connect-IB VF */
@@ -1175,6 +1181,7 @@ MODULE_DEVICE_TABLE(pci, mlx5_core_pci_table);
 static struct pci_driver mlx5_core_driver = {
 	.name           = DRIVER_NAME,
 	.id_table       = mlx5_core_pci_table,
+	.shutdown	= shutdown_one,
 	.probe          = init_one,
 	.remove         = remove_one
 };
