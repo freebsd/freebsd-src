@@ -33,7 +33,7 @@
 		.set SIZ_PAG,0x1000		# Page size
 		.set SIZ_SEC,0x200		# Sector size
 		.set COPY_BLKS,0x8		# Number of blocks
-						# to copy for boot2
+						# to copy for boot2 (<= 15)
 		.set COPY_BLK_SZ,0x8000		# Copy in 32k blocks; must be
 						# a multiple of 16 bytes
 		.set NSECT,(COPY_BLK_SZ / SIZ_SEC * COPY_BLKS)
