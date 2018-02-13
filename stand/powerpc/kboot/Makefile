@@ -17,7 +17,7 @@ NEWVERSWHAT=	"kboot loader" ${MACHINE_ARCH}
 INSTALLFLAGS=	-b
 
 # Architecture-specific loader code
-SRCS=		conf.c metadata.c vers.c main.c ppc64_elf_freebsd.c
+SRCS=		conf.c vers.c main.c ppc64_elf_freebsd.c
 SRCS+=		host_syscall.S hostcons.c hostdisk.c kerneltramp.S kbootfdt.c
 SRCS+=		ucmpdi2.c
 
