@@ -195,7 +195,7 @@ zpool_upgrade_007_pos_head()
 {
 	atf_set "descr" "Import pools of all versions - 'zfs upgrade' on each pools works"
 	atf_set "require.progs"  zpool
-	# This test can take quite a while, especially on debug bits.
+	# This test can take quite a while, especially on debug builds
 	atf_set "timeout" 7200
 }
 zpool_upgrade_007_pos_body()
@@ -205,6 +205,7 @@ zpool_upgrade_007_pos_body()
 	. $(atf_get_srcdir)/zpool_upgrade.cfg
 
 	verify_disk_count "$DISKS" 2
+	atf_skip "PR 225877 - panic: solaris assert: newds == os->os_dsl_dataset during"
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_upgrade_007_pos.ksh || atf_fail "Testcase failed"
 }
