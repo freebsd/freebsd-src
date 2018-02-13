@@ -92,8 +92,11 @@ sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
 sys/dev/ixl	erj	Pre-commit phabricator review requested.
 sys/dev/sound/usb	hselasky	If in doubt, ask.
 sys/dev/usb	hselasky	If in doubt, ask.
+sys/dev/xen	royger		Pre-commit review recommended.
 sys/netinet/ip_carp.c	glebius	Pre-commit review recommended.
 sys/netpfil/pf	kp,glebius	Pre-commit review recommended.
+sys/x86/xen	royger		Pre-commit review recommended.
+sys/xen		royger		Pre-commit review recommended.
 tests			freebsd-testing,ngie	Pre-commit review requested.
 usr.sbin/bsdconfig	dteske	Pre-commit phabricator review requested.
 usr.sbin/dpv	dteske	Pre-commit review requested. Keep in sync with libdpv.
