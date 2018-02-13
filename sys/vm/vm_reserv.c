@@ -949,6 +949,7 @@ vm_reserv_break(vm_reserv_t rv, vm_page_t m)
 
 	vm_domain_free_assert_locked(VM_DOMAIN(rv->domain));
 	vm_reserv_remove(rv);
+	rv->pages->psind = 0;
 	if (m != NULL) {
 		/*
 		 * Since the reservation is being broken, there is no harm in
