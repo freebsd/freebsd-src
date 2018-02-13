@@ -70,6 +70,7 @@ PORTSMODULESENV=\
 	-u CXX \
 	-u CPP \
 	-u MAKESYSPATH \
+	-u MAKEOBJDIR \
 	MAKEFLAGS="${MAKEFLAGS:M*:tW:S/^-m /-m_/g:S/ -m / -m_/g:tw:N-m_*}" \
 	SYSDIR=${SYSDIR} \
 	PATH=${PATH}:${LOCALBASE}/bin:${LOCALBASE}/sbin \
