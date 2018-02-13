@@ -569,9 +569,8 @@ read_kld(char *filename, char *kldname)
 			check(EF_SEG_READ_REL(&ef, (Elf_Off)*p, sizeof(md),
 			    &md));
 			p++;
-			check(EF_SEG_READ(&ef, (Elf_Off)md.md_cval,
+			check(EF_SEG_READ_STRING(&ef, (Elf_Off)md.md_cval,
 			    sizeof(cval), cval));
-			cval[MAXMODNAME] = '\0';
 			parse_entry(&md, cval, &ef, kldname);
 		}
 		if (error)
