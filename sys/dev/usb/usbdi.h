@@ -336,7 +336,7 @@ struct usb_device_id {
 	unsigned long driver_info;
 } __aligned(32);
 
-#define USB_STD_PNP_INFO "M16:mask;U16:vendor;U16:product;L16:product;G16:product;" \
+#define USB_STD_PNP_INFO "M16:mask;U16:vendor;U16:product;L16:release;G16:release;" \
 	"U8:devclass;U8:devsubclass;U8:devprotocol;" \
 	"U8:intclass;U8:intsubclass;U8:intprotocol;"
 #define USB_STD_PNP_HOST_INFO USB_STD_PNP_INFO "T:mode=host;"
