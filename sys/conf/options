@@ -222,6 +222,7 @@ TURNSTILE_PROFILING
 UMTX_PROFILING
 UMTX_CHAINS	opt_global.h
 VERBOSE_SYSINIT
+ZSTDIO		opt_zstdio.h
 
 # POSIX kernel options
 P1003_1B_MQUEUE			opt_posix.h

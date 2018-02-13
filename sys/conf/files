@@ -3836,7 +3836,8 @@ kern/subr_bus_dma.c		standard
 kern/subr_bufring.c		standard
 kern/subr_capability.c		standard
 kern/subr_clock.c		standard
-kern/subr_compressor.c		standard
+kern/subr_compressor.c		standard \
+	compile-with "${NORMAL_C} -I$S/contrib/zstd/lib/freebsd"
 kern/subr_counter.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard

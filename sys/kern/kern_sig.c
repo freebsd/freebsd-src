@@ -3253,7 +3253,8 @@ sysctl_debug_num_cores_check (SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_debug, OID_AUTO, ncores, CTLTYPE_INT|CTLFLAG_RW,
 	    0, sizeof(int), sysctl_debug_num_cores_check, "I", "");
 
-#define	GZ_SUFFIX	".gz"
+#define	GZIP_SUFFIX	".gz"
+#define	ZSTD_SUFFIX	".zst"
 
 int compress_user_cores = 0;
 
@@ -3273,7 +3274,9 @@ sysctl_compress_user_cores(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_kern, OID_AUTO, compress_user_cores, CTLTYPE_INT | CTLFLAG_RWTUN,
     0, sizeof(int), sysctl_compress_user_cores, "I",
-    "Enable compression of user corefiles (" __XSTRING(COMPRESS_GZIP) " = gzip)");
+    "Enable compression of user corefiles ("
+    __XSTRING(COMPRESS_GZIP) " = gzip, "
+    __XSTRING(COMPRESS_ZSTD) " = zstd)");
 
 int compress_user_cores_level = 6;
 SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_level, CTLFLAG_RWTUN,
@@ -3377,7 +3380,9 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 	sx_sunlock(&corefilename_lock);
 	free(hostname, M_TEMP);
 	if (compress == COMPRESS_GZIP)
-		sbuf_printf(&sb, GZ_SUFFIX);
+		sbuf_printf(&sb, GZIP_SUFFIX);
+	else if (compress == COMPRESS_ZSTD)
+		sbuf_printf(&sb, ZSTD_SUFFIX);
 	if (sbuf_error(&sb) != 0) {
 		log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too "
 		    "long\n", (long)pid, comm, (u_long)uid);
