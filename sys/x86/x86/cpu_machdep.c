@@ -592,7 +592,7 @@ hw_ibrs_recalculate(void)
 	if ((cpu_ia32_arch_caps & IA32_ARCH_CAP_IBRS_ALL) != 0) {
 		if (hw_ibrs_disable) {
 			v= rdmsr(MSR_IA32_SPEC_CTRL);
-			v &= ~IA32_SPEC_CTRL_IBRS;
+			v &= ~(uint64_t)IA32_SPEC_CTRL_IBRS;
 			wrmsr(MSR_IA32_SPEC_CTRL, v);
 		} else {
 			v= rdmsr(MSR_IA32_SPEC_CTRL);
