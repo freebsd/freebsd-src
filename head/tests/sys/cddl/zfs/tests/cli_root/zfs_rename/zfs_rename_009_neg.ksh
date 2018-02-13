@@ -63,32 +63,7 @@ if (($? != 0)); then
 	log_unsupported
 fi
 
-function cleanup
-{
-	typeset snaps=$($ZFS list -H -t snapshot -o name)
-	typeset exclude
-	typeset snap
-	typeset pool_name
-
-	if [[ -n $KEEP ]]; then
-		exclude=`eval $ECHO \"'(${KEEP})'\"`
-	fi
-	
-	for snap in $snaps; do
-		pool_name=$($ECHO "$snap" | $AWK -F/ '{print $1}')
-		if [[ -n $exclude ]]; then
-			$ECHO "$pool_name" | $EGREP -v "$exclude" > /dev/null 2>&1
-			if [[ $? -eq 0 ]]; then
-				log_must $ZFS destroy $snap
-			fi
-		else
-			log_must $ZFS destroy $snap
-		fi
-	done
-}
-
 log_assert "zfs rename -r failed, when snapshot name is already existing."
-log_onexit cleanup
 
 set -A datasets $TESTPOOL		$TESTPOOL/$TESTCTR \
 	$TESTPOOL/$TESTCTR/$TESTFS1	$TESTPOOL/$TESTFS
