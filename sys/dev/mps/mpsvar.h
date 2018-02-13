@@ -38,6 +38,7 @@
 #define MPS_DB_MAX_WAIT		2500
 
 #define MPS_REQ_FRAMES		1024
+#define MPS_PRI_REQ_FRAMES	128
 #define MPS_EVT_REPLY_FRAMES	32
 #define MPS_REPLY_FRAMES	MPS_REQ_FRAMES
 #define MPS_CHAIN_FRAMES	2048
@@ -314,6 +315,7 @@ struct mps_softc {
 
 	MPI2_IOC_FACTS_REPLY		*facts;
 	int				num_reqs;
+	int				num_prireqs;
 	int				num_replies;
 	int				fqdepth;	/* Free queue */
 	int				pqdepth;	/* Post queue */

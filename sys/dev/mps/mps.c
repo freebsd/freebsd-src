@@ -489,7 +489,10 @@ mps_iocfacts_allocate(struct mps_softc *sc, uint8_t attaching)
 		 * Size the queues. Since the reply queues always need one free
 		 * entry, we'll just deduct one reply message here.
 		 */
-		sc->num_reqs = MIN(MPS_REQ_FRAMES, sc->facts->RequestCredit);
+		sc->num_prireqs = MIN(MPS_PRI_REQ_FRAMES,
+		    sc->facts->HighPriorityCredit);
+		sc->num_reqs = MIN(MPS_REQ_FRAMES, sc->facts->RequestCredit) +
+		    sc->num_prireqs;
 		sc->num_replies = MIN(MPS_REPLY_FRAMES + MPS_EVT_REPLY_FRAMES,
 		    sc->facts->MaxReplyDescriptorPostQueueDepth) - 1;
 
@@ -1303,7 +1306,7 @@ mps_alloc_requests(struct mps_softc *sc)
 
 		/* XXX Is a failure here a critical problem? */
 		if (bus_dmamap_create(sc->buffer_dmat, 0, &cm->cm_dmamap) == 0)
-			if (i <= sc->facts->HighPriorityCredit)
+			if (i <= sc->num_prireqs)
 				mps_free_high_priority_command(sc, cm);
 			else
 				mps_free_command(sc, cm);
