@@ -41,7 +41,6 @@ exclude EXFAIL common/misc/tst.include.ksh
 exclude EXFAIL common/safety/tst.copyin2.d
 exclude EXFAIL common/safety/tst.msgdsize.d
 exclude EXFAIL common/safety/tst.msgsize.d
-exclude EXFAIL common/safety/tst.zonename.d
 exclude EXFAIL common/scalars/tst.misc.d
 exclude EXFAIL common/scalars/tst.selfarray2.d
 exclude EXFAIL common/sched/tst.enqueue.d
