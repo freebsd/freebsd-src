@@ -636,8 +636,6 @@ static inline int to_ib_qp_state(int c4iw_qp_state)
 	return IB_QPS_ERR;
 }
 
-#define C4IW_DRAIN_OPCODE FW_RI_SGE_EC_CR_RETURN
-
 static inline u32 c4iw_ib_to_tpt_access(int a)
 {
 	return (a & IB_ACCESS_REMOTE_WRITE ? FW_RI_MEM_ACCESS_REM_WRITE : 0) |
@@ -961,7 +959,7 @@ void c4iw_rqtpool_free(struct c4iw_rdev *rdev, u32 addr, int size);
 u32 c4iw_pblpool_alloc(struct c4iw_rdev *rdev, int size);
 void c4iw_pblpool_free(struct c4iw_rdev *rdev, u32 addr, int size);
 int c4iw_ofld_send(struct c4iw_rdev *rdev, struct mbuf *m);
-void c4iw_flush_hw_cq(struct c4iw_cq *cq);
+void c4iw_flush_hw_cq(struct c4iw_cq *cq, struct c4iw_qp *flush_qhp);
 void c4iw_count_rcqes(struct t4_cq *cq, struct t4_wq *wq, int *count);
 int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp);
 int __c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp);

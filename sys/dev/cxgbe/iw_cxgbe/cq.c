@@ -357,7 +357,7 @@ static void advance_oldest_read(struct t4_wq *wq)
  * Deal with out-of-order and/or completions that complete
  * prior unsignalled WRs.
  */
-void c4iw_flush_hw_cq(struct c4iw_cq *chp)
+void c4iw_flush_hw_cq(struct c4iw_cq *chp, struct c4iw_qp *flush_qhp)
 {
 	struct t4_cqe *hw_cqe, *swcqe, read_cqe;
 	struct c4iw_qp *qhp;
@@ -381,6 +381,13 @@ void c4iw_flush_hw_cq(struct c4iw_cq *chp)
 		 */
 		if (qhp == NULL)
 			goto next_cqe;
+
+		if (flush_qhp != qhp) {
+			spin_lock(&qhp->lock);
+
+			if (qhp->wq.flushed == 1)
+				goto next_cqe;
+		}
 
 		if (CQE_OPCODE(hw_cqe) == FW_RI_TERMINATE)
 			goto next_cqe;
@@ -433,11 +440,18 @@ void c4iw_flush_hw_cq(struct c4iw_cq *chp)
 next_cqe:
 		t4_hwcq_consume(&chp->cq);
 		ret = t4_next_hw_cqe(&chp->cq, &hw_cqe);
+		if (qhp && flush_qhp != qhp)
+			spin_unlock(&qhp->lock);
 	}
 }
 
 static int cqe_completes_wr(struct t4_cqe *cqe, struct t4_wq *wq)
 {
+	if (DRAIN_CQE(cqe)) {
+		WARN_ONCE(1, "Unexpected DRAIN CQE qp id %u!\n", wq->sq.qid);
+		return 0;
+	}
+
 	if (CQE_OPCODE(cqe) == FW_RI_TERMINATE)
 		return 0;
 
@@ -535,7 +549,7 @@ static int poll_cq(struct t4_wq *wq, struct t4_cq *cq, struct t4_cqe *cqe,
 	/*
 	 * Special cqe for drain WR completions...
 	 */
-	if (CQE_OPCODE(hw_cqe) == C4IW_DRAIN_OPCODE) {
+	if (DRAIN_CQE(hw_cqe)) {
 		*cookie = CQE_DRAIN_COOKIE(hw_cqe);
 		*cqe = *hw_cqe;
 		goto skip_cqe;
@@ -757,7 +771,6 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 
 		switch (CQE_OPCODE(&cqe)) {
 		case FW_RI_SEND:
-		case C4IW_DRAIN_OPCODE:
 			wc->opcode = IB_WC_RECV;
 			break;
 		case FW_RI_SEND_WITH_INV:
@@ -808,9 +821,6 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 			if (CQE_STATUS(&cqe) != T4_ERR_SUCCESS)
 				c4iw_invalidate_mr(qhp->rhp,
 						   CQE_WRID_FR_STAG(&cqe));
-			break;
-		case C4IW_DRAIN_OPCODE:
-			wc->opcode = IB_WC_SEND;
 			break;
 		default:
 			printf("Unexpected opcode %d "
