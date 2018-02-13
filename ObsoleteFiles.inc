@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180213: remove c_rehash(1)
+OLD_FILES+=usr/share/openssl/man/man1/c_rehash.1.gz
 # 20180212: Obsolete forth files
 OLD_FILES+=boot/efi.4th
 OLD_FILES+=boot/pcibios.4th
