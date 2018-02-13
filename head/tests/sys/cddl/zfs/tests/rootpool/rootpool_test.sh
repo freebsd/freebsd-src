@@ -28,12 +28,16 @@ atf_test_case rootpool_001_pos cleanup
 rootpool_001_pos_head()
 {
 	atf_set "descr" "rootpool's bootfs property must be equal to <rootfs>"
-	atf_set "require.config"  is_zfs_root
 }
 rootpool_001_pos_body()
 {
 	. $(atf_get_srcdir)/../../include/default.cfg
 
+	if ! is_zfsroot ; then
+		atf_skip "This test requires a ZFS root filesystem."
+	fi
+
+	ksh93 $(atf_get_srcdir)/setup.ksh
 	ksh93 $(atf_get_srcdir)/rootpool_001_pos.ksh || atf_fail "Testcase failed"
 }
 rootpool_001_pos_cleanup()
@@ -48,12 +52,15 @@ atf_test_case rootpool_002_neg cleanup
 rootpool_002_neg_head()
 {
 	atf_set "descr" "zpool/zfs destory <rootpool> should return error"
-	atf_set "require.config"  is_zfs_root
 	atf_set "require.progs"  zfs zpool
 }
 rootpool_002_neg_body()
 {
 	. $(atf_get_srcdir)/../../include/default.cfg
+
+	if ! is_zfsroot ; then
+		atf_skip "This test requires a ZFS root filesystem."
+	fi
 
 	ksh93 $(atf_get_srcdir)/rootpool_002_neg.ksh || atf_fail "Testcase failed"
 }
@@ -69,12 +76,15 @@ atf_test_case rootpool_007_neg cleanup
 rootpool_007_neg_head()
 {
 	atf_set "descr" "the zfs rootfs's compression property can not set to gzip and gzip[1-9]"
-	atf_set "require.config"  is_zfs_root
 	atf_set "require.progs"  zfs
 }
 rootpool_007_neg_body()
 {
 	. $(atf_get_srcdir)/../../include/default.cfg
+
+	if ! is_zfsroot ; then
+		atf_skip "This test requires a ZFS root filesystem."
+	fi
 
 	ksh93 $(atf_get_srcdir)/rootpool_007_neg.ksh || atf_fail "Testcase failed"
 }
