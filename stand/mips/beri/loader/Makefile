@@ -47,7 +47,6 @@ SRCS=		start.S						\
 		main.c						\
 		devicename.c					\
 		exec.c						\
-		metadata.c					\
 		vers.c						\
 		arch.c
 

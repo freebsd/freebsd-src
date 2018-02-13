@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "libuboot.h"
 
-extern vm_offset_t md_load(char *, vm_offset_t *);
+extern vm_offset_t md_load(char *, vm_offset_t *, vm_offset_t *);
 
 int
 __elfN(uboot_load)(char *filename, u_int64_t dest,
@@ -81,7 +81,7 @@ __elfN(uboot_exec)(struct preloaded_file *fp)
 
 	e = (Elf_Ehdr *)&fmp->md_data;
 
-	if ((error = md_load(fp->f_args, &mdp)) != 0)
+	if ((error = md_load(fp->f_args, &mdp, NULL)) != 0)
 		return (error);
 
 	entry = (void *)e->e_entry;
