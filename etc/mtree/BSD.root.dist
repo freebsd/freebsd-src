@@ -14,6 +14,8 @@
         ..
         firmware
         ..
+        lua
+        ..
         kernel
         ..
         modules
