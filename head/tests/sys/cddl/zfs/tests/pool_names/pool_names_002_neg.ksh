@@ -73,14 +73,6 @@ function cleanup
 
 log_onexit cleanup
 
-typeset exclude=`eval $ECHO \"'(${KEEP})'\"`
-for pool in $($ZPOOL list -H -o name | \
-	$EGREP -v "$exclude" | \
-	$GREP -v "$TESTPOOL" | \
-	$EGREP -v "$NO_POOLS"); do
-	log_must $ZPOOL destroy $pool
-done
-
 if [[ ! -e $TESTDIR ]]; then
         log_must $MKDIR $TESTDIR
 fi
