@@ -285,12 +285,24 @@ chrp_real_maxaddr(platform_t plat)
 static u_long
 chrp_timebase_freq(platform_t plat, struct cpuref *cpuref)
 {
-	phandle_t phandle;
+	phandle_t cpus, cpunode;
 	int32_t ticks = -1;
+	int res;
+	char buf[8];
 
-	phandle = cpuref->cr_hwref;
+	cpus = OF_finddevice("/cpus");
+	if (cpus <= 0)
+		panic("CPU tree not found on Open Firmware\n");
 
-	OF_getencprop(phandle, "timebase-frequency", &ticks, sizeof(ticks));
+	for (cpunode = OF_child(cpus); cpunode != 0; cpunode = OF_peer(cpunode)) {
+		res = OF_getprop(cpunode, "device_type", buf, sizeof(buf));
+		if (res > 0 && strcmp(buf, "cpu") == 0)
+			break;
+	}
+	if (cpunode <= 0)
+		panic("CPU node not found on Open Firmware\n");
+
+	OF_getencprop(cpunode, "timebase-frequency", &ticks, sizeof(ticks));
 
 	if (ticks <= 0)
 		panic("Unable to determine timebase frequency!");
