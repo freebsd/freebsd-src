@@ -32,7 +32,6 @@ zil_001_pos_head()
 }
 zil_001_pos_body()
 {
-	atf_fail "This test causes a panic on FreeBSD"
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zil.kshlib
 	. $(atf_get_srcdir)/zil.cfg
