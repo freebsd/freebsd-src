@@ -1549,9 +1549,11 @@ g_part_wither(struct g_geom *gp, int error)
 		while ((entry = LIST_FIRST(&table->gpt_entry)) != NULL) {
 			LIST_REMOVE(entry, gpe_entry);
 			pp = entry->gpe_pp;
-			entry->gpe_pp->private = NULL;
 			entry->gpe_pp = NULL;
-			g_wither_provider(pp, error);
+			if (pp != NULL) {
+				pp->private = NULL;
+				g_wither_provider(pp, error);
+			}
 			g_free(entry);
 		}
 		G_PART_DESTROY(table, NULL);
