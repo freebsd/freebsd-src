@@ -416,8 +416,13 @@ readip(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 	while ((getsecs() - t) < tleft) {
 		errno = 0;
 		ret = readipv4(d, pkt, payload, tleft, proto);
+		if (ret >= 0)
+			return (ret);
+		/* Bubble up the error if it wasn't successful */
 		if (errno != EAGAIN)
-			break;
+			return (-1);
 	}
-	return (ret);
+	/* We've exhausted tleft; timeout */
+	errno = ETIMEDOUT;
+	return (-1);
 }
