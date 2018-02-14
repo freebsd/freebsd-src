@@ -14,6 +14,7 @@ ATF_TESTS_SH+=	detach_test
 ATF_TESTS_SH+=	init_test
 ATF_TESTS_SH+=	integrity_test
 ATF_TESTS_SH+=	kill_test
+ATF_TESTS_SH+=	misc_test
 ATF_TESTS_SH+=	onetime_test
 ATF_TESTS_SH+=	resize_test
 ATF_TESTS_SH+=	setkey_test
