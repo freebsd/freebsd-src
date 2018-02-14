@@ -450,6 +450,8 @@
                 ..
                 nop
                 ..
+                part
+                ..
                 raid3
                 ..
                 shsec
