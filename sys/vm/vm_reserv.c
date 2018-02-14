@@ -259,7 +259,7 @@ struct mtx_padalign vm_reserv_object_mtx[VM_RESERV_OBJ_LOCK_COUNT];
 #define	vm_reserv_object_unlock(object)				\
 	    mtx_unlock(vm_reserv_object_lock_ptr((object)))
 
-static void		vm_reserv_break(vm_reserv_t rv, vm_page_t m);
+static void		vm_reserv_break(vm_reserv_t rv);
 static void		vm_reserv_depopulate(vm_reserv_t rv, int index);
 static vm_reserv_t	vm_reserv_from_page(vm_page_t m);
 static boolean_t	vm_reserv_has_pindex(vm_reserv_t rv,
@@ -934,34 +934,21 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, int domain,
 }
 
 /*
- * Breaks the given reservation.  Except for the specified free page, all free
- * pages in the reservation are returned to the physical memory allocator.
- * The reservation's population count and map are reset to their initial
- * state.
+ * Breaks the given reservation.  All free pages in the reservation
+ * are returned to the physical memory allocator.  The reservation's
+ * population count and map are reset to their initial state.
  *
  * The given reservation must not be in the partially populated reservation
  * queue.  The free page queue lock must be held.
  */
 static void
-vm_reserv_break(vm_reserv_t rv, vm_page_t m)
+vm_reserv_break(vm_reserv_t rv)
 {
 	int begin_zeroes, hi, i, lo;
 
 	vm_domain_free_assert_locked(VM_DOMAIN(rv->domain));
 	vm_reserv_remove(rv);
 	rv->pages->psind = 0;
-	if (m != NULL) {
-		/*
-		 * Since the reservation is being broken, there is no harm in
-		 * abusing the population map to stop "m" from being returned
-		 * to the physical memory allocator.
-		 */
-		i = m - rv->pages;
-		KASSERT(popmap_is_clear(rv->popmap, i),
-		    ("vm_reserv_break: reserv %p's popmap is corrupted", rv));
-		popmap_set(rv->popmap, i);
-		rv->popcnt++;
-	}
 	i = hi = 0;
 	do {
 		/* Find the next 0 bit.  Any previous 0 bits are < "hi". */
@@ -1039,7 +1026,7 @@ vm_reserv_break_all(vm_object_t object)
 			TAILQ_REMOVE(&vm_rvq_partpop[rv->domain], rv, partpopq);
 			rv->inpartpopq = FALSE;
 		}
-		vm_reserv_break(rv, NULL);
+		vm_reserv_break(rv);
 	}
 	if (vmd != NULL)
 		vm_domain_free_unlock(vmd);
@@ -1156,7 +1143,7 @@ vm_reserv_reclaim(vm_reserv_t rv)
 	    rv, rv->domain));
 	TAILQ_REMOVE(&vm_rvq_partpop[rv->domain], rv, partpopq);
 	rv->inpartpopq = FALSE;
-	vm_reserv_break(rv, NULL);
+	vm_reserv_break(rv);
 	vm_reserv_reclaimed++;
 }
 
