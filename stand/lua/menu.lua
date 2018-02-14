@@ -270,8 +270,14 @@ function menu.run(m)
 
 	cont = true;
 	while cont do
-		local key = string.char(io.getchar());
+		local key = io.getchar();
 
+		-- Exit on backspace
+		if (key == 127) and (m ~= menu.welcome) then
+			break
+		end
+
+		key = string.char(key)
 		-- check to see if key is an alias
 		local sel_entry = nil;
 		for k, v in pairs(alias_table) do
