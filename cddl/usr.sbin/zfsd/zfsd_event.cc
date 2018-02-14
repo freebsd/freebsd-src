@@ -76,20 +76,95 @@ using std::stringstream;
 
 /*=========================== Class Implementations ==========================*/
 
-/*-------------------------------- DevfsEvent --------------------------------*/
+/*-------------------------------- GeomEvent --------------------------------*/
 
-//- DevfsEvent Static Public Methods -------------------------------------------
+//- GeomEvent Static Public Methods -------------------------------------------
 Event *
-DevfsEvent::Builder(Event::Type type,
-		    NVPairMap &nvPairs,
-		    const string &eventString)
+GeomEvent::Builder(Event::Type type,
+		   NVPairMap &nvPairs,
+		   const string &eventString)
 {
-	return (new DevfsEvent(type, nvPairs, eventString));
+	return (new GeomEvent(type, nvPairs, eventString));
 }
 
-//- DevfsEvent Static Protected Methods ----------------------------------------
+//- GeomEvent Virtual Public Methods ------------------------------------------
+Event *
+GeomEvent::DeepCopy() const
+{
+	return (new GeomEvent(*this));
+}
+ 
+bool
+GeomEvent::Process() const
+{
+	/*
+	 * We are only concerned with create arrivals and physical path changes,
+	 * because those can be used to satisfy online and autoreplace operations
+	 */
+	if (Value("type") != "GEOM::physpath" && Value("type") != "CREATE")
+		return (false);
+
+	/* Log the event since it is of interest. */
+	Log(LOG_INFO);
+
+	string devPath;
+	if (!DevPath(devPath))
+		return (false);
+
+	int devFd(open(devPath.c_str(), O_RDONLY));
+	if (devFd == -1)
+		return (false);
+
+	bool inUse;
+	bool degraded;
+	nvlist_t *devLabel(ReadLabel(devFd, inUse, degraded));
+
+	string physPath;
+        bool havePhysPath(PhysicalPath(physPath));
+
+	string devName;
+	DevName(devName);
+	close(devFd);
+
+	if (inUse && devLabel != NULL) {
+		OnlineByLabel(devPath, physPath, devLabel);
+	} else if (degraded) {
+		syslog(LOG_INFO, "%s is marked degraded.  Ignoring "
+		       "as a replace by physical path candidate.\n",
+		       devName.c_str());
+	} else if (havePhysPath) {
+		/* 
+		 * TODO: attempt to resolve events using every casefile
+		 * that matches this physpath
+		 */
+		CaseFile *caseFile(CaseFile::Find(physPath));
+		if (caseFile != NULL) {
+			syslog(LOG_INFO,
+			       "Found CaseFile(%s:%s:%s) - ReEvaluating\n",
+			       caseFile->PoolGUIDString().c_str(),
+			       caseFile->VdevGUIDString().c_str(),
+			       zpool_state_to_name(caseFile->VdevState(),
+						   VDEV_AUX_NONE));
+			caseFile->ReEvaluate(devPath, physPath, /*vdev*/NULL);
+		}
+	}
+	return (false);
+}
+
+//- GeomEvent Protected Methods -----------------------------------------------
+GeomEvent::GeomEvent(Event::Type type, NVPairMap &nvpairs,
+			       const string &eventString)
+ : DevdCtl::GeomEvent(type, nvpairs, eventString)
+{
+}
+
+GeomEvent::GeomEvent(const GeomEvent &src)
+ : DevdCtl::GeomEvent::GeomEvent(src)
+{
+}
+
 nvlist_t *
-DevfsEvent::ReadLabel(int devFd, bool &inUse, bool &degraded)
+GeomEvent::ReadLabel(int devFd, bool &inUse, bool &degraded)
 {
 	pool_state_t poolState;
 	char        *poolName;
@@ -128,7 +203,7 @@ DevfsEvent::ReadLabel(int devFd, bool &inUse, bool &degraded)
 		} catch (ZfsdException &exp) {
 			string devName = fdevname(devFd);
 			string devPath = _PATH_DEV + devName;
-			string context("DevfsEvent::ReadLabel: "
+			string context("GeomEvent::ReadLabel: "
 				     + devPath + ": ");
 
 			exp.GetString().insert(0, context);
@@ -140,7 +215,7 @@ DevfsEvent::ReadLabel(int devFd, bool &inUse, bool &degraded)
 }
 
 bool
-DevfsEvent::OnlineByLabel(const string &devPath, const string& physPath,
+GeomEvent::OnlineByLabel(const string &devPath, const string& physPath,
 			      nvlist_t *devConfig)
 {
 	try {
@@ -158,162 +233,12 @@ DevfsEvent::OnlineByLabel(const string &devPath, const string& physPath,
 			return (caseFile->ReEvaluate(devPath, physPath, &vdev));
 
 	} catch (ZfsdException &exp) {
-		string context("DevfsEvent::OnlineByLabel: " + devPath + ": ");
+		string context("GeomEvent::OnlineByLabel: " + devPath + ": ");
 
 		exp.GetString().insert(0, context);
 		exp.Log();
 	}
 	return (false);
-}
-
-//- DevfsEvent Virtual Public Methods ------------------------------------------
-Event *
-DevfsEvent::DeepCopy() const
-{
-	return (new DevfsEvent(*this));
-}
-
-bool
-DevfsEvent::Process() const
-{
-	/*
-	 * We are only concerned with newly discovered
-	 * devices that can be ZFS vdevs.
-	 */
-	if (Value("type") != "CREATE" || !IsDiskDev())
-		return (false);
-
-	/* Log the event since it is of interest. */
-	Log(LOG_INFO);
-
-	string devPath;
-	if (!DevPath(devPath))
-		return (false);
-
-	int devFd(open(devPath.c_str(), O_RDONLY));
-	if (devFd == -1)
-		return (false);
-
-	bool inUse;
-	bool degraded;
-	nvlist_t *devLabel(ReadLabel(devFd, inUse, degraded));
-
-	string physPath;
-	bool havePhysPath(PhysicalPath(physPath));
-
-	string devName;
-	DevName(devName);
-	close(devFd);
-
-	if (inUse && devLabel != NULL) {
-		OnlineByLabel(devPath, physPath, devLabel);
-	} else if (degraded) {
-		syslog(LOG_INFO, "%s is marked degraded.  Ignoring "
-		       "as a replace by physical path candidate.\n",
-		       devName.c_str());
-	} else if (havePhysPath && IsWholeDev()) {
-		/*
-		 * TODO: attempt to resolve events using every casefile
-		 * that matches this physpath
-		 */
-		CaseFile *caseFile(CaseFile::Find(physPath));
-		if (caseFile != NULL) {
-			syslog(LOG_INFO,
-			       "Found CaseFile(%s:%s:%s) - ReEvaluating\n",
-			       caseFile->PoolGUIDString().c_str(),
-			       caseFile->VdevGUIDString().c_str(),
-			       zpool_state_to_name(caseFile->VdevState(),
-						   VDEV_AUX_NONE));
-			caseFile->ReEvaluate(devPath, physPath, /*vdev*/NULL);
-		}
-	}
-	if (devLabel != NULL)
-		nvlist_free(devLabel);
-	return (false);
-}
-
-//- DevfsEvent Protected Methods -----------------------------------------------
-DevfsEvent::DevfsEvent(Event::Type type, NVPairMap &nvpairs,
-			       const string &eventString)
- : DevdCtl::DevfsEvent(type, nvpairs, eventString)
-{
-}
-
-DevfsEvent::DevfsEvent(const DevfsEvent &src)
- : DevdCtl::DevfsEvent::DevfsEvent(src)
-{
-}
-
-/*-------------------------------- GeomEvent --------------------------------*/
-
-//- GeomEvent Static Public Methods -------------------------------------------
-Event *
-GeomEvent::Builder(Event::Type type,
-		   NVPairMap &nvPairs,
-		   const string &eventString)
-{
-	return (new GeomEvent(type, nvPairs, eventString));
-}
-
-//- GeomEvent Virtual Public Methods ------------------------------------------
-Event *
-GeomEvent::DeepCopy() const
-{
-	return (new GeomEvent(*this));
-}
- 
-bool
-GeomEvent::Process() const
-{
-	/*
-	 * We are only concerned with physical path changes, because those can
-	 * be used to satisfy autoreplace operations
-	 */
-	if (Value("type") != "GEOM::physpath" || !IsDiskDev())
-		return (false);
-
-	/* Log the event since it is of interest. */
-	Log(LOG_INFO);
-
-	string devPath;
-	if (!DevPath(devPath))
-		return (false);
-
-	string physPath;
-        bool havePhysPath(PhysicalPath(physPath));
-
-	string devName;
-	DevName(devName);
-
-	if (havePhysPath) {
-		/* 
-		 * TODO: attempt to resolve events using every casefile
-		 * that matches this physpath
-		 */
-		CaseFile *caseFile(CaseFile::Find(physPath));
-		if (caseFile != NULL) {
-			syslog(LOG_INFO,
-			       "Found CaseFile(%s:%s:%s) - ReEvaluating\n",
-			       caseFile->PoolGUIDString().c_str(),
-			       caseFile->VdevGUIDString().c_str(),
-			       zpool_state_to_name(caseFile->VdevState(),
-						   VDEV_AUX_NONE));
-			caseFile->ReEvaluate(devPath, physPath, /*vdev*/NULL);
-		}
-	}
-	return (false);
-}
-
-//- GeomEvent Protected Methods -----------------------------------------------
-GeomEvent::GeomEvent(Event::Type type, NVPairMap &nvpairs,
-			       const string &eventString)
- : DevdCtl::GeomEvent(type, nvpairs, eventString)
-{
-}
-
-GeomEvent::GeomEvent(const GeomEvent &src)
- : DevdCtl::GeomEvent::GeomEvent(src)
-{
 }
 
 
