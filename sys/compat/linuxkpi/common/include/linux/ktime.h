@@ -88,18 +88,14 @@ ktime_to_timeval(ktime_t kt)
 static inline ktime_t
 ktime_add_ns(ktime_t kt, int64_t ns)
 {
-	ktime_t res;
-
-	res.tv64 = kt.tv64 + ns;
+	kt.tv64 += ns;
 	return kt;
 }
 
 static inline ktime_t
 ktime_sub_ns(ktime_t kt, int64_t ns)
 {
-	ktime_t res;
-
-	res.tv64 = kt.tv64 - ns;
+	kt.tv64 -= ns;
 	return kt;
 }
 
