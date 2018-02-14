@@ -2338,7 +2338,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 		pa = VM_PAGE_TO_PHYS(m) | cache_bits;
 		if ((*pte & (PG_FRAME | X86_PG_PTE_CACHE)) != pa) {
 			oldpte |= *pte;
-			pte_store(pte, pa | pg_g | X86_PG_RW | X86_PG_V);
+			pte_store(pte, pa | pg_g | pg_nx | X86_PG_RW | X86_PG_V);
 		}
 		pte++;
 	}

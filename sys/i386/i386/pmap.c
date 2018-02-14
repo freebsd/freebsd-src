@@ -1677,7 +1677,11 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 		pa = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(m->md.pat_mode, 0);
 		if ((*pte & (PG_FRAME | PG_PTE_CACHE)) != pa) {
 			oldpte |= *pte;
+#if defined(PAE) || defined(PAE_TABLES)
+			pte_store(pte, pa | pgeflag | pg_nx | PG_RW | PG_V);
+#else
 			pte_store(pte, pa | pgeflag | PG_RW | PG_V);
+#endif
 		}
 		pte++;
 	}
