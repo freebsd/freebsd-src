@@ -31,14 +31,18 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/libkern.h>
 
 #include <dev/vt/colors/vt_termcolors.h>
 
-static const struct {
+#define NCOLORS	16
+
+static struct {
 	unsigned char r;	/* Red percentage value. */
 	unsigned char g;	/* Green percentage value. */
 	unsigned char b;	/* Blue percentage value. */
-} color_def[16] = {
+} color_def[NCOLORS] = {
 	{0,	0,	0},	/* black */
 	{50,	0,	0},	/* dark red */
 	{0,	50,	0},	/* dark green */
@@ -63,10 +67,101 @@ static const struct {
  *   - blue and red are swapped (1 <-> 4)
  *   - yellow ad cyan are swapped (3 <-> 6)
  */
-static const int cons_to_vga_colors[16] = {
+static const int cons_to_vga_colors[NCOLORS] = {
 	0, 4, 2, 6, 1, 5, 3, 7,
 	0, 4, 2, 6, 1, 5, 3, 7
 };
+
+static int
+vt_parse_rgb_triplet(const char *rgb, unsigned char *r,
+    unsigned char *g, unsigned char *b)
+{
+	unsigned long v;
+	const char *ptr;
+	char *endptr;
+
+	ptr = rgb;
+
+	/* Handle #rrggbb case */
+	if (*ptr == '#') {
+		if (strlen(ptr) != 7)
+			return (-1);
+		v = strtoul(ptr + 1, &endptr, 16);
+		if (*endptr != '\0')
+			return (-1);
+
+		*r = (v >> 16) & 0xff;
+		*g = (v >>  8) & 0xff;
+		*b = v & 0xff;
+
+		return (0);
+	}
+
+	/* "r, g, b" case */
+	v = strtoul(ptr, &endptr, 10);
+	if (ptr == endptr)
+		return (-1);
+	if (v > 255)
+		return (-1);
+	*r = v & 0xff;
+	ptr = endptr;
+
+	/* skip separator */
+	while (*ptr == ',' || *ptr == ' ')
+		ptr++;
+
+	v = strtoul(ptr, &endptr, 10);
+	if (ptr == endptr)
+		return (-1);
+	if (v > 255)
+		return (-1);
+	*g = v & 0xff;
+	ptr = endptr;
+
+	/* skip separator */
+	while (*ptr == ',' || *ptr == ' ')
+		ptr++;
+
+	v = strtoul(ptr, &endptr, 10);
+	if (ptr == endptr)
+		return (-1);
+	if (v > 255)
+		return (-1);
+	*b = v & 0xff;
+	ptr = endptr;
+
+	/* skip trailing spaces */
+	while (*ptr == ' ')
+		ptr++;
+
+	/* unexpected characters at the end of the string */
+	if (*ptr != 0)
+		return (-1);
+
+	return (0);
+}
+
+static void
+vt_palette_init(void)
+{
+	int i;
+	char rgb[32];
+	char tunable[32];
+	unsigned char r, g, b;
+
+	for (i = 0; i < NCOLORS; i++) {
+		snprintf(tunable, sizeof(tunable),
+		    "kern.vt.color.%d.rgb", i);
+		if (TUNABLE_STR_FETCH(tunable, rgb, sizeof(rgb))) {
+			if (vt_parse_rgb_triplet(rgb, &r, &g, &b) == 0) {
+				/* convert to percentages */
+				color_def[i].r = r*100/255;
+				color_def[i].g = g*100/255;
+				color_def[i].b = b*100/255;
+			}
+		}
+	}
+}
 
 int
 vt_generate_cons_palette(uint32_t *palette, int format, uint32_t rmax,
@@ -74,8 +169,10 @@ vt_generate_cons_palette(uint32_t *palette, int format, uint32_t rmax,
 {
 	int i;
 
+	vt_palette_init();
+
 #define	CF(_f, _i) ((_f ## max * color_def[(_i)]._f / 100) << _f ## offset)
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < NCOLORS; i++) {
 		switch (format) {
 		case COLOR_FORMAT_VGA:
 			palette[i] = cons_to_vga_colors[i];

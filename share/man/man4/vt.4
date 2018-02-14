@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 19, 2016
+.Dd December 28, 2017
 .Dt "VT" 4
 .Os
 .Sh NAME
@@ -45,6 +45,7 @@ In
 .Xr loader.conf 5 :
 .Cd hw.vga.textmode=1
 .Cd kern.vty=vt
+.Cd kern.vt.color.<colornum>.rgb="<colorspec>"
 .Cd kern.vt.fb.default_mode="<X>x<Y>"
 .Cd kern.vt.fb.modes.<connector>="<X>x<Y>"
 .Pp
@@ -205,6 +206,16 @@ If not set, the default in the
 .Pa GENERIC
 kernel is
 .Nm .
+.It Va kern.vt.color. Ns Ar colornum Ns Va .rgb
+Set this value to override default palette entry for color
+.Pa colornum
+which should be in a range from 0 to 15 inclusive.
+The value should be either a comma-separated triplet of
+red, green, and blue values in a range from 0 to 255 or
+HTML-like hex triplet.
+See
+.Sx EXAMPLES
+below.
 .It Va kern.vt.fb.default_mode
 Set this value to a graphic mode to override the default mode picked by the
 .Nm
@@ -309,6 +320,11 @@ The connector name was found in
 .Dl info: [drm] Connector LVDS-1: get mode from tunables:
 .Dl info: [drm]   - kern.vt.fb.modes.LVDS-1
 .Dl info: [drm]   - kern.vt.fb.default_mode
+.Pp
+To set black and white colors of console palette
+.Pp
+.Dl kern.vt.color.0.rgb="10,10,10"
+.Dl kern.vt.color.15.rgb="#f0f0f0"
 .Sh SEE ALSO
 .Xr kbdcontrol 1 ,
 .Xr login 1 ,
