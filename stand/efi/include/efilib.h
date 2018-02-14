@@ -106,4 +106,7 @@ int wcscmp(CHAR16 *, CHAR16 *);
 void cpy8to16(const char *, CHAR16 *, size_t);
 void cpy16to8(const CHAR16 *, char *, size_t);
 
+/* efipart.c */
+int	efipart_inithandles(void);
+
 #endif	/* _LOADER_EFILIB_H */
