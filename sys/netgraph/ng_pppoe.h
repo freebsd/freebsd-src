@@ -52,8 +52,10 @@
 
 #define NGM_PPPOE_COOKIE		1089893072
 #define NGM_PPPOE_SETMAXP_COOKIE	1441624322
+#define NGM_PPPOE_PADM_COOKIE		1488405822
 
 #define	PPPOE_SERVICE_NAME_SIZE		64 /* for now */
+#define	PPPOE_PADM_VALUE_SIZE		128 /* for now */
 
 /* Hook names */
 #define NG_PPPOE_HOOK_ETHERNET	"ethernet"
@@ -84,7 +86,11 @@ enum cmd {
 	NGM_PPPOE_SETMODE  = 12, /* set to standard or compat modes */
 	NGM_PPPOE_GETMODE  = 13, /* see current mode */
 	NGM_PPPOE_SETENADDR = 14, /* set Ethernet address */
-	NGM_PPPOE_SETMAXP  = 15 /* Set PPP-Max-Payload value */
+	NGM_PPPOE_SETMAXP   = 15, /* Set PPP-Max-Payload value */
+	NGM_PPPOE_SEND_HURL = 16, /* Send PADM HURL message */
+	NGM_PPPOE_HURL      = 17, /* HURL for informational purposes */
+	NGM_PPPOE_SEND_MOTM = 18, /* Send PADM MOTM message */
+	NGM_PPPOE_MOTM      = 19  /* MOTM for informational purposes */
 };
 
 /***********************
@@ -157,6 +163,13 @@ struct ngpppoe_maxp {
 	uint16_t	data;
 };
 
+/*
+ * This structure is used to send PADM messages from server to client.
+ */
+struct ngpppoe_padm {
+	char	msg[PPPOE_PADM_VALUE_SIZE];
+};
+
 /********************************************************************
  * Constants and definitions specific to pppoe
  ********************************************************************/
@@ -171,6 +184,7 @@ struct ngpppoe_maxp {
 #define PADR_CODE	0x19
 #define PADS_CODE	0x65
 #define PADT_CODE	0xa7
+#define PADM_CODE	0xd3
 
 /* Tag identifiers */
 #if BYTE_ORDER == BIG_ENDIAN
@@ -181,6 +195,8 @@ struct ngpppoe_maxp {
 #define PTT_AC_COOKIE	(0x0104)
 #define PTT_VENDOR 	(0x0105)
 #define PTT_RELAY_SID	(0x0110)
+#define PTT_HURL	(0x0111)	/* PPPoE Extensions (CARREL) */
+#define PTT_MOTM	(0x0112)	/* PPPoE Extensions (CARREL) */
 #define	PTT_MAX_PAYL	(0x0120)	/* PPP-Max-Payload (RFC4638) */
 #define PTT_SRV_ERR     (0x0201)
 #define PTT_SYS_ERR  	(0x0202)
@@ -198,6 +214,8 @@ struct ngpppoe_maxp {
 #define PTT_AC_COOKIE	(0x0401)
 #define PTT_VENDOR 	(0x0501)
 #define PTT_RELAY_SID	(0x1001)
+#define PTT_HURL	(0x1101)	/* PPPoE Extensions (CARREL) */
+#define PTT_MOTM	(0x1201)	/* PPPoE Extensions (CARREL) */
 #define	PTT_MAX_PAYL	(0x2001)	/* PPP-Max-Payload (RFC4638) */
 #define PTT_SRV_ERR     (0x0102)
 #define PTT_SYS_ERR  	(0x0202)
