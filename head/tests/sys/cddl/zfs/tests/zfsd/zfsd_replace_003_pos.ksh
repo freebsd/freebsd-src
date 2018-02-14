@@ -107,6 +107,10 @@ for type in "raidz2" "mirror"; do
 		log_fail "Pool $TESTPOOL not listed as DEGRADED"
 	fi
 
+	# Do some I/O to ensure that the old vdevs will be out of date
+	log_must $DD if=/dev/random of=/$TESTPOOL/randfile bs=1m count=1
+	log_must $SYNC
+
 	# Recreate the vdevs in the opposite order
 	typeset MD0=`$MDCONFIG -a -t vnode -f ${FILE1}`
 	[ $? -eq 0 ] || atf_fail "Failed to create md device"
