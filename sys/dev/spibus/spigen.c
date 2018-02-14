@@ -53,6 +53,9 @@ __FBSDID("$FreeBSD$");
 
 #include "spibus_if.h"
 
+#define	SPIGEN_OPEN		(1 << 0)
+#define	SPIGEN_MMAP_BUSY	(1 << 1)
+
 struct spigen_softc {
 	device_t sc_dev;
 	struct cdev *sc_cdev;
@@ -63,8 +66,8 @@ struct spigen_softc {
 	vm_object_t sc_mmap_buffer;     /* command, then data */
 	vm_offset_t sc_mmap_kvaddr;
 	size_t sc_mmap_buffer_size;
-	int sc_mmap_busy;
 	int sc_debug;
+	int sc_flags;
 };
 
 #ifdef FDT
@@ -191,10 +194,24 @@ spigen_attach(device_t dev)
 }
 
 static int 
-spigen_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+spigen_open(struct cdev *cdev, int oflags, int devtype, struct thread *td)
 {
+	int error;
+	device_t dev;
+	struct spigen_softc *sc;
 
-	return (0);
+	error = 0;
+	dev = cdev->si_drv1;
+	sc = device_get_softc(dev);
+
+	mtx_lock(&sc->sc_mtx);
+	if (sc->sc_flags & SPIGEN_OPEN)
+		error = EBUSY;
+	else
+		sc->sc_flags |= SPIGEN_OPEN;
+	mtx_unlock(&sc->sc_mtx);
+
+	return (error);
 }
 
 static int
@@ -264,7 +281,7 @@ spigen_transfer_mmapped(struct cdev *cdev, struct spigen_transfer_mmapped *stm)
 	int error = 0;
 
 	mtx_lock(&sc->sc_mtx);
-	if (sc->sc_mmap_busy)
+	if (sc->sc_flags & SPIGEN_MMAP_BUSY)
 		error = EBUSY;
 	else if (stm->stm_command_length > sc->sc_command_length_max ||
 	    stm->stm_data_length > sc->sc_data_length_max)
@@ -275,7 +292,7 @@ spigen_transfer_mmapped(struct cdev *cdev, struct spigen_transfer_mmapped *stm)
 	    stm->stm_command_length + stm->stm_data_length)
 		error = ENOMEM;
 	if (error == 0)
-		sc->sc_mmap_busy = 1;
+		sc->sc_flags |= SPIGEN_MMAP_BUSY;
 	mtx_unlock(&sc->sc_mtx);
 	if (error)
 		return (error);
@@ -288,8 +305,8 @@ spigen_transfer_mmapped(struct cdev *cdev, struct spigen_transfer_mmapped *stm)
 	error = SPIBUS_TRANSFER(device_get_parent(dev), dev, &transfer);
 
 	mtx_lock(&sc->sc_mtx);
-	KASSERT(sc->sc_mmap_busy, ("mmap no longer marked busy"));
-	sc->sc_mmap_busy = 0;
+	KASSERT((sc->sc_flags & SPIGEN_MMAP_BUSY), ("mmap no longer marked busy"));
+	sc->sc_flags &= ~(SPIGEN_MMAP_BUSY);
 	mtx_unlock(&sc->sc_mtx);
 	return (error);
 }
@@ -391,6 +408,7 @@ spigen_close(struct cdev *cdev, int fflag, int devtype, struct thread *td)
 		sc->sc_mmap_buffer = NULL;
 		sc->sc_mmap_buffer_size = 0;
 	}
+	sc->sc_flags &= ~(SPIGEN_OPEN);
 	mtx_unlock(&sc->sc_mtx);
 	return (0);
 }
@@ -398,8 +416,23 @@ spigen_close(struct cdev *cdev, int fflag, int devtype, struct thread *td)
 static int
 spigen_detach(device_t dev)
 {
+	struct spigen_softc *sc;
 
-	return (EIO);
+	sc = device_get_softc(dev);
+
+	mtx_lock(&sc->sc_mtx);
+	if (sc->sc_flags & SPIGEN_OPEN) {
+		mtx_unlock(&sc->sc_mtx);
+		return (EBUSY);
+	}
+	mtx_unlock(&sc->sc_mtx);
+
+	mtx_destroy(&sc->sc_mtx);
+
+        if (sc->sc_cdev)
+                destroy_dev(sc->sc_cdev);
+	
+	return (0);
 }
 
 static devclass_t spigen_devclass;
