@@ -809,10 +809,12 @@ ffs_mountfs(devvp, mp, td)
 	if ((error = ffs_sbget(devvp, &fs, -1, M_UFSMNT, ffs_use_bread)) != 0)
 		goto out;
 	fs->fs_fmod = 0;
-	/* none of these types of check-hashes are maintained */
+	/* if we ran on a kernel without metadata check hashes, disable them */
+	if ((fs->fs_flags & FS_METACKHASH) == 0)
+		fs->fs_metackhash = 0;
+	/* none of these types of check-hashes are maintained by this kernel */
 	fs->fs_metackhash &= ~(CK_SUPERBLOCK | CK_INODE | CK_INDIR | CK_DIR);
-	/* no support for directory indices or any other undefined flags */
-	fs->fs_flags &= ~FS_INDEXDIRS;
+	/* no support for any undefined flags */
 	fs->fs_flags &= FS_SUPPORTED;
 	fs->fs_flags &= ~FS_UNCLEAN;
 	if (fs->fs_clean == 0) {
@@ -2082,6 +2084,7 @@ static int
 ffs_bufwrite(struct buf *bp)
 {
 	struct buf *newbp;
+	struct cg *cgp;
 
 	CTR3(KTR_BUF, "bufwrite(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	if (bp->b_flags & B_INVAL) {
@@ -2163,8 +2166,16 @@ ffs_bufwrite(struct buf *bp)
 		/*
 		 * Initiate write on the copy, release the original.  The
 		 * BKGRDINPROG flag prevents it from going away until 
-		 * the background write completes.
+		 * the background write completes. We have to recalculate
+		 * its check hash in case the buffer gets freed and then
+		 * reconstituted from the buffer cache during a later read.
 		 */
+		if ((bp->b_xflags & BX_CYLGRP) != 0) {
+			cgp = (struct cg *)bp->b_data;
+			cgp->cg_ckhash = 0;
+			cgp->cg_ckhash =
+			    calculate_crc32c(~0L, bp->b_data, bp->b_bcount);
+		}
 		bqrelse(bp);
 		bp = newbp;
 	} else
@@ -2174,6 +2185,13 @@ ffs_bufwrite(struct buf *bp)
 
 	/* Let the normal bufwrite do the rest for us */
 normal_write:
+	/*
+	 * If we are writing a cylinder group, update its time.
+	 */
+	if ((bp->b_xflags & BX_CYLGRP) != 0) {
+		cgp = (struct cg *)bp->b_data;
+		cgp->cg_old_time = cgp->cg_time = time_second;
+	}
 	return (bufwrite(bp));
 }
 

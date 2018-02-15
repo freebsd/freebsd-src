@@ -59,6 +59,12 @@ static dnode_phys_t dnode_phys_zero;
 int zfs_default_bs = SPA_MINBLOCKSHIFT;
 int zfs_default_ibs = DN_MAX_INDBLKSHIFT;
 
+SYSCTL_DECL(_vfs_zfs);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, default_bs, CTLFLAG_RWTUN,
+    &zfs_default_bs, 0, "Default dnode block shift");
+SYSCTL_INT(_vfs_zfs, OID_AUTO, default_ibs, CTLFLAG_RWTUN,
+    &zfs_default_ibs, 0, "Default dnode indirect block shift");
+
 #ifdef illumos
 static kmem_cbrc_t dnode_move(void *, void *, size_t, void *);
 #endif

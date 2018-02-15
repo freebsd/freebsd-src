@@ -101,7 +101,7 @@ gettable(const char *name, char *buf)
 		firsttime = 0;
 	}
 
-	switch (cgetent(&buf, (char **)dba, (char *)name)) {
+	switch (cgetent(&buf, (char **)dba, name)) {
 	case 1:
 		msg = "%s: couldn't resolve 'tc=' in gettytab '%s'";
 	case 0:
@@ -126,7 +126,7 @@ gettable(const char *name, char *buf)
 	}
 
 	for (sp = gettystrs; sp->field; sp++) {
-		if ((l = cgetstr(buf, (char*)sp->field, &p)) >= 0) {
+		if ((l = cgetstr(buf, sp->field, &p)) >= 0) {
 			if (sp->value) {
 				/* prefer existing value */
 				if (strcmp(p, sp->value) != 0)
@@ -144,7 +144,7 @@ gettable(const char *name, char *buf)
 	}
 
 	for (np = gettynums; np->field; np++) {
-		if (cgetnum(buf, (char*)np->field, &n) == -1)
+		if (cgetnum(buf, np->field, &n) == -1)
 			np->set = 0;
 		else {
 			np->set = 1;
@@ -153,7 +153,7 @@ gettable(const char *name, char *buf)
 	}
 
 	for (fp = gettyflags; fp->field; fp++) {
-		if (cgetcap(buf, (char *)fp->field, ':') == NULL)
+		if (cgetcap(buf, fp->field, ':') == NULL)
 			fp->set = 0;
 		else {
 			fp->set = 1;
@@ -539,7 +539,7 @@ static struct speedtab {
 	{ 57600, B57600 },
 	{ 115200, B115200 },
 	{ 230400, B230400 },
-	{ 0 }
+	{ 0, 0 }
 };
 
 int
@@ -588,7 +588,7 @@ makeenv(char *env[])
  * baud rate. This string indicates the user's actual speed.
  * The routine below returns the terminal type mapped from derived speed.
  */
-struct	portselect {
+static struct	portselect {
 	const char	*ps_baud;
 	const char	*ps_type;
 } portspeeds[] = {

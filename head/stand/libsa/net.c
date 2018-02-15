@@ -118,7 +118,7 @@ sendrecv(struct iodesc *d,
 		/* Try to get a packet and process it. */
 		cc = (*rproc)(d, pkt, payload, tleft);
 		/* Return on data, EOF or real error. */
-		if (cc != -1 || errno != 0)
+		if (cc != -1 || (errno != 0 && errno != ETIMEDOUT))
 			return (cc);
 
 		/* Timed out or didn't get the packet we're waiting for */

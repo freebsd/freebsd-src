@@ -191,7 +191,7 @@ vslock(void *addr, size_t len)
 	 * Also, the sysctl code, which is the only present user
 	 * of vslock(), does a hard loop on EAGAIN.
 	 */
-	if (npages + vm_cnt.v_wire_count > vm_page_max_wired)
+	if (npages + vm_wire_count() > vm_page_max_wired)
 		return (EAGAIN);
 #endif
 	error = vm_map_wire(&curproc->p_vmspace->vm_map, start, end,
@@ -552,7 +552,7 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
 	}
 
 	while (vm_page_count_severe()) {
-		VM_WAIT;
+		vm_wait_severe();
 	}
 
 	if ((flags & RFMEM) == 0) {

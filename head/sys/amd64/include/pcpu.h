@@ -74,7 +74,8 @@
 	uint32_t pc_pcid_next;						\
 	uint32_t pc_pcid_gen;						\
 	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
-	char	__pad[224]		/* be divisor of PAGE_SIZE	\
+	uint32_t pc_ibpb_set;						\
+	char	__pad[216]		/* be divisor of PAGE_SIZE	\
 					   after cache alignment */
 
 #define	PC_DBREG_CMD_NONE	0

@@ -72,8 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_phy.h>
 #include <net80211/ieee80211_ratectl.h>
 
-#include <dev/bwn/if_bwn_siba.h>
-
 #include <dev/bwn/if_bwnreg.h>
 #include <dev/bwn/if_bwnvar.h>
 
@@ -121,8 +119,7 @@ bwn_phy_n_prepare_hw(struct bwn_mac *mac)
 {
 
 #ifdef	BWN_GPL_PHY
-	bwn_nphy_op_prepare_structs(mac);
-	return (0);
+	return (bwn_nphy_op_prepare_structs(mac));
 #else
 	return (ENXIO);
 #endif

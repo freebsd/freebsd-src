@@ -1677,7 +1677,11 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 		pa = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(m->md.pat_mode, 0);
 		if ((*pte & (PG_FRAME | PG_PTE_CACHE)) != pa) {
 			oldpte |= *pte;
+#if defined(PAE) || defined(PAE_TABLES)
+			pte_store(pte, pa | pgeflag | pg_nx | PG_RW | PG_V);
+#else
 			pte_store(pte, pa | pgeflag | PG_RW | PG_V);
+#endif
 		}
 		pte++;
 	}
@@ -1718,7 +1722,7 @@ pmap_free_zero_pages(struct spglist *free)
 		/* Preserve the page's PG_ZERO setting. */
 		vm_page_free_toq(m);
 	}
-	atomic_subtract_int(&vm_cnt.v_wire_count, count);
+	vm_wire_sub(count);
 }
 
 /*
@@ -2057,10 +2061,9 @@ pmap_release(pmap_t pmap)
 		KASSERT(VM_PAGE_TO_PHYS(m) == (pmap->pm_pdpt[i] & PG_FRAME),
 		    ("pmap_release: got wrong ptd page"));
 #endif
-		m->wire_count--;
+		vm_page_unwire_noq(m);
 		vm_page_free_zero(m);
 	}
-	atomic_subtract_int(&vm_cnt.v_wire_count, NPGPTD);
 }
 
 static int

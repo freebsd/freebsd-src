@@ -89,10 +89,14 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_pagequeue.h>
 #include <vm/vm_map.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
+extern void	uma_startup1(void);
+extern void	uma_startup2(void);
+extern void	vm_radix_reserve_kva(void);
 
 #if VM_NRESERVLEVEL > 0
 #define	KVA_QUANTUM	(1 << (VM_LEVEL_0_ORDER + PAGE_SHIFT))
@@ -150,7 +154,11 @@ vm_mem_init(dummy)
 	 */
 	vm_set_page_size();
 	virtual_avail = vm_page_startup(virtual_avail);
-	
+
+#ifdef	UMA_MD_SMALL_ALLOC
+	/* Announce page availability to UMA. */
+	uma_startup1();
+#endif
 	/*
 	 * Initialize other VM packages
 	 */
@@ -173,6 +181,12 @@ vm_mem_init(dummy)
 		    KVA_QUANTUM);
 	}
 
+#ifndef	UMA_MD_SMALL_ALLOC
+	/* Set up radix zone to use noobj_alloc. */
+	vm_radix_reserve_kva();
+#endif
+	/* Announce full page availability to UMA. */
+	uma_startup2();
 	kmem_init_zero_region();
 	pmap_init();
 	vm_pager_init();

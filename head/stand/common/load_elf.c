@@ -87,6 +87,112 @@ const char	*__elfN(moduletype) = "elf module";
 
 u_int64_t	__elfN(relocation_offset) = 0;
 
+extern void elf_wrong_field_size(void);
+#define CONVERT_FIELD(b, f, e)			\
+	switch (sizeof((b)->f)) {		\
+	case 2:					\
+		(b)->f = e ## 16toh((b)->f);	\
+		break;				\
+	case 4:					\
+		(b)->f = e ## 32toh((b)->f);	\
+		break;				\
+	case 8:					\
+		(b)->f = e ## 64toh((b)->f);	\
+		break;				\
+	default:				\
+		/* Force a link time error. */	\
+		elf_wrong_field_size();		\
+		break;				\
+	}
+
+#define CONVERT_SWITCH(h, d, f)			\
+	switch ((h)->e_ident[EI_DATA]) {	\
+	case ELFDATA2MSB:			\
+		f(d, be);			\
+		break;				\
+	case ELFDATA2LSB:			\
+		f(d, le);			\
+		break;				\
+	default:				\
+		return (EINVAL);		\
+	}
+
+
+static int elf_header_convert(Elf_Ehdr *ehdr)
+{
+	/*
+	 * Fixup ELF header endianness.
+	 *
+	 * The Xhdr structure was loaded using block read call to optimize file
+	 * accesses. It might happen, that the endianness of the system memory
+	 * is different that endianness of the ELF header.  Swap fields here to
+	 * guarantee that Xhdr always contain valid data regardless of
+	 * architecture.
+	 */
+#define HEADER_FIELDS(b, e)			\
+	CONVERT_FIELD(b, e_type, e);		\
+	CONVERT_FIELD(b, e_machine, e);		\
+	CONVERT_FIELD(b, e_version, e);		\
+	CONVERT_FIELD(b, e_entry, e);		\
+	CONVERT_FIELD(b, e_phoff, e);		\
+	CONVERT_FIELD(b, e_shoff, e);		\
+	CONVERT_FIELD(b, e_flags, e);		\
+	CONVERT_FIELD(b, e_ehsize, e);		\
+	CONVERT_FIELD(b, e_phentsize, e);	\
+	CONVERT_FIELD(b, e_phnum, e);		\
+	CONVERT_FIELD(b, e_shentsize, e);	\
+	CONVERT_FIELD(b, e_shnum, e);		\
+	CONVERT_FIELD(b, e_shstrndx, e)
+
+	CONVERT_SWITCH(ehdr, ehdr, HEADER_FIELDS);
+
+#undef HEADER_FIELDS
+
+	return (0);
+}
+
+static int elf_program_header_convert(const Elf_Ehdr *ehdr, Elf_Phdr *phdr)
+{
+#define PROGRAM_HEADER_FIELDS(b, e)		\
+	CONVERT_FIELD(b, p_type, e);		\
+	CONVERT_FIELD(b, p_flags, e);		\
+	CONVERT_FIELD(b, p_offset, e);		\
+	CONVERT_FIELD(b, p_vaddr, e);		\
+	CONVERT_FIELD(b, p_paddr, e);		\
+	CONVERT_FIELD(b, p_filesz, e);		\
+	CONVERT_FIELD(b, p_memsz, e);		\
+	CONVERT_FIELD(b, p_align, e)
+
+	CONVERT_SWITCH(ehdr, phdr, PROGRAM_HEADER_FIELDS);
+
+#undef PROGRAM_HEADER_FIELDS
+
+	return (0);
+}
+
+static int elf_section_header_convert(const Elf_Ehdr *ehdr, Elf_Shdr *shdr)
+{
+#define SECTION_HEADER_FIELDS(b, e)		\
+	CONVERT_FIELD(b, sh_name, e);		\
+	CONVERT_FIELD(b, sh_type, e);		\
+	CONVERT_FIELD(b, sh_link, e);		\
+	CONVERT_FIELD(b, sh_info, e);		\
+	CONVERT_FIELD(b, sh_flags, e);		\
+	CONVERT_FIELD(b, sh_addr, e);		\
+	CONVERT_FIELD(b, sh_offset, e);		\
+	CONVERT_FIELD(b, sh_size, e);		\
+	CONVERT_FIELD(b, sh_addralign, e);	\
+	CONVERT_FIELD(b, sh_entsize, e)
+
+	CONVERT_SWITCH(ehdr, shdr, SECTION_HEADER_FIELDS);
+
+#undef SECTION_HEADER_FIELDS
+
+	return (0);
+}
+#undef CONVERT_SWITCH
+#undef CONVERT_FIELD
+
 static int
 __elfN(load_elf_header)(char *filename, elf_file_t ef)
 {
@@ -127,58 +233,9 @@ __elfN(load_elf_header)(char *filename, elf_file_t ef)
 		goto error;
 	}
 
-	/*
-	 * Fixup ELF endianness.
-	 *
-	 * The Xhdr structure was loaded using block read call to
-	 * optimize file accesses. It might happen, that the endianness
-	 * of the system memory is different that endianness of
-	 * the ELF header.
-	 * Swap fields here to guarantee that Xhdr always contain
-	 * valid data regardless of architecture.
-	 */
-	if (ehdr->e_ident[EI_DATA] == ELFDATA2MSB) {
-		ehdr->e_type = be16toh(ehdr->e_type);
-		ehdr->e_machine = be16toh(ehdr->e_machine);
-		ehdr->e_version = be32toh(ehdr->e_version);
-		if (ehdr->e_ident[EI_CLASS] == ELFCLASS64) {
-			ehdr->e_entry = be64toh(ehdr->e_entry);
-			ehdr->e_phoff = be64toh(ehdr->e_phoff);
-			ehdr->e_shoff = be64toh(ehdr->e_shoff);
-		} else {
-			ehdr->e_entry = be32toh(ehdr->e_entry);
-			ehdr->e_phoff = be32toh(ehdr->e_phoff);
-			ehdr->e_shoff = be32toh(ehdr->e_shoff);
-		}
-		ehdr->e_flags = be32toh(ehdr->e_flags);
-		ehdr->e_ehsize = be16toh(ehdr->e_ehsize);
-		ehdr->e_phentsize = be16toh(ehdr->e_phentsize);
-		ehdr->e_phnum = be16toh(ehdr->e_phnum);
-		ehdr->e_shentsize = be16toh(ehdr->e_shentsize);
-		ehdr->e_shnum = be16toh(ehdr->e_shnum);
-		ehdr->e_shstrndx = be16toh(ehdr->e_shstrndx);
-
-	} else {
-		ehdr->e_type = le16toh(ehdr->e_type);
-		ehdr->e_machine = le16toh(ehdr->e_machine);
-		ehdr->e_version = le32toh(ehdr->e_version);
-		if (ehdr->e_ident[EI_CLASS] == ELFCLASS64) {
-			ehdr->e_entry = le64toh(ehdr->e_entry);
-			ehdr->e_phoff = le64toh(ehdr->e_phoff);
-			ehdr->e_shoff = le64toh(ehdr->e_shoff);
-		} else {
-			ehdr->e_entry = le32toh(ehdr->e_entry);
-			ehdr->e_phoff = le32toh(ehdr->e_phoff);
-			ehdr->e_shoff = le32toh(ehdr->e_shoff);
-		}
-		ehdr->e_flags = le32toh(ehdr->e_flags);
-		ehdr->e_ehsize = le16toh(ehdr->e_ehsize);
-		ehdr->e_phentsize = le16toh(ehdr->e_phentsize);
-		ehdr->e_phnum = le16toh(ehdr->e_phnum);
-		ehdr->e_shentsize = le16toh(ehdr->e_shentsize);
-		ehdr->e_shnum = le16toh(ehdr->e_shnum);
-		ehdr->e_shstrndx = le16toh(ehdr->e_shstrndx);
-	}
+	err = elf_header_convert(ehdr);
+	if (err)
+		goto error;
 
 	if (ehdr->e_version != EV_CURRENT || ehdr->e_machine != ELF_TARG_MACH) { /* Machine ? */
 		err = EFTYPE;
@@ -375,15 +432,6 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
     u_int	fpcopy;
     Elf_Sym	sym;
     Elf_Addr	p_start, p_end;
-#if __ELF_WORD_SIZE == 64
-    uint64_t scr_ssym;
-    uint64_t scr_esym;
-    uint64_t scr;
-#else
-    uint32_t scr_ssym;
-    uint32_t scr_esym;
-    uint32_t scr;
-#endif
 
     dp = NULL;
     shdr = NULL;
@@ -458,53 +506,8 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
     phdr = (Elf_Phdr *)(ef->firstpage + ehdr->e_phoff);
 
     for (i = 0; i < ehdr->e_phnum; i++) {
-	/*
-	 * Fixup ELF endianness.
-	 *
-	 * The Xhdr structure was loaded using block read call to
-	 * optimize file accesses. It might happen, that the endianness
-	 * of the system memory is different that endianness of
-	 * the ELF header.
-	 * Swap fields here to guarantee that Xhdr always contain
-	 * valid data regardless of architecture.
-	 */
-	if (ehdr->e_ident[EI_DATA] == ELFDATA2MSB) {
-		phdr[i].p_type = be32toh(phdr[i].p_type);
-		phdr[i].p_flags = be32toh(phdr[i].p_flags);
-		if (ehdr->e_ident[EI_CLASS] == ELFCLASS64) {
-			phdr[i].p_offset = be64toh(phdr[i].p_offset);
-			phdr[i].p_vaddr = be64toh(phdr[i].p_vaddr);
-			phdr[i].p_paddr = be64toh(phdr[i].p_paddr);
-			phdr[i].p_filesz = be64toh(phdr[i].p_filesz);
-			phdr[i].p_memsz = be64toh(phdr[i].p_memsz);
-			phdr[i].p_align = be64toh(phdr[i].p_align);
-		} else {
-			phdr[i].p_offset = be32toh(phdr[i].p_offset);
-			phdr[i].p_vaddr = be32toh(phdr[i].p_vaddr);
-			phdr[i].p_paddr = be32toh(phdr[i].p_paddr);
-			phdr[i].p_filesz = be32toh(phdr[i].p_filesz);
-			phdr[i].p_memsz = be32toh(phdr[i].p_memsz);
-			phdr[i].p_align = be32toh(phdr[i].p_align);
-		}
-	} else {
-		phdr[i].p_type = le32toh(phdr[i].p_type);
-		phdr[i].p_flags = le32toh(phdr[i].p_flags);
-		if (ehdr->e_ident[EI_CLASS] == ELFCLASS64) {
-			phdr[i].p_offset = le64toh(phdr[i].p_offset);
-			phdr[i].p_vaddr = le64toh(phdr[i].p_vaddr);
-			phdr[i].p_paddr = le64toh(phdr[i].p_paddr);
-			phdr[i].p_filesz = le64toh(phdr[i].p_filesz);
-			phdr[i].p_memsz = le64toh(phdr[i].p_memsz);
-			phdr[i].p_align = le64toh(phdr[i].p_align);
-		} else {
-			phdr[i].p_offset = le32toh(phdr[i].p_offset);
-			phdr[i].p_vaddr = le32toh(phdr[i].p_vaddr);
-			phdr[i].p_paddr = le32toh(phdr[i].p_paddr);
-			phdr[i].p_filesz = le32toh(phdr[i].p_filesz);
-			phdr[i].p_memsz = le32toh(phdr[i].p_memsz);
-			phdr[i].p_align = le32toh(phdr[i].p_align);
-		}
-	}
+	if (elf_program_header_convert(ehdr, phdr))
+	    continue;
 
 	/* We want to load PT_LOAD segments only.. */
 	if (phdr[i].p_type != PT_LOAD)
@@ -581,59 +584,9 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	goto nosyms;
     }
 
-    /*
-     * Fixup ELF endianness.
-     *
-     * The Xhdr structure was loaded using block read call to
-     * optimize file accesses. It might happen, that the endianness
-     * of the system memory is different that endianness of
-     * the ELF header.
-     * Swap fields here to guarantee that Xhdr always contain
-     * valid data regardless of architecture.
-     */
-    for (i = 0; i < ehdr->e_shnum; i++) {
-	if (ehdr->e_ident[EI_DATA] == ELFDATA2MSB) {
-		shdr[i].sh_name = be32toh(shdr[i].sh_name);
-		shdr[i].sh_type = be32toh(shdr[i].sh_type);
-		shdr[i].sh_link = be32toh(shdr[i].sh_link);
-		shdr[i].sh_info = be32toh(shdr[i].sh_info);
-		if (ehdr->e_ident[EI_CLASS] == ELFCLASS64) {
-			shdr[i].sh_flags = be64toh(shdr[i].sh_flags);
-			shdr[i].sh_addr = be64toh(shdr[i].sh_addr);
-			shdr[i].sh_offset = be64toh(shdr[i].sh_offset);
-			shdr[i].sh_size = be64toh(shdr[i].sh_size);
-			shdr[i].sh_addralign = be64toh(shdr[i].sh_addralign);
-			shdr[i].sh_entsize = be64toh(shdr[i].sh_entsize);
-		} else {
-			shdr[i].sh_flags = be32toh(shdr[i].sh_flags);
-			shdr[i].sh_addr = be32toh(shdr[i].sh_addr);
-			shdr[i].sh_offset = be32toh(shdr[i].sh_offset);
-			shdr[i].sh_size = be32toh(shdr[i].sh_size);
-			shdr[i].sh_addralign = be32toh(shdr[i].sh_addralign);
-			shdr[i].sh_entsize = be32toh(shdr[i].sh_entsize);
-		}
-	} else {
-		shdr[i].sh_name = le32toh(shdr[i].sh_name);
-		shdr[i].sh_type = le32toh(shdr[i].sh_type);
-		shdr[i].sh_link = le32toh(shdr[i].sh_link);
-		shdr[i].sh_info = le32toh(shdr[i].sh_info);
-		if (ehdr->e_ident[EI_CLASS] == ELFCLASS64) {
-			shdr[i].sh_flags = le64toh(shdr[i].sh_flags);
-			shdr[i].sh_addr = le64toh(shdr[i].sh_addr);
-			shdr[i].sh_offset = le64toh(shdr[i].sh_offset);
-			shdr[i].sh_size = le64toh(shdr[i].sh_size);
-			shdr[i].sh_addralign = le64toh(shdr[i].sh_addralign);
-			shdr[i].sh_entsize = le64toh(shdr[i].sh_entsize);
-		} else {
-			shdr[i].sh_flags = le32toh(shdr[i].sh_flags);
-			shdr[i].sh_addr = le32toh(shdr[i].sh_addr);
-			shdr[i].sh_offset = le32toh(shdr[i].sh_offset);
-			shdr[i].sh_size = le32toh(shdr[i].sh_size);
-			shdr[i].sh_addralign = le32toh(shdr[i].sh_addralign);
-			shdr[i].sh_entsize = le32toh(shdr[i].sh_entsize);
-		}
-	}
-    }
+    for (i = 0; i < ehdr->e_shnum; i++)
+	elf_section_header_convert(ehdr, &shdr[i]);
+
     file_addmetadata(fp, MODINFOMD_SHDR, chunk, shdr);
 
     /*
@@ -712,13 +665,14 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	size = shdr[i].sh_size;
 #if defined(__powerpc__)
   #if __ELF_WORD_SIZE == 64
-	scr = htobe64(size);
+	size = htobe64(size);
   #else
-	scr = htobe32(size);
+	size = htobe32(size);
   #endif
 #endif
-	archsw.arch_copyin(&scr, lastaddr, sizeof(scr));
-	lastaddr += sizeof(scr);
+
+	archsw.arch_copyin(&size, lastaddr, sizeof(size));
+	lastaddr += sizeof(size);
 
 #ifdef ELF_VERBOSE
 	printf("\n%s: 0x%jx@0x%jx -> 0x%jx-0x%jx", secname,
@@ -760,19 +714,16 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 #if defined(__powerpc__)
   /* On PowerPC we always need to provide BE data to the kernel */
   #if __ELF_WORD_SIZE == 64
-    scr_ssym = htobe64((uint64_t)ssym);
-    scr_esym = htobe64((uint64_t)esym);
+    ssym = htobe64((uint64_t)ssym);
+    esym = htobe64((uint64_t)esym);
   #else
-    scr_ssym = htobe32((uint32_t)ssym);
-    scr_esym = htobe32((uint32_t)esym);
+    ssym = htobe32((uint32_t)ssym);
+    esym = htobe32((uint32_t)esym);
   #endif
-#else
-    scr_ssym = ssym;
-    scr_esym = esym;
 #endif
 
-    file_addmetadata(fp, MODINFOMD_SSYM, sizeof(scr_ssym), &scr_ssym);
-    file_addmetadata(fp, MODINFOMD_ESYM, sizeof(scr_esym), &scr_esym);
+    file_addmetadata(fp, MODINFOMD_SSYM, sizeof(ssym), &ssym);
+    file_addmetadata(fp, MODINFOMD_ESYM, sizeof(esym), &esym);
 
 nosyms:
     printf("\n");

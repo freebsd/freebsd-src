@@ -445,7 +445,7 @@ cdasync(void *callback_arg, u_int32_t code,
 	case AC_SCSI_AEN:
 		softc = (struct cd_softc *)periph->softc;
 		if (softc->state == CD_STATE_NORMAL && !softc->tur) {
-			if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
+			if (cam_periph_acquire(periph) == 0) {
 				softc->tur = 1;
 				xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 			}
@@ -480,7 +480,7 @@ cdsysctlinit(void *context, int pending)
 	char tmpstr[32], tmpstr2[16];
 
 	periph = (struct cam_periph *)context;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) != 0)
 		return;
 
 	softc = (struct cd_softc *)periph->softc;
@@ -676,7 +676,7 @@ cdregister(struct cam_periph *periph, void *arg)
 	 * We'll release this reference once GEOM calls us back (via
 	 * dadiskgonecb()) telling us that our provider has been freed.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -717,7 +717,7 @@ cdopen(struct disk *dp)
 	periph = (struct cam_periph *)dp->d_drv1;
 	softc = (struct cd_softc *)periph->softc;
 
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) != 0)
 		return(ENXIO);
 
 	cam_periph_lock(periph);
@@ -2601,7 +2601,7 @@ cdmediapoll(void *arg)
 
 	if (softc->state == CD_STATE_NORMAL && !softc->tur &&
 	    softc->outstanding_cmds == 0) {
-		if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
+		if (cam_periph_acquire(periph) == 0) {
 			softc->tur = 1;
 			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 		}

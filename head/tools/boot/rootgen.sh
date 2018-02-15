@@ -193,6 +193,29 @@ mk_geli_mbr_zfs_both() {
 # u-boot
 # powerpc
 
+mk_sparc64_nogeli_vtoc8_ufs_ofw() {
+    src=$1
+    img=$2
+    mntpt=$3
+    geli=$4
+    scheme=$5
+    fs=$6
+    bios=$7
+
+    cat > ${src}/etc/fstab <<EOF
+/dev/ada0a	/		ufs	rw	1	1
+EOF
+    makefs -t ffs -B big -s 200m ${img} ${src}
+    md=$(mdconfig -f ${img})
+    # For non-native builds, ensure that geom_part(4) supports VTOC8.
+    kldload geom_part_vtoc8.ko
+    gpart create -s VTOC8 ${md}
+    gpart add -t freebsd-ufs ${md}
+    ${SRCTOP}/tools/boot/install-boot.sh -g ${geli} -s ${scheme} -f ${fs} -b ${bios} -d ${src} ${md}
+    mdconfig -d -u ${md}
+    rm -f ${src}/etc/fstab
+}
+
 qser="-serial telnet::4444,server -nographic"
 
 # https://wiki.freebsd.org/QemuRecipes
@@ -276,9 +299,7 @@ qemu_i386_both()
 # qemu-system-ppc64 -drive file=/path/to/disk.img,format=raw
 
 # sparc64
-# 10.3 works, 12-current (which one?) hangs
 # qemu-system-sparc64 -drive file=/path/to/disk.img,format=raw
-
 
 # Misc variables
 SRCTOP=$(make -v SRCTOP)
@@ -293,6 +314,9 @@ DESTDIR=${OBJDIR}/boot-tree
 rm -rf ${DESTDIR}
 mkdir -p ${DESTDIR}/boot/defaults
 mkdir -p ${DESTDIR}/boot/kernel
+# XXX boot1 exists only on sparc64
+cp /boot/boot1 ${DESTDIR}/boot
+cp /boot/loader ${DESTDIR}/boot
 cp /boot/kernel/kernel ${DESTDIR}/boot/kernel
 echo -h -D -S115200 > ${DESTDIR}/boot.config
 # XXX
@@ -396,18 +420,21 @@ for arch in powerpc powerpc64; do
 done
 
 for arch in sparc64; do
-    for scheme in sun; do
-	fs=ufs
-	for bios in ofw; do
-	    # Create sparse file and mount newly created filesystem(s) on it
-	    img=${IMGDIR}/${arch}-${geli}-${scheme}-${fs}-${bios}.img
-	    sh=${IMGDIR}/${arch}-${geli}-${scheme}-${fs}-${bios}.sh
-	    echo "vvvvvvvvvvvvvvvvvvvvvv   Creating $img  vvvvvvvvvvvvvvvvvvvvvvv"
-	    rm -f ${img}*
-	    eval mk_${geli}_${scheme}_${fs}_${bios} ${DESTDIR} ${img} ${MNTPT} ${geli} ${scheme} ${fs} ${bios}
-	    eval qemu_${arch}_${bios} ${img} ${sh}
-	    [ -n "${SUDO_USER}" ] && chown ${SUDO_USER} ${img}*
-	    echo "^^^^^^^^^^^^^^^^^^^^^^   Creating $img  ^^^^^^^^^^^^^^^^^^^^^^^"
+    for geli in nogeli; do
+	for scheme in vtoc8; do
+	    for fs in ufs; do
+		for bios in ofw; do
+		    # Create sparse file and mount newly created filesystem(s) on it
+		    img=${IMGDIR}/${arch}-${geli}-${scheme}-${fs}-${bios}.img
+		    sh=${IMGDIR}/${arch}-${geli}-${scheme}-${fs}-${bios}.sh
+		    echo "vvvvvvvvvvvvvvvvvvvvvv   Creating $img  vvvvvvvvvvvvvvvvvvvvvvv"
+		    rm -f ${img}*
+		    eval mk_${arch}_${geli}_${scheme}_${fs}_${bios} ${DESTDIR} ${img} ${MNTPT} ${geli} ${scheme} ${fs} ${bios}
+		    eval qemu_${arch}_${bios} ${img} ${sh}
+		    [ -n "${SUDO_USER}" ] && chown ${SUDO_USER} ${img}*
+		    echo "^^^^^^^^^^^^^^^^^^^^^^   Creating $img  ^^^^^^^^^^^^^^^^^^^^^^^"
+		done
+	    done
 	done
     done
 done

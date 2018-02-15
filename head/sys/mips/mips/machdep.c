@@ -210,8 +210,8 @@ cpu_startup(void *dummy)
 	vm_ksubmap_init(&kmi);
 
 	printf("avail memory = %ju (%juMB)\n", 
-	    ptoa((uintmax_t)vm_cnt.v_free_count),
-	    ptoa((uintmax_t)vm_cnt.v_free_count) / 1048576);
+	    ptoa((uintmax_t)vm_free_count()),
+	    ptoa((uintmax_t)vm_free_count()) / 1048576);
 	cpu_init_interrupts();
 
 	/*
@@ -383,7 +383,11 @@ mips_vector_init(void)
 void
 mips_postboot_fixup(void)
 {
-	static char fake_preload[256];
+	/*
+	 * We store u_long sized objects into the reload area, so the array
+	 * must be so aligned. The standard allows any alignment for char data.
+	 */
+	_Alignas(_Alignof(u_long)) static char fake_preload[256];
 	caddr_t preload_ptr = (caddr_t)&fake_preload[0];
 	size_t size = 0;
 

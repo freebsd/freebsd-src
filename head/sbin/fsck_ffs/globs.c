@@ -87,6 +87,7 @@ int	Zflag;			/* zero empty data blocks */
 int	inoopt;			/* trim out unused inodes */
 char	ckclean;		/* only do work if not cleanly unmounted */
 int	cvtlevel;		/* convert to newer file system format */
+int	ckhashadd;		/* check hashes to be added */
 int	bkgrdcheck;		/* determine if background check is possible */
 int	bkgrdsumadj;		/* whether the kernel have ability to adjust superblock summary */
 char	usedsoftdep;		/* just fix soft dependency inconsistencies */

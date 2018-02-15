@@ -209,7 +209,8 @@ swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 	mtx_lock(&sw_dev_mtx);
 	r = swap_reserved + incr;
 	if (overcommit & SWAP_RESERVE_ALLOW_NONWIRED) {
-		s = vm_cnt.v_page_count - vm_cnt.v_free_reserved - vm_cnt.v_wire_count;
+		s = vm_cnt.v_page_count - vm_cnt.v_free_reserved -
+		    vm_wire_count();
 		s *= PAGE_SIZE;
 	} else
 		s = 0;
@@ -2327,7 +2328,7 @@ swapoff_one(struct swdevt *sp, struct ucred *cred)
 	 * of data we will have to page back in, plus an epsilon so
 	 * the system doesn't become critically low on swap space.
 	 */
-	if (vm_cnt.v_free_count + swap_pager_avail < nblks + nswap_lowat)
+	if (vm_free_count() + swap_pager_avail < nblks + nswap_lowat)
 		return (ENOMEM);
 
 	/*

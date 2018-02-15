@@ -6,21 +6,16 @@
 #   quite large.
 #
 
-MK_PROFILE=	no
-MK_SSP=		no
-
 .include <bsd.init.mk>
 
-INTERNALLIB=
 LIBSA_CPUARCH?=${MACHINE_CPUARCH}
 LIBC_SRC=	${SRCTOP}/lib/libc
 
 LIB?=		sa
-NO_PIC=
 
 # standalone components and stuff we have modified locally
 SRCS+=	gzguts.h zutil.h __main.c abort.c assert.c bcd.c environment.c getopt.c gets.c \
-	globals.c pager.c panic.c printf.c strdup.c strerror.c strtol.c strtoul.c \
+	globals.c pager.c panic.c printf.c strdup.c strerror.c \
 	random.c sbrk.c twiddle.c zalloc.c zalloc_malloc.c
 
 # private (pruned) versions of libc string functions
@@ -40,7 +35,7 @@ SRCS+=	bcmp.c bcopy.c bzero.c ffs.c fls.c \
 
 # stdlib functions from libc
 .PATH: ${LIBC_SRC}/stdlib
-SRCS+=	abs.c
+SRCS+=	abs.c strtol.c strtoll.c strtoul.c strtoull.c
 
 .if ${MACHINE_CPUARCH} == "arm"
 .PATH: ${LIBC_SRC}/arm/gen

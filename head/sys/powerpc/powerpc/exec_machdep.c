@@ -454,7 +454,7 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	/*
 	 * Don't let the user set privileged MSR bits
 	 */
-	if ((mcp->mc_srr1 & PSL_USERSTATIC) != (tf->srr1 & PSL_USERSTATIC)) {
+	if ((mcp->mc_srr1 & psl_userstatic) != (tf->srr1 & psl_userstatic)) {
 		return (EINVAL);
 	}
 
@@ -538,16 +538,8 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	tf->srr0 = imgp->entry_addr;
 	#ifdef __powerpc64__
 	tf->fixreg[12] = imgp->entry_addr;
-	#ifdef AIM
-	tf->srr1 = PSL_SF | PSL_USERSET | PSL_FE_DFLT;
-	if (mfmsr() & PSL_HV)
-		tf->srr1 |= PSL_HV;
-	#elif defined(BOOKE)
-	tf->srr1 = PSL_CM | PSL_USERSET | PSL_FE_DFLT;
 	#endif
-	#else
-	tf->srr1 = PSL_USERSET | PSL_FE_DFLT;
-	#endif
+	tf->srr1 = psl_userset | PSL_FE_DFLT;
 	td->td_pcb->pcb_flags = 0;
 }
 
@@ -572,14 +564,7 @@ ppc32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	tf->fixreg[8] = (register_t)imgp->ps_strings;	/* NetBSD extension */
 
 	tf->srr0 = imgp->entry_addr;
-	tf->srr1 = PSL_USERSET | PSL_FE_DFLT;
-#ifdef AIM
-	tf->srr1 &= ~PSL_SF;
-	if (mfmsr() & PSL_HV)
-		tf->srr1 |= PSL_HV;
-#elif defined(BOOKE)
-	tf->srr1 &= ~PSL_CM;
-#endif
+	tf->srr1 = psl_userset32 | PSL_FE_DFLT;
 	td->td_pcb->pcb_flags = 0;
 }
 #endif
@@ -990,7 +975,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
-	td->td_md.md_saved_msr = PSL_KERNSET;
+	td->td_md.md_saved_msr = psl_kernset;
 }
 
 void
@@ -1015,9 +1000,10 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	tf->fixreg[3] = (register_t)arg;
 	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		tf->srr0 = (register_t)entry;
-		tf->srr1 = PSL_USERSET | PSL_FE_DFLT;
 		#ifdef __powerpc64__
-		tf->srr1 &= ~PSL_SF;
+		tf->srr1 = psl_userset32 | PSL_FE_DFLT;
+		#else
+		tf->srr1 = psl_userset | PSL_FE_DFLT;
 		#endif
 	} else {
 	    #ifdef __powerpc64__
@@ -1026,14 +1012,10 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 		tf->srr0 = entry_desc[0];
 		tf->fixreg[2] = entry_desc[1];
 		tf->fixreg[11] = entry_desc[2];
-		tf->srr1 = PSL_SF | PSL_USERSET | PSL_FE_DFLT;
+		tf->srr1 = psl_userset | PSL_FE_DFLT;
 	    #endif
 	}
 
-	#ifdef __powerpc64__
-	if (mfmsr() & PSL_HV)
-		tf->srr1 |= PSL_HV;
-	#endif
 	td->td_pcb->pcb_flags = 0;
 
 	td->td_retval[0] = (register_t)entry;

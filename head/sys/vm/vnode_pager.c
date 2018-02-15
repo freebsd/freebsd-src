@@ -1167,7 +1167,7 @@ vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 	 * daemon up.  This should be probably be addressed XXX.
 	 */
 
-	if (vm_cnt.v_free_count < vm_cnt.v_pageout_free_min)
+	if (vm_page_count_min())
 		flags |= VM_PAGER_PUT_SYNC;
 
 	/*
@@ -1266,6 +1266,8 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 			maxsize = object->un_pager.vnp.vnp_size - poffset;
 			ncount = btoc(maxsize);
 			if ((pgoff = (int)maxsize & PAGE_MASK) != 0) {
+				pgoff = roundup2(pgoff, DEV_BSIZE);
+
 				/*
 				 * If the object is locked and the following
 				 * conditions hold, then the page's dirty

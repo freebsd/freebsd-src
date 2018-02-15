@@ -475,4 +475,4 @@ audio_uninit(void *arg __unused)
 }
 
 SYSINIT(audio_init, SI_SUB_LOCK, SI_ORDER_FIRST, audio_init, NULL);
-SYSUNINIT(audio_init, SI_SUB_LOCK, SI_ORDER_FIRST, audio_uninit, NULL);
+SYSUNINIT(audio_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, audio_uninit, NULL);

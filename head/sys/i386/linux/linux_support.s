@@ -46,7 +46,7 @@ ENTRY(futex_xchgl)
 	movl	4(%esp),%eax
 	movl	8(%esp),%edx
 	cmpl    $VM_MAXUSER_ADDRESS-4,%edx
-	ja     	futex_fault
+	ja	futex_fault
 	xchgl	%eax,(%edx)
 	movl	12(%esp),%edx
 	movl	%eax,(%edx)
@@ -60,7 +60,7 @@ ENTRY(futex_addl)
 	movl	4(%esp),%eax
 	movl	8(%esp),%edx
 	cmpl    $VM_MAXUSER_ADDRESS-4,%edx
-	ja     	futex_fault
+	ja	futex_fault
 #ifdef SMP
 	lock
 #endif
@@ -76,7 +76,7 @@ ENTRY(futex_orl)
 	movl	$futex_fault_decx,PCB_ONFAULT(%ecx)
 	movl	8(%esp),%edx
 	cmpl    $VM_MAXUSER_ADDRESS-4,%edx
-	ja     	futex_fault
+	ja	futex_fault
 	movl	(%edx),%eax
 1:	movl	%eax,%ecx
 	orl	4(%esp),%ecx
@@ -85,7 +85,7 @@ ENTRY(futex_orl)
 #endif
 	cmpxchgl %ecx,(%edx)
 	jnz	1b
-futex_tail:	
+futex_tail:
 	movl	12(%esp),%edx
 	movl	%eax,(%edx)
 	xorl	%eax,%eax
@@ -98,7 +98,7 @@ ENTRY(futex_andl)
 	movl	$futex_fault_decx,PCB_ONFAULT(%ecx)
 	movl	8(%esp),%edx
 	cmpl    $VM_MAXUSER_ADDRESS-4,%edx
-	ja     	futex_fault
+	ja	futex_fault
 	movl	(%edx),%eax
 1:	movl	%eax,%ecx
 	andl	4(%esp),%ecx
@@ -114,7 +114,7 @@ ENTRY(futex_xorl)
 	movl	$futex_fault_decx,PCB_ONFAULT(%ecx)
 	movl	8(%esp),%edx
 	cmpl    $VM_MAXUSER_ADDRESS-4,%edx
-	ja     	futex_fault
+	ja	futex_fault
 	movl	(%edx),%eax
 1:	movl	%eax,%ecx
 	xorl	4(%esp),%ecx

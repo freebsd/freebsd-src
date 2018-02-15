@@ -442,10 +442,38 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 	return (consumed || closed);
 }
 
+/* Find a Vdev containing the vdev with the given GUID */
+static nvlist_t*
+find_parent(nvlist_t *pool_config, nvlist_t *config, DevdCtl::Guid child_guid)
+{
+	nvlist_t **vdevChildren;
+	int        error;
+	unsigned   ch, numChildren;
+
+	error = nvlist_lookup_nvlist_array(config, ZPOOL_CONFIG_CHILDREN,
+					   &vdevChildren, &numChildren);
+
+	if (error != 0 || numChildren == 0)
+		return (NULL);
+
+	for (ch = 0; ch < numChildren; ch++) {
+		nvlist *result;
+		Vdev vdev(pool_config, vdevChildren[ch]);
+
+		if (vdev.GUID() == child_guid)
+			return (config);
+
+		result = find_parent(pool_config, vdevChildren[ch], child_guid);
+		if (result != NULL)
+			return (result);
+	}
+
+	return (NULL);
+}
 
 bool
 CaseFile::ActivateSpare() {
-	nvlist_t	*config, *nvroot;
+	nvlist_t	*config, *nvroot, *parent_config;
 	nvlist_t       **spares;
 	char		*devPath, *vdev_type;
 	const char	*poolname;
@@ -472,6 +500,22 @@ CaseFile::ActivateSpare() {
 		       "tree for pool %s", poolname);
 		return (false);
 	}
+
+	parent_config = find_parent(config, nvroot, m_vdevGUID);
+	if (parent_config != NULL) {
+		char *parent_type;
+
+		/* 
+		 * Don't activate spares for members of a "replacing" vdev.
+		 * They're already dealt with.  Sparing them will just drag out
+		 * the resilver process.
+		 */
+		error = nvlist_lookup_string(parent_config,
+		    ZPOOL_CONFIG_TYPE, &parent_type);
+		if (error == 0 && strcmp(parent_type, VDEV_TYPE_REPLACING) == 0)
+			return (false);
+	}
+
 	nspares = 0;
 	nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_SPARES, &spares,
 				   &nspares);

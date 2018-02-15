@@ -76,6 +76,15 @@ __FBSDID("$FreeBSD$");
 
 #include "clock_if.h"
 
+static int show_io;
+SYSCTL_INT(_debug, OID_AUTO, clock_show_io, CTLFLAG_RWTUN, &show_io, 0,
+    "Enable debug printing of RTC clock I/O; 1=reads, 2=writes, 3=both.");
+
+static int sysctl_clock_do_io(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_debug, OID_AUTO, clock_do_io, CTLTYPE_INT | CTLFLAG_RW,
+    0, 0, sysctl_clock_do_io, "I",
+    "Trigger one-time IO on RTC clocks; 1=read (and discard), 2=write");
+
 /* XXX: should be kern. now, it's no longer machdep.  */
 static int disable_rtc_set;
 SYSCTL_INT(_machdep, OID_AUTO, disable_rtc_set, CTLFLAG_RW, &disable_rtc_set,
@@ -144,6 +153,60 @@ settime_task_func(void *arg, int pending)
 	CLOCK_SETTIME(rtc->clockdev, &ts);
 }
 
+static void
+clock_dbgprint_hdr(device_t dev, int rw)
+{
+	struct timespec now;
+
+	getnanotime(&now);
+	device_printf(dev, "%s at ", (rw & CLOCK_DBG_READ) ? "read " : "write");
+	clock_print_ts(&now, 9);
+	printf(": "); 
+}
+
+void
+clock_dbgprint_bcd(device_t dev, int rw, const struct bcd_clocktime *bct)
+{
+
+	if (show_io & rw) {
+		clock_dbgprint_hdr(dev, rw);
+		clock_print_bcd(bct, 9);
+		printf("\n");
+	}
+}
+
+void
+clock_dbgprint_ct(device_t dev, int rw, const struct clocktime *ct)
+{
+
+	if (show_io & rw) {
+		clock_dbgprint_hdr(dev, rw);
+		clock_print_ct(ct, 9);
+		printf("\n");
+	}
+}
+
+void
+clock_dbgprint_err(device_t dev, int rw, int err)
+{
+
+	if (show_io & rw) {
+		clock_dbgprint_hdr(dev, rw);
+		printf("error = %d\n", err);
+	}
+}
+
+void
+clock_dbgprint_ts(device_t dev, int rw, const struct timespec *ts)
+{
+
+	if (show_io & rw) {
+		clock_dbgprint_hdr(dev, rw);
+		clock_print_ts(ts, 9);
+		printf("\n");
+	}
+}
+
 void
 clock_register_flags(device_t clockdev, long resolution, int flags)
 {
@@ -203,7 +266,7 @@ clock_unregister(device_t clockdev)
 	if (rtc != NULL) {
 		taskqueue_cancel_timeout(taskqueue_thread, &rtc->stask, NULL);
 		taskqueue_drain_timeout(taskqueue_thread, &rtc->stask);
-                free(rtc, M_DEVBUF);
+		free(rtc, M_DEVBUF);
 	}
 }
 
@@ -222,6 +285,36 @@ clock_schedule(device_t clockdev, u_int offsetns)
 	sx_xunlock(&rtc_list_lock);
 }
 
+static int
+read_clocks(struct timespec *ts, bool debug_read)
+{
+	struct rtc_instance *rtc;
+	int error;
+
+	error = ENXIO;
+	sx_xlock(&rtc_list_lock);
+	LIST_FOREACH(rtc, &rtc_list, rtc_entries) {
+		if ((error = CLOCK_GETTIME(rtc->clockdev, ts)) != 0)
+			continue;
+		if (ts->tv_sec < 0 || ts->tv_nsec < 0) {
+			error = EINVAL;
+			continue;
+		}
+		if (!(rtc->flags & CLOCKF_GETTIME_NO_ADJ)) {
+			timespecadd(ts, &rtc->resadj);
+			ts->tv_sec += utc_offset();
+		}
+		if (!debug_read) {
+			if (bootverbose)
+				device_printf(rtc->clockdev,
+				    "providing initial system time\n");
+			break;
+		}
+	}
+	sx_xunlock(&rtc_list_lock);
+	return (error);
+}
+
 /*
  * Initialize the system time.  Must be called from a context which does not
  * restrict any locking or sleeping that clock drivers may need to do.
@@ -238,28 +331,9 @@ void
 inittodr(time_t base)
 {
 	struct timespec ts;
-	struct rtc_instance *rtc;
 	int error;
 
-	error = ENXIO;
-	sx_xlock(&rtc_list_lock);
-	LIST_FOREACH(rtc, &rtc_list, rtc_entries) {
-		if ((error = CLOCK_GETTIME(rtc->clockdev, &ts)) != 0)
-			continue;
-		if (ts.tv_sec < 0 || ts.tv_nsec < 0) {
-			error = EINVAL;
-			continue;
-		}
-		if (!(rtc->flags & CLOCKF_GETTIME_NO_ADJ)) {
-			timespecadd(&ts, &rtc->resadj);
-			ts.tv_sec += utc_offset();
-		}
-		if (bootverbose)
-			device_printf(rtc->clockdev,
-			    "providing initial system time\n");
-		break;
-	}
-	sx_xunlock(&rtc_list_lock);
+	error = read_clocks(&ts, false);
 
 	/*
 	 * Do not report errors from each clock; it is expected that some clocks
@@ -321,4 +395,30 @@ resettodr(void)
 		    &rtc->stask, -sbt, 0, C_PREL(31));
 	}
 	sx_xunlock(&rtc_list_lock);
+}
+
+static int
+sysctl_clock_do_io(SYSCTL_HANDLER_ARGS)
+{
+	struct timespec ts_discard;
+	int error, value;
+
+	value = 0;
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	switch (value) {
+	case CLOCK_DBG_READ:
+		if (read_clocks(&ts_discard, true) == ENXIO)
+			printf("No registered RTC clocks\n");
+		break;
+	case CLOCK_DBG_WRITE:
+		resettodr();
+		break;
+	default:
+                return (EINVAL);
+	}
+
+	return (0);
 }

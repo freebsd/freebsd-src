@@ -355,6 +355,8 @@ typedef enum
     ASL_MSG_NULL_RESOURCE_TEMPLATE,
     ASL_MSG_FOUND_HERE,
     ASL_MSG_ILLEGAL_RECURSION,
+    ASL_MSG_EXTERN_COLLISION,
+    ASL_MSG_EXTERN_FOUND_HERE,
 
     /* These messages are used by the Data Table compiler only */
 

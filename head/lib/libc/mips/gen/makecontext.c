@@ -38,6 +38,7 @@ __RCSID("$NetBSD: makecontext.c,v 1.5 2009/12/14 01:07:42 matt Exp $");
 #endif
 
 #include <sys/param.h>
+#include <machine/abi.h>
 #include <machine/regnum.h>
 
 #include <stdarg.h>
@@ -65,7 +66,7 @@ __makecontext(ucontext_t *ucp, void (*func)(void), int argc, ...)
 	 * so that we can mark a context as invalid.  Store it in
 	 * mc->mc_regs[ZERO] perhaps?
 	 */
-	if (argc < 0 || argc > 6 || ucp == NULL ||
+	if (argc < 0 || ucp == NULL ||
 	    ucp->uc_stack.ss_sp == NULL ||
 	    ucp->uc_stack.ss_size < MINSIGSTKSZ)
 		return;
@@ -75,13 +76,10 @@ __makecontext(ucontext_t *ucp, void (*func)(void), int argc, ...)
 	    ((uintptr_t)ucp->uc_stack.ss_sp + ucp->uc_stack.ss_size);
 #if defined(__mips_o32) || defined(__mips_o64)
 	sp -= (argc >= 4 ? argc : 4);	/* Make room for >=4 arguments. */
-	sp  = (register_t *)
-	    ((uintptr_t)sp & ~0x7);	/* Align on double-word boundary. */
 #elif defined(__mips_n32) || defined(__mips_n64)
 	sp -= (argc > 8 ? argc - 8 : 0); /* Make room for > 8 arguments. */
-	sp  = (register_t *)
-	    ((uintptr_t)sp & ~0xf);	/* Align on quad-word boundary. */
 #endif
+	sp  = (register_t *)((uintptr_t)sp & ~(STACK_ALIGN - 1));
 
 	mc->mc_regs[SP] = (intptr_t)sp;
 	mc->mc_regs[S0] = (intptr_t)ucp;

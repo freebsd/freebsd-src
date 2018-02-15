@@ -134,12 +134,13 @@
 #define UMA_SLAB_MASK	(PAGE_SIZE - 1)	/* Mask to get back to the page */
 #define UMA_SLAB_SHIFT	PAGE_SHIFT	/* Number of bits PAGE_MASK */
 
-#define UMA_BOOT_PAGES		64	/* Pages allocated for startup */
-#define UMA_BOOT_PAGES_ZONES	32	/* Multiplier for pages to reserve */
-					/* if uma_zone > PAGE_SIZE */
-
 /* Max waste percentage before going to off page slab management */
 #define UMA_MAX_WASTE	10
+
+/*
+ * Size of memory in a not offpage slab available for actual items.
+ */
+#define	UMA_SLAB_SPACE	(UMA_SLAB_SIZE - sizeof(struct uma_slab))
 
 /*
  * I doubt there will be many cases where this is exceeded. This is the initial

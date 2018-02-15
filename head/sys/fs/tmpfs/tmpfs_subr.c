@@ -106,7 +106,7 @@ tmpfs_mem_avail(void)
 {
 	vm_ooffset_t avail;
 
-	avail = swap_pager_avail + vm_cnt.v_free_count - tmpfs_pages_reserved;
+	avail = swap_pager_avail + vm_free_count() - tmpfs_pages_reserved;
 	if (__predict_false(avail < 0))
 		avail = 0;
 	return (avail);

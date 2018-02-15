@@ -93,17 +93,10 @@ static SYSCTL_NODE(_vfs_nlm, OID_AUTO, sysid, CTLFLAG_RW, NULL, "");
 /*
  * Syscall hooks
  */
-static int nlm_syscall_offset = SYS_nlm_syscall;
-static struct sysent nlm_syscall_prev_sysent;
-#if __FreeBSD_version < 700000
-static struct sysent nlm_syscall_sysent = {
-	(sizeof(struct nlm_syscall_args) / sizeof(register_t)) | SYF_MPSAFE,
-	(sy_call_t *) nlm_syscall
+static struct syscall_helper_data nlm_syscalls[] = {
+	SYSCALL_INIT_HELPER(nlm_syscall),
+	SYSCALL_INIT_LAST
 };
-#else
-MAKE_SYSENT(nlm_syscall);
-#endif
-static bool_t nlm_syscall_registered = FALSE;
 
 /*
  * Debug level passed in from userland. We also support a sysctl hook
@@ -287,8 +280,8 @@ ng_cookie(struct netobj *src)
 /*
  * Initialise NLM globals.
  */
-static void
-nlm_init(void *dummy)
+static int
+nlm_init(void)
 {
 	int error;
 
@@ -296,24 +289,18 @@ nlm_init(void *dummy)
 	TAILQ_INIT(&nlm_waiting_locks);
 	TAILQ_INIT(&nlm_hosts);
 
-	error = syscall_register(&nlm_syscall_offset, &nlm_syscall_sysent,
-	    &nlm_syscall_prev_sysent, SY_THR_STATIC_KLD);
-	if (error)
+	error = syscall_helper_register(nlm_syscalls, SY_THR_STATIC_KLD);
+	if (error != 0)
 		NLM_ERR("Can't register NLM syscall\n");
-	else
-		nlm_syscall_registered = TRUE;
+	return (error);
 }
-SYSINIT(nlm_init, SI_SUB_LOCK, SI_ORDER_FIRST, nlm_init, NULL);
 
 static void
-nlm_uninit(void *dummy)
+nlm_uninit(void)
 {
 
-	if (nlm_syscall_registered)
-		syscall_deregister(&nlm_syscall_offset,
-		    &nlm_syscall_prev_sysent);
+	syscall_helper_unregister(nlm_syscalls);
 }
-SYSUNINIT(nlm_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, nlm_uninit, NULL);
 
 /*
  * Create a netobj from an arbitrary source.
@@ -2412,8 +2399,10 @@ nfslockd_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		return (0);
+		return (nlm_init());
+
 	case MOD_UNLOAD:
+		nlm_uninit();
 		/* The NLM module cannot be safely unloaded. */
 		/* FALLTHROUGH */
 	default:

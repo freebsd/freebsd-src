@@ -638,14 +638,20 @@ sendrecv_tftp(struct tftp_handle *h,
 		if (cc == -1) {
 			/* Error on transmit; wait before retrying */
 			while ((getsecs() - t1) < tleft);
+			t1 = getsecs();
 			continue;
 		}
 
+		t = t1 = getsecs();
 recvnext:
+		if ((getsecs() - t) > MAXTMO) {
+			errno = ETIMEDOUT;
+			return -1;
+		}
 		/* Try to get a packet and process it. */
 		cc = (*rproc)(h, pkt, payload, tleft, rtype);
 		/* Return on data, EOF or real error. */
-		if (cc != -1 || errno != 0)
+		if (cc != -1 || (errno != 0 && errno != ETIMEDOUT))
 			return (cc);
 		if ((getsecs() - t1) < tleft) {
 		    goto recvnext;

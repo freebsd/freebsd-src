@@ -85,8 +85,10 @@ MK_GCC_BOOTSTRAP=	no
 .-include "${OBJTOP}/compiler-metadata.mk"
 .endif
 
-# Pull in COMPILER_TYPE and COMPILER_FREEBSD_VERSION early.
-.include <bsd.compiler.mk>
+# Pull in COMPILER_TYPE and COMPILER_FREEBSD_VERSION early. Pull it from the
+# tree to be friendlier to foreign OS builds. It's safe to do so unconditionally
+# here since we will always have the right make, unlike in src/Makefile
+.include "share/mk/bsd.compiler.mk"
 .include "share/mk/src.opts.mk"
 
 # Check if there is a local compiler that can satisfy as an external compiler.
@@ -165,11 +167,11 @@ test-system-compiler: .PHONY
 .if !defined(X_COMPILER_TYPE)
 CROSSENV+=	COMPILER_VERSION=${COMPILER_VERSION} \
 		COMPILER_TYPE=${COMPILER_TYPE} \
-		COMPILER_FEATURES=${COMPILER_FEATURES} \
+		COMPILER_FEATURES="${COMPILER_FEATURES}" \
 		COMPILER_FREEBSD_VERSION=${COMPILER_FREEBSD_VERSION}
 .else
 CROSSENV+=	COMPILER_VERSION=${X_COMPILER_VERSION} \
-		COMPILER_FEATURES=${X_COMPILER_FEATURES} \
+		COMPILER_FEATURES="${X_COMPILER_FEATURES}" \
 		COMPILER_TYPE=${X_COMPILER_TYPE} \
 		COMPILER_FREEBSD_VERSION=${X_COMPILER_FREEBSD_VERSION}
 .endif
@@ -463,7 +465,7 @@ TMPPATH=	${STRICTTMPPATH}:${PATH}
 # when in the middle of installing over this system.
 #
 .if make(distributeworld) || make(installworld) || make(stageworld)
-INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
+INSTALLTMP!=	mktemp -d -u -t install
 .endif
 
 .if make(stagekernel) || make(distributekernel)
@@ -1107,7 +1109,7 @@ _zoneinfo=	zic tzsetup
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown cmp cp \
 	date echo egrep find grep id install ${_install-info} \
 	ln make mkdir mtree mv pwd_mkdb \
-	rm sed services_mkdb sh strip sysctl test true uname wc ${_zoneinfo} \
+	rm sed services_mkdb sh sort strip sysctl test true uname wc ${_zoneinfo} \
 	${LOCAL_ITOOLS}
 
 # Needed for share/man

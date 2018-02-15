@@ -760,21 +760,18 @@ __rw_runlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
 	if (SCHEDULER_STOPPED())
 		return;
 
+	if (__rw_runlock_try(rw, td, &v))
+		goto out_lockstat;
+
+	/*
+	 * Ok, we know we have waiters and we think we are the
+	 * last reader, so grab the turnstile lock.
+	 */
+	turnstile_chain_lock(&rw->lock_object);
+	v = RW_READ_VALUE(rw);
 	for (;;) {
 		if (__rw_runlock_try(rw, td, &v))
 			break;
-
-		/*
-		 * Ok, we know we have waiters and we think we are the
-		 * last reader, so grab the turnstile lock.
-		 */
-		turnstile_chain_lock(&rw->lock_object);
-		v = RW_READ_VALUE(rw);
-retry_ts:
-		if (__rw_runlock_try(rw, td, &v)) {
-			turnstile_chain_unlock(&rw->lock_object);
-			break;
-		}
 
 		v &= (RW_LOCK_WAITERS | RW_LOCK_WRITE_SPINNER);
 		MPASS(v & RW_LOCK_WAITERS);
@@ -803,7 +800,7 @@ retry_ts:
 		}
 		v |= RW_READERS_LOCK(1);
 		if (!atomic_fcmpset_rel_ptr(&rw->rw_lock, &v, setv))
-			goto retry_ts;
+			continue;
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p last succeeded with waiters",
 			    __func__, rw);
@@ -819,10 +816,11 @@ retry_ts:
 		MPASS(ts != NULL);
 		turnstile_broadcast(ts, queue);
 		turnstile_unpend(ts, TS_SHARED_LOCK);
-		turnstile_chain_unlock(&rw->lock_object);
 		td->td_rw_rlocks--;
 		break;
 	}
+	turnstile_chain_unlock(&rw->lock_object);
+out_lockstat:
 	LOCKSTAT_PROFILE_RELEASE_RWLOCK(rw__release, rw, LOCKSTAT_READER);
 }
 

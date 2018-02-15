@@ -257,4 +257,4 @@ msc_uninit(void *arg __unused)
 }
 
 SYSINIT(msc_init, SI_SUB_LOCK, SI_ORDER_FIRST, msc_init, NULL);
-SYSUNINIT(msc_init, SI_SUB_LOCK, SI_ORDER_FIRST, msc_uninit, NULL);
+SYSUNINIT(msc_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, msc_uninit, NULL);

@@ -38,6 +38,17 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180212: move devmatch
+OLD_FILES+=usr/sbin/devmatch
+# 20180211: remove usb.conf
+OLD_FILES+=etc/devd/usb.conf
+# 20180208: remove c_rehash(1)
+OLD_FILES+=usr/share/openssl/man/man1/c_rehash.1.gz
+# 20180206: remove gdbtui
+OLD_FILES+=usr/bin/gdbtui
+# 20180201: Obsolete forth files
+OLD_FILES+=boot/efi.4th
+OLD_FILES+=boot/pcibios.4th
 # 20180114: new clang import which bumps version from 5.0.1 to 6.0.0.
 OLD_FILES+=usr/lib/clang/5.0.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/5.0.1/include/sanitizer/asan_interface.h

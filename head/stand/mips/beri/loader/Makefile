@@ -38,9 +38,6 @@ LOADER_BZIP2_SUPPORT?=	yes
 
 .include <bsd.init.mk>
 
-MK_SSP=		no
-MAN=
-
 PROG?=		loader
 NEWVERSWHAT=	"BERI loader" ${MACHINE_CPUARCH}
 INSTALLFLAGS=	-b
@@ -50,7 +47,6 @@ SRCS=		start.S						\
 		main.c						\
 		devicename.c					\
 		exec.c						\
-		metadata.c					\
 		vers.c						\
 		arch.c
 
@@ -90,8 +86,8 @@ LDFLAGS+=	-static					\
 		-L${.CURDIR}				\
 		-e __start
 
-DPADD=		${LIBFICL} ${LIBSA}
-LDADD=		${LIBFICL} ${LIBSA}
+DPADD=		${LDR_INTERP} ${LIBSA}
+LDADD=		${LDR_INTERP} ${LIBSA}
 
 .if defined(LOADER_USB_SUPPORT)
 # Do garbage collection

@@ -277,7 +277,7 @@ run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
 		  || (*dmat->filter)(dmat->filterarg, paddr) != 0))
 			retval = 1;
 
-		dmat = dmat->parent;		
+		dmat = dmat->parent;
 	} while (retval == 0 && dmat != NULL);
 	return (retval);
 }
@@ -292,7 +292,7 @@ _bus_dma_can_bounce(vm_offset_t lowaddr, vm_offset_t highaddr)
 	int i;
 	for (i = 0; phys_avail[i] && phys_avail[i + 1]; i += 2) {
 		if ((lowaddr >= phys_avail[i] && lowaddr <= phys_avail[i + 1])
-		    || (lowaddr < phys_avail[i] && 
+		    || (lowaddr < phys_avail[i] &&
 		    highaddr > phys_avail[i]))
 			return (1);
 	}
@@ -356,7 +356,7 @@ _busdma_alloc_dmamap(bus_dma_tag_t dmat)
 	return (map);
 }
 
-static __inline void 
+static __inline void
 _busdma_free_dmamap(bus_dmamap_t map)
 {
 
@@ -497,10 +497,10 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 	if (dmat != NULL) {
 		if (dmat->map_count != 0)
 			return (EBUSY);
-		
+
 		while (dmat != NULL) {
 			bus_dma_tag_t parent;
-			
+
 			parent = dmat->parent;
 			atomic_subtract_int(&dmat->ref_count, 1);
 			if (dmat->ref_count == 0) {
@@ -1394,7 +1394,7 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 			break;
 		}
 		bpage->busaddr = pmap_kextract(bpage->vaddr);
-		bpage->vaddr_nocache = 
+		bpage->vaddr_nocache =
 		    (vm_offset_t)pmap_mapdev(bpage->busaddr, PAGE_SIZE);
 		mtx_lock(&bounce_lock);
 		STAILQ_INSERT_TAIL(&bz->bounce_page_list, bpage, links);

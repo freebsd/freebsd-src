@@ -99,6 +99,7 @@ static int xen_pv_start_all_aps(void);
 #ifdef SMP
 /* Variables used by amd64 mp_machdep to start APs */
 extern char *doublefault_stack;
+extern char *mce_stack;
 extern char *nmi_stack;
 #endif
 
@@ -218,6 +219,8 @@ start_xen_ap(int cpu)
 	bootstacks[cpu] =
 	    (void *)kmem_malloc(kernel_arena, stacksize, M_WAITOK | M_ZERO);
 	doublefault_stack =
+	    (char *)kmem_malloc(kernel_arena, PAGE_SIZE, M_WAITOK | M_ZERO);
+	mce_stack =
 	    (char *)kmem_malloc(kernel_arena, PAGE_SIZE, M_WAITOK | M_ZERO);
 	nmi_stack =
 	    (char *)kmem_malloc(kernel_arena, PAGE_SIZE, M_WAITOK | M_ZERO);

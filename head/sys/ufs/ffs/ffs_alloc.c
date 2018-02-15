@@ -2635,10 +2635,9 @@ ffs_getcg(fs, devvp, cg, bpp, cgpp)
 	if (error != 0)
 		return (error);
 	cgp = (struct cg *)bp->b_data;
-	if (((fs->fs_metackhash & CK_CYLGRP) != 0 &&
+	if ((fs->fs_metackhash & CK_CYLGRP) != 0 &&
 	    (bp->b_flags & B_CKHASH) != 0 &&
-	    cgp->cg_ckhash != bp->b_ckhash) ||
-	    !cg_chkmagic(cgp) || cgp->cg_cgx != cg) {
+	    cgp->cg_ckhash != bp->b_ckhash) {
 		sfs = ffs_getmntstat(devvp);
 		printf("UFS %s%s (%s) cylinder checksum failed: cg %u, cgp: "
 		    "0x%x != bp: 0x%jx\n",
@@ -2650,11 +2649,36 @@ ffs_getcg(fs, devvp, cg, bpp, cgpp)
 		brelse(bp);
 		return (EIO);
 	}
+	if (!cg_chkmagic(cgp) || cgp->cg_cgx != cg) {
+		sfs = ffs_getmntstat(devvp);
+		printf("UFS %s%s (%s)",
+		    devvp->v_type == VCHR ? "" : "snapshot of ",
+		    sfs->f_mntfromname, sfs->f_mntonname);
+		if (!cg_chkmagic(cgp))
+			printf(" cg %u: bad magic number 0x%x should be 0x%x\n",
+			    cg, cgp->cg_magic, CG_MAGIC);
+		else
+			printf(": wrong cylinder group cg %u != cgx %u\n", cg,
+			    cgp->cg_cgx);
+		bp->b_flags &= ~B_CKHASH;
+		bp->b_flags |= B_INVAL | B_NOCACHE;
+		brelse(bp);
+		return (EIO);
+	}
 	bp->b_flags &= ~B_CKHASH;
 	bp->b_xflags |= BX_BKGRDWRITE;
+	/*
+	 * If we are using check hashes on the cylinder group then we want
+	 * to limit changing the cylinder group time to when we are actually
+	 * going to write it to disk so that its check hash remains correct
+	 * in memory. If the CK_CYLGRP flag is set the time is updated in
+	 * ffs_bufwrite() as the buffer is queued for writing. Otherwise we
+	 * update the time here as we have done historically.
+	 */
 	if ((fs->fs_metackhash & CK_CYLGRP) != 0)
 		bp->b_xflags |= BX_CYLGRP;
-	cgp->cg_old_time = cgp->cg_time = time_second;
+	else
+		cgp->cg_old_time = cgp->cg_time = time_second;
 	*bpp = bp;
 	*cgpp = cgp;
 	return (0);

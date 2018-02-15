@@ -54,10 +54,6 @@ __FBSDID("$FreeBSD$");
 static int attach_untested = 0; 
 TUNABLE_INT("hw.bwn_pci.attach_untested", &attach_untested);
 
-/* If non-zero, probe at a higher priority than the stable if_bwn driver. */
-static int prefer_new_driver = 1;
-TUNABLE_INT("hw.bwn_pci.preferred", &prefer_new_driver);
-
 /* SIBA Devices */
 static const struct bwn_pci_device siba_devices[] = {
 	BWN_BCM_DEV(BCM4306_D11A,	"BCM4306 802.11a",
@@ -169,15 +165,7 @@ bwn_pci_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, ident->desc);
-
-	/* Until this driver is complete, require explicit opt-in before
-	 * superceding if_bwn/siba_bwn. */
-	if (prefer_new_driver)
-		return (BUS_PROBE_DEFAULT+1);
-	else
-		return (BUS_PROBE_LOW_PRIORITY);
-
-	// return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -309,6 +297,7 @@ DRIVER_MODULE_ORDERED(bwn_pci, pci, bwn_pci_driver, bwn_pci_devclass, NULL,
     NULL, SI_ORDER_ANY);
 DRIVER_MODULE(bhndb, bwn_pci, bhndb_pci_driver, bhndb_devclass, NULL, NULL);
 
+MODULE_DEPEND(bwn_pci, bwn, 1, 1, 1);
 MODULE_DEPEND(bwn_pci, bhnd, 1, 1, 1);
 MODULE_DEPEND(bwn_pci, bhndb, 1, 1, 1);
 MODULE_DEPEND(bwn_pci, bhndb_pci, 1, 1, 1);

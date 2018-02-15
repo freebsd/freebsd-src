@@ -17,9 +17,6 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <string.h>
 #include <bootstrap.h>
-#ifdef BOOT_FORTH
-#include "ficl.h"
-#endif
 
 static struct pnpinfo_stql pnp_devices;
 static int		pnp_devices_initted = 0;
@@ -187,50 +184,3 @@ pnp_eisaformat(u_int8_t *data)
     idbuf[7] = 0;
     return(idbuf);
 }
-
-#ifdef BOOT_FORTH
-void
-ficlPnpdevices(FICL_VM *pVM)
-{
-	static int pnp_devices_initted = 0;
-#if FICL_ROBUST > 1
-	vmCheckStack(pVM, 0, 1);
-#endif
-
-	if(!pnp_devices_initted) {
-		STAILQ_INIT(&pnp_devices);
-		pnp_devices_initted = 1;
-	}
-
-	stackPushPtr(pVM->pStack, &pnp_devices);
-
-	return;
-}
-
-void
-ficlPnphandlers(FICL_VM *pVM)
-{
-#if FICL_ROBUST > 1
-	vmCheckStack(pVM, 0, 1);
-#endif
-
-	stackPushPtr(pVM->pStack, pnphandlers);
-
-	return;
-}
-
-/*
- * Glue function to add the appropriate forth words to access pnp BIOS
- * functionality.
- */
-static void ficlCompilePnp(FICL_SYSTEM *pSys)
-{
-    FICL_DICT *dp = pSys->dp;
-    assert (dp);
-
-    dictAppendWord(dp, "pnpdevices",ficlPnpdevices, FW_DEFAULT);
-    dictAppendWord(dp, "pnphandlers",ficlPnphandlers, FW_DEFAULT);
-}
-
-FICL_COMPILE_SET(ficlCompilePnp);
-#endif

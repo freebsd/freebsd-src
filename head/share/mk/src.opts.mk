@@ -119,6 +119,7 @@ __DEFAULT_YES_OPTIONS = \
     LIB32 \
     LIBPTHREAD \
     LIBTHR \
+    LLVM_COV \
     LOCALES \
     LOCATE \
     LPR \
@@ -183,6 +184,7 @@ __DEFAULT_NO_OPTIONS = \
     LIBSOFT \
     LOADER_FIREWIRE \
     LOADER_FORCE_LE \
+    LOADER_LUA \
     NAND \
     OFED \
     OPENLDAP \
@@ -425,6 +427,7 @@ MK_LLDB:=	no
 .if ${MK_CLANG} == "no"
 MK_CLANG_EXTRAS:= no
 MK_CLANG_FULL:= no
+MK_LLVM_COV:= no
 .endif
 
 #

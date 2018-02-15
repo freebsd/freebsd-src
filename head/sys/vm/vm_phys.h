@@ -96,12 +96,12 @@ int vm_phys_mem_affinity(int f, int t);
 
 /*
  *
- *	vm_phys_domidx:
+ *	vm_phys_domain:
  *
  *	Return the index of the domain the page belongs to.
  */
 static inline int
-vm_phys_domidx(vm_page_t m)
+vm_phys_domain(vm_page_t m)
 {
 #ifdef NUMA
 	int domn, segind;
@@ -115,27 +115,6 @@ vm_phys_domidx(vm_page_t m)
 #else
 	return (0);
 #endif
-}
-
-/*
- *	vm_phys_domain:
- *
- * 	Return the memory domain the page belongs to.
- */
-static inline struct vm_domain *
-vm_phys_domain(vm_page_t m)
-{
-
-	return (&vm_dom[vm_phys_domidx(m)]);
-}
-
-static inline u_int
-vm_phys_freecnt_adj(vm_page_t m, int adj)
-{
-
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	vm_phys_domain(m)->vmd_free_count += adj;
-	return (vm_cnt.v_free_count += adj);
 }
 
 #endif	/* _KERNEL */

@@ -1362,12 +1362,7 @@ _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 	}
 	pmap_invalidate_page(pmap, va);
 
-	/*
-	 * This is a release store so that the ordinary store unmapping
-	 * the page table page is globally performed before TLB shoot-
-	 * down is begun.
-	 */
-	atomic_subtract_rel_int(&vm_cnt.v_wire_count, 1);
+	vm_wire_sub(1);
 
 	/*
 	 * Put page on a list so that it is released after
@@ -1493,9 +1488,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 			/* recurse for allocating page dir */
 			if (_pmap_alloc_l3(pmap, NUL2E + NUL1E + l0index,
 			    lockp) == NULL) {
-				--m->wire_count;
-				/* XXX: release mem barrier? */
-				atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+				vm_page_unwire_noq(m);
 				vm_page_free_zero(m);
 				return (NULL);
 			}
@@ -1521,8 +1514,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 			/* recurse for allocating page dir */
 			if (_pmap_alloc_l3(pmap, NUL2E + l1index,
 			    lockp) == NULL) {
-				--m->wire_count;
-				atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+				vm_page_unwire_noq(m);
 				vm_page_free_zero(m);
 				return (NULL);
 			}
@@ -1537,10 +1529,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 				/* recurse for allocating page dir */
 				if (_pmap_alloc_l3(pmap, NUL2E + l1index,
 				    lockp) == NULL) {
-					--m->wire_count;
-					/* XXX: release mem barrier? */
-					atomic_subtract_int(
-					    &vm_cnt.v_wire_count, 1);
+					vm_page_unwire_noq(m);
 					vm_page_free_zero(m);
 					return (NULL);
 				}
@@ -1648,8 +1637,7 @@ pmap_release(pmap_t pmap)
 
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->pm_l0));
 
-	m->wire_count--;
-	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+	vm_page_unwire_noq(m);
 	vm_page_free_zero(m);
 }
 
@@ -1919,7 +1907,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 		SLIST_REMOVE_HEAD(&free, plinks.s.ss);
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
-		atomic_add_int(&vm_cnt.v_wire_count, 1);
+		vm_wire_add(1);
 	}
 	pmap_free_zero_pages(&free);
 	return (m_pc);
@@ -1970,7 +1958,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 	dump_drop_page(m->phys_addr);
-	vm_page_unwire(m, PQ_NONE);
+	vm_page_unwire_noq(m);
 	vm_page_free(m);
 }
 
@@ -2276,9 +2264,9 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 		pmap_resident_count_dec(pmap, 1);
 		KASSERT(ml3->wire_count == NL3PG,
 		    ("pmap_remove_pages: l3 page wire count error"));
-		ml3->wire_count = 0;
+		ml3->wire_count = 1;
+		vm_page_unwire_noq(ml3);
 		pmap_add_delayed_free_list(ml3, free, FALSE);
-		atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 	}
 	return (pmap_unuse_pt(pmap, sva, l1e, free));
 }
@@ -3076,12 +3064,13 @@ validate:
 	}
 
 #if VM_NRESERVLEVEL > 0
-		if ((mpte == NULL || mpte->wire_count == NL3PG) &&
-		    pmap_superpages_enabled() &&
-		    (m->flags & PG_FICTITIOUS) == 0 &&
-		    vm_reserv_level_iffullpop(m) == 0) {
-			pmap_promote_l2(pmap, pde, va, &lock);
-		}
+	if (pmap != pmap_kernel() &&
+	    (mpte == NULL || mpte->wire_count == NL3PG) &&
+	    pmap_superpages_enabled() &&
+	    (m->flags & PG_FICTITIOUS) == 0 &&
+	    vm_reserv_level_iffullpop(m) == 0) {
+		pmap_promote_l2(pmap, pde, va, &lock);
+	}
 #endif
 
 	if (lock != NULL)
@@ -3722,11 +3711,10 @@ pmap_remove_pages(pmap_t pmap)
 						pmap_resident_count_dec(pmap,1);
 						KASSERT(ml3->wire_count == NL3PG,
 						    ("pmap_remove_pages: l3 page wire count error"));
-						ml3->wire_count = 0;
+						ml3->wire_count = 1;
+						vm_page_unwire_noq(ml3);
 						pmap_add_delayed_free_list(ml3,
 						    &free, FALSE);
-						atomic_subtract_int(
-						    &vm_cnt.v_wire_count, 1);
 					}
 					break;
 				case 2:

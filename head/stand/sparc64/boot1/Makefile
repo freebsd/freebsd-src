@@ -4,7 +4,6 @@
 
 PROG=	boot1.elf
 INTERNALPROG=
-MAN=
 FILES?=	boot1
 SRCS=	_start.s boot1.c
 CLEANFILES+=${FILES} boot1.aout

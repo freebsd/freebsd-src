@@ -156,14 +156,14 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	/*
 	 * The correct thing here would be:
 	 *
-	memfree = vm_cnt.v_free_count * PAGE_SIZE;
+	memfree = vm_free_count() * PAGE_SIZE;
 	memused = memtotal - memfree;
 	 *
 	 * but it might mislead linux binaries into thinking there
 	 * is very little memory left, so we cheat and tell them that
 	 * all memory that isn't wired down is free.
 	 */
-	memused = vm_cnt.v_wire_count * PAGE_SIZE;
+	memused = vm_wire_count() * PAGE_SIZE;
 	memfree = memtotal - memused;
 	swap_pager_status(&i, &j);
 	swaptotal = (unsigned long long)i * PAGE_SIZE;
@@ -178,7 +178,7 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	 * like unstaticizing it just for linprocfs's sake.
 	 */
 	buffers = 0;
-	cached = vm_cnt.v_inactive_count * PAGE_SIZE;
+	cached = vm_inactive_count() * PAGE_SIZE;
 
 	sbuf_printf(sb,
 	    "MemTotal: %9lu kB\n"

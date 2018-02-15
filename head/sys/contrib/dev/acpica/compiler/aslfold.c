@@ -444,7 +444,7 @@ OpcAmlCheckForConstant (
         if (Op->Asl.CompileFlags & OP_IS_TARGET)
         {
             DbgPrint (ASL_PARSE_OUTPUT,
-                "**** Valid Target, transform to Store ****\n");
+                "**** Valid Target, transform to Store or CopyObject ****\n");
             return (AE_CTRL_RETURN_VALUE);
         }
 
@@ -468,7 +468,7 @@ OpcAmlCheckForConstant (
     if (WalkState->Opcode == AML_BUFFER_OP)
     {
         DbgPrint (ASL_PARSE_OUTPUT,
-            "\nBuffer constant reduction is not supported yet\n");
+            "\nBuffer constant reduction is currently not supported\n");
 
         if (NextOp) /* Found a Name() operator, error */
         {
@@ -623,6 +623,8 @@ TrTransformToStoreOp (
     ACPI_PARSE_OBJECT       *NewParent;
     ACPI_PARSE_OBJECT       *OriginalParent;
     ACPI_STATUS             Status;
+    UINT16                  NewParseOpcode;
+    UINT16                  NewAmlOpcode;
 
 
     /* Extract the operands */
@@ -646,9 +648,45 @@ TrTransformToStoreOp (
         }
     }
 
-    DbgPrint (ASL_PARSE_OUTPUT,
-        "Reduction/Transform to StoreOp: Store(%s, %s)\n",
-        Child1->Asl.ParseOpName, Child2->Asl.ParseOpName);
+    switch (Op->Asl.ParseOpcode)
+    {
+    /*
+     * Folding of the explicit conversion opcodes must use CopyObject
+     * instead of Store. This can change the object type of the target
+     * operand, as per the ACPI specification:
+     *
+     * "If the ASL operator is one of the explicit conversion operators
+     * (ToString, ToInteger, etc., and the CopyObject operator), no
+     * [implicit] conversion is performed. (In other words, the result
+     * object is stored directly to the target and completely overwrites
+     * any existing object already stored at the target)"
+     */
+    case PARSEOP_TOINTEGER:
+    case PARSEOP_TOSTRING:
+    case PARSEOP_TOBUFFER:
+    case PARSEOP_TODECIMALSTRING:
+    case PARSEOP_TOHEXSTRING:
+    case PARSEOP_TOBCD:
+    case PARSEOP_FROMBCD:
+
+        NewParseOpcode = PARSEOP_COPYOBJECT;
+        NewAmlOpcode = AML_COPY_OBJECT_OP;
+
+        DbgPrint (ASL_PARSE_OUTPUT,
+            "Reduction/Transform to CopyObjectOp: CopyObject(%s, %s)\n",
+            Child1->Asl.ParseOpName, Child2->Asl.ParseOpName);
+        break;
+
+    default:
+
+        NewParseOpcode = PARSEOP_STORE;
+        NewAmlOpcode = AML_STORE_OP;
+
+        DbgPrint (ASL_PARSE_OUTPUT,
+            "Reduction/Transform to StoreOp: Store(%s, %s)\n",
+            Child1->Asl.ParseOpName, Child2->Asl.ParseOpName);
+        break;
+    }
 
     /*
      * Create a NULL (zero) target so that we can use the
@@ -709,10 +747,10 @@ TrTransformToStoreOp (
 
     TrInstallReducedConstant (Child1, ObjDesc);
 
-    /* Convert operator to STORE */
+    /* Convert operator to STORE or COPYOBJECT */
 
-    Op->Asl.ParseOpcode = PARSEOP_STORE;
-    Op->Asl.AmlOpcode = AML_STORE_OP;
+    Op->Asl.ParseOpcode = NewParseOpcode;
+    Op->Asl.AmlOpcode = NewAmlOpcode;
     UtSetParseOpName (Op);
     Op->Common.Parent = OriginalParent;
 

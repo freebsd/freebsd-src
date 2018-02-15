@@ -348,4 +348,4 @@ eth_uninit(void *arg __unused)
 }
 
 SYSINIT(eth_init, SI_SUB_LOCK, SI_ORDER_FIRST, eth_init, NULL);
-SYSUNINIT(eth_init, SI_SUB_LOCK, SI_ORDER_FIRST, eth_uninit, NULL);
+SYSUNINIT(eth_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, eth_uninit, NULL);

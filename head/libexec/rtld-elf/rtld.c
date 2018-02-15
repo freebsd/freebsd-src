@@ -755,6 +755,12 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	    obj_main->fini_array = (Elf_Addr)NULL;
     }
 
+    /*
+     * Execute MD initializers required before we call the objects'
+     * init functions.
+     */
+    pre_init();
+
     wlock_acquire(rtld_bind_lock, &lockstate);
     if (obj_main->crt_no_init)
 	preinit_main();

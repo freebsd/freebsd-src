@@ -1,7 +1,10 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/21/94
 # $FreeBSD$
-
+#
 # Makefile for init_sysent
+
+# Don't use an OBJDIR
+.OBJDIR: ${.CURDIR}
 
 all:
 	@echo "make sysent only"

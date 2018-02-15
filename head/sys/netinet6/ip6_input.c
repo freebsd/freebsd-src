@@ -1711,49 +1711,39 @@ ip6_pullexthdr(struct mbuf *m, size_t off, int nxt)
 /*
  * Get pointer to the previous header followed by the header
  * currently processed.
- * XXX: This function supposes that
- *	M includes all headers,
- *	the next header field and the header length field of each header
- *	are valid, and
- *	the sum of each header length equals to OFF.
- * Because of these assumptions, this function must be called very
- * carefully. Moreover, it will not be used in the near future when
- * we develop `neater' mechanism to process extension headers.
  */
-char *
+int
 ip6_get_prevhdr(const struct mbuf *m, int off)
 {
-	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
+	struct ip6_ext ip6e;
+	struct ip6_hdr *ip6;
+	int len, nlen, nxt;
 
 	if (off == sizeof(struct ip6_hdr))
-		return (&ip6->ip6_nxt);
-	else {
-		int len, nxt;
-		struct ip6_ext *ip6e = NULL;
+		return (offsetof(struct ip6_hdr, ip6_nxt));
+	if (off < sizeof(struct ip6_hdr))
+		panic("%s: off < sizeof(struct ip6_hdr)", __func__);
 
-		nxt = ip6->ip6_nxt;
-		len = sizeof(struct ip6_hdr);
-		while (len < off) {
-			ip6e = (struct ip6_ext *)(mtod(m, caddr_t) + len);
-
-			switch (nxt) {
-			case IPPROTO_FRAGMENT:
-				len += sizeof(struct ip6_frag);
-				break;
-			case IPPROTO_AH:
-				len += (ip6e->ip6e_len + 2) << 2;
-				break;
-			default:
-				len += (ip6e->ip6e_len + 1) << 3;
-				break;
-			}
-			nxt = ip6e->ip6e_nxt;
+	ip6 = mtod(m, struct ip6_hdr *);
+	nxt = ip6->ip6_nxt;
+	len = sizeof(struct ip6_hdr);
+	nlen = 0;
+	while (len < off) {
+		m_copydata(m, len, sizeof(ip6e), (caddr_t)&ip6e);
+		switch (nxt) {
+		case IPPROTO_FRAGMENT:
+			nlen = sizeof(struct ip6_frag);
+			break;
+		case IPPROTO_AH:
+			nlen = (ip6e.ip6e_len + 2) << 2;
+			break;
+		default:
+			nlen = (ip6e.ip6e_len + 1) << 3;
 		}
-		if (ip6e)
-			return (&ip6e->ip6e_nxt);
-		else
-			return NULL;
+		len += nlen;
+		nxt = ip6e.ip6e_nxt;
 	}
+	return (len - nlen);
 }
 
 /*

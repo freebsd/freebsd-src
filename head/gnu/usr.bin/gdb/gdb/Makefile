@@ -13,7 +13,7 @@ LDFLAGS+= -Wl,-E
 
 DPADD=	${GDBLIBS} ${BULIBS}
 LDADD=	${GDBLIBS} ${BULIBS}
-LIBADD+=	m readline ncursesw gnuregex
+LIBADD+=	m edit ncursesw gnuregex
 
 .include <bsd.prog.mk>
 CFLAGS+=	-DDEBUGDIR=\"${DEBUGDIR}\"

@@ -107,15 +107,15 @@ union semun {
  * semaphore info struct
  */
 struct seminfo {
-	int	semmni,		/* # of semaphore identifiers */
-		semmns,		/* # of semaphores in system */
-		semmnu,		/* # of undo structures in system */
-		semmsl,		/* max # of semaphores per id */
-		semopm,		/* max # of operations per semop call */
-		semume,		/* max # of undo entries per process */
-		semusz,		/* size in bytes of undo structure */
-		semvmx,		/* semaphore maximum value */
-		semaem;		/* adjust on exit max value */
+	int	semmni;		/* # of semaphore identifiers */
+	int	semmns;		/* # of semaphores in system */
+	int	semmnu;		/* # of undo structures in system */
+	int	semmsl;		/* max # of semaphores per id */
+	int	semopm;		/* max # of operations per semop call */
+	int	semume;		/* max # of undo entries per process */
+	int	semusz;		/* size in bytes of undo structure */
+	int	semvmx;		/* semaphore maximum value */
+	int	semaem;		/* adjust on exit max value */
 };
 extern struct seminfo	seminfo;
 

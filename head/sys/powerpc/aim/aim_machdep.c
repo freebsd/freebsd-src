@@ -178,6 +178,27 @@ aim_cpu_init(vm_offset_t toc)
 	trap_offset = 0;
 	cacheline_warn = 0;
 
+	/* General setup for AIM CPUs */
+	psl_kernset = PSL_EE | PSL_ME | PSL_IR | PSL_DR | PSL_RI;
+
+#ifdef __powerpc64__
+	psl_kernset |= PSL_SF;
+	if (mfmsr() & PSL_HV)
+		psl_kernset |= PSL_HV;
+#endif
+	psl_userset = psl_kernset | PSL_PR;
+#ifdef __powerpc64__
+	psl_userset32 = psl_userset & ~PSL_SF;
+#endif
+
+	/* Bits that users aren't allowed to change */
+	psl_userstatic = ~(PSL_VEC | PSL_FP | PSL_FE0 | PSL_FE1);
+	/*
+	 * Mask bits from the SRR1 that aren't really the MSR:
+	 * Bits 1-4, 10-15 (ppc32), 33-36, 42-47 (ppc64)
+	 */
+	psl_userstatic &= ~0x783f0000UL;
+
 	/* Various very early CPU fix ups */
 	switch (mfpvr() >> 16) {
 		/*

@@ -140,7 +140,7 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 
 }
 
-void 
+void
 linux_proc_exit(void *arg __unused, struct proc *p)
 {
 	struct linux_pemuldata *pem;
@@ -155,7 +155,7 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 
 	pem = pem_find(p);
 	if (pem == NULL)
-		return;	
+		return;
 	(p->p_sysent->sv_thread_detach)(td);
 
 	p->p_emuldata = NULL;
@@ -170,7 +170,7 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 	free(pem, M_LINUX);
 }
 
-int 
+int
 linux_common_execve(struct thread *td, struct image_args *eargs)
 {
 	struct linux_pemuldata *pem;
@@ -218,7 +218,7 @@ linux_common_execve(struct thread *td, struct image_args *eargs)
 	return (EJUSTRETURN);
 }
 
-void 
+void
 linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 {
 	struct thread *td = curthread;

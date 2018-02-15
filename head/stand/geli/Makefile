@@ -1,16 +1,11 @@
 # $FreeBSD$
 # libgeliboot
 
-MAN=
 DO32=1
 
 .include <bsd.init.mk>
-MK_SSP=		no
 
 LIB=		geliboot
-INTERNALLIB=
-MK_PROFILE=	no
-NO_PIC=
 
 # Our password input method
 SRCS+=  pwgets.c

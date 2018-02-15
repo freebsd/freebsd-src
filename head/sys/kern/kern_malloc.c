@@ -927,8 +927,6 @@ mallocinit(void *dummy)
 
 	kmeminit();
 
-	uma_startup2();
-
 	if (kmem_zmax < PAGE_SIZE || kmem_zmax > KMEM_ZMAX)
 		kmem_zmax = KMEM_ZMAX;
 

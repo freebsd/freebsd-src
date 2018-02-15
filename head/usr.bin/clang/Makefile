@@ -17,7 +17,6 @@ SUBDIR+=	lli
 SUBDIR+=	llvm-ar
 SUBDIR+=	llvm-as
 SUBDIR+=	llvm-bcanalyzer
-SUBDIR+=	llvm-cov
 SUBDIR+=	llvm-cxxdump
 SUBDIR+=	llvm-cxxfilt
 SUBDIR+=	llvm-diff
@@ -44,7 +43,10 @@ SUBDIR+=	lld
 .endif
 .if ${MK_LLDB} != "no"
 SUBDIR+=	lldb
-.endif # MK_LLDB
+.endif
+.if ${MK_LLVM_COV} != "no"
+SUBDIR+=	llvm-cov
+.endif
 .endif # TOOLS_PREFIX
 
 SUBDIR_PARALLEL=
