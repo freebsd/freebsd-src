@@ -666,6 +666,7 @@ vendor SOUNDGRAPH 	0x15c2	Soundgraph, Inc.
 vendor AMIT2		0x15c5	AMIT
 vendor TEXTECH		0x15ca	Textech International Ltd.
 vendor SOHOWARE		0x15e8	SOHOware
+vendor ABIT		0x15eb	ABIT Corporation
 vendor UMAX		0x1606	UMAX Data Systems
 vendor INSIDEOUT	0x1608	Inside Out Networks
 vendor AMOI		0x1614	Amoi Electronics
@@ -807,6 +808,9 @@ product 3COMUSR OFFICECONN	0x0082	3Com OfficeConnect Analog Modem
 product 3COMUSR USRISDN		0x008f	3Com U.S. Robotics Pro ISDN TA
 product 3COMUSR HOMECONN	0x009d	3Com HomeConnect Camera
 product 3COMUSR USR56K		0x3021	U.S. Robotics 56000 Voice FaxModem Pro
+
+/* ABIT products */
+product ABIT AK_020		0x7d0e	3G modem
 
 /* AboCom products */
 product ABOCOM XX1		0x110c	XX1
