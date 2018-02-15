@@ -205,6 +205,7 @@ MODULE_VERSION(u3g, 1);
 
 static const STRUCT_USB_HOST_ID u3g_devs[] = {
 #define	U3G_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
+	U3G_DEV(ABIT, AK_020, 0),
 	U3G_DEV(ACERP, H10, 0),
 	U3G_DEV(AIRPLUS, MCD650, 0),
 	U3G_DEV(AIRPRIME, PC5220, 0),
