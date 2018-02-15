@@ -1021,7 +1021,7 @@ event_loop(void)
 			tv.tv_usec = 0;
 			FD_ZERO(&fds);
 			FD_SET(fd, &fds);
-			rv = select(fd + 1, &fds, &fds, &fds, &tv);
+			rv = select(fd + 1, &fds, NULL, NULL, &tv);
 			// No events -> we've processed all pending events
 			if (rv == 0) {
 				devdlog(LOG_DEBUG, "Calling daemon\n");
