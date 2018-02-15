@@ -32,11 +32,6 @@
 
 verify_runnable "global"
 
-ismounted $TESTDIR ufs
-(( $? == 0 )) && log_must $UMOUNT -f $TESTDIR
-
-[[ -e $TESTDIR ]] && $RM -rf $TESTDIR
-
 default_zvol_cleanup
 
 log_pass

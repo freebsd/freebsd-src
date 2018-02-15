@@ -60,7 +60,11 @@ verify_runnable "global"
 
 function cleanup
 {
-	$RM -rf $TESTDIR/*
+	# unmounting the UFS filesystem can take more than 60s, and Kyua has a
+	# hardcoded 60s limit for the cleanup phase.  So we must unmount the
+	# filesystem here rather than cleanup.ksh.
+	ismounted $TESTDIR ufs && log_must $UMOUNT -f $TESTDIR
+	$RMDIR $TESTDIR
 }
 
 log_assert "A zvol volume will return ENOSPC when the underlying pool " \
