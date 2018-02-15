@@ -135,6 +135,11 @@ public:
 	static void      DeSerialize();
 
 	/**
+	 * \brief returns true if there are no CaseFiles
+	 */
+	static bool	Empty();
+
+	/**
 	 * \brief Emit syslog data on all active CaseFile%%s in the system.
 	 */
 	static void      LogAll();

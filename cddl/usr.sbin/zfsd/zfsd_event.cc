@@ -98,8 +98,16 @@ bool
 GeomEvent::Process() const
 {
 	/*
-	 * We are only concerned with create arrivals and physical path changes,
-	 * because those can be used to satisfy online and autoreplace operations
+	 * We only use GEOM events to repair damaged pools.  So return early if
+	 * there are no damaged pools
+	 */
+	if (CaseFile::Empty())
+		return (false);
+
+	/*
+	 * We are only concerned with arrivals and physical path changes,
+	 * because those can be used to satisfy online and autoreplace
+	 * operations
 	 */
 	if (Value("type") != "GEOM::physpath" && Value("type") != "CREATE")
 		return (false);
