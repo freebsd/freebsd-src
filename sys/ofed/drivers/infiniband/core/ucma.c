@@ -287,8 +287,6 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 
 	list_add_tail(&uevent->list, &ctx->file->event_list);
 	wake_up_interruptible(&ctx->file->poll_wait);
-	if (ctx->file->filp)
-		selwakeup(&ctx->file->filp->f_selinfo);
 out:
 	mutex_unlock(&ctx->file->mut);
 	return ret;
