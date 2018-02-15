@@ -646,6 +646,8 @@ struct mlx5e_flow_tables {
 };
 
 struct mlx5e_priv {
+	struct mlx5_core_dev *mdev;     /* must be first */
+
 	/* priv data path fields - start */
 	int	order_base_2_num_channels;
 	int	queue_mapping_channel_mask;
@@ -683,7 +685,6 @@ struct mlx5e_priv {
 	struct work_struct set_rx_mode_work;
 	MLX5_DECLARE_DOORBELL_LOCK(doorbell_lock)
 
-	struct mlx5_core_dev *mdev;
 	struct ifnet *ifp;
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_ifnet;
