@@ -2150,6 +2150,10 @@ skip_thunk:
 
 		return (error);
 	}
+	case KDGETMODE:
+		*(int *)data = (vw->vw_flags & VWF_GRAPHICS) ?
+		    KD_GRAPHICS : KD_TEXT;
+		return (0);
 	case KDGKBMODE: {
 		error = 0;
 
