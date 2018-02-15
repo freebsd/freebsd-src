@@ -3183,13 +3183,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* freebsd32_getdirentries */
+	/* getdirentries */
 	case 554: {
-		struct freebsd32_getdirentries_args *p = params;
+		struct getdirentries_args *p = params;
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->buf; /* char * */
 		uarg[2] = p->count; /* size_t */
-		uarg[3] = (intptr_t) p->basep; /* int32_t * */
+		uarg[3] = (intptr_t) p->basep; /* off_t * */
 		*n_args = 4;
 		break;
 	}
@@ -8626,7 +8626,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* freebsd32_getdirentries */
+	/* getdirentries */
 	case 554:
 		switch(ndx) {
 		case 0:
@@ -8639,7 +8639,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "size_t";
 			break;
 		case 3:
-			p = "userland int32_t *";
+			p = "userland off_t *";
 			break;
 		default:
 			break;
@@ -10606,7 +10606,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* freebsd32_getdirentries */
+	/* getdirentries */
 	case 554:
 		if (ndx == 0 || ndx == 1)
 			p = "ssize_t";
