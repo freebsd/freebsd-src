@@ -152,7 +152,7 @@ menu.welcome = {
 			core.setSingleUser(false);
 			core.boot();
 		end,
-		alias = {"b", "B", "\013"}
+		alias = {"b", "B"}
 	},
 
 	-- boot single user
@@ -272,9 +272,12 @@ function menu.run(m)
 	while cont do
 		local key = io.getchar();
 
-		-- Exit on backspace
+		-- Special key behaviors
 		if (key == 127) and (m ~= menu.welcome) then
 			break
+		elseif (key == 13) then
+			core.boot();
+			-- Should not return
 		end
 
 		key = string.char(key)
