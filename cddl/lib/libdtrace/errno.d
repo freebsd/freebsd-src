@@ -216,7 +216,15 @@ inline int ENOLINK = 91;
 #pragma D binding "1.0" ENOLINK
 inline int EPROTO = 92;
 #pragma D binding "1.0" EPROTO
-inline int ELAST = 92;
+inline int ENOTCAPABLE = 93;
+#pragma D binding "1.13" ENOTCAPABLE
+inline int ECAPMODE = 94;
+#pragma D binding "1.13" ECAPMODE
+inline int ENOTRECOVERABLE = 95;
+#pragma D binding "1.13" ENOTRECOVERABLE
+inline int EOWNERDEAD = 96;
+#pragma D binding "1.13" EOWNERDEAD
+inline int ELAST = 96;
 #pragma D binding "1.0" ELAST
 inline int ERESTART = -1;
 #pragma D binding "1.0" ERESTART
@@ -226,3 +234,5 @@ inline int ENOIOCTL = -3;
 #pragma D binding "1.0" ENOIOCTL
 inline int EDIRIOCTL = -4;
 #pragma D binding "1.0" EDIRIOCTL
+inline int ERELOOKUP = -5;
+#pragma D binding "1.13" ERELOOKUP
