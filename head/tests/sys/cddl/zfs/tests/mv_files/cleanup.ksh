@@ -34,8 +34,4 @@
 [[ -f $TMPDIR/testbackgprocs.ksh ]] && \
 	log_must $RM -f $TMPDIR/testbackgprocs.ksh
 
-if [[ -d $TESTDIR_TGT ]]; then
-	log_must $RM -rf $TESTDIR_TGT
-fi
-
 default_cleanup
