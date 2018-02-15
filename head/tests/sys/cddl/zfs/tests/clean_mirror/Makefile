@@ -8,6 +8,7 @@ FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	clean_mirror_test
 TEST_METADATA+=		required_user="root"
+TEST_METADATA+=		is_exclusive=true
 
 ${PACKAGE}FILES+=	clean_mirror_001_pos.ksh
 ${PACKAGE}FILES+=	clean_mirror_002_pos.ksh

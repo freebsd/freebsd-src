@@ -8,6 +8,7 @@ FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zpool_scrub_test
 TEST_METADATA+=		required_user="root"
+TEST_METADATA+=		is_exclusive=true
 
 ${PACKAGE}FILES+=	zpool_scrub_001_neg.ksh
 ${PACKAGE}FILES+=	zpool_scrub_004_pos.ksh

@@ -28,5 +28,6 @@ ${PACKAGE}FILES+=	zfs_acl_tar_002_neg.ksh
 
 ATF_TESTS_KSH93+=	trivial_test
 TEST_METADATA+=		required_user="root"
+TEST_METADATA+=		is_exclusive=true
 
 .include <bsd.test.mk>

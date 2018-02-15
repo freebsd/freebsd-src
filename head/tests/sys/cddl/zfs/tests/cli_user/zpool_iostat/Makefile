@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_user/zpool_iostat
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zpool_iostat_test
+TEST_METADATA+=		is_exclusive=true
 
 ${PACKAGE}FILES+=	cleanup.ksh
 ${PACKAGE}FILES+=	zpool_iostat.cfg

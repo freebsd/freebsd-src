@@ -9,6 +9,7 @@ BINDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	txg_integrity_test
 TEST_METADATA+=		required_user="root"
+TEST_METADATA+=		is_exclusive=true
 
 ${PACKAGE}FILES+=	setup.ksh
 ${PACKAGE}FILES+=	txg_integrity_001_pos.ksh

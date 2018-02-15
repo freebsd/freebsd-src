@@ -15,5 +15,6 @@ ${PACKAGE}FILES+=	setup.ksh
 
 ATF_TESTS_KSH93+=	atime_test
 TEST_METADATA+=		required_user="root"
+TEST_METADATA+=		is_exclusive=true
 
 .include <bsd.test.mk>

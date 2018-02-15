@@ -15,5 +15,6 @@ PROG=	ctime_001_pos
 MAN=
 ATF_TESTS_KSH93=	ctime_test
 TEST_METADATA+=		required_user="root"
+TEST_METADATA+=		is_exclusive=true
 
 .include <bsd.test.mk>

@@ -8,6 +8,7 @@ FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zpool_upgrade_test
 TEST_METADATA+=		required_user="root"
+TEST_METADATA+=		is_exclusive=true
 
 ${PACKAGE}FILES+=	setup.ksh
 ${PACKAGE}FILES+=	zpool_upgrade_003_pos.ksh

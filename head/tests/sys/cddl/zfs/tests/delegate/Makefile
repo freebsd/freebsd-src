@@ -9,6 +9,7 @@ FILESDIR=${TESTSDIR}
 ATF_TESTS_KSH93+=	zfs_allow_test
 ATF_TESTS_KSH93+=	zfs_unallow_test
 TEST_METADATA+=		required_user="root"
+TEST_METADATA+=		is_exclusive=true
 
 ${PACKAGE}FILES+=	cleanup.ksh
 ${PACKAGE}FILES+=	cleanup.ksh

@@ -8,6 +8,7 @@ FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	refquota_test
 TEST_METADATA+=		required_user="root"
+TEST_METADATA+=		is_exclusive=true
 
 ${PACKAGE}FILES+=	refquota_001_pos.ksh
 ${PACKAGE}FILES+=	refquota_005_pos.ksh

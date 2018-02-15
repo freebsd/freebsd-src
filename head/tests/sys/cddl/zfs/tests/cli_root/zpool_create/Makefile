@@ -8,6 +8,7 @@ FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zpool_create_test
 TEST_METADATA+=		required_user="root"
+TEST_METADATA+=		is_exclusive=true
 
 ${PACKAGE}FILES+=	zpool_create_003_pos.ksh
 ${PACKAGE}FILES+=	zpool_create_020_pos.ksh

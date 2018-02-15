@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_user/misc
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	misc_test
+TEST_METADATA+=		is_exclusive=true
 
 ${PACKAGE}FILES+=	zfs_rename_001_neg.ksh
 ${PACKAGE}FILES+=	zpool_remove_001_neg.ksh

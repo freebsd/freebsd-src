@@ -8,6 +8,7 @@ FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zfs_receive_test
 TEST_METADATA+=		required_user="root"
+TEST_METADATA+=		is_exclusive=true
 
 ${PACKAGE}FILES+=	zfs_receive_004_neg.ksh
 ${PACKAGE}FILES+=	zfs_receive_001_pos.ksh

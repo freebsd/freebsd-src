@@ -8,6 +8,7 @@ FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zfs_rename_test
 TEST_METADATA+=		required_user="root"
+TEST_METADATA+=		is_exclusive=true
 
 ${PACKAGE}FILES+=	zfs_rename_002_pos.ksh
 ${PACKAGE}FILES+=	zfs_rename_006_pos.ksh

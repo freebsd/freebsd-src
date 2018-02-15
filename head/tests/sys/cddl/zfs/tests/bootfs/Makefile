@@ -19,5 +19,6 @@ ${PACKAGE}FILES+=	bootfs_009_neg.ksh
 
 ATF_TESTS_KSH93+=	bootfs_test
 TEST_METADATA+=		required_user="root"
+TEST_METADATA+=		is_exclusive=true
 
 .include <bsd.test.mk>
