@@ -342,5 +342,5 @@ DEFINE_CLASS_1(gicv2m, arm_gicv2m_acpi_driver, arm_gicv2m_acpi_methods,
 
 static devclass_t arm_gicv2m_acpi_devclass;
 
-EARLY_DRIVER_MODULE(gicv2m, gic, arm_gicv2m_acpi_driver,
+EARLY_DRIVER_MODULE(gicv2m_acpi, gic, arm_gicv2m_acpi_driver,
     arm_gicv2m_acpi_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
