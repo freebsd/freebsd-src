@@ -90,7 +90,7 @@ struct nlist nl[3];
 
 static caddr_t tcp_pcbs[TCP_NDEBUG];
 static n_time ntime;
-static int aflag, kflag, memf, follow, sflag, tflag;
+static int aflag, kflag, memf, follow, sflag;
 
 void dotrace(caddr_t);
 void klseek(int, off_t, int);
@@ -108,7 +108,7 @@ main(int argc, char **argv)
 	nl[1].n_name = strdup("_tcp_debx");
 
 	jflag = npcbs = 0;
-	while ((ch = getopt(argc, argv, "afjp:st")) != -1)
+	while ((ch = getopt(argc, argv, "afjp:s")) != -1)
 		switch (ch) {
 		case 'a':
 			++aflag;
@@ -127,9 +127,6 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			++sflag;
-			break;
-		case 't':
-			++tflag;
 			break;
 		case '?':
 		default:
@@ -216,7 +213,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-		"usage: trpt [-afjst] [-p hex-address] [system [core]]\n");
+		"usage: trpt [-afjs] [-p hex-address] [system [core]]\n");
 	exit(1);
 }
 
@@ -427,28 +424,6 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, int family __unused,
 		    (u_long)tp->snd_wl1,
 		    (u_long)tp->snd_wl2, (u_long)tp->snd_wnd);
 	}
-	/* print out timers? */
-#if 0
-	/*
-	 * XXX 
-	 * kernel now uses callouts, not integer time values.
-	 */
-	if (tflag) {
-		register char *cp = "\t";
-		register int i;
-
-		for (i = 0; i < TCPT_NTIMERS; i++) {
-			if (tp->t_timer[i] == 0)
-				continue;
-			printf("%s%s=%d", cp, tcptimers[i], tp->t_timer[i]);
-			if (i == TCPT_REXMT)
-				printf(" (t_rxtshft=%d)", tp->t_rxtshift);
-			cp = ", ";
-		}
-		if (*cp != '\t')
-			putchar('\n');
-	}
-#endif
 }
 
 int
