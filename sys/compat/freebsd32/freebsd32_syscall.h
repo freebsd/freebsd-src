@@ -459,7 +459,7 @@
 #define	FREEBSD32_SYS_freebsd32_fstat	551
 #define	FREEBSD32_SYS_freebsd32_fstatat	552
 #define	FREEBSD32_SYS_freebsd32_fhstat	553
-#define	FREEBSD32_SYS_freebsd32_getdirentries	554
+#define	FREEBSD32_SYS_getdirentries	554
 #define	FREEBSD32_SYS_statfs	555
 #define	FREEBSD32_SYS_fstatfs	556
 #define	FREEBSD32_SYS_getfsstat	557
