@@ -97,7 +97,7 @@ struct rpc_reply {
 };
 
 /* Local forwards */
-static	ssize_t recvrpc(struct iodesc *, void **, void **, time_t);
+static	ssize_t recvrpc(struct iodesc *, void **, void **, time_t, void *);
 static	int rpc_getport(struct iodesc *, n_long, n_long);
 
 int rpc_xid;
@@ -167,7 +167,7 @@ rpc_call(struct iodesc *d, n_long prog, n_long vers, n_long proc,
 	ptr = NULL;
 	cc = sendrecv(d,
 	    sendudp, send_head, send_tail - send_head,
-	    recvrpc, &ptr, (void **)&reply);
+	    recvrpc, &ptr, (void **)&reply, NULL);
 
 #ifdef RPC_DEBUG
 	if (debug)
@@ -217,7 +217,7 @@ rpc_call(struct iodesc *d, n_long prog, n_long vers, n_long proc,
  * Remaining checks are done by callrpc
  */
 static ssize_t
-recvrpc(struct iodesc *d, void **pkt, void **payload, time_t tleft)
+recvrpc(struct iodesc *d, void **pkt, void **payload, time_t tleft, void *extra)
 {
 	void *ptr;
 	struct rpc_reply *reply;

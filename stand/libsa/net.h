@@ -115,8 +115,9 @@ ssize_t	readudp(struct iodesc *, void **, void **, time_t);
 ssize_t	sendrecv(struct iodesc *,
 			ssize_t (*)(struct iodesc *, void *, size_t),
 			void *, size_t,
-			ssize_t (*)(struct iodesc *, void **, void **, time_t),
-			void **, void **);
+			ssize_t (*)(struct iodesc *, void **, void **, time_t,
+			    void *),
+			void **, void **, void *);
 
 /* bootp/DHCP */
 void	bootp(int);
