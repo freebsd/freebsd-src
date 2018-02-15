@@ -44,7 +44,6 @@ TESTS_SUBDIRS+=	no_space
 TESTS_SUBDIRS+=	online_offline
 TESTS_SUBDIRS+=	pool_names
 TESTS_SUBDIRS+=	poolversion
-TESTS_SUBDIRS+=	privilege
 TESTS_SUBDIRS+=	quota
 TESTS_SUBDIRS+=	redundancy
 TESTS_SUBDIRS+=	refquota
