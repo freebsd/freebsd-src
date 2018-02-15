@@ -74,8 +74,8 @@ populate_dir $TESTDIR/$TESTFILE $NUM_FILES $WRITE_COUNT $BLOCKSZ $DATA
 
 log_must $ZFS unmount $TESTDIR
 
-log_must $FSTYP $DISK
-detected_filesystem=$( $FSTYP $DISK )
+log_must $FSTYP -u $DISK
+detected_filesystem=$( $FSTYP -u $DISK )
 if [ "$detected_filesystem" != "zfs" ]; then
 	log_fail "fstyp(8) detected $detected_filesystem instead of zfs"
 fi
