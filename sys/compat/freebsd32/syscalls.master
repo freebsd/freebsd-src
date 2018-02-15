@@ -1097,9 +1097,9 @@
 553	AUE_FHSTAT	STD	{ int freebsd32_fhstat( \
 				    const struct fhandle *u_fhp, \
 				    struct stat32 *sb); }
-554	AUE_GETDIRENTRIES STD	{ ssize_t freebsd32_getdirentries( \
+554	AUE_GETDIRENTRIES NOPROTO	{ ssize_t getdirentries( \
 				    int fd, char *buf, size_t count, \
-				    int32_t *basep); }
+				    off_t *basep); }
 555	AUE_STATFS	NOPROTO	{ int statfs(char *path, \
 				    struct statfs32 *buf); }
 556	AUE_FSTATFS	NOPROTO	{ int fstatfs(int fd, struct statfs32 *buf); }
