@@ -38,6 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <fdt_platform.h>
 #endif
 
+#ifdef __arm__
+#include <machine/elf.h>
+#endif
 #include <machine/metadata.h>
 
 #include "bootstrap.h"
@@ -315,6 +318,22 @@ md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
     uint64_t			scratch64;
     char			*rootdevname;
     int				howto;
+#ifdef __arm__
+    vm_offset_t			vaddr;
+    int				i;
+
+	/*
+	 * These metadata addreses must be converted for kernel after
+	 * relocation.
+	 */
+    uint32_t			mdt[] = {
+	    MODINFOMD_SSYM, MODINFOMD_ESYM, MODINFOMD_KERNEND,
+	    MODINFOMD_ENVP,
+#if defined(LOADER_FDT_SUPPORT)
+	    MODINFOMD_DTBP
+#endif
+    };
+#endif
 
     align = kern64 ? 8 : 4;
     howto = md_getboothowto(args);
@@ -409,6 +428,23 @@ md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
     } else {
 	bcopy(&kernend, md->md_data, sizeof kernend);
     }
+
+#ifdef __arm__
+    /* Convert addresses to the final VA */
+    *modulep -= __elfN(relocation_offset);
+
+    /* Do relocation fixup on metadata of each module. */
+    for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
+        for (i = 0; i < nitems(mdt); i++) {
+            md = file_findmetadata(xp, mdt[i]);
+                if (md) {
+                    bcopy(md->md_data, &vaddr, sizeof vaddr);
+                    vaddr -= __elfN(relocation_offset);
+                    bcopy(&vaddr, md->md_data, sizeof vaddr);
+                }
+            }
+    }
+#endif
 
     (void)md_copymodules(addr, kern64);
 #if defined(LOADER_FDT_SUPPORT)
