@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/history/
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	history_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	history_005_neg.ksh
 ${PACKAGE}FILES+=	history_004_pos.ksh

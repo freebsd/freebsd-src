@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/userquota
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	userquota_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	groupspace_001_pos.ksh
 ${PACKAGE}FILES+=	userquota_common.kshlib

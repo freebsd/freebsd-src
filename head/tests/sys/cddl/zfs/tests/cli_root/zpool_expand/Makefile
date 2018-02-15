@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zpool_expand
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zpool_expand_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	zpool_expand_003_neg.ksh
 ${PACKAGE}FILES+=	setup.ksh

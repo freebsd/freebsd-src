@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/snapshot
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	snapshot_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	rollback_001_pos.ksh
 ${PACKAGE}FILES+=	setup.ksh

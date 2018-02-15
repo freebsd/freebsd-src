@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zfs_destroy
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zfs_destroy_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	zfs_destroy_001_pos.ksh
 ${PACKAGE}FILES+=	zfs_destroy.cfg

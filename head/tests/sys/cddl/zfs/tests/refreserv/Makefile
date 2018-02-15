@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/refreserv
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	refreserv_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	refreserv_004_pos.ksh
 ${PACKAGE}FILES+=	refreserv_005_pos.ksh

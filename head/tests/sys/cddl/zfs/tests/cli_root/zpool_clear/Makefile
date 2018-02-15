@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zpool_clear
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zpool_clear_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	cleanup.ksh
 ${PACKAGE}FILES+=	zpool_clear_003_neg.ksh

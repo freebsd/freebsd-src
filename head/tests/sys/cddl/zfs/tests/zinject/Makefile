@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/zinject
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zinject_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	zinject.cfg
 ${PACKAGE}FILES+=	cleanup.ksh

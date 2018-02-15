@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/link_count/
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	link_count_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	link_count_001.ksh
 ${PACKAGE}FILES+=	cleanup.ksh

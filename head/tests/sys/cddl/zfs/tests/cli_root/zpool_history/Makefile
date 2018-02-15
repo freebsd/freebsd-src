@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zpool_history
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zpool_history_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	setup.ksh
 ${PACKAGE}FILES+=	cleanup.ksh

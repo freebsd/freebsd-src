@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/mv_files
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	mv_files_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	cleanup.ksh
 ${PACKAGE}FILES+=	mv_files_common.kshlib

@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/zvol/zvol_cli
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zvol_cli_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	setup.ksh
 ${PACKAGE}FILES+=	zvol_cli_003_neg.ksh

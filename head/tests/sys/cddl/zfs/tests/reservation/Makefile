@@ -7,6 +7,7 @@ TESTSDIR=	${TESTSBASE}/sys/cddl/zfs/tests/reservation
 FILESDIR=	${TESTSDIR}
 
 ATF_TESTS_KSH93+=	reservation_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	reservation.cfg
 ${PACKAGE}FILES+=	reservation_007_pos.ksh

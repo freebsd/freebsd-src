@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zfs_send
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zfs_send_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	setup.ksh
 ${PACKAGE}FILES+=	cleanup.ksh

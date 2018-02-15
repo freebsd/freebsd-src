@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/utils_test
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	utils_test_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	utils_test_007_pos.ksh
 ${PACKAGE}FILES+=	utils_test_003_pos.ksh

@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zfs_unshare
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zfs_unshare_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	zfs_unshare_003_pos.ksh
 ${PACKAGE}FILES+=	setup.ksh

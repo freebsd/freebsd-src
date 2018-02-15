@@ -14,5 +14,6 @@ ${PACKAGE}FILES+=	cleanup.ksh
 ${PACKAGE}FILES+=	setup.ksh
 
 ATF_TESTS_KSH93+=	atime_test
+TEST_METADATA+=		required_user="root"
 
 .include <bsd.test.mk>

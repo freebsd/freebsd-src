@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/scrub_mirror
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	scrub_mirror_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	scrub_mirror_004_pos.ksh
 ${PACKAGE}FILES+=	setup.ksh

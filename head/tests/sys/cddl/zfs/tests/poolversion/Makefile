@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/poolversion
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	poolversion_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	poolversion_002_pos.ksh
 ${PACKAGE}FILES+=	poolversion_001_pos.ksh

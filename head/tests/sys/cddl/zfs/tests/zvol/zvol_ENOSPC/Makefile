@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/zvol/zvol_ENOSPC
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zvol_ENOSPC_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	zvol_ENOSPC_001_pos.ksh
 ${PACKAGE}FILES+=	setup.ksh

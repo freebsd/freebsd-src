@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zpool_scrub
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zpool_scrub_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	zpool_scrub_001_neg.ksh
 ${PACKAGE}FILES+=	zpool_scrub_004_pos.ksh

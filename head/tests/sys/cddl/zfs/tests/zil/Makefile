@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/zil
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zil_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	zil_002_pos.ksh
 ${PACKAGE}FILES+=	setup.ksh

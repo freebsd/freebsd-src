@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/snapused
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	snapused_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	cleanup.ksh
 ${PACKAGE}FILES+=	snapused_005_pos.ksh

@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zpool_remove
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zpool_remove_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	zpool_remove_001_neg.ksh
 ${PACKAGE}FILES+=	setup.ksh

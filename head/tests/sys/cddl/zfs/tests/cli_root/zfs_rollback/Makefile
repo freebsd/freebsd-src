@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zfs_rollback
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zfs_rollback_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	zfs_rollback_003_neg.ksh
 ${PACKAGE}FILES+=	zfs_rollback_002_pos.ksh

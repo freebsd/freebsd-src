@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zpool_get
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zpool_get_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	setup.ksh
 ${PACKAGE}FILES+=	zpool_get_002_pos.ksh

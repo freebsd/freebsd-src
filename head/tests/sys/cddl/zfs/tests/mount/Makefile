@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/mount/
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	mount_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	vars.cfg
 ${PACKAGE}FILES+=	mounttest.ksh

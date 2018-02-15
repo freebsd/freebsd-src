@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/migration/
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	migration_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	migration_011_pos.ksh
 ${PACKAGE}FILES+=	migration_008_pos.ksh

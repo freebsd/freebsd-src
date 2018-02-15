@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/inheritance
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	inheritance_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	config015.cfg
 ${PACKAGE}FILES+=	config012.cfg

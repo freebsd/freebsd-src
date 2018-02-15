@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/zvol/zvol_swap
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zvol_swap_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	zvol_swap_004_pos.ksh
 ${PACKAGE}FILES+=	setup.ksh

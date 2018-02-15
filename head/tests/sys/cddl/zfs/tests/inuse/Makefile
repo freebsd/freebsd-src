@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/inuse
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	inuse_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	inuse.cfg
 ${PACKAGE}FILES+=	inuse_005_pos.ksh

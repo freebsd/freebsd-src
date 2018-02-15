@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/quota
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	quota_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	quota_003_pos.ksh
 ${PACKAGE}FILES+=	quota_006_neg.ksh

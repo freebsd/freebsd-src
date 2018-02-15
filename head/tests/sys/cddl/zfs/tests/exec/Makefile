@@ -8,6 +8,7 @@ FILESDIR=${TESTSDIR}
 BINDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	exec_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	exec_001_pos.ksh
 ${PACKAGE}FILES+=	setup.ksh

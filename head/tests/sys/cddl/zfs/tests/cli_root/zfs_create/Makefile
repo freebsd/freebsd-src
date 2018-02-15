@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zfs_create
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zfs_create_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	properties.kshlib
 ${PACKAGE}FILES+=	zfs_create_011_pos.ksh

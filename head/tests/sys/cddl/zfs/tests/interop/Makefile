@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/interop
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	interop_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	cleanup.ksh
 ${PACKAGE}FILES+=	interop_001_pos.ksh

@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/hotplug
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	hotplug_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	cleanup.ksh
 ${PACKAGE}FILES+=	hotplug.cfg

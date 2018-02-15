@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/grow_replicas
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	grow_replicas_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	setup.ksh
 ${PACKAGE}FILES+=	cleanup.ksh

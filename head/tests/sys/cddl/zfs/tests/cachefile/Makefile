@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cachefile
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	cachefile_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	cachefile_002_pos.ksh
 ${PACKAGE}FILES+=	cachefile_003_pos.ksh

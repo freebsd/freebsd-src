@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/zfsd
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zfsd_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	cleanup.ksh
 ${PACKAGE}FILES+=	hotspare_cleanup.ksh

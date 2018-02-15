@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zfs_share
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zfs_share_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	zfs_share_003_pos.ksh
 ${PACKAGE}FILES+=	zfs_share_006_pos.ksh

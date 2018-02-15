@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/zvol_thrash
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zvol_thrash_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	setup.ksh
 ${PACKAGE}FILES+=	cleanup.ksh

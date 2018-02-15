@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/pool_names
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	pool_names_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	pool_names_002_neg.ksh
 ${PACKAGE}FILES+=	pool_names.cfg

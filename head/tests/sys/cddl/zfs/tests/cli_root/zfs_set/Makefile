@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zfs_set
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zfs_set_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	zfs_set_common.kshlib
 ${PACKAGE}FILES+=	onoffs_001_pos.ksh

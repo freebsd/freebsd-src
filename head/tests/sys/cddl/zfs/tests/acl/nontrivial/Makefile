@@ -34,5 +34,6 @@ ${PACKAGE}FILES+=	zfs_acl_tar_001_pos.ksh
 ${PACKAGE}FILES+=	zfs_acl_tar_002_pos.ksh
 
 ATF_TESTS_KSH93+=	nontrivial_test
+TEST_METADATA+=		required_user="root"
 
 .include <bsd.test.mk>

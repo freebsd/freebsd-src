@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/rsend
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	rsend_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	rsend_003_pos.ksh
 ${PACKAGE}FILES+=	rsend_007_pos.ksh

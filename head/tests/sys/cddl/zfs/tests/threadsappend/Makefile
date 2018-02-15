@@ -8,6 +8,7 @@ FILESDIR=${TESTSDIR}
 BINDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	threadsappend_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	cleanup.ksh
 ${PACKAGE}FILES+=	threadsappend_001_pos.ksh

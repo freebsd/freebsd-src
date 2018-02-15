@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zpool_replace
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zpool_replace_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	zpool_replace_001_neg.ksh
 ${PACKAGE}FILES+=	zpool_replace_002_neg.ksh

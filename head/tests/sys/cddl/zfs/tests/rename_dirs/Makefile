@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/rename_dirs
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	rename_dirs_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	cleanup.ksh
 ${PACKAGE}FILES+=	rename_dirs_001_pos.ksh

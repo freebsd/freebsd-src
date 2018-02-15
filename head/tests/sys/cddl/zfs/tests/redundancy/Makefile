@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/redundancy
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	redundancy_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	redundancy.cfg
 ${PACKAGE}FILES+=	redundancy_003_pos.ksh

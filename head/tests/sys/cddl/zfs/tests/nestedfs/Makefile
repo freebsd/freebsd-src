@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/nestedfs
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	nestedfs_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	nestedfs.cfg
 ${PACKAGE}FILES+=	setup.ksh

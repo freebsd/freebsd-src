@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zfs_snapshot
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zfs_snapshot_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	cleanup.ksh
 ${PACKAGE}FILES+=	zfs_snapshot_005_neg.ksh

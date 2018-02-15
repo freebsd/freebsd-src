@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/xattr
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	xattr_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	xattr_002_neg.ksh
 ${PACKAGE}FILES+=	xattr_012_pos.ksh

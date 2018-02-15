@@ -7,6 +7,7 @@ TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/cli_root/zfs
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	zfs_test
+TEST_METADATA+=		required_user="root"
 
 ${PACKAGE}FILES+=	zfs_malformed.cfg
 ${PACKAGE}FILES+=	zfs_001_neg.ksh
