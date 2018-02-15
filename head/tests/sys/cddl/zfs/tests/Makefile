@@ -50,8 +50,6 @@ TESTS_SUBDIRS+=	quota
 TESTS_SUBDIRS+=	redundancy
 TESTS_SUBDIRS+=	refquota
 TESTS_SUBDIRS+=	refreserv
-# Not yet ported to FreeBSD
-# TESTS_SUBDIRS+=	remote
 # Broken on every OS
 # TESTS_SUBDIRS+=	rename_dirs
 TESTS_SUBDIRS+=	replacement

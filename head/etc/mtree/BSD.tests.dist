@@ -619,14 +619,6 @@
                     ..
                     refreserv
                     ..
-                    remote
-                        cross_endian
-                        ..
-                        rebooting
-                        ..
-                        sharing
-                        ..
-                    ..
                     rename_dirs
                     ..
                     replacement
