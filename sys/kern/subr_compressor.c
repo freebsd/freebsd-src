@@ -498,7 +498,7 @@ compressor_init(compressor_cb_t cb, int format, size_t maxiosize, int level,
 		if ((*iter)->format == format)
 			break;
 	}
-	if (iter == NULL)
+	if (iter == SET_LIMIT(compressors))
 		return (NULL);
 
 	priv = (*iter)->init(maxiosize, level);
