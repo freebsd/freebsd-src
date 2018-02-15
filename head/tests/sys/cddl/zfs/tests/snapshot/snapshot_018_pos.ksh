@@ -77,7 +77,7 @@ function verify_dir # directory
 }
 
 typeset -a dirlist
-dirlist=( "$TESTDIR/.zfs" "$TESTDIR/.zfs/snapshot" "$TESTDIR/.zfs/shares" ) 
+dirlist=( "$TESTDIR/.zfs" "$TESTDIR/.zfs/snapshot" ) 
 ctldir=".zfs"
 for d in ${dirlist[@]}; do
 	verify_dir $d
