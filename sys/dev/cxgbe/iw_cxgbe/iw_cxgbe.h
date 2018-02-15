@@ -189,7 +189,26 @@ static inline int t4_max_fr_depth(struct c4iw_rdev *rdev, bool use_dsgl)
 struct c4iw_wr_wait {
 	int ret;
 	struct completion completion;
+	struct kref kref;
 };
+
+void _c4iw_free_wr_wait(struct kref *kref);
+
+static inline void c4iw_put_wr_wait(struct c4iw_wr_wait *wr_waitp)
+{
+	CTR(KTR_IW_CXGBE, "wr_wait %p ref before put %u", wr_waitp,
+		 kref_read(&wr_waitp->kref));
+	WARN_ON(kref_read(&wr_waitp->kref) == 0);
+	kref_put(&wr_waitp->kref, _c4iw_free_wr_wait);
+}
+
+static inline void c4iw_get_wr_wait(struct c4iw_wr_wait *wr_waitp)
+{
+	CTR(KTR_IW_CXGBE, "wr_wait %p ref before get %u", wr_waitp,
+		 kref_read(&wr_waitp->kref));
+	WARN_ON(kref_read(&wr_waitp->kref) == 0);
+	kref_get(&wr_waitp->kref);
+}
 
 static inline void c4iw_init_wr_wait(struct c4iw_wr_wait *wr_waitp)
 {
@@ -197,10 +216,23 @@ static inline void c4iw_init_wr_wait(struct c4iw_wr_wait *wr_waitp)
 	init_completion(&wr_waitp->completion);
 }
 
-static inline void c4iw_wake_up(struct c4iw_wr_wait *wr_waitp, int ret)
+static inline void _c4iw_wake_up(struct c4iw_wr_wait *wr_waitp, int ret,
+				 bool deref)
 {
 	wr_waitp->ret = ret;
 	complete(&wr_waitp->completion);
+	if (deref)
+		c4iw_put_wr_wait(wr_waitp);
+}
+
+static inline void c4iw_wake_up_noref(struct c4iw_wr_wait *wr_waitp, int ret)
+{
+	_c4iw_wake_up(wr_waitp, ret, false);
+}
+
+static inline void c4iw_wake_up_deref(struct c4iw_wr_wait *wr_waitp, int ret)
+{
+	_c4iw_wake_up(wr_waitp, ret, true);
 }
 
 static inline int
@@ -208,58 +240,55 @@ c4iw_wait_for_reply(struct c4iw_rdev *rdev, struct c4iw_wr_wait *wr_waitp,
 		u32 hwtid, u32 qpid, struct socket *so, const char *func)
 {
 	struct adapter *sc = rdev->adap;
-	unsigned to = C4IW_WR_TO;
 	int ret;
-	int timedout = 0;
-	struct timeval t1, t2;
 
 	if (c4iw_stopped(rdev)) {
 		wr_waitp->ret = -EIO;
 		goto out;
 	}
 
-	getmicrotime(&t1);
-	do {
-		/* If waiting for reply in rdma_init()/rdma_fini() threads, then
-		 * check if there are any connection errors.
-		 */
-		if (so && so->so_error) {
-			wr_waitp->ret = -ECONNRESET;
-			CTR5(KTR_IW_CXGBE, "%s - Connection ERROR %u for sock %p"
-			    "tid %u qpid %u", func,
-			    so->so_error, so, hwtid, qpid);
-			break;
-		}
-
-		ret = wait_for_completion_timeout(&wr_waitp->completion, to);
-		if (!ret) {
-			getmicrotime(&t2);
-			timevalsub(&t2, &t1);
-			printf("%s - Device %s not responding after %ld.%06ld "
-			    "seconds - tid %u qpid %u\n", func,
-			    device_get_nameunit(sc->dev), t2.tv_sec, t2.tv_usec,
-			    hwtid, qpid);
-			if (c4iw_stopped(rdev)) {
-				wr_waitp->ret = -EIO;
-				break;
-			}
-			to = to << 2;
-			timedout = 1;
-		}
-	} while (!ret);
-
-out:
-	if (timedout) {
-		getmicrotime(&t2);
-		timevalsub(&t2, &t1);
-		printf("%s - Device %s reply after %ld.%06ld seconds - "
-		    "tid %u qpid %u\n", func, device_get_nameunit(sc->dev),
-		    t2.tv_sec, t2.tv_usec, hwtid, qpid);
+	/* If waiting for reply in rdma_init()/rdma_fini() threads, then
+	 * check if there are any connection errors.
+	 */
+	if (so && so->so_error) {
+		wr_waitp->ret = -ECONNRESET;
+		CTR5(KTR_IW_CXGBE, "%s - Connection ERROR %u for sock %p"
+		    "tid %u qpid %u", func,
+		    so->so_error, so, hwtid, qpid);
+		goto out;
 	}
+
+	ret = wait_for_completion_timeout(&wr_waitp->completion, C4IW_WR_TO);
+	if (!ret) {
+		printf("%s - Device %s not responding (disabling device) - "
+		    "tid %u qpid %u\n", func, device_get_nameunit(sc->dev),
+		    hwtid, qpid);
+		rdev->flags |= T4_IW_STOPPED;
+		wr_waitp->ret = -EIO;
+		goto out;
+	}
+
 	if (wr_waitp->ret)
 		CTR4(KTR_IW_CXGBE, "%p: FW reply %d tid %u qpid %u", sc,
 		    wr_waitp->ret, hwtid, qpid);
+out:
 	return (wr_waitp->ret);
+}
+
+static inline int c4iw_ref_send_wait(struct c4iw_rdev *rdev, struct wrqe *wr,
+				     struct c4iw_wr_wait *wr_waitp,
+				     u32 hwtid, u32 qpid, struct socket *so,
+				     const char *func)
+{
+	struct adapter *sc = rdev->adap;
+
+	CTR(KTR_IW_CXGBE, "%s wr_wait %p hwtid %u qpid %u", func, wr_waitp,
+	    hwtid, qpid);
+	c4iw_get_wr_wait(wr_waitp);
+	
+	t4_wrq_tx(sc, wr);
+
+	return c4iw_wait_for_reply(rdev, wr_waitp, hwtid, qpid, so, func);
 }
 
 struct c4iw_dev {
@@ -399,6 +428,7 @@ struct c4iw_mr {
 	dma_addr_t mpl_addr;
 	u32 max_mpl_len;
 	u32 mpl_len;
+	struct c4iw_wr_wait *wr_waitp;
 };
 
 static inline struct c4iw_mr *to_c4iw_mr(struct ib_mr *ibmr)
@@ -411,6 +441,7 @@ struct c4iw_mw {
 	struct c4iw_dev *rhp;
 	u64 kva;
 	struct tpt_attributes attr;
+	struct c4iw_wr_wait *wr_waitp;
 };
 
 static inline struct c4iw_mw *to_c4iw_mw(struct ib_mw *ibmw)
@@ -426,6 +457,7 @@ struct c4iw_cq {
 	spinlock_t comp_handler_lock;
 	atomic_t refcnt;
 	wait_queue_head_t wait;
+	struct c4iw_wr_wait *wr_waitp;
 };
 
 static inline struct c4iw_cq *to_c4iw_cq(struct ib_cq *ibcq)
@@ -494,6 +526,7 @@ struct c4iw_qp {
 	int sq_sig_all;
 	struct work_struct free_work;
 	struct c4iw_ucontext *ucontext;
+	struct c4iw_wr_wait *wr_waitp;
 };
 
 static inline struct c4iw_qp *to_c4iw_qp(struct ib_qp *ibqp)
@@ -825,7 +858,7 @@ struct c4iw_ep_common {
 	struct mutex mutex;
 	struct sockaddr_storage local_addr;
 	struct sockaddr_storage remote_addr;
-	struct c4iw_wr_wait wr_wait;
+	struct c4iw_wr_wait *wr_waitp;
 	unsigned long flags;
 	unsigned long history;
         int rpl_err;
@@ -975,6 +1008,7 @@ u32 c4iw_get_qpid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx);
 void c4iw_put_qpid(struct c4iw_rdev *rdev, u32 qid,
 		struct c4iw_dev_ucontext *uctx);
 void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe);
+struct c4iw_wr_wait *c4iw_alloc_wr_wait(gfp_t gfp);
 void t4_dump_stag(struct adapter *sc, const u32 stag);
 void t4_dump_all_stag(struct adapter *sc);
 #endif

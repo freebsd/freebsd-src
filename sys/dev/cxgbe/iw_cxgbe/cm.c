@@ -1081,7 +1081,7 @@ c4iw_so_upcall(struct socket *so, void *arg, int waitflag)
 	 * with locks held.
 	 */
 	if (so->so_error || c4iw_stopped(&ep->com.dev->rdev))
-		c4iw_wake_up(&ep->com.wr_wait, -ECONNRESET);
+		c4iw_wake_up_noref(ep->com.wr_waitp, -ECONNRESET);
 	add_ep_to_req_list(ep, C4IW_EVENT_SOCKET);
 
 	return (SU_OK);
@@ -1311,9 +1311,14 @@ alloc_ep(int size, gfp_t gfp)
 	if (epc == NULL)
 		return (NULL);
 
+	epc->wr_waitp = c4iw_alloc_wr_wait(gfp);
+	if (!epc->wr_waitp) {
+		kfree(epc);
+		return (NULL);
+	}
 	kref_init(&epc->kref);
 	mutex_init(&epc->mutex);
-	c4iw_init_wr_wait(&epc->wr_wait);
+	c4iw_init_wr_wait(epc->wr_waitp);
 
 	return (epc);
 }
@@ -1335,6 +1340,7 @@ void _c4iw_free_ep(struct kref *kref)
 		deref_qp(ep);
 	CTR4(KTR_IW_CXGBE, "%s: ep %p, history 0x%lx, flags 0x%lx",
 	    __func__, ep, epc->history, epc->flags);
+	c4iw_put_wr_wait(ep->com.wr_waitp);
 	kfree(ep);
 }
 
@@ -2978,7 +2984,7 @@ static int fw6_wr_rpl(struct adapter *sc, const __be64 *rpl)
 	wr_waitp = (struct c4iw_wr_wait *)rpl[1];
 	CTR3(KTR_IW_CXGBE, "%s wr_waitp %p ret %u", __func__, wr_waitp, ret);
 	if (wr_waitp)
-		c4iw_wake_up(wr_waitp, ret ? -ret : 0);
+		c4iw_wake_up_deref(wr_waitp, ret ? -ret : 0);
 
 	return (0);
 }

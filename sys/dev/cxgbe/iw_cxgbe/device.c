@@ -263,6 +263,27 @@ static struct uld_info c4iw_uld_info = {
 	.uld_restart = c4iw_restart,
 };
 
+void _c4iw_free_wr_wait(struct kref *kref)
+{
+	struct c4iw_wr_wait *wr_waitp;
+
+	wr_waitp = container_of(kref, struct c4iw_wr_wait, kref);
+	CTR(KTR_IW_CXGBE, "Free wr_wait %p", wr_waitp);
+	kfree(wr_waitp);
+}
+
+struct c4iw_wr_wait *c4iw_alloc_wr_wait(gfp_t gfp)
+{
+	struct c4iw_wr_wait *wr_waitp;
+
+	wr_waitp = kzalloc(sizeof(*wr_waitp), gfp);
+	if (wr_waitp) {
+		kref_init(&wr_waitp->kref);
+		CTR(KTR_IW_CXGBE, "wr_wait %p", wr_waitp);
+	}
+	return wr_waitp;
+}
+
 static int
 c4iw_activate(struct adapter *sc)
 {

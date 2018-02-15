@@ -50,14 +50,14 @@
 #include "user.h"
 
 static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
-		      struct c4iw_dev_ucontext *uctx)
+		      struct c4iw_dev_ucontext *uctx,
+		      struct c4iw_wr_wait *wr_waitp)
 {
 	struct adapter *sc = rdev->adap;
 	struct c4iw_dev *rhp = rdev_to_c4iw_dev(rdev);
 	struct fw_ri_res_wr *res_wr;
 	struct fw_ri_res *res;
-	int wr_len;
-	struct c4iw_wr_wait wr_wait;
+	int ret, wr_len;
 	struct wrqe *wr;
 
 	wr_len = sizeof *res_wr + sizeof *res;
@@ -71,29 +71,26 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 			V_FW_RI_RES_WR_NRES(1) |
 			F_FW_WR_COMPL);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
-	res_wr->cookie = (unsigned long) &wr_wait;
+	res_wr->cookie = (uintptr_t)wr_waitp;
 	res = res_wr->res;
 	res->u.cq.restype = FW_RI_RES_TYPE_CQ;
 	res->u.cq.op = FW_RI_RES_OP_RESET;
 	res->u.cq.iqid = cpu_to_be32(cq->cqid);
 
-	c4iw_init_wr_wait(&wr_wait);
-
-	t4_wrq_tx(sc, wr);
-
-	c4iw_wait_for_reply(rdev, &wr_wait, 0, 0, NULL, __func__);
+	c4iw_init_wr_wait(wr_waitp);
+	ret = c4iw_ref_send_wait(rdev, wr, wr_waitp, 0, 0, NULL, __func__);
 
 	kfree(cq->sw_queue);
 	dma_free_coherent(rhp->ibdev.dma_device,
 			  cq->memsize, cq->queue,
 			  dma_unmap_addr(cq, mapping));
 	c4iw_put_cqid(rdev, cq->cqid, uctx);
-	return 0;
+	return ret;
 }
 
 static int
 create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
-    struct c4iw_dev_ucontext *uctx)
+	  struct c4iw_dev_ucontext *uctx, struct c4iw_wr_wait *wr_waitp)
 {
 	struct adapter *sc = rdev->adap;
 	struct c4iw_dev *rhp = rdev_to_c4iw_dev(rdev);
@@ -101,7 +98,6 @@ create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	struct fw_ri_res *res;
 	int wr_len;
 	int user = (uctx != &rdev->uctx);
-	struct c4iw_wr_wait wr_wait;
 	int ret;
 	struct wrqe *wr;
 	u64 cq_bar2_qoffset = 0;
@@ -144,7 +140,7 @@ create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 			V_FW_RI_RES_WR_NRES(1) |
 			F_FW_WR_COMPL);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
-	res_wr->cookie = (unsigned long) &wr_wait;
+	res_wr->cookie = (uintptr_t)wr_waitp;
 	res = res_wr->res;
 	res->u.cq.restype = FW_RI_RES_TYPE_CQ;
 	res->u.cq.op = FW_RI_RES_OP_WRITE;
@@ -163,12 +159,9 @@ create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	res->u.cq.iqsize = cpu_to_be16(cq->size);
 	res->u.cq.iqaddr = cpu_to_be64(cq->dma_addr);
 
-	c4iw_init_wr_wait(&wr_wait);
+	c4iw_init_wr_wait(wr_waitp);
 
-	t4_wrq_tx(sc, wr);
-
-	CTR2(KTR_IW_CXGBE, "%s wait_event wr_wait %p", __func__, &wr_wait);
-	ret = c4iw_wait_for_reply(rdev, &wr_wait, 0, 0, NULL, __func__);
+	ret = c4iw_ref_send_wait(rdev, wr, wr_waitp, 0, 0, NULL, __func__);
 	if (ret)
 		goto err4;
 
@@ -926,7 +919,9 @@ void c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	ucontext = rdma_udata_to_drv_context(udata, struct c4iw_ucontext,
 	    ibucontext);
 	destroy_cq(&chp->rhp->rdev, &chp->cq,
-		   ucontext ? &ucontext->uctx : &chp->cq.rdev->uctx);
+		   ucontext ? &ucontext->uctx : &chp->cq.rdev->uctx,
+		   chp->wr_waitp);
+	c4iw_put_wr_wait(chp->wr_waitp);
 }
 
 int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
@@ -948,6 +943,12 @@ int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		return -EINVAL;
 
 	rhp = to_c4iw_dev(ibdev);
+
+	chp->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
+	if (!chp->wr_waitp) {
+		return -ENOMEM;
+	}
+	c4iw_init_wr_wait(chp->wr_waitp);
 
 	ucontext = rdma_udata_to_drv_context(udata, struct c4iw_ucontext,
 	    ibucontext);
@@ -987,9 +988,10 @@ int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	chp->cq.vector = vector;
 
 	ret = create_cq(&rhp->rdev, &chp->cq,
-			ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
+			ucontext ? &ucontext->uctx : &rhp->rdev.uctx,
+			chp->wr_waitp);
 	if (ret)
-		goto err1;
+		goto err_free_wr_wait;
 
 	chp->rhp = rhp;
 	chp->cq.size--;				/* status page */
@@ -1000,16 +1002,16 @@ int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	init_waitqueue_head(&chp->wait);
 	ret = insert_handle(rhp, &rhp->cqidr, chp, chp->cq.cqid);
 	if (ret)
-		goto err2;
+		goto err_destroy_cq;
 
 	if (ucontext) {
 		ret = -ENOMEM;
 		mm = kmalloc(sizeof *mm, GFP_KERNEL);
 		if (!mm)
-			goto err3;
+			goto err_remove_handle;
 		mm2 = kmalloc(sizeof *mm2, GFP_KERNEL);
 		if (!mm2)
-			goto err4;
+			goto err_free_mm;
 
 		memset(&uresp, 0, sizeof(uresp));
 		uresp.qid_mask = rhp->rdev.cqmask;
@@ -1025,7 +1027,7 @@ int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		ret = ib_copy_to_udata(udata, &uresp,
 					sizeof(uresp) - sizeof(uresp.reserved));
 		if (ret)
-			goto err5;
+			goto err_free_mm2;
 
 		mm->key = uresp.key;
 		mm->addr = vtophys(chp->cq.queue);
@@ -1042,16 +1044,17 @@ int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	    __func__, chp->cq.cqid, chp, chp->cq.size, chp->cq.memsize,
 	    (unsigned long long) chp->cq.dma_addr);
 	return 0;
-err5:
+err_free_mm2:
 	kfree(mm2);
-err4:
+err_free_mm:
 	kfree(mm);
-err3:
+err_remove_handle:
 	remove_handle(rhp, &rhp->cqidr, chp->cq.cqid);
-err2:
+err_destroy_cq:
 	destroy_cq(&chp->rhp->rdev, &chp->cq,
-		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
-err1:
+		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx, chp->wr_waitp);
+err_free_wr_wait:
+	c4iw_put_wr_wait(chp->wr_waitp);
 	return ret;
 }
 
