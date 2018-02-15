@@ -134,16 +134,21 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 	e += pp->ace;
 	error = 0;
 	if ((pp->acr + pp->acw + pp->ace) == 0 && (r + w + e) > 0) {
-		if (dp->d_open != NULL) {
+		/*
+		 * It would be better to defer this decision to d_open if
+		 * it was able to take flags.
+		 */
+		if (w > 0 && (dp->d_flags & DISKFLAG_WRITE_PROTECT) != 0)
+			error = EROFS;
+		if (error == 0 && dp->d_open != NULL) {
 			g_disk_lock_giant(dp);
 			error = dp->d_open(dp);
-			if (bootverbose && error != 0)
-				printf("Opened disk %s -> %d\n",
-				    pp->name, error);
 			g_disk_unlock_giant(dp);
-			if (error != 0)
-				return (error);
 		}
+		if (bootverbose && error != 0)
+			printf("Opened disk %s -> %d\n", pp->name, error);
+		if (error != 0)
+			return (error);
 		pp->mediasize = dp->d_mediasize;
 		pp->sectorsize = dp->d_sectorsize;
 		if (dp->d_maxsize == 0) {
