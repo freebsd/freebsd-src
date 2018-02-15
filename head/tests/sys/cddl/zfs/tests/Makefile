@@ -35,7 +35,6 @@ TESTS_SUBDIRS+=	large_files
 # link_count is not yet ported to FreeBSD.  I'm not sure what its purpose is.
 # The assertion message contradicts with the log_fail message.
 # TESTS_SUBDIRS+=	link_count
-TESTS_SUBDIRS+=	mdb
 TESTS_SUBDIRS+=	migration
 TESTS_SUBDIRS+=	mmap
 TESTS_SUBDIRS+=	mount
