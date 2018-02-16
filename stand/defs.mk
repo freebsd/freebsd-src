@@ -101,8 +101,10 @@ SSP_CFLAGS=
 # currently has no /boot/loader, but may soon.
 CFLAGS+=	-ffreestanding ${CFLAGS_NO_SIMD}
 .if ${MACHINE_CPUARCH} == "aarch64"
-CFLAGS+=	-mgeneral-regs-only
-.elif ${MACHINE_CPUARCH} != "riscv"
+CFLAGS+=	-mgeneral-regs-only -fPIC
+.elif ${MACHINE_CPUARCH} == "riscv"
+CFLAGS+=	-march=rv64imac -mabi=lp64
+.else
 CFLAGS+=	-msoft-float
 .endif
 
@@ -110,7 +112,9 @@ CFLAGS+=	-msoft-float
 CFLAGS+=	-march=i386
 CFLAGS.gcc+=	-mpreferred-stack-boundary=2
 .endif
-
+.if ${MACHINE_CPUARCH} == "amd64" && ${DO32:U0} == 0
+CFLAGS+=	-fPIC -mno-red-zone
+.endif
 
 .if ${MACHINE_CPUARCH} == "arm"
 # Do not generate movt/movw, because the relocation fixup for them does not
@@ -122,6 +126,7 @@ CFLAGS.clang+=	-mllvm -arm-use-movt=0
 CFLAGS.clang+=	-mno-movt
 .endif
 CFLAGS.clang+=  -mfpu=none
+CFLAGS+=	-fPIC
 .endif
 
 # The boot loader build uses dd status=none, where possible, for reproducible
@@ -130,6 +135,10 @@ CFLAGS.clang+=  -mfpu=none
 # when this test succeeds rather than require dd to be a bootstrap tool.
 DD_NOSTATUS!=(dd status=none count=0 2> /dev/null && echo status=none) || true
 DD=dd ${DD_NOSTATUS}
+
+.if ${MACHINE_CPUARCH} == "mips"
+CFLAGS+=	-G0 -fno-pic -mno-abicalls
+.endif
 
 .if ${MK_LOADER_FORCE_LE} != "no"
 .if ${MACHINE_ARCH} == "powerpc64"
