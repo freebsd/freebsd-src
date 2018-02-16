@@ -213,7 +213,7 @@ menu.welcome = {
 			    " (" .. idx ..
 			    " of " .. #all_choices .. ")";
 		end,
-		func = function(choice, all_choices)
+		func = function(idx, choice, all_choices)
 			if (#all_choices > 1) then
 				config.reload(choice);
 			end
@@ -302,7 +302,7 @@ function menu.run(m)
 				if (#choices > 0) then
 					caridx = (caridx % #choices) + 1;
 					menu.setCarouselIndex(carid, caridx);
-					sel_entry.func(choices[caridx],
+					sel_entry.func(caridx, choices[caridx],
 					    choices);
 				end
 			elseif (sel_entry.entry_type == core.MENU_SUBMENU) then
