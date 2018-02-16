@@ -266,7 +266,8 @@ function menu.run(m)
 		local key = io.getchar();
 
 		-- Special key behaviors
-		if (key == core.KEY_BACKSPACE) and (m ~= menu.welcome) then
+		if ((key == core.KEY_BACKSPACE) or (key == core.KEY_DELETE)) and
+		    (m ~= menu.welcome) then
 			break
 		elseif (key == core.KEY_ENTER) then
 			core.boot();

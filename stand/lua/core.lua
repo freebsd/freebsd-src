@@ -29,8 +29,9 @@
 local core = {};
 
 -- Commonly appearing constants
+core.KEY_BACKSPACE	= 8;
 core.KEY_ENTER		= 13;
-core.KEY_BACKSPACE	= 127;
+core.KEY_DELETE		= 127;
 
 core.KEYSTR_ESCAPE	= "\027";
 
