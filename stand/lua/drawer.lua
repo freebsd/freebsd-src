@@ -173,8 +173,10 @@ function drawer.drawmenu(m)
 
 			-- fill the alias table
 			alias_table[tostring(entry_num)] = e;
-			for n, a in ipairs(e.alias) do
-				alias_table[a] = e;
+			if (e.alias ~= nil) then
+				for n, a in ipairs(e.alias) do
+					alias_table[a] = e;
+				end
 			end
 		else
 			screen.setcursor(x, y + line_num);
