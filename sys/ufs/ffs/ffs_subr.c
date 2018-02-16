@@ -172,6 +172,7 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsuperblock,
 	int32_t *lp;
 	char *buf;
 
+	*fsp = NULL;
 	if (altsuperblock != -1) {
 		if ((ret = readsuper(devfd, fsp, altsuperblock, readfunc)) != 0)
 			return (ret);
@@ -209,9 +210,11 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsuperblock,
 		size = fs->fs_bsize;
 		if (i + fs->fs_frag > blks)
 			size = (blks - i) * fs->fs_fsize;
+		buf = NULL;
 		ret = (*readfunc)(devfd,
 		    dbtob(fsbtodb(fs, fs->fs_csaddr + i)), (void **)&buf, size);
 		if (ret) {
+			UFS_FREE(buf, filltype);
 			UFS_FREE(fs->fs_csp, filltype);
 			fs->fs_csp = NULL;
 			return (ret);
