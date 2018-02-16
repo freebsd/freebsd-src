@@ -297,9 +297,11 @@ function menu.run(m)
 				local caridx = menu.getCarouselIndex(carid);
 				local choices = sel_entry.items();
 
-				caridx = (caridx % #choices) + 1;
-				menu.setCarouselIndex(carid, caridx);
-				sel_entry.func(choices[caridx]);
+				if (#choices > 0) then
+					caridx = (caridx % #choices) + 1;
+					menu.setCarouselIndex(carid, caridx);
+					sel_entry.func(choices[caridx]);
+				end
 			elseif (sel_entry.entry_type == core.MENU_SUBMENU) then
 				-- recurse
 				cont = menu.run(sel_entry.submenu());
