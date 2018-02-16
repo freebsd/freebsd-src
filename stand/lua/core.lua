@@ -29,8 +29,8 @@
 local core = {};
 
 -- Commonly appearing constants
-core.KEY_ENTER = 13
-core.KEY_BACKSPACE = 127
+core.KEY_ENTER = 13;
+core.KEY_BACKSPACE = 127;
 
 function core.setVerbose(b)
 	if (b == nil) then
@@ -169,5 +169,5 @@ function core.bootserial()
 	return false;
 end
 
-core.acpi = core.getACPIPresent(false)
+core.acpi = core.getACPIPresent(false);
 return core
