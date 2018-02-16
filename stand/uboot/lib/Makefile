@@ -24,5 +24,4 @@ CFLAGS+=	-I${LDRSRC}
 CFLAGS+= -DDISK_DEBUG
 .endif
 
-.include <bsd.stand.mk>
 .include <bsd.lib.mk>
