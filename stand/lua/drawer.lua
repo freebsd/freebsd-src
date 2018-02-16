@@ -29,6 +29,7 @@
 local drawer = {};
 
 local color = require("color");
+local core = require("core");
 local screen = require("screen");
 
 drawer.brand_position = {x = 2, y = 1};
@@ -166,12 +167,12 @@ function drawer.drawmenu(m)
 	local alias_table = {};
 	local entry_num = 0;
 	for line_num, e in ipairs(m) do
-		if (e.entry_type ~= "separator") then
+		if (e.entry_type ~= core.MENU_SEPARATOR) then
 			entry_num = entry_num + 1;
 			screen.setcursor(x, y + line_num);
 			local name = "";
 
-			if (e.entry_type == "carousel_entry") then
+			if (e.entry_type == core.MENU_CAROUSEL_ENTRY) then
 				local carid = e.carousel_id;
 				local caridx = menu.getCarouselIndex(carid);
 				local choices = e.items();
