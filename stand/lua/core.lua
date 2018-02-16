@@ -58,6 +58,20 @@ function core.setSingleUser(b)
 	core.su = b;
 end
 
+function core.getACPIPresent(checkingSystemDefaults)
+	local c = loader.getenv("hint.acpi.0.rsdp");
+
+	if (c ~= nil) then
+		if (checkingSystemDefaults == true) then
+			return true;
+		end
+		-- Otherwise, respect disabled if it's set
+		c = loader.getenv("hint.acpi.0.disabled");
+		return (c == nil) or (tonumber(c) ~= 1);
+	end
+	return false;
+end
+
 function core.setACPI(b)
 	if (b == nil) then
 		b = not core.acpi;
@@ -120,7 +134,7 @@ function core.kernelList()
 end
 
 function core.setDefaults()
-	core.setACPI(true);
+	core.setACPI(core.getACPIPresent(true));
 	core.setSafeMode(false);
 	core.setSingleUser(false);
 	core.setVerbose(false);
@@ -155,4 +169,5 @@ function core.bootserial()
 	return false;
 end
 
+core.acpi = core.getACPIPresent(false)
 return core
