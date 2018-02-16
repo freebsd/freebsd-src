@@ -39,7 +39,7 @@ local OnOff;
 local skip;
 local run;
 local autoboot;
-local current_kernel_index = 1;
+local carousel_choices = {};
 
 --loader menu tree:
 --rooted at menu.welcome
@@ -193,34 +193,25 @@ menu.welcome = {
 
 	-- kernel options
 	{
-		entry_type = "entry",
-		name = function()
-			local kernels = core.kernelList();
-			if #kernels == 0 then
+		entry_type = "carousel_entry",
+		carousel_id = "kernel",
+		items = core.kernelList,
+		name = function(idx, choice, all_choices)
+			if #all_choices == 0 then
 				return "Kernel: ";
 			end
 
 			local kernel_name = color.escapef(color.GREEN) ..
-			    kernels[current_kernel_index] .. color.default();
-			if (current_kernel_index == 1) then
+			    choice .. color.default();
+			if (idx == 1) then
 				kernel_name = "default/" .. kernel_name;
 			end
 			return color.highlight("K").."ernel: " .. kernel_name ..
-			    " (" .. current_kernel_index ..
-			    " of " .. #kernels .. ")";
+			    " (" .. idx ..
+			    " of " .. #all_choices .. ")";
 		end,
-		func = function()
-
-			-- dynamically build the kernel menu:
-			local kernels = core.kernelList();
-			-- Don't do anything if we don't have multiple kernels
-			if #kernels <= 1 then
-				return nil;
-			end
-			current_kernel_index = (current_kernel_index % #kernels)
-			    + 1;
-			local current_kernel = kernels[current_kernel_index];
-			config.reload(current_kernel)
+		func = function(choice)
+			config.reload(choice);
 		end,
 		alias = {"k", "K"}
 	},
@@ -238,6 +229,19 @@ menu.welcome = {
 	}
 
 };
+
+-- The first item in every carousel is always the default item.
+function menu.getCarouselIndex(id)
+	local val = carousel_choices[id];
+	if (val == nil) then
+		return 1;
+	end
+	return val;
+end
+
+function menu.setCarouselIndex(id, idx)
+	carousel_choices[id] = idx;
+end
 
 function menu.run(m)
 
@@ -283,6 +287,15 @@ function menu.run(m)
 			if (sel_entry.entry_type == "entry") then
 				-- run function
 				sel_entry.func();
+			elseif (sel_entry.entry_type == "carousel_entry") then
+				-- carousel (rotating) functionality
+				local carid = sel_entry.carousel_id;
+				local caridx = menu.getCarouselIndex(carid);
+				local choices = sel_entry.items();
+
+				caridx = (caridx % #choices) + 1;
+				menu.setCarouselIndex(carid, caridx);
+				sel_entry.func(choices[caridx]);
 			elseif (sel_entry.entry_type == "submenu") then
 				-- recurse
 				cont = menu.run(sel_entry.submenu());
