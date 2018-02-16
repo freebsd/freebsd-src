@@ -743,7 +743,7 @@ zfsctl_common_pathconf(ap)
 	 */
 	switch (ap->a_name) {
 	case _PC_LINK_MAX:
-		*ap->a_retval = INT_MAX;
+		*ap->a_retval = MIN(LONG_MAX, ZFS_LINK_MAX);
 		return (0);
 
 	case _PC_FILESIZEBITS:
@@ -766,8 +766,12 @@ zfsctl_common_pathconf(ap)
 		*ap->a_retval = ACL_MAX_ENTRIES;
 		return (0);
 
+	case _PC_NAME_MAX:
+		*ap->a_retval = NAME_MAX;
+		return (0);
+
 	default:
-		return (EINVAL);
+		return (vop_stdpathconf(ap));
 	}
 }
 
