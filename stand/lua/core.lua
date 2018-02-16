@@ -125,7 +125,6 @@ function core.kernelList()
 	local k = loader.getenv("kernel");
 	local v = loader.getenv("kernels") or "";
 
-	v = "kernel;kernel.GENERIC"
 	local kernels = {};
 	local i = 0;
 	if k ~= nil then
