@@ -32,6 +32,8 @@ local core = {};
 core.KEY_ENTER = 13;
 core.KEY_BACKSPACE = 127;
 
+core.KEYSTR_ESCAPE = "\027";
+
 function core.setVerbose(b)
 	if (b == nil) then
 		b = not core.verbose;

@@ -161,7 +161,7 @@ menu.welcome = {
 		name = function()
 			return color.highlight("Esc").."ape to loader prompt";
 		end,
-		alias = {"\027"}
+		alias = {core.KEYSTR_ESCAPE}
 	},
 
 	-- reboot
