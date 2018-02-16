@@ -32,11 +32,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/proc.h>
-#define _KERNEL
-#include <sys/sem.h>
-#include <sys/shm.h>
+#define	_WANT_SYSVMSG_INTERNALS
 #include <sys/msg.h>
-#undef _KERNEL
+#define	_WANT_SYSVSEM_INTERNALS
+#include <sys/sem.h>
+#define	_WANT_SYSVSHM_INTERNALS
+#include <sys/shm.h>
 
 #include <err.h>
 #include <fcntl.h>
