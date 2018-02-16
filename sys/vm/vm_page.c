@@ -1601,6 +1601,7 @@ vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex, int req,
 {
 	vm_page_t m;
 	int flags, req_class;
+	u_int free_count;
 
 	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0) &&
 	    (object != NULL || (req & VM_ALLOC_SBUSY) == 0) &&
@@ -1672,7 +1673,7 @@ again:
 	 *  At this point we had better have found a good page.
 	 */
 	KASSERT(m != NULL, ("missing page"));
-	vm_phys_freecnt_adj(m, -1);
+	free_count = vm_phys_freecnt_adj(m, -1);
 	if ((m->flags & PG_ZERO) != 0)
 		vm_page_zero_count--;
 	mtx_unlock(&vm_page_queue_free_mtx);
@@ -1737,7 +1738,7 @@ again:
 	 * Don't wakeup too often - wakeup the pageout daemon when
 	 * we would be nearly out of memory.
 	 */
-	if (vm_paging_needed())
+	if (vm_paging_needed(free_count))
 		pagedaemon_wakeup();
 
 	return (m);
@@ -1933,7 +1934,7 @@ retry:
 			pmap_page_set_memattr(m, memattr);
 		pindex++;
 	}
-	if (vm_paging_needed())
+	if (vm_paging_needed(vm_cnt.v_free_count))
 		pagedaemon_wakeup();
 	return (m_ret);
 }
@@ -1982,7 +1983,7 @@ vm_page_t
 vm_page_alloc_freelist(int flind, int req)
 {
 	vm_page_t m;
-	u_int flags;
+	u_int flags, free_count;
 	int req_class;
 
 	req_class = req & VM_ALLOC_CLASS_MASK;
@@ -2013,7 +2014,7 @@ again:
 		mtx_unlock(&vm_page_queue_free_mtx);
 		return (NULL);
 	}
-	vm_phys_freecnt_adj(m, -1);
+	free_count = vm_phys_freecnt_adj(m, -1);
 	if ((m->flags & PG_ZERO) != 0)
 		vm_page_zero_count--;
 	mtx_unlock(&vm_page_queue_free_mtx);
@@ -2037,7 +2038,7 @@ again:
 	}
 	/* Unmanaged pages don't use "act_count". */
 	m->oflags = VPO_UNMANAGED;
-	if (vm_paging_needed())
+	if (vm_paging_needed(free_count))
 		pagedaemon_wakeup();
 	return (m);
 }
