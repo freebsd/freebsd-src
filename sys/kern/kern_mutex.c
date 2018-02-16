@@ -576,6 +576,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 
 		ts = turnstile_trywait(&m->lock_object);
 		v = MTX_READ_VALUE(m);
+retry_turnstile:
 
 		/*
 		 * Check if the lock has been released while spinning for
@@ -607,10 +608,8 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 		 * or the state of the MTX_RECURSED bit changed.
 		 */
 		if ((v & MTX_CONTESTED) == 0 &&
-		    !atomic_cmpset_ptr(&m->mtx_lock, v, v | MTX_CONTESTED)) {
-			turnstile_cancel(ts);
-			v = MTX_READ_VALUE(m);
-			continue;
+		    !atomic_fcmpset_ptr(&m->mtx_lock, &v, v | MTX_CONTESTED)) {
+			goto retry_turnstile;
 		}
 
 		/*
