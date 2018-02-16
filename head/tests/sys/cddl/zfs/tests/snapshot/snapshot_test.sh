@@ -36,6 +36,7 @@ clone_001_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/clone_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -59,6 +60,7 @@ rollback_001_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/rollback_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -82,6 +84,7 @@ rollback_002_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/rollback_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -105,6 +108,7 @@ rollback_003_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/rollback_003_pos.ksh || atf_fail "Testcase failed"
 }
@@ -128,6 +132,7 @@ snapshot_001_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_001_pos.ksh || atf_fail "Testcase failed"
 }
@@ -151,6 +156,7 @@ snapshot_002_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_002_pos.ksh || atf_fail "Testcase failed"
 }
@@ -174,6 +180,7 @@ snapshot_003_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_003_pos.ksh || atf_fail "Testcase failed"
 }
@@ -197,6 +204,7 @@ snapshot_004_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_004_pos.ksh || atf_fail "Testcase failed"
 }
@@ -220,6 +228,7 @@ snapshot_005_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_005_pos.ksh || atf_fail "Testcase failed"
 }
@@ -243,6 +252,7 @@ snapshot_006_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_006_pos.ksh || atf_fail "Testcase failed"
 }
@@ -266,6 +276,7 @@ snapshot_007_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_007_pos.ksh || atf_fail "Testcase failed"
 }
@@ -289,6 +300,7 @@ snapshot_008_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_008_pos.ksh || atf_fail "Testcase failed"
 }
@@ -312,6 +324,7 @@ snapshot_009_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_009_pos.ksh || atf_fail "Testcase failed"
 }
@@ -335,6 +348,7 @@ snapshot_010_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_010_pos.ksh || atf_fail "Testcase failed"
 }
@@ -358,6 +372,7 @@ snapshot_011_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_011_pos.ksh || atf_fail "Testcase failed"
 }
@@ -381,6 +396,7 @@ snapshot_012_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_012_pos.ksh || atf_fail "Testcase failed"
 }
@@ -404,6 +420,7 @@ snapshot_013_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_013_pos.ksh || atf_fail "Testcase failed"
 }
@@ -427,6 +444,7 @@ snapshot_014_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_014_pos.ksh || atf_fail "Testcase failed"
 }
@@ -451,6 +469,7 @@ snapshot_015_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_015_pos.ksh || atf_fail "Testcase failed"
 }
@@ -475,6 +494,7 @@ snapshot_016_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_016_pos.ksh || atf_fail "Testcase failed"
 }
@@ -498,6 +518,7 @@ snapshot_017_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_017_pos.ksh || atf_fail "Testcase failed"
 }
@@ -521,6 +542,7 @@ snapshot_018_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_018_pos.ksh || atf_fail "Testcase failed"
 }
@@ -546,6 +568,7 @@ snapshot_019_pos_body()
 	. $(atf_get_srcdir)/snapshot.cfg
 
 	atf_skip "PR 225795 panic: found unreferenced mountpoint when accessing and unmounting snapshots in parallel"
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_019_pos.ksh || atf_fail "Testcase failed"
 }
@@ -568,6 +591,7 @@ snapshot_020_pos_body()
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
+	verify_disk_count "$DISKS" 1
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/snapshot_020_pos.ksh || atf_fail "Testcase failed"
 }
