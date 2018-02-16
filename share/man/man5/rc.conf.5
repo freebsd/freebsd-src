@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2017
+.Dd February 15, 2018
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2056,8 +2056,8 @@ of the file systems fails.
 .It Va background_fsck
 .Pq Vt bool
 If set to
-.Dq Li YES ,
-the system will attempt to run
+.Dq Li NO ,
+the system will not attempt to run
 .Xr fsck 8
 in the background where possible.
 .It Va background_fsck_delay
