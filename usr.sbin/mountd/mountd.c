@@ -199,7 +199,7 @@ static struct hostlist *get_ht(void);
 static int	get_line(void);
 static void	get_mountlist(void);
 static int	get_net(char *, struct netmsk *, int);
-static void	getexp_err(struct exportlist *, struct grouplist *);
+static void	getexp_err(struct exportlist *, struct grouplist *, const char *);
 static struct grouplist	*get_grp(void);
 static void	hang_dirp(struct dirlist *, struct grouplist *,
 				struct exportlist *, int);
@@ -1448,12 +1448,13 @@ get_exportlist_one(void)
 		tgrp = grp = get_grp();
 		while (len > 0) {
 			if (len > MNTNAMLEN) {
-			    getexp_err(ep, tgrp);
+			    getexp_err(ep, tgrp, "mountpoint too long");
 			    goto nextline;
 			}
 			if (*cp == '-') {
 			    if (ep == (struct exportlist *)NULL) {
-				getexp_err(ep, tgrp);
+				getexp_err(ep, tgrp,
+				    "flag before export path definition");
 				goto nextline;
 			    }
 			    if (debug)
@@ -1461,7 +1462,7 @@ get_exportlist_one(void)
 			    got_nondir = 1;
 			    if (do_opt(&cp, &endcp, ep, grp, &has_host,
 				&exflags, &anon)) {
-				getexp_err(ep, tgrp);
+				getexp_err(ep, tgrp, NULL);
 				goto nextline;
 			    }
 			} else if (*cp == '/') {
@@ -1469,8 +1470,7 @@ get_exportlist_one(void)
 			    *endcp = '\0';
 			    if (v4root_phase > 1) {
 				    if (dirp != NULL) {
-					syslog(LOG_ERR, "Multiple V4 dirs");
-					getexp_err(ep, tgrp);
+					getexp_err(ep, tgrp, "Multiple V4 dirs");
 					goto nextline;
 				    }
 			    }
@@ -1480,14 +1480,12 @@ get_exportlist_one(void)
 				    syslog(LOG_ERR, "Warning: exporting of "
 					"automounted fs %s not supported", cp);
 				if (got_nondir) {
-				    syslog(LOG_ERR, "dirs must be first");
-				    getexp_err(ep, tgrp);
+				    getexp_err(ep, tgrp, "dirs must be first");
 				    goto nextline;
 				}
 				if (v4root_phase == 1) {
 				    if (dirp != NULL) {
-					syslog(LOG_ERR, "Multiple V4 dirs");
-					getexp_err(ep, tgrp);
+					getexp_err(ep, tgrp, "Multiple V4 dirs");
 					goto nextline;
 				    }
 				    if (strlen(v4root_dirpath) == 0) {
@@ -1497,7 +1495,7 @@ get_exportlist_one(void)
 					!= 0) {
 					syslog(LOG_ERR,
 					    "different V4 dirpath %s", cp);
-					getexp_err(ep, tgrp);
+					getexp_err(ep, tgrp, NULL);
 					goto nextline;
 				    }
 				    dirp = cp;
@@ -1510,7 +1508,8 @@ get_exportlist_one(void)
 					    fsb.f_fsid.val[0] ||
 					    ep->ex_fs.val[1] !=
 					    fsb.f_fsid.val[1]) {
-						getexp_err(ep, tgrp);
+						getexp_err(ep, tgrp,
+						    "fsid mismatch");
 						goto nextline;
 					}
 				    } else {
@@ -1543,7 +1542,8 @@ get_exportlist_one(void)
 				    dirplen = len;
 				}
 			    } else {
-				getexp_err(ep, tgrp);
+				getexp_err(ep, tgrp,
+				    "symbolic link in export path or statfs failed");
 				goto nextline;
 			    }
 			    *endcp = savedc;
@@ -1552,7 +1552,8 @@ get_exportlist_one(void)
 			    *endcp = '\0';
 			    got_nondir = 1;
 			    if (ep == (struct exportlist *)NULL) {
-				getexp_err(ep, tgrp);
+				getexp_err(ep, tgrp,
+				    "host(s) before export path definition");
 				goto nextline;
 			    }
 
@@ -1590,7 +1591,7 @@ get_exportlist_one(void)
 			len = endcp - cp;
 		}
 		if (check_options(dirhead)) {
-			getexp_err(ep, tgrp);
+			getexp_err(ep, tgrp, NULL);
 			goto nextline;
 		}
 		if (!has_host) {
@@ -1603,8 +1604,7 @@ get_exportlist_one(void)
 		 * host(s) on the same line.
 		 */
 		} else if ((opt_flags & OP_NET) && tgrp->gr_next) {
-			syslog(LOG_ERR, "network/host conflict");
-			getexp_err(ep, tgrp);
+			getexp_err(ep, tgrp, "network/host conflict");
 			goto nextline;
 
 		/*
@@ -1616,14 +1616,13 @@ get_exportlist_one(void)
 			while (grp && grp->gr_type == GT_IGNORE)
 				grp = grp->gr_next;
 			if (! grp) {
-			    getexp_err(ep, tgrp);
+			    getexp_err(ep, tgrp, "no valid entries");
 			    goto nextline;
 			}
 		}
 
 		if (v4root_phase == 1) {
-			syslog(LOG_ERR, "V4:root, no dirp, ignored");
-			getexp_err(ep, tgrp);
+			getexp_err(ep, tgrp, "V4:root, no dirp, ignored");
 			goto nextline;
 		}
 
@@ -1636,7 +1635,7 @@ get_exportlist_one(void)
 		do {
 			if (do_mount(ep, grp, exflags, &anon, dirp, dirplen,
 			    &fsb)) {
-				getexp_err(ep, tgrp);
+				getexp_err(ep, tgrp, NULL);
 				goto nextline;
 			}
 		} while (grp->gr_next && (grp = grp->gr_next));
@@ -1878,12 +1877,17 @@ get_grp(void)
  * Clean up upon an error in get_exportlist().
  */
 static void
-getexp_err(struct exportlist *ep, struct grouplist *grp)
+getexp_err(struct exportlist *ep, struct grouplist *grp, const char *reason)
 {
 	struct grouplist *tgrp;
 
-	if (!(opt_flags & OP_QUIET))
-		syslog(LOG_ERR, "bad exports list line %s", line);
+	if (!(opt_flags & OP_QUIET)) {
+		if (reason != NULL)
+			syslog(LOG_ERR, "bad exports list line '%s': %s", line,
+			    reason);
+		else
+			syslog(LOG_ERR, "bad exports list line '%s'", line);
+	}
 	if (ep && (ep->ex_flag & EX_LINKED) == 0)
 		free_exp(ep);
 	while (grp) {
