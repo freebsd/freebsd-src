@@ -50,6 +50,7 @@ MLINKS+=ffs.3 ffsl.3 \
 	ffs.3 flsll.3
 MLINKS+=index.3 rindex.3
 MLINKS+=memchr.3 memrchr.3
+MLINKS+=memset.3 memset_s.3
 MLINKS+=strcasecmp.3 strncasecmp.3 \
 	strcasecmp.3 strcasecmp_l.3 \
 	strcasecmp.3 strncasecmp_l.3
