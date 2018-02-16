@@ -41,7 +41,7 @@ function password.read()
 			break;
 		end
 
-		if ch == core.KEY_BACKSPACE then
+		if (ch == core.KEY_BACKSPACE) or (ch == core.KEY_DELETE) then
 			if n > 0 then
 				n = n - 1;
 				-- loader.printc("\008 \008");
