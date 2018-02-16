@@ -161,6 +161,9 @@ menu.welcome = {
 		name = function()
 			return color.highlight("Esc").."ape to loader prompt";
 		end,
+		func = function()
+			loader.setenv("autoboot_delay", "NO")
+		end,
 		alias = {core.KEYSTR_ESCAPE}
 	},
 
@@ -301,6 +304,10 @@ function menu.run(m)
 				-- recurse
 				cont = menu.run(sel_entry.submenu());
 			elseif (sel_entry.entry_type == core.MENU_RETURN) then
+				-- allow entry to have a function/side effect
+				if (sel_entry.func ~= nil) then
+					sel_entry.func();
+				end
 				-- break recurse
 				cont = false;
 			end
