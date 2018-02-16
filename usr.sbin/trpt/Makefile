@@ -8,8 +8,7 @@ MAN=	trpt.8
 BINGRP=	kmem
 BINMODE= 2555
 
-.if ${MACHINE_CPUARCH} != "aarch64" && ${MACHINE_CPUARCH} != "amd64" && \
-    ${MACHINE_CPUARCH} != "i386" && ${MACHINE_CPUARCH} != "riscv"
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} < 50000
 WARNS?=	4
 .endif
 
@@ -19,8 +18,7 @@ CFLAGS+= -DINET6
 
 .include <bsd.prog.mk>
 
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
-    ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "riscv"
+.if ${COMPILER_TYPE} != "gcc" || ${COMPILER_VERSION} >= 50000
 # Several included system headers tickle this warning in ways that are
 # difficult to work around in this program.
 CFLAGS+= -Wno-missing-variable-declarations
