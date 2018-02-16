@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 # Quick script to build a suitable /boot dir somewhere in the tree for testing.
+# dir may be passed in, will default to /tmp/loadertest if not specified
 
 die() {
     echo $*
@@ -11,7 +12,7 @@ die() {
 dir=$1
 cd $(make -V SRCTOP)
 
-[ -n "$dir" ] || die "No directory specified"
+[ -n "$dir" ] || dir=/tmp/loadertest
 
 set -e
 
