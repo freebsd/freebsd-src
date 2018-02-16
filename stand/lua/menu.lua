@@ -218,6 +218,9 @@ menu.welcome = {
 
 			-- dynamically build the kernel menu:
 			local kernels = core.kernelList();
+			if #kernels == 0 then
+				return nil;
+			end
 			for k, v in ipairs(kernels) do
 				menu.kernel_options[#menu.kernel_options + 1] = {
 					entry_type = "entry",
