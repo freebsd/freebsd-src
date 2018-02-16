@@ -169,7 +169,21 @@ function drawer.drawmenu(m)
 		if (e.entry_type ~= "separator") then
 			entry_num = entry_num + 1;
 			screen.setcursor(x, y + line_num);
-			print(entry_num .. ". "..e.name());
+			local name = "";
+
+			if (e.entry_type == "carousel_entry") then
+				local carid = e.carousel_id;
+				local caridx = menu.getCarouselIndex(carid);
+				local choices = e.items();
+
+				if (#choices < caridx) then
+					caridx = 1;
+				end;
+				name = e.name(caridx, choices[caridx], choices);
+			else
+				name = e.name();
+			end
+			print(entry_num .. ". "..name);
 
 			-- fill the alias table
 			alias_table[tostring(entry_num)] = e;
