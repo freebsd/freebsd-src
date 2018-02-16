@@ -42,6 +42,9 @@
 #define _SYS_SHM_H_
 
 #include <sys/cdefs.h>
+#ifdef _WANT_SYSVSHM_INTERNALS
+#define	_WANT_SYSVIPC_INTERNALS
+#endif
 #include <sys/ipc.h>
 #include <sys/_types.h>
 
@@ -107,9 +110,7 @@ struct shmid_ds {
 	time_t          shm_ctime;	/* time of last change by shmctl() */
 };
 
-#ifdef _KERNEL
-#include <vm/vm.h>
-
+#if defined(_KERNEL) || defined(_WANT_SYSVSHM_INTERNALS)
 /*
  * System 5 style catch-all structure for shared memory constants that
  * might be of interest to user programs.  Do we really want/need this?
@@ -122,18 +123,19 @@ struct shminfo {
 	u_long	shmall;		/* max amount of shared memory (pages) */
 };
 
+struct vm_object;
+
 /* 
  * Add a kernel wrapper to the shmid_ds struct so that private info (like the
  * MAC label) can be added to it, without changing the user interface.
  */
 struct shmid_kernel {
 	struct shmid_ds u;
-	vm_object_t object;
+	struct vm_object *object;
 	struct label *label;	/* MAC label */
 	struct ucred *cred;	/* creator's credendials */
 };
-
-extern struct shminfo	shminfo;
+#endif
 
 struct shm_info {
 	int used_ids;
@@ -144,15 +146,17 @@ struct shm_info {
 	unsigned long swap_successes;
 };
 
-struct thread;
+#ifdef _KERNEL
 struct proc;
 struct vmspace;
 
+extern struct shminfo	shminfo;
+
 void	shmexit(struct vmspace *);
 void	shmfork(struct proc *, struct proc *);
-#endif /* _KERNEL */
 
-#if !defined(_KERNEL) || defined(_WANT_SHM_PROTOTYPES)
+#else /* !_KERNEL */
+
 #include <sys/cdefs.h>
 
 #ifndef _SIZE_T_DECLARED
@@ -170,6 +174,6 @@ int shmctl(int, int, struct shmid_ds *);
 int shmdt(const void *);
 __END_DECLS
 
-#endif /* _KERNEL || _WANT_SHM_PROTOTYPES */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_SHM_H_ */
