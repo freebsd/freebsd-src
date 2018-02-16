@@ -1036,7 +1036,8 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	/* locking heirarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&schp->lock, flag);
 	spin_lock(&qhp->lock);
-	c4iw_flush_hw_cq(schp);
+	if (schp != rchp)
+		c4iw_flush_hw_cq(schp);
 	flushed = c4iw_flush_sq(qhp);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&schp->lock, flag);
