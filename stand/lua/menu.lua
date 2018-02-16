@@ -53,8 +53,7 @@ menu.boot_options = {
 		entry_type = "return",
 		name = function()
 			return "Back to main menu"..color.highlight(" [Backspace]");
-		end,
-		alias = {"\08"}
+		end
 	},
 
 	-- load defaults
