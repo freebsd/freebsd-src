@@ -150,6 +150,7 @@ use_pread(void *devfd, off_t loc, void **bufp, int size)
 	int fd;
 
 	fd = *(int *)devfd;
+	free(*bufp);
 	if ((*bufp = malloc(size)) == NULL)
 		return (ENOSPC);
 	if (pread(fd, *bufp, size, loc) != size)

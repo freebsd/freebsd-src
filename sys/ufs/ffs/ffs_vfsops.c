@@ -1075,6 +1075,7 @@ ffs_use_bread(void *devfd, off_t loc, void **bufp, int size)
 	struct buf *bp;
 	int error;
 
+	free(*bufp, M_UFSMNT);
 	*bufp = malloc(size, M_UFSMNT, M_WAITOK);
 	if ((error = bread((struct vnode *)devfd, btodb(loc), size, NOCRED,
 	    &bp)) != 0) {
