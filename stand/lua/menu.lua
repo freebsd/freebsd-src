@@ -39,25 +39,13 @@ local OnOff;
 local skip;
 local run;
 local autoboot;
+local current_kernel_index = 1;
 
 --loader menu tree:
 --rooted at menu.welcome
 --submenu declarations:
-local kernel_options;
 local boot_options;
 local welcome;
-
-menu.kernel_options = {
-	-- this table is dynamically appended to when accessed
-	-- return to welcome menu
-	{
-		entry_type = "return",
-		name = function()
-			return "Back to main menu"..color.highlight(" [Backspace]");
-		end,
-		alias = {"\08"}
-	}
-};
 
 menu.boot_options = {
 	-- return to welcome menu
@@ -206,35 +194,34 @@ menu.welcome = {
 
 	-- kernel options
 	{
-		entry_type = "submenu",
+		entry_type = "entry",
 		name = function()
 			local kernels = core.kernelList();
 			if #kernels == 0 then
-				return "Kernels (not available)";
+				return "Kernel: ";
 			end
-			return color.highlight("K").."ernels";
+
+			local kernel_name = color.escapef(color.GREEN) ..
+			    kernels[current_kernel_index] .. color.default();
+			if (current_kernel_index == 1) then
+				kernel_name = "default/" .. kernel_name;
+			end
+			return color.highlight("K").."ernel: " .. kernel_name ..
+			    " (" .. current_kernel_index ..
+			    " of " .. #kernels .. ")";
 		end,
-		submenu = function()
+		func = function()
 
 			-- dynamically build the kernel menu:
 			local kernels = core.kernelList();
-			if #kernels == 0 then
+			-- Don't do anything if we don't have multiple kernels
+			if #kernels <= 1 then
 				return nil;
 			end
-			for k, v in ipairs(kernels) do
-				menu.kernel_options[#menu.kernel_options + 1] = {
-					entry_type = "entry",
-					name = function()
-						return v;
-					end,
-					func = function()
-						config.reload(v);
-					end,
-					alias = {} -- automatically enumerated
-				}
-			end
-
-			return menu.kernel_options;
+			current_kernel_index = (current_kernel_index % #kernels)
+			    + 1;
+			local current_kernel = kernels[current_kernel_index];
+			config.reload(current_kernel)
 		end,
 		alias = {"k", "K"}
 	},
