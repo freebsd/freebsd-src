@@ -28,6 +28,10 @@
 
 local core = {};
 
+-- Commonly appearing constants
+core.KEY_ENTER = 13
+core.KEY_BACKSPACE = 127
+
 function core.setVerbose(b)
 	if (b == nil) then
 		b = not core.verbose;

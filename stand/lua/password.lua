@@ -37,11 +37,11 @@ function password.read()
 
 	repeat
 		ch = io.getchar();
-		if ch == 13 then
+		if ch == core.KEY_ENTER then
 			break;
 		end
 
-		if ch == 8 then
+		if ch == core.KEY_BACKSPACE then
 			if n > 0 then
 				n = n - 1;
 				-- loader.printc("\008 \008");
