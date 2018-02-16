@@ -159,7 +159,7 @@ menu.welcome = {
 	{
 		entry_type = "return",
 		name = function()
-			return color.highlight("Esc").."ape to lua interpreter";
+			return color.highlight("Esc").."ape to loader prompt";
 		end,
 		alias = {"\027"}
 	},
