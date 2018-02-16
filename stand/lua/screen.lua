@@ -34,7 +34,7 @@ local core = require("core");
 -- XXX TODO: This should be fixed in the interpreter to not print decimals
 function intstring(num)
 	local str = tostring(num)
-	local decimal = string.find(str, "[.]")
+	local decimal = string.find(str, "%.")
 
 	if decimal then
 		return string.sub(str, 1, decimal - 1)
