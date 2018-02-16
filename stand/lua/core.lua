@@ -171,5 +171,5 @@ function core.bootserial()
 	return false;
 end
 
-core.acpi = core.getACPIPresent(false);
+core.setACPI(core.getACPIPresent(false))
 return core
