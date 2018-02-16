@@ -29,6 +29,8 @@
 #ifndef _AMDVI_PRIV_H_
 #define _AMDVI_PRIV_H_
 
+#include <contrib/dev/acpica/include/acpi.h>
+
 #define	BIT(n)			(1ULL << (n))
 /* Return value of bits[n:m] where n and (n >= ) m are bit positions. */
 #define REG_BITS(x, n, m)	(((x) >> (m)) & 		\
@@ -358,6 +360,7 @@ struct amdvi_domain {
 struct amdvi_softc {
 	struct amdvi_ctrl *ctrl;	/* Control area. */
 	device_t 	dev;		/* IOMMU device. */
+	enum AcpiIvrsType ivhd_type;	/* IOMMU IVHD type 0x10/0x11 or 0x40 */
 	bool		iotlb;		/* IOTLB supported by IOMMU */
 	struct amdvi_cmd *cmd;		/* Command descriptor area. */
 	int 		cmd_max;	/* Max number of commands. */
@@ -370,11 +373,11 @@ struct amdvi_softc {
 	int		event_rid;
 	/* ACPI various flags. */
 	uint32_t 	ivhd_flag;	/* ACPI IVHD flag. */
-	uint32_t 	ivhd_efr;	/* ACPI v1 Reserved or v2 EFR . */
+	uint32_t 	ivhd_feature;	/* ACPI v1 Reserved or v2 attribute. */
+	uint64_t 	ext_feature;	/* IVHD EFR */
 	/* PCI related. */
 	uint16_t 	cap_off;	/* PCI Capability offset. */
 	uint8_t		pci_cap;	/* PCI capability. */
-	uint64_t 	pci_efr;	/* PCI EFR for rev2.0 */
 	uint16_t 	pci_seg;	/* IOMMU PCI domain/segment. */
 	uint16_t 	pci_rid;	/* PCI BDF of IOMMU */
 	/* Device range under this IOMMU. */
