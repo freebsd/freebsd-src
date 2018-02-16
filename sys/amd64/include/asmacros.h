@@ -175,11 +175,11 @@
 	.endm
 
 	.macro	MOVE_STACKS qw
-	offset=0
+	.L.offset=0
 	.rept	\qw
-	movq	offset(%rsp),%rdx
-	movq	%rdx,offset(%rax)
-	offset=offset+8
+	movq	.L.offset(%rsp),%rdx
+	movq	%rdx,.L.offset(%rax)
+	.L.offset=.L.offset+8
 	.endr
 	.endm
 
