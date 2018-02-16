@@ -119,12 +119,14 @@ struct ipc_perm {
 #define	IPC_INFO	3	/* get info */
 #endif
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_WANT_SYSVIPC_INTERNALS)
 /* Macros to convert between ipc ids and array indices or sequence ids */
 #define	IPCID_TO_IX(id)		((id) & 0xffff)
 #define	IPCID_TO_SEQ(id)	(((id) >> 16) & 0xffff)
 #define	IXSEQ_TO_IPCID(ix,perm)	(((perm.seq) << 16) | (ix & 0xffff))
+#endif
 
+#ifdef _KERNEL
 struct thread;
 struct proc;
 struct vmspace;
