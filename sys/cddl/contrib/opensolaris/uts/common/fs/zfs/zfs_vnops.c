@@ -4514,81 +4514,85 @@ zfs_setsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
 }
 
 static int
-zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int *rbehind,
+zfs_getpages(struct vnode *vp, vm_page_t *ma, int count, int *rbehind,
     int *rahead)
 {
 	znode_t *zp = VTOZ(vp);
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 	objset_t *os = zp->z_zfsvfs->z_os;
-	vm_page_t mlast;
+	rl_t *rl;
 	vm_object_t object;
-	caddr_t va;
-	struct sf_buf *sf;
-	off_t startoff, endoff;
-	int i, error;
-	vm_pindex_t reqstart, reqend;
-	int lsize, size;
-
-	object = m[0]->object;
-	error = 0;
+	off_t start, end, obj_size;
+	uint_t blksz;
+	int pgsin_b, pgsin_a;
+	int error;
 
 	ZFS_ENTER(zfsvfs);
 	ZFS_VERIFY_ZP(zp);
 
-	zfs_vmobject_wlock(object);
-	if (m[count - 1]->valid != 0 && --count == 0) {
-		zfs_vmobject_wunlock(object);
-		goto out;
+	start = IDX_TO_OFF(ma[0]->pindex);
+	end = IDX_TO_OFF(ma[count - 1]->pindex + 1);
+
+	/*
+	 * Lock a range covering all required and optional pages.
+	 * Note that we need to handle the case of the block size growing.
+	 */
+	for (;;) {
+		blksz = zp->z_blksz;
+		rl = zfs_range_lock(zp, rounddown(start, blksz),
+		    roundup(end, blksz) - rounddown(start, blksz), RL_READER);
+		if (blksz == zp->z_blksz)
+			break;
+		zfs_range_unlock(rl);
 	}
 
-	mlast = m[count - 1];
-
-	if (IDX_TO_OFF(mlast->pindex) >=
-	    object->un_pager.vnp.vnp_size) {
-		zfs_vmobject_wunlock(object);
+	object = ma[0]->object;
+	zfs_vmobject_wlock(object);
+	obj_size = object->un_pager.vnp.vnp_size;
+	zfs_vmobject_wunlock(object);
+	if (IDX_TO_OFF(ma[count - 1]->pindex) >= obj_size) {
+		zfs_range_unlock(rl);
 		ZFS_EXIT(zfsvfs);
 		return (zfs_vm_pagerret_bad);
 	}
 
-	VM_CNT_INC(v_vnodein);
-	VM_CNT_ADD(v_vnodepgsin, count);
-
-	lsize = PAGE_SIZE;
-	if (IDX_TO_OFF(mlast->pindex) + lsize > object->un_pager.vnp.vnp_size)
-		lsize = object->un_pager.vnp.vnp_size -
-		    IDX_TO_OFF(mlast->pindex);
-	zfs_vmobject_wunlock(object);
-
-	for (i = 0; i < count; i++) {
-		size = PAGE_SIZE;
-		if (i == count - 1)
-			size = lsize;
-		va = zfs_map_page(m[i], &sf);
-		error = dmu_read(os, zp->z_id, IDX_TO_OFF(m[i]->pindex),
-		    size, va, DMU_READ_PREFETCH);
-		if (size != PAGE_SIZE)
-			bzero(va + size, PAGE_SIZE - size);
-		zfs_unmap_page(sf);
-		if (error != 0)
-			goto out;
+	pgsin_b = 0;
+	if (rbehind != NULL) {
+		pgsin_b = OFF_TO_IDX(start - rounddown(start, blksz));
+		pgsin_b = MIN(*rbehind, pgsin_b);
 	}
 
-	zfs_vmobject_wlock(object);
-	for (i = 0; i < count; i++)
-		m[i]->valid = VM_PAGE_BITS_ALL;
-	zfs_vmobject_wunlock(object);
+	pgsin_a = 0;
+	if (rahead != NULL) {
+		pgsin_a = OFF_TO_IDX(roundup(end, blksz) - end);
+		if (end + IDX_TO_OFF(pgsin_a) >= obj_size)
+			pgsin_a = OFF_TO_IDX(round_page(obj_size) - end);
+		pgsin_a = MIN(*rahead, pgsin_a);
+	}
 
-out:
+	/*
+	 * NB: we need to pass the exact byte size of the data that we expect
+	 * to read after accounting for the file size.  This is required because
+	 * ZFS will panic if we request DMU to read beyond the end of the last
+	 * allocated block.
+	 */
+	error = dmu_read_pages(os, zp->z_id, ma, count, &pgsin_b, &pgsin_a,
+	    MIN(end, obj_size) - (end - PAGE_SIZE));
+
+	zfs_range_unlock(rl);
 	ZFS_ACCESSTIME_STAMP(zfsvfs, zp);
 	ZFS_EXIT(zfsvfs);
-	if (error == 0) {
-		if (rbehind)
-			*rbehind = 0;
-		if (rahead)
-			*rahead = 0;
-		return (zfs_vm_pagerret_ok);
-	} else
+
+	if (error != 0)
 		return (zfs_vm_pagerret_error);
+
+	VM_CNT_INC(v_vnodein);
+	VM_CNT_ADD(v_vnodepgsin, count + pgsin_b + pgsin_a);
+	if (rbehind != NULL)
+		*rbehind = pgsin_b;
+	if (rahead != NULL)
+		*rahead = pgsin_a;
+	return (zfs_vm_pagerret_ok);
 }
 
 static int
