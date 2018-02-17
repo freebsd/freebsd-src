@@ -8,7 +8,7 @@ PACKAGE=casper
 
 .if ${MK_CASPER} != "no"
 SHLIB=	casper
-SHLIB_MAJOR=	0
+SHLIB_MAJOR=	1
 
 SRCS=	libcasper.c
 SRCS+=	libcasper_impl.c

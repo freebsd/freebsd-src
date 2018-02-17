@@ -201,6 +201,8 @@ casper_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	nvlist_destroy(nvl);
 
 	nvlist_move_descriptor(nvlout, "chanfd", chanfd);
+	nvlist_add_number(nvlout, "chanflags",
+	    service_get_channel_flags(casserv->cs_service));
 
 	return (0);
 }

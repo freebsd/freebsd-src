@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 5, 2018
+.Dd February 17, 2018
 .Dt LIBCASPER 3
 .Os
 .Sh NAME
@@ -53,9 +53,9 @@
 .Ft "cap_channel_t *"
 .Fn cap_init "void"
 .Ft "cap_channel_t *"
-.Fn cap_wrap "int sock"
+.Fn cap_wrap "int sock" "int flags"
 .Ft "int"
-.Fn cap_unwrap "cap_channel_t *chan"
+.Fn cap_unwrap "cap_channel_t *chan" "int *flags"
 .Ft "int"
 .Fn cap_sock "const cap_channel_t *chan"
 .Ft "cap_channel_t *"
@@ -69,9 +69,9 @@
 .Ft "int"
 .Fn cap_send_nvlist "const cap_channel_t *chan" "const nvlist_t *nvl"
 .Ft "nvlist_t *"
-.Fn cap_recv_nvlist "const cap_channel_t *chan" "int flags"
+.Fn cap_recv_nvlist "const cap_channel_t *chan"
 .Ft "nvlist_t *"
-.Fn cap_xfer_nvlist "const cap_channel_t *chan" "nvlist_t *nvl" "int flags"
+.Fn cap_xfer_nvlist "const cap_channel_t *chan" "nvlist_t *nvl"
 .Ft "cap_channel_t *"
 .Fn cap_service_open "const cap_channel_t *chan" "const char *name"
 .Sh DESCRIPTION
@@ -105,6 +105,14 @@ or send over
 domain socket as a regular file descriptor and has to be represented as
 .Vt cap_channel_t
 again.
+The
+.Fa flags
+argument defines the channel behavior.
+The supported flags are:
+.Bl -ohang -offset indent
+.It CASPER_NO_UNIQ
+The communication between process and casper uses no unique version of nvlist.
+.El
 .Pp
 The
 .Fn cap_unwrap
@@ -164,23 +172,11 @@ Most services should provide higher level API.
 The
 .Fn cap_recv_nvlist
 function receives the given nvlist over the given capability.
-The
-.Fa flags
-argument defines what type the top nvlist is expected to be.
-If the nvlist flags do not match the flags passed to
-.Fn cap_recv_nvlist ,
-the nvlist will not be returned.
 .Pp
 The
 .Fn cap_xfer_nvlist
 function sends the given nvlist, destroys it and receives new nvlist in
 response over the given capability.
-The
-.Fa flags
-argument defines what type the top nvlist is expected to be.
-If the nvlist flags do not match the flags passed to
-.Fn cap_xfer_nvlist ,
-the nvlist will not be returned.
 It does not matter if the function succeeds or fails, the nvlist given
 for sending will always be destroyed once the function returns.
 .Pp
