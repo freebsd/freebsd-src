@@ -264,7 +264,7 @@ function menu.run(m)
 	screen.defcursor();
 	local alias_table = drawer.drawscreen(m);
 
---	menu.autoboot();
+	menu.autoboot();
 
 	cont = true;
 	while cont do
