@@ -40,7 +40,8 @@ function password.read()
 		if ch == core.KEY_ENTER then
 			break;
 		end
-
+		-- XXX TODO: Evaluate if we really want this or not, as a
+		-- security consideration of sorts
 		if (ch == core.KEY_BACKSPACE) or (ch == core.KEY_DELETE) then
 			if n > 0 then
 				n = n - 1;
@@ -58,22 +59,35 @@ end
 
 function password.check()
 	screen.defcursor();
-	local function compare(prompt, pwd)
-		if (pwd == nil) then
-			return;
-		end
+	-- pwd is optionally supplied if we want to check it
+	local function do_prompt(prompt, pwd)
 		while true do
 			loader.printc(prompt);
-			if (pwd == password.read()) then
-				break;
+			local read_pwd = password.read();
+			if (not pwd) or (pwd == read_pwd) then
+				return read_pwd;
 			end
 			print("\n\nloader: incorrect password!\n");
 			loader.delay(3*1000*1000);
 		end
+		-- Throw an extra newline out after the password prompt
+		print("")
+	end
+	local function compare(prompt, pwd)
+		if (pwd == nil) then
+			return;
+		end
+		do_prompt(prompt, pwd);
 	end
 
 	local boot_pwd = loader.getenv("bootlock_password");
 	compare("Boot password: ", boot_pwd);
+
+	local geli_pass_prompt = loader.getenv("geom_eli_passphrase_prompt");
+	if (geli_pass_prompt:lower() == "yes") then
+		local passphrase = do_prompt("GELI Passphrase: ");
+		loader.setenv("kern.geom.eli.passphrase", passphrase)
+	end
 
 	local pwd = loader.getenv("password");
 	if (pwd ~=nil) then
