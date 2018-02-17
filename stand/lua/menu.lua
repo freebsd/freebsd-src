@@ -353,7 +353,9 @@ function menu.autoboot()
 	menu.already_autoboot = true;
 
 	local ab = loader.getenv("autoboot_delay");
-	if ab == "NO" or ab == "no" then
+	if (ab ~= nil) and (ab:lower() == "no") then
+		return;
+	elseif (tonumber(ab) == -1) then
 		core.boot();
 	end
 	ab = tonumber(ab) or 10;
