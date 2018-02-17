@@ -109,12 +109,7 @@ extern volatile int lockstat_enabled;
 	LOCKSTAT_RECORD1(probe, lp, a);					\
 } while (0)
 
-#ifndef LOCK_PROFILING
 #define	LOCKSTAT_PROFILE_ENABLED(probe)		__predict_false(lockstat_enabled)
-#define	LOCKSTAT_OOL_PROFILE_ENABLED(probe)	LOCKSTAT_PROFILE_ENABLED(probe)
-#else
-#define	LOCKSTAT_OOL_PROFILE_ENABLED(probe)	1
-#endif
 
 struct lock_object;
 uint64_t lockstat_nsecs(struct lock_object *);
@@ -139,10 +134,7 @@ uint64_t lockstat_nsecs(struct lock_object *);
 #define	LOCKSTAT_PROFILE_RELEASE_RWLOCK(probe, lp, a)  			\
 	LOCKSTAT_PROFILE_RELEASE_LOCK(probe, lp)
 
-#ifndef LOCK_PROFILING
 #define	LOCKSTAT_PROFILE_ENABLED(probe)		0
-#endif
-#define	LOCKSTAT_OOL_PROFILE_ENABLED(probe)	1
 
 #endif /* !KDTRACE_HOOKS */
 
