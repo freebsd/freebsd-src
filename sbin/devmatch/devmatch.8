@@ -33,10 +33,11 @@
 .Nd print information about unattached devices
 .Sh SYNOPSIS
 .Nm
-.Op Fl adpuv
+.Op Fl adhpuv
 .Op Fl -all
 .Op Fl -dump
-.Op Fl -nomatch
+.Op Fl -hints Ar file
+.Op Fl -nomatch Ar event
 .Op Fl -unbound
 .Op Fl -verbose
 .Sh DESCRIPTION
@@ -51,7 +52,13 @@ Include all devices, not just the ones that are unattached.
 Produce a human readable dump of the
 .Pa linker.hints
 file.
-.It Fl p Fl -nomatch
+.It Fl h Fl -hints Ar file
+Use the named
+.Ar file
+instead of
+.Pa linker.hints
+guessed from the current module load path.
+.It Fl p Fl -nomatch Ar event
 Parse and use a standard NOMATCH event from
 .Xr devd 8
 for matching instead of searching the device tree.
