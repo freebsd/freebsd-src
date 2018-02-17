@@ -380,14 +380,14 @@ void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 {
 
-	pcpu->pc_tid_next = TID_MIN;
+	pcpu->pc_booke.tid_next = TID_MIN;
 
 #ifdef SMP
 	uintptr_t *ptr;
 	int words_per_gran = RES_GRANULE / sizeof(uintptr_t);
 
 	ptr = &tlb0_miss_locks[cpuid * words_per_gran];
-	pcpu->pc_booke_tlb_lock = ptr;
+	pcpu->pc_booke.tlb_lock = ptr;
 	*ptr = TLB_UNLOCKED;
 	*(ptr + 1) = 0;		/* recurse counter */
 #endif

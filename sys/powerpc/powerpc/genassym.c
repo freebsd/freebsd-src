@@ -66,11 +66,11 @@ ASSYM(PC_DBSAVE, offsetof(struct pcpu, pc_dbsave));
 ASSYM(PC_RESTORE, offsetof(struct pcpu, pc_restore));
 
 #if defined(BOOKE)
-ASSYM(PC_BOOKE_CRITSAVE, offsetof(struct pcpu, pc_booke_critsave));
-ASSYM(PC_BOOKE_MCHKSAVE, offsetof(struct pcpu, pc_booke_mchksave));
-ASSYM(PC_BOOKE_TLBSAVE, offsetof(struct pcpu, pc_booke_tlbsave));
-ASSYM(PC_BOOKE_TLB_LEVEL, offsetof(struct pcpu, pc_booke_tlb_level));
-ASSYM(PC_BOOKE_TLB_LOCK, offsetof(struct pcpu, pc_booke_tlb_lock));
+ASSYM(PC_BOOKE_CRITSAVE, offsetof(struct pcpu, pc_booke.critsave));
+ASSYM(PC_BOOKE_MCHKSAVE, offsetof(struct pcpu, pc_booke.mchksave));
+ASSYM(PC_BOOKE_TLBSAVE, offsetof(struct pcpu, pc_booke.tlbsave));
+ASSYM(PC_BOOKE_TLB_LEVEL, offsetof(struct pcpu, pc_booke.tlb_level));
+ASSYM(PC_BOOKE_TLB_LOCK, offsetof(struct pcpu, pc_booke.tlb_lock));
 #endif
 
 ASSYM(CPUSAVE_R27, CPUSAVE_R27*sizeof(register_t));
@@ -109,10 +109,10 @@ ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 #if defined(AIM)
 ASSYM(USER_ADDR, USER_ADDR);
 #ifdef __powerpc64__
-ASSYM(PC_KERNSLB, offsetof(struct pcpu, pc_slb));
-ASSYM(PC_USERSLB, offsetof(struct pcpu, pc_userslb));
-ASSYM(PC_SLBSAVE, offsetof(struct pcpu, pc_slbsave));
-ASSYM(PC_SLBSTACK, offsetof(struct pcpu, pc_slbstack));
+ASSYM(PC_KERNSLB, offsetof(struct pcpu, pc_aim.slb));
+ASSYM(PC_USERSLB, offsetof(struct pcpu, pc_aim.userslb));
+ASSYM(PC_SLBSAVE, offsetof(struct pcpu, pc_aim.slbsave));
+ASSYM(PC_SLBSTACK, offsetof(struct pcpu, pc_aim.slbstack));
 ASSYM(USER_SLB_SLOT, USER_SLB_SLOT);
 ASSYM(USER_SLB_SLBE, USER_SLB_SLBE);
 ASSYM(SEGMENT_MASK, SEGMENT_MASK);
