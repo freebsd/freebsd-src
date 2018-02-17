@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2016
+.Dd June 7, 2017
 .Dt ZPOOL-FEATURES 7
 .Os
 .Sh NAME
@@ -497,10 +497,6 @@ and will return to being
 once all filesystems that have ever had their checksum set to
 .Sy sha512
 are destroyed.
-.Pp
-Booting off of a pools utilizing SHA-512/256 is
-.Em NOT
-yet supported.
 .It Sy skein
 .Bl -column "READ\-ONLY COMPATIBLE" "org.illumos:skein"
 .It GUID Ta org.illumos:skein
@@ -543,12 +539,6 @@ and will return to being
 once all filesystems that have ever had their checksum set to
 .Sy skein
 are destroyed.
-.Pp
-Booting off of pools using
-.Sy skein
-is
-.Em NOT
-supported.
 .El
 .Sh SEE ALSO
 .Xr zpool 8
