@@ -1225,11 +1225,15 @@ loop_locked:
 		nfound++;
 		PROC_LOCK_ASSERT(p, MA_OWNED);
 
+		if ((options & (WTRAPPED | WUNTRACED)) != 0)
+			PROC_SLOCK(p);
+
 		if ((options & WTRAPPED) != 0 &&
 		    (p->p_flag & P_TRACED) != 0 &&
 		    (p->p_flag & (P_STOPPED_TRACE | P_STOPPED_SIG)) != 0 &&
 		    p->p_suspcount == p->p_numthreads &&
 		    (p->p_flag & P_WAITED) == 0) {
+			PROC_SUNLOCK(p);
 			CTR4(KTR_PTRACE,
 			    "wait: returning trapped pid %d status %#x "
 			    "(xstat %d) xthread %d",
@@ -1244,10 +1248,13 @@ loop_locked:
 		    (p->p_flag & P_STOPPED_SIG) != 0 &&
 		    p->p_suspcount == p->p_numthreads &&
 		    (p->p_flag & P_WAITED) == 0) {
+			PROC_SUNLOCK(p);
 			report_alive_proc(td, p, siginfo, status, options,
 			    CLD_STOPPED);
 			return (0);
 		}
+		if ((options & (WTRAPPED | WUNTRACED)) != 0)
+			PROC_SUNLOCK(p);
 		if ((options & WCONTINUED) != 0 &&
 		    (p->p_flag & P_CONTINUED) != 0) {
 			report_alive_proc(td, p, siginfo, status, options,
