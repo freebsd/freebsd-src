@@ -37,6 +37,14 @@ function config.setKey(k, n, v)
 	modules[k][n] = v;
 end
 
+function config.dumpModules()
+	print("== Dumping modules")
+	for k, v in pairs(modules) do
+		print(k, v.load);
+	end
+	print("== Dump ended")
+end
+
 local pattern_table = {
 	[1] = {
 		str = "^%s*(#.*)",
