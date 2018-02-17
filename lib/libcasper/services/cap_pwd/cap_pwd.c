@@ -157,7 +157,7 @@ cap_getpwcommon_r(cap_channel_t *chan, const char *cmd, const char *login,
 	} else {
 		abort();
 	}
-	nvl = cap_xfer_nvlist(chan, nvl, 0);
+	nvl = cap_xfer_nvlist(chan, nvl);
 	if (nvl == NULL) {
 		assert(errno != 0);
 		*result = NULL;
@@ -281,7 +281,7 @@ cap_setpassent(cap_channel_t *chan, int stayopen)
 	nvl = nvlist_create(0);
 	nvlist_add_string(nvl, "cmd", "setpassent");
 	nvlist_add_bool(nvl, "stayopen", stayopen != 0);
-	nvl = cap_xfer_nvlist(chan, nvl, 0);
+	nvl = cap_xfer_nvlist(chan, nvl);
 	if (nvl == NULL)
 		return (0);
 	if (nvlist_get_number(nvl, "error") != 0) {
@@ -302,7 +302,7 @@ cap_set_end_pwent(cap_channel_t *chan, const char *cmd)
 	nvl = nvlist_create(0);
 	nvlist_add_string(nvl, "cmd", cmd);
 	/* Ignore any errors, we have no way to report them. */
-	nvlist_destroy(cap_xfer_nvlist(chan, nvl, 0));
+	nvlist_destroy(cap_xfer_nvlist(chan, nvl));
 }
 
 void
