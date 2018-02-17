@@ -83,8 +83,8 @@ function password.check()
 	local boot_pwd = loader.getenv("bootlock_password");
 	compare("Boot password: ", boot_pwd);
 
-	local geli_pass_prompt = loader.getenv("geom_eli_passphrase_prompt");
-	if (geli_pass_prompt:lower() == "yes") then
+	local geli_prompt = loader.getenv("geom_eli_passphrase_prompt");
+	if (geli_prompt ~= nil) and (geli_prompt:lower() == "yes") then
 		local passphrase = do_prompt("GELI Passphrase: ");
 		loader.setenv("kern.geom.eli.passphrase", passphrase)
 	end
