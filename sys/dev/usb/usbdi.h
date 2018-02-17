@@ -337,18 +337,18 @@ struct usb_device_id {
 } __aligned(32);
 
 #define USB_STD_PNP_INFO "M16:mask;U16:vendor;U16:product;L16:release;G16:release;" \
-	"U8:devclass;U8:devsubclass;U8:devprotocol;" \
+	"U8:devclass;U8:devsubclass;U8:devproto;" \
 	"U8:intclass;U8:intsubclass;U8:intprotocol;"
 #define USB_STD_PNP_HOST_INFO USB_STD_PNP_INFO "T:mode=host;"
 #define USB_STD_PNP_DEVICE_INFO USB_STD_PNP_INFO "T:mode=device;"
 #define USB_PNP_HOST_INFO(table)					\
-	MODULE_PNP_INFO(USB_STD_PNP_HOST_INFO, usb, table, table, sizeof(table[0]), \
+	MODULE_PNP_INFO(USB_STD_PNP_HOST_INFO, uhub, table, table, sizeof(table[0]), \
 	    sizeof(table) / sizeof(table[0]))
 #define USB_PNP_DEVICE_INFO(table)					\
-	MODULE_PNP_INFO(USB_STD_PNP_DEVICE_INFO, usb, table, table, sizeof(table[0]), \
+	MODULE_PNP_INFO(USB_STD_PNP_DEVICE_INFO, uhub, table, table, sizeof(table[0]), \
 	    sizeof(table) / sizeof(table[0]))
 #define USB_PNP_DUAL_INFO(table)					\
-	MODULE_PNP_INFO(USB_STD_PNP_INFO, usb, table, table, sizeof(table[0]), \
+	MODULE_PNP_INFO(USB_STD_PNP_INFO, uhub, table, table, sizeof(table[0]), \
 	    sizeof(table) / sizeof(table[0]))
 
 /* check that the size of the structure above is correct */
