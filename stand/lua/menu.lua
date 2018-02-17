@@ -375,8 +375,6 @@ function menu.autoboot()
 			if ch == core.KEY_ENTER then
 				break;
 			else
-				-- prevent autoboot when escaping to interpreter
-				loader.setenv("autoboot_delay", "NO");
 				-- erase autoboot msg
 				screen.setcursor(0, y);
 				print("                                        "
