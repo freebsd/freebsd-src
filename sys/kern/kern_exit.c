@@ -530,9 +530,6 @@ exit1(struct thread *td, int rval, int signo)
 	PROC_LOCK(p);
 	p->p_xthread = td;
 
-	/* Tell the prison that we are gone. */
-	prison_proc_free(p->p_ucred->cr_prison);
-
 #ifdef KDTRACE_HOOKS
 	/*
 	 * Tell the DTrace fasttrap provider about the exit if it
@@ -602,6 +599,9 @@ exit1(struct thread *td, int rval, int signo)
 	} else
 		PROC_LOCK(p->p_pptr);
 	sx_xunlock(&proctree_lock);
+
+	/* Tell the prison that we are gone. */
+	prison_proc_free(p->p_ucred->cr_prison);
 
 	/*
 	 * The state PRS_ZOMBIE prevents other proesses from sending
