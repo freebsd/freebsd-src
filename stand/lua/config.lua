@@ -253,9 +253,11 @@ function config.parse(name, silent)
 	return status;
 end
 
-function config.loadkernel()
+-- other_kernel is optionally the name of a kernel to load, if not the default
+-- or autoloaded default from the module_path
+function config.loadkernel(other_kernel)
 	local flags = loader.getenv("kernel_options") or "";
-	local kernel = loader.getenv("kernel");
+	local kernel = other_kernel or loader.getenv("kernel");
 
 	local try_load = function (names)
 		for name in names:gmatch("([^;]+)%s*;?") do
@@ -265,7 +267,7 @@ function config.loadkernel()
 			end
 		end
 		return nil;
-	end;
+	end
 
 	local load_bootfile = function()
 		local bootfile = loader.getenv("bootfile");
@@ -294,6 +296,9 @@ function config.loadkernel()
 		local module_path = loader.getenv("module_path");
 		local res = nil;
 
+		if other_kern ~= nil then
+			kernel = other_kern;
+		end
 		-- first try load kernel with module_path = /boot/${kernel}
 		-- then try load with module_path=${kernel}
 		local paths = {"/boot/"..kernel, kernel};
@@ -355,22 +360,23 @@ function config.load(file)
 end
 
 function config.reload(kernel)
-	local res = 1;
+	local kernel_loaded = false;
 
 	-- unload all modules
 	print("Unloading modules...");
 	loader.perform("unload");
 
-	if kernel ~= nil then
-		res = loader.perform("load "..kernel);
-		if res == 0 then
+	if (kernel ~= nil) then
+		print("Trying to load '" .. kernel .. "'")
+		kernel_loaded = config.loadkernel(kernel);
+		if (kernel_loaded) then
 			print("Kernel '"..kernel.."' loaded!");
 		end
 	end
 
 	-- failed to load kernel or it is nil
 	-- then load default
-	if res == 1 then
+	if (not kernel_loaded) then
 		print("Loading default kernel...");
 		config.loadkernel();
 	end
