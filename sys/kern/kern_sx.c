@@ -1122,9 +1122,12 @@ _sx_slock_int(struct sx *sx, int opts LOCK_FILE_LINE_ARG_DEF)
 
 	error = 0;
 	x = SX_READ_VALUE(sx);
-	if (__predict_false(LOCKSTAT_OOL_PROFILE_ENABLED(sx__acquire) ||
+	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(sx__acquire) ||
 	    !__sx_slock_try(sx, &x LOCK_FILE_LINE_ARG)))
 		error = _sx_slock_hard(sx, opts, x LOCK_FILE_LINE_ARG);
+	else
+		lock_profile_obtain_lock_success(&sx->lock_object, 0, 0,
+		    file, line);
 	if (error == 0) {
 		LOCK_LOG_LOCK("SLOCK", &sx->lock_object, 0, 0, file, line);
 		WITNESS_LOCK(&sx->lock_object, 0, file, line);
@@ -1252,9 +1255,11 @@ _sx_sunlock_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF)
 	LOCK_LOG_LOCK("SUNLOCK", &sx->lock_object, 0, 0, file, line);
 
 	x = SX_READ_VALUE(sx);
-	if (__predict_false(LOCKSTAT_OOL_PROFILE_ENABLED(sx__release) ||
+	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(sx__release) ||
 	    !_sx_sunlock_try(sx, &x)))
 		_sx_sunlock_hard(sx, x LOCK_FILE_LINE_ARG);
+	else
+		lock_profile_release_lock(&sx->lock_object);
 
 	TD_LOCKS_DEC(curthread);
 }
