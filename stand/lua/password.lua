@@ -80,7 +80,7 @@ function password.check()
 		do_prompt(prompt, pwd);
 	end
 
-	local boot_pwd = "boot" --loader.getenv("bootlock_password");
+	local boot_pwd = loader.getenv("bootlock_password");
 	compare("Boot password: ", boot_pwd);
 
 	local geli_prompt = loader.getenv("geom_eli_passphrase_prompt");
