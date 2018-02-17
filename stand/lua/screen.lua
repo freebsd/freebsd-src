@@ -33,24 +33,24 @@ local core = require("core");
 
 -- XXX TODO: This should be fixed in the interpreter to not print decimals
 function intstring(num)
-	local str = tostring(num)
-	local decimal = string.find(str, "%.")
+	local str = tostring(num);
+	local decimal = str:find("%.");
 
-	if decimal then
-		return string.sub(str, 1, decimal - 1)
+	if (decimal) then
+		return str:sub(1, decimal - 1);
 	end
-	return str
+	return str;
 end
 
 function screen.clear()
-	if core.bootserial() then
+	if (core.bootserial()) then
 		return;
 	end
 	loader.printc("\027[H\027[J");
 end
 
 function screen.setcursor(x, y)
-	if core.bootserial() then
+	if (core.bootserial()) then
 		return;
 	end
 
@@ -58,14 +58,14 @@ function screen.setcursor(x, y)
 end
 
 function screen.setforeground(c)
-	if color.disabled then
+	if (color.disabled) then
 		return c;
 	end
 	loader.printc("\027[3"..c.."m");
 end
 
 function screen.setbackground(c)
-	if color.disabled then
+	if (color.disabled) then
 		return c;
 	end
 	loader.printc("\027[4"..c.."m");
@@ -76,10 +76,10 @@ function screen.defcolor()
 end
 
 function screen.defcursor()
-	if core.bootserial() then
+	if (core.bootserial()) then
 		return;
 	end
 	loader.printc("\027[25;0H");
 end
 
-return screen
+return screen;
