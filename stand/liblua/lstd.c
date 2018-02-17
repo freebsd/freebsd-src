@@ -127,6 +127,42 @@ getc(FILE *stream)
 	return EOF;
 }
 
+DIR *
+opendir(const char *name)
+{
+	DIR *dp;
+	int fd;
+
+	fd = open(name, O_RDONLY);
+	if (fd < 0)
+		return NULL;
+	dp = fdopendir(fd);
+	if (dp == NULL)
+		close(fd);
+	return dp;
+}
+
+DIR *
+fdopendir(int fd)
+{
+	DIR *dp;
+
+	dp = malloc(sizeof(*dp));
+	if (dp == NULL)
+		return NULL;
+	dp->fd = fd;
+	return dp;
+}
+
+int
+closedir(DIR *dp)
+{
+	close(dp->fd);
+	dp->fd = -1;
+	free(dp);
+	return 0;
+}
+
 void
 luai_writestring(const char *s, int i)
 {
