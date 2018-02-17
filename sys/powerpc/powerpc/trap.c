@@ -652,7 +652,7 @@ handle_kernel_slb_spill(int type, register_t dar, register_t srr0)
 	int i;
 
 	addr = (type == EXC_ISE) ? srr0 : dar;
-	slbcache = PCPU_GET(slb);
+	slbcache = PCPU_GET(aim.slb);
 	esid = (uintptr_t)addr >> ADDR_SR_SHFT;
 	slbe = (esid << SLBE_ESID_SHIFT) | SLBE_VALID;
 	

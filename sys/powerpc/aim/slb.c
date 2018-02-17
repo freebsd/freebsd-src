@@ -426,7 +426,7 @@ slb_insert_kernel(uint64_t slbe, uint64_t slbv)
 	/* We don't want to be preempted while modifying the kernel map */
 	critical_enter();
 
-	slbcache = PCPU_GET(slb);
+	slbcache = PCPU_GET(aim.slb);
 
 	/* Check for an unused slot, abusing the user slot as a full flag */
 	if (slbcache[USER_SLB_SLOT].slbe == 0) {
