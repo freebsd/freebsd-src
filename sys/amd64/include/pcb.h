@@ -90,7 +90,7 @@ struct pcb {
 	/* copyin/out fault recovery */
 	caddr_t		pcb_onfault;
 
-	uint64_t	pcb_pad0;
+	uint64_t	pcb_saved_ucr3;
 
 	/* local tss, with i/o bitmap; NULL for common */
 	struct amd64tss *pcb_tssp;

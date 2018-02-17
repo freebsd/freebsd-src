@@ -218,11 +218,6 @@ trap(struct trapframe *frame)
 #endif
 	}
 
-	if (type == T_MCHK) {
-		mca_intr();
-		return;
-	}
-
 	if ((frame->tf_rflags & PSL_I) == 0) {
 		/*
 		 * Buggy application or kernel code has disabled
@@ -446,9 +441,28 @@ trap(struct trapframe *frame)
 			 * problem here and not have to check all the
 			 * selectors and pointers when the user changes
 			 * them.
+			 *
+			 * In case of PTI, the IRETQ faulted while the
+			 * kernel used the pti stack, and exception
+			 * frame records %rsp value pointing to that
+			 * stack.  If we return normally to
+			 * doreti_iret_fault, the trapframe is
+			 * reconstructed on pti stack, and calltrap()
+			 * called on it as well.  Due to the very
+			 * limited pti stack size, kernel does not
+			 * survive for too long.  Switch to the normal
+			 * thread stack for the trap handling.
+			 *
+			 * Magic '5' is the number of qwords occupied by
+			 * the hardware trap frame.
 			 */
 			if (frame->tf_rip == (long)doreti_iret) {
 				frame->tf_rip = (long)doreti_iret_fault;
+				if (pti && frame->tf_rsp == (uintptr_t)PCPU_PTR(
+				    pti_stack) + (PC_PTI_STACK_SZ - 5) *
+				    sizeof(register_t))
+					frame->tf_rsp = PCPU_GET(rsp0) - 5 *
+					    sizeof(register_t);
 				return;
 			}
 			if (frame->tf_rip == (long)ld_ds) {
@@ -684,6 +698,17 @@ trap_pfault(struct trapframe *frame, int usermode)
 		trap_fatal(frame, eva);
 		return (-1);
 	}
+
+	/*
+	 * If nx protection of the usermode portion of kernel page
+	 * tables caused trap, panic.
+	 */
+	if (pti && usermode && pg_nx != 0 && (frame->tf_err & (PGEX_P | PGEX_W |
+	    PGEX_U | PGEX_I)) == (PGEX_P | PGEX_U | PGEX_I) &&
+	    (curpcb->pcb_saved_ucr3 & ~CR3_PCID_MASK)==
+	    (PCPU_GET(curpmap)->pm_cr3 & ~CR3_PCID_MASK))
+		panic("PTI: pid %d comm %s tf_err %#lx\n", p->p_pid,
+		    p->p_comm, frame->tf_err);
 
 	/*
 	 * PGEX_I is defined only if the execute disable bit capability is
