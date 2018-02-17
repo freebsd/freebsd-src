@@ -305,7 +305,7 @@ function config.loadkernel()
 
 			-- succeeded add path to module_path
 			if res ~= nil then
-				if module_path == nil then
+				if module_path ~= nil then
 					loader.setenv("module_path", v..";"..
 					    module_path);
 				end
