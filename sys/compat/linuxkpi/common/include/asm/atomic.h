@@ -162,10 +162,10 @@ atomic_cmpxchg(atomic_t *v, int old, int new)
 #define	cmpxchg(ptr, old, new) ({					\
 	union {								\
 		__typeof(*(ptr)) val;					\
-		u8 u8[];						\
-		u16 u16[];						\
-		u32 u32[];						\
-		u64 u64[];						\
+		u8 u8[0];						\
+		u16 u16[0];						\
+		u32 u32[0];						\
+		u64 u64[0];						\
 	} __ret = { .val = (old) }, __new = { .val = (new) };		\
 									\
 	CTASSERT(sizeof(__ret.val) == 1 || sizeof(__ret.val) == 2 ||	\
