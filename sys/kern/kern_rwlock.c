@@ -645,9 +645,12 @@ __rw_rlock_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 	WITNESS_CHECKORDER(&rw->lock_object, LOP_NEWORDER, file, line, NULL);
 
 	v = RW_READ_VALUE(rw);
-	if (__predict_false(LOCKSTAT_OOL_PROFILE_ENABLED(rw__acquire) ||
+	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(rw__acquire) ||
 	    !__rw_rlock_try(rw, td, &v, true LOCK_FILE_LINE_ARG)))
 		__rw_rlock_hard(rw, td, v LOCK_FILE_LINE_ARG);
+	else
+		lock_profile_obtain_lock_success(&rw->lock_object, 0, 0,
+		    file, line);
 
 	LOCK_LOG_LOCK("RLOCK", &rw->lock_object, 0, 0, file, line);
 	WITNESS_LOCK(&rw->lock_object, 0, file, line);
@@ -839,9 +842,11 @@ _rw_runlock_cookie_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 	td = curthread;
 	v = RW_READ_VALUE(rw);
 
-	if (__predict_false(LOCKSTAT_OOL_PROFILE_ENABLED(rw__release) ||
+	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(rw__release) ||
 	    !__rw_runlock_try(rw, td, &v)))
 		__rw_runlock_hard(rw, td, v LOCK_FILE_LINE_ARG);
+	else
+		lock_profile_release_lock(&rw->lock_object);
 
 	TD_LOCKS_DEC(curthread);
 }
