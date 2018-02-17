@@ -280,7 +280,7 @@ function config.loadkernel(other_kernel)
 		end
 
 		return try_load(bootfile);
-	end;
+	end
 
 	-- kernel not set, try load from default module_path
 	if kernel == nil then
