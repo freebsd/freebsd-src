@@ -817,12 +817,10 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 
 	sx_assert(&proctree_lock, SA_XLOCKED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	KASSERT(p->p_state == PRS_ZOMBIE, ("proc_reap: !PRS_ZOMBIE"));
 
 	q = td->td_proc;
 
-	PROC_SUNLOCK(p);
 	if (status)
 		*status = KW_EXITCODE(p->p_xexit, p->p_xsig);
 	if (options & WNOWAIT) {
@@ -1090,7 +1088,6 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 	}
 
 	if (p->p_state == PRS_ZOMBIE && !check_only) {
-		PROC_SLOCK(p);
 		proc_reap(td, p, status, options);
 		return (-1);
 	}
