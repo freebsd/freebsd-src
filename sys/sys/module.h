@@ -201,7 +201,7 @@ struct mod_pnp_match_info
  *	D	pointer to a string to human readable description for device
  *	P	A pointer that should be ignored
  *	E	EISA PNP Identifier (in binary, but bus publishes string)
- *	K	Key for whole table. pnp_name=value. must be last, if present.
+ *	T	Key for whole table. pnp_name=value. must be last, if present.
  *
  * The pnp_name "#" is reserved for other fields that should be ignored.
  * Otherwise pnp_name must match the name from the parent device's pnpinfo
