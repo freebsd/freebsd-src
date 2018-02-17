@@ -69,7 +69,7 @@ cap_vsyslog(cap_channel_t *chan, int priority, const char *fmt, va_list ap)
 	nvlist_add_string(nvl, "cmd", "vsyslog");
 	nvlist_add_number(nvl, "priority", priority);
 	nvlist_add_string(nvl, "message", message);
-	nvl = cap_xfer_nvlist(chan, nvl, 0);
+	nvl = cap_xfer_nvlist(chan, nvl);
 	if (nvl == NULL) {
 		return;
 	}
@@ -88,7 +88,7 @@ cap_openlog(cap_channel_t *chan, const char *ident, int logopt, int facility)
 	}
 	nvlist_add_number(nvl, "logopt", logopt);
 	nvlist_add_number(nvl, "facility", facility);
-	nvl = cap_xfer_nvlist(chan, nvl, 0);
+	nvl = cap_xfer_nvlist(chan, nvl);
 	if (nvl == NULL) {
 		return;
 	}
@@ -102,7 +102,7 @@ cap_closelog(cap_channel_t *chan)
 
 	nvl = nvlist_create(0);
 	nvlist_add_string(nvl, "cmd", "closelog");
-	nvl = cap_xfer_nvlist(chan, nvl, 0);
+	nvl = cap_xfer_nvlist(chan, nvl);
 	if (nvl == NULL) {
 		return;
 	}
@@ -118,7 +118,7 @@ cap_setlogmask(cap_channel_t *chan, int maskpri)
 	nvl = nvlist_create(0);
 	nvlist_add_string(nvl, "cmd", "setlogmask");
 	nvlist_add_number(nvl, "maskpri", maskpri);
-	nvl = cap_xfer_nvlist(chan, nvl, 0);
+	nvl = cap_xfer_nvlist(chan, nvl);
 	omask = nvlist_get_number(nvl, "omask");
 
 	nvlist_destroy(nvl);
