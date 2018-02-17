@@ -297,7 +297,10 @@ function config.loadkernel()
 
 			-- succeeded add path to module_path
 			if res ~= nil then
-				loader.setenv("module_path", v..";"..module_path);
+				if module_path == nil then
+					loader.setenv("module_path", v..";"..
+					    module_path);
+				end
 				return true;
 			end
 		end
@@ -308,7 +311,7 @@ function config.loadkernel()
 		if res ~= nil then
 			return true;
 		else
-			print("Failed to load kernel '"..res.."'");
+			print("Failed to load kernel '"..kernel.."'");
 			return false;
 		end
 	end
