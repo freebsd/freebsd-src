@@ -314,6 +314,7 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 							notme++;
 						break;
 					default:
+						fprintf(stderr, "Unknown field type %c\n:", *cp);
 						break;
 					}
 					bit++;
