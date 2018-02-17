@@ -48,5 +48,10 @@ struct lock_class_key {
 #define	lockdep_is_held(m)	(sx_xholder(&(m)->sx) == curthread)
 
 #define	might_lock(m)	do { } while (0)
+#define	might_lock_read(m) do { } while (0)
+
+#define	lock_acquire(...) do { } while (0)
+#define	lock_release(...) do { } while (0)
+#define	lock_acquire_shared_recursive(...) do { } while (0)
 
 #endif /* _LINUX_LOCKDEP_H_ */
