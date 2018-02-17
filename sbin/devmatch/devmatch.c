@@ -265,6 +265,7 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 				bit = -1;
 				do {
 					switch (*cp) {
+						/* All integer fields */
 					case 'I':
 					case 'J':
 					case 'G':
@@ -300,6 +301,7 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 							break;
 						}
 						break;
+						/* String fields */
 					case 'D':
 					case 'Z':
 						getstr(&ptr, val1);
@@ -311,6 +313,22 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 							break;
 						s = pnpval_as_str(cp + 2, pnpinfo);
 						if (strcmp(s, val1) != 0)
+							notme++;
+						break;
+						/* Key override fields, required to be last in the string */
+					case 'T':
+						/*
+						 * This is imperfect and only does one key and will be redone
+						 * to be more general for multiple keys. Currently, nothing
+						 * does that.
+						 */
+						if (dump_flag)				/* No per-row data stored */
+							break;
+						if (cp[strlen(cp) - 1] == ';')		/* Skip required ; at end */
+							cp[strlen(cp) - 1] = '\0';	/* in case it's not there */
+						if ((s = strstr(pnpinfo, cp + 2)) == NULL)
+							notme++;
+						else if (s > pnpinfo && s[-1] != ' ')
 							notme++;
 						break;
 					default:
