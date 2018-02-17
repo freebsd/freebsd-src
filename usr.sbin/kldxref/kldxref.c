@@ -213,12 +213,12 @@ typedef TAILQ_HEAD(pnp_head, pnp_elt) pnp_list;
  *	type	Output		Meaning
  *	I	uint32_t	Integer equality comparison
  *	J	uint32_t	Pair of uint16_t fields converted to native
-				byte order. The two fields both must match.
+ *				byte order. The two fields both must match.
  *	G	uint32_t	Greater than or equal to
  *	L	uint32_t	Less than or equal to
  *	M	uint32_t	Mask of which fields to test. Fields that
-				take up space increment the count. This
-				field must be first, and resets the count.
+ *				take up space increment the count. This
+ *				field must be first, and resets the count.
  *	D	string		Description of the device this pnp info is for
  *	Z	string		pnp string must match this
  *	T	nothing		T fields set pnp values that must be true for
