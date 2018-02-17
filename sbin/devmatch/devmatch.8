@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 12, 2018
+.Dd February 16, 2018
 .Dt DEVMATCH 8
 .Os
 .Sh NAME
@@ -33,9 +33,10 @@
 .Nd print information about unattached devices
 .Sh SYNOPSIS
 .Nm
-.Op Fl aduv
+.Op Fl adpuv
 .Op Fl -all
 .Op Fl -dump
+.Op Fl -nomatch
 .Op Fl -unbound
 .Op Fl -verbose
 .Sh DESCRIPTION
@@ -50,6 +51,10 @@ Include all devices, not just the ones that are unattached.
 Produce a human readable dump of the
 .Pa linker.hints
 file.
+.It Fl p Fl -nomatch
+Parse and use a standard NOMATCH event from
+.Xr devd 8
+for matching instead of searching the device tree.
 .It Fl u Fl -unbound
 Attempt to produce a list of those drivers with PNP info whose driver
 tables with that PNP info can't be found.

@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 static struct option longopts[] = {
 	{ "all",		no_argument,		NULL,	'a' },
 	{ "dump",		no_argument,		NULL,	'd' },
+	{ "nomatch",		required_argument,	NULL,	'p' },
 	{ "unbound",		no_argument,		NULL,	'u' },
 	{ "verbose",		no_argument,		NULL,	'v' },
 	{ NULL,			0,			NULL,	0 }
@@ -54,6 +55,7 @@ static struct option longopts[] = {
 
 static int all_flag;
 static int dump_flag;
+static char *nomatch_str;
 static int unbound_flag;
 static int verbose_flag;
 
@@ -398,6 +400,46 @@ find_unmatched(struct devinfo_dev *dev, void *arg)
 }
 
 static void
+find_nomatch(char *nomatch)
+{
+	char *bus, *pnpinfo, *tmp;
+
+	/*
+	 * Find our bus name. It will include the unit number. We have to search
+	 * backwards to avoid false positive for any PNP string that has ' on '
+	 * in them, which would come earlier in the string. Like if there were
+	 * an 'Old Bard' ethernet card made by 'Stratford on Avon Hardware' or
+	 * something silly like that.
+	 */
+	tmp = nomatch + strlen(nomatch) - 4;
+	while (tmp > nomatch && strncmp(tmp, " on ", 4) != 0)
+		tmp--;
+	if (tmp == nomatch)
+		errx(1, "No bus found in nomatch string: '%s'", nomatch);
+	bus = tmp + 4;
+	*tmp = '\0';
+	tmp = bus + strlen(bus) - 1;
+	while (tmp > bus && isdigit(*tmp))
+		tmp--;
+	*++tmp = '\0';
+
+	/*
+	 * Note: the NOMATCH events place both the bus location as well as the
+	 * pnp info after the 'at' and we don't know where one stops and the
+	 * other begins, so we pass the whole thing to our search routine.
+	 */
+	if (*nomatch == '?')
+		nomatch++;
+	if (strncmp(nomatch, " at ", 4) != 0)
+		errx(1, "Malformed NOMATCH string: '%s'", nomatch);
+	pnpinfo = nomatch + 4;
+
+	search_hints(bus, "", pnpinfo);
+
+	exit(0);
+}
+
+static void
 usage(void)
 {
 
@@ -410,7 +452,7 @@ main(int argc, char **argv)
 	struct devinfo_dev *root;
 	int ch;
 
-	while ((ch = getopt_long(argc, argv, "aduv",
+	while ((ch = getopt_long(argc, argv, "adp:uv",
 		    longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'a':
@@ -418,6 +460,9 @@ main(int argc, char **argv)
 			break;
 		case 'd':
 			dump_flag++;
+			break;
+		case 'p':
+			nomatch_str = optarg;
 			break;
 		case 'u':
 			unbound_flag++;
@@ -441,6 +486,8 @@ main(int argc, char **argv)
 		exit(0);
 	}
 
+	if (nomatch_str != NULL)
+		find_nomatch(nomatch_str);
 	if (devinfo_init())
 		err(1, "devinfo_init");
 	if ((root = devinfo_handle_to_device(DEVINFO_ROOT_DEVICE)) == NULL)
