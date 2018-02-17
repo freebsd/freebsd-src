@@ -204,11 +204,17 @@ menu.welcome = {
 				return "Kernel: ";
 			end
 
-			local kernel_name = color.escapef(color.GREEN) ..
-			    choice .. color.default();
-			if (idx == 1) then
-				kernel_name = "default/" .. kernel_name;
+			local is_default = (idx == 1);
+			local kernel_name = "";
+			local name_color;
+			if is_default then
+				name_color = color.escapef(color.GREEN);
+				kernel_name = "default/";
+			else
+				name_color = color.escapef(color.BLUE);
 			end
+			kernel_name = kernel_name .. name_color .. choice ..
+			    color.default();
 			return color.highlight("K").."ernel: " .. kernel_name ..
 			    " (" .. idx ..
 			    " of " .. #all_choices .. ")";
