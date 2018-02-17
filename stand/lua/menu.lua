@@ -63,7 +63,7 @@ menu.boot_options = {
 			return "Load System "..color.highlight("D").."efaults";
 		end,
 		func = function()
-			core.setDefaults()
+			core.setDefaults();
 		end,
 		alias = {"d", "D"}
 	},
@@ -162,7 +162,7 @@ menu.welcome = {
 			return color.highlight("Esc").."ape to loader prompt";
 		end,
 		func = function()
-			loader.setenv("autoboot_delay", "NO")
+			loader.setenv("autoboot_delay", "NO");
 		end,
 		alias = {core.KEYSTR_ESCAPE}
 	},
@@ -200,14 +200,14 @@ menu.welcome = {
 		carousel_id = "kernel",
 		items = core.kernelList,
 		name = function(idx, choice, all_choices)
-			if #all_choices == 0 then
+			if (#all_choices == 0) then
 				return "Kernel: ";
 			end
 
 			local is_default = (idx == 1);
 			local kernel_name = "";
 			local name_color;
-			if is_default then
+			if (is_default) then
 				name_color = color.escapef(color.GREEN);
 				kernel_name = "default/";
 			else
@@ -273,7 +273,7 @@ function menu.run(m)
 	menu.autoboot();
 
 	cont = true;
-	while cont do
+	while (cont) do
 		local key = io.getchar();
 
 		-- Special key behaviors
@@ -295,7 +295,7 @@ function menu.run(m)
 		end
 
 		-- if we have an alias do the assigned action:
-		if(sel_entry ~= nil) then
+		if (sel_entry ~= nil) then
 			if (sel_entry.entry_type == core.MENU_ENTRY) then
 				-- run function
 				sel_entry.func();
@@ -339,11 +339,11 @@ function menu.run(m)
 end
 
 function menu.skip()
-	if core.bootserial() then
+	if (core.bootserial() )then
 		return true;
 	end
 	local c = string.lower(loader.getenv("console") or "");
-	if (c:match("^efi[ ;]") or c:match("[ ;]efi[ ;]")) ~= nil then
+	if ((c:match("^efi[ ;]") or c:match("[ ;]efi[ ;]")) ~= nil) then
 		return true;
 	end
 
@@ -353,7 +353,7 @@ function menu.skip()
 end
 
 function menu.autoboot()
-	if menu.already_autoboot == true then
+	if (menu.already_autoboot == true) then
 		return;
 	end
 	menu.already_autoboot = true;
@@ -378,9 +378,9 @@ function menu.autoboot()
 		print("Autoboot in "..time.." seconds, hit [Enter] to boot"
 			      .." or any other key to stop     ");
 		screen.defcursor();
-		if io.ischar() then
+		if (io.ischar()) then
 			local ch = io.getchar();
-			if ch == core.KEY_ENTER then
+			if (ch == core.KEY_ENTER) then
 				break;
 			else
 				-- erase autoboot msg
@@ -406,4 +406,4 @@ function OnOff(str, b)
 	end
 end
 
-return menu
+return menu;

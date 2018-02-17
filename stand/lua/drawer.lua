@@ -179,7 +179,7 @@ function drawer.drawmenu(m)
 
 				if (#choices < caridx) then
 					caridx = 1;
-				end;
+				end
 				name = e.name(caridx, choices[caridx], choices);
 			else
 				name = e.name();
@@ -247,60 +247,48 @@ function drawer.draw(x, y, logo)
 end
 
 function drawer.drawbrand()
-	local x = tonumber(loader.getenv("loader_brand_x"));
-	local y = tonumber(loader.getenv("loader_brand_y"));
+	local x = tonumber(loader.getenv("loader_brand_x")) or
+	    drawer.brand_position.x;
+	local y = tonumber(loader.getenv("loader_brand_y")) or
+	    drawer.brand_position.y;
 
-	if not x then
-		x = drawer.brand_position.x;
-	end
-	if not y then
-		y = drawer.brand_position.y;
-	end
-
-	local logo = load("return " .. tostring(loader.getenv("loader_brand")))();
-	if not logo then
-		logo = drawer.fbsd_logo;
-	end
+	local logo = load("return " .. tostring(loader.getenv("loader_brand")))() or
+	    drawer.fbsd_logo;
 	drawer.draw(x, y, logo);
 end
 
 function drawer.drawlogo()
-	local x = tonumber(loader.getenv("loader_logo_x"));
-	local y = tonumber(loader.getenv("loader_logo_y"));
-
-	if not x then
-		x = drawer.logo_position.x;
-	end
-	if not y then
-		y = drawer.logo_position.y;
-	end
+	local x = tonumber(loader.getenv("loader_logo_x")) or
+	    drawer.logo_position.x;
+	local y = tonumber(loader.getenv("loader_logo_y")) or
+	    drawer.logo_position.y;
 
 	local logo = loader.getenv("loader_logo");
 	local s = {x = 0, y = 0};
 	local colored = color.isEnabled();
 
-	if logo == "beastie" then
-		if colored then
+	if (logo == "beastie") then
+		if (colored) then
 			logo = drawer.beastie_color;
 		end
-	elseif logo == "beastiebw" then
+	elseif (logo == "beastiebw") then
 		logo = drawer.beastie;
-	elseif logo == "fbsdbw" then
+	elseif (logo == "fbsdbw") then
 		logo = drawer.fbsd_logo_v;
 		s = drawer.fbsd_logo_shift;
-	elseif logo == "orb" then
-		if colored then
+	elseif (logo == "orb") then
+		if (colored) then
 			logo = drawer.orb_color;
 		end
 		s = drawer.orb_shift;
-	elseif logo == "orbbw" then
+	elseif (logo == "orbbw") then
 		logo = drawer.orb;
 		s = drawer.orb_shift;
-	elseif logo == "tribute" then
+	elseif (logo == "tribute") then
 		logo = drawer.fbsd_logo;
-	elseif logo == "tributebw" then
+	elseif (logo == "tributebw") then
 		logo = drawer.fbsd_logo;
-	elseif logo == "none" then
+	elseif (logo == "none") then
 		--centre brand and text if no logo
 		drawer.brand_position.x = drawer.brand_position.x + drawer.none_shift.x;
 		drawer.brand_position.y = drawer.brand_position.y + drawer.none_shift.y;
@@ -313,8 +301,8 @@ function drawer.drawlogo()
 		drawer.none_shift.y = 0;
 		logo = drawer.none;
 	end
-	if not logo then
-		if colored then
+	if (not logo) then
+		if (colored) then
 			logo = drawer.orb_color;
 		else
 			logo = drawer.orb;
@@ -323,4 +311,4 @@ function drawer.drawlogo()
 	drawer.draw(x + s.x, y + s.y, logo);
 end
 
-return drawer
+return drawer;

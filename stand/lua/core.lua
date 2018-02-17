@@ -128,13 +128,13 @@ function core.kernelList()
 
 	local kernels = {};
 	local i = 0;
-	if k ~= nil then
+	if (k ~= nil) then
 		i = i + 1;
 		kernels[i] = k;
 	end
 
 	for n in v:gmatch("([^; ]+)[; ]?") do
-		if n ~= k then
+		if (n ~= k) then
 			i = i + 1;
 			kernels[i] = n;
 		end
@@ -160,23 +160,23 @@ end
 function core.bootserial()
 	local c = loader.getenv("console");
 
-	if c ~= nil then
-		if c:find("comconsole") ~= nil then
+	if (c ~= nil) then
+		if (c:find("comconsole") ~= nil) then
 			return true;
 		end
 	end
 
 	local s = loader.getenv("boot_serial");
-	if s ~= nil then
+	if (s ~= nil) then
 		return true;
 	end
 
 	local m = loader.getenv("boot_multicons");
-	if m ~= nil then
+	if (m ~= nil) then
 		return true;
 	end
 	return false;
 end
 
-core.setACPI(core.getACPIPresent(false))
-return core
+core.setACPI(core.getACPIPresent(false));
+return core;
