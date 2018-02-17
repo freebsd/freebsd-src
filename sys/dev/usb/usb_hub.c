@@ -1733,7 +1733,12 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 	}
 	iface = usbd_get_iface(res.udev, res.iface_index);
 	if (iface && iface->idesc) {
-		snprintf(buf, buflen, "vendor=0x%04x product=0x%04x "
+		snprintf(buf, buflen,
+		    "bus=usb "
+#if USB_HAVE_UGEN
+		    "device=%s "
+#endif
+		    "vendor=0x%04x product=0x%04x "
 		    "devclass=0x%02x devsubclass=0x%02x "
 		    "devproto=0x%02x "
 		    "sernum=\"%s\" "
@@ -1741,6 +1746,9 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 		    "mode=%s "
 		    "intclass=0x%02x intsubclass=0x%02x "
 		    "intprotocol=0x%02x" "%s%s",
+#if USB_HAVE_UGEN
+		    res.udev->ugen_name,
+#endif
 		    UGETW(res.udev->ddesc.idVendor),
 		    UGETW(res.udev->ddesc.idProduct),
 		    res.udev->ddesc.bDeviceClass,
