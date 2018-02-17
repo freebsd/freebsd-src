@@ -210,59 +210,34 @@ lua_readfile(lua_State *L)
 	return 2;
 }
 
-void
-lregister(lua_State *L, const char *tableName, const char *funcName, int (*funcPointer)(lua_State *))
-{
-	lua_getglobal(L, tableName);
-	if (!lua_istable(L, -1)) {
-		lua_pop(L, 1);
-		lua_newtable(L);
-		lua_setglobal(L, tableName);
-		lua_getglobal(L, tableName);
-	}
+#define REG_SIMPLE(n)	{ #n, lua_ ## n }
+static const struct luaL_Reg loaderlib[] = {
+	REG_SIMPLE(delay),
+	REG_SIMPLE(getenv),
+	REG_SIMPLE(perform),
+	REG_SIMPLE(printc),
+	REG_SIMPLE(setenv),
+	REG_SIMPLE(time),
+	REG_SIMPLE(unsetenv),
+	{ NULL, NULL },
+};
 
-	lua_pushcfunction(L, funcPointer);
-	lua_setfield(L, -2, funcName);
-	lua_pop(L, 1);
-}
-
-
-typedef struct utils_func
-{
-	int (*func)(lua_State *);
-	const char *table;
-	const char *name;
-} utils_func;
-
-static utils_func reg_funcs[] = {
-			{lua_delay, "loader", "delay"},
-			{lua_getenv, "loader", "getenv"},
-			{lua_perform, "loader", "perform"},
-			{lua_printc, "loader", "printc"},
-			{lua_setenv, "loader", "setenv"},
-			{lua_time, "loader", "time"},
-			{lua_unsetenv, "loader", "unsetenv"},
-
-			{lua_closefile, "io", "close"},
-			{lua_getchar, "io", "getchar"},
-			{lua_gets, "io", "gets"},
-			{lua_ischar, "io", "ischar"},
-			{lua_openfile, "io", "open"},
-			{lua_readfile, "io", "read"},
-
-			{NULL, NULL, NULL},
-			};
+static const struct luaL_Reg iolib[] = {
+	{ "close", lua_closefile },
+	REG_SIMPLE(getchar),
+	REG_SIMPLE(gets),
+	REG_SIMPLE(ischar),
+	{ "open", lua_openfile },
+	{ "read", lua_readfile },
+	{ NULL, NULL },
+};
+#undef REG_SIMPLE
 
 void
 register_utils(lua_State *L)
 {
-	utils_func	*f = reg_funcs;
-
-	while (f->func != NULL && f->name != NULL) {
-		if (f->table != NULL)
-			lregister(L, f->table, f->name, f->func);
-		else
-			lua_register(L, f->name, f->func);
-		++f;
-	}
+	luaL_newlib(L, loaderlib);
+	lua_setglobal(L, "loader");
+	luaL_newlib(L, iolib);
+	lua_setglobal(L, "io");
 }
