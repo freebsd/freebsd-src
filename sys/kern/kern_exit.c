@@ -193,6 +193,7 @@ exit1(struct thread *td, int rval, int signo)
 	struct proc *p, *nq, *q, *t;
 	struct thread *tdt;
 	ksiginfo_t *ksi, *ksi1;
+	int signal_parent;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
 	KASSERT(rval == 0 || signo == 0, ("exit1 rv %d sig %d", rval, signo));
@@ -559,6 +560,7 @@ exit1(struct thread *td, int rval, int signo)
 	 * procdesc_exit() to serialize concurrent calls to close() and
 	 * exit().
 	 */
+	signal_parent = 0;
 	if (p->p_procdesc == NULL || procdesc_exit(p)) {
 		/*
 		 * Notify parent that we're gone.  If parent has the
@@ -588,17 +590,24 @@ exit1(struct thread *td, int rval, int signo)
 		} else
 			mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
 
-		if (p->p_pptr == p->p_reaper || p->p_pptr == initproc)
-			childproc_exited(p);
-		else if (p->p_sigparent != 0) {
-			if (p->p_sigparent == SIGCHLD)
-				childproc_exited(p);
-			else	/* LINUX thread */
-				kern_psignal(p->p_pptr, p->p_sigparent);
+		if (p->p_pptr == p->p_reaper || p->p_pptr == initproc) {
+			signal_parent = 1;
+		} else if (p->p_sigparent != 0) {
+			if (p->p_sigparent == SIGCHLD) {
+				signal_parent = 1;
+			} else { /* LINUX thread */
+				signal_parent = 2;
+			}
 		}
 	} else
 		PROC_LOCK(p->p_pptr);
 	sx_xunlock(&proctree_lock);
+
+	if (signal_parent == 1) {
+		childproc_exited(p);
+	} else if (signal_parent == 2) {
+		kern_psignal(p->p_pptr, p->p_sigparent);
+	}
 
 	/* Tell the prison that we are gone. */
 	prison_proc_free(p->p_ucred->cr_prison);
