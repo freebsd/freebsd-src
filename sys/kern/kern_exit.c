@@ -1202,21 +1202,21 @@ loop:
 		q->p_flag &= ~P_STATCHILD;
 		PROC_UNLOCK(q);
 	}
-	nfound = 0;
 	sx_xlock(&proctree_lock);
+loop_locked:
+	nfound = 0;
 	LIST_FOREACH(p, &q->p_children, p_sibling) {
 		pid = p->p_pid;
 		ret = proc_to_reap(td, p, idtype, id, status, options,
 		    wrusage, siginfo, 0);
 		if (ret == 0)
 			continue;
-		else if (ret == 1)
-			nfound++;
-		else {
+		else if (ret != 1) {
 			td->td_retval[0] = pid;
 			return (0);
 		}
 
+		nfound++;
 		PROC_LOCK_ASSERT(p, MA_OWNED);
 
 		if ((options & (WTRAPPED | WUNTRACED)) != 0)
@@ -1237,7 +1237,7 @@ loop:
 			report_alive_proc(td, p, siginfo, status, options,
 			    CLD_TRAPPED);
 			return (0);
-			}
+		}
 		if ((options & WUNTRACED) != 0 &&
 		    (p->p_flag & P_STOPPED_SIG) != 0 &&
 		    p->p_suspcount == p->p_numthreads &&
@@ -1293,13 +1293,13 @@ loop:
 		return (0);
 	}
 	PROC_LOCK(q);
-	sx_xunlock(&proctree_lock);
 	if (q->p_flag & P_STATCHILD) {
 		q->p_flag &= ~P_STATCHILD;
-		error = 0;
-	} else
-		error = msleep(q, &q->p_mtx, PWAIT | PCATCH, "wait", 0);
-	PROC_UNLOCK(q);
+		PROC_UNLOCK(q);
+		goto loop_locked;
+	}
+	sx_xunlock(&proctree_lock);
+	error = msleep(q, &q->p_mtx, PWAIT | PCATCH | PDROP, "wait", 0);
 	if (error)
 		return (error);
 	goto loop;
