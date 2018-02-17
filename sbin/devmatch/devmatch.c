@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 static struct option longopts[] = {
 	{ "all",		no_argument,		NULL,	'a' },
 	{ "dump",		no_argument,		NULL,	'd' },
+	{ "hints",		required_argument,	NULL,	'h' },
 	{ "nomatch",		required_argument,	NULL,	'p' },
 	{ "unbound",		no_argument,		NULL,	'u' },
 	{ "verbose",		no_argument,		NULL,	'v' },
@@ -55,6 +56,7 @@ static struct option longopts[] = {
 
 static int all_flag;
 static int dump_flag;
+static char *linker_hints;
 static char *nomatch_str;
 static int unbound_flag;
 static int verbose_flag;
@@ -62,47 +64,66 @@ static int verbose_flag;
 static void *hints;
 static void *hints_end;
 
+static void *
+read_hints(const char *fn, size_t *len)
+{
+	void *h;
+	int fd;
+	struct stat sb;
+
+	fd = open(fn, O_RDONLY);
+	if (fd < 0) {
+		if (errno == ENOENT)
+			return NULL;
+		err(1, "Can't open %s for reading", fn);
+	}
+	if (fstat(fd, &sb) != 0)
+		err(1, "Can't fstat %s\n", fn);
+	h = malloc(sb.st_size);
+	if (h == NULL)
+		err(1, "not enough space to read hints file of %ju bytes", (uintmax_t)sb.st_size);
+	if (read(fd, h, sb.st_size) != sb.st_size)
+		err(1, "Can't read in %ju bytes from %s", (uintmax_t)sb.st_size, fn);
+	close(fd);
+	*len = sb.st_size;
+	return h;
+}
+
 static void
 read_linker_hints(void)
 {
 	char fn[MAXPATHLEN];
-	struct stat sb;
 	char *modpath, *p, *q;
-	size_t buflen;
-	int fd;
+	size_t buflen, len;
 
-	if (sysctlbyname("kern.module_path", NULL, &buflen, NULL, 0) < 0)
-		errx(1, "Can't find kernel module path.");
-	modpath = malloc(buflen);
-	if (modpath == NULL)
-		err(1, "Can't get memory for modpath.");
-	if (sysctlbyname("kern.module_path", modpath, &buflen, NULL, 0) < 0)
-		errx(1, "Can't find kernel module path.");
-	p = modpath;
-	while ((q = strsep(&p, ";")) != NULL) {
-		snprintf(fn, sizeof(fn), "%s/linker.hints", q);
-		fd = open(fn, O_RDONLY);
-		if (fd < 0) {
-			if (errno == ENOENT)
+	if (linker_hints == NULL) {
+		if (sysctlbyname("kern.module_path", NULL, &buflen, NULL, 0) < 0)
+			errx(1, "Can't find kernel module path.");
+		modpath = malloc(buflen);
+		if (modpath == NULL)
+			err(1, "Can't get memory for modpath.");
+		if (sysctlbyname("kern.module_path", modpath, &buflen, NULL, 0) < 0)
+			errx(1, "Can't find kernel module path.");
+		p = modpath;
+		while ((q = strsep(&p, ";")) != NULL) {
+			snprintf(fn, sizeof(fn), "%s/linker.hints", q);
+			hints = read_hints(fn, &len);
+			if (hints == NULL)
 				continue;
-			err(1, "Can't open %s for reading", fn);
+			break;
 		}
-		if (fstat(fd, &sb) != 0)
-			err(1, "Can't fstat %s\n", fn);
-		hints = malloc(sb.st_size);
+		if (q == NULL) {
+			warnx("Can't read linker hints file.");
+			free(hints);
+			hints = NULL;
+			return;
+		}
+	} else {
+		hints = read_hints(linker_hints, &len);
 		if (hints == NULL)
-			err(1, "not enough space to read hints file of %ju bytes", (uintmax_t)sb.st_size);
-		if (read(fd, hints, sb.st_size) != sb.st_size)
-			err(1, "Can't read in %ju bytes from %s", (uintmax_t)sb.st_size, fn);
-		close(fd);
-		break;
+			err(1, "Can't open %s for reading", fn);
 	}
-	if (q == NULL) {
-		warnx("Can't read linker hints file.");
-		free(hints);
-		hints = NULL;
-		return;
-	}
+
 	if (*(int *)(intptr_t)hints != LINKER_HINTS_VERSION) {
 		warnx("Linker hints version %d doesn't match expected %d.",
 		    *(int *)(intptr_t)hints, LINKER_HINTS_VERSION);
@@ -110,7 +131,7 @@ read_linker_hints(void)
 		hints = NULL;
 	}
 	if (hints != NULL)
-		hints_end = (void *)((intptr_t)hints + (intptr_t)sb.st_size);
+		hints_end = (void *)((intptr_t)hints + (intptr_t)len);
 }
 
 static int
@@ -443,7 +464,7 @@ static void
 usage(void)
 {
 
-	errx(1, "devmatch [-adv]");
+	errx(1, "devmatch [-adv] [-p nomatch] [-h linker-hints]");
 }
 
 int
@@ -452,7 +473,7 @@ main(int argc, char **argv)
 	struct devinfo_dev *root;
 	int ch;
 
-	while ((ch = getopt_long(argc, argv, "adp:uv",
+	while ((ch = getopt_long(argc, argv, "adh:p:uv",
 		    longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'a':
@@ -460,6 +481,9 @@ main(int argc, char **argv)
 			break;
 		case 'd':
 			dump_flag++;
+			break;
+		case 'h':
+			linker_hints = optarg;
 			break;
 		case 'p':
 			nomatch_str = optarg;
