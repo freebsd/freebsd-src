@@ -38,11 +38,11 @@ function config.setKey(k, n, v)
 end
 
 function config.dumpModules()
-	print("== Dumping modules")
+	print("== Dumping modules");
 	for k, v in pairs(modules) do
 		print(k, v.load);
 	end
-	print("== Dump ended")
+	print("== Dump ended");
 end
 
 local pattern_table = {
@@ -57,7 +57,7 @@ local pattern_table = {
 			if modules[k] == nil then
 				modules[k] = {};
 			end
-			modules[k].load = string.upper(v);
+			modules[k].load = v:upper();
 		end
 	},
 	--  module_name="value"
@@ -133,9 +133,9 @@ local pattern_table = {
 
 function config.isValidComment(c)
 	if c ~= nil then
-		local s = string.match(c, "^%s*#.*");
+		local s = c:match("^%s*#.*");
 		if s == nil then
-			s = string.match(c, "^%s*$");
+			s = c:match("^%s*$");
 		end
 		if s == nil then
 			return false;
@@ -221,13 +221,13 @@ function config.parse(name, silent)
 	local n = 1;
 	local status = true;
 
-	for line in string.gmatch(text, "([^\n]+)") do
+	for line in text:gmatch("([^\n]+)") do
 
-		if string.match(line, "^%s*$") == nil then
+		if line:match("^%s*$") == nil then
 			local found = false;
 
 			for i, val in ipairs(pattern_table) do
-				local k, v, c = string.match(line, val.str);
+				local k, v, c = line:match(val.str);
 				if k ~= nil then
 					found = true;
 
@@ -287,7 +287,7 @@ function config.loadkernel()
 		if res ~= nil then
 			return true;
 		else
-			print("Failed to load kernel '"..res.."'");
+			print("No kernel set, failed to load from module_path");
 			return false;
 		end
 	else
@@ -338,7 +338,7 @@ function config.load(file)
 
 	local f = loader.getenv("loader_conf_files");
 	if f ~= nil then
-		for name in string.gmatch(f, "([%w%p]+)%s*") do
+		for name in f:gmatch("([%w%p]+)%s*") do
 			if not config.parse(name) then
 --				print("Failed to parse configuration: '"..name.."'");
 			end
@@ -348,9 +348,9 @@ function config.load(file)
 	print("Loading kernel...");
 	config.loadkernel();
 
-	print("Loading configurations...");
+	print("Loading configured modules...");
 	if not config.loadmod(modules) then
-		print("Could not load configurations!");
+		print("Could not load one or more modules!");
 	end
 end
 
