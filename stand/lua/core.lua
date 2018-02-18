@@ -127,17 +127,47 @@ function core.kernelList()
 	local v = loader.getenv("kernels") or "";
 
 	local kernels = {};
+	local unique = {};
 	local i = 0;
 	if (k ~= nil) then
 		i = i + 1;
 		kernels[i] = k;
+		unique[k] = true;
 	end
 
 	for n in v:gmatch("([^; ]+)[; ]?") do
-		if (n ~= k) then
+		if (unique[n] == nil) then
 			i = i + 1;
 			kernels[i] = n;
+			unique[n] = true;
 		end
+	end
+
+	-- Automatically detect other bootable kernel directories using a
+	-- heuristic.  Any directory in /boot that contains an ordinary file
+	-- named "kernel" is considered eligible.
+	for file in lfs.dir("/boot") do
+		local fname = "/boot/" .. file;
+
+		if (file == "." or file == "..") then
+			goto continue;
+		end
+
+		if (lfs.attributes(fname, "mode") ~= "directory") then
+			goto continue;
+		end
+
+		if (lfs.attributes(fname .. "/kernel", "mode") ~= "file") then
+			goto continue;
+		end
+
+		if (unique[file] == nil) then
+			i = i + 1;
+			kernels[i] = file;
+			unique[file] = true;
+		end
+
+		::continue::
 	end
 	return kernels;
 end
