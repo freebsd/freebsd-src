@@ -284,6 +284,9 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 	walker = hints;
 	getint(&walker);
 	found = 0;
+	if (verbose_flag)
+		printf("Searching bus %s dev %s for pnpinfo %s\n",
+		    bus, dev, pnpinfo);
 	while (walker < hints_end) {
 		len = getint(&walker);
 		ival = getint(&walker);
@@ -293,7 +296,7 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 			getstr(&ptr, val1);
 			ival = getint(&ptr);
 			getstr(&ptr, val2);
-			if (dump_flag)
+			if (dump_flag || verbose_flag)
 				printf("Version: if %s.%d kmod %s\n", val1, ival, val2);
 			break;
 		case MDT_MODULE:
@@ -302,7 +305,7 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 			if (lastmod)
 				free(lastmod);
 			lastmod = strdup(val2);
-			if (dump_flag)
+			if (dump_flag || verbose_flag)
 				printf("Module %s in %s\n", val1, val2);
 			break;
 		case MDT_PNP_INFO:
@@ -311,12 +314,23 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 			getstr(&ptr, val1);
 			getstr(&ptr, val2);
 			ents = getint(&ptr);
-			if (bus && strcmp(val1, bus) != 0)
-				break;
-			if (dump_flag)
+			if (dump_flag || verbose_flag)
 				printf("PNP info for bus %s format %s %d entries (%s)\n",
 				    val1, val2, ents, lastmod);
+			if (strcmp(val1, "usb") == 0) {
+				if (verbose_flag)
+					printf("Treating usb as uhub -- bug in source table still?\n");
+				strcpy(val1, "uhub");
+			}
+			if (bus && strcmp(val1, bus) != 0) {
+				if (verbose_flag)
+					printf("Skipped because table for bus %s, looking for %s\n",
+					    val1, bus);
+				break;
+			}
 			for (i = 0; i < ents; i++) {
+				if (verbose_flag)
+					printf("---------- Entry %d ----------\n", i);
 				if (dump_flag)
 					printf("   ");
 				cp = val2;
@@ -339,6 +353,9 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 						if (bit >= 0 && ((1 << bit) & mask) == 0)
 							break;
 						v = pnpval_as_int(cp + 2, pnpinfo);
+						if (verbose_flag)
+							printf("Matching %s (%c) table=%#x tomatch=%#x\n",
+							    cp + 2, *cp, v, ival);
 						switch (*cp) {
 						case 'J':
 							if (ival == -1)
