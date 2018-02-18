@@ -115,7 +115,6 @@ local pattern_table = {
 	[10] = {
 		str = "^%s*([%w%p]+)%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			print("Setting '"..k.."' to '"..v.."'")
 			if loader.setenv(k, v) ~= 0 then
 				print("Failed to set '"..k.."' with value: "..v.."");
 			end
@@ -125,7 +124,6 @@ local pattern_table = {
 	[11] = {
 		str = "^%s*([%w%p]+)%s*=%s*(%d+)%s*(.*)",
 		process = function(k, v)
-			print("Setting '"..k.."' to '"..v.."'")
 			if loader.setenv(k, v) ~= 0 then
 				print("Failed to set '"..k.."' with value: "..v.."");
 			end
