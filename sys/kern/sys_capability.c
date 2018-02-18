@@ -352,7 +352,7 @@ cap_ioctl_check(struct filedesc *fdp, int fd, u_long cmd)
 		("%s: invalid fd=%d", __func__, fd));
 
 	fdep = fdeget_locked(fdp, fd);
-	KASSERT(fdep == NULL,
+	KASSERT(fdep != NULL,
 	    ("%s: invalid fd=%d", __func__, fd));
 
 	ncmds = fdep->fde_nioctls;
