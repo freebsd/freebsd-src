@@ -24,6 +24,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014 by Delphix. All rights reserved.
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
+ * Copyright 2017 Joyent, Inc.
  * Copyright 2017 RackTop Systems.
  */
 
@@ -610,8 +611,14 @@ zfs_init_libshare(libzfs_handle_t *zhandle, int service)
 	int ret = SA_OK;
 
 #ifdef illumos
+	/*
+	 * libshare is either not installed or we're in a branded zone. The
+	 * rest of the wrapper functions around the libshare calls already
+	 * handle NULL function pointers, but we don't want the callers of
+	 * zfs_init_libshare() to fail prematurely if libshare is not available.
+	 */
 	if (_sa_init == NULL)
-		ret = SA_CONFIG_ERR;
+		return (SA_OK);
 
 	if (ret == SA_OK && zhandle->libzfs_shareflags & ZFSSHARE_MISS) {
 		/*
