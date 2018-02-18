@@ -59,8 +59,8 @@ static int ofw_gpiobus_parse_gpios_impl(device_t, phandle_t, char *,
  * tree consumers.
  *
  */
-static int
-gpio_pin_get_by_ofw_impl(device_t consumer, phandle_t cnode,
+int
+gpio_pin_get_by_ofw_propidx(device_t consumer, phandle_t cnode,
     char *prop_name, int idx, gpio_pin_t *out_pin)
 {
 	phandle_t xref;
@@ -114,7 +114,7 @@ gpio_pin_get_by_ofw_idx(device_t consumer, phandle_t node,
     int idx, gpio_pin_t *pin)
 {
 
-	return (gpio_pin_get_by_ofw_impl(consumer, node, "gpios", idx, pin));
+	return (gpio_pin_get_by_ofw_propidx(consumer, node, "gpios", idx, pin));
 }
 
 int
@@ -122,7 +122,7 @@ gpio_pin_get_by_ofw_property(device_t consumer, phandle_t node,
     char *name, gpio_pin_t *pin)
 {
 
-	return (gpio_pin_get_by_ofw_impl(consumer, node, name, 0, pin));
+	return (gpio_pin_get_by_ofw_propidx(consumer, node, name, 0, pin));
 }
 
 int
