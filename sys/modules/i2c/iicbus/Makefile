@@ -6,6 +6,7 @@ KMOD=	iicbus
 SRCS=	\
 	bus_if.h \
 	device_if.h \
+	iic_recover_bus.c \
 	iicbus.c \
 	iicbus.h \
 	iicbus_if.c \
