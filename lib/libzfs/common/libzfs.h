@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek. All rights reserved.
- * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
@@ -130,6 +130,7 @@ typedef enum zfs_error {
 	EZFS_DIFFDATA,		/* bad zfs diff data */
 	EZFS_POOLREADONLY,	/* pool is in read-only mode */
 	EZFS_SCRUB_PAUSED,	/* scrub currently paused */
+	EZFS_NO_PENDING,	/* cannot cancel, no operation is pending */
 	EZFS_UNKNOWN
 } zfs_error_t;
 
@@ -265,6 +266,8 @@ extern int zpool_vdev_attach(zpool_handle_t *, const char *,
     const char *, nvlist_t *, int);
 extern int zpool_vdev_detach(zpool_handle_t *, const char *);
 extern int zpool_vdev_remove(zpool_handle_t *, const char *);
+extern int zpool_vdev_remove_cancel(zpool_handle_t *);
+extern int zpool_vdev_indirect_size(zpool_handle_t *, const char *, uint64_t *);
 extern int zpool_vdev_split(zpool_handle_t *, char *, nvlist_t **, nvlist_t *,
     splitflags_t);
 
@@ -798,6 +801,7 @@ extern boolean_t libzfs_fru_notself(libzfs_handle_t *, const char *);
 extern int zpool_fru_set(zpool_handle_t *, uint64_t, const char *);
 
 extern int zfs_get_hole_count(const char *, uint64_t *, uint64_t *);
+extern int zfs_remap_indirects(libzfs_handle_t *hdl, const char *);
 
 /* Allow consumers to initialize libshare externally for optimal performance */
 extern int zfs_init_libshare_arg(libzfs_handle_t *, int, void *);

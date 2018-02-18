@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
  * Copyright (c) 2012 by Frederik Wessels. All rights reserved.
  * Copyright (c) 2013 by Prasad Joshi (sTec). All rights reserved.
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>.
@@ -247,7 +247,7 @@ get_usage(zpool_help_t idx)
 		return (gettext("\treplace [-f] <pool> <device> "
 		    "[new-device]\n"));
 	case HELP_REMOVE:
-		return (gettext("\tremove <pool> <device> ...\n"));
+		return (gettext("\tremove [-nps] <pool> <device> ...\n"));
 	case HELP_REOPEN:
 		return (gettext("\treopen <pool>\n"));
 	case HELP_SCRUB:
@@ -597,8 +597,7 @@ zpool_do_add(int argc, char **argv)
 /*
  * zpool remove  <pool> <vdev> ...
  *
- * Removes the given vdev from the pool.  Currently, this supports removing
- * spares, cache, and log devices from the pool.
+ * Removes the given vdev from the pool.
  */
 int
 zpool_do_remove(int argc, char **argv)
@@ -606,17 +605,36 @@ zpool_do_remove(int argc, char **argv)
 	char *poolname;
 	int i, ret = 0;
 	zpool_handle_t *zhp;
+	boolean_t stop = B_FALSE;
+	boolean_t noop = B_FALSE;
+	boolean_t parsable = B_FALSE;
+	char c;
 
-	argc--;
-	argv++;
+	/* check options */
+	while ((c = getopt(argc, argv, "nps")) != -1) {
+		switch (c) {
+		case 'n':
+			noop = B_TRUE;
+			break;
+		case 'p':
+			parsable = B_TRUE;
+			break;
+		case 's':
+			stop = B_TRUE;
+			break;
+		case '?':
+			(void) fprintf(stderr, gettext("invalid option '%c'\n"),
+			    optopt);
+			usage(B_FALSE);
+		}
+	}
+
+	argc -= optind;
+	argv += optind;
 
 	/* get pool name and check number of arguments */
 	if (argc < 1) {
 		(void) fprintf(stderr, gettext("missing pool name argument\n"));
-		usage(B_FALSE);
-	}
-	if (argc < 2) {
-		(void) fprintf(stderr, gettext("missing device\n"));
 		usage(B_FALSE);
 	}
 
@@ -625,9 +643,49 @@ zpool_do_remove(int argc, char **argv)
 	if ((zhp = zpool_open(g_zfs, poolname)) == NULL)
 		return (1);
 
-	for (i = 1; i < argc; i++) {
-		if (zpool_vdev_remove(zhp, argv[i]) != 0)
+	if (stop && noop) {
+		(void) fprintf(stderr, gettext("stop request ignored\n"));
+		return (0);
+	}
+
+	if (stop) {
+		if (argc > 1) {
+			(void) fprintf(stderr, gettext("too many arguments\n"));
+			usage(B_FALSE);
+		}
+		if (zpool_vdev_remove_cancel(zhp) != 0)
 			ret = 1;
+	} else {
+		if (argc < 2) {
+			(void) fprintf(stderr, gettext("missing device\n"));
+			usage(B_FALSE);
+		}
+
+		for (i = 1; i < argc; i++) {
+			if (noop) {
+				uint64_t size;
+
+				if (zpool_vdev_indirect_size(zhp, argv[i],
+				    &size) != 0) {
+					ret = 1;
+					break;
+				}
+				if (parsable) {
+					(void) printf("%s %llu\n",
+					    argv[i], size);
+				} else {
+					char valstr[32];
+					zfs_nicenum(size, valstr,
+					    sizeof (valstr));
+					(void) printf("Memory that will be "
+					    "used after removing %s: %s\n",
+					    argv[i], valstr);
+				}
+			} else {
+				if (zpool_vdev_remove(zhp, argv[i]) != 0)
+					ret = 1;
+			}
+		}
 	}
 
 	return (ret);
@@ -1401,6 +1459,7 @@ print_status_config(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 	uint64_t notpresent;
 	spare_cbdata_t cb;
 	const char *state;
+	char *type;
 
 	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
 	    &child, &children) != 0)
@@ -1408,6 +1467,11 @@ print_status_config(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 
 	verify(nvlist_lookup_uint64_array(nv, ZPOOL_CONFIG_VDEV_STATS,
 	    (uint64_t **)&vs, &c) == 0);
+
+	verify(nvlist_lookup_string(nv, ZPOOL_CONFIG_TYPE, &type) == 0);
+
+	if (strcmp(type, VDEV_TYPE_INDIRECT) == 0)
+		return;
 
 	state = zpool_state_to_name(vs->vs_state, vs->vs_aux);
 	if (isspare) {
@@ -2422,6 +2486,9 @@ print_vdev_stats(zpool_handle_t *zhp, const char *name, nvlist_t *oldnv,
 	double scale;
 	char *vname;
 
+	if (strcmp(name, VDEV_TYPE_INDIRECT) == 0)
+		return;
+
 	if (oldnv != NULL) {
 		verify(nvlist_lookup_uint64_array(oldnv,
 		    ZPOOL_CONFIG_VDEV_STATS, (uint64_t **)&oldvs, &c) == 0);
@@ -3027,6 +3094,9 @@ print_list_stats(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 	if (name != NULL) {
 		boolean_t toplevel = (vs->vs_space != 0);
 		uint64_t cap;
+
+		if (strcmp(name, VDEV_TYPE_INDIRECT) == 0)
+			return;
 
 		if (scripted)
 			(void) printf("\t%s", name);
@@ -3966,7 +4036,7 @@ typedef struct status_cbdata {
 /*
  * Print out detailed scrub status.
  */
-void
+static void
 print_scan_status(pool_scan_stat_t *ps)
 {
 	time_t start, end, pause;
@@ -4089,6 +4159,111 @@ print_scan_status(pool_scan_stat_t *ps)
 	} else if (ps->pss_func == POOL_SCAN_SCRUB) {
 		(void) printf(gettext("    %s repaired, %.2f%% done\n"),
 		    processed_buf, 100 * fraction_done);
+	}
+}
+
+/*
+ * Print out detailed removal status.
+ */
+static void
+print_removal_status(zpool_handle_t *zhp, pool_removal_stat_t *prs)
+{
+	char copied_buf[7], examined_buf[7], total_buf[7], rate_buf[7];
+	time_t start, end;
+	nvlist_t *config, *nvroot;
+	nvlist_t **child;
+	uint_t children;
+	char *vdev_name;
+
+	if (prs == NULL || prs->prs_state == DSS_NONE)
+		return;
+
+	/*
+	 * Determine name of vdev.
+	 */
+	config = zpool_get_config(zhp, NULL);
+	nvroot = fnvlist_lookup_nvlist(config,
+	    ZPOOL_CONFIG_VDEV_TREE);
+	verify(nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
+	    &child, &children) == 0);
+	assert(prs->prs_removing_vdev < children);
+	vdev_name = zpool_vdev_name(g_zfs, zhp,
+	    child[prs->prs_removing_vdev], B_TRUE);
+
+	(void) printf(gettext("remove: "));
+
+	start = prs->prs_start_time;
+	end = prs->prs_end_time;
+	zfs_nicenum(prs->prs_copied, copied_buf, sizeof (copied_buf));
+
+	/*
+	 * Removal is finished or canceled.
+	 */
+	if (prs->prs_state == DSS_FINISHED) {
+		uint64_t minutes_taken = (end - start) / 60;
+
+		(void) printf(gettext("Removal of vdev %llu copied %s "
+		    "in %lluh%um, completed on %s"),
+		    (longlong_t)prs->prs_removing_vdev,
+		    copied_buf,
+		    (u_longlong_t)(minutes_taken / 60),
+		    (uint_t)(minutes_taken % 60),
+		    ctime((time_t *)&end));
+	} else if (prs->prs_state == DSS_CANCELED) {
+		(void) printf(gettext("Removal of %s canceled on %s"),
+		    vdev_name, ctime(&end));
+	} else {
+		uint64_t copied, total, elapsed, mins_left, hours_left;
+		double fraction_done;
+		uint_t rate;
+
+		assert(prs->prs_state == DSS_SCANNING);
+
+		/*
+		 * Removal is in progress.
+		 */
+		(void) printf(gettext(
+		    "Evacuation of %s in progress since %s"),
+		    vdev_name, ctime(&start));
+
+		copied = prs->prs_copied > 0 ? prs->prs_copied : 1;
+		total = prs->prs_to_copy;
+		fraction_done = (double)copied / total;
+
+		/* elapsed time for this pass */
+		elapsed = time(NULL) - prs->prs_start_time;
+		elapsed = elapsed > 0 ? elapsed : 1;
+		rate = copied / elapsed;
+		rate = rate > 0 ? rate : 1;
+		mins_left = ((total - copied) / rate) / 60;
+		hours_left = mins_left / 60;
+
+		zfs_nicenum(copied, examined_buf, sizeof (examined_buf));
+		zfs_nicenum(total, total_buf, sizeof (total_buf));
+		zfs_nicenum(rate, rate_buf, sizeof (rate_buf));
+
+		/*
+		 * do not print estimated time if hours_left is more than
+		 * 30 days
+		 */
+		(void) printf(gettext("    %s copied out of %s at %s/s, "
+		    "%.2f%% done"),
+		    examined_buf, total_buf, rate_buf, 100 * fraction_done);
+		if (hours_left < (30 * 24)) {
+			(void) printf(gettext(", %lluh%um to go\n"),
+			    (u_longlong_t)hours_left, (uint_t)(mins_left % 60));
+		} else {
+			(void) printf(gettext(
+			    ", (copy is slow, no estimated time)\n"));
+		}
+	}
+
+	if (prs->prs_mapping_memory > 0) {
+		char mem_buf[7];
+		zfs_nicenum(prs->prs_mapping_memory, mem_buf, sizeof (mem_buf));
+		(void) printf(gettext("    %s memory used for "
+		    "removed device mappings\n"),
+		    mem_buf);
 	}
 }
 
@@ -4256,8 +4431,7 @@ status_callback(zpool_handle_t *zhp, void *data)
 	else
 		(void) printf("\n");
 
-	verify(nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE,
-	    &nvroot) == 0);
+	nvroot = fnvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE);
 	verify(nvlist_lookup_uint64_array(nvroot, ZPOOL_CONFIG_VDEV_STATS,
 	    (uint64_t **)&vs, &c) == 0);
 	health = zpool_state_to_name(vs->vs_state, vs->vs_aux);
@@ -4465,10 +4639,15 @@ status_callback(zpool_handle_t *zhp, void *data)
 		nvlist_t **spares, **l2cache;
 		uint_t nspares, nl2cache;
 		pool_scan_stat_t *ps = NULL;
+		pool_removal_stat_t *prs = NULL;
 
 		(void) nvlist_lookup_uint64_array(nvroot,
 		    ZPOOL_CONFIG_SCAN_STATS, (uint64_t **)&ps, &c);
 		print_scan_status(ps);
+
+		(void) nvlist_lookup_uint64_array(nvroot,
+		    ZPOOL_CONFIG_REMOVAL_STATS, (uint64_t **)&prs, &c);
+		print_removal_status(zhp, prs);
 
 		namewidth = max_width(zhp, nvroot, 0, 0);
 		if (namewidth < 10)

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2017 Datto Inc.
  */
 
@@ -117,6 +117,9 @@ typedef struct dsl_scan {
 	boolean_t scn_is_bptree;
 	boolean_t scn_async_destroying;
 	boolean_t scn_async_stalled;
+	uint64_t  scn_async_block_min_time_ms;
+
+	/* for debugging / information */
 	uint64_t scn_visited_this_txg;
 
 	dsl_scan_phys_t scn_phys;

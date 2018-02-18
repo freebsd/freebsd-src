@@ -420,6 +420,8 @@ zfs_prop_init(void)
 	/* hidden properties */
 	zprop_register_hidden(ZFS_PROP_CREATETXG, "createtxg", PROP_TYPE_NUMBER,
 	    PROP_READONLY, ZFS_TYPE_DATASET | ZFS_TYPE_BOOKMARK, "CREATETXG");
+	zprop_register_hidden(ZFS_PROP_REMAPTXG, "remaptxg", PROP_TYPE_NUMBER,
+	    PROP_READONLY, ZFS_TYPE_DATASET, "REMAPTXG");
 	zprop_register_hidden(ZFS_PROP_NUMCLONES, "numclones", PROP_TYPE_NUMBER,
 	    PROP_READONLY, ZFS_TYPE_SNAPSHOT, "NUMCLONES");
 	zprop_register_hidden(ZFS_PROP_NAME, "name", PROP_TYPE_STRING,
