@@ -85,6 +85,8 @@ static const luaL_Reg loadedlibs[] = {
 //  {LUA_MATHLIBNAME, luaopen_math},
 //  {LUA_UTF8LIBNAME, luaopen_utf8},
 //  {LUA_DBLIBNAME, luaopen_debug},
+  {"io", luaopen_io},
+  {"loader", luaopen_loader},
   {NULL, NULL}
 };
 
@@ -105,7 +107,6 @@ interp_init(void)
 		abort();
 	}
 	softc->luap = luap;
-	register_utils(luap);
 
 	/* "require" functions from 'loadedlibs' and set results to global table */
 	for (lib = loadedlibs; lib->func; lib++) {
