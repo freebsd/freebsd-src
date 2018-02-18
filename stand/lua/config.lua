@@ -38,11 +38,11 @@ function config.setKey(k, n, v)
 end
 
 function config.lsModules()
-	print("== Dumping modules");
+	print("== Listing modules");
 	for k, v in pairs(modules) do
 		print(k, v.load);
 	end
-	print("== Dump ended");
+	print("== List of modules ended");
 end
 
 local pattern_table = {
@@ -296,8 +296,8 @@ function config.loadkernel(other_kernel)
 		local module_path = loader.getenv("module_path");
 		local res = nil;
 
-		if other_kern ~= nil then
-			kernel = other_kern;
+		if other_kernel ~= nil then
+			kernel = other_kernel;
 		end
 		-- first try load kernel with module_path = /boot/${kernel}
 		-- then try load with module_path=${kernel}
