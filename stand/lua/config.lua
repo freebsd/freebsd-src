@@ -115,6 +115,7 @@ local pattern_table = {
 	[10] = {
 		str = "^%s*([%w%p]+)%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
+			print("Setting '"..k.."' to '"..v.."'")
 			if loader.setenv(k, v) ~= 0 then
 				print("Failed to set '"..k.."' with value: "..v.."");
 			end
@@ -124,6 +125,7 @@ local pattern_table = {
 	[11] = {
 		str = "^%s*([%w%p]+)%s*=%s*(%d+)%s*(.*)",
 		process = function(k, v)
+			print("Setting '"..k.."' to '"..v.."'")
 			if loader.setenv(k, v) ~= 0 then
 				print("Failed to set '"..k.."' with value: "..v.."");
 			end
@@ -293,7 +295,9 @@ function config.loadkernel(other_kernel)
 			return false;
 		end
 	else
-		local module_path = loader.getenv("module_path");
+		-- Use our cached module_path, so we don't end up with multiple
+		-- automatically added kernel paths to our final module_path
+		local module_path = config.module_path;
 		local res = nil;
 
 		if other_kernel ~= nil then
@@ -308,9 +312,9 @@ function config.loadkernel(other_kernel)
 			loader.setenv("module_path", v);
 			res = load_bootfile();
 
-			-- succeeded add path to module_path
+			-- succeeded, add path to module_path
 			if res ~= nil then
-				if module_path ~= nil then
+				if (module_path ~= nil) then
 					loader.setenv("module_path", v..";"..
 					    module_path);
 				end
@@ -349,6 +353,9 @@ function config.load(file)
 			end
 		end
 	end
+
+	-- Cache the provided module_path at load time for later use
+	config.module_path = loader.getenv("module_path");
 
 	print("Loading kernel...");
 	config.loadkernel();
