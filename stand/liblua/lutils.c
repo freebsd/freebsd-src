@@ -245,3 +245,4 @@ luaopen_io(lua_State *L)
 {
 	luaL_newlib(L, iolib);
 	return 1;
+}
