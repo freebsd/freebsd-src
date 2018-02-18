@@ -1174,6 +1174,7 @@ kern_wait6(struct thread *td, idtype_t idtype, id_t id, int *status,
 	struct proc *p, *q;
 	pid_t pid;
 	int error, nfound, ret;
+	bool report;
 
 	AUDIT_ARG_VALUE((int)idtype);	/* XXX - This is likely wrong! */
 	AUDIT_ARG_PID((pid_t)id);	/* XXX - This may be wrong! */
@@ -1225,36 +1226,38 @@ loop_locked:
 		nfound++;
 		PROC_LOCK_ASSERT(p, MA_OWNED);
 
-		if ((options & (WTRAPPED | WUNTRACED)) != 0)
-			PROC_SLOCK(p);
-
 		if ((options & WTRAPPED) != 0 &&
-		    (p->p_flag & P_TRACED) != 0 &&
-		    (p->p_flag & (P_STOPPED_TRACE | P_STOPPED_SIG)) != 0 &&
-		    p->p_suspcount == p->p_numthreads &&
-		    (p->p_flag & P_WAITED) == 0) {
+		    (p->p_flag & P_TRACED) != 0) {
+			PROC_SLOCK(p);
+			report =
+			    ((p->p_flag & (P_STOPPED_TRACE | P_STOPPED_SIG)) &&
+			    p->p_suspcount == p->p_numthreads &&
+			    (p->p_flag & P_WAITED) == 0);
 			PROC_SUNLOCK(p);
+			if (report) {
 			CTR4(KTR_PTRACE,
 			    "wait: returning trapped pid %d status %#x "
 			    "(xstat %d) xthread %d",
 			    p->p_pid, W_STOPCODE(p->p_xsig), p->p_xsig,
 			    p->p_xthread != NULL ?
 			    p->p_xthread->td_tid : -1);
-			report_alive_proc(td, p, siginfo, status, options,
-			    CLD_TRAPPED);
-			return (0);
+				report_alive_proc(td, p, siginfo, status,
+				    options, CLD_TRAPPED);
+				return (0);
+			}
 		}
 		if ((options & WUNTRACED) != 0 &&
-		    (p->p_flag & P_STOPPED_SIG) != 0 &&
-		    p->p_suspcount == p->p_numthreads &&
-		    (p->p_flag & P_WAITED) == 0) {
+		    (p->p_flag & P_STOPPED_SIG) != 0) {
+			PROC_SLOCK(p);
+			report = (p->p_suspcount == p->p_numthreads &&
+			    ((p->p_flag & P_WAITED) == 0));
 			PROC_SUNLOCK(p);
-			report_alive_proc(td, p, siginfo, status, options,
-			    CLD_STOPPED);
-			return (0);
+			if (report) {
+				report_alive_proc(td, p, siginfo, status,
+				    options, CLD_STOPPED);
+				return (0);
+			}
 		}
-		if ((options & (WTRAPPED | WUNTRACED)) != 0)
-			PROC_SUNLOCK(p);
 		if ((options & WCONTINUED) != 0 &&
 		    (p->p_flag & P_CONTINUED) != 0) {
 			report_alive_proc(td, p, siginfo, status, options,
