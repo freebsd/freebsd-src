@@ -284,6 +284,20 @@ noop_llseek(struct linux_file *file, loff_t offset, int whence)
 	return (file->_file->f_offset);
 }
 
+static inline struct vnode *
+file_inode(const struct linux_file *file)
+{
+
+	return (file->f_vnode);
+}
+
+static inline int
+call_mmap(struct linux_file *file, struct vm_area_struct *vma)
+{
+
+	return (file->f_op->mmap(file, vma));
+}
+
 /* Shared memory support */
 unsigned long linux_invalidate_mapping_pages(vm_object_t, pgoff_t, pgoff_t);
 struct page *linux_shmem_read_mapping_page_gfp(vm_object_t, int, gfp_t);
