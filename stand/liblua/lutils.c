@@ -233,11 +233,15 @@ static const struct luaL_Reg iolib[] = {
 };
 #undef REG_SIMPLE
 
-void
-register_utils(lua_State *L)
+int
+luaopen_loader(lua_State *L)
 {
 	luaL_newlib(L, loaderlib);
-	lua_setglobal(L, "loader");
-	luaL_newlib(L, iolib);
-	lua_setglobal(L, "io");
+	return 1;
 }
+
+int
+luaopen_io(lua_State *L)
+{
+	luaL_newlib(L, iolib);
+	return 1;
