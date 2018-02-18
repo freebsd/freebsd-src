@@ -192,6 +192,8 @@ static devclass_t  i2c_devclass;
 
 DRIVER_MODULE(imx_i2c, simplebus, i2c_driver, i2c_devclass, 0, 0);
 DRIVER_MODULE(ofw_iicbus, imx_i2c, ofw_iicbus_driver, ofw_iicbus_devclass, 0, 0);
+MODULE_DEPEND(imx_i2c, iicbus, 1, 1, 1);
+MODULE_DEPEND(imx_i2c, ofw_iicbus, 1, 1, 1);
 
 static phandle_t
 i2c_get_node(device_t bus, device_t dev)
