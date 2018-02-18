@@ -813,10 +813,6 @@ _bcm283x_clkman=  bcm283x_clkman
 _bcm283x_pwm=  bcm283x_pwm
 .endif
 
-.if ${MACHINE_ARCH:Marmv[67]*} != ""
-_ffec=		ffec
-.endif
-
 SUBDIR+=${MODULES_EXTRA}
 
 .for reject in ${WITHOUT_MODULES}
