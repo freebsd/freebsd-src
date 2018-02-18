@@ -1336,11 +1336,23 @@ zfs_rezget(znode_t *zp)
 		return (EIO);
 	}
 
-	zp->z_unlinked = (zp->z_links == 0);
 	zp->z_blksz = doi.doi_data_block_size;
 	vn_pages_remove(vp, 0, 0);
 	if (zp->z_size != size)
 		vnode_pager_setsize(vp, zp->z_size);
+
+	/*
+	 * If the file has zero links, then it has been unlinked on the send
+	 * side and it must be in the received unlinked set.
+	 * We call zfs_znode_dmu_fini() now to prevent any accesses to the
+	 * stale data and to prevent automatical removal of the file in
+	 * zfs_zinactive().  The file will be removed either when it is removed
+	 * on the send side and the next incremental stream is received or
+	 * when the unlinked set gets processed.
+	 */
+	zp->z_unlinked = (zp->z_links == 0);
+	if (zp->z_unlinked)
+		zfs_znode_dmu_fini(zp);
 
 	ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
 
@@ -1380,13 +1392,20 @@ zfs_zinactive(znode_t *zp)
 	ZFS_OBJ_HOLD_ENTER(zfsvfs, z_id);
 
 	/*
-	 * If this was the last reference to a file with no links,
-	 * remove the file from the file system.
+	 * If this was the last reference to a file with no links, remove
+	 * the file from the file system unless the file system is mounted
+	 * read-only.  That can happen, for example, if the file system was
+	 * originally read-write, the file was opened, then unlinked and
+	 * the file system was made read-only before the file was finally
+	 * closed.  The file will remain in the unlinked set.
 	 */
 	if (zp->z_unlinked) {
-		ZFS_OBJ_HOLD_EXIT(zfsvfs, z_id);
-		zfs_rmnode(zp);
-		return;
+		ASSERT(!zfsvfs->z_issnap);
+		if ((zfsvfs->z_vfs->vfs_flag & VFS_RDONLY) == 0) {
+			ZFS_OBJ_HOLD_EXIT(zfsvfs, z_id);
+			zfs_rmnode(zp);
+			return;
+		}
 	}
 
 	zfs_znode_dmu_fini(zp);
