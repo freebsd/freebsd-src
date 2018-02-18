@@ -704,14 +704,14 @@ ddt_lookup(ddt_t *ddt, const blkptr_t *bp, boolean_t add)
 	for (type = 0; type < DDT_TYPES; type++) {
 		for (class = 0; class < DDT_CLASSES; class++) {
 			error = ddt_object_lookup(ddt, type, class, dde);
-			if (error != ENOENT)
+			if (error != ENOENT) {
+				ASSERT0(error);
 				break;
+			}
 		}
 		if (error != ENOENT)
 			break;
 	}
-
-	ASSERT(error == 0 || error == ENOENT);
 
 	ddt_enter(ddt);
 
@@ -1099,7 +1099,7 @@ ddt_sync(spa_t *spa, uint64_t txg)
 {
 	dmu_tx_t *tx;
 	zio_t *rio = zio_root(spa, NULL, NULL,
-	    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE);
+	    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE | ZIO_FLAG_SELF_HEAL);
 
 	ASSERT(spa_syncing_txg(spa) == txg);
 

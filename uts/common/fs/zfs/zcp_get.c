@@ -413,6 +413,9 @@ get_special_prop(lua_State *state, dsl_dataset_t *ds, const char *dsname,
 		error = dsl_dir_get_snapshot_count(ds->ds_dir, &numval);
 		(void) strcpy(setpoint, "");
 		break;
+	case ZFS_PROP_REMAPTXG:
+		error = dsl_dir_get_remaptxg(ds->ds_dir, &numval);
+		break;
 	case ZFS_PROP_NUMCLONES:
 		numval = dsl_get_numclones(ds);
 		break;
