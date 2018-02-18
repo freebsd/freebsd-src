@@ -184,14 +184,14 @@ static device_method_t i2c_methods[] = {
 };
 
 static driver_t i2c_driver = {
-	"iichb",
+	"imx_i2c",
 	i2c_methods,
 	sizeof(struct i2c_softc),
 };
 static devclass_t  i2c_devclass;
 
-DRIVER_MODULE(i2c, simplebus, i2c_driver, i2c_devclass, 0, 0);
-DRIVER_MODULE(iicbus, i2c, iicbus_driver, iicbus_devclass, 0, 0);
+DRIVER_MODULE(imx_i2c, simplebus, i2c_driver, i2c_devclass, 0, 0);
+DRIVER_MODULE(ofw_iicbus, imx_i2c, ofw_iicbus_driver, ofw_iicbus_devclass, 0, 0);
 
 static phandle_t
 i2c_get_node(device_t bus, device_t dev)
