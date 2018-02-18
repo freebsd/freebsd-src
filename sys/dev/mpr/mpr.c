@@ -1135,6 +1135,9 @@ mpr_enqueue_request(struct mpr_softc *sc, struct mpr_command *cm)
 	if (++sc->io_cmds_active > sc->io_cmds_highwater)
 		sc->io_cmds_highwater++;
 
+	KASSERT(cm->cm_state == MPR_CM_STATE_BUSY, ("command not busy\n"));
+	cm->cm_state = MPR_CM_STATE_INQUEUE;
+
 	if (sc->atomic_desc_capable) {
 		rd.u.low = cm->cm_desc.Words.Low;
 		mpr_regwrite(sc, MPI26_ATOMIC_REQUEST_DESCRIPTOR_POST_OFFSET,
@@ -1554,6 +1557,7 @@ mpr_alloc_requests(struct mpr_softc *sc)
 		cm->cm_sense_busaddr = sc->sense_busaddr + i * MPR_SENSE_LEN;
 		cm->cm_desc.Default.SMID = i;
 		cm->cm_sc = sc;
+		cm->cm_state = MPR_CM_STATE_BUSY;
 		TAILQ_INIT(&cm->cm_chain_list);
 		TAILQ_INIT(&cm->cm_prp_page_list);
 		callout_init_mtx(&cm->cm_callout, &sc->mpr_mtx, 0);
@@ -2444,6 +2448,9 @@ mpr_intr_locked(void *data)
 		case MPI25_RPY_DESCRIPT_FLAGS_FAST_PATH_SCSI_IO_SUCCESS:
 		case MPI26_RPY_DESCRIPT_FLAGS_PCIE_ENCAPSULATED_SUCCESS:
 			cm = &sc->commands[le16toh(desc->SCSIIOSuccess.SMID)];
+			KASSERT(cm->cm_state == MPR_CM_STATE_INQUEUE,
+			    ("command not inqueue\n"));
+			cm->cm_state = MPR_CM_STATE_BUSY;
 			cm->cm_reply = NULL;
 			break;
 		case MPI2_RPY_DESCRIPT_FLAGS_ADDRESS_REPLY:
@@ -2513,6 +2520,9 @@ mpr_intr_locked(void *data)
 			} else {
 				cm = &sc->commands[
 				    le16toh(desc->AddressReply.SMID)];
+				KASSERT(cm->cm_state == MPR_CM_STATE_INQUEUE,
+				    ("command not inqueue\n"));
+				cm->cm_state = MPR_CM_STATE_BUSY;
 				cm->cm_reply = reply;
 				cm->cm_reply_data =
 				    le32toh(desc->AddressReply.
@@ -2543,8 +2553,7 @@ mpr_intr_locked(void *data)
 	}
 
 	if (pq != sc->replypostindex) {
-		mpr_dprint(sc, MPR_TRACE,
-		    "%s sc %p writing postindex %d\n",
+		mpr_dprint(sc, MPR_TRACE, "%s sc %p writing postindex %d\n",
 		    __func__, sc, sc->replypostindex);
 		mpr_regwrite(sc, MPI2_REPLY_POST_HOST_INDEX_OFFSET,
 		    sc->replypostindex);

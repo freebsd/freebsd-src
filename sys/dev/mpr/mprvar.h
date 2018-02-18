@@ -243,6 +243,7 @@ struct mpr_command {
 #define MPR_CM_STATE_FREE		0
 #define MPR_CM_STATE_BUSY		1
 #define MPR_CM_STATE_TIMEDOUT		2
+#define MPR_CM_STATE_INQUEUE		3
 	bus_dmamap_t			cm_dmamap;
 	struct scsi_sense_data		*cm_sense;
 	uint64_t			*nvme_error_response;
@@ -569,6 +570,8 @@ mpr_free_command(struct mpr_softc *sc, struct mpr_command *cm)
 	struct mpr_chain *chain, *chain_temp;
 	struct mpr_prp_page *prp_page, *prp_page_temp;
 
+	KASSERT(cm->cm_state == MPR_CM_STATE_BUSY, ("state not busy\n"));
+
 	if (cm->cm_reply != NULL)
 		mpr_free_reply(sc, cm->cm_reply_data);
 	cm->cm_reply = NULL;
@@ -607,9 +610,10 @@ mpr_alloc_command(struct mpr_softc *sc)
 	if (cm == NULL)
 		return (NULL);
 
+	KASSERT(cm->cm_state == MPR_CM_STATE_FREE,
+	    ("mpr: Allocating busy command\n"));
+
 	TAILQ_REMOVE(&sc->req_list, cm, cm_link);
-	KASSERT(cm->cm_state == MPR_CM_STATE_FREE, ("mpr: Allocating busy "
-	    "command\n"));
 	cm->cm_state = MPR_CM_STATE_BUSY;
 	return (cm);
 }
@@ -618,6 +622,8 @@ static __inline void
 mpr_free_high_priority_command(struct mpr_softc *sc, struct mpr_command *cm)
 {
 	struct mpr_chain *chain, *chain_temp;
+
+	KASSERT(cm->cm_state == MPR_CM_STATE_BUSY, ("state not busy\n"));
 
 	if (cm->cm_reply != NULL)
 		mpr_free_reply(sc, cm->cm_reply_data);
@@ -645,9 +651,10 @@ mpr_alloc_high_priority_command(struct mpr_softc *sc)
 	if (cm == NULL)
 		return (NULL);
 
+	KASSERT(cm->cm_state == MPR_CM_STATE_FREE,
+	    ("mpr: Allocating busy command\n"));
+
 	TAILQ_REMOVE(&sc->high_priority_req_list, cm, cm_link);
-	KASSERT(cm->cm_state == MPR_CM_STATE_FREE, ("mpr: Allocating busy "
-	    "command\n"));
 	cm->cm_state = MPR_CM_STATE_BUSY;
 	return (cm);
 }

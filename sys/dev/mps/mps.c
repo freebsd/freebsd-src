@@ -1102,6 +1102,10 @@ mps_enqueue_request(struct mps_softc *sc, struct mps_command *cm)
 	rd.u.low = cm->cm_desc.Words.Low;
 	rd.u.high = cm->cm_desc.Words.High;
 	rd.word = htole64(rd.word);
+
+	KASSERT(cm->cm_state == MPS_CM_STATE_BUSY, ("command not busy\n"));
+	cm->cm_state = MPS_CM_STATE_INQUEUE;
+
 	/* TODO-We may need to make below regwrite atomic */
 	mps_regwrite(sc, MPI2_REQUEST_DESCRIPTOR_POST_LOW_OFFSET,
 	    rd.u.low);
@@ -1502,6 +1506,7 @@ mps_alloc_requests(struct mps_softc *sc)
 		cm->cm_sense_busaddr = sc->sense_busaddr + i * MPS_SENSE_LEN;
 		cm->cm_desc.Default.SMID = i;
 		cm->cm_sc = sc;
+		cm->cm_state = MPS_CM_STATE_BUSY;
 		TAILQ_INIT(&cm->cm_chain_list);
 		callout_init_mtx(&cm->cm_callout, &sc->mps_mtx, 0);
 
@@ -2305,6 +2310,9 @@ mps_intr_locked(void *data)
 		switch (flags) {
 		case MPI2_RPY_DESCRIPT_FLAGS_SCSI_IO_SUCCESS:
 			cm = &sc->commands[le16toh(desc->SCSIIOSuccess.SMID)];
+			KASSERT(cm->cm_state == MPS_CM_STATE_INQUEUE,
+			    ("command not inqueue\n"));
+			cm->cm_state = MPS_CM_STATE_BUSY;
 			cm->cm_reply = NULL;
 			break;
 		case MPI2_RPY_DESCRIPT_FLAGS_ADDRESS_REPLY:
@@ -2340,7 +2348,7 @@ mps_intr_locked(void *data)
 				       sc->reply_frames, sc->fqdepth,
 				       sc->replyframesz);
 				printf("%s: baddr %#x,\n", __func__, baddr);
-				/* LSI-TODO. See Linux Code. Need Graceful exit*/
+				/* LSI-TODO. See Linux Code for Graceful exit */
 				panic("Reply address out of range");
 			}
 			if (le16toh(desc->AddressReply.SMID) == 0) {
@@ -2372,10 +2380,14 @@ mps_intr_locked(void *data)
 					    (MPI2_EVENT_NOTIFICATION_REPLY *)
 					    reply);
 			} else {
-				cm = &sc->commands[le16toh(desc->AddressReply.SMID)];
+				cm = &sc->commands[
+				    le16toh(desc->AddressReply.SMID)];
+				KASSERT(cm->cm_state == MPS_CM_STATE_INQUEUE,
+				    ("command not inqueue\n"));
+				cm->cm_state = MPS_CM_STATE_BUSY;
 				cm->cm_reply = reply;
-				cm->cm_reply_data =
-				    le32toh(desc->AddressReply.ReplyFrameAddress);
+				cm->cm_reply_data = le32toh(
+				    desc->AddressReply.ReplyFrameAddress);
 			}
 			break;
 		}
@@ -2403,10 +2415,10 @@ mps_intr_locked(void *data)
 	}
 
 	if (pq != sc->replypostindex) {
-		mps_dprint(sc, MPS_TRACE,
-		    "%s sc %p writing postindex %d\n",
+		mps_dprint(sc, MPS_TRACE, "%s sc %p writing postindex %d\n",
 		    __func__, sc, sc->replypostindex);
-		mps_regwrite(sc, MPI2_REPLY_POST_HOST_INDEX_OFFSET, sc->replypostindex);
+		mps_regwrite(sc, MPI2_REPLY_POST_HOST_INDEX_OFFSET,
+		    sc->replypostindex);
 	}
 
 	return;
