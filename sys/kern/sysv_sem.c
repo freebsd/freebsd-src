@@ -230,7 +230,8 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, semaem, CTLFLAG_RWTUN, &seminfo.semaem, 0,
     "Adjust on exit max value");
 SYSCTL_PROC(_kern_ipc, OID_AUTO, sema,
     CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    NULL, 0, sysctl_sema, "", "Semaphore id pool");
+    NULL, 0, sysctl_sema, "",
+    "Array of struct semid_kernel for each potential semaphore");
 
 static struct syscall_helper_data sem_syscalls[] = {
 	SYSCALL_INIT_HELPER(__semctl),
