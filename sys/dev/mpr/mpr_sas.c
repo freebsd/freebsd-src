@@ -1161,6 +1161,10 @@ mprsas_complete_all_commands(struct mpr_softc *sc)
 	/* complete all commands with a NULL reply */
 	for (i = 1; i < sc->num_reqs; i++) {
 		cm = &sc->commands[i];
+		if (cm->cm_state == MPR_CM_STATE_FREE)
+			continue;
+
+		cm->cm_state = MPR_CM_STATE_BUSY;
 		cm->cm_reply = NULL;
 		completed = 0;
 
@@ -1173,9 +1177,7 @@ mprsas_complete_all_commands(struct mpr_softc *sc)
 			    cm, cm->cm_state, cm->cm_ccb);
 			cm->cm_complete(sc, cm);
 			completed = 1;
-		}
-
-		if (cm->cm_flags & MPR_CM_FLAGS_WAKEUP) {
+		} else if (cm->cm_flags & MPR_CM_FLAGS_WAKEUP) {
 			mprsas_log_command(cm, MPR_RECOVERY,
 			    "waking up cm %p state %x ccb %p for diag reset\n", 
 			    cm, cm->cm_state, cm->cm_ccb);
@@ -1183,9 +1185,6 @@ mprsas_complete_all_commands(struct mpr_softc *sc)
 			completed = 1;
 		}
 
-		if (cm->cm_sc->io_cmds_active != 0)
-			cm->cm_sc->io_cmds_active--;
-		
 		if ((completed == 0) && (cm->cm_state != MPR_CM_STATE_FREE)) {
 			/* this should never happen, but if it does, log */
 			mprsas_log_command(cm, MPR_RECOVERY,
@@ -1194,6 +1193,8 @@ mprsas_complete_all_commands(struct mpr_softc *sc)
 			    cm->cm_ccb);
 		}
 	}
+
+	sc->io_cmds_active = 0;
 }
 
 void
@@ -1248,6 +1249,11 @@ mprsas_tm_timeout(void *data)
 
 	mprsas_log_command(tm, MPR_INFO|MPR_RECOVERY, "task mgmt %p timed "
 	    "out\n", tm);
+
+	KASSERT(tm->cm_state == MPR_CM_STATE_INQUEUE,
+	    ("command not inqueue\n"));
+
+	tm->cm_state = MPR_CM_STATE_BUSY;
 	mpr_reinit(sc);
 }
 
@@ -1657,7 +1663,7 @@ mprsas_scsiio_timeout(void *data)
 	 * and been re-used, though this is unlikely.
 	 */
 	mpr_intr_locked(sc);
-	if (cm->cm_state == MPR_CM_STATE_FREE) {
+	if (cm->cm_state != MPR_CM_STATE_INQUEUE) {
 		mprsas_log_command(cm, MPR_XINFO,
 		    "SCSI command %p almost timed out\n", cm);
 		return;
@@ -2492,6 +2498,7 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 
 	if (cm->cm_state == MPR_CM_STATE_TIMEDOUT) {
 		TAILQ_REMOVE(&cm->cm_targ->timedout_commands, cm, cm_recovery);
+		cm->cm_state = MPR_CM_STATE_BUSY;
 		if (cm->cm_reply != NULL)
 			mprsas_log_command(cm, MPR_RECOVERY,
 			    "completed timedout cm %p ccb %p during recovery "
