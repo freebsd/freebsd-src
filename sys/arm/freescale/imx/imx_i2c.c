@@ -154,6 +154,7 @@ struct i2c_softc {
 static phandle_t i2c_get_node(device_t, device_t);
 static int i2c_probe(device_t);
 static int i2c_attach(device_t);
+static int i2c_detach(device_t);
 
 static int i2c_repeated_start(device_t, u_char, int);
 static int i2c_start(device_t, u_char, int);
@@ -165,6 +166,7 @@ static int i2c_write(device_t, const char *, int, int *, int);
 static device_method_t i2c_methods[] = {
 	DEVMETHOD(device_probe,			i2c_probe),
 	DEVMETHOD(device_attach,		i2c_attach),
+	DEVMETHOD(device_detach,		i2c_detach),
 
 	/* OFW methods */
 	DEVMETHOD(ofw_bus_get_node,		i2c_get_node),
@@ -445,6 +447,28 @@ no_recovery:
 
 	/* Probe and attach the iicbus when interrupts are available. */
 	config_intrhook_oneshot((ich_func_t)bus_generic_attach, dev);
+	return (0);
+}
+
+static int
+i2c_detach(device_t dev)
+{
+	struct i2c_softc *sc;
+	int error;
+
+	sc = device_get_softc(dev);
+
+	if ((error = bus_generic_detach(sc->dev)) != 0) {
+		device_printf(sc->dev, "cannot detach child devices\n");
+		return (error);
+	}
+
+	if (sc->iicbus != NULL)
+		device_delete_child(dev, sc->iicbus);
+
+	if (sc->res != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->res);
+
 	return (0);
 }
 
