@@ -26,11 +26,11 @@
 -- $FreeBSD$
 --
 
-local drawer = {};
-
 local color = require("color");
 local core = require("core");
 local screen = require("screen");
+
+local drawer = {};
 
 drawer.brand_position = {x = 2, y = 1};
 drawer.fbsd_logo = {
