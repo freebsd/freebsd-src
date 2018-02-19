@@ -103,6 +103,7 @@ restart:
 		next = node->slots[pos];
 		if (next == NULL) {
 			index += step;
+			index &= -step;
 			if ((index & mask) == 0)
 				goto restart;
 		} else {
