@@ -469,6 +469,7 @@ sdp_attach(struct socket *so, int proto, struct thread *td)
 	ssk->flags = 0;
 	ssk->qp_active = 0;
 	ssk->state = TCPS_CLOSED;
+	mbufq_init(&ssk->rxctlq, INT_MAX);
 	SDP_LIST_WLOCK();
 	LIST_INSERT_HEAD(&sdp_list, ssk, list);
 	sdp_count++;
