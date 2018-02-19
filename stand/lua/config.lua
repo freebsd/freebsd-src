@@ -402,8 +402,6 @@ end
 
 -- Reload configuration
 function config.reload(file)
-	-- XXX TODO: We should be doing something more here to clear out env
-	-- changes that rode in with the last configuration load
 	modules = {};
 	config.restoreEnv();
 	config.load(file);
