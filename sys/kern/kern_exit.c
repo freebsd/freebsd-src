@@ -819,6 +819,8 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KASSERT(p->p_state == PRS_ZOMBIE, ("proc_reap: !PRS_ZOMBIE"));
 
+	mtx_spin_wait_unlocked(&p->p_slock);
+
 	q = td->td_proc;
 
 	if (status)
