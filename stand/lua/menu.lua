@@ -41,11 +41,7 @@ local run;
 local autoboot;
 local carousel_choices = {};
 
---loader menu tree:
---rooted at menu.welcome
---submenu declarations:
-local boot_options;
-local welcome;
+-- loader menu tree is rooted at menu.welcome
 
 menu.boot_options = {
 	-- return to welcome menu
