@@ -148,7 +148,7 @@ efiblk_pdinfo_count(pdinfo_list_t *pdi)
 	return (i);
 }
 
-static int
+int
 efipart_inithandles(void)
 {
 	UINTN sz;
@@ -176,6 +176,10 @@ efipart_inithandles(void)
 
 	efipart_handles = hin;
 	efipart_nhandles = sz;
+#ifdef EFIPART_DEBUG
+	printf("%s: Got %d BLOCK IO MEDIA handle(s)\n", __func__,
+	    efipart_nhandles);
+#endif
 	return (0);
 }
 
@@ -319,11 +323,7 @@ efipart_updatefd(void)
 static int
 efipart_initfd(void)
 {
-	int rv;
 
-	rv = efipart_inithandles();
-	if (rv != 0)
-		return (rv);
 	STAILQ_INIT(&fdinfo);
 
 	efipart_updatefd();
@@ -439,11 +439,7 @@ efipart_updatecd(void)
 static int
 efipart_initcd(void)
 {
-	int rv;
 
-	rv = efipart_inithandles();
-	if (rv != 0)
-		return (rv);
 	STAILQ_INIT(&cdinfo);
 
 	efipart_updatecd();
@@ -685,11 +681,7 @@ efipart_updatehd(void)
 static int
 efipart_inithd(void)
 {
-	int rv;
 
-	rv = efipart_inithandles();
-	if (rv != 0)
-		return (rv);
 	STAILQ_INIT(&hdinfo);
 
 	efipart_updatehd();

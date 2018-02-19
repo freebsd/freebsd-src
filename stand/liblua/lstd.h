@@ -1,7 +1,6 @@
-/* $FreeBSD$ */
-
 /*-
- * Copyright (c) 2011 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2014 Pedro Souza <pedrosouza@freebsd.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,51 +22,61 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#ifndef _BUS_USB_H_
-#define	_BUS_USB_H_
+#ifndef LSTD_H
+#define LSTD_H
 
-struct usb_device_id {
+#include <stand.h>
+#include <sys/types.h>
+#include <sys/stdint.h>
+#include <limits.h>
+#include <string.h>
+#include <machine/stdarg.h>
 
-	/* Internal fields */
-	char	module_name[32];
-	char	module_mode[32];
-	uint8_t	is_iface;
-	uint8_t	is_vp;
-	uint8_t	is_dev;
-	uint8_t	is_any;
+typedef struct FILE
+{
+	int fd;
+	size_t offset;
+	size_t size;
+} FILE;
 
-	/* Used for product specific matches; the BCD range is inclusive */
-	uint16_t idVendor;
-	uint16_t idProduct;
-	uint16_t bcdDevice_lo;
-	uint16_t bcdDevice_hi;
+typedef struct DIR
+{
+	int fd;
+} DIR;
 
-	/* Used for device class matches */
-	uint8_t	bDeviceClass;
-	uint8_t	bDeviceSubClass;
-	uint8_t	bDeviceProtocol;
+FILE *fopen(const char *filename, const char *mode);
+FILE *freopen( const char *filename, const char *mode, FILE *stream);
+size_t fread(void *ptr, size_t size, size_t count, FILE *stream);
+int fclose(FILE *stream);
+int ferror(FILE *stream);
+int feof(FILE *stream);
+int getc(FILE * stream);
+DIR *opendir(const char *name);
+DIR *fdopendir(int fd);
+int closedir(DIR *);
 
-	/* Used for interface class matches */
-	uint8_t	bInterfaceClass;
-	uint8_t	bInterfaceSubClass;
-	uint8_t	bInterfaceProtocol;
+#ifndef EOF
+#define EOF (-1)
+#endif
 
-	/* Select which fields to match against */
-	uint8_t	match_flag_vendor:1;
-	uint8_t	match_flag_product:1;
-	uint8_t	match_flag_dev_lo:1;
-	uint8_t	match_flag_dev_hi:1;
-	uint8_t	match_flag_dev_class:1;
-	uint8_t	match_flag_dev_subclass:1;
-	uint8_t	match_flag_dev_protocol:1;
-	uint8_t	match_flag_int_class:1;
-	uint8_t	match_flag_int_subclass:1;
-	uint8_t	match_flag_int_protocol:1;
-};
+#define stdin ((FILE*)NULL)
+#define stdout 1
 
-void	usb_import_entries(const char *, const char *, const uint8_t *, uint32_t);
-void	usb_dump_entries(void);
+#ifndef BUFSIZ
+#define BUFSIZ 512
+#endif
 
-#endif					/* _BUS_USB_H_ */
+#define lua_writestringerror(s, p) do { printf((s), (p)); } while (0)
+
+void luai_writestring(const char *, int);
+
+#define lua_writestring(s,l) luai_writestring(s,l)
+
+#define fflush	/* */
+#define fgets(b, l, s) fgetstr((b), (l), 0)
+
+#endif /* LSTD_H */

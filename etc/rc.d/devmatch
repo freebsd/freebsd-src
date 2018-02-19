@@ -1,6 +1,7 @@
-# $FreeBSD$
-#
-# Copyright (c) 2011 Hans Petter Selasky. All rights reserved.
+#!/bin/sh
+
+# Copyright (c) 2018 Warner Losh
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -23,24 +24,44 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-
+# $FreeBSD$
 #
-# Example on how to use:
-#
-# make clean all install
-#
-# ./bus_autoconf.sh /boot/kernel/*.ko | less
-#
+# PROVIDE: devmatch
+# REQUIRE: kldxref
+# KEYWORD: nojail
 
-PROG=	bus_autoconf
-MAN=
-BINDIR?= /usr/local/bin
+. /etc/rc.subr
 
-SRCS+=	bus_autoconf.c
-SRCS+=	bus_load_file.c
-SRCS+=	bus_sections.c
-SRCS+=	bus_usb.c
+name="devmatch"
+desc="Use devmatch(8) to load kernel modules"
 
-WARNS=	6
+start_cmd="${name}_start"
+stop_cmd=':'
+one_nomatch="$2"
 
-.include <bsd.prog.mk>
+devmatch_start()
+{
+	local x
+
+	if [ -n "$one_nomatch" ]; then
+		x=$(devmatch -p "${one_nomatch}")
+	else
+		x=$(devmatch)
+	fi
+
+	[ -n "$x" ] || return
+
+	# While kldload can accept multiple modules
+	# on the line at once, we loop here in case
+	# there's some weird error with one of them.
+	# We also optimize against the false positives
+	# or drivers that have symbolic links that
+	# confuse devmatch by running it -n.
+	for m in ${x}; do
+		echo "Autoloading module: ${m}"
+		kldload -n ${m}
+	done
+}
+
+load_rc_config $name
+run_rc_command "$1"

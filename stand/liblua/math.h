@@ -1,7 +1,6 @@
-/* $FreeBSD$ */
-
 /*-
- * Copyright (c) 2011 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2018 M Warner Losh
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,9 +22,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#ifndef _BUS_AUTOCONF_H_
-#define	_BUS_AUTOCONF_H_
+/*
+ * A replacement for math.h that's sufficient to pretend that we
+ * actually have one to keep the un-modified lua happy.
+ */
+#include <stdint.h>
 
-#endif					/* _BUS_AUTOCONF_H_ */
+int64_t lstd_pow(int64_t x, int64_t y);
+int64_t lstd_floor(int64_t);
+int64_t lstd_fmod(int64_t a, int64_t b);
+int64_t lstd_frexp(int64_t a, int *);

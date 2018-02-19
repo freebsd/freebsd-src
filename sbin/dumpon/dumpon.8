@@ -28,7 +28,7 @@
 .\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2017
+.Dd February 13, 2018
 .Dt DUMPON 8
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .Op Fl v
 .Op Fl k Ar public_key_file
 .Op Fl z
+.Op Fl Z
 .Ar special_file
 .Nm
 .Op Fl v
@@ -116,8 +117,10 @@ kernel option.
 .Pp
 The
 .Fl z
-option configures the kernel to compress the dump in gzip format before writing
-it to the dump device.
+and
+.Fl Z
+options configure the kernel to compress the dump before writing it to
+the dump device.
 This reduces the amount of space required for the dump and accelerates
 recovery with
 .Xr savecore 8
@@ -126,9 +129,21 @@ When compression is enabled, the
 .Nm
 utility will not verify that the dump device is sufficiently large for a full
 dump.
-This flag requires a kernel compiled with the
+The
+.Fl z
+and
+.Fl Z
+options cause the dump to be written in
+.Xr gzip 1
+and
+.Xr zstd 1
+format, respectively.
+These flags require a kernel compiled with the
 .Dv GZIO
-kernel option.
+or
+.Dv ZSTDIO
+kernel options.
+.Pp
 .Pp
 The
 .Fl l
@@ -269,15 +284,17 @@ The core was decrypted properly if
 .Xr kgdb 1
 does not print any errors.
 .Sh SEE ALSO
+.Xr gzip 1 ,
 .Xr kgdb 1 ,
+.Xr zstd 1 ,
 .Xr ddb 4 ,
 .Xr fstab 5 ,
 .Xr rc.conf 5 ,
 .Xr config 8 ,
+.Xr decryptcore 8 ,
 .Xr init 8 ,
 .Xr loader 8 ,
 .Xr rc 8 ,
-.Xr decryptcore 8 ,
 .Xr savecore 8 ,
 .Xr swapon 8 ,
 .Xr panic 9

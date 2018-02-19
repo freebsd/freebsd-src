@@ -812,7 +812,7 @@ getcc_end_command()
  * (characters previously given to ungetcc or ungetsc).
  */
 	static LWCHAR
-getccu()
+getccu(VOID_PARAM)
 {
 	LWCHAR c;
 	if (ungot == NULL)

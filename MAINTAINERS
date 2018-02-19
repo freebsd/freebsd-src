@@ -65,7 +65,6 @@ lpr		gad	Pre-commit review requested, particularly for
 nanobsd		imp	Pre-commit phabricator review requested.
 net80211	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 nfs		freebsd-fs@FreeBSD.org, rmacklem is best for reviews.
-nis(8), yp(8)	araujo	Pre-commit review requested.
 nvd(4)		jimharris	Pre-commit review requested.
 nvme(4)		jimharris	Pre-commit review requested.
 nvmecontrol(8)	jimharris	Pre-commit review requested.
@@ -93,8 +92,11 @@ sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
 sys/dev/ixl	erj	Pre-commit phabricator review requested.
 sys/dev/sound/usb	hselasky	If in doubt, ask.
 sys/dev/usb	hselasky	If in doubt, ask.
+sys/dev/xen	royger		Pre-commit review recommended.
 sys/netinet/ip_carp.c	glebius	Pre-commit review recommended.
 sys/netpfil/pf	kp,glebius	Pre-commit review recommended.
+sys/x86/xen	royger		Pre-commit review recommended.
+sys/xen		royger		Pre-commit review recommended.
 tests			freebsd-testing,ngie	Pre-commit review requested.
 usr.sbin/bsdconfig	dteske	Pre-commit phabricator review requested.
 usr.sbin/dpv	dteske	Pre-commit review requested. Keep in sync with libdpv.

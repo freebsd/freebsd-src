@@ -45,6 +45,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#define	CASPER_NO_UNIQ	0x00000001
+
 #ifndef	_NVLIST_T_DECLARED
 #define	_NVLIST_T_DECLARED
 struct nvlist;
@@ -62,11 +64,35 @@ typedef struct cap_channel cap_channel_t;
 #else
 struct cap_channel {
 	int cch_fd;
+	int cch_flags;
 };
 typedef struct cap_channel cap_channel_t;
 #define	CASPER_SUPPORT	(0)
 #endif /* ! WITH_CASPER */
 #endif /* ! _CAP_CHANNEL_T_DECLARED */
+
+#ifdef WITH_CASPER
+int cap_channel_flags(const cap_channel_t *chan);
+#else
+static inline int
+cap_channel_flags(const cap_channel_t *chan)
+{
+
+	return (chan->cch_flags);
+}
+#endif
+
+static inline int
+channel_nvlist_flags(const cap_channel_t *chan)
+{
+	int flags;
+
+	flags = 0;
+	if ((cap_channel_flags(chan) & CASPER_NO_UNIQ) != 0)
+		flags |= NV_FLAG_NO_UNIQUE;
+
+	return (flags);
+}
 
 /*
  * The functions opens unrestricted communication channel to Casper.
@@ -103,16 +129,17 @@ int		 cap_service_limit(const cap_channel_t *chan,
  * The function creates cap_channel_t based on the given socket.
  */
 #ifdef WITH_CASPER
-cap_channel_t *cap_wrap(int sock);
+cap_channel_t *cap_wrap(int sock, int flags);
 #else
 static inline cap_channel_t *
-cap_wrap(int sock)
+cap_wrap(int sock, int flags)
 {
 	cap_channel_t *chan;
 
 	chan = cap_init();
 	if (chan != NULL) {
 		chan->cch_fd = sock;
+		chan->cch_flags = flags;
 	}
 	return (chan);
 }
@@ -122,7 +149,7 @@ cap_wrap(int sock)
  * The function returns communication socket and frees cap_channel_t.
  */
 #ifdef WITH_CASPER
-int	cap_unwrap(cap_channel_t *chan);
+int	cap_unwrap(cap_channel_t *chan, int *flags);
 #else
 static inline int
 cap_unwrap(cap_channel_t *chan)
@@ -160,6 +187,7 @@ cap_clone(const cap_channel_t *chan)
 			newchan = NULL;
 		}
 	}
+	newchan->cch_flags = chan->cch_flags;
 
 	return (newchan);
 }
@@ -212,7 +240,7 @@ static inline int
 cap_limit_get(const cap_channel_t *chan __unused, nvlist_t **limitsp)
 {
 
-	*limitsp = nvlist_create(0);
+	*limitsp = nvlist_create(channel_nvlist_flags(chan));
 	return (0);
 }
 #endif
@@ -230,9 +258,9 @@ int	cap_send_nvlist(const cap_channel_t *chan, const nvlist_t *nvl);
  * Function receives nvlist over the given capability.
  */
 #ifdef WITH_CASPER
-nvlist_t *cap_recv_nvlist(const cap_channel_t *chan, int flags);
+nvlist_t *cap_recv_nvlist(const cap_channel_t *chan);
 #else
-#define	cap_recv_nvlist(chan, flags)	(nvlist_create(flags))
+#define	cap_recv_nvlist(chan)		(nvlist_create(chan->cch_flags))
 #endif
 
 /*
@@ -240,14 +268,14 @@ nvlist_t *cap_recv_nvlist(const cap_channel_t *chan, int flags);
  * response over the given capability.
  */
 #ifdef WITH_CASPER
-nvlist_t *cap_xfer_nvlist(const cap_channel_t *chan, nvlist_t *nvl, int flags);
+nvlist_t *cap_xfer_nvlist(const cap_channel_t *chan, nvlist_t *nvl);
 #else
 static inline nvlist_t *
-cap_xfer_nvlist(const cap_channel_t *chan __unused, nvlist_t *nvl, int flags)
+cap_xfer_nvlist(const cap_channel_t *chan, nvlist_t *nvl)
 {
 
 	nvlist_destroy(nvl);
-	return (nvlist_create(flags));
+	return (nvlist_create(channel_nvlist_flags(chan)));
 }
 #endif
 

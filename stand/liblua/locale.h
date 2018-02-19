@@ -1,7 +1,6 @@
-/* $FreeBSD$ */
-
 /*-
- * Copyright (c) 2011 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2018 M Warner Losh
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,54 +22,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
-
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <err.h>
-#include <sysexits.h>
-#include <unistd.h>
-
-#include "bus_load_file.h"
-
-void
-load_file(const char *fname, uint8_t **pptr, uint32_t *plen)
-{
-	uint8_t *ptr;
-	ssize_t len;
-	off_t off;
-	int f;
-
-	f = open(fname, O_RDONLY);
-	if (f < 0)
-		err(EX_NOINPUT, "Cannot open file '%s'", fname);
-
-	off = lseek(f, 0, SEEK_END);
-	if (off < 0) {
-		err(EX_NOINPUT, "Cannot seek to "
-		    "end of file '%s'", fname);
-	}
-
-	if (lseek(f, 0, SEEK_SET) < 0) {
-		err(EX_NOINPUT, "Cannot seek to "
-		    "beginning of file '%s'", fname);
-	}
-
-	len = off;
-	if (len != off)
-		err(EX_NOINPUT, "File '%s' is too big", fname);
-
-	ptr = malloc(len);
-	if (ptr == NULL)
-		errx(EX_SOFTWARE, "Out of memory");
-
-	if (read(f, ptr, len) != len)
-		err(EX_NOINPUT, "Cannot read all data");
-
-	close(f);
-
-	*pptr = ptr;
-	*plen = len;
-}

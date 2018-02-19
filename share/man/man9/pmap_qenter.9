@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2003
+.Dd February 15, 2018
 .Dt PMAP_QENTER 9
 .Os
 .Sh NAME
@@ -50,6 +50,8 @@ pointers to wired pages
 and enters each of these pages into the kernel virtual address (KVA) space,
 beginning at the address
 .Fa sva .
+The pages are mapped non-executable, if possible.
+(For example, non-PAE i386 has no capability to map pages non-executable.)
 .Pp
 The
 .Fn pmap_qremove

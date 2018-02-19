@@ -53,5 +53,4 @@ ubldr: ${OBJS} ldscript.abs ${.CURDIR}/ldscript.${MACHINE_CPUARCH} ${DPADD}
 
 CLEANFILES+=	ldscript.abs ldscript.pie ubldr ubldr.pie ubldr.bin
 
-.include <bsd.stand.mk>
 .include <bsd.prog.mk>

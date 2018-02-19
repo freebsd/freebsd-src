@@ -17,5 +17,4 @@ CFLAGS+=	-I${SYSDIR}/crypto/skein
 
 CFLAGS+=	-Wformat -Wall
 
-.include <bsd.stand.mk>
 .include <bsd.lib.mk>

@@ -12,7 +12,6 @@ BASE_SRCS=	dict.c ficl.c fileaccess.c float.c loader.c math64.c \
 SRCS=		${BASE_SRCS} sysdep.c softcore.c
 CLEANFILES+=	softcore.c testmain testmain.o
 
-.include <bsd.stand.mk>
 .ifmake testmain
 CFLAGS+=	-DTESTMAIN -D_TESTMAIN
 SRCS+=		testmain.c

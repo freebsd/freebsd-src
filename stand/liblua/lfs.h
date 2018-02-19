@@ -1,7 +1,6 @@
-/* $FreeBSD$ */
-
 /*-
- * Copyright (c) 2011 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2018 Conrad Meyer <cem@FreeBSD.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,13 +22,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#ifndef _BUS_SECTIONS_H_
-#define	_BUS_SECTIONS_H_
+#pragma once
 
-uint16_t format_get_section_size(const char *);
-uint8_t	format_get_field(const char *, const char *, const uint8_t *, uint16_t);
-void	format_parse_entries(const uint8_t *, uint32_t);
+#include <lua.h>
 
-#endif					/* _BUS_SECTIONS_H_ */
+int luaopen_lfs(lua_State *L);
