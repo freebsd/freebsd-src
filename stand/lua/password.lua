@@ -26,10 +26,10 @@
 -- $FreeBSD$
 --
 
-local password = {};
-
 local core = require("core");
 local screen = require("screen");
+
+local password = {};
 
 function password.read()
 	local str = "";
