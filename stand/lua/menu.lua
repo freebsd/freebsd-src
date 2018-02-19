@@ -133,7 +133,19 @@ menu.boot_options = {
 };
 
 menu.welcome = {
-	entries = {
+	entries = function()
+		local menu_entries = menu.welcome.all_entries;
+		-- Swap the first two menu items on single user boot
+		if (core.isSingleUserBoot()) then
+			local multiuser = menu_entries[1];
+			local singleuser = menu_entries[2];
+
+			menu_entries[2] = multiuser;
+			menu_entries[1] = singleuser;
+		end
+		return menu_entries;
+	end,
+	all_entries = {
 		-- boot multi user
 		{
 			entry_type = core.MENU_ENTRY,
