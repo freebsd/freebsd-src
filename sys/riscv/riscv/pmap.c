@@ -1153,7 +1153,7 @@ _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 	}
 	pmap_invalidate_page(pmap, va);
 
-	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+	vm_wire_sub(1);
 
 	/* 
 	 * Put page on a list so that it is released after

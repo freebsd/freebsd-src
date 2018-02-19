@@ -117,6 +117,13 @@ __list_del(struct list_head *prev, struct list_head *next)
 }
 
 static inline void
+__list_del_entry(struct list_head *entry)
+{
+
+	__list_del(entry->prev, entry->next);
+}
+
+static inline void
 list_del(struct list_head *entry)
 {
 
@@ -171,6 +178,9 @@ list_del_init(struct list_head *entry)
 
 #define	list_next_entry(ptr, member)					\
 	list_entry(((ptr)->member.next), typeof(*(ptr)), member)
+
+#define	list_safe_reset_next(ptr, n, member) \
+	(n) = list_next_entry(ptr, member)
 
 #define	list_prev_entry(ptr, member)					\
 	list_entry(((ptr)->member.prev), typeof(*(ptr)), member)

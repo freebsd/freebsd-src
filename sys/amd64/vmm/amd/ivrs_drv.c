@@ -47,12 +47,16 @@ __FBSDID("$FreeBSD$");
 #include "amdvi_priv.h"
 
 device_t *ivhd_devs;			/* IVHD or AMD-Vi device list. */
-int	ivhd_count;			/* Number of IVHD or AMD-Vi devices. */
+int	ivhd_count;			/* Number of IVHD header. */
+/* 
+ * Cached IVHD header list.
+ * Single entry for each IVHD, filtered the legacy one.
+ */
+ACPI_IVRS_HARDWARE *ivhd_hdrs[10];	
 
 extern int amdvi_ptp_level;		/* Page table levels. */
 
-typedef int (*ivhd_iter_t)(ACPI_IVRS_HEADER * ptr, void *arg);
-
+typedef int (*ivhd_iter_t)(ACPI_IVRS_HEADER *ptr, void *arg);
 /*
  * Iterate IVRS table for IVHD and IVMD device type.
  */
@@ -107,14 +111,19 @@ ivrs_hdr_iterate_tbl(ivhd_iter_t iter, void *arg)
 	}
 }
 
-static  int
+static bool
 ivrs_is_ivhd(UINT8 type)
 {
 
-	if ((type == ACPI_IVRS_TYPE_HARDWARE) || (type == 0x11)	|| (type == 0x40))
-		return (1);
+	switch(type) {
+	case ACPI_IVRS_TYPE_HARDWARE:
+	case ACPI_IVRS_TYPE_HARDWARE_EXT1:
+	case ACPI_IVRS_TYPE_HARDWARE_EXT2:
+		return (true);
 
-	return (0);
+	default:
+		return (false);
+	}
 }
 
 /* Count the number of AMD-Vi devices in the system. */
@@ -184,7 +193,7 @@ ivhd_dev_add_entry(struct amdvi_softc *softc, uint32_t start_id,
  * Record device attributes as suggested by BIOS.
  */
 static int
-ivhd_dev_parse(ACPI_IVRS_HARDWARE * ivhd, struct amdvi_softc *softc)
+ivhd_dev_parse(ACPI_IVRS_HARDWARE* ivhd, struct amdvi_softc *softc)
 {
 	ACPI_IVRS_DE_HEADER *de;
 	uint8_t *p, *end;
@@ -196,11 +205,26 @@ ivhd_dev_parse(ACPI_IVRS_HARDWARE * ivhd, struct amdvi_softc *softc)
 	softc->start_dev_rid = ~0;
 	softc->end_dev_rid = 0;
 
-	/*
-	 * XXX The following actually depends on Header.Type and
-	 * is only true for 0x10.
-	 */
-	p = (uint8_t *)ivhd + sizeof(ACPI_IVRS_HARDWARE);
+	switch (ivhd->Header.Type) {
+		case ACPI_IVRS_TYPE_HARDWARE_EXT1:
+		case ACPI_IVRS_TYPE_HARDWARE_EXT2:
+			p = (uint8_t *)ivhd + sizeof(ACPI_IVRS_HARDWARE_NEW);
+			de = (ACPI_IVRS_DE_HEADER *) ((uint8_t *)ivhd +
+	    			sizeof(ACPI_IVRS_HARDWARE_NEW));
+			break;
+
+		case ACPI_IVRS_TYPE_HARDWARE:
+			p = (uint8_t *)ivhd + sizeof(ACPI_IVRS_HARDWARE);
+			de = (ACPI_IVRS_DE_HEADER *) ((uint8_t *)ivhd +
+	    			sizeof(ACPI_IVRS_HARDWARE));
+			break;
+
+		default:
+			device_printf(softc->dev, 
+				"unknown type: 0x%x\n", ivhd->Header.Type);
+			return (-1);
+	}
+
 	end = (uint8_t *)ivhd + ivhd->Header.Length;
 
 	while (p < end) {
@@ -285,14 +309,30 @@ ivhd_dev_parse(ACPI_IVRS_HARDWARE * ivhd, struct amdvi_softc *softc)
 	return (0);
 }
 
+static bool
+ivhd_is_newer(ACPI_IVRS_HEADER *old, ACPI_IVRS_HEADER  *new)
+{
+	/*
+	 * Newer IVRS header type take precedence.
+	 */
+	if ((old->DeviceId == new->DeviceId) &&
+		(old->Type == ACPI_IVRS_TYPE_HARDWARE) &&
+		((new->Type == ACPI_IVRS_TYPE_HARDWARE_EXT1) ||
+		(new->Type == ACPI_IVRS_TYPE_HARDWARE_EXT1))) {
+		return (true);
+	}
+
+	return (false);
+}
+
 static void
 ivhd_identify(driver_t *driver, device_t parent)
 {
 	ACPI_TABLE_IVRS *ivrs;
 	ACPI_IVRS_HARDWARE *ivhd;
 	ACPI_STATUS status;
-	uint32_t info;
 	int i, count = 0;
+	uint32_t ivrs_ivinfo;
 
 	if (acpi_disabled("ivhd"))
 		return;
@@ -305,24 +345,40 @@ ivhd_identify(driver_t *driver, device_t parent)
 		return;
 	}
 
-	info = ivrs->Info;
-	printf("AMD-Vi IVRS VAsize = %d PAsize = %d GVAsize = %d flags:%b\n",
-		REG_BITS(info, 21, 15), REG_BITS(info, 14, 8), 
-		REG_BITS(info, 7, 5), REG_BITS(info, 22, 22),
-		"\020\001HtAtsResv");
+	ivrs_ivinfo = ivrs->Info;
+	printf("AMD-Vi: IVRS Info VAsize = %d PAsize = %d GVAsize = %d"
+	       " flags:%b\n",
+		REG_BITS(ivrs_ivinfo, 21, 15), REG_BITS(ivrs_ivinfo, 14, 8), 
+		REG_BITS(ivrs_ivinfo, 7, 5), REG_BITS(ivrs_ivinfo, 22, 22),
+		"\020\001EFRSup");
 
 	ivrs_hdr_iterate_tbl(ivhd_count_iter, NULL);
 	if (!ivhd_count)
 		return;
 
+	for (i = 0; i < ivhd_count; i++) {
+		ivhd = ivhd_find_by_index(i);
+		KASSERT(ivhd, ("ivhd%d is NULL\n", i));
+		ivhd_hdrs[i] = ivhd;
+	}
+
+        /* 
+	 * Scan for presence of legacy and non-legacy device type
+	 * for same AMD-Vi device and override the old one.
+	 */
+	for (i = ivhd_count - 1 ; i > 0 ; i--){
+       		if (ivhd_is_newer(&ivhd_hdrs[i-1]->Header, 
+			&ivhd_hdrs[i]->Header)) {
+			ivhd_hdrs[i-1] = ivhd_hdrs[i];
+			ivhd_count--;
+		}
+       }	       
+
 	ivhd_devs = malloc(sizeof(device_t) * ivhd_count, M_DEVBUF,
 		M_WAITOK | M_ZERO);
 	for (i = 0; i < ivhd_count; i++) {
-		ivhd = ivhd_find_by_index(i);
-		if (ivhd == NULL) {
-			printf("Can't find IVHD entry%d\n", i);
-			continue;
-		}
+		ivhd = ivhd_hdrs[i];
+		KASSERT(ivhd, ("ivhd%d is NULL\n", i));
 
 		/*
 		 * Use a high order to ensure that this driver is probed after
@@ -338,7 +394,7 @@ ivhd_identify(driver_t *driver, device_t parent)
 		if (ivhd_devs[i] == NULL) {
 			ivhd_devs[i] = device_find_child(parent, "ivhd", i);
 			if (ivhd_devs[i] == NULL) {
-				printf("AMD-Vi: cant find AMD-Vi dev%d\n", i);
+				printf("AMD-Vi: cant find ivhd%d\n", i);
 				break;
 			}
 		}
@@ -354,12 +410,167 @@ ivhd_identify(driver_t *driver, device_t parent)
 static int
 ivhd_probe(device_t dev)
 {
+	ACPI_IVRS_HARDWARE *ivhd;
+	int unit;
 
 	if (acpi_get_handle(dev) != NULL)
 		return (ENXIO);
-	device_set_desc(dev, "AMD-Vi/IOMMU or ivhd");
+
+	unit = device_get_unit(dev);
+	KASSERT((unit < ivhd_count), 
+		("ivhd unit %d > count %d", unit, ivhd_count));
+	ivhd = ivhd_hdrs[unit];
+	KASSERT(ivhd, ("ivhd is NULL"));
+
+	if (ivhd->Header.Type == ACPI_IVRS_TYPE_HARDWARE)
+		device_set_desc(dev, "AMD-Vi/IOMMU ivhd");
+	else	
+		device_set_desc(dev, "AMD-Vi/IOMMU ivhd with EFR");
 
 	return (BUS_PROBE_NOWILDCARD);
+}
+
+static void
+ivhd_print_flag(device_t dev, enum AcpiIvrsType ivhd_type, uint8_t flag)
+{
+	/*
+	 * IVHD lgeacy type has two extra high bits in flag which has
+	 * been moved to EFR for non-legacy device.
+	 */
+	switch (ivhd_type) {
+	case ACPI_IVRS_TYPE_HARDWARE:
+		device_printf(dev, "Flag:%b\n", flag,
+			"\020"
+			"\001HtTunEn"
+			"\002PassPW"
+			"\003ResPassPW"
+			"\004Isoc"
+			"\005IotlbSup"
+			"\006Coherent"
+			"\007PreFSup"
+			"\008PPRSup");
+		break;
+
+	case ACPI_IVRS_TYPE_HARDWARE_EXT1:
+	case ACPI_IVRS_TYPE_HARDWARE_EXT2:
+		device_printf(dev, "Flag:%b\n", flag,
+			"\020"
+			"\001HtTunEn"
+			"\002PassPW"
+			"\003ResPassPW"
+			"\004Isoc"
+			"\005IotlbSup"
+			"\006Coherent");
+		break;
+
+	default:
+		device_printf(dev, "Can't decode flag of ivhd type :0x%x\n",
+			ivhd_type);
+		break;
+	}
+}
+
+/*
+ * Feature in legacy IVHD type(0x10) and attribute in newer type(0x11 and 0x40).
+ */
+static void
+ivhd_print_feature(device_t dev, enum AcpiIvrsType ivhd_type, uint32_t feature) 
+{
+	switch (ivhd_type) {
+	case ACPI_IVRS_TYPE_HARDWARE:
+		device_printf(dev, "Features(type:0x%x) HATS = %d GATS = %d"
+			" MsiNumPPR = %d PNBanks= %d PNCounters= %d\n",
+			ivhd_type,
+			REG_BITS(feature, 31, 30),
+			REG_BITS(feature, 29, 28),
+			REG_BITS(feature, 27, 23),
+			REG_BITS(feature, 22, 17),
+			REG_BITS(feature, 16, 13));
+		device_printf(dev, "max PASID = %d GLXSup = %d Feature:%b\n",
+			REG_BITS(feature, 12, 8),
+			REG_BITS(feature, 4, 3),
+			feature,
+			"\020"
+			"\002NXSup"
+			"\003GTSup"
+			"\004<b4>"
+			"\005IASup"
+			"\006GASup"
+			"\007HESup");
+		break;
+
+	/* Fewer features or attributes are reported in non-legacy type. */
+	case ACPI_IVRS_TYPE_HARDWARE_EXT1:
+	case ACPI_IVRS_TYPE_HARDWARE_EXT2:
+		device_printf(dev, "Features(type:0x%x) MsiNumPPR = %d"
+			" PNBanks= %d PNCounters= %d\n",
+			ivhd_type,
+			REG_BITS(feature, 27, 23),
+			REG_BITS(feature, 22, 17),
+			REG_BITS(feature, 16, 13));
+		break;
+
+	default: /* Other ivhd type features are not decoded. */
+		device_printf(dev, "Can't decode ivhd type :0x%x\n", ivhd_type);
+	}
+}
+
+/* Print extended features of IOMMU. */
+static void
+ivhd_print_ext_feature(device_t dev, uint64_t ext_feature)
+{
+	uint32_t ext_low, ext_high;
+
+	if (!ext_feature)
+		return;
+
+	ext_low = ext_feature;
+	device_printf(dev, "Extended features[31:0]:%b "
+		"HATS = 0x%x GATS = 0x%x "
+		"GLXSup = 0x%x SmiFSup = 0x%x SmiFRC = 0x%x "
+		"GAMSup = 0x%x DualPortLogSup = 0x%x DualEventLogSup = 0x%x\n",
+		(int)ext_low,
+		"\020"
+		"\001PreFSup"
+		"\002PPRSup"
+		"\003<b2>"
+		"\004NXSup"
+		"\005GTSup"
+		"\006<b5>"
+		"\007IASup"
+		"\008GASup"
+		"\009HESup"
+		"\010PCSup",
+		REG_BITS(ext_low, 11, 10),
+		REG_BITS(ext_low, 13, 12),
+		REG_BITS(ext_low, 15, 14),
+		REG_BITS(ext_low, 17, 16),
+		REG_BITS(ext_low, 20, 18),
+		REG_BITS(ext_low, 23, 21),
+		REG_BITS(ext_low, 25, 24),
+		REG_BITS(ext_low, 29, 28));
+
+	ext_high = ext_feature >> 32;
+	device_printf(dev, "Extended features[62:32]:%b "
+		"Max PASID: 0x%x DevTblSegSup = 0x%x "
+		"MarcSup = 0x%x\n",
+		(int)(ext_high),
+		"\020"
+		"\006USSup"
+		"\009PprOvrflwEarlySup"
+		"\010PPRAutoRspSup"
+		"\013BlKStopMrkSup"
+		"\014PerfOptSup"
+		"\015MsiCapMmioSup"
+		"\017GIOSup"
+		"\018HASup"
+		"\019EPHSup"
+		"\020AttrFWSup"
+		"\021HDSup"
+		"\023InvIotlbSup",
+	    	REG_BITS(ext_high, 5, 0),
+	    	REG_BITS(ext_high, 8, 7),
+	    	REG_BITS(ext_high, 11, 10));
 }
 
 static int
@@ -369,41 +580,23 @@ ivhd_print_cap(struct amdvi_softc *softc, ACPI_IVRS_HARDWARE * ivhd)
 	int max_ptp_level;
 
 	dev = softc->dev;
-	device_printf(dev, "Flag:%b\n", softc->ivhd_flag,
-	    "\020\001HtTunEn\002PassPW\003ResPassPW\004Isoc\005IotlbSup"
-	    "\006Coherent\007PreFSup\008PPRSup");
-	/*
-	 * If no extended feature[EFR], its rev1 with maximum paging level as 7.
-	 */
+	
+	ivhd_print_flag(dev, softc->ivhd_type, softc->ivhd_flag);
+	ivhd_print_feature(dev, softc->ivhd_type, softc->ivhd_feature);
+	ivhd_print_ext_feature(dev, softc->ext_feature);
 	max_ptp_level = 7;
-	if (softc->ivhd_efr) {
-		device_printf(dev, "EFR HATS = %d GATS = %d GLXSup = %d "
-		    "MsiNumPr = %d PNBanks= %d PNCounters= %d\n"
-		    "max PASID = %d EFR: %b \n",
-		    REG_BITS(softc->ivhd_efr, 31, 30),
-		    REG_BITS(softc->ivhd_efr, 29, 28),
-		    REG_BITS(softc->ivhd_efr, 4, 3),
-		    REG_BITS(softc->ivhd_efr, 27, 23),
-		    REG_BITS(softc->ivhd_efr, 22, 17),
-		    REG_BITS(softc->ivhd_efr, 16, 13),
-		    REG_BITS(softc->ivhd_efr, 12, 8),
-		    softc->ivhd_efr, "\020\001XTSup\002NXSup\003GTSup\005IASup"
-		    "\006GASup\007HESup\008PPRSup");
-
-		max_ptp_level = REG_BITS(softc->ivhd_efr, 31, 30) + 4;
-	}
-
 	/* Make sure device support minimum page level as requested by user. */
 	if (max_ptp_level < amdvi_ptp_level) {
-		device_printf(dev, "Insufficient PTP level:%d\n",
-		    max_ptp_level);
+		device_printf(dev, "insufficient PTP level:%d\n",
+			max_ptp_level);
 		return (EINVAL);
+	} else {
+		device_printf(softc->dev, "supported paging level:%d, will use only: %d\n",
+	    		max_ptp_level, amdvi_ptp_level);
 	}
 
-	device_printf(softc->dev, "max supported paging level:%d restricting to: %d\n",
-	    max_ptp_level, amdvi_ptp_level);
-	device_printf(softc->dev, "device supported range "
-	    "[0x%x - 0x%x]\n", softc->start_dev_rid, softc->end_dev_rid);
+	device_printf(softc->dev, "device range: 0x%x - 0x%x\n",
+			softc->start_dev_rid, softc->end_dev_rid);
 
 	return (0);
 }
@@ -412,24 +605,31 @@ static int
 ivhd_attach(device_t dev)
 {
 	ACPI_IVRS_HARDWARE *ivhd;
+	ACPI_IVRS_HARDWARE_NEW *ivhd1;
 	struct amdvi_softc *softc;
 	int status, unit;
 
 	unit = device_get_unit(dev);
+	KASSERT((unit < ivhd_count), 
+		("ivhd unit %d > count %d", unit, ivhd_count));
 	/* Make sure its same device for which attach is called. */
-	if (ivhd_devs[unit] != dev)
-		panic("Not same device old %p new %p", ivhd_devs[unit], dev);
+	KASSERT((ivhd_devs[unit] == dev),
+		("Not same device old %p new %p", ivhd_devs[unit], dev));
 
 	softc = device_get_softc(dev);
 	softc->dev = dev;
-	ivhd = ivhd_find_by_index(unit);
-	if (ivhd == NULL)
-		return (EINVAL);
+	ivhd = ivhd_hdrs[unit];
+	KASSERT(ivhd, ("ivhd is NULL"));
 
+	softc->ivhd_type = ivhd->Header.Type;
 	softc->pci_seg = ivhd->PciSegmentGroup;
 	softc->pci_rid = ivhd->Header.DeviceId;
 	softc->ivhd_flag = ivhd->Header.Flags;
-	softc->ivhd_efr = ivhd->Reserved;
+	/* 
+	 * On lgeacy IVHD type(0x10), it is documented as feature
+	 * but in newer type it is attribute.
+	 */
+	softc->ivhd_feature = ivhd->Reserved;
 	/* 
 	 * PCI capability has more capabilities that are not part of IVRS.
 	 */
@@ -439,6 +639,15 @@ ivhd_attach(device_t dev)
 	/* IVHD Info bit[4:0] is event MSI/X number. */
 	softc->event_msix = ivhd->Info & 0x1F;
 #endif
+	switch (ivhd->Header.Type) {
+		case ACPI_IVRS_TYPE_HARDWARE_EXT1:
+		case ACPI_IVRS_TYPE_HARDWARE_EXT2:
+			ivhd1 = (ACPI_IVRS_HARDWARE_NEW *)ivhd;
+			softc->ext_feature = ivhd1->ExtFR;
+			break;
+
+	}
+
 	softc->ctrl = (struct amdvi_ctrl *) PHYS_TO_DMAP(ivhd->BaseAddress);
 	status = ivhd_dev_parse(ivhd, softc);
 	if (status != 0) {

@@ -54,7 +54,7 @@
 #define	LIO_WAIT		0x1
 
 /*
- * Maximum number of allowed LIO operations
+ * Maximum number of operations in a single lio_listio call
  */
 #define	AIO_LISTIO_MAX		16
 

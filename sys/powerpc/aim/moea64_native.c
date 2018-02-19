@@ -365,7 +365,7 @@ moea64_cpu_bootstrap_native(mmu_t mmup, int ap)
 {
 	int i = 0;
 	#ifdef __powerpc64__
-	struct slb *slb = PCPU_GET(slb);
+	struct slb *slb = PCPU_GET(aim.slb);
 	register_t seg0;
 	#endif
 

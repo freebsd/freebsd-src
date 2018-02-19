@@ -52,23 +52,22 @@ struct pvo_entry;
 	register_t	pc_tempsave[CPUSAVE_LEN];			\
 	register_t	pc_disisave[CPUSAVE_LEN];			\
 	register_t	pc_dbsave[CPUSAVE_LEN];				\
-	void		*pc_restore;
+	void		*pc_restore;					\
+	vm_offset_t	pc_qmap_addr;
 
 #define PCPU_MD_AIM32_FIELDS						\
-	vm_offset_t	pc_qmap_addr;					\
-	struct pvo_entry *pc_qmap_pvo;					\
-	struct mtx	pc_qmap_lock;					\
-	char		__pad[128]
+	struct pvo_entry *qmap_pvo;					\
+	struct mtx	qmap_lock;					\
+	char		__pad[128];
 
 #define PCPU_MD_AIM64_FIELDS						\
-	struct slb	pc_slb[64];					\
-	struct slb	**pc_userslb;					\
-	register_t	pc_slbsave[18];					\
-	uint8_t		pc_slbstack[1024];				\
-	vm_offset_t	pc_qmap_addr;					\
-	struct pvo_entry *pc_qmap_pvo;					\
-	struct mtx	pc_qmap_lock;					\
-	char		__pad[1345]
+	struct slb	slb[64];					\
+	struct slb	**userslb;					\
+	register_t	slbsave[18];					\
+	uint8_t		slbstack[1024];				\
+	struct pvo_entry *qmap_pvo;					\
+	struct mtx	qmap_lock;					\
+	char		__pad[1345];
 
 #ifdef __powerpc64__
 #define PCPU_MD_AIM_FIELDS	PCPU_MD_AIM64_FIELDS
@@ -87,14 +86,13 @@ struct pvo_entry;
 #define	BOOKE_PCPU_PAD	429
 #endif
 #define PCPU_MD_BOOKE_FIELDS						\
-	register_t	pc_booke_critsave[BOOKE_CRITSAVE_LEN];		\
-	register_t	pc_booke_mchksave[CPUSAVE_LEN];			\
-	register_t	pc_booke_tlbsave[BOOKE_TLBSAVE_LEN];		\
-	register_t	pc_booke_tlb_level;				\
-	vm_offset_t	pc_qmap_addr;					\
-	uintptr_t	*pc_booke_tlb_lock;				\
-	int		pc_tid_next;					\
-	char		__pad[BOOKE_PCPU_PAD]
+	register_t	critsave[BOOKE_CRITSAVE_LEN];		\
+	register_t	mchksave[CPUSAVE_LEN];			\
+	register_t	tlbsave[BOOKE_TLBSAVE_LEN];		\
+	register_t	tlb_level;				\
+	uintptr_t	*tlb_lock;				\
+	int		tid_next;					\
+	char		__pad[BOOKE_PCPU_PAD];
 
 /* Definitions for register offsets within the exception tmp save areas */
 #define	CPUSAVE_R27	0		/* where r27 gets saved */
@@ -129,24 +127,16 @@ struct pvo_entry;
 #define TLBSAVE_BOOKE_R30	14
 #define TLBSAVE_BOOKE_R31	15
 
-#ifdef AIM
 #define	PCPU_MD_FIELDS		\
 	PCPU_MD_COMMON_FIELDS	\
-	PCPU_MD_AIM_FIELDS
-#endif
-#if defined(BOOKE)
-#define	PCPU_MD_FIELDS		\
-	PCPU_MD_COMMON_FIELDS	\
-	PCPU_MD_BOOKE_FIELDS
-#endif
-
-/*
- * Catch-all for ports (e.g. lsof, used by gtop)
- */
-#ifndef PCPU_MD_FIELDS
-#define	PCPU_MD_FIELDS							\
-	int		pc_md_placeholder[32]
-#endif
+	union {			\
+	    struct {		\
+		PCPU_MD_AIM_FIELDS	\
+	    } pc_aim;		\
+	    struct {		\
+		PCPU_MD_BOOKE_FIELDS	\
+	    } pc_booke;		\
+	}
 
 #ifdef _KERNEL
 

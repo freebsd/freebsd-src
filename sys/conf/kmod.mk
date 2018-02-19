@@ -243,14 +243,14 @@ ${FULLPROG}: ${OBJS}
 .if ${EXPORT_SYMS} == NO
 	:> export_syms
 .elif !exists(${.CURDIR}/${EXPORT_SYMS})
-	echo ${EXPORT_SYMS} > export_syms
+	echo -n "${EXPORT_SYMS:@s@$s${.newline}@}" > export_syms
 .else
 	grep -v '^#' < ${EXPORT_SYMS} > export_syms
 .endif
 	${AWK} -f ${SYSDIR}/conf/kmod_syms.awk ${.TARGET} \
 	    export_syms | xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
-.endif
+.endif # defined(EXPORT_SYMS)
 .if defined(PREFIX_SYMS)
 	${AWK} -v prefix=${PREFIX_SYMS} -f ${SYSDIR}/conf/kmod_syms_prefix.awk \
 	    ${.TARGET} /dev/null | xargs -J% ${OBJCOPY} % ${.TARGET}

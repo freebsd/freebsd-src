@@ -3018,6 +3018,10 @@ options         IMAGACT_BINMISC
 # This enables support for compressed core dumps.
 options 	GZIO
 
+# zstd I/O stream support
+# This enables support for Zstd compressed core dumps.
+options 	ZSTDIO
+
 # BHND(4) drivers
 options		BHND_LOGLEVEL	# Logging threshold level
 

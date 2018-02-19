@@ -534,6 +534,7 @@ hint.mse.0.irq="5"
 # iwn:	Intel Wireless WiFi Link 1000/105/135/2000/4965/5000/6000/6050 abgn
 #	802.11 network adapters
 #	Requires the iwn firmware module
+# mthca: Mellanox HCA InfiniBand
 # mlx4ib: Mellanox ConnectX HCA InfiniBand
 # mlx4en: Mellanox ConnectX HCA Ethernet
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
@@ -572,6 +573,7 @@ hint.le.0.at="isa"
 hint.le.0.port="0x280"
 hint.le.0.irq="10"
 hint.le.0.drq="0"
+device  	mthca		# Mellanox HCA InfiniBand
 device		mlx4		# Shared code module between IB and Ethernet
 device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
 device  	mlx4en		# Mellanox ConnectX HCA Ethernet

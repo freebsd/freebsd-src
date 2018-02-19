@@ -1084,16 +1084,16 @@ swap_pager_unswapped(vm_page_t m)
 /*
  * swap_pager_getpages() - bring pages in from swap
  *
- *	Attempt to page in the pages in array "m" of length "count".  The caller
- *	may optionally specify that additional pages preceding and succeeding
- *	the specified range be paged in.  The number of such pages is returned
- *	in the "rbehind" and "rahead" parameters, and they will be in the
- *	inactive queue upon return.
+ *	Attempt to page in the pages in array "ma" of length "count".  The
+ *	caller may optionally specify that additional pages preceding and
+ *	succeeding the specified range be paged in.  The number of such pages
+ *	is returned in the "rbehind" and "rahead" parameters, and they will
+ *	be in the inactive queue upon return.
  *
- *	The pages in "m" must be busied and will remain busied upon return.
+ *	The pages in "ma" must be busied and will remain busied upon return.
  */
 static int
-swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
+swap_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
     int *rahead)
 {
 	struct buf *bp;
@@ -1108,7 +1108,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	bp = getpbuf(&nsw_rcount);
 	VM_OBJECT_WLOCK(object);
 
-	if (!swap_pager_haspage(object, m[0]->pindex, &maxbehind, &maxahead)) {
+	if (!swap_pager_haspage(object, ma[0]->pindex, &maxbehind, &maxahead)) {
 		relpbuf(bp, &nsw_rcount);
 		return (VM_PAGER_FAIL);
 	}
@@ -1120,15 +1120,15 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 		KASSERT(reqcount - 1 <= maxahead,
 		    ("page count %d extends beyond swap block", reqcount));
 		*rahead = imin(*rahead, maxahead - (reqcount - 1));
-		pindex = m[reqcount - 1]->pindex;
-		msucc = TAILQ_NEXT(m[reqcount - 1], listq);
+		pindex = ma[reqcount - 1]->pindex;
+		msucc = TAILQ_NEXT(ma[reqcount - 1], listq);
 		if (msucc != NULL && msucc->pindex - pindex - 1 < *rahead)
 			*rahead = msucc->pindex - pindex - 1;
 	}
 	if (rbehind != NULL) {
 		*rbehind = imin(*rbehind, maxbehind);
-		pindex = m[0]->pindex;
-		mpred = TAILQ_PREV(m[0], pglist, listq);
+		pindex = ma[0]->pindex;
+		mpred = TAILQ_PREV(ma[0], pglist, listq);
 		if (mpred != NULL && pindex - mpred->pindex - 1 < *rbehind)
 			*rbehind = pindex - mpred->pindex - 1;
 	}
@@ -1139,7 +1139,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	shift = rbehind != NULL ? *rbehind : 0;
 	if (shift != 0) {
 		for (i = 1; i <= shift; i++) {
-			p = vm_page_alloc(object, m[0]->pindex - i,
+			p = vm_page_alloc(object, ma[0]->pindex - i,
 			    VM_ALLOC_NORMAL);
 			if (p == NULL) {
 				/* Shift allocated pages to the left. */
@@ -1154,11 +1154,11 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 		*rbehind = shift;
 	}
 	for (i = 0; i < reqcount; i++)
-		bp->b_pages[i + shift] = m[i];
+		bp->b_pages[i + shift] = ma[i];
 	if (rahead != NULL) {
 		for (i = 0; i < *rahead; i++) {
 			p = vm_page_alloc(object,
-			    m[reqcount - 1]->pindex + i + 1, VM_ALLOC_NORMAL);
+			    ma[reqcount - 1]->pindex + i + 1, VM_ALLOC_NORMAL);
 			if (p == NULL)
 				break;
 			bp->b_pages[shift + reqcount + i] = p;
@@ -1203,7 +1203,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	 * Instead, we look at the one page we are interested in which we
 	 * still hold a lock on even through the I/O completion.
 	 *
-	 * The other pages in our m[] array are also released on completion,
+	 * The other pages in our ma[] array are also released on completion,
 	 * so we cannot assume they are valid anymore either.
 	 *
 	 * NOTE: b_blkno is destroyed by the call to swapdev_strategy
@@ -1217,8 +1217,8 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	 * is set in the metadata for each page in the request.
 	 */
 	VM_OBJECT_WLOCK(object);
-	while ((m[0]->oflags & VPO_SWAPINPROG) != 0) {
-		m[0]->oflags |= VPO_SWAPSLEEP;
+	while ((ma[0]->oflags & VPO_SWAPINPROG) != 0) {
+		ma[0]->oflags |= VPO_SWAPSLEEP;
 		VM_CNT_INC(v_intrans);
 		if (VM_OBJECT_SLEEP(object, &object->paging_in_progress, PSWP,
 		    "swread", hz * 20)) {
@@ -1232,7 +1232,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	 * If we had an unrecoverable read error pages will not be valid.
 	 */
 	for (i = 0; i < reqcount; i++)
-		if (m[i]->valid != VM_PAGE_BITS_ALL)
+		if (ma[i]->valid != VM_PAGE_BITS_ALL)
 			return (VM_PAGER_ERROR);
 
 	return (VM_PAGER_OK);
@@ -1252,12 +1252,12 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
  *	swap_pager_getpages().
  */
 static int
-swap_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
+swap_pager_getpages_async(vm_object_t object, vm_page_t *ma, int count,
     int *rbehind, int *rahead, pgo_getpages_iodone_t iodone, void *arg)
 {
 	int r, error;
 
-	r = swap_pager_getpages(object, m, count, rbehind, rahead);
+	r = swap_pager_getpages(object, ma, count, rbehind, rahead);
 	VM_OBJECT_WUNLOCK(object);
 	switch (r) {
 	case VM_PAGER_OK:
@@ -1272,7 +1272,7 @@ swap_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
 	default:
 		panic("unhandled swap_pager_getpages() error %d", r);
 	}
-	(iodone)(arg, m, count, error);
+	(iodone)(arg, ma, count, error);
 	VM_OBJECT_WLOCK(object);
 
 	return (r);
@@ -1301,16 +1301,16 @@ swap_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
  *	We need to unbusy the rest on I/O completion.
  */
 static void
-swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
+swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
     int flags, int *rtvals)
 {
 	int i, n;
 	boolean_t sync;
 
-	if (count && m[0]->object != object) {
+	if (count && ma[0]->object != object) {
 		panic("swap_pager_putpages: object mismatch %p/%p",
 		    object,
-		    m[0]->object
+		    ma[0]->object
 		);
 	}
 
@@ -1388,7 +1388,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 
 		VM_OBJECT_WLOCK(object);
 		for (j = 0; j < n; ++j) {
-			vm_page_t mreq = m[i+j];
+			vm_page_t mreq = ma[i+j];
 
 			swp_pager_meta_build(
 			    mreq->object,

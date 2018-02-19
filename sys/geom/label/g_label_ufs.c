@@ -75,9 +75,14 @@ g_label_ufs_taste_common(struct g_consumer *cp, char *label, size_t size, int wh
 	pp = cp->provider;
 	label[0] = '\0';
 
+	fs = NULL;
 	if (SBLOCKSIZE % pp->sectorsize != 0 ||
-	    ffs_sbget(cp, &fs, -1, NULL, g_use_g_read_data) != 0)
+	    ffs_sbget(cp, &fs, -1, NULL, g_use_g_read_data) != 0) {
+		if (fs != NULL)
+			g_free(fs);
 		return;
+	}
+
 	/*
 	 * Check for magic. We also need to check if file system size
 	 * is almost equal to providers size, because sysinstall(8)

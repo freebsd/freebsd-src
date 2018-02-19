@@ -401,8 +401,6 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 
 	trypid = fork_findpid(fr->fr_flags);
 
-	sx_sunlock(&proctree_lock);
-
 	p2->p_state = PRS_NEW;		/* protect against others */
 	p2->p_pid = trypid;
 	AUDIT_ARG_PID(p2->p_pid);
@@ -414,6 +412,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	PROC_LOCK(p1);
 
 	sx_xunlock(&allproc_lock);
+	sx_sunlock(&proctree_lock);
 
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    __rangeof(struct proc, p_startcopy, p_endcopy));
@@ -977,8 +976,8 @@ fork1(struct thread *td, struct fork_req *fr)
 	}
 
 	error = EAGAIN;
-	sx_sunlock(&proctree_lock);
 	sx_xunlock(&allproc_lock);
+	sx_sunlock(&proctree_lock);
 #ifdef MAC
 	mac_proc_destroy(newproc);
 #endif

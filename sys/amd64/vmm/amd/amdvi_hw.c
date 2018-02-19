@@ -745,22 +745,7 @@ amdvi_print_pci_cap(device_t dev)
 	softc->pci_cap = cap >> 24;
 	device_printf(softc->dev, "PCI cap 0x%x@0x%x feature:%b\n",
 	    cap, off, softc->pci_cap,
-	    "\020\001IOTLB\002HT\003NPCache\004EFR");
-
-	/* IOMMU spec Rev 2.0, section 3.7.2.1 */
-	softc->pci_efr = softc->ctrl->ex_feature;
-	if (softc->pci_efr) {
-		device_printf(softc->dev, "PCI extended Feature:%b\n",
-		    (int)softc->pci_efr,
-		    "\020\001PreFSup\002PPRSup\003XTSup\004NXSup\006IASup"
-		    "\007GASup\008HESup\009PCSup");
-		device_printf(softc->dev,
-		    "PCI HATS = %d GATS = %d GLXSup = %d, max PASID: 0x%x ",
-		    (int)((softc->pci_efr >> 10) & 0x3),
-		    (int)((softc->pci_efr >> 12) & 0x3),
-		    (int)((softc->pci_efr >> 14) & 0x3),
-		    (int)((softc->pci_efr >> 32) & 0x1F) + 1);
-	}
+	    "\20\1IOTLB\2HT\3NPCache\4EFR\5CapExt");
 
 	return (0);
 }
@@ -1040,7 +1025,7 @@ amdvi_init(void)
 	}
 	if (!amdvi_enable_user && ivhd_count) {
 		printf("bhyve: Found %d AMD-Vi/IOMMU device(s), "
-		    	"use hw.vmm.amdvi_enable=1 to enable pass-through.\n",
+		    	"use hw.vmm.amdvi.enable=1 to enable pass-through.\n",
 		    ivhd_count);
 		return (EINVAL);
 	}
@@ -1315,40 +1300,41 @@ static void
 amdvi_set_dte(struct amdvi_domain *domain, uint16_t devid, bool enable)
 {
 	struct amdvi_softc *softc;
-	struct amdvi_dte temp;
+	struct amdvi_dte* temp;
 
+	KASSERT(domain, ("domain is NULL for pci_rid:0x%x\n", devid));
+	
 	softc = amdvi_find_iommu(devid);
 	KASSERT(softc, ("softc is NULL for pci_rid:0x%x\n", devid));
 
-	memset(&temp, 0, sizeof(struct amdvi_dte));
+	temp = &amdvi_dte[devid];
 
 #ifdef AMDVI_ATS_ENABLE
 	/* If IOMMU and device support IOTLB, enable it. */
 	if (amdvi_dev_support_iotlb(softc, devid) && softc->iotlb)
-		temp.iotlb_enable = 1;
+		temp->iotlb_enable = 1;
 #endif
 
 	/* Avoid duplicate I/O faults. */
-	temp.sup_second_io_fault = 1;
-	temp.sup_all_io_fault = amdvi_disable_io_fault;
+	temp->sup_second_io_fault = 1;
+	temp->sup_all_io_fault = amdvi_disable_io_fault;
 
-	temp.dt_valid = 1;
-	temp.domain_id = domain->id;
+	temp->dt_valid = 1;
+	temp->domain_id = domain->id;
 
 	if (enable) {
 		if (domain->ptp) {
-			temp.pt_base = vtophys(domain->ptp) >> 12;
-			temp.pt_level = amdvi_ptp_level;
+			temp->pt_base = vtophys(domain->ptp) >> 12;
+			temp->pt_level = amdvi_ptp_level;
 		}
 		/*
 		 * XXX: Page table valid[TV] bit must be set even if host domain
 		 * page tables are not enabled.
 		 */
-		temp.pt_valid = 1;
-		temp.read_allow = 1;
-		temp.write_allow = 1;
+		temp->pt_valid = 1;
+		temp->read_allow = 1;
+		temp->write_allow = 1;
 	}
-	amdvi_dte[devid] = temp;
 }
 
 static void

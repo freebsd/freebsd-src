@@ -214,10 +214,10 @@ static device_method_t ofw_spibus_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ofwspibus_devclass;
+devclass_t ofw_spibus_devclass;
 
 DEFINE_CLASS_1(spibus, ofw_spibus_driver, ofw_spibus_methods,
     sizeof(struct spibus_softc), spibus_driver);
-DRIVER_MODULE(ofw_spibus, spi, ofw_spibus_driver, ofwspibus_devclass, 0, 0);
+DRIVER_MODULE(ofw_spibus, spi, ofw_spibus_driver, ofw_spibus_devclass, 0, 0);
 MODULE_VERSION(ofw_spibus, 1);
 MODULE_DEPEND(ofw_spibus, spibus, 1, 1, 1);

@@ -65,6 +65,10 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	kmem_cache_free(...) 	linux_kmem_cache_free(__VA_ARGS__)
 #define	kmem_cache_destroy(...) linux_kmem_cache_destroy(__VA_ARGS__)
 
+#define	KMEM_CACHE(__struct, flags)					\
+	linux_kmem_cache_create(#__struct, sizeof(struct __struct),	\
+	__alignof(struct __struct), (flags), NULL)
+
 typedef void linux_kmem_ctor_t (void *);
 
 struct linux_kmem_cache {

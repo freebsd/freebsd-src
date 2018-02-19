@@ -11,16 +11,10 @@
  * All rights reserved.
  * Copyright (c) 2005-2010 Alan L. Cox <alc@cs.rice.edu>
  * All rights reserved.
- * Copyright (c) 2014-2018 The FreeBSD Foundation
- * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * the Systems Programming Group of the University of Utah Computer
  * Science Department and William Jolitz of UUNET Technologies Inc.
- *
- * Portions of this software were developed by
- * Konstantin Belousov <kib@FreeBSD.org> under sponsorship from
- * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -54,6 +48,7 @@
  */
 /*-
  * Copyright (c) 2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2014-2018 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by Jake Burkholder,
@@ -61,6 +56,10 @@
  * Security Research Division of Network Associates, Inc. under
  * DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA
  * CHATS research program.
+ *
+ * Portions of this software were developed by
+ * Konstantin Belousov <kib@FreeBSD.org> under sponsorship from
+ * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1244,7 +1243,9 @@ pmap_init(void)
 		    ("pmap_init: page table page is out of range"));
 		mpte->pindex = pmap_pde_pindex(KERNBASE) + i;
 		mpte->phys_addr = KPTphys + (i << PAGE_SHIFT);
+		mpte->wire_count = 1;
 	}
+	vm_wire_add(nkpt);
 
 	/*
 	 * If the kernel is running on a virtual machine, then it must assume
@@ -2337,7 +2338,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 		pa = VM_PAGE_TO_PHYS(m) | cache_bits;
 		if ((*pte & (PG_FRAME | X86_PG_PTE_CACHE)) != pa) {
 			oldpte |= *pte;
-			pte_store(pte, pa | pg_g | X86_PG_RW | X86_PG_V);
+			pte_store(pte, pa | pg_g | pg_nx | X86_PG_RW | X86_PG_V);
 		}
 		pte++;
 	}
@@ -2379,7 +2380,7 @@ pmap_free_zero_pages(struct spglist *free)
 		/* Preserve the page's PG_ZERO setting. */
 		vm_page_free_toq(m);
 	}
-	VM_CNT_ADD(v_wire_count, -count);
+	vm_wire_sub(count);
 }
 
 /*

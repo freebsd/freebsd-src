@@ -221,7 +221,7 @@ mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 static void
 mphyp_cpu_bootstrap(mmu_t mmup, int ap)
 {
-	struct slb *slb = PCPU_GET(slb);
+	struct slb *slb = PCPU_GET(aim.slb);
 	register_t seg0;
 	int i;
 

@@ -155,12 +155,26 @@ extern domainset_t vm_severe_domains;
 #define	VM_CNT_INC(var)		VM_CNT_ADD(var, 1)
 #define	VM_CNT_FETCH(var)	counter_u64_fetch(vm_cnt.var)
 
+static inline void
+vm_wire_add(int cnt)
+{
+
+	VM_CNT_ADD(v_wire_count, cnt);
+}
+
+static inline void
+vm_wire_sub(int cnt)
+{
+
+	VM_CNT_ADD(v_wire_count, -cnt);
+}
+
 u_int vm_free_count(void);
 static inline u_int
 vm_wire_count(void)
 {
 
-	return VM_CNT_FETCH(v_wire_count);
+	return (VM_CNT_FETCH(v_wire_count));
 }
 
 /*

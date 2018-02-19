@@ -118,8 +118,13 @@ struct vm_area_struct {
 struct vm_fault {
 	unsigned int flags;
 	pgoff_t	pgoff;
-	void   *virtual_address;	/* user-space address */
+	union {
+		/* user-space address */
+		void *virtual_address;
+		unsigned long address;
+	};
 	struct page *page;
+	struct vm_area_struct *vma;
 };
 
 struct vm_operations_struct {
@@ -243,7 +248,8 @@ static inline void
 put_page(struct vm_page *page)
 {
 	vm_page_lock(page);
-	vm_page_unwire(page, PQ_ACTIVE);
+	if (vm_page_unwire(page, PQ_ACTIVE) && page->object == NULL)
+		vm_page_free(page);
 	vm_page_unlock(page);
 }
 

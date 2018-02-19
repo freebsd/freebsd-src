@@ -117,6 +117,6 @@ device		wlan_amrr		# AMRR transmit rate control algorithm
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
-makeoptions	MODULES_EXTRA=dtb/imx5
+makeoptions	MODULES_EXTRA="dtb/imx5 imx"
 
 options 	INTRNG

@@ -1911,8 +1911,11 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			    error, action_string);
 		} else if (action_string != NULL)
 			xpt_print(ccb->ccb_h.path, "%s\n", action_string);
-		else
-			xpt_print(ccb->ccb_h.path, "Retrying command\n");
+		else {
+			xpt_print(ccb->ccb_h.path,
+			    "Retrying command, %d more tries remain\n",
+			    ccb->ccb_h.retry_count);
+		}
 	}
 
 	if (devctl_err && (error != 0 || (action & SSQ_PRINT_SENSE) != 0))

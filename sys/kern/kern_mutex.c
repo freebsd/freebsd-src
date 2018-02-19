@@ -1226,6 +1226,23 @@ _mtx_lock_indefinite_check(struct mtx *m, struct lock_delay_arg *ldap)
 	cpu_spinwait();
 }
 
+void
+mtx_spin_wait_unlocked(struct mtx *m)
+{
+	struct lock_delay_arg lda;
+
+	lda.spin_cnt = 0;
+
+	while (atomic_load_acq_ptr(&m->mtx_lock) != MTX_UNOWNED) {
+		if (__predict_true(lda.spin_cnt < 10000000)) {
+			cpu_spinwait();
+			lda.spin_cnt++;
+		} else {
+			_mtx_lock_indefinite_check(m, &lda);
+		}
+	}
+}
+
 #ifdef DDB
 void
 db_show_mtx(const struct lock_object *lock)

@@ -37,6 +37,7 @@
 #define _SIBA_SIBAVAR_H_
 
 #include <sys/param.h>
+#include <sys/bitstring.h>
 #include <sys/bus.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -52,6 +53,7 @@
  */
 
 struct siba_addrspace;
+struct siba_admatch;
 struct siba_cfg_block;
 struct siba_devinfo;
 struct siba_core_id;
@@ -68,13 +70,10 @@ int			 siba_get_intr_ivec(device_t dev, device_t child,
 
 uint16_t		 siba_get_bhnd_mfgid(uint16_t ocp_vendor);
 
-struct siba_core_id	 siba_parse_core_id(uint32_t idhigh, uint32_t idlow,
-			     u_int core_idx, int unit);
-
 int			 siba_add_children(device_t bus);
 
 struct siba_devinfo	*siba_alloc_dinfo(device_t dev);
-int			 siba_init_dinfo(device_t dev,
+int			 siba_init_dinfo(device_t dev, device_t child,
 			     struct siba_devinfo *dinfo,
 			     const struct siba_core_id *core_id);
 void			 siba_free_dinfo(device_t dev, device_t child,
@@ -109,13 +108,9 @@ struct siba_addrspace	*siba_find_addrspace(struct siba_devinfo *dinfo,
 struct siba_cfg_block	*siba_find_cfg_block(struct siba_devinfo *dinfo,
 			     bhnd_port_type type, u_int port, u_int region);
 
-int			 siba_append_dinfo_region(struct siba_devinfo *dinfo,
-			     uint8_t sid, uint32_t base, uint32_t size,
-			     uint32_t bus_reserved);
-
 u_int			 siba_admatch_offset(uint8_t addrspace);
-int			 siba_parse_admatch(uint32_t am, uint32_t *addr,
-			     uint32_t *size);
+int			 siba_parse_admatch(uint32_t am,
+			    struct siba_admatch *admatch);
 
 void			 siba_write_target_state(device_t dev,
 			     struct siba_devinfo *dinfo, bus_size_t reg,
@@ -148,6 +143,14 @@ int			 siba_wait_target_state(device_t dev,
 #define	SIBA_MAX_PORT		2	/**< maximum number of advertised
 					  *  bhnd(4) ports */
 
+/** siba(4) address match descriptor */
+struct siba_admatch {
+	uint32_t	am_base;	/**< base address. */
+	uint32_t	am_size;	/**< size. */
+	bool		am_negative;	/**< if true, negative matching is performed. */
+	bool		am_enabled;	/**< if true, matching on this entry is enabled. */
+};
+
 /** siba(4) address space descriptor */
 struct siba_addrspace {
 	uint32_t	sa_base;	/**< base address */
@@ -166,7 +169,6 @@ struct siba_cfg_block {
 
 /** siba(4) backplane interrupt flag descriptor */
 struct siba_intr {
-	u_int		flag;	/**< backplane flag # */
 	bool		mapped;	/**< if an irq has been mapped */
 	int		rid;	/**< bus resource id, or -1 if unassigned */
 	rman_res_t	irq;	/**< the mapped bus irq, if any */
@@ -176,15 +178,17 @@ struct siba_intr {
  * siba(4) per-core identification info.
  */
 struct siba_core_id {
-	struct bhnd_core_info	core_info;	/**< standard bhnd(4) core info */
-	uint16_t		sonics_vendor;	/**< OCP vendor identifier used to generate
-						  *  the JEDEC-106 bhnd(4) vendor identifier. */
-	uint8_t			sonics_rev;	/**< sonics backplane revision code */
-	uint8_t			num_addrspace;	/**< number of address ranges mapped to
-						     this core. */
-	uint8_t			num_cfg_blocks;	/**< number of Sonics configuration register
-						     blocks mapped to the core's enumeration
-						     space */
+	struct bhnd_core_info	core_info;			/**< standard bhnd(4) core info */
+	uint16_t		sonics_vendor;			/**< OCP vendor identifier used to generate
+								  *  the JEDEC-106 bhnd(4) vendor identifier. */
+	uint8_t			sonics_rev;			/**< sonics backplane revision code */
+	bool			intr_en;			/**< if backplane interrupt distribution is enabled for this core */
+	u_int			intr_flag;			/**< backplane interrupt flag # */
+	struct siba_admatch	admatch[SIBA_MAX_ADDRSPACE];	/**< active address match descriptors defined by this core. */
+	uint8_t			num_admatch;			/**< number of address match descriptors. */
+	uint8_t			num_cfg_blocks;			/**< number of Sonics configuration register
+								     blocks mapped to the core's enumeration
+								     space */
 };
 
 /**
@@ -205,8 +209,7 @@ struct siba_devinfo {
 	struct siba_core_id	 core_id;			/**< core identification info */
 	struct siba_addrspace	 addrspace[SIBA_MAX_ADDRSPACE];	/**< memory map descriptors */
 	struct siba_cfg_block	 cfg[SIBA_MAX_CFG];		/**< config block descriptors */
-	struct siba_intr	 intr;				/**< interrupt flag descriptor, if any */
-	bool			 intr_en;			/**< if true, core has an assigned interrupt flag */
+	struct siba_intr	 intr;				/**< interrupt flag mapping, if any */
 
 	struct bhnd_resource	*cfg_res[SIBA_MAX_CFG];		/**< bus-mapped config block registers */
 	int			 cfg_rid[SIBA_MAX_CFG];		/**< bus-mapped config block resource IDs */

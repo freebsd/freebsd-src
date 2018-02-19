@@ -1326,15 +1326,11 @@ dev/bwi/bwiphy.c		optional bwi
 dev/bwi/bwirf.c			optional bwi
 dev/bwi/if_bwi.c		optional bwi
 dev/bwi/if_bwi_pci.c		optional bwi pci
-# XXX Work around clang warnings, until maintainer approves fix.
-dev/bwn/if_bwn.c		optional bwn bhnd \
-	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
+dev/bwn/if_bwn.c		optional bwn bhnd
 dev/bwn/if_bwn_pci.c		optional bwn pci bhnd bhndb bhndb_pci
 dev/bwn/if_bwn_phy_common.c	optional bwn bhnd
-dev/bwn/if_bwn_phy_g.c		optional bwn bhnd \
-	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED} ${NO_WCONSTANT_CONVERSION}"
-dev/bwn/if_bwn_phy_lp.c		optional bwn bhnd \
-	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
+dev/bwn/if_bwn_phy_g.c		optional bwn bhnd
+dev/bwn/if_bwn_phy_lp.c		optional bwn bhnd
 dev/bwn/if_bwn_phy_n.c		optional bwn bhnd
 dev/bwn/if_bwn_util.c		optional bwn bhnd
 dev/cardbus/cardbus.c		optional cardbus
@@ -3840,7 +3836,8 @@ kern/subr_bus_dma.c		standard
 kern/subr_bufring.c		standard
 kern/subr_capability.c		standard
 kern/subr_clock.c		standard
-kern/subr_compressor.c		standard
+kern/subr_compressor.c		standard \
+	compile-with "${NORMAL_C} -I$S/contrib/zstd/lib/freebsd"
 kern/subr_counter.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
@@ -4554,6 +4551,43 @@ ofed/drivers/infiniband/ulp/sdp/sdp_cma.c	optional sdp inet 	\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
 ofed/drivers/infiniband/ulp/sdp/sdp_tx.c	optional sdp inet 	\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
+
+dev/mthca/mthca_allocator.c		optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_av.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_catas.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_cmd.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_cq.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_eq.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_mad.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_main.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_mcg.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_memfree.c		optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_mr.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_pd.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_profile.c		optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_provider.c		optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_qp.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_reset.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_srq.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
+dev/mthca/mthca_uar.c			optional mthca pci ofed \
+	compile-with "${OFED_C}"
 
 dev/mlx4/mlx4_ib/mlx4_ib_alias_GUID.c		optional mlx4ib pci ofed \
 	compile-with "${OFED_C}"

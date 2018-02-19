@@ -966,6 +966,8 @@ g_use_g_read_data(void *devfd, off_t loc, void **bufp, int size)
 	 */
 	if (loc % cp->provider->sectorsize != 0)
 		return (ENOENT);
+	if (*bufp != NULL)
+		g_free(*bufp);
 	*bufp = g_read_data(cp, loc, size, NULL);
 	if (*bufp == NULL)
 		return (ENOENT);

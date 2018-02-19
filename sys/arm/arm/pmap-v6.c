@@ -2639,7 +2639,7 @@ pmap_unwire_pt2pg(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	 * down is begun.
 	 */
 	wmb();
-	VM_CNT_ADD(v_wire_count, -1);
+	vm_wire_sub(1);
 }
 
 /*
@@ -2946,7 +2946,7 @@ out:
 		SLIST_REMOVE_HEAD(&free, plinks.s.ss);
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
-		VM_CNT_ADD(v_wire_count, 1);
+		vm_wire_add(1);
 	}
 	pmap_free_zero_pages(&free);
 	return (m_pc);

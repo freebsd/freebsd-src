@@ -239,7 +239,7 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd, boolean_t sanity)
 		}
 		error = g_access(cp, 1, 0, 1);
 		if (error != 0) {
-			ZFS_LOG(1, "%s(%d): g_access failed: %d", __func__,
+			ZFS_LOG(1, "%s(%d): g_access failed: %d\n", __func__,
 			       __LINE__, error);
 			vdev_geom_detach(cp, B_FALSE);
 			return (NULL);

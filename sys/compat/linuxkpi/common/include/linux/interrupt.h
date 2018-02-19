@@ -33,13 +33,12 @@
 
 #include <linux/device.h>
 #include <linux/pci.h>
+#include <linux/irqreturn.h>
 
 #include <sys/bus.h>
 #include <sys/rman.h>
 
 typedef	irqreturn_t	(*irq_handler_t)(int, void *);
-
-#define	IRQ_RETVAL(x)	((x) != IRQ_NONE)
 
 #define	IRQF_SHARED	RF_SHAREABLE
 
@@ -112,6 +111,39 @@ request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
 }
 
 static inline int
+enable_irq(unsigned int irq)
+{
+	struct irq_ent *irqe;
+	struct device *dev;
+
+	dev = linux_pci_find_irq_dev(irq);
+	if (dev == NULL)
+		return -EINVAL;
+	irqe = linux_irq_ent(dev, irq);
+	if (irqe == NULL || irqe->tag != NULL)
+		return -EINVAL;
+	return -bus_setup_intr(dev->bsddev, irqe->res, INTR_TYPE_NET | INTR_MPSAFE,
+	    NULL, linux_irq_handler, irqe, &irqe->tag);
+}
+
+static inline void
+disable_irq(unsigned int irq)
+{
+	struct irq_ent *irqe;
+	struct device *dev;
+
+	dev = linux_pci_find_irq_dev(irq);
+	if (dev == NULL)
+		return;
+	irqe = linux_irq_ent(dev, irq);
+	if (irqe == NULL)
+		return;
+	if (irqe->tag != NULL)
+		bus_teardown_intr(dev->bsddev, irqe->res, irqe->tag);
+	irqe->tag = NULL;
+}
+
+static inline int
 bind_irq_to_cpu(unsigned int irq, int cpu_id)
 {
 	struct irq_ent *irqe;
@@ -142,7 +174,8 @@ free_irq(unsigned int irq, void *device)
 	irqe = linux_irq_ent(dev, irq);
 	if (irqe == NULL)
 		return;
-	bus_teardown_intr(dev->bsddev, irqe->res, irqe->tag);
+	if (irqe->tag != NULL)
+		bus_teardown_intr(dev->bsddev, irqe->res, irqe->tag);
 	bus_release_resource(dev->bsddev, SYS_RES_IRQ, rid, irqe->res);
 	list_del(&irqe->links);
 	kfree(irqe);
@@ -168,5 +201,7 @@ extern void tasklet_schedule(struct tasklet_struct *);
 extern void tasklet_kill(struct tasklet_struct *);
 extern void tasklet_init(struct tasklet_struct *, tasklet_func_t *,
     unsigned long data);
+extern void tasklet_enable(struct tasklet_struct *);
+extern void tasklet_disable(struct tasklet_struct *);
 
 #endif	/* _LINUX_INTERRUPT_H_ */

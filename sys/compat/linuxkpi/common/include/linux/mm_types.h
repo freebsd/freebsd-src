@@ -62,6 +62,12 @@ mmput(struct mm_struct *mm)
 		mmdrop(mm);
 }
 
+static inline void
+mmgrab(struct mm_struct *mm)
+{
+	atomic_inc(&mm->mm_count);
+}
+
 extern struct mm_struct *linux_get_task_mm(struct task_struct *);
 #define	get_task_mm(task) linux_get_task_mm(task)
 

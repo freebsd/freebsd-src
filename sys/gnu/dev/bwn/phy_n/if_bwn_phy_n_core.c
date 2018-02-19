@@ -3906,6 +3906,9 @@ static int bwn_nphy_tx_power_fix(struct bwn_mac *mac)
 	} else if (sc->sc_board_info.board_srom_rev < 4) {
 		txpi[0] = 72;
 		txpi[1] = 72;
+	} else if (sc->sc_board_info.board_srom_rev > 7) {
+		txpi[0] = 0;
+		txpi[1] = 0;
 	} else {
 #define	BWN_NPHY_GET_TXPI(_name, _result)				\
 do {									\

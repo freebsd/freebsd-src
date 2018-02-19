@@ -48,6 +48,12 @@ __FBSDID("$FreeBSD$");
 #include "sibareg.h"
 #include "sibavar.h"
 
+static int	siba_register_interrupts(device_t dev, device_t child,
+		    struct siba_devinfo *dinfo);
+static int	siba_append_dinfo_region(struct siba_devinfo *dinfo,
+		     uint8_t addridx, uint32_t base, uint32_t size,
+		     uint32_t bus_reserved);
+
 /**
  * Map a siba(4) OCP vendor code to its corresponding JEDEC JEP-106 vendor
  * code.
@@ -65,48 +71,6 @@ siba_get_bhnd_mfgid(uint16_t ocp_vendor)
 	default:
 		return (BHND_MFGID_INVALID);
 	}
-}
-
-/**
- * Parse the SIBA_IDH_* fields from the per-core identification
- * registers, returning a siba_core_id representation.
- * 
- * @param idhigh The SIBA_R0_IDHIGH register.
- * @param idlow The SIBA_R0_IDLOW register. 
- * @param core_id The core id (index) to include in the result.
- * @param unit The unit number to include in the result.
- */
-struct siba_core_id	 
-siba_parse_core_id(uint32_t idhigh, uint32_t idlow, u_int core_idx, int unit)
-{
-
-	uint16_t	ocp_vendor;
-	uint8_t		sonics_rev;
-	uint8_t		num_addrspace;
-	uint8_t		num_cfg;
-
-	ocp_vendor = SIBA_REG_GET(idhigh, IDH_VENDOR);
-	sonics_rev = SIBA_REG_GET(idlow, IDL_SBREV);
-	num_addrspace = SIBA_REG_GET(idlow, IDL_NRADDR) + 1 /* + enum block */;
-
-	/* Determine the number of sonics config register blocks */
-	num_cfg = SIBA_CFG_NUM_2_2;
-	if (sonics_rev >= SIBA_IDL_SBREV_2_3)
-		num_cfg = SIBA_CFG_NUM_2_3;
-
-	return (struct siba_core_id) {
-		.core_info	= {
-			.vendor	= siba_get_bhnd_mfgid(ocp_vendor),
-			.device	= SIBA_REG_GET(idhigh, IDH_DEVICE),
-			.hwrev	= SIBA_IDH_CORE_REV(idhigh),
-			.core_idx = core_idx,
-			.unit	= unit
-		},
-		.sonics_vendor	= ocp_vendor,
-		.sonics_rev	= sonics_rev,
-		.num_addrspace	= num_addrspace,
-		.num_cfg_blocks	= num_cfg
-	};	
 }
 
 /**
@@ -138,7 +102,11 @@ siba_alloc_dinfo(device_t bus)
 	resource_list_init(&dinfo->resources);
 
 	dinfo->pmu_state = SIBA_PMU_NONE;
-	dinfo->intr_en = false;
+
+	dinfo->intr = (struct siba_intr) {
+		.mapped = false,
+		.rid = -1
+	};
 
 	return dinfo;
 }
@@ -148,6 +116,7 @@ siba_alloc_dinfo(device_t bus)
  * siba_alloc_dinfo, copying the provided core id.
  * 
  * @param dev The requesting bus device.
+ * @param child The siba child device.
  * @param dinfo The device info instance.
  * @param core Device core info.
  * 
@@ -155,10 +124,77 @@ siba_alloc_dinfo(device_t bus)
  * @retval non-zero initialization failed.
  */
 int
-siba_init_dinfo(device_t dev, struct siba_devinfo *dinfo,
+siba_init_dinfo(device_t dev, device_t child, struct siba_devinfo *dinfo,
     const struct siba_core_id *core_id)
 {
+	int error;
+
 	dinfo->core_id = *core_id;
+
+	/* Register all address space mappings */
+	for (uint8_t i = 0; i < core_id->num_admatch; i++) {
+		uint32_t bus_reserved;
+
+		/* If this is the device's core/enumeration addrespace,
+		 * reserve the Sonics configuration register blocks for the
+		 * use of our bus. */
+		bus_reserved = 0;
+		if (i == SIBA_CORE_ADDRSPACE)
+			bus_reserved = core_id->num_cfg_blocks * SIBA_CFG_SIZE;
+
+		/* Append the region info */
+		error = siba_append_dinfo_region(dinfo, i,
+		    core_id->admatch[i].am_base, core_id->admatch[i].am_size,
+		    bus_reserved);
+		if (error)
+			return (error);
+	}
+
+	/* Register all interrupt(s) */
+	if ((error = siba_register_interrupts(dev, child, dinfo)))
+		return (error);
+
+	return (0);
+}
+
+
+/**
+ * Register and map all interrupts for @p dinfo.
+ *
+ * @param dev The siba bus device.
+ * @param child The siba child device.
+ * @param dinfo The device info instance on which to register all interrupt
+ * entries.
+ */
+static int
+siba_register_interrupts(device_t dev, device_t child,
+     struct siba_devinfo *dinfo)
+{
+	int error;
+
+	/* Is backplane interrupt distribution enabled for this core? */
+	if (!dinfo->core_id.intr_en)
+		return (0);
+
+	/* Have one interrupt */
+	dinfo->intr.mapped = false;
+	dinfo->intr.irq = 0;
+	dinfo->intr.rid = -1;
+
+	/* Map the interrupt */
+	error = BHND_BUS_MAP_INTR(dev, child, 0 /* single intr is always 0 */,
+	    &dinfo->intr.irq);
+	if (error) {
+		device_printf(dev, "failed mapping interrupt line for core %u: "
+		    "%d\n", dinfo->core_id.core_info.core_idx, error);
+		return (error);
+	}
+	dinfo->intr.mapped = true;
+
+	/* Update the resource list */
+	dinfo->intr.rid = resource_list_add_next(&dinfo->resources, SYS_RES_IRQ,
+	    dinfo->intr.irq, dinfo->intr.irq, 1);
+
 	return (0);
 }
 
@@ -238,7 +274,7 @@ siba_port_count(struct siba_core_id *core_id, bhnd_port_type port_type)
 	switch (port_type) {
 	case BHND_PORT_DEVICE:
 		/* 0, 1, or 2 ports */
-		return (min(core_id->num_addrspace, 2));
+		return (min(core_id->num_admatch, 2));
 
 	case BHND_PORT_AGENT:
 		/* One agent port maps all configuration blocks */
@@ -292,11 +328,11 @@ siba_port_region_count(struct siba_core_id *core_id, bhnd_port_type port_type,
 	case BHND_PORT_DEVICE:
 		/* The first address space, if any, is mapped to device0.0 */
 		if (port == 0)
-			return (min(core_id->num_addrspace, 1));
+			return (min(core_id->num_admatch, 1));
 
 		/* All remaining address spaces are mapped to device0.(n - 1) */
-		if (port == 1 && core_id->num_addrspace >= 2)
-			return (core_id->num_addrspace - 1);
+		if (port == 1 && core_id->num_admatch >= 2)
+			return (core_id->num_admatch - 1);
 
 		break;
 
@@ -327,7 +363,6 @@ siba_port_region_count(struct siba_core_id *core_id, bhnd_port_type port_type,
  * 	agent0.0	0
  * 	agent0.1	1
  * 
- * @param num_addrspace The number of available siba address spaces.
  * @param port_type The bhnd(4) port type.
  * @param port The bhnd(4) port number.
  * @param region The bhnd(4) port region.
@@ -394,7 +429,7 @@ siba_find_cfg_block(struct siba_devinfo *dinfo, bhnd_port_type type, u_int port,
  * For compatibility with bcma(4), we map address spaces to port/region
  * identifiers as follows:
  * 
- * 	[port]		[addrspace]
+ * 	[port.region]	[admatch index]
  * 	device0.0	0
  * 	device1.0	1
  * 	device1.1	2
@@ -431,7 +466,7 @@ siba_addrspace_index(struct siba_core_id *core_id, bhnd_port_type port_type,
 	else
 		return (ENOENT);
 
-	if (idx >= core_id->num_addrspace)
+	if (idx >= core_id->num_admatch)
 		return (ENOENT);
 
 	/* Found */
@@ -484,7 +519,7 @@ siba_find_addrspace(struct siba_devinfo *dinfo, bhnd_port_type type, u_int port,
  * @retval 0 success
  * @retval non-zero An error occurred appending the entry.
  */
-int
+static int
 siba_append_dinfo_region(struct siba_devinfo *dinfo, uint8_t addridx,
     uint32_t base, uint32_t size, uint32_t bus_reserved)
 {
@@ -546,7 +581,7 @@ siba_free_dinfo(device_t dev, device_t child, struct siba_devinfo *dinfo)
 	}
 
 	/* Unmap the core's interrupt */
-	if (dinfo->intr_en && dinfo->intr.mapped) {
+	if (dinfo->core_id.intr_en && dinfo->intr.mapped) {
 		BHND_BUS_UNMAP_INTR(dev, child, dinfo->intr.irq);
 		dinfo->intr.mapped = false;
 	}
@@ -585,36 +620,38 @@ siba_admatch_offset(uint8_t addrspace)
  * 
  * @param addrspace The address space index.
  * @param am The address match register value to be parsed.
- * @param[out] addr The parsed address.
- * @param[out] size The parsed size.
+ * @param[out] admatch The parsed address match descriptor
  * 
  * @retval 0 success
  * @retval non-zero a parse error occurred.
  */
 int
-siba_parse_admatch(uint32_t am, uint32_t *addr, uint32_t *size)
+siba_parse_admatch(uint32_t am, struct siba_admatch *admatch)
 {
-	u_int		am_type;
-	
-	/* Negative encoding is not supported. This is not used on any
-	 * currently known devices*/
-	if (am & SIBA_AM_ADNEG)
-		return (EINVAL);
+	u_int am_type;
 	
 	/* Extract the base address and size */
 	am_type = SIBA_REG_GET(am, AM_TYPE);
 	switch (am_type) {
 	case 0:
-		*addr = am & SIBA_AM_BASE0_MASK;
-		*size = 1 << (SIBA_REG_GET(am, AM_ADINT0) + 1);
+		/* Type 0 entries are always enabled, and do not support
+		 * negative matching */
+		admatch->am_base = am & SIBA_AM_BASE0_MASK;
+		admatch->am_size = 1 << (SIBA_REG_GET(am, AM_ADINT0) + 1);
+		admatch->am_enabled = true;
+		admatch->am_negative = false;
 		break;
 	case 1:
-		*addr = am & SIBA_AM_BASE1_MASK;
-		*size = 1 << (SIBA_REG_GET(am, AM_ADINT1) + 1);
+		admatch->am_base = am & SIBA_AM_BASE1_MASK;
+		admatch->am_size = 1 << (SIBA_REG_GET(am, AM_ADINT1) + 1);
+		admatch->am_enabled = ((am & SIBA_AM_ADEN) != 0);
+		admatch->am_negative = ((am & SIBA_AM_ADNEG) != 0);
 		break;
 	case 2:
-		*addr = am & SIBA_AM_BASE2_MASK;
-		*size = 1 << (SIBA_REG_GET(am, AM_ADINT2) + 1);
+		admatch->am_base = am & SIBA_AM_BASE2_MASK;
+		admatch->am_size = 1 << (SIBA_REG_GET(am, AM_ADINT2) + 1);
+		admatch->am_enabled = ((am & SIBA_AM_ADEN) != 0);
+		admatch->am_negative = ((am & SIBA_AM_ADNEG) != 0);
 		break;
 	default:
 		return (EINVAL);

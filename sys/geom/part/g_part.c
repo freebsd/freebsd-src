@@ -275,6 +275,35 @@ g_part_geometry(struct g_part_table *table, struct g_consumer *cp,
 	}
 }
 
+static void
+g_part_get_physpath_done(struct bio *bp)
+{
+	struct g_geom *gp;
+	struct g_part_entry *entry;
+	struct g_part_table *table;
+	struct g_provider *pp;
+	struct bio *pbp;
+
+	pbp = bp->bio_parent;
+	pp = pbp->bio_to;
+	gp = pp->geom;
+	table = gp->softc;
+	entry = pp->private;
+
+	if (bp->bio_error == 0) {
+		char *end;
+		size_t len, remainder;
+		len = strlcat(bp->bio_data, "/", bp->bio_length);
+		if (len < bp->bio_length) {
+			end = bp->bio_data + len;
+			remainder = bp->bio_length - len;
+			G_PART_NAME(table, entry, end, remainder);
+		}
+	}
+	g_std_done(bp);
+}
+
+
 #define	DPRINTF(...)	if (bootverbose) {	\
 	printf("GEOM_PART: " __VA_ARGS__);	\
 }
@@ -1541,18 +1570,23 @@ g_part_wither(struct g_geom *gp, int error)
 {
 	struct g_part_entry *entry;
 	struct g_part_table *table;
+	struct g_provider *pp;
 
 	table = gp->softc;
 	if (table != NULL) {
-		G_PART_DESTROY(table, NULL);
+		gp->softc = NULL;
 		while ((entry = LIST_FIRST(&table->gpt_entry)) != NULL) {
 			LIST_REMOVE(entry, gpe_entry);
+			pp = entry->gpe_pp;
+			entry->gpe_pp = NULL;
+			if (pp != NULL) {
+				pp->private = NULL;
+				g_wither_provider(pp, error);
+			}
 			g_free(entry);
 		}
-		if (gp->softc != NULL) {
-			kobj_delete((kobj_t)gp->softc, M_GEOM);
-			gp->softc = NULL;
-		}
+		G_PART_DESTROY(table, NULL);
+		kobj_delete((kobj_t)table, M_GEOM);
 	}
 	g_wither_geom(gp, error);
 }
@@ -2184,6 +2218,7 @@ g_part_start(struct bio *bp)
 	struct g_part_table *table;
 	struct g_kerneldump *gkd;
 	struct g_provider *pp;
+	void (*done_func)(struct bio *) = g_std_done;
 	char buf[64];
 
 	biotrack(bp, __func__);
@@ -2238,6 +2273,10 @@ g_part_start(struct bio *bp)
 		if (g_handleattr_str(bp, "PART::type",
 		    G_PART_TYPE(table, entry, buf, sizeof(buf))))
 			return;
+		if (!strcmp("GEOM::physpath", bp->bio_attribute)) {
+			done_func = g_part_get_physpath_done;
+			break;
+		}
 		if (!strcmp("GEOM::kerneldump", bp->bio_attribute)) {
 			/*
 			 * Check that the partition is suitable for kernel
@@ -2274,7 +2313,7 @@ g_part_start(struct bio *bp)
 		g_io_deliver(bp, ENOMEM);
 		return;
 	}
-	bp2->bio_done = g_std_done;
+	bp2->bio_done = done_func;
 	g_io_request(bp2, cp);
 }
 

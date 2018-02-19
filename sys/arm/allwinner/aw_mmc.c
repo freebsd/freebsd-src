@@ -117,6 +117,7 @@ struct aw_mmc_softc {
 	int32_t			aw_vdd;
 	regulator_t		aw_reg_vmmc;
 	regulator_t		aw_reg_vqmmc;
+	unsigned int		aw_clock;
 
 	/* Fields required for DMA access. */
 	bus_addr_t	  	aw_dma_desc_phys;
@@ -939,8 +940,8 @@ aw_mmc_update_ios(device_t bus, device_t child)
 		reg &= ~AW_MMC_CTRL_DDR_MOD_SEL;
 	AW_MMC_WRITE_4(sc, AW_MMC_GCTL, reg);
 
-	if (ios->clock) {
-		clock = ios->clock;
+	if (ios->clock && ios->clock != sc->aw_clock) {
+		sc->aw_clock = clock = ios->clock;
 
 		/* Disable clock */
 		error = aw_mmc_update_clock(sc, 0);
