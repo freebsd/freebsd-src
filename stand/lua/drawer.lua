@@ -166,7 +166,9 @@ function drawer.drawmenu(m)
 	-- print the menu and build the alias table
 	local alias_table = {};
 	local entry_num = 0;
-	for line_num, e in ipairs(m) do
+	local menu_entries = m.entries;
+
+	for line_num, e in ipairs(menu_entries) do
 		-- Allow menu items to be conditionally visible by specifying
 		-- a visible function.
 		if (e.visible ~= nil) and (not e.visible()) then
