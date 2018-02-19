@@ -345,6 +345,9 @@ function config.loadkernel(other_kernel)
 	end
 end
 
+function config.selectkernel(kernel)
+	config.kernel_selected = kernel;
+end
 
 function config.load(file)
 	if (not file) then
@@ -367,9 +370,32 @@ function config.load(file)
 
 	-- Cache the provided module_path at load time for later use
 	config.module_path = loader.getenv("module_path");
+end
+
+-- Reload configuration
+function config.reload(file)
+	-- XXX TODO: We should be doing something more here to clear out env
+	-- changes that rode in with the last configuration load
+	modules = {};
+	config.load(file);
+end
+
+function config.loadelf()
+	local kernel = config.kernel_loaded or config.kernel_selected;
+	local loaded = false;
 
 	print("Loading kernel...");
-	config.loadkernel(config.kernel_loaded);
+	loaded = config.loadkernel(kernel);
+
+	if (not loaded) then
+		loaded = config.loadkernel();
+	end
+
+	if (not loaded) then
+		-- Ultimately failed to load kernel
+		print("Failed to load any kernel");
+		return;
+	end
 
 	print("Loading configured modules...");
 	if (not config.loadmod(modules)) then
@@ -377,30 +403,5 @@ function config.load(file)
 	end
 end
 
-function config.reload(kernel)
-	local kernel_loaded = false;
-
-	-- unload all modules
-	print("Unloading modules...");
-	loader.perform("unload");
-
-	if (kernel ~= nil) then
-		print("Trying to load '" .. kernel .. "'")
-		kernel_loaded = config.loadkernel(kernel);
-		if (kernel_loaded) then
-			print("Kernel '" .. kernel .. "' loaded!");
-		end
-	end
-
-	-- failed to load kernel or it is nil
-	-- then load default
-	if (not kernel_loaded) then
-		print("Loading default kernel...");
-		config.loadkernel();
-	end
-
-	-- load modules
-	config.loadmod(modules);
-end
 
 return config
