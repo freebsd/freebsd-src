@@ -1106,7 +1106,9 @@ LESS(1)                     General Commands Manual                    LESS(1)
        ment  file and [4mless[24m uses the original file, as normal.  To use an input
        pipe, make the first character in the LESSOPEN environment  variable  a
        vertical  bar  (|)  to  signify that the input preprocessor is an input
-       pipe.
+       pipe.  As with non-pipe input preprocessors, the  command  string  must
+       contain  one  occurrence  of %s, which is replaced with the filename of
+       the input file.
 
        For example, on many Unix systems, this script will work like the  pre-
        vious example scripts:
@@ -1664,4 +1666,4 @@ LESS(1)                     General Commands Manual                    LESS(1)
 
 
 
-                           Version 529: 13 Nov 2017                    LESS(1)
+                           Version 530: 05 Dec 2017                    LESS(1)

@@ -1,4 +1,4 @@
-.TH LESSKEY 1 "Version 529: 13 Nov 2017"
+.TH LESSKEY 1 "Version 530: 05 Dec 2017"
 .SH NAME
 lesskey \- specify key bindings for less
 .SH SYNOPSIS

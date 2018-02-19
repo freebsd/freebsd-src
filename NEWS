@@ -11,7 +11,7 @@
 
 ======================================================================
 
-	Major changes between "less" versions 487 and 529
+	Major changes between "less" versions 487 and 530
 
 * Don't output terminal init sequence if using -F and file fits on one screen.
 

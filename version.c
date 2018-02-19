@@ -852,6 +852,7 @@ v526  10/25/17  Fix search hilite bug introduced in v517.
 v527  10/30/17  Fix search hilite bug on last page with -a.
 v528  11/3/17   Make second ESC-u clear status column.
 v529  11/12/17  Display Unicode formatting chars in hex if -U is set.
+v530  12/2/17   Minor doc change and add missing VOID_PARAM.
 */
 
-char version[] = "529";
+char version[] = "530";
