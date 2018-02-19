@@ -26,6 +26,8 @@
 -- $FreeBSD$
 --
 
+local config = require('config');
+
 local core = {};
 
 -- Commonly appearing constants
@@ -180,10 +182,12 @@ function core.setDefaults()
 end
 
 function core.autoboot()
+	config.loadelf();
 	loader.perform("autoboot");
 end
 
 function core.boot()
+	config.loadelf();
 	loader.perform("boot");
 end
 

@@ -220,9 +220,7 @@ menu.welcome = {
 			    " of " .. #all_choices .. ")";
 		end,
 		func = function(idx, choice, all_choices)
-			if (#all_choices > 1) then
-				config.reload(choice);
-			end
+			config.selectkernel(choice);
 		end,
 		alias = {"k", "K"}
 	},
@@ -332,6 +330,7 @@ function menu.run(m)
 	if (m == menu.welcome) then
 		screen.defcursor();
 		print("Exiting menu!");
+		config.loadelf();
 		return false;
 	end
 
