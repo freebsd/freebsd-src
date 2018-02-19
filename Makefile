@@ -106,9 +106,13 @@
 #
 
 # This is included so CC is set to ccache for -V, and COMPILER_TYPE/VERSION
-# can be cached for sub-makes.
+# can be cached for sub-makes. We can't do this while still running on the
+# old fmake from FreeBSD 9.x or older, so avoid including it then to avoid
+# heartburn upgrading from older systems. The need for CC is done with new
+# make later in the build, and caching COMPILER_TYPE/VERSION is only an
+# optimization. Also sinclude it to be friendlier to foreign OS hosted builds.
 .if ${MAKE_VERSION} >= 20140620 && defined(.PARSEDIR)
-.include <bsd.compiler.mk>
+.sinclude <bsd.compiler.mk>
 .endif
 
 # Note: we use this awkward construct to be compatible with FreeBSD's

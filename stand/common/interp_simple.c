@@ -35,42 +35,11 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include "bootstrap.h"
 
-/*
- * Perform the command
- */
-static int
-perform(int argc, char *argv[])
-{
-	int				result;
-	struct bootblk_command	**cmdp;
-	bootblk_cmd_t		*cmd;
-
-	if (argc < 1)
-		return(CMD_OK);
-
-	/* set return defaults; a successful command will override these */
-	command_errmsg = command_errbuf;
-	strcpy(command_errbuf, "no error message");
-	cmd = NULL;
-	result = CMD_ERROR;
-
-	/* search the command set for the command */
-	SET_FOREACH(cmdp, Xcommand_set) {
-		if (((*cmdp)->c_name != NULL) && !strcmp(argv[0], (*cmdp)->c_name))
-			cmd = (*cmdp)->c_fn;
-	}
-	if (cmd != NULL) {
-		result = (cmd)(argc, argv);
-	} else {
-		command_errmsg = "unknown command";
-	}
-	return(result);
-}
-
 void
 interp_init(void)
 {
 
+	setenv("script.lang", "simple", 1);
 	/* Read our default configuration. */
 	interp_include("/boot/loader.rc");
 }
@@ -78,15 +47,15 @@ interp_init(void)
 int
 interp_run(const char *input)
 {
-	int		argc;
-	char		**argv;
+	int			argc;
+	char			**argv;
 
 	if (parse(&argc, &argv, input)) {
 		printf("parse error\n");
 		return CMD_ERROR;
 	}
 
-	if (perform(argc, argv)) {
+	if (interp_builtin_cmd(argc, argv)) {
 		printf("%s: %s\n", argv[0], command_errmsg);
 		free(argv);
 		return CMD_ERROR;
@@ -195,7 +164,7 @@ interp_include(const char *filename)
 
 		/* Parse the command */
 		if (!parse(&argc, &argv, sp->text)) {
-			if ((argc > 0) && (perform(argc, argv) != 0)) {
+			if ((argc > 0) && (interp_builtin_cmd(argc, argv) != 0)) {
 				/* normal command */
 				printf("%s: %s\n", argv[0], command_errmsg);
 				if (!(sp->flags & SL_IGNOREERR)) {

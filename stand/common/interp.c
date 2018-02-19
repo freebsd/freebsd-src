@@ -45,32 +45,32 @@ __FBSDID("$FreeBSD$");
 void
 interact(void)
 {
-    static char	input[256];			/* big enough? */
+	static char	input[256];			/* big enough? */
 
-    interp_init();
+	interp_init();
 
-    printf("\n");
+	printf("\n");
 
-    /*
-     * Before interacting, we might want to autoboot.
-     */
-    autoboot_maybe();
+	/*
+	 * Before interacting, we might want to autoboot.
+	 */
+	autoboot_maybe();
 
-    /*
-     * Not autobooting, go manual
-     */
-    printf("\nType '?' for a list of commands, 'help' for more detailed help.\n");
-    if (getenv("prompt") == NULL)
-	setenv("prompt", "${interpret}", 1);
-    if (getenv("interpret") == NULL)
-        setenv("interpret", "OK", 1);
+	/*
+	 * Not autobooting, go manual
+	 */
+	printf("\nType '?' for a list of commands, 'help' for more detailed help.\n");
+	if (getenv("prompt") == NULL)
+		setenv("prompt", "${interpret}", 1);
+	if (getenv("interpret") == NULL)
+		setenv("interpret", "OK", 1);
 
-    for (;;) {
-	input[0] = '\0';
-	interp_emit_prompt();
-	ngets(input, sizeof(input));
-	interp_run(input);
-    }
+	for (;;) {
+		input[0] = '\0';
+		interp_emit_prompt();
+		ngets(input, sizeof(input));
+		interp_run(input);
+	}
 }
 
 /*
@@ -87,26 +87,26 @@ COMMAND_SET(include, "include", "read commands from a file", command_include);
 static int
 command_include(int argc, char *argv[])
 {
-    int		i;
-    int		res;
-    char	**argvbuf;
+	int		i;
+	int		res;
+	char		**argvbuf;
 
-    /*
-     * Since argv is static, we need to save it here.
-     */
-    argvbuf = (char**) calloc((u_int)argc, sizeof(char*));
-    for (i = 0; i < argc; i++)
-	argvbuf[i] = strdup(argv[i]);
+	/*
+	 * Since argv is static, we need to save it here.
+	 */
+	argvbuf = (char**) calloc((u_int)argc, sizeof(char*));
+	for (i = 0; i < argc; i++)
+		argvbuf[i] = strdup(argv[i]);
 
-    res=CMD_OK;
-    for (i = 1; (i < argc) && (res == CMD_OK); i++)
-	res = interp_include(argvbuf[i]);
+	res=CMD_OK;
+	for (i = 1; (i < argc) && (res == CMD_OK); i++)
+		res = interp_include(argvbuf[i]);
 
-    for (i = 0; i < argc; i++)
-	free(argvbuf[i]);
-    free(argvbuf);
+	for (i = 0; i < argc; i++)
+		free(argvbuf[i]);
+	free(argvbuf);
 
-    return(res);
+	return(res);
 }
 
 /*
@@ -116,26 +116,58 @@ command_include(int argc, char *argv[])
 void
 interp_emit_prompt(void)
 {
-    char	*pr, *p, *cp, *ev;
+	char		*pr, *p, *cp, *ev;
 
-    if ((cp = getenv("prompt")) == NULL)
-	cp = ">";
-    pr = p = strdup(cp);
+	if ((cp = getenv("prompt")) == NULL)
+		cp = ">";
+	pr = p = strdup(cp);
 
-    while (*p != 0) {
-	if ((*p == '$') && (*(p+1) == '{')) {
-	    for (cp = p + 2; (*cp != 0) && (*cp != '}'); cp++)
-		;
-	    *cp = 0;
-	    ev = getenv(p + 2);
+	while (*p != 0) {
+		if ((*p == '$') && (*(p+1) == '{')) {
+			for (cp = p + 2; (*cp != 0) && (*cp != '}'); cp++)
+				;
+			*cp = 0;
+			ev = getenv(p + 2);
 
-	    if (ev != NULL)
-		printf("%s", ev);
-	    p = cp + 1;
-	    continue;
+			if (ev != NULL)
+				printf("%s", ev);
+			p = cp + 1;
+			continue;
+		}
+		putchar(*p++);
 	}
-	putchar(*p++);
-    }
-    putchar(' ');
-    free(pr);
+	putchar(' ');
+	free(pr);
+}
+
+/*
+ * Perform a builtin command
+ */
+int
+interp_builtin_cmd(int argc, char *argv[])
+{
+	int			result;
+	struct bootblk_command	**cmdp;
+	bootblk_cmd_t		*cmd;
+
+	if (argc < 1)
+		return(CMD_OK);
+
+	/* set return defaults; a successful command will override these */
+	command_errmsg = command_errbuf;
+	strcpy(command_errbuf, "no error message");
+	cmd = NULL;
+	result = CMD_ERROR;
+
+	/* search the command set for the command */
+	SET_FOREACH(cmdp, Xcommand_set) {
+		if (((*cmdp)->c_name != NULL) && !strcmp(argv[0], (*cmdp)->c_name))
+			cmd = (*cmdp)->c_fn;
+	}
+	if (cmd != NULL) {
+		result = (cmd)(argc, argv);
+	} else {
+		command_errmsg = "unknown command";
+	}
+	return(result);
 }

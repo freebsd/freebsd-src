@@ -6,7 +6,8 @@ PROG=	iasl
 SRCS=	acfileio.c adfile.c adisasm.c adwalk.c ahids.c		\
 	ahpredef.c ahtable.c ahuuids.c cmfsize.c dmextern.c	\
 	dmrestag.c dmswitch.c dmtable.c dmtables.c dmtbdump.c	\
-	dmtbinfo.c getopt.c
+	dmtbdump1.c dmtbdump2.c dmtbdump3.c dmtbinfo.c		\
+	dmtbinfo1.c dmtbinfo2.c dmtbinfo3.c getopt.c
 
 # compiler
 SRCS+=	aslallocate.c aslanalyze.c aslascii.c aslbtypes.c	\

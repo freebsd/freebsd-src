@@ -197,6 +197,7 @@ jasone [label="Jason Evans\njasone@FreeBSD.org\n1999/03/03"]
 jceel [label="Jakub Klama\njceel@FreeBSD.org\n2011/09/25"]
 jch [label="Julien Charbon\njch@FreeBSD.org\n2014/09/24"]
 jchandra [label="Jayachandran C.\njchandra@FreeBSD.org\n2010/05/19"]
+jeb [label="Jeb Cramer\njeb@FreeBSD.org\n2018/01/25"]
 jeff [label="Jeff Roberson\njeff@FreeBSD.org\n2002/02/21"]
 jh [label="Jaakko Heinonen\njh@FreeBSD.org\n2009/10/02"]
 jhb [label="John Baldwin\njhb@FreeBSD.org\n1999/08/23"]
@@ -484,6 +485,8 @@ emaste -> markj
 emaste -> rstone
 
 emax -> markus
+
+erj -> jeb
 
 fjoe -> versus
 
@@ -773,6 +776,7 @@ sam -> benjsc
 sam -> sephe
 
 sbruno -> hiren
+sbruno -> jeb
 sbruno -> jimharris
 sbruno -> shurd
 
