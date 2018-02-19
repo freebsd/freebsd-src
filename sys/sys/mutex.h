@@ -125,6 +125,8 @@ int	__mtx_trylock_spin_flags(volatile uintptr_t *c, int opts,
 	     const char *file, int line);
 void	__mtx_unlock_spin_flags(volatile uintptr_t *c, int opts,
 	    const char *file, int line);
+void	mtx_spin_wait_unlocked(struct mtx *m);
+
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void	__mtx_assert(const volatile uintptr_t *c, int what, const char *file,
 	    int line);
