@@ -338,7 +338,7 @@ function menu.run(m)
 end
 
 function menu.skip()
-	if (core.bootserial() )then
+	if (core.isSerialBoot())then
 		return true;
 	end
 	local c = string.lower(loader.getenv("console") or "");
