@@ -1139,7 +1139,7 @@ vm_pageout_free_pages(struct pgo_pglist *pglist, vm_object_t object,
 	int pcount, count;
 
 	pcount = MAX(object->iosize / PAGE_SIZE, 1);
-	count = 0;
+	count = 1;
 	if (pcount == 1 || vm_object_reserv(object)) {
 		vm_page_free(m);
 		vm_page_unlock(m);
@@ -1156,8 +1156,7 @@ vm_pageout_free_pages(struct pgo_pglist *pglist, vm_object_t object,
 	mtx = vm_page_lockptr(m);
 	if (p == m)
 		p = vm_page_next(m);
-	if (vm_pageout_pglist_append(pglist, m))
-		count++;
+	vm_pageout_pglist_append(pglist, m);
 	/* Iterate through the block range and free compatible pages. */
 	for (m = p; m != NULL && m->pindex < start + pcount; m = p) {
 		p = TAILQ_NEXT(m, listq);
@@ -1166,7 +1165,7 @@ vm_pageout_free_pages(struct pgo_pglist *pglist, vm_object_t object,
 			mtx = vm_page_lockptr(m);
 			mtx_lock(mtx);
 		}
-		if (m->hold_count || vm_page_busied(m) ||
+		if (vm_page_held(m) || vm_page_busied(m) ||
 		    m->queue != PQ_INACTIVE)
 			continue;
 		if (m->valid == 0)
