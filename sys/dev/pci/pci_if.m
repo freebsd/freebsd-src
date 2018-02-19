@@ -141,6 +141,14 @@ METHOD int find_cap {
 	int		*capreg;
 };
 
+METHOD int find_next_cap {
+	device_t	dev;
+	device_t	child;
+	int		capability;
+	int		start;
+	int		*capreg;
+};
+
 METHOD int find_extcap {
 	device_t	dev;
 	device_t	child;
@@ -148,10 +156,26 @@ METHOD int find_extcap {
 	int		*capreg;
 };
 
+METHOD int find_next_extcap {
+	device_t	dev;
+	device_t	child;
+	int		capability;
+	int		start;
+	int		*capreg;
+};
+
 METHOD int find_htcap {
 	device_t	dev;
 	device_t	child;
 	int		capability;
+	int		*capreg;
+};
+
+METHOD int find_next_htcap {
+	device_t	dev;
+	device_t	child;
+	int		capability;
+	int		start;
 	int		*capreg;
 };
 
