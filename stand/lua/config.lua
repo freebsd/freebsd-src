@@ -34,6 +34,20 @@ config.env_restore = {};
 
 local modules = {};
 
+function config.restoreEnv()
+	for k, v in pairs(config.env_changed) do
+		local restore_value = config.env_restore[k];
+		if (restore_value ~= nil) then
+			loader.setenv(k, restore_value);
+		else
+			loader.unsetenv(k);
+		end
+	end
+
+	config.env_changed = {};
+	config.env_restore = {};
+end
+
 function config.setenv(k, v)
 	-- Do we need to track this change?
 	if (config.env_changed[k] == nil) then
@@ -391,6 +405,7 @@ function config.reload(file)
 	-- XXX TODO: We should be doing something more here to clear out env
 	-- changes that rode in with the last configuration load
 	modules = {};
+	config.restoreEnv();
 	config.load(file);
 end
 
