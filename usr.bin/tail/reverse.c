@@ -257,10 +257,13 @@ r_buf(FILE *fp, const char *fn)
 			if ((*p == '\n') || start) {
 				struct bfelem *tr;
 
-				if (start && llen)
+				if (llen && start && *p != '\n')
 					WR(p, llen + 1);
-				else if (llen)
+				else if (llen) {
 					WR(p + 1, llen);
+					if (start && *p == '\n')
+						WR(p, 1);
+				}
 				tr = TAILQ_NEXT(tl, entries);
 				llen = 0;
 				if (tr != NULL) {
