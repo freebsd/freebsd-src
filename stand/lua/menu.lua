@@ -146,8 +146,8 @@ menu.welcome = {
 			menu_entries = core.shallowCopyTable(menu_entries);
 
 			-- Swap the first two menu entries
-			menu_entries[1], menu_entries[2] = menu_entries[2],
-			    menu_entries[1];
+			menu_entries[1], menu_entries[2] =
+			    menu_entries[2], menu_entries[1];
 
 			-- Then set their names to their alternate names
 			menu_entries[1].name, menu_entries[2].name =
