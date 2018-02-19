@@ -58,6 +58,7 @@ function password.read()
 end
 
 function password.check()
+	screen.clear();
 	screen.defcursor();
 	-- pwd is optionally supplied if we want to check it
 	local function do_prompt(prompt, pwd)
