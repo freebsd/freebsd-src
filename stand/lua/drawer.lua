@@ -167,6 +167,11 @@ function drawer.drawmenu(m)
 	local alias_table = {};
 	local entry_num = 0;
 	for line_num, e in ipairs(m) do
+		-- Allow menu items to be conditionally visible by specifying
+		-- a visible function.
+		if (e.visible ~= nil) and (not e.visible()) then
+			goto continue
+		end
 		if (e.entry_type ~= core.MENU_SEPARATOR) then
 			entry_num = entry_num + 1;
 			screen.setcursor(x, y + line_num);
@@ -197,6 +202,7 @@ function drawer.drawmenu(m)
 			screen.setcursor(x, y + line_num);
 			print(e.name());
 		end
+		::continue::
 	end
 	return alias_table;
 end
