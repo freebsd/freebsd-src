@@ -980,7 +980,7 @@ zfsctl_snapdir_lookup(ap)
 		 * the mount point or the thread doing the mounting.
 		 * There can be more references from concurrent lookups.
 		 */
-		KASSERT(vrefcnt(*vpp) > 1, ("found unreferenced mountpoint"));
+		KASSERT((*vpp)->v_holdcnt > 1, ("found unheld mountpoint"));
 
 		/*
 		 * Check if a snapshot is already mounted on top of the vnode.
