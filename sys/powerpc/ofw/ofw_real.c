@@ -366,7 +366,7 @@ ofw_real_peer(ofw_t ofw, phandle_t node)
 	argsptr = ofw_real_map(&args, sizeof(args));
 	if (openfirmware((void *)argsptr) == -1) {
 		ofw_real_stop();
-		return (-1);
+		return (0);
 	}
 	ofw_real_unmap(argsptr, &args, sizeof(args));
 	ofw_real_stop();
@@ -395,7 +395,7 @@ ofw_real_child(ofw_t ofw, phandle_t node)
 	argsptr = ofw_real_map(&args, sizeof(args));
 	if (openfirmware((void *)argsptr) == -1) {
 		ofw_real_stop();
-		return (-1);
+		return (0);
 	}
 	ofw_real_unmap(argsptr, &args, sizeof(args));
 	ofw_real_stop();
@@ -424,7 +424,7 @@ ofw_real_parent(ofw_t ofw, phandle_t node)
 	argsptr = ofw_real_map(&args, sizeof(args));
 	if (openfirmware((void *)argsptr) == -1) {
 		ofw_real_stop();
-		return (-1);
+		return (0);
 	}
 	ofw_real_unmap(argsptr, &args, sizeof(args));
 	ofw_real_stop();
