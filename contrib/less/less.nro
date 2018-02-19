@@ -1,4 +1,4 @@
-.TH LESS 1 "Version 529: 13 Nov 2017"
+.TH LESS 1 "Version 530: 05 Dec 2017"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -1199,6 +1199,8 @@ uses the original file, as normal.
 To use an input pipe,
 make the first character in the LESSOPEN environment variable a
 vertical bar (|) to signify that the input preprocessor is an input pipe.
+As with non-pipe input preprocessors, the command string must contain one
+occurrence of %s, which is replaced with the filename of the input file.
 .PP
 For example, on many Unix systems, this script will work like the
 previous example scripts:
