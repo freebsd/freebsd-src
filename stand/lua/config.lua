@@ -297,6 +297,8 @@ function config.loadkernel(other_kernel)
 		local res = load_bootfile();
 
 		if (res ~= nil) then
+			-- Default kernel is loaded
+			config.kernel_loaded = nil;
 			return true;
 		else
 			print("No kernel set, failed to load from module_path");
@@ -321,6 +323,7 @@ function config.loadkernel(other_kernel)
 
 			-- succeeded, add path to module_path
 			if (res ~= nil) then
+				config.kernel_loaded = kernel;
 				if (module_path ~= nil) then
 					loader.setenv("module_path", v .. ";" ..
 					    module_path);
@@ -333,6 +336,7 @@ function config.loadkernel(other_kernel)
 		-- try as a file
 		res = try_load(kernel);
 		if (res ~= nil) then
+			config.kernel_loaded = kernel;
 			return true;
 		else
 			print("Failed to load kernel '" .. kernel .. "'");
