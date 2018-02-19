@@ -138,17 +138,22 @@ menu.welcome = {
 		local menu_entries = menu.welcome.all_entries;
 		-- Swap the first two menu items on single user boot
 		if (core.isSingleUserBoot()) then
+			-- We'll cache the swapped menu, for performance
+			if (menu.welcome.swapped_menu ~= nil) then
+				return menu.welcome.swapped_menu;
+			end
 			-- Shallow copy the table
 			menu_entries = core.shallowCopyTable(menu_entries);
 
-			local multiuser = menu_entries[1];
-			local singleuser = menu_entries[2];
+			-- Swap the first two menu entries
+			menu_entries[1], menu_entries[2] = menu_entries[2],
+			    menu_entries[1];
 
-			multiuser.name = multiuser.alternate_name;
-			singleuser.name = singleuser.alternate_name;
-
-			menu_entries[2] = multiuser;
-			menu_entries[1] = singleuser;
+			-- Then set their names to their alternate names
+			menu_entries[1].name, menu_entries[2].name =
+			    menu_entries[1].alternate_name,
+			    menu_entries[2].alternate_name;
+			menu.welcome.swapped_menu = menu_entries;
 		end
 		return menu_entries;
 	end,
