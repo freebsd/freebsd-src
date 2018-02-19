@@ -191,7 +191,7 @@ function core.boot()
 	loader.perform("boot");
 end
 
-function core.bootserial()
+function core.isSerialBoot()
 	local c = loader.getenv("console");
 
 	if (c ~= nil) then
