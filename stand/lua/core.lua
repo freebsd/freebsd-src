@@ -217,5 +217,18 @@ function core.isSerialBoot()
 	return false;
 end
 
+-- This may be a better candidate for a 'utility' module.
+function core.shallowCopyTable(tbl)
+	local new_tbl = {};
+	for k, v in pairs(tbl) do
+		if (type(v) == "table") then
+			new_tbl[k] = core.shallowCopyTable(v);
+		else
+			new_tbl[k] = v;
+		end
+	end
+	return new_tbl;
+end
+
 core.setACPI(core.getACPIPresent(false));
 return core;
