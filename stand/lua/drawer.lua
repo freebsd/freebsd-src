@@ -167,7 +167,9 @@ function drawer.drawmenu(m)
 	local alias_table = {};
 	local entry_num = 0;
 	local menu_entries = m.entries;
-
+	if (type(menu_entries) == "function") then
+		menu_entries = menu_entries();
+	end
 	for line_num, e in ipairs(menu_entries) do
 		-- Allow menu items to be conditionally visible by specifying
 		-- a visible function.
