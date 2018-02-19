@@ -252,7 +252,7 @@ menu.welcome = {
 				end
 				kernel_name = kernel_name .. name_color ..
 				    choice .. color.default();
-				return color.highlight("K").."ernel: " ..
+				return color.highlight("K") .. "ernel: " ..
 				    kernel_name .. " (" .. idx .. " of " ..
 				    #all_choices .. ")";
 			end,
@@ -315,7 +315,7 @@ function menu.run(m)
 		-- Special key behaviors
 		if ((key == core.KEY_BACKSPACE) or (key == core.KEY_DELETE)) and
 		    (m ~= menu.welcome) then
-			break
+			break;
 		elseif (key == core.KEY_ENTER) then
 			core.boot();
 			-- Should not return
@@ -431,7 +431,7 @@ function menu.autoboot()
 		end
 
 		loader.delay(50000);
-	until time <= 0
+	until time <= 0;
 	core.boot();
 
 end
