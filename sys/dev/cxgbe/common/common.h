@@ -68,6 +68,8 @@ enum {
 	FEC_RESERVED  = 1 << 2,
 };
 
+enum t4_bar2_qtype { T4_BAR2_QTYPE_EGRESS, T4_BAR2_QTYPE_INGRESS };
+
 struct port_stats {
 	u64 tx_octets;            /* total # of octets in good frames */
 	u64 tx_frames;            /* all good frames */
@@ -369,6 +371,9 @@ struct adapter_params {
 
 	unsigned int max_ordird_qp;
 	unsigned int max_ird_adapter;
+
+	bool ulptx_memwrite_dsgl;        /* use of T5 DSGL allowed */
+	bool fr_nsmr_tpte_wr_support;    /* FW support for FR_NSMR_TPTE_WR */
 };
 
 #define CHELSIO_T4		0x4
@@ -814,5 +819,8 @@ int t4vf_get_sge_params(struct adapter *adapter);
 int t4vf_get_rss_glb_config(struct adapter *adapter);
 int t4vf_get_vfres(struct adapter *adapter);
 int t4vf_prep_adapter(struct adapter *adapter);
+int t4_bar2_sge_qregs(struct adapter *adapter, unsigned int qid,
+		enum t4_bar2_qtype qtype, int user, u64 *pbar2_qoffset,
+		unsigned int *pbar2_qid);
 
 #endif /* __CHELSIO_COMMON_H */

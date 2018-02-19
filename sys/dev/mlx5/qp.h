@@ -110,10 +110,10 @@ enum {
 };
 
 enum {
-	MLX5_NON_ZERO_RQ	= 0 << 24,
-	MLX5_SRQ_RQ		= 1 << 24,
-	MLX5_CRQ_RQ		= 2 << 24,
-	MLX5_ZERO_LEN_RQ	= 3 << 24
+	MLX5_NON_ZERO_RQ	= 0x0,
+	MLX5_SRQ_RQ		= 0x1,
+	MLX5_CRQ_RQ		= 0x2,
+	MLX5_ZERO_LEN_RQ	= 0x3
 };
 
 enum {

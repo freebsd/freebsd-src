@@ -1,4 +1,5 @@
-.TH "RDMA_ACCEPT" 3 "2007-10-31" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
+.TH "RDMA_ACCEPT" 3 "2014-05-27" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
 .SH NAME
 rdma_accept \- Called to accept a connection request.
 .SH SYNOPSIS
@@ -16,6 +17,9 @@ below for details.
 .SH "DESCRIPTION"
 Called from the listening side to accept a connection or datagram
 service lookup request.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
 .SH "NOTES"
 Unlike the socket accept routine, rdma_accept is not called on a
 listening rdma_cm_id.  Instead, after calling rdma_listen, the user
@@ -32,6 +36,9 @@ fields when accepting.  Users may reference the rdma_conn_param structure in
 the connection event directly, or can reference their own structure.  If the
 rdma_conn_param structure from an event is referenced, the event must not be
 acked until after this call returns.
+.P
+If the conn_param parameter is NULL, the values reported in the connection
+request event are used, adjusted down based on local hardware restrictions.
 .IP private_data
 References a user-controlled data buffer.  The contents of the buffer are
 copied and transparently passed to the remote side as part of the
@@ -44,8 +51,8 @@ be larger than that requested.
 The maximum number of outstanding RDMA read and atomic operations that the
 local side will accept from the remote side.  Applies only to RDMA_PS_TCP.
 This value must be less than or equal to the local RDMA device attribute
-max_qp_rd_atom and the responder_resources value reported in the connect
-request event.
+max_qp_rd_atom, but preferably greater than or equal to the responder_resources
+value reported in the connect request event.
 .IP initiator_depth
 The maximum number of outstanding RDMA read and atomic operations that the
 local side will have to the remote side.  Applies only to RDMA_PS_TCP.
@@ -81,5 +88,8 @@ by the active side of the connection.  The HCA ACK delay is a property of
 the locally used HCA.
 .P
 The RNR retry count is a 3-bit value.
+.P
+The length of the private data provided by the user is limited to 196 bytes
+for RDMA_PS_TCP, or 136 bytes for RDMA_PS_UDP.
 .SH "SEE ALSO"
 rdma_listen(3), rdma_reject(3), rdma_get_cm_event(3)

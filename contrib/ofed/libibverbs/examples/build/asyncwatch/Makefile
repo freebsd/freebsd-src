@@ -1,9 +1,8 @@
-#
 # $FreeBSD$
-#
-.PATH: ${.CURDIR}/../..
-PROG=	asyncwatch
-MAN=
+.PATH: ${.CURDIR}/../.. ${.CURDIR}/../../../man
+
+PROG=	ibv_asyncwatch
+MAN=	ibv_asyncwatch.1
 SRCS=	asyncwatch.c
 
 .include <bsd.prog.mk>

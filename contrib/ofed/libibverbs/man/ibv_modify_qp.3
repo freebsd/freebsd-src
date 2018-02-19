@@ -1,4 +1,5 @@
 .\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
 .\"
 .TH IBV_MODIFY_QP 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
 .SH "NAME"
@@ -48,6 +49,7 @@ uint8_t                 retry_cnt;              /* Retry count (valid only for R
 uint8_t                 rnr_retry;              /* RNR retry (valid only for RC QPs) */
 uint8_t                 alt_port_num;           /* Alternate port number */
 uint8_t                 alt_timeout;            /* Local ack timeout for alternate path (valid only for RC QPs) */
+uint32_t                rate_limit;             /* Rate limit in kbps for packet pacing */
 .in -8
 };
 .fi
@@ -104,6 +106,7 @@ The argument is either 0 or the bitwise OR of one or more of the following flags
 .B IBV_QP_CAP \fR Set cap
 .TP
 .B IBV_QP_DEST_QPN \fR Set dest_qp_num
+.B IBV_QP_RATE_LIMIT \fR Set rate_limit
 .SH "RETURN VALUE"
 .B ibv_modify_qp()
 returns 0 on success, or the value of errno on failure (which indicates the failure reason).
@@ -159,6 +162,16 @@ RTR  \fB          IBV_QP_STATE, IBV_QP_AV, IBV_QP_PATH_MTU, \fR
 RTS  \fB          IBV_QP_STATE, IBV_QP_SQ_PSN, IBV_QP_MAX_QP_RD_ATOMIC, \fR
      \fB          IBV_QP_RETRY_CNT, IBV_QP_RNR_RETRY, IBV_QP_TIMEOUT \fR
 .fi
+.PP
+.nf
+For QP Transport Service Type \fB IBV_QPT_RAW_PACKET\fR:
+.sp
+Next state     Required attributes
+\-\-\-\-\-\-\-\-\-\-     \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+Init \fB          IBV_QP_STATE, IBV_QP_PORT\fR
+RTR  \fB          IBV_QP_STATE\fR
+RTS  \fB          IBV_QP_STATE\fR
+.fi
 .SH "SEE ALSO"
 .BR ibv_create_qp (3),
 .BR ibv_destroy_qp (3),
@@ -166,4 +179,4 @@ RTS  \fB          IBV_QP_STATE, IBV_QP_SQ_PSN, IBV_QP_MAX_QP_RD_ATOMIC, \fR
 .BR ibv_create_ah (3)
 .SH "AUTHORS"
 .TP
-Dotan Barak <dotanb@mellanox.co.il>
+Dotan Barak <dotanba@gmail.com>

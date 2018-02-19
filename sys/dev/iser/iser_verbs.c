@@ -200,16 +200,10 @@ iser_cq_callback(struct ib_cq *cq, void *cq_context)
 static int
 iser_create_device_ib_res(struct iser_device *device)
 {
-	struct ib_device_attr *dev_attr = &device->dev_attr;
-	int ret, i, max_cqe;
+	struct ib_device *ib_dev = device->ib_device;
+	int i, max_cqe;
 
-	ret = ib_query_device(device->ib_device, dev_attr);
-	if (ret) {
-		ISER_ERR("Query device failed for %s", device->ib_device->name);
-		return (ret);
-	}
-
-	if (!(dev_attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS)) {
+	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS)) {
 		ISER_ERR("device %s doesn't support Fastreg, "
 			 "can't register memory", device->ib_device->name);
 		return (1);
@@ -222,25 +216,29 @@ iser_create_device_ib_res(struct iser_device *device)
 	if (!device->comps)
 		goto comps_err;
 
-	max_cqe = min(ISER_MAX_CQ_LEN, dev_attr->max_cqe);
+	max_cqe = min(ISER_MAX_CQ_LEN, ib_dev->attrs.max_cqe);
 
 	ISER_DBG("using %d CQs, device %s supports %d vectors max_cqe %d",
 		 device->comps_used, device->ib_device->name,
 		 device->ib_device->num_comp_vectors, max_cqe);
 
-	device->pd = ib_alloc_pd(device->ib_device);
+	device->pd = ib_alloc_pd(device->ib_device, IB_PD_UNSAFE_GLOBAL_RKEY);
 	if (IS_ERR(device->pd))
 		goto pd_err;
 
 	for (i = 0; i < device->comps_used; i++) {
 		struct iser_comp *comp = &device->comps[i];
+		struct ib_cq_init_attr cq_attr = {
+			.cqe		= max_cqe,
+			.comp_vector	= i,
+		};
 
 		comp->device = device;
 		comp->cq = ib_create_cq(device->ib_device,
 					iser_cq_callback,
 					iser_cq_event_callback,
 					(void *)comp,
-					max_cqe, i);
+					&cq_attr);
 		if (IS_ERR(comp->cq)) {
 			comp->cq = NULL;
 			goto cq_err;
@@ -257,21 +255,17 @@ iser_create_device_ib_res(struct iser_device *device)
 		taskqueue_start_threads(&comp->tq, 1, PI_NET, "iser taskq");
 	}
 
-	device->mr = ib_get_dma_mr(device->pd, IB_ACCESS_LOCAL_WRITE |
-				   IB_ACCESS_REMOTE_WRITE |
-				   IB_ACCESS_REMOTE_READ);
+	device->mr = device->pd->__internal_mr;
 	if (IS_ERR(device->mr))
 		goto tq_err;
 
 	INIT_IB_EVENT_HANDLER(&device->event_handler, device->ib_device,
 				iser_event_handler);
 	if (ib_register_event_handler(&device->event_handler))
-		goto handler_err;
+		goto tq_err;
 
 	return (0);
 
-handler_err:
-	ib_dereg_mr(device->mr);
 tq_err:
 	for (i = 0; i < device->comps_used; i++) {
 		struct iser_comp *comp = &device->comps[i];
@@ -310,7 +304,6 @@ iser_free_device_ib_res(struct iser_device *device)
 	}
 
 	(void)ib_unregister_event_handler(&device->event_handler);
-	(void)ib_dereg_mr(device->mr);
 	(void)ib_dealloc_pd(device->pd);
 
 	free(device->comps, M_ISER_VERBS);
@@ -327,35 +320,21 @@ iser_alloc_reg_res(struct ib_device *ib_device,
 {
 	int ret;
 
-	res->frpl = ib_alloc_fast_reg_page_list(ib_device,
-						ISCSI_ISER_SG_TABLESIZE + 1);
-	if (IS_ERR(res->frpl)) {
-		ret = -PTR_ERR(res->frpl);
-		ISER_ERR("Failed to allocate fast reg page list err=%d", ret);
-		return (ret);
-	}
-
-	res->mr = ib_alloc_fast_reg_mr(pd, ISCSI_ISER_SG_TABLESIZE + 1);
+	res->mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG, ISCSI_ISER_SG_TABLESIZE + 1);
 	if (IS_ERR(res->mr)) {
 		ret = -PTR_ERR(res->mr);
 		ISER_ERR("Failed to allocate  fast reg mr err=%d", ret);
-		goto fast_reg_mr_failure;
+		return (ret);
 	}
 	res->mr_valid = 1;
 
 	return (0);
-
-fast_reg_mr_failure:
-	ib_free_fast_reg_page_list(res->frpl);
-
-	return (ret);
 }
 
 static void
 iser_free_reg_res(struct iser_reg_resources *rsc)
 {
 	ib_dereg_mr(rsc->mr);
-	ib_free_fast_reg_page_list(rsc->frpl);
 }
 
 static struct fast_reg_descriptor *

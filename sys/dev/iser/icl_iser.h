@@ -245,7 +245,7 @@ enum iser_desc_type {
 struct iser_data_buf {
 	struct scatterlist sgl[ISCSI_ISER_SG_TABLESIZE];
 	void               *sg;
-	unsigned int       size;
+	int                size;
 	unsigned long      data_len;
 	unsigned int       dma_nents;
 	char               *copy_buf;
@@ -364,12 +364,10 @@ struct iser_device {
  * struct iser_reg_resources - Fast registration recources
  *
  * @mr:         memory region
- * @frpl:       fast reg page list
  * @mr_valid:   is mr valid indicator
  */
 struct iser_reg_resources {
 	struct ib_mr                     *mr;
-	struct ib_fast_reg_page_list     *frpl;
 	u8                                mr_valid:1;
 };
 

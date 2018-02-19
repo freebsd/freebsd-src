@@ -1,10 +1,9 @@
-#
 # $FreeBSD$
-#
-.PATH: ${.CURDIR}/../..
+
+.PATH: ${.CURDIR}/../.. ${.CURDIR}/../../../man
+
 PROG=	udaddy
-MAN=
-SRCS=	udaddy.c
-LIBADD=	ibverbs rdmacm pthread mlx4
+MAN=	udaddy.1
+SRCS=	udaddy.c common.c
 
 .include <bsd.prog.mk>

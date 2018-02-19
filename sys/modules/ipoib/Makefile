@@ -9,6 +9,7 @@ SRCS=	device_if.h bus_if.h vnode_if.h pci_if.h \
 
 CFLAGS+= -I${SRCTOP}/sys/ofed/drivers/infiniband/ulp/ipoib
 CFLAGS+= -I${SRCTOP}/sys/ofed/include
+CFLAGS+= -I${SRCTOP}/sys/ofed/include/uapi
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 
 .include <bsd.kmod.mk>
