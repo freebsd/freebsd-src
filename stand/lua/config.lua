@@ -27,8 +27,22 @@
 --
 
 local config = {};
+-- Which variables we changed
+config.env_changed = {};
+-- Values to restore env to (nil to unset)
+config.env_restore = {};
 
 local modules = {};
+
+function config.setenv(k, v)
+	-- Do we need to track this change?
+	if (config.env_changed[k] == nil) then
+		config.env_changed[k] = true;
+		config.env_restore[k] = loader.getenv(k);
+	end
+
+	return loader.setenv(k, v);
+end
 
 function config.setKey(k, n, v)
 	if (modules[k] == nil) then
@@ -115,7 +129,7 @@ local pattern_table = {
 	[10] = {
 		str = "^%s*([%w%p]+)%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			if (loader.setenv(k, v) ~= 0) then
+			if (config.setenv(k, v) ~= 0) then
 				print("Failed to set '" .. k ..
 				    "' with value: " .. v .. "");
 			end
@@ -125,7 +139,7 @@ local pattern_table = {
 	[11] = {
 		str = "^%s*([%w%p]+)%s*=%s*(%d+)%s*(.*)",
 		process = function(k, v)
-			if (loader.setenv(k, v) ~= 0) then
+			if (config.setenv(k, v) ~= 0) then
 				print("Failed to set '" .. k ..
 				    "' with value: " .. v .. "");
 			end
