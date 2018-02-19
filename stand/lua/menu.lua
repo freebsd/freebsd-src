@@ -27,13 +27,13 @@
 --
 
 
-local menu = {};
-
 local core = require("core");
 local color = require("color");
 local config = require("config");
 local screen = require("screen");
 local drawer = require("drawer");
+
+local menu = {};
 
 local OnOff;
 local skip;
