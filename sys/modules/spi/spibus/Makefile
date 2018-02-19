@@ -6,7 +6,7 @@ KMOD=	spibus
 SRCS=	spibus.c
 
 .if !empty(OPT_FDT)
-SRCS+=	ofw_spibus.c
+SRCS+=	ofw_spibus.c ofw_bus_if.h
 .endif
 
 # Generated files...
