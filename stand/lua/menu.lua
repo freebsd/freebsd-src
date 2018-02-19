@@ -52,7 +52,8 @@ menu.boot_options = {
 	{
 		entry_type = core.MENU_RETURN,
 		name = function()
-			return "Back to main menu"..color.highlight(" [Backspace]");
+			return "Back to main menu" ..
+			    color.highlight(" [Backspace]");
 		end
 	},
 
@@ -60,7 +61,8 @@ menu.boot_options = {
 	{
 		entry_type = core.MENU_ENTRY,
 		name = function()
-			return "Load System "..color.highlight("D").."efaults";
+			return "Load System " .. color.highlight("D") ..
+			    "efaults";
 		end,
 		func = function()
 			core.setDefaults();
@@ -86,7 +88,8 @@ menu.boot_options = {
 	{
 		entry_type = core.MENU_ENTRY,
 		name = function()
-			return OnOff(color.highlight("A").."CPI       :", core.acpi);
+			return OnOff(color.highlight("A") .. "CPI       :",
+			    core.acpi);
 		end,
 		func = function()
 			core.setACPI();
@@ -97,7 +100,8 @@ menu.boot_options = {
 	{
 		entry_type = core.MENU_ENTRY,
 		name = function()
-			return OnOff("Safe "..color.highlight("M").."ode  :", core.sm);
+			return OnOff("Safe " .. color.highlight("M") ..
+			    "ode  :", core.sm);
 		end,
 		func = function()
 			core.setSafeMode();
@@ -108,7 +112,8 @@ menu.boot_options = {
 	{
 		entry_type = core.MENU_ENTRY,
 		name = function()
-			return OnOff(color.highlight("S").."ingle user:", core.su);
+			return OnOff(color.highlight("S") .. "ingle user:",
+			    core.su);
 		end,
 		func = function()
 			core.setSingleUser();
@@ -119,7 +124,8 @@ menu.boot_options = {
 	{
 		entry_type = core.MENU_ENTRY,
 		name = function()
-			return OnOff(color.highlight("V").."erbose    :", core.verbose);
+			return OnOff(color.highlight("V") .. "erbose    :",
+			    core.verbose);
 		end,
 		func = function()
 			core.setVerbose();
@@ -133,7 +139,8 @@ menu.welcome = {
 	{
 		entry_type = core.MENU_ENTRY,
 		name = function()
-			return color.highlight("B").."oot Multi user "..color.highlight("[Enter]");
+			return color.highlight("B") .. "oot Multi user " ..
+			    color.highlight("[Enter]");
 		end,
 		func = function()
 			core.setSingleUser(false);
@@ -146,7 +153,7 @@ menu.welcome = {
 	{
 		entry_type = core.MENU_ENTRY,
 		name = function()
-			return "Boot "..color.highlight("S").."ingle user";
+			return "Boot " .. color.highlight("S") .. "ingle user";
 		end,
 		func = function()
 			core.setSingleUser(true);
@@ -159,7 +166,7 @@ menu.welcome = {
 	{
 		entry_type = core.MENU_RETURN,
 		name = function()
-			return color.highlight("Esc").."ape to loader prompt";
+			return color.highlight("Esc") .. "ape to loader prompt";
 		end,
 		func = function()
 			loader.setenv("autoboot_delay", "NO");
@@ -171,7 +178,7 @@ menu.welcome = {
 	{
 		entry_type = core.MENU_ENTRY,
 		name = function()
-			return color.highlight("R").."eboot";
+			return color.highlight("R") .. "eboot";
 		end,
 		func = function()
 			loader.perform("reboot");
@@ -229,7 +236,7 @@ menu.welcome = {
 	{
 		entry_type = core.MENU_SUBMENU,
 		name = function()
-			return "Boot "..color.highlight("O").."ptions";
+			return "Boot " .. color.highlight("O") .. "ptions";
 		end,
 		submenu = function()
 			return menu.boot_options;
@@ -338,7 +345,7 @@ function menu.run(m)
 end
 
 function menu.skip()
-	if (core.isSerialBoot())then
+	if (core.isSerialBoot()) then
 		return true;
 	end
 	local c = string.lower(loader.getenv("console") or "");
@@ -374,8 +381,9 @@ function menu.autoboot()
 	repeat
 		time = endtime - loader.time();
 		screen.setcursor(x, y);
-		print("Autoboot in "..time.." seconds, hit [Enter] to boot"
-			      .." or any other key to stop     ");
+		print("Autoboot in " .. time ..
+		    " seconds, hit [Enter] to boot" ..
+		    " or any other key to stop     ");
 		screen.defcursor();
 		if (io.ischar()) then
 			local ch = io.getchar();
@@ -385,7 +393,7 @@ function menu.autoboot()
 				-- erase autoboot msg
 				screen.setcursor(0, y);
 				print("                                        "
-					      .."                                        ");
+				    .. "                                        ");
 				screen.defcursor();
 				return;
 			end
@@ -399,9 +407,11 @@ end
 
 function OnOff(str, b)
 	if (b) then
-		return str .. color.escapef(color.GREEN).."On"..color.escapef(color.WHITE);
+		return str .. color.escapef(color.GREEN) .. "On" ..
+		    color.escapef(color.WHITE);
 	else
-		return str .. color.escapef(color.RED).."off"..color.escapef(color.WHITE);
+		return str .. color.escapef(color.RED) .. "off" ..
+		    color.escapef(color.WHITE);
 	end
 end
 
