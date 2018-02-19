@@ -43,14 +43,14 @@ function intstring(num)
 end
 
 function screen.clear()
-	if (core.bootserial()) then
+	if (core.isSerialBoot()) then
 		return;
 	end
 	loader.printc("\027[H\027[J");
 end
 
 function screen.setcursor(x, y)
-	if (core.bootserial()) then
+	if (core.isSerialBoot()) then
 		return;
 	end
 
@@ -76,7 +76,7 @@ function screen.defcolor()
 end
 
 function screen.defcursor()
-	if (core.bootserial()) then
+	if (core.isSerialBoot()) then
 		return;
 	end
 	loader.printc("\027[25;0H");

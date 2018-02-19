@@ -50,7 +50,7 @@ function color.isEnabled()
 			return false;
 		end
 	end
-	return (not core.bootserial());
+	return (not core.isSerialBoot());
 end
 
 color.disabled = (not color.isEnabled());
