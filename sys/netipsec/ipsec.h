@@ -280,10 +280,8 @@ VNET_DECLARE(int, ip4_esp_trans_deflev);
 VNET_DECLARE(int, ip4_esp_net_deflev);
 VNET_DECLARE(int, ip4_ah_trans_deflev);
 VNET_DECLARE(int, ip4_ah_net_deflev);
-VNET_DECLARE(int, ip4_ah_offsetmask);
 VNET_DECLARE(int, ip4_ipsec_dfbit);
 VNET_DECLARE(int, ip4_ipsec_ecn);
-VNET_DECLARE(int, ip4_esp_randpad);
 VNET_DECLARE(int, crypto_support);
 VNET_DECLARE(int, async_crypto);
 VNET_DECLARE(int, natt_cksum_policy);
@@ -294,10 +292,8 @@ VNET_DECLARE(int, natt_cksum_policy);
 #define	V_ip4_esp_net_deflev	VNET(ip4_esp_net_deflev)
 #define	V_ip4_ah_trans_deflev	VNET(ip4_ah_trans_deflev)
 #define	V_ip4_ah_net_deflev	VNET(ip4_ah_net_deflev)
-#define	V_ip4_ah_offsetmask	VNET(ip4_ah_offsetmask)
 #define	V_ip4_ipsec_dfbit	VNET(ip4_ipsec_dfbit)
 #define	V_ip4_ipsec_ecn		VNET(ip4_ipsec_ecn)
-#define	V_ip4_esp_randpad	VNET(ip4_esp_randpad)
 #define	V_crypto_support	VNET(crypto_support)
 #define	V_async_crypto		VNET(async_crypto)
 #define	V_natt_cksum_policy	VNET(natt_cksum_policy)
