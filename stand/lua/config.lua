@@ -369,7 +369,7 @@ function config.load(file)
 	config.module_path = loader.getenv("module_path");
 
 	print("Loading kernel...");
-	config.loadkernel();
+	config.loadkernel(config.kernel_loaded);
 
 	print("Loading configured modules...");
 	if (not config.loadmod(modules)) then
