@@ -85,8 +85,8 @@ menu.boot_options = {
 		{
 			entry_type = core.MENU_ENTRY,
 			name = function()
-				return OnOff(color.highlight("A") .. "CPI       :",
-				    core.acpi);
+				return OnOff(color.highlight("A") ..
+				    "CPI       :", core.acpi);
 			end,
 			func = function()
 				core.setACPI();
@@ -109,8 +109,8 @@ menu.boot_options = {
 		{
 			entry_type = core.MENU_ENTRY,
 			name = function()
-				return OnOff(color.highlight("S") .. "ingle user:",
-				    core.su);
+				return OnOff(color.highlight("S") ..
+				    "ingle user:", core.su);
 			end,
 			func = function()
 				core.setSingleUser();
@@ -121,8 +121,8 @@ menu.boot_options = {
 		{
 			entry_type = core.MENU_ENTRY,
 			name = function()
-				return OnOff(color.highlight("V") .. "erbose    :",
-				    core.verbose);
+				return OnOff(color.highlight("V") ..
+				    "erbose    :", core.verbose);
 			end,
 			func = function()
 				core.setVerbose();
@@ -150,7 +150,8 @@ menu.welcome = {
 		{
 			entry_type = core.MENU_ENTRY,
 			name = function()
-				return color.highlight("B") .. "oot Multi user " ..
+				return color.highlight("B") ..
+				    "oot Multi user " ..
 				    color.highlight("[Enter]");
 			end,
 			func = function()
@@ -164,7 +165,8 @@ menu.welcome = {
 		{
 			entry_type = core.MENU_ENTRY,
 			name = function()
-				return "Boot " .. color.highlight("S") .. "ingle user";
+				return "Boot " .. color.highlight("S") ..
+				    "ingle user";
 			end,
 			func = function()
 				core.setSingleUser(true);
@@ -177,7 +179,8 @@ menu.welcome = {
 		{
 			entry_type = core.MENU_RETURN,
 			name = function()
-				return color.highlight("Esc") .. "ape to loader prompt";
+				return color.highlight("Esc") ..
+				    "ape to loader prompt";
 			end,
 			func = function()
 				loader.setenv("autoboot_delay", "NO");
@@ -231,11 +234,11 @@ menu.welcome = {
 				else
 					name_color = color.escapef(color.BLUE);
 				end
-				kernel_name = kernel_name .. name_color .. choice ..
-				    color.default();
-				return color.highlight("K").."ernel: " .. kernel_name ..
-				    " (" .. idx ..
-				    " of " .. #all_choices .. ")";
+				kernel_name = kernel_name .. name_color ..
+				    choice .. color.default();
+				return color.highlight("K").."ernel: " ..
+				    kernel_name .. " (" .. idx .. " of " ..
+				    #all_choices .. ")";
 			end,
 			func = function(idx, choice, all_choices)
 				config.selectkernel(choice);
@@ -247,7 +250,8 @@ menu.welcome = {
 		{
 			entry_type = core.MENU_SUBMENU,
 			name = function()
-				return "Boot " .. color.highlight("O") .. "ptions";
+				return "Boot " .. color.highlight("O") ..
+				    "ptions";
 			end,
 			submenu = function()
 				return menu.boot_options;
