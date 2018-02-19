@@ -96,6 +96,14 @@
 #define udma_to_device_barrier() asm volatile("dsb st" ::: "memory");
 #elif defined(__sparc__) || defined(__s390x__)
 #define udma_to_device_barrier() asm volatile("" ::: "memory")
+#elif defined(__mips__)
+#include <sys/types.h>
+#include <machine/atomic.h>
+#define udma_to_device_barrier() mips_sync()
+#elif defined(__arm__)
+#include <sys/types.h>
+#include <machine/atomic.h>
+#define udma_to_device_barrier() dmb()
 #else
 #error No architecture specific memory barrier defines found!
 #endif
@@ -128,6 +136,10 @@
 #define udma_from_device_barrier() asm volatile("dsb ld" ::: "memory");
 #elif defined(__sparc__) || defined(__s390x__)
 #define udma_from_device_barrier() asm volatile("" ::: "memory")
+#elif defined(__mips__)
+#define udma_from_device_barrier() mips_sync()
+#elif defined(__arm__)
+#define udma_from_device_barrier() dmb()
 #else
 #error No architecture specific memory barrier defines found!
 #endif
@@ -192,6 +204,10 @@
 #define mmio_flush_writes() asm volatile("dsb st" ::: "memory");
 #elif defined(__sparc__) || defined(__s390x__)
 #define mmio_flush_writes() asm volatile("" ::: "memory")
+#elif defined(__mips__)
+#define mmio_flush_writes() mips_sync()
+#elif defined(__arm__)
+#define mmio_flush_writes() dmb()
 #else
 #error No architecture specific memory barrier defines found!
 #endif
