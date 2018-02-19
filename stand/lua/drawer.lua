@@ -170,7 +170,7 @@ function drawer.drawmenu(m)
 		-- Allow menu items to be conditionally visible by specifying
 		-- a visible function.
 		if (e.visible ~= nil) and (not e.visible()) then
-			goto continue
+			goto continue;
 		end
 		if (e.entry_type ~= core.MENU_SEPARATOR) then
 			entry_num = entry_num + 1;
