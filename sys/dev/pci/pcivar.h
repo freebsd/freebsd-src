@@ -468,15 +468,36 @@ pci_find_cap(device_t dev, int capability, int *capreg)
 }
 
 static __inline int
+pci_find_next_cap(device_t dev, int capability, int start, int *capreg)
+{
+    return (PCI_FIND_NEXT_CAP(device_get_parent(dev), dev, capability, start,
+        capreg));
+}
+
+static __inline int
 pci_find_extcap(device_t dev, int capability, int *capreg)
 {
     return (PCI_FIND_EXTCAP(device_get_parent(dev), dev, capability, capreg));
 }
 
 static __inline int
+pci_find_next_extcap(device_t dev, int capability, int start, int *capreg)
+{
+    return (PCI_FIND_NEXT_EXTCAP(device_get_parent(dev), dev, capability,
+        start, capreg));
+}
+
+static __inline int
 pci_find_htcap(device_t dev, int capability, int *capreg)
 {
     return (PCI_FIND_HTCAP(device_get_parent(dev), dev, capability, capreg));
+}
+
+static __inline int
+pci_find_next_htcap(device_t dev, int capability, int start, int *capreg)
+{
+    return (PCI_FIND_NEXT_HTCAP(device_get_parent(dev), dev, capability,
+        start, capreg));
 }
 
 static __inline int
