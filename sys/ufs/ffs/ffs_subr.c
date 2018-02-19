@@ -174,12 +174,17 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsuperblock,
 
 	*fsp = NULL;
 	if (altsuperblock != -1) {
-		if ((ret = readsuper(devfd, fsp, altsuperblock, readfunc)) != 0)
+		ret = readsuper(devfd, fsp, altsuperblock, readfunc);
+		if (*fsp != NULL)
+			(*fsp)->fs_csp = NULL;
+		if (ret != 0)
 			return (ret);
 	} else {
 		for (i = 0; sblock_try[i] != -1; i++) {
-			if ((ret = readsuper(devfd, fsp, sblock_try[i],
-			     readfunc)) == 0)
+			ret = readsuper(devfd, fsp, sblock_try[i], readfunc);
+			if (*fsp != NULL)
+				(*fsp)->fs_csp = NULL;
+			if (ret == 0)
 				break;
 			if (ret == ENOENT)
 				continue;
@@ -188,17 +193,17 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsuperblock,
 		if (sblock_try[i] == -1)
 			return (ENOENT);
 	}
+
 	/*
-	 * If not filling in summary information, NULL out fs_csp and return.
+	 * Not filling in summary information, return.
 	 */
-	fs = *fsp;
-	if (filltype == NULL) {
-		fs->fs_csp = NULL;
+	if (filltype == NULL)
 		return (0);
-	}
+
 	/*
 	 * Read in the superblock summary information.
 	 */
+	fs = *fsp;
 	size = fs->fs_cssize;
 	blks = howmany(size, fs->fs_fsize);
 	if (fs->fs_contigsumsize > 0)
