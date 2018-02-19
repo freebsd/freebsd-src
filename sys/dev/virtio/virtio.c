@@ -240,6 +240,13 @@ virtio_reinit_complete(device_t dev)
 	VIRTIO_BUS_REINIT_COMPLETE(device_get_parent(dev));
 }
 
+int
+virtio_config_generation(device_t dev)
+{
+
+	return (VIRTIO_BUS_CONFIG_GENERATION(device_get_parent(dev)));
+}
+
 void
 virtio_read_device_config(device_t dev, bus_size_t offset, void *dst, int len)
 {
