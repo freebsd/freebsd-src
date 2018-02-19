@@ -179,6 +179,9 @@ list_del_init(struct list_head *entry)
 #define	list_next_entry(ptr, member)					\
 	list_entry(((ptr)->member.next), typeof(*(ptr)), member)
 
+#define	list_safe_reset_next(ptr, n, member) \
+	(n) = list_next_entry(ptr, member)
+
 #define	list_prev_entry(ptr, member)					\
 	list_entry(((ptr)->member.prev), typeof(*(ptr)), member)
 
