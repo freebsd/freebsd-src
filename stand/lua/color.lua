@@ -26,9 +26,9 @@
 -- $FreeBSD$
 --
 
-local color = {};
-
 local core = require("core");
+
+local color = {};
 
 color.BLACK   = 0;
 color.RED     = 1;
@@ -59,14 +59,14 @@ function color.escapef(c)
 	if (color.disabled) then
 		return c;
 	end
-	return "\027[3"..c.."m";
+	return "\027[3" .. c .. "m";
 end
 
 function color.escapeb(c)
 	if (color.disabled) then
 		return c;
 	end
-	return "\027[4"..c.."m";
+	return "\027[4" .. c .. "m";
 end
 
 function color.escape(fg, bg, att)
@@ -76,9 +76,9 @@ function color.escape(fg, bg, att)
 	if (not att) then
 		att = ""
 	else
-		att = att..";";
+		att = att .. ";";
 	end
-	return "\027["..att.."3"..fg..";4"..bg.."m";
+	return "\027[" .. att .. "3" .. fg .. ";4" .. bg .. "m";
 end
 
 function color.default()
@@ -92,7 +92,7 @@ function color.highlight(str)
 	if (color.disabled) then
 		return str;
 	end
-	return "\027[1m"..str.."\027[0m";
+	return "\027[1m" .. str .. "\027[0m";
 end
 
 return color;

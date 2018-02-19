@@ -193,7 +193,7 @@ function drawer.drawmenu(m)
 			else
 				name = e.name();
 			end
-			print(entry_num .. ". "..name);
+			print(entry_num .. ". " .. name);
 
 			-- fill the alias table
 			alias_table[tostring(entry_num)] = e;
