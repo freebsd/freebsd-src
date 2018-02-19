@@ -137,8 +137,14 @@ menu.welcome = {
 		local menu_entries = menu.welcome.all_entries;
 		-- Swap the first two menu items on single user boot
 		if (core.isSingleUserBoot()) then
+			-- Shallow copy the table
+			menu_entries = core.shallowCopyTable(menu_entries);
+
 			local multiuser = menu_entries[1];
 			local singleuser = menu_entries[2];
+
+			multiuser.name = multiuser.alternate_name;
+			singleuser.name = singleuser.alternate_name;
 
 			menu_entries[2] = multiuser;
 			menu_entries[1] = singleuser;
@@ -154,6 +160,11 @@ menu.welcome = {
 				    "oot Multi user " ..
 				    color.highlight("[Enter]");
 			end,
+			-- Not a standard menu entry function!
+			alternate_name = function()
+				return color.highlight("B") ..
+				    "oot Multi user";
+			end,
 			func = function()
 				core.setSingleUser(false);
 				core.boot();
@@ -167,6 +178,11 @@ menu.welcome = {
 			name = function()
 				return "Boot " .. color.highlight("S") ..
 				    "ingle user";
+			end,
+			-- Not a standard menu entry function!
+			alternate_name = function()
+				return "Boot " .. color.highlight("S") ..
+				    "ingle user " .. color.highlight("[Enter]");
 			end,
 			func = function()
 				core.setSingleUser(true);
