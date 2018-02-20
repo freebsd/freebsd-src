@@ -1632,17 +1632,55 @@ vm_snapshot_req(struct vmctx *ctx, enum snapshot_req req, char *buffer, size_t m
 }
 
 int
-vm_restore_mem(struct vmctx *ctx, void *vm_mem, size_t size)
+vm_restore_mem(struct vmctx *ctx, int vmmem_fd, size_t size)
 {
+	int cnt_read = 0;
+	int read_total = 0;
+	int to_read = ctx->lowmem;
+
 	if (ctx->lowmem + ctx->highmem != size) {
 		fprintf(stderr, "%s: mem size mismatch: %ld vs %ld\n",
 			__func__, ctx->lowmem + ctx->highmem, size);
 		return (-1);
 	}
 
-	memcpy(ctx->baseaddr, vm_mem, ctx->lowmem);
-	if (ctx->highmem > 0)
-		memcpy(ctx->baseaddr + 4*GB, vm_mem + ctx->lowmem, ctx->highmem);
+	if ( lseek(vmmem_fd, 0 , SEEK_SET) < 0) {
+		fprintf(stderr,
+			"%s: Could not change file offser errno = %d\r\n",
+			__func__, errno);
+		return (-1);
+	}
+
+	while (read_total < ctx->lowmem) {
+		cnt_read = read(vmmem_fd, ctx->baseaddr + read_total, to_read);
+		printf("%s: cnt_read  = %d\r\n", __func__, cnt_read);
+		if (cnt_read <= 0) {
+			fprintf(stderr,"%s: read error: %d\r\n",
+			__func__,  errno);
+			return (-1);
+		}
+		read_total += cnt_read;
+		to_read -= cnt_read;
+	}
+
+	if (ctx->highmem > 0) {
+		read_total = 0;
+		to_read = ctx->highmem;
+		cnt_read = 0;
+
+		while (read_total < ctx->highmem) {
+			cnt_read = read(vmmem_fd,
+					ctx->baseaddr + 4*GB + read_total,
+					to_read);
+			if (cnt_read <= 0) {
+				fprintf(stderr, "%s: read error: %d\r\n",
+				__func__, errno);
+				return (-1);
+			}
+			read_total += cnt_read;
+			to_read -= cnt_read;
+		}
+	}
 
 	return (0);
 }

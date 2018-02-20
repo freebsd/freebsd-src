@@ -43,7 +43,6 @@ struct __attribute__((packed)) restore_state {
 	void *kdata_map;
 	size_t kdata_len;
 
-	void *vmmem_map;
 	size_t vmmem_len;
 
 	struct ucl_parser *meta_parser;
