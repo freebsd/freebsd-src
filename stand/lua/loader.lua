@@ -1,5 +1,6 @@
 --
 -- Copyright (c) 2015 Pedro Souza <pedrosouza@freebsd.org>
+-- Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
 -- All rights reserved.
 --
 -- Redistribution and use in source and binary forms, with or without
@@ -29,6 +30,24 @@
 config = require("config");
 menu = require("menu");
 password = require("password");
+
+-- Declares a global function cli_execute that attempts to dispatch the
+-- arguments passed as a lua function. This gives lua a chance to intercept
+-- builtin CLI commands like "boot"
+function cli_execute(...)
+	local cmd_name, cmd_args = ...;
+	local cmd = _G[cmd_name];
+	if (cmd ~= nil) and (type(cmd) == "function") then
+		-- Pass argv wholesale into cmd. We could omit argv[0] since the
+		-- traditional reasons for including it don't necessarily apply,
+		-- it may not be totally redundant if we want to have one global
+		-- handling multiple commands
+		cmd(...);
+	else
+		loader.command(...);
+	end
+
+end
 
 config.load();
 password.check();
