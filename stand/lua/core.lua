@@ -37,6 +37,38 @@ local compose_loader_cmd = function(cmd_name, argstr)
 	return cmd_name;
 end
 
+-- Parses arguments to boot and returns two values: kernel_name, argstr
+-- Defaults to nil and "" respectively.
+local parse_boot_args = function(argv)
+	if (#argv == 0) then
+		return nil, "";
+	end
+	local kernel_name;
+	local argstr = "";
+
+	for k, v in ipairs(argv) do
+		if (v:sub(1,1) ~= "-") then
+			kernel_name = v;
+		else
+			argstr = argstr .. " " .. v;
+		end
+	end
+	return kernel_name, argstr;
+end
+
+-- Globals
+function boot(...)
+	local argv = {...};
+	local cmd_name = "";
+	cmd_name, argv = core.popFrontTable(argv);
+	local kernel, argstr = parse_boot_args(argv);
+	if (kernel ~= nil) then
+		loader.perform("unload");
+		config.selectkernel(kernel);
+	end
+	core.boot(argstr);
+end
+
 -- Module exports
 -- Commonly appearing constants
 core.KEY_BACKSPACE	= 8;

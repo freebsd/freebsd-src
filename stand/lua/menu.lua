@@ -390,7 +390,6 @@ function menu.run(m)
 	if (m == menu.welcome) then
 		screen.defcursor();
 		print("Exiting menu!");
-		config.loadelf();
 		return false;
 	end
 
