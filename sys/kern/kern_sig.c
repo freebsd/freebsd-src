@@ -1677,12 +1677,11 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 		 */
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
-			PROC_LOCK(p);
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
 			    p == td->td_proc || p->p_state == PRS_NEW) {
-				PROC_UNLOCK(p);
 				continue;
 			}
+			PROC_LOCK(p);
 			err = p_cansignal(td, p, sig);
 			if (err == 0) {
 				if (sig)
