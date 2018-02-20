@@ -974,7 +974,7 @@ t4_nm_intr(void *arg)
 			case CPL_RX_PKT:
 				ring->slot[fl_cidx].len = G_RSPD_LEN(lq) -
 				    sc->params.sge.fl_pktshift;
-				ring->slot[fl_cidx].flags = kring->nkr_slot_flags;
+				ring->slot[fl_cidx].flags = 0;
 				fl_cidx += (lq & F_RSPD_NEWBUF) ? 1 : 0;
 				fl_credits += (lq & F_RSPD_NEWBUF) ? 1 : 0;
 				if (__predict_false(fl_cidx == nm_rxq->fl_sidx))
