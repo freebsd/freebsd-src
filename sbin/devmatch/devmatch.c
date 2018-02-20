@@ -427,6 +427,8 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 							asprintf(&descr, "%s: %s", *dev ? dev : "unattached", lastmod);
 						else
 							asprintf(&descr, "%s", lastmod);
+						if (verbose_flag)
+							printf("Matches --- %s ---\n", lastmod);
 
 						if (descr != NULL && hit_index < DEVMATCH_MAX_HITS) {
 							match_data[hit_index].descr = descr;
