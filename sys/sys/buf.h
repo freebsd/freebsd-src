@@ -112,7 +112,9 @@ struct buf {
 	off_t	b_offset;		/* Offset into file. */
 	TAILQ_ENTRY(buf) b_bobufs;	/* (V) Buffer's associated vnode. */
 	uint32_t	b_vflags;	/* (V) BV_* flags */
-	unsigned short b_qindex;	/* (Q) buffer queue index */
+	uint8_t		b_qindex;	/* (Q) buffer queue index */
+	uint8_t		b_domain;	/* (Q) buf domain this resides in */
+	uint16_t	b_subqueue;	/* (Q) per-cpu q if any */
 	uint32_t	b_flags;	/* B_* flags. */
 	b_xflags_t b_xflags;		/* extra flags */
 	struct lock b_lock;		/* Buffer lock */
@@ -217,7 +219,7 @@ struct buf {
 #define	B_DONE		0x00000200	/* I/O completed. */
 #define	B_EINTR		0x00000400	/* I/O was interrupted */
 #define	B_NOREUSE	0x00000800	/* Contents not reused once released. */
-#define	B_00001000	0x00001000	/* Available flag. */
+#define	B_REUSE		0x00001000	/* Contents reused, second chance. */
 #define	B_INVAL		0x00002000	/* Does not contain valid info. */
 #define	B_BARRIER	0x00004000	/* Write this and all preceding first. */
 #define	B_NOCACHE	0x00008000	/* Do not cache block after use. */
@@ -241,7 +243,7 @@ struct buf {
 #define PRINT_BUF_FLAGS "\20\40remfree\37cluster\36vmio\35ram\34managed" \
 	"\33paging\32infreecnt\31nocopy\30b23\27relbuf\26b21\25b20" \
 	"\24b19\23b18\22clusterok\21malloc\20nocache\17b14\16inval" \
-	"\15b12\14noreuse\13eintr\12done\11b8\10delwri" \
+	"\15reuse\14noreuse\13eintr\12done\11b8\10delwri" \
 	"\7validsuspwrt\6cache\5deferred\4direct\3async\2needcommit\1age"
 
 /*

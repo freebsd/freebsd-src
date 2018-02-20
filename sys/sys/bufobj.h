@@ -106,6 +106,7 @@ struct bufobj {
 	struct bufv	bo_dirty;	/* i Dirty buffers */
 	long		bo_numoutput;	/* i Writes in progress */
 	u_int		bo_flag;	/* i Flags */
+	int		bo_domain;	/* - Clean queue affinity */
 	int		bo_bsize;	/* - Block size for i/o */
 };
 
@@ -126,6 +127,7 @@ struct bufobj {
 #define	ASSERT_BO_LOCKED(bo)	rw_assert(BO_LOCKPTR((bo)), RA_LOCKED)
 #define	ASSERT_BO_UNLOCKED(bo)	rw_assert(BO_LOCKPTR((bo)), RA_UNLOCKED)
 
+void bufobj_init(struct bufobj *bo, void *private);
 void bufobj_wdrop(struct bufobj *bo);
 void bufobj_wref(struct bufobj *bo);
 void bufobj_wrefl(struct bufobj *bo);
