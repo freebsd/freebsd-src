@@ -1231,6 +1231,14 @@ mtx_spin_wait_unlocked(struct mtx *m)
 {
 	struct lock_delay_arg lda;
 
+	KASSERT(m->mtx_lock != MTX_DESTROYED,
+	    ("%s() of destroyed mutex %p", __func__, m));
+	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin,
+	    ("%s() of sleep mutex %p (%s)", __func__, m,
+	    m->lock_object.lo_name));
+	KASSERT(!mtx_owned(m), ("%s() waiting on myself on lock %p (%s)", __func__, m,
+	    m->lock_object.lo_name));
+
 	lda.spin_cnt = 0;
 
 	while (atomic_load_acq_ptr(&m->mtx_lock) != MTX_UNOWNED) {
