@@ -218,6 +218,10 @@ function core.isSerialBoot()
 	return false;
 end
 
+function core.isSystem386()
+	return (loader.machine_arch == "i386");
+end
+
 -- This may be a better candidate for a 'utility' module.
 function core.shallowCopyTable(tbl)
 	local new_tbl = {};
@@ -235,7 +239,7 @@ end
 -- generally be set upon execution of the kernel. Because of this, we can't (or
 -- don't really want to) detect/disable ACPI on !i386 reliably. Just set it
 -- enabled if we detect it and leave well enough alone if we don't.
-if (core.getACPIPresent(false)) then
+if (core.isSystem386()) and (core.getACPIPresent(false)) then
 	core.setACPI(true);
 end
 return core;
