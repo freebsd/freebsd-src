@@ -142,13 +142,26 @@ function config.setCarouselIndex(id, idx)
 end
 
 function config.restoreEnv()
+	-- Examine changed environment variables
 	for k, v in pairs(config.env_changed) do
 		local restore_value = config.env_restore[k];
+		if (restore_value == nil) then
+			-- This one doesn't need restored for some reason
+			goto continue;
+		end
+		local current_value = loader.getenv(k);
+		if (current_value ~= v) then
+			-- This was overwritten by some action taken on the menu
+			-- most likely; we'll leave it be.
+			goto continue;
+		end
+		restore_value = restore_value.value;
 		if (restore_value ~= nil) then
 			loader.setenv(k, restore_value);
 		else
 			loader.unsetenv(k);
 		end
+		::continue::
 	end
 
 	config.env_changed = {};
@@ -156,11 +169,12 @@ function config.restoreEnv()
 end
 
 function config.setenv(k, v)
-	-- Do we need to track this change?
-	if (config.env_changed[k] == nil) then
-		config.env_changed[k] = true;
-		config.env_restore[k] = loader.getenv(k);
+	-- Track the original value for this if we haven't already
+	if (config.env_restore[k] == nil) then
+		config.env_restore[k] = {value = loader.getenv(k)};
 	end
+
+	config.env_changed[k] = v;
 
 	return loader.setenv(k, v);
 end
