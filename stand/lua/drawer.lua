@@ -32,6 +32,24 @@ local screen = require("screen");
 
 local drawer = {};
 
+drawer.menu_name_handlers = {
+	-- Menu name handlers should take the menu being drawn and entry being
+	-- drawn as parameters, and return the name of the item.
+	-- This is designed so that everything, including menu separators, may
+	-- have their names derived differently. The default action for entry
+	-- types not specified here is to call and use entry.name().
+	[core.MENU_CAROUSEL_ENTRY] = function(drawing_menu, entry)
+		local carid = entry.carousel_id;
+		local caridx = menu.getCarouselIndex(carid);
+		local choices = entry.items();
+
+		if (#choices < caridx) then
+			caridx = 1;
+		end
+		return entry.name(caridx, choices[caridx], choices);
+	end,
+};
+
 drawer.brand_position = {x = 2, y = 1};
 drawer.fbsd_logo = {
 	"  ______               ____   _____ _____  ",
@@ -158,24 +176,6 @@ function drawer.drawscreen(menu_opts)
         drawer.drawbox();
 	return drawer.drawmenu(menu_opts);
 end
-
-drawer.menu_name_handlers = {
-	-- Menu name handlers should take the menu being drawn and entry being
-	-- drawn as parameters, and return the name of the item.
-	-- This is designed so that everything, including menu separators, may
-	-- have their names derived differently. The default action for entry
-	-- types not specified here is to call and use entry.name().
-	[core.MENU_CAROUSEL_ENTRY] = function(drawing_menu, entry)
-		local carid = entry.carousel_id;
-		local caridx = menu.getCarouselIndex(carid);
-		local choices = entry.items();
-
-		if (#choices < caridx) then
-			caridx = 1;
-		end
-		return entry.name(caridx, choices[caridx], choices);
-	end,
-};
 
 function menu_entry_name(drawing_menu, entry)
 	local name_handler = drawer.menu_name_handlers[entry.entry_type];
