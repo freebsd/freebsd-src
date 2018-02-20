@@ -128,6 +128,7 @@ menu.boot_options = {
 		-- acpi
 		{
 			entry_type = core.MENU_ENTRY,
+			visible = core.isSystem386,
 			name = function()
 				return OnOff(color.highlight("A") ..
 				    "CPI       :", core.acpi);
