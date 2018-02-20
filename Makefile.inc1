@@ -364,6 +364,7 @@ _VCS_REVISION?=	$$(eval ${SVNVERSION_CMD} ${SRCDIR})
 . if !empty(_VCS_REVISION)
 VCS_REVISION=	$$(echo r${_VCS_REVISION})
 . endif
+.export VCS_REVISION
 .endif
 
 .if !defined(OSRELDATE)
