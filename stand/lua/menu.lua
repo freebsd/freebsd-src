@@ -36,11 +36,21 @@ local drawer = require("drawer");
 
 local menu = {};
 
-local OnOff;
 local skip;
 local run;
 local autoboot;
 local carousel_choices = {};
+
+local OnOff = function(str, b)
+	if (b) then
+		return str .. color.escapef(color.GREEN) .. "On" ..
+		    color.escapef(color.WHITE);
+	else
+		return str .. color.escapef(color.RED) .. "off" ..
+		    color.escapef(color.WHITE);
+	end
+end
+
 
 menu.handlers = {
 	-- Menu handlers take the current menu and selected entry as parameters,
@@ -459,16 +469,6 @@ function menu.autoboot()
 	until time <= 0;
 	core.boot();
 
-end
-
-function OnOff(str, b)
-	if (b) then
-		return str .. color.escapef(color.GREEN) .. "On" ..
-		    color.escapef(color.WHITE);
-	else
-		return str .. color.escapef(color.RED) .. "off" ..
-		    color.escapef(color.WHITE);
-	end
 end
 
 return menu;
