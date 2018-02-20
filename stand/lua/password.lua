@@ -32,6 +32,7 @@ local screen = require("screen");
 
 local password = {};
 
+-- Module exports
 function password.read()
 	local str = "";
 	local n = 0;

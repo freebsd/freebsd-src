@@ -28,51 +28,8 @@
 --
 
 local config = {};
--- Which variables we changed
-config.env_changed = {};
--- Values to restore env to (nil to unset)
-config.env_restore = {};
 
 local modules = {};
-
-function config.restoreEnv()
-	for k, v in pairs(config.env_changed) do
-		local restore_value = config.env_restore[k];
-		if (restore_value ~= nil) then
-			loader.setenv(k, restore_value);
-		else
-			loader.unsetenv(k);
-		end
-	end
-
-	config.env_changed = {};
-	config.env_restore = {};
-end
-
-function config.setenv(k, v)
-	-- Do we need to track this change?
-	if (config.env_changed[k] == nil) then
-		config.env_changed[k] = true;
-		config.env_restore[k] = loader.getenv(k);
-	end
-
-	return loader.setenv(k, v);
-end
-
-function config.setKey(k, n, v)
-	if (modules[k] == nil) then
-		modules[k] = {};
-	end
-	modules[k][n] = v;
-end
-
-function config.lsModules()
-	print("== Listing modules");
-	for k, v in pairs(modules) do
-		print(k, v.load);
-	end
-	print("== List of modules ended");
-end
 
 local pattern_table = {
 	[1] = {
@@ -161,6 +118,52 @@ local pattern_table = {
 		end
 	}
 };
+
+-- Module exports
+-- Which variables we changed
+config.env_changed = {};
+-- Values to restore env to (nil to unset)
+config.env_restore = {};
+
+function config.restoreEnv()
+	for k, v in pairs(config.env_changed) do
+		local restore_value = config.env_restore[k];
+		if (restore_value ~= nil) then
+			loader.setenv(k, restore_value);
+		else
+			loader.unsetenv(k);
+		end
+	end
+
+	config.env_changed = {};
+	config.env_restore = {};
+end
+
+function config.setenv(k, v)
+	-- Do we need to track this change?
+	if (config.env_changed[k] == nil) then
+		config.env_changed[k] = true;
+		config.env_restore[k] = loader.getenv(k);
+	end
+
+	return loader.setenv(k, v);
+end
+
+function config.setKey(k, n, v)
+	if (modules[k] == nil) then
+		modules[k] = {};
+	end
+	modules[k][n] = v;
+end
+
+function config.lsModules()
+	print("== Listing modules");
+	for k, v in pairs(modules) do
+		print(k, v.load);
+	end
+	print("== List of modules ended");
+end
+
 
 function config.isValidComment(c)
 	if (c ~= nil) then
@@ -432,6 +435,5 @@ function config.loadelf()
 		print("Could not load one or more modules!");
 	end
 end
-
 
 return config;
