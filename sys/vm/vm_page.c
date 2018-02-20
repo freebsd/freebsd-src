@@ -476,6 +476,7 @@ vm_page_domain_init(int domain)
 		}
 	}
 	mtx_init(&vmd->vmd_free_mtx, "vm page free queue", NULL, MTX_DEF);
+	snprintf(vmd->vmd_name, sizeof(vmd->vmd_name), "%d", domain);
 }
 
 /*
@@ -2934,9 +2935,9 @@ vm_wait(void)
 		 * consume all freed pages while old allocators wait.
 		 */
 		mtx_lock(&vm_domainset_lock);
-		if (vm_page_count_min()) {
+		if (vm_page_count_severe()) {
 			vm_min_waiters++;
-			msleep(&vm_min_domains, &vm_domainset_lock, PVM,
+			msleep(&vm_severe_domains, &vm_domainset_lock, PVM,
 			    "vmwait", 0);
 		}
 		mtx_unlock(&vm_domainset_lock);
@@ -3204,7 +3205,7 @@ vm_domain_free_wakeup(struct vm_domain *vmd)
 	 * high water mark. And wakeup scheduler process if we have
 	 * lots of memory. this process will swapin processes.
 	 */
-	if (vmd->vmd_pages_needed && !vm_paging_min(vmd)) {
+	if (vmd->vmd_pages_needed && !vm_paging_severe(vmd)) {
 		vmd->vmd_pages_needed = false;
 		wakeup(&vmd->vmd_free_count);
 	}

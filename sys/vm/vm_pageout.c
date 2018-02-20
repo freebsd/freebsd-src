@@ -124,7 +124,7 @@ static void vm_pageout(void);
 static void vm_pageout_init(void);
 static int vm_pageout_clean(vm_page_t m, int *numpagedout);
 static int vm_pageout_cluster(vm_page_t m);
-static bool vm_pageout_scan(struct vm_domain *vmd, int pass);
+static bool vm_pageout_scan(struct vm_domain *vmd, int pass, int shortage);
 static void vm_pageout_mightbe_oom(struct vm_domain *vmd, int page_shortage,
     int starting_page_shortage);
 
@@ -146,7 +146,7 @@ SDT_PROBE_DEFINE(vm, , , vm__lowmem_scan);
 
 /* Pagedaemon activity rates, in subdivisions of one second. */
 #define	VM_LAUNDER_RATE		10
-#define	VM_INACT_SCAN_RATE	2
+#define	VM_INACT_SCAN_RATE	10
 
 static int vm_pageout_oom_seq = 12;
 
@@ -1206,7 +1206,7 @@ out:
  * queue scan to meet the target.
  */
 static bool
-vm_pageout_scan(struct vm_domain *vmd, int pass)
+vm_pageout_scan(struct vm_domain *vmd, int pass, int shortage)
 {
 	struct pgo_pglist pglist;
 	vm_page_t m, next;
@@ -1251,7 +1251,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	 */
 	if (pass > 0) {
 		deficit = atomic_readandclear_int(&vmd->vmd_pageout_deficit);
-		page_shortage = vm_paging_target(vmd) + deficit;
+		page_shortage = shortage + deficit;
 	} else
 		page_shortage = deficit = 0;
 	starting_page_shortage = page_shortage;
@@ -1505,7 +1505,7 @@ lock_queue:
 	 */
 	inactq_shortage = vmd->vmd_inactive_target - (pq->pq_cnt +
 	    vmd->vmd_pagequeues[PQ_LAUNDRY].pq_cnt / act_scan_laundry_weight) +
-	    vm_paging_target(vmd) + deficit + addl_page_shortage;
+	    shortage + deficit + addl_page_shortage;
 	inactq_shortage *= act_scan_laundry_weight;
 
 	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
@@ -1875,12 +1875,13 @@ static void
 vm_pageout_worker(void *arg)
 {
 	struct vm_domain *vmd;
-	int domain, pass;
+	int domain, pass, shortage;
 	bool target_met;
 
 	domain = (uintptr_t)arg;
 	vmd = VM_DOMAIN(domain);
 	pass = 0;
+	shortage = 0;
 	target_met = true;
 
 	/*
@@ -1918,54 +1919,40 @@ vm_pageout_worker(void *arg)
 			vmd->vmd_pages_needed = false;
 			wakeup(&vmd->vmd_free_count);
 		}
-
 		/*
-		 * Do not clear vmd_pageout_wanted until we reach our free page
-		 * target.  Otherwise, we may be awakened over and over again,
-		 * wasting CPU time.
+		 * Might the page daemon need to run again?
 		 */
-		if (vmd->vmd_pageout_wanted && target_met)
-			vmd->vmd_pageout_wanted = false;
-
-		/*
-		 * Might the page daemon receive a wakeup call?
-		 */
-		if (vmd->vmd_pageout_wanted) {
+		if (vm_paging_needed(vmd, vmd->vmd_free_count)) {
 			/*
-			 * No.  Either vmd_pageout_wanted was set by another
-			 * thread during the previous scan, which must have
-			 * been a level 0 scan, or vmd_pageout_wanted was
-			 * already set and the scan failed to free enough
-			 * pages.  If we haven't yet performed a level >= 1
-			 * (page reclamation) scan, then increase the level
-			 * and scan again now.  Otherwise, sleep a bit and
-			 * try again later.
+			 * Yes, the scan failed to free enough pages.  If
+			 * we have performed a level >= 1 (page reclamation)
+			 * scan, then sleep a bit and try again.
 			 */
 			vm_domain_free_unlock(vmd);
-			if (pass >= 1)
+			if (pass > 1)
 				pause("pwait", hz / VM_INACT_SCAN_RATE);
-			pass++;
 		} else {
 			/*
-			 * Yes.  If threads are still sleeping in VM_WAIT
-			 * then we immediately start a new scan.  Otherwise,
-			 * sleep until the next wakeup or until pages need to
-			 * have their reference stats updated.
+			 * No, sleep until the next wakeup or until pages
+			 * need to have their reference stats updated.
 			 */
-			if (vmd->vmd_pages_needed) {
-				vm_domain_free_unlock(vmd);
-				if (pass == 0)
-					pass++;
-			} else if (mtx_sleep(&vmd->vmd_pageout_wanted,
+			vmd->vmd_pageout_wanted = false;
+			if (mtx_sleep(&vmd->vmd_pageout_wanted,
 			    vm_domain_free_lockptr(vmd), PDROP | PVM,
-			    "psleep", hz) == 0) {
+			    "psleep", hz / VM_INACT_SCAN_RATE) == 0)
 				VM_CNT_INC(v_pdwakeups);
-				pass = 1;
-			} else
-				pass = 0;
 		}
+		shortage = pidctrl_daemon(&vmd->vmd_pid, vmd->vmd_free_count);
+		if (shortage && pass == 0)
+			pass = 1;
 
-		target_met = vm_pageout_scan(vmd, pass);
+		target_met = vm_pageout_scan(vmd, pass, shortage);
+		/*
+		 * If the target was not met we must increase the pass to
+		 * more aggressively reclaim.
+		 */
+		if (!target_met)
+			pass++;
 	}
 }
 
@@ -1976,6 +1963,7 @@ static void
 vm_pageout_init_domain(int domain)
 {
 	struct vm_domain *vmd;
+	struct sysctl_oid *oid;
 	int lim, i, j;
 
 	vmd = VM_DOMAIN(domain);
@@ -2003,10 +1991,10 @@ vm_pageout_init_domain(int domain)
 		vmd->vmd_inactive_target = vmd->vmd_free_count / 3;
 
 	/*
-	 * Set the default wakeup threshold to be 10% above the minimum
-	 * page limit.  This keeps the steady state out of shortfall.
+	 * Set the default wakeup threshold to be 10% below the paging
+	 * target.  This keeps the steady state out of shortfall.
 	 */
-	vmd->vmd_pageout_wakeup_thresh = (vmd->vmd_free_min / 10) * 11;
+	vmd->vmd_pageout_wakeup_thresh = (vmd->vmd_free_target / 10) * 9;
 
 	/*
 	 * Target amount of memory to move out of the laundry queue during a
@@ -2031,6 +2019,14 @@ vm_pageout_init_domain(int domain)
 	for (i = 0; i < PQ_COUNT; i++)
 		for (j = 0; j < BPQ_COUNT; j++)
 			vmd->vmd_pagequeues[i].pq_bpqs[j].bpq_lim = lim;
+
+	/* Initialize the pageout daemon pid controller. */
+	pidctrl_init(&vmd->vmd_pid, hz / VM_INACT_SCAN_RATE,
+	    vmd->vmd_free_target, PIDCTRL_BOUND,
+	    PIDCTRL_KPD, PIDCTRL_KID, PIDCTRL_KDD);
+	oid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(vmd->vmd_oid), OID_AUTO,
+	    "pidctrl", CTLFLAG_RD, NULL, "");
+	pidctrl_init_sysctl(&vmd->vmd_pid, SYSCTL_CHILDREN(oid));
 }
 
 static void

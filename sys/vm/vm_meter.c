@@ -473,3 +473,58 @@ vm_laundry_count(void)
 	return vm_pagequeue_count(PQ_LAUNDRY);
 }
 
+static void
+vm_domain_stats_init(struct vm_domain *vmd, struct sysctl_oid *parent)
+{
+	struct sysctl_oid *oid;
+
+	vmd->vmd_oid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    vmd->vmd_name, CTLFLAG_RD, NULL, "");
+	oid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(vmd->vmd_oid), OID_AUTO,
+	    "stats", CTLFLAG_RD, NULL, "");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "free_count", CTLFLAG_RD, &vmd->vmd_free_count, 0,
+	    "Free pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "active", CTLFLAG_RD, &vmd->vmd_pagequeues[PQ_ACTIVE].pq_cnt, 0,
+	    "Active pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "inactive", CTLFLAG_RD, &vmd->vmd_pagequeues[PQ_INACTIVE].pq_cnt, 0,
+	    "Inactive pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "laundry", CTLFLAG_RD, &vmd->vmd_pagequeues[PQ_LAUNDRY].pq_cnt, 0,
+	    "laundry pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO, "unswappable",
+	    CTLFLAG_RD, &vmd->vmd_pagequeues[PQ_UNSWAPPABLE].pq_cnt, 0,
+	    "Unswappable pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "inactive_target", CTLFLAG_RD, &vmd->vmd_inactive_target, 0,
+	    "Target inactive pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "free_target", CTLFLAG_RD, &vmd->vmd_free_target, 0,
+	    "Target free pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "free_reserved", CTLFLAG_RD, &vmd->vmd_free_reserved, 0,
+	    "Reserved free pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "free_min", CTLFLAG_RD, &vmd->vmd_free_min, 0,
+	    "Minimum free pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "free_severe", CTLFLAG_RD, &vmd->vmd_free_severe, 0,
+	    "Severe free pages");
+
+}
+
+static void
+vm_stats_init(void *arg __unused)
+{
+	struct sysctl_oid *oid;
+	int i;
+
+	oid = SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_vm), OID_AUTO,
+	    "domain", CTLFLAG_RD, NULL, "");
+	for (i = 0; i < vm_ndomains; i++)
+		vm_domain_stats_init(VM_DOMAIN(i), oid);
+}
+
+SYSINIT(vmstats_init, SI_SUB_VM_CONF, SI_ORDER_FIRST, vm_stats_init, NULL);
