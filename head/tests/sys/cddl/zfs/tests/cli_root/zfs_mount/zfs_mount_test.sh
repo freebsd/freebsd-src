@@ -194,12 +194,12 @@ zfs_mount_007_pos_head()
 }
 zfs_mount_007_pos_body()
 {
-	atf_expect_fail "kern/221985 - zfs mount -o remount is broken"
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
 
 	verify_disk_count "$DISKS" 1
+	atf_expect_fail "PR 115361 zfs get setuid doesn't reflect setuid state as set by zfs mount"
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_mount_007_pos.ksh || atf_fail "Testcase failed"
 }

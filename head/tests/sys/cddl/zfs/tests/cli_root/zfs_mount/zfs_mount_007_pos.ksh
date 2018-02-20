@@ -42,7 +42,6 @@
 #
 #         PROPERTY		MOUNT OPTION
 #	  atime			atime/noatime
-#	  devices		devices/nodevices
 #	  exec			exec/noexec
 #	  readonly		ro/rw
 #	  setuid		setuid/nosetuid
@@ -74,7 +73,7 @@ log_assert "Verify '-o' will set filesystem property temporarily, " \
 	"without affecting the property that is stored on disk."
 log_onexit cleanup
 
-set -A properties "atime" "devices" "exec" "readonly" "setuid"
+set -A properties "atime" "exec" "readonly" "setuid"
 
 #
 # Get the specified filesystem property reverse mount option.
@@ -89,7 +88,6 @@ function get_reverse_option
 
 	# Define property value: "reverse if value=on" "reverse if value=off"
 	set -A values "noatime"   "atime" \
-		      "nodevices" "devices" \
 		      "noexec"    "exec" \
 		      "rw"        "ro" \
 		      "nosetuid"  "setuid"
@@ -127,19 +125,13 @@ for property in ${properties[@]}; do
 
 	# Set filesystem property temporarily
 	reverse_opt=$(get_reverse_option $fs $property)
-	log_must $ZFS mount -o remount,$reverse_opt $fs
+	log_must $ZFS mount -o update,$reverse_opt $fs
 
 	cur_val=$(get_prop $property $fs)
 	(($? != 0)) && log_fail "get_prop $property $fs"
 
-	# In LZ, a user with all zone privileges can never with "devices"
-	if ! is_global_zone && [[ $property == devices ]] ; then
-		if [[ $cur_val != off || $orig_val != off ]]; then
-			log_fail "'devices' property shouldn't " \
-				"be enabled in LZ"
-		fi 
-	elif [[ $orig_val == $cur_val ]]; then
-		log_fail "zfs mount -o remount,$reverse_opt " \
+	if [[ $orig_val == $cur_val ]]; then
+		log_fail "zfs mount -o update,$reverse_opt " \
 			"doesn't change property."
 	fi
 
@@ -150,7 +142,7 @@ for property in ${properties[@]}; do
 	cur_val=$(get_prop $property $fs)
 	(($? != 0)) && log_fail "get_prop $property $fs"
 	if [[ $orig_val != $cur_val ]]; then
-		log_fail "zfs mount -o remount,$reverse_opt " \
+		log_fail "zfs mount -o update,$reverse_opt " \
 			"change the property that is stored on disks"			
 	fi
 done
