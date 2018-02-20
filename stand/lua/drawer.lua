@@ -41,6 +41,24 @@ local orb;
 local none;
 local none_shifted = false;
 
+local menu_entry_name = function(drawing_menu, entry)
+	local name_handler = drawer.menu_name_handlers[entry.entry_type];
+
+	if (name_handler ~= nil) then
+		return name_handler(drawing_menu, entry);
+	end
+	return entry.name();
+end
+
+local shift_brand_text = function(shift)
+	drawer.brand_position.x = drawer.brand_position.x + shift.x;
+	drawer.brand_position.y = drawer.brand_position.y + shift.y;
+	drawer.menu_position.x = drawer.menu_position.x + shift.x;
+	drawer.menu_position.y = drawer.menu_position.y + shift.y;
+	drawer.box_pos_dim.x = drawer.box_pos_dim.x + shift.x;
+	drawer.box_pos_dim.y = drawer.box_pos_dim.y + shift.y;
+end
+
 drawer.menu_name_handlers = {
 	-- Menu name handlers should take the menu being drawn and entry being
 	-- drawn as parameters, and return the name of the item.
@@ -228,15 +246,6 @@ function drawer.drawscreen(menu_opts)
 	return drawer.drawmenu(menu_opts);
 end
 
-function menu_entry_name(drawing_menu, entry)
-	local name_handler = drawer.menu_name_handlers[entry.entry_type];
-
-	if (name_handler ~= nil) then
-		return name_handler(drawing_menu, entry);
-	end
-	return entry.name();
-end
-
 function drawer.drawmenu(m)
 	x = drawer.menu_position.x;
 	y = drawer.menu_position.y;
@@ -332,15 +341,6 @@ function drawer.drawbrand()
 		graphic = fbsd_logo;
 	end
 	drawer.draw(x, y, graphic);
-end
-
-function shift_brand_text(shift)
-	drawer.brand_position.x = drawer.brand_position.x + shift.x;
-	drawer.brand_position.y = drawer.brand_position.y + shift.y;
-	drawer.menu_position.x = drawer.menu_position.x + shift.x;
-	drawer.menu_position.y = drawer.menu_position.y + shift.y;
-	drawer.box_pos_dim.x = drawer.box_pos_dim.x + shift.x;
-	drawer.box_pos_dim.y = drawer.box_pos_dim.y + shift.y;
 end
 
 function drawer.drawlogo()
