@@ -350,8 +350,8 @@ SVN_CMD=   ${_P}/${_S}
 .export SVN_CMD
 .endif
 SVNFLAGS?=	-r HEAD
-.if !defined(VCS_REVISION) && empty(VCS_REVISION)
-.if !defined(SVNVERSION_CMD) && empty(SVNVERSION_CMD)
+.if !defined(VCS_REVISION) || empty(VCS_REVISION)
+.if !defined(SVNVERSION_CMD) || empty(SVNVERSION_CMD)
 . for _D in ${PATH:S,:, ,g}
 .  if exists(${_D}/svnversion)
 SVNVERSION_CMD?=${_D}/svnversion
