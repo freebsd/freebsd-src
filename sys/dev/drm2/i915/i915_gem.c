@@ -1561,7 +1561,7 @@ retry:
 		i915_gem_object_unpin(obj);
 		DRM_UNLOCK(dev);
 		VM_OBJECT_WUNLOCK(vm_obj);
-		VM_WAIT;
+		vm_wait(vm_obj);
 		goto retry;
 	}
 	page->valid = VM_PAGE_BITS_ALL;

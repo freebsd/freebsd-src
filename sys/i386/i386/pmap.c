@@ -1893,10 +1893,9 @@ pmap_pinit(pmap_t pmap)
 		m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
 		    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 		if (m == NULL)
-			VM_WAIT;
-		else {
+			vm_wait(NULL);
+		else
 			ptdpg[i++] = m;
-		}
 	}
 
 	pmap_qenter((vm_offset_t)pmap->pm_pdir, ptdpg, NPGPTD);
@@ -1945,7 +1944,7 @@ _pmap_allocpte(pmap_t pmap, u_int ptepindex, u_int flags)
 		if ((flags & PMAP_ENTER_NOSLEEP) == 0) {
 			PMAP_UNLOCK(pmap);
 			rw_wunlock(&pvh_global_lock);
-			VM_WAIT;
+			vm_wait(NULL);
 			rw_wlock(&pvh_global_lock);
 			PMAP_LOCK(pmap);
 		}

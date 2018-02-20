@@ -67,13 +67,11 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags,
 		    0, MIPS_KSEG0_LARGEST_PHYS, PAGE_SIZE, 0))
 			continue;
 #endif
-		if (m == NULL) {
-			if (wait & M_NOWAIT)
-				return (NULL);
-			else
-				VM_WAIT;
-		} else
+		if (m != NULL)
 			break;
+		if ((wait & M_NOWAIT) != 0)
+			return (NULL);
+		vm_wait(NULL);
 	}
 
 	pa = VM_PAGE_TO_PHYS(m);

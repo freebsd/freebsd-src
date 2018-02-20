@@ -1203,7 +1203,7 @@ pmap_pinit(pmap_t pmap)
 	 */
 	while ((l1pt = vm_page_alloc(NULL, 0xdeadbeef, VM_ALLOC_NORMAL |
 	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
-		VM_WAIT;
+		vm_wait(NULL);
 
 	l1phys = VM_PAGE_TO_PHYS(l1pt);
 	pmap->pm_l1 = (pd_entry_t *)PHYS_TO_DMAP(l1phys);
@@ -1252,7 +1252,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 			RELEASE_PV_LIST_LOCK(lockp);
 			PMAP_UNLOCK(pmap);
 			rw_runlock(&pvh_global_lock);
-			VM_WAIT;
+			vm_wait(NULL);
 			rw_rlock(&pvh_global_lock);
 			PMAP_LOCK(pmap);
 		}
