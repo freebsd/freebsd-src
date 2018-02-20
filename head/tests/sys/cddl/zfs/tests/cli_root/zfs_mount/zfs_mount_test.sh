@@ -221,8 +221,6 @@ zfs_mount_008_pos_head()
 }
 zfs_mount_008_pos_body()
 {
-	[[ `uname -s` = "FreeBSD" ]] && \
-		atf_skip "Overlay mounts are not supported on FreeBSD"
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zfs_mount.kshlib
 	. $(atf_get_srcdir)/zfs_mount.cfg
