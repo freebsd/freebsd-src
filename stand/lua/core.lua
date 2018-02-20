@@ -37,23 +37,33 @@ local compose_loader_cmd = function(cmd_name, argstr)
 	return cmd_name;
 end
 
+-- Internal function
 -- Parses arguments to boot and returns two values: kernel_name, argstr
 -- Defaults to nil and "" respectively.
-local parse_boot_args = function(argv)
+-- This will also parse arguments to autoboot, but the with_kernel argument
+-- will need to be explicitly overwritten to false
+local parse_boot_args = function(argv, with_kernel)
 	if (#argv == 0) then
 		return nil, "";
+	end
+	if (with_kernel == nil) then
+		with_kernel = true;
 	end
 	local kernel_name;
 	local argstr = "";
 
 	for k, v in ipairs(argv) do
-		if (v:sub(1,1) ~= "-") then
+		if (with_kernel) and (v:sub(1,1) ~= "-") then
 			kernel_name = v;
 		else
 			argstr = argstr .. " " .. v;
 		end
 	end
-	return kernel_name, argstr;
+	if (with_kernel) then
+		return kernel_name, argstr;
+	else
+		return argstr;
+	end
 end
 
 -- Globals
@@ -67,6 +77,14 @@ function boot(...)
 		config.selectkernel(kernel);
 	end
 	core.boot(argstr);
+end
+
+function autoboot(...)
+	local argv = {...}
+	local cmd_name = "";
+	cmd_name, argv = core.popFrontTable(argv);
+	local argstr = parse_boot_args(argv, false);
+	core.autoboot(argstr);
 end
 
 -- Module exports
