@@ -80,13 +80,20 @@ __FBSDID("$FreeBSD$");
  * (etc.)
  *
  * The other available API is lfs.attributes(), which functions somewhat like
- * stat(2) and returns a table of values:
+ * stat(2) and returns a table of values.  Example code:
  *
- *     for k, v in pairs(lfs.attributes("/boot")) do
- *         print(k .. ":\t" .. v)
+ *     attrs, errormsg, errorcode = lfs.attributes("/boot")
+ *     if attrs == nil then
+ *         print(errormsg)
+ *         return errorcode
  *     end
  *
- * Prints:
+ *     for k, v in pairs(attrs) do
+ *         print(k .. ":\t" .. v)
+ *     end
+ *     return 0
+ *
+ * Prints (on success):
  *     gid:    0
  *     change: 140737488342640
  *     mode:   directory
@@ -277,7 +284,9 @@ lua_attributes(lua_State *L)
 	path = luaL_checkstring(L, 1);
 	if (path == NULL) {
 		lua_pushnil(L);
-		return 1;
+		lua_pushfstring(L, "cannot convert first argument to string");
+		lua_pushinteger(L, EINVAL);
+		return 3;
 	}
 
 	rc = stat(path, &sb);
