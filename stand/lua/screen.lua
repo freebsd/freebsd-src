@@ -32,7 +32,7 @@ local core = require("core");
 local screen = {};
 
 -- XXX TODO: This should be fixed in the interpreter to not print decimals
-function intstring(num)
+local intstring = function(num)
 	local str = tostring(num);
 	local decimal = str:find("%.");
 
