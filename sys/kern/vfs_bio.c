@@ -1717,7 +1717,7 @@ bd_init(struct bufdomain *bd)
 
 	domain = bd - bdclean;
 	bd->bd_cleanq = &bd->bd_subq[mp_ncpus];
-	bq_init(bd->bd_cleanq, QUEUE_CLEAN, -1, "bufq clean lock");
+	bq_init(bd->bd_cleanq, QUEUE_CLEAN, mp_ncpus, "bufq clean lock");
 	for (i = 0; i <= mp_maxid; i++)
 		bq_init(&bd->bd_subq[i], QUEUE_CLEAN, i,
 		    "bufq clean subqueue lock");
