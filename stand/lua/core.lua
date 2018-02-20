@@ -230,5 +230,11 @@ function core.shallowCopyTable(tbl)
 	return new_tbl;
 end
 
-core.setACPI(core.getACPIPresent(false));
+-- On i386, hint.acpi.0.rsdp will be set before we're loaded. On !i386, it will
+-- generally be set upon execution of the kernel. Because of this, we can't (or
+-- don't really want to) detect/disable ACPI on !i386 reliably. Just set it
+-- enabled if we detect it and leave well enough alone if we don't.
+if (core.getACPIPresent(false)) then
+	core.setACPI(true);
+end
 return core;
