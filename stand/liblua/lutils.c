@@ -34,6 +34,31 @@ __FBSDID("$FreeBSD$");
 #include "lutils.h"
 #include "bootstrap.h"
 
+/*
+ * Like loader.perform, except args are passed already parsed
+ * on the stack.
+ */
+static int
+lua_command(lua_State *L)
+{
+	int	i;
+	int	res = 1;
+	int 	argc = lua_gettop(L);
+	char	**argv;
+
+	argv = malloc(sizeof(char *) * (argc + 1));
+	if (argv == NULL)
+		return 0;
+	for (i = 0; i < argc; i++)
+		argv[i] = (char *)(intptr_t)luaL_checkstring(L, i + 1);
+	argv[argc] = NULL;
+	res = interp_builtin_cmd(argc, argv);
+	free(argv);
+	lua_pushinteger(L, res);
+
+	return 1;
+}
+
 static int
 lua_perform(lua_State *L)
 {
@@ -213,6 +238,7 @@ lua_readfile(lua_State *L)
 #define REG_SIMPLE(n)	{ #n, lua_ ## n }
 static const struct luaL_Reg loaderlib[] = {
 	REG_SIMPLE(delay),
+	REG_SIMPLE(command),
 	REG_SIMPLE(getenv),
 	REG_SIMPLE(perform),
 	REG_SIMPLE(printc),
