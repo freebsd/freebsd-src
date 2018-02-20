@@ -114,7 +114,7 @@ struct buf {
 	uint32_t	b_vflags;	/* (V) BV_* flags */
 	uint8_t		b_qindex;	/* (Q) buffer queue index */
 	uint8_t		b_domain;	/* (Q) buf domain this resides in */
-	uint16_t	b_cpu;		/* (Q) per-cpu q if any */
+	uint16_t	b_subqueue;	/* (Q) per-cpu q if any */
 	uint32_t	b_flags;	/* B_* flags. */
 	b_xflags_t b_xflags;		/* extra flags */
 	struct lock b_lock;		/* Buffer lock */

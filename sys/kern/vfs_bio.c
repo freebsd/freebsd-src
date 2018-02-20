@@ -298,7 +298,7 @@ struct bufqueue {
 	struct mtx_padalign	bq_lock;
 	TAILQ_HEAD(, buf)	bq_queue;
 	uint8_t			bq_index;
-	uint16_t		bq_cpu;
+	uint16_t		bq_subqueue;
 	int			bq_len;
 } __aligned(CACHE_LINE_SIZE);
 
@@ -311,8 +311,8 @@ struct bufqueue __exclusive_cache_line bqempty;
 struct bufqueue __exclusive_cache_line bqdirty;
 
 struct bufdomain {
-	struct bufqueue	bd_cpuq[MAXCPU];
-	struct bufqueue	bd_cleanq;
+	struct bufqueue	bd_subq[MAXCPU + 1]; /* Per-cpu sub queues + global */
+	struct bufqueue	*bd_cleanq;
 	struct mtx_padalign bd_run_lock;
 	/* Constants */
 	long		bd_maxbufspace;
@@ -329,7 +329,7 @@ struct bufdomain {
 	int __aligned(CACHE_LINE_SIZE)	bd_freebuffers;
 } __aligned(CACHE_LINE_SIZE);
 
-#define	BD_LOCKPTR(bd)		(&(bd)->bd_cleanq.bq_lock)
+#define	BD_LOCKPTR(bd)		(&(bd)->bd_cleanq->bq_lock)
 #define	BD_LOCK(bd)		mtx_lock(BD_LOCKPTR((bd)))
 #define	BD_UNLOCK(bd)		mtx_unlock(BD_LOCKPTR((bd)))
 #define	BD_ASSERT_LOCKED(bd)	mtx_assert(BD_LOCKPTR((bd)), MA_OWNED)
@@ -491,7 +491,7 @@ bufspace_daemon_wakeup(struct bufdomain *bd)
 	 */
 	if (atomic_fetchadd_int(&bd->bd_running, 1) == 0) {
 		BD_RUN_LOCK(bd);
-		bd->bd_running = 1;
+		atomic_store_int(&bd->bd_running, 1);
 		wakeup(&bd->bd_running);
 		BD_RUN_UNLOCK(bd);
 	}
@@ -1041,7 +1041,7 @@ bufinit(void)
 		bp->b_wcred = NOCRED;
 		bp->b_qindex = QUEUE_NONE;
 		bp->b_domain = -1;
-		bp->b_cpu = -1;
+		bp->b_subqueue = mp_ncpus;
 		bp->b_xflags = 0;
 		bp->b_data = bp->b_kvabase = unmapped_buf;
 		LIST_INIT(&bp->b_dep);
@@ -1330,8 +1330,6 @@ bpmap_qenter(struct buf *bp)
 static struct bufqueue *
 bufqueue(struct buf *bp)
 {
-	struct bufdomain *bd;
-	int cpu;
 
 	switch (bp->b_qindex) {
 	case QUEUE_NONE:
@@ -1343,17 +1341,11 @@ bufqueue(struct buf *bp)
 	case QUEUE_DIRTY:
 		return (&bqdirty);
 	case QUEUE_CLEAN:
-		/* FALLTHROUGH */
-		break;
+		return (&bdclean[bp->b_domain].bd_subq[bp->b_subqueue]);
 	default:
-		panic("bufqueue(%p): Unhandled type %d\n", bp, bp->b_qindex);
+		break;
 	}
-	bd = &bdclean[bp->b_domain];
-	/* cpu may be changed by bd_flush().  Read it only once. */
-	cpu = bp->b_cpu;
-	if (cpu > mp_maxid)
-		return (&bd->bd_cleanq);
-	return (&bd->bd_cpuq[cpu]);
+	panic("bufqueue(%p): Unhandled type %d\n", bp, bp->b_qindex);
 }
 
 /*
@@ -1415,14 +1407,12 @@ binsfree(struct buf *bp, int qindex)
 	if (qindex == QUEUE_CLEAN) {
 		bd = &bdclean[bp->b_domain];
 		if (bd->bd_lim != 0)
-			bq = &bd->bd_cpuq[PCPU_GET(cpuid)];
+			bq = &bd->bd_subq[PCPU_GET(cpuid)];
 		else
-			bq = &bd->bd_cleanq;
+			bq = bd->bd_cleanq;
 	} else
 		bq = &bqdirty;
 	bq_insert(bq, bp, true);
-
-	return;
 }
 
 /*
@@ -1592,7 +1582,7 @@ buf_recycle(struct bufdomain *bd, bool kva)
 	if (kva)
 		counter_u64_add(bufdefragcnt, 1);
 	nbp = NULL;
-	bq = &bd->bd_cleanq;
+	bq = bd->bd_cleanq;
 	BQ_LOCK(bq);
 	KASSERT(BQ_LOCKPTR(bq) == BD_LOCKPTR(bd),
 	    ("buf_recycle: Locks don't match"));
@@ -1709,14 +1699,14 @@ bremfreef(struct buf *bp)
 }
 
 static void
-bq_init(struct bufqueue *bq, int qindex, int cpu, const char *lockname)
+bq_init(struct bufqueue *bq, int qindex, int subqueue, const char *lockname)
 {
 
 	mtx_init(&bq->bq_lock, lockname, NULL, MTX_DEF);
 	TAILQ_INIT(&bq->bq_queue);
 	bq->bq_len = 0;
 	bq->bq_index = qindex;
-	bq->bq_cpu = cpu;
+	bq->bq_subqueue = subqueue;
 }
 
 static void
@@ -1726,10 +1716,11 @@ bd_init(struct bufdomain *bd)
 	int i;
 
 	domain = bd - bdclean;
-	bq_init(&bd->bd_cleanq, QUEUE_CLEAN, -1, "bufq clean lock");
+	bd->bd_cleanq = &bd->bd_subq[mp_ncpus];
+	bq_init(bd->bd_cleanq, QUEUE_CLEAN, -1, "bufq clean lock");
 	for (i = 0; i <= mp_maxid; i++)
-		bq_init(&bd->bd_cpuq[i], QUEUE_CLEAN, i,
-		    "bufq clean cpu lock");
+		bq_init(&bd->bd_subq[i], QUEUE_CLEAN, i,
+		    "bufq clean subqueue lock");
 	mtx_init(&bd->bd_run_lock, "bufspace daemon run lock", NULL, MTX_DEF);
 }
 
@@ -1759,7 +1750,7 @@ bq_remove(struct bufqueue *bq, struct buf *bp)
 	TAILQ_REMOVE(&bq->bq_queue, bp, b_freelist);
 	bq->bq_len--;
 	bp->b_qindex = QUEUE_NONE;
-	bp->b_flags &= ~(B_REMFREE|B_REUSE);
+	bp->b_flags &= ~(B_REMFREE | B_REUSE);
 }
 
 static void
@@ -1768,22 +1759,22 @@ bd_flush(struct bufdomain *bd, struct bufqueue *bq)
 	struct buf *bp;
 
 	BQ_ASSERT_LOCKED(bq);
-	if (bq != &bd->bd_cleanq) {
+	if (bq != bd->bd_cleanq) {
 		BD_LOCK(bd);
 		while ((bp = TAILQ_FIRST(&bq->bq_queue)) != NULL) {
 			TAILQ_REMOVE(&bq->bq_queue, bp, b_freelist);
-			TAILQ_INSERT_TAIL(&bd->bd_cleanq.bq_queue, bp,
+			TAILQ_INSERT_TAIL(&bd->bd_cleanq->bq_queue, bp,
 			    b_freelist);
-			bp->b_cpu = -1;
+			bp->b_subqueue = mp_ncpus;
 		}
-		bd->bd_cleanq.bq_len += bq->bq_len;
+		bd->bd_cleanq->bq_len += bq->bq_len;
 		bq->bq_len = 0;
 	}
 	if (bd->bd_wanted) {
 		bd->bd_wanted = 0;
 		wakeup(&bd->bd_wanted);
 	}
-	if (bq != &bd->bd_cleanq)
+	if (bq != bd->bd_cleanq)
 		BD_UNLOCK(bd);
 }
 
@@ -1798,7 +1789,7 @@ bd_flushall(struct bufdomain *bd)
 		return (0);
 	flushed = 0;
 	for (i = 0; i < mp_maxid; i++) {
-		bq = &bd->bd_cpuq[i];
+		bq = &bd->bd_subq[i];
 		if (bq->bq_len == 0)
 			continue;
 		BQ_LOCK(bq);
@@ -1822,7 +1813,7 @@ bq_insert(struct bufqueue *bq, struct buf *bp, bool unlock)
 	if (bp->b_flags & B_AGE) {
 		/* Place this buf directly on the real queue. */
 		if (bq->bq_index == QUEUE_CLEAN)
-			bq = &bd->bd_cleanq;
+			bq = bd->bd_cleanq;
 		BQ_LOCK(bq);
 		TAILQ_INSERT_HEAD(&bq->bq_queue, bp, b_freelist);
 	} else {
@@ -1832,7 +1823,7 @@ bq_insert(struct bufqueue *bq, struct buf *bp, bool unlock)
 	bp->b_flags &= ~(B_AGE | B_REUSE);
 	bq->bq_len++;
 	bp->b_qindex = bq->bq_index;
-	bp->b_cpu = bq->bq_cpu;
+	bp->b_subqueue = bq->bq_subqueue;
 
 	/*
 	 * Unlock before we notify so that we don't wakeup a waiter that
@@ -1845,7 +1836,7 @@ bq_insert(struct bufqueue *bq, struct buf *bp, bool unlock)
 		/*
 		 * Flush the per-cpu queue and notify any waiters.
 		 */
-		if (bd->bd_wanted || (bq != &bd->bd_cleanq &&
+		if (bd->bd_wanted || (bq != bd->bd_cleanq &&
 		    bq->bq_len >= bd->bd_lim))
 			bd_flush(bd, bq);
 	}
@@ -5207,12 +5198,12 @@ DB_SHOW_COMMAND(bufqueues, bufqueues)
 		db_printf("\tlobufspace\t%ld\n", bd->bd_lobufspace);
 		db_printf("\tbufspacethresh\t%ld\n", bd->bd_bufspacethresh);
 		db_printf("\n");
-		db_printf("\tcleanq count\t%d\n", bd->bd_cleanq.bq_len);
+		db_printf("\tcleanq count\t%d\n", bd->bd_cleanq->bq_len);
 		db_printf("\twakeup\t\t%d\n", bd->bd_wanted);
 		db_printf("\tlim\t\t%d\n", bd->bd_lim);
 		db_printf("\tCPU ");
 		for (j = 0; j < mp_maxid + 1; j++)
-			db_printf("%d, ", bd->bd_cpuq[j].bq_len);
+			db_printf("%d, ", bd->bd_subq[j].bq_len);
 		db_printf("\n");
 	}
 }
