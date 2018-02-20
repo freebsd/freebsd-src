@@ -171,6 +171,15 @@ orb = {
 
 none = {""};
 
+drawer.branddefs = {
+	["fbsd"] = {
+		graphic = fbsd_logo,
+	},
+	["none"] = {
+		graphic = none,
+	},
+};
+
 drawer.logodefs = {
 	-- Indexed by valid values for loader_logo in loader.conf(5). Valid keys
 	-- are: requires_color (boolean), logo (table depicting graphic), and
@@ -315,9 +324,11 @@ function drawer.drawbrand()
 	local y = tonumber(loader.getenv("loader_brand_y")) or
 	    drawer.brand_position.y;
 
-	local logo = load("return " .. tostring(loader.getenv("loader_brand")))() or
-	    fbsd_logo;
-	drawer.draw(x, y, logo);
+	local graphic = drawer.branddefs[loader.getenv("loader_brand")];
+	if (graphic == nil) then
+		graphic = fbsd_logo;
+	end
+	drawer.draw(x, y, graphic);
 end
 
 function shift_brand_text(shift)
