@@ -294,6 +294,7 @@ trap(struct trapframe *frame)
 			break;
 
 		case EXC_FAC:
+		case EXC_HEA:
 			sig = SIGILL;
 			ucode =	ILL_ILLOPC;
 			break;
