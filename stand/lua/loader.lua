@@ -35,7 +35,14 @@ local password = require("password");
 -- arguments passed as a lua function. This gives lua a chance to intercept
 -- builtin CLI commands like "boot"
 function cli_execute(...)
-	local cmd_name, cmd_args = ...;
+	local argv = {...};
+	-- Just in case...
+	if (#argv == 0) then
+		loader.command(...);
+		return;
+	end
+
+	local cmd_name = argv[1];
 	local cmd = _G[cmd_name];
 	if (cmd ~= nil) and (type(cmd) == "function") then
 		-- Pass argv wholesale into cmd. We could omit argv[0] since the
