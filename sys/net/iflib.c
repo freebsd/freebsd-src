@@ -1068,7 +1068,6 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 	if (netmap_no_pendintr || force_update) {
 		int crclen = iflib_crcstrip ? 0 : 4;
 		int error, avail;
-		uint16_t slot_flags = kring->nkr_slot_flags;
 
 		for (i = 0; i < rxq->ifr_nfl; i++) {
 			fl = &rxq->ifr_fl[i];
@@ -1084,7 +1083,7 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 
 				error = ctx->isc_rxd_pkt_get(ctx->ifc_softc, &ri);
 				ring->slot[nm_i].len = error ? 0 : ri.iri_len - crclen;
-				ring->slot[nm_i].flags = slot_flags;
+				ring->slot[nm_i].flags = 0;
 				if (fl->ifl_sds.ifsd_map)
 					bus_dmamap_sync(fl->ifl_ifdi->idi_tag,
 							fl->ifl_sds.ifsd_map[nic_i], BUS_DMASYNC_POSTREAD);
