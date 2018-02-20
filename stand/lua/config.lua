@@ -437,11 +437,6 @@ function config.loadelf()
 	loaded = config.loadkernel(kernel);
 
 	if (not loaded) then
-		loaded = config.loadkernel();
-	end
-
-	if (not loaded) then
-		-- Ultimately failed to load kernel
 		print("Failed to load any kernel");
 		return;
 	end
