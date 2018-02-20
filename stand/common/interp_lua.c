@@ -128,7 +128,7 @@ interp_init(void)
 int
 interp_run(const char *line)
 {
-	int	argc;
+	int	argc, nargc;
 	char	**argv;
 	lua_State *luap;
 	struct interp_lua_softc	*softc = &lua_softc;
@@ -137,19 +137,39 @@ interp_run(const char *line)
 	luap = softc->luap;
 	LDBG("executing line...");
 	if ((status = luaL_dostring(luap, line)) != 0) {
-		/*
-		 * If we could not parse the line as Lua syntax,
-		 * try parsing it as a loader command.
-		 */
                 lua_pop(luap, 1);
+		/*
+		 * The line wasn't executable as lua; run it through parse to
+		 * to get consistent parsing of command line arguments, then
+		 * run it through cli_execute. If that fails, then we'll try it
+		 * as a builtin.
+		 */
 		if (parse(&argc, &argv, line) == 0) {
-			status = interp_builtin_cmd(argc, argv);
-			if (status != CMD_OK)
+			lua_getglobal(luap, "cli_execute");
+			for (nargc = 0; nargc < argc; ++nargc) {
+				lua_pushstring(luap, argv[nargc]);
+			}
+			status = lua_pcall(luap, argc, 1, 0);
+			lua_pop(luap, 1);
+			if (status != 0) {
+				/*
+				 * Lua cli_execute will pass the function back
+				 * through loader.command, which is a proxy to
+				 * interp_builtin_cmd. If we failed to interpret
+				 * the command, though, then there's a chance
+				 * that didn't happen. Call interp_builtin_cmd
+				 * directly if our lua_pcall was not successful.
+				 */
+				status = interp_builtin_cmd(argc, argv);
+			}
+			if (status != 0) {
 				printf("Command failed\n");
+				status = CMD_ERROR;
+			}
 			free(argv);
 		} else {
 			printf("Failed to parse \'%s\'\n", line);
-			status = -1;
+			status = CMD_ERROR;
 		}
 	}
 
