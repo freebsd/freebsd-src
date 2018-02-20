@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
  * Initially we assume a processor with a bus frequency of 12.5 MHz.
  */
 static int		initialized = 0;
-static u_long		ns_per_tick = 80;
+static uint64_t		ps_per_tick = 80000;
 static u_long		ticks_per_sec = 12500000;
 static u_long		*decr_counts[MAXCPU];
 
@@ -178,7 +178,7 @@ decr_init(void)
 	if (platform_smp_get_bsp(&cpu) != 0)
 		platform_smp_first_cpu(&cpu);
 	ticks_per_sec = platform_timebase_freq(&cpu);
-	ns_per_tick = 1000000000 / ticks_per_sec;
+	ps_per_tick = 1000000000000 / ticks_per_sec;
 
 	set_cputicker(mftb, ticks_per_sec, 0);
 	snprintf(buf, sizeof(buf), "cpu%d:decrementer", curcpu);
@@ -307,7 +307,7 @@ DELAY(int n)
 
 	TSENTER();
 	tb = mftb();
-	ttb = tb + howmany(n * 1000, ns_per_tick);
+	ttb = tb + howmany((uint64_t)n * 1000000, ps_per_tick);
 	while (tb < ttb)
 		tb = mftb();
 	TSEXIT();
