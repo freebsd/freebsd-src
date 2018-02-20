@@ -21,7 +21,7 @@ SRCS+=	lauxlib.c lbaselib.c lstrlib.c loadlib.c
 #SRCS+=	lbitlib.c liolib.c lmathlib.c loslib.c ltablib.c
 
 # Our utilities.
-SRCS+=	lfs.c lstd.c lutils.c
+SRCS+=	lerrno.c lfs.c lstd.c lutils.c
 
 WARNS=	3
 

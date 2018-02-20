@@ -39,8 +39,10 @@ __FBSDID("$FreeBSD$");
 #include <ldebug.h>
 #include <lauxlib.h>
 #include <lualib.h>
-#include <lutils.h>
+
+#include <lerrno.h>
 #include <lfs.h>
+#include <lutils.h>
 
 struct interp_lua_softc {
 	lua_State	*luap;
@@ -86,6 +88,7 @@ static const luaL_Reg loadedlibs[] = {
 //  {LUA_MATHLIBNAME, luaopen_math},
 //  {LUA_UTF8LIBNAME, luaopen_utf8},
 //  {LUA_DBLIBNAME, luaopen_debug},
+  {"errno", luaopen_errno},
   {"io", luaopen_io},
   {"lfs", luaopen_lfs},
   {"loader", luaopen_loader},
