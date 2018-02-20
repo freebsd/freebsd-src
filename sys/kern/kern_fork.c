@@ -394,7 +394,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	struct filedesc_to_leader *fdtol;
 	struct sigacts *newsigacts;
 
-	sx_assert(&proctree_lock, SX_SLOCKED);
+	sx_assert(&proctree_lock, SX_LOCKED);
 	sx_assert(&allproc_lock, SX_XLOCKED);
 
 	p1 = td->td_proc;
@@ -407,12 +407,11 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	allproc_gen++;
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
-	tidhash_add(td2);
 	PROC_LOCK(p2);
 	PROC_LOCK(p1);
 
 	sx_xunlock(&allproc_lock);
-	sx_sunlock(&proctree_lock);
+	sx_xunlock(&proctree_lock);
 
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    __rangeof(struct proc, p_startcopy, p_endcopy));
@@ -427,6 +426,8 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	prison_proc_hold(p2->p_ucred->cr_prison);
 
 	PROC_UNLOCK(p2);
+
+	tidhash_add(td2);
 
 	/*
 	 * Malloc things while we don't hold any locks.
@@ -954,7 +955,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	STAILQ_INIT(&newproc->p_ktr);
 
 	/* We have to lock the process tree while we look for a pid. */
-	sx_slock(&proctree_lock);
+	sx_xlock(&proctree_lock);
 	sx_xlock(&allproc_lock);
 
 	/*
@@ -977,7 +978,7 @@ fork1(struct thread *td, struct fork_req *fr)
 
 	error = EAGAIN;
 	sx_xunlock(&allproc_lock);
-	sx_sunlock(&proctree_lock);
+	sx_xunlock(&proctree_lock);
 #ifdef MAC
 	mac_proc_destroy(newproc);
 #endif
