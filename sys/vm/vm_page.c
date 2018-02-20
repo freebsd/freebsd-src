@@ -2567,7 +2567,7 @@ CTASSERT(powerof2(NRUNS));
  *	Returns true if reclamation is successful and false otherwise.  Since
  *	relocation requires the allocation of physical pages, reclamation may
  *	fail due to a shortage of free pages.  When reclamation fails, callers
- *	are expected to perform VM_WAIT before retrying a failed allocation
+ *	are expected to perform vm_wait() before retrying a failed allocation
  *	operation, e.g., vm_page_alloc_contig().
  *
  *	The caller must always specify an allocation class through "req".
@@ -2767,50 +2767,12 @@ vm_wait_severe(void)
 u_int
 vm_wait_count(void)
 {
-	u_int cnt;
-	int i;
 
-	cnt = 0;
-	for (i = 0; i < vm_ndomains; i++)
-		cnt += VM_DOMAIN(i)->vmd_waiters;
-	cnt += vm_severe_waiters + vm_min_waiters;
-
-	return (cnt);
+	return (vm_severe_waiters + vm_min_waiters);
 }
 
-/*
- *	vm_wait_domain:
- *
- *	Sleep until free pages are available for allocation.
- *	- Called in various places after failed memory allocations.
- */
-void
-vm_wait_domain(int domain)
-{
-	struct vm_domain *vmd;
-
-	vmd = VM_DOMAIN(domain);
-	vm_domain_free_assert_locked(vmd);
-
-	if (curproc == pageproc) {
-		vmd->vmd_pageout_pages_needed = 1;
-		msleep(&vmd->vmd_pageout_pages_needed,
-		    vm_domain_free_lockptr(vmd), PDROP | PSWP, "VMWait", 0);
-	} else {
-		if (pageproc == NULL)
-			panic("vm_wait in early boot");
-		pagedaemon_wait(domain, PVM, "vmwait");
-	}
-}
-
-/*
- *	vm_wait:	(also see VM_WAIT macro)
- *
- *	Sleep until free pages are available for allocation.
- *	- Called in various places after failed memory allocations.
- */
-void
-vm_wait(void)
+static void
+vm_wait_doms(const domainset_t *wdoms)
 {
 
 	/*
@@ -2834,13 +2796,69 @@ vm_wait(void)
 		 * consume all freed pages while old allocators wait.
 		 */
 		mtx_lock(&vm_domainset_lock);
-		if (vm_page_count_min()) {
+		if (DOMAINSET_SUBSET(&vm_min_domains, wdoms)) {
 			vm_min_waiters++;
 			msleep(&vm_min_domains, &vm_domainset_lock, PVM,
 			    "vmwait", 0);
 		}
 		mtx_unlock(&vm_domainset_lock);
 	}
+}
+
+/*
+ *	vm_wait_domain:
+ *
+ *	Sleep until free pages are available for allocation.
+ *	- Called in various places after failed memory allocations.
+ */
+void
+vm_wait_domain(int domain)
+{
+	struct vm_domain *vmd;
+	domainset_t wdom;
+
+	vmd = VM_DOMAIN(domain);
+	vm_domain_free_assert_locked(vmd);
+
+	if (curproc == pageproc) {
+		vmd->vmd_pageout_pages_needed = 1;
+		msleep(&vmd->vmd_pageout_pages_needed,
+		    vm_domain_free_lockptr(vmd), PDROP | PSWP, "VMWait", 0);
+	} else {
+		vm_domain_free_unlock(vmd);
+		if (pageproc == NULL)
+			panic("vm_wait in early boot");
+		DOMAINSET_ZERO(&wdom);
+		DOMAINSET_SET(vmd->vmd_domain, &wdom);
+		vm_wait_doms(&wdom);
+	}
+}
+
+/*
+ *	vm_wait:
+ *
+ *	Sleep until free pages are available for allocation in the
+ *	affinity domains of the obj.  If obj is NULL, the domain set
+ *	for the calling thread is used.
+ *	Called in various places after failed memory allocations.
+ */
+void
+vm_wait(vm_object_t obj)
+{
+	struct domainset *d;
+
+	d = NULL;
+
+	/*
+	 * Carefully fetch pointers only once: the struct domainset
+	 * itself is ummutable but the pointer might change.
+	 */
+	if (obj != NULL)
+		d = obj->domain.dr_policy;
+	if (d == NULL)
+		d = curthread->td_domain.dr_policy;
+
+	vm_wait_doms(&d->ds_mask);
 }
 
 /*
@@ -2877,7 +2895,7 @@ vm_domain_alloc_fail(struct vm_domain *vmd, vm_object_t object, int req)
 }
 
 /*
- *	vm_waitpfault:	(also see VM_WAITPFAULT macro)
+ *	vm_waitpfault:
  *
  *	Sleep until free pages are available for allocation.
  *	- Called only in vm_fault so that processes page faulting
@@ -3071,10 +3089,6 @@ vm_domain_free_wakeup(struct vm_domain *vmd)
 	 * high water mark. And wakeup scheduler process if we have
 	 * lots of memory. this process will swapin processes.
 	 */
-	if (vmd->vmd_pages_needed && !vm_paging_min(vmd)) {
-		vmd->vmd_pages_needed = false;
-		wakeup(&vmd->vmd_free_count);
-	}
 	if ((vmd->vmd_minset && !vm_paging_min(vmd)) ||
 	    (vmd->vmd_severeset && !vm_paging_severe(vmd)))
 		vm_domain_clear(vmd);

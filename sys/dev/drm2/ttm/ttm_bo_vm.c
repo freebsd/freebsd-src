@@ -246,7 +246,7 @@ reserve:
 	if (m1 == NULL) {
 		if (vm_page_insert(m, vm_obj, OFF_TO_IDX(offset))) {
 			VM_OBJECT_WUNLOCK(vm_obj);
-			VM_WAIT;
+			vm_wait(vm_obj);
 			VM_OBJECT_WLOCK(vm_obj);
 			ttm_mem_io_unlock(man);
 			ttm_bo_unreserve(bo);

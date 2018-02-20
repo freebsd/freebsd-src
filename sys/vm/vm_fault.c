@@ -787,7 +787,7 @@ RetryFault:;
 			}
 			if (fs.m == NULL) {
 				unlock_and_deallocate(&fs);
-				VM_WAITPFAULT;
+				vm_waitpfault();
 				goto RetryFault;
 			}
 		}
@@ -1685,7 +1685,7 @@ again:
 			if (dst_m == NULL) {
 				VM_OBJECT_WUNLOCK(dst_object);
 				VM_OBJECT_RUNLOCK(object);
-				VM_WAIT;
+				vm_wait(dst_object);
 				VM_OBJECT_WLOCK(dst_object);
 				goto again;
 			}

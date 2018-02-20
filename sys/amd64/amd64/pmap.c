@@ -2675,7 +2675,7 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 			RELEASE_PV_LIST_LOCK(lockp);
 			PMAP_UNLOCK(pmap);
 			PMAP_ASSERT_NOT_IN_DI();
-			VM_WAIT;
+			vm_wait(NULL);
 			PMAP_LOCK(pmap);
 		}
 
