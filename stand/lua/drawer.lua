@@ -28,6 +28,7 @@
 --
 
 local color = require("color");
+local config = require("config");
 local core = require("core");
 local screen = require("screen");
 
@@ -176,7 +177,7 @@ drawer.menu_name_handlers = {
 	-- types not specified here is to call and use entry.name().
 	[core.MENU_CAROUSEL_ENTRY] = function(drawing_menu, entry)
 		local carid = entry.carousel_id;
-		local caridx = menu.getCarouselIndex(carid);
+		local caridx = config.getCarouselIndex(carid);
 		local choices = entry.items();
 
 		if (#choices < caridx) then

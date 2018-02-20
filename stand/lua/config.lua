@@ -31,7 +31,10 @@ local config = {};
 
 local modules = {};
 
-local pattern_table = {
+local pattern_table;
+local carousel_choices = {};
+
+pattern_table = {
 	[1] = {
 		str = "^%s*(#.*)",
 		process = function(k, v)  end
@@ -124,6 +127,19 @@ local pattern_table = {
 config.env_changed = {};
 -- Values to restore env to (nil to unset)
 config.env_restore = {};
+
+-- The first item in every carousel is always the default item.
+function config.getCarouselIndex(id)
+	local val = carousel_choices[id];
+	if (val == nil) then
+		return 1;
+	end
+	return val;
+end
+
+function config.setCarouselIndex(id, idx)
+	carousel_choices[id] = idx;
+end
 
 function config.restoreEnv()
 	for k, v in pairs(config.env_changed) do
