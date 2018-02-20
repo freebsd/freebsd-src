@@ -350,6 +350,16 @@ SVN=   ${_P}/${_S}
 .endif
 SVNFLAGS?=	-r HEAD
 .if !defined(VCS_REVISION) && empty(VCS_REVISION)
+.if !defined(SVNVERSION_CMD) && empty(SVNVERSION_CMD)
+. for _D in ${PATH:S,:, ,g}
+.  if exists(${_D}/svnversion)
+SVNVERSION_CMD?=${_D}/svnversion
+.  endif
+.  if exists(${_D}/svnliteversion)
+SVNVERSION_CMD?=${_D}/svnliteversion
+.  endif
+. endfor
+.endif
 _VCS_REVISION?=	$$(eval ${SVNVERSION_CMD} ${SRCDIR})
 . if !empty(_VCS_REVISION)
 VCS_REVISION=	$$(echo r${_VCS_REVISION})
