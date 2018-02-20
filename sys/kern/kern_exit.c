@@ -424,6 +424,17 @@ exit1(struct thread *td, int rval, int signo)
 	tidhash_remove(td);
 
 	/*
+	 * Call machine-dependent code to release any
+	 * machine-dependent resources other than the address space.
+	 * The address space is released by "vmspace_exitfree(p)" in
+	 * vm_waitproc().
+	 */
+	cpu_exit(td);
+
+	WITNESS_WARN(WARN_PANIC, NULL, "process (pid %d) exiting", p->p_pid);
+
+	sx_xlock(&proctree_lock);
+	/*
 	 * Remove proc from allproc queue and pidhash chain.
 	 * Place onto zombproc.  Unlink from parent's child list.
 	 */
@@ -434,21 +445,10 @@ exit1(struct thread *td, int rval, int signo)
 	sx_xunlock(&allproc_lock);
 
 	/*
-	 * Call machine-dependent code to release any
-	 * machine-dependent resources other than the address space.
-	 * The address space is released by "vmspace_exitfree(p)" in
-	 * vm_waitproc().
-	 */
-	cpu_exit(td);
-
-	WITNESS_WARN(WARN_PANIC, NULL, "process (pid %d) exiting", p->p_pid);
-
-	/*
 	 * Reparent all children processes:
 	 * - traced ones to the original parent (or init if we are that parent)
 	 * - the rest to init
 	 */
-	sx_xlock(&proctree_lock);
 	q = LIST_FIRST(&p->p_children);
 	if (q != NULL)		/* only need this if any child is S_ZOMB */
 		wakeup(q->p_reaper);
