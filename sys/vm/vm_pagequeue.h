@@ -93,8 +93,6 @@ struct vm_domain {
 
 	int vmd_pageout_pages_needed;	/* page daemon waiting for pages? */
 	int vmd_pageout_deficit;	/* Estimated number of pages deficit */
-	int vmd_waiters;		/* Pageout waiters. */
-	bool vmd_pages_needed;	/* Are threads waiting for free pages? */
 	bool vmd_pageout_wanted;	/* pageout daemon wait channel */
 	bool vmd_minset;		/* Are we in vm_min_domains? */
 	bool vmd_severeset;		/* Are we in vm_severe_domains? */

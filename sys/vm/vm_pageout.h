@@ -93,11 +93,8 @@ extern int vm_pageout_page_count;
  *	Signal pageout-daemon and wait for it.
  */
 
-void pagedaemon_wait(int domain, int pri, const char *wmesg);
 void pagedaemon_wakeup(int domain);
-#define VM_WAIT vm_wait()
-#define VM_WAITPFAULT vm_waitpfault()
-void vm_wait(void);
+void vm_wait(vm_object_t obj);
 void vm_waitpfault(void);
 void vm_wait_domain(int domain);
 void vm_wait_min(void);

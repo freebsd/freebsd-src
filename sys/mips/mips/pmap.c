@@ -1050,11 +1050,11 @@ pmap_grow_direct_page(int req)
 {
 
 #ifdef __mips_n64
-	VM_WAIT;
+	vm_wait(NULL);
 #else
 	if (!vm_page_reclaim_contig(req, 1, 0, MIPS_KSEG0_LARGEST_PHYS,
 	    PAGE_SIZE, 0))
-		VM_WAIT;
+		vm_wait(NULL);
 #endif
 }
 
