@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+
 #include "lua.h"
 #include "lauxlib.h"
 #include "lstd.h"
@@ -263,6 +265,11 @@ int
 luaopen_loader(lua_State *L)
 {
 	luaL_newlib(L, loaderlib);
+	/* Add loader.machine and loader.machine_arch properties */
+	lua_pushstring(L, MACHINE);
+	lua_setfield(L, -2, "machine");
+	lua_pushstring(L, MACHINE_ARCH);
+	lua_setfield(L, -2, "machine_arch");
 	return 1;
 }
 
