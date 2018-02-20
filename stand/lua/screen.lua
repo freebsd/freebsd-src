@@ -42,6 +42,7 @@ local intstring = function(num)
 	return str;
 end
 
+-- Module exports
 function screen.clear()
 	if (core.isSerialBoot()) then
 		return;

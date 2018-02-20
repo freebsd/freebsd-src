@@ -51,7 +51,7 @@ local OnOff = function(str, b)
 	end
 end
 
-
+-- Module exports
 menu.handlers = {
 	-- Menu handlers take the current menu and selected entry as parameters,
 	-- and should return a boolean indicating whether execution should

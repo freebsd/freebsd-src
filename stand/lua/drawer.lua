@@ -59,29 +59,6 @@ local shift_brand_text = function(shift)
 	drawer.box_pos_dim.y = drawer.box_pos_dim.y + shift.y;
 end
 
-drawer.menu_name_handlers = {
-	-- Menu name handlers should take the menu being drawn and entry being
-	-- drawn as parameters, and return the name of the item.
-	-- This is designed so that everything, including menu separators, may
-	-- have their names derived differently. The default action for entry
-	-- types not specified here is to call and use entry.name().
-	[core.MENU_CAROUSEL_ENTRY] = function(drawing_menu, entry)
-		local carid = entry.carousel_id;
-		local caridx = menu.getCarouselIndex(carid);
-		local choices = entry.items();
-
-		if (#choices < caridx) then
-			caridx = 1;
-		end
-		return entry.name(caridx, choices[caridx], choices);
-	end,
-};
-
-drawer.brand_position = {x = 2, y = 1};
-drawer.logo_position = {x = 46, y = 1};
-drawer.menu_position = {x = 6, y = 11};
-drawer.box_pos_dim = {x = 3, y = 10, w = 41, h = 11};
-
 fbsd_logo = {
 	"  ______               ____   _____ _____  ",
 	" |  ____|             |  _ \\ / ____|  __ \\ ",
@@ -189,6 +166,30 @@ orb = {
 };
 
 none = {""};
+
+-- Module exports
+drawer.menu_name_handlers = {
+	-- Menu name handlers should take the menu being drawn and entry being
+	-- drawn as parameters, and return the name of the item.
+	-- This is designed so that everything, including menu separators, may
+	-- have their names derived differently. The default action for entry
+	-- types not specified here is to call and use entry.name().
+	[core.MENU_CAROUSEL_ENTRY] = function(drawing_menu, entry)
+		local carid = entry.carousel_id;
+		local caridx = menu.getCarouselIndex(carid);
+		local choices = entry.items();
+
+		if (#choices < caridx) then
+			caridx = 1;
+		end
+		return entry.name(caridx, choices[caridx], choices);
+	end,
+};
+
+drawer.brand_position = {x = 2, y = 1};
+drawer.logo_position = {x = 46, y = 1};
+drawer.menu_position = {x = 6, y = 11};
+drawer.box_pos_dim = {x = 3, y = 10, w = 41, h = 11};
 
 drawer.branddefs = {
 	-- Indexed by valid values for loader_brand in loader.conf(5). Valid

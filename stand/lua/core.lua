@@ -30,6 +30,7 @@ local config = require('config');
 
 local core = {};
 
+-- Module exports
 -- Commonly appearing constants
 core.KEY_BACKSPACE	= 8;
 core.KEY_ENTER		= 13;

@@ -30,6 +30,7 @@ local core = require("core");
 
 local color = {};
 
+-- Module exports
 color.BLACK   = 0;
 color.RED     = 1;
 color.GREEN   = 2;
