@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
 #define	TX_SKIP(n, o)		(((n) + (o)) & (TX_DESC_COUNT - 1))
 #define	RX_NEXT(n)		(((n) + 1) & (RX_DESC_COUNT - 1))
 
-#define	TX_MAX_SEGS		10
+#define	TX_MAX_SEGS		20
 
 #define	SOFT_RST_RETRY		1000
 #define	MII_BUSY_RETRY		1000
@@ -148,6 +148,7 @@ struct awg_softc {
 	struct resource		*res[2];
 	struct mtx		mtx;
 	if_t			ifp;
+	device_t		dev;
 	device_t		miibus;
 	struct callout		stat_ch;
 	struct task		link_task;
@@ -375,14 +376,18 @@ awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
 	    sc->tx.buf_map[index].map, m, segs, &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
 		m = m_collapse(m, M_NOWAIT, TX_MAX_SEGS);
-		if (m == NULL)
+		if (m == NULL) {
+			device_printf(sc->dev, "awg_setup_txbuf: m_collapse failed\n");
 			return (0);
+		}
 		*mp = m;
 		error = bus_dmamap_load_mbuf_sg(sc->tx.buf_tag,
 		    sc->tx.buf_map[index].map, m, segs, &nsegs, BUS_DMA_NOWAIT);
 	}
-	if (error != 0)
+	if (error != 0) {
+		device_printf(sc->dev, "awg_setup_txbuf: bus_dmamap_load_mbuf_sg failed\n");
 		return (0);
+	}
 
 	bus_dmamap_sync(sc->tx.buf_tag, sc->tx.buf_map[index].map,
 	    BUS_DMASYNC_PREWRITE);
@@ -1324,6 +1329,7 @@ awg_attach(device_t dev)
 	int error;
 
 	sc = device_get_softc(dev);
+	sc->dev = dev;
 	node = ofw_bus_get_node(dev);
 
 	if (bus_alloc_resources(dev, awg_spec, sc->res) != 0) {
