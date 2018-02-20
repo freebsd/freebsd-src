@@ -159,6 +159,33 @@ function drawer.drawscreen(menu_opts)
 	return drawer.drawmenu(menu_opts);
 end
 
+drawer.menu_name_handlers = {
+	-- Menu name handlers should take the menu being drawn and entry being
+	-- drawn as parameters, and return the name of the item.
+	-- This is designed so that everything, including menu separators, may
+	-- have their names derived differently. The default action for entry
+	-- types not specified here is to call and use entry.name().
+	[core.MENU_CAROUSEL_ENTRY] = function(drawing_menu, entry)
+		local carid = entry.carousel_id;
+		local caridx = menu.getCarouselIndex(carid);
+		local choices = entry.items();
+
+		if (#choices < caridx) then
+			caridx = 1;
+		end
+		return entry.name(caridx, choices[caridx], choices);
+	end,
+};
+
+function menu_entry_name(drawing_menu, entry)
+	local name_handler = drawer.menu_name_handlers[entry.entry_type];
+
+	if (name_handler ~= nil) then
+		return name_handler(drawing_menu, entry);
+	end
+	return entry.name();
+end
+
 function drawer.drawmenu(m)
 	x = drawer.menu_position.x;
 	y = drawer.menu_position.y;
@@ -179,21 +206,8 @@ function drawer.drawmenu(m)
 		if (e.entry_type ~= core.MENU_SEPARATOR) then
 			entry_num = entry_num + 1;
 			screen.setcursor(x, y + line_num);
-			local name = "";
 
-			if (e.entry_type == core.MENU_CAROUSEL_ENTRY) then
-				local carid = e.carousel_id;
-				local caridx = menu.getCarouselIndex(carid);
-				local choices = e.items();
-
-				if (#choices < caridx) then
-					caridx = 1;
-				end
-				name = e.name(caridx, choices[caridx], choices);
-			else
-				name = e.name();
-			end
-			print(entry_num .. ". " .. name);
+			print(entry_num .. ". " .. menu_entry_name(m, e));
 
 			-- fill the alias table
 			alias_table[tostring(entry_num)] = e;
@@ -204,7 +218,7 @@ function drawer.drawmenu(m)
 			end
 		else
 			screen.setcursor(x, y + line_num);
-			print(e.name());
+			print(menu_entry_name(m, e));
 		end
 		::continue::
 	end
