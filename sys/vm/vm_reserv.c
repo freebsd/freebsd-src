@@ -746,6 +746,7 @@ vm_reserv_break(vm_reserv_t rv, vm_page_t m)
 	    ("vm_reserv_break: reserv %p's inpartpopq is TRUE", rv));
 	LIST_REMOVE(rv, objq);
 	rv->object = NULL;
+	rv->pages->psind = 0;
 	if (m != NULL) {
 		/*
 		 * Since the reservation is being broken, there is no harm in
