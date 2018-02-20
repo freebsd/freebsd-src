@@ -182,36 +182,36 @@ drawer.branddefs = {
 
 drawer.logodefs = {
 	-- Indexed by valid values for loader_logo in loader.conf(5). Valid keys
-	-- are: requires_color (boolean), logo (table depicting graphic), and
+	-- are: requires_color (boolean), graphic (table depicting graphic), and
 	-- shift (table containing x and y).
 	["beastie"] = {
 		requires_color = true,
-		logo = beastie_color,
+		graphic = beastie_color,
 	},
 	["beastiebw"] = {
-		logo = beastie,
+		graphic = beastie,
 	},
 	["fbsdbw"] = {
-		logo = fbsd_logo_v,
+		graphic = fbsd_logo_v,
 		shift = {x = 5, y = 4},
 	},
 	["orb"] = {
 		requires_color = true,
-		logo = orb_color,
+		graphic = orb_color,
 		shift = {x = 2, y = 4},
 	},
 	["orbbw"] = {
-		logo = orb,
+		graphic = orb,
 		shift = {x = 2, y = 4},
 	},
 	["tribute"] = {
-		logo = fbsd_logo,
+		graphic = fbsd_logo,
 	},
 	["tributebw"] = {
-		logo = fbsd_logo,
+		graphic = fbsd_logo,
 	},
 	["none"] = {
-		logo = none,
+		graphic = none,
 		shift = {x = 17, y = 0},
 	},
 };
@@ -352,13 +352,13 @@ function drawer.drawlogo()
 	-- Lookup
 	local logodef = drawer.logodefs[logo];
 
-	if (logodef ~= nil) and (logodef.logo == none) then
+	if (logodef ~= nil) and (logodef.graphic == none) then
 		-- centre brand and text if no logo
 		if (not none_shifted) then
 			shift_brand_text(logodef.shift);
 			none_shifted = true;
 		end
-	elseif (logodef == nil) or (logodef.logo == nil) or
+	elseif (logodef == nil) or (logodef.graphic == nil) or
 	    ((not colored) and logodef.requires_color) then
 		-- Choose a sensible default
 		if (colored) then
@@ -367,12 +367,11 @@ function drawer.drawlogo()
 			logodef = drawer.logodefs["orbbw"];
 		end
 	end
-	logo = logodef.logo;
 	if (logodef.shift ~= nil) then
 		x = x + logodef.shift.x;
 		y = y + logodef.shift.y;
 	end
-	drawer.draw(x, y, logo);
+	drawer.draw(x, y, logodef.graphic);
 end
 
 return drawer;
