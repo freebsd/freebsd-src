@@ -173,6 +173,8 @@ orb = {
 none = {""};
 
 drawer.branddefs = {
+	-- Indexed by valid values for loader_brand in loader.conf(5). Valid
+	-- keys are: graphic (table depicting graphic)
 	["fbsd"] = {
 		graphic = fbsd_logo,
 	},
