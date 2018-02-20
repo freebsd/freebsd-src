@@ -27,9 +27,9 @@
 -- $FreeBSD$
 --
 
-config = require("config");
-menu = require("menu");
-password = require("password");
+local config = require("config");
+local menu = require("menu");
+local password = require("password");
 
 -- Declares a global function cli_execute that attempts to dispatch the
 -- arguments passed as a lua function. This gives lua a chance to intercept
