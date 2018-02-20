@@ -30,6 +30,13 @@ local config = require('config');
 
 local core = {};
 
+local compose_loader_cmd = function(cmd_name, argstr)
+	if (argstr ~= nil) then
+		cmd_name = cmd_name .. " " .. argstr;
+	end
+	return cmd_name;
+end
+
 -- Module exports
 -- Commonly appearing constants
 core.KEY_BACKSPACE	= 8;
@@ -182,14 +189,14 @@ function core.setDefaults()
 	core.setVerbose(false);
 end
 
-function core.autoboot()
+function core.autoboot(argstr)
 	config.loadelf();
-	loader.perform("autoboot");
+	loader.perform(compose_loader_cmd("autoboot", argstr));
 end
 
-function core.boot()
+function core.boot(argstr)
 	config.loadelf();
-	loader.perform("boot");
+	loader.perform(compose_loader_cmd("boot", argstr));
 end
 
 function core.isSingleUserBoot()
@@ -233,6 +240,29 @@ function core.shallowCopyTable(tbl)
 		end
 	end
 	return new_tbl;
+end
+
+-- XXX This should go away if we get the table lib into shape for importing.
+-- As of now, it requires some 'os' functions, so we'll implement this in lua
+-- for our uses
+function core.popFrontTable(tbl)
+	-- Shouldn't reasonably happen
+	if (#tbl == 0) then
+		return nil, nil;
+	elseif (#tbl == 1) then
+		return tbl[1], {};
+	end
+
+	local first_value = tbl[1];
+	local new_tbl = {};
+	-- This is not a cheap operation
+	for k, v in ipairs(tbl) do
+		if (k > 1) then
+			new_tbl[k - 1] = v;
+		end
+	end
+
+	return first_value, new_tbl;
 end
 
 -- On i386, hint.acpi.0.rsdp will be set before we're loaded. On !i386, it will
