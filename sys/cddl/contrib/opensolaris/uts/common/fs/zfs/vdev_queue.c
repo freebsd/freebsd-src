@@ -155,6 +155,8 @@ uint32_t zfs_vdev_trim_min_active = 1;
  * that a typical SSD can process the queued IOs in a single request.
  */
 uint32_t zfs_vdev_trim_max_active = 64;
+uint32_t zfs_vdev_removal_min_active = 1;
+uint32_t zfs_vdev_removal_max_active = 2;
 
 
 /*
@@ -530,6 +532,8 @@ vdev_queue_class_min_active(zio_priority_t p)
 		return (zfs_vdev_scrub_min_active);
 	case ZIO_PRIORITY_TRIM:
 		return (zfs_vdev_trim_min_active);
+	case ZIO_PRIORITY_REMOVAL:
+		return (zfs_vdev_removal_min_active);
 	default:
 		panic("invalid priority %u", p);
 		return (0);
@@ -591,6 +595,8 @@ vdev_queue_class_max_active(spa_t *spa, zio_priority_t p)
 		return (zfs_vdev_scrub_max_active);
 	case ZIO_PRIORITY_TRIM:
 		return (zfs_vdev_trim_max_active);
+	case ZIO_PRIORITY_REMOVAL:
+		return (zfs_vdev_removal_max_active);
 	default:
 		panic("invalid priority %u", p);
 		return (0);
@@ -688,7 +694,8 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	while (t != NULL && (dio = AVL_PREV(t, first)) != NULL &&
 	    (dio->io_flags & ZIO_FLAG_AGG_INHERIT) == flags &&
 	    IO_SPAN(dio, last) <= zfs_vdev_aggregation_limit &&
-	    IO_GAP(dio, first) <= maxgap) {
+	    IO_GAP(dio, first) <= maxgap &&
+	    dio->io_type == zio->io_type) {
 		first = dio;
 		if (mandatory == NULL && !(first->io_flags & ZIO_FLAG_OPTIONAL))
 			mandatory = first;
@@ -712,7 +719,8 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	    (dio->io_flags & ZIO_FLAG_AGG_INHERIT) == flags &&
 	    (IO_SPAN(first, dio) <= zfs_vdev_aggregation_limit ||
 	    (dio->io_flags & ZIO_FLAG_OPTIONAL)) &&
-	    IO_GAP(last, dio) <= maxgap) {
+	    IO_GAP(last, dio) <= maxgap &&
+	    dio->io_type == zio->io_type) {
 		last = dio;
 		if (!(last->io_flags & ZIO_FLAG_OPTIONAL))
 			mandatory = last;
@@ -872,11 +880,13 @@ vdev_queue_io(zio_t *zio)
 	if (zio->io_type == ZIO_TYPE_READ) {
 		if (zio->io_priority != ZIO_PRIORITY_SYNC_READ &&
 		    zio->io_priority != ZIO_PRIORITY_ASYNC_READ &&
-		    zio->io_priority != ZIO_PRIORITY_SCRUB)
+		    zio->io_priority != ZIO_PRIORITY_SCRUB &&
+		    zio->io_priority != ZIO_PRIORITY_REMOVAL)
 			zio->io_priority = ZIO_PRIORITY_ASYNC_READ;
 	} else if (zio->io_type == ZIO_TYPE_WRITE) {
 		if (zio->io_priority != ZIO_PRIORITY_SYNC_WRITE &&
-		    zio->io_priority != ZIO_PRIORITY_ASYNC_WRITE)
+		    zio->io_priority != ZIO_PRIORITY_ASYNC_WRITE &&
+		    zio->io_priority != ZIO_PRIORITY_REMOVAL)
 			zio->io_priority = ZIO_PRIORITY_ASYNC_WRITE;
 	} else {
 		ASSERT(zio->io_type == ZIO_TYPE_FREE);

@@ -56,7 +56,7 @@
  * configuration information.  When the module loads, we read this information
  * from /etc/zfs/zpool.cache and populate the SPA namespace.  This namespace is
  * maintained independently in spa.c.  Whenever the namespace is modified, or
- * the configuration of a pool is changed, we call spa_config_sync(), which
+ * the configuration of a pool is changed, we call spa_write_cachefile(), which
  * walks through all the active pools and writes the configuration to disk.
  */
 
@@ -216,11 +216,11 @@ spa_config_write(spa_config_dirent_t *dp, nvlist_t *nvl)
  * the configuration has been synced to the MOS. This exposes a window where
  * the MOS config will have been updated but the cache file has not. If
  * the system were to crash at that instant then the cached config may not
- * contain the correct information to open the pool and an explicity import
+ * contain the correct information to open the pool and an explicit import
  * would be required.
  */
 void
-spa_config_sync(spa_t *target, boolean_t removing, boolean_t postsysevent)
+spa_write_cachefile(spa_t *target, boolean_t removing, boolean_t postsysevent)
 {
 	spa_config_dirent_t *dp, *tdp;
 	nvlist_t *nvl;
@@ -556,7 +556,7 @@ spa_config_update(spa_t *spa, int what)
 	/*
 	 * Update the global config cache to reflect the new mosconfig.
 	 */
-	spa_config_sync(spa, B_FALSE, what != SPA_CONFIG_UPDATE_POOL);
+	spa_write_cachefile(spa, B_FALSE, what != SPA_CONFIG_UPDATE_POOL);
 
 	if (what == SPA_CONFIG_UPDATE_POOL)
 		spa_config_update(spa, SPA_CONFIG_UPDATE_VDEVS);

@@ -478,7 +478,7 @@ zfs_register_callbacks(vfs_t *vfsp)
 	 * dsl_prop_get_int_ds() to handle the special nbmand property below.
 	 * dsl_prop_get_integer() can not be used, because it has to acquire
 	 * spa_namespace_lock and we can not do that because we already hold
-	 * z_teardown_lock.  The problem is that spa_config_sync() is called
+	 * z_teardown_lock.  The problem is that spa_write_cachefile() is called
 	 * with spa_namespace_lock held and the function calls ZFS vnode
 	 * operations to write the cache file and thus z_teardown_lock is
 	 * acquired after spa_namespace_lock.

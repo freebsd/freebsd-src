@@ -3238,7 +3238,7 @@ zil_replaying(zilog_t *zilog, dmu_tx_t *tx)
 
 /* ARGSUSED */
 int
-zil_vdev_offline(const char *osname, void *arg)
+zil_reset(const char *osname, void *arg)
 {
 	int error;
 
