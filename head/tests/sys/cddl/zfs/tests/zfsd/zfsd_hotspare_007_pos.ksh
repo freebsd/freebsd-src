@@ -62,8 +62,6 @@ verify_runnable "global"
 
 log_assert "zfsd will spare missing drives on startup"
 
-log_onexit autoreplace_cleanup
-
 
 function verify_assertion # spare_dev
 {
