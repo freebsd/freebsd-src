@@ -190,8 +190,10 @@ drawer.menu_name_handlers = {
 	[core.MENU_CAROUSEL_ENTRY] = function(drawing_menu, entry)
 		local carid = entry.carousel_id
 		local caridx = config.getCarouselIndex(carid)
-		local choices = entry.items()
-
+		local choices = entry.items
+		if type(choices) == "function" then
+			choices = choices()
+		end
 		if #choices < caridx then
 			caridx = 1
 		end

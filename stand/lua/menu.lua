@@ -65,8 +65,10 @@ menu.handlers = {
 		-- carousel (rotating) functionality
 		local carid = entry.carousel_id
 		local caridx = config.getCarouselIndex(carid)
-		local choices = entry.items()
-
+		local choices = entry.items
+		if type(choices) == "function" then
+			choices = choices()
+		end
 		if #choices > 0 then
 			caridx = (caridx % #choices) + 1
 			config.setCarouselIndex(carid, caridx)
