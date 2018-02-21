@@ -113,9 +113,6 @@ menu.boot_options = {
 
 		{
 			entry_type = core.MENU_SEPARATOR,
-			name = function()
-				return ""
-			end
 		},
 
 		{
@@ -269,9 +266,6 @@ menu.welcome = {
 
 		{
 			entry_type = core.MENU_SEPARATOR,
-			name = function()
-				return ""
-			end
 		},
 
 		{

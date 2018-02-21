@@ -175,6 +175,12 @@ drawer.menu_name_handlers = {
 	-- This is designed so that everything, including menu separators, may
 	-- have their names derived differently. The default action for entry
 	-- types not specified here is to call and use entry.name().
+	[core.MENU_SEPARATOR] = function(drawing_menu, entry)
+		if entry.name ~= nil then
+			return entry.name()
+		end
+		return ""
+	end,
 	[core.MENU_CAROUSEL_ENTRY] = function(drawing_menu, entry)
 		local carid = entry.carousel_id
 		local caridx = config.getCarouselIndex(carid)
