@@ -377,13 +377,13 @@ ifconfig_get_mtu(ifconfig_handle_t *h, const char *name, int *mtu)
 }
 
 int
-ifconfig_set_metric(ifconfig_handle_t *h, const char *name, const int mtu)
+ifconfig_set_metric(ifconfig_handle_t *h, const char *name, const int metric)
 {
 	struct ifreq ifr;
 
 	memset(&ifr, 0, sizeof(ifr));
 	(void)strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
-	ifr.ifr_mtu = mtu;
+	ifr.ifr_metric = metric;
 
 	if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCSIFMETRIC,
 	    &ifr) < 0) {
