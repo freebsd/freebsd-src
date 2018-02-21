@@ -242,6 +242,41 @@ function core.kernelList()
 	return kernels
 end
 
+function core.bootenvDefault()
+	return loader.getenv("zfs_be_active")
+end
+
+function core.bootenvList()
+	local bootenv_count = tonumber(loader.getenv("bootenvs_count"))
+	local bootenvs = {}
+	local curenv
+	local curenv_idx = 0
+	local envcount = 0
+	local unique = {}
+
+	if bootenv_count == nil or bootenv_count <= 0 then
+		return bootenvs
+	end
+
+	-- Currently selected bootenv is always first/default
+	curenv = core.bootenvDefault()
+	if curenv ~= nil then
+		envcount = envcount + 1
+		bootenvs[envcount] = curenv
+		unique[curenv] = true
+	end
+
+	for curenv_idx = 0, bootenv_count - 1 do
+		curenv = loader.getenv("bootenvs[" .. curenv_idx .. "]")
+		if curenv ~= nil and unique[curenv] == nil then
+			envcount = envcount + 1
+			bootenvs[envcount] = curenv
+			unique[curenv] = true
+		end
+	end
+	return bootenvs
+end
+
 function core.setDefaults()
 	core.setACPI(core.getACPIPresent(true))
 	core.setSafeMode(false)
@@ -262,6 +297,15 @@ end
 function core.isSingleUserBoot()
 	local single_user = loader.getenv("boot_single")
 	return single_user ~= nil and single_user:lower() == "yes"
+end
+
+function core.isZFSBoot()
+	local c = loader.getenv("currdev")
+
+	if c ~= nil then
+		return c:match("^zfs:") ~= nil
+	end
+	return false
 end
 
 function core.isSerialBoot()
