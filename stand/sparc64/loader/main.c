@@ -735,15 +735,6 @@ tlb_init_sun4u(void)
 
 #ifdef LOADER_ZFS_SUPPORT
 
-/* Set by sparc64_zfs_probe to provide partition size. */
-static size_t part_size;
-
-uint64_t
-ldi_get_size(void *priv __unused)
-{
-	return ((uint64_t)part_size);
-}
-
 static void
 sparc64_zfs_probe(void)
 {
@@ -799,7 +790,6 @@ sparc64_zfs_probe(void)
 			if (part == 2 || vtoc.part[part].tag !=
 			    VTOC_TAG_FREEBSD_ZFS)
 				continue;
-			part_size = vtoc.map[part].nblks;
 			(void)sprintf(devname, "%s:%c", alias, part + 'a');
 			/* Get the GUID of the ZFS pool on the boot device. */
 			if (strcmp(devname, bootpath) == 0)
@@ -948,7 +938,7 @@ static const char *const page_sizes[] = {
 
 static void
 pmap_print_tte_sun4u(tte_t tag, tte_t tte)
-{
+
 
 	printf("%s %s ",
 	    page_sizes[(tte >> TD_SIZE_SHIFT) & TD_SIZE_MASK],
