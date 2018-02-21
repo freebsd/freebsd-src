@@ -440,11 +440,11 @@ initialize_universes(void)
 	for (i = 0; i < 256; i++) {
 		dhcp_universe.options[i] = &dhcp_options[i];
 		add_hash(dhcp_universe.hash,
-		    (unsigned char *)dhcp_options[i].name, 0,
+		    (const unsigned char *)dhcp_options[i].name, 0,
 		    (unsigned char *)&dhcp_options[i]);
 	}
 	universe_hash.hash_count = DEFAULT_HASH_SIZE;
 	add_hash(&universe_hash,
-	    (unsigned char *)dhcp_universe.name, 0,
+	    (const unsigned char *)dhcp_universe.name, 0,
 	    (unsigned char *)&dhcp_universe);
 }

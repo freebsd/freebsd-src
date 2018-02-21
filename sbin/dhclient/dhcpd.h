@@ -235,7 +235,7 @@ struct protocol {
 
 struct hash_bucket {
 	struct hash_bucket *next;
-	unsigned char *name;
+	const unsigned char *name;
 	int len;
 	unsigned char *value;
 };
@@ -258,26 +258,27 @@ struct hash_table {
 /* options.c */
 int cons_options(struct packet *, struct dhcp_packet *, int,
     struct tree_cache **, int, int, int, u_int8_t *, int);
-char *pretty_print_option(unsigned int,
+const char *pretty_print_option(unsigned int,
     unsigned char *, int, int, int);
 void do_packet(struct interface_info *, struct dhcp_packet *,
     int, unsigned int, struct iaddr, struct hardware *);
 
 /* errwarn.c */
 extern int warnings_occurred;
-void error(char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
-int warning(char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
-int note(char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
-int debug(char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
-int parse_warn(char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+void error(const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+int warning(const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+int note(const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+int debug(const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+int parse_warn(const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
 
 /* conflex.c */
 extern int lexline, lexchar;
-extern char *token_line, *tlname;
+extern char *token_line;
+extern const char *tlname;
 extern char comments[4096];
 extern int comment_index;
 extern int eol_token;
-void new_parse(char *);
+void new_parse(const char *);
 int next_token(char **, FILE *);
 int peek_token(char **, FILE *);
 
@@ -321,7 +322,7 @@ void dispatch(void);
 void got_one(struct protocol *);
 void add_timeout(time_t, void (*)(void *), void *);
 void cancel_timeout(void (*)(void *), void *);
-void add_protocol(char *, int, void (*)(struct protocol *), void *);
+void add_protocol(const char *, int, void (*)(struct protocol *), void *);
 void remove_protocol(struct protocol *);
 int interface_link_status(char *);
 void interface_set_mtu_unpriv(int, u_int16_t);
@@ -329,8 +330,8 @@ void interface_set_mtu_priv(char *, u_int16_t);
 
 /* hash.c */
 struct hash_table *new_hash(void);
-void add_hash(struct hash_table *, unsigned char *, int, unsigned char *);
-unsigned char *hash_lookup(struct hash_table *, unsigned char *, int);
+void add_hash(struct hash_table *, const unsigned char *, int, unsigned char *);
+void *hash_lookup(struct hash_table *, unsigned char *, int);
 
 /* tables.c */
 extern struct option dhcp_options[256];
@@ -358,7 +359,7 @@ char *piaddr(struct iaddr);
 
 /* dhclient.c */
 extern cap_channel_t *capsyslog;
-extern char *path_dhclient_conf;
+extern const char *path_dhclient_conf;
 extern char *path_dhclient_db;
 extern time_t cur_time;
 extern int log_priority;
@@ -393,12 +394,12 @@ void free_client_lease(struct client_lease *);
 void rewrite_client_leases(void);
 void write_client_lease(struct interface_info *, struct client_lease *, int);
 
-void	 priv_script_init(char *, char *);
-void	 priv_script_write_params(char *, struct client_lease *);
+void	 priv_script_init(const char *, char *);
+void	 priv_script_write_params(const char *, struct client_lease *);
 int	 priv_script_go(void);
 
-void script_init(char *, struct string_list *);
-void script_write_params(char *, struct client_lease *);
+void script_init(const char *, struct string_list *);
+void script_write_params(const char *, struct client_lease *);
 int script_go(void);
 void client_envadd(struct client_state *,
     const char *, const char *, const char *, ...);
@@ -442,7 +443,7 @@ void parse_reject_statement(FILE *, struct client_config *);
 
 /* privsep.c */
 struct buf	*buf_open(size_t);
-int		 buf_add(struct buf *, void *, size_t);
+int		 buf_add(struct buf *, const void *, size_t);
 int		 buf_close(int, struct buf *);
 ssize_t		 buf_read(int, void *, size_t);
 void		 dispatch_imsg(struct interface_info *, int);
