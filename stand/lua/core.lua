@@ -43,11 +43,15 @@ end
 -- This will also parse arguments to autoboot, but the with_kernel argument
 -- will need to be explicitly overwritten to false
 local parse_boot_args = function(argv, with_kernel)
-	if #argv == 0 then
-		return nil, ""
-	end
 	if with_kernel == nil then
 		with_kernel = true
+	end
+	if #argv == 0 then
+		if with_kernel then
+			return nil, ""
+		else
+			return ""
+		end
 	end
 	local kernel_name
 	local argstr = ""
