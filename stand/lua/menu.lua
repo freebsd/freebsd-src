@@ -28,25 +28,25 @@
 --
 
 
-local core = require("core");
-local color = require("color");
-local config = require("config");
-local screen = require("screen");
-local drawer = require("drawer");
+local core = require("core")
+local color = require("color")
+local config = require("config")
+local screen = require("screen")
+local drawer = require("drawer")
 
-local menu = {};
+local menu = {}
 
-local skip;
-local run;
-local autoboot;
+local skip
+local run
+local autoboot
 
 local OnOff = function(str, b)
 	if (b) then
 		return str .. color.escapef(color.GREEN) .. "On" ..
-		    color.escapef(color.WHITE);
+		    color.escapef(color.WHITE)
 	else
 		return str .. color.escapef(color.RED) .. "off" ..
-		    color.escapef(color.WHITE);
+		    color.escapef(color.WHITE)
 	end
 end
 
@@ -59,32 +59,32 @@ menu.handlers = {
 	-- should just continue after execution.
 	[core.MENU_ENTRY] = function(current_menu, entry)
 		-- run function
-		entry.func();
+		entry.func()
 	end,
 	[core.MENU_CAROUSEL_ENTRY] = function(current_menu, entry)
 		-- carousel (rotating) functionality
-		local carid = entry.carousel_id;
-		local caridx = config.getCarouselIndex(carid);
-		local choices = entry.items();
+		local carid = entry.carousel_id
+		local caridx = config.getCarouselIndex(carid)
+		local choices = entry.items()
 
 		if (#choices > 0) then
-			caridx = (caridx % #choices) + 1;
-			config.setCarouselIndex(carid, caridx);
-			entry.func(caridx, choices[caridx], choices);
+			caridx = (caridx % #choices) + 1
+			config.setCarouselIndex(carid, caridx)
+			entry.func(caridx, choices[caridx], choices)
 		end
 	end,
 	[core.MENU_SUBMENU] = function(current_menu, entry)
 		-- recurse
-		return menu.run(entry.submenu());
+		return menu.run(entry.submenu())
 	end,
 	[core.MENU_RETURN] = function(current_menu, entry)
 		-- allow entry to have a function/side effect
 		if (entry.func ~= nil) then
-			entry.func();
+			entry.func()
 		end
-		return false;
+		return false
 	end,
-};
+}
 -- loader menu tree is rooted at menu.welcome
 
 menu.boot_options = {
@@ -94,7 +94,7 @@ menu.boot_options = {
 			entry_type = core.MENU_RETURN,
 			name = function()
 				return "Back to main menu" ..
-				    color.highlight(" [Backspace]");
+				    color.highlight(" [Backspace]")
 			end
 		},
 
@@ -103,10 +103,10 @@ menu.boot_options = {
 			entry_type = core.MENU_ENTRY,
 			name = function()
 				return "Load System " .. color.highlight("D") ..
-				    "efaults";
+				    "efaults"
 			end,
 			func = function()
-				core.setDefaults();
+				core.setDefaults()
 			end,
 			alias = {"d", "D"}
 		},
@@ -114,14 +114,14 @@ menu.boot_options = {
 		{
 			entry_type = core.MENU_SEPARATOR,
 			name = function()
-				return "";
+				return ""
 			end
 		},
 
 		{
 			entry_type = core.MENU_SEPARATOR,
 			name = function()
-				return "Boot Options:";
+				return "Boot Options:"
 			end
 		},
 
@@ -131,10 +131,10 @@ menu.boot_options = {
 			visible = core.isSystem386,
 			name = function()
 				return OnOff(color.highlight("A") ..
-				    "CPI       :", core.acpi);
+				    "CPI       :", core.acpi)
 			end,
 			func = function()
-				core.setACPI();
+				core.setACPI()
 			end,
 			alias = {"a", "A"}
 		},
@@ -143,10 +143,10 @@ menu.boot_options = {
 			entry_type = core.MENU_ENTRY,
 			name = function()
 				return OnOff("Safe " .. color.highlight("M") ..
-				    "ode  :", core.sm);
+				    "ode  :", core.sm)
 			end,
 			func = function()
-				core.setSafeMode();
+				core.setSafeMode()
 			end,
 			alias = {"m", "M"}
 		},
@@ -155,10 +155,10 @@ menu.boot_options = {
 			entry_type = core.MENU_ENTRY,
 			name = function()
 				return OnOff(color.highlight("S") ..
-				    "ingle user:", core.su);
+				    "ingle user:", core.su)
 			end,
 			func = function()
-				core.setSingleUser();
+				core.setSingleUser()
 			end,
 			alias = {"s", "S"}
 		},
@@ -167,39 +167,39 @@ menu.boot_options = {
 			entry_type = core.MENU_ENTRY,
 			name = function()
 				return OnOff(color.highlight("V") ..
-				    "erbose    :", core.verbose);
+				    "erbose    :", core.verbose)
 			end,
 			func = function()
-				core.setVerbose();
+				core.setVerbose()
 			end,
 			alias = {"v", "V"}
 		},
 	},
-};
+}
 
 menu.welcome = {
 	entries = function()
-		local menu_entries = menu.welcome.all_entries;
+		local menu_entries = menu.welcome.all_entries
 		-- Swap the first two menu items on single user boot
 		if (core.isSingleUserBoot()) then
 			-- We'll cache the swapped menu, for performance
 			if (menu.welcome.swapped_menu ~= nil) then
-				return menu.welcome.swapped_menu;
+				return menu.welcome.swapped_menu
 			end
 			-- Shallow copy the table
-			menu_entries = core.shallowCopyTable(menu_entries);
+			menu_entries = core.shallowCopyTable(menu_entries)
 
 			-- Swap the first two menu entries
 			menu_entries[1], menu_entries[2] =
-			    menu_entries[2], menu_entries[1];
+			    menu_entries[2], menu_entries[1]
 
 			-- Then set their names to their alternate names
 			menu_entries[1].name, menu_entries[2].name =
 			    menu_entries[1].alternate_name,
-			    menu_entries[2].alternate_name;
-			menu.welcome.swapped_menu = menu_entries;
+			    menu_entries[2].alternate_name
+			menu.welcome.swapped_menu = menu_entries
 		end
-		return menu_entries;
+		return menu_entries
 	end,
 	all_entries = {
 		-- boot multi user
@@ -208,16 +208,16 @@ menu.welcome = {
 			name = function()
 				return color.highlight("B") ..
 				    "oot Multi user " ..
-				    color.highlight("[Enter]");
+				    color.highlight("[Enter]")
 			end,
 			-- Not a standard menu entry function!
 			alternate_name = function()
 				return color.highlight("B") ..
-				    "oot Multi user";
+				    "oot Multi user"
 			end,
 			func = function()
-				core.setSingleUser(false);
-				core.boot();
+				core.setSingleUser(false)
+				core.boot()
 			end,
 			alias = {"b", "B"}
 		},
@@ -227,16 +227,16 @@ menu.welcome = {
 			entry_type = core.MENU_ENTRY,
 			name = function()
 				return "Boot " .. color.highlight("S") ..
-				    "ingle user";
+				    "ingle user"
 			end,
 			-- Not a standard menu entry function!
 			alternate_name = function()
 				return "Boot " .. color.highlight("S") ..
-				    "ingle user " .. color.highlight("[Enter]");
+				    "ingle user " .. color.highlight("[Enter]")
 			end,
 			func = function()
-				core.setSingleUser(true);
-				core.boot();
+				core.setSingleUser(true)
+				core.boot()
 			end,
 			alias = {"s", "S"}
 		},
@@ -246,10 +246,10 @@ menu.welcome = {
 			entry_type = core.MENU_RETURN,
 			name = function()
 				return color.highlight("Esc") ..
-				    "ape to loader prompt";
+				    "ape to loader prompt"
 			end,
 			func = function()
-				loader.setenv("autoboot_delay", "NO");
+				loader.setenv("autoboot_delay", "NO")
 			end,
 			alias = {core.KEYSTR_ESCAPE}
 		},
@@ -258,10 +258,10 @@ menu.welcome = {
 		{
 			entry_type = core.MENU_ENTRY,
 			name = function()
-				return color.highlight("R") .. "eboot";
+				return color.highlight("R") .. "eboot"
 			end,
 			func = function()
-				loader.perform("reboot");
+				loader.perform("reboot")
 			end,
 			alias = {"r", "R"}
 		},
@@ -270,14 +270,14 @@ menu.welcome = {
 		{
 			entry_type = core.MENU_SEPARATOR,
 			name = function()
-				return "";
+				return ""
 			end
 		},
 
 		{
 			entry_type = core.MENU_SEPARATOR,
 			name = function()
-				return "Options:";
+				return "Options:"
 			end
 		},
 
@@ -288,26 +288,26 @@ menu.welcome = {
 			items = core.kernelList,
 			name = function(idx, choice, all_choices)
 				if (#all_choices == 0) then
-					return "Kernel: ";
+					return "Kernel: "
 				end
 
-				local is_default = (idx == 1);
-				local kernel_name = "";
-				local name_color;
+				local is_default = (idx == 1)
+				local kernel_name = ""
+				local name_color
 				if (is_default) then
-					name_color = color.escapef(color.GREEN);
-					kernel_name = "default/";
+					name_color = color.escapef(color.GREEN)
+					kernel_name = "default/"
 				else
-					name_color = color.escapef(color.BLUE);
+					name_color = color.escapef(color.BLUE)
 				end
 				kernel_name = kernel_name .. name_color ..
-				    choice .. color.default();
+				    choice .. color.default()
 				return color.highlight("K") .. "ernel: " ..
 				    kernel_name .. " (" .. idx .. " of " ..
-				    #all_choices .. ")";
+				    #all_choices .. ")"
 			end,
 			func = function(idx, choice, all_choices)
-				config.selectkernel(choice);
+				config.selectkernel(choice)
 			end,
 			alias = {"k", "K"}
 		},
@@ -317,144 +317,144 @@ menu.welcome = {
 			entry_type = core.MENU_SUBMENU,
 			name = function()
 				return "Boot " .. color.highlight("O") ..
-				    "ptions";
+				    "ptions"
 			end,
 			submenu = function()
-				return menu.boot_options;
+				return menu.boot_options
 			end,
 			alias = {"o", "O"}
 		},
 	},
-};
+}
 
 function menu.run(m)
 
 	if (menu.skip()) then
-		core.autoboot();
-		return false;
+		core.autoboot()
+		return false
 	end
 
 	if (m == nil) then
-		m = menu.welcome;
+		m = menu.welcome
 	end
 
 	-- redraw screen
-	screen.clear();
-	screen.defcursor();
-	local alias_table = drawer.drawscreen(m);
+	screen.clear()
+	screen.defcursor()
+	local alias_table = drawer.drawscreen(m)
 
-	menu.autoboot();
+	menu.autoboot()
 
-	cont = true;
+	cont = true
 	while (cont) do
-		local key = io.getchar();
+		local key = io.getchar()
 
 		-- Special key behaviors
 		if ((key == core.KEY_BACKSPACE) or (key == core.KEY_DELETE)) and
 		    (m ~= menu.welcome) then
-			break;
+			break
 		elseif (key == core.KEY_ENTER) then
-			core.boot();
+			core.boot()
 			-- Should not return
 		end
 
 		key = string.char(key)
 		-- check to see if key is an alias
-		local sel_entry = nil;
+		local sel_entry = nil
 		for k, v in pairs(alias_table) do
 			if (key == k) then
-				sel_entry = v;
+				sel_entry = v
 			end
 		end
 
 		-- if we have an alias do the assigned action:
 		if (sel_entry ~= nil) then
 			-- Get menu handler
-			local handler = menu.handlers[sel_entry.entry_type];
+			local handler = menu.handlers[sel_entry.entry_type]
 			if (handler ~= nil) then
 				-- The handler's return value indicates whether
 				-- we need to exit this menu. An omitted return
 				-- value means "continue" by default.
-				cont = handler(m, sel_entry);
+				cont = handler(m, sel_entry)
 				if (cont == nil) then
-					cont = true;
+					cont = true
 				end
 			end
 			-- if we got an alias key the screen is out of date:
-			screen.clear();
-			screen.defcursor();
-			alias_table = drawer.drawscreen(m);
+			screen.clear()
+			screen.defcursor()
+			alias_table = drawer.drawscreen(m)
 		end
 	end
 
 	if (m == menu.welcome) then
-		screen.defcursor();
-		print("Exiting menu!");
-		return false;
+		screen.defcursor()
+		print("Exiting menu!")
+		return false
 	end
 
-	return true;
+	return true
 end
 
 function menu.skip()
 	if (core.isSerialBoot()) then
-		return true;
+		return true
 	end
-	local c = string.lower(loader.getenv("console") or "");
+	local c = string.lower(loader.getenv("console") or "")
 	if ((c:match("^efi[ ;]") or c:match("[ ;]efi[ ;]")) ~= nil) then
-		return true;
+		return true
 	end
 
-	c = string.lower(loader.getenv("beastie_disable") or "");
-	print("beastie_disable", c);
-	return c == "yes";
+	c = string.lower(loader.getenv("beastie_disable") or "")
+	print("beastie_disable", c)
+	return c == "yes"
 end
 
 function menu.autoboot()
 	if (menu.already_autoboot == true) then
-		return;
+		return
 	end
-	menu.already_autoboot = true;
+	menu.already_autoboot = true
 
-	local ab = loader.getenv("autoboot_delay");
+	local ab = loader.getenv("autoboot_delay")
 	if (ab ~= nil) and (ab:lower() == "no") then
-		return;
+		return
 	elseif (tonumber(ab) == -1) then
-		core.boot();
+		core.boot()
 	end
-	ab = tonumber(ab) or 10;
+	ab = tonumber(ab) or 10
 
-	local x = loader.getenv("loader_menu_timeout_x") or 5;
-	local y = loader.getenv("loader_menu_timeout_y") or 22;
+	local x = loader.getenv("loader_menu_timeout_x") or 5
+	local y = loader.getenv("loader_menu_timeout_y") or 22
 
-	local endtime = loader.time() + ab;
-	local time;
+	local endtime = loader.time() + ab
+	local time
 
 	repeat
-		time = endtime - loader.time();
-		screen.setcursor(x, y);
+		time = endtime - loader.time()
+		screen.setcursor(x, y)
 		print("Autoboot in " .. time ..
 		    " seconds, hit [Enter] to boot" ..
-		    " or any other key to stop     ");
-		screen.defcursor();
+		    " or any other key to stop     ")
+		screen.defcursor()
 		if (io.ischar()) then
-			local ch = io.getchar();
+			local ch = io.getchar()
 			if (ch == core.KEY_ENTER) then
-				break;
+				break
 			else
 				-- erase autoboot msg
-				screen.setcursor(0, y);
+				screen.setcursor(0, y)
 				print("                                        "
-				    .. "                                        ");
-				screen.defcursor();
-				return;
+				    .. "                                        ")
+				screen.defcursor()
+				return
 			end
 		end
 
-		loader.delay(50000);
-	until time <= 0;
-	core.boot();
+		loader.delay(50000)
+	until time <= 0
+	core.boot()
 
 end
 
-return menu;
+return menu

@@ -27,37 +27,37 @@
 -- $FreeBSD$
 --
 
-local color = require("color");
-local config = require("config");
-local core = require("core");
-local screen = require("screen");
+local color = require("color")
+local config = require("config")
+local core = require("core")
+local screen = require("screen")
 
-local drawer = {};
+local drawer = {}
 
-local fbsd_logo;
-local beastie_color;
-local beastie;
-local fbsd_logo_v;
-local orb;
-local none;
-local none_shifted = false;
+local fbsd_logo
+local beastie_color
+local beastie
+local fbsd_logo_v
+local orb
+local none
+local none_shifted = false
 
 local menu_entry_name = function(drawing_menu, entry)
-	local name_handler = drawer.menu_name_handlers[entry.entry_type];
+	local name_handler = drawer.menu_name_handlers[entry.entry_type]
 
 	if (name_handler ~= nil) then
-		return name_handler(drawing_menu, entry);
+		return name_handler(drawing_menu, entry)
 	end
-	return entry.name();
+	return entry.name()
 end
 
 local shift_brand_text = function(shift)
-	drawer.brand_position.x = drawer.brand_position.x + shift.x;
-	drawer.brand_position.y = drawer.brand_position.y + shift.y;
-	drawer.menu_position.x = drawer.menu_position.x + shift.x;
-	drawer.menu_position.y = drawer.menu_position.y + shift.y;
-	drawer.box_pos_dim.x = drawer.box_pos_dim.x + shift.x;
-	drawer.box_pos_dim.y = drawer.box_pos_dim.y + shift.y;
+	drawer.brand_position.x = drawer.brand_position.x + shift.x
+	drawer.brand_position.y = drawer.brand_position.y + shift.y
+	drawer.menu_position.x = drawer.menu_position.x + shift.x
+	drawer.menu_position.y = drawer.menu_position.y + shift.y
+	drawer.box_pos_dim.x = drawer.box_pos_dim.x + shift.x
+	drawer.box_pos_dim.y = drawer.box_pos_dim.y + shift.y
 end
 
 fbsd_logo = {
@@ -68,7 +68,7 @@ fbsd_logo = {
 	" | |   | | |  __/  __/| |_) |____) | |__| |",
 	" | |   | | |    |    ||     |      |      |",
 	" |_|   |_|  \\___|\\___||____/|_____/|_____/ "
-};
+}
 
 beastie_color = {
 	"               \027[31m,        ,",
@@ -90,7 +90,7 @@ beastie_color = {
 	"           \027[36m______\027[31m( (_  / \\______/",
 	"         \027[36m,'  ,-----'   |",
 	"         `--{__________)\027[37m"
-};
+}
 
 beastie = {
 	"               ,        ,",
@@ -112,7 +112,7 @@ beastie = {
 	"           ______( (_  / \\______/",
 	"         ,'  ,-----'   |",
 	"         `--{__________)"
-};
+}
 
 fbsd_logo_v = {
 	"  ______",
@@ -128,7 +128,7 @@ fbsd_logo_v = {
 	" | |_) |____) | |__| |",
 	" |     |      |      |",
 	" |____/|_____/|_____/"
-};
+}
 
 orb_color = {
 	"  \027[31m```                        \027[31;1m`\027[31m",
@@ -146,7 +146,7 @@ orb_color = {
 	"    `:`                  \027[31;1m`:`",
 	"      \027[31;1m.--             `--.",
 	"         .---.....----.\027[37m"
-};
+}
 
 orb = {
 	"  ```                        `",
@@ -164,9 +164,9 @@ orb = {
 	"    `:`                  `:`",
 	"      .--             `--.",
 	"         .---.....----."
-};
+}
 
-none = {""};
+none = {""}
 
 -- Module exports
 drawer.menu_name_handlers = {
@@ -176,21 +176,21 @@ drawer.menu_name_handlers = {
 	-- have their names derived differently. The default action for entry
 	-- types not specified here is to call and use entry.name().
 	[core.MENU_CAROUSEL_ENTRY] = function(drawing_menu, entry)
-		local carid = entry.carousel_id;
-		local caridx = config.getCarouselIndex(carid);
-		local choices = entry.items();
+		local carid = entry.carousel_id
+		local caridx = config.getCarouselIndex(carid)
+		local choices = entry.items()
 
 		if (#choices < caridx) then
-			caridx = 1;
+			caridx = 1
 		end
-		return entry.name(caridx, choices[caridx], choices);
+		return entry.name(caridx, choices[caridx], choices)
 	end,
-};
+}
 
-drawer.brand_position = {x = 2, y = 1};
-drawer.logo_position = {x = 46, y = 1};
-drawer.menu_position = {x = 6, y = 11};
-drawer.box_pos_dim = {x = 3, y = 10, w = 41, h = 11};
+drawer.brand_position = {x = 2, y = 1}
+drawer.logo_position = {x = 46, y = 1}
+drawer.menu_position = {x = 6, y = 11}
+drawer.box_pos_dim = {x = 3, y = 10, w = 41, h = 11}
 
 drawer.branddefs = {
 	-- Indexed by valid values for loader_brand in loader.conf(5). Valid
@@ -201,7 +201,7 @@ drawer.branddefs = {
 	["none"] = {
 		graphic = none,
 	},
-};
+}
 
 drawer.logodefs = {
 	-- Indexed by valid values for loader_logo in loader.conf(5). Valid keys
@@ -237,146 +237,146 @@ drawer.logodefs = {
 		graphic = none,
 		shift = {x = 17, y = 0},
 	},
-};
+}
 
 function drawer.drawscreen(menu_opts)
 	-- drawlogo() must go first.
 	-- it determines the positions of other elements
-	drawer.drawlogo();
-        drawer.drawbrand();
-        drawer.drawbox();
-	return drawer.drawmenu(menu_opts);
+	drawer.drawlogo()
+        drawer.drawbrand()
+        drawer.drawbox()
+	return drawer.drawmenu(menu_opts)
 end
 
 function drawer.drawmenu(m)
-	x = drawer.menu_position.x;
-	y = drawer.menu_position.y;
+	x = drawer.menu_position.x
+	y = drawer.menu_position.y
 
 	-- print the menu and build the alias table
-	local alias_table = {};
-	local entry_num = 0;
-	local menu_entries = m.entries;
+	local alias_table = {}
+	local entry_num = 0
+	local menu_entries = m.entries
 	if (type(menu_entries) == "function") then
-		menu_entries = menu_entries();
+		menu_entries = menu_entries()
 	end
 	for line_num, e in ipairs(menu_entries) do
 		-- Allow menu items to be conditionally visible by specifying
 		-- a visible function.
 		if (e.visible ~= nil) and (not e.visible()) then
-			goto continue;
+			goto continue
 		end
 		if (e.entry_type ~= core.MENU_SEPARATOR) then
-			entry_num = entry_num + 1;
-			screen.setcursor(x, y + line_num);
+			entry_num = entry_num + 1
+			screen.setcursor(x, y + line_num)
 
-			print(entry_num .. ". " .. menu_entry_name(m, e));
+			print(entry_num .. ". " .. menu_entry_name(m, e))
 
 			-- fill the alias table
-			alias_table[tostring(entry_num)] = e;
+			alias_table[tostring(entry_num)] = e
 			if (e.alias ~= nil) then
 				for n, a in ipairs(e.alias) do
-					alias_table[a] = e;
+					alias_table[a] = e
 				end
 			end
 		else
-			screen.setcursor(x, y + line_num);
-			print(menu_entry_name(m, e));
+			screen.setcursor(x, y + line_num)
+			print(menu_entry_name(m, e))
 		end
 		::continue::
 	end
-	return alias_table;
+	return alias_table
 end
 
 
 function drawer.drawbox()
-	x = drawer.box_pos_dim.x;
-	y = drawer.box_pos_dim.y;
-	w = drawer.box_pos_dim.w;
-	h = drawer.box_pos_dim.h;
+	x = drawer.box_pos_dim.x
+	y = drawer.box_pos_dim.y
+	w = drawer.box_pos_dim.w
+	h = drawer.box_pos_dim.h
 
-	local hl = string.char(0xCD);
-	local vl = string.char(0xBA);
+	local hl = string.char(0xCD)
+	local vl = string.char(0xBA)
 
-	local tl = string.char(0xC9);
-	local bl = string.char(0xC8);
-	local tr = string.char(0xBB);
-	local br = string.char(0xBC);
+	local tl = string.char(0xC9)
+	local bl = string.char(0xC8)
+	local tr = string.char(0xBB)
+	local br = string.char(0xBC)
 
-	screen.setcursor(x, y); print(tl);
-	screen.setcursor(x, y+h); print(bl);
-	screen.setcursor(x+w, y); print(tr);
-	screen.setcursor(x+w, y+h); print(br);
+	screen.setcursor(x, y); print(tl)
+	screen.setcursor(x, y+h); print(bl)
+	screen.setcursor(x+w, y); print(tr)
+	screen.setcursor(x+w, y+h); print(br)
 
 	for i = 1, w-1 do
-		screen.setcursor(x+i, y);
-		print(hl);
-		screen.setcursor(x+i, y+h);
-		print(hl);
+		screen.setcursor(x+i, y)
+		print(hl)
+		screen.setcursor(x+i, y+h)
+		print(hl)
 	end
 
 	for i = 1, h-1 do
-		screen.setcursor(x, y+i);
-		print(vl);
-		screen.setcursor(x+w, y+i);
-		print(vl);
+		screen.setcursor(x, y+i)
+		print(vl)
+		screen.setcursor(x+w, y+i)
+		print(vl)
 	end
 
-	screen.setcursor(x+(w/2)-9, y);
-	print("Welcome to FreeBSD");
+	screen.setcursor(x+(w/2)-9, y)
+	print("Welcome to FreeBSD")
 end
 
 function drawer.draw(x, y, logo)
 	for i = 1, #logo do
-		screen.setcursor(x, y + i);
-		print(logo[i]);
+		screen.setcursor(x, y + i)
+		print(logo[i])
 	end
 end
 
 function drawer.drawbrand()
 	local x = tonumber(loader.getenv("loader_brand_x")) or
-	    drawer.brand_position.x;
+	    drawer.brand_position.x
 	local y = tonumber(loader.getenv("loader_brand_y")) or
-	    drawer.brand_position.y;
+	    drawer.brand_position.y
 
-	local graphic = drawer.branddefs[loader.getenv("loader_brand")];
+	local graphic = drawer.branddefs[loader.getenv("loader_brand")]
 	if (graphic == nil) then
-		graphic = fbsd_logo;
+		graphic = fbsd_logo
 	end
-	drawer.draw(x, y, graphic);
+	drawer.draw(x, y, graphic)
 end
 
 function drawer.drawlogo()
 	local x = tonumber(loader.getenv("loader_logo_x")) or
-	    drawer.logo_position.x;
+	    drawer.logo_position.x
 	local y = tonumber(loader.getenv("loader_logo_y")) or
-	    drawer.logo_position.y;
+	    drawer.logo_position.y
 
-	local logo = loader.getenv("loader_logo");
-	local colored = color.isEnabled();
+	local logo = loader.getenv("loader_logo")
+	local colored = color.isEnabled()
 
 	-- Lookup
-	local logodef = drawer.logodefs[logo];
+	local logodef = drawer.logodefs[logo]
 
 	if (logodef ~= nil) and (logodef.graphic == none) then
 		-- centre brand and text if no logo
 		if (not none_shifted) then
-			shift_brand_text(logodef.shift);
-			none_shifted = true;
+			shift_brand_text(logodef.shift)
+			none_shifted = true
 		end
 	elseif (logodef == nil) or (logodef.graphic == nil) or
 	    ((not colored) and logodef.requires_color) then
 		-- Choose a sensible default
 		if (colored) then
-			logodef = drawer.logodefs["orb"];
+			logodef = drawer.logodefs["orb"]
 		else
-			logodef = drawer.logodefs["orbbw"];
+			logodef = drawer.logodefs["orbbw"]
 		end
 	end
 	if (logodef.shift ~= nil) then
-		x = x + logodef.shift.x;
-		y = y + logodef.shift.y;
+		x = x + logodef.shift.x
+		y = y + logodef.shift.y
 	end
-	drawer.draw(x, y, logodef.graphic);
+	drawer.draw(x, y, logodef.graphic)
 end
 
-return drawer;
+return drawer
