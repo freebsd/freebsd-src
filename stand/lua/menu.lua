@@ -361,8 +361,10 @@ function menu.run(m)
 	local alias_table = drawer.drawscreen(m)
 
 	-- Might return nil, that's ok
-	local autoboot_key = menu.autoboot()
-
+	local autoboot_key;
+	if m == menu.default then
+		autoboot_key = menu.autoboot()
+	end
 	cont = true
 	while cont do
 		local key = autoboot_key or io.getchar()
@@ -430,11 +432,6 @@ function menu.skip()
 end
 
 function menu.autoboot()
-	if menu.already_autoboot then
-		return nil
-	end
-	menu.already_autoboot = true
-
 	local ab = loader.getenv("autoboot_delay")
 	if ab ~= nil and ab:lower() == "no" then
 		return nil
