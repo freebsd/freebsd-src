@@ -31,17 +31,6 @@ local core = require("core")
 
 local screen = {}
 
--- XXX TODO: This should be fixed in the interpreter to not print decimals
-local intstring = function(num)
-	local str = tostring(num)
-	local decimal = str:find("%.")
-
-	if decimal then
-		return str:sub(1, decimal - 1)
-	end
-	return str
-end
-
 -- Module exports
 function screen.clear()
 	if core.isSerialBoot() then
@@ -55,7 +44,7 @@ function screen.setcursor(x, y)
 		return
 	end
 
-	loader.printc("\027[" .. intstring(y) .. ";" .. intstring(x) .. "H")
+	loader.printc("\027[" .. y .. ";" .. x .. "H")
 end
 
 function screen.setforeground(c)
