@@ -327,6 +327,8 @@ menu.welcome = {
 	},
 }
 
+menu.default = menu.welcome
+
 function menu.run(m)
 
 	if menu.skip() then
@@ -335,7 +337,7 @@ function menu.run(m)
 	end
 
 	if m == nil then
-		m = menu.welcome
+		m = menu.default
 	end
 
 	-- redraw screen
@@ -351,7 +353,7 @@ function menu.run(m)
 
 		-- Special key behaviors
 		if (key == core.KEY_BACKSPACE or key == core.KEY_DELETE) and
-		    m ~= menu.welcome then
+		    m ~= menu.default then
 			break
 		elseif key == core.KEY_ENTER then
 			core.boot()
@@ -387,7 +389,7 @@ function menu.run(m)
 		end
 	end
 
-	if m == menu.welcome then
+	if m == menu.default then
 		screen.defcursor()
 		print("Exiting menu!")
 		return false
