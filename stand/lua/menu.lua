@@ -75,7 +75,7 @@ menu.handlers = {
 	end,
 	[core.MENU_SUBMENU] = function(current_menu, entry)
 		-- recurse
-		return menu.run(entry.submenu())
+		return menu.run(entry.submenu)
 	end,
 	[core.MENU_RETURN] = function(current_menu, entry)
 		-- allow entry to have a function/side effect
@@ -313,9 +313,7 @@ menu.welcome = {
 				return "Boot " .. color.highlight("O") ..
 				    "ptions"
 			end,
-			submenu = function()
-				return menu.boot_options
-			end,
+			submenu = menu.boot_options,
 			alias = {"o", "O"}
 		},
 	},
