@@ -112,6 +112,11 @@ get_cyclecount(void)
 extern char btext[];
 extern char etext[];
 
+#ifdef __powerpc64__
+extern void enter_idle_powerx(void);
+extern uint64_t can_wakeup;
+#endif
+
 void	cpu_halt(void);
 void	cpu_reset(void);
 void	cpu_sleep(void);

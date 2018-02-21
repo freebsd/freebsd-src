@@ -68,6 +68,8 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
+#include <sys/sched.h>
+#include <sys/smp.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
@@ -81,11 +83,15 @@
 static void	cpu_6xx_setup(int cpuid, uint16_t vers);
 static void	cpu_970_setup(int cpuid, uint16_t vers);
 static void	cpu_booke_setup(int cpuid, uint16_t vers);
+static void	cpu_powerx_setup(int cpuid, uint16_t vers);
 
 int powerpc_pow_enabled;
 void (*cpu_idle_hook)(sbintime_t) = NULL;
 static void	cpu_idle_60x(sbintime_t);
 static void	cpu_idle_booke(sbintime_t);
+#ifdef __powerpc64__
+static void	cpu_idle_powerx(sbintime_t);
+#endif
 
 struct cputab {
 	const char	*name;
@@ -156,13 +162,13 @@ static const struct cputab models[] = {
 	   PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
 	   PPC_FEATURE_HAS_VSX,
 	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HAS_HTM | PPC_FEATURE2_ISEL |
-	   PPC_FEATURE2_HAS_VCRYPTO, NULL },
+	   PPC_FEATURE2_HAS_VCRYPTO, cpu_powerx_setup },
         { "IBM POWER8",		IBMPOWER8,	REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
 	   PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
 	   PPC_FEATURE_HAS_VSX,
 	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HAS_HTM | PPC_FEATURE2_ISEL |
-	   PPC_FEATURE2_HAS_VCRYPTO, NULL },
+	   PPC_FEATURE2_HAS_VCRYPTO, cpu_powerx_setup },
         { "IBM POWER9",		IBMPOWER9,	REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
 	   PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
@@ -610,6 +616,29 @@ cpu_970_setup(int cpuid, uint16_t vers)
 	cpu_idle_hook = cpu_idle_60x;
 }
 
+static void
+cpu_powerx_setup(int cpuid, uint16_t vers)
+{
+
+#ifdef __powerpc64__
+	if ((mfmsr() & PSL_HV) == 0)
+		return;
+
+	/* Configure power-saving */
+	switch (vers) {
+	case IBMPOWER8:
+	case IBMPOWER8E:
+		mtspr(SPR_LPCR, mfspr(SPR_LPCR) | LPCR_PECE_WAKESET);
+		isync();
+		break;
+	default:
+		return;
+	}
+
+	cpu_idle_hook = cpu_idle_powerx;
+#endif
+}
+
 static int
 cpu_feature_bit(SYSCTL_HANDLER_ARGS)
 {
@@ -696,3 +725,26 @@ cpu_idle_booke(sbintime_t sbt)
 #endif
 }
 
+#ifdef __powerpc64__
+static void
+cpu_idle_powerx(sbintime_t sbt)
+{
+
+	/* Sleeping when running on one cpu gives no advantages - avoid it */
+	if (smp_started == 0)
+		return;
+
+	spinlock_enter();
+	if (sched_runnable()) {
+		spinlock_exit();
+		return;
+	}
+
+	if (can_wakeup == 0)
+		can_wakeup = 1;
+	mb();
+
+	enter_idle_powerx();
+	spinlock_exit();
+}
+#endif
