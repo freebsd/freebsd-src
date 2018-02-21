@@ -30,6 +30,13 @@
 local config = require("config")
 local menu = require("menu")
 local password = require("password")
+local local_module
+
+local result, errstr, errnoval = lfs.attributes("/boot/lua/local.lua")
+-- Effectively discard any errors; we'll just act if it succeeds.
+if result ~= nil then
+	local_module = require("local")
+end
 
 -- Declares a global function cli_execute that attempts to dispatch the
 -- arguments passed as a lua function. This gives lua a chance to intercept
