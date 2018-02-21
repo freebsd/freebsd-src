@@ -423,17 +423,18 @@ function config.load(file)
 	end
 
 	if not config.parse(file) then
-		-- XXX TODO: Why is this commented out?
---		print("Failed to parse configuration: '" .. file .. "'")
+		print("Failed to parse configuration: '" .. file .. "'")
 	end
 
 	local f = loader.getenv("loader_conf_files")
 	if f ~= nil then
 		for name in f:gmatch("([%w%p]+)%s*") do
-			if not config.parse(name) then
-				-- XXX TODO: Ditto the above
---				print("Failed to parse configuration: '" ..
---				    name .. "'")
+			-- These may or may not exist, and that's ok. Do a
+			-- silent parse so that we complain on parse errors but
+			-- not for them simply not existing.
+			if not config.parse(name, true) then
+				print("Failed to parse configuration: '" ..
+				    name .. "'")
 			end
 		end
 	end
