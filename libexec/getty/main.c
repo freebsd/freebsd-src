@@ -252,14 +252,15 @@ main(int argc, char *argv[])
 		}
 
 		if (AC) {
-			int i, rfds;
+			fd_set rfds;
 			struct timeval to;
+			int i;
 
-        		rfds = 1 << 0;	/* FD_SET */
+			FD_ZERO(&rfds);
+			FD_SET(0, &rfds);
         		to.tv_sec = RT;
         		to.tv_usec = 0;
-        		i = select(32, (fd_set*)&rfds, (fd_set*)NULL,
-        			       (fd_set*)NULL, RT ? &to : NULL);
+			i = select(32, &rfds, NULL, NULL, RT ? &to : NULL);
         		if (i < 0) {
 				syslog(LOG_ERR, "select %s: %m", ttyn);
 			} else if (i == 0) {
@@ -708,7 +709,7 @@ prompt(void)
 static char *
 get_line(int fd)
 {
-	int i = 0;
+	size_t i = 0;
 	static char linebuf[512];
 
 	/*
