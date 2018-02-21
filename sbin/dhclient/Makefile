@@ -50,7 +50,8 @@ LIBADD+=        cap_syslog
 CFLAGS+=-DWITH_CASPER
 .endif
 
-WARNS?=	3
+WARNS?=	4
+NO_WCAST_ALIGN=	yes
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
