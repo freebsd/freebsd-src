@@ -189,6 +189,7 @@ end
 function core.kernelList()
 	local k = loader.getenv("kernel")
 	local v = loader.getenv("kernels")
+	local autodetect = loader.getenv("kernels_autodetect") or ""
 
 	local kernels = {}
 	local unique = {}
@@ -207,9 +208,12 @@ function core.kernelList()
 				unique[n] = true
 			end
 		end
+	end
 
-		-- We will not automatically detect kernels to be displayed if
-		-- loader.conf(5) explicitly set 'kernels'.
+	-- Base whether we autodetect kernels or not on a loader.conf(5)
+	-- setting, kernels_autodetect. If it's set to 'yes', we'll add
+	-- any kernels we detect based on the criteria described.
+	if autodetect:lower() ~= "yes" then
 		return kernels
 	end
 
