@@ -405,6 +405,7 @@
 ** because this is not really an incompatibility.
 */
 /* #define LUA_COMPAT_FLOATSTRING */
+#define	LUA_COMPAT_FLOATSTRING
 
 /* }================================================================== */
 
