@@ -39,13 +39,13 @@ function password.read()
 
 	repeat
 		ch = io.getchar()
-		if (ch == core.KEY_ENTER) then
+		if ch == core.KEY_ENTER then
 			break
 		end
 		-- XXX TODO: Evaluate if we really want this or not, as a
 		-- security consideration of sorts
-		if (ch == core.KEY_BACKSPACE) or (ch == core.KEY_DELETE) then
-			if (n > 0) then
+		if ch == core.KEY_BACKSPACE or ch == core.KEY_DELETE then
+			if n > 0 then
 				n = n - 1
 				-- loader.printc("\008 \008")
 				str = str:sub(1, n)
@@ -55,7 +55,7 @@ function password.read()
 			str = str .. string.char(ch)
 			n = n + 1
 		end
-	until (n == 16)
+	until n == 16
 	return str
 end
 
@@ -64,10 +64,10 @@ function password.check()
 	screen.defcursor()
 	-- pwd is optionally supplied if we want to check it
 	local function do_prompt(prompt, pwd)
-		while (true) do
+		while true do
 			loader.printc(prompt)
 			local read_pwd = password.read()
-			if (not pwd) or (pwd == read_pwd) then
+			if pwd == nil or pwd == read_pwd then
 				-- Throw an extra newline after password prompt
 				print("")
 				return read_pwd
@@ -77,7 +77,7 @@ function password.check()
 		end
 	end
 	local function compare(prompt, pwd)
-		if (pwd == nil) then
+		if pwd == nil then
 			return
 		end
 		do_prompt(prompt, pwd)
@@ -87,13 +87,13 @@ function password.check()
 	compare("Boot password: ", boot_pwd)
 
 	local geli_prompt = loader.getenv("geom_eli_passphrase_prompt")
-	if (geli_prompt ~= nil) and (geli_prompt:lower() == "yes") then
+	if geli_prompt ~= nil and geli_prompt:lower() == "yes" then
 		local passphrase = do_prompt("GELI Passphrase: ")
 		loader.setenv("kern.geom.eli.passphrase", passphrase)
 	end
 
 	local pwd = loader.getenv("password")
-	if (pwd ~= nil) then
+	if pwd ~= nil then
 		core.autoboot()
 	end
 	compare("Password: ", pwd)

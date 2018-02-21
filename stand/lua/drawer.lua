@@ -45,7 +45,7 @@ local none_shifted = false
 local menu_entry_name = function(drawing_menu, entry)
 	local name_handler = drawer.menu_name_handlers[entry.entry_type]
 
-	if (name_handler ~= nil) then
+	if name_handler ~= nil then
 		return name_handler(drawing_menu, entry)
 	end
 	return entry.name()
@@ -180,7 +180,7 @@ drawer.menu_name_handlers = {
 		local caridx = config.getCarouselIndex(carid)
 		local choices = entry.items()
 
-		if (#choices < caridx) then
+		if #choices < caridx then
 			caridx = 1
 		end
 		return entry.name(caridx, choices[caridx], choices)
@@ -256,16 +256,16 @@ function drawer.drawmenu(m)
 	local alias_table = {}
 	local entry_num = 0
 	local menu_entries = m.entries
-	if (type(menu_entries) == "function") then
+	if type(menu_entries) == "function" then
 		menu_entries = menu_entries()
 	end
 	for line_num, e in ipairs(menu_entries) do
 		-- Allow menu items to be conditionally visible by specifying
 		-- a visible function.
-		if (e.visible ~= nil) and (not e.visible()) then
+		if e.visible ~= nil and not e.visible() then
 			goto continue
 		end
-		if (e.entry_type ~= core.MENU_SEPARATOR) then
+		if e.entry_type ~= core.MENU_SEPARATOR then
 			entry_num = entry_num + 1
 			screen.setcursor(x, y + line_num)
 
@@ -273,7 +273,7 @@ function drawer.drawmenu(m)
 
 			-- fill the alias table
 			alias_table[tostring(entry_num)] = e
-			if (e.alias ~= nil) then
+			if e.alias ~= nil then
 				for n, a in ipairs(e.alias) do
 					alias_table[a] = e
 				end
@@ -339,7 +339,7 @@ function drawer.drawbrand()
 	    drawer.brand_position.y
 
 	local graphic = drawer.branddefs[loader.getenv("loader_brand")]
-	if (graphic == nil) then
+	if graphic == nil then
 		graphic = fbsd_logo
 	end
 	drawer.draw(x, y, graphic)
@@ -357,22 +357,22 @@ function drawer.drawlogo()
 	-- Lookup
 	local logodef = drawer.logodefs[logo]
 
-	if (logodef ~= nil) and (logodef.graphic == none) then
+	if logodef ~= nil and logodef.graphic == none then
 		-- centre brand and text if no logo
-		if (not none_shifted) then
+		if not none_shifted then
 			shift_brand_text(logodef.shift)
 			none_shifted = true
 		end
-	elseif (logodef == nil) or (logodef.graphic == nil) or
-	    ((not colored) and logodef.requires_color) then
+	elseif logodef == nil or logodef.graphic == nil or
+	    (not colored and logodef.requires_color) then
 		-- Choose a sensible default
-		if (colored) then
+		if colored then
 			logodef = drawer.logodefs["orb"]
 		else
 			logodef = drawer.logodefs["orbbw"]
 		end
 	end
-	if (logodef.shift ~= nil) then
+	if logodef.shift ~= nil then
 		x = x + logodef.shift.x
 		y = y + logodef.shift.y
 	end

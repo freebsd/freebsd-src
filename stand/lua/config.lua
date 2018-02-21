@@ -43,7 +43,7 @@ pattern_table = {
 	[2] = {
 		str = "^%s*([%w_]+)_load%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			if (modules[k] == nil) then
+			if modules[k] == nil then
 				modules[k] = {}
 			end
 			modules[k].load = v:upper()
@@ -95,7 +95,7 @@ pattern_table = {
 	[9] = {
 		str = "^%s*exec%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			if (loader.perform(k) ~= 0) then
+			if loader.perform(k) ~= 0 then
 				print("Failed to exec '" .. k .. "'")
 			end
 		end
@@ -104,7 +104,7 @@ pattern_table = {
 	[10] = {
 		str = "^%s*([%w%p]+)%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			if (config.setenv(k, v) ~= 0) then
+			if config.setenv(k, v) ~= 0 then
 				print("Failed to set '" .. k ..
 				    "' with value: " .. v .. "")
 			end
@@ -114,7 +114,7 @@ pattern_table = {
 	[11] = {
 		str = "^%s*([%w%p]+)%s*=%s*(%d+)%s*(.*)",
 		process = function(k, v)
-			if (config.setenv(k, v) ~= 0) then
+			if config.setenv(k, v) ~= 0 then
 				print("Failed to set '" .. k ..
 				    "' with value: " .. v .. "")
 			end
@@ -131,7 +131,7 @@ config.env_restore = {}
 -- The first item in every carousel is always the default item.
 function config.getCarouselIndex(id)
 	local val = carousel_choices[id]
-	if (val == nil) then
+	if val == nil then
 		return 1
 	end
 	return val
@@ -145,18 +145,18 @@ function config.restoreEnv()
 	-- Examine changed environment variables
 	for k, v in pairs(config.env_changed) do
 		local restore_value = config.env_restore[k]
-		if (restore_value == nil) then
+		if restore_value == nil then
 			-- This one doesn't need restored for some reason
 			goto continue
 		end
 		local current_value = loader.getenv(k)
-		if (current_value ~= v) then
+		if current_value ~= v then
 			-- This was overwritten by some action taken on the menu
 			-- most likely; we'll leave it be.
 			goto continue
 		end
 		restore_value = restore_value.value
-		if (restore_value ~= nil) then
+		if restore_value ~= nil then
 			loader.setenv(k, restore_value)
 		else
 			loader.unsetenv(k)
@@ -170,7 +170,7 @@ end
 
 function config.setenv(k, v)
 	-- Track the original value for this if we haven't already
-	if (config.env_restore[k] == nil) then
+	if config.env_restore[k] == nil then
 		config.env_restore[k] = {value = loader.getenv(k)}
 	end
 
@@ -180,7 +180,7 @@ function config.setenv(k, v)
 end
 
 function config.setKey(k, n, v)
-	if (modules[k] == nil) then
+	if modules[k] == nil then
 		modules[k] = {}
 	end
 	modules[k][n] = v
@@ -196,12 +196,12 @@ end
 
 
 function config.isValidComment(c)
-	if (c ~= nil) then
+	if c ~= nil then
 		local s = c:match("^%s*#.*")
-		if (s == nil) then
+		if s == nil then
 			s = c:match("^%s*$")
 		end
-		if (s == nil) then
+		if s == nil then
 			return false
 		end
 	end
@@ -211,23 +211,23 @@ end
 function config.loadmod(mod, silent)
 	local status = true
 	for k, v in pairs(mod) do
-		if (v.load == "YES") then
+		if v.load == "YES" then
 			local str = "load "
-			if (v.flags ~= nil) then
+			if v.flags ~= nil then
 				str = str .. v.flags .. " "
 			end
-			if (v.type ~= nil) then
+			if v.type ~= nil then
 				str = str .. "-t " .. v.type .. " "
 			end
-			if (v.name ~= nil) then
+			if v.name ~= nil then
 				str = str .. v.name
 			else
 				str = str .. k
 			end
 
-			if (v.before ~= nil) then
-				if (loader.perform(v.before) ~= 0) then
-					if (not silent) then
+			if v.before ~= nil then
+				if loader.perform(v.before) ~= 0 then
+					if not silent then
 						print("Failed to execute '" ..
 						    v.before ..
 						    "' before loading '" .. k ..
@@ -237,20 +237,20 @@ function config.loadmod(mod, silent)
 				end
 			end
 
-			if (loader.perform(str) ~= 0) then
-				if (not silent) then
+			if loader.perform(str) ~= 0 then
+				if not silent then
 					print("Failed to execute '" .. str ..
 					    "'")
 				end
-				if (v.error ~= nil) then
+				if v.error ~= nil then
 					loader.perform(v.error)
 				end
 				status = false
 			end
 
-			if (v.after ~= nil) then
-				if (loader.perform(v.after) ~= 0) then
-					if (not silent) then
+			if v.after ~= nil then
+				if loader.perform(v.after) ~= 0 then
+					if not silent then
 						print("Failed to execute '" ..
 						    v.after ..
 						    "' after loading '" .. k ..
@@ -262,7 +262,7 @@ function config.loadmod(mod, silent)
 
 		else
 			-- if not silent then
-				-- print("Skiping module '". . k .. "'")
+				-- print("Skipping module '". . k .. "'")
 			-- end
 		end
 	end
@@ -272,8 +272,8 @@ end
 
 function config.parse(name, silent)
 	local f = io.open(name)
-	if (f == nil) then
-		if (not silent) then
+	if f == nil then
+		if not silent then
 			print("Failed to open config: '" .. name .. "'")
 		end
 		return false
@@ -284,8 +284,8 @@ function config.parse(name, silent)
 
 	text, r = io.read(f)
 
-	if (text == nil) then
-		if (not silent) then
+	if text == nil then
+		if not silent then
 			print("Failed to read config: '" .. name .. "'")
 		end
 		return false
@@ -295,15 +295,15 @@ function config.parse(name, silent)
 	local status = true
 
 	for line in text:gmatch("([^\n]+)") do
-		if (line:match("^%s*$") == nil) then
+		if line:match("^%s*$") == nil then
 			local found = false
 
 			for i, val in ipairs(pattern_table) do
 				local k, v, c = line:match(val.str)
-				if (k ~= nil) then
+				if k ~= nil then
 					found = true
 
-					if (config.isValidComment(c)) then
+					if config.isValidComment(c) then
 						val.process(k, v)
 					else
 						print("Malformed line (" .. n ..
@@ -315,7 +315,7 @@ function config.parse(name, silent)
 				end
 			end
 
-			if (found == false) then
+			if found == false then
 				print("Malformed line (" .. n .. "):\n\t'" ..
 				    line .. "'")
 				status = false
@@ -336,7 +336,7 @@ function config.loadkernel(other_kernel)
 	local try_load = function (names)
 		for name in names:gmatch("([^;]+)%s*;?") do
 			r = loader.perform("load " .. flags .. " " .. name)
-			if (r == 0) then
+			if r == 0 then
 				return name
 			end
 		end
@@ -347,7 +347,7 @@ function config.loadkernel(other_kernel)
 		local bootfile = loader.getenv("bootfile")
 
 		-- append default kernel name
-		if (bootfile == nil) then
+		if bootfile == nil then
 			bootfile = "kernel"
 		else
 			bootfile = bootfile .. ";kernel"
@@ -357,10 +357,10 @@ function config.loadkernel(other_kernel)
 	end
 
 	-- kernel not set, try load from default module_path
-	if (kernel == nil) then
+	if kernel == nil then
 		local res = load_bootfile()
 
-		if (res ~= nil) then
+		if res ~= nil then
 			-- Default kernel is loaded
 			config.kernel_loaded = nil
 			return true
@@ -374,7 +374,7 @@ function config.loadkernel(other_kernel)
 		local module_path = config.module_path
 		local res = nil
 
-		if (other_kernel ~= nil) then
+		if other_kernel ~= nil then
 			kernel = other_kernel
 		end
 		-- first try load kernel with module_path = /boot/${kernel}
@@ -386,9 +386,9 @@ function config.loadkernel(other_kernel)
 			res = load_bootfile()
 
 			-- succeeded, add path to module_path
-			if (res ~= nil) then
+			if res ~= nil then
 				config.kernel_loaded = kernel
-				if (module_path ~= nil) then
+				if module_path ~= nil then
 					loader.setenv("module_path", v .. ";" ..
 					    module_path)
 				end
@@ -399,7 +399,7 @@ function config.loadkernel(other_kernel)
 		-- failed to load with ${kernel} as a directory
 		-- try as a file
 		res = try_load(kernel)
-		if (res ~= nil) then
+		if res ~= nil then
 			config.kernel_loaded = kernel
 			return true
 		else
@@ -414,18 +414,20 @@ function config.selectkernel(kernel)
 end
 
 function config.load(file)
-	if (not file) then
+	if not file then
 		file = "/boot/defaults/loader.conf"
 	end
 
-	if (not config.parse(file)) then
+	if not config.parse(file) then
+		-- XXX TODO: Why is this commented out?
 --		print("Failed to parse configuration: '" .. file .. "'")
 	end
 
 	local f = loader.getenv("loader_conf_files")
-	if (f ~= nil) then
+	if f ~= nil then
 		for name in f:gmatch("([%w%p]+)%s*") do
-			if (not config.parse(name)) then
+			if not config.parse(name) then
+				-- XXX TODO: Ditto the above
 --				print("Failed to parse configuration: '" ..
 --				    name .. "'")
 			end
@@ -450,13 +452,13 @@ function config.loadelf()
 	print("Loading kernel...")
 	loaded = config.loadkernel(kernel)
 
-	if (not loaded) then
+	if not loaded then
 		print("Failed to load any kernel")
 		return
 	end
 
 	print("Loading configured modules...")
-	if (not config.loadmod(modules)) then
+	if not config.loadmod(modules) then
 		print("Could not load one or more modules!")
 	end
 end
