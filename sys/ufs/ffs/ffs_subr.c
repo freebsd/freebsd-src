@@ -174,17 +174,12 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsuperblock,
 
 	*fsp = NULL;
 	if (altsuperblock != -1) {
-		ret = readsuper(devfd, fsp, altsuperblock, readfunc);
-		if (*fsp != NULL)
-			(*fsp)->fs_csp = NULL;
-		if (ret != 0)
+		if ((ret = readsuper(devfd, fsp, altsuperblock, readfunc)) != 0)
 			return (ret);
 	} else {
 		for (i = 0; sblock_try[i] != -1; i++) {
-			ret = readsuper(devfd, fsp, sblock_try[i], readfunc);
-			if (*fsp != NULL)
-				(*fsp)->fs_csp = NULL;
-			if (ret == 0)
+			if ((ret = readsuper(devfd, fsp, sblock_try[i],
+			     readfunc)) == 0)
 				break;
 			if (ret == ENOENT)
 				continue;
@@ -193,13 +188,11 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsuperblock,
 		if (sblock_try[i] == -1)
 			return (ENOENT);
 	}
-
 	/*
-	 * Not filling in summary information, return.
+	 * If not filling in summary information, return.
 	 */
 	if (filltype == NULL)
 		return (0);
-
 	/*
 	 * Read in the superblock summary information.
 	 */
@@ -252,6 +245,8 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc,
 	int error;
 
 	error = (*readfunc)(devfd, sblockloc, (void **)fsp, SBLOCKSIZE);
+	if (*fsp != NULL)
+		(*fsp)->fs_csp = NULL;	/* Not yet any summary information */
 	if (error != 0)
 		return (error);
 	fs = *fsp;
