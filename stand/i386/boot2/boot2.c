@@ -126,8 +126,11 @@ static void memcpy(void *, const void *, int);
 static void
 memcpy(void *dst, const void *src, int len)
 {
-	const char *s = src;
-	char *d = dst;
+	const char *s;
+	char *d;
+
+	s = src;
+	d = dst;
 
 	while (len--)
 		*d++ = *s++;
@@ -138,7 +141,7 @@ strcmp(const char *s1, const char *s2)
 {
 
 	for (; *s1 == *s2 && *s1; s1++, s2++);
-	return (unsigned char)*s1 - (unsigned char)*s2;
+	return ((unsigned char)*s1 - (unsigned char)*s2);
 }
 
 #define	UFS_SMALL_CGBASE
@@ -150,9 +153,9 @@ xfsread(ufs_ino_t inode, void *buf, size_t nbyte)
 
 	if ((size_t)fsread(inode, buf, nbyte) != nbyte) {
 		printf("Invalid %s\n", "format");
-		return -1;
+		return (-1);
 	}
-	return 0;
+	return (0);
 }
 
 static inline void
@@ -354,12 +357,13 @@ load(void)
 static int
 parse()
 {
-	char *arg = cmd;
-	char *ep, *p, *q;
+	char *arg, *ep, *p, *q;
 	const char *cp;
 	unsigned int drv;
 	int c, i, j;
 	size_t k;
+
+	arg = cmd;
 
 	while ((c = *arg++)) {
 		if (c == ' ' || c == '\t' || c == '\n')
@@ -397,7 +401,7 @@ parse()
 				}
 				for (i = 0; c != optstr[i]; i++)
 					if (i == NOPT - 1)
-						return -1;
+						return (-1);
 				opts ^= OPT_SET(flags[i]);
 			}
 #if SERIAL
@@ -423,22 +427,22 @@ parse()
 				for (i = 0; arg[0] != dev_nm[i][0] ||
 				    arg[1] != dev_nm[i][1]; i++)
 					if (i == NDEV - 1)
-						return -1;
+						return (-1);
 				dsk.type = i;
 				arg += 3;
 				dsk.unit = *arg - '0';
 				if (arg[1] != ',' || dsk.unit > 9)
-					return -1;
+					return (-1);
 				arg += 2;
 				dsk.slice = WHOLE_DISK_SLICE;
 				if (arg[1] == ',') {
 					dsk.slice = *arg - '0' + 1;
 					if (dsk.slice > NDOSPART + 1)
-						return -1;
+						return (-1);
 					arg += 2;
 				}
 				if (arg[1] != ')')
-					return -1;
+					return (-1);
 				dsk.part = *arg - 'a';
 				if (dsk.part > 7)
 					return (-1);
@@ -452,14 +456,14 @@ parse()
 			k = ep - arg;
 			if (k > 0) {
 				if (k >= sizeof(knamebuf))
-					return -1;
+					return (-1);
 				memcpy(knamebuf, arg, k + 1);
 				kname = knamebuf;
 			}
 		}
 		arg = p;
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -476,7 +480,7 @@ dskread(void *buf, unsigned lba, unsigned nblk)
 		sec = dmadat->secbuf;
 		dsk.start = 0;
 		if (drvread(sec, DOSBBSECTOR, 1))
-			return -1;
+			return (-1);
 		dp = (void *)(sec + DOSPARTOFF);
 		sl = dsk.slice;
 		if (sl < BASE_SLICE) {
@@ -501,7 +505,7 @@ dskread(void *buf, unsigned lba, unsigned nblk)
 			dsk.start = dp->dp_start;
 		}
 		if (drvread(sec, dsk.start + LABELSECTOR, 1))
-			return -1;
+			return (-1);
 		d = (void *)(sec + LABELOFFSET);
 		if (d->d_magic != DISKMAGIC || d->d_magic2 != DISKMAGIC) {
 			if (dsk.part != RAW_PART) {
@@ -523,10 +527,10 @@ dskread(void *buf, unsigned lba, unsigned nblk)
 			dsk.start -= d->d_partitions[RAW_PART].p_offset;
 		}
 	}
-	return drvread(buf, dsk.start + lba, nblk);
+	return (drvread(buf, dsk.start + lba, nblk));
 error:
 	printf("Invalid %s\n", reason);
-	return -1;
+	return (-1);
 }
 
 static void
@@ -596,9 +600,9 @@ drvread(void *buf, unsigned lba, unsigned nblk)
 	v86.ctl = V86_FLAGS;
 	if (V86_CY(v86.efl)) {
 		printf("error %u lba %u\n", v86.eax >> 8 & 0xff, lba);
-		return -1;
+		return (-1);
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -607,16 +611,16 @@ keyhit(unsigned ticks)
 	uint32_t t0, t1;
 
 	if (OPT_CHECK(RBX_NOINTR))
-		return 0;
+		return (0);
 	t0 = 0;
 	for (;;) {
 		if (xgetc(1))
-			return 1;
+			return (1);
 		t1 = *(uint32_t *)PTOV(0x46c);
 		if (!t0)
 			t0 = t1;
 		if ((uint32_t)(t1 - t0) >= ticks)
-			return 0;
+			return (0);
 	}
 }
 
@@ -628,7 +632,7 @@ xputc(int c)
 		putc(c);
 	if (DO_SIO)
 		sio_putc(c);
-	return c;
+	return (c);
 }
 
 static int
@@ -638,7 +642,7 @@ getc(int fn)
 	v86.addr = 0x16;
 	v86.eax = fn << 8;
 	v86int();
-	return fn == 0 ? v86.eax & 0xff : !V86_ZR(v86.efl);
+	return (fn == 0 ? v86.eax & 0xff : !V86_ZR(v86.efl));
 }
 
 static int
@@ -646,13 +650,13 @@ xgetc(int fn)
 {
 
 	if (OPT_CHECK(RBX_NOINTR))
-		return 0;
+		return (0);
 	for (;;) {
 		if (DO_KBD && getc(1))
-			return fn ? 1 : getc(0);
+			return (fn ? 1 : getc(0));
 		if (DO_SIO && sio_ischar())
-			return fn ? 1 : sio_getc();
+			return (fn ? 1 : sio_getc());
 		if (fn)
-			return 0;
+			return (0);
 	}
 }
