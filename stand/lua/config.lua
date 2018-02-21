@@ -270,13 +270,17 @@ function config.loadmod(mod, silent)
 	return status
 end
 
+-- silent runs will not return false if we fail to open the file
 function config.parse(name, silent)
+	if silent == nil then
+		silent = false
+	end
 	local f = io.open(name)
 	if f == nil then
 		if not silent then
 			print("Failed to open config: '" .. name .. "'")
 		end
-		return false
+		return silent
 	end
 
 	local text
@@ -288,7 +292,7 @@ function config.parse(name, silent)
 		if not silent then
 			print("Failed to read config: '" .. name .. "'")
 		end
-		return false
+		return silent
 	end
 
 	local n = 1
