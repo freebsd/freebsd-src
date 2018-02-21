@@ -19,6 +19,10 @@ NEWVERSWHAT?=	"bootstrap loader" sparc64
 VERSION_FILE=	${.CURDIR}/../loader/version
 INSTALLFLAGS=	-b
 
+.if ${MK_ZFS} != "no"
+HAVE_ZFS=	yes
+.endif
+
 # Architecture-specific loader code
 .PATH:		${BOOTSRC}/sparc64/loader
 SRCS=		locore.S main.c vers.c
