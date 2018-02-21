@@ -307,10 +307,24 @@ dtrace_invop_calltrap_addr:
  * once the MMU is turned on.
  */
 	.globl	CNAME(rstcode), CNAME(rstcodeend), CNAME(cpu_reset_handler)
+	.globl	CNAME(cpu_wakeup_handler)
 	.p2align 3
 CNAME(rstcode):
+	/*
+	 * Check if this is software reset or
+	 * processor is waking up from power saving mode
+	 * It is software reset when 46:47 = 0b00
+	 */
+	mfsrr1	%r9			/* Load SRR1 into r9 */
+	andis.	%r9,%r9,0x3		/* Logic AND with 46:47 bits */
+	beq	2f			/* Branch if software reset */
+	bl	1f
+	.llong	cpu_wakeup_handler
+
+	/* It is software reset */
+
 	/* Explicitly set MSR[SF] */
-	mfmsr	%r9
+2:	mfmsr	%r9
 	li	%r8,1
 	insrdi	%r9,%r8,1,0
 	mtmsrd	%r9
@@ -318,6 +332,7 @@ CNAME(rstcode):
 
 	bl	1f
 	.llong	cpu_reset_handler /* Make sure to maintain 8-byte alignment */
+
 1:	mflr	%r9
 	ld	%r9,0(%r9)
 	mtlr	%r9
@@ -358,6 +373,59 @@ cpu_reset_handler:
 	/* Should not be reached */
 9:
 	b	9b
+
+cpu_wakeup_handler:
+	GET_TOCBASE(%r2)
+
+	/* Check for false wake up due to badly SRR1 set (eg. by OPAL) */
+	ld	%r3,TOC_REF(can_wakeup)(%r2)
+	ld	%r3,0(%r3)
+	cmpdi	%r3,0
+	beq	cpu_reset_handler
+
+	/* Turn on MMU after return from interrupt */
+	mfsrr1	%r3
+	ori	%r3,%r3,(PSL_IR | PSL_DR)
+	mtsrr1	%r3
+
+	/* Turn on MMU (needed to access PCB) */
+	mfmsr	%r3
+	ori	%r3,%r3,(PSL_IR | PSL_DR)
+	mtmsr	%r3
+	isync
+
+	mfsprg0	%r3
+
+	ld	%r3,PC_CURTHREAD(%r3)	/* Get current thread */
+	ld	%r3,TD_PCB(%r3)		/* Get PCB of current thread */
+	ld	%r12,PCB_CONTEXT(%r3)	/* Load the non-volatile GP regs. */
+	ld	%r13,PCB_CONTEXT+1*8(%r3)
+	ld	%r14,PCB_CONTEXT+2*8(%r3)
+	ld	%r15,PCB_CONTEXT+3*8(%r3)
+	ld	%r16,PCB_CONTEXT+4*8(%r3)
+	ld	%r17,PCB_CONTEXT+5*8(%r3)
+	ld	%r18,PCB_CONTEXT+6*8(%r3)
+	ld	%r19,PCB_CONTEXT+7*8(%r3)
+	ld	%r20,PCB_CONTEXT+8*8(%r3)
+	ld	%r21,PCB_CONTEXT+9*8(%r3)
+	ld	%r22,PCB_CONTEXT+10*8(%r3)
+	ld	%r23,PCB_CONTEXT+11*8(%r3)
+	ld	%r24,PCB_CONTEXT+12*8(%r3)
+	ld	%r25,PCB_CONTEXT+13*8(%r3)
+	ld	%r26,PCB_CONTEXT+14*8(%r3)
+	ld	%r27,PCB_CONTEXT+15*8(%r3)
+	ld	%r28,PCB_CONTEXT+16*8(%r3)
+	ld	%r29,PCB_CONTEXT+17*8(%r3)
+	ld	%r30,PCB_CONTEXT+18*8(%r3)
+	ld	%r31,PCB_CONTEXT+19*8(%r3)
+	ld	%r5,PCB_CR(%r3)		/* Load the condition register */
+	mtcr	%r5
+	ld	%r5,PCB_LR(%r3)		/* Load the link register */
+	mtsrr0	%r5
+	ld	%r1,PCB_SP(%r3)		/* Load the stack pointer */
+	ld	%r2,PCB_TOC(%r3)	/* Load the TOC pointer */
+
+	rfid
 
 /*
  * This code gets copied to all the trap vectors
