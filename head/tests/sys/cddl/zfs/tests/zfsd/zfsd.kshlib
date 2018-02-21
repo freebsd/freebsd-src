@@ -67,7 +67,7 @@ function corrupt_pool_vdev
 	typeset file=$3
 
 	# do some IO on the pool
-	log_must $DD if=/dev/zero of=$file bs=1024k count=128
+	log_must $DD if=/dev/zero of=$file bs=1024k count=64
 	$FSYNC $file
 
 	# scribble on the underlying file to corrupt the vdev
