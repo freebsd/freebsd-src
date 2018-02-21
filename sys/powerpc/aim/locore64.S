@@ -53,6 +53,8 @@ GLOBAL(__startkernel)
 	.llong	begin
 GLOBAL(__endkernel)
 	.llong	end
+GLOBAL(can_wakeup)
+	.llong	0x0
 
 	.align	4
 #define	TMPSTKSZ	16384		/* 16K temporary stack */
@@ -60,6 +62,7 @@ GLOBAL(tmpstk)
 	.space	TMPSTKSZ
 
 TOC_ENTRY(tmpstk)
+TOC_ENTRY(can_wakeup)
 
 /*
  * Entry point for bootloaders that do not fully implement ELF and start
@@ -96,6 +99,10 @@ ap_kexec_start:		/* At 0x60 past start, copied to 0x60 by kexec */
 	
 	/* Released */
 	or	2,2,2			/* unyield */
+
+	/* Make sure that it will be software reset. Clear SRR1 */
+	li	%r1,0
+	mtsrr1	%r1
 	ba	EXC_RST
 
 

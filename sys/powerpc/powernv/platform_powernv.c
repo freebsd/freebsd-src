@@ -139,7 +139,9 @@ powernv_attach(platform_t plat)
 	opal_call(OPAL_REINIT_CPUS, 1 /* Big endian */);
 #endif
 
-	cpu_idle_hook = powernv_cpu_idle;
+       if (cpu_idle_hook == NULL)
+                cpu_idle_hook = powernv_cpu_idle;
+
 	powernv_boot_pir = mfspr(SPR_PIR);
 
 	/* LPID must not be altered when PSL_DR or PSL_IR is set */
@@ -150,10 +152,10 @@ powernv_attach(platform_t plat)
 	mtspr(SPR_LPID, 0);
 	isync();
 
-	mtmsr(msr);
-
 	mtspr(SPR_LPCR, LPCR_LPES);
 	isync();
+
+	mtmsr(msr);
 
 	/* Init CPU bits */
 	powernv_smp_ap_init(plat);

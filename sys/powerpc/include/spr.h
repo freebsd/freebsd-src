@@ -201,7 +201,14 @@
 
 #define	SPR_LPCR		0x13e	/* Logical Partitioning Control */
 #define	  LPCR_LPES		0x008	/* Bit 60 */
-
+#define   LPCR_PECE_DRBL        (1ULL << 16)    /* Directed Privileged Doorbell */
+#define   LPCR_PECE_HDRBL       (1ULL << 15)    /* Directed Hypervisor Doorbell */
+#define   LPCR_PECE_EXT         (1ULL << 14)    /* External exceptions */
+#define   LPCR_PECE_DECR        (1ULL << 13)    /* Decrementer exceptions */
+#define   LPCR_PECE_ME          (1ULL << 12)    /* Machine Check and Hypervisor */
+                                                /* Maintenance exceptions */
+#define   LPCR_PECE_WAKESET     (LPCR_PECE_EXT | LPCR_PECE_DECR | LPCR_PECE_ME)
+ 
 #define	SPR_EPCR		0x133
 #define	  EPCR_EXTGS		  0x80000000
 #define	  EPCR_DTLBGS		  0x40000000
