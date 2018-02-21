@@ -807,6 +807,8 @@ extern objset_t *spa_meta_objset(spa_t *spa);
 extern uint64_t spa_deadman_synctime(spa_t *spa);
 
 /* Miscellaneous support routines */
+extern void spa_load_failed(spa_t *spa, const char *fmt, ...);
+extern void spa_load_note(spa_t *spa, const char *fmt, ...);
 extern void spa_activate_mos_feature(spa_t *spa, const char *feature,
     dmu_tx_t *tx);
 extern void spa_deactivate_mos_feature(spa_t *spa, const char *feature);
