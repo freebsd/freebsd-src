@@ -257,8 +257,8 @@ function drawer.drawscreen(menu_opts)
 	-- drawlogo() must go first.
 	-- it determines the positions of other elements
 	drawer.drawlogo()
-        drawer.drawbrand()
-        drawer.drawbox()
+	drawer.drawbrand()
+	drawer.drawbox()
 	return drawer.drawmenu(menu_opts)
 end
 
