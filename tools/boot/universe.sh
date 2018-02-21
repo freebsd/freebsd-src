@@ -108,3 +108,12 @@ for i in \
     ta=${i##*/}
     dobuild $ta _.boot.${ta}.firewire.log "MK_LOADER_FIREWIRE=yes"
 done
+
+# Build with LOADER_DEBUG, only sparc64 does this.
+for i in \
+	sparc64/sparc64 \
+	; do
+    ta=${i##*/}
+    dobuild $ta _.boot.${ta}.debug.log "LOADER_DEBUG=yes"
+done
+
