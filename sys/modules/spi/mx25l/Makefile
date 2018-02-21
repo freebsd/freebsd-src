@@ -9,7 +9,6 @@ SRCS=	mx25l.c
 SRCS+=	\
 	bus_if.h \
 	device_if.h \
-	spibus_if.c \
 	spibus_if.h \
 
 .if !empty(OPT_FDT)
