@@ -36,7 +36,7 @@ local intstring = function(num)
 	local str = tostring(num)
 	local decimal = str:find("%.")
 
-	if (decimal) then
+	if decimal then
 		return str:sub(1, decimal - 1)
 	end
 	return str
@@ -44,14 +44,14 @@ end
 
 -- Module exports
 function screen.clear()
-	if (core.isSerialBoot()) then
+	if core.isSerialBoot() then
 		return
 	end
 	loader.printc("\027[H\027[J")
 end
 
 function screen.setcursor(x, y)
-	if (core.isSerialBoot()) then
+	if core.isSerialBoot() then
 		return
 	end
 
@@ -59,14 +59,14 @@ function screen.setcursor(x, y)
 end
 
 function screen.setforeground(c)
-	if (color.disabled) then
+	if color.disabled then
 		return c
 	end
 	loader.printc("\027[3" .. c .. "m")
 end
 
 function screen.setbackground(c)
-	if (color.disabled) then
+	if color.disabled then
 		return c
 	end
 	loader.printc("\027[4" .. c .. "m")
@@ -77,7 +77,7 @@ function screen.defcolor()
 end
 
 function screen.defcursor()
-	if (core.isSerialBoot()) then
+	if core.isSerialBoot() then
 		return
 	end
 	loader.printc("\027[25;0H")
