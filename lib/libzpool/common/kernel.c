@@ -22,6 +22,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
+ * Copyright 2017 RackTop Systems.
  */
 
 #include <assert.h>
@@ -41,12 +42,14 @@
 #include <sys/utsname.h>
 #include <sys/systeminfo.h>
 
+extern void system_taskq_init(void);
+extern void system_taskq_fini(void);
+
 /*
  * Emulation of kernel services in userland.
  */
 
-int aok;
-uint64_t physmem;
+pgcnt_t physmem;
 vnode_t *rootdir = (vnode_t *)0xabcd1234;
 char hw_serial[HW_HOSTID_LEN];
 kmutex_t cpu_lock;
@@ -58,336 +61,6 @@ char *vn_dumpdir = NULL;
 struct utsname utsname = {
 	"userland", "libzpool", "1", "1", "na"
 };
-
-/* this only exists to have its address taken */
-struct proc p0;
-
-/*
- * =========================================================================
- * threads
- * =========================================================================
- */
-/*ARGSUSED*/
-kthread_t *
-zk_thread_create(void (*func)(), void *arg)
-{
-	thread_t tid;
-
-	VERIFY(thr_create(0, 0, (void *(*)(void *))func, arg, THR_DETACHED,
-	    &tid) == 0);
-
-	return ((void *)(uintptr_t)tid);
-}
-
-/*
- * =========================================================================
- * kstats
- * =========================================================================
- */
-/*ARGSUSED*/
-kstat_t *
-kstat_create(const char *module, int instance, const char *name,
-    const char *class, uchar_t type, ulong_t ndata, uchar_t ks_flag)
-{
-	return (NULL);
-}
-
-/*ARGSUSED*/
-void
-kstat_named_init(kstat_named_t *knp, const char *name, uchar_t type)
-{}
-
-/*ARGSUSED*/
-void
-kstat_install(kstat_t *ksp)
-{}
-
-/*ARGSUSED*/
-void
-kstat_delete(kstat_t *ksp)
-{}
-
-/*ARGSUSED*/
-void
-kstat_waitq_enter(kstat_io_t *kiop)
-{}
-
-/*ARGSUSED*/
-void
-kstat_waitq_exit(kstat_io_t *kiop)
-{}
-
-/*ARGSUSED*/
-void
-kstat_runq_enter(kstat_io_t *kiop)
-{}
-
-/*ARGSUSED*/
-void
-kstat_runq_exit(kstat_io_t *kiop)
-{}
-
-/*ARGSUSED*/
-void
-kstat_waitq_to_runq(kstat_io_t *kiop)
-{}
-
-/*ARGSUSED*/
-void
-kstat_runq_back_to_waitq(kstat_io_t *kiop)
-{}
-
-/*
- * =========================================================================
- * mutexes
- * =========================================================================
- */
-void
-zmutex_init(kmutex_t *mp)
-{
-	mp->m_owner = NULL;
-	mp->initialized = B_TRUE;
-	(void) _mutex_init(&mp->m_lock, USYNC_THREAD, NULL);
-}
-
-void
-zmutex_destroy(kmutex_t *mp)
-{
-	ASSERT(mp->initialized == B_TRUE);
-	ASSERT(mp->m_owner == NULL);
-	(void) _mutex_destroy(&(mp)->m_lock);
-	mp->m_owner = (void *)-1UL;
-	mp->initialized = B_FALSE;
-}
-
-void
-mutex_enter(kmutex_t *mp)
-{
-	ASSERT(mp->initialized == B_TRUE);
-	ASSERT(mp->m_owner != (void *)-1UL);
-	ASSERT(mp->m_owner != curthread);
-	VERIFY(mutex_lock(&mp->m_lock) == 0);
-	ASSERT(mp->m_owner == NULL);
-	mp->m_owner = curthread;
-}
-
-int
-mutex_tryenter(kmutex_t *mp)
-{
-	ASSERT(mp->initialized == B_TRUE);
-	ASSERT(mp->m_owner != (void *)-1UL);
-	if (0 == mutex_trylock(&mp->m_lock)) {
-		ASSERT(mp->m_owner == NULL);
-		mp->m_owner = curthread;
-		return (1);
-	} else {
-		return (0);
-	}
-}
-
-void
-mutex_exit(kmutex_t *mp)
-{
-	ASSERT(mp->initialized == B_TRUE);
-	ASSERT(mutex_owner(mp) == curthread);
-	mp->m_owner = NULL;
-	VERIFY(mutex_unlock(&mp->m_lock) == 0);
-}
-
-void *
-mutex_owner(kmutex_t *mp)
-{
-	ASSERT(mp->initialized == B_TRUE);
-	return (mp->m_owner);
-}
-
-/*
- * =========================================================================
- * rwlocks
- * =========================================================================
- */
-/*ARGSUSED*/
-void
-rw_init(krwlock_t *rwlp, char *name, int type, void *arg)
-{
-	rwlock_init(&rwlp->rw_lock, USYNC_THREAD, NULL);
-	rwlp->rw_owner = NULL;
-	rwlp->initialized = B_TRUE;
-}
-
-void
-rw_destroy(krwlock_t *rwlp)
-{
-	rwlock_destroy(&rwlp->rw_lock);
-	rwlp->rw_owner = (void *)-1UL;
-	rwlp->initialized = B_FALSE;
-}
-
-void
-rw_enter(krwlock_t *rwlp, krw_t rw)
-{
-	ASSERT(!RW_LOCK_HELD(rwlp));
-	ASSERT(rwlp->initialized == B_TRUE);
-	ASSERT(rwlp->rw_owner != (void *)-1UL);
-	ASSERT(rwlp->rw_owner != curthread);
-
-	if (rw == RW_WRITER)
-		VERIFY(rw_wrlock(&rwlp->rw_lock) == 0);
-	else
-		VERIFY(rw_rdlock(&rwlp->rw_lock) == 0);
-
-	rwlp->rw_owner = curthread;
-}
-
-void
-rw_exit(krwlock_t *rwlp)
-{
-	ASSERT(rwlp->initialized == B_TRUE);
-	ASSERT(rwlp->rw_owner != (void *)-1UL);
-
-	rwlp->rw_owner = NULL;
-	VERIFY(rw_unlock(&rwlp->rw_lock) == 0);
-}
-
-int
-rw_tryenter(krwlock_t *rwlp, krw_t rw)
-{
-	int rv;
-
-	ASSERT(rwlp->initialized == B_TRUE);
-	ASSERT(rwlp->rw_owner != (void *)-1UL);
-
-	if (rw == RW_WRITER)
-		rv = rw_trywrlock(&rwlp->rw_lock);
-	else
-		rv = rw_tryrdlock(&rwlp->rw_lock);
-
-	if (rv == 0) {
-		rwlp->rw_owner = curthread;
-		return (1);
-	}
-
-	return (0);
-}
-
-/*ARGSUSED*/
-int
-rw_tryupgrade(krwlock_t *rwlp)
-{
-	ASSERT(rwlp->initialized == B_TRUE);
-	ASSERT(rwlp->rw_owner != (void *)-1UL);
-
-	return (0);
-}
-
-/*
- * =========================================================================
- * condition variables
- * =========================================================================
- */
-/*ARGSUSED*/
-void
-cv_init(kcondvar_t *cv, char *name, int type, void *arg)
-{
-	VERIFY(cond_init(cv, type, NULL) == 0);
-}
-
-void
-cv_destroy(kcondvar_t *cv)
-{
-	VERIFY(cond_destroy(cv) == 0);
-}
-
-void
-cv_wait(kcondvar_t *cv, kmutex_t *mp)
-{
-	ASSERT(mutex_owner(mp) == curthread);
-	mp->m_owner = NULL;
-	int ret = cond_wait(cv, &mp->m_lock);
-	VERIFY(ret == 0 || ret == EINTR);
-	mp->m_owner = curthread;
-}
-
-clock_t
-cv_timedwait(kcondvar_t *cv, kmutex_t *mp, clock_t abstime)
-{
-	int error;
-	timestruc_t ts;
-	clock_t delta;
-
-top:
-	delta = abstime - ddi_get_lbolt();
-	if (delta <= 0)
-		return (-1);
-
-	ts.tv_sec = delta / hz;
-	ts.tv_nsec = (delta % hz) * (NANOSEC / hz);
-
-	ASSERT(mutex_owner(mp) == curthread);
-	mp->m_owner = NULL;
-	error = cond_reltimedwait(cv, &mp->m_lock, &ts);
-	mp->m_owner = curthread;
-
-	if (error == ETIME)
-		return (-1);
-
-	if (error == EINTR)
-		goto top;
-
-	ASSERT(error == 0);
-
-	return (1);
-}
-
-/*ARGSUSED*/
-clock_t
-cv_timedwait_hires(kcondvar_t *cv, kmutex_t *mp, hrtime_t tim, hrtime_t res,
-    int flag)
-{
-	int error;
-	timestruc_t ts;
-	hrtime_t delta;
-
-	ASSERT(flag == 0 || flag == CALLOUT_FLAG_ABSOLUTE);
-
-top:
-	delta = tim;
-	if (flag & CALLOUT_FLAG_ABSOLUTE)
-		delta -= gethrtime();
-
-	if (delta <= 0)
-		return (-1);
-
-	ts.tv_sec = delta / NANOSEC;
-	ts.tv_nsec = delta % NANOSEC;
-
-	ASSERT(mutex_owner(mp) == curthread);
-	mp->m_owner = NULL;
-	error = cond_reltimedwait(cv, &mp->m_lock, &ts);
-	mp->m_owner = curthread;
-
-	if (error == ETIME)
-		return (-1);
-
-	if (error == EINTR)
-		goto top;
-
-	ASSERT(error == 0);
-
-	return (1);
-}
-
-void
-cv_signal(kcondvar_t *cv)
-{
-	VERIFY(cond_signal(cv) == 0);
-}
-
-void
-cv_broadcast(kcondvar_t *cv)
-{
-	VERIFY(cond_broadcast(cv) == 0);
-}
 
 /*
  * =========================================================================
@@ -690,56 +363,6 @@ __dprintf(const char *file, const char *func, int line, const char *fmt, ...)
 
 /*
  * =========================================================================
- * cmn_err() and panic()
- * =========================================================================
- */
-static char ce_prefix[CE_IGNORE][10] = { "", "NOTICE: ", "WARNING: ", "" };
-static char ce_suffix[CE_IGNORE][2] = { "", "\n", "\n", "" };
-
-void
-vpanic(const char *fmt, va_list adx)
-{
-	char buf[512];
-	(void) vsnprintf(buf, 512, fmt, adx);
-	assfail(buf, NULL, 0);
-	abort(); /* necessary to make vpanic meet noreturn requirements */
-}
-
-void
-panic(const char *fmt, ...)
-{
-	va_list adx;
-
-	va_start(adx, fmt);
-	vpanic(fmt, adx);
-	va_end(adx);
-}
-
-void
-vcmn_err(int ce, const char *fmt, va_list adx)
-{
-	if (ce == CE_PANIC)
-		vpanic(fmt, adx);
-	if (ce != CE_NOTE) {	/* suppress noise in userland stress testing */
-		(void) fprintf(stderr, "%s", ce_prefix[ce]);
-		(void) vfprintf(stderr, fmt, adx);
-		(void) fprintf(stderr, "%s", ce_suffix[ce]);
-	}
-}
-
-/*PRINTFLIKE2*/
-void
-cmn_err(int ce, const char *fmt, ...)
-{
-	va_list adx;
-
-	va_start(adx, fmt);
-	vcmn_err(ce, fmt, adx);
-	va_end(adx);
-}
-
-/*
- * =========================================================================
  * kobj interfaces
  * =========================================================================
  */
@@ -793,124 +416,6 @@ kobj_get_filesize(struct _buf *file, uint64_t *size)
 
 /*
  * =========================================================================
- * misc routines
- * =========================================================================
- */
-
-void
-delay(clock_t ticks)
-{
-	poll(0, 0, ticks * (1000 / hz));
-}
-
-/*
- * Find highest one bit set.
- *	Returns bit number + 1 of highest bit that is set, otherwise returns 0.
- */
-int
-highbit64(uint64_t i)
-{
-	int h = 1;
-
-	if (i == 0)
-		return (0);
-	if (i & 0xffffffff00000000ULL) {
-		h += 32; i >>= 32;
-	}
-	if (i & 0xffff0000) {
-		h += 16; i >>= 16;
-	}
-	if (i & 0xff00) {
-		h += 8; i >>= 8;
-	}
-	if (i & 0xf0) {
-		h += 4; i >>= 4;
-	}
-	if (i & 0xc) {
-		h += 2; i >>= 2;
-	}
-	if (i & 0x2) {
-		h += 1;
-	}
-	return (h);
-}
-
-static int random_fd = -1, urandom_fd = -1;
-
-static int
-random_get_bytes_common(uint8_t *ptr, size_t len, int fd)
-{
-	size_t resid = len;
-	ssize_t bytes;
-
-	ASSERT(fd != -1);
-
-	while (resid != 0) {
-		bytes = read(fd, ptr, resid);
-		ASSERT3S(bytes, >=, 0);
-		ptr += bytes;
-		resid -= bytes;
-	}
-
-	return (0);
-}
-
-int
-random_get_bytes(uint8_t *ptr, size_t len)
-{
-	return (random_get_bytes_common(ptr, len, random_fd));
-}
-
-int
-random_get_pseudo_bytes(uint8_t *ptr, size_t len)
-{
-	return (random_get_bytes_common(ptr, len, urandom_fd));
-}
-
-int
-ddi_strtoul(const char *hw_serial, char **nptr, int base, unsigned long *result)
-{
-	char *end;
-
-	*result = strtoul(hw_serial, &end, base);
-	if (*result == 0)
-		return (errno);
-	return (0);
-}
-
-int
-ddi_strtoull(const char *str, char **nptr, int base, u_longlong_t *result)
-{
-	char *end;
-
-	*result = strtoull(str, &end, base);
-	if (*result == 0)
-		return (errno);
-	return (0);
-}
-
-/* ARGSUSED */
-cyclic_id_t
-cyclic_add(cyc_handler_t *hdlr, cyc_time_t *when)
-{
-	return (1);
-}
-
-/* ARGSUSED */
-void
-cyclic_remove(cyclic_id_t id)
-{
-}
-
-/* ARGSUSED */
-int
-cyclic_reprogram(cyclic_id_t id, hrtime_t expiration)
-{
-	return (1);
-}
-
-/*
- * =========================================================================
  * kernel emulation setup & teardown
  * =========================================================================
  */
@@ -939,9 +444,6 @@ kernel_init(int mode)
 	(void) snprintf(hw_serial, sizeof (hw_serial), "%ld",
 	    (mode & FWRITE) ? gethostid() : 0);
 
-	VERIFY((random_fd = open("/dev/random", O_RDONLY)) != -1);
-	VERIFY((urandom_fd = open("/dev/urandom", O_RDONLY)) != -1);
-
 	system_taskq_init();
 
 	mutex_init(&cpu_lock, NULL, MUTEX_DEFAULT, NULL);
@@ -957,12 +459,6 @@ kernel_fini(void)
 	spa_fini();
 
 	system_taskq_fini();
-
-	close(random_fd);
-	close(urandom_fd);
-
-	random_fd = -1;
-	urandom_fd = -1;
 }
 
 int
@@ -990,36 +486,6 @@ z_compress_level(void *dst, size_t *dstlen, const void *src, size_t srclen,
 	return (ret);
 }
 
-uid_t
-crgetuid(cred_t *cr)
-{
-	return (0);
-}
-
-uid_t
-crgetruid(cred_t *cr)
-{
-	return (0);
-}
-
-gid_t
-crgetgid(cred_t *cr)
-{
-	return (0);
-}
-
-int
-crgetngroups(cred_t *cr)
-{
-	return (0);
-}
-
-gid_t *
-crgetgroups(cred_t *cr)
-{
-	return (NULL);
-}
-
 int
 zfs_secpolicy_snapshot_perms(const char *name, cred_t *cr)
 {
@@ -1036,47 +502,6 @@ int
 zfs_secpolicy_destroy_perms(const char *name, cred_t *cr)
 {
 	return (0);
-}
-
-ksiddomain_t *
-ksid_lookupdomain(const char *dom)
-{
-	ksiddomain_t *kd;
-
-	kd = umem_zalloc(sizeof (ksiddomain_t), UMEM_NOFAIL);
-	kd->kd_name = spa_strdup(dom);
-	return (kd);
-}
-
-void
-ksiddomain_rele(ksiddomain_t *ksid)
-{
-	spa_strfree(ksid->kd_name);
-	umem_free(ksid, sizeof (ksiddomain_t));
-}
-
-/*
- * Do not change the length of the returned string; it must be freed
- * with strfree().
- */
-char *
-kmem_asprintf(const char *fmt, ...)
-{
-	int size;
-	va_list adx;
-	char *buf;
-
-	va_start(adx, fmt);
-	size = vsnprintf(NULL, 0, fmt, adx) + 1;
-	va_end(adx);
-
-	buf = kmem_alloc(size, KM_SLEEP);
-
-	va_start(adx, fmt);
-	size = vsnprintf(buf, size, fmt, adx);
-	va_end(adx);
-
-	return (buf);
 }
 
 /* ARGSUSED */

@@ -23,6 +23,7 @@
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
+ * Copyright 2017 RackTop Systems.
  */
 
 #ifndef _SYS_ZFS_CONTEXT_H
@@ -32,14 +33,10 @@
 extern "C" {
 #endif
 
-#define	_SYS_MUTEX_H
-#define	_SYS_RWLOCK_H
-#define	_SYS_CONDVAR_H
-#define	_SYS_SYSTM_H
-#define	_SYS_T_LOCK_H
+#define	_SYNCH_H
+
 #define	_SYS_VNODE_H
 #define	_SYS_VFS_H
-#define	_SYS_SUNDDI_H
 #define	_SYS_CALLB_H
 
 #include <stdio.h>
@@ -51,7 +48,6 @@ extern "C" {
 #include <errno.h>
 #include <string.h>
 #include <strings.h>
-#include <synch.h>
 #include <thread.h>
 #include <assert.h>
 #include <alloca.h>
@@ -80,23 +76,26 @@ extern "C" {
 #include <sys/u8_textprep.h>
 #include <sys/sysevent/eventdefs.h>
 #include <sys/sysevent/dev.h>
-#include <sys/sunddi.h>
 #include <sys/debug.h>
+#include <sys/taskq.h>
+#include <sys/taskq_impl.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/condvar.h>
+#include <sys/cmn_err.h>
+#include <sys/kmem.h>
+#include <sys/systm.h>
+#include <sys/random.h>
+#include <sys/buf.h>
+#include <sys/sid.h>
+#include <sys/acl.h>
+#include <sys/bitmap.h>
+#include <sys/systeminfo.h>
+#include <sys/cpuvar.h>
+#include <sys/pset.h>
+#include <sys/kobj.h>
+#include <sys/fm/util.h>
 #include "zfs.h"
-
-/*
- * Debugging
- */
-
-/*
- * Note that we are not using the debugging levels.
- */
-
-#define	CE_CONT		0	/* continuation		*/
-#define	CE_NOTE		1	/* notice		*/
-#define	CE_WARN		2	/* warning		*/
-#define	CE_PANIC	3	/* panic		*/
-#define	CE_IGNORE	4	/* print nothing	*/
 
 /*
  * ZFS debugging
@@ -105,15 +104,6 @@ extern "C" {
 #ifdef ZFS_DEBUG
 extern void dprintf_setup(int *argc, char **argv);
 #endif /* ZFS_DEBUG */
-
-extern void cmn_err(int, const char *, ...);
-extern void vcmn_err(int, const char *, __va_list);
-extern void panic(const char *, ...)  __NORETURN;
-extern void vpanic(const char *, __va_list)  __NORETURN;
-
-#define	fm_panic	panic
-
-extern int aok;
 
 /*
  * DTrace SDT probes have different signatures in userland than they do in
@@ -174,232 +164,15 @@ extern int aok;
 /*
  * Threads
  */
-#define	curthread	((void *)(uintptr_t)thr_self())
-
 #define	kpreempt(x)	yield()
-
-typedef struct kthread kthread_t;
-
-#define	thread_create(stk, stksize, func, arg, len, pp, state, pri)	\
-	zk_thread_create(func, arg)
-#define	thread_exit() thr_exit(NULL)
-#define	thread_join(t)	panic("libzpool cannot join threads")
-
 #define	newproc(f, a, cid, pri, ctp, pid)	(ENOSYS)
-
-/* in libzpool, p0 exists only to have its address taken */
-struct proc {
-	uintptr_t	this_is_never_used_dont_dereference_it;
-};
-
-extern struct proc p0;
-#define	curproc		(&p0)
-
-#define	PS_NONE		-1
-
-extern kthread_t *zk_thread_create(void (*func)(void*), void *arg,
-    uint64_t len);
-
-#define	issig(why)	(FALSE)
-#define	ISSIG(thr, why)	(FALSE)
-
-/*
- * Mutexes
- */
-typedef struct kmutex {
-	void		*m_owner;
-	boolean_t	initialized;
-	mutex_t		m_lock;
-} kmutex_t;
-
-#define	MUTEX_DEFAULT	USYNC_THREAD
-#undef	MUTEX_HELD
-#undef	MUTEX_NOT_HELD
-#define	MUTEX_HELD(m) _mutex_held(&(m)->m_lock)
-#define	MUTEX_NOT_HELD(m) (!MUTEX_HELD(m))
-
-/*
- * Argh -- we have to get cheesy here because the kernel and userland
- * have different signatures for the same routine.
- */
-extern int _mutex_init(mutex_t *mp, int type, void *arg);
-extern int _mutex_destroy(mutex_t *mp);
-
-#define	mutex_init(mp, b, c, d)		zmutex_init((kmutex_t *)(mp))
-#define	mutex_destroy(mp)		zmutex_destroy((kmutex_t *)(mp))
-
-extern void zmutex_init(kmutex_t *mp);
-extern void zmutex_destroy(kmutex_t *mp);
-extern void mutex_enter(kmutex_t *mp);
-extern void mutex_exit(kmutex_t *mp);
-extern int mutex_tryenter(kmutex_t *mp);
-extern void *mutex_owner(kmutex_t *mp);
-
-/*
- * RW locks
- */
-typedef struct krwlock {
-	void		*rw_owner;
-	boolean_t	initialized;
-	rwlock_t	rw_lock;
-} krwlock_t;
-
-typedef int krw_t;
-
-#define	RW_READER	0
-#define	RW_WRITER	1
-#define	RW_DEFAULT	USYNC_THREAD
-
-#undef RW_READ_HELD
-#define	RW_READ_HELD(x)		_rw_read_held(&(x)->rw_lock)
-
-#undef RW_WRITE_HELD
-#define	RW_WRITE_HELD(x)	_rw_write_held(&(x)->rw_lock)
-
-#undef RW_LOCK_HELD
-#define	RW_LOCK_HELD(x)		(RW_READ_HELD(x) || RW_WRITE_HELD(x))
-
-extern void rw_init(krwlock_t *rwlp, char *name, int type, void *arg);
-extern void rw_destroy(krwlock_t *rwlp);
-extern void rw_enter(krwlock_t *rwlp, krw_t rw);
-extern int rw_tryenter(krwlock_t *rwlp, krw_t rw);
-extern int rw_tryupgrade(krwlock_t *rwlp);
-extern void rw_exit(krwlock_t *rwlp);
-#define	rw_downgrade(rwlp) do { } while (0)
-
-extern uid_t crgetuid(cred_t *cr);
-extern uid_t crgetruid(cred_t *cr);
-extern gid_t crgetgid(cred_t *cr);
-extern int crgetngroups(cred_t *cr);
-extern gid_t *crgetgroups(cred_t *cr);
-
-/*
- * Condition variables
- */
-typedef cond_t kcondvar_t;
-
-#define	CV_DEFAULT	USYNC_THREAD
-#define	CALLOUT_FLAG_ABSOLUTE	0x2
-
-extern void cv_init(kcondvar_t *cv, char *name, int type, void *arg);
-extern void cv_destroy(kcondvar_t *cv);
-extern void cv_wait(kcondvar_t *cv, kmutex_t *mp);
-extern clock_t cv_timedwait(kcondvar_t *cv, kmutex_t *mp, clock_t abstime);
-extern clock_t cv_timedwait_hires(kcondvar_t *cvp, kmutex_t *mp, hrtime_t tim,
-    hrtime_t res, int flag);
-extern void cv_signal(kcondvar_t *cv);
-extern void cv_broadcast(kcondvar_t *cv);
-
-/*
- * Thread-specific data
- */
-#define	tsd_get(k) pthread_getspecific(k)
-#define	tsd_set(k, v) pthread_setspecific(k, v)
-#define	tsd_create(kp, d) pthread_key_create(kp, d)
-#define	tsd_destroy(kp) /* nothing */
-
-/*
- * kstat creation, installation and deletion
- */
-extern kstat_t *kstat_create(const char *, int,
-    const char *, const char *, uchar_t, ulong_t, uchar_t);
-extern void kstat_named_init(kstat_named_t *, const char *, uchar_t);
-extern void kstat_install(kstat_t *);
-extern void kstat_delete(kstat_t *);
-extern void kstat_waitq_enter(kstat_io_t *);
-extern void kstat_waitq_exit(kstat_io_t *);
-extern void kstat_runq_enter(kstat_io_t *);
-extern void kstat_runq_exit(kstat_io_t *);
-extern void kstat_waitq_to_runq(kstat_io_t *);
-extern void kstat_runq_back_to_waitq(kstat_io_t *);
-
-/*
- * Kernel memory
- */
-#define	KM_SLEEP		UMEM_NOFAIL
-#define	KM_PUSHPAGE		KM_SLEEP
-#define	KM_NOSLEEP		UMEM_DEFAULT
-#define	KM_NORMALPRI		0	/* not needed with UMEM_DEFAULT */
-#define	KMC_NODEBUG		UMC_NODEBUG
-#define	KMC_NOTOUCH		0	/* not needed for userland caches */
-#define	kmem_alloc(_s, _f)	umem_alloc(_s, _f)
-#define	kmem_zalloc(_s, _f)	umem_zalloc(_s, _f)
-#define	kmem_free(_b, _s)	umem_free(_b, _s)
-#define	kmem_cache_create(_a, _b, _c, _d, _e, _f, _g, _h, _i) \
-	umem_cache_create(_a, _b, _c, _d, _e, _f, _g, _h, _i)
-#define	kmem_cache_destroy(_c)	umem_cache_destroy(_c)
-#define	kmem_cache_alloc(_c, _f) umem_cache_alloc(_c, _f)
-#define	kmem_cache_free(_c, _b)	umem_cache_free(_c, _b)
-#define	kmem_debugging()	0
-#define	kmem_cache_reap_now(_c)		/* nothing */
-#define	kmem_cache_set_move(_c, _cb)	/* nothing */
-#define	vmem_qcache_reap(_v)		/* nothing */
-#define	POINTER_INVALIDATE(_pp)		/* nothing */
-#define	POINTER_IS_VALID(_p)	0
-
-extern vmem_t *zio_arena;
-
-typedef umem_cache_t kmem_cache_t;
-
-typedef enum kmem_cbrc {
-	KMEM_CBRC_YES,
-	KMEM_CBRC_NO,
-	KMEM_CBRC_LATER,
-	KMEM_CBRC_DONT_NEED,
-	KMEM_CBRC_DONT_KNOW
-} kmem_cbrc_t;
-
-/*
- * Task queues
- */
-typedef struct taskq taskq_t;
-typedef uintptr_t taskqid_t;
-typedef void (task_func_t)(void *);
-
-typedef struct taskq_ent {
-	struct taskq_ent	*tqent_next;
-	struct taskq_ent	*tqent_prev;
-	task_func_t		*tqent_func;
-	void			*tqent_arg;
-	uintptr_t		tqent_flags;
-} taskq_ent_t;
-
-#define	TQENT_FLAG_PREALLOC	0x1	/* taskq_dispatch_ent used */
-
-#define	TASKQ_PREPOPULATE	0x0001
-#define	TASKQ_CPR_SAFE		0x0002	/* Use CPR safe protocol */
-#define	TASKQ_DYNAMIC		0x0004	/* Use dynamic thread scheduling */
-#define	TASKQ_THREADS_CPU_PCT	0x0008	/* Scale # threads by # cpus */
-#define	TASKQ_DC_BATCH		0x0010	/* Mark threads as batch */
-
-#define	TQ_SLEEP	KM_SLEEP	/* Can block for memory */
-#define	TQ_NOSLEEP	KM_NOSLEEP	/* cannot block for memory; may fail */
-#define	TQ_NOQUEUE	0x02		/* Do not enqueue if can't dispatch */
-#define	TQ_FRONT	0x08		/* Queue in front */
-
-
-extern taskq_t *system_taskq;
-
-extern taskq_t	*taskq_create(const char *, int, pri_t, int, int, uint_t);
-#define	taskq_create_proc(a, b, c, d, e, p, f) \
-	    (taskq_create(a, b, c, d, e, f))
-#define	taskq_create_sysdc(a, b, d, e, p, dc, f) \
-	    (taskq_create(a, b, maxclsyspri, d, e, f))
-extern taskqid_t taskq_dispatch(taskq_t *, task_func_t, void *, uint_t);
-extern void	taskq_dispatch_ent(taskq_t *, task_func_t, void *, uint_t,
-    taskq_ent_t *);
-extern void	taskq_destroy(taskq_t *);
-extern void	taskq_wait(taskq_t *);
-extern int	taskq_member(taskq_t *, void *);
-extern void	system_taskq_init(void);
-extern void	system_taskq_fini(void);
-
-#define	XVA_MAPSIZE	3
-#define	XVA_MAGIC	0x78766174
 
 /*
  * vnodes
  */
+#define	XVA_MAPSIZE	3
+#define	XVA_MAGIC	0x78766174
+
 typedef struct vnode {
 	uint64_t	v_size;
 	int		v_fd;
@@ -499,26 +272,13 @@ extern void vn_close(vnode_t *vp);
 extern vnode_t *rootdir;
 
 #include <sys/file.h>		/* for FREAD, FWRITE, etc */
+#include <sys/sunddi.h>		/* for ddi_strtoul, ddi_strtoull, etc */
+#include <sys/cyclic.h>		/* for cyclic_add, cyclic remove, etc */
+#include <vm/seg_kmem.h>	/* for zio_arena */
 
 /*
  * Random stuff
  */
-#define	ddi_get_lbolt()		(gethrtime() >> 23)
-#define	ddi_get_lbolt64()	(gethrtime() >> 23)
-#define	hz	119	/* frequency when using gethrtime() >> 23 for lbolt */
-
-extern void delay(clock_t ticks);
-
-#define	SEC_TO_TICK(sec)	((sec) * hz)
-#define	NSEC_TO_TICK(usec)	((usec) / (NANOSEC / hz))
-
-#define	gethrestime_sec() time(NULL)
-#define	gethrestime(t) \
-	do {\
-		(t)->tv_sec = gethrestime_sec();\
-		(t)->tv_nsec = 0;\
-	} while (0);
-
 #define	max_ncpus	64
 #define	boot_ncpus	(sysconf(_SC_NPROCESSORS_ONLN))
 
@@ -527,22 +287,10 @@ extern void delay(clock_t ticks);
 
 #define	CPU_SEQID	(thr_self() & (max_ncpus - 1))
 
-#define	kcred		NULL
-#define	CRED()		NULL
-
-#define	ptob(x)		((x) * PAGESIZE)
-
-extern uint64_t physmem;
-
-extern int highbit64(uint64_t i);
-extern int random_get_bytes(uint8_t *ptr, size_t len);
-extern int random_get_pseudo_bytes(uint8_t *ptr, size_t len);
-
 extern void kernel_init(int);
 extern void kernel_fini(void);
 
 struct spa;
-extern void nicenum(uint64_t num, char *buf, size_t);
 extern void show_pool_stats(struct spa *);
 extern int set_global_var(char *arg);
 
@@ -570,126 +318,13 @@ typedef struct callb_cpr {
 #define	zone_dataset_visible(x, y)	(1)
 #define	INGLOBALZONE(z)			(1)
 
-extern char *kmem_asprintf(const char *fmt, ...);
-#define	strfree(str) kmem_free((str), strlen(str) + 1)
-
-/*
- * Hostname information
- */
-extern char hw_serial[];	/* for userland-emulated hostid access */
-extern int ddi_strtoul(const char *str, char **nptr, int base,
-    unsigned long *result);
-
-extern int ddi_strtoull(const char *str, char **nptr, int base,
-    u_longlong_t *result);
-
-/* ZFS Boot Related stuff. */
-
-struct _buf {
-	intptr_t	_fd;
-};
-
-struct bootstat {
-	uint64_t st_size;
-};
-
-typedef struct ace_object {
-	uid_t		a_who;
-	uint32_t	a_access_mask;
-	uint16_t	a_flags;
-	uint16_t	a_type;
-	uint8_t		a_obj_type[16];
-	uint8_t		a_inherit_obj_type[16];
-} ace_object_t;
-
-
-#define	ACE_ACCESS_ALLOWED_OBJECT_ACE_TYPE	0x05
-#define	ACE_ACCESS_DENIED_OBJECT_ACE_TYPE	0x06
-#define	ACE_SYSTEM_AUDIT_OBJECT_ACE_TYPE	0x07
-#define	ACE_SYSTEM_ALARM_OBJECT_ACE_TYPE	0x08
-
-extern struct _buf *kobj_open_file(char *name);
-extern int kobj_read_file(struct _buf *file, char *buf, unsigned size,
-    unsigned off);
-extern void kobj_close_file(struct _buf *file);
-extern int kobj_get_filesize(struct _buf *file, uint64_t *size);
 extern int zfs_secpolicy_snapshot_perms(const char *name, cred_t *cr);
 extern int zfs_secpolicy_rename_perms(const char *from, const char *to,
     cred_t *cr);
 extern int zfs_secpolicy_destroy_perms(const char *name, cred_t *cr);
-extern zoneid_t getzoneid(void);
 
-/* SID stuff */
-typedef struct ksiddomain {
-	uint_t	kd_ref;
-	uint_t	kd_len;
-	char	*kd_name;
-} ksiddomain_t;
-
-ksiddomain_t *ksid_lookupdomain(const char *);
-void ksiddomain_rele(ksiddomain_t *);
-
-#define	DDI_SLEEP	KM_SLEEP
 #define	ddi_log_sysevent(_a, _b, _c, _d, _e, _f, _g) \
 	sysevent_post_event(_c, _d, _b, "libzpool", _e, _f)
-
-/*
- * Cyclic information
- */
-extern kmutex_t cpu_lock;
-
-typedef uintptr_t cyclic_id_t;
-typedef uint16_t cyc_level_t;
-typedef void (*cyc_func_t)(void *);
-
-#define	CY_LOW_LEVEL	0
-#define	CY_INFINITY	INT64_MAX
-#define	CYCLIC_NONE	((cyclic_id_t)0)
-
-typedef struct cyc_time {
-	hrtime_t cyt_when;
-	hrtime_t cyt_interval;
-} cyc_time_t;
-
-typedef struct cyc_handler {
-	cyc_func_t cyh_func;
-	void *cyh_arg;
-	cyc_level_t cyh_level;
-} cyc_handler_t;
-
-extern cyclic_id_t cyclic_add(cyc_handler_t *, cyc_time_t *);
-extern void cyclic_remove(cyclic_id_t);
-extern int cyclic_reprogram(cyclic_id_t, hrtime_t);
-
-/*
- * Buf structure
- */
-#define	B_BUSY		0x0001
-#define	B_DONE		0x0002
-#define	B_ERROR		0x0004
-#define	B_READ		0x0040	/* read when I/O occurs */
-#define	B_WRITE		0x0100	/* non-read pseudo-flag */
-
-typedef struct buf {
-	int	b_flags;
-	size_t b_bcount;
-	union {
-		caddr_t b_addr;
-	} b_un;
-
-	lldaddr_t	_b_blkno;
-#define	b_lblkno	_b_blkno._f
-	size_t	b_resid;
-	size_t	b_bufsize;
-	int	(*b_iodone)(struct buf *);
-	int	b_error;
-	void	*b_private;
-} buf_t;
-
-extern void bioinit(buf_t *);
-extern void biodone(buf_t *);
-extern void bioerror(buf_t *, int);
-extern int geterror(buf_t *);
 
 #ifdef	__cplusplus
 }

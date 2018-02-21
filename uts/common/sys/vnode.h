@@ -23,6 +23,7 @@
  * Copyright (c) 1988, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2017, Joyent, Inc.
  * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
+ * Copyright 2017 RackTop Systems.
  */
 
 /*	Copyright (c) 1983, 1984, 1985, 1986, 1987, 1988, 1989 AT&T	*/
@@ -340,6 +341,7 @@ typedef struct vnode {
 
 #define	IS_SWAPVP(vp)	(((vp)->v_flag & (VISSWAP | VSWAPLIKE)) != 0)
 
+#ifdef _KERNEL
 typedef struct vn_vfslocks_entry {
 	rwstlock_t ve_lock;
 	void *ve_vpvfs;
@@ -348,6 +350,7 @@ typedef struct vn_vfslocks_entry {
 	char pad[64 - sizeof (rwstlock_t) - 2 * sizeof (void *) - \
 	    sizeof (uint32_t)];
 } vn_vfslocks_entry_t;
+#endif
 
 /*
  * The following two flags are used to lock the v_vfsmountedhere field

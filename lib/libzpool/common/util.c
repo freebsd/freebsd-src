@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016 by Delphix. All rights reserved.
+ * Copyright 2017 RackTop Systems.
  */
 
 #include <assert.h>
@@ -33,6 +34,8 @@
 #include <sys/fs/zfs.h>
 #include <sys/refcount.h>
 #include <dlfcn.h>
+
+extern void nicenum(uint64_t num, char *buf, size_t);
 
 /*
  * Routines needed by more than one client of libzpool.

@@ -24,6 +24,7 @@
  * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright 2017 Nexenta Systems, Inc.
+ * Copyright 2017 RackTop Systems.
  */
 
 #include <stdio.h>
@@ -87,11 +88,13 @@ extern int reference_tracking_enable;
 extern boolean_t zfs_recover;
 extern uint64_t zfs_arc_max, zfs_arc_meta_limit;
 extern int zfs_vdev_async_read_max_active;
+extern int aok;
 #else
 int reference_tracking_enable;
 boolean_t zfs_recover;
 uint64_t zfs_arc_max, zfs_arc_meta_limit;
 int zfs_vdev_async_read_max_active;
+int aok;
 #endif
 
 static const char cmdname[] = "zdb";
