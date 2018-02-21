@@ -73,7 +73,8 @@ kmem_cache_t *kmem_cache_create(char *name, size_t bufsize, size_t align,
 void kmem_cache_destroy(kmem_cache_t *cache);
 void *kmem_cache_alloc(kmem_cache_t *cache, int flags);
 void kmem_cache_free(kmem_cache_t *cache, void *buf);
-void kmem_cache_reap_now(kmem_cache_t *cache);
+boolean_t kmem_cache_reap_active(void);
+void kmem_cache_reap_soon(kmem_cache_t *);
 void kmem_reap(void);
 int kmem_debugging(void);
 void *calloc(size_t n, size_t s);
