@@ -106,7 +106,7 @@ function core.setVerbose(b)
 		b = not core.verbose
 	end
 
-	if b == true then
+	if b then
 		loader.setenv("boot_verbose", "YES")
 	else
 		loader.unsetenv("boot_verbose")
@@ -119,7 +119,7 @@ function core.setSingleUser(b)
 		b = not core.su
 	end
 
-	if b == true then
+	if b then
 		loader.setenv("boot_single", "YES")
 	else
 		loader.unsetenv("boot_single")
@@ -131,7 +131,7 @@ function core.getACPIPresent(checkingSystemDefaults)
 	local c = loader.getenv("hint.acpi.0.rsdp")
 
 	if c ~= nil then
-		if checkingSystemDefaults == true then
+		if checkingSystemDefaults then
 			return true
 		end
 		-- Otherwise, respect disabled if it's set
@@ -146,7 +146,7 @@ function core.setACPI(b)
 		b = not core.acpi
 	end
 
-	if b == true then
+	if b then
 		loader.setenv("acpi_load", "YES")
 		loader.setenv("hint.acpi.0.disabled", "0")
 		loader.unsetenv("loader.acpi_disabled_by_user")
@@ -162,7 +162,7 @@ function core.setSafeMode(b)
 	if b == nil then
 		b = not core.sm
 	end
-	if b == true then
+	if b then
 		loader.setenv("kern.smp.disabled", "1")
 		loader.setenv("hw.ata.ata_dma", "0")
 		loader.setenv("hw.ata.atapi_dma", "0")

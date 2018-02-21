@@ -315,7 +315,7 @@ function config.parse(name, silent)
 				end
 			end
 
-			if found == false then
+			if not found then
 				print("Malformed line (" .. n .. "):\n\t'" ..
 				    line .. "'")
 				status = false

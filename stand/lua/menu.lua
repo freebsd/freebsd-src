@@ -411,7 +411,7 @@ function menu.skip()
 end
 
 function menu.autoboot()
-	if menu.already_autoboot == true then
+	if menu.already_autoboot then
 		return
 	end
 	menu.already_autoboot = true
