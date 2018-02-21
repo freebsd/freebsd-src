@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2017 RackTop Systems.
  */
 
 #ifndef	_SYS_FM_UTIL_H
@@ -70,7 +71,7 @@ typedef struct erpt_dump {
 	} ed_tod_base;
 } erpt_dump_t;
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
 #include <sys/systm.h>
 
 #define	FM_STK_DEPTH	20	/* maximum stack depth */
@@ -92,7 +93,7 @@ extern void fm_ereport_dump(void);
 extern void fm_ereport_post(nvlist_t *, int);
 
 extern int is_fm_panic();
-#endif  /* _KERNEL */
+#endif  /* _KERNEL || _FAKE_KERNEL */
 
 #ifdef	__cplusplus
 }
