@@ -170,6 +170,7 @@
 #define	  IBMPOWER3PLUS		  0x0041
 #define	  IBM970MP		  0x0044
 #define	  IBM970GX		  0x0045
+#define	  IBMPOWERPCA2		  0x0049
 #define	  IBMPOWER7PLUS		  0x004a
 #define	  IBMPOWER8E		  0x004b
 #define	  IBMPOWER8		  0x004d
