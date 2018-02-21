@@ -188,7 +188,7 @@ end
 
 function core.kernelList()
 	local k = loader.getenv("kernel")
-	local v = loader.getenv("kernels") or ""
+	local v = loader.getenv("kernels")
 
 	local kernels = {}
 	local unique = {}
@@ -199,12 +199,18 @@ function core.kernelList()
 		unique[k] = true
 	end
 
-	for n in v:gmatch("([^; ]+)[; ]?") do
-		if unique[n] == nil then
-			i = i + 1
-			kernels[i] = n
-			unique[n] = true
+	if v ~= nil then
+		for n in v:gmatch("([^; ]+)[; ]?") do
+			if unique[n] == nil then
+				i = i + 1
+				kernels[i] = n
+				unique[n] = true
+			end
 		end
+
+		-- We will not automatically detect kernels to be displayed if
+		-- loader.conf(5) explicitly set 'kernels'.
+		return kernels
 	end
 
 	-- Automatically detect other bootable kernel directories using a
