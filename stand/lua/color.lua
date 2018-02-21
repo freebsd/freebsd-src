@@ -26,74 +26,74 @@
 -- $FreeBSD$
 --
 
-local core = require("core");
+local core = require("core")
 
-local color = {};
+local color = {}
 
 -- Module exports
-color.BLACK   = 0;
-color.RED     = 1;
-color.GREEN   = 2;
-color.YELLOW  = 3;
-color.BLUE    = 4;
-color.MAGENTA = 5;
-color.CYAN    = 6;
-color.WHITE   = 7;
+color.BLACK   = 0
+color.RED     = 1
+color.GREEN   = 2
+color.YELLOW  = 3
+color.BLUE    = 4
+color.MAGENTA = 5
+color.CYAN    = 6
+color.WHITE   = 7
 
-color.DEFAULT = 0;
-color.BRIGHT  = 1;
-color.DIM     = 2;
+color.DEFAULT = 0
+color.BRIGHT  = 1
+color.DIM     = 2
 
 function color.isEnabled()
-	local c = loader.getenv("loader_color");
+	local c = loader.getenv("loader_color")
 	if (c ~= nil) then
 		if (c:lower() == "no") or (c == "0") then
-			return false;
+			return false
 		end
 	end
-	return (not core.isSerialBoot());
+	return (not core.isSerialBoot())
 end
 
-color.disabled = (not color.isEnabled());
+color.disabled = (not color.isEnabled())
 
 function color.escapef(c)
 	if (color.disabled) then
-		return c;
+		return c
 	end
-	return "\027[3" .. c .. "m";
+	return "\027[3" .. c .. "m"
 end
 
 function color.escapeb(c)
 	if (color.disabled) then
-		return c;
+		return c
 	end
-	return "\027[4" .. c .. "m";
+	return "\027[4" .. c .. "m"
 end
 
 function color.escape(fg, bg, att)
 	if (color.disabled) then
-		return "";
+		return ""
 	end
 	if (not att) then
 		att = ""
 	else
-		att = att .. ";";
+		att = att .. ";"
 	end
-	return "\027[" .. att .. "3" .. fg .. ";4" .. bg .. "m";
+	return "\027[" .. att .. "3" .. fg .. ";4" .. bg .. "m"
 end
 
 function color.default()
 	if (color.disabled) then
-		return "";
+		return ""
 	end
-	return "\027[0;37;40m";
+	return "\027[0;37;40m"
 end
 
 function color.highlight(str)
 	if (color.disabled) then
-		return str;
+		return str
 	end
-	return "\027[1m" .. str .. "\027[0m";
+	return "\027[1m" .. str .. "\027[0m"
 end
 
-return color;
+return color
