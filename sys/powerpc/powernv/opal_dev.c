@@ -191,6 +191,26 @@ bcd2bin32(int bcd)
 }
 
 static int
+bin2bcd32(int bin)
+{
+	int out = 0;
+	int tmp;
+
+	tmp = bin % 100;
+	out += bin2bcd(tmp) * 1;
+	bin = bin / 100;
+
+	tmp = bin % 100;
+	out += bin2bcd(tmp) * 100;
+	bin = bin / 100;
+
+	tmp = bin % 100;
+	out += bin2bcd(tmp) * 10000;
+
+	return (out);
+}
+
+static int
 opal_gettime(device_t dev, struct timespec *ts)
 {
 	int rv;
@@ -220,13 +240,42 @@ opal_gettime(device_t dev, struct timespec *ts)
 	ct.day	= bcd2bin((ymd & 0x000000ff) >> 0);
 	ct.mon	= bcd2bin((ymd & 0x0000ff00) >> 8);
 	ct.year	= bcd2bin32((ymd & 0xffff0000) >> 16);
-	
+
 	return (clock_ct_to_ts(&ct, ts));
 }
 
 static int
 opal_settime(device_t dev, struct timespec *ts)
 {
+	int rv;
+	struct clocktime ct;
+	uint32_t ymd = 0;
+	uint64_t hmsm = 0;
+
+	clock_ts_to_ct(ts, &ct);
+
+	ymd |= (uint32_t)bin2bcd(ct.day);
+	ymd |= ((uint32_t)bin2bcd(ct.mon) << 8);
+	ymd |= ((uint32_t)bin2bcd32(ct.year) << 16);
+
+	hmsm |= ((uint64_t)bin2bcd32(ct.nsec/1000) << 16);
+	hmsm |= ((uint64_t)bin2bcd(ct.sec) << 40);
+	hmsm |= ((uint64_t)bin2bcd(ct.min) << 48);
+	hmsm |= ((uint64_t)bin2bcd(ct.hour) << 56);
+
+	hmsm = htobe64(hmsm);
+	ymd = htobe32(ymd);
+
+	do {
+		rv = opal_call(OPAL_RTC_WRITE, vtophys(&ymd), vtophys(&hmsm));
+		if (rv == OPAL_BUSY_EVENT) {
+			rv = opal_call(OPAL_POLL_EVENTS, 0);
+			pause("opalrtc", 1);
+		}
+	} while (rv == OPAL_BUSY_EVENT);
+
+	if (rv != OPAL_SUCCESS)
+		return (ENXIO);
 
 	return (0);
 }
