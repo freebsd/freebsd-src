@@ -92,36 +92,24 @@ menu.boot_options = {
 		-- return to welcome menu
 		{
 			entry_type = core.MENU_RETURN,
-			name = function()
-				return "Back to main menu" ..
-				    color.highlight(" [Backspace]")
-			end
+			name = "Back to main menu" ..
+			    color.highlight(" [Backspace]"),
 		},
-
 		-- load defaults
 		{
 			entry_type = core.MENU_ENTRY,
-			name = function()
-				return "Load System " .. color.highlight("D") ..
-				    "efaults"
-			end,
-			func = function()
-				core.setDefaults()
-			end,
+			name = "Load System " .. color.highlight("D") ..
+			    "efaults",
+			func = core.setDefaults,
 			alias = {"d", "D"}
 		},
-
 		{
 			entry_type = core.MENU_SEPARATOR,
 		},
-
 		{
 			entry_type = core.MENU_SEPARATOR,
-			name = function()
-				return "Boot Options:"
-			end
+			name = "Boot Options:",
 		},
-
 		-- acpi
 		{
 			entry_type = core.MENU_ENTRY,
@@ -130,9 +118,7 @@ menu.boot_options = {
 				return OnOff(color.highlight("A") ..
 				    "CPI       :", core.acpi)
 			end,
-			func = function()
-				core.setACPI()
-			end,
+			func = core.setACPI,
 			alias = {"a", "A"}
 		},
 		-- safe mode
@@ -142,9 +128,7 @@ menu.boot_options = {
 				return OnOff("Safe " .. color.highlight("M") ..
 				    "ode  :", core.sm)
 			end,
-			func = function()
-				core.setSafeMode()
-			end,
+			func = core.setSafeMode,
 			alias = {"m", "M"}
 		},
 		-- single user
@@ -154,9 +138,7 @@ menu.boot_options = {
 				return OnOff(color.highlight("S") ..
 				    "ingle user:", core.su)
 			end,
-			func = function()
-				core.setSingleUser()
-			end,
+			func = core.setSingleUser,
 			alias = {"s", "S"}
 		},
 		-- verbose boot
@@ -166,9 +148,7 @@ menu.boot_options = {
 				return OnOff(color.highlight("V") ..
 				    "erbose    :", core.verbose)
 			end,
-			func = function()
-				core.setVerbose()
-			end,
+			func = core.setVerbose,
 			alias = {"v", "V"}
 		},
 	},
@@ -202,79 +182,55 @@ menu.welcome = {
 		-- boot multi user
 		{
 			entry_type = core.MENU_ENTRY,
-			name = function()
-				return color.highlight("B") ..
-				    "oot Multi user " ..
-				    color.highlight("[Enter]")
-			end,
+			name = color.highlight("B") .. "oot Multi user " ..
+			    color.highlight("[Enter]"),
 			-- Not a standard menu entry function!
-			alternate_name = function()
-				return color.highlight("B") ..
-				    "oot Multi user"
-			end,
+			alternate_name = color.highlight("B") ..
+			    "oot Multi user",
 			func = function()
 				core.setSingleUser(false)
 				core.boot()
 			end,
 			alias = {"b", "B"}
 		},
-
 		-- boot single user
 		{
 			entry_type = core.MENU_ENTRY,
-			name = function()
-				return "Boot " .. color.highlight("S") ..
-				    "ingle user"
-			end,
+			name = "Boot " .. color.highlight("S") .. "ingle user",
 			-- Not a standard menu entry function!
-			alternate_name = function()
-				return "Boot " .. color.highlight("S") ..
-				    "ingle user " .. color.highlight("[Enter]")
-			end,
+			alternate_name = "Boot " .. color.highlight("S") ..
+			    "ingle user " .. color.highlight("[Enter]"),
 			func = function()
 				core.setSingleUser(true)
 				core.boot()
 			end,
 			alias = {"s", "S"}
 		},
-
 		-- escape to interpreter
 		{
 			entry_type = core.MENU_RETURN,
-			name = function()
-				return color.highlight("Esc") ..
-				    "ape to loader prompt"
-			end,
+			name = color.highlight("Esc") .. "ape to loader prompt",
 			func = function()
 				loader.setenv("autoboot_delay", "NO")
 			end,
 			alias = {core.KEYSTR_ESCAPE}
 		},
-
 		-- reboot
 		{
 			entry_type = core.MENU_ENTRY,
-			name = function()
-				return color.highlight("R") .. "eboot"
-			end,
+			name = color.highlight("R") .. "eboot",
 			func = function()
 				loader.perform("reboot")
 			end,
 			alias = {"r", "R"}
 		},
-
-
 		{
 			entry_type = core.MENU_SEPARATOR,
 		},
-
 		{
 			entry_type = core.MENU_SEPARATOR,
-			name = function()
-				return "Options:"
-			end
+			name = "Options:",
 		},
-
 		-- kernel options
 		{
 			entry_type = core.MENU_CAROUSEL_ENTRY,
@@ -305,14 +261,10 @@ menu.welcome = {
 			end,
 			alias = {"k", "K"}
 		},
-
 		-- boot options
 		{
 			entry_type = core.MENU_SUBMENU,
-			name = function()
-				return "Boot " .. color.highlight("O") ..
-				    "ptions"
-			end,
+			name = "Boot " .. color.highlight("O") .. "ptions",
 			submenu = menu.boot_options,
 			alias = {"o", "O"}
 		},
