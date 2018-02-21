@@ -101,14 +101,14 @@ struct trim_request {
 };
 struct nda_softc {
 	struct   cam_iosched_softc *cam_iosched;
-	int	 outstanding_cmds;	/* Number of active commands */
-	int	 refcount;		/* Active xpt_action() calls */
-	nda_state state;
-	nda_flags flags;
-	nda_quirks quirks;
-	int	 unmappedio;
-	uint32_t  nsid;			/* Namespace ID for this nda device */
-	struct disk *disk;
+	int			outstanding_cmds;	/* Number of active commands */
+	int			refcount;		/* Active xpt_action() calls */
+	nda_state		state;
+	nda_flags		flags;
+	nda_quirks		quirks;
+	int			unmappedio;
+	uint32_t		nsid;			/* Namespace ID for this nda device */
+	struct disk		*disk;
 	struct task		sysctl_task;
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
@@ -116,9 +116,9 @@ struct nda_softc {
 #ifdef CAM_IO_STATS
 	struct sysctl_ctx_list	sysctl_stats_ctx;
 	struct sysctl_oid	*sysctl_stats_tree;
-	u_int	timeouts;
-	u_int	errors;
-	u_int	invalidations;
+	u_int			timeouts;
+	u_int			errors;
+	u_int			invalidations;
 #endif
 };
 
