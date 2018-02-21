@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2018, Joyent, Inc.
  * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 by Saso Kiselkov. All rights reserved.
  * Copyright 2017 Nexenta Systems, Inc.  All rights reserved.
@@ -300,6 +300,9 @@ int zfs_arc_evict_batch_limit = 10;
 
 /* number of seconds before growing cache again */
 static int		arc_grow_retry = 60;
+
+/* number of milliseconds before attempting a kmem-cache-reap */
+static int		arc_kmem_cache_reap_retry_ms = 1000;
 
 /* shift of arc_c for calculating overflow limit in arc_get_data_impl */
 int		zfs_arc_overflow_shift = 8;
@@ -4047,21 +4050,31 @@ arc_kmem_reap_now(void)
 #endif
 #endif
 
+	/*
+	 * If a kmem reap is already active, don't schedule more.  We must
+	 * check for this because kmem_cache_reap_soon() won't actually
+	 * block on the cache being reaped (this is to prevent callers from
+	 * becoming implicitly blocked by a system-wide kmem reap -- which,
+	 * on a system with many, many full magazines, can take minutes).
+	 */
+	if (kmem_cache_reap_active())
+		return;
+
 	for (i = 0; i < SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT; i++) {
 		if (zio_buf_cache[i] != prev_cache) {
 			prev_cache = zio_buf_cache[i];
-			kmem_cache_reap_now(zio_buf_cache[i]);
+			kmem_cache_reap_soon(zio_buf_cache[i]);
 		}
 		if (zio_data_buf_cache[i] != prev_data_cache) {
 			prev_data_cache = zio_data_buf_cache[i];
-			kmem_cache_reap_now(zio_data_buf_cache[i]);
+			kmem_cache_reap_soon(zio_data_buf_cache[i]);
 		}
 	}
-	kmem_cache_reap_now(abd_chunk_cache);
-	kmem_cache_reap_now(buf_cache);
-	kmem_cache_reap_now(hdr_full_cache);
-	kmem_cache_reap_now(hdr_l2only_cache);
-	kmem_cache_reap_now(range_seg_cache);
+	kmem_cache_reap_soon(abd_chunk_cache);
+	kmem_cache_reap_soon(buf_cache);
+	kmem_cache_reap_soon(hdr_full_cache);
+	kmem_cache_reap_soon(hdr_l2only_cache);
+	kmem_cache_reap_soon(range_seg_cache);
 
 	if (zio_arena != NULL) {
 		/*
@@ -4093,6 +4106,7 @@ static void
 arc_reclaim_thread(void *unused)
 {
 	hrtime_t		growtime = 0;
+	hrtime_t		kmem_reap_time = 0;
 	callb_cpr_t		cpr;
 
 	CALLB_CPR_INIT(&cpr, &arc_reclaim_lock, callb_generic_cpr, FTAG);
@@ -4126,7 +4140,7 @@ arc_reclaim_thread(void *unused)
 
 		int64_t free_memory = arc_available_memory();
 		if (free_memory < 0) {
-
+			hrtime_t curtime = gethrtime();
 			arc_no_grow = B_TRUE;
 			arc_warm = B_TRUE;
 
@@ -4134,9 +4148,20 @@ arc_reclaim_thread(void *unused)
 			 * Wait at least zfs_grow_retry (default 60) seconds
 			 * before considering growing.
 			 */
-			growtime = gethrtime() + SEC2NSEC(arc_grow_retry);
+			growtime = curtime + SEC2NSEC(arc_grow_retry);
 
-			arc_kmem_reap_now();
+			/*
+			 * Wait at least arc_kmem_cache_reap_retry_ms
+			 * between arc_kmem_reap_now() calls. Without
+			 * this check it is possible to end up in a
+			 * situation where we spend lots of time
+			 * reaping caches, while we're near arc_c_min.
+			 */
+			if (curtime >= kmem_reap_time) {
+				arc_kmem_reap_now();
+				kmem_reap_time = gethrtime() +
+				    MSEC2NSEC(arc_kmem_cache_reap_retry_ms);
+			}
 
 			/*
 			 * If we are still low on memory, shrink the ARC
