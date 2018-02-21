@@ -291,11 +291,13 @@ function menu.run(m)
 	screen.defcursor()
 	local alias_table = drawer.drawscreen(m)
 
-	menu.autoboot()
+	-- Might return nil, that's ok
+	local autoboot_key = menu.autoboot()
 
 	cont = true
 	while cont do
-		local key = io.getchar()
+		local key = autoboot_key or io.getchar()
+		autoboot_key = nil
 
 		-- Special key behaviors
 		if (key == core.KEY_BACKSPACE or key == core.KEY_DELETE) and
@@ -360,13 +362,13 @@ end
 
 function menu.autoboot()
 	if menu.already_autoboot then
-		return
+		return nil
 	end
 	menu.already_autoboot = true
 
 	local ab = loader.getenv("autoboot_delay")
 	if ab ~= nil and ab:lower() == "no" then
-		return
+		return nil
 	elseif tonumber(ab) == -1 then
 		core.boot()
 	end
@@ -395,7 +397,7 @@ function menu.autoboot()
 				print("                                        "
 				    .. "                                        ")
 				screen.defcursor()
-				return
+				return ch
 			end
 		end
 
