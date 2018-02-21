@@ -46,35 +46,35 @@ color.DIM     = 2
 
 function color.isEnabled()
 	local c = loader.getenv("loader_color")
-	if (c ~= nil) then
-		if (c:lower() == "no") or (c == "0") then
+	if c ~= nil then
+		if c:lower() == "no" or c == "0" then
 			return false
 		end
 	end
-	return (not core.isSerialBoot())
+	return not core.isSerialBoot()
 end
 
-color.disabled = (not color.isEnabled())
+color.disabled = not color.isEnabled()
 
 function color.escapef(c)
-	if (color.disabled) then
+	if color.disabled then
 		return c
 	end
 	return "\027[3" .. c .. "m"
 end
 
 function color.escapeb(c)
-	if (color.disabled) then
+	if color.disabled then
 		return c
 	end
 	return "\027[4" .. c .. "m"
 end
 
 function color.escape(fg, bg, att)
-	if (color.disabled) then
+	if color.disabled then
 		return ""
 	end
-	if (not att) then
+	if not att then
 		att = ""
 	else
 		att = att .. ";"
@@ -83,14 +83,14 @@ function color.escape(fg, bg, att)
 end
 
 function color.default()
-	if (color.disabled) then
+	if color.disabled then
 		return ""
 	end
 	return "\027[0;37;40m"
 end
 
 function color.highlight(str)
-	if (color.disabled) then
+	if color.disabled then
 		return str
 	end
 	return "\027[1m" .. str .. "\027[0m"

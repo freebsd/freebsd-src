@@ -41,7 +41,7 @@ local run
 local autoboot
 
 local OnOff = function(str, b)
-	if (b) then
+	if b then
 		return str .. color.escapef(color.GREEN) .. "On" ..
 		    color.escapef(color.WHITE)
 	else
@@ -67,7 +67,7 @@ menu.handlers = {
 		local caridx = config.getCarouselIndex(carid)
 		local choices = entry.items()
 
-		if (#choices > 0) then
+		if #choices > 0 then
 			caridx = (caridx % #choices) + 1
 			config.setCarouselIndex(carid, caridx)
 			entry.func(caridx, choices[caridx], choices)
@@ -79,7 +79,7 @@ menu.handlers = {
 	end,
 	[core.MENU_RETURN] = function(current_menu, entry)
 		-- allow entry to have a function/side effect
-		if (entry.func ~= nil) then
+		if entry.func ~= nil then
 			entry.func()
 		end
 		return false
@@ -181,9 +181,9 @@ menu.welcome = {
 	entries = function()
 		local menu_entries = menu.welcome.all_entries
 		-- Swap the first two menu items on single user boot
-		if (core.isSingleUserBoot()) then
+		if core.isSingleUserBoot() then
 			-- We'll cache the swapped menu, for performance
-			if (menu.welcome.swapped_menu ~= nil) then
+			if menu.welcome.swapped_menu ~= nil then
 				return menu.welcome.swapped_menu
 			end
 			-- Shallow copy the table
@@ -287,14 +287,14 @@ menu.welcome = {
 			carousel_id = "kernel",
 			items = core.kernelList,
 			name = function(idx, choice, all_choices)
-				if (#all_choices == 0) then
+				if #all_choices == 0 then
 					return "Kernel: "
 				end
 
 				local is_default = (idx == 1)
 				local kernel_name = ""
 				local name_color
-				if (is_default) then
+				if is_default then
 					name_color = color.escapef(color.GREEN)
 					kernel_name = "default/"
 				else
@@ -329,12 +329,12 @@ menu.welcome = {
 
 function menu.run(m)
 
-	if (menu.skip()) then
+	if menu.skip() then
 		core.autoboot()
 		return false
 	end
 
-	if (m == nil) then
+	if m == nil then
 		m = menu.welcome
 	end
 
@@ -346,14 +346,14 @@ function menu.run(m)
 	menu.autoboot()
 
 	cont = true
-	while (cont) do
+	while cont do
 		local key = io.getchar()
 
 		-- Special key behaviors
-		if ((key == core.KEY_BACKSPACE) or (key == core.KEY_DELETE)) and
-		    (m ~= menu.welcome) then
+		if (key == core.KEY_BACKSPACE or key == core.KEY_DELETE) and
+		    m ~= menu.welcome then
 			break
-		elseif (key == core.KEY_ENTER) then
+		elseif key == core.KEY_ENTER then
 			core.boot()
 			-- Should not return
 		end
@@ -362,21 +362,21 @@ function menu.run(m)
 		-- check to see if key is an alias
 		local sel_entry = nil
 		for k, v in pairs(alias_table) do
-			if (key == k) then
+			if key == k then
 				sel_entry = v
 			end
 		end
 
 		-- if we have an alias do the assigned action:
-		if (sel_entry ~= nil) then
+		if sel_entry ~= nil then
 			-- Get menu handler
 			local handler = menu.handlers[sel_entry.entry_type]
-			if (handler ~= nil) then
+			if handler ~= nil then
 				-- The handler's return value indicates whether
 				-- we need to exit this menu. An omitted return
 				-- value means "continue" by default.
 				cont = handler(m, sel_entry)
-				if (cont == nil) then
+				if cont == nil then
 					cont = true
 				end
 			end
@@ -387,7 +387,7 @@ function menu.run(m)
 		end
 	end
 
-	if (m == menu.welcome) then
+	if m == menu.welcome then
 		screen.defcursor()
 		print("Exiting menu!")
 		return false
@@ -397,11 +397,11 @@ function menu.run(m)
 end
 
 function menu.skip()
-	if (core.isSerialBoot()) then
+	if core.isSerialBoot() then
 		return true
 	end
 	local c = string.lower(loader.getenv("console") or "")
-	if ((c:match("^efi[ ;]") or c:match("[ ;]efi[ ;]")) ~= nil) then
+	if c:match("^efi[ ;]") ~= nil or c:match("[ ;]efi[ ;]") ~= nil then
 		return true
 	end
 
@@ -411,15 +411,15 @@ function menu.skip()
 end
 
 function menu.autoboot()
-	if (menu.already_autoboot == true) then
+	if menu.already_autoboot == true then
 		return
 	end
 	menu.already_autoboot = true
 
 	local ab = loader.getenv("autoboot_delay")
-	if (ab ~= nil) and (ab:lower() == "no") then
+	if ab ~= nil and ab:lower() == "no" then
 		return
-	elseif (tonumber(ab) == -1) then
+	elseif tonumber(ab) == -1 then
 		core.boot()
 	end
 	ab = tonumber(ab) or 10
@@ -437,9 +437,9 @@ function menu.autoboot()
 		    " seconds, hit [Enter] to boot" ..
 		    " or any other key to stop     ")
 		screen.defcursor()
-		if (io.ischar()) then
+		if io.ischar() then
 			local ch = io.getchar()
-			if (ch == core.KEY_ENTER) then
+			if ch == core.KEY_ENTER then
 				break
 			else
 				-- erase autoboot msg
