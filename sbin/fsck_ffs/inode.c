@@ -453,8 +453,10 @@ cacheino(union dinode *dp, ino_t inumber)
 
 	if (howmany(DIP(dp, di_size), sblock.fs_bsize) > UFS_NDADDR)
 		blks = UFS_NDADDR + UFS_NIADDR;
-	else
+	else if (DIP(dp, di_size) > 0)
 		blks = howmany(DIP(dp, di_size), sblock.fs_bsize);
+	else
+		blks = 1;
 	inp = (struct inoinfo *)
 		Malloc(sizeof(*inp) + (blks - 1) * sizeof(ufs2_daddr_t));
 	if (inp == NULL)
