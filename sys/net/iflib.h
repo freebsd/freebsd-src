@@ -229,7 +229,7 @@ typedef struct if_softc_ctx {
  * Initialization values for device
  */
 struct if_shared_ctx {
-	int isc_magic;
+	unsigned isc_magic;
 	driver_t *isc_driver;
 	bus_size_t isc_q_align;
 	bus_size_t isc_tx_maxsize;
