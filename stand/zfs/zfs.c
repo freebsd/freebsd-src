@@ -62,7 +62,7 @@ static int	zfs_readdir(struct open_file *f, struct dirent *d);
 
 static void	zfs_bootenv_initial(const char *);
 
-truct devsw zfs_dev;
+struct devsw zfs_dev;
 
 struct fs_ops zfs_fsops = {
 	"zfs",
