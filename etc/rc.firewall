@@ -112,12 +112,20 @@ setup_ipv6_mandatory() {
 	${fwcmd} add pass ipv6-icmp from any to any icmp6types 2,135,136
 }
 
+. /etc/rc.subr
+. /etc/network.subr
+
 if [ -n "${1}" ]; then
 	firewall_type="${1}"
 fi
+if [ -z "${firewall_rc_config_load}" ]; then
+        load_rc_config ipfw
+else
+        for i in ${firewall_rc_config_load}; do
+                load_rc_config $i
+        done
+fi
 
-. /etc/rc.subr
-. /etc/network.subr
 afexists inet6
 ipv6_available=$?
 
