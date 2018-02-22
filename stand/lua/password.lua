@@ -38,7 +38,7 @@ function password.read()
 	local n = 0
 
 	while true do
-		ch = io.getchar()
+		local ch = io.getchar()
 		if ch == core.KEY_ENTER then
 			break
 		end

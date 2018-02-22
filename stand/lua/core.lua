@@ -200,7 +200,6 @@ function core.bootenvList()
 	local bootenv_count = tonumber(loader.getenv("bootenvs_count"))
 	local bootenvs = {}
 	local curenv
-	local curenv_idx = 0
 	local envcount = 0
 	local unique = {}
 
