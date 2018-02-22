@@ -248,6 +248,7 @@ MAN=	aac.4 \
 	ixgbe.4 \
 	ixl.4 \
 	ixlv.4 \
+	jedec_dimm.4 \
 	jedec_ts.4 \
 	jme.4 \
 	joy.4 \
