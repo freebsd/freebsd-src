@@ -94,7 +94,7 @@ struct sysentvec {
 	struct sysent	*sv_table;	/* pointer to sysent */
 	u_int		sv_mask;	/* optional mask to index */
 	int		sv_errsize;	/* size of errno translation table */
-	int 		*sv_errtbl;	/* errno translation table */
+	const int 	*sv_errtbl;	/* errno translation table */
 	int		(*sv_transtrap)(int, int);
 					/* translate trap-to-signal mapping */
 	int		(*sv_fixup)(register_t **, struct image_params *);
