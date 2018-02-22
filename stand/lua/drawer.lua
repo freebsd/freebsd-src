@@ -38,6 +38,7 @@ local fbsd_logo
 local beastie_color
 local beastie
 local fbsd_logo_v
+local orb_color
 local orb
 local none
 local none_shifted = false
@@ -178,7 +179,7 @@ drawer.menu_name_handlers = {
 	-- This is designed so that everything, including menu separators, may
 	-- have their names derived differently. The default action for entry
 	-- types not specified here is to use entry.name directly.
-	[core.MENU_SEPARATOR] = function(drawing_menu, entry)
+	[core.MENU_SEPARATOR] = function(_, entry)
 		if entry.name ~= nil then
 			if type(entry.name) == "function" then
 				return entry.name()
@@ -187,7 +188,7 @@ drawer.menu_name_handlers = {
 		end
 		return ""
 	end,
-	[core.MENU_CAROUSEL_ENTRY] = function(drawing_menu, entry)
+	[core.MENU_CAROUSEL_ENTRY] = function(_, entry)
 		local carid = entry.carousel_id
 		local caridx = config.getCarouselIndex(carid)
 		local choices = entry.items
@@ -263,8 +264,8 @@ function drawer.drawscreen(menu_opts)
 end
 
 function drawer.drawmenu(m)
-	x = drawer.menu_position.x
-	y = drawer.menu_position.y
+	local x = drawer.menu_position.x
+	local y = drawer.menu_position.y
 
 	-- print the menu and build the alias table
 	local alias_table = {}
@@ -288,7 +289,7 @@ function drawer.drawmenu(m)
 			-- fill the alias table
 			alias_table[tostring(entry_num)] = e
 			if e.alias ~= nil then
-				for n, a in ipairs(e.alias) do
+				for _, a in ipairs(e.alias) do
 					alias_table[a] = e
 				end
 			end
@@ -303,10 +304,10 @@ end
 
 
 function drawer.drawbox()
-	x = drawer.box_pos_dim.x
-	y = drawer.box_pos_dim.y
-	w = drawer.box_pos_dim.w
-	h = drawer.box_pos_dim.h
+	local x = drawer.box_pos_dim.x
+	local y = drawer.box_pos_dim.y
+	local w = drawer.box_pos_dim.w
+	local h = drawer.box_pos_dim.h
 
 	local hl = string.char(0xCD)
 	local vl = string.char(0xBA)

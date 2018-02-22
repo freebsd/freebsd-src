@@ -50,7 +50,7 @@ local parse_boot_args = function(argv, with_kernel)
 	local kernel_name
 	local argstr = ""
 
-	for k, v in ipairs(argv) do
+	for _, v in ipairs(argv) do
 		if with_kernel and v:sub(1,1) ~= "-" then
 			kernel_name = v
 		else
@@ -92,7 +92,7 @@ end
 -- Module exports
 
 function cli.boot(...)
-	local cmd_name, argv = cli.arguments(...)
+	local _, argv = cli.arguments(...)
 	local kernel, argstr = parse_boot_args(argv)
 	if kernel ~= nil then
 		loader.perform("unload")
@@ -102,7 +102,7 @@ function cli.boot(...)
 end
 
 function cli.autoboot(...)
-	local cmd_name, argv = cli.arguments(...)
+	local _, argv = cli.arguments(...)
 	local argstr = parse_boot_args(argv, false)
 	core.autoboot(argstr)
 end
@@ -110,7 +110,7 @@ end
 -- Used for splitting cli varargs into cmd_name and the rest of argv
 function cli.arguments(...)
 	local argv = {...}
-	local cmd_name = ""
+	local cmd_name
 	cmd_name, argv = core.popFrontTable(argv)
 	return cmd_name, argv
 end

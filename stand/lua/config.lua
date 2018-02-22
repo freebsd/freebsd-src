@@ -37,7 +37,7 @@ local carousel_choices = {}
 pattern_table = {
 	[1] = {
 		str = "^%s*(#.*)",
-		process = function(k, v)  end
+		process = function(_, _)  end
 	},
 	--  module_load="value"
 	[2] = {
@@ -94,7 +94,7 @@ pattern_table = {
 	--  exec="command"
 	[9] = {
 		str = "^%s*exec%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
-		process = function(k, v)
+		process = function(k, _)
 			if loader.perform(k) ~= 0 then
 				print("Failed to exec '" .. k .. "'")
 			end
@@ -283,10 +283,7 @@ function config.parse(name, silent)
 		return silent
 	end
 
-	local text
-	local r
-
-	text, r = io.read(f)
+	local text, _ = io.read(f)
 
 	if text == nil then
 		if not silent then
@@ -302,7 +299,7 @@ function config.parse(name, silent)
 		if line:match("^%s*$") == nil then
 			local found = false
 
-			for i, val in ipairs(pattern_table) do
+			for _, val in ipairs(pattern_table) do
 				local k, v, c = line:match(val.str)
 				if k ~= nil then
 					found = true
@@ -339,7 +336,7 @@ function config.loadkernel(other_kernel)
 
 	local try_load = function (names)
 		for name in names:gmatch("([^;]+)%s*;?") do
-			r = loader.perform("load " .. flags .. " " .. name)
+			local r = loader.perform("load " .. flags .. " " .. name)
 			if r == 0 then
 				return name
 			end
@@ -376,7 +373,7 @@ function config.loadkernel(other_kernel)
 		-- Use our cached module_path, so we don't end up with multiple
 		-- automatically added kernel paths to our final module_path
 		local module_path = config.module_path
-		local res = nil
+		local res
 
 		if other_kernel ~= nil then
 			kernel = other_kernel
@@ -385,7 +382,7 @@ function config.loadkernel(other_kernel)
 		-- then try load with module_path=${kernel}
 		local paths = {"/boot/" .. kernel, kernel}
 
-		for k,v in pairs(paths) do
+		for _, v in pairs(paths) do
 			loader.setenv("module_path", v)
 			res = load_bootfile()
 
@@ -452,7 +449,7 @@ end
 
 function config.loadelf()
 	local kernel = config.kernel_selected or config.kernel_loaded
-	local loaded = false
+	local loaded
 
 	print("Loading kernel...")
 	loaded = config.loadkernel(kernel)
