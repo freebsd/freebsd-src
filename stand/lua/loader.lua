@@ -27,6 +27,7 @@
 -- $FreeBSD$
 --
 
+local cli = require("cli")
 local config = require("config")
 local menu = require("menu")
 local password = require("password")
@@ -36,31 +37,6 @@ local result, errstr, errnoval = lfs.attributes("/boot/lua/local.lua")
 -- Effectively discard any errors; we'll just act if it succeeds.
 if result ~= nil then
 	local_module = require("local")
-end
-
--- Declares a global function cli_execute that attempts to dispatch the
--- arguments passed as a lua function. This gives lua a chance to intercept
--- builtin CLI commands like "boot"
-function cli_execute(...)
-	local argv = {...}
-	-- Just in case...
-	if #argv == 0 then
-		loader.command(...)
-		return
-	end
-
-	local cmd_name = argv[1]
-	local cmd = _G[cmd_name]
-	if cmd ~= nil and type(cmd) == "function" then
-		-- Pass argv wholesale into cmd. We could omit argv[0] since the
-		-- traditional reasons for including it don't necessarily apply,
-		-- it may not be totally redundant if we want to have one global
-		-- handling multiple commands
-		cmd(...)
-	else
-		loader.command(...)
-	end
-
 end
 
 config.load()
