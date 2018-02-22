@@ -194,7 +194,7 @@ static int addr_resolve(struct sockaddr *src_in,
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
 	struct rtentry *rte;
-#if defined(INET) || defined(INET6)
+#if defined(INET)
 	struct llentry *lle;
 #endif
 #if defined(INET6)
