@@ -127,6 +127,10 @@ int	vm_get_seg_desc(struct vmctx *ctx, int vcpu, int reg,
 			struct seg_desc *seg_desc);
 int	vm_set_register(struct vmctx *ctx, int vcpu, int reg, uint64_t val);
 int	vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *retval);
+int	vm_set_register_set(struct vmctx *ctx, int vcpu, unsigned int count,
+    const int *regnums, uint64_t *regvals);
+int	vm_get_register_set(struct vmctx *ctx, int vcpu, unsigned int count,
+    const int *regnums, uint64_t *regvals);
 int	vm_run(struct vmctx *ctx, int vcpu, struct vm_exit *ret_vmexit);
 int	vm_suspend(struct vmctx *ctx, enum vm_suspend_how how);
 int	vm_reinit(struct vmctx *ctx);
