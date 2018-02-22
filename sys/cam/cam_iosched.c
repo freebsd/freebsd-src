@@ -60,6 +60,19 @@ static MALLOC_DEFINE(M_CAMSCHED, "CAM I/O Scheduler",
     "CAM I/O Scheduler buffers");
 
 /*
+ * Trim or similar currently pending completion. Should only be set for
+ * those drivers wishing only one Trim active at a time.
+ */
+#define CAM_IOSCHED_FLAG_TRIM_ACTIVE	(1ul << 0)
+			/* Callout active, and needs to be torn down */
+#define CAM_IOSCHED_FLAG_CALLOUT_ACTIVE (1ul << 1)
+			/* Timer has just ticked */
+#define CAM_IOSCHED_FLAG_TICK		(1ul << 2)
+
+			/* Periph drivers set these flags to indicate work */
+#define CAM_IOSCHED_FLAG_WORK_FLAGS	((0xffffu) << 16)
+
+/*
  * Default I/O scheduler for FreeBSD. This implementation is just a thin-vineer
  * over the bioq_* interface, with notions of separate calls for normal I/O and
  * for trims.
@@ -574,6 +587,7 @@ cam_iosched_ticker(void *arg)
 	cam_iosched_limiter_tick(&isc->write_stats);
 	cam_iosched_limiter_tick(&isc->trim_stats);
 
+	isc->flags |= CAM_IOSCHED_FLAGS_TICK;
 	cam_iosched_schedule(isc, isc->periph);
 
 	/*
@@ -700,17 +714,6 @@ cam_iosched_cl_maybe_steer(struct control_loop *clp)
 	}
 }
 #endif
-
-/*
- * Trim or similar currently pending completion. Should only be set for
- * those drivers wishing only one Trim active at a time.
- */
-#define CAM_IOSCHED_FLAG_TRIM_ACTIVE	(1ul << 0)
-			/* Callout active, and needs to be torn down */
-#define CAM_IOSCHED_FLAG_CALLOUT_ACTIVE (1ul << 1)
-
-			/* Periph drivers set these flags to indicate work */
-#define CAM_IOSCHED_FLAG_WORK_FLAGS	((0xffffu) << 16)
 
 #ifdef CAM_IOSCHED_DYNAMIC
 static void
@@ -1322,6 +1325,10 @@ struct bio *
 cam_iosched_next_bio(struct cam_iosched_softc *isc)
 {
 	struct bio *bp;
+	bool wastick;
+	
+	wastick = !!(isc->flags & CAM_IOSCHED_FLAGS_TICK);
+	isc->flags &= ~CAM_IOSCHED_FLAGS_TICK;
 
 	/*
 	 * See if we have a trim that can be scheduled. We can only send one
