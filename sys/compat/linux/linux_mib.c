@@ -434,7 +434,7 @@ linux_osd_jail_register(void)
 
 	linux_osd_jail_slot =
 	    osd_jail_register(linux_prison_destructor, methods);
-	/* Copy the system linux info to any current prisons. */
+	/* Copy the system Linux info to any current prisons. */
 	sx_slock(&allprison_lock);
 	TAILQ_FOREACH(pr, &allprison, pr_list)
 		linux_alloc_prison(pr, NULL);

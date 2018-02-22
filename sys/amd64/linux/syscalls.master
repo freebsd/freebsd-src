@@ -487,7 +487,7 @@
 				    struct l_itimerspec *old_value); }
 288	AUE_ACCEPT	STD	{ int linux_accept4(l_int s, l_uintptr_t addr, \
 				    l_uintptr_t namelen, int flags); }
-; linux 2.6.27:
+; Linux 2.6.27:
 289	AUE_NULL	STD	{ int linux_signalfd4(void); }
 290	AUE_NULL	STD	{ int linux_eventfd2(l_uint initval, l_int flags); }
 291	AUE_NULL	STD	{ int linux_epoll_create1(l_int flags); }
@@ -495,41 +495,41 @@
 				    l_int newfd, l_int flags); }
 293	AUE_NULL	STD	{ int linux_pipe2(l_int *pipefds, l_int flags); }
 294	AUE_NULL	STD	{ int linux_inotify_init1(l_int flags); }
-; linux 2.6.30:
+; Linux 2.6.30:
 295	AUE_NULL	STD	{ int linux_preadv(l_ulong fd,			\
 				    struct iovec *vec, l_ulong vlen,		\
 				    l_ulong pos_l, l_ulong pos_h); }
 296	AUE_NULL	STD	{ int linux_pwritev(l_ulong fd,			\
 				    struct iovec *vec, l_ulong vlen,		\
 				    l_ulong pos_l, l_ulong pos_h); }
-; linux 2.6.31:
+; Linux 2.6.31:
 297	AUE_NULL	STD	{ int linux_rt_tgsigqueueinfo(l_pid_t tgid,	\
 				    l_pid_t tid, l_int sig, l_siginfo_t *uinfo); }
 298	AUE_NULL	STD	{ int linux_perf_event_open(void); }
-; linux 2.6.33:
+; Linux 2.6.33:
 299	AUE_NULL	STD	{ int linux_recvmmsg(l_int s,			\
 				    struct l_mmsghdr *msg, l_uint vlen,		\
 				    l_uint flags, struct l_timespec *timeout); }
-; linux 2.6.37:
+; Linux 2.6.37:
 300	AUE_NULL	STD	{ int linux_fanotify_init(void); }
 301	AUE_NULL	STD	{ int linux_fanotify_mark(void); }
-; linux 2.6.36:
+; Linux 2.6.36:
 302	AUE_NULL	STD	{ int linux_prlimit64(l_pid_t pid, l_uint resource, \
 				    struct rlimit *new, struct rlimit *old); }
-; linux 2.6.39 (glibc 2.14):
+; Linux 2.6.39 (glibc 2.14):
 303	AUE_NULL	STD	{ int linux_name_to_handle_at(void); }
 304	AUE_NULL	STD	{ int linux_open_by_handle_at(void); }
 305	AUE_NULL	STD	{ int linux_clock_adjtime(void); }
 306	AUE_SYNC	STD	{ int linux_syncfs(l_int fd); }
-; linux 3.0 (glibc 2.14):
+; Linux 3.0 (glibc 2.14):
 307	AUE_NULL	STD	{ int linux_sendmmsg(l_int s,			\
 				    struct l_mmsghdr *msg, l_uint vlen,		\
 				    l_uint flags); }
 308	AUE_NULL	STD	{ int linux_setns(l_int fd, l_int nstype); }
-; linux 2.6.19 (no glibc wrapper):
+; Linux 2.6.19 (no glibc wrapper):
 309	AUE_NULL	STD	{ int linux_getcpu(l_uint *cpu, l_uint *node,	\
 				    void *cache); }
-; linux 3.2 (glibc 2.15):
+; Linux 3.2 (glibc 2.15):
 310	AUE_NULL	STD	{ int linux_process_vm_readv(l_pid_t pid,	\
 				    const struct iovec *lvec, l_ulong liovcnt,	\
 				    const struct iovec *rvec, l_ulong riovcnt,	\
@@ -538,22 +538,22 @@
 				    const struct iovec *lvec, l_ulong liovcnt,	\
 				    const struct iovec *rvec, l_ulong riovcnt,	\
 				    l_ulong flags); }
-; linux 3.5 (no glibc wrapper):
+; Linux 3.5 (no glibc wrapper):
 312	AUE_NULL	STD	{ int linux_kcmp(l_pid_t pid1, l_pid_t pid2,	\
 				    l_int type, l_ulong idx1, l_ulong idx); }
-; linux 3.8 (no glibc wrapper):
+; Linux 3.8 (no glibc wrapper):
 313	AUE_NULL	STD	{ int linux_finit_module(l_int fd,		\
 				    const char *uargs, l_int flags); }
-; linux 3.14:
+; Linux 3.14:
 314	AUE_NULL	STD	{ int linux_sched_setattr(l_pid_t pid,		\
 				    void *attr, l_uint flags); }
 315	AUE_NULL	STD	{ int linux_sched_getattr(l_pid_t pid,		\
 				    void *attr, l_uint size, l_uint flags); }
-; linux 3.15:
+; Linux 3.15:
 316	AUE_NULL	STD	{ int linux_renameat2(l_int oldfd,		\
 				    const char *oldname, l_int newfd,		\
 				    const char *newname, unsigned int flags); }
-; linux 3.17:
+; Linux 3.17:
 317	AUE_NULL	STD	{ int linux_seccomp(l_uint op, l_uint flags,	\
 				    const char *uargs); }
 318	AUE_NULL	STD	{ int linux_getrandom(char *buf,		\
@@ -563,33 +563,33 @@
 320	AUE_NULL	STD	{ int linux_kexec_file_load(l_int kernel_fd,	\
 				    l_int initrd_fd, l_ulong cmdline_len,	\
 				    const char *cmdline_ptr, l_ulong flags); }
-; linux 3.18:
+; Linux 3.18:
 321	AUE_NULL	STD	{ int linux_bpf(l_int cmd, void *attr,		\
 				    l_uint size); }
-; linux 3.19:
+; Linux 3.19:
 322	AUE_NULL	STD	{ int linux_execveat(l_int dfd,			\
 				    const char *filename, const char **argv,	\
 				    const char **envp, l_int flags); }
-; linux 4.2:
+; Linux 4.2:
 323	AUE_NULL	STD	{ int linux_userfaultfd(l_int flags); }
-; linux 4.3:
+; Linux 4.3:
 324	AUE_NULL	STD	{ int linux_membarrier(l_int cmd, l_int flags); }
-; linux 4.4:
+; Linux 4.4:
 325	AUE_NULL	STD	{ int linux_mlock2(l_ulong start, l_size_t len,	\
 				    l_int flags); }
-; linux 4.5:
+; Linux 4.5:
 326	AUE_NULL	STD	{ int linux_copy_file_range(l_int fd_in,	\
 				    l_loff_t *off_in, l_int fd_out,		\
 				    l_loff_t *off_out, l_size_t len,		\
 				    l_uint flags); }
-; linux 4.6:
+; Linux 4.6:
 327	AUE_NULL	STD	{ int linux_preadv2(l_ulong fd,			\
 				    const struct iovec *vec, l_ulong vlen,	\
 				    l_ulong pos_l, l_ulong pos_h, l_int flags); }
 328	AUE_NULL	STD	{ int linux_pwritev2(l_ulong fd,		\
 				    const struct iovec *vec, l_ulong vlen,	\
 				    l_ulong pos_l, l_ulong pos_h, l_int flags); }
-; linux 4.8:
+; Linux 4.8:
 329	AUE_NULL	STD	{ int linux_pkey_mprotect(l_ulong start,	\
 				    l_size_t len, l_ulong prot, l_int pkey); }
 330	AUE_NULL	STD	{ int linux_pkey_alloc(l_ulong flags,		\
