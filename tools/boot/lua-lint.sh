@@ -1,8 +1,8 @@
 #!/bin/sh
 # $FreeBSD$
 
-# Run linter on the lua scripts in stand/lua. luacheck, not currently available
-# in ports, must be installed as a dependency.
+# Run linter on the lua scripts in stand/lua. luacheck, available in ports as
+# devel/lua-luacheck, must be installed as a dependency of this script.
 
 die() {
     echo $*
@@ -16,4 +16,4 @@ LUACHECK=$(which luacheck)
 
 cd $(make -V SRCTOP)/stand
 ${LUACHECK} . --globals loader --globals lfs --globals io.getchar \
-	--globals io.ischar --std lua53
+	--globals io.ischar --globals cli_execute --std lua53
