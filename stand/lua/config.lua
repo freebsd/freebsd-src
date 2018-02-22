@@ -260,10 +260,10 @@ function config.loadmod(mod, silent)
 				end
 			end
 
-		else
-			-- if not silent then
-				-- print("Skipping module '". . k .. "'")
-			-- end
+--		else
+--			if not silent then
+--				print("Skipping module '". . k .. "'")
+--			end
 		end
 	end
 
