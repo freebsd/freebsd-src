@@ -1251,7 +1251,7 @@ sched_pickcpu(struct thread *td, int flags)
 	}
 	/*
 	 * If the thread can run on the last cpu and the affinity has not
-	 * expired or it is idle run it there.
+	 * expired and it is idle, run it there.
 	 */
 	tdq = TDQ_CPU(ts->ts_cpu);
 	cg = tdq->tdq_cg;
