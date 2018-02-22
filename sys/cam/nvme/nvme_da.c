@@ -122,14 +122,6 @@ struct nda_softc {
 #endif
 };
 
-struct nda_trim_request {
-	union {
-		struct nvme_dsm_range dsm;
-		uint8_t		data[NVME_MAX_DSM_TRIM];
-	} u;
-	TAILQ_HEAD(, bio) bps;
-};
-
 /* Need quirk table */
 
 static	disk_strategy_t	ndastrategy;
@@ -158,14 +150,11 @@ static void		ndasuspend(void *arg);
 #ifndef	NDA_DEFAULT_RETRY
 #define	NDA_DEFAULT_RETRY	4
 #endif
-#ifndef NDA_MAX_TRIM_ENTRIES
-#define NDA_MAX_TRIM_ENTRIES 256	/* Number of DSM trims to use, max 256 */
-#endif
+
 
 //static int nda_retry_count = NDA_DEFAULT_RETRY;
 static int nda_send_ordered = NDA_DEFAULT_SEND_ORDERED;
 static int nda_default_timeout = NDA_DEFAULT_TIMEOUT;
-static int nda_max_trim_entries = NDA_MAX_TRIM_ENTRIES;
 
 /*
  * All NVMe media is non-rotational, so all nvme device instances
@@ -702,8 +691,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	if (cam_iosched_init(&softc->cam_iosched, periph,
-		CAM_IOSCHED_CAP_TRIM_CLOCKED) != 0) {
+	if (cam_iosched_init(&softc->cam_iosched, periph) != 0) {
 		printf("ndaregister: Unable to probe new device. "
 		       "Unable to allocate iosched memory\n");
 		return(CAM_REQ_CMP_ERR);
@@ -906,40 +894,22 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 		}
 		case BIO_DELETE:
 		{
-			struct nvme_dsm_range *dsm_range, *dsm_end;
-			struct nda_trim_request *trim;
-			struct bio *bp1;
-			int ents;
+			struct nvme_dsm_range *dsm_range;
 
-			trim = malloc(sizeof(*trim), M_NVMEDA, M_ZERO | M_NOWAIT);
-			if (trim == NULL) {
+			dsm_range =
+			    malloc(sizeof(*dsm_range), M_NVMEDA, M_ZERO | M_NOWAIT);
+			if (dsm_range == NULL) {
 				biofinish(bp, NULL, ENOMEM);
 				xpt_release_ccb(start_ccb);
 				ndaschedule(periph);
 				return;
 			}
-			TAILQ_INIT(&trim->bps);
-			bp1 = bp;
-			ents = sizeof(trim->u.data) / sizeof(struct nvme_dsm_range);
-			ents = min(ents, nda_max_trim_entries);
-			dsm_range = &trim->u.dsm;
-			dsm_end = dsm_range + ents;
-			do {
-				TAILQ_INSERT_TAIL(&trim->bps, bp1, bio_queue);
-				dsm_range->length =
-				    bp1->bio_bcount / softc->disk->d_sectorsize;
-				dsm_range->starting_lba =
-				    bp1->bio_offset / softc->disk->d_sectorsize;
-				dsm_range++;
-				if (dsm_range >= dsm_end)
-					break;
-				bp1 = cam_iosched_next_trim(softc->cam_iosched);
-				/* XXX -- Could collapse adjacent ranges, but we don't for now */
-				/* XXX -- Could limit based on total payload size */
-			} while (bp1 != NULL);
-			bp->bio_driver2 = trim;
-			nda_nvme_trim(softc, &start_ccb->nvmeio, &trim->u.dsm,
-			    dsm_range - &trim->u.dsm);
+			dsm_range->length =
+			    bp->bio_bcount / softc->disk->d_sectorsize;
+			dsm_range->starting_lba =
+			    bp->bio_offset / softc->disk->d_sectorsize;
+			bp->bio_driver2 = dsm_range;
+			nda_nvme_trim(softc, &start_ccb->nvmeio, dsm_range, 1);
 			start_ccb->ccb_h.ccb_state = NDA_CCB_TRIM;
 			start_ccb->ccb_h.flags |= CAM_UNLOCKED;
 			/*
@@ -1020,6 +990,8 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 		} else {
 			bp->bio_resid = 0;
 		}
+		if (state == NDA_CCB_TRIM)
+			free(bp->bio_driver2, M_NVMEDA);
 		softc->outstanding_cmds--;
 
 		/*
@@ -1031,15 +1003,13 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 		cam_iosched_bio_complete(softc->cam_iosched, bp, done_ccb);
 		xpt_release_ccb(done_ccb);
 		if (state == NDA_CCB_TRIM) {
-			struct nda_trim_request *trim;
-			struct bio *bp1;
+#ifdef notyet
 			TAILQ_HEAD(, bio) queue;
+			struct bio *bp1;
 
-			trim = bp->bio_driver2;
 			TAILQ_INIT(&queue);
-			TAILQ_CONCAT(&queue, &trim->bps, bio_queue);
-			free(trim, M_NVMEDA);
-
+			TAILQ_CONCAT(&queue, &softc->trim_req.bps, bio_queue);
+#endif
 			/*
 			 * Since we can have multiple trims in flight, we don't
 			 * need to call this here.
@@ -1047,6 +1017,8 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 			 */
 			ndaschedule(periph);
 			cam_periph_unlock(periph);
+#ifdef notyet
+/* Not yet collapsing several BIO_DELETE requests into one TRIM */
 			while ((bp1 = TAILQ_FIRST(&queue)) != NULL) {
 				TAILQ_REMOVE(&queue, bp1, bio_queue);
 				bp1->bio_error = error;
@@ -1057,6 +1029,9 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 					bp1->bio_resid = 0;
 				biodone(bp1);
 			}
+#else
+			biodone(bp);
+#endif
 		} else {
 			ndaschedule(periph);
 			cam_periph_unlock(periph);
