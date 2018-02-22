@@ -67,9 +67,7 @@ end
 -- Globals
 
 function boot(...)
-	local argv = {...}
-	local cmd_name = ""
-	cmd_name, argv = core.popFrontTable(argv)
+	local cmd_name, argv = cli.arguments(...)
 	local kernel, argstr = parse_boot_args(argv)
 	if kernel ~= nil then
 		loader.perform("unload")
@@ -79,9 +77,7 @@ function boot(...)
 end
 
 function autoboot(...)
-	local argv = {...}
-	local cmd_name = ""
-	cmd_name, argv = core.popFrontTable(argv)
+	local cmd_name, argv = cli.arguments(...)
 	local argstr = parse_boot_args(argv, false)
 	core.autoboot(argstr)
 end
@@ -109,6 +105,15 @@ function cli_execute(...)
 		loader.command(...)
 	end
 
+end
+
+-- Module exports
+
+function cli.arguments(...)
+	local argv = {...}
+	local cmd_name = ""
+	cmd_name, argv = core.popFrontTable(argv)
+	return cmd_name, argv
 end
 
 return cli
