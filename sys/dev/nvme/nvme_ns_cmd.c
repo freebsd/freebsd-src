@@ -126,12 +126,12 @@ nvme_ns_cmd_deallocate(struct nvme_namespace *ns, void *payload,
 		return (ENOMEM);
 
 	cmd = &req->cmd;
-	cmd->opc = NVME_OPC_DATASET_MANAGEMENT;
-	cmd->nsid = ns->id;
+	cmd->opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_DATASET_MANAGEMENT);
+	cmd->nsid = htole32(ns->id);
 
 	/* TODO: create a delete command data structure */
-	cmd->cdw10 = num_ranges - 1;
-	cmd->cdw11 = NVME_DSM_ATTR_DEALLOCATE;
+	cmd->cdw10 = htole32(num_ranges - 1);
+	cmd->cdw11 = htole32(NVME_DSM_ATTR_DEALLOCATE);
 
 	nvme_ctrlr_submit_io_request(ns->ctrlr, req);
 

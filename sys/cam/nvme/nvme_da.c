@@ -676,6 +676,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 	const struct nvme_namespace_data *nsd;
 	const struct nvme_controller_data *cd;
 	char   announce_buf[80];
+	uint8_t flbas_fmt, lbads, vwc_present;
 	u_int maxio;
 	int quirks;
 
@@ -744,13 +745,19 @@ ndaregister(struct cam_periph *periph, void *arg)
 	else if (maxio > MAXPHYS)
 		maxio = MAXPHYS;	/* for safety */
 	disk->d_maxsize = maxio;
-	disk->d_sectorsize = 1 << nsd->lbaf[nsd->flbas.format].lbads;
+	flbas_fmt = (nsd->flbas >> NVME_NS_DATA_FLBAS_FORMAT_SHIFT) &
+		NVME_NS_DATA_FLBAS_FORMAT_MASK;
+	lbads = (nsd->lbaf[flbas_fmt] >> NVME_NS_DATA_LBAF_LBADS_SHIFT) &
+		NVME_NS_DATA_LBAF_LBADS_MASK;
+	disk->d_sectorsize = 1 << lbads;
 	disk->d_mediasize = (off_t)(disk->d_sectorsize * nsd->nsze);
 	disk->d_delmaxsize = disk->d_mediasize;
 	disk->d_flags = DISKFLAG_DIRECT_COMPLETION;
 //	if (cd->oncs.dsm) // XXX broken?
 		disk->d_flags |= DISKFLAG_CANDELETE;
-	if (cd->vwc.present)
+	vwc_present = (cd->vwc >> NVME_CTRLR_DATA_VWC_PRESENT_SHIFT) &
+		NVME_CTRLR_DATA_VWC_PRESENT_MASK;
+	if (vwc_present)
 		disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
 	if ((cpi.hba_misc & PIM_UNMAPPED) != 0) {
 		disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
@@ -905,9 +912,9 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 				return;
 			}
 			dsm_range->length =
-			    bp->bio_bcount / softc->disk->d_sectorsize;
+			    htole32(bp->bio_bcount / softc->disk->d_sectorsize);
 			dsm_range->starting_lba =
-			    bp->bio_offset / softc->disk->d_sectorsize;
+			    htole64(bp->bio_offset / softc->disk->d_sectorsize);
 			bp->bio_driver2 = dsm_range;
 			nda_nvme_trim(softc, &start_ccb->nvmeio, dsm_range, 1);
 			start_ccb->ccb_h.ccb_state = NDA_CCB_TRIM;

@@ -146,14 +146,17 @@ read_controller_data(int fd, struct nvme_controller_data *cdata)
 	struct nvme_pt_command	pt;
 
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc = NVME_OPC_IDENTIFY;
-	pt.cmd.cdw10 = 1;
+	pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_IDENTIFY);
+	pt.cmd.cdw10 = htole32(1);
 	pt.buf = cdata;
 	pt.len = sizeof(*cdata);
 	pt.is_read = 1;
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(1, "identify request failed");
+
+	/* Convert data to host endian */
+	nvme_controller_data_swapbytes(cdata);
 
 	if (nvme_completion_is_error(&pt.cpl))
 		errx(1, "identify request returned error");
@@ -165,14 +168,17 @@ read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata)
 	struct nvme_pt_command	pt;
 
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc = NVME_OPC_IDENTIFY;
-	pt.cmd.nsid = nsid;
+	pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_IDENTIFY);
+	pt.cmd.nsid = htole32(nsid);
 	pt.buf = nsdata;
 	pt.len = sizeof(*nsdata);
 	pt.is_read = 1;
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(1, "identify request failed");
+
+	/* Convert data to host endian */
+	nvme_namespace_data_swapbytes(nsdata);
 
 	if (nvme_completion_is_error(&pt.cpl))
 		errx(1, "identify request returned error");
