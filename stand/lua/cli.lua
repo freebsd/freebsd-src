@@ -26,7 +26,8 @@
 -- $FreeBSD$
 --
 
-local core = require('core')
+local config = require("config")
+local core = require("core")
 
 local cli = {}
 
