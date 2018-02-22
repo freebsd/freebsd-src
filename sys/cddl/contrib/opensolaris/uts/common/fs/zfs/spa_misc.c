@@ -431,6 +431,34 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, spa_min_slop, CTLFLAG_RWTUN,
     &spa_min_slop, 0,
     "Minimal value of reserved space");
 
+/*PRINTFLIKE2*/
+void
+spa_load_failed(spa_t *spa, const char *fmt, ...)
+{
+	va_list adx;
+	char buf[256];
+
+	va_start(adx, fmt);
+	(void) vsnprintf(buf, sizeof (buf), fmt, adx);
+	va_end(adx);
+
+	zfs_dbgmsg("spa_load(%s): FAILED: %s", spa->spa_name, buf);
+}
+
+/*PRINTFLIKE2*/
+void
+spa_load_note(spa_t *spa, const char *fmt, ...)
+{
+	va_list adx;
+	char buf[256];
+
+	va_start(adx, fmt);
+	(void) vsnprintf(buf, sizeof (buf), fmt, adx);
+	va_end(adx);
+
+	zfs_dbgmsg("spa_load(%s): %s", spa->spa_name, buf);
+}
+
 /*
  * ==========================================================================
  * SPA config locking
