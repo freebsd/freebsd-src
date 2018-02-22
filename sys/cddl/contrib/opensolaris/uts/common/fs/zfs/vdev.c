@@ -171,6 +171,28 @@ SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, metaslabs_per_vdev, CTLFLAG_RDTUN,
     &metaslabs_per_vdev, 0,
     "When a vdev is added, how many metaslabs the vdev should be divided into");
 
+/*PRINTFLIKE2*/
+void
+vdev_dbgmsg(vdev_t *vd, const char *fmt, ...)
+{
+	va_list adx;
+	char buf[256];
+
+	va_start(adx, fmt);
+	(void) vsnprintf(buf, sizeof (buf), fmt, adx);
+	va_end(adx);
+
+	if (vd->vdev_path != NULL) {
+		zfs_dbgmsg("%s vdev '%s': %s", vd->vdev_ops->vdev_op_type,
+		    vd->vdev_path, buf);
+	} else {
+		zfs_dbgmsg("%s-%llu vdev (guid %llu): %s",
+		    vd->vdev_ops->vdev_op_type,
+		    (u_longlong_t)vd->vdev_id,
+		    (u_longlong_t)vd->vdev_guid, buf);
+	}
+}
+
 /*
  * Given a vdev type, return the appropriate ops vector.
  */
@@ -1030,14 +1052,20 @@ vdev_metaslab_init(vdev_t *vd, uint64_t txg)
 			error = dmu_read(mos, vd->vdev_ms_array,
 			    m * sizeof (uint64_t), sizeof (uint64_t), &object,
 			    DMU_READ_PREFETCH);
-			if (error)
+			if (error != 0) {
+				vdev_dbgmsg(vd, "unable to read the metaslab "
+				    "array [error=%d]", error);
 				return (error);
+			}
 		}
 
 		error = metaslab_init(vd->vdev_mg, m, object, txg,
 		    &(vd->vdev_ms[m]));
-		if (error)
+		if (error != 0) {
+			vdev_dbgmsg(vd, "metaslab_init failed [error=%d]",
+			    error);
 			return (error);
+		}
 	}
 
 	if (txg == 0)
@@ -1119,8 +1147,7 @@ vdev_probe_done(zio_t *zio)
 			zio->io_error = 0;
 		} else {
 			ASSERT(zio->io_error != 0);
-			zfs_dbgmsg("failed probe on vdev %llu",
-			    (longlong_t)vd->vdev_id);
+			vdev_dbgmsg(vd, "failed probe");
 			zfs_ereport_post(FM_EREPORT_ZFS_PROBE_FAILURE,
 			    spa, vd, NULL, 0, 0);
 			zio->io_error = SET_ERROR(ENXIO);
@@ -1576,6 +1603,7 @@ vdev_validate(vdev_t *vd, boolean_t strict)
 		if ((label = vdev_label_read_config(vd, txg)) == NULL) {
 			vdev_set_state(vd, B_TRUE, VDEV_STATE_CANT_OPEN,
 			    VDEV_AUX_BAD_LABEL);
+			vdev_dbgmsg(vd, "vdev_validate: failed reading config");
 			return (0);
 		}
 
@@ -1588,6 +1616,8 @@ vdev_validate(vdev_t *vd, boolean_t strict)
 			vdev_set_state(vd, B_FALSE, VDEV_STATE_CANT_OPEN,
 			    VDEV_AUX_SPLIT_POOL);
 			nvlist_free(label);
+			vdev_dbgmsg(vd, "vdev_validate: vdev split into other "
+			    "pool");
 			return (0);
 		}
 
@@ -1597,6 +1627,10 @@ vdev_validate(vdev_t *vd, boolean_t strict)
 			vdev_set_state(vd, B_FALSE, VDEV_STATE_CANT_OPEN,
 			    VDEV_AUX_CORRUPT_DATA);
 			nvlist_free(label);
+			vdev_dbgmsg(vd, "vdev_validate: vdev label pool_guid "
+			    "doesn't match config (%llu != %llu)",
+			    (u_longlong_t)guid,
+			    (u_longlong_t)spa_guid(spa));
 			return (0);
 		}
 
@@ -1626,6 +1660,9 @@ vdev_validate(vdev_t *vd, boolean_t strict)
 			vdev_set_state(vd, B_FALSE, VDEV_STATE_CANT_OPEN,
 			    VDEV_AUX_CORRUPT_DATA);
 			nvlist_free(label);
+			vdev_dbgmsg(vd, "vdev_validate: config guid doesn't "
+			    "match label guid (%llu != %llu)",
+			    (u_longlong_t)vd->vdev_guid, (u_longlong_t)guid);
 			return (0);
 		}
 
@@ -1634,6 +1671,8 @@ vdev_validate(vdev_t *vd, boolean_t strict)
 			vdev_set_state(vd, B_FALSE, VDEV_STATE_CANT_OPEN,
 			    VDEV_AUX_CORRUPT_DATA);
 			nvlist_free(label);
+			vdev_dbgmsg(vd, "vdev_validate: '%s' missing",
+			    ZPOOL_CONFIG_POOL_STATE);
 			return (0);
 		}
 
@@ -1645,8 +1684,12 @@ vdev_validate(vdev_t *vd, boolean_t strict)
 		 */
 		if (!(spa->spa_import_flags & ZFS_IMPORT_VERBATIM) &&
 		    spa_load_state(spa) == SPA_LOAD_OPEN &&
-		    state != POOL_STATE_ACTIVE)
+		    state != POOL_STATE_ACTIVE) {
+			vdev_dbgmsg(vd, "vdev_validate: invalid pool state "
+			    "(%llu) for spa %s", (u_longlong_t)state,
+			    spa->spa_name);
 			return (SET_ERROR(EBADF));
+		}
 
 		/*
 		 * If we were able to open and validate a vdev that was
@@ -2294,9 +2337,10 @@ vdev_dtl_sync(vdev_t *vd, uint64_t txg)
 	 * the top level so that we update the config.
 	 */
 	if (object != space_map_object(vd->vdev_dtl_sm)) {
-		zfs_dbgmsg("txg %llu, spa %s, DTL old object %llu, "
-		    "new object %llu", txg, spa_name(spa), object,
-		    space_map_object(vd->vdev_dtl_sm));
+		vdev_dbgmsg(vd, "txg %llu, spa %s, DTL old object %llu, "
+		    "new object %llu", (u_longlong_t)txg, spa_name(spa),
+		    (u_longlong_t)object,
+		    (u_longlong_t)space_map_object(vd->vdev_dtl_sm));
 		vdev_config_dirty(vd->vdev_top);
 	}
 
@@ -2404,8 +2448,13 @@ vdev_load(vdev_t *vd)
 		if (vd->vdev_ashift == 0 || vd->vdev_asize == 0) {
 			vdev_set_state(vd, B_FALSE, VDEV_STATE_CANT_OPEN,
 			    VDEV_AUX_CORRUPT_DATA);
+			vdev_dbgmsg(vd, "vdev_load: invalid size. ashift=%llu, "
+			    "asize=%llu", (u_longlong_t)vd->vdev_ashift,
+			    (u_longlong_t)vd->vdev_asize);
 			return (SET_ERROR(ENXIO));
 		} else if ((error = vdev_metaslab_init(vd, 0)) != 0) {
+			vdev_dbgmsg(vd, "vdev_load: metaslab_init failed "
+			    "[error=%d]", error);
 			vdev_set_state(vd, B_FALSE, VDEV_STATE_CANT_OPEN,
 			    VDEV_AUX_CORRUPT_DATA);
 			return (error);
@@ -2418,6 +2467,8 @@ vdev_load(vdev_t *vd)
 	if (vd->vdev_ops->vdev_op_leaf && (error = vdev_dtl_load(vd)) != 0) {
 		vdev_set_state(vd, B_FALSE, VDEV_STATE_CANT_OPEN,
 		    VDEV_AUX_CORRUPT_DATA);
+		vdev_dbgmsg(vd, "vdev_load: vdev_dtl_load failed "
+		    "[error=%d]", error);
 		return (error);
 	}
 
@@ -2431,6 +2482,9 @@ vdev_load(vdev_t *vd)
 		    obsolete_sm_object, 0, vd->vdev_asize, 0))) {
 			vdev_set_state(vd, B_FALSE, VDEV_STATE_CANT_OPEN,
 			    VDEV_AUX_CORRUPT_DATA);
+			vdev_dbgmsg(vd, "vdev_load: space_map_open failed for "
+			    "obsolete spacemap (obj %llu) [error=%d]",
+			    (u_longlong_t)obsolete_sm_object, error);
 			return (error);
 		}
 		space_map_update(vd->vdev_obsolete_sm);
@@ -3805,9 +3859,9 @@ vdev_deadman(vdev_t *vd)
 			fio = avl_first(&vq->vq_active_tree);
 			delta = gethrtime() - fio->io_timestamp;
 			if (delta > spa_deadman_synctime(spa)) {
-				zfs_dbgmsg("SLOW IO: zio timestamp %lluns, "
-				    "delta %lluns, last io %lluns",
-				    fio->io_timestamp, delta,
+				vdev_dbgmsg(vd, "SLOW IO: zio timestamp "
+				    "%lluns, delta %lluns, last io %lluns",
+				    fio->io_timestamp, (u_longlong_t)delta,
 				    vq->vq_io_complete_ts);
 				fm_panic("I/O to pool '%s' appears to be "
 				    "hung on vdev guid %llu at '%s'.",
