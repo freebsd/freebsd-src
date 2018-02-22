@@ -590,7 +590,7 @@ cam_iosched_ticker(void *arg)
 	cam_iosched_limiter_tick(&isc->write_stats);
 	cam_iosched_limiter_tick(&isc->trim_stats);
 
-	isc->flags |= CAM_IOSCHED_FLAGS_TICK;
+	isc->flags |= CAM_IOSCHED_FLAG_TICK;
 	cam_iosched_schedule(isc, isc->periph);
 
 	/*
