@@ -423,7 +423,7 @@ sysctl_bufspace(SYSCTL_HANDLER_ARGS)
 	lvalue = 0;
 	for (i = 0; i < clean_domains; i++)
 		lvalue += bdclean[i].bd_bufspace;
-	return (sysctl_handle_int(oidp, &lvalue, 0, req));
+	return (sysctl_handle_long(oidp, &lvalue, 0, req));
 }
 #endif
 
