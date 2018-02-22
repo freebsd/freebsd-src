@@ -312,8 +312,8 @@ struct nvme_controller {
 
 	struct cdev			*cdev;
 
-	/** bit mask of warning types currently enabled for async events */
-	union nvme_critical_warning_state	async_event_config;
+	/** bit mask of critical warning types currently enabled for async events */
+	uint8_t				async_event_config;
 
 	uint32_t			num_aers;
 	struct nvme_async_event_request	aer[NVME_MAX_ASYNC_EVENTS];
@@ -339,13 +339,13 @@ struct nvme_controller {
 	bus_space_write_4((sc)->bus_tag, (sc)->bus_handle,		       \
 	    nvme_mmio_offsetof(reg), val)
 
-#define nvme_mmio_write_8(sc, reg, val) \
+#define nvme_mmio_write_8(sc, reg, val)					       \
 	do {								       \
 		bus_space_write_4((sc)->bus_tag, (sc)->bus_handle,	       \
 		    nvme_mmio_offsetof(reg), val & 0xFFFFFFFF); 	       \
 		bus_space_write_4((sc)->bus_tag, (sc)->bus_handle,	       \
 		    nvme_mmio_offsetof(reg)+4,				       \
-		    (val & 0xFFFFFFFF00000000UL) >> 32);		       \
+		    (val & 0xFFFFFFFF00000000ULL) >> 32);		       \
 	} while (0);
 
 #if __FreeBSD_version < 800054
@@ -399,7 +399,7 @@ void	nvme_ctrlr_cmd_set_num_queues(struct nvme_controller *ctrlr,
 				      uint32_t num_queues, nvme_cb_fn_t cb_fn,
 				      void *cb_arg);
 void	nvme_ctrlr_cmd_set_async_event_config(struct nvme_controller *ctrlr,
-					      union nvme_critical_warning_state state,
+					      uint8_t state,
 					      nvme_cb_fn_t cb_fn, void *cb_arg);
 void	nvme_ctrlr_cmd_abort(struct nvme_controller *ctrlr, uint16_t cid,
 			     uint16_t sqid, nvme_cb_fn_t cb_fn, void *cb_arg);

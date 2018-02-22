@@ -1839,7 +1839,7 @@ mprsas_build_nvme_unmap(struct mpr_softc *sc, struct mpr_command *cm,
 
 	/* Build NVMe DSM command */
 	c = (struct nvme_command *) req->NVMe_Command;
-	c->opc = NVME_OPC_DATASET_MANAGEMENT;
+	c->opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_DATASET_MANAGEMENT);
 	c->nsid = htole32(csio->ccb_h.target_lun + 1);
 	c->cdw10 = htole32(ndesc - 1);
 	c->cdw11 = htole32(NVME_DSM_ATTR_DEALLOCATE);
@@ -2263,22 +2263,26 @@ mpr_sc_failed_io_info(struct mpr_softc *sc, struct ccb_scsiio *csio,
  * Returns appropriate scsi_status
  */
 static u8
-mprsas_nvme_trans_status_code(struct nvme_status nvme_status,
+mprsas_nvme_trans_status_code(uint16_t nvme_status,
     struct mpr_command *cm)
 {
 	u8 status = MPI2_SCSI_STATUS_GOOD;
 	int skey, asc, ascq;
 	union ccb *ccb = cm->cm_complete_data;
 	int returned_sense_len;
+	uint8_t sct, sc;
+
+	sct = NVME_STATUS_GET_SCT(nvme_status);
+	sc = NVME_STATUS_GET_SC(nvme_status);
 
 	status = MPI2_SCSI_STATUS_CHECK_CONDITION;
 	skey = SSD_KEY_ILLEGAL_REQUEST;
 	asc = SCSI_ASC_NO_SENSE;
 	ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
 
-	switch (nvme_status.sct) {
+	switch (sct) {
 	case NVME_SCT_GENERIC:
-		switch (nvme_status.sc) {
+		switch (sc) {
 		case NVME_SC_SUCCESS:
 			status = MPI2_SCSI_STATUS_GOOD;
 			skey = SSD_KEY_NO_SENSE;
@@ -2351,7 +2355,7 @@ mprsas_nvme_trans_status_code(struct nvme_status nvme_status,
 		}
 		break;
 	case NVME_SCT_COMMAND_SPECIFIC:
-		switch (nvme_status.sc) {
+		switch (sc) {
 		case NVME_SC_INVALID_FORMAT:
 			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
 			skey = SSD_KEY_ILLEGAL_REQUEST;
@@ -2367,7 +2371,7 @@ mprsas_nvme_trans_status_code(struct nvme_status nvme_status,
 		}
 		break;
 	case NVME_SCT_MEDIA_ERROR:
-		switch (nvme_status.sc) {
+		switch (sc) {
 		case NVME_SC_WRITE_FAULTS:
 			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
 			skey = SSD_KEY_MEDIUM_ERROR;

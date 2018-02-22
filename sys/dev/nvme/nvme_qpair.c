@@ -110,40 +110,42 @@ static void
 nvme_admin_qpair_print_command(struct nvme_qpair *qpair,
     struct nvme_command *cmd)
 {
+	uint16_t opc;
 
+	opc = le16toh(cmd->opc_fuse) & NVME_CMD_OPC_MASK;
 	nvme_printf(qpair->ctrlr, "%s (%02x) sqid:%d cid:%d nsid:%x "
 	    "cdw10:%08x cdw11:%08x\n",
-	    get_admin_opcode_string(cmd->opc), cmd->opc, qpair->id, cmd->cid,
-	    cmd->nsid, cmd->cdw10, cmd->cdw11);
+	    get_admin_opcode_string(opc), opc, qpair->id, cmd->cid,
+	    le32toh(cmd->nsid), le32toh(cmd->cdw10), le32toh(cmd->cdw11));
 }
 
 static void
 nvme_io_qpair_print_command(struct nvme_qpair *qpair,
     struct nvme_command *cmd)
 {
+	uint16_t opc;
 
-	switch (cmd->opc) {
+	opc = le16toh(cmd->opc_fuse) & NVME_CMD_OPC_MASK;
+	switch (opc) {
 	case NVME_OPC_WRITE:
 	case NVME_OPC_READ:
 	case NVME_OPC_WRITE_UNCORRECTABLE:
 	case NVME_OPC_COMPARE:
 		nvme_printf(qpair->ctrlr, "%s sqid:%d cid:%d nsid:%d "
 		    "lba:%llu len:%d\n",
-		    get_io_opcode_string(cmd->opc), qpair->id, cmd->cid,
-		    cmd->nsid,
-		    ((unsigned long long)cmd->cdw11 << 32) + cmd->cdw10,
-		    (cmd->cdw12 & 0xFFFF) + 1);
+		    get_io_opcode_string(opc), qpair->id, cmd->cid, le32toh(cmd->nsid),
+		    ((unsigned long long)le32toh(cmd->cdw11) << 32) + le32toh(cmd->cdw10),
+		    (le32toh(cmd->cdw12) & 0xFFFF) + 1);
 		break;
 	case NVME_OPC_FLUSH:
 	case NVME_OPC_DATASET_MANAGEMENT:
 		nvme_printf(qpair->ctrlr, "%s sqid:%d cid:%d nsid:%d\n",
-		    get_io_opcode_string(cmd->opc), qpair->id, cmd->cid,
-		    cmd->nsid);
+		    get_io_opcode_string(opc), qpair->id, cmd->cid, le32toh(cmd->nsid));
 		break;
 	default:
 		nvme_printf(qpair->ctrlr, "%s (%02x) sqid:%d cid:%d nsid:%d\n",
-		    get_io_opcode_string(cmd->opc), cmd->opc, qpair->id,
-		    cmd->cid, cmd->nsid);
+		    get_io_opcode_string(opc), opc, qpair->id,
+		    cmd->cid, le32toh(cmd->nsid));
 		break;
 	}
 }
@@ -245,26 +247,37 @@ static void
 nvme_qpair_print_completion(struct nvme_qpair *qpair, 
     struct nvme_completion *cpl)
 {
+	uint16_t sct, sc;
+
+	sct = NVME_STATUS_GET_SCT(cpl->status);
+	sc = NVME_STATUS_GET_SC(cpl->status);
+
 	nvme_printf(qpair->ctrlr, "%s (%02x/%02x) sqid:%d cid:%d cdw0:%x\n",
-	    get_status_string(cpl->status.sct, cpl->status.sc),
-	    cpl->status.sct, cpl->status.sc, cpl->sqid, cpl->cid, cpl->cdw0);
+	    get_status_string(sct, sc), sct, sc, cpl->sqid, cpl->cid,
+	    cpl->cdw0);
 }
 
 static boolean_t
 nvme_completion_is_retry(const struct nvme_completion *cpl)
 {
+	uint8_t sct, sc, dnr;
+
+	sct = NVME_STATUS_GET_SCT(cpl->status);
+	sc = NVME_STATUS_GET_SC(cpl->status);
+	dnr = NVME_STATUS_GET_DNR(cpl->status);
+
 	/*
 	 * TODO: spec is not clear how commands that are aborted due
 	 *  to TLER will be marked.  So for now, it seems
 	 *  NAMESPACE_NOT_READY is the only case where we should
 	 *  look at the DNR bit.
 	 */
-	switch (cpl->status.sct) {
+	switch (sct) {
 	case NVME_SCT_GENERIC:
-		switch (cpl->status.sc) {
+		switch (sc) {
 		case NVME_SC_ABORTED_BY_REQUEST:
 		case NVME_SC_NAMESPACE_NOT_READY:
-			if (cpl->status.dnr)
+			if (dnr)
 				return (0);
 			else
 				return (1);
@@ -359,9 +372,9 @@ nvme_qpair_manual_complete_tracker(struct nvme_qpair *qpair,
 	memset(&cpl, 0, sizeof(cpl));
 	cpl.sqid = qpair->id;
 	cpl.cid = tr->cid;
-	cpl.status.sct = sct;
-	cpl.status.sc = sc;
-	cpl.status.dnr = dnr;
+	cpl.status |= (sct & NVME_STATUS_SCT_MASK) << NVME_STATUS_SCT_SHIFT;
+	cpl.status |= (sc & NVME_STATUS_SC_MASK) << NVME_STATUS_SC_SHIFT;
+	cpl.status |= (dnr & NVME_STATUS_DNR_MASK) << NVME_STATUS_DNR_SHIFT;
 	nvme_qpair_complete_tracker(qpair, tr, &cpl, print_on_error);
 }
 
@@ -375,8 +388,8 @@ nvme_qpair_manual_complete_request(struct nvme_qpair *qpair,
 
 	memset(&cpl, 0, sizeof(cpl));
 	cpl.sqid = qpair->id;
-	cpl.status.sct = sct;
-	cpl.status.sc = sc;
+	cpl.status |= (sct & NVME_STATUS_SCT_MASK) << NVME_STATUS_SCT_SHIFT;
+	cpl.status |= (sc & NVME_STATUS_SC_MASK) << NVME_STATUS_SC_SHIFT;
 
 	error = nvme_completion_is_error(&cpl);
 
@@ -395,7 +408,7 @@ void
 nvme_qpair_process_completions(struct nvme_qpair *qpair)
 {
 	struct nvme_tracker	*tr;
-	struct nvme_completion	*cpl;
+	struct nvme_completion	cpl;
 
 	qpair->num_intr_handler_calls++;
 
@@ -409,20 +422,24 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		return;
 
 	while (1) {
-		cpl = &qpair->cpl[qpair->cq_head];
+		cpl = qpair->cpl[qpair->cq_head];
 
-		if (cpl->status.p != qpair->phase)
+		/* Convert to host endian */
+		nvme_completion_swapbytes(&cpl);
+
+		if (NVME_STATUS_GET_P(cpl.status) != qpair->phase)
 			break;
 
-		tr = qpair->act_tr[cpl->cid];
+		tr = qpair->act_tr[cpl.cid];
 
 		if (tr != NULL) {
-			nvme_qpair_complete_tracker(qpair, tr, cpl, TRUE);
-			qpair->sq_head = cpl->sqhd;
+			nvme_qpair_complete_tracker(qpair, tr, &cpl, TRUE);
+			qpair->sq_head = cpl.sqhd;
 		} else {
 			nvme_printf(qpair->ctrlr, 
 			    "cpl does not map to outstanding cmd\n");
-			nvme_dump_completion(cpl);
+			/* nvme_dump_completion expects device endianess */
+			nvme_dump_completion(&qpair->cpl[qpair->cq_head]);
 			KASSERT(0, ("received completion for unknown cmd\n"));
 		}
 
@@ -629,7 +646,7 @@ nvme_admin_qpair_abort_aers(struct nvme_qpair *qpair)
 
 	tr = TAILQ_FIRST(&qpair->outstanding_tr);
 	while (tr != NULL) {
-		if (tr->req->cmd.opc == NVME_OPC_ASYNC_EVENT_REQUEST) {
+		if ((le16toh(tr->req->cmd.opc_fuse) & NVME_CMD_OPC_MASK) == NVME_OPC_ASYNC_EVENT_REQUEST) {
 			nvme_qpair_manual_complete_tracker(qpair, tr,
 			    NVME_SCT_GENERIC, NVME_SC_ABORTED_SQ_DELETION, 0,
 			    FALSE);
@@ -685,12 +702,14 @@ nvme_timeout(void *arg)
 	struct nvme_tracker	*tr = arg;
 	struct nvme_qpair	*qpair = tr->qpair;
 	struct nvme_controller	*ctrlr = qpair->ctrlr;
-	union csts_register	csts;
+	uint32_t		csts;
+	uint8_t			cfs;
 
 	/* Read csts to get value of cfs - controller fatal status. */
-	csts.raw = nvme_mmio_read_4(ctrlr, csts);
+	csts = nvme_mmio_read_4(ctrlr, csts);
 
-	if (ctrlr->enable_aborts && csts.bits.cfs == 0) {
+	cfs = (csts >> NVME_CSTS_REG_CFS_SHIFT) & NVME_CSTS_REG_CFS_MASK;
+	if (ctrlr->enable_aborts && cfs == 0) {
 		/*
 		 * If aborts are enabled, only use them if the controller is
 		 *  not reporting fatal status.
@@ -759,16 +778,16 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 	 *  we can safely just transfer each segment to its
 	 *  associated PRP entry.
 	 */
-	tr->req->cmd.prp1 = seg[0].ds_addr;
+	tr->req->cmd.prp1 = htole64(seg[0].ds_addr);
 
 	if (nseg == 2) {
-		tr->req->cmd.prp2 = seg[1].ds_addr;
+		tr->req->cmd.prp2 = htole64(seg[1].ds_addr);
 	} else if (nseg > 2) {
 		cur_nseg = 1;
-		tr->req->cmd.prp2 = (uint64_t)tr->prp_bus_addr;
+		tr->req->cmd.prp2 = htole64((uint64_t)tr->prp_bus_addr);
 		while (cur_nseg < nseg) {
 			tr->prp[cur_nseg-1] =
-			    (uint64_t)seg[cur_nseg].ds_addr;
+			    htole64((uint64_t)seg[cur_nseg].ds_addr);
 			cur_nseg++;
 		}
 	} else {

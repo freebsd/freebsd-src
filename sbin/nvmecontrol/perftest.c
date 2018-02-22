@@ -81,7 +81,7 @@ perftest(int argc, char *argv[])
 {
 	struct nvme_io_test		io_test;
 	int				fd;
-	char				ch;
+	int				opt;
 	char				*p;
 	u_long				ioctl_cmd = NVME_IO_TEST;
 	bool				nflag, oflag, sflag, tflag;
@@ -91,8 +91,8 @@ perftest(int argc, char *argv[])
 
 	memset(&io_test, 0, sizeof(io_test));
 
-	while ((ch = getopt(argc, argv, "f:i:n:o:ps:t:")) != -1) {
-		switch (ch) {
+	while ((opt = getopt(argc, argv, "f:i:n:o:ps:t:")) != -1) {
+		switch (opt) {
 		case 'f':
 			if (!strcmp(optarg, "refthread"))
 				io_test.flags |= NVME_TEST_FLAG_REFTHREAD;
