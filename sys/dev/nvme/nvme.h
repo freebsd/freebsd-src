@@ -59,6 +59,9 @@
 /* Cap nvme to 1MB transfers driver explodes with larger sizes */
 #define NVME_MAX_XFER_SIZE		(MAXPHYS < (1<<20) ? MAXPHYS : (1<<20))
 
+/* Largest DSM Trim that can be done */
+#define NVME_MAX_DSM_TRIM		4096
+
 union cap_lo_register {
 	uint32_t	raw;
 	struct {
