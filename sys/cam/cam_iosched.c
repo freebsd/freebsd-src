@@ -68,8 +68,6 @@ static MALLOC_DEFINE(M_CAMSCHED, "CAM I/O Scheduler",
 #define CAM_IOSCHED_FLAG_CALLOUT_ACTIVE (1ul << 1)
 			/* Timer has just ticked */
 #define CAM_IOSCHED_FLAG_TICK		(1ul << 2)
-			/* When set, defer trims until after next tick */
-#define CAM_IOSCHED_FLAG_TRIM_QONLY	(1ul << 4)
 
 			/* Periph drivers set these flags to indicate work */
 #define CAM_IOSCHED_FLAG_WORK_FLAGS	((0xffffu) << 16)
@@ -292,7 +290,6 @@ struct cam_iosched_softc {
 	struct bio_queue_head trim_queue;
 				/* scheduler flags < 16, user flags >= 16 */
 	uint32_t	flags;
-	u_int		caps;
 	int		sort_io_queue;
 #ifdef CAM_IOSCHED_DYNAMIC
 	int		read_bias;		/* Read bias setting */
@@ -590,7 +587,7 @@ cam_iosched_ticker(void *arg)
 	cam_iosched_limiter_tick(&isc->write_stats);
 	cam_iosched_limiter_tick(&isc->trim_stats);
 
-	isc->flags |= CAM_IOSCHED_FLAG_TICK;
+	isc->flags |= CAM_IOSCHED_FLAGS_TICK;
 	cam_iosched_schedule(isc, isc->periph);
 
 	/*
@@ -1067,16 +1064,12 @@ cam_iosched_cl_sysctl_fini(struct control_loop *clp)
  * sizeof struct cam_iosched_softc.
  */
 int
-cam_iosched_init(struct cam_iosched_softc **iscp, struct cam_periph *periph,
-	u_int caps)
+cam_iosched_init(struct cam_iosched_softc **iscp, struct cam_periph *periph)
 {
 
 	*iscp = malloc(sizeof(**iscp), M_CAMSCHED, M_NOWAIT | M_ZERO);
 	if (*iscp == NULL)
 		return ENOMEM;
-	(*iscp)->caps = caps;
-	if (caps & CAM_IOSCHED_CAP_TRIM_CLOCKED)
-		(*iscp)->flags |= CAM_IOSCHED_FLAG_TRIM_QONLY;
 #ifdef CAM_IOSCHED_DYNAMIC
 	if (iosched_debug)
 		printf("CAM IOSCHEDULER Allocating entry at %p\n", *iscp);
@@ -1203,7 +1196,7 @@ cam_iosched_flush(struct cam_iosched_softc *isc, struct devstat *stp, int err)
 
 #ifdef CAM_IOSCHED_DYNAMIC
 static struct bio *
-cam_iosched_get_write(struct cam_iosched_softc *isc, bool wastick)
+cam_iosched_get_write(struct cam_iosched_softc *isc)
 {
 	struct bio *bp;
 
@@ -1312,43 +1305,11 @@ cam_iosched_next_trim(struct cam_iosched_softc *isc)
  *
  * Assumes we're called with the periph lock held.
  */
-static struct bio *
-cam_iosched_get_trim(struct cam_iosched_softc *isc, bool wastick)
+struct bio *
+cam_iosched_get_trim(struct cam_iosched_softc *isc)
 {
 
-	/*
-	 * If there's no trims, return NULL. If we're clocking out the
-	 * trims rather than doing thins right away, this is where we
-	 * set the queue only bit. This causes us to ignore them until
-	 * the next clock tick. If we can't get a trim, and we're clocking
-	 * them out, if the queue is empty or if we're rate limited,
-	 * then set QONLY so we stop processing trims until the next
-	 * tick.
-	 */
-	if (!cam_iosched_has_more_trim(isc)) {
-		if ((isc->caps & CAM_IOSCHED_CAP_TRIM_CLOCKED) &&
-		    (bioq_first(&isc->trim_queue) == NULL ||
-#ifdef CAM_IOSCHED_DYNAMIC
-		     (isc->trim_stats.state_flags & IOP_RATE_LIMITED)
-#else
-		     false
-#endif
-		    ))
-			isc->flags |= CAM_IOSCHED_FLAG_TRIM_QONLY;
-		return NULL;
-	}
-
-	/*
-	 * If we just ticked, and we have trims, then turn off
-	 * the queue only flag.
-	 */
-	if (wastick)
-		isc->flags &= ~CAM_IOSCHED_FLAG_TRIM_QONLY;
-
-	/*
-	 * If QONLY is set, no trims are eligble just now.
-	 */
-	if (isc->flags & CAM_IOSCHED_FLAG_TRIM_QONLY)
+	if (!cam_iosched_has_more_trim(isc))
 		return NULL;
 
 	return cam_iosched_next_trim(isc);
@@ -1366,17 +1327,17 @@ cam_iosched_next_bio(struct cam_iosched_softc *isc)
 	struct bio *bp;
 	bool wastick;
 	
-	wastick = !!(isc->flags & CAM_IOSCHED_FLAG_TICK);
-	isc->flags &= ~CAM_IOSCHED_FLAG_TICK;
+	wastick = !!(isc->flags & CAM_IOSCHED_FLAGS_TICK);
+	isc->flags &= ~CAM_IOSCHED_FLAGS_TICK;
 
 	/*
 	 * See if we have a trim that can be scheduled. We can only send one
-	 * at a time down, so this takes that into account for those devices
-	 * that can only do one. In addition, some devices queue up a bunch
-	 * of TRIMs before sending them down as a batch.
+	 * at a time down, so this takes that into account.
+	 *
+	 * XXX newer TRIM commands are queueable. Revisit this when we
+	 * implement them.
 	 */
-	if ((isc->flags & CAM_IOSCHED_FLAG_TRIM_QONLY) == 0 &&
-	    (bp = cam_iosched_get_trim(isc, wastick)) != NULL)
+	if ((bp = cam_iosched_get_trim(isc)) != NULL)
 		return bp;
 
 #ifdef CAM_IOSCHED_DYNAMIC
@@ -1385,7 +1346,7 @@ cam_iosched_next_bio(struct cam_iosched_softc *isc)
 	 * and if so, those are next.
 	 */
 	if (do_dynamic_iosched) {
-		if ((bp = cam_iosched_get_write(isc, was_tick)) != NULL)
+		if ((bp = cam_iosched_get_write(isc)) != NULL)
 			return bp;
 	}
 #endif

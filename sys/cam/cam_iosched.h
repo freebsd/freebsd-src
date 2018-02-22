@@ -81,12 +81,11 @@ cam_iosched_sbintime_t(uintptr_t delta)
 	return (sbintime_t)((uint64_t)delta << CAM_IOSCHED_TIME_SHIFT);
 }
 
-#define CAM_IOSCHED_CAP_TRIM_CLOCKED	0x1
-
-int cam_iosched_init(struct cam_iosched_softc **, struct cam_periph *periph, u_int caps);
+int cam_iosched_init(struct cam_iosched_softc **, struct cam_periph *periph);
 void cam_iosched_fini(struct cam_iosched_softc *);
 void cam_iosched_sysctl_init(struct cam_iosched_softc *, struct sysctl_ctx_list *, struct sysctl_oid *);
 struct bio *cam_iosched_next_trim(struct cam_iosched_softc *isc);
+struct bio *cam_iosched_get_trim(struct cam_iosched_softc *isc);
 struct bio *cam_iosched_next_bio(struct cam_iosched_softc *isc);
 void cam_iosched_queue_work(struct cam_iosched_softc *isc, struct bio *bp);
 void cam_iosched_flush(struct cam_iosched_softc *isc, struct devstat *stp, int err);
