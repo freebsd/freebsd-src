@@ -133,37 +133,42 @@ ATF_TC_BODY(mlock_err, tc)
 	ATF_REQUIRE_ERRNO(ENOMEM, mlock((char *)0, page) == -1);
 
 	errno = 0;
-	ATF_REQUIRE_ERRNO(ENOMEM, mlock((char *)-1, page) == -1);
-
-	errno = 0;
 	ATF_REQUIRE_ERRNO(ENOMEM, munlock(NULL, page) == -1);
 
 	errno = 0;
 	ATF_REQUIRE_ERRNO(ENOMEM, munlock((char *)0, page) == -1);
 
+#ifdef __FreeBSD__
+	/* Wrap around should return EINVAL */
+	errno = 0;
+	ATF_REQUIRE_ERRNO(EINVAL, mlock((char *)-1, page) == -1);
+	errno = 0;
+	ATF_REQUIRE_ERRNO(EINVAL, munlock((char *)-1, page) == -1);
+#else
+	errno = 0;
+	ATF_REQUIRE_ERRNO(ENOMEM, mlock((char *)-1, page) == -1);
 	errno = 0;
 	ATF_REQUIRE_ERRNO(ENOMEM, munlock((char *)-1, page) == -1);
+#endif
 
-	buf = malloc(page);
+	buf = malloc(page);	/* Get a valid address */
 	ATF_REQUIRE(buf != NULL);
-
-	/*
-	 * unlocking memory that is not locked is an error...
-	 */
-
+#ifdef __FreeBSD__
 	errno = 0;
-	ATF_REQUIRE_ERRNO(ENOMEM, munlock(buf, page) == -1);
+	/* Wrap around should return EINVAL */
+	ATF_REQUIRE_ERRNO(EINVAL, mlock(buf, -page) == -1);
+	errno = 0;
+	ATF_REQUIRE_ERRNO(EINVAL, munlock(buf, -page) == -1);
+#else
+	errno = 0;
+	ATF_REQUIRE_ERRNO(ENOMEM, mlock(buf, -page) == -1);
+	errno = 0;
+	ATF_REQUIRE_ERRNO(ENOMEM, munlock(buf, -page) == -1);
+#endif
+	(void)free(buf);
 
 /* There is no sbrk on AArch64 and RISC-V */
 #if !defined(__aarch64__) && !defined(__riscv__)
-	/*
-	 * These are permitted to fail (EINVAL) but do not on NetBSD
-	 */
-	ATF_REQUIRE(mlock((void *)(((uintptr_t)buf) + page/3), page/5) == 0);
-	ATF_REQUIRE(munlock((void *)(((uintptr_t)buf) + page/3), page/5) == 0);
-
-	(void)free(buf);
-
 	/*
 	 * Try to create a pointer to an unmapped page - first after current
 	 * brk will likely do.
@@ -360,6 +365,80 @@ ATF_TC_CLEANUP(mlock_nested, tc)
 }
 #endif
 
+#ifdef __FreeBSD__
+ATF_TC_WITH_CLEANUP(mlock_unaligned);
+#else
+ATF_TC(mlock_unaligned);
+#endif
+ATF_TC_HEAD(mlock_unaligned, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test that mlock(2) can lock page-unaligned memory");
+#ifdef __FreeBSD__
+	atf_tc_set_md_var(tc, "require.config", "allow_sysctl_side_effects");
+	atf_tc_set_md_var(tc, "require.user", "root");
+#endif
+}
+
+ATF_TC_BODY(mlock_unaligned, tc)
+{
+	void *buf, *addr;
+
+#ifdef __FreeBSD__
+	/* Set max_wired really really high to avoid EAGAIN */
+	set_vm_max_wired(INT_MAX);
+#endif
+
+	buf = malloc(page);
+	ATF_REQUIRE(buf != NULL);
+
+	if ((uintptr_t)buf & ((uintptr_t)page - 1))
+		addr = buf;
+	else
+		addr = (void *)(((uintptr_t)buf) + page/3);
+
+	ATF_REQUIRE_EQ(mlock(addr, page/5), 0);
+	ATF_REQUIRE_EQ(munlock(addr, page/5), 0);
+
+	(void)free(buf);
+}
+
+#ifdef __FreeBSD__
+ATF_TC_CLEANUP(mlock_unaligned, tc)
+{
+
+	restore_vm_max_wired();
+}
+#endif
+
+ATF_TC(munlock_unlocked);
+ATF_TC_HEAD(munlock_unlocked, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+#ifdef __FreeBSD__
+	    "munlock(2) accepts unlocked memory");
+#else
+	    "munlock(2) of unlocked memory is an error");
+#endif
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
+ATF_TC_BODY(munlock_unlocked, tc)
+{
+	void *buf;
+
+	buf = malloc(page);
+	ATF_REQUIRE(buf != NULL);
+
+#ifdef __FreeBSD__
+	ATF_REQUIRE_EQ(munlock(buf, page), 0);
+#else
+	errno = 0;
+	ATF_REQUIRE_ERRNO(ENOMEM, munlock(buf, page) == -1);
+#endif
+	(void)free(buf);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -371,6 +450,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, mlock_limits);
 	ATF_TP_ADD_TC(tp, mlock_mmap);
 	ATF_TP_ADD_TC(tp, mlock_nested);
+	ATF_TP_ADD_TC(tp, mlock_unaligned);
+	ATF_TP_ADD_TC(tp, munlock_unlocked);
 
 	return atf_no_error();
 }
