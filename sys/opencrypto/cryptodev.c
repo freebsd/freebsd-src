@@ -898,7 +898,7 @@ cryptodev_aead(
 	uio->uio_iov = &cse->iovec;
 	uio->uio_iovcnt = 1;
 	uio->uio_offset = 0;
-	uio->uio_resid = caead->len + caead->aadlen + cse->thash->hashsize;
+	uio->uio_resid = caead->aadlen + caead->len + cse->thash->hashsize;
 	uio->uio_segflg = UIO_SYSSPACE;
 	uio->uio_rw = UIO_WRITE;
 	uio->uio_td = td;
@@ -916,17 +916,17 @@ cryptodev_aead(
 	crda = crp->crp_desc;
 	crde = crda->crd_next;
 
-	if ((error = copyin(caead->src, cse->uio.uio_iov[0].iov_base,
-	    caead->len)))
+	if ((error = copyin(caead->aad, cse->uio.uio_iov[0].iov_base,
+	    caead->aadlen)))
 		goto bail;
 
-	if ((error = copyin(caead->aad, (char *)cse->uio.uio_iov[0].iov_base +
-	    caead->len, caead->aadlen)))
+	if ((error = copyin(caead->src, (char *)cse->uio.uio_iov[0].iov_base +
+	    caead->aadlen, caead->len)))
 		goto bail;
 
-	crda->crd_skip = caead->len;
+	crda->crd_skip = 0;
 	crda->crd_len = caead->aadlen;
-	crda->crd_inject = caead->len + caead->aadlen;
+	crda->crd_inject = caead->aadlen + caead->len;
 
 	crda->crd_alg = cse->mac;
 	crda->crd_key = cse->mackey;
@@ -936,15 +936,15 @@ cryptodev_aead(
 		crde->crd_flags |= CRD_F_ENCRYPT;
 	else
 		crde->crd_flags &= ~CRD_F_ENCRYPT;
-	/* crde->crd_skip set below */
+	crde->crd_skip = caead->aadlen;
 	crde->crd_len = caead->len;
-	crde->crd_inject = 0;
+	crde->crd_inject = caead->aadlen;
 
 	crde->crd_alg = cse->cipher;
 	crde->crd_key = cse->key;
 	crde->crd_klen = cse->keylen * 8;
 
-	crp->crp_ilen = caead->len + caead->aadlen;
+	crp->crp_ilen = caead->aadlen + caead->len;
 	crp->crp_flags = CRYPTO_F_IOV | CRYPTO_F_CBIMM
 		       | (caead->flags & COP_F_BATCH);
 	crp->crp_buf = (caddr_t)&cse->uio.uio_iov;
@@ -962,10 +962,9 @@ cryptodev_aead(
 			goto bail;
 		bcopy(cse->tmp_iv, crde->crd_iv, caead->ivlen);
 		crde->crd_flags |= CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
-		crde->crd_skip = 0;
 	} else {
 		crde->crd_flags |= CRD_F_IV_PRESENT;
-		crde->crd_skip = cse->txform->blocksize;
+		crde->crd_skip += cse->txform->blocksize;
 		crde->crd_len -= cse->txform->blocksize;
 	}
 
@@ -1005,12 +1004,13 @@ again:
 		goto bail;
 	}
 
-	if (caead->dst && (error = copyout(cse->uio.uio_iov[0].iov_base,
-	    caead->dst, caead->len)))
+	if (caead->dst && (error = copyout(
+	    (caddr_t)cse->uio.uio_iov[0].iov_base + caead->aadlen, caead->dst,
+	    caead->len)))
 		goto bail;
 
 	if ((error = copyout((caddr_t)cse->uio.uio_iov[0].iov_base +
-	    caead->len + caead->aadlen, caead->tag, cse->thash->hashsize)))
+	    caead->aadlen + caead->len, caead->tag, cse->thash->hashsize)))
 		goto bail;
 
 bail:
