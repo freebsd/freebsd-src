@@ -456,8 +456,7 @@ function menu.autoboot()
 			else
 				-- erase autoboot msg
 				screen.setcursor(0, y)
-				print("                                        "
-				    .. "                                        ")
+				print(string.rep(" ", 80))
 				screen.defcursor()
 				return ch
 			end
