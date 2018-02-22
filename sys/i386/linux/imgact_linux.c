@@ -235,5 +235,5 @@ fail:
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
  */
-static struct execsw linux_execsw = { exec_linux_imgact, "linux a.out" };
+static struct execsw linux_execsw = { exec_linux_imgact, "Linux a.out" };
 EXEC_SET(linuxaout, linux_execsw);
