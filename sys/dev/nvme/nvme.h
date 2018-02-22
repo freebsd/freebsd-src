@@ -1196,6 +1196,8 @@ void	nvme_le128toh(void *p)
 		tmp[i] = tmp[15-i];
 		tmp[15-i] = b;
 	}
+#else
+	(void)p;
 #endif
 }
 
