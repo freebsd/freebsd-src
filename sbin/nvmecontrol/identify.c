@@ -112,7 +112,7 @@ print_controller(struct nvme_controller_data *cdata)
 	if (cdata->mdts == 0)
 		printf("Unlimited\n");
 	else
-		printf("%ld\n", PAGE_SIZE * (1 << cdata->mdts));
+		printf("%d\n", PAGE_SIZE * (1 << cdata->mdts));
 	printf("Controller ID:              0x%02x\n", cdata->ctrlr_id);
 	printf("\n");
 
