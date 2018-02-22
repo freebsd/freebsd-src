@@ -520,6 +520,27 @@ vt_window_switch(struct vt_window *vw)
 	struct vt_window *curvw = vd->vd_curwindow;
 	keyboard_t *kbd;
 
+	if (kdb_active) {
+		/*
+		 * When grabbing the console for the debugger, avoid
+		 * locks as that can result in deadlock.  While this
+		 * could use try locks, that wouldn't really make a
+		 * difference as there are sufficient barriers in
+		 * debugger entry/exit to be equivalent to
+		 * successfully try-locking here.
+		 */
+		if (curvw == vw)
+			return (0);
+		if (!(vw->vw_flags & (VWF_OPENED|VWF_CONSOLE)))
+			return (EINVAL);
+		
+		vd->vd_curwindow = vw;
+		vd->vd_flags |= VDF_INVALID;
+		if (vd->vd_driver->vd_postswitch)
+			vd->vd_driver->vd_postswitch(vd);
+		return (0);
+	}
+		
 	VT_LOCK(vd);
 	if (curvw == vw) {
 		/* Nothing to do. */
