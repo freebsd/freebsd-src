@@ -4161,11 +4161,6 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	err = 0;
 	switch (command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-		err = ether_ioctl(ifp, command, data);
-		break;
-
 	case SIOCSIFMTU:
 		err = mxge_change_mtu(sc, ifr->ifr_mtu);
 		break;
@@ -4289,7 +4284,8 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	default:
-		err = ENOTTY;
+		err = ether_ioctl(ifp, command, data);
+		break;
 	}
 	return err;
 }
