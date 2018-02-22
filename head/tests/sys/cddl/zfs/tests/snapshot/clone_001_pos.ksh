@@ -71,7 +71,7 @@ set -A args "$SNAPFS" "$SNAPDIR" "$TESTPOOL/$TESTCLONE" "$TESTDIR.0" \
 
 function setup_all
 {
-	create_pool $TESTPOOL1 /dev/zvol/dsk/$TESTPOOL/$TESTVOL
+	create_pool $TESTPOOL1 /dev/zvol/$TESTPOOL/$TESTVOL
 	log_must $ZFS create $TESTPOOL1/$TESTFS
 	log_must $ZFS set mountpoint=$TESTDIR2 $TESTPOOL1/$TESTFS
 
@@ -80,25 +80,6 @@ function setup_all
 
 function cleanup_all
 {
-	typeset -i i=0
-
-	i=0
-	while (( i < ${#args[*]} )); do 
-		snapexists ${args[i]} && \
-			log_must $ZFS destroy -Rf ${args[i]}
-
-		[[ -d ${args[i+3]} ]] && \
-			log_must $RM -rf ${args[i+3]}
-
-		[[ -d ${args[i+1]} ]] && \
-			log_must $RM -rf ${args[i+1]}
-
-		(( i = i + 4 ))
-	done
-
-	datasetexists $TESTPOOL1/$TESTFS  && \
-		log_must $ZFS destroy -f $TESTPOOL1/$TESTFS
-
 	destroy_pool $TESTPOOL1
 
 	[[ -d $TESTDIR2 ]] && \
@@ -110,9 +91,6 @@ function cleanup_all
 log_assert "Verify a cloned file system is writable."
 
 log_onexit cleanup_all
-
-[[ $os_name == "FreeBSD" ]] &&
-	log_uninitiated "Creating a pool on a zvol is not yet supported in FreeBSD"
 
 setup_all
 

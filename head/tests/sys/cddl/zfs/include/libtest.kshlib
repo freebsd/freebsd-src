@@ -3427,6 +3427,7 @@ function populate_dir # basename num_files write_count blocksz data snapbase
 	typeset -i num_files=$2
 	typeset -i write_count=$3
 	typeset -i blocksz=$4
+	typeset -i i
 	typeset data=$5
 	typeset snapbase="$6"
 

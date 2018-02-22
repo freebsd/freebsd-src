@@ -32,11 +32,11 @@ clone_001_pos_head()
 }
 clone_001_pos_body()
 {
-	atf_expect_fail "Creating a pool on a zvol is not yet supported in FreeBSD"
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/snapshot.cfg
 
 	verify_disk_count "$DISKS" 1
+	verify_zvol_recursive
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/clone_001_pos.ksh || atf_fail "Testcase failed"
 }
