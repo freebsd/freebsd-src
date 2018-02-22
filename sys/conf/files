@@ -3590,6 +3590,7 @@ netinet/tcp_syncache.c		optional inet | inet6
 netinet/tcp_timer.c		optional inet | inet6
 netinet/tcp_timewait.c		optional inet | inet6
 netinet/tcp_usrreq.c		optional inet | inet6
+netinet/toecore.c		optional ofed
 netinet/udp_usrreq.c		optional inet | inet6
 netinet/libalias/alias.c	optional libalias inet | netgraph_nat inet
 netinet/libalias/alias_db.c	optional libalias inet | netgraph_nat inet
