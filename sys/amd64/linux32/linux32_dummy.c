@@ -1,4 +1,3 @@
-    sys/sys/sysent.2
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
