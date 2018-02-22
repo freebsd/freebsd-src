@@ -1392,7 +1392,7 @@ cam_iosched_queue_work(struct cam_iosched_softc *isc, struct bio *bp)
 	 * the work on the bio queue.
 	 */
 	if (bp->bio_cmd == BIO_DELETE) {
-		bioq_disksort(&isc->trim_queue, bp);
+		bioq_insert_tail(&isc->trim_queue, bp);
 #ifdef CAM_IOSCHED_DYNAMIC
 		isc->trim_stats.in++;
 		isc->trim_stats.queued++;
