@@ -691,7 +691,8 @@ ndaregister(struct cam_periph *periph, void *arg)
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	if (cam_iosched_init(&softc->cam_iosched, periph) != 0) {
+	if (cam_iosched_init(&softc->cam_iosched, periph,
+		CAM_IOSCHED_CAP_TRIM_CLOCKED) != 0) {
 		printf("ndaregister: Unable to probe new device. "
 		       "Unable to allocate iosched memory\n");
 		return(CAM_REQ_CMP_ERR);
