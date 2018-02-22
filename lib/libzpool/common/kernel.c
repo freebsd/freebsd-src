@@ -461,6 +461,16 @@ kernel_fini(void)
 	system_taskq_fini();
 }
 
+/* ARGSUSED */
+uint32_t
+zone_get_hostid(void *zonep)
+{
+	/*
+	 * We're emulating the system's hostid in userland.
+	 */
+	return (strtoul(hw_serial, NULL, 10));
+}
+
 int
 z_uncompress(void *dst, size_t *dstlen, const void *src, size_t srclen)
 {

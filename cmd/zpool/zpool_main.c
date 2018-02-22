@@ -1562,6 +1562,10 @@ print_status_config(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 			(void) printf(gettext("split into new pool"));
 			break;
 
+		case VDEV_AUX_CHILDREN_OFFLINE:
+			(void) printf(gettext("all children offline"));
+			break;
+
 		default:
 			(void) printf(gettext("corrupted data"));
 			break;
@@ -1647,6 +1651,10 @@ print_import_config(const char *name, nvlist_t *nv, int namewidth, int depth)
 
 		case VDEV_AUX_ERR_EXCEEDED:
 			(void) printf(gettext("too many errors"));
+			break;
+
+		case VDEV_AUX_CHILDREN_OFFLINE:
+			(void) printf(gettext("all children offline"));
 			break;
 
 		default:
@@ -2296,6 +2304,7 @@ zpool_do_import(int argc, char **argv)
 	idata.poolname = searchname;
 	idata.guid = searchguid;
 	idata.cachefile = cachefile;
+	idata.policy = policy;
 
 	pools = zpool_search_import(g_zfs, &idata);
 
