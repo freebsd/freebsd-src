@@ -215,6 +215,7 @@ dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb
 dev/gpio/bytgpio.c		optional	bytgpio
+dev/gpio/chvgpio.c		optional	chvgpio
 dev/hpt27xx/hpt27xx_os_bsd.c	optional hpt27xx
 dev/hpt27xx/hpt27xx_osm_bsd.c	optional hpt27xx
 dev/hpt27xx/hpt27xx_config.c	optional hpt27xx
