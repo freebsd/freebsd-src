@@ -64,24 +64,6 @@ local parse_boot_args = function(argv, with_kernel)
 	end
 end
 
--- Globals
-
-function boot(...)
-	local cmd_name, argv = cli.arguments(...)
-	local kernel, argstr = parse_boot_args(argv)
-	if kernel ~= nil then
-		loader.perform("unload")
-		config.selectkernel(kernel)
-	end
-	core.boot(argstr)
-end
-
-function autoboot(...)
-	local cmd_name, argv = cli.arguments(...)
-	local argstr = parse_boot_args(argv, false)
-	core.autoboot(argstr)
-end
-
 -- Declares a global function cli_execute that attempts to dispatch the
 -- arguments passed as a lua function. This gives lua a chance to intercept
 -- builtin CLI commands like "boot"
@@ -94,7 +76,7 @@ function cli_execute(...)
 	end
 
 	local cmd_name = argv[1]
-	local cmd = _G[cmd_name]
+	local cmd = cli[cmd_name]
 	if cmd ~= nil and type(cmd) == "function" then
 		-- Pass argv wholesale into cmd. We could omit argv[0] since the
 		-- traditional reasons for including it don't necessarily apply,
@@ -109,6 +91,23 @@ end
 
 -- Module exports
 
+function cli.boot(...)
+	local cmd_name, argv = cli.arguments(...)
+	local kernel, argstr = parse_boot_args(argv)
+	if kernel ~= nil then
+		loader.perform("unload")
+		config.selectkernel(kernel)
+	end
+	core.boot(argstr)
+end
+
+function cli.autoboot(...)
+	local cmd_name, argv = cli.arguments(...)
+	local argstr = parse_boot_args(argv, false)
+	core.autoboot(argstr)
+end
+
+-- Used for splitting cli varargs into cmd_name and the rest of argv
 function cli.arguments(...)
 	local argv = {...}
 	local cmd_name = ""
