@@ -131,6 +131,8 @@
                     ..
                     llquantize
                     ..
+                    mdb
+                    ..
                     mib
                     ..
                     misc
@@ -586,8 +588,6 @@
                     largest_pool
                     ..
                     link_count
-                    ..
-                    mdb
                     ..
                     migration
                     ..
