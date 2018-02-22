@@ -26,7 +26,7 @@
 -- $FreeBSD$
 --
 
-local config = require('config')
+local config = require("config")
 
 local core = {}
 
