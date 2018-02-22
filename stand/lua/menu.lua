@@ -36,10 +36,6 @@ local drawer = require("drawer")
 
 local menu = {}
 
-local skip
-local run
-local autoboot
-
 local OnOff = function(str, b)
 	if b then
 		return str .. color.escapef(color.GREEN) .. "On" ..
