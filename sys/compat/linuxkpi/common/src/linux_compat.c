@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2018 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -828,10 +828,27 @@ linux_access_ok(int rw, const void *uaddr, size_t len)
 	    (eaddr > saddr && eaddr <= VM_MAXUSER_ADDRESS));
 }
 
+/*
+ * This function should return either EINTR or ERESTART depending on
+ * the signal type sent to this thread:
+ */
+static int
+linux_get_error(struct task_struct *task, int error)
+{
+	/* check for signal type interrupt code */
+	if (error == EINTR || error == ERESTARTSYS || error == ERESTART) {
+		error = -linux_schedule_get_interrupt_value(task);
+		if (error == 0)
+			error = EINTR;
+	}
+	return (error);
+}
+
 static int
 linux_file_ioctl_sub(struct file *fp, struct linux_file *filp,
     u_long cmd, caddr_t data, struct thread *td)
 {
+	struct task_struct *task = current;
 	unsigned size;
 	int error;
 
@@ -844,8 +861,8 @@ linux_file_ioctl_sub(struct file *fp, struct linux_file *filp,
 		 * Background: Linux code expects a user-space address
 		 * while FreeBSD supplies a kernel-space address.
 		 */
-		current->bsd_ioctl_data = data;
-		current->bsd_ioctl_len = size;
+		task->bsd_ioctl_data = data;
+		task->bsd_ioctl_len = size;
 		data = (void *)LINUX_IOCTL_MIN_PTR;
 	} else {
 		/* fetch user-space pointer */
@@ -869,16 +886,17 @@ linux_file_ioctl_sub(struct file *fp, struct linux_file *filp,
 	else
 		error = ENOTTY;
 	if (size > 0) {
-		current->bsd_ioctl_data = NULL;
-		current->bsd_ioctl_len = 0;
+		task->bsd_ioctl_data = NULL;
+		task->bsd_ioctl_len = 0;
 	}
 
 	if (error == EWOULDBLOCK) {
 		/* update kqfilter status, if any */
 		linux_file_kqfilter_poll(filp,
 		    LINUX_KQ_FLAG_HAS_READ | LINUX_KQ_FLAG_HAS_WRITE);
-	} else if (error == ERESTARTSYS)
-		error = ERESTART;
+	} else {
+		error = linux_get_error(task, error);
+	}
 	return (error);
 }
 
@@ -1111,6 +1129,7 @@ linux_file_mmap_single(struct file *fp, vm_ooffset_t *offset,
     vm_size_t size, struct vm_object **object, int nprot,
     struct thread *td)
 {
+	struct task_struct *task;
 	struct vm_area_struct *vmap;
 	struct mm_struct *mm;
 	struct linux_file *filp;
@@ -1132,7 +1151,8 @@ linux_file_mmap_single(struct file *fp, vm_ooffset_t *offset,
 	 * The atomic reference below makes sure the mm_struct is
 	 * available as long as the vmap is in the linux_vma_head.
 	 */
-	mm = current->mm;
+	task = current;
+	mm = task->mm;
 	if (atomic_inc_not_zero(&mm->mm_users) == 0)
 		return (EINVAL);
 
@@ -1147,11 +1167,10 @@ linux_file_mmap_single(struct file *fp, vm_ooffset_t *offset,
 	vmap->vm_mm = mm;
 
 	if (unlikely(down_write_killable(&vmap->vm_mm->mmap_sem))) {
-		error = EINTR;
+		error = linux_get_error(task, EINTR);
 	} else {
 		error = -OPW(fp, td, filp->f_op->mmap(filp, vmap));
-		if (error == ERESTARTSYS)
-			error = ERESTART;
+		error = linux_get_error(task, error);
 		up_write(&vmap->vm_mm->mmap_sem);
 	}
 
@@ -1290,9 +1309,7 @@ linux_file_read(struct file *file, struct uio *uio, struct ucred *active_cred,
 			uio->uio_iov->iov_len -= bytes;
 			uio->uio_resid -= bytes;
 		} else {
-			error = -bytes;
-			if (error == ERESTARTSYS)
-				error = ERESTART;
+			error = linux_get_error(current, -bytes);
 		}
 	} else
 		error = ENXIO;
@@ -1329,9 +1346,7 @@ linux_file_write(struct file *file, struct uio *uio, struct ucred *active_cred,
 			uio->uio_iov->iov_len -= bytes;
 			uio->uio_resid -= bytes;
 		} else {
-			error = -bytes;
-			if (error == ERESTARTSYS)
-				error = ERESTART;
+			error = linux_get_error(current, -bytes);
 		}
 	} else
 		error = ENXIO;
@@ -1780,12 +1795,15 @@ linux_complete_common(struct completion *c, int all)
 int
 linux_wait_for_common(struct completion *c, int flags)
 {
+	struct task_struct *task;
 	int error;
 
 	if (SCHEDULER_STOPPED())
 		return (0);
 
 	DROP_GIANT();
+
+	task = current;
 
 	if (flags != 0)
 		flags = SLEEPQ_INTERRUPTIBLE | SLEEPQ_SLEEP;
@@ -1798,7 +1816,9 @@ linux_wait_for_common(struct completion *c, int flags)
 			break;
 		sleepq_add(c, NULL, "completion", flags, 0);
 		if (flags & SLEEPQ_INTERRUPTIBLE) {
-			if (sleepq_wait_sig(c, 0) != 0) {
+			error = -sleepq_wait_sig(c, 0);
+			if (error != 0) {
+				linux_schedule_save_interrupt_value(task, error);
 				error = -ERESTARTSYS;
 				goto intr;
 			}
@@ -1820,22 +1840,22 @@ intr:
 int
 linux_wait_for_timeout_common(struct completion *c, int timeout, int flags)
 {
+	struct task_struct *task;
 	int end = jiffies + timeout;
 	int error;
-	int ret;
 
 	if (SCHEDULER_STOPPED())
 		return (0);
 
 	DROP_GIANT();
 
+	task = current;
+
 	if (flags != 0)
 		flags = SLEEPQ_INTERRUPTIBLE | SLEEPQ_SLEEP;
 	else
 		flags = SLEEPQ_SLEEP;
 
-	error = 0;
-	ret = 0;
 	for (;;) {
 		sleepq_lock(c);
 		if (c->done)
@@ -1843,26 +1863,30 @@ linux_wait_for_timeout_common(struct completion *c, int timeout, int flags)
 		sleepq_add(c, NULL, "completion", flags, 0);
 		sleepq_set_timeout(c, linux_timer_jiffies_until(end));
 		if (flags & SLEEPQ_INTERRUPTIBLE)
-			ret = sleepq_timedwait_sig(c, 0);
+			error = -sleepq_timedwait_sig(c, 0);
 		else
-			ret = sleepq_timedwait(c, 0);
-		if (ret != 0) {
-			/* check for timeout or signal */
-			if (ret == EWOULDBLOCK)
-				error = 0;
-			else
+			error = -sleepq_timedwait(c, 0);
+		if (error != 0) {
+			/* check for timeout */
+			if (error == -EWOULDBLOCK) {
+				error = 0;	/* timeout */
+			} else {
+				/* signal happened */
+				linux_schedule_save_interrupt_value(task, error);
 				error = -ERESTARTSYS;
-			goto intr;
+			}
+			goto done;
 		}
 	}
 	c->done--;
 	sleepq_release(c);
 
-intr:
+	/* return how many jiffies are left */
+	error = linux_timer_jiffies_until(end);
+done:
 	PICKUP_GIANT();
 
-	/* return how many jiffies are left */
-	return (ret != 0 ? error : linux_timer_jiffies_until(end));
+	return (error);
 }
 
 int
