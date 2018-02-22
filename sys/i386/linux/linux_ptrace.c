@@ -412,7 +412,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		if (uap->addr < 0 || uap->addr & (sizeof(l_int) - 1))
 			break;
 		/*
-		 * Allow linux programs to access register values in
+		 * Allow Linux programs to access register values in
 		 * user struct. We simulate this through PT_GET/SETREGS
 		 * as necessary.
 		 */
