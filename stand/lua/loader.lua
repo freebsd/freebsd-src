@@ -27,16 +27,15 @@
 -- $FreeBSD$
 --
 
-local cli = require("cli")
+require("cli")
 local config = require("config")
 local menu = require("menu")
 local password = require("password")
-local local_module
 
-local result, errstr, errnoval = lfs.attributes("/boot/lua/local.lua")
+local result, _, _ = lfs.attributes("/boot/lua/local.lua")
 -- Effectively discard any errors; we'll just act if it succeeds.
 if result ~= nil then
-	local_module = require("local")
+	require("local")
 end
 
 config.load()

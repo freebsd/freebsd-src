@@ -59,11 +59,11 @@ menu.handlers = {
 	-- continue or not. The return value may be omitted if this entry should
 	-- have no bearing on whether we continue or not, indicating that we
 	-- should just continue after execution.
-	[core.MENU_ENTRY] = function(current_menu, entry)
+	[core.MENU_ENTRY] = function(_, entry)
 		-- run function
 		entry.func()
 	end,
-	[core.MENU_CAROUSEL_ENTRY] = function(current_menu, entry)
+	[core.MENU_CAROUSEL_ENTRY] = function(_, entry)
 		-- carousel (rotating) functionality
 		local carid = entry.carousel_id
 		local caridx = config.getCarouselIndex(carid)
@@ -77,11 +77,11 @@ menu.handlers = {
 			entry.func(caridx, choices[caridx], choices)
 		end
 	end,
-	[core.MENU_SUBMENU] = function(current_menu, entry)
+	[core.MENU_SUBMENU] = function(_, entry)
 		-- recurse
 		return menu.run(entry.submenu)
 	end,
-	[core.MENU_RETURN] = function(current_menu, entry)
+	[core.MENU_RETURN] = function(_, entry)
 		-- allow entry to have a function/side effect
 		if entry.func ~= nil then
 			entry.func()
@@ -122,7 +122,7 @@ menu.boot_environments = {
 				    bootenv_name .. " (" .. idx .. " of " ..
 				    #all_choices .. ")"
 			end,
-			func = function(idx, choice, all_choices)
+			func = function(_, choice, _)
 				bootenvSet(choice)
 			end,
 			alias = {"a", "A"},
@@ -312,7 +312,7 @@ menu.welcome = {
 				    kernel_name .. " (" .. idx .. " of " ..
 				    #all_choices .. ")"
 			end,
-			func = function(idx, choice, all_choices)
+			func = function(_, choice, _)
 				config.selectkernel(choice)
 			end,
 			alias = {"k", "K"}
@@ -361,7 +361,7 @@ function menu.run(m)
 	if m == menu.default then
 		autoboot_key = menu.autoboot()
 	end
-	cont = true
+	local cont = true
 	while cont do
 		local key = autoboot_key or io.getchar()
 		autoboot_key = nil
