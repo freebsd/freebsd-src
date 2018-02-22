@@ -42,6 +42,7 @@ NEWVERSWHAT=	"User boot" ${MACHINE_CPUARCH}
 .if ${MK_ZFS} != "no"
 CFLAGS+=	-DUSERBOOT_ZFS_SUPPORT
 LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
+HAVE_ZFS=yes
 .endif
 
 # Always add MI sources
