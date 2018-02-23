@@ -5,6 +5,8 @@
 .PATH:		${LUASRC}
 .PATH:		${LIBLUASRC}
 
+.include	"${BOOTSRC}/lua.mk"
+
 LIB=		lua
 INTERNALLIB=
 
@@ -25,9 +27,8 @@ SRCS+=	lerrno.c lfs.c lstd.c lutils.c
 
 WARNS=	3
 
-CFLAGS+= -DLUA_FLOAT_TYPE=LUA_FLOAT_INT64
 CFLAGS+= -DLUA_PATH_DEFAULT=\"/boot/lua/\?.lua\"
-CFLAGS+= -ffreestanding -nostdlib -DBOOT_LUA -DLUA_USE_POSIX
+CFLAGS+= -ffreestanding -nostdlib -DLUA_USE_POSIX
 CFLAGS+= -fno-stack-protector -D__BSD_VISIBLE
 CFLAGS+= -I${BOOTSRC}/include -I${LIBLUASRC} -I${LUASRC} -I${LDRSRC}
 
