@@ -222,7 +222,7 @@ menu.welcome = {
 				return menu.welcome.swapped_menu
 			end
 			-- Shallow copy the table
-			menu_entries = core.shallowCopyTable(menu_entries)
+			menu_entries = core.deepCopyTable(menu_entries)
 
 			-- Swap the first two menu entries
 			menu_entries[1], menu_entries[2] =

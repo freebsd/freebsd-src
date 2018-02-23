@@ -286,11 +286,11 @@ function core.isSystem386()
 end
 
 -- This may be a better candidate for a 'utility' module.
-function core.shallowCopyTable(tbl)
+function core.deepCopyTable(tbl)
 	local new_tbl = {}
 	for k, v in pairs(tbl) do
 		if type(v) == "table" then
-			new_tbl[k] = core.shallowCopyTable(v)
+			new_tbl[k] = core.deepCopyTable(v)
 		else
 			new_tbl[k] = v
 		end
