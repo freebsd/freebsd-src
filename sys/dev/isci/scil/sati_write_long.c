@@ -176,7 +176,7 @@ SATI_STATUS sati_write_long_translate_command(
             sati_ata_write_uncorrectable_construct(
                ata_io,
                sequence,
-               ATA_WRITE_UNCORRECTABLE_PSUEDO
+               ATA_WRITE_UNCORRECTABLE_PSEUDO
             );
             sequence->type = SATI_SEQUENCE_WRITE_LONG;
             status = SATI_SUCCESS;
@@ -188,7 +188,7 @@ SATI_STATUS sati_write_long_translate_command(
          sati_ata_write_uncorrectable_construct(
             ata_io,
             sequence,
-            ATA_WRITE_UNCORRECTABLE_PSUEDO
+            ATA_WRITE_UNCORRECTABLE_PSEUDO
          );
          sequence->type = SATI_SEQUENCE_WRITE_LONG;
          status = SATI_SUCCESS;
