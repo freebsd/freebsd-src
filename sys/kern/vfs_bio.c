@@ -423,7 +423,7 @@ sysctl_bufspace(SYSCTL_HANDLER_ARGS)
 	lvalue = 0;
 	for (i = 0; i < clean_domains; i++)
 		lvalue += bdclean[i].bd_bufspace;
-	return (sysctl_handle_int(oidp, &lvalue, 0, req));
+	return (sysctl_handle_long(oidp, &lvalue, 0, req));
 }
 #endif
 
@@ -1717,7 +1717,7 @@ bd_init(struct bufdomain *bd)
 
 	domain = bd - bdclean;
 	bd->bd_cleanq = &bd->bd_subq[mp_ncpus];
-	bq_init(bd->bd_cleanq, QUEUE_CLEAN, -1, "bufq clean lock");
+	bq_init(bd->bd_cleanq, QUEUE_CLEAN, mp_ncpus, "bufq clean lock");
 	for (i = 0; i <= mp_maxid; i++)
 		bq_init(&bd->bd_subq[i], QUEUE_CLEAN, i,
 		    "bufq clean subqueue lock");

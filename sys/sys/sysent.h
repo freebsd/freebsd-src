@@ -94,7 +94,7 @@ struct sysentvec {
 	struct sysent	*sv_table;	/* pointer to sysent */
 	u_int		sv_mask;	/* optional mask to index */
 	int		sv_errsize;	/* size of errno translation table */
-	int 		*sv_errtbl;	/* errno translation table */
+	const int 	*sv_errtbl;	/* errno translation table */
 	int		(*sv_transtrap)(int, int);
 					/* translate trap-to-signal mapping */
 	int		(*sv_fixup)(register_t **, struct image_params *);
@@ -262,12 +262,20 @@ struct syscall_helper_data {
     .syscall_no = NO_SYSCALL					\
 }
 
-int	syscall_register(int *offset, struct sysent *new_sysent,
-	    struct sysent *old_sysent, int flags);
-int	syscall_deregister(int *offset, struct sysent *old_sysent);
 int	syscall_module_handler(struct module *mod, int what, void *arg);
 int	syscall_helper_register(struct syscall_helper_data *sd, int flags);
 int	syscall_helper_unregister(struct syscall_helper_data *sd);
+/* Implementation, exposed for COMPAT code */
+int	kern_syscall_register(struct sysent *sysents, int *offset,
+	    struct sysent *new_sysent, struct sysent *old_sysent, int flags);
+int	kern_syscall_deregister(struct sysent *sysents, int offset,
+	    const struct sysent *old_sysent);
+int	kern_syscall_module_handler(struct sysent *sysents,
+	    struct module *mod, int what, void *arg);
+int	kern_syscall_helper_register(struct sysent *sysents,
+	    struct syscall_helper_data *sd, int flags);
+int	kern_syscall_helper_unregister(struct sysent *sysents,
+	    struct syscall_helper_data *sd);
 
 struct proc;
 const char *syscallname(struct proc *p, u_int code);

@@ -3248,7 +3248,7 @@ do_l2b_alloc:
 			if ((flags & PMAP_ENTER_NOSLEEP) == 0) {
 				PMAP_UNLOCK(pmap);
 				rw_wunlock(&pvh_global_lock);
-				VM_WAIT;
+				vm_wait(NULL);
 				rw_wlock(&pvh_global_lock);
 				PMAP_LOCK(pmap);
 				goto do_l2b_alloc;

@@ -6,7 +6,7 @@ PROG=	zdb
 MAN=	zdb.8
 SRCS=	zdb.c zdb_il.c
 
-WARNS?=	0
+WARNS?=	2
 CSTD=	c99
 
 CFLAGS+= -I${SRCTOP}/sys/cddl/compat/opensolaris

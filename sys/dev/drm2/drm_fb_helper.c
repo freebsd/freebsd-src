@@ -580,7 +580,7 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
 		u32 *palette;
 		u32 value;
-		/* place color in psuedopalette */
+		/* place color in pseudopalette */
 		if (regno > 16)
 			return -EINVAL;
 		palette = (u32 *)info->pseudo_palette;

@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2016 by Delphix. All rights reserved.
  * Copyright 2017 Nexenta Systems, Inc.
  */
 
@@ -428,8 +428,8 @@ zfs_rmnode(znode_t *zp)
 		error = dmu_free_long_range(os, zp->z_id, 0, DMU_OBJECT_END);
 		if (error) {
 			/*
-			 * Not enough space.  Leave the file in the unlinked
-			 * set.
+			 * Not enough space or we were interrupted by unmount.
+			 * Leave the file in the unlinked set.
 			 */
 			zfs_znode_dmu_fini(zp);
 			zfs_znode_free(zp);

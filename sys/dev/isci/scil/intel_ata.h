@@ -301,13 +301,13 @@
 /*@}*/
 
 /**
- * @name ATA_WRITE_UNCORRECTIABLE feature field values
+ * @name ATA_WRITE_UNCORRECTABLE feature field values
  *
  * These constants define the Write Uncorrectable feature values
  * used with the SATI translation.
  */
 /*@{*/
-#define ATA_WRITE_UNCORRECTABLE_PSUEDO    0x55
+#define ATA_WRITE_UNCORRECTABLE_PSEUDO    0x55
 #define ATA_WRITE_UNCORRECTABLE_FLAGGED   0xAA
 /*@}*/
 

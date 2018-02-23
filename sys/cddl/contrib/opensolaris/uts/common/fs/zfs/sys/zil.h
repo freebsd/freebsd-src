@@ -389,7 +389,7 @@ typedef int zil_parse_blk_func_t(zilog_t *zilog, blkptr_t *bp, void *arg,
     uint64_t txg);
 typedef int zil_parse_lr_func_t(zilog_t *zilog, lr_t *lr, void *arg,
     uint64_t txg);
-typedef int zil_replay_func_t();
+typedef int zil_replay_func_t(void *arg1, void *arg2, boolean_t byteswap);
 typedef int zil_get_data_t(void *arg, lr_write_t *lr, char *dbuf,
     struct lwb *lwb, zio_t *zio);
 
@@ -420,7 +420,7 @@ extern void	zil_async_to_sync(zilog_t *zilog, uint64_t oid);
 extern void	zil_commit(zilog_t *zilog, uint64_t oid);
 extern void	zil_commit_impl(zilog_t *zilog, uint64_t oid);
 
-extern int	zil_vdev_offline(const char *osname, void *txarg);
+extern int	zil_reset(const char *osname, void *txarg);
 extern int	zil_claim(struct dsl_pool *dp,
     struct dsl_dataset *ds, void *txarg);
 extern int 	zil_check_log_chain(struct dsl_pool *dp,

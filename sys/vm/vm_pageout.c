@@ -1857,8 +1857,6 @@ vm_pageout_oom(int shortage)
 	}
 	sx_sunlock(&allproc_lock);
 	if (bigproc != NULL) {
-		int i;
-
 		if (vm_panic_on_oom != 0)
 			panic("out of swap space");
 		PROC_LOCK(bigproc);
@@ -1866,8 +1864,6 @@ vm_pageout_oom(int shortage)
 		sched_nice(bigproc, PRIO_MIN);
 		_PRELE(bigproc);
 		PROC_UNLOCK(bigproc);
-		for (i = 0; i < vm_ndomains; i++)
-			wakeup(&VM_DOMAIN(i)->vmd_free_count);
 	}
 }
 
@@ -1903,22 +1899,6 @@ vm_pageout_worker(void *arg)
 	while (TRUE) {
 		vm_domain_free_lock(vmd);
 
-		/*
-		 * Generally, after a level >= 1 scan, if there are enough
-		 * free pages to wakeup the waiters, then they are already
-		 * awake.  A call to vm_page_free() during the scan awakened
-		 * them.  However, in the following case, this wakeup serves
-		 * to bound the amount of time that a thread might wait.
-		 * Suppose a thread's call to vm_page_alloc() fails, but
-		 * before that thread calls VM_WAIT, enough pages are freed by
-		 * other threads to alleviate the free page shortage.  The
-		 * thread will, nonetheless, wait until another page is freed
-		 * or this wakeup is performed.
-		 */
-		if (vmd->vmd_pages_needed && !vm_paging_min(vmd)) {
-			vmd->vmd_pages_needed = false;
-			wakeup(&vmd->vmd_free_count);
-		}
 		/*
 		 * Might the page daemon need to run again?
 		 */
@@ -2119,34 +2099,4 @@ pagedaemon_wakeup(int domain)
 		vmd->vmd_pageout_wanted = true;
 		wakeup(&vmd->vmd_pageout_wanted);
 	}
-}
-
-/*
- * Wake up the page daemon and wait for it to reclaim free pages.
- *
- * This function returns with the free queues mutex unlocked.
- */
-void
-pagedaemon_wait(int domain, int pri, const char *wmesg)
-{
-	struct vm_domain *vmd;
-
-	vmd = VM_DOMAIN(domain);
-	vm_domain_free_assert_locked(vmd);
-
-	/*
-	 * vmd_pageout_wanted may have been set by an advisory wakeup, but if
-	 * the page daemon is running on a CPU, the wakeup will have been lost.
-	 * Thus, deliver a potentially spurious wakeup to ensure that the page
-	 * daemon has been notified of the shortage.
-	 */
-	if (!vmd->vmd_pageout_wanted || !vmd->vmd_pages_needed) {
-		vmd->vmd_pageout_wanted = true;
-		wakeup(&vmd->vmd_pageout_wanted);
-	}
-	vmd->vmd_pages_needed = true;
-	vmd->vmd_waiters++;
-	msleep(&vmd->vmd_free_count, vm_domain_free_lockptr(vmd), PDROP | pri,
-	    wmesg, 0);
-	vmd->vmd_waiters--;
 }

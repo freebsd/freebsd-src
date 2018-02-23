@@ -49,9 +49,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/ioctl.h>
 
+#include <assert.h>
 #include <net/if_media.h>
 #include <ifaddrs.h>
 #include <poll.h>
+
+/* Assert that pointer p is aligned to at least align bytes */
+#define assert_aligned(p, align) assert((((uintptr_t)p) & ((align) - 1)) == 0)
 
 struct protocol *protocols;
 struct timeout *timeouts;
@@ -73,7 +77,6 @@ void
 discover_interfaces(struct interface_info *iface)
 {
 	struct ifaddrs *ifap, *ifa;
-	struct sockaddr_in foo;
 	struct ifreq *tif;
 
 	if (getifaddrs(&ifap) != 0)
@@ -93,8 +96,22 @@ discover_interfaces(struct interface_info *iface)
 		 * and record it in a linked list.
 		 */
 		if (ifa->ifa_addr->sa_family == AF_LINK) {
-			struct sockaddr_dl *foo =
-			    (struct sockaddr_dl *)ifa->ifa_addr;
+			struct sockaddr_dl *foo;
+
+			/* 
+			 * The implementation of getifaddrs should guarantee
+			 * this alignment
+			 */
+			assert_aligned(ifa->ifa_addr,
+				       _Alignof(struct sockaddr_dl));
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-align"
+#endif
+			foo = (struct sockaddr_dl *)ifa->ifa_addr;
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 			iface->index = foo->sdl_index;
 			iface->hw_address.hlen = foo->sdl_alen;
@@ -102,6 +119,7 @@ discover_interfaces(struct interface_info *iface)
 			memcpy(iface->hw_address.haddr,
 			    LLADDR(foo), foo->sdl_alen);
 		} else if (ifa->ifa_addr->sa_family == AF_INET) {
+			struct sockaddr_in foo;
 			struct iaddr addr;
 
 			memcpy(&foo, ifa->ifa_addr, sizeof(foo));
@@ -437,7 +455,7 @@ cancel_timeout(void (*where)(void *), void *what)
 
 /* Add a protocol to the list of protocols... */
 void
-add_protocol(char *name, int fd, void (*handler)(struct protocol *),
+add_protocol(const char *name, int fd, void (*handler)(struct protocol *),
     void *local)
 {
 	struct protocol *p;

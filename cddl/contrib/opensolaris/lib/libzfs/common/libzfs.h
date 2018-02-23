@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek. All rights reserved.
- * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
@@ -131,8 +131,21 @@ typedef enum zfs_error {
 	EZFS_DIFFDATA,		/* bad zfs diff data */
 	EZFS_POOLREADONLY,	/* pool is in read-only mode */
 	EZFS_SCRUB_PAUSED,	/* scrub currently paused */
+	EZFS_NO_PENDING,	/* cannot cancel, no operation is pending */
 	EZFS_UNKNOWN
 } zfs_error_t;
+
+/*
+ * UEFI boot support parameters. When creating whole disk boot pool,
+ * zpool create should allow to create EFI System partition for UEFI boot
+ * program. In case of BIOS, the EFI System partition is not used
+ * even if it does exist.
+ */
+typedef enum zpool_boot_label {
+	ZPOOL_NO_BOOT_LABEL = 0,
+	ZPOOL_CREATE_BOOT_LABEL,
+	ZPOOL_COPY_BOOT_LABEL
+} zpool_boot_label_t;
 
 /*
  * The following data structures are all part
@@ -255,6 +268,8 @@ extern int zpool_vdev_attach(zpool_handle_t *, const char *,
     const char *, nvlist_t *, int);
 extern int zpool_vdev_detach(zpool_handle_t *, const char *);
 extern int zpool_vdev_remove(zpool_handle_t *, const char *);
+extern int zpool_vdev_remove_cancel(zpool_handle_t *);
+extern int zpool_vdev_indirect_size(zpool_handle_t *, const char *, uint64_t *);
 extern int zpool_vdev_split(zpool_handle_t *, char *, nvlist_t **, nvlist_t *,
     splitflags_t);
 
@@ -266,7 +281,8 @@ extern nvlist_t *zpool_find_vdev(zpool_handle_t *, const char *, boolean_t *,
     boolean_t *, boolean_t *);
 extern nvlist_t *zpool_find_vdev_by_physpath(zpool_handle_t *, const char *,
     boolean_t *, boolean_t *, boolean_t *);
-extern int zpool_label_disk(libzfs_handle_t *, zpool_handle_t *, const char *);
+extern int zpool_label_disk(libzfs_handle_t *, zpool_handle_t *, const char *,
+    zpool_boot_label_t, uint64_t, int *);
 
 /*
  * Functions to manage pool properties
@@ -349,6 +365,7 @@ extern nvlist_t *zpool_get_config(zpool_handle_t *, nvlist_t **);
 extern nvlist_t *zpool_get_features(zpool_handle_t *);
 extern int zpool_refresh_stats(zpool_handle_t *, boolean_t *);
 extern int zpool_get_errlog(zpool_handle_t *, nvlist_t **);
+extern boolean_t zpool_is_bootable(zpool_handle_t *);
 
 /*
  * Import and export functions
@@ -374,6 +391,7 @@ typedef struct importargs {
 	int can_be_active : 1;	/* can the pool be active?		*/
 	int unique : 1;		/* does 'poolname' already exist?	*/
 	int exists : 1;		/* set on return if pool already exists	*/
+	nvlist_t *policy;	/* rewind policy (rewind txg, etc.)	*/
 } importargs_t;
 
 extern nvlist_t *zpool_search_import(libzfs_handle_t *, importargs_t *);
@@ -811,6 +829,7 @@ extern int zpool_fru_set(zpool_handle_t *, uint64_t, const char *);
 extern int zmount(const char *, const char *, int, char *, char *, int, char *,
     int);
 #endif
+extern int zfs_remap_indirects(libzfs_handle_t *hdl, const char *);
 
 #ifdef	__cplusplus
 }

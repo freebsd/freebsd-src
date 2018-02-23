@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2018 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,6 +77,7 @@ struct task_struct {
 	struct completion exited;
 	TAILQ_ENTRY(task_struct) rcu_entry;
 	int rcu_recurse;
+	int bsd_interrupt_value;
 };
 
 #define	current	({ \
@@ -127,11 +128,25 @@ void linux_send_sig(int signo, struct task_struct *task);
 #define	signal_pending_state(state, task)		\
 	linux_signal_pending_state(state, task)
 #define	send_sig(signo, task, priv) do {		\
-	CTASSERT(priv == 0);				\
+	CTASSERT((priv) == 0);				\
 	linux_send_sig(signo, task);			\
 } while (0)
 
 int linux_schedule_timeout(int timeout);
+
+static inline void
+linux_schedule_save_interrupt_value(struct task_struct *task, int value)
+{
+	task->bsd_interrupt_value = value;
+}
+
+static inline int
+linux_schedule_get_interrupt_value(struct task_struct *task)
+{
+	int value = task->bsd_interrupt_value;
+	task->bsd_interrupt_value = 0;
+	return (value);
+}
 
 #define	schedule()					\
 	(void)linux_schedule_timeout(MAX_SCHEDULE_TIMEOUT)

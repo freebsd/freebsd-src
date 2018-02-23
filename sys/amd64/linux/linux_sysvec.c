@@ -705,9 +705,9 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 }
 
 /*
- * If a linux binary is exec'ing something, try this image activator
+ * If a Linux binary is exec'ing something, try this image activator
  * first.  We override standard shell script execution in order to
- * be able to modify the interpreter path.  We only do this if a linux
+ * be able to modify the interpreter path.  We only do this if a Linux
  * binary is doing the exec, so we do not create an EXEC module for it.
  */
 static int exec_linux_imgact_try(struct image_params *iparams);
@@ -720,9 +720,9 @@ exec_linux_imgact_try(struct image_params *imgp)
 	int error = -1;
 
 	/*
-	 * The interpreter for shell scripts run from a linux binary needs
+	 * The interpreter for shell scripts run from a Linux binary needs
 	 * to be located in /compat/linux if possible in order to recursively
-	 * maintain linux path emulation.
+	 * maintain Linux path emulation.
 	 */
 	if (((const short *)head)[0] == SHELLMAGIC) {
 		/*
@@ -881,7 +881,7 @@ linux_trans_osrel(const Elf_Note *note, int32_t *osrel)
 		return (FALSE);
 
 	/*
-	 * For linux we encode osrel as follows (see linux_mib.c):
+	 * For Linux we encode osrel as follows (see linux_mib.c):
 	 * VVVMMMIII (version, major, minor), see linux_mib.c.
 	 */
 	*osrel = desc[1] * 1000000 + desc[2] * 1000 + desc[3];

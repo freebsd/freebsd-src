@@ -39,6 +39,7 @@
 
 #include <machine/setjmp.h>
 
+#ifndef _STANDALONE
 struct pcb {
 	register_t	pcb_context[20];	/* non-volatile r14-r31 */
 	register_t	pcb_cr;			/* Condition register */
@@ -81,6 +82,7 @@ struct pcb {
 		} booke;
 	} pcb_cpu;
 };
+#endif
 
 #ifdef	_KERNEL
 

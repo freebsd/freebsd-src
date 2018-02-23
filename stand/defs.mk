@@ -51,6 +51,9 @@ CFLAGS+=	-I${BOOTOBJ}/libsa
 .endif
 CFLAGS+=	-I${SASRC} -D_STANDALONE
 CFLAGS+=	-I${SYSDIR}
+# Spike the floating point interfaces
+CFLAGS+=	-Ddouble=jagged-little-pill -Dfloat=floaty-mcfloatface
+
 
 # GELI Support, with backward compat hooks (mostly)
 .if defined(HAVE_GELI)

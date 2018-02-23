@@ -28,6 +28,7 @@ SRCS=	autoload.c \
 LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
 CFLAGS+=	-I${ZFSSRC}
 CFLAGS+=	-DEFI_ZFS_BOOT
+HAVE_ZFS=	yes
 .endif
 
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201

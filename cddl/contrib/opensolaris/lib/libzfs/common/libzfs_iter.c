@@ -317,26 +317,23 @@ static int
 snapspec_cb(zfs_handle_t *zhp, void *arg)
 {
 	snapspec_arg_t *ssa = arg;
-	char *shortsnapname;
+	const char *shortsnapname;
 	int err = 0;
 
 	if (ssa->ssa_seenlast)
 		return (0);
-	shortsnapname = zfs_strdup(zhp->zfs_hdl,
-	    strchr(zfs_get_name(zhp), '@') + 1);
 
+	shortsnapname = strchr(zfs_get_name(zhp), '@') + 1;
 	if (!ssa->ssa_seenfirst && strcmp(shortsnapname, ssa->ssa_first) == 0)
 		ssa->ssa_seenfirst = B_TRUE;
+	if (strcmp(shortsnapname, ssa->ssa_last) == 0)
+		ssa->ssa_seenlast = B_TRUE;
 
 	if (ssa->ssa_seenfirst) {
 		err = ssa->ssa_func(zhp, ssa->ssa_arg);
 	} else {
 		zfs_close(zhp);
 	}
-
-	if (strcmp(shortsnapname, ssa->ssa_last) == 0)
-		ssa->ssa_seenlast = B_TRUE;
-	free(shortsnapname);
 
 	return (err);
 }
@@ -427,16 +424,20 @@ zfs_iter_snapspec(zfs_handle_t *fs_zhp, const char *spec_orig,
 
 /*
  * Iterate over all children, snapshots and filesystems
+ * Process snapshots before filesystems because they are nearer the input
+ * handle: this is extremely important when used with zfs_iter_f functions
+ * looking for data, following the logic that we would like to find it as soon
+ * and as close as possible.
  */
 int
 zfs_iter_children(zfs_handle_t *zhp, zfs_iter_f func, void *data)
 {
 	int ret;
 
-	if ((ret = zfs_iter_filesystems(zhp, func, data)) != 0)
+	if ((ret = zfs_iter_snapshots(zhp, B_FALSE, func, data)) != 0)
 		return (ret);
 
-	return (zfs_iter_snapshots(zhp, B_FALSE, func, data));
+	return (zfs_iter_filesystems(zhp, func, data));
 }
 
 

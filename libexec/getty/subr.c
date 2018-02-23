@@ -68,12 +68,13 @@ gettable(const char *name, char *buf)
 	long n;
 	int l;
 	char *p;
-	char *msg = NULL;
-	const char *dba[2];
+	static char path_gettytab[PATH_MAX];
+	char *dba[2];
 
 	static int firsttime = 1;
 
-	dba[0] = _PATH_GETTYTAB;
+	strlcpy(path_gettytab, _PATH_GETTYTAB, sizeof(path_gettytab));
+	dba[0] = path_gettytab;
 	dba[1] = NULL;
 
 	if (firsttime) {
@@ -101,27 +102,23 @@ gettable(const char *name, char *buf)
 		firsttime = 0;
 	}
 
-	switch (cgetent(&buf, (char **)dba, name)) {
+	switch (cgetent(&buf, dba, name)) {
 	case 1:
-		msg = "%s: couldn't resolve 'tc=' in gettytab '%s'";
+		syslog(LOG_ERR, "getty: couldn't resolve 'tc=' in gettytab '%s'", name);
+		return;
 	case 0:
 		break;
 	case -1:
-		msg = "%s: unknown gettytab entry '%s'";
-		break;
+		syslog(LOG_ERR, "getty: unknown gettytab entry '%s'", name);
+		return;
 	case -2:
-		msg = "%s: retrieving gettytab entry '%s': %m";
-		break;
+		syslog(LOG_ERR, "getty: retrieving gettytab entry '%s': %m", name);
+		return;
 	case -3:
-		msg = "%s: recursive 'tc=' reference gettytab entry '%s'";
-		break;
+		syslog(LOG_ERR, "getty: recursive 'tc=' reference gettytab entry '%s'", name);
+		return;
 	default:
-		msg = "%s: unexpected cgetent() error for entry '%s'";
-		break;
-	}
-
-	if (msg != NULL) {
-		syslog(LOG_ERR, msg, "getty", name);
+		syslog(LOG_ERR, "getty: unexpected cgetent() error for entry '%s'", name);
 		return;
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Marie Helene Kvello-Aune
+ * Copyright (c) 2016-2017, Marie Helene Kvello-Aune
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -26,6 +26,9 @@
  * $FreeBSD$
  */
 
+#include <arpa/inet.h>
+#include <net/if.h>
+
 #include <err.h>
 #include <errno.h>
 #include <stdio.h>
@@ -38,6 +41,7 @@ int
 main(int argc, char *argv[])
 {
 	char *ifname, *ifdescr, *curdescr;
+	ifconfig_handle_t *lifh;
 
 	if (argc != 3) {
 		errx(EINVAL, "Invalid number of arguments."
@@ -52,7 +56,12 @@ main(int argc, char *argv[])
 
 	printf("Interface name: %s\n", ifname);
 
-	ifconfig_handle_t *lifh = ifconfig_open();
+	lifh = ifconfig_open();
+	if (lifh == NULL) {
+		errx(ENOMEM, "Failed to open libifconfig handle.");
+		return (-1);
+	}
+
 	if (ifconfig_get_description(lifh, ifname, &curdescr) == 0) {
 		printf("Old description: %s\n", curdescr);
 	}
@@ -71,7 +80,7 @@ main(int argc, char *argv[])
 				    lifh), "IOCTL(%lu) error",
 			    ifconfig_err_ioctlreq(lifh));
 			break;
-		case OTHER:
+		default:
 			err(ifconfig_err_errno(lifh), "Other error");
 			break;
 		}

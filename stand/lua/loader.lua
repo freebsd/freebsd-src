@@ -1,5 +1,8 @@
 --
+-- SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+--
 -- Copyright (c) 2015 Pedro Souza <pedrosouza@freebsd.org>
+-- Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
 -- All rights reserved.
 --
 -- Redistribution and use in source and binary forms, with or without
@@ -26,10 +29,17 @@
 -- $FreeBSD$
 --
 
-config = require("config");
-menu = require("menu");
-password = require("password");
+require("cli")
+local config = require("config")
+local menu = require("menu")
+local password = require("password")
 
-config.load();
-password.check();
-menu.run();
+local result = lfs.attributes("/boot/lua/local.lua")
+-- Effectively discard any errors; we'll just act if it succeeds.
+if result ~= nil then
+	require("local")
+end
+
+config.load()
+password.check()
+menu.run()

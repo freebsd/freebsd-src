@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2018, Joyent, Inc.
  * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 by Saso Kiselkov. All rights reserved.
  * Copyright 2017 Nexenta Systems, Inc.  All rights reserved.
@@ -309,6 +309,9 @@ int zfs_arc_evict_batch_limit = 10;
 /* number of seconds before growing cache again */
 static int		arc_grow_retry = 60;
 
+/* number of milliseconds before attempting a kmem-cache-reap */
+static int		arc_kmem_cache_reap_retry_ms = 1000;
+
 /* shift of arc_c for calculating overflow limit in arc_get_data_impl */
 int		zfs_arc_overflow_shift = 8;
 
@@ -348,6 +351,11 @@ extern boolean_t zfs_prefetch_disable;
  * The arc has filled available memory and has now warmed up.
  */
 static boolean_t arc_warm;
+
+/*
+ * log2 fraction of the zio arena to keep free.
+ */
+int arc_zio_arena_free_shift = 2;
 
 /*
  * These tunables are for performance analysis.
@@ -4321,15 +4329,16 @@ arc_available_memory(void)
 	/*
 	 * If zio data pages are being allocated out of a separate heap segment,
 	 * then enforce that the size of available vmem for this arena remains
-	 * above about 1/16th free.
+	 * above about 1/4th (1/(2^arc_zio_arena_free_shift)) free.
 	 *
-	 * Note: The 1/16th arena free requirement was put in place
-	 * to aggressively evict memory from the arc in order to avoid
-	 * memory fragmentation issues.
+	 * Note that reducing the arc_zio_arena_free_shift keeps more virtual
+	 * memory (in the zio_arena) free, which can avoid memory
+	 * fragmentation issues.
 	 */
 	if (zio_arena != NULL) {
 		n = (int64_t)vmem_size(zio_arena, VMEM_FREE) -
-		    (vmem_size(zio_arena, VMEM_ALLOC) >> 4);
+		    (vmem_size(zio_arena, VMEM_ALLOC) >>
+		    arc_zio_arena_free_shift);
 		if (n < lowest) {
 			lowest = n;
 			r = FMR_ZIO_ARENA;
@@ -4389,21 +4398,31 @@ arc_kmem_reap_now(void)
 #endif
 #endif
 
+	/*
+	 * If a kmem reap is already active, don't schedule more.  We must
+	 * check for this because kmem_cache_reap_soon() won't actually
+	 * block on the cache being reaped (this is to prevent callers from
+	 * becoming implicitly blocked by a system-wide kmem reap -- which,
+	 * on a system with many, many full magazines, can take minutes).
+	 */
+	if (kmem_cache_reap_active())
+		return;
+
 	for (i = 0; i < SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT; i++) {
 		if (zio_buf_cache[i] != prev_cache) {
 			prev_cache = zio_buf_cache[i];
-			kmem_cache_reap_now(zio_buf_cache[i]);
+			kmem_cache_reap_soon(zio_buf_cache[i]);
 		}
 		if (zio_data_buf_cache[i] != prev_data_cache) {
 			prev_data_cache = zio_data_buf_cache[i];
-			kmem_cache_reap_now(zio_data_buf_cache[i]);
+			kmem_cache_reap_soon(zio_data_buf_cache[i]);
 		}
 	}
-	kmem_cache_reap_now(abd_chunk_cache);
-	kmem_cache_reap_now(buf_cache);
-	kmem_cache_reap_now(hdr_full_cache);
-	kmem_cache_reap_now(hdr_l2only_cache);
-	kmem_cache_reap_now(range_seg_cache);
+	kmem_cache_reap_soon(abd_chunk_cache);
+	kmem_cache_reap_soon(buf_cache);
+	kmem_cache_reap_soon(hdr_full_cache);
+	kmem_cache_reap_soon(hdr_l2only_cache);
+	kmem_cache_reap_soon(range_seg_cache);
 
 #ifdef illumos
 	if (zio_arena != NULL) {
@@ -4433,10 +4452,12 @@ arc_kmem_reap_now(void)
  * This possible deadlock is avoided by always acquiring a hash lock
  * using mutex_tryenter() from arc_reclaim_thread().
  */
+/* ARGSUSED */
 static void
-arc_reclaim_thread(void *dummy __unused)
+arc_reclaim_thread(void *unused __unused)
 {
 	hrtime_t		growtime = 0;
+	hrtime_t		kmem_reap_time = 0;
 	callb_cpr_t		cpr;
 
 	CALLB_CPR_INIT(&cpr, &arc_reclaim_lock, callb_generic_cpr, FTAG);
@@ -4470,7 +4491,7 @@ arc_reclaim_thread(void *dummy __unused)
 
 		int64_t free_memory = arc_available_memory();
 		if (free_memory < 0) {
-
+			hrtime_t curtime = gethrtime();
 			arc_no_grow = B_TRUE;
 			arc_warm = B_TRUE;
 
@@ -4478,9 +4499,20 @@ arc_reclaim_thread(void *dummy __unused)
 			 * Wait at least zfs_grow_retry (default 60) seconds
 			 * before considering growing.
 			 */
-			growtime = gethrtime() + SEC2NSEC(arc_grow_retry);
+			growtime = curtime + SEC2NSEC(arc_grow_retry);
 
-			arc_kmem_reap_now();
+			/*
+			 * Wait at least arc_kmem_cache_reap_retry_ms
+			 * between arc_kmem_reap_now() calls. Without
+			 * this check it is possible to end up in a
+			 * situation where we spend lots of time
+			 * reaping caches, while we're near arc_c_min.
+			 */
+			if (curtime >= kmem_reap_time) {
+				arc_kmem_reap_now();
+				kmem_reap_time = gethrtime() +
+				    MSEC2NSEC(arc_kmem_cache_reap_retry_ms);
+			}
 
 			/*
 			 * If we are still low on memory, shrink the ARC
@@ -5408,7 +5440,7 @@ top:
 			devw = hdr->b_l2hdr.b_dev->l2ad_writing;
 			addr = hdr->b_l2hdr.b_daddr;
 			/*
-			 * Lock out device removal.
+			 * Lock out L2ARC device removal.
 			 */
 			if (vdev_is_dead(vd) ||
 			    !spa_config_tryenter(spa, SCL_L2ARC, vd, RW_READER))
@@ -7574,8 +7606,9 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
  * This thread feeds the L2ARC at regular intervals.  This is the beating
  * heart of the L2ARC.
  */
+/* ARGSUSED */
 static void
-l2arc_feed_thread(void *dummy __unused)
+l2arc_feed_thread(void *unused __unused)
 {
 	callb_cpr_t cpr;
 	l2arc_dev_t *dev;

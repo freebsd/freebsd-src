@@ -763,6 +763,13 @@ zfs_blkptr_verify(spa_t *spa, const blkptr_t *bp)
 	}
 
 	/*
+	 * Do not verify individual DVAs if the config is not trusted. This
+	 * will be done once the zio is executed in vdev_mirror_map_alloc.
+	 */
+	if (!spa->spa_trust_config)
+		return;
+
+	/*
 	 * Pool-specific checks.
 	 *
 	 * Note: it would be nice to verify that the blk_birth and
@@ -809,6 +816,36 @@ zfs_blkptr_verify(spa_t *spa, const blkptr_t *bp)
 			    bp, i, (longlong_t)offset);
 		}
 	}
+}
+
+boolean_t
+zfs_dva_valid(spa_t *spa, const dva_t *dva, const blkptr_t *bp)
+{
+	uint64_t vdevid = DVA_GET_VDEV(dva);
+
+	if (vdevid >= spa->spa_root_vdev->vdev_children)
+		return (B_FALSE);
+
+	vdev_t *vd = spa->spa_root_vdev->vdev_child[vdevid];
+	if (vd == NULL)
+		return (B_FALSE);
+
+	if (vd->vdev_ops == &vdev_hole_ops)
+		return (B_FALSE);
+
+	if (vd->vdev_ops == &vdev_missing_ops) {
+		return (B_FALSE);
+	}
+
+	uint64_t offset = DVA_GET_OFFSET(dva);
+	uint64_t asize = DVA_GET_ASIZE(dva);
+
+	if (BP_IS_GANG(bp))
+		asize = vdev_psize_to_asize(vd, SPA_GANGBLOCKSIZE);
+	if (offset + asize > vd->vdev_asize)
+		return (B_FALSE);
+
+	return (B_TRUE);
 }
 
 zio_t *
@@ -908,6 +945,8 @@ void
 zio_free(spa_t *spa, uint64_t txg, const blkptr_t *bp)
 {
 
+	zfs_blkptr_verify(spa, bp);
+
 	/*
 	 * The check for EMBEDDED is a performance optimization.  We
 	 * process the free here (by ignoring it) rather than
@@ -976,7 +1015,7 @@ zio_claim(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 {
 	zio_t *zio;
 
-	dprintf_bp(bp, "claiming in txg %llu", txg);
+	zfs_blkptr_verify(spa, bp);
 
 	if (BP_IS_EMBEDDED(bp))
 		return (zio_null(pio, spa, NULL, NULL, NULL, 0));
@@ -1096,8 +1135,26 @@ zio_vdev_child_io(zio_t *pio, blkptr_t *bp, vdev_t *vd, uint64_t offset,
 	enum zio_stage pipeline = ZIO_VDEV_CHILD_PIPELINE;
 	zio_t *zio;
 
-	ASSERT(vd->vdev_parent ==
-	    (pio->io_vd ? pio->io_vd : pio->io_spa->spa_root_vdev));
+	/*
+	 * vdev child I/Os do not propagate their error to the parent.
+	 * Therefore, for correct operation the caller *must* check for
+	 * and handle the error in the child i/o's done callback.
+	 * The only exceptions are i/os that we don't care about
+	 * (OPTIONAL or REPAIR).
+	 */
+	ASSERT((flags & ZIO_FLAG_OPTIONAL) || (flags & ZIO_FLAG_IO_REPAIR) ||
+	    done != NULL);
+
+	/*
+	 * In the common case, where the parent zio was to a normal vdev,
+	 * the child zio must be to a child vdev of that vdev.  Otherwise,
+	 * the child zio must be to a top-level vdev.
+	 */
+	if (pio->io_vd != NULL && pio->io_vd->vdev_ops != &vdev_indirect_ops) {
+		ASSERT3P(vd->vdev_parent, ==, pio->io_vd);
+	} else {
+		ASSERT3P(vd, ==, vd->vdev_top);
+	}
 
 	if (type == ZIO_TYPE_READ && bp != NULL) {
 		/*
@@ -1114,10 +1171,12 @@ zio_vdev_child_io(zio_t *pio, blkptr_t *bp, vdev_t *vd, uint64_t offset,
 	if (!(pio->io_pipeline & ZIO_STAGE_VDEV_IO_DONE))
 		pipeline &= ~ZIO_STAGE_VDEV_IO_DONE;
 
-	if (vd->vdev_children == 0)
+	if (vd->vdev_ops->vdev_op_leaf) {
+		ASSERT0(vd->vdev_children);
 		offset += VDEV_LABEL_START_SIZE;
+	}
 
-	flags |= ZIO_VDEV_CHILD_FLAGS(pio) | ZIO_FLAG_DONT_PROPAGATE;
+	flags |= ZIO_VDEV_CHILD_FLAGS(pio);
 
 	/*
 	 * If we've decided to do a repair, the write is not speculative --
@@ -1227,6 +1286,8 @@ zio_read_bp_init(zio_t *zio)
 {
 	blkptr_t *bp = zio->io_bp;
 
+	ASSERT3P(zio->io_bp, ==, &zio->io_bp_copy);
+
 	if (BP_GET_COMPRESS(bp) != ZIO_COMPRESS_OFF &&
 	    zio->io_child_type == ZIO_CHILD_LOGICAL &&
 	    !(zio->io_flags & ZIO_FLAG_RAW)) {
@@ -1245,6 +1306,7 @@ zio_read_bp_init(zio_t *zio)
 		abd_return_buf_copy(zio->io_abd, data, psize);
 	} else {
 		ASSERT(!BP_IS_EMBEDDED(bp));
+		ASSERT3P(zio->io_bp, ==, &zio->io_bp_copy);
 	}
 
 	if (!DMU_OT_IS_METADATA(BP_GET_TYPE(bp)) && BP_GET_LEVEL(bp) == 0)
@@ -1500,6 +1562,8 @@ zio_free_bp_init(zio_t *zio)
 		if (BP_GET_DEDUP(bp))
 			zio->io_pipeline = ZIO_DDT_FREE_PIPELINE;
 	}
+
+	ASSERT3P(zio->io_bp, ==, &zio->io_bp_copy);
 
 	return (ZIO_PIPELINE_CONTINUE);
 }
@@ -1812,7 +1876,7 @@ zio_reexecute(zio_t *pio)
 	/*
 	 * Now that all children have been reexecuted, execute the parent.
 	 * We don't reexecute "The Godfather" I/O here as it's the
-	 * responsibility of the caller to wait on him.
+	 * responsibility of the caller to wait on it.
 	 */
 	if (!(pio->io_flags & ZIO_FLAG_GODFATHER)) {
 		pio->io_queued_timestamp = gethrtime();
@@ -3121,6 +3185,15 @@ zio_vdev_io_start(zio_t *zio)
 	}
 
 	ASSERT3P(zio->io_logical, !=, zio);
+	if (zio->io_type == ZIO_TYPE_WRITE) {
+		ASSERT(spa->spa_trust_config);
+
+		if (zio->io_vd->vdev_removing) {
+			ASSERT(zio->io_flags &
+			    (ZIO_FLAG_PHYSICAL | ZIO_FLAG_SELF_HEAL |
+			    ZIO_FLAG_INDUCE_DAMAGE));
+		}
+	}
 
 	/*
 	 * We keep track of time-sensitive I/Os so that the scan thread

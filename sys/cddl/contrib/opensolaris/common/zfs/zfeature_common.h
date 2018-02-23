@@ -57,6 +57,8 @@ typedef enum spa_feature {
 #ifdef illumos
 	SPA_FEATURE_EDONR,
 #endif
+	SPA_FEATURE_DEVICE_REMOVAL,
+	SPA_FEATURE_OBSOLETE_COUNTS,
 	SPA_FEATURES
 } spa_feature_t;
 

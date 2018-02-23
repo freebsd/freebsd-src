@@ -398,7 +398,6 @@ procdesc_close(struct file *fp, struct thread *td)
 			 * process's reference to the process descriptor when it
 			 * calls back into procdesc_reap().
 			 */
-			PROC_SLOCK(p);
 			proc_reap(curthread, p, NULL, 0);
 		} else {
 			/*

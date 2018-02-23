@@ -146,12 +146,12 @@ struct qla_host {
 	volatile uint32_t	qla_watchdog_paused;
 	volatile uint32_t	qla_initiate_recovery;
 	volatile uint32_t	qla_detach_active;
+	volatile uint32_t	offline;
 
 	device_t		pci_dev;
 
-	uint16_t		watchdog_ticks;
+	volatile uint16_t	watchdog_ticks;
 	uint8_t			pci_func;
-	uint8_t			resvd;
 
         /* ioctl related */
         struct cdev             *ioctl_dev;
@@ -184,6 +184,7 @@ struct qla_host {
 
 	/* hardware access lock */
 
+	struct mtx		sp_log_lock;
 	struct mtx		hw_lock;
 	volatile uint32_t	hw_lock_held;
 	uint64_t		hw_lock_failed;
@@ -241,6 +242,9 @@ struct qla_host {
 	volatile const char	*qla_unlock;
 	uint32_t		dbg_level;
 	uint32_t		enable_minidump;
+	uint32_t		enable_driverstate_dump;
+	uint32_t		enable_error_recovery;
+	uint32_t		ms_delay_after_init;
 
 	uint8_t			fw_ver_str[32];
 
@@ -274,5 +278,7 @@ typedef struct qla_host qla_host_t;
 #define QL_MAC_CMP(mac1, mac2)    \
 	((((*(uint32_t *) mac1) == (*(uint32_t *) mac2) && \
 	(*(uint16_t *)(mac1 + 4)) == (*(uint16_t *)(mac2 + 4)))) ? 0 : 1)
+
+#define QL_INITIATE_RECOVERY(ha) qla_set_error_recovery(ha)
 
 #endif /* #ifndef _QL_DEF_H_ */

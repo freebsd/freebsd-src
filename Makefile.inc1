@@ -339,21 +339,33 @@ BUILDENV_SHELL?=${SHELL}
 BUILDENV_SHELL?=/bin/sh
 .endif
 
-.if !defined(SVN) || empty(SVN)
+.if !defined(SVN_CMD) || empty(SVN_CMD)
 . for _P in /usr/bin /usr/local/bin
 .  for _S in svn svnlite
 .   if exists(${_P}/${_S})
-SVN=   ${_P}/${_S}
+SVN_CMD=   ${_P}/${_S}
 .   endif
 .  endfor
 . endfor
+.export SVN_CMD
 .endif
 SVNFLAGS?=	-r HEAD
-.if !defined(VCS_REVISION) && empty(VCS_REVISION)
+.if !defined(VCS_REVISION) || empty(VCS_REVISION)
+.if !defined(SVNVERSION_CMD) || empty(SVNVERSION_CMD)
+. for _D in ${PATH:S,:, ,g}
+.  if exists(${_D}/svnversion)
+SVNVERSION_CMD?=${_D}/svnversion
+.  endif
+.  if exists(${_D}/svnliteversion)
+SVNVERSION_CMD?=${_D}/svnliteversion
+.  endif
+. endfor
+.endif
 _VCS_REVISION?=	$$(eval ${SVNVERSION_CMD} ${SRCDIR})
 . if !empty(_VCS_REVISION)
 VCS_REVISION=	$$(echo r${_VCS_REVISION})
 . endif
+.export VCS_REVISION
 .endif
 
 .if !defined(OSRELDATE)
@@ -1783,7 +1795,7 @@ update: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Updating ${.CURDIR} using Subversion"
 	@echo "--------------------------------------------------------------"
-	@(cd ${.CURDIR}; ${SVN} update ${SVNFLAGS})
+	@(cd ${.CURDIR}; ${SVN_CMD} update ${SVNFLAGS})
 .endif
 
 #

@@ -226,7 +226,9 @@ get_temporary_prop(dsl_dataset_t *ds, zfs_prop_t zfs_prop, uint64_t *val,
 	return (0);
 #else
 	int error;
+#ifdef illumos
 	zfsvfs_t *zfvp;
+#endif
 	vfs_t *vfsp;
 	objset_t *os;
 	uint64_t tmp = *val;
@@ -235,12 +237,12 @@ get_temporary_prop(dsl_dataset_t *ds, zfs_prop_t zfs_prop, uint64_t *val,
 	if (error != 0)
 		return (error);
 
-	error = getzfsvfs_impl(os, &zfvp);
+	error = getzfsvfs_impl(os, &vfsp);
 	if (error != 0)
 		return (error);
-
+#ifdef illumos
 	vfsp = zfvp->z_vfs;
-
+#endif
 	switch (zfs_prop) {
 	case ZFS_PROP_ATIME:
 		if (vfs_optionisset(vfsp, MNTOPT_NOATIME, NULL))
@@ -419,6 +421,9 @@ get_special_prop(lua_State *state, dsl_dataset_t *ds, const char *dsname,
 	case ZFS_PROP_SNAPSHOT_COUNT:
 		error = dsl_dir_get_snapshot_count(ds->ds_dir, &numval);
 		(void) strcpy(setpoint, "");
+		break;
+	case ZFS_PROP_REMAPTXG:
+		error = dsl_dir_get_remaptxg(ds->ds_dir, &numval);
 		break;
 	case ZFS_PROP_NUMCLONES:
 		numval = dsl_get_numclones(ds);

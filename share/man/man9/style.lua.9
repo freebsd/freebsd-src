@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 18, 2018
+.Dd February 20, 2018
 .Dt STYLE.LUA 9
 .Os
 .Sh NAME
@@ -66,10 +66,8 @@ is generally avoided.
 .Pp
 Indentation and wrapping should match the guidelines provided by
 .Xr style 9 .
-.Pp
-Statements should be terminated with a semicolon.
-.Ic end
-should not be terminated with a semicolon.
+Do note that it is ok to wrap much earlier than 80 columns if readability would
+otherwise suffer.
 .Pp
 Where possible,
 .Fn s:method ...
@@ -84,7 +82,7 @@ should be done explicitly, rather than as a boolean expression.
 Single-line conditional statements and loops should be avoided.
 .Pp
 .Ic local
-variables should be preferred to module scope variables.
+variables should be preferred to global variables in module scope.
 .Pp
 Multiple local variables should not be declared
 .Sy and

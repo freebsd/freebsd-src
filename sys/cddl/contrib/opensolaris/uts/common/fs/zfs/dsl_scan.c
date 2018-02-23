@@ -21,7 +21,8 @@
 /*
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2016 Gary Mills
- * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
+ * Copyright 2017 Joyent, Inc.
  * Copyright (c) 2017 Datto Inc.
  */
 
@@ -68,6 +69,7 @@ unsigned int zfs_scan_idle = 50;	/* idle window in clock ticks */
 
 unsigned int zfs_scan_min_time_ms = 1000; /* min millisecs to scrub per txg */
 unsigned int zfs_free_min_time_ms = 1000; /* min millisecs to free per txg */
+unsigned int zfs_obsolete_min_time_ms = 500; /* min millisecs to obsolete per txg */
 unsigned int zfs_resilver_min_time_ms = 3000; /* min millisecs to resilver
 						 per txg */
 boolean_t zfs_no_scrub_io = B_FALSE; /* set to disable scrub i/o */
@@ -95,9 +97,9 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, no_scrub_prefetch, CTLFLAG_RWTUN,
 
 enum ddt_class zfs_scrub_ddt_class_max = DDT_CLASS_DUPLICATE;
 /* max number of blocks to free in a single TXG */
-uint64_t zfs_free_max_blocks = UINT64_MAX;
+uint64_t zfs_async_block_max_blocks = UINT64_MAX;
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, free_max_blocks, CTLFLAG_RWTUN,
-    &zfs_free_max_blocks, 0, "Maximum number of blocks to free in one TXG");
+    &zfs_async_block_max_blocks, 0, "Maximum number of blocks to free in one TXG");
 
 
 #define	DSL_SCAN_IS_SCRUB_RESILVER(scn) \
@@ -242,9 +244,10 @@ dsl_scan_setup_sync(void *arg, dmu_tx_t *tx)
 
 		if (vdev_resilver_needed(spa->spa_root_vdev,
 		    &scn->scn_phys.scn_min_txg, &scn->scn_phys.scn_max_txg)) {
-			spa_event_notify(spa, NULL, ESC_ZFS_RESILVER_START);
+			spa_event_notify(spa, NULL, NULL,
+			    ESC_ZFS_RESILVER_START);
 		} else {
-			spa_event_notify(spa, NULL, ESC_ZFS_SCRUB_START);
+			spa_event_notify(spa, NULL, NULL, ESC_ZFS_SCRUB_START);
 		}
 
 		spa->spa_scrub_started = B_TRUE;
@@ -353,7 +356,8 @@ dsl_scan_done(dsl_scan_t *scn, boolean_t complete, dmu_tx_t *tx)
 		vdev_dtl_reassess(spa->spa_root_vdev, tx->tx_txg,
 		    complete ? scn->scn_phys.scn_max_txg : 0, B_TRUE);
 		if (complete) {
-			spa_event_notify(spa, NULL, scn->scn_phys.scn_min_txg ?
+			spa_event_notify(spa, NULL, NULL,
+			    scn->scn_phys.scn_min_txg ?
 			    ESC_ZFS_RESILVER_FINISH : ESC_ZFS_SCRUB_FINISH);
 		}
 		spa_errlog_rotate(spa);
@@ -387,7 +391,7 @@ dsl_scan_cancel_sync(void *arg, dmu_tx_t *tx)
 
 	dsl_scan_done(scn, B_FALSE, tx);
 	dsl_scan_sync_state(scn, tx);
-	spa_event_notify(scn->scn_dp->dp_spa, NULL, ESC_ZFS_SCRUB_ABORT);
+	spa_event_notify(scn->scn_dp->dp_spa, NULL, NULL, ESC_ZFS_SCRUB_ABORT);
 }
 
 int
@@ -442,7 +446,7 @@ dsl_scrub_pause_resume_sync(void *arg, dmu_tx_t *tx)
 		spa->spa_scan_pass_scrub_pause = gethrestime_sec();
 		scn->scn_phys.scn_flags |= DSF_SCRUB_PAUSED;
 		dsl_scan_sync_state(scn, tx);
-		spa_event_notify(spa, NULL, ESC_ZFS_SCRUB_PAUSED);
+		spa_event_notify(spa, NULL, NULL, ESC_ZFS_SCRUB_PAUSED);
 	} else {
 		ASSERT3U(*cmd, ==, POOL_SCRUB_NORMAL);
 		if (dsl_scan_is_paused_scrub(scn)) {
@@ -1143,7 +1147,6 @@ dsl_scan_visitds(dsl_scan_t *scn, uint64_t dsobj, dmu_tx_t *tx)
 {
 	dsl_pool_t *dp = scn->scn_dp;
 	dsl_dataset_t *ds;
-	objset_t *os;
 
 	VERIFY3U(0, ==, dsl_dataset_hold_obj(dp, dsobj, FTAG, &ds));
 
@@ -1187,18 +1190,23 @@ dsl_scan_visitds(dsl_scan_t *scn, uint64_t dsobj, dmu_tx_t *tx)
 		goto out;
 	}
 
-	if (dmu_objset_from_ds(ds, &os))
-		goto out;
-
 	/*
-	 * Only the ZIL in the head (non-snapshot) is valid.  Even though
+	 * Only the ZIL in the head (non-snapshot) is valid. Even though
 	 * snapshots can have ZIL block pointers (which may be the same
-	 * BP as in the head), they must be ignored.  So we traverse the
-	 * ZIL here, rather than in scan_recurse(), because the regular
-	 * snapshot block-sharing rules don't apply to it.
+	 * BP as in the head), they must be ignored. In addition, $ORIGIN
+	 * doesn't have a objset (i.e. its ds_bp is a hole) so we don't
+	 * need to look for a ZIL in it either. So we traverse the ZIL here,
+	 * rather than in scan_recurse(), because the regular snapshot
+	 * block-sharing rules don't apply to it.
 	 */
-	if (DSL_SCAN_IS_SCRUB_RESILVER(scn) && !ds->ds_is_snapshot)
+	if (DSL_SCAN_IS_SCRUB_RESILVER(scn) && !dsl_dataset_is_snapshot(ds) &&
+	    ds->ds_dir != dp->dp_origin_snap->ds_dir) {
+		objset_t *os;
+		if (dmu_objset_from_ds(ds, &os) != 0) {
+			goto out;
+		}
 		dsl_scan_zil(dp, &os->os_zil_header);
+	}
 
 	/*
 	 * Iterate over the bps in this ds.
@@ -1507,19 +1515,19 @@ dsl_scan_visit(dsl_scan_t *scn, dmu_tx_t *tx)
 }
 
 static boolean_t
-dsl_scan_free_should_suspend(dsl_scan_t *scn)
+dsl_scan_async_block_should_pause(dsl_scan_t *scn)
 {
 	uint64_t elapsed_nanosecs;
 
 	if (zfs_recover)
 		return (B_FALSE);
 
-	if (scn->scn_visited_this_txg >= zfs_free_max_blocks)
+	if (scn->scn_visited_this_txg >= zfs_async_block_max_blocks)
 		return (B_TRUE);
 
 	elapsed_nanosecs = gethrtime() - scn->scn_sync_start_time;
 	return (elapsed_nanosecs / NANOSEC > zfs_txg_timeout ||
-	    (NSEC2MSEC(elapsed_nanosecs) > zfs_free_min_time_ms &&
+	    (NSEC2MSEC(elapsed_nanosecs) > scn->scn_async_block_min_time_ms &&
 	    txg_sync_waiting(scn->scn_dp)) ||
 	    spa_shutting_down(scn->scn_dp->dp_spa));
 }
@@ -1531,7 +1539,7 @@ dsl_scan_free_block_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx)
 
 	if (!scn->scn_is_bptree ||
 	    (BP_GET_LEVEL(bp) == 0 && BP_GET_TYPE(bp) != DMU_OT_OBJSET)) {
-		if (dsl_scan_free_should_suspend(scn))
+		if (dsl_scan_async_block_should_pause(scn))
 			return (SET_ERROR(ERESTART));
 	}
 
@@ -1540,6 +1548,22 @@ dsl_scan_free_block_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx)
 	dsl_dir_diduse_space(tx->tx_pool->dp_free_dir, DD_USED_HEAD,
 	    -bp_get_dsize_sync(scn->scn_dp->dp_spa, bp),
 	    -BP_GET_PSIZE(bp), -BP_GET_UCSIZE(bp), tx);
+	scn->scn_visited_this_txg++;
+	return (0);
+}
+
+static int
+dsl_scan_obsolete_block_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx)
+{
+	dsl_scan_t *scn = arg;
+	const dva_t *dva = &bp->blk_dva[0];
+
+	if (dsl_scan_async_block_should_pause(scn))
+		return (SET_ERROR(ERESTART));
+
+	spa_vdev_indirect_mark_obsolete(scn->scn_dp->dp_spa,
+	    DVA_GET_VDEV(dva), DVA_GET_OFFSET(dva),
+	    DVA_GET_ASIZE(dva), tx);
 	scn->scn_visited_this_txg++;
 	return (0);
 }
@@ -1624,6 +1648,7 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 	if (zfs_free_bpobj_enabled &&
 	    spa_version(dp->dp_spa) >= SPA_VERSION_DEADLISTS) {
 		scn->scn_is_bptree = B_FALSE;
+		scn->scn_async_block_min_time_ms = zfs_free_min_time_ms;
 		scn->scn_zio_root = zio_root(dp->dp_spa, NULL,
 		    NULL, ZIO_FLAG_MUSTSUCCEED);
 		err = bpobj_iterate(&dp->dp_free_bpobj,
@@ -1721,11 +1746,30 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 		    -dsl_dir_phys(dp->dp_free_dir)->dd_compressed_bytes,
 		    -dsl_dir_phys(dp->dp_free_dir)->dd_uncompressed_bytes, tx);
 	}
+
 	if (dp->dp_free_dir != NULL && !scn->scn_async_destroying) {
 		/* finished; verify that space accounting went to zero */
 		ASSERT0(dsl_dir_phys(dp->dp_free_dir)->dd_used_bytes);
 		ASSERT0(dsl_dir_phys(dp->dp_free_dir)->dd_compressed_bytes);
 		ASSERT0(dsl_dir_phys(dp->dp_free_dir)->dd_uncompressed_bytes);
+	}
+
+	EQUIV(bpobj_is_open(&dp->dp_obsolete_bpobj),
+	    0 == zap_contains(dp->dp_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
+	    DMU_POOL_OBSOLETE_BPOBJ));
+	if (err == 0 && bpobj_is_open(&dp->dp_obsolete_bpobj)) {
+		ASSERT(spa_feature_is_active(dp->dp_spa,
+		    SPA_FEATURE_OBSOLETE_COUNTS));
+
+		scn->scn_is_bptree = B_FALSE;
+		scn->scn_async_block_min_time_ms = zfs_obsolete_min_time_ms;
+		err = bpobj_iterate(&dp->dp_obsolete_bpobj,
+		    dsl_scan_obsolete_block_cb, scn, tx);
+		if (err != 0 && err != ERESTART)
+			zfs_panic_recover("error %u from bpobj_iterate()", err);
+
+		if (bpobj_is_empty(&dp->dp_obsolete_bpobj))
+			dsl_pool_destroy_obsolete_bpobj(dp, tx);
 	}
 
 	if (scn->scn_phys.scn_state != DSS_SCANNING)
@@ -2015,7 +2059,7 @@ dsl_scan(dsl_pool_t *dp, pool_scan_func_t func)
 		int err = dsl_scrub_set_pause_resume(scn->scn_dp,
 		    POOL_SCRUB_NORMAL);
 		if (err == 0) {
-			spa_event_notify(spa, NULL, ESC_ZFS_SCRUB_RESUME);
+			spa_event_notify(spa, NULL, NULL, ESC_ZFS_SCRUB_RESUME);
 			return (ECANCELED);
 		}
 

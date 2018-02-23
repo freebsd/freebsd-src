@@ -101,7 +101,7 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 				if (flags & M_WAITOK) {
 					if (!vm_page_reclaim_contig(req,
 					    npages, 0, pmax, PAGE_SIZE, 0)) {
-						VM_WAIT;
+						vm_wait(NULL);
 					}
 					flags &= ~M_WAITOK;
 					goto retry;

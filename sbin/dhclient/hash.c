@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include "dhcpd.h"
 
-static int do_hash(unsigned char *, int, int);
+static int do_hash(const unsigned char *, int, int);
 
 struct hash_table *
 new_hash(void)
@@ -62,9 +62,9 @@ new_hash(void)
 }
 
 static int
-do_hash(unsigned char *name, int len, int size)
+do_hash(const unsigned char *name, int len, int size)
 {
-	unsigned char *s = name;
+	const unsigned char *s = name;
 	int accum = 0, i = len;
 
 	while (i--) {
@@ -77,7 +77,7 @@ do_hash(unsigned char *name, int len, int size)
 	return (accum % size);
 }
 
-void add_hash(struct hash_table *table, unsigned char *name, int len,
+void add_hash(struct hash_table *table, const unsigned char *name, int len,
     unsigned char *pointer)
 {
 	struct hash_bucket *bp;
@@ -86,7 +86,7 @@ void add_hash(struct hash_table *table, unsigned char *name, int len,
 	if (!table)
 		return;
 	if (!len)
-		len = strlen((char *)name);
+		len = strlen((const char *)name);
 
 	hashno = do_hash(name, len, table->hash_count);
 	bp = new_hash_bucket();
@@ -102,7 +102,7 @@ void add_hash(struct hash_table *table, unsigned char *name, int len,
 	table->buckets[hashno] = bp;
 }
 
-unsigned char *
+void *
 hash_lookup(struct hash_table *table, unsigned char *name, int len)
 {
 	struct hash_bucket *bp;
