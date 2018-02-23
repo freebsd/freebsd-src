@@ -32,7 +32,7 @@ local config = require("config")
 local menu = require("menu")
 local password = require("password")
 
-local result, _, _ = lfs.attributes("/boot/lua/local.lua")
+local result = lfs.attributes("/boot/lua/local.lua")
 -- Effectively discard any errors; we'll just act if it succeeds.
 if result ~= nil then
 	require("local")
