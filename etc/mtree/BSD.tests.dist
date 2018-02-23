@@ -730,6 +730,8 @@
         ..
         mqueue
         ..
+        net
+        ..
         netinet
         ..
         netipsec
