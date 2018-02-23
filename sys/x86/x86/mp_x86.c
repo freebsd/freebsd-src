@@ -74,15 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/cpu.h>
 
-#define WARMBOOT_TARGET		0
-#define WARMBOOT_OFF		(KERNBASE + 0x0467)
-#define WARMBOOT_SEG		(KERNBASE + 0x0469)
-
-#define CMOS_REG		(0x70)
-#define CMOS_DATA		(0x71)
-#define BIOS_RESET		(0x0f)
-#define BIOS_WARM		(0x0a)
-
 /* lock region used by kernel profiling */
 int	mcount_lock;
 
