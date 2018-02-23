@@ -183,7 +183,8 @@ intr_lookup_source(int vector)
 
 int
 intr_add_handler(const char *name, int vector, driver_filter_t filter,
-    driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep)
+    driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep,
+    int domain)
 {
 	struct intsrc *isrc;
 	int error;
@@ -198,6 +199,7 @@ intr_add_handler(const char *name, int vector, driver_filter_t filter,
 		intrcnt_updatename(isrc);
 		isrc->is_handlers++;
 		if (isrc->is_handlers == 1) {
+			isrc->is_domain = domain;
 			isrc->is_pic->pic_enable_intr(isrc);
 			isrc->is_pic->pic_enable_source(isrc);
 		}
@@ -505,14 +507,14 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
  */
 
 cpuset_t intr_cpus = CPUSET_T_INITIALIZER(0x1);
-static int current_cpu;
+static int current_cpu[MAXMEMDOM];
 
 /*
  * Return the CPU that the next interrupt source should use.  For now
  * this just returns the next local APIC according to round-robin.
  */
 u_int
-intr_next_cpu(void)
+intr_next_cpu(int domain)
 {
 	u_int apic_id;
 
@@ -527,12 +529,13 @@ intr_next_cpu(void)
 #endif
 
 	mtx_lock_spin(&icu_lock);
-	apic_id = cpu_apic_ids[current_cpu];
+	apic_id = cpu_apic_ids[current_cpu[domain]];
 	do {
-		current_cpu++;
-		if (current_cpu > mp_maxid)
-			current_cpu = 0;
-	} while (!CPU_ISSET(current_cpu, &intr_cpus));
+		current_cpu[domain]++;
+		if (current_cpu[domain] > mp_maxid)
+			current_cpu[domain] = 0;
+	} while (!CPU_ISSET(current_cpu[domain], &intr_cpus) ||
+	    !CPU_ISSET(current_cpu[domain], &cpuset_domain[domain]));
 	mtx_unlock_spin(&icu_lock);
 	return (apic_id);
 }
@@ -597,12 +600,12 @@ intr_shuffle_irqs(void *arg __unused)
 			 */
 			cpu = isrc->is_event->ie_cpu;
 			if (cpu == NOCPU)
-				cpu = current_cpu;
+				cpu = current_cpu[isrc->is_domain];
 			if (isrc->is_pic->pic_assign_cpu(isrc,
 			    cpu_apic_ids[cpu]) == 0) {
 				isrc->is_cpu = cpu;
 				if (isrc->is_event->ie_cpu == NOCPU)
-					intr_next_cpu();
+					intr_next_cpu(isrc->is_domain);
 			}
 		}
 	}
@@ -633,10 +636,11 @@ sysctl_hw_intrs(SYSCTL_HANDLER_ARGS)
 		isrc = interrupt_sources[i];
 		if (isrc == NULL)
 			continue;
-		sbuf_printf(&sbuf, "%s:%d @%d: %ld\n",
+		sbuf_printf(&sbuf, "%s:%d @cpu%d(domain%d): %ld\n",
 		    isrc->is_event->ie_fullname,
 		    isrc->is_index,
 		    isrc->is_cpu,
+		    isrc->is_domain,
 		    *isrc->is_count);
 	}
 
@@ -695,7 +699,8 @@ intr_balance(void *dummy __unused, int pending __unused)
 	 * Restart the scan from the same location to avoid moving in the
 	 * common case.
 	 */
-	current_cpu = 0;
+	for (i = 0; i < vm_ndomains; i++)
+		current_cpu[i] = 0;
 
 	/*
 	 * Assign round-robin from most loaded to least.
@@ -704,8 +709,8 @@ intr_balance(void *dummy __unused, int pending __unused)
 		isrc = interrupt_sorted[i];
 		if (isrc == NULL  || isrc->is_event->ie_cpu != NOCPU)
 			continue;
-		cpu = current_cpu;
-		intr_next_cpu();
+		cpu = current_cpu[isrc->is_domain];
+		intr_next_cpu(isrc->is_domain);
 		if (isrc->is_cpu != cpu &&
 		    isrc->is_pic->pic_assign_cpu(isrc,
 		    cpu_apic_ids[cpu]) == 0)
@@ -733,7 +738,7 @@ SYSINIT(intr_balance_init, SI_SUB_SMP, SI_ORDER_ANY, intr_balance_init, NULL);
  * Always route interrupts to the current processor in the UP case.
  */
 u_int
-intr_next_cpu(void)
+intr_next_cpu(int domain)
 {
 
 	return (PCPU_GET(apic_id));

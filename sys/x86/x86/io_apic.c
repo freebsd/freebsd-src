@@ -499,7 +499,7 @@ ioapic_enable_intr(struct intsrc *isrc)
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 
 	if (intpin->io_vector == 0)
-		if (ioapic_assign_cpu(isrc, intr_next_cpu()) != 0)
+		if (ioapic_assign_cpu(isrc, intr_next_cpu(isrc->is_domain)) != 0)
 			panic("Couldn't find an APIC vector for IRQ %d",
 			    intpin->io_irq);
 	apic_enable_vector(intpin->io_cpu, intpin->io_vector);
