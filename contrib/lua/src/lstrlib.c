@@ -1134,7 +1134,11 @@ static const union {
 /* dummy structure to get native alignment requirements */
 struct cD {
   char c;
-  union { double d; void *p; lua_Integer i; lua_Number n; } u;
+  union {
+#if LUA_FLOAT_TYPE != LUA_FLOAT_INT64
+	  double d;
+#endif
+	  void *p; lua_Integer i; lua_Number n; } u;
 };
 
 #define MAXALIGN	(offsetof(struct cD, u))
@@ -1144,8 +1148,10 @@ struct cD {
 ** Union for serializing floats
 */
 typedef union Ftypes {
+#if LUA_FLOAT_TYPE != LUA_FLOAT_INT64
   float f;
   double d;
+#endif
   lua_Number n;
   char buff[5 * sizeof(lua_Number)];  /* enough for any float type */
 } Ftypes;
@@ -1235,8 +1241,10 @@ static KOption getoption (Header *h, const char **fmt, int *size) {
     case 'j': *size = sizeof(lua_Integer); return Kint;
     case 'J': *size = sizeof(lua_Integer); return Kuint;
     case 'T': *size = sizeof(size_t); return Kuint;
+#if LUA_FLOAT_TYPE != LUA_FLOAT_INT64
     case 'f': *size = sizeof(float); return Kfloat;
     case 'd': *size = sizeof(double); return Kfloat;
+#endif
     case 'n': *size = sizeof(lua_Number); return Kfloat;
     case 'i': *size = getnumlimit(h, fmt, sizeof(int)); return Kint;
     case 'I': *size = getnumlimit(h, fmt, sizeof(int)); return Kuint;
@@ -1369,9 +1377,13 @@ static int str_pack (lua_State *L) {
         volatile Ftypes u;
         char *buff = luaL_prepbuffsize(&b, size);
         lua_Number n = luaL_checknumber(L, arg);  /* get argument */
+#if LUA_FLOAT_TYPE != LUA_FLOAT_INT64
         if (size == sizeof(u.f)) u.f = (float)n;  /* copy it into 'u' */
         else if (size == sizeof(u.d)) u.d = (double)n;
         else u.n = n;
+#else
+	u.n = n;
+#endif
         /* move 'u' to final result, correcting endianness if needed */
         copywithendian(buff, u.buff, size, h.islittle);
         luaL_addsize(&b, size);
@@ -1507,9 +1519,13 @@ static int str_unpack (lua_State *L) {
         volatile Ftypes u;
         lua_Number num;
         copywithendian(u.buff, data + pos, size, h.islittle);
+#if LUA_FLOAT_TYPE != LUA_FLOAT_INT64
         if (size == sizeof(u.f)) num = (lua_Number)u.f;
         else if (size == sizeof(u.d)) num = (lua_Number)u.d;
         else num = u.n;
+#else
+	num = u.n;
+#endif
         lua_pushnumber(L, num);
         break;
       }
