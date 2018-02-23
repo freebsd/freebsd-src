@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Marie Helene Kvello-Aune
+ * Copyright (c) 2016-2017, Marie Helene Kvello-Aune
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -31,6 +31,7 @@
 #include <net/if.h>
 
 #include <errno.h>
+#include <ifaddrs.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -38,23 +39,22 @@
 #include "libifconfig.h" // Needed for ifconfig_errstate
 #include "libifconfig_internal.h"
 
-
 int
-ifconfig_ioctlwrap_ret(ifconfig_handle_t *h, unsigned long request, int rcode)
+ifconfig_getifaddrs(ifconfig_handle_t *h)
 {
+	int ret;
 
-	if (rcode != 0) {
-		h->error.errtype = IOCTL;
-		h->error.ioctl_request = request;
-		h->error.errcode = errno;
+	if (h->ifap == NULL) {
+		ret = getifaddrs(&h->ifap);
+		return (ret);
+	} else {
+		return (0);
 	}
-
-	return (rcode);
 }
 
 int
 ifconfig_ioctlwrap(ifconfig_handle_t *h, const int addressfamily,
-    unsigned long request, struct ifreq *ifr)
+    unsigned long request, void *data)
 {
 	int s;
 
@@ -62,8 +62,14 @@ ifconfig_ioctlwrap(ifconfig_handle_t *h, const int addressfamily,
 		return (-1);
 	}
 
-	int rcode = ioctl(s, request, ifr);
-	return (ifconfig_ioctlwrap_ret(h, request, rcode));
+	if (ioctl(s, request, data) != 0) {
+		h->error.errtype = IOCTL;
+		h->error.ioctl_request = request;
+		h->error.errcode = errno;
+		return (-1);
+	}
+
+	return (0);
 }
 
 /*
