@@ -126,7 +126,6 @@ struct nfs_iodesc {
 int		nfs_open(const char *path, struct open_file *f);
 static int	nfs_close(struct open_file *f);
 static int	nfs_read(struct open_file *f, void *buf, size_t size, size_t *resid);
-static int	nfs_write(struct open_file *f, void *buf, size_t size, size_t *resid);
 static off_t	nfs_seek(struct open_file *f, off_t offset, int where);
 static int	nfs_stat(struct open_file *f, struct stat *sb);
 static int	nfs_readdir(struct open_file *f, struct dirent *d);
@@ -138,7 +137,7 @@ struct fs_ops nfs_fsops = {
 	nfs_open,
 	nfs_close,
 	nfs_read,
-	nfs_write,
+	null_write,
 	nfs_seek,
 	nfs_stat,
 	nfs_readdir
@@ -713,15 +712,6 @@ ret:
 		*resid = size;
 
 	return (0);
-}
-
-/*
- * Not implemented.
- */
-int
-nfs_write(struct open_file *f, void *buf, size_t size, size_t *resid)
-{
-	return (EROFS);
 }
 
 off_t
