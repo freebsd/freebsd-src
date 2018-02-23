@@ -1864,6 +1864,7 @@ sched_lend_user_prio(struct thread *td, u_char prio)
 		td->td_flags |= TDF_NEEDRESCHED;
 }
 
+#ifdef SMP
 /*
  * This tdq is about to idle.  Try to steal a thread from another CPU before
  * choosing the idle thread.
@@ -1945,6 +1946,7 @@ tdq_trysteal(struct tdq *tdq)
 	}
 	spinlock_exit();
 }
+#endif
 
 /*
  * Handle migration from sched_switch().  This happens only for
@@ -2058,8 +2060,10 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		TDQ_LOCK(tdq);
 		mtx = thread_lock_block(td);
 		tdq_load_rem(tdq, td);
+#ifdef SMP
 		if (tdq->tdq_load == 0)
 			tdq_trysteal(tdq);
+#endif
 	}
 
 #if (KTR_COMPILE & KTR_SCHED) != 0
