@@ -33,7 +33,7 @@ local config = require("config")
 
 local core = {}
 
-local compose_loader_cmd = function(cmd_name, argstr)
+local function compose_loader_cmd(cmd_name, argstr)
 	if argstr ~= nil then
 		cmd_name = cmd_name .. " " .. argstr
 	end
