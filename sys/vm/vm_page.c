@@ -430,6 +430,7 @@ vm_page_domain_init(int domain)
 		    MTX_DEF | MTX_DUPOK);
 	}
 	mtx_init(&vmd->vmd_free_mtx, "vm page free queue", NULL, MTX_DEF);
+	snprintf(vmd->vmd_name, sizeof(vmd->vmd_name), "%d", domain);
 }
 
 /*
