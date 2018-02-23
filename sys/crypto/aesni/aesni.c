@@ -577,10 +577,8 @@ aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini,
 	kt = is_fpu_kern_thread(0) || (encini == NULL);
 	if (!kt) {
 		ACQUIRE_CTX(ctxidx, ctx);
-		error = fpu_kern_enter(curthread, ctx,
+		fpu_kern_enter(curthread, ctx,
 		    FPU_KERN_NORMAL | FPU_KERN_KTHR);
-		if (error != 0)
-			goto out;
 	}
 
 	error = 0;
@@ -590,7 +588,6 @@ aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini,
 
 	if (!kt) {
 		fpu_kern_leave(curthread, ctx);
-out:
 		RELEASE_CTX(ctxidx, ctx);
 	}
 	return (error);
@@ -730,10 +727,8 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 	kt = is_fpu_kern_thread(0);
 	if (!kt) {
 		ACQUIRE_CTX(ctxidx, ctx);
-		error = fpu_kern_enter(curthread, ctx,
+		fpu_kern_enter(curthread, ctx,
 		    FPU_KERN_NORMAL | FPU_KERN_KTHR);
-		if (error != 0)
-			goto out2;
 	}
 
 	/* Do work */
@@ -761,7 +756,6 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 out:
 	if (!kt) {
 		fpu_kern_leave(curthread, ctx);
-out2:
 		RELEASE_CTX(ctxidx, ctx);
 	}
 	return (error);

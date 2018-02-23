@@ -194,7 +194,6 @@ efi_enter(void)
 {
 	struct thread *td;
 	pmap_t curpmap;
-	int error;
 
 	if (efi_runtime == NULL)
 		return (ENXIO);
@@ -202,12 +201,7 @@ efi_enter(void)
 	curpmap = &td->td_proc->p_vmspace->vm_pmap;
 	PMAP_LOCK(curpmap);
 	mtx_lock(&efi_lock);
-	error = fpu_kern_enter(td, NULL, FPU_KERN_NOCTX);
-	if (error != 0) {
-		PMAP_UNLOCK(curpmap);
-		return (error);
-	}
-
+	fpu_kern_enter(td, NULL, FPU_KERN_NOCTX);
 	return (efi_arch_enter());
 }
 
