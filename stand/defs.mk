@@ -52,7 +52,7 @@ CFLAGS+=	-I${BOOTOBJ}/libsa
 CFLAGS+=	-I${SASRC} -D_STANDALONE
 CFLAGS+=	-I${SYSDIR}
 # Spike the floating point interfaces
-CFLAGS+=	-Ddouble=jagged-little-pill -Dfloat=boaty-mcboatface
+CFLAGS+=	-Ddouble=jagged-little-pill -Dfloat=floaty-mcfloatface
 
 
 # GELI Support, with backward compat hooks (mostly)
