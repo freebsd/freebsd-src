@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 ssize_t
 write(fd, dest, bcount)
 	int fd;
-	void *dest;
+	const void *dest;
 	size_t bcount;
 {
 	struct open_file *f = &files[fd];
@@ -82,7 +82,8 @@ write(fd, dest, bcount)
 	if (f->f_flags & F_RAW) {
 		twiddle(4);
 		errno = (f->f_dev->dv_strategy)(f->f_devdata, F_WRITE,
-			btodb(f->f_offset), bcount, dest, &resid);
+			btodb(f->f_offset), bcount, __DECONST(void *, dest),
+			&resid);
 		if (errno)
 			return (-1);
 		f->f_offset += resid;
