@@ -49,6 +49,7 @@ extern uint32_t ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count);
 extern int ql_alloc_dmabuf(qla_host_t *ha, qla_dma_t *dma_buf);
 extern void ql_free_dmabuf(qla_host_t *ha, qla_dma_t *dma_buf);
 extern int ql_get_mbuf(qla_host_t *ha, qla_rx_buf_t *rxb, struct mbuf *nmp);
+extern void qla_set_error_recovery(qla_host_t *ha);
 
 /*
  * from ql_hw.c
@@ -117,5 +118,11 @@ extern unsigned int ql83xx_minidump_len;
 extern void ql_alloc_drvr_state_buffer(qla_host_t *ha);
 extern void ql_free_drvr_state_buffer(qla_host_t *ha);
 extern void ql_capture_drvr_state(qla_host_t *ha);
+extern void ql_sp_log(qla_host_t *ha, uint16_t fmtstr_idx, uint16_t num_params,
+		uint32_t param0, uint32_t param1, uint32_t param2,
+		uint32_t param3, uint32_t param4);
+extern void ql_alloc_sp_log_buffer(qla_host_t *ha);
+extern void ql_free_sp_log_buffer(qla_host_t *ha);
+
 
 #endif /* #ifndef_QL_GLBL_H_ */
