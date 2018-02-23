@@ -51,7 +51,7 @@ static void
 qla_rcv_error(qla_host_t *ha)
 {
 	ha->stop_rcv = 1;
-	ha->qla_initiate_recovery = 1;
+	QL_INITIATE_RECOVERY(ha);
 }
 
 
@@ -389,7 +389,7 @@ qla_rcv_cont_sds(qla_host_t *ha, uint32_t sds_idx, uint32_t comp_idx,
 
 		opcode = Q8_STAT_DESC_OPCODE((sdesc->data[1]));
 
-		if (!opcode) {
+		if (!opcode || QL_ERR_INJECT(ha, INJCT_INV_CONT_OPCODE)) {
 			device_printf(ha->pci_dev, "%s: opcode=0 %p %p\n",
 				__func__, (void *)sdesc->data[0],
 				(void *)sdesc->data[1]);
@@ -558,8 +558,9 @@ ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 				sdesc0 = (q80_stat_desc_t *)
 					&hw->sds[sds_idx].sds_ring_base[c_idx];
 
-				if (Q8_STAT_DESC_OPCODE((sdesc0->data[1])) !=
-						Q8_STAT_DESC_OPCODE_CONT) {
+				if ((Q8_STAT_DESC_OPCODE((sdesc0->data[1])) !=
+						Q8_STAT_DESC_OPCODE_CONT) ||
+				QL_ERR_INJECT(ha, INJCT_SGL_RCV_INV_DESC_COUNT)) {
 					desc_count = 0;
 					break;
 				}
@@ -620,8 +621,9 @@ ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 				sdesc0 = (q80_stat_desc_t *)
 					&hw->sds[sds_idx].sds_ring_base[c_idx];
 
-				if (Q8_STAT_DESC_OPCODE((sdesc0->data[1])) !=
-						Q8_STAT_DESC_OPCODE_CONT) {
+				if ((Q8_STAT_DESC_OPCODE((sdesc0->data[1])) !=
+						Q8_STAT_DESC_OPCODE_CONT) ||
+				QL_ERR_INJECT(ha, INJCT_SGL_LRO_INV_DESC_COUNT)) {
 					desc_count = 0;
 					break;
 				}
@@ -822,7 +824,13 @@ ql_mbx_isr(void *arg)
 		data = READ_REG32(ha, (Q8_FW_MBOX0 + 12));
 
 		prev_link_state =  ha->hw.link_up;
-		ha->hw.link_up = (((data & 0xFF) == 0) ? 0 : 1);
+
+		data = (((data & 0xFF) == 0) ? 0 : 1);
+		atomic_store_rel_8(&ha->hw.link_up, (uint8_t)data);
+
+		device_printf(ha->pci_dev,
+			"%s: AEN[0x8001] data = 0x%08x, prev_link_state = 0x%08x\n",
+			__func__, data, prev_link_state);
 
 		if (prev_link_state !=  ha->hw.link_up) {
 			if (ha->hw.link_up)
@@ -833,17 +841,18 @@ ql_mbx_isr(void *arg)
 
 
 		ha->hw.module_type = ((data >> 8) & 0xFF);
-		ha->hw.flags.fduplex = (((data & 0xFF0000) == 0) ? 0 : 1);
-		ha->hw.flags.autoneg = (((data & 0xFF000000) == 0) ? 0 : 1);
+		ha->hw.fduplex = (((data & 0xFF0000) == 0) ? 0 : 1);
+		ha->hw.autoneg = (((data & 0xFF000000) == 0) ? 0 : 1);
 		
 		data = READ_REG32(ha, (Q8_FW_MBOX0 + 16));
-		ha->hw.flags.loopback_mode = data & 0x03;
+		ha->hw.loopback_mode = data & 0x03;
 
 		ha->hw.link_faults = (data >> 3) & 0xFF;
 
 		break;
 
         case 0x8100:
+		device_printf(ha->pci_dev, "%s: AEN[0x%08x]\n", __func__, data);
 		ha->hw.imd_compl=1;
 		break;
 
@@ -854,6 +863,9 @@ ql_mbx_isr(void *arg)
                 ha->hw.aen_mb2 = READ_REG32(ha, (Q8_FW_MBOX0 + 8));
                 ha->hw.aen_mb3 = READ_REG32(ha, (Q8_FW_MBOX0 + 12));
                 ha->hw.aen_mb4 = READ_REG32(ha, (Q8_FW_MBOX0 + 16));
+		device_printf(ha->pci_dev, "%s: AEN[0x%08x 0x%08x 0x%08x 0%08x 0x%08x]\n",
+			__func__, data, ha->hw.aen_mb1, ha->hw.aen_mb2,
+			ha->hw.aen_mb3, ha->hw.aen_mb4);
                 break;
 
         case 0x8110:
