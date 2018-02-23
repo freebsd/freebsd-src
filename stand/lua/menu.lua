@@ -38,7 +38,7 @@ local drawer = require("drawer")
 
 local menu = {}
 
-local OnOff = function(str, b)
+local function OnOff(str, b)
 	if b then
 		return str .. color.escapef(color.GREEN) .. "On" ..
 		    color.escapef(color.WHITE)
@@ -48,7 +48,7 @@ local OnOff = function(str, b)
 	end
 end
 
-local bootenvSet = function(env)
+local function bootenvSet(env)
 	loader.setenv("vfs.root.mountfrom", env)
 	loader.setenv("currdev", env .. ":")
 	config.reload()
