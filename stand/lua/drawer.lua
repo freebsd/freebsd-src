@@ -45,7 +45,7 @@ local orb
 local none
 local none_shifted = false
 
-local menu_entry_name = function(drawing_menu, entry)
+local function menu_entry_name(drawing_menu, entry)
 	local name_handler = drawer.menu_name_handlers[entry.entry_type]
 
 	if name_handler ~= nil then
@@ -57,7 +57,7 @@ local menu_entry_name = function(drawing_menu, entry)
 	return entry.name
 end
 
-local shift_brand_text = function(shift)
+local function shift_brand_text(shift)
 	drawer.brand_position.x = drawer.brand_position.x + shift.x
 	drawer.brand_position.y = drawer.brand_position.y + shift.y
 	drawer.menu_position.x = drawer.menu_position.x + shift.x
