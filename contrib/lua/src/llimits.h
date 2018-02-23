@@ -66,7 +66,9 @@ typedef LUAI_USER_ALIGNMENT_T L_Umaxalign;
 #else
 typedef union {
   lua_Number n;
+#if LUA_FLOAT_TYPE != LUA_FLOAT_INT64
   double u;
+#endif
   void *s;
   lua_Integer i;
   long l;
