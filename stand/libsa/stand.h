@@ -105,7 +105,7 @@ struct fs_ops {
     int		(*fo_close)(struct open_file *f);
     int		(*fo_read)(struct open_file *f, void *buf,
 			   size_t size, size_t *resid);
-    int		(*fo_write)(struct open_file *f, void *buf,
+    int		(*fo_write)(struct open_file *f, const void *buf,
 			    size_t size, size_t *resid);
     off_t	(*fo_seek)(struct open_file *f, off_t offset, int where);
     int		(*fo_stat)(struct open_file *f, struct stat *sb);
@@ -383,7 +383,7 @@ extern void	nullsys(void);
 extern int	null_open(const char *path, struct open_file *f);
 extern int	null_close(struct open_file *f);
 extern int	null_read(struct open_file *f, void *buf, size_t size, size_t *resid);
-extern int	null_write(struct open_file *f, void *buf, size_t size, size_t *resid);
+extern int	null_write(struct open_file *f, const void *buf, size_t size, size_t *resid);
 extern off_t	null_seek(struct open_file *f, off_t offset, int where);
 extern int	null_stat(struct open_file *f, struct stat *sb);
 extern int	null_readdir(struct open_file *f, struct dirent *d);
