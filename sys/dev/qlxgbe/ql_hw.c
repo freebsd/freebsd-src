@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 static void qla_del_rcv_cntxt(qla_host_t *ha);
 static int qla_init_rcv_cntxt(qla_host_t *ha);
-static void qla_del_xmt_cntxt(qla_host_t *ha);
+static int qla_del_xmt_cntxt(qla_host_t *ha);
 static int qla_init_xmt_cntxt(qla_host_t *ha);
 static int qla_mbx_cmd(qla_host_t *ha, uint32_t *h_mbox, uint32_t n_hmbox,
 	uint32_t *fw_mbox, uint32_t n_fwmbox, uint32_t no_pause);
@@ -649,11 +649,118 @@ qlnx_add_hw_xmt_stats_sysctls(qla_host_t *ha)
 }
 
 static void
+qlnx_add_hw_mbx_cmpl_stats_sysctls(qla_host_t *ha)
+{
+        struct sysctl_ctx_list  *ctx;
+        struct sysctl_oid_list  *node_children;
+
+        ctx = device_get_sysctl_ctx(ha->pci_dev);
+        node_children = SYSCTL_CHILDREN(device_get_sysctl_tree(ha->pci_dev));
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_lt_200ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[0],
+		"mbx_completion_time_lt_200ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_200ms_400ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[1],
+		"mbx_completion_time_200ms_400ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_400ms_600ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[2],
+		"mbx_completion_time_400ms_600ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_600ms_800ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[3],
+		"mbx_completion_time_600ms_800ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_800ms_1000ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[4],
+		"mbx_completion_time_800ms_1000ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_1000ms_1200ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[5],
+		"mbx_completion_time_1000ms_1200ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_1200ms_1400ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[6],
+		"mbx_completion_time_1200ms_1400ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_1400ms_1600ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[7],
+		"mbx_completion_time_1400ms_1600ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_1600ms_1800ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[8],
+		"mbx_completion_time_1600ms_1800ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_1800ms_2000ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[9],
+		"mbx_completion_time_1800ms_2000ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_2000ms_2200ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[10],
+		"mbx_completion_time_2000ms_2200ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_2200ms_2400ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[11],
+		"mbx_completion_time_2200ms_2400ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_2400ms_2600ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[12],
+		"mbx_completion_time_2400ms_2600ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_2600ms_2800ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[13],
+		"mbx_completion_time_2600ms_2800ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_2800ms_3000ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[14],
+		"mbx_completion_time_2800ms_3000ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_3000ms_4000ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[15],
+		"mbx_completion_time_3000ms_4000ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_time_4000ms_5000ms",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[16],
+		"mbx_completion_time_4000ms_5000ms");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_host_mbx_cntrl_timeout",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[17],
+		"mbx_completion_host_mbx_cntrl_timeout");
+
+	SYSCTL_ADD_QUAD(ctx, node_children,
+		OID_AUTO, "mbx_completion_fw_mbx_cntrl_timeout",
+		CTLFLAG_RD, &ha->hw.mbx_comp_msecs[18],
+		"mbx_completion_fw_mbx_cntrl_timeout");
+	return;
+}
+
+static void
 qlnx_add_hw_stats_sysctls(qla_host_t *ha)
 {
 	qlnx_add_hw_mac_stats_sysctls(ha);
 	qlnx_add_hw_rcv_stats_sysctls(ha);
 	qlnx_add_hw_xmt_stats_sysctls(ha);
+	qlnx_add_hw_mbx_cmpl_stats_sysctls(ha);
 
 	return;
 }
@@ -920,6 +1027,30 @@ ql_hw_add_sysctls(qla_host_t *ha)
 		"\t Any change requires ifconfig down/up to take effect\n"
 		"\t Note that LRO may be turned off/on via ifconfig\n");
 
+        SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+                SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+                OID_AUTO, "sp_log_index", CTLFLAG_RW, &ha->hw.sp_log_index,
+                ha->hw.sp_log_index, "sp_log_index");
+
+        SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+                SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+                OID_AUTO, "sp_log_stop", CTLFLAG_RW, &ha->hw.sp_log_stop,
+                ha->hw.sp_log_stop, "sp_log_stop");
+
+        ha->hw.sp_log_stop_events = 0;
+
+        SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+                SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+                OID_AUTO, "sp_log_stop_events", CTLFLAG_RW,
+		&ha->hw.sp_log_stop_events,
+                ha->hw.sp_log_stop_events, "Slow path event log is stopped"
+		" when OR of the following events occur \n"
+		"\t 0x01 : Heart beat Failure\n"
+		"\t 0x02 : Temperature Failure\n"
+		"\t 0x04 : HW Initialization Failure\n"
+		"\t 0x08 : Interface Initialization Failure\n"
+		"\t 0x10 : Error Recovery Failure\n");
+
 	ha->hw.mdump_active = 0;
         SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
                 SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -1000,13 +1131,13 @@ ql_hw_link_status(qla_host_t *ha)
 		device_printf(ha->pci_dev, "link Down\n");
 	}
 
-	if (ha->hw.flags.fduplex) {
+	if (ha->hw.fduplex) {
 		device_printf(ha->pci_dev, "Full Duplex\n");
 	} else {
 		device_printf(ha->pci_dev, "Half Duplex\n");
 	}
 
-	if (ha->hw.flags.autoneg) {
+	if (ha->hw.autoneg) {
 		device_printf(ha->pci_dev, "Auto Negotiation Enabled\n");
 	} else {
 		device_printf(ha->pci_dev, "Auto Negotiation Disabled\n");
@@ -1257,12 +1388,26 @@ qla_mbx_cmd(qla_host_t *ha, uint32_t *h_mbox, uint32_t n_hmbox,
 	uint32_t i;
 	uint32_t data;
 	int ret = 0;
+	uint64_t start_usecs;
+	uint64_t end_usecs;
+	uint64_t msecs_200;
 
-	if (QL_ERR_INJECT(ha, INJCT_MBX_CMD_FAILURE)) {
-		ret = -3;
-		ha->qla_initiate_recovery = 1;
+	ql_sp_log(ha, 0, 5, no_pause, h_mbox[0], h_mbox[1], h_mbox[2], h_mbox[3]);
+
+	if (ha->offline || ha->qla_initiate_recovery) {
+		ql_sp_log(ha, 1, 2, ha->offline, ha->qla_initiate_recovery, 0, 0, 0);
 		goto exit_qla_mbx_cmd;
 	}
+
+	if (((ha->err_inject & 0xFFFF) == INJCT_MBX_CMD_FAILURE) &&
+		(((ha->err_inject & ~0xFFFF) == ((h_mbox[0] & 0xFFFF) << 16))||
+		!(ha->err_inject & ~0xFFFF))) {
+		ret = -3;
+		QL_INITIATE_RECOVERY(ha);
+		goto exit_qla_mbx_cmd;
+	}
+
+	start_usecs = qla_get_usec_timestamp();
 
 	if (no_pause)
 		i = 1000;
@@ -1270,6 +1415,12 @@ qla_mbx_cmd(qla_host_t *ha, uint32_t *h_mbox, uint32_t n_hmbox,
 		i = Q8_MBX_MSEC_DELAY;
 
 	while (i) {
+
+		if (ha->qla_initiate_recovery) {
+			ql_sp_log(ha, 2, 1, ha->qla_initiate_recovery, 0, 0, 0, 0);
+			return (-1);
+		}
+
 		data = READ_REG32(ha, Q8_HOST_MBOX_CNTRL);
 		if (data == 0)
 			break;
@@ -1284,8 +1435,10 @@ qla_mbx_cmd(qla_host_t *ha, uint32_t *h_mbox, uint32_t n_hmbox,
 	if (i == 0) {
 		device_printf(ha->pci_dev, "%s: host_mbx_cntrl 0x%08x\n",
 			__func__, data);
+		ql_sp_log(ha, 3, 1, data, 0, 0, 0, 0);
 		ret = -1;
-		ha->qla_initiate_recovery = 1;
+		ha->hw.mbx_comp_msecs[(Q8_MBX_COMP_MSECS - 2)]++;
+		QL_INITIATE_RECOVERY(ha);
 		goto exit_qla_mbx_cmd;
 	}
 
@@ -1299,6 +1452,12 @@ qla_mbx_cmd(qla_host_t *ha, uint32_t *h_mbox, uint32_t n_hmbox,
 
 	i = Q8_MBX_MSEC_DELAY;
 	while (i) {
+
+		if (ha->qla_initiate_recovery) {
+			ql_sp_log(ha, 4, 1, ha->qla_initiate_recovery, 0, 0, 0, 0);
+			return (-1);
+		}
+
 		data = READ_REG32(ha, Q8_FW_MBOX_CNTRL);
 
 		if ((data & 0x3) == 1) {
@@ -1316,17 +1475,43 @@ qla_mbx_cmd(qla_host_t *ha, uint32_t *h_mbox, uint32_t n_hmbox,
 	if (i == 0) {
 		device_printf(ha->pci_dev, "%s: fw_mbx_cntrl 0x%08x\n",
 			__func__, data);
+		ql_sp_log(ha, 5, 1, data, 0, 0, 0, 0);
 		ret = -2;
-		ha->qla_initiate_recovery = 1;
+		ha->hw.mbx_comp_msecs[(Q8_MBX_COMP_MSECS - 1)]++;
+		QL_INITIATE_RECOVERY(ha);
 		goto exit_qla_mbx_cmd;
 	}
 
 	for (i = 0; i < n_fwmbox; i++) {
+
+		if (ha->qla_initiate_recovery) {
+			ql_sp_log(ha, 6, 1, ha->qla_initiate_recovery, 0, 0, 0, 0);
+			return (-1);
+		}
+
 		*fw_mbox++ = READ_REG32(ha, (Q8_FW_MBOX0 + (i << 2)));
 	}
 
 	WRITE_REG32(ha, Q8_FW_MBOX_CNTRL, 0x0);
 	WRITE_REG32(ha, ha->hw.mbx_intr_mask_offset, 0x0);
+
+	end_usecs = qla_get_usec_timestamp();
+
+	if (end_usecs > start_usecs) {
+		msecs_200 = (end_usecs - start_usecs)/(1000 * 200);
+
+		if (msecs_200 < 15) 
+			ha->hw.mbx_comp_msecs[msecs_200]++;
+		else if (msecs_200 < 20)
+			ha->hw.mbx_comp_msecs[15]++;
+		else {
+			device_printf(ha->pci_dev, "%s: [%ld, %ld] %ld\n", __func__,
+				start_usecs, end_usecs, msecs_200);
+			ha->hw.mbx_comp_msecs[16]++;
+		}
+	}
+	ql_sp_log(ha, 7, 5, fw_mbox[0], fw_mbox[1], fw_mbox[2], fw_mbox[3], fw_mbox[4]);
+
 
 exit_qla_mbx_cmd:
 	return (ret);
@@ -1403,7 +1588,8 @@ qla_config_intr_cntxt(qla_host_t *ha, uint32_t start_idx, uint32_t num_intrs,
 	if (qla_mbx_cmd(ha, (uint32_t *)c_intr,
 		(sizeof (q80_config_intr_t) >> 2),
 		ha->hw.mbox, (sizeof (q80_config_intr_rsp_t) >> 2), 0)) {
-		device_printf(dev, "%s: failed0\n", __func__);
+		device_printf(dev, "%s: %s failed0\n", __func__,
+			(create ? "create" : "delete"));
 		return (-1);
 	}
 
@@ -1412,8 +1598,8 @@ qla_config_intr_cntxt(qla_host_t *ha, uint32_t start_idx, uint32_t num_intrs,
 	err = Q8_MBX_RSP_STATUS(c_intr_rsp->regcnt_status);
 
 	if (err) {
-		device_printf(dev, "%s: failed1 [0x%08x, %d]\n", __func__, err,
-			c_intr_rsp->nentries);
+		device_printf(dev, "%s: %s failed1 [0x%08x, %d]\n", __func__,
+			(create ? "create" : "delete"), err, c_intr_rsp->nentries);
 
 		for (i = 0; i < c_intr_rsp->nentries; i++) {
 			device_printf(dev, "%s: [%d]:[0x%x 0x%x 0x%x]\n",
@@ -2017,7 +2203,8 @@ ql_get_stats(qla_host_t *ha)
 
 	cmd |= ((ha->pci_func & 0x1) << 16);
 
-	if (ha->qla_watchdog_pause)
+	if (ha->qla_watchdog_pause || (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) ||
+		ha->offline)
 		goto ql_get_stats_exit;
 
 	if (qla_get_hw_stats(ha, cmd, sizeof (q80_get_stats_rsp_t)) == 0) {
@@ -2034,7 +2221,8 @@ ql_get_stats(qla_host_t *ha)
 //	cmd |= Q8_GET_STATS_CMD_CLEAR;
 	cmd |= (ha->hw.rcv_cntxt_id << 16);
 
-	if (ha->qla_watchdog_pause)
+	if (ha->qla_watchdog_pause || (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) ||
+		ha->offline)
 		goto ql_get_stats_exit;
 
 	if (qla_get_hw_stats(ha, cmd, sizeof (q80_get_stats_rsp_t)) == 0) {
@@ -2045,13 +2233,18 @@ ql_get_stats(qla_host_t *ha)
 			__func__, ha->hw.mbox[0]);
 	}
 
-	if (ha->qla_watchdog_pause)
+	if (ha->qla_watchdog_pause || (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) ||
+		ha->offline)
 		goto ql_get_stats_exit;
 	/*
 	 * Get XMT Statistics
 	 */
-	for (i = 0 ; ((i < ha->hw.num_tx_rings) && (!ha->qla_watchdog_pause));
-		i++) {
+	for (i = 0 ; (i < ha->hw.num_tx_rings); i++) {
+		if (ha->qla_watchdog_pause ||
+			(!(ifp->if_drv_flags & IFF_DRV_RUNNING)) ||
+			ha->offline)
+			goto ql_get_stats_exit;
+
 		cmd = Q8_GET_STATS_CMD_XMT | Q8_GET_STATS_CMD_TYPE_CNTXT;
 //		cmd |= Q8_GET_STATS_CMD_CLEAR;
 		cmd |= (ha->hw.tx_cntxt[i].tx_cntxt_id << 16);
@@ -2681,7 +2874,8 @@ ql_del_hw_if(qla_host_t *ha)
 
 	qla_del_rcv_cntxt(ha);
 
-	qla_del_xmt_cntxt(ha);
+	if(qla_del_xmt_cntxt(ha))
+		goto ql_del_hw_if_exit;
 
 	if (ha->hw.flags.init_intr_cnxt) {
 		for (i = 0; i < ha->hw.num_sds_rings; ) {
@@ -2690,7 +2884,9 @@ ql_del_hw_if(qla_host_t *ha)
 				num_msix = Q8_MAX_INTR_VECTORS;
 			else
 				num_msix = ha->hw.num_sds_rings - i;
-			qla_config_intr_cntxt(ha, i, num_msix, 0);
+
+			if (qla_config_intr_cntxt(ha, i, num_msix, 0))
+				break;
 
 			i += num_msix;
 		}
@@ -2698,6 +2894,7 @@ ql_del_hw_if(qla_host_t *ha)
 		ha->hw.flags.init_intr_cnxt = 0;
 	}
 
+ql_del_hw_if_exit:
 	if (ha->hw.enable_soft_lro) {
 		qla_drain_soft_lro(ha);
 		qla_free_soft_lro(ha);
@@ -3330,19 +3527,22 @@ qla_del_xmt_cntxt_i(qla_host_t *ha, uint32_t txr_idx)
 
 	return (0);
 }
-static void
+static int
 qla_del_xmt_cntxt(qla_host_t *ha)
 {
 	uint32_t i;
+	int ret = 0;
 
 	if (!ha->hw.flags.init_tx_cnxt)
-		return;
+		return (ret);
 
 	for (i = 0; i < ha->hw.num_tx_rings; i++) {
-		if (qla_del_xmt_cntxt_i(ha, i))
+		if ((ret = qla_del_xmt_cntxt_i(ha, i)) != 0)
 			break;
 	}
 	ha->hw.flags.init_tx_cnxt = 0;
+
+	return (ret);
 }
 
 static int
@@ -3352,8 +3552,10 @@ qla_init_xmt_cntxt(qla_host_t *ha)
 
 	for (i = 0; i < ha->hw.num_tx_rings; i++) {
 		if (qla_init_xmt_cntxt_i(ha, i) != 0) {
-			for (j = 0; j < i; j++)
-				qla_del_xmt_cntxt_i(ha, j);
+			for (j = 0; j < i; j++) {
+				if (qla_del_xmt_cntxt_i(ha, j))
+					break;
+			}
 			return (-1);
 		}
 	}
@@ -3629,21 +3831,22 @@ ql_hw_tx_done_locked(qla_host_t *ha, uint32_t txr_idx)
 void
 ql_update_link_state(qla_host_t *ha)
 {
-	uint32_t link_state;
+	uint32_t link_state = 0;
 	uint32_t prev_link_state;
-
-	if (!(ha->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-		ha->hw.link_up = 0;
-		return;
-	}
-	link_state = READ_REG32(ha, Q8_LINK_STATE);
 
 	prev_link_state =  ha->hw.link_up;
 
-	if (ha->pci_func == 0) 
-		ha->hw.link_up = (((link_state & 0xF) == 1)? 1 : 0);
-	else
-		ha->hw.link_up = ((((link_state >> 4)& 0xF) == 1)? 1 : 0);
+	if (ha->ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		link_state = READ_REG32(ha, Q8_LINK_STATE);
+
+		if (ha->pci_func == 0) {
+			link_state = (((link_state & 0xF) == 1)? 1 : 0);
+		} else {
+			link_state = ((((link_state >> 4)& 0xF) == 1)? 1 : 0);
+		}
+	}
+
+	atomic_store_rel_8(&ha->hw.link_up, (uint8_t)link_state);
 
 	if (prev_link_state !=  ha->hw.link_up) {
 		if (ha->hw.link_up) {
@@ -3671,8 +3874,14 @@ ql_hw_check_health(qla_host_t *ha)
 
 	if (((val & 0xFFFF) == 2) || ((val & 0xFFFF) == 3) ||
 		(QL_ERR_INJECT(ha, INJCT_TEMPERATURE_FAILURE))) {
-		device_printf(ha->pci_dev, "%s: Temperature Alert [0x%08x]\n",
-			__func__, val);
+		device_printf(ha->pci_dev, "%s: Temperature Alert"
+			" at ts_usecs %ld ts_reg = 0x%08x\n",
+			__func__, qla_get_usec_timestamp(), val);
+
+		if (ha->hw.sp_log_stop_events & Q8_SP_LOG_STOP_TEMP_FAILURE)
+			ha->hw.sp_log_stop = -1;
+
+		QL_INITIATE_RECOVERY(ha);
 		return -1;
 	}
 
@@ -3693,9 +3902,25 @@ ql_hw_check_health(qla_host_t *ha)
 			__func__, val);
 	if (ha->hw.hbeat_failure < 2) /* we ignore the first failure */
 		return 0;
-	else 
-		device_printf(ha->pci_dev, "%s: Heartbeat Failue [0x%08x]\n",
-			__func__, val);
+	else {
+		uint32_t peg_halt_status1;
+		uint32_t peg_halt_status2;
+
+		peg_halt_status1 = READ_REG32(ha, Q8_PEG_HALT_STATUS1);
+		peg_halt_status2 = READ_REG32(ha, Q8_PEG_HALT_STATUS2);
+
+		device_printf(ha->pci_dev,
+			"%s: Heartbeat Failue at ts_usecs = %ld "
+			"fw_heart_beat = 0x%08x "
+			"peg_halt_status1 = 0x%08x "
+			"peg_halt_status2 = 0x%08x\n",
+			__func__, qla_get_usec_timestamp(), val,
+			peg_halt_status1, peg_halt_status2);
+
+		if (ha->hw.sp_log_stop_events & Q8_SP_LOG_STOP_HBEAT_FAILURE)
+			ha->hw.sp_log_stop = -1;
+	}
+	QL_INITIATE_RECOVERY(ha);
 
 	return -1;
 }
@@ -4431,8 +4656,8 @@ ql_minidump(qla_host_t *ha)
 
 	if (ha->hw.mdump_done)
 		return;
-
-		ha->hw.mdump_start_seq_index = ql_stop_sequence(ha);
+	ha->hw.mdump_usec_ts = qla_get_usec_timestamp();
+	ha->hw.mdump_start_seq_index = ql_stop_sequence(ha);
 
 	bzero(ha->hw.mdump_buffer, ha->hw.mdump_buffer_size);
 	bzero(ha->hw.mdump_template, ha->hw.mdump_template_size);
