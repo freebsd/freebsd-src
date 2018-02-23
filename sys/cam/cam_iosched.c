@@ -718,22 +718,22 @@ cam_iosched_io_metric_update(struct cam_iosched_softc *isc,
     sbintime_t sim_latency, int cmd, size_t size);
 #endif
 
-static inline int
+static inline bool
 cam_iosched_has_flagged_work(struct cam_iosched_softc *isc)
 {
 	return !!(isc->flags & CAM_IOSCHED_FLAG_WORK_FLAGS);
 }
 
-static inline int
+static inline bool
 cam_iosched_has_io(struct cam_iosched_softc *isc)
 {
 #ifdef CAM_IOSCHED_DYNAMIC
 	if (do_dynamic_iosched) {
 		struct bio *rbp = bioq_first(&isc->bio_queue);
 		struct bio *wbp = bioq_first(&isc->write_queue);
-		int can_write = wbp != NULL &&
+		bool can_write = wbp != NULL &&
 		    cam_iosched_limiter_caniop(&isc->write_stats, wbp) == 0;
-		int can_read = rbp != NULL &&
+		bool can_read = rbp != NULL &&
 		    cam_iosched_limiter_caniop(&isc->read_stats, rbp) == 0;
 		if (iosched_debug > 2) {
 			printf("can write %d: pending_writes %d max_writes %d\n", can_write, isc->write_stats.pending, isc->write_stats.max);
@@ -746,7 +746,7 @@ cam_iosched_has_io(struct cam_iosched_softc *isc)
 	return bioq_first(&isc->bio_queue) != NULL;
 }
 
-static inline int
+static inline bool
 cam_iosched_has_more_trim(struct cam_iosched_softc *isc)
 {
 	return !(isc->flags & CAM_IOSCHED_FLAG_TRIM_ACTIVE) &&
@@ -757,7 +757,7 @@ cam_iosched_has_more_trim(struct cam_iosched_softc *isc)
     (isc)->sort_io_queue : cam_sort_io_queues)
 
 
-static inline int
+static inline bool
 cam_iosched_has_work(struct cam_iosched_softc *isc)
 {
 #ifdef CAM_IOSCHED_DYNAMIC
