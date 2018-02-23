@@ -961,7 +961,6 @@ add_spare(int ac, char **av)
 		if (error != 0) {
 			warn("Failed to fetch standalone disk list");
 			mpt_free_pd_list(list);
-			mpt_free_pd_list(list);
 			close(fd);
 			return (error);
 		}
@@ -971,13 +970,11 @@ add_spare(int ac, char **av)
 			error = errno;
 			warn("Unable to lookup drive %s", av[1]);
 			mpt_free_pd_list(list);
-			mpt_free_pd_list(list);
 			close(fd);
 			return (error);
 		}
 
 		if (mpt_lock_physdisk(&sdisks[i]) < 0) {
-			mpt_free_pd_list(list);
 			mpt_free_pd_list(list);
 			close(fd);
 			return (errno);
@@ -986,7 +983,6 @@ add_spare(int ac, char **av)
 		if (mpt_create_physdisk(fd, &sdisks[i], &PhysDiskNum) < 0) {
 			error = errno;
 			warn("Failed to create physical disk page");
-			mpt_free_pd_list(list);
 			mpt_free_pd_list(list);
 			close(fd);
 			return (error);
