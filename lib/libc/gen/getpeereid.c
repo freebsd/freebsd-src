@@ -50,8 +50,10 @@ getpeereid(int s, uid_t *euid, gid_t *egid)
 	error = _getsockopt(s, 0, LOCAL_PEERCRED, &xuc, &xuclen);
 	if (error != 0)
 		return (error);
-	if (xuc.cr_version != XUCRED_VERSION)
-		return (EINVAL);
+	if (xuc.cr_version != XUCRED_VERSION) {
+		errno = EINVAL;
+		return (-1);
+	}
 	*euid = xuc.cr_uid;
 	*egid = xuc.cr_gid;
 	return (0);
