@@ -273,6 +273,7 @@ function drawer.drawmenu(m)
 	local alias_table = {}
 	local entry_num = 0
 	local menu_entries = m.entries
+	local effective_line_num = 0
 	if type(menu_entries) == "function" then
 		menu_entries = menu_entries()
 	end
@@ -282,9 +283,10 @@ function drawer.drawmenu(m)
 		if e.visible ~= nil and not e.visible() then
 			goto continue
 		end
+		effective_line_num = effective_line_num + 1
 		if e.entry_type ~= core.MENU_SEPARATOR then
 			entry_num = entry_num + 1
-			screen.setcursor(x, y + line_num)
+			screen.setcursor(x, y + effective_line_num)
 
 			print(entry_num .. ". " .. menu_entry_name(m, e))
 
@@ -296,7 +298,7 @@ function drawer.drawmenu(m)
 				end
 			end
 		else
-			screen.setcursor(x, y + line_num)
+			screen.setcursor(x, y + effective_line_num)
 			print(menu_entry_name(m, e))
 		end
 		::continue::
