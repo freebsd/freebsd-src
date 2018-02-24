@@ -832,7 +832,8 @@ glc_txintr(struct glc_softc *sc)
 		/* Speculatively (or necessarily) start the TX queue again */
 		error = lv1_net_start_tx_dma(sc->sc_bus, sc->sc_dev,
 		    sc->sc_txdmadesc_phys +
-		    txs->txs_firstdesc*sizeof(struct glc_dmadesc), 0);
+		    ((txs == NULL) ? 0 : txs->txs_firstdesc)*
+		     sizeof(struct glc_dmadesc), 0);
 		if (error != 0)
 			device_printf(sc->sc_self,
 			    "lv1_net_start_tx_dma error: %d\n", error);
