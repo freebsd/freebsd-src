@@ -88,6 +88,7 @@ _TESTS+= ${ATF_TESTS_KSH93}
 .for _T in ${ATF_TESTS_KSH93}
 SCRIPTSDIR_${_T}= ${TESTSDIR}
 TEST_INTERFACE.${_T}= atf
+TEST_METADATA.${_T}+= required_programs="ksh93"
 CLEANFILES+= ${_T} ${_T}.tmp
 # TODO(jmmv): It seems to me that this SED and SRC functionality should
 # exist in bsd.prog.mk along the support for SCRIPTS.  Move it there if
