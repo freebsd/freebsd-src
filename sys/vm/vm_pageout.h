@@ -65,6 +65,8 @@
 #ifndef _VM_VM_PAGEOUT_H_
 #define _VM_VM_PAGEOUT_H_
 
+#ifdef _KERNEL
+
 /*
  *	Header file for pageout daemon.
  */
@@ -100,11 +102,10 @@ void vm_wait_domain(int domain);
 void vm_wait_min(void);
 void vm_wait_severe(void);
 
-#ifdef _KERNEL
 int vm_pageout_flush(vm_page_t *, int, int, int, int *, boolean_t *);
 void vm_pageout_oom(int shortage);
 
 void vm_swapout_run(void);
 void vm_swapout_run_idle(void);
-#endif
+#endif /* _KERNEL */
 #endif	/* _VM_VM_PAGEOUT_H_ */
