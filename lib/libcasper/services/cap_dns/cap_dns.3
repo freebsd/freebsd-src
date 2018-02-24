@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 10, 2018
+.Dd February 24, 2018
 .Dt CAP_DNS 3
 .Os
 .Sh NAME
@@ -105,7 +105,9 @@ and
 .Fn cap_dns_family_limit
 functions, but the limits of service can be set also using
 .Xr cap_limit_set 3 .
-The nvlist for that function can contain the following values and types:
+The
+.Xr nvlist 9
+for that function can contain the following values and types:
 .Bl -ohang -offset indent
 .It type ( NV_TYPE_STRING )
 The
