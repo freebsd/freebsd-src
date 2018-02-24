@@ -309,6 +309,8 @@ function config.parse(name, silent, check_and_halt)
 	end
 
 	local text, _ = io.read(f)
+	-- We might have read in the whole file, this won't be needed any more.
+	io.close(f)
 
 	if text == nil then
 		if not silent then
