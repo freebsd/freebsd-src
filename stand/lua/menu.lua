@@ -315,7 +315,7 @@ menu.welcome = {
 				    #all_choices .. ")"
 			end,
 			func = function(_, choice, _)
-				config.selectkernel(choice)
+				config.selectKernel(choice)
 			end,
 			alias = {"k", "K"}
 		},
