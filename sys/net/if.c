@@ -1699,7 +1699,7 @@ ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 	null_sdl.sdl_type = ifa->ifa_ifp->if_type;
 	null_sdl.sdl_index = ifa->ifa_ifp->if_index;
 	bzero(&info, sizeof(info));
-	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
+	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC | RTF_PINNED;
 	info.rti_info[RTAX_DST] = ia;
 	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
 	error = rtrequest1_fib(RTM_DELETE, &info, NULL, ifa->ifa_ifp->if_fib);
