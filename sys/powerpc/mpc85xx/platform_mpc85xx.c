@@ -95,8 +95,6 @@ static int mpc85xx_smp_next_cpu(platform_t, struct cpuref *cpuref);
 static int mpc85xx_smp_get_bsp(platform_t, struct cpuref *cpuref);
 static int mpc85xx_smp_start_cpu(platform_t, struct pcpu *cpu);
 static void mpc85xx_smp_timebase_sync(platform_t, u_long tb, int ap);
-static void mpc85xx_idle(platform_t, int cpu);
-static int mpc85xx_idle_wakeup(platform_t plat, int cpu);
 
 static void mpc85xx_reset(platform_t);
 
@@ -113,8 +111,6 @@ static platform_method_t mpc85xx_methods[] = {
 	PLATFORMMETHOD(platform_smp_timebase_sync, mpc85xx_smp_timebase_sync),
 
 	PLATFORMMETHOD(platform_reset,		mpc85xx_reset),
-	PLATFORMMETHOD(platform_idle,		mpc85xx_idle),
-	PLATFORMMETHOD(platform_idle_wakeup,	mpc85xx_idle_wakeup),
 
 	PLATFORMMETHOD_END
 };
@@ -539,28 +535,3 @@ mpc85xx_smp_timebase_sync(platform_t plat, u_long tb, int ap)
 	mttb(tb);
 }
 
-static void
-mpc85xx_idle(platform_t plat, int cpu)
-{
-	uint32_t reg;
-
-	if (mpc85xx_is_qoriq()) {
-		/*
-		 * Base binutils doesn't know what the 'wait' instruction is, so
-		 * use the opcode encoding here.
-		 */
-		__asm __volatile("wrteei 1; .long 0x7c00007c");
-	} else {
-		reg = mfmsr();
-		/* Freescale E500 core RM section 6.4.1. */
-		__asm __volatile("msync; mtmsr %0; isync" ::
-		    "r" (reg | PSL_WE));
-	}
-}
-
-static int
-mpc85xx_idle_wakeup(platform_t plat, int cpu)
-{
-
-	return (0);
-}

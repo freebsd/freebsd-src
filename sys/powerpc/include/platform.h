@@ -62,8 +62,6 @@ void	platform_smp_ap_init(void);
 const char *installed_platform(void);
 void platform_probe_and_attach(void);
 
-void	platform_cpu_idle(int);
-
 void platform_sleep(void);
   
 #endif	/* _MACHINE_PLATFORM_H_ */
