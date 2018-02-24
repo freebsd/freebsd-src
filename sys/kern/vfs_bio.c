@@ -1765,7 +1765,7 @@ bd_flush(struct bufdomain *bd, struct bufqueue *bq)
 			TAILQ_REMOVE(&bq->bq_queue, bp, b_freelist);
 			TAILQ_INSERT_TAIL(&bd->bd_cleanq->bq_queue, bp,
 			    b_freelist);
-			bp->b_subqueue = mp_ncpus;
+			bp->b_subqueue = bd->bd_cleanq->bq_subqueue;
 		}
 		bd->bd_cleanq->bq_len += bq->bq_len;
 		bq->bq_len = 0;
@@ -1788,7 +1788,7 @@ bd_flushall(struct bufdomain *bd)
 	if (bd->bd_lim == 0)
 		return (0);
 	flushed = 0;
-	for (i = 0; i < mp_maxid; i++) {
+	for (i = 0; i < mp_ncpus; i++) {
 		bq = &bd->bd_subq[i];
 		if (bq->bq_len == 0)
 			continue;
