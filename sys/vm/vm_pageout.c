@@ -1107,16 +1107,14 @@ vm_pageout_pglist_init(struct pgo_pglist *pglist)
 	pglist->count = 0;
 }
 
-static bool
+static void
 vm_pageout_pglist_append(struct pgo_pglist *pglist, vm_page_t m)
 {
 	if (vm_page_free_prep(m, false)) {
 		m->flags &= ~PG_ZERO;
 		TAILQ_INSERT_TAIL(&pglist->pgl, m, listq);
 		pglist->count++;
-		return (true);
 	}
-	return (false);
 }
 
 static void
@@ -1139,11 +1137,10 @@ vm_pageout_free_pages(struct pgo_pglist *pglist, vm_object_t object,
 	int pcount, count;
 
 	pcount = MAX(object->iosize / PAGE_SIZE, 1);
+	mtx = vm_page_lockptr(m);
 	count = 1;
-	if (pcount == 1 || vm_object_reserv(object)) {
-		vm_page_free(m);
-		vm_page_unlock(m);
-		VM_OBJECT_WUNLOCK(object);
+	if (pcount == 1) {
+		vm_pageout_pglist_append(pglist, m);
 		goto out;
 	}
 
@@ -1153,7 +1150,6 @@ vm_pageout_free_pages(struct pgo_pglist *pglist, vm_object_t object,
 	    p = pp);
 
 	/* Free the original page so we don't validate it twice. */
-	mtx = vm_page_lockptr(m);
 	if (p == m)
 		p = vm_page_next(m);
 	vm_pageout_pglist_append(pglist, m);
@@ -1184,13 +1180,13 @@ vm_pageout_free_pages(struct pgo_pglist *pglist, vm_object_t object,
 		if (m->dirty)
 			continue;
 free_page:
-		if (vm_pageout_pglist_append(pglist, m))
-			count++;
+		vm_pageout_pglist_append(pglist, m);
+		count++;
 	}
+out:
 	mtx_unlock(mtx);
 	VM_OBJECT_WUNLOCK(object);
 	vm_pageout_pglist_flush(pglist, false);
-out:
 	VM_CNT_ADD(v_dfree, count);
 
 	return (count);

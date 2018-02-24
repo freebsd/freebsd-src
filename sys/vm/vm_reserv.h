@@ -47,14 +47,14 @@
 /*
  * The following functions are only to be used by the virtual memory system.
  */
-vm_page_t	vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex,
+vm_page_t	vm_reserv_alloc_contig(int req, vm_object_t object, vm_pindex_t pindex,
 		    int domain, u_long npages, vm_paddr_t low, vm_paddr_t high,
 		    u_long alignment, vm_paddr_t boundary, vm_page_t mpred);
 vm_page_t	vm_reserv_extend_contig(int req, vm_object_t object,
 		    vm_pindex_t pindex, int domain, u_long npages,
 		    vm_paddr_t low, vm_paddr_t high, u_long alignment,
 		    vm_paddr_t boundary, vm_page_t mpred);
-vm_page_t	vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex,
+vm_page_t	vm_reserv_alloc_page(int req, vm_object_t object, vm_pindex_t pindex,
 		    int domain, vm_page_t mpred);
 vm_page_t	vm_reserv_extend(int req, vm_object_t object,
 		    vm_pindex_t pindex, int domain, vm_page_t mpred);
