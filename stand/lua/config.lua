@@ -124,39 +124,6 @@ pattern_table = {
 	}
 }
 
-local function check_nextboot()
-	local nextboot_file = loader.getenv("nextboot_file")
-	if nextboot_file == nil then
-		return
-	end
-
-	local function check_nextboot_enabled(text)
-		return text:match("^nextboot_enable=\"NO\"") == nil
-	end
-
-	if not config.processFile(nextboot_file, true, check_nextboot_enabled)
-	    then
-		-- This only fails if it actually hit a parse error
-		print("Failed to parse nextboot configuration: '" ..
-		    nextboot_file .. "'")
-	end
-
-	-- Attempt to rewrite the first line and only the first line of the
-	-- nextboot_file. We overwrite it with nextboot_enable="NO", then
-	-- check for that on load. See: check_nextboot_enabled
-	-- It's worth noting that this won't work on every filesystem, so we
-	-- won't do anything notable if we have any errors in this process.
-	local nfile = io.open(nextboot_file, 'w')
-	if nfile ~= nil then
-		-- We need the trailing space here to account for the extra
-		-- character taken up by the string nextboot_enable="YES"
-		-- Or new end quotation mark lands on the S, and we want to
-		-- rewrite the entirety of the first line.
-		io.write(nfile, "nextboot_enable=\"NO\" ")
-		io.close(nfile)
-	end
-end
-
 local function read_file(name, silent)
 	local f = io.open(name)
 	if f == nil then
@@ -177,6 +144,43 @@ local function read_file(name, silent)
 		return nil
 	end
 	return text
+end
+
+local function check_nextboot()
+	local nextboot_file = loader.getenv("nextboot_file")
+	if nextboot_file == nil then
+		return
+	end
+
+	local text = read_file(nextboot_file, true)
+	if text == nil then
+		return
+	end
+
+	if text:match("^nextboot_enable=\"NO\"") ~= nil then
+		-- We're done; nextboot is not enabled
+		return
+	end
+
+	if not config.parse(text) then
+		print("Failed to parse nextboot configuration: '" ..
+		    nextboot_file .. "'")
+	end
+
+	-- Attempt to rewrite the first line and only the first line of the
+	-- nextboot_file. We overwrite it with nextboot_enable="NO", then
+	-- check for that on load. See: check_nextboot_enabled
+	-- It's worth noting that this won't work on every filesystem, so we
+	-- won't do anything notable if we have any errors in this process.
+	local nfile = io.open(nextboot_file, 'w')
+	if nfile ~= nil then
+		-- We need the trailing space here to account for the extra
+		-- character taken up by the string nextboot_enable="YES"
+		-- Or new end quotation mark lands on the S, and we want to
+		-- rewrite the entirety of the first line.
+		io.write(nfile, "nextboot_enable=\"NO\" ")
+		io.close(nfile)
+	end
 end
 
 -- Module exports
@@ -327,7 +331,7 @@ function config.loadmod(mod, silent)
 	return status
 end
 
-function config.processFile(name, silent, check_and_halt)
+function config.processFile(name, silent)
 	if silent == nil then
 		silent = false
 	end
@@ -335,13 +339,6 @@ function config.processFile(name, silent, check_and_halt)
 	local text = read_file(name, silent)
 	if text == nil then
 		return not silent
-	end
-
-	if check_and_halt ~= nil then
-		if not check_and_halt(text) then
-			-- We'll just pretend that everything is fine...
-			return true
-		end
 	end
 
 	return config.parse(text)
