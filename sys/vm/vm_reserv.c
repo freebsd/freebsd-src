@@ -643,13 +643,8 @@ vm_reserv_extend_contig(int req, vm_object_t object, vm_pindex_t pindex,
 		if (popmap_is_set(rv->popmap, index + i))
 			goto out;
 	}
-	vm_domain_free_lock(vmd);
-	if (!vm_domain_available(vmd, req, npages)) {
-		vm_domain_free_unlock(vmd);
+	if (!vm_domain_allocate(vmd, req, npages))
 		goto out;
-	}
-	vm_domain_freecnt_dec(vmd, npages);
-	vm_domain_free_unlock(vmd);
 	for (i = 0; i < npages; i++)
 		vm_reserv_populate(rv, index + i);
 	vm_reserv_unlock(rv);
@@ -797,15 +792,17 @@ vm_reserv_alloc_contig(int req, vm_object_t object, vm_pindex_t pindex, int doma
 	 */
 	m = NULL;
 	vmd = VM_DOMAIN(domain);
-	vm_domain_free_lock(vmd);
-	if (vm_domain_available(vmd, req, allocpages))
+	if (vm_domain_allocate(vmd, req, allocpages)) {
+		vm_domain_free_lock(vmd);
 		m = vm_phys_alloc_contig(domain, allocpages, low, high,
 		    ulmax(alignment, VM_LEVEL_0_SIZE),
 		    boundary > VM_LEVEL_0_SIZE ? boundary : 0);
-		if (m != NULL)
-			vm_domain_freecnt_dec(vmd, allocpages);
-	vm_domain_free_unlock(vmd);
-	if (m == NULL)
+		vm_domain_free_unlock(vmd);
+		if (m == NULL) {
+			vm_domain_freecnt_inc(vmd, allocpages);
+			return (NULL);
+		}
+	} else
 		return (NULL);
 	KASSERT(vm_phys_domain(m) == domain,
 	    ("vm_reserv_alloc_contig: Page domain does not match requested."));
@@ -889,15 +886,10 @@ vm_reserv_extend(int req, vm_object_t object, vm_pindex_t pindex, int domain,
 		m = NULL;
 		goto out;
 	}
-	vm_domain_free_lock(vmd);
-	if (vm_domain_available(vmd, req, 1) == 0)
+	if (vm_domain_allocate(vmd, req, 1) == 0)
 		m = NULL;
 	else
-		vm_domain_freecnt_dec(vmd, 1);
-	vm_domain_free_unlock(vmd);
-	if (m != NULL) {
 		vm_reserv_populate(rv, index);
-	}
 out:
 	vm_reserv_unlock(rv);
 
@@ -992,15 +984,16 @@ vm_reserv_alloc_page(int req, vm_object_t object, vm_pindex_t pindex, int domain
 	 */
 	m = NULL;
 	vmd = VM_DOMAIN(domain);
-	vm_domain_free_lock(vmd);
-	if (vm_domain_available(vmd, req, VM_LEVEL_0_ORDER)) {
+	if (vm_domain_allocate(vmd, req, 1)) {
+		vm_domain_free_lock(vmd);
 		m = vm_phys_alloc_pages(domain, VM_FREEPOOL_DEFAULT,
 		    VM_LEVEL_0_ORDER);
-		if (m != NULL)
-			vm_domain_freecnt_dec(vmd, 1);
-	}
-	vm_domain_free_unlock(vmd);
-	if (m == NULL)
+		vm_domain_free_unlock(vmd);
+		if (m == NULL) {
+			vm_domain_freecnt_inc(vmd, 1);
+			return (NULL);
+		}
+	} else
 		return (NULL);
 	rv = vm_reserv_from_page(m);
 	vm_reserv_lock(rv);
