@@ -89,7 +89,7 @@ int powerpc_pow_enabled;
 void (*cpu_idle_hook)(sbintime_t) = NULL;
 static void	cpu_idle_60x(sbintime_t);
 static void	cpu_idle_booke(sbintime_t);
-#ifdef __powerpc64__
+#if defined(__powerpc64__) && defined(AIM)
 static void	cpu_idle_powerx(sbintime_t);
 #endif
 
@@ -620,7 +620,7 @@ static void
 cpu_powerx_setup(int cpuid, uint16_t vers)
 {
 
-#ifdef __powerpc64__
+#if defined(__powerpc64__) && defined(AIM)
 	if ((mfmsr() & PSL_HV) == 0)
 		return;
 
@@ -745,7 +745,7 @@ cpu_idle_booke(sbintime_t sbt)
 #endif
 }
 
-#ifdef __powerpc64__
+#if defined(__powerpc64__) && defined(AIM)
 static void
 cpu_idle_powerx(sbintime_t sbt)
 {
