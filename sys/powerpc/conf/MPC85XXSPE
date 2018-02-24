@@ -6,7 +6,7 @@
 
 cpu		BOOKE
 cpu		BOOKE_E500
-ident		MPC85XX
+ident		MPC85XXSPE
 
 machine		powerpc	powerpcspe
 
