@@ -124,6 +124,27 @@ pattern_table = {
 	}
 }
 
+local function check_nextboot()
+	local nextboot_file = loader.getenv("nextboot_file")
+	if nextboot_file == nil then
+		return
+	end
+
+	local function check_nextboot_disabled(text)
+		return not text:match("^nextboot_enable=\"NO\"")
+	end
+
+	if not config.parse(nextboot_file, true, check_nextboot_disabled) then
+		-- This only fails if it actually hit a parse error
+		print("Failed to parse nextboot configuration: '" ..
+		    nextboot_file .. "'")
+	end
+
+	local nfile = io.open(nextboot_file, 'w')
+	io.write(nfile, "nextboot_enable=\"NO\" ")
+	io.close(nfile)
+end
+
 -- Module exports
 -- Which variables we changed
 config.env_changed = {}
@@ -273,7 +294,9 @@ function config.loadmod(mod, silent)
 end
 
 -- silent runs will not return false if we fail to open the file
-function config.parse(name, silent)
+-- check_and_halt, if it's set, will be executed on the full text of the config
+-- file. If it returns false, we are to halt immediately.
+function config.parse(name, silent, check_and_halt)
 	if silent == nil then
 		silent = false
 	end
@@ -294,6 +317,13 @@ function config.parse(name, silent)
 		return silent
 	end
 
+
+	if check_and_halt ~= nil then
+		if not check_and_halt(text) then
+			-- We'll just pretend that everything is fine...
+			return true
+		end
+	end
 	local n = 1
 	local status = true
 
@@ -438,6 +468,8 @@ function config.load(file)
 			end
 		end
 	end
+
+	check_nextboot()
 
 	-- Cache the provided module_path at load time for later use
 	config.module_path = loader.getenv("module_path")
