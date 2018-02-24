@@ -277,7 +277,7 @@ function drawer.drawmenu(m)
 	if type(menu_entries) == "function" then
 		menu_entries = menu_entries()
 	end
-	for line_num, e in ipairs(menu_entries) do
+	for _, e in ipairs(menu_entries) do
 		-- Allow menu items to be conditionally visible by specifying
 		-- a visible function.
 		if e.visible ~= nil and not e.visible() then
