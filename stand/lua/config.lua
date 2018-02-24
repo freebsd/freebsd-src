@@ -134,7 +134,8 @@ local function check_nextboot()
 		return text:match("^nextboot_enable=\"NO\"") == nil
 	end
 
-	if not config.parse(nextboot_file, true, check_nextboot_enabled) then
+	if not config.processFile(nextboot_file, true, check_nextboot_enabled)
+	    then
 		-- This only fails if it actually hit a parse error
 		print("Failed to parse nextboot configuration: '" ..
 		    nextboot_file .. "'")
@@ -326,10 +327,7 @@ function config.loadmod(mod, silent)
 	return status
 end
 
--- silent runs will not return false if we fail to open the file
--- check_and_halt, if it's set, will be executed on the full text of the config
--- file. If it returns false, we are to halt immediately.
-function config.parse(name, silent, check_and_halt)
+function config.processFile(name, silent, check_and_halt)
 	if silent == nil then
 		silent = false
 	end
@@ -345,6 +343,14 @@ function config.parse(name, silent, check_and_halt)
 			return true
 		end
 	end
+
+	return config.parse(text)
+end
+
+-- silent runs will not return false if we fail to open the file
+-- check_and_halt, if it's set, will be executed on the full text of the config
+-- file. If it returns false, we are to halt immediately.
+function config.parse(text)
 	local n = 1
 	local status = true
 
@@ -473,7 +479,7 @@ function config.load(file)
 		file = "/boot/defaults/loader.conf"
 	end
 
-	if not config.parse(file) then
+	if not config.processFile(file) then
 		print("Failed to parse configuration: '" .. file .. "'")
 	end
 
@@ -483,7 +489,7 @@ function config.load(file)
 			-- These may or may not exist, and that's ok. Do a
 			-- silent parse so that we complain on parse errors but
 			-- not for them simply not existing.
-			if not config.parse(name, true) then
+			if not config.processFile(name, true) then
 				print("Failed to parse configuration: '" ..
 				    name .. "'")
 			end
