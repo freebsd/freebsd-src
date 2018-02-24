@@ -156,6 +156,28 @@ local function check_nextboot()
 	end
 end
 
+local function read_file(name, silent)
+	local f = io.open(name)
+	if f == nil then
+		if not silent then
+			print("Failed to open config: '" .. name .. "'")
+		end
+		return nil
+	end
+
+	local text, _ = io.read(f)
+	-- We might have read in the whole file, this won't be needed any more.
+	io.close(f)
+
+	if text == nil then
+		if not silent then
+			print("Failed to read config: '" .. name .. "'")
+		end
+		return nil
+	end
+	return text
+end
+
 -- Module exports
 -- Which variables we changed
 config.env_changed = {}
@@ -311,25 +333,11 @@ function config.parse(name, silent, check_and_halt)
 	if silent == nil then
 		silent = false
 	end
-	local f = io.open(name)
-	if f == nil then
-		if not silent then
-			print("Failed to open config: '" .. name .. "'")
-		end
-		return silent
-	end
 
-	local text, _ = io.read(f)
-	-- We might have read in the whole file, this won't be needed any more.
-	io.close(f)
-
+	local text = read_file(name, silent)
 	if text == nil then
-		if not silent then
-			print("Failed to read config: '" .. name .. "'")
-		end
-		return silent
+		return not silent
 	end
-
 
 	if check_and_halt ~= nil then
 		if not check_and_halt(text) then
