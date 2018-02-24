@@ -489,7 +489,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 				break;
 			case PAGE_SIZE_16K:	/* 16KB */
 				reg |=
-				    GITS_BASER_PSZ_4K << GITS_BASER_PSZ_SHIFT;
+				    GITS_BASER_PSZ_16K << GITS_BASER_PSZ_SHIFT;
 				break;
 			case PAGE_SIZE_64K:	/* 64KB */
 				reg |=
@@ -502,7 +502,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 			/* Read back to check */
 			tmp = gic_its_read_8(sc, GITS_BASER(i));
 
-			/* Do the snareability masks line up? */
+			/* Do the shareability masks line up? */
 			if ((tmp & GITS_BASER_SHARE_MASK) !=
 			    (reg & GITS_BASER_SHARE_MASK)) {
 				share = (tmp & GITS_BASER_SHARE_MASK) >>
