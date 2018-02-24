@@ -38,7 +38,7 @@ local cli = {}
 -- Defaults to nil and "" respectively.
 -- This will also parse arguments to autoboot, but the with_kernel argument
 -- will need to be explicitly overwritten to false
-local function parse_boot_args(argv, with_kernel)
+local function parseBootArgs(argv, with_kernel)
 	if with_kernel == nil then
 		with_kernel = true
 	end
@@ -95,17 +95,17 @@ end
 
 function cli.boot(...)
 	local _, argv = cli.arguments(...)
-	local kernel, argstr = parse_boot_args(argv)
+	local kernel, argstr = parseBootArgs(argv)
 	if kernel ~= nil then
 		loader.perform("unload")
-		config.selectkernel(kernel)
+		config.selectKernel(kernel)
 	end
 	core.boot(argstr)
 end
 
 function cli.autoboot(...)
 	local _, argv = cli.arguments(...)
-	local argstr = parse_boot_args(argv, false)
+	local argstr = parseBootArgs(argv, false)
 	core.autoboot(argstr)
 end
 

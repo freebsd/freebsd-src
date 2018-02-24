@@ -124,7 +124,7 @@ pattern_table = {
 	}
 }
 
-local function read_file(name, silent)
+local function readFile(name, silent)
 	local f = io.open(name)
 	if f == nil then
 		if not silent then
@@ -146,13 +146,13 @@ local function read_file(name, silent)
 	return text
 end
 
-local function check_nextboot()
+local function checkNextboot()
 	local nextboot_file = loader.getenv("nextboot_file")
 	if nextboot_file == nil then
 		return
 	end
 
-	local text = read_file(nextboot_file, true)
+	local text = readFile(nextboot_file, true)
 	if text == nil then
 		return
 	end
@@ -169,7 +169,7 @@ local function check_nextboot()
 
 	-- Attempt to rewrite the first line and only the first line of the
 	-- nextboot_file. We overwrite it with nextboot_enable="NO", then
-	-- check for that on load. See: check_nextboot_enabled
+	-- check for that on load. See: checkNextboot_enabled
 	-- It's worth noting that this won't work on every filesystem, so we
 	-- won't do anything notable if we have any errors in this process.
 	local nfile = io.open(nextboot_file, 'w')
@@ -336,7 +336,7 @@ function config.processFile(name, silent)
 		silent = false
 	end
 
-	local text = read_file(name, silent)
+	local text = readFile(name, silent)
 	if text == nil then
 		return not silent
 	end
@@ -386,11 +386,11 @@ end
 
 -- other_kernel is optionally the name of a kernel to load, if not the default
 -- or autoloaded default from the module_path
-function config.loadkernel(other_kernel)
+function config.loadKernel(other_kernel)
 	local flags = loader.getenv("kernel_options") or ""
 	local kernel = other_kernel or loader.getenv("kernel")
 
-	local function try_load(names)
+	local function tryLoad(names)
 		for name in names:gmatch("([^;]+)%s*;?") do
 			local r = loader.perform("load " .. flags ..
 			    " " .. name)
@@ -401,7 +401,7 @@ function config.loadkernel(other_kernel)
 		return nil
 	end
 
-	local function load_bootfile()
+	local function loadBootfile()
 		local bootfile = loader.getenv("bootfile")
 
 		-- append default kernel name
@@ -411,12 +411,12 @@ function config.loadkernel(other_kernel)
 			bootfile = bootfile .. ";kernel"
 		end
 
-		return try_load(bootfile)
+		return tryLoad(bootfile)
 	end
 
 	-- kernel not set, try load from default module_path
 	if kernel == nil then
-		local res = load_bootfile()
+		local res = loadBootfile()
 
 		if res ~= nil then
 			-- Default kernel is loaded
@@ -441,7 +441,7 @@ function config.loadkernel(other_kernel)
 
 		for _, v in pairs(paths) do
 			loader.setenv("module_path", v)
-			res = load_bootfile()
+			res = loadBootfile()
 
 			-- succeeded, add path to module_path
 			if res ~= nil then
@@ -456,7 +456,7 @@ function config.loadkernel(other_kernel)
 
 		-- failed to load with ${kernel} as a directory
 		-- try as a file
-		res = try_load(kernel)
+		res = tryLoad(kernel)
 		if res ~= nil then
 			config.kernel_loaded = kernel
 			return true
@@ -467,7 +467,7 @@ function config.loadkernel(other_kernel)
 	end
 end
 
-function config.selectkernel(kernel)
+function config.selectKernel(kernel)
 	config.kernel_selected = kernel
 end
 
@@ -493,7 +493,7 @@ function config.load(file)
 		end
 	end
 
-	check_nextboot()
+	checkNextboot()
 
 	-- Cache the provided module_path at load time for later use
 	config.module_path = loader.getenv("module_path")
@@ -511,7 +511,7 @@ function config.loadelf()
 	local loaded
 
 	print("Loading kernel...")
-	loaded = config.loadkernel(kernel)
+	loaded = config.loadKernel(kernel)
 
 	if not loaded then
 		print("Failed to load any kernel")

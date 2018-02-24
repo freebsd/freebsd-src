@@ -65,7 +65,7 @@ function password.check()
 	screen.clear()
 	screen.defcursor()
 	-- pwd is optionally supplied if we want to check it
-	local function do_prompt(prompt, pwd)
+	local function doPrompt(prompt, pwd)
 		while true do
 			loader.printc(prompt)
 			local read_pwd = password.read()
@@ -82,7 +82,7 @@ function password.check()
 		if pwd == nil then
 			return
 		end
-		do_prompt(prompt, pwd)
+		doPrompt(prompt, pwd)
 	end
 
 	local boot_pwd = loader.getenv("bootlock_password")
@@ -90,7 +90,7 @@ function password.check()
 
 	local geli_prompt = loader.getenv("geom_eli_passphrase_prompt")
 	if geli_prompt ~= nil and geli_prompt:lower() == "yes" then
-		local passphrase = do_prompt("GELI Passphrase: ")
+		local passphrase = doPrompt("GELI Passphrase: ")
 		loader.setenv("kern.geom.eli.passphrase", passphrase)
 	end
 

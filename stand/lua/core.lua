@@ -33,7 +33,7 @@ local config = require("config")
 
 local core = {}
 
-local function compose_loader_cmd(cmd_name, argstr)
+local function composeLoaderCmd(cmd_name, argstr)
 	if argstr ~= nil then
 		cmd_name = cmd_name .. " " .. argstr
 	end
@@ -238,12 +238,12 @@ end
 
 function core.autoboot(argstr)
 	config.loadelf()
-	loader.perform(compose_loader_cmd("autoboot", argstr))
+	loader.perform(composeLoaderCmd("autoboot", argstr))
 end
 
 function core.boot(argstr)
 	config.loadelf()
-	loader.perform(compose_loader_cmd("boot", argstr))
+	loader.perform(composeLoaderCmd("boot", argstr))
 end
 
 function core.isSingleUserBoot()
