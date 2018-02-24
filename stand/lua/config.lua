@@ -141,8 +141,14 @@ local function check_nextboot()
 	end
 
 	local nfile = io.open(nextboot_file, 'w')
-	io.write(nfile, "nextboot_enable=\"NO\" ")
-	io.close(nfile)
+	if nfile ~= nil then
+		-- We're overwriting the first line of the file, so we need the
+		-- trailing space to account for the extra character taken up by
+		-- the string nextboot_enable="YES" -- our new end quotation
+		-- mark lands on the S.
+		io.write(nfile, "nextboot_enable=\"NO\" ")
+		io.close(nfile)
+	end
 end
 
 -- Module exports
