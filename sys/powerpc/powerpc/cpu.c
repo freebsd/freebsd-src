@@ -768,3 +768,10 @@ cpu_idle_powerx(sbintime_t sbt)
 	spinlock_exit();
 }
 #endif
+
+int
+cpu_idle_wakeup(int cpu)
+{
+
+	return (0);
+}
