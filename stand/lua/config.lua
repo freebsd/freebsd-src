@@ -140,12 +140,17 @@ local function check_nextboot()
 		    nextboot_file .. "'")
 	end
 
+	-- Attempt to rewrite the first line and only the first line of the
+	-- nextboot_file. We overwrite it with nextboot_enable="NO", then
+	-- check for that on load. See: check_nextboot_enabled
+	-- It's worth noting that this won't work on every filesystem, so we
+	-- won't do anything notable if we have any errors in this process.
 	local nfile = io.open(nextboot_file, 'w')
 	if nfile ~= nil then
-		-- We're overwriting the first line of the file, so we need the
-		-- trailing space to account for the extra character taken up by
-		-- the string nextboot_enable="YES" -- our new end quotation
-		-- mark lands on the S.
+		-- We need the trailing space here to account for the extra
+		-- character taken up by the string nextboot_enable="YES"
+		-- Or new end quotation mark lands on the S, and we want to
+		-- rewrite the entirety of the first line.
 		io.write(nfile, "nextboot_enable=\"NO\" ")
 		io.close(nfile)
 	end
