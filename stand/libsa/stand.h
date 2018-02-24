@@ -289,7 +289,7 @@ extern int	open(const char *, int);
 extern int	close(int);
 extern void	closeall(void);
 extern ssize_t	read(int, void *, size_t);
-extern ssize_t	write(int, void *, size_t);
+extern ssize_t	write(int, const void *, size_t);
 extern struct	dirent *readdirfd(int);
 
 extern void	srandom(unsigned int);
