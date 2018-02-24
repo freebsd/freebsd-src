@@ -169,7 +169,7 @@ local function checkNextboot()
 
 	-- Attempt to rewrite the first line and only the first line of the
 	-- nextboot_file. We overwrite it with nextboot_enable="NO", then
-	-- check for that on load. See: checkNextboot_enabled
+	-- check for that on load.
 	-- It's worth noting that this won't work on every filesystem, so we
 	-- won't do anything notable if we have any errors in this process.
 	local nfile = io.open(nextboot_file, 'w')
