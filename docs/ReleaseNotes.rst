@@ -5,12 +5,6 @@ LLVM 6.0.0 Release Notes
 .. contents::
     :local:
 
-.. warning::
-   These are in-progress notes for the upcoming LLVM 6 release.
-   Release notes for previous releases can be found on
-   `the Download Page <http://releases.llvm.org/download.html>`_.
-
-
 Introduction
 ============
 
@@ -25,11 +19,6 @@ release, please check out the `main LLVM web site <http://llvm.org/>`_.  If you
 have questions or comments, the `LLVM Developer's Mailing List
 <http://lists.llvm.org/mailman/listinfo/llvm-dev>`_ is a good place to send
 them.
-
-Note that if you are reading this file from a Subversion checkout or the main
-LLVM web page, this document applies to the *next* release, not the current
-one.  To see the release notes for a specific release, please see the `releases
-page <http://llvm.org/releases/>`_.
 
 Non-comprehensive list of changes in this release
 =================================================
@@ -56,6 +45,9 @@ Non-comprehensive list of changes in this release
 
 * Significantly improved quality of CodeView debug info for Windows.
 
+* Preliminary support for Sanitizers and sibling features on X86(_64) NetBSD
+  (ASan, UBsan, TSan, MSan, SafeStack, libFuzzer).
+
 * Note..
 
 .. NOTE
@@ -70,6 +62,15 @@ Non-comprehensive list of changes in this release
 
 Changes to the LLVM IR
 ----------------------
+
+* The fast-math-flags (FMF) have been updated. Previously, the 'fast' flag
+  indicated that floating-point reassociation was allowed and all other flags
+  were set too. The 'fast' flag still exists, but there is a new flag called
+  'reassoc' to indicate specifically that reassociation is allowed. A new bit
+  called 'afn' was also added to selectively allow approximations for common
+  mathlib functions like square-root. The new flags provide more flexibility
+  to enable/disable specific floating-point optimizations. Making the
+  optimizer respond appropriately to these flags is an ongoing effort.
 
 Changes to the AArch64 Target
 -----------------------------
@@ -112,8 +113,44 @@ Changes to the Hexagon Target
 Changes to the MIPS Target
 --------------------------
 
- During this release ...
+Fixed numerous bugs:
 
+* fpowi on MIPS64 giving incorrect results when used with a negative integer.
+* Usage of the asm 'c' constraint with the wrong datatype causing an
+  assert/crash.
+* Fixed a conversion bug when using the DSP ASE.
+* Fixed an inconsistency where objects were not marked as using the microMIPS as
+  when the micromips function attribute or the ".set micromips" directive was
+  used.
+* Reordered the MIPSR6 specific hazard scheduler pass to after the delay slot
+  filler, fixing a class of rare edge case bugs where the delay slot filler
+  would violate ISA restrictions.
+* Fixed a crash when using a type of unknown size with gp relative addressing.
+* Corrected the j macro for microMIPS.
+* Corrected the encoding of movep for microMIPS32r6.
+* Fixed an issue with the usage of insert instructions having an invalid set of
+  operands.
+* Fixed an issue where TLS symbols where not marked as such.
+* Enabled the usage of register scavanging with MSA, due to its' shorter offsets
+  for loads and stores.
+* Corrected the ELF headers when using the DSP ASE.
+
+New features:
+
+* The long branch pass now generates some R6 specific instructions when
+  targeting MIPSR6.
+* The delay slot filler now performs more branch conversions if delay slots
+  cannot be filled.
+* The MIPS MT ASE is now fully supported.
+* Added support for the ``lapc`` pseudo instruction.
+* Improved the selection of multiple instructions (``dext``, ``nmadd``,
+  ``nmsub``).
+* Further improved microMIPS codesize reduction.
+
+Deprecation notices:
+
+* microMIPS64R6 support was been deprecated since 5.0, and has now been
+  completely removed.
 
 Changes to the PowerPC Target
 -----------------------------
@@ -132,10 +169,42 @@ During this release the SystemZ target has:
 Changes to the X86 Target
 -------------------------
 
-During this release ...
+During this release the X86 target has:
 
-* Got support for enabling SjLj exception handling on platforms where it
+* Added support for enabling SjLj exception handling on platforms where it
   isn't the default.
+
+* Added intrinsics for Intel Extensions: VAES, GFNI, VPCLMULQDQ, AVX512VBMI2, AVX512BITALG, AVX512VNNI.
+
+* Added support for Intel Icelake CPU.
+
+* Fixed some X87 codegen bugs.
+
+* Added instruction scheduling information for Intel Sandy Bridge, Ivy Bridge, Haswell, Broadwell, and Skylake CPUs.
+
+* Improved scheduler model for AMD Jaguar CPUs.
+
+* Improved llvm-mc's disassembler for some EVEX encoded instructions.
+
+* Add support for i8 and i16 vector signed/unsigned min/max horizontal reductions.
+
+* Improved codegen for memory comparisons
+
+* Improved codegen for i32 vector multiplies
+
+* Improved codegen for scalar integer absolute values
+
+* Improved codegen for vector integer rotations (XOP and AVX512)
+
+* Improved codegen of data being transferred between GPRs and K-registers.
+
+* Improved codegen for vector truncations.
+
+* Improved folding of address computations into gather/scatter instructions.
+
+* Gained initial support recognizing variable shuffles from vector element extracts and inserts.
+
+* Improved documentation for SSE/AVX intrinsics in *intrin.h header files.
 
 Changes to the AMDGPU Target
 -----------------------------
