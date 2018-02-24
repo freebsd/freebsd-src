@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 17, 2018
+.Dd February 24, 2018
 .Dt LIBCASPER 3
 .Os
 .Sh NAME
@@ -160,25 +160,34 @@ it means there are no limits set.
 The
 .Fn cap_limit_set
 function sets limits for the given capability.
-The limits are provided as nvlist.
+The limits are provided as
+.Xr nvlist 9 .
 The exact format depends on the service the capability represents.
 .Pp
 The
 .Fn cap_send_nvlist
-function sends the given nvlist over the given capability.
+function sends the given
+.Xr nvlist 9
+over the given capability.
 This is low level interface to communicate with casper services.
 Most services should provide higher level API.
 .Pp
 The
 .Fn cap_recv_nvlist
-function receives the given nvlist over the given capability.
+function receives the given
+.Xr nvlist 9
+over the given capability.
 .Pp
 The
 .Fn cap_xfer_nvlist
-function sends the given nvlist, destroys it and receives new nvlist in
-response over the given capability.
-It does not matter if the function succeeds or fails, the nvlist given
-for sending will always be destroyed once the function returns.
+function sends the given
+.Xr nvlist 9,
+destroys it and receives new
+.Xr nvlist 9
+in response over the given capability.
+It does not matter if the function succeeds or fails, the
+.Xr nvlist 9
+given for sending will always be destroyed once the function returns.
 .Pp
 The
 .Fn cap_service_open
