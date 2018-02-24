@@ -130,11 +130,11 @@ local function check_nextboot()
 		return
 	end
 
-	local function check_nextboot_disabled(text)
-		return not text:match("^nextboot_enable=\"NO\"")
+	local function check_nextboot_enabled(text)
+		return text:match("^nextboot_enable=\"NO\"") == nil
 	end
 
-	if not config.parse(nextboot_file, true, check_nextboot_disabled) then
+	if not config.parse(nextboot_file, true, check_nextboot_enabled) then
 		-- This only fails if it actually hit a parse error
 		print("Failed to parse nextboot configuration: '" ..
 		    nextboot_file .. "'")
