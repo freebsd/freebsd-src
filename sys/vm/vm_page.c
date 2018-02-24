@@ -1864,7 +1864,9 @@ found:
 			m->oflags = VPO_UNMANAGED;
 			m->busy_lock = VPB_UNBUSIED;
 			/* Don't change PG_ZERO. */
+			vm_page_lock(m);
 			vm_page_free_toq(m);
+			vm_page_unlock(m);
 			if (req & VM_ALLOC_WAITFAIL) {
 				VM_OBJECT_WUNLOCK(object);
 				vm_radix_wait();
@@ -2066,7 +2068,9 @@ found:
 					m->oflags = VPO_UNMANAGED;
 					m->busy_lock = VPB_UNBUSIED;
 					/* Don't change PG_ZERO. */
+					vm_page_lock(m);
 					vm_page_free_toq(m);
+					vm_page_unlock(m);
 				}
 				if (req & VM_ALLOC_WAITFAIL) {
 					VM_OBJECT_WUNLOCK(object);
