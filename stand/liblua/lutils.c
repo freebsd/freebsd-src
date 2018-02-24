@@ -165,15 +165,24 @@ lua_printc(lua_State *L)
 static int
 lua_openfile(lua_State *L)
 {
-	const char	*str;
+	const char	*mode, *str;
+	int	nargs;
 
-	if (lua_gettop(L) != 1) {
+	nargs = lua_gettop(L);
+	if (nargs < 1 || nargs > 2) {
 		lua_pushnil(L);
 		return 1;
 	}
 	str = lua_tostring(L, 1);
-
-	FILE * f = fopen(str, "r");
+	mode = "r";
+	if (nargs > 1) {
+		mode = lua_tostring(L, 2);
+		if (mode == NULL) {
+			lua_pushnil(L);
+			return 1;
+		}
+	}
+	FILE * f = fopen(str, mode);
 	if (f != NULL) {
 		FILE ** ptr = (FILE**)lua_newuserdata(L, sizeof(FILE**));
 		*ptr = f;
@@ -237,6 +246,61 @@ lua_readfile(lua_State *L)
 	return 2;
 }
 
+/*
+ * Implements io.write(file, ...)
+ * Any number of string and number arguments may be passed to it,
+ * and it will return the number of bytes written, or nil, an error string, and
+ * the errno.
+ */
+static int
+lua_writefile(lua_State *L)
+{
+	FILE	**f;
+	const char	*buf;
+	int	i, nargs;
+	size_t	bufsz, w, wrsz;
+
+	buf = NULL;
+	bufsz = 0;
+	w = 0;
+	wrsz = 0;
+	nargs = lua_gettop(L);
+	if (nargs < 2) {
+		errno = EINVAL;
+		return luaL_fileresult(L, 0, NULL);
+	}
+
+	f = (FILE**)lua_touserdata(L, 1);
+
+	if (f == NULL || *f == NULL) {
+		errno = EINVAL;
+		return luaL_fileresult(L, 0, NULL);
+	}
+
+	/* Do a validation pass first */
+	for (i = 0; i < nargs - 1; i++) {
+		/*
+		 * With Lua's API, lua_isstring really checks if the argument
+		 * is a string or a number.  The latter will be implicitly
+		 * converted to a string by our later call to lua_tolstring.
+		 */
+		if (!lua_isstring(L, i + 2)) {
+			errno = EINVAL;
+			return luaL_fileresult(L, 0, NULL);
+		}
+	}
+	for (i = 0; i < nargs - 1; i++) {
+		/* We've already validated; there's no chance of failure */
+		buf = lua_tolstring(L, i + 2, &bufsz);
+		wrsz = fwrite(buf, 1, bufsz, *f);
+		if (wrsz < bufsz)
+			return luaL_fileresult(L, 0, NULL);
+		w += wrsz;
+	}
+	lua_pushinteger(L, w);
+	return 1;
+}
+
 #define REG_SIMPLE(n)	{ #n, lua_ ## n }
 static const struct luaL_Reg loaderlib[] = {
 	REG_SIMPLE(delay),
@@ -257,6 +321,7 @@ static const struct luaL_Reg iolib[] = {
 	REG_SIMPLE(ischar),
 	{ "open", lua_openfile },
 	{ "read", lua_readfile },
+	{ "write", lua_writefile },
 	{ NULL, NULL },
 };
 #undef REG_SIMPLE
