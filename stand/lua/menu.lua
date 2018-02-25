@@ -341,13 +341,23 @@ menu.welcome = {
 }
 
 menu.default = menu.welcome
+-- current_alias_table will be used to keep our alias table consistent across
+-- screen redraws, instead of relying on whatever triggered the redraw to update
+-- the local alias_table in menu.process.
+menu.current_alias_table = {}
 
-function menu.process(m)
-	assert(m ~= nil)
+function menu.redraw(m)
 	-- redraw screen
 	screen.clear()
 	screen.defcursor()
-	local alias_table = drawer.drawscreen(m)
+	menu.current_alias_table = drawer.drawscreen(m)
+end
+
+function menu.process(m)
+	assert(m ~= nil)
+
+	-- Trigger a redraw if we've not been drawn
+	menu.redraw(m)
 
 	-- autoboot processing likely belongs better in menu.run, but we want
 	-- to draw the menu once before we do any autoboot prompting.  We also
@@ -375,9 +385,10 @@ function menu.process(m)
 		key = string.char(key)
 		-- check to see if key is an alias
 		local sel_entry = nil
-		for k, v in pairs(alias_table) do
+		for k, v in pairs(menu.current_alias_table) do
 			if key == k then
 				sel_entry = v
+				break
 			end
 		end
 
@@ -387,16 +398,15 @@ function menu.process(m)
 			local handler = menu.handlers[sel_entry.entry_type]
 			if handler ~= nil then
 				-- The handler's return value indicates if we
-				-- need to exit this menu. An omitted or true
+				-- need to exit this menu.  An omitted or true
 				-- return value means to continue.
 				if handler(m, sel_entry) == false then
 					return
 				end
 			end
-			-- if we got an alias key the screen is out of date:
-			screen.clear()
-			screen.defcursor()
-			alias_table = drawer.drawscreen(m)
+			-- If we got an alias key the screen is out of date...
+			-- redraw it.
+			menu.redraw(m)
 		end
 	end
 end
