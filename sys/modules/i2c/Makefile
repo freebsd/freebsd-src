@@ -21,8 +21,4 @@ SUBDIR = \
 	smb \
 	smbus \
 
-.if !empty(OPT_FDT)
-SUBDIR += ofw_iicbus
-.endif
-
 .include <bsd.subdir.mk>
