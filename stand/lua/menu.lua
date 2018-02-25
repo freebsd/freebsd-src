@@ -38,6 +38,8 @@ local drawer = require("drawer")
 
 local menu = {}
 
+local screen_invalid = true
+
 local function OnOff(str, b)
 	if b then
 		return str .. color.escapef(color.GREEN) .. "On" ..
@@ -80,7 +82,7 @@ menu.handlers = {
 		end
 	end,
 	[core.MENU_SUBMENU] = function(_, entry)
-		-- recurse
+		screen_invalid = true
 		menu.process(entry.submenu)
 	end,
 	[core.MENU_RETURN] = function(_, entry)
@@ -351,27 +353,23 @@ function menu.redraw(m)
 	screen.clear()
 	screen.defcursor()
 	menu.current_alias_table = drawer.drawscreen(m)
+	screen_invalid = false
 end
 
-function menu.process(m)
+-- 'keypress' allows the caller to indicate that a key has been pressed that we
+-- should process as our initial input.
+function menu.process(m, keypress)
 	assert(m ~= nil)
 
-	-- Trigger a redraw if we've not been drawn
-	menu.redraw(m)
-
-	-- autoboot processing likely belongs better in menu.run, but we want
-	-- to draw the menu once before we do any autoboot prompting.  We also
-	-- collect the alias table from the drawer, which generates the table
-	-- based on all of the 'alias' entries along with effective line numbers
-	-- that each entry is drawn at.  This makes it cleaner to handle here,
-	-- for the time being.
-	local autoboot_key;
-	if m == menu.default then
-		autoboot_key = menu.autoboot()
+	-- Trigger a redraw if we've been invalidated.  Otherwise, we assume
+	-- that this menu has already been drawn.
+	if screen_invalid then
+		menu.redraw(m)
 	end
+
 	while true do
-		local key = autoboot_key or io.getchar()
-		autoboot_key = nil
+		local key = keypress or io.getchar()
+		keypress = nil
 
 		-- Special key behaviors
 		if (key == core.KEY_BACKSPACE or key == core.KEY_DELETE) and
@@ -417,7 +415,10 @@ function menu.run()
 		return
 	end
 
-	menu.process(menu.default)
+	menu.redraw(menu.default)
+	local autoboot_key = menu.autoboot()
+
+	menu.process(menu.default, autoboot_key)
 
 	screen.defcursor()
 	print("Exiting menu!")
