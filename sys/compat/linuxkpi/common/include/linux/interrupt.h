@@ -200,5 +200,7 @@ extern void tasklet_schedule(struct tasklet_struct *);
 extern void tasklet_kill(struct tasklet_struct *);
 extern void tasklet_init(struct tasklet_struct *, tasklet_func_t *,
     unsigned long data);
+extern void tasklet_enable(struct tasklet_struct *);
+extern void tasklet_disable(struct tasklet_struct *);
 
 #endif	/* _LINUX_INTERRUPT_H_ */
