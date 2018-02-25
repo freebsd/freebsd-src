@@ -33,13 +33,12 @@
 
 #include <linux/device.h>
 #include <linux/pci.h>
+#include <linux/irqreturn.h>
 
 #include <sys/bus.h>
 #include <sys/rman.h>
 
 typedef	irqreturn_t	(*irq_handler_t)(int, void *);
-
-#define	IRQ_RETVAL(x)	((x) != IRQ_NONE)
 
 #define	IRQF_SHARED	RF_SHAREABLE
 
