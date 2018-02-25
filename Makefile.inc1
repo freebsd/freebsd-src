@@ -56,7 +56,13 @@ LOCALBASE?=	/usr/local
 # Cross toolchain changes must be in effect before bsd.compiler.mk
 # so that gets the right CC, and pass CROSS_TOOLCHAIN to submakes.
 .if defined(CROSS_TOOLCHAIN)
+.if exists(${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk)
 .include "${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk"
+.elif exists(${CROSS_TOOLCHAIN})
+.include "${CROSS_TOOLCHAIN}"
+.else
+.error CROSS_TOOLCHAIN is '${CROSS_TOOLCHAIN}' which is invalid
+.endif
 CROSSENV+=CROSS_TOOLCHAIN="${CROSS_TOOLCHAIN}"
 .endif
 .if defined(CROSS_TOOLCHAIN_PREFIX)
