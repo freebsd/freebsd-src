@@ -38,7 +38,7 @@ local drawer = require("drawer")
 
 local menu = {}
 
-local screen_invalid = true
+local drawn_menu
 
 local function OnOff(str, b)
 	if b then
@@ -82,7 +82,6 @@ menu.handlers = {
 		end
 	end,
 	[core.MENU_SUBMENU] = function(_, entry)
-		screen_invalid = true
 		menu.process(entry.submenu)
 	end,
 	[core.MENU_RETURN] = function(_, entry)
@@ -348,12 +347,12 @@ menu.default = menu.welcome
 -- the local alias_table in menu.process.
 menu.current_alias_table = {}
 
-function menu.redraw(m)
-	-- redraw screen
+function menu.draw(m)
+	-- Clear the screen, reset the cursor, then draw
 	screen.clear()
 	screen.defcursor()
 	menu.current_alias_table = drawer.drawscreen(m)
-	screen_invalid = false
+	drawn_menu = m
 end
 
 -- 'keypress' allows the caller to indicate that a key has been pressed that we
@@ -361,10 +360,8 @@ end
 function menu.process(m, keypress)
 	assert(m ~= nil)
 
-	-- Trigger a redraw if we've been invalidated.  Otherwise, we assume
-	-- that this menu has already been drawn.
-	if screen_invalid then
-		menu.redraw(m)
+	if drawn_menu ~= m then
+		menu.draw(m)
 	end
 
 	while true do
@@ -404,13 +401,9 @@ function menu.process(m, keypress)
 			end
 			-- If we got an alias key the screen is out of date...
 			-- redraw it.
-			menu.redraw(m)
+			menu.draw(m)
 		end
 	end
-	-- Invalidate the screen upon exit so that it gets redrawn upon
-	-- processing a new menu, assuming it won't be redrawn after leaving
-	-- this menu
-	screen_invalid = false
 end
 
 function menu.run()
@@ -419,10 +412,11 @@ function menu.run()
 		return
 	end
 
-	menu.redraw(menu.default)
+	menu.draw(menu.default)
 	local autoboot_key = menu.autoboot()
 
 	menu.process(menu.default, autoboot_key)
+	drawn_menu = nil
 
 	screen.defcursor()
 	print("Exiting menu!")
