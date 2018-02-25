@@ -407,6 +407,10 @@ function menu.process(m, keypress)
 			menu.redraw(m)
 		end
 	end
+	-- Invalidate the screen upon exit so that it gets redrawn upon
+	-- processing a new menu, assuming it won't be redrawn after leaving
+	-- this menu
+	screen_invalid = false
 end
 
 function menu.run()
