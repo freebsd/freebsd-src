@@ -33,95 +33,94 @@ local config = {}
 
 local modules = {}
 
-local pattern_table
 local carousel_choices = {}
 
-pattern_table = {
-	[1] = {
+local pattern_table = {
+	{
 		str = "^%s*(#.*)",
-		process = function(_, _)  end
+		process = function(_, _)  end,
 	},
 	--  module_load="value"
-	[2] = {
+	{
 		str = "^%s*([%w_]+)_load%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
 			if modules[k] == nil then
 				modules[k] = {}
 			end
 			modules[k].load = v:upper()
-		end
+		end,
 	},
 	--  module_name="value"
-	[3] = {
+	{
 		str = "^%s*([%w_]+)_name%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
 			config.setKey(k, "name", v)
-		end
+		end,
 	},
 	--  module_type="value"
-	[4] = {
+	{
 		str = "^%s*([%w_]+)_type%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
 			config.setKey(k, "type", v)
-		end
+		end,
 	},
 	--  module_flags="value"
-	[5] = {
+	{
 		str = "^%s*([%w_]+)_flags%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
 			config.setKey(k, "flags", v)
-		end
+		end,
 	},
 	--  module_before="value"
-	[6] = {
+	{
 		str = "^%s*([%w_]+)_before%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
 			config.setKey(k, "before", v)
-		end
+		end,
 	},
 	--  module_after="value"
-	[7] = {
+	{
 		str = "^%s*([%w_]+)_after%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
 			config.setKey(k, "after", v)
-		end
+		end,
 	},
 	--  module_error="value"
-	[8] = {
+	{
 		str = "^%s*([%w_]+)_error%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
 			config.setKey(k, "error", v)
-		end
+		end,
 	},
 	--  exec="command"
-	[9] = {
+	{
 		str = "^%s*exec%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, _)
 			if loader.perform(k) ~= 0 then
 				print("Failed to exec '" .. k .. "'")
 			end
-		end
+		end,
 	},
 	--  env_var="value"
-	[10] = {
+	{
 		str = "^%s*([%w%p]+)%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
 			if config.setenv(k, v) ~= 0 then
 				print("Failed to set '" .. k ..
 				    "' with value: " .. v .. "")
 			end
-		end
+		end,
 	},
 	--  env_var=num
-	[11] = {
+	{
 		str = "^%s*([%w%p]+)%s*=%s*(%d+)%s*(.*)",
 		process = function(k, v)
 			if config.setenv(k, v) ~= 0 then
 				print("Failed to set '" .. k ..
 				    "' with value: " .. v .. "")
 			end
-		end
-	}
+		end,
+	},
 }
 
 local function readFile(name, silent)
