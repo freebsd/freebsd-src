@@ -159,7 +159,7 @@ menu.boot_options = {
 			name = "Load System " .. color.highlight("D") ..
 			    "efaults",
 			func = core.setDefaults,
-			alias = {"d", "D"}
+			alias = {"d", "D"},
 		},
 		{
 			entry_type = core.MENU_SEPARATOR,
@@ -177,7 +177,7 @@ menu.boot_options = {
 				    "CPI       :", core.acpi)
 			end,
 			func = core.setACPI,
-			alias = {"a", "A"}
+			alias = {"a", "A"},
 		},
 		-- safe mode
 		{
@@ -187,7 +187,7 @@ menu.boot_options = {
 				    "ode  :", core.sm)
 			end,
 			func = core.setSafeMode,
-			alias = {"m", "M"}
+			alias = {"m", "M"},
 		},
 		-- single user
 		{
@@ -197,7 +197,7 @@ menu.boot_options = {
 				    "ingle user:", core.su)
 			end,
 			func = core.setSingleUser,
-			alias = {"s", "S"}
+			alias = {"s", "S"},
 		},
 		-- verbose boot
 		{
@@ -207,7 +207,7 @@ menu.boot_options = {
 				    "erbose    :", core.verbose)
 			end,
 			func = core.setVerbose,
-			alias = {"v", "V"}
+			alias = {"v", "V"},
 		},
 	},
 }
@@ -249,7 +249,7 @@ menu.welcome = {
 				core.setSingleUser(false)
 				core.boot()
 			end,
-			alias = {"b", "B"}
+			alias = {"b", "B"},
 		},
 		-- boot single user
 		{
@@ -262,7 +262,7 @@ menu.welcome = {
 				core.setSingleUser(true)
 				core.boot()
 			end,
-			alias = {"s", "S"}
+			alias = {"s", "S"},
 		},
 		-- escape to interpreter
 		{
@@ -271,7 +271,7 @@ menu.welcome = {
 			func = function()
 				loader.setenv("autoboot_delay", "NO")
 			end,
-			alias = {core.KEYSTR_ESCAPE}
+			alias = {core.KEYSTR_ESCAPE},
 		},
 		-- reboot
 		{
@@ -280,7 +280,7 @@ menu.welcome = {
 			func = function()
 				loader.perform("reboot")
 			end,
-			alias = {"r", "R"}
+			alias = {"r", "R"},
 		},
 		{
 			entry_type = core.MENU_SEPARATOR,
@@ -317,14 +317,14 @@ menu.welcome = {
 			func = function(_, choice, _)
 				config.selectKernel(choice)
 			end,
-			alias = {"k", "K"}
+			alias = {"k", "K"},
 		},
 		-- boot options
 		{
 			entry_type = core.MENU_SUBMENU,
 			name = "Boot " .. color.highlight("O") .. "ptions",
 			submenu = menu.boot_options,
-			alias = {"o", "O"}
+			alias = {"o", "O"},
 		},
 		-- boot environments
 		{
