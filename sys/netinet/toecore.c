@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/socket.h>
 
+#if defined(KLD_MODULE) || defined(INET) || defined(INET6)
+
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_types.h>
@@ -357,12 +359,20 @@ toe_4tuple_check(struct in_conninfo *inc, struct tcphdr *th, struct ifnet *ifp)
 	struct inpcb *inp;
 
 	if (inc->inc_flags & INC_ISIPV6) {
+#if defined(KLD_MODULE) || defined(INET6)
 		inp = in6_pcblookup(&V_tcbinfo, &inc->inc6_faddr,
 		    inc->inc_fport, &inc->inc6_laddr, inc->inc_lport,
 		    INPLOOKUP_WLOCKPCB, ifp);
+#else
+		inp = NULL;
+#endif
 	} else {
+#if defined(KLD_MODULE) || defined(INET)
 		inp = in_pcblookup(&V_tcbinfo, inc->inc_faddr, inc->inc_fport,
 		    inc->inc_laddr, inc->inc_lport, INPLOOKUP_WLOCKPCB, ifp);
+#else
+		inp = NULL;
+#endif
 	}
 	if (inp != NULL) {
 		INP_WLOCK_ASSERT(inp);
@@ -641,5 +651,8 @@ static moduledata_t mod_data= {
 	0
 };
 
-MODULE_VERSION(toecore, 1);
 DECLARE_MODULE(toecore, mod_data, SI_SUB_EXEC, SI_ORDER_ANY);
+#endif /* defined(KLD_MODULE) || defined(INET) || defined(INET6) */
+
+MODULE_VERSION(toecore, 1);
+
