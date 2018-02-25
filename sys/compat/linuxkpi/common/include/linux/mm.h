@@ -118,8 +118,13 @@ struct vm_area_struct {
 struct vm_fault {
 	unsigned int flags;
 	pgoff_t	pgoff;
-	void   *virtual_address;	/* user-space address */
+	union {
+		/* user-space address */
+		void *virtual_address;
+		unsigned long address;
+	};
 	struct page *page;
+	struct vm_area_struct *vma;
 };
 
 struct vm_operations_struct {
