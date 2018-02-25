@@ -77,6 +77,21 @@ typedef struct mutex {
 	!!sx_try_xlock(&(_m)->sx);		\
 })
 
+enum mutex_trylock_recursive_enum {
+	MUTEX_TRYLOCK_FAILED = 0,
+	MUTEX_TRYLOCK_SUCCESS = 1,
+	MUTEX_TRYLOCK_RECURSIVE = 2,
+};
+
+static inline __must_check enum mutex_trylock_recursive_enum
+mutex_trylock_recursive(struct mutex *lock)
+{
+	if (unlikely(sx_xholder(&lock->sx) == curthread))
+		return (MUTEX_TRYLOCK_RECURSIVE);
+
+	return (mutex_trylock(lock));
+}
+
 #define	mutex_init(_m) \
 	linux_mutex_init(_m, mutex_name(#_m), SX_NOWITNESS)
 
