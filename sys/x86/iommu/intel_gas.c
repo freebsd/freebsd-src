@@ -79,7 +79,7 @@ intel_gas_init(void)
 
 	dmar_map_entry_zone = uma_zcreate("DMAR_MAP_ENTRY",
 	    sizeof(struct dmar_map_entry), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NODUMP);
 }
 SYSINIT(intel_gas, SI_SUB_DRIVERS, SI_ORDER_FIRST, intel_gas_init, NULL);
 
