@@ -333,6 +333,7 @@ UART_FDT_CLASS_AND_DEVICE(fdt_compat_data);
 #ifdef DEV_ACPI
 static struct acpi_uart_compat_data acpi_compat_data[] = {
 	{"ARMH0011", &uart_pl011_class, ACPI_DBG2_ARM_PL011},
+	{"ARMH0011", &uart_pl011_class, ACPI_DBG2_ARM_SBSA_GENERIC},
 	{NULL, NULL, 0},
 };
 UART_ACPI_CLASS_AND_DEVICE(acpi_compat_data);
