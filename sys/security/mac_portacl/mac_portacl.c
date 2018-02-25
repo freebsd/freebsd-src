@@ -487,3 +487,4 @@ static struct mac_policy_ops portacl_ops =
 
 MAC_POLICY_SET(&portacl_ops, mac_portacl, "TrustedBSD MAC/portacl",
     MPC_LOADTIME_FLAG_UNLOADOK, NULL);
+MODULE_VERSION(mac_portacl, 1);
