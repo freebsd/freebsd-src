@@ -69,6 +69,10 @@ end
 -- Declares a global function cli_execute that attempts to dispatch the
 -- arguments passed as a lua function. This gives lua a chance to intercept
 -- builtin CLI commands like "boot"
+-- This function intentionally does not follow our general naming guideline for
+-- functions. This is global pollution, but the clearly separated 'cli' looks
+-- more like a module indicator to serve as a hint of where to look for the
+-- corresponding definition.
 function cli_execute(...)
 	local argv = {...}
 	-- Just in case...
