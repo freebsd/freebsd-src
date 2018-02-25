@@ -323,11 +323,11 @@ static struct uart_class uart_pl011_class = {
 
 
 #ifdef FDT
-static struct ofw_compat_data compat_data[] = {
+static struct ofw_compat_data fdt_compat_data[] = {
 	{"arm,pl011",		(uintptr_t)&uart_pl011_class},
 	{NULL,			(uintptr_t)NULL},
 };
-UART_FDT_CLASS_AND_DEVICE(compat_data);
+UART_FDT_CLASS_AND_DEVICE(fdt_compat_data);
 #endif
 
 #ifdef DEV_ACPI
