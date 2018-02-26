@@ -226,6 +226,7 @@ rk_cru_attach(device_t dev)
 			break;
 		case RK_CLK_MUX:
 			rk_clk_mux_register(sc->clkdom, sc->clks[i].clk.mux);
+			break;
 		default:
 			device_printf(dev, "Unknown clock type\n");
 			return (ENXIO);
