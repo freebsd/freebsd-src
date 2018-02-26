@@ -140,7 +140,7 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
  * the superblock and its associated data.
  */
 static off_t sblock_try[] = SBLOCKSEARCH;
-static int readsuper(void *, struct fs **, off_t,
+static int readsuper(void *, struct fs **, off_t, int,
 	int (*)(void *, off_t, void **, int));
 
 /*
@@ -174,11 +174,12 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
 
 	*fsp = NULL;
 	if (altsblock != -1) {
-		if ((error = readsuper(devfd, fsp, -altsblock, readfunc)) != 0)
+		if ((error = readsuper(devfd, fsp, altsblock, 1,
+		     readfunc)) != 0)
 			return (error);
 	} else {
 		for (i = 0; sblock_try[i] != -1; i++) {
-			if ((error = readsuper(devfd, fsp, sblock_try[i],
+			if ((error = readsuper(devfd, fsp, sblock_try[i], 0,
 			     readfunc)) == 0)
 				break;
 			if (error == ENOENT)
@@ -238,17 +239,12 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
  * Return zero on success or an errno on failure.
  */
 static int
-readsuper(void *devfd, struct fs **fsp, off_t sblockloc,
+readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
     int (*readfunc)(void *devfd, off_t loc, void **bufp, int size))
 {
 	struct fs *fs;
-	int error, altblk;
+	int error;
 
-	altblk = 0;
-	if (sblockloc < 0) {
-		altblk = 1;
-		sblockloc = - sblockloc;
-	}
 	error = (*readfunc)(devfd, sblockloc, (void **)fsp, SBLOCKSIZE);
 	if (*fsp != NULL)
 		(*fsp)->fs_csp = NULL;	/* Not yet any summary information */
@@ -257,9 +253,9 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc,
 	fs = *fsp;
 	if (fs->fs_magic == FS_BAD_MAGIC)
 		return (EINVAL);
-	if (((fs->fs_magic == FS_UFS1_MAGIC && (altblk ||
+	if (((fs->fs_magic == FS_UFS1_MAGIC && (isaltsblk ||
 	      sblockloc <= SBLOCK_UFS1)) ||
-	     (fs->fs_magic == FS_UFS2_MAGIC && (altblk ||
+	     (fs->fs_magic == FS_UFS2_MAGIC && (isaltsblk ||
 	      sblockloc == fs->fs_sblockloc))) &&
 	    fs->fs_ncg >= 1 &&
 	    fs->fs_bsize >= MINBSIZE &&
