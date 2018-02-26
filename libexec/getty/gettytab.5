@@ -28,7 +28,7 @@
 .\"     from: @(#)gettytab.5	8.4 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\" "
-.Dd August 23, 2017
+.Dd February 26, 2018
 .Dt GETTYTAB 5
 .Os
 .Sh NAME
@@ -109,9 +109,6 @@ scripts
 character
 .It "ev	str" Ta Dv NULL
 .Ta No "initial environment"
-.It "f0	num	unused	tty mode flags to write messages"
-.It "f1	num	unused	tty mode flags to read login name"
-.It "f2	num	unused	tty mode flags to leave terminal as"
 .It "fl	str" Ta So Li ^O
 .Sc Ta No "output flush character"
 .It "hc	bool	false	do"
@@ -203,6 +200,9 @@ The following capabilities are no longer supported by
 .It "bd	num	0	backspace delay"
 .It "cb	bool	false	use crt backspace mode"
 .It "cd	num	0	carriage-return delay"
+.It "f0	num	unused	tty mode flags to write messages"
+.It "f1	num	unused	tty mode flags to read login name"
+.It "f2	num	unused	tty mode flags to leave terminal as"
 .It "fd	num	0	form-feed (vertical motion) delay"
 .It "lc	bool	false	terminal has lower case"
 .It "nd	num	0	newline (line-feed) delay"
@@ -245,17 +245,6 @@ and
 .Va c_oflag
 fields, respectively.
 Each these sets must be completely specified to be effective.
-The
-.Va \&f0 ,
-.Va \&f1 ,
-and
-.Va \&f2
-are excepted for backwards compatibility with a previous incarnation of
-the TTY sub-system.
-In these flags the bottom 16 bits of the (32 bits)
-value contain the sgttyb
-.Va sg_flags
-field, while the top 16 bits represent the local mode word.
 .Pp
 Should
 .Xr getty 8
