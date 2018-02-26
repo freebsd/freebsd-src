@@ -49,18 +49,18 @@ function screen.setcursor(x, y)
 	loader.printc("\027[" .. y .. ";" .. x .. "H")
 end
 
-function screen.setforeground(c)
+function screen.setforeground(color_value)
 	if color.disabled then
-		return c
+		return color_value
 	end
-	loader.printc("\027[3" .. c .. "m")
+	loader.printc(color.escapef(color_value))
 end
 
-function screen.setbackground(c)
+function screen.setbackground(color_value)
 	if color.disabled then
-		return c
+		return color_value
 	end
-	loader.printc("\027[4" .. c .. "m")
+	loader.printc(color.escapeb(color_value))
 end
 
 function screen.defcolor()
