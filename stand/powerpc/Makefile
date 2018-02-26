@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+NO_OBJ=t
+
 .include <bsd.init.mk>
 
 SUBDIR=		boot1.chrp ofw uboot

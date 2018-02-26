@@ -163,6 +163,7 @@ CLEANFILES+=${_ILINKS}
 
 all: ${PROG}
 
+.if !defined(NO_OBJ)
 beforedepend: ${_ILINKS}
 beforebuild: ${_ILINKS}
 
@@ -190,5 +191,5 @@ ${_ILINKS}:
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET:T} "->" $$path ; \
 	ln -fhs $$path ${.TARGET:T}
-
+.endif
 .endif # __BOOT_DEFS_MK__
