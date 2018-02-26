@@ -41,10 +41,18 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mmc/host/dwmmc_var.h>
 
+enum RKTYPE {
+	RK2928 = 1,
+	RK3328,
+};
+
 static struct ofw_compat_data compat_data[] = {
-	{"rockchip,rk2928-dw-mshc",	1},
+	{"rockchip,rk2928-dw-mshc",	RK2928},
+	{"rockchip,rk3328-dw-mshc",	RK3328},
 	{NULL,				0},
 };
+
+static int dwmmc_rockchip_update_ios(struct dwmmc_softc *sc, struct mmc_ios *ios);
 
 static int
 rockchip_dwmmc_probe(device_t dev)
@@ -66,14 +74,50 @@ static int
 rockchip_dwmmc_attach(device_t dev)
 {
 	struct dwmmc_softc *sc;
+	int type;
 
 	sc = device_get_softc(dev);
 	sc->hwtype = HWTYPE_ROCKCHIP;
+	type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 
-	sc->use_pio = 1;
+	switch (type) {
+	case RK2928:
+		sc->use_pio = 1;
+		break;
+	}
+
 	sc->pwren_inverted = 1;
 
+	sc->update_ios = &dwmmc_rockchip_update_ios;
+
 	return (dwmmc_attach(dev));
+}
+
+static int
+dwmmc_rockchip_update_ios(struct dwmmc_softc *sc, struct mmc_ios *ios)
+{
+	unsigned int clock;
+	int error;
+
+	if (ios->clock && ios->clock != sc->bus_hz) {
+		sc->bus_hz = clock = ios->clock;
+		/* Set the MMC clock. */
+		if (sc->ciu) {
+			/* 
+			 * Apparently you need to set the ciu clock to
+			 * the double of bus_hz
+			 */
+			error = clk_set_freq(sc->ciu, clock * 2,
+			    CLK_SET_ROUND_DOWN);
+			if (error != 0) {
+				device_printf(sc->dev,
+				    "failed to set frequency to %u Hz: %d\n",
+				    clock, error);
+				return (error);
+			}
+		}
+	}
+	return (0);
 }
 
 static device_method_t rockchip_dwmmc_methods[] = {
