@@ -1764,7 +1764,7 @@ ccr_init_hmac_digest(struct ccr_session *s, int cri_alg, char *key,
 	} else
 		memcpy(s->hmac.ipad, key, klen);
 
-	memset(s->hmac.ipad + klen, 0, axf->blocksize);
+	memset(s->hmac.ipad + klen, 0, axf->blocksize - klen);
 	memcpy(s->hmac.opad, s->hmac.ipad, axf->blocksize);
 
 	for (i = 0; i < axf->blocksize; i++) {
