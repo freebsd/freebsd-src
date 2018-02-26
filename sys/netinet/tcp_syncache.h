@@ -75,9 +75,7 @@ struct syncache {
 #endif
 	struct label	*sc_label;		/* MAC label reference */
 	struct ucred	*sc_cred;		/* cred cache for jail checks */
-#ifdef TCP_RFC7413
 	void		*sc_tfo_cookie;		/* for TCP Fast Open response */
-#endif
 	void		*sc_pspare;		/* TCP_SIGNATURE */
 	u_int32_t	sc_spare[2];		/* UTO */
 };
