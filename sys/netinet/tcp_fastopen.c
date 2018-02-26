@@ -313,6 +313,7 @@ tcp_fastopen_check_cookie(struct in_conninfo *inc, uint8_t *cookie,
 {
 	struct rm_priotracker tracker;
 	unsigned int i, key_index;
+	int rv;
 	uint64_t cur_cookie;
 
 	if (V_tcp_fastopen_acceptany) {
@@ -320,21 +321,22 @@ tcp_fastopen_check_cookie(struct in_conninfo *inc, uint8_t *cookie,
 		return (1);
 	}
 
+	TCP_FASTOPEN_KEYS_RLOCK(&tracker);
 	if (len != TCP_FASTOPEN_COOKIE_LEN) {
 		if (V_tcp_fastopen_numkeys > 0) {
 			*latest_cookie =
 			    tcp_fastopen_make_cookie(
 				V_tcp_fastopen_keys.key[V_tcp_fastopen_keys.newest],
 				inc);
-			return (0);
-		}
- 		return (-1);
+			rv = 0;
+		} else
+			rv = -1;
+		goto out;
 	}
 
 	/*
 	 * Check against each available key, from newest to oldest.
 	 */
-	TCP_FASTOPEN_KEYS_RLOCK(&tracker);
 	key_index = V_tcp_fastopen_keys.newest;
 	for (i = 0; i < V_tcp_fastopen_numkeys; i++) {
 		cur_cookie =
@@ -343,17 +345,19 @@ tcp_fastopen_check_cookie(struct in_conninfo *inc, uint8_t *cookie,
 		if (i == 0)
 			*latest_cookie = cur_cookie;
 		if (memcmp(cookie, &cur_cookie, TCP_FASTOPEN_COOKIE_LEN) == 0) {
-			TCP_FASTOPEN_KEYS_RUNLOCK(&tracker);
-			return (1);
+			rv = 1;
+			goto out;
 		}
 		if (key_index == 0)
 			key_index = TCP_FASTOPEN_MAX_KEYS - 1;
 		else
 			key_index--;
 	}
-	TCP_FASTOPEN_KEYS_RUNLOCK(&tracker);
+	rv = 0;
 
-	return (0);
+out:
+	TCP_FASTOPEN_KEYS_RUNLOCK(&tracker);
+	return (rv);
 }
 
 static int
