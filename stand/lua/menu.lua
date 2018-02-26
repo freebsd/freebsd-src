@@ -40,8 +40,8 @@ local menu = {}
 
 local drawn_menu
 
-local function OnOff(str, b)
-	if b then
+local function OnOff(str, value)
+	if value then
 		return str .. color.escapef(color.GREEN) .. "On" ..
 		    color.escapef(color.WHITE)
 	else

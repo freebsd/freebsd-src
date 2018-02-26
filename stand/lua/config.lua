@@ -228,22 +228,25 @@ function config.restoreEnv()
 	config.env_restore = {}
 end
 
-function config.setenv(k, v)
+function config.setenv(key, value)
 	-- Track the original value for this if we haven't already
-	if config.env_restore[k] == nil then
-		config.env_restore[k] = {value = loader.getenv(k)}
+	if config.env_restore[key] == nil then
+		config.env_restore[key] = {value = loader.getenv(key)}
 	end
 
-	config.env_changed[k] = v
+	config.env_changed[key] = value
 
-	return loader.setenv(k, v)
+	return loader.setenv(key, value)
 end
 
-function config.setKey(k, n, v)
-	if modules[k] == nil then
-		modules[k] = {}
+-- name here is one of 'name', 'type', flags', 'before', 'after', or 'error.'
+-- These are set from lines in loader.conf(5): ${key}_${name}="${value}" where
+-- ${key} is a module name.
+function config.setKey(key, name, value)
+	if modules[key] == nil then
+		modules[key] = {}
 	end
-	modules[k][n] = v
+	modules[key][name] = value
 end
 
 function config.lsModules()
@@ -255,11 +258,11 @@ function config.lsModules()
 end
 
 
-function config.isValidComment(c)
-	if c ~= nil then
-		local s = c:match("^%s*#.*")
+function config.isValidComment(line)
+	if line ~= nil then
+		local s = line:match("^%s*#.*")
 		if s == nil then
-			s = c:match("^%s*$")
+			s = line:match("^%s*$")
 		end
 		if s == nil then
 			return false

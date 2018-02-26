@@ -58,30 +58,31 @@ end
 
 color.disabled = not color.isEnabled()
 
-function color.escapef(c)
+function color.escapef(color_value)
 	if color.disabled then
-		return c
+		return color_value
 	end
-	return "\027[3" .. c .. "m"
+	return "\027[3" .. color_value .. "m"
 end
 
-function color.escapeb(c)
+function color.escapeb(color_value)
 	if color.disabled then
-		return c
+		return color_value
 	end
-	return "\027[4" .. c .. "m"
+	return "\027[4" .. color_value .. "m"
 end
 
-function color.escape(fg, bg, att)
+function color.escape(fg_color, bg_color, attribute)
 	if color.disabled then
 		return ""
 	end
-	if not att then
-		att = ""
+	if attribute == nil then
+		attribute = ""
 	else
-		att = att .. ";"
+		attribute = attribute .. ";"
 	end
-	return "\027[" .. att .. "3" .. fg .. ";4" .. bg .. "m"
+	return "\027[" .. attribute ..
+	    "3" .. fg_color .. ";4" .. bg_color .. "m"
 end
 
 function color.default()
