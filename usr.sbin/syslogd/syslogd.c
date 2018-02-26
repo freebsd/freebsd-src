@@ -180,7 +180,7 @@ static STAILQ_HEAD(, socklist) shead = STAILQ_HEAD_INITIALIZER(shead);
  * This structure represents the files that will have log
  * copies printed.
  * We require f_file to be valid if f_type is F_FILE, F_CONSOLE, F_TTY
- * or if f_type if F_PIPE and f_pid > 0.
+ * or if f_type is F_PIPE and f_pid > 0.
  */
 
 struct filed {
@@ -382,10 +382,16 @@ close_filed(struct filed *f)
 		return;
 
 	switch (f->f_type) {
-	case F_FILE:
+	case F_FORW:
+            if (f->f_un.f_forw.f_addr) {
+                freeaddrinfo(f->f_un.f_forw.f_addr);
+                f->f_un.f_forw.f_addr = NULL;
+            }
+            /*FALLTHROUGH*/
+
+        case F_FILE:
 	case F_TTY:
 	case F_CONSOLE:
-	case F_FORW:
 		f->f_type = F_UNUSED;
 		break;
 	case F_PIPE:
@@ -1859,6 +1865,7 @@ readconfigfile(FILE *cf, int allow_includes)
 		f = cfline(cline, prog, host);
 		if (f != NULL)
 			addfile(f);
+                free(f);
 	}
 }
 
@@ -1956,9 +1963,11 @@ init(int signo)
 		f = cfline("*.ERR\t/dev/console", "*", "*");
 		if (f != NULL)
 			addfile(f);
+                free(f);
 		f = cfline("*.PANIC\t*", "*", "*");
 		if (f != NULL)
 			addfile(f);
+                free(f);
 		Initialized = 1;
 
 		return;
