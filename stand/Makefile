@@ -13,6 +13,7 @@ SUBDIR+=		liblua
 SUBDIR+=		lua
 .endif
 
+SUBDIR+=		defaults
 SUBDIR+=		man
 
 .include <bsd.arch.inc.mk>
