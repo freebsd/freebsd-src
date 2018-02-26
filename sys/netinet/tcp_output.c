@@ -71,9 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #endif
-#ifdef TCP_RFC7413
-#include <netinet/tcp_fastopen.h>
-#endif
 #include <netinet/tcp.h>
 #define	TCPOUTFLAGS
 #include <netinet/tcp_fsm.h>
@@ -82,6 +79,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/cc/cc.h>
+#ifdef TCP_RFC7413
+#include <netinet/tcp_fastopen.h>
+#endif
 #ifdef TCPPCAP
 #include <netinet/tcp_pcap.h>
 #endif
@@ -212,6 +212,10 @@ tcp_output(struct tcpcb *tp)
 	struct sackhole *p;
 	int tso, mtu;
 	struct tcpopt to;
+#ifdef TCP_RFC7413
+	unsigned int wanted_cookie = 0;
+	unsigned int dont_sendalot = 0;
+#endif
 #if 0
 	int maxburst = TCP_MAXBURST;
 #endif
@@ -237,7 +241,7 @@ tcp_output(struct tcpcb *tp)
 	if (IS_FASTOPEN(tp->t_flags) &&
 	    (tp->t_state == TCPS_SYN_RECEIVED) &&
 	    SEQ_GT(tp->snd_max, tp->snd_una) &&    /* initial SYN|ACK sent */
-	    (tp->snd_nxt != tp->snd_una))          /* not a retransmit */
+	    (tp->snd_nxt != tp->snd_una))         /* not a retransmit */
 		return (0);
 #endif
 	/*
@@ -449,12 +453,21 @@ after_sack_rexmit:
 
 #ifdef TCP_RFC7413
 	/*
-	 * When retransmitting SYN|ACK on a passively-created TFO socket,
-	 * don't include data, as the presence of data may have caused the
-	 * original SYN|ACK to have been dropped by a middlebox.
+	 * On TFO sockets, ensure no data is sent in the following cases:
+	 *
+	 *  - When retransmitting SYN|ACK on a passively-created socket
+	 *
+	 *  - When retransmitting SYN on an actively created socket
+	 *
+	 *  - When sending a zero-length cookie (cookie request) on an
+	 *    actively created socket
+	 *
+	 *  - When the socket is in the CLOSED state (RST is being sent)
 	 */
 	if (IS_FASTOPEN(tp->t_flags) &&
-	    (((tp->t_state == TCPS_SYN_RECEIVED) && (tp->t_rxtshift > 0)) ||
+	    (((flags & TH_SYN) && (tp->t_rxtshift > 0)) ||
+	     ((tp->t_state == TCPS_SYN_SENT) &&
+	      (tp->t_tfo_client_cookie_len == 0)) ||
 	     (flags & TH_RST)))
 		len = 0;
 #endif
@@ -541,7 +554,7 @@ after_sack_rexmit:
 	if ((tp->t_flags & TF_TSO) && V_tcp_do_tso && len > tp->t_maxseg &&
 	    ((tp->t_flags & TF_SIGNATURE) == 0) &&
 	    tp->rcv_numsacks == 0 && sack_rxmit == 0 &&
-	    ipoptlen == 0)
+	    ipoptlen == 0 && !(flags & TH_SYN))
 		tso = 1;
 
 	if (sack_rxmit) {
@@ -763,18 +776,36 @@ send:
 			to.to_flags |= TOF_MSS;
 #ifdef TCP_RFC7413
 			/*
-			 * Only include the TFO option on the first
-			 * transmission of the SYN|ACK on a
-			 * passively-created TFO socket, as the presence of
-			 * the TFO option may have caused the original
-			 * SYN|ACK to have been dropped by a middlebox.
+			 * On SYN or SYN|ACK transmits on TFO connections,
+			 * only include the TFO option if it is not a
+			 * retransmit, as the presence of the TFO option may
+			 * have caused the original SYN or SYN|ACK to have
+			 * been dropped by a middlebox.
 			 */
 			if (IS_FASTOPEN(tp->t_flags) &&
-			    (tp->t_state == TCPS_SYN_RECEIVED) &&
 			    (tp->t_rxtshift == 0)) {
-				to.to_tfo_len = TCP_FASTOPEN_COOKIE_LEN;
-				to.to_tfo_cookie = (u_char *)&tp->t_tfo_cookie;
-				to.to_flags |= TOF_FASTOPEN;
+				if (tp->t_state == TCPS_SYN_RECEIVED) {
+					to.to_tfo_len = TCP_FASTOPEN_COOKIE_LEN;
+					to.to_tfo_cookie =
+					    (u_int8_t *)&tp->t_tfo_cookie.server;
+					to.to_flags |= TOF_FASTOPEN;
+					wanted_cookie = 1;
+				} else if (tp->t_state == TCPS_SYN_SENT) {
+					to.to_tfo_len =
+					    tp->t_tfo_client_cookie_len;
+					to.to_tfo_cookie =
+					    tp->t_tfo_cookie.client;
+					to.to_flags |= TOF_FASTOPEN;
+					wanted_cookie = 1;
+					/*
+					 * If we wind up having more data to
+					 * send with the SYN than can fit in
+					 * one segment, don't send any more
+					 * until the SYN|ACK comes back from
+					 * the other end.
+					 */
+					dont_sendalot = 1;
+				}
 			}
 #endif
 		}
@@ -820,6 +851,15 @@ send:
 
 		/* Processing the options. */
 		hdrlen += optlen = tcp_addoptions(&to, opt);
+#ifdef TCP_RFC7413
+		/*
+		 * If we wanted a TFO option to be added, but it was unable
+		 * to fit, ensure no data is sent.
+		 */
+		if (IS_FASTOPEN(tp->t_flags) && wanted_cookie &&
+		    !(to.to_flags & TOF_FASTOPEN))
+			len = 0;
+#endif
 	}
 
 	/*
@@ -964,6 +1004,10 @@ send:
 		} else {
 			len = tp->t_maxseg - optlen - ipoptlen;
 			sendalot = 1;
+#ifdef TCP_RFC7413
+			if (dont_sendalot)
+				sendalot = 0;
+#endif
 		}
 	} else
 		tso = 0;
@@ -1774,8 +1818,10 @@ tcp_addoptions(struct tcpopt *to, u_char *optp)
 
 			/* XXX is there any point to aligning this option? */
 			total_len = TCPOLEN_FAST_OPEN_EMPTY + to->to_tfo_len;
-			if (TCP_MAXOLEN - optlen < total_len)
+			if (TCP_MAXOLEN - optlen < total_len) {
+				to->to_flags &= ~TOF_FASTOPEN;
 				continue;
+			}
 			*optp++ = TCPOPT_FAST_OPEN;
 			*optp++ = total_len;
 			if (to->to_tfo_len > 0) {
