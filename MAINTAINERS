@@ -86,6 +86,7 @@ sh(1)		jilles		Pre-commit review requested. This also applies
 share/mk	imp, bapt, bdrewery, emaste, sjg	Make is hard.
 share/mk/*.test.mk	freebsd-testing,ngie (same list as share/mk too)	Pre-commit review requested.
 stand/forth		dteske	Pre-commit review requested.
+stand/lua		kevans	Pre-commit review requested
 sys/compat/linuxkpi	hselasky	If in doubt, ask.
 sys/dev/e1000	erj	Pre-commit phabricator review requested.
 sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
