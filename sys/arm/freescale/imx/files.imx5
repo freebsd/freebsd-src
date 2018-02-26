@@ -52,3 +52,6 @@ dev/vt/hw/fb/vt_early_fb.c		optional vt
 # Fast Ethernet Controller
 dev/ffec/if_ffec.c 			optional ffec
 
+# SPI
+arm/freescale/imx/imx_spi.c		optional imx_spi
+
