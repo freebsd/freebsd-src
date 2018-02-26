@@ -61,7 +61,7 @@ LOCALBASE?=	/usr/local
 .elif exists(${CROSS_TOOLCHAIN})
 .include "${CROSS_TOOLCHAIN}"
 .else
-.error CROSS_TOOLCHAIN is '${CROSS_TOOLCHAIN}' which is invalid
+.error CROSS_TOOLCHAIN ${CROSS_TOOLCHAIN} not found
 .endif
 CROSSENV+=CROSS_TOOLCHAIN="${CROSS_TOOLCHAIN}"
 .endif
