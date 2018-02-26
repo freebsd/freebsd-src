@@ -30,8 +30,12 @@
 --
 
 require("cli")
+local core = require("core")
 local config = require("config")
-local menu = require("menu")
+local menu
+if not core.isMenuSkipped() then
+	menu = require("menu")
+end
 local password = require("password")
 
 local result = lfs.attributes("/boot/lua/local.lua")
@@ -42,4 +46,10 @@ end
 
 config.load()
 password.check()
-menu.run()
+-- menu might be disabled
+if menu ~= nil then
+	menu.run()
+else
+	-- Load kernel/modules before we go
+	config.loadelf()
+end

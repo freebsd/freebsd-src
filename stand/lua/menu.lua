@@ -405,11 +405,6 @@ function menu.process(menudef, keypress)
 end
 
 function menu.run()
-	if menu.skip() then
-		core.autoboot()
-		return
-	end
-
 	menu.draw(menu.default)
 	local autoboot_key = menu.autoboot()
 
@@ -418,20 +413,6 @@ function menu.run()
 
 	screen.defcursor()
 	print("Exiting menu!")
-end
-
-function menu.skip()
-	if core.isSerialBoot() then
-		return true
-	end
-	local c = string.lower(loader.getenv("console") or "")
-	if c:match("^efi[ ;]") ~= nil or c:match("[ ;]efi[ ;]") ~= nil then
-		return true
-	end
-
-	c = string.lower(loader.getenv("beastie_disable") or "")
-	print("beastie_disable", c)
-	return c == "yes"
 end
 
 function menu.autoboot()
