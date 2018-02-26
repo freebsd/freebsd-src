@@ -3662,6 +3662,18 @@ get_params__post_init(struct adapter *sc)
 		sc->vres.iscsi.start = val[0];
 		sc->vres.iscsi.size = val[1] - val[0] + 1;
 	}
+	if (sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS) {
+		param[0] = FW_PARAM_PFVF(TLS_START);
+		param[1] = FW_PARAM_PFVF(TLS_END);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 2, param, val);
+		if (rc != 0) {
+			device_printf(sc->dev,
+			    "failed to query TLS parameters: %d.\n", rc);
+			return (rc);
+		}
+		sc->vres.key.start = val[0];
+		sc->vres.key.size = val[1] - val[0] + 1;
+	}
 
 	t4_init_sge_params(sc);
 
@@ -7006,7 +7018,7 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 		"TDDP region:", "TPT region:", "STAG region:", "RQ region:",
 		"RQUDP region:", "PBL region:", "TXPBL region:",
 		"DBVFIFO region:", "ULPRX state:", "ULPTX state:",
-		"On-chip queues:"
+		"On-chip queues:", "TLS keys:",
 	};
 	struct mem_desc avail[4];
 	struct mem_desc mem[nitems(region) + 3];	/* up to 3 holes */
@@ -7142,6 +7154,13 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	md->base = sc->vres.ocq.start;
 	if (sc->vres.ocq.size)
 		md->limit = md->base + sc->vres.ocq.size - 1;
+	else
+		md->idx = nitems(region);  /* hide it */
+	md++;
+
+	md->base = sc->vres.key.start;
+	if (sc->vres.key.size)
+		md->limit = md->base + sc->vres.key.size - 1;
 	else
 		md->idx = nitems(region);  /* hide it */
 	md++;

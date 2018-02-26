@@ -126,6 +126,7 @@ struct t4_virt_res {                      /* virtualized HW resources */
 	struct t4_range srq;
 	struct t4_range ocq;
 	struct t4_range l2t;
+	struct t4_range key;
 };
 
 enum {
