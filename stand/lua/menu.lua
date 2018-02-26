@@ -347,21 +347,21 @@ menu.default = menu.welcome
 -- the local alias_table in menu.process.
 menu.current_alias_table = {}
 
-function menu.draw(m)
+function menu.draw(menudef)
 	-- Clear the screen, reset the cursor, then draw
 	screen.clear()
 	screen.defcursor()
-	menu.current_alias_table = drawer.drawscreen(m)
-	drawn_menu = m
+	menu.current_alias_table = drawer.drawscreen(menudef)
+	drawn_menu = menudef
 end
 
 -- 'keypress' allows the caller to indicate that a key has been pressed that we
 -- should process as our initial input.
-function menu.process(m, keypress)
-	assert(m ~= nil)
+function menu.process(menudef, keypress)
+	assert(menudef ~= nil)
 
-	if drawn_menu ~= m then
-		menu.draw(m)
+	if drawn_menu ~= menudef then
+		menu.draw(menudef)
 	end
 
 	while true do
@@ -370,7 +370,7 @@ function menu.process(m, keypress)
 
 		-- Special key behaviors
 		if (key == core.KEY_BACKSPACE or key == core.KEY_DELETE) and
-		    m ~= menu.default then
+		    menudef ~= menu.default then
 			break
 		elseif key == core.KEY_ENTER then
 			core.boot()
@@ -389,19 +389,17 @@ function menu.process(m, keypress)
 
 		-- if we have an alias do the assigned action:
 		if sel_entry ~= nil then
-			-- Get menu handler
 			local handler = menu.handlers[sel_entry.entry_type]
-			if handler ~= nil then
-				-- The handler's return value indicates if we
-				-- need to exit this menu.  An omitted or true
-				-- return value means to continue.
-				if handler(m, sel_entry) == false then
-					return
-				end
+			assert(handler ~= nil)
+			-- The handler's return value indicates if we
+			-- need to exit this menu.  An omitted or true
+			-- return value means to continue.
+			if handler(menudef, sel_entry) == false then
+				return
 			end
 			-- If we got an alias key the screen is out of date...
 			-- redraw it.
-			menu.draw(m)
+			menu.draw(menudef)
 		end
 	end
 end
