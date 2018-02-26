@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-NO_OBJ=t
-
 .include <bsd.init.mk>
 
 MAN+=	beastie.4th.8 \
