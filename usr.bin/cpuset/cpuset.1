@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2016
+.Dd February 26, 2018
 .Dt CPUSET 1
 .Os
 .Sh NAME
@@ -187,7 +187,8 @@ Create a new cpuset that is restricted to CPUs 0 and 2 and move
 into the new set:
 .Dl cpuset -C -c -l 0,2 -p <pid>
 .Sh SEE ALSO
-.Xr cpuset 2
+.Xr cpuset 2 ,
+.Xr rctl 8
 .Sh HISTORY
 The
 .Nm
