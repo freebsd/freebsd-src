@@ -1201,7 +1201,7 @@ syncache_tfo_expand(struct syncache *sc, struct socket **lsop, struct mbuf *m,
 		inp = sotoinpcb(*lsop);
 		tp = intotcpcb(inp);
 		tp->t_flags |= TF_FASTOPEN;
-		tp->t_tfo_cookie = response_cookie;
+		tp->t_tfo_cookie.server = response_cookie;
 		tp->snd_max = tp->iss;
 		tp->snd_nxt = tp->iss;
 		tp->t_tfo_pending = pending_counter;
@@ -1282,8 +1282,9 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	ltflags = (tp->t_flags & (TF_NOOPT | TF_SIGNATURE));
 
 #ifdef TCP_RFC7413
-	if (V_tcp_fastopen_enabled && IS_FASTOPEN(tp->t_flags) &&
-	    (tp->t_tfo_pending != NULL) && (to->to_flags & TOF_FASTOPEN)) {
+	if (V_tcp_fastopen_server_enable && IS_FASTOPEN(tp->t_flags) &&
+	    (tp->t_tfo_pending != NULL) &&
+	    (to->to_flags & TOF_FASTOPEN)) {
 		/*
 		 * Limit the number of pending TFO connections to
 		 * approximately half of the queue limit.  This prevents TFO

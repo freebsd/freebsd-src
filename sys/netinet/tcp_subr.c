@@ -93,9 +93,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #endif
 
-#ifdef TCP_RFC7413
-#include <netinet/tcp_fastopen.h>
-#endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
@@ -107,6 +104,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/tcp6_var.h>
 #endif
 #include <netinet/tcpip.h>
+#ifdef TCP_RFC7413
+#include <netinet/tcp_fastopen.h>
+#endif
 #ifdef TCPPCAP
 #include <netinet/tcp_pcap.h>
 #endif
@@ -2407,6 +2407,11 @@ tcp_drop_syn_sent(struct inpcb *inp, int errno)
 	if (tp->t_state != TCPS_SYN_SENT)
 		return (inp);
 
+#ifdef TCP_RFC7413
+	if (IS_FASTOPEN(tp->t_flags))
+		tcp_fastopen_disable_path(tp);
+#endif
+	
 	tp = tcp_drop(tp, errno);
 	if (tp != NULL)
 		return (inp);

@@ -100,9 +100,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
-#ifdef TCP_RFC7413
-#include <netinet/tcp_fastopen.h>
-#endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
@@ -111,6 +108,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/tcp6_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/cc/cc.h>
+#ifdef TCP_RFC7413
+#include <netinet/tcp_fastopen.h>
+#endif
 #ifdef TCPPCAP
 #include <netinet/tcp_pcap.h>
 #endif
@@ -1717,6 +1717,15 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if ((tp->t_flags & TF_SACK_PERMIT) &&
 		    (to.to_flags & TOF_SACKPERM) == 0)
 			tp->t_flags &= ~TF_SACK_PERMIT;
+#ifdef TCP_RFC7413
+		if (IS_FASTOPEN(tp->t_flags)) {
+			if (to.to_flags & TOF_FASTOPEN)
+				tcp_fastopen_update_cache(tp, to.to_mss,
+				    to.to_tfo_len, to.to_tfo_cookie);
+			else
+				tcp_fastopen_disable_path(tp);
+		}
+#endif
 	}
 
 	/*
@@ -2027,6 +2036,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		tp->irs = th->th_seq;
 		tcp_rcvseqinit(tp);
 		if (thflags & TH_ACK) {
+			int tfo_partial_ack = 0;
+
 			TCPSTAT_INC(tcps_connects);
 			soisconnected(so);
 #ifdef MAC
@@ -2041,10 +2052,19 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			    TCP_MAXWIN << tp->rcv_scale);
 			tp->snd_una++;		/* SYN is acked */
 			/*
+			 * If not all the data that was sent in the TFO SYN
+			 * has been acked, resend the remainder right away.
+			 */
+			if (IS_FASTOPEN(tp->t_flags) &&
+			    (tp->snd_una != tp->snd_max)) {
+				tp->snd_nxt = th->th_ack;
+				tfo_partial_ack = 1;
+			}
+			/*
 			 * If there's data, delay ACK; if there's also a FIN
 			 * ACKNOW will be turned on later.
 			 */
-			if (DELAY_ACK(tp, tlen) && tlen != 0)
+			if (DELAY_ACK(tp, tlen) && tlen != 0 && !tfo_partial_ack)
 				tcp_timer_activate(tp, TT_DELACK,
 				    tcp_delacktime);
 			else
@@ -3422,13 +3442,15 @@ tcp_dooptions(struct tcpopt *to, u_char *cp, int cnt, int flags)
 			break;
 #ifdef TCP_RFC7413
 		case TCPOPT_FAST_OPEN:
-			if ((optlen != TCPOLEN_FAST_OPEN_EMPTY) &&
-			    (optlen < TCPOLEN_FAST_OPEN_MIN) &&
-			    (optlen > TCPOLEN_FAST_OPEN_MAX))
-				continue;
+			/*
+			 * Cookie length validation is performed by the
+			 * server side cookie checking code or the client
+			 * side cookie cache update code.
+			 */
 			if (!(flags & TO_SYN))
 				continue;
-			if (!V_tcp_fastopen_enabled)
+			if (!V_tcp_fastopen_client_enable &&
+			    !V_tcp_fastopen_server_enable)
 				continue;
 			to->to_flags |= TOF_FASTOPEN;
 			to->to_tfo_len = optlen - 2;
