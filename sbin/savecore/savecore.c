@@ -155,6 +155,13 @@ getbounds(void)
 	char buf[6];
 	int ret;
 
+	/*
+	 * If we are just checking, then we haven't done a chdir to the dump
+	 * directory and we should not try to read a bounds file.
+	 */
+	if (checkfor)
+		return (0);
+
 	ret = 0;
 
 	if ((fp = fopen("bounds", "r")) == NULL) {
