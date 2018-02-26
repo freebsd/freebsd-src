@@ -150,4 +150,4 @@ inline string child_signal_string[int child_signal] =
 	child_signal == CLD_TRAPPED ?	"traced child trapped" :
 	child_signal == CLD_STOPPED ?	"child stopped" :
 	child_signal == CLD_CONTINUED ?	"stopped child continued" :
-	strjoin("Unknown SIGCHLD code (", strjoin(lltostr(child_signal), ")"));
+	strjoin("unknown SIGCHLD code (", strjoin(lltostr(child_signal), ")"));
