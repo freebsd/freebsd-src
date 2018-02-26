@@ -39,18 +39,6 @@ it, and additional modules to be loaded; and generally set all variables
 described in
 .Xr loader 8 .
 .Pp
-The file
-.Pa /boot/loader.rc
-must contain the following two lines for
-.Nm
-to be automatically processed:
-.Pp
-.Dl include /boot/loader.4th
-.Dl start
-.Pp
-If no
-.Pa /boot/loader.rc
-exists at installworld time, one with the above lines will be installed.
 .Sh SYNTAX
 Though
 .Nm Ns 's
@@ -294,16 +282,10 @@ boot-time entropy cache file.
 .Bl -tag -width /boot/defaults/loader.conf -compact
 .It Pa /boot/defaults/loader.conf
 default settings -- do not change this file.
-.It Pa /boot/loader.4th
-defines the commands used by loader to read and process
-.Nm .
 .It Pa /boot/loader.conf
 user defined settings.
 .It Pa /boot/loader.conf.local
 machine-specific settings for sites with a common loader.conf.
-.It Pa /boot/loader.rc
-contains the instructions to automatically process
-.Nm .
 .El
 .Sh SEE ALSO
 .Xr rc.conf 5 ,
