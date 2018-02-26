@@ -265,14 +265,14 @@ function drawer.drawscreen(menu_opts)
 	return drawer.drawmenu(menu_opts)
 end
 
-function drawer.drawmenu(m)
+function drawer.drawmenu(menudef)
 	local x = drawer.menu_position.x
 	local y = drawer.menu_position.y
 
 	-- print the menu and build the alias table
 	local alias_table = {}
 	local entry_num = 0
-	local menu_entries = m.entries
+	local menu_entries = menudef.entries
 	local effective_line_num = 0
 	if type(menu_entries) == "function" then
 		menu_entries = menu_entries()
@@ -288,7 +288,7 @@ function drawer.drawmenu(m)
 			entry_num = entry_num + 1
 			screen.setcursor(x, y + effective_line_num)
 
-			print(entry_num .. ". " .. menuEntryName(m, e))
+			print(entry_num .. ". " .. menuEntryName(menudef, e))
 
 			-- fill the alias table
 			alias_table[tostring(entry_num)] = e
@@ -299,7 +299,7 @@ function drawer.drawmenu(m)
 			end
 		else
 			screen.setcursor(x, y + effective_line_num)
-			print(menuEntryName(m, e))
+			print(menuEntryName(menudef, e))
 		end
 		::continue::
 	end
