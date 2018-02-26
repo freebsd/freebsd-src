@@ -79,9 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/cc/cc.h>
-#ifdef TCP_RFC7413
 #include <netinet/tcp_fastopen.h>
-#endif
 #ifdef TCPPCAP
 #include <netinet/tcp_pcap.h>
 #endif
@@ -212,10 +210,8 @@ tcp_output(struct tcpcb *tp)
 	struct sackhole *p;
 	int tso, mtu;
 	struct tcpopt to;
-#ifdef TCP_RFC7413
 	unsigned int wanted_cookie = 0;
 	unsigned int dont_sendalot = 0;
-#endif
 #if 0
 	int maxburst = TCP_MAXBURST;
 #endif
@@ -233,7 +229,6 @@ tcp_output(struct tcpcb *tp)
 		return (tcp_offload_output(tp));
 #endif
 
-#ifdef TCP_RFC7413
 	/*
 	 * For TFO connections in SYN_RECEIVED, only allow the initial
 	 * SYN|ACK and those sent by the retransmit timer.
@@ -243,7 +238,7 @@ tcp_output(struct tcpcb *tp)
 	    SEQ_GT(tp->snd_max, tp->snd_una) &&    /* initial SYN|ACK sent */
 	    (tp->snd_nxt != tp->snd_una))         /* not a retransmit */
 		return (0);
-#endif
+
 	/*
 	 * Determine length of data that should be transmitted,
 	 * and flags that will be used.
@@ -429,7 +424,6 @@ after_sack_rexmit:
 	if ((flags & TH_SYN) && SEQ_GT(tp->snd_nxt, tp->snd_una)) {
 		if (tp->t_state != TCPS_SYN_RECEIVED)
 			flags &= ~TH_SYN;
-#ifdef TCP_RFC7413
 		/*
 		 * When sending additional segments following a TFO SYN|ACK,
 		 * do not include the SYN bit.
@@ -437,7 +431,6 @@ after_sack_rexmit:
 		if (IS_FASTOPEN(tp->t_flags) &&
 		    (tp->t_state == TCPS_SYN_RECEIVED))
 			flags &= ~TH_SYN;
-#endif
 		off--, len++;
 	}
 
@@ -451,7 +444,6 @@ after_sack_rexmit:
 		flags &= ~TH_FIN;
 	}
 
-#ifdef TCP_RFC7413
 	/*
 	 * On TFO sockets, ensure no data is sent in the following cases:
 	 *
@@ -470,7 +462,6 @@ after_sack_rexmit:
 	      (tp->t_tfo_client_cookie_len == 0)) ||
 	     (flags & TH_RST)))
 		len = 0;
-#endif
 	if (len <= 0) {
 		/*
 		 * If FIN has been sent but not acked,
@@ -774,7 +765,7 @@ send:
 			tp->snd_nxt = tp->iss;
 			to.to_mss = tcp_mssopt(&tp->t_inpcb->inp_inc);
 			to.to_flags |= TOF_MSS;
-#ifdef TCP_RFC7413
+
 			/*
 			 * On SYN or SYN|ACK transmits on TFO connections,
 			 * only include the TFO option if it is not a
@@ -807,7 +798,6 @@ send:
 					dont_sendalot = 1;
 				}
 			}
-#endif
 		}
 		/* Window scaling. */
 		if ((flags & TH_SYN) && (tp->t_flags & TF_REQ_SCALE)) {
@@ -851,7 +841,6 @@ send:
 
 		/* Processing the options. */
 		hdrlen += optlen = tcp_addoptions(&to, opt);
-#ifdef TCP_RFC7413
 		/*
 		 * If we wanted a TFO option to be added, but it was unable
 		 * to fit, ensure no data is sent.
@@ -859,7 +848,6 @@ send:
 		if (IS_FASTOPEN(tp->t_flags) && wanted_cookie &&
 		    !(to.to_flags & TOF_FASTOPEN))
 			len = 0;
-#endif
 	}
 
 	/*
@@ -1004,10 +992,8 @@ send:
 		} else {
 			len = tp->t_maxseg - optlen - ipoptlen;
 			sendalot = 1;
-#ifdef TCP_RFC7413
 			if (dont_sendalot)
 				sendalot = 0;
-#endif
 		}
 	} else
 		tso = 0;
@@ -1811,7 +1797,6 @@ tcp_addoptions(struct tcpopt *to, u_char *optp)
 			TCPSTAT_INC(tcps_sack_send_blocks);
 			break;
 			}
-#ifdef TCP_RFC7413
 		case TOF_FASTOPEN:
 			{
 			int total_len;
@@ -1831,7 +1816,6 @@ tcp_addoptions(struct tcpopt *to, u_char *optp)
 			optlen += total_len;
 			break;
 			}
-#endif
 		default:
 			panic("%s: unknown TCP option type", __func__);
 			break;

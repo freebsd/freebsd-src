@@ -191,14 +191,12 @@ struct tcpcb {
 	u_int	t_flags2;		/* More tcpcb flags storage */
 	struct tcp_function_block *t_fb;/* TCP function call block */
 	void	*t_fb_ptr;		/* Pointer to t_fb specific data */
-#ifdef TCP_RFC7413
 	uint8_t t_tfo_client_cookie_len; /* TCP Fast Open client cookie length */
 	unsigned int *t_tfo_pending;	/* TCP Fast Open server pending counter */
 	union {
 		uint8_t client[TCP_FASTOPEN_MAX_COOKIE_LEN];
 		uint64_t server;
 	} t_tfo_cookie;			/* TCP Fast Open cookie to send */
-#endif
 #ifdef TCPPCAP
 	struct mbufq t_inpkts;		/* List of saved input packets. */
 	struct mbufq t_outpkts;		/* List of saved output packets. */

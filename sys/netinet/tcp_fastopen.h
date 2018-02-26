@@ -31,13 +31,20 @@
 
 #ifdef _KERNEL
 
+#include "opt_inet.h"
+
 #define	TCP_FASTOPEN_COOKIE_LEN		8	/* SipHash24 64-bit output */
 
+#ifdef TCP_RFC7413
 VNET_DECLARE(unsigned int, tcp_fastopen_client_enable);
 #define	V_tcp_fastopen_client_enable	VNET(tcp_fastopen_client_enable)
 
 VNET_DECLARE(unsigned int, tcp_fastopen_server_enable);
 #define	V_tcp_fastopen_server_enable	VNET(tcp_fastopen_server_enable)
+#else
+#define	V_tcp_fastopen_client_enable	0
+#define	V_tcp_fastopen_server_enable	0
+#endif  /* TCP_RFC7413 */
 
 union tcp_fastopen_ip_addr {
 	struct in_addr v4;
@@ -74,6 +81,7 @@ struct tcp_fastopen_ccache {
 	uint32_t 	secret;
 };
 
+#ifdef TCP_RFC7413
 void	tcp_fastopen_init(void);
 void	tcp_fastopen_destroy(void);
 unsigned int *tcp_fastopen_alloc_counter(void);
@@ -84,6 +92,17 @@ void	tcp_fastopen_connect(struct tcpcb *);
 void	tcp_fastopen_disable_path(struct tcpcb *);
 void	tcp_fastopen_update_cache(struct tcpcb *, uint16_t, uint8_t,
 	    uint8_t *);
+#else
+#define tcp_fastopen_init()			((void)0)
+#define tcp_fastopen_destroy()			((void)0)
+#define tcp_fastopen_alloc_counter()		NULL
+#define tcp_fastopen_decrement_counter(c)	((void)0)
+#define tcp_fastopen_check_cookie(i, c, l, lc)	(-1)
+#define tcp_fastopen_connect(t)			((void)0)
+#define tcp_fastopen_disable_path(t)		((void)0)
+#define tcp_fastopen_update_cache(t, m, l, c)	((void)0)
+#endif /* TCP_RFC7413 */
+
 #endif /* _KERNEL */
 
 #endif /* _TCP_FASTOPEN_H_ */

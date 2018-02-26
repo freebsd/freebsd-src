@@ -92,9 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/cc/cc.h>
-#ifdef TCP_RFC7413
 #include <netinet/tcp_fastopen.h>
-#endif
 #ifdef TCPPCAP
 #include <netinet/tcp_pcap.h>
 #endif
@@ -430,10 +428,9 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 	}
 	SOCK_UNLOCK(so);
 
-#ifdef TCP_RFC7413
 	if (IS_FASTOPEN(tp->t_flags))
 		tp->t_tfo_pending = tcp_fastopen_alloc_counter();
-#endif
+
 out:
 	TCPDEBUG2(PRU_LISTEN);
 	TCP_PROBE2(debug__user, tp, PRU_LISTEN);
@@ -480,10 +477,9 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 	}
 	SOCK_UNLOCK(so);
 
-#ifdef TCP_RFC7413
 	if (IS_FASTOPEN(tp->t_flags))
 		tp->t_tfo_pending = tcp_fastopen_alloc_counter();
-#endif
+
 out:
 	TCPDEBUG2(PRU_LISTEN);
 	TCP_PROBE2(debug__user, tp, PRU_LISTEN);
@@ -848,7 +844,6 @@ tcp_usr_rcvd(struct socket *so, int flags)
 	}
 	tp = intotcpcb(inp);
 	TCPDEBUG1();
-#ifdef TCP_RFC7413
 	/*
 	 * For passively-created TFO connections, don't attempt a window
 	 * update while still in SYN_RECEIVED as this may trigger an early
@@ -859,7 +854,6 @@ tcp_usr_rcvd(struct socket *so, int flags)
 	if (IS_FASTOPEN(tp->t_flags) &&
 	    (tp->t_state == TCPS_SYN_RECEIVED))
 		goto out;
-#endif
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE)
 		tcp_offload_rcvd(tp);
@@ -950,12 +944,9 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 #endif
 			if (error)
 				goto out;
-#ifdef TCP_RFC7413
 			if (IS_FASTOPEN(tp->t_flags))
 				tcp_fastopen_connect(tp);
-			else
-#endif
-			{
+			else {
 				tp->snd_wnd = TTCP_CLIENT_SND_WND;
 				tcp_mss(tp, -1);
 			}
@@ -1004,13 +995,12 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			 * initialize window to default value, and
 			 * initialize maxseg using peer's cached MSS.
 			 */
-#ifdef TCP_RFC7413
+
 			/*
 			 * Not going to contemplate SYN|URG
 			 */
 			if (IS_FASTOPEN(tp->t_flags))
 				tp->t_flags &= ~TF_FASTOPEN;
-#endif
 #ifdef INET6
 			if (isipv6)
 				error = tcp6_connect(tp, nam, td);
@@ -1782,7 +1772,6 @@ unlock_and_done:
 			goto unlock_and_done;
 #endif
 
-#ifdef TCP_RFC7413
 		case TCP_FASTOPEN: {
 			struct tcp_fastopen tfo_optval;
 
@@ -1829,7 +1818,6 @@ unlock_and_done:
 				tp->t_flags &= ~TF_FASTOPEN;
 			goto unlock_and_done;
 		}
-#endif
 
 		default:
 			INP_WUNLOCK(inp);
@@ -1911,14 +1899,11 @@ unlock_and_done:
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 #endif
-
-#ifdef TCP_RFC7413
 		case TCP_FASTOPEN:
 			optval = tp->t_flags & TF_FASTOPEN;
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
-#endif
 		default:
 			INP_WUNLOCK(inp);
 			error = ENOPROTOOPT;
