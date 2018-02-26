@@ -77,6 +77,7 @@ sendrecv(struct iodesc *d,
 {
 	ssize_t cc;
 	time_t t, tmo, tlast;
+	time_t tref;
 	long tleft;
 
 #ifdef NET_DEBUG
@@ -87,13 +88,14 @@ sendrecv(struct iodesc *d,
 	tmo = MINTMO;
 	tlast = 0;
 	tleft = 0;
+	tref = getsecs();
 	t = getsecs();
 	for (;;) {
+		if (MAXWAIT > 0 && (getsecs() - tref) >= MAXWAIT) {
+			errno = ETIMEDOUT;
+			return -1;
+		}
 		if (tleft <= 0) {
-			if (tmo >= MAXTMO) {
-				errno = ETIMEDOUT;
-				return -1;
-			}
 			cc = (*sproc)(d, sbuf, ssize);
 			if (cc != -1 && cc < ssize)
 				panic("sendrecv: short write! (%zd < %zd)",
