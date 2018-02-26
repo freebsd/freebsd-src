@@ -638,7 +638,7 @@ INTERRUPT(int_vec)
 
 
 /*****************************************************************************
- * Watchdog interrupt
+ * Altivec Assist interrupt
  ****************************************************************************/
 INTERRUPT(int_vecast)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
