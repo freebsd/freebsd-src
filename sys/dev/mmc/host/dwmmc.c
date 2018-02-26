@@ -56,6 +56,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#ifdef EXT_RESOURCES
+#include <dev/extres/clk/clk.h>
+#endif
+
 #include <dev/mmc/host/dwmmc_reg.h>
 #include <dev/mmc/host/dwmmc_var.h>
 
@@ -341,14 +345,12 @@ dwmmc_intr(void *arg)
 		dprintf("%s 0x%08x\n", __func__, reg);
 
 		if (reg & DWMMC_CMD_ERR_FLAGS) {
-			WRITE4(sc, SDMMC_RINTSTS, DWMMC_CMD_ERR_FLAGS);
 			dprintf("cmd err 0x%08x cmd 0x%08x\n",
 				reg, cmd->opcode);
 			cmd->error = MMC_ERR_TIMEOUT;
 		}
 
 		if (reg & DWMMC_DATA_ERR_FLAGS) {
-			WRITE4(sc, SDMMC_RINTSTS, DWMMC_DATA_ERR_FLAGS);
 			dprintf("data err 0x%08x cmd 0x%08x\n",
 				reg, cmd->opcode);
 			cmd->error = MMC_ERR_FAILED;
@@ -361,24 +363,21 @@ dwmmc_intr(void *arg)
 		if (reg & SDMMC_INTMASK_CMD_DONE) {
 			dwmmc_cmd_done(sc);
 			sc->cmd_done = 1;
-			WRITE4(sc, SDMMC_RINTSTS, SDMMC_INTMASK_CMD_DONE);
 		}
 
-		if (reg & SDMMC_INTMASK_ACD) {
+		if (reg & SDMMC_INTMASK_ACD)
 			sc->acd_rcvd = 1;
-			WRITE4(sc, SDMMC_RINTSTS, SDMMC_INTMASK_ACD);
-		}
 
-		if (reg & SDMMC_INTMASK_DTO) {
+		if (reg & SDMMC_INTMASK_DTO)
 			sc->dto_rcvd = 1;
-			WRITE4(sc, SDMMC_RINTSTS, SDMMC_INTMASK_DTO);
-		}
 
 		if (reg & SDMMC_INTMASK_CD) {
 			/* XXX: Handle card detect */
-			WRITE4(sc, SDMMC_RINTSTS, SDMMC_INTMASK_CD);
 		}
 	}
+
+	/* Ack interrupts */
+	WRITE4(sc, SDMMC_RINTSTS, reg);
 
 	if (sc->use_pio) {
 		if (reg & (SDMMC_INTMASK_RXDR|SDMMC_INTMASK_DTO)) {
@@ -411,10 +410,26 @@ parse_fdt(struct dwmmc_softc *sc)
 {
 	pcell_t dts_value[3];
 	phandle_t node;
+	uint32_t bus_hz = 0, bus_width;
 	int len;
+#ifdef EXT_RESOURCES
+	int error;
+#endif
 
 	if ((node = ofw_bus_get_node(sc->dev)) == -1)
 		return (ENXIO);
+
+	/* bus-width */
+	if (OF_getencprop(node, "bus-width", &bus_width, sizeof(uint32_t)) <= 0)
+		bus_width = 4;
+	if (bus_width >= 4)
+		sc->host.caps |= MMC_CAP_4_BIT_DATA;
+	if (bus_width >= 8)
+		sc->host.caps |= MMC_CAP_8_BIT_DATA;
+
+	/* max-frequency */
+	if (OF_getencprop(node, "max-frequency", &sc->max_hz, sizeof(uint32_t)) <= 0)
+		sc->max_hz = 200000000;
 
 	/* fifo-depth */
 	if ((len = OF_getproplen(node, "fifo-depth")) > 0) {
@@ -422,26 +437,61 @@ parse_fdt(struct dwmmc_softc *sc)
 		sc->fifo_depth = dts_value[0];
 	}
 
-	/* num-slots */
+	/* num-slots (Deprecated) */
 	sc->num_slots = 1;
 	if ((len = OF_getproplen(node, "num-slots")) > 0) {
+		device_printf(sc->dev, "num-slots property is deprecated\n");
 		OF_getencprop(node, "num-slots", dts_value, len);
 		sc->num_slots = dts_value[0];
 	}
 
+	/* clock-frequency */
+	if ((len = OF_getproplen(node, "clock-frequency")) > 0) {
+		OF_getencprop(node, "clock-frequency", dts_value, len);
+		bus_hz = dts_value[0];
+	}
+
+#ifdef EXT_RESOURCES
+	/* BIU (Bus Interface Unit clock) is optional */
+	error = clk_get_by_ofw_name(sc->dev, 0, "biu", &sc->biu);
+	if (sc->biu) {
+		error = clk_enable(sc->biu);
+		if (error != 0) {
+			device_printf(sc->dev, "cannot enable biu clock\n");
+			goto fail;
+		}
+	}
+
 	/*
-	 * We need some platform-specific code to know
-	 * what the clock is supplied for our device.
-	 * For now rely on the value specified in FDT.
+	 * CIU (Controller Interface Unit clock) is mandatory
+	 * if no clock-frequency property is given
 	 */
+	error = clk_get_by_ofw_name(sc->dev, 0, "ciu", &sc->ciu);
+	if (sc->ciu) {
+		error = clk_enable(sc->ciu);
+		if (error != 0) {
+			device_printf(sc->dev, "cannot enable ciu clock\n");
+			goto fail;
+		}
+		if (bus_hz != 0) {
+			error = clk_set_freq(sc->ciu, bus_hz, 0);
+			if (error != 0)
+				device_printf(sc->dev,
+				    "cannot set ciu clock to %u\n", bus_hz);
+		}
+		clk_get_freq(sc->ciu, &sc->bus_hz);
+	}
+#endif /* EXT_RESOURCES */
+
 	if (sc->bus_hz == 0) {
-		if ((len = OF_getproplen(node, "bus-frequency")) <= 0)
-			return (ENXIO);
-		OF_getencprop(node, "bus-frequency", dts_value, len);
-		sc->bus_hz = dts_value[0];
+		device_printf(sc->dev, "No bus speed provided\n");
+		goto fail;
 	}
 
 	return (0);
+
+fail:
+	return (ENXIO);
 }
 
 int
@@ -541,9 +591,10 @@ dwmmc_attach(device_t dev)
 	WRITE4(sc, SDMMC_CTRL, SDMMC_CTRL_INT_ENABLE);
 
 	sc->host.f_min = 400000;
-	sc->host.f_max = min(200000000, sc->bus_hz);
+	sc->host.f_max = sc->max_hz;
 	sc->host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
-	sc->host.caps = MMC_CAP_4_BIT_DATA;
+	sc->host.caps |= MMC_CAP_HSPEED;
+	sc->host.caps |= MMC_CAP_SIGNALING_330;
 
 	device_add_child(dev, "mmc", -1);
 	return (bus_generic_attach(dev));
@@ -608,14 +659,14 @@ dwmmc_update_ios(device_t brdev, device_t reqdev)
 {
 	struct dwmmc_softc *sc;
 	struct mmc_ios *ios;
+	uint32_t reg;
+	int ret = 0;
 
 	sc = device_get_softc(brdev);
 	ios = &sc->host.ios;
 
 	dprintf("Setting up clk %u bus_width %d\n",
 		ios->clock, ios->bus_width);
-
-	dwmmc_setup_bus(sc, ios->clock);
 
 	if (ios->bus_width == bus_width_8)
 		WRITE4(sc, SDMMC_CTYPE, SDMMC_CTYPE_8BIT);
@@ -629,15 +680,22 @@ dwmmc_update_ios(device_t brdev, device_t reqdev)
 		WRITE4(sc, SDMMC_CLKSEL, sc->sdr_timing);
 	}
 
-	/*
-	 * XXX: take care about DDR bit
-	 *
-	 * reg = READ4(sc, SDMMC_UHS_REG);
-	 * reg |= (SDMMC_UHS_REG_DDR);
-	 * WRITE4(sc, SDMMC_UHS_REG, reg);
-	 */
+	/* Set DDR mode */
+	reg = READ4(sc, SDMMC_UHS_REG);
+	if (ios->timing == bus_timing_uhs_ddr50 ||
+	    ios->timing == bus_timing_mmc_ddr52 ||
+	    ios->timing == bus_timing_mmc_hs400)
+		reg |= (SDMMC_UHS_REG_DDR);
+	else
+		reg &= ~(SDMMC_UHS_REG_DDR);
+	WRITE4(sc, SDMMC_UHS_REG, reg);
 
-	return (0);
+	if (sc->update_ios)
+		ret = sc->update_ios(sc, ios);
+
+	dwmmc_setup_bus(sc, ios->clock);
+
+	return (ret);
 }
 
 static int
@@ -1032,7 +1090,6 @@ dwmmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 		*(int *)result = sc->host.ios.vdd;
 		break;
 	case MMCBR_IVAR_CAPS:
-		sc->host.caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
 		*(int *)result = sc->host.caps;
 		break;
 	case MMCBR_IVAR_MAX_DATA:
