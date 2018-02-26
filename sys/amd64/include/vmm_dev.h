@@ -243,6 +243,7 @@ enum {
 	IOCNUM_GET_MEMSEG = 15,
 	IOCNUM_MMAP_MEMSEG = 16,
 	IOCNUM_MMAP_GETNEXT = 17,
+	IOCNUM_GLA2GPA_NOFAULT = 18,
 
 	/* register/state accessors */
 	IOCNUM_SET_REGISTER = 20,
@@ -379,6 +380,8 @@ enum {
 	_IOWR('v', IOCNUM_GET_GPA_PMAP, struct vm_gpa_pte)
 #define	VM_GLA2GPA	\
 	_IOWR('v', IOCNUM_GLA2GPA, struct vm_gla2gpa)
+#define	VM_GLA2GPA_NOFAULT \
+	_IOWR('v', IOCNUM_GLA2GPA_NOFAULT, struct vm_gla2gpa)
 #define	VM_ACTIVATE_CPU	\
 	_IOW('v', IOCNUM_ACTIVATE_CPU, struct vm_activate_cpu)
 #define	VM_GET_CPUS	\
