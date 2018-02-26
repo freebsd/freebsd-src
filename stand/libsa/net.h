@@ -61,6 +61,20 @@ enum net_proto {
 #define MAXTMO 120	/* seconds */
 #define MINTMO 2	/* seconds */
 
+/*
+ * Maximum wait time for sending and receiving before we give up and timeout.
+ * If set to 0, operations will eventually timeout completely, but send/recv
+ * timeouts must progress exponentially from MINTMO to MAXTMO before final
+ * timeout is hit.
+ */
+#ifndef MAXWAIT
+#define MAXWAIT 0	/* seconds */
+#endif
+
+#if MAXWAIT < 0
+#error MAXWAIT must not be a negative number
+#endif
+
 #define FNAME_SIZE 128
 #define	IFNAME_SIZE 16
 #define RECV_SIZE 1536	/* XXX delete this */
