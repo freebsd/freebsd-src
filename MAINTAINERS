@@ -108,3 +108,5 @@ autofs(5)	trasz	Pre-commit review recommended.
 iscsi(4)	trasz	Pre-commit review recommended.
 rctl(8)		trasz	Pre-commit review recommended.
 sys/dev/ofw	nwhitehorn	Pre-commit review recommended.
+sys/arm/allwinner	manu	Pre-commit review requested
+sys/arm64/rockchip	manu	Pre-commit review requested
