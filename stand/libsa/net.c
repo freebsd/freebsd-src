@@ -110,6 +110,10 @@ sendrecv(struct iodesc *d,
 			return -1;
 		}
 		if (tleft <= 0) {
+			if (tmo >= MAXTMO) {
+				errno = ETIMEDOUT;
+				return -1;
+			}
 			cc = (*sproc)(d, sbuf, ssize);
 			if (cc != -1 && cc < ssize)
 				panic("sendrecv: short write! (%zd < %zd)",
