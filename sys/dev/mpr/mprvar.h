@@ -41,7 +41,7 @@
 #define MPR_PRI_REQ_FRAMES	128
 #define MPR_EVT_REPLY_FRAMES	32
 #define MPR_REPLY_FRAMES	MPR_REQ_FRAMES
-#define MPR_CHAIN_FRAMES	2048
+#define MPR_CHAIN_FRAMES	16384
 #define MPR_MAXIO_PAGES		(-1)
 #define MPR_SENSE_LEN		SSD_FULL_SIZE
 #define MPR_MSI_MAX		1
@@ -322,7 +322,6 @@ struct mpr_softc {
 	u_int				maxio;
 	int				chain_free_lowwater;
 	uint32_t			chain_frame_size;
-	uint16_t			chain_seg_size;
 	int				prp_buffer_size;
 	int				prp_pages_free;
 	int				prp_pages_free_lowwater;
@@ -389,7 +388,6 @@ struct mpr_softc {
 	bus_dmamap_t			sense_map;
 
 	uint8_t				*chain_frames;
-	bus_addr_t			chain_busaddr;
 	bus_dma_tag_t			chain_dmat;
 	bus_dmamap_t			chain_map;
 
