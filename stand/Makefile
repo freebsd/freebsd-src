@@ -18,6 +18,10 @@ SUBDIR+=		man
 
 .include <bsd.arch.inc.mk>
 
+.if ${MK_EFI} != "no" && ${MK_LOADER_EFI} != "no"
+SUBDIR+=		efi
+.endif
+
 .if exists(${.CURDIR}/${MACHINE}/.)
 SUBDIR+=		${MACHINE}
 .endif

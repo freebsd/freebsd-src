@@ -7,4 +7,4 @@ SUBDIR+=		fdt
 SUBDIR+=		zfs
 .endif
 
-SUBDIR+=		efi uboot
+SUBDIR+=		uboot
