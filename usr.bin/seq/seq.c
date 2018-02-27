@@ -76,16 +76,19 @@ static char *unescape(char *);
 int
 main(int argc, char *argv[])
 {
-	int c = 0, errflg = 0;
-	int equalize = 0;
-	double first = 1.0;
-	double last = 0.0;
-	double incr = 0.0;
+	const char *sep, *term;
 	struct lconv *locale;
-	char *fmt = NULL;
-	const char *sep = "\n";
-	const char *term = NULL;
-	char pad = ZERO;
+	char pad, *fmt, *cur_print, *last_print;
+	double first, last, incr, last_shown_value, cur, step;
+	int c, errflg, equalize;
+
+	pad = ZERO;
+	fmt = NULL;
+	first = 1.0;
+	last = incr = last_shown_value = 0.0;
+	c = errflg = equalize = 0;
+	sep = "\n";
+	term = NULL;
 
 	/* Determine the locale's decimal point. */
 	locale = localeconv();
@@ -169,17 +172,32 @@ main(int argc, char *argv[])
 	} else
 		fmt = generate_format(first, incr, last, equalize, pad);
 
-	if (incr > 0) {
-		for (; first <= last; first += incr) {
-			printf(fmt, first);
-			fputs(sep, stdout);
-		}
-	} else {
-		for (; first >= last; first += incr) {
-			printf(fmt, first);
-			fputs(sep, stdout);
-		}
+	for (step = 1, cur = first; incr > 0 ? cur <= last : cur >= last;
+	    cur = first + incr * step++) {
+		printf(fmt, cur);
+		fputs(sep, stdout);
+		last_shown_value = cur;
 	}
+
+	/*
+	 * Did we miss the last value of the range in the loop above?
+	 *
+	 * We might have, so check if the printable version of the last
+	 * computed value ('cur') and desired 'last' value are equal.  If they
+	 * are equal after formatting truncation, but 'cur' and
+	 * 'last_shown_value' are not equal, it means the exit condition of the
+	 * loop held true due to a rounding error and we still need to print
+	 * 'last'.
+	 */
+	asprintf(&cur_print, fmt, cur);
+	asprintf(&last_print, fmt, last);
+	if (strcmp(cur_print, last_print) == 0 && cur != last_shown_value) {
+		fputs(last_print, stdout);
+		fputs(sep, stdout);
+	}
+	free(cur_print);
+	free(last_print);
+
 	if (term != NULL)
 		fputs(term, stdout);
 
