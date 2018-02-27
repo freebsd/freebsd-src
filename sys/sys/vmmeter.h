@@ -202,13 +202,12 @@ u_int	vm_meter_cnt(size_t);
 
 #endif
 
-/* systemwide totals computed every five seconds */
 struct vmtotal {
 	int16_t	t_rq;		/* length of the run queue */
-	int16_t	t_dw;		/* jobs in ``disk wait'' (neg priority) */
-	int16_t	t_pw;		/* jobs in page wait */
-	int16_t	t_sl;		/* jobs sleeping in core */
-	int16_t	t_sw;		/* swapped out runnable/short block jobs */
+	int16_t	t_dw;		/* threads in ``disk wait'' (neg priority) */
+	int16_t	t_pw;		/* threads in page wait */
+	int16_t	t_sl;		/* threads sleeping in core */
+	int16_t	t_sw;		/* swapped out runnable/short block threads */
 	int32_t	t_vm;		/* total virtual memory */
 	int32_t	t_avm;		/* active virtual memory */
 	int32_t	t_rm;		/* total real memory in use */
