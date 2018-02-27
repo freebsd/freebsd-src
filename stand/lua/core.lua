@@ -47,6 +47,7 @@ core.KEY_ENTER		= 13
 core.KEY_DELETE		= 127
 
 core.KEYSTR_ESCAPE	= "\027"
+core.KEYSTR_CSI		= core.KEYSTR_ESCAPE .. "["
 
 core.MENU_RETURN	= "return"
 core.MENU_ENTRY		= "entry"
