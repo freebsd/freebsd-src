@@ -886,13 +886,6 @@ zfsctl_snapdir_lookup(ap)
 			break;
 
 		/*
-		 * The vnode must be referenced at least by this thread and
-		 * the mount point or the thread doing the mounting.
-		 * There can be more references from concurrent lookups.
-		 */
-		KASSERT(vrefcnt(*vpp) > 1, ("found unreferenced mountpoint"));
-
-		/*
 		 * Check if a snapshot is already mounted on top of the vnode.
 		 */
 		err = zfsctl_mounted_here(vpp, lkflags);
