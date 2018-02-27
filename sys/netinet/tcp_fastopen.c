@@ -1071,7 +1071,8 @@ tcp_fastopen_ccache_create(struct tcp_fastopen_ccache_bucket *ccb,
 		cce->cce_server_ip.v6 = inc->inc6_faddr;
 	}
 	cce->server_port = inc->inc_fport;
-	if ((cookie_len <= TCP_FASTOPEN_MAX_COOKIE_LEN) &&
+	if ((cookie_len >= TCP_FASTOPEN_MIN_COOKIE_LEN) &&
+	    (cookie_len <= TCP_FASTOPEN_MAX_COOKIE_LEN) &&
 	    ((cookie_len & 0x1) == 0)) {
 		cce->server_mss = mss;
 		cce->cookie_len = cookie_len;
