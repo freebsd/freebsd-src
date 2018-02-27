@@ -6316,7 +6316,7 @@ static void diagnoseListInit(Sema &S, const InitializedEntity &Entity,
     QualType T = DestType->getAs<ReferenceType>()->getPointeeType();
     diagnoseListInit(S, InitializedEntity::InitializeTemporary(T), InitList);
     SourceLocation Loc = InitList->getLocStart();
-    if (auto *D = Entity.getDecl())
+    if (DeclaratorDecl *D = Entity.getDecl())
       Loc = D->getLocation();
     S.Diag(Loc, diag::note_in_reference_temporary_list_initializer) << T;
     return;
