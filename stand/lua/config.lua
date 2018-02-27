@@ -333,6 +333,9 @@ function config.loadmod(mod, silent)
 	return status
 end
 
+-- Returns true if we processed the file successfully, false if we did not.
+-- If 'silent' is true, being unable to read the file is not considered a
+-- failure.
 function config.processFile(name, silent)
 	if silent == nil then
 		silent = false
@@ -340,15 +343,13 @@ function config.processFile(name, silent)
 
 	local text = readFile(name, silent)
 	if text == nil then
-		return not silent
+		return silent
 	end
 
 	return config.parse(text)
 end
 
 -- silent runs will not return false if we fail to open the file
--- check_and_halt, if it's set, will be executed on the full text of the config
--- file. If it returns false, we are to halt immediately.
 function config.parse(text)
 	local n = 1
 	local status = true
