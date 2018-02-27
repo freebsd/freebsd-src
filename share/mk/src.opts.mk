@@ -41,7 +41,16 @@ __<src.opts.mk>__:
 # that haven't been converted over.
 #
 
-# These options are used by the src builds
+# These options are used by the src builds. Those listed in
+# __DEFAULT_YES_OPTIONS default to 'yes' and will build unless turned
+# off.  __DEFAULT_NO_OPTIONS will default to 'no' and won't build
+# unless turned on. Any options listed in 'BROKEN_OPTIONS' will be
+# hard-wired to 'no'.  "Broken" here means not working or
+# not-appropriate and/or not supported. It doesn't imply something is
+# wrong with the code. There's not a single good word for this, so
+# BROKEN was selected as the least imperfect one considered at the
+# time. Options are added to BROKEN_OPTIONS list on a per-arch basis.
+# At this time, there's no provision for mutually incompatible options.
 
 __DEFAULT_YES_OPTIONS = \
     ACCT \
