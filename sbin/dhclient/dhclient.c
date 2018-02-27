@@ -1513,7 +1513,8 @@ cancel:
 		memcpy(&to.s_addr, ip->client->destination.iabuf,
 		    sizeof(to.s_addr));
 
-	if (ip->client->state != S_REQUESTING)
+	if (ip->client->state != S_REQUESTING &&
+	    ip->client->state != S_REBOOTING)
 		memcpy(&from, ip->client->active->address.iabuf,
 		    sizeof(from));
 	else
