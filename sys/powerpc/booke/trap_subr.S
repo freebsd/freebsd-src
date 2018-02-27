@@ -82,7 +82,7 @@
 /* Get the per-CPU data structure */
 #define GET_CPUINFO(r) mfsprg0 r
 
-#define RES_GRANULE	32
+#define RES_GRANULE	64
 #define RES_LOCK	0	/* offset to the 'lock' word */
 #ifdef __powerpc64__
 #define RES_RECURSE	8	/* offset to the 'recurse' word */

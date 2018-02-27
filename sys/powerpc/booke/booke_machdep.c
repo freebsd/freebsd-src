@@ -372,7 +372,7 @@ booke_init(u_long arg1, u_long arg2)
 	return (ret);
 }
 
-#define RES_GRANULE 32
+#define RES_GRANULE cacheline_size
 extern uintptr_t tlb0_miss_locks[];
 
 /* Initialise a struct pcpu. */
