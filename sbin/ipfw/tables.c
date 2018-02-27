@@ -516,7 +516,7 @@ table_modify(ipfw_obj_header *oh, int ac, char *av[])
 			ac--; av++;
 			break;
 		default:
-			errx(EX_USAGE, "cmd is not supported for modificatiob");
+			errx(EX_USAGE, "cmd is not supported for modification");
 		}
 	}
 
