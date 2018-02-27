@@ -33,27 +33,46 @@ local core = require("core")
 local screen = require("screen")
 
 local password = {}
+-- Asterisks as a password mask
+local show_password_mask = false
+local twiddle_chars = {"/", "-", "\\", "|"}
+local twiddle_pos = 1
 
 -- Module exports
 function password.read()
 	local str = ""
 	local n = 0
 
+	twiddle_pos = 1
+	local function draw_twiddle()
+		loader.printc("  " .. twiddle_chars[twiddle_pos])
+		screen.movecursor(-3, -1)
+		twiddle_pos = (twiddle_pos % #twiddle_chars) + 1
+	end
+
+	-- Space between the prompt and any on-screen feedback
+	loader.printc(" ")
 	while true do
 		local ch = io.getchar()
 		if ch == core.KEY_ENTER then
 			break
 		end
-		-- XXX TODO: Evaluate if we really want this or not, as a
-		-- security consideration of sorts
 		if ch == core.KEY_BACKSPACE or ch == core.KEY_DELETE then
 			if n > 0 then
 				n = n - 1
-				-- loader.printc("\008 \008")
+				if show_password_mask then
+					loader.printc("\008 \008")
+				else
+					draw_twiddle()
+				end
 				str = str:sub(1, n)
 			end
 		else
-			-- loader.printc("*")
+			if show_password_mask then
+				loader.printc("*")
+			else
+				draw_twiddle()
+			end
 			str = str .. string.char(ch)
 			n = n + 1
 		end
