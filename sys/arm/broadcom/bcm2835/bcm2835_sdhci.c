@@ -77,6 +77,7 @@ static int bcm2835_sdhci_pio_mode = 0;
 
 static struct ofw_compat_data compat_data[] = {
 	{"broadcom,bcm2835-sdhci",	1},
+	{"brcm,bcm2835-sdhci",		1},
 	{"brcm,bcm2835-mmc",		1},
 	{NULL,				0}
 };
