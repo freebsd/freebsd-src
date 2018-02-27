@@ -36,17 +36,16 @@ local password = {}
 -- Asterisks as a password mask
 local show_password_mask = false
 local twiddle_chars = {"/", "-", "\\", "|"}
-local twiddle_pos = 1
 
 -- Module exports
 function password.read()
 	local str = ""
 	local n = 0
+	local twiddle_pos = 1
 
-	twiddle_pos = 1
 	local function draw_twiddle()
 		loader.printc("  " .. twiddle_chars[twiddle_pos])
-		screen.movecursor(-3, -1)
+		screen.movecursor(-3, 0)
 		twiddle_pos = (twiddle_pos % #twiddle_chars) + 1
 	end
 
