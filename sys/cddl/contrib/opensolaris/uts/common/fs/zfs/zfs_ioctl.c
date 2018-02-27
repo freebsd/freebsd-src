@@ -197,7 +197,6 @@
 #include "zfs_comutil.h"
 #include "zfs_ioctl_compat.h"
 
-CTASSERT(sizeof(zfs_cmd_t) < IOCPARM_MAX);
 
 static struct cdev *zfsdev;
 
