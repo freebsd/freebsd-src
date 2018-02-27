@@ -561,7 +561,7 @@ cpu_booke_setup(int cpuid, uint16_t vers)
 	case FSL_E500v2:
 		/* Only e500v1/v2 support HID0 power management setup. */
 
-		/* Programe power-management mode. */
+		/* Program power-management mode. */
 		hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
 		hid0 |= HID0_DOZE;
 
