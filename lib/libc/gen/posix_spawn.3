@@ -269,14 +269,14 @@ If the
 flag is set in the spawn-flags attribute of the object referenced by
 .Fa attrp ,
 the signals specified in the spawn-sigdefault attribute of the same
-object is set to their default actions in the child process.
-Signals set to the default action in the parent process is set to
+object are set to their default actions in the child process.
+Signals set to the default action in the parent process are set to
 the default action in the child process.
 .Pp
-Signals set to be caught by the calling process is set to the
+Signals set to be caught by the calling process are set to the
 default action in the child process.
 .Pp
-Signals set to be ignored by the calling process image is set to
+Signals set to be ignored by the calling process image are set to
 be ignored by the child process, unless otherwise specified by the
 .Dv POSIX_SPAWN_SETSIGDEF
 flag being set in the spawn-flags attribute of the object referenced by
