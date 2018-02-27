@@ -69,8 +69,6 @@ static int	tftp_open(const char *path, struct open_file *f);
 static int	tftp_close(struct open_file *f);
 static int	tftp_parse_oack(struct tftp_handle *h, char *buf, size_t len);
 static int	tftp_read(struct open_file *f, void *buf, size_t size, size_t *resid);
-static int	tftp_write(struct open_file *f, const void *buf, size_t size,
-		size_t *resid);
 static off_t	tftp_seek(struct open_file *f, off_t offset, int where);
 static int	tftp_set_blksize(struct tftp_handle *h, const char *str);
 static int	tftp_stat(struct open_file *f, struct stat *sb);
@@ -80,7 +78,7 @@ struct fs_ops tftp_fsops = {
 	tftp_open,
 	tftp_close,
 	tftp_read,
-	tftp_write,
+	null_write,
 	tftp_seek,
 	tftp_stat,
 	null_readdir
@@ -572,13 +570,6 @@ tftp_close(struct open_file *f)
 	}
 	is_open = 0;
 	return (0);
-}
-
-static int
-tftp_write(struct open_file *f __unused, const void *start __unused,
-    size_t size __unused, size_t *resid __unused /* out */)
-{
-	return (EROFS);
 }
 
 static int 

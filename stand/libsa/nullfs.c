@@ -85,7 +85,7 @@ int	null_read (struct open_file *f, void *buf, size_t size, size_t *resid)
 
 int	null_write (struct open_file *f, const void *buf, size_t size, size_t *resid)
 {
-	return EIO;
+	return EROFS;
 }
 
 off_t	null_seek (struct open_file *f, off_t offset, int where)
