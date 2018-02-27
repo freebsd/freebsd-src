@@ -49,6 +49,24 @@ function screen.setcursor(x, y)
 	loader.printc("\027[" .. y .. ";" .. x .. "H")
 end
 
+function screen.movecursor(dx, dy)
+	if core.isSerialBoot() then
+		return
+	end
+
+	if dx < 0 then
+		loader.printc("\027[" .. -dx .. "D")
+	elseif dx > 0 then
+		loader.printc("\027[" .. dx .. "C")
+	end
+
+	if dy < 0 then
+		loader.printc("\027[" .. -dy .. "A")
+	elseif dy > 0 then
+		loader.printc("\027[" .. dy .. "B")
+	end
+end
+
 function screen.setforeground(color_value)
 	if color.disabled then
 		return color_value
