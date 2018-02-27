@@ -67,8 +67,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/cputypes.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <crypto/rijndael/rijndael.h>
 #endif
+#include <crypto/rijndael/rijndael.h>
 #ifdef DDB
 #include <ddb/ddb.h>
 #include <ddb/db_lex.h>
