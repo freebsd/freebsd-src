@@ -203,7 +203,6 @@
 #include "lua.h"
 #include "lauxlib.h"
 
-CTASSERT(sizeof(zfs_cmd_t) < IOCPARM_MAX);
 static struct cdev *zfsdev;
 
 extern void zfs_init(void);
