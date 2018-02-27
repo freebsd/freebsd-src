@@ -134,6 +134,16 @@ int dbuf_cache_max_shift = 5;
 uint_t dbuf_cache_hiwater_pct = 10;
 uint_t dbuf_cache_lowater_pct = 10;
 
+SYSCTL_DECL(_vfs_zfs);
+SYSCTL_QUAD(_vfs_zfs, OID_AUTO, dbuf_cache_max_bytes, CTLFLAG_RWTUN,
+    &dbuf_cache_max_bytes, 0, "dbuf cache size in bytes");
+SYSCTL_INT(_vfs_zfs, OID_AUTO, dbuf_cache_max_shift, CTLFLAG_RDTUN,
+    &dbuf_cache_max_shift, 0, "dbuf size as log2 fraction of ARC");
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, dbuf_cache_hiwater_pct, CTLFLAG_RWTUN,
+    &dbuf_cache_hiwater_pct, 0, "max percents above the dbuf cache size");
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, dbuf_cache_lowater_pct, CTLFLAG_RWTUN,
+    &dbuf_cache_lowater_pct, 0, "max percents below the dbuf cache size");
+
 /* ARGSUSED */
 static int
 dbuf_cons(void *vdb, void *unused, int kmflag)
