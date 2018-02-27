@@ -38,7 +38,7 @@ function screen.clear()
 	if core.isSerialBoot() then
 		return
 	end
-	loader.printc("\027[H\027[J")
+	loader.printc(core.KEYSTR_ESCAPE .. "[H" .. core.KEYSTR_ESCAPE .. "[J")
 end
 
 function screen.setcursor(x, y)
@@ -46,7 +46,7 @@ function screen.setcursor(x, y)
 		return
 	end
 
-	loader.printc("\027[" .. y .. ";" .. x .. "H")
+	loader.printc(core.KEYSTR_ESCAPE .. "[" .. y .. ";" .. x .. "H")
 end
 
 function screen.movecursor(dx, dy)
@@ -55,15 +55,15 @@ function screen.movecursor(dx, dy)
 	end
 
 	if dx < 0 then
-		loader.printc("\027[" .. -dx .. "D")
+		loader.printc(core.KEYSTR_ESCAPE .. "[" .. -dx .. "D")
 	elseif dx > 0 then
-		loader.printc("\027[" .. dx .. "C")
+		loader.printc(core.KEYSTR_ESCAPE .. "[" .. dx .. "C")
 	end
 
 	if dy < 0 then
-		loader.printc("\027[" .. -dy .. "A")
+		loader.printc(core.KEYSTR_ESCAPE .. "[" .. -dy .. "A")
 	elseif dy > 0 then
-		loader.printc("\027[" .. dy .. "B")
+		loader.printc(core.KEYSTR_ESCAPE .. "[" .. dy .. "B")
 	end
 end
 
@@ -89,7 +89,7 @@ function screen.defcursor()
 	if core.isSerialBoot() then
 		return
 	end
-	loader.printc("\027[25;0H")
+	loader.printc(core.KEYSTR_ESCAPE .. "[25;0H")
 end
 
 return screen

@@ -62,14 +62,14 @@ function color.escapef(color_value)
 	if color.disabled then
 		return color_value
 	end
-	return "\027[3" .. color_value .. "m"
+	return core.KEYSTR_ESCAPE .. "[3" .. color_value .. "m"
 end
 
 function color.escapeb(color_value)
 	if color.disabled then
 		return color_value
 	end
-	return "\027[4" .. color_value .. "m"
+	return core.KEYSTR_ESCAPE .. "[4" .. color_value .. "m"
 end
 
 function color.escape(fg_color, bg_color, attribute)
@@ -81,7 +81,7 @@ function color.escape(fg_color, bg_color, attribute)
 	else
 		attribute = attribute .. ";"
 	end
-	return "\027[" .. attribute ..
+	return core.KEYSTR_ESCAPE .. "[" .. attribute ..
 	    "3" .. fg_color .. ";4" .. bg_color .. "m"
 end
 
@@ -89,14 +89,14 @@ function color.default()
 	if color.disabled then
 		return ""
 	end
-	return "\027[0;37;40m"
+	return core.KEYSTR_ESCAPE .. "[0;37;40m"
 end
 
 function color.highlight(str)
 	if color.disabled then
 		return str
 	end
-	return "\027[1m" .. str .. "\027[0m"
+	return core.KEYSTR_ESCAPE .. "[1m" .. str .. core.KEYSTR_ESCAPE .. "[0m"
 end
 
 return color
