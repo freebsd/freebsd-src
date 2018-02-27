@@ -6,5 +6,3 @@ SUBDIR+=		fdt
 .if ${MK_ZFS} != "no"
 SUBDIR+=		zfs
 .endif
-
-SUBDIR+=		efi
