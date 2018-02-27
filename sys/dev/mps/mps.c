@@ -743,11 +743,11 @@ mps_iocfacts_free(struct mps_softc *sc)
 	if (sc->queues_dmat != NULL)
 		bus_dma_tag_destroy(sc->queues_dmat);
 
-	if (sc->chain_busaddr != 0)
+	if (sc->chain_frames != NULL) {
 		bus_dmamap_unload(sc->chain_dmat, sc->chain_map);
-	if (sc->chain_frames != NULL)
 		bus_dmamem_free(sc->chain_dmat, sc->chain_frames,
 		    sc->chain_map);
+	}
 	if (sc->chain_dmat != NULL)
 		bus_dma_tag_destroy(sc->chain_dmat);
 
@@ -1370,11 +1370,36 @@ mps_alloc_replies(struct mps_softc *sc)
 	return (0);
 }
 
+static void
+mps_load_chains_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+{
+	struct mps_softc *sc = arg;
+	struct mps_chain *chain;
+	bus_size_t bo;
+	int i, o, s;
+
+	if (error != 0)
+		return;
+
+	for (i = 0, o = 0, s = 0; s < nsegs; s++) {
+		for (bo = 0; bo + sc->reqframesz <= segs[s].ds_len;
+		    bo += sc->reqframesz) {
+			chain = &sc->chains[i++];
+			chain->chain =(MPI2_SGE_IO_UNION *)(sc->chain_frames+o);
+			chain->chain_busaddr = segs[s].ds_addr + bo;
+			o += sc->reqframesz;
+			mps_free_chain(sc, chain);
+		}
+		if (bo != segs[s].ds_len)
+			o += segs[s].ds_len - bo;
+	}
+	sc->chain_free_lowwater = i;
+}
+
 static int
 mps_alloc_requests(struct mps_softc *sc)
 {
 	struct mps_command *cm;
-	struct mps_chain *chain;
 	int i, rsize, nsegs;
 
 	rsize = sc->reqframesz * sc->num_reqs;
@@ -1403,31 +1428,39 @@ mps_alloc_requests(struct mps_softc *sc)
 	mps_dprint(sc, MPS_INIT, "request frames busaddr= %#016jx size= %d\n",
 	    (uintmax_t)sc->req_busaddr, rsize);
 
+	sc->chains = malloc(sizeof(struct mps_chain) * sc->num_chains, M_MPT2,
+	    M_NOWAIT | M_ZERO);
+	if (!sc->chains) {
+		mps_dprint(sc, MPS_ERROR, "Cannot allocate chain memory\n");
+		return (ENOMEM);
+	}
 	rsize = sc->reqframesz * sc->num_chains;
-        if (bus_dma_tag_create( sc->mps_parent_dmat,    /* parent */
+	if (bus_dma_tag_create( sc->mps_parent_dmat,	/* parent */
 				16, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
-                                rsize,			/* maxsize */
-                                1,			/* nsegments */
-                                rsize,			/* maxsegsize */
-                                0,			/* flags */
-                                NULL, NULL,		/* lockfunc, lockarg */
-                                &sc->chain_dmat)) {
+				rsize,			/* maxsize */
+				howmany(rsize, PAGE_SIZE), /* nsegments */
+				rsize,			/* maxsegsize */
+				0,			/* flags */
+				NULL, NULL,		/* lockfunc, lockarg */
+				&sc->chain_dmat)) {
 		mps_dprint(sc, MPS_ERROR, "Cannot allocate chain DMA tag\n");
 		return (ENOMEM);
-        }
-        if (bus_dmamem_alloc(sc->chain_dmat, (void **)&sc->chain_frames,
-	    BUS_DMA_NOWAIT, &sc->chain_map)) {
+	}
+	if (bus_dmamem_alloc(sc->chain_dmat, (void **)&sc->chain_frames,
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &sc->chain_map)) {
 		mps_dprint(sc, MPS_ERROR, "Cannot allocate chain memory\n");
 		return (ENOMEM);
-        }
-        bzero(sc->chain_frames, rsize);
-        bus_dmamap_load(sc->chain_dmat, sc->chain_map, sc->chain_frames, rsize,
-	    mps_memaddr_cb, &sc->chain_busaddr, 0);
-	mps_dprint(sc, MPS_INIT, "chain frames busaddr= %#016jx size= %d\n",
-	    (uintmax_t)sc->chain_busaddr, rsize);
+	}
+	if (bus_dmamap_load(sc->chain_dmat, sc->chain_map, sc->chain_frames,
+	    rsize, mps_load_chains_cb, sc, BUS_DMA_NOWAIT)) {
+		mps_dprint(sc, MPS_ERROR, "Cannot load chain memory\n");
+		bus_dmamem_free(sc->chain_dmat, sc->chain_frames,
+		    sc->chain_map);
+		return (ENOMEM);
+	}
 
 	rsize = MPS_SENSE_LEN * sc->num_reqs;
         if (bus_dma_tag_create( sc->mps_parent_dmat,    /* parent */
@@ -1454,22 +1487,6 @@ mps_alloc_requests(struct mps_softc *sc)
 	    mps_memaddr_cb, &sc->sense_busaddr, 0);
 	mps_dprint(sc, MPS_INIT, "sense frames busaddr= %#016jx size= %d\n",
 	    (uintmax_t)sc->sense_busaddr, rsize);
-
-	sc->chains = malloc(sizeof(struct mps_chain) * sc->num_chains, M_MPT2,
-	    M_WAITOK | M_ZERO);
-	if(!sc->chains) {
-		mps_dprint(sc, MPS_ERROR, "Cannot allocate chains memory\n");
-		return (ENOMEM);
-	}
-	for (i = 0; i < sc->num_chains; i++) {
-		chain = &sc->chains[i];
-		chain->chain = (MPI2_SGE_IO_UNION *)(sc->chain_frames +
-		    i * sc->reqframesz);
-		chain->chain_busaddr = sc->chain_busaddr +
-		    i * sc->reqframesz;
-		mps_free_chain(sc, chain);
-		sc->chain_free_lowwater++;
-	}
 
 	nsegs = (sc->maxio / PAGE_SIZE) + 1;
         if (bus_dma_tag_create( sc->mps_parent_dmat,    /* parent */
