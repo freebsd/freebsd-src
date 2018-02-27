@@ -125,6 +125,7 @@ __DEFAULT_YES_OPTIONS = \
     LPR \
     LS_COLORS \
     LZMA_SUPPORT \
+    LOADER_EFI \
     LOADER_GELI \
     MAIL \
     MAILWRAPPER \
@@ -285,8 +286,9 @@ BROKEN_OPTIONS+=LIBSOFT
 .if ${__T:Mmips*}
 BROKEN_OPTIONS+=SSP
 .endif
+# EFI doesn't exist on mips, powerpc, sparc or riscv.
 .if ${__T:Mmips*} || ${__T:Mpowerpc*} || ${__T:Msparc64} || ${__T:Mriscv*}
-BROKEN_OPTIONS+=EFI
+BROKEN_OPTIONS+=EFI LOADER_EFI
 .endif
 .if ${__T:Mmips64*}
 # profiling won't work on MIPS64 because there is only assembly for o32
