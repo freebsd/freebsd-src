@@ -219,6 +219,9 @@ Set to not build the BSD licensed version of cpio based on
 .Xr libarchive 3 .
 .It Va WITH_BSD_GREP
 Install BSD-licensed grep as '[ef]grep' instead of GNU grep.
+.It Va WITH_BSD_GREP_FASTMATCH
+Set this option to use the fastmatch implementation in
+.Xr bsdgrep 1 .
 .It Va WITHOUT_BSNMP
 Set to not build or install
 .Xr bsnmpd 1
@@ -1017,6 +1020,16 @@ Set to use LLVM's libunwind stack unwinder (instead of GCC's unwinder).
 .Pp
 This is a default setting on
 amd64/amd64, arm64/aarch64, i386/i386, riscv/riscv64 and riscv/riscv64sf.
+.It Va WITHOUT_LOADER_EFI
+Set to disable building of EFI bootloader components
+.Pp
+This is a default setting on
+mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf, powerpc/powerpc, powerpc/powerpc64, powerpc/powerpcspe, riscv/riscv64, riscv/riscv64sf and sparc64/sparc64.
+.It Va WITH_LOADER_EFI
+Set to build EFI bootloader components
+.Pp
+This is a default setting on
+amd64/amd64, arm/arm, arm/armeb, arm/armv6, arm/armv7, arm64/aarch64 and i386/i386.
 .It Va WITH_LOADER_FIREWIRE
 Enable firewire support in /boot/loader and /boot/zfsloader on x86.
 This option is a nop on all other platforms.
