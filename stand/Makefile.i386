@@ -6,3 +6,5 @@ SUBDIR+=		geli
 .if ${MK_ZFS} != "no"
 SUBDIR+=		zfs
 .endif
+
+SUBDIR+=		efi
