@@ -249,15 +249,6 @@ function config.setKey(key, name, value)
 	modules[key][name] = value
 end
 
-function config.lsModules()
-	print("== Listing modules")
-	for k, v in pairs(modules) do
-		print(k, v.load)
-	end
-	print("== List of modules ended")
-end
-
-
 function config.isValidComment(line)
 	if line ~= nil then
 		local s = line:match("^%s*#.*")
