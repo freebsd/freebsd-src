@@ -21,11 +21,12 @@ DISTCLEANFILES =		\
 	testLogfile2.log	\
 	$(NULL)
 
-std_unity_list =					\
-	$(srcdir)/../unity/auto/generate_test_runner.rb	\
+std_unity_list =						\
+	$(abs_top_srcdir)/unity/auto/generate_test_runner.rb	\
+	$(abs_srcdir)/testconf.yml				\
 	$(NULL)
 
-run_unity =	cd $(srcdir) && ruby ../unity/auto/generate_test_runner.rb
+run_unity =	ruby $(std_unity_list)
 
 # Use EXTRA_PROGRAMS for test files that are under development but
 # not production-ready
@@ -69,6 +70,7 @@ EXTRA_DIST =				\
 	data/kod-test-blanks		\
 	data/kod-test-correct		\
 	data/kod-test-empty		\
+	testconf.yml			\
 	$(NULL)
 
 CLEANFILES +=				\
@@ -187,31 +189,31 @@ test_log_SOURCES =			\
 
 
 $(srcdir)/run-kodFile.c: $(srcdir)/kodFile.c $(std_unity_list)
-	$(run_unity) kodFile.c run-kodFile.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-keyFile.c: $(srcdir)/keyFile.c $(std_unity_list)
-	$(run_unity) keyFile.c run-keyFile.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-kodDatabase.c: $(srcdir)/kodDatabase.c $(std_unity_list)
-	$(run_unity) kodDatabase.c run-kodDatabase.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-networking.c: $(srcdir)/networking.c $(std_unity_list)
-	$(run_unity) networking.c run-networking.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-packetProcessing.c: $(srcdir)/packetProcessing.c $(std_unity_list)
-	$(run_unity) packetProcessing.c run-packetProcessing.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-packetHandling.c: $(srcdir)/packetHandling.c $(std_unity_list)
-	$(run_unity) packetHandling.c run-packetHandling.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-utilities.c: $(srcdir)/utilities.c $(std_unity_list)
-	$(run_unity) utilities.c run-utilities.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-crypto.c: $(srcdir)/crypto.c $(std_unity_list)
-	$(run_unity) crypto.c run-crypto.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-t-log.c: $(srcdir)/t-log.c $(std_unity_list)
-	$(run_unity) t-log.c run-t-log.c
+	$(run_unity) $< $@
 
 
 #$(srcdir)/../version.c: $(srcdir)/../version.c
