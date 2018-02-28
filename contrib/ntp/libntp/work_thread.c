@@ -27,7 +27,7 @@
 #define CHILD_GONE_RESP	CHILD_EXIT_REQ
 /* Queue size increments:
  * The request queue grows a bit faster than the response queue -- the
- * deamon can push requests and pull results faster on avarage than the
+ * daemon can push requests and pull results faster on avarage than the
  * worker can process requests and push results...  If this really pays
  * off is debatable.
  */

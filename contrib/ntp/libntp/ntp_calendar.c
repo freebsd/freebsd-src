@@ -1825,4 +1825,113 @@ isocal_date_to_ntp(
 	return isocal_date_to_ntp64(id).d_s.lo;
 }
 
+/*
+ * ====================================================================
+ * 'basedate' support functions
+ * ====================================================================
+ */
+
+static int32_t s_baseday = NTP_TO_UNIX_DAYS;
+
+int32_t
+basedate_eval_buildstamp(void)
+{
+	struct calendar jd;
+	int32_t		ed;
+	
+	if (!ntpcal_get_build_date(&jd))
+		return NTP_TO_UNIX_DAYS;
+
+	/* The time zone of the build stamp is unspecified; we remove
+	 * one day to provide a certain slack. And in case somebody
+	 * fiddled with the system clock, we make sure we do not go
+	 * before the UNIX epoch (1970-01-01). It's probably not possible
+	 * to do this to the clock on most systems, but there are other
+	 * ways to tweak the build stamp.
+	 */
+	jd.monthday -= 1;
+	ed = ntpcal_date_to_rd(&jd) - DAY_NTP_STARTS;
+	return (ed < NTP_TO_UNIX_DAYS) ? NTP_TO_UNIX_DAYS : ed;
+}
+
+int32_t
+basedate_eval_string(
+	const char * str
+	)
+{
+	u_short	y,m,d;
+	u_long	ned;
+	int	rc, nc;
+	size_t	sl;
+
+	sl = strlen(str);	
+	rc = sscanf(str, "%4hu-%2hu-%2hu%n", &y, &m, &d, &nc);
+	if (rc == 3 && (size_t)nc == sl) {
+		if (m >= 1 && m <= 12 && d >= 1 && d <= 31)
+			return ntpcal_edate_to_eradays(y-1, m-1, d)
+			    - DAY_NTP_STARTS;
+		goto buildstamp;
+	}
+
+	rc = scanf(str, "%lu%n", &ned, &nc);
+	if (rc == 1 && (size_t)nc == sl) {
+		if (ned <= INT32_MAX)
+			return (int32_t)ned;
+		goto buildstamp;
+	}
+
+  buildstamp:
+	msyslog(LOG_WARNING,
+		"basedate string \"%s\" invalid, build date substituted!",
+		str);
+	return basedate_eval_buildstamp();
+}
+
+uint32_t
+basedate_get_day(void)
+{
+	return s_baseday;
+}
+
+int32_t
+basedate_set_day(
+	int32_t day
+	)
+{
+	struct calendar	jd;
+	int32_t		retv;
+
+	if (day < NTP_TO_UNIX_DAYS) {
+		msyslog(LOG_WARNING,
+			"baseday_set_day: invalid day (%lu), UNIX epoch substituted",
+			(unsigned long)day);
+		day = NTP_TO_UNIX_DAYS;
+	}
+	retv = s_baseday; 
+	s_baseday = day;
+	ntpcal_rd_to_date(&jd, day + DAY_NTP_STARTS);
+	msyslog(LOG_INFO, "basedate set to %04hu-%02hu-%02hu",
+		jd.year, (u_short)jd.month, (u_short)jd.monthday);
+	return retv;
+}
+
+time_t
+basedate_get_eracenter(void)
+{
+	time_t retv;
+	retv  = (time_t)(s_baseday - NTP_TO_UNIX_DAYS);
+	retv *= SECSPERDAY;
+	retv += (UINT32_C(1) << 31);
+	return retv;
+}
+
+time_t
+basedate_get_erabase(void)
+{
+	time_t retv;
+	retv  = (time_t)(s_baseday - NTP_TO_UNIX_DAYS);
+	retv *= SECSPERDAY;
+	return retv;
+}
+
 /* -*-EOF-*- */

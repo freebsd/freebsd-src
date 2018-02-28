@@ -1,4 +1,331 @@
 --
+NTP 4.2.8p11 (Harlan Stenn <stenn@ntp.org>, 2018/02/27)
+
+NOTE: this NEWS file will be undergoing more revisions.
+
+Focus: Security, Bug fixes, enhancements.
+
+Severity: MEDIUM
+
+This release fixes 2 low-/medium-, 1 informational/medum-, and 2 low-severity
+vulnerabilities in ntpd, one medium-severity vulernability in ntpq, and
+provides 65 other non-security fixes and improvements:
+
+* NTP Bug 3454: Unauthenticated packet can reset authenticated interleaved
+	association (LOW/MED)
+   Date Resolved: Stable (4.2.8p11) 27 Feb 2018
+   References: Sec 3454 / CVE-2018-7185 / VU#961909
+   Affects: ntp-4.2.6, up to but not including ntp-4.2.8p11.
+   CVSS2: MED 4.3 (AV:N/AC:M/Au:N/C:N/I:N/A:P) This could score between
+	2.9 and 6.8.
+   CVSS3: LOW 3.1 CVSS:3.0/AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:N/A:L This could
+	score between 2.6 and 3.1
+   Summary:
+	The NTP Protocol allows for both non-authenticated and
+	authenticated associations, in client/server, symmetric (peer),
+	and several broadcast modes. In addition to the basic NTP
+	operational modes, symmetric mode and broadcast servers can
+	support an interleaved mode of operation. In ntp-4.2.8p4 a bug
+	was inadvertently introduced into the protocol engine that
+	allows a non-authenticated zero-origin (reset) packet to reset
+	an authenticated interleaved peer association. If an attacker
+	can send a packet with a zero-origin timestamp and the source
+	IP address of the "other side" of an interleaved association,
+	the 'victim' ntpd will reset its association. The attacker must
+	continue sending these packets in order to maintain the
+	disruption of the association. In ntp-4.0.0 thru ntp-4.2.8p6,
+	interleave mode could be entered dynamically. As of ntp-4.2.8p7,
+	interleaved mode must be explicitly configured/enabled.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p11, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page.
+	If you are unable to upgrade to 4.2.8p11 or later and have
+	    'peer HOST xleave' lines in your ntp.conf file, remove the
+	    'xleave' option.
+	Have enough sources of time.
+	Properly monitor your ntpd instances.
+	If ntpd stops running, auto-restart it without -g .
+   Credit:
+   	This weakness was discovered by Miroslav Lichvar of Red Hat.
+
+* NTP Bug 3453: Interleaved symmetric mode cannot recover from bad
+	state (LOW/MED)
+   Date Resolved: Stable (4.2.8p11) 27 Feb 2018
+   References: Sec 3453 / CVE-2018-7184 / VU#961909
+   Affects: ntpd in ntp-4.2.8p4, up to but not including ntp-4.2.8p11.
+   CVSS2: MED 4.3 (AV:N/AC:M/Au:N/C:P/I:N/A:N)
+	Could score between 2.9 and 6.8.
+   CVSS3: LOW 3.1 - CVSS:3.0/AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:N/A:L
+	Could score between 2.6 and 6.0.
+   Summary:
+   	The fix for NtpBug2952 was incomplete, and while it fixed one
+	problem it created another.  Specifically, it drops bad packets
+	before updating the "received" timestamp.  This means a
+	third-party can inject a packet with a zero-origin timestamp,
+	meaning the sender wants to reset the association, and the
+	transmit timestamp in this bogus packet will be saved as the
+	most recent "received" timestamp.  The real remote peer does
+	not know this value and this will disrupt the association until
+	the association resets.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to ntp-4.2.8p11 or later from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page.
+	Use authentication with 'peer' mode.
+	Have enough sources of time.
+	Properly monitor your ntpd instances.
+	If ntpd stops running, auto-restart it without -g .
+   Credit:
+   	This weakness was discovered by Miroslav Lichvar of Red Hat.
+
+* NTP Bug 3415: Provide a way to prevent authenticated symmetric passive
+	peering (LOW)
+   Date Resolved: Stable (4.2.8p11) 27 Feb 2018
+   References: Sec 3415 / CVE-2018-7170 / VU#961909
+   	       Sec 3012 / CVE-2016-1549 / VU#718152
+   Affects: All ntp-4 releases up to, but not including 4.2.8p7, and
+   	4.3.0 up to, but not including 4.3.92.  Resolved in 4.2.8p11.
+   CVSS2: LOW 3.5 - (AV:N/AC:M/Au:S/C:N/I:P/A:N)
+   CVSS3: LOW 3.1 - CVSS:3.0/AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:L/A:N
+   Summary:
+	ntpd can be vulnerable to Sybil attacks.  If a system is set up to
+	use a trustedkey and if one is not using the feature introduced in
+	ntp-4.2.8p6 allowing an optional 4th field in the ntp.keys file to
+	specify which IPs can serve time, a malicious authenticated peer
+	-- i.e. one where the attacker knows the private symmetric key --
+	can create arbitrarily-many ephemeral associations in order to win
+	the clock selection of ntpd and modify a victim's clock.  Three
+	additional protections are offered in ntp-4.2.8p11.  One is the
+	new 'noepeer' directive, which disables symmetric passive
+	ephemeral peering. Another is the new 'ippeerlimit' directive,
+	which limits the number of peers that can be created from an IP.
+	The third extends the functionality of the 4th field in the
+	ntp.keys file to include specifying a subnet range.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to ntp-4.2.8p11 or later from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page.
+	Use the 'noepeer' directive to prohibit symmetric passive
+	    ephemeral associations.
+	Use the 'ippeerlimit' directive to limit the number of peers
+	    that can be created from an IP.
+	Use the 4th argument in the ntp.keys file to limit the IPs and
+	    subnets that can be time servers.
+	Have enough sources of time.
+	Properly monitor your ntpd instances.
+	If ntpd stops running, auto-restart it without -g .
+   Credit:
+	This weakness was reported as Bug 3012 by Matthew Van Gundy of
+	Cisco ASIG, and separately by Stefan Moser as Bug 3415.
+
+* ntpq Bug 3414: decodearr() can write beyond its 'buf' limits (Medium)
+   Date Resolved: 27 Feb 2018
+   References: Sec 3414 / CVE-2018-7183 / VU#961909
+   Affects: ntpq in ntp-4.2.8p6, up to but not including ntp-4.2.8p11.
+   CVSS2: MED 6.8 (AV:N/AC:M/Au:N/C:P/I:P/A:P)
+   CVSS3: MED 5.0 CVSS:3.0/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:L/A:L
+   Summary:
+   	ntpq is a monitoring and control program for ntpd.  decodearr()
+	is an internal function of ntpq that is used to -- wait for it --
+	decode an array in a response string when formatted data is being
+	displayed.  This is a problem in affected versions of ntpq if a
+	maliciously-altered ntpd returns an array result that will trip this
+	bug, or if a bad actor is able to read an ntpq request on its way to
+	a remote ntpd server and forge and send a response before the remote
+	ntpd sends its response.  It's potentially possible that the
+	malicious data could become injectable/executable code.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to ntp-4.2.8p11 or later from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page.
+   Credit:
+	This weakness was discovered by Michael Macnair of Thales e-Security.
+
+* NTP Bug 3412: ctl_getitem(): buffer read overrun leads to undefined
+	behavior and information leak (Info/Medium)
+   Date Resolved: 27 Feb 2018
+   References: Sec 3412 / CVE-2018-7182 / VU#961909
+   Affects: ntp-4.2.8p6, up to but not including ntp-4.2.8p11.
+   CVSS2: INFO 0.0 - MED 5.0 (AV:N/AC:L/Au:N/C:P/I:N/A:N) 0.0 if C:N
+   CVSS3: NONE 0.0 - MED 5.3 CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N
+	0.0 if C:N
+   Summary:
+	ctl_getitem()  is used by ntpd to process incoming mode 6 packets.
+	A malicious mode 6 packet can be sent to an ntpd instance, and
+	if the ntpd instance is from 4.2.8p6 thru 4.2.8p10, that will
+	cause ctl_getitem() to read past the end of its buffer.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to ntp-4.2.8p11 or later from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page.
+	Have enough sources of time.
+	Properly monitor your ntpd instances.
+	If ntpd stops running, auto-restart it without -g .
+   Credit:
+   	This weakness was discovered by Yihan Lian of Qihoo 360.
+
+* NTP Bug 3012: Sybil vulnerability: ephemeral association attack
+   Also see Bug 3415, above.
+   Date Mitigated: Stable (4.2.8p7) 26 Apr 2016; Dev (4.3.92) 26 Apr 2016
+   Date Resolved: Stable (4.2.8p11) 27 Feb 2018
+   References: Sec 3012 / CVE-2016-1549 / VU#718152
+   Affects: All ntp-4 releases up to, but not including 4.2.8p7, and
+	4.3.0 up to, but not including 4.3.92.  Resolved in 4.2.8p11.
+   CVSS2: LOW 3.5 - (AV:N/AC:M/Au:S/C:N/I:P/A:N)
+   CVSS3: MED 5.3 - CVSS:3.0/AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:H/A:N
+   Summary:
+	ntpd can be vulnerable to Sybil attacks.  If a system is set up
+	to use a trustedkey and if one is not using the feature
+	introduced in ntp-4.2.8p6 allowing an optional 4th field in the
+	ntp.keys file to specify which IPs can serve time, a malicious
+	authenticated peer -- i.e. one where the attacker knows the
+	private symmetric key -- can create arbitrarily-many ephemeral
+	associations in order to win the clock selection of ntpd and
+	modify a victim's clock.  Two additional protections are
+	offered in ntp-4.2.8p11.  One is the 'noepeer' directive, which
+	disables symmetric passive ephemeral peering. The other extends
+	the functionality of the 4th field in the ntp.keys file to
+	include specifying a subnet range.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p11, or later, from the NTP Project Download Page or
+	    the NTP Public Services Project Download Page.
+	Use the 'noepeer' directive to prohibit symmetric passive
+	    ephemeral associations.
+	Use the 'ippeerlimit' directive to limit the number of peer
+	    associations from an IP.
+	Use the 4th argument in the ntp.keys file to limit the IPs
+	    and subnets that can be time servers.
+	Properly monitor your ntpd instances.
+   Credit:
+   	This weakness was discovered by Matthew Van Gundy of Cisco ASIG.
+
+* Bug fixes:
+ [Bug 3457] OpenSSL FIPS mode regression <perlinger@ntp.org>
+ [Bug 3455] ntpd doesn't use scope id when binding multicast <perlinger@ntp.org>
+ - applied patch by Sean Haugh 
+ [Bug 3452] PARSE driver prints uninitialized memory. <perlinger@ntp.org>
+ [Bug 3450] Dubious error messages from plausibility checks in get_systime()
+ - removed error log caused by rounding/slew, ensured postcondition <perlinger@ntp.org>
+ [Bug 3447] AES-128-CMAC (fixes) <perlinger@ntp.org>
+ - refactoring the MAC code, too
+ [Bug 3441] Validate the assumption that AF_UNSPEC is 0.  stenn@ntp.org
+ [Bug 3439] When running multiple commands / hosts in ntpq... <perlinger@ntp.org>
+ - applied patch by ggarvey
+ [Bug 3438] Negative values and values > 999 days in... <perlinger@ntp.org>
+ - applied patch by ggarvey (with minor mods)
+ [Bug 3437] ntpd tries to open socket with AF_UNSPEC domain
+ - applied patch (with mods) by Miroslav Lichvar <perlinger@ntp.org>
+ [Bug 3435] anchor NTP era alignment <perlinger@ntp.org>
+ [Bug 3433] sntp crashes when run with -a.  <stenn@ntp.org>
+ [Bug 3430] ntpq dumps core (SIGSEGV) for "keytype md2"
+ - fixed several issues with hash algos in ntpd, sntp, ntpq,
+   ntpdc and the test suites <perlinger@ntp.org>
+ [Bug 3424] Trimble Thunderbolt 1024 week millenium bug <perlinger@ntp.org>
+ - initial patch by Daniel Pouzzner
+ [Bug 3423] QNX adjtime() implementation error checking is
+ wrong <perlinger@ntp.org>
+ [Bug 3417] ntpq ifstats packet counters can be negative
+ made IFSTATS counter quantities unsigned <perlinger@ntp.org>
+ [Bug 3411] problem about SIGN(6) packet handling for ntp-4.2.8p10
+ - raised receive buffer size to 1200 <perlinger@ntp.org>
+ [Bug 3408] refclock_jjy.c: Avoid a wrong report of the coverity static
+ analysis tool. <abe@ntp.org>
+ [Bug 3405] update-leap.in: general cleanup, HTTPS support.  Paul McMath.
+ [Bug 3404] Fix openSSL DLL usage under Windows <perlinger@ntp.org>
+ - fix/drop assumptions on OpenSSL libs directory layout
+ [Bug 3399] NTP: linker error in 4.2.8p10 during Linux cross-compilation
+ - initial patch by timeflies@mail2tor.com  <perlinger@ntp.org>
+ [Bug 3398] tests fail with core dump <perlinger@ntp.org>
+ - patch contributed by Alexander Bluhm
+ [Bug 3397] ctl_putstr() asserts that data fits in its buffer
+ rework of formatting & data transfer stuff in 'ntp_control.c'
+ avoids unecessary buffers and size limitations. <perlinger@ntp.org>
+ [Bug 3394] Leap second deletion does not work on ntpd clients
+ - fixed handling of dynamic deletion w/o leap file <perlinger@ntp.org>
+ [Bug 3391] ntpd segfaults on startup due to small warmup thread stack size
+ - increased mimimum stack size to 32kB <perlinger@ntp.org>
+ [Bug 3367] Faulty LinuxPPS NMEA clock support in 4.2.8 <perlinger@ntp.org>
+ - reverted handling of PPS kernel consumer to 4.2.6 behavior
+ [Bug 3365] Updates driver40(-ja).html and miscopt.html <abe@ntp.org>
+ [Bug 3358] Spurious KoD log messages in .INIT. phase.  HStenn.
+ [Bug 3016] wrong error position reported for bad ":config pool"
+ - fixed location counter & ntpq output <perlinger@ntp.org>
+ [Bug 2900] libntp build order problem.  HStenn.
+ [Bug 2878] Tests are cluttering up syslog <perlinger@ntp.org>
+ [Bug 2737] Wrong phone number listed for USNO. ntp-bugs@bodosom.net,
+ perlinger@ntp.org
+ [Bug 2557] Fix Thunderbolt init. ntp-bugs@bodosom.net, perlinger@ntp.
+ [Bug 948] Trustedkey config directive leaks memory. <perlinger@ntp.org>
+ Use strlcpy() to copy strings, not memcpy().  HStenn.
+ Typos.  HStenn.
+ test_ntp_scanner_LDADD needs ntpd/ntp_io.o.  HStenn.
+ refclock_jjy.c: Add missing "%s" to an msyslog() call.  HStenn.
+ Build ntpq and libntpq.a with NTP_HARD_*FLAGS.  perlinger@ntp.org
+ Fix trivial warnings from 'make check'. perlinger@ntp.org
+ Fix bug in the override portion of the compiler hardening macro. HStenn.
+ record_raw_stats(): Log entire packet.  Log writes.  HStenn.
+ AES-128-CMAC support.  BInglis, HStenn, JPerlinger.
+ sntp: tweak key file logging.  HStenn.
+ sntp: pkt_output(): Improve debug output.  HStenn.
+ update-leap: updates from Paul McMath.
+ When using pkg-config, report --modversion.  HStenn.
+ Clean up libevent configure checks.  HStenn.
+ sntp: show the IP of who sent us a crypto-NAK.  HStenn.
+ Allow .../N to specify subnet bits for IPs in ntp.keys.  HStenn, JPerlinger.
+ authistrustedip() - use it in more places.  HStenn, JPerlinger.
+ New sysstats: sys_lamport, sys_tsrounding.  HStenn.
+ Update ntp.keys .../N documentation.  HStenn.
+ Distribute testconf.yml.  HStenn.
+ Add DPRINTF(2,...) lines to receive() for packet drops.  HStenn.
+ Rename the configuration flag fifo variables.  HStenn.
+ Improve saveconfig output.  HStenn.
+ Decode restrict flags on receive() debug output.  HStenn.
+ Decode interface flags on receive() debug output.  HStenn.
+ Warn the user if deprecated "driftfile name WanderThreshold" is used.  HStenn.
+ Update the documentation in ntp.conf.def .  HStenn.
+ restrictions() must return restrict flags and ippeerlimit.  HStenn.
+ Update ntpq peer documentation to describe the 'p' type.  HStenn.
+ Rename restrict 'flags' to 'rflags.  Use an enum for the values.  HStenn.
+ Provide dump_restricts() for debugging.  HStenn.
+ Use consistent 4th arg type for [gs]etsockopt.  JPerlinger.
+
+* Other items:
+
+* update-leap needs the following perl modules:
+	Net::SSLeay
+	IO::Socket::SSL
+
+* New sysstats variables: sys_lamport, sys_tsrounding
+See them with: ntpq -c "rv 0 ss_lamport,ss_tsrounding"
+sys_lamport counts the number of observed Lamport violations, while
+sys_tsrounding counts observed timestamp rounding events.
+
+* New ntp.conf items:
+
+- restrict ... noepeer
+- restrict ... ippeerlimit N
+
+The 'noepeer' directive will disallow all ephemeral/passive peer
+requests.
+
+The 'ippeerlimit' directive limits the number of time associations
+for each IP in the designated set of addresses.  This limit does not
+apply to explicitly-configured associations.  A value of -1, the current
+default, means an unlimited number of associations may connect from a
+single IP.  0 means "none", etc.  Ordinarily the only way multiple
+associations would come from the same IP would be if the remote side
+was using a proxy.  But a trusted machine might become compromised,
+in which case an attacker might spin up multiple authenticated sessions
+from different ports.  This directive should be helpful in this case.
+
+* New ntp.keys feature: Each IP in the optional list of IPs in the 4th
+field may contain a /subnetbits specification, which identifies  the
+scope of IPs that may use this key.  This IP/subnet restriction can be
+used to limit the IPs that may use the key in most all situations where
+a key is used.
+--
 NTP 4.2.8p10 (Harlan Stenn <stenn@ntp.org>, 2017/03/21) 
 
 Focus: Security, Bug fixes, enhancements.
@@ -960,7 +1287,7 @@ following 9 low- and medium-severity vulnerabilities:
 	Implement BCP-38.
 	Upgrade to 4.2.8p7, or later, from the NTP Project Download Page
 	    or the NTP Public Services Project Download Page
-	Properly monitor your =ntpd= instances
+	Properly monitor your ntpd instances
    Credit: This weakness was discovered by Stephen Gray and
    	Matthew Van Gundy of Cisco ASIG.
 
@@ -1029,7 +1356,7 @@ following 9 low- and medium-severity vulnerabilities:
 	Implement BCP-38.
 	Upgrade to 4.2.8p7, or later, from the NTP Project Download Page
 	    or the NTP Public Services Project Download Page
-	Properly monitor your =ntpd= instances
+	Properly monitor your ntpd instances
    Credit: This weakness was discovered by Yihan Lian of the Cloud
    	Security Team, Qihoo 360.
 
@@ -1266,7 +1593,7 @@ following 1 low- and 8 medium-severity vulnerabilities:
 	Configure 'ntpd' to get time from multiple sources.
 	Upgrade to 4.2.8p6, or later, from the NTP Project Download Page
 	    or the NTP Public Services Project Download Page.
-	Monitor your 'ntpd= instances.
+	Monitor your 'ntpd' instances.
    Credit: This weakness was discovered by Matthey Van Gundy and
 	Jonathan Gardner of Cisco ASIG.
 
