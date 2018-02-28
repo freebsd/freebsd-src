@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntpq 1ntpqman "21 Mar 2017" "4.2.8p10" "User Commands"
+.TH ntpq 1ntpqman "27 Feb 2018" "4.2.8p11" "User Commands"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-P4aWgw/ag-p5aWew)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-D4aGRT/ag-Q4ayQT)
 .\"
-.\" It has been AutoGen-ed March 21, 2017 at 10:45:26 AM by AutoGen 5.18.5
+.\" It has been AutoGen-ed February 27, 2018 at 05:15:22 PM by AutoGen 5.18.5
 .\" From the definitions ntpq-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -31,15 +31,14 @@
 .ne 2
 
 .SH DESCRIPTION
+.sp \n(Ppu
+.ne 2
+
 The
 \f\*[B-Font]ntpq\fP
-utility program is used to query NTP servers which
-implement the standard NTP mode 6 control message formats defined
-in Appendix B of the NTPv3 specification RFC1305, requesting
+utility program is used to query NTP servers to monitor NTP operations
+and performance, requesting
 information about current state and/or changes in that state.
-The same formats are used in NTPv4, although some of the
-variables have changed and new ones added. The description on this
-page is for the NTPv4 variables.
 The program may be run either in interactive mode or controlled using
 command line arguments.
 Requests to read and write arbitrary
@@ -50,6 +49,9 @@ The
 utility can also obtain and print a
 list of peers in a common format by sending multiple queries to the
 server.
+.sp \n(Ppu
+.ne 2
+
 If one or more request options is included on the command line
 when
 \f\*[B-Font]ntpq\fP
@@ -67,6 +69,9 @@ The
 \f\*[B-Font]ntpq\fP
 utility will prompt for
 commands if the standard input is a terminal device.
+.sp \n(Ppu
+.ne 2
+
 \f\*[B-Font]ntpq\fP
 uses NTP mode 6 packets to communicate with the
 NTP server, and hence can be used to query any compatible server on
@@ -80,6 +85,21 @@ utility makes
 one attempt to retransmit requests, and will time requests out if
 the remote host is not heard from within a suitable timeout
 time.
+.sp \n(Ppu
+.ne 2
+
+Note that in contexts where a host name is expected, a
+\f\*[B-Font]\-4\f[]
+qualifier preceding the host name forces resolution to the IPv4
+namespace, while a
+\f\*[B-Font]\-6\f[]
+qualifier forces resolution to the IPv6 namespace.
+For examples and usage, see the
+\*[Lq]NTP Debugging Techniques\*[Rq]
+page.
+.sp \n(Ppu
+.ne 2
+
 Specifying a
 command line option other than
 \f\*[B-Font]\-i\f[]
@@ -93,64 +113,65 @@ Otherwise,
 will attempt to read
 interactive format commands from the standard input.
 .SS "Internal Commands"
+.sp \n(Ppu
+.ne 2
+
 Interactive format commands consist of a keyword followed by zero
 to four arguments.
 Only enough characters of the full keyword to
 uniquely identify the command need be typed.
+.sp \n(Ppu
+.ne 2
+
 A
 number of interactive format commands are executed entirely within
 the
 \f\*[B-Font]ntpq\fP
-utility itself and do not result in NTP mode 6
+utility itself and do not result in NTP
 requests being sent to a server.
 These are described following.
-.TP 20
-.NOP \f\*[B-Font]?\f[] [\f\*[I-Font]command_keyword\f[]]
+.TP 15
+.NOP \f\*[B-Font]?\f[] [\f\*[I-Font]command\f[]]
 .br
 .ns
-.TP 20
-.NOP \f\*[B-Font]help\f[] [\f\*[I-Font]command_keyword\f[]]
+.TP 15
+.NOP \f\*[B-Font]help\f[] [\f\*[I-Font]command\f[]]
 A
 \[oq]\&?\[cq]
-by itself will print a list of all the command
-keywords known to this incarnation of
+by itself will print a list of all the commands
+known to
 \f\*[B-Font]ntpq\fP.
 A
 \[oq]\&?\[cq]
-followed by a command keyword will print function and usage
+followed by a command name will print function and usage
 information about the command.
-This command is probably a better
-source of information about
-\f\*[B-Font]ntpq\fP
-than this manual
-page.
 .br
 .ns
-.TP 20
-.NOP \f\*[B-Font]addvars\f[] \f\*[I-Font]variable_name\f[][\f\*[B-Font]=value\f[]] \f\*[B-Font]...\f[]
+.TP 15
+.NOP \f\*[B-Font]addvars\f[] \f\*[I-Font]name\f[][\&=\f\*[I-Font]value\f[]][,...]
 .br
 .ns
-.TP 20
-.NOP \f\*[B-Font]rmvars\f[] \f\*[I-Font]variable_name\f[] \f\*[B-Font]...\f[]
+.TP 15
+.NOP \f\*[B-Font]rmvars\f[] \f\*[I-Font]name\f[][,...]
 .br
 .ns
-.TP 20
+.TP 15
 .NOP \f\*[B-Font]clearvars\f[]
 .br
 .ns
-.TP 20
+.TP 15
 .NOP \f\*[B-Font]showvars\f[]
-The data carried by NTP mode 6 messages consists of a list of
+The arguments to this command consist of a list of
 items of the form
-\[oq]variable_name=value\[cq],
+\f\*[I-Font]name\f[][\&=\f\*[I-Font]value\f[]],
 where the
-\[oq]=value\[cq]
+.NOP \&=\f\*[I-Font]value\f[]
 is ignored, and can be omitted,
 in requests to the server to read variables.
 The
 \f\*[B-Font]ntpq\fP
-utility maintains an internal list in which data to be included in control
-messages can be assembled, and sent using the
+utility maintains an internal list in which data to be included in
+messages can be assembled, and displayed or set using the
 \f\*[B-Font]readlist\f[]
 and
 \f\*[B-Font]writelist\f[]
@@ -165,7 +186,7 @@ The
 \f\*[B-Font]rmvars\f[]
 command can be used to remove individual variables from the list,
 while the
-\f\*[B-Font]clearlist\f[]
+\f\*[B-Font]clearvars\f[]
 command removes all variables from the
 list.
 The
@@ -173,33 +194,29 @@ The
 command displays the current list of optional variables.
 .br
 .ns
-.TP 20
-.NOP \f\*[B-Font]authenticate\f[] [yes | no]
+.TP 15
+.NOP \f\*[B-Font]authenticate\f[] [\f\*[B-Font]yes\f[]|\f\*[B-Font]no\f[]]
 Normally
 \f\*[B-Font]ntpq\fP
 does not authenticate requests unless
 they are write requests.
 The command
-\[oq]authenticate yes\[cq]
+\f\*[B-Font]authenticate\f[] \f\*[B-Font]yes\f[]
 causes
 \f\*[B-Font]ntpq\fP
 to send authentication with all requests it
 makes.
 Authenticated requests causes some servers to handle
-requests slightly differently, and can occasionally melt the CPU in
-fuzzballs if you turn authentication on before doing a
-\f\*[B-Font]peer\f[]
-display.
+requests slightly differently.
 The command
-\[oq]authenticate\[cq]
+\f\*[B-Font]authenticate\f[]
 causes
 \f\*[B-Font]ntpq\fP
 to display whether or not
-\f\*[B-Font]ntpq\fP
-is currently autheinticating requests.
+it is currently authenticating requests.
 .br
 .ns
-.TP 20
+.TP 15
 .NOP \f\*[B-Font]cooked\f[]
 Causes output from query commands to be "cooked", so that
 variables which are recognized by
@@ -208,19 +225,19 @@ will have their
 values reformatted for human consumption.
 Variables which
 \f\*[B-Font]ntpq\fP
-thinks should have a decodable value but didn't are
+could not decode completely are
 marked with a trailing
 \[oq]\&?\[cq].
 .br
 .ns
-.TP 20
-.NOP \f\*[B-Font]debug\f[] [\f\*[B-Font]more\f[] | \f\*[B-Font]less\f[] | \f\*[B-Font]off\f[]]
+.TP 15
+.NOP \f\*[B-Font]debug\f[] [\f\*[B-Font]more\f[]|\f\*[B-Font]less\f[]|\f\*[B-Font]off\f[]]
 With no argument, displays the current debug level.
-Otherwise, the debug level is changed to the indicated level.
+Otherwise, the debugging level is changed as indicated.
 .br
 .ns
-.TP 20
-.NOP \f\*[B-Font]delay\f[] \f\*[I-Font]milliseconds\f[]
+.TP 15
+.NOP \f\*[B-Font]delay\f[] [\f\*[I-Font]milliseconds\f[]]
 Specify a time interval to be added to timestamps included in
 requests which require authentication.
 This is used to enable
@@ -229,23 +246,33 @@ or between machines whose clocks are unsynchronized.
 Actually the
 server does not now require timestamps in authenticated requests,
 so this command may be obsolete.
+Without any arguments, displays the current delay.
 .br
 .ns
-.TP 20
+.TP 15
+.NOP \f\*[B-Font]drefid\f[] [\f\*[B-Font]hash\f[]|\f\*[B-Font]ipv4\f[]]
+Display refids as IPv4 or hash.
+Without any arguments, displays whether refids are shown as IPv4
+addresses or hashes.
+.br
+.ns
+.TP 15
 .NOP \f\*[B-Font]exit\f[]
 Exit
 \f\*[B-Font]ntpq\fP.
 .br
 .ns
-.TP 20
-.NOP \f\*[B-Font]host\f[] \f\*[I-Font]hostname\f[]
+.TP 15
+.NOP \f\*[B-Font]host\f[] [\f\*[I-Font]name\f[]]
 Set the host to which future queries will be sent.
-\f\*[I-Font]hostname\f[]
+The
+\f\*[I-Font]name\f[]
 may be either a host name or a numeric address.
+Without any arguments, displays the current host.
 .br
 .ns
-.TP 20
-.NOP \f\*[B-Font]hostnames\f[] [\f\*[B-Font]yes\f[] | \f\*[B-Font]no\f[]]
+.TP 15
+.NOP \f\*[B-Font]hostnames\f[] [\f\*[B-Font]yes\f[]|\f\*[B-Font]no\f[]]
 If
 \f\*[B-Font]yes\f[]
 is specified, host names are printed in
@@ -260,10 +287,12 @@ unless
 modified using the command line
 \f\*[B-Font]\-n\f[]
 switch.
+Without any arguments, displays whether host names or numeric addresses
+are shown.
 .br
 .ns
-.TP 20
-.NOP \f\*[B-Font]keyid\f[] \f\*[I-Font]keyid\f[]
+.TP 15
+.NOP \f\*[B-Font]keyid\f[] [\f\*[I-Font]keyid\f[]]
 This command allows the specification of a key number to be
 used to authenticate configuration requests.
 This must correspond
@@ -271,24 +300,26 @@ to the
 \f\*[B-Font]controlkey\f[]
 key number the server has been configured to use for this
 purpose.
+Without any arguments, displays the current
+\f\*[I-Font]keyid\f[].
 .br
 .ns
-.TP 20
-.NOP \f\*[B-Font]keytype\f[] [\f\*[B-Font]md5\f[] | \f\*[B-Font]OpenSSLDigestType\f[]]
-Specify the type of key to use for authenticating requests.
-\f\*[B-Font]md5\f[]
-is alway supported.
+.TP 15
+.NOP \f\*[B-Font]keytype\f[] [\f\*[I-Font]digest\f[]]
+Specify the digest algorithm to use for authenticating requests, with default
+\f\*[B-Font]MD5\f[].
 If
 \f\*[B-Font]ntpq\fP
-was built with OpenSSL support,
-any digest type supported by OpenSSL can also be provided.
+was built with OpenSSL support, and OpenSSL is installed,
+\f\*[I-Font]digest\f[]
+can be any message digest algorithm supported by OpenSSL.
 If no argument is given, the current
-\f\*[B-Font]keytype\f[]
-is displayed.
+\f\*[B-Font]keytype\f[] \f\*[I-Font]digest\f[]
+algorithm used is displayed.
 .br
 .ns
-.TP 20
-.NOP \f\*[B-Font]ntpversion\f[] [\f\*[B-Font]1\f[] | \f\*[B-Font]2\f[] | \f\*[B-Font]3\f[] | \f\*[B-Font]4\f[]]
+.TP 15
+.NOP \f\*[B-Font]ntpversion\f[] [\f\*[B-Font]1\f[]|\f\*[B-Font]2\f[]|\f\*[B-Font]3\f[]|\f\*[B-Font]4\f[]]
 Sets the NTP version number which
 \f\*[B-Font]ntpq\fP
 claims in
@@ -301,7 +332,7 @@ With no argument, displays the current NTP version that will be used
 when communicating with servers.
 .br
 .ns
-.TP 20
+.TP 15
 .NOP \f\*[B-Font]passwd\f[]
 This command prompts you to type in a password (which will not
 be echoed) which will be used to authenticate configuration
@@ -309,22 +340,23 @@ requests.
 The password must correspond to the key configured for
 use by the NTP server for this purpose if such requests are to be
 successful.
-.\" Not yet implemented.
-.\" .It Ic poll
-.\" .Op Ar n
-.\" .Op Ic verbose
-.\" Poll an NTP server in client mode
-.\" .Ar n
-.\" times.
 .br
 .ns
-.TP 20
+.TP 15
+.NOP \f\*[B-Font]poll\f[] [\f\*[I-Font]n\f[]] [\f\*[B-Font]verbose\f[]]
+Poll an NTP server in client mode
+\f\*[I-Font]n\f[]
+times.
+Poll not implemented yet.
+.br
+.ns
+.TP 15
 .NOP \f\*[B-Font]quit\f[]
 Exit
 \f\*[B-Font]ntpq\fP.
 .br
 .ns
-.TP 20
+.TP 15
 .NOP \f\*[B-Font]raw\f[]
 Causes all output from query commands is printed as received
 from the remote server.
@@ -333,130 +365,214 @@ the data is to transform nonascii data into a printable (but barely
 understandable) form.
 .br
 .ns
-.TP 20
-.NOP \f\*[B-Font]timeout\f[] \f\*[I-Font]milliseconds\f[]
+.TP 15
+.NOP \f\*[B-Font]timeout\f[] [\f\*[I-Font]milliseconds\f[]]
 Specify a timeout period for responses to server queries.
 The
 default is about 5000 milliseconds.
+Without any arguments, displays the current timeout period.
 Note that since
 \f\*[B-Font]ntpq\fP
 retries each query once after a timeout, the total waiting time for
 a timeout will be twice the timeout value set.
 .br
 .ns
-.TP 20
+.TP 15
 .NOP \f\*[B-Font]version\f[]
-Print the version of the
+Display the version of the
 \f\*[B-Font]ntpq\fP
 program.
 .PP
 .SS "Control Message Commands"
-Association IDs are used to identify system, peer and clock variables.
-System variables are assigned an association ID of zero and system name space, while each association is assigned a nonzero association ID and peer namespace.
-Most control commands send a single mode-6 message to the server and expect a single response message.
+Association ids are used to identify system, peer and clock variables.
+System variables are assigned an association id of zero and system name
+space, while each association is assigned a nonzero association id and
+peer namespace.
+Most control commands send a single message to the server and expect a
+single response message.
 The exceptions are the
-\f[C]peers\f[]
+\f\*[B-Font]peers\f[]
 command, which sends a series of messages,
 and the
-\f[C]mreadlist\f[]
+\f\*[B-Font]mreadlist\f[]
 and
-\f[C]mreadvar\f[]
+\f\*[B-Font]mreadvar\f[]
 commands, which iterate over a range of associations.
+.TP 10
+.NOP \f\*[B-Font]apeers\f[]
+Display a list of peers in the form:
+.Dl [tally]remote refid assid st t when pool reach delay offset jitter
+where the output is just like the
+\f\*[B-Font]peers\f[]
+command except that the
+\f\*[B-Font]refid\f[]
+is displayed in hex format and the association number is also displayed.
+.br
+.ns
 .TP 10
 .NOP \f\*[B-Font]associations\f[]
 Display a list of mobilized associations in the form:
 .Dl ind assid status conf reach auth condition last_event cnt
 .RS
 .IP \fB\(bu\fP 2
-.IP \fB\(bu\fP 2 \f[C]ind\f[] \f[C]Ta\f[] \f[C]index\f[] \f[C]on\f[] \f[C]this\f[] \f[C]list\f[]
-.IP \fB\(bu\fP 2 \f[C]assid\f[] \f[C]Ta\f[] \f[C]association\f[] \f[C]ID\f[]
-.IP \fB\(bu\fP 2 \f[C]status\f[] \f[C]Ta\f[] \f[C]peer\f[] \f[C]status\f[] \f[C]word\f[]
-.IP \fB\(bu\fP 2 \f[C]conf\f[] \f[C]Ta\f[] \f[C]yes\f[]: \f[C]persistent,\f[] \f[C]no\f[]: \f[C]ephemeral\f[]
-.IP \fB\(bu\fP 2 \f[C]reach\f[] \f[C]Ta\f[] \f[C]yes\f[]: \f[C]reachable,\f[] \f[C]no\f[]: \f[C]unreachable\f[]
-.IP \fB\(bu\fP 2 \f[C]auth\f[] \f[C]Ta\f[] \f[C]ok\f[], \f[C]yes\f[], \f[C]bad\f[] \f[C]and\f[] \f[C]none\f[]
-.IP \fB\(bu\fP 2 \f[C]condition\f[] \f[C]Ta\f[] \f[C]selection\f[] \f[C]status\f[] \f[C](see\f[] \f[C]the\f[] \f[C]select\f[] \f[C]field\f[] \f[C]of\f[] \f[C]the\f[] \f[C]peer\f[] \f[C]status\f[] \f[C]word)\f[]
-.IP \fB\(bu\fP 2 \f[C]last_event\f[] \f[C]Ta\f[] \f[C]event\f[] \f[C]report\f[] \f[C](see\f[] \f[C]the\f[] \f[C]event\f[] \f[C]field\f[] \f[C]of\f[] \f[C]the\f[] \f[C]peer\f[] \f[C]status\f[] \f[C]word)\f[]
-.IP \fB\(bu\fP 2 \f[C]cnt\f[] \f[C]Ta\f[] \f[C]event\f[] \f[C]count\f[] \f[C](see\f[] \f[C]the\f[] \f[C]count\f[] \f[C]field\f[] \f[C]of\f[] \f[C]the\f[] \f[C]peer\f[] \f[C]status\f[] \f[C]word)\f[]
+.IP \fB\(bu\fP 2 \f\*[B-Font]ind\f[] \f\*[B-Font]Ta\f[] \f\*[B-Font]index\f[] \f\*[B-Font]on\f[] \f\*[B-Font]this\f[] \f\*[B-Font]list\f[]
+.IP \fB\(bu\fP 2 \f\*[B-Font]assid\f[] \f\*[B-Font]Ta\f[] \f\*[B-Font]association\f[] \f\*[B-Font]id\f[]
+.IP \fB\(bu\fP 2 \f\*[B-Font]status\f[] \f\*[B-Font]Ta\f[] \f\*[B-Font]peer\f[] \f\*[B-Font]status\f[] \f\*[B-Font]word\f[]
+.IP \fB\(bu\fP 2 \f\*[B-Font]conf\f[] \f\*[B-Font]Ta\f[] \f\*[B-Font]yes\f[]: \f\*[B-Font]No\f[] \f\*[B-Font]persistent,\f[] \f\*[B-Font]no\f[]: \f\*[B-Font]No\f[] \f\*[B-Font]ephemeral\f[]
+.IP \fB\(bu\fP 2 \f\*[B-Font]reach\f[] \f\*[B-Font]Ta\f[] \f\*[B-Font]yes\f[]: \f\*[B-Font]No\f[] \f\*[B-Font]reachable,\f[] \f\*[B-Font]no\f[]: \f\*[B-Font]No\f[] \f\*[B-Font]unreachable\f[]
+.IP \fB\(bu\fP 2 \f\*[B-Font]auth\f[] \f\*[B-Font]Ta\f[] \f\*[B-Font]ok\f[], \f\*[B-Font]yes\f[], \f\*[B-Font]bad\f[] \f\*[B-Font]No\f[] \f\*[B-Font]and\f[] \f\*[B-Font]none\f[]
+.IP \fB\(bu\fP 2 \f\*[B-Font]condition\f[] \f\*[B-Font]Ta\f[] \f\*[B-Font]selection\f[] \f\*[B-Font]status\f[] \f\*[B-Font]\&(see\f[] \f\*[B-Font]the\f[] \f\*[B-Font]select\f[] \f\*[B-Font]No\f[] \f\*[B-Font]field\f[] \f\*[B-Font]of\f[] \f\*[B-Font]the\f[] \f\*[B-Font]peer\f[] \f\*[B-Font]status\f[] \f\*[B-Font]word\&)\f[]
+.IP \fB\(bu\fP 2 \f\*[B-Font]last_event\f[] \f\*[B-Font]Ta\f[] \f\*[B-Font]event\f[] \f\*[B-Font]report\f[] \f\*[B-Font]\&(see\f[] \f\*[B-Font]the\f[] \f\*[B-Font]event\f[] \f\*[B-Font]No\f[] \f\*[B-Font]field\f[] \f\*[B-Font]of\f[] \f\*[B-Font]the\f[] \f\*[B-Font]peer\f[] \f\*[B-Font]status\f[] \f\*[B-Font]word\&)\f[]
+.IP \fB\(bu\fP 2 \f\*[B-Font]cnt\f[] \f\*[B-Font]Ta\f[] \f\*[B-Font]event\f[] \f\*[B-Font]count\f[] \f\*[B-Font]\&(see\f[] \f\*[B-Font]the\f[] \f\*[B-Font]count\f[] \f\*[B-Font]No\f[] \f\*[B-Font]field\f[] \f\*[B-Font]of\f[] \f\*[B-Font]the\f[] \f\*[B-Font]peer\f[] \f\*[B-Font]status\f[] \f\*[B-Font]word\&)\f[]
 .RE
 .br
 .ns
 .TP 10
 .NOP \f\*[B-Font]authinfo\f[]
-Display the authentication statistics.
+Display the authentication statistics counters:
+time since reset, stored keys, free keys, key lookups, keys not found,
+uncached keys, expired keys, encryptions, decryptions.
 .br
 .ns
 .TP 10
-.NOP \f\*[B-Font]clockvar\f[] \f\*[I-Font]assocID\f[] [\f\*[I-Font]name\f[][\f\*[B-Font]=\f[]\f\*[I-Font]value\f[]] [] ...]
+.NOP \f\*[B-Font]clocklist\f[] [\f\*[I-Font]associd\f[]]
 .br
 .ns
 .TP 10
-.NOP \f\*[B-Font]cv\f[] \f\*[I-Font]assocID\f[] [\f\*[I-Font]name\f[][\f\*[B-Font]=\f[]\f\*[I-Font]value\f[]] [] ...]
-Display a list of clock variables for those associations supporting a reference clock.
+.NOP \f\*[B-Font]cl\f[] [\f\*[I-Font]associd\f[]]
+Display all clock variables in the variable list for those associations
+supporting a reference clock.
 .br
 .ns
 .TP 10
-.NOP \f\*[B-Font]:config\f[] [...]
-Send the remainder of the command line, including whitespace, to the server as a run-time configuration command in the same format as a line in the configuration file. This command is experimental until further notice and clarification. Authentication is of course required.
+.NOP \f\*[B-Font]clockvar\f[] [\f\*[I-Font]associd\f[]] [\f\*[I-Font]name\f[][\&=\f\*[I-Font]value\f[]][] ,...]
+.br
+.ns
+.TP 10
+.NOP \f\*[B-Font]cv\f[] [\f\*[I-Font]associd\f[]] [\f\*[I-Font]name\f[][\&=\f\*[I-Font]value\f[]][] ,...]
+Display a list of clock variables for those associations supporting a
+reference clock.
+.br
+.ns
+.TP 10
+.NOP \f\*[B-Font]:config\f[] \f\*[I-Font]configuration command line\f[]
+Send the remainder of the command line, including whitespace, to the
+server as a run-time configuration command in the same format as a line
+in the configuration file.
+This command is experimental until further notice and clarification.
+Authentication is of course required.
 .br
 .ns
 .TP 10
 .NOP \f\*[B-Font]config-from-file\f[] \f\*[I-Font]filename\f[]
-Send the each line of
+Send each line of
 \f\*[I-Font]filename\f[]
-to the server as run-time configuration commands in the same format as a line in the configuration file. This command is experimental until further notice and clarification. Authentication is required.
+to the server as run-time configuration commands in the same format as
+lines in the configuration file.
+This command is experimental until further notice and clarification.
+Authentication is required.
 .br
 .ns
 .TP 10
 .NOP \f\*[B-Font]ifstats\f[]
-Display statistics for each local network address. Authentication is required.
+Display status and statistics counters for each local network interface address:
+interface number, interface name and address or broadcast, drop, flag,
+ttl, mc, received, sent, send failed, peers, uptime.
+Authentication is required.
 .br
 .ns
 .TP 10
 .NOP \f\*[B-Font]iostats\f[]
-Display network and reference clock I/O statistics.
+Display network and reference clock I/O statistics:
+time since reset, receive buffers, free receive buffers, used receive buffers,
+low water refills, dropped packets, ignored packets, received packets,
+packets sent, packet send failures, input wakeups, useful input wakeups.
 .br
 .ns
 .TP 10
 .NOP \f\*[B-Font]kerninfo\f[]
-Display kernel loop and PPS statistics. As with other ntpq output, times are in milliseconds. The precision value displayed is in milliseconds as well, unlike the precision system variable.
+Display kernel loop and PPS statistics:
+associd, status, pll offset, pll frequency, maximum error,
+estimated error, kernel status, pll time constant, precision,
+frequency tolerance, pps frequency, pps stability, pps jitter,
+calibration interval, calibration cycles, jitter exceeded,
+stability exceeded, calibration errors.
+As with other ntpq output, times are in milliseconds; very small values
+may be shown as exponentials.
+The precision value displayed is in milliseconds as well, unlike the
+precision system variable.
 .br
 .ns
 .TP 10
 .NOP \f\*[B-Font]lassociations\f[]
-Perform the same function as the associations command, except display mobilized and unmobilized associations.
+Perform the same function as the associations command, except display
+mobilized and unmobilized associations, including all clients.
 .br
 .ns
 .TP 10
-.NOP \f\*[B-Font]lopeers\f[] [\f\*[B-Font]\-4\f[] | \f\*[B-Font]\-6\f[]]
-Obtain and print a list of all peers and clients showing
-\f\*[I-Font]dstadr\f[]
-(associated with any given IP version).
+.NOP \f\*[B-Font]lopeers\f[] [\f\*[B-Font]\-4\f[]|\f\*[B-Font]\-6\f[]]
+Display a list of all peers and clients showing
+\f\*[B-Font]dstadr\f[]
+(associated with the given IP version).
 .br
 .ns
 .TP 10
-.NOP \f\*[B-Font]lpeers\f[] [\f\*[B-Font]\-4\f[] | \f\*[B-Font]\-6\f[]]
-Print a peer spreadsheet for the appropriate IP version(s).
-\f\*[I-Font]dstadr\f[]
-(associated with any given IP version).
+.NOP \f\*[B-Font]lpassociations\f[]
+Display the last obtained list of associations, including all clients.
+.br
+.ns
+.TP 10
+.NOP \f\*[B-Font]lpeers\f[] [\f\*[B-Font]\-4\f[]|\f\*[B-Font]\-6\f[]]
+Display a list of all peers and clients (associated with the given IP version).
 .br
 .ns
 .TP 10
 .NOP \f\*[B-Font]monstats\f[]
-Display monitor facility statistics.
+Display monitor facility status, statistics, and limits:
+enabled, addresses, peak addresses, maximum addresses,
+reclaim above count, reclaim older than, kilobytes, maximum kilobytes.
 .br
 .ns
 .TP 10
-.NOP \f\*[B-Font]mrulist\f[] [\f\*[B-Font]limited\f[] | \f\*[B-Font]kod\f[] | \f\*[B-Font]mincount\f[]=\f\*[I-Font]count\f[] | \f\*[B-Font]laddr\f[]=\f\*[I-Font]localaddr\f[] | \f\*[B-Font]sort\f[]=\f\*[I-Font]sortorder\f[] | \f\*[B-Font]resany\f[]=\f\*[I-Font]hexmask\f[] | \f\*[B-Font]resall\f[]=\f\*[I-Font]hexmask\f[]]
-Obtain and print traffic counts collected and maintained by the monitor facility.
+.NOP \f\*[B-Font]mreadlist\f[] \f\*[I-Font]associdlo\f[] \f\*[I-Font]associdhi\f[]
+.br
+.ns
+.TP 10
+.NOP \f\*[B-Font]mrl\f[] \f\*[I-Font]associdlo\f[] \f\*[I-Font]associdhi\f[]
+Perform the same function as the
+\f\*[B-Font]readlist\f[]
+command for a range of association ids.
+.br
+.ns
+.TP 10
+.NOP \f\*[B-Font]mreadvar\f[] \f\*[I-Font]associdlo\f[] \f\*[I-Font]associdhi\f[] [\f\*[I-Font]name\f[]][,...]
+This range may be determined from the list displayed by any
+command showing associations.
+.br
+.ns
+.TP 10
+.NOP \f\*[B-Font]mrv\f[] \f\*[I-Font]associdlo\f[] \f\*[I-Font]associdhi\f[] [\f\*[I-Font]name\f[]][,...]
+Perform the same function as the
+\f\*[B-Font]readvar\f[]
+command for a range of association ids.
+This range may be determined from the list displayed by any
+command showing associations.
+.br
+.ns
+.TP 10
+.NOP \f\*[B-Font]mrulist\f[] [\f\*[B-Font]limited\f[] | \f\*[B-Font]kod\f[] | \f\*[B-Font]mincount\f[]\&=\f\*[I-Font]count\f[] | \f\*[B-Font]laddr\f[]\&=\f\*[I-Font]localaddr\f[] | \f\*[B-Font]sort\f[]\&=[\&-]\f\*[I-Font]sortorder\f[] | \f\*[B-Font]resany\f[]\&=\f\*[I-Font]hexmask\f[] | \f\*[B-Font]resall\f[]\&=\f\*[I-Font]hexmask\f[]]
+Display traffic counts of the most recently seen source addresses
+collected and maintained by the monitor facility.
 With the exception of
-\f\*[B-Font]sort\f[]=\f\*[I-Font]sortorder\f[],
+\f\*[B-Font]sort\f[]\&=[\&-]\f\*[I-Font]sortorder\f[],
 the options filter the list returned by
-\f\*[B-Font]ntpd.\f[]
+\fCntpd\f[]\fR(8)\f[].
 The
 \f\*[B-Font]limited\f[]
 and
 \f\*[B-Font]kod\f[]
-options return only entries representing client addresses from which the last packet received triggered either discarding or a KoD response.
+options return only entries representing client addresses from which the
+last packet received triggered either discarding or a KoD response.
 The
 \f\*[B-Font]mincount\f[]=\f\*[I-Font]count\f[]
 option filters entries representing less than
@@ -477,12 +593,14 @@ The
 \f\*[I-Font]sortorder\f[]
 defaults to
 \f\*[B-Font]lstint\f[]
-and may be any of
+and may be 
 \f\*[B-Font]addr\f[],
-\f\*[B-Font]count\f[],
 \f\*[B-Font]avgint\f[],
+\f\*[B-Font]count\f[],
 \f\*[B-Font]lstint\f[],
-or any of those preceded by a minus sign (hyphen) to reverse the sort order.
+or any of those preceded by
+\[oq]\&-\[cq]
+to reverse the sort order.
 The output columns are:
 .RS
 .TP 10
@@ -492,7 +610,8 @@ Description
 .ns
 .TP 10
 .NOP \f\*[B-Font]lstint\f[]
-Interval in s between the receipt of the most recent packet from this address and the completion of the retrieval of the MRU list by
+Interval in seconds between the receipt of the most recent packet from
+this address and the completion of the retrieval of the MRU list by
 \f\*[B-Font]ntpq\fP.
 .br
 .ns
@@ -506,7 +625,8 @@ Average interval in s between packets from this address.
 Restriction flags associated with this address.
 Most are copied unchanged from the matching
 \f\*[B-Font]restrict\f[]
-command, however 0x400 (kod) and 0x20 (limited) flags are cleared unless the last packet from this address triggered a rate control response.
+command, however 0x400 (kod) and 0x20 (limited) flags are cleared unless
+the last packet from this address triggered a rate control response.
 .br
 .ns
 .TP 10
@@ -542,32 +662,18 @@ Source port of last packet from this address.
 .ns
 .TP 10
 .NOP \f\*[B-Font]remote\f[] \f\*[B-Font]address\f[]
-DNS name, numeric address, or address followed by
+host or DNS name, numeric address, or address followed by
 claimed DNS name which could not be verified in parentheses.
 .RE
 .br
 .ns
 .TP 10
-.NOP \f\*[B-Font]mreadvar\f[] \f\*[B-Font]assocID\f[] \f\*[B-Font]assocID\f[] [\f\*[I-Font]variable_name\f[][=\f\*[I-Font]value\f[]]] ...
-.br
-.ns
-.TP 10
-.NOP \f\*[B-Font]mrv\f[] \f\*[B-Font]assocID\f[] \f\*[B-Font]assocID\f[] [\f\*[I-Font]variable_name\f[][=\f\*[I-Font]value\f[]]] ...
-Perform the same function as the
-\f\*[B-Font]readvar\f[]
-command, except for a range of association IDs.
-This range is determined from the association list cached by the most recent
-\f\*[B-Font]associations\f[]
-command.
-.br
-.ns
-.TP 10
 .NOP \f\*[B-Font]opeers\f[] [\f\*[B-Font]\-4\f[] | \f\*[B-Font]\-6\f[]]
 Obtain and print the old-style list of all peers and clients showing
-\f\*[I-Font]dstadr\f[]
-(associated with any given IP version),
+\f\*[B-Font]dstadr\f[]
+(associated with the given IP version),
 rather than the
-\f\*[I-Font]refid\f[].
+\f\*[B-Font]refid\f[].
 .br
 .ns
 .TP 10
@@ -599,22 +705,24 @@ field of the
 .TP 10
 .NOP \f\*[B-Font]remote\f[]
 host name (or IP number) of peer.
-The value displayed will be truncated to 15 characters  unless the
+The value displayed will be truncated to 15 characters unless the
+\f\*[B-Font]ntpq\fP
 \f\*[B-Font]\-w\f[]
-flag is given, in which case the full value will be displayed
-on the first line,
-and the remaining data is displayed on the next line.
+option is given, in which case the full value will be displayed
+on the first line, and if too long,
+the remaining data will be displayed on the next line.
 .br
 .ns
 .TP 10
 .NOP \f\*[B-Font]refid\f[]
-association ID or
+source IP address or
 .Lk decode.html#kiss "'kiss code"
 .br
 .ns
 .TP 10
 .NOP \f\*[B-Font]st\f[]
-stratum
+stratum: 0 for local reference clocks, 1 for servers with local
+reference clocks, ..., 16 for unsynchronized server clocks
 .br
 .ns
 .TP 10
@@ -623,6 +731,8 @@ stratum
 unicast or manycast client,
 \f\*[B-Font]b\f[]:
 broadcast or multicast client,
+\f\*[B-Font]p\f[]:
+pool source,
 \f\*[B-Font]l\f[]:
 local (reference clock),
 \f\*[B-Font]s\f[]:
@@ -637,12 +747,15 @@ multicast server
 .ns
 .TP 10
 .NOP \f\*[B-Font]when\f[]
-sec/min/hr since last received packet
+time in seconds, minutes, hours, or days since the last packet
+was received, or
+\[oq]\&-\[cq]
+if a packet has never been received
 .br
 .ns
 .TP 10
 .NOP \f\*[B-Font]poll\f[]
-poll interval (log2 s)
+poll interval (s)
 .br
 .ns
 .TP 10
@@ -662,143 +775,159 @@ offset of server relative to this host
 .ns
 .TP 10
 .NOP \f\*[B-Font]jitter\f[]
-jitter
+offset RMS error estimate.
 .RE
 .br
 .ns
 .TP 10
-.NOP \f\*[B-Font]apeers\f[]
-Display a list of peers in the form:
-.Dl [tally]remote refid assid st t when pool reach delay offset jitter
-where the output is just like the
-\f\*[B-Font]peers\f[]
-command except that the
-\f\*[B-Font]refid\f[]
-is displayed in hex format and the association number is also displayed.
+.NOP \f\*[B-Font]pstats\f[] \f\*[I-Font]associd\f[]
+Display the statistics for the peer with the given
+\f\*[I-Font]associd\f[]:
+associd, status, remote host, local address, time last received,
+time until next send, reachability change, packets sent,
+packets received, bad authentication, bogus origin, duplicate,
+bad dispersion, bad reference time, candidate order.
 .br
 .ns
 .TP 10
-.NOP \f\*[B-Font]pstats\f[] \f\*[I-Font]assocID\f[]
-Show the statistics for the peer with the given
-\f\*[I-Font]assocID\f[].
+.NOP \f\*[B-Font]readlist\f[] [\f\*[I-Font]associd\f[]]
 .br
 .ns
 .TP 10
-.NOP \f\*[B-Font]readlist\f[] \f\*[I-Font]assocID\f[]
+.NOP \f\*[B-Font]rl\f[] [\f\*[I-Font]associd\f[]]
+Display all system or peer variables.
+If the
+\f\*[I-Font]associd\f[]
+is omitted, it is assumed to be zero.
 .br
 .ns
 .TP 10
-.NOP \f\*[B-Font]rl\f[] \f\*[I-Font]assocID\f[]
-Read the system or peer variables included in the variable list.
+.NOP \f\*[B-Font]readvar\f[] [\f\*[I-Font]associd\f[] \f\*[I-Font]name\f[][=\f\*[I-Font]value\f[]] [, ...]]
 .br
 .ns
 .TP 10
-.NOP \f\*[B-Font]readvar\f[] \f\*[I-Font]assocID\f[] \f\*[I-Font]name\f[][=\f\*[I-Font]value\f[]] [, ...]
-.br
-.ns
-.TP 10
-.NOP \f\*[B-Font]rv\f[] \f\*[I-Font]assocID\f[] \f\*[I-Font]name\f[][=\f\*[I-Font]value\f[]] [, ...]
-Display the specified variables.
+.NOP \f\*[B-Font]rv\f[] [\f\*[I-Font]associd\f[] \f\*[I-Font]name\f[][=\f\*[I-Font]value\f[]] [, ...]]
+Display the specified system or peer variables.
 If
-\f\*[I-Font]assocID\f[]
+\f\*[I-Font]associd\f[]
 is zero, the variables are from the
 \fISystem\f[] \fIVariables\f[]
 name space, otherwise they are from the
 \fIPeer\f[] \fIVariables\f[]
 name space.
 The
-\f\*[I-Font]assocID\f[]
+\f\*[I-Font]associd\f[]
 is required, as the same name can occur in both spaces.
 If no
 \f\*[I-Font]name\f[]
 is included, all operative variables in the name space are displayed.
 In this case only, if the
-\f\*[I-Font]assocID\f[]
-is omitted, it is assumed zero.
+\f\*[I-Font]associd\f[]
+is omitted, it is assumed to be zero.
 Multiple names are specified with comma separators and without whitespace.
 Note that time values are represented in milliseconds
 and frequency values in parts-per-million (PPM).
 Some NTP timestamps are represented in the format
-YYYYMMDDTTTT ,
-where YYYY is the year,
-MM the month of year,
-DD the day of month and
-TTTT the time of day.
+\f\*[I-Font]YYYY\f[]\f\*[I-Font]MM\f[] \f\*[I-Font]DD\f[] \f\*[I-Font]TTTT\f[],
+where
+\f\*[I-Font]YYYY\f[]
+is the year,
+\f\*[I-Font]MM\f[]
+the month of year,
+\f\*[I-Font]DD\f[]
+the day of month and
+\f\*[I-Font]TTTT\f[]
+the time of day.
 .br
 .ns
 .TP 10
 .NOP \f\*[B-Font]reslist\f[]
-Show the access control (restrict) list for
+Display the access control (restrict) list for
 \f\*[B-Font]ntpq\fP.
+Authentication is required.
 .br
 .ns
 .TP 10
 .NOP \f\*[B-Font]saveconfig\f[] \f\*[I-Font]filename\f[]
-Write the current configuration,
-including any runtime modifications given with
+Save the current configuration,
+including any runtime modifications made by
 \f\*[B-Font]:config\f[]
 or
 \f\*[B-Font]config-from-file\f[],
-to the ntpd host's file
+to the NTP server host file
 \f\*[I-Font]filename\f[].
 This command will be rejected by the server unless
 .Lk miscopt.html#saveconfigdir "saveconfigdir"
 appears in the
-\f\*[B-Font]ntpd\f[]
+\fCntpd\f[]\fR(8)\f[]
 configuration file.
 \f\*[I-Font]filename\f[]
 can use
-\fCstrftime\f[]\fR()\f[]
-format specifies to substitute the current date and time, for example,
-\f\*[B-Font]q]saveconfig\f[] \f\*[B-Font]ntp-%Y%m%d-%H%M%S.confq]\f[].
+\fCdate\f[]\fR(1)\f[]
+format specifiers to substitute the current date and time, for
+example,
+.in +4
+\f\*[B-Font]saveconfig\f[] \fIntp-%Y%m%d-%H%M%S.conf\f[]. 
+.in -4
 The filename used is stored in system variable
 \f\*[B-Font]savedconfig\f[].
 Authentication is required.
 .br
 .ns
 .TP 10
+.NOP \f\*[B-Font]sysinfo\f[]
+Display system operational summary:
+associd, status, system peer, system peer mode, leap indicator,
+stratum, log2 precision, root delay, root dispersion,
+reference id, reference time, system jitter, clock jitter,
+clock wander, broadcast delay, symm. auth. delay.
+.br
+.ns
+.TP 10
+.NOP \f\*[B-Font]sysstats\f[]
+Display system uptime and packet counts maintained in the
+protocol module:
+uptime, sysstats reset, packets received, current version,
+older version, bad length or format, authentication failed,
+declined, restricted, rate limited, KoD responses,
+processed for time.
+.br
+.ns
+.TP 10
 .NOP \f\*[B-Font]timerstats\f[]
-Display interval timer counters.
+Display interval timer counters:
+time since reset, timer overruns, calls to transmit.
 .br
 .ns
 .TP 10
-.NOP \f\*[B-Font]writelist\f[] \f\*[I-Font]assocID\f[]
-Write the system or peer variables included in the variable list.
+.NOP \f\*[B-Font]writelist\f[] \f\*[I-Font]associd\f[]
+Set all system or peer variables included in the variable list.
 .br
 .ns
 .TP 10
-.NOP \f\*[B-Font]writevar\f[] \f\*[I-Font]assocID\f[] \f\*[I-Font]name\f[]=\f\*[I-Font]value\f[] [, ...]
-Write the specified variables.
+.NOP \f\*[B-Font]writevar\f[] \f\*[I-Font]associd\f[] \f\*[I-Font]name\f[]=\f\*[I-Font]value\f[] [, ...]
+Set the specified variables in the variable list.
 If the
-\f\*[I-Font]assocID\f[]
+\f\*[I-Font]associd\f[]
 is zero, the variables are from the
 \fISystem\f[] \fIVariables\f[]
 name space, otherwise they are from the
 \fIPeer\f[] \fIVariables\f[]
 name space.
 The
-\f\*[I-Font]assocID\f[]
+\f\*[I-Font]associd\f[]
 is required, as the same name can occur in both spaces.
-.br
-.ns
-.TP 10
-.NOP \f\*[B-Font]sysinfo\f[]
-Display operational summary.
-.br
-.ns
-.TP 10
-.NOP \f\*[B-Font]sysstats\f[]
-Print statistics counters maintained in the protocol module.
+Authentication is required.
 .PP
 .SS Status Words and Kiss Codes
 The current state of the operating program is shown
 in a set of status words
 maintained by the system.
 Status information is also available on a per-association basis.
-These words are displayed in the
-\f\*[B-Font]rv\f[]
+These words are displayed by the
+\f\*[B-Font]readlist\f[]
 and
-\f\*[B-Font]as\f[]
+\f\*[B-Font]associations\f[]
 commands both in hexadecimal and in decoded short tip strings.
 The codes, tips and short explanations are documented on the
 .Lk decode.html "Event Messages and Status Words"
@@ -817,9 +946,12 @@ They are now displayed, when appropriate,
 in the reference identifier field in various billboards.
 .SS System Variables
 The following system variables appear in the
-\f\*[B-Font]rv\f[]
+\f\*[B-Font]readlist\f[]
 billboard.
 Not all variables are displayed in some configurations.
+.sp \n(Ppu
+.ne 2
+
 .TP 10
 .NOP Variable
 Description
@@ -871,8 +1003,24 @@ total dispersion to the primary reference clock
 .br
 .ns
 .TP 10
+.NOP \f\*[B-Font]refid\f[]
+reference id or
+.Lk decode.html#kiss "kiss code"
+.br
+.ns
+.TP 10
+.NOP \f\*[B-Font]reftime\f[]
+reference time
+.br
+.ns
+.TP 10
+.NOP \f\*[B-Font]clock\f[]
+date and time of day
+.br
+.ns
+.TP 10
 .NOP \f\*[B-Font]peer\f[]
-system peer association ID
+system peer association id
 .br
 .ns
 .TP 10
@@ -886,34 +1034,18 @@ minimum time constant (log2 s) (3-10)
 .br
 .ns
 .TP 10
-.NOP \f\*[B-Font]clock\f[]
-date and time of day
-.br
-.ns
-.TP 10
-.NOP \f\*[B-Font]refid\f[]
-reference ID or
-.Lk decode.html#kiss "kiss code"
-.br
-.ns
-.TP 10
-.NOP \f\*[B-Font]reftime\f[]
-reference time
-.br
-.ns
-.TP 10
 .NOP \f\*[B-Font]offset\f[]
-combined  offset of server relative to this host
+combined offset of server relative to this host
+.br
+.ns
+.TP 10
+.NOP \f\*[B-Font]frequency\f[]
+frequency drift (PPM) relative to hardware clock
 .br
 .ns
 .TP 10
 .NOP \f\*[B-Font]sys_jitter\f[]
 combined system jitter
-.br
-.ns
-.TP 10
-.NOP \f\*[B-Font]frequency\f[]
-frequency offset (PPM) relative to hardware clock
 .br
 .ns
 .TP 10
@@ -996,9 +1128,12 @@ NTP seconds when the certificate expires
 .PP
 .SS Peer Variables
 The following peer variables appear in the
-\f\*[B-Font]rv\f[]
+\f\*[B-Font]readlist\f[]
 billboard for each association.
 Not all variables are displayed in some configurations.
+.sp \n(Ppu
+.ne 2
+
 .TP 10
 .NOP Variable
 Description
@@ -1006,7 +1141,7 @@ Description
 .ns
 .TP 10
 .NOP \f\*[B-Font]associd\f[]
-association ID
+association id
 .br
 .ns
 .TP 10
@@ -1061,13 +1196,18 @@ total root dispersion to the primary reference clock
 .ns
 .TP 10
 .NOP \f\*[B-Font]refid\f[]
-reference ID or
+reference id or
 .Lk decode.html#kiss "kiss code"
 .br
 .ns
 .TP 10
 .NOP \f\*[B-Font]reftime\f[]
 reference time
+.br
+.ns
+.TP 10
+.NOP \f\*[B-Font]rec\f[]
+last packet received time
 .br
 .ns
 .TP 10
@@ -1112,6 +1252,11 @@ headway (see
 .br
 .ns
 .TP 10
+.NOP \f\*[B-Font]keyid\f[]
+symmetric key id
+.br
+.ns
+.TP 10
 .NOP \f\*[B-Font]offset\f[]
 filter offset
 .br
@@ -1132,11 +1277,6 @@ filter jitter
 .br
 .ns
 .TP 10
-.NOP \f\*[B-Font]ident\f[]
-Autokey group name for this association
-.br
-.ns
-.TP 10
 .NOP \f\*[B-Font]bias\f[]
 unicast/broadcast bias
 .br
@@ -1150,7 +1290,8 @@ The
 \f\*[B-Font]bias\f[]
 variable is calculated when the first broadcast packet is received
 after the calibration volley.
-It represents the offset of the broadcast subgraph relative to the unicast subgraph.
+It represents the offset of the broadcast subgraph relative to the
+unicast subgraph.
 The
 \f\*[B-Font]xleave\f[]
 variable appears only for the interleaved symmetric and interleaved modes.
@@ -1188,7 +1329,7 @@ OpenSSL digest/signature scheme
 .ns
 .TP 10
 .NOP \f\*[B-Font]initsequence\f[]
-initial key ID
+initial key id
 .br
 .ns
 .TP 10
@@ -1199,10 +1340,15 @@ initial key index
 .TP 10
 .NOP \f\*[B-Font]timestamp\f[]
 Autokey signature timestamp
+.br
+.ns
+.TP 10
+.NOP \f\*[B-Font]ident\f[]
+Autokey group name for this association
 .PP
 .SS Clock Variables
 The following clock variables appear in the
-\f\*[B-Font]cv\f[]
+\f\*[B-Font]clocklist\f[]
 billboard for each association with a reference clock.
 Not all variables are displayed in some configurations.
 .TP 10
@@ -1212,7 +1358,7 @@ Description
 .ns
 .TP 10
 .NOP \f\*[B-Font]associd\f[]
-association ID
+association id
 .br
 .ns
 .TP 10
@@ -1267,7 +1413,7 @@ driver stratum
 .ns
 .TP 10
 .NOP \f\*[B-Font]refid\f[]
-driver reference ID
+driver reference id
 .br
 .ns
 .TP 10
@@ -1277,19 +1423,19 @@ driver flags
 .SH "OPTIONS"
 .TP
 .NOP \f\*[B-Font]\-4\f[], \f\*[B-Font]\-\-ipv4\f[]
-Force IPv4 DNS name resolution.
+Force IPv4 name resolution.
 This option must not appear in combination with any of the following options:
 ipv6.
 .sp
-Force DNS resolution of following host names on the command line
+Force resolution of following host names on the command line
 to the IPv4 namespace.
 .TP
 .NOP \f\*[B-Font]\-6\f[], \f\*[B-Font]\-\-ipv6\f[]
-Force IPv6 DNS name resolution.
+Force IPv6 name resolution.
 This option must not appear in combination with any of the following options:
 ipv4.
 .sp
-Force DNS resolution of following host names on the command line
+Force resolution of following host names on the command line
 to the IPv6 namespace.
 .TP
 .NOP \f\*[B-Font]\-c\f[] \f\*[I-Font]cmd\f[], \f\*[B-Font]\-\-command\f[]=\f\*[I-Font]cmd\f[]
@@ -1324,7 +1470,7 @@ commands read from the standard input.
 numeric host addresses.
 .sp
 Output all host addresses in dotted-quad numeric format rather than
-converting to the canonical host names. 
+converting to the canonical host names.
 .TP
 .NOP \f\*[B-Font]\-\-old\-rv\f[]
 Always output status line with readvar.

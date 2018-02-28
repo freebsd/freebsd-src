@@ -11,6 +11,6 @@ CFLAGS+= -I${SRCTOP}/contrib/ntp/include \
 	-I${SRCTOP}/contrib/ntp/lib/isc/pthreads/include \
 	-I${.CURDIR:H}
 
-LIBADD=	ntp pthread
+LIBADD=	m ntp pthread
 
 .include <bsd.prog.mk>
