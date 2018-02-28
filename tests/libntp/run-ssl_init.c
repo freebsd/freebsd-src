@@ -31,9 +31,18 @@ extern void tearDown(void);
 extern void test_MD5KeyTypeWithoutDigestLength(void);
 extern void test_MD5KeyTypeWithDigestLength(void);
 extern void test_SHA1KeyTypeWithDigestLength(void);
+extern void test_CMACKeyTypeWithDigestLength(void);
 extern void test_MD5KeyName(void);
 extern void test_SHA1KeyName(void);
+extern void test_CMACKeyName(void);
 
+
+//=======Suite Setup=====
+static void suite_setup(void)
+{
+extern int change_logfile(const char*, int);
+change_logfile("stderr", 0);
+}
 
 //=======Test Reset Option=====
 void resetTest(void);
@@ -50,12 +59,15 @@ char const *progname;
 int main(int argc, char *argv[])
 {
   progname = argv[0];
+  suite_setup();
   UnityBegin("ssl_init.c");
-  RUN_TEST(test_MD5KeyTypeWithoutDigestLength, 17);
-  RUN_TEST(test_MD5KeyTypeWithDigestLength, 18);
-  RUN_TEST(test_SHA1KeyTypeWithDigestLength, 19);
-  RUN_TEST(test_MD5KeyName, 20);
-  RUN_TEST(test_SHA1KeyName, 21);
+  RUN_TEST(test_MD5KeyTypeWithoutDigestLength, 20);
+  RUN_TEST(test_MD5KeyTypeWithDigestLength, 21);
+  RUN_TEST(test_SHA1KeyTypeWithDigestLength, 22);
+  RUN_TEST(test_CMACKeyTypeWithDigestLength, 23);
+  RUN_TEST(test_MD5KeyName, 24);
+  RUN_TEST(test_SHA1KeyName, 25);
+  RUN_TEST(test_CMACKeyName, 26);
 
   return (UnityEnd());
 }

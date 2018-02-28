@@ -3,21 +3,28 @@ NULL =
 BUILT_SOURCES =
 CLEANFILES =
 
-std_unity_list = 						\
-	$(top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+std_unity_list =	 						\
+	$(abs_top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+	$(abs_srcdir)/testconf.yml					\
 	$(NULL)
 
-run_unity =	cd $(srcdir) && ruby ../../sntp/unity/auto/generate_test_runner.rb
+run_unity =	ruby $(std_unity_list)
+
+EXTRA_DIST =				\
+	testconf.yml			\
+	$(NULL)
 
 check_PROGRAMS = sec-2853
 
 # HMS: we may not need some of these:
 LDADD =					\
-	$(top_builddir)/sntp/unity/libunity.a	\
 	$(top_builddir)/ntpd/rc_cmdlength.o	\
+	$(top_builddir)/sntp/unity/libunity.a	\
+	$(top_builddir)/libntp/libntp.a	\
 	$(LDADD_LIBNTP)			\
 	$(PTHREAD_LIBS)			\
 	$(LDADD_NTP)			\
+	$(LIBM)				\
 	$(NULL)
 
 AM_CFLAGS   = $(CFLAGS_NTP)
@@ -43,7 +50,7 @@ sec_2853_SOURCES = 			\
 BUILT_SOURCES += $(srcdir)/run-sec-2853.c
 
 $(srcdir)/run-sec-2853.c: $(srcdir)/sec-2853.c $(std_unity_list)
-	$(run_unity) sec-2853.c run-sec-2853.c
+	$(run_unity) $< $@
 
 # HMS: we may not need some of these:
 #noinst_HEADERS =	ntpdtest.h	\

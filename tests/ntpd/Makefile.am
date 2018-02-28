@@ -2,11 +2,16 @@ NULL =
 BUILT_SOURCES =
 CLEANFILES =
 
-std_unity_list =						\
-	$(top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+std_unity_list =							\
+	$(abs_top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+	$(abs_srcdir)/testconf.yml					\
 	$(NULL)
 
-run_unity =	cd $(srcdir) && ruby ../../sntp/unity/auto/generate_test_runner.rb
+run_unity =	ruby $(std_unity_list)
+
+EXTRA_DIST =				\
+	testconf.yml			\
+	$(NULL)
 
 check_PROGRAMS =		\
 	test-leapsec		\
@@ -71,7 +76,8 @@ BUILT_SOURCES +=			\
 
 ###
 
-test_leapsec_CFLAGS =			\
+test_leapsec_CFLAGS = 			\
+	$(AM_CFLAGS)			\
 	-I$(top_srcdir)/sntp/unity	\
 	$(NULL)
 
@@ -87,10 +93,11 @@ test_leapsec_SOURCES =			\
 	$(NULL)
 
 $(srcdir)/run-leapsec.c: $(srcdir)/leapsec.c $(std_unity_list)
-	$(run_unity) leapsec.c run-leapsec.c
+	$(run_unity) $< $@
 
 ###
 test_ntp_prio_q_CFLAGS =		\
+	$(AM_CFLAGS)			\
 	-I$(top_srcdir)/sntp/unity	\
 	$(NULL)
 
@@ -106,11 +113,12 @@ test_ntp_prio_q_SOURCES =			\
 	$(NULL)
 
 $(srcdir)/run-ntp_prio_q.c: $(srcdir)/ntp_prio_q.c $(std_unity_list)
-	$(run_unity) ntp_prio_q.c run-ntp_prio_q.c
+	$(run_unity) $< $@
 
 
 ###
 test_ntp_restrict_CFLAGS =		\
+	$(AM_CFLAGS)			\
 	-I$(top_srcdir)/sntp/unity	\
 	$(NULL)
 
@@ -125,12 +133,13 @@ test_ntp_restrict_SOURCES =		\
 	$(NULL)
 
 $(srcdir)/run-ntp_restrict.c: $(srcdir)/ntp_restrict.c $(std_unity_list)
-	$(run_unity) ntp_restrict.c run-ntp_restrict.c
+	$(run_unity) $< $@
 
 
 
 ###
 test_rc_cmdlength_CFLAGS =		\
+	$(AM_CFLAGS)			\
 	-I$(top_srcdir)/sntp/unity	\
 	$(NULL)
 
@@ -145,7 +154,7 @@ test_rc_cmdlength_SOURCES =		\
 	$(NULL)
 
 $(srcdir)/run-rc_cmdlength.c: $(srcdir)/rc_cmdlength.c $(std_unity_list)
-	$(run_unity) rc_cmdlength.c run-rc_cmdlength.c
+	$(run_unity) $< $@
 
 ###
 
@@ -162,16 +171,18 @@ test_ntp_signd_SOURCES =			\
 	$(NULL)
 
 $(srcdir)/run-t-ntp_signd.c: $(srcdir)/t-ntp_signd.c $(std_unity_list)
-	$(run_unity) t-ntp_signd.c run-t-ntp_signd.c
+	$(run_unity) $< $@
 
 ###
 test_ntp_scanner_CFLAGS =		\
+	$(AM_CFLAGS)			\
 	-I$(top_srcdir)/sntp/unity	\
 	$(NULL)
 
 test_ntp_scanner_LDADD =		\
 	$(unity_tests_LDADD)		\
 	$(top_builddir)/ntpd/ntp_config.o	\
+	$(top_builddir)/ntpd/ntp_io.o		\
 	$(top_builddir)/ntpd/ntp_parser.o	\
 	$(NULL)
 
@@ -182,7 +193,7 @@ test_ntp_scanner_SOURCES =			\
 	$(NULL)
 
 $(srcdir)/run-t-ntp_scanner.c: $(srcdir)/t-ntp_scanner.c $(std_unity_list)
-	$(run_unity) t-ntp_scanner.c run-t-ntp_scanner.c
+	$(run_unity) $< $@
 
 
 TESTS =

@@ -37,6 +37,13 @@ extern void test_PositiveOverflowBig(void);
 extern void test_IllegalCharacter(void);
 
 
+//=======Suite Setup=====
+static void suite_setup(void)
+{
+extern int change_logfile(const char*, int);
+change_logfile("stderr", 0);
+}
+
 //=======Test Reset Option=====
 void resetTest(void);
 void resetTest(void)
@@ -52,6 +59,7 @@ char const *progname;
 int main(int argc, char *argv[])
 {
   progname = argv[0];
+  suite_setup();
   UnityBegin("atoint.c");
   RUN_TEST(test_RegularPositive, 7);
   RUN_TEST(test_RegularNegative, 8);

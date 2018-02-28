@@ -359,8 +359,9 @@ regfail:
 			*op++ = *cp;
 		}
 	}
-	cp[0] = '\0';
-	cp[1] = '\0';
+	
+	*op++ = '\0';
+	*op = '\0';
 	return s_Value;
 
 envfail:

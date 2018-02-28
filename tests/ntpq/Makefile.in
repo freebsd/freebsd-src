@@ -102,6 +102,7 @@ am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
 	$(top_srcdir)/sntp/m4/ltsugar.m4 \
 	$(top_srcdir)/sntp/m4/ltversion.m4 \
 	$(top_srcdir)/sntp/m4/lt~obsolete.m4 \
+	$(top_srcdir)/sntp/m4/ntp_af_unspec.m4 \
 	$(top_srcdir)/sntp/m4/ntp_cacheversion.m4 \
 	$(top_srcdir)/sntp/m4/ntp_compiler.m4 \
 	$(top_srcdir)/sntp/m4/ntp_crosscompile.m4 \
@@ -699,10 +700,15 @@ BUILT_SOURCES = $(srcdir)/run-t-ntpq.c $(NULL) check-libntpd \
 	check-libntp check-libunity .deps-ver
 CLEANFILES = check-libntpd check-libntp check-libunity .deps-ver
 std_unity_list = \
-	$(top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+	$(abs_top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+	$(abs_srcdir)/testconf.yml					\
 	$(NULL)
 
-run_unity = cd $(srcdir) && ruby ../../sntp/unity/auto/generate_test_runner.rb
+run_unity = ruby $(std_unity_list)
+EXTRA_DIST = \
+	testconf.yml			\
+	$(NULL)
+
 LDADD = \
 	$(top_builddir)/ntpq/libntpq.a	\
 	$(top_builddir)/ntpd/libntpd.a	\
@@ -1205,7 +1211,7 @@ uninstall-am:
 
 
 $(srcdir)/run-t-ntpq.c: $(srcdir)/t-ntpq.c $(std_unity_list)
-	$(run_unity) t-ntpq.c run-t-ntpq.c
+	$(run_unity) $< $@
 
 check-libntpd: ../../ntpd/libntpd.a
 	@echo stamp > $@

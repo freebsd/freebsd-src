@@ -121,6 +121,7 @@ am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
 	$(top_srcdir)/sntp/m4/ltsugar.m4 \
 	$(top_srcdir)/sntp/m4/ltversion.m4 \
 	$(top_srcdir)/sntp/m4/lt~obsolete.m4 \
+	$(top_srcdir)/sntp/m4/ntp_af_unspec.m4 \
 	$(top_srcdir)/sntp/m4/ntp_cacheversion.m4 \
 	$(top_srcdir)/sntp/m4/ntp_compiler.m4 \
 	$(top_srcdir)/sntp/m4/ntp_crosscompile.m4 \
@@ -165,10 +166,11 @@ am_test_a_md5encrypt_OBJECTS = a_md5encrypt.$(OBJEXT) \
 test_a_md5encrypt_OBJECTS = $(am_test_a_md5encrypt_OBJECTS)
 test_a_md5encrypt_LDADD = $(LDADD)
 am__DEPENDENCIES_1 =
-test_a_md5encrypt_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_a_md5encrypt_DEPENDENCIES =  \
+	$(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
@@ -177,51 +179,51 @@ am_test_atoint_OBJECTS = atoint.$(OBJEXT) run-atoint.$(OBJEXT) \
 	$(am__objects_1)
 test_atoint_OBJECTS = $(am_test_atoint_OBJECTS)
 test_atoint_LDADD = $(LDADD)
-test_atoint_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_atoint_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_atouint_OBJECTS = atouint.$(OBJEXT) run-atouint.$(OBJEXT) \
 	$(am__objects_1)
 test_atouint_OBJECTS = $(am_test_atouint_OBJECTS)
 test_atouint_LDADD = $(LDADD)
-test_atouint_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_atouint_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_authkeys_OBJECTS = authkeys.$(OBJEXT) run-authkeys.$(OBJEXT) \
 	$(am__objects_1)
 test_authkeys_OBJECTS = $(am_test_authkeys_OBJECTS)
 test_authkeys_LDADD = $(LDADD)
-test_authkeys_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_authkeys_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_buftvtots_OBJECTS = buftvtots.$(OBJEXT) \
 	run-buftvtots.$(OBJEXT) lfptest.$(OBJEXT) $(am__objects_1)
 test_buftvtots_OBJECTS = $(am_test_buftvtots_OBJECTS)
 test_buftvtots_LDADD = $(LDADD)
-test_buftvtots_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_buftvtots_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_calendar_OBJECTS = calendar.$(OBJEXT) run-calendar.$(OBJEXT) \
 	test-libntp.$(OBJEXT) $(am__objects_1)
 test_calendar_OBJECTS = $(am_test_calendar_OBJECTS)
 test_calendar_LDADD = $(LDADD)
-test_calendar_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_calendar_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_caljulian_OBJECTS = test_caljulian-caljulian.$(OBJEXT) \
 	test_caljulian-run-caljulian.$(OBJEXT) \
 	test_caljulian-test-libntp.$(OBJEXT) $(am__objects_1)
 test_caljulian_OBJECTS = $(am_test_caljulian_OBJECTS)
 test_caljulian_LDADD = $(LDADD)
-test_caljulian_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_caljulian_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 test_caljulian_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
 	$(test_caljulian_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o \
@@ -230,10 +232,10 @@ am_test_caltontp_OBJECTS = test_caltontp-caltontp.$(OBJEXT) \
 	test_caltontp-run-caltontp.$(OBJEXT) $(am__objects_1)
 test_caltontp_OBJECTS = $(am_test_caltontp_OBJECTS)
 test_caltontp_LDADD = $(LDADD)
-test_caltontp_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_caltontp_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 test_caltontp_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(test_caltontp_CFLAGS) \
 	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
@@ -242,28 +244,30 @@ am_test_calyearstart_OBJECTS = calyearstart.$(OBJEXT) \
 	$(am__objects_1)
 test_calyearstart_OBJECTS = $(am_test_calyearstart_OBJECTS)
 test_calyearstart_LDADD = $(LDADD)
-test_calyearstart_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_calyearstart_DEPENDENCIES =  \
+	$(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_clocktime_OBJECTS = clocktime.$(OBJEXT) \
 	run-clocktime.$(OBJEXT) test-libntp.$(OBJEXT) $(am__objects_1)
 test_clocktime_OBJECTS = $(am_test_clocktime_OBJECTS)
 test_clocktime_LDADD = $(LDADD)
-test_clocktime_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_clocktime_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_decodenetnum_OBJECTS =  \
 	test_decodenetnum-decodenetnum.$(OBJEXT) \
 	test_decodenetnum-run-decodenetnum.$(OBJEXT) \
 	test_decodenetnum-sockaddrtest.$(OBJEXT) $(am__objects_1)
 test_decodenetnum_OBJECTS = $(am_test_decodenetnum_OBJECTS)
 test_decodenetnum_LDADD = $(LDADD)
-test_decodenetnum_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_decodenetnum_DEPENDENCIES =  \
+	$(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 test_decodenetnum_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
 	$(test_decodenetnum_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
@@ -272,163 +276,163 @@ am_test_hextoint_OBJECTS = hextoint.$(OBJEXT) run-hextoint.$(OBJEXT) \
 	$(am__objects_1)
 test_hextoint_OBJECTS = $(am_test_hextoint_OBJECTS)
 test_hextoint_LDADD = $(LDADD)
-test_hextoint_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_hextoint_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_hextolfp_OBJECTS = hextolfp.$(OBJEXT) run-hextolfp.$(OBJEXT) \
 	lfptest.$(OBJEXT) $(am__objects_1)
 test_hextolfp_OBJECTS = $(am_test_hextolfp_OBJECTS)
 test_hextolfp_LDADD = $(LDADD)
-test_hextolfp_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_hextolfp_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_humandate_OBJECTS = humandate.$(OBJEXT) \
 	run-humandate.$(OBJEXT) $(am__objects_1)
 test_humandate_OBJECTS = $(am_test_humandate_OBJECTS)
 test_humandate_LDADD = $(LDADD)
-test_humandate_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_humandate_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_lfpfunc_OBJECTS = lfpfunc.$(OBJEXT) run-lfpfunc.$(OBJEXT) \
 	$(am__objects_1)
 test_lfpfunc_OBJECTS = $(am_test_lfpfunc_OBJECTS)
 test_lfpfunc_LDADD = $(LDADD)
-test_lfpfunc_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_lfpfunc_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_lfptostr_OBJECTS = lfptostr.$(OBJEXT) run-lfptostr.$(OBJEXT) \
 	$(am__objects_1)
 test_lfptostr_OBJECTS = $(am_test_lfptostr_OBJECTS)
 test_lfptostr_LDADD = $(LDADD)
-test_lfptostr_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_lfptostr_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_modetoa_OBJECTS = modetoa.$(OBJEXT) run-modetoa.$(OBJEXT) \
 	$(am__objects_1)
 test_modetoa_OBJECTS = $(am_test_modetoa_OBJECTS)
 test_modetoa_LDADD = $(LDADD)
-test_modetoa_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_modetoa_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_msyslog_OBJECTS = msyslog.$(OBJEXT) run-msyslog.$(OBJEXT) \
 	$(am__objects_1)
 test_msyslog_OBJECTS = $(am_test_msyslog_OBJECTS)
 test_msyslog_LDADD = $(LDADD)
-test_msyslog_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_msyslog_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_netof_OBJECTS = netof.$(OBJEXT) run-netof.$(OBJEXT) \
 	sockaddrtest.$(OBJEXT) $(am__objects_1)
 test_netof_OBJECTS = $(am_test_netof_OBJECTS)
 test_netof_LDADD = $(LDADD)
-test_netof_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_netof_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_numtoa_OBJECTS = numtoa.$(OBJEXT) run-numtoa.$(OBJEXT) \
 	$(am__objects_1)
 test_numtoa_OBJECTS = $(am_test_numtoa_OBJECTS)
 test_numtoa_LDADD = $(LDADD)
-test_numtoa_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_numtoa_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_numtohost_OBJECTS = numtohost.$(OBJEXT) \
 	run-numtohost.$(OBJEXT) $(am__objects_1)
 test_numtohost_OBJECTS = $(am_test_numtohost_OBJECTS)
 test_numtohost_LDADD = $(LDADD)
-test_numtohost_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_numtohost_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_octtoint_OBJECTS = octtoint.$(OBJEXT) run-octtoint.$(OBJEXT) \
 	$(am__objects_1)
 test_octtoint_OBJECTS = $(am_test_octtoint_OBJECTS)
 test_octtoint_LDADD = $(LDADD)
-test_octtoint_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_octtoint_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_prettydate_OBJECTS = prettydate.$(OBJEXT) \
 	run-prettydate.$(OBJEXT) $(am__objects_1)
 test_prettydate_OBJECTS = $(am_test_prettydate_OBJECTS)
 test_prettydate_LDADD = $(LDADD)
-test_prettydate_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_prettydate_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_recvbuff_OBJECTS = recvbuff.$(OBJEXT) run-recvbuff.$(OBJEXT) \
 	$(am__objects_1)
 test_recvbuff_OBJECTS = $(am_test_recvbuff_OBJECTS)
 test_recvbuff_LDADD = $(LDADD)
-test_recvbuff_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_recvbuff_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_refidsmear_OBJECTS = refidsmear.$(OBJEXT) \
 	run-refidsmear.$(OBJEXT) $(am__objects_1)
 test_refidsmear_OBJECTS = $(am_test_refidsmear_OBJECTS)
 test_refidsmear_LDADD = $(LDADD)
-test_refidsmear_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_refidsmear_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_refnumtoa_OBJECTS = refnumtoa.$(OBJEXT) \
 	run-refnumtoa.$(OBJEXT) $(am__objects_1)
 test_refnumtoa_OBJECTS = $(am_test_refnumtoa_OBJECTS)
 test_refnumtoa_LDADD = $(LDADD)
-test_refnumtoa_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_refnumtoa_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_sfptostr_OBJECTS = sfptostr.$(OBJEXT) run-sfptostr.$(OBJEXT) \
 	$(am__objects_1)
 test_sfptostr_OBJECTS = $(am_test_sfptostr_OBJECTS)
 test_sfptostr_LDADD = $(LDADD)
-test_sfptostr_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_sfptostr_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_socktoa_OBJECTS = socktoa.$(OBJEXT) run-socktoa.$(OBJEXT) \
 	sockaddrtest.$(OBJEXT) $(am__objects_1)
 test_socktoa_OBJECTS = $(am_test_socktoa_OBJECTS)
 test_socktoa_LDADD = $(LDADD)
-test_socktoa_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_socktoa_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_ssl_init_OBJECTS = ssl_init.$(OBJEXT) run-ssl_init.$(OBJEXT) \
 	$(am__objects_1)
 test_ssl_init_OBJECTS = $(am_test_ssl_init_OBJECTS)
 test_ssl_init_LDADD = $(LDADD)
-test_ssl_init_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_ssl_init_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_statestr_OBJECTS = statestr.$(OBJEXT) run-statestr.$(OBJEXT) \
 	$(am__objects_1)
 test_statestr_OBJECTS = $(am_test_statestr_OBJECTS)
 test_statestr_LDADD = $(LDADD)
-test_statestr_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_statestr_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_strtolfp_OBJECTS = test_strtolfp-strtolfp.$(OBJEXT) \
 	test_strtolfp-run-strtolfp.$(OBJEXT) \
 	test_strtolfp-lfptest.$(OBJEXT) $(am__objects_1)
 test_strtolfp_OBJECTS = $(am_test_strtolfp_OBJECTS)
 test_strtolfp_LDADD = $(LDADD)
-test_strtolfp_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_strtolfp_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 test_strtolfp_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(test_strtolfp_CFLAGS) \
 	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
@@ -436,66 +440,66 @@ am_test_timespecops_OBJECTS = timespecops.$(OBJEXT) \
 	run-timespecops.$(OBJEXT) $(am__objects_1)
 test_timespecops_OBJECTS = $(am_test_timespecops_OBJECTS)
 test_timespecops_LDADD = $(LDADD)
-test_timespecops_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_timespecops_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_timevalops_OBJECTS = timevalops.$(OBJEXT) \
 	run-timevalops.$(OBJEXT) $(am__objects_1)
 test_timevalops_OBJECTS = $(am_test_timevalops_OBJECTS)
 test_timevalops_LDADD = $(LDADD)
-test_timevalops_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_timevalops_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_tsafememcmp_OBJECTS = tsafememcmp.$(OBJEXT) \
 	run-tsafememcmp.$(OBJEXT) $(am__objects_1)
 test_tsafememcmp_OBJECTS = $(am_test_tsafememcmp_OBJECTS)
 test_tsafememcmp_LDADD = $(LDADD)
-test_tsafememcmp_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_tsafememcmp_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_tstotv_OBJECTS = tstotv.$(OBJEXT) run-tstotv.$(OBJEXT) \
 	$(am__objects_1)
 test_tstotv_OBJECTS = $(am_test_tstotv_OBJECTS)
 test_tstotv_LDADD = $(LDADD)
-test_tstotv_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_tstotv_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_tvtots_OBJECTS = tvtots.$(OBJEXT) run-tvtots.$(OBJEXT) \
 	lfptest.$(OBJEXT) $(am__objects_1)
 test_tvtots_OBJECTS = $(am_test_tvtots_OBJECTS)
 test_tvtots_LDADD = $(LDADD)
-test_tvtots_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_tvtots_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_uglydate_OBJECTS = uglydate.$(OBJEXT) run-uglydate.$(OBJEXT) \
 	$(am__objects_1)
 test_uglydate_OBJECTS = $(am_test_uglydate_OBJECTS)
 test_uglydate_LDADD = $(LDADD)
-test_uglydate_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_uglydate_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_vi64ops_OBJECTS = vi64ops.$(OBJEXT) run-vi64ops.$(OBJEXT) \
 	$(am__objects_1)
 test_vi64ops_OBJECTS = $(am_test_vi64ops_OBJECTS)
 test_vi64ops_LDADD = $(LDADD)
-test_vi64ops_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_vi64ops_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_ymd2yd_OBJECTS = ymd2yd.$(OBJEXT) run-ymd2yd.$(OBJEXT) \
 	$(am__objects_1)
 test_ymd2yd_OBJECTS = $(am_test_ymd2yd_OBJECTS)
 test_ymd2yd_LDADD = $(LDADD)
-test_ymd2yd_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+test_ymd2yd_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -1095,17 +1099,22 @@ BUILT_SOURCES = $(srcdir)/run-a_md5encrypt.c $(srcdir)/run-atoint.c \
 	.deps-ver
 CLEANFILES = check-libntp check-libunity .deps-ver
 std_unity_list = \
-	$(top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+	$(abs_top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+	$(abs_srcdir)/testconf.yml					\
 	$(NULL)
 
-run_unity = cd $(srcdir) && ruby ../../sntp/unity/auto/generate_test_runner.rb
+run_unity = ruby $(std_unity_list)
+EXTRA_DIST = \
+	testconf.yml			\
+	$(NULL)
+
 LDADD = \
+	$(top_builddir)/sntp/unity/libunity.a	\
 	$(top_builddir)/libntp/libntp.a	\
 	$(LDADD_LIBNTP)			\
 	$(PTHREAD_LIBS)			\
 	$(LDADD_NTP)			\
 	$(LIBM)				\
-	$(top_builddir)/sntp/unity/libunity.a	\
 	$(NULL)
 
 AM_CFLAGS = $(CFLAGS_NTP) $(NTP_HARD_CFLAGS)
@@ -2547,121 +2556,121 @@ uninstall-am:
 
 
 $(srcdir)/run-a_md5encrypt.c: $(srcdir)/a_md5encrypt.c $(std_unity_list)
-	$(run_unity) a_md5encrypt.c run-a_md5encrypt.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-atoint.c: $(srcdir)/atoint.c $(std_unity_list)
-	$(run_unity) atoint.c run-atoint.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-atouint.c: $(srcdir)/atouint.c $(std_unity_list)
-	$(run_unity) atouint.c run-atouint.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-authkeys.c: $(srcdir)/authkeys.c $(std_unity_list)
-	$(run_unity) authkeys.c run-authkeys.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-buftvtots.c: $(srcdir)/buftvtots.c $(std_unity_list)
-	$(run_unity) buftvtots.c run-buftvtots.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-calendar.c: $(srcdir)/calendar.c $(std_unity_list)
-	$(run_unity) calendar.c run-calendar.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-caltontp.c: $(srcdir)/caltontp.c $(std_unity_list)
-	$(run_unity) caltontp.c run-caltontp.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-caljulian.c: $(srcdir)/caljulian.c $(std_unity_list)
-	$(run_unity) caljulian.c run-caljulian.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-calyearstart.c: $(srcdir)/calyearstart.c $(std_unity_list)
-	$(run_unity) calyearstart.c run-calyearstart.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-clocktime.c: $(srcdir)/clocktime.c $(std_unity_list)
-	$(run_unity) clocktime.c run-clocktime.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-decodenetnum.c: $(srcdir)/decodenetnum.c $(std_unity_list)
-	$(run_unity) decodenetnum.c run-decodenetnum.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-hextoint.c: $(srcdir)/hextoint.c $(std_unity_list)
-	$(run_unity) hextoint.c run-hextoint.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-hextolfp.c: $(srcdir)/hextolfp.c $(std_unity_list)
-	$(run_unity) hextolfp.c run-hextolfp.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-humandate.c: $(srcdir)/humandate.c $(std_unity_list)
-	$(run_unity) humandate.c run-humandate.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-lfpfunc.c: $(srcdir)/lfpfunc.c $(std_unity_list)
-	$(run_unity) lfpfunc.c run-lfpfunc.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-lfptostr.c: $(srcdir)/lfptostr.c $(std_unity_list)
-	$(run_unity) lfptostr.c run-lfptostr.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-modetoa.c: $(srcdir)/modetoa.c $(std_unity_list)
-	$(run_unity) modetoa.c run-modetoa.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-msyslog.c: $(srcdir)/msyslog.c $(std_unity_list)
-	$(run_unity) msyslog.c run-msyslog.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-netof.c: $(srcdir)/netof.c $(std_unity_list)
-	$(run_unity) netof.c run-netof.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-numtoa.c: $(srcdir)/numtoa.c $(std_unity_list)
-	$(run_unity) numtoa.c run-numtoa.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-numtohost.c: $(srcdir)/numtohost.c $(std_unity_list)
-	$(run_unity) numtohost.c run-numtohost.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-octtoint.c: $(srcdir)/octtoint.c $(std_unity_list)
-	$(run_unity) octtoint.c run-octtoint.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-prettydate.c: $(srcdir)/prettydate.c $(std_unity_list)
-	$(run_unity) prettydate.c run-prettydate.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-recvbuff.c: $(srcdir)/recvbuff.c $(std_unity_list)
-	$(run_unity) recvbuff.c run-recvbuff.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-refidsmear.c: $(srcdir)/refidsmear.c $(std_unity_list)
-	$(run_unity) refidsmear.c run-refidsmear.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-refnumtoa.c: $(srcdir)/refnumtoa.c $(std_unity_list)
-	$(run_unity) refnumtoa.c run-refnumtoa.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-sfptostr.c: $(srcdir)/sfptostr.c $(std_unity_list)
-	$(run_unity) sfptostr.c run-sfptostr.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-socktoa.c: $(srcdir)/socktoa.c $(std_unity_list)
-	$(run_unity) socktoa.c run-socktoa.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-ssl_init.c: $(srcdir)/ssl_init.c $(std_unity_list)
-	$(run_unity) ssl_init.c run-ssl_init.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-statestr.c: $(srcdir)/statestr.c $(std_unity_list)
-	$(run_unity) statestr.c run-statestr.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-strtolfp.c: $(srcdir)/strtolfp.c $(std_unity_list)
-	$(run_unity) strtolfp.c run-strtolfp.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-timespecops.c: $(srcdir)/timespecops.c $(std_unity_list)
-	$(run_unity) timespecops.c run-timespecops.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-timevalops.c: $(srcdir)/timevalops.c $(std_unity_list)
-	$(run_unity) timevalops.c run-timevalops.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-tsafememcmp.c: $(srcdir)/tsafememcmp.c $(std_unity_list)
-	$(run_unity) tsafememcmp.c run-tsafememcmp.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-tstotv.c: $(srcdir)/tstotv.c $(std_unity_list)
-	$(run_unity) tstotv.c run-tstotv.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-tvtots.c: $(srcdir)/tvtots.c $(std_unity_list)
-	$(run_unity) tvtots.c run-tvtots.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-uglydate.c: $(srcdir)/uglydate.c $(std_unity_list)
-	$(run_unity) uglydate.c run-uglydate.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-vi64ops.c: $(srcdir)/vi64ops.c $(std_unity_list)
-	$(run_unity) vi64ops.c run-vi64ops.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-ymd2yd.c: $(srcdir)/ymd2yd.c $(std_unity_list)
-	$(run_unity) ymd2yd.c run-ymd2yd.c
+	$(run_unity) $< $@
 
 check-libntp: ../../libntp/libntp.a
 	@echo stamp > $@

@@ -499,7 +499,7 @@ openhost(
 		int optionValue = SO_SYNCHRONOUS_NONALERT;
 		int err;
 
-		err = setsockopt(INVALID_SOCKET, SOL_SOCKET, SO_OPENTYPE, (char *)&optionValue, sizeof(optionValue));
+		err = setsockopt(INVALID_SOCKET, SOL_SOCKET, SO_OPENTYPE, (void *)&optionValue, sizeof(optionValue));
 		if (err != NO_ERROR) {
 			(void) fprintf(stderr, "cannot open nonoverlapped sockets\n");
 			exit(1);
@@ -519,7 +519,7 @@ openhost(
 		int rbufsize = INITDATASIZE + 2048; /* 2K for slop */
 
 		if (setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF,
-			       &rbufsize, sizeof(int)) == -1)
+			       (void *)&rbufsize, sizeof(int)) == -1)
 		    error("setsockopt");
 	}
 # endif

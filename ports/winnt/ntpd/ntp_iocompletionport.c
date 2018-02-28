@@ -643,7 +643,7 @@ socketErrorCheck(
 	case ERROR_HOST_UNREACHABLE:
 		oval = 0;
 		olen = sizeof(oval);
-		getsockopt(ctx->io.sfd, SOL_SOCKET, SO_ERROR, (char*)&oval, &olen);
+		getsockopt(ctx->io.sfd, SOL_SOCKET, SO_ERROR, (void *)&oval, &olen);
 		retCode = PKT_DROP;
 		break;
 

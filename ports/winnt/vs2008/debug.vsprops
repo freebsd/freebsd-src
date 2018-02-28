@@ -14,7 +14,7 @@
 	/>
 	<Tool
 		Name="VCLinkerTool"
-		AdditionalLibraryDirectories=" $(OPENSSL_LIB)\vc"
+		AdditionalLibraryDirectories=" $(OPENSSL_LIB)"
 		TargetMachine="1"
 	/>
 </VisualStudioPropertySheet>

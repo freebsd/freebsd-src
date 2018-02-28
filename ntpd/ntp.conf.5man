@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntp.conf 5man "21 Mar 2017" "4.2.8p10-beta" "File Formats"
+.TH ntp.conf 5man "27 Feb 2018" "4.2.8p11" "File Formats"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-UAaqtC/ag-6AaisC)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-LkaqTP/ag-XkaiSP)
 .\"
-.\" It has been AutoGen-ed March 21, 2017 at 10:30:48 AM by AutoGen 5.18.5
+.\" It has been AutoGen-ed February 27, 2018 at 05:14:22 PM by AutoGen 5.18.5
 .\" From the definitions ntp.conf.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -1665,7 +1665,7 @@ The
 subcommand specifies the probability of discard
 for packets that overflow the rate-control window.
 .TP 7
-.NOP \f\*[B-Font]restrict\f[] \f\*[B-Font]address\f[] [\f\*[B-Font]mask\f[] \f\*[I-Font]mask\f[]] [\f\*[I-Font]flag\f[] \f\*[I-Font]...\f[]]
+.NOP \f\*[B-Font]restrict\f[] \f\*[B-Font]address\f[] [\f\*[B-Font]mask\f[] \f\*[I-Font]mask\f[]] [\f\*[B-Font]ippeerlimit\f[] \f\*[I-Font]int\f[]] [\f\*[I-Font]flag\f[] \f\*[I-Font]...\f[]]
 The
 \f\*[I-Font]address\f[]
 argument expressed in
@@ -1689,6 +1689,15 @@ Note that text string
 \f\*[B-Font]default\f[],
 with no mask option, may
 be used to indicate the default entry.
+The
+\f\*[B-Font]ippeerlimit\f[]
+directive limits the number of peer requests for each IP to
+\f\*[I-Font]int\f[],
+where a value of \-1 means "unlimited", the current default.
+A value of 0 means "none".
+There would usually be at most 1 peering request per IP,
+but if the remote peering requests are behind a proxy
+there could well be more than 1 per IP.
 In the current implementation,
 \f\*[B-Font]flag\f[]
 always
@@ -1744,6 +1753,19 @@ This flag
 modifies the assignment algorithm by allowing low priority traps to
 be overridden by later requests for normal priority traps.
 .TP 7
+.NOP \f\*[B-Font]noepeer\f[]
+Deny ephemeral peer requests,
+even if they come from an authenticated source.
+Note that the ability to use a symmetric key for authentication may be restricted to
+one or more IPs or subnets via the third field of the
+\fIntp.keys\f[]
+file.
+This restriction is not enabled by default,
+to maintain backward compatability.
+Expect
+\f\*[B-Font]noepeer\f[]
+to become the default in ntp-4.4.
+.TP 7
 .NOP \f\*[B-Font]nomodify\f[]
 Deny
 \fCntpq\f[]\fR(1ntpqmdoc)\f[]
@@ -1763,10 +1785,10 @@ queries.
 Time service is not affected.
 .TP 7
 .NOP \f\*[B-Font]nopeer\f[]
-Deny packets which would result in mobilizing a new association.
-This
-includes broadcast and symmetric active packets when a configured
-association does not exist.
+Deny unauthenticated packets which would result in mobilizing a new association.
+This includes
+broadcast and symmetric active packets
+when a configured association does not exist.
 It also includes
 \f\*[B-Font]pool\f[]
 associations, so if you want to use servers from a 
@@ -1774,9 +1796,9 @@ associations, so if you want to use servers from a
 directive and also want to use
 \f\*[B-Font]nopeer\f[]
 by default, you'll want a
-\f\*[B-Font]restrict source ...\f[] \f\*[B-Font]line\f[] \f\*[B-Font]as\f[] \f\*[B-Font]well\f[] \f\*[B-Font]that\f[] \f\*[B-Font]does\f[]
-.TP 7
-.NOP not
+\f\*[B-Font]restrict source ...\f[]
+line as well that does
+\fInot\f[]
 include the
 \f\*[B-Font]nopeer\f[]
 directive.
@@ -2186,11 +2208,11 @@ there is clear benefit to having the clients notice this change
 as soon as possible.
 Attacks such as replay attacks can happen, however,
 and even though there are a number of protections built in to
-broadcast mode, attempts to perform  a replay attack are possible.
+broadcast mode, attempts to perform a replay attack are possible.
 This value defaults to 0, but can be changed
 to any number of poll intervals between 0 and 4.
+.PP
 .SS Manycast Options
-.RS
 .TP 7
 .NOP \f\*[B-Font]tos\f[] [\f\*[B-Font]ceiling\f[] \f\*[I-Font]ceiling\f[] | \f\*[B-Font]cohort\f[] { \f\*[B-Font]0\f[] | \f\*[B-Font]1\f[] } | \f\*[B-Font]floor\f[] \f\*[I-Font]floor\f[] | \f\*[B-Font]minclock\f[] \f\*[I-Font]minclock\f[] | \f\*[B-Font]minsane\f[] \f\*[I-Font]minsane\f[]]
 This command affects the clock selection and clustering
@@ -2260,7 +2282,7 @@ In manycast mode these values are used in turn
 in an expanding-ring search.
 The default is eight
 multiples of 32 starting at 31.
-.RE
+.PP
 .SH Reference Clock Support
 The NTP Version 4 daemon supports some three dozen different radio,
 satellite and modem reference clocks plus a special pseudo-clock
@@ -2427,7 +2449,6 @@ option is used for this purpose.
 Except where noted,
 these options apply to all clock drivers.
 .SS Reference Clock Commands
-.RS
 .TP 7
 .NOP \f\*[B-Font]server\f[] \f[C]127.127.\f[]\f\*[I-Font]t\f[].\f\*[I-Font]u\f[] [\f\*[B-Font]prefer\f[]] [\f\*[B-Font]mode\f[] \f\*[I-Font]int\f[]] [\f\*[B-Font]minpoll\f[] \f\*[I-Font]int\f[]] [\f\*[B-Font]maxpoll\f[] \f\*[I-Font]int\f[]]
 This command can be used to configure reference clocks in
@@ -2528,7 +2549,7 @@ specific drivers in the
 page
 (available as part of the HTML documentation
 provided in
-\fI/usr/share/doc/ntp\f[]).
+\fI/usr/share/doc/ntp\f[] \fI).\f[]
 .TP 7
 .NOP \f\*[B-Font]stratum\f[] \f\*[I-Font]int\f[]
 Specifies the stratum number assigned to the driver, an integer
@@ -2576,9 +2597,8 @@ Further information on the
 command can be found in
 \fIMonitoring\f[] \fIOptions\f[].
 .RE
-.RE
+.PP
 .SH Miscellaneous Options
-.RS
 .TP 7
 .NOP \f\*[B-Font]broadcastdelay\f[] \f\*[I-Font]seconds\f[]
 The broadcast and multicast modes require a special calibration
@@ -2817,6 +2837,71 @@ This option is useful for sites that run
 on multiple hosts, with (mostly) common options (e.g., a
 restriction list).
 .TP 7
+.NOP \f\*[B-Font]interface\f[] [\f\*[B-Font]listen\f[] | \f\*[B-Font]ignore\f[] | \f\*[B-Font]drop\f[]] [\f\*[B-Font]all\f[] | \f\*[B-Font]ipv4\f[] | \f\*[B-Font]ipv6\f[] | \f\*[B-Font]wildcard\f[] \f\*[I-Font]name\f[] | \f\*[I-Font]address\f[] [\f\*[B-Font]/\f[] \f\*[I-Font]prefixlen\f[]]]
+The
+\f\*[B-Font]interface\f[]
+directive controls which network addresses
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
+opens, and whether input is dropped without processing.
+The first parameter determines the action for addresses
+which match the second parameter.
+The second parameter specifies a class of addresses,
+or a specific interface name,
+or an address.
+In the address case,
+\f\*[I-Font]prefixlen\f[]
+determines how many bits must match for this rule to apply.
+\f\*[B-Font]ignore\f[]
+prevents opening matching addresses,
+\f\*[B-Font]drop\f[]
+causes
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
+to open the address and drop all received packets without examination.
+Multiple
+\f\*[B-Font]interface\f[]
+directives can be used.
+The last rule which matches a particular address determines the action for it.
+\f\*[B-Font]interface\f[]
+directives are disabled if any
+\f\*[B-Font]\-I\f[],
+\f\*[B-Font]\-\-interface\f[],
+\f\*[B-Font]\-L\f[],
+or
+\f\*[B-Font]\-\-novirtualips\f[]
+command-line options are specified in the configuration file,
+all available network addresses are opened.
+The
+\f\*[B-Font]nic\f[]
+directive is an alias for
+\f\*[B-Font]interface\f[].
+.TP 7
+.NOP \f\*[B-Font]leapfile\f[] \f\*[I-Font]leapfile\f[]
+This command loads the IERS leapseconds file and initializes the
+leapsecond values for the next leapsecond event, leapfile expiration
+time, and TAI offset.
+The file can be obtained directly from the IERS at
+\f[C]https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list\f[]
+or
+\f[C]ftp://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list\f[].
+The
+\f\*[B-Font]leapfile\f[]
+is scanned when
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
+processes the
+\f\*[B-Font]leapfile\f[] \f\*[B-Font]directive\f[] \f\*[B-Font]or\f[] \f\*[B-Font]when\f[]
+\f\*[B-Font]ntpd\f[] \f\*[B-Font]detects\f[] \f\*[B-Font]that\f[] \f\*[B-Font]the\f[]
+\f\*[I-Font]leapfile\f[]
+has changed.
+\f\*[B-Font]ntpd\f[]
+checks once a day to see if the
+\f\*[I-Font]leapfile\f[]
+has changed.
+The
+\fCupdate-leap\f[]\fR(1update_leapmdoc)\f[]
+script can be run to see if the
+\f\*[I-Font]leapfile\f[]
+should be updated.
+.TP 7
 .NOP \f\*[B-Font]leapsmearinterval\f[] \f\*[I-Font]seconds\f[]
 This EXPERIMENTAL option is only available if
 \fCntpd\f[]\fR(1ntpdmdoc)\f[]
@@ -2922,6 +3007,164 @@ This is the same operation as the
 \f\*[B-Font]\-l\f[]
 command line option.
 .TP 7
+.NOP \f\*[B-Font]mru\f[] [\f\*[B-Font]maxdepth\f[] \f\*[I-Font]count\f[] | \f\*[B-Font]maxmem\f[] \f\*[I-Font]kilobytes\f[] | \f\*[B-Font]mindepth\f[] \f\*[I-Font]count\f[] | \f\*[B-Font]maxage\f[] \f\*[I-Font]seconds\f[] | \f\*[B-Font]initialloc\f[] \f\*[I-Font]count\f[] | \f\*[B-Font]initmem\f[] \f\*[I-Font]kilobytes\f[] | \f\*[B-Font]incalloc\f[] \f\*[I-Font]count\f[] | \f\*[B-Font]incmem\f[] \f\*[I-Font]kilobytes\f[]]
+Controls size limite of the monitoring facility's Most Recently Used
+(MRU) list
+of client addresses, which is also used by the
+rate control facility.
+.RS
+.TP 7
+.NOP \f\*[B-Font]maxdepth\f[] \f\*[I-Font]count\f[]
+.TP 7
+.NOP \f\*[B-Font]maxmem\f[] \f\*[I-Font]kilobytes\f[]
+Equivalent upper limits on the size of the MRU list, in terms of entries or kilobytes.
+The acutal limit will be up to
+\f\*[B-Font]incalloc\f[]
+entries or
+\f\*[B-Font]incmem\f[]
+kilobytes larger.
+As with all of the
+\f\*[B-Font]mru\f[]
+options offered in units of entries or kilobytes, if both
+\f\*[B-Font]maxdepth\f[]
+and
+\f\*[B-Font]maxmem\f[] \f\*[B-Font]are\f[] \f\*[B-Font]used,\f[] \f\*[B-Font]the\f[] \f\*[B-Font]last\f[] \f\*[B-Font]one\f[] \f\*[B-Font]used\f[] \f\*[B-Font]controls.\f[]
+The default is 1024 kilobytes.
+.TP 7
+.NOP \f\*[B-Font]mindepth\f[] \f\*[I-Font]count\f[]
+Lower limit on the MRU list size.
+When the MRU list has fewer than
+\f\*[B-Font]mindepth\f[]
+entries, existing entries are never removed to make room for newer ones,
+regardless of their age.
+The default is 600 entries.
+.TP 7
+.NOP \f\*[B-Font]maxage\f[] \f\*[I-Font]seconds\f[]
+Once the MRU list has
+\f\*[B-Font]mindepth\f[]
+entries and an additional client is to ba added to the list,
+if the oldest entry was updated more than
+\f\*[B-Font]maxage\f[]
+seconds ago, that entry is removed and its storage is reused.
+If the oldest entry was updated more recently the MRU list is grown,
+subject to 
+\f\*[B-Font]maxdepth\f[] \f\*[B-Font]/\f[] \f\*[B-Font]moxmem\f[].
+The default is 64 seconds.
+.TP 7
+.NOP \f\*[B-Font]initalloc\f[] \f\*[I-Font]count\f[]
+.TP 7
+.NOP \f\*[B-Font]initmem\f[] \f\*[I-Font]kilobytes\f[]
+Initial memory allocation at the time the monitoringfacility is first enabled,
+in terms of the number of entries or kilobytes.
+The default is 4 kilobytes.
+.TP 7
+.NOP \f\*[B-Font]incalloc\f[] \f\*[I-Font]count\f[]
+.TP 7
+.NOP \f\*[B-Font]incmem\f[] \f\*[I-Font]kilobytes\f[]
+Size of additional memory allocations when growing the MRU list, in entries or kilobytes.
+The default is 4 kilobytes.
+.RE
+.TP 7
+.NOP \f\*[B-Font]nonvolatile\f[] \f\*[I-Font]threshold\f[]
+Specify the
+\f\*[I-Font]threshold\f[]
+delta in seconds before an hourly change to the
+\f\*[B-Font]driftfile\f[]
+(frequency file) will be written, with a default value of 1e-7 (0.1 PPM).
+The frequency file is inspected each hour.
+If the difference between the current frequency and the last value written
+exceeds the threshold, the file is written and the
+\f\*[B-Font]threshold\f[]
+becomes the new threshold value.
+If the threshold is not exceeeded, it is reduced by half.
+This is intended to reduce the number of file writes 
+for embedded systems with nonvolatile memory.
+.TP 7
+.NOP \f\*[B-Font]phone\f[] \f\*[I-Font]dial\f[] \f\*[I-Font]...\f[]
+This command is used in conjunction with
+the ACTS modem driver (type 18)
+or the JJY driver (type 40, mode 100 \- 180).
+For the ACTS modem driver (type 18), the arguments consist of
+a maximum of 10 telephone numbers used to dial USNO, NIST, or European
+time service.
+For the JJY driver (type 40 mode 100 \- 180), the argument is 
+one telephone number used to dial the telephone JJY service.
+The Hayes command ATDT is normally prepended to the number.
+The number can contain other modem control codes as well.
+.TP 7
+.NOP \f\*[B-Font]reset\f[] [\f\*[B-Font]allpeers\f[]] [\f\*[B-Font]auth\f[]] [\f\*[B-Font]ctl\f[]] [\f\*[B-Font]io\f[]] [\f\*[B-Font]mem\f[]] [\f\*[B-Font]sys\f[]] [\f\*[B-Font]timer\f[]]
+Reset one or more groups of counters maintained by
+\f\*[B-Font]ntpd\f[]
+and exposed by
+\f\*[B-Font]ntpq\f[]
+and
+\f\*[B-Font]ntpdc\f[].
+.TP 7
+.NOP \f\*[B-Font]rlimit\f[] [\f\*[B-Font]memlock\f[] \f\*[I-Font]Nmegabytes\f[] | \f\*[B-Font]stacksize\f[] \f\*[I-Font]N4kPages\f[] \f\*[B-Font]filenum\f[] \f\*[I-Font]Nfiledescriptors\f[]]
+.RS
+.TP 7
+.NOP \f\*[B-Font]memlock\f[] \f\*[I-Font]Nmegabytes\f[]
+Specify the number of megabytes of memory that should be
+allocated and locked.
+Probably only available under Linux, this option may be useful
+when dropping root (the
+\f\*[B-Font]\-i\f[]
+option).
+The default is 32 megabytes on non-Linux machines, and \-1 under Linux.
+-1 means "do not lock the process into memory".
+0 means "lock whatever memory the process wants into memory".
+.TP 7
+.NOP \f\*[B-Font]stacksize\f[] \f\*[I-Font]N4kPages\f[]
+Specifies the maximum size of the process stack on systems with the
+\fBmlockall\f[]\fR()\f[]
+function.
+Defaults to 50 4k pages (200 4k pages in OpenBSD).
+.TP 7
+.NOP \f\*[B-Font]filenum\f[] \f\*[I-Font]Nfiledescriptors\f[]
+Specifies the maximum number of file descriptors ntpd may have open at once.
+Defaults to the system default.
+.RE
+.TP 7
+.NOP \f\*[B-Font]saveconfigdir\f[] \f\*[I-Font]directory_path\f[]
+Specify the directory in which to write configuration snapshots
+requested with
+.Cm ntpq 's
+\f\*[B-Font]saveconfig\f[]
+command.
+If
+\f\*[B-Font]saveconfigdir\f[]
+does not appear in the configuration file,
+\f\*[B-Font]saveconfig\f[]
+requests are rejected by
+\f\*[B-Font]ntpd\f[].
+.TP 7
+.NOP \f\*[B-Font]saveconfig\f[] \f\*[I-Font]filename\f[]
+Write the current configuration, including any runtime
+modifications given with
+\f\*[B-Font]:config\f[]
+or
+\f\*[B-Font]config-from-file\f[]
+to the
+\f\*[B-Font]ntpd\f[]
+host's
+\f\*[I-Font]filename\f[]
+in the
+\f\*[B-Font]saveconfigdir\f[].
+This command will be rejected unless the
+\f\*[B-Font]saveconfigdir\f[]
+directive appears in
+.Cm ntpd 's
+configuration file.
+\f\*[I-Font]filename\f[]
+can use
+\fCstrftime\f[]\fR(3)\f[]
+format directives to substitute the current date and time,
+for example,
+\f\*[B-Font]saveconfig\ ntp-%Y%m%d-%H%M%S.conf\f[].
+The filename used is stored in the system variable
+\f\*[B-Font]savedconfig\f[].
+Authentication is required.
+.TP 7
 .NOP \f\*[B-Font]setvar\f[] \f\*[I-Font]variable\f[] [\f\*[B-Font]default\f[]]
 This command adds an additional system variable.
 These
@@ -2954,6 +3197,12 @@ holds
 the names of all peer variables and the
 \fIclock_var_list\f[]
 holds the names of the reference clock variables.
+.TP 7
+.NOP \f\*[B-Font]sysinfo\f[]
+Display operational summary.
+.TP 7
+.NOP \f\*[B-Font]sysstats\f[]
+Show statistics counters maintained in the protocol module.
 .TP 7
 .NOP \f\*[B-Font]tinker\f[] [\f\*[B-Font]allan\f[] \f\*[I-Font]allan\f[] | \f\*[B-Font]dispersion\f[] \f\*[I-Font]dispersion\f[] | \f\*[B-Font]freq\f[] \f\*[I-Font]freq\f[] | \f\*[B-Font]huffpuff\f[] \f\*[I-Font]huffpuff\f[] | \f\*[B-Font]panic\f[] \f\*[I-Font]panic\f[] | \f\*[B-Font]step\f[] \f\*[I-Font]step\f[] | \f\*[B-Font]stepback\f[] \f\*[I-Font]stepback\f[] | \f\*[B-Font]stepfwd\f[] \f\*[I-Font]stepfwd\f[] | \f\*[B-Font]stepout\f[] \f\*[I-Font]stepout\f[]]
 This command can be used to alter several system variables in
@@ -3044,30 +3293,18 @@ If set to zero, the stepout
 pulses will not be suppressed.
 .RE
 .TP 7
-.NOP \f\*[B-Font]rlimit\f[] [\f\*[B-Font]memlock\f[] \f\*[I-Font]Nmegabytes\f[] | \f\*[B-Font]stacksize\f[] \f\*[I-Font]N4kPages\f[] \f\*[B-Font]filenum\f[] \f\*[I-Font]Nfiledescriptors\f[]]
-.RS
-.TP 7
-.NOP \f\*[B-Font]memlock\f[] \f\*[I-Font]Nmegabytes\f[]
-Specify the number of megabytes of memory that should be
-allocated and locked.
-Probably only available under Linux, this option may be useful
-when dropping root (the
-\f\*[B-Font]\-i\f[]
-option).
-The default is 32 megabytes on non-Linux machines, and \-1 under Linux.
--1 means "do not lock the process into memory".
-0 means "lock whatever memory the process wants into memory".
-.TP 7
-.NOP \f\*[B-Font]stacksize\f[] \f\*[I-Font]N4kPages\f[]
-Specifies the maximum size of the process stack on systems with the
-\fBmlockall\f[]\fR()\f[]
-function.
-Defaults to 50 4k pages (200 4k pages in OpenBSD).
-.TP 7
-.NOP \f\*[B-Font]filenum\f[] \f\*[I-Font]Nfiledescriptors\f[]
-Specifies the maximum number of file descriptors ntpd may have open at once.
-Defaults to the system default.
-.RE
+.NOP \f\*[B-Font]writevar\f[] \f\*[I-Font]assocID\ name\f[] \f\*[I-Font]=\f[] \f\*[I-Font]value\f[] \f\*[I-Font][,...]\f[]
+Write (create or update) the specified variables.
+If the
+\f\*[B-Font]assocID\f[]
+is zero, the variablea re from the
+system variables
+name space, otherwise they are from the
+peer variables
+name space.
+The
+\f\*[B-Font]assocID\f[]
+is required, as the same name can occur in both name spaces.
 .TP 7
 .NOP \f\*[B-Font]trap\f[] \f\*[I-Font]host_address\f[] [\f\*[B-Font]port\f[] \f\*[I-Font]port_number\f[]] [\f\*[B-Font]interface\f[] \f\*[I-Font]interface_address\f[]]
 This command configures a trap receiver at the given host
@@ -3080,6 +3317,14 @@ message is sent with a source address of the local interface the
 message is sent through.
 Note that on a multihomed host the
 interface used may vary from time to time with routing changes.
+.TP 7
+.NOP \f\*[B-Font]ttl\f[] \f\*[I-Font]hop\f[] \f\*[I-Font]...\f[]
+This command specifies a list of TTL values in increasing order.
+Up to 8 values can be specified.
+In
+\f\*[B-Font]manycast\f[]
+mode these values are used in-turn in an expanding-ring search.
+The default is eight multiples of 32 starting at 31.
 .sp \n(Ppu
 .ne 2
 
@@ -3097,9 +3342,8 @@ In manycast mode these values are used in turn in
 an expanding-ring search.
 The default is eight multiples of 32 starting at
 31.
-.RE
+.PP
 .SH "OPTIONS"
-.RS
 .TP
 .NOP \f\*[B-Font]\-\-help\f[]
 Display usage information and exit.
@@ -3111,7 +3355,7 @@ Pass the extended usage information through a pager.
 Output version of program and exit.  The default mode is `v', a simple
 version.  The `c' mode will print copyright information and `n' will
 print the full copyright notice.
-.RE
+.PP
 .SH "OPTION PRESETS"
 Any option that is not marked as \fInot presettable\fP may be preset
 by loading values from environment variables named:
@@ -3122,7 +3366,6 @@ by loading values from environment variables named:
 .SH "ENVIRONMENT"
 See \fBOPTION PRESETS\fP for configuration environment variables.
 .SH FILES
-.RS
 .TP 15
 .NOP \fI/etc/ntp.conf\f[]
 the default name of the configuration file
@@ -3146,10 +3389,9 @@ RSA public key
 .TP 15
 .NOP \fIntp_dh\f[]
 Diffie-Hellman agreement parameters
-.RE
+.PP
 .SH "EXIT STATUS"
 One of the following exit values will be returned:
-.RS
 .TP
 .NOP 0 " (EXIT_SUCCESS)"
 Successful program execution.
@@ -3160,7 +3402,7 @@ The operation failed or the command syntax was not valid.
 .NOP 70 " (EX_SOFTWARE)"
 libopts had an internal operational error.  Please report
 it to autogen-users@lists.sourceforge.net.  Thank you.
-.RE
+.PP
 .SH "SEE ALSO"
 \fCntpd\f[]\fR(1ntpdmdoc)\f[],
 \fCntpdc\f[]\fR(1ntpdcmdoc)\f[],

@@ -35,6 +35,13 @@ extern void test_NoWrapInDateRangeLeapYear(void);
 extern void test_WrapInDateRange(void);
 
 
+//=======Suite Setup=====
+static void suite_setup(void)
+{
+extern int change_logfile(const char*, int);
+change_logfile("stderr", 0);
+}
+
 //=======Test Reset Option=====
 void resetTest(void);
 void resetTest(void)
@@ -50,6 +57,7 @@ char const *progname;
 int main(int argc, char *argv[])
 {
   progname = argv[0];
+  suite_setup();
   UnityBegin("calyearstart.c");
   RUN_TEST(test_NoWrapInDateRange, 11);
   RUN_TEST(test_NoWrapInDateRangeLeapYear, 12);

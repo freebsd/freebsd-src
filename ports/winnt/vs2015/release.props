@@ -18,7 +18,7 @@
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
-      <AdditionalLibraryDirectories>$(OPENSSL_LIB)\vc</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OPENSSL_LIB)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup />

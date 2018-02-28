@@ -14,13 +14,13 @@
  * So instead of manipulating the build environment we use the build
  * tools themselves to create requests for linking the right library.
  *
- * To use this feature, it is recommended to use the precompiled
- * VC binaries from Shining Light Productions:
+ * Unless you compile OpenSSL on your own, using the precompiled
+ * VC binaries from Shining Light Productions is probably easiest:
  *   https://slproweb.com/products/Win32OpenSSL.html
- * These are installed in (OPENSSL_LIB)/vc.
  *
- * As an alternative, create the set of build variants of OpenSSL you
- * need, implementing the following naming scheme:
+ * If 'OPENSSL_AUTOLINK_STRICT' is defined, then target bit width,
+ * runtime model and debug/release info are incoded into the library
+ * file name, according to this scheme:
  *
  *  basename<width><RT><DebRel>.lib
  *
@@ -32,11 +32,16 @@
 #pragma once
 
 #if !defined(_MSC_VER)
+
 # error use this header only with Micro$oft Visual C compilers!
+
 #elif defined(OPENSSL_NO_AUTOLINK)
+
 # pragma message("automatic OpenSSL library selection disabled")
-#else
-/* ---------------------------------------------------------------- */
+
+#elif defined(OPENSSL_AUTOLINK_STRICT)
+
+ /* ---------------------------------------------------------------- */
 /*  selection dance to get the right libraries linked               */
 /* ---------------------------------------------------------------- */
 
@@ -85,10 +90,19 @@
  * request in the object file, depending on the SSL version and the
  * build variant.
  */
-# if OPENSSL_VERSION_NUMBER >= 0x10100000L
-#  pragma comment(lib, "libcrypto" LTAG_SIZE LTAG_RTLIB LTAG_DEBUG ".lib")
+
+#  if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#   pragma comment(lib, "libcrypto" LTAG_SIZE LTAG_RTLIB LTAG_DEBUG ".lib")
+#  else
+#   pragma comment(lib, "libeay32" LTAG_RTLIB LTAG_DEBUG ".lib")
+#  endif
+
 # else
-#  pragma comment(lib, "libeay32" LTAG_RTLIB LTAG_DEBUG ".lib")
+
+# if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#  pragma comment(lib, "libcrypto.lib")
+# else
+#  pragma comment(lib, "libeay32.lib")
 # endif
 
 #endif /*!defined(OPENSSL_NO_AUTOLINK)*/
