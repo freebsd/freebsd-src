@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+NO_OBJ=t
+
 .include <bsd.init.mk>
 
 SUBDIR=		mbr pmbr boot0 boot0sio btx boot2 cdboot gptboot \
