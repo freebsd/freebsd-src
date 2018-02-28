@@ -34,6 +34,9 @@ local core = require("core")
 local screen = {}
 
 -- Module exports
+screen.default_x = 0
+screen.default_y = 25
+
 function screen.clear()
 	if core.isSerialBoot() then
 		return
@@ -71,7 +74,7 @@ function screen.defcursor()
 	if core.isSerialBoot() then
 		return
 	end
-	loader.printc(core.KEYSTR_CSI .. "25;0H")
+	screen.setcursor(screen.default_x, screen.default_y)
 end
 
 return screen
