@@ -33,19 +33,21 @@ local core = require("core")
 local screen = require("screen")
 
 local password = {}
+
+local INCORRECT_PASSWORD = "loader: incorrect password!"
 -- Asterisks as a password mask
 local show_password_mask = false
 local twiddle_chars = {"/", "-", "\\", "|"}
 
 -- Module exports
-function password.read()
+function password.read(prompt_length)
 	local str = ""
 	local n = 0
 	local twiddle_pos = 1
 
 	local function draw_twiddle()
 		loader.printc("  " .. twiddle_chars[twiddle_pos])
-		screen.movecursor(-3, 0)
+		screen.setcursor(prompt_length + 2, 25)
 		twiddle_pos = (twiddle_pos % #twiddle_chars) + 1
 	end
 
@@ -84,15 +86,27 @@ function password.check()
 	screen.defcursor()
 	-- pwd is optionally supplied if we want to check it
 	local function doPrompt(prompt, pwd)
+		local attempts = 1
+
+		local function clear_incorrect_text_prompt()
+			loader.printc("\n")
+			loader.printc(string.rep(" ", #INCORRECT_PASSWORD))
+		end
+
 		while true do
+			screen.defcursor()
 			loader.printc(prompt)
-			local read_pwd = password.read()
+			local read_pwd = password.read(#prompt)
 			if pwd == nil or pwd == read_pwd then
-				-- Throw an extra newline after password prompt
-				print("")
+				-- Clear the prompt + twiddle
+				loader.printc(string.rep(" ", #prompt + 5))
+				if attempts > 1 then
+					clear_incorrect_text_prompt()
+				end
 				return read_pwd
 			end
-			print("\n\nloader: incorrect password!\n")
+			loader.printc("\n" .. INCORRECT_PASSWORD)
+			attempts = attempts + 1
 			loader.delay(3*1000*1000)
 		end
 	end

@@ -49,24 +49,6 @@ function screen.setcursor(x, y)
 	loader.printc(core.KEYSTR_CSI .. y .. ";" .. x .. "H")
 end
 
-function screen.movecursor(dx, dy)
-	if core.isSerialBoot() then
-		return
-	end
-
-	if dx < 0 then
-		loader.printc(core.KEYSTR_CSI .. -dx .. "D")
-	elseif dx > 0 then
-		loader.printc(core.KEYSTR_CSI .. dx .. "C")
-	end
-
-	if dy < 0 then
-		loader.printc(core.KEYSTR_CSI .. -dy .. "A")
-	elseif dy > 0 then
-		loader.printc(core.KEYSTR_CSI .. dy .. "B")
-	end
-end
-
 function screen.setforeground(color_value)
 	if color.disabled then
 		return color_value
