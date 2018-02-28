@@ -316,7 +316,7 @@ jail_extract_address()
 
 	# Extract the prefix/netmask/prefixlen part by cutting off the address.
 	_mask=${_r}
-	_mask=`expr "${_mask}" : "${_addr}\(.*\)"`
+	_mask=`expr -- "${_mask}" : "${_addr}\(.*\)"`
 
 	# Identify type {inet,inet6}.
 	case "${_addr}" in
@@ -366,8 +366,8 @@ jail_handle_ips_option()
 	while [ ${#_x} -gt 0 ]; do
 		case "${_x}" in
 		*,*)	# Extract the first argument and strip it off the list.
-			_i=`expr "${_x}" : '^\([^,]*\)'`
-			_x=`expr "${_x}" : "^[^,]*,\(.*\)"`
+			_i=`expr -- "${_x}" : '^\([^,]*\)'`
+			_x=`expr -- "${_x}" : "^[^,]*,\(.*\)"`
 		;;
 		*)	_i=${_x}
 			_x=""
