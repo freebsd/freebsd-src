@@ -46,6 +46,8 @@ core.KEY_BACKSPACE	= 8
 core.KEY_ENTER		= 13
 core.KEY_DELETE		= 127
 
+-- Note that this is a decimal representation, despite the leading 0 that in
+-- other contexts (outside of Lua) may mean 'octal'
 core.KEYSTR_ESCAPE	= "\027"
 core.KEYSTR_CSI		= core.KEYSTR_ESCAPE .. "["
 
