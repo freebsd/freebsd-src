@@ -47,7 +47,8 @@ function password.read(prompt_length)
 
 	local function draw_twiddle()
 		loader.printc("  " .. twiddle_chars[twiddle_pos])
-		screen.setcursor(prompt_length + 2, 25)
+		-- Reset cursor to just after the password prompt
+		screen.setcursor(prompt_length + 2, screen.default_y)
 		twiddle_pos = (twiddle_pos % #twiddle_chars) + 1
 	end
 
