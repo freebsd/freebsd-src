@@ -314,7 +314,8 @@ SHELL=	${__MAKE_SHELL}
 .MAKE.EXPAND_VARIABLES= yes
 
 # Tell bmake the makefile preference
-.MAKE.MAKEFILE_PREFERENCE= BSDmakefile makefile Makefile
+MAKEFILE_PREFERENCE?= BSDmakefile makefile Makefile
+.MAKE.MAKEFILE_PREFERENCE= ${MAKEFILE_PREFERENCE}
 
 # Tell bmake to always pass job tokens, regardless of target depending on
 # .MAKE or looking like ${MAKE}/${.MAKE}/$(MAKE)/$(.MAKE)/make.
