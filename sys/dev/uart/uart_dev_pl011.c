@@ -36,7 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
+
 #include <machine/bus.h>
+#include <machine/machdep.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
@@ -55,6 +57,14 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <sys/kdb.h>
+
+#ifdef __aarch64__
+#define	IS_FDT	(arm64_bus_method == ARM64_BUS_FDT)
+#elif defined(FDT)
+#define	IS_FDT	1
+#else
+#error Unsupported configuration
+#endif
 
 /* PL011 UART registers and masks*/
 #define	UART_DR		0x00		/* Data register */
@@ -447,11 +457,10 @@ uart_pl011_bus_param(struct uart_softc *sc, int baudrate, int databits,
 	return (0);
 }
 
-static int
-uart_pl011_bus_probe(struct uart_softc *sc)
-{
-	uint8_t hwrev;
 #ifdef FDT
+static int
+uart_pl011_bus_hwrev_fdt(struct uart_softc *sc)
+{
 	pcell_t node;
 	uint32_t periphid;
 
@@ -467,19 +476,32 @@ uart_pl011_bus_probe(struct uart_softc *sc)
 	 */
 	if (ofw_bus_is_compatible(sc->sc_dev, "brcm,bcm2835-pl011") ||
 	    ofw_bus_is_compatible(sc->sc_dev, "broadcom,bcm2835-uart")) {
-		hwrev = 2;
+		return (2);
 	} else {
 		node = ofw_bus_get_node(sc->sc_dev);
 		if (OF_getencprop(node, "arm,primecell-periphid", &periphid,
 		    sizeof(periphid)) > 0) {
-			hwrev = (periphid >> 20) & 0x0f;
-		} else {
-			hwrev = __uart_getreg(&sc->sc_bas, UART_PIDREG_2) >> 4;
+			return ((periphid >> 20) & 0x0f);
 		}
 	}
-#else
-	hwrev = __uart_getreg(&sc->sc_bas, UART_PIDREG_2) >> 4;
+
+	return (-1);
+}
 #endif
+
+static int
+uart_pl011_bus_probe(struct uart_softc *sc)
+{
+	int hwrev;
+
+	hwrev = -1;
+#ifdef FDT
+	if (IS_FDT)
+		hwrev = uart_pl011_bus_hwrev_fdt(sc);
+#endif
+	if (hwrev < 0)
+		hwrev = __uart_getreg(&sc->sc_bas, UART_PIDREG_2) >> 4;
+
 	if (hwrev <= 2) {
 		sc->sc_rxfifosz = FIFO_RX_SIZE_R2;
 		sc->sc_txfifosz = FIFO_TX_SIZE_R2;
