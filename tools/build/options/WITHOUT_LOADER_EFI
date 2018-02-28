@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to disable building of EFI bootloader components
+Set to disable building of EFI bootloader components.
