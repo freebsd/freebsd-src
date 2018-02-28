@@ -2,7 +2,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- *  Copyright (c) 2009-2017 Alexander Motin <mav@FreeBSD.org>
+ *  Copyright (c) 2009-2018 Alexander Motin <mav@FreeBSD.org>
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
  *
@@ -633,8 +633,8 @@ struct ispsoftc {
 #define	ISP_CFG_NPORT_ONLY	0x04	/* insist on {N/F}-Port connection */
 #define	ISP_CFG_LPORT		0x06	/* prefer {N/F}L-Port connection */
 #define	ISP_CFG_NPORT		0x08	/* prefer {N/F}-Port connection */
-#define	ISP_CFG_1GB		0x10	/* force 1GB connection (23XX only) */
-#define	ISP_CFG_2GB		0x20	/* force 2GB connection (23XX only) */
+#define	ISP_CFG_1GB		0x10	/* force 1Gb connection (23XX only) */
+#define	ISP_CFG_2GB		0x20	/* force 2Gb connection (23XX only) */
 #define	ISP_CFG_NORELOAD	0x80	/* don't download f/w */
 #define	ISP_CFG_NONVRAM		0x40	/* ignore NVRAM */
 #define	ISP_CFG_NOFCTAPE	0x100	/* disable FC-Tape */
@@ -642,9 +642,10 @@ struct ispsoftc {
 #define	ISP_CFG_OWNFSZ		0x400	/* override NVRAM frame size */
 #define	ISP_CFG_OWNLOOPID	0x800	/* override NVRAM loopid */
 #define	ISP_CFG_OWNEXCTHROTTLE	0x1000	/* override NVRAM execution throttle */
-#define	ISP_CFG_4GB		0x2000	/* force 4GB connection (24XX only) */
-#define	ISP_CFG_8GB		0x4000	/* force 8GB connection (25XX only) */
-#define	ISP_CFG_16GB		0x8000	/* force 16GB connection (82XX only) */
+#define	ISP_CFG_4GB		0x2000	/* force 4Gb connection (24XX only) */
+#define	ISP_CFG_8GB		0x4000	/* force 8Gb connection (25XX only) */
+#define	ISP_CFG_16GB		0x8000	/* force 16Gb connection (26XX only) */
+#define	ISP_CFG_32GB		0x10000	/* force 32Gb connection (27XX only) */
 
 /*
  * For each channel, the outer layers should know what role that channel
@@ -745,6 +746,7 @@ struct ispsoftc {
 #define	ISP_HA_FC_2400		0x60
 #define	ISP_HA_FC_2500		0x70
 #define	ISP_HA_FC_2600		0x80
+#define	ISP_HA_FC_2700		0x90
 
 #define	IS_SCSI(isp)	(isp->isp_type & ISP_HA_SCSI)
 #define	IS_1020(isp)	(isp->isp_type < ISP_HA_SCSI_1240)
@@ -771,6 +773,7 @@ struct ispsoftc {
 #define	IS_24XX(isp)	((isp)->isp_type >= ISP_HA_FC_2400)
 #define	IS_25XX(isp)	((isp)->isp_type >= ISP_HA_FC_2500)
 #define	IS_26XX(isp)	((isp)->isp_type >= ISP_HA_FC_2600)
+#define	IS_27XX(isp)	((isp)->isp_type >= ISP_HA_FC_2700)
 
 /*
  * DMA related macros
