@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntp.keys.texi)
 #
-# It has been AutoGen-ed  March 21, 2017 at 10:31:04 AM by AutoGen 5.18.5
+# It has been AutoGen-ed  February 27, 2018 at 05:14:37 PM by AutoGen 5.18.5
 # From the definitions    ntp.keys.def
 # and the template file   agtexi-file.tpl
 @end ignore
@@ -45,16 +45,24 @@ where
 is a positive integer (between 1 and 65534),
 @kbd{type}
 is the message digest algorithm,
-and
 @kbd{key}
 is the key itself, and
 @kbd{opt_IP_list}
 is an optional comma-separated list of IPs
+where the
+@kbd{keyno}
+should be trusted.
 that are allowed to serve time.
+Each IP in
+@kbd{opt_IP_list}
+may contain an optional
+@code{/subnetbits}
+specification which identifies the number of bits for
+the desired subnet of trust.
 If
 @kbd{opt_IP_list}
 is empty,
-any properly-authenticated server message will be
+any properly-authenticated message will be
 accepted.
 
 The

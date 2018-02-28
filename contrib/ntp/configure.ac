@@ -528,6 +528,8 @@ AC_CHECK_HEADERS([sys/timex.h], [], [], [
     #endif
 ])
 
+NTP_AF_UNSPEC
+
 AC_TYPE_SIGNAL
 AC_TYPE_OFF_T
 AC_STRUCT_TM	dnl defines TM_IN_SYS_TIME used by refclock_parse.c
