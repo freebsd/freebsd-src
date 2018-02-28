@@ -14,6 +14,7 @@ SUBDIR = \
 	iicsmb \
 	isl \
 	isl12xx \
+	jedec_dimm \
 	jedec_ts \
 	nxprtc \
 	s35390a \
