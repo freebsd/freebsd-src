@@ -335,7 +335,8 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct amd64_frame *frame,
 					/* Probably an assembler symbol. */
 					actframe = (void *)(tf->tf_rsp - 8);
 				}
-			} else if (strcmp(name, "fork_trampoline") == 0) {
+			} else if (name != NULL &&
+			    strcmp(name, "fork_trampoline") == 0) {
 				/*
 				 * Don't try to walk back on a stack for a
 				 * process that hasn't actually been run yet.
