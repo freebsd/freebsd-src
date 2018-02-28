@@ -265,6 +265,7 @@ md_copymodules(vm_offset_t addr, int kern64)
     struct preloaded_file	*fp;
     struct file_metadata	*md;
     uint64_t			scratch64;
+    uint32_t			scratch32;
     int				c;
 
     c = addr != 0;
@@ -281,7 +282,11 @@ md_copymodules(vm_offset_t addr, int kern64)
 		scratch64 = fp->f_size;
 		MOD_SIZE(addr, scratch64, c);
 	} else {
-		MOD_ADDR(addr, fp->f_addr, c);
+		scratch32 = fp->f_addr;
+#ifdef __arm__
+		scratch32 -= __elfN(relocation_offset);
+#endif
+		MOD_ADDR(addr, scratch32, c);
 		MOD_SIZE(addr, fp->f_size, c);
 	}
 	for (md = fp->f_metadata; md != NULL; md = md->md_next) {
