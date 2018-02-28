@@ -1051,8 +1051,6 @@ mntsrv(struct svc_req *rqstp, SVCXPRT *transp)
 		 */
 		if (realpath(rpcpath, dirpath) == NULL ||
 		    stat(dirpath, &stb) < 0 ||
-		    (!S_ISDIR(stb.st_mode) &&
-		    (dir_only || !S_ISREG(stb.st_mode))) ||
 		    statfs(dirpath, &fsb) < 0) {
 			chdir("/");	/* Just in case realpath doesn't */
 			syslog(LOG_NOTICE,
@@ -1062,10 +1060,23 @@ mntsrv(struct svc_req *rqstp, SVCXPRT *transp)
 				warnx("stat failed on %s", dirpath);
 			bad = ENOENT;	/* We will send error reply later */
 		}
+		if (!bad &&
+		    !S_ISDIR(stb.st_mode) &&
+		    (dir_only || !S_ISREG(stb.st_mode))) {
+			syslog(LOG_NOTICE,
+			    "mount request from %s for non-directory path %s",
+			    numerichost, dirpath);
+			if (debug)
+				warnx("mounting non-directory %s", dirpath);
+			bad = ENOTDIR;	/* We will send error reply later */
+		}
 
 		/* Check in the exports list */
 		sigprocmask(SIG_BLOCK, &sighup_mask, NULL);
-		ep = ex_search(&fsb.f_fsid);
+		if (bad)
+			ep = NULL;
+		else
+			ep = ex_search(&fsb.f_fsid);
 		hostset = defset = 0;
 		if (ep && (chk_host(ep->ex_defdir, saddr, &defset, &hostset,
 		    &numsecflavors, &secflavorsp) ||
@@ -1116,7 +1127,8 @@ mntsrv(struct svc_req *rqstp, SVCXPRT *transp)
 				    "mount request succeeded from %s for %s",
 				    numerichost, dirpath);
 		} else {
-			bad = EACCES;
+			if (!bad)
+				bad = EACCES;
 			syslog(LOG_NOTICE,
 			    "mount request denied from %s for %s",
 			    numerichost, dirpath);
