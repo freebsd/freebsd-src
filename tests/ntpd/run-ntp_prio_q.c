@@ -41,6 +41,13 @@ extern void test_DestroyNonEmptyQueue(void);
 extern void test_AppendQueues(void);
 
 
+//=======Suite Setup=====
+static void suite_setup(void)
+{
+extern int change_logfile(const char*, int);
+change_logfile("stderr", 0);
+}
+
 //=======Test Reset Option=====
 void resetTest(void);
 void resetTest(void)
@@ -56,14 +63,15 @@ char const *progname;
 int main(int argc, char *argv[])
 {
   progname = argv[0];
+  suite_setup();
   UnityBegin("ntp_prio_q.c");
-  RUN_TEST(test_AllocateDeallocateNode, 39);
+  RUN_TEST(test_AllocateDeallocateNode, 38);
   RUN_TEST(test_EmptyQueue, 46);
-  RUN_TEST(test_OneElementQueue, 60);
-  RUN_TEST(test_MultipleElementQueue, 88);
-  RUN_TEST(test_CustomOrderQueue, 126);
-  RUN_TEST(test_DestroyNonEmptyQueue, 183);
-  RUN_TEST(test_AppendQueues, 205);
+  RUN_TEST(test_OneElementQueue, 61);
+  RUN_TEST(test_MultipleElementQueue, 90);
+  RUN_TEST(test_CustomOrderQueue, 129);
+  RUN_TEST(test_DestroyNonEmptyQueue, 187);
+  RUN_TEST(test_AppendQueues, 211);
 
   return (UnityEnd());
 }

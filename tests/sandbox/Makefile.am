@@ -4,11 +4,16 @@ NULL =
 BUILT_SOURCES =
 CLEANFILES =
 
-std_unity_list = 						\
-	$(top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+std_unity_list =	 						\
+	$(abs_top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+	$(abs_srcdir)/testconf.yml					\
 	$(NULL)
 
-run_unity =	cd $(srcdir) && ruby ../../sntp/unity/auto/generate_test_runner.rb
+run_unity =	ruby $(std_unity_list)
+
+EXTRA_DIST =				\
+	testconf.yml			\
+	$(NULL)
 
 check_PROGRAMS =	\
 	first-test	\
@@ -27,6 +32,7 @@ LDADD =					\
 	$(LDADD_LIBNTP)			\
 	$(PTHREAD_LIBS)			\
 	$(LDADD_NTP)			\
+	$(LIBM)				\
 	$(NULL)
 
 AM_CFLAGS	= $(CFLAGS_NTP)
@@ -51,7 +57,7 @@ bug_2803_SOURCES =		\
 	$(NULL)
 
 $(srcdir)/run-ut-2803.c: $(srcdir)/ut-2803.c $(std_unity_list)
-	$(run_unity) ut-2803.c run-ut-2803.c
+	$(run_unity) $< $@
 BUILT_SOURCES	+= run-ut-2803.c
 
 first_test_SOURCES =		\
@@ -60,7 +66,7 @@ first_test_SOURCES =		\
 	$(NULL)
 
 $(srcdir)/run-uglydate.c: $(srcdir)/uglydate.c $(std_unity_list)
-	$(run_unity) uglydate.c run-uglydate.c
+	$(run_unity) $< $@
 BUILT_SOURCES	+= run-uglydate.c
 
 second_test_SOURCES =		\
@@ -69,7 +75,7 @@ second_test_SOURCES =		\
 	$(NULL)
 
 $(srcdir)/run-modetoa.c: $(srcdir)/modetoa.c $(std_unity_list)
-	$(run_unity) modetoa.c run-modetoa.c
+	$(run_unity) $< $@
 BUILT_SOURCES	+= run-modetoa.c
 
 

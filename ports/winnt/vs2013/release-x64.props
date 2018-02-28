@@ -18,7 +18,7 @@
     </ClCompile>
     <Link>
       <TargetMachine>MachineX64</TargetMachine>
-      <AdditionalLibraryDirectories>$(OPENSSL64_LIB)\vc</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OPENSSL64_LIB)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup />

@@ -10,24 +10,24 @@ AC_DEFUN([NTP_HARDEN], [
 AC_MSG_CHECKING([for compile/link hardening flags])
 
 AC_ARG_WITH(
-    [locfile],
+    [hardenfile],
     [AS_HELP_STRING(
-	[--with-locfile=XXX],
-	[os-specific or "legacy"]
+	[--with-hardenfile=XXX],
+	[os-specific or "/dev/null"]
     )],
     [],
-    [with_locfile=no]
+    [with_hardenfile=no]
 )
 
 (									\
     SENTINEL_DIR="$PWD" &&						\
     cd $srcdir/$1 &&							\
-    case "$with_locfile" in						\
+    case "$with_hardenfile" in						\
      yes|no|'')								\
 	scripts/genHardFlags -d "$SENTINEL_DIR"				\
 	;;								\
      *)									\
-	scripts/genHardFlags -d "$SENTINEL_DIR" -f "$with_locfile"	\
+	scripts/genHardFlags -d "$SENTINEL_DIR" -f "$with_hardenfile"	\
 	;;								\
     esac								\
 ) > genHardFlags.i 2> genHardFlags.err

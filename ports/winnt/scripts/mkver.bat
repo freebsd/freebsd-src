@@ -20,7 +20,14 @@ see notes/remarks directly below this header:
 #
 #
 # Changes:
-# 02/23/2011	David J Taylor	- Use reg instead of regedit so "run as
+# 03/03/2017	Brian Inglis
+#				- ensure Windows system32 from COMSPEC added to start
+#				  of PATH in case other find commands are on PATH
+# 02/20/2017	Brian Inglis
+#				- add support for Windows 10 (Home maybe others) rename of
+#				  registry Time Zone info from ActiveTimeBias to Bias
+# 02/23/2011	David J Taylor
+#				- Use reg instead of regedit so "run as
 #				  administrator" is not required.
 # 12/21/2009	Dave Hart
 #				- packageinfo.sh uses prerelease= now not
@@ -82,6 +89,7 @@ GOTO USAGE
 
 :BEGIN
 
+SET PATH=%COMSPEC:\cmd.exe=%;%PATH%
 SET GENERATED_PROGRAM=%2
 
 REM *****************************************************************************************************************
@@ -142,6 +150,8 @@ REM ****************************************************************************
 	IF NOT EXIST %TEMP%\TZ-%GENERATED_PROGRAM%.TMP GOTO NOTZINFO
 
 	for /f "Tokens=1* Delims==" %%a in ('type %TEMP%\TZ-%GENERATED_PROGRAM%.TMP') do if %%a == "ActiveTimeBias" SET ACTIVEBIAS=%%b
+	REM Windows 10 - Home and possibly others
+	IF "%ACTIVEBIAS%" == "" for /f "Tokens=1* Delims==" %%a in ('type %TEMP%\TZ-%GENERATED_PROGRAM%.TMP') do if %%a == "Bias" SET ACTIVEBIAS=%%b
 	for /f "Tokens=1* Delims=:" %%a in ('echo %ACTIVEBIAS%') do ( SET ACTIVEBIAS=%%b & SET PARTYP=%%a )
 	
 	REM *** Clean up temporary file

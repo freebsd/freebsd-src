@@ -6,6 +6,8 @@
 # include "openssl/err.h"
 # include "openssl/rand.h"
 # include "openssl/evp.h"
+
+#define CMAC "AES128CMAC"
 #endif
 
 #include "unity.h"
@@ -13,12 +15,15 @@
 
 static const size_t TEST_MD5_DIGEST_LENGTH = 16;
 static const size_t TEST_SHA1_DIGEST_LENGTH = 20;
+static const size_t TEST_CMAC_DIGEST_LENGTH = 16;
 
 void test_MD5KeyTypeWithoutDigestLength(void);
 void test_MD5KeyTypeWithDigestLength(void);
 void test_SHA1KeyTypeWithDigestLength(void);
+void test_CMACKeyTypeWithDigestLength(void);
 void test_MD5KeyName(void);
 void test_SHA1KeyName(void);
+void test_CMACKeyName(void);
 
 
 // keytype_from_text()
@@ -52,6 +57,21 @@ test_SHA1KeyTypeWithDigestLength(void) {
 }
 
 
+void
+test_CMACKeyTypeWithDigestLength(void) {
+#ifdef OPENSSL
+	size_t digestLength;
+	size_t expected = TEST_CMAC_DIGEST_LENGTH;
+
+	TEST_ASSERT_EQUAL(NID_cmac, keytype_from_text(CMAC, &digestLength));
+	TEST_ASSERT_EQUAL(expected, digestLength);
+	/* OPENSSL */
+#else 
+	TEST_IGNORE_MESSAGE("Skipping because OPENSSL isn't defined");
+#endif
+}
+
+
 // keytype_name()
 void
 test_MD5KeyName(void) {
@@ -67,3 +87,14 @@ test_SHA1KeyName(void) {
 	TEST_IGNORE_MESSAGE("Skipping because OPENSSL isn't defined");
 #endif	/* OPENSSL */
 }
+
+
+void
+test_CMACKeyName(void) {
+#ifdef OPENSSL
+	TEST_ASSERT_EQUAL_STRING(CMAC, keytype_name(NID_cmac));
+#else
+	TEST_IGNORE_MESSAGE("Skipping because OPENSSL isn't defined");
+#endif	/* OPENSSL */
+}
+

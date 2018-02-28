@@ -3,13 +3,18 @@ NULL =
 BUILT_SOURCES =
 CLEANFILES =
 
-std_unity_list = 						\
-	$(top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+std_unity_list =	 						\
+	$(abs_top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+	$(abs_srcdir)/testconf.yml					\
 	$(NULL)
 
-run_unity =	cd $(srcdir) && ruby ../../sntp/unity/auto/generate_test_runner.rb
+run_unity =	ruby $(std_unity_list)
 
 check_PROGRAMS = bug-2803
+
+EXTRA_DIST =				\
+	testconf.yml			\
+	$(NULL)
 
 # HMS: we may not need some of these:
 LDADD =					\
@@ -18,6 +23,7 @@ LDADD =					\
 	$(LDADD_LIBNTP)			\
 	$(PTHREAD_LIBS)			\
 	$(LDADD_NTP)			\
+	$(LIBM)				\
 	$(NULL)
 
 AM_CFLAGS   = $(CFLAGS_NTP)
@@ -41,7 +47,7 @@ bug_2803_SOURCES = 			\
 	$(NULL)
 
 $(srcdir)/run-bug-2803.c: $(srcdir)/bug-2803.c $(std_unity_list)
-	$(run_unity) bug-2803.c run-bug-2803.c
+	$(run_unity) $< $@
 
 # HMS: we may not need some of these:
 #noinst_HEADERS =	ntpdtest.h	\

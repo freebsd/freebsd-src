@@ -79,6 +79,7 @@ void create_server_associations(void)
 				NULL,
 				loopback_interface,
 				MODE_CLIENT,
+				-1,
 				NTP_VERSION,
 				NTP_MINDPOLL,
 				NTP_MAXDPOLL,

@@ -39,6 +39,13 @@ extern void test_recv_packet(void);
 extern void test_send_via_ntp_signd(void);
 
 
+//=======Suite Setup=====
+static void suite_setup(void)
+{
+extern int change_logfile(const char*, int);
+change_logfile("stderr", 0);
+}
+
 //=======Test Reset Option=====
 void resetTest(void);
 void resetTest(void)
@@ -54,6 +61,7 @@ char const *progname;
 int main(int argc, char *argv[])
 {
   progname = argv[0];
+  suite_setup();
   UnityBegin("t-ntp_signd.c");
   RUN_TEST(test_connect_incorrect_socket, 67);
   RUN_TEST(test_connect_correct_socket, 68);

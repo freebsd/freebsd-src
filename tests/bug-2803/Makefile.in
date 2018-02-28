@@ -101,6 +101,7 @@ am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
 	$(top_srcdir)/sntp/m4/ltsugar.m4 \
 	$(top_srcdir)/sntp/m4/ltversion.m4 \
 	$(top_srcdir)/sntp/m4/lt~obsolete.m4 \
+	$(top_srcdir)/sntp/m4/ntp_af_unspec.m4 \
 	$(top_srcdir)/sntp/m4/ntp_cacheversion.m4 \
 	$(top_srcdir)/sntp/m4/ntp_compiler.m4 \
 	$(top_srcdir)/sntp/m4/ntp_crosscompile.m4 \
@@ -146,7 +147,7 @@ am__DEPENDENCIES_1 =
 bug_2803_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
 	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
@@ -693,10 +694,15 @@ NULL =
 BUILT_SOURCES = check-libntp check-libunity .deps-ver
 CLEANFILES = check-libntp check-libunity .deps-ver
 std_unity_list = \
-	$(top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+	$(abs_top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+	$(abs_srcdir)/testconf.yml					\
 	$(NULL)
 
-run_unity = cd $(srcdir) && ruby ../../sntp/unity/auto/generate_test_runner.rb
+run_unity = ruby $(std_unity_list)
+EXTRA_DIST = \
+	testconf.yml			\
+	$(NULL)
+
 
 # HMS: we may not need some of these:
 LDADD = \
@@ -705,6 +711,7 @@ LDADD = \
 	$(LDADD_LIBNTP)			\
 	$(PTHREAD_LIBS)			\
 	$(LDADD_NTP)			\
+	$(LIBM)				\
 	$(NULL)
 
 AM_CFLAGS = $(CFLAGS_NTP) $(NTP_HARD_CFLAGS)
@@ -1192,7 +1199,7 @@ uninstall-am:
 
 
 $(srcdir)/run-bug-2803.c: $(srcdir)/bug-2803.c $(std_unity_list)
-	$(run_unity) bug-2803.c run-bug-2803.c
+	$(run_unity) $< $@
 
 check-libntp: ../../libntp/libntp.a
 	@echo stamp > $@

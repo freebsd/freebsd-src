@@ -106,6 +106,7 @@ am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
 	$(top_srcdir)/sntp/m4/ltsugar.m4 \
 	$(top_srcdir)/sntp/m4/ltversion.m4 \
 	$(top_srcdir)/sntp/m4/lt~obsolete.m4 \
+	$(top_srcdir)/sntp/m4/ntp_af_unspec.m4 \
 	$(top_srcdir)/sntp/m4/ntp_cacheversion.m4 \
 	$(top_srcdir)/sntp/m4/ntp_compiler.m4 \
 	$(top_srcdir)/sntp/m4/ntp_crosscompile.m4 \
@@ -152,7 +153,7 @@ am__DEPENDENCIES_1 =
 bug_2803_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
 	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
@@ -164,7 +165,7 @@ first_test_LDADD = $(LDADD)
 first_test_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
 	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_second_test_OBJECTS = modetoa.$(OBJEXT) run-modetoa.$(OBJEXT) \
 	$(am__objects_1)
 second_test_OBJECTS = $(am_second_test_OBJECTS)
@@ -172,14 +173,14 @@ second_test_LDADD = $(LDADD)
 second_test_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
 	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 smeartest_SOURCES = smeartest.c
 smeartest_OBJECTS = smeartest.$(OBJEXT)
 smeartest_LDADD = $(LDADD)
 smeartest_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
 	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -723,10 +724,15 @@ BUILT_SOURCES = run-ut-2803.c run-uglydate.c run-modetoa.c \
 	check-libntp check-libunity .deps-ver
 CLEANFILES = check-libntp check-libunity .deps-ver
 std_unity_list = \
-	$(top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+	$(abs_top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+	$(abs_srcdir)/testconf.yml					\
 	$(NULL)
 
-run_unity = cd $(srcdir) && ruby ../../sntp/unity/auto/generate_test_runner.rb
+run_unity = ruby $(std_unity_list)
+EXTRA_DIST = \
+	testconf.yml			\
+	$(NULL)
+
 
 # HMS: we may not need some of these:
 LDADD = \
@@ -735,6 +741,7 @@ LDADD = \
 	$(LDADD_LIBNTP)			\
 	$(PTHREAD_LIBS)			\
 	$(LDADD_NTP)			\
+	$(LIBM)				\
 	$(NULL)
 
 AM_CFLAGS = $(CFLAGS_NTP) $(NTP_HARD_CFLAGS)
@@ -1254,13 +1261,13 @@ uninstall-am:
 
 
 $(srcdir)/run-ut-2803.c: $(srcdir)/ut-2803.c $(std_unity_list)
-	$(run_unity) ut-2803.c run-ut-2803.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-uglydate.c: $(srcdir)/uglydate.c $(std_unity_list)
-	$(run_unity) uglydate.c run-uglydate.c
+	$(run_unity) $< $@
 
 $(srcdir)/run-modetoa.c: $(srcdir)/modetoa.c $(std_unity_list)
-	$(run_unity) modetoa.c run-modetoa.c
+	$(run_unity) $< $@
 
 check-libntp: ../../libntp/libntp.a
 	@echo stamp > $@

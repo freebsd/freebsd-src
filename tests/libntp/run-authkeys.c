@@ -38,7 +38,20 @@ extern void test_HaveKeyIncorrect(void);
 extern void test_AddWithAuthUseKey(void);
 extern void test_EmptyKey(void);
 extern void test_auth_log2(void);
+extern void test_AddrMatch_anull(void);
+extern void test_AddrMatch_self4(void);
+extern void test_AddrMatch_self6(void);
+extern void test_AddrMatch_afmix(void);
+extern void test_AddrMatch_ipv4(void);
+extern void test_AddrMatch_ipv6(void);
 
+
+//=======Suite Setup=====
+static void suite_setup(void)
+{
+extern int change_logfile(const char*, int);
+change_logfile("stderr", 0);
+}
 
 //=======Test Reset Option=====
 void resetTest(void);
@@ -55,14 +68,21 @@ char const *progname;
 int main(int argc, char *argv[])
 {
   progname = argv[0];
+  suite_setup();
   UnityBegin("authkeys.c");
-  RUN_TEST(test_AddTrustedKeys, 25);
-  RUN_TEST(test_AddUntrustedKey, 26);
-  RUN_TEST(test_HaveKeyCorrect, 27);
-  RUN_TEST(test_HaveKeyIncorrect, 28);
-  RUN_TEST(test_AddWithAuthUseKey, 29);
-  RUN_TEST(test_EmptyKey, 30);
-  RUN_TEST(test_auth_log2, 31);
+  RUN_TEST(test_AddTrustedKeys, 79);
+  RUN_TEST(test_AddUntrustedKey, 92);
+  RUN_TEST(test_HaveKeyCorrect, 102);
+  RUN_TEST(test_HaveKeyIncorrect, 113);
+  RUN_TEST(test_AddWithAuthUseKey, 122);
+  RUN_TEST(test_EmptyKey, 131);
+  RUN_TEST(test_auth_log2, 160);
+  RUN_TEST(test_AddrMatch_anull, 203);
+  RUN_TEST(test_AddrMatch_self4, 234);
+  RUN_TEST(test_AddrMatch_self6, 245);
+  RUN_TEST(test_AddrMatch_afmix, 256);
+  RUN_TEST(test_AddrMatch_ipv4, 268);
+  RUN_TEST(test_AddrMatch_ipv6, 298);
 
   return (UnityEnd());
 }

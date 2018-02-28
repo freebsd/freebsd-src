@@ -36,6 +36,13 @@ extern void test_IPv4AddressToRefId(void);
 extern void test_IPv6AddressToRefId(void);
 
 
+//=======Suite Setup=====
+static void suite_setup(void)
+{
+extern int change_logfile(const char*, int);
+change_logfile("stderr", 0);
+}
+
 //=======Test Reset Option=====
 void resetTest(void);
 void resetTest(void)
@@ -51,6 +58,7 @@ char const *progname;
 int main(int argc, char *argv[])
 {
   progname = argv[0];
+  suite_setup();
   UnityBegin("a_md5encrypt.c");
   RUN_TEST(test_Encrypt, 40);
   RUN_TEST(test_DecryptValid, 41);

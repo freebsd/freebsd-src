@@ -299,7 +299,7 @@ addSourceToRegistry(
        to the new subkey.
     */
 
-    rc = snprintf(regarray, sizeof(regarray), "%s%s",
+    rc = _snprintf(regarray, sizeof(regarray), "%s%s",
                   "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\",
                   pszAppname);
     if (rc < 0 || rc >= sizeof(regarray)) {

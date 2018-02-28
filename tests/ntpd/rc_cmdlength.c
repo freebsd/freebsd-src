@@ -11,9 +11,9 @@
 
 #include "test-libntp.h"
 
-
-void
-test_EvaluateCommandLength(void){
+extern void test_EvaluateCommandLength(void);
+void test_EvaluateCommandLength(void)
+{
 	size_t length, commandLength;
 	const char *command1 = "Random Command";
 	const char *command2 = "Random Command\t\t\n\t";
@@ -35,5 +35,4 @@ test_EvaluateCommandLength(void){
 	length = strlen(command4);
 	commandLength = remoteconfig_cmdlength(command4, command4+length);
 	TEST_ASSERT_EQUAL(16, commandLength );
-
 }

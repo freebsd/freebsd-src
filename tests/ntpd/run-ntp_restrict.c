@@ -39,6 +39,13 @@ extern void test_DeletedRestrictionIsNotMatched(void);
 extern void test_RestrictUnflagWorks(void);
 
 
+//=======Suite Setup=====
+static void suite_setup(void)
+{
+extern int change_logfile(const char*, int);
+change_logfile("stderr", 0);
+}
+
 //=======Test Reset Option=====
 void resetTest(void);
 void resetTest(void)
@@ -54,15 +61,16 @@ char const *progname;
 int main(int argc, char *argv[])
 {
   progname = argv[0];
+  suite_setup();
   UnityBegin("ntp_restrict.c");
-  RUN_TEST(test_RestrictionsAreEmptyAfterInit, 60);
-  RUN_TEST(test_ReturnsCorrectDefaultRestrictions, 86);
-  RUN_TEST(test_HackingDefaultRestriction, 97);
-  RUN_TEST(test_CantRemoveDefaultEntry, 120);
-  RUN_TEST(test_AddingNewRestriction, 131);
-  RUN_TEST(test_TheMostFittingRestrictionIsMatched, 144);
-  RUN_TEST(test_DeletedRestrictionIsNotMatched, 166);
-  RUN_TEST(test_RestrictUnflagWorks, 190);
+  RUN_TEST(test_RestrictionsAreEmptyAfterInit, 63);
+  RUN_TEST(test_ReturnsCorrectDefaultRestrictions, 90);
+  RUN_TEST(test_HackingDefaultRestriction, 103);
+  RUN_TEST(test_CantRemoveDefaultEntry, 129);
+  RUN_TEST(test_AddingNewRestriction, 143);
+  RUN_TEST(test_TheMostFittingRestrictionIsMatched, 159);
+  RUN_TEST(test_DeletedRestrictionIsNotMatched, 184);
+  RUN_TEST(test_RestrictUnflagWorks, 211);
 
   return (UnityEnd());
 }

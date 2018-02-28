@@ -32,8 +32,14 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_main(void);
-extern void test_main(void );
 
+
+//=======Suite Setup=====
+static void suite_setup(void)
+{
+extern int change_logfile(const char*, int);
+change_logfile("stderr", 0);
+}
 
 //=======Test Reset Option=====
 void resetTest(void);
@@ -50,8 +56,8 @@ char const *progname;
 int main(int argc, char *argv[])
 {
   progname = argv[0];
+  suite_setup();
   UnityBegin("bug-2803.c");
-  RUN_TEST(test_main, 18);
   RUN_TEST(test_main, 18);
 
   return (UnityEnd());

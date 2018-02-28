@@ -77,6 +77,7 @@
 %token	<Integer>	T_Autokey
 %token	<Integer>	T_Automax
 %token	<Integer>	T_Average
+%token	<Integer>	T_Basedate
 %token	<Integer>	T_Bclient
 %token	<Integer>	T_Bcpollbstep
 %token	<Integer>	T_Beacon
@@ -105,6 +106,7 @@
 %token	<Integer>	T_Ellipsis	/* "..." not "ellipsis" */
 %token	<Integer>	T_Enable
 %token	<Integer>	T_End
+%token	<Integer>	T_Epeer
 %token	<Integer>	T_False
 %token	<Integer>	T_File
 %token	<Integer>	T_Filegen
@@ -131,6 +133,7 @@
 %token	<Integer>	T_Interface
 %token	<Integer>	T_Intrange		/* not a token */
 %token	<Integer>	T_Io
+%token	<Integer>	T_Ippeerlimit
 %token	<Integer>	T_Ipv4
 %token	<Integer>	T_Ipv4_flag
 %token	<Integer>	T_Ipv6
@@ -180,6 +183,7 @@
 %token	<Integer>	T_Nomrulist
 %token	<Integer>	T_None
 %token	<Integer>	T_Nonvolatile
+%token	<Integer>	T_Noepeer
 %token	<Integer>	T_Nopeer
 %token	<Integer>	T_Noquery
 %token	<Integer>	T_Noselect
@@ -276,6 +280,7 @@
 %type	<Address_node>	address
 %type	<Integer>	address_fam
 %type	<Address_fifo>	address_list
+%type	<Integer>	basedate
 %type	<Integer>	boolean
 %type	<Integer>	client_type
 %type	<Integer>	counter_set_keyword
@@ -302,6 +307,7 @@
 %type	<Integer>	interface_command
 %type	<Integer>	interface_nic
 %type	<Address_node>	ip_address
+%type	<Integer>	res_ippeerlimit
 %type	<Integer>	link_nolink
 %type	<Attr_val>	log_config_command
 %type	<Attr_val_fifo>	log_config_list
@@ -570,12 +576,13 @@ authentication_command
 			{ cfgt.auth.revoke = $2; }
 	|	T_Trustedkey integer_list_range
 		{
-			cfgt.auth.trusted_key_list = $2;
-
-			// if (!cfgt.auth.trusted_key_list)
-			// 	cfgt.auth.trusted_key_list = $2;
-			// else
-			// 	LINK_SLIST(cfgt.auth.trusted_key_list, $2, link);
+			/* [Bug 948] leaves it open if appending or
+			 * replacing the trusted key list is the right
+			 * way. In any case, either alternative should
+			 * be coded correctly!
+			 */
+			DESTROY_G_FIFO(cfgt.auth.trusted_key_list, destroy_attr_val); /* remove for append */
+			CONCAT_G_FIFOS(cfgt.auth.trusted_key_list, $2);
 		}
 	|	T_NtpSignDsocket T_String
 			{ cfgt.auth.ntp_signd_socket = $2; }
@@ -643,6 +650,8 @@ tos_option
 			{ $$ = create_attr_dval($1, $2); }
 	|	T_Cohort boolean
 			{ $$ = create_attr_dval($1, (double)$2); }
+	|	basedate
+			{ $$ = create_attr_ival(T_Basedate, $1); }
 	;
 
 tos_option_int_keyword
@@ -795,31 +804,31 @@ access_control_command
 		{
 			CONCAT_G_FIFOS(cfgt.mru_opts, $2);
 		}
-	|	T_Restrict address ac_flag_list
+	|	T_Restrict address res_ippeerlimit ac_flag_list
 		{
 			restrict_node *rn;
 
-			rn = create_restrict_node($2, NULL, $3,
+			rn = create_restrict_node($2, NULL, $3, $4,
 						  lex_current()->curpos.nline);
 			APPEND_G_FIFO(cfgt.restrict_opts, rn);
 		}
-	|	T_Restrict address T_Mask ip_address ac_flag_list
+	|	T_Restrict address T_Mask ip_address res_ippeerlimit ac_flag_list
 		{
 			restrict_node *rn;
 
-			rn = create_restrict_node($2, $4, $5,
+			rn = create_restrict_node($2, $4, $5, $6,
 						  lex_current()->curpos.nline);
 			APPEND_G_FIFO(cfgt.restrict_opts, rn);
 		}
-	|	T_Restrict T_Default ac_flag_list
+	|	T_Restrict T_Default res_ippeerlimit ac_flag_list
 		{
 			restrict_node *rn;
 
-			rn = create_restrict_node(NULL, NULL, $3,
+			rn = create_restrict_node(NULL, NULL, $3, $4,
 						  lex_current()->curpos.nline);
 			APPEND_G_FIFO(cfgt.restrict_opts, rn);
 		}
-	|	T_Restrict T_Ipv4_flag T_Default ac_flag_list
+	|	T_Restrict T_Ipv4_flag T_Default res_ippeerlimit ac_flag_list
 		{
 			restrict_node *rn;
 
@@ -830,11 +839,11 @@ access_control_command
 				create_address_node(
 					estrdup("0.0.0.0"),
 					AF_INET),
-				$4,
+				$4, $5,
 				lex_current()->curpos.nline);
 			APPEND_G_FIFO(cfgt.restrict_opts, rn);
 		}
-	|	T_Restrict T_Ipv6_flag T_Default ac_flag_list
+	|	T_Restrict T_Ipv6_flag T_Default res_ippeerlimit ac_flag_list
 		{
 			restrict_node *rn;
 
@@ -845,18 +854,39 @@ access_control_command
 				create_address_node(
 					estrdup("::"),
 					AF_INET6),
-				$4,
+				$4, $5,
 				lex_current()->curpos.nline);
 			APPEND_G_FIFO(cfgt.restrict_opts, rn);
 		}
-	|	T_Restrict T_Source ac_flag_list
+	|	T_Restrict T_Source res_ippeerlimit ac_flag_list
 		{
 			restrict_node *	rn;
 
-			APPEND_G_FIFO($3, create_int_node($2));
+			APPEND_G_FIFO($4, create_int_node($2));
 			rn = create_restrict_node(
-				NULL, NULL, $3, lex_current()->curpos.nline);
+				NULL, NULL, $3, $4, lex_current()->curpos.nline);
 			APPEND_G_FIFO(cfgt.restrict_opts, rn);
+		}
+	;
+
+res_ippeerlimit
+	:	/* empty ippeerlimit defaults to -1 (unlimited) */
+			{ $$ = -1; }
+	|	T_Ippeerlimit  T_Integer
+		{
+			if (($2 < -1) || ($2 > 100)) {
+				struct FILE_INFO * ip_ctx;
+
+				ip_ctx = lex_current();
+				msyslog(LOG_ERR,
+					"Unreasonable ippeerlimit value (%d) in %s line %d, column %d.  Using 0.",
+					$2,
+					ip_ctx->fname,
+					ip_ctx->errpos.nline,
+					ip_ctx->errpos.ncol);
+				$2 = 0;
+			}
+			$$ = $2;
 		}
 	;
 
@@ -871,12 +901,14 @@ ac_flag_list
 	;
 
 access_control_flag
-	:	T_Flake
+	:	T_Epeer
+	|	T_Flake
 	|	T_Ignore
 	|	T_Kod
 	|	T_Mssntp
 	|	T_Limited
 	|	T_Lowpriotrap
+	|	T_Noepeer
 	|	T_Nomodify
 	|	T_Nomrulist
 	|	T_Nopeer
@@ -1270,6 +1302,10 @@ drift_parm
 				APPEND_G_FIFO(cfgt.vars, av);
 				av = create_attr_dval(T_WanderThreshold, $2);
 				APPEND_G_FIFO(cfgt.vars, av);
+			msyslog(LOG_WARNING,
+				"'driftfile FILENAME WanderValue' is deprecated, "
+				"please use separate 'driftfile FILENAME' and "
+				"'nonvolatile WanderValue' lines instead.");
 			} else {
 				YYFREE($1);
 				yyerror("driftfile remote configuration ignored");
@@ -1507,6 +1543,9 @@ number
 	|	T_Double
 	;
 
+basedate
+	:	T_Basedate T_String
+			{ $$ = basedate_eval_string($2); YYFREE($2); }
 
 /* Simulator Configuration Commands
  * --------------------------------

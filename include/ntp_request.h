@@ -141,7 +141,7 @@ struct req_pkt {
 	req_data_u u;			/* data area */
 	l_fp tstamp;			/* time stamp, for authentication */
 	keyid_t keyid;			/* (optional) encryption key */
-	char mac[MAX_MAC_LEN-sizeof(keyid_t)]; /* (optional) auth code */
+	char mac[MAX_MDG_LEN];		/* (optional) auth code */
 };
 
 /*
@@ -151,7 +151,7 @@ struct req_pkt {
 struct req_pkt_tail {
 	l_fp tstamp;			/* time stamp, for authentication */
 	keyid_t keyid;			/* (optional) encryption key */
-	char mac[MAX_MAC_LEN-sizeof(keyid_t)]; /* (optional) auth code */
+	char mac[MAX_MDG_LEN];		/* (optional) auth code */
 };
 
 /* MODE_PRIVATE request packet header length before optional items. */
@@ -513,6 +513,8 @@ struct info_sys_stats {
 	u_int32 badauth;	/* bad authentication */
 	u_int32 received;	/* packets received */
 	u_int32 limitrejected;	/* rate exceeded */
+	u_int32 lamport;	/* Lamport violations */
+	u_int32 tsrounding;	/* Timestamp rounding errors */
 };
 
 
@@ -652,7 +654,7 @@ struct info_restrict {
 	u_int32 addr;		/* match address */
 	u_int32 mask;		/* match mask */
 	u_int32 count;		/* number of packets matched */
-	u_short flags;		/* restrict flags */
+	u_short rflags;		/* restrict flags */
 	u_short mflags;		/* match flags */
 	u_int v6_flag;		/* is this v6 or not */
 	u_int unused1;		/* unused, padding for addr6 */
@@ -667,6 +669,7 @@ struct info_restrict {
 struct conf_restrict {
 	u_int32	addr;		/* match address */
 	u_int32 mask;		/* match mask */
+	short ippeerlimit;	/* ip peer limit */
 	u_short flags;		/* restrict flags */
 	u_short mflags;		/* match flags */
 	u_int v6_flag;		/* is this v6 or not */
