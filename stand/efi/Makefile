@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+NO_OBJ=t
+
 .include <bsd.init.mk>
 
 # In-tree GCC does not support __attribute__((ms_abi)), but gcc newer
