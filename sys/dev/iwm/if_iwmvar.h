@@ -377,6 +377,19 @@ struct iwm_vap {
 
 	uint16_t		id;
 	uint16_t		color;
+
+	boolean_t		have_wme;
+	/*
+	 * QoS data from net80211, need to store this here
+	 * as net80211 has a separate callback but we need
+	 * to have the data for the MAC context
+	 */
+        struct {
+		uint16_t cw_min;
+		uint16_t cw_max;
+		uint16_t edca_txop;
+		uint8_t aifsn;
+	} queue_params[WME_NUM_AC];
 };
 #define IWM_VAP(_vap)		((struct iwm_vap *)(_vap))
 
