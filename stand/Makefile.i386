@@ -1,8 +1,0 @@
-# $FreeBSD$
-
-.if ${MK_LOADER_GELI} == "yes"
-SUBDIR+=		geli
-.endif
-.if ${MK_ZFS} != "no"
-SUBDIR+=		zfs
-.endif
