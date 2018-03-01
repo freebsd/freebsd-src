@@ -5338,7 +5338,7 @@ iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 		    "rx packet qid=%d idx=%d type=%x\n",
 		    qid & ~0x80, pkt->hdr.idx, code);
 
-		len = le32toh(pkt->len_n_flags) & IWM_FH_RSCSR_FRAME_SIZE_MSK;
+		len = iwm_rx_packet_len(pkt);
 		len += sizeof(uint32_t); /* account for status word */
 		nextoff = offset + roundup2(len, IWM_FH_RSCSR_FRAME_ALIGN);
 
@@ -5586,6 +5586,13 @@ iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 			    notif->status, notif->action);
 			break;
 		}
+
+		/*
+		 * Firmware versions 21 and 22 generate some DEBUG_LOG_MSG
+		 * messages. Just ignore them for now.
+		 */
+		case IWM_DEBUG_LOG_MSG:
+			break;
 
 		case IWM_MCAST_FILTER_CMD:
 			break;
