@@ -172,6 +172,10 @@ struct iwm_fw_info {
 		} fw_sect[IWM_UCODE_SECT_MAX];
 		int fw_count;
 	} fw_sects[IWM_UCODE_TYPE_MAX];
+
+	uint32_t phy_config;
+	uint8_t valid_tx_ant;
+	uint8_t valid_rx_ant;
 };
 
 struct iwm_nvm_data {
@@ -464,7 +468,6 @@ struct iwm_softc {
 
 	bus_size_t		sc_fwdmasegsz;
 	struct iwm_fw_info	sc_fw;
-	int			sc_fw_phy_config;
 	struct iwm_tlv_calib_ctrl sc_default_calib[IWM_UCODE_TYPE_MAX];
 
 	const struct iwm_cfg	*cfg;

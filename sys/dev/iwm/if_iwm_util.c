@@ -428,31 +428,3 @@ iwm_free_resp(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 	sc->sc_wantresp = -1;
 	wakeup(&sc->sc_wantresp);
 }
-
-uint8_t
-iwm_fw_valid_tx_ant(struct iwm_softc *sc)
-{
-	uint8_t tx_ant;
-
-	tx_ant = ((sc->sc_fw_phy_config & IWM_FW_PHY_CFG_TX_CHAIN)
-	    >> IWM_FW_PHY_CFG_TX_CHAIN_POS);
-
-	if (sc->nvm_data->valid_tx_ant)
-		tx_ant &= sc->nvm_data->valid_tx_ant;
-
-	return tx_ant;
-}
-
-uint8_t
-iwm_fw_valid_rx_ant(struct iwm_softc *sc)
-{
-	uint8_t rx_ant;
-
-	rx_ant = ((sc->sc_fw_phy_config & IWM_FW_PHY_CFG_RX_CHAIN)
-	    >> IWM_FW_PHY_CFG_RX_CHAIN_POS);
-
-	if (sc->nvm_data->valid_rx_ant)
-		rx_ant &= sc->nvm_data->valid_rx_ant;
-
-	return rx_ant;
-}
