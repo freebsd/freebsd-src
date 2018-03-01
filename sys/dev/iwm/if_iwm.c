@@ -5743,6 +5743,7 @@ iwm_attach(device_t dev)
 	int txq_i, i;
 
 	sc->sc_dev = dev;
+	sc->sc_attached = 1;
 	IWM_LOCK_INIT(sc);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
 	callout_init_mtx(&sc->sc_watchdog_to, &sc->sc_mtx, 0);
@@ -6193,6 +6194,10 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 	struct iwm_fw_info *fw = &sc->sc_fw;
 	device_t dev = sc->sc_dev;
 	int i;
+
+	if (!sc->sc_attached)
+		return 0;
+	sc->sc_attached = 0;
 
 	if (do_net80211)
 		ieee80211_draintask(&sc->sc_ic, &sc->sc_es_task);
