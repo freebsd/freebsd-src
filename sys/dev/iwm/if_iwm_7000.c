@@ -105,8 +105,7 @@ const struct iwm_cfg iwm3160_cfg = {
 
 const struct iwm_cfg iwm3165_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 3165",
-	/* XXX IWM7265D_FW doesn't seem to work properly yet */
-	.fw_name = IWM7265_FW,
+	.fw_name = IWM7265D_FW,
 	IWM_DEVICE_7000_COMMON,
 	.host_interrupt_operation_mode = 0,
 };
@@ -120,8 +119,7 @@ const struct iwm_cfg iwm7265_cfg = {
 
 const struct iwm_cfg iwm7265d_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 7265",
-	/* XXX IWM7265D_FW doesn't seem to work properly yet */
-	.fw_name = IWM7265_FW,
+	.fw_name = IWM7265D_FW,
 	IWM_DEVICE_7000_COMMON,
 	.host_interrupt_operation_mode = 0,
 };
