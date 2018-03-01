@@ -314,25 +314,6 @@ enum iwm_hcmd_dataflag {
 	IWM_HCMD_DFL_DUP        = (1 << 1),
 };
 
-/*
- * iwlwifi/iwl-phy-db
- */
-
-#define IWM_NUM_PAPD_CH_GROUPS	9
-#define IWM_NUM_TXP_CH_GROUPS	9
-
-struct iwm_phy_db_entry {
-	uint16_t size;
-	uint8_t *data;
-};
-
-struct iwm_phy_db {
-	struct iwm_phy_db_entry	cfg;
-	struct iwm_phy_db_entry	calib_nch;
-	struct iwm_phy_db_entry	calib_ch_group_papd[IWM_NUM_PAPD_CH_GROUPS];
-	struct iwm_phy_db_entry	calib_ch_group_txp[IWM_NUM_TXP_CH_GROUPS];
-};
-
 struct iwm_int_sta {
 	uint32_t sta_id;
 	uint32_t tfd_queue_msk;
@@ -473,7 +454,7 @@ struct iwm_softc {
 	struct iwm_tlv_calib_ctrl sc_default_calib[IWM_UCODE_TYPE_MAX];
 
 	struct iwm_nvm_data	sc_nvm;
-	struct iwm_phy_db	sc_phy_db;
+	struct iwm_phy_db	*sc_phy_db;
 
 	struct iwm_bf_data	sc_bf;
 
