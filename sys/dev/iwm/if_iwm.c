@@ -5518,7 +5518,7 @@ iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 			break;
 
 		/* ignore */
-		case 0x6c: /* IWM_PHY_DB_CMD, no idea why it's not in fw-api.h */
+		case IWM_PHY_DB_CMD:
 			break;
 
 		case IWM_INIT_COMPLETE_NOTIF:
