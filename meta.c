@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.69 2017/08/10 21:07:48 sjg Exp $ */
+/*      $NetBSD: meta.c,v 1.70 2018/02/13 19:37:30 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -790,7 +790,9 @@ meta_cmd_finish(void *pbmp)
 {
     int error = 0;
     BuildMon *pbm = pbmp;
+#ifdef USE_FILEMON
     int x;
+#endif
 
     if (!pbm)
 	pbm = &Mybm;

@@ -17,7 +17,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.54 2017/09/08 06:17:22 sjg Exp $
+#	$Id: os.sh,v 1.55 2017/12/11 20:31:41 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -138,6 +138,7 @@ SunOS)
 	# so NetBSD/i386 is good enough
 	case $OS in
 	NetBSD)
+	        LOCALBASE=/usr/pkg
 		HOST_ARCH=$MACHINE
 		SHARE_ARCH=$OS/$HOST_ARCH
 		;;
@@ -196,6 +197,7 @@ Haiku)
 	esac
 	;;
 esac
+LOCALBASE=${LOCALBASE:-/usr/local}
 
 HOSTNAME=${HOSTNAME:-`( hostname ) 2>/dev/null`}
 HOSTNAME=${HOSTNAME:-`( uname -n ) 2>/dev/null`}
@@ -237,6 +239,7 @@ Echo() {
 export HOSTNAME HOST	    
 export OS MACHINE MACHINE_ARCH OSREL OSMAJOR LOCAL_FS TMP_DIRS MAILER N C K PS_AXC
 export LN SHARE_ARCH TR
+export LOCALBASE
 
 case /$0 in
 */os.sh)
