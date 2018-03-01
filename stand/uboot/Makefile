@@ -2,7 +2,7 @@
 
 .include <bsd.init.mk>
 
-SUBDIR=	lib
+SUBDIR.yes=	lib
 
 SUBDIR.${MK_FDT}+=fdt
 
