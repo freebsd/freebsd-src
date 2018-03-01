@@ -2898,6 +2898,18 @@ struct iwm_mcast_filter_cmd {
 	uint8_t addr_list[0];
 } __packed; /* IWM_MCAST_FILTERING_CMD_API_S_VER_1 */
 
+/*
+ * The first MAC indices (starting from 0)
+ * are available to the driver, AUX follows
+ */
+#define IWM_MAC_INDEX_AUX		4
+#define IWM_MAC_INDEX_MIN_DRIVER	0
+#define IWM_NUM_MAC_INDEX_DRIVER	IWM_MAC_INDEX_AUX
+#define IWM_NUM_MAC_INDEX		(IWM_MAC_INDEX_AUX + 1)
+
+/***********************************
+ * Statistics API
+ ***********************************/
 struct iwm_mvm_statistics_dbg {
 	uint32_t burst_check;
 	uint32_t burst_count;
@@ -2913,24 +2925,6 @@ struct iwm_mvm_statistics_div {
 	uint32_t rssi_ant;
 	uint32_t reserved2;
 } __packed; /* IWM_STATISTICS_SLOW_DIV_API_S_VER_2 */
-
-struct iwm_mvm_statistics_general_common {
-	uint32_t temperature;   /* radio temperature */
-	uint32_t temperature_m; /* radio voltage */
-	struct iwm_mvm_statistics_dbg dbg;
-	uint32_t sleep_time;
-	uint32_t slots_out;
-	uint32_t slots_idle;
-	uint32_t ttl_timestamp;
-	struct iwm_mvm_statistics_div div;
-	uint32_t rx_enable_counter;
-	/*
-	 * num_of_sos_states:
-	 *  count the number of times we have to re-tune
-	 *  in order to get out of bad PHY status
-	 */
-	uint32_t num_of_sos_states;
-} __packed; /* IWM_STATISTICS_GENERAL_API_S_VER_5 */
 
 struct iwm_mvm_statistics_rx_non_phy {
 	uint32_t bogus_cts;	/* CTS received when not expecting CTS */
@@ -3002,6 +2996,23 @@ struct iwm_mvm_statistics_rx_ht_phy {
 	uint32_t unsupport_mcs;
 } __packed;  /* IWM_STATISTICS_HT_RX_PHY_API_S_VER_1 */
 
+struct iwm_mvm_statistics_tx_non_phy {
+	uint32_t preamble_cnt;
+	uint32_t rx_detected_cnt;
+	uint32_t bt_prio_defer_cnt;
+	uint32_t bt_prio_kill_cnt;
+	uint32_t few_bytes_cnt;
+	uint32_t cts_timeout;
+	uint32_t ack_timeout;
+	uint32_t expected_ack_cnt;
+	uint32_t actual_ack_cnt;
+	uint32_t dump_msdu_cnt;
+	uint32_t burst_abort_next_frame_mismatch_cnt;
+	uint32_t burst_abort_missing_next_frame_cnt;
+	uint32_t cts_timeout_collision;
+	uint32_t ack_or_ba_timeout_collision;
+} __packed; /* IWM_STATISTICS_TX_NON_PHY_API_S_VER_3 */
+
 #define IWM_MAX_CHAINS 3
 
 struct iwm_mvm_statistics_tx_non_phy_agg {
@@ -3032,20 +3043,7 @@ struct iwm_mvm_statistics_tx_channel_width {
 }; /* IWM_STATISTICS_TX_CHANNEL_WIDTH_API_S_VER_1 */
 
 struct iwm_mvm_statistics_tx {
-	uint32_t preamble_cnt;
-	uint32_t rx_detected_cnt;
-	uint32_t bt_prio_defer_cnt;
-	uint32_t bt_prio_kill_cnt;
-	uint32_t few_bytes_cnt;
-	uint32_t cts_timeout;
-	uint32_t ack_timeout;
-	uint32_t expected_ack_cnt;
-	uint32_t actual_ack_cnt;
-	uint32_t dump_msdu_cnt;
-	uint32_t burst_abort_next_frame_mismatch_cnt;
-	uint32_t burst_abort_missing_next_frame_cnt;
-	uint32_t cts_timeout_collision;
-	uint32_t ack_or_ba_timeout_collision;
+	struct iwm_mvm_statistics_tx_non_phy general;
 	struct iwm_mvm_statistics_tx_non_phy_agg agg;
 	struct iwm_mvm_statistics_tx_channel_width channel_width;
 } __packed; /* IWM_STATISTICS_TX_API_S_VER_4 */
@@ -3062,17 +3060,38 @@ struct iwm_mvm_statistics_bt_activity {
 	uint32_t lo_priority_rx_denied_cnt;
 } __packed;  /* IWM_STATISTICS_BT_ACTIVITY_API_S_VER_1 */
 
-struct iwm_mvm_statistics_general {
-	struct iwm_mvm_statistics_general_common common;
+struct iwm_mvm_statistics_general_v8 {
+	uint32_t radio_temperature;
+	uint32_t radio_voltage;
+	struct iwm_mvm_statistics_dbg dbg;
+	uint32_t sleep_time;
+	uint32_t slots_out;
+	uint32_t slots_idle;
+	uint32_t ttl_timestamp;
+	struct iwm_mvm_statistics_div slow_div;
+	uint32_t rx_enable_counter;
+	/*
+	 * num_of_sos_states:
+	 *  count the number of times we have to re-tune
+	 *  in order to get out of bad PHY status
+	 */
+	uint32_t num_of_sos_states;
 	uint32_t beacon_filtered;
 	uint32_t missed_beacons;
-	int8_t beacon_filter_average_energy;
-	int8_t beacon_filter_reason;
-	int8_t beacon_filter_current_energy;
-	int8_t beacon_filter_reserved;
+	uint8_t beacon_filter_average_energy;
+	uint8_t beacon_filter_reason;
+	uint8_t beacon_filter_current_energy;
+	uint8_t beacon_filter_reserved;
 	uint32_t beacon_filter_delta_time;
 	struct iwm_mvm_statistics_bt_activity bt_activity;
-} __packed; /* IWM_STATISTICS_GENERAL_API_S_VER_5 */
+	uint64_t rx_time;
+	uint64_t on_time_rf;
+	uint64_t on_time_scan;
+	uint64_t tx_time;
+	uint32_t beacon_counter[IWM_NUM_MAC_INDEX];
+	uint8_t beacon_average_energy[IWM_NUM_MAC_INDEX];
+	uint8_t reserved[4 - (IWM_NUM_MAC_INDEX % 4)];
+} __packed; /* IWM_STATISTICS_GENERAL_API_S_VER_8 */
 
 struct iwm_mvm_statistics_rx {
 	struct iwm_mvm_statistics_rx_phy ofdm;
@@ -3086,23 +3105,22 @@ struct iwm_mvm_statistics_rx {
  *
  * By default, uCode issues this notification after receiving a beacon
  * while associated.  To disable this behavior, set DISABLE_NOTIF flag in the
- * IWM_REPLY_STATISTICS_CMD 0x9c, above.
- *
- * Statistics counters continue to increment beacon after beacon, but are
- * cleared when changing channels or when driver issues IWM_REPLY_STATISTICS_CMD
- * 0x9c with CLEAR_STATS bit set (see above).
- *
- * uCode also issues this notification during scans.  uCode clears statistics
- * appropriately so that each notification contains statistics for only the
- * one channel that has just been scanned.
+ * IWM_STATISTICS_CMD (0x9c), below.
  */
 
-struct iwm_notif_statistics { /* IWM_STATISTICS_NTFY_API_S_VER_8 */
+struct iwm_notif_statistics_v10 {
 	uint32_t flag;
 	struct iwm_mvm_statistics_rx rx;
 	struct iwm_mvm_statistics_tx tx;
-	struct iwm_mvm_statistics_general general;
-} __packed;
+	struct iwm_mvm_statistics_general_v8 general;
+} __packed; /* IWM_STATISTICS_NTFY_API_S_VER_10 */
+
+#define IWM_STATISTICS_FLG_CLEAR		0x1
+#define IWM_STATISTICS_FLG_DISABLE_NOTIF	0x2
+
+struct iwm_statistics_cmd {
+	uint32_t flags;
+} __packed; /* IWM_STATISTICS_CMD_API_S_VER_1 */
 
 /***********************************
  * Smart Fifo API
@@ -3186,14 +3204,6 @@ struct iwm_sf_cfg_cmd {
 /*
  * BEGIN mvm/fw-api-mac.h
  */
-
-/*
- * The first MAC indices (starting from 0)
- * are available to the driver, AUX follows
- */
-#define IWM_MAC_INDEX_AUX		4
-#define IWM_MAC_INDEX_MIN_DRIVER	0
-#define IWM_NUM_MAC_INDEX_DRIVER	IWM_MAC_INDEX_AUX
 
 enum iwm_ac {
 	IWM_AC_BK,
