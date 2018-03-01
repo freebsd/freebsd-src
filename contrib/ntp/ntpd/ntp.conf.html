@@ -33,9 +33,9 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#dir">(dir)</a>
 <p>This document describes the configuration file for the NTP Project's
 <code>ntpd</code> program.
 
-  <p>This document applies to version 4.2.8p10 of <code>ntp.conf</code>.
+  <p>This document applies to version 4.2.8p11 of <code>ntp.conf</code>.
 
-       <div class="shortcontents">
+  <div class="shortcontents">
 <h2>Short Contents</h2>
 <ul>
 <a href="#Top">NTP's Configuration File User Manual</a>
@@ -1467,7 +1467,7 @@ The
 <code>monitor</code>
 subcommand specifies the probability of discard
 for packets that overflow the rate-control window. 
-<br><dt><code>restrict</code> <code>address</code> <code>[mask </code><kbd>mask</kbd><code>]</code> <code>[</code><kbd>flag</kbd> <kbd>...</kbd><code>]</code><dd>The
+<br><dt><code>restrict</code> <code>address</code> <code>[mask </code><kbd>mask</kbd><code>]</code> <code>[ippeerlimit </code><kbd>int</kbd><code>]</code> <code>[</code><kbd>flag</kbd> <kbd>...</kbd><code>]</code><dd>The
 <kbd>address</kbd>
 argument expressed in
 dotted-quad form is the address of a host or network. 
@@ -1490,6 +1490,15 @@ Note that text string
 <code>default</code>,
 with no mask option, may
 be used to indicate the default entry. 
+The
+<code>ippeerlimit</code>
+directive limits the number of peer requests for each IP to
+<kbd>int</kbd>,
+where a value of -1 means "unlimited", the current default. 
+A value of 0 means "none". 
+There would usually be at most 1 peering request per IP,
+but if the remote peering requests are behind a proxy
+there could well be more than 1 per IP. 
 In the current implementation,
 <code>flag</code>
 always
@@ -1536,6 +1545,17 @@ basis, with later trap requestors being denied service.
 This flag
 modifies the assignment algorithm by allowing low priority traps to
 be overridden by later requests for normal priority traps. 
+<br><dt><code>noepeer</code><dd>Deny ephemeral peer requests,
+even if they come from an authenticated source. 
+Note that the ability to use a symmetric key for authentication may be restricted to
+one or more IPs or subnets via the third field of the
+<span class="file">ntp.keys</span>
+file. 
+This restriction is not enabled by default,
+to maintain backward compatability. 
+Expect
+<code>noepeer</code>
+to become the default in ntp-4.4. 
 <br><dt><code>nomodify</code><dd>Deny
 <code>ntpq(1ntpqmdoc)</code>
 and
@@ -1550,10 +1570,10 @@ and
 <code>ntpdc(1ntpdcmdoc)</code>
 queries. 
 Time service is not affected. 
-<br><dt><code>nopeer</code><dd>Deny packets which would result in mobilizing a new association. 
-This
-includes broadcast and symmetric active packets when a configured
-association does not exist. 
+<br><dt><code>nopeer</code><dd>Deny unauthenticated packets which would result in mobilizing a new association. 
+This includes
+broadcast and symmetric active packets
+when a configured association does not exist. 
 It also includes
 <code>pool</code>
 associations, so if you want to use servers from a
@@ -1561,8 +1581,10 @@ associations, so if you want to use servers from a
 directive and also want to use
 <code>nopeer</code>
 by default, you'll want a
-<code>restrict source ...</code> <code>line</code> <code>as</code> <code>well</code> <code>that</code> <code>does</code>
-<br><dt>not<dd>include the
+<code>restrict source ...</code>
+line as well that does
+<em>not</em>
+include the
 <code>nopeer</code>
 directive. 
 <br><dt><code>noserve</code><dd>Deny all packets except
@@ -1938,13 +1960,14 @@ there is clear benefit to having the clients notice this change
 as soon as possible. 
 Attacks such as replay attacks can happen, however,
 and even though there are a number of protections built in to
-broadcast mode, attempts to perform  a replay attack are possible. 
+broadcast mode, attempts to perform a replay attack are possible. 
 This value defaults to 0, but can be changed
-to any number of poll intervals between 0 and 4.
+to any number of poll intervals between 0 and 4. 
+</dl>
 
 <h5 class="subsubsection">Manycast Options</h5>
 
-          <dl>
+     <dl>
 <dt><code>tos</code> <code>[ceiling </code><kbd>ceiling</kbd><code> | cohort { 0 | 1 } | floor </code><kbd>floor</kbd><code> | minclock </code><kbd>minclock</kbd><code> | minsane </code><kbd>minsane</kbd><code>]</code><dd>This command affects the clock selection and clustering
 algorithms. 
 It can be used to select the quality and
@@ -1952,7 +1975,7 @@ quantity of peers used to synchronize the system clock
 and is most useful in manycast mode. 
 The variables operate
 as follows:
-               <dl>
+          <dl>
 <dt><code>ceiling</code> <kbd>ceiling</kbd><dd>Peers with strata above
 <code>ceiling</code>
 will be discarded if there are at least
@@ -1994,14 +2017,14 @@ Byzantine agreement,
 should be at least 4 in order to detect and discard
 a single falseticker. 
 </dl>
-          <br><dt><code>ttl</code> <kbd>hop</kbd> <kbd>...</kbd><dd>This command specifies a list of TTL values in increasing
+     <br><dt><code>ttl</code> <kbd>hop</kbd> <kbd>...</kbd><dd>This command specifies a list of TTL values in increasing
 order, up to 8 values can be specified. 
 In manycast mode these values are used in turn
 in an expanding-ring search. 
 The default is eight
 multiples of 32 starting at 31. 
 </dl>
-     <div class="node">
+<div class="node">
 <p><hr>
 <a name="Reference-Clock-Support"></a>
 <br>
@@ -2009,7 +2032,7 @@ multiples of 32 starting at 31.
 
 <h4 class="subsection">Reference Clock Support</h4>
 
-     <p>The NTP Version 4 daemon supports some three dozen different radio,
+<p>The NTP Version 4 daemon supports some three dozen different radio,
 satellite and modem reference clocks plus a special pseudo-clock
 used for backup or when no other clock source is available. 
 Detailed descriptions of individual device drivers and options can
@@ -2046,7 +2069,7 @@ page
 provided in
 <span class="file">/usr/share/doc/ntp</span>).
 
-       <p>A reference clock will generally (though not always) be a radio
+  <p>A reference clock will generally (though not always) be a radio
 timecode receiver which is synchronized to a source of standard
 time such as the services offered by the NRC in Canada and NIST and
 USNO in the US. 
@@ -2062,7 +2085,7 @@ or the hardware port has not been appropriately configured results
 in a scalding remark to the system log file, but is otherwise non
 hazardous.
 
-       <p>For the purposes of configuration,
+  <p>For the purposes of configuration,
 <code>ntpd(1ntpdmdoc)</code>
 treats
 reference clocks in a manner analogous to normal NTP peers as much
@@ -2083,7 +2106,7 @@ While it may seem overkill, it is in fact
 sometimes useful to configure multiple reference clocks of the same
 type, in which case the unit numbers must be unique.
 
-       <p>The
+  <p>The
 <code>server</code>
 command is used to configure a reference
 clock, where the
@@ -2121,7 +2144,7 @@ meaning only for selected clock drivers.
 See the individual clock
 driver document pages for additional information.
 
-       <p>The
+  <p>The
 <code>fudge</code>
 command is used to provide additional
 information for individual clock drivers and normally follows
@@ -2143,7 +2166,7 @@ in the
 <code>fudge</code>
 command as well.
 
-       <p>The stratum number of a reference clock is by default zero. 
+  <p>The stratum number of a reference clock is by default zero. 
 Since the
 <code>ntpd(1ntpdmdoc)</code>
 daemon adds one to the stratum of each
@@ -2166,11 +2189,11 @@ these options apply to all clock drivers.
 
 <h5 class="subsubsection">Reference Clock Commands</h5>
 
-          <dl>
+     <dl>
 <dt><code>server</code> <code>127.127.</code><kbd>t</kbd>.<kbd>u</kbd> <code>[prefer]</code> <code>[mode </code><kbd>int</kbd><code>]</code> <code>[minpoll </code><kbd>int</kbd><code>]</code> <code>[maxpoll </code><kbd>int</kbd><code>]</code><dd>This command can be used to configure reference clocks in
 special ways. 
 The options are interpreted as follows:
-               <dl>
+          <dl>
 <dt><code>prefer</code><dd>Marks the reference clock as preferred. 
 All other things being
 equal, this host will be chosen for synchronization among a set of
@@ -2203,7 +2226,7 @@ defaults to 10 (17.1 m) and
 defaults to 14 (4.5 h). 
 The allowable range is 4 (16 s) to 17 (36.4 h) inclusive. 
 </dl>
-          <br><dt><code>fudge</code> <code>127.127.</code><kbd>t</kbd>.<kbd>u</kbd> <code>[time1 </code><kbd>sec</kbd><code>]</code> <code>[time2 </code><kbd>sec</kbd><code>]</code> <code>[stratum </code><kbd>int</kbd><code>]</code> <code>[refid </code><kbd>string</kbd><code>]</code> <code>[mode </code><kbd>int</kbd><code>]</code> <code>[flag1 0 | 1]</code> <code>[flag2 0 | 1]</code> <code>[flag3 0 | 1]</code> <code>[flag4 0 | 1]</code><dd>This command can be used to configure reference clocks in
+     <br><dt><code>fudge</code> <code>127.127.</code><kbd>t</kbd>.<kbd>u</kbd> <code>[time1 </code><kbd>sec</kbd><code>]</code> <code>[time2 </code><kbd>sec</kbd><code>]</code> <code>[stratum </code><kbd>int</kbd><code>]</code> <code>[refid </code><kbd>string</kbd><code>]</code> <code>[mode </code><kbd>int</kbd><code>]</code> <code>[flag1 0 | 1]</code> <code>[flag2 0 | 1]</code> <code>[flag3 0 | 1]</code> <code>[flag4 0 | 1]</code><dd>This command can be used to configure reference clocks in
 special ways. 
 It must immediately follow the
 <code>server</code>
@@ -2214,7 +2237,7 @@ is possible at run time using the
 program. 
 The options are interpreted as
 follows:
-               <dl>
+          <dl>
 <dt><code>time1</code> <kbd>sec</kbd><dd>Specifies a constant to be added to the time offset produced by
 the driver, a fixed-point decimal number in seconds. 
 This is used
@@ -2251,7 +2274,7 @@ specific drivers in the
 page
 (available as part of the HTML documentation
 provided in
-<span class="file">/usr/share/doc/ntp</span>). 
+<span class="file">/usr/share/doc/ntp</span> <span class="file">).</span>
 <br><dt><code>stratum</code> <kbd>int</kbd><dd>Specifies the stratum number assigned to the driver, an integer
 between 0 and 15. 
 This number overrides the default stratum number
@@ -2285,8 +2308,8 @@ Further information on the
 command can be found in
 <a href="#Monitoring-Options">Monitoring Options</a>. 
 </dl>
-          </dl>
-     <div class="node">
+     </dl>
+<div class="node">
 <p><hr>
 <a name="Miscellaneous-Options"></a>
 <br>
@@ -2294,7 +2317,7 @@ command can be found in
 
 <h4 class="subsection">Miscellaneous Options</h4>
 
-          <dl>
+     <dl>
 <dt><code>broadcastdelay</code> <kbd>seconds</kbd><dd>The broadcast and multicast modes require a special calibration
 to determine the network delay between the local and remote
 servers. 
@@ -2327,7 +2350,7 @@ frequency of zero and creates the file when writing it for the first time.
 If this command is not given, the daemon will always start with an initial
 frequency of zero.
 
-          <p>The file format consists of a single line containing a single
+     <p>The file format consists of a single line containing a single
 floating point number, which records the frequency offset measured
 in parts-per-million (PPM). 
 The file is updated by first writing
@@ -2347,7 +2370,7 @@ Note that all of these flags
 can be controlled remotely using the
 <code>ntpdc(1ntpdcmdoc)</code>
 utility program.
-               <dl>
+          <dl>
 <dt><code>auth</code><dd>Enables the server to synchronize with unconfigured peers only if the
 peer has been correctly authenticated using either public key or
 private key cryptography. 
@@ -2482,7 +2505,7 @@ The
 default for this flag is
 <code>enable</code>. 
 </dl>
-          <br><dt><code>includefile</code> <kbd>includefile</kbd><dd>This command allows additional configuration commands
+     <br><dt><code>includefile</code> <kbd>includefile</kbd><dd>This command allows additional configuration commands
 to be included from a separate file. 
 Include files may
 be nested to a depth of five; upon reaching the end of any
@@ -2492,6 +2515,67 @@ This option is useful for sites that run
 <code>ntpd(1ntpdmdoc)</code>
 on multiple hosts, with (mostly) common options (e.g., a
 restriction list). 
+<br><dt><code>interface</code> <code>[listen | ignore | drop]</code> <code>[all | ipv4 | ipv6 | wildcard </code><kbd>name</kbd><code> | </code><kbd>address</kbd><code> [/ </code><kbd>prefixlen</kbd><code>]]</code><dd>The
+<code>interface</code>
+directive controls which network addresses
+<code>ntpd(1ntpdmdoc)</code>
+opens, and whether input is dropped without processing. 
+The first parameter determines the action for addresses
+which match the second parameter. 
+The second parameter specifies a class of addresses,
+or a specific interface name,
+or an address. 
+In the address case,
+<kbd>prefixlen</kbd>
+determines how many bits must match for this rule to apply. 
+<code>ignore</code>
+prevents opening matching addresses,
+<code>drop</code>
+causes
+<code>ntpd(1ntpdmdoc)</code>
+to open the address and drop all received packets without examination. 
+Multiple
+<code>interface</code>
+directives can be used. 
+The last rule which matches a particular address determines the action for it. 
+<code>interface</code>
+directives are disabled if any
+<code>-I</code>,
+<code>--interface</code>,
+<code>-L</code>,
+or
+<code>--novirtualips</code>
+command-line options are specified in the configuration file,
+all available network addresses are opened. 
+The
+<code>nic</code>
+directive is an alias for
+<code>interface</code>. 
+<br><dt><code>leapfile</code> <kbd>leapfile</kbd><dd>This command loads the IERS leapseconds file and initializes the
+leapsecond values for the next leapsecond event, leapfile expiration
+time, and TAI offset. 
+The file can be obtained directly from the IERS at
+<code>https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list</code>
+or
+<code>ftp://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list</code>. 
+The
+<code>leapfile</code>
+is scanned when
+<code>ntpd(1ntpdmdoc)</code>
+processes the
+<code>leapfile</code> <code>directive</code> <code>or</code> <code>when</code>
+<code>ntpd</code> <code>detects</code> <code>that</code> <code>the</code>
+<kbd>leapfile</kbd>
+has changed. 
+<code>ntpd</code>
+checks once a day to see if the
+<kbd>leapfile</kbd>
+has changed. 
+The
+<code>update-leap(1update_leapmdoc)</code>
+script can be run to see if the
+<kbd>leapfile</kbd>
+should be updated. 
 <br><dt><code>leapsmearinterval</code> <kbd>seconds</kbd><dd>This EXPERIMENTAL option is only available if
 <code>ntpd(1ntpdmdoc)</code>
 was built with the
@@ -2543,7 +2627,7 @@ and
 status messages
 (<code>status</code>).
 
-          <p>Configuration keywords are formed by concatenating the message class with
+     <p>Configuration keywords are formed by concatenating the message class with
 the event class. 
 The
 <code>all</code>
@@ -2555,20 +2639,20 @@ keyword to enable/disable all
 messages of the respective message class. 
 Thus, a minimal log configuration
 could look like this:
-<pre class="verbatim">          
-          logconfig =syncstatus +sysevents
-     </pre>
+<pre class="verbatim">     
+     logconfig =syncstatus +sysevents
+</pre>
 
-          <p>This would just list the synchronizations state of
+     <p>This would just list the synchronizations state of
 <code>ntpd(1ntpdmdoc)</code>
 and the major system events. 
 For a simple reference server, the
 following minimum message configuration could be useful:
-<pre class="verbatim">          
-          logconfig =syncall +clockall
-     </pre>
+<pre class="verbatim">     
+     logconfig =syncall +clockall
+</pre>
 
-          <p>This configuration will list all clock information and
+     <p>This configuration will list all clock information and
 synchronization information. 
 All other events and messages about
 peers, system events and so on is suppressed. 
@@ -2579,6 +2663,129 @@ facility.
 This is the same operation as the
 <code>-l</code>
 command line option. 
+<br><dt><code>mru</code> <code>[maxdepth </code><kbd>count</kbd><code> | maxmem </code><kbd>kilobytes</kbd><code> | mindepth </code><kbd>count</kbd><code> | maxage </code><kbd>seconds</kbd><code> | initialloc </code><kbd>count</kbd><code> | initmem </code><kbd>kilobytes</kbd><code> | incalloc </code><kbd>count</kbd><code> | incmem </code><kbd>kilobytes</kbd><code>]</code><dd>Controls size limite of the monitoring facility's Most Recently Used
+(MRU) list
+of client addresses, which is also used by the
+rate control facility.
+          <dl>
+<dt><code>maxdepth</code> <kbd>count</kbd><br><dt><code>maxmem</code> <kbd>kilobytes</kbd><dd>Equivalent upper limits on the size of the MRU list, in terms of entries or kilobytes. 
+The acutal limit will be up to
+<code>incalloc</code>
+entries or
+<code>incmem</code>
+kilobytes larger. 
+As with all of the
+<code>mru</code>
+options offered in units of entries or kilobytes, if both
+<code>maxdepth</code>
+and
+<code>maxmem</code> <code>are</code> <code>used,</code> <code>the</code> <code>last</code> <code>one</code> <code>used</code> <code>controls.</code>
+The default is 1024 kilobytes. 
+<br><dt><code>mindepth</code> <kbd>count</kbd><dd>Lower limit on the MRU list size. 
+When the MRU list has fewer than
+<code>mindepth</code>
+entries, existing entries are never removed to make room for newer ones,
+regardless of their age. 
+The default is 600 entries. 
+<br><dt><code>maxage</code> <kbd>seconds</kbd><dd>Once the MRU list has
+<code>mindepth</code>
+entries and an additional client is to ba added to the list,
+if the oldest entry was updated more than
+<code>maxage</code>
+seconds ago, that entry is removed and its storage is reused. 
+If the oldest entry was updated more recently the MRU list is grown,
+subject to
+<code>maxdepth</code> <code>/</code> <code>moxmem</code>. 
+The default is 64 seconds. 
+<br><dt><code>initalloc</code> <kbd>count</kbd><br><dt><code>initmem</code> <kbd>kilobytes</kbd><dd>Initial memory allocation at the time the monitoringfacility is first enabled,
+in terms of the number of entries or kilobytes. 
+The default is 4 kilobytes. 
+<br><dt><code>incalloc</code> <kbd>count</kbd><br><dt><code>incmem</code> <kbd>kilobytes</kbd><dd>Size of additional memory allocations when growing the MRU list, in entries or kilobytes. 
+The default is 4 kilobytes. 
+</dl>
+     <br><dt><code>nonvolatile</code> <kbd>threshold</kbd><dd>Specify the
+<kbd>threshold</kbd>
+delta in seconds before an hourly change to the
+<code>driftfile</code>
+(frequency file) will be written, with a default value of 1e-7 (0.1 PPM). 
+The frequency file is inspected each hour. 
+If the difference between the current frequency and the last value written
+exceeds the threshold, the file is written and the
+<code>threshold</code>
+becomes the new threshold value. 
+If the threshold is not exceeeded, it is reduced by half. 
+This is intended to reduce the number of file writes
+for embedded systems with nonvolatile memory. 
+<br><dt><code>phone</code> <kbd>dial</kbd> <kbd>...</kbd><dd>This command is used in conjunction with
+the ACTS modem driver (type 18)
+or the JJY driver (type 40, mode 100 - 180). 
+For the ACTS modem driver (type 18), the arguments consist of
+a maximum of 10 telephone numbers used to dial USNO, NIST, or European
+time service. 
+For the JJY driver (type 40 mode 100 - 180), the argument is
+one telephone number used to dial the telephone JJY service. 
+The Hayes command ATDT is normally prepended to the number. 
+The number can contain other modem control codes as well. 
+<br><dt><code>reset</code> <code>[allpeers]</code> <code>[auth]</code> <code>[ctl]</code> <code>[io]</code> <code>[mem]</code> <code>[sys]</code> <code>[timer]</code><dd>Reset one or more groups of counters maintained by
+<code>ntpd</code>
+and exposed by
+<code>ntpq</code>
+and
+<code>ntpdc</code>. 
+<br><dt><code>rlimit</code> <code>[memlock </code><kbd>Nmegabytes</kbd><code> | stacksize </code><kbd>N4kPages</kbd><code> filenum </code><kbd>Nfiledescriptors</kbd><code>]</code><dd>
+          <dl>
+<dt><code>memlock</code> <kbd>Nmegabytes</kbd><dd>Specify the number of megabytes of memory that should be
+allocated and locked. 
+Probably only available under Linux, this option may be useful
+when dropping root (the
+<code>-i</code>
+option). 
+The default is 32 megabytes on non-Linux machines, and -1 under Linux. 
+-1 means "do not lock the process into memory". 
+0 means "lock whatever memory the process wants into memory". 
+<br><dt><code>stacksize</code> <kbd>N4kPages</kbd><dd>Specifies the maximum size of the process stack on systems with the
+<code>mlockall()</code>
+function. 
+Defaults to 50 4k pages (200 4k pages in OpenBSD). 
+<br><dt><code>filenum</code> <kbd>Nfiledescriptors</kbd><dd>Specifies the maximum number of file descriptors ntpd may have open at once. 
+Defaults to the system default. 
+</dl>
+     <br><dt><code>saveconfigdir</code> <kbd>directory_path</kbd><dd>Specify the directory in which to write configuration snapshots
+requested with
+.Cm ntpq 's
+<code>saveconfig</code>
+command. 
+If
+<code>saveconfigdir</code>
+does not appear in the configuration file,
+<code>saveconfig</code>
+requests are rejected by
+<code>ntpd</code>. 
+<br><dt><code>saveconfig</code> <kbd>filename</kbd><dd>Write the current configuration, including any runtime
+modifications given with
+<code>:config</code>
+or
+<code>config-from-file</code>
+to the
+<code>ntpd</code>
+host's
+<kbd>filename</kbd>
+in the
+<code>saveconfigdir</code>. 
+This command will be rejected unless the
+<code>saveconfigdir</code>
+directive appears in
+.Cm ntpd 's
+configuration file. 
+<kbd>filename</kbd>
+can use
+<code>strftime(3)</code>
+format directives to substitute the current date and time,
+for example,
+<code>saveconfig\ ntp-%Y%m%d-%H%M%S.conf</code>. 
+The filename used is stored in the system variable
+<code>savedconfig</code>. 
+Authentication is required. 
 <br><dt><code>setvar</code> <kbd>variable</kbd> <code>[default]</code><dd>This command adds an additional system variable. 
 These
 variables can be used to distribute additional information such as
@@ -2610,6 +2817,8 @@ holds
 the names of all peer variables and the
 <code>clock_var_list</code>
 holds the names of the reference clock variables. 
+<br><dt><code>sysinfo</code><dd>Display operational summary. 
+<br><dt><code>sysstats</code><dd>Show statistics counters maintained in the protocol module. 
 <br><dt><code>tinker</code> <code>[allan </code><kbd>allan</kbd><code> | dispersion </code><kbd>dispersion</kbd><code> | freq </code><kbd>freq</kbd><code> | huffpuff </code><kbd>huffpuff</kbd><code> | panic </code><kbd>panic</kbd><code> | step </code><kbd>step</kbd><code> | stepback </code><kbd>stepback</kbd><code> | stepfwd </code><kbd>stepfwd</kbd><code> | stepout </code><kbd>stepout</kbd><code>]</code><dd>This command can be used to alter several system variables in
 very exceptional circumstances. 
 It should occur in the
@@ -2627,8 +2836,8 @@ for them.
 Emphasis added: twisters are on their own and can expect
 no help from the support group.
 
-          <p>The variables operate as follows:
-               <dl>
+     <p>The variables operate as follows:
+          <dl>
 <dt><code>allan</code> <kbd>allan</kbd><dd>The argument becomes the new value for the minimum Allan
 intercept, which is a parameter of the PLL/FLL clock discipline
 algorithm. 
@@ -2677,25 +2886,18 @@ be set to any positive number in seconds.
 If set to zero, the stepout
 pulses will not be suppressed. 
 </dl>
-          <br><dt><code>rlimit</code> <code>[memlock </code><kbd>Nmegabytes</kbd><code> | stacksize </code><kbd>N4kPages</kbd><code> filenum </code><kbd>Nfiledescriptors</kbd><code>]</code><dd>
-               <dl>
-<dt><code>memlock</code> <kbd>Nmegabytes</kbd><dd>Specify the number of megabytes of memory that should be
-allocated and locked. 
-Probably only available under Linux, this option may be useful
-when dropping root (the
-<code>-i</code>
-option). 
-The default is 32 megabytes on non-Linux machines, and -1 under Linux. 
--1 means "do not lock the process into memory". 
-0 means "lock whatever memory the process wants into memory". 
-<br><dt><code>stacksize</code> <kbd>N4kPages</kbd><dd>Specifies the maximum size of the process stack on systems with the
-<code>mlockall()</code>
-function. 
-Defaults to 50 4k pages (200 4k pages in OpenBSD). 
-<br><dt><code>filenum</code> <kbd>Nfiledescriptors</kbd><dd>Specifies the maximum number of file descriptors ntpd may have open at once. 
-Defaults to the system default. 
-</dl>
-          <br><dt><code>trap</code> <kbd>host_address</kbd> <code>[port </code><kbd>port_number</kbd><code>]</code> <code>[interface </code><kbd>interface_address</kbd><code>]</code><dd>This command configures a trap receiver at the given host
+     <br><dt><code>writevar</code> <kbd>assocID\ name</kbd> <kbd>=</kbd> <kbd>value</kbd> <kbd>[,...]</kbd><dd>Write (create or update) the specified variables. 
+If the
+<code>assocID</code>
+is zero, the variablea re from the
+system variables
+name space, otherwise they are from the
+peer variables
+name space. 
+The
+<code>assocID</code>
+is required, as the same name can occur in both name spaces. 
+<br><dt><code>trap</code> <kbd>host_address</kbd> <code>[port </code><kbd>port_number</kbd><code>]</code> <code>[interface </code><kbd>interface_address</kbd><code>]</code><dd>This command configures a trap receiver at the given host
 address and port number for sending messages with the specified
 local interface address. 
 If the port number is unspecified, a value
@@ -2704,9 +2906,15 @@ If the interface address is not specified, the
 message is sent with a source address of the local interface the
 message is sent through. 
 Note that on a multihomed host the
-interface used may vary from time to time with routing changes.
+interface used may vary from time to time with routing changes. 
+<br><dt><code>ttl</code> <kbd>hop</kbd> <kbd>...</kbd><dd>This command specifies a list of TTL values in increasing order. 
+Up to 8 values can be specified. 
+In
+<code>manycast</code>
+mode these values are used in-turn in an expanding-ring search. 
+The default is eight multiples of 32 starting at 31.
 
-          <p>The trap receiver will generally log event messages and other
+     <p>The trap receiver will generally log event messages and other
 information from the server in a log file. 
 While such monitor
 programs may also request their own trap dynamically, configuring a
@@ -2720,11 +2928,11 @@ The default is eight multiples of 32 starting at
 31. 
 </dl>
 
-       <p>This section was generated by <strong>AutoGen</strong>,
+  <p>This section was generated by <strong>AutoGen</strong>,
 using the <code>agtexi-cmd</code> template and the option descriptions for the <code>ntp.conf</code> program. 
 This software is released under the NTP license, &lt;http://ntp.org/license&gt;.
 
-     <ul class="menu">
+<ul class="menu">
 <li><a accesskey="1" href="#ntp_002econf-Files">ntp.conf Files</a>:                   Files
 <li><a accesskey="2" href="#ntp_002econf-See-Also">ntp.conf See Also</a>:                See Also
 <li><a accesskey="3" href="#ntp_002econf-Bugs">ntp.conf Bugs</a>:                    Bugs
@@ -2739,14 +2947,14 @@ This software is released under the NTP license, &lt;http://ntp.org/license&gt;.
 
 <h4 class="subsection">ntp.conf Files</h4>
 
-          <dl>
+     <dl>
 <dt><span class="file">/etc/ntp.conf</span><dd>the default name of the configuration file
 <br><dt><span class="file">ntp.keys</span><dd>private MD5 keys
 <br><dt><span class="file">ntpkey</span><dd>RSA private key
 <br><dt><span class="file">ntpkey_</span><kbd>host</kbd><dd>RSA public key
 <br><dt><span class="file">ntp_dh</span><dd>Diffie-Hellman agreement parameters
 </dl>
-     <div class="node">
+<div class="node">
 <p><hr>
 <a name="ntp_002econf-See-Also"></a>
 <br>
@@ -2754,11 +2962,11 @@ This software is released under the NTP license, &lt;http://ntp.org/license&gt;.
 
 <h4 class="subsection">ntp.conf See Also</h4>
 
-     <p><code>ntpd(1ntpdmdoc)</code>,
+<p><code>ntpd(1ntpdmdoc)</code>,
 <code>ntpdc(1ntpdcmdoc)</code>,
 <code>ntpq(1ntpqmdoc)</code>
 
-       <p>In addition to the manual pages provided,
+  <p>In addition to the manual pages provided,
 comprehensive documentation is available on the world wide web
 at
 <code>http://www.ntp.org/</code>. 
@@ -2766,7 +2974,7 @@ A snapshot of this documentation is available in HTML format in
 <span class="file">/usr/share/doc/ntp</span>. 
 <br>
 
-       <p><br>
+  <p><br>
 David L. Mills, <em>Network Time Protocol (Version 4)</em>, RFC5905
 <div class="node">
 <p><hr>
@@ -2776,11 +2984,11 @@ David L. Mills, <em>Network Time Protocol (Version 4)</em>, RFC5905
 
 <h4 class="subsection">ntp.conf Bugs</h4>
 
-     <p>The syntax checking is not picky; some combinations of
+<p>The syntax checking is not picky; some combinations of
 ridiculous and even hilarious options and modes may not be
 detected.
 
-       <p>The
+  <p>The
 <span class="file">ntpkey_</span><kbd>host</kbd>
 files are really digital
 certificates. 
@@ -2794,7 +3002,7 @@ services when they become universally available.
 
 <h4 class="subsection">ntp.conf Notes</h4>
 
-     <p>This document was derived from FreeBSD.
+<p>This document was derived from FreeBSD.
 
 </body></html>
 
