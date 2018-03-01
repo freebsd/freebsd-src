@@ -299,15 +299,6 @@ struct iwm_rx_ring {
 	int			cur;
 };
 
-struct iwm_ucode_status {
-	uint32_t uc_error_event_table;
-	uint32_t uc_umac_error_event_table;
-	uint32_t uc_log_event_table;
-
-	int uc_ok;
-	int uc_intr;
-};
-
 #define IWM_CMD_RESP_MAX PAGE_SIZE
 
 #define IWM_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS 500
@@ -439,7 +430,7 @@ struct iwm_softc {
 
 	/* TX scheduler rings. */
 	struct iwm_dma_info	sched_dma;
-	uint32_t		sched_base;
+	uint32_t		scd_base_addr;
 
 	/* TX/RX rings. */
 	struct iwm_tx_ring	txq[IWM_MVM_MAX_QUEUES];
@@ -460,8 +451,8 @@ struct iwm_softc {
 
 	int			sc_fw_chunk_done;
 
-	struct iwm_ucode_status	sc_uc;
-	enum iwm_ucode_type	sc_uc_current;
+	enum iwm_ucode_type	cur_ucode;
+	int			ucode_loaded;
 	char			sc_fwver[32];
 
 	int			sc_capaflags;
@@ -529,6 +520,12 @@ struct iwm_softc {
 	struct iwm_notif_wait_data *sc_notif_wait;
 
 	int			cmd_hold_nic_awake;
+
+	/* Firmware status */
+	uint32_t		error_event_table;
+	uint32_t		log_event_table;
+	uint32_t		umac_error_event_table;
+	int			support_umac_log;
 };
 
 #define IWM_LOCK_INIT(_sc) \

@@ -285,7 +285,13 @@ struct iwm_nvm_section {
 	uint8_t *data;
 };
 
+#define IWM_MVM_UCODE_ALIVE_TIMEOUT	hz
 #define IWM_MVM_UCODE_CALIB_TIMEOUT	(2*hz)
+
+struct iwm_mvm_alive_data {
+	int valid;
+	uint32_t scd_base_addr;
+};
 
 static int	iwm_store_cscheme(struct iwm_softc *, const uint8_t *, size_t);
 static int	iwm_firmware_store_section(struct iwm_softc *,
@@ -320,7 +326,7 @@ static int	iwm_nic_rx_init(struct iwm_softc *);
 static int	iwm_nic_tx_init(struct iwm_softc *);
 static int	iwm_nic_init(struct iwm_softc *);
 static int	iwm_enable_txq(struct iwm_softc *, int, int, int);
-static int	iwm_post_alive(struct iwm_softc *);
+static int	iwm_trans_pcie_fw_alive(struct iwm_softc *, uint32_t);
 static int	iwm_nvm_read_chunk(struct iwm_softc *, uint16_t, uint16_t,
                                    uint16_t, uint8_t *, uint16_t *);
 static int	iwm_nvm_read_section(struct iwm_softc *, uint16_t, uint8_t *,
@@ -367,7 +373,7 @@ static int	iwm_pcie_load_given_ucode_8000(struct iwm_softc *,
 					       const struct iwm_fw_sects *);
 static int	iwm_pcie_load_given_ucode(struct iwm_softc *,
 					  const struct iwm_fw_sects *);
-static int	iwm_start_fw(struct iwm_softc *, enum iwm_ucode_type);
+static int	iwm_start_fw(struct iwm_softc *, const struct iwm_fw_sects *);
 static int	iwm_send_tx_ant_cfg(struct iwm_softc *, uint8_t);
 static int	iwm_send_phy_cfg_cmd(struct iwm_softc *);
 static int	iwm_mvm_load_ucode_wait_alive(struct iwm_softc *,
@@ -1633,20 +1639,33 @@ iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo)
 		    (0 << IWM_SCD_QUEUE_STTS_REG_POS_ACTIVE)
 		    | (1 << IWM_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
 
+		iwm_nic_unlock(sc);
+
 		iwm_clear_bits_prph(sc, IWM_SCD_AGGR_SEL, (1 << qid));
 
+		if (!iwm_nic_lock(sc)) {
+			device_printf(sc->sc_dev,
+			    "%s: cannot enable txq %d\n", __func__, qid);
+			return EBUSY;
+		}
 		iwm_write_prph(sc, IWM_SCD_QUEUE_RDPTR(qid), 0);
+		iwm_nic_unlock(sc);
 
-		iwm_write_mem32(sc, sc->sched_base + IWM_SCD_CONTEXT_QUEUE_OFFSET(qid), 0);
+		iwm_write_mem32(sc, sc->scd_base_addr + IWM_SCD_CONTEXT_QUEUE_OFFSET(qid), 0);
 		/* Set scheduler window size and frame limit. */
 		iwm_write_mem32(sc,
-		    sc->sched_base + IWM_SCD_CONTEXT_QUEUE_OFFSET(qid) +
+		    sc->scd_base_addr + IWM_SCD_CONTEXT_QUEUE_OFFSET(qid) +
 		    sizeof(uint32_t),
 		    ((IWM_FRAME_LIMIT << IWM_SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
 		    IWM_SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
 		    ((IWM_FRAME_LIMIT << IWM_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
 		    IWM_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
 
+		if (!iwm_nic_lock(sc)) {
+			device_printf(sc->sc_dev,
+			    "%s: cannot enable txq %d\n", __func__, qid);
+			return EBUSY;
+		}
 		iwm_write_prph(sc, IWM_SCD_QUEUE_STATUS_BITS(qid),
 		    (1 << IWM_SCD_QUEUE_STTS_REG_POS_ACTIVE) |
 		    (fifo << IWM_SCD_QUEUE_STTS_REG_POS_TXF) |
@@ -1690,33 +1709,37 @@ iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo)
 }
 
 static int
-iwm_post_alive(struct iwm_softc *sc)
+iwm_trans_pcie_fw_alive(struct iwm_softc *sc, uint32_t scd_base_addr)
 {
-	int nwords;
 	int error, chnl;
-	uint32_t base;
+
+	int clear_dwords = (IWM_SCD_TRANS_TBL_MEM_UPPER_BOUND -
+	    IWM_SCD_CONTEXT_MEM_LOWER_BOUND) / sizeof(uint32_t);
 
 	if (!iwm_nic_lock(sc))
 		return EBUSY;
 
-	base = iwm_read_prph(sc, IWM_SCD_SRAM_BASE_ADDR);
-	if (sc->sched_base != base) {
-		device_printf(sc->sc_dev,
-		    "%s: sched addr mismatch: alive: 0x%x prph: 0x%x\n",
-		    __func__, sc->sched_base, base);
-	}
-
 	iwm_ict_reset(sc);
 
-	/* Clear TX scheduler state in SRAM. */
-	nwords = (IWM_SCD_TRANS_TBL_MEM_UPPER_BOUND -
-	    IWM_SCD_CONTEXT_MEM_LOWER_BOUND)
-	    / sizeof(uint32_t);
+	iwm_nic_unlock(sc);
+
+	sc->scd_base_addr = iwm_read_prph(sc, IWM_SCD_SRAM_BASE_ADDR);
+	if (scd_base_addr != 0 &&
+	    scd_base_addr != sc->scd_base_addr) {
+		device_printf(sc->sc_dev,
+		    "%s: sched addr mismatch: alive: 0x%x prph: 0x%x\n",
+		    __func__, sc->scd_base_addr, scd_base_addr);
+	}
+
+	/* reset context data, TX status and translation data */
 	error = iwm_write_mem(sc,
-	    sc->sched_base + IWM_SCD_CONTEXT_MEM_LOWER_BOUND,
-	    NULL, nwords);
+	    sc->scd_base_addr + IWM_SCD_CONTEXT_MEM_LOWER_BOUND,
+	    NULL, clear_dwords);
 	if (error)
-		goto out;
+		return EBUSY;
+
+	if (!iwm_nic_lock(sc))
+		return EBUSY;
 
 	/* Set physical address of TX scheduler rings (1KB aligned). */
 	iwm_write_prph(sc, IWM_SCD_DRAM_BASE_ADDR, sc->sched_dma.paddr >> 10);
@@ -1745,14 +1768,14 @@ iwm_post_alive(struct iwm_softc *sc)
 	IWM_SETBITS(sc, IWM_FH_TX_CHICKEN_BITS_REG,
 	    IWM_FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
+	iwm_nic_unlock(sc);
+
 	/* Enable L1-Active */
 	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000) {
 		iwm_clear_bits_prph(sc, IWM_APMG_PCIDEV_STT_REG,
 		    IWM_APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 	}
 
- out:
-	iwm_nic_unlock(sc);
 	return error;
 }
 
@@ -2589,6 +2612,8 @@ iwm_pcie_load_cpu_sections_8000(struct iwm_softc *sc,
 
 	*first_ucode_section = last_read_idx;
 
+	iwm_enable_interrupts(sc);
+
 	if (iwm_nic_lock(sc)) {
 		if (cpu == 1)
 			IWM_WRITE(sc, IWM_FH_UCODE_LOAD_STATUS, 0xFFFF);
@@ -2681,6 +2706,9 @@ iwm_pcie_load_given_ucode(struct iwm_softc *sc,
 			return ret;
 	}
 
+	iwm_enable_interrupts(sc);
+
+	/* release CPU reset */
 	IWM_WRITE(sc, IWM_CSR_RESET, 0);
 
 	return 0;
@@ -2711,50 +2739,33 @@ iwm_pcie_load_given_ucode_8000(struct iwm_softc *sc,
 	    &first_ucode_section);
 }
 
-static int
-iwm_load_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
+/* XXX Get rid of this definition */
+static inline void
+iwm_enable_fw_load_int(struct iwm_softc *sc)
 {
-	int error, w;
-
-	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000) {
-		error = iwm_pcie_load_given_ucode_8000(sc,
-		    &sc->sc_fw.fw_sects[ucode_type]);
-	} else {
-		error = iwm_pcie_load_given_ucode(sc,
-		    &sc->sc_fw.fw_sects[ucode_type]);
-	}
-	if (error)
-		return error;
-
-	/* wait for the firmware to load */
-	for (w = 0; !sc->sc_uc.uc_intr && w < 10; w++) {
-		error = msleep(&sc->sc_uc, &sc->sc_mtx, 0, "iwmuc", hz/10);
-	}
-	if (error || !sc->sc_uc.uc_ok) {
-		device_printf(sc->sc_dev, "could not load firmware\n");
-		if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000) {
-			device_printf(sc->sc_dev, "cpu1 status: 0x%x\n",
-			    iwm_read_prph(sc, IWM_SB_CPU_1_STATUS));
-			device_printf(sc->sc_dev, "cpu2 status: 0x%x\n",
-			    iwm_read_prph(sc, IWM_SB_CPU_2_STATUS));
-		}
-	}
-
-	return error;
+	IWM_DPRINTF(sc, IWM_DEBUG_INTR, "Enabling FW load interrupt\n");
+	sc->sc_intmask = IWM_CSR_INT_BIT_FH_TX;
+	IWM_WRITE(sc, IWM_CSR_INT_MASK, sc->sc_intmask);
 }
 
-/* iwlwifi: pcie/trans.c */
+/* XXX Add proper rfkill support code */
 static int
-iwm_start_fw(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
+iwm_start_fw(struct iwm_softc *sc,
+	const struct iwm_fw_sects *fw)
 {
-	int error;
+	int ret;
 
-	IWM_WRITE(sc, IWM_CSR_INT, ~0);
-
-	if ((error = iwm_nic_init(sc)) != 0) {
-		device_printf(sc->sc_dev, "unable to init nic\n");
-		return error;
+	/* This may fail if AMT took ownership of the device */
+	if (iwm_prepare_card_hw(sc)) {
+		device_printf(sc->sc_dev,
+		    "%s: Exit HW not ready\n", __func__);
+		ret = EIO;
+		goto out;
 	}
+
+	IWM_WRITE(sc, IWM_CSR_INT, 0xFFFFFFFF);
+
+	iwm_disable_interrupts(sc);
 
 	/* make sure rfkill handshake bits are cleared */
 	IWM_WRITE(sc, IWM_CSR_UCODE_DRV_GP1_CLR, IWM_CSR_UCODE_SW_BIT_RFKILL);
@@ -2762,8 +2773,22 @@ iwm_start_fw(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 	    IWM_CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 
 	/* clear (again), then enable host interrupts */
-	IWM_WRITE(sc, IWM_CSR_INT, ~0);
-	iwm_enable_interrupts(sc);
+	IWM_WRITE(sc, IWM_CSR_INT, 0xFFFFFFFF);
+
+	ret = iwm_nic_init(sc);
+	if (ret) {
+		device_printf(sc->sc_dev, "%s: Unable to init nic\n", __func__);
+		goto out;
+	}
+
+	/*
+	 * Now, we load the firmware and don't want to be interrupted, even
+	 * by the RF-Kill interrupt (hence mask all the interrupt besides the
+	 * FH_TX interrupt which is needed to load the firmware). If the
+	 * RF-Kill switch is toggled, we will find out after having loaded
+	 * the firmware and return the proper value to the caller.
+	 */
+	iwm_enable_fw_load_int(sc);
 
 	/* really make sure rfkill handshake bits are cleared */
 	/* maybe we should write a few times more?  just to make sure */
@@ -2771,7 +2796,15 @@ iwm_start_fw(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 	IWM_WRITE(sc, IWM_CSR_UCODE_DRV_GP1_CLR, IWM_CSR_UCODE_SW_BIT_RFKILL);
 
 	/* Load the given image to the HW */
-	return iwm_load_firmware(sc, ucode_type);
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000)
+		ret = iwm_pcie_load_given_ucode_8000(sc, fw);
+	else
+		ret = iwm_pcie_load_given_ucode(sc, fw);
+
+	/* XXX re-check RF-Kill state */
+
+out:
+	return ret;
 }
 
 static int
@@ -2790,7 +2823,7 @@ static int
 iwm_send_phy_cfg_cmd(struct iwm_softc *sc)
 {
 	struct iwm_phy_cfg_cmd phy_cfg_cmd;
-	enum iwm_ucode_type ucode_type = sc->sc_uc_current;
+	enum iwm_ucode_type ucode_type = sc->cur_ucode;
 
 	/* Set parameters */
 	phy_cfg_cmd.phy_cfg = htole32(iwm_mvm_get_phy_config(sc));
@@ -2803,6 +2836,83 @@ iwm_send_phy_cfg_cmd(struct iwm_softc *sc)
 	    "Sending Phy CFG command: 0x%x\n", phy_cfg_cmd.phy_cfg);
 	return iwm_mvm_send_cmd_pdu(sc, IWM_PHY_CONFIGURATION_CMD, IWM_CMD_SYNC,
 	    sizeof(phy_cfg_cmd), &phy_cfg_cmd);
+}
+
+static int
+iwm_alive_fn(struct iwm_softc *sc, struct iwm_rx_packet *pkt, void *data)
+{
+	struct iwm_mvm_alive_data *alive_data = data;
+	struct iwm_mvm_alive_resp_ver1 *palive1;
+	struct iwm_mvm_alive_resp_ver2 *palive2;
+	struct iwm_mvm_alive_resp *palive;
+
+	if (iwm_rx_packet_payload_len(pkt) == sizeof(*palive1)) {
+		palive1 = (void *)pkt->data;
+
+		sc->support_umac_log = FALSE;
+                sc->error_event_table =
+                        le32toh(palive1->error_event_table_ptr);
+                sc->log_event_table =
+                        le32toh(palive1->log_event_table_ptr);
+                alive_data->scd_base_addr = le32toh(palive1->scd_base_ptr);
+
+                alive_data->valid = le16toh(palive1->status) ==
+                                    IWM_ALIVE_STATUS_OK;
+                IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+			    "Alive VER1 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
+			     le16toh(palive1->status), palive1->ver_type,
+                             palive1->ver_subtype, palive1->flags);
+	} else if (iwm_rx_packet_payload_len(pkt) == sizeof(*palive2)) {
+		palive2 = (void *)pkt->data;
+		sc->error_event_table =
+			le32toh(palive2->error_event_table_ptr);
+		sc->log_event_table =
+			le32toh(palive2->log_event_table_ptr);
+		alive_data->scd_base_addr = le32toh(palive2->scd_base_ptr);
+		sc->umac_error_event_table =
+                        le32toh(palive2->error_info_addr);
+
+		alive_data->valid = le16toh(palive2->status) ==
+				    IWM_ALIVE_STATUS_OK;
+		if (sc->umac_error_event_table)
+			sc->support_umac_log = TRUE;
+
+		IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+			    "Alive VER2 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
+			    le16toh(palive2->status), palive2->ver_type,
+			    palive2->ver_subtype, palive2->flags);
+
+		IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+			    "UMAC version: Major - 0x%x, Minor - 0x%x\n",
+			    palive2->umac_major, palive2->umac_minor);
+	} else if (iwm_rx_packet_payload_len(pkt) == sizeof(*palive)) {
+		palive = (void *)pkt->data;
+
+		sc->error_event_table =
+			le32toh(palive->error_event_table_ptr);
+		sc->log_event_table =
+			le32toh(palive->log_event_table_ptr);
+		alive_data->scd_base_addr = le32toh(palive->scd_base_ptr);
+		sc->umac_error_event_table =
+			le32toh(palive->error_info_addr);
+
+		alive_data->valid = le16toh(palive->status) ==
+				    IWM_ALIVE_STATUS_OK;
+		if (sc->umac_error_event_table)
+			sc->support_umac_log = TRUE;
+
+		IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+			    "Alive VER3 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
+			    le16toh(palive->status), palive->ver_type,
+			    palive->ver_subtype, palive->flags);
+
+		IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+			    "UMAC version: Major - 0x%x, Minor - 0x%x\n",
+			    le32toh(palive->umac_major),
+			    le32toh(palive->umac_minor));
+	}
+
+	return TRUE;
 }
 
 static int
@@ -2831,27 +2941,76 @@ static int
 iwm_mvm_load_ucode_wait_alive(struct iwm_softc *sc,
 	enum iwm_ucode_type ucode_type)
 {
-	enum iwm_ucode_type old_type = sc->sc_uc_current;
+	struct iwm_notification_wait alive_wait;
+	struct iwm_mvm_alive_data alive_data;
+	const struct iwm_fw_sects *fw;
+	enum iwm_ucode_type old_type = sc->cur_ucode;
 	int error;
+	static const uint16_t alive_cmd[] = { IWM_MVM_ALIVE };
 
 	if ((error = iwm_read_firmware(sc, ucode_type)) != 0) {
 		device_printf(sc->sc_dev, "iwm_read_firmware: failed %d\n",
 			error);
 		return error;
 	}
+	fw = &sc->sc_fw.fw_sects[ucode_type];
+	sc->cur_ucode = ucode_type;
+	sc->ucode_loaded = FALSE;
 
-	sc->sc_uc_current = ucode_type;
-	error = iwm_start_fw(sc, ucode_type);
+	memset(&alive_data, 0, sizeof(alive_data));
+	iwm_init_notification_wait(sc->sc_notif_wait, &alive_wait,
+				   alive_cmd, nitems(alive_cmd),
+				   iwm_alive_fn, &alive_data);
+
+	error = iwm_start_fw(sc, fw);
 	if (error) {
 		device_printf(sc->sc_dev, "iwm_start_fw: failed %d\n", error);
-		sc->sc_uc_current = old_type;
+		sc->cur_ucode = old_type;
+		iwm_remove_notification(sc->sc_notif_wait, &alive_wait);
 		return error;
 	}
 
-	error = iwm_post_alive(sc);
+	/*
+	 * Some things may run in the background now, but we
+	 * just wait for the ALIVE notification here.
+	 */
+	IWM_UNLOCK(sc);
+	error = iwm_wait_notification(sc->sc_notif_wait, &alive_wait,
+				      IWM_MVM_UCODE_ALIVE_TIMEOUT);
+	IWM_LOCK(sc);
 	if (error) {
-		device_printf(sc->sc_dev, "iwm_fw_alive: failed %d\n", error);
+		if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000) {
+			device_printf(sc->sc_dev,
+			    "SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
+			    iwm_read_prph(sc, IWM_SB_CPU_1_STATUS),
+			    iwm_read_prph(sc, IWM_SB_CPU_2_STATUS));
+		}
+		sc->cur_ucode = old_type;
+		return error;
 	}
+
+	if (!alive_data.valid) {
+		device_printf(sc->sc_dev, "%s: Loaded ucode is not valid\n",
+		    __func__);
+		sc->cur_ucode = old_type;
+		return EIO;
+	}
+
+	iwm_trans_pcie_fw_alive(sc, alive_data.scd_base_addr);
+
+	/*
+	 * configure and operate fw paging mechanism.
+	 * driver configures the paging flow only once, CPU2 paging image
+	 * included in the IWM_UCODE_INIT image.
+	 */
+	if (fw->paging_mem_size) {
+		/* XXX implement FW paging */
+		device_printf(sc->sc_dev,
+		    "%s: XXX FW paging not implemented yet\n", __func__);
+	}
+
+	if (!error)
+		sc->ucode_loaded = TRUE;
 	return error;
 }
 
@@ -5175,7 +5334,7 @@ iwm_nic_umac_error(struct iwm_softc *sc)
 	struct iwm_umac_error_event_table table;
 	uint32_t base;
 
-	base = sc->sc_uc.uc_umac_error_event_table;
+	base = sc->umac_error_event_table;
 
 	if (base < 0x800000) {
 		device_printf(sc->sc_dev, "Invalid error log pointer 0x%08x\n",
@@ -5230,7 +5389,7 @@ iwm_nic_error(struct iwm_softc *sc)
 	uint32_t base;
 
 	device_printf(sc->sc_dev, "dumping device error log\n");
-	base = sc->sc_uc.uc_error_event_table;
+	base = sc->umac_error_event_table;
 	if (base < 0x800000) {
 		device_printf(sc->sc_dev,
 		    "Invalid error log pointer 0x%08x\n", base);
@@ -5292,7 +5451,7 @@ iwm_nic_error(struct iwm_softc *sc)
 	device_printf(sc->sc_dev, "%08X | timestamp\n", table.u_timestamp);
 	device_printf(sc->sc_dev, "%08X | flow_handler\n", table.flow_handler);
 
-	if (sc->sc_uc.uc_umac_error_event_table)
+	if (sc->umac_error_event_table)
 		iwm_nic_umac_error(sc);
 }
 #endif
@@ -5402,57 +5561,8 @@ iwm_notif_intr(struct iwm_softc *sc)
 		case IWM_MFUART_LOAD_NOTIFICATION:
 			break;
 
-		case IWM_MVM_ALIVE: {
-			struct iwm_mvm_alive_resp_v1 *resp1;
-			struct iwm_mvm_alive_resp_v2 *resp2;
-			struct iwm_mvm_alive_resp_v3 *resp3;
-
-			if (iwm_rx_packet_payload_len(pkt) == sizeof(*resp1)) {
-				resp1 = (void *)pkt->data;
-				sc->sc_uc.uc_error_event_table
-				    = le32toh(resp1->error_event_table_ptr);
-				sc->sc_uc.uc_log_event_table
-				    = le32toh(resp1->log_event_table_ptr);
-				sc->sched_base = le32toh(resp1->scd_base_ptr);
-				if (resp1->status == IWM_ALIVE_STATUS_OK)
-					sc->sc_uc.uc_ok = 1;
-				else
-					sc->sc_uc.uc_ok = 0;
-			}
-
-			if (iwm_rx_packet_payload_len(pkt) == sizeof(*resp2)) {
-				resp2 = (void *)pkt->data;
-				sc->sc_uc.uc_error_event_table
-				    = le32toh(resp2->error_event_table_ptr);
-				sc->sc_uc.uc_log_event_table
-				    = le32toh(resp2->log_event_table_ptr);
-				sc->sched_base = le32toh(resp2->scd_base_ptr);
-				sc->sc_uc.uc_umac_error_event_table
-				    = le32toh(resp2->error_info_addr);
-				if (resp2->status == IWM_ALIVE_STATUS_OK)
-					sc->sc_uc.uc_ok = 1;
-				else
-					sc->sc_uc.uc_ok = 0;
-			}
-
-			if (iwm_rx_packet_payload_len(pkt) == sizeof(*resp3)) {
-				resp3 = (void *)pkt->data;
-				sc->sc_uc.uc_error_event_table
-				    = le32toh(resp3->error_event_table_ptr);
-				sc->sc_uc.uc_log_event_table
-				    = le32toh(resp3->log_event_table_ptr);
-				sc->sched_base = le32toh(resp3->scd_base_ptr);
-				sc->sc_uc.uc_umac_error_event_table
-				    = le32toh(resp3->error_info_addr);
-				if (resp3->status == IWM_ALIVE_STATUS_OK)
-					sc->sc_uc.uc_ok = 1;
-				else
-					sc->sc_uc.uc_ok = 0;
-			}
-
-			sc->sc_uc.uc_intr = 1;
-			wakeup(&sc->sc_uc);
-			break; }
+		case IWM_MVM_ALIVE:
+			break;
 
 		case IWM_CALIB_RES_NOTIF_PHY_DB:
 			break;
@@ -5704,8 +5814,8 @@ iwm_intr(void *arg)
 
 	IWM_WRITE(sc, IWM_CSR_INT, r1 | ~sc->sc_intmask);
 
-	/* ignored */
-	handled |= (r1 & (IWM_CSR_INT_BIT_ALIVE /*| IWM_CSR_INT_BIT_SCD*/));
+	/* Safely ignore these bits for debug checks below */
+	r1 &= ~(IWM_CSR_INT_BIT_ALIVE | IWM_CSR_INT_BIT_SCD);
 
 	if (r1 & IWM_CSR_INT_BIT_SW_ERR) {
 		int i;
