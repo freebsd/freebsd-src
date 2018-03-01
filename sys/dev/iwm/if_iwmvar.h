@@ -275,7 +275,6 @@ struct iwm_tx_ring {
 struct iwm_rx_data {
 	struct mbuf	*m;
 	bus_dmamap_t	map;
-	int		wantresp;
 };
 
 struct iwm_rx_ring {
