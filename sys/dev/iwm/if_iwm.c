@@ -3091,11 +3091,6 @@ iwm_mvm_rx_tx_cmd(struct iwm_softc *sc,
 	if (--ring->queued < IWM_TX_RING_LOMARK) {
 		sc->qfullmsk &= ~(1 << ring->qid);
 		if (sc->qfullmsk == 0) {
-			/*
-			 * Well, we're in interrupt context, but then again
-			 * I guess net80211 does all sorts of stunts in
-			 * interrupt context, so maybe this is no biggie.
-			 */
 			iwm_start(sc);
 		}
 	}
@@ -5598,6 +5593,9 @@ iwm_dev_check(device_t dev)
 	}
 }
 
+/* PCI registers */
+#define PCI_CFG_RETRY_TIMEOUT	0x041
+
 static int
 iwm_pci_attach(device_t dev)
 {
@@ -5607,9 +5605,9 @@ iwm_pci_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	/* Clear device-specific "PCI retry timeout" register (41h). */
-	reg = pci_read_config(dev, 0x40, sizeof(reg));
-	pci_write_config(dev, 0x40, reg & ~0xff00, sizeof(reg));
+	/* We disable the RETRY_TIMEOUT register (0x41) to keep
+	 * PCI Tx retries from interfering with C3 CPU state */
+	pci_write_config(dev, PCI_CFG_RETRY_TIMEOUT, 0x00, 1);
 
 	/* Enable bus-mastering and hardware bug workaround. */
 	pci_enable_busmaster(dev);
@@ -6071,11 +6069,12 @@ iwm_resume(device_t dev)
 {
 	struct iwm_softc *sc = device_get_softc(dev);
 	int do_reinit = 0;
-	uint16_t reg;
 
-	/* Clear device-specific "PCI retry timeout" register (41h). */
-	reg = pci_read_config(dev, 0x40, sizeof(reg));
-	pci_write_config(dev, 0x40, reg & ~0xff00, sizeof(reg));
+	/*
+	 * We disable the RETRY_TIMEOUT register (0x41) to keep
+	 * PCI Tx retries from interfering with C3 CPU state.
+	 */
+	pci_write_config(dev, PCI_CFG_RETRY_TIMEOUT, 0x00, 1);
 	iwm_init_task(device_get_softc(dev));
 
 	IWM_LOCK(sc);
