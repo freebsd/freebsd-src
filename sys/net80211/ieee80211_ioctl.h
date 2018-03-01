@@ -84,11 +84,7 @@ struct ieee80211_nodestats {
 	uint32_t	ns_tx_deauth_code;	/* last deauth reason */
 	uint32_t	ns_tx_disassoc;		/* disassociations */
 	uint32_t	ns_tx_disassoc_code;	/* last disassociation reason */
-
-	/* Hardware A-MSDU decode */
-	uint32_t	ns_rx_amsdu_more;	/* RX decap A-MSDU, more coming from A-MSDU */
-	uint32_t	ns_rx_amsdu_more_end;	/* RX decap A-MSDU (or any other frame), no more coming */
-	uint32_t	ns_spare[6];
+	uint32_t	ns_spare[8];
 };
 
 /*
