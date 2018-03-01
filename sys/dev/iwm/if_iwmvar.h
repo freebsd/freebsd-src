@@ -518,6 +518,8 @@ struct iwm_softc {
 	struct iwm_tx_radiotap_header sc_txtap;
 
 	int			sc_max_rssi;
+
+	struct iwm_notif_wait_data *sc_notif_wait;
 };
 
 #define IWM_LOCK_INIT(_sc) \
