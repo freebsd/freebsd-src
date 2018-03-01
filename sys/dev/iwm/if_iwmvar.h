@@ -362,6 +362,27 @@ struct iwm_node {
 #define IWM_ICT_COUNT		(IWM_ICT_SIZE / sizeof (uint32_t))
 #define IWM_ICT_PADDR_SHIFT	12
 
+enum iwm_device_family {
+	IWM_DEVICE_FAMILY_UNDEFINED,
+	IWM_DEVICE_FAMILY_7000,
+	IWM_DEVICE_FAMILY_8000,
+};
+
+/**
+ * struct iwm_cfg
+ * @fw_name: Firmware filename.
+ * @host_interrupt_operation_mode: device needs host interrupt operation
+ *      mode set
+ * @nvm_hw_section_num: the ID of the HW NVM section
+ */
+struct iwm_cfg {
+	const char *fw_name;
+	uint16_t eeprom_size;
+	enum iwm_device_family device_family;
+	int host_interrupt_operation_mode;
+	uint8_t nvm_hw_section_num;
+};
+
 struct iwm_softc {
 	device_t		sc_dev;
 	uint32_t		sc_debug;
@@ -410,9 +431,6 @@ struct iwm_softc {
 
 	int			sc_hw_rev;
 	int			sc_hw_id;
-	int			sc_device_family;
-#define IWM_DEVICE_FAMILY_7000	1
-#define IWM_DEVICE_FAMILY_8000	2
 
 	struct iwm_dma_info	kw_dma;
 	struct iwm_dma_info	fw_dma;
@@ -444,12 +462,12 @@ struct iwm_softc {
 	 */
 	int			sc_generation;
 
-	const char		*sc_fwname;
 	bus_size_t		sc_fwdmasegsz;
 	struct iwm_fw_info	sc_fw;
 	int			sc_fw_phy_config;
 	struct iwm_tlv_calib_ctrl sc_default_calib[IWM_UCODE_TYPE_MAX];
 
+	const struct iwm_cfg	*cfg;
 	struct iwm_nvm_data	*nvm_data;
 	struct iwm_phy_db	*sc_phy_db;
 
@@ -480,17 +498,12 @@ struct iwm_softc {
 	struct iwm_notif_statistics sc_stats;
 	int			sc_noise;
 
-	int			host_interrupt_operation_mode;
-
 	caddr_t			sc_drvbpf;
 
 	struct iwm_rx_radiotap_header sc_rxtap;
 	struct iwm_tx_radiotap_header sc_txtap;
 
 	int			sc_max_rssi;
-
-	uint16_t		eeprom_size;
-	uint8_t			nvm_hw_section_num;
 };
 
 #define IWM_LOCK_INIT(_sc) \
