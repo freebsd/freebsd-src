@@ -5384,7 +5384,7 @@ iwm_nic_error(struct iwm_softc *sc)
 	uint32_t base;
 
 	device_printf(sc->sc_dev, "dumping device error log\n");
-	base = sc->umac_error_event_table;
+	base = sc->error_event_table;
 	if (base < 0x800000) {
 		device_printf(sc->sc_dev,
 		    "Invalid error log pointer 0x%08x\n", base);
