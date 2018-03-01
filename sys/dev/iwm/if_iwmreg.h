@@ -4799,9 +4799,6 @@ struct iwm_ssid_ie {
 #define IWM_FAST_SCHED_SCAN_ITERATIONS 3
 #define IWM_MAX_SCHED_SCAN_PLANS 2
 
-/* Maximal number of channels to scan */
-#define IWM_MAX_NUM_SCAN_CHANNELS 0x24
-
 /**
  * iwm_scan_schedule_lmac - schedule of scan offload
  * @delay:		delay between iterations, in seconds.
