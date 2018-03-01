@@ -241,7 +241,7 @@ efi_get_table(struct uuid *uuid, void **ptr)
 }
 
 static int
-efi_get_time_locked(struct efi_tm *tm)
+efi_get_time_locked(struct efi_tm *tm, struct efi_tmcap *tmcap)
 {
 	efi_status status;
 	int error;
@@ -250,7 +250,7 @@ efi_get_time_locked(struct efi_tm *tm)
 	error = efi_enter();
 	if (error != 0)
 		return (error);
-	status = efi_runtime->rt_gettime(tm, NULL);
+	status = efi_runtime->rt_gettime(tm, tmcap);
 	efi_leave();
 	error = efi_status_to_errno(status);
 	return (error);
@@ -264,7 +264,21 @@ efi_get_time(struct efi_tm *tm)
 	if (efi_runtime == NULL)
 		return (ENXIO);
 	EFI_TIME_LOCK()
-	error = efi_get_time_locked(tm);
+	error = efi_get_time_locked(tm, NULL);
+	EFI_TIME_UNLOCK()
+	return (error);
+}
+
+int
+efi_get_time_capabilities(struct efi_tmcap *tmcap)
+{
+	struct efi_tm dummy;
+	int error;
+
+	if (efi_runtime == NULL)
+		return (ENXIO);
+	EFI_TIME_LOCK()
+	error = efi_get_time_locked(&dummy, tmcap);
 	EFI_TIME_UNLOCK()
 	return (error);
 }
