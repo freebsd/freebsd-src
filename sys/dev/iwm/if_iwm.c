@@ -739,7 +739,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			}
 			capa = (const struct iwm_ucode_capa *)tlv_data;
 			idx = le32toh(capa->api_index);
-			if (idx > howmany(IWM_NUM_UCODE_TLV_CAPA, 32)) {
+			if (idx >= howmany(IWM_NUM_UCODE_TLV_CAPA, 32)) {
 				device_printf(sc->sc_dev,
 				    "unsupported API index %d\n", idx);
 				goto parse_out;
