@@ -246,6 +246,16 @@ struct iwm_dma_info {
 	bus_size_t		size;
 };
 
+/**
+ * struct iwm_fw_paging
+ * @fw_paging_block: dma memory info
+ * @fw_paging_size: page size
+ */
+struct iwm_fw_paging {
+	struct iwm_dma_info fw_paging_block;
+	uint32_t fw_paging_size;
+};
+
 #define IWM_TX_RING_COUNT	256
 #define IWM_TX_RING_LOMARK	192
 #define IWM_TX_RING_HIMARK	224
@@ -499,6 +509,14 @@ struct iwm_softc {
 	uint32_t		log_event_table;
 	uint32_t		umac_error_event_table;
 	int			support_umac_log;
+
+	/*
+	 * Paging parameters - All of the parameters should be set by the
+	 * opmode when paging is enabled
+	 */
+	struct iwm_fw_paging	fw_paging_db[IWM_NUM_OF_FW_PAGING_BLOCKS];
+	uint16_t		num_of_paging_blk;
+	uint16_t		num_of_pages_in_last_blk;
 };
 
 #define IWM_LOCK_INIT(_sc) \

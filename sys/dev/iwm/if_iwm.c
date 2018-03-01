@@ -166,6 +166,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iwm/if_iwm_pcie_trans.h>
 #include <dev/iwm/if_iwm_led.h>
+#include <dev/iwm/if_iwm_fw.h>
 
 const uint8_t iwm_nvm_channels[] = {
 	/* 2.4 GHz */
@@ -2869,9 +2870,21 @@ iwm_mvm_load_ucode_wait_alive(struct iwm_softc *sc,
 	 * included in the IWM_UCODE_INIT image.
 	 */
 	if (fw->paging_mem_size) {
-		/* XXX implement FW paging */
-		device_printf(sc->sc_dev,
-		    "%s: XXX FW paging not implemented yet\n", __func__);
+		error = iwm_save_fw_paging(sc, fw);
+		if (error) {
+			device_printf(sc->sc_dev,
+			    "%s: failed to save the FW paging image\n",
+			    __func__);
+			return error;
+		}
+
+		error = iwm_send_paging_cmd(sc, fw);
+		if (error) {
+			device_printf(sc->sc_dev,
+			    "%s: failed to send the paging cmd\n", __func__);
+			iwm_free_fw_paging(sc);
+			return error;
+		}
 	}
 
 	if (!error)
@@ -5496,6 +5509,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 		case IWM_REMOVE_STA:
 		case IWM_TXPATH_FLUSH:
 		case IWM_LQ_CMD:
+		case IWM_FW_PAGING_BLOCK_CMD:
 		case IWM_BT_CONFIG:
 		case IWM_REPLY_THERMAL_MNG_BACKOFF:
 			cresp = (void *)pkt->data;
@@ -6451,6 +6465,8 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 	iwm_dma_contig_free(&sc->ict_dma);
 	iwm_dma_contig_free(&sc->kw_dma);
 	iwm_dma_contig_free(&sc->fw_dma);
+
+	iwm_free_fw_paging(sc);
 
 	/* Finished with the hardware - detach things */
 	iwm_pci_detach(dev);
