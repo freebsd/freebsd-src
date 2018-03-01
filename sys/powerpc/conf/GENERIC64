@@ -206,6 +206,7 @@ device		fwe		# Ethernet over FireWire (non-standard!)
 
 # Misc
 device		iicbus		# I2C bus code
+device		iic
 device		kiic		# Keywest I2C
 device		ad7417		# PowerMac7,2 temperature sensor
 device		ds1631		# PowerMac11,2 temperature sensor
