@@ -4593,11 +4593,9 @@ iwm_init_hw(struct iwm_softc *sc)
 		goto error;
 	}
 
-	/* Send phy db control command and then phy db calibration*/
-	if ((error = iwm_send_phy_db_data(sc)) != 0) {
-		device_printf(sc->sc_dev, "phy_db_data failed\n");
+	/* Send phy db control command and then phy db calibration */
+	if ((error = iwm_send_phy_db_data(sc->sc_phy_db)) != 0)
 		goto error;
-	}
 
 	if ((error = iwm_send_phy_cfg_cmd(sc)) != 0) {
 		device_printf(sc->sc_dev, "phy_cfg_cmd failed\n");
@@ -5225,7 +5223,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 			struct iwm_calib_res_notif_phy_db *phy_db_notif;
 			phy_db_notif = (void *)pkt->data;
 
-			iwm_phy_db_set_section(sc, phy_db_notif);
+			iwm_phy_db_set_section(sc->sc_phy_db, phy_db_notif);
 
 			break; }
 
@@ -5751,6 +5749,13 @@ iwm_attach(device_t dev)
 	callout_init_mtx(&sc->sc_led_blink_to, &sc->sc_mtx, 0);
 	TASK_INIT(&sc->sc_es_task, 0, iwm_endscan_cb, sc);
 
+	/* Init phy db */
+	sc->sc_phy_db = iwm_phy_db_init(sc);
+	if (!sc->sc_phy_db) {
+		device_printf(dev, "Cannot init phy_db\n");
+		goto fail;
+	}
+
 	/* PCI attach */
 	error = iwm_pci_attach(dev);
 	if (error != 0)
@@ -6199,7 +6204,8 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 		ieee80211_ifdetach(&sc->sc_ic);
 	}
 
-	iwm_phy_db_free(sc);
+	iwm_phy_db_free(sc->sc_phy_db);
+	sc->sc_phy_db = NULL;
 
 	/* Free descriptor rings */
 	iwm_free_rx_ring(sc, &sc->rxq);
