@@ -116,6 +116,10 @@ extern	int iwm_mvm_send_cmd_pdu_status(struct iwm_softc *sc, uint8_t id,
 	uint16_t len, const void *data, uint32_t *status);
 extern	void iwm_free_resp(struct iwm_softc *sc, struct iwm_host_cmd *hcmd);
 
+extern	int iwm_dma_contig_alloc(bus_dma_tag_t tag, struct iwm_dma_info *dma,
+				 bus_size_t size, bus_size_t alignment);
+extern	void iwm_dma_contig_free(struct iwm_dma_info *);
+
 static inline uint8_t
 iwm_mvm_get_valid_tx_ant(struct iwm_softc *sc)
 {
