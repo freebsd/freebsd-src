@@ -5929,19 +5929,30 @@ iwm_intr(void *arg)
 #define	PCI_PRODUCT_INTEL_WL_8260_2	0x24f4
 
 static const struct iwm_devices {
-	uint16_t	device;
-	const char	*name;
+	uint16_t		device;
+	const char		*name;
+	const struct iwm_cfg	*cfg;
 } iwm_devices[] = {
-	{ PCI_PRODUCT_INTEL_WL_3160_1, "Intel Dual Band Wireless AC 3160" },
-	{ PCI_PRODUCT_INTEL_WL_3160_2, "Intel Dual Band Wireless AC 3160" },
-	{ PCI_PRODUCT_INTEL_WL_3165_1, "Intel Dual Band Wireless AC 3165" },
-	{ PCI_PRODUCT_INTEL_WL_3165_2, "Intel Dual Band Wireless AC 3165" },
-	{ PCI_PRODUCT_INTEL_WL_7260_1, "Intel Dual Band Wireless AC 7260" },
-	{ PCI_PRODUCT_INTEL_WL_7260_2, "Intel Dual Band Wireless AC 7260" },
-	{ PCI_PRODUCT_INTEL_WL_7265_1, "Intel Dual Band Wireless AC 7265" },
-	{ PCI_PRODUCT_INTEL_WL_7265_2, "Intel Dual Band Wireless AC 7265" },
-	{ PCI_PRODUCT_INTEL_WL_8260_1, "Intel Dual Band Wireless AC 8260" },
-	{ PCI_PRODUCT_INTEL_WL_8260_2, "Intel Dual Band Wireless AC 8260" },
+	{ PCI_PRODUCT_INTEL_WL_3160_1, "Intel Dual Band Wireless AC 3160",
+	  &iwm3160_cfg },
+	{ PCI_PRODUCT_INTEL_WL_3160_2, "Intel Dual Band Wireless AC 3160",
+	  &iwm3160_cfg },
+	{ PCI_PRODUCT_INTEL_WL_3165_1, "Intel Dual Band Wireless AC 3165",
+	  &iwm3165_cfg },
+	{ PCI_PRODUCT_INTEL_WL_3165_2, "Intel Dual Band Wireless AC 3165",
+	  &iwm3165_cfg },
+	{ PCI_PRODUCT_INTEL_WL_7260_1, "Intel Dual Band Wireless AC 7260",
+	  &iwm7260_cfg },
+	{ PCI_PRODUCT_INTEL_WL_7260_2, "Intel Dual Band Wireless AC 7260",
+	  &iwm7260_cfg },
+	{ PCI_PRODUCT_INTEL_WL_7265_1, "Intel Dual Band Wireless AC 7265",
+	  &iwm7265_cfg },
+	{ PCI_PRODUCT_INTEL_WL_7265_2, "Intel Dual Band Wireless AC 7265",
+	  &iwm7265_cfg },
+	{ PCI_PRODUCT_INTEL_WL_8260_1, "Intel Dual Band Wireless AC 8260",
+	  &iwm8260_cfg },
+	{ PCI_PRODUCT_INTEL_WL_8260_2, "Intel Dual Band Wireless AC 8260",
+	  &iwm8260_cfg },
 };
 
 static int
@@ -5964,34 +5975,20 @@ static int
 iwm_dev_check(device_t dev)
 {
 	struct iwm_softc *sc;
+	uint16_t devid;
+	int i;
 
 	sc = device_get_softc(dev);
 
-	switch (pci_get_device(dev)) {
-	case PCI_PRODUCT_INTEL_WL_3160_1:
-	case PCI_PRODUCT_INTEL_WL_3160_2:
-		sc->cfg = &iwm3160_cfg;
-		return (0);
-	case PCI_PRODUCT_INTEL_WL_3165_1:
-	case PCI_PRODUCT_INTEL_WL_3165_2:
-		sc->cfg = &iwm3165_cfg;
-		return (0);
-	case PCI_PRODUCT_INTEL_WL_7260_1:
-	case PCI_PRODUCT_INTEL_WL_7260_2:
-		sc->cfg = &iwm7260_cfg;
-		return (0);
-	case PCI_PRODUCT_INTEL_WL_7265_1:
-	case PCI_PRODUCT_INTEL_WL_7265_2:
-		sc->cfg = &iwm7265_cfg;
-		return (0);
-	case PCI_PRODUCT_INTEL_WL_8260_1:
-	case PCI_PRODUCT_INTEL_WL_8260_2:
-		sc->cfg = &iwm8260_cfg;
-		return (0);
-	default:
-		device_printf(dev, "unknown adapter type\n");
-		return ENXIO;
+	devid = pci_get_device(dev);
+	for (i = 0; i < nitems(iwm_devices); i++) {
+		if (iwm_devices[i].device == devid) {
+			sc->cfg = iwm_devices[i].cfg;
+			return (0);
+		}
 	}
+	device_printf(dev, "unknown adapter type\n");
+	return ENXIO;
 }
 
 /* PCI registers */
