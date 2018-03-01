@@ -232,6 +232,7 @@ struct iwm_nvm_data {
 	uint16_t nvm_version;
 	uint8_t max_tx_pwr_half_dbm;
 
+	boolean_t lar_enabled;
 	uint16_t nvm_ch_flags[];
 };
 
