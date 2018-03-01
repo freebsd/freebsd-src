@@ -359,6 +359,8 @@ static void	iwm_mvm_fill_sf_command(struct iwm_softc *,
 					struct ieee80211_node *);
 static int	iwm_mvm_sf_config(struct iwm_softc *, enum iwm_sf_state);
 static int	iwm_send_bt_init_conf(struct iwm_softc *);
+static boolean_t iwm_mvm_is_lar_supported(struct iwm_softc *);
+static boolean_t iwm_mvm_is_wifi_mcc_supported(struct iwm_softc *);
 static int	iwm_send_update_mcc_cmd(struct iwm_softc *, const char *);
 static void	iwm_mvm_tt_tx_backoff(struct iwm_softc *, uint32_t);
 static int	iwm_init_hw(struct iwm_softc *);
@@ -396,6 +398,9 @@ static void	iwm_set_channel(struct ieee80211com *);
 static void	iwm_scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static void	iwm_scan_mindwell(struct ieee80211_scan_state *);
 static int	iwm_detach(device_t);
+
+static int	iwm_lar_disable = 0;
+TUNABLE_INT("hw.iwm.lar.disable", &iwm_lar_disable);
 
 /*
  * Firmware parser.
@@ -2189,6 +2194,7 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 {
 	struct iwm_nvm_data *data;
 	uint32_t sku, radio_cfg;
+	uint16_t lar_config;
 
 	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000) {
 		data = malloc(sizeof(*data) +
@@ -2213,6 +2219,16 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 	data->sku_cap_11n_enable = 0;
 
 	data->n_hw_addrs = iwm_get_n_hw_addrs(sc, nvm_sw);
+
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000) {
+		uint16_t lar_offset = data->nvm_version < 0xE39 ?
+				       IWM_NVM_LAR_OFFSET_8000_OLD :
+				       IWM_NVM_LAR_OFFSET_8000;
+
+		lar_config = le16_to_cpup(regulatory + lar_offset);
+		data->lar_enabled = !!(lar_config &
+				       IWM_NVM_LAR_ENABLED_8000);
+	}
 
 	/* If no valid mac address was found - bail out */
 	if (iwm_set_hw_address(sc, data, nvm_hw, mac_override)) {
@@ -4661,6 +4677,35 @@ iwm_send_bt_init_conf(struct iwm_softc *sc)
 	    &bt_cmd);
 }
 
+static boolean_t
+iwm_mvm_is_lar_supported(struct iwm_softc *sc)
+{
+	boolean_t nvm_lar = sc->nvm_data->lar_enabled;
+	boolean_t tlv_lar = fw_has_capa(&sc->ucode_capa,
+					IWM_UCODE_TLV_CAPA_LAR_SUPPORT);
+
+	if (iwm_lar_disable)
+		return FALSE;
+
+	/*
+	 * Enable LAR only if it is supported by the FW (TLV) &&
+	 * enabled in the NVM
+	 */
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000)
+		return nvm_lar && tlv_lar;
+	else
+		return tlv_lar;
+}
+
+static boolean_t
+iwm_mvm_is_wifi_mcc_supported(struct iwm_softc *sc)
+{
+	return fw_has_api(&sc->ucode_capa,
+			  IWM_UCODE_TLV_API_WIFI_MCC_UPDATE) ||
+	       fw_has_capa(&sc->ucode_capa,
+			   IWM_UCODE_TLV_CAPA_LAR_MULTI_MCC);
+}
+
 static int
 iwm_send_update_mcc_cmd(struct iwm_softc *sc, const char *alpha2)
 {
@@ -4681,10 +4726,15 @@ iwm_send_update_mcc_cmd(struct iwm_softc *sc, const char *alpha2)
 	int resp_v2 = fw_has_capa(&sc->ucode_capa,
 	    IWM_UCODE_TLV_CAPA_LAR_SUPPORT_V2);
 
+	if (!iwm_mvm_is_lar_supported(sc)) {
+		IWM_DPRINTF(sc, IWM_DEBUG_LAR, "%s: no LAR support\n",
+		    __func__);
+		return 0;
+	}
+
 	memset(&mcc_cmd, 0, sizeof(mcc_cmd));
 	mcc_cmd.mcc = htole16(alpha2[0] << 8 | alpha2[1]);
-	if (fw_has_api(&sc->ucode_capa, IWM_UCODE_TLV_API_WIFI_MCC_UPDATE) ||
-	    fw_has_capa(&sc->ucode_capa, IWM_UCODE_TLV_CAPA_LAR_MULTI_MCC))
+	if (iwm_mvm_is_wifi_mcc_supported(sc))
 		mcc_cmd.source_id = IWM_MCC_SOURCE_GET_CURRENT;
 	else
 		mcc_cmd.source_id = IWM_MCC_SOURCE_OLD_FW;
@@ -4694,7 +4744,7 @@ iwm_send_update_mcc_cmd(struct iwm_softc *sc, const char *alpha2)
 	else
 		hcmd.len[0] = sizeof(struct iwm_mcc_update_cmd_v1);
 
-	IWM_DPRINTF(sc, IWM_DEBUG_NODE,
+	IWM_DPRINTF(sc, IWM_DEBUG_LAR,
 	    "send MCC update to FW with '%c%c' src = %d\n",
 	    alpha2[0], alpha2[1], mcc_cmd.source_id);
 
@@ -4720,7 +4770,7 @@ iwm_send_update_mcc_cmd(struct iwm_softc *sc, const char *alpha2)
 	if (mcc == 0)
 		mcc = 0x3030;  /* "00" - world */
 
-	IWM_DPRINTF(sc, IWM_DEBUG_NODE,
+	IWM_DPRINTF(sc, IWM_DEBUG_LAR,
 	    "regulatory domain '%c%c' (%d channels available)\n",
 	    mcc >> 8, mcc & 0xff, n_channels);
 #endif
@@ -4823,10 +4873,8 @@ iwm_init_hw(struct iwm_softc *sc)
 	if (error)
 		goto error;
 
-	if (fw_has_capa(&sc->ucode_capa, IWM_UCODE_TLV_CAPA_LAR_SUPPORT)) {
-		if ((error = iwm_send_update_mcc_cmd(sc, "ZZ")) != 0)
-			goto error;
-	}
+	if ((error = iwm_send_update_mcc_cmd(sc, "ZZ")) != 0)
+		goto error;
 
 	if (fw_has_capa(&sc->ucode_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN)) {
 		if ((error = iwm_mvm_config_umac_scan(sc)) != 0)
@@ -5423,7 +5471,7 @@ iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 			sc->sc_fw_mcc[0] = (notif->mcc & 0xff00) >> 8;
 			sc->sc_fw_mcc[1] = notif->mcc & 0xff;
 			sc->sc_fw_mcc[2] = '\0';
-			IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+			IWM_DPRINTF(sc, IWM_DEBUG_LAR,
 			    "fw source %d sent CC '%s'\n",
 			    notif->source_id, sc->sc_fw_mcc);
 			break;
