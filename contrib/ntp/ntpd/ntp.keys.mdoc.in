@@ -1,9 +1,9 @@
-.Dd March 21 2017
+.Dd February 27 2018
 .Dt NTP_KEYS 5 File Formats
 .Os SunOS 5.10
 .\"  EDIT THIS FILE WITH CAUTION  (ntp.mdoc)
 .\"
-.\"  It has been AutoGen-ed  March 21, 2017 at 10:44:22 AM by AutoGen 5.18.5
+.\"  It has been AutoGen-ed  February 27, 2018 at 05:14:46 PM by AutoGen 5.18.5
 .\"  From the definitions    ntp.keys.def
 .\"  and the template file   agmdoc-file.tpl
 .Sh NAME
@@ -51,16 +51,24 @@ where
 is a positive integer (between 1 and 65534),
 .Ar type
 is the message digest algorithm,
-and
 .Ar key
 is the key itself, and
 .Ar opt_IP_list
 is an optional comma\-separated list of IPs
+where the
+.Ar keyno
+should be trusted.
 that are allowed to serve time.
+Each IP in
+.Ar opt_IP_list
+may contain an optional
+.Cm /subnetbits
+specification which identifies the number of bits for
+the desired subnet of trust.
 If
 .Ar opt_IP_list
 is empty,
-any properly\-authenticated server message will be
+any properly\-authenticated message will be
 accepted.
 .Pp
 The

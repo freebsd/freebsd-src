@@ -117,7 +117,7 @@ static struct peer *	findexistingpeer_name(const char *, u_short,
 					      struct peer *, int);
 static struct peer *	findexistingpeer_addr(sockaddr_u *,
 					      struct peer *, int,
-					      u_char);
+					      u_char, int *);
 static void		free_peer(struct peer *, int);
 static void		getmorepeermem(void);
 static int		score(struct peer *);
@@ -203,17 +203,18 @@ findexistingpeer_addr(
 	sockaddr_u *	addr,
 	struct peer *	start_peer,
 	int		mode,
-	u_char		cast_flags
+	u_char		cast_flags,
+	int *		ip_count
 	)
 {
 	struct peer *peer;
 
-	DPRINTF(2, ("findexistingpeer_addr(%s, %s, %d, 0x%x)\n",
+	DPRINTF(2, ("findexistingpeer_addr(%s, %s, %d, 0x%x, %p)\n",
 		sptoa(addr),
 		(start_peer)
 		    ? sptoa(&start_peer->srcadr)
 		    : "NULL",
-		mode, (u_int)cast_flags));
+		mode, (u_int)cast_flags, ip_count));
 
 	/*
 	 * start_peer is included so we can locate instances of the
@@ -234,6 +235,11 @@ findexistingpeer_addr(
 		DPRINTF(3, ("%s %s %d %d 0x%x 0x%x ", sptoa(addr),
 			sptoa(&peer->srcadr), mode, peer->hmode,
 			(u_int)cast_flags, (u_int)peer->cast_flags));
+		if (ip_count) {
+			if (SOCK_EQ(addr, &peer->srcadr)) {
+				(*ip_count)++;
+			}
+		}
  		if ((-1 == mode || peer->hmode == mode ||
 		     ((MDF_BCLNT & peer->cast_flags) &&
 		      (MDF_BCLNT & cast_flags))) &&
@@ -258,7 +264,8 @@ findexistingpeer(
 	const char *	hostname,
 	struct peer *	start_peer,
 	int		mode,
-	u_char		cast_flags
+	u_char		cast_flags,
+	int *		ip_count
 	)
 {
 	if (hostname != NULL)
@@ -266,7 +273,7 @@ findexistingpeer(
 					     start_peer, mode);
 	else
 		return findexistingpeer_addr(addr, start_peer, mode,
-					     cast_flags);
+					     cast_flags, ip_count);
 }
 
 
@@ -561,6 +568,7 @@ peer_config(
 	sockaddr_u *	srcadr,
 	const char *	hostname,
 	endpt *		dstadr,
+	int		ippeerlimit,
 	u_char		hmode,
 	u_char		version,
 	u_char		minpoll,
@@ -611,7 +619,7 @@ peer_config(
 		flags |= FLAG_IBURST;
 	if ((MDF_ACAST | MDF_POOL) & cast_flags)
 		flags &= ~FLAG_PREEMPT;
-	return newpeer(srcadr, hostname, dstadr, hmode, version,
+	return newpeer(srcadr, hostname, dstadr, ippeerlimit, hmode, version,
 	    minpoll, maxpoll, flags, cast_flags, ttl, key, ident);
 }
 
@@ -753,6 +761,7 @@ newpeer(
 	sockaddr_u *	srcadr,
 	const char *	hostname,
 	endpt *		dstadr,
+	int		ippeerlimit,
 	u_char		hmode,
 	u_char		version,
 	u_char		minpoll,
@@ -766,6 +775,8 @@ newpeer(
 {
 	struct peer *	peer;
 	u_int		hash;
+	int		ip_count = 0;
+
 
 	DEBUG_REQUIRE(srcadr);
 
@@ -799,11 +810,11 @@ newpeer(
 	 */
 	if (dstadr != NULL) {
 		peer = findexistingpeer(srcadr, hostname, NULL, hmode,
-					cast_flags);
+					cast_flags, &ip_count);
 		while (peer != NULL) {
-			if (peer->dstadr == dstadr ||
-			    ((MDF_BCLNT & cast_flags) &&
-			     (MDF_BCLNT & peer->cast_flags)))
+			if (   peer->dstadr == dstadr
+			    || (   (MDF_BCLNT & cast_flags)
+				&& (MDF_BCLNT & peer->cast_flags)))
 				break;
 
 			if (dstadr == ANY_INTERFACE_CHOOSE(srcadr) &&
@@ -811,12 +822,12 @@ newpeer(
 				break;
 
 			peer = findexistingpeer(srcadr, hostname, peer,
-						hmode, cast_flags);
+						hmode, cast_flags, &ip_count);
 		}
 	} else {
 		/* no endpt address given */
 		peer = findexistingpeer(srcadr, hostname, NULL, hmode,
-					cast_flags);
+					cast_flags, &ip_count);
 	}
 
 	/*
@@ -831,6 +842,30 @@ newpeer(
 			    ? hostname
 			    : stoa(srcadr)));
 		return NULL;
+	}
+
+DPRINTF(1, ("newpeer(%s) found no existing and %d other associations\n",
+		(hostname)
+		    ? hostname
+		    : stoa(srcadr),
+		ip_count));
+
+	/* Check ippeerlimit wrt ip_count */
+	if (ippeerlimit > -1) {
+		if (ip_count + 1 > ippeerlimit) {
+			DPRINTF(2, ("newpeer(%s) denied - ippeerlimit %d\n",
+				(hostname)
+				    ? hostname
+				    : stoa(srcadr),
+				ippeerlimit));
+			return NULL;
+		}
+	} else {
+		DPRINTF(1, ("newpeer(%s) - ippeerlimit %d ignored\n",
+			(hostname)
+			    ? hostname
+			    : stoa(srcadr),
+			ippeerlimit));
 	}
 
 	/*

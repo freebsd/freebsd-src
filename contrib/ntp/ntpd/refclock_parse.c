@@ -3614,7 +3614,9 @@ parse_control(
 		}
 		else
 		{
-			int count = tmpctl.parseformat.parse_count - 1;
+			int count = tmpctl.parseformat.parse_count;
+			if (count)
+				--count;
 
 			start = tt = add_var(&out->kv_list, 80, RO|DEF);
 			tt = ap(start, 80, tt, "refclock_format=\"");
@@ -3780,9 +3782,14 @@ parse_process(
 			}
 			else
 			{
+				unsigned int count = tmpctl.parsegettc.parse_count;
+				if (count)
+					--count;
 				ERR(ERR_BADDATA)
-					msyslog(LOG_WARNING, "PARSE receiver #%d: FAILED TIMECODE: \"%s\" (check receiver configuration / wiring)",
-						CLK_UNIT(parse->peer), mkascii(buffer, sizeof buffer, tmpctl.parsegettc.parse_buffer, (unsigned)(tmpctl.parsegettc.parse_count - 1)));
+				    msyslog(LOG_WARNING, "PARSE receiver #%d: FAILED TIMECODE: \"%s\" (check receiver configuration / wiring)",
+					    CLK_UNIT(parse->peer),
+					    mkascii(buffer, sizeof(buffer),
+						    tmpctl.parsegettc.parse_buffer, count));
 			}
 			/* copy status to show only changes in case of failures */
 			parse->timedata.parse_status = parsetime->parse_status;

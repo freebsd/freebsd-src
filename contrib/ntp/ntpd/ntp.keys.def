@@ -50,16 +50,24 @@ where
 is a positive integer (between 1 and 65534),
 .Ar type
 is the message digest algorithm,
-and
 .Ar key
 is the key itself, and
 .Ar opt_IP_list
 is an optional comma-separated list of IPs
+where the
+.Ar keyno
+should be trusted.
 that are allowed to serve time.
+Each IP in
+.Ar opt_IP_list
+may contain an optional
+.Cm /subnetbits
+specification which identifies the number of bits for
+the desired subnet of trust.
 If
 .Ar opt_IP_list
 is empty,
-any properly-authenticated server message will be
+any properly-authenticated message will be
 accepted.
 .Pp
 The

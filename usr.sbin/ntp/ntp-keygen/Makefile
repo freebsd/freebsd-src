@@ -20,8 +20,8 @@ CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include \
 	-I${.CURDIR}/../../../lib/libc/${MACHINE_ARCH} \
 	-I${.CURDIR}/../
 
-DPADD=	${LIBNTP} ${LIBOPTS} ${LIBPTHREAD}
-LDADD=	${LIBNTP} ${LIBOPTS} -lpthread
+DPADD=	${LIBM} ${LIBNTP} ${LIBOPTS} ${LIBPTHREAD}
+LDADD=	-lm ${LIBNTP} ${LIBOPTS} -lpthread
 
 .if ${MK_OPENSSL} != "no"
 DPADD+=	${LIBCRYPTO}

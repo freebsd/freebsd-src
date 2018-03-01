@@ -127,6 +127,7 @@ case "$repo" in
  stable)
     case "$prerelease" in
      '')
+	# echo "Checking <$betapoint::$rcpoint::$point>"
 	case "$betapoint::$rcpoint::$point" in
 	 *::*::NEW)
 	    # new minor release (no p)
@@ -147,6 +148,14 @@ case "$repo" in
 	    newpr=
 	    # bp=1
 	    # bbp=0
+	    ;;
+	 ::[Gg][Oo]::*)
+	    # echo "Good - betapoint is empty.  Look in $0 and figure out what's going on here."
+	    crcp=z
+	    ;;
+	 *::[Gg][Oo]::*)
+	    echo "betapoint is NOT empty.  Look in $0 and figure out what's going on here."
+	    test=1
 	    ;;
 	 *) echo "betapoint is <$betapoint>, rcpoint is <$rcpoint>"
 	    echo "betapoint must be 0 and rcpoint must be empty to start the"
@@ -265,7 +274,18 @@ case "$crcp::$rcpoint" in
     ;;
  z::*)
     newrcpoint=
-    newbetapoint=0
+    case "$repo" in
+     dev)
+	newbetapoint=0
+	;;
+     stable)
+	newbetapoint=
+	;;
+     *)
+	echo "crcp::rcpoint - bogus repo <$repo>"
+	exit 1
+	;;
+    esac
     ;;
  *) echo "Unexpected value for 'crcp::rcpoint' <$crcp::$rcpoint>!"
     exit 1
