@@ -368,29 +368,7 @@ struct iwm_node {
 #define IWM_ICT_COUNT		(IWM_ICT_SIZE / sizeof (uint32_t))
 #define IWM_ICT_PADDR_SHIFT	12
 
-enum iwm_device_family {
-	IWM_DEVICE_FAMILY_UNDEFINED,
-	IWM_DEVICE_FAMILY_7000,
-	IWM_DEVICE_FAMILY_8000,
-};
-
-/**
- * struct iwm_cfg
- * @fw_name: Firmware filename.
- * @host_interrupt_operation_mode: device needs host interrupt operation
- *      mode set
- * @nvm_hw_section_num: the ID of the HW NVM section
- * @apmg_wake_up_wa: should the MAC access REQ be asserted when a command
- *      is in flight. This is due to a HW bug in 7260, 3160 and 7265.
- */
-struct iwm_cfg {
-	const char *fw_name;
-	uint16_t eeprom_size;
-	enum iwm_device_family device_family;
-	int host_interrupt_operation_mode;
-	uint8_t nvm_hw_section_num;
-	int apmg_wake_up_wa;
-};
+struct iwm_cfg;
 
 struct iwm_softc {
 	device_t		sc_dev;

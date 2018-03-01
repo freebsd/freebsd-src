@@ -152,6 +152,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iwm/if_iwmreg.h>
 #include <dev/iwm/if_iwmvar.h>
+#include <dev/iwm/if_iwm_config.h>
 #include <dev/iwm/if_iwm_debug.h>
 #include <dev/iwm/if_iwm_notif_wait.h>
 #include <dev/iwm/if_iwm_util.h>
@@ -165,68 +166,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iwm/if_iwm_pcie_trans.h>
 #include <dev/iwm/if_iwm_led.h>
-
-#define IWM_NVM_HW_SECTION_NUM_FAMILY_7000	0
-#define IWM_NVM_HW_SECTION_NUM_FAMILY_8000	10
-
-/* lower blocks contain EEPROM image and calibration data */
-#define IWM_OTP_LOW_IMAGE_SIZE_FAMILY_7000	(16 * 512 * sizeof(uint16_t)) /* 16 KB */
-#define IWM_OTP_LOW_IMAGE_SIZE_FAMILY_8000	(32 * 512 * sizeof(uint16_t)) /* 32 KB */
-
-#define IWM7260_FW	"iwm7260fw"
-#define IWM3160_FW	"iwm3160fw"
-#define IWM7265_FW	"iwm7265fw"
-#define IWM7265D_FW	"iwm7265Dfw"
-#define IWM8000_FW	"iwm8000Cfw"
-
-#define IWM_DEVICE_7000_COMMON						\
-	.device_family = IWM_DEVICE_FAMILY_7000,			\
-	.eeprom_size = IWM_OTP_LOW_IMAGE_SIZE_FAMILY_7000,		\
-	.nvm_hw_section_num = IWM_NVM_HW_SECTION_NUM_FAMILY_7000,	\
-	.apmg_wake_up_wa = 1
-
-const struct iwm_cfg iwm7260_cfg = {
-	.fw_name = IWM7260_FW,
-	IWM_DEVICE_7000_COMMON,
-	.host_interrupt_operation_mode = 1,
-};
-
-const struct iwm_cfg iwm3160_cfg = {
-	.fw_name = IWM3160_FW,
-	IWM_DEVICE_7000_COMMON,
-	.host_interrupt_operation_mode = 1,
-};
-
-const struct iwm_cfg iwm3165_cfg = {
-	/* XXX IWM7265D_FW doesn't seem to work properly yet */
-	.fw_name = IWM7265_FW,
-	IWM_DEVICE_7000_COMMON,
-	.host_interrupt_operation_mode = 0,
-};
-
-const struct iwm_cfg iwm7265_cfg = {
-	.fw_name = IWM7265_FW,
-	IWM_DEVICE_7000_COMMON,
-	.host_interrupt_operation_mode = 0,
-};
-
-const struct iwm_cfg iwm7265d_cfg = {
-	/* XXX IWM7265D_FW doesn't seem to work properly yet */
-	.fw_name = IWM7265_FW,
-	IWM_DEVICE_7000_COMMON,
-	.host_interrupt_operation_mode = 0,
-};
-
-#define IWM_DEVICE_8000_COMMON						\
-	.device_family = IWM_DEVICE_FAMILY_8000,			\
-	.eeprom_size = IWM_OTP_LOW_IMAGE_SIZE_FAMILY_8000,		\
-	.nvm_hw_section_num = IWM_NVM_HW_SECTION_NUM_FAMILY_8000
-
-const struct iwm_cfg iwm8260_cfg = {
-	.fw_name = IWM8000_FW,
-	IWM_DEVICE_8000_COMMON,
-	.host_interrupt_operation_mode = 0,
-};
 
 const uint8_t iwm_nvm_channels[] = {
 	/* 2.4 GHz */
@@ -5930,29 +5869,18 @@ iwm_intr(void *arg)
 
 static const struct iwm_devices {
 	uint16_t		device;
-	const char		*name;
 	const struct iwm_cfg	*cfg;
 } iwm_devices[] = {
-	{ PCI_PRODUCT_INTEL_WL_3160_1, "Intel Dual Band Wireless AC 3160",
-	  &iwm3160_cfg },
-	{ PCI_PRODUCT_INTEL_WL_3160_2, "Intel Dual Band Wireless AC 3160",
-	  &iwm3160_cfg },
-	{ PCI_PRODUCT_INTEL_WL_3165_1, "Intel Dual Band Wireless AC 3165",
-	  &iwm3165_cfg },
-	{ PCI_PRODUCT_INTEL_WL_3165_2, "Intel Dual Band Wireless AC 3165",
-	  &iwm3165_cfg },
-	{ PCI_PRODUCT_INTEL_WL_7260_1, "Intel Dual Band Wireless AC 7260",
-	  &iwm7260_cfg },
-	{ PCI_PRODUCT_INTEL_WL_7260_2, "Intel Dual Band Wireless AC 7260",
-	  &iwm7260_cfg },
-	{ PCI_PRODUCT_INTEL_WL_7265_1, "Intel Dual Band Wireless AC 7265",
-	  &iwm7265_cfg },
-	{ PCI_PRODUCT_INTEL_WL_7265_2, "Intel Dual Band Wireless AC 7265",
-	  &iwm7265_cfg },
-	{ PCI_PRODUCT_INTEL_WL_8260_1, "Intel Dual Band Wireless AC 8260",
-	  &iwm8260_cfg },
-	{ PCI_PRODUCT_INTEL_WL_8260_2, "Intel Dual Band Wireless AC 8260",
-	  &iwm8260_cfg },
+	{ PCI_PRODUCT_INTEL_WL_3160_1, &iwm3160_cfg },
+	{ PCI_PRODUCT_INTEL_WL_3160_2, &iwm3160_cfg },
+	{ PCI_PRODUCT_INTEL_WL_3165_1, &iwm3165_cfg },
+	{ PCI_PRODUCT_INTEL_WL_3165_2, &iwm3165_cfg },
+	{ PCI_PRODUCT_INTEL_WL_7260_1, &iwm7260_cfg },
+	{ PCI_PRODUCT_INTEL_WL_7260_2, &iwm7260_cfg },
+	{ PCI_PRODUCT_INTEL_WL_7265_1, &iwm7265_cfg },
+	{ PCI_PRODUCT_INTEL_WL_7265_2, &iwm7265_cfg },
+	{ PCI_PRODUCT_INTEL_WL_8260_1, &iwm8260_cfg },
+	{ PCI_PRODUCT_INTEL_WL_8260_2, &iwm8260_cfg },
 };
 
 static int
@@ -5963,7 +5891,7 @@ iwm_probe(device_t dev)
 	for (i = 0; i < nitems(iwm_devices); i++) {
 		if (pci_get_vendor(dev) == PCI_VENDOR_INTEL &&
 		    pci_get_device(dev) == iwm_devices[i].device) {
-			device_set_desc(dev, iwm_devices[i].name);
+			device_set_desc(dev, iwm_devices[i].cfg->name);
 			return (BUS_PROBE_DEFAULT);
 		}
 	}

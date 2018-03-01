@@ -1869,6 +1869,8 @@ iwi_monitor.fw			optional iwimonitorfw | iwifw		\
 	no-obj no-implicit-rule						\
 	clean		"iwi_monitor.fw"
 dev/iwm/if_iwm.c		optional iwm
+dev/iwm/if_iwm_7000.c		optional iwm
+dev/iwm/if_iwm_8000.c		optional iwm
 dev/iwm/if_iwm_binding.c	optional iwm
 dev/iwm/if_iwm_led.c		optional iwm
 dev/iwm/if_iwm_mac_ctxt.c	optional iwm
