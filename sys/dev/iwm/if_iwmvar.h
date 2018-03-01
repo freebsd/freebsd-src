@@ -192,10 +192,10 @@ struct iwm_nvm_data {
 #define IWM_NUM_CHANNELS	39
 #define IWM_NUM_CHANNELS_8000	51
 
-	uint16_t nvm_ch_flags[IWM_NUM_CHANNELS_8000];
-
 	uint16_t nvm_version;
 	uint8_t max_tx_pwr_half_dbm;
+
+	uint16_t nvm_ch_flags[];
 };
 
 /* max bufs per tfd the driver will use */
@@ -290,10 +290,6 @@ struct iwm_ucode_status {
 };
 
 #define IWM_CMD_RESP_MAX PAGE_SIZE
-
-/* lower blocks contain EEPROM image and calibration data */
-#define IWM_OTP_LOW_IMAGE_SIZE_FAMILY_7000 	16384
-#define IWM_OTP_LOW_IMAGE_SIZE_FAMILY_8000	32768
 
 #define IWM_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS 500
 #define IWM_MVM_TE_SESSION_PROTECTION_MIN_TIME_MS 400
@@ -454,7 +450,7 @@ struct iwm_softc {
 	int			sc_fw_phy_config;
 	struct iwm_tlv_calib_ctrl sc_default_calib[IWM_UCODE_TYPE_MAX];
 
-	struct iwm_nvm_data	sc_nvm;
+	struct iwm_nvm_data	*nvm_data;
 	struct iwm_phy_db	*sc_phy_db;
 
 	struct iwm_bf_data	sc_bf;
@@ -492,6 +488,9 @@ struct iwm_softc {
 	struct iwm_tx_radiotap_header sc_txtap;
 
 	int			sc_max_rssi;
+
+	uint16_t		eeprom_size;
+	uint8_t			nvm_hw_section_num;
 };
 
 #define IWM_LOCK_INIT(_sc) \
