@@ -4925,6 +4925,7 @@ iwm_stop(struct iwm_softc *sc)
 	iwm_led_blink_stop(sc);
 	sc->sc_tx_timer = 0;
 	iwm_stop_device(sc);
+	sc->sc_flags &= ~IWM_FLAG_SCAN_RUNNING;
 }
 
 static void
@@ -5449,6 +5450,10 @@ iwm_notif_intr(struct iwm_softc *sc)
 		case IWM_SCAN_OFFLOAD_COMPLETE: {
 			struct iwm_periodic_scan_complete *notif;
 			notif = (void *)pkt->data;
+			if (sc->sc_flags & IWM_FLAG_SCAN_RUNNING) {
+				sc->sc_flags &= ~IWM_FLAG_SCAN_RUNNING;
+				ieee80211_runtask(ic, &sc->sc_es_task);
+			}
 			break;
 		}
 
@@ -5466,9 +5471,10 @@ iwm_notif_intr(struct iwm_softc *sc)
 			IWM_DPRINTF(sc, IWM_DEBUG_SCAN,
 			    "UMAC scan complete, status=0x%x\n",
 			    notif->status);
-#if 0	/* XXX This would be a duplicate scan end call */
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_es_task);
-#endif
+			if (sc->sc_flags & IWM_FLAG_SCAN_RUNNING) {
+				sc->sc_flags &= ~IWM_FLAG_SCAN_RUNNING;
+				ieee80211_runtask(ic, &sc->sc_es_task);
+			}
 			break;
 		}
 
@@ -6229,15 +6235,21 @@ iwm_scan_start(struct ieee80211com *ic)
 	int error;
 
 	IWM_LOCK(sc);
+	if (sc->sc_flags & IWM_FLAG_SCAN_RUNNING) {
+		/* This should not be possible */
+		device_printf(sc->sc_dev,
+		    "%s: Previous scan not completed yet\n", __func__);
+	}
 	if (isset(sc->sc_enabled_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN))
 		error = iwm_mvm_umac_scan(sc);
 	else
 		error = iwm_mvm_lmac_scan(sc);
 	if (error != 0) {
-		device_printf(sc->sc_dev, "could not initiate 2 GHz scan\n");
+		device_printf(sc->sc_dev, "could not initiate scan\n");
 		IWM_UNLOCK(sc);
 		ieee80211_cancel_scan(vap);
 	} else {
+		sc->sc_flags |= IWM_FLAG_SCAN_RUNNING;
 		iwm_led_blink_start(sc);
 		IWM_UNLOCK(sc);
 	}
@@ -6253,7 +6265,23 @@ iwm_scan_end(struct ieee80211com *ic)
 	iwm_led_blink_stop(sc);
 	if (vap->iv_state == IEEE80211_S_RUN)
 		iwm_mvm_led_enable(sc);
+	if (sc->sc_flags & IWM_FLAG_SCAN_RUNNING) {
+		/*
+		 * Removing IWM_FLAG_SCAN_RUNNING now, is fine because
+		 * both iwm_scan_end and iwm_scan_start run in the ic->ic_tq
+		 * taskqueue.
+		 */
+		sc->sc_flags &= ~IWM_FLAG_SCAN_RUNNING;
+		iwm_mvm_scan_stop_wait(sc);
+	}
 	IWM_UNLOCK(sc);
+
+	/*
+	 * Make sure we don't race, if sc_es_task is still enqueued here.
+	 * This is to make sure that it won't call ieee80211_scan_done
+	 * when we have already started the next scan.
+	 */
+	taskqueue_cancel(ic->ic_tq, &sc->sc_es_task, NULL);
 }
 
 static void
