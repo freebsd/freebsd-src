@@ -2574,14 +2574,6 @@ iwm_pcie_load_cpu_sections(struct iwm_softc *sc,
 			return ret;
 	}
 
-	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000)
-		iwm_set_bits_prph(sc,
-				  IWM_CSR_UCODE_LOAD_STATUS_ADDR,
-				  (IWM_LMPM_CPU_UCODE_LOADING_COMPLETED |
-				   IWM_LMPM_CPU_HDRS_LOADING_COMPLETED |
-				   IWM_LMPM_CPU_UCODE_LOADING_STARTED) <<
-					shift_param);
-
 	*first_ucode_section = last_read_idx;
 
 	return 0;
