@@ -5425,8 +5425,20 @@ iwm_notif_intr(struct iwm_softc *sc)
 			    notif->source_id, sc->sc_fw_mcc);
 			break; }
 
-		case IWM_DTS_MEASUREMENT_NOTIFICATION:
+		case IWM_DTS_MEASUREMENT_NOTIFICATION: {
+			struct iwm_dts_measurement_notif_v1 *notif;
+
+			if (iwm_rx_packet_payload_len(pkt) < sizeof(*notif)) {
+				device_printf(sc->sc_dev,
+				    "Invalid DTS_MEASUREMENT_NOTIFICATION\n");
+				break;
+			}
+			notif = (void *)pkt->data;
+			IWM_DPRINTF(sc, IWM_DEBUG_TEMP,
+			    "IWM_DTS_MEASUREMENT_NOTIFICATION - %d\n",
+			    notif->temp);
 			break;
+		}
 
 		case IWM_PHY_CONFIGURATION_CMD:
 		case IWM_TX_ANT_CONFIGURATION_CMD:
