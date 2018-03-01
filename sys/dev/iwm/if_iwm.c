@@ -5357,13 +5357,9 @@ iwm_notif_intr(struct iwm_softc *sc)
 			wakeup(&sc->sc_uc);
 			break; }
 
-		case IWM_CALIB_RES_NOTIF_PHY_DB: {
-			struct iwm_calib_res_notif_phy_db *phy_db_notif;
-			phy_db_notif = (void *)pkt->data;
-
-			iwm_phy_db_set_section(sc->sc_phy_db, phy_db_notif);
-
-			break; }
+		case IWM_CALIB_RES_NOTIF_PHY_DB:
+			iwm_phy_db_set_section(sc->sc_phy_db, pkt);
+			break;
 
 		case IWM_STATISTICS_NOTIFICATION: {
 			struct iwm_notif_statistics *stats;
