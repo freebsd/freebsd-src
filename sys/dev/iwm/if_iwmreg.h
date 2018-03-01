@@ -1839,11 +1839,9 @@ enum {
 	IWM_REPLY_THERMAL_MNG_BACKOFF = 0x7e,
 
 	/* Scanning */
-	IWM_SCAN_REQUEST_CMD = 0x80,
 	IWM_SCAN_ABORT_CMD = 0x81,
 	IWM_SCAN_START_NOTIFICATION = 0x82,
 	IWM_SCAN_RESULTS_NOTIFICATION = 0x83,
-	IWM_SCAN_COMPLETE_NOTIFICATION = 0x84,
 
 	/* NVM */
 	IWM_NVM_ACCESS_CMD = 0x88,
@@ -4767,51 +4765,9 @@ struct iwm_scd_txq_cfg_rsp {
 /* Masks for iwm_scan_channel.type flags */
 #define IWM_SCAN_CHANNEL_TYPE_ACTIVE	(1 << 0)
 #define IWM_SCAN_CHANNEL_NSSIDS(x)	(((1 << (x)) - 1) << 1)
-#define IWM_SCAN_CHANNEL_NARROW_BAND	(1 << 22)
 
 /* Max number of IEs for direct SSID scans in a command */
 #define IWM_PROBE_OPTION_MAX		20
-
-/**
- * struct iwm_scan_channel - entry in IWM_REPLY_SCAN_CMD channel table
- * @channel: band is selected by iwm_scan_cmd "flags" field
- * @tx_gain: gain for analog radio
- * @dsp_atten: gain for DSP
- * @active_dwell: dwell time for active scan in TU, typically 5-50
- * @passive_dwell: dwell time for passive scan in TU, typically 20-500
- * @type: type is broken down to these bits:
- *	bit 0: 0 = passive, 1 = active
- *	bits 1-20: SSID direct bit map. If any of these bits is set then
- *		the corresponding SSID IE is transmitted in probe request
- *		(bit i adds IE in position i to the probe request)
- *	bit 22: channel width, 0 = regular, 1 = TGj narrow channel
- *
- * @iteration_count:
- * @iteration_interval:
- * This struct is used once for each channel in the scan list.
- * Each channel can independently select:
- * 1)  SSID for directed active scans
- * 2)  Txpower setting (for rate specified within Tx command)
- * 3)  How long to stay on-channel (behavior may be modified by quiet_time,
- *     quiet_plcp_th, good_CRC_th)
- *
- * To avoid uCode errors, make sure the following are true (see comments
- * under struct iwm_scan_cmd about max_out_time and quiet_time):
- * 1)  If using passive_dwell (i.e. passive_dwell != 0):
- *     active_dwell <= passive_dwell (< max_out_time if max_out_time != 0)
- * 2)  quiet_time <= active_dwell
- * 3)  If restricting off-channel time (i.e. max_out_time !=0):
- *     passive_dwell < max_out_time
- *     active_dwell < max_out_time
- */
-struct iwm_scan_channel {
-	uint32_t type;
-	uint16_t channel;
-	uint16_t iteration_count;
-	uint32_t iteration_interval;
-	uint16_t active_dwell;
-	uint16_t passive_dwell;
-} __packed; /* IWM_SCAN_CHANNEL_CONTROL_API_S_VER_1 */
 
 /**
  * struct iwm_ssid_ie - directed scan network information element
@@ -4828,7 +4784,6 @@ struct iwm_ssid_ie {
 } __packed; /* IWM_SCAN_DIRECT_SSID_IE_API_S_VER_1 */
 
 /* scan offload */
-#define IWM_MAX_SCAN_CHANNELS		40
 #define IWM_SCAN_MAX_BLACKLIST_LEN	64
 #define IWM_SCAN_SHORT_BLACKLIST_LEN	16
 #define IWM_SCAN_MAX_PROFILES		11
@@ -4843,45 +4798,6 @@ struct iwm_ssid_ie {
 #define IWM_FULL_SCAN_MULTIPLIER 5
 #define IWM_FAST_SCHED_SCAN_ITERATIONS 3
 #define IWM_MAX_SCHED_SCAN_PLANS 2
-
-/**
- * iwm_scan_flags - masks for scan command flags
- *@IWM_SCAN_FLAGS_PERIODIC_SCAN:
- *@IWM_SCAN_FLAGS_P2P_PUBLIC_ACTION_FRAME_TX:
- *@IWM_SCAN_FLAGS_DELAYED_SCAN_LOWBAND:
- *@IWM_SCAN_FLAGS_DELAYED_SCAN_HIGHBAND:
- *@IWM_SCAN_FLAGS_FRAGMENTED_SCAN:
- *@IWM_SCAN_FLAGS_PASSIVE2ACTIVE: use active scan on channels that was active
- *	in the past hour, even if they are marked as passive.
- */
-enum iwm_scan_flags {
-	IWM_SCAN_FLAGS_PERIODIC_SCAN			= (1 << 0),
-	IWM_SCAN_FLAGS_P2P_PUBLIC_ACTION_FRAME_TX	= (1 << 1),
-	IWM_SCAN_FLAGS_DELAYED_SCAN_LOWBAND		= (1 << 2),
-	IWM_SCAN_FLAGS_DELAYED_SCAN_HIGHBAND		= (1 << 3),
-	IWM_SCAN_FLAGS_FRAGMENTED_SCAN			= (1 << 4),
-	IWM_SCAN_FLAGS_PASSIVE2ACTIVE			= (1 << 5),
-};
-
-/**
- * enum iwm_scan_type - Scan types for scan command
- * @IWM_SCAN_TYPE_FORCED:
- * @IWM_SCAN_TYPE_BACKGROUND:
- * @IWM_SCAN_TYPE_OS:
- * @IWM_SCAN_TYPE_ROAMING:
- * @IWM_SCAN_TYPE_ACTION:
- * @IWM_SCAN_TYPE_DISCOVERY:
- * @IWM_SCAN_TYPE_DISCOVERY_FORCED:
- */
-enum iwm_scan_type {
-	IWM_SCAN_TYPE_FORCED		= 0,
-	IWM_SCAN_TYPE_BACKGROUND	= 1,
-	IWM_SCAN_TYPE_OS		= 2,
-	IWM_SCAN_TYPE_ROAMING		= 3,
-	IWM_SCAN_TYPE_ACTION		= 4,
-	IWM_SCAN_TYPE_DISCOVERY		= 5,
-	IWM_SCAN_TYPE_DISCOVERY_FORCED	= 6,
-}; /* IWM_SCAN_ACTIVITY_TYPE_E_VER_1 */
 
 /* Maximal number of channels to scan */
 #define IWM_MAX_NUM_SCAN_CHANNELS 0x24
@@ -5076,52 +4992,6 @@ struct iwm_periodic_scan_complete {
 	uint32_t reserved;
 } __packed;
 
-/* Response to scan request contains only status with one of these values */
-#define IWM_SCAN_RESPONSE_OK	0x1
-#define IWM_SCAN_RESPONSE_ERROR	0x2
-
-/*
- * IWM_SCAN_ABORT_CMD = 0x81
- * When scan abort is requested, the command has no fields except the common
- * header. The response contains only a status with one of these values.
- */
-#define IWM_SCAN_ABORT_POSSIBLE	0x1
-#define IWM_SCAN_ABORT_IGNORED	0x2 /* no pending scans */
-
-/* TODO: complete documentation */
-#define  IWM_SCAN_OWNER_STATUS 0x1
-#define  IWM_MEASURE_OWNER_STATUS 0x2
-
-/**
- * struct iwm_scan_start_notif - notifies start of scan in the device
- * ( IWM_SCAN_START_NOTIFICATION = 0x82 )
- * @tsf_low: TSF timer (lower half) in usecs
- * @tsf_high: TSF timer (higher half) in usecs
- * @beacon_timer: structured as follows:
- *	bits 0:19 - beacon interval in usecs
- *	bits 20:23 - reserved (0)
- *	bits 24:31 - number of beacons
- * @channel: which channel is scanned
- * @band: 0 for 5.2 GHz, 1 for 2.4 GHz
- * @status: one of *_OWNER_STATUS
- */
-struct iwm_scan_start_notif {
-	uint32_t tsf_low;
-	uint32_t tsf_high;
-	uint32_t beacon_timer;
-	uint8_t channel;
-	uint8_t band;
-	uint8_t reserved[2];
-	uint32_t status;
-} __packed; /* IWM_SCAN_START_NTF_API_S_VER_1 */
-
-/* scan results probe_status first bit indicates success */
-#define IWM_SCAN_PROBE_STATUS_OK	0
-#define IWM_SCAN_PROBE_STATUS_TX_FAILED	(1 << 0)
-/* error statuses combined with TX_FAILED */
-#define IWM_SCAN_PROBE_STATUS_FAIL_TTL	(1 << 1)
-#define IWM_SCAN_PROBE_STATUS_FAIL_BT	(1 << 2)
-
 /* How many statistics are gathered for each channel */
 #define IWM_SCAN_RESULTS_STATISTICS 1
 
@@ -5176,109 +5046,11 @@ struct iwm_scan_results_notif {
 	uint32_t statistics[IWM_SCAN_RESULTS_STATISTICS];
 } __packed; /* IWM_SCAN_RESULT_NTF_API_S_VER_2 */
 
-/**
- * struct iwm_scan_complete_notif - notifies end of scanning (all channels)
- * ( IWM_SCAN_COMPLETE_NOTIFICATION = 0x84 )
- * @scanned_channels: number of channels scanned (and number of valid results)
- * @status: one of IWM_SCAN_COMP_STATUS_*
- * @bt_status: BT on/off status
- * @last_channel: last channel that was scanned
- * @tsf_low: TSF timer (lower half) in usecs
- * @tsf_high: TSF timer (higher half) in usecs
- * @results: all scan results, only "scanned_channels" of them are valid
- */
-struct iwm_scan_complete_notif {
-	uint8_t scanned_channels;
-	uint8_t status;
-	uint8_t bt_status;
-	uint8_t last_channel;
-	uint32_t tsf_low;
-	uint32_t tsf_high;
-	struct iwm_scan_results_notif results[IWM_MAX_NUM_SCAN_CHANNELS];
-} __packed; /* IWM_SCAN_COMPLETE_NTF_API_S_VER_2 */
-
 enum iwm_scan_framework_client {
 	IWM_SCAN_CLIENT_SCHED_SCAN	= (1 << 0),
 	IWM_SCAN_CLIENT_NETDETECT	= (1 << 1),
 	IWM_SCAN_CLIENT_ASSET_TRACKING	= (1 << 2),
 };
-
-/**
- * struct iwm_scan_offload_cmd - IWM_SCAN_REQUEST_FIXED_PART_API_S_VER_6
- * @scan_flags:		see enum iwm_scan_flags
- * @channel_count:	channels in channel list
- * @quiet_time:		dwell time, in milisiconds, on quiet channel
- * @quiet_plcp_th:	quiet channel num of packets threshold
- * @good_CRC_th:	passive to active promotion threshold
- * @rx_chain:		RXON rx chain.
- * @max_out_time:	max uSec to be out of assoceated channel
- * @suspend_time:	pause scan this long when returning to service channel
- * @flags:		RXON flags
- * @filter_flags:	RXONfilter
- * @tx_cmd:		tx command for active scan; for 2GHz and for 5GHz.
- * @direct_scan:	list of SSIDs for directed active scan
- * @scan_type:		see enum iwm_scan_type.
- * @rep_count:		repetition count for each scheduled scan iteration.
- */
-struct iwm_scan_offload_cmd {
-	uint16_t len;
-	uint8_t scan_flags;
-	uint8_t channel_count;
-	uint16_t quiet_time;
-	uint16_t quiet_plcp_th;
-	uint16_t good_CRC_th;
-	uint16_t rx_chain;
-	uint32_t max_out_time;
-	uint32_t suspend_time;
-	/* IWM_RX_ON_FLAGS_API_S_VER_1 */
-	uint32_t flags;
-	uint32_t filter_flags;
-	struct iwm_tx_cmd tx_cmd[2];
-	/* IWM_SCAN_DIRECT_SSID_IE_API_S_VER_1 */
-	struct iwm_ssid_ie direct_scan[IWM_PROBE_OPTION_MAX];
-	uint32_t scan_type;
-	uint32_t rep_count;
-} __packed;
-
-enum iwm_scan_offload_channel_flags {
-	IWM_SCAN_OFFLOAD_CHANNEL_ACTIVE		= (1 << 0),
-	IWM_SCAN_OFFLOAD_CHANNEL_NARROW		= (1 << 22),
-	IWM_SCAN_OFFLOAD_CHANNEL_FULL		= (1 << 24),
-	IWM_SCAN_OFFLOAD_CHANNEL_PARTIAL	= (1 << 25),
-};
-
-/**
- * iwm_scan_channel_cfg - IWM_SCAN_CHANNEL_CFG_S
- * @type:		bitmap - see enum iwm_scan_offload_channel_flags.
- *			0:	passive (0) or active (1) scan.
- *			1-20:	directed scan to i'th ssid.
- *			22:	channel width configuation - 1 for narrow.
- *			24:	full scan.
- *			25:	partial scan.
- * @channel_number:	channel number 1-13 etc.
- * @iter_count:		repetition count for the channel.
- * @iter_interval:	interval between two innteration on one channel.
- * @dwell_time:	entry 0 - active scan, entry 1 - passive scan.
- */
-struct iwm_scan_channel_cfg {
-	uint32_t type[IWM_MAX_SCAN_CHANNELS];
-	uint16_t channel_number[IWM_MAX_SCAN_CHANNELS];
-	uint16_t iter_count[IWM_MAX_SCAN_CHANNELS];
-	uint32_t iter_interval[IWM_MAX_SCAN_CHANNELS];
-	uint8_t dwell_time[IWM_MAX_SCAN_CHANNELS][2];
-} __packed;
-
-/**
- * iwm_scan_offload_cfg - IWM_SCAN_OFFLOAD_CONFIG_API_S
- * @scan_cmd:		scan command fixed part
- * @channel_cfg:	scan channel configuration
- * @data:		probe request frames (one per band)
- */
-struct iwm_scan_offload_cfg {
-	struct iwm_scan_offload_cmd scan_cmd;
-	struct iwm_scan_channel_cfg channel_cfg;
-	uint8_t data[0];
-} __packed;
 
 /**
  * iwm_scan_offload_blacklist - IWM_SCAN_OFFLOAD_BLACKLIST_S
@@ -5345,48 +5117,7 @@ struct iwm_scan_offload_profile_cfg {
 	uint8_t reserved[2];
 } __packed;
 
-/**
- * iwm_scan_offload_schedule - schedule of scan offload
- * @delay:		delay between iterations, in seconds.
- * @iterations:		num of scan iterations
- * @full_scan_mul:	number of partial scans before each full scan
- */
-struct iwm_scan_offload_schedule {
-	uint16_t delay;
-	uint8_t iterations;
-	uint8_t full_scan_mul;
-} __packed;
-
-/*
- * iwm_scan_offload_flags
- *
- * IWM_SCAN_OFFLOAD_FLAG_PASS_ALL: pass all results - no filtering.
- * IWM_SCAN_OFFLOAD_FLAG_CACHED_CHANNEL: add cached channels to partial scan.
- * IWM_SCAN_OFFLOAD_FLAG_ENERGY_SCAN: use energy based scan before partial scan
- *	on A band.
- */
-enum iwm_scan_offload_flags {
-	IWM_SCAN_OFFLOAD_FLAG_PASS_ALL		= (1 << 0),
-	IWM_SCAN_OFFLOAD_FLAG_CACHED_CHANNEL	= (1 << 2),
-	IWM_SCAN_OFFLOAD_FLAG_ENERGY_SCAN	= (1 << 3),
-};
-
-/**
- * iwm_scan_offload_req - scan offload request command
- * @flags:		bitmap - enum iwm_scan_offload_flags.
- * @watchdog:		maximum scan duration in TU.
- * @delay:		delay in seconds before first iteration.
- * @schedule_line:	scan offload schedule, for fast and regular scan.
- */
-struct iwm_scan_offload_req {
-	uint16_t flags;
-	uint16_t watchdog;
-	uint16_t delay;
-	uint16_t reserved;
-	struct iwm_scan_offload_schedule schedule_line[2];
-} __packed;
-
-enum iwm_scan_offload_compleate_status {
+enum iwm_scan_offload_complete_status {
 	IWM_SCAN_OFFLOAD_COMPLETED	= 1,
 	IWM_SCAN_OFFLOAD_ABORTED	= 2,
 };
@@ -5412,30 +5143,6 @@ struct iwm_lmac_scan_complete_notif {
 	struct iwm_scan_results_notif results[];
 } __packed;
 
-
-/**
- * iwm_scan_offload_complete - IWM_SCAN_OFFLOAD_COMPLETE_NTF_API_S_VER_1
- * @last_schedule_line:		last schedule line executed (fast or regular)
- * @last_schedule_iteration:	last scan iteration executed before scan abort
- * @status:			enum iwm_scan_offload_compleate_status
- */
-struct iwm_scan_offload_complete {
-	uint8_t last_schedule_line;
-	uint8_t last_schedule_iteration;
-	uint8_t status;
-	uint8_t reserved;
-} __packed;
-
-/**
- * iwm_sched_scan_results - IWM_SCAN_OFFLOAD_MATCH_FOUND_NTF_API_S_VER_1
- * @ssid_bitmap:	SSIDs indexes found in this iteration
- * @client_bitmap:	clients that are active and wait for this notification
- */
-struct iwm_sched_scan_results {
-	uint16_t ssid_bitmap;
-	uint8_t client_bitmap;
-	uint8_t reserved;
-};
 
 /*
  * END mvm/fw-api-scan.h
