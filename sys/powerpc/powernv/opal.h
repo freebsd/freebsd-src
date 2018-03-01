@@ -71,15 +71,37 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_PCI_MAP_PE_DMA_WINDOW_REAL	45
 #define	OPAL_RETURN_CPU			69
 #define	OPAL_REINIT_CPUS		70
+#define	OPAL_CHECK_ASYNC_COMPLETION	86
+#define	OPAL_I2C_REQUEST		109
 #define	OPAL_PCI_TCE_KILL		126
 
 /* For OPAL_PCI_SET_PE */
 #define	OPAL_UNMAP_PE			0
 #define OPAL_MAP_PE			1
 
-#define OPAL_SUCCESS			0
-#define OPAL_PARAMETER			-1
-#define OPAL_CLOSED			-5
+#define	OPAL_SUCCESS			0
+#define	OPAL_PARAMETER			-1
+#define	OPAL_BUSY			-2
+#define	OPAL_CLOSED			-5
 #define	OPAL_BUSY_EVENT			-12
+#define	OPAL_ASYNC_COMPLETION		-15
+
+struct opal_msg {
+	uint32_t msg_type;
+	uint32_t reserved;
+	uint64_t params[8];
+};
+
+enum opal_msg_type {
+	OPAL_MSG_ASYNC_COMP	= 0,
+	OPAL_MSG_MEM_ERR	= 1,
+	OPAL_MSG_EPOW		= 2,
+	OPAL_MSG_SHUTDOWN	= 3,
+	OPAL_MSG_HMI_EVT	= 4,
+	OPAL_MSG_DPO		= 5,
+	OPAL_MSG_PRD		= 6,
+	OPAL_MSG_OCC		= 7,
+	OPAL_MSG_TYPE_MAX,
+};
 
 #endif
