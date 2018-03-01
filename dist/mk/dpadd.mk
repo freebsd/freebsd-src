@@ -1,4 +1,4 @@
-# $Id: dpadd.mk,v 1.24 2017/10/25 23:44:20 sjg Exp $
+# $Id: dpadd.mk,v 1.26 2018/02/12 21:54:26 sjg Exp $
 #
 #	@(#) Copyright (c) 2004, Simon J. Gerraty
 #
@@ -60,6 +60,7 @@ LDADD += ${LDADD_${__lib:T:R}:U${__lib:T:R:S/lib/-l/:C/\.so.*//}}
 # DPADD can contain things other than libs
 __dpadd_libs := ${DPADD:M*/lib*}
 
+.if defined(PROG) && ${MK_PROG_LDORDER_MK:Uno} != "no"
 # some libs have dependencies...
 # DPLIBS_* allows bsd.libnames.mk to flag libs which must be included
 # in DPADD for a given library.
@@ -73,6 +74,7 @@ __ldadd_all_xtras+= ${LDADD_${__lib}:U${__lib:T:R:S/lib/-l/:C/\.so.*//}}
 DPADD+= ${__lib}
 .endif
 .endfor
+.endif
 # Last of all... for libc and libgcc
 DPADD+= ${DPADD_LAST}
 
@@ -125,9 +127,11 @@ SRC_LIBS+= ${_OBJDIR}/lib${LIB}.a
 # 
 
 SRC_LIBS?=
-__dpadd_libs += ${SRC_LIBS}
-DPMAGIC_LIBS += ${__dpadd_libs} \
-	${__dpadd_libs:@d@${DPMAGIC_LIBS_${d:T:R}}@}
+# magic_libs includes those we want to link with
+# as well as those we might look at
+__dpadd_magic_libs += ${__dpadd_libs} ${SRC_LIBS}
+DPMAGIC_LIBS += ${__dpadd_magic_libs} \
+	${__dpadd_magic_libs:@d@${DPMAGIC_LIBS_${d:T:R}}@}
 
 # we skip this for staged libs
 .for __lib in ${DPMAGIC_LIBS:O:u:N${STAGE_OBJTOP:Unot}*/lib/*}
@@ -189,11 +193,11 @@ LDADD := ${LDADD:S,^${__ldadd}$,${__ldadd}_p,g}
 #
 # We take care of duplicate suppression later.
 # don't apply :T:R too early
-__dpadd_incs += ${__dpadd_libs:u:@x@${INCLUDES_${x:T:R}}@}
-__dpadd_incs += ${__dpadd_libs:O:u:@s@${SRC_LIBS_${s:T:R}:U}@:@x@${INCLUDES_${x:T:R}}@}
+__dpadd_incs += ${__dpadd_magic_libs:u:@x@${INCLUDES_${x:T:R}}@}
+__dpadd_incs += ${__dpadd_magic_libs:O:u:@s@${SRC_LIBS_${s:T:R}:U}@:@x@${INCLUDES_${x:T:R}}@}
 
-__dpadd_last_incs += ${__dpadd_libs:u:@x@${INCLUDES_LAST_${x:T:R}}@}
-__dpadd_last_incs += ${__dpadd_libs:O:u:@s@${SRC_LIBS_${s:T:R}:U}@:@x@${INCLUDES_LAST_${x:T:R}}@}
+__dpadd_last_incs += ${__dpadd_magic_libs:u:@x@${INCLUDES_LAST_${x:T:R}}@}
+__dpadd_last_incs += ${__dpadd_magic_libs:O:u:@s@${SRC_LIBS_${s:T:R}:U}@:@x@${INCLUDES_LAST_${x:T:R}}@}
 
 .if defined(HOSTPROG) || ${MACHINE:Nhost*} == ""
 # we want any -I/usr/* last

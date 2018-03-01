@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.103 2017/07/20 19:29:54 sjg Exp $	*/
+/*	$NetBSD: make.h,v 1.104 2018/02/12 21:38:09 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -346,6 +346,7 @@ typedef struct GNode {
  * once the makefile has been parsed. PARSE_WARNING means it can. Passed
  * as the first argument to Parse_Error.
  */
+#define PARSE_INFO	3
 #define PARSE_WARNING	2
 #define PARSE_FATAL	1
 
