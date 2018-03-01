@@ -451,7 +451,6 @@ struct iwm_softc {
 	struct iwm_dma_info	fw_dma;
 
 	int			sc_fw_chunk_done;
-	int			sc_init_complete;
 
 	struct iwm_ucode_status	sc_uc;
 	enum iwm_ucode_type	sc_uc_current;

@@ -284,6 +284,8 @@ struct iwm_nvm_section {
 	uint8_t *data;
 };
 
+#define IWM_MVM_UCODE_CALIB_TIMEOUT	(2*hz)
+
 static int	iwm_store_cscheme(struct iwm_softc *, const uint8_t *, size_t);
 static int	iwm_firmware_store_section(struct iwm_softc *,
                                            enum iwm_ucode_type,
@@ -2751,6 +2753,28 @@ iwm_send_phy_cfg_cmd(struct iwm_softc *sc)
 }
 
 static int
+iwm_wait_phy_db_entry(struct iwm_softc *sc,
+	struct iwm_rx_packet *pkt, void *data)
+{
+	struct iwm_phy_db *phy_db = data;
+
+	if (pkt->hdr.code != IWM_CALIB_RES_NOTIF_PHY_DB) {
+		if(pkt->hdr.code != IWM_INIT_COMPLETE_NOTIF) {
+			device_printf(sc->sc_dev, "%s: Unexpected cmd: %d\n",
+			    __func__, pkt->hdr.code);
+		}
+		return TRUE;
+	}
+
+	if (iwm_phy_db_set_section(phy_db, pkt)) {
+		device_printf(sc->sc_dev,
+		    "%s: iwm_phy_db_set_section failed\n", __func__);
+	}
+
+	return FALSE;
+}
+
+static int
 iwm_mvm_load_ucode_wait_alive(struct iwm_softc *sc,
 	enum iwm_ucode_type ucode_type)
 {
@@ -2788,7 +2812,12 @@ iwm_mvm_load_ucode_wait_alive(struct iwm_softc *sc,
 static int
 iwm_run_init_mvm_ucode(struct iwm_softc *sc, int justnvm)
 {
-	int error;
+	struct iwm_notification_wait calib_wait;
+	static const uint16_t init_complete[] = {
+		IWM_INIT_COMPLETE_NOTIF,
+		IWM_CALIB_RES_NOTIF_PHY_DB
+	};
+	int ret;
 
 	/* do not operate with rfkill switch turned on */
 	if ((sc->sc_flags & IWM_FLAG_RFKILL) && !justnvm) {
@@ -2797,81 +2826,80 @@ iwm_run_init_mvm_ucode(struct iwm_softc *sc, int justnvm)
 		return EPERM;
 	}
 
-	sc->sc_init_complete = 0;
-	if ((error = iwm_mvm_load_ucode_wait_alive(sc,
-	    IWM_UCODE_INIT)) != 0) {
-		device_printf(sc->sc_dev, "failed to load init firmware\n");
-		return error;
+	iwm_init_notification_wait(sc->sc_notif_wait,
+				   &calib_wait,
+				   init_complete,
+				   nitems(init_complete),
+				   iwm_wait_phy_db_entry,
+				   sc->sc_phy_db);
+
+	/* Will also start the device */
+	ret = iwm_mvm_load_ucode_wait_alive(sc, IWM_UCODE_INIT);
+	if (ret) {
+		device_printf(sc->sc_dev, "Failed to start INIT ucode: %d\n",
+		    ret);
+		goto error;
 	}
 
 	if (justnvm) {
-		if ((error = iwm_nvm_init(sc)) != 0) {
+		/* Read nvm */
+		ret = iwm_nvm_init(sc);
+		if (ret) {
 			device_printf(sc->sc_dev, "failed to read nvm\n");
-			return error;
+			goto error;
 		}
 		IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, sc->nvm_data->hw_addr);
-
-		return 0;
+		goto error;
 	}
 
-	if ((error = iwm_send_bt_init_conf(sc)) != 0) {
+	ret = iwm_send_bt_init_conf(sc);
+	if (ret) {
 		device_printf(sc->sc_dev,
-		    "failed to send bt coex configuration: %d\n", error);
-		return error;
+		    "failed to send bt coex configuration: %d\n", ret);
+		goto error;
 	}
 
 	/* Init Smart FIFO. */
-	error = iwm_mvm_sf_config(sc, IWM_SF_INIT_OFF);
-	if (error != 0)
-		return error;
-
-#if 0
-	IWM_DPRINTF(sc, IWM_DEBUG_RESET,
-	    "%s: phy_txant=0x%08x, nvm_valid_tx_ant=0x%02x, valid=0x%02x\n",
-	    __func__,
-	    ((sc->sc_fw_phy_config & IWM_FW_PHY_CFG_TX_CHAIN)
-	      >> IWM_FW_PHY_CFG_TX_CHAIN_POS),
-	    sc->nvm_data->valid_tx_ant,
-	    iwm_fw_valid_tx_ant(sc));
-#endif
+	ret = iwm_mvm_sf_config(sc, IWM_SF_INIT_OFF);
+	if (ret)
+		goto error;
 
 	/* Send TX valid antennas before triggering calibrations */
-	error = iwm_send_tx_ant_cfg(sc, iwm_mvm_get_valid_tx_ant(sc));
-	if (error != 0) {
+	ret = iwm_send_tx_ant_cfg(sc, iwm_mvm_get_valid_tx_ant(sc));
+	if (ret) {
 		device_printf(sc->sc_dev,
-		    "failed to send antennas before calibration: %d\n", error);
-		return error;
+		    "failed to send antennas before calibration: %d\n", ret);
+		goto error;
 	}
 
 	/*
 	 * Send phy configurations command to init uCode
 	 * to start the 16.0 uCode init image internal calibrations.
 	 */
-	if ((error = iwm_send_phy_cfg_cmd(sc)) != 0 ) {
+	ret = iwm_send_phy_cfg_cmd(sc);
+	if (ret) {
 		device_printf(sc->sc_dev,
-		    "%s: failed to run internal calibration: %d\n",
-		    __func__, error);
-		return error;
+		    "%s: Failed to run INIT calibrations: %d\n",
+		    __func__, ret);
+		goto error;
 	}
 
 	/*
 	 * Nothing to do but wait for the init complete notification
-	 * from the firmware
+	 * from the firmware.
 	 */
-	while (!sc->sc_init_complete) {
-		error = msleep(&sc->sc_init_complete, &sc->sc_mtx,
-				 0, "iwminit", 2*hz);
-		if (error) {
-			device_printf(sc->sc_dev, "init complete failed: %d\n",
-				sc->sc_init_complete);
-			break;
-		}
-	}
+	IWM_UNLOCK(sc);
+	ret = iwm_wait_notification(sc->sc_notif_wait, &calib_wait,
+	    IWM_MVM_UCODE_CALIB_TIMEOUT);
+	IWM_LOCK(sc);
 
-	IWM_DPRINTF(sc, IWM_DEBUG_RESET, "init %scomplete\n",
-	    sc->sc_init_complete ? "" : "not ");
 
-	return error;
+	goto out;
+
+error:
+	iwm_remove_notification(sc->sc_notif_wait, &calib_wait);
+out:
+	return ret;
 }
 
 /*
@@ -5361,7 +5389,6 @@ iwm_notif_intr(struct iwm_softc *sc)
 			break; }
 
 		case IWM_CALIB_RES_NOTIF_PHY_DB:
-			iwm_phy_db_set_section(sc->sc_phy_db, pkt);
 			break;
 
 		case IWM_STATISTICS_NOTIFICATION: {
@@ -5426,8 +5453,6 @@ iwm_notif_intr(struct iwm_softc *sc)
 			break;
 
 		case IWM_INIT_COMPLETE_NOTIF:
-			sc->sc_init_complete = 1;
-			wakeup(&sc->sc_init_complete);
 			break;
 
 		case IWM_SCAN_OFFLOAD_COMPLETE: {
