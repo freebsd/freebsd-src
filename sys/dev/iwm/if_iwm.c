@@ -1326,6 +1326,7 @@ iwm_stop_device(struct iwm_softc *sc)
 		if (iwm_nic_lock(sc)) {
 			iwm_write_prph(sc, IWM_APMG_CLK_DIS_REG,
 			    IWM_APMG_CLK_VAL_DMA_CLK_RQT);
+			iwm_nic_unlock(sc);
 		}
 		DELAY(5);
 	}
@@ -2596,6 +2597,7 @@ iwm_pcie_load_given_ucode(struct iwm_softc *sc,
 			iwm_write_prph(sc,
 				       IWM_LMPM_SECURE_UCODE_LOAD_CPU2_HDR_ADDR,
 				       IWM_LMPM_SECURE_CPU2_HDR_MEM_SPACE);
+			iwm_nic_unlock(sc);
 		}
 
 		/* load to FW the binary sections of CPU2 */
@@ -2628,6 +2630,7 @@ iwm_pcie_load_given_ucode_8000(struct iwm_softc *sc,
 	if (iwm_nic_lock(sc)) {
 		iwm_write_prph(sc, IWM_RELEASE_CPU_RESET,
 		    IWM_RELEASE_CPU_RESET_BIT);
+		iwm_nic_unlock(sc);
 	}
 
 	/* load to FW the binary Secured sections of CPU1 */
@@ -2886,6 +2889,7 @@ iwm_mvm_load_ucode_wait_alive(struct iwm_softc *sc,
 			if (iwm_nic_lock(sc)) {
 				a = iwm_read_prph(sc, IWM_SB_CPU_1_STATUS);
 				b = iwm_read_prph(sc, IWM_SB_CPU_2_STATUS);
+				iwm_nic_unlock(sc);
 			}
 			device_printf(sc->sc_dev,
 			    "SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
