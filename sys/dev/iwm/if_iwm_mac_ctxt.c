@@ -318,6 +318,11 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	    = htole32((ic->ic_flags & IEEE80211_F_SHSLOT)
 	      ? IWM_MAC_FLG_SHORT_SLOT : 0);
 
+	/*
+	 * XXX TODO: if we're doing QOS..
+	 * cmd->qos_flags |= cpu_to_le32(MAC_QOS_FLG_UPDATE_EDCA)
+	 */
+
 	/* XXX TODO: set wme parameters; also handle getting updated wme parameters */
 	for (i = 0; i < IWM_AC_NUM+1; i++) {
 		int txf = i;
