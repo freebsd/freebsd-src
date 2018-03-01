@@ -785,9 +785,12 @@ get_mouse_status(KBDC kbdc, int *status, int flag, int len)
 		if (status[i] < 0)
 			break;
 	}
-
-	VLOG(1, (LOG_DEBUG, "psm: %s %02x %02x %02x\n",
-	    (flag == 1) ? "data" : "status", status[0], status[1], status[2]));
+	if (len >= 3) {
+		for (; i < 3; ++i)
+			status[i] = 0;
+		VLOG(1, (LOG_DEBUG, "psm: %s %02x %02x %02x\n",
+		    (flag == 1) ? "data" : "status", status[0], status[1], status[2]));
+	}
 
 	return (i);
 }
