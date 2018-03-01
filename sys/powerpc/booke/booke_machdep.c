@@ -216,7 +216,7 @@ booke_cpu_init(void)
 #endif
 	psl_userset = psl_kernset | PSL_PR;
 #ifdef __powerpc64__
-	psl_userset32 = psl_kernset & ~PSL_CM;
+	psl_userset32 = psl_userset & ~PSL_CM;
 #endif
 	psl_userstatic = ~(PSL_VEC | PSL_FP | PSL_FE0 | PSL_FE1);
 
