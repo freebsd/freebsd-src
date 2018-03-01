@@ -283,7 +283,6 @@ iwm_mvm_rm_sta(struct iwm_softc *sc, struct ieee80211vap *vap,
 	ret = iwm_mvm_drain_sta(sc, IWM_VAP(vap), TRUE);
 	if (ret)
 		return ret;
-	mbufq_drain(&sc->sc_snd); /* XXX needed ? */
 	for (ac = 0; ac < WME_NUM_AC; ac++) {
 		tfd_queue_msk |= htole32(1 << iwm_mvm_ac_to_tx_fifo[ac]);
 	}
