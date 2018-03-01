@@ -431,10 +431,6 @@ struct iwm_softc {
 	int			ict_cur;
 
 	int			sc_hw_rev;
-#define IWM_SILICON_A_STEP	0
-#define IWM_SILICON_B_STEP	1
-#define IWM_SILICON_C_STEP	2
-#define IWM_SILICON_D_STEP	3
 	int			sc_hw_id;
 	int			sc_device_family;
 #define IWM_DEVICE_FAMILY_7000	1
