@@ -2141,7 +2141,7 @@ enum {
 
 #define IWM_ALIVE_FLG_RFKILL	(1 << 0)
 
-struct iwm_mvm_alive_resp_v1 {
+struct iwm_mvm_alive_resp_ver1 {
 	uint16_t status;
 	uint16_t flags;
 	uint8_t ucode_minor;
@@ -2163,7 +2163,7 @@ struct iwm_mvm_alive_resp_v1 {
 	uint32_t scd_base_ptr;		/* SRAM address for SCD */
 } __packed; /* IWM_ALIVE_RES_API_S_VER_1 */
 
-struct iwm_mvm_alive_resp_v2 {
+struct iwm_mvm_alive_resp_ver2 {
 	uint16_t status;
 	uint16_t flags;
 	uint8_t ucode_minor;
@@ -2185,14 +2185,14 @@ struct iwm_mvm_alive_resp_v2 {
 	uint32_t scd_base_ptr;		/* SRAM address for SCD */
 	uint32_t st_fwrd_addr;		/* pointer to Store and forward */
 	uint32_t st_fwrd_size;
-	uint8_t umac_minor;			/* UMAC version: minor */
-	uint8_t umac_major;			/* UMAC version: major */
-	uint16_t umac_id;			/* UMAC version: id */
-	uint32_t error_info_addr;		/* SRAM address for UMAC error log */
+	uint8_t umac_minor;		/* UMAC version: minor */
+	uint8_t umac_major;		/* UMAC version: major */
+	uint16_t umac_id;		/* UMAC version: id */
+	uint32_t error_info_addr;	/* SRAM address for UMAC error log */
 	uint32_t dbg_print_buff_addr;
 } __packed; /* ALIVE_RES_API_S_VER_2 */
 
-struct iwm_mvm_alive_resp_v3 {
+struct iwm_mvm_alive_resp {
 	uint16_t status;
 	uint16_t flags;
 	uint32_t ucode_minor;
@@ -2212,7 +2212,7 @@ struct iwm_mvm_alive_resp_v3 {
 	uint32_t st_fwrd_size;
 	uint32_t umac_minor;		/* UMAC version: minor */
 	uint32_t umac_major;		/* UMAC version: major */
-	uint32_t error_info_addr;		/* SRAM address for UMAC error log */
+	uint32_t error_info_addr;	/* SRAM address for UMAC error log */
 	uint32_t dbg_print_buff_addr;
 } __packed; /* ALIVE_RES_API_S_VER_3 */
 
