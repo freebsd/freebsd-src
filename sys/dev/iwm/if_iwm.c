@@ -1025,7 +1025,7 @@ iwm_alloc_fwmem(struct iwm_softc *sc)
 {
 	/* Must be aligned on a 16-byte boundary. */
 	return iwm_dma_contig_alloc(sc->sc_dmat, &sc->fw_dma,
-	    sc->sc_fwdmasegsz, 16);
+	    IWM_FH_MEM_TB_MAX_LENGTH, 16);
 }
 
 /* tx scheduler rings.  not used? */
@@ -5971,27 +5971,22 @@ iwm_dev_check(device_t dev)
 	case PCI_PRODUCT_INTEL_WL_3160_1:
 	case PCI_PRODUCT_INTEL_WL_3160_2:
 		sc->cfg = &iwm3160_cfg;
-		sc->sc_fwdmasegsz = IWM_FWDMASEGSZ;
 		return (0);
 	case PCI_PRODUCT_INTEL_WL_3165_1:
 	case PCI_PRODUCT_INTEL_WL_3165_2:
 		sc->cfg = &iwm3165_cfg;
-		sc->sc_fwdmasegsz = IWM_FWDMASEGSZ;
 		return (0);
 	case PCI_PRODUCT_INTEL_WL_7260_1:
 	case PCI_PRODUCT_INTEL_WL_7260_2:
 		sc->cfg = &iwm7260_cfg;
-		sc->sc_fwdmasegsz = IWM_FWDMASEGSZ;
 		return (0);
 	case PCI_PRODUCT_INTEL_WL_7265_1:
 	case PCI_PRODUCT_INTEL_WL_7265_2:
 		sc->cfg = &iwm7265_cfg;
-		sc->sc_fwdmasegsz = IWM_FWDMASEGSZ;
 		return (0);
 	case PCI_PRODUCT_INTEL_WL_8260_1:
 	case PCI_PRODUCT_INTEL_WL_8260_2:
 		sc->cfg = &iwm8260_cfg;
-		sc->sc_fwdmasegsz = IWM_FWDMASEGSZ_8000;
 		return (0);
 	default:
 		device_printf(dev, "unknown adapter type\n");

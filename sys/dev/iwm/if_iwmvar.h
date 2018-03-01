@@ -138,10 +138,6 @@ struct iwm_tx_radiotap_header {
 
 
 #define IWM_UCODE_SECTION_MAX 16
-#define IWM_FWDMASEGSZ (192*1024)
-#define IWM_FWDMASEGSZ_8000 (320*1024)
-/* sanity check value */
-#define IWM_FWMAXSIZE (2*1024*1024)
 
 /*
  * fw_status is used to determine if we've already parsed the firmware file
@@ -475,7 +471,6 @@ struct iwm_softc {
 	 */
 	int			sc_generation;
 
-	bus_size_t		sc_fwdmasegsz;
 	struct iwm_fw_info	sc_fw;
 	struct iwm_tlv_calib_ctrl sc_default_calib[IWM_UCODE_TYPE_MAX];
 
