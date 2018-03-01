@@ -153,6 +153,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/iwm/if_iwmreg.h>
 #include <dev/iwm/if_iwmvar.h>
 #include <dev/iwm/if_iwm_debug.h>
+#include <dev/iwm/if_iwm_notif_wait.h>
 #include <dev/iwm/if_iwm_util.h>
 #include <dev/iwm/if_iwm_scan.h>
 
@@ -735,5 +736,88 @@ iwm_mvm_lmac_scan(struct iwm_softc *sc)
 		    "Scan request was sent successfully\n");
 	}
 	free(req, M_DEVBUF);
+	return ret;
+}
+
+static int
+iwm_mvm_lmac_scan_abort(struct iwm_softc *sc)
+{
+	int ret;
+	struct iwm_host_cmd hcmd = {
+		.id = IWM_SCAN_OFFLOAD_ABORT_CMD,
+		.len = { 0, },
+		.data = { NULL, },
+		.flags = IWM_CMD_SYNC,
+	};
+	uint32_t status;
+
+	ret = iwm_mvm_send_cmd_status(sc, &hcmd, &status);
+	if (ret)
+		return ret;
+
+	if (status != IWM_CAN_ABORT_STATUS) {
+		/*
+		 * The scan abort will return 1 for success or
+		 * 2 for "failure".  A failure condition can be
+		 * due to simply not being in an active scan which
+		 * can occur if we send the scan abort before the
+		 * microcode has notified us that a scan is completed.
+		 */
+		IWM_DPRINTF(sc, IWM_DEBUG_SCAN,
+		    "SCAN OFFLOAD ABORT ret %d.\n", status);
+		ret = ENOENT;
+	}
+
+	return ret;
+}
+
+static int
+iwm_mvm_umac_scan_abort(struct iwm_softc *sc)
+{
+	struct iwm_umac_scan_abort cmd = {};
+	int uid, ret;
+
+	uid = 0;
+	cmd.uid = htole32(uid);
+
+	IWM_DPRINTF(sc, IWM_DEBUG_SCAN, "Sending scan abort, uid %u\n", uid);
+
+	ret = iwm_mvm_send_cmd_pdu(sc,
+				   iwm_cmd_id(IWM_SCAN_ABORT_UMAC,
+					      IWM_ALWAYS_LONG_GROUP, 0),
+				   0, sizeof(cmd), &cmd);
+
+	return ret;
+}
+
+int
+iwm_mvm_scan_stop_wait(struct iwm_softc *sc)
+{
+	struct iwm_notification_wait wait_scan_done;
+	static const uint16_t scan_done_notif[] = { IWM_SCAN_COMPLETE_UMAC,
+						   IWM_SCAN_OFFLOAD_COMPLETE, };
+	int ret;
+
+	iwm_init_notification_wait(sc->sc_notif_wait, &wait_scan_done,
+				   scan_done_notif, nitems(scan_done_notif),
+				   NULL, NULL);
+
+	IWM_DPRINTF(sc, IWM_DEBUG_SCAN, "Preparing to stop scan\n");
+
+	if (isset(sc->sc_enabled_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN))
+		ret = iwm_mvm_umac_scan_abort(sc);
+	else
+		ret = iwm_mvm_lmac_scan_abort(sc);
+
+	if (ret) {
+		IWM_DPRINTF(sc, IWM_DEBUG_SCAN, "couldn't stop scan\n");
+		iwm_remove_notification(sc->sc_notif_wait, &wait_scan_done);
+		return ret;
+	}
+
+	IWM_UNLOCK(sc);
+	ret = iwm_wait_notification(sc->sc_notif_wait, &wait_scan_done, hz);
+	IWM_LOCK(sc);
+
 	return ret;
 }
