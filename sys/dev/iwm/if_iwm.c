@@ -3879,6 +3879,7 @@ iwm_mvm_send_add_sta_cmd_status(struct iwm_softc *sc,
 static int
 iwm_mvm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in, int update)
 {
+	struct iwm_vap *ivp = IWM_VAP(in->in_ni.ni_vap);
 	struct iwm_mvm_add_sta_cmd add_sta_cmd;
 	int ret;
 	uint32_t status;
@@ -3887,8 +3888,7 @@ iwm_mvm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in, int update)
 
 	add_sta_cmd.sta_id = IWM_STATION_ID;
 	add_sta_cmd.mac_id_n_color
-	    = htole32(IWM_FW_CMD_ID_AND_COLOR(IWM_DEFAULT_MACID,
-	        IWM_DEFAULT_COLOR));
+	    = htole32(IWM_FW_CMD_ID_AND_COLOR(ivp->id, ivp->color));
 	if (!update) {
 		int ac;
 		for (ac = 0; ac < WME_NUM_AC; ac++) {
@@ -4140,7 +4140,7 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 		}
 		iv->phy_ctxt = &sc->sc_phyctxt[0];
 
-		if ((error = iwm_mvm_binding_update(sc, iv)) != 0) {
+		if ((error = iwm_mvm_binding_add_vif(sc, iv)) != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: binding update cmd\n", __func__);
 			goto out;
@@ -4189,7 +4189,7 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 	 */
 	/* XXX duration is in units of TU, not MS */
 	duration = IWM_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS;
-	iwm_mvm_protect_session(sc, in, duration, 500 /* XXX magic number */);
+	iwm_mvm_protect_session(sc, iv, duration, 500 /* XXX magic number */);
 	DELAY(100);
 
 	error = 0;
@@ -4234,7 +4234,7 @@ iwm_release(struct iwm_softc *sc, struct iwm_node *in)
 	 * iwm_mvm_rm_sta(sc, in);
 	 * iwm_mvm_update_quotas(sc, NULL);
 	 * iwm_mvm_mac_ctxt_changed(sc, in);
-	 * iwm_mvm_binding_remove_vif(sc, in);
+	 * iwm_mvm_binding_remove_vif(sc, IWM_VAP(in->in_ni.ni_vap));
 	 * iwm_mvm_mac_ctxt_remove(sc, in);
 	 *
 	 * However, that freezes the device not matter which permutations
@@ -4283,7 +4283,7 @@ iwm_release(struct iwm_softc *sc, struct iwm_node *in)
 		device_printf(sc->sc_dev, "mac ctxt change fail 2 %d\n", error);
 		return error;
 	}
-	iwm_mvm_binding_remove_vif(sc, in);
+	iwm_mvm_binding_remove_vif(sc, IWM_VAP(in->in_ni.ni_vap));
 
 	iwm_mvm_mac_ctxt_remove(sc, in);
 
@@ -6286,6 +6286,9 @@ iwm_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	/* Override with driver methods. */
 	ivp->iv_newstate = vap->iv_newstate;
 	vap->iv_newstate = iwm_newstate;
+
+	ivp->id = IWM_DEFAULT_MACID;
+	ivp->color = IWM_DEFAULT_COLOR;
 
 	ieee80211_ratectl_init(vap);
 	/* Complete setup. */

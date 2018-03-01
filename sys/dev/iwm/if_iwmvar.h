@@ -375,6 +375,9 @@ struct iwm_vap {
 				    enum ieee80211_state, int);
 
 	struct iwm_mvm_phy_ctxt	*phy_ctxt;
+
+	uint16_t		id;
+	uint16_t		color;
 };
 #define IWM_VAP(_vap)		((struct iwm_vap *)(_vap))
 
