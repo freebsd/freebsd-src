@@ -3438,8 +3438,7 @@ iwm_update_sched(struct iwm_softc *sc, int qid, int idx, uint8_t sta_id,
 	scd_bc_tbl = sc->sched_dma.vaddr;
 
 	len += 8; /* magic numbers came naturally from paris */
-	if (sc->sc_capaflags & IWM_UCODE_TLV_FLAGS_DW_BC_TABLE)
-		len = roundup(len, 4) / 4;
+	len = roundup(len, 4) / 4;
 
 	w_val = htole16(sta_id << 12 | len);
 
