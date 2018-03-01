@@ -162,24 +162,28 @@ __FBSDID("$FreeBSD$");
 
 static void
 iwm_mvm_ack_rates(struct iwm_softc *sc, int is2ghz,
-	int *cck_rates, int *ofdm_rates)
+	int *cck_rates, int *ofdm_rates, struct iwm_node *in)
 {
 	int lowest_present_ofdm = 100;
 	int lowest_present_cck = 100;
 	uint8_t cck = 0;
 	uint8_t ofdm = 0;
 	int i;
+	struct ieee80211_rateset *rs = &in->in_ni.ni_rates;
 
 	if (is2ghz) {
-		for (i = 0; i <= IWM_LAST_CCK_RATE; i++) {
+		for (i = IWM_FIRST_CCK_RATE; i <= IWM_LAST_CCK_RATE; i++) {
+			if ((iwm_ridx2rate(rs, i) & IEEE80211_RATE_BASIC) == 0)
+				continue;
 			cck |= (1 << i);
 			if (lowest_present_cck > i)
 				lowest_present_cck = i;
 		}
 	}
 	for (i = IWM_FIRST_OFDM_RATE; i <= IWM_LAST_NON_HT_RATE; i++) {
-		int adj = i - IWM_FIRST_OFDM_RATE;
-		ofdm |= (1 << adj);
+		if ((iwm_ridx2rate(rs, i) & IEEE80211_RATE_BASIC) == 0)
+			continue;
+		ofdm |= (1 << (i - IWM_FIRST_OFDM_RATE));
 		if (lowest_present_ofdm > i)
 			lowest_present_ofdm = i;
 	}
@@ -307,7 +311,7 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	} else {
 		is2ghz = 1;
 	}
-	iwm_mvm_ack_rates(sc, is2ghz, &cck_ack_rates, &ofdm_ack_rates);
+	iwm_mvm_ack_rates(sc, is2ghz, &cck_ack_rates, &ofdm_ack_rates, in);
 	cmd->cck_rates = htole32(cck_ack_rates);
 	cmd->ofdm_rates = htole32(ofdm_ack_rates);
 
@@ -446,12 +450,10 @@ iwm_mvm_mac_ctxt_cmd_station(struct iwm_softc *sc, struct ieee80211vap *vap,
 {
 	struct ieee80211_node *ni = vap->iv_bss;
 	struct iwm_node *in = IWM_NODE(ni);
-	struct iwm_mac_ctx_cmd cmd;
+	struct iwm_mac_ctx_cmd cmd = {};
 
 	IWM_DPRINTF(sc, IWM_DEBUG_RESET,
 	    "%s: called; action=%d\n", __func__, action);
-
-	memset(&cmd, 0, sizeof(cmd));
 
 	/* Fill the common data for all mac context types */
 	iwm_mvm_mac_ctxt_cmd_common(sc, in, &cmd, action);
