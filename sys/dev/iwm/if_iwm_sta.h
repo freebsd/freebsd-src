@@ -211,12 +211,13 @@ extern	int iwm_mvm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in,
 extern	int iwm_mvm_add_sta(struct iwm_softc *sc, struct iwm_node *in);
 extern	int iwm_mvm_update_sta(struct iwm_softc *sc, struct iwm_node *in);
 extern	int iwm_mvm_rm_sta(struct iwm_softc *sc, struct ieee80211vap *vap,
-			   struct iwm_node *in);
+			   boolean_t is_assoc);
+extern	int iwm_mvm_rm_sta_id(struct iwm_softc *sc, struct ieee80211vap *vap);
 
 extern	int iwm_mvm_add_aux_sta(struct iwm_softc *sc);
 extern	void iwm_mvm_del_aux_sta(struct iwm_softc *sc);
 
-extern	int iwm_mvm_drain_sta(struct iwm_softc *sc, struct iwm_node *in,
+extern	int iwm_mvm_drain_sta(struct iwm_softc *sc, struct iwm_vap *ivp,
 			      boolean_t drain);
 
 #endif /* __IF_IWM_STA_H__ */
