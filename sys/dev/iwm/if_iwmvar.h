@@ -373,12 +373,13 @@ struct iwm_vap {
 
 	int			(*iv_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
+
+	struct iwm_mvm_phy_ctxt	*phy_ctxt;
 };
 #define IWM_VAP(_vap)		((struct iwm_vap *)(_vap))
 
 struct iwm_node {
 	struct ieee80211_node	in_ni;
-	struct iwm_mvm_phy_ctxt	*in_phyctxt;
 
 	/* status "bits" */
 	int			in_assoc;
