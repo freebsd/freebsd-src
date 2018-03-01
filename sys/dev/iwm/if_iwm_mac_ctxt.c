@@ -251,6 +251,7 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_node *ni = vap->iv_bss;
+	struct iwm_vap *ivp = IWM_VAP(vap);
 	int cck_ack_rates, ofdm_ack_rates;
 	int i;
 	int is2ghz;
@@ -262,8 +263,8 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	 * These are both functions of the vap, not of the node.
 	 * So, for now, hard-code both to 0 (default).
 	 */
-	cmd->id_and_color = htole32(IWM_FW_CMD_ID_AND_COLOR(IWM_DEFAULT_MACID,
-	    IWM_DEFAULT_COLOR));
+	cmd->id_and_color = htole32(IWM_FW_CMD_ID_AND_COLOR(ivp->id,
+	    ivp->color));
 	cmd->action = htole32(action);
 
 	cmd->mac_type = htole32(IWM_FW_MAC_TYPE_BSS_STA);
@@ -306,7 +307,7 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	/*
 	 * Default to 2ghz if no node information is given.
 	 */
-	if (in) {
+	if (in && in->in_ni.ni_chan != IEEE80211_CHAN_ANYC) {
 		is2ghz = !! IEEE80211_IS_CHAN_2GHZ(in->in_ni.ni_chan);
 	} else {
 		is2ghz = 1;
