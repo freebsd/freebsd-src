@@ -39,6 +39,10 @@ local drawer = require("drawer")
 local menu = {}
 
 local drawn_menu
+local return_menu_entry = {
+	entry_type = core.MENU_RETURN,
+	name = "Back to main menu" .. color.highlight(" [Backspace]"),
+}
 
 local function OnOff(str, value)
 	if value then
@@ -97,11 +101,7 @@ menu.handlers = {
 menu.boot_environments = {
 	entries = {
 		-- return to welcome menu
-		{
-			entry_type = core.MENU_RETURN,
-			name = "Back to main menu" ..
-			    color.highlight(" [Backspace]"),
-		},
+		return_menu_entry,
 		{
 			entry_type = core.MENU_CAROUSEL_ENTRY,
 			carousel_id = "be_active",
@@ -149,11 +149,7 @@ menu.boot_environments = {
 menu.boot_options = {
 	entries = {
 		-- return to welcome menu
-		{
-			entry_type = core.MENU_RETURN,
-			name = "Back to main menu" ..
-			    color.highlight(" [Backspace]"),
-		},
+		return_menu_entry,
 		-- load defaults
 		{
 			entry_type = core.MENU_ENTRY,
