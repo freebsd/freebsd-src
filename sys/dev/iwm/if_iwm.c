@@ -5425,7 +5425,9 @@ iwm_notif_intr(struct iwm_softc *sc)
 			    notif->source_id, sc->sc_fw_mcc);
 			break; }
 
-		case IWM_DTS_MEASUREMENT_NOTIFICATION: {
+		case IWM_DTS_MEASUREMENT_NOTIFICATION:
+		case IWM_WIDE_ID(IWM_PHY_OPS_GROUP,
+				 IWM_DTS_MEASUREMENT_NOTIF_WIDE): {
 			struct iwm_dts_measurement_notif_v1 *notif;
 
 			if (iwm_rx_packet_payload_len(pkt) < sizeof(*notif)) {
