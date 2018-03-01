@@ -253,6 +253,9 @@ iwm_nic_lock(struct iwm_softc *sc)
 {
 	int rv = 0;
 
+	if (sc->cmd_hold_nic_awake)
+		return 1;
+
 	IWM_SETBITS(sc, IWM_CSR_GP_CNTRL,
 	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
@@ -277,6 +280,9 @@ iwm_nic_lock(struct iwm_softc *sc)
 void
 iwm_nic_unlock(struct iwm_softc *sc)
 {
+	if (sc->cmd_hold_nic_awake)
+		return;
+
 	IWM_CLRBITS(sc, IWM_CSR_GP_CNTRL,
 	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 }
@@ -582,4 +588,56 @@ iwm_pcie_rx_stop(struct iwm_softc *sc)
 		iwm_nic_unlock(sc);
 	}
 	return ret;
+}
+
+void
+iwm_pcie_clear_cmd_in_flight(struct iwm_softc *sc)
+{
+	if (!sc->cfg->apmg_wake_up_wa)
+		return;
+
+	if (!sc->cmd_hold_nic_awake) {
+		device_printf(sc->sc_dev,
+		    "%s: cmd_hold_nic_awake not set\n", __func__);
+		return;
+	}
+
+	sc->cmd_hold_nic_awake = 0;
+	IWM_CLRBITS(sc, IWM_CSR_GP_CNTRL,
+	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+}
+
+int
+iwm_pcie_set_cmd_in_flight(struct iwm_softc *sc)
+{
+	int ret;
+
+	/*
+	 * wake up the NIC to make sure that the firmware will see the host
+	 * command - we will let the NIC sleep once all the host commands
+	 * returned. This needs to be done only on NICs that have
+	 * apmg_wake_up_wa set.
+	 */
+	if (sc->cfg->apmg_wake_up_wa &&
+	    !sc->cmd_hold_nic_awake) {
+
+		IWM_SETBITS(sc, IWM_CSR_GP_CNTRL,
+		    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+
+                ret = iwm_poll_bit(sc, IWM_CSR_GP_CNTRL,
+		    IWM_CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
+		    (IWM_CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
+		     IWM_CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP),
+		    15000);
+                if (ret == 0) {
+			IWM_CLRBITS(sc, IWM_CSR_GP_CNTRL,
+			    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+			device_printf(sc->sc_dev,
+			    "%s: Failed to wake NIC for hcmd\n", __func__);
+			return EIO;
+		}
+		sc->cmd_hold_nic_awake = 1;
+	}
+
+	return 0;
 }

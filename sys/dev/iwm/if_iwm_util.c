@@ -305,17 +305,10 @@ iwm_send_cmd(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 	bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
 	    BUS_DMASYNC_PREWRITE);
 
-	IWM_SETBITS(sc, IWM_CSR_GP_CNTRL,
-	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-	if (!iwm_poll_bit(sc, IWM_CSR_GP_CNTRL,
-	    IWM_CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
-	    (IWM_CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
-	     IWM_CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP), 15000)) {
-		device_printf(sc->sc_dev,
-		    "%s: acquiring device failed\n", __func__);
-		error = EBUSY;
+	error = iwm_pcie_set_cmd_in_flight(sc);
+	if (error)
 		goto out;
-	}
+	ring->queued++;
 
 #if 0
 	iwm_update_sched(sc, ring->qid, ring->cur, 0, 0);

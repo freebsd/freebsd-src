@@ -182,7 +182,8 @@ __FBSDID("$FreeBSD$");
 #define IWM_DEVICE_7000_COMMON						\
 	.device_family = IWM_DEVICE_FAMILY_7000,			\
 	.eeprom_size = IWM_OTP_LOW_IMAGE_SIZE_FAMILY_7000,		\
-	.nvm_hw_section_num = IWM_NVM_HW_SECTION_NUM_FAMILY_7000
+	.nvm_hw_section_num = IWM_NVM_HW_SECTION_NUM_FAMILY_7000,	\
+	.apmg_wake_up_wa = 1
 
 const struct iwm_cfg iwm7260_cfg = {
 	.fw_name = IWM7260_FW,
@@ -1251,6 +1252,9 @@ iwm_reset_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring)
 	sc->qfullmsk &= ~(1 << ring->qid);
 	ring->queued = 0;
 	ring->cur = 0;
+
+	if (ring->qid == IWM_MVM_CMD_QUEUE && sc->cmd_hold_nic_awake)
+		iwm_pcie_clear_cmd_in_flight(sc);
 }
 
 static void
@@ -3312,6 +3316,18 @@ iwm_cmd_done(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
 		data->m = NULL;
 	}
 	wakeup(&ring->desc[pkt->hdr.idx]);
+
+	if (((pkt->hdr.idx + ring->queued) % IWM_TX_RING_COUNT) != ring->cur) {
+		device_printf(sc->sc_dev,
+		    "%s: Some HCMDs skipped?: idx=%d queued=%d cur=%d\n",
+		    __func__, pkt->hdr.idx, ring->queued, ring->cur);
+		/* XXX call iwm_force_nmi() */
+	}
+
+	KASSERT(ring->queued > 0, ("ring->queued is empty?"));
+	ring->queued--;
+	if (ring->queued == 0)
+		iwm_pcie_clear_cmd_in_flight(sc);
 }
 
 #if 0
@@ -5553,9 +5569,6 @@ iwm_notif_intr(struct iwm_softc *sc)
 
 		ADVANCE_RXQ(sc);
 	}
-
-	IWM_CLRBITS(sc, IWM_CSR_GP_CNTRL,
-	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	/*
 	 * Tell the firmware what we have processed.
