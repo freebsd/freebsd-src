@@ -10984,6 +10984,8 @@ softdep_disk_write_complete(bp)
 	if (ump == NULL)
 		return;
 
+	sbp = NULL;
+
 	/*
 	 * If an error occurred while doing the write, then the data
 	 * has not hit the disk and the dependencies cannot be processed.
@@ -11026,7 +11028,6 @@ softdep_disk_write_complete(bp)
 	/*
 	 * Ump SU lock must not be released anywhere in this code segment.
 	 */
-	sbp = NULL;
 	owk = NULL;
 	while ((wk = LIST_FIRST(&bp->b_dep)) != NULL) {
 		WORKLIST_REMOVE(wk);
