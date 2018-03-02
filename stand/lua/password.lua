@@ -42,7 +42,6 @@ local twiddle_chars = {"/", "-", "\\", "|"}
 -- Module exports
 function password.read(prompt_length)
 	local str = ""
-	local n = 0
 	local twiddle_pos = 1
 
 	local function draw_twiddle()
@@ -60,14 +59,13 @@ function password.read(prompt_length)
 			break
 		end
 		if ch == core.KEY_BACKSPACE or ch == core.KEY_DELETE then
-			if n > 0 then
-				n = n - 1
+			if #str > 0 then
 				if show_password_mask then
 					loader.printc("\008 \008")
 				else
 					draw_twiddle()
 				end
-				str = str:sub(1, n)
+				str = str:sub(1, #str - 1)
 			end
 		else
 			if show_password_mask then
@@ -76,7 +74,6 @@ function password.read(prompt_length)
 				draw_twiddle()
 			end
 			str = str .. string.char(ch)
-			n = n + 1
 		end
 	end
 	return str
