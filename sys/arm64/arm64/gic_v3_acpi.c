@@ -297,12 +297,14 @@ gic_v3_add_children(ACPI_SUBTABLE_HEADER *entry, void *arg)
 {
 	ACPI_MADT_GENERIC_TRANSLATOR *gict;
 	struct gic_v3_acpi_devinfo *di;
+	struct gic_v3_softc *sc;
 	device_t child, dev;
 
 	if (entry->Type == ACPI_MADT_TYPE_GENERIC_TRANSLATOR) {
 		/* We have an ITS, add it as a child */
 		gict = (ACPI_MADT_GENERIC_TRANSLATOR *)entry;
 		dev = arg;
+		sc = device_get_softc(dev);
 
 		child = device_add_child(dev, "its", -1);
 		if (child == NULL)
@@ -313,6 +315,7 @@ gic_v3_add_children(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		resource_list_add(&di->di_rl, SYS_RES_MEMORY, 0,
 		    gict->BaseAddress, gict->BaseAddress + 128 * 1024 - 1,
 		    128 * 1024);
+		sc->gic_nchildren++;
 		device_set_ivars(child, di);
 	}
 }
