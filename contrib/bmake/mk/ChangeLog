@@ -1,3 +1,21 @@
+2018-01-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20180118
+
+	* ldorder.mk: let make compute correct link order
+
+2017-12-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20171212
+
+	* gendirdeps.mk: guard against bogus entries in GENDIRDEPS_FILTER
+
+2017-11-14  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20171111
+
+	* lib.mk: ensure META_NOECHO is set
+
 2017-10-25  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Allow for host32 on rare occasions.

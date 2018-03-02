@@ -1,4 +1,4 @@
-# $Id: sys.mk,v 1.45 2017/02/05 01:26:13 sjg Exp $
+# $Id: sys.mk,v 1.46 2017/11/15 22:59:23 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
 #
@@ -84,7 +84,7 @@ OPTIONS_DEFAULT_DEPENDENT += \
 MK_META_MODE = yes
 .-include <meta.sys.mk>
 .elif ${MK_META_MODE:Uno} == "yes"
-.MAKE.MODE = meta verbose
+.MAKE.MODE = meta verbose ${META_MODE}
 .endif
 # make sure we have a harmless value
 .MAKE.MODE ?= normal
