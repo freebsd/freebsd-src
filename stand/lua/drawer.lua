@@ -313,13 +313,13 @@ function drawer.drawbox()
 	local w = drawer.box_pos_dim.w
 	local h = drawer.box_pos_dim.h
 
-	local hl = string.char(0xCD)
-	local vl = string.char(0xBA)
+	local hl = "\xCD"
+	local vl = "\xBA"
 
-	local tl = string.char(0xC9)
-	local bl = string.char(0xC8)
-	local tr = string.char(0xBB)
-	local br = string.char(0xBC)
+	local tl = "\xC9"
+	local bl = "\xC8"
+	local tr = "\xBB"
+	local br = "\xBC"
 
 	screen.setcursor(x, y); print(tl)
 	screen.setcursor(x, y+h); print(bl)
