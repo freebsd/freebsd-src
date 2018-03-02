@@ -584,7 +584,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 		    sx->lock_object.lo_name, (void *)sx->sx_lock, file, line);
 
 #ifdef ADAPTIVE_SX
-	adaptive = ((sx->lock_object.lo_flags & SX_NOADAPTIVE) != 0);
+	adaptive = ((sx->lock_object.lo_flags & SX_NOADAPTIVE) == 0);
 #endif
 
 #ifdef HWPMC_HOOKS
@@ -937,7 +937,7 @@ _sx_slock_hard(struct sx *sx, int opts, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 #endif
 
 #ifdef ADAPTIVE_SX
-	adaptive = ((sx->lock_object.lo_flags & SX_NOADAPTIVE) != 0);
+	adaptive = ((sx->lock_object.lo_flags & SX_NOADAPTIVE) == 0);
 #endif
 
 #ifdef HWPMC_HOOKS
