@@ -256,6 +256,36 @@ drawer.logodefs = {
 	},
 }
 
+drawer.frame_styles = {
+	-- Indexed by valid values for loader_menu_frame in loader.conf(5).
+	-- All of the keys appearing below must be set for any menu frame style
+	-- added to drawer.frame_styles.
+	["ascii"] = {
+		horizontal	= "-",
+		vertical	= "|",
+		top_left	= "+",
+		bottom_left	= "+",
+		top_right	= "+",
+		bottom_right	= "+",
+	},
+	["single"] = {
+		horizontal	= "\xC4",
+		vertical	= "\xB3",
+		top_left	= "\xDA",
+		bottom_left	= "\xC0",
+		top_right	= "\xBF",
+		bottom_right	= "\xD9",
+	},
+	["double"] = {
+		horizontal	= "\xCD",
+		vertical	= "\xBA",
+		top_left	= "\xC9",
+		bottom_left	= "\xC8",
+		top_right	= "\xBB",
+		bottom_right	= "\xBC",
+	},
+}
+
 function drawer.drawscreen(menu_opts)
 	-- drawlogo() must go first.
 	-- it determines the positions of other elements
@@ -306,42 +336,52 @@ function drawer.drawmenu(menudef)
 	return alias_table
 end
 
-
 function drawer.drawbox()
 	local x = drawer.box_pos_dim.x
 	local y = drawer.box_pos_dim.y
 	local w = drawer.box_pos_dim.w
 	local h = drawer.box_pos_dim.h
 
-	local hl = "\xCD"
-	local vl = "\xBA"
-
-	local tl = "\xC9"
-	local bl = "\xC8"
-	local tr = "\xBB"
-	local br = "\xBC"
-
-	screen.setcursor(x, y); print(tl)
-	screen.setcursor(x, y+h); print(bl)
-	screen.setcursor(x+w, y); print(tr)
-	screen.setcursor(x+w, y+h); print(br)
-
-	for i = 1, w-1 do
-		screen.setcursor(x+i, y)
-		print(hl)
-		screen.setcursor(x+i, y+h)
-		print(hl)
+	local framestyle = loader.getenv("loader_menu_frame") or "double"
+	local framespec = drawer.frame_styles[framestyle]
+	-- If we don't have a framespec for the current frame style, just don't
+	-- draw a box.
+	if framespec == nil then
+		return
 	end
 
-	for i = 1, h-1 do
-		screen.setcursor(x, y+i)
-		print(vl)
-		screen.setcursor(x+w, y+i)
-		print(vl)
+	local hl = framespec.horizontal
+	local vl = framespec.vertical
+
+	local tl = framespec.top_left
+	local bl = framespec.bottom_left
+	local tr = framespec.top_right
+	local br = framespec.bottom_right
+
+	screen.setcursor(x, y); loader.printc(tl)
+	screen.setcursor(x, y + h); loader.printc(bl)
+	screen.setcursor(x + w, y); loader.printc(tr)
+	screen.setcursor(x + w, y + h); loader.printc(br)
+
+	screen.setcursor(x + 1, y)
+	for _ = 1, w - 1 do
+		loader.printc(hl)
 	end
 
-	screen.setcursor(x+(w/2)-9, y)
-	print("Welcome to FreeBSD")
+	screen.setcursor(x + 1, y + h)
+	for _ = 1, w - 1 do
+		loader.printc(hl)
+	end
+
+	for i = 1, h - 1 do
+		screen.setcursor(x, y + i)
+		loader.printc(vl)
+		screen.setcursor(x + w, y + i)
+		loader.printc(vl)
+	end
+
+	screen.setcursor(x + (w / 2) - 9, y)
+	loader.printc("Welcome to FreeBSD")
 end
 
 function drawer.draw(x, y, logo)
