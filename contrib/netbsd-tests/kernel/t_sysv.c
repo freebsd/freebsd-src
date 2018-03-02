@@ -94,13 +94,11 @@ key_t	msgkey, semkey, shmkey;
 
 int	maxloop = 1;
 
-#ifndef __FreeBSD__
 union semun {
 	int	val;		/* value for SETVAL */
 	struct	semid_ds *buf;	/* buffer for IPC_{STAT,SET} */
 	u_short	*array;		/* array for GETALL & SETALL */
 };
-#endif
 
 
 /* Writes an integer to a file.  To be used from the body of the test
