@@ -153,13 +153,13 @@ lua_unsetenv(lua_State *L)
 static int
 lua_printc(lua_State *L)
 {
-	int status;
-	ssize_t l;
+	ssize_t cur, l;
 	const char *s = luaL_checklstring(L, 1, &l);
 
-	status = (printf("%s", s) == l);
+	for (cur = 0; cur < l; ++cur)
+		putchar((unsigned char)*(s++));
 
-	return status;
+	return 1;
 }
 
 static int
