@@ -41,7 +41,7 @@ function screen.clear()
 	if core.isSerialBoot() then
 		return
 	end
-	loader.printc(core.KEYSTR_CSI .. "H" .. core.KEYSTR_CSI .. "J")
+	printc(core.KEYSTR_CSI .. "H" .. core.KEYSTR_CSI .. "J")
 end
 
 function screen.setcursor(x, y)
@@ -49,25 +49,25 @@ function screen.setcursor(x, y)
 		return
 	end
 
-	loader.printc(core.KEYSTR_CSI .. y .. ";" .. x .. "H")
+	printc(core.KEYSTR_CSI .. y .. ";" .. x .. "H")
 end
 
 function screen.setforeground(color_value)
 	if color.disabled then
 		return color_value
 	end
-	loader.printc(color.escapef(color_value))
+	printc(color.escapef(color_value))
 end
 
 function screen.setbackground(color_value)
 	if color.disabled then
 		return color_value
 	end
-	loader.printc(color.escapeb(color_value))
+	printc(color.escapeb(color_value))
 end
 
 function screen.defcolor()
-	loader.printc(color.default())
+	printc(color.default())
 end
 
 function screen.defcursor()

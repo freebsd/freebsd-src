@@ -358,30 +358,30 @@ function drawer.drawbox()
 	local tr = framespec.top_right
 	local br = framespec.bottom_right
 
-	screen.setcursor(x, y); loader.printc(tl)
-	screen.setcursor(x, y + h); loader.printc(bl)
-	screen.setcursor(x + w, y); loader.printc(tr)
-	screen.setcursor(x + w, y + h); loader.printc(br)
+	screen.setcursor(x, y); printc(tl)
+	screen.setcursor(x, y + h); printc(bl)
+	screen.setcursor(x + w, y); printc(tr)
+	screen.setcursor(x + w, y + h); printc(br)
 
 	screen.setcursor(x + 1, y)
 	for _ = 1, w - 1 do
-		loader.printc(hl)
+		printc(hl)
 	end
 
 	screen.setcursor(x + 1, y + h)
 	for _ = 1, w - 1 do
-		loader.printc(hl)
+		printc(hl)
 	end
 
 	for i = 1, h - 1 do
 		screen.setcursor(x, y + i)
-		loader.printc(vl)
+		printc(vl)
 		screen.setcursor(x + w, y + i)
-		loader.printc(vl)
+		printc(vl)
 	end
 
 	screen.setcursor(x + (w / 2) - 9, y)
-	loader.printc("Welcome to FreeBSD")
+	printc("Welcome to FreeBSD")
 end
 
 function drawer.draw(x, y, logo)
