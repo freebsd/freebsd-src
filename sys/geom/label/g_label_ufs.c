@@ -79,7 +79,7 @@ g_label_ufs_taste_common(struct g_consumer *cp, char *label, size_t size, int wh
 	if (SBLOCKSIZE % pp->sectorsize != 0 ||
 	    ffs_sbget(cp, &fs, -1, M_GEOM, g_use_g_read_data) != 0) {
 		KASSERT(fs == NULL,
-		    ("g_label_ufs_taste_common: non-NULL fs %p\n",fs);
+		    ("g_label_ufs_taste_common: non-NULL fs %p\n", fs));
 		return;
 	}
 
