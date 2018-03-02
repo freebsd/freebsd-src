@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2018
+.Dd March 2, 2018
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -1327,16 +1327,16 @@ After creating all required partitions, embed bootstrap code into them:
 .Bd -literal -offset indent
 /sbin/gpart bootcode -p /boot/boot1 da0
 .Ed
-.Ss Deleting partitions and partitioning scheme
-If you get a
+.Ss Deleting Partitions and Destroying the Partitioning Scheme
+If a
 .Em "Device busy"
-error when trying to destroy a partition table, remember that you must
-delete all its partitions first with the
+error is shown when trying to destroy a partition table, remember that
+all of the partitions must be deleted first with the
 .Cm delete
 action.
-In this example, assume we have
+In this example,
 .Pa da0
-with three partitions:
+has three partitions:
 .Bd -literal -offset indent
 /sbin/gpart delete -i 3 da0
 /sbin/gpart delete -i 2 da0
@@ -1344,11 +1344,15 @@ with three partitions:
 /sbin/gpart destroy da0
 .Ed
 .Pp
-Alternatively, you can invoke the
-.Cm destroy
-action with the
+Rather than deleting each partition and then destroying the partitioning
+scheme, the
 .Fl F
-flag.
+option can be given with
+.Cm destroy
+to delete all of the partitions before destroying the partitioning scheme.
+This is equivalent to the previous example:
+.Bd -literal -offset indent
+/sbin/gpart destroy -F da0
 .Ed
 .Ss Backup and Restore
 .Pp
