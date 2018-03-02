@@ -36,53 +36,53 @@ devices, not just those commonly used.
 Source Roadmap:
 ---------------
 ```
-bin				System/user commands.
+bin		System/user commands.
 
-cddl			Various commands and libraries under the Common Development  
-				and Distribution License.
+cddl		Various commands and libraries under the Common Development
+		and Distribution License.
 
-contrib			Packages contributed by 3rd parties.
+contrib		Packages contributed by 3rd parties.
 
-crypto			Cryptography stuff (see crypto/README).
+crypto		Cryptography stuff (see crypto/README).
 
-etc				Template files for /etc.
+etc		Template files for /etc.
 
-gnu				Various commands and libraries under the GNU Public License.  
-				Please see gnu/COPYING* for more information.
+gnu		Various commands and libraries under the GNU Public License.
+		Please see gnu/COPYING* for more information.
 
-include			System include files.
+include		System include files.
 
-kerberos5		Kerberos5 (Heimdal) package.
+kerberos5	Kerberos5 (Heimdal) package.
 
-lib				System libraries.
+lib		System libraries.
 
-libexec			System daemons.
+libexec		System daemons.
 
-release			Release building Makefile & associated tools.
+release		Release building Makefile & associated tools.
 
-rescue			Build system for statically linked /rescue utilities.
+rescue		Build system for statically linked /rescue utilities.
 
-sbin			System commands.
+sbin		System commands.
 
-secure			Cryptographic libraries and commands.
+secure		Cryptographic libraries and commands.
 
-share			Shared resources.
+share		Shared resources.
 
-stand			Boot loader sources.
+stand		Boot loader sources.
 
-sys				Kernel sources.
+sys		Kernel sources.
 
-tests			Regression tests which can be run by Kyua.  See tests/README
-				for additional information.
+tests		Regression tests which can be run by Kyua.  See tests/README
+		for additional information.
 
-tools			Utilities for regression testing and miscellaneous tasks.
+tools		Utilities for regression testing and miscellaneous tasks.
 
-usr.bin			User commands.
+usr.bin		User commands.
 
-usr.sbin		System administration commands.
+usr.sbin	System administration commands.
 ```
 
 For information on synchronizing your source tree with one or more of
 the FreeBSD Project's development branches, please see:
 
-   https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html
+  https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html
