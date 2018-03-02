@@ -189,6 +189,15 @@ ktime_get_real_seconds(void)
 	return (ts.tv_sec);
 }
 
+static inline ktime_t
+ktime_get_raw(void)
+{
+	struct timespec ts;
+
+	nanotime(&ts);
+	return (timespec_to_ktime(ts));
+}
+
 static inline u64
 ktime_get_raw_ns(void)
 {
