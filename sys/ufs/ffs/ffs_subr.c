@@ -151,6 +151,7 @@ static int readsuper(void *, struct fs **, off_t, int,
  * superblock. Memory is allocated for the superblock by the readfunc and
  * is returned. If filltype is non-NULL, additional memory is allocated
  * of type filltype and filled in with the superblock summary information.
+ * All memory is freed when any error is returned.
  *
  * If a superblock is found, zero is returned. Otherwise one of the
  * following error values is returned:
@@ -172,16 +173,24 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
 	int32_t *lp;
 	char *buf;
 
+	fs = NULL;
 	*fsp = NULL;
 	if (altsblock != -1) {
-		if ((error = readsuper(devfd, fsp, altsblock, 1,
-		     readfunc)) != 0)
+		if ((error = readsuper(devfd, &fs, altsblock, 1,
+		     readfunc)) != 0) {
+			if (fs != NULL)
+				UFS_FREE(fs, filltype);
 			return (error);
+		}
 	} else {
 		for (i = 0; sblock_try[i] != -1; i++) {
-			if ((error = readsuper(devfd, fsp, sblock_try[i], 0,
+			if ((error = readsuper(devfd, &fs, sblock_try[i], 0,
 			     readfunc)) == 0)
 				break;
+			if (fs != NULL) {
+				UFS_FREE(fs, filltype);
+				fs = NULL;
+			}
 			if (error == ENOENT)
 				continue;
 			return (error);
@@ -190,20 +199,18 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
 			return (ENOENT);
 	}
 	/*
-	 * If not filling in summary information, return.
-	 */
-	if (filltype == NULL)
-		return (0);
-	/*
 	 * Read in the superblock summary information.
 	 */
-	fs = *fsp;
 	size = fs->fs_cssize;
 	blks = howmany(size, fs->fs_fsize);
 	if (fs->fs_contigsumsize > 0)
 		size += fs->fs_ncg * sizeof(int32_t);
 	size += fs->fs_ncg * sizeof(u_int8_t);
-	space = UFS_MALLOC(size, filltype, M_WAITOK);
+	/* When running in libufs or libsa, UFS_MALLOC may fail */
+	if ((space = UFS_MALLOC(size, filltype, M_WAITOK)) == NULL) {
+		UFS_FREE(fs, filltype);
+		return (ENOSPC);
+	}
 	fs->fs_csp = (struct csum *)space;
 	for (i = 0; i < blks; i += fs->fs_frag) {
 		size = fs->fs_bsize;
@@ -213,9 +220,10 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
 		error = (*readfunc)(devfd,
 		    dbtob(fsbtodb(fs, fs->fs_csaddr + i)), (void **)&buf, size);
 		if (error) {
-			UFS_FREE(buf, filltype);
+			if (buf != NULL)
+				UFS_FREE(buf, filltype);
 			UFS_FREE(fs->fs_csp, filltype);
-			fs->fs_csp = NULL;
+			UFS_FREE(fs, filltype);
 			return (error);
 		}
 		memcpy(space, buf, size);
@@ -231,6 +239,7 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
 	size = fs->fs_ncg * sizeof(u_int8_t);
 	fs->fs_contigdirs = (u_int8_t *)space;
 	bzero(fs->fs_contigdirs, size);
+	*fsp = fs;
 	return (0);
 }
 
@@ -246,8 +255,6 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 	int error;
 
 	error = (*readfunc)(devfd, sblockloc, (void **)fsp, SBLOCKSIZE);
-	if (*fsp != NULL)
-		(*fsp)->fs_csp = NULL;	/* Not yet any summary information */
 	if (error != 0)
 		return (error);
 	fs = *fsp;
@@ -263,6 +270,8 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 	    fs->fs_bsize >= roundup(sizeof(struct fs), DEV_BSIZE)) {
 		/* Have to set for old filesystems that predate this field */
 		fs->fs_sblockactualloc = sblockloc;
+		/* Not yet any summary information */
+		fs->fs_csp = NULL;
 		return (0);
 	}
 	return (ENOENT);

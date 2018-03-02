@@ -1075,14 +1075,11 @@ ffs_use_bread(void *devfd, off_t loc, void **bufp, int size)
 	struct buf *bp;
 	int error;
 
-	free(*bufp, M_UFSMNT);
+	KASSERT(*bufp == NULL, ("ffs_use_bread: non-NULL *bufp %p\n", *bufp));
 	*bufp = malloc(size, M_UFSMNT, M_WAITOK);
 	if ((error = bread((struct vnode *)devfd, btodb(loc), size, NOCRED,
-	    &bp)) != 0) {
-		free(*bufp, M_UFSMNT);
-		*bufp = NULL;
+	    &bp)) != 0)
 		return (error);
-	}
 	bcopy(bp->b_data, *bufp, size);
 	bp->b_flags |= B_INVAL | B_NOCACHE;
 	brelse(bp);
