@@ -76,6 +76,7 @@ union semun_old {
 };
 #endif
 
+#if defined(_KERNEL) || defined(_WANT_SEMUN)
 /*
  * semctl's arg parameter structure
  */
@@ -84,6 +85,7 @@ union semun {
 	struct		semid_ds *buf;	/* buffer for IPC_STAT & IPC_SET */
 	unsigned short	*array;		/* array for GETALL & SETALL */
 };
+#endif
 
 /*
  * commands for semctl
