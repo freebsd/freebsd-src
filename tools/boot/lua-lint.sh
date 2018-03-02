@@ -16,4 +16,4 @@ LUACHECK=$(which luacheck)
 
 cd $(make -V SRCTOP)/stand
 ${LUACHECK} . --globals loader --globals lfs --globals io.getchar \
-	--globals io.ischar --globals cli_execute --std lua53
+	--globals io.ischar --globals printc --globals cli_execute --std lua53
