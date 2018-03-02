@@ -307,6 +307,7 @@ static const struct luaL_Reg loaderlib[] = {
 	REG_SIMPLE(command),
 	REG_SIMPLE(getenv),
 	REG_SIMPLE(perform),
+	/* Also registered as the global 'printc' */
 	REG_SIMPLE(printc),
 	REG_SIMPLE(setenv),
 	REG_SIMPLE(time),
@@ -335,6 +336,8 @@ luaopen_loader(lua_State *L)
 	lua_setfield(L, -2, "machine");
 	lua_pushstring(L, MACHINE_ARCH);
 	lua_setfield(L, -2, "machine_arch");
+	/* Set global printc to loader.printc */
+	lua_register(L, "printc", lua_printc);
 	return 1;
 }
 
