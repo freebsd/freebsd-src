@@ -38,7 +38,7 @@
 #include <sys/callout.h>
 
 struct timer_list {
-	struct callout timer_callout;
+	struct callout callout;
 	void    (*function) (unsigned long);
 	unsigned long data;
 	int expires;
@@ -51,7 +51,7 @@ extern unsigned long linux_timer_hz_mask;
 #define	setup_timer(timer, func, dat) do {				\
 	(timer)->function = (func);					\
 	(timer)->data = (dat);						\
-	callout_init(&(timer)->timer_callout, 1);			\
+	callout_init(&(timer)->callout, 1);			\
 } while (0)
 
 #define	__setup_timer(timer, func, dat, flags) do {			\
@@ -62,16 +62,16 @@ extern unsigned long linux_timer_hz_mask;
 #define	init_timer(timer) do {						\
 	(timer)->function = NULL;					\
 	(timer)->data = 0;						\
-	callout_init(&(timer)->timer_callout, 1);			\
+	callout_init(&(timer)->callout, 1);			\
 } while (0)
 
 extern void mod_timer(struct timer_list *, int);
 extern void add_timer(struct timer_list *);
 extern void add_timer_on(struct timer_list *, int cpu);
 
-#define	del_timer(timer)	(void)callout_stop(&(timer)->timer_callout)
-#define	del_timer_sync(timer)	(void)callout_drain(&(timer)->timer_callout)
-#define	timer_pending(timer)	callout_pending(&(timer)->timer_callout)
+#define	del_timer(timer)	(void)callout_stop(&(timer)->callout)
+#define	del_timer_sync(timer)	(void)callout_drain(&(timer)->callout)
+#define	timer_pending(timer)	callout_pending(&(timer)->callout)
 #define	round_jiffies(j)	\
 	((int)(((j) + linux_timer_hz_mask) & ~linux_timer_hz_mask))
 #define	round_jiffies_relative(j) round_jiffies(j)
