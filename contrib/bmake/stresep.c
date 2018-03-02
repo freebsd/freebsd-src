@@ -1,4 +1,4 @@
-/*	$NetBSD: stresep.c,v 1.2 2007/12/06 22:07:07 seb Exp $	*/
+/*	$NetBSD: stresep.c,v 1.4 2017/08/23 10:27:41 christos Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
@@ -59,6 +59,7 @@ stresep(char **stringp, const char *delim, int esc)
 	char *s;
 	const char *spanp;
 	int c, sc;
+	size_t l;
 	char *tok;
 
 	if (stringp == NULL || delim == NULL)
@@ -66,23 +67,26 @@ stresep(char **stringp, const char *delim, int esc)
 
 	if ((s = *stringp) == NULL)
 		return NULL;
+	l = strlen(s) + 1;
 	for (tok = s;;) {
 		c = *s++;
+		l--;
 		while (esc != '\0' && c == esc) {
-			(void)strcpy(s - 1, s);
+			memmove(s - 1, s, l);
 			c = *s++;
+			l--;
 		}
 		spanp = delim;
 		do {
 			if ((sc = *spanp++) == c) {
-				if (c == 0)
+				if (c == '\0')
 					s = NULL;
 				else
-					s[-1] = 0;
+					s[-1] = '\0';
 				*stringp = s;
 				return tok;
 			}
-		} while (sc != 0);
+		} while (sc != '\0');
 	}
 }
 #endif

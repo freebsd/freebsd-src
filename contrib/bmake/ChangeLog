@@ -1,3 +1,44 @@
+2018-02-22  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180222
+	  Merge with NetBSD make, pick up
+	  o parse.c: avoid calling sysconf for every call to loadfile
+
+2018-02-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180218
+	  Merge with NetBSD make, pick up
+	  o var.c: Var_Set handle NULL value anytime.
+
+2018-02-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180212
+	  Merge with NetBSD make, pick up
+	  o parse.c: do not treat .info as warning with -W
+
+2017-12-07  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20171207
+	  Merge with NetBSD make, pick up
+	  o var.c: Var_Append use Var_Set if var not previously set
+	    so that VAR_CMD is handled correctly.
+	    Add a suitable unit-test.
+
+2017-11-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20171126
+
+	* aclocal.m4: use AC_LINK_IFELSE for AC_C___ATTRIBUTE__
+	  since AC_TRY_COMPILE puts input inside main()
+	  which upsets modern compilers.
+
+2017-11-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20171118
+	  Merge with NetBSD make, pick up
+	  o var.c: do not append to variable set on command line
+	    add unit-test to catch this.
+
 2017-10-28  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* VERSION: 20171028
