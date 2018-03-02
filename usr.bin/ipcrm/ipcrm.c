@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #define	_WANT_SYSVMSG_INTERNALS
 #include <sys/msg.h>
 #define	_WANT_SYSVSEM_INTERNALS
+#define	_WANT_SEMUN
 #include <sys/sem.h>
 #define	_WANT_SYSVSHM_INTERNALS
 #include <sys/shm.h>
