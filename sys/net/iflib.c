@@ -2267,6 +2267,10 @@ iflib_stop(if_ctx_t ctx)
 	for (i = 0; i < scctx->isc_ntxqsets; i++, txq++) {
 		/* make sure all transmitters have completed before proceeding XXX */
 
+		CALLOUT_LOCK(txq);
+		callout_stop(&txq->ift_timer);
+		CALLOUT_UNLOCK(txq);
+
 		/* clean any enqueued buffers */
 		iflib_ifmp_purge(txq);
 		/* Free any existing tx buffers. */
