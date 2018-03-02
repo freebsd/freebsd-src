@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #ifndef NO_COMPAT7
 #define _WANT_SEMUN_OLD
 #endif
+#define _WANT_SEMUN
 
 #include <sys/types.h>
 #include <sys/ipc.h>
