@@ -722,12 +722,13 @@ loop2:
 			if ((mp != NULL && mp->mnt_secondary_writes > 0) ||
 			    (error == 0 && --maxretry >= 0))
 				goto loop1;
-			error = EAGAIN;
+			if (error == 0)
+				error = EAGAIN;
 		}
 	}
 	BO_UNLOCK(bo);
-	if (error == EAGAIN)
-		vprint("fsync: giving up on dirty", vp);
+	if (error != 0)
+		vn_printf(vp, "fsync: giving up on dirty (error = %d) ", error);
 
 	return (error);
 }
