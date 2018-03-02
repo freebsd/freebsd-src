@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2017
+.Dd March 2, 2018
 .Dt DTRACE_LOCKSTAT 4
 .Os
 .Sh NAME
@@ -58,19 +58,19 @@ provider allows the tracing of events related to locking on
 .Fx .
 .Pp
 The
-.Nm lockstat
-provider contains DTrace probes for inspecting the kernel's lock
+.Nm
+provider contains DTrace probes for inspecting kernel lock
 state transitions.
 Probes exist for the
 .Xr mutex 9 ,
-.Xr rwlock 9
+.Xr rwlock 9 ,
 and
 .Xr sx 9
 lock types.
 The
 .Xr lockstat 1
 utility can be used to collect and display data collected from the
-.Nm lockstat
+.Nm
 provider.
 Each type of lock has
 .Fn acquire
@@ -125,7 +125,7 @@ and
 probes fire when a
 .Dv MTX_SPIN
 .Xr mutex 9
-is acquired and released, respectively.
+is acquired or released, respectively.
 The only argument is a pointer to the lock structure which describes
 the lock being acquired or released.
 .Pp
@@ -151,7 +151,7 @@ and
 .Fn lockstat:::rw-release
 probes fire when a
 .Xr rwlock 9
-is acquired and released, respectively.
+is acquired or released, respectively.
 The first argument is a pointer to the structure which describes
 the lock being acquired.
 The second argument is
@@ -210,7 +210,7 @@ and
 .Fn lockstat:::sx-release
 probes fire when a
 .Xr sx 9
-is acquired and released, respectively.
+is acquired or released, respectively.
 The first argument is a pointer to the structure which describes
 the lock being acquired.
 The second argument is
@@ -281,14 +281,14 @@ in nanoseconds, that the thread was spinning.
 .Xr sx 9
 .Sh HISTORY
 The
-.Nm lockstat
+.Nm
 provider first appeared in Solaris.
 The
 .Fx
 implementation of the
-.Nm lockstat
+.Nm
 provider first appeared in
-.Fx 9.
+.Fx 9 .
 .Sh AUTHORS
 This manual page was written by
 .An George V. Neville-Neil Aq Mt gnn@FreeBSD.org .
