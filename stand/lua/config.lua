@@ -173,7 +173,7 @@ local function checkNextboot()
 	end
 
 	if not config.parse(text) then
-		print(MSG_FAILPARSECFG:format(nextbootfile))
+		print(MSG_FAILPARSECFG:format(nextboot_file))
 	end
 
 	-- Attempt to rewrite the first line and only the first line of the
@@ -274,7 +274,7 @@ end
 
 function config.loadmod(mod, silent)
 	local status = true
-	local pstatus = true
+	local pstatus
 	for k, v in pairs(mod) do
 		if v.load == "YES" then
 			local str = "load "
