@@ -518,7 +518,7 @@ ufs_open(upath, f)
 
 	/* read super block */
 	twiddle(1);
-	if ((rc = ffs_sbget(f, &fs, -1, 0, ufs_use_sa_read)) != 0)
+	if ((rc = ffs_sbget(f, &fs, -1, "stand", ufs_use_sa_read)) != 0)
 		goto out;
 	fp->f_fs = fs;
 	/*
@@ -688,7 +688,6 @@ ufs_use_sa_read(void *devfd, off_t loc, void **bufp, int size)
 	int error;
 
 	f = (struct open_file *)devfd;
-	free(*bufp);
 	if ((*bufp = malloc(size)) == NULL)
 		return (ENOSPC);
 	error = (f->f_dev->dv_strategy)(f->f_devdata, F_READ, loc / DEV_BSIZE,

@@ -957,6 +957,9 @@ g_use_g_read_data(void *devfd, off_t loc, void **bufp, int size)
 {
 	struct g_consumer *cp;
 
+	KASSERT(*bufp == NULL,
+	    ("g_use_g_read_data: non-NULL *bufp %p\n", *bufp));
+
 	cp = (struct g_consumer *)devfd;
 	/*
 	 * Take care not to issue an invalid I/O request. The offset of
@@ -966,8 +969,6 @@ g_use_g_read_data(void *devfd, off_t loc, void **bufp, int size)
 	 */
 	if (loc % cp->provider->sectorsize != 0)
 		return (ENOENT);
-	if (*bufp != NULL)
-		g_free(*bufp);
 	*bufp = g_read_data(cp, loc, size, NULL);
 	if (*bufp == NULL)
 		return (ENOENT);
