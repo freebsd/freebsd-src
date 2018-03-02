@@ -346,9 +346,9 @@ menu.current_alias_table = {}
 function menu.draw(menudef)
 	-- Clear the screen, reset the cursor, then draw
 	screen.clear()
-	screen.defcursor()
 	menu.current_alias_table = drawer.drawscreen(menudef)
 	drawn_menu = menudef
+	screen.defcursor()
 end
 
 -- 'keypress' allows the caller to indicate that a key has been pressed that we
