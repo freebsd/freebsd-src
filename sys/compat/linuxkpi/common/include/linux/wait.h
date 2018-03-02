@@ -249,6 +249,8 @@ void linux_wake_up_atomic_t(atomic_t *);
 int linux_wait_on_atomic_t(atomic_t *, unsigned int);
 
 #define	wake_up_bit(word, bit)		linux_wake_up_bit(word, bit)
+#define	wait_on_bit(word, bit, state)					\
+	linux_wait_on_bit_timeout(word, bit, state, MAX_SCHEDULE_TIMEOUT)
 #define	wait_on_bit_timeout(word, bit, state, timeout)			\
 	linux_wait_on_bit_timeout(word, bit, state, timeout)
 #define	wake_up_atomic_t(a)		linux_wake_up_atomic_t(a)
