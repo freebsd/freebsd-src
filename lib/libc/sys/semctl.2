@@ -145,7 +145,7 @@ is defined as follows:
 .Bd -literal
 struct semid_ds {
         struct  ipc_perm sem_perm;      /* operation permission struct */
-        struct  sem *sem_base;  /* pointer to first semaphore in set */
+        struct  sem *__sem_base;  /* kernel data, don't use */
         u_short sem_nsems;      /* number of sems in set */
         time_t  sem_otime;      /* last operation time */
         time_t  sem_ctime;      /* last change time */

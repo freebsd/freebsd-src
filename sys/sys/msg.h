@@ -64,8 +64,8 @@ typedef	__time_t	time_t;
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
 struct msqid_ds_old {
 	struct	ipc_perm_old msg_perm;	/* msg queue permission bits */
-	struct	msg *msg_first;	/* first message in the queue */
-	struct	msg *msg_last;	/* last message in the queue */
+	struct	msg *__msg_first;	/* first message in the queue */
+	struct	msg *__msg_last;	/* last message in the queue */
 	msglen_t msg_cbytes;	/* number of bytes in use on the queue */
 	msgqnum_t msg_qnum;	/* number of msgs in the queue */
 	msglen_t msg_qbytes;	/* max # of bytes on the queue */
@@ -89,8 +89,8 @@ struct msqid_ds_old {
 
 struct msqid_ds {
 	struct	ipc_perm msg_perm;	/* msg queue permission bits */
-	struct	msg *msg_first;	/* first message in the queue */
-	struct	msg *msg_last;	/* last message in the queue */
+	struct	msg *__msg_first;	/* first message in the queue */
+	struct	msg *__msg_last;	/* last message in the queue */
 	msglen_t msg_cbytes;	/* number of bytes in use on the queue */
 	msgqnum_t msg_qnum;	/* number of msgs in the queue */
 	msglen_t msg_qbytes;	/* max # of bytes on the queue */
