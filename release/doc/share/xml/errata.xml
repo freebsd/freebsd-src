@@ -36,7 +36,7 @@
 
       <row>
 	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-17:10.tzdata.asc">FreeBSD-EN-17:10.tzdata</link></entry>
+	    xlink:href="&security.url;/FreeBSD-EN-17:09.tzdata.asc">FreeBSD-EN-17:09.tzdata</link></entry>
 	<entry>2&nbsp;November&nbsp;2017</entry>
 	<entry><para>Timezone database information
 	    update</para></entry>
