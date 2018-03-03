@@ -96,6 +96,10 @@ usage(FILE *fp)
 	    "\tfilter list                         list all filters\n"
 	    "\tfilter mode [<match>] ...           get/set global filter mode\n"
 	    "\ti2c <port> <devaddr> <addr> [<len>] read from i2c device\n"
+	    "\tloadboot <bi.bin> [pf|offset <val>] install boot image\n"
+	    "\tloadboot clear [pf|offset <val>]    remove boot image\n"
+	    "\tloadboot-cfg <bc.bin>               install boot config\n"
+	    "\tloadboot-cfg clear                  remove boot config\n"
 	    "\tloadcfg <fw-config.txt>             install configuration file\n"
 	    "\tloadcfg clear                       remove configuration file\n"
 	    "\tloadfw <fw-image.bin>               install firmware\n"
@@ -1944,6 +1948,107 @@ done:
 	return (rc);
 }
 
+static int
+loadboot(int argc, const char *argv[])
+{
+	int rc, fd;
+	long l;
+	char *p;
+	struct t4_bootrom br = {0};
+	const char *fname = argv[0];
+	struct stat st = {0};
+
+	if (argc == 1) {
+		br.pf_offset = 0;
+		br.pfidx_addr = 0;
+	} else if (argc == 3) {
+		if (!strcmp(argv[1], "pf"))
+			br.pf_offset = 0;
+		else if (!strcmp(argv[1], "offset"))
+			br.pf_offset = 1;
+		else
+			return (EINVAL);
+
+		p = str_to_number(argv[2], &l, NULL);
+		if (*p)
+			return (EINVAL);
+		br.pfidx_addr = l;
+	} else {
+		warnx("loadboot: incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	if (strcmp(fname, "clear") == 0)
+		return (doit(CHELSIO_T4_LOAD_BOOT, &br));
+
+	fd = open(fname, O_RDONLY);
+	if (fd < 0) {
+		warn("open(%s)", fname);
+		return (errno);
+	}
+
+	if (fstat(fd, &st) < 0) {
+		warn("fstat");
+		close(fd);
+		return (errno);
+	}
+
+	br.len = st.st_size;
+	br.data = mmap(0, br.len, PROT_READ, MAP_PRIVATE, fd, 0);
+	if (br.data == MAP_FAILED) {
+		warn("mmap");
+		close(fd);
+		return (errno);
+	}
+
+	rc = doit(CHELSIO_T4_LOAD_BOOT, &br);
+	munmap(br.data, br.len);
+	close(fd);
+	return (rc);
+}
+
+static int
+loadbootcfg(int argc, const char *argv[])
+{
+	int rc, fd;
+	struct t4_data bc = {0};
+	const char *fname = argv[0];
+	struct stat st = {0};
+
+	if (argc != 1) {
+		warnx("loadbootcfg: incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	if (strcmp(fname, "clear") == 0)
+		return (doit(CHELSIO_T4_LOAD_BOOTCFG, &bc));
+
+	fd = open(fname, O_RDONLY);
+	if (fd < 0) {
+		warn("open(%s)", fname);
+		return (errno);
+	}
+
+	if (fstat(fd, &st) < 0) {
+		warn("fstat");
+		close(fd);
+		return (errno);
+	}
+
+	bc.len = st.st_size;
+	bc.data = mmap(0, bc.len, PROT_READ, MAP_PRIVATE, fd, 0);
+	if (bc.data == MAP_FAILED) {
+		warn("mmap");
+		close(fd);
+		return (errno);
+	}
+
+	rc = doit(CHELSIO_T4_LOAD_BOOTCFG, &bc);
+	munmap(bc.data, bc.len);
+	close(fd);
+	return (rc);
+}
+
 /*
  * Display memory as list of 'n' 4-byte values per line.
  */
@@ -2818,6 +2923,10 @@ run_cmd(int argc, const char *argv[])
 		rc = sched_queue(argc, argv);
 	else if (!strcmp(cmd, "loadcfg"))
 		rc = loadcfg(argc, argv);
+	else if (!strcmp(cmd, "loadboot"))
+		rc = loadboot(argc, argv);
+	else if (!strcmp(cmd, "loadboot-cfg"))
+		rc = loadbootcfg(argc, argv);
 	else if (!strcmp(cmd, "dumpstate"))
 		rc = dumpstate(argc, argv);
 	else {
