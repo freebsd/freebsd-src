@@ -448,8 +448,9 @@ function menu.autoboot()
 
 		loader.delay(50000)
 	until time <= 0
-	core.boot()
 
+	local cmd = loader.getenv("menu_timeout_command") or "boot"
+	loader.interpret(cmd)
 end
 
 return menu
