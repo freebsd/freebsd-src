@@ -706,7 +706,7 @@ main(int argc, char *argv[])
 		switch (ch) {
 		case 'i':
 			ll = strtol(optarg, &endp, 10);
-			if (*endp != 0 || ll < 1 || ll > 100000)
+			if (*endp != 0 || ll < 1)
 				usage();
 			iterations = ll;
 			break;
