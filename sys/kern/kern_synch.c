@@ -326,7 +326,7 @@ pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 		sbt = howmany(sbt, SBT_1US);
 		if (sbt > 0)
 			DELAY(sbt);
-		return (0);
+		return (EWOULDBLOCK);
 	}
 	return (_sleep(&pause_wchan[curcpu], NULL, 0, wmesg, sbt, pr, flags));
 }
