@@ -307,8 +307,6 @@ struct l_dirent64 {
     roundup(offsetof(struct l_dirent64, d_name) + (namlen) + 1,		\
     sizeof(uint64_t))
 
-#define	LINUX_DIRBLKSIZ		512
-
 /*
  * Linux l_dirent is bigger than FreeBSD dirent, thus the buffer size
  * passed to kern_getdirentries() must be smaller than the one passed
