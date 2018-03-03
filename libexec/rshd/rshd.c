@@ -191,7 +191,7 @@ doit(struct sockaddr *fromp)
 	struct passwd *pwd;
 	u_short port;
 	fd_set ready, readfrom;
-	int cc, fd, nfd, pv[2], pid, s;
+	int cc, nfd, pv[2], pid, s;
 	int one = 1;
 	const char *cp, *errorstr;
 	char sig, buf[BUFSIZ];
@@ -493,8 +493,7 @@ doit(struct sockaddr *fromp)
 #ifdef USE_BLACKLIST
 	blacklist(0, STDIN_FILENO, "success");
 #endif
-	for (fd = getdtablesize(); fd > 2; fd--)
-		(void) close(fd);
+	closefrom(3);
 	if (setsid() == -1)
 		syslog(LOG_ERR, "setsid() failed: %m");
 	if (setlogin(pwd->pw_name) < 0)
