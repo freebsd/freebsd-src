@@ -205,9 +205,9 @@ drawer.menu_name_handlers = {
 }
 
 drawer.brand_position = {x = 2, y = 1}
-drawer.logo_position = {x = 46, y = 1}
-drawer.menu_position = {x = 6, y = 11}
-drawer.box_pos_dim = {x = 3, y = 10, w = 41, h = 11}
+drawer.logo_position = {x = 46, y = 4}
+drawer.menu_position = {x = 5, y = 10}
+drawer.frame_size = {w = 42, h = 13}
 
 drawer.branddefs = {
 	-- Indexed by valid values for loader_brand in loader.conf(5). Valid
@@ -337,10 +337,10 @@ function drawer.drawmenu(menudef)
 end
 
 function drawer.drawbox()
-	local x = drawer.box_pos_dim.x
-	local y = drawer.box_pos_dim.y
-	local w = drawer.box_pos_dim.w
-	local h = drawer.box_pos_dim.h
+	local x = drawer.menu_position.x - 3
+	local y = drawer.menu_position.y - 1
+	local w = drawer.frame_size.w
+	local h = drawer.frame_size.h
 
 	local framestyle = loader.getenv("loader_menu_frame") or "double"
 	local framespec = drawer.frame_styles[framestyle]
@@ -404,8 +404,8 @@ end
 
 function drawer.draw(x, y, logo)
 	for i = 1, #logo do
-		screen.setcursor(x, y + i)
-		print(logo[i])
+		screen.setcursor(x, y + i - 1)
+		printc(logo[i])
 	end
 end
 

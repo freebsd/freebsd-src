@@ -420,8 +420,8 @@ function menu.autoboot()
 	end
 	ab = tonumber(ab) or 10
 
-	local x = loader.getenv("loader_menu_timeout_x") or 5
-	local y = loader.getenv("loader_menu_timeout_y") or 22
+	local x = loader.getenv("loader_menu_timeout_x") or 4
+	local y = loader.getenv("loader_menu_timeout_y") or 23
 
 	local endtime = loader.time() + ab
 	local time
