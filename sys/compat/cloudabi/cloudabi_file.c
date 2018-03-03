@@ -563,6 +563,8 @@ cloudabi_sys_file_stat_fget(struct thread *td,
 	cloudabi_filetype_t filetype;
 	int error;
 
+	memset(&csb, 0, sizeof(csb));
+
 	/* Fetch file descriptor attributes. */
 	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_FSTAT), &fp);
 	if (error != 0)
@@ -649,6 +651,8 @@ cloudabi_sys_file_stat_get(struct thread *td,
 	cloudabi_filestat_t csb;
 	char *path;
 	int error;
+
+	memset(&csb, 0, sizeof(csb));
 
 	error = copyin_path(uap->path, uap->path_len, &path);
 	if (error != 0)
