@@ -694,6 +694,10 @@ gicv3_its_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	sc->sc_irq_length = gicv3_get_nirqs(dev);
+	sc->sc_irq_base = GIC_FIRST_LPI;
+	sc->sc_irq_base += device_get_unit(dev) * sc->sc_irq_length;
+
 	rid = 0;
 	sc->sc_its_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
@@ -1666,11 +1670,6 @@ gicv3_its_fdt_attach(device_t dev)
 	int err;
 
 	sc = device_get_softc(dev);
-
-	sc->sc_irq_length = gicv3_get_nirqs(dev);
-	sc->sc_irq_base = GIC_FIRST_LPI;
-	sc->sc_irq_base += device_get_unit(dev) * sc->sc_irq_length;
-
 	err = gicv3_its_attach(dev);
 	if (err != 0)
 		return (err);
@@ -1730,11 +1729,10 @@ gicv3_its_acpi_attach(device_t dev)
 	struct gicv3_its_softc *sc;
 	int err;
 
+	sc = device_get_softc(dev);
 	err = gicv3_its_attach(dev);
 	if (err != 0)
 		return (err);
-
-	sc = device_get_softc(dev);
 
 	sc->sc_pic = intr_pic_register(dev, 1);
 	intr_pic_add_handler(device_get_parent(dev), sc->sc_pic,
