@@ -1042,10 +1042,13 @@ calc_opt2p(struct adapter *sc, struct port_info *pi, int rxqid,
 		opt2 |= F_RX_COALESCE_VALID;
 	else {
 		opt2 |= F_T5_OPT_2_VALID;
-		opt2 |= F_CONG_CNTRL_VALID; /* OPT_2_ISS really, for T5 */
+		opt2 |= F_T5_ISS;
 	}
 	if (sc->tt.rx_coalesce)
 		opt2 |= V_RX_COALESCE(M_RX_COALESCE);
+
+	if (sc->tt.cong_algorithm != -1)
+		opt2 |= V_CONG_CNTRL(sc->tt.cong_algorithm & M_CONG_CNTRL);
 
 #ifdef USE_DDP_RX_FLOW_CONTROL
 	if (ulp_mode == ULP_MODE_TCPDDP)

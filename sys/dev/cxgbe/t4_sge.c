@@ -196,6 +196,8 @@ static int free_ring(struct adapter *, bus_dma_tag_t, bus_dmamap_t, bus_addr_t,
 static int alloc_iq_fl(struct vi_info *, struct sge_iq *, struct sge_fl *,
     int, int);
 static int free_iq_fl(struct vi_info *, struct sge_iq *, struct sge_fl *);
+static void add_iq_sysctls(struct sysctl_ctx_list *, struct sysctl_oid *,
+    struct sge_iq *);
 static void add_fl_sysctls(struct adapter *, struct sysctl_ctx_list *,
     struct sysctl_oid *, struct sge_fl *);
 static int alloc_fwq(struct adapter *);
@@ -615,6 +617,16 @@ t4_tweak_chip_settings(struct adapter *sc)
 		else
 			v = V_TSCALE(tscale - 2);
 		t4_set_reg_field(sc, A_SGE_ITP_CONTROL, m, v);
+
+		if (sc->debug_flags & DF_DISABLE_TCB_CACHE) {
+			m = V_RDTHRESHOLD(M_RDTHRESHOLD) | F_WRTHRTHRESHEN |
+			    V_WRTHRTHRESH(M_WRTHRTHRESH);
+			t4_tp_pio_read(sc, &v, 1, A_TP_CMM_CONFIG, 1);
+			v &= ~m;
+			v |= V_RDTHRESHOLD(1) | F_WRTHRTHRESHEN |
+			    V_WRTHRTHRESH(16);
+			t4_tp_pio_write(sc, &v, 1, A_TP_CMM_CONFIG, 1);
+		}
 	}
 
 	/* 4K, 16K, 64K, 256K DDP "page sizes" */
@@ -818,7 +830,7 @@ t4_read_chip_settings(struct adapter *sc)
 		rc = EINVAL;
 	}
 
-	t4_init_tp_params(sc);
+	t4_init_tp_params(sc, 1);
 
 	t4_read_mtu_tbl(sc, sc->params.mtus, NULL);
 	t4_load_mtus(sc, sc->params.mtus, sc->params.a_wnd, sc->params.b_wnd);
@@ -932,70 +944,6 @@ t4_teardown_adapter_queues(struct adapter *sc)
 	return (0);
 }
 
-static inline int
-first_vector(struct vi_info *vi)
-{
-	struct adapter *sc = vi->pi->adapter;
-
-	if (sc->intr_count == 1)
-		return (0);
-
-	return (vi->first_intr);
-}
-
-/*
- * Given an arbitrary "index," come up with an iq that can be used by other
- * queues (of this VI) for interrupt forwarding, SGE egress updates, etc.
- * The iq returned is guaranteed to be something that takes direct interrupts.
- */
-static struct sge_iq *
-vi_intr_iq(struct vi_info *vi, int idx)
-{
-	struct adapter *sc = vi->pi->adapter;
-	struct sge *s = &sc->sge;
-	struct sge_iq *iq = NULL;
-	int nintr, i;
-
-	if (sc->intr_count == 1)
-		return (&sc->sge.fwq);
-
-	nintr = vi->nintr;
-#ifdef DEV_NETMAP
-	/* Do not consider any netmap-only interrupts */
-	if (vi->flags & INTR_RXQ && vi->nnmrxq > vi->nrxq)
-		nintr -= vi->nnmrxq - vi->nrxq;
-#endif
-	KASSERT(nintr != 0,
-	    ("%s: vi %p has no exclusive interrupts, total interrupts = %d",
-	    __func__, vi, sc->intr_count));
-	i = idx % nintr;
-
-	if (vi->flags & INTR_RXQ) {
-	       	if (i < vi->nrxq) {
-			iq = &s->rxq[vi->first_rxq + i].iq;
-			goto done;
-		}
-		i -= vi->nrxq;
-	}
-#ifdef TCP_OFFLOAD
-	if (vi->flags & INTR_OFLD_RXQ) {
-	       	if (i < vi->nofldrxq) {
-			iq = &s->ofld_rxq[vi->first_ofld_rxq + i].iq;
-			goto done;
-		}
-		i -= vi->nofldrxq;
-	}
-#endif
-	panic("%s: vi %p, intr_flags 0x%lx, idx %d, total intr %d\n", __func__,
-	    vi, vi->flags & INTR_ALL, idx, nintr);
-done:
-	MPASS(iq != NULL);
-	KASSERT(iq->flags & IQ_INTR,
-	    ("%s: iq %p (vi %p, intr_flags 0x%lx, idx %d)", __func__, iq, vi,
-	    vi->flags & INTR_ALL, idx));
-	return (iq);
-}
-
 /* Maximum payload that can be delivered with a single iq descriptor */
 static inline int
 mtu_to_max_payload(struct adapter *sc, int mtu, const int toe)
@@ -1021,7 +969,7 @@ mtu_to_max_payload(struct adapter *sc, int mtu, const int toe)
 int
 t4_setup_vi_queues(struct vi_info *vi)
 {
-	int rc = 0, i, j, intr_idx, iqid;
+	int rc = 0, i, intr_idx, iqidx;
 	struct sge_rxq *rxq;
 	struct sge_txq *txq;
 	struct sge_wrq *ctrlq;
@@ -1043,14 +991,14 @@ t4_setup_vi_queues(struct vi_info *vi)
 	int maxp, mtu = ifp->if_mtu;
 
 	/* Interrupt vector to start from (when using multiple vectors) */
-	intr_idx = first_vector(vi);
+	intr_idx = vi->first_intr;
 
 #ifdef DEV_NETMAP
 	saved_idx = intr_idx;
 	if (ifp->if_capabilities & IFCAP_NETMAP) {
 
 		/* netmap is supported with direct interrupts only. */
-		MPASS(vi->flags & INTR_RXQ);
+		MPASS(!forwarding_intr_to_fwq(sc));
 
 		/*
 		 * We don't have buffers to back the netmap rx queues
@@ -1069,8 +1017,8 @@ t4_setup_vi_queues(struct vi_info *vi)
 		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "nm_txq",
 		    CTLFLAG_RD, NULL, "tx queues");
 		for_each_nm_txq(vi, i, nm_txq) {
-			iqid = vi->first_nm_rxq + (i % vi->nnmrxq);
-			rc = alloc_nm_txq(vi, nm_txq, iqid, i, oid);
+			iqidx = vi->first_nm_rxq + (i % vi->nnmrxq);
+			rc = alloc_nm_txq(vi, nm_txq, iqidx, i, oid);
 			if (rc != 0)
 				goto done;
 		}
@@ -1081,15 +1029,12 @@ t4_setup_vi_queues(struct vi_info *vi)
 #endif
 
 	/*
-	 * First pass over all NIC and TOE rx queues:
-	 * a) initialize iq and fl
-	 * b) allocate queue iff it will take direct interrupts.
+	 * Allocate rx queues first because a default iqid is required when
+	 * creating a tx queue.
 	 */
 	maxp = mtu_to_max_payload(sc, mtu, 0);
-	if (vi->flags & INTR_RXQ) {
-		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "rxq",
-		    CTLFLAG_RD, NULL, "rx queues");
-	}
+	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "rxq",
+	    CTLFLAG_RD, NULL, "rx queues");
 	for_each_rxq(vi, i, rxq) {
 
 		init_iq(&rxq->iq, sc, vi->tmr_idx, vi->pktc_idx, vi->qsize_rxq);
@@ -1098,13 +1043,11 @@ t4_setup_vi_queues(struct vi_info *vi)
 		    device_get_nameunit(vi->dev), i);
 		init_fl(sc, &rxq->fl, vi->qsize_rxq / 8, maxp, name);
 
-		if (vi->flags & INTR_RXQ) {
-			rxq->iq.flags |= IQ_INTR;
-			rc = alloc_rxq(vi, rxq, intr_idx, i, oid);
-			if (rc != 0)
-				goto done;
-			intr_idx++;
-		}
+		rc = alloc_rxq(vi, rxq,
+		    forwarding_intr_to_fwq(sc) ? -1 : intr_idx, i, oid);
+		if (rc != 0)
+			goto done;
+		intr_idx++;
 	}
 #ifdef DEV_NETMAP
 	if (ifp->if_capabilities & IFCAP_NETMAP)
@@ -1112,84 +1055,40 @@ t4_setup_vi_queues(struct vi_info *vi)
 #endif
 #ifdef TCP_OFFLOAD
 	maxp = mtu_to_max_payload(sc, mtu, 1);
-	if (vi->flags & INTR_OFLD_RXQ) {
-		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "ofld_rxq",
-		    CTLFLAG_RD, NULL,
-		    "rx queues for offloaded TCP connections");
-	}
+	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "ofld_rxq",
+	    CTLFLAG_RD, NULL, "rx queues for offloaded TCP connections");
 	for_each_ofld_rxq(vi, i, ofld_rxq) {
 
-		init_iq(&ofld_rxq->iq, sc, vi->tmr_idx, vi->pktc_idx,
+		init_iq(&ofld_rxq->iq, sc, vi->ofld_tmr_idx, vi->ofld_pktc_idx,
 		    vi->qsize_rxq);
 
 		snprintf(name, sizeof(name), "%s ofld_rxq%d-fl",
 		    device_get_nameunit(vi->dev), i);
 		init_fl(sc, &ofld_rxq->fl, vi->qsize_rxq / 8, maxp, name);
 
-		if (vi->flags & INTR_OFLD_RXQ) {
-			ofld_rxq->iq.flags |= IQ_INTR;
-			rc = alloc_ofld_rxq(vi, ofld_rxq, intr_idx, i, oid);
-			if (rc != 0)
-				goto done;
-			intr_idx++;
-		}
+		rc = alloc_ofld_rxq(vi, ofld_rxq,
+		    forwarding_intr_to_fwq(sc) ? -1 : intr_idx, i, oid);
+		if (rc != 0)
+			goto done;
+		intr_idx++;
 	}
 #endif
 
 	/*
-	 * Second pass over all NIC and TOE rx queues.  The queues forwarding
-	 * their interrupts are allocated now.
-	 */
-	j = 0;
-	if (!(vi->flags & INTR_RXQ)) {
-		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "rxq",
-		    CTLFLAG_RD, NULL, "rx queues");
-		for_each_rxq(vi, i, rxq) {
-			MPASS(!(rxq->iq.flags & IQ_INTR));
-
-			intr_idx = vi_intr_iq(vi, j)->abs_id;
-
-			rc = alloc_rxq(vi, rxq, intr_idx, i, oid);
-			if (rc != 0)
-				goto done;
-			j++;
-		}
-	}
-#ifdef TCP_OFFLOAD
-	if (vi->nofldrxq != 0 && !(vi->flags & INTR_OFLD_RXQ)) {
-		oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "ofld_rxq",
-		    CTLFLAG_RD, NULL,
-		    "rx queues for offloaded TCP connections");
-		for_each_ofld_rxq(vi, i, ofld_rxq) {
-			MPASS(!(ofld_rxq->iq.flags & IQ_INTR));
-
-			intr_idx = vi_intr_iq(vi, j)->abs_id;
-
-			rc = alloc_ofld_rxq(vi, ofld_rxq, intr_idx, i, oid);
-			if (rc != 0)
-				goto done;
-			j++;
-		}
-	}
-#endif
-
-	/*
-	 * Now the tx queues.  Only one pass needed.
+	 * Now the tx queues.
 	 */
 	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "txq", CTLFLAG_RD,
 	    NULL, "tx queues");
-	j = 0;
 	for_each_txq(vi, i, txq) {
-		iqid = vi_intr_iq(vi, j)->cntxt_id;
+		iqidx = vi->first_rxq + (i % vi->nrxq);
 		snprintf(name, sizeof(name), "%s txq%d",
 		    device_get_nameunit(vi->dev), i);
-		init_eq(sc, &txq->eq, EQ_ETH, vi->qsize_txq, pi->tx_chan, iqid,
-		    name);
+		init_eq(sc, &txq->eq, EQ_ETH, vi->qsize_txq, pi->tx_chan,
+		    sc->sge.rxq[iqidx].iq.cntxt_id, name);
 
 		rc = alloc_txq(vi, txq, i, oid);
 		if (rc != 0)
 			goto done;
-		j++;
 	}
 #ifdef TCP_OFFLOAD
 	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "ofld_txq",
@@ -1197,11 +1096,11 @@ t4_setup_vi_queues(struct vi_info *vi)
 	for_each_ofld_txq(vi, i, ofld_txq) {
 		struct sysctl_oid *oid2;
 
-		iqid = vi_intr_iq(vi, j)->cntxt_id;
+		iqidx = vi->first_ofld_rxq + (i % vi->nofldrxq);
 		snprintf(name, sizeof(name), "%s ofld_txq%d",
 		    device_get_nameunit(vi->dev), i);
 		init_eq(sc, &ofld_txq->eq, EQ_OFLD, vi->qsize_txq, pi->tx_chan,
-		    iqid, name);
+		    sc->sge.ofld_rxq[iqidx].iq.cntxt_id, name);
 
 		snprintf(name, sizeof(name), "%d", i);
 		oid2 = SYSCTL_ADD_NODE(&vi->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
@@ -1210,7 +1109,6 @@ t4_setup_vi_queues(struct vi_info *vi)
 		rc = alloc_wrq(sc, vi, ofld_txq, oid2);
 		if (rc != 0)
 			goto done;
-		j++;
 	}
 #endif
 
@@ -1222,10 +1120,9 @@ t4_setup_vi_queues(struct vi_info *vi)
 	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "ctrlq", CTLFLAG_RD,
 	    NULL, "ctrl queue");
 	ctrlq = &sc->sge.ctrlq[pi->port_id];
-	iqid = vi_intr_iq(vi, 0)->cntxt_id;
 	snprintf(name, sizeof(name), "%s ctrlq", device_get_nameunit(vi->dev));
-	init_eq(sc, &ctrlq->eq, EQ_CTRL, CTRL_EQ_QSIZE, pi->tx_chan, iqid,
-	    name);
+	init_eq(sc, &ctrlq->eq, EQ_CTRL, CTRL_EQ_QSIZE, pi->tx_chan,
+	    sc->sge.rxq[vi->first_rxq].iq.cntxt_id, name);
 	rc = alloc_wrq(sc, vi, ctrlq, oid);
 
 done:
@@ -1291,33 +1188,15 @@ t4_teardown_vi_queues(struct vi_info *vi)
 #endif
 
 	/*
-	 * Then take down the rx queues that forward their interrupts, as they
-	 * reference other rx queues.
+	 * Then take down the rx queues.
 	 */
 
 	for_each_rxq(vi, i, rxq) {
-		if ((rxq->iq.flags & IQ_INTR) == 0)
-			free_rxq(vi, rxq);
+		free_rxq(vi, rxq);
 	}
 #ifdef TCP_OFFLOAD
 	for_each_ofld_rxq(vi, i, ofld_rxq) {
-		if ((ofld_rxq->iq.flags & IQ_INTR) == 0)
-			free_ofld_rxq(vi, ofld_rxq);
-	}
-#endif
-
-	/*
-	 * Then take down the rx queues that take direct interrupts.
-	 */
-
-	for_each_rxq(vi, i, rxq) {
-		if (rxq->iq.flags & IQ_INTR)
-			free_rxq(vi, rxq);
-	}
-#ifdef TCP_OFFLOAD
-	for_each_ofld_rxq(vi, i, ofld_rxq) {
-		if (ofld_rxq->iq.flags & IQ_INTR)
-			free_ofld_rxq(vi, ofld_rxq);
+		free_ofld_rxq(vi, ofld_rxq);
 	}
 #endif
 
@@ -2335,7 +2214,7 @@ start_wrq_wr(struct sge_wrq *wrq, int len16, struct wrq_cookie *cookie)
 
 	EQ_LOCK(eq);
 
-	if (!STAILQ_EMPTY(&wrq->wr_list))
+	if (TAILQ_EMPTY(&wrq->incomplete_wrs) && !STAILQ_EMPTY(&wrq->wr_list))
 		drain_wrq_wr_list(sc, wrq);
 
 	if (!STAILQ_EMPTY(&wrq->wr_list)) {
@@ -2389,9 +2268,6 @@ commit_wrq_wr(struct sge_wrq *wrq, void *w, struct wrq_cookie *cookie)
 		return;
 	}
 
-	ndesc = cookie->ndesc;	/* Can be more than SGE_MAX_WR_NDESC here. */
-	pidx = cookie->pidx;
-	MPASS(pidx >= 0 && pidx < eq->sidx);
 	if (__predict_false(w == &wrq->ss[0])) {
 		int n = (eq->sidx - wrq->ss_pidx) * EQ_ESIZE;
 
@@ -2403,6 +2279,9 @@ commit_wrq_wr(struct sge_wrq *wrq, void *w, struct wrq_cookie *cookie)
 		wrq->tx_wrs_direct++;
 
 	EQ_LOCK(eq);
+	ndesc = cookie->ndesc;	/* Can be more than SGE_MAX_WR_NDESC here. */
+	pidx = cookie->pidx;
+	MPASS(pidx >= 0 && pidx < eq->sidx);
 	prev = TAILQ_PREV(cookie, wrq_incomplete_wrs, link);
 	next = TAILQ_NEXT(cookie, link);
 	if (prev == NULL) {
@@ -2694,9 +2573,9 @@ free_ring(struct adapter *sc, bus_dma_tag_t tag, bus_dmamap_t map,
  * Returns errno on failure.  Resources allocated up to that point may still be
  * allocated.  Caller is responsible for cleanup in case this function fails.
  *
- * If the ingress queue will take interrupts directly (iq->flags & IQ_INTR) then
- * the intr_idx specifies the vector, starting from 0.  Otherwise it specifies
- * the abs_id of the ingress queue to which its interrupts should be forwarded.
+ * If the ingress queue will take interrupts directly then the intr_idx
+ * specifies the vector, starting from 0.  -1 means the interrupts for this
+ * queue should be forwarded to the fwq.
  */
 static int
 alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
@@ -2728,12 +2607,15 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 	if (iq == &sc->sge.fwq)
 		v |= F_FW_IQ_CMD_IQASYNCH;
 
-	if (iq->flags & IQ_INTR) {
+	if (intr_idx < 0) {
+		/* Forwarded interrupts, all headed to fwq */
+		v |= F_FW_IQ_CMD_IQANDST;
+		v |= V_FW_IQ_CMD_IQANDSTINDEX(sc->sge.fwq.cntxt_id);
+	} else {
 		KASSERT(intr_idx < sc->intr_count,
 		    ("%s: invalid direct intr_idx %d", __func__, intr_idx));
-	} else
-		v |= F_FW_IQ_CMD_IQANDST;
-	v |= V_FW_IQ_CMD_IQANDSTINDEX(intr_idx);
+		v |= V_FW_IQ_CMD_IQANDSTINDEX(intr_idx);
+	}
 
 	c.type_to_iqandstindex = htobe32(v |
 	    V_FW_IQ_CMD_TYPE(FW_IQ_TYPE_FL_INT_CAP) |
@@ -2933,6 +2815,27 @@ free_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl)
 }
 
 static void
+add_iq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
+    struct sge_iq *iq)
+{
+	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_UAUTO(ctx, children, OID_AUTO, "ba", CTLFLAG_RD, &iq->ba,
+	    "bus address of descriptor ring");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
+	    iq->qsize * IQ_ESIZE, "descriptor ring size in bytes");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "abs_id",
+	    CTLTYPE_INT | CTLFLAG_RD, &iq->abs_id, 0, sysctl_uint16, "I",
+	    "absolute id of the queue");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
+	    CTLTYPE_INT | CTLFLAG_RD, &iq->cntxt_id, 0, sysctl_uint16, "I",
+	    "SGE context id of the queue");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cidx",
+	    CTLTYPE_INT | CTLFLAG_RD, &iq->cidx, 0, sysctl_uint16, "I",
+	    "consumer index");
+}
+
+static void
 add_fl_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
     struct sysctl_oid *oid, struct sge_fl *fl)
 {
@@ -2983,7 +2886,6 @@ alloc_fwq(struct adapter *sc)
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
 
 	init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE);
-	fwq->flags |= IQ_INTR;	/* always */
 	if (sc->flags & IS_VF)
 		intr_idx = 0;
 	else {
@@ -3000,21 +2902,7 @@ alloc_fwq(struct adapter *sc)
 
 	oid = SYSCTL_ADD_NODE(&sc->ctx, children, OID_AUTO, "fwq", CTLFLAG_RD,
 	    NULL, "firmware event queue");
-	children = SYSCTL_CHILDREN(oid);
-
-	SYSCTL_ADD_UAUTO(&sc->ctx, children, OID_AUTO, "ba", CTLFLAG_RD,
-	    &fwq->ba, "bus address of descriptor ring");
-	SYSCTL_ADD_INT(&sc->ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
-	    fwq->qsize * IQ_ESIZE, "descriptor ring size in bytes");
-	SYSCTL_ADD_PROC(&sc->ctx, children, OID_AUTO, "abs_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &fwq->abs_id, 0, sysctl_uint16, "I",
-	    "absolute id of the queue");
-	SYSCTL_ADD_PROC(&sc->ctx, children, OID_AUTO, "cntxt_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &fwq->cntxt_id, 0, sysctl_uint16, "I",
-	    "SGE context id of the queue");
-	SYSCTL_ADD_PROC(&sc->ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD, &fwq->cidx, 0, sysctl_uint16, "I",
-	    "consumer index");
+	add_iq_sysctls(&sc->ctx, oid, fwq);
 
 	return (0);
 }
@@ -3066,7 +2954,7 @@ tnl_cong(struct port_info *pi, int drop)
 	else if (drop == 1)
 		return (0);
 	else
-		return (pi->rx_chan_map);
+		return (pi->rx_e_chan_map);
 }
 
 static int
@@ -3117,19 +3005,7 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int intr_idx, int idx,
 	    NULL, "rx queue");
 	children = SYSCTL_CHILDREN(oid);
 
-	SYSCTL_ADD_UAUTO(&vi->ctx, children, OID_AUTO, "ba", CTLFLAG_RD,
-	    &rxq->iq.ba, "bus address of descriptor ring");
-	SYSCTL_ADD_INT(&vi->ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
-	    rxq->iq.qsize * IQ_ESIZE, "descriptor ring size in bytes");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "abs_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &rxq->iq.abs_id, 0, sysctl_uint16, "I",
-	    "absolute id of the queue");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cntxt_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &rxq->iq.cntxt_id, 0, sysctl_uint16, "I",
-	    "SGE context id of the queue");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD, &rxq->iq.cidx, 0, sysctl_uint16, "I",
-	    "consumer index");
+	add_iq_sysctls(&vi->ctx, oid, &rxq->iq);
 #if defined(INET) || defined(INET6)
 	SYSCTL_ADD_U64(&vi->ctx, children, OID_AUTO, "lro_queued", CTLFLAG_RD,
 	    &rxq->lro.lro_queued, 0, NULL);
@@ -3176,8 +3052,7 @@ alloc_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq,
 	struct sysctl_oid_list *children;
 	char name[16];
 
-	rc = alloc_iq_fl(vi, &ofld_rxq->iq, &ofld_rxq->fl, intr_idx,
-	    pi->rx_chan_map);
+	rc = alloc_iq_fl(vi, &ofld_rxq->iq, &ofld_rxq->fl, intr_idx, 0);
 	if (rc != 0)
 		return (rc);
 
@@ -3186,22 +3061,7 @@ alloc_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq,
 	snprintf(name, sizeof(name), "%d", idx);
 	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name, CTLFLAG_RD,
 	    NULL, "rx queue");
-	children = SYSCTL_CHILDREN(oid);
-
-	SYSCTL_ADD_UAUTO(&vi->ctx, children, OID_AUTO, "ba", CTLFLAG_RD,
-	    &ofld_rxq->iq.ba, "bus address of descriptor ring");
-	SYSCTL_ADD_INT(&vi->ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
-	    ofld_rxq->iq.qsize * IQ_ESIZE, "descriptor ring size in bytes");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "abs_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &ofld_rxq->iq.abs_id, 0, sysctl_uint16,
-	    "I", "absolute id of the queue");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cntxt_id",
-	    CTLTYPE_INT | CTLFLAG_RD, &ofld_rxq->iq.cntxt_id, 0, sysctl_uint16,
-	    "I", "SGE context id of the queue");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD, &ofld_rxq->iq.cidx, 0, sysctl_uint16, "I",
-	    "consumer index");
-
+	add_iq_sysctls(&vi->ctx, oid, &ofld_rxq->iq);
 	add_fl_sysctls(pi->adapter, &vi->ctx, oid, &ofld_rxq->fl);
 
 	return (rc);
@@ -4572,12 +4432,8 @@ write_txpkts_wr(struct sge_txq *txq, struct fw_eth_tx_pkts_wr *wr,
 			if (checkwrap &&
 			    (uintptr_t)cpl == (uintptr_t)&eq->desc[eq->sidx])
 				cpl = (void *)&eq->desc[0];
-			txq->txpkts0_pkts += txp->npkt;
-			txq->txpkts0_wrs++;
 		} else {
 			cpl = flitp;
-			txq->txpkts1_pkts += txp->npkt;
-			txq->txpkts1_wrs++;
 		}
 
 		/* Checksum offload */
@@ -4610,6 +4466,14 @@ write_txpkts_wr(struct sge_txq *txq, struct fw_eth_tx_pkts_wr *wr,
 
 		write_gl_to_txd(txq, m, (caddr_t *)(&flitp), checkwrap);
 
+	}
+
+	if (txp->wr_type == 0) {
+		txq->txpkts0_pkts += txp->npkt;
+		txq->txpkts0_wrs++;
+	} else {
+		txq->txpkts1_pkts += txp->npkt;
+		txq->txpkts1_wrs++;
 	}
 
 	txsd = &txq->sdesc[eq->pidx];
