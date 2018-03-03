@@ -3,10 +3,9 @@
 PROG=	${BOOT}.out
 INTERNALPROG=
 FILES=	${BOOT}
-MAN=
 SRCS=	start.s boot.s boot0.5.s disk.s selector.s support.s syscons.s \
 	putssjis.s
-CLEANFILES= ${BOOT} ${BOOT}.bin
+CLEANFILES+= ${BOOT} ${BOOT}.bin
 
 BOOT=	boot0.5
 
@@ -14,7 +13,7 @@ BOOT=	boot0.5
 # unless you are glutton for punishment.
 BOOT_BOOT0_ORG?=	0x0000
 
-LDFLAGS=-e start -Ttext ${BOOT_BOOT0_ORG} -Wl,-N,-T,${.CURDIR}/ldscript
+LDFLAGS+=-e start -Ttext ${BOOT_BOOT0_ORG} -Wl,-N,-T,${.CURDIR}/ldscript
 
 # The size of boot0.5 must be 7168 bytes
 ${BOOT}: ${BOOT}.bin

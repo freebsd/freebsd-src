@@ -1,16 +1,18 @@
 # $FreeBSD$
 
+.include <bsd.init.mk>
+
 PROG=	cdboot
 STRIP=
 BINMODE=${NOBINMODE}
 MAN=
 SRCS=	${PROG}.S
 
-CFLAGS+=-I${.CURDIR}/../../i386/common
+CFLAGS+=-I${BOOTSRC}/i386/common
 
 ORG=	0x0000
 
-LDFLAGS=${LDFLAGS_BIN}
+LDFLAGS+=${LDFLAGS_BIN}
 
 .include <bsd.prog.mk>
 

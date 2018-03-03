@@ -1,25 +1,17 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-MK_SSP=		no
-MAN=
-
 LOADER?=	loader
 PROG=		${LOADER}.sym
-INTERNALPROG=
 NEWVERSWHAT=	"bootstrap loader" pc98
-VERSION_FILE=	${.CURDIR}/../../i386/loader/version
+VERSION_FILE=	${BOOTSRC}/i386/loader/version
+
+LOADER_NET_SUPPORT=	yes
+
+.include <bsd.init.mk>
 
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c
-.PATH:		${.CURDIR}/../../i386/loader
-
-# Enable PXE TFTP or NFS support, not both.
-.if defined(LOADER_TFTP_SUPPORT)
-CFLAGS+=	-DLOADER_TFTP_SUPPORT
-.else
-CFLAGS+=	-DLOADER_NFS_SUPPORT
-.endif
+.PATH:		${BOOTSRC}/i386/loader
 
 # Include bcache code.
 HAVE_BCACHE=	yes
@@ -28,37 +20,18 @@ HAVE_BCACHE=	yes
 HAVE_PNP=	yes
 HAVE_ISABUS=	yes
 
-.if ${MK_FORTH} != "no"
-# Enable BootForth
-BOOT_FORTH=	yes
-CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386
-LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
-.endif
-
-.if defined(LOADER_BZIP2_SUPPORT)
-CFLAGS+=	-DLOADER_BZIP2_SUPPORT
-.endif
-.if !defined(LOADER_NO_GZIP_SUPPORT)
-CFLAGS+=	-DLOADER_GZIP_SUPPORT
-.endif
-
 # Always add MI sources
-.PATH:		${.CURDIR}/../../common
-.include	"${.CURDIR}/../../common/Makefile.inc"
-CFLAGS+=	-I${.CURDIR}/../../common
-CFLAGS+=	-I${.CURDIR}/../../i386
-CFLAGS+=	-I.
+.include	"${BOOTSRC}/loader.mk"
 
-CLEANFILES=	${LOADER} ${LOADER}.bin loader.help
+CLEANFILES+=	${LOADER} ${LOADER}.bin loader.help
 
 CFLAGS+=	-Wall
-LDFLAGS=	-static -Ttext 0x0
+LDFLAGS+=	-static -Ttext 0x0
+CFLAGS+=	-I${BOOTSRC} -I${BOOTSRC}/i386
 
 # pc98 standalone support library
-LIBPC98=	${.OBJDIR}/../libpc98/libpc98.a
-CFLAGS+=	-I${.CURDIR}/..
-
-LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
+LIBPC98=	${BOOTOBJ}/pc98/libpc98/libpc98.a
+CFLAGS+=	-I${BOOTSRC}/pc98
 
 # BTX components
 CFLAGS+=	-I${.CURDIR}/../btx/lib
@@ -66,9 +39,6 @@ CFLAGS+=	-I${.CURDIR}/../btx/lib
 # Debug me!
 #CFLAGS+=	-g
 #LDFLAGS+=	-g
-
-# Pick up ../Makefile.inc early.
-.include <bsd.init.mk>
 
 ${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
 	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
@@ -79,21 +49,16 @@ ${LOADER}.bin: ${LOADER}.sym
 	strip -R .comment -R .note ${.TARGET}
 
 loader.help: help.common help.pc98
-	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
+	cat ${.ALLSRC} | awk -f ${BOOTSRC}/common/merge_help.awk > ${.TARGET}
 
 FILES=	${LOADER}
 # XXX INSTALLFLAGS_loader= -b
 FILESMODE_${LOADER}= ${BINMODE} -b
 
-.PATH: ${.CURDIR}/../../forth
-.include	"${.CURDIR}/../../forth/Makefile.inc"
-
-FILES+=	${.CURDIR}/../../i386/loader/loader.rc menu.rc
-
 # XXX crt0.o needs to be first for pxeboot(8) to work
 OBJS=	${BTXCRT}
 
-DPADD=	${LIBFICL} ${LIBPC98} ${LIBSTAND}
-LDADD=	${LIBFICL} ${LIBPC98} ${LIBSTAND}
+DPADD=	${LDR_INTERP} ${LIBPC98} ${LIBSA}
+LDADD=	${LDR_INTERP} ${LIBPC98} ${LIBSA}
 
 .include <bsd.prog.mk>
