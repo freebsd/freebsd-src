@@ -165,6 +165,7 @@ MAN=	aac.4 \
 	fd.4 \
 	fdc.4 \
 	fdt.4 \
+	fdt_pinctrl.4 \
 	fdtbus.4 \
 	ffclock.4 \
 	filemon.4 \
