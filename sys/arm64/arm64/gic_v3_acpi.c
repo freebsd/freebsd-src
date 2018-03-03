@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include "gic_v3_var.h"
 
 struct gic_v3_acpi_devinfo {
+	struct gic_v3_devinfo	di_gic_dinfo;
 	struct resource_list	di_rl;
 };
 
@@ -315,6 +316,7 @@ gic_v3_add_children(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		resource_list_add(&di->di_rl, SYS_RES_MEMORY, 0,
 		    gict->BaseAddress, gict->BaseAddress + 128 * 1024 - 1,
 		    128 * 1024);
+		di->di_gic_dinfo.gic_domain = -1;
 		sc->gic_nchildren++;
 		device_set_ivars(child, di);
 	}
