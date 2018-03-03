@@ -515,7 +515,7 @@ check(const char *path, const char *name, struct stat *sp)
 			    "%s: -P was specified, but file is not writable",
 			    path);
 		(void)fprintf(stderr, "override %s%s%s/%s %s%sfor %s? ",
-		    modep + 1, modep[9] == ' ' ? "" : " ",
+		    modep + 1, modep[10] == ' ' ? "" : " ",
 		    user_from_uid(sp->st_uid, 0),
 		    group_from_gid(sp->st_gid, 0),
 		    *flagsp ? flagsp : "", *flagsp ? " " : "",
