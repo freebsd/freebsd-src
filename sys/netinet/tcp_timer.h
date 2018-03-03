@@ -188,6 +188,7 @@ extern int tcp_ttl;			/* time to live for TCP segs */
 extern int tcp_backoff[];
 extern int tcp_syn_backoff[];
 
+extern int tcp_always_keepalive;
 extern int tcp_finwait2_timeout;
 extern int tcp_fast_finwait2_recycle;
 

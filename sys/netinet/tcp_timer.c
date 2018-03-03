@@ -116,9 +116,10 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_slop, CTLTYPE_INT|CTLFLAG_RW,
     &tcp_rexmit_slop, 0, sysctl_msec_to_ticks, "I",
     "Retransmission Timer Slop");
 
-static int	always_keepalive = 1;
+int	tcp_always_keepalive = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, always_keepalive, CTLFLAG_RW,
-    &always_keepalive , 0, "Assume SO_KEEPALIVE on all TCP connections");
+    &tcp_always_keepalive , 0, "Assume SO_KEEPALIVE on all TCP connections");
+__strong_reference(tcp_always_keepalive, always_keepalive);
 
 int    tcp_fast_finwait2_recycle = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, fast_finwait2_recycle, CTLFLAG_RW, 
@@ -428,7 +429,8 @@ tcp_timer_keep(void *xtp)
 	TCPSTAT_INC(tcps_keeptimeo);
 	if (tp->t_state < TCPS_ESTABLISHED)
 		goto dropit;
-	if ((always_keepalive || inp->inp_socket->so_options & SO_KEEPALIVE) &&
+	if ((tcp_always_keepalive ||
+	    inp->inp_socket->so_options & SO_KEEPALIVE) &&
 	    tp->t_state <= TCPS_CLOSING) {
 		if (ticks - tp->t_rcvtime >= TP_KEEPIDLE(tp) + TP_MAXIDLE(tp))
 			goto dropit;
