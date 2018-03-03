@@ -69,6 +69,7 @@ static __inline struct number	*pop_number(void);
 static __inline char	*pop_string(void);
 static __inline void	 clear_stack(void);
 static __inline void	 print_tos(void);
+static void		 print_err(void);
 static void		 pop_print(void);
 static void		 pop_printn(void);
 static __inline void	 print_stack(void);
@@ -198,6 +199,7 @@ static const struct jump_entry jump_table_data[] = {
 	{ 'a',	to_ascii	},
 	{ 'c',	clear_stack	},
 	{ 'd',	dup		},
+	{ 'e',	print_err	},
 	{ 'f',	print_stack	},
 	{ 'i',	set_ibase	},
 	{ 'k',	set_scale	},
@@ -502,6 +504,18 @@ print_tos(void)
 	if (value != NULL) {
 		print_value(stdout, value, "", bmachine.obase);
 		putchar('\n');
+	}
+	else
+		warnx("stack empty");
+}
+
+static void
+print_err(void)
+{
+	struct value *value = tos();
+	if (value != NULL) {
+		print_value(stderr, value, "", bmachine.obase);
+		(void)putc('\n', stderr);
 	}
 	else
 		warnx("stack empty");
