@@ -24,10 +24,38 @@ RELOBJTOP?=	${RELTOP}
 RELSRCTOP?=	${RELTOP}
 
 # site customizations that do not depend on anything!
+
+# Save MAKEOBJDIRPREFIX and don't let src-env.conf modify it.
+# MAKEOBJDIRPREFIX is only needed in MAKELEVEL=0.  In sub-makes it will
+# either be read from environment or OBJDIR/MAKEOBJDIR according to
+# src.sys.obj.mk.
+.if !(${.MAKE.LEVEL} == 0 || empty(OBJROOT))
+.if defined(MAKEOBJDIRPREFIX)
+_saveMAKEOBJDIRPREFIX:=	${MAKEOBJDIRPREFIX}
+.else
+_undefMAKEOBJDIRPREFIX=	t
+.endif
+.endif
+
 SRC_ENV_CONF?= /etc/src-env.conf
 .if !empty(SRC_ENV_CONF) && !target(_src_env_conf_included_)
 .-include "${SRC_ENV_CONF}"
 _src_env_conf_included_:	.NOTMAIN
+.endif
+
+.if defined(_saveMAKEOBJDIRPREFIX) || defined(_undefMAKEOBJDIRPREFIX)
+.if defined(MAKEOBJDIRPREFIX) && ((defined(_saveMAKEOBJDIRPREFIX) && \
+    ${_saveMAKEOBJDIRPREFIX} != ${MAKEOBJDIRPREFIX}) || \
+    defined(_undefMAKEOBJDIRPREFIX))
+.warning ${SRC_ENV_CONF}: Ignoring MAKEOBJDIRPREFIX entry in sub-make.  Use '?=' to avoid this warning.
+.endif
+.if defined(_saveMAKEOBJDIRPREFIX)
+MAKEOBJDIRPREFIX:=	${_saveMAKEOBJDIRPREFIX}
+.undef _saveMAKEOBJDIRPREFIX
+.elif defined(_undefMAKEOBJDIRPREFIX)
+.undef MAKEOBJDIRPREFIX
+.undef _undefMAKEOBJDIRPREFIX
+.endif
 .endif
 
 .include <bsd.mkopt.mk>
