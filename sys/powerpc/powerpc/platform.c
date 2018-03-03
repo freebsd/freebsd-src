@@ -156,10 +156,14 @@ mem_regions(struct mem_region **phys, int *physsz, struct mem_region **avail,
 		}
 	}
 
-	*phys = pregions;
-	*avail = aregions;
-	*physsz = npregions;
-	*availsz = naregions;
+	if (phys != NULL)
+		*phys = pregions;
+	if (avail != NULL)
+		*avail = aregions;
+	if (physsz != NULL)
+		*physsz = npregions;
+	if (availsz != NULL)
+		*availsz = naregions;
 }
 
 int
