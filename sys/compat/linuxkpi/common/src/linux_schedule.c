@@ -83,7 +83,7 @@ linux_msleep_interruptible(unsigned int ms)
 	/* guard against invalid values */
 	if (ms == 0)
 		ms = 1;
-	ret = -pause_sbt("lnxsleep", SBT_1MS * ms, 0, C_HARDCLOCK | C_CATCH);
+	ret = -pause_sbt("lnxsleep", mstosbt(ms), 0, C_HARDCLOCK | C_CATCH);
 
 	switch (ret) {
 	case -EWOULDBLOCK:

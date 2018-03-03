@@ -41,7 +41,7 @@ linux_msleep(unsigned int ms)
 	/* guard against invalid values */
 	if (ms == 0)
 		ms = 1;
-	pause_sbt("lnxsleep", SBT_1MS * ms, 0, C_HARDCLOCK);
+	pause_sbt("lnxsleep", mstosbt(ms), 0, C_HARDCLOCK);
 }
 
 #undef msleep
