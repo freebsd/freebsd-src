@@ -311,8 +311,8 @@ make_established(struct toepcb *toep, uint32_t snd_isn, uint32_t rcv_isn,
 	    tp->t_state == TCPS_SYN_RECEIVED,
 	    ("%s: TCP state %s", __func__, tcpstates[tp->t_state]));
 
-	CTR4(KTR_CXGBE, "%s: tid %d, toep %p, inp %p",
-	    __func__, toep->tid, toep, inp);
+	CTR6(KTR_CXGBE, "%s: tid %d, so %p, inp %p, tp %p, toep %p",
+	    __func__, toep->tid, so, inp, tp, toep);
 
 	tp->t_state = TCPS_ESTABLISHED;
 	tp->t_starttime = ticks;

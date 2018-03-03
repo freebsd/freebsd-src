@@ -144,6 +144,7 @@ struct uld_info {
 };
 
 struct tom_tunables {
+	int cong_algorithm;
 	int sndbuf;
 	int ddp;
 	int rx_coalesce;
