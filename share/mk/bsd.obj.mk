@@ -159,7 +159,7 @@ whereobj:
 
 .if ${CANONICALOBJDIR} != ${.CURDIR} && exists(${CANONICALOBJDIR}/)
 cleanobj:
-	@-rm -rf ${CANONICALOBJDIR}
+	-rm -rf ${CANONICALOBJDIR}
 .else
 cleanobj: clean cleandepend
 .endif
