@@ -380,8 +380,13 @@ function drawer.drawbox()
 		printc(vl)
 	end
 
-	screen.setcursor(x + (w / 2) - 9, y)
-	printc("Welcome to FreeBSD")
+	local menu_header = loader.getenv("loader_menu_title") or
+	    "Welcome to FreeBSD"
+	local menu_header_x
+
+	menu_header_x = x + (w / 2) - (#menu_header / 2)
+	screen.setcursor(menu_header_x, y)
+	printc(menu_header)
 end
 
 function drawer.draw(x, y, logo)
