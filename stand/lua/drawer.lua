@@ -382,9 +382,22 @@ function drawer.drawbox()
 
 	local menu_header = loader.getenv("loader_menu_title") or
 	    "Welcome to FreeBSD"
+	local menu_header_align = loader.getenv("loader_menu_title_align")
 	local menu_header_x
 
-	menu_header_x = x + (w / 2) - (#menu_header / 2)
+	if menu_header_align ~= nil then
+		menu_header_align = menu_header_align:lower()
+		if menu_header_align == "left" then
+			-- Just inside the left border on top
+			menu_header_x = x + 1
+		elseif menu_header_align == "right" then
+			-- Just inside the right border on top
+			menu_header_x = x + w - #menu_header
+		end
+	end
+	if menu_header_x == nil then
+		menu_header_x = x + (w / 2) - (#menu_header / 2)
+	end
 	screen.setcursor(menu_header_x, y)
 	printc(menu_header)
 end
