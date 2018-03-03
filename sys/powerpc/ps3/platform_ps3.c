@@ -141,37 +141,38 @@ void
 ps3_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
     struct mem_region *avail_regions, int *availsz)
 {
-	uint64_t lpar_id, junk, ppe_id;
+	uint64_t lpar_id, junk;
+	int i;
 
-	/* Get real mode memory region */
-	avail_regions[0].mr_start = 0;
-	lv1_get_logical_partition_id(&lpar_id);
-	lv1_get_logical_ppe_id(&ppe_id);
-	lv1_get_repository_node_value(lpar_id,
-	    lv1_repository_string("bi") >> 32, lv1_repository_string("pu"),
-	    ppe_id, lv1_repository_string("rm_size"),
-	    &avail_regions[0].mr_size, &junk);
+	/* Prefer device tree information if available */
+	if (OF_finddevice("/") != -1) {
+		ofw_mem_regions(phys, physsz, avail_regions, availsz);
+	} else {
+		/* Real mode memory region is first segment */
+		phys[0].mr_start = 0;
+		phys[0].mr_size = ps3_real_maxaddr(plat);
+		*physsz = *availsz = 1;
+		avail_regions[0] = phys[0];
+	}
 
 	/* Now get extended memory region */
+	lv1_get_logical_partition_id(&lpar_id);
 	lv1_get_repository_node_value(lpar_id,
 	    lv1_repository_string("bi") >> 32,
 	    lv1_repository_string("rgntotal"), 0, 0,
-	    &avail_regions[1].mr_size, &junk);
+	    &phys[*physsz].mr_size, &junk);
+	for (i = 0; i < *physsz; i++)
+		phys[*physsz].mr_size -= phys[i].mr_size;
 
 	/* Convert to maximum amount we can allocate in 16 MB pages */
-	avail_regions[1].mr_size -= avail_regions[0].mr_size;
-	avail_regions[1].mr_size -= avail_regions[1].mr_size % (16*1024*1024);
+	phys[*physsz].mr_size -= phys[*physsz].mr_size % (16*1024*1024);
 
 	/* Allocate extended memory region */
-	lv1_allocate_memory(avail_regions[1].mr_size, 24 /* 16 MB pages */,
-	    0, 0x04 /* any address */, &avail_regions[1].mr_start, &junk);
-
-	*availsz = 2;
-
-	if (phys != NULL) {
-		memcpy(phys, avail_regions, sizeof(*phys)*2);
-		*physsz = 2;
-	}
+	lv1_allocate_memory(phys[*physsz].mr_size, 24 /* 16 MB pages */,
+	    0, 0x04 /* any address */, &phys[*physsz].mr_start, &junk);
+	avail_regions[*availsz] = phys[*physsz];
+	(*physsz)++;
+	(*availsz)++;
 }
 
 static u_long
@@ -260,12 +261,22 @@ ps3_reset(platform_t plat)
 static vm_offset_t
 ps3_real_maxaddr(platform_t plat)
 {
-	struct mem_region *phys, *avail;
-	int nphys, navail;
+	uint64_t lpar_id, junk, ppe_id;
+	static uint64_t rm_maxaddr = 0;
 
-	mem_regions(&phys, &nphys, &avail, &navail);
+	if (rm_maxaddr == 0) {
+		/* Get real mode memory region */
+		lv1_get_logical_partition_id(&lpar_id);
+		lv1_get_logical_ppe_id(&ppe_id);
 
-	return (phys[0].mr_start + phys[0].mr_size);
+		lv1_get_repository_node_value(lpar_id,
+		    lv1_repository_string("bi") >> 32,
+		    lv1_repository_string("pu"),
+		    ppe_id, lv1_repository_string("rm_size"),
+		    &rm_maxaddr, &junk);
+	}
+	
+	return (rm_maxaddr);
 }
 
 static void
