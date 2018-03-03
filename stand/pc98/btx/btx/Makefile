@@ -1,8 +1,9 @@
 # $FreeBSD$
 
+.include <bsd.init.mk>
+
 PROG=	btx
 INTERNALPROG=
-MAN=
 SRCS=	btx.S
 
 .if defined(BOOT_BTX_NOHANG)
@@ -12,7 +13,7 @@ BOOT_BTX_FLAGS=0x0
 .endif
 
 CFLAGS+=-DBTX_FLAGS=${BOOT_BTX_FLAGS}
-CFLAGS+=-I${.CURDIR}/../../../i386/common
+CFLAGS+=-I${BOOTSRC}/i386/common
 
 .if defined(BTX_SERIAL)
 BOOT_COMCONSOLE_PORT?= 0x238
@@ -25,7 +26,7 @@ CFLAGS+=-DBTX_SERIAL -DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 
 ORG=	0x9000
 
-LDFLAGS=${LDFLAGS_BIN}
+LDFLAGS+=${LDFLAGS_BIN}
 
 .include <bsd.prog.mk>
 

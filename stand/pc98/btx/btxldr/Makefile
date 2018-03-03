@@ -1,19 +1,20 @@
 # $FreeBSD$
 
+.include <bsd.init.mk>
+
 PROG=	btxldr
 INTERNALPROG=
-MAN=
 SRCS=	btxldr.S
 
 CFLAGS+=-DLOADER_ADDRESS=${LOADER_ADDRESS}
-CFLAGS+=-I${.CURDIR}/../../../i386/common
+CFLAGS+=-I${BOOTSRC}/i386/common
 
 .if defined(BTXLDR_VERBOSE)
 CFLAGS+=-DBTXLDR_VERBOSE
 .endif
 
 ORG=${LOADER_ADDRESS}
-LDFLAGS=${LDFLAGS_BIN}
+LDFLAGS+=${LDFLAGS_BIN}
 
 .include <bsd.prog.mk>
 

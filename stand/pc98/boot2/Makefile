@@ -27,10 +27,11 @@ CFLAGS=	-fomit-frame-pointer \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 	-DSIOFMT=${B2SIOFMT} \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
-	-I${.CURDIR}/../../.. \
-	-I${.CURDIR}/../../i386/boot2 \
-	-I${.CURDIR}/../../common \
-	-I${.CURDIR}/../btx/lib -I. \
+	-I${LDRSRC} \
+	-I${SYSDIR} \
+	-I${BOOTSRC}/i386/boot2 \
+	-I${BOOTSRC}/common \
+	-I${BOOTSRC}/pc98/btx/lib \
 	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
@@ -52,14 +53,14 @@ CFLAGS.gcc+=   -mno-align-long-strings
 
 CFLAGS.clang+=	-Oz ${CLANG_OPT_SMALL}
 
-LD_FLAGS=${LD_FLAGS_BIN}
+LD_FLAGS+=${LD_FLAGS_BIN}
 
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
 
-.PATH:	${.CURDIR}/../../i386/boot2
+.PATH:	${BOOTSRC}/i386/boot2
 
-CLEANFILES=	boot
+CLEANFILES+=	boot
 
 boot: boot1 boot2
 	cat boot1 boot2 > boot
@@ -98,7 +99,7 @@ boot2.o: boot2.s
 
 SRCS=	boot2.c boot2.h
 
-boot2.s: boot2.c boot2.h ${.CURDIR}/../../common/ufsread.c
+boot2.s: boot2.c boot2.h
 	${CC} ${CFLAGS} -S -o boot2.s.tmp ${.CURDIR}/boot2.c
 	sed -e '/align/d' -e '/nop/d' < boot2.s.tmp > boot2.s
 	rm -f boot2.s.tmp
