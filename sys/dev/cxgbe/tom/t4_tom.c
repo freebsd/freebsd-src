@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
+#include <netinet/tcp_timer.h>
 #include <netinet/toecore.h>
 
 #ifdef TCP_OFFLOAD
@@ -549,8 +550,6 @@ select_rcv_wscale(void)
 	return (wscale);
 }
 
-extern int always_keepalive;
-
 /*
  * socket so could be a listening socket too.
  */
@@ -569,7 +568,7 @@ calc_opt0(struct socket *so, struct vi_info *vi, struct l2t_entry *e,
 	if (so != NULL) {
 		struct inpcb *inp = sotoinpcb(so);
 		struct tcpcb *tp = intotcpcb(inp);
-		int keepalive = always_keepalive ||
+		int keepalive = tcp_always_keepalive ||
 		    so_options_get(so) & SO_KEEPALIVE;
 
 		opt0 |= V_NAGLE((tp->t_flags & TF_NODELAY) == 0);

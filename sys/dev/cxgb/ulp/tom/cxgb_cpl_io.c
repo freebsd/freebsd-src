@@ -86,7 +86,6 @@ VNET_DECLARE(int, tcp_autorcvbuf_inc);
 #define V_tcp_autorcvbuf_inc VNET(tcp_autorcvbuf_inc)
 VNET_DECLARE(int, tcp_autorcvbuf_max);
 #define V_tcp_autorcvbuf_max VNET(tcp_autorcvbuf_max)
-extern int always_keepalive;
 
 /*
  * For ULP connections HW may add headers, e.g., for digests, that aren't part
@@ -839,7 +838,7 @@ calc_opt0h(struct socket *so, int mtu_idx, int rscale, struct l2t_entry *e)
 	if (so != NULL) {
 		struct inpcb *inp = sotoinpcb(so);
 		struct tcpcb *tp = intotcpcb(inp);
-		int keepalive = always_keepalive ||
+		int keepalive = tcp_always_keepalive ||
 		    so_options_get(so) & SO_KEEPALIVE;
 
 		opt0h |= V_NAGLE((tp->t_flags & TF_NODELAY) == 0);
