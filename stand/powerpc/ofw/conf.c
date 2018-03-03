@@ -97,6 +97,9 @@ struct netif_driver *netif_drivers[] = {
  * rather than reading the file go first.
  */
 
+struct file_format ofw_elf;
+struct file_format ofw_elf64;
+
 struct file_format *file_formats[] = {
     &ofw_elf,
     &ofw_elf64,
