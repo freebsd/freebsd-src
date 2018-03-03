@@ -77,6 +77,25 @@ lua_perform(lua_State *L)
 	return 1;
 }
 
+/*
+ * Accepts a space-delimited loader command and runs it through the standard
+ * loader parsing, as if it were executed at the loader prompt by the user.
+ */
+static int
+lua_interpret(lua_State *L)
+{
+	const char	*interp_string;
+
+	if (lua_gettop(L) != 1) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	interp_string = luaL_checkstring(L, 1);
+	lua_pushinteger(L, interp_run(interp_string));
+	return 1;
+}
+
 static int
 lua_getchar(lua_State *L)
 {
@@ -305,6 +324,7 @@ lua_writefile(lua_State *L)
 static const struct luaL_Reg loaderlib[] = {
 	REG_SIMPLE(delay),
 	REG_SIMPLE(command),
+	REG_SIMPLE(interpret),
 	REG_SIMPLE(getenv),
 	REG_SIMPLE(perform),
 	/* Also registered as the global 'printc' */
