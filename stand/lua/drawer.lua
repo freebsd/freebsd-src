@@ -454,7 +454,7 @@ function drawer.drawlogo()
 	x = x + drawer.shift.x
 	y = y + drawer.shift.y
 
-	if logdef ~= nil and logodef.shift ~= nil then
+	if logodef ~= nil and logodef.shift ~= nil then
 		x = x + logodef.shift.x
 		y = y + logodef.shift.y
 	end
