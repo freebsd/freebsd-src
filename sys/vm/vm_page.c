@@ -3268,7 +3268,7 @@ vm_page_free_pages_toq(struct spglist *free, bool update_wire_count)
 
 	vm_page_free_phys_pglist(&pgl);
 
-	if (update_wire_count && count > 0)
+	if (update_wire_count)
 		vm_wire_sub(count);
 }
 
