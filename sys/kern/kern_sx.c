@@ -413,6 +413,7 @@ int
 sx_try_upgrade_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF)
 {
 	uintptr_t x;
+	uintptr_t waiters;
 	int success;
 
 	if (SCHEDULER_STOPPED())
@@ -427,9 +428,18 @@ sx_try_upgrade_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF)
 	 * to maintain the SX_LOCK_EXCLUSIVE_WAITERS flag if set so that
 	 * we will wake up the exclusive waiters when we drop the lock.
 	 */
-	x = sx->sx_lock & SX_LOCK_EXCLUSIVE_WAITERS;
-	success = atomic_cmpset_acq_ptr(&sx->sx_lock, SX_SHARERS_LOCK(1) | x,
-	    (uintptr_t)curthread | x);
+	success = 0;
+	x = SX_READ_VALUE(sx);
+	for (;;) {
+		if (SX_SHARERS(x) > 1)
+			break;
+		waiters = (x & SX_LOCK_EXCLUSIVE_WAITERS);
+		if (atomic_fcmpset_acq_ptr(&sx->sx_lock, &x,
+		    (uintptr_t)curthread | waiters)) {
+			success = 1;
+			break;
+		}
+	}
 	LOCK_LOG_TRY("XUPGRADE", &sx->lock_object, 0, success, file, line);
 	if (success) {
 		WITNESS_UPGRADE(&sx->lock_object, LOP_EXCLUSIVE | LOP_TRYLOCK,
