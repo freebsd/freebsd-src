@@ -359,6 +359,7 @@ ds1307_gettime(device_t dev, struct timespec *ts)
 	bct.mon  = data[DS1307_MONTH] & DS1307_MONTH_MASK;
 	bct.year = data[DS1307_YEAR]  & DS1307_YEAR_MASK;
 
+	clock_dbgprint_bcd(sc->sc_dev, CLOCK_DBG_READ, &bct); 
 	return (clock_bcd_to_ts(&bct, ts, sc->sc_use_ampm));
 }
 
@@ -379,6 +380,7 @@ ds1307_settime(device_t dev, struct timespec *ts)
 	 */
 	ts->tv_sec -= utc_offset();
 	clock_ts_to_bcd(ts, &bct, sc->sc_use_ampm);
+	clock_dbgprint_bcd(sc->sc_dev, CLOCK_DBG_WRITE, &bct);
 
 	/* If the chip is in AM/PM mode, adjust hour and set flags as needed. */
 	if (sc->sc_use_ampm) {
