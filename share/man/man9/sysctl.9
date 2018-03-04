@@ -667,6 +667,9 @@ This
 .Xr sysctl 9
 handler is MP safe.
 Do not grab Giant around calls to this handler.
+This should only be used for
+.Fn SYSCTL_PROC
+entries.
 .El
 .Pp
 Additionally, any of the following optional flags may also be specified:
