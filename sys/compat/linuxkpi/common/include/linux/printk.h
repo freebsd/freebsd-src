@@ -118,4 +118,7 @@ print_hex_dump_bytes(const char *prefix_str, const int prefix_type,
 	__retval;				\
 })
 
+#define	pr_err_ratelimited(fmt, ...) \
+	printk_ratelimited(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
+
 #endif					/* _LINUX_PRINTK_H_ */
