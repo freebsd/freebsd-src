@@ -234,18 +234,6 @@ lockmgr_note_exclusive_release(struct lock *lk, const char *file, int line)
 	TD_LOCKS_DEC(curthread);
 }
 
-static void
-lockmgr_note_exclusive_upgrade(struct lock *lk, const char *file, int line,
-    int flags)
-{
-
-	LOCK_LOG_LOCK("XUPGRADE", &lk->lock_object, 0, 0, file,
-	    line);
-	WITNESS_UPGRADE(&lk->lock_object, LOP_EXCLUSIVE |
-	    LK_TRYWIT(flags), file, line);
-	TD_SLOCKS_DEC(curthread);
-}
-
 static __inline struct thread *
 lockmgr_xholder(const struct lock *lk)
 {
