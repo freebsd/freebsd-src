@@ -24,6 +24,9 @@ _srcconf_included_:
 .MAKE.MODE+=	curdirOk=yes
 .endif
 
+# The kernel build always expects .OBJDIR=.CURDIR.
+.OBJDIR: ${.CURDIR}
+
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
 KERNEL?=	kernel
