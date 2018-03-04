@@ -608,6 +608,7 @@ nxprtc_gettime(device_t dev, struct timespec *ts)
 				sc->flags |= SC_F_CPOL;
 	}
 
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct); 
 	err = clock_bcd_to_ts(&bct, ts, sc->use_ampm);
 	ts->tv_sec += utc_offset();
 
@@ -648,6 +649,7 @@ nxprtc_settime(device_t dev, struct timespec *ts)
 	ts->tv_sec -= utc_offset();
 	ts->tv_nsec = 0;
 	clock_ts_to_bcd(ts, &bct, sc->use_ampm);
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_WRITE, &bct);
 
 	/* On 8563 set the century based on the polarity seen when reading. */
 	cflag = 0;
