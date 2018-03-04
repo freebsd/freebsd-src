@@ -535,6 +535,7 @@ void vm_page_test_dirty (vm_page_t);
 vm_page_bits_t vm_page_bits(int base, int size);
 void vm_page_zero_invalid(vm_page_t m, boolean_t setvalid);
 void vm_page_free_toq(vm_page_t m);
+void vm_page_free_pages_toq(struct spglist *free, bool update_wire_count);
 
 void vm_page_dirty_KBI(vm_page_t m);
 void vm_page_lock_KBI(vm_page_t m, const char *file, int line);
