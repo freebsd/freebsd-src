@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# The LINT files need to end up in the kernel source directory.
+.OBJDIR: ${.CURDIR}
+
 all:
 	@echo "make LINT only"
 
@@ -9,9 +12,10 @@ clean:
 	rm -f LINT-VIMAGE LINT-NOINET LINT-NOINET6 LINT-NOIP
 .endif
 
-NOTES=	../../conf/NOTES NOTES
-LINT: ${NOTES} ../../conf/makeLINT.sed
-	cat ${NOTES} | sed -E -n -f ../../conf/makeLINT.sed > ${.TARGET}
+NOTES=	${.CURDIR}/../../conf/NOTES ${.CURDIR}/NOTES
+MAKELINT_SED= ${.CURDIR}/../../conf/makeLINT.sed
+LINT: ${NOTES} ${MAKELINT_SED}
+	cat ${NOTES} | sed -E -n -f ${MAKELINT_SED} > ${.TARGET}
 .if ${TARGET} == "amd64" || ${TARGET} == "i386"
 	echo "include ${.TARGET}"	>  ${.TARGET}-VIMAGE
 	echo "ident ${.TARGET}-VIMAGE"	>> ${.TARGET}-VIMAGE
