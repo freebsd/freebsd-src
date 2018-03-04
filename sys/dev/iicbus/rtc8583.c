@@ -237,7 +237,7 @@ rtc8583_gettime(device_t dev, struct timespec *ts)
 	bct.hour = tregs.hour & 0x3f;
 	bct.day  = tregs.day & 0x3f;
 	bct.mon  = tregs.month & 0x1f;
-	bct.year = (bin2bcd(sreg / 100) << 8) | bin2bcd(sreg % 100);
+	bct.year = bin2bcd(sreg % 100);
 
 	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct); 
 	return (clock_bcd_to_ts(&bct, ts, false));
@@ -269,7 +269,7 @@ rtc8583_settime(device_t dev, struct timespec *ts)
 		return (err);
 	err = rtc8583_writeto(sc->dev, RTC8583_SC_REG, &tregs,
 	    sizeof(tregs), IIC_WAIT);
-	sreg = bcd2bin(bct.year & 0xff) + 100 * bcd2bin(bct.year >> 8);
+	sreg = bcd2bin(bct.year & 0xff);
 	/* save to year to sram */
 	rtc8583_write1(sc, RTC8583_USERSRAM_REG, sreg);
 	iicbus_release_bus(sc->busdev, sc->dev);
