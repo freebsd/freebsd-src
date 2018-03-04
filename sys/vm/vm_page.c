@@ -2538,17 +2538,7 @@ unlock:
 	}
 	if (m_mtx != NULL)
 		mtx_unlock(m_mtx);
-	if ((m = SLIST_FIRST(&free)) != NULL) {
-		vmd = VM_DOMAIN(domain);
-		vm_domain_free_lock(vmd);
-		do {
-			MPASS(vm_phys_domain(m) == domain);
-			SLIST_REMOVE_HEAD(&free, plinks.s.ss);
-			vm_page_free_phys(vmd, m);
-		} while ((m = SLIST_FIRST(&free)) != NULL);
-		vm_domain_free_wakeup(vmd);
-		vm_domain_free_unlock(vmd);
-	}
+	vm_page_free_pages_toq(&free, false);
 	return (error);
 }
 
@@ -3248,7 +3238,42 @@ vm_page_free_toq(vm_page_t m)
 }
 
 /*
- * vm_page_wire:
+ *	vm_page_free_pages_toq:
+ *
+ *	Returns a list of pages to the free list, disassociating it
+ *	from any VM object.  In other words, this is equivalent to
+ *	calling vm_page_free_toq() for each page of a list of VM objects.
+ *
+ *	The objects must be locked.  The pages must be locked if it is
+ *	managed.
+ */
+void
+vm_page_free_pages_toq(struct spglist *free, bool update_wire_count)
+{
+	vm_page_t m;
+	struct pglist pgl;
+	int count;
+
+	if (SLIST_EMPTY(free))
+		return;
+
+	count = 0;
+	TAILQ_INIT(&pgl);
+	while ((m = SLIST_FIRST(free)) != NULL) {
+		count++;
+		SLIST_REMOVE_HEAD(free, plinks.s.ss);
+		if (vm_page_free_prep(m, false))
+			TAILQ_INSERT_TAIL(&pgl, m, listq);
+	}
+
+	vm_page_free_phys_pglist(&pgl);
+
+	if (update_wire_count && count > 0)
+		vm_wire_sub(count);
+}
+
+/*
+ *	vm_page_wire:
  *
  * Mark this page as wired down.  If the page is fictitious, then
  * its wire count must remain one.
