@@ -77,8 +77,7 @@ function cli_execute(...)
 	local argv = {...}
 	-- Just in case...
 	if #argv == 0 then
-		loader.command(...)
-		return
+		return loader.command(...)
 	end
 
 	local cmd_name = argv[1]
@@ -88,9 +87,9 @@ function cli_execute(...)
 		-- traditional reasons for including it don't necessarily apply,
 		-- it may not be totally redundant if we want to have one global
 		-- handling multiple commands
-		cmd(...)
+		return cmd(...)
 	else
-		loader.command(...)
+		return loader.command(...)
 	end
 
 end
