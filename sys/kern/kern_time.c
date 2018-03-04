@@ -510,7 +510,8 @@ kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 	if (error != EWOULDBLOCK) {
 		if (error == ERESTART)
 			error = EINTR;
-		TIMESEL(&sbtt, tmp);
+		if (TIMESEL(&sbtt, tmp))
+			sbtt += tc_tick_sbt;
 		if (rmt != NULL) {
 			ts = sbttots(sbt - sbtt);
 			ts.tv_sec += over;
