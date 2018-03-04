@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2017
+.Dd March 3, 2018
 .Dt SYSCTL 9
 .Os
 .Sh NAME
@@ -662,6 +662,11 @@ this flag will prevent fetching the initial value from the system
 environment.
 Typically this flag should only be used for very early
 low level system setup code, and not by common drivers and modules.
+.It Dv CTLFLAG_MPSAFE
+This
+.Xr sysctl 9
+handler is MP safe.
+Do not grab Giant around calls to this handler.
 .El
 .Pp
 Additionally, any of the following optional flags may also be specified:
