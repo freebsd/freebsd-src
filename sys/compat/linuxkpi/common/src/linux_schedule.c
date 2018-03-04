@@ -176,6 +176,13 @@ autoremove_wake_function(wait_queue_t *wq, unsigned int state, int flags,
 	return (ret);
 }
 
+int
+default_wake_function(wait_queue_t *wq, unsigned int state, int flags,
+    void *key __unused)
+{
+	return (wake_up_task(wq->private, state));
+}
+
 void
 linux_wake_up(wait_queue_head_t *wqh, unsigned int state, int nr, bool locked)
 {
