@@ -579,6 +579,62 @@ ieee80211_ibss_merge_check(struct ieee80211_node *ni)
 }
 
 /*
+ * Check if the given node should populate the node table.
+ *
+ * We need to be in "see all beacons for all ssids" mode in order
+ * to do IBSS merges, however this means we will populate nodes for
+ * /all/ IBSS SSIDs, versus just the one we care about.
+ *
+ * So this check ensures the node can actually belong to our IBSS
+ * configuration.  For now it simply checks the SSID.
+ */
+int
+ieee80211_ibss_node_check_new(struct ieee80211_node *ni,
+    const struct ieee80211_scanparams *scan)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	int i;
+
+	/*
+	 * If we have no SSID and no scan SSID, return OK.
+	 */
+	if (vap->iv_des_nssid == 0 && scan->ssid == NULL)
+		goto ok;
+
+	/*
+	 * If we have one of (SSID, scan SSID) then return error.
+	 */
+	if (!! (vap->iv_des_nssid == 0) != !! (scan->ssid == NULL))
+		goto mismatch;
+
+	/*
+	 * Double-check - we need scan SSID.
+	 */
+	if (scan->ssid == NULL)
+		goto mismatch;
+
+	/*
+	 * Check if the scan SSID matches the SSID list for the VAP.
+	 */
+	for (i = 0; i < vap->iv_des_nssid; i++) {
+
+		/* Sanity length check */
+		if (vap->iv_des_ssid[i].len != scan->ssid[1])
+			continue;
+
+		/* Note: SSID in the scan entry is the IE format */
+		if (memcmp(vap->iv_des_ssid[i].ssid, scan->ssid + 2,
+		    vap->iv_des_ssid[i].len) == 0)
+			goto ok;
+	}
+
+mismatch:
+	return (0);
+ok:
+	return (1);
+}
+
+/*
  * Handle 802.11 ad hoc network merge.  The
  * convention, set by the Wireless Ethernet Compatibility Alliance
  * (WECA), is that an 802.11 station will change its BSSID to match
