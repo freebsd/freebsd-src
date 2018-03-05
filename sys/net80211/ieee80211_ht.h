@@ -210,6 +210,8 @@ void	ieee80211_ampdu_stop(struct ieee80211_node *,
 int	ieee80211_send_bar(struct ieee80211_node *, struct ieee80211_tx_ampdu *,
 		ieee80211_seq);
 uint8_t	*ieee80211_add_htcap(uint8_t *, struct ieee80211_node *);
+uint8_t	*ieee80211_add_htcap_ch(uint8_t *, struct ieee80211vap *,
+	    struct ieee80211_channel *);
 uint8_t	*ieee80211_add_htcap_vendor(uint8_t *, struct ieee80211_node *);
 uint8_t	*ieee80211_add_htinfo(uint8_t *, struct ieee80211_node *);
 uint8_t	*ieee80211_add_htinfo_vendor(uint8_t *, struct ieee80211_node *);
