@@ -296,7 +296,7 @@ sleeplk(struct lock *lk, u_int flags, struct lock_object *ilk,
 static __inline int
 wakeupshlk(struct lock *lk, const char *file, int line)
 {
-	uintptr_t v, x;
+	uintptr_t v, x, orig_x;
 	u_int realexslp;
 	int queue, wakeup_swapper;
 
@@ -311,7 +311,9 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 		 * path in order to handle wakeups correctly.
 		 */
 		sleepq_lock(&lk->lock_object);
-		x = lk->lk_lock & (LK_ALL_WAITERS | LK_EXCLUSIVE_SPINNERS);
+		orig_x = lk->lk_lock;
+retry_sleepq:
+		x = orig_x & (LK_ALL_WAITERS | LK_EXCLUSIVE_SPINNERS);
 		v = LK_UNLOCKED;
 
 		/*
@@ -360,10 +362,15 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 			queue = SQ_SHARED_QUEUE;
 		}
 
-		if (!atomic_cmpset_rel_ptr(&lk->lk_lock, LK_SHARERS_LOCK(1) | x,
-		    v)) {
+		if (lockmgr_sunlock_try(lk, &orig_x)) {
 			sleepq_release(&lk->lock_object);
-			continue;
+			break;
+		}
+
+		x |= LK_SHARERS_LOCK(1);
+		if (!atomic_fcmpset_rel_ptr(&lk->lk_lock, &x, v)) {
+			orig_x = x;
+			goto retry_sleepq;
 		}
 		LOCK_LOG3(lk, "%s: %p waking up threads on the %s queue",
 		    __func__, lk, queue == SQ_SHARED_QUEUE ? "shared" :
@@ -602,6 +609,7 @@ lockmgr_slock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 		 */
 		sleepq_lock(&lk->lock_object);
 		x = lk->lk_lock;
+retry_sleepq:
 
 		/*
 		 * if the lock can be acquired in shared mode, try
@@ -617,10 +625,9 @@ lockmgr_slock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 		 * loop back and retry.
 		 */
 		if ((x & LK_SHARED_WAITERS) == 0) {
-			if (!atomic_cmpset_acq_ptr(&lk->lk_lock, x,
+			if (!atomic_fcmpset_acq_ptr(&lk->lk_lock, &x,
 			    x | LK_SHARED_WAITERS)) {
-				sleepq_release(&lk->lock_object);
-				continue;
+				goto retry_sleepq;
 			}
 			LOCK_LOG2(lk, "%s: %p set shared waiters flag",
 			    __func__, lk);
@@ -755,6 +762,7 @@ lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 		 */
 		sleepq_lock(&lk->lock_object);
 		x = lk->lk_lock;
+retry_sleepq:
 
 		/*
 		 * if the lock has been released while we spun on
@@ -777,7 +785,7 @@ lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 		v = x & (LK_ALL_WAITERS | LK_EXCLUSIVE_SPINNERS);
 		if ((x & ~v) == LK_UNLOCKED) {
 			v &= ~LK_EXCLUSIVE_SPINNERS;
-			if (atomic_cmpset_acq_ptr(&lk->lk_lock, x,
+			if (atomic_fcmpset_acq_ptr(&lk->lk_lock, &x,
 			    tid | v)) {
 				sleepq_release(&lk->lock_object);
 				LOCK_LOG2(lk,
@@ -785,8 +793,7 @@ lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 				    __func__, lk);
 				break;
 			}
-			sleepq_release(&lk->lock_object);
-			continue;
+			goto retry_sleepq;
 		}
 
 		/*
@@ -794,10 +801,9 @@ lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 		 * fail, loop back and retry.
 		 */
 		if ((x & LK_EXCLUSIVE_WAITERS) == 0) {
-			if (!atomic_cmpset_ptr(&lk->lk_lock, x,
+			if (!atomic_fcmpset_ptr(&lk->lk_lock, &x,
 			    x | LK_EXCLUSIVE_WAITERS)) {
-				sleepq_release(&lk->lock_object);
-				continue;
+				goto retry_sleepq;
 			}
 			LOCK_LOG2(lk, "%s: %p set excl waiters flag",
 			    __func__, lk);
