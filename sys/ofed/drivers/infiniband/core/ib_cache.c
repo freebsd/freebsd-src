@@ -336,29 +336,12 @@ int ib_cache_gid_add(struct ib_device *ib_dev, u8 port,
 	struct ib_gid_table *table;
 	int ix;
 	int ret = 0;
-	struct net_device *idev;
 	int empty;
 
 	table = ports_table[port - rdma_start_port(ib_dev)];
 
 	if (!memcmp(gid, &zgid, sizeof(*gid)))
 		return -EINVAL;
-
-	if (ib_dev->get_netdev) {
-		idev = ib_dev->get_netdev(ib_dev, port);
-		if (idev && attr->ndev != idev) {
-			union ib_gid default_gid;
-
-			/* Adding default GIDs in not permitted */
-			make_default_gid(idev, &default_gid);
-			if (!memcmp(gid, &default_gid, sizeof(*gid))) {
-				dev_put(idev);
-				return -EPERM;
-			}
-		}
-		if (idev)
-			dev_put(idev);
-	}
 
 	mutex_lock(&table->lock);
 	write_lock_irq(&table->rwlock);
