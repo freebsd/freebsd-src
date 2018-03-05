@@ -183,12 +183,9 @@ map_set(RPCB *regp, char *owner)
 	a->r_addr = strdup(reg.r_addr);
 	a->r_owner = strdup(owner);
 	if (!a->r_addr || !a->r_netid || !a->r_owner) {
-		if (a->r_netid)
-			free(a->r_netid);
-		if (a->r_addr)
-			free(a->r_addr);
-		if (a->r_owner)
-			free(a->r_owner);
+		free(a->r_netid);
+		free(a->r_addr);
+		free(a->r_owner);
 		free(rbl);
 		return (FALSE);
 	}
@@ -372,11 +369,8 @@ rpcbproc_uaddr2taddr_com(void *arg, struct svc_req *rqstp __unused,
 	static struct netbuf nbuf;
 	static struct netbuf *taddr;
 
-	if (taddr) {
-		free(taddr->buf);
-		free(taddr);
-		taddr = NULL;
-	}
+	netbuffree(taddr);
+	taddr = NULL;
 	if (((nconf = rpcbind_get_conf(transp->xp_netid)) == NULL) ||
 	    ((taddr = uaddr2taddr(nconf, *uaddrp)) == NULL)) {
 		(void) memset((char *)&nbuf, 0, sizeof (struct netbuf));
@@ -685,8 +679,7 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
 			(unsigned long)a.rmt_prog, (unsigned long)a.rmt_vers,
 			(unsigned long)a.rmt_proc, transp->xp_netid,
 			uaddr ? uaddr : "unknown");
-		if (uaddr)
-			free(uaddr);
+		free(uaddr);
 	}
 #endif
 
@@ -730,8 +723,7 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
 			rbl->rpcb_map.r_addr, NULL);
 		if (uaddr == NULL || uaddr[0] == '\0') {
 			svcerr_noprog(transp);
-			if (uaddr != NULL)
-				free(uaddr);
+			free(uaddr);
 			goto error;
 		}
 		free(uaddr);
@@ -910,18 +902,11 @@ error:
 	if (call_msg.rm_xid != 0)
 		(void) free_slot_by_xid(call_msg.rm_xid);
 out:
-	if (local_uaddr)
-		free(local_uaddr);
-	if (buf_alloc)
-		free(buf_alloc);
-	if (outbuf_alloc)
-		free(outbuf_alloc);
-	if (na) {
-		free(na->buf);
-		free(na);
-	}
-	if (m_uaddr != NULL)
-		free(m_uaddr);
+	free(local_uaddr);
+	free(buf_alloc);
+	free(outbuf_alloc);
+	netbuffree(na);
+	free(m_uaddr);
 }
 
 /*
@@ -1058,8 +1043,7 @@ netbuf_copybuf(struct netbuf *dst, const struct netbuf *src)
 	assert(src->len <= src->maxlen);
 
 	if (dst->maxlen < src->len || dst->buf == NULL) {
-		if (dst->buf != NULL)
-			free(dst->buf);
+		free(dst->buf);
 		if ((dst->buf = calloc(1, src->maxlen)) == NULL)
 			return (FALSE);
 		dst->maxlen = src->maxlen;
@@ -1088,6 +1072,9 @@ netbufdup(struct netbuf *ap)
 static void
 netbuffree(struct netbuf *ap)
 {
+
+	if (ap == NULL)
+		return;
 	free(ap->buf);
 	ap->buf = NULL;
 	free(ap);
@@ -1317,13 +1304,11 @@ handle_reply(int fd, SVCXPRT *xprt)
 		fprintf(stderr, "handle_reply:  forwarding address %s to %s\n",
 			a.rmt_uaddr, uaddr ? uaddr : "unknown");
 	}
-	if (uaddr)
-		free(uaddr);
+	free(uaddr);
 #endif
 	svc_sendreply(xprt, (xdrproc_t) xdr_rmtcall_result, (char *) &a);
 done:
-	if (buffer)
-		free(buffer);
+	free(buffer);
 
 	if (reply_msg.rm_xid == 0) {
 #ifdef	SVC_RUN_DEBUG
