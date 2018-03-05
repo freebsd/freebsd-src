@@ -271,8 +271,12 @@ static void
 htcp_cong_signal(struct cc_var *ccv, uint32_t type)
 {
 	struct htcp *htcp_data;
+	uint32_t cwin;
+	u_int mss;
 
 	htcp_data = ccv->cc_data;
+	cwin = CCV(ccv, snd_cwnd);
+	mss = CCV(ccv, t_maxseg);
 
 	switch (type) {
 	case CC_NDUPACK:
@@ -287,8 +291,9 @@ htcp_cong_signal(struct cc_var *ccv, uint32_t type)
 				    (htcp_data->maxrtt - htcp_data->minrtt) *
 				    95) / 100;
 				htcp_ssthresh_update(ccv);
+				CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
 				htcp_data->t_last_cong = ticks;
-				htcp_data->prev_cwnd = CCV(ccv, snd_cwnd);
+				htcp_data->prev_cwnd = cwin;
 			}
 			ENTER_RECOVERY(CCV(ccv, t_flags));
 		}
@@ -305,7 +310,7 @@ htcp_cong_signal(struct cc_var *ccv, uint32_t type)
 			htcp_ssthresh_update(ccv);
 			CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
 			htcp_data->t_last_cong = ticks;
-			htcp_data->prev_cwnd = CCV(ccv, snd_cwnd);
+			htcp_data->prev_cwnd = cwin;
 			ENTER_CONGRECOVERY(CCV(ccv, t_flags));
 		}
 		break;
@@ -320,6 +325,10 @@ htcp_cong_signal(struct cc_var *ccv, uint32_t type)
 		 */
 		if (CCV(ccv, t_rxtshift) >= 2)
 			htcp_data->t_last_cong = ticks;
+		CCV(ccv, snd_ssthresh) =
+		    max((CCV(ccv, snd_max) - CCV(ccv, snd_una)) / 2 / mss, 2)
+			* mss;
+		CCV(ccv, snd_cwnd) = mss;
 		break;
 	}
 }
@@ -511,6 +520,10 @@ htcp_ssthresh_update(struct cc_var *ccv)
 		CCV(ccv, snd_ssthresh) = (CCV(ccv, snd_cwnd) * htcp_data->beta)
 		    >> HTCP_SHIFT;
 	}
+
+	/* Align ssthresh to MSS boundary */
+	CCV(ccv, snd_ssthresh) = (CCV(ccv, snd_ssthresh) / CCV(ccv, t_maxseg))
+	    * CCV(ccv, t_maxseg);
 }
 
 
