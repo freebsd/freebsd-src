@@ -1,6 +1,8 @@
 /* $NetBSD: cd9660_archimedes.h,v 1.1 2009/01/10 22:06:29 bjh21 Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1998, 2009 Ben Harris
  * All rights reserved.
  *

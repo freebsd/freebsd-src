@@ -1,5 +1,8 @@
-/* 
+/*-
  *  at.h -  header for at(1)
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  *  Copyright (C) 1993  Thomas Koenig
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,6 +24,8 @@
  * THEORY OF LIABILITY, WETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 time_t parsetime(int argc, char **argv);

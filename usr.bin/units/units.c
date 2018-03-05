@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * units.c   Copyright (c) 1993 by Adrian Mariano (adrian@cam.cornell.edu)
  *
  * Redistribution and use in source and binary forms, with or without

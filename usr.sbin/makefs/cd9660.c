@@ -1,6 +1,8 @@
 /*	$NetBSD: cd9660.c,v 1.31 2011/08/06 23:25:19 christos Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-4-Clause
+ *
  * Copyright (c) 2005 Daniel Watt, Walter Deignan, Ryan Gabrys, Alan
  * Perez-Rathke and Ram Vedam.  All rights reserved.
  *

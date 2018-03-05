@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2017 Dell EMC
  * Copyright (c) 2007 Sandvine Incorporated
  * Copyright (c) 1998 John D. Polstra

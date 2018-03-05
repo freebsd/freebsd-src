@@ -3,6 +3,8 @@
 /*	$OpenBSD: util.c,v 1.39 2010/07/02 22:18:03 tedu Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 James Howard and Dag-Erling Coïdan Smørgrav
  * Copyright (C) 2008-2010 Gabor Kovesdan <gabor@FreeBSD.org>
  * Copyright (C) 2017 Kyle Evans <kevans@FreeBSD.org>

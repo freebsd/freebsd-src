@@ -1,5 +1,7 @@
 /*	$NetBSD: seq.c,v 1.7 2010/05/27 08:40:19 dholland Exp $	*/
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2005 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

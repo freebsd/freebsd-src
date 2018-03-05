@@ -1,5 +1,7 @@
 %{
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Kai Wang
  * All rights reserved.
  *

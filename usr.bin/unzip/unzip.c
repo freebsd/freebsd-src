@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, 2010 Joerg Sonnenberger <joerg@NetBSD.org>
  * Copyright (c) 2007-2008 Dag-Erling Smørgrav
  * All rights reserved.
