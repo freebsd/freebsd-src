@@ -237,7 +237,7 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 			if (error != 0)
 				inet_ntop(AF_INET6, &sin->sin6_addr, addr_buf,
 					  sizeof(addr_buf));
-			printf(" --> %s ", addr_buf);
+			printf(" --> %s", addr_buf);
 		}
 	}
 
