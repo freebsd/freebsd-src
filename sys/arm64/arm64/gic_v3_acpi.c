@@ -280,6 +280,9 @@ gic_v3_acpi_attach(device_t dev)
 	 */
 	gic_v3_acpi_bus_attach(dev);
 
+	if (device_get_children(dev, &sc->gic_children, &sc->gic_nchildren) !=0)
+		sc->gic_nchildren = 0;
+
 	return (0);
 
 error:
