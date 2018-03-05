@@ -1926,7 +1926,7 @@ iwm3160fw.fwo			optional iwm3160fw | iwmfw		\
 	no-implicit-rule						\
 	clean		"iwm3160fw.fwo"
 iwm3160.fw			optional iwm3160fw | iwmfw		\
-	dependency	"$S/contrib/dev/iwm/iwm-3160-16.fw.uu" \
+	dependency	"$S/contrib/dev/iwm/iwm-3160-17.fw.uu" \
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwm3160.fw"
@@ -1940,7 +1940,7 @@ iwm7260fw.fwo			optional iwm7260fw | iwmfw		\
 	no-implicit-rule						\
 	clean		"iwm7260fw.fwo"
 iwm7260.fw			optional iwm7260fw | iwmfw		\
-	dependency	"$S/contrib/dev/iwm/iwm-7260-16.fw.uu" \
+	dependency	"$S/contrib/dev/iwm/iwm-7260-17.fw.uu" \
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwm7260.fw"
@@ -1954,7 +1954,7 @@ iwm7265fw.fwo			optional iwm7265fw | iwmfw		\
 	no-implicit-rule						\
 	clean		"iwm7265fw.fwo"
 iwm7265.fw			optional iwm7265fw | iwmfw		\
-	dependency	"$S/contrib/dev/iwm/iwm-7265-16.fw.uu" \
+	dependency	"$S/contrib/dev/iwm/iwm-7265-17.fw.uu" \
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwm7265.fw"
@@ -1982,7 +1982,7 @@ iwm8000Cfw.fwo			optional iwm8000Cfw | iwmfw		\
 	no-implicit-rule						\
 	clean		"iwm8000Cfw.fwo"
 iwm8000C.fw			optional iwm8000Cfw | iwmfw		\
-	dependency	"$S/contrib/dev/iwm/iwm-8000C-16.fw.uu" \
+	dependency	"$S/contrib/dev/iwm/iwm-8000C-17.fw.uu" \
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwm8000C.fw"
