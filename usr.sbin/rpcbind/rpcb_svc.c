@@ -48,6 +48,9 @@
 #include <rpc/rpcb_prot.h>
 #include <netconfig.h>
 #include <stdio.h>
+#ifdef RPCBIND_DEBUG
+#include <stdlib.h>
+#endif
 #include <string.h>
 
 #include "rpcbind.h"
