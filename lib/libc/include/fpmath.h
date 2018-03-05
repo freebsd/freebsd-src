@@ -27,6 +27,9 @@
  * $FreeBSD$
  */
 
+#ifndef _FPMATH_H_
+#define _FPMATH_H_
+
 #include <sys/endian.h>
 #include "_fpmath.h"
 
@@ -73,3 +76,5 @@ union IEEEd2bits {
 #endif
 	} bits;
 };
+
+#endif /* !_FPMATH_H */
