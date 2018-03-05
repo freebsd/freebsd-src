@@ -65,12 +65,12 @@ main(int argc, char *argv[])
 	FTSENT *p;
 	u_long clear, newflags, set;
 	long val;
-	int Hflag, Lflag, Rflag, fflag, hflag, vflag;
+	int Hflag, Lflag, Rflag, fflag, hflag, vflag, xflag;
 	int ch, fts_options, oct, rval;
 	char *flags, *ep;
 
-	Hflag = Lflag = Rflag = fflag = hflag = vflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRfhv")) != -1)
+	Hflag = Lflag = Rflag = fflag = hflag = vflag = xflag = 0;
+	while ((ch = getopt(argc, argv, "HLPRfhvx")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -94,6 +94,9 @@ main(int argc, char *argv[])
 			break;
 		case 'v':
 			vflag++;
+			break;
+		case 'x':
+			xflag = 1;
 			break;
 		case '?':
 		default:
@@ -123,6 +126,8 @@ main(int argc, char *argv[])
 	} else {
 		fts_options = FTS_LOGICAL;
 	}
+	if (xflag)
+		fts_options |= FTS_XDEV;
 
 	flags = *argv;
 	if (*flags >= '0' && *flags <= '7') {
@@ -201,6 +206,6 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: chflags [-fhv] [-R [-H | -L | -P]] flags file ...\n");
+	    "usage: chflags [-fhvx] [-R [-H | -L | -P]] flags file ...\n");
 	exit(1);
 }
