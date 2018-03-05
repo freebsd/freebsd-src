@@ -176,6 +176,8 @@ ieee80211_tdma_vattach(struct ieee80211vap *vap)
 	settxparms(vap, IEEE80211_MODE_11NG, TDMA_TXRATE_11NG_DEFAULT);
 	settxparms(vap, IEEE80211_MODE_HALF, TDMA_TXRATE_HALF_DEFAULT);
 	settxparms(vap, IEEE80211_MODE_QUARTER, TDMA_TXRATE_QUARTER_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_VHT_2GHZ, TDMA_TXRATE_11NG_DEFAULT);
+	settxparms(vap, IEEE80211_MODE_VHT_5GHZ, TDMA_TXRATE_11NA_DEFAULT);
 
 	setackpolicy(vap->iv_ic, 1);	/* disable ACK's */
 
