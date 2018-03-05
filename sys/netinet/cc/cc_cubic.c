@@ -225,8 +225,12 @@ static void
 cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 {
 	struct cubic *cubic_data;
+	uint32_t cwin;
+	u_int mss;
 
 	cubic_data = ccv->cc_data;
+	cwin = CCV(ccv, snd_cwnd);
+	mss = CCV(ccv, t_maxseg);
 
 	switch (type) {
 	case CC_NDUPACK:
@@ -235,7 +239,8 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 				cubic_ssthresh_update(ccv);
 				cubic_data->num_cong_events++;
 				cubic_data->prev_max_cwnd = cubic_data->max_cwnd;
-				cubic_data->max_cwnd = CCV(ccv, snd_cwnd);
+				cubic_data->max_cwnd = cwin;
+				CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
 			}
 			ENTER_RECOVERY(CCV(ccv, t_flags));
 		}
@@ -246,7 +251,7 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 			cubic_ssthresh_update(ccv);
 			cubic_data->num_cong_events++;
 			cubic_data->prev_max_cwnd = cubic_data->max_cwnd;
-			cubic_data->max_cwnd = CCV(ccv, snd_cwnd);
+			cubic_data->max_cwnd = cwin;
 			cubic_data->t_last_cong = ticks;
 			CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
 			ENTER_CONGRECOVERY(CCV(ccv, t_flags));
@@ -261,9 +266,13 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 		 * chance the first one is a false alarm and may not indicate
 		 * congestion.
 		 */
-		if (CCV(ccv, t_rxtshift) >= 2)
+		if (CCV(ccv, t_rxtshift) >= 2) {
 			cubic_data->num_cong_events++;
 			cubic_data->t_last_cong = ticks;
+			cubic_ssthresh_update(ccv);
+			cubic_data->max_cwnd = cwin;
+			CCV(ccv, snd_cwnd) = mss;
+		}
 		break;
 	}
 }
