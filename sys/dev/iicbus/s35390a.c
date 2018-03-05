@@ -297,7 +297,7 @@ static int
 s390rtc_gettime(device_t dev, struct timespec *ts)
 {
 	uint8_t bcd[S390_RT1_NBYTES];
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	int error;
 
 	error = s390rtc_read(dev, S390_REALTIME1, bcd, S390_RT1_NBYTES);
@@ -310,37 +310,39 @@ s390rtc_gettime(device_t dev, struct timespec *ts)
 	/*
 	 * Convert the register values into something useable.
 	 */
-	ct.nsec = 0;
-	ct.sec = FROMBCD(bcd[S390_RT1_SECOND]);
-	ct.min = FROMBCD(bcd[S390_RT1_MINUTE]);
-	ct.hour = FROMBCD(bcd[S390_RT1_HOUR] & 0x3f);
-	ct.day = FROMBCD(bcd[S390_RT1_DAY]);
-	ct.dow = bcd[S390_RT1_WDAY] & 0x07;
-	ct.mon = FROMBCD(bcd[S390_RT1_MONTH]);
-	ct.year = FROMBCD(bcd[S390_RT1_YEAR]) + 2000;
+	bct.nsec = 0;
+	bct.sec  = bcd[S390_RT1_SECOND];
+	bct.min  = bcd[S390_RT1_MINUTE];
+	bct.hour = bcd[S390_RT1_HOUR] & 0x3f;
+	bct.day  = bcd[S390_RT1_DAY];
+	bct.dow  = bcd[S390_RT1_WDAY] & 0x07;
+	bct.mon  = bcd[S390_RT1_MONTH];
+	bct.year = bcd[S390_RT1_YEAR];
 
-	return (clock_ct_to_ts(&ct, ts));
+	clock_dbgprint_bcd(dev, CLOCK_DBG_READ, &bct); 
+	return (clock_bcd_to_ts(&bct, ts, false));
 }
 
 static int
 s390rtc_settime(device_t dev, struct timespec *ts)
 {
 	uint8_t bcd[S390_RT1_NBYTES];
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 
-	clock_ts_to_ct(ts, &ct);
+	clock_ts_to_bcd(ts, &bct, false);
+	clock_dbgprint_bcd(dev, CLOCK_DBG_WRITE, &bct); 
 
 	/*
 	 * Convert our time representation into something the S-xx390
 	 * can understand.
 	 */
-	bcd[S390_RT1_SECOND] = TOBCD(ct.sec);
-	bcd[S390_RT1_MINUTE] = TOBCD(ct.min);
-	bcd[S390_RT1_HOUR] = TOBCD(ct.hour);
-	bcd[S390_RT1_DAY] = TOBCD(ct.day);
-	bcd[S390_RT1_WDAY] = ct.dow;
-	bcd[S390_RT1_MONTH] = TOBCD(ct.mon);
-	bcd[S390_RT1_YEAR] = TOBCD(ct.year % 100);
+	bcd[S390_RT1_SECOND] = bct.sec;
+	bcd[S390_RT1_MINUTE] = bct.min;
+	bcd[S390_RT1_HOUR]   = bct.hour;
+	bcd[S390_RT1_DAY]    = bct.day;
+	bcd[S390_RT1_WDAY]   = bct.dow;
+	bcd[S390_RT1_MONTH]  = bct.mon;
+	bcd[S390_RT1_YEAR]   = bct.year & 0xff;
 
 	return (s390rtc_write(dev, S390_REALTIME1, bcd, S390_RT1_NBYTES));
 }
