@@ -1520,8 +1520,10 @@ rtmsg(int cmd, int flags, int fib)
 			so[RTAX_IFP].ss_len = sizeof(struct sockaddr_dl);
 			rtm_addrs |= RTA_IFP;
 		}
-	} else
+	} else {
 		cmd = RTM_DELETE;
+		flags |= RTF_PINNED;
+	}
 #define rtm m_rtmsg.m_rtm
 	rtm.rtm_type = cmd;
 	rtm.rtm_flags = flags;
