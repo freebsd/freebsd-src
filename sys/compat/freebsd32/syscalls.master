@@ -392,7 +392,7 @@
 206	AUE_FUTIMES	STD	{ int freebsd32_futimes(int fd, \
 				    struct timeval32 *tptr); }
 207	AUE_GETPGID	NOPROTO	{ int getpgid(pid_t pid); }
-208	AUE_NULL	UNIMPL	newreboot (NetBSD)
+208	AUE_NULL	UNIMPL	nosys
 209	AUE_POLL	NOPROTO	{ int poll(struct pollfd *fds, u_int nfds, \
 				    int timeout); }
 
@@ -410,10 +410,6 @@
 218	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
 219	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
 
-;
-; The following were introduced with NetBSD/4.4Lite-2
-; They are initialized by their respective modules/sysinits
-; XXX PROBLEM!!
 220	AUE_SEMCTL	COMPAT7|NOSTD	{ int freebsd32_semctl( \
 				    int semid, int semnum, \
 				    int cmd, union semun32 *arg); }
@@ -475,7 +471,6 @@
 				    int which, clockid_t *clock_id); }
 248	AUE_NULL	UNIMPL	ntp_gettime
 249	AUE_NULL	UNIMPL	nosys
-; syscall numbers initially used in OpenBSD
 250	AUE_MINHERIT	NOPROTO	{ int minherit(void *addr, size_t len, \
 				    int inherit); }
 251	AUE_RFORK	NOPROTO	{ int rfork(int flags); }
@@ -525,7 +520,6 @@
 286	AUE_NULL	UNIMPL	nosys
 287	AUE_NULL	UNIMPL	nosys
 288	AUE_NULL	UNIMPL	nosys
-; 289 and 290 from NetBSD (OpenBSD: 267 and 268)
 289	AUE_PREADV	STD	{ ssize_t freebsd32_preadv(int fd, \
 					struct iovec32 *iovp, \
 					u_int iovcnt, \
@@ -540,7 +534,6 @@
 294	AUE_NULL	UNIMPL	nosys
 295	AUE_NULL	UNIMPL	nosys
 296	AUE_NULL	UNIMPL	nosys
-; XXX 297 is 300 in NetBSD 
 297	AUE_FHSTATFS	COMPAT4	{ int freebsd32_fhstatfs( \
 				    const struct fhandle *u_fhp, \
 				    struct statfs32 *buf); }
