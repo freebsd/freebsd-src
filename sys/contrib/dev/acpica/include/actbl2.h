@@ -444,8 +444,6 @@ typedef struct acpi_ivrs_header
 enum AcpiIvrsType
 {
     ACPI_IVRS_TYPE_HARDWARE         = 0x10,
-    ACPI_IVRS_TYPE_HARDWARE_EXT1    = 0x11,
-    ACPI_IVRS_TYPE_HARDWARE_EXT2    = 0x40,
     ACPI_IVRS_TYPE_MEMORY1          = 0x20,
     ACPI_IVRS_TYPE_MEMORY2          = 0x21,
     ACPI_IVRS_TYPE_MEMORY3          = 0x22
@@ -483,21 +481,6 @@ typedef struct acpi_ivrs_hardware
     UINT32                  Reserved;
 
 } ACPI_IVRS_HARDWARE;
-
-/* 0x11 and 0x40: I/O Virtualization Hardware Definition Block (IVHD) */
-
-typedef struct acpi_ivrs_hardware_new
-{
-    ACPI_IVRS_HEADER        Header;
-    UINT16                  CapabilityOffset;	/* Offset for IOMMU control fields */
-    UINT64                  BaseAddress;	/* IOMMU control registers */
-    UINT16                  PciSegmentGroup;
-    UINT16                  Info;		/* MSI number and unit ID */
-    UINT32                  Attr;		/* IOMMU Feature */
-    UINT64                  ExtFR;		/* IOMMU Extended Feature */
-    UINT64                  Reserved;		/* v1 feature or v2 attribute */
-
-} ACPI_IVRS_HARDWARE_NEW;
 
 /* Masks for Info field above */
 
