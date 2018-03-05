@@ -1,5 +1,7 @@
 /* $OpenBSD: trace.c,v 1.16 2010/09/07 19:58:09 marco Exp $ */
 /*
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2001 Marc Espie.
  *
  * Redistribution and use in source and binary forms, with or without

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004, 2008, 2009 Silicon Graphics International Corp.
  * Copyright (c) 2017 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.

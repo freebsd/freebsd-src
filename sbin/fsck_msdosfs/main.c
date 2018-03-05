@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (C) 1995 Wolfgang Solfrank
  * Copyright (c) 1995 Martin Husemann
  *

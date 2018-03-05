@@ -1,6 +1,8 @@
 /*	$NetBSD: progressbar.c,v 1.21 2009/04/12 10:18:52 lukem Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1997-2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

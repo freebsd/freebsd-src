@@ -1,6 +1,8 @@
 /*	$NetBSD: buf.c,v 1.13 2004/06/20 22:20:18 jmc Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001 Wasabi Systems, Inc.
  * All rights reserved.
  *
