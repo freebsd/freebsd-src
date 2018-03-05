@@ -32,7 +32,7 @@
 .\"	@(#)chflags.1	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd April 20, 2015
+.Dd March 4, 2018
 .Dt CHFLAGS 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd change file flags
 .Sh SYNOPSIS
 .Nm
-.Op Fl fhv
+.Op Fl fhvx
 .Oo
 .Fl R
 .Op Fl H | Fl L | Fl P
@@ -98,6 +98,8 @@ If the
 .Fl v
 option is specified more than once, the old and new flags of the file
 will also be printed, in octal notation.
+.It Fl x
+Do not cross mount points.
 .El
 .Pp
 The flags are specified as an octal number or a comma separated list
