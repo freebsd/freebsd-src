@@ -687,7 +687,7 @@ bpf_check_upgrade(u_long cmd, struct bpf_d *d, struct bpf_insn *fcode, int flen)
 	 * Check if cmd looks like snaplen setting from
 	 * pcap_bpf.c:pcap_open_live().
 	 * Note we're not checking .k value here:
-	 * while pcap_open_live() definitely sets to to non-zero value,
+	 * while pcap_open_live() definitely sets to non-zero value,
 	 * we'd prefer to treat k=0 (deny ALL) case the same way: e.g.
 	 * do not consider upgrading immediately
 	 */

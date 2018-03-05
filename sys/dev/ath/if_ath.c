@@ -1007,9 +1007,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_txq_node_psq_maxdepth = 16;
 
 	/*
-	 * Default the maximum queue depth for a given node
-	 * to 1/4'th the TX buffers, or 64, whichever
-	 * is larger.
+	 * Default the maximum queue to to 1/4'th the TX buffers, or
+	 * 64, whichever is smaller.
 	 */
 	sc->sc_txq_node_maxdepth = MAX(64, ath_txbuf / 4);
 

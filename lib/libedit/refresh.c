@@ -1148,7 +1148,7 @@ re_fastaddc(EditLine *el)
 
 
 /* re_clear_display():
- *	clear the screen buffers so that new new prompt starts fresh.
+ *	clear the screen buffers so that new prompt starts fresh.
  */
 protected void
 re_clear_display(EditLine *el)
