@@ -59,7 +59,8 @@ static int c4iw_modify_port(struct ib_device *ibdev,
 }
 
 static struct ib_ah *c4iw_ah_create(struct ib_pd *pd,
-				    struct ib_ah_attr *ah_attr)
+				    struct ib_ah_attr *ah_attr,
+				    struct ib_udata *udata)
 {
 	return ERR_PTR(-ENOSYS);
 }

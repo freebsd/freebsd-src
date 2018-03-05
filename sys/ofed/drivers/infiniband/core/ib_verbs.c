@@ -321,7 +321,7 @@ struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 {
 	struct ib_ah *ah;
 
-	ah = pd->device->create_ah(pd, ah_attr);
+	ah = pd->device->create_ah(pd, ah_attr, NULL);
 
 	if (!IS_ERR(ah)) {
 		ah->device  = pd->device;
@@ -1161,47 +1161,45 @@ int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 }
 EXPORT_SYMBOL(ib_modify_qp_is_ok);
 
-int ib_resolve_eth_dmac(struct ib_qp *qp,
-			struct ib_qp_attr *qp_attr, int *qp_attr_mask)
+int ib_resolve_eth_dmac(struct ib_device *device,
+			struct ib_ah_attr *ah_attr)
 {
 	int           ret = 0;
 
-	if (*qp_attr_mask & IB_QP_AV) {
-		if (qp_attr->ah_attr.port_num < rdma_start_port(qp->device) ||
-		    qp_attr->ah_attr.port_num > rdma_end_port(qp->device))
-			return -EINVAL;
+	if (ah_attr->port_num < rdma_start_port(device) ||
+	    ah_attr->port_num > rdma_end_port(device))
+		return -EINVAL;
 
-		if (!rdma_cap_eth_ah(qp->device, qp_attr->ah_attr.port_num))
-			return 0;
+	if (!rdma_cap_eth_ah(device, ah_attr->port_num))
+		return 0;
 
-		if (rdma_link_local_addr((struct in6_addr *)qp_attr->ah_attr.grh.dgid.raw)) {
-			rdma_get_ll_mac((struct in6_addr *)qp_attr->ah_attr.grh.dgid.raw,
-					qp_attr->ah_attr.dmac);
-		} else {
-			union ib_gid		sgid;
-			struct ib_gid_attr	sgid_attr;
-			int			hop_limit;
+	if (rdma_link_local_addr((struct in6_addr *)ah_attr->grh.dgid.raw)) {
+		rdma_get_ll_mac((struct in6_addr *)ah_attr->grh.dgid.raw,
+				ah_attr->dmac);
+	} else {
+		union ib_gid		sgid;
+		struct ib_gid_attr	sgid_attr;
+		int			hop_limit;
 
-			ret = ib_query_gid(qp->device,
-					   qp_attr->ah_attr.port_num,
-					   qp_attr->ah_attr.grh.sgid_index,
-					   &sgid, &sgid_attr);
+		ret = ib_query_gid(device,
+				   ah_attr->port_num,
+				   ah_attr->grh.sgid_index,
+				   &sgid, &sgid_attr);
 
-			if (ret || !sgid_attr.ndev) {
-				if (!ret)
-					ret = -ENXIO;
-				goto out;
-			}
-
-			ret = rdma_addr_find_l2_eth_by_grh(&sgid,
-							   &qp_attr->ah_attr.grh.dgid,
-							   qp_attr->ah_attr.dmac,
-							   sgid_attr.ndev, &hop_limit);
-
-			dev_put(sgid_attr.ndev);
-
-			qp_attr->ah_attr.grh.hop_limit = hop_limit;
+		if (ret || !sgid_attr.ndev) {
+			if (!ret)
+				ret = -ENXIO;
+			goto out;
 		}
+
+		ret = rdma_addr_find_l2_eth_by_grh(&sgid,
+						   &ah_attr->grh.dgid,
+						   ah_attr->dmac,
+						   sgid_attr.ndev, &hop_limit);
+
+		dev_put(sgid_attr.ndev);
+
+		ah_attr->grh.hop_limit = hop_limit;
 	}
 out:
 	return ret;
@@ -1213,11 +1211,13 @@ int ib_modify_qp(struct ib_qp *qp,
 		 struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask)
 {
-	int ret;
+	if (qp_attr_mask & IB_QP_AV) {
+		int ret;
 
-	ret = ib_resolve_eth_dmac(qp, qp_attr, &qp_attr_mask);
-	if (ret)
-		return ret;
+		ret = ib_resolve_eth_dmac(qp->device, &qp_attr->ah_attr);
+		if (ret)
+			return ret;
+	}
 
 	return qp->device->modify_qp(qp->real_qp, qp_attr, qp_attr_mask, NULL);
 }

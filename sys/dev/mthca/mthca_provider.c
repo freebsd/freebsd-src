@@ -409,7 +409,8 @@ static int mthca_dealloc_pd(struct ib_pd *pd)
 }
 
 static struct ib_ah *mthca_ah_create(struct ib_pd *pd,
-				     struct ib_ah_attr *ah_attr)
+				     struct ib_ah_attr *ah_attr,
+				     struct ib_udata *udata)
 {
 	int err;
 	struct mthca_ah *ah;
