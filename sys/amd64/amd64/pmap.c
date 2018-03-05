@@ -983,7 +983,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 	/* And recursively map PML4 to itself in order to get PTmap */
 	p4_p = (pml4_entry_t *)KPML4phys;
 	p4_p[PML4PML4I] = KPML4phys;
-	p4_p[PML4PML4I] |= X86_PG_RW | X86_PG_V | PG_U;
+	p4_p[PML4PML4I] |= X86_PG_RW | X86_PG_V | PG_U | pg_nx;
 
 	/* Connect the Direct Map slot(s) up to the PML4. */
 	for (i = 0; i < ndmpdpphys; i++) {
