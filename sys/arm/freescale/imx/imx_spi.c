@@ -541,7 +541,7 @@ spi_attach(device_t dev)
 
 	/* Allocate gpio pins for configured chip selects. */
 	node = ofw_bus_get_node(sc->dev);
-	for (err = 0, idx = 0; err == 0 && idx < nitems(sc->cspins); ++idx) {
+	for (idx = 0; idx < nitems(sc->cspins); ++idx) {
 		err = gpio_pin_get_by_ofw_propidx(sc->dev, node, "cs-gpios",
 		    idx, &sc->cspins[idx]);
 		if (err == 0) {
