@@ -45,10 +45,8 @@ accounts [label="Accounts Team\naccounts@FreeBSD.org\nmarkm, simon, kensmith,\nd
 backups [label="Backup Administrators\nbackups@FreeBSD.org\nsimon, kensmith,\ndhw"]
 bugmeister [label="Bugmeister Team\nbugmeister@FreeBSD.org\neadler, gavin, gonzo"]
 clusteradm [label="Cluster Administrators\nclusteradm@FreeBSD.org\nbrd, simon, ps,\nkensmith, peter"]
-cvsupmaster [label="CVSup Mirror Site Coordinators\ncvsup-master@FreeBSD.org\nkuriyama, jdp,\nkensmith"]
 dnsadm [label="DNS Administrators\ndnsadm@FreeBSD.org\nbillf, dg, ps,\nkensmith, peter"]
 mirroradmin [label="FTP/WWW Mirror Site Coordinators\nmirror-admin@FreeBSD.org\nkuriyama, kensmith"]
-ncvs [label="CVS src Repository Managers\nncvs@FreeBSD.org\njoe, kuriyama, markm,\nsimon, peter"]
 perforceadmin [label="Perforce Repository Administrators\nperforce-admin@FreeBSD.org\nscottl, kensmith, gordon,\nrwatson, peter, dhw"]
 postmaster [label="Postmaster Team\npostmaster@FreeBSD.org\njmb, brd, sahil, dhw"]
 refadm [label="Reference Systems Administrators\nrefadm@FreeBSD.org\njake, billf, markm, simon,\nobrien, ps, kensmith,\npeter, dhw"]
@@ -68,8 +66,6 @@ _admin -> accounts
 _admin -> backups
 _admin -> bugmeister
 _admin -> clusteradm
-_admin -> ncvs
-_admin -> cvsupmaster
 _admin -> dnsadm
 _admin -> mirroradmin
 _admin -> perforceadmin
