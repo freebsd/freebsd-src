@@ -58,21 +58,21 @@ static int from_inetd = 1;
 
 #define TIMEOUT 120
 
-void
+static void
 cleanup(int sig __unused)
 {
 	(void)rpcb_unset(SPRAYPROG, SPRAYVERS, NULL);
 	exit(0);
 }
 
-void
+static void
 die(int sig __unused)
 {
 	exit(0);
 }
 
 int
-main(int argc, char *argv[])
+main(int argc __unused, char *argv[] __unused)
 {
 	SVCXPRT *transp;
 	int ok;
