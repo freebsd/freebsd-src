@@ -1734,7 +1734,7 @@ gicv3_its_acpi_attach(device_t dev)
 	if (err != 0)
 		return (err);
 
-	sc->sc_pic = intr_pic_register(dev, 1);
+	sc->sc_pic = intr_pic_register(dev, device_get_unit(dev) + 1);
 	intr_pic_add_handler(device_get_parent(dev), sc->sc_pic,
 	    gicv3_its_intr, sc, GIC_FIRST_LPI, LPI_NIRQS);
 
