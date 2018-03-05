@@ -161,12 +161,6 @@ __FBSDID("$FreeBSD$");
  * BEGIN mvm/scan.c
  */
 
-#define IWM_PLCP_QUIET_THRESH 1
-#define IWM_ACTIVE_QUIET_TIME 10
-#define LONG_OUT_TIME_PERIOD (600 * IEEE80211_DUR_TU)
-#define SHORT_OUT_TIME_PERIOD (200 * IEEE80211_DUR_TU)
-#define SUSPEND_TIME_PERIOD (100 * IEEE80211_DUR_TU)
-
 static uint16_t
 iwm_mvm_scan_rx_chain(struct iwm_softc *sc)
 {
@@ -180,26 +174,6 @@ iwm_mvm_scan_rx_chain(struct iwm_softc *sc)
 	rx_chain |= 0x1 << IWM_PHY_RX_CHAIN_DRIVER_FORCE_POS;
 	return htole16(rx_chain);
 }
-
-#if 0
-static uint32_t
-iwm_mvm_scan_max_out_time(struct iwm_softc *sc, uint32_t flags, int is_assoc)
-{
-	if (!is_assoc)
-		return 0;
-	if (flags & 0x1)
-		return htole32(SHORT_OUT_TIME_PERIOD);
-	return htole32(LONG_OUT_TIME_PERIOD);
-}
-
-static uint32_t
-iwm_mvm_scan_suspend_time(struct iwm_softc *sc, int is_assoc)
-{
-	if (!is_assoc)
-		return 0;
-	return htole32(SUSPEND_TIME_PERIOD);
-}
-#endif
 
 static uint32_t
 iwm_mvm_scan_rate_n_flags(struct iwm_softc *sc, int flags, int no_cck)
@@ -223,32 +197,6 @@ iwm_mvm_scan_rate_n_flags(struct iwm_softc *sc, int flags, int no_cck)
 	else
 		return htole32(IWM_RATE_6M_PLCP | tx_ant);
 }
-
-#if 0
-/*
- * If req->n_ssids > 0, it means we should do an active scan.
- * In case of active scan w/o directed scan, we receive a zero-length SSID
- * just to notify that this scan is active and not passive.
- * In order to notify the FW of the number of SSIDs we wish to scan (including
- * the zero-length one), we need to set the corresponding bits in chan->type,
- * one for each SSID, and set the active bit (first). If the first SSID is
- * already included in the probe template, so we need to set only
- * req->n_ssids - 1 bits in addition to the first bit.
- */
-static uint16_t
-iwm_mvm_get_active_dwell(struct iwm_softc *sc, int flags, int n_ssids)
-{
-	if (flags & IEEE80211_CHAN_2GHZ)
-		return 30  + 3 * (n_ssids + 1);
-	return 20  + 2 * (n_ssids + 1);
-}
-
-static uint16_t
-iwm_mvm_get_passive_dwell(struct iwm_softc *sc, int flags)
-{
-	return (flags & IEEE80211_CHAN_2GHZ) ? 100 + 20 : 100 + 10;
-}
-#endif
 
 static int
 iwm_mvm_scan_skip_channel(struct ieee80211_channel *c)
