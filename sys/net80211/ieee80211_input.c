@@ -100,7 +100,7 @@ ieee80211_input_mimo(struct ieee80211_node *ni, struct mbuf *m,
 	ieee80211_process_mimo(ni, &rxs);
 
 	//return ieee80211_input(ni, m, rx->rssi, rx->nf);
-	return ni->ni_vap->iv_input(ni, m, &rxs, rxs.rssi, rxs.nf);
+	return ni->ni_vap->iv_input(ni, m, &rxs, rxs.c_rssi, rxs.c_nf);
 }
 
 int
@@ -109,8 +109,8 @@ ieee80211_input_all(struct ieee80211com *ic, struct mbuf *m, int rssi, int nf)
 	struct ieee80211_rx_stats rx;
 
 	rx.r_flags = IEEE80211_R_NF | IEEE80211_R_RSSI;
-	rx.nf = nf;
-	rx.rssi = rssi;
+	rx.c_nf = nf;
+	rx.c_rssi = rssi;
 	return ieee80211_input_mimo_all(ic, m, &rx);
 }
 
