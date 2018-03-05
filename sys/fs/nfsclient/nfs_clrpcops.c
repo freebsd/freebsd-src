@@ -5548,7 +5548,7 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 
 /*
  * Find a file layout that will handle the first bytes of the requested
- * range and return the information from it needed to to the I/O operation.
+ * range and return the information from it needed to the I/O operation.
  */
 int
 nfscl_findlayoutforio(struct nfscllayout *lyp, uint64_t off, uint32_t rwaccess,

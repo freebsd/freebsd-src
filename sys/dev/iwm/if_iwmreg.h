@@ -3734,7 +3734,7 @@ struct iwm_uapsd_misbehaving_ap_notif {
  *      beacon filtering; beacons will not be forced to be sent to driver
  *      regardless of whether its temperature has been changed.
  * @bf_enable_beacon_filter: 1, beacon filtering is enabled; 0, disabled.
- * @bf_filter_escape_timer: Send beacons to to driver if no beacons were passed
+ * @bf_filter_escape_timer: Send beacons to the driver if no beacons were passed
  *      for a specific period of time. Units: Beacons.
  * @ba_escape_timer: Fully receive and parse beacon if no beacons were passed
  *      for a longer period of time then this escape-timeout. Units: Beacons.
