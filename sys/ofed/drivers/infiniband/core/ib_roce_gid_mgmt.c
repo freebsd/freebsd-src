@@ -169,12 +169,14 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 			struct sockaddr_in v4;
 			struct sockaddr_in6 v6;
 		} ipx_addr;
+		struct net_device *ndev;
 	};
 	struct ipx_entry *entry;
 	struct net_device *idev;
 #if defined(INET) || defined(INET6)
 	struct ifaddr *ifa;
 #endif
+	struct ib_gid_attr gid_attr;
 	union ib_gid gid;
 	int default_gids;
 	u16 index_num;
@@ -211,6 +213,7 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 				continue;
 			}
 			entry->ipx_addr.v4 = *((struct sockaddr_in *)ifa->ifa_addr);
+			entry->ndev = idev;
 			STAILQ_INSERT_TAIL(&ipx_head, entry, entry);
 		}
 #endif
@@ -226,6 +229,7 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 				continue;
 			}
 			entry->ipx_addr.v6 = *((struct sockaddr_in6 *)ifa->ifa_addr);
+			entry->ndev = idev;
 
 			/* trash IPv6 scope ID */
 			sa6_recoverscope(&entry->ipx_addr.v6);
@@ -251,18 +255,24 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 				continue;
 			/* check if entry found */
 			if (ib_find_cached_gid_by_port(device, &gid, i,
-			    port, ndev, &index_num) == 0)
+			    port, entry->ndev, &index_num) == 0)
 				break;
 		}
 		if (i != IB_GID_TYPE_SIZE)
 			continue;
 		/* add new GID */
-		update_gid(GID_ADD, device, port, &gid, ndev);
+		update_gid(GID_ADD, device, port, &gid, entry->ndev);
 	}
 
 	/* remove stale GIDs, if any */
-	for (i = default_gids; ib_get_cached_gid(device, port, i, &gid, NULL) == 0; i++) {
+	for (i = default_gids; ib_get_cached_gid(device, port, i, &gid, &gid_attr) == 0; i++) {
 		union ipx_addr ipx;
+
+		/* check for valid network device pointer */
+		ndev = gid_attr.ndev;
+		if (ndev == NULL)
+			continue;
+		dev_put(ndev);
 
 		/* don't delete empty entries */
 		if (memcmp(&gid, &zgid, sizeof(zgid)) == 0)
@@ -274,7 +284,8 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 		rdma_gid2ip(&ipx.sa[0], &gid);
 
 		STAILQ_FOREACH(entry, &ipx_head, entry) {
-			if (memcmp(&entry->ipx_addr, &ipx, sizeof(ipx)) == 0)
+			if (entry->ndev == ndev &&
+			    memcmp(&entry->ipx_addr, &ipx, sizeof(ipx)) == 0)
 				break;
 		}
 		/* check if entry found */
