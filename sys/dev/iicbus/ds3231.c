@@ -377,7 +377,7 @@ ds3231_attach(device_t dev)
 	sc->sc_dev = dev;
 	sc->sc_addr = iicbus_get_addr(dev);
 	sc->sc_last_c = -1;
-	sc->sc_year0 = 1900;
+	sc->sc_year0 = 0;
 	sc->enum_hook.ich_func = ds3231_start;
 	sc->enum_hook.ich_arg = dev;
 
@@ -477,7 +477,7 @@ static int
 ds3231_gettime(device_t dev, struct timespec *ts)
 {
 	int c, error;
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct ds3231_softc *sc;
 	uint8_t data[7], hourmask;
 
@@ -505,13 +505,14 @@ ds3231_gettime(device_t dev, struct timespec *ts)
 	} else
 		hourmask = DS3231_HOUR_MASK_24HR;
 
-	ct.nsec = 0;
-	ct.sec  = FROMBCD(data[DS3231_SECS]  & DS3231_SECS_MASK);
-	ct.min  = FROMBCD(data[DS3231_MINS]  & DS3231_MINS_MASK);
-	ct.hour = FROMBCD(data[DS3231_HOUR]  & hourmask);
-	ct.day  = FROMBCD(data[DS3231_DATE]  & DS3231_DATE_MASK);
-	ct.mon  = FROMBCD(data[DS3231_MONTH] & DS3231_MONTH_MASK);
-	ct.year = FROMBCD(data[DS3231_YEAR]  & DS3231_YEAR_MASK);
+	bct.nsec = 0;
+	bct.sec  = data[DS3231_SECS]  & DS3231_SECS_MASK;
+	bct.min  = data[DS3231_MINS]  & DS3231_MINS_MASK;
+	bct.hour = data[DS3231_HOUR]  & hourmask;
+	bct.day  = data[DS3231_DATE]  & DS3231_DATE_MASK;
+	bct.mon  = data[DS3231_MONTH] & DS3231_MONTH_MASK;
+	bct.year = data[DS3231_YEAR]  & DS3231_YEAR_MASK;
+	bct.ispm = data[DS3231_HOUR]  & DS3231_HOUR_IS_PM;
 
 	/*
 	 * If the century flag has toggled since we last saw it, there has been
@@ -522,29 +523,20 @@ ds3231_gettime(device_t dev, struct timespec *ts)
 	if (sc->sc_last_c == -1)
 		sc->sc_last_c = c;
 	else if (c != sc->sc_last_c) {
-		sc->sc_year0 += 100;
+		sc->sc_year0 += 0x100;
 		sc->sc_last_c = c;
 	}
-	ct.year += sc->sc_year0;
-	if (ct.year < POSIX_BASE_YEAR)
-		ct.year += 100;	/* assume [1970, 2069] */
+	bct.year |= sc->sc_year0;
 
-	/* If running in AM/PM mode, deal with it. */
-	if (sc->sc_use_ampm) {
-		if (ct.hour == 12)
-			ct.hour = 0;
-		if (data[DS3231_HOUR] & DS3231_HOUR_IS_PM)
-			ct.hour += 12;
-	}
-
-	return (clock_ct_to_ts(&ct, ts));
+	clock_dbgprint_bcd(sc->sc_dev, CLOCK_DBG_READ, &bct); 
+	return (clock_bcd_to_ts(&bct, ts, sc->sc_use_ampm));
 }
 
 static int
 ds3231_settime(device_t dev, struct timespec *ts)
 {
 	int error;
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct ds3231_softc *sc;
 	uint8_t data[7];
 	uint8_t pmflags;
@@ -556,27 +548,24 @@ ds3231_settime(device_t dev, struct timespec *ts)
 	 * disables utc adjustment, so apply that ourselves.
 	 */
 	ts->tv_sec -= utc_offset();
-	clock_ts_to_ct(ts, &ct);
+	clock_ts_to_bcd(ts, &bct, sc->sc_use_ampm);
+	clock_dbgprint_bcd(sc->sc_dev, CLOCK_DBG_WRITE, &bct); 
 
 	/* If the chip is in AM/PM mode, adjust hour and set flags as needed. */
 	if (sc->sc_use_ampm) {
 		pmflags = DS3231_HOUR_USE_AMPM;
-		if (ct.hour >= 12) {
-			ct.hour -= 12;
+		if (bct.ispm)
 			pmflags |= DS3231_HOUR_IS_PM;
-		}
-		if (ct.hour == 0)
-			ct.hour = 12;
 	} else
 		pmflags = 0;
 
-	data[DS3231_SECS]    = TOBCD(ct.sec);
-	data[DS3231_MINS]    = TOBCD(ct.min);
-	data[DS3231_HOUR]    = TOBCD(ct.hour) | pmflags;
-	data[DS3231_DATE]    = TOBCD(ct.day);
-	data[DS3231_WEEKDAY] = ct.dow + 1;
-	data[DS3231_MONTH]   = TOBCD(ct.mon);
-	data[DS3231_YEAR]    = TOBCD(ct.year % 100);
+	data[DS3231_SECS]    = bct.sec;
+	data[DS3231_MINS]    = bct.min;
+	data[DS3231_HOUR]    = bct.hour | pmflags;
+	data[DS3231_DATE]    = bct.day;
+	data[DS3231_WEEKDAY] = bct.dow + 1;
+	data[DS3231_MONTH]   = bct.mon;
+	data[DS3231_YEAR]    = bct.year & 0xff;
 	if (sc->sc_last_c)
 		data[DS3231_MONTH] |= DS3231_C_MASK;
 
