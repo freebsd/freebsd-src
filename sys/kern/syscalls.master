@@ -400,7 +400,7 @@
 205	AUE_UNDELETE	STD	{ int undelete(char *path); }
 206	AUE_FUTIMES	STD	{ int futimes(int fd, struct timeval *tptr); }
 207	AUE_GETPGID	STD	{ int getpgid(pid_t pid); }
-208	AUE_NULL	UNIMPL	newreboot (NetBSD)
+208	AUE_NULL	UNIMPL	nosys
 209	AUE_POLL	STD	{ int poll(struct pollfd *fds, u_int nfds, \
 				    int timeout); }
 
@@ -418,8 +418,6 @@
 218	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
 219	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
 
-;
-; The following were introduced with NetBSD/4.4Lite-2
 220	AUE_SEMCTL	COMPAT7|NOSTD { int __semctl(int semid, int semnum, \
 				    int cmd, union semun_old *arg); }
 221	AUE_SEMGET	NOSTD	{ int semget(key_t key, int nsems, \
@@ -474,7 +472,6 @@
 				    int which, clockid_t *clock_id); }
 248	AUE_NULL	STD	{ int ntp_gettime(struct ntptimeval *ntvp); }
 249	AUE_NULL	UNIMPL	nosys
-; syscall numbers initially used in OpenBSD
 250	AUE_MINHERIT	STD	{ int minherit(void *addr, size_t len, \
 				    int inherit); }
 251	AUE_RFORK	STD	{ int rfork(int flags); }
@@ -522,7 +519,6 @@
 286	AUE_NULL	UNIMPL	nosys
 287	AUE_NULL	UNIMPL	nosys
 288	AUE_NULL	UNIMPL	nosys
-; 289 and 290 from NetBSD (OpenBSD: 267 and 268)
 289	AUE_PREADV	STD	{ ssize_t preadv(int fd, struct iovec *iovp, \
 					u_int iovcnt, off_t offset); }
 290	AUE_PWRITEV	STD	{ ssize_t pwritev(int fd, struct iovec *iovp, \
@@ -533,7 +529,6 @@
 294	AUE_NULL	UNIMPL	nosys
 295	AUE_NULL	UNIMPL	nosys
 296	AUE_NULL	UNIMPL	nosys
-; XXX 297 is 300 in NetBSD 
 297	AUE_FHSTATFS	COMPAT4	{ int fhstatfs( \
 				    const struct fhandle *u_fhp, \
 				    struct ostatfs *buf); }
@@ -541,7 +536,6 @@
 				    int flags); }
 299	AUE_FHSTAT	COMPAT11 { int fhstat(const struct fhandle *u_fhp, \
 				    struct freebsd11_stat *sb); }
-; syscall numbers for FreeBSD
 300	AUE_NULL	STD	{ int modnext(int modid); }
 301	AUE_NULL	STD	{ int modstat(int modid, \
 				    struct module_stat *stat); }
