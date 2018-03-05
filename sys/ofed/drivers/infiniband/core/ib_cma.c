@@ -4137,7 +4137,6 @@ static void cma_add_one(struct ib_device *device)
 	struct cma_device *cma_dev;
 	struct rdma_id_private *id_priv;
 	unsigned int i;
-	unsigned long supported_gids = 0;
 
 	cma_dev = kmalloc(sizeof *cma_dev, GFP_KERNEL);
 	if (!cma_dev)
@@ -4154,10 +4153,23 @@ static void cma_add_one(struct ib_device *device)
 		return;
 	}
 	for (i = rdma_start_port(device); i <= rdma_end_port(device); i++) {
+		unsigned long supported_gids;
+		unsigned int default_gid_type;
+
 		supported_gids = roce_gid_type_mask_support(device, i);
-		WARN_ON(!supported_gids);
+
+		if (WARN_ON(!supported_gids)) {
+			/* set something valid */
+			default_gid_type = 0;
+		} else if (test_bit(IB_GID_TYPE_ROCE_UDP_ENCAP, &supported_gids)) {
+			/* prefer RoCEv2, if supported */
+			default_gid_type = IB_GID_TYPE_ROCE_UDP_ENCAP;
+		} else {
+			default_gid_type = find_first_bit(&supported_gids,
+			    BITS_PER_LONG);
+		}
 		cma_dev->default_gid_type[i - rdma_start_port(device)] =
-			find_first_bit(&supported_gids, BITS_PER_LONG);
+		    default_gid_type;
 	}
 
 	init_completion(&cma_dev->comp);
