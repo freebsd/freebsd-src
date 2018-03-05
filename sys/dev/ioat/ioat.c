@@ -241,8 +241,8 @@ static struct _pcsid
 	{ 0x6f278086, "BDX IOAT Ch7" },
 	{ 0x6f2e8086, "BDX IOAT Ch0 (RAID)" },
 	{ 0x6f2f8086, "BDX IOAT Ch1 (RAID)" },
-
-	{ 0x00000000, NULL           }
+	{ 0x20218086, "SKX IOAT" },
+	{ 0x00000000, NULL }
 };
 
 /*
