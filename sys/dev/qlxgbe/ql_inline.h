@@ -166,7 +166,7 @@ qla_lock(qla_host_t *ha, const char *str, uint32_t timeout_ms,
 	while (1) {
 		mtx_lock(&ha->hw_lock);
 
-		if (ha->qla_detach_active) {
+		if (ha->qla_detach_active || ha->offline) {
 			mtx_unlock(&ha->hw_lock);
 			break;
 		}
@@ -191,7 +191,10 @@ qla_lock(qla_host_t *ha, const char *str, uint32_t timeout_ms,
 		}
 	}
 
-	//device_printf(ha->pci_dev, "%s: %s ret = %d\n", __func__, str,ret);
+//	if (!ha->enable_error_recovery)
+//		device_printf(ha->pci_dev, "%s: %s ret = %d\n", __func__,
+//			str,ret);
+
 	return (ret);
 }
 
@@ -202,7 +205,9 @@ qla_unlock(qla_host_t *ha, const char *str)
 	ha->hw_lock_held = 0;
 	ha->qla_unlock = str;
 	mtx_unlock(&ha->hw_lock);
-	//device_printf(ha->pci_dev, "%s: %s\n", __func__, str);
+
+//	if (!ha->enable_error_recovery)
+//		device_printf(ha->pci_dev, "%s: %s\n", __func__, str);
 
 	return;
 }
