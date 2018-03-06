@@ -35,8 +35,6 @@
 
 #include <net/ethernet.h>
 
-#define	ETH_P_8021Q	ETHERTYPE_VLAN
-
 #define ETH_HLEN        ETHER_HDR_LEN   /* Total octets in header.                              */
 #ifndef ETH_ALEN
 #define ETH_ALEN        ETHER_ADDR_LEN
@@ -47,6 +45,11 @@
 /*
  * defined Ethernet Protocol ID's.
  */
-#define ETH_P_IP        0x0800          /* Internet Protocol packet                             */
+#define	ETH_P_IP        ETHERTYPE_IP
+#define	ETH_P_IPV6	ETHERTYPE_IPV6
+#define	ETH_P_MPLS_UC	ETHERTYPE_MPLS
+#define	ETH_P_MPLS_MC	ETHERTYPE_MPLS_MCAST
+#define	ETH_P_8021Q	ETHERTYPE_VLAN
+#define	ETH_P_8021AD	ETHERTYPE_QINQ
 
 #endif	/* _LINUX_IF_ETHER_H_ */
