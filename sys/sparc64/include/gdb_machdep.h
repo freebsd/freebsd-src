@@ -53,6 +53,19 @@ gdb_cpu_signal(int vector, int _)
 	return (vector);
 }
 
+static __inline void *
+gdb_begin_write(void)
+{
+
+	return (NULL);
+}
+
+static __inline void
+gdb_end_write(void *arg __unused)
+{
+
+}
+
 void *gdb_cpu_getreg(int, size_t *);
 void gdb_cpu_setreg(int, void *);
 
