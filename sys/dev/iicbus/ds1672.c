@@ -144,7 +144,7 @@ ds1672_gettime(device_t dev, struct timespec *ts)
 			   | (secs[1] <<  8) | (secs[0] <<  0);
 		ts->tv_nsec = 0;
 	}
-	clock_dbgprint_ts(sc->sc_dev, CLOCK_DBG_READ, ts); 
+	clock_dbgprint_ts(dev, CLOCK_DBG_READ, ts); 
 	return (error);
 }
 
@@ -159,7 +159,7 @@ ds1672_settime(device_t dev, struct timespec *ts)
 	data[3] = (ts->tv_sec >> 24) & 0xff;
 
 	ts->tv_nsec = 0;
-	clock_dbgprint_ts(sc->sc_dev, CLOCK_DBG_WRITE, ts);
+	clock_dbgprint_ts(dev, CLOCK_DBG_WRITE, ts);
 	return (ds1672_write(dev, DS1672_COUNTER, data, 4));
 }
 
