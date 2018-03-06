@@ -1600,26 +1600,26 @@ typedef struct _qla_hw {
 		uint32_t
 			unicast_mac	:1,
 			bcast_mac	:1,
-			loopback_mode	:2,
 			init_tx_cnxt	:1,
 			init_rx_cnxt	:1,
 			init_intr_cnxt	:1,
-			fduplex		:1,
-			autoneg		:1,
 			fdt_valid	:1;
 	} flags;
 
 
-	uint16_t	link_speed;
-	uint16_t	cable_length;
-	uint32_t	cable_oui;
-	uint8_t		link_up;
-	uint8_t		module_type;
-	uint8_t		link_faults;
+	volatile uint16_t	link_speed;
+	volatile uint16_t	cable_length;
+	volatile uint32_t	cable_oui;
+	volatile uint8_t	link_up;
+	volatile uint8_t	module_type;
+	volatile uint8_t	link_faults;
+	volatile uint8_t	loopback_mode;
+	volatile uint8_t	fduplex;
+	volatile uint8_t	autoneg;
 
-	uint8_t		mac_rcv_mode;
+	volatile uint8_t	mac_rcv_mode;
 
-	uint32_t	max_mtu;
+	volatile uint32_t	max_mtu;
 
 	uint8_t		mac_addr[ETHER_ADDR_LEN];
 
@@ -1703,9 +1703,25 @@ typedef struct _qla_hw {
 	uint32_t	mdump_buffer_size;
 	void		*mdump_template;
 	uint32_t	mdump_template_size;
+	uint64_t	mdump_usec_ts;
 
+#define Q8_MBX_COMP_MSECS	(19)
+	uint64_t	mbx_comp_msecs[Q8_MBX_COMP_MSECS];
 	/* driver state related */
 	void		*drvr_state;
+
+	/* slow path trace */
+	uint32_t	sp_log_stop_events;
+#define Q8_SP_LOG_STOP_HBEAT_FAILURE		0x001
+#define Q8_SP_LOG_STOP_TEMP_FAILURE		0x002
+#define Q8_SP_LOG_STOP_HW_INIT_FAILURE		0x004
+#define Q8_SP_LOG_STOP_IF_START_FAILURE		0x008
+#define Q8_SP_LOG_STOP_ERR_RECOVERY_FAILURE	0x010
+
+	uint32_t	sp_log_stop;
+	uint32_t	sp_log_index;
+	uint32_t	sp_log_num_entries;
+	void		*sp_log;
 } qla_hw_t;
 
 #define QL_UPDATE_RDS_PRODUCER_INDEX(ha, prod_reg, val) \

@@ -119,6 +119,14 @@ static __inline int qla_sec_to_hz(int sec)
 	return (tvtohz(&t));
 }
 
+static __inline uint64_t qla_get_usec_timestamp(void)
+{
+	struct timeval tv;
+
+	microuptime(&tv);
+
+	return ((uint64_t)(((uint64_t)tv.tv_sec) * 1000000 + tv.tv_usec));
+}
 
 #define qla_host_to_le16(x)	htole16(x)
 #define qla_host_to_le32(x)	htole32(x)
