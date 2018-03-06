@@ -74,34 +74,74 @@ static int ig4iic_pci_detach(device_t dev);
 #define PCI_CHIP_BRASWELL_I2C_5 	0x22c58086
 #define PCI_CHIP_BRASWELL_I2C_6 	0x22c68086
 #define PCI_CHIP_BRASWELL_I2C_7 	0x22c78086
+#define PCI_CHIP_SKYLAKE_I2C_0		0x9d608086
+#define PCI_CHIP_SKYLAKE_I2C_1		0x9d618086
+#define PCI_CHIP_SKYLAKE_I2C_2		0x9d628086
+#define PCI_CHIP_SKYLAKE_I2C_3		0x9d638086
+#define PCI_CHIP_SKYLAKE_I2C_4		0x9d648086
+#define PCI_CHIP_SKYLAKE_I2C_5		0x9d658086
 
 static int
 ig4iic_pci_probe(device_t dev)
 {
+	ig4iic_softc_t *sc = device_get_softc(dev);
+
 	switch(pci_get_devid(dev)) {
 	case PCI_CHIP_LYNXPT_LP_I2C_1:
 		device_set_desc(dev, "Intel Lynx Point-LP I2C Controller-1");
+		sc->version = IG4_HASWELL;
 		break;
 	case PCI_CHIP_LYNXPT_LP_I2C_2:
 		device_set_desc(dev, "Intel Lynx Point-LP I2C Controller-2");
+		sc->version = IG4_HASWELL;
 		break;
 	case PCI_CHIP_BRASWELL_I2C_1:
 		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 1");
+		sc->version = IG4_ATOM;
 		break;
 	case PCI_CHIP_BRASWELL_I2C_2:
 		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 2");
+		sc->version = IG4_ATOM;
 		break;
 	case PCI_CHIP_BRASWELL_I2C_3:
 		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 3");
+		sc->version = IG4_ATOM;
 		break;
 	case PCI_CHIP_BRASWELL_I2C_5:
 		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 5");
+		sc->version = IG4_ATOM;
 		break;
 	case PCI_CHIP_BRASWELL_I2C_6:
 		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 6");
+		sc->version = IG4_ATOM;
 		break;
 	case PCI_CHIP_BRASWELL_I2C_7:
 		device_set_desc(dev, "Intel Braswell Serial I/O I2C Port 7");
+		sc->version = IG4_ATOM;
+		break;
+	case PCI_CHIP_SKYLAKE_I2C_0:
+		device_set_desc(dev, "Intel Sunrise Point-LP I2C Controller-0");
+		sc->version = IG4_SKYLAKE;
+		break;
+	case PCI_CHIP_SKYLAKE_I2C_1:
+		device_set_desc(dev, "Intel Sunrise Point-LP I2C Controller-1");
+		sc->version = IG4_SKYLAKE;
+		break;
+	case PCI_CHIP_SKYLAKE_I2C_2:
+		device_set_desc(dev, "Intel Sunrise Point-LP I2C Controller-2");
+		sc->version = IG4_SKYLAKE;
+		break;
+	case PCI_CHIP_SKYLAKE_I2C_3:
+		device_set_desc(dev, "Intel Sunrise Point-LP I2C Controller-3");
+		sc->version = IG4_SKYLAKE;
+		break;
+	case PCI_CHIP_SKYLAKE_I2C_4:
+		device_set_desc(dev, "Intel Sunrise Point-LP I2C Controller-4");
+		sc->version = IG4_SKYLAKE;
+		break;
+	case PCI_CHIP_SKYLAKE_I2C_5:
+		device_set_desc(dev, "Intel Sunrise Point-LP I2C Controller-5");
+		sc->version = IG4_SKYLAKE;
 		break;
 	default:
 		return (ENXIO);
