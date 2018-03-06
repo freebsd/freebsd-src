@@ -118,6 +118,14 @@ ds1672_init(device_t dev)
 }
 
 static int
+ds1672_detach(device_t dev)
+{
+
+    clock_unregister(dev);
+    return (0);
+}
+
+static int
 ds1672_attach(device_t dev)
 {
 	struct ds1672_softc *sc = device_get_softc(dev);
@@ -166,6 +174,7 @@ ds1672_settime(device_t dev, struct timespec *ts)
 static device_method_t ds1672_methods[] = {
 	DEVMETHOD(device_probe,		ds1672_probe),
 	DEVMETHOD(device_attach,	ds1672_attach),
+	DEVMETHOD(device_detach,	ds1672_detach),
 
 	DEVMETHOD(clock_gettime,	ds1672_gettime),
 	DEVMETHOD(clock_settime,	ds1672_settime),
