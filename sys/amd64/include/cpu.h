@@ -68,7 +68,9 @@ struct cpu_ops {
 };
 
 extern struct	cpu_ops cpu_ops;
+extern char	brwsection[];
 extern char	btext[];
+extern char	_end[];
 extern char	etext[];
 
 /* Resume hook for VMM. */
