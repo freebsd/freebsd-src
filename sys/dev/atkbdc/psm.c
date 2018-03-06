@@ -3781,6 +3781,9 @@ psmgestures(struct psm_softc *sc, finger_t *fingers, int nfingers,
 		if (queue_len < gest->window_min)
 			return;
 
+		dyp = -1;
+		dxp = -1;
+
 		/* Is a scrolling action occurring? */
 		if (!gest->in_taphold && !ms->button &&
 		    (!gest->in_vscroll || two_finger_scroll)) {
