@@ -281,10 +281,8 @@ LEAF(copyerr)
 END(copyerr)
 
 /*
- * {fu,su},{ibyte,isword,iword}, fetch or store a byte, short or word to
- * user text space.
  * {fu,su},{byte,sword,word}, fetch or store a byte, short or word to
- * user data space.
+ * user-space.
  */
 #ifdef __mips_n64
 LEAF(fuword64)
