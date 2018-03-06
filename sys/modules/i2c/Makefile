@@ -5,6 +5,7 @@ SUBDIR = \
 	cyapa \
 	ds1307 \
 	ds13rtc \
+	ds1672 \
 	ds3231 \
 	icee \
 	if_ic \
