@@ -34,6 +34,8 @@
 
 #include <sys/dtrace.h>
 
+#include <machine/cpufunc.h>
+
 #include "fbt.h"
 
 #define	FBT_PUSHL_EBP		0x55
@@ -143,8 +145,15 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 void
 fbt_patch_tracepoint(fbt_probe_t *fbt, fbt_patchval_t val)
 {
+	u_long cr0save;
+	register_t intr;
 
+	intr = intr_disable();
+	cr0save = rcr0();
+	load_cr0(cr0save & ~CR0_WP);
 	*fbt->fbtp_patchpoint = val;
+	load_cr0(cr0save);
+	intr_restore(intr);
 }
 
 int
