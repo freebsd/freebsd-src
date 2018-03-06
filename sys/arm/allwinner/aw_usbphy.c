@@ -418,7 +418,7 @@ static driver_t awusbphy_driver = {
 };
 
 static devclass_t awusbphy_devclass;
-
+/* aw_usbphy needs to come up after regulators/gpio/etc, but before ehci/ohci */
 EARLY_DRIVER_MODULE(awusbphy, simplebus, awusbphy_driver, awusbphy_devclass,
-    0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
+    0, 0, BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(awusbphy, 1);
