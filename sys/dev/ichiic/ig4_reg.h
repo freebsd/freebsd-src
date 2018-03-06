@@ -109,12 +109,21 @@
 #define IG4_REG_DMA_RDLR	0x0090	/* RW	DMA Receive Data Level */
 #define IG4_REG_SDA_SETUP	0x0094	/* RW	SDA Setup */
 #define IG4_REG_ENABLE_STATUS	0x009C	/* RO	Enable Status */
+/* Available at least on Atom SoCs and Haswell mobile. */
 #define IG4_REG_COMP_PARAM1	0x00F4	/* RO	Component Parameter */
 #define IG4_REG_COMP_VER	0x00F8	/* RO	Component Version */
+/* Available at least on Atom SoCs */
 #define IG4_REG_COMP_TYPE	0x00FC	/* RO	Probe width/endian? (linux) */
+/* Available on Skylake-U/Y and Kaby Lake-U/Y */
+#define IG4_REG_RESETS_SKL	0x0204	/* RW	Reset Register */
+#define IG4_REG_ACTIVE_LTR_VALUE 0x0210	/* RW	Active LTR Value */
+#define IG4_REG_IDLE_LTR_VALUE	0x0214	/* RW	Idle LTR Value */
+/* Available at least on Atom SoCs */
 #define IG4_REG_CLK_PARMS	0x0800	/* RW	Clock Parameters */
-#define IG4_REG_RESETS		0x0804	/* RW	Reset Register */
+/* Available at least on Atom SoCs and Haswell mobile */
+#define IG4_REG_RESETS_HSW	0x0804	/* RW	Reset Register */
 #define IG4_REG_GENERAL		0x0808	/* RW	General Register */
+/* These LTR config registers are at least available on Haswell mobile. */
 #define IG4_REG_SW_LTR_VALUE	0x0810	/* RW	SW LTR Value */
 #define IG4_REG_AUTO_LTR_VALUE	0x0814	/* RW	Auto LTR Value */
 
@@ -566,8 +575,12 @@
  *	10	(reserved)
  *	11	I2C host controller is in reset.
  */
-#define IG4_RESETS_ASSERT	0x0003
-#define IG4_RESETS_DEASSERT	0x0000
+#define IG4_RESETS_ASSERT_HSW	0x0003
+#define IG4_RESETS_DEASSERT_HSW	0x0000
+
+/* Skylake-U/Y and Kaby Lake-U/Y have the reset bits inverted */
+#define IG4_RESETS_DEASSERT_SKL	0x0003
+#define IG4_RESETS_ASSERT_SKL	0x0000
 
 /*
  * GENERAL - (RW) General Reigster				22.2.38
