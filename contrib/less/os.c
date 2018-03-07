@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -62,10 +62,10 @@ extern int sigs;
 	public int
 iread(fd, buf, len)
 	int fd;
-	char *buf;
+	unsigned char *buf;
 	unsigned int len;
 {
-	register int n;
+	int n;
 
 start:
 #if MSDOS_COMPILER==WIN32C
@@ -226,8 +226,8 @@ strerror(err)
 errno_message(filename)
 	char *filename;
 {
-	register char *p;
-	register char *m;
+	char *p;
+	char *m;
 	int len;
 #if HAVE_ERRNO
 #if MUST_DEFINE_ERRNO
@@ -271,7 +271,8 @@ muldiv(val, num, den)
  */
 	public int
 percentage(num, den)
-	POSITION num, den;
+	POSITION num;
+	POSITION den;
 {
 	return (int) muldiv(num,  (POSITION) 100, den);
 }
