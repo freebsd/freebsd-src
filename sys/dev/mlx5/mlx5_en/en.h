@@ -429,6 +429,7 @@ struct mlx5e_params_ethtool {
 	u64	arg [0];
 	MLX5E_PARAMS(MLX5E_STATS_VAR)
 	u64	max_bw_value[IEEE_8021QAZ_MAX_TCS];
+	u8	prio_tc[IEEE_8021QAZ_MAX_TCS];
 };
 
 /* EEPROM Standards for plug in modules */
