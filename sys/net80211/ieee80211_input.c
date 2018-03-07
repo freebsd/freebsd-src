@@ -83,20 +83,24 @@ ieee80211_process_mimo(struct ieee80211_node *ni, struct ieee80211_rx_stats *rx)
 }
 
 int
-ieee80211_input_mimo(struct ieee80211_node *ni, struct mbuf *m)
+ieee80211_input_mimo(struct ieee80211_node *ni, struct mbuf *m,
+    struct ieee80211_rx_stats *rx)
 {
 	struct ieee80211_rx_stats rxs;
 
-	/* try to read stats from mbuf */
-	bzero(&rxs, sizeof(rxs));
-	if (ieee80211_get_rx_params(m, &rxs) != 0)
-		return (-1);
+	if (rx) {
+		memcpy(&rxs, rx, sizeof(*rx));
+	} else {
+		/* try to read from mbuf */
+		bzero(&rxs, sizeof(rxs));
+		ieee80211_get_rx_params(m, &rxs);
+	}
 
 	/* XXX should assert IEEE80211_R_NF and IEEE80211_R_RSSI are set */
 	ieee80211_process_mimo(ni, &rxs);
 
 	//return ieee80211_input(ni, m, rx->rssi, rx->nf);
-	return ni->ni_vap->iv_input(ni, m, &rxs, rxs.c_rssi, rxs.c_nf);
+	return ni->ni_vap->iv_input(ni, m, &rxs, rxs.rssi, rxs.nf);
 }
 
 int
@@ -105,22 +109,28 @@ ieee80211_input_all(struct ieee80211com *ic, struct mbuf *m, int rssi, int nf)
 	struct ieee80211_rx_stats rx;
 
 	rx.r_flags = IEEE80211_R_NF | IEEE80211_R_RSSI;
-	rx.c_nf = nf;
-	rx.c_rssi = rssi;
-
-	if (!ieee80211_add_rx_params(m, &rx))
-		return (-1);
-
-	return ieee80211_input_mimo_all(ic, m);
+	rx.nf = nf;
+	rx.rssi = rssi;
+	return ieee80211_input_mimo_all(ic, m, &rx);
 }
 
 int
-ieee80211_input_mimo_all(struct ieee80211com *ic, struct mbuf *m)
+ieee80211_input_mimo_all(struct ieee80211com *ic, struct mbuf *m,
+    struct ieee80211_rx_stats *rx)
 {
+	struct ieee80211_rx_stats rxs;
 	struct ieee80211vap *vap;
 	int type = -1;
 
 	m->m_flags |= M_BCAST;		/* NB: mark for bpf tap'ing */
+
+	if (rx) {
+		memcpy(&rxs, rx, sizeof(*rx));
+	} else {
+		/* try to read from mbuf */
+		bzero(&rxs, sizeof(rxs));
+		ieee80211_get_rx_params(m, &rxs);
+	}
 
 	/* XXX locking */
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
@@ -142,7 +152,6 @@ ieee80211_input_mimo_all(struct ieee80211com *ic, struct mbuf *m)
 			/*
 			 * Packet contents are changed by ieee80211_decap
 			 * so do a deep copy of the packet.
-			 * NB: tags are copied too.
 			 */
 			mcopy = m_dup(m, M_NOWAIT);
 			if (mcopy == NULL) {
@@ -154,7 +163,7 @@ ieee80211_input_mimo_all(struct ieee80211com *ic, struct mbuf *m)
 			m = NULL;
 		}
 		ni = ieee80211_ref_node(vap->iv_bss);
-		type = ieee80211_input_mimo(ni, mcopy);
+		type = ieee80211_input_mimo(ni, mcopy, &rxs);
 		ieee80211_free_node(ni);
 	}
 	if (m != NULL)			/* no vaps, reclaim mbuf */

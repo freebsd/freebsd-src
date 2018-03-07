@@ -620,82 +620,33 @@ int	ieee80211_add_xmit_params(struct mbuf *m,
 int	ieee80211_get_xmit_params(struct mbuf *m,
 	    struct ieee80211_bpf_params *);
 
-/*
- * Note: this is fine for 3x3 (and 4x4) 11n HT40;
- * but getting EVM information for VHT80, VHT160
- * will involve more than 6 EVM pilots.
- */
-#define	IEEE80211_MAX_CHAINS		4
+#define	IEEE80211_MAX_CHAINS		3
 #define	IEEE80211_MAX_EVM_PILOTS	6
 
-#define	IEEE80211_R_NF		0x00000001	/* global NF value valid */
-#define	IEEE80211_R_RSSI	0x00000002	/* global RSSI value valid */
-#define	IEEE80211_R_C_CHAIN	0x00000004	/* RX chain count valid */
-#define	IEEE80211_R_C_NF	0x00000008	/* per-chain NF value valid */
-#define	IEEE80211_R_C_RSSI	0x00000010	/* per-chain RSSI value valid */
-#define	IEEE80211_R_C_EVM	0x00000020	/* per-chain EVM valid */
-#define	IEEE80211_R_C_HT40	0x00000040	/* RX'ed packet is 40mhz, pilots 4,5 valid */
-#define	IEEE80211_R_FREQ	0x00000080	/* Freq value populated, MHz */
-#define	IEEE80211_R_IEEE	0x00000100	/* IEEE value populated */
-#define	IEEE80211_R_BAND	0x00000200	/* Frequency band populated */
-#define	IEEE80211_R_TSF32	0x00004000	/* 32 bit TSF */
-#define	IEEE80211_R_TSF64	0x00008000	/* 64 bit TSF */
-#define	IEEE80211_R_TSF_START	0x00010000	/* TSF is sampled at start of frame */
-#define	IEEE80211_R_TSF_END	0x00020000	/* TSF is sampled at end of frame */
-
-/* RX packet flags - describe the kind of frame */
-#define	IEEE80211_RX_F_STBC		0x00000001
-#define	IEEE80211_RX_F_LDPC		0x00000002
-#define	IEEE80211_RX_F_AMSDU		0x00000004 /* This is the start of an decap AMSDU list */
-#define	IEEE80211_RX_F_AMSDU_MORE	0x00000008 /* This is another decap AMSDU frame in the batch */
-#define	IEEE80211_RX_F_AMPDU		0x00000010 /* This is the start of an decap AMPDU list */
-#define	IEEE80211_RX_F_AMPDU_MORE	0x00000020 /* This is another decap AMPDU frame in the batch */
-
-/* Channel width */
-#define	IEEE80211_RX_FW_20MHZ		1
-#define	IEEE80211_RX_FW_40MHZ		2
-#define	IEEE80211_RX_FW_80MHZ		3
-
-/* PHY type */
-#define	IEEE80211_RX_FP_11B		1
-#define	IEEE80211_RX_FP_11G		2
-#define	IEEE80211_RX_FP_11A		3
-#define	IEEE80211_RX_FP_11NA		4
-#define	IEEE80211_RX_FP_11NG		5
+#define	IEEE80211_R_NF		0x0000001	/* global NF value valid */
+#define	IEEE80211_R_RSSI	0x0000002	/* global RSSI value valid */
+#define	IEEE80211_R_C_CHAIN	0x0000004	/* RX chain count valid */
+#define	IEEE80211_R_C_NF	0x0000008	/* per-chain NF value valid */
+#define	IEEE80211_R_C_RSSI	0x0000010	/* per-chain RSSI value valid */
+#define	IEEE80211_R_C_EVM	0x0000020	/* per-chain EVM valid */
+#define	IEEE80211_R_C_HT40	0x0000040	/* RX'ed packet is 40mhz, pilots 4,5 valid */
+#define	IEEE80211_R_FREQ	0x0000080	/* Freq value populated, MHz */
+#define	IEEE80211_R_IEEE	0x0000100	/* IEEE value populated */
+#define	IEEE80211_R_BAND	0x0000200	/* Frequency band populated */
 
 struct ieee80211_rx_stats {
 	uint32_t r_flags;		/* IEEE80211_R_* flags */
-	uint32_t c_pktflags;		/* IEEE80211_RX_F_* flags */
-
-	uint64_t c_rx_tsf;		/* 32 or 64 bit TSF */
-
-	/* All DWORD aligned */
-	int16_t c_nf_ctl[IEEE80211_MAX_CHAINS];	/* per-chain NF */
-	int16_t c_nf_ext[IEEE80211_MAX_CHAINS];	/* per-chain NF */
-	int16_t c_rssi_ctl[IEEE80211_MAX_CHAINS];	/* per-chain RSSI */
-	int16_t c_rssi_ext[IEEE80211_MAX_CHAINS];	/* per-chain RSSI */
-
-	/* 32 bits */
-	uint8_t c_nf;			/* global NF */
-	uint8_t c_rssi;			/* global RSSI */
 	uint8_t c_chain;		/* number of RX chains involved */
-	uint8_t c_rate;			/* legacy + 11n rate code */
-
-	/* 32 bits */
-	uint16_t c_freq;		/* Frequency, MHz */
-	uint8_t c_ieee;			/* Channel */
-	uint8_t c_width;		/* channel width, FW flags above */
-
-	/* Force alignment to DWORD */
-	union {
-		uint8_t evm[IEEE80211_MAX_CHAINS][IEEE80211_MAX_EVM_PILOTS];
-		    /* per-chain, per-pilot EVM values */
-		uint32_t __aln[8];
-	} evm;
-
-	/* 32 bits */
-	uint8_t c_phytype;		/* PHY type, FW flags above */
-	uint8_t c_pad2[3];
+	int16_t	c_nf_ctl[IEEE80211_MAX_CHAINS];	/* per-chain NF */
+	int16_t	c_nf_ext[IEEE80211_MAX_CHAINS];	/* per-chain NF */
+	int16_t	c_rssi_ctl[IEEE80211_MAX_CHAINS];	/* per-chain RSSI */
+	int16_t	c_rssi_ext[IEEE80211_MAX_CHAINS];	/* per-chain RSSI */
+	uint8_t nf;			/* global NF */
+	uint8_t rssi;			/* global RSSI */
+	uint8_t evm[IEEE80211_MAX_CHAINS][IEEE80211_MAX_EVM_PILOTS];
+					/* per-chain, per-pilot EVM values */
+	uint16_t c_freq;
+	uint8_t c_ieee;
 };
 
 struct ieee80211_rx_params {

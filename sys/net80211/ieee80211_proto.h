@@ -83,8 +83,10 @@ void	ieee80211_syncflag_ext(struct ieee80211vap *, int flag);
 	((ni)->ni_vap->iv_input(ni, m, NULL, rssi, nf))
 int	ieee80211_input_all(struct ieee80211com *, struct mbuf *, int, int);
 
-int	ieee80211_input_mimo(struct ieee80211_node *, struct mbuf *);
-int	ieee80211_input_mimo_all(struct ieee80211com *, struct mbuf *);
+int	ieee80211_input_mimo(struct ieee80211_node *, struct mbuf *,
+	    struct ieee80211_rx_stats *);
+int	ieee80211_input_mimo_all(struct ieee80211com *, struct mbuf *,
+	    struct ieee80211_rx_stats *);
 
 struct ieee80211_bpf_params;
 int	ieee80211_mgmt_output(struct ieee80211_node *, struct mbuf *, int,

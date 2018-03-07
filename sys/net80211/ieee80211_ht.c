@@ -586,7 +586,7 @@ ieee80211_ampdu_rx_start_ext(struct ieee80211_node *ni, int tid, int seq, int ba
 	rap->rxa_flags |=  IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_XCHGPEND;
 
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N, ni,
-	    "%s: tid=%d, start=%d, wnd=%d, flags=0x%08x",
+	    "%s: tid=%d, start=%d, wnd=%d, flags=0x%08x\n",
 	    __func__,
 	    tid,
 	    seq,
