@@ -489,7 +489,7 @@ ofwfb_init(struct vt_device *vd)
 	#if defined(__powerpc__)
 		OF_decode_addr(node, fb_phys, &sc->sc_memt, &sc->fb.fb_vbase,
 		    NULL);
-		sc->fb.fb_pbase = sc->fb.fb_vbase; /* 1:1 mapped */
+		sc->fb.fb_pbase = sc->fb.fb_vbase & ~DMAP_BASE_ADDRESS;
 		#ifdef __powerpc64__
 		/* Real mode under a hypervisor probably doesn't cover FB */
 		if (!(mfmsr() & (PSL_HV | PSL_DR)))

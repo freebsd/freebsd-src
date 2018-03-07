@@ -128,9 +128,6 @@ ps3_attach(platform_t plat)
 	pmap_mmu_install("mmu_ps3", BUS_PROBE_SPECIFIC);
 	cpu_idle_hook = ps3_cpu_idle;
 
-	/* Set a breakpoint to make NULL an invalid address */
-	lv1_set_dabr(0x7 /* read and write, MMU on */, 2 /* kernel accesses */);
-
 	/* Record our PIR at boot for later */
 	ps3_boot_pir = mfspr(SPR_PIR);
 
@@ -227,7 +224,8 @@ static int
 ps3_smp_start_cpu(platform_t plat, struct pcpu *pc)
 {
 	/* kernel is spinning on 0x40 == -1 right now */
-	volatile uint32_t *secondary_spin_sem = (uint32_t *)PHYS_TO_DMAP(0x40);
+	volatile uint32_t *secondary_spin_sem =
+	    (uint32_t *)PHYS_TO_DMAP((uintptr_t)0x40);
 	int remote_pir = pc->pc_hwref;
 	int timeout;
 
