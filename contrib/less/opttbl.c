@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -53,6 +53,8 @@ public int quit_on_intr;	/* Quit on interrupt */
 public int follow_mode;		/* F cmd Follows file desc or file name? */
 public int oldbot;		/* Old bottom of screen behavior {{REMOVE}} */
 public int opt_use_backslash;	/* Use backslash escaping in option parsing */
+public LWCHAR rscroll_char;	/* Char which marks chopped lines with -S */
+public int rscroll_attr;	/* Attribute of rscroll_char */
 #if HILITE_SEARCH
 public int hilite_search;	/* Highlight matched search patterns? */
 #endif
@@ -117,6 +119,7 @@ static struct optname keypad_optname = { "no-keypad",            NULL };
 static struct optname oldbot_optname = { "old-bot",              NULL };
 static struct optname follow_optname = { "follow-name",          NULL };
 static struct optname use_backslash_optname = { "use-backslash", NULL };
+static struct optname rscroll_optname = { "rscroll", NULL };
 
 
 /*
@@ -176,10 +179,10 @@ static struct loption option[] =
 	},
 #if MSDOS_COMPILER
 	{ 'D', &D__optname,
-		STRING|REPAINT|NO_QUERY, 0, NULL, opt_D,
+		STRING|REPAINT, 0, NULL, opt_D,
 		{
 			"color desc: ", 
-			"Ddknsu0123456789.",
+			"Dadknsu0123456789.",
 			NULL
 		}
 	},
@@ -456,6 +459,10 @@ static struct loption option[] =
 			NULL
 		}
 	},
+	{ OLETTER_NONE, &rscroll_optname,
+		STRING|REPAINT|INIT_HANDLER, 0, NULL, opt_rscroll,
+		{ "right scroll character: ", NULL, NULL }
+	},
 	{ '\0', NULL, NOVAR, 0, NULL, NULL, { NULL, NULL, NULL } }
 };
 
@@ -466,7 +473,7 @@ static struct loption option[] =
 	public void
 init_option()
 {
-	register struct loption *o;
+	struct loption *o;
 	char *p;
 
 	p = lgetenv("LESS_IS_MORE");
@@ -492,7 +499,7 @@ init_option()
 findopt(c)
 	int c;
 {
-	register struct loption *o;
+	struct loption *o;
 
 	for (o = option;  o->oletter != '\0';  o++)
 	{
@@ -533,9 +540,9 @@ findopt_name(p_optname, p_oname, p_err)
 	int *p_err;
 {
 	char *optname = *p_optname;
-	register struct loption *o;
-	register struct optname *oname;
-	register int len;
+	struct loption *o;
+	struct optname *oname;
+	int len;
 	int uppercase;
 	struct loption *maxo = NULL;
 	struct optname *maxoname = NULL;

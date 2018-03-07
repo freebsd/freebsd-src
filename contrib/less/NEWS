@@ -11,6 +11,82 @@
 
 ======================================================================
 
+	Major changes between "less" versions 487 and 530
+
+* Don't output terminal init sequence if using -F and file fits on one screen.
+
+* When using -S, mark truncated lines with a special character.
+  The character can be changed or disabled via the new --rscroll option.
+
+* New command M marks the last line displayed on the screen.
+
+* New command ESC-m removes a line mark.
+
+* Status column (enabled via -J) now shows mark letters.
+
+* Status column shows search matches even if highlighting is disabled via -G.
+
+* A second ESC-u command will clear search match markers in the status column.
+
+* Do same ANSI escape code filtering for tag matching that we do for 
+  searching, to help when viewing syntax-highlighted code.
+  
+* Catch SIGTERM and clean up before exiting.
+
+* Fix bug initializing default charset on Windows.
+
+* Handle keypad ENTER key correctly if it sends something other than newline.
+
+* Fix buffering bug when using stdin with a LESSOPEN pipe.
+
+* On Windows, allow 'u' in -D option to enable underlining.
+
+* On Windows, use underline in sgr mode.
+
+* On Windows, convert UTF-8 to multibyte if console is not UTF-8.
+
+* Update Unicode tables to 2017-03-08.
+
+* Pass-thru Unicode formating chars (Cf type) instead of treating them
+  as binary chars. But treat them as binary if -U is set.
+
+* Fix erroneous binary file warning when UTF-8 file contains ANSI SGR sequences.
+
+* Fix bugs when using LESSOPEN and switching between stdin and other files.
+
+* Fix some bugs handling filenames containing shell metacharacters.
+
+* Fix some memory leaks.
+
+* Allow some debugging environment variables to be set in lesskey file.
+
+* Code improvements:
+  . Use ANSI prototypes in funcs.h declarations.
+  . Fix some const mismatches.
+  . Remove archaic "register" in variable declarations.
+
+======================================================================
+
+	Major changes between "less" versions 481 and 487
+
+* New commands ESC-{ and ESC-} to shift to start/end of displayed lines.
+
+* Make search highlights work correctly when changing caselessness with -i.
+
+* New option -Da in Windows version to enable SGR mode.
+
+* Fix "nothing to search" error when top or bottom line on screen is empty.
+
+* Fix bug when terminal has no "cm" termcap entry.
+
+* Fix incorrect display when entering double-width chars in search string.
+
+* Fix bug in Unicode handling that missed some double width characters.
+
+* Update Unicode database to 9.0.0.
+
+======================================================================
+
 	Major changes between "less" versions 458 and 481
 
 * Don't overwrite history file; just append to it.

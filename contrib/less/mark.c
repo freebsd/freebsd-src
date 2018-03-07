@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -9,6 +9,7 @@
 
 
 #include "less.h"
+#include "position.h"
 
 extern IFILE curr_ifile;
 extern int sc_height;
@@ -61,7 +62,7 @@ getumark(c)
 getmark(c)
 	int c;
 {
-	register struct mark *m;
+	struct mark *m;
 	static struct mark sm;
 
 	switch (c)
@@ -86,7 +87,7 @@ getmark(c)
 		}
 		m = &sm;
 		m->m_scrpos.pos = ch_tell();
-		m->m_scrpos.ln = sc_height-1;
+		m->m_scrpos.ln = sc_height;
 		m->m_ifile = curr_ifile;
 		break;
 	case '.':
@@ -94,7 +95,7 @@ getmark(c)
 		 * Current position in the current file.
 		 */
 		m = &sm;
-		get_scrpos(&m->m_scrpos);
+		get_scrpos(&m->m_scrpos, TOP);
 		m->m_ifile = curr_ifile;
 		break;
 	case '\'':
@@ -134,18 +135,34 @@ badmark(c)
  * Set a user-defined mark.
  */
 	public void
-setmark(c)
+setmark(c, where)
 	int c;
+	int where;
 {
-	register struct mark *m;
+	struct mark *m;
 	struct scrpos scrpos;
 
 	m = getumark(c);
 	if (m == NULL)
 		return;
-	get_scrpos(&scrpos);
+	get_scrpos(&scrpos, where);
 	m->m_scrpos = scrpos;
 	m->m_ifile = curr_ifile;
+}
+
+/*
+ * Clear a user-defined mark.
+ */
+	public void
+clrmark(c)
+	int c;
+{
+	struct mark *m;
+
+	m = getumark(c);
+	if (m == NULL)
+		return;
+	m->m_scrpos.pos = NULL_POSITION;
 }
 
 /*
@@ -158,7 +175,7 @@ lastmark()
 
 	if (ch_getflags() & CH_HELPFILE)
 		return;
-	get_scrpos(&scrpos);
+	get_scrpos(&scrpos, TOP);
 	if (scrpos.pos == NULL_POSITION)
 		return;
 	marks[LASTMARK].m_scrpos = scrpos;
@@ -172,7 +189,7 @@ lastmark()
 gomark(c)
 	int c;
 {
-	register struct mark *m;
+	struct mark *m;
 	struct scrpos scrpos;
 
 	m = getmark(c);
@@ -220,7 +237,7 @@ gomark(c)
 markpos(c)
 	int c;
 {
-	register struct mark *m;
+	struct mark *m;
 
 	m = getmark(c);
 	if (m == NULL)
@@ -232,6 +249,27 @@ markpos(c)
 		return (NULL_POSITION);
 	}
 	return (m->m_scrpos.pos);
+}
+
+/*
+ * Return the mark associated with a given position, if any.
+ */
+	public char
+posmark(pos)
+	POSITION pos;
+{
+	int i;
+
+	/* Only lower case and upper case letters */
+	for (i = 0;  i < 26*2;  i++)
+	{
+		if (marks[i].m_ifile == curr_ifile && marks[i].m_scrpos.pos == pos)
+		{
+			if (i < 26) return 'a' + i;
+			return 'A' + i - 26;
+		}
+	}
+	return 0;
 }
 
 /*
