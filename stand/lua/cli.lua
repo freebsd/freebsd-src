@@ -95,7 +95,7 @@ function cli_execute(...)
 end
 
 function cli_execute_unparsed(str)
-	cli_execute(loader.parse(str))
+	return cli_execute(loader.parse(str))
 end
 
 -- Module exports
