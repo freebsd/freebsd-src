@@ -25,6 +25,21 @@
 	<entry><para>Timezone database information
 	    update</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-18:01.tzdata.asc">FreeBSD-EN-18:01.tzdata</link></entry>
+	<entry>07&nbsp;March&nbsp;2018</entry>
+	<entry><para>Timezone database information
+	    update</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-18:02.file.asc">FreeBSD-EN-18:02.file</link></entry>
+	<entry>07&nbsp;March&nbsp;2018</entry>
+	<entry><para>Stack-based buffer overflow</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
