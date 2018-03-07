@@ -32,7 +32,7 @@
 .\"	@(#)chflags.1	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd March 4, 2018
+.Dd March 6, 2018
 .Dt CHFLAGS 1
 .Os
 .Sh NAME
@@ -217,6 +217,16 @@ setting.
 See
 .Xr security 7
 for more information on this setting.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+signal (see the
+.Cm status
+argument for
+.Xr stty 1 ) ,
+then the current filename as well as the old and new flags are displayed.
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
