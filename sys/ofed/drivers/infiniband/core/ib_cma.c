@@ -3122,8 +3122,14 @@ static int cma_check_linklocal(struct rdma_dev_addr *dev_addr,
 
 	if (IN6_IS_SCOPE_LINKLOCAL(&sin6.sin6_addr) ||
 	    IN6_IS_ADDR_MC_INTFACELOCAL(&sin6.sin6_addr)) {
-		/* check if IPv6 scope ID is set */
-		if (sa6_recoverscope(&sin6) || sin6.sin6_scope_id == 0)
+		bool failure;
+
+		CURVNET_SET_QUIET(dev_addr->net);
+		failure = sa6_recoverscope(&sin6) || sin6.sin6_scope_id == 0;
+		CURVNET_RESTORE();
+
+		/* check if IPv6 scope ID is not set */
+		if (failure)
 			return -EINVAL;
 		dev_addr->bound_dev_if = sin6.sin6_scope_id;
 	}
