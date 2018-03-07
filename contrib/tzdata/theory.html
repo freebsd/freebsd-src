@@ -52,6 +52,10 @@ However, the database is not designed for and does not suffice for
 applications requiring accurate handling of all past times everywhere,
 as it would take far too much effort and guesswork to record all
 details of pre-1970 civil timekeeping.
+Athough some information outside the scope of the database is
+collected in a file <code>backzone</code> that is distributed along
+with the database proper, this file is less reliable and does not
+necessarily follow database guidelines.
 </p>
 
 <p>
@@ -240,7 +244,7 @@ to name time
 zone rules.  It is intended to be an exhaustive list of names for
 geographic regions as described above; this is a subset of the names
 in the data.  Although a '<code>zone1970.tab</code>' location's longitude
-corresponds to its LMT offset with one hour for every 15 degrees east
+corresponds to its LMT offset with one hour for every 15&deg; east
 longitude, this relationship is not exact.
 </p>
 
@@ -279,7 +283,7 @@ Here are the general rules used for choosing time zone abbreviations,
 in decreasing order of importance:
 <ul>
   <li>
-	Use three or more characters that are ASCII alphanumerics or
+	Use three to six characters that are ASCII alphanumerics or
 		'<code>+</code>' or '<code>-</code>'.
 		Previous editions of this database also used characters like
 		'<code> </code>' and '<code>?</code>', but these
@@ -297,7 +301,7 @@ in decreasing order of importance:
 		'<code>+</code>' and '<code>-</code>' are safe in all locales.
 
 		In other words, in the C locale the POSIX extended regular
-		expression <code>[-+[:alnum:]]{3,}</code> should match
+		expression <code>[-+[:alnum:]]{3,6}</code> should match
 		the abbreviation.
 		This guarantees that all abbreviations could have been
 		specified by a POSIX TZ string.
@@ -308,12 +312,96 @@ in decreasing order of importance:
 		We assume that applications translate them to other languages
 		as part of the normal localization process; for example,
 		a French application might translate 'EST' to 'HNE'.
+
+<p><small>These abbreviations (for standard/daylight/etc. time) are:
+ACST/ACDT Australian Central,
+AST/ADT/APT/AWT/ADDT Atlantic,
+AEST/AEDT Australian Eastern,
+AHST/AHDT Alaska-Hawaii,
+AKST/AKDT Alaska,
+AWST/AWDT Australian Western,
+BST/BDT Bering,
+CAT/CAST Central Africa,
+CET/CEST/CEMT Central European,
+ChST Chamorro,
+CST/CDT/CWT/CPT/CDDT Central [North America],
+CST/CDT China,
+GMT/BST/IST/BDST Greenwich,
+EAT East Africa,
+EST/EDT/EWT/EPT/EDDT Eastern [North America],
+EET/EEST Eastern European,
+GST Guam,
+HST/HDT Hawaii,
+HKT/HKST Hong Kong,
+IST India,
+IST/GMT Irish,
+IST/IDT/IDDT Israel,
+JST/JDT Japan,
+KST/KDT Korea,
+MET/MEST Middle European (a backward-compatibility alias for Central European),
+MSK/MSD Moscow,
+MST/MDT/MWT/MPT/MDDT Mountain,
+NST/NDT/NWT/NPT/NDDT Newfoundland,
+NST/NDT/NWT/NPT Nome,
+NZMT/NZST New Zealand through 1945,
+NZST/NZDT New Zealand 1946&ndash;present,
+PKT/PKST Pakistan,
+PST/PDT/PWT/PPT/PDDT Pacific,
+SAST South Africa,
+SST Samoa,
+WAT/WAST West Africa,
+WET/WEST/WEMT Western European,
+WIB Waktu Indonesia Barat,
+WIT Waktu Indonesia Timur,
+WITA Waktu Indonesia Tengah,
+YST/YDT/YWT/YPT/YDDT Yukon</small>.</p>
   </li>
   <li>
 	For zones whose times are taken from a city's longitude, use the
-		traditional <var>x</var>MT notation, e.g. 'PMT' for
-		Paris Mean Time.
-		The only name like this in current use is 'GMT'.
+traditional <var>x</var>MT notation. The only abbreviation like this
+in current use is 'GMT'. The others are for timestamps before 1960,
+except that Monrovia Mean Time persisted until 1972. Typically,
+numeric abbreviations (e.g., '<code>-</code>004430' for MMT) would
+cause trouble here, as the numeric strings would exceed the POSIX length limit.
+
+<p><small>These abbreviations are:
+AMT Amsterdam, Asunción, Athens;
+BMT Baghdad, Bangkok, Batavia, Bern, Bogotá, Bridgetown, Brussels, Bucharest;
+CMT Calamarca, Caracas, Chisinau, Colón, Copenhagen, Córdoba;
+DMT Dublin/Dunsink;
+EMT Easter;
+FFMT Fort-de-France;
+FMT Funchal;
+GMT Greenwich;
+HMT Havana, Helsinki, Horta, Howrah;
+IMT Irkutsk, Istanbul;
+JMT Jerusalem;
+KMT Kaunas, Kiev, Kingston;
+LMT Lima, Lisbon, local, Luanda;
+MMT Macassar, Madras, Malé, Managua, Minsk, Monrovia, Montevideo, Moratuwa,
+ Moscow;
+PLMT Phù Liễn;
+PMT Paramaribo, Paris, Perm, Pontianak, Prague;
+PMMT Port Moresby;
+QMT Quito;
+RMT Rangoon, Riga, Rome;
+SDMT Santo Domingo;
+SJMT San José;
+SMT Santiago, Simferopol, Singapore, Stanley;
+TBMT Tbilisi;
+TMT Tallinn, Tehran;
+WMT Warsaw</small>.</p>
+
+<p><small>A few abbreviations also follow the pattern that
+GMT/BST established for time in the UK. They are:
+
+CMT/BST for Calamarca Mean Time and Bolivian Summer Time
+1890&ndash;1932, DMT/IST for Dublin/Dunsink Mean Time and Irish Summer Time
+1880&ndash;1916, MMT/MST/MDST for Moscow 1880&ndash;1919, and RMT/LST
+for Riga Mean Time and Latvian Summer time 1880&ndash;1926.
+An extra-special case is SET for Swedish Time (<em>svensk
+normaltid</em>) 1879&ndash;1899, 3&deg; west of the Stockholm
+Observatory.</small></p>
   </li>
   <li>
 	Use 'LMT' for local mean time of locations before the introduction
@@ -340,32 +428,6 @@ in decreasing order of importance:
 		history tends to use numeric abbreviations and a particular
 		entry could go either way, use a numeric abbreviation.
   </li>
-</ul>
-    [The remaining guidelines predate the introduction of <code>%z</code>.
-    They are problematic as they mean tz data entries invent
-    notation rather than record it.  These guidelines are now
-    deprecated and the plan is to gradually move to <code>%z</code> for
-    inhabited locations and to "<code>-</code>00" for uninhabited locations.]
-<ul>
-  <li>
-	If there is no common English abbreviation, abbreviate the English
-		translation of the usual phrase used by native speakers.
-		If this is not available or is a phrase mentioning the country
-		(e.g. "Cape Verde Time"), then:
-	<ul>
-	  <li>
-		When a country is identified with a single or principal zone,
-			append 'T' to the country's ISO	code, e.g. 'CVT' for
-			Cape Verde Time.  For summer time append 'ST';
-			for double summer time append 'DST'; etc.
-	  </li>
-	  <li>
-		Otherwise, take the first three letters of an English place
-			name identifying each zone and append 'T', 'ST', etc.
-			as before; e.g. 'CHAST' for CHAtham Summer Time.
-	  </li>
-	</ul>
-  </li>
   <li>
 	Use UT (with time zone abbreviation '<code>-</code>00') for
 		locations while uninhabited.  The leading
@@ -376,10 +438,10 @@ in decreasing order of importance:
 </ul>
 <p>
 Application writers should note that these abbreviations are ambiguous
-in practice: e.g. 'CST' has a different meaning in China than
-it does in the United States.  In new applications, it's often better
-to use numeric UT offsets like '<code>-</code>0600' instead of time zone
-abbreviations like 'CST'; this avoids the ambiguity.
+in practice: e.g., 'CST' means one thing in China and something else
+in North America, and 'IST' can refer to time in India, Ireland or
+Israel. To avoid ambiguity, use numeric UT offsets like
+'<code>-</code>0600' instead of time zone abbreviations like 'CST'.
 </p>
   </section>
 
@@ -388,7 +450,7 @@ abbreviations like 'CST'; this avoids the ambiguity.
     <h2 id="accuracy">Accuracy of the tz database</h2>
 <p>
 The tz database is not authoritative, and it surely has errors.
-Corrections are welcome and encouraged; see the file CONTRIBUTING.
+Corrections are welcome and encouraged; see the file <code>CONTRIBUTING</code>.
 Users requiring authoritative data should consult national standards
 bodies and the references cited in the database's comments.
 </p>
@@ -598,7 +660,7 @@ POSIX has the following properties and limitations.
 		and daylight saving time (DST) zone names.
 		Starting with POSIX.1-2001, <var>std</var>
 		and <var>dst</var> may also be
-		in a quoted form like '<code>&lt;UTC+10&gt;</code>'; this allows
+		in a quoted form like '<code>&lt;+09&gt;</code>'; this allows
 		"<code>+</code>" and "<code>-</code>" in the names.
       </dd>
       <dt><var>offset</var></dt><dd>
@@ -646,7 +708,7 @@ POSIX has the following properties and limitations.
 </dd>
 </dl>
 	Here is an example POSIX TZ string for New Zealand after 2007.
-	It says that standard time (NZST) is 12 hours ahead of UTC,
+	It says that standard time (NZST) is 12 hours ahead of UT,
 	and that daylight saving time (NZDT) is observed from September's
 	last Sunday at 02:00 until April's first Sunday at 03:00:
 
@@ -678,7 +740,7 @@ POSIX has the following properties and limitations.
 	applications that an administrator wants used only at certain
 	times &ndash;
 	without regard to whether the user has fiddled the TZ environment
-	variable.  While an administrator can "do everything in UTC" to get
+	variable.  While an administrator can "do everything in UT" to get
 	around the problem, doing so is inconvenient and precludes handling
 	daylight saving time shifts - as might be required to limit phone
 	calls to off-peak hours.)
@@ -902,7 +964,7 @@ Interface changes in a release attempt to preserve compatibility with
 recent releases.  For example, tz data files typically do not rely on
 recently-added <code>zic</code> features, so that users can run
 older <code>zic</code> versions to process newer data
-files.  <a href="tz-link.htm">Sources for time zone and daylight
+files.  <a href="tz-link.html">Sources for time zone and daylight
 saving time data</a> describes how
 releases are tagged and distributed.
 </p>
@@ -1003,7 +1065,7 @@ Sources:
 Michael Allison and Robert Schmunk,
 "<a href="https://www.giss.nasa.gov/tools/mars24/help/notes.html">Technical
 Notes on Mars Solar Time as Adopted by the Mars24 Sunclock</a>"
-(2012-08-08).
+(2015-06-30).
   </li>
   <li>
 Jia-Rui Chong,
