@@ -382,7 +382,7 @@ int
 cloudabi_sys_fd_stat_get(struct thread *td,
     struct cloudabi_sys_fd_stat_get_args *uap)
 {
-	cloudabi_fdstat_t fsb = {};
+	cloudabi_fdstat_t fsb = {0};
 	struct file *fp;
 	cap_rights_t rights;
 	struct filecaps fcaps;
