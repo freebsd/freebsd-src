@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
 #include "acpi_bus_if.h"
+#include "pcib_if.h"
 #endif
 
 extern struct bus_space memmap_bus;
@@ -524,7 +525,8 @@ nexus_acpi_map_intr(device_t dev, device_t child, u_int irq, int trig, int pol)
 	 * controllers for the largest base value that is no larger than
 	 * the IRQ value.
 	 */
-	irq = intr_map_irq(NULL, 0, (struct intr_map_data *)acpi_data);
+	irq = intr_map_irq(NULL, ACPI_INTR_XREF,
+	    (struct intr_map_data *)acpi_data);
 	return (irq);
 }
 #endif
