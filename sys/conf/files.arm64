@@ -171,6 +171,8 @@ crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
 crypto/des/des_enc.c		optional	crypto | ipsec | ipsec_support | netsmb
 dev/acpica/acpi_bus_if.m	optional	acpi
 dev/acpica/acpi_if.m		optional	acpi
+dev/acpica/acpi_pci_link.c	optional	acpi pci
+dev/acpica/acpi_pcib.c		optional	acpi pci
 dev/ahci/ahci_generic.c		optional	ahci
 dev/axgbe/if_axgbe.c		optional	axgbe
 dev/axgbe/xgbe-desc.c		optional	axgbe
@@ -191,6 +193,7 @@ dev/neta/if_mvneta.c		optional	neta mdio mii
 dev/ofw/ofw_cpu.c		optional	fdt
 dev/ofw/ofwpci.c		optional 	fdt pci
 dev/pci/pci_host_generic.c	optional	pci
+dev/pci/pci_host_generic_acpi.c	optional	pci acpi
 dev/pci/pci_host_generic_fdt.c	optional	pci fdt
 dev/psci/psci.c			optional	psci
 dev/psci/psci_arm64.S		optional	psci
