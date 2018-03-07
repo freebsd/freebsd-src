@@ -1883,6 +1883,29 @@ acpi_enable_pcie(void)
 		alloc++;
 	}
 }
+#elif defined(__aarch64__)
+static void
+acpi_enable_pcie(device_t child, int segment)
+{
+	ACPI_TABLE_HEADER *hdr;
+	ACPI_MCFG_ALLOCATION *alloc, *end;
+	ACPI_STATUS status;
+
+	status = AcpiGetTable(ACPI_SIG_MCFG, 1, &hdr);
+	if (ACPI_FAILURE(status))
+		return;
+
+	end = (ACPI_MCFG_ALLOCATION *)((char *)hdr + hdr->Length);
+	alloc = (ACPI_MCFG_ALLOCATION *)((ACPI_TABLE_MCFG *)hdr + 1);
+	while (alloc < end) {
+		if (alloc->PciSegment == segment) {
+			bus_set_resource(child, SYS_RES_MEMORY, 0,
+			    alloc->Address, 0x10000000);
+			return;
+		}
+		alloc++;
+	}
+}
 #endif
 
 /*
@@ -1974,6 +1997,9 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 {
     ACPI_DEVICE_INFO *devinfo;
     struct acpi_device	*ad;
+#ifdef __aarch64__
+    int segment;
+#endif
     struct acpi_prw_data prw;
     ACPI_OBJECT_TYPE type;
     ACPI_HANDLE h;
@@ -2076,6 +2102,13 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 		    ad->ad_cls_class = strtoul(devinfo->ClassCode.String,
 			NULL, 16);
 		}
+#ifdef __aarch64__
+		if ((devinfo->Flags & ACPI_PCI_ROOT_BRIDGE) != 0) {
+		    if (ACPI_SUCCESS(acpi_GetInteger(handle, "_SEG", &segment))) {
+			acpi_enable_pcie(child, segment);
+		    }
+		}
+#endif
 		AcpiOsFree(devinfo);
 	    }
 	    break;
