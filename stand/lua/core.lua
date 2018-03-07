@@ -240,12 +240,18 @@ function core.setDefaults()
 end
 
 function core.autoboot(argstr)
-	config.loadelf()
+	-- loadelf() only if we've not already loaded a kernel
+	if loader.getenv("kernelname") == nil then
+		config.loadelf()
+	end
 	loader.perform(composeLoaderCmd("autoboot", argstr))
 end
 
 function core.boot(argstr)
-	config.loadelf()
+	-- loadelf() only if we've not already loaded a kernel
+	if loader.getenv("kernelname") == nil then
+		config.loadelf()
+	end
 	loader.perform(composeLoaderCmd("boot", argstr))
 end
 
