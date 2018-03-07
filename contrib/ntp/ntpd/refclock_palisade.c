@@ -80,10 +80,6 @@ extern int async_write(int, const void *, unsigned int);
 #endif
 
 #include "refclock_palisade.h"
-/* Table to get from month to day of the year */
-const int days_of_year [12] = {
-	0,  31,  59,  90, 120, 151, 181, 212, 243, 273, 304, 334
-};
 
 #ifdef DEBUG
 const char * Tracking_Status[15][15] = { 
@@ -107,7 +103,7 @@ struct refclock refclock_palisade = {
 	NOFLAGS			/* not used */
 };
 
-int day_of_year (char *dt);
+static int decode_date(struct refclockproc *pp, const char *cp);
 
 /* Extract the clock type from the mode setting */
 #define CLK_TYPE(x) ((int)(((x)->ttl) & 0x7F))
@@ -226,7 +222,7 @@ init_thunderbolt (
 	sendetx      (&tx, fd);
 	
 	/* activate packets 0x8F-AB and 0x8F-AC */
-	sendsupercmd (&tx, 0x8F, 0xA5);
+	sendsupercmd (&tx, 0x8E, 0xA5);
 	sendint      (&tx, 0x5);
 	sendetx      (&tx, fd);
 
@@ -400,33 +396,78 @@ palisade_shutdown (
 }
 
 
-
 /* 
- * unpack_date - get day and year from date
+ * unpack helpers
  */
-int
-day_of_year (
-	char * dt
-	)
+
+static inline uint8_t
+get_u8(
+	const char *cp)
 {
-	int day, mon, year;
-
-	mon = dt[1];
-	/* Check month is inside array bounds */
-	if ((mon < 1) || (mon > 12)) 
-		return -1;
-
-	day = dt[0] + days_of_year[mon - 1];
-	year = getint((u_char *) (dt + 2)); 
-
-	if ( !(year % 4) && ((year % 100) || 
-			     (!(year % 100) && !(year%400)))
-	     &&(mon > 2))
-		day ++; /* leap year and March or later */
-
-	return day;
+	return ((const u_char*)cp)[0];
 }
 
+static inline uint16_t
+get_u16(
+	const char *cp)
+{
+	return ((uint16_t)get_u8(cp) << 8) | get_u8(cp + 1);
+}
+
+/*
+ * unpack & fix date (the receiver provides a valid time for 1024 weeks
+ * after 1997-12-14 and therefore folds back in 2017, 2037,...)
+ *
+ * Returns -1 on error, day-of-month + (month * 32) othertwise.
+ */
+int
+decode_date(
+	struct refclockproc *pp,
+	const char          *cp)
+{
+	static int32_t  s_baseday = 0;
+	
+	struct calendar jd;
+	int32_t         rd;
+
+	if (0 == s_baseday) {
+		if (!ntpcal_get_build_date(&jd)) {
+			jd.year     = 2015;
+			jd.month    = 1;
+			jd.monthday = 1;
+		}
+		s_baseday = ntpcal_date_to_rd(&jd);
+	}
+
+	/* get date fields and convert to RDN */
+	jd.monthday = get_u8 (  cp  );
+	jd.month    = get_u8 (cp + 1);
+	jd.year     = get_u16(cp + 2);
+	rd = ntpcal_date_to_rd(&jd);
+
+	/* for the paranoid: do reverse calculation and cross-check */
+	ntpcal_rd_to_date(&jd, rd);
+	if ((jd.monthday != get_u8 (  cp  )) ||
+	    (jd.month    != get_u8 (cp + 1)) ||
+	    (jd.year     != get_u16(cp + 2))  )
+		return - 1;
+	
+	/* calculate cycle shift to base day and calculate re-folded
+	 * date
+	 *
+	 * One could do a proper modulo calculation here, but a counting
+	 * loop is probably faster for the next few rollovers...
+	 */
+	while (rd < s_baseday)
+		rd += 7*1024;
+	ntpcal_rd_to_date(&jd, rd);
+
+	/* fill refclock structure & indicate success */
+	pp->day  = jd.yearday;
+	pp->year = jd.year;	
+	return ((int)jd.month << 5) | jd.monthday;
+}
+    
 
 /* 
  * TSIP_decode - decode the TSIP data packets 
@@ -441,7 +482,8 @@ TSIP_decode (
 	double secs;
 	double secfrac;
 	unsigned short event = 0;
-
+	int mmday;
+	
 	struct palisade_unit *up;
 	struct refclockproc *pp;
 
@@ -535,16 +577,16 @@ TSIP_decode (
 			pp->minute = secint / 60;
 			secint %= 60;
 			pp->second = secint % 60;
-		
-			if ((pp->day = day_of_year(&mb(11))) < 0) break;
 
-			pp->year = getint((u_char *) &mb(13)); 
+			mmday = decode_date(pp, &mb(11));
+			if (mmday < 0)
+				break;
 
 #ifdef DEBUG
 			if (debug > 1)
 				printf("TSIP_decode: unit %d: %02X #%d %02d:%02d:%02d.%09ld %02d/%02d/%04d UTC %02d\n",
 				       up->unit, mb(0) & 0xff, event, pp->hour, pp->minute, 
-				       pp->second, pp->nsec, mb(12), mb(11), pp->year, GPS_UTC_Offset);
+				       pp->second, pp->nsec, (mmday >> 5), (mmday & 31), pp->year, GPS_UTC_Offset);
 #endif
 			/* Only use this packet when no
 			 * 8F-AD's are being received
@@ -584,7 +626,11 @@ TSIP_decode (
 				break;
 			}
 
-			up->month = mb(15);
+			mmday = decode_date(pp, &mb(14));
+			if (mmday < 0)
+				break;
+			up->month  = (mmday >> 5);  /* Save for LEAP check */
+
 			if ( (up->leap_status & PALISADE_LEAP_PENDING) &&
 			/* Avoid early announce: https://bugs.ntp.org/2773 */
 				(6 == up->month || 12 == up->month) ) {
@@ -612,19 +658,15 @@ TSIP_decode (
 			pp->nsec = (long) (getdbl((u_char *) &mb(3))
 					   * 1000000000);
 
-			if ((pp->day = day_of_year(&mb(14))) < 0) 
-				break;
-			pp->year = getint((u_char *) &mb(16)); 
 			pp->hour = mb(11);
 			pp->minute = mb(12);
 			pp->second = mb(13);
-			up->month = mb(14);  /* Save for LEAP check */
 
 #ifdef DEBUG
 			if (debug > 1)
 				printf("TSIP_decode: unit %d: %02X #%d %02d:%02d:%02d.%09ld %02d/%02d/%04d UTC %02x %s\n",
 				       up->unit, mb(0) & 0xff, event, pp->hour, pp->minute, 
-				       pp->second, pp->nsec, mb(15), mb(14), pp->year,
+				       pp->second, pp->nsec, (mmday >> 5), (mmday & 31), pp->year,
 				       mb(19), *Tracking_Status[st]);
 #endif
 			return 1;
@@ -750,17 +792,17 @@ TSIP_decode (
 				printf ("	Time is from GPS\n\n");	
 #endif		
 
-			if ((pp->day = day_of_year(&mb(13))) < 0)
+			mmday = decode_date(pp, &mb(13));
+			if (mmday < 0)
 				break;
 			tow = getlong((u_char *) &mb(1));
 #ifdef DEBUG		
 			if (debug > 1) {
 				printf("pp->day: %d\n", pp->day); 
 				printf("TOW: %ld\n", tow);
-				printf("DAY: %d\n", mb(13));
+				printf("DAY: %d\n", (mmday & 31));
 			}
 #endif
-			pp->year = getint((u_char *) &mb(15));
 			pp->hour = mb(12);
 			pp->minute = mb(11);
 			pp->second = mb(10);
@@ -768,7 +810,9 @@ TSIP_decode (
 
 #ifdef DEBUG
 			if (debug > 1)
-				printf("TSIP_decode: unit %d: %02X #%d %02d:%02d:%02d.%09ld %02d/%02d/%04d ",up->unit, mb(0) & 0xff, event, pp->hour, pp->minute, pp->second, pp->nsec, mb(14), mb(13), pp->year);
+				printf("TSIP_decode: unit %d: %02X #%d %02d:%02d:%02d.%09ld %02d/%02d/%04d ",
+				       up->unit, mb(0) & 0xff, event, pp->hour, pp->minute, pp->second,
+				       pp->nsec, (mmday >> 5), (mmday & 31), pp->year);
 #endif
 			return 1;
 			break;

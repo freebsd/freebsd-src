@@ -364,6 +364,7 @@ extern	void	init_systime	(void);
 extern	void	get_systime	(l_fp *);
 extern	int	step_systime	(double);
 extern	int	adj_systime	(double);
+extern	int	clamp_systime	(void);
 
 extern	struct tm * ntp2unix_tm (u_int32 ntp, int local);
 
