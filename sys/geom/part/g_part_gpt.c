@@ -923,6 +923,14 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 		    pp->name);
 		printf("GEOM: %s: GPT rejected -- may not be recoverable.\n",
 		    pp->name);
+		if (prihdr != NULL)
+			g_free(prihdr);
+		if (pritbl != NULL)
+			g_free(pritbl);
+		if (sechdr != NULL)
+			g_free(sechdr);
+		if (sectbl != NULL)
+			g_free(sectbl);
 		return (EINVAL);
 	}
 
