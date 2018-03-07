@@ -94,7 +94,12 @@ uma_small_free(void *mem, vm_size_t size, u_int8_t flags)
 		pmap_remove(kernel_pmap,(vm_offset_t)mem,
 		    (vm_offset_t)mem + PAGE_SIZE);
 
-	m = PHYS_TO_VM_PAGE((vm_offset_t)mem);
+	if (hw_direct_map)
+		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)mem));
+	else
+		m = PHYS_TO_VM_PAGE((vm_offset_t)mem);
+	KASSERT(m != NULL,
+	    ("Freeing UMA block at %p with no associated page", mem));
 	vm_page_unwire_noq(m);
 	vm_page_free(m);
 	atomic_subtract_int(&hw_uma_mdpages, 1);

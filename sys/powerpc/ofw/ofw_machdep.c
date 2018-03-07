@@ -84,20 +84,21 @@ static int	openfirmware(void *args);
 __inline void
 ofw_save_trap_vec(char *save_trap_vec)
 {
-	if (!ofw_real_mode)
+	if (!ofw_real_mode || !hw_direct_map)
                 return;
 
-	bcopy((void *)EXC_RST, save_trap_vec, EXC_LAST - EXC_RST);
+	bcopy((void *)PHYS_TO_DMAP(EXC_RST), save_trap_vec, EXC_LAST - EXC_RST);
 }
 
 static __inline void
 ofw_restore_trap_vec(char *restore_trap_vec)
 {
-	if (!ofw_real_mode)
+	if (!ofw_real_mode || !hw_direct_map)
                 return;
 
-	bcopy(restore_trap_vec, (void *)EXC_RST, EXC_LAST - EXC_RST);
-	__syncicache(EXC_RSVD, EXC_LAST - EXC_RSVD);
+	bcopy(restore_trap_vec, (void *)PHYS_TO_DMAP(EXC_RST),
+	    EXC_LAST - EXC_RST);
+	__syncicache((void *)PHYS_TO_DMAP(EXC_RSVD), EXC_LAST - EXC_RSVD);
 }
 
 /*
@@ -381,12 +382,6 @@ OF_initial_setup(void *fdt_ptr, void *junk, int (*openfirm)(void *))
 #endif
 
 	fdt = fdt_ptr;
-
-	#ifdef FDT_DTB_STATIC
-	/* Check for a statically included blob */
-	if (fdt == NULL)
-		fdt = &fdt_static_dtb;
-	#endif
 }
 
 boolean_t
@@ -414,13 +409,57 @@ OF_bootstrap()
 	} else
 #endif
 	if (fdt != NULL) {
-		status = OF_install(OFW_FDT, 0);
+#ifdef AIM
+		bus_space_tag_t fdt_bt;
+		vm_offset_t tmp_fdt_ptr;
+		vm_size_t fdt_size;
+		uintptr_t fdt_va;
+#endif
 
+		status = OF_install(OFW_FDT, 0);
 		if (status != TRUE)
 			return status;
 
+#ifdef AIM /* AIM-only for now -- Book-E does this remapping in early init */
+		/* Get the FDT size for mapping if we can */
+		tmp_fdt_ptr = pmap_early_io_map((vm_paddr_t)fdt, PAGE_SIZE);
+		if (fdt_check_header((void *)tmp_fdt_ptr) != 0) {
+			pmap_early_io_unmap(tmp_fdt_ptr, PAGE_SIZE);
+			return FALSE;
+		}
+		fdt_size = fdt_totalsize((void *)tmp_fdt_ptr);
+		pmap_early_io_unmap(tmp_fdt_ptr, PAGE_SIZE);
+
+		/*
+		 * Map this for real. Use bus_space_map() to take advantage
+		 * of its auto-remapping function once the kernel is loaded.
+		 * This is a dirty hack, but what we have.
+		 */
+#ifdef _LITTLE_ENDIAN
+		fdt_bt = &bs_le_tag;
+#else
+		fdt_bt = &bs_be_tag;
+#endif
+		bus_space_map(fdt_bt, (vm_paddr_t)fdt, fdt_size, 0, &fdt_va);
+		 
+		err = OF_init((void *)fdt_va);
+#else
 		err = OF_init(fdt);
+#endif
 	} 
+
+	#ifdef FDT_DTB_STATIC
+	/*
+	 * Check for a statically included blob already in the kernel and
+	 * needing no mapping.
+	 */
+	else {
+		status = OF_install(OFW_FDT, 0);
+		if (status != TRUE)
+			return status;
+		err = OF_init(&fdt_static_dtb);
+	}
+	#endif
 
 	if (err != 0) {
 		OF_install(NULL, 0);
