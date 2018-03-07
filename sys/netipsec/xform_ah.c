@@ -598,6 +598,16 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		error = EACCES;
 		goto bad;
 	}
+	if (skip + authsize + rplen > m->m_pkthdr.len) {
+		DPRINTF(("%s: bad mbuf length %u (expecting %lu)"
+		    " for packet in SA %s/%08lx\n", __func__,
+		    m->m_pkthdr.len, (u_long) (skip + authsize + rplen),
+		    ipsec_address(&sav->sah->saidx.dst, buf, sizeof(buf)),
+		    (u_long) ntohl(sav->spi)));
+		AHSTAT_INC(ahs_badauthl);
+		error = EACCES;
+		goto bad;
+	}
 	AHSTAT_ADD(ahs_ibytes, m->m_pkthdr.len - skip - hl);
 
 	/* Get crypto descriptors. */
@@ -642,6 +652,9 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	/* Zeroize the authenticator on the packet. */
 	m_copyback(m, skip + rplen, authsize, ipseczeroes);
 
+	/* Save ah_nxt, since ah pointer can become invalid after "massage" */
+	hl = ah->ah_nxt;
+
 	/* "Massage" the packet headers for crypto processing. */
 	error = ah_massage_headers(&m, sav->sah->saidx.dst.sa.sa_family,
 	    skip, ahx->type, 0);
@@ -664,7 +677,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 
 	/* These are passed as-is to the callback. */
 	xd->sav = sav;
-	xd->nxt = ah->ah_nxt;
+	xd->nxt = hl;
 	xd->protoff = protoff;
 	xd->skip = skip;
 	xd->cryptoid = cryptoid;
