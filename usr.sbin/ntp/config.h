@@ -1336,7 +1336,7 @@
 #define LDAP_API_FEATURE_X_OPENLDAP_THREAD_SAFE 1
 
 /* leap smear mechanism */
-/* #undef LEAP_SMEAR */
+#define LEAP_SMEAR 1
 
 /* Define to any value to include libseccomp sandboxing. */
 /* #undef LIBSECCOMP */
@@ -1396,9 +1396,6 @@
 /* Should we NOT read /dev/kmem? */
 #define NOKMEM 1
 
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-/* #undef NO_MINUS_C_MINUS_O */
-
 /* Should we avoid #warning on option name collisions? */
 /* #undef NO_OPTION_NAME_WARNINGS */
 
@@ -1448,7 +1445,7 @@
 #define PACKAGE_NAME "ntp"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "ntp 4.2.8p10"
+#define PACKAGE_STRING "ntp 4.2.8p11"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "ntp"
@@ -1457,10 +1454,10 @@
 #define PACKAGE_URL "http://www.ntp.org./"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "4.2.8p10"
+#define PACKAGE_VERSION "4.2.8p11"
 
 /* data dir */
-#define PERLLIBDIR "/usr/local/share/ntp/lib"
+#define PERLLIBDIR "/usr/share/ntp/lib"
 
 /* define to a working POSIX compliant shell */
 #define POSIX_SHELL "/bin/sh"
@@ -1638,7 +1635,7 @@ typedef unsigned int	uintptr_t;
 /* #undef USE_UDP_SIGPOLL */
 
 /* Version number of package */
-#define VERSION "4.2.8p10"
+#define VERSION "4.2.8p11"
 
 /* vsnprintf expands "%m" to strerror(errno) */
 /* #undef VSNPRINTF_PERCENT_M */
@@ -1815,5 +1812,5 @@ typedef union mpinfou {
 /*
  * FreeBSD specific: Explicitly specify date/time for reproducible build.
  */
-#define	MKREPRO_DATE "Mar 22 2017"
-#define	MKREPRO_TIME "05:40:15"
+#define	MKREPRO_DATE "Feb 28 2018"
+#define	MKREPRO_TIME "06:33:03"

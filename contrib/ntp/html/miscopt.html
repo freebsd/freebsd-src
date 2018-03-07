@@ -3,7 +3,6 @@
 <head>
 <meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
 <title>Miscellaneous Commands and Options</title>
-<!-- Changed by: Harlan Stenn, 17-Nov-2015 -->
 <link href="scripts/style.css" type="text/css" rel="stylesheet">
 </head>
 <body>
@@ -11,7 +10,7 @@
 <img src="pic/boom3.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>Pogo</i>, Walt Kelly</a>
 <p>We have three, now looking for more.</p>
 <p>Last update:
-  <!-- #BeginDate format:En2m -->9-Nov-2016  12:26<!-- #EndDate -->
+  <!-- #BeginDate format:En2m -->14-Oct-2017  08:34<!-- #EndDate -->
     UTC</p>
 <br clear="left">
 <h4>Related Links</h4>
@@ -105,7 +104,10 @@
   <dt id="nonvolatile"><tt>nonvolatile <i>threshold</i></tt></dt>
   <dd>Specify the <i><tt>threshold</tt></i> in seconds to write the frequency file, with default of 1e-7 (0.1 PPM). The frequency file is inspected each hour. If the difference between the current frequency  and the last value written exceeds the threshold, the file is written and the <tt><em>threshold</em></tt>  becomes the new threshold value. If the threshold is not exceeded, it is reduced by half. This is intended to reduce the frequency of unnecessary file writes for embedded systems with nonvolatile memory.</dd>
   <dt id="phone"><tt>phone <i>dial</i> ...</tt></dt>
-  <dd>This command is used in conjunction with the ACTS modem driver (type 18). The arguments consist of a maximum of 10 telephone numbers used to dial USNO, NIST or European time services. The Hayes command ATDT&nbsp;is normally prepended to the number, which can contain other modem control codes as well.</dd>
+  <dd>This command is used in conjunction with the ACTS modem driver (type 18) or the JJY driver (type 40 mode 100 - 180).
+      For the ACTS modem driver (type 18), the arguments consist of a maximum of 10 telephone numbers used to dial USNO, NIST or European time services.
+      For the JJY driver (type 40 mode 100 - 180), the argument is one telephone number used to dial the telephone JJY service.
+      The Hayes command ATDT&nbsp;is normally prepended to the number, which can contain other modem control codes as well.</dd>
   <dt id="reset"><tt>reset [allpeers] [auth] [ctl] [io] [mem] [sys] [timer]</tt></dt>
   <dd>Reset one or more groups of counters maintained by ntpd and exposed by <tt>ntpq</tt> and <tt>ntpdc</tt>.</dd>
   <dt id="rlimit"><tt>rlimit [memlock <i>Nmegabytes</i> | stacksize <i>N4kPages</i> | filenum <i>Nfiledescriptors</i>]</tt></dt>
@@ -145,10 +147,12 @@
       <dd>Specifies the stepout threshold in seconds. The default without this command is 300 s. Since this option also affects the training and startup intervals, it should not be set less than the default. Further details are on the <a href="clock.html">Clock State Machine</a> page.</dd>
     </dl>
   </dd>
-  <dt id="tos"><tt>tos [bcpollbstep <i>poll-gate</i> | beacon <i>beacon</i> | ceiling <i>ceiling</i> | cohort {0 | 1} | floor <i>floor</i> | maxclock <i>maxclock </i>| maxdist <i>maxdist</i> | minclock <i>minclock</i> | mindist <i>mindist </i>| minsane <i>minsane</i> | orphan <i>stratum</i> | orphanwait <em>delay</em>]</tt></dt>
+  <dt id="tos"><tt>tos [basedate <i>date<i> | bcpollbstep <i>poll-gate</i> | beacon <i>beacon</i> | ceiling <i>ceiling</i> | cohort {0 | 1} | floor <i>floor</i> | maxclock <i>maxclock </i>| maxdist <i>maxdist</i> | minclock <i>minclock</i> | mindist <i>mindist </i>| minsane <i>minsane</i> | orphan <i>stratum</i> | orphanwait <em>delay</em>]</tt></dt>
   <dd>This command alters certain system variables used by the the clock selection and clustering algorithms. The default values of these variables have been carefully optimized for a wide range of network speeds and reliability expectations. Very rarely is it necessary to change the default values; but, some folks can't resist twisting the knobs. It can be used to select the quality and quantity of peers used to synchronize the system clock and is most useful in dynamic server discovery schemes. The options are as follows:</dd>
   <dd>
     <dl>
+      <dt><tt>basedate <i>date</i></tt></dt>
+      <dd>Set NTP era anchor. <tt><i>date</i></tt> is either a date in ISO8601 format (<i>YYYY-MM-DD<i>) or an integer giving the days since 1900-01-01, the start of the NTP epoch. <tt>ntpd</tt> will clamp the system time to an era starting with the begin of this this day (00:00:00Z), covering a range of 2<sup>32</sup> seconds or roughly 136 years. The default is the begin of the UNIX epoch, 1970-01-01.</dd>
       <dt><tt>bcpollbstep <i>poll-gate</i></tt></dt>
       <dd>This option will cause the client to delay believing backward time steps from a broadcast server for <tt>bcpollbstep</tt> poll intervals.  NTP Broadcast networks are expected to be trusted, and if the server's time gets stepped backwards then it's desireable that the clients follow this change as soon as possible.  However, in spite of various protections built-in to the broadcast protocol, it is possible that an attacker could perform a carefully-constructed replay attack and cause clients to erroneously step their clocks backward.  If the risk of a successful broadcast replay attack is greater than the risk of the clients being out of sync in the event that there is a backward step on the broadcast time servers, this option may be used to cause the clients to delay beliveving backward time steps until <i>poll-gate</i> consecutive polls have been received.  The default is 0, which means the client will accept these steps upon receipt.  Any value from 0 to 4 can be specified.</dd>
       <dt><tt>beacon <i>beacon</i></tt></dt>
