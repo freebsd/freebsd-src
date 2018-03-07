@@ -97,6 +97,24 @@ lua_interpret(lua_State *L)
 }
 
 static int
+lua_parse(lua_State *L)
+{
+	int	argc, nargc;
+	char	**argv;
+
+	if (parse(&argc, &argv, luaL_checkstring(L, 1)) == 0) {
+		for (nargc = 0; nargc < argc; ++nargc) {
+			lua_pushstring(L, argv[nargc]);
+		}
+		free(argv);
+		return nargc;
+	}
+
+	lua_pushnil(L);
+	return 1;
+}
+
+static int
 lua_getchar(lua_State *L)
 {
 
@@ -325,6 +343,7 @@ static const struct luaL_Reg loaderlib[] = {
 	REG_SIMPLE(delay),
 	REG_SIMPLE(command),
 	REG_SIMPLE(interpret),
+	REG_SIMPLE(parse),
 	REG_SIMPLE(getenv),
 	REG_SIMPLE(perform),
 	/* Also registered as the global 'printc' */
