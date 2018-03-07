@@ -603,11 +603,11 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		DPRINTF(("%s: bad mbuf length %u (expecting %lu)"
 		    " for packet in SA %s/%08lx\n", __func__,
 		    m->m_pkthdr.len, (u_long) (skip + authsize + rplen),
-		    ipsec_address(&sav->sah->saidx.dst, buf, sizeof(buf)),
+		    ipsec_address(&sav->sah->saidx.dst),
 		    (u_long) ntohl(sav->spi)));
 		AHSTAT_INC(ahs_badauthl);
-		error = EACCES;
-		goto bad;
+		m_freem(m);
+		return EACCES;
 	}
 	AHSTAT_ADD(ahs_ibytes, m->m_pkthdr.len - skip - hl);
 
