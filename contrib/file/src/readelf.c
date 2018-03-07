@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: readelf.c,v 1.128 2016/10/04 21:43:10 christos Exp $")
+FILE_RCSID("@(#)$File: readelf.c,v 1.138 2017/08/27 07:55:02 christos Exp $")
 #endif
 
 #ifdef BUILTIN_ELF
@@ -310,16 +310,18 @@ private const char os_style_names[][8] = {
 	"NetBSD",
 };
 
-#define FLAGS_DID_CORE			0x001
-#define FLAGS_DID_OS_NOTE		0x002
-#define FLAGS_DID_BUILD_ID		0x004
-#define FLAGS_DID_CORE_STYLE		0x008
-#define FLAGS_DID_NETBSD_PAX		0x010
-#define FLAGS_DID_NETBSD_MARCH		0x020
-#define FLAGS_DID_NETBSD_CMODEL		0x040
-#define FLAGS_DID_NETBSD_UNKNOWN	0x080
-#define FLAGS_IS_CORE			0x100
-#define FLAGS_DID_AUXV			0x200
+#define FLAGS_CORE_STYLE		0x003
+
+#define FLAGS_DID_CORE			0x004
+#define FLAGS_DID_OS_NOTE		0x008
+#define FLAGS_DID_BUILD_ID		0x010
+#define FLAGS_DID_CORE_STYLE		0x020
+#define FLAGS_DID_NETBSD_PAX		0x040
+#define FLAGS_DID_NETBSD_MARCH		0x080
+#define FLAGS_DID_NETBSD_CMODEL		0x100
+#define FLAGS_DID_NETBSD_UNKNOWN	0x200
+#define FLAGS_IS_CORE			0x400
+#define FLAGS_DID_AUXV			0x800
 
 private int
 dophn_core(struct magic_set *ms, int clazz, int swap, int fd, off_t off,
@@ -709,32 +711,30 @@ do_core_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 		    == -1)
 			return 1;
 		*flags |= FLAGS_DID_CORE_STYLE;
+		*flags |= os_style;
 	}
 
 	switch (os_style) {
 	case OS_STYLE_NETBSD:
 		if (type == NT_NETBSD_CORE_PROCINFO) {
 			char sbuf[512];
-			uint32_t signo;
-			/*
-			 * Extract the program name.  It is at
-			 * offset 0x7c, and is up to 32-bytes,
-			 * including the terminating NUL.
-			 */
-			if (file_printf(ms, ", from '%.31s'",
+			struct NetBSD_elfcore_procinfo pi;
+			memset(&pi, 0, sizeof(pi));
+			memcpy(&pi, nbuf + doff, descsz);
+
+			if (file_printf(ms, ", from '%.31s', pid=%u, uid=%u, "
+			    "gid=%u, nlwps=%u, lwp=%u (signal %u/code %u)",
 			    file_printable(sbuf, sizeof(sbuf),
-			    (const char *)&nbuf[doff + 0x7c])) == -1)
+			    CAST(char *, pi.cpi_name)),
+			    elf_getu32(swap, pi.cpi_pid),
+			    elf_getu32(swap, pi.cpi_euid),
+			    elf_getu32(swap, pi.cpi_egid),
+			    elf_getu32(swap, pi.cpi_nlwps),
+			    elf_getu32(swap, pi.cpi_siglwp),
+			    elf_getu32(swap, pi.cpi_signo),
+			    elf_getu32(swap, pi.cpi_sigcode)) == -1)
 				return 1;
-			
-			/*
-			 * Extract the signal number.  It is at
-			 * offset 0x08.
-			 */
-			(void)memcpy(&signo, &nbuf[doff + 0x08],
-			    sizeof(signo));
-			if (file_printf(ms, " (signal %u)",
-			    elf_getu32(swap, signo)) == -1)
-				return 1;
+
 			*flags |= FLAGS_DID_CORE;
 			return 1;
 		}
@@ -890,7 +890,7 @@ get_string_on_virtaddr(struct magic_set *ms,
 
 	offset = get_offset_from_virtaddr(ms, swap, clazz, fd, ph_off, ph_num,
 	    fsize, virtaddr);
-	if ((buflen = pread(fd, buf, buflen, offset)) <= 0) {
+	if ((buflen = pread(fd, buf, CAST(size_t, buflen), offset)) <= 0) {
 		file_badread(ms);
 		return 0;
 	}
@@ -924,8 +924,28 @@ do_auxv_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 	int is_string;
 	size_t nval;
 
-	if (type != NT_AUXV || (*flags & FLAGS_IS_CORE) == 0)
+	if ((*flags & (FLAGS_IS_CORE|FLAGS_DID_CORE_STYLE)) !=
+	    (FLAGS_IS_CORE|FLAGS_DID_CORE_STYLE))
 		return 0;
+
+	switch (*flags & FLAGS_CORE_STYLE) {
+	case OS_STYLE_SVR4:
+		if (type != NT_AUXV)
+			return 0;
+		break;
+#ifdef notyet
+	case OS_STYLE_NETBSD:
+		if (type != NT_NETBSD_CORE_AUXV)
+			return 0;
+		break;
+	case OS_STYLE_FREEBSD:
+		if (type != NT_FREEBSD_PROCSTAT_AUXV)
+			return 0;
+		break;
+#endif
+	default:
+		return 0;
+	}
 
 	*flags |= FLAGS_DID_AUXV;
 
@@ -1031,13 +1051,13 @@ donote(struct magic_set *ms, void *vbuf, size_t offset, size_t size,
 	}
 
 	if (namesz & 0x80000000) {
-	    (void)file_printf(ms, ", bad note name size 0x%lx",
+	    (void)file_printf(ms, ", bad note name size %#lx",
 		(unsigned long)namesz);
 	    return 0;
 	}
 
 	if (descsz & 0x80000000) {
-	    (void)file_printf(ms, ", bad note description size 0x%lx",
+	    (void)file_printf(ms, ", bad note description size %#lx",
 		(unsigned long)descsz);
 	    return 0;
 	}
@@ -1185,12 +1205,12 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 {
 	Elf32_Shdr sh32;
 	Elf64_Shdr sh64;
-	int stripped = 1;
+	int stripped = 1, has_debug_info = 0;
 	size_t nbadcap = 0;
 	void *nbuf;
 	off_t noff, coff, name_off;
-	uint64_t cap_hw1 = 0;	/* SunOS 5.x hardware capabilites */
-	uint64_t cap_sf1 = 0;	/* SunOS 5.x software capabilites */
+	uint64_t cap_hw1 = 0;	/* SunOS 5.x hardware capabilities */
+	uint64_t cap_sf1 = 0;	/* SunOS 5.x software capabilities */
 	char name[50];
 	ssize_t namesize;
 
@@ -1203,8 +1223,9 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 	/* Read offset of name section to be able to read section names later */
 	if (pread(fd, xsh_addr, xsh_sizeof, CAST(off_t, (off + size * strtab)))
 	    < (ssize_t)xsh_sizeof) {
-		file_badread(ms);
-		return -1;
+		if (file_printf(ms, ", missing section headers") == -1)
+			return -1;
+		return 0;
 	}
 	name_off = xsh_offset;
 
@@ -1215,8 +1236,10 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 			return -1;
 		}
 		name[namesize] = '\0';
-		if (strcmp(name, ".debug_info") == 0)
+		if (strcmp(name, ".debug_info") == 0) {
+			has_debug_info = 1;
 			stripped = 0;
+		}
 
 		if (pread(fd, xsh_addr, xsh_sizeof, off) < (ssize_t)xsh_sizeof) {
 			file_badread(ms);
@@ -1247,9 +1270,9 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 			if ((uintmax_t)(xsh_size + xsh_offset) >
 			    (uintmax_t)fsize) {
 				if (file_printf(ms,
-				    ", note offset/size 0x%" INTMAX_T_FORMAT
-				    "x+0x%" INTMAX_T_FORMAT "x exceeds"
-				    " file size 0x%" INTMAX_T_FORMAT "x",
+				    ", note offset/size %#" INTMAX_T_FORMAT
+				    "x+%#" INTMAX_T_FORMAT "x exceeds"
+				    " file size %#" INTMAX_T_FORMAT "x",
 				    (uintmax_t)xsh_offset, (uintmax_t)xsh_size,
 				    (uintmax_t)fsize) == -1)
 					return -1;
@@ -1353,7 +1376,7 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 				default:
 					if (file_printf(ms,
 					    ", with unknown capability "
-					    "0x%" INT64_T_FORMAT "x = 0x%"
+					    "%#" INT64_T_FORMAT "x = %#"
 					    INT64_T_FORMAT "x",
 					    (unsigned long long)xcap_tag,
 					    (unsigned long long)xcap_val) == -1)
@@ -1370,6 +1393,10 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 		}
 	}
 
+	if (has_debug_info) {
+		if (file_printf(ms, ", with debug_info") == -1)
+			return -1;
+	}
 	if (file_printf(ms, ", %sstripped", stripped ? "" : "not ") == -1)
 		return -1;
 	if (cap_hw1) {
@@ -1403,13 +1430,13 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 			}
 			if (cap_hw1)
 				if (file_printf(ms,
-				    " unknown hardware capability 0x%"
+				    " unknown hardware capability %#"
 				    INT64_T_FORMAT "x",
 				    (unsigned long long)cap_hw1) == -1)
 					return -1;
 		} else {
 			if (file_printf(ms,
-			    " hardware capability 0x%" INT64_T_FORMAT "x",
+			    " hardware capability %#" INT64_T_FORMAT "x",
 			    (unsigned long long)cap_hw1) == -1)
 				return -1;
 		}
@@ -1425,7 +1452,7 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 		cap_sf1 &= ~SF1_SUNW_MASK;
 		if (cap_sf1)
 			if (file_printf(ms,
-			    ", with unknown software capability 0x%"
+			    ", with unknown software capability %#"
 			    INT64_T_FORMAT "x",
 			    (unsigned long long)cap_sf1) == -1)
 				return -1;
@@ -1479,7 +1506,7 @@ dophn_exec(struct magic_set *ms, int clazz, int swap, int fd, off_t off,
 			if (((align = xph_align) & 0x80000000UL) != 0 ||
 			    align < 4) {
 				if (file_printf(ms, 
-				    ", invalid note alignment 0x%lx",
+				    ", invalid note alignment %#lx",
 				    (unsigned long)align) == -1)
 					return -1;
 				align = 4;

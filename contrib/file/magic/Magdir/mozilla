@@ -1,7 +1,7 @@
 
 #------------------------------------------------------------------------------
-# $File: mozilla,v 1.6 2015/01/25 16:20:46 christos Exp $
-# mozilla:  file(1) magic for Mozilla XUL fastload files 
+# $File: mozilla,v 1.7 2017/03/17 21:35:28 christos Exp $
+# mozilla:  file(1) magic for Mozilla XUL fastload files
 # (XUL.mfasl and XPC.mfasl)
 # URL:	http://www.mozilla.org/
 # From:	Josh Triplett <josh@freedesktop.org>
