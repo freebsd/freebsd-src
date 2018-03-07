@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -39,10 +39,17 @@
 /*
  * Language details.
  */
+#if HAVE_ANSI_PROTOS
+#define LESSPARAMS(a) a
+#else
+#define LESSPARAMS(a) ()
+#endif
 #if HAVE_VOID
 #define	VOID_POINTER	void *
+#define	VOID_PARAM	void
 #else
 #define	VOID_POINTER	char *
+#define	VOID_PARAM
 #define	void  int
 #endif
 #if HAVE_CONST
@@ -507,7 +514,6 @@ struct wchar_range_table
 #define	CH_HELPFILE	010
 #define	CH_NODATA  	020	/* Special case for zero length files */
 
-
 #define	ch_zero()	((POSITION)0)
 
 #define	FAKE_HELPFILE	"@/\\less/\\help/\\file/\\@"
@@ -525,9 +531,13 @@ struct wchar_range_table
 #define	time_type	long
 #endif
 
+struct mlist;
+struct loption;
+struct hilite_tree;
+#include "pattern.h"
 #include "funcs.h"
 
 /* Functions not included in funcs.h */
-void postoa();
-void linenumtoa();
-void inttoa();
+void postoa LESSPARAMS ((POSITION, char*));
+void linenumtoa LESSPARAMS ((LINENUM, char*));
+void inttoa LESSPARAMS ((int, char*));

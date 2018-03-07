@@ -20,8 +20,10 @@
   ESC-SPACE         *  Forward  one window, but don't stop at end-of-file.
   d  ^D             *  Forward  one half-window (and set half-window to _N).
   u  ^U             *  Backward one half-window (and set half-window to _N).
-  ESC-)  RightArrow *  Left  one half screen width (or _N positions).
-  ESC-(  LeftArrow  *  Right one half screen width (or _N positions).
+  ESC-)  RightArrow *  Right one half screen width (or _N positions).
+  ESC-(  LeftArrow  *  Left  one half screen width (or _N positions).
+  ESC-}  ^RightArrow   Right to last column displayed.
+  ESC-{  ^LeftArrow    Left  to first column.
   F                    Forward forever; like "tail -f".
   ESC-F                Like F but stop when search pattern is found.
   r  ^R  ^L            Repaint screen.
@@ -67,10 +69,12 @@
         Each "find open bracket" command goes backward to the open bracket 
           matching the (_N-th) close bracket in the bottom line.
 
-  m_<_l_e_t_t_e_r_>            Mark the current position with <letter>.
+  m_<_l_e_t_t_e_r_>            Mark the current top line with <letter>.
+  M_<_l_e_t_t_e_r_>            Mark the current bottom line with <letter>.
   '_<_l_e_t_t_e_r_>            Go to a previously marked position.
   ''                   Go to the previous position.
   ^X^X                 Same as '.
+  ESC-M_<_l_e_t_t_e_r_>        Clear a mark.
         ---------------------------------------------------
         A mark is any upper-case or lower-case letter.
         Certain marks are predefined:
@@ -99,6 +103,7 @@
 
   !_c_o_m_m_a_n_d             Execute the shell command with $SHELL.
   |XX_c_o_m_m_a_n_d            Pipe file between current pos & mark XX to shell command.
+  s _f_i_l_e               Save input to a file.
   v                    Edit the current file with $VISUAL or $EDITOR.
   V                    Print version number of "less".
  ---------------------------------------------------------------------------
