@@ -63,8 +63,10 @@
 #include "wc.h"
 
 #define DRV_NAME	MLX4_IB_DRV_NAME
-#define DRV_VERSION	"3.4.1-BETA"
-#define DRV_RELDATE	"October 2017"
+#ifndef DRV_VERSION
+#define DRV_VERSION	"3.4.1"
+#endif
+#define DRV_RELDATE	"February 2018"
 
 #define MLX4_IB_FLOW_MAX_PRIO 0xFFF
 #define MLX4_IB_FLOW_QPN_MASK 0xFFFFFF
