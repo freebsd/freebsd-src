@@ -4132,6 +4132,7 @@ static void __exit ib_cm_cleanup(void)
 	destroy_workqueue(cm.wq);
 
 	list_for_each_entry_safe(timewait_info, tmp, &cm.timewait_list, list) {
+		cancel_delayed_work_sync(&timewait_info->work.work);
 		list_del(&timewait_info->list);
 		kfree(timewait_info);
 	}
