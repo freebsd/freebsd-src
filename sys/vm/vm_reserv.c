@@ -1044,9 +1044,9 @@ vm_reserv_free_page(vm_page_t m)
 	vm_reserv_t rv;
 
 	rv = vm_reserv_from_page(m);
-	vm_domain_free_assert_locked(VM_DOMAIN(rv->domain));
 	if (rv->object == NULL)
 		return (FALSE);
+	vm_domain_free_assert_locked(VM_DOMAIN(rv->domain));
 	vm_reserv_depopulate(rv, m - rv->pages);
 	return (TRUE);
 }
@@ -1093,9 +1093,9 @@ vm_reserv_is_page_free(vm_page_t m)
 	vm_reserv_t rv;
 
 	rv = vm_reserv_from_page(m);
-	vm_domain_free_assert_locked(VM_DOMAIN(rv->domain));
 	if (rv->object == NULL)
 		return (false);
+	vm_domain_free_assert_locked(VM_DOMAIN(rv->domain));
 	return (popmap_is_clear(rv->popmap, m - rv->pages));
 }
 
