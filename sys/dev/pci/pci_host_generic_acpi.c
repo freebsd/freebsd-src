@@ -228,7 +228,8 @@ generic_pcie_acpi_alloc_msi(device_t pci, device_t child, int count,
 {
 
 #if defined(INTRNG)
-	return (intr_alloc_msi(pci, child, 1, count, maxcount, irqs));
+	return (intr_alloc_msi(pci, child, ACPI_MSI_XREF, count, maxcount,
+	    irqs));
 #else
 	return (ENXIO);
 #endif
@@ -240,7 +241,7 @@ generic_pcie_acpi_release_msi(device_t pci, device_t child, int count,
 {
 
 #if defined(INTRNG)
-	return (intr_release_msi(pci, child, 1, count, irqs));
+	return (intr_release_msi(pci, child, ACPI_MSI_XREF, count, irqs));
 #else
 	return (ENXIO);
 #endif
@@ -252,7 +253,7 @@ generic_pcie_acpi_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
 {
 
 #if defined(INTRNG)
-	return (intr_map_msi(pci, child, 1, irq, addr, data));
+	return (intr_map_msi(pci, child, ACPI_MSI_XREF, irq, addr, data));
 #else
 	return (ENXIO);
 #endif
@@ -263,7 +264,7 @@ generic_pcie_acpi_alloc_msix(device_t pci, device_t child, int *irq)
 {
 
 #if defined(INTRNG)
-	return (intr_alloc_msix(pci, child, 1, irq));
+	return (intr_alloc_msix(pci, child, ACPI_MSI_XREF, irq));
 #else
 	return (ENXIO);
 #endif
@@ -274,7 +275,7 @@ generic_pcie_acpi_release_msix(device_t pci, device_t child, int irq)
 {
 
 #if defined(INTRNG)
-	return (intr_release_msix(pci, child, 1, irq));
+	return (intr_release_msix(pci, child, ACPI_MSI_XREF, irq));
 #else
 	return (ENXIO);
 #endif

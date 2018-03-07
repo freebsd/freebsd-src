@@ -48,4 +48,9 @@ arm_irq_memory_barrier(uintptr_t irq)
 void intr_ipi_dispatch(u_int, struct trapframe *);
 #endif
 
+#ifdef DEV_ACPI
+#define	ACPI_INTR_XREF	1
+#define	ACPI_MSI_XREF	2
+#endif
+
 #endif	/* _MACHINE_INTR_H */
