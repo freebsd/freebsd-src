@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -146,11 +146,11 @@ static int ch_addbuf();
 	int
 ch_get()
 {
-	register struct buf *bp;
-	register struct bufnode *bn;
-	register int n;
-	register int slept;
-	register int h;
+	struct buf *bp;
+	struct bufnode *bn;
+	int n;
+	int slept;
+	int h;
 	POSITION pos;
 	POSITION len;
 
@@ -419,8 +419,8 @@ end_logfile()
 	public void
 sync_logfile()
 {
-	register struct buf *bp;
-	register struct bufnode *bn;
+	struct buf *bp;
+	struct bufnode *bn;
 	int warned = FALSE;
 	BLOCKNUM block;
 	BLOCKNUM nblocks;
@@ -457,9 +457,9 @@ sync_logfile()
 buffered(block)
 	BLOCKNUM block;
 {
-	register struct buf *bp;
-	register struct bufnode *bn;
-	register int h;
+	struct buf *bp;
+	struct bufnode *bn;
+	int h;
 
 	h = BUFHASH(block);
 	FOR_BUFS_IN_CHAIN(h, bn)
@@ -477,7 +477,7 @@ buffered(block)
  */
 	public int
 ch_seek(pos)
-	register POSITION pos;
+	POSITION pos;
 {
 	BLOCKNUM new_block;
 	POSITION len;
@@ -544,8 +544,8 @@ ch_end_seek()
 	public int
 ch_end_buffer_seek()
 {
-	register struct buf *bp;
-	register struct bufnode *bn;
+	struct buf *bp;
+	struct bufnode *bn;
 	POSITION buf_pos;
 	POSITION end_pos;
 
@@ -572,8 +572,8 @@ ch_end_buffer_seek()
 	public int
 ch_beg_seek()
 {
-	register struct bufnode *bn;
-	register struct bufnode *firstbn;
+	struct bufnode *bn;
+	struct bufnode *firstbn;
 
 	/*
 	 * Try a plain ch_seek first.
@@ -632,7 +632,7 @@ ch_tell()
 	public int
 ch_forw_get()
 {
-	register int c;
+	int c;
 
 	if (thisfile == NULL)
 		return (EOI);
@@ -695,7 +695,7 @@ ch_setbufspace(bufspace)
 	public void
 ch_flush()
 {
-	register struct bufnode *bn;
+	struct bufnode *bn;
 
 	if (thisfile == NULL)
 		return;
@@ -762,8 +762,8 @@ ch_flush()
 	static int
 ch_addbuf()
 {
-	register struct buf *bp;
-	register struct bufnode *bn;
+	struct buf *bp;
+	struct bufnode *bn;
 
 	/*
 	 * Allocate and initialize a new buffer and link it 
@@ -787,7 +787,7 @@ ch_addbuf()
 	static void
 init_hashtbl()
 {
-	register int h;
+	int h;
 
 	for (h = 0;  h < BUFHASH_SIZE;  h++)
 	{
@@ -802,7 +802,7 @@ init_hashtbl()
 	static void
 ch_delbufs()
 {
-	register struct bufnode *bn;
+	struct bufnode *bn;
 
 	while (ch_bufhead != END_OF_CHAIN)
 	{
@@ -867,13 +867,12 @@ ch_init(f, flags)
 				calloc(1, sizeof(struct filestate));
 		thisfile->buflist.next = thisfile->buflist.prev = END_OF_CHAIN;
 		thisfile->nbufs = 0;
-		thisfile->flags = 0;
+		thisfile->flags = flags;
 		thisfile->fpos = 0;
 		thisfile->block = 0;
 		thisfile->offset = 0;
 		thisfile->file = -1;
 		thisfile->fsize = NULL_POSITION;
-		ch_flags = flags;
 		init_hashtbl();
 		/*
 		 * Try to seek; set CH_CANSEEK if it works.
@@ -898,7 +897,7 @@ ch_close()
 	if (thisfile == NULL)
 		return;
 
-	if (ch_flags & (CH_CANSEEK|CH_POPENED|CH_HELPFILE))
+	if ((ch_flags & (CH_CANSEEK|CH_POPENED|CH_HELPFILE)) && !(ch_flags & CH_KEEPOPEN))
 	{
 		/*
 		 * We can seek or re-open, so we don't need to keep buffers.
