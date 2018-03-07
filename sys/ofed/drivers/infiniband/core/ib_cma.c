@@ -1116,6 +1116,17 @@ static void cma_save_ip4_info(struct sockaddr_in *src_addr,
 	}
 }
 
+static void cma_ip6_clear_scope_id(struct in6_addr *addr)
+{
+	/* make sure link local scope ID gets zeroed */
+	if (IN6_IS_SCOPE_LINKLOCAL(addr) ||
+	    IN6_IS_ADDR_MC_INTFACELOCAL(addr)) {
+		/* use byte-access to be alignment safe */
+		addr->s6_addr[2] = 0;
+		addr->s6_addr[3] = 0;
+	}
+}
+
 static void cma_save_ip6_info(struct sockaddr_in6 *src_addr,
 			      struct sockaddr_in6 *dst_addr,
 			      struct cma_hdr *hdr,
@@ -1128,6 +1139,7 @@ static void cma_save_ip6_info(struct sockaddr_in6 *src_addr,
 			.sin6_addr = hdr->dst_addr.ip6,
 			.sin6_port = local_port,
 		};
+		cma_ip6_clear_scope_id(&src_addr->sin6_addr);
 	}
 
 	if (dst_addr) {
@@ -1137,6 +1149,7 @@ static void cma_save_ip6_info(struct sockaddr_in6 *src_addr,
 			.sin6_addr = hdr->src_addr.ip6,
 			.sin6_port = hdr->port,
 		};
+		cma_ip6_clear_scope_id(&dst_addr->sin6_addr);
 	}
 }
 
@@ -1395,6 +1408,7 @@ static bool cma_match_private_data(struct rdma_id_private *id_priv,
 		ip6_addr = ((struct sockaddr_in6 *)addr)->sin6_addr;
 		if (cma_get_ip_ver(hdr) != 6)
 			return false;
+		cma_ip6_clear_scope_id(&ip6_addr);
 		if (!cma_any_addr(addr) &&
 		    memcmp(&hdr->dst_addr.ip6, &ip6_addr, sizeof(ip6_addr)))
 			return false;
@@ -3242,6 +3256,8 @@ static int cma_format_hdr(void *hdr, struct rdma_id_private *id_priv)
 		cma_hdr->src_addr.ip6 = src6->sin6_addr;
 		cma_hdr->dst_addr.ip6 = dst6->sin6_addr;
 		cma_hdr->port = src6->sin6_port;
+		cma_ip6_clear_scope_id(&cma_hdr->src_addr.ip6);
+		cma_ip6_clear_scope_id(&cma_hdr->dst_addr.ip6);
 	}
 	return 0;
 }
