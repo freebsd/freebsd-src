@@ -94,6 +94,10 @@ function cli_execute(...)
 
 end
 
+function cli.execute_unparsed(str)
+	cli_execute(loader.parse(str))
+end
+
 -- Module exports
 
 function cli.boot(...)
