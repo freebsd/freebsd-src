@@ -450,7 +450,7 @@ function menu.autoboot()
 	until time <= 0
 
 	local cmd = loader.getenv("menu_timeout_command") or "boot"
-	loader.interpret(cmd)
+	cli_execute_unparsed(cmd)
 end
 
 return menu
