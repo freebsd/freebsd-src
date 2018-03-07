@@ -60,6 +60,21 @@
 	<entry>09&nbsp;December&nbsp;2017</entry>
 	<entry><para>Multiple vulnerabilities</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-18:01.ipsec.asc">FreeBSD-SA-18:01.ipsec</link></entry>
+	<entry>07&nbsp;March&nbsp;2018</entry>
+	<entry><para>Fix <acronym>IPSEC</acronym> validation and
+	  use-after-free</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-18:02.ntp.asc">FreeBSD-SA-18:02.ntp</link></entry>
+	<entry>07&nbsp;March&nbsp;2018</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
