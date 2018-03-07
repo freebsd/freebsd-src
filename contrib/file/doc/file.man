@@ -1,5 +1,5 @@
-.\" $File: file.man,v 1.118 2015/09/11 17:24:09 christos Exp $
-.Dd September 11, 2015
+.\" $File: file.man,v 1.125 2017/01/03 11:24:46 christos Exp $
+.Dd October 19, 2016
 .Dt FILE __CSECTION__
 .Os
 .Sh NAME
@@ -8,7 +8,7 @@
 .Sh SYNOPSIS
 .Nm
 .Bk -words
-.Op Fl bcEhiklLNnprsvzZ0
+.Op Fl bcdEhiklLNnprsvzZ0
 .Op Fl Fl apple
 .Op Fl Fl extension
 .Op Fl Fl mime-encoding
@@ -181,6 +181,8 @@ Cause a checking printout of the parsed form of the magic file.
 This is usually used in conjunction with the
 .Fl m
 flag to debug a new magic file before installing it.
+.It Fl d
+Prints internal debugging information to stderr.
 .It Fl E
 On filesystem errors (file not found etc), instead of handling the error
 as regular output as POSIX mandates and keep going, issue an error message
@@ -208,11 +210,15 @@ Prints details of Compound Document Files.
 .It compress
 Checks for, and looks inside, compressed files.
 .It elf
-Prints ELF file details.
+Prints ELF file details, provided soft magic tests are enabled and the
+elf magic is found.
 .It soft
 Consults magic files.
 .It tar
 Examines tar files.
+.It text
+A synonym for
+.Sq ascii .
 .El
 .It Fl Fl extension 
 Print a slash-separated list of valid extensions for the file type found.
@@ -232,8 +238,8 @@ or at least one filename argument must be present;
 to test the standard input, use
 .Sq -
 as a filename argument.
-Please note that 
-.Ar namefile 
+Please note that
+.Ar namefile
 is unwrapped and the enclosed filenames are processed when this option is
 encountered and before any further options processing is done.
 This allows one to process multiple lists of files with different command line
@@ -309,7 +315,7 @@ attempt to preserve the access time of files analyzed, to pretend that
 never read them.
 .It Fl P , Fl Fl parameter Ar name=value
 Set various parameter limits.
-.Bl -column "elf_phnum" "Default" "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" -offset indent
+.Bl -column "elf_phnum" "Default" "XXXXXXXXXXXXXXXXXXXXXXXXXXX" -offset indent
 .It Sy "Name" Ta Sy "Default" Ta Sy "Explanation"
 .It Li indir Ta 15 Ta recursion limit for indirect magic
 .It Li name Ta 30 Ta use count limit for name/use magic
@@ -317,6 +323,7 @@ Set various parameter limits.
 .It Li elf_phnum Ta 128 Ta max ELF program sections processed
 .It Li elf_shnum Ta 32768 Ta max ELF sections processed
 .It Li regex Ta 8192 Ta length limit for regex searches
+.It Li bytes Ta 1048576 Ta max number of bytes to read from file
 .El
 .It Fl r , Fl Fl raw
 Don't translate unprintable characters to \eooo.
@@ -358,6 +365,11 @@ Nice to
 .Xr cut 1
 the output.
 This does not affect the separator, which is still printed.
+.Pp
+If this option is repeated more than once, then 
+.Nm
+prints just the filename followed by a NUL followed by the description
+(or ERROR: text) followed by a second NUL for each entry.
 .It Fl -help
 Print a help message and exit.
 .El
@@ -399,10 +411,10 @@ and
 .Fl h
 options.
 .Sh SEE ALSO
-.Xr magic __FSECTION__ ,
 .Xr hexdump 1 ,
 .Xr od 1 ,
 .Xr strings 1 ,
+.Xr magic __FSECTION__ ,
 .Xr fstyp 8
 .Sh STANDARDS CONFORMANCE
 This program is believed to exceed the System V Interface Definition
@@ -519,16 +531,15 @@ John Gilmore revised the code extensively, making it better than
 the first version.
 Geoff Collyer found several inadequacies
 and provided some magic file entries.
-Contributions by the
+Contributions of the
 .Sq \*[Am]
 operator by Rob McMahon, 
 .Aq cudcv@warwick.ac.uk ,
 1989.
 .Pp
-Guy Harris, 
+Guy Harris,
 .Aq guy@netapp.com ,
 made many changes from 1993 to the present.
-1989.
 .Pp
 Primary development and maintenance from 1990 to the present by
 Christos Zoulas
@@ -576,7 +587,6 @@ program, and are not covered by the above license.
 .Nm
 returns 0 on success, and non-zero on error.
 .Sh BUGS
-.Pp
 Please report bugs and send patches to the bug tracker at
 .Pa http://bugs.gw.com/
 or the mailing list at
@@ -585,7 +595,6 @@ or the mailing list at
 .Pa http://mx.gw.com/mailman/listinfo/file
 first to subscribe).
 .Sh TODO
-.Pp
 Fix output so that tests for MIME and APPLE flags are not needed all
 over the place, and actual output is only done in one place.
 This needs a design.
@@ -634,16 +643,16 @@ Fix
 .Dq name
 and
 .Dq use
-to check for consistency at compile time (duplicate 
+to check for consistency at compile time (duplicate
 .Dq name ,
 .Dq use
 pointing to undefined
 .Dq name
 ).
-Make 
+Make
 .Dq name
 /
-.Dq use 
+.Dq use
 more efficient by keeping a sorted list of names.
 Special-case ^ to flip endianness in the parser so that it does not
 have to be escaped, and document it.

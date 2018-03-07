@@ -1,3 +1,157 @@
+2017-09-02  11:53  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.32
+
+2017-08-28  16:37  Christos Zoulas <christos@zoulas.com>
+
+	* Always reset state in {file,buffer}_apprentice (Krzysztof Wilczynski)
+
+2017-08-27  03:55  Christos Zoulas <christos@zoulas.com>
+
+	* Fix always true condition (Thomas Jarosch)
+
+2017-05-24  17:30  Christos Zoulas <christos@zoulas.com>
+
+	* pickier parsing of numeric values in magic files.
+
+2017-05-23  17:55  Christos Zoulas <christos@zoulas.com>
+
+	* PR/615 add magic_getflags()
+
+2017-05-23  13:55  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.31
+
+2017-03-17  20:32  Christos Zoulas <christos@zoulas.com>
+
+	* remove trailing spaces from magic files
+	* refactor is_tar
+	* better bounds checks for cdf
+
+2017-02-10  12:24  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.30
+
+2017-02-07  23:27  Christos Zoulas <christos@zoulas.com>
+
+	* If we exceeded the offset in a search return no match
+	  (Christoph Biedl)
+	* Be more lenient on corrupt CDF files (Christoph Biedl)
+
+2017-02-04  16:46  Christos Zoulas <christos@zoulas.com>
+
+	* pacify ubsan sign extension (oss-fuzz/524)
+
+2017-02-01  12:42  Christos Zoulas <christos@zoulas.com>
+
+	* off by one in cdf parsing (PR/593)
+	* report debugging sections in elf (PR/591)
+
+2016-11-06  10:52  Christos Zoulas <christos@zoulas.com>
+
+	* Allow @@@ in extensions
+	* Add missing overflow check in der magic (Jonas Wagner)
+
+2016-10-25  10:40  Christos Zoulas <christos@zoulas.com>
+	
+	* release 5.29
+
+2016-10-24  11:20  Christos Zoulas <christos@zoulas.com>
+
+	* der getlength overflow (Jonas Wagner)
+	* multiple magic file load failure (Christoph Biedl)
+
+2016-10-17  11:26  Christos Zoulas <christos@zoulas.com>
+
+	* CDF parsing improvements (Guy Helmer)
+
+2016-07-20   7:26  Christos Zoulas <christos@zoulas.com>
+
+	* Add support for signed indirect offsets
+
+2016-07-18   7:41  Christos Zoulas <christos@zoulas.com>
+
+	* cat /dev/null | file - should print empty (Christoph Biedl)
+
+2016-07-05  15:20  Christos Zoulas <christos@zoulas.com>
+
+	* Bump string size from 64 to 96.
+
+2016-06-13  20:20  Christos Zoulas <christos@zoulas.com>
+
+	* PR/556: Fix separators on annotations.
+
+2016-06-13  19:40  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.28
+	* fix leak on allocation failure
+
+2016-06-01   1:20  Christos Zoulas <christos@zoulas.com>
+
+	* PR/555: Avoid overflow for offset > nbytes
+	* PR/550: Segv on DER parsing:
+	    - use the correct variable for length
+	    - set offset to 0 on failure.
+
+2016-05-13  12:00  Christos Zoulas <christos@zoulas.com>
+	
+	* release 5.27
+
+2016-04-18   9:35  Christos Zoulas <christos@zoulas.com>
+	
+	* Errors comparing DER entries or computing offsets
+	  are just indications of malformed non-DER files.
+	  Don't print them.
+	* Offset comparison was off-by-one.
+	* Fix compression code (Werner Fink)
+	* Put new bytes constant in the right file (not the generated one)
+
+2016-04-16  18:34  Christos Zoulas <christos@zoulas.com>
+	
+	* release 5.26
+
+2016-03-31  13:50  Christos Zoulas <christos@zoulas.com>
+
+	* make the number of bytes read from files configurable.
+
+2016-03-21  13:40  Christos Zoulas <christos@zoulas.com>
+
+	* Add bounds checks for DER code (discovered by Thomas Jarosch)
+	* Change indirect recursion limit to indirect use count and
+	  bump from 15 to 50 to prevent abuse.
+
+2016-03-13  20:39  Christos Zoulas <christos@zoulas.com>
+
+	* Add -00 which prints filename\0description\0
+
+2016-03-01  13:28  Christos Zoulas <christos@zoulas.com>
+
+	* Fix ID3 indirect parsing
+
+2016-01-19  10:18  Christos Zoulas <christos@zoulas.com>
+
+	* add DER parsing capability
+
+2015-11-13  10:35  Christos Zoulas <christos@zoulas.com>
+
+	* provide dprintf(3) for the OS's that don't have it.
+
+2015-11-11  16:25  Christos Zoulas <christos@zoulas.com>
+
+	* redo the compression code report decompression errors
+
+2015-11-10  23:25  Christos Zoulas <christos@zoulas.com>
+
+	* REG_STARTEND code is not working as expected, delete it.
+
+2015-11-09  16:05  Christos Zoulas <christos@zoulas.com>
+
+	* Add zlib support if we have it.
+
+2015-11-05  11:22  Christos Zoulas <christos@zoulas.com>
+
+	* PR/492: compression forking was broken with magic_buffer.
+
 2015-09-16   9:50  Christos Zoulas <christos@zoulas.com>
 	
 	* release 5.25
@@ -287,7 +441,7 @@
 		`
 2013-11-06  14:40  Christos Zoulas <christos@zoulas.com>
 
-	* fix erroneous non-zero exit code from non-existant file and message
+	* fix erroneous non-zero exit code from non-existent file and message
 
 2013-10-29  14:25  Christos Zoulas <christos@zoulas.com>
 

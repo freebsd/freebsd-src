@@ -1,14 +1,14 @@
 
 #------------------------------------------------------------------------------
-# $File: cafebabe,v 1.20 2015/05/29 14:21:58 christos Exp $
+# $File: cafebabe,v 1.23 2017/05/25 20:07:23 christos Exp $
 # Cafe Babes unite!
 #
 # Since Java bytecode and Mach-O universal binaries have the same magic number,
 # the test must be performed in the same "magic" sequence to get both right.
 # The long at offset 4 in a Mach-O universal binary tells the number of
 # architectures; the short at offset 4 in a Java bytecode file is the JVM minor
-# version and the short at offset 6 is the JVM major version.  Since there are only 
-# only 18 labeled Mach-O architectures at current, and the first released 
+# version and the short at offset 6 is the JVM major version.  Since there are only
+# only 18 labeled Mach-O architectures at current, and the first released
 # Java class format was version 43.0, we can safely choose any number
 # between 18 and 39 to test the number of architectures against
 # (and use as a hack). Let's not use 18, because the Mach-O people
@@ -47,7 +47,7 @@
 
 0	name		mach-o		\b [
 >0	use		mach-o-cpu	\b
->(8.L)	indirect			\b: 
+>(8.L)	indirect	x		\b:
 >0	belong		x		\b]
 
 0	belong		0xcafebabe
@@ -58,12 +58,15 @@
 >>4	belong		<20		Mach-O universal binary with %d architectures:
 !:mime application/x-mach-binary
 >>>8	use		mach-o		\b
->>>28	use		mach-o		\b
 >>4	belong		2
->>>48	use		mach-o		\b
+>>>28	use		mach-o		\b
 >>4	belong		3
->>>68	use		mach-o		\b
+>>>48	use		mach-o		\b
 >>4	belong		4
+>>>68	use		mach-o		\b
+>>4	belong		5
 >>>88	use		mach-o		\b
+>>4	belong		6
+>>>108	use		mach-o		\b
 
 ### MACH-O END ###

@@ -6,7 +6,6 @@ file, not here. More speculative material can live here.
 listed in the BUGS section of the man page had been fixed!)
 
 ---
-
 It would be nice to simplify file considerably. For example,
 reimplement the apprentice and non-pattern magic methods in Python,
 and compile the magic patterns to a giant regex (or something similar;
@@ -15,8 +14,23 @@ small amount of C is needed (because fast execution is typically only
 required for soft magic, not the more detailed information given by
 hard-wired routines). In this regard, note that hplip, which is
 BSD-licensed, has a magic reimplementation in Python.
-
+---
 Read the kerberos magic entry for more ideas.
-
+---
 Write a string merger to make magic entry sizes dynamic.
 Strings will be converted to offsets from the string table.
+---
+Programming language support, we can introduce the concept of a group
+of rules where n rules need to match before the rule is positive. This
+could require structural changes to the matching code :-(
+
+0	group	2	# require 2 matches
+# rule 1
+>0	....
+...
+# rule 2
+>0	....
+...
+
+christos
+

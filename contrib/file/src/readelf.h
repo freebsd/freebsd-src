@@ -54,6 +54,42 @@ typedef uint8_t		Elf64_Char;
 #define	EI_NIDENT	16
 
 typedef struct {
+	Elf32_Word	a_type;		/* 32-bit id */
+	Elf32_Word	a_v;		/* 32-bit id */
+} Aux32Info;
+
+typedef struct {
+	Elf64_Xword	a_type;		/* 64-bit id */
+	Elf64_Xword	a_v;		/* 64-bit id */
+} Aux64Info;
+
+#define AT_NULL   0     /* end of vector */
+#define AT_IGNORE 1     /* entry should be ignored */
+#define AT_EXECFD 2     /* file descriptor of program */
+#define AT_PHDR   3     /* program headers for program */
+#define AT_PHENT  4     /* size of program header entry */
+#define AT_PHNUM  5     /* number of program headers */
+#define AT_PAGESZ 6     /* system page size */
+#define AT_BASE   7     /* base address of interpreter */
+#define AT_FLAGS  8     /* flags */
+#define AT_ENTRY  9     /* entry point of program */
+#define AT_LINUX_NOTELF 10    /* program is not ELF */
+#define AT_LINUX_UID    11    /* real uid */
+#define AT_LINUX_EUID   12    /* effective uid */
+#define AT_LINUX_GID    13    /* real gid */
+#define AT_LINUX_EGID   14    /* effective gid */
+#define AT_LINUX_PLATFORM 15  /* string identifying CPU for optimizations */
+#define AT_LINUX_HWCAP  16    /* arch dependent hints at CPU capabilities */
+#define AT_LINUX_CLKTCK 17    /* frequency at which times() increments */
+/* AT_* values 18 through 22 are reserved */
+#define AT_LINUX_SECURE 23   /* secure mode boolean */
+#define AT_LINUX_BASE_PLATFORM 24     /* string identifying real platform, may
+                                 * differ from AT_PLATFORM. */
+#define AT_LINUX_RANDOM 25    /* address of 16 random bytes */
+#define AT_LINUX_HWCAP2 26    /* extension of AT_HWCAP */
+#define AT_LINUX_EXECFN 31   /* filename of program */
+
+typedef struct {
     Elf32_Char	e_ident[EI_NIDENT];
     Elf32_Half	e_type;
     Elf32_Half	e_machine;
@@ -105,7 +141,7 @@ typedef struct {
 #define	SHT_SYMTAB	2
 #define	SHT_NOTE	7
 #define	SHT_DYNSYM	11
-#define	SHT_SUNW_cap	0x6ffffff5	/* SunOS 5.x hw/sw capabilites */
+#define	SHT_SUNW_cap	0x6ffffff5	/* SunOS 5.x hw/sw capabilities */
 
 /* elf type */
 #define	ELFDATANONE	0		/* e_ident[EI_DATA] */
@@ -194,6 +230,33 @@ typedef struct {
 } Elf64_Shdr;
 
 #define	NT_NETBSD_CORE_PROCINFO		1
+#define	NT_NETBSD_CORE_AUXV		2
+
+struct NetBSD_elfcore_procinfo {
+	/* Version 1 fields start here. */
+	uint32_t	cpi_version;		/* our version */
+	uint32_t	cpi_cpisize;		/* sizeof(this struct) */
+	uint32_t	cpi_signo;		/* killing signal */
+	uint32_t	cpi_sigcode;		/* signal code */
+	uint32_t	cpi_sigpend[4];		/* pending signals */
+	uint32_t	cpi_sigmask[4];		/* blocked signals */
+	uint32_t	cpi_sigignore[4];	/* ignored signals */
+	uint32_t	cpi_sigcatch[4];	/* caught signals */
+	int32_t		cpi_pid;		/* process ID */
+	int32_t		cpi_ppid;		/* parent process ID */
+	int32_t		cpi_pgrp;		/* process group ID */
+	int32_t		cpi_sid;		/* session ID */
+	uint32_t	cpi_ruid;		/* real user ID */
+	uint32_t	cpi_euid;		/* effective user ID */
+	uint32_t	cpi_svuid;		/* saved user ID */
+	uint32_t	cpi_rgid;		/* real group ID */
+	uint32_t	cpi_egid;		/* effective group ID */
+	uint32_t	cpi_svgid;		/* saved group ID */
+	uint32_t	cpi_nlwps;		/* number of LWPs */
+	int8_t		cpi_name[32];		/* copy of p->p_comm */
+	/* Add version 2 fields below here. */
+	int32_t		cpi_siglwp;	/* LWP target of killing signal */
+};
 
 /* Note header in a PT_NOTE section */
 typedef struct elf_note {
@@ -291,6 +354,11 @@ typedef struct {
  * descsz:	variable
  */
 #define NT_NETBSD_CMODEL	6
+
+/*
+ * FreeBSD specific notes
+ */
+#define NT_FREEBSD_PROCSTAT_AUXV	16
 
 #if !defined(ELFSIZE) && defined(ARCH_ELFSIZE)
 #define ELFSIZE ARCH_ELFSIZE

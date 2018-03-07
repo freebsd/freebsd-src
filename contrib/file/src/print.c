@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: print.c,v 1.80 2015/07/16 14:28:57 christos Exp $")
+FILE_RCSID("@(#)$File: print.c,v 1.82 2017/02/10 18:14:01 christos Exp $")
 #endif  /* lint */
 
 #include <string.h>
@@ -198,6 +198,7 @@ file_mdump(struct magic *m)
 			break;
 		case FILE_USE:
 		case FILE_NAME:
+		case FILE_DER:
 			(void) fprintf(stderr, "'%s'", m->value.s);
 			break;
 		default:
@@ -237,7 +238,7 @@ file_fmttime(uint64_t v, int flags, char *buf)
 
 	if (flags & FILE_T_WINDOWS) {
 		struct timespec ts;
-		cdf_timestamp_to_timespec(&ts, v);
+		cdf_timestamp_to_timespec(&ts, CAST(cdf_timestamp_t, v));
 		t = ts.tv_sec;
 	} else {
 		// XXX: perhaps detect and print something if overflow
