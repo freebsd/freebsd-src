@@ -570,21 +570,32 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa, vm_paddr_t max_pa)
 	vm_offset_t va;
 	vm_paddr_t pa;
 	u_int l1_slot;
+	int i;
 
-	pa = dmap_phys_base = min_pa & ~L1_OFFSET;
-	va = DMAP_MIN_ADDRESS;
-	for (; va < DMAP_MAX_ADDRESS && pa < max_pa;
-	    pa += L1_SIZE, va += L1_SIZE, l1_slot++) {
-		l1_slot = ((va - DMAP_MIN_ADDRESS) >> L1_SHIFT);
+	dmap_phys_base = min_pa & ~L1_OFFSET;
+	dmap_phys_max = 0;
+	dmap_max_addr = 0;
 
-		pmap_load_store(&pagetable_dmap[l1_slot],
-		    (pa & ~L1_OFFSET) | ATTR_DEFAULT | ATTR_XN |
-		    ATTR_IDX(CACHED_MEMORY) | L1_BLOCK);
+	for (i = 0; i < (physmap_idx * 2); i += 2) {
+		pa = physmap[i] & ~L1_OFFSET;
+		va = pa - dmap_phys_base + DMAP_MIN_ADDRESS;
+
+		for (; va < DMAP_MAX_ADDRESS && pa < physmap[i + 1];
+		    pa += L1_SIZE, va += L1_SIZE) {
+			l1_slot = ((va - DMAP_MIN_ADDRESS) >> L1_SHIFT);
+			/* We already have an entry */
+			if (pagetable_dmap[l1_slot] != 0)
+				continue;
+			pmap_load_store(&pagetable_dmap[l1_slot],
+			    (pa & ~L1_OFFSET) | ATTR_DEFAULT | ATTR_XN |
+			    ATTR_IDX(CACHED_MEMORY) | L1_BLOCK);
+		}
+
+		if (pa > dmap_phys_max) {
+			dmap_phys_max = pa;
+			dmap_max_addr = va;
+		}
 	}
-
-	/* Set the upper limit of the DMAP region */
-	dmap_phys_max = pa;
-	dmap_max_addr = va;
 
 	cpu_tlb_flushID();
 }
