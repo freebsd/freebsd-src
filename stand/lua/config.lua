@@ -109,7 +109,7 @@ local pattern_table = {
 	{
 		str = "^%s*exec%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, _)
-			if loader.perform(k) ~= 0 then
+			if cli_execute_unparsed(k) ~= 0 then
 				print(MSG_FAILEXEC:format(k))
 			end
 		end,
@@ -290,25 +290,25 @@ function config.loadmod(mod, silent)
 				str = str .. k
 			end
 			if v.before ~= nil then
-				pstatus = loader.perform(v.before) == 0
+				pstatus = cli_execute_unparsed(v.before) == 0
 				if not pstatus and not silent then
 					print(MSG_FAILEXBEF:format(v.before, k))
 				end
 				status = status and pstatus
 			end
 
-			if loader.perform(str) ~= 0 then
+			if cli_execute_unparsed(str) ~= 0 then
 				if not silent then
 					print(MSG_FAILEXMOD:format(str))
 				end
 				if v.error ~= nil then
-					loader.perform(v.error)
+					cli_execute_unparsed(v.error)
 				end
 				status = false
 			end
 
 			if v.after ~= nil then
-				pstatus = loader.perform(v.after) == 0
+				pstatus = cli_execute_unparsed(v.after) == 0
 				if not pstatus and not silent then
 					print(MSG_FAILEXAF:format(v.after, k))
 				end
