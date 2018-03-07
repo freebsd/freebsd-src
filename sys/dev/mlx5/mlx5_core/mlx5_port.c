@@ -943,6 +943,48 @@ int mlx5_modify_port_tc_rate_limit(struct mlx5_core_dev *mdev,
 }
 EXPORT_SYMBOL_GPL(mlx5_modify_port_tc_rate_limit);
 
+int mlx5_query_port_prio_tc(struct mlx5_core_dev *mdev,
+			    u8 prio, u8 *tc)
+{
+	u32 in[MLX5_ST_SZ_DW(qtct_reg)];
+	u32 out[MLX5_ST_SZ_DW(qtct_reg)];
+	int err;
+
+	memset(in, 0, sizeof(in));
+	memset(out, 0, sizeof(out));
+
+	MLX5_SET(qtct_reg, in, port_number, 1);
+	MLX5_SET(qtct_reg, in, prio, prio);
+
+	err = mlx5_core_access_reg(mdev, in, sizeof(in), out,
+				   sizeof(out), MLX5_REG_QTCT, 0, 0);
+	if (!err)
+		*tc = MLX5_GET(qtct_reg, out, tclass);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_port_prio_tc);
+
+int mlx5_set_port_prio_tc(struct mlx5_core_dev *mdev, int prio_index,
+			  const u8 prio_tc)
+{
+	u32 in[MLX5_ST_SZ_DW(qtct_reg)] = {};
+	u32 out[MLX5_ST_SZ_DW(qtct_reg)];
+	int err;
+
+	if (prio_tc > mlx5_max_tc(mdev))
+		return -EINVAL;
+
+	MLX5_SET(qtct_reg, in, prio, prio_index);
+	MLX5_SET(qtct_reg, in, tclass, prio_tc);
+
+	err = mlx5_core_access_reg(mdev, in, sizeof(in), out,
+				   sizeof(out), MLX5_REG_QTCT, 0, 1);
+
+	return (err);
+}
+EXPORT_SYMBOL_GPL(mlx5_set_port_prio_tc);
+
 int mlx5_modify_port_cong_params(struct mlx5_core_dev *mdev,
 				 void *in, int in_size)
 {
