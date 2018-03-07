@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd January 6, 2016
+.Dd March 7, 2018
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -277,6 +277,23 @@ See the entropy entries in
 .Pq Dq /boot/entropy
 The name of the very early
 boot-time entropy cache file.
+.El
+.Sh OTHER SETTINGS
+Other settings that may be used in
+.Nm
+that have no default value:
+.Bl -tag -width bootfile -offset indent
+.It Va fdt_overlays
+Specifies a comma-delimited list of FDT overlays to apply.
+.Pa /boot/overlays
+is created by default for overlays to be placed in.
+.It Va kernels_autodetect
+If set to
+.Dq YES ,
+attempt to auto-detect kernels installed in
+.Pa /boot .
+This is an option specific to the Lua-based loader.
+It is not available in the default Forth-based loader.
 .El
 .Sh FILES
 .Bl -tag -width /boot/defaults/loader.conf -compact
