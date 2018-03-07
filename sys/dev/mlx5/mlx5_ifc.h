@@ -9096,6 +9096,15 @@ struct mlx5_ifc_ets_global_config_reg_bits {
 	u8         max_bw_value[0x8];
 };
 
+struct mlx5_ifc_qetc_reg_bits {
+	u8                                         reserved_at_0[0x8];
+	u8                                         port_number[0x8];
+	u8                                         reserved_at_10[0x30];
+
+	struct mlx5_ifc_ets_tcn_config_reg_bits    tc_configuration[0x8];
+	struct mlx5_ifc_ets_global_config_reg_bits global_configuration;
+};
+
 struct mlx5_ifc_nodnic_mac_filters_bits {
 	struct mlx5_ifc_mac_address_layout_bits mac_filter0;
 
