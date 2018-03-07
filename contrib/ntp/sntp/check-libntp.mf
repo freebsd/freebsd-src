@@ -8,7 +8,6 @@ BUILT_SOURCES	+= check-libntp
 CLEANFILES	+= check-libntp
 
 check-libntp: ../libntp/libntp.a
-	@echo stamp > $@
 
 ../libntp/libntp.a:
 	cd ../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a

@@ -2,10 +2,11 @@
  * ntpq - query an NTP server using mode 6 commands
  */
 #include <config.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <signal.h>
 #include <setjmp.h>
+#include <stddef.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #ifdef HAVE_UNISTD_H
@@ -34,7 +35,15 @@
 #include "openssl/evp.h"
 #include "openssl/objects.h"
 #include "openssl/err.h"
+#ifdef SYS_WINNT
+# include "openssl/opensslv.h"
+# if !defined(HAVE_EVP_MD_DO_ALL_SORTED) && OPENSSL_VERSION_NUMBER > 0x10000000L
+#    define HAVE_EVP_MD_DO_ALL_SORTED	1
+# endif
+#endif
 #include "libssl_compat.h"
+
+#define CMAC "AES128CMAC"
 #endif
 #include <ssl_applink.c>
 
@@ -189,7 +198,7 @@ static	int	getarg		(const char *, int, arg_v *);
 static	int	findcmd		(const char *, struct xcmd *,
 				 struct xcmd *, struct xcmd **);
 static	int	rtdatetolfp	(char *, l_fp *);
-static	int	decodearr	(char *, int *, l_fp *);
+static	int	decodearr	(char *, int *, l_fp *, int);
 static	void	help		(struct parse *, FILE *);
 static	int	helpsort	(const void *, const void *);
 static	void	printusage	(struct xcmd *, FILE *);
@@ -227,12 +236,23 @@ static	void	on_ctrlc	(void);
 static	int	my_easprintf	(char**, const char *, ...) NTP_PRINTF(2, 3);
 void	ntpq_custom_opt_handler	(tOptions *, tOptDesc *);
 
+/* read a character from memory and expand to integer */
+static inline int
+pgetc(
+	const char *cp
+	)
+{
+	return (int)*(const unsigned char*)cp;
+}
+
+
 #ifdef OPENSSL
 # ifdef HAVE_EVP_MD_DO_ALL_SORTED
 static void list_md_fn(const EVP_MD *m, const char *from,
 		       const char *to, void *arg );
 # endif
 #endif
+static char *insert_cmac(char *list);
 static char *list_digest_names(void);
 
 /*
@@ -450,6 +470,7 @@ main(
 }
 #endif
 
+
 #ifndef BUILD_AS_LIB
 int
 ntpqmain(
@@ -484,14 +505,16 @@ ntpqmain(
 	    char *msg;
 
 	    list = list_digest_names();
-	    for (icmd = 0; icmd < sizeof(builtins)/sizeof(builtins[0]); icmd++) {
-		if (strcmp("keytype", builtins[icmd].keyword) == 0)
+
+	    for (icmd = 0; icmd < sizeof(builtins)/sizeof(*builtins); icmd++) {
+		if (strcmp("keytype", builtins[icmd].keyword) == 0) {
 		    break;
+		}
 	    }
 
 	    /* CID: 1295478 */
 	    /* This should only "trip" if "keytype" is removed from builtins */
-	    INSIST(icmd < sizeof(builtins)/sizeof(builtins[0]));
+	    INSIST(icmd < sizeof(builtins)/sizeof(*builtins));
 
 #ifdef OPENSSL
 	    builtins[icmd].desc[0] = "digest-name";
@@ -584,9 +607,15 @@ ntpqmain(
 		getcmds();
 	} else {
 		for (ihost = 0; ihost < numhosts; ihost++) {
-			if (openhost(chosts[ihost].name, chosts[ihost].fam))
-				for (icmd = 0; icmd < numcmds; icmd++)
+			if (openhost(chosts[ihost].name, chosts[ihost].fam)) {
+				if (ihost)
+					fputc('\n', current_output);
+				for (icmd = 0; icmd < numcmds; icmd++) {
+					if (icmd)
+						fputc('\n', current_output);
 					docmd(ccmds[icmd]);
+				}
+			}
 		}
 	}
 #ifdef SYS_WINNT
@@ -719,7 +748,7 @@ openhost(
 		int err;
 
 		err = setsockopt(INVALID_SOCKET, SOL_SOCKET, SO_OPENTYPE,
-				 (char *)&optionValue, sizeof(optionValue));
+				 (void *)&optionValue, sizeof(optionValue));
 		if (err) {
 			mfprintf(stderr,
 				 "setsockopt(SO_SYNCHRONOUS_NONALERT)"
@@ -743,7 +772,7 @@ openhost(
 # ifdef SO_RCVBUF
 	{ int rbufsize = DATASIZE + 2048;	/* 2K for slop */
 	if (setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF,
-		       &rbufsize, sizeof(int)) == -1)
+		       (void *)&rbufsize, sizeof(int)) == -1)
 		error("setsockopt");
 	}
 # endif
@@ -2014,7 +2043,7 @@ rtdatetolfp(
 	 * d[d]-Mth-y[y[y[y]]] hh:mm:ss
 	 */
 	cp = str;
-	if (!isdigit((int)*cp)) {
+	if (!isdigit(pgetc(cp))) {
 		if (*cp == '-') {
 			/*
 			 * Catch special case
@@ -2026,7 +2055,7 @@ rtdatetolfp(
 	}
 
 	cal.monthday = (u_char) (*cp++ - '0');	/* ascii dependent */
-	if (isdigit((int)*cp)) {
+	if (isdigit(pgetc(cp))) {
 		cal.monthday = (u_char)((cal.monthday << 3) + (cal.monthday << 1));
 		cal.monthday = (u_char)(cal.monthday + *cp++ - '0');
 	}
@@ -2048,18 +2077,18 @@ rtdatetolfp(
 	if (*cp++ != '-')
 	    return 0;
 
-	if (!isdigit((int)*cp))
+	if (!isdigit(pgetc(cp)))
 	    return 0;
 	cal.year = (u_short)(*cp++ - '0');
-	if (isdigit((int)*cp)) {
+	if (isdigit(pgetc(cp))) {
 		cal.year = (u_short)((cal.year << 3) + (cal.year << 1));
 		cal.year = (u_short)(*cp++ - '0');
 	}
-	if (isdigit((int)*cp)) {
+	if (isdigit(pgetc(cp))) {
 		cal.year = (u_short)((cal.year << 3) + (cal.year << 1));
 		cal.year = (u_short)(cal.year + *cp++ - '0');
 	}
-	if (isdigit((int)*cp)) {
+	if (isdigit(pgetc(cp))) {
 		cal.year = (u_short)((cal.year << 3) + (cal.year << 1));
 		cal.year = (u_short)(cal.year + *cp++ - '0');
 	}
@@ -2072,26 +2101,26 @@ rtdatetolfp(
 		return 1;
 	}
 
-	if (*cp++ != ' ' || !isdigit((int)*cp))
+	if (*cp++ != ' ' || !isdigit(pgetc(cp)))
 	    return 0;
 	cal.hour = (u_char)(*cp++ - '0');
-	if (isdigit((int)*cp)) {
+	if (isdigit(pgetc(cp))) {
 		cal.hour = (u_char)((cal.hour << 3) + (cal.hour << 1));
 		cal.hour = (u_char)(cal.hour + *cp++ - '0');
 	}
 
-	if (*cp++ != ':' || !isdigit((int)*cp))
+	if (*cp++ != ':' || !isdigit(pgetc(cp)))
 	    return 0;
 	cal.minute = (u_char)(*cp++ - '0');
-	if (isdigit((int)*cp)) {
+	if (isdigit(pgetc(cp))) {
 		cal.minute = (u_char)((cal.minute << 3) + (cal.minute << 1));
 		cal.minute = (u_char)(cal.minute + *cp++ - '0');
 	}
 
-	if (*cp++ != ':' || !isdigit((int)*cp))
+	if (*cp++ != ':' || !isdigit(pgetc(cp)))
 	    return 0;
 	cal.second = (u_char)(*cp++ - '0');
-	if (isdigit((int)*cp)) {
+	if (isdigit(pgetc(cp))) {
 		cal.second = (u_char)((cal.second << 3) + (cal.second << 1));
 		cal.second = (u_char)(cal.second + *cp++ - '0');
 	}
@@ -2215,34 +2244,36 @@ decodeuint(
  */
 static int
 decodearr(
-	char *str,
-	int *narr,
-	l_fp *lfparr
+	char *cp,
+	int  *narr,
+	l_fp *lfpa,
+	int   amax
 	)
 {
-	register char *cp, *bp;
-	register l_fp *lfp;
+	char *bp;
 	char buf[60];
 
-	lfp = lfparr;
-	cp = str;
 	*narr = 0;
 
-	while (*narr < 8) {
-		while (isspace((int)*cp))
-		    cp++;
-		if (*cp == '\0')
-		    break;
+	while (*narr < amax && *cp) {
+		if (isspace(pgetc(cp))) {
+			do
+				++cp;
+			while (*cp && isspace(pgetc(cp)));
+		} else {
+			bp = buf;
+			do {
+				if (bp != (buf + sizeof(buf) - 1))
+					*bp++ = *cp;
+				++cp;
+			} while (*cp && !isspace(pgetc(cp)));
+			*bp = '\0';
 
-		bp = buf;
-		while (!isspace((int)*cp) && *cp != '\0')
-		    *bp++ = *cp++;
-		*bp++ = '\0';
-
-		if (!decodetime(buf, lfp))
-		    return 0;
-		(*narr)++;
-		lfp++;
+			if (!decodetime(buf, lfpa))
+				return 0;
+			++(*narr);
+			++lfpa;
+		}
 	}
 	return 1;
 }
@@ -3049,7 +3080,7 @@ nextvar(
 	/*
 	 * Space past commas and white space
 	 */
-	while (cp < cpend && (*cp == ',' || isspace((int)*cp)))
+	while (cp < cpend && (*cp == ',' || isspace(pgetc(cp))))
 		cp++;
 	if (cp >= cpend)
 		return 0;
@@ -3061,7 +3092,7 @@ nextvar(
 	srclen = strcspn(cp, ",=\r\n");
 	srclen = min(srclen, (size_t)(cpend - cp));
 	len = srclen;
-	while (len > 0 && isspace((unsigned char)cp[len - 1]))
+	while (len > 0 && isspace(pgetc(&cp[len - 1])))
 		len--;
 	if (len >= sizeof(name))
 	    return 0;
@@ -3087,7 +3118,7 @@ nextvar(
 	 * So far, so good.  Copy out the value
 	 */
 	cp++;	/* past '=' */
-	while (cp < cpend && (isspace((unsigned char)*cp) && *cp != '\r' && *cp != '\n'))
+	while (cp < cpend && (isspace(pgetc(cp)) && *cp != '\r' && *cp != '\n'))
 		cp++;
 	np = cp;
 	if ('"' == *np) {
@@ -3108,7 +3139,7 @@ nextvar(
 	/*
 	 * Trim off any trailing whitespace
 	 */
-	while (len > 0 && isspace((unsigned char)value[len - 1]))
+	while (len > 0 && isspace(pgetc(&value[len - 1])))
 		len--;
 	value[len] = '\0';
 
@@ -3191,7 +3222,7 @@ rawprint(
 			 */
 			if (cp == (cpend - 1) || *(cp + 1) != '\n')
 			    makeascii(1, cp, fp);
-		} else if (isspace((unsigned char)*cp) || isprint((unsigned char)*cp))
+		} else if (isspace(pgetc(cp)) || isprint(pgetc(cp)))
 			putc(*cp, fp);
 		else
 			makeascii(1, cp, fp);
@@ -3399,7 +3430,7 @@ cookedprint(
 			break;
 
 		case TS:
-			if (!decodets(value, &lfp))
+			if (!value || !decodets(value, &lfp))
 				output_raw = '?';
 			else
 				output(fp, name, prettydate(&lfp));
@@ -3407,7 +3438,7 @@ cookedprint(
 
 		case HA:	/* fallthru */
 		case NA:
-			if (!decodenetnum(value, &hval)) {
+			if (!value || !decodenetnum(value, &hval)) {
 				output_raw = '?';
 			} else if (fmt == HA){
 				output(fp, name, nntohost(&hval));
@@ -3417,7 +3448,9 @@ cookedprint(
 			break;
 
 		case RF:
-			if (decodenetnum(value, &hval)) {
+			if (!value) {
+				output_raw = '?';
+			} else if (decodenetnum(value, &hval)) {
 				if (ISREFCLOCKADR(&hval))
 					output(fp, name,
 					       refnumtoa(&hval));
@@ -3431,7 +3464,7 @@ cookedprint(
 			break;
 
 		case LP:
-			if (!decodeuint(value, &uval) || uval > 3) {
+			if (!value || !decodeuint(value, &uval) || uval > 3) {
 				output_raw = '?';
 			} else {
 				b[0] = (0x2 & uval)
@@ -3446,7 +3479,7 @@ cookedprint(
 			break;
 
 		case OC:
-			if (!decodeuint(value, &uval)) {
+			if (!value || !decodeuint(value, &uval)) {
 				output_raw = '?';
 			} else {
 				snprintf(b, sizeof(b), "%03lo", uval);
@@ -3455,14 +3488,14 @@ cookedprint(
 			break;
 
 		case AR:
-			if (!decodearr(value, &narr, lfparr))
+			if (!value || !decodearr(value, &narr, lfparr, 8))
 				output_raw = '?';
 			else
 				outputarr(fp, name, narr, lfparr);
 			break;
 
 		case FX:
-			if (!decodeuint(value, &uval))
+			if (!value || !decodeuint(value, &uval))
 				output_raw = '?';
 			else
 				output(fp, name, tstflags(uval));
@@ -3584,81 +3617,205 @@ ntpq_custom_opt_handler(
  * Obtain list of digest names
  */
 
+#if defined(OPENSSL) && !defined(HAVE_EVP_MD_DO_ALL_SORTED)
+# if defined(_MSC_VER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+#  define HAVE_EVP_MD_DO_ALL_SORTED
+# endif
+#endif
+
 #ifdef OPENSSL
 # ifdef HAVE_EVP_MD_DO_ALL_SORTED
+#  define K_PER_LINE	8
+#  define K_NL_PFX_STR	"\n    "
+#  define K_DELIM_STR	", "
+
 struct hstate {
    char *list;
    const char **seen;
    int idx;
 };
-#define K_PER_LINE 8
-#define K_NL_PFX_STR "\n    "
-#define K_DELIM_STR ", "
-static void list_md_fn(const EVP_MD *m, const char *from, const char *to, void *arg )
-{
-    size_t len, n;
-    const char *name, *cp, **seen;
-    struct hstate *hstate = arg;
-    EVP_MD_CTX *ctx;
-    u_int digest_len;
-    u_char digest[EVP_MAX_MD_SIZE];
 
-    if (!m)
+
+static void
+list_md_fn(const EVP_MD *m, const char *from, const char *to, void *arg)
+{
+    size_t 	  len, n, digest_len;
+    const char	  *name, **seen;
+    struct hstate *hstate = arg;
+    char	  *cp;
+
+    /* m is MD obj, from is name or alias, to is base name for alias */
+    if (!m || !from || to) {
         return; /* Ignore aliases */
+    }
+
+    /* Discard MACs that NTP won't accept. */
+    /* Keep this consistent with keytype_from_text() in ssl_init.c. */
+    if (EVP_MD_size(m) > (MAX_MAC_LEN - sizeof(keyid_t))) {
+        return;
+    }
 
     name = EVP_MD_name(m);
 
     /* Lowercase names aren't accepted by keytype_from_text in ssl_init.c */
 
-    for( cp = name; *cp; cp++ ) {
-	if( islower((unsigned char)*cp) )
+    for (cp = name; *cp; cp++) {
+	if (islower((unsigned char)*cp)) {
 	    return;
+	}
     }
+
     len = (cp - name) + 1;
 
     /* There are duplicates.  Discard if name has been seen. */
 
-    for (seen = hstate->seen; *seen; seen++)
-        if (!strcmp(*seen, name))
+    for (seen = hstate->seen; *seen; seen++) {
+        if (!strcmp(*seen, name)) {
 	    return;
+	}
+    }
+
     n = (seen - hstate->seen) + 2;
     hstate->seen = erealloc(hstate->seen, n * sizeof(*seen));
     hstate->seen[n-2] = name;
     hstate->seen[n-1] = NULL;
 
-    /* Discard MACs that NTP won't accept.
-     * Keep this consistent with keytype_from_text() in ssl_init.c.
-     */
-
-    ctx = EVP_MD_CTX_new();
-    EVP_DigestInit(ctx, EVP_get_digestbyname(name));
-    EVP_DigestFinal(ctx, digest, &digest_len);
-    EVP_MD_CTX_free(ctx);
-    if (digest_len > (MAX_MAC_LEN - sizeof(keyid_t)))
-        return;
-
-    if (hstate->list != NULL)
+    if (hstate->list != NULL) {
 	len += strlen(hstate->list);
-    len += (hstate->idx >= K_PER_LINE)? strlen(K_NL_PFX_STR): strlen(K_DELIM_STR);
+    }
+
+    len += (hstate->idx >= K_PER_LINE)
+		? strlen(K_NL_PFX_STR)
+		: strlen(K_DELIM_STR);
 
     if (hstate->list == NULL) {
-	hstate->list = (char *)emalloc(len);
+        hstate->list = (char *)emalloc(len);
 	hstate->list[0] = '\0';
-    } else
+    } else {
 	hstate->list = (char *)erealloc(hstate->list, len);
+    }
 
     sprintf(hstate->list + strlen(hstate->list), "%s%s",
-	    ((hstate->idx >= K_PER_LINE)? K_NL_PFX_STR : K_DELIM_STR),
+	    ((hstate->idx >= K_PER_LINE) ? K_NL_PFX_STR : K_DELIM_STR),
 	    name);
-    if (hstate->idx >= K_PER_LINE)
+
+    if (hstate->idx >= K_PER_LINE) {
 	hstate->idx = 1;
-    else
+    } else {
 	hstate->idx++;
+    }
+}
+
+
+/* Insert CMAC into SSL digests list */
+static char *
+insert_cmac(char *list)
+{
+    int insert;
+    size_t len;
+
+
+    /* If list empty, we need to insert CMAC on new line */
+    insert = (!list || !*list);
+
+    if (insert) {
+	len = strlen(K_NL_PFX_STR) + strlen(CMAC);
+	list = (char *)erealloc(list, len + 1);
+	sprintf(list, "%s%s", K_NL_PFX_STR, CMAC);
+    } else {	/* List not empty */
+	/* Check if CMAC already in list - future proofing */
+	const char *cmac_sn;
+	char *cmac_p;
+
+	cmac_sn = OBJ_nid2sn(NID_cmac);
+	cmac_p = list;
+	insert = cmac_sn != NULL && *cmac_sn != '\0';
+
+	/* CMAC in list if found, followed by nul char or ',' */
+	while (insert && NULL != (cmac_p = strstr(cmac_p, cmac_sn))) {
+	    cmac_p += strlen(cmac_sn);
+	    /* Still need to insert if not nul and not ',' */
+	    insert = *cmac_p && ',' != *cmac_p;
+	}
+
+	/* Find proper insertion point */
+	if (insert) {
+	    char *last_nl;
+	    char *point;
+	    char *delim;
+	    int found;
+
+	    /* Default to start if list empty */
+	    found = 0;
+	    delim = list;
+	    len = strlen(list);
+
+	    /* While new lines */
+	    while (delim < list + len && *delim &&
+			!strncmp(K_NL_PFX_STR, delim, strlen(K_NL_PFX_STR))) {
+		point = delim + strlen(K_NL_PFX_STR);
+
+		/* While digest names on line */
+		while (point < list + len && *point) {
+		    /* Another digest after on same or next line? */
+		    delim = strstr( point, K_DELIM_STR);
+		    last_nl = strstr( point, K_NL_PFX_STR);
+
+		    /* No - end of list */
+		    if (!delim && !last_nl) {
+			delim = list + len;
+		    } else
+		    /* New line and no delim or before delim? */
+		    if (last_nl && (!delim || last_nl < delim)) {
+			delim = last_nl;
+		    }
+
+		    /* Found insertion point where CMAC before entry? */
+		    if (strncmp(CMAC, point, delim - point) < 0) {
+			found = 1;
+			break;
+		    }
+
+		    if (delim < list + len && *delim &&
+			    !strncmp(K_DELIM_STR, delim, strlen(K_DELIM_STR))) {
+			point += strlen(K_DELIM_STR);
+		    } else {
+			break;
+		    }
+		} /* While digest names on line */
+	    } /* While new lines */
+
+	    /* If found in list */
+	    if (found) {
+		/* insert cmac and delim */
+		/* Space for list could move - save offset */
+		ptrdiff_t p_offset = point - list;
+		len += strlen(CMAC) + strlen(K_DELIM_STR);
+		list = (char *)erealloc(list, len + 1);
+		point = list + p_offset;
+		/* move to handle src/dest overlap */
+		memmove(point + strlen(CMAC) + strlen(K_DELIM_STR),
+					point, strlen(point) + 1);
+		strncpy(point, CMAC, strlen(CMAC));
+		strncpy(point + strlen(CMAC), K_DELIM_STR, strlen(K_DELIM_STR));
+	    } else {	/* End of list */
+		/* append delim and cmac */
+		len += strlen(K_DELIM_STR) + strlen(CMAC);
+		list = (char *)erealloc(list, len + 1);
+		strcpy(list + strlen(list), K_DELIM_STR);
+		strcpy(list + strlen(list), CMAC);
+	    }
+	} /* insert */
+    } /* List not empty */
+
+    return list;
 }
 # endif
 #endif
 
-static char *list_digest_names(void)
+
+static char *
+list_digest_names(void)
 {
     char *list = NULL;
 
@@ -3666,12 +3823,16 @@ static char *list_digest_names(void)
 # ifdef HAVE_EVP_MD_DO_ALL_SORTED
     struct hstate hstate = { NULL, NULL, K_PER_LINE+1 };
 
-    hstate.seen = (const char **) emalloc_zero(1*sizeof( const char * )); // replaces -> calloc(1, sizeof( const char * ));
+    /* replace calloc(1, sizeof(const char *)) */
+    hstate.seen = (const char **)emalloc_zero(sizeof(const char *));
 
     INIT_SSL();
     EVP_MD_do_all_sorted(list_md_fn, &hstate);
     list = hstate.list;
     free(hstate.seen);
+
+    list = insert_cmac(list);	/* Insert CMAC into SSL digests list */
+
 # else
     list = (char *)emalloc(sizeof("md5, others (upgrade to OpenSSL-1.0 for full list)"));
     strcpy(list, "md5, others (upgrade to OpenSSL-1.0 for full list)");

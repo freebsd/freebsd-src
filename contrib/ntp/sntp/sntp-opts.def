@@ -128,6 +128,7 @@ flag = {
   descrip	= "Look in this file for the key specified with @option{-a}";
   arg-type	= file;
   arg-name	= "file-name";
+  arg-default	= "/etc/ntp.keys";
   doc		= <<- _EndOfDoc_
 	This option specifies the keyfile.
 	@code{sntp} will search for the key specified with @option{-a}

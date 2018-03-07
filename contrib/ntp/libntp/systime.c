@@ -5,8 +5,10 @@
  *
  */
 #include <config.h>
+#include <math.h>
 
 #include "ntp.h"
+#include "ntpd.h"
 #include "ntp_syslog.h"
 #include "ntp_stdlib.h"
 #include "ntp_random.h"
@@ -14,6 +16,7 @@
 #include "timevalops.h"
 #include "timespecops.h"
 #include "ntp_calendar.h"
+#include "lib_strbuf.h"
 
 #ifdef HAVE_SYS_PARAM_H
 # include <sys/param.h>
@@ -27,6 +30,9 @@
 
 int	allow_panic = FALSE;		/* allow panic correction (-g) */
 int	enable_panic_check = TRUE;	/* Can we check allow_panic's state? */
+
+u_long	sys_lamport;			/* Lamport violation */
+u_long	sys_tsrounding;			/* timestamp rounding errors */
 
 #ifndef USE_COMPILETIME_PIVOT
 # define USE_COMPILETIME_PIVOT 1
@@ -110,7 +116,10 @@ set_sys_fuzz(
 	sys_fuzz = fuzz_val;
 	INSIST(sys_fuzz >= 0);
 	INSIST(sys_fuzz <= 1.0);
-	sys_fuzz_nsec = (long)(sys_fuzz * 1e9 + 0.5);
+	/* [Bug 3450] ensure nsec fuzz >= sys_fuzz to reduce chance of
+	 * short-falling fuzz advance
+	 */
+	sys_fuzz_nsec = (long)ceil(sys_fuzz * 1e9);
 }
 
 
@@ -168,13 +177,10 @@ get_systime(
         static struct timespec  ts_last;        /* last sampled os time */
 	static struct timespec	ts_prev;	/* prior os time */
 	static l_fp		lfp_prev;	/* prior result */
-	static double		dfuzz_prev;	/* prior fuzz */
 	struct timespec ts;	/* seconds and nanoseconds */
 	struct timespec ts_min;	/* earliest permissible */
 	struct timespec ts_lam;	/* lamport fictional increment */
-	struct timespec ts_prev_log;	/* for msyslog only */
 	double	dfuzz;
-	double	ddelta;
 	l_fp	result;
 	l_fp	lfpfuzz;
 	l_fp	lfpdelta;
@@ -191,8 +197,10 @@ get_systime(
          * introduce small steps backward. It should not be an issue on
          * systems where get_ostime() results in a true syscall.)
          */
-        if (cmp_tspec(add_tspec_ns(ts, 50000000), ts_last) < 0)
+        if (cmp_tspec(add_tspec_ns(ts, 50000000), ts_last) < 0) {
                 lamport_violated = 1;
+                sys_lamport++;
+	}
         ts_last = ts;
 
 	/*
@@ -216,21 +224,16 @@ get_systime(
 			if (!lamport_violated)
 				ts = ts_min;
 		}
-		ts_prev_log = ts_prev;
 		ts_prev = ts;
-	} else {
-		/*
-		 * Quiet "ts_prev_log.tv_sec may be used uninitialized"
-		 * warning from x86 gcc 4.5.2.
-		 */
-		ZERO(ts_prev_log);
 	}
 
 	/* convert from timespec to l_fp fixed-point */
 	result = tspec_stamp_to_lfp(ts);
 
 	/*
-	 * Add in the fuzz.
+	 * Add in the fuzz. 'ntp_random()' returns [0..2**31-1] so we
+	 * must scale up the result by 2.0 to cover the full fractional
+	 * range.
 	 */
 	dfuzz = ntp_random() * 2. / FRAC * sys_fuzz;
 	DTOLFP(dfuzz, &lfpfuzz);
@@ -240,30 +243,34 @@ get_systime(
 	 * Ensure result is strictly greater than prior result (ignoring
 	 * sys_residual's effect for now) once sys_fuzz has been
 	 * determined.
+	 *
+	 * [Bug 3450] Rounding errors and time slew can lead to a
+	 * violation of the expected postcondition. This is bound to
+	 * happen from time to time (depending on state of the random
+	 * generator, the current slew and the closeness of system time
+	 * stamps drawn) and does not warrant a syslog entry. Instead it
+	 * makes much more sense to ensure the postcondition and hop
+	 * along silently.
 	 */
 	if (!USING_SIGIO()) {
-		if (!L_ISZERO(&lfp_prev) && !lamport_violated) {
-			if (!L_ISGTU(&result, &lfp_prev) &&
-			    sys_fuzz > 0.) {
-				msyslog(LOG_ERR, "ts_prev %s ts_min %s",
-					tspectoa(ts_prev_log),
-					tspectoa(ts_min));
-				msyslog(LOG_ERR, "ts %s", tspectoa(ts));
-				msyslog(LOG_ERR, "sys_fuzz %ld nsec, prior fuzz %.9f",
-					sys_fuzz_nsec, dfuzz_prev);
-				msyslog(LOG_ERR, "this fuzz %.9f",
-					dfuzz);
-				lfpdelta = lfp_prev;
-				L_SUB(&lfpdelta, &result);
-				LFPTOD(&lfpdelta, ddelta);
-				msyslog(LOG_ERR,
-					"prev get_systime 0x%x.%08x is %.9f later than 0x%x.%08x",
-					lfp_prev.l_ui, lfp_prev.l_uf,
-					ddelta, result.l_ui, result.l_uf);
+		if (   !L_ISZERO(&lfp_prev)
+		    && !lamport_violated
+		    && (sys_fuzz > 0.0)
+		   ) {
+			lfpdelta = result;
+			L_SUB(&lfpdelta, &lfp_prev);
+			L_SUBUF(&lfpdelta, 1);
+			if (lfpdelta.l_i < 0)
+			{
+				L_NEG(&lfpdelta);
+				DPRINTF(1, ("get_systime: postcond failed by %s secs, fixed\n",
+					    lfptoa(&lfpdelta, 9)));
+				result = lfp_prev;
+				L_ADDUF(&result, 1);
+				sys_tsrounding++;
 			}
 		}
 		lfp_prev = result;
-		dfuzz_prev = dfuzz;
 		if (lamport_violated) 
 			lamport_violated = FALSE;
 	}
@@ -362,105 +369,16 @@ adj_systime(
 }
 #endif
 
-
 /*
- * step_systime - step the system clock.
+ * helper to keep utmp/wtmp up to date
  */
-
-int
-step_systime(
-	double step
+static void
+update_uwtmp(
+	struct timeval timetv,
+	struct timeval tvlast
 	)
 {
-	time_t pivot; /* for ntp era unfolding */
-	struct timeval timetv, tvlast, tvdiff;
-	struct timespec timets;
-	struct calendar jd;
-	l_fp fp_ofs, fp_sys; /* offset and target system time in FP */
-
-	/*
-	 * Get pivot time for NTP era unfolding. Since we don't step
-	 * very often, we can afford to do the whole calculation from
-	 * scratch. And we're not in the time-critical path yet.
-	 */
-#if SIZEOF_TIME_T > 4
-	/*
-	 * This code makes sure the resulting time stamp for the new
-	 * system time is in the 2^32 seconds starting at 1970-01-01,
-	 * 00:00:00 UTC.
-	 */
-	pivot = 0x80000000;
-#if USE_COMPILETIME_PIVOT
-	/*
-	 * Add the compile time minus 10 years to get a possible target
-	 * area of (compile time - 10 years) to (compile time + 126
-	 * years).  This should be sufficient for a given binary of
-	 * NTPD.
-	 */
-	if (ntpcal_get_build_date(&jd)) {
-		jd.year -= 10;
-		pivot += ntpcal_date_to_time(&jd);
-	} else {
-		msyslog(LOG_ERR,
-			"step-systime: assume 1970-01-01 as build date");
-	}
-#else
-	UNUSED_LOCAL(jd);
-#endif /* USE_COMPILETIME_PIVOT */
-#else
-	UNUSED_LOCAL(jd);
-	/* This makes sure the resulting time stamp is on or after
-	 * 1969-12-31/23:59:59 UTC and gives us additional two years,
-	 * from the change of NTP era in 2036 to the UNIX rollover in
-	 * 2038. (Minus one second, but that won't hurt.) We *really*
-	 * need a longer 'time_t' after that!  Or a different baseline,
-	 * but that would cause other serious trouble, too.
-	 */
-	pivot = 0x7FFFFFFF;
-#endif
-
-	/* get the complete jump distance as l_fp */
-	DTOLFP(sys_residual, &fp_sys);
-	DTOLFP(step,         &fp_ofs);
-	L_ADD(&fp_ofs, &fp_sys);
-
-	/* ---> time-critical path starts ---> */
-
-	/* get the current time as l_fp (without fuzz) and as struct timeval */
-	get_ostime(&timets);
-	fp_sys = tspec_stamp_to_lfp(timets);
-	tvlast.tv_sec = timets.tv_sec;
-	tvlast.tv_usec = (timets.tv_nsec + 500) / 1000;
-
-	/* get the target time as l_fp */
-	L_ADD(&fp_sys, &fp_ofs);
-
-	/* unfold the new system time */
-	timetv = lfp_stamp_to_tval(fp_sys, &pivot);
-
-	/* now set new system time */
-	if (ntp_set_tod(&timetv, NULL) != 0) {
-		msyslog(LOG_ERR, "step-systime: %m");
-		if (enable_panic_check && allow_panic) {
-			msyslog(LOG_ERR, "step_systime: allow_panic is TRUE!");
-		}
-		return FALSE;
-	}
-
-	/* <--- time-critical path ended with 'ntp_set_tod()' <--- */
-
-	sys_residual = 0;
-	lamport_violated = (step < 0);
-	if (step_callback)
-		(*step_callback)();
-
-#ifdef NEED_HPUX_ADJTIME
-	/*
-	 * CHECKME: is this correct when called by ntpdate?????
-	 */
-	_clear_adjtime();
-#endif
-
+	struct timeval tvdiff;
 	/*
 	 * FreeBSD, for example, has:
 	 * struct utmp {
@@ -589,11 +507,177 @@ step_systime(
 #endif /* UPDATE_WTMPX */
 
 	}
+}
+
+/*
+ * step_systime - step the system clock.
+ */
+
+int
+step_systime(
+	double step
+	)
+{
+	time_t pivot; /* for ntp era unfolding */
+	struct timeval timetv, tvlast;
+	struct timespec timets;
+	l_fp fp_ofs, fp_sys; /* offset and target system time in FP */
+
+	/*
+	 * Get pivot time for NTP era unfolding. Since we don't step
+	 * very often, we can afford to do the whole calculation from
+	 * scratch. And we're not in the time-critical path yet.
+	 */
+#if SIZEOF_TIME_T > 4
+	pivot = basedate_get_eracenter();
+#else
+	/* This makes sure the resulting time stamp is on or after
+	 * 1969-12-31/23:59:59 UTC and gives us additional two years,
+	 * from the change of NTP era in 2036 to the UNIX rollover in
+	 * 2038. (Minus one second, but that won't hurt.) We *really*
+	 * need a longer 'time_t' after that!  Or a different baseline,
+	 * but that would cause other serious trouble, too.
+	 */
+	pivot = 0x7FFFFFFF;
+#endif
+
+	/* get the complete jump distance as l_fp */
+	DTOLFP(sys_residual, &fp_sys);
+	DTOLFP(step,         &fp_ofs);
+	L_ADD(&fp_ofs, &fp_sys);
+
+	/* ---> time-critical path starts ---> */
+
+	/* get the current time as l_fp (without fuzz) and as struct timeval */
+	get_ostime(&timets);
+	fp_sys = tspec_stamp_to_lfp(timets);
+	tvlast.tv_sec = timets.tv_sec;
+	tvlast.tv_usec = (timets.tv_nsec + 500) / 1000;
+
+	/* get the target time as l_fp */
+	L_ADD(&fp_sys, &fp_ofs);
+
+	/* unfold the new system time */
+	timetv = lfp_stamp_to_tval(fp_sys, &pivot);
+
+	/* now set new system time */
+	if (ntp_set_tod(&timetv, NULL) != 0) {
+		msyslog(LOG_ERR, "step-systime: %m");
+		if (enable_panic_check && allow_panic) {
+			msyslog(LOG_ERR, "step_systime: allow_panic is TRUE!");
+		}
+		return FALSE;
+	}
+
+	/* <--- time-critical path ended with 'ntp_set_tod()' <--- */
+
+	sys_residual = 0;
+	lamport_violated = (step < 0);
+	if (step_callback)
+		(*step_callback)();
+
+#ifdef NEED_HPUX_ADJTIME
+	/*
+	 * CHECKME: is this correct when called by ntpdate?????
+	 */
+	_clear_adjtime();
+#endif
+
+	update_uwtmp(timetv, tvlast);
 	if (enable_panic_check && allow_panic) {
 		msyslog(LOG_ERR, "step_systime: allow_panic is TRUE!");
 		INSIST(!allow_panic);
 	}
 	return TRUE;
+}
+
+static const char *
+tv_fmt_libbuf(
+	const struct timeval * ptv
+	)
+{
+	char *		retv;
+	vint64		secs;
+	ntpcal_split	dds;
+	struct calendar	jd;
+
+	secs = time_to_vint64(&ptv->tv_sec);
+	dds  = ntpcal_daysplit(&secs);
+	ntpcal_daysplit_to_date(&jd, &dds, DAY_UNIX_STARTS);
+	LIB_GETBUF(retv);
+	snprintf(retv, LIB_BUFLENGTH,
+		 "%04hu-%02hu-%02hu/%02hu:%02hu:%02hu.%06u",
+		 jd.year, (u_short)jd.month, (u_short)jd.monthday,
+		 (u_short)jd.hour, (u_short)jd.minute, (u_short)jd.second,
+		 (u_int)ptv->tv_usec);
+	return retv;
+}
+
+
+int /*BOOL*/
+clamp_systime(void)
+{
+#if SIZEOF_TIME_T > 4
+
+	struct timeval timetv, tvlast;
+	struct timespec timets;
+	uint32_t	tdiff;
+
+	
+	timetv.tv_sec = basedate_get_erabase();
+	
+	/* ---> time-critical path starts ---> */
+
+	/* get the current time as l_fp (without fuzz) and as struct timeval */
+	get_ostime(&timets);
+	tvlast.tv_sec = timets.tv_sec;
+	tvlast.tv_usec = (timets.tv_nsec + 500) / 1000;
+	if (tvlast.tv_usec >= 1000000) {
+		tvlast.tv_usec -= 1000000;
+		tvlast.tv_sec  += 1;
+	}
+	timetv.tv_usec = tvlast.tv_usec;
+
+	tdiff = (uint32_t)(tvlast.tv_sec & UINT32_MAX) -
+	        (uint32_t)(timetv.tv_sec & UINT32_MAX);
+	timetv.tv_sec += tdiff;
+	if (timetv.tv_sec != tvlast.tv_sec) {
+		/* now set new system time */
+		if (ntp_set_tod(&timetv, NULL) != 0) {
+			msyslog(LOG_ERR, "clamp-systime: %m");
+			return FALSE;
+		}
+	} else {
+		msyslog(LOG_INFO,
+			"clamp-systime: clock (%s) in allowed range",
+			tv_fmt_libbuf(&timetv));
+		return FALSE;
+	}
+
+	/* <--- time-critical path ended with 'ntp_set_tod()' <--- */
+
+	sys_residual = 0;
+	lamport_violated = (timetv.tv_sec < tvlast.tv_sec);
+	if (step_callback)
+		(*step_callback)();
+
+#   ifdef NEED_HPUX_ADJTIME
+	/*
+	 * CHECKME: is this correct when called by ntpdate?????
+	 */
+	_clear_adjtime();
+#   endif
+
+	update_uwtmp(timetv, tvlast);
+	msyslog(LOG_WARNING,
+		"clamp-systime: clock stepped from %s to %s!",
+		tv_fmt_libbuf(&tvlast), tv_fmt_libbuf(&timetv));
+	return TRUE;
+		
+#else
+
+	return 0;
+#endif
 }
 
 #endif	/* !SIM */

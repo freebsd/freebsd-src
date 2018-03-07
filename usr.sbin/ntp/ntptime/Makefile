@@ -11,7 +11,7 @@ CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include \
 	-I${.CURDIR}/../../../contrib/ntp/lib/isc/pthreads/include \
 	-I${.CURDIR}/../
 
-DPADD=	${LIBNTP} ${LIBPTHREAD}
-LDADD=	${LIBNTP} -lpthread
+DPADD=	${LIBM} ${LIBNTP} ${LIBPTHREAD}
+LDADD=	-lm ${LIBNTP} -lpthread
 
 .include <bsd.prog.mk>

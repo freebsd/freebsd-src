@@ -11,7 +11,7 @@
 <img src="pic/pogo8.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html"></a> from <i>Pogo</i>, Walt Kelly</a>
 <p>Pig was hired to watch the logs.</p>
 <p>Last update:
-  <!-- #BeginDate format:En2m -->14-Feb-2016  09:38<!-- #EndDate -->
+  <!-- #BeginDate format:En2m -->7-Dec-2017  10:17<!-- #EndDate -->
     UTC</p>
 <br clear="left">
 <h4>Related Links</h4>
@@ -341,8 +341,10 @@
     the <a href="decode.html">Event Messages and Status Words</a> page.</dd>
   <dt><tt>rawstats</tt></dt>
   <dd>Record timestamp statistics. Each NTP packet received appends one line to
-    the <tt>rawstats</tt> file set:</dd>
+the <tt>rawstats</tt> file set.  As of ntp-4.2.8p11, each NTP packet written appends one line to the <tt>rawstats</tt> file set, as well.  The format of this line is:</dd>
   <dd><tt>56285 54575.160 128.4.1.1 192.168.1.5 3565350574.400229473 3565350574.442385200 3565350574.442436000 3565350575.154505763 0 4 4 1 8 -21 0.000000 0.000320 .PPS.</tt></dd>
+  <dd><tt>56285 54575.160 128.4.1.1 192.168.1.5 3565350574.400229473 3565350574.442385200 3565350574.442436000 3565350575.154505763 0 4 4 1 8 -21 0.000000 0.000320 .PPS. 4: 0000</tt></dd>
+  </tt></dd>
   <dd>
     <table width="100%" border="1" cellspacing="2" cellpadding="2">
       <tr>
@@ -431,9 +433,23 @@
         <td>total dispersion to the primary reference clock</td>
       </tr>
       <tr>
-        <td><tt>PPS.</tt></td>
-        <td>IP or text</td>
-        <td>refid, association ID</td>
+        <td><tt>.PPS.</tt></td>
+        <td>REFID</td>
+        <td>system peer, association ID</td>
+      </tr>
+      <tr>
+	<td></td>
+	<td></td>
+        <td>If there is data beyond the base packet:</td>
+      </tr>
+      <tr>
+        <td><tt>4:</tt></td>
+        <td>Integer</td>
+        <td>Length, in bytes</td>
+      </tr>
+      <tr>
+        <td><tt>0000</tt></td>
+        <td>Hex data</td>
       </tr>
     </table>
   </dd>
@@ -516,7 +532,7 @@
     </table>
   </dd>
   <dt><tt>timingstats</tt></dt>
-  <dd>(Only available when the deamon is compiled with process time debugging
+  <dd>(Only available when the daemon is compiled with process time debugging
     support (--enable-debug-timing - costs performance). Record processing time
     statistics for various selected code paths.</dd>
   <dd><tt>53876 36.920 10.0.3.5 1 0.000014592 input processing delay</tt></dd>

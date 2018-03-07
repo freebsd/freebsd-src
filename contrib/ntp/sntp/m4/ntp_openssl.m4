@@ -85,7 +85,12 @@ case "$with_crypto:${PKG_CONFIG:+notempty}:${with_openssl_libdir-notgiven}:${wit
 	    VER_SUFFIX=o
 	    ntp_openssl=yes
 	    ntp_openssl_from_pkg_config=yes
-	    AC_MSG_RESULT([yes])
+	    ntp_openssl_version="`$PKG_CONFIG --modversion $pkg`"
+	    case "$ntp_openssl_version" in
+	     *.*) ;;
+	     *) ntp_openssl_version='(unknown)' ;;
+	    esac
+	    AC_MSG_RESULT([yes, version $ntp_openssl_version])
 
 	    break
 	fi
