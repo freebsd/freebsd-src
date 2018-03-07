@@ -1,6 +1,6 @@
 
 # ------------------------------------------------------------------------
-# $File: mup,v 1.4 2009/09/19 16:28:11 christos Exp $
+# $File: mup,v 1.5 2017/03/17 21:35:28 christos Exp $
 # mup: file(1) magic for Mup (Music Publisher) input file.
 #
 # From: Abel Cheung <abel (@) oaka.org>
@@ -12,13 +12,13 @@
 #
 0		search/1	//!Mup		Mup music publication program input text
 >6		string		-Arkkra		(Arkkra)
->>13		string		-		
->>>16		string		.		
+>>13		string		-
+>>>16		string		.
 >>>>14		string		x		\b, need V%.4s
->>>15		string		.		
+>>>15		string		.
 >>>>14		string		x		\b, need V%.3s
->6		string		-		
->>9		string		.		
+>6		string		-
+>>9		string		.
 >>>7		string		x		\b, need V%.4s
->>8		string		.		
+>>8		string		.
 >>>7		string		x		\b, need V%.3s

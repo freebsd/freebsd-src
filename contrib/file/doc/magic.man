@@ -1,5 +1,5 @@
-.\" $File: magic.man,v 1.88 2016/07/27 09:42:49 rrt Exp $
-.Dd July 20, 2016
+.\" $File: magic.man,v 1.91 2017/02/12 15:30:08 christos Exp $
+.Dd February 12, 2017
 .Dt MAGIC __FSECTION__
 .Os
 .\" install as magic.4 on USG, magic.5 on V7, Berkeley and Linux systems.
@@ -7,7 +7,7 @@
 .Nm magic
 .Nd file command's magic pattern file
 .Sh DESCRIPTION
-This manual page documents the format of the magic file as
+This manual page documents the format of magic files as
 used by the
 .Xr file __CSECTION__
 command, version __VERSION__.
@@ -17,13 +17,19 @@ command identifies the type of a file using,
 among other tests,
 a test for whether the file contains certain
 .Dq "magic patterns" .
-The file
-.Pa __MAGIC__
-specifies what patterns are to be tested for, what message or
+The database of these
+.Dq "magic patterns"
+is usually located in a binary file in
+.Pa __MAGIC__.mgc
+or a directory of source text magic pattern fragment files in
+.Pa __MAGIC__ .
+The database specifies what patterns are to be tested for, what message or
 MIME type to print if a particular pattern is found,
 and additional information to extract from the file.
 .Pp
-Each line of the file specifies a test to be performed.
+The format of the source fragment files that are used to build this database
+is as follows:
+Each line of a fragment file specifies a test to be performed.
 A test compares the data starting at a particular offset
 in the file with a byte value, a string or a numeric value.
 If the test succeeds, a message is printed.
@@ -98,13 +104,13 @@ The following modifiers are supported:
 .It B
 A byte length (default).
 .It H
-A 2 byte big endian length.
-.It h
-A 2 byte big little length.
-.It L
 A 4 byte big endian length.
+.It h
+A 2 byte big endian length.
+.It L
+A 4 byte little endian length.
 .It l
-A 4 byte big little length.
+A 2 byte little endian length.
 .It J
 The length includes itself in its count.
 .El
@@ -651,7 +657,7 @@ start of the main indirect offset.
 \*[Gt]\*[Gt]\*[Gt]\*[Gt](\*[Am]0xe.l+(-4)) string       PK\e3\e4 \eb, ZIP self-extracting archive
 .Ed
 .Pp
-If you have a list of known avalues at a particular continuation level,
+If you have a list of known values at a particular continuation level,
 and you want to provide a switch-like default case:
 .Bd -literal -offset indent
 # clear that continuation level match
