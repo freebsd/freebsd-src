@@ -1135,68 +1135,6 @@ static const struct vm_operations_struct mlx4_ib_vm_ops = {
 	.close = mlx4_ib_vma_close
 };
 
-static void mlx4_ib_disassociate_ucontext(struct ib_ucontext *ibcontext)
-{
-	int i;
-	int ret = 0;
-	struct vm_area_struct *vma;
-	struct mlx4_ib_ucontext *context = to_mucontext(ibcontext);
-	struct task_struct *owning_process  = NULL;
-	struct mm_struct   *owning_mm       = NULL;
-
-	owning_process = get_pid_task(ibcontext->tgid, PIDTYPE_PID);
-	if (!owning_process)
-		return;
-
-	owning_mm = get_task_mm(owning_process);
-	if (!owning_mm) {
-		pr_info("no mm, disassociate ucontext is pending task termination\n");
-		while (1) {
-			/* make sure that task is dead before returning, it may
-			 * prevent a rare case of module down in parallel to a
-			 * call to mlx4_ib_vma_close.
-			 */
-			put_task_struct(owning_process);
-			msleep(1);
-			owning_process = get_pid_task(ibcontext->tgid,
-						      PIDTYPE_PID);
-			if (!owning_process /* ||
-			    owning_process->state == TASK_DEAD */) {
-				pr_info("disassociate ucontext done, task was terminated\n");
-				/* in case task was dead need to release the task struct */
-				if (owning_process)
-					put_task_struct(owning_process);
-				return;
-			}
-		}
-	}
-
-	/* need to protect from a race on closing the vma as part of
-	 * mlx4_ib_vma_close().
-	 */
-	down_read(&owning_mm->mmap_sem);
-	for (i = 0; i < HW_BAR_COUNT; i++) {
-		vma = context->hw_bar_info[i].vma;
-		if (!vma)
-			continue;
-
-		ret = zap_vma_ptes(context->hw_bar_info[i].vma,
-				   context->hw_bar_info[i].vma->vm_start,
-				   PAGE_SIZE);
-		if (ret) {
-			pr_err("Error: zap_vma_ptes failed for index=%d, ret=%d\n", i, ret);
-			BUG_ON(1);
-		}
-
-		/* context going to be destroyed, should not access ops any more */
-		context->hw_bar_info[i].vma->vm_ops = NULL;
-	}
-
-	up_read(&owning_mm->mmap_sem);
-	mmput(owning_mm);
-	put_task_struct(owning_process);
-}
-
 static void mlx4_ib_set_vma_data(struct vm_area_struct *vma,
 				 struct mlx4_ib_vma_private_data *vma_private_data)
 {
@@ -2694,7 +2632,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.process_mad	= mlx4_ib_process_mad;
 	ibdev->ib_dev.get_port_immutable = mlx4_port_immutable;
 	ibdev->ib_dev.get_dev_fw_str    = get_fw_ver_str;
-	ibdev->ib_dev.disassociate_ucontext = mlx4_ib_disassociate_ucontext;
 
 	if (!mlx4_is_slave(ibdev->dev)) {
 		ibdev->ib_dev.alloc_fmr		= mlx4_ib_fmr_alloc;
