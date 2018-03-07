@@ -37,7 +37,7 @@ function process_input_line(line, field, end, i, n, startdef)
   # Remove comments, normalize spaces, and append a space to each line.
   sub(/#.*/, "", line)
   line = line " "
-  gsub(/[[:space:]]+/, " ", line)
+  gsub(/[\f\r\t\v ]+/, " ", line)
 
   # Abbreviate keywords.  Do not abbreviate "Link" to just "L",
   # as pre-2017c zic erroneously diagnoses "Li" as ambiguous.
@@ -94,7 +94,7 @@ function process_input_line(line, field, end, i, n, startdef)
   sub(/ 0+$/, "", line)
 
   # Remove unnecessary trailing days-of-month "1".
-  if (match(line, /[[:alpha:]] 1$/))
+  if (match(line, /[A-Za-z] 1$/))
     line = substr(line, 1, RSTART)
 
   # Remove unnecessary trailing " Ja" (for January).
@@ -144,10 +144,11 @@ function output_saved_lines(i)
 }
 
 BEGIN {
+  print "# version", version
   print "# This zic input file is in the public domain."
 }
 
-/^[[:space:]]*[^#[:space:]]/ {
+/^[\f\r\t\v ]*[^#\f\r\t\v ]/ {
   process_input_line($0)
 }
 
