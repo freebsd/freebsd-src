@@ -27,7 +27,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <dev/mlx5/driver.h>
+#include <dev/mlx5/port.h>
 #include <dev/mlx5/mlx5_ifc.h>
 #include "mlx5_core.h"
 
