@@ -27,6 +27,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_acpi.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -260,14 +262,14 @@ gic_v3_acpi_attach(device_t dev)
 	if (err != 0)
 		goto error;
 
-	sc->gic_pic = intr_pic_register(dev, 0);
+	sc->gic_pic = intr_pic_register(dev, ACPI_INTR_XREF);
 	if (sc->gic_pic == NULL) {
 		device_printf(dev, "could not register PIC\n");
 		err = ENXIO;
 		goto error;
 	}
 
-	if (intr_pic_claim_root(dev, 0, arm_gic_v3_intr, sc,
+	if (intr_pic_claim_root(dev, ACPI_INTR_XREF, arm_gic_v3_intr, sc,
 	    GIC_LAST_SGI - GIC_FIRST_SGI + 1) != 0) {
 		err = ENXIO;
 		goto error;
