@@ -1494,7 +1494,7 @@ zfs_ace_can_use(vtype_t vtype, uint16_t acep_flags)
  */
 static zfs_acl_t *
 zfs_acl_inherit(zfsvfs_t *zfsvfs, vtype_t vtype, zfs_acl_t *paclp,
-    uint64_t mode)
+    uint64_t mode, boolean_t *need_chmod)
 {
 	void		*pacep = NULL;
 	void		*acep;
@@ -1508,6 +1508,9 @@ zfs_acl_inherit(zfsvfs_t *zfsvfs, vtype_t vtype, zfs_acl_t *paclp,
 	size_t		data1sz, data2sz;
 	uint_t		aclinherit;
 	boolean_t	isdir = (vtype == VDIR);
+	boolean_t	isreg = (vtype == VREG);
+
+	*need_chmod = B_TRUE;
 
 	aclp = zfs_acl_alloc(paclp->z_version);
 	aclinherit = zfsvfs->z_acl_inherit;
@@ -1529,6 +1532,17 @@ zfs_acl_inherit(zfsvfs_t *zfsvfs, vtype_t vtype, zfs_acl_t *paclp,
 		if ((aclinherit == ZFS_ACL_NOALLOW && type == ALLOW) ||
 		    !zfs_ace_can_use(vtype, iflags))
 			continue;
+
+		/*
+		 * If owner@, group@, or everyone@ inheritable
+		 * then zfs_acl_chmod() isn't needed.
+		 */
+		if ((aclinherit == ZFS_ACL_PASSTHROUGH ||
+		    aclinherit == ZFS_ACL_PASSTHROUGH_X) &&
+		    ((iflags & (ACE_OWNER|ACE_EVERYONE)) ||
+		    ((iflags & OWNING_GROUP) == OWNING_GROUP)) &&
+		    (isreg || (isdir && (iflags & ACE_DIRECTORY_INHERIT_ACE))))
+			*need_chmod = B_FALSE;
 
 		/*
 		 * Strip inherited execute permission from file if
@@ -1617,6 +1631,7 @@ zfs_acl_ids_create(znode_t *dzp, int flag, vattr_t *vap, cred_t *cr,
 	zfsvfs_t	*zfsvfs = dzp->z_zfsvfs;
 	zfs_acl_t	*paclp;
 	gid_t		gid;
+	boolean_t	need_chmod = B_TRUE;
 	boolean_t	trim = B_FALSE;
 	boolean_t	inherited = B_FALSE;
 
@@ -1706,7 +1721,7 @@ zfs_acl_ids_create(znode_t *dzp, int flag, vattr_t *vap, cred_t *cr,
 			VERIFY(0 == zfs_acl_node_read(dzp, B_TRUE,
 			    &paclp, B_FALSE));
 			acl_ids->z_aclp = zfs_acl_inherit(zfsvfs,
-			    vap->va_type, paclp, acl_ids->z_mode);
+			    vap->va_type, paclp, acl_ids->z_mode, &need_chmod);
 			inherited = B_TRUE;
 		} else {
 			acl_ids->z_aclp =
@@ -1716,15 +1731,18 @@ zfs_acl_ids_create(znode_t *dzp, int flag, vattr_t *vap, cred_t *cr,
 		mutex_exit(&dzp->z_lock);
 		mutex_exit(&dzp->z_acl_lock);
 
-		if (vap->va_type == VDIR)
-			acl_ids->z_aclp->z_hints |= ZFS_ACL_AUTO_INHERIT;
+		if (need_chmod) {
+			if (vap->va_type == VDIR)
+				acl_ids->z_aclp->z_hints |=
+				    ZFS_ACL_AUTO_INHERIT;
 
-		if (zfsvfs->z_acl_mode == ZFS_ACL_GROUPMASK &&
-		    zfsvfs->z_acl_inherit != ZFS_ACL_PASSTHROUGH &&
-		    zfsvfs->z_acl_inherit != ZFS_ACL_PASSTHROUGH_X)
-			trim = B_TRUE;
-		zfs_acl_chmod(vap->va_type, acl_ids->z_mode, B_FALSE, trim,
-		    acl_ids->z_aclp);
+			if (zfsvfs->z_acl_mode == ZFS_ACL_GROUPMASK &&
+			    zfsvfs->z_acl_inherit != ZFS_ACL_PASSTHROUGH &&
+			    zfsvfs->z_acl_inherit != ZFS_ACL_PASSTHROUGH_X)
+				trim = B_TRUE;
+			zfs_acl_chmod(vap->va_type, acl_ids->z_mode, B_FALSE,
+			    trim, acl_ids->z_aclp);
+		}
 	}
 
 	if (inherited || vsecp) {
