@@ -212,7 +212,9 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 		    strcmp(name, "Xcpususpend") == 0 ||
 		    strcmp(name, "Xrendezvous") == 0)
 			frame_type = INTERRUPT;
-		else if (strcmp(name, "Xfast_syscall") == 0)
+		else if (strcmp(name, "Xfast_syscall") == 0 ||
+		    strcmp(name, "Xfast_syscall_pti") == 0 ||
+		    strcmp(name, "fast_syscall_common") == 0)
 			frame_type = SYSCALL;
 #ifdef COMPAT_FREEBSD32
 		else if (strcmp(name, "Xint0x80_syscall") == 0)
