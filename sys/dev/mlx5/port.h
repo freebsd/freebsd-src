@@ -144,4 +144,11 @@ int mlx5_query_eeprom(struct mlx5_core_dev *dev, int i2c_addr, int page_num,
 		      int device_addr, int size, int module_num, u32 *data,
 		      int *size_read);
 
+int mlx5_max_tc(struct mlx5_core_dev *mdev);
+int mlx5_query_port_tc_rate_limit(struct mlx5_core_dev *mdev,
+				   u8 *max_bw_value,
+				   u8 *max_bw_units);
+int mlx5_modify_port_tc_rate_limit(struct mlx5_core_dev *mdev,
+				   const u8 *max_bw_value,
+				   const u8 *max_bw_units);
 #endif /* __MLX5_PORT_H__ */
