@@ -51,12 +51,22 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+static volatile sig_atomic_t siginfo;
+
 static void usage(void);
+
+static void
+siginfo_handler(int sig __unused)
+{
+
+	siginfo = 1;
+}
 
 int
 main(int argc, char *argv[])
@@ -107,6 +117,8 @@ main(int argc, char *argv[])
 
 	if (argc < 2)
 		usage();
+
+	(void)signal(SIGINFO, siginfo_handler);
 
 	if (Rflag) {
 		if (hflag)
@@ -188,13 +200,14 @@ main(int argc, char *argv[])
 		    atflag) == -1 && !fflag) {
 			warn("%s", p->fts_path);
 			rval = 1;
-		} else if (vflag) {
+		} else if (vflag || siginfo) {
 			(void)printf("%s", p->fts_path);
-			if (vflag > 1)
+			if (vflag > 1 || siginfo)
 				(void)printf(": 0%lo -> 0%lo",
 				    (u_long)p->fts_statp->st_flags,
 				    newflags);
 			(void)printf("\n");
+			siginfo = 0;
 		}
 	}
 	if (errno)
