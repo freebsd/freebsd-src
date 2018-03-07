@@ -13,7 +13,8 @@ SRCS=		${BASE_SRCS} sysdep.c softcore.c
 CLEANFILES+=	softcore.c testmain testmain.o
 
 .ifmake testmain
-CFLAGS+=	-DTESTMAIN -D_TESTMAIN
+CFLAGS=	-DTESTMAIN -D_TESTMAIN
+CFLAGS+=	-I${FICLSRC} -I${FICLSRC}/${FICL_CPUARCH} -I${LDRSRC}
 SRCS+=		testmain.c
 PROG=		testmain
 .include <bsd.prog.mk>
