@@ -43,7 +43,9 @@
 #define GET_CPUINFO(r)  \
         mfsprg0  r
 #define GET_TOCBASE(r)  \
-	li	r,TRAP_TOCBASE;	/* Magic address for TOC */ \
+	lis	r,DMAP_BASE_ADDRESS@highesta;	/* To real-mode alias/dmap */ \
+	sldi	r,r,32;							\
+	ori	r,r,TRAP_TOCBASE;	/* Magic address for TOC */	\
 	ld	r,0(r)
 
 /*

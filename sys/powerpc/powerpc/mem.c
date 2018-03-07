@@ -125,8 +125,9 @@ kmem_direct_mapped:	v = uio->uio_offset;
 				break;
 			}
 	
-			if (!pmap_dev_direct_mapped(v, cnt)) {
-				error = uiomove((void *)v, cnt, uio);
+			if (hw_direct_map && !pmap_dev_direct_mapped(v, cnt)) {
+				error = uiomove((void *)PHYS_TO_DMAP(v), cnt,
+				    uio);
 			} else {
 				m.phys_addr = trunc_page(v);
 				marr = &m;

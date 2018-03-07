@@ -207,13 +207,16 @@ kernel_va_to_slbv(vm_offset_t va)
 	/* Set kernel VSID to deterministic value */
 	slbv = (KERNEL_VSID((uintptr_t)va >> ADDR_SR_SHFT)) << SLBV_VSID_SHIFT;
 
-	/* Figure out if this is a large-page mapping */
-	if (hw_direct_map && va < VM_MIN_KERNEL_ADDRESS) {
+	/* 
+	 * Figure out if this is a large-page mapping.
+	 */
+	if (hw_direct_map && va > DMAP_BASE_ADDRESS && va < DMAP_MAX_ADDRESS) {
 		/*
 		 * XXX: If we have set up a direct map, assumes
 		 * all physical memory is mapped with large pages.
 		 */
-		if (mem_valid(va, 0) == 0)
+
+		if (mem_valid(DMAP_TO_PHYS(va), 0) == 0)
 			slbv |= SLBV_L;
 	}
 		

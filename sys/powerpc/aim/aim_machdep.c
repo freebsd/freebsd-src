@@ -455,11 +455,33 @@ va_to_vsid(pmap_t pm, vm_offset_t va)
 
 #endif
 
+/*
+ * These functions need to provide addresses that both (a) work in real mode
+ * (or whatever mode/circumstances the kernel is in in early boot (now)) and
+ * (b) can still, in principle, work once the kernel is going. Because these
+ * rely on existing mappings/real mode, unmap is a no-op.
+ */
 vm_offset_t
 pmap_early_io_map(vm_paddr_t pa, vm_size_t size)
 {
+	KASSERT(!pmap_bootstrapped, ("Not available after PMAP started!"));
 
-	return (pa);
+	/*
+	 * If we have the MMU up in early boot, assume it is 1:1. Otherwise,
+	 * try to get the address in a memory region compatible with the
+	 * direct map for efficiency later.
+	 */
+	if (mfmsr() & PSL_DR)
+		return (pa);
+	else
+		return (DMAP_BASE_ADDRESS + pa);
+}
+
+void
+pmap_early_io_unmap(vm_offset_t va, vm_size_t size)
+{
+
+	KASSERT(!pmap_bootstrapped, ("Not available after PMAP started!"));
 }
 
 /* From p3-53 of the MPC7450 RISC Microprocessor Family Reference Manual */

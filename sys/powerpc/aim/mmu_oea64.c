@@ -551,7 +551,8 @@ moea64_add_ofw_mappings(mmu_t mmup, phandle_t mmu, size_t sz)
 			/* If this address is direct-mapped, skip remapping */
 			if (hw_direct_map &&
 			    translations[i].om_va == PHYS_TO_DMAP(pa_base) &&
-			    moea64_calc_wimg(pa_base + off, VM_MEMATTR_DEFAULT) 			    == LPTE_M)
+			    moea64_calc_wimg(pa_base + off, VM_MEMATTR_DEFAULT)
+ 			    == LPTE_M)
 				continue;
 
 			PMAP_LOCK(kernel_pmap);
@@ -664,23 +665,24 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 		  }
 		}
 		PMAP_UNLOCK(kernel_pmap);
-	} else {
+	}
+
+	/*
+	 * Make sure the kernel and BPVO pool stay mapped on systems either
+	 * without a direct map or on which the kernel is not already executing
+	 * out of the direct-mapped region.
+	 */
+
+	if (!hw_direct_map || kernelstart < DMAP_BASE_ADDRESS) {
+		for (pa = kernelstart & ~PAGE_MASK; pa < kernelend;
+		    pa += PAGE_SIZE)
+			moea64_kenter(mmup, pa, pa);
+	}
+
+	if (!hw_direct_map) {
 		size = moea64_bpvo_pool_size*sizeof(struct pvo_entry);
 		off = (vm_offset_t)(moea64_bpvo_pool);
-		for (pa = off; pa < off + size; pa += PAGE_SIZE) 
-		moea64_kenter(mmup, pa, pa);
-
-		/*
-		 * Map certain important things, like ourselves.
-		 *
-		 * NOTE: We do not map the exception vector space. That code is
-		 * used only in real mode, and leaving it unmapped allows us to
-		 * catch NULL pointer deferences, instead of making NULL a valid
-		 * address.
-		 */
-
-		for (pa = kernelstart & ~PAGE_MASK; pa < kernelend;
-		    pa += PAGE_SIZE) 
+		for (pa = off; pa < off + size; pa += PAGE_SIZE)
 			moea64_kenter(mmup, pa, pa);
 	}
 	ENABLE_TRANS(msr);
@@ -826,6 +828,11 @@ moea64_mid_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 		moea64_bpvo_pool_size*sizeof(struct pvo_entry), 0);
 	moea64_bpvo_pool_index = 0;
 
+	/* Place at address usable through the direct map */
+	if (hw_direct_map)
+		moea64_bpvo_pool = (struct pvo_entry *)
+		    PHYS_TO_DMAP((uintptr_t)moea64_bpvo_pool);
+
 	/*
 	 * Make sure kernel vsid is allocated as well as VSID 0.
 	 */
@@ -898,12 +905,11 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 		Maxmem = max(Maxmem, powerpc_btop(phys_avail[i + 1]));
 
 	/*
-	 * Initialize MMU and remap early physical mappings
+	 * Initialize MMU.
 	 */
 	MMU_CPU_BOOTSTRAP(mmup,0);
 	mtmsr(mfmsr() | PSL_DR | PSL_IR);
 	pmap_bootstrapped++;
-	bs_remap_earlyboot();
 
 	/*
 	 * Set the start and end of kva.
@@ -918,6 +924,11 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 	for (va = virtual_avail; va < virtual_end; va += SEGMENT_LENGTH)
 		moea64_bootstrap_slb_prefault(va, 0);
 	#endif
+
+	/*
+	 * Remap any early IO mappings (console framebuffer, etc.)
+	 */
+	bs_remap_earlyboot();
 
 	/*
 	 * Figure out how far we can extend virtual_end into segment 16
@@ -1826,10 +1837,11 @@ moea64_kextract(mmu_t mmu, vm_offset_t va)
 
 	/*
 	 * Shortcut the direct-mapped case when applicable.  We never put
-	 * anything but 1:1 mappings below VM_MIN_KERNEL_ADDRESS.
+	 * anything but 1:1 (or 62-bit aliased) mappings below
+	 * VM_MIN_KERNEL_ADDRESS.
 	 */
 	if (va < VM_MIN_KERNEL_ADDRESS)
-		return (va);
+		return (va & ~DMAP_BASE_ADDRESS);
 
 	PMAP_LOCK(kernel_pmap);
 	pvo = moea64_pvo_find_va(kernel_pmap, va);
@@ -2565,12 +2577,15 @@ moea64_pvo_remove_from_page(mmu_t mmu, struct pvo_entry *pvo)
 	 * Update vm about page writeability/executability if managed
 	 */
 	PV_LOCKASSERT(pvo->pvo_pte.pa & LPTE_RPGN);
-	pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.pa & LPTE_RPGN);
+	if (pvo->pvo_vaddr & PVO_MANAGED) {
+		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.pa & LPTE_RPGN);
 
-	if ((pvo->pvo_vaddr & PVO_MANAGED) && pg != NULL) {
-		LIST_REMOVE(pvo, pvo_vlink);
-		if (LIST_EMPTY(vm_page_to_pvoh(pg)))
-			vm_page_aflag_clear(pg, PGA_WRITEABLE | PGA_EXECUTABLE);
+		if (pg != NULL) {
+			LIST_REMOVE(pvo, pvo_vlink);
+			if (LIST_EMPTY(vm_page_to_pvoh(pg)))
+				vm_page_aflag_clear(pg,
+				    PGA_WRITEABLE | PGA_EXECUTABLE);
+		}
 	}
 
 	moea64_pvo_entries--;
@@ -2677,8 +2692,12 @@ moea64_dev_direct_mapped(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 	vm_offset_t ppa;
 	int error = 0;
 
+	if (hw_direct_map && mem_valid(pa, size) == 0)
+		return (0);
+
 	PMAP_LOCK(kernel_pmap);
-	key.pvo_vaddr = ppa = pa & ~ADDR_POFF;
+	ppa = pa & ~ADDR_POFF;
+	key.pvo_vaddr = DMAP_BASE_ADDRESS + ppa;
 	for (pvo = RB_FIND(pvo_tree, &kernel_pmap->pmap_pvo, &key);
 	    ppa < pa + size; ppa += PAGE_SIZE,
 	    pvo = RB_NEXT(pvo_tree, &kernel_pmap->pmap_pvo, pvo)) {
