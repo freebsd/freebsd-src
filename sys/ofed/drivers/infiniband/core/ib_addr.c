@@ -424,6 +424,13 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	 */
 	dst_tmp.sin6_len = sizeof(dst_tmp);
 
+	/*
+	 * Make sure the scope ID gets embedded, else rtalloc1() will
+	 * resolve to the loopback interface.
+	 */
+	dst_tmp.sin6_scope_id = addr->bound_dev_if;
+	sa6_embedscope(&dst_tmp, 0);
+
 	/* Step 1 - lookup destination route if any */
 	switch (type) {
 	case 0:
