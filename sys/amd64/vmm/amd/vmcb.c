@@ -187,6 +187,10 @@ vmcb_read(struct svm_softc *sc, int vcpu, int ident, uint64_t *retval)
 		*retval = state->cr4;
 		break;
 
+	case VM_REG_GUEST_DR6:
+		*retval = state->dr6;
+		break;
+
 	case VM_REG_GUEST_DR7:
 		*retval = state->dr7;
 		break;
@@ -278,8 +282,14 @@ vmcb_write(struct svm_softc *sc, int vcpu, int ident, uint64_t val)
 		svm_set_dirty(sc, vcpu, VMCB_CACHE_CR);
 		break;
 
+	case VM_REG_GUEST_DR6:
+		state->dr6 = val;
+		svm_set_dirty(sc, vcpu, VMCB_CACHE_DR);
+		break;
+
 	case VM_REG_GUEST_DR7:
 		state->dr7 = val;
+		svm_set_dirty(sc, vcpu, VMCB_CACHE_DR);
 		break;
 
 	case VM_REG_GUEST_EFER:
