@@ -135,6 +135,8 @@ ibcs2_msgctl(struct thread *td, void *v)
 	struct msqid_ds bs;
 	int error;
 
+	memset(&is, 0, sizeof(is));
+
 	switch (uap->cmd) {
 	case IBCS2_IPC_STAT:
 		error = kern_msgctl(td, uap->msqid, IPC_STAT, &bs);
@@ -317,6 +319,8 @@ ibcs2_semctl(struct thread *td, void *v)
 	union semun semun;
 	register_t rval;
 	int error;
+
+	memset(&is, 0, sizeof(is));
 
 	switch(uap->cmd) {
 	case IBCS2_IPC_STAT:
