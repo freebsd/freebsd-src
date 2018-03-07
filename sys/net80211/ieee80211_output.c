@@ -2074,7 +2074,6 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ieee80211_node *bss;
 	const struct ieee80211_txparam *tp;
 	struct ieee80211_bpf_params params;
 	const struct ieee80211_rateset *rs;
@@ -2082,13 +2081,10 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	uint8_t *frm;
 	int ret;
 
-	bss = ieee80211_ref_node(vap->iv_bss);
-
 	if (vap->iv_state == IEEE80211_S_CAC) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_OUTPUT, ni,
 		    "block %s frame in CAC state", "probe request");
 		vap->iv_stats.is_tx_badstate++;
-		ieee80211_free_node(bss);
 		return EIO;		/* XXX */
 	}
 
@@ -2110,7 +2106,6 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	 *	[tlv] supported rates
 	 *	[tlv] RSN (optional)
 	 *	[tlv] extended supported rates
-	 *	[tlv] HT cap (optional)
 	 *	[tlv] WPA (optional)
 	 *	[tlv] user-specified ie's
 	 */
@@ -2118,8 +2113,6 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 		 ic->ic_headroom + sizeof(struct ieee80211_frame),
 	       	 2 + IEEE80211_NWID_LEN
 	       + 2 + IEEE80211_RATE_SIZE
-	       + sizeof(struct ieee80211_ie_htcap)
-	       + sizeof(struct ieee80211_ie_htinfo)
 	       + sizeof(struct ieee80211_ie_wpa)
 	       + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE)
 	       + sizeof(struct ieee80211_ie_wpa)
@@ -2129,7 +2122,6 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	if (m == NULL) {
 		vap->iv_stats.is_tx_nobuf++;
 		ieee80211_free_node(ni);
-		ieee80211_free_node(bss);
 		return ENOMEM;
 	}
 
@@ -2138,27 +2130,6 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	frm = ieee80211_add_rates(frm, rs);
 	frm = ieee80211_add_rsn(frm, vap);
 	frm = ieee80211_add_xrates(frm, rs);
-
-	/*
-	 * Note: we can't use bss; we don't have one yet.
-	 *
-	 * So, we should announce our capabilities
-	 * in this channel mode (2g/5g), not the
-	 * channel details itself.
-	 */
-	if ((vap->iv_opmode == IEEE80211_M_IBSS) &&
-	    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
-		struct ieee80211_channel *c;
-
-		/*
-		 * Get the HT channel that we should try upgrading to.
-		 * If we can do 40MHz then this'll upgrade it appropriately.
-		 */
-		c = ieee80211_ht_adjust_channel(ic, ic->ic_curchan,
-		    vap->iv_flags_ht);
-		frm = ieee80211_add_htcap_ch(frm, vap, c);
-	}
-
 	frm = ieee80211_add_wpa(frm, vap);
 	if (vap->iv_appie_probereq != NULL)
 		frm = add_appie(frm, vap->iv_appie_probereq);
@@ -2170,7 +2141,6 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	if (m == NULL) {
 		/* NB: cannot happen */
 		ieee80211_free_node(ni);
-		ieee80211_free_node(bss);
 		return ENOMEM;
 	}
 
@@ -2187,11 +2157,8 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	IEEE80211_NODE_STAT(ni, tx_mgmt);
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_DEBUG | IEEE80211_MSG_DUMPPKTS,
-	    "send probe req on channel %u bssid %s sa %6D da %6D ssid \"%.*s\"\n",
-	    ieee80211_chan2ieee(ic, ic->ic_curchan),
-	    ether_sprintf(bssid),
-	    sa, ":",
-	    da, ":",
+	    "send probe req on channel %u bssid %s ssid \"%.*s\"\n",
+	    ieee80211_chan2ieee(ic, ic->ic_curchan), ether_sprintf(bssid),
 	    ssidlen, ssid);
 
 	memset(&params, 0, sizeof(params));
@@ -2206,7 +2173,6 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	params.ibp_power = ni->ni_txpower;
 	ret = ieee80211_raw_output(vap, ni, m, &params);
 	IEEE80211_TX_UNLOCK(ic);
-	ieee80211_free_node(bss);
 	return (ret);
 }
 

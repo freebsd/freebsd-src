@@ -1710,13 +1710,10 @@ otus_sub_rxeof(struct otus_softc *sc, uint8_t *buf, int len, struct mbufq *rxq)
 	/* Add RSSI/NF to this mbuf */
 	bzero(&rxs, sizeof(rxs));
 	rxs.r_flags = IEEE80211_R_NF | IEEE80211_R_RSSI;
-	rxs.c_nf = sc->sc_nf[0];	/* XXX chain 0 != combined rssi/nf */
-	rxs.c_rssi = tail->rssi;
+	rxs.nf = sc->sc_nf[0];	/* XXX chain 0 != combined rssi/nf */
+	rxs.rssi = tail->rssi;
 	/* XXX TODO: add MIMO RSSI/NF as well */
-	if (ieee80211_add_rx_params(m, &rxs) == 0) {
-		counter_u64_add(ic->ic_ierrors, 1);
-		return;
-	}
+	ieee80211_add_rx_params(m, &rxs);
 
 	/* XXX make a method */
 	STAILQ_INSERT_TAIL(&rxq->mq_head, m, m_stailqpkt);
@@ -1829,10 +1826,10 @@ tr_setup:
 			if (ni != NULL) {
 				if (ni->ni_flags & IEEE80211_NODE_HT)
 					m->m_flags |= M_AMPDU;
-				(void)ieee80211_input_mimo(ni, m);
+				(void)ieee80211_input_mimo(ni, m, NULL);
 				ieee80211_free_node(ni);
 			} else
-				(void)ieee80211_input_mimo_all(ic, m);
+				(void)ieee80211_input_mimo_all(ic, m, NULL);
 		}
 #ifdef	IEEE80211_SUPPORT_SUPERG
 		ieee80211_ff_age_all(ic, 100);
