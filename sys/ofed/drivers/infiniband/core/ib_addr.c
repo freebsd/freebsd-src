@@ -248,6 +248,11 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 			 u8 *edst,
 			 struct ifnet **ifpp)
 {
+	enum {
+		ADDR_VALID = 0,
+		ADDR_SRC_ANY = 1,
+		ADDR_DST_ANY = 2,
+	};
 	struct sockaddr_in dst_tmp = *dst_in;
 	in_port_t src_port;
 	struct sockaddr *saddr;
@@ -262,11 +267,11 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	/* set default TTL limit */
 	addr->hoplimit = V_ip_defttl;
 
-	type = 0;
+	type = ADDR_VALID;
 	if (src_in->sin_addr.s_addr == INADDR_ANY)
-		type |= 1;
+		type |= ADDR_SRC_ANY;
 	if (dst_tmp.sin_addr.s_addr == INADDR_ANY)
-		type |= 2;
+		type |= ADDR_DST_ANY;
 
 	/*
 	 * Make sure the socket address length field
@@ -276,8 +281,8 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 
 	/* Step 1 - lookup destination route if any */
 	switch (type) {
-	case 0:
-	case 1:
+	case ADDR_VALID:
+	case ADDR_SRC_ANY:
 		/* regular destination route lookup */
 		rte = rtalloc1((struct sockaddr *)&dst_tmp, 1, 0);
 		if (rte == NULL) {
@@ -297,7 +302,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 
 	/* Step 2 - find outgoing network interface */
 	switch (type) {
-	case 0:
+	case ADDR_VALID:
 		/* check for loopback device */
 		if (rte->rt_ifp->if_flags & IFF_LOOPBACK) {
 			ifp = rte->rt_ifp;
@@ -316,7 +321,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 			goto error_put_ifp;
 		}
 		break;
-	case 1:
+	case ADDR_SRC_ANY:
 		/* check for loopback device */
 		if (rte->rt_ifp->if_flags & IFF_LOOPBACK)
 			saddr = (struct sockaddr *)&dst_tmp;
@@ -398,6 +403,11 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 			 u8 *edst,
 			 struct ifnet **ifpp)
 {
+	enum {
+		ADDR_VALID = 0,
+		ADDR_SRC_ANY = 1,
+		ADDR_DST_ANY = 2,
+	};
 	struct sockaddr_in6 dst_tmp = *dst_in;
 	in_port_t src_port;
 	struct sockaddr *saddr;
@@ -412,11 +422,11 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	/* set default TTL limit */
 	addr->hoplimit = V_ip_defttl;
 
-	type = 0;
+	type = ADDR_VALID;
 	if (ipv6_addr_any(&src_in->sin6_addr))
-		type |= 1;
+		type |= ADDR_SRC_ANY;
 	if (ipv6_addr_any(&dst_tmp.sin6_addr))
-		type |= 2;
+		type |= ADDR_DST_ANY;
 
 	/*
 	 * Make sure the socket address length field
@@ -433,7 +443,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 
 	/* Step 1 - lookup destination route if any */
 	switch (type) {
-	case 0:
+	case ADDR_VALID:
 		/* sanity check for IPv4 addresses */
 		if (ipv6_addr_v4mapped(&src_in->sin6_addr) !=
 		    ipv6_addr_v4mapped(&dst_tmp.sin6_addr)) {
@@ -441,7 +451,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 			goto done;
 		}
 		/* FALLTHROUGH */
-	case 1:
+	case ADDR_SRC_ANY:
 		/* regular destination route lookup */
 		rte = rtalloc1((struct sockaddr *)&dst_tmp, 1, 0);
 		if (rte == NULL) {
@@ -461,7 +471,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 
 	/* Step 2 - find outgoing network interface */
 	switch (type) {
-	case 0:
+	case ADDR_VALID:
 		/* check for loopback device */
 		if (rte->rt_ifp->if_flags & IFF_LOOPBACK) {
 			ifp = rte->rt_ifp;
@@ -480,7 +490,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 			goto error_put_ifp;
 		}
 		break;
-	case 1:
+	case ADDR_SRC_ANY:
 		/* check for loopback device */
 		if (rte->rt_ifp->if_flags & IFF_LOOPBACK)
 			saddr = (struct sockaddr *)&dst_tmp;
