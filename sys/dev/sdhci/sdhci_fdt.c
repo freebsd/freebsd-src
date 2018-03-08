@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include "mmcbr_if.h"
 #include "sdhci_if.h"
 
+#include "opt_mmccam.h"
+
 #define	MAX_SLOTS		6
 #define	SDHCI_FDT_ARMADA38X	1
 #define	SDHCI_FDT_GENERIC	2
@@ -351,5 +353,7 @@ static devclass_t sdhci_fdt_devclass;
 
 DRIVER_MODULE(sdhci_fdt, simplebus, sdhci_fdt_driver, sdhci_fdt_devclass,
     NULL, NULL);
+#ifndef MMCCAM
 MODULE_DEPEND(sdhci_fdt, sdhci, 1, 1, 1);
 MMC_DECLARE_BRIDGE(sdhci_fdt);
+#endif
