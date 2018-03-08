@@ -187,6 +187,7 @@ gshapiro [label="Gregory Shapiro\ngshapiro@FreeBSD.org\n2000/07/12"]
 harti [label="Hartmut Brandt\nharti@FreeBSD.org\n2003/01/29"]
 hiren [label="Hiren Panchasara\nhiren@FreeBSD.org\n2013/04/12"]
 hmp [label="Hiten Pandya\nhmp@FreeBSD.org\n2004/03/23"]
+hselasky [label="Hans Petter Selasky\nhselasky@FreeBSD.org\n"]
 ian [label="Ian Lepore\nian@FreeBSD.org\n2013/01/07"]
 iedowse [label="Ian Dowse\niedowse@FreeBSD.org\n2000/12/01"]
 imp [label="Warner Losh\nimp@FreeBSD.org\n1996/09/20"]
@@ -313,6 +314,7 @@ shurd [label="Stephen Hurd\nshurd@FreeBSD.org\n2017/09/02"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
 sjg [label="Simon J. Gerraty\nsjg@FreeBSD.org\n2012/10/23"]
 skra [label="Svatopluk Kraus\nskra@FreeBSD.org\n2015/10/28"]
+slavash [label="Slava Shwartsman\nslavash@FreeBSD.org\n2018/02/08"]
 slm [label="Stephen McConnell\nslm@FreeBSD.org\n2014/05/07"]
 smh [label="Steven Hartland\nsmh@FreeBSD.org\n2012/11/12"]
 sobomax [label="Maxim Sobolev\nsobomax@FreeBSD.org\n2001/07/25"]
@@ -524,6 +526,8 @@ grog -> edwin
 grog -> le
 grog -> peterj
 
+hselasky -> slavash
+
 imp -> akiyama
 imp -> ambrisko
 imp -> andrew
@@ -640,6 +644,7 @@ kib -> rdivacky
 kib -> rmacklem
 kib -> rmh
 kib -> skra
+kib -> slavash
 kib -> stas
 kib -> tijl
 kib -> trociny
