@@ -1022,6 +1022,8 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		goto err_reg_dev;
 	}
 
+	mlx5_fwdump_prep(dev);
+
 	clear_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state);
 	set_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
 
