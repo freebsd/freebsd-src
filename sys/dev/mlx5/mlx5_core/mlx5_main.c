@@ -310,8 +310,9 @@ static u16 to_fw_pkey_sz(u32 size)
 	}
 }
 
-int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type,
-		       enum mlx5_cap_mode cap_mode)
+static int mlx5_core_get_caps_mode(struct mlx5_core_dev *dev,
+				   enum mlx5_cap_type cap_type,
+				   enum mlx5_cap_mode cap_mode)
 {
 	u8 in[MLX5_ST_SZ_BYTES(query_hca_cap_in)];
 	int out_sz = MLX5_ST_SZ_BYTES(query_hca_cap_out);
@@ -325,10 +326,6 @@ int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type,
 	MLX5_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
 	MLX5_SET(query_hca_cap_in, in, op_mod, opmod);
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, out_sz);
-	if (err)
-		goto query_ex;
-
-	err = mlx5_cmd_status_to_err_v2(out);
 	if (err) {
 		mlx5_core_warn(dev,
 			       "QUERY_HCA_CAP : type(%x) opmode(%x) Failed(%d)\n",
@@ -359,21 +356,24 @@ query_ex:
 	return err;
 }
 
+int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type)
+{
+	int ret;
+
+	ret = mlx5_core_get_caps_mode(dev, cap_type, HCA_CAP_OPMOD_GET_CUR);
+	if (ret)
+		return ret;
+
+	return mlx5_core_get_caps_mode(dev, cap_type, HCA_CAP_OPMOD_GET_MAX);
+}
+
 static int set_caps(struct mlx5_core_dev *dev, void *in, int in_sz)
 {
-	u32 out[MLX5_ST_SZ_DW(set_hca_cap_out)];
-	int err;
-
-	memset(out, 0, sizeof(out));
+	u32 out[MLX5_ST_SZ_DW(set_hca_cap_out)] = {0};
 
 	MLX5_SET(set_hca_cap_in, in, opcode, MLX5_CMD_OP_SET_HCA_CAP);
-	err = mlx5_cmd_exec(dev, in, in_sz, out, sizeof(out));
-	if (err)
-		return err;
 
-	err = mlx5_cmd_status_to_err_v2(out);
-
-	return err;
+	return mlx5_cmd_exec(dev, in, in_sz, out, sizeof(out));
 }
 
 static int handle_hca_cap(struct mlx5_core_dev *dev)
@@ -386,11 +386,7 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 
 	set_ctx = kzalloc(set_sz, GFP_KERNEL);
 
-	err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL, HCA_CAP_OPMOD_GET_MAX);
-	if (err)
-		goto query_ex;
-
-	err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL, HCA_CAP_OPMOD_GET_CUR);
+	err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL);
 	if (err)
 		goto query_ex;
 
@@ -434,13 +430,7 @@ static int handle_hca_cap_atomic(struct mlx5_core_dev *dev)
 	int err;
 
 	if (MLX5_CAP_GEN(dev, atomic)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_ATOMIC,
-					 HCA_CAP_OPMOD_GET_MAX);
-		if (err)
-			return err;
-
-		err = mlx5_core_get_caps(dev, MLX5_CAP_ATOMIC,
-					 HCA_CAP_OPMOD_GET_CUR);
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ATOMIC);
 		if (err)
 			return err;
 	} else {
@@ -492,48 +482,38 @@ static int set_hca_ctrl(struct mlx5_core_dev *dev)
 
 static int mlx5_core_enable_hca(struct mlx5_core_dev *dev)
 {
-	u32 in[MLX5_ST_SZ_DW(enable_hca_in)];
-	u32 out[MLX5_ST_SZ_DW(enable_hca_out)];
+	u32 out[MLX5_ST_SZ_DW(enable_hca_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(enable_hca_in)] = {0};
 
-	memset(in, 0, sizeof(in));
 	MLX5_SET(enable_hca_in, in, opcode, MLX5_CMD_OP_ENABLE_HCA);
-	memset(out, 0, sizeof(out));
-	return mlx5_cmd_exec_check_status(dev, in,  sizeof(in),
-					       out, sizeof(out));
+	return mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
 }
 
 static int mlx5_core_disable_hca(struct mlx5_core_dev *dev)
 {
-	u32 in[MLX5_ST_SZ_DW(disable_hca_in)];
-	u32 out[MLX5_ST_SZ_DW(disable_hca_out)];
-
-	memset(in, 0, sizeof(in));
+	u32 out[MLX5_ST_SZ_DW(disable_hca_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(disable_hca_in)] = {0};
 
 	MLX5_SET(disable_hca_in, in, opcode, MLX5_CMD_OP_DISABLE_HCA);
-	memset(out, 0, sizeof(out));
-	return mlx5_cmd_exec_check_status(dev, in,  sizeof(in),
-					       out, sizeof(out));
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
 static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 {
-	u32 query_in[MLX5_ST_SZ_DW(query_issi_in)];
-	u32 query_out[MLX5_ST_SZ_DW(query_issi_out)];
-	u32 set_in[MLX5_ST_SZ_DW(set_issi_in)];
-	u32 set_out[MLX5_ST_SZ_DW(set_issi_out)];
-	int err;
+	u32 query_in[MLX5_ST_SZ_DW(query_issi_in)] = {0};
+	u32 query_out[MLX5_ST_SZ_DW(query_issi_out)] = {0};
 	u32 sup_issi;
-
-	memset(query_in, 0, sizeof(query_in));
-	memset(query_out, 0, sizeof(query_out));
+	int err;
 
 	MLX5_SET(query_issi_in, query_in, opcode, MLX5_CMD_OP_QUERY_ISSI);
 
-	err = mlx5_cmd_exec_check_status(dev, query_in, sizeof(query_in),
-					 query_out, sizeof(query_out));
+	err = mlx5_cmd_exec(dev, query_in, sizeof(query_in), query_out, sizeof(query_out));
 	if (err) {
-		if (((struct mlx5_outbox_hdr *)query_out)->status ==
-		    MLX5_CMD_STAT_BAD_OP_ERR) {
+		u32 syndrome;
+		u8 status;
+
+		mlx5_cmd_mbox_status(query_out, &status, &syndrome);
+		if (status == MLX5_CMD_STAT_BAD_OP_ERR) {
 			pr_debug("Only ISSI 0 is supported\n");
 			return 0;
 		}
@@ -545,16 +525,15 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 	sup_issi = MLX5_GET(query_issi_out, query_out, supported_issi_dw0);
 
 	if (sup_issi & (1 << 1)) {
-		memset(set_in, 0, sizeof(set_in));
-		memset(set_out, 0, sizeof(set_out));
+		u32 set_in[MLX5_ST_SZ_DW(set_issi_in)]	 = {0};
+		u32 set_out[MLX5_ST_SZ_DW(set_issi_out)] = {0};
 
 		MLX5_SET(set_issi_in, set_in, opcode, MLX5_CMD_OP_SET_ISSI);
 		MLX5_SET(set_issi_in, set_in, current_issi, 1);
 
-		err = mlx5_cmd_exec_check_status(dev, set_in, sizeof(set_in),
-						 set_out, sizeof(set_out));
+		err = mlx5_cmd_exec(dev, set_in, sizeof(set_in), set_out, sizeof(set_out));
 		if (err) {
-			printf("mlx5_core: ERR: ""failed to set ISSI=1\n");
+			printf("mlx5_core: ERR: ""failed to set ISSI=1 err(%d)\n", err);
 			return err;
 		}
 
