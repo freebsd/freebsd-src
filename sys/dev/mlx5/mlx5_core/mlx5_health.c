@@ -67,7 +67,7 @@ static void mlx5_trigger_cmd_completions(struct mlx5_core_dev *dev)
 	vector |= MLX5_TRIGGERED_CMD_COMP;
 	spin_unlock_irqrestore(&dev->cmd.alloc_lock, flags);
 
-	mlx5_core_dbg(dev, "vector 0x%lx\n", vector);
+	mlx5_core_dbg(dev, "vector 0x%jx\n", (uintmax_t)vector);
 	mlx5_cmd_comp_handler(dev, vector);
 	return;
 
