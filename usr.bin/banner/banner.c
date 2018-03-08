@@ -1062,7 +1062,7 @@ main(int argc, char *argv[])
 			j += strlen(argv[i]) + 1;
 		if ((message = malloc((size_t)j)) == NULL) 
 			err(1, "malloc");
-		strcpy(message, *argv);
+		strlcpy(message, *argv, j);
 		while (*++argv) {
 			strlcat(message, " ", j);
 			strlcat(message, *argv, j);
