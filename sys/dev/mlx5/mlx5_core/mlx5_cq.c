@@ -294,6 +294,7 @@ int mlx5_init_cq_table(struct mlx5_core_dev *dev)
 	int err;
 	int x;
 
+	memset(table, 0, sizeof(*table));
 	spin_lock_init(&table->lock);
 	for (x = 0; x != MLX5_CQ_LINEAR_ARRAY_SIZE; x++)
 		spin_lock_init(&table->linear_array[x].lock);
