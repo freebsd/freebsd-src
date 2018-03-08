@@ -1727,7 +1727,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		raw_packet_qp_copy_info(qp, &qp->raw_packet_qp);
 		err = create_raw_packet_qp(dev, qp, in, pd);
 	} else {
-		err = mlx5_core_create_qp(dev->mdev, &base->mqp, (struct mlx5_create_qp_mbox_in *)in, inlen);
+		err = mlx5_core_create_qp(dev->mdev, &base->mqp, in, inlen);
 	}
 
 	if (err) {
@@ -1889,19 +1889,10 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 
 	if (qp->state != IB_QPS_RESET) {
 		if (qp->ibqp.qp_type != IB_QPT_RAW_PACKET) {
-			struct mlx5_modify_qp_mbox_in *in;
-
 			mlx5_ib_qp_disable_pagefaults(qp);
-
-			in = kzalloc(sizeof(*in), GFP_KERNEL);
-			if (in != NULL) {
-				err = mlx5_core_qp_modify(dev->mdev,
-							  MLX5_CMD_OP_2RST_QP,
-							  in, 0, &base->mqp);
-				kfree(in);
-			} else {
-				err = -ENOMEM;
-			}
+			err = mlx5_core_qp_modify(dev->mdev,
+						  MLX5_CMD_OP_2RST_QP, 0,
+						  NULL, &base->mqp);
 		} else {
 			struct mlx5_modify_raw_qp_param raw_qp_param = {
 				.operation = MLX5_CMD_OP_2RST_QP
@@ -2580,7 +2571,6 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	struct mlx5_ib_qp_base *base = &qp->trans_qp.base;
 	struct mlx5_ib_cq *send_cq, *recv_cq;
 	struct mlx5_qp_context *context;
-	struct mlx5_modify_qp_mbox_in *in;
 	struct mlx5_ib_pd *pd;
 	struct mlx5_ib_port *mibport = NULL;
 	enum mlx5_qp_state mlx5_cur, mlx5_new;
@@ -2590,11 +2580,10 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	int err;
 	u16 op;
 
-	in = kzalloc(sizeof(*in), GFP_KERNEL);
-	if (!in)
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
+	if (!context)
 		return -ENOMEM;
 
-	context = &in->ctx;
 	err = to_mlx5_st(ibqp->qp_type);
 	if (err < 0) {
 		mlx5_ib_dbg(dev, "unsupported qp type %d\n", ibqp->qp_type);
@@ -2758,7 +2747,6 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	op = optab[mlx5_cur][mlx5_new];
 	optpar = ib_mask_to_mlx5_opt(attr_mask);
 	optpar &= opt_mask[mlx5_cur][mlx5_new][mlx5_st];
-	in->optparam = cpu_to_be32(optpar);
 
 	if (qp->ibqp.qp_type == IB_QPT_RAW_PACKET) {
 		struct mlx5_modify_raw_qp_param raw_qp_param = {};
@@ -2770,7 +2758,8 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 		}
 		err = modify_raw_packet_qp(dev, qp, &raw_qp_param, 0);
 	} else {
-		err = mlx5_core_qp_modify(dev->mdev, op, in, 0, &base->mqp);
+		err = mlx5_core_qp_modify(dev->mdev, op, optpar, context,
+					  &base->mqp);
 	}
 
 	if (err)
@@ -2812,7 +2801,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	}
 
 out:
-	kfree(in);
+	kfree(context);
 	return err;
 }
 
@@ -4403,8 +4392,7 @@ static int query_qp_attr(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (!outb)
 		return -ENOMEM;
 
-	err = mlx5_core_qp_query(dev->mdev, &qp->trans_qp.base.mqp,
-				 (struct mlx5_query_qp_mbox_out *)outb,
+	err = mlx5_core_qp_query(dev->mdev, &qp->trans_qp.base.mqp, outb,
 				 outlen);
 	if (err)
 		goto out;

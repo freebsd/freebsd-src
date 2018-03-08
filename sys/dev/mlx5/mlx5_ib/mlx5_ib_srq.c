@@ -68,9 +68,8 @@ static void mlx5_ib_srq_event(struct mlx5_core_srq *srq, int type)
 }
 
 static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
-			   struct mlx5_create_srq_mbox_in **in,
-			   struct ib_udata *udata, int buf_size, int *inlen,
-			   int type)
+			   struct mlx5_srq_attr *in,
+			   struct ib_udata *udata, int buf_size)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_ib_create_srq ucmd = {};
@@ -97,7 +96,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 				 udata->inlen - sizeof(ucmd)))
 		return -EINVAL;
 
-	if (type == IB_SRQT_XRC) {
+	if (in->type == IB_SRQT_XRC) {
 		err = get_srq_user_index(to_mucontext(pd->uobject->context),
 					 &ucmd, udata->inlen, &uidx);
 		if (err)
@@ -123,14 +122,13 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 		goto err_umem;
 	}
 
-	*inlen = sizeof(**in) + sizeof(*(*in)->pas) * ncont;
-	*in = mlx5_vzalloc(*inlen);
-	if (!(*in)) {
+	in->pas = mlx5_vzalloc(sizeof(*in->pas) * ncont);
+	if (!in->pas) {
 		err = -ENOMEM;
 		goto err_umem;
 	}
 
-	mlx5_ib_populate_pas(dev, srq->umem, page_shift, (*in)->pas, 0);
+	mlx5_ib_populate_pas(dev, srq->umem, page_shift, in->pas, 0);
 
 	err = mlx5_ib_db_map_user(to_mucontext(pd->uobject->context),
 				  ucmd.db_addr, &srq->db);
@@ -139,20 +137,15 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 		goto err_in;
 	}
 
-	(*in)->ctx.log_pg_sz = page_shift - MLX5_ADAPTER_PAGE_SHIFT;
-	(*in)->ctx.pgoff_cqn = cpu_to_be32(offset << 26);
-
+	in->log_page_size = page_shift - MLX5_ADAPTER_PAGE_SHIFT;
+	in->page_offset = offset;
 	if (MLX5_CAP_GEN(dev->mdev, cqe_version) == MLX5_CQE_VERSION_V1 &&
-	    type == IB_SRQT_XRC) {
-		void *xsrqc = MLX5_ADDR_OF(create_xrc_srq_in, *in,
-					   xrc_srq_context_entry);
-		MLX5_SET(xrc_srqc, xsrqc, user_index, uidx);
-	}
-
+	    in->type == IB_SRQT_XRC)
+		in->user_index = uidx;
 	return 0;
 
 err_in:
-	kvfree(*in);
+	kvfree(in->pas);
 
 err_umem:
 	ib_umem_release(srq->umem);
@@ -161,8 +154,7 @@ err_umem:
 }
 
 static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
-			     struct mlx5_create_srq_mbox_in **in, int buf_size,
-			     int *inlen, int type)
+			     struct mlx5_srq_attr *in, int buf_size)
 {
 	int err;
 	int i;
@@ -196,13 +188,12 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 	npages = DIV_ROUND_UP(srq->buf.npages, 1 << (page_shift - PAGE_SHIFT));
 	mlx5_ib_dbg(dev, "buf_size %d, page_shift %d, npages %d, calc npages %d\n",
 		    buf_size, page_shift, srq->buf.npages, npages);
-	*inlen = sizeof(**in) + sizeof(*(*in)->pas) * npages;
-	*in = mlx5_vzalloc(*inlen);
-	if (!*in) {
+	in->pas = mlx5_vzalloc(sizeof(*in->pas) * npages);
+	if (!in->pas) {
 		err = -ENOMEM;
 		goto err_buf;
 	}
-	mlx5_fill_page_array(&srq->buf, (*in)->pas);
+	mlx5_fill_page_array(&srq->buf, in->pas);
 
 	srq->wrid = kmalloc(srq->msrq.max * sizeof(u64), GFP_KERNEL);
 	if (!srq->wrid) {
@@ -213,19 +204,15 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 	}
 	srq->wq_sig = !!srq_signature;
 
-	(*in)->ctx.log_pg_sz = page_shift - MLX5_ADAPTER_PAGE_SHIFT;
-
+	in->log_page_size = page_shift - MLX5_ADAPTER_PAGE_SHIFT;
 	if (MLX5_CAP_GEN(dev->mdev, cqe_version) == MLX5_CQE_VERSION_V1 &&
-	    type == IB_SRQT_XRC) {
-		void *xsrqc = MLX5_ADDR_OF(create_xrc_srq_in, *in,
-					   xrc_srq_context_entry);
-		MLX5_SET(xrc_srqc, xsrqc, user_index, MLX5_IB_DEFAULT_UIDX);
-	}
+	    in->type == IB_SRQT_XRC)
+		in->user_index = MLX5_IB_DEFAULT_UIDX;
 
 	return 0;
 
 err_in:
-	kvfree(*in);
+	kvfree(in->pas);
 
 err_buf:
 	mlx5_buf_free(dev->mdev, &srq->buf);
@@ -258,10 +245,7 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 	int desc_size;
 	int buf_size;
 	int err;
-	struct mlx5_create_srq_mbox_in *uninitialized_var(in);
-	int uninitialized_var(inlen);
-	int is_xrc;
-	u32 flgs, xrcdn;
+	struct mlx5_srq_attr in = {0};
 	__u32 max_srq_wqes = 1 << MLX5_CAP_GEN(dev->mdev, log_max_srq_sz);
 
 	/* Sanity check SRQ size before proceeding */
@@ -294,9 +278,9 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 		    srq->msrq.max_avail_gather);
 
 	if (pd->uobject)
-		err = create_srq_user(pd, srq, &in, udata, buf_size, &inlen, init_attr->srq_type);
+		err = create_srq_user(pd, srq, &in, udata, buf_size);
 	else
-		err = create_srq_kernel(dev, srq, &in, buf_size, &inlen, init_attr->srq_type);
+		err = create_srq_kernel(dev, srq, &in, buf_size);
 
 	if (err) {
 		mlx5_ib_warn(dev, "create srq %s failed, err %d\n",
@@ -304,24 +288,23 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 		goto err_srq;
 	}
 
-	is_xrc = (init_attr->srq_type == IB_SRQT_XRC);
-	in->ctx.state_log_sz = ilog2(srq->msrq.max);
-	flgs = ((srq->msrq.wqe_shift - 4) | (is_xrc << 5) | (srq->wq_sig << 7)) << 24;
-	xrcdn = 0;
-	if (is_xrc) {
-		xrcdn = to_mxrcd(init_attr->ext.xrc.xrcd)->xrcdn;
-		in->ctx.pgoff_cqn |= cpu_to_be32(to_mcq(init_attr->ext.xrc.cq)->mcq.cqn);
+	in.type = init_attr->srq_type;
+	in.log_size = ilog2(srq->msrq.max);
+	in.wqe_shift = srq->msrq.wqe_shift - 4;
+	if (srq->wq_sig)
+		in.flags |= MLX5_SRQ_FLAG_WQ_SIG;
+	if (init_attr->srq_type == IB_SRQT_XRC) {
+		in.xrcd = to_mxrcd(init_attr->ext.xrc.xrcd)->xrcdn;
+		in.cqn = to_mcq(init_attr->ext.xrc.cq)->mcq.cqn;
 	} else if (init_attr->srq_type == IB_SRQT_BASIC) {
-		xrcdn = to_mxrcd(dev->devr.x0)->xrcdn;
-		in->ctx.pgoff_cqn |= cpu_to_be32(to_mcq(dev->devr.c0)->mcq.cqn);
+		in.xrcd = to_mxrcd(dev->devr.x0)->xrcdn;
+		in.cqn = to_mcq(dev->devr.c0)->mcq.cqn;
 	}
 
-	in->ctx.flags_xrcd = cpu_to_be32((flgs & 0xFF000000) | (xrcdn & 0xFFFFFF));
-
-	in->ctx.pd = cpu_to_be32(to_mpd(pd)->pdn);
-	in->ctx.db_record = cpu_to_be64(srq->db.dma);
-	err = mlx5_core_create_srq(dev->mdev, &srq->msrq, in, inlen, is_xrc);
-	kvfree(in);
+	in.pd = to_mpd(pd)->pdn;
+	in.db_record = srq->db.dma;
+	err = mlx5_core_create_srq(dev->mdev, &srq->msrq, &in);
+	kvfree(in.pas);
 	if (err) {
 		mlx5_ib_dbg(dev, "create SRQ failed, err %d\n", err);
 		goto err_usr_kern_srq;
@@ -389,7 +372,7 @@ int mlx5_ib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 	struct mlx5_ib_dev *dev = to_mdev(ibsrq->device);
 	struct mlx5_ib_srq *srq = to_msrq(ibsrq);
 	int ret;
-	struct mlx5_query_srq_mbox_out *out;
+	struct mlx5_srq_attr *out;
 
 	out = kzalloc(sizeof(*out), GFP_KERNEL);
 	if (!out)
@@ -399,7 +382,7 @@ int mlx5_ib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 	if (ret)
 		goto out_box;
 
-	srq_attr->srq_limit = be16_to_cpu(out->ctx.lwm);
+	srq_attr->srq_limit = out->lwm;
 	srq_attr->max_wr    = srq->msrq.max - 1;
 	srq_attr->max_sge   = srq->msrq.max_gs;
 

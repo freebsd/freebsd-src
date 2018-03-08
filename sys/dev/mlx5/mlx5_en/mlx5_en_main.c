@@ -2086,7 +2086,7 @@ mlx5e_open_rqt(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u32 *in;
-	u32 out[MLX5_ST_SZ_DW(create_rqt_out)];
+	u32 out[MLX5_ST_SZ_DW(create_rqt_out)] = {0};
 	void *rqtc;
 	int inlen;
 	int err;
@@ -2118,8 +2118,7 @@ mlx5e_open_rqt(struct mlx5e_priv *priv)
 
 	MLX5_SET(create_rqt_in, in, opcode, MLX5_CMD_OP_CREATE_RQT);
 
-	memset(out, 0, sizeof(out));
-	err = mlx5_cmd_exec_check_status(mdev, in, inlen, out, sizeof(out));
+	err = mlx5_cmd_exec(mdev, in, inlen, out, sizeof(out));
 	if (!err)
 		priv->rqtn = MLX5_GET(create_rqt_out, out, rqtn);
 
@@ -2131,16 +2130,13 @@ mlx5e_open_rqt(struct mlx5e_priv *priv)
 static void
 mlx5e_close_rqt(struct mlx5e_priv *priv)
 {
-	u32 in[MLX5_ST_SZ_DW(destroy_rqt_in)];
-	u32 out[MLX5_ST_SZ_DW(destroy_rqt_out)];
-
-	memset(in, 0, sizeof(in));
+	u32 in[MLX5_ST_SZ_DW(destroy_rqt_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(destroy_rqt_out)] = {0};
 
 	MLX5_SET(destroy_rqt_in, in, opcode, MLX5_CMD_OP_DESTROY_RQT);
 	MLX5_SET(destroy_rqt_in, in, rqtn, priv->rqtn);
 
-	mlx5_cmd_exec_check_status(priv->mdev, in, sizeof(in), out,
-	    sizeof(out));
+	mlx5_cmd_exec(priv->mdev, in, sizeof(in), out, sizeof(out));
 }
 
 static void
@@ -2975,32 +2971,36 @@ mlx5e_build_ifp_priv(struct mlx5_core_dev *mdev,
 
 static int
 mlx5e_create_mkey(struct mlx5e_priv *priv, u32 pdn,
-    struct mlx5_core_mr *mr)
+		  struct mlx5_core_mr *mkey)
 {
 	struct ifnet *ifp = priv->ifp;
 	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5_create_mkey_mbox_in *in;
+	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
+	void *mkc;
+	u32 *in;
 	int err;
 
-	in = mlx5_vzalloc(sizeof(*in));
+	in = mlx5_vzalloc(inlen);
 	if (in == NULL) {
 		if_printf(ifp, "%s: failed to allocate inbox\n", __func__);
 		return (-ENOMEM);
 	}
-	in->seg.flags = MLX5_PERM_LOCAL_WRITE |
-	    MLX5_PERM_LOCAL_READ |
-	    MLX5_ACCESS_MODE_PA;
-	in->seg.flags_pd = cpu_to_be32(pdn | MLX5_MKEY_LEN64);
-	in->seg.qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
 
-	err = mlx5_core_create_mkey(mdev, mr, in, sizeof(*in), NULL, NULL,
-	    NULL);
+	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
+	MLX5_SET(mkc, mkc, access_mode, MLX5_ACCESS_MODE_PA);
+	MLX5_SET(mkc, mkc, lw, 1);
+	MLX5_SET(mkc, mkc, lr, 1);
+
+	MLX5_SET(mkc, mkc, pd, pdn);
+	MLX5_SET(mkc, mkc, length64, 1);
+	MLX5_SET(mkc, mkc, qpn, 0xffffff);
+
+	err = mlx5_core_create_mkey(mdev, mkey, in, inlen);
 	if (err)
 		if_printf(ifp, "%s: mlx5_core_create_mkey failed, %d\n",
 		    __func__, err);
 
 	kvfree(in);
-
 	return (err);
 }
 
