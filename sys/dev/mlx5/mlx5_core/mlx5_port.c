@@ -336,15 +336,26 @@ int mlx5_query_port_max_mtu(struct mlx5_core_dev *dev, int *max_mtu)
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_max_mtu);
 
-int mlx5_set_port_pause(struct mlx5_core_dev *dev, u32 port,
-			u32 rx_pause, u32 tx_pause)
+int mlx5_set_port_pause_and_pfc(struct mlx5_core_dev *dev, u32 port,
+				u8 rx_pause, u8 tx_pause,
+				u8 pfc_en_rx, u8 pfc_en_tx)
 {
 	u32 in[MLX5_ST_SZ_DW(pfcc_reg)] = {0};
 	u32 out[MLX5_ST_SZ_DW(pfcc_reg)] = {0};
 
+	if (pfc_en_rx || pfc_en_tx) {
+		/* PFC and global pauseframes are incompatible features */
+		if (tx_pause || rx_pause)
+			return -EINVAL;
+	}
+
 	MLX5_SET(pfcc_reg, in, local_port, port);
 	MLX5_SET(pfcc_reg, in, pptx, tx_pause);
 	MLX5_SET(pfcc_reg, in, pprx, rx_pause);
+	MLX5_SET(pfcc_reg, in, pfctx, pfc_en_tx);
+	MLX5_SET(pfcc_reg, in, pfcrx, pfc_en_rx);
+	MLX5_SET(pfcc_reg, in, prio_mask_tx, pfc_en_tx);
+	MLX5_SET(pfcc_reg, in, prio_mask_rx, pfc_en_rx);
 
 	return mlx5_core_access_reg(dev, in, sizeof(in), out,
 				   sizeof(out), MLX5_REG_PFCC, 0, 1);
@@ -370,25 +381,9 @@ int mlx5_query_port_pause(struct mlx5_core_dev *dev, u32 port,
 	return 0;
 }
 
-int mlx5_set_port_pfc(struct mlx5_core_dev *dev, u8 pfc_en_tx, u8 pfc_en_rx)
-{
-	u32 in[MLX5_ST_SZ_DW(pfcc_reg)] = {0};
-	u32 out[MLX5_ST_SZ_DW(pfcc_reg)];
-
-	MLX5_SET(pfcc_reg, in, local_port, 1);
-	MLX5_SET(pfcc_reg, in, pfctx, pfc_en_tx);
-	MLX5_SET(pfcc_reg, in, pfcrx, pfc_en_rx);
-	MLX5_SET_TO_ONES(pfcc_reg, in, prio_mask_tx);
-	MLX5_SET_TO_ONES(pfcc_reg, in, prio_mask_rx);
-
-	return mlx5_core_access_reg(dev, in, sizeof(in), out,
-				    sizeof(out), MLX5_REG_PFCC, 0, 1);
-}
-EXPORT_SYMBOL_GPL(mlx5_set_port_pfc);
-
 int mlx5_query_port_pfc(struct mlx5_core_dev *dev, u8 *pfc_en_tx, u8 *pfc_en_rx)
 {
-	u32 in[MLX5_ST_SZ_DW(pfcc_reg)] = {0};
+	u32 in[MLX5_ST_SZ_DW(pfcc_reg)] = {};
 	u32 out[MLX5_ST_SZ_DW(pfcc_reg)];
 	int err;
 
@@ -398,12 +393,10 @@ int mlx5_query_port_pfc(struct mlx5_core_dev *dev, u8 *pfc_en_tx, u8 *pfc_en_rx)
 	if (err)
 		return err;
 
-	if (pfc_en_tx)
+	if (pfc_en_tx != NULL)
 		*pfc_en_tx = MLX5_GET(pfcc_reg, out, pfctx);
-
-	if (pfc_en_rx)
+	if (pfc_en_rx != NULL)
 		*pfc_en_rx = MLX5_GET(pfcc_reg, out, pfcrx);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_pfc);
