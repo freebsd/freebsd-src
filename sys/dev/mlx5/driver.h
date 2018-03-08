@@ -221,6 +221,16 @@ enum mlx5_link_mode {
 	MLX5_LINK_MODES_NUMBER,
 };
 
+enum {
+	MLX5_VSC_SPACE_SUPPORTED = 0x1,
+	MLX5_VSC_SPACE_OFFSET	 = 0x4,
+	MLX5_VSC_COUNTER_OFFSET	 = 0x8,
+	MLX5_VSC_SEMA_OFFSET	 = 0xC,
+	MLX5_VSC_ADDR_OFFSET	 = 0x10,
+	MLX5_VSC_DATA_OFFSET	 = 0x14,
+	MLX5_VSC_MAX_RETRIES	 = 0x1000,
+};
+
 #define MLX5_PROT_MASK(link_mode) (1 << link_mode)
 
 struct mlx5_uuar_info {
@@ -627,6 +637,7 @@ struct mlx5_core_dev {
 	struct mlx5_priv	priv;
 	struct mlx5_profile	*profile;
 	atomic_t		num_qps;
+	u32			vsc_addr;
 	u32			issi;
 	struct mlx5_special_contexts special_contexts;
 	unsigned int module_status[MLX5_MAX_PORTS];
@@ -1001,6 +1012,12 @@ int mlx5_set_diagnostic_params(struct mlx5_core_dev *mdev, void *in,
 int mlx5_query_diagnostic_counters(struct mlx5_core_dev *mdev,
 				   u8 num_of_samples, u16 sample_index,
 				   void *out, int out_size);
+int mlx5_vsc_find_cap(struct mlx5_core_dev *mdev);
+int mlx5_vsc_lock(struct mlx5_core_dev *mdev);
+void mlx5_vsc_unlock(struct mlx5_core_dev *mdev);
+int mlx5_vsc_set_space(struct mlx5_core_dev *mdev, u16 space);
+int mlx5_vsc_write(struct mlx5_core_dev *mdev, u32 addr, u32 *data);
+int mlx5_vsc_read(struct mlx5_core_dev *mdev, u32 addr, u32 *data);
 static inline u32 mlx5_mkey_to_idx(u32 mkey)
 {
 	return mkey >> 8;
