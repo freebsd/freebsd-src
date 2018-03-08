@@ -1361,7 +1361,7 @@ mlx5e_sq_send_nops_locked(struct mlx5e_sq *sq, int can_sleep)
 		}
 		/* send a single NOP */
 		mlx5e_send_nop(sq, 1);
-		wmb();
+		atomic_thread_fence_rel();
 	}
 done:
 	/* Check if we need to write the doorbell */
