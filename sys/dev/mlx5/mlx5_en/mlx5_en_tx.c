@@ -429,7 +429,7 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 	mlx5_cqwq_update_db_record(&sq->cq.wq);
 
 	/* Ensure cq space is freed before enabling more cqes */
-	wmb();
+	atomic_thread_fence_rel();
 
 	sq->cc = sqcc;
 
