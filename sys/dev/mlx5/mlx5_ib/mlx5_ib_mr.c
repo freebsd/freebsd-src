@@ -191,10 +191,10 @@ static int add_keys(struct mlx5_ib_dev *dev, int c, int num)
 		spin_lock_irq(&ent->lock);
 		ent->pending++;
 		spin_unlock_irq(&ent->lock);
-		err = mlx5_core_create_mkey(dev->mdev, &mr->mmkey,
-					       (struct mlx5_create_mkey_mbox_in *)in,
-                                               inlen, reg_mr_callback, mr,
-                                               (struct mlx5_create_mkey_mbox_out *)mr->out);
+		err = mlx5_core_create_mkey_cb(dev->mdev, &mr->mmkey,
+					       in, inlen,
+					       mr->out, sizeof(mr->out),
+					       reg_mr_callback, mr);
 		if (err) {
 			spin_lock_irq(&ent->lock);
 			ent->pending--;
@@ -504,9 +504,7 @@ struct ib_mr *mlx5_ib_get_dma_mr(struct ib_pd *pd, int acc)
 	MLX5_SET(mkc, mkc, qpn, 0xffffff);
 	MLX5_SET64(mkc, mkc, start_addr, 0);
 
-	err = mlx5_core_create_mkey(mdev, &mr->mmkey,
-					(struct mlx5_create_mkey_mbox_in *)in,
-                                        inlen, NULL, NULL, NULL);
+	err = mlx5_core_create_mkey(mdev, &mr->mmkey, in, inlen);
 	if (err)
 		goto err_in;
 
@@ -922,9 +920,7 @@ static struct mlx5_ib_mr *reg_create(struct ib_mr *ibmr, struct ib_pd *pd,
 	MLX5_SET(create_mkey_in, in, translations_octword_actual_size,
 		 get_octo_len(virt_addr, length, 1 << page_shift));
 
-	err = mlx5_core_create_mkey(dev->mdev, &mr->mmkey,
-					(struct mlx5_create_mkey_mbox_in *)in,
-                                        inlen, NULL, NULL, NULL);
+	err = mlx5_core_create_mkey(dev->mdev, &mr->mmkey, in, inlen);
 	if (err) {
 		mlx5_ib_warn(dev, "create mkey failed\n");
 		goto err_2;
@@ -1429,9 +1425,7 @@ struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 	MLX5_SET(mkc, mkc, access_mode, mr->access_mode);
 	MLX5_SET(mkc, mkc, umr_en, 1);
 
-	err = mlx5_core_create_mkey(dev->mdev, &mr->mmkey,
-					(struct mlx5_create_mkey_mbox_in *)in,
-                                        inlen, NULL, NULL, NULL);
+	err = mlx5_core_create_mkey(dev->mdev, &mr->mmkey, in, inlen);
 	if (err)
 		goto err_destroy_psv;
 
@@ -1511,9 +1505,7 @@ struct ib_mw *mlx5_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
 	MLX5_SET(mkc, mkc, en_rinval, !!((type == IB_MW_TYPE_2)));
 	MLX5_SET(mkc, mkc, qpn, 0xffffff);
 
-	err = mlx5_core_create_mkey(dev->mdev, &mw->mmkey,
-                                        (struct mlx5_create_mkey_mbox_in *)in,
-                                        inlen, NULL, NULL, NULL);
+	err = mlx5_core_create_mkey(dev->mdev, &mw->mmkey, in, inlen);
 	if (err)
 		goto free;
 

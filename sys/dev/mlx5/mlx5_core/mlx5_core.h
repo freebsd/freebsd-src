@@ -78,21 +78,6 @@ void mlx5_disable_device(struct mlx5_core_dev *dev);
 void mlx5e_init(void);
 void mlx5e_cleanup(void);
 
-static inline int mlx5_cmd_exec_check_status(struct mlx5_core_dev *dev, u32 *in,
-						int in_size, u32 *out,
-						int out_size)
-{
-	int err;
-	err = mlx5_cmd_exec(dev, in, in_size, out, out_size);
-
-	if (err) {
-		return err;
-	}
-
-	err =  mlx5_cmd_status_to_err((struct mlx5_outbox_hdr *)out);
-	return err;
-}
-
 int mlx5_rename_eq(struct mlx5_core_dev *dev, int eq_ix, char *name);
 
 #endif /* __MLX5_CORE_H__ */

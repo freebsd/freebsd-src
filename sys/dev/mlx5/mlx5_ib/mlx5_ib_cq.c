@@ -953,8 +953,7 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 	if (cq->create_flags & IB_CQ_FLAGS_IGNORE_OVERRUN)
 		MLX5_SET(cqc, cqc, oi, 1);
 
-	err = mlx5_core_create_cq(dev->mdev, &cq->mcq,
-	    (struct mlx5_create_cq_mbox_in *)cqb, inlen);
+	err = mlx5_core_create_cq(dev->mdev, &cq->mcq, cqb, inlen);
 	if (err)
 		goto err_cqb;
 
@@ -1299,8 +1298,7 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 	MLX5_SET(modify_cq_in, in, op_mod, MLX5_CQ_OPMOD_RESIZE);
 	MLX5_SET(modify_cq_in, in, cqn, cq->mcq.cqn);
 
-	err = mlx5_core_modify_cq(dev->mdev, &cq->mcq,
-	    (struct mlx5_modify_cq_mbox_in *)in, inlen);
+	err = mlx5_core_modify_cq(dev->mdev, &cq->mcq, in, inlen);
 	if (err)
 		goto ex_alloc;
 

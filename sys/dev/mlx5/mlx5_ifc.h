@@ -2187,12 +2187,9 @@ struct mlx5_ifc_srqc_bits {
 
 	u8         reserved_9[0x40];
 
-	u8         db_record_addr_h[0x20];
+	u8	   dbr_addr[0x40];
 
-	u8         db_record_addr_l[0x1e];
-	u8         reserved_10[0x2];
-
-	u8         reserved_11[0x80];
+	u8	   reserved_10[0x80];
 };
 
 enum {
@@ -3996,7 +3993,7 @@ struct mlx5_ifc_query_special_contexts_out_bits {
 
 	u8         syndrome[0x20];
 
-	u8         reserved_1[0x20];
+	u8	   dump_fill_mkey[0x20];
 
 	u8         resd_lkey[0x20];
 };
@@ -4288,9 +4285,9 @@ struct mlx5_ifc_query_pages_out_bits {
 };
 
 enum {
-	MLX5_BOOT_PAGES                           = 0x1,
-	MLX5_INIT_PAGES                           = 0x2,
-	MLX5_POST_INIT_PAGES                      = 0x3,
+	MLX5_QUERY_PAGES_IN_OP_MOD_BOOT_PAGES	  = 0x1,
+	MLX5_QUERY_PAGES_IN_OP_MOD_INIT_PAGES	  = 0x2,
+	MLX5_QUERY_PAGES_IN_OP_MOD_REGULAR_PAGES  = 0x3,
 };
 
 struct mlx5_ifc_query_pages_in_bits {
