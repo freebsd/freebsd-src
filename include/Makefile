@@ -255,6 +255,11 @@ copies: .PHONY .META
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 nvpair.h \
 	    ${SDESTDIR}${INCLUDEDIR}/sys
 .endif
+.if ${MK_MLX5TOOL} != "no"
+	cd ${SRCTOP}/sys/dev/mlx5; \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 mlx5io.h \
+	    ${SDESTDIR}${INCLUDEDIR}/dev/mlx5
+.endif
 
 symlinks: .PHONY .META
 	@${ECHO} "Setting up symlinks to kernel source tree..."
@@ -384,6 +389,10 @@ symlinks: .PHONY .META
 		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/rpc/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/rpc; \
 	done
+.if ${MK_MLX5TOOL} != "no"
+	${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/mlx5/mlx5io.h \
+	    ${SDESTDIR}${INCLUDEDIR}/dev/mlx5
+.endif
 
 .include <bsd.prog.mk>
 
