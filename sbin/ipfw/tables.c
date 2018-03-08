@@ -1471,6 +1471,7 @@ tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
 	uint32_t i;
 	int dval;
 	char *comma, *e, *etype, *n, *p;
+	struct in_addr ipaddr;
 
 	v = &tent->v.value;
 
@@ -1487,8 +1488,8 @@ tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
 			return;
 		}
 		/* Try hostname */
-		if (lookup_host(arg, (struct in_addr *)&val) == 0) {
-			set_legacy_value(val, v);
+		if (lookup_host(arg, &ipaddr) == 0) {
+			set_legacy_value(ntohl(ipaddr.s_addr), v);
 			return;
 		}
 		errx(EX_OSERR, "Unable to parse value %s", arg);
@@ -1557,8 +1558,10 @@ tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
 				v->nh4 = ntohl(a4);
 				break;
 			}
-			if (lookup_host(n, (struct in_addr *)&v->nh4) == 0)
+			if (lookup_host(n, &ipaddr) == 0) {
+				v->nh4 = ntohl(ipaddr.s_addr);
 				break;
+			}
 			etype = "ipv4";
 			break;
 		case IPFW_VTYPE_DSCP:
