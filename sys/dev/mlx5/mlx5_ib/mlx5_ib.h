@@ -605,6 +605,56 @@ struct mlx5_roce {
 	atomic_t		next_port;
 };
 
+#define	MLX5_IB_STATS_COUNT(a,b,c,d) a
+#define	MLX5_IB_STATS_VAR(a,b,c,d) b;
+#define	MLX5_IB_STATS_DESC(a,b,c,d) c, d,
+
+#define	MLX5_IB_CONG_PARAMS(m) \
+  /* ECN RP */ \
+  m(+1, u64 rp_clamp_tgt_rate, "rp_clamp_tgt_rate", "If set, whenever a CNP is processed, the target rate is updated to be the current rate") \
+  m(+1, u64 rp_clamp_tgt_rate_ati, "rp_clamp_tgt_rate_ati", "If set, when receiving a CNP, the target rate should be updated if the transission rate was increased due to the timer, and not only due to the byte counter") \
+  m(+1, u64 rp_time_reset, "rp_time_reset", "Time in microseconds between rate increases if no CNPs are received") \
+  m(+1, u64 rp_byte_reset, "rp_byte_reset", "Transmitted data in bytes between rate increases if no CNP's are received. A value of zero means disabled.") \
+  m(+1, u64 rp_threshold, "rp_threshold", "The number of times rpByteStage or rpTimeStage can count before the RP rate control state machine advances states") \
+  m(+1, u64 rp_ai_rate, "rp_ai_rate", "The rate, in Mbits per second, used to increase rpTargetRate in the active increase state") \
+  m(+1, u64 rp_hai_rate, "rp_hai_rate", "The rate, in Mbits per second, used to increase rpTargetRate in the hyper increase state") \
+  m(+1, u64 rp_min_dec_fac, "rp_min_dec_fac", "The minimum factor by which the current transmit rate can be changed when processing a CNP. Value is given as a percentage, [1 .. 100]") \
+  m(+1, u64 rp_min_rate, "rp_min_rate", "The minimum value, in Mbps per second, for rate to limit") \
+  m(+1, u64 rp_rate_to_set_on_first_cnp, "rp_rate_to_set_on_first_cnp", "The rate that is set for the flow when a rate limiter is allocated to it upon first CNP received, in Mbps. A value of zero means use full port speed") \
+  m(+1, u64 rp_dce_tcp_g, "rp_dce_tcp_g", "Used to update the congestion estimator, alpha, once every dce_tcp_rtt once every dce_tcp_rtt microseconds") \
+  m(+1, u64 rp_dce_tcp_rtt, "rp_dce_tcp_rtt", "The time between updates of the aolpha value, in microseconds") \
+  m(+1, u64 rp_rate_reduce_monitor_period, "rp_rate_reduce_monitor_period", "The minimum time between two consecutive rate reductions for a single flow") \
+  m(+1, u64 rp_initial_alpha_value, "rp_initial_alpha_value", "The initial value of alpha to use when receiving the first CNP for a flow") \
+  m(+1, u64 rp_gd, "rp_gd", "If a CNP is received, the flow rate is reduced at the beginning of the next rate_reduce_monitor_period interval") \
+  /* ECN NP */ \
+  m(+1, u64 np_cnp_dscp, "np_cnp_dscp", "The DiffServ Code Point of the generated CNP for this port") \
+  m(+1, u64 np_cnp_prio_mode, "np_cnp_prio_mode", "The 802.1p priority value of the generated CNP for this port") \
+  m(+1, u64 np_cnp_prio, "np_cnp_prio", "The 802.1p priority value of the generated CNP for this port")
+
+#define	MLX5_IB_CONG_PARAMS_NUM (0 MLX5_IB_CONG_PARAMS(MLX5_IB_STATS_COUNT))
+
+#define	MLX5_IB_CONG_STATS(m) \
+  m(+1, u64 syndrome, "syndrome", "Syndrome number") \
+  m(+1, u64 rp_cur_flows, "rp_cur_flows", "Number of flows limited") \
+  m(+1, u64 sum_flows, "sum_flows", "Sum of the number of flows limited over time") \
+  m(+1, u64 rp_cnp_ignored, "rp_cnp_ignored", "Number of CNPs and CNMs ignored") \
+  m(+1, u64 rp_cnp_handled, "rp_cnp_handled", "Number of CNPs and CNMs successfully handled") \
+  m(+1, u64 time_stamp, "time_stamp", "Time stamp in microseconds") \
+  m(+1, u64 accumulators_period, "accumulators_period", "The value of X variable for accumulating counters") \
+  m(+1, u64 np_ecn_marked_roce_packets, "np_ecn_marked_roce_packets", "Number of ECN marked packets seen") \
+  m(+1, u64 np_cnp_sent, "np_cnp_sent", "Number of CNPs sent")
+
+#define	MLX5_IB_CONG_STATS_NUM (0 MLX5_IB_CONG_STATS(MLX5_IB_STATS_COUNT))
+
+struct mlx5_ib_congestion {
+	struct sysctl_ctx_list ctx;
+	struct sx lock;
+	struct delayed_work dwork;
+	u64	arg [0];
+	MLX5_IB_CONG_PARAMS(MLX5_IB_STATS_VAR)
+	MLX5_IB_CONG_STATS(MLX5_IB_STATS_VAR)
+};
+
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	struct mlx5_core_dev		*mdev;
@@ -638,6 +688,7 @@ struct mlx5_ib_dev {
 	struct list_head	qp_list;
 	/* Array with num_ports elements */
 	struct mlx5_ib_port	*port;
+	struct mlx5_ib_congestion congestion;
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)
@@ -991,4 +1042,8 @@ static inline int get_srq_user_index(struct mlx5_ib_ucontext *ucontext,
 
 	return verify_assign_uidx(cqe_version, ucmd->uidx, user_index);
 }
+
+void mlx5_ib_cleanup_congestion(struct mlx5_ib_dev *);
+int mlx5_ib_init_congestion(struct mlx5_ib_dev *);
+
 #endif /* MLX5_IB_H */

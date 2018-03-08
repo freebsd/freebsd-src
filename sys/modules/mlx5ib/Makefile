@@ -4,6 +4,7 @@
 KMOD=mlx5ib
 SRCS= \
 mlx5_ib_ah.c \
+mlx5_ib_cong.c \
 mlx5_ib_cq.c \
 mlx5_ib_doorbell.c \
 mlx5_ib_gsi.c \

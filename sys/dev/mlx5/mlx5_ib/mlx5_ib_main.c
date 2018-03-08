@@ -3151,6 +3151,10 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 			goto err_umrc;
 	}
 
+	err = mlx5_ib_init_congestion(dev);
+	if (err)
+		goto err_umrc;
+
 	dev->ib_active = true;
 
 	return dev;
@@ -3190,6 +3194,7 @@ static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 	struct mlx5_ib_dev *dev = context;
 	enum rdma_link_layer ll = mlx5_ib_port_link_layer(&dev->ib_dev, 1);
 
+	mlx5_ib_cleanup_congestion(dev);
 	mlx5_remove_roce_notifier(dev);
 	ib_unregister_device(&dev->ib_dev);
 	mlx5_ib_dealloc_q_counters(dev);
