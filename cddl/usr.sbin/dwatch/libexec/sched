@@ -66,7 +66,7 @@ sched:::enqueue /* probe ID $(( $ID + 2 )) */
 sched:::change-pri, sched:::lend-pri /* probe ID $(( $ID + 3 )) */
 {${TRACE:+
 	printf("<$(( $ID + 3 ))>");}
-	/* details = "<curprio> -> arg2" */
+	/* details = "<curprio> -> <arg2>" */
 	this->details = strjoin(lltostr(this->curprio),
 		strjoin("->", lltostr((uint8_t)arg2)));
 }
@@ -85,7 +85,7 @@ $PROBE /* probe ID $(( $ID + 5 )) */
 	/* details += " pid <pid> -- <proc args of pid>" */
 	this->details = strjoin(this->details, this->details == "" ? "" : " ");
 	this->details = strjoin(this->details, strjoin(
-		strjoin("pid ", lltostr(this->pid_sched)),
+		strjoin("pid ", lltostr(this->pid)),
 		strjoin(" -- ", this->args)));
 }
 EOF
