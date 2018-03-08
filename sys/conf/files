@@ -1378,7 +1378,7 @@ t4fw.fw			optional cxgbe					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
 t5fw_cfg.c		optional cxgbe					\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk t5fw_cfg.fw:t5fw_cfg t5fw_cfg_uwire.fw:t5fw_cfg_uwire t4fw.fw:t4fw -mt5fw_cfg -c${.TARGET}" \
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk t5fw_cfg.fw:t5fw_cfg t5fw_cfg_uwire.fw:t5fw_cfg_uwire t5fw.fw:t5fw -mt5fw_cfg -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
 	clean		"t5fw_cfg.c"
 t5fw_cfg.fwo		optional cxgbe					\
