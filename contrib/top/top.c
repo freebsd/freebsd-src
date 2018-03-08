@@ -535,7 +535,7 @@ char *argv[];
 	      default:
 		fprintf(stderr,
 "Top version %s\n"
-"Usage: %s [-abCHIijnPqStuvz] [-d count] [-m io | cpu] [-o field] [-s time]\n"
+"Usage: %s [-abCHIijnPqStuvwz] [-d count] [-m io | cpu] [-o field] [-s time]\n"
 "       [-J jail] [-U username] [number]\n",
 			version_string(), myname);
 		exit(1);
