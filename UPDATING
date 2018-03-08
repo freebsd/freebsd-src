@@ -16,6 +16,10 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20180308	p28	FreeBSD-SA-18:01.ipsec [revised]
+
+	Fix ipsec validation and use-after-free.
+
 20180307	p27	FreeBSD-SA-18:01.ipsec
 			FreeBSD-SA-18:02.ntp
 			FreeBSD-EN-18:01.tzdata
