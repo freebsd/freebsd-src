@@ -2554,7 +2554,6 @@ iwi_set_rateset(struct iwi_softc *sc, const struct ieee80211_rateset *net_rs,
     int mode, int type)
 {
 	struct iwi_rateset rs;
-	int i;
 
 	memset(&rs, 0, sizeof(rs));
 	rs.mode = mode;
