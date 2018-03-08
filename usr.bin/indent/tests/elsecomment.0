@@ -1,0 +1,18 @@
+/* $FreeBSD$ */
+/* See r303484 and r309342 */
+void t(void) {
+	if (0) {
+
+	} /* Old indent would remove the following blank line */
+
+	/*
+	 * test
+	 */
+
+	if (1)
+		;
+	else /* Old indent would get very confused here */
+	{
+
+	}
+}
