@@ -276,13 +276,55 @@ struct mlx5e_vport_stats {
   m(+1, u64 rs_corrected_symbols_lane2, "rs_corrected_symbols_lane2",			\
 			"FEC corrected symbol counter lane 2")				\
   m(+1, u64 rs_corrected_symbols_lane3, "rs_corrected_symbols_lane3",			\
-			"FEC corrected symbol counter lane 3")				\
+			"FEC corrected symbol counter lane 3")
+
+/* Per priority statistics for PFC */
+#define	MLX5E_PPORT_PER_PRIO_STATS_SUB(m,n,p)			\
+  m(n, p, +1, u64, rx_octets, "rx_octets", "Received octets")		\
+  m(n, p, +1, u64, reserved_0, "reserved_0", "Reserved")		\
+  m(n, p, +1, u64, reserved_1, "reserved_1", "Reserved")		\
+  m(n, p, +1, u64, reserved_2, "reserved_2", "Reserved")		\
+  m(n, p, +1, u64, rx_frames, "rx_frames", "Received frames")		\
+  m(n, p, +1, u64, tx_octets, "tx_octets", "Transmitted octets")	\
+  m(n, p, +1, u64, reserved_3, "reserved_3", "Reserved")		\
+  m(n, p, +1, u64, reserved_4, "reserved_4", "Reserved")		\
+  m(n, p, +1, u64, reserved_5, "reserved_5", "Reserved")		\
+  m(n, p, +1, u64, tx_frames, "tx_frames", "Transmitted frames")	\
+  m(n, p, +1, u64, rx_pause, "rx_pause", "Received pause frames")	\
+  m(n, p, +1, u64, rx_pause_duration, "rx_pause_duration",		\
+	"Received pause duration")					\
+  m(n, p, +1, u64, tx_pause, "tx_pause", "Transmitted pause frames")	\
+  m(n, p, +1, u64, tx_pause_duration, "tx_pause_duration",		\
+	"Transmitted pause duration")					\
+  m(n, p, +1, u64, rx_pause_transition, "rx_pause_transition",		\
+	"Received pause transitions")					\
+  m(n, p, +1, u64, rx_discards, "rx_discards", "Discarded received frames") \
+  m(n, p, +1, u64, device_stall_minor_watermark,			\
+	"device_stall_minor_watermark", "Device stall minor watermark")	\
+  m(n, p, +1, u64, device_stall_critical_watermark,			\
+	"device_stall_critical_watermark", "Device stall critical watermark")
+
+#define	MLX5E_PPORT_PER_PRIO_STATS_PREFIX(m,p,c,t,f,s,d) \
+  m(c, t pri_##p##_##f, "prio" #p "_" s, "Priority " #p " - " d)
+
+#define	MLX5E_PPORT_PER_PRIO_STATS_NUM_PRIO 8
+
+#define	MLX5E_PPORT_PER_PRIO_STATS(m) \
+  MLX5E_PPORT_PER_PRIO_STATS_SUB(MLX5E_PPORT_PER_PRIO_STATS_PREFIX,m,0) \
+  MLX5E_PPORT_PER_PRIO_STATS_SUB(MLX5E_PPORT_PER_PRIO_STATS_PREFIX,m,1) \
+  MLX5E_PPORT_PER_PRIO_STATS_SUB(MLX5E_PPORT_PER_PRIO_STATS_PREFIX,m,2) \
+  MLX5E_PPORT_PER_PRIO_STATS_SUB(MLX5E_PPORT_PER_PRIO_STATS_PREFIX,m,3) \
+  MLX5E_PPORT_PER_PRIO_STATS_SUB(MLX5E_PPORT_PER_PRIO_STATS_PREFIX,m,4) \
+  MLX5E_PPORT_PER_PRIO_STATS_SUB(MLX5E_PPORT_PER_PRIO_STATS_PREFIX,m,5) \
+  MLX5E_PPORT_PER_PRIO_STATS_SUB(MLX5E_PPORT_PER_PRIO_STATS_PREFIX,m,6) \
+  MLX5E_PPORT_PER_PRIO_STATS_SUB(MLX5E_PPORT_PER_PRIO_STATS_PREFIX,m,7)
 
 /*
  * Make sure to update mlx5e_update_pport_counters()
  * when adding a new MLX5E_PPORT_STATS block
  */
 #define	MLX5E_PPORT_STATS(m)			\
+  MLX5E_PPORT_PER_PRIO_STATS(m)		\
   MLX5E_PPORT_IEEE802_3_STATS(m)		\
   MLX5E_PPORT_RFC2819_STATS(m)
 
@@ -298,6 +340,8 @@ struct mlx5e_vport_stats {
 #define	MLX5E_PPORT_STATS_NUM \
   (0 MLX5E_PPORT_STATS(MLX5E_STATS_COUNT))
 
+#define	MLX5E_PPORT_PER_PRIO_STATS_NUM \
+  (0 MLX5E_PPORT_PER_PRIO_STATS(MLX5E_STATS_COUNT))
 #define	MLX5E_PPORT_RFC2819_STATS_DEBUG_NUM \
   (0 MLX5E_PPORT_RFC2819_STATS_DEBUG(MLX5E_STATS_COUNT))
 #define	MLX5E_PPORT_RFC2863_STATS_DEBUG_NUM \
@@ -391,8 +435,10 @@ struct mlx5e_params {
 	bool	cqe_zipping_en;
 	u32	lro_wqe_sz;
 	u16	rx_hash_log_tbl_sz;
-	u32	tx_pauseframe_control;
-	u32	rx_pauseframe_control;
+	u32	tx_pauseframe_control __aligned(4);
+	u32	rx_pauseframe_control __aligned(4);
+	u32	tx_priority_flow_control __aligned(4);
+	u32	rx_priority_flow_control __aligned(4);
 };
 
 #define	MLX5E_PARAMS(m)							\
