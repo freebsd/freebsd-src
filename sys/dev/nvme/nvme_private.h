@@ -126,7 +126,7 @@ extern int32_t		nvme_retry_count;
 struct nvme_completion_poll_status {
 
 	struct nvme_completion	cpl;
-	boolean_t		done;
+	int			done;
 };
 
 #define NVME_REQUEST_VADDR	1

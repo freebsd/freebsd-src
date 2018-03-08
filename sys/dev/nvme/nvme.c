@@ -467,6 +467,5 @@ nvme_completion_poll_cb(void *arg, const struct nvme_completion *cpl)
 	 *  the request passed or failed.
 	 */
 	memcpy(&status->cpl, cpl, sizeof(*cpl));
-	wmb();
-	status->done = TRUE;
+	atomic_store_rel_int(&status->done, 1);
 }
