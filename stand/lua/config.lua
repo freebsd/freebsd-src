@@ -497,6 +497,7 @@ function config.reload(file)
 	modules = {}
 	config.restoreEnv()
 	config.load(file)
+	core.configReloaded()
 end
 
 function config.loadelf()
