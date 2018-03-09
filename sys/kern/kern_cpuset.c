@@ -1972,8 +1972,8 @@ kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	if (error == 0)
 		error = copyout(mask, maskp, domainsetsize);
 	if (error == 0)
-		error = copyout(&outset.ds_policy, policyp,
-		    sizeof(outset.ds_policy));
+		if (suword32(policyp, outset.ds_policy) != 0)
+			error = EFAULT;
 out:
 	free(mask, M_TEMP);
 	return (error);
