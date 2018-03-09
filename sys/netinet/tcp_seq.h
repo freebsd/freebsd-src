@@ -47,6 +47,14 @@
 #define	SEQ_MIN(a, b)	((SEQ_LT(a, b)) ? (a) : (b))
 #define	SEQ_MAX(a, b)	((SEQ_GT(a, b)) ? (a) : (b))
 
+#define	WIN_LT(a,b)	((short)(ntohs(a)-ntohs(b)) < 0)
+#define	WIN_LEQ(a,b)	((short)(ntohs(a)-ntohs(b)) <= 0)
+#define	WIN_GT(a,b)	((short)(ntohs(a)-ntohs(b)) > 0)
+#define	WIN_GEQ(a,b)	((short)(ntohs(a)-ntohs(b)) >= 0)
+
+#define	WIN_MIN(a, b)	((WIN_LT(a, b)) ? (a) : (b))
+#define	WIN_MAX(a, b)	((WIN_GT(a, b)) ? (a) : (b))
+
 /* for modulo comparisons of timestamps */
 #define TSTMP_LT(a,b)	((int)((a)-(b)) < 0)
 #define TSTMP_GT(a,b)	((int)((a)-(b)) > 0)
