@@ -195,6 +195,7 @@ MAN=	aac.4 \
 	iicbus.4 \
 	iicsmb.4 \
 	iir.4 \
+	${_imcsmb.4} \
 	inet.4 \
 	inet6.4 \
 	intpm.4 \
@@ -786,6 +787,7 @@ _if_vmx.4=	if_vmx.4
 _if_vtnet.4=	if_vtnet.4
 _if_vxge.4=	if_vxge.4
 _if_wpi.4=	if_wpi.4
+_imcsmb.4=	imcsmb.4
 _ipmi.4=	ipmi.4
 _io.4=		io.4
 _lindev.4=	lindev.4

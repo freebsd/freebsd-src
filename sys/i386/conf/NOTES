@@ -752,6 +752,11 @@ device		hptrr
 device		hptiop
 
 #
+# Intel integrated Memory Controller (iMC) SMBus controller
+#	Sandybridge-Xeon, Ivybridge-Xeon, Haswell-Xeon, Broadwell-Xeon
+device		imcsmb
+
+#
 # IBM (now Adaptec) ServeRAID controllers
 device		ips
 
