@@ -265,7 +265,6 @@ recvfile(int peer, char *port, int fd, char *name, char *mode)
 		tftp_receive(peer, &block, &tftp_stats, rp, n);
 	}
 
-	write_close();
 	if (tftp_stats.amount > 0)
 		printstats("Received", verbose, &tftp_stats);
 	return;
