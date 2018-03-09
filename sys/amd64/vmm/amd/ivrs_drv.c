@@ -86,9 +86,9 @@ ivrs_hdr_iterate_tbl(ivhd_iter_t iter, void *arg)
 		}
 
 		switch (ivrs_hdr->Type) {
-		case ACPI_IVRS_TYPE_HARDWARE:	/* Legacy */
-		case 0x11:
-		case 0x40: 			/* ACPI HID */
+		case IVRS_TYPE_HARDWARE_LEGACY:	/* Legacy */
+		case IVRS_TYPE_HARDWARE_EFR:
+		case IVRS_TYPE_HARDWARE_MIXED:
 			if (!iter(ivrs_hdr, arg))
 				return;
 			break;
@@ -116,9 +116,9 @@ ivrs_is_ivhd(UINT8 type)
 {
 
 	switch(type) {
-	case ACPI_IVRS_TYPE_HARDWARE:
-	case ACPI_IVRS_TYPE_HARDWARE_EXT1:
-	case ACPI_IVRS_TYPE_HARDWARE_EXT2:
+	case IVRS_TYPE_HARDWARE_LEGACY:
+	case IVRS_TYPE_HARDWARE_EFR:
+	case IVRS_TYPE_HARDWARE_MIXED:
 		return (true);
 
 	default:
@@ -206,17 +206,13 @@ ivhd_dev_parse(ACPI_IVRS_HARDWARE* ivhd, struct amdvi_softc *softc)
 	softc->end_dev_rid = 0;
 
 	switch (ivhd->Header.Type) {
-		case ACPI_IVRS_TYPE_HARDWARE_EXT1:
-		case ACPI_IVRS_TYPE_HARDWARE_EXT2:
-			p = (uint8_t *)ivhd + sizeof(ACPI_IVRS_HARDWARE_NEW);
-			de = (ACPI_IVRS_DE_HEADER *) ((uint8_t *)ivhd +
-	    			sizeof(ACPI_IVRS_HARDWARE_NEW));
+		case IVRS_TYPE_HARDWARE_LEGACY:
+			p = (uint8_t *)ivhd + sizeof(ACPI_IVRS_HARDWARE);
 			break;
 
-		case ACPI_IVRS_TYPE_HARDWARE:
-			p = (uint8_t *)ivhd + sizeof(ACPI_IVRS_HARDWARE);
-			de = (ACPI_IVRS_DE_HEADER *) ((uint8_t *)ivhd +
-	    			sizeof(ACPI_IVRS_HARDWARE));
+		case IVRS_TYPE_HARDWARE_EFR:
+		case IVRS_TYPE_HARDWARE_MIXED:
+			p = (uint8_t *)ivhd + sizeof(ACPI_IVRS_HARDWARE_EFRSUP);
 			break;
 
 		default:
@@ -316,9 +312,9 @@ ivhd_is_newer(ACPI_IVRS_HEADER *old, ACPI_IVRS_HEADER  *new)
 	 * Newer IVRS header type take precedence.
 	 */
 	if ((old->DeviceId == new->DeviceId) &&
-		(old->Type == ACPI_IVRS_TYPE_HARDWARE) &&
-		((new->Type == ACPI_IVRS_TYPE_HARDWARE_EXT1) ||
-		(new->Type == ACPI_IVRS_TYPE_HARDWARE_EXT1))) {
+		(old->Type == IVRS_TYPE_HARDWARE_LEGACY) &&
+		((new->Type == IVRS_TYPE_HARDWARE_EFR) ||
+		(new->Type == IVRS_TYPE_HARDWARE_MIXED))) {
 		return (true);
 	}
 
@@ -422,23 +418,33 @@ ivhd_probe(device_t dev)
 	ivhd = ivhd_hdrs[unit];
 	KASSERT(ivhd, ("ivhd is NULL"));
 
-	if (ivhd->Header.Type == ACPI_IVRS_TYPE_HARDWARE)
-		device_set_desc(dev, "AMD-Vi/IOMMU ivhd");
-	else	
+	switch (ivhd->Header.Type) {
+	case IVRS_TYPE_HARDWARE_EFR:
 		device_set_desc(dev, "AMD-Vi/IOMMU ivhd with EFR");
+		break;
+	
+	case IVRS_TYPE_HARDWARE_MIXED:
+		device_set_desc(dev, "AMD-Vi/IOMMU ivhd in mixed format");
+		break;
+
+	case IVRS_TYPE_HARDWARE_LEGACY:
+        default:
+		device_set_desc(dev, "AMD-Vi/IOMMU ivhd");
+		break;
+	}
 
 	return (BUS_PROBE_NOWILDCARD);
 }
 
 static void
-ivhd_print_flag(device_t dev, enum AcpiIvrsType ivhd_type, uint8_t flag)
+ivhd_print_flag(device_t dev, enum IvrsType ivhd_type, uint8_t flag)
 {
 	/*
 	 * IVHD lgeacy type has two extra high bits in flag which has
 	 * been moved to EFR for non-legacy device.
 	 */
 	switch (ivhd_type) {
-	case ACPI_IVRS_TYPE_HARDWARE:
+	case IVRS_TYPE_HARDWARE_LEGACY:
 		device_printf(dev, "Flag:%b\n", flag,
 			"\020"
 			"\001HtTunEn"
@@ -451,8 +457,8 @@ ivhd_print_flag(device_t dev, enum AcpiIvrsType ivhd_type, uint8_t flag)
 			"\008PPRSup");
 		break;
 
-	case ACPI_IVRS_TYPE_HARDWARE_EXT1:
-	case ACPI_IVRS_TYPE_HARDWARE_EXT2:
+	case IVRS_TYPE_HARDWARE_EFR:
+	case IVRS_TYPE_HARDWARE_MIXED:
 		device_printf(dev, "Flag:%b\n", flag,
 			"\020"
 			"\001HtTunEn"
@@ -474,10 +480,10 @@ ivhd_print_flag(device_t dev, enum AcpiIvrsType ivhd_type, uint8_t flag)
  * Feature in legacy IVHD type(0x10) and attribute in newer type(0x11 and 0x40).
  */
 static void
-ivhd_print_feature(device_t dev, enum AcpiIvrsType ivhd_type, uint32_t feature) 
+ivhd_print_feature(device_t dev, enum IvrsType ivhd_type, uint32_t feature) 
 {
 	switch (ivhd_type) {
-	case ACPI_IVRS_TYPE_HARDWARE:
+	case IVRS_TYPE_HARDWARE_LEGACY:
 		device_printf(dev, "Features(type:0x%x) HATS = %d GATS = %d"
 			" MsiNumPPR = %d PNBanks= %d PNCounters= %d\n",
 			ivhd_type,
@@ -500,8 +506,8 @@ ivhd_print_feature(device_t dev, enum AcpiIvrsType ivhd_type, uint32_t feature)
 		break;
 
 	/* Fewer features or attributes are reported in non-legacy type. */
-	case ACPI_IVRS_TYPE_HARDWARE_EXT1:
-	case ACPI_IVRS_TYPE_HARDWARE_EXT2:
+	case IVRS_TYPE_HARDWARE_EFR:
+	case IVRS_TYPE_HARDWARE_MIXED:
 		device_printf(dev, "Features(type:0x%x) MsiNumPPR = %d"
 			" PNBanks= %d PNCounters= %d\n",
 			ivhd_type,
@@ -605,7 +611,7 @@ static int
 ivhd_attach(device_t dev)
 {
 	ACPI_IVRS_HARDWARE *ivhd;
-	ACPI_IVRS_HARDWARE_NEW *ivhd1;
+	ACPI_IVRS_HARDWARE_EFRSUP *ivhd_efr;
 	struct amdvi_softc *softc;
 	int status, unit;
 
@@ -640,10 +646,10 @@ ivhd_attach(device_t dev)
 	softc->event_msix = ivhd->Info & 0x1F;
 #endif
 	switch (ivhd->Header.Type) {
-		case ACPI_IVRS_TYPE_HARDWARE_EXT1:
-		case ACPI_IVRS_TYPE_HARDWARE_EXT2:
-			ivhd1 = (ACPI_IVRS_HARDWARE_NEW *)ivhd;
-			softc->ext_feature = ivhd1->ExtFR;
+		case IVRS_TYPE_HARDWARE_EFR:
+		case IVRS_TYPE_HARDWARE_MIXED:
+			ivhd_efr = (ACPI_IVRS_HARDWARE_EFRSUP *)ivhd;
+			softc->ext_feature = ivhd_efr->ExtFR;
 			break;
 
 	}

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+NO_OBJ=t
+
 SUBDIR= 	uboot
 
 #

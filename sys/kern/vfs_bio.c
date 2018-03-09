@@ -1042,7 +1042,7 @@ bufinit(void)
 		bp->b_wcred = NOCRED;
 		bp->b_qindex = QUEUE_NONE;
 		bp->b_domain = -1;
-		bp->b_subqueue = mp_ncpus;
+		bp->b_subqueue = mp_maxid + 1;
 		bp->b_xflags = 0;
 		bp->b_data = bp->b_kvabase = unmapped_buf;
 		LIST_INIT(&bp->b_dep);
@@ -1717,8 +1717,8 @@ bd_init(struct bufdomain *bd)
 	int i;
 
 	domain = bd - bdclean;
-	bd->bd_cleanq = &bd->bd_subq[mp_ncpus];
-	bq_init(bd->bd_cleanq, QUEUE_CLEAN, mp_ncpus, "bufq clean lock");
+	bd->bd_cleanq = &bd->bd_subq[mp_maxid + 1];
+	bq_init(bd->bd_cleanq, QUEUE_CLEAN, mp_maxid + 1, "bufq clean lock");
 	for (i = 0; i <= mp_maxid; i++)
 		bq_init(&bd->bd_subq[i], QUEUE_CLEAN, i,
 		    "bufq clean subqueue lock");
@@ -1789,7 +1789,7 @@ bd_flushall(struct bufdomain *bd)
 	if (bd->bd_lim == 0)
 		return (0);
 	flushed = 0;
-	for (i = 0; i < mp_ncpus; i++) {
+	for (i = 0; i <= mp_maxid; i++) {
 		bq = &bd->bd_subq[i];
 		if (bq->bq_len == 0)
 			continue;
@@ -5203,7 +5203,7 @@ DB_SHOW_COMMAND(bufqueues, bufqueues)
 		db_printf("\twakeup\t\t%d\n", bd->bd_wanted);
 		db_printf("\tlim\t\t%d\n", bd->bd_lim);
 		db_printf("\tCPU ");
-		for (j = 0; j < mp_maxid + 1; j++)
+		for (j = 0; j <= mp_maxid; j++)
 			db_printf("%d, ", bd->bd_subq[j].bq_len);
 		db_printf("\n");
 	}

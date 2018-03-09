@@ -2187,12 +2187,9 @@ struct mlx5_ifc_srqc_bits {
 
 	u8         reserved_9[0x40];
 
-	u8         db_record_addr_h[0x20];
+	u8	   dbr_addr[0x40];
 
-	u8         db_record_addr_l[0x1e];
-	u8         reserved_10[0x2];
-
-	u8         reserved_11[0x80];
+	u8	   reserved_10[0x80];
 };
 
 enum {
@@ -3996,7 +3993,7 @@ struct mlx5_ifc_query_special_contexts_out_bits {
 
 	u8         syndrome[0x20];
 
-	u8         reserved_1[0x20];
+	u8	   dump_fill_mkey[0x20];
 
 	u8         resd_lkey[0x20];
 };
@@ -4288,9 +4285,9 @@ struct mlx5_ifc_query_pages_out_bits {
 };
 
 enum {
-	MLX5_BOOT_PAGES                           = 0x1,
-	MLX5_INIT_PAGES                           = 0x2,
-	MLX5_POST_INIT_PAGES                      = 0x3,
+	MLX5_QUERY_PAGES_IN_OP_MOD_BOOT_PAGES	  = 0x1,
+	MLX5_QUERY_PAGES_IN_OP_MOD_INIT_PAGES	  = 0x2,
+	MLX5_QUERY_PAGES_IN_OP_MOD_REGULAR_PAGES  = 0x3,
 };
 
 struct mlx5_ifc_query_pages_in_bits {
@@ -4868,17 +4865,17 @@ struct mlx5_ifc_query_cong_statistics_out_bits {
 
 	u8         reserved_1[0x40];
 
-	u8         cur_flows[0x20];
+	u8         rp_cur_flows[0x20];
 
 	u8         sum_flows[0x20];
 
-	u8         cnp_ignored_high[0x20];
+	u8         rp_cnp_ignored_high[0x20];
 
-	u8         cnp_ignored_low[0x20];
+	u8         rp_cnp_ignored_low[0x20];
 
-	u8         cnp_handled_high[0x20];
+	u8         rp_cnp_handled_high[0x20];
 
-	u8         cnp_handled_low[0x20];
+	u8         rp_cnp_handled_low[0x20];
 
 	u8         reserved_2[0x100];
 
@@ -4888,13 +4885,13 @@ struct mlx5_ifc_query_cong_statistics_out_bits {
 
 	u8         accumulators_period[0x20];
 
-	u8         ecn_marked_roce_packets_high[0x20];
+	u8         np_ecn_marked_roce_packets_high[0x20];
 
-	u8         ecn_marked_roce_packets_low[0x20];
+	u8         np_ecn_marked_roce_packets_low[0x20];
 
-	u8         cnps_sent_high[0x20];
+	u8         np_cnp_sent_high[0x20];
 
-	u8         cnps_sent_low[0x20];
+	u8         np_cnp_sent_low[0x20];
 
 	u8         reserved_3[0x560];
 };
@@ -9096,6 +9093,15 @@ struct mlx5_ifc_ets_global_config_reg_bits {
 	u8         max_bw_value[0x8];
 };
 
+struct mlx5_ifc_qetc_reg_bits {
+	u8                                         reserved_at_0[0x8];
+	u8                                         port_number[0x8];
+	u8                                         reserved_at_10[0x30];
+
+	struct mlx5_ifc_ets_tcn_config_reg_bits    tc_configuration[0x8];
+	struct mlx5_ifc_ets_global_config_reg_bits global_configuration;
+};
+
 struct mlx5_ifc_nodnic_mac_filters_bits {
 	struct mlx5_ifc_mac_address_layout_bits mac_filter0;
 
@@ -9320,6 +9326,13 @@ struct mlx5_ifc_mtt_bits {
 	u8         reserved_0[0x6];
 	u8         wr_en[0x1];
 	u8         rd_en[0x1];
+};
+
+/* Vendor Specific Capabilities, VSC */
+enum {
+	MLX5_VSC_DOMAIN_ICMD			= 0x1,
+	MLX5_VSC_DOMAIN_PROTECTED_CRSPACE	= 0x6,
+	MLX5_VSC_DOMAIN_SEMAPHORES		= 0xA,
 };
 
 struct mlx5_ifc_vendor_specific_cap_bits {

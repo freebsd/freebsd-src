@@ -2634,21 +2634,7 @@ unlock:
 	}
 	if (m_mtx != NULL)
 		mtx_unlock(m_mtx);
-	if ((m = SLIST_FIRST(&free)) != NULL) {
-		int cnt;
-
-		cnt = 0;
-		vmd = VM_DOMAIN(domain);
-		vm_domain_free_lock(vmd);
-		do {
-			MPASS(vm_phys_domain(m) == domain);
-			SLIST_REMOVE_HEAD(&free, plinks.s.ss);
-			vm_page_free_phys(vmd, m);
-			cnt++;
-		} while ((m = SLIST_FIRST(&free)) != NULL);
-		vm_domain_free_unlock(vmd);
-		vm_domain_freecnt_inc(vmd, cnt);
-	}
+	vm_page_free_pages_toq(&free, false);
 	return (error);
 }
 
@@ -3364,7 +3350,42 @@ vm_page_free_toq(vm_page_t m)
 }
 
 /*
- * vm_page_wire:
+ *	vm_page_free_pages_toq:
+ *
+ *	Returns a list of pages to the free list, disassociating it
+ *	from any VM object.  In other words, this is equivalent to
+ *	calling vm_page_free_toq() for each page of a list of VM objects.
+ *
+ *	The objects must be locked.  The pages must be locked if it is
+ *	managed.
+ */
+void
+vm_page_free_pages_toq(struct spglist *free, bool update_wire_count)
+{
+	vm_page_t m;
+	struct pglist pgl;
+	int count;
+
+	if (SLIST_EMPTY(free))
+		return;
+
+	count = 0;
+	TAILQ_INIT(&pgl);
+	while ((m = SLIST_FIRST(free)) != NULL) {
+		count++;
+		SLIST_REMOVE_HEAD(free, plinks.s.ss);
+		if (vm_page_free_prep(m, false))
+			TAILQ_INSERT_TAIL(&pgl, m, listq);
+	}
+
+	vm_page_free_phys_pglist(&pgl);
+
+	if (update_wire_count)
+		vm_wire_sub(count);
+}
+
+/*
+ *	vm_page_wire:
  *
  * Mark this page as wired down.  If the page is fictitious, then
  * its wire count must remain one.
@@ -3560,14 +3581,11 @@ vm_page_launder(vm_page_t m)
 	int queue;
 
 	vm_page_assert_locked(m);
-	if ((queue = m->queue) != PQ_LAUNDRY) {
-		if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
-			if (queue != PQ_NONE)
-				vm_page_dequeue(m);
-			vm_page_enqueue(PQ_LAUNDRY, m);
-		} else
-			KASSERT(queue == PQ_NONE,
-			    ("wired page %p is queued", m));
+	if ((queue = m->queue) != PQ_LAUNDRY && m->wire_count == 0 &&
+	    (m->oflags & VPO_UNMANAGED) == 0) {
+		if (queue != PQ_NONE)
+			vm_page_dequeue(m);
+		vm_page_enqueue(PQ_LAUNDRY, m);
 	}
 }
 

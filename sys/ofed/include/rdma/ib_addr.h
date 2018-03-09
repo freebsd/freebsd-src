@@ -31,6 +31,8 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * $FreeBSD$
  */
 
 #if !defined(IB_ADDR_H)
@@ -93,10 +95,10 @@ struct rdma_dev_addr {
  * rdma_translate_ip - Translate a local IP address to an RDMA hardware
  *   address.
  *
- * The dev_addr->net field must be initialized.
+ * The dev_addr->net and dev_addr->bound_dev_if fields must be initialized.
  */
 int rdma_translate_ip(const struct sockaddr *addr,
-		      struct rdma_dev_addr *dev_addr, u16 *vlan_id);
+		      struct rdma_dev_addr *dev_addr);
 
 /**
  * rdma_resolve_ip - Resolve source and destination IP addresses to
@@ -132,10 +134,9 @@ int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 
 int rdma_addr_size(struct sockaddr *addr);
 
-int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id);
 int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 				 const union ib_gid *dgid,
-				 u8 *smac, u16 *vlan_id, int *if_index,
+				 u8 *smac, struct net_device *dev,
 				 int *hoplimit);
 
 static inline u16 ib_addr_get_pkey(struct rdma_dev_addr *dev_addr)

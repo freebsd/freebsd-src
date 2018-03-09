@@ -762,8 +762,10 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 				 * tell the user that there are more matches
 				 * left.
 				 */
-				if (cio->num_matches >= ionum)
+				if (cio->num_matches >= ionum) {
+					error = 0;
 					break;
+				}
 
 #ifdef PRE7_COMPAT
 #ifdef COMPAT_FREEBSD32

@@ -190,7 +190,7 @@ static int
 rtc8583_gettime(device_t dev, struct timespec *ts)
 {
 	struct rtc8583_softc	*sc;
-	struct clocktime	 ct;
+	struct bcd_clocktime	 bct;
 	struct time_regs	 tregs;
 	uint8_t			 y, ytmp, sreg;
 	int 			 err;
@@ -227,42 +227,49 @@ rtc8583_gettime(device_t dev, struct timespec *ts)
 		iicbus_release_bus(sc->busdev, sc->dev);
 	}
 
-	ct.nsec = FROMBCD(tregs.msec) * 10 * 1000 * 1000;
-	ct.sec  = FROMBCD(tregs.sec);
-	ct.min  = FROMBCD(tregs.min);
-	ct.hour = FROMBCD(tregs.hour & 0x3f);
-	ct.day  = FROMBCD(tregs.day & 0x3f);
-	ct.mon  = FROMBCD(tregs.month & 0x1f);
-	ct.year = 2000 + sreg;
+	if (!validbcd(tregs.msec))
+		return (EINVAL);
 
-	return (clock_ct_to_ts(&ct, ts));
+        /* The 'msec' reg is actually 1/100ths, in bcd.  */
+	bct.nsec = bcd2bin(tregs.msec) * 10 * 1000 * 1000;
+	bct.sec  = tregs.sec;
+	bct.min  = tregs.min;
+	bct.hour = tregs.hour & 0x3f;
+	bct.day  = tregs.day & 0x3f;
+	bct.mon  = tregs.month & 0x1f;
+	bct.year = bin2bcd(sreg % 100);
+
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct); 
+	return (clock_bcd_to_ts(&bct, ts, false));
 }
 
 static int
 rtc8583_settime(device_t dev, struct timespec *ts)
 {
 	struct rtc8583_softc	*sc;
-	struct clocktime 	 ct;
+	struct bcd_clocktime 	 bct;
 	struct time_regs	 tregs;
 	uint8_t			 sreg;
 	int 			 err;
 
 	sc = device_get_softc(dev);
 	ts->tv_sec -= utc_offset();
-	ts->tv_nsec = 0;
-	clock_ts_to_ct(ts, &ct);
+	clock_ts_to_bcd(ts, &bct, false);
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_WRITE, &bct);
 
-	tregs.sec   = TOBCD(ct.sec);
-	tregs.min   = TOBCD(ct.min);
-	tregs.hour  = TOBCD(ct.hour);
-	tregs.day   = TOBCD(ct.day) | ((ct.year & 0x03) << 6);
-	tregs.month = TOBCD(ct.mon);
+	/* The 'msec' reg is actually 1/100ths, in bcd.  */
+	tregs.msec  = bin2bcd(ts->tv_nsec / (10 * 1000 * 1000));
+	tregs.sec   = bct.sec;
+	tregs.min   = bct.min;
+	tregs.hour  = bct.hour;
+	tregs.day   = bct.day | (bct.year & 0x03 << 6);
+	tregs.month = bct.mon;
 
 	if ((err = iicbus_request_bus(sc->busdev, sc->dev, IIC_WAIT)) != 0)
 		return (err);
 	err = rtc8583_writeto(sc->dev, RTC8583_SC_REG, &tregs,
 	    sizeof(tregs), IIC_WAIT);
-	sreg = ct.year - 2000;
+	sreg = bcd2bin(bct.year & 0xff);
 	/* save to year to sram */
 	rtc8583_write1(sc, RTC8583_USERSRAM_REG, sreg);
 	iicbus_release_bus(sc->busdev, sc->dev);

@@ -427,15 +427,17 @@ main(int argc, char *argv[])
 static int
 opentty(const char *tty, int flags)
 {
-	int i;
-	int failopenlogged = 0;
+	int failopenlogged = 0, i, saved_errno;
 
 	while ((i = open(tty, flags)) == -1)
 	{
+		saved_errno = errno;
 		if (!failopenlogged) {
 			syslog(LOG_ERR, "open %s: %m", tty);
 			failopenlogged = 1;
 		}
+		if (saved_errno == ENOENT)
+			return 0;
 		sleep(60);
 	}
 	if (login_tty(i) < 0) { 

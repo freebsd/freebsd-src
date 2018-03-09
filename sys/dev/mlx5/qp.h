@@ -171,13 +171,6 @@ enum {
 };
 
 enum {
-	MLX5_QP_DRAIN_SIGERR	= 1 << 26,
-	MLX5_QP_LAT_SENSITIVE	= 1 << 28,
-	MLX5_QP_BLOCK_MCAST	= 1 << 30,
-	MLX5_QP_ENABLE_SIG	= 1U << 31,
-};
-
-enum {
 	MLX5_RCV_DBR	= 0,
 	MLX5_SND_DBR	= 1,
 };
@@ -535,17 +528,6 @@ struct mlx5_qp_context {
 	u8			rsvd1[24];
 };
 
-struct mlx5_create_qp_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			input_qpn;
-	u8			rsvd0[4];
-	__be32			opt_param_mask;
-	u8			rsvd1[4];
-	struct mlx5_qp_context	ctx;
-	u8			rsvd3[16];
-	__be64			pas[0];
-};
-
 struct mlx5_dct_context {
 	u8			state;
 	u8			rsvd0[7];
@@ -570,125 +552,6 @@ struct mlx5_dct_context {
 	u8			rsvd[12];
 };
 
-struct mlx5_create_dct_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd0[8];
-	struct mlx5_dct_context context;
-	u8			rsvd[48];
-};
-
-struct mlx5_create_dct_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	__be32			dctn;
-	u8			rsvd0[4];
-};
-
-struct mlx5_destroy_dct_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			dctn;
-	u8			rsvd0[4];
-};
-
-struct mlx5_destroy_dct_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd0[8];
-};
-
-struct mlx5_drain_dct_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			dctn;
-	u8			rsvd0[4];
-};
-
-struct mlx5_drain_dct_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd0[8];
-};
-
-struct mlx5_create_qp_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	__be32			qpn;
-	u8			rsvd0[4];
-};
-
-struct mlx5_destroy_qp_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			qpn;
-	u8			rsvd0[4];
-};
-
-struct mlx5_destroy_qp_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd0[8];
-};
-
-struct mlx5_modify_qp_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			qpn;
-	u8			rsvd1[4];
-	__be32			optparam;
-	u8			rsvd0[4];
-	struct mlx5_qp_context	ctx;
-	u8			rsvd2[16];
-};
-
-struct mlx5_modify_qp_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd0[8];
-};
-
-struct mlx5_query_qp_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			qpn;
-	u8			rsvd[4];
-};
-
-struct mlx5_query_qp_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd1[8];
-	__be32			optparam;
-	u8			rsvd0[4];
-	struct mlx5_qp_context	ctx;
-	u8			rsvd2[16];
-	__be64			pas[0];
-};
-
-struct mlx5_query_dct_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			dctn;
-	u8			rsvd[4];
-};
-
-struct mlx5_query_dct_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd0[8];
-	struct mlx5_dct_context ctx;
-	u8			rsvd1[48];
-};
-
-struct mlx5_arm_dct_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			dctn;
-	u8			rsvd[4];
-};
-
-struct mlx5_arm_dct_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd0[8];
-};
-
-struct mlx5_conf_sqp_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			qpn;
-	u8			rsvd[3];
-	u8			type;
-};
-
-struct mlx5_conf_sqp_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
 static inline struct mlx5_core_qp *__mlx5_qp_lookup(struct mlx5_core_dev *dev, u32 qpn)
 {
 	return radix_tree_lookup(&dev->priv.qp_table.tree, qpn);
@@ -701,24 +564,24 @@ static inline struct mlx5_core_mr *__mlx5_mr_lookup(struct mlx5_core_dev *dev, u
 
 int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 			struct mlx5_core_qp *qp,
-			struct mlx5_create_qp_mbox_in *in,
+			u32 *in,
 			int inlen);
-int mlx5_core_qp_modify(struct mlx5_core_dev *dev, u16 operation,
-			struct mlx5_modify_qp_mbox_in *in, int sqd_event,
+int mlx5_core_qp_modify(struct mlx5_core_dev *dev, u16 opcode,
+			u32 opt_param_mask, void *qpc,
 			struct mlx5_core_qp *qp);
 int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
 			 struct mlx5_core_qp *qp);
 int mlx5_core_qp_query(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
-		       struct mlx5_query_qp_mbox_out *out, int outlen);
+		       u32 *out, int outlen);
 int mlx5_core_dct_query(struct mlx5_core_dev *dev, struct mlx5_core_dct *dct,
-			struct mlx5_query_dct_mbox_out *out);
+			u32 *out, int outlen);
 int mlx5_core_arm_dct(struct mlx5_core_dev *dev, struct mlx5_core_dct *dct);
 
 int mlx5_core_xrcd_alloc(struct mlx5_core_dev *dev, u32 *xrcdn);
 int mlx5_core_xrcd_dealloc(struct mlx5_core_dev *dev, u32 xrcdn);
 int mlx5_core_create_dct(struct mlx5_core_dev *dev,
 			 struct mlx5_core_dct *dct,
-			 struct mlx5_create_dct_mbox_in *in);
+			 u32 *in);
 int mlx5_core_destroy_dct(struct mlx5_core_dev *dev,
 			  struct mlx5_core_dct *dct);
 int mlx5_core_create_rq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/sleepqueue.h>
 
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -72,6 +73,25 @@ linux_add_to_sleepqueue(void *wchan, struct task_struct *task,
 		ret = -ERESTARTSYS;
 	}
 	return (ret);
+}
+
+unsigned int
+linux_msleep_interruptible(unsigned int ms)
+{
+	int ret;
+
+	/* guard against invalid values */
+	if (ms == 0)
+		ms = 1;
+	ret = -pause_sbt("lnxsleep", mstosbt(ms), 0, C_HARDCLOCK | C_CATCH);
+
+	switch (ret) {
+	case -EWOULDBLOCK:
+		return (0);
+	default:
+		linux_schedule_save_interrupt_value(current, ret);
+		return (ms);
+	}
 }
 
 static int
@@ -154,6 +174,13 @@ autoremove_wake_function(wait_queue_t *wq, unsigned int state, int flags,
 	if ((ret = wake_up_task(task, state)) != 0)
 		list_del_init(&wq->task_list);
 	return (ret);
+}
+
+int
+default_wake_function(wait_queue_t *wq, unsigned int state, int flags,
+    void *key __unused)
+{
+	return (wake_up_task(wq->private, state));
 }
 
 void

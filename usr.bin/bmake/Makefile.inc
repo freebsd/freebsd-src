@@ -30,3 +30,7 @@ CFLAGS+= -DNO_PWD_OVERRIDE
 DEFAULT_SYS_PATH= .../share/mk:/usr/share/mk
 .export DEFAULT_SYS_PATH
 .endif
+
+.if ${MACHINE} != "host"
+FILEMON_H ?= ${SRCTOP}/sys/dev/filemon/filemon.h
+.endif

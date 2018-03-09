@@ -395,6 +395,7 @@ ds13rtc_gettime(device_t dev, struct timespec *ts)
 	if (sc->use_century)
 		bct.year += (tregs.month & DS13xx_B_MONTH_CENTURY) ? 0x100 : 0;
 
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct); 
 	err = clock_bcd_to_ts(&bct, ts, sc->use_ampm);
 
 	return (err);
@@ -422,6 +423,7 @@ ds13rtc_settime(device_t dev, struct timespec *ts)
 		return (write_timeword(sc, ts->tv_sec));
 
 	clock_ts_to_bcd(ts, &bct, sc->use_ampm);
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_WRITE, &bct); 
 
 	/* If the chip is in AMPM mode deal with the PM flag. */
 	pmflags = 0;

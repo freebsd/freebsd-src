@@ -72,11 +72,11 @@ g_journal_ufs_dirty(struct g_consumer *cp)
 
 	fs = NULL;
 	if (SBLOCKSIZE % cp->provider->sectorsize != 0 ||
-	    ffs_sbget(cp, &fs, -1, NULL, g_use_g_read_data) != 0) {
+	    ffs_sbget(cp, &fs, -1, M_GEOM, g_use_g_read_data) != 0) {
 		GJ_DEBUG(0, "Cannot find superblock to mark file system %s "
 		    "as dirty.", cp->provider->name);
-		if (fs != NULL)
-			g_free(fs);
+		KASSERT(fs == NULL,
+		    ("g_journal_ufs_dirty: non-NULL fs %p\n", fs));
 		return;
 	}
 	GJ_DEBUG(0, "clean=%d flags=0x%x", fs->fs_clean, fs->fs_flags);

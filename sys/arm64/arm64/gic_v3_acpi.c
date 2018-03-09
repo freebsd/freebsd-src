@@ -27,6 +27,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_acpi.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -48,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include "gic_v3_var.h"
 
 struct gic_v3_acpi_devinfo {
+	struct gic_v3_devinfo	di_gic_dinfo;
 	struct resource_list	di_rl;
 };
 
@@ -206,6 +209,41 @@ gic_v3_acpi_probe(device_t dev)
 	return (BUS_PROBE_NOWILDCARD);
 }
 
+static void
+madt_count_redistrib(ACPI_SUBTABLE_HEADER *entry, void *arg)
+{
+	struct gic_v3_softc *sc = arg;
+
+	if (entry->Type == ACPI_MADT_TYPE_GENERIC_REDISTRIBUTOR)
+		sc->gic_redists.nregions++;
+}
+
+static int
+gic_v3_acpi_count_regions(device_t dev)
+{
+	struct gic_v3_softc *sc;
+	ACPI_TABLE_MADT *madt;
+	vm_paddr_t physaddr;
+
+	sc = device_get_softc(dev);
+
+	physaddr = acpi_find_table(ACPI_SIG_MADT);
+	if (physaddr == 0)
+		return (ENXIO);
+
+	madt = acpi_map_table(physaddr, ACPI_SIG_MADT);
+	if (madt == NULL) {
+		device_printf(dev, "Unable to map the MADT\n");
+		return (ENXIO);
+	}
+
+	acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
+	    madt_count_redistrib, sc);
+	acpi_unmap_table(madt);
+
+	return (sc->gic_redists.nregions > 0 ? 0 : ENXIO);
+}
+
 static int
 gic_v3_acpi_attach(device_t dev)
 {
@@ -216,21 +254,22 @@ gic_v3_acpi_attach(device_t dev)
 	sc->dev = dev;
 	sc->gic_bus = GIC_BUS_ACPI;
 
-	/* TODO: Count these correctly */
-	sc->gic_redists.nregions = 1;
+	err = gic_v3_acpi_count_regions(dev);
+	if (err != 0)
+		goto error;
 
 	err = gic_v3_attach(dev);
 	if (err != 0)
 		goto error;
 
-	sc->gic_pic = intr_pic_register(dev, 0);
+	sc->gic_pic = intr_pic_register(dev, ACPI_INTR_XREF);
 	if (sc->gic_pic == NULL) {
 		device_printf(dev, "could not register PIC\n");
 		err = ENXIO;
 		goto error;
 	}
 
-	if (intr_pic_claim_root(dev, 0, arm_gic_v3_intr, sc,
+	if (intr_pic_claim_root(dev, ACPI_INTR_XREF, arm_gic_v3_intr, sc,
 	    GIC_LAST_SGI - GIC_FIRST_SGI + 1) != 0) {
 		err = ENXIO;
 		goto error;
@@ -242,6 +281,9 @@ gic_v3_acpi_attach(device_t dev)
 	 * functionality.
 	 */
 	gic_v3_acpi_bus_attach(dev);
+
+	if (device_get_children(dev, &sc->gic_children, &sc->gic_nchildren) !=0)
+		sc->gic_nchildren = 0;
 
 	return (0);
 
@@ -261,12 +303,14 @@ gic_v3_add_children(ACPI_SUBTABLE_HEADER *entry, void *arg)
 {
 	ACPI_MADT_GENERIC_TRANSLATOR *gict;
 	struct gic_v3_acpi_devinfo *di;
+	struct gic_v3_softc *sc;
 	device_t child, dev;
 
 	if (entry->Type == ACPI_MADT_TYPE_GENERIC_TRANSLATOR) {
 		/* We have an ITS, add it as a child */
 		gict = (ACPI_MADT_GENERIC_TRANSLATOR *)entry;
 		dev = arg;
+		sc = device_get_softc(dev);
 
 		child = device_add_child(dev, "its", -1);
 		if (child == NULL)
@@ -277,6 +321,8 @@ gic_v3_add_children(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		resource_list_add(&di->di_rl, SYS_RES_MEMORY, 0,
 		    gict->BaseAddress, gict->BaseAddress + 128 * 1024 - 1,
 		    128 * 1024);
+		di->di_gic_dinfo.gic_domain = -1;
+		sc->gic_nchildren++;
 		device_set_ivars(child, di);
 	}
 }

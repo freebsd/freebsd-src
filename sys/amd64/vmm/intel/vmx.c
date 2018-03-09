@@ -2282,6 +2282,11 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_HLT, 1);
 		vmexit->exitcode = VM_EXITCODE_HLT;
 		vmexit->u.hlt.rflags = vmcs_read(VMCS_GUEST_RFLAGS);
+		if (virtual_interrupt_delivery)
+			vmexit->u.hlt.intr_status =
+			    vmcs_read(VMCS_GUEST_INTR_STATUS);
+		else
+			vmexit->u.hlt.intr_status = 0;
 		break;
 	case EXIT_REASON_MTF:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_MTRAP, 1);
@@ -3267,12 +3272,13 @@ vmx_pending_intr(struct vlapic *vlapic, int *vecptr)
 		 * interrupt by reevaluating virtual interrupts
 		 * following Section 29.2.1 in the Intel SDM Volume 3.
 		 */
-		uint64_t val;
+		struct vm_exit *vmexit;
 		uint8_t rvi, ppr;
 
-		vmx_getreg(vlapic_vtx->vmx, vlapic->vcpuid,
-		    VMCS_IDENT(VMCS_GUEST_INTR_STATUS), &val);
-		rvi = val & APIC_TPR_INT;
+		vmexit = vm_exitinfo(vlapic->vm, vlapic->vcpuid);
+		KASSERT(vmexit->exitcode == VM_EXITCODE_HLT,
+		    ("vmx_pending_intr: exitcode not 'HLT'"));
+		rvi = vmexit->u.hlt.intr_status & APIC_TPR_INT;
 		lapic = vlapic->apic_page;
 		ppr = lapic->ppr & APIC_TPR_INT;
 		if (rvi > ppr) {

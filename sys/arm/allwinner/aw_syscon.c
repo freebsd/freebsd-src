@@ -80,5 +80,5 @@ DEFINE_CLASS_1(aw_syscon, aw_syscon_driver, aw_syscon_methods,
 static devclass_t aw_syscon_devclass;
 /* aw_syscon needs to attach prior to if_awg */
 EARLY_DRIVER_MODULE(aw_syscon, simplebus, aw_syscon_driver, aw_syscon_devclass,
-    0, 0, BUS_PASS_DEFAULT - 1000);
+    0, 0, BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(aw_syscon, 1);

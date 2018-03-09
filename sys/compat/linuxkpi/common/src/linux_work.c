@@ -454,6 +454,7 @@ bool
 linux_flush_work(struct work_struct *work)
 {
 	struct taskqueue *tq;
+	int retval;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 	    "linux_flush_work() might sleep");
@@ -463,8 +464,9 @@ linux_flush_work(struct work_struct *work)
 		return (0);
 	default:
 		tq = work->work_queue->taskqueue;
+		retval = taskqueue_poll_is_busy(tq, &work->work_task);
 		taskqueue_drain(tq, &work->work_task);
-		return (1);
+		return (retval);
 	}
 }
 
@@ -477,6 +479,7 @@ bool
 linux_flush_delayed_work(struct delayed_work *dwork)
 {
 	struct taskqueue *tq;
+	int retval;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 	    "linux_flush_delayed_work() might sleep");
@@ -490,8 +493,9 @@ linux_flush_delayed_work(struct delayed_work *dwork)
 		/* FALLTHROUGH */
 	default:
 		tq = dwork->work.work_queue->taskqueue;
+		retval = taskqueue_poll_is_busy(tq, &dwork->work.work_task);
 		taskqueue_drain(tq, &dwork->work.work_task);
-		return (1);
+		return (retval);
 	}
 }
 

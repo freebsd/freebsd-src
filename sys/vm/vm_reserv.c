@@ -564,19 +564,14 @@ vm_reserv_populate(vm_reserv_t rv, int index)
 }
 
 /*
- * Allocates a contiguous set of physical pages of the given size "npages"
- * from existing or newly created reservations.  All of the physical pages
- * must be at or above the given physical address "low" and below the given
- * physical address "high".  The given value "alignment" determines the
- * alignment of the first physical page in the set.  If the given value
- * "boundary" is non-zero, then the set of physical pages cannot cross any
- * physical address boundary that is a multiple of that value.  Both
- * "alignment" and "boundary" must be a power of two.
+ * Attempts to allocate a contiguous set of physical pages from existing
+ * reservations.  See vm_reserv_alloc_contig() for a description of the
+ * function's parameters.
  *
  * The page "mpred" must immediately precede the offset "pindex" within the
  * specified object.
  *
- * The object and free page queue must be locked.
+ * The object must be locked.
  */
 vm_page_t
 vm_reserv_extend_contig(int req, vm_object_t object, vm_pindex_t pindex,
@@ -657,13 +652,16 @@ out:
 
 /*
  * Allocates a contiguous set of physical pages of the given size "npages"
- * from existing or newly created reservations.  All of the physical pages
+ * from newly created reservations.  All of the physical pages
  * must be at or above the given physical address "low" and below the given
  * physical address "high".  The given value "alignment" determines the
  * alignment of the first physical page in the set.  If the given value
  * "boundary" is non-zero, then the set of physical pages cannot cross any
  * physical address boundary that is a multiple of that value.  Both
  * "alignment" and "boundary" must be a power of two.
+ *
+ * Callers should first invoke vm_reserv_extend_contig() to attempt an
+ * allocation from existing reservations.
  *
  * The page "mpred" must immediately precede the offset "pindex" within the
  * specified object.
@@ -897,7 +895,9 @@ out:
 }
 
 /*
- * Allocates a page from an existing reservation.
+ * Attempts to allocate a new reservation for the object, and allocates a
+ * page from that reservation.  Callers should first invoke vm_reserv_extend()
+ * to attempt an allocation from an existing reservation.
  *
  * The page "mpred" must immediately precede the offset "pindex" within the
  * specified object.
@@ -1118,6 +1118,7 @@ vm_reserv_free_page(vm_page_t m)
 	rv = vm_reserv_from_page(m);
 	if (rv->object == NULL)
 		return (FALSE);
+	vm_domain_free_assert_locked(VM_DOMAIN(rv->domain));
 	vm_reserv_depopulate(rv, m - rv->pages);
 	return (TRUE);
 }

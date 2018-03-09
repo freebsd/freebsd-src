@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -28,6 +30,8 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef MLX5_ABI_USER_H
@@ -86,6 +90,7 @@ enum mlx5_ib_alloc_ucontext_resp_mask {
 
 enum mlx5_user_cmds_supp_uhw {
 	MLX5_USER_CMDS_SUPP_UHW_QUERY_DEVICE = 1 << 0,
+	MLX5_USER_CMDS_SUPP_UHW_CREATE_AH    = 1 << 1,
 };
 
 struct mlx5_ib_alloc_ucontext_resp {
@@ -234,6 +239,12 @@ struct mlx5_ib_create_wq {
 	__u32   flags;
 	__u32   comp_mask;
 	__u32   reserved;
+};
+
+struct mlx5_ib_create_ah_resp {
+	__u32	response_length;
+	__u8	dmac[ETH_ALEN];
+	__u8	reserved[6];
 };
 
 struct mlx5_ib_create_wq_resp {

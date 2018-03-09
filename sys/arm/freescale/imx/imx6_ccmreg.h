@@ -80,9 +80,15 @@
 #define	  CCGR0_AIPS_TZ2			  (0x3 << 2)
 #define	  CCGR0_ABPHDMA				  (0x3 << 4)
 #define	CCM_CCGR1				0x06C
+#define	  CCGR1_ECSPI1				  (0x3 <<  0)
+#define	  CCGR1_ECSPI2				  (0x3 <<  2)
+#define	  CCGR1_ECSPI3				  (0x3 <<  4)
+#define	  CCGR1_ECSPI4				  (0x3 <<  6)
+#define	  CCGR1_ECSPI5				  (0x3 <<  8)
 #define	  CCGR1_ENET				  (0x3 << 10)
 #define	  CCGR1_EPIT1				  (0x3 << 12)
 #define	  CCGR1_EPIT2				  (0x3 << 14)
+#define	  CCGR1_ESAI				  (0x3 << 16)
 #define	  CCGR1_GPT				  (0x3 << 20)
 #define	  CCGR1_GPT_SERIAL			  (0x3 << 22)
 #define	CCM_CCGR2				0x070

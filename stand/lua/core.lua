@@ -33,7 +33,7 @@ local config = require("config")
 
 local core = {}
 
-local function compose_loader_cmd(cmd_name, argstr)
+local function composeLoaderCmd(cmd_name, argstr)
 	if argstr ~= nil then
 		cmd_name = cmd_name .. " " .. argstr
 	end
@@ -46,7 +46,10 @@ core.KEY_BACKSPACE	= 8
 core.KEY_ENTER		= 13
 core.KEY_DELETE		= 127
 
+-- Note that this is a decimal representation, despite the leading 0 that in
+-- other contexts (outside of Lua) may mean 'octal'
 core.KEYSTR_ESCAPE	= "\027"
+core.KEYSTR_CSI		= core.KEYSTR_ESCAPE .. "["
 
 core.MENU_RETURN	= "return"
 core.MENU_ENTRY		= "entry"
@@ -54,37 +57,37 @@ core.MENU_SEPARATOR	= "separator"
 core.MENU_SUBMENU	= "submenu"
 core.MENU_CAROUSEL_ENTRY	= "carousel_entry"
 
-function core.setVerbose(b)
-	if b == nil then
-		b = not core.verbose
+function core.setVerbose(verbose)
+	if verbose == nil then
+		verbose = not core.verbose
 	end
 
-	if b then
+	if verbose then
 		loader.setenv("boot_verbose", "YES")
 	else
 		loader.unsetenv("boot_verbose")
 	end
-	core.verbose = b
+	core.verbose = verbose
 end
 
-function core.setSingleUser(b)
-	if b == nil then
-		b = not core.su
+function core.setSingleUser(single_user)
+	if single_user == nil then
+		single_user = not core.su
 	end
 
-	if b then
+	if single_user then
 		loader.setenv("boot_single", "YES")
 	else
 		loader.unsetenv("boot_single")
 	end
-	core.su = b
+	core.su = single_user
 end
 
-function core.getACPIPresent(checkingSystemDefaults)
+function core.getACPIPresent(checking_system_defaults)
 	local c = loader.getenv("hint.acpi.0.rsdp")
 
 	if c ~= nil then
-		if checkingSystemDefaults then
+		if checking_system_defaults then
 			return true
 		end
 		-- Otherwise, respect disabled if it's set
@@ -94,12 +97,12 @@ function core.getACPIPresent(checkingSystemDefaults)
 	return false
 end
 
-function core.setACPI(b)
-	if b == nil then
-		b = not core.acpi
+function core.setACPI(acpi)
+	if acpi == nil then
+		acpi = not core.acpi
 	end
 
-	if b then
+	if acpi then
 		loader.setenv("acpi_load", "YES")
 		loader.setenv("hint.acpi.0.disabled", "0")
 		loader.unsetenv("loader.acpi_disabled_by_user")
@@ -108,14 +111,14 @@ function core.setACPI(b)
 		loader.setenv("hint.acpi.0.disabled", "1")
 		loader.setenv("loader.acpi_disabled_by_user", "1")
 	end
-	core.acpi = b
+	core.acpi = acpi
 end
 
-function core.setSafeMode(b)
-	if b == nil then
-		b = not core.sm
+function core.setSafeMode(safe_mode)
+	if safe_mode == nil then
+		safe_mode = not core.sm
 	end
-	if b then
+	if safe_mode then
 		loader.setenv("kern.smp.disabled", "1")
 		loader.setenv("hw.ata.ata_dma", "0")
 		loader.setenv("hw.ata.atapi_dma", "0")
@@ -132,7 +135,7 @@ function core.setSafeMode(b)
 		loader.unsetenv("kern.eventtimer.periodic")
 		loader.unsetenv("kern.geom.part.check_integrity")
 	end
-	core.sm = b
+	core.sm = safe_mode
 end
 
 function core.kernelList()
@@ -237,13 +240,19 @@ function core.setDefaults()
 end
 
 function core.autoboot(argstr)
-	config.loadelf()
-	loader.perform(compose_loader_cmd("autoboot", argstr))
+	-- loadelf() only if we've not already loaded a kernel
+	if loader.getenv("kernelname") == nil then
+		config.loadelf()
+	end
+	loader.perform(composeLoaderCmd("autoboot", argstr))
 end
 
 function core.boot(argstr)
-	config.loadelf()
-	loader.perform(compose_loader_cmd("boot", argstr))
+	-- loadelf() only if we've not already loaded a kernel
+	if loader.getenv("kernelname") == nil then
+		config.loadelf()
+	end
+	loader.perform(composeLoaderCmd("boot", argstr))
 end
 
 function core.isSingleUserBoot()
@@ -283,6 +292,20 @@ end
 
 function core.isSystem386()
 	return loader.machine_arch == "i386"
+end
+
+-- Is the menu skipped in the environment in which we've booted?
+function core.isMenuSkipped()
+	if core.isSerialBoot() then
+		return true
+	end
+	local c = string.lower(loader.getenv("console") or "")
+	if c:match("^efi[ ;]") ~= nil or c:match("[ ;]efi[ ;]") ~= nil then
+		return true
+	end
+
+	c = string.lower(loader.getenv("beastie_disable") or "")
+	return c == "yes"
 end
 
 -- This may be a better candidate for a 'utility' module.

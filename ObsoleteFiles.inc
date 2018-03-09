@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180306: remove DTrace scripts made obsolete by dwatch(1)
+OLD_FILES+=usr/share/dtrace/watch_execve
+OLD_FILES+=usr/share/dtrace/watch_kill
+OLD_FILES+=usr/share/dtrace/watch_vop_remove
 # 20180212: move devmatch
 OLD_FILES+=usr/sbin/devmatch
 # 20180211: remove usb.conf

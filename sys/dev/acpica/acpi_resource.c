@@ -342,7 +342,8 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
 	}
 	if (length <= 0)
 	    break;
-	if (res->Data.Address.ProducerConsumer != ACPI_CONSUMER) {
+	if (res->Type == ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64 &&
+	    res->Data.Address.ProducerConsumer != ACPI_CONSUMER) {
 	    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
 		"ignored %s %s producer\n", name,
 		acpi_address_range_name(res->Data.Address.ResourceType)));

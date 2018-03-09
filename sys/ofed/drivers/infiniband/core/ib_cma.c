@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2005 Voltaire Inc.  All rights reserved.
  * Copyright (c) 2002-2005, Network Appliance, Inc. All rights reserved.
  * Copyright (c) 1999-2005, Mellanox Technologies, Inc. All rights reserved.
@@ -31,6 +33,8 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * $FreeBSD$
  */
 
 #define	LINUXKPI_PARAM_PREFIX ibcore_
@@ -103,6 +107,7 @@ const char *__attribute_const__ rdma_event_msg(enum rdma_cm_event_type event)
 }
 EXPORT_SYMBOL(rdma_event_msg);
 
+static int cma_check_linklocal(struct rdma_dev_addr *, struct sockaddr *);
 static void cma_add_one(struct ib_device *device);
 static void cma_remove_one(struct ib_device *device, void *client_data);
 
@@ -528,7 +533,7 @@ static int cma_translate_addr(struct sockaddr *addr, struct rdma_dev_addr *dev_a
 	int ret;
 
 	if (addr->sa_family != AF_IB) {
-		ret = rdma_translate_ip(addr, dev_addr, NULL);
+		ret = rdma_translate_ip(addr, dev_addr);
 	} else {
 		cma_translate_ib((struct sockaddr_ib *) addr, dev_addr);
 		ret = 0;
@@ -1111,6 +1116,17 @@ static void cma_save_ip4_info(struct sockaddr_in *src_addr,
 	}
 }
 
+static void cma_ip6_clear_scope_id(struct in6_addr *addr)
+{
+	/* make sure link local scope ID gets zeroed */
+	if (IN6_IS_SCOPE_LINKLOCAL(addr) ||
+	    IN6_IS_ADDR_MC_INTFACELOCAL(addr)) {
+		/* use byte-access to be alignment safe */
+		addr->s6_addr[2] = 0;
+		addr->s6_addr[3] = 0;
+	}
+}
+
 static void cma_save_ip6_info(struct sockaddr_in6 *src_addr,
 			      struct sockaddr_in6 *dst_addr,
 			      struct cma_hdr *hdr,
@@ -1123,6 +1139,7 @@ static void cma_save_ip6_info(struct sockaddr_in6 *src_addr,
 			.sin6_addr = hdr->dst_addr.ip6,
 			.sin6_port = local_port,
 		};
+		cma_ip6_clear_scope_id(&src_addr->sin6_addr);
 	}
 
 	if (dst_addr) {
@@ -1132,6 +1149,7 @@ static void cma_save_ip6_info(struct sockaddr_in6 *src_addr,
 			.sin6_addr = hdr->src_addr.ip6,
 			.sin6_port = hdr->port,
 		};
+		cma_ip6_clear_scope_id(&dst_addr->sin6_addr);
 	}
 }
 
@@ -1390,6 +1408,7 @@ static bool cma_match_private_data(struct rdma_id_private *id_priv,
 		ip6_addr = ((struct sockaddr_in6 *)addr)->sin6_addr;
 		if (cma_get_ip_ver(hdr) != 6)
 			return false;
+		cma_ip6_clear_scope_id(&ip6_addr);
 		if (!cma_any_addr(addr) &&
 		    memcmp(&hdr->dst_addr.ip6, &ip6_addr, sizeof(ip6_addr)))
 			return false;
@@ -2089,7 +2108,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	mutex_lock_nested(&conn_id->handler_mutex, SINGLE_DEPTH_NESTING);
 	conn_id->state = RDMA_CM_CONNECT;
 
-	ret = rdma_translate_ip(laddr, &conn_id->id.route.addr.dev_addr, NULL);
+	ret = rdma_translate_ip(laddr, &conn_id->id.route.addr.dev_addr);
 	if (ret) {
 		mutex_unlock(&conn_id->handler_mutex);
 		rdma_destroy_id(new_cm_id);
@@ -2418,8 +2437,17 @@ static int cma_resolve_iw_route(struct rdma_id_private *id_priv, int timeout_ms)
 
 static int iboe_tos_to_sl(struct net_device *ndev, int tos)
 {
-	/* TODO: Implement this function */
-	return 0;
+	/* get service level, SL, from type of service, TOS */
+	int sl = tos;
+
+	/* range check input argument and map 1:1 */
+	if (sl > 255)
+		sl = 255;
+	else if (sl < 0)
+		sl = 0;
+
+	/* final mappings are done by the vendor specific drivers */
+	return sl;
 }
 
 static enum ib_gid_type cma_route_gid_type(enum rdma_network_type network_type,
@@ -2757,7 +2785,8 @@ static int cma_bind_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 			struct sockaddr_in6 *src_addr6 = (struct sockaddr_in6 *) src_addr;
 			struct sockaddr_in6 *dst_addr6 = (struct sockaddr_in6 *) dst_addr;
 			src_addr6->sin6_scope_id = dst_addr6->sin6_scope_id;
-			if (IN6_IS_SCOPE_LINKLOCAL(&dst_addr6->sin6_addr))
+			if (IN6_IS_SCOPE_LINKLOCAL(&dst_addr6->sin6_addr) ||
+			    IN6_IS_ADDR_MC_INTFACELOCAL(&dst_addr6->sin6_addr))
 				id->route.addr.dev_addr.bound_dev_if = dst_addr6->sin6_scope_id;
 		} else if (dst_addr->sa_family == AF_IB) {
 			((struct sockaddr_ib *) src_addr)->sib_pkey =
@@ -2794,6 +2823,10 @@ int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 		if (dst_addr->sa_family == AF_IB) {
 			ret = cma_resolve_ib_addr(id_priv);
 		} else {
+			ret = cma_check_linklocal(&id->route.addr.dev_addr, dst_addr);
+			if (ret)
+				goto err;
+
 			ret = rdma_resolve_ip(&addr_client, cma_src_addr(id_priv),
 					      dst_addr, &id->route.addr.dev_addr,
 					      timeout_ms, addr_handler, id_priv);
@@ -3087,13 +3120,19 @@ static int cma_check_linklocal(struct rdma_dev_addr *dev_addr,
 
 	sin6 = *(struct sockaddr_in6 *)addr;
 
-	if (!(IN6_IS_SCOPE_LINKLOCAL(&sin6.sin6_addr)))
-		return 0;
+	if (IN6_IS_SCOPE_LINKLOCAL(&sin6.sin6_addr) ||
+	    IN6_IS_ADDR_MC_INTFACELOCAL(&sin6.sin6_addr)) {
+		bool failure;
 
-	if (sa6_recoverscope(&sin6) || sin6.sin6_scope_id == 0)
-		return -EINVAL;
+		CURVNET_SET_QUIET(dev_addr->net);
+		failure = sa6_recoverscope(&sin6) || sin6.sin6_scope_id == 0;
+		CURVNET_RESTORE();
 
-	dev_addr->bound_dev_if = sin6.sin6_scope_id;
+		/* check if IPv6 scope ID is not set */
+		if (failure)
+			return -EINVAL;
+		dev_addr->bound_dev_if = sin6.sin6_scope_id;
+	}
 #endif
 	return 0;
 }
@@ -3224,6 +3263,8 @@ static int cma_format_hdr(void *hdr, struct rdma_id_private *id_priv)
 		cma_hdr->src_addr.ip6 = src6->sin6_addr;
 		cma_hdr->dst_addr.ip6 = dst6->sin6_addr;
 		cma_hdr->port = src6->sin6_port;
+		cma_ip6_clear_scope_id(&cma_hdr->src_addr.ip6);
+		cma_ip6_clear_scope_id(&cma_hdr->dst_addr.ip6);
 	}
 	return 0;
 }
@@ -4133,7 +4174,6 @@ static void cma_add_one(struct ib_device *device)
 	struct cma_device *cma_dev;
 	struct rdma_id_private *id_priv;
 	unsigned int i;
-	unsigned long supported_gids = 0;
 
 	cma_dev = kmalloc(sizeof *cma_dev, GFP_KERNEL);
 	if (!cma_dev)
@@ -4150,10 +4190,23 @@ static void cma_add_one(struct ib_device *device)
 		return;
 	}
 	for (i = rdma_start_port(device); i <= rdma_end_port(device); i++) {
+		unsigned long supported_gids;
+		unsigned int default_gid_type;
+
 		supported_gids = roce_gid_type_mask_support(device, i);
-		WARN_ON(!supported_gids);
+
+		if (WARN_ON(!supported_gids)) {
+			/* set something valid */
+			default_gid_type = 0;
+		} else if (test_bit(IB_GID_TYPE_ROCE_UDP_ENCAP, &supported_gids)) {
+			/* prefer RoCEv2, if supported */
+			default_gid_type = IB_GID_TYPE_ROCE_UDP_ENCAP;
+		} else {
+			default_gid_type = find_first_bit(&supported_gids,
+			    BITS_PER_LONG);
+		}
 		cma_dev->default_gid_type[i - rdma_start_port(device)] =
-			find_first_bit(&supported_gids, BITS_PER_LONG);
+		    default_gid_type;
 	}
 
 	init_completion(&cma_dev->comp);

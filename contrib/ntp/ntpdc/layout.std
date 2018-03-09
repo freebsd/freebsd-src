@@ -168,7 +168,7 @@ offsetof(v6_flag) = 56
 offsetof(unused4) = 60
 offsetof(peer6) = 64
 
-sizeof(struct info_sys_stats) = 44
+sizeof(struct info_sys_stats) = 52
 offsetof(timeup) = 0
 offsetof(timereset) = 4
 offsetof(denied) = 8
@@ -180,6 +180,8 @@ offsetof(processed) = 28
 offsetof(badauth) = 32
 offsetof(received) = 36
 offsetof(limitrejected) = 40
+offsetof(lamport) = 44
+offsetof(tsrounding) = 48
 
 sizeof(struct old_info_sys_stats) = 40
 offsetof(timeup) = 0
@@ -260,21 +262,22 @@ sizeof(struct info_restrict) = 56
 offsetof(addr) = 0
 offsetof(mask) = 4
 offsetof(count) = 8
-offsetof(flags) = 12
+offsetof(rflags) = 12
 offsetof(mflags) = 14
 offsetof(v6_flag) = 16
 offsetof(unused1) = 20
 offsetof(addr6) = 24
 offsetof(mask6) = 40
 
-sizeof(struct conf_restrict) = 48
+sizeof(struct conf_restrict) = 52
 offsetof(addr) = 0
 offsetof(mask) = 4
-offsetof(flags) = 8
-offsetof(mflags) = 10
-offsetof(v6_flag) = 12
-offsetof(addr6) = 16
-offsetof(mask6) = 32
+offsetof(ippeerlimit) = 8
+offsetof(flags) = 10
+offsetof(mflags) = 12
+offsetof(v6_flag) = 16
+offsetof(addr6) = 20
+offsetof(mask6) = 36
 
 sizeof(struct info_monitor_1) = 72
 offsetof(avg_int) = 0

@@ -29,9 +29,17 @@
 -- $FreeBSD$
 --
 
+-- The cli module should be included first here. Some of the functions that it
+-- defines are necessary for the Lua-based loader to operate in general.
+-- Other modules will also need some of the functions it defines to safely
+-- execute loader commands.
 require("cli")
+local core = require("core")
 local config = require("config")
-local menu = require("menu")
+local menu
+if not core.isMenuSkipped() then
+	menu = require("menu")
+end
 local password = require("password")
 
 local result = lfs.attributes("/boot/lua/local.lua")
@@ -42,4 +50,10 @@ end
 
 config.load()
 password.check()
-menu.run()
+-- menu might be disabled
+if menu ~= nil then
+	menu.run()
+else
+	-- Load kernel/modules before we go
+	config.loadelf()
+end

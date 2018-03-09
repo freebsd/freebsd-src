@@ -307,12 +307,12 @@ typedef struct ifstats_row_tag {
 	sockaddr_u	bcast;
 	int		enabled;
 	u_int		flags;
-	int		mcast_count;
+	u_int		mcast_count;
 	char		name[32];
-	int		peer_count;
-	int		received;
-	int		sent;
-	int		send_errors;
+	u_int		peer_count;
+	u_int		received;
+	u_int		sent;
+	u_int		send_errors;
 	u_int		ttl;
 	u_int		uptime;
 } ifstats_row;
@@ -1452,6 +1452,8 @@ when(
 	else
 		return 0;
 
+	if (ts->l_ui < lasttime->l_ui)
+		return -1;
 	return (ts->l_ui - lasttime->l_ui);
 }
 
@@ -1490,7 +1492,14 @@ prettyinterval(
 	}
 
 	diff = (diff + 11) / 24;
-	snprintf(buf, cb, "%ldd", diff);
+	if (diff <= 999) {
+		snprintf(buf, cb, "%ldd", diff);
+		return buf;
+	}
+
+	/* years are only approximated... */
+	diff = (long)floor(diff / 365.25 + 0.5);
+	snprintf(buf, cb, "%ldy", diff);
 	return buf;
 }
 
@@ -1833,8 +1842,12 @@ doprintpeers(
 		if (!have_srchost)
 			strlcpy(clock_name, nntohost(&srcadr),
 				sizeof(clock_name));
+		/* wide and long source - space over on next line */
+		/* allow for host + sp if > 1 and regular tally + source + sp */
 		if (wideremote && 15 < strlen(clock_name))
-			fprintf(fp, "%c%s\n                 ", c, clock_name);
+			fprintf(fp, "%c%s\n%*s", c, clock_name,
+				((numhosts > 1) ? (int)maxhostlen + 1 : 0)
+							+ 1 + 15 + 1, "");
 		else
 			fprintf(fp, "%c%-15.15s ", c, clock_name);
 		if (!have_da_rid) {
@@ -2225,14 +2238,13 @@ config (
 	col = -1;
 	if (1 == sscanf(resp, "column %d syntax error", &col)
 	    && col >= 0 && (size_t)col <= strlen(cfgcmd) + 1) {
-		if (interactive) {
-			printf("______");	/* "ntpq> " */
-			printf("________");	/* ":config " */
-		} else
+		if (interactive)
+			fputs("             *", stdout); /* "ntpq> :config " */
+		else
 			printf("%s\n", cfgcmd);
-		for (i = 1; i < col; i++)
-			putchar('_');
-		printf("^\n");
+		for (i = 0; i < col; i++)
+			fputc('_', stdout);
+		fputs("^\n", stdout);
 	}
 	printf("%s\n", resp);
 	free(resp);
@@ -3277,7 +3289,7 @@ validate_ifnum(
 		return;
 	if (prow->ifnum + 1 <= ifnum) {
 		if (*pfields < IFSTATS_FIELDS)
-			fprintf(fp, "Warning: incomplete row with %d (of %d) fields",
+			fprintf(fp, "Warning: incomplete row with %d (of %d) fields\n",
 				*pfields, IFSTATS_FIELDS);
 		*pfields = 0;
 		prow->ifnum = ifnum;
@@ -3314,7 +3326,7 @@ another_ifstats_field(
 	"==============================================================================\n");
 	 */
 	fprintf(fp,
-		"%3u %-24.24s %c %4x %3d %2d %6d %6d %6d %5d %8d\n"
+		"%3u %-24.24s %c %4x %3u %2u %6u %6u %6u %5u %8d\n"
 		"    %s\n",
 		prow->ifnum, prow->name,
 		(prow->enabled)
@@ -3414,7 +3426,7 @@ ifstats(
 
 		case 'm':
 			if (1 == sscanf(tag, mc_fmt, &ui) &&
-			    1 == sscanf(val, "%d", &row.mcast_count))
+			    1 == sscanf(val, "%u", &row.mcast_count))
 				comprende = TRUE;
 			break;
 
@@ -3435,31 +3447,31 @@ ifstats(
 
 		case 'p':
 			if (1 == sscanf(tag, pc_fmt, &ui) &&
-			    1 == sscanf(val, "%d", &row.peer_count))
+			    1 == sscanf(val, "%u", &row.peer_count))
 				comprende = TRUE;
 			break;
 
 		case 'r':
 			if (1 == sscanf(tag, rx_fmt, &ui) &&
-			    1 == sscanf(val, "%d", &row.received))
+			    1 == sscanf(val, "%u", &row.received))
 				comprende = TRUE;
 			break;
 
 		case 't':
 			if (1 == sscanf(tag, tl_fmt, &ui) &&
-			    1 == sscanf(val, "%d", &row.ttl))
+			    1 == sscanf(val, "%u", &row.ttl))
 				comprende = TRUE;
 			else if (1 == sscanf(tag, tx_fmt, &ui) &&
-				 1 == sscanf(val, "%d", &row.sent))
+				 1 == sscanf(val, "%u", &row.sent))
 				comprende = TRUE;
 			else if (1 == sscanf(tag, txerr_fmt, &ui) &&
-				 1 == sscanf(val, "%d", &row.send_errors))
+				 1 == sscanf(val, "%u", &row.send_errors))
 				comprende = TRUE;
 			break;
 
 		case 'u':
 			if (1 == sscanf(tag, up_fmt, &ui) &&
-			    1 == sscanf(val, "%d", &row.uptime))
+			    1 == sscanf(val, "%u", &row.uptime))
 				comprende = TRUE;
 			break;
 		}
@@ -3472,7 +3484,7 @@ ifstats(
 		}
 	}
 	if (fields != IFSTATS_FIELDS)
-		fprintf(fp, "Warning: incomplete row with %d (of %d) fields",
+		fprintf(fp, "Warning: incomplete row with %d (of %d) fields\n",
 			fields, IFSTATS_FIELDS);
 
 	fflush(fp);
@@ -3847,6 +3859,10 @@ sysstats(
 	VDC_INIT("ss_limited",		"rate limited:         ", NTP_STR),
 	VDC_INIT("ss_kodsent",		"KoD responses:        ", NTP_STR),
 	VDC_INIT("ss_processed",	"processed for time:   ", NTP_STR),
+#if 0
+	VDC_INIT("ss_lamport",		"Lamport violations:    ", NTP_STR),
+	VDC_INIT("ss_tsrounding",	"bad timestamp rounding:", NTP_STR),
+#endif
 	VDC_INIT(NULL,			NULL,			  0)
     };
 

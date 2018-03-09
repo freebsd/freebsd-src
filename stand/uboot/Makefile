@@ -2,10 +2,8 @@
 
 .include <bsd.init.mk>
 
-SUBDIR=	lib
+SUBDIR.yes=	lib
 
-.if ${MK_FDT} != "no"
-SUBDIR+=fdt
-.endif
+SUBDIR.${MK_FDT}+=fdt
 
 .include <bsd.subdir.mk>

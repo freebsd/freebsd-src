@@ -429,6 +429,7 @@ opalpci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 		    config_addr, reg, vtophys(&word));
 		break;
 	default:
+		error = OPAL_SUCCESS;
 		word = 0xffffffff;
 	}
 

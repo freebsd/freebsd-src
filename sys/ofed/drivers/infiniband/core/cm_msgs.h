@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2004, 2011 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
@@ -30,7 +32,10 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS THE
  * SOFTWARE.
+ *
+ * $FreeBSD$
  */
+
 #if !defined(CM_MSGS_H)
 #define CM_MSGS_H
 

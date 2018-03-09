@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 27, 2018
+.Dd February 26, 2018
 .Dt CAP_GRP 3
 .Os
 .Sh NAME
@@ -103,7 +103,7 @@ The
 function limits the functions allowed in the service.
 The
 .Fa cmds
-vriable can be set to
+variable can be set to
 .Dv getgrent ,
 .Dv getgrnam ,
 .Dv getgrgid ,
@@ -213,10 +213,10 @@ cap_close(capgrp);
 .Xr getgrgid_r 3 ,
 .Xr getgrnam 3 ,
 .Xr getgrnam_r 3 ,
-.Xr nv 3 ,
 .Xr setgrent 3 ,
 .Xr setgroupent 3 ,
-.Xr capsicum 4
+.Xr capsicum 4 ,
+.Xr nv 9
 .Sh AUTHORS
 The
 .Nm cap_grp

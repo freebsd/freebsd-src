@@ -51,12 +51,22 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+static volatile sig_atomic_t siginfo;
+
 static void usage(void);
+
+static void
+siginfo_handler(int sig __unused)
+{
+
+	siginfo = 1;
+}
 
 int
 main(int argc, char *argv[])
@@ -65,12 +75,12 @@ main(int argc, char *argv[])
 	FTSENT *p;
 	u_long clear, newflags, set;
 	long val;
-	int Hflag, Lflag, Rflag, fflag, hflag, vflag;
+	int Hflag, Lflag, Rflag, fflag, hflag, vflag, xflag;
 	int ch, fts_options, oct, rval;
 	char *flags, *ep;
 
-	Hflag = Lflag = Rflag = fflag = hflag = vflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRfhv")) != -1)
+	Hflag = Lflag = Rflag = fflag = hflag = vflag = xflag = 0;
+	while ((ch = getopt(argc, argv, "HLPRfhvx")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -95,6 +105,9 @@ main(int argc, char *argv[])
 		case 'v':
 			vflag++;
 			break;
+		case 'x':
+			xflag = 1;
+			break;
 		case '?':
 		default:
 			usage();
@@ -104,6 +117,8 @@ main(int argc, char *argv[])
 
 	if (argc < 2)
 		usage();
+
+	(void)signal(SIGINFO, siginfo_handler);
 
 	if (Rflag) {
 		if (hflag)
@@ -123,6 +138,8 @@ main(int argc, char *argv[])
 	} else {
 		fts_options = FTS_LOGICAL;
 	}
+	if (xflag)
+		fts_options |= FTS_XDEV;
 
 	flags = *argv;
 	if (*flags >= '0' && *flags <= '7') {
@@ -183,13 +200,14 @@ main(int argc, char *argv[])
 		    atflag) == -1 && !fflag) {
 			warn("%s", p->fts_path);
 			rval = 1;
-		} else if (vflag) {
+		} else if (vflag || siginfo) {
 			(void)printf("%s", p->fts_path);
-			if (vflag > 1)
+			if (vflag > 1 || siginfo)
 				(void)printf(": 0%lo -> 0%lo",
 				    (u_long)p->fts_statp->st_flags,
 				    newflags);
 			(void)printf("\n");
+			siginfo = 0;
 		}
 	}
 	if (errno)
@@ -201,6 +219,6 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: chflags [-fhv] [-R [-H | -L | -P]] flags file ...\n");
+	    "usage: chflags [-fhvx] [-R [-H | -L | -P]] flags file ...\n");
 	exit(1);
 }

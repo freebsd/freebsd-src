@@ -177,7 +177,8 @@ CheckAutoObj() { \
 	fi; \
 }
 .if !empty(__objdir)
-.if ${.CURDIR} == ${__objdir}
+.if ${.CURDIR} == ${__objdir} || \
+    (exists(${__objdir}) && ${.TARGETS:M*install*} == ${.TARGETS})
 __objdir_writable?= yes
 .elif empty(__objdir_writable)
 __objdir_writable!= \

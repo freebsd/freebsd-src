@@ -489,7 +489,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 				break;
 			case PAGE_SIZE_16K:	/* 16KB */
 				reg |=
-				    GITS_BASER_PSZ_4K << GITS_BASER_PSZ_SHIFT;
+				    GITS_BASER_PSZ_16K << GITS_BASER_PSZ_SHIFT;
 				break;
 			case PAGE_SIZE_64K:	/* 64KB */
 				reg |=
@@ -502,7 +502,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 			/* Read back to check */
 			tmp = gic_its_read_8(sc, GITS_BASER(i));
 
-			/* Do the snareability masks line up? */
+			/* Do the shareability masks line up? */
 			if ((tmp & GITS_BASER_SHARE_MASK) !=
 			    (reg & GITS_BASER_SHARE_MASK)) {
 				share = (tmp & GITS_BASER_SHARE_MASK) >>
@@ -693,6 +693,10 @@ gicv3_its_attach(device_t dev)
 	int domain, err, i, rid;
 
 	sc = device_get_softc(dev);
+
+	sc->sc_irq_length = gicv3_get_nirqs(dev);
+	sc->sc_irq_base = GIC_FIRST_LPI;
+	sc->sc_irq_base += device_get_unit(dev) * sc->sc_irq_length;
 
 	rid = 0;
 	sc->sc_its_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
@@ -1666,11 +1670,6 @@ gicv3_its_fdt_attach(device_t dev)
 	int err;
 
 	sc = device_get_softc(dev);
-
-	sc->sc_irq_length = gicv3_get_nirqs(dev);
-	sc->sc_irq_base = GIC_FIRST_LPI;
-	sc->sc_irq_base += device_get_unit(dev) * sc->sc_irq_length;
-
 	err = gicv3_its_attach(dev);
 	if (err != 0)
 		return (err);
@@ -1730,18 +1729,18 @@ gicv3_its_acpi_attach(device_t dev)
 	struct gicv3_its_softc *sc;
 	int err;
 
+	sc = device_get_softc(dev);
 	err = gicv3_its_attach(dev);
 	if (err != 0)
 		return (err);
 
-	sc = device_get_softc(dev);
-
-	sc->sc_pic = intr_pic_register(dev, 1);
+	sc->sc_pic = intr_pic_register(dev,
+	    device_get_unit(dev) + ACPI_MSI_XREF);
 	intr_pic_add_handler(device_get_parent(dev), sc->sc_pic,
 	    gicv3_its_intr, sc, GIC_FIRST_LPI, LPI_NIRQS);
 
 	/* Register this device to handle MSI interrupts */
-	intr_msi_register(dev, 1);
+	intr_msi_register(dev, device_get_unit(dev) + ACPI_MSI_XREF);
 
 	return (0);
 }

@@ -43,7 +43,7 @@
 #define MPS_PRI_REQ_FRAMES	128
 #define MPS_EVT_REPLY_FRAMES	32
 #define MPS_REPLY_FRAMES	MPS_REQ_FRAMES
-#define MPS_CHAIN_FRAMES	2048
+#define MPS_CHAIN_FRAMES	16384
 #define MPS_MAXIO_PAGES		(-1)
 #define MPS_SENSE_LEN		SSD_FULL_SIZE
 #define MPS_MSI_MAX		1
@@ -378,7 +378,6 @@ struct mps_softc {
 	bus_dmamap_t			sense_map;
 
 	uint8_t				*chain_frames;
-	bus_addr_t			chain_busaddr;
 	bus_dma_tag_t			chain_dmat;
 	bus_dmamap_t			chain_map;
 

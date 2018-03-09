@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Intel Corporation. All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
@@ -31,6 +33,8 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * $FreeBSD$
  */
 
 #include <linux/module.h>
@@ -38,6 +42,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/netdevice.h>
+#include <linux/in6.h>
 
 #include <rdma/ib_cache.h>
 
@@ -331,29 +336,12 @@ int ib_cache_gid_add(struct ib_device *ib_dev, u8 port,
 	struct ib_gid_table *table;
 	int ix;
 	int ret = 0;
-	struct net_device *idev;
 	int empty;
 
 	table = ports_table[port - rdma_start_port(ib_dev)];
 
 	if (!memcmp(gid, &zgid, sizeof(*gid)))
 		return -EINVAL;
-
-	if (ib_dev->get_netdev) {
-		idev = ib_dev->get_netdev(ib_dev, port);
-		if (idev && attr->ndev != idev) {
-			union ib_gid default_gid;
-
-			/* Adding default GIDs in not permitted */
-			make_default_gid(idev, &default_gid);
-			if (!memcmp(gid, &default_gid, sizeof(*gid))) {
-				dev_put(idev);
-				return -EPERM;
-			}
-		}
-		if (idev)
-			dev_put(idev);
-	}
 
 	mutex_lock(&table->lock);
 	write_lock_irq(&table->rwlock);
@@ -698,6 +686,16 @@ void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
 	make_default_gid(ndev, &gid);
 	memset(&gid_attr, 0, sizeof(gid_attr));
 	gid_attr.ndev = ndev;
+
+	/* Default GID is created using unique GUID and local subnet prefix,
+	 * as described in section 4.1.1 and 3.5.10 in IB spec 1.3.
+	 * Therefore don't create RoCEv2 default GID based on it that
+	 * resembles as IPv6 GID based on link local address when IPv6 is
+	 * disabled in kernel.
+	 */
+#ifndef INET6
+	gid_type_mask &= ~BIT(IB_GID_TYPE_ROCE_UDP_ENCAP);
+#endif
 
 	for (gid_type = 0; gid_type < IB_GID_TYPE_SIZE; ++gid_type) {
 		int ix;

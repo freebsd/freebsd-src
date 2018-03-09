@@ -76,13 +76,17 @@ struct wait_queue_head {
  * renamed and furthermore must be the default wait queue callback.
  */
 extern wait_queue_func_t autoremove_wake_function;
+extern wait_queue_func_t default_wake_function;
 
-#define	DEFINE_WAIT(name)						\
+#define	DEFINE_WAIT_FUNC(name, function)				\
 	wait_queue_t name = {						\
 		.private = current,					\
-		.func = autoremove_wake_function,			\
+		.func = function,					\
 		.task_list = LINUX_LIST_HEAD_INIT(name.task_list)	\
 	}
+
+#define	DEFINE_WAIT(name) \
+	DEFINE_WAIT_FUNC(name, autoremove_wake_function)
 
 #define	DECLARE_WAITQUEUE(name, task)					\
 	wait_queue_t name = {						\
@@ -190,11 +194,19 @@ int linux_wait_event_common(wait_queue_head_t *, wait_queue_t *, int,
 })
 
 /*
- * Hold the (locked) spinlock when testing the cond.
+ * The passed spinlock is held when testing the condition.
  */
 #define	wait_event_interruptible_lock_irq(wqh, cond, lock) ({		\
 	__wait_event_common(wqh, cond, MAX_SCHEDULE_TIMEOUT,		\
 	    TASK_INTERRUPTIBLE, &(lock));				\
+})
+
+/*
+ * The passed spinlock is held when testing the condition.
+ */
+#define	wait_event_lock_irq(wqh, cond, lock) ({			\
+	__wait_event_common(wqh, cond, MAX_SCHEDULE_TIMEOUT,	\
+	    TASK_UNINTERRUPTIBLE, &(lock));			\
 })
 
 static inline void
@@ -249,6 +261,8 @@ void linux_wake_up_atomic_t(atomic_t *);
 int linux_wait_on_atomic_t(atomic_t *, unsigned int);
 
 #define	wake_up_bit(word, bit)		linux_wake_up_bit(word, bit)
+#define	wait_on_bit(word, bit, state)					\
+	linux_wait_on_bit_timeout(word, bit, state, MAX_SCHEDULE_TIMEOUT)
 #define	wait_on_bit_timeout(word, bit, state, timeout)			\
 	linux_wait_on_bit_timeout(word, bit, state, timeout)
 #define	wake_up_atomic_t(a)		linux_wake_up_atomic_t(a)

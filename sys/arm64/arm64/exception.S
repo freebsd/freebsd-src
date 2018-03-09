@@ -26,6 +26,7 @@
  */
 
 #include <machine/asm.h>
+#include <machine/armreg.h>
 __FBSDID("$FreeBSD$");
 
 #include "assym.s"
@@ -114,9 +115,11 @@ __FBSDID("$FreeBSD$");
 .endm
 
 .macro	do_ast
-	/* Disable interrupts */
 	mrs	x19, daif
+	/* Make sure the IRQs are enabled before calling ast() */
+	bic	x19, x19, #PSR_I
 1:
+	/* Disable interrupts */
 	msr	daifset, #2
 
 	/* Read the current thread flags */

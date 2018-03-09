@@ -34,7 +34,7 @@ typedef	__time_t	time_t;
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
 struct semid_ds_old {
 	struct ipc_perm_old sem_perm;	/* operation permission struct */
-	struct sem	*sem_base;	/* pointer to first semaphore in set */
+	struct sem	*__sem_base;	/* pointer to first semaphore in set */
 	unsigned short	sem_nsems;	/* number of sems in set */
 	time_t		sem_otime;	/* last operation time */
 	long		sem_pad1;	/* SVABI/386 says I need this here */
@@ -48,7 +48,7 @@ struct semid_ds_old {
 
 struct semid_ds {
 	struct ipc_perm	sem_perm;	/* operation permission struct */
-	struct sem	*sem_base;	/* pointer to first semaphore in set */
+	struct sem	*__sem_base;	/* pointer to first semaphore in set */
 	unsigned short	sem_nsems;	/* number of sems in set */
 	time_t		sem_otime;	/* last operation time */
 	time_t		sem_ctime;	/* last change time */
@@ -76,6 +76,7 @@ union semun_old {
 };
 #endif
 
+#if defined(_KERNEL) || defined(_WANT_SEMUN)
 /*
  * semctl's arg parameter structure
  */
@@ -84,6 +85,7 @@ union semun {
 	struct		semid_ds *buf;	/* buffer for IPC_STAT & IPC_SET */
 	unsigned short	*array;		/* array for GETALL & SETALL */
 };
+#endif
 
 /*
  * commands for semctl

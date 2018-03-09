@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2005 Intel Inc. All rights reserved.
  * Copyright (c) 2005-2006 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2014 Intel Corporation.  All rights reserved.
@@ -30,6 +32,8 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * $FreeBSD$
  */
 
 #include <linux/slab.h>
@@ -99,8 +103,8 @@ void ib_cancel_rmpp_recvs(struct ib_mad_agent_private *agent)
 	spin_unlock_irqrestore(&agent->lock, flags);
 
 	list_for_each_entry(rmpp_recv, &agent->rmpp_list, list) {
-		cancel_delayed_work(&rmpp_recv->timeout_work);
-		cancel_delayed_work(&rmpp_recv->cleanup_work);
+		cancel_delayed_work_sync(&rmpp_recv->timeout_work);
+		cancel_delayed_work_sync(&rmpp_recv->cleanup_work);
 	}
 
 	flush_workqueue(agent->qp_info->port_priv->wq);

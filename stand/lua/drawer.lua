@@ -43,9 +43,8 @@ local fbsd_logo_v
 local orb_color
 local orb
 local none
-local none_shifted = false
 
-local function menu_entry_name(drawing_menu, entry)
+local function menuEntryName(drawing_menu, entry)
 	local name_handler = drawer.menu_name_handlers[entry.entry_type]
 
 	if name_handler ~= nil then
@@ -55,15 +54,6 @@ local function menu_entry_name(drawing_menu, entry)
 		return entry.name()
 	end
 	return entry.name
-end
-
-local function shift_brand_text(shift)
-	drawer.brand_position.x = drawer.brand_position.x + shift.x
-	drawer.brand_position.y = drawer.brand_position.y + shift.y
-	drawer.menu_position.x = drawer.menu_position.x + shift.x
-	drawer.menu_position.y = drawer.menu_position.y + shift.y
-	drawer.box_pos_dim.x = drawer.box_pos_dim.x + shift.x
-	drawer.box_pos_dim.y = drawer.box_pos_dim.y + shift.y
 end
 
 fbsd_logo = {
@@ -205,9 +195,11 @@ drawer.menu_name_handlers = {
 }
 
 drawer.brand_position = {x = 2, y = 1}
-drawer.logo_position = {x = 46, y = 1}
-drawer.menu_position = {x = 6, y = 11}
-drawer.box_pos_dim = {x = 3, y = 10, w = 41, h = 11}
+drawer.logo_position = {x = 46, y = 4}
+drawer.menu_position = {x = 5, y = 10}
+drawer.frame_size = {w = 42, h = 13}
+drawer.default_shift = {x = 0, y = 0}
+drawer.shift = drawer.default_shift
 
 drawer.branddefs = {
 	-- Indexed by valid values for loader_brand in loader.conf(5). Valid
@@ -256,6 +248,36 @@ drawer.logodefs = {
 	},
 }
 
+drawer.frame_styles = {
+	-- Indexed by valid values for loader_menu_frame in loader.conf(5).
+	-- All of the keys appearing below must be set for any menu frame style
+	-- added to drawer.frame_styles.
+	["ascii"] = {
+		horizontal	= "-",
+		vertical	= "|",
+		top_left	= "+",
+		bottom_left	= "+",
+		top_right	= "+",
+		bottom_right	= "+",
+	},
+	["single"] = {
+		horizontal	= "\xC4",
+		vertical	= "\xB3",
+		top_left	= "\xDA",
+		bottom_left	= "\xC0",
+		top_right	= "\xBF",
+		bottom_right	= "\xD9",
+	},
+	["double"] = {
+		horizontal	= "\xCD",
+		vertical	= "\xBA",
+		top_left	= "\xC9",
+		bottom_left	= "\xC8",
+		top_right	= "\xBB",
+		bottom_right	= "\xBC",
+	},
+}
+
 function drawer.drawscreen(menu_opts)
 	-- drawlogo() must go first.
 	-- it determines the positions of other elements
@@ -265,19 +287,22 @@ function drawer.drawscreen(menu_opts)
 	return drawer.drawmenu(menu_opts)
 end
 
-function drawer.drawmenu(m)
+function drawer.drawmenu(menudef)
 	local x = drawer.menu_position.x
 	local y = drawer.menu_position.y
+
+	x = x + drawer.shift.x
+	y = y + drawer.shift.y
 
 	-- print the menu and build the alias table
 	local alias_table = {}
 	local entry_num = 0
-	local menu_entries = m.entries
+	local menu_entries = menudef.entries
 	local effective_line_num = 0
 	if type(menu_entries) == "function" then
 		menu_entries = menu_entries()
 	end
-	for line_num, e in ipairs(menu_entries) do
+	for _, e in ipairs(menu_entries) do
 		-- Allow menu items to be conditionally visible by specifying
 		-- a visible function.
 		if e.visible ~= nil and not e.visible() then
@@ -288,7 +313,7 @@ function drawer.drawmenu(m)
 			entry_num = entry_num + 1
 			screen.setcursor(x, y + effective_line_num)
 
-			print(entry_num .. ". " .. menu_entry_name(m, e))
+			print(entry_num .. ". " .. menuEntryName(menudef, e))
 
 			-- fill the alias table
 			alias_table[tostring(entry_num)] = e
@@ -299,55 +324,86 @@ function drawer.drawmenu(m)
 			end
 		else
 			screen.setcursor(x, y + effective_line_num)
-			print(menu_entry_name(m, e))
+			print(menuEntryName(menudef, e))
 		end
 		::continue::
 	end
 	return alias_table
 end
 
-
 function drawer.drawbox()
-	local x = drawer.box_pos_dim.x
-	local y = drawer.box_pos_dim.y
-	local w = drawer.box_pos_dim.w
-	local h = drawer.box_pos_dim.h
+	local x = drawer.menu_position.x - 3
+	local y = drawer.menu_position.y - 1
+	local w = drawer.frame_size.w
+	local h = drawer.frame_size.h
 
-	local hl = string.char(0xCD)
-	local vl = string.char(0xBA)
-
-	local tl = string.char(0xC9)
-	local bl = string.char(0xC8)
-	local tr = string.char(0xBB)
-	local br = string.char(0xBC)
-
-	screen.setcursor(x, y); print(tl)
-	screen.setcursor(x, y+h); print(bl)
-	screen.setcursor(x+w, y); print(tr)
-	screen.setcursor(x+w, y+h); print(br)
-
-	for i = 1, w-1 do
-		screen.setcursor(x+i, y)
-		print(hl)
-		screen.setcursor(x+i, y+h)
-		print(hl)
+	local framestyle = loader.getenv("loader_menu_frame") or "double"
+	local framespec = drawer.frame_styles[framestyle]
+	-- If we don't have a framespec for the current frame style, just don't
+	-- draw a box.
+	if framespec == nil then
+		return
 	end
 
-	for i = 1, h-1 do
-		screen.setcursor(x, y+i)
-		print(vl)
-		screen.setcursor(x+w, y+i)
-		print(vl)
+	local hl = framespec.horizontal
+	local vl = framespec.vertical
+
+	local tl = framespec.top_left
+	local bl = framespec.bottom_left
+	local tr = framespec.top_right
+	local br = framespec.bottom_right
+
+	x = x + drawer.shift.x
+	y = y + drawer.shift.y
+
+	screen.setcursor(x, y); printc(tl)
+	screen.setcursor(x, y + h); printc(bl)
+	screen.setcursor(x + w, y); printc(tr)
+	screen.setcursor(x + w, y + h); printc(br)
+
+	screen.setcursor(x + 1, y)
+	for _ = 1, w - 1 do
+		printc(hl)
 	end
 
-	screen.setcursor(x+(w/2)-9, y)
-	print("Welcome to FreeBSD")
+	screen.setcursor(x + 1, y + h)
+	for _ = 1, w - 1 do
+		printc(hl)
+	end
+
+	for i = 1, h - 1 do
+		screen.setcursor(x, y + i)
+		printc(vl)
+		screen.setcursor(x + w, y + i)
+		printc(vl)
+	end
+
+	local menu_header = loader.getenv("loader_menu_title") or
+	    "Welcome to FreeBSD"
+	local menu_header_align = loader.getenv("loader_menu_title_align")
+	local menu_header_x
+
+	if menu_header_align ~= nil then
+		menu_header_align = menu_header_align:lower()
+		if menu_header_align == "left" then
+			-- Just inside the left border on top
+			menu_header_x = x + 1
+		elseif menu_header_align == "right" then
+			-- Just inside the right border on top
+			menu_header_x = x + w - #menu_header
+		end
+	end
+	if menu_header_x == nil then
+		menu_header_x = x + (w / 2) - (#menu_header / 2)
+	end
+	screen.setcursor(menu_header_x, y)
+	printc(menu_header)
 end
 
 function drawer.draw(x, y, logo)
 	for i = 1, #logo do
-		screen.setcursor(x, y + i)
-		print(logo[i])
+		screen.setcursor(x, y + i - 1)
+		printc(logo[i])
 	end
 end
 
@@ -361,6 +417,9 @@ function drawer.drawbrand()
 	if graphic == nil then
 		graphic = fbsd_logo
 	end
+
+	x = x + drawer.shift.x
+	y = y + drawer.shift.y
 	drawer.draw(x, y, graphic)
 end
 
@@ -376,13 +435,7 @@ function drawer.drawlogo()
 	-- Lookup
 	local logodef = drawer.logodefs[logo]
 
-	if logodef ~= nil and logodef.graphic == none then
-		-- centre brand and text if no logo
-		if not none_shifted then
-			shift_brand_text(logodef.shift)
-			none_shifted = true
-		end
-	elseif logodef == nil or logodef.graphic == nil or
+	if logodef == nil or logodef.graphic == nil or
 	    (not colored and logodef.requires_color) then
 		-- Choose a sensible default
 		if colored then
@@ -391,10 +444,21 @@ function drawer.drawlogo()
 			logodef = drawer.logodefs["orbbw"]
 		end
 	end
-	if logodef.shift ~= nil then
+
+	if logodef ~= nil and logodef.graphic == none then
+		drawer.shift = logodef.shift
+	else
+		drawer.shift = drawer.default_shift
+	end
+
+	x = x + drawer.shift.x
+	y = y + drawer.shift.y
+
+	if logodef ~= nil and logodef.shift ~= nil then
 		x = x + logodef.shift.x
 		y = y + logodef.shift.y
 	end
+
 	drawer.draw(x, y, logodef.graphic)
 end
 

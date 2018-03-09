@@ -58,44 +58,45 @@ end
 
 color.disabled = not color.isEnabled()
 
-function color.escapef(c)
+function color.escapef(color_value)
 	if color.disabled then
-		return c
+		return color_value
 	end
-	return "\027[3" .. c .. "m"
+	return core.KEYSTR_CSI .. "3" .. color_value .. "m"
 end
 
-function color.escapeb(c)
+function color.escapeb(color_value)
 	if color.disabled then
-		return c
+		return color_value
 	end
-	return "\027[4" .. c .. "m"
+	return core.KEYSTR_CSI .. "4" .. color_value .. "m"
 end
 
-function color.escape(fg, bg, att)
+function color.escape(fg_color, bg_color, attribute)
 	if color.disabled then
 		return ""
 	end
-	if not att then
-		att = ""
+	if attribute == nil then
+		attribute = ""
 	else
-		att = att .. ";"
+		attribute = attribute .. ";"
 	end
-	return "\027[" .. att .. "3" .. fg .. ";4" .. bg .. "m"
+	return core.KEYSTR_CSI .. attribute ..
+	    "3" .. fg_color .. ";4" .. bg_color .. "m"
 end
 
 function color.default()
 	if color.disabled then
 		return ""
 	end
-	return "\027[0;37;40m"
+	return core.KEYSTR_CSI .. "0;37;40m"
 end
 
 function color.highlight(str)
 	if color.disabled then
 		return str
 	end
-	return "\027[1m" .. str .. "\027[0m"
+	return core.KEYSTR_CSI .. "1m" .. str .. core.KEYSTR_CSI .. "0m"
 end
 
 return color

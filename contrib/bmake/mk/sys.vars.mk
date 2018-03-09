@@ -1,4 +1,4 @@
-# $Id: sys.vars.mk,v 1.2 2017/01/31 07:44:45 sjg Exp $
+# $Id: sys.vars.mk,v 1.3 2018/02/06 00:51:53 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
 #
@@ -45,7 +45,7 @@ M_L_TARGETS = ${M_ListToMatch:S,V,_TARGETS,}
 
 # turn a list into a set of :N modifiers
 # NskipFoo = ${Foo:${M_ListToSkip}}
-M_ListToSkip= O:u:ts::S,:,:N,g:S,^,N,
+M_ListToSkip= O:u:S,^,N,:ts:
 
 # type should be a builtin in any sh since about 1980,
 # but sadly there are exceptions!

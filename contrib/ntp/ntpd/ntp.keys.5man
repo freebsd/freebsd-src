@@ -1,8 +1,8 @@
-.TH ntp.keys 5man "21 Mar 2017" "4.2.8p10" "File Formats"
+.TH ntp.keys 5man "27 Feb 2018" "4.2.8p11" "File Formats"
 .\"
 .\"  EDIT THIS FILE WITH CAUTION  (ntp.man)
 .\"
-.\"  It has been AutoGen-ed  March 21, 2017 at 10:44:10 AM by AutoGen 5.18.5
+.\"  It has been AutoGen-ed  February 27, 2018 at 05:14:26 PM by AutoGen 5.18.5
 .\"  From the definitions    ntp.keys.def
 .\"  and the template file   agman-file.tpl
 .Sh NAME
@@ -76,16 +76,24 @@ where
 is a positive integer (between 1 and 65534),
 \f\*[I-Font]type\f[]
 is the message digest algorithm,
-and
 \f\*[I-Font]key\f[]
 is the key itself, and
 \f\*[I-Font]opt_IP_list\f[]
 is an optional comma-separated list of IPs
+where the
+\f\*[I-Font]keyno\f[]
+should be trusted.
 that are allowed to serve time.
+Each IP in
+\f\*[I-Font]opt_IP_list\f[]
+may contain an optional
+\f\*[B-Font]/subnetbits\f[]
+specification which identifies the number of bits for
+the desired subnet of trust.
 If
 \f\*[I-Font]opt_IP_list\f[]
 is empty,
-any properly-authenticated server message will be
+any properly-authenticated message will be
 accepted.
 .sp \n(Ppu
 .ne 2

@@ -401,7 +401,7 @@ moea64_cpu_bootstrap_native(mmu_t mmup, int ap)
 	 */
 
 	__asm __volatile ("ptesync; mtsdr1 %0; isync"
-	    :: "r"((uintptr_t)moea64_pteg_table 
+	    :: "r"(((uintptr_t)moea64_pteg_table & ~DMAP_BASE_ADDRESS)
 		     | (uintptr_t)(flsl(moea64_pteg_mask >> 11))));
 	tlbia();
 }
@@ -434,6 +434,9 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 	 */
 
 	moea64_pteg_table = (struct lpte *)moea64_bootstrap_alloc(size, size);
+	if (hw_direct_map)
+		moea64_pteg_table =
+		    (struct lpte *)PHYS_TO_DMAP((vm_offset_t)moea64_pteg_table);
 	DISABLE_TRANS(msr);
 	bzero(__DEVOLATILE(void *, moea64_pteg_table), moea64_pteg_count *
 	    sizeof(struct lpteg));

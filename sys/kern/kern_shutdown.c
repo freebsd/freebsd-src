@@ -1115,6 +1115,12 @@ dump_check_bounds(struct dumperinfo *di, off_t offset, size_t length)
 
 	if (length != 0 && (offset < di->mediaoffset ||
 	    offset - di->mediaoffset + length > di->mediasize)) {
+		if (di->kdcomp != NULL && offset >= di->mediaoffset) {
+			printf(
+		    "Compressed dump failed to fit in device boundaries.\n");
+			return (E2BIG);
+		}
+
 		printf("Attempt to write outside dump device boundaries.\n"
 	    "offset(%jd), mediaoffset(%jd), length(%ju), mediasize(%jd).\n",
 		    (intmax_t)offset, (intmax_t)di->mediaoffset,

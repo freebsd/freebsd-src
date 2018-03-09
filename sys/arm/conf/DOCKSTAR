@@ -119,7 +119,6 @@ device		cryptodev
 # IPSec
 device		enc
 options 	IPSEC
-options 	IPSEC_NAT_T
 options 	TCP_SIGNATURE		# include support for RFC 2385
 
 # IPFW

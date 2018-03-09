@@ -7,7 +7,7 @@
 
 cpu		BOOKE
 cpu		BOOKE_E500
-ident		MPC85XX
+ident		QORIQ64
 
 machine		powerpc	powerpc64
 

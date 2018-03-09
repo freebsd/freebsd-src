@@ -448,7 +448,7 @@ arm_gic_attach(device_t dev)
 	gic_sc = sc;
 
 	/* Initialize mutex */
-	mtx_init(&sc->mutex, "GIC lock", "", MTX_SPIN);
+	mtx_init(&sc->mutex, "GIC lock", NULL, MTX_SPIN);
 
 	/* Distributor Interface */
 	sc->gic_d_bst = rman_get_bustag(sc->gic_res[0]);
@@ -1423,7 +1423,7 @@ arm_gicv2m_attach(device_t dev)
 	arm_gic_reserve_msi_range(device_get_parent(dev), sc->sc_spi_start,
 	    sc->sc_spi_count);
 
-	mtx_init(&sc->sc_mutex, "GICv2m lock", "", MTX_DEF);
+	mtx_init(&sc->sc_mutex, "GICv2m lock", NULL, MTX_DEF);
 
 	intr_msi_register(dev, sc->sc_xref);
 

@@ -96,8 +96,9 @@ ccm_init_gates(struct ccm_softc *sc)
 	reg = CCGR0_AIPS_TZ1 | CCGR0_AIPS_TZ2 | CCGR0_ABPHDMA;
 	WR4(sc, CCM_CCGR0, reg);
 
-	/* enet, epit, gpt */
-	reg = CCGR1_ENET | CCGR1_EPIT1 | CCGR1_GPT;
+	/* enet, epit, gpt, spi */
+	reg = CCGR1_ENET | CCGR1_EPIT1 | CCGR1_GPT | CCGR1_ECSPI1 |
+	    CCGR1_ECSPI2 | CCGR1_ECSPI3 | CCGR1_ECSPI4 | CCGR1_ECSPI5;
 	WR4(sc, CCM_CCGR1, reg);
 
 	/* ipmux & ipsync (bridges), iomux, i2c */
@@ -349,6 +350,13 @@ imx6_ccm_sata_enable(void)
 	WR4(ccm_sc, CCM_ANALOG_PLL_ENET, v);
 
 	return 0;
+}
+
+uint32_t
+imx_ccm_ecspi_hz(void)
+{
+
+	return (60000000);
 }
 
 uint32_t

@@ -18,6 +18,8 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 ident		RK3188
 
 include 	"std.armv7"
