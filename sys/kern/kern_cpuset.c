@@ -445,6 +445,7 @@ static struct domainset *
 _domainset_create(struct domainset *domain, struct domainlist *freelist)
 {
 	struct domainset *ndomain;
+	int i, j, max;
 
 	mtx_lock_spin(&cpuset_lock);
 	LIST_FOREACH(ndomain, &cpuset_domains, ds_link)
@@ -457,7 +458,10 @@ _domainset_create(struct domainset *domain, struct domainlist *freelist)
 	if (ndomain == NULL) {
 		LIST_INSERT_HEAD(&cpuset_domains, domain, ds_link);
 		domain->ds_cnt = DOMAINSET_COUNT(&domain->ds_mask);
-		domain->ds_max = DOMAINSET_FLS(&domain->ds_mask) + 1;
+		max = DOMAINSET_FLS(&domain->ds_mask) + 1;
+		for (i = 0, j = 0; i < max; i++)
+			if (DOMAINSET_ISSET(i, &domain->ds_mask))
+				domain->ds_order[j++] = i;
 	}
 	mtx_unlock_spin(&cpuset_lock);
 	if (ndomain == NULL)
@@ -1269,10 +1273,9 @@ domainset_zero(void)
 	dset->ds_policy = DOMAINSET_POLICY_FIRSTTOUCH;
 	dset->ds_prefer = -1;
 	curthread->td_domain.dr_policy = _domainset_create(dset, NULL);
-	kernel_object->domain.dr_policy = curthread->td_domain.dr_policy;
 
 	domainset_copy(dset, &domainset2);
-	domainset2.ds_policy = DOMAINSET_POLICY_ROUNDROBIN;
+	domainset2.ds_policy = DOMAINSET_POLICY_INTERLEAVE;
 	kernel_object->domain.dr_policy = _domainset_create(&domainset2, NULL);
 }
 
@@ -1297,9 +1300,9 @@ cpuset_thread0(void)
 	int error;
 
 	cpuset_zone = uma_zcreate("cpuset", sizeof(struct cpuset), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, UMA_ALIGN_CACHE, 0);
 	domainset_zone = uma_zcreate("domainset", sizeof(struct domainset),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, 0);
 
 	/*
 	 * Create the root system set (0) for the whole machine.  Doesn't use
@@ -1336,7 +1339,7 @@ cpuset_thread0(void)
 	 */
 	cpuset_unr = new_unrhdr(2, INT_MAX, NULL);
 
-	return (set);
+	return (cpuset_default);
 }
 
 void
@@ -2133,9 +2136,8 @@ DB_SHOW_COMMAND(domainsets, db_show_domainsets)
 	struct domainset *set;
 
 	LIST_FOREACH(set, &cpuset_domains, ds_link) {
-		db_printf("set=%p policy %d prefer %d cnt %d max %d\n",
-		    set, set->ds_policy, set->ds_prefer, set->ds_cnt,
-		    set->ds_max);
+		db_printf("set=%p policy %d prefer %d cnt %d\n",
+		    set, set->ds_policy, set->ds_prefer, set->ds_cnt);
 		db_printf("  mask =");
 		ddb_display_domainset(&set->ds_mask);
 		db_printf("\n");

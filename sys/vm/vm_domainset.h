@@ -33,13 +33,16 @@
 struct vm_domainset_iter {
 	struct domainset	*di_domain;
 	int			*di_iter;
+	vm_pindex_t		di_pindex;
+	int			di_policy;
 	int			di_flags;
+	int			di_stride;
 	int			di_n;
 };
 
 int	vm_domainset_iter_page(struct vm_domainset_iter *, int *, int *);
 void	vm_domainset_iter_page_init(struct vm_domainset_iter *,
-	    struct vm_object *, int *, int *);
+	    struct vm_object *, vm_pindex_t, int *, int *);
 int	vm_domainset_iter_malloc(struct vm_domainset_iter *, int *, int *);
 void	vm_domainset_iter_malloc_init(struct vm_domainset_iter *,
 	    struct vm_object *, int *, int *);
