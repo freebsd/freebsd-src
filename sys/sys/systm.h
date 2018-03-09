@@ -269,14 +269,14 @@ int	copystr(const void * _Nonnull __restrict kfaddr,
 int	copyinstr(const void * __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len,
 	    size_t * __restrict lencopied);
-int	copyin(const void * _Nonnull __restrict udaddr,
+int	copyin(const void * __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len);
-int	copyin_nofault(const void * _Nonnull __restrict udaddr,
+int	copyin_nofault(const void * __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len);
 int	copyout(const void * _Nonnull __restrict kaddr,
-	    void * _Nonnull __restrict udaddr, size_t len);
+	    void * __restrict udaddr, size_t len);
 int	copyout_nofault(const void * _Nonnull __restrict kaddr,
-	    void * _Nonnull __restrict udaddr, size_t len);
+	    void * __restrict udaddr, size_t len);
 
 int	fubyte(volatile const void *base);
 long	fuword(volatile const void *base);
