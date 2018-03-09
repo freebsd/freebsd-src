@@ -149,7 +149,7 @@ LIBFICL32=	${BOOTOBJ}/ficl32/libficl.a
 
 LIBLUA=		${BOOTOBJ}/liblua/liblua.a
 .if ${MACHINE} == "i386"
-LIBLUA32=	${LIBFICL}
+LIBLUA32=	${LIBLUA}
 .else
 LIBLUA32=	${BOOTOBJ}/liblua32/liblua.a
 .endif
