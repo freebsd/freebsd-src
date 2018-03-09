@@ -425,14 +425,17 @@ function menu.autoboot()
 
 	local endtime = loader.time() + ab
 	local time
-
+	local last
 	repeat
 		time = endtime - loader.time()
-		screen.setcursor(x, y)
-		print("Autoboot in " .. time ..
-		    " seconds, hit [Enter] to boot" ..
-		    " or any other key to stop     ")
-		screen.defcursor()
+		if last == nil or last ~= time then
+			last = time
+			screen.setcursor(x, y)
+			print("Autoboot in " .. time ..
+			    " seconds, hit [Enter] to boot" ..
+			    " or any other key to stop     ")
+			screen.defcursor()
+		end
 		if io.ischar() then
 			local ch = io.getchar()
 			if ch == core.KEY_ENTER then
