@@ -3088,6 +3088,39 @@ ieee80211_alloc_cts(struct ieee80211com *ic,
 	return m;
 }
 
+/*
+ * Wrapper for CTS/RTS frame allocation.
+ */
+struct mbuf *
+ieee80211_alloc_prot(struct ieee80211_node *ni, const struct mbuf *m,
+    uint8_t rate, int prot)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	const struct ieee80211_frame *wh;
+	struct mbuf *mprot;
+	uint16_t dur;
+	int pktlen, isshort;
+
+	KASSERT(prot == IEEE80211_PROT_RTSCTS ||
+	    prot == IEEE80211_PROT_CTSONLY,
+	    ("wrong protection type %d", prot));
+
+	wh = mtod(m, const struct ieee80211_frame *);
+	pktlen = m->m_pkthdr.len + IEEE80211_CRC_LEN;
+	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
+	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort)
+	    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
+
+	if (prot == IEEE80211_PROT_RTSCTS) {
+		/* NB: CTS is the same size as an ACK */
+		dur += ieee80211_ack_duration(ic->ic_rt, rate, isshort);
+		mprot = ieee80211_alloc_rts(ic, wh->i_addr1, wh->i_addr2, dur);
+	} else
+		mprot = ieee80211_alloc_cts(ic, ni->ni_vap->iv_myaddr, dur);
+
+	return (mprot);
+}
+
 static void
 ieee80211_tx_mgt_timeout(void *arg)
 {

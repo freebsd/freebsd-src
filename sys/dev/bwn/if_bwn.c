@@ -6401,15 +6401,14 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 	struct bwn_softc *sc = mac->mac_sc;
 	struct ieee80211_frame *wh;
 	struct ieee80211_frame *protwh;
-	struct ieee80211_frame_cts *cts;
-	struct ieee80211_frame_rts *rts;
 	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct mbuf *mprot;
+	uint8_t *prot_ptr;
 	unsigned int len;
 	uint32_t macctl = 0;
-	int protdur, rts_rate, rts_rate_fb, ismcast, isshort, rix, type;
+	int rts_rate, rts_rate_fb, ismcast, isshort, rix, type;
 	uint16_t phyctl = 0;
 	uint8_t rate, rate_fb;
 	int fill_phy_ctl1 = 0;
@@ -6528,7 +6527,8 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 	    m->m_pkthdr.len + IEEE80211_CRC_LEN > vap->iv_rtsthreshold)
 		macctl |= BWN_TX_MAC_LONGFRAME;
 
-	if (ic->ic_flags & IEEE80211_F_USEPROT) {
+	if ((ic->ic_flags & IEEE80211_F_USEPROT) &&
+	    ic->ic_protmode != IEEE80211_PROT_NONE) {
 		/* Note: don't fall back to CCK rates for 5G */
 		if (phy->gmode)
 			rts_rate = BWN_CCK_RATE_1MB;
@@ -6537,60 +6537,34 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 		rts_rate_fb = bwn_get_fbrate(rts_rate);
 
 		/* XXX 'rate' here is hardware rate now, not the net80211 rate */
-		protdur = ieee80211_compute_duration(ic->ic_rt,
-		    m->m_pkthdr.len, rate, isshort) +
-		    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
+		mprot = ieee80211_alloc_prot(ni, m, rate, ic->ic_protmode);
+		if (mprot == NULL) {
+			if_inc_counter(vap->iv_ifp, IFCOUNTER_OERRORS, 1);
+			device_printf(sc->sc_dev,
+			    "could not allocate mbuf for protection mode %d\n",
+			    ic->ic_protmode);
+			return (ENOBUFS);
+		}
+
+		switch (mac->mac_fw.fw_hdr_format) {
+		case BWN_FW_HDR_351:
+			prot_ptr = txhdr->body.r351.rts_frame;
+			break;
+		case BWN_FW_HDR_410:
+			prot_ptr = txhdr->body.r410.rts_frame;
+			break;
+		case BWN_FW_HDR_598:
+			prot_ptr = txhdr->body.r598.rts_frame;
+			break;
+		}
+
+		bcopy(mtod(mprot, uint8_t *), prot_ptr, mprot->m_pkthdr.len);
+		m_freem(mprot);
 
 		if (ic->ic_protmode == IEEE80211_PROT_CTSONLY) {
-
-			switch (mac->mac_fw.fw_hdr_format) {
-			case BWN_FW_HDR_351:
-				cts = (struct ieee80211_frame_cts *)
-				    txhdr->body.r351.rts_frame;
-				break;
-			case BWN_FW_HDR_410:
-				cts = (struct ieee80211_frame_cts *)
-				    txhdr->body.r410.rts_frame;
-				break;
-			case BWN_FW_HDR_598:
-				cts = (struct ieee80211_frame_cts *)
-				    txhdr->body.r598.rts_frame;
-				break;
-			}
-
-			mprot = ieee80211_alloc_cts(ic, ni->ni_vap->iv_myaddr,
-			    protdur);
-			KASSERT(mprot != NULL, ("failed to alloc mbuf\n"));
-			bcopy(mtod(mprot, uint8_t *), (uint8_t *)cts,
-			    mprot->m_pkthdr.len);
-			m_freem(mprot);
 			macctl |= BWN_TX_MAC_SEND_CTSTOSELF;
 			len = sizeof(struct ieee80211_frame_cts);
 		} else {
-			switch (mac->mac_fw.fw_hdr_format) {
-			case BWN_FW_HDR_351:
-				rts = (struct ieee80211_frame_rts *)
-				    txhdr->body.r351.rts_frame;
-				break;
-			case BWN_FW_HDR_410:
-				rts = (struct ieee80211_frame_rts *)
-				    txhdr->body.r410.rts_frame;
-				break;
-			case BWN_FW_HDR_598:
-				rts = (struct ieee80211_frame_rts *)
-				    txhdr->body.r598.rts_frame;
-				break;
-			}
-
-			/* XXX rate/rate_fb is the hardware rate */
-			protdur += ieee80211_ack_duration(ic->ic_rt, rate,
-			    isshort);
-			mprot = ieee80211_alloc_rts(ic, wh->i_addr1,
-			    wh->i_addr2, protdur);
-			KASSERT(mprot != NULL, ("failed to alloc mbuf\n"));
-			bcopy(mtod(mprot, uint8_t *), (uint8_t *)rts,
-			    mprot->m_pkthdr.len);
-			m_freem(mprot);
 			macctl |= BWN_TX_MAC_SEND_RTSCTS;
 			len = sizeof(struct ieee80211_frame_rts);
 		}
