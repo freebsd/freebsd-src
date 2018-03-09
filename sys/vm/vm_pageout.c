@@ -1110,8 +1110,8 @@ vm_pageout_pglist_init(struct pgo_pglist *pglist)
 static void
 vm_pageout_pglist_append(struct pgo_pglist *pglist, vm_page_t m)
 {
+	m->flags &= ~PG_ZERO;
 	if (vm_page_free_prep(m, false)) {
-		m->flags &= ~PG_ZERO;
 		TAILQ_INSERT_TAIL(&pglist->pgl, m, listq);
 		pglist->count++;
 	}
