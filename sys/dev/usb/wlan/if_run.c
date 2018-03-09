@@ -3543,56 +3543,34 @@ run_sendprot(struct run_softc *sc,
     const struct mbuf *m, struct ieee80211_node *ni, int prot, int rate)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ieee80211_frame *wh;
 	struct run_tx_data *data;
 	struct rt2870_txd *txd;
 	struct rt2860_txwi *txwi;
 	struct mbuf *mprot;
 	int ridx;
 	int protrate;
-	int ackrate;
-	int pktlen;
-	int isshort;
-	uint16_t dur;
-	uint8_t type;
 	uint8_t wflags = 0;
 	uint8_t xflags = 0;
 
 	RUN_LOCK_ASSERT(sc, MA_OWNED);
-
-	KASSERT(prot == IEEE80211_PROT_RTSCTS || prot == IEEE80211_PROT_CTSONLY,
-	    ("protection %d", prot));
-
-	wh = mtod(m, struct ieee80211_frame *);
-	pktlen = m->m_pkthdr.len + IEEE80211_CRC_LEN;
-	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
-
-	protrate = ieee80211_ctl_rate(ic->ic_rt, rate);
-	ackrate = ieee80211_ack_rate(ic->ic_rt, rate);
-
-	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
-	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort)
-	    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
-	wflags = RT2860_TX_FRAG;
 
 	/* check that there are free slots before allocating the mbuf */
 	if (sc->sc_epq[0].tx_nfree == 0)
 		/* let caller free mbuf */
 		return (ENOBUFS);
 
-	if (prot == IEEE80211_PROT_RTSCTS) {
-		/* NB: CTS is the same size as an ACK */
-		dur += ieee80211_ack_duration(ic->ic_rt, rate, isshort);
-		xflags |= RT2860_TX_ACK;
-		mprot = ieee80211_alloc_rts(ic, wh->i_addr1, wh->i_addr2, dur);
-	} else {
-		mprot = ieee80211_alloc_cts(ic, ni->ni_vap->iv_myaddr, dur);
-	}
+	mprot = ieee80211_alloc_prot(ni, m, rate, prot);
 	if (mprot == NULL) {
 		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
 		RUN_DPRINTF(sc, RUN_DEBUG_XMIT, "could not allocate mbuf\n");
 		return (ENOBUFS);
 	}
+
+	protrate = ieee80211_ctl_rate(ic->ic_rt, rate);
+	wflags = RT2860_TX_FRAG;
+	xflags = 0;
+	if (prot == IEEE80211_PROT_RTSCTS)
+		xflags |= RT2860_TX_ACK;
 
         data = STAILQ_FIRST(&sc->sc_epq[0].tx_fh);
         STAILQ_REMOVE_HEAD(&sc->sc_epq[0].tx_fh, next);
