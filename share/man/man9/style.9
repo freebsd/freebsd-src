@@ -763,17 +763,9 @@ do not roll your own.
 }
 .Ed
 .Pp
-Old-style function declarations look like this:
-.Bd -literal
-static char *
-function(a1, a2, fl, a4)
-	int a1, a2;	/* Declare ints, too, do not default them. */
-	float fl;	/* Beware double vs. float prototype differences. */
-	int a4;		/* List in order declared. */
-{
-.Ed
+When converting K&R style declarations to ANSI style, preserve
+any comments about parameters.
 .Pp
-Use ANSI function declarations unless you explicitly need K&R compatibility.
 Long parameter lists are wrapped with a normal four space indent.
 .Pp
 Variable numbers of arguments should look like this:
