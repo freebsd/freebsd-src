@@ -632,7 +632,7 @@ pw_checkname(char *name, int gecos)
 	reject = 0;
 	if (gecos) {
 		/* See if the name is valid as a gecos (comment) field. */
-		badchars = ":!@";
+		badchars = ":";
 		showtype = "gecos field";
 	} else {
 		/* See if the name is valid as a userid or group. */

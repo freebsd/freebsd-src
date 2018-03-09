@@ -27,9 +27,9 @@ atf_test_case user_add_comments
 user_add_comments_body() {
 	populate_etc_skel
 
-	atf_check -s exit:0 ${PW} useradd test -c "Test User,work,123,456"
-	atf_check -s exit:0 -o match:"^test:.*:Test User,work,123,456:" \
-		grep "^test:.*:Test User,work,123,456:" $HOME/master.passwd
+	atf_check -s exit:0 ${PW} useradd test -c 'Test User,work!,123,user@example.com'
+	atf_check -s exit:0 -o match:'^test:.*:Test User,work!,123,user@example.com:' \
+		grep '^test:.*:Test User,work!,123,user@example.com:' $HOME/master.passwd
 }
 
 # Test add user with comments and option -N
