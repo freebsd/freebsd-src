@@ -700,6 +700,7 @@ bufspace_daemon(void *arg)
 			if (buf_recycle(bd, false) != 0) {
 				if (bd_flushall(bd))
 					continue;
+				bd_speedup();
 				BD_LOCK(bd);
 				if (bd->bd_wanted) {
 					msleep(&bd->bd_wanted, BD_LOCKPTR(bd),
