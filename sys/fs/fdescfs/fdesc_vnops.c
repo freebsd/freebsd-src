@@ -415,6 +415,8 @@ fdesc_pathconf(struct vop_pathconf_args *ap)
 			*ap->a_retval = 1;
 		return (0);
 	default:
+		if (VTOFDESC(vp)->fd_type == Froot)
+			return (vop_stdpathconf(ap));
 		vref(vp);
 		VOP_UNLOCK(vp, 0);
 		error = kern_fpathconf(curthread, VTOFDESC(vp)->fd_fd,
