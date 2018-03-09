@@ -444,6 +444,11 @@ device		hptiop
 device		ips
 
 #
+# Intel integrated Memory Controller (iMC) SMBus controller
+#	Sandybridge-Xeon, Ivybridge-Xeon, Haswell-Xeon, Broadwell-Xeon
+device		imcsmb
+
+#
 # Intel C600 (Patsburg) integrated SAS controller
 device		isci
 options 	ISCI_LOGGING	# enable debugging in isci HAL
