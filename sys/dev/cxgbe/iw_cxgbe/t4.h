@@ -490,7 +490,7 @@ static inline void pio_copy(u64 __iomem *dst, u64 *src)
 	int count = 8;
 
 	while (count) {
-		writeq(*src, dst);
+		__raw_writeq(*src, dst);
 		src++;
 		dst++;
 		count--;
@@ -512,9 +512,8 @@ t4_ring_sq_db(struct t4_wq *wq, u16 inc, union t4_wr *wqe, u8 wc)
 	} else {
 		CTR2(KTR_IW_CXGBE, "%s: DB wq->sq.pidx = %d",
 				__func__, wq->sq.pidx);
-		writel(V_PIDX_T5(inc) | V_QID(wq->sq.bar2_qid),
-				(void __iomem *)((u64)wq->sq.bar2_va +
-					SGE_UDB_KDOORBELL));
+		__raw_writel(V_PIDX_T5(inc) | V_QID(wq->sq.bar2_qid),
+			     (char __iomem *)wq->sq.bar2_va + SGE_UDB_KDOORBELL);
 	}
 
 	/* Flush user doorbell area writes. */
@@ -536,9 +535,8 @@ t4_ring_rq_db(struct t4_wq *wq, u16 inc, union t4_recv_wr *wqe, u8 wc)
 	} else {
 		CTR2(KTR_IW_CXGBE, "%s: DB wq->rq.pidx = %d",
 				__func__, wq->rq.pidx);
-		writel(V_PIDX_T5(inc) | V_QID(wq->rq.bar2_qid),
-				(void __iomem *)((u64)wq->rq.bar2_va +
-					SGE_UDB_KDOORBELL));
+		__raw_writel(V_PIDX_T5(inc) | V_QID(wq->rq.bar2_qid),
+			     (char __iomem *)wq->rq.bar2_va + SGE_UDB_KDOORBELL);
 	}
 
 	/* Flush user doorbell area writes. */
