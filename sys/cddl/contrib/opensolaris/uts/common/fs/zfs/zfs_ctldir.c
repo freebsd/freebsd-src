@@ -80,6 +80,10 @@
 
 #include "zfs_namecheck.h"
 
+/* Common access mode for all virtual directories under the ctldir */
+const u_short zfsctl_ctldir_mode = S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP |
+    S_IROTH | S_IXOTH;
+
 /*
  * "Synthetic" filesystem implementation.
  */
@@ -496,8 +500,7 @@ zfsctl_common_getattr(vnode_t *vp, vattr_t *vap)
 	vap->va_nblocks = 0;
 	vap->va_seq = 0;
 	vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
-	vap->va_mode = S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP |
-	    S_IROTH | S_IXOTH;
+	vap->va_mode = zfsctl_ctldir_mode;
 	vap->va_type = VDIR;
 	/*
 	 * We live in the now (for atime).
@@ -724,6 +727,91 @@ zfsctl_root_vptocnp(struct vop_vptocnp_args *ap)
 	return (0);
 }
 
+static int
+zfsctl_common_pathconf(ap)
+	struct vop_pathconf_args /* {
+		struct vnode *a_vp;
+		int a_name;
+		int *a_retval;
+	} */ *ap;
+{
+	/*
+	 * We care about ACL variables so that user land utilities like ls
+	 * can display them correctly.  Since the ctldir's st_dev is set to be
+	 * the same as the parent dataset, we must support all variables that
+	 * it supports.
+	 */
+	switch (ap->a_name) {
+	case _PC_LINK_MAX:
+		*ap->a_retval = INT_MAX;
+		return (0);
+
+	case _PC_FILESIZEBITS:
+		*ap->a_retval = 64;
+		return (0);
+
+	case _PC_MIN_HOLE_SIZE:
+		*ap->a_retval = (int)SPA_MINBLOCKSIZE;
+		return (0);
+
+	case _PC_ACL_EXTENDED:
+		*ap->a_retval = 0;
+		return (0);
+
+	case _PC_ACL_NFS4:
+		*ap->a_retval = 1;
+		return (0);
+
+	case _PC_ACL_PATH_MAX:
+		*ap->a_retval = ACL_MAX_ENTRIES;
+		return (0);
+
+	case _PC_NAME_MAX:
+		*ap->a_retval = NAME_MAX;
+		return (0);
+
+	default:
+		return (vop_stdpathconf(ap));
+	}
+}
+
+/**
+ * Returns a trivial ACL
+ */
+int
+zfsctl_common_getacl(ap)
+	struct vop_getacl_args /* {
+		struct vnode *vp;
+		acl_type_t a_type;
+		struct acl *a_aclp;
+		struct ucred *cred;
+		struct thread *td;
+	} */ *ap;
+{
+	int i;
+
+	if (ap->a_type != ACL_TYPE_NFS4)
+		return (EINVAL);
+
+	acl_nfs4_sync_acl_from_mode(ap->a_aclp, zfsctl_ctldir_mode, 0);
+	/*
+	 * acl_nfs4_sync_acl_from_mode assumes that the owner can always modify
+	 * attributes.  That is not the case for the ctldir, so we must clear
+	 * those bits.  We also must clear ACL_READ_NAMED_ATTRS, because xattrs
+	 * aren't supported by the ctldir.
+	 */
+	for (i = 0; i < ap->a_aclp->acl_cnt; i++) {
+		struct acl_entry *entry;
+		entry = &(ap->a_aclp->acl_entry[i]);
+		uint32_t old_perm = entry->ae_perm;
+		entry->ae_perm &= ~(ACL_WRITE_ACL | ACL_WRITE_OWNER |
+		    ACL_WRITE_ATTRIBUTES | ACL_WRITE_NAMED_ATTRS |
+		    ACL_READ_NAMED_ATTRS );
+	}
+
+	return (0);
+}
+
 static struct vop_vector zfsctl_ops_root = {
 	.vop_default =	&default_vnodeops,
 	.vop_open =	zfsctl_common_open,
@@ -738,6 +826,8 @@ static struct vop_vector zfsctl_ops_root = {
 	.vop_fid =	zfsctl_common_fid,
 	.vop_print =	zfsctl_common_print,
 	.vop_vptocnp =	zfsctl_root_vptocnp,
+	.vop_pathconf =	zfsctl_common_pathconf,
+	.vop_getacl =	zfsctl_common_getacl,
 };
 
 static int
@@ -1059,6 +1149,8 @@ static struct vop_vector zfsctl_ops_snapdir = {
 	.vop_reclaim =	zfsctl_common_reclaim,
 	.vop_fid =	zfsctl_common_fid,
 	.vop_print =	zfsctl_common_print,
+	.vop_pathconf =	zfsctl_common_pathconf,
+	.vop_getacl =	zfsctl_common_getacl,
 };
 
 static int
