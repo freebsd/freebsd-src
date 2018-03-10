@@ -545,6 +545,10 @@ tftp_wrq(int peer, char *recvbuffer, ssize_t size)
 			    filename, errtomsg(ecode));
 	}
 
+	if (ecode) {
+		send_error(peer, ecode);
+		exit(1);
+	}
 	tftp_recvfile(peer, mode);
 	exit(0);
 }
