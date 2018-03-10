@@ -51,10 +51,6 @@
 			status = "okay";
 		};
 
-		rng@7e104000 {
-			interrupts = <2 29>;
-		}
-
 		spi@7e204000 {
 			status = "okay";
 		};
