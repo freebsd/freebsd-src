@@ -210,6 +210,16 @@ g_eli_crypto_rerun(struct cryptop *crp)
 	return (error);
 }
 
+static void
+g_eli_getattr_done(struct bio *bp)
+{
+	if (bp->bio_error == 0 && 
+	    !strcmp(bp->bio_attribute, "GEOM::physpath")) {
+		strlcat(bp->bio_data, "/eli", bp->bio_length);
+	}
+	g_std_done(bp);
+}
+
 /*
  * The function is called afer reading encrypted data from the provider.
  *
@@ -378,7 +388,10 @@ g_eli_start(struct bio *bp)
 	case BIO_FLUSH:
 	case BIO_DELETE:
 	case BIO_ZONE:
-		cbp->bio_done = g_std_done;
+		if (bp->bio_cmd == BIO_GETATTR)
+			cbp->bio_done = g_eli_getattr_done;
+		else
+			cbp->bio_done = g_std_done;
 		cp = LIST_FIRST(&sc->sc_geom->consumer);
 		cbp->bio_to = cp->provider;
 		G_ELI_LOGREQ(2, cbp, "Sending request.");
