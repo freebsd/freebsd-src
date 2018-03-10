@@ -134,8 +134,10 @@ _gtaskqueue_create(const char *name, int mflags,
 	snprintf(tq_name, TASKQUEUE_NAMELEN, "%s", (name) ? name : "taskqueue");
 
 	queue = malloc(sizeof(struct gtaskqueue), M_GTASKQUEUE, mflags | M_ZERO);
-	if (!queue)
+	if (!queue) {
+		free(queue->tq_name, M_GTASKQUEUE);
 		return (NULL);
+	}
 
 	STAILQ_INIT(&queue->tq_queue);
 	TAILQ_INIT(&queue->tq_active);
