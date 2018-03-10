@@ -135,7 +135,7 @@ _gtaskqueue_create(const char *name, int mflags,
 
 	queue = malloc(sizeof(struct gtaskqueue), M_GTASKQUEUE, mflags | M_ZERO);
 	if (!queue) {
-		free(queue->tq_name, M_GTASKQUEUE);
+		free(tq_name, M_GTASKQUEUE);
 		return (NULL);
 	}
 
