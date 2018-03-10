@@ -186,6 +186,12 @@ CaseFile::DeSerialize()
 	free(caseFiles);
 }
 
+bool
+CaseFile::Empty()
+{
+	return (s_activeCases.empty());
+}
+
 void
 CaseFile::LogAll()
 {
