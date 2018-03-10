@@ -56,7 +56,7 @@ connected(int fd)
 }
 
 static void
-run(int flags)
+run(int domain, int type, int flags)
 {
 	int fd[2], i;
 
@@ -69,7 +69,7 @@ run(int flags)
 	ATF_REQUIRE(closefrom(3) != -1);
 #endif
 
-	ATF_REQUIRE(socketpair(AF_UNIX, SOCK_DGRAM | flags, 0, fd) == 0);
+	ATF_REQUIRE(socketpair(domain, type | flags, 0, fd) == 0);
 
 	ATF_REQUIRE(fd[0] == 3);
 	ATF_REQUIRE(fd[1] == 4);
@@ -97,6 +97,42 @@ run(int flags)
 	ATF_REQUIRE(close(fd[1]) != -1);
 }
 
+ATF_TC(inet);
+ATF_TC_HEAD(inet, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "socketpair(2) does not work in the PF_INET domain");
+}
+
+ATF_TC_BODY(inet, tc)
+{
+	int fd[2];
+
+	ATF_REQUIRE_EQ(socketpair(PF_INET, SOCK_DGRAM, 0, fd), -1);
+	ATF_REQUIRE_EQ(EOPNOTSUPP, errno);
+	ATF_REQUIRE_EQ(socketpair(PF_INET, SOCK_STREAM, 0, fd), -1);
+	ATF_REQUIRE_EQ(EOPNOTSUPP, errno);
+}
+
+ATF_TC(null_sv);
+ATF_TC_HEAD(null_sv, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "socketpair(2) should fail without return storage");
+}
+
+ATF_TC_BODY(null_sv, tc)
+{
+	int fd;
+
+	closefrom(3);
+	ATF_REQUIRE_EQ(socketpair(AF_UNIX, SOCK_DGRAM, 0, NULL), -1);
+	ATF_REQUIRE_EQ(EFAULT, errno);
+	fd = open("/", O_RDONLY);
+	ATF_REQUIRE_EQ_MSG(fd, 3,
+	    "socketpair(..., NULL) allocated descriptors");
+}
+
 ATF_TC(socketpair_basic);
 ATF_TC_HEAD(socketpair_basic, tc)
 {
@@ -105,7 +141,7 @@ ATF_TC_HEAD(socketpair_basic, tc)
 
 ATF_TC_BODY(socketpair_basic, tc)
 {
-	run(0);
+	run(AF_UNIX, SOCK_DGRAM, 0);
 }
 
 ATF_TC(socketpair_nonblock);
@@ -116,7 +152,7 @@ ATF_TC_HEAD(socketpair_nonblock, tc)
 
 ATF_TC_BODY(socketpair_nonblock, tc)
 {
-	run(SOCK_NONBLOCK);
+	run(AF_UNIX, SOCK_DGRAM, SOCK_NONBLOCK);
 }
 
 ATF_TC(socketpair_cloexec);
@@ -127,15 +163,29 @@ ATF_TC_HEAD(socketpair_cloexec, tc)
 
 ATF_TC_BODY(socketpair_cloexec, tc)
 {
-	run(SOCK_CLOEXEC);
+	run(AF_UNIX, SOCK_DGRAM, SOCK_CLOEXEC);
+}
+
+ATF_TC(socketpair_stream);
+ATF_TC_HEAD(socketpair_stream, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "A stream-oriented socketpair(2)");
+}
+
+ATF_TC_BODY(socketpair_stream, tc)
+{
+	run(AF_UNIX, SOCK_STREAM, 0);
 }
 
 ATF_TP_ADD_TCS(tp)
 {
 
+	ATF_TP_ADD_TC(tp, inet);
+	ATF_TP_ADD_TC(tp, null_sv);
 	ATF_TP_ADD_TC(tp, socketpair_basic);
 	ATF_TP_ADD_TC(tp, socketpair_nonblock);
 	ATF_TP_ADD_TC(tp, socketpair_cloexec);
+	ATF_TP_ADD_TC(tp, socketpair_stream);
 
 	return atf_no_error();
 }
