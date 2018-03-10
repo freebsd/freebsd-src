@@ -102,7 +102,6 @@ r92c_get_txpower(struct rtwn_softc *sc, int chain,
 	max_mcs = RTWN_RIDX_HT_MCS(sc->ntxchains * 8 - 1);
 	KASSERT(max_mcs <= RTWN_RIDX_COUNT, ("increase ridx limit\n"));
 
-	memset(power, 0, max_mcs * sizeof(power[0]));
 	if (rs->regulatory == 0) {
 		for (ridx = RTWN_RIDX_CCK1; ridx <= RTWN_RIDX_CCK11; ridx++)
 			power[ridx] = base[chain].pwr[0][ridx];
@@ -225,6 +224,7 @@ r92c_set_txpower(struct rtwn_softc *sc, struct ieee80211_channel *c)
 	int i;
 
 	for (i = 0; i < sc->ntxchains; i++) {
+		memset(power, 0, sizeof(power));
 		/* Compute per-rate Tx power values. */
 		rtwn_r92c_get_txpower(sc, i, c, power);
 #ifdef RTWN_DEBUG
