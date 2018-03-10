@@ -94,7 +94,8 @@ static void
 vm_domainset_iter_rr(struct vm_domainset_iter *di, int *domain)
 {
 
-	*domain = di->di_domain->ds_order[++(*di->di_iter) % di->di_domain->ds_cnt];
+	*domain = di->di_domain->ds_order[
+	    ++(*di->di_iter) % di->di_domain->ds_cnt];
 }
 
 static void
@@ -155,7 +156,11 @@ vm_domainset_iter_first(struct vm_domainset_iter *di, int *domain)
 	case DOMAINSET_POLICY_FIRSTTOUCH:
 		*domain = PCPU_GET(domain);
 		if (DOMAINSET_ISSET(*domain, &di->di_domain->ds_mask)) {
-			di->di_n = di->di_domain->ds_cnt;
+			/*
+			 * Add an extra iteration because we will visit the
+			 * current domain a second time in the rr iterator.
+			 */
+			di->di_n = di->di_domain->ds_cnt + 1;
 			break;
 		}
 		/*
