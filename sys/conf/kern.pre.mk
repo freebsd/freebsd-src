@@ -214,7 +214,8 @@ SYSTEM_LD_TAIL= @${OBJCOPY} --strip-symbol gcc2_compiled. ${.TARGET} ; \
 SYSTEM_DEP+= ${LDSCRIPT}
 
 # Calculate path for .m files early, if needed.
-.if !defined(NO_MODULES) && !defined(__MPATH) && !make(install)
+.if !defined(NO_MODULES) && !defined(__MPATH) && !make(install) && \
+    (empty(.MAKEFLAGS:M-V) || defined(NO_SKIP_MPATH))
 __MPATH!=find ${S:tA}/ -name \*_if.m
 .endif
 
