@@ -135,6 +135,7 @@ cache_label(struct gctl_req *req)
 	int error, nargs;
 	intmax_t val;
 
+	bzero(sector, sizeof(sector));
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs != 2) {
 		gctl_error(req, "Invalid number of arguments.");

@@ -183,6 +183,7 @@ my_g_metadata_store(const char *name, u_char *md, size_t size)
 		goto out;
 	}
 	bcopy(md, sector, size);
+	bzero(sector + size, sectorsize - size);
 	if (pwrite(fd, sector, sectorsize, mediasize - sectorsize) !=
 	    (ssize_t)sectorsize) {
 		error = errno;
