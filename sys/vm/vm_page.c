@@ -147,8 +147,8 @@ struct vm_domain vm_dom[MAXMEMDOM];
 
 struct mtx_padalign __exclusive_cache_line pa_lock[PA_LOCK_COUNT];
 
-/* The following fields are protected by the domainset lock. */
 struct mtx_padalign __exclusive_cache_line vm_domainset_lock;
+/* The following fields are protected by the domainset lock. */
 domainset_t __exclusive_cache_line vm_min_domains;
 domainset_t __exclusive_cache_line vm_severe_domains;
 static int vm_min_waiters;
@@ -779,7 +779,7 @@ vm_page_startup(vm_offset_t vaddr)
 			vm_domain_free_lock(vmd);
 			vm_phys_free_contig(m, pagecount);
 			vm_domain_free_unlock(vmd);
-			vm_domain_freecnt_inc(vmd, (int)pagecount);
+			vm_domain_freecnt_inc(vmd, pagecount);
 			vm_cnt.v_page_count += (u_int)pagecount;
 
 			vmd = VM_DOMAIN(seg->domain);;
@@ -2816,8 +2816,9 @@ vm_domain_clear(struct vm_domain *vmd)
 			wakeup(&vm_severe_domains);
 		}
 	}
+
 	/*
-	 * if pageout daemon needs pages, then tell it that there are
+	 * If pageout daemon needs pages, then tell it that there are
 	 * some free.
 	 */
 	if (vmd->vmd_pageout_pages_needed &&
@@ -2826,7 +2827,7 @@ vm_domain_clear(struct vm_domain *vmd)
 		vmd->vmd_pageout_pages_needed = 0;
 	}
 
-	/* See comments in vm_wait(); */
+	/* See comments in vm_wait_doms(). */
 	if (vm_pageproc_waiters) {
 		vm_pageproc_waiters = 0;
 		wakeup(&vm_pageproc_waiters);

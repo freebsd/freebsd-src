@@ -1895,7 +1895,7 @@ vm_pageout_worker(void *arg)
 	while (TRUE) {
 		vm_domain_pageout_lock(vmd);
 		/*
-		 * Wwe need to clear wanted before we check the limits.  This
+		 * We need to clear wanted before we check the limits.  This
 		 * prevents races with wakers who will check wanted after they
 		 * reach the limit.
 		 */
@@ -1923,7 +1923,7 @@ vm_pageout_worker(void *arg)
 			    "psleep", hz / VM_INACT_SCAN_RATE) == 0)
 				VM_CNT_INC(v_pdwakeups);
 		}
-		/* Prevent spurior wakeups by ensuring that wanted is set. */
+		/* Prevent spurious wakeups by ensuring that wanted is set. */
 		atomic_store_int(&vmd->vmd_pageout_wanted, 1);
 
 		/*
@@ -2103,7 +2103,7 @@ pagedaemon_wakeup(int domain)
 
 	vmd = VM_DOMAIN(domain);
 	vm_domain_pageout_assert_unlocked(vmd);
-	if (curthread->td_proc == pageproc)
+	if (curproc == pageproc)
 		return;
 
 	if (atomic_fetchadd_int(&vmd->vmd_pageout_wanted, 1) == 0) {
