@@ -67,6 +67,9 @@ __FBSDID("$FreeBSD$");
  * for these devices does not work in this way and so does not work
  * with this driver.
  */
+
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
