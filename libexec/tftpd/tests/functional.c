@@ -350,6 +350,10 @@ setup(struct sockaddr_storage *to, uint16_t idx)
 		ATF_REQUIRE((client_s = socket(protocol, SOCK_DGRAM, 0)) > 0);
 		break;
 	}
+
+	/* Clear the client's umask.  Test cases will specify exact modes */
+	umask(0000);
+
 	return (client_s);
 }
 
@@ -714,7 +718,7 @@ TFTPD_TC_DEFINE(wrq_dropped_ack,)
 	for (i = 0; i < nitems(contents); i++)
 		contents[i] = i;
 
-	fd = open("medium.txt", O_RDWR | O_CREAT, 0644);
+	fd = open("medium.txt", O_RDWR | O_CREAT, 0666);
 	ATF_REQUIRE(fd >= 0);
 	close(fd);
 
@@ -747,7 +751,7 @@ TFTPD_TC_DEFINE(wrq_dropped_data,)
 	size_t contents_len;
 	char buffer[1024];
 
-	fd = open("small.txt", O_RDWR | O_CREAT, 0644);
+	fd = open("small.txt", O_RDWR | O_CREAT, 0666);
 	ATF_REQUIRE(fd >= 0);
 	close(fd);
 	contents_len = strlen(contents) + 1;
@@ -782,7 +786,7 @@ TFTPD_TC_DEFINE(wrq_duped_data,)
 	for (i = 0; i < nitems(contents); i++)
 		contents[i] = i;
 
-	fd = open("medium.txt", O_RDWR | O_CREAT, 0644);
+	fd = open("medium.txt", O_RDWR | O_CREAT, 0666);
 	ATF_REQUIRE(fd >= 0);
 	close(fd);
 
@@ -831,7 +835,8 @@ TFTPD_TC_DEFINE(wrq_eaccess_world_readable,)
 	close(fd);
 
 	SEND_WRQ("empty.txt", "octet");
-	atf_tc_expect_fail("PR 226004 with relative pathnames, tftpd doesn't validate world writability");
+	atf_tc_expect_fail("PR 225996 tftpd doesn't abort on a WRQ access "
+	    "violation");
 	RECV_ERROR(2, "Access violation");
 }
 
