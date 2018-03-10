@@ -677,7 +677,6 @@ TFTPD_TC_DEFINE(unknown_opcode,)
 {
 	/* Looks like an RRQ or WRQ request, but with a bad opcode */
 	SEND_STR("\0\007foo.txt\0octet\0");
-	atf_tc_expect_timeout("PR 226005 tftpd ignores bad opcodes but doesn't reject them");
 	RECV_ERROR(4, "Illegal TFTP operation");
 }
 
