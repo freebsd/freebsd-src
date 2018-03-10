@@ -104,8 +104,6 @@ r88e_get_txpower(struct rtwn_softc *sc, int chain,
 	max_mcs = RTWN_RIDX_HT_MCS(sc->ntxchains * 8 - 1);
 	KASSERT(max_mcs <= RTWN_RIDX_COUNT, ("increase ridx limit\n"));
 
-	memset(power, 0, max_mcs * sizeof(power[0]));
-
 	/* Compute per-CCK rate Tx power. */
 	cckpow = rt->cck_tx_pwr[group];
 	for (ridx = RTWN_RIDX_CCK1; ridx <= RTWN_RIDX_CCK11; ridx++) {
