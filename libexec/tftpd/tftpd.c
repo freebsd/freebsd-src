@@ -743,8 +743,12 @@ validate_access(int peer, char **filep, int mode)
 				dirp->name, filename);
 			if (stat(pathname, &stbuf) == 0 &&
 			    (stbuf.st_mode & S_IFMT) == S_IFREG) {
-				if ((stbuf.st_mode & S_IROTH) != 0) {
-					break;
+				if (mode == RRQ) {
+					if ((stbuf.st_mode & S_IROTH) != 0)
+						break;
+				} else {
+					if ((stbuf.st_mode & S_IWOTH) != 0)
+						break;
 				}
 				err = EACCESS;
 			}
@@ -752,6 +756,8 @@ validate_access(int peer, char **filep, int mode)
 		if (dirp->name != NULL)
 			*filep = filename = pathname;
 		else if (mode == RRQ)
+			return (err);
+		else if (err != ENOTFOUND || !create_new)
 			return (err);
 	}
 
