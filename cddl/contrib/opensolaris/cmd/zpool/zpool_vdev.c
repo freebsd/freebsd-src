@@ -684,6 +684,21 @@ get_replication(nvlist_t *nvroot, boolean_t fatal)
 					verify(nvlist_lookup_string(cnv,
 					    ZPOOL_CONFIG_TYPE,
 					    &childtype) == 0);
+					if (strcmp(childtype,
+					    VDEV_TYPE_SPARE) == 0) {
+						/* We have a replacing vdev with
+						 * a spare child.  Get the first
+						 * real child of the spare
+						 */
+						verify(
+						    nvlist_lookup_nvlist_array(
+							cnv,
+							ZPOOL_CONFIG_CHILDREN,
+							&rchild,
+						    &rchildren) == 0);
+						assert(rchildren >= 2);
+						cnv = rchild[0];
+					}
 				}
 
 				verify(nvlist_lookup_string(cnv,
