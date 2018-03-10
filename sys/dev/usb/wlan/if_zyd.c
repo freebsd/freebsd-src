@@ -26,6 +26,8 @@ __FBSDID("$FreeBSD$");
  * ZyDAS ZD1211/ZD1211B USB WLAN driver.
  */
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
