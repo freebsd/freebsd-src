@@ -3483,15 +3483,12 @@ run_tx_mgt(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	struct rt2860_txwi *txwi;
 	uint16_t dur;
 	uint8_t ridx = rn->mgt_ridx;
-	uint8_t type;
 	uint8_t xflags = 0;
 	uint8_t wflags = 0;
 
 	RUN_LOCK_ASSERT(sc, MA_OWNED);
 
 	wh = mtod(m, struct ieee80211_frame *);
-
-	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 
 	/* tell hardware to add timestamp for probe responses */
 	if ((wh->i_fc[0] &
@@ -3609,11 +3606,9 @@ run_tx_param(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
     const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ieee80211_frame *wh;
 	struct run_tx_data *data;
 	struct rt2870_txd *txd;
 	struct rt2860_txwi *txwi;
-	uint8_t type;
 	uint8_t ridx;
 	uint8_t rate;
 	uint8_t opflags = 0;
@@ -3623,9 +3618,6 @@ run_tx_param(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	RUN_LOCK_ASSERT(sc, MA_OWNED);
 
 	KASSERT(params != NULL, ("no raw xmit params"));
-
-	wh = mtod(m, struct ieee80211_frame *);
-	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 
 	rate = params->ibp_rate0;
 	if (!ieee80211_isratevalid(ic->ic_rt, rate)) {
