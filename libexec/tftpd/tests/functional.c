@@ -248,10 +248,10 @@ require_bufeq(const char *expected, ssize_t expected_len, const char *actual,
 	ssize_t i;
 
 	ATF_REQUIRE_EQ_MSG(expected_len, len,
-	    "Expected %ld bytes but got %ld", expected_len, len);
+	    "Expected %zd bytes but got %zd", expected_len, len);
 	for (i = 0; i < len; i++) {
 		ATF_REQUIRE_EQ_MSG(actual[i], expected[i],
-		    "Expected %#hhx at position %ld; got %hhx instead",
+		    "Expected %#hhx at position %zd; got %hhx instead",
 		    expected[i], i, actual[i]);
 	}
 }
