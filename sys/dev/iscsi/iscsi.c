@@ -1983,6 +1983,7 @@ iscsi_ioctl_session_modify(struct iscsi_softc *sc,
     struct iscsi_session_modify *ism)
 {
 	struct iscsi_session *is;
+	const struct iscsi_session *is2;
 
 	iscsi_sanitize_session_conf(&ism->ism_conf);
 	if (iscsi_valid_session_conf(&ism->ism_conf) == false)
@@ -1991,14 +1992,42 @@ iscsi_ioctl_session_modify(struct iscsi_softc *sc,
 	sx_xlock(&sc->sc_lock);
 	TAILQ_FOREACH(is, &sc->sc_sessions, is_next) {
 		ISCSI_SESSION_LOCK(is);
-		if (is->is_id == ism->ism_session_id)
+		if (is->is_id == ism->ism_session_id) {
+			/* Note that the session remains locked. */
 			break;
+		}
 		ISCSI_SESSION_UNLOCK(is);
 	}
 	if (is == NULL) {
 		sx_xunlock(&sc->sc_lock);
 		return (ESRCH);
 	}
+
+	/*
+	 * Prevent duplicates.
+	 */
+	TAILQ_FOREACH(is2, &sc->sc_sessions, is_next) {
+		if (is == is2)
+			continue;
+
+		if (!!ism->ism_conf.isc_discovery !=
+		    !!is2->is_conf.isc_discovery)
+			continue;
+
+		if (strcmp(ism->ism_conf.isc_target_addr,
+		    is2->is_conf.isc_target_addr) != 0)
+			continue;
+
+		if (ism->ism_conf.isc_discovery == 0 &&
+		    strcmp(ism->ism_conf.isc_target,
+		    is2->is_conf.isc_target) != 0)
+			continue;
+
+		ISCSI_SESSION_UNLOCK(is);
+		sx_xunlock(&sc->sc_lock);
+		return (EBUSY);
+	}
+
 	sx_xunlock(&sc->sc_lock);
 
 	memcpy(&is->is_conf, &ism->ism_conf, sizeof(is->is_conf));
