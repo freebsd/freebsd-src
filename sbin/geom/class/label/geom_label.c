@@ -117,6 +117,7 @@ label_label(struct gctl_req *req)
 	u_char sector[512];
 	int error, nargs;
 
+	bzero(sector, sizeof(sector));
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs != 2) {
 		gctl_error(req, "Invalid number of arguments.");
@@ -137,6 +138,7 @@ label_label(struct gctl_req *req)
 	strlcpy(md.md_magic, G_LABEL_MAGIC, sizeof(md.md_magic));
 	md.md_version = G_LABEL_VERSION;
 	label = gctl_get_ascii(req, "arg0");
+	bzero(md.md_label, sizeof(md.md_label));
 	strlcpy(md.md_label, label, sizeof(md.md_label));
 	md.md_provsize = g_get_mediasize(name);
 	if (md.md_provsize == 0) {

@@ -176,6 +176,7 @@ mirror_label(struct gctl_req *req)
 	intmax_t val;
 	int error, i, nargs, bal, hardcode;
 
+	bzero(sector, sizeof(sector));
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs < 2) {
 		gctl_error(req, "Too few arguments.");
