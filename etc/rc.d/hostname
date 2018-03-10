@@ -60,9 +60,11 @@ hostname_start()
 	# Have we got a hostname yet?
 	#
 	if [ -z "${hostname}" ]; then
-		# Null hostname is probably OK if DHCP is in use.
+		# Null hostname is probably OK if DHCP is in use,
+		# or when hostname is already set (common for jails).
 		#
-		if [ -z "`list_net_interfaces dhcp`" ]; then
+		if [ -z "`list_net_interfaces dhcp`" -a \
+		     -z "`/bin/hostname`" ]; then
 			warn "\$hostname is not set -- see rc.conf(5)."
 		fi
 		return
