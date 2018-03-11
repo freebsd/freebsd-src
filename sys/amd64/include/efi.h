@@ -48,9 +48,9 @@
 #ifdef _KERNEL
 #include <isa/rtc.h>
 
-#define	EFI_TIME_LOCK()		mtx_lock_spin(&atrtc_lock);
-#define	EFI_TIME_UNLOCK()	mtx_unlock_spin(&atrtc_lock);
-#define	EFI_TIME_OWNED()	mtx_assert(&atrtc_lock, MA_OWNED);
+#define	EFI_TIME_LOCK()		mtx_lock(&atrtc_time_lock);
+#define	EFI_TIME_UNLOCK()	mtx_unlock(&atrtc_time_lock);
+#define	EFI_TIME_OWNED()	mtx_assert(&atrtc_time_lock, MA_OWNED);
 #endif
 
 #endif /* __AMD64_INCLUDE_EFI_H_ */

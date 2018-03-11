@@ -114,7 +114,7 @@
 #define	RTC_CENTURY	0x32	/* current century */
 
 #ifdef _KERNEL
-extern  struct mtx atrtc_lock;
+extern  struct mtx atrtc_time_lock;
 extern	int atrtcclock_disable;
 int	rtcin(int reg);
 void	atrtc_restore(void);
