@@ -31,10 +31,13 @@
 #include "opt_platform.h"
 
 #include <sys/kobj.h>
+#include <sys/sysctl.h>
 #ifdef FDT
 #include <dev/ofw/ofw_bus.h>
 #endif
 #include "regnode_if.h"
+
+SYSCTL_DECL(_hw_regulator);
 
 #define REGULATOR_FLAGS_STATIC		0x00000001  /* Static strings */
 #define REGULATOR_FLAGS_NOT_DISABLE	0x00000002  /* Cannot be disabled */
