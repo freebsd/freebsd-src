@@ -52,6 +52,7 @@ struct mem_affinity {
 extern struct mem_affinity *mem_affinity;
 extern int *mem_locality;
 #endif
+extern int vm_ndomains;
 
 struct vm_freelist {
 	struct pglist pl;
