@@ -108,6 +108,17 @@ DIV_CLK(apb0_clk,
     0, 2,			/* shift, width */
     0, NULL);			/* flags, div table */
 
+static const char *ir_parents[] = {"osc32k", "osc24M"};
+NM_CLK(ir_clk,
+    CLK_IR,				/* id */
+    "ir", ir_parents,			/* names, parents */
+    0x54,				/* offset */
+    0, 4, 0, 0,				/* N factor */
+    16, 2, 0, 0,			/* M flags */
+    24, 2,				/* mux */
+    31,					/* gate */
+    AW_CLK_HAS_MUX | AW_CLK_REPARENT);	/* flags */
+
 static struct aw_clk_prediv_mux_def *r_ccu_prediv_mux_clks[] = {
 	&ar100_clk,
 };
@@ -122,6 +133,10 @@ static struct clk_div_def *div_clks[] = {
 
 static struct clk_fixed_def *fixed_factor_clks[] = {
 	&ahb0_clk,
+};
+
+static struct aw_clk_nm_def *nm_clks[] = {
+	&ir_clk,
 };
 
 void
@@ -147,4 +162,6 @@ ccu_sun8i_r_register_clocks(struct aw_ccung_softc *sc)
 		clknode_div_register(sc->clkdom, div_clks[i]);
 	for (i = 0; i < nitems(fixed_factor_clks); i++)
 		clknode_fixed_register(sc->clkdom, fixed_factor_clks[i]);
+	for (i = 0; i < nitems(nm_clks); i++)
+		aw_clk_nm_register(sc->clkdom, nm_clks[i]);
 }
