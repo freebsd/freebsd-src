@@ -56,14 +56,15 @@ __FBSDID("$FreeBSD$");
 #include "clock_if.h"
 
 /*
- * atrtc_lock protects access to the RTC ioports, which are accessed by this
- * driver, the nvram(4) driver (via rtcin()/writertc() calls), and the rtc code
- * in efi runtime services.  The efirt wrapper code directly locks atrtc lock
- * using the EFI_TIME_LOCK/UNLOCK() macros which are defined to use this mutex
- * on x86 platforms.
+ * atrtc_lock protects low-level access to individual hardware registers.
+ * atrtc_time_lock protects the entire sequence of accessing multiple registers
+ * to read or write the date and time.
  */
-struct mtx atrtc_lock;
+static struct mtx atrtc_lock;
 MTX_SYSINIT(atrtc_lock_init, &atrtc_lock, "atrtc", MTX_SPIN);
+
+struct mtx atrtc_time_lock;
+MTX_SYSINIT(atrtc_time_lock_init, &atrtc_time_lock, "atrtc", MTX_DEF);
 
 int	atrtcclock_disable = 0;
 
@@ -327,6 +328,7 @@ atrtc_settime(device_t dev __unused, struct timespec *ts)
 	clock_ts_to_bcd(ts, &bct, false);
 	clock_dbgprint_bcd(dev, CLOCK_DBG_WRITE, &bct);
 
+	mtx_lock(&atrtc_time_lock);
 	mtx_lock_spin(&atrtc_lock);
 
 	/* Disable RTC updates and interrupts.  */
@@ -351,6 +353,7 @@ atrtc_settime(device_t dev __unused, struct timespec *ts)
 	rtcin_locked(RTC_INTR);
 
 	mtx_unlock_spin(&atrtc_lock);
+	mtx_unlock(&atrtc_time_lock);
 
 	return (0);
 }
@@ -373,6 +376,7 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 	 * to make sure that no more than 240us pass after we start reading,
 	 * and try again if so.
 	 */
+	mtx_lock(&atrtc_time_lock);
 	while (rtcin(RTC_STATUSA) & RTCSA_TUP)
 		continue;
 	mtx_lock_spin(&atrtc_lock);
@@ -386,6 +390,7 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 	bct.year |= rtcin_locked(RTC_CENTURY) << 8;
 #endif
 	mtx_unlock_spin(&atrtc_lock);
+	mtx_unlock(&atrtc_time_lock);
 	/* dow is unused in timespec conversion and we have no nsec info. */
 	bct.dow  = 0;
 	bct.nsec = 0;
