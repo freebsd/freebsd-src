@@ -127,8 +127,10 @@ static void
 atrtc_start(void)
 {
 
-	writertc(RTC_STATUSA, rtc_statusa);
-	writertc(RTC_STATUSB, RTCSB_24HR);
+	mtx_lock_spin(&atrtc_lock);
+	rtcout_locked(RTC_STATUSA, rtc_statusa);
+	rtcout_locked(RTC_STATUSB, RTCSB_24HR);
+	mtx_unlock_spin(&atrtc_lock);
 }
 
 static void
@@ -144,8 +146,10 @@ atrtc_enable_intr(void)
 {
 
 	rtc_statusb |= RTCSB_PINTR;
-	writertc(RTC_STATUSB, rtc_statusb);
-	rtcin(RTC_INTR);
+	mtx_lock_spin(&atrtc_lock);
+	rtcout_locked(RTC_STATUSB, rtc_statusb);
+	rtcin_locked(RTC_INTR);
+	mtx_unlock_spin(&atrtc_lock);
 }
 
 static void
@@ -153,8 +157,10 @@ atrtc_disable_intr(void)
 {
 
 	rtc_statusb &= ~RTCSB_PINTR;
-	writertc(RTC_STATUSB, rtc_statusb);
-	rtcin(RTC_INTR);
+	mtx_lock_spin(&atrtc_lock);
+	rtcout_locked(RTC_STATUSB, rtc_statusb);
+	rtcin_locked(RTC_INTR);
+	mtx_unlock_spin(&atrtc_lock);
 }
 
 void
@@ -162,11 +168,13 @@ atrtc_restore(void)
 {
 
 	/* Restore all of the RTC's "status" (actually, control) registers. */
-	rtcin(RTC_STATUSA);	/* dummy to get rtc_reg set */
-	writertc(RTC_STATUSB, RTCSB_24HR);
-	writertc(RTC_STATUSA, rtc_statusa);
-	writertc(RTC_STATUSB, rtc_statusb);
-	rtcin(RTC_INTR);
+	mtx_lock_spin(&atrtc_lock);
+	rtcin_locked(RTC_STATUSA);	/* dummy to get rtc_reg set */
+	rtcout_locked(RTC_STATUSB, RTCSB_24HR);
+	rtcout_locked(RTC_STATUSA, rtc_statusa);
+	rtcout_locked(RTC_STATUSB, rtc_statusb);
+	rtcin_locked(RTC_INTR);
+	mtx_unlock_spin(&atrtc_lock);
 }
 
 /**********************************************************************
