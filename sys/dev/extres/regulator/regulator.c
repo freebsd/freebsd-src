@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 
 #include "regdev_if.h"
 
+SYSCTL_NODE(_hw, OID_AUTO, regulator, CTLFLAG_RD, NULL, "Regulators");
+
 MALLOC_DEFINE(M_REGULATOR, "regulator", "Regulator framework");
 
 #define	DIV_ROUND_UP(n,d) howmany(n, d)
@@ -112,6 +114,8 @@ struct regnode {
 	int			enable_cnt;	/* Enabled counter */
 
 	struct regnode_std_param std_param;	/* Standard parameters */
+
+	struct sysctl_ctx_list	sysctl_ctx;
 };
 
 /*
@@ -146,6 +150,29 @@ SX_SYSINIT(regulator_topology, &regnode_topo_lock, "Regulator topology lock");
 #define REGNODE_SLOCK(_sc)	sx_slock(&((_sc)->lock))
 #define REGNODE_XLOCK(_sc)	sx_xlock(&((_sc)->lock))
 #define REGNODE_UNLOCK(_sc)	sx_unlock(&((_sc)->lock))
+
+/*
+ * sysctl handler
+ */
+static int
+regnode_uvolt_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct regnode *regnode = arg1;
+	int rv, uvolt;
+
+	if (regnode->std_param.min_uvolt == regnode->std_param.max_uvolt) {
+		uvolt = regnode->std_param.min_uvolt;
+	} else {
+		REG_TOPO_SLOCK();
+		if ((rv = regnode_get_voltage(regnode, &uvolt)) != 0) {
+			REG_TOPO_UNLOCK();
+			return (rv);
+		}
+		REG_TOPO_UNLOCK();
+	}
+
+	return sysctl_handle_int(oidp, &uvolt, sizeof(uvolt), req);
+}
 
 /* ----------------------------------------------------------------------------
  *
@@ -233,6 +260,7 @@ regnode_create(device_t pdev, regnode_class_t regnode_class,
     struct regnode_init_def *def)
 {
 	struct regnode *regnode;
+	struct sysctl_oid *regnode_oid;
 
 	KASSERT(def->name != NULL, ("regulator name is NULL"));
 	KASSERT(def->name[0] != '\0', ("regulator name is empty"));
@@ -276,6 +304,66 @@ regnode_create(device_t pdev, regnode_class_t regnode_class,
 #ifdef FDT
 	regnode->ofw_node = def->ofw_node;
 #endif
+
+	sysctl_ctx_init(&regnode->sysctl_ctx);
+	regnode_oid = SYSCTL_ADD_NODE(&regnode->sysctl_ctx,
+	    SYSCTL_STATIC_CHILDREN(_hw_regulator),
+	    OID_AUTO, regnode->name,
+	    CTLFLAG_RD, 0, "A regulator node");
+
+	SYSCTL_ADD_INT(&regnode->sysctl_ctx,
+	    SYSCTL_CHILDREN(regnode_oid),
+	    OID_AUTO, "min_uvolt",
+	    CTLFLAG_RD, &regnode->std_param.min_uvolt, 0,
+	    "Minimal voltage (in uV)");
+	SYSCTL_ADD_INT(&regnode->sysctl_ctx,
+	    SYSCTL_CHILDREN(regnode_oid),
+	    OID_AUTO, "max_uvolt",
+	    CTLFLAG_RD, &regnode->std_param.max_uvolt, 0,
+	    "Maximal voltage (in uV)");
+	SYSCTL_ADD_INT(&regnode->sysctl_ctx,
+	    SYSCTL_CHILDREN(regnode_oid),
+	    OID_AUTO, "min_uamp",
+	    CTLFLAG_RD, &regnode->std_param.min_uamp, 0,
+	    "Minimal amperage (in uA)");
+	SYSCTL_ADD_INT(&regnode->sysctl_ctx,
+	    SYSCTL_CHILDREN(regnode_oid),
+	    OID_AUTO, "max_uamp",
+	    CTLFLAG_RD, &regnode->std_param.max_uamp, 0,
+	    "Maximal amperage (in uA)");
+	SYSCTL_ADD_INT(&regnode->sysctl_ctx,
+	    SYSCTL_CHILDREN(regnode_oid),
+	    OID_AUTO, "ramp_delay",
+	    CTLFLAG_RD, &regnode->std_param.ramp_delay, 0,
+	    "Ramp delay (in uV/us)");
+	SYSCTL_ADD_INT(&regnode->sysctl_ctx,
+	    SYSCTL_CHILDREN(regnode_oid),
+	    OID_AUTO, "enable_delay",
+	    CTLFLAG_RD, &regnode->std_param.enable_delay, 0,
+	    "Enable delay (in us)");
+	SYSCTL_ADD_INT(&regnode->sysctl_ctx,
+	    SYSCTL_CHILDREN(regnode_oid),
+	    OID_AUTO, "enable_cnt",
+	    CTLFLAG_RD, &regnode->enable_cnt, 0,
+	    "The regulator enable counter");
+	SYSCTL_ADD_INT(&regnode->sysctl_ctx,
+	    SYSCTL_CHILDREN(regnode_oid),
+	    OID_AUTO, "boot_on",
+	    CTLFLAG_RD, (int *) &regnode->std_param.boot_on, 0,
+	    "Is enabled on boot");
+	SYSCTL_ADD_INT(&regnode->sysctl_ctx,
+	    SYSCTL_CHILDREN(regnode_oid),
+	    OID_AUTO, "always_on",
+	    CTLFLAG_RD, (int *)&regnode->std_param.always_on, 0,
+	    "Is always enabled");
+
+	SYSCTL_ADD_PROC(&regnode->sysctl_ctx,
+	    SYSCTL_CHILDREN(regnode_oid),
+	    OID_AUTO, "uvolt",
+	    CTLTYPE_INT | CTLFLAG_RD,
+	    regnode, 0, regnode_uvolt_sysctl,
+	    "I",
+	    "Current voltage (in uV)");
 
 	return (regnode);
 }
