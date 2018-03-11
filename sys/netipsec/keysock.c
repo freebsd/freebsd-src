@@ -202,6 +202,11 @@ key_sendup_mbuf(struct socket *so, struct mbuf *m, int target)
 		PFKEYSTAT_INC(in_msgtype[msg->sadb_msg_type]);
 	}
 	mtx_lock(&rawcb_mtx);
+	if (V_key_cb.any_count == 0) {
+		mtx_unlock(&rawcb_mtx);
+		m_freem(m);
+		return (0);
+	}
 	LIST_FOREACH(rp, &V_rawcb_list, list)
 	{
 		if (rp->rcb_proto.sp_family != PF_KEY)
