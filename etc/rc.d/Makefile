@@ -100,6 +100,7 @@ FILES=	DAEMON \
 	rpcbind \
 	rtadvd \
 	rtsold \
+	rwho \
 	savecore \
 	securelevel \
 	serial \
@@ -277,12 +278,6 @@ SSHPACKAGE=	ssh
 
 .if ${MK_PF} != "no"
 FILES+=		ftp-proxy
-.endif
-
-.if ${MK_RCMDS} != "no"
-FILESGROUPS+=	RCMDS
-RCMDS+=		rwho
-RCMDSPACKAGE=	rcmds
 .endif
 
 .if ${MK_ROUTED} != "no"
