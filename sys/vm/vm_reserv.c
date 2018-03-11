@@ -1118,7 +1118,6 @@ vm_reserv_free_page(vm_page_t m)
 	rv = vm_reserv_from_page(m);
 	if (rv->object == NULL)
 		return (FALSE);
-	vm_domain_free_assert_locked(VM_DOMAIN(rv->domain));
 	vm_reserv_depopulate(rv, m - rv->pages);
 	return (TRUE);
 }
