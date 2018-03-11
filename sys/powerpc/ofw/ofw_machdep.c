@@ -223,6 +223,7 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 	return (sz);
 }
 
+#ifdef FDT
 static int
 excise_fdt_reserved(struct mem_region *avail, int asz)
 {
@@ -310,6 +311,7 @@ excise_fdt_reserved(struct mem_region *avail, int asz)
 
 	return (asz);
 }
+#endif
 
 /*
  * This is called during powerpc_init, before the system is really initialized.
@@ -348,9 +350,11 @@ ofw_mem_regions(struct mem_region *memp, int *memsz,
 		asz += res/sizeof(struct mem_region);
 	}
 
+#ifdef FDT
 	phandle = OF_finddevice("/chosen");
 	if (OF_hasprop(phandle, "fdtmemreserv"))
 		asz = excise_fdt_reserved(availp, asz);
+#endif
 
 	*memsz = msz;
 	*availsz = asz;
@@ -409,6 +413,7 @@ OF_bootstrap()
 	} else
 #endif
 	if (fdt != NULL) {
+#ifdef FDT
 #ifdef AIM
 		bus_space_tag_t fdt_bt;
 		vm_offset_t tmp_fdt_ptr;
@@ -445,6 +450,7 @@ OF_bootstrap()
 		err = OF_init((void *)fdt_va);
 #else
 		err = OF_init(fdt);
+#endif
 #endif
 	} 
 
