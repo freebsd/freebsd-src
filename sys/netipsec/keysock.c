@@ -182,10 +182,9 @@ key_sendup_mbuf(struct socket *so, struct mbuf *m, int target)
 	struct rawcb *rp;
 	int error = 0;
 
-	if (m == NULL)
-		panic("key_sendup_mbuf: NULL pointer was passed.\n");
-	if (so == NULL && target == KEY_SENDUP_ONE)
-		panic("%s: NULL pointer was passed.\n", __func__);
+	KASSERT(m != NULL, ("NULL mbuf pointer was passed."));
+	KASSERT(so != NULL || target != KEY_SENDUP_ONE,
+	    ("NULL socket pointer was passed."));
 
 	PFKEYSTAT_INC(in_total);
 	PFKEYSTAT_ADD(in_bytes, m->m_pkthdr.len);
