@@ -131,6 +131,7 @@ jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2007/09/12"]
 jlaffaye [label="Julien Laffaye\njlaffaye@FreeBSD.org\n2011/06/06"]
 jmd [label="Johannes M. Dieterich\njmd@FreeBSD.org\n2017/01/09"]
 jmelo [label="Jean Milanez Melo\njmelo@FreeBSD.org\n2006/03/31"]
+joneum [label="Jochen Neumeister\joneum@FreeBSD.org\n2017/05/11"
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1994/08/22"]
 johans [label="Johan Selst\njohans@FreeBSD.org\n2006/04/01"]
 josef [label="Josef El-Rayes\njosef@FreeBSD.org\n2004/12/20"]
@@ -530,6 +531,7 @@ miwi -> dhn
 miwi -> farrokhi
 miwi -> fluffy
 miwi -> gahr
+miwi -> joneum
 miwi -> kmoore
 miwi -> lme
 miwi -> makc
@@ -597,6 +599,7 @@ rene -> cmt
 rene -> crees
 rene -> jgh
 rene -> jmd
+rene -> joneum
 rene -> ler
 rene -> olivierd
 
@@ -658,6 +661,7 @@ tabthorpe -> zi
 tabthorpe -> gblach
 
 tcberner -> adridg
+tcberner -> joneum
 tcberner -> yuri
 
 thierry -> jadawin
@@ -665,6 +669,8 @@ thierry -> riggs
 
 tmclaugh -> itetcu
 tmclaugh -> xride
+
+tz -> joneum
 
 vsevolod -> eugen
 
