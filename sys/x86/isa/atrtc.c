@@ -56,15 +56,15 @@ __FBSDID("$FreeBSD$");
 #include "clock_if.h"
 
 /*
- * clock_lock protects low-level access to individual hardware registers.
+ * atrtc_lock protects low-level access to individual hardware registers.
  * atrtc_time_lock protects the entire sequence of accessing multiple registers
  * to read or write the date and time.
  */
-#define	RTC_LOCK	do { if (!kdb_active) mtx_lock_spin(&clock_lock); } while (0)
-#define	RTC_UNLOCK	do { if (!kdb_active) mtx_unlock_spin(&clock_lock); } while (0)
+static struct mtx atrtc_lock;
+MTX_SYSINIT(atrtc_lock_init, &atrtc_lock, "atrtc", MTX_SPIN | MTX_NOPROFILE);
 
 struct mtx atrtc_time_lock;
-MTX_SYSINIT(atrtc_lock_init, &atrtc_time_lock, "atrtc", MTX_DEF);
+MTX_SYSINIT(atrtc_time_lock_init, &atrtc_time_lock, "atrtc", MTX_DEF);
 
 int	atrtcclock_disable = 0;
 
@@ -108,9 +108,9 @@ rtcin(int reg)
 {
 	u_char val;
 
-	RTC_LOCK;
+	mtx_lock_spin(&atrtc_lock);
 	val = rtcin_locked(reg);
-	RTC_UNLOCK;
+	mtx_unlock_spin(&atrtc_lock);
 	return (val);
 }
 
@@ -118,9 +118,9 @@ void
 writertc(int reg, u_char val)
 {
 
-	RTC_LOCK;
+	mtx_lock_spin(&atrtc_lock);
 	rtcout_locked(reg, val);
-	RTC_UNLOCK;
+	mtx_unlock_spin(&atrtc_lock);
 }
 
 static void
@@ -321,7 +321,7 @@ atrtc_settime(device_t dev __unused, struct timespec *ts)
 	clock_dbgprint_bcd(dev, CLOCK_DBG_WRITE, &bct);
 
 	mtx_lock(&atrtc_time_lock);
-	RTC_LOCK;
+	mtx_lock_spin(&atrtc_lock);
 
 	/* Disable RTC updates and interrupts.  */
 	rtcout_locked(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
@@ -344,7 +344,7 @@ atrtc_settime(device_t dev __unused, struct timespec *ts)
 	rtcout_locked(RTC_STATUSB, rtc_statusb);
 	rtcin_locked(RTC_INTR);
 
-	RTC_UNLOCK;
+	mtx_unlock_spin(&atrtc_lock);
 	mtx_unlock(&atrtc_time_lock);
 
 	return (0);
@@ -371,7 +371,7 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 	mtx_lock(&atrtc_time_lock);
 	while (rtcin(RTC_STATUSA) & RTCSA_TUP)
 		continue;
-	RTC_LOCK;
+	mtx_lock_spin(&atrtc_lock);
 	bct.sec  = rtcin_locked(RTC_SEC);
 	bct.min  = rtcin_locked(RTC_MIN);
 	bct.hour = rtcin_locked(RTC_HRS);
@@ -381,7 +381,7 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 #ifdef USE_RTC_CENTURY
 	bct.year |= rtcin_locked(RTC_CENTURY) << 8;
 #endif
-	RTC_UNLOCK;
+	mtx_unlock_spin(&atrtc_lock);
 	mtx_unlock(&atrtc_time_lock);
 	/* dow is unused in timespec conversion and we have no nsec info. */
 	bct.dow  = 0;
