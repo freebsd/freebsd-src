@@ -3374,8 +3374,10 @@ vm_page_free_pages_toq(struct spglist *free, bool update_wire_count)
 	while ((m = SLIST_FIRST(free)) != NULL) {
 		count++;
 		SLIST_REMOVE_HEAD(free, plinks.s.ss);
+		vm_page_lock(m);
 		if (vm_page_free_prep(m, false))
 			TAILQ_INSERT_TAIL(&pgl, m, listq);
+		vm_page_unlock(m);
 	}
 
 	vm_page_free_phys_pglist(&pgl);
