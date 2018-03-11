@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
  * on x86 platforms.
  */
 struct mtx atrtc_lock;
-MTX_SYSINIT(atrtc_lock_init, &atrtc_lock, "atrtc", MTX_SPIN | MTX_NOPROFILE);
+MTX_SYSINIT(atrtc_lock_init, &atrtc_lock, "atrtc", MTX_SPIN);
 
 int	atrtcclock_disable = 0;
 
