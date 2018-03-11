@@ -178,7 +178,6 @@ key_sendup_mbuf(struct socket *so, struct mbuf *m, int target)
 {
 	struct mbuf *n;
 	struct keycb *kp;
-	int sendup;
 	struct rawcb *rp;
 	int error = 0;
 
@@ -217,69 +216,50 @@ key_sendup_mbuf(struct socket *so, struct mbuf *m, int target)
 			continue;
 		}
 
-		kp = (struct keycb *)rp;
-
 		/*
 		 * If you are in promiscuous mode, and when you get broadcasted
 		 * reply, you'll get two PF_KEY messages.
 		 * (based on pf_key@inner.net message on 14 Oct 1998)
 		 */
-		if (((struct keycb *)rp)->kp_promisc) {
-			if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) != NULL) {
-				(void)key_sendup0(rp, n, 1);
-				n = NULL;
-			}
+		kp = (struct keycb *)rp;
+		if (kp->kp_promisc) {
+			n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
+			if (n != NULL)
+				key_sendup0(rp, n, 1);
+			else
+				PFKEYSTAT_INC(in_nomem);
 		}
 
 		/* the exact target will be processed later */
 		if (so && sotorawcb(so) == rp)
 			continue;
 
-		sendup = 0;
-		switch (target) {
-		case KEY_SENDUP_ONE:
-			/* the statement has no effect */
-			if (so && sotorawcb(so) == rp)
-				sendup++;
-			break;
-		case KEY_SENDUP_ALL:
-			sendup++;
-			break;
-		case KEY_SENDUP_REGISTERED:
-			if (kp->kp_registered)
-				sendup++;
-			break;
-		}
-		PFKEYSTAT_INC(in_msgtarget[target]);
-
-		if (!sendup)
+		if (target == KEY_SENDUP_ONE || (
+		    target == KEY_SENDUP_REGISTERED && kp->kp_registered == 0))
 			continue;
 
-		if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) == NULL) {
-			m_freem(m);
+		/* KEY_SENDUP_ALL + KEY_SENDUP_REGISTERED */
+		n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
+		if (n == NULL) {
 			PFKEYSTAT_INC(in_nomem);
-			mtx_unlock(&rawcb_mtx);
-			return ENOBUFS;
+			/* Try send to another socket */
+			continue;
 		}
 
-		if ((error = key_sendup0(rp, n, 0)) != 0) {
-			m_freem(m);
-			mtx_unlock(&rawcb_mtx);
-			return error;
-		}
-
-		n = NULL;
+		if (key_sendup0(rp, n, 0) == 0)
+			PFKEYSTAT_INC(in_msgtarget[target]);
 	}
 
-	if (so) {
+	if (so)	{ /* KEY_SENDUP_ONE */
 		error = key_sendup0(sotorawcb(so), m, 0);
-		m = NULL;
+		if (error == 0)
+			PFKEYSTAT_INC(in_msgtarget[KEY_SENDUP_ONE]);
 	} else {
 		error = 0;
 		m_freem(m);
 	}
 	mtx_unlock(&rawcb_mtx);
-	return error;
+	return (error);
 }
 
 /*
