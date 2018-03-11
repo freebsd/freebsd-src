@@ -185,6 +185,8 @@ key_sendup_mbuf(struct socket *so, struct mbuf *m, int target)
 	KASSERT(m != NULL, ("NULL mbuf pointer was passed."));
 	KASSERT(so != NULL || target != KEY_SENDUP_ONE,
 	    ("NULL socket pointer was passed."));
+	KASSERT(target == KEY_SENDUP_ONE || target == KEY_SENDUP_ALL ||
+	    target == KEY_SENDUP_REGISTERED, ("Wrong target %d", target));
 
 	PFKEYSTAT_INC(in_total);
 	PFKEYSTAT_ADD(in_bytes, m->m_pkthdr.len);
