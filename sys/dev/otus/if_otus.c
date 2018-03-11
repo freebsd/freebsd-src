@@ -2182,6 +2182,7 @@ static int
 otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
     struct otus_data *data, const struct ieee80211_bpf_params *params)
 {
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame *wh;
@@ -2190,7 +2191,7 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 	uint32_t phyctl;
 	uint16_t macctl, qos;
 	uint8_t qid, rate;
-	int hasqos, xferlen;
+	int hasqos, xferlen, type, ismcast;
 
 	wh = mtod(m, struct ieee80211_frame *);
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
@@ -2228,17 +2229,19 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 		qid = WME_AC_BE;
 	}
 
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
+
 	/* Pickup a rate index. */
-	if (params != NULL) {
+	if (params != NULL)
 		rate = otus_rate_to_hw_rate(sc, params->ibp_rate0);
-	} else if (m->m_flags & M_EAPOL) {
-		/* Get lowest rate */
-		rate = otus_rate_to_hw_rate(sc, 0);
-	} else if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
-	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_DATA) {
-		/* Get lowest rate */
-		rate = otus_rate_to_hw_rate(sc, 0);
-	} else {
+	else if (!!(m->m_flags & M_EAPOL) || type != IEEE80211_FC0_TYPE_DATA)
+		rate = otus_rate_to_hw_rate(sc, tp->mgmtrate);
+	else if (ismcast)
+		rate = otus_rate_to_hw_rate(sc, tp->mcastrate);
+	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
+		rate = otus_rate_to_hw_rate(sc, tp->ucastrate);
+	else {
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = otus_rate_to_hw_rate(sc, ni->ni_txrate);
 	}
@@ -2249,12 +2252,12 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 	/*
 	 * XXX TODO: params for NOACK, ACK, RTS, CTS, etc
 	 */
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
+	if (ismcast ||
 	    (hasqos && ((qos & IEEE80211_QOS_ACKPOLICY) ==
 	     IEEE80211_QOS_ACKPOLICY_NOACK)))
 		macctl |= AR_TX_MAC_NOACK;
 
-	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+	if (!ismcast) {
 		if (m->m_pkthdr.len + IEEE80211_CRC_LEN >= vap->iv_rtsthreshold)
 			macctl |= AR_TX_MAC_RTS;
 		else if (ic->ic_flags & IEEE80211_F_USEPROT) {
