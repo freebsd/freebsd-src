@@ -318,6 +318,7 @@ atrtc_settime(device_t dev __unused, struct timespec *ts)
 	struct bcd_clocktime bct;
 
 	clock_ts_to_bcd(ts, &bct, false);
+	clock_dbgprint_bcd(dev, CLOCK_DBG_WRITE, &bct);
 
 	mtx_lock(&atrtc_time_lock);
 	RTC_LOCK;
@@ -385,6 +386,7 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 	/* dow is unused in timespec conversion and we have no nsec info. */
 	bct.dow  = 0;
 	bct.nsec = 0;
+	clock_dbgprint_bcd(dev, CLOCK_DBG_READ, &bct);
 	return (clock_bcd_to_ts(&bct, ts, false));
 }
 
@@ -416,16 +418,3 @@ static devclass_t atrtc_devclass;
 DRIVER_MODULE(atrtc, isa, atrtc_driver, atrtc_devclass, 0, 0);
 DRIVER_MODULE(atrtc, acpi, atrtc_driver, atrtc_devclass, 0, 0);
 ISA_PNP_INFO(atrtc_ids);
-
-#include "opt_ddb.h"
-#ifdef DDB
-#include <ddb/ddb.h>
-
-DB_SHOW_COMMAND(rtc, rtc)
-{
-	printf("%02x/%02x/%02x %02x:%02x:%02x, A = %02x, B = %02x, C = %02x\n",
-		rtcin(RTC_YEAR), rtcin(RTC_MONTH), rtcin(RTC_DAY),
-		rtcin(RTC_HRS), rtcin(RTC_MIN), rtcin(RTC_SEC),
-		rtcin(RTC_STATUSA), rtcin(RTC_STATUSB), rtcin(RTC_INTR));
-}
-#endif /* DDB */
