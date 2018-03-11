@@ -103,6 +103,7 @@ erwin [label="Erwin Lansing\nerwin@FreeBSD.org\n2003/06/04"]
 eugen [label="Eugene Grosbein\neugen@FreeBSD.org\n2017/03/04"]
 farrokhi [label="Babak Farrokhi\nfarrokhi@FreeBSD.org\n2006/11/07"]
 feld [label="Mark Felder\nfeld@FreeBSD.org\n2013/06/25"]
+fernape [label="Fernando Apesteguia\nfernape@FreeBSD.org\n2018/03/03"]
 fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
 flo [label="Florian Smeets\nflo@FreeBSD.org\n2010/12/07"]
 fluffy [label="Dima Panov\nfluffy@FreeBSD.org\n2009/08/10"]
@@ -663,6 +664,7 @@ tabthorpe -> gblach
 tcberner -> adridg
 tcberner -> joneum
 tcberner -> yuri
+tcberner -> fernape
 
 thierry -> jadawin
 thierry -> riggs
@@ -671,6 +673,7 @@ tmclaugh -> itetcu
 tmclaugh -> xride
 
 tz -> joneum
+tz -> fernape
 
 vsevolod -> eugen
 
