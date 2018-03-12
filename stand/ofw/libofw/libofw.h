@@ -27,7 +27,7 @@
 
 #include "openfirm.h"
 
-/* Note: Must match the 'struct devdesc' in bootstrap.h */
+/* Note: Must match the 'struct devdesc' in stand.h */
 struct ofw_devdesc {
 	struct devsw	*d_dev;
 	int		d_type;

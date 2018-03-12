@@ -138,6 +138,12 @@ extern struct fs_ops pkgfs_fsops;
 struct devsw {
     const char	dv_name[8];
     int		dv_type;		/* opaque type constant, arch-dependant */
+#define DEVT_NONE	0
+#define DEVT_DISK	1
+#define DEVT_NET	2
+#define DEVT_CD		3
+#define DEVT_ZFS	4
+#define DEVT_FD		5
     int		(*dv_init)(void);	/* early probe call */
     int		(*dv_strategy)(void *devdata, int rw, daddr_t blk,
 			size_t size, char *buf, size_t *rsize);
@@ -160,16 +166,9 @@ extern int errno;
  * versions may be larger, but should be allowed to
  * overlap.
  */
-struct devdesc
-{
+struct devdesc {
     struct devsw	*d_dev;
     int			d_type;
-#define DEVT_NONE	0
-#define DEVT_DISK	1
-#define DEVT_NET	2
-#define DEVT_CD		3
-#define DEVT_ZFS	4
-#define DEVT_FD		5
     int			d_unit;
     void		*d_opendata;
 };

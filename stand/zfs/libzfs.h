@@ -33,12 +33,11 @@
 
 /*
  * ZFS fully-qualified device descriptor.
- * Note, this must match the 'struct devdesc' declaration in bootstrap.h.
  * Arch-specific device descriptors should be binary compatible with this
  * structure if they are to support ZFS.
  */
-struct zfs_devdesc
-{
+/* Note: Must match the 'struct devdesc' in stand.h */
+struct zfs_devdesc {
     struct devsw	*d_dev;
     int			d_type;
     int			d_unit;
