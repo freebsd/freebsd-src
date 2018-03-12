@@ -779,6 +779,7 @@ s32 e1000_init_mbx_params_pf(struct e1000_hw *hw)
 		mbx->stats.reqs = 0;
 		mbx->stats.acks = 0;
 		mbx->stats.rsts = 0;
+		/* FALLTHROUGH */
 	default:
 		return E1000_SUCCESS;
 	}
