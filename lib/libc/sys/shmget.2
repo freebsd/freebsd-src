@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2010
+.Dd March 4, 2018
 .Dt SHMGET 2
 .Os
 .Sh NAME
@@ -34,8 +34,6 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
-.In sys/ipc.h
 .In sys/shm.h
 .Ft int
 .Fn shmget "key_t key" "size_t size" "int flag"
@@ -74,22 +72,21 @@ may be used to generate a key from a pathname.
 .El
 .Pp
 The mode of a newly created IPC object is determined by
-.Em OR Ns 'ing
-the following constants into the
+which are set by ORing these constants into the
 .Fa flag
 argument:
-.Bl -tag -width XSHM_WXX6XXX
-.It Dv S_IRUSR
+.Bl -tag -width 0000
+.It Dv 0400
 Read access for owner.
-.It Dv S_IWUSR
+.It Dv 0200
 Write access for owner.
-.It Dv S_IRGRP
+.It Dv 0040
 Read access for group.
-.It Dv S_IWGRP
+.It Dv 0020
 Write access for group.
-.It Dv S_IROTH
+.It Dv 0004
 Read access for other.
-.It Dv S_IWOTH
+.It Dv 0002
 Write access for other.
 .El
 .\"
@@ -142,5 +139,4 @@ already exists.
 .Xr shmat 2 ,
 .Xr shmctl 2 ,
 .Xr shmdt 2 ,
-.Xr stat 2 ,
 .Xr ftok 3
