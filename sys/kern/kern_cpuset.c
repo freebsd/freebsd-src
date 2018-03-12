@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
+#include <sys/ctype.h>
 #include <sys/sysproto.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
@@ -112,6 +114,9 @@ __FBSDID("$FreeBSD$");
  * meaning 'curthread'.  It may query available cpus for that tid with a
  * getaffinity call using (CPU_LEVEL_CPUSET, CPU_WHICH_PID, -1, ...).
  */
+
+LIST_HEAD(domainlist, domainset);
+
 static uma_zone_t cpuset_zone;
 static uma_zone_t domainset_zone;
 static struct mtx cpuset_lock;
@@ -119,6 +124,7 @@ static struct setlist cpuset_ids;
 static struct domainlist cpuset_domains;
 static struct unrhdr *cpuset_unr;
 static struct cpuset *cpuset_zero, *cpuset_default, *cpuset_kernel;
+static struct domainset domainset0, domainset2;
 
 /* Return the size of cpuset_t at the kernel level */
 SYSCTL_INT(_kern_sched, OID_AUTO, cpusetsize, CTLFLAG_RD | CTLFLAG_CAPRD,
@@ -477,11 +483,24 @@ _domainset_create(struct domainset *domain, struct domainlist *freelist)
 /*
  * Create or lookup a domainset based on the key held in 'domain'.
  */
-static struct domainset *
+struct domainset *
 domainset_create(const struct domainset *domain)
 {
 	struct domainset *ndomain;
 
+	/*
+	 * Validate the policy.  It must specify a useable policy number with
+	 * only valid domains.  Preferred must include the preferred domain
+	 * in the mask.
+	 */
+	if (domain->ds_policy <= DOMAINSET_POLICY_INVALID ||
+	    domain->ds_policy > DOMAINSET_POLICY_MAX)
+		return (NULL);
+	if (domain->ds_policy == DOMAINSET_POLICY_PREFER &&
+	    !DOMAINSET_ISSET(domain->ds_prefer, &domain->ds_mask))
+		return (NULL);
+	if (!DOMAINSET_SUBSET(&domainset0.ds_mask, &domain->ds_mask))
+		return (NULL);
 	ndomain = uma_zalloc(domainset_zone, M_WAITOK | M_ZERO);
 	domainset_copy(domain, ndomain);
 	return _domainset_create(ndomain, NULL);
@@ -1132,6 +1151,55 @@ out:
 	return (error);
 }
 
+static int
+bitset_strprint(char *buf, size_t bufsiz, const struct bitset *set, int setlen)
+{
+	size_t bytes;
+	int i, once;
+	char *p;
+
+	once = 0;
+	p = buf;
+	for (i = 0; i < __bitset_words(setlen); i++) {
+		if (once != 0) {
+			if (bufsiz < 1)
+				return (0);
+			*p = ',';
+			p++;
+			bufsiz--;
+		} else
+			once = 1;
+		if (bufsiz < sizeof(__STRING(ULONG_MAX)))
+			return (0);
+		bytes = snprintf(p, bufsiz, "%lx", set->__bits[i]);
+		p += bytes;
+		bufsiz -= bytes;
+	}
+	return (p - buf);
+}
+
+static int
+bitset_strscan(struct bitset *set, int setlen, const char *buf)
+{
+	int i, ret;
+	const char *p;
+
+	BIT_ZERO(setlen, set);
+	p = buf;
+	for (i = 0; i < __bitset_words(setlen); i++) {
+		if (*p == ',') {
+			p++;
+			continue;
+		}
+		ret = sscanf(p, "%lx", &set->__bits[i]);
+		if (ret == 0 || ret == -1)
+			break;
+		while (isxdigit(*p))
+			p++;
+	}
+	return (p - buf);
+}
+
 /*
  * Return a string representing a valid layout for a cpuset_t object.
  * It expects an incoming buffer at least sized as CPUSETBUFSIZ.
@@ -1139,19 +1207,9 @@ out:
 char *
 cpusetobj_strprint(char *buf, const cpuset_t *set)
 {
-	char *tbuf;
-	size_t i, bytesp, bufsiz;
 
-	tbuf = buf;
-	bytesp = 0;
-	bufsiz = CPUSETBUFSIZ;
-
-	for (i = 0; i < (_NCPUWORDS - 1); i++) {
-		bytesp = snprintf(tbuf, bufsiz, "%lx,", set->__bits[i]);
-		bufsiz -= bytesp;
-		tbuf += bytesp;
-	}
-	snprintf(tbuf, bufsiz, "%lx", set->__bits[_NCPUWORDS - 1]);
+	bitset_strprint(buf, CPUSETBUFSIZ, (const struct bitset *)set,
+	    CPU_SETSIZE);
 	return (buf);
 }
 
@@ -1162,35 +1220,69 @@ cpusetobj_strprint(char *buf, const cpuset_t *set)
 int
 cpusetobj_strscan(cpuset_t *set, const char *buf)
 {
-	u_int nwords;
-	int i, ret;
+	char p;
 
 	if (strlen(buf) > CPUSETBUFSIZ - 1)
 		return (-1);
 
-	/* Allow to pass a shorter version of the mask when necessary. */
-	nwords = 1;
-	for (i = 0; buf[i] != '\0'; i++)
-		if (buf[i] == ',')
-			nwords++;
-	if (nwords > _NCPUWORDS)
+	p = buf[bitset_strscan((struct bitset *)set, CPU_SETSIZE, buf)];
+	if (p != '\0')
 		return (-1);
 
-	CPU_ZERO(set);
-	for (i = 0; i < (nwords - 1); i++) {
-		ret = sscanf(buf, "%lx,", &set->__bits[i]);
-		if (ret == 0 || ret == -1)
-			return (-1);
-		buf = strstr(buf, ",");
-		if (buf == NULL)
-			return (-1);
-		buf++;
-	}
-	ret = sscanf(buf, "%lx", &set->__bits[nwords - 1]);
-	if (ret == 0 || ret == -1)
-		return (-1);
 	return (0);
 }
+
+/*
+ * Handle a domainset specifier in the sysctl tree.  A poiner to a pointer to
+ * a domainset is in arg1.  If the user specifies a valid domainset the
+ * pointer is updated.
+ *
+ * Format is:
+ * hex mask word 0,hex mask word 1,...:decimal policy:decimal preferred
+ */
+int
+sysctl_handle_domainset(SYSCTL_HANDLER_ARGS)
+{
+	char buf[DOMAINSETBUFSIZ];
+	struct domainset *dset;
+	struct domainset key;
+	char *p;
+	int error;
+
+	dset = *(struct domainset **)arg1;
+	error = 0;
+
+	if (dset != NULL) {
+		p = buf + bitset_strprint(buf, DOMAINSETBUFSIZ,
+		    (const struct bitset *)&dset->ds_mask, DOMAINSET_SETSIZE);
+		sprintf(p, ":%d:%d", dset->ds_policy, dset->ds_prefer);
+	} else
+		sprintf(buf, "<NULL>");
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	/*
+	 * Read in and validate the string.
+	 */
+	memset(&key, 0, sizeof(key));
+	p = &buf[bitset_strscan((struct bitset *)&key.ds_mask,
+	    DOMAINSET_SETSIZE, buf)];
+	if (p == buf)
+		return (EINVAL);
+	if (sscanf(p, ":%hd:%hhd", &key.ds_policy, &key.ds_prefer) != 2)
+		return (EINVAL);
+
+	/* Domainset_create() validates the policy.*/
+	dset = domainset_create(&key);
+	if (dset == NULL)
+		return (EINVAL);
+	*(struct domainset **)arg1 = dset;
+
+	return (error);
+}
+
+#ifdef DDB
 
 /*
  * Apply an anonymous mask or a domain to a single thread.
@@ -1256,8 +1348,6 @@ cpuset_setithread(lwpid_t id, int cpu)
 /*
  * Create the domainset for cpuset 0, 1 and cpuset 2.
  */
-static struct domainset domainset0, domainset2;
-
 void
 domainset_zero(void)
 {
@@ -2079,8 +2169,6 @@ out:
 	return (error);
 }
 
-#ifdef DDB
-BITSET_DEFINE(bitset, 1);
 static void
 ddb_display_bitset(const struct bitset *set, int size)
 {

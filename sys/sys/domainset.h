@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_DOMAINSETSET_H_
-#define	_SYS_DOMAINSETSET_H_
+#ifndef _SYS_DOMAINSET_H_
+#define	_SYS_DOMAINSET_H_
 
 #include <sys/_domainset.h>
 
@@ -38,7 +38,11 @@
 #define	_NDOMAINSETBITS			_BITSET_BITS
 #define	_NDOMAINSETWORDS		__bitset_words(DOMAINSET_SETSIZE)
 
-#define	DOMAINSETSETBUFSIZ	((2 + sizeof(long) * 2) * _NDOMAINSETWORDS)
+#define	DOMAINSETBUFSIZ							\
+	    (((2 + sizeof(long) * 2) * _NDOMAINSETWORDS) +		\
+	    sizeof("::") + sizeof(__XSTRING(DOMAINSET_POLICY_MAX)) +	\
+	    sizeof(__XSTRING(MAXMEMDOM)))
+
 
 #define	DOMAINSET_CLR(n, p)		BIT_CLR(DOMAINSET_SETSIZE, n, p)
 #define	DOMAINSET_COPY(f, t)		BIT_COPY(DOMAINSET_SETSIZE, f, t)
@@ -77,9 +81,6 @@
 #define	DOMAINSET_POLICY_MAX		DOMAINSET_POLICY_INTERLEAVE
 
 #ifdef _KERNEL
-#include <sys/queue.h>
-LIST_HEAD(domainlist, domainset);
-
 #if MAXMEMDOM < 256
 typedef	uint8_t		domainid_t;
 #else
@@ -97,6 +98,16 @@ struct domainset {
 
 void domainset_zero(void);
 
+/*
+ * Add a domainset to the system based on a key initializing policy, prefer,
+ * and mask.  Do not create and directly use domainset structures.  The
+ * returned value will not match the key pointer.
+ */
+struct domainset *domainset_create(const struct domainset *);
+#ifdef _SYS_SYSCTL_H_
+int sysctl_handle_domainset(SYSCTL_HANDLER_ARGS);
+#endif
+
 #else
 __BEGIN_DECLS
 int	cpuset_getdomain(cpulevel_t, cpuwhich_t, id_t, size_t, domainset_t *,
@@ -106,4 +117,4 @@ int	cpuset_setdomain(cpulevel_t, cpuwhich_t, id_t, size_t,
 
 __END_DECLS
 #endif
-#endif /* !_SYS_DOMAINSETSET_H_ */
+#endif /* !_SYS_DOMAINSET_H_ */

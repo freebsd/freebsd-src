@@ -67,7 +67,7 @@
 #include <sys/ucontext.h>
 #include <sys/ucred.h>
 #include <sys/types.h>
-#include <sys/domainset.h>
+#include <sys/_domainset.h>
 
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
 #ifdef _KERNEL
