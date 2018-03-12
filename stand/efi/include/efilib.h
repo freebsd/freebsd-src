@@ -106,6 +106,17 @@ int wcscmp(CHAR16 *, CHAR16 *);
 void cpy8to16(const char *, CHAR16 *, size_t);
 void cpy16to8(const CHAR16 *, char *, size_t);
 
+/*
+ * Routines for interacting with EFI's env vars in a more unix-like
+ * way than the standard APIs. In addition, convenience routines for
+ * the loader setting / getting FreeBSD specific variables.
+ */
+
+EFI_STATUS efi_freebsd_getenv(const char *v, void *data, __size_t *len);
+EFI_STATUS efi_getenv(EFI_GUID *g, const char *v, void *data, __size_t *len);
+EFI_STATUS efi_global_getenv(const char *v, void *data, __size_t *len);
+EFI_STATUS efi_setenv_freebsd_wcs(const char *varname, CHAR16 *valstr);
+
 /* efipart.c */
 int	efipart_inithandles(void);
 
