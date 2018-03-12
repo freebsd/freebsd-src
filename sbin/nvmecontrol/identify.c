@@ -196,6 +196,17 @@ print_controller(struct nvme_controller_data *cdata)
 	printf("Timestamp feature:           %sSupported\n",
 	    ((oncs >> NVME_CTRLR_DATA_ONCS_TIMESTAMP_SHIFT) &
 	     NVME_CTRLR_DATA_ONCS_TIMESTAMP_MASK) ? "" : "Not ");
+	printf("Fused Operation Support:     %s%s\n",
+	    (cdata->fuses == 0) ? "Not Supported" : "",
+	    ((cdata->fuses >> NVME_CTRLR_DATA_FUSES_CNW_SHIFT) &
+	     NVME_CTRLR_DATA_FUSES_CNW_MASK) ? "Compare and Write" : "");
+	printf("Format NVM Attributes:       %s%s Erase, %s Format\n",
+	    ((cdata->fna >> NVME_CTRLR_DATA_FNA_CRYPTO_ERASE_SHIFT) &
+	     NVME_CTRLR_DATA_FNA_CRYPTO_ERASE_MASK) ? "Crypto Erase, " : "",
+	    ((cdata->fna >> NVME_CTRLR_DATA_FNA_ERASE_ALL_SHIFT) &
+	     NVME_CTRLR_DATA_FNA_ERASE_ALL_MASK) ? "All-NVM" : "Per-NS",
+	    ((cdata->fna >> NVME_CTRLR_DATA_FNA_FORMAT_ALL_SHIFT) &
+	     NVME_CTRLR_DATA_FNA_FORMAT_ALL_MASK) ? "All-NVM" : "Per-NS");
 	printf("Volatile Write Cache:        %s\n",
 		vwc_present ? "Present" : "Not Present");
 
