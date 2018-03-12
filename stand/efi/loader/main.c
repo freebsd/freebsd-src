@@ -312,6 +312,12 @@ main(int argc, CHAR16 *argv[])
 	int i, j, vargood, howto;
 	UINTN k;
 	int has_kbd;
+	CHAR16 *text;
+	UINT16 boot_current;
+	size_t sz;
+	UINT16 boot_order[100];
+	EFI_DEVICE_PATH *imgpath;
+	EFI_STATUS status;
 #if !defined(__arm__)
 	char buf[40];
 #endif
@@ -472,6 +478,36 @@ main(int argc, CHAR16 *argv[])
 	    ST->FirmwareRevision >> 16, ST->FirmwareRevision & 0xffff);
 
 	printf("\n%s", bootprog_info);
+
+	text = efi_devpath_name(img->FilePath);
+	if (text != NULL) {
+		printf("   Load Path: %S\n", text);
+		efi_setenv_freebsd_wcs("LoaderPath", text);
+		efi_free_devpath_name(text);
+	}
+
+	status = BS->HandleProtocol(img->DeviceHandle, &devid, (void **)&imgpath);
+	if (status == EFI_SUCCESS) {
+		text = efi_devpath_name(imgpath);
+		if (text != NULL) {
+			printf("   Load Device: %S\n", text);
+			efi_setenv_freebsd_wcs("LoaderDev", text);
+			efi_free_devpath_name(text);
+		}
+	}
+
+	boot_current = 0;
+	sz = sizeof(boot_current);
+	efi_global_getenv("BootCurrent", &boot_current, &sz);
+	printf("   BootCurrent: %04x\n", boot_current);
+
+	sz = sizeof(boot_order);
+	efi_global_getenv("BootOrder", &boot_order, &sz);
+	printf("   BootOrder:");
+	for (i = 0; i < sz / sizeof(boot_order[0]); i++)
+		printf(" %04x%s", boot_order[i],
+		    boot_order[i] == boot_current ? "[*]" : "");
+	printf("\n");
 
 	/*
 	 * Disable the watchdog timer. By default the boot manager sets
