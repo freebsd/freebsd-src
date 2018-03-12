@@ -177,7 +177,6 @@ set_devdesc_currdev(struct devsw *dev, int unit)
 	currdev.d_dev = dev;
 	currdev.d_type = currdev.d_dev->dv_type;
 	currdev.d_unit = unit;
-	currdev.d_opendata = NULL;
 	devname = efi_fmtdev(&currdev);
 
 	env_setenv("currdev", EV_VOLATILE, devname, efi_setcurrdev,
@@ -205,7 +204,6 @@ find_currdev(EFI_LOADED_IMAGE *img)
 		currdev.d_dev = &zfs_dev;
 		currdev.d_unit = 0;
 		currdev.d_type = currdev.d_dev->dv_type;
-		currdev.d_opendata = NULL;
 		currdev.pool_guid = pool_guid;
 		currdev.root_guid = 0;
 		devname = efi_fmtdev(&currdev);
@@ -227,7 +225,6 @@ find_currdev(EFI_LOADED_IMAGE *img)
 		currdev.d_dev = &efipart_hddev;
 		currdev.d_type = currdev.d_dev->dv_type;
 		currdev.d_unit = dp->pd_unit;
-		currdev.d_opendata = NULL;
 		currdev.d_slice = -1;
 		currdev.d_partition = -1;
 
