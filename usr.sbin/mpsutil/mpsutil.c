@@ -205,3 +205,32 @@ hexdump(const void *ptr, int length, const char *hdr, int flags)
 		printf("\n");
 	}
 }
+
+#define PCHAR(c) { if (retval < tmpsz) { *outbuf++ = (c); retval++; } }
+
+int
+mps_parse_flags(uintmax_t num, const char *q, char *outbuf, int tmpsz)
+{
+	int n, tmp, retval = 0;
+
+	if (num == 0)
+		return (retval);
+
+	/* %b conversion flag format. */
+	tmp = retval;
+	while (*q) {
+		n = *q++;
+		if (num & (1 << (n - 1))) {
+			PCHAR(retval != tmp ?  ',' : '<');
+			for (; (n = *q) > ' '; ++q)
+				PCHAR(n);
+		} else
+			for (; *q > ' '; ++q)
+				continue;
+	}
+	if (retval != tmp)
+		PCHAR('>');
+
+	return (retval);
+}
+
