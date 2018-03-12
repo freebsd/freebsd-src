@@ -64,7 +64,7 @@ static struct mtx atrtc_lock;
 MTX_SYSINIT(atrtc_lock_init, &atrtc_lock, "atrtc", MTX_SPIN);
 
 struct mtx atrtc_time_lock;
-MTX_SYSINIT(atrtc_time_lock_init, &atrtc_time_lock, "atrtc", MTX_DEF);
+MTX_SYSINIT(atrtc_time_lock_init, &atrtc_time_lock, "atrtc_time", MTX_DEF);
 
 int	atrtcclock_disable = 0;
 
