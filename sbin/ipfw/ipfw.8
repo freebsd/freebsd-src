@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2017
+.Dd March 12, 2018
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1135,7 +1135,7 @@ Regardless of matched a packet or not by the
 .Cm tcp-setmss
 rule, the search continues with the next rule.
 .It Cm reass
-Queue and reassemble IP fragments.
+Queue and reassemble IPv4 fragments.
 If the packet is not fragmented, counters are updated and
 processing continues with the next rule.
 If the packet is the last logical fragment, the packet is reassembled and, if
