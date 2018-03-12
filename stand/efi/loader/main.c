@@ -201,9 +201,9 @@ find_currdev(EFI_LOADED_IMAGE *img)
 	if (pool_guid != 0) {
 		struct zfs_devdesc currdev;
 
-		currdev.d_dev = &zfs_dev;
-		currdev.d_unit = 0;
-		currdev.d_type = currdev.d_dev->dv_type;
+		currdev.dd.d_dev = &zfs_dev;
+		currdev.dd.d_unit = 0;
+		currdev.dd.d_type = currdev.dd.d_dev->dv_type;
 		currdev.pool_guid = pool_guid;
 		currdev.root_guid = 0;
 		devname = efi_fmtdev(&currdev);
@@ -222,9 +222,9 @@ find_currdev(EFI_LOADED_IMAGE *img)
 	STAILQ_FOREACH(dp, pdi_list, pd_link) {
 		struct disk_devdesc currdev;
 
-		currdev.d_dev = &efipart_hddev;
-		currdev.d_type = currdev.d_dev->dv_type;
-		currdev.d_unit = dp->pd_unit;
+		currdev.dd.d_dev = &efipart_hddev;
+		currdev.dd.d_type = currdev.dd.d_dev->dv_type;
+		currdev.dd.d_unit = dp->pd_unit;
 		currdev.d_slice = -1;
 		currdev.d_partition = -1;
 

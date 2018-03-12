@@ -29,10 +29,7 @@
 
 /* Note: Must match the 'struct devdesc' in stand.h */
 struct uboot_devdesc {
-	struct devsw	*d_dev;
-	int		d_type;
-	int		d_unit;
-	void		*d_opendata;
+	struct devdesc		dd;
 	union {
 		struct {
 			int	slice;

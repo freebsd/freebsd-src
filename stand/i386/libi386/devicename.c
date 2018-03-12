@@ -135,7 +135,7 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
 	    goto fail;
 	}
 
-	idev->d_unit = unit;
+	idev->dd.d_unit = unit;
 	if (path != NULL)
 	    *path = (*cp == 0) ? cp : cp + 1;
 	break;
@@ -148,8 +148,8 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
 	err = EINVAL;
 	goto fail;
     }
-    idev->d_dev = dv;
-    idev->d_type = dv->dv_type;
+    idev->dd.d_dev = dv;
+    idev->dd.d_type = dv->dv_type;
     if (dev == NULL) {
 	free(idev);
     } else {
@@ -169,14 +169,14 @@ i386_fmtdev(void *vdev)
     struct i386_devdesc	*dev = (struct i386_devdesc *)vdev;
     static char		buf[128];	/* XXX device length constant? */
 
-    switch(dev->d_type) {
+    switch(dev->dd.d_type) {
     case DEVT_NONE:
 	strcpy(buf, "(no device)");
 	break;
 
     case DEVT_CD:
     case DEVT_NET:
-	sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
+	sprintf(buf, "%s%d:", dev->dd.d_dev->dv_name, dev->dd.d_unit);
 	break;
 
     case DEVT_DISK:

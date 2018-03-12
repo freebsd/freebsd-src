@@ -27,14 +27,13 @@
 
 #include "openfirm.h"
 
-/* Note: Must match the 'struct devdesc' in stand.h */
 struct ofw_devdesc {
-	struct devsw	*d_dev;
-	int		d_type;
-	int		d_unit;
-	ihandle_t	d_handle;
+	struct devdesc			dd;
 	union {
-		char			d_path[256];
+		struct {
+			ihandle_t	d_handle;	
+			char		d_path[256];
+		};
 		struct {
 			uint64_t	pool_guid;
 			uint64_t	root_guid;

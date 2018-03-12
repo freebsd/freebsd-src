@@ -83,10 +83,7 @@
 
 /* Note: Must match the 'struct devdesc' in stand.h */
 struct disk_devdesc {
-	struct devsw	*d_dev;
-	int		d_type;
-	int		d_unit;
-	void		*d_opendata;
+	struct devdesc	dd;
 	int		d_slice;
 	int		d_partition;
 	uint64_t	d_offset;
