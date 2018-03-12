@@ -166,7 +166,6 @@ extract_currdev(void)
 		/* Leave the pool/root guid's unassigned */
 		bzero(&zdev, sizeof(zdev));
 		zdev.dd.d_dev = &zfs_dev;
-		zdev.dd.d_type = zdev.dd.d_dev->dv_type;
 		
 		dev = *(struct disk_devdesc *)&zdev;
 		init_zfs_bootenv(zfs_fmtdev(&dev));
@@ -175,7 +174,6 @@ extract_currdev(void)
 
 	if (userboot_disk_maxunit > 0) {
 		dev.dd.d_dev = &userboot_disk;
-		dev.dd.d_type = dev.dd.d_dev->dv_type;
 		dev.dd.d_unit = 0;
 		dev.d_slice = 0;
 		dev.d_partition = 0;
@@ -189,7 +187,6 @@ extract_currdev(void)
 		}
 	} else {
 		dev.dd.d_dev = &host_dev;
-		dev.dd.d_type = dev.dd.d_dev->dv_type;
 		dev.dd.d_unit = 0;
 	}
 

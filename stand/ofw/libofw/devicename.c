@@ -114,8 +114,7 @@ found:
     }
     strcpy(idev->d_path, name);
     idev->dd.d_dev = dv;
-    idev->dd.d_type = dv->dv_type;
-    if (idev->dd.d_type == DEVT_ZFS) {
+    if (dv->dv_type == DEVT_ZFS) {
 	p = devspec + strlen(dv->dv_name);
 	err = zfs_parsedev((struct zfs_devdesc *)idev, p, path);
 	if (err != 0) {

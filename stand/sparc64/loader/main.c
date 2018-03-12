@@ -807,7 +807,6 @@ sparc64_zfs_probe(void)
 		zfs_currdev.pool_guid = guid;
 		zfs_currdev.root_guid = 0;
 		zfs_currdev.dd.d_dev = &zfs_dev;
-		zfs_currdev.dd.d_type = zfs_currdev.dd.d_dev->dv_type;
 	}
 }
 #endif /* LOADER_ZFS_SUPPORT */

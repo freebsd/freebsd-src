@@ -403,7 +403,6 @@ bd_open(struct open_file *f, ...)
 	 * would overflow so it should be safe to perform here.
 	 */
 	disk.dd.d_dev = dev->dd.d_dev;
-	disk.dd.d_type = dev->dd.d_type;
 	disk.dd.d_unit = dev->dd.d_unit;
 	disk.dd.d_opendata = NULL;
 	disk.d_slice = -1;
@@ -441,7 +440,7 @@ bd_open(struct open_file *f, ...)
 	int geli_part = 0;
 
 	dskp.drive = bd_unit2bios(dev->dd.d_unit);
-	dskp.type = dev->dd.d_type;
+	dskp.type = dev->dd.d_dev->dv_type;
 	dskp.unit = dev->dd.d_unit;
 	dskp.slice = dev->d_slice;
 	dskp.part = dev->d_partition;
@@ -872,7 +871,7 @@ bd_read(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest)
 			return (err);
 
 		dskp.drive = bd_unit2bios(dev->dd.d_unit);
-		dskp.type = dev->dd.d_type;
+		dskp.type = dev->dd.d_dev->dv_type;
 		dskp.unit = dev->dd.d_unit;
 		dskp.slice = dev->d_slice;
 		dskp.part = dev->d_partition;
@@ -997,7 +996,6 @@ bios_read(void *vdev __unused, void *xpriv, off_t off, void *buf, size_t bytes)
 	struct dsk *priv = xpriv;
 
 	dev.dd.d_dev = &biosdisk;
-	dev.dd.d_type = priv->type;
 	dev.dd.d_unit = priv->unit;
 	dev.d_slice = priv->slice;
 	dev.d_partition = priv->part;

@@ -460,7 +460,6 @@ main(int argc, char **argv)
 		printf("Found U-Boot device: %s\n", devsw[i]->dv_name);
 
 		currdev.dd.d_dev = devsw[i];
-		currdev.dd.d_type = currdev.dd.d_dev->dv_type;
 		currdev.dd.d_unit = 0;
 
 		if ((load_type == -1 || (load_type & DEV_TYP_STOR)) &&
