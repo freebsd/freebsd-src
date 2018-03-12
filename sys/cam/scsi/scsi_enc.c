@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 
 #include <sys/conf.h>
@@ -39,9 +41,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/sx.h>
+#include <sys/sysent.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
@@ -354,6 +358,10 @@ enc_ioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag,
 	void *addr;
 	int error, i;
 
+#ifdef	COMPAT_FREEBSD32
+	if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
+		return (ENOTTY);
+#endif
 
 	if (arg_addr)
 		addr = *((caddr_t *) arg_addr);
