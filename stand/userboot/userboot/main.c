@@ -159,13 +159,14 @@ extract_currdev(void)
 	//bzero(&dev, sizeof(dev));
 
 #if defined(USERBOOT_ZFS_SUPPORT)
+	CT_ASSERT(sizeof(struct disk_devdesc) >= sizeof(struct zfs_devdesc));
 	if (userboot_zfs_found) {
 		struct zfs_devdesc zdev;
 	
 		/* Leave the pool/root guid's unassigned */
 		bzero(&zdev, sizeof(zdev));
-		zdev.d_dev = &zfs_dev;
-		zdev.d_type = zdev.d_dev->dv_type;
+		zdev.dd.d_dev = &zfs_dev;
+		zdev.dd.d_type = zdev.dd.d_dev->dv_type;
 		
 		dev = *(struct disk_devdesc *)&zdev;
 		init_zfs_bootenv(zfs_fmtdev(&dev));
@@ -173,23 +174,23 @@ extract_currdev(void)
 #endif
 
 	if (userboot_disk_maxunit > 0) {
-		dev.d_dev = &userboot_disk;
-		dev.d_type = dev.d_dev->dv_type;
-		dev.d_unit = 0;
+		dev.dd.d_dev = &userboot_disk;
+		dev.dd.d_type = dev.dd.d_dev->dv_type;
+		dev.dd.d_unit = 0;
 		dev.d_slice = 0;
 		dev.d_partition = 0;
 		/*
 		 * If we cannot auto-detect the partition type then
 		 * access the disk as a raw device.
 		 */
-		if (dev.d_dev->dv_open(NULL, &dev)) {
+		if (dev.dd.d_dev->dv_open(NULL, &dev)) {
 			dev.d_slice = -1;
 			dev.d_partition = -1;
 		}
 	} else {
-		dev.d_dev = &host_dev;
-		dev.d_type = dev.d_dev->dv_type;
-		dev.d_unit = 0;
+		dev.dd.d_dev = &host_dev;
+		dev.dd.d_type = dev.dd.d_dev->dv_type;
+		dev.dd.d_unit = 0;
 	}
 
 	env_setenv("currdev", EV_VOLATILE, userboot_fmtdev(&dev),

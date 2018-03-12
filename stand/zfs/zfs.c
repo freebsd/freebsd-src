@@ -687,8 +687,8 @@ zfs_parsedev(struct zfs_devdesc *dev, const char *devspec, const char **path)
 		return (rv);
 	if (path != NULL)
 		*path = (*end == '\0') ? end : end + 1;
-	dev->d_dev = &zfs_dev;
-	dev->d_type = zfs_dev.dv_type;
+	dev->dd.d_dev = &zfs_dev;
+	dev->dd.d_type = zfs_dev.dv_type;
 	return (0);
 }
 
@@ -701,7 +701,7 @@ zfs_fmtdev(void *vdev)
 	spa_t			*spa;
 
 	buf[0] = '\0';
-	if (dev->d_type != DEVT_ZFS)
+	if (dev->dd.d_type != DEVT_ZFS)
 		return (buf);
 
 	if (dev->pool_guid == 0) {
@@ -723,9 +723,9 @@ zfs_fmtdev(void *vdev)
 	}
 
 	if (rootname[0] == '\0')
-		sprintf(buf, "%s:%s:", dev->d_dev->dv_name, spa->spa_name);
+		sprintf(buf, "%s:%s:", dev->dd.d_dev->dv_name, spa->spa_name);
 	else
-		sprintf(buf, "%s:%s/%s:", dev->d_dev->dv_name, spa->spa_name,
+		sprintf(buf, "%s:%s/%s:", dev->dd.d_dev->dv_name, spa->spa_name,
 		    rootname);
 	return (buf);
 }

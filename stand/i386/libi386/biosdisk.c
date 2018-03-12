@@ -120,7 +120,7 @@ static struct bdinfo
 } bdinfo [MAXBDDEV];
 static int nbdinfo = 0;
 
-#define	BD(dev)		(bdinfo[(dev)->d_unit])
+#define	BD(dev)		(bdinfo[(dev)->dd.d_unit])
 
 static int bd_read(struct disk_devdesc *dev, daddr_t dblk, int blks,
     caddr_t dest);
@@ -349,8 +349,8 @@ bd_print(int verbose)
 		    bdinfo[i].bd_sectorsize);
 		if ((ret = pager_output(line)) != 0)
 			break;
-		dev.d_dev = &biosdisk;
-		dev.d_unit = i;
+		dev.dd.d_dev = &biosdisk;
+		dev.dd.d_unit = i;
 		dev.d_slice = -1;
 		dev.d_partition = -1;
 		if (disk_open(&dev,
@@ -389,7 +389,7 @@ bd_open(struct open_file *f, ...)
 	dev = va_arg(ap, struct disk_devdesc *);
 	va_end(ap);
 
-	if (dev->d_unit < 0 || dev->d_unit >= nbdinfo)
+	if (dev->dd.d_unit < 0 || dev->dd.d_unit >= nbdinfo)
 		return (EIO);
 	BD(dev).bd_open++;
 	if (BD(dev).bd_bcache == NULL)
@@ -402,10 +402,10 @@ bd_open(struct open_file *f, ...)
 	 * During bd_probe() we tested if the mulitplication of bd_sectors
 	 * would overflow so it should be safe to perform here.
 	 */
-	disk.d_dev = dev->d_dev;
-	disk.d_type = dev->d_type;
-	disk.d_unit = dev->d_unit;
-	disk.d_opendata = NULL;
+	disk.dd.d_dev = dev->dd.d_dev;
+	disk.dd.d_type = dev->dd.d_type;
+	disk.dd.d_unit = dev->dd.d_unit;
+	disk.dd.d_opendata = NULL;
 	disk.d_slice = -1;
 	disk.d_partition = -1;
 	disk.d_offset = 0;
@@ -431,7 +431,7 @@ bd_open(struct open_file *f, ...)
 		return (err);
 
 	/* if we already know there is no GELI, skip the rest */
-	if (geli_status[dev->d_unit][dev->d_slice] != ISGELI_UNKNOWN)
+	if (geli_status[dev->dd.d_unit][dev->d_slice] != ISGELI_UNKNOWN)
 		return (err);
 
 	struct dsk dskp;
@@ -440,9 +440,9 @@ bd_open(struct open_file *f, ...)
 	struct pentry *entry;
 	int geli_part = 0;
 
-	dskp.drive = bd_unit2bios(dev->d_unit);
-	dskp.type = dev->d_type;
-	dskp.unit = dev->d_unit;
+	dskp.drive = bd_unit2bios(dev->dd.d_unit);
+	dskp.type = dev->dd.d_type;
+	dskp.unit = dev->dd.d_unit;
 	dskp.slice = dev->d_slice;
 	dskp.part = dev->d_partition;
 	dskp.start = dev->d_offset;
@@ -466,13 +466,13 @@ bd_open(struct open_file *f, ...)
 		dskp.slice = entry->part.index;
 		dskp.start = entry->part.start;
 		if (is_geli(&dskp) == 0) {
-			geli_status[dev->d_unit][dskp.slice] = ISGELI_YES;
+			geli_status[dev->dd.d_unit][dskp.slice] = ISGELI_YES;
 			return (0);
 		}
 		if (geli_taste(bios_read, &dskp,
 		    entry->part.end - entry->part.start) == 0) {
 			if (geli_havekey(&dskp) == 0) {
-				geli_status[dev->d_unit][dskp.slice] = ISGELI_YES;
+				geli_status[dev->dd.d_unit][dskp.slice] = ISGELI_YES;
 				geli_part++;
 				continue;
 			}
@@ -486,18 +486,18 @@ bd_open(struct open_file *f, ...)
 				    &dskp) == 0) {
 				setenv("kern.geom.eli.passphrase", gelipw, 1);
 				bzero(gelipw, sizeof(gelipw));
-				geli_status[dev->d_unit][dskp.slice] = ISGELI_YES;
+				geli_status[dev->dd.d_unit][dskp.slice] = ISGELI_YES;
 				geli_part++;
 				continue;
 			}
 		} else
-			geli_status[dev->d_unit][dskp.slice] = ISGELI_NO;
+			geli_status[dev->dd.d_unit][dskp.slice] = ISGELI_NO;
 	}
 
 	/* none of the partitions on this disk have GELI */
 	if (geli_part == 0) {
 		/* found no GELI */
-		geli_status[dev->d_unit][dev->d_slice] = ISGELI_NO;
+		geli_status[dev->dd.d_unit][dev->d_slice] = ISGELI_NO;
 	}
 #endif /* LOADER_GELI_SUPPORT */
 
@@ -834,10 +834,10 @@ bd_read(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest)
 	char *tmpbuf;
 
 	/* if we already know there is no GELI, skip the rest */
-	if (geli_status[dev->d_unit][dev->d_slice] != ISGELI_YES)
+	if (geli_status[dev->dd.d_unit][dev->d_slice] != ISGELI_YES)
 		return (bd_io(dev, dblk, blks, dest, 0));
 
-	if (geli_status[dev->d_unit][dev->d_slice] == ISGELI_YES) {
+	if (geli_status[dev->dd.d_unit][dev->d_slice] == ISGELI_YES) {
 		/*
 		 * Align reads to DEV_GELIBOOT_BSIZE bytes because partial
 		 * sectors cannot be decrypted. Round the requested LBA down to
@@ -871,9 +871,9 @@ bd_read(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest)
 		if (err)
 			return (err);
 
-		dskp.drive = bd_unit2bios(dev->d_unit);
-		dskp.type = dev->d_type;
-		dskp.unit = dev->d_unit;
+		dskp.drive = bd_unit2bios(dev->dd.d_unit);
+		dskp.type = dev->dd.d_type;
+		dskp.unit = dev->dd.d_unit;
 		dskp.slice = dev->d_slice;
 		dskp.part = dev->d_partition;
 		dskp.start = dev->d_offset;
@@ -950,8 +950,8 @@ bd_getdev(struct i386_devdesc *d)
     int				i, unit;
 
     dev = (struct disk_devdesc *)d;
-    biosdev = bd_unit2bios(dev->d_unit);
-    DEBUG("unit %d BIOS device %d", dev->d_unit, biosdev);
+    biosdev = bd_unit2bios(dev->dd.d_unit);
+    DEBUG("unit %d BIOS device %d", dev->dd.d_unit, biosdev);
     if (biosdev == -1)				/* not a BIOS device */
 	return(-1);
     if (disk_open(dev, BD(dev).bd_sectors * BD(dev).bd_sectorsize,
@@ -962,7 +962,7 @@ bd_getdev(struct i386_devdesc *d)
 
     if (biosdev < 0x80) {
 	/* floppy (or emulated floppy) or ATAPI device */
-	if (bdinfo[dev->d_unit].bd_type == DT_ATAPI) {
+	if (bdinfo[dev->dd.d_unit].bd_type == DT_ATAPI) {
 	    /* is an ATAPI disk */
 	    major = WFDMAJOR;
 	} else {
@@ -996,9 +996,9 @@ bios_read(void *vdev __unused, void *xpriv, off_t off, void *buf, size_t bytes)
 	struct disk_devdesc dev;
 	struct dsk *priv = xpriv;
 
-	dev.d_dev = &biosdisk;
-	dev.d_type = priv->type;
-	dev.d_unit = priv->unit;
+	dev.dd.d_dev = &biosdisk;
+	dev.dd.d_type = priv->type;
+	dev.dd.d_unit = priv->unit;
 	dev.d_slice = priv->slice;
 	dev.d_partition = priv->part;
 	dev.d_offset = priv->start;

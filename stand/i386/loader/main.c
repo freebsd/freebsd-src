@@ -254,18 +254,18 @@ extract_currdev(void)
     int				biosdev = -1;
 
     /* Assume we are booting from a BIOS disk by default */
-    new_currdev.d_dev = &biosdisk;
+    new_currdev.dd.d_dev = &biosdisk;
 
     /* new-style boot loaders such as pxeldr and cdldr */
     if (kargs->bootinfo == 0) {
         if ((kargs->bootflags & KARGS_FLAGS_CD) != 0) {
 	    /* we are booting from a CD with cdboot */
-	    new_currdev.d_dev = &bioscd;
-	    new_currdev.d_unit = bc_bios2unit(initial_bootdev);
+	    new_currdev.dd.d_dev = &bioscd;
+	    new_currdev.dd.d_unit = bc_bios2unit(initial_bootdev);
 	} else if ((kargs->bootflags & KARGS_FLAGS_PXE) != 0) {
 	    /* we are booting from pxeldr */
-	    new_currdev.d_dev = &pxedisk;
-	    new_currdev.d_unit = 0;
+	    new_currdev.dd.d_dev = &pxedisk;
+	    new_currdev.dd.d_unit = 0;
 	} else {
 	    /* we don't know what our boot device is */
 	    new_currdev.d_kind.biosdisk.slice = -1;
@@ -295,7 +295,7 @@ extract_currdev(void)
 	    new_currdev.d_kind.zfs.pool_guid = kargs->zfspool;
 	    new_currdev.d_kind.zfs.root_guid = 0;
 	}
-	new_currdev.d_dev = &zfs_dev;
+	new_currdev.dd.d_dev = &zfs_dev;
 #endif
     } else if ((initial_bootdev & B_MAGICMASK) != B_DEVMAGIC) {
 	/* The passed-in boot device is bad */
@@ -316,21 +316,21 @@ extract_currdev(void)
 	if ((biosdev == 0) && (B_TYPE(initial_bootdev) != 2))	/* biosdev doesn't match major */
 	    biosdev = 0x80 + B_UNIT(initial_bootdev);		/* assume harddisk */
     }
-    new_currdev.d_type = new_currdev.d_dev->dv_type;
+    new_currdev.dd.d_type = new_currdev.dd.d_dev->dv_type;
 
     /*
      * If we are booting off of a BIOS disk and we didn't succeed in determining
      * which one we booted off of, just use disk0: as a reasonable default.
      */
-    if ((new_currdev.d_type == biosdisk.dv_type) &&
-	((new_currdev.d_unit = bd_bios2unit(biosdev)) == -1)) {
+    if ((new_currdev.dd.d_type == biosdisk.dv_type) &&
+	((new_currdev.dd.d_unit = bd_bios2unit(biosdev)) == -1)) {
 	printf("Can't work out which disk we are booting from.\n"
 	       "Guessed BIOS device 0x%x not found by probes, defaulting to disk0:\n", biosdev);
-	new_currdev.d_unit = 0;
+	new_currdev.dd.d_unit = 0;
     }
 
 #ifdef LOADER_ZFS_SUPPORT
-    if (new_currdev.d_type == DEVT_ZFS)
+    if (new_currdev.dd.d_type == DEVT_ZFS)
 	init_zfs_bootenv(zfs_fmtdev(&new_currdev));
 #endif
 

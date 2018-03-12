@@ -181,16 +181,16 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     /* XXX - use a default bootdev of 0.  Is this ok??? */
     bootdevnr = 0;
 
-    switch(rootdev->d_type) {
+    switch(rootdev->dd.d_type) {
     case DEVT_CD:
 	    /* Pass in BIOS device number. */
-	    bi.bi_bios_dev = bc_unit2bios(rootdev->d_unit);
+	    bi.bi_bios_dev = bc_unit2bios(rootdev->dd.d_unit);
 	    bootdevnr = bc_getdev(rootdev);
 	    break;
 
     case DEVT_DISK:
 	/* pass in the BIOS device number of the current disk */
-	bi.bi_bios_dev = bd_unit2bios(rootdev->d_unit);
+	bi.bi_bios_dev = bd_unit2bios(rootdev->dd.d_unit);
 	bootdevnr = bd_getdev(rootdev);
 	break;
 
@@ -199,7 +199,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
 	    break;
 
     default:
-	printf("WARNING - don't know how to boot from device type %d\n", rootdev->d_type);
+	printf("WARNING - don't know how to boot from device type %d\n", rootdev->dd.d_type);
     }
     if (bootdevnr == -1) {
 	printf("root device %s invalid\n", i386_fmtdev(rootdev));
