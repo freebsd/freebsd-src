@@ -76,8 +76,6 @@
 #define ncpaddr_ip6addr		u.ip6addr
 #endif
 
-#define	NCP_ASCIIBUFFERSIZE	52
-
 static struct in_addr
 bits2mask4(int bits)
 {
