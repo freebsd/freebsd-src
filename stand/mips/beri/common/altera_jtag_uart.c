@@ -159,7 +159,7 @@ keyhit(int seconds)
 }
 
 int
-getc(void)
+beri_getc(void)
 {
 
 	while (!(uart_readable()));
@@ -168,7 +168,7 @@ getc(void)
 }
 
 void
-putc(int ch)
+beri_putc(int ch)
 {
 
 	uart_data_write(ch);

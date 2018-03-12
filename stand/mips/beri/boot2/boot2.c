@@ -627,7 +627,7 @@ static int
 xputc(int c)
 {
     if (ioctrl & IO_KEYBOARD)
-	putc(c);
+	beri_putc(c);
 #if 0
     if (ioctrl & IO_SERIAL)
 	sio_putc(c);
@@ -642,7 +642,7 @@ xgetc(int fn)
 	return 0;
     for (;;) {
 	if (ioctrl & IO_KEYBOARD && keyhit(0))
-	    return fn ? 1 : getc();
+	    return fn ? 1 : beri_getc();
 #if 0
 	if (ioctrl & IO_SERIAL && sio_ischar())
 	    return fn ? 1 : sio_getc();
