@@ -226,7 +226,7 @@ FilterCheck(const unsigned char *packet,
   int match;			/* true if condition matched */
   int mindata;			/* minimum data size or zero */
   const struct filterent *fp = filter->rule;
-  char dbuff[100], dstip[16];
+  char dbuff[100], dstip[NCP_ASCIIBUFFERSIZE];
   struct ncpaddr srcaddr, dstaddr;
   const char *payload;		/* IP payload */
   int datalen;			/* IP datagram length */

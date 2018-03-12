@@ -208,7 +208,7 @@ iface_addr_Zap(const char *name, struct iface_addr *addr, int s)
 #endif
   struct sockaddr_in *me4, *msk4, *peer4;
   struct sockaddr_storage ssme, sspeer, ssmsk;
-  int res;
+  int res, saved_errno;
 
   ncprange_getsa(&addr->ifa, &ssme, &ssmsk);
   ncpaddr_getsa(&addr->peer, &sspeer);
@@ -234,8 +234,9 @@ iface_addr_Zap(const char *name, struct iface_addr *addr, int s)
       memcpy(peer4, &sspeer, sizeof *peer4);
 
     res = ID0ioctl(s, SIOCDIFADDR, &ifra);
+    saved_errno = errno;
     if (log_IsKept(LogDEBUG)) {
-      char buf[100];
+      char buf[NCP_ASCIIBUFFERSIZE];
 
       snprintf(buf, sizeof buf, "%s", ncprange_ntoa(&addr->ifa));
       log_Printf(LogWARN, "%s: DIFADDR %s -> %s returns %d\n",
@@ -259,12 +260,13 @@ iface_addr_Zap(const char *name, struct iface_addr *addr, int s)
     ifra6.ifra_lifetime.ia6t_pltime = ND6_INFINITE_LIFETIME;
 
     res = ID0ioctl(s, SIOCDIFADDR_IN6, &ifra6);
+    saved_errno = errno;
     break;
 #endif
   }
 
   if (res == -1) {
-    char dst[40];
+    char dst[NCP_ASCIIBUFFERSIZE];
     const char *end =
 #ifndef NOINET6
       ncprange_family(&addr->ifa) == AF_INET6 ? "_IN6" :
@@ -273,11 +275,11 @@ iface_addr_Zap(const char *name, struct iface_addr *addr, int s)
 
     if (ncpaddr_family(&addr->peer) == AF_UNSPEC)
       log_Printf(LogWARN, "iface rm: ioctl(SIOCDIFADDR%s, %s): %s\n",
-                 end, ncprange_ntoa(&addr->ifa), strerror(errno));
+                 end, ncprange_ntoa(&addr->ifa), strerror(saved_errno));
     else {
       snprintf(dst, sizeof dst, "%s", ncpaddr_ntoa(&addr->peer));
       log_Printf(LogWARN, "iface rm: ioctl(SIOCDIFADDR%s, %s -> %s): %s\n",
-                 end, ncprange_ntoa(&addr->ifa), dst, strerror(errno));
+                 end, ncprange_ntoa(&addr->ifa), dst, strerror(saved_errno));
     }
   }
 
@@ -293,7 +295,7 @@ iface_addr_Add(const char *name, struct iface_addr *addr, int s)
 #endif
   struct sockaddr_in *me4, *msk4, *peer4;
   struct sockaddr_storage ssme, sspeer, ssmsk;
-  int res;
+  int res, saved_errno;
 
   ncprange_getsa(&addr->ifa, &ssme, &ssmsk);
   ncpaddr_getsa(&addr->peer, &sspeer);
@@ -319,8 +321,9 @@ iface_addr_Add(const char *name, struct iface_addr *addr, int s)
       memcpy(peer4, &sspeer, sizeof *peer4);
 
     res = ID0ioctl(s, SIOCAIFADDR, &ifra);
+    saved_errno = errno;
     if (log_IsKept(LogDEBUG)) {
-      char buf[100];
+      char buf[NCP_ASCIIBUFFERSIZE];
 
       snprintf(buf, sizeof buf, "%s", ncprange_ntoa(&addr->ifa));
       log_Printf(LogWARN, "%s: AIFADDR %s -> %s returns %d\n",
@@ -344,12 +347,13 @@ iface_addr_Add(const char *name, struct iface_addr *addr, int s)
     ifra6.ifra_lifetime.ia6t_pltime = ND6_INFINITE_LIFETIME;
 
     res = ID0ioctl(s, SIOCAIFADDR_IN6, &ifra6);
+    saved_errno = errno;
     break;
 #endif
   }
 
   if (res == -1) {
-    char dst[40];
+    char dst[NCP_ASCIIBUFFERSIZE];
     const char *end =
 #ifndef NOINET6
       ncprange_family(&addr->ifa) == AF_INET6 ? "_IN6" :
@@ -358,11 +362,11 @@ iface_addr_Add(const char *name, struct iface_addr *addr, int s)
 
     if (ncpaddr_family(&addr->peer) == AF_UNSPEC)
       log_Printf(LogWARN, "iface add: ioctl(SIOCAIFADDR%s, %s): %s\n",
-                 end, ncprange_ntoa(&addr->ifa), strerror(errno));
+                 end, ncprange_ntoa(&addr->ifa), strerror(saved_errno));
     else {
       snprintf(dst, sizeof dst, "%s", ncpaddr_ntoa(&addr->peer));
       log_Printf(LogWARN, "iface add: ioctl(SIOCAIFADDR%s, %s -> %s): %s\n",
-                 end, ncprange_ntoa(&addr->ifa), dst, strerror(errno));
+                 end, ncprange_ntoa(&addr->ifa), dst, strerror(saved_errno));
     }
   }
 
