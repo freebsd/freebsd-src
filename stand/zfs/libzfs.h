@@ -38,12 +38,9 @@
  */
 /* Note: Must match the 'struct devdesc' in stand.h */
 struct zfs_devdesc {
-    struct devsw	*d_dev;
-    int			d_type;
-    int			d_unit;
-    void		*d_opendata;
-    uint64_t		pool_guid;
-    uint64_t		root_guid;
+	struct devdesc  dd;
+	uint64_t	pool_guid;
+	uint64_t	root_guid;
 };
 
 #ifdef LOADER_GELI_SUPPORT

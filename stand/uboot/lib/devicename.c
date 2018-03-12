@@ -136,7 +136,7 @@ uboot_parsedev(struct uboot_devdesc **dev, const char *devspec,
 			err = EINVAL;
 			goto fail;
 		}
-		idev->d_unit = unit;
+		idev->dd.d_unit = unit;
 
 		if (path != NULL)
 			*path = (*cp == 0) ? cp : cp + 1;
@@ -146,8 +146,8 @@ uboot_parsedev(struct uboot_devdesc **dev, const char *devspec,
 		err = EINVAL;
 		goto fail;
 	}
-	idev->d_dev = dv;
-	idev->d_type = dv->dv_type;
+	idev->dd.d_dev = dv;
+	idev->dd.d_type = dv->dv_type;
 	if (dev == NULL) {
 		free(idev);
 	} else {
@@ -167,7 +167,7 @@ uboot_fmtdev(void *vdev)
 	struct uboot_devdesc *dev = (struct uboot_devdesc *)vdev;
 	static char buf[128];
 
-	switch(dev->d_type) {
+	switch(dev->dd.d_type) {
 	case DEVT_NONE:
 		strcpy(buf, "(no device)");
 		break;
@@ -178,7 +178,7 @@ uboot_fmtdev(void *vdev)
 #endif
 
 	case DEVT_NET:
-		sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
+		sprintf(buf, "%s%d:", dev->dd.d_dev->dv_name, dev->dd.d_unit);
 		break;
 	}
 	return(buf);

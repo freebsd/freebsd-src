@@ -113,9 +113,9 @@ found:
 	return ENOMEM;
     }
     strcpy(idev->d_path, name);
-    idev->d_dev = dv;
-    idev->d_type = dv->dv_type;
-    if (idev->d_type == DEVT_ZFS) {
+    idev->dd.d_dev = dv;
+    idev->dd.d_type = dv->dv_type;
+    if (idev->dd.d_type == DEVT_ZFS) {
 	p = devspec + strlen(dv->dv_name);
 	err = zfs_parsedev((struct zfs_devdesc *)idev, p, path);
 	if (err != 0) {

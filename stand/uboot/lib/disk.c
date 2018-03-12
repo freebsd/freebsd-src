@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "libuboot.h"
 
 #define stor_printf(fmt, args...) do {			\
-    printf("%s%d: ", dev->d_dev->dv_name, dev->d_unit);	\
+    printf("%s%d: ", dev->dd.d_dev->dv_name, dev->dd.d_unit);	\
     printf(fmt, ##args);				\
 } while (0)
 
@@ -65,7 +65,7 @@ static struct {
 	u_int		bsize;	/* block size */
 } stor_info[UB_MAX_DEV];
 
-#define	SI(dev)		(stor_info[(dev)->d_unit])
+#define	SI(dev)		(stor_info[(dev)->dd.d_unit])
 
 static int stor_info_no = 0;
 static int stor_opendev(struct disk_devdesc *);
@@ -190,7 +190,7 @@ stor_opendev(struct disk_devdesc *dev)
 {
 	int err;
 
-	if (dev->d_unit < 0 || dev->d_unit >= stor_info_no)
+	if (dev->dd.d_unit < 0 || dev->dd.d_unit >= stor_info_no)
 		return (EIO);
 
 	if (SI(dev).opened == 0) {
@@ -252,8 +252,8 @@ stor_print(int verbose)
 		return (ret);
 
 	for (i = 0; i < stor_info_no; i++) {
-		dev.d_dev = &uboot_storage;
-		dev.d_unit = i;
+		dev.dd.d_dev = &uboot_storage;
+		dev.dd.d_unit = i;
 		dev.d_slice = -1;
 		dev.d_partition = -1;
 		snprintf(line, sizeof(line), "\tdisk%d (%s)\n", i,

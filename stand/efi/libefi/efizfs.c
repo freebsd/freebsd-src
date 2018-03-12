@@ -29,8 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/disk.h>
-#include <stdint.h>
+#include <stand.h>
 
 #ifdef EFI_ZFS_BOOT
 #include <libzfs.h>
