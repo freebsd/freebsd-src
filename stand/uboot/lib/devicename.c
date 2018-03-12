@@ -147,7 +147,6 @@ uboot_parsedev(struct uboot_devdesc **dev, const char *devspec,
 		goto fail;
 	}
 	idev->dd.d_dev = dv;
-	idev->dd.d_type = dv->dv_type;
 	if (dev == NULL) {
 		free(idev);
 	} else {
@@ -167,7 +166,7 @@ uboot_fmtdev(void *vdev)
 	struct uboot_devdesc *dev = (struct uboot_devdesc *)vdev;
 	static char buf[128];
 
-	switch(dev->dd.d_type) {
+	switch(dev->dd.d_dev->dv_type) {
 	case DEVT_NONE:
 		strcpy(buf, "(no device)");
 		break;
