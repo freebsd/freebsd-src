@@ -369,7 +369,19 @@ ib_modify_cq_compat(struct ib_cq *cq,
 static inline struct ib_mr *
 ib_get_dma_mr(struct ib_pd *pd, int mr_access_flags)
 {
-	return (ERR_PTR(-ENOSYS));
+	struct ib_mr *mr;
+
+	mr = pd->device->get_dma_mr(pd, mr_access_flags);
+	if (IS_ERR(mr))
+		return ERR_CAST(mr);
+
+	mr->device = pd->device;
+	mr->pd = pd;
+	mr->uobject = NULL;
+	mr->need_inval = false;
+	atomic_inc(&pd->usecnt);
+
+	return (mr);
 }
 
 static inline struct ib_mr *
