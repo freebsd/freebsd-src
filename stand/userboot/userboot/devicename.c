@@ -159,7 +159,6 @@ userboot_parsedev(struct disk_devdesc **dev, const char *devspec, const char **p
 	goto fail;
     }
     idev->dd.d_dev = dv;
-    idev->dd.d_type = dv->dv_type;
     if (dev == NULL) {
 	free(idev);
     } else {
@@ -179,7 +178,7 @@ userboot_fmtdev(void *vdev)
     struct disk_devdesc	*dev = (struct disk_devdesc *)vdev;
     static char		buf[128];	/* XXX device length constant? */
 
-    switch(dev->dd.d_type) {
+    switch(dev->dd.d_dev->dv_type) {
     case DEVT_NONE:
 	strcpy(buf, "(no device)");
 	break;

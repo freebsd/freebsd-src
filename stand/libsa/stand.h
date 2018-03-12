@@ -168,7 +168,6 @@ extern int errno;
  */
 struct devdesc {
     struct devsw	*d_dev;
-    int			d_type;
     int			d_unit;
     void		*d_opendata;
 };
