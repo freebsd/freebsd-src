@@ -279,7 +279,7 @@ linux_rt_sigprocmask(struct thread *td, struct linux_rt_sigprocmask_args *args)
 #endif
 
 	if (args->sigsetsize != sizeof(l_sigset_t))
-		return EINVAL;
+		return (EINVAL);
 
 	if (args->mask != NULL) {
 		error = copyin(args->mask, &set, sizeof(l_sigset_t));
@@ -377,7 +377,7 @@ linux_rt_sigpending(struct thread *td, struct linux_rt_sigpending_args *args)
 	l_sigset_t lset;
 
 	if (args->sigsetsize > sizeof(lset))
-		return EINVAL;
+		return (EINVAL);
 		/* NOT REACHED */
 
 #ifdef DEBUG

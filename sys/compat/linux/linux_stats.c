@@ -436,7 +436,7 @@ linux_statfs64(struct thread *td, struct linux_statfs64_args *args)
 	int error;
 
 	if (args->bufsize != sizeof(struct l_statfs64))
-		return EINVAL;
+		return (EINVAL);
 
 	LCONVPATHEXIST(td, args->path, &path);
 
