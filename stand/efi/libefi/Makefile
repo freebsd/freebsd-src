@@ -5,8 +5,20 @@
 LIB=	efi
 WARNS?=	2
 
-SRCS=	delay.c devpath.c efi_console.c efichar.c efinet.c efipart.c env.c errno.c \
-	handles.c wchar.c libefi.c efi_driver_utils.c efizfs.c devicename.c
+SRCS=	delay.c \
+	devicename.c \
+	devpath.c \
+	efi_console.c \
+	efi_driver_utils.c \
+	efichar.c \
+	efinet.c \
+	efipart.c \
+	efizfs.c \
+	env.c \
+	errno.c \
+	handles.c \
+	libefi.c \
+	wchar.c
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 SRCS+=	time.c
