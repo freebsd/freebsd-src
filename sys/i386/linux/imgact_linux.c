@@ -69,7 +69,7 @@ exec_linux_imgact(struct image_params *imgp)
     int error;
 
     if (((a_out->a_magic >> 16) & 0xff) != 0x64)
-	return -1;
+	return (-1);
 
     /*
      * Set file/virtual offset based on a.out variant.
