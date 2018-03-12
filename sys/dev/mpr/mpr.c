@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/eventhandler.h>
 #include <sys/sbuf.h>
+#include <sys/priv.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -107,6 +108,7 @@ static void mpr_enqueue_request(struct mpr_softc *sc, struct mpr_command *cm);
 static int mpr_get_iocfacts(struct mpr_softc *sc, MPI2_IOC_FACTS_REPLY *facts);
 static int mpr_wait_db_ack(struct mpr_softc *sc, int timeout, int sleep_flag);
 static int mpr_debug_sysctl(SYSCTL_HANDLER_ARGS);
+static int mpr_dump_reqs(SYSCTL_HANDLER_ARGS);
 static void mpr_parse_debug(struct mpr_softc *sc, char *list);
 
 SYSCTL_NODE(_hw, OID_AUTO, mpr, CTLFLAG_RD, 0, "MPR Driver Parameters");
@@ -1910,6 +1912,10 @@ mpr_setup_sysctl(struct mpr_softc *sc)
 	    &sc->spinup_wait_time, DEFAULT_SPINUP_WAIT, "seconds to wait for "
 	    "spinup after SATA ID error");
 
+	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "dump_reqs", CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_SKIP, sc, 0,
+	    mpr_dump_reqs, "I", "Dump Active Requests");
+
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "use_phy_num", CTLFLAG_RD, &sc->use_phynum, 0,
 	    "Use the phy number for enumeration");
@@ -2051,6 +2057,70 @@ mpr_parse_debug(struct mpr_softc *sc, char *list)
 		break;
 	}
 	return;
+}
+
+struct mpr_dumpreq_hdr {
+	uint32_t	smid;
+	uint32_t	state;
+	uint32_t	numframes;
+	uint32_t	deschi;
+	uint32_t	desclo;
+};
+
+static int
+mpr_dump_reqs(SYSCTL_HANDLER_ARGS)
+{
+	struct mpr_softc *sc;
+	struct mpr_chain *chain, *chain1;
+	struct mpr_command *cm;
+	struct mpr_dumpreq_hdr hdr;
+	struct sbuf *sb;
+	uint32_t smid, state;
+	int i, numreqs, error = 0;
+
+	sc = (struct mpr_softc *)arg1;
+
+	if ((error = priv_check(curthread, PRIV_DRIVER)) != 0) {
+		printf("priv check error %d\n", error);
+		return (error);
+	}
+
+	state = MPR_CM_STATE_INQUEUE;
+	smid = 1;
+	numreqs = sc->num_reqs;
+
+	if (req->newptr != NULL)
+		return (EINVAL);
+
+	if (smid == 0 || smid > sc->num_reqs)
+		return (EINVAL);
+	if (numreqs <= 0 || (numreqs + smid > sc->num_reqs))
+		numreqs = sc->num_reqs;
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+
+	/* Best effort, no locking */
+	for (i = smid; i < numreqs; i++) {
+		cm = &sc->commands[i];
+		if (cm->cm_state != state)
+			continue;
+		hdr.smid = i;
+		hdr.state = cm->cm_state;
+		hdr.numframes = 1;
+		hdr.deschi = cm->cm_desc.Words.High;
+		hdr.desclo = cm->cm_desc.Words.Low;
+		TAILQ_FOREACH_SAFE(chain, &cm->cm_chain_list, chain_link,
+		   chain1)
+			hdr.numframes++;
+		sbuf_bcat(sb, &hdr, sizeof(hdr));
+		sbuf_bcat(sb, cm->cm_req, 128);
+		TAILQ_FOREACH_SAFE(chain, &cm->cm_chain_list, chain_link,
+		    chain1)
+			sbuf_bcat(sb, chain->chain, 128);
+	}
+
+	error = sbuf_finish(sb);
+	sbuf_delete(sb);
+	return (error);
 }
 
 int
