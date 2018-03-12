@@ -748,7 +748,6 @@ efipart_print_common(struct devsw *dev, pdinfo_list_t *pdlist, int verbose)
 			pd_dev.d_unit = pd->pd_unit;
 			pd_dev.d_slice = -1;
 			pd_dev.d_partition = -1;
-			pd_dev.d_opendata = blkio;
 			ret = disk_open(&pd_dev, blkio->Media->BlockSize *
 			    (blkio->Media->LastBlock + 1),
 			    blkio->Media->BlockSize);
