@@ -36,22 +36,17 @@ struct i386_devdesc {
     struct devsw	*d_dev;
     int			d_type;
     int			d_unit;
+    void		*d_opendata;
     union 
     {
 	struct 
 	{
-	    void	*data;
 	    int		slice;
 	    int		partition;
 	    off_t	offset;
 	} biosdisk;
 	struct
 	{
-	    void	*data;
-	} bioscd;
-	struct
-	{
-	    void	*data;
 	    uint64_t	pool_guid;
 	    uint64_t	root_guid;
 	} zfs;
