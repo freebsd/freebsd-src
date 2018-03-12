@@ -68,6 +68,9 @@ CWARNEXTRA+=	-Wno-error=misleading-indentation		\
 .else
 # For gcc 4.2, eliminate the too-often-wrong warnings about uninitialized vars.
 CWARNEXTRA?=	-Wno-uninitialized
+# GCC 4.2 doesn't have -Wno-error=cast-qual, so just disable the warning for
+# the few files that are already known to generate cast-qual warnings.
+NO_WCAST_QUAL= -Wno-cast-qual
 .endif
 .endif
 
