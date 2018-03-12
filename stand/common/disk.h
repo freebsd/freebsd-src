@@ -81,8 +81,8 @@
 #ifndef	_DISK_H
 #define	_DISK_H
 
-struct disk_devdesc
-{
+/* Note: Must match the 'struct devdesc' in stand.h */
+struct disk_devdesc {
 	struct devsw	*d_dev;
 	int		d_type;
 	int		d_unit;

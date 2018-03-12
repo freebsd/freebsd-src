@@ -27,8 +27,8 @@
  * $FreeBSD$
  */
 
-struct uboot_devdesc
-{
+/* Note: Must match the 'struct devdesc' in stand.h */
+struct uboot_devdesc {
 	struct devsw	*d_dev;
 	int		d_type;
 	int		d_unit;
