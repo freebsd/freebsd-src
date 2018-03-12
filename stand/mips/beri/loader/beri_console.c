@@ -72,14 +72,14 @@ static void
 c_out(int c)
 {
 
-	putc(c);
+	beri_putc(c);
 }
 
 static int
 c_in(void)
 {
 
-	return (getc());
+	return (beri_getc());
 }
 
 static int
