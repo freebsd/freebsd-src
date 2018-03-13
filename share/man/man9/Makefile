@@ -1597,6 +1597,7 @@ MLINKS+=sleep.9 msleep.9 \
 	sleep.9 msleep_spin.9 \
 	sleep.9 msleep_spin_sbt.9 \
 	sleep.9 pause.9 \
+	sleep.9 pause_sig.9 \
 	sleep.9 pause_sbt.9 \
 	sleep.9 tsleep.9 \
 	sleep.9 tsleep_sbt.9 \
