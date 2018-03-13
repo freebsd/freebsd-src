@@ -1939,7 +1939,7 @@ t4_aio_queue_ddp(struct socket *so, struct kaiocb *job)
 	return (0);
 }
 
-int
+void
 t4_ddp_mod_load(void)
 {
 
@@ -1948,7 +1948,6 @@ t4_ddp_mod_load(void)
 	TAILQ_INIT(&ddp_orphan_pagesets);
 	mtx_init(&ddp_orphan_pagesets_lock, "ddp orphans", NULL, MTX_DEF);
 	TASK_INIT(&ddp_orphan_task, 0, ddp_free_orphan_pagesets, NULL);
-	return (0);
 }
 
 void
