@@ -159,7 +159,7 @@ extract_currdev(void)
 	//bzero(&dev, sizeof(dev));
 
 #if defined(USERBOOT_ZFS_SUPPORT)
-	CT_ASSERT(sizeof(struct disk_devdesc) >= sizeof(struct zfs_devdesc));
+	CTASSERT(sizeof(struct disk_devdesc) >= sizeof(struct zfs_devdesc));
 	if (userboot_zfs_found) {
 		struct zfs_devdesc zdev;
 	
