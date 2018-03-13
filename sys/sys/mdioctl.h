@@ -64,7 +64,7 @@ struct md_ioctl {
 	int		md_fwheads;	/* firmware heads */
 	int		md_fwsectors;	/* firmware sectors */
 	char		*md_label;	/* label of the device */
-	int		md_pad[MDNPAD];	/* padding for future ideas */
+	int		md_pad[MDNPAD];	/* storage for MDIOCLIST */
 };
 
 #define MD_NAME		"md"
