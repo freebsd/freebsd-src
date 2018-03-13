@@ -60,9 +60,9 @@ struct file_format amd64_elf_obj = { elf64_obj_loadfile, elf64_obj_exec };
 #define PG_U	0x004
 #define PG_PS	0x080
 
-typedef u_int64_t p4_entry_t;
-typedef u_int64_t p3_entry_t;
-typedef u_int64_t p2_entry_t;
+typedef uint64_t p4_entry_t;
+typedef uint64_t p3_entry_t;
+typedef uint64_t p2_entry_t;
 
 #define	GUEST_NULL_SEL		0
 #define	GUEST_CODE_SEL		1

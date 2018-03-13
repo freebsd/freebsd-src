@@ -63,7 +63,7 @@ typedef struct elf_file {
 } *elf_file_t;
 
 static int __elfN(obj_loadimage)(struct preloaded_file *mp, elf_file_t ef,
-    u_int64_t loadaddr);
+    uint64_t loadaddr);
 static int __elfN(obj_lookup_set)(struct preloaded_file *mp, elf_file_t ef,
     const char *name, Elf_Addr *startp, Elf_Addr *stopp, int *countp);
 static int __elfN(obj_reloc_ptr)(struct preloaded_file *mp, elf_file_t ef,
@@ -81,7 +81,7 @@ const char	*__elfN(obj_moduletype) = "elf obj module";
  * will be saved in (result).
  */
 int
-__elfN(obj_loadfile)(char *filename, u_int64_t dest,
+__elfN(obj_loadfile)(char *filename, uint64_t dest,
     struct preloaded_file **result)
 {
 	struct preloaded_file *fp, *kfp;
@@ -186,7 +186,7 @@ out:
  * the Elf header, load the image at (off)
  */
 static int
-__elfN(obj_loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
+__elfN(obj_loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 {
 	Elf_Ehdr *hdr;
 	Elf_Shdr *shdr, *cshdr, *lshdr;
@@ -349,8 +349,8 @@ out:
 struct mod_metadata64 {
 	int		md_version;	/* structure version MDTV_* */
 	int		md_type;	/* type of entry MDT_* */
-	u_int64_t	md_data;	/* specific data */
-	u_int64_t	md_cval;	/* common string label */
+	uint64_t	md_data;	/* specific data */
+	uint64_t	md_cval;	/* common string label */
 };
 #endif
 

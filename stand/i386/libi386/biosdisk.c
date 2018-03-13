@@ -916,7 +916,7 @@ bd_write(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest)
  * disk.  And, incidentally, what is returned is not the geometry as
  * such but the highest valid cylinder, head, and sector numbers.
  */
-u_int32_t
+uint32_t
 bd_getbigeom(int bunit)
 {
 

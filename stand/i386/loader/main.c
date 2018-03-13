@@ -60,8 +60,8 @@ CTASSERT(offsetof(struct bootinfo, bi_size) == BI_SIZE);
 /* Arguments passed in from the boot1/boot2 loader */
 static struct bootargs *kargs;
 
-static u_int32_t	initial_howto;
-static u_int32_t	initial_bootdev;
+static uint32_t		initial_howto;
+static uint32_t		initial_bootdev;
 static struct bootinfo	*initial_bootinfo;
 
 struct arch_switch	archsw;		/* MI/MD interface boundary */

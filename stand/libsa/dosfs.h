@@ -47,12 +47,12 @@
  * Macros to convert DOS-format 16-bit and 32-bit quantities
  */
 
-#define cv2(p)  ((u_int16_t)(p)[0] |         \
-                ((u_int16_t)(p)[1] << 010))
-#define cv4(p)  ((u_int32_t)(p)[0] |          \
-                ((u_int32_t)(p)[1] << 010) |  \
-                ((u_int32_t)(p)[2] << 020) |  \
-                ((u_int32_t)(p)[3] << 030))
+#define cv2(p)  ((uint16_t)(p)[0] |         \
+                ((uint16_t)(p)[1] << 010))
+#define cv4(p)  ((uint32_t)(p)[0] |          \
+                ((uint32_t)(p)[1] << 010) |  \
+                ((uint32_t)(p)[2] << 020) |  \
+                ((uint32_t)(p)[3] << 030))
 
 /*
  * Directory, filesystem, and file structures.

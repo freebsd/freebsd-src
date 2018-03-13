@@ -164,7 +164,7 @@ arprecv(struct iodesc *d, void **pkt, void **payload, time_t tleft, void *extra)
 {
 	ssize_t n;
 	struct ether_arp *ah;
-	u_int16_t etype;	/* host order */
+	uint16_t etype;	/* host order */
 	void *ptr;
 
 #ifdef ARP_DEBUG
