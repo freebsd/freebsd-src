@@ -55,6 +55,7 @@ static struct nvme_function funcs[] = {
 	{"reset",	reset,		RESET_USAGE},
 	{"logpage",	logpage,	LOGPAGE_USAGE},
 	{"firmware",	firmware,	FIRMWARE_USAGE},
+	{"format",	format,		FORMAT_USAGE},
 	{"power",	power,		POWER_USAGE},
 	{"wdc",		wdc,		WDC_USAGE},
 	{NULL,		NULL,		NULL},
@@ -163,7 +164,7 @@ read_controller_data(int fd, struct nvme_controller_data *cdata)
 }
 
 void
-read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata)
+read_namespace_data(int fd, uint32_t nsid, struct nvme_namespace_data *nsdata)
 {
 	struct nvme_pt_command	pt;
 
@@ -214,7 +215,7 @@ open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 }
 
 void
-parse_ns_str(const char *ns_str, char *ctrlr_str, int *nsid)
+parse_ns_str(const char *ns_str, char *ctrlr_str, uint32_t *nsid)
 {
 	char	*nsloc;
 
