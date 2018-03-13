@@ -76,13 +76,17 @@ struct wait_queue_head {
  * renamed and furthermore must be the default wait queue callback.
  */
 extern wait_queue_func_t autoremove_wake_function;
+extern wait_queue_func_t default_wake_function;
 
-#define	DEFINE_WAIT(name)						\
+#define	DEFINE_WAIT_FUNC(name, function)				\
 	wait_queue_t name = {						\
 		.private = current,					\
-		.func = autoremove_wake_function,			\
+		.func = function,					\
 		.task_list = LINUX_LIST_HEAD_INIT(name.task_list)	\
 	}
+
+#define	DEFINE_WAIT(name) \
+	DEFINE_WAIT_FUNC(name, autoremove_wake_function)
 
 #define	DECLARE_WAITQUEUE(name, task)					\
 	wait_queue_t name = {						\
