@@ -753,5 +753,8 @@ SYSUNINIT(imgact_binmisc, SI_SUB_EXEC, SI_ORDER_MIDDLE, imgact_binmisc_fini, 0);
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
  */
-static struct execsw imgact_binmisc_execsw = { imgact_binmisc_exec, KMOD_NAME };
+static struct execsw imgact_binmisc_execsw = {
+	.ex_imgact = imgact_binmisc_exec,
+	.ex_name = KMOD_NAME
+};
 EXEC_SET(imgact_binmisc, imgact_binmisc_execsw);
