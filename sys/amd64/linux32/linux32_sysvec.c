@@ -127,7 +127,7 @@ static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 static void	exec_linux_setregs(struct thread *td,
 				   struct image_params *imgp, u_long stack);
 static void	linux32_fixlimit(struct rlimit *rl, int which);
-static boolean_t linux32_trans_osrel(const Elf_Note *note, int32_t *osrel);
+static bool	linux32_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static void	linux_vdso_install(void *param);
 static void	linux_vdso_deinstall(void *param);
 
@@ -1043,7 +1043,7 @@ SYSUNINIT(elf_linux_vdso_uninit, SI_SUB_EXEC, SI_ORDER_FIRST,
 static char GNU_ABI_VENDOR[] = "GNU";
 static int GNULINUX_ABI_DESC = 0;
 
-static boolean_t
+static bool
 linux32_trans_osrel(const Elf_Note *note, int32_t *osrel)
 {
 	const Elf32_Word *desc;
@@ -1054,7 +1054,7 @@ linux32_trans_osrel(const Elf_Note *note, int32_t *osrel)
 
 	desc = (const Elf32_Word *)p;
 	if (desc[0] != GNULINUX_ABI_DESC)
-		return (FALSE);
+		return (false);
 
 	/*
 	 * For Linux we encode osrel as follows (see linux_mib.c):
@@ -1062,7 +1062,7 @@ linux32_trans_osrel(const Elf_Note *note, int32_t *osrel)
 	 */
 	*osrel = desc[1] * 1000000 + desc[2] * 1000 + desc[3];
 
-	return (TRUE);
+	return (true);
 }
 
 static Elf_Brandnote linux32_brandnote = {
