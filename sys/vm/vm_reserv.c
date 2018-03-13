@@ -455,20 +455,8 @@ vm_reserv_depopulate(vm_reserv_t rv, int index)
 static __inline vm_reserv_t
 vm_reserv_from_page(vm_page_t m)
 {
-	vm_reserv_t rv;
 
-	rv = &vm_reserv_array[VM_PAGE_TO_PHYS(m) >> VM_LEVEL_0_SHIFT];
-#if 0
-	if (rv->pages == NULL)
-		panic("vm_reserv_from_page: Bad reservation %p page %p phys %p segind %d start %p end %p first page %p domain %d\n",
-		    rv, m, (void *)m->phys_addr, m->segind,
-		    (void *)vm_phys_segs[m->segind].start,
-		    (void *)vm_phys_segs[m->segind].end,
-		    vm_phys_segs[m->segind].first_page,
-		    vm_phys_segs[m->segind].domain);
-#endif
-
-	return (rv);
+	return (&vm_reserv_array[VM_PAGE_TO_PHYS(m) >> VM_LEVEL_0_SHIFT]);
 }
 
 /*
@@ -790,14 +778,14 @@ vm_reserv_alloc_contig(int req, vm_object_t object, vm_pindex_t pindex, int doma
 	 */
 	m = NULL;
 	vmd = VM_DOMAIN(domain);
-	if (vm_domain_allocate(vmd, req, allocpages)) {
+	if (vm_domain_allocate(vmd, req, npages)) {
 		vm_domain_free_lock(vmd);
 		m = vm_phys_alloc_contig(domain, allocpages, low, high,
 		    ulmax(alignment, VM_LEVEL_0_SIZE),
 		    boundary > VM_LEVEL_0_SIZE ? boundary : 0);
 		vm_domain_free_unlock(vmd);
 		if (m == NULL) {
-			vm_domain_freecnt_inc(vmd, allocpages);
+			vm_domain_freecnt_inc(vmd, npages);
 			return (NULL);
 		}
 	} else
