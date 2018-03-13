@@ -3505,8 +3505,9 @@ next_code:
 			    scp->status |= CURSOR_ENABLED;
 			    sc_draw_cursor_image(scp);
 			}
+			/* Only safe in Giant-locked context. */
 			tp = SC_DEV(sc, scp->index);
-			if (!kdb_active && tty_opened_ns(tp))
+			if (!(flags & SCGETC_CN) && tty_opened_ns(tp))
 			    sctty_outwakeup(tp);
 #endif
 		    }
@@ -3557,21 +3558,21 @@ next_code:
 
 	    case RBT:
 #ifndef SC_DISABLE_REBOOT
-		if (enable_reboot)
+		if (enable_reboot && !(flags & SCGETC_CN))
 			shutdown_nice(0);
 #endif
 		break;
 
 	    case HALT:
 #ifndef SC_DISABLE_REBOOT
-		if (enable_reboot)
+		if (enable_reboot && !(flags & SCGETC_CN))
 			shutdown_nice(RB_HALT);
 #endif
 		break;
 
 	    case PDWN:
 #ifndef SC_DISABLE_REBOOT
-		if (enable_reboot)
+		if (enable_reboot && !(flags & SCGETC_CN))
 			shutdown_nice(RB_HALT|RB_POWEROFF);
 #endif
 		break;
@@ -3842,7 +3843,7 @@ sc_respond(scr_stat *scp, const u_char *p, int count, int wakeup)
 void
 sc_bell(scr_stat *scp, int pitch, int duration)
 {
-    if (cold || shutdown_in_progress || !enable_bell)
+    if (cold || kdb_active || shutdown_in_progress || !enable_bell)
 	return;
 
     if (scp != scp->sc->cur_scp && (scp->sc->flags & SC_QUIET_BELL))
