@@ -169,7 +169,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	    descsz)) {
 		if ((p->md_attr & EFI_MD_ATTR_RT) == 0)
 			continue;
-		if (p->md_virt != NULL) {
+		if (p->md_virt != NULL && (uint64_t)p->md_virt != p->md_phys) {
 			if (bootverbose)
 				printf("EFI Runtime entry %d is mapped\n", i);
 			goto fail;
