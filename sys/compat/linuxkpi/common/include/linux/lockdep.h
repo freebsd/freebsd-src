@@ -36,8 +36,9 @@ struct lock_class_key {
 };
 
 #define	lockdep_set_class(lock, key)
-
 #define	lockdep_set_class_and_name(lock, key, name)
+#define	lockdep_set_current_reclaim_state(g) do { } while (0)
+#define	lockdep_clear_current_reclaim_state() do { } while (0)
 
 #define	lockdep_assert_held(m)				\
 	sx_assert(&(m)->sx, SA_XLOCKED)
