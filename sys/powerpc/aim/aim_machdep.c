@@ -160,15 +160,72 @@ extern void	*dlmisstrap, *dlmisssize;
 extern void	*dsmisstrap, *dsmisssize;
 
 extern void *ap_pcpu;
+extern void __restartkernel(vm_offset_t, vm_offset_t, vm_offset_t, void *, uint32_t, register_t offset, register_t msr);
 
+void aim_early_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry,
+    void *mdp, uint32_t mdp_cookie);
 void aim_cpu_init(vm_offset_t toc);
+
+void
+aim_early_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
+    uint32_t mdp_cookie)
+{
+	register_t	scratch;
+
+	/*
+	 * If running from an FDT, make sure we are in real mode to avoid
+	 * tromping on firmware page tables. Everything in the kernel assumes
+	 * 1:1 mappings out of firmware, so this won't break anything not
+	 * already broken. This doesn't work if there is live OF, since OF
+	 * may internally use non-1:1 mappings.
+	 */
+	if (ofentry == 0)
+		mtmsr(mfmsr() & ~(PSL_IR | PSL_DR));
+
+#ifdef __powerpc64__
+	/*
+	 * If in real mode, relocate to high memory so that the kernel
+	 * can execute from the direct map.
+	 */
+	if (!(mfmsr() & PSL_DR) &&
+	    (vm_offset_t)&aim_early_init < DMAP_BASE_ADDRESS)
+		__restartkernel(fdt, 0, ofentry, mdp, mdp_cookie,
+		    DMAP_BASE_ADDRESS, mfmsr());
+#endif
+
+	/* Various very early CPU fix ups */
+	switch (mfpvr() >> 16) {
+		/*
+		 * PowerPC 970 CPUs have a misfeature requested by Apple that
+		 * makes them pretend they have a 32-byte cacheline. Turn this
+		 * off before we measure the cacheline size.
+		 */
+		case IBM970:
+		case IBM970FX:
+		case IBM970MP:
+		case IBM970GX:
+			scratch = mfspr(SPR_HID5);
+			scratch &= ~HID5_970_DCBZ_SIZE_HI;
+			mtspr(SPR_HID5, scratch);
+			break;
+	#ifdef __powerpc64__
+		case IBMPOWER7:
+		case IBMPOWER7PLUS:
+		case IBMPOWER8:
+		case IBMPOWER8E:
+			/* XXX: get from ibm,slb-size in device tree */
+			n_slbs = 32;
+			break;
+	#endif
+	}
+}
 
 void
 aim_cpu_init(vm_offset_t toc)
 {
 	size_t		trap_offset, trapsize;
 	vm_offset_t	trap;
-	register_t	msr, scratch;
+	register_t	msr;
 	uint8_t		*cache_check;
 	int		cacheline_warn;
 	#ifndef __powerpc64__
@@ -198,32 +255,6 @@ aim_cpu_init(vm_offset_t toc)
 	 * Bits 1-4, 10-15 (ppc32), 33-36, 42-47 (ppc64)
 	 */
 	psl_userstatic &= ~0x783f0000UL;
-
-	/* Various very early CPU fix ups */
-	switch (mfpvr() >> 16) {
-		/*
-		 * PowerPC 970 CPUs have a misfeature requested by Apple that
-		 * makes them pretend they have a 32-byte cacheline. Turn this
-		 * off before we measure the cacheline size.
-		 */
-		case IBM970:
-		case IBM970FX:
-		case IBM970MP:
-		case IBM970GX:
-			scratch = mfspr(SPR_HID5);
-			scratch &= ~HID5_970_DCBZ_SIZE_HI;
-			mtspr(SPR_HID5, scratch);
-			break;
-	#ifdef __powerpc64__
-		case IBMPOWER7:
-		case IBMPOWER7PLUS:
-		case IBMPOWER8:
-		case IBMPOWER8E:
-			/* XXX: get from ibm,slb-size in device tree */
-			n_slbs = 32;
-			break;
-	#endif
-	}
 
 	/*
 	 * Initialize the interrupt tables and figure out our cache line
