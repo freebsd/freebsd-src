@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/sleepqueue.h>
 
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -72,6 +73,25 @@ linux_add_to_sleepqueue(void *wchan, struct task_struct *task,
 		ret = -ERESTARTSYS;
 	}
 	return (ret);
+}
+
+unsigned int
+linux_msleep_interruptible(unsigned int ms)
+{
+	int ret;
+
+	/* guard against invalid values */
+	if (ms == 0)
+		ms = 1;
+	ret = -pause_sbt("lnxsleep", mstosbt(ms), 0, C_HARDCLOCK | C_CATCH);
+
+	switch (ret) {
+	case -EWOULDBLOCK:
+		return (0);
+	default:
+		linux_schedule_save_interrupt_value(current, ret);
+		return (ms);
+	}
 }
 
 static int
