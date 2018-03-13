@@ -169,7 +169,7 @@ pnp_addinfo(struct pnpinfo *pi)
  * where 'AAA' is the EISA vendor ID, II is the product ID and RR the revision ID.
  */
 char *
-pnp_eisaformat(u_int8_t *data)
+pnp_eisaformat(uint8_t *data)
 {
     static char	idbuf[8];
     const char	hextoascii[] = "0123456789abcdef";

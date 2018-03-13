@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 static void	isapnp_write(int d, int r);
 static void	isapnp_send_Initiation_LFSR(void);
-static int	isapnp_get_serial(u_int8_t *p);
+static int	isapnp_get_serial(uint8_t *p);
 static int	isapnp_isolation_protocol(void);
 static void	isapnp_enumerate(void);
 
@@ -90,7 +90,7 @@ isapnp_send_Initiation_LFSR(void)
  * Get the device's serial number.  Returns 1 if the serial is valid.
  */
 static int
-isapnp_get_serial(u_int8_t *data)
+isapnp_get_serial(uint8_t *data)
 {
     int		i, bit, valid = 0, sum = 0x6a;
 
@@ -123,7 +123,7 @@ isapnp_get_serial(u_int8_t *data)
  * Returns nonzero if the device fails to report
  */
 static int
-isapnp_get_resource_info(u_int8_t *buffer, int len)
+isapnp_get_resource_info(uint8_t *buffer, int len)
 {
     int		i, j;
     u_char	temp;
@@ -229,7 +229,7 @@ isapnp_isolation_protocol(void)
 {
     int			csn;
     struct pnpinfo	*pi;
-    u_int8_t		cardid[_PNP_ID_LEN];
+    uint8_t		cardid[_PNP_ID_LEN];
     int			ndevs;
 
     isapnp_send_Initiation_LFSR();

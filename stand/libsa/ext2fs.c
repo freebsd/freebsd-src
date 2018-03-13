@@ -152,7 +152,7 @@ struct fs_ops ext2fs_fsops = {
 #define ino_to_bo(fs, ino)	(ino_to_bgo(fs, ino) % (fs)->fs_ipb)
 
 #define nindir(fs) \
-	((fs)->fs_bsize / sizeof(u_int32_t))
+	((fs)->fs_bsize / sizeof(uint32_t))
 #define lblkno(fs, loc)				/* loc / bsize */ \
 	((loc) >> (fs)->fs_bshift)
 #define smalllblktosize(fs, blk)		/* blk * bsize */ \
@@ -170,45 +170,45 @@ struct fs_ops ext2fs_fsops = {
  * superblock describing ext2fs
  */
 struct ext2fs_disk {
-	u_int32_t	fd_inodes;	/* # of inodes */
-	u_int32_t	fd_blocks;	/* # of blocks */
-	u_int32_t	fd_resblk;	/* # of reserved blocks */
-	u_int32_t	fd_freeblk;	/* # of free blocks */
-	u_int32_t	fd_freeino;	/* # of free inodes */
-	u_int32_t	fd_firstblk;	/* first data block */
-	u_int32_t	fd_bsize;	/* block size */
-	u_int32_t	fd_fsize;	/* frag size */
-	u_int32_t	fd_bpg;		/* blocks per group */
-	u_int32_t	fd_fpg;		/* frags per group */
-	u_int32_t	fd_ipg;		/* inodes per group */
-	u_int32_t	fd_mtime;	/* mount time */
-	u_int32_t	fd_wtime;	/* write time */
-	u_int16_t	fd_mount;	/* # of mounts */
+	uint32_t	fd_inodes;	/* # of inodes */
+	uint32_t	fd_blocks;	/* # of blocks */
+	uint32_t	fd_resblk;	/* # of reserved blocks */
+	uint32_t	fd_freeblk;	/* # of free blocks */
+	uint32_t	fd_freeino;	/* # of free inodes */
+	uint32_t	fd_firstblk;	/* first data block */
+	uint32_t	fd_bsize;	/* block size */
+	uint32_t	fd_fsize;	/* frag size */
+	uint32_t	fd_bpg;		/* blocks per group */
+	uint32_t	fd_fpg;		/* frags per group */
+	uint32_t	fd_ipg;		/* inodes per group */
+	uint32_t	fd_mtime;	/* mount time */
+	uint32_t	fd_wtime;	/* write time */
+	uint16_t	fd_mount;	/* # of mounts */
 	int16_t		fd_maxmount;	/* max # of mounts */
-	u_int16_t	fd_magic;	/* magic number */
-	u_int16_t	fd_state;	/* state */
-	u_int16_t	fd_eflag;	/* error flags */
-	u_int16_t	fd_mnrrev;	/* minor revision */
-	u_int32_t	fd_lastchk;	/* last check */
-	u_int32_t	fd_chkintvl;	/* maximum check interval */
-	u_int32_t	fd_os;		/* os */
-	u_int32_t	fd_revision;	/* revision */
-	u_int16_t	fd_uid;		/* uid for reserved blocks */
-	u_int16_t	fd_gid;		/* gid for reserved blocks */
+	uint16_t	fd_magic;	/* magic number */
+	uint16_t	fd_state;	/* state */
+	uint16_t	fd_eflag;	/* error flags */
+	uint16_t	fd_mnrrev;	/* minor revision */
+	uint32_t	fd_lastchk;	/* last check */
+	uint32_t	fd_chkintvl;	/* maximum check interval */
+	uint32_t	fd_os;		/* os */
+	uint32_t	fd_revision;	/* revision */
+	uint16_t	fd_uid;		/* uid for reserved blocks */
+	uint16_t	fd_gid;		/* gid for reserved blocks */
 
-	u_int32_t	fd_firstino;	/* first non-reserved inode */
-	u_int16_t	fd_isize;	/* inode size */
-	u_int16_t	fd_nblkgrp;	/* block group # of superblock */
-	u_int32_t	fd_fcompat;	/* compatible features */
-	u_int32_t	fd_fincompat;	/* incompatible features */
-	u_int32_t	fd_frocompat;	/* read-only compatibilties */
-	u_int8_t	fd_uuid[16];	/* volume uuid */
+	uint32_t	fd_firstino;	/* first non-reserved inode */
+	uint16_t	fd_isize;	/* inode size */
+	uint16_t	fd_nblkgrp;	/* block group # of superblock */
+	uint32_t	fd_fcompat;	/* compatible features */
+	uint32_t	fd_fincompat;	/* incompatible features */
+	uint32_t	fd_frocompat;	/* read-only compatibilties */
+	uint8_t		fd_uuid[16];	/* volume uuid */
 	char 		fd_volname[16];	/* volume name */
 	char 		fd_fsmnt[64];	/* name last mounted on */
-	u_int32_t	fd_bitmap;	/* compression bitmap */
+	uint32_t	fd_bitmap;	/* compression bitmap */
 
-	u_int8_t	fd_nblkpa;	/* # of blocks to preallocate */	
-	u_int8_t	fd_ndblkpa;	/* # of dir blocks to preallocate */
+	uint8_t		fd_nblkpa;	/* # of blocks to preallocate */	
+	uint8_t		fd_ndblkpa;	/* # of dir blocks to preallocate */
 };
 
 struct ext2fs_core {
@@ -251,39 +251,39 @@ struct ext2fs {
 };
 
 struct ext2blkgrp {
-	u_int32_t	bg_blkmap;	/* block bitmap */
-	u_int32_t	bg_inomap;	/* inode bitmap */
-	u_int32_t	bg_inotbl;	/* inode table */
-	u_int16_t	bg_nfblk;	/* # of free blocks */
-	u_int16_t	bg_nfino;	/* # of free inodes */
-	u_int16_t	bg_ndirs;	/* # of dirs */
+	uint32_t	bg_blkmap;	/* block bitmap */
+	uint32_t	bg_inomap;	/* inode bitmap */
+	uint32_t	bg_inotbl;	/* inode table */
+	uint16_t	bg_nfblk;	/* # of free blocks */
+	uint16_t	bg_nfino;	/* # of free inodes */
+	uint16_t	bg_ndirs;	/* # of dirs */
 	char		bg_pad[14];
 };
 
 struct ext2dinode {
-	u_int16_t	di_mode;	/* mode */
-	u_int16_t	di_uid;		/* uid */
-	u_int32_t	di_size;	/* byte size */
-	u_int32_t	di_atime;	/* access time */
-	u_int32_t	di_ctime;	/* creation time */
-	u_int32_t	di_mtime;	/* modification time */
-	u_int32_t	di_dtime;	/* deletion time */
-	u_int16_t	di_gid;		/* gid */
-	u_int16_t	di_nlink;	/* link count */
-	u_int32_t	di_nblk;	/* block count */
-	u_int32_t	di_flags;	/* file flags */
+	uint16_t	di_mode;	/* mode */
+	uint16_t	di_uid;		/* uid */
+	uint32_t	di_size;	/* byte size */
+	uint32_t	di_atime;	/* access time */
+	uint32_t	di_ctime;	/* creation time */
+	uint32_t	di_mtime;	/* modification time */
+	uint32_t	di_dtime;	/* deletion time */
+	uint16_t	di_gid;		/* gid */
+	uint16_t	di_nlink;	/* link count */
+	uint32_t	di_nblk;	/* block count */
+	uint32_t	di_flags;	/* file flags */
 
-	u_int32_t	di_osdep1;	/* os dependent stuff */
+	uint32_t	di_osdep1;	/* os dependent stuff */
 
-	u_int32_t	di_db[EXT2_NDADDR]; /* direct blocks */
-	u_int32_t	di_ib[EXT2_NIADDR]; /* indirect blocks */
-	u_int32_t	di_version;	/* version */
-	u_int32_t	di_facl;	/* file acl */
-	u_int32_t	di_dacl;	/* dir acl */
-	u_int32_t	di_faddr;	/* fragment addr */
+	uint32_t	di_db[EXT2_NDADDR]; /* direct blocks */
+	uint32_t	di_ib[EXT2_NIADDR]; /* indirect blocks */
+	uint32_t	di_version;	/* version */
+	uint32_t	di_facl;	/* file acl */
+	uint32_t	di_dacl;	/* dir acl */
+	uint32_t	di_faddr;	/* fragment addr */
 
-	u_int8_t	di_frag;	/* fragment number */
-	u_int8_t	di_fsize;	/* fragment size */
+	uint8_t		di_frag;	/* fragment number */
+	uint8_t		di_fsize;	/* fragment size */
 
 	char		di_pad[10];
 
@@ -293,10 +293,10 @@ struct ext2dinode {
 #define EXT2_MAXNAMLEN       255
 
 struct ext2dirent {
-	u_int32_t	d_ino;		/* inode */
-	u_int16_t	d_reclen;	/* directory entry length */
-	u_int8_t	d_namlen;	/* name length */
-	u_int8_t	d_type;		/* file type */
+	uint32_t	d_ino;		/* inode */
+	uint16_t	d_reclen;	/* directory entry length */
+	uint8_t		d_namlen;	/* name length */
+	uint8_t		d_type;		/* file type */
 	char		d_name[EXT2_MAXNAMLEN];
 };
 

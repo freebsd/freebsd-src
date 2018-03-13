@@ -117,7 +117,7 @@ uint32_t cpu_get_mid_sun4u(void);
 static void tlb_init_sun4u(void);
 
 #ifdef LOADER_DEBUG
-typedef u_int64_t tte_t;
+typedef uint64_t tte_t;
 
 static void pmap_print_tlb_sun4u(void);
 static void pmap_print_tte_sun4u(tte_t, tte_t);
