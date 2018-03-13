@@ -268,7 +268,7 @@ efi_get_time(struct efi_tm *tm)
 	/*
 	 * UEFI spec states that the Capabilities argument to GetTime is
 	 * optional, but some UEFI implementations choke when passed a NULL
-	 * pointer. Pass a dummy efi_dmcap, even though we won't use it,
+	 * pointer. Pass a dummy efi_tmcap, even though we won't use it,
 	 * to workaround such implementations.
 	 */
 	error = efi_get_time_locked(tm, &dummy);
