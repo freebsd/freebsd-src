@@ -49,7 +49,7 @@ linux_kmem_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct linux_kmem_cache *c = arg;
 
-	if (unlikely(c->cache_flags & SLAB_DESTROY_BY_RCU)) {
+	if (unlikely(c->cache_flags & SLAB_TYPESAFE_BY_RCU)) {
 		struct linux_kmem_rcu *rcu = LINUX_KMEM_TO_RCU(c, mem);
 
 		/* duplicate cache pointer */
@@ -85,7 +85,7 @@ linux_kmem_cache_create(const char *name, size_t size, size_t align,
 	else if (align != 0)
 		align--;
 
-	if (flags & SLAB_DESTROY_BY_RCU) {
+	if (flags & SLAB_TYPESAFE_BY_RCU) {
 		/* make room for RCU structure */
 		size = ALIGN(size, sizeof(void *));
 		size += sizeof(struct linux_kmem_rcu);
@@ -118,7 +118,7 @@ linux_kmem_cache_free_rcu(struct linux_kmem_cache *c, void *m)
 void
 linux_kmem_cache_destroy(struct linux_kmem_cache *c)
 {
-	if (unlikely(c->cache_flags & SLAB_DESTROY_BY_RCU)) {
+	if (unlikely(c->cache_flags & SLAB_TYPESAFE_BY_RCU)) {
 		/* make sure all free callbacks have been called */
 		rcu_barrier();
 	}
