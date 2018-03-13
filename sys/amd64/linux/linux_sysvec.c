@@ -121,7 +121,7 @@ SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 static register_t * linux_copyout_strings(struct image_params *imgp);
 static int	elf_linux_fixup(register_t **stack_base,
 		    struct image_params *iparams);
-static boolean_t linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
+static bool	linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static void	linux_vdso_install(void *param);
 static void	linux_vdso_deinstall(void *param);
 static void	linux_set_syscall_retval(struct thread *td, int error);
@@ -846,7 +846,7 @@ SYSUNINIT(elf_linux_vdso_uninit, SI_SUB_EXEC, SI_ORDER_FIRST,
 static char GNULINUX_ABI_VENDOR[] = "GNU";
 static int GNULINUX_ABI_DESC = 0;
 
-static boolean_t
+static bool
 linux_trans_osrel(const Elf_Note *note, int32_t *osrel)
 {
 	const Elf32_Word *desc;
@@ -857,7 +857,7 @@ linux_trans_osrel(const Elf_Note *note, int32_t *osrel)
 
 	desc = (const Elf32_Word *)p;
 	if (desc[0] != GNULINUX_ABI_DESC)
-		return (FALSE);
+		return (false);
 
 	/*
 	 * For Linux we encode osrel as follows (see linux_mib.c):
@@ -865,7 +865,7 @@ linux_trans_osrel(const Elf_Note *note, int32_t *osrel)
 	 */
 	*osrel = desc[1] * 1000000 + desc[2] * 1000 + desc[3];
 
-	return (TRUE);
+	return (true);
 }
 
 static Elf_Brandnote linux64_brandnote = {
