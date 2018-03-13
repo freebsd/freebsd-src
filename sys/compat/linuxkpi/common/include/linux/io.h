@@ -74,6 +74,13 @@ writel(uint32_t b, void *addr)
         *(volatile uint32_t *)addr = b;
 }
 
+#undef writel_relaxed
+static inline void
+writel_relaxed(uint32_t b, void *addr)
+{
+	*(volatile uint32_t *)addr = b;
+}
+
 #undef writeq
 static inline void
 writeq(uint64_t b, void *addr)
