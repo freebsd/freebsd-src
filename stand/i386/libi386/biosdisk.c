@@ -404,7 +404,6 @@ bd_open(struct open_file *f, ...)
 	 */
 	disk.dd.d_dev = dev->dd.d_dev;
 	disk.dd.d_unit = dev->dd.d_unit;
-	disk.dd.d_opendata = NULL;
 	disk.d_slice = -1;
 	disk.d_partition = -1;
 	disk.d_offset = 0;
