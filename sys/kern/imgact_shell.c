@@ -255,5 +255,8 @@ exec_shell_imgact(struct image_params *imgp)
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
  */
-static struct execsw shell_execsw = { exec_shell_imgact, "#!" };
+static struct execsw shell_execsw = {
+	.ex_imgact = exec_shell_imgact,
+	.ex_name = "#!"
+};
 EXEC_SET(shell, shell_execsw);
