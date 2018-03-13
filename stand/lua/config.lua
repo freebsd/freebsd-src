@@ -197,6 +197,7 @@ end
 config.env_changed = {}
 -- Values to restore env to (nil to unset)
 config.env_restore = {}
+config.verbose = false
 
 -- The first item in every carousel is always the default item.
 function config.getCarouselIndex(id)
@@ -490,6 +491,11 @@ function config.load(file)
 
 	-- Cache the provided module_path at load time for later use
 	config.module_path = loader.getenv("module_path")
+	local verbose = loader.getenv("verbose_loading")
+	if verbose == nil then
+		verbose = "no"
+	end
+	config.verbose = verbose:lower() == "yes"
 end
 
 -- Reload configuration
@@ -512,7 +518,7 @@ function config.loadelf()
 	end
 
 	print(MSG_MODLOADING)
-	if not config.loadmod(modules) then
+	if not config.loadmod(modules, not config.verbose) then
 		print(MSG_MODLOADFAIL)
 	end
 end
