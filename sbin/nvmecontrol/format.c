@@ -81,9 +81,13 @@ format(int argc, char *argv[])
 			pil = strtol(optarg, NULL, 0);
 			break;
 		case 'E':
+			if (ses == 2)
+				errx(1, "-E and -C are mutually exclusive");
 			ses = 1;
 			break;
 		case 'C':
+			if (ses == 1)
+				errx(1, "-E and -C are mutually exclusive");
 			ses = 2;
 			break;
 		default:
@@ -109,19 +113,7 @@ format(int argc, char *argv[])
 	 */
 	if (strstr(target, NVME_NS_PREFIX) == NULL) {
 		nsid = NVME_GLOBAL_NAMESPACE_TAG;
-
-		/* We have no previous parameters, so use defaults. */
-		if (lbaf < 0)
-			lbaf = 0;
-		if (mset < 0)
-			mset = 0;
-		if (pi < 0)
-			pi = 0;
-		if (pil < 0)
-			pil = 0;
 	} else {
-		parse_ns_str(target, path, &nsid);
-
 		/*
 		 * We send FORMAT commands to the controller, not the namespace,
 		 * since it is an admin cmd.  The namespace ID will be specified
@@ -129,25 +121,34 @@ format(int argc, char *argv[])
 		 * string to get the controller substring and namespace ID.
 		 */
 		close(fd);
+		parse_ns_str(target, path, &nsid);
 		open_dev(path, &fd, 1, 1);
+	}
 
-		/* Check that controller can execute this command. */
-		read_controller_data(fd, &cd);
-		if (((cd.fna >> NVME_CTRLR_DATA_FNA_FORMAT_ALL_SHIFT)
-		     & NVME_CTRLR_DATA_FNA_FORMAT_ALL_MASK) && ses == 0) {
-			fprintf(stderr, "H/w doesn't support per-NS format\n");
-			exit(1);
-		} else if (((cd.fna >> NVME_CTRLR_DATA_FNA_ERASE_ALL_SHIFT)
-		     & NVME_CTRLR_DATA_FNA_ERASE_ALL_MASK) && ses != 0) {
-			fprintf(stderr, "H/w doesn't support per-NS erase\n");
-			exit(1);
-		}
+	/* Check that controller can execute this command. */
+	read_controller_data(fd, &cd);
+	if (((cd.oacs >> NVME_CTRLR_DATA_OACS_FORMAT_SHIFT) &
+	    NVME_CTRLR_DATA_OACS_FORMAT_MASK) == 0)
+		errx(1, "controller does not support format");
+	if (((cd.fna >> NVME_CTRLR_DATA_FNA_CRYPTO_ERASE_SHIFT) &
+	    NVME_CTRLR_DATA_FNA_CRYPTO_ERASE_MASK) == 0 && ses == 2)
+		errx(1, "controller does not support cryptographic erase");
+
+	if (nsid != NVME_GLOBAL_NAMESPACE_TAG) {
+		if (((cd.fna >> NVME_CTRLR_DATA_FNA_FORMAT_ALL_SHIFT) &
+		    NVME_CTRLR_DATA_FNA_FORMAT_ALL_MASK) && ses == 0)
+			errx(1, "controller does not support per-NS format");
+		if (((cd.fna >> NVME_CTRLR_DATA_FNA_ERASE_ALL_SHIFT) &
+		    NVME_CTRLR_DATA_FNA_ERASE_ALL_MASK) && ses != 0)
+			errx(1, "controller does not support per-NS erase");
 
 		/* Try to keep previous namespace parameters. */
 		read_namespace_data(fd, nsid, &nsd);
 		if (lbaf < 0)
 			lbaf = (nsd.flbas >> NVME_NS_DATA_FLBAS_FORMAT_SHIFT)
 			    & NVME_NS_DATA_FLBAS_FORMAT_MASK;
+		if (lbaf > nsd.nlbaf)
+			errx(1, "LBA format is out of range");
 		if (mset < 0)
 			mset = (nsd.flbas >> NVME_NS_DATA_FLBAS_EXTENDED_SHIFT)
 			    & NVME_NS_DATA_FLBAS_EXTENDED_MASK;
@@ -157,6 +158,17 @@ format(int argc, char *argv[])
 		if (pil < 0)
 			pil = (nsd.dps >> NVME_NS_DATA_DPS_PIT_SHIFT)
 			    & NVME_NS_DATA_DPS_PIT_MASK;
+	} else {
+
+		/* We have no previous parameters, so default to zeroes. */
+		if (lbaf < 0)
+			lbaf = 0;
+		if (mset < 0)
+			mset = 0;
+		if (pi < 0)
+			pi = 0;
+		if (pil < 0)
+			pil = 0;
 	}
 
 	memset(&pt, 0, sizeof(pt));
