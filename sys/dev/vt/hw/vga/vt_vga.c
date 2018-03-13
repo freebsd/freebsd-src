@@ -30,6 +30,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_acpi.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -45,6 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <machine/bus.h>
+
+#if ((defined(__amd64__) || defined(__i386__)) && defined(DEV_ACPI))
+#include <contrib/dev/acpica/include/acpi.h>
+#endif
 
 struct vga_softc {
 	bus_space_tag_t		 vga_fb_tag;
@@ -1196,11 +1202,39 @@ vga_initialize(struct vt_device *vd, int textmode)
 	return (0);
 }
 
+static bool
+vga_acpi_disabled(void)
+{
+#if ((defined(__amd64__) || defined(__i386__)) && defined(DEV_ACPI))
+	ACPI_TABLE_FADT *fadt;
+	vm_paddr_t physaddr;
+	uint16_t flags;
+
+	physaddr = acpi_find_table(ACPI_SIG_FADT);
+	if (physaddr == 0)
+		return (false);
+
+	fadt = acpi_map_table(physaddr, ACPI_SIG_FADT);
+	if (fadt == NULL) {
+		printf("vt_vga: unable to map FADT ACPI table\n");
+		return (false);
+	}
+
+	flags = fadt->BootFlags;
+	acpi_unmap_table(fadt);
+
+	if (flags & ACPI_FADT_NO_VGA)
+		return (true);
+#endif
+
+	return (false);
+}
+
 static int
 vga_probe(struct vt_device *vd)
 {
 
-	return (CN_INTERNAL);
+	return (vga_acpi_disabled() ? CN_DEAD : CN_INTERNAL);
 }
 
 static int
