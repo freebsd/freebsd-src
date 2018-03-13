@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_acpi.h"
 #include "opt_isa.h"
 
 #include <sys/param.h>
@@ -55,6 +56,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include "clock_if.h"
 
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#endif
+
 /*
  * atrtc_lock protects low-level access to individual hardware registers.
  * atrtc_time_lock protects the entire sequence of accessing multiple registers
@@ -62,6 +67,10 @@ __FBSDID("$FreeBSD$");
  */
 static struct mtx atrtc_lock;
 MTX_SYSINIT(atrtc_lock_init, &atrtc_lock, "atrtc", MTX_SPIN);
+
+/* Force RTC enabled/disabled. */
+static int atrtc_enabled = -1;
+TUNABLE_INT("hw.atrtc.enabled", &atrtc_enabled);
 
 struct mtx atrtc_time_lock;
 MTX_SYSINIT(atrtc_time_lock_init, &atrtc_time_lock, "atrtc_time", MTX_DEF);
@@ -249,11 +258,43 @@ static struct isa_pnp_id atrtc_ids[] = {
 	{ 0 }
 };
 
+static bool
+atrtc_acpi_disabled(void)
+{
+#ifdef DEV_ACPI
+	ACPI_TABLE_FADT *fadt;
+	vm_paddr_t physaddr;
+	uint16_t flags;
+
+	physaddr = acpi_find_table(ACPI_SIG_FADT);
+	if (physaddr == 0)
+		return (false);
+
+	fadt = acpi_map_table(physaddr, ACPI_SIG_FADT);
+	if (fadt == NULL) {
+		printf("at_rtc: unable to map FADT ACPI table\n");
+		return (false);
+	}
+
+	flags = fadt->BootFlags;
+	acpi_unmap_table(fadt);
+
+	if (flags & ACPI_FADT_NO_CMOS_RTC)
+		return (true);
+#endif
+
+	return (false);
+}
+
 static int
 atrtc_probe(device_t dev)
 {
 	int result;
-	
+
+	if ((atrtc_enabled == -1 && atrtc_acpi_disabled()) ||
+	    (atrtc_enabled == 0))
+		return (ENXIO);
+
 	result = ISA_PNP_PROBE(device_get_parent(dev), dev, atrtc_ids);
 	/* ENOENT means no PnP-ID, device is hinted. */
 	if (result == ENOENT) {
