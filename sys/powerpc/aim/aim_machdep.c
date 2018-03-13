@@ -228,9 +228,10 @@ aim_cpu_init(vm_offset_t toc)
 	register_t	msr;
 	uint8_t		*cache_check;
 	int		cacheline_warn;
-	#ifndef __powerpc64__
+#ifndef __powerpc64__
+	register_t	scratch;
 	int		ppc64;
-	#endif
+#endif
 
 	trap_offset = 0;
 	cacheline_warn = 0;
