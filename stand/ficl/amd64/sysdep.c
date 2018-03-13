@@ -25,12 +25,12 @@
 DPUNS ficlLongMul(FICL_UNS x, FICL_UNS y)
 {
     DPUNS q;
-    u_int64_t qx;
+    uint64_t qx;
 
-    qx = (u_int64_t)x * (u_int64_t) y;
+    qx = (uint64_t)x * (uint64_t) y;
 
-    q.hi = (u_int32_t)( qx >> 32 );
-    q.lo = (u_int32_t)( qx & 0xFFFFFFFFL);
+    q.hi = (uint32_t)( qx >> 32 );
+    q.lo = (uint32_t)( qx & 0xFFFFFFFFL);
 
     return q;
 }
@@ -38,7 +38,7 @@ DPUNS ficlLongMul(FICL_UNS x, FICL_UNS y)
 UNSQR ficlLongDiv(DPUNS q, FICL_UNS y)
 {
     UNSQR result;
-    u_int64_t qx, qh;
+    uint64_t qx, qh;
 
     qh = q.hi;
     qx = (qh << 32) | q.lo;

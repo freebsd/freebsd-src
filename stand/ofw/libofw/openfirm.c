@@ -598,7 +598,7 @@ OF_write(ihandle_t instance, void *addr, int len)
 
 /* Seek to a position. */
 int
-OF_seek(ihandle_t instance, u_int64_t pos)
+OF_seek(ihandle_t instance, uint64_t pos)
 {
 	static struct {
 		cell_t name;

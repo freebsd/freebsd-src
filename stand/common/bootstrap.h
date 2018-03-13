@@ -150,7 +150,7 @@ void			pnp_addident(struct pnpinfo *pi, char *ident);
 struct pnpinfo		*pnp_allocinfo(void);
 void			pnp_freeinfo(struct pnpinfo *pi);
 void			pnp_addinfo(struct pnpinfo *pi);
-char			*pnp_eisaformat(u_int8_t *data);
+char			*pnp_eisaformat(uint8_t *data);
 
 /*
  *  < 0	- No ISA in system
@@ -168,7 +168,7 @@ extern int			isapnp_readport;
 struct file_metadata 
 {
     size_t			md_size;
-    u_int16_t			md_type;
+    uint16_t			md_type;
     struct file_metadata	*md_next;
     char			md_data[1];	/* data are immediately appended */
 };
@@ -210,7 +210,7 @@ struct preloaded_file
 struct file_format
 {
     /* Load function must return EFTYPE if it can't handle the module supplied */
-    int		(* l_load)(char *filename, u_int64_t dest, struct preloaded_file **result);
+    int		(* l_load)(char *filename, uint64_t dest, struct preloaded_file **result);
     /* Only a loader that will load a kernel (first module) should have an exec handler */
     int		(* l_exec)(struct preloaded_file *mp);
 };
@@ -239,20 +239,20 @@ void file_removemetadata(struct preloaded_file *fp);
 #define ELF_RELOC_RELA	2
 
 /* Relocation offset for some architectures */
-extern u_int64_t __elfN(relocation_offset);
+extern uint64_t __elfN(relocation_offset);
 
 struct elf_file;
 typedef Elf_Addr (symaddr_fn)(struct elf_file *ef, Elf_Size symidx);
 
-int	__elfN(loadfile)(char *filename, u_int64_t dest, struct preloaded_file **result);
-int	__elfN(obj_loadfile)(char *filename, u_int64_t dest,
+int	__elfN(loadfile)(char *filename, uint64_t dest, struct preloaded_file **result);
+int	__elfN(obj_loadfile)(char *filename, uint64_t dest,
 	    struct preloaded_file **result);
 int	__elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr,
 	    const void *reldata, int reltype, Elf_Addr relbase,
 	    Elf_Addr dataaddr, void *data, size_t len);
-int __elfN(loadfile_raw)(char *filename, u_int64_t dest,
+int __elfN(loadfile_raw)(char *filename, uint64_t dest,
 	    struct preloaded_file **result, int multiboot);
-int __elfN(load_modmetadata)(struct preloaded_file *fp, u_int64_t dest);
+int __elfN(load_modmetadata)(struct preloaded_file *fp, uint64_t dest);
 #endif
 
 /*

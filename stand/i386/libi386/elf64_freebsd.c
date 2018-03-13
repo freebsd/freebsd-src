@@ -51,15 +51,15 @@ struct file_format amd64_elf_obj = { elf64_obj_loadfile, elf64_obj_exec };
 #define PG_U	0x004
 #define PG_PS	0x080
 
-typedef u_int64_t p4_entry_t;
-typedef u_int64_t p3_entry_t;
-typedef u_int64_t p2_entry_t;
+typedef uint64_t p4_entry_t;
+typedef uint64_t p3_entry_t;
+typedef uint64_t p2_entry_t;
 extern p4_entry_t PT4[];
 extern p3_entry_t PT3[];
 extern p2_entry_t PT2[];
 
-u_int32_t entry_hi;
-u_int32_t entry_lo;
+uint32_t entry_hi;
+uint32_t entry_lo;
 
 extern void amd64_tramp();
 

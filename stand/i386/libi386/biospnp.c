@@ -49,49 +49,49 @@ struct pnphandler biospnphandler =
 
 struct pnp_ICstructure
 {
-    u_int8_t	pnp_signature[4];
-    u_int8_t	pnp_version;
-    u_int8_t	pnp_length;
-    u_int16_t	pnp_BIOScontrol;
-    u_int8_t	pnp_checksum;
-    u_int32_t	pnp_eventflag;
-    u_int16_t	pnp_rmip;
-    u_int16_t	pnp_rmcs;
-    u_int16_t	pnp_pmip;
-    u_int32_t	pnp_pmcs;
-    u_int8_t	pnp_OEMdev[4];
-    u_int16_t	pnp_rmds;
-    u_int32_t	pnp_pmds;
+    uint8_t	pnp_signature[4];
+    uint8_t	pnp_version;
+    uint8_t	pnp_length;
+    uint16_t	pnp_BIOScontrol;
+    uint8_t	pnp_checksum;
+    uint32_t	pnp_eventflag;
+    uint16_t	pnp_rmip;
+    uint16_t	pnp_rmcs;
+    uint16_t	pnp_pmip;
+    uint32_t	pnp_pmcs;
+    uint8_t	pnp_OEMdev[4];
+    uint16_t	pnp_rmds;
+    uint32_t	pnp_pmds;
 } __packed;
 
 struct pnp_devNode 
 {
-    u_int16_t	dn_size;
-    u_int8_t	dn_handle;
-    u_int8_t	dn_id[4];
-    u_int8_t	dn_type[3];
-    u_int16_t	dn_attrib;
-    u_int8_t	dn_data[1];
+    uint16_t	dn_size;
+    uint8_t	dn_handle;
+    uint8_t	dn_id[4];
+    uint8_t	dn_type[3];
+    uint16_t	dn_attrib;
+    uint8_t	dn_data[1];
 } __packed;
 
 struct pnp_isaConfiguration
 {
-    u_int8_t	ic_revision;
-    u_int8_t	ic_nCSN;
-    u_int16_t	ic_rdport;
-    u_int16_t	ic_reserved;
+    uint8_t	ic_revision;
+    uint8_t	ic_nCSN;
+    uint16_t	ic_rdport;
+    uint16_t	ic_reserved;
 } __packed;
 
 static struct pnp_ICstructure	*pnp_Icheck = NULL;
-static u_int16_t		pnp_NumNodes;
-static u_int16_t		pnp_NodeSize;
+static uint16_t			pnp_NumNodes;
+static uint16_t			pnp_NodeSize;
 
 static void	biospnp_scanresdata(struct pnpinfo *pi, struct pnp_devNode *dn);
 static int	biospnp_call(int func, const char *fmt, ...);
 
-#define vsegofs(vptr)	(((u_int32_t)VTOPSEG(vptr) << 16) + VTOPOFF(vptr))
+#define vsegofs(vptr)	(((uint32_t)VTOPSEG(vptr) << 16) + VTOPOFF(vptr))
 
-typedef void    v86bios_t(u_int32_t, u_int32_t, u_int32_t, u_int32_t);
+typedef void    v86bios_t(uint32_t, uint32_t, uint32_t, uint32_t);
 v86bios_t	*v86bios = (v86bios_t *)v86int;
 
 #define	biospnp_f00(NumNodes, NodeSize)			biospnp_call(0x00, "ll", NumNodes, NodeSize)
@@ -155,7 +155,7 @@ biospnp_init(void)
 static void
 biospnp_enumerate(void)
 {
-    u_int8_t		Node;
+    uint8_t		Node;
     struct pnp_devNode	*devNodeBuffer;
     int			result;
     struct pnpinfo	*pi;
@@ -189,11 +189,11 @@ static void
 biospnp_scanresdata(struct pnpinfo *pi, struct pnp_devNode *dn)
 {
     u_int	tag, i, rlen, dlen;
-    u_int8_t	*p;
+    uint8_t	*p;
     char	*str;
 
     p = dn->dn_data;			/* point to resource data */
-    dlen = dn->dn_size - (p - (u_int8_t *)dn);	/* length of resource data */
+    dlen = dn->dn_size - (p - (uint8_t *)dn);	/* length of resource data */
 
     for (i = 0; i < dlen; i+= rlen) {
 	tag = p[i];
@@ -213,8 +213,8 @@ biospnp_scanresdata(struct pnpinfo *pi, struct pnp_devNode *dn)
 	    }
 	} else {
 	    /* large resource */
-	    rlen = *(u_int16_t *)(p + i);
-	    i += sizeof(u_int16_t);
+	    rlen = *(uint16_t *)(p + i);
+	    i += sizeof(uint16_t);
 	    
 	    switch(PNP_LRES_NUM(tag)) {
 
@@ -249,14 +249,14 @@ biospnp_call(int func, const char *fmt, ...)
 {
     va_list	ap;
     const char	*p;
-    u_int8_t	*argp;
-    u_int32_t	args[4];
-    u_int32_t	i;
+    uint8_t	*argp;
+    uint32_t	args[4];
+    uint32_t	i;
 
     /* function number first */
-    argp = (u_int8_t *)args;
-    *(u_int16_t *)argp = func;
-    argp += sizeof(u_int16_t);
+    argp = (uint8_t *)args;
+    *(uint16_t *)argp = func;
+    argp += sizeof(uint16_t);
 
     /* take args according to format */
     va_start(ap, fmt);
@@ -265,26 +265,26 @@ biospnp_call(int func, const char *fmt, ...)
 
 	case 'w':
 	    i = va_arg(ap, u_int);
-	    *(u_int16_t *)argp = i;
-	    argp += sizeof(u_int16_t);
+	    *(uint16_t *)argp = i;
+	    argp += sizeof(uint16_t);
 	    break;
 	    
 	case 'l':
-	    i = va_arg(ap, u_int32_t);
-	    *(u_int32_t *)argp = i;
-	    argp += sizeof(u_int32_t);
+	    i = va_arg(ap, uint32_t);
+	    *(uint32_t *)argp = i;
+	    argp += sizeof(uint32_t);
 	    break;
 	}
     }
     va_end(ap);
 
     /* BIOS segment last */
-    *(u_int16_t *)argp = pnp_Icheck->pnp_rmds;
-    argp += sizeof(u_int16_t);
+    *(uint16_t *)argp = pnp_Icheck->pnp_rmds;
+    argp += sizeof(uint16_t);
 
     /* prepare for call */
     v86.ctl = V86_ADDR | V86_CALLF; 
-    v86.addr = ((u_int32_t)pnp_Icheck->pnp_rmcs << 16) + pnp_Icheck->pnp_rmip;
+    v86.addr = ((uint32_t)pnp_Icheck->pnp_rmcs << 16) + pnp_Icheck->pnp_rmip;
     
     /* call with packed stack and return */
     v86bios(args[0], args[1], args[2], args[3]);
