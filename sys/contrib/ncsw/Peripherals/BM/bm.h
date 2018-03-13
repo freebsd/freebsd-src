@@ -41,6 +41,7 @@
 #ifndef __BM_H
 #define __BM_H
 
+#include "xx_common.h"
 #include "bm_ext.h"
 #include "mm_ext.h"
 
@@ -261,7 +262,7 @@ typedef struct {
     t_Handle                h_Bm;
     struct bm_portal        *p_BmPortalLow;
     t_BmPortalCallbacks     cbs[BM_NUM_OF_RINGS];
-    int                     irq;
+    uintptr_t               irq;
     int                     cpu; /* This is used for any "core-affine" portals, ie. default portals
                                   * associated to the corresponding cpu. -1 implies that there is no core
                                   * affinity configured. */
@@ -303,7 +304,7 @@ typedef struct {
     uint32_t                    exceptions;
     t_BmExceptionsCallback      *f_Exception;
     t_Handle                    h_App;
-    int                         errIrq;                 /**< error interrupt line; NO_IRQ if interrupts not used */
+    uintptr_t                   errIrq;                 /**< error interrupt line; NO_IRQ if interrupts not used */
     t_BmDriverParams            *p_BmDriverParams;
 } t_Bm;
 
@@ -339,7 +340,7 @@ static __inline__ void BmCommit(t_BmPortal *p_BmPortal, bmRingType_t type, uint8
 static __inline__ uint32_t BmBpidGet(t_Bm *p_Bm, bool force, uint32_t base)
 {
     uint64_t ans, size = 1;
-    uint32_t alignment = 1;
+    uint64_t alignment = 1;
 
     if (force)
     {
@@ -347,7 +348,7 @@ static __inline__ uint32_t BmBpidGet(t_Bm *p_Bm, bool force, uint32_t base)
         {
             ans = MM_GetForce(p_Bm->h_BpidMm,
                               base,
-                              (int)size,
+                              size,
                               "BM BPID MEM");
             ans = base;
         }
@@ -394,6 +395,7 @@ static __inline__ uint32_t BmBpidGet(t_Bm *p_Bm, bool force, uint32_t base)
                      size,
                      alignment,
                      "BM BPID MEM");
+    KASSERT(ans < UINT32_MAX, ("Oops, %lx > UINT32_MAX!\n", ans));
     return (uint32_t)ans;
 }
 

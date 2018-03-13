@@ -8,9 +8,11 @@ mlx5_cmd.c \
 mlx5_cq.c \
 mlx5_diagnostics.c \
 mlx5_eq.c \
-mlx5_eswitch_vacl.c \
-mlx5_flow_table.c \
+mlx5_fs_cmd.c \
+mlx5_fs_tree.c \
 mlx5_fw.c \
+mlx5_fwdump.c \
+mlx5_fwdump_regmaps.c \
 mlx5_health.c \
 mlx5_mad.c \
 mlx5_main.c \
@@ -24,6 +26,7 @@ mlx5_srq.c \
 mlx5_transobj.c \
 mlx5_uar.c \
 mlx5_vport.c \
+mlx5_vsc.c \
 mlx5_wq.c \
 device_if.h bus_if.h vnode_if.h pci_if.h \
         opt_inet.h opt_inet6.h opt_rss.h

@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 30, 2017
+.Dd January 27, 2018
 .Dt TRACEROUTE6 8
 .Os
 .\"
@@ -140,6 +140,11 @@ that has no route through it
 specifies the source IPv6 address to be used.
 .It Fl S
 Use SCTP packets for the probes.
+The size of probe packets must be a multiple of 4.
+If
+.Ar datalen
+is up to 28, probe packets consist of a SHUTDOWN-ACK chunk possibly bundled
+with a PAD chunk. For larger probe packets, an INIT chunk is used.
 .It Fl T
 Use TCP segments for the probes.
 .It Fl U

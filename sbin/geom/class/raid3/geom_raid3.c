@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -149,6 +151,7 @@ raid3_label(struct gctl_req *req)
 	int hardcode, round_robin, verify;
 	int error, i, nargs;
 
+	bzero(sector, sizeof(sector));
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs < 4) {
 		gctl_error(req, "Too few arguments.");

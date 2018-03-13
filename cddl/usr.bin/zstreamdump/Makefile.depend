@@ -7,7 +7,6 @@ DIRDEPS = \
 	cddl/lib/libumem \
 	cddl/lib/libzpool \
 	gnu/lib/csu \
-	gnu/lib/libgcc \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \

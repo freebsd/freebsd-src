@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 - 2015 Tony Finch <dot@dotat.at>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,7 +51,7 @@ static const char copyright[] =
     "@(#) $Version: unifdef-2.11 $\n"
     "@(#) $FreeBSD$\n"
     "@(#) $Author: Tony Finch (dot@dotat.at) $\n"
-    "@(#) $URL: http://dotat.at/prog/unifdef $\n"
+    "@(#) $URL: https://dotat.at/prog/unifdef $\n"
 ;
 
 /* types of input lines: */

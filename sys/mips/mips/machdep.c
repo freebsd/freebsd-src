@@ -1,6 +1,8 @@
     /*	$OpenBSD: machdep.c,v 1.33 1998/09/15 10:58:54 pefo Exp $	*/
 /* tracked to 1.38 */
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -208,8 +210,8 @@ cpu_startup(void *dummy)
 	vm_ksubmap_init(&kmi);
 
 	printf("avail memory = %ju (%juMB)\n", 
-	    ptoa((uintmax_t)vm_cnt.v_free_count),
-	    ptoa((uintmax_t)vm_cnt.v_free_count) / 1048576);
+	    ptoa((uintmax_t)vm_free_count()),
+	    ptoa((uintmax_t)vm_free_count()) / 1048576);
 	cpu_init_interrupts();
 
 	/*
@@ -316,8 +318,6 @@ cpu_initclocks(void)
 	cpu_initclocks_bsp();
 }
 
-struct msgbuf *msgbufp = NULL;
-
 /*
  * Initialize the hardware exception vectors, and the jump table used to
  * call locore cache and TLB management functions, based on the kind
@@ -383,7 +383,11 @@ mips_vector_init(void)
 void
 mips_postboot_fixup(void)
 {
-	static char fake_preload[256];
+	/*
+	 * We store u_long sized objects into the reload area, so the array
+	 * must be so aligned. The standard allows any alignment for char data.
+	 */
+	_Alignas(_Alignof(u_long)) static char fake_preload[256];
 	caddr_t preload_ptr = (caddr_t)&fake_preload[0];
 	size_t size = 0;
 

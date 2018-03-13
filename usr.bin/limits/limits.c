@@ -509,7 +509,7 @@ main(int argc, char *argv[])
 
     for (rcswhich = 0; rcswhich < RLIM_NLIMITS; rcswhich++) {
 	if (doall || num_limits == 0 || which_limits[rcswhich] != 0) {
-	    if (which_limits[rcswhich] == ANY || which_limits[rcswhich])
+	    if (which_limits[rcswhich] == ANY)
 		which_limits[rcswhich] = type;
 	    if (shellparm[shelltype].lprm[rcswhich].pfx) {
 		if (shellparm[shelltype].both && limits[rcswhich].rlim_cur == limits[rcswhich].rlim_max) {
@@ -608,6 +608,7 @@ resource_num(int which, int ch, const char *str)
 		    break;
 		case 'w': case 'W':	/* weeks */
 		    tim *= (60L * 60L * 24L * 7L);
+		    break;
 		case 'y': case 'Y':	/* Years */
 		    tim *= (60L * 60L * 24L * 365L);
 		}

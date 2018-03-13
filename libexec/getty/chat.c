@@ -62,7 +62,7 @@ static int    chat_unalarm(void);
 static int    getdigit(unsigned char **, int, int);
 static char   **read_chat(char **);
 static char   *cleanchr(char **, unsigned char);
-static char   *cleanstr(const unsigned char *, int);
+static const char *cleanstr(const unsigned char *, int);
 static const char *result(int);
 static int    chat_expect(const char *);
 static int    chat_send(char const *);
@@ -270,7 +270,7 @@ cleanchr(char **buf, unsigned char ch)
  * clean a string for display (ctrl/meta characters)
  */
 
-static char *
+static const char *
 cleanstr(const unsigned char *s, int l)
 {
 	static unsigned char * tmp = NULL;
@@ -281,7 +281,7 @@ cleanstr(const unsigned char *s, int l)
 
 	if (tmp == NULL) {
 		tmplen = 0;
-		return (char *)"(mem alloc error)";
+		return "(mem alloc error)";
 	} else {
 		int i = 0;
 		char * p = tmp;

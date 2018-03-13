@@ -577,10 +577,8 @@ aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini,
 	kt = is_fpu_kern_thread(0) || (encini == NULL);
 	if (!kt) {
 		ACQUIRE_CTX(ctxidx, ctx);
-		error = fpu_kern_enter(curthread, ctx,
+		fpu_kern_enter(curthread, ctx,
 		    FPU_KERN_NORMAL | FPU_KERN_KTHR);
-		if (error != 0)
-			goto out;
 	}
 
 	error = 0;
@@ -590,7 +588,6 @@ aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini,
 
 	if (!kt) {
 		fpu_kern_leave(curthread, ctx);
-out:
 		RELEASE_CTX(ctxidx, ctx);
 	}
 	return (error);
@@ -724,14 +721,14 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 			return (EINVAL);
 	}
 
+	ctx = NULL;
+	ctxidx = 0;
 	error = 0;
 	kt = is_fpu_kern_thread(0);
 	if (!kt) {
 		ACQUIRE_CTX(ctxidx, ctx);
-		error = fpu_kern_enter(curthread, ctx,
+		fpu_kern_enter(curthread, ctx,
 		    FPU_KERN_NORMAL | FPU_KERN_KTHR);
-		if (error != 0)
-			goto out2;
 	}
 
 	/* Do work */
@@ -759,7 +756,6 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 out:
 	if (!kt) {
 		fpu_kern_leave(curthread, ctx);
-out2:
 		RELEASE_CTX(ctxidx, ctx);
 	}
 	return (error);
@@ -773,12 +769,18 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptodesc *enccrd,
 	int error, ivlen;
 	bool encflag, allocated, authallocated;
 
+	KASSERT(ses->algo != CRYPTO_AES_NIST_GCM_16 || authcrd != NULL,
+	    ("AES_NIST_GCM_16 must include MAC descriptor"));
+
+	ivlen = 0;
+	authbuf = NULL;
+
 	buf = aesni_cipher_alloc(enccrd, crp, &allocated);
 	if (buf == NULL)
 		return (ENOMEM);
 
 	authallocated = false;
-	if (ses->algo == CRYPTO_AES_NIST_GCM_16 && authcrd != NULL) {
+	if (ses->algo == CRYPTO_AES_NIST_GCM_16) {
 		authbuf = aesni_cipher_alloc(authcrd, crp, &authallocated);
 		if (authbuf == NULL) {
 			error = ENOMEM;
@@ -851,7 +853,7 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptodesc *enccrd,
 			    iv);
 		break;
 	case CRYPTO_AES_NIST_GCM_16:
-		if (authcrd != NULL && !encflag)
+		if (!encflag)
 			crypto_copydata(crp->crp_flags, crp->crp_buf,
 			    authcrd->crd_inject, GMAC_DIGEST_LEN, tag);
 		else

@@ -36,6 +36,9 @@
 #include "acpi_if.h"
 #include "bus_if.h"
 #include <sys/eventhandler.h>
+#ifdef INTRNG
+#include <sys/intr.h>
+#endif
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -90,6 +93,16 @@ struct acpi_device {
     /* Resources */
     struct resource_list	ad_rl;
 };
+
+#ifdef INTRNG
+struct intr_map_data_acpi {
+	struct intr_map_data	hdr;
+	u_int			irq;
+	u_int			pol;
+	u_int			trig;
+};
+
+#endif
 
 /* Track device (/dev/{apm,apmctl} and /dev/acpi) notification status. */
 struct apm_clone_data {

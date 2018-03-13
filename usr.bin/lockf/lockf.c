@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1997 John D. Polstra.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

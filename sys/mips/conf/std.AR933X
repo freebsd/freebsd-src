@@ -62,6 +62,9 @@ makeoptions	MODULES_OVERRIDE+="hwpmc_mips24k"
 option		AH_SUPPORT_AR9330	# Chipset support
 option 		ATH_EEPROM_FIRMWARE	# Use EEPROM from flash
 
+# Support EEPROM caldata in AHB devices
+options         ATH_EEPROM_FIRMWARE
+
 device		usb
 device		ehci
 

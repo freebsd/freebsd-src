@@ -44,17 +44,19 @@ __<bsd.obj.mk>__:
 
 .if ${MK_AUTO_OBJ} == "yes"
 # it is done by now
-objwarn:
-obj:
+objwarn: .PHONY
+obj: .PHONY
 CANONICALOBJDIR= ${.OBJDIR}
-.if defined(NO_OBJ)
+# This is also done in bsd.init.mk
+.if defined(NO_OBJ) && ${.OBJDIR} != ${.CURDIR}
 # but this makefile does not want it!
 .OBJDIR: ${.CURDIR}
 .endif
 # Handle special case where SRCS is full-pathed and requires
 # nested objdirs.  This duplicates some auto.obj.mk logic.
 .if (!empty(SRCS:M*/*) || !empty(DPSRCS:M*/*)) && \
-    (${.TARGETS} == "" || ${.TARGETS:Nclean*:N*clean:Ndestroy*} != "")
+    (${.TARGETS} == "" || ${.TARGETS:Nclean*:N*clean:Ndestroy*} != "") && \
+    !make(print-dir) && empty(.MAKEFLAGS:M-[nN])
 _wantdirs=	${SRCS:M*/*:H} ${DPSRCS:M*/*:H}
 .if !empty(_wantdirs)
 _wantdirs:=	${_wantdirs:O:u}
@@ -75,13 +77,18 @@ __objdir_made != umask ${OBJDIR_UMASK:U002}; ${Mkdirs}; \
 	done
 .endif
 .endif	# !empty(SRCS:M*/*) || !empty(DPSRCS:M*/*)
-.elif defined(MAKEOBJDIRPREFIX)
+.elif !empty(MAKEOBJDIRPREFIX)
 CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
 .elif defined(MAKEOBJDIR) && ${MAKEOBJDIR:M/*} != ""
 CANONICALOBJDIR:=${MAKEOBJDIR}
 OBJTOP?= ${MAKEOBJDIR}
 .else
 CANONICALOBJDIR:=/usr/obj${.CURDIR}
+.endif
+
+.if defined(SRCTOP) && defined(RELDIR) && \
+    (${CANONICALOBJDIR} == /${RELDIR} || ${.OBJDIR} == /${RELDIR})
+.error .OBJDIR incorrectly set to /${RELDIR}
 .endif
 
 OBJTOP?= ${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
@@ -139,7 +146,7 @@ obj: .PHONY
 .endif
 
 .if !target(objlink)
-objlink:
+objlink: .PHONY
 	@if test -d ${CANONICALOBJDIR}/; then \
 		rm -f ${.CURDIR}/obj; \
 		ln -s ${CANONICALOBJDIR} ${.CURDIR}/obj; \
@@ -153,16 +160,17 @@ objlink:
 # where would that obj directory be?
 #
 .if !target(whereobj)
-whereobj:
+whereobj: .PHONY
 	@echo ${.OBJDIR}
 .endif
 
 # Same check in bsd.progs.mk
-.if ${CANONICALOBJDIR} != ${.CURDIR} && exists(${CANONICALOBJDIR}/)
-cleanobj:
+.if ${CANONICALOBJDIR} != ${.CURDIR} && exists(${CANONICALOBJDIR}/) && \
+    (${MK_AUTO_OBJ} == "no" || ${.TARGETS:Nclean*:N*clean:Ndestroy*} == "")
+cleanobj: .PHONY
 	-rm -rf ${CANONICALOBJDIR}
 .else
-cleanobj: clean cleandepend
+cleanobj: .PHONY clean cleandepend
 .endif
 	@if [ -L ${.CURDIR}/obj ]; then rm -f ${.CURDIR}/obj; fi
 
@@ -173,7 +181,7 @@ NOPATH_FILES+=	${CLEANFILES}
 .endif
 
 .if !target(clean)
-clean:
+clean: .PHONY
 .if defined(CLEANFILES) && !empty(CLEANFILES)
 	rm -f ${CLEANFILES}
 .endif
@@ -182,10 +190,14 @@ clean:
 .endif
 .endif
 .ORDER: clean all
+.if ${MK_AUTO_OBJ} == "yes"
+.ORDER: cleanobj all
+.ORDER: cleandir all
+.endif
 
 .include <bsd.subdir.mk>
 
-cleandir: .WAIT cleanobj
+cleandir: .PHONY .WAIT cleanobj
 
 .if make(destroy*) && defined(OBJROOT)
 # this (rm -rf objdir) is much faster and more reliable than cleaning.
@@ -195,18 +207,18 @@ _OBJDIR?= ${.OBJDIR}
 _CURDIR?= ${.CURDIR}
 
 # destroy almost everything
-destroy: destroy-all
-destroy-all:
+destroy: .PHONY destroy-all
+destroy-all: .PHONY
 
 # just remove our objdir
-destroy-arch: .NOMETA
+destroy-arch: .PHONY .NOMETA
 .if ${_OBJDIR} != ${_CURDIR}
 	cd ${_CURDIR} && rm -rf ${_OBJDIR}
 .endif
 
 .if defined(HOST_OBJTOP)
 destroy-host: destroy.host
-destroy.host: .NOMETA
+destroy.host: .PHONY .NOMETA
 	cd ${_CURDIR} && rm -rf ${HOST_OBJTOP}/${RELDIR:N.}
 .endif
 
@@ -215,7 +227,7 @@ destroy-all: destroy-stage
 .endif
 
 # remove the stage tree
-destroy-stage: .NOMETA
+destroy-stage: .PHONY .NOMETA
 .if defined(STAGE_ROOT)
 	cd ${_CURDIR} && rm -rf ${STAGE_ROOT}
 .endif
@@ -225,7 +237,7 @@ _destroy_machine_list = common host ${ALL_MACHINE_LIST}
 .for m in ${_destroy_machine_list:O:u}
 destroy-all: destroy.$m
 .if !target(destroy.$m)
-destroy.$m: .NOMETA
+destroy.$m: .PHONY .NOMETA
 .if ${_OBJDIR} != ${_CURDIR}
 	cd ${_CURDIR} && rm -rf ${OBJROOT}$m*/${RELDIR:N.}
 .endif

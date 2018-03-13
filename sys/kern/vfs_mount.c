@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999-2004 Poul-Henning Kamp
  * Copyright (c) 1999 Michael Smith
  * Copyright (c) 1989, 1993
@@ -39,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
@@ -88,6 +91,9 @@ struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist);
 /* For any iteration/modification of mountlist */
 struct mtx mountlist_mtx;
 MTX_SYSINIT(mountlist, &mountlist_mtx, "mountlist", MTX_DEF);
+
+EVENTHANDLER_LIST_DEFINE(vfs_mounted);
+EVENTHANDLER_LIST_DEFINE(vfs_unmounted);
 
 /*
  * Global opts, taken by all filesystems
@@ -863,7 +869,7 @@ vfs_domount_first(
 	if (VFS_ROOT(mp, LK_EXCLUSIVE, &newdp))
 		panic("mount: lost mount");
 	VOP_UNLOCK(vp, 0);
-	EVENTHANDLER_INVOKE(vfs_mounted, mp, newdp, td);
+	EVENTHANDLER_DIRECT_INVOKE(vfs_mounted, mp, newdp, td);
 	VOP_UNLOCK(newdp, 0);
 	mountcheckdirs(vp, newdp);
 	vrele(newdp);
@@ -1262,7 +1268,7 @@ dounmount_cleanup(struct mount *mp, struct vnode *coveredvp, int mntkflags)
 int
 dounmount(struct mount *mp, int flags, struct thread *td)
 {
-	struct vnode *coveredvp, *fsrootvp;
+	struct vnode *coveredvp;
 	int error;
 	uint64_t async_flag;
 	int mnt_gen_r;
@@ -1364,22 +1370,6 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	MNT_IUNLOCK(mp);
 	cache_purgevfs(mp, false); /* remove cache entries for this file sys */
 	vfs_deallocate_syncvnode(mp);
-	/*
-	 * For forced unmounts, move process cdir/rdir refs on the fs root
-	 * vnode to the covered vnode.  For non-forced unmounts we want
-	 * such references to cause an EBUSY error.
-	 */
-	if ((flags & MNT_FORCE) &&
-	    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp) == 0) {
-		if (mp->mnt_vnodecovered != NULL &&
-		    (mp->mnt_flag & MNT_IGNORE) == 0)
-			mountcheckdirs(fsrootvp, mp->mnt_vnodecovered);
-		if (fsrootvp == rootvnode) {
-			vrele(rootvnode);
-			rootvnode = NULL;
-		}
-		vput(fsrootvp);
-	}
 	if ((mp->mnt_flag & MNT_RDONLY) != 0 || (flags & MNT_FORCE) != 0 ||
 	    (error = VFS_SYNC(mp, MNT_WAIT)) == 0)
 		error = VFS_UNMOUNT(mp, flags);
@@ -1391,17 +1381,6 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	 * it doesn't exist anymore.
 	 */
 	if (error && error != ENXIO) {
-		if ((flags & MNT_FORCE) &&
-		    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp) == 0) {
-			if (mp->mnt_vnodecovered != NULL &&
-			    (mp->mnt_flag & MNT_IGNORE) == 0)
-				mountcheckdirs(mp->mnt_vnodecovered, fsrootvp);
-			if (rootvnode == NULL) {
-				rootvnode = fsrootvp;
-				vref(rootvnode);
-			}
-			vput(fsrootvp);
-		}
 		MNT_ILOCK(mp);
 		mp->mnt_kern_flag &= ~MNTK_NOINSMNTQ;
 		if ((mp->mnt_flag & MNT_RDONLY) == 0) {
@@ -1426,12 +1405,16 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	mtx_lock(&mountlist_mtx);
 	TAILQ_REMOVE(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
-	EVENTHANDLER_INVOKE(vfs_unmounted, mp, td);
+	EVENTHANDLER_DIRECT_INVOKE(vfs_unmounted, mp, td);
 	if (coveredvp != NULL) {
 		coveredvp->v_mountedhere = NULL;
 		VOP_UNLOCK(coveredvp, 0);
 	}
 	vfs_event_signal(NULL, VQ_UNMOUNT, 0);
+	if (rootvnode != NULL && mp == rootvnode->v_mount) {
+		vrele(rootvnode);
+		rootvnode = NULL;
+	}
 	if (mp == rootdevmp)
 		rootdevmp = NULL;
 	vfs_mount_destroy(mp);

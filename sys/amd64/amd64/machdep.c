@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003 Peter Wemm.
  * Copyright (c) 1992 Terrence R. Lambert.
  * Copyright (c) 1982, 1987, 1990 The Regents of the University of California.
@@ -113,6 +115,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
+#include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <x86/mca.h>
 #include <machine/md_var.h>
@@ -145,6 +148,14 @@ __FBSDID("$FreeBSD$");
 /* Sanity check for __curthread() */
 CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
 
+/*
+ * The PTI trampoline stack needs enough space for a hardware trapframe and a
+ * couple of scratch registers, as well as the trapframe left behind after an
+ * iret fault.
+ */
+CTASSERT(PC_PTI_STACK_SZ * sizeof(register_t) >= 2 * sizeof(struct pti_frame) -
+    offsetof(struct pti_frame, pti_rip));
+
 extern u_int64_t hammer_time(u_int64_t, u_int64_t);
 
 #define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
@@ -175,14 +186,6 @@ struct init_ops init_ops = {
 #endif
 	.msi_init =			msi_init,
 };
-
-/*
- * The file "conf/ldscript.amd64" defines the symbol "kernphys".  Its value is
- * the physical address at which the kernel is loaded.
- */
-extern char kernphys[];
-
-struct msgbuf *msgbufp;
 
 /*
  * Physical address of the EFI System Table. Stashed from the metadata hints
@@ -279,7 +282,7 @@ cpu_startup(dummy)
 		memsize = (uintmax_t)strtoul(sysenv, (char **)NULL, 10) << 10;
 		freeenv(sysenv);
 	}
-	if (memsize < ptoa((uintmax_t)vm_cnt.v_free_count))
+	if (memsize < ptoa((uintmax_t)vm_free_count()))
 		memsize = ptoa((uintmax_t)Maxmem);
 	printf("real memory  = %ju (%ju MB)\n", memsize, memsize >> 20);
 	realmem = atop(memsize);
@@ -306,8 +309,8 @@ cpu_startup(dummy)
 	vm_ksubmap_init(&kmi);
 
 	printf("avail memory = %ju (%ju MB)\n",
-	    ptoa((uintmax_t)vm_cnt.v_free_count),
-	    ptoa((uintmax_t)vm_cnt.v_free_count) / 1048576);
+	    ptoa((uintmax_t)vm_free_count()),
+	    ptoa((uintmax_t)vm_free_count()) / 1048576);
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
@@ -581,12 +584,9 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
 
-	mtx_lock(&dt_lock);
 	if (td->td_proc->p_md.md_ldt != NULL)
 		user_ldt_free(td);
-	else
-		mtx_unlock(&dt_lock);
-	
+
 	update_pcb_bases(pcb);
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
@@ -605,7 +605,6 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
-	td->td_retval[1] = 0;
 
 	/*
 	 * Reset the hardware debug registers if they were in use.
@@ -663,7 +662,7 @@ static struct gate_descriptor idt0[NIDT];
 struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 
 static char dblfault_stack[PAGE_SIZE] __aligned(16);
-
+static char mce0_stack[PAGE_SIZE] __aligned(16);
 static char nmi0_stack[PAGE_SIZE] __aligned(16);
 CTASSERT(sizeof(struct nmi_pcpu) == 16);
 
@@ -817,13 +816,20 @@ extern inthand_t
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
 	IDTVEC(xmm), IDTVEC(dblfault),
+	IDTVEC(div_pti), IDTVEC(dbg_pti), IDTVEC(bpt_pti),
+	IDTVEC(ofl_pti), IDTVEC(bnd_pti), IDTVEC(ill_pti), IDTVEC(dna_pti),
+	IDTVEC(fpusegm_pti), IDTVEC(tss_pti), IDTVEC(missing_pti),
+	IDTVEC(stk_pti), IDTVEC(prot_pti), IDTVEC(page_pti),
+	IDTVEC(rsvd_pti), IDTVEC(fpu_pti), IDTVEC(align_pti),
+	IDTVEC(xmm_pti),
 #ifdef KDTRACE_HOOKS
-	IDTVEC(dtrace_ret),
+	IDTVEC(dtrace_ret), IDTVEC(dtrace_ret_pti),
 #endif
 #ifdef XENHVM
-	IDTVEC(xen_intr_upcall),
+	IDTVEC(xen_intr_upcall), IDTVEC(xen_intr_upcall_pti),
 #endif
-	IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
+	IDTVEC(fast_syscall), IDTVEC(fast_syscall32),
+	IDTVEC(fast_syscall_pti);
 
 #ifdef DDB
 /*
@@ -1516,6 +1522,23 @@ amd64_kdb_init(void)
 #endif
 }
 
+/* Set up the fast syscall stuff */
+void
+amd64_conf_fast_syscall(void)
+{
+	uint64_t msr;
+
+	msr = rdmsr(MSR_EFER) | EFER_SCE;
+	wrmsr(MSR_EFER, msr);
+	wrmsr(MSR_LSTAR, pti ? (u_int64_t)IDTVEC(fast_syscall_pti) :
+	    (u_int64_t)IDTVEC(fast_syscall));
+	wrmsr(MSR_CSTAR, (u_int64_t)IDTVEC(fast_syscall32));
+	msr = ((u_int64_t)GSEL(GCODE_SEL, SEL_KPL) << 32) |
+	    ((u_int64_t)GSEL(GUCODE32_SEL, SEL_UPL) << 48);
+	wrmsr(MSR_STAR, msr);
+	wrmsr(MSR_SF_MASK, PSL_NT | PSL_T | PSL_I | PSL_C | PSL_D);
+}
+
 u_int64_t
 hammer_time(u_int64_t modulep, u_int64_t physfree)
 {
@@ -1524,10 +1547,12 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	struct pcpu *pc;
 	struct nmi_pcpu *np;
 	struct xstate_hdr *xhdr;
-	u_int64_t msr;
+	u_int64_t rsp0;
 	char *env;
 	size_t kstack0_sz;
 	int late_console;
+
+	TSRAW(&thread0, TS_ENTER, __func__, NULL);
 
 	/*
  	 * This may be done better later if it gets more high level
@@ -1537,7 +1562,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	kmdp = init_ops.parse_preload_data(modulep);
 
-	identify_cpu();
+	identify_cpu1();
 	identify_hypervisor();
 
 	/* Init basic tunables, hz etc */
@@ -1596,34 +1621,55 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	mtx_init(&dt_lock, "descriptor tables", NULL, MTX_DEF);
 
 	/* exceptions */
+	pti = pti_get_default();
+	TUNABLE_INT_FETCH("vm.pmap.pti", &pti);
+
 	for (x = 0; x < NIDT; x++)
-		setidt(x, &IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_DE, &IDTVEC(div),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_DB, &IDTVEC(dbg),  SDT_SYSIGT, SEL_KPL, 0);
+		setidt(x, pti ? &IDTVEC(rsvd_pti) : &IDTVEC(rsvd), SDT_SYSIGT,
+		    SEL_KPL, 0);
+	setidt(IDT_DE, pti ? &IDTVEC(div_pti) : &IDTVEC(div), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_DB, pti ? &IDTVEC(dbg_pti) : &IDTVEC(dbg), SDT_SYSIGT,
+	    SEL_KPL, 0);
 	setidt(IDT_NMI, &IDTVEC(nmi),  SDT_SYSIGT, SEL_KPL, 2);
- 	setidt(IDT_BP, &IDTVEC(bpt),  SDT_SYSIGT, SEL_UPL, 0);
-	setidt(IDT_OF, &IDTVEC(ofl),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_BR, &IDTVEC(bnd),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_UD, &IDTVEC(ill),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_NM, &IDTVEC(dna),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_BP, pti ? &IDTVEC(bpt_pti) : &IDTVEC(bpt), SDT_SYSIGT,
+	    SEL_UPL, 0);
+	setidt(IDT_OF, pti ? &IDTVEC(ofl_pti) : &IDTVEC(ofl), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_BR, pti ? &IDTVEC(bnd_pti) : &IDTVEC(bnd), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_UD, pti ? &IDTVEC(ill_pti) : &IDTVEC(ill), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_NM, pti ? &IDTVEC(dna_pti) : &IDTVEC(dna), SDT_SYSIGT,
+	    SEL_KPL, 0);
 	setidt(IDT_DF, &IDTVEC(dblfault), SDT_SYSIGT, SEL_KPL, 1);
-	setidt(IDT_FPUGP, &IDTVEC(fpusegm),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_TS, &IDTVEC(tss),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_NP, &IDTVEC(missing),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_SS, &IDTVEC(stk),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_GP, &IDTVEC(prot),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_PF, &IDTVEC(page),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_MF, &IDTVEC(fpu),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_AC, &IDTVEC(align), SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_MC, &IDTVEC(mchk),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_XF, &IDTVEC(xmm), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_FPUGP, pti ? &IDTVEC(fpusegm_pti) : &IDTVEC(fpusegm),
+	    SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_TS, pti ? &IDTVEC(tss_pti) : &IDTVEC(tss), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_NP, pti ? &IDTVEC(missing_pti) : &IDTVEC(missing),
+	    SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_SS, pti ? &IDTVEC(stk_pti) : &IDTVEC(stk), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_GP, pti ? &IDTVEC(prot_pti) : &IDTVEC(prot), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_PF, pti ? &IDTVEC(page_pti) : &IDTVEC(page), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_MF, pti ? &IDTVEC(fpu_pti) : &IDTVEC(fpu), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_AC, pti ? &IDTVEC(align_pti) : &IDTVEC(align), SDT_SYSIGT,
+	    SEL_KPL, 0);
+	setidt(IDT_MC, &IDTVEC(mchk), SDT_SYSIGT, SEL_KPL, 3);
+	setidt(IDT_XF, pti ? &IDTVEC(xmm_pti) : &IDTVEC(xmm), SDT_SYSIGT,
+	    SEL_KPL, 0);
 #ifdef KDTRACE_HOOKS
-	setidt(IDT_DTRACE_RET, &IDTVEC(dtrace_ret), SDT_SYSIGT, SEL_UPL, 0);
+	setidt(IDT_DTRACE_RET, pti ? &IDTVEC(dtrace_ret_pti) :
+	    &IDTVEC(dtrace_ret), SDT_SYSIGT, SEL_UPL, 0);
 #endif
 #ifdef XENHVM
-	setidt(IDT_EVTCHN, &IDTVEC(xen_intr_upcall), SDT_SYSIGT, SEL_UPL, 0);
+	setidt(IDT_EVTCHN, pti ? &IDTVEC(xen_intr_upcall_pti) :
+	    &IDTVEC(xen_intr_upcall), SDT_SYSIGT, SEL_KPL, 0);
 #endif
-
 	r_idt.rd_limit = sizeof(idt0) - 1;
 	r_idt.rd_base = (long) idt;
 	lidt(&r_idt);
@@ -1659,21 +1705,21 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	np->np_pcpu = (register_t) pc;
 	common_tss[0].tss_ist2 = (long) np;
 
+	/*
+	 * MC# stack, runs on ist3.  The pcpu pointer is stored just
+	 * above the start of the ist3 stack.
+	 */
+	np = ((struct nmi_pcpu *) &mce0_stack[sizeof(mce0_stack)]) - 1;
+	np->np_pcpu = (register_t) pc;
+	common_tss[0].tss_ist3 = (long) np;
+	
 	/* Set the IO permission bitmap (empty due to tss seg limit) */
 	common_tss[0].tss_iobase = sizeof(struct amd64tss) + IOPERM_BITMAP_SIZE;
 
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	ltr(gsel_tss);
 
-	/* Set up the fast syscall stuff */
-	msr = rdmsr(MSR_EFER) | EFER_SCE;
-	wrmsr(MSR_EFER, msr);
-	wrmsr(MSR_LSTAR, (u_int64_t)IDTVEC(fast_syscall));
-	wrmsr(MSR_CSTAR, (u_int64_t)IDTVEC(fast_syscall32));
-	msr = ((u_int64_t)GSEL(GCODE_SEL, SEL_KPL) << 32) |
-	      ((u_int64_t)GSEL(GUCODE32_SEL, SEL_UPL) << 48);
-	wrmsr(MSR_STAR, msr);
-	wrmsr(MSR_SF_MASK, PSL_NT|PSL_T|PSL_I|PSL_C|PSL_D);
+	amd64_conf_fast_syscall();
 
 	/*
 	 * Temporary forge some valid pointer to PCB, for exception
@@ -1745,10 +1791,12 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		xhdr->xstate_bv = xsave_mask;
 	}
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
-	common_tss[0].tss_rsp0 = (vm_offset_t)thread0.td_pcb;
+	rsp0 = (vm_offset_t)thread0.td_pcb;
 	/* Ensure the stack is aligned to 16 bytes */
-	common_tss[0].tss_rsp0 &= ~0xFul;
-	PCPU_SET(rsp0, common_tss[0].tss_rsp0);
+	rsp0 &= ~0xFul;
+	common_tss[0].tss_rsp0 = pti ? ((vm_offset_t)PCPU_PTR(pti_stack) +
+	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful : rsp0;
+	PCPU_SET(rsp0, rsp0);
 	PCPU_SET(curpcb, thread0.td_pcb);
 
 	/* transfer to user mode */
@@ -1777,6 +1825,10 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	x86_init_fdt();
 #endif
 	thread0.td_critnest = 0;
+
+	TUNABLE_INT_FETCH("hw.ibrs_disable", &hw_ibrs_disable);
+
+	TSEXIT();
 
 	/* Location of kernel stack for locore */
 	return ((u_int64_t)thread0.td_pcb);
@@ -1856,9 +1908,9 @@ spinlock_enter(void)
 		flags = intr_disable();
 		td->td_md.md_spinlock_count = 1;
 		td->td_md.md_saved_flags = flags;
+		critical_enter();
 	} else
 		td->td_md.md_spinlock_count++;
-	critical_enter();
 }
 
 void
@@ -1868,11 +1920,12 @@ spinlock_exit(void)
 	register_t flags;
 
 	td = curthread;
-	critical_exit();
 	flags = td->td_md.md_saved_flags;
 	td->td_md.md_spinlock_count--;
-	if (td->td_md.md_spinlock_count == 0)
+	if (td->td_md.md_spinlock_count == 0) {
+		critical_exit();
 		intr_restore(flags);
+	}
 }
 
 /*
@@ -2241,7 +2294,6 @@ static int
 set_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpustate,
     size_t xfpustate_len)
 {
-	struct savefpu *fpstate;
 	int error;
 
 	if (mcp->mc_fpformat == _MC_FPFMT_NODEV)
@@ -2254,9 +2306,8 @@ set_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpustate,
 		error = 0;
 	} else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
-		fpstate = (struct savefpu *)&mcp->mc_fpstate;
-		fpstate->sv_env.en_mxcsr &= cpu_mxcsr_mask;
-		error = fpusetregs(td, fpstate, xfpustate, xfpustate_len);
+		error = fpusetregs(td, (struct savefpu *)&mcp->mc_fpstate,
+		    xfpustate, xfpustate_len);
 	} else
 		return (EINVAL);
 	return (error);

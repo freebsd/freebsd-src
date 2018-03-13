@@ -44,6 +44,7 @@
 #include <netinet/ip_fw.h>	/* flow_id */
 #include <netinet/ip_dummynet.h>
 
+#include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 
@@ -218,13 +219,14 @@ fq_codel_classify_flow(struct mbuf *m, uint16_t fcount, struct fq_codel_si *si)
 	uint8_t tuple[41];
 	uint16_t hash=0;
 
+	ip = (struct ip *)mtodo(m, dn_tag_get(m)->iphdr_off);
 //#ifdef INET6
 	struct ip6_hdr *ip6;
 	int isip6;
-	isip6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
+	isip6 = (ip->ip_v == 6);
 
 	if(isip6) {
-		ip6 = mtod(m, struct ip6_hdr *);
+		ip6 = (struct ip6_hdr *)ip;
 		*((uint8_t *) &tuple[0]) = ip6->ip6_nxt;
 		*((uint32_t *) &tuple[1]) = si->perturbation;
 		memcpy(&tuple[5], ip6->ip6_src.s6_addr, 16);
@@ -253,7 +255,6 @@ fq_codel_classify_flow(struct mbuf *m, uint16_t fcount, struct fq_codel_si *si)
 //#endif
 
 	/* IPv4 */
-	ip = mtod(m, struct ip *);
 	*((uint8_t *) &tuple[0]) = ip->ip_p;
 	*((uint32_t *) &tuple[1]) = si->perturbation;
 	*((uint32_t *) &tuple[5]) = ip->ip_src.s_addr;
@@ -453,8 +454,8 @@ fq_codel_new_sched(struct dn_sch_inst *_si)
 	q->fs = _si->sched->fs;
 
 	/* allocate memory for flows array */
-	si->flows = malloc(schk->cfg.flows_cnt * sizeof(struct fq_codel_flow),
-		 M_DUMMYNET, M_NOWAIT | M_ZERO);
+	si->flows = mallocarray(schk->cfg.flows_cnt,
+	    sizeof(struct fq_codel_flow), M_DUMMYNET, M_NOWAIT | M_ZERO);
 	if (si->flows == NULL) {
 		D("cannot allocate memory for fq_codel configuration parameters");
 		return ENOMEM ; 

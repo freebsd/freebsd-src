@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2016 Solarflare Communications Inc.
  * All rights reserved.
  *
@@ -525,7 +527,7 @@ siena_nvram_partn_get_version(
 			: MC_CMD_NVRAM_TYPE_DYNAMIC_CFG_PORT1;
 		/*
 		 * Ingore missing partitions on port 2, assuming they're due
-		 * to to running on a single port part.
+		 * to running on a single port part.
 		 */
 		if ((1 << dcfg_partn) &  ~enp->en_u.siena.enu_partn_mask) {
 			if (entry->port == 2)

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Doug Rabson
  * All rights reserved.
  *
@@ -30,8 +32,13 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ktrace.h"
 
 #define __ELF_WORD_SIZE 32
+
+#ifdef COMPAT_FREEBSD11
+#define	_WANT_FREEBSD11_KEVENT
+#endif
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -83,6 +90,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/msg.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
 
 #ifdef INET
 #include <netinet/in.h>
@@ -714,6 +724,9 @@ freebsd32_kevent(struct thread *td, struct freebsd32_kevent_args *uap)
 		.k_copyout = freebsd32_kevent_copyout,
 		.k_copyin = freebsd32_kevent_copyin,
 	};
+#ifdef KTRACE
+	struct kevent32 *eventlist = uap->eventlist;
+#endif
 	int error;
 
 	if (uap->timeout) {
@@ -725,21 +738,22 @@ freebsd32_kevent(struct thread *td, struct freebsd32_kevent_args *uap)
 		tsp = &ts;
 	} else
 		tsp = NULL;
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT_ARRAY))
+		ktrstructarray("kevent32", UIO_USERSPACE, uap->changelist,
+		    uap->nchanges, sizeof(struct kevent32));
+#endif
 	error = kern_kevent(td, uap->fd, uap->nchanges, uap->nevents,
 	    &k_ops, tsp);
+#ifdef KTRACE
+	if (error == 0 && KTRPOINT(td, KTR_STRUCT_ARRAY))
+		ktrstructarray("kevent32", UIO_USERSPACE, eventlist,
+		    td->td_retval[0], sizeof(struct kevent32));
+#endif
 	return (error);
 }
 
 #ifdef COMPAT_FREEBSD11
-struct kevent32_freebsd11 {
-	u_int32_t	ident;		/* identifier for this event */
-	short		filter;		/* filter for event */
-	u_short		flags;
-	u_int		fflags;
-	int32_t		data;
-	u_int32_t	udata;		/* opaque user data identifier */
-};
-
 static int
 freebsd32_kevent11_copyout(void *arg, struct kevent *kevp, int count)
 {
@@ -807,6 +821,9 @@ freebsd11_freebsd32_kevent(struct thread *td,
 		.k_copyout = freebsd32_kevent11_copyout,
 		.k_copyin = freebsd32_kevent11_copyin,
 	};
+#ifdef KTRACE
+	struct kevent32_freebsd11 *eventlist = uap->eventlist;
+#endif
 	int error;
 
 	if (uap->timeout) {
@@ -818,8 +835,20 @@ freebsd11_freebsd32_kevent(struct thread *td,
 		tsp = &ts;
 	} else
 		tsp = NULL;
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT_ARRAY))
+		ktrstructarray("kevent32_freebsd11", UIO_USERSPACE,
+		    uap->changelist, uap->nchanges,
+		    sizeof(struct kevent32_freebsd11));
+#endif
 	error = kern_kevent(td, uap->fd, uap->nchanges, uap->nevents,
 	    &k_ops, tsp);
+#ifdef KTRACE
+	if (error == 0 && KTRPOINT(td, KTR_STRUCT_ARRAY))
+		ktrstructarray("kevent32_freebsd11", UIO_USERSPACE,
+		    eventlist, td->td_retval[0],
+		    sizeof(struct kevent32_freebsd11));
+#endif
 	return (error);
 }
 #endif
@@ -1756,25 +1785,6 @@ freebsd11_freebsd32_getdents(struct thread *td,
 	return (freebsd11_freebsd32_getdirentries(td, &ap));
 }
 #endif /* COMPAT_FREEBSD11 */
-
-int
-freebsd32_getdirentries(struct thread *td,
-    struct freebsd32_getdirentries_args *uap)
-{
-	long base;
-	int32_t base32;
-	int error;
-
-	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base,
-	    NULL, UIO_USERSPACE);
-	if (error)
-		return (error);
-	if (uap->basep != NULL) {
-		base32 = base;
-		error = copyout(&base32, uap->basep, sizeof(int32_t));
-	}
-	return (error);
-}
 
 #ifdef COMPAT_FREEBSD6
 /* versions with the 'int pad' argument */
@@ -2988,6 +2998,24 @@ freebsd32_cpuset_setaffinity(struct thread *td,
 }
 
 int
+freebsd32_cpuset_getdomain(struct thread *td,
+    struct freebsd32_cpuset_getdomain_args *uap)
+{
+
+	return (kern_cpuset_getdomain(td, uap->level, uap->which,
+	    PAIR32TO64(id_t,uap->id), uap->domainsetsize, uap->mask, uap->policy));
+}
+
+int
+freebsd32_cpuset_setdomain(struct thread *td,
+    struct freebsd32_cpuset_setdomain_args *uap)
+{
+
+	return (kern_cpuset_setdomain(td, uap->level, uap->which,
+	    PAIR32TO64(id_t,uap->id), uap->domainsetsize, uap->mask, uap->policy));
+}
+
+int
 freebsd32_nmount(struct thread *td,
     struct freebsd32_nmount_args /* {
     	struct iovec *iovp;
@@ -3061,120 +3089,24 @@ freebsd32_xxx(struct thread *td, struct freebsd32_xxx_args *uap)
 #endif
 
 int
-syscall32_register(int *offset, struct sysent *new_sysent,
-    struct sysent *old_sysent, int flags)
-{
-
-	if ((flags & ~SY_THR_STATIC) != 0)
-		return (EINVAL);
-
-	if (*offset == NO_SYSCALL) {
-		int i;
-
-		for (i = 1; i < SYS_MAXSYSCALL; ++i)
-			if (freebsd32_sysent[i].sy_call ==
-			    (sy_call_t *)lkmnosys)
-				break;
-		if (i == SYS_MAXSYSCALL)
-			return (ENFILE);
-		*offset = i;
-	} else if (*offset < 0 || *offset >= SYS_MAXSYSCALL)
-		return (EINVAL);
-	else if (freebsd32_sysent[*offset].sy_call != (sy_call_t *)lkmnosys &&
-	    freebsd32_sysent[*offset].sy_call != (sy_call_t *)lkmressys)
-		return (EEXIST);
-
-	*old_sysent = freebsd32_sysent[*offset];
-	freebsd32_sysent[*offset] = *new_sysent;
-	atomic_store_rel_32(&freebsd32_sysent[*offset].sy_thrcnt, flags);
-	return (0);
-}
-
-int
-syscall32_deregister(int *offset, struct sysent *old_sysent)
-{
-
-	if (*offset == 0)
-		return (0);
-
-	freebsd32_sysent[*offset] = *old_sysent;
-	return (0);
-}
-
-int
 syscall32_module_handler(struct module *mod, int what, void *arg)
 {
-	struct syscall_module_data *data = (struct syscall_module_data*)arg;
-	modspecific_t ms;
-	int error;
 
-	switch (what) {
-	case MOD_LOAD:
-		error = syscall32_register(data->offset, data->new_sysent,
-		    &data->old_sysent, SY_THR_STATIC_KLD);
-		if (error) {
-			/* Leave a mark so we know to safely unload below. */
-			data->offset = NULL;
-			return error;
-		}
-		ms.intval = *data->offset;
-		MOD_XLOCK;
-		module_setspecific(mod, &ms);
-		MOD_XUNLOCK;
-		if (data->chainevh)
-			error = data->chainevh(mod, what, data->chainarg);
-		return (error);
-	case MOD_UNLOAD:
-		/*
-		 * MOD_LOAD failed, so just return without calling the
-		 * chained handler since we didn't pass along the MOD_LOAD
-		 * event.
-		 */
-		if (data->offset == NULL)
-			return (0);
-		if (data->chainevh) {
-			error = data->chainevh(mod, what, data->chainarg);
-			if (error)
-				return (error);
-		}
-		error = syscall32_deregister(data->offset, &data->old_sysent);
-		return (error);
-	default:
-		error = EOPNOTSUPP;
-		if (data->chainevh)
-			error = data->chainevh(mod, what, data->chainarg);
-		return (error);
-	}
+	return (kern_syscall_module_handler(freebsd32_sysent, mod, what, arg));
 }
 
 int
 syscall32_helper_register(struct syscall_helper_data *sd, int flags)
 {
-	struct syscall_helper_data *sd1;
-	int error;
 
-	for (sd1 = sd; sd1->syscall_no != NO_SYSCALL; sd1++) {
-		error = syscall32_register(&sd1->syscall_no, &sd1->new_sysent,
-		    &sd1->old_sysent, flags);
-		if (error != 0) {
-			syscall32_helper_unregister(sd);
-			return (error);
-		}
-		sd1->registered = 1;
-	}
-	return (0);
+	return (kern_syscall_helper_register(freebsd32_sysent, sd, flags));
 }
 
 int
 syscall32_helper_unregister(struct syscall_helper_data *sd)
 {
-	struct syscall_helper_data *sd1;
 
-	for (sd1 = sd; sd1->registered != 0; sd1++) {
-		syscall32_deregister(&sd1->syscall_no, &sd1->old_sysent);
-		sd1->registered = 0;
-	}
-	return (0);
+	return (kern_syscall_helper_unregister(freebsd32_sysent, sd));
 }
 
 register_t *
@@ -3331,8 +3263,8 @@ freebsd32_copyout_strings(struct image_params *imgp)
 int
 freebsd32_kldstat(struct thread *td, struct freebsd32_kldstat_args *uap)
 {
-	struct kld_file_stat stat;
-	struct kld32_file_stat stat32;
+	struct kld_file_stat *stat;
+	struct kld32_file_stat *stat32;
 	int error, version;
 
 	if ((error = copyin(&uap->stat->version, &version, sizeof(version)))
@@ -3342,17 +3274,22 @@ freebsd32_kldstat(struct thread *td, struct freebsd32_kldstat_args *uap)
 	    version != sizeof(struct kld32_file_stat))
 		return (EINVAL);
 
-	error = kern_kldstat(td, uap->fileid, &stat);
-	if (error != 0)
-		return (error);
-
-	bcopy(&stat.name[0], &stat32.name[0], sizeof(stat.name));
-	CP(stat, stat32, refs);
-	CP(stat, stat32, id);
-	PTROUT_CP(stat, stat32, address);
-	CP(stat, stat32, size);
-	bcopy(&stat.pathname[0], &stat32.pathname[0], sizeof(stat.pathname));
-	return (copyout(&stat32, uap->stat, version));
+	stat = malloc(sizeof(*stat), M_TEMP, M_WAITOK | M_ZERO);
+	stat32 = malloc(sizeof(*stat32), M_TEMP, M_WAITOK | M_ZERO);
+	error = kern_kldstat(td, uap->fileid, stat);
+	if (error == 0) {
+		bcopy(&stat->name[0], &stat32->name[0], sizeof(stat->name));
+		CP(*stat, *stat32, refs);
+		CP(*stat, *stat32, id);
+		PTROUT_CP(*stat, *stat32, address);
+		CP(*stat, *stat32, size);
+		bcopy(&stat->pathname[0], &stat32->pathname[0],
+		    sizeof(stat->pathname));
+		error = copyout(stat32, uap->stat, version);
+	}
+	free(stat, M_TEMP);
+	free(stat32, M_TEMP);
+	return (error);
 }
 
 int

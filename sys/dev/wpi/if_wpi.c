@@ -3521,16 +3521,18 @@ wpi_updateedca(struct ieee80211com *ic)
 {
 #define WPI_EXP2(x)	((1 << (x)) - 1)	/* CWmin = 2^ECWmin - 1 */
 	struct wpi_softc *sc = ic->ic_softc;
+	struct chanAccParams chp;
 	struct wpi_edca_params cmd;
 	int aci, error;
+
+	ieee80211_wme_ic_getparams(ic, &chp);
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
 
 	memset(&cmd, 0, sizeof cmd);
 	cmd.flags = htole32(WPI_EDCA_UPDATE);
 	for (aci = 0; aci < WME_NUM_AC; aci++) {
-		const struct wmeParams *ac =
-		    &ic->ic_wme.wme_chanParams.cap_wmeParams[aci];
+		const struct wmeParams *ac = &chp.cap_wmeParams[aci];
 		cmd.ac[aci].aifsn = ac->wmep_aifsn;
 		cmd.ac[aci].cwmin = htole16(WPI_EXP2(ac->wmep_logcwmin));
 		cmd.ac[aci].cwmax = htole16(WPI_EXP2(ac->wmep_logcwmax));

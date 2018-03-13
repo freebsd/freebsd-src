@@ -642,10 +642,11 @@ clknode_adjust_parent(struct clknode *clknode, int idx)
 	if (clknode->parent_cnt == 0)
 		return;
 	if ((idx == CLKNODE_IDX_NONE) || (idx >= clknode->parent_cnt))
-		panic("Invalid clock parent index\n");
+		panic("%s: Invalid parent index %d for clock %s",
+		    __func__, idx, clknode->name);
 
 	if (clknode->parents[idx] == NULL)
-		panic("%s: Attempt to set invalid parent %d for clock %s",
+		panic("%s: Invalid parent index %d for clock %s",
 		    __func__, idx, clknode->name);
 
 	/* Remove me from old children list. */
@@ -674,8 +675,8 @@ clknode_init_parent_idx(struct clknode *clknode, int idx)
 	if ((idx == CLKNODE_IDX_NONE) ||
 	    (idx >= clknode->parent_cnt) ||
 	    (clknode->parent_names[idx] == NULL))
-		panic("%s: Invalid clock parent index: %d\n", __func__, idx);
-
+		panic("%s: Invalid parent index %d for clock %s",
+		    __func__, idx, clknode->name);
 	clknode->parent_idx = idx;
 }
 
@@ -916,6 +917,14 @@ clknode_set_freq(struct clknode *clknode, uint64_t freq, int flags,
 		/* Success - invalidate frequency cache for all children. */
 		if ((flags & CLK_SET_DRYRUN) == 0) {
 			clknode->freq = freq;
+			/* Clock might have reparent during set_freq */
+			if (clknode->parent_cnt > 0) {
+				rv = clknode_get_freq(clknode->parent,
+				    &parent_freq);
+				if (rv != 0) {
+					return (rv);
+				}
+			}
 			clknode_refresh_cache(clknode, parent_freq);
 		}
 	} else if (clknode->parent != NULL) {

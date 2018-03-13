@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -38,7 +40,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
-#include "opt_gzio.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
@@ -49,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/acct.h>
 #include <sys/bus.h>
 #include <sys/capsicum.h>
+#include <sys/compressor.h>
 #include <sys/condvar.h>
 #include <sys/event.h>
 #include <sys/fcntl.h>
@@ -1675,12 +1677,11 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 		 */
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
-			PROC_LOCK(p);
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
 			    p == td->td_proc || p->p_state == PRS_NEW) {
-				PROC_UNLOCK(p);
 				continue;
 			}
+			PROC_LOCK(p);
 			err = p_cansignal(td, p, sig);
 			if (err == 0) {
 				if (sig)
@@ -1765,10 +1766,8 @@ sys_kill(struct thread *td, struct kill_args *uap)
 
 	if (uap->pid > 0) {
 		/* kill single process */
-		if ((p = pfind(uap->pid)) == NULL) {
-			if ((p = zpfind(uap->pid)) == NULL)
-				return (ESRCH);
-		}
+		if ((p = pfind_any(uap->pid)) == NULL)
+			return (ESRCH);
 		AUDIT_ARG_PROCESS(p);
 		error = p_cansignal(td, p, uap->signum);
 		if (error == 0 && uap->signum)
@@ -1872,10 +1871,8 @@ kern_sigqueue(struct thread *td, pid_t pid, int signum, union sigval *value)
 	if (pid <= 0)
 		return (EINVAL);
 
-	if ((p = pfind(pid)) == NULL) {
-		if ((p = zpfind(pid)) == NULL)
-			return (ESRCH);
-	}
+	if ((p = pfind_any(pid)) == NULL)
+		return (ESRCH);
 	error = p_cansignal(td, p, signum);
 	if (error == 0 && signum != 0) {
 		ksiginfo_init(&ksi);
@@ -2786,15 +2783,15 @@ issignal(struct thread *td)
 	struct sigacts *ps;
 	struct sigqueue *queue;
 	sigset_t sigpending;
-	int sig, prop;
 	ksiginfo_t ksi;
+	int prop, sig, traced;
 
 	p = td->td_proc;
 	ps = p->p_sigacts;
 	mtx_assert(&ps->ps_mtx, MA_OWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	for (;;) {
-		int traced = (p->p_flag & P_TRACED) || (p->p_stops & S_SIG);
+		traced = (p->p_flag & P_TRACED) || (p->p_stops & S_SIG);
 
 		sigpending = td->td_sigqueue.sq_signals;
 		SIGSETOR(sigpending, p->p_sigqueue.sq_signals);
@@ -2855,15 +2852,32 @@ issignal(struct thread *td)
 			mtx_lock(&ps->ps_mtx);
 
 			/* 
-			 * Keep looking if the debugger discarded the signal
-			 * or replaced it with a masked signal.
-			 *
-			 * If the traced bit got turned off, go back up
-			 * to the top to rescan signals.  This ensures
-			 * that p_sig* and p_sigact are consistent.
+			 * Keep looking if the debugger discarded or
+			 * replaced the signal.
 			 */
-			if (sig == 0 || (p->p_flag & P_TRACED) == 0)
+			if (sig == 0)
 				continue;
+
+			/*
+			 * If the signal became masked, re-queue it.
+			 */
+			if (SIGISMEMBER(td->td_sigmask, sig)) {
+				ksi.ksi_flags |= KSI_HEAD;
+				sigqueue_add(&p->p_sigqueue, sig, &ksi);
+				continue;
+			}
+
+			/*
+			 * If the traced bit got turned off, requeue
+			 * the signal and go back up to the top to
+			 * rescan signals.  This ensures that p_sig*
+			 * and p_sigact are consistent.
+			 */
+			if ((p->p_flag & P_TRACED) == 0) {
+				ksi.ksi_flags |= KSI_HEAD;
+				sigqueue_add(queue, sig, &ksi);
+				continue;
+			}
 		}
 
 		prop = sigprop(sig);
@@ -2982,11 +2996,10 @@ thread_stopped(struct proc *p)
  * from the current set of pending signals.
  */
 int
-postsig(sig)
-	int sig;
+postsig(int sig)
 {
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
+	struct thread *td;
+	struct proc *p;
 	struct sigacts *ps;
 	sig_t action;
 	ksiginfo_t ksi;
@@ -2994,6 +3007,8 @@ postsig(sig)
 
 	KASSERT(sig != 0, ("postsig"));
 
+	td = curthread;
+	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	ps = p->p_sigacts;
 	mtx_assert(&ps->ps_mtx, MA_OWNED);
@@ -3010,7 +3025,7 @@ postsig(sig)
 		ktrpsig(sig, action, td->td_pflags & TDP_OLDMASK ?
 		    &td->td_oldsigmask : &td->td_sigmask, ksi.ksi_code);
 #endif
-	if (p->p_stops & S_SIG) {
+	if ((p->p_stops & S_SIG) != 0) {
 		mtx_unlock(&ps->ps_mtx);
 		stopevent(p, S_SIG, sig);
 		mtx_lock(&ps->ps_mtx);
@@ -3029,8 +3044,10 @@ postsig(sig)
 		/*
 		 * If we get here, the signal must be caught.
 		 */
-		KASSERT(action != SIG_IGN && !SIGISMEMBER(td->td_sigmask, sig),
-		    ("postsig action"));
+		KASSERT(action != SIG_IGN, ("postsig action %p", action));
+		KASSERT(!SIGISMEMBER(td->td_sigmask, sig),
+		    ("postsig action: blocked sig %d", sig));
+
 		/*
 		 * Set the new mask value and also defer further
 		 * occurrences of this signal.
@@ -3235,19 +3252,35 @@ sysctl_debug_num_cores_check (SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_debug, OID_AUTO, ncores, CTLTYPE_INT|CTLFLAG_RW,
 	    0, sizeof(int), sysctl_debug_num_cores_check, "I", "");
 
-#define	GZ_SUFFIX	".gz"
+#define	GZIP_SUFFIX	".gz"
+#define	ZSTD_SUFFIX	".zst"
 
-#ifdef GZIO
-static int compress_user_cores = 1;
-SYSCTL_INT(_kern, OID_AUTO, compress_user_cores, CTLFLAG_RWTUN,
-    &compress_user_cores, 0, "Compression of user corefiles");
+int compress_user_cores = 0;
 
-int compress_user_cores_gzlevel = 6;
-SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RWTUN,
-    &compress_user_cores_gzlevel, 0, "Corefile gzip compression level");
-#else
-static int compress_user_cores = 0;
-#endif
+static int
+sysctl_compress_user_cores(SYSCTL_HANDLER_ARGS)
+{
+	int error, val;
+
+	val = compress_user_cores;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (val != 0 && !compressor_avail(val))
+		return (EINVAL);
+	compress_user_cores = val;
+	return (error);
+}
+SYSCTL_PROC(_kern, OID_AUTO, compress_user_cores, CTLTYPE_INT | CTLFLAG_RWTUN,
+    0, sizeof(int), sysctl_compress_user_cores, "I",
+    "Enable compression of user corefiles ("
+    __XSTRING(COMPRESS_GZIP) " = gzip, "
+    __XSTRING(COMPRESS_ZSTD) " = zstd)");
+
+int compress_user_cores_level = 6;
+SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_level, CTLFLAG_RWTUN,
+    &compress_user_cores_level, 0,
+    "Corefile compression level");
 
 /*
  * Protect the access to corefilename[] by allproc_lock.
@@ -3345,8 +3378,10 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 	}
 	sx_sunlock(&corefilename_lock);
 	free(hostname, M_TEMP);
-	if (compress)
-		sbuf_printf(&sb, GZ_SUFFIX);
+	if (compress == COMPRESS_GZIP)
+		sbuf_printf(&sb, GZIP_SUFFIX);
+	else if (compress == COMPRESS_ZSTD)
+		sbuf_printf(&sb, ZSTD_SUFFIX);
 	if (sbuf_error(&sb) != 0) {
 		log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too "
 		    "long\n", (long)pid, comm, (u_long)uid);
@@ -3511,8 +3546,7 @@ coredump(struct thread *td)
 	PROC_UNLOCK(p);
 
 	if (p->p_sysent->sv_coredump != NULL) {
-		error = p->p_sysent->sv_coredump(td, vp, limit,
-		    compress_user_cores ? IMGACT_CORE_COMPRESS : 0);
+		error = p->p_sysent->sv_coredump(td, vp, limit, 0);
 	} else {
 		error = ENOSYS;
 	}

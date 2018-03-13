@@ -63,8 +63,11 @@ binary_info_body()
 	header_re=$(printf "$line_format" "PID" "COMM" "OSREL" "PATH")
 	line_re=$(printf "$line_format" $PROG_PID $PROG_COMM "[[:digit:]]+" "$PROG_PATH")
 
-	atf_check -o save:procstat.out procstat -b $PROG_PID
+	atf_check -o save:procstat.out procstat binary $PROG_PID
+	atf_check -o match:"$header_re" head -n 1 procstat.out
+	atf_check -o match:"$line_re" tail -n 1 procstat.out
 
+	atf_check -o save:procstat.out procstat -b $PROG_PID
 	atf_check -o match:"$header_re" head -n 1 procstat.out
 	atf_check -o match:"$line_re" tail -n 1 procstat.out
 }
@@ -83,6 +86,10 @@ command_line_arguments_body()
 	line_format="$SP*%s$SP+%s$SP+%s$SP*"
 	header_re=$(printf "$line_format" "PID" "COMM" "ARGS")
 	line_re=$(printf "$line_format" $PROG_PID "$PROG_COMM" "$PROG_PATH $arguments")
+
+	atf_check -o save:procstat.out procstat arguments $PROG_PID
+	atf_check -o match:"$header_re" head -n 1 procstat.out
+	atf_check -o match:"$line_re" tail -n 1 procstat.out
 
 	atf_check -o save:procstat.out procstat -c $PROG_PID
 	atf_check -o match:"$header_re" head -n 1 procstat.out
@@ -105,8 +112,11 @@ environment_body()
 	header_re=$(printf "$line_format" "PID" "COMM" "ENVIRONMENT")
 	line_re=$(printf "$line_format" $PROG_PID $PROG_COMM ".*$var.*")
 
-	atf_check -o save:procstat.out procstat -e $PROG_PID
+	atf_check -o save:procstat.out procstat environment $PROG_PID
+	atf_check -o match:"$header_re" head -n 1 procstat.out
+	atf_check -o match:"$line_re" tail -n 1 procstat.out
 
+	atf_check -o save:procstat.out procstat -e $PROG_PID
 	atf_check -o match:"$header_re" head -n 1 procstat.out
 	atf_check -o match:"$line_re" tail -n 1 procstat.out
 }
@@ -125,8 +135,11 @@ file_descriptor_body()
 	# XXX: write a more sensible feature test
 	line_re=$(printf "$line_format" $PROG_PID $PROG_COMM ".+" ".+" ".+" ".+" ".+" ".+" ".+" ".+")
 
-	atf_check -o save:procstat.out procstat -f $PROG_PID
+	atf_check -o save:procstat.out procstat files $PROG_PID
+	atf_check -o match:"$header_re" head -n 1 procstat.out
+	atf_check -o match:"$line_re" awk 'NR > 1' procstat.out
 
+	atf_check -o save:procstat.out procstat -f $PROG_PID
 	atf_check -o match:"$header_re" head -n 1 procstat.out
 	atf_check -o match:"$line_re" awk 'NR > 1' procstat.out
 }

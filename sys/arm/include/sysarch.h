@@ -1,6 +1,8 @@
 /*	$NetBSD: sysarch.h,v 1.5 2003/09/11 09:40:12 kleink Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1996-1997 Mark Brinicombe.
  * All rights reserved.
  *
@@ -78,10 +80,16 @@
 #define ARM_DRAIN_WRITEBUF	1
 #define ARM_SET_TP		2
 #define ARM_GET_TP		3
+#define ARM_GET_VFPSTATE	4
 
 struct arm_sync_icache_args {
 	uintptr_t	addr;		/* Virtual start address */
 	size_t		len;		/* Region size */
+};
+
+struct arm_get_vfpstate_args {
+	size_t		mc_vfp_size;
+	void 		*mc_vfp;
 };
 
 #ifndef _KERNEL

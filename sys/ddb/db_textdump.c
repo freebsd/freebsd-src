@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
@@ -452,8 +454,8 @@ textdump_dumpsys(struct dumperinfo *di)
 	/*
 	 * Disable EKCD because we don't provide encrypted textdumps.
 	 */
-	kdc = di->kdc;
-	di->kdc = NULL;
+	kdc = di->kdcrypto;
+	di->kdcrypto = NULL;
 
 	/*
 	 * Position the start of the dump so that we'll write the kernel dump
@@ -510,7 +512,7 @@ textdump_dumpsys(struct dumperinfo *di)
 	/*
 	 * Restore EKCD status.
 	 */
-	di->kdc = kdc;
+	di->kdcrypto = kdc;
 }
 
 /*-

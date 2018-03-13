@@ -12,13 +12,14 @@ FILES+=	apple.conf
 .if ${MK_ACPI} != "no"
 FILES+=	asus.conf
 .endif
+FILES+=	devmatch.conf
 .if ${MK_HYPERV} != "no"
 FILES+=	hyperv.conf
 .endif
 .endif
 
 .if ${MK_USB} != "no"
-FILES+=	uath.conf ulpt.conf usb.conf
+FILES+=	uath.conf ulpt.conf
 .endif
 
 .if ${MK_ZFS} != "no"

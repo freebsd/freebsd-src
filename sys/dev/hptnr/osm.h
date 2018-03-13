@@ -1,5 +1,7 @@
 /* $Id: osm.h,v 1.10 2010/05/11 10:30:33 lcn Exp $ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2005-2011 HighPoint Technologies, Inc.
  * All rights reserved.
  *

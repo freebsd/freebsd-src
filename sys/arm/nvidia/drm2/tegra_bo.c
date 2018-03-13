@@ -114,7 +114,7 @@ retry:
 		if (tries < 3) {
 			if (!vm_page_reclaim_contig(pflags, npages, low, high,
 			    alignment, boundary))
-				VM_WAIT;
+				vm_wait(NULL);
 			tries++;
 			goto retry;
 		}

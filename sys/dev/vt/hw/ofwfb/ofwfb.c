@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Nathan Whitehorn
  * All rights reserved.
  *
@@ -92,8 +94,13 @@ ofwfb_probe(struct vt_device *vd)
 	char type[64];
 
 	chosen = OF_finddevice("/chosen");
-	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
-	node = OF_instance_to_package(stdout);
+	if (chosen == -1)
+		return (CN_DEAD);
+
+	node = -1;
+	if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) ==
+	    sizeof(stdout))
+		node = OF_instance_to_package(stdout);
 	if (node == -1) {
 		/*
 		 * The "/chosen/stdout" does not exist try
@@ -482,7 +489,7 @@ ofwfb_init(struct vt_device *vd)
 	#if defined(__powerpc__)
 		OF_decode_addr(node, fb_phys, &sc->sc_memt, &sc->fb.fb_vbase,
 		    NULL);
-		sc->fb.fb_pbase = sc->fb.fb_vbase; /* 1:1 mapped */
+		sc->fb.fb_pbase = sc->fb.fb_vbase & ~DMAP_BASE_ADDRESS;
 		#ifdef __powerpc64__
 		/* Real mode under a hypervisor probably doesn't cover FB */
 		if (!(mfmsr() & (PSL_HV | PSL_DR)))

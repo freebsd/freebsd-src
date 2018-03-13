@@ -136,6 +136,7 @@ struct bwn_phy_n {
 	struct bwn_ppr tx_pwr_max_ppr;
 	uint16_t tx_pwr_last_recalc_freq;
 	int tx_pwr_last_recalc_limit;
+	uint8_t tsspos_2g;
 
 	uint8_t txrx_chain;
 	uint16_t tx_rx_cal_phy_saveregs[11];
@@ -167,7 +168,7 @@ struct bwn_phy_n {
 
 extern	bwn_txpwr_result_t bwn_nphy_op_recalc_txpower(struct bwn_mac *mac, bool ignore_tssi);
 extern	int bwn_nphy_op_allocate(struct bwn_mac *mac);
-extern	void bwn_nphy_op_prepare_structs(struct bwn_mac *mac);
+extern	int bwn_nphy_op_prepare_structs(struct bwn_mac *mac);
 extern	void bwn_nphy_op_free(struct bwn_mac *mac);
 extern	int bwn_nphy_op_init(struct bwn_mac *mac);
 extern	void bwn_nphy_op_maskset(struct bwn_mac *mac, uint16_t reg, uint16_t mask, uint16_t set);

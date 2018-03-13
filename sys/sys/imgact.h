@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993, David Greenman
  * All rights reserved.
  *
@@ -93,8 +95,6 @@ struct image_params {
 struct sysentvec;
 struct thread;
 struct vmspace;
-
-#define IMGACT_CORE_COMPRESS	0x01
 
 int	exec_alloc_args(struct image_args *);
 int	exec_check_permissions(struct image_params *);

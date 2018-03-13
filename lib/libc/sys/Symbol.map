@@ -398,6 +398,8 @@ FBSD_1.5 {
 	mknodat;
 	stat;
 	statfs;
+	cpuset_getdomain;
+	cpuset_setdomain;
 };
 
 FBSDprivate_1.0 {
@@ -1022,4 +1024,8 @@ FBSDprivate_1.0 {
 	gssd_syscall;
 	__libc_interposing_slot;
 	__libc_sigwait;
+	_cpuset_getdomain;
+	__sys_cpuset_getdomain;
+	_cpuset_setdomain;
+	__sys_cpuset_setdomain;
 };

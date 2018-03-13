@@ -542,7 +542,10 @@ GeomEvent::DeepCopy() const
 bool
 GeomEvent::DevName(std::string &name) const
 {
-	name = Value("devname");
+	if (Value("subsystem") == "disk")
+		name = Value("devname");
+	else
+		name = Value("cdev");
 	return (!name.empty());
 }
 

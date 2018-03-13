@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2005 M. Warner Losh.
  * All rights reserved.
  *
@@ -47,6 +49,7 @@ static int fdc_pccard_attach(device_t);
 
 static const struct pccard_product fdc_pccard_products[] = {
 	PCMCIA_CARD(YEDATA, EXTERNAL_FDD),
+	{ NULL }
 };
 	
 static int

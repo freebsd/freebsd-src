@@ -162,11 +162,11 @@ lio_cn23xx_pf_setup_global_mac_regs(struct octeon_device *oct)
 	lio_write_csr64(oct, LIO_CN23XX_SLI_PKT_MAC_RINFO64(mac_no, pf_num),
 			reg_val);
 
-	lio_dev_dbg(oct, "SLI_PKT_MAC(%d)_PF(%d)_RINFO : 0x%016lx\n", mac_no,
+	lio_dev_dbg(oct, "SLI_PKT_MAC(%d)_PF(%d)_RINFO : 0x%016llx\n", mac_no,
 		    pf_num,
-		    lio_read_csr64(oct,
+		    LIO_CAST64(lio_read_csr64(oct,
 				   LIO_CN23XX_SLI_PKT_MAC_RINFO64(mac_no,
-								  pf_num)));
+								  pf_num))));
 }
 
 static int

@@ -3,17 +3,18 @@
 # $FreeBSD$
 
 PACKAGE=clibs
-LIB=	edit
+
 SHLIB_MAJOR=	7
 SHLIBDIR?= /lib
 
 WARNS?=	3
+LIB=	edit
+
+LIBADD=	ncursesw
 
 OSRCS=	chared.c common.c el.c eln.c emacs.c fcns.c filecomplete.c help.c \
 	hist.c keymacro.c map.c chartype.c \
 	parse.c prompt.c read.c refresh.c search.c sig.c terminal.c tty.c vi.c
-
-LIBADD=	ncursesw
 
 MAN=	editline.3 editrc.5
 
@@ -28,25 +29,26 @@ MLINKS=	editline.3 el_deletestr.3 editline.3 el_end.3 editline.3 el_init.3 \
 	editline.3 tok_line.3 editline.3 tok_str.3
 
 # For speed and debugging
-#SRCS=   ${OSRCS}
+#SRCS=   ${OSRCS} readline.c tokenizer.c history.c
 # For protection
-SRCS=	editline.c
-SRCS+=	tokenizer.c history.c readline.c
+SRCS=	editline.c readline.c tokenizer.c history.c	
 SRCS+=	common.h emacs.h fcns.h help.h vi.h
-CLEANFILES+= common.h editline.c emacs.h fcns.c fcns.h help.c help.h vi.h
+
+# Widechar
+SRCS+=	tokenizern.c historyn.c
+CLEANFILES+=	tokenizern.c historyn.c
 
 INCS=	histedit.h
 
-SRCS+=	tokenizern.c historyn.c
-CLEANFILES+=	tokenizern.c historyn.c
+CLEANFILES+= common.h editline.c emacs.h fcns.c fcns.h help.c help.h vi.h
 CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/edit -DWIDECHAR
 #CFLAGS+= -DDEBUG_TTY -DDEBUG_KEY -DDEBUG_READ -DDEBUG -DDEBUG_REFRESH
 #CFLAGS+= -DDEBUG_PASTE -DDEBUG_EDIT
 
-SUBDIR= edit/readline
-
 AHDR=	vi.h emacs.h common.h
 ASRC=	${.CURDIR}/vi.c ${.CURDIR}/emacs.c ${.CURDIR}/common.c
+
+SUBDIR= edit/readline
 
 .for hdr in vi emacs common
 ${hdr}.h: ${hdr}.c makelist

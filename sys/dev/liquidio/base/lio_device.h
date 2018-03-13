@@ -873,16 +873,26 @@ static inline uint64_t
 lio_read_csr64(struct octeon_device *oct, uint32_t reg)
 {
 
+#ifdef __i386__
+	return (lio_read_csr32(oct, reg) |
+			((uint64_t)lio_read_csr32(oct, reg + 4) << 32));
+#else
 	return (bus_space_read_8(oct->mem_bus_space[0].tag,
 				 oct->mem_bus_space[0].handle, reg));
+#endif
 }
 
 static inline void
 lio_write_csr64(struct octeon_device *oct, uint32_t reg, uint64_t val)
 {
 
+#ifdef __i386__
+	lio_write_csr32(oct, reg, (uint32_t)val);
+	lio_write_csr32(oct, reg + 4, val >> 32);
+#else
 	bus_space_write_8(oct->mem_bus_space[0].tag,
 			  oct->mem_bus_space[0].handle, reg, val);
+#endif
 }
 
 #endif	/* _LIO_DEVICE_H_ */

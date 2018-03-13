@@ -558,10 +558,7 @@ static int
 ofw_pci_deactivate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
-	struct ofw_pci_softc *sc;
 	vm_size_t psize;
-
-	sc = device_get_softc(bus);
 
 	if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY) {
 		return (bus_generic_deactivate_resource(bus, child, type, rid,

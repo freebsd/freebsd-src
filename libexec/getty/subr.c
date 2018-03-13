@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -66,12 +68,13 @@ gettable(const char *name, char *buf)
 	long n;
 	int l;
 	char *p;
-	char *msg = NULL;
-	const char *dba[2];
+	static char path_gettytab[PATH_MAX];
+	char *dba[2];
 
 	static int firsttime = 1;
 
-	dba[0] = _PATH_GETTYTAB;
+	strlcpy(path_gettytab, _PATH_GETTYTAB, sizeof(path_gettytab));
+	dba[0] = path_gettytab;
 	dba[1] = NULL;
 
 	if (firsttime) {
@@ -99,32 +102,28 @@ gettable(const char *name, char *buf)
 		firsttime = 0;
 	}
 
-	switch (cgetent(&buf, (char **)dba, (char *)name)) {
+	switch (cgetent(&buf, dba, name)) {
 	case 1:
-		msg = "%s: couldn't resolve 'tc=' in gettytab '%s'";
+		syslog(LOG_ERR, "getty: couldn't resolve 'tc=' in gettytab '%s'", name);
+		return;
 	case 0:
 		break;
 	case -1:
-		msg = "%s: unknown gettytab entry '%s'";
-		break;
+		syslog(LOG_ERR, "getty: unknown gettytab entry '%s'", name);
+		return;
 	case -2:
-		msg = "%s: retrieving gettytab entry '%s': %m";
-		break;
+		syslog(LOG_ERR, "getty: retrieving gettytab entry '%s': %m", name);
+		return;
 	case -3:
-		msg = "%s: recursive 'tc=' reference gettytab entry '%s'";
-		break;
+		syslog(LOG_ERR, "getty: recursive 'tc=' reference gettytab entry '%s'", name);
+		return;
 	default:
-		msg = "%s: unexpected cgetent() error for entry '%s'";
-		break;
-	}
-
-	if (msg != NULL) {
-		syslog(LOG_ERR, msg, "getty", name);
+		syslog(LOG_ERR, "getty: unexpected cgetent() error for entry '%s'", name);
 		return;
 	}
 
 	for (sp = gettystrs; sp->field; sp++) {
-		if ((l = cgetstr(buf, (char*)sp->field, &p)) >= 0) {
+		if ((l = cgetstr(buf, sp->field, &p)) >= 0) {
 			if (sp->value) {
 				/* prefer existing value */
 				if (strcmp(p, sp->value) != 0)
@@ -142,7 +141,7 @@ gettable(const char *name, char *buf)
 	}
 
 	for (np = gettynums; np->field; np++) {
-		if (cgetnum(buf, (char*)np->field, &n) == -1)
+		if (cgetnum(buf, np->field, &n) == -1)
 			np->set = 0;
 		else {
 			np->set = 1;
@@ -151,7 +150,7 @@ gettable(const char *name, char *buf)
 	}
 
 	for (fp = gettyflags; fp->field; fp++) {
-		if (cgetcap(buf, (char *)fp->field, ':') == NULL)
+		if (cgetcap(buf, fp->field, ':') == NULL)
 			fp->set = 0;
 		else {
 			fp->set = 1;
@@ -537,7 +536,7 @@ static struct speedtab {
 	{ 57600, B57600 },
 	{ 115200, B115200 },
 	{ 230400, B230400 },
-	{ 0 }
+	{ 0, 0 }
 };
 
 int
@@ -586,7 +585,7 @@ makeenv(char *env[])
  * baud rate. This string indicates the user's actual speed.
  * The routine below returns the terminal type mapped from derived speed.
  */
-struct	portselect {
+static struct	portselect {
 	const char	*ps_baud;
 	const char	*ps_type;
 } portspeeds[] = {

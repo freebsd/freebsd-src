@@ -3115,10 +3115,13 @@ static int
 rt2860_updateedca(struct ieee80211com *ic)
 {
 	struct rt2860_softc *sc = ic->ic_softc;
+	struct chanAccParams chp;
 	const struct wmeParams *wmep;
 	int aci;
 
-	wmep = ic->ic_wme.wme_chanParams.cap_wmeParams;
+	ieee80211_wme_ic_getparams(ic, &chp);
+
+	wmep = chp.cap_wmeParams;
 
 	/* update MAC TX configuration registers */
 	for (aci = 0; aci < WME_NUM_AC; aci++) {

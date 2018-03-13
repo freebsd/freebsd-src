@@ -168,7 +168,7 @@ Specify the digest algorithm to use for authenticated requests,
 with default @code{MD5}.
 If the OpenSSL library is installed,
 digest can be be any message digest algorithm supported by the library.
-The current selections are: @code{MD2}, @code{MD4}, @code{MD5}, @code{MDC2}, @code{RIPEMD160}, @code{SHA} and @code{SHA1}.
+The current selections are: @code{AES128CMAC}, @code{MD2}, @code{MD4}, @code{MD5}, @code{MDC2}, @code{RIPEMD160}, @code{SHA} and @code{SHA1}.
 
 @item @anchor{ntpversion} @code{ntpversion 1 | 2 | 3 | 4}
 Sets the NTP version number which @code{ntpq} claims in packets.

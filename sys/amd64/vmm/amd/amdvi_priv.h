@@ -29,6 +29,8 @@
 #ifndef _AMDVI_PRIV_H_
 #define _AMDVI_PRIV_H_
 
+#include <contrib/dev/acpica/include/acpi.h>
+
 #define	BIT(n)			(1ULL << (n))
 /* Return value of bits[n:m] where n and (n >= ) m are bit positions. */
 #define REG_BITS(x, n, m)	(((x) >> (m)) & 		\
@@ -230,8 +232,8 @@ struct amdvi_ctrl {
 	uint64_t :45;
 	uint32_t evt_tail:19;
 	uint64_t :45;
-	uint64_t :56;
-	uint8_t	 status:8;
+	uint32_t status:19;
+	uint64_t :45;
 	uint64_t pad2;
 	uint8_t  :4;
 	uint16_t ppr_head:15;
@@ -353,11 +355,43 @@ struct amdvi_domain {
 };
 
 /*
+ * I/O Virtualization Hardware Definition Block (IVHD) type 0x10 (legacy)
+ * uses ACPI_IVRS_HARDWARE define in contrib/dev/acpica/include/actbl2.h
+ * New IVHD types 0x11 and 0x40 as defined in AMD IOMMU spec[48882] are missing in
+ * ACPI code. These new types add extra field EFR(Extended Feature Register).
+ * XXX : Use definition from ACPI when it is available.
+ */
+typedef struct acpi_ivrs_hardware_efr_sup
+{
+	ACPI_IVRS_HEADER Header;
+	UINT16 CapabilityOffset;   /* Offset for IOMMU control fields */
+	UINT64 BaseAddress;        /* IOMMU control registers */
+	UINT16 PciSegmentGroup;
+	UINT16 Info;               /* MSI number and unit ID */
+	UINT32 Attr;               /* IOMMU Feature */
+	UINT64 ExtFR;              /* IOMMU Extended Feature */
+	UINT64 Reserved;           /* v1 feature or v2 attribute */
+} __attribute__ ((__packed__)) ACPI_IVRS_HARDWARE_EFRSUP;
+CTASSERT(sizeof(ACPI_IVRS_HARDWARE_EFRSUP) == 40);
+
+/*
+ * Different type of IVHD.
+ * XXX: Use AcpiIvrsType once new IVHD types are available.
+*/
+enum IvrsType
+{
+	IVRS_TYPE_HARDWARE_LEGACY = 0x10, /* Legacy without EFRi support. */
+	IVRS_TYPE_HARDWARE_EFR 	  = 0x11, /* With EFR support. */
+	IVRS_TYPE_HARDWARE_MIXED  = 0x40, /* Mixed with EFR support. */
+};
+
+/*
  * AMD IOMMU softc.
  */
 struct amdvi_softc {
 	struct amdvi_ctrl *ctrl;	/* Control area. */
 	device_t 	dev;		/* IOMMU device. */
+	enum IvrsType   ivhd_type;	/* IOMMU IVHD type. */
 	bool		iotlb;		/* IOTLB supported by IOMMU */
 	struct amdvi_cmd *cmd;		/* Command descriptor area. */
 	int 		cmd_max;	/* Max number of commands. */
@@ -370,11 +404,11 @@ struct amdvi_softc {
 	int		event_rid;
 	/* ACPI various flags. */
 	uint32_t 	ivhd_flag;	/* ACPI IVHD flag. */
-	uint32_t 	ivhd_efr;	/* ACPI v1 Reserved or v2 EFR . */
+	uint32_t 	ivhd_feature;	/* ACPI v1 Reserved or v2 attribute. */
+	uint64_t 	ext_feature;	/* IVHD EFR */
 	/* PCI related. */
 	uint16_t 	cap_off;	/* PCI Capability offset. */
 	uint8_t		pci_cap;	/* PCI capability. */
-	uint64_t 	pci_efr;	/* PCI EFR for rev2.0 */
 	uint16_t 	pci_seg;	/* IOMMU PCI domain/segment. */
 	uint16_t 	pci_rid;	/* PCI BDF of IOMMU */
 	/* Device range under this IOMMU. */

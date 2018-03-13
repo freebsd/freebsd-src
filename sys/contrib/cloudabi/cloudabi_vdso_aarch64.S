@@ -353,32 +353,20 @@ ENTRY(cloudabi_sys_poll)
   ret
 END(cloudabi_sys_poll)
 
-ENTRY(cloudabi_sys_poll_fd)
-  str x6, [sp, #-8]
-  mov w8, #38
-  svc #0
-  ldr x2, [sp, #-8]
-  b.cs 1f
-  str x0, [x2]
-  mov w0, wzr
-1:
-  ret
-END(cloudabi_sys_poll_fd)
-
 ENTRY(cloudabi_sys_proc_exec)
-  mov w8, #39
+  mov w8, #38
   svc #0
   ret
 END(cloudabi_sys_proc_exec)
 
 ENTRY(cloudabi_sys_proc_exit)
-  mov w8, #40
+  mov w8, #39
   svc #0
 END(cloudabi_sys_proc_exit)
 
 ENTRY(cloudabi_sys_proc_fork)
   stp x0, x1, [sp, #-16]
-  mov w8, #41
+  mov w8, #40
   svc #0
   ldp x2, x3, [sp, #-16]
   b.cs 1f
@@ -390,38 +378,38 @@ ENTRY(cloudabi_sys_proc_fork)
 END(cloudabi_sys_proc_fork)
 
 ENTRY(cloudabi_sys_proc_raise)
-  mov w8, #42
+  mov w8, #41
   svc #0
   ret
 END(cloudabi_sys_proc_raise)
 
 ENTRY(cloudabi_sys_random_get)
-  mov w8, #43
+  mov w8, #42
   svc #0
   ret
 END(cloudabi_sys_random_get)
 
 ENTRY(cloudabi_sys_sock_recv)
-  mov w8, #44
+  mov w8, #43
   svc #0
   ret
 END(cloudabi_sys_sock_recv)
 
 ENTRY(cloudabi_sys_sock_send)
-  mov w8, #45
+  mov w8, #44
   svc #0
   ret
 END(cloudabi_sys_sock_send)
 
 ENTRY(cloudabi_sys_sock_shutdown)
-  mov w8, #46
+  mov w8, #45
   svc #0
   ret
 END(cloudabi_sys_sock_shutdown)
 
 ENTRY(cloudabi_sys_thread_create)
   str x1, [sp, #-8]
-  mov w8, #47
+  mov w8, #46
   svc #0
   ldr x2, [sp, #-8]
   b.cs 1f
@@ -432,12 +420,12 @@ ENTRY(cloudabi_sys_thread_create)
 END(cloudabi_sys_thread_create)
 
 ENTRY(cloudabi_sys_thread_exit)
-  mov w8, #48
+  mov w8, #47
   svc #0
 END(cloudabi_sys_thread_exit)
 
 ENTRY(cloudabi_sys_thread_yield)
-  mov w8, #49
+  mov w8, #48
   svc #0
   ret
 END(cloudabi_sys_thread_yield)

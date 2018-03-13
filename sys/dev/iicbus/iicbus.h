@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 Nicolas Souchu
  * All rights reserved.
  *
@@ -75,5 +77,7 @@ void iicbus_init_frequency(device_t dev, u_int bus_freq);
 
 extern driver_t iicbus_driver;
 extern devclass_t iicbus_devclass;
+extern driver_t ofw_iicbus_driver;
+extern devclass_t ofw_iicbus_devclass;
 
 #endif

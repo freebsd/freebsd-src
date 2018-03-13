@@ -2,6 +2,8 @@
 /*	$KAME: ipsec.c,v 1.103 2001/05/24 07:14:18 sakane Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -108,7 +110,6 @@ VNET_PCPUSTAT_SYSINIT(ipsec4stat);
 VNET_PCPUSTAT_SYSUNINIT(ipsec4stat);
 #endif /* VIMAGE */
 
-VNET_DEFINE(int, ip4_ah_offsetmask) = 0;	/* maybe IP_DF? */
 /* DF bit on encap. 0: clear 1: set 2: copy */
 VNET_DEFINE(int, ip4_ipsec_dfbit) = 0;
 VNET_DEFINE(int, ip4_esp_trans_deflev) = IPSEC_LEVEL_USE;
@@ -117,7 +118,6 @@ VNET_DEFINE(int, ip4_ah_trans_deflev) = IPSEC_LEVEL_USE;
 VNET_DEFINE(int, ip4_ah_net_deflev) = IPSEC_LEVEL_USE;
 /* ECN ignore(-1)/forbidden(0)/allowed(1) */
 VNET_DEFINE(int, ip4_ipsec_ecn) = 0;
-VNET_DEFINE(int, ip4_esp_randpad) = -1;
 
 static VNET_DEFINE(int, ip4_filtertunnel) = 0;
 #define	V_ip4_filtertunnel VNET(ip4_filtertunnel)
@@ -149,6 +149,15 @@ sysctl_def_policy(SYSCTL_HANDLER_ARGS)
  *  0	take anything
  */
 VNET_DEFINE(int, crypto_support) = CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
+
+/*
+ * Use asynchronous mode to parallelize crypto jobs:
+ *
+ *  0 - disabled
+ *  1 - enabled
+ */
+VNET_DEFINE(int, async_crypto) = 0;
+
 /*
  * TCP/UDP checksum handling policy for transport mode NAT-T (RFC3948)
  *
@@ -183,9 +192,6 @@ SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_AH_NETLEV, ah_net_deflev,
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_AH_CLEARTOS, ah_cleartos,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ah_cleartos), 0,
 	"If set, clear type-of-service field when doing AH computation.");
-SYSCTL_INT(_net_inet_ipsec, IPSECCTL_AH_OFFSETMASK, ah_offsetmask,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_ah_offsetmask), 0,
-	"If not set, clear offset field mask when doing AH computation.");
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DFBIT, dfbit,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_ipsec_dfbit), 0,
 	"Do not fragment bit on encap.");
@@ -195,6 +201,9 @@ SYSCTL_INT(_net_inet_ipsec, IPSECCTL_ECN, ecn,
 SYSCTL_INT(_net_inet_ipsec, OID_AUTO, crypto_support,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(crypto_support), 0,
 	"Crypto driver selection.");
+SYSCTL_INT(_net_inet_ipsec, OID_AUTO, async_crypto,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(async_crypto), 0,
+	"Use asynchronous mode to parallelize crypto jobs.");
 SYSCTL_INT(_net_inet_ipsec, OID_AUTO, check_policy_history,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(check_policy_history), 0,
 	"Use strict check of inbound packets to security policy compliance.");

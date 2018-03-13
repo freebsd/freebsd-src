@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1985, 1986, 1988, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -563,6 +565,17 @@ struct sockcred {
 #define	SCM_BINTIME	0x04		/* timestamp (struct bintime) */
 #define	SCM_REALTIME	0x05		/* timestamp (struct timespec) */
 #define	SCM_MONOTONIC	0x06		/* timestamp (struct timespec) */
+#define	SCM_TIME_INFO	0x07		/* timestamp info */
+
+struct sock_timestamp_info {
+	__uint32_t	st_info_flags;
+	__uint32_t	st_info_pad0;
+	__uint64_t	st_info_rsv[7];
+};
+
+#define	ST_INFO_HW		0x0001		/* SCM_TIMESTAMP was hw */
+#define	ST_INFO_HW_HPREC	0x0002		/* SCM_TIMESTAMP was hw-assisted
+						   on entrance */
 #endif
 
 #if __BSD_VISIBLE

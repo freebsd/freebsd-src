@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_VDEV_H
@@ -48,16 +48,20 @@ typedef enum vdev_dtl_type {
 extern boolean_t zfs_nocacheflush;
 extern boolean_t zfs_trim_enabled;
 
+extern void vdev_dbgmsg(vdev_t *vd, const char *fmt, ...);
+extern void vdev_dbgmsg_print_tree(vdev_t *, int);
 extern int vdev_open(vdev_t *);
 extern void vdev_open_children(vdev_t *);
 extern boolean_t vdev_uses_zvols(vdev_t *);
-extern int vdev_validate(vdev_t *, boolean_t);
+extern int vdev_validate(vdev_t *);
+extern int vdev_copy_path_strict(vdev_t *, vdev_t *);
+extern void vdev_copy_path_relaxed(vdev_t *, vdev_t *);
 extern void vdev_close(vdev_t *);
 extern int vdev_create(vdev_t *, uint64_t txg, boolean_t isreplace);
 extern void vdev_reopen(vdev_t *);
 extern int vdev_validate_aux(vdev_t *vd);
 extern zio_t *vdev_probe(vdev_t *vd, zio_t *pio);
-
+extern boolean_t vdev_is_concrete(vdev_t *vd);
 extern boolean_t vdev_is_bootable(vdev_t *vd);
 extern vdev_t *vdev_lookup_top(spa_t *spa, uint64_t vdev);
 extern vdev_t *vdev_lookup_by_guid(vdev_t *vd, uint64_t guid);
@@ -76,6 +80,11 @@ extern void vdev_destroy_unlink_zap(vdev_t *vd, uint64_t zapobj,
     dmu_tx_t *tx);
 extern uint64_t vdev_create_link_zap(vdev_t *vd, dmu_tx_t *tx);
 extern void vdev_construct_zaps(vdev_t *vd, dmu_tx_t *tx);
+extern void vdev_destroy_spacemaps(vdev_t *vd, dmu_tx_t *tx);
+extern void vdev_indirect_mark_obsolete(vdev_t *vd, uint64_t offset,
+    uint64_t size, uint64_t txg);
+extern void spa_vdev_indirect_mark_obsolete(spa_t *spa, uint64_t vdev,
+    uint64_t offset, uint64_t size, dmu_tx_t *tx);
 
 extern void vdev_hold(vdev_t *);
 extern void vdev_rele(vdev_t *);
@@ -88,7 +97,6 @@ extern void vdev_expand(vdev_t *vd, uint64_t txg);
 extern void vdev_split(vdev_t *vd);
 extern void vdev_deadman(vdev_t *vd);
 
-
 extern void vdev_get_stats(vdev_t *vd, vdev_stat_t *vs);
 extern void vdev_clear_stats(vdev_t *vd);
 extern void vdev_stat_update(zio_t *zio, uint64_t psize);
@@ -96,6 +104,7 @@ extern void vdev_scan_stat_init(vdev_t *vd);
 extern void vdev_propagate_state(vdev_t *vd);
 extern void vdev_set_state(vdev_t *vd, boolean_t isopen, vdev_state_t state,
     vdev_aux_t aux);
+extern boolean_t vdev_children_are_offline(vdev_t *vd);
 
 extern void vdev_space_update(vdev_t *vd,
     int64_t alloc_delta, int64_t defer_delta, int64_t space_delta);
@@ -140,7 +149,8 @@ typedef enum vdev_config_flag {
 	VDEV_CONFIG_SPARE = 1 << 0,
 	VDEV_CONFIG_L2CACHE = 1 << 1,
 	VDEV_CONFIG_REMOVING = 1 << 2,
-	VDEV_CONFIG_MOS = 1 << 3
+	VDEV_CONFIG_MOS = 1 << 3,
+	VDEV_CONFIG_MISSING = 1 << 4
 } vdev_config_flag_t;
 
 extern void vdev_top_config_generate(spa_t *spa, nvlist_t *config);

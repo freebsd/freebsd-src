@@ -89,6 +89,9 @@ powerpc_interrupt(struct trapframe *framep)
 		critical_enter();
 		PIC_DISPATCH(root_pic, framep);
 		critical_exit();
+#ifdef BOOKE
+		framep->srr1 &= ~PSL_WE;
+#endif
 		break;
 
 	case EXC_DECR:
@@ -100,6 +103,9 @@ powerpc_interrupt(struct trapframe *framep)
 		td->td_intr_frame = oldframe;
 		atomic_subtract_int(&td->td_intr_nesting_level, 1);
 		critical_exit();
+#ifdef BOOKE
+		framep->srr1 &= ~PSL_WE;
+#endif
 		break;
 #ifdef HWPMC_HOOKS
 	case EXC_PERF:

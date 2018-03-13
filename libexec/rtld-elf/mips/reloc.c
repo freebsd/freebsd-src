@@ -1,6 +1,8 @@
 /*	$NetBSD: mips_reloc.c,v 1.58 2010/01/14 11:57:06 skrll Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 1997 Michael L. Hitch <mhitch@montana.edu>
  * Portions copyright 2002 Charles M. Hannum <root@ihack.net>
  * All rights reserved.
@@ -743,6 +745,13 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
 void
 ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
 {
+
+}
+
+void
+pre_init(void)
+{
+
 }
 
 void

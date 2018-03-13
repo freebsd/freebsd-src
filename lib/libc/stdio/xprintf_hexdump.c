@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Poul-Henning Kamp
  * All rights reserved.
  *
@@ -48,6 +50,7 @@ int
 __printf_render_hexdump(struct __printf_io *io, const struct printf_info *pi, const void *const *arg)
 {
 	unsigned char *p;
+	int i;
 	unsigned u, l, j, a;
 	char buf[100], *q;
 	int ret;
@@ -57,7 +60,10 @@ __printf_render_hexdump(struct __printf_io *io, const struct printf_info *pi, co
 	else
 		l = 16;
 	p = *((unsigned char **)arg[0]);
-	u = *((unsigned *)arg[1]);
+	i = *((int *)arg[1]);
+	if (i < 0)
+		i = 0;
+	u = i;
 
 	ret = 0;
 	a = 0;

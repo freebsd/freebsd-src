@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
@@ -81,7 +83,7 @@ TUNABLE_INT("hw.i8254.freq", &i8254_freq);
 int	i8254_max_count;
 static int i8254_timecounter = 1;
 
-struct mtx clock_lock;
+static	struct mtx clock_lock;
 static	struct intsrc *i8254_intsrc;
 static	uint16_t i8254_lastcount;
 static	uint16_t i8254_offset;
@@ -665,5 +667,6 @@ static devclass_t attimer_devclass;
 
 DRIVER_MODULE(attimer, isa, attimer_driver, attimer_devclass, 0, 0);
 DRIVER_MODULE(attimer, acpi, attimer_driver, attimer_devclass, 0, 0);
+ISA_PNP_INFO(attimer_ids);
 
 #endif /* DEV_ISA */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -1416,29 +1418,41 @@ struct fpathconf_args {
 int
 sys_fpathconf(struct thread *td, struct fpathconf_args *uap)
 {
+	long value;
+	int error;
+
+	error = kern_fpathconf(td, uap->fd, uap->name, &value);
+	if (error == 0)
+		td->td_retval[0] = value;
+	return (error);
+}
+
+int
+kern_fpathconf(struct thread *td, int fd, int name, long *valuep)
+{
 	struct file *fp;
 	struct vnode *vp;
 	cap_rights_t rights;
 	int error;
 
-	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_FPATHCONF), &fp);
+	error = fget(td, fd, cap_rights_init(&rights, CAP_FPATHCONF), &fp);
 	if (error != 0)
 		return (error);
 
-	if (uap->name == _PC_ASYNC_IO) {
-		td->td_retval[0] = _POSIX_ASYNCHRONOUS_IO;
+	if (name == _PC_ASYNC_IO) {
+		*valuep = _POSIX_ASYNCHRONOUS_IO;
 		goto out;
 	}
 	vp = fp->f_vnode;
 	if (vp != NULL) {
 		vn_lock(vp, LK_SHARED | LK_RETRY);
-		error = VOP_PATHCONF(vp, uap->name, td->td_retval);
+		error = VOP_PATHCONF(vp, name, valuep);
 		VOP_UNLOCK(vp, 0);
 	} else if (fp->f_type == DTYPE_PIPE || fp->f_type == DTYPE_SOCKET) {
-		if (uap->name != _PC_PIPE_BUF) {
+		if (name != _PC_PIPE_BUF) {
 			error = EINVAL;
 		} else {
-			td->td_retval[0] = PIPE_BUF;
+			*valuep = PIPE_BUF;
 			error = 0;
 		}
 	} else {

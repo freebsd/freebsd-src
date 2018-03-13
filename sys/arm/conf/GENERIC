@@ -4,11 +4,11 @@
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
 #
-#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#    https://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
 # The handbook is also available locally in /usr/share/doc/handbook
 # if you've installed the doc distribution, otherwise always see the
-# FreeBSD World Wide Web server (http://www.FreeBSD.org/) for the
+# FreeBSD World Wide Web server (https://www.FreeBSD.org/) for the
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
@@ -22,13 +22,10 @@ ident		GENERIC
 
 cpu		CPU_CORTEXA
 options 	SMP_ON_UP
-machine 	arm armv6
+machine 	arm armv7
 makeoptions	CONF_CFLAGS="-march=armv7a"
 
-makeoptions	KERNVIRTADDR=0xc0000000
-options 	KERNVIRTADDR=0xc0000000
-
-include 	"std.armv6"
+include 	"std.armv7"
 files		"../allwinner/files.allwinner"
 files		"../allwinner/files.allwinner_up"
 files		"../allwinner/a10/files.a10"
@@ -72,6 +69,7 @@ device		clk
 device		phy
 device		hwreset
 device		regulator
+device		syscon
 
 # CPU frequency control
 device		cpufreq
@@ -99,6 +97,7 @@ device		ahci			# AHCI-compatible SATA controllers
 # PCI
 options 	NEW_PCIB
 device		pci
+device		pci_host_generic
 
 # PCI NICs
 device		re			# RealTek 8139C+/8169/8169S/8110S
@@ -106,6 +105,7 @@ device		re			# RealTek 8139C+/8169/8169S/8110S
 # VirtIO
 device		virtio
 device		virtio_mmio
+device		virtio_pci
 device		virtio_blk
 device		vtnet
 

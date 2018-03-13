@@ -17,6 +17,8 @@ __FBSDID("$FreeBSD$");
 #define	SCSI_LOW_FLAGS_QUIRKS_OK
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * [NetBSD for NEC PC-98 series]
  *  Copyright (c) 1995, 1996, 1997, 1998, 1999, 2000, 2001
  *	NetBSD/pc98 porting staff. All rights reserved.
@@ -84,6 +86,65 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_low.h>
 
 #include <sys/cons.h>
+
+/**************************************************************
+ * CCB Macros
+ **************************************************************/
+
+/* (II)  static allocated memory */
+#define GENERIC_CCB_STATIC_ALLOC(DEV, CCBTYPE)				\
+static struct CCBTYPE##que CCBTYPE##que;
+
+/* (III)  functions */
+#define GENERIC_CCB(DEV, CCBTYPE, CHAIN)				\
+									\
+void									\
+DEV##_init_ccbque(int count)						\
+{									\
+	if (CCBTYPE##que.maxccb == 0)					\
+		TAILQ_INIT(&CCBTYPE##que.CCBTYPE##tab);			\
+	CCBTYPE##que.maxccb += count;					\
+}									\
+									\
+struct CCBTYPE *							\
+DEV##_get_ccb(void)							\
+{									\
+	struct CCBTYPE *cb;						\
+									\
+	if (CCBTYPE##que.count < CCBTYPE##que.maxccb)			\
+	{								\
+		CCBTYPE##que.count ++;					\
+		cb = TAILQ_FIRST(&(CCBTYPE##que.CCBTYPE##tab));		\
+		if (cb != NULL) {					\
+			TAILQ_REMOVE(&CCBTYPE##que.CCBTYPE##tab, cb, CHAIN);\
+			goto out;					\
+		} else {						\
+			cb = malloc(sizeof(*cb), M_DEVBUF, M_NOWAIT  | M_ZERO);	\
+			if (cb != NULL)					\
+				goto out;				\
+		}							\
+		CCBTYPE##que.count --;					\
+	}								\
+									\
+	cb = NULL;							\
+									\
+out:									\
+	return cb;							\
+}									\
+									\
+void									\
+DEV##_free_ccb(struct CCBTYPE *cb)					\
+{									\
+									\
+	TAILQ_INSERT_TAIL(&CCBTYPE##que.CCBTYPE##tab, cb, CHAIN);	\
+	CCBTYPE##que.count --;						\
+									\
+	if (CCBTYPE##que.flags & CCB_MWANTED)				\
+	{								\
+		CCBTYPE##que.flags &= ~CCB_MWANTED;			\
+		wakeup ((caddr_t) &CCBTYPE##que.count);			\
+	}								\
+}
 
 /**************************************************************
  * Constants

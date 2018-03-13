@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Mike Barcroft <mike@FreeBSD.org>
  * Copyright (c) 2008 Bjoern A. Zeeb <bz@FreeBSD.org>
  * All rights reserved.
@@ -187,5 +189,5 @@ usage(void)
 
 	fprintf(stderr, "%s\n",
 	    "usage: jexec [-l] [-u username | -U username] jail [command ...]");
-	exit(1); 
+	exit(1);
 }

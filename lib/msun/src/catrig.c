@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Stephen Montgomery-Smith <stephen@FreeBSD.ORG>
  * All rights reserved.
  *
@@ -609,7 +611,7 @@ catanh(double complex z)
 	if (ax < SQRT_3_EPSILON / 2 && ay < SQRT_3_EPSILON / 2) {
 		/*
 		 * z = 0 was filtered out above.  All other cases must raise
-		 * inexact, but this is the only only that needs to do it
+		 * inexact, but this is the only case that needs to do it
 		 * explicitly.
 		 */
 		raise_inexact();

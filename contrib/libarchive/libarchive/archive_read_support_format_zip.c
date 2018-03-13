@@ -886,6 +886,24 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		zip_entry->mode |= 0664;
 	}
 
+	/* Windows archivers sometimes use backslash as the directory separator.
+	   Normalize to slash. */
+	if (zip_entry->system == 0 &&
+	    (wp = archive_entry_pathname_w(entry)) != NULL) {
+		if (wcschr(wp, L'/') == NULL && wcschr(wp, L'\\') != NULL) {
+			size_t i;
+			struct archive_wstring s;
+			archive_string_init(&s);
+			archive_wstrcpy(&s, wp);
+			for (i = 0; i < archive_strlen(&s); i++) {
+				if (s.s[i] == '\\')
+					s.s[i] = '/';
+			}
+			archive_entry_copy_pathname_w(entry, s.s);
+			archive_wstring_free(&s);
+		}
+	}
+
 	/* Make sure that entries with a trailing '/' are marked as directories
 	 * even if the External File Attributes contains bogus values.  If this
 	 * is not a directory and there is no type, assume regularfile. */
@@ -1061,6 +1079,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		zip->end_of_entry = 1;
 
 	/* Set up a more descriptive format name. */
+        archive_string_empty(&zip->format_name);
 	archive_string_sprintf(&zip->format_name, "ZIP %d.%d (%s)",
 	    version / 10, version % 10,
 	    compression_name(zip->entry->compression));

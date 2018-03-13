@@ -17,8 +17,8 @@
 #include <stdlib.h>
 
 #include "lldb/Core/Address.h"
-#include "lldb/Core/ArchSpec.h"
 #include "lldb/Interpreter/Options.h"
+#include "lldb/Utility/ArchSpec.h"
 
 // These are for the Sourcename completers.
 // FIXME: Make a separate file for the completers.
@@ -57,7 +57,7 @@ llvm::StringRef CommandObject::GetHelp() { return m_cmd_help_short; }
 llvm::StringRef CommandObject::GetHelpLong() { return m_cmd_help_long; }
 
 llvm::StringRef CommandObject::GetSyntax() {
-  if (m_cmd_syntax.empty())
+  if (!m_cmd_syntax.empty())
     return m_cmd_syntax;
 
   StreamString syntax_str;
@@ -1113,7 +1113,8 @@ CommandObject::ArgumentTableEntry CommandObject::g_arguments_data[] = {
     { eArgTypeWatchpointID, "watchpt-id", CommandCompletions::eNoCompletion, { nullptr, false }, "Watchpoint IDs are positive integers." },
     { eArgTypeWatchpointIDRange, "watchpt-id-list", CommandCompletions::eNoCompletion, { nullptr, false }, "For example, '1-3' or '1 to 3'." },
     { eArgTypeWatchType, "watch-type", CommandCompletions::eNoCompletion, { nullptr, false }, "Specify the type for a watchpoint." },
-    { eArgRawInput, "raw-input", CommandCompletions::eNoCompletion, { nullptr, false }, "Free-form text passed to a command without prior interpretation, allowing spaces without requiring quotes.  To pass arguments and free form text put two dashes ' -- ' between the last argument and any raw input." }
+    { eArgRawInput, "raw-input", CommandCompletions::eNoCompletion, { nullptr, false }, "Free-form text passed to a command without prior interpretation, allowing spaces without requiring quotes.  To pass arguments and free form text put two dashes ' -- ' between the last argument and any raw input." },
+    { eArgTypeCommand, "command", CommandCompletions::eNoCompletion, { nullptr, false }, "An LLDB Command line command." }
     // clang-format on
 };
 

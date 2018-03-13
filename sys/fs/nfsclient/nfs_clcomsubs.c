@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -431,7 +433,7 @@ nfsm_loadattr(struct nfsrv_descript *nd, struct nfsvattr *nap)
 		nap->na_mode = fxdr_unsigned(u_short, fp->fa_mode);
 		nap->na_rdev = makedev(fxdr_unsigned(u_char, fp->fa3_rdev.specdata1),
 			fxdr_unsigned(u_char, fp->fa3_rdev.specdata2));
-		nap->na_nlink = fxdr_unsigned(u_short, fp->fa_nlink);
+		nap->na_nlink = fxdr_unsigned(uint32_t, fp->fa_nlink);
 		nap->na_uid = fxdr_unsigned(uid_t, fp->fa_uid);
 		nap->na_gid = fxdr_unsigned(gid_t, fp->fa_gid);
 		nap->na_size = fxdr_hyper(&fp->fa3_size);
@@ -497,7 +499,7 @@ nfscl_getcookie(struct nfsnode *np, off_t off, int add)
 	dp = LIST_FIRST(&np->n_cookies);
 	if (!dp) {
 		if (add) {
-			MALLOC(dp, struct nfsdmap *, sizeof (struct nfsdmap),
+			dp = malloc(sizeof (struct nfsdmap),
 				M_NFSDIROFF, M_WAITOK);
 			dp->ndm_eocookie = 0;
 			LIST_INSERT_HEAD(&np->n_cookies, dp, ndm_list);
@@ -512,7 +514,7 @@ nfscl_getcookie(struct nfsnode *np, off_t off, int add)
 				return (NULL);
 			dp = LIST_NEXT(dp, ndm_list);
 		} else if (add) {
-			MALLOC(dp2, struct nfsdmap *, sizeof (struct nfsdmap),
+			dp2 = malloc(sizeof (struct nfsdmap),
 				M_NFSDIROFF, M_WAITOK);
 			dp2->ndm_eocookie = 0;
 			LIST_INSERT_AFTER(dp, dp2, ndm_list);

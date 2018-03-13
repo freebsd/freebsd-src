@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Marie Helene Kvello-Aune
+ * Copyright (c) 2016-2017, Marie Helene Kvello-Aune
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -40,6 +40,7 @@ int
 main(int argc, char *argv[])
 {
 	char *ifname, *ifactualname;
+	ifconfig_handle_t *lifh;
 
 	if (argc != 2) {
 		errx(EINVAL, "Invalid number of arguments."
@@ -52,7 +53,12 @@ main(int argc, char *argv[])
 
 	printf("Requested interface name: %s\n", ifname);
 
-	ifconfig_handle_t *lifh = ifconfig_open();
+	lifh = ifconfig_open();
+	if (lifh == NULL) {
+		errx(ENOMEM, "Failed to open libifconfig handle.");
+		return (-1);
+	}
+
 	if (ifconfig_create_interface(lifh, ifname, &ifactualname) == 0) {
 		printf("Successfully created interface '%s'\n", ifactualname);
 		ifconfig_close(lifh);

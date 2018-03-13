@@ -1,5 +1,8 @@
-/* 
+/*-
  *  atrun.c - run jobs queued by at; run with root privileges.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  *  Copyright (C) 1993, 1994 Thomas Koenig
  *
  * Redistribution and use in source and binary forms, with or without

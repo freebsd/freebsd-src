@@ -1,4 +1,4 @@
-/*	$Id: man_term.c,v 1.208 2017/06/25 11:42:02 schwarze Exp $ */
+/*	$Id: man_term.c,v 1.209 2017/07/31 15:19:06 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -673,7 +673,7 @@ pre_SS(DECL_ARGS)
 
 		do {
 			n = n->prev;
-		} while (n != NULL && n->tok != TOKEN_NONE &&
+		} while (n != NULL && n->tok >= MAN_TH &&
 		    termacts[n->tok].flags & MAN_NOTEXT);
 		if (n == NULL || (n->tok == MAN_SS && n->body->child == NULL))
 			break;
@@ -735,7 +735,7 @@ pre_SH(DECL_ARGS)
 
 		do {
 			n = n->prev;
-		} while (n != NULL && n->tok != TOKEN_NONE &&
+		} while (n != NULL && n->tok >= MAN_TH &&
 		    termacts[n->tok].flags & MAN_NOTEXT);
 		if (n == NULL || (n->tok == MAN_SH && n->body->child == NULL))
 			break;

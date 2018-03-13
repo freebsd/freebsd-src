@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -128,6 +130,7 @@ stripe_label(struct gctl_req *req)
 	const char *name;
 	int error, i, nargs, hardcode;
 
+	bzero(sector, sizeof(sector));
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs < 3) {
 		gctl_error(req, "Too few arguments.");

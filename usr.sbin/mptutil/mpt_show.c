@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2008 Yahoo!, Inc.
  * All rights reserved.
  * Written by: John Baldwin <jhb@FreeBSD.org>
@@ -97,10 +99,13 @@ show_adapter(int ac, char **av)
 	if (man0 == NULL) {
 		error = errno;
 		warn("Failed to get controller info");
+		close(fd);
 		return (error);
 	}
 	if (man0->Header.PageLength < sizeof(*man0) / 4) {
 		warnx("Invalid controller info");
+		free(man0);
+		close(fd);
 		return (EINVAL);
 	}
 	printf("mpt%d Adapter:\n", mpt_unit);
@@ -305,11 +310,16 @@ show_config(int ac, char **av)
 	if (ioc2 == NULL || ioc5 == NULL) {
 		error = errno;
 		warn("Failed to get config");
+		free(ioc2);
+		close(fd);
 		return (error);
 	}
 	if (mpt_fetch_disks(fd, &nsdisks, &sdisks) < 0) {
 		error = errno;
 		warn("Failed to get standalone drive list");
+		free(ioc5);
+		free(ioc2);
+		close(fd);
 		return (error);
 	}
 
@@ -461,6 +471,7 @@ show_volumes(int ac, char **av)
 		}
 		printf("\n");
 	}
+	free(volumes);
 	free(ioc2);
 	close(fd);
 
@@ -491,6 +502,7 @@ show_drives(int ac, char **av)
 	list = mpt_pd_list(fd);
 	if (list == NULL) {
 		error = errno;
+		close(fd);
 		warn("Failed to get drive list");
 		return (error);
 	}

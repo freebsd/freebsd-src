@@ -15,7 +15,7 @@ BASE=/usr/share/libxo
 VERSION=0.8.4
 CMD=cat
 DONE=
-WEB=http://juniper.github.io/libxo/${VERSION}/xohtml
+WEB=https://juniper.github.io/libxo/${VERSION}/xohtml
 
 do_help () {
     echo "xohtml: wrap libxo-enabled output in HTML"

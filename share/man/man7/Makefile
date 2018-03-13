@@ -6,8 +6,7 @@
 PACKAGE=runtime-manuals
 
 #MISSING: eqnchar.7 ms.7 term.7
-MAN=	adding_user.7 \
-	arch.7 \
+MAN=	arch.7 \
 	ascii.7 \
 	bsd.snmpmod.mk.7 \
 	build.7 \
@@ -23,7 +22,6 @@ MAN=	adding_user.7 \
 	hostname.7 \
 	intro.7 \
 	maclabel.7 \
-	mailaddr.7 \
 	operator.7 \
 	ports.7 \
 	release.7 \

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Matthew N. Dodd
  * All rights reserved.
  *
@@ -79,8 +81,6 @@ static driver_t ex_isa_driver = {
 	ex_isa_methods,
 	sizeof(struct ex_softc),
 };
-
-DRIVER_MODULE(ex, isa, ex_isa_driver, ex_devclass, 0, 0);
 
 static struct isa_pnp_id ex_ids[] = {
 	{ 0x3110d425,	NULL },	/* INT1031 */
@@ -335,3 +335,6 @@ ex_look_for_card(struct ex_softc *sc)
 
 	return((count2 & Counter_bits) == ((count1 + 0xc0) & Counter_bits));
 }
+
+DRIVER_MODULE(ex, isa, ex_isa_driver, ex_devclass, 0, 0);
+ISA_PNP_INFO(ex_ids);

@@ -53,11 +53,11 @@ strncat(char *dst, const char *src, size_t n)
 		while (*d != 0)
 			d++;
 		do {
-			if ((*d = *s++) == 0)
+			if ((*d = *s++) == '\0')
 				break;
 			d++;
 		} while (--n != 0);
-		*d = 0;
+		*d = '\0';
 	}
 	return (dst);
 }

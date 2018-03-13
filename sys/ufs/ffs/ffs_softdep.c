@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 1998, 2000 Marshall Kirk McKusick.
  * Copyright 2009, 2010 Jeffrey W. Roberson <jeff@FreeBSD.org>
  * All rights reserved.
@@ -904,6 +906,7 @@ static	int request_cleanup(struct mount *, int);
 static	int softdep_request_cleanup_flush(struct mount *, struct ufsmount *);
 static	void schedule_cleanup(struct mount *);
 static void softdep_ast_cleanup_proc(struct thread *);
+static struct ufsmount *softdep_bp_to_mp(struct buf *bp);
 static	int process_worklist_item(struct mount *, int, int);
 static	void process_removes(struct vnode *);
 static	void process_truncates(struct vnode *);
@@ -1535,10 +1538,10 @@ remove_from_worklist(wk)
 	struct ufsmount *ump;
 
 	ump = VFSTOUFS(wk->wk_mp);
-	WORKLIST_REMOVE(wk);
 	if (ump->softdep_worklist_tail == wk)
 		ump->softdep_worklist_tail =
 		    (struct worklist *)wk->wk_list.le_prev;
+	WORKLIST_REMOVE(wk);
 	ump->softdep_on_worklist -= 1;
 }
 
@@ -1836,11 +1839,11 @@ process_worklist_item(mp, target, flags)
 		wake_worklist(wk);
 		add_to_worklist(wk, WK_HEAD);
 	}
-	LIST_REMOVE(&sentinel, wk_list);
 	/* Sentinal could've become the tail from remove_from_worklist. */
 	if (ump->softdep_worklist_tail == &sentinel)
 		ump->softdep_worklist_tail =
 		    (struct worklist *)sentinel.wk_list.le_prev;
+	LIST_REMOVE(&sentinel, wk_list);
 	PRELE(curproc);
 	return (matchcnt);
 }
@@ -2463,7 +2466,8 @@ softdep_mount(devvp, mp, fs, cred)
 	struct ufsmount *ump;
 	struct cg *cgp;
 	struct buf *bp;
-	int i, error, cyl;
+	u_int cyl, i;
+	int error;
 
 	sdp = malloc(sizeof(struct mount_softdeps), M_MOUNTDATA,
 	    M_WAITOK | M_ZERO);
@@ -2894,7 +2898,6 @@ remove_from_journal(wk)
 	if (ump->softdep_journal_tail == wk)
 		ump->softdep_journal_tail =
 		    (struct worklist *)wk->wk_list.le_prev;
-
 	WORKLIST_REMOVE(wk);
 	ump->softdep_on_journal -= 1;
 }
@@ -6902,7 +6905,7 @@ softdep_setup_freeblocks(ip, length, flags)
 	UFS_UNLOCK(ump);
 	DIP_SET(ip, i_blocks, DIP(ip, i_blocks) - datablocks);
 	/*
-	 * Push the zero'ed inode to to its disk buffer so that we are free
+	 * Push the zero'ed inode to its disk buffer so that we are free
 	 * to delete its dependencies below. Once the dependencies are gone
 	 * the buffer can be safely released.
 	 */
@@ -7248,9 +7251,9 @@ deallocate_dependencies(bp, freeblks, off)
 	struct worklist *wk, *wkn;
 	struct ufsmount *ump;
 
-	if ((wk = LIST_FIRST(&bp->b_dep)) == NULL)
+	ump = softdep_bp_to_mp(bp);
+	if (ump == NULL)
 		goto done;
-	ump = VFSTOUFS(wk->wk_mp);
 	ACQUIRE_LOCK(ump);
 	LIST_FOREACH_SAFE(wk, &bp->b_dep, wk_list, wkn) {
 		switch (wk->wk_type) {
@@ -9975,9 +9978,9 @@ softdep_disk_io_initiation(bp)
 		panic("softdep_disk_io_initiation: Writing buffer with "
 		    "background write in progress: %p", bp);
 
-	if ((wk = LIST_FIRST(&bp->b_dep)) == NULL)
+	ump = softdep_bp_to_mp(bp);
+	if (ump == NULL)
 		return;
-	ump = VFSTOUFS(wk->wk_mp);
 
 	marker.wk_type = D_LAST + 1;	/* Not a normal workitem */
 	PHOLD(curproc);			/* Don't swap out kernel stack */
@@ -10977,12 +10980,19 @@ softdep_disk_write_complete(bp)
 	struct freeblks *freeblks;
 	struct buf *sbp;
 
+	ump = softdep_bp_to_mp(bp);
+	if (ump == NULL)
+		return;
+
+	sbp = NULL;
+
 	/*
 	 * If an error occurred while doing the write, then the data
 	 * has not hit the disk and the dependencies cannot be processed.
 	 * But we do have to go through and roll forward any dependencies
 	 * that were rolled back before the disk write.
 	 */
+	ACQUIRE_LOCK(ump);
 	if ((bp->b_ioflags & BIO_ERROR) != 0 && (bp->b_flags & B_INVAL) == 0) {
 		LIST_FOREACH(wk, &bp->b_dep, wk_list) {
 			switch (wk->wk_type) {
@@ -11010,18 +11020,15 @@ softdep_disk_write_complete(bp)
 				continue;
 			}
 		}
+		FREE_LOCK(ump);
 		return;
 	}
-	if ((wk = LIST_FIRST(&bp->b_dep)) == NULL)
-		return;
-	ump = VFSTOUFS(wk->wk_mp);
 	LIST_INIT(&reattach);
+
 	/*
-	 * This lock must not be released anywhere in this code segment.
+	 * Ump SU lock must not be released anywhere in this code segment.
 	 */
-	sbp = NULL;
 	owk = NULL;
-	ACQUIRE_LOCK(ump);
 	while ((wk = LIST_FIRST(&bp->b_dep)) != NULL) {
 		WORKLIST_REMOVE(wk);
 		atomic_add_long(&dep_write[wk->wk_type], 1);
@@ -13892,6 +13899,40 @@ softdep_freework(wkhd)
 	FREE_LOCK(ump);
 }
 
+static struct ufsmount *
+softdep_bp_to_mp(bp)
+	struct buf *bp;
+{
+	struct mount *mp;
+	struct vnode *vp;
+
+	if (LIST_EMPTY(&bp->b_dep))
+		return (NULL);
+	vp = bp->b_vp;
+
+	/*
+	 * The ump mount point is stable after we get a correct
+	 * pointer, since bp is locked and this prevents unmount from
+	 * proceeding.  But to get to it, we cannot dereference bp->b_dep
+	 * head wk_mp, because we do not yet own SU ump lock and
+	 * workitem might be freed while dereferenced.
+	 */
+retry:
+	if (vp->v_type == VCHR) {
+		VI_LOCK(vp);
+		mp = vp->v_type == VCHR ? vp->v_rdev->si_mountpt : NULL;
+		VI_UNLOCK(vp);
+		if (mp == NULL)
+			goto retry;
+	} else if (vp->v_type == VREG || vp->v_type == VDIR ||
+	    vp->v_type == VLNK) {
+		mp = vp->v_mount;
+	} else {
+		return (NULL);
+	}
+	return (VFSTOUFS(mp));
+}
+
 /*
  * Function to determine if the buffer has outstanding dependencies
  * that will cause a roll-back if the buffer is written. If wantcount
@@ -13915,36 +13956,12 @@ softdep_count_dependencies(bp, wantcount)
 	struct newblk *newblk;
 	struct mkdir *mkdir;
 	struct diradd *dap;
-	struct vnode *vp;
-	struct mount *mp;
 	int i, retval;
 
+	ump = softdep_bp_to_mp(bp);
+	if (ump == NULL)
+		return (0);
 	retval = 0;
-	if (LIST_EMPTY(&bp->b_dep))
-		return (0);
-	vp = bp->b_vp;
-
-	/*
-	 * The ump mount point is stable after we get a correct
-	 * pointer, since bp is locked and this prevents unmount from
-	 * proceed.  But to get to it, we cannot dereference bp->b_dep
-	 * head wk_mp, because we do not yet own SU ump lock and
-	 * workitem might be freed while dereferenced.
-	 */
-retry:
-	if (vp->v_type == VCHR) {
-		VI_LOCK(vp);
-		mp = vp->v_type == VCHR ? vp->v_rdev->si_mountpt : NULL;
-		VI_UNLOCK(vp);
-		if (mp == NULL)
-			goto retry;
-	} else if (vp->v_type == VREG) {
-		mp = vp->v_mount;
-	} else {
-		return (0);
-	}
-	ump = VFSTOUFS(mp);
-
 	ACQUIRE_LOCK(ump);
 	LIST_FOREACH(wk, &bp->b_dep, wk_list) {
 		switch (wk->wk_type) {
@@ -14128,11 +14145,7 @@ getdirtybuf(bp, lock, waitfor)
 		BUF_UNLOCK(bp);
 		if (waitfor != MNT_WAIT)
 			return (NULL);
-		/*
-		 * The lock argument must be bp->b_vp's mutex in
-		 * this case.
-		 */
-#ifdef	DEBUG_VFS_LOCKS
+#ifdef DEBUG_VFS_LOCKS
 		if (bp->b_vp->v_type != VCHR)
 			ASSERT_BO_WLOCKED(bp->b_bufobj);
 #endif
@@ -14289,25 +14302,14 @@ softdep_get_depcounts(struct mount *mp,
 
 /*
  * Wait for pending output on a vnode to complete.
- * Must be called with vnode lock and interlock locked.
- *
- * XXX: Should just be a call to bufobj_wwait().
  */
 static void
 drain_output(vp)
 	struct vnode *vp;
 {
-	struct bufobj *bo;
 
-	bo = &vp->v_bufobj;
 	ASSERT_VOP_LOCKED(vp, "drain_output");
-	ASSERT_BO_WLOCKED(bo);
-
-	while (bo->bo_numoutput) {
-		bo->bo_flag |= BO_WWAIT;
-		msleep((caddr_t)&bo->bo_numoutput,
-		    BO_LOCKPTR(bo), PRIBIO + 1, "drainvp", 0);
-	}
+	(void)bufobj_wwait(&vp->v_bufobj, 0, 0);
 }
 
 /*

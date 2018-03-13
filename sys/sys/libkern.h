@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -78,6 +80,13 @@ hex2ascii(int hex)
 	KASSERT(hex >= 0 && hex < LIBKERN_LEN_HEX2ASCII,
 	    ("invalid hex %d", hex));
 	return (hex2ascii_data[hex]);
+}
+
+static inline bool
+validbcd(int bcd)
+{
+
+	return (bcd == 0 || (bcd > 0 && bcd <= 0x99 && bcd2bin_data[bcd] != 0));
 }
 
 static __inline int imax(int a, int b) { return (a > b ? a : b); }

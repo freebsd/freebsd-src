@@ -74,6 +74,13 @@ writel(uint32_t b, void *addr)
         *(volatile uint32_t *)addr = b;
 }
 
+#undef writel_relaxed
+static inline void
+writel_relaxed(uint32_t b, void *addr)
+{
+	*(volatile uint32_t *)addr = b;
+}
+
 #undef writeq
 static inline void
 writeq(uint64_t b, void *addr)
@@ -107,6 +114,13 @@ static inline uint16_t
 ioread16(const volatile void *addr)
 {
 	return *(const volatile uint16_t *)addr;
+}
+
+#undef ioread16be
+static inline uint16_t
+ioread16be(const volatile void *addr)
+{
+	return be16toh(*(const volatile uint16_t *)addr);
 }
 
 #undef ioread32

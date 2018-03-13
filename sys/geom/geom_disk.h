@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003 Poul-Henning Kamp
  * All rights reserved.
  *
@@ -36,6 +38,11 @@
 
 #ifndef _GEOM_GEOM_DISK_H_
 #define _GEOM_GEOM_DISK_H_
+
+#define	DISK_RR_UNKNOWN		0
+#define	DISK_RR_NON_ROTATING	1
+#define	DISK_RR_MIN		0x0401
+#define	DISK_RR_MAX		0xfffe
 
 #ifdef _KERNEL 
 
@@ -119,18 +126,14 @@ struct disk {
 	LIST_HEAD(,disk_alias)	d_aliases;
 };
 
-#define DISKFLAG_RESERVED	0x1	/* Was NEEDSGIANT */
-#define DISKFLAG_OPEN		0x2
-#define DISKFLAG_CANDELETE	0x4
-#define DISKFLAG_CANFLUSHCACHE	0x8
-#define	DISKFLAG_UNMAPPED_BIO	0x10
-#define	DISKFLAG_DIRECT_COMPLETION	0x20
-#define	DISKFLAG_CANZONE	0x80
-
-#define	DISK_RR_UNKNOWN		0
-#define	DISK_RR_NON_ROTATING	1
-#define	DISK_RR_MIN		0x0401
-#define	DISK_RR_MAX		0xfffe
+#define	DISKFLAG_RESERVED		0x0001	/* Was NEEDSGIANT */
+#define	DISKFLAG_OPEN			0x0002
+#define	DISKFLAG_CANDELETE		0x0004
+#define	DISKFLAG_CANFLUSHCACHE		0x0008
+#define	DISKFLAG_UNMAPPED_BIO		0x0010
+#define	DISKFLAG_DIRECT_COMPLETION	0x0020
+#define	DISKFLAG_CANZONE		0x0080
+#define	DISKFLAG_WRITE_PROTECT		0x0100
 
 struct disk *disk_alloc(void);
 void disk_create(struct disk *disk, int version);

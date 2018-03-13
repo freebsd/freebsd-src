@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008,	Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
  *
@@ -110,6 +112,7 @@ LIST_HEAD(setlist, cpuset);
  */
 struct cpuset {
 	cpuset_t		cs_mask;	/* bitmask of valid cpus. */
+	struct domainset	*cs_domain;	/* (c) NUMA policy. */
 	volatile u_int		cs_ref;		/* (a) Reference count. */
 	int			cs_flags;	/* (s) Flags from below. */
 	cpusetid_t		cs_id;		/* (s) Id or INVALID. */

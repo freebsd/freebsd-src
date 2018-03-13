@@ -15,11 +15,14 @@ CFLAGS+= -I${SRCTOP}/libexec/rtld-elf
 MAN=	sysdecode.3 \
 	sysdecode_abi_to_freebsd_errno.3 \
 	sysdecode_cap_rights.3 \
+	sysdecode_cmsg_type.3 \
 	sysdecode_enum.3 \
 	sysdecode_fcntl_arg.3 \
+	sysdecode_kevent.3 \
 	sysdecode_ioctlname.3 \
 	sysdecode_mask.3 \
 	sysdecode_quotactl_cmd.3 \
+	sysdecode_sctp_sinfo_flags.3 \
 	sysdecode_sigcode.3 \
 	sysdecode_sockopt_name.3 \
 	sysdecode_socket_protocol.3 \
@@ -49,6 +52,7 @@ MLINKS+=sysdecode_enum.3 sysdecode_acltype.3 \
 	sysdecode_enum.3 sysdecode_rlimit.3 \
 	sysdecode_enum.3 sysdecode_rtprio_function.3 \
 	sysdecode_enum.3 sysdecode_scheduler_policy.3 \
+	sysdecode_enum.3 sysdecode_sctp_pr_policy.3 \
 	sysdecode_enum.3 sysdecode_semctl_cmd.3 \
 	sysdecode_enum.3 sysdecode_shmctl_cmd.3 \
 	sysdecode_enum.3 sysdecode_shutdown_how.3 \
@@ -69,6 +73,9 @@ MLINKS+=sysdecode_enum.3 sysdecode_acltype.3 \
 	sysdecode_enum.3 sysdecode_vmresult.3 \
 	sysdecode_enum.3 sysdecode_whence.3
 MLINKS+=sysdecode_fcntl_arg.3 sysdecode_fcntl_arg_p.3
+MLINKS+=sysdecode_kevent.3 sysdecode_kevent_fflags.3 \
+	sysdecode_kevent.3 sysdecode_kevent_filter.3 \
+	sysdecode_kevent.3 sysdecode_kevent_flags.3
 MLINKS+=sysdecode_mask.3 sysdecode_accessmode.3 \
 	sysdecode_mask.3 sysdecode_atflags.3 \
 	sysdecode_mask.3 sysdecode_capfcntlrights.3 \
@@ -89,6 +96,9 @@ MLINKS+=sysdecode_mask.3 sysdecode_accessmode.3 \
 	sysdecode_mask.3 sysdecode_semget_flags.3 \
 	sysdecode_mask.3 sysdecode_sendfile_flags.3 \
 	sysdecode_mask.3 sysdecode_shmat_flags.3 \
+	sysdecode_mask.3 sysdecode_sctp_nxt_flags.3 \
+	sysdecode_mask.3 sysdecode_sctp_rcv_flags.3 \
+	sysdecode_mask.3 sysdecode_sctp_snd_flags.3 \
 	sysdecode_mask.3 sysdecode_socket_type.3 \
 	sysdecode_mask.3 sysdecode_thr_create_flags.3 \
 	sysdecode_mask.3 sysdecode_umtx_cvwait_flags.3 \

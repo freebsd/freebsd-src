@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2009 Bruce Simpson.
  * Copyright (c) 2000 Wilbert De Graaf.
  * All rights reserved.

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Thomas Skibo
  * Copyright (c) 2008 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
@@ -57,14 +59,18 @@ __FBSDID("$FreeBSD$");
 #include "mmcbr_if.h"
 #include "sdhci_if.h"
 
+#include "opt_mmccam.h"
+
 #define	MAX_SLOTS		6
 #define	SDHCI_FDT_ARMADA38X	1
 #define	SDHCI_FDT_GENERIC	2
 #define	SDHCI_FDT_XLNX_ZY7	3
+#define	SDHCI_FDT_QUALCOMM	4
 
 static struct ofw_compat_data compat_data[] = {
 	{ "marvell,armada-380-sdhci",	SDHCI_FDT_ARMADA38X },
 	{ "sdhci_generic",		SDHCI_FDT_GENERIC },
+	{ "qcom,sdhci-msm-v4",		SDHCI_FDT_QUALCOMM },
 	{ "xlnx,zy7_sdhci",		SDHCI_FDT_XLNX_ZY7 },
 	{ NULL, 0 }
 };
@@ -198,6 +204,10 @@ sdhci_fdt_probe(device_t dev)
 		break;
 	case SDHCI_FDT_GENERIC:
 		device_set_desc(dev, "generic fdt SDHCI controller");
+		break;
+	case SDHCI_FDT_QUALCOMM:
+		sc->quirks = SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE;
+		device_set_desc(dev, "Qualcomm FDT SDHCI controller");
 		break;
 	case SDHCI_FDT_XLNX_ZY7:
 		sc->quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK;
@@ -343,5 +353,7 @@ static devclass_t sdhci_fdt_devclass;
 
 DRIVER_MODULE(sdhci_fdt, simplebus, sdhci_fdt_driver, sdhci_fdt_devclass,
     NULL, NULL);
+#ifndef MMCCAM
 MODULE_DEPEND(sdhci_fdt, sdhci, 1, 1, 1);
 MMC_DECLARE_BRIDGE(sdhci_fdt);
+#endif

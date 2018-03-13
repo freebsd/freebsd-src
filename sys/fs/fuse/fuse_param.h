@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007-2009 Google Inc. and Amit Singh
  * All rights reserved.
  * 
@@ -75,6 +77,6 @@
 
 #endif
 
-#define FUSE_LINK_MAX                      LINK_MAX
+#define FUSE_LINK_MAX                      UINT32_MAX
 
 #endif /* _FUSE_PARAM_H_ */

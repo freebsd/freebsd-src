@@ -236,9 +236,11 @@ static struct _pcsid
 	{ 0x6f278086, "BDX IOAT Ch7" },
 	{ 0x6f2e8086, "BDX IOAT Ch0 (RAID)" },
 	{ 0x6f2f8086, "BDX IOAT Ch1 (RAID)" },
+
+	{ 0x20218086, "SKX IOAT" },
 };
 
-MODULE_PNP_INFO("W32:vendor/device;D:human", pci, ioat, pci_ids,
+MODULE_PNP_INFO("W32:vendor/device;D:#", pci, ioat, pci_ids,
     sizeof(pci_ids[0]), nitems(pci_ids));
 
 /*

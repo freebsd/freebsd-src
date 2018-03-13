@@ -1,4 +1,4 @@
-/*
+/*-
  * $FreeBSD$
  *
  * Copyright (c) 2002-2004 David Boggs. <boggs@boggs.palo-alto.ca.us>
@@ -3821,7 +3821,6 @@ setup_ifnet(struct ifnet *ifp)
 
 # if defined(DEVICE_POLLING)
   ifp->if_capabilities |= IFCAP_POLLING;
-  ifp->if_capenable    |= IFCAP_POLLING_NOCOUNT;
 # endif
 
   if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));

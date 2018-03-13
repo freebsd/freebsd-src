@@ -35,11 +35,11 @@
 
 #include <netdissect-stdinc.h>
 
-#include "ip6.h"
-
 #include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
+
+#include "ip6.h"
 
 static void
 ip6_sopt_print(netdissect_options *ndo, const u_char *bp, int len)

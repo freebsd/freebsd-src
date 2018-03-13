@@ -60,7 +60,7 @@ struct fpu_kern_ctx;
 
 struct fpu_kern_ctx *fpu_kern_alloc_ctx(u_int);
 void fpu_kern_free_ctx(struct fpu_kern_ctx *);
-int fpu_kern_enter(struct thread *, struct fpu_kern_ctx *, u_int);
+void fpu_kern_enter(struct thread *, struct fpu_kern_ctx *, u_int);
 int fpu_kern_leave(struct thread *, struct fpu_kern_ctx *);
 int fpu_kern_thread(u_int);
 int is_fpu_kern_thread(u_int);

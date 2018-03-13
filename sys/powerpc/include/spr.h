@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -168,6 +170,7 @@
 #define	  IBMPOWER3PLUS		  0x0041
 #define	  IBM970MP		  0x0044
 #define	  IBM970GX		  0x0045
+#define	  IBMPOWERPCA2		  0x0049
 #define	  IBMPOWER7PLUS		  0x004a
 #define	  IBMPOWER8E		  0x004b
 #define	  IBMPOWER8		  0x004d
@@ -197,6 +200,16 @@
 #define	  FSL_E300C3		  0x8085
 #define	  FSL_E300C4		  0x8086
 
+#define	SPR_LPCR		0x13e	/* Logical Partitioning Control */
+#define	  LPCR_LPES		0x008	/* Bit 60 */
+#define   LPCR_PECE_DRBL        (1ULL << 16)    /* Directed Privileged Doorbell */
+#define   LPCR_PECE_HDRBL       (1ULL << 15)    /* Directed Hypervisor Doorbell */
+#define   LPCR_PECE_EXT         (1ULL << 14)    /* External exceptions */
+#define   LPCR_PECE_DECR        (1ULL << 13)    /* Decrementer exceptions */
+#define   LPCR_PECE_ME          (1ULL << 12)    /* Machine Check and Hypervisor */
+                                                /* Maintenance exceptions */
+#define   LPCR_PECE_WAKESET     (LPCR_PECE_EXT | LPCR_PECE_DECR | LPCR_PECE_ME)
+ 
 #define	SPR_EPCR		0x133
 #define	  EPCR_EXTGS		  0x80000000
 #define	  EPCR_DTLBGS		  0x40000000
@@ -210,6 +223,11 @@
 #define	  EPCR_DMIUH		  0x00400000
 #define	  EPCR_PMGS		  0x00200000
 #define	SPR_SPEFSCR		0x200	/* ..8 Signal Processing Engine FSCR. */
+
+#define	SPR_LPCR		0x13e	/* Logical Partitioning Control */
+#define	  LPCR_LPES		0x008	/* Bit 60 */
+#define	SPR_LPID		0x13f	/* Logical Partitioning Control */
+
 #define	SPR_IBAT0U		0x210	/* .68 Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0U		0x210	/* .6. Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0L		0x211	/* .6. Instruction BAT Reg 0 Lower */
@@ -657,19 +675,7 @@
 #define	PMC970N_CYCLES		0xf /* Processor cycles */
 #define	PMC970N_ICOMP		0x9 /* Instructions completed */
 
-#if defined(AIM)
-
-#define	SPR_ESR			0x3d4	/* 4.. Exception Syndrome Register */
-#define	  ESR_MCI		  0x80000000 /* Machine check - instruction */
-#define	  ESR_PIL		  0x08000000 /* Program interrupt - illegal */
-#define	  ESR_PPR		  0x04000000 /* Program interrupt - privileged */
-#define	  ESR_PTR		  0x02000000 /* Program interrupt - trap */
-#define	  ESR_ST		  0x01000000 /* Store operation */
-#define	  ESR_DST		  0x00800000 /* Data storage interrupt - store fault */
-#define	  ESR_DIZ		  0x00800000 /* Data/instruction storage interrupt - zone fault */
-#define	  ESR_U0F		  0x00008000 /* Data storage interrupt - U0 fault */
-
-#elif defined(BOOKE)
+#if defined(BOOKE)
 
 #define	SPR_MCARU		0x239	/* ..8 Machine Check Address register upper bits */
 #define	SPR_MCSR		0x23c	/* ..8 Machine Check Syndrome register */
@@ -736,6 +742,8 @@
 #define	  SVR_P4040E		  0x8208
 #define	  SVR_P4080		  0x8201
 #define	  SVR_P4080E		  0x8209
+#define	  SVR_P5010		  0x8221
+#define	  SVR_P5010E		  0x8229
 #define	  SVR_P5020		  0x8220
 #define	  SVR_P5020E		  0x8228
 #define	  SVR_P5021		  0x8205

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-4-Clause AND MIT-CMU)
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1994 John S. Dyson
@@ -785,7 +787,7 @@ RetryFault:;
 			}
 			if (fs.m == NULL) {
 				unlock_and_deallocate(&fs);
-				VM_WAITPFAULT;
+				vm_waitpfault();
 				goto RetryFault;
 			}
 		}
@@ -1133,6 +1135,10 @@ readrest:
 				 */
 				pmap_copy_page(fs.m, fs.first_m);
 				fs.first_m->valid = VM_PAGE_BITS_ALL;
+				if ((fault_flags & VM_FAULT_WIRE) == 0) {
+					prot &= ~VM_PROT_WRITE;
+					fault_type &= ~VM_PROT_WRITE;
+				}
 				if (wired && (fault_flags &
 				    VM_FAULT_WIRE) == 0) {
 					vm_page_lock(fs.first_m);
@@ -1217,6 +1223,12 @@ readrest:
 			 * write-enabled after all.
 			 */
 			prot &= retry_prot;
+			fault_type &= retry_prot;
+			if (prot == 0) {
+				release_page(&fs);
+				unlock_and_deallocate(&fs);
+				goto RetryFault;
+			}
 		}
 	}
 
@@ -1587,6 +1599,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 	KASSERT(upgrade || dst_entry->object.vm_object == NULL,
 	    ("vm_fault_copy_entry: vm_object not NULL"));
 	if (src_object != dst_object) {
+		dst_object->domain = src_object->domain;
 		dst_entry->object.vm_object = dst_object;
 		dst_entry->offset = 0;
 		dst_object->charge = dst_entry->end - dst_entry->start;
@@ -1672,7 +1685,7 @@ again:
 			if (dst_m == NULL) {
 				VM_OBJECT_WUNLOCK(dst_object);
 				VM_OBJECT_RUNLOCK(object);
-				VM_WAIT;
+				vm_wait(dst_object);
 				VM_OBJECT_WLOCK(dst_object);
 				goto again;
 			}

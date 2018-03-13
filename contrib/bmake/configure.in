@@ -1,11 +1,11 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.57 2016/06/07 00:49:44 sjg Exp $
+dnl	$Id: configure.in,v 1.59 2017/11/26 22:39:20 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 AC_PREREQ(2.50)
-AC_INIT([bmake], [20160606], [sjg@NetBSD.org])
+AC_INIT([bmake], [20171126], [sjg@NetBSD.org])
 AC_CONFIG_HEADERS(config.h)
 
 dnl make srcdir absolute
@@ -13,6 +13,9 @@ case "$srcdir" in
 /*) ;;
 *) srcdir=`cd $srcdir && pwd`;;
 esac
+
+dnl get _MAKE_VERSION
+. $srcdir/VERSION
 
 dnl
 AC_ARG_WITH(defshell,
@@ -386,6 +389,7 @@ AC_SUBST(GCC)
 AC_SUBST(diff_u)
 AC_SUBST(use_meta)
 AC_SUBST(filemon_h)
+AC_SUBST(_MAKE_VERSION)
 AC_OUTPUT(makefile Makefile.config make-bootstrap.sh unit-tests/Makefile)
 
 cat <<EOF

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1990, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -779,6 +781,7 @@ sched_fork_thread(struct thread *td, struct thread *childtd)
 	childtd->td_lastcpu = NOCPU;
 	childtd->td_lock = &sched_lock;
 	childtd->td_cpuset = cpuset_ref(td->td_cpuset);
+	childtd->td_domain.dr_policy = td->td_cpuset->cs_domain;
 	childtd->td_priority = childtd->td_base_pri;
 	ts = td_get_sched(childtd);
 	bzero(ts, sizeof(*ts));

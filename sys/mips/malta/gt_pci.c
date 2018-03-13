@@ -1,6 +1,8 @@
 /*	$NetBSD: gt_pci.c,v 1.4 2003/07/15 00:24:54 lukem Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001, 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *

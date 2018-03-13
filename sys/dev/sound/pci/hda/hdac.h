@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Stephane E. Potvin <sepotvin@videotron.ca>
  * All rights reserved.
  *
@@ -149,6 +151,10 @@
 /* RDC */
 #define RDC_VENDORID		0x17f3
 #define HDA_RDC_M3010		HDA_MODEL_CONSTRUCT(RDC, 0x3010)
+
+/* Creative */
+#define CREATIVE_VENDORID	0x1102
+#define HDA_CREATIVE_ALL	HDA_MODEL_CONSTRUCT(CREATIVE, 0xffff)
 
 /* VIA */
 #define VIA_VENDORID		0x1106

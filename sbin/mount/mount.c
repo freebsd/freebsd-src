@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -587,11 +589,8 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 		optbuf = catopt(optbuf, "update");
 
 	/* Compatibility glue. */
-	if (strcmp(vfstype, "msdos") == 0) {
-		warnx(
-		    "Using \"-t msdosfs\", since \"-t msdos\" is deprecated.");
+	if (strcmp(vfstype, "msdos") == 0)
 		vfstype = "msdosfs";
-	}
 
 	/* Construct the name of the appropriate mount command */
 	(void)snprintf(execname, sizeof(execname), "mount_%s", vfstype);

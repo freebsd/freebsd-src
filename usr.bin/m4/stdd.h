@@ -2,6 +2,8 @@
 /*	$NetBSD: stdd.h,v 1.2 1995/09/28 05:37:50 tls Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

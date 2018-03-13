@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2008 Joseph Koshy
  * All rights reserved.
  *
@@ -3268,7 +3270,8 @@ pmc_init(void)
 	cpu_info.pm_npmc    = op_cpu_info.pm_npmc;
 	cpu_info.pm_nclass  = op_cpu_info.pm_nclass;
 	for (n = 0; n < cpu_info.pm_nclass; n++)
-		cpu_info.pm_classes[n] = op_cpu_info.pm_classes[n];
+		memcpy(&cpu_info.pm_classes[n], &op_cpu_info.pm_classes[n],
+		    sizeof(cpu_info.pm_classes[n]));
 
 	pmc_class_table = malloc(PMC_CLASS_TABLE_SIZE *
 	    sizeof(struct pmc_class_descr *));

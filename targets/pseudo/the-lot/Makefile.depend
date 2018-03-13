@@ -10,7 +10,7 @@ DIRDEPS = \
 	targets/pseudo/userland \
 
 .if ${MK_TESTS} != "no"
-DIRDEPS+= targes/pseudo/tests
+DIRDEPS+= targets/pseudo/tests
 .endif
 
 .include <dirdeps.mk>

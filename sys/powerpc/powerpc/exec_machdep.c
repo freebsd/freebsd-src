@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
  * All rights reserved.
@@ -152,7 +154,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Fill siginfo structure.
 	 */
 	ksi->ksi_info.si_signo = ksi->ksi_signo;
-	ksi->ksi_info.si_addr = (void *)((tf->exc == EXC_DSI) ? 
+	ksi->ksi_info.si_addr =
+	    (void *)((tf->exc == EXC_DSI || tf->exc == EXC_DSE) ? 
 	    tf->dar : tf->srr0);
 
 	#ifdef COMPAT_FREEBSD32
@@ -451,7 +454,7 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	/*
 	 * Don't let the user set privileged MSR bits
 	 */
-	if ((mcp->mc_srr1 & PSL_USERSTATIC) != (tf->srr1 & PSL_USERSTATIC)) {
+	if ((mcp->mc_srr1 & psl_userstatic) != (tf->srr1 & psl_userstatic)) {
 		return (EINVAL);
 	}
 
@@ -520,22 +523,11 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	 *	- ps_strings is a NetBSD extention, and will be
 	 * 	  ignored by executables which are strictly
 	 *	  compliant with the SVR4 ABI.
-	 *
-	 * XXX We have to set both regs and retval here due to different
-	 * XXX calling convention in trap.c and init_main.c.
 	 */
 
 	/* Collect argc from the user stack */
 	argc = fuword((void *)stack);
 
-        /*
-         * XXX PG: these get overwritten in the syscall return code.
-         * execve() should return EJUSTRETURN, like it does on NetBSD.
-         * Emulate by setting the syscall return value cells. The
-         * registers still have to be set for init's fork trampoline.
-         */
-        td->td_retval[0] = argc;
-        td->td_retval[1] = stack + sizeof(register_t);
 	tf->fixreg[3] = argc;
 	tf->fixreg[4] = stack + sizeof(register_t);
 	tf->fixreg[5] = stack + (2 + argc)*sizeof(register_t);
@@ -546,16 +538,8 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	tf->srr0 = imgp->entry_addr;
 	#ifdef __powerpc64__
 	tf->fixreg[12] = imgp->entry_addr;
-	#ifdef AIM
-	tf->srr1 = PSL_SF | PSL_USERSET | PSL_FE_DFLT;
-	if (mfmsr() & PSL_HV)
-		tf->srr1 |= PSL_HV;
-	#elif defined(BOOKE)
-	tf->srr1 = PSL_CM | PSL_USERSET | PSL_FE_DFLT;
 	#endif
-	#else
-	tf->srr1 = PSL_USERSET | PSL_FE_DFLT;
-	#endif
+	tf->srr1 = psl_userset | PSL_FE_DFLT;
 	td->td_pcb->pcb_flags = 0;
 }
 
@@ -572,8 +556,6 @@ ppc32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 
 	argc = fuword32((void *)stack);
 
-        td->td_retval[0] = argc;
-        td->td_retval[1] = stack + sizeof(uint32_t);
 	tf->fixreg[3] = argc;
 	tf->fixreg[4] = stack + sizeof(uint32_t);
 	tf->fixreg[5] = stack + (2 + argc)*sizeof(uint32_t);
@@ -582,14 +564,7 @@ ppc32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	tf->fixreg[8] = (register_t)imgp->ps_strings;	/* NetBSD extension */
 
 	tf->srr0 = imgp->entry_addr;
-	tf->srr1 = PSL_USERSET | PSL_FE_DFLT;
-#ifdef AIM
-	tf->srr1 &= ~PSL_SF;
-	if (mfmsr() & PSL_HV)
-		tf->srr1 |= PSL_HV;
-#elif defined(BOOKE)
-	tf->srr1 &= ~PSL_CM;
-#endif
+	tf->srr1 = psl_userset32 | PSL_FE_DFLT;
 	td->td_pcb->pcb_flags = 0;
 }
 #endif
@@ -1000,7 +975,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
-	td->td_md.md_saved_msr = PSL_KERNSET;
+	td->td_md.md_saved_msr = psl_kernset;
 }
 
 void
@@ -1025,9 +1000,10 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	tf->fixreg[3] = (register_t)arg;
 	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		tf->srr0 = (register_t)entry;
-		tf->srr1 = PSL_USERSET | PSL_FE_DFLT;
 		#ifdef __powerpc64__
-		tf->srr1 &= ~PSL_SF;
+		tf->srr1 = psl_userset32 | PSL_FE_DFLT;
+		#else
+		tf->srr1 = psl_userset | PSL_FE_DFLT;
 		#endif
 	} else {
 	    #ifdef __powerpc64__
@@ -1036,14 +1012,10 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 		tf->srr0 = entry_desc[0];
 		tf->fixreg[2] = entry_desc[1];
 		tf->fixreg[11] = entry_desc[2];
-		tf->srr1 = PSL_SF | PSL_USERSET | PSL_FE_DFLT;
+		tf->srr1 = psl_userset | PSL_FE_DFLT;
 	    #endif
 	}
 
-	#ifdef __powerpc64__
-	if (mfmsr() & PSL_HV)
-		tf->srr1 |= PSL_HV;
-	#endif
 	td->td_pcb->pcb_flags = 0;
 
 	td->td_retval[0] = (register_t)entry;

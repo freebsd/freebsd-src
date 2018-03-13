@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003 Peter Wemm.
  * Copyright (c) 1993 The Regents of the University of California.
  * All rights reserved.
@@ -832,6 +834,20 @@ static __inline void
 intr_restore(register_t rflags)
 {
 	write_rflags(rflags);
+}
+
+static __inline void
+stac(void)
+{
+
+	__asm __volatile("stac" : : : "cc");
+}
+
+static __inline void
+clac(void)
+{
+
+	__asm __volatile("clac" : : : "cc");
 }
 
 enum {

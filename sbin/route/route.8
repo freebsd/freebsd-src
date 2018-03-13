@@ -28,7 +28,7 @@
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd November 11, 2014
+.Dd February 16, 2018
 .Dt ROUTE 8
 .Os
 .Sh NAME
@@ -133,7 +133,8 @@ The flush command has the syntax:
 .Pp
 .Bd -ragged -offset indent -compact
 .Nm
-.Oo Fl n Cm flush Oc Oo Ar family Oc Op Fl fib Ar number
+.Op Fl n
+.Cm flush Oc Oo Ar family Oc Op Fl fib Ar number
 .Ed
 .Pp
 If the
@@ -164,15 +165,27 @@ option is specified, the operation will be applied to
 the specified FIB
 .Pq routing table .
 .Pp
-The other commands have the following syntax:
+The add command has the following syntax:
+.Pp
+.Bd -ragged -offset indent -compact
+.Nm
+.Op Fl n
+.Cm add
+.Op Fl net No \&| Fl host
+.Ar destination gateway
+.Op Ar netmask
+.Op Fl fib Ar number
+.Ed
+.Pp
+and the other commands have the following syntax:
 .Pp
 .Bd -ragged -offset indent -compact
 .Nm
 .Op Fl n
 .Ar command
 .Op Fl net No \&| Fl host
-.Ar destination gateway
-.Op Ar netmask
+.Ar destination
+.Op Ar gateway Op Ar netmask
 .Op Fl fib Ar number
 .Ed
 .Pp

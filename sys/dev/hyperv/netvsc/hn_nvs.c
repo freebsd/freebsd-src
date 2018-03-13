@@ -601,6 +601,11 @@ hn_nvs_attach(struct hn_softc *sc, int mtu)
 {
 	int error;
 
+	if (hyperv_ver_major >= 10) {
+		/* UDP 4-tuple hash is enforced. */
+		sc->hn_caps |= HN_CAP_UDPHASH;
+	}
+
 	/*
 	 * Initialize NVS.
 	 */

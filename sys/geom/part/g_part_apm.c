@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006-2008 Marcel Moolenaar
  * All rights reserved.
  *
@@ -207,7 +209,7 @@ apm_read_ent(struct g_consumer *cp, uint32_t blk, struct apm_ent *ent,
 }
 
 static int
-g_part_apm_add(struct g_part_table *basetable, struct g_part_entry *baseentry, 
+g_part_apm_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
     struct g_part_parms *gpp)
 {
 	struct g_part_apm_entry *entry;

@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/regulator/regulator.h>
 #include <dev/extres/phy/phy.h>
 
-#include "phy_if.h"
+#include "phynode_if.h"
 
 enum awusbphy_type {
 	AWUSBPHY_TYPE_A10 = 1,
@@ -59,7 +59,8 @@ enum awusbphy_type {
 	AWUSBPHY_TYPE_A20,
 	AWUSBPHY_TYPE_A31,
 	AWUSBPHY_TYPE_H3,
-	AWUSBPHY_TYPE_A64
+	AWUSBPHY_TYPE_A64,
+	AWUSBPHY_TYPE_A83T
 };
 
 struct aw_usbphy_conf {
@@ -111,6 +112,13 @@ static const struct aw_usbphy_conf a64_usbphy_conf = {
 	.phy0_route = true,
 };
 
+static const struct aw_usbphy_conf a83t_usbphy_conf = {
+	.num_phys = 3,
+	.phy_type = AWUSBPHY_TYPE_A83T,
+	.pmu_unk1 = false,
+	.phy0_route = false,
+};
+
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-usb-phy",	(uintptr_t)&a10_usbphy_conf },
 	{ "allwinner,sun5i-a13-usb-phy",	(uintptr_t)&a13_usbphy_conf },
@@ -118,6 +126,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun7i-a20-usb-phy",	(uintptr_t)&a20_usbphy_conf },
 	{ "allwinner,sun8i-h3-usb-phy",		(uintptr_t)&h3_usbphy_conf },
 	{ "allwinner,sun50i-a64-usb-phy",	(uintptr_t)&a64_usbphy_conf },
+	{ "allwinner,sun8i-a83t-usb-phy",	(uintptr_t)&a83t_usbphy_conf },
 	{ NULL,					0 }
 };
 
@@ -131,6 +140,16 @@ struct awusbphy_softc {
 	int			vbus_det_valid;
 	struct aw_usbphy_conf	*phy_conf;
 };
+
+ /* Phy class and methods. */
+static int awusbphy_phy_enable(struct phynode *phy, bool enable);
+static phynode_method_t awusbphy_phynode_methods[] = {
+	PHYNODEMETHOD(phynode_enable, awusbphy_phy_enable),
+
+	PHYNODEMETHOD_END
+};
+DEFINE_CLASS_1(awusbphy_phynode, awusbphy_phynode_class, awusbphy_phynode_methods,
+    0, phynode_class);
 
 #define	RD4(res, o)	bus_read_4(res, (o))
 #define	WR4(res, o, v)	bus_write_4(res, (o), (v))
@@ -273,12 +292,16 @@ awusbphy_vbus_detect(device_t dev, int *val)
 }
 
 static int
-awusbphy_phy_enable(device_t dev, intptr_t phy, bool enable)
+awusbphy_phy_enable(struct phynode *phynode, bool enable)
 {
+	device_t dev;
+	intptr_t phy;
 	struct awusbphy_softc *sc;
 	regulator_t reg;
 	int error, vbus_det;
 
+	dev = phynode_get_device(phynode);
+	phy = phynode_get_id(phynode);
 	sc = device_get_softc(dev);
 
 	if (phy < 0 || phy >= sc->phy_conf->num_phys)
@@ -347,7 +370,12 @@ static int
 awusbphy_attach(device_t dev)
 {
 	int error;
+	struct phynode *phynode;
+	struct phynode_init_def phy_init;
+	struct awusbphy_softc *sc;
+	int i;
 
+	sc = device_get_softc(dev);
 	error = awusbphy_init(dev);
 	if (error) {
 		device_printf(dev, "failed to initialize USB PHY, error %d\n",
@@ -355,7 +383,22 @@ awusbphy_attach(device_t dev)
 		return (error);
 	}
 
-	phy_register_provider(dev);
+	/* Create and register phys. */
+	for (i = 0; i < sc->phy_conf->num_phys; i++) {
+		bzero(&phy_init, sizeof(phy_init));
+		phy_init.id = i;
+		phy_init.ofw_node = ofw_bus_get_node(dev);
+		phynode = phynode_create(dev, &awusbphy_phynode_class,
+		    &phy_init);
+		if (phynode == NULL) {
+			device_printf(dev, "failed to create USB PHY\n");
+			return (ENXIO);
+		}
+		if (phynode_register(phynode) == NULL) {
+			device_printf(dev, "failed to create USB PHY\n");
+			return (ENXIO);
+		}
+	}
 
 	return (error);
 }
@@ -364,9 +407,6 @@ static device_method_t awusbphy_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		awusbphy_probe),
 	DEVMETHOD(device_attach,	awusbphy_attach),
-
-	/* PHY interface */
-	DEVMETHOD(phy_enable,		awusbphy_phy_enable),
 
 	DEVMETHOD_END
 };
@@ -378,7 +418,7 @@ static driver_t awusbphy_driver = {
 };
 
 static devclass_t awusbphy_devclass;
-
+/* aw_usbphy needs to come up after regulators/gpio/etc, but before ehci/ohci */
 EARLY_DRIVER_MODULE(awusbphy, simplebus, awusbphy_driver, awusbphy_devclass,
-    0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
+    0, 0, BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(awusbphy, 1);

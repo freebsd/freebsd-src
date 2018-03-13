@@ -35,14 +35,6 @@ FTPMODE=	${FILESMODE}
 LINKS=	${FILESDIR}/ftpd ${FILESDIR}/ftp
 .endif
 
-.if ${MK_RCMDS} != "no"
-FILESGROUPS+=	RCMDS
-RCMDS+=		rsh
-RCMDSPACKAGE+=	rcmds
-RCMDSDIR=	${FILESDIR}
-RCMDSMODE=	${FILESMODE}
-.endif
-
 .if ${MK_TELNET} != "no"
 FILESGROUPS+=	TELNET
 TELNET+=	telnetd

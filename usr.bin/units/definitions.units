@@ -332,7 +332,7 @@ lumen			cd sr
 lux			cd sr/m2
 
 # EMU currencies have constant exchange rate against Euro since 1.1.1999.
-# See http://en.wikipedia.org/wiki/Euro for details.
+# See https://en.wikipedia.org/wiki/Euro for details.
 austriaschilling	1|13.7603 euro
 belgiumfranc		1|40.3399 euro
 finlandmarkka		1|5.94573 euro
@@ -351,7 +351,7 @@ malteselira		1|0.429300 euro
 slovakkoruna		1|30.1260 euro
 
 # These ones are pegged to the Euro
-# See http://en.wikipedia.org/wiki/Euro for details.
+# See https://en.wikipedia.org/wiki/Euro for details.
 bosniaherzegovinamark	1|1.95583 euro
 bulgarianlev		1|1.95583 euro
 capeverdeanescudo	1|110.265 euro
@@ -528,7 +528,7 @@ ZMW                    zambiakwacha
 ZWL                    zimbabwedollar
 
 # These ones are pegged on the US Dollar
-# See http://en.wikipedia.org/wiki/USD for details.
+# See https://en.wikipedia.org/wiki/USD for details.
 dollar			usdollar
 arubanflorin		1|1.75 usdollar
 bahamiandollar		1|1 usdollar

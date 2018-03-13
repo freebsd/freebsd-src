@@ -318,6 +318,8 @@ void dbuf_unoverride(dbuf_dirty_record_t *dr);
 void dbuf_sync_list(list_t *list, int level, dmu_tx_t *tx);
 void dbuf_release_bp(dmu_buf_impl_t *db);
 
+boolean_t dbuf_can_remap(const dmu_buf_impl_t *buf);
+
 void dbuf_free_range(struct dnode *dn, uint64_t start, uint64_t end,
     struct dmu_tx *);
 
@@ -346,6 +348,12 @@ boolean_t dbuf_is_metadata(dmu_buf_impl_t *db);
 	((_db)->db_objset->os_secondary_cache == ZFS_CACHE_ALL ||	\
 	(dbuf_is_metadata(_db) &&					\
 	((_db)->db_objset->os_secondary_cache == ZFS_CACHE_METADATA)))
+
+#define	DNODE_LEVEL_IS_L2CACHEABLE(_dn, _level)				\
+	((_dn)->dn_objset->os_secondary_cache == ZFS_CACHE_ALL ||	\
+	(((_level) > 0 ||						\
+	DMU_OT_IS_METADATA((_dn)->dn_handle->dnh_dnode->dn_type)) &&	\
+	((_dn)->dn_objset->os_secondary_cache == ZFS_CACHE_METADATA)))
 
 #ifdef ZFS_DEBUG
 

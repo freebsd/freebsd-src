@@ -817,8 +817,8 @@ lio_core_drv_init(struct lio_recv_info *recv_info, void *buf)
 	cs = &core_setup[oct->octeon_id];
 
 	if (recv_pkt->buffer_size[0] != (sizeof(*cs) + LIO_DROQ_INFO_SIZE)) {
-		lio_dev_dbg(oct, "Core setup bytes expected %lu found %d\n",
-			    (uint32_t)sizeof(*cs) + LIO_DROQ_INFO_SIZE,
+		lio_dev_dbg(oct, "Core setup bytes expected %llu found %d\n",
+			    LIO_CAST64(sizeof(*cs) + LIO_DROQ_INFO_SIZE),
 			    recv_pkt->buffer_size[0]);
 	}
 

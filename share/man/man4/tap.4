@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 .\" Based on PR#2411
 .\"
-.Dd April 10, 2015
+.Dd November 29, 2017
 .Dt TAP 4
 .Os
 .Sh NAME
@@ -171,7 +171,14 @@ calls are supported
 .In net/if_tap.h ) :
 .Bl -tag -width VMIO_SIOCSETMACADDR
 .It Dv TAPSIFINFO
-Set network interface information (line speed, MTU and type).
+Set network interface information (line speed and MTU).
+The type must be the same as returned by
+.Dv TAPGIFINFO
+or set to
+.Dv IFT_ETHER
+else the
+.Xr ioctl 2
+call will fail.
 The argument should be a pointer to a
 .Va struct tapinfo .
 .It Dv TAPGIFINFO

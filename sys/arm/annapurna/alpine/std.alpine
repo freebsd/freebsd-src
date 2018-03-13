@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 cpu		CPU_CORTEXA
-machine 	arm armv6
+machine 	arm armv7
 makeoptions	CONF_CFLAGS="-march=armv7a -DAL_HAVE_TYPES"
 
 makeoptions	KERNVIRTADDR=0xa0200000

@@ -12,7 +12,7 @@
  */
 enum {
 	LINUX_UNAME26 =			0x0020000,
-	LINUX_ADDR_NO_RANDOMIZE = 	0x0040000,	/* disable randomization
+	LINUX_ADDR_NO_RANDOMIZE =	0x0040000,	/* disable randomization
 							 * of VA space
 							 */
 	LINUX_FDPIC_FUNCPTRS =		0x0080000,	/* userspace function

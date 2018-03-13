@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -111,6 +113,9 @@ void	*vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len);
 int	vm_get_gpa_pmap(struct vmctx *, uint64_t gpa, uint64_t *pte, int *num);
 int	vm_gla2gpa(struct vmctx *, int vcpuid, struct vm_guest_paging *paging,
 		   uint64_t gla, int prot, uint64_t *gpa, int *fault);
+int	vm_gla2gpa_nofault(struct vmctx *, int vcpuid,
+		   struct vm_guest_paging *paging, uint64_t gla, int prot,
+		   uint64_t *gpa, int *fault);
 uint32_t vm_get_lowmem_limit(struct vmctx *ctx);
 void	vm_set_lowmem_limit(struct vmctx *ctx, uint32_t limit);
 void	vm_set_memflags(struct vmctx *ctx, int flags);
@@ -125,6 +130,10 @@ int	vm_get_seg_desc(struct vmctx *ctx, int vcpu, int reg,
 			struct seg_desc *seg_desc);
 int	vm_set_register(struct vmctx *ctx, int vcpu, int reg, uint64_t val);
 int	vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *retval);
+int	vm_set_register_set(struct vmctx *ctx, int vcpu, unsigned int count,
+    const int *regnums, uint64_t *regvals);
+int	vm_get_register_set(struct vmctx *ctx, int vcpu, unsigned int count,
+    const int *regnums, uint64_t *regvals);
 int	vm_run(struct vmctx *ctx, int vcpu, struct vm_exit *ret_vmexit);
 int	vm_suspend(struct vmctx *ctx, enum vm_suspend_how how);
 int	vm_reinit(struct vmctx *ctx);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1993, David Greenman
  * All rights reserved.
  *
@@ -143,6 +145,8 @@ SYSCTL_INT(_kern, OID_AUTO, disallow_high_osrel, CTLFLAG_RW,
 static int map_at_zero = 0;
 SYSCTL_INT(_security_bsd, OID_AUTO, map_at_zero, CTLFLAG_RWTUN, &map_at_zero, 0,
     "Permit processes to map an object at virtual address 0.");
+
+EVENTHANDLER_LIST_DECLARE(process_exec);
 
 static int
 sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS)
@@ -316,7 +320,7 @@ post_execve(struct thread *td, int error, struct vmspace *oldvmspace)
 		 * If success, we upgrade to SINGLE_EXIT state to
 		 * force other threads to suicide.
 		 */
-		if (error == 0)
+		if (error == EJUSTRETURN)
 			thread_single(p, SINGLE_EXIT);
 		else
 			thread_single_end(p, SINGLE_BOUNDARY);
@@ -849,28 +853,23 @@ interpret:
 	p->p_args = newargs;
 	newargs = NULL;
 
+	PROC_UNLOCK(p);
+
 #ifdef	HWPMC_HOOKS
 	/*
 	 * Check if system-wide sampling is in effect or if the
 	 * current process is using PMCs.  If so, do exec() time
 	 * processing.  This processing needs to happen AFTER the
 	 * P_INEXEC flag is cleared.
-	 *
-	 * The proc lock needs to be released before taking the PMC
-	 * SX.
 	 */
 	if (PMC_SYSTEM_SAMPLING_ACTIVE() || PMC_PROC_IS_USING_PMCS(p)) {
-		PROC_UNLOCK(p);
 		VOP_UNLOCK(imgp->vp, 0);
 		pe.pm_credentialschanged = credential_changing;
 		pe.pm_entryaddr = imgp->entry_addr;
 
 		PMC_CALL_HOOK_X(td, PMC_FN_PROCESS_EXEC, (void *) &pe);
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
-	} else
-		PROC_UNLOCK(p);
-#else  /* !HWPMC_HOOKS */
-	PROC_UNLOCK(p);
+	}
 #endif
 
 	/* Set values passed into the program in registers. */
@@ -905,10 +904,12 @@ exec_fail_dealloc:
 	free(imgp->freepath, M_TEMP);
 
 	if (error == 0) {
-		PROC_LOCK(p);
-		if (p->p_ptevents & PTRACE_EXEC)
-			td->td_dbgflags |= TDB_EXEC;
-		PROC_UNLOCK(p);
+		if (p->p_ptevents & PTRACE_EXEC) {
+			PROC_LOCK(p);
+			if (p->p_ptevents & PTRACE_EXEC)
+				td->td_dbgflags |= TDB_EXEC;
+			PROC_UNLOCK(p);
+		}
 
 		/*
 		 * Stop the process here if its stop event mask has
@@ -963,7 +964,13 @@ exec_fail:
 		ktrprocctor(p);
 #endif
 
-	return (error);
+	/*
+	 * We don't want cpu_set_syscall_retval() to overwrite any of
+	 * the register values put in place by exec_setregs().
+	 * Implementations of cpu_set_syscall_retval() will leave
+	 * registers unmodified when returning EJUSTRETURN.
+	 */
+	return (error == 0 ? EJUSTRETURN : error);
 }
 
 int
@@ -1002,7 +1009,7 @@ exec_map_first_page(imgp)
 			if ((ma[i] = vm_page_next(ma[i - 1])) != NULL) {
 				if (ma[i]->valid)
 					break;
-				if (vm_page_tryxbusy(ma[i]))
+				if (!vm_page_tryxbusy(ma[i]))
 					break;
 			} else {
 				ma[i] = vm_page_alloc(object, i,
@@ -1074,7 +1081,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	imgp->sysent = sv;
 
 	/* May be called with Giant held */
-	EVENTHANDLER_INVOKE(process_exec, p, imgp);
+	EVENTHANDLER_DIRECT_INVOKE(process_exec, p, imgp);
 
 	/*
 	 * Blow away entire process VM, if address space not shared,
@@ -1686,7 +1693,7 @@ int
 exec_register(const struct execsw *execsw_arg)
 {
 	const struct execsw **es, **xs, **newexecsw;
-	int count = 2;	/* New slot and trailing NULL */
+	u_int count = 2;	/* New slot and trailing NULL */
 
 	if (execsw)
 		for (es = execsw; *es; es++)

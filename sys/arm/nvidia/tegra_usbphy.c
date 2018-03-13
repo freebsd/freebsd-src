@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include "phy_if.h"
+#include "phynode_if.h"
 
 #define	CTRL_ICUSB_CTRL			0x15c
 #define	  ICUSB_CTR_IC_ENB1			(1 << 3)
@@ -298,6 +298,16 @@ static struct ofw_compat_data compat_data[] = {
 	{"nvidia,tegra30-usb-phy",	1},
 	{NULL,				0},
 };
+
+ /* Phy controller class and methods. */
+static int usbphy_phy_enable(struct phynode *phy, bool enable);
+static phynode_method_t usbphy_phynode_methods[] = {
+	PHYNODEMETHOD(phynode_enable, usbphy_phy_enable),
+
+	PHYNODEMETHOD_END
+};
+DEFINE_CLASS_1(usbphy_phynode, usbphy_phynode_class, usbphy_phynode_methods,
+    0, phynode_class);
 
 #define	RD4(sc, offs)							\
 	 bus_read_4(sc->mem_res, offs)
@@ -554,11 +564,13 @@ usbphy_utmi_disable(struct usbphy_softc *sc)
 }
 
 static int
-usbphy_phy_enable(device_t dev, int id, bool enable)
+usbphy_phy_enable(struct phynode *phy, bool enable)
 {
+	device_t dev;
 	struct usbphy_softc *sc;
 	int rv = 0;
 
+	dev = phynode_get_device(phy);
 	sc = device_get_softc(dev);
 
 	if (sc->ifc_type != USB_IFC_TYPE_UTMI) {
@@ -700,9 +712,11 @@ usbphy_probe(device_t dev)
 static int
 usbphy_attach(device_t dev)
 {
-	struct usbphy_softc * sc;
+	struct usbphy_softc *sc;
 	int rid, rv;
 	phandle_t node;
+	struct phynode *phynode;
+	struct phynode_init_def phy_init;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -802,7 +816,20 @@ usbphy_attach(device_t dev)
 		}
 	}
 
-	phy_register_provider(dev);
+	/* Create and register phy. */
+	bzero(&phy_init, sizeof(phy_init));
+	phy_init.id = 1;
+	phy_init.ofw_node = node;
+	phynode = phynode_create(dev, &usbphy_phynode_class, &phy_init);
+	if (phynode == NULL) {
+		device_printf(sc->dev, "Cannot create phy\n");
+		return (ENXIO);
+	}
+	if (phynode_register(phynode) == NULL) {
+		device_printf(sc->dev, "Cannot create phy\n");
+		return (ENXIO);
+	}
+
 	return (0);
 }
 
@@ -819,9 +846,6 @@ static device_method_t tegra_usbphy_methods[] = {
 	DEVMETHOD(device_probe,		usbphy_probe),
 	DEVMETHOD(device_attach,	usbphy_attach),
 	DEVMETHOD(device_detach,	usbphy_detach),
-
-	/* phy interface */
-	DEVMETHOD(phy_enable,		usbphy_phy_enable),
 
 	DEVMETHOD_END
 };

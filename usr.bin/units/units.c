@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * units.c   Copyright (c) 1993 by Adrian Mariano (adrian@cam.cornell.edu)
  *
  * Redistribution and use in source and binary forms, with or without
@@ -352,6 +354,7 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 					num = atof(item);
 					if (!num) {
 						zeroerror();
+						free(savescr);
 						return 1;
 					}
 					if (doingtop ^ flip) {
@@ -364,6 +367,7 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 					num = atof(divider + 1);
 					if (!num) {
 						zeroerror();
+						free(savescr);
 						return 1;
 					}
 					if (doingtop ^ flip) {
@@ -378,6 +382,7 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 					num = atof(item);
 					if (!num) {
 						zeroerror();
+						free(savescr);
 						return 1;
 					}
 					if (doingtop ^ flip) {
@@ -399,9 +404,12 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 					repeat = item[strlen(item) - 1] - '0';
 					item[strlen(item) - 1] = 0;
 				}
-				for (; repeat; repeat--)
-					if (addsubunit(doingtop ^ flip ? theunit->numerator : theunit->denominator, item))
+				for (; repeat; repeat--) {
+					if (addsubunit(doingtop ^ flip ? theunit->numerator : theunit->denominator, item)) {
+						free(savescr);
 						return 1;
+					}
+				}
 			}
 			item = strtok(NULL, " *\t/\n");
 		}
@@ -761,7 +769,7 @@ main(int argc, char **argv)
 	history_file = NULL;
 	outputformat = numfmt;
 	quit = false;
-	while ((optchar = getopt_long(argc, argv, "+ehf:oqtvHUV", longopts, NULL)) != -1) {
+	while ((optchar = getopt_long(argc, argv, "+ehf:o:qtvH:UV", longopts, NULL)) != -1) {
 		switch (optchar) {
 		case 'e':
 			outputformat = "%6e";

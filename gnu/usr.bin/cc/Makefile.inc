@@ -34,8 +34,11 @@ CFLAGS+=	-DTARGET_ARM_EABI
 .if ${TARGET_ARCH:Marm*eb} != ""
 CFLAGS += -DTARGET_ENDIAN_DEFAULT=MASK_BIG_END
 .endif
-.if ${TARGET_ARCH} == "armv6" || ${TARGET_ARCH} == "armv6eb"
+.if ${TARGET_ARCH:Marmv6*} != ""
 CFLAGS += -DFREEBSD_ARCH_armv6
+.endif
+.if ${TARGET_ARCH:Marmv7*} != ""
+CFLAGS += -DFREEBSD_ARCH_armv7
 .endif
 
 .if ${TARGET_CPUARCH} == "mips"

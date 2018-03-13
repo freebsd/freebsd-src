@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -485,7 +487,7 @@ nfsm_fhtom(struct nfsrv_descript *nd, u_int8_t *fhp, int size, int set_true)
 {
 	u_int32_t *tl;
 	u_int8_t *cp;
-	int fullsiz, rem, bytesize = 0;
+	int fullsiz, bytesize = 0;
 
 	if (size == 0)
 		size = NFSX_MYFH;
@@ -502,7 +504,6 @@ nfsm_fhtom(struct nfsrv_descript *nd, u_int8_t *fhp, int size, int set_true)
 	case ND_NFSV3:
 	case ND_NFSV4:
 		fullsiz = NFSM_RNDUP(size);
-		rem = fullsiz - size;
 		if (set_true) {
 		    bytesize = 2 * NFSX_UNSIGNED + fullsiz;
 		    NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
@@ -676,11 +677,11 @@ nfsm_getfh(struct nfsrv_descript *nd, struct nfsfh **nfhpp)
 		}
 	} else
 		len = NFSX_V2FH;
-	MALLOC(nfhp, struct nfsfh *, sizeof (struct nfsfh) + len,
+	nfhp = malloc(sizeof (struct nfsfh) + len,
 	    M_NFSFH, M_WAITOK);
 	error = nfsrv_mtostr(nd, nfhp->nfh_fh, len);
 	if (error) {
-		FREE((caddr_t)nfhp, M_NFSFH);
+		free(nfhp, M_NFSFH);
 		goto nfsmout;
 	}
 	nfhp->nfh_len = len;
@@ -881,7 +882,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				NFSV3_FSFHOMOGENEOUS | NFSV3_FSFCANSETTIME);
 		}
 		if (pc != NULL) {
-			pc->pc_linkmax = LINK_MAX;
+			pc->pc_linkmax = NFS_LINK_MAX;
 			pc->pc_namemax = NAME_MAX;
 			pc->pc_notrunc = 0;
 			pc->pc_chownrestricted = 0;
@@ -1199,11 +1200,11 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				    !NFSRV_CMPFH(tnfhp->nfh_fh, tfhsize,
 				     fhp, fhsize))
 					*retcmpp = NFSERR_NOTSAME;
-				FREE((caddr_t)tnfhp, M_NFSFH);
+				free(tnfhp, M_NFSFH);
 			} else if (nfhpp != NULL) {
 				*nfhpp = tnfhp;
 			} else {
-				FREE((caddr_t)tnfhp, M_NFSFH);
+				free(tnfhp, M_NFSFH);
 			}
 			attrsum += (NFSX_UNSIGNED + NFSM_RNDUP(tfhsize));
 			break;
@@ -1318,7 +1319,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			if (compare) {
 				if (!(*retcmpp)) {
-				    if (fxdr_unsigned(int, *tl) != LINK_MAX)
+				    if (fxdr_unsigned(int, *tl) != NFS_LINK_MAX)
 					*retcmpp = NFSERR_NOTSAME;
 				}
 			} else if (pc != NULL) {
@@ -2299,7 +2300,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			break;
 		case NFSATTRBIT_MAXLINK:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			*tl = txdr_unsigned(LINK_MAX);
+			*tl = txdr_unsigned(NFS_LINK_MAX);
 			retnum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_MAXNAME:
@@ -3066,7 +3067,7 @@ nfsrv_nfsuserdport(struct sockaddr *sad, u_short port, NFSPROC_T *p)
 	if (nfsrv_nfsuserd) {
 		NFSUNLOCKNAMEID();
 		error = EPERM;
-		NFSSOCKADDRFREE(sad);
+		free(sad, M_SONAME);
 		goto out;
 	}
 	nfsrv_nfsuserd = 1;
@@ -3087,7 +3088,8 @@ nfsrv_nfsuserdport(struct sockaddr *sad, u_short port, NFSPROC_T *p)
 		/* Use the port# for a UDP socket (old nfsuserd). */
 		rp->nr_sotype = SOCK_DGRAM;
 		rp->nr_soproto = IPPROTO_UDP;
-		NFSSOCKADDRALLOC(rp->nr_nam);
+		rp->nr_nam = malloc(sizeof(*rp->nr_nam), M_SONAME, M_WAITOK |
+		    M_ZERO);
 		NFSSOCKADDRSIZE(rp->nr_nam, sizeof (struct sockaddr_in));
 		ad = NFSSOCKADDR(rp->nr_nam, struct sockaddr_in *);
 		ad->sin_family = AF_INET;
@@ -3098,7 +3100,7 @@ nfsrv_nfsuserdport(struct sockaddr *sad, u_short port, NFSPROC_T *p)
 	rp->nr_vers = RPCNFSUSERD_VERS;
 	error = newnfs_connect(NULL, rp, NFSPROCCRED(p), p, 0);
 	if (error) {
-		NFSSOCKADDRFREE(rp->nr_nam);
+		free(rp->nr_nam, M_SONAME);
 		nfsrv_nfsuserd = 0;
 	}
 out:
@@ -3121,7 +3123,7 @@ nfsrv_nfsuserddelport(void)
 	nfsrv_nfsuserd = 0;
 	NFSUNLOCKNAMEID();
 	newnfs_disconnect(&nfsrv_nfsuserdsock);
-	NFSSOCKADDRFREE(nfsrv_nfsuserdsock.nr_nam);
+	free(nfsrv_nfsuserdsock.nr_nam, M_SONAME);
 }
 
 /*
@@ -3831,7 +3833,7 @@ nfsrv_getrefstr(struct nfsrv_descript *nd, u_char **fsrootp, u_char **srvp,
 			cp3 += stringlen;
 			*cp3 = '\0';
 			siz += (lsp->len + stringlen + 2);
-			free((caddr_t)lsp, M_TEMP);
+			free(lsp, M_TEMP);
 		}
 	}
 	*fsrootp = cp;

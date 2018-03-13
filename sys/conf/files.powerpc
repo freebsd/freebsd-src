@@ -31,7 +31,6 @@ dev/adb/adb_if.m		optional	adb
 dev/adb/adb_buttons.c		optional	adb
 dev/agp/agp_apple.c		optional	agp powermac
 dev/fb/fb.c			optional	sc
-dev/fdt/fdt_powerpc.c		optional	fdt
 # ofwbus depends on simplebus.
 dev/fdt/simplebus.c		optional	aim | fdt
 dev/hwpmc/hwpmc_e500.c		optional	hwpmc
@@ -141,10 +140,12 @@ powerpc/mpc85xx/ds1553_bus_fdt.c	optional	ds1553 fdt
 powerpc/mpc85xx/ds1553_core.c	optional	ds1553
 powerpc/mpc85xx/fsl_diu.c	optional	mpc85xx diu
 powerpc/mpc85xx/fsl_espi.c	optional	mpc85xx spibus
+powerpc/mpc85xx/fsl_sata.c	optional	mpc85xx ata
 powerpc/mpc85xx/i2c.c		optional	iicbus fdt
 powerpc/mpc85xx/isa.c		optional	mpc85xx isa
 powerpc/mpc85xx/lbc.c		optional	mpc85xx
 powerpc/mpc85xx/mpc85xx.c	optional	mpc85xx
+powerpc/mpc85xx/mpc85xx_cache.c	optional	mpc85xx
 powerpc/mpc85xx/mpc85xx_gpio.c	optional	mpc85xx gpio
 powerpc/mpc85xx/platform_mpc85xx.c	optional	mpc85xx
 powerpc/mpc85xx/pci_mpc85xx.c	optional	pci mpc85xx
@@ -157,7 +158,6 @@ powerpc/ofw/ofw_real.c		optional	aim
 powerpc/ofw/ofw_syscons.c	optional	sc aim
 powerpc/ofw/ofwcall32.S		optional	aim powerpc
 powerpc/ofw/ofwcall64.S		optional	aim powerpc64
-powerpc/ofw/ofwmagic.S		optional	aim
 powerpc/ofw/openpic_ofw.c	optional	aim | fdt
 powerpc/ofw/rtas.c		optional	aim
 powerpc/powermac/ata_kauai.c	optional	powermac ata | powermac atamacio
@@ -183,6 +183,16 @@ powerpc/powermac/smusat.c	optional	powermac smu
 powerpc/powermac/uninorth.c	optional	powermac
 powerpc/powermac/uninorthpci.c	optional	powermac pci
 powerpc/powermac/vcoregpio.c	optional	powermac 
+powerpc/powernv/opal.c		optional	powernv
+powerpc/powernv/opal_console.c	optional	powernv
+powerpc/powernv/opal_dev.c	optional	powernv
+powerpc/powernv/opal_i2c.c	optional	iicbus fdt powernv
+powerpc/powernv/opal_i2cm.c	optional	iicbus fdt powernv
+powerpc/powernv/opal_pci.c	optional	powernv pci
+powerpc/powernv/opalcall.S	optional	powernv
+powerpc/powernv/platform_powernv.c optional	powernv
+powerpc/powernv/powernv_centaur.c	optional	powernv
+powerpc/powernv/powernv_xscom.c	optional	powernv
 powerpc/powerpc/altivec.c	optional	powerpc | powerpc64
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bcopy.c		standard
@@ -192,6 +202,7 @@ powerpc/powerpc/clock.c		standard
 powerpc/powerpc/copyinout.c	standard
 powerpc/powerpc/copystr.c	standard
 powerpc/powerpc/cpu.c		standard
+powerpc/powerpc/cpu_subr64.S	optional	powerpc64
 powerpc/powerpc/db_disasm.c	optional	ddb
 powerpc/powerpc/db_hwwatch.c	optional	ddb
 powerpc/powerpc/db_interface.c	optional	ddb

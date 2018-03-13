@@ -1,156 +1,164 @@
 #!/bin/sh
 # $FreeBSD$
 
-. $(dirname $0)/conf.sh
+atf_test_case setkey cleanup
+setkey_head()
+{
+	atf_set "descr" "geli setkey can change the key for an existing provider"
+	atf_set "require.user" "root"
+}
+setkey_body()
+{
+	. $(atf_get_srcdir)/conf.sh
 
-base=`basename $0`
-sectors=100
-rnd=`mktemp $base.XXXXXX` || exit 1
-keyfile1=`mktemp $base.XXXXXX` || exit 1
-keyfile2=`mktemp $base.XXXXXX` || exit 1
-keyfile3=`mktemp $base.XXXXXX` || exit 1
-keyfile4=`mktemp $base.XXXXXX` || exit 1
-keyfile5=`mktemp $base.XXXXXX` || exit 1
-mdconfig -a -t malloc -s `expr $sectors + 1` -u $no || exit 1
+	sectors=100
+	md=$(attach_md -t malloc -s `expr $sectors + 1`)
 
-echo "1..16"
+	atf_check dd if=/dev/random of=rnd bs=512 count=${sectors} status=none
+	hash1=`dd if=rnd bs=512 count=${sectors} status=none | md5`
+	atf_check_equal 0 $?
+	atf_check dd if=/dev/random of=keyfile1 bs=512 count=16 status=none
+	atf_check dd if=/dev/random of=keyfile2 bs=512 count=16 status=none
+	atf_check dd if=/dev/random of=keyfile3 bs=512 count=16 status=none
+	atf_check dd if=/dev/random of=keyfile4 bs=512 count=16 status=none
+	atf_check dd if=/dev/random of=keyfile5 bs=512 count=16 status=none
 
-dd if=/dev/random of=${rnd} bs=512 count=${sectors} >/dev/null 2>&1
-hash1=`dd if=${rnd} bs=512 count=${sectors} 2>/dev/null | md5`
-dd if=/dev/random of=${keyfile1} bs=512 count=16 >/dev/null 2>&1
-dd if=/dev/random of=${keyfile2} bs=512 count=16 >/dev/null 2>&1
-dd if=/dev/random of=${keyfile3} bs=512 count=16 >/dev/null 2>&1
-dd if=/dev/random of=${keyfile4} bs=512 count=16 >/dev/null 2>&1
-dd if=/dev/random of=${keyfile5} bs=512 count=16 >/dev/null 2>&1
+	atf_check geli init -B none -P -K keyfile1 ${md}
+	atf_check geli attach -p -k keyfile1 ${md}
 
-geli init -B none -P -K $keyfile1 md${no}
-geli attach -p -k $keyfile1 md${no}
+	atf_check \
+		dd if=rnd of=/dev/${md}.eli bs=512 count=${sectors} status=none
+	hash2=`dd if=/dev/${md}.eli bs=512 count=${sectors} 2>/dev/null | md5`
+	atf_check_equal 0 $?
 
-dd if=${rnd} of=/dev/md${no}.eli bs=512 count=${sectors} 2>/dev/null
-rm -f $rnd
-hash2=`dd if=/dev/md${no}.eli bs=512 count=${sectors} 2>/dev/null | md5`
+	# Change current key (0) for attached provider.
+	atf_check -s exit:0 -o ignore geli setkey -P -K keyfile2 ${md}
+	atf_check geli detach ${md}
 
-# Change current key (0) for attached provider.
-geli setkey -P -K $keyfile2 md${no}
-if [ $? -eq 0 ]; then
-	echo "ok 1"
-else
-	echo "not ok 1"
-fi
-geli detach md${no}
+	# We cannot use keyfile1 anymore.
+	atf_check -s not-exit:0 -e match:"Wrong key" \
+		geli attach -p -k keyfile1 ${md}
 
-# We cannot use keyfile1 anymore.
-geli attach -p -k $keyfile1 md${no} 2>/dev/null
-if [ $? -ne 0 ]; then
-	echo "ok 2"
-else
-	echo "not ok 2"
-fi
+	# Attach with new key.
+	atf_check geli attach -p -k keyfile2 ${md}
+	hash3=`dd if=/dev/${md}.eli bs=512 count=${sectors} 2>/dev/null | md5`
+	atf_check_equal 0 $?
 
-# Attach with new key.
-geli attach -p -k $keyfile2 md${no}
-if [ $? -eq 0 ]; then
-	echo "ok 3"
-else
-	echo "not ok 3"
-fi
-hash3=`dd if=/dev/md${no}.eli bs=512 count=${sectors} 2>/dev/null | md5`
+	# Change key 1 for attached provider.
+	atf_check -s exit:0 -o ignore geli setkey -n 1 -P -K keyfile3 ${md}
+	atf_check geli detach ${md}
 
-# Change key 1 for attached provider.
-geli setkey -n 1 -P -K $keyfile3 md${no}
-if [ $? -eq 0 ]; then
-	echo "ok 4"
-else
-	echo "not ok 4"
-fi
-geli detach md${no}
+	# Attach with key 1.
+	atf_check geli attach -p -k keyfile3 ${md}
+	hash4=`dd if=/dev/${md}.eli bs=512 count=${sectors} 2>/dev/null | md5`
+	atf_check_equal 0 $?
+	atf_check geli detach ${md}
 
-# Attach with key 1.
-geli attach -p -k $keyfile3 md${no}
-if [ $? -eq 0 ]; then
-	echo "ok 5"
-else
-	echo "not ok 5"
-fi
-hash4=`dd if=/dev/md${no}.eli bs=512 count=${sectors} 2>/dev/null | md5`
-geli detach md${no}
+	# Change current (1) key for detached provider.
+	atf_check -s exit:0 -o ignore geli setkey -p -k keyfile3 -P -K keyfile4 ${md}
 
-# Change current (1) key for detached provider.
-geli setkey -p -k $keyfile3 -P -K $keyfile4 md${no}
-if [ $? -eq 0 ]; then
-	echo "ok 6"
-else
-	echo "not ok 6"
-fi
+	# We cannot use keyfile3 anymore.
+	atf_check -s not-exit:0 -e match:"Wrong key" \
+		geli attach -p -k keyfile3 ${md}
 
-# We cannot use keyfile3 anymore.
-geli attach -p -k $keyfile3 md${no} 2>/dev/null
-if [ $? -ne 0 ]; then
-	echo "ok 7"
-else
-	echo "not ok 7"
-fi
+	# Attach with key 1.
+	atf_check geli attach -p -k keyfile4 ${md}
+	hash5=`dd if=/dev/${md}.eli bs=512 count=${sectors} 2>/dev/null | md5`
+	atf_check_equal 0 $?
+	atf_check geli detach ${md}
 
-# Attach with key 1.
-geli attach -p -k $keyfile4 md${no}
-if [ $? -eq 0 ]; then
-	echo "ok 8"
-else
-	echo "not ok 8"
-fi
-hash5=`dd if=/dev/md${no}.eli bs=512 count=${sectors} 2>/dev/null | md5`
-geli detach md${no}
+	# Change key 0 for detached provider.
+	atf_check -s exit:0 -o ignore geli setkey -n 0 -p -k keyfile4 -P -K keyfile5 ${md}
 
-# Change key 0 for detached provider.
-geli setkey -n 0 -p -k $keyfile4 -P -K $keyfile5 md${no}
-if [ $? -eq 0 ]; then
-	echo "ok 9"
-else
-	echo "not ok 9"
-fi
+	# We cannot use keyfile2 anymore.
+	atf_check -s not-exit:0 -e match:"Wrong key" \
+		geli attach -p -k keyfile2 ${md} 2>/dev/null
 
-# We cannot use keyfile2 anymore.
-geli attach -p -k $keyfile2 md${no} 2>/dev/null
-if [ $? -ne 0 ]; then
-	echo "ok 10"
-else
-	echo "not ok 10"
-fi
+	# Attach with key 0.
+	atf_check geli attach -p -k keyfile5 ${md}
+	hash6=`dd if=/dev/${md}.eli bs=512 count=${sectors} 2>/dev/null | md5`
+	atf_check_equal 0 $?
+	atf_check geli detach ${md}
 
-# Attach with key 0.
-geli attach -p -k $keyfile5 md${no}
-if [ $? -eq 0 ]; then
-	echo "ok 11"
-else
-	echo "not ok 11"
-fi
-hash6=`dd if=/dev/md${no}.eli bs=512 count=${sectors} 2>/dev/null | md5`
-geli detach md${no}
+	atf_check_equal ${hash1} ${hash2}
+	atf_check_equal ${hash1} ${hash3}
+	atf_check_equal ${hash1} ${hash4}
+	atf_check_equal ${hash1} ${hash5}
+	atf_check_equal ${hash1} ${hash6}
+}
+setkey_cleanup()
+{
+	. $(atf_get_srcdir)/conf.sh
+	geli_test_cleanup
+}
 
-if [ ${hash1} = ${hash2} ]; then
-	echo "ok 12"
-else
-	echo "not ok 12"
-fi
-if [ ${hash1} = ${hash3} ]; then
-	echo "ok 13"
-else
-	echo "not ok 13"
-fi
-if [ ${hash1} = ${hash4} ]; then
-	echo "ok 14"
-else
-	echo "not ok 14"
-fi
-if [ ${hash1} = ${hash5} ]; then
-	echo "ok 15"
-else
-	echo "not ok 15"
-fi
-if [ ${hash1} = ${hash6} ]; then
-	echo "ok 16"
-else
-	echo "not ok 16"
-fi
+atf_test_case setkey_readonly cleanup
+setkey_readonly_head()
+{
+	atf_set "descr" "geli setkey cannot change the keys of a readonly provider"
+	atf_set "require.user" "root"
+}
+setkey_readonly_body()
+{
+	. $(atf_get_srcdir)/conf.sh
 
-rm -f $keyfile1 $keyfile2 $keyfile3 $keyfile4 $keyfile5
+	sectors=100
+	md=$(attach_md -t malloc -s `expr $sectors + 1`)
+	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
+
+	atf_check geli init -B none -P -K keyfile ${md}
+	atf_check geli attach -r -p -k keyfile ${md}
+
+	atf_check -s not-exit:0 -e match:"read-only" \
+		geli setkey -n 1 -P -K /dev/null ${md}
+}
+setkey_readonly_cleanup()
+{
+	. $(atf_get_srcdir)/conf.sh
+	geli_test_cleanup
+}
+
+atf_test_case nokey cleanup
+nokey_head()
+{
+	atf_set "descr" "geli setkey can change the key for an existing provider"
+	atf_set "require.user" "root"
+}
+nokey_body()
+{
+	. $(atf_get_srcdir)/conf.sh
+
+	sectors=100
+	md=$(attach_md -t malloc -s `expr $sectors + 1`)
+	atf_check dd if=/dev/random of=keyfile1 bs=512 count=16 status=none
+	atf_check dd if=/dev/random of=keyfile2 bs=512 count=16 status=none
+
+	atf_check geli init -B none -P -K keyfile1 ${md}
+
+	# Try to set the key for a detached device without providing any
+	# components for the old key.
+	atf_check -s not-exit:0 -e match:"No key components given" \
+		geli setkey -n 0 -p -P -K keyfile2 ${md}
+
+	# Try to set the key for a detached device without providing any
+	# components for the new key
+	atf_check -s not-exit:0 -e match:"No key components given" \
+		geli setkey -n 0 -p -k keyfile1 -P ${md}
+
+	# Try to set a new key for an attached device with no components
+	atf_check geli attach -p -k keyfile1 ${md}
+	atf_check -s not-exit:0 -e match:"No key components given" \
+		geli setkey -n 0 -P ${md}
+}
+nokey_cleanup()
+{
+	. $(atf_get_srcdir)/conf.sh
+	geli_test_cleanup
+}
+
+atf_init_test_cases()
+{
+	atf_add_test_case setkey
+	atf_add_test_case setkey_readonly
+	atf_add_test_case nokey
+}

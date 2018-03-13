@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2010 Nathan Whitehorn
  * All rights reserved.
  *
@@ -81,6 +83,7 @@ extern int		moea64_large_page_shift;
 extern uint64_t		moea64_large_page_size;
 extern u_int		moea64_pteg_count;
 extern u_int		moea64_pteg_mask;
+extern int		n_slbs;
 
 #endif /* _POWERPC_AIM_MMU_OEA64_H */
 

@@ -28,7 +28,7 @@
 .\"     @(#)socketpair.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd May 4, 2015
+.Dd February 10, 2018
 .Dt SOCKETPAIR 2
 .Os
 .Sh NAME
@@ -89,6 +89,13 @@ process address space.
 .Xr read 2 ,
 .Xr socket 2 ,
 .Xr write 2
+.Sh STANDARDS
+The
+.Fn socketpair
+system call conforms to
+.St -p1003.1-2001
+and
+.St -p1003.1-2008 .
 .Sh HISTORY
 The
 .Fn socketpair

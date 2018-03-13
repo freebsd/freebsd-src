@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -423,6 +423,17 @@ AcpiEvAddressSpaceDispatch (
     {
         ACPI_EXCEPTION ((AE_INFO, Status, "Returned by Handler for [%s]",
             AcpiUtGetRegionName (RegionObj->Region.SpaceId)));
+
+        /*
+         * Special case for an EC timeout. These are seen so frequently
+         * that an additional error message is helpful
+         */
+        if ((RegionObj->Region.SpaceId == ACPI_ADR_SPACE_EC) &&
+            (Status == AE_TIME))
+        {
+            ACPI_ERROR ((AE_INFO,
+                "Timeout from EC hardware or EC device driver"));
+        }
     }
 
     if (!(HandlerDesc->AddressSpace.HandlerFlags &

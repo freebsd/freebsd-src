@@ -21,12 +21,12 @@ TARGET_TUPLE?=	${BINUTILS_ARCH}-${TARGET_VENDOR}-${TARGET_OS}
 TARGET_BIG_ENDIAN=t
 .endif
 
-# RELTOP is the relative path to this point in the source or object
+# GNURELTOP is the relative path to this point in the source or object
 # tree, from any subdirectory of same.  It gets extra "../" prefixes
 # added to it as we descend into subdirectories.
-RELTOP:= ..
+GNURELTOP:= ..
 
-RELSRC=	${RELTOP}/../../../contrib/binutils
+RELSRC=	${GNURELTOP}/../../../contrib/binutils
 SRCDIR=	${.CURDIR}/${RELSRC}
 
 .if ${TARGET_CPUARCH} == "arm" || ${TARGET_CPUARCH} == "i386" || \
@@ -39,8 +39,8 @@ CFLAGS+= -DBFD_DEFAULT_TARGET_SIZE=64
 
 CFLAGS+= -I.
 CFLAGS+= -I${.CURDIR}
-CFLAGS+= -I${.CURDIR}/${RELTOP}/libbfd
-CFLAGS+= -I${.OBJDIR}/${RELTOP}/libbfd
+CFLAGS+= -I${.CURDIR}/${GNURELTOP}/libbfd
+CFLAGS+= -I${.OBJDIR}/${GNURELTOP}/libbfd
 CFLAGS+= -I${SRCDIR}/include
 
 ARCHS=	${TARGET_CPUARCH}

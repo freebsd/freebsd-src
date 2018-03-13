@@ -231,17 +231,13 @@ options		EARLY_AP_STARTUP
 # A default value should be already present, for every architecture.
 options 	MAXCPU=32
 
+# NUMA enables use of Non-Uniform Memory Access policies in various kernel
+# subsystems.
+options 	NUMA
+
 # MAXMEMDOM defines the maximum number of memory domains that can boot in the
 # system.  A default value should already be defined by every architecture.
 options 	MAXMEMDOM=2
-
-# VM_NUMA_ALLOC enables use of memory domain-aware allocation in the VM
-# system.
-options 	VM_NUMA_ALLOC
-
-# DEVICE_NUMA enables reporting of domain affinity of I/O devices via
-# bus_get_domain(), etc.
-options 	DEVICE_NUMA
 
 # ADAPTIVE_MUTEXES changes the behavior of blocking mutexes to spin
 # if the thread that currently owns the mutex is executing on another
@@ -590,6 +586,20 @@ options 	STACK
 #
 options 	NUM_CORE_FILES=5
 
+#
+# The TSLOG option enables timestamped logging of events, especially
+# function entries/exits, in order to track the time spent by the kernel.
+# In particular, this is useful when investigating the early boot process,
+# before it is possible to use more sophisticated tools like DTrace.
+# The TSLOGSIZE option controls the size of the (preallocated, fixed
+# length) buffer used for storing these events (default: 262144 records).
+#
+# For security reasons the TSLOG option should not be enabled on systems
+# used in production.
+#
+options 	TSLOG
+options 	TSLOGSIZE=262144
+
 
 #####################################################################
 # PERFORMANCE MONITORING OPTIONS
@@ -674,21 +684,6 @@ options 	SCTP
 # bits and prints.. which makes the code run
 # faster.. if you are not debugging don't use.
 options 	SCTP_DEBUG
-#
-# This option turns off the CRC32c checksum. Basically,
-# you will not be able to talk to anyone else who
-# has not done this. Its more for experimentation to
-# see how much CPU the CRC32c really takes. Most new
-# cards for TCP support checksum offload.. so this 
-# option gives you a "view" into what SCTP would be
-# like with such an offload (which only exists in
-# high in iSCSI boards so far). With the new
-# splitting 8's algorithm its not as bad as it used
-# to be.. but it does speed things up try only
-# for in a captured lab environment :-)
-options 	SCTP_WITH_NO_CSUM
-#
-
 #
 # All that options after that turn on specific types of
 # logging. You can monitor CWND growth, flight size
@@ -802,8 +797,8 @@ options 	NGATM_CCATM
 device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 
 # Network stack virtualization.
-#options	VIMAGE
-#options	VNET_DEBUG	# debug for VIMAGE
+options	VIMAGE
+options	VNET_DEBUG	# debug for VIMAGE
 
 #
 # Network interfaces:
@@ -1115,6 +1110,9 @@ options 	MD_ROOT_SIZE=10
 # Make the md device a potential root device, either with preloaded
 # images of type mfs_root or md_root.
 options 	MD_ROOT
+
+# Write-protect the md root device so that it may not be mounted writeable.
+options 	MD_ROOT_READONLY
 
 # Disk quotas are supported when this option is enabled.
 options 	QUOTA			#enable disk quotas
@@ -2210,8 +2208,6 @@ device		rtwnfw
 options 	MCLSHIFT=12	# mbuf cluster shift in bits, 12 == 4KB
 options 	MSIZE=512	# mbuf size in bytes
 
-options 	LIBMBPOOL
-
 #
 # Sound drivers
 #
@@ -2494,8 +2490,10 @@ device		smb
 
 # SMBus peripheral devices
 #
+# jedec_dimm	Asset and temperature reporting for DDR3 and DDR4 DIMMs
 # jedec_ts	Temperature Sensor compliant with JEDEC Standard 21-C
 #
+device		jedec_dimm
 device		jedec_ts
 
 # I2C Bus
@@ -2609,7 +2607,9 @@ options 	BOOTP_WIRED_TO=fxp0 # Use interface fxp0 for BOOTP
 options 	BOOTP_BLOCKSIZE=8192 # Override NFS block size
 
 #
-# Add software watchdog routines.
+# Enable software watchdog routines, even if hardware watchdog is present.
+# By default, software watchdog timer is enabled only if no hardware watchdog
+# is present.
 #
 options 	SW_WATCHDOG
 
@@ -3019,6 +3019,10 @@ options         IMAGACT_BINMISC
 # zlib I/O stream support
 # This enables support for compressed core dumps.
 options 	GZIO
+
+# zstd I/O stream support
+# This enables support for Zstd compressed core dumps.
+options 	ZSTDIO
 
 # BHND(4) drivers
 options		BHND_LOGLEVEL	# Logging threshold level

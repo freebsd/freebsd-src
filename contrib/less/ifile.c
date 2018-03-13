@@ -24,14 +24,16 @@
 extern IFILE	curr_ifile;
 
 struct ifile {
-	struct ifile *h_next;		/* Links for command line list */
+	struct ifile *h_next;           /* Links for command line list */
 	struct ifile *h_prev;
-	char *h_filename;		/* Name of the file */
-	void *h_filestate;		/* File state (used in ch.c) */
-	int h_index;			/* Index within command line list */
-	int h_hold;			/* Hold count */
-	char h_opened;			/* Has this ifile been opened? */
-	struct scrpos h_scrpos;		/* Saved position within the file */
+	char *h_filename;               /* Name of the file */
+	void *h_filestate;              /* File state (used in ch.c) */
+	int h_index;                    /* Index within command line list */
+	int h_hold;                     /* Hold count */
+	char h_opened;                  /* Has this ifile been opened? */
+	struct scrpos h_scrpos;         /* Saved position within the file */
+	void *h_altpipe;                /* Alt pipe */
+	char *h_altfilename;            /* Alt filename */
 };
 
 /*
@@ -326,6 +328,39 @@ set_filestate(ifile, filestate)
 	void *filestate;
 {
 	int_ifile(ifile)->h_filestate = filestate;
+}
+
+	public void
+set_altpipe(ifile, p)
+	IFILE ifile;
+	void *p;
+{
+	int_ifile(ifile)->h_altpipe = p;
+}
+
+	public void *
+get_altpipe(ifile)
+	IFILE ifile;
+{
+	return (int_ifile(ifile)->h_altpipe);
+}
+
+	public void
+set_altfilename(ifile, altfilename)
+	IFILE ifile;
+	char *altfilename;
+{
+	struct ifile *p = int_ifile(ifile);
+	if (p->h_altfilename != NULL)
+		free(p->h_altfilename);
+	p->h_altfilename = altfilename;
+}
+
+	public char *
+get_altfilename(ifile)
+	IFILE ifile;
+{
+	return (int_ifile(ifile)->h_altfilename);
 }
 
 #if 0

@@ -65,20 +65,48 @@ lio_write_bar1_mem8(struct octeon_device *oct, uint32_t reg, uint64_t val)
 			  oct->mem_bus_space[1].handle, reg, val);
 }
 
+#ifdef __i386__
+static inline uint32_t
+lio_read_bar1_mem32(struct octeon_device *oct, uint32_t reg)
+{
+
+	return (bus_space_read_4(oct->mem_bus_space[1].tag,
+				 oct->mem_bus_space[1].handle, reg));
+}
+
+static inline void
+lio_write_bar1_mem32(struct octeon_device *oct, uint32_t reg, uint32_t val)
+{
+
+	bus_space_write_4(oct->mem_bus_space[1].tag,
+			  oct->mem_bus_space[1].handle, reg, val);
+}
+#endif
+
 static inline uint64_t
 lio_read_bar1_mem64(struct octeon_device *oct, uint32_t reg)
 {
 
+#ifdef __i386__
+	return (lio_read_bar1_mem32(oct, reg) |
+			((uint64_t)lio_read_bar1_mem32(oct, reg + 4) << 32));
+#else
 	return (bus_space_read_8(oct->mem_bus_space[1].tag,
 				 oct->mem_bus_space[1].handle, reg));
+#endif
 }
 
 static inline void
 lio_write_bar1_mem64(struct octeon_device *oct, uint32_t reg, uint64_t val)
 {
 
+#ifdef __i386__
+	lio_write_bar1_mem32(oct, reg, (uint32_t)val);
+	lio_write_bar1_mem32(oct, reg + 4, val >> 32);
+#else
 	bus_space_write_8(oct->mem_bus_space[1].tag,
 			  oct->mem_bus_space[1].handle, reg, val);
+#endif
 }
 
 static void

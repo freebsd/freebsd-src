@@ -1,9 +1,9 @@
-.Dd March 21 2017
+.Dd February 27 2018
 .Dt SNTP @SNTP_MS@ User Commands
 .Os
 .\"  EDIT THIS FILE WITH CAUTION  (sntp-opts.mdoc)
 .\"
-.\"  It has been AutoGen-ed  March 21, 2017 at 10:36:52 AM by AutoGen 5.18.5
+.\"  It has been AutoGen-ed  February 27, 2018 at 05:13:14 PM by AutoGen 5.18.5
 .\"  From the definitions    sntp-opts.def
 .\"  and the template file   agmdoc-cmd.tpl
 .Sh NAME
@@ -138,6 +138,11 @@ responses received from servers.  If the file does not exist, a
 warning message will be displayed.  The file will not be created.
 .It  Fl k Ar file\-name , Fl \-keyfile Ns = Ns Ar file\-name 
 Look in this file for the key specified with \fB\-a\fP.
+The default
+.Ar file\-name
+for this option is:
+.ti +4
+ /etc/ntp.keys
 .sp
 This option specifies the keyfile.
 \fBsntp\fP will search for the key specified with \fB\-a\fP

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -576,7 +576,7 @@ AcpiPsParseAml (
 
     if (!WalkState->ParserState.Aml)
     {
-        return_ACPI_STATUS (AE_NULL_OBJECT);
+        return_ACPI_STATUS (AE_BAD_ADDRESS);
     }
 
     /* Create and initialize a new thread state */

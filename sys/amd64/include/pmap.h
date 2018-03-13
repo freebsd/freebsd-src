@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003 Peter Wemm.
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
@@ -223,6 +225,10 @@
 #define	PMAP_PCID_NONE		0xffffffff
 #define	PMAP_PCID_KERN		0
 #define	PMAP_PCID_OVERMAX	0x1000
+#define	PMAP_PCID_OVERMAX_KERN	0x800
+#define	PMAP_PCID_USER_PT	0x800
+
+#define	PMAP_NO_CR3		(~0UL)
 
 #ifndef LOCORE
 
@@ -313,7 +319,9 @@ struct pmap_pcids {
 struct pmap {
 	struct mtx		pm_mtx;
 	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */
+	pml4_entry_t		*pm_pml4u;	/* KVA of user l4 page table */
 	uint64_t		pm_cr3;
+	uint64_t		pm_ucr3;
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	cpuset_t		pm_active;	/* active on cpus */
 	enum pmap_type		pm_type;	/* regular or nested tables */
@@ -366,11 +374,18 @@ typedef struct pv_entry {
  */
 #define	_NPCM	3
 #define	_NPCPV	168
-struct pv_chunk {
-	pmap_t			pc_pmap;
-	TAILQ_ENTRY(pv_chunk)	pc_list;
-	uint64_t		pc_map[_NPCM];	/* bitmap; 1 = free */
+#define	PV_CHUNK_HEADER							\
+	pmap_t			pc_pmap;				\
+	TAILQ_ENTRY(pv_chunk)	pc_list;				\
+	uint64_t		pc_map[_NPCM];	/* bitmap; 1 = free */	\
 	TAILQ_ENTRY(pv_chunk)	pc_lru;
+
+struct pv_chunk_header {
+	PV_CHUNK_HEADER
+};
+
+struct pv_chunk {
+	PV_CHUNK_HEADER
 	struct pv_entry		pc_pventry[_NPCPV];
 };
 
@@ -420,6 +435,12 @@ void	pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva,
 void	pmap_get_mapping(pmap_t pmap, vm_offset_t va, uint64_t *ptr, int *num);
 boolean_t pmap_map_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);
 void	pmap_unmap_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);
+void	pmap_pti_add_kva(vm_offset_t sva, vm_offset_t eva, bool exec);
+void	pmap_pti_remove_kva(vm_offset_t sva, vm_offset_t eva);
+void	pmap_pti_pcid_invalidate(uint64_t ucr3, uint64_t kcr3);
+void	pmap_pti_pcid_invlpg(uint64_t ucr3, uint64_t kcr3, vm_offset_t va);
+void	pmap_pti_pcid_invlrng(uint64_t ucr3, uint64_t kcr3, vm_offset_t sva,
+	    vm_offset_t eva);
 #endif /* _KERNEL */
 
 /* Return various clipped indexes for a given VA */

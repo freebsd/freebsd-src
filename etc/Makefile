@@ -152,8 +152,6 @@ BIN1+= regdomain.xml
 # -rwxr-xr-x root:wheel, for the new cron root:wheel
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
-PPPCNF=	ppp.conf
-
 .if ${MK_SENDMAIL} == "no"
 ETCMAIL=mailer.conf aliases
 .else
@@ -212,9 +210,6 @@ distribution:
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 		snmpd.config ${DESTDIR}/etc;
 .endif
-.if ${MK_AT} == "no"
-	sed -i "" -e 's;.*/usr/libexec/atrun;#&;' ${DESTDIR}/etc/crontab
-.endif
 .if ${MK_TCSH} == "no"
 	sed -i "" -e 's;/bin/csh;/bin/sh;' ${DESTDIR}/etc/master.passwd
 .endif
@@ -232,9 +227,6 @@ distribution:
 .endif
 .if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
-.endif
-.if ${MK_CASPER} != "no"
-	${_+_}cd ${.CURDIR}/casper; ${MAKE} install
 .endif
 	${_+_}cd ${.CURDIR}/cron.d; ${MAKE} install
 	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install
@@ -387,10 +379,10 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 		d=${DISTBASE}$$d; \
 		shift; \
 		test -d ${DESTDIR}/$$d || mkdir -p ${DESTDIR}/$$d; \
-		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K uname,gname | " \
+		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K all | " \
 		    "sed s#^\.#.$$d# | ${METALOG.add}" ; \
 		${MTREE_FILTER} $$m | \
-		${MTREE_CMD:N-W} -C -K uname,gname | sed s#^\.#.$$d# | \
+		${MTREE_CMD:N-W} -C -K all | sed s#^\.#.$$d# | \
 		    ${METALOG.add} ; \
 	done; true
 .endif

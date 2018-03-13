@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -192,7 +192,7 @@ CvDbgPrint (
     va_list                 Args;
 
 
-    if (!Gbl_CaptureComments || !AcpiGbl_DebugAslConversion)
+    if (!AcpiGbl_CaptureComments || !AcpiGbl_DebugAslConversion)
     {
         return;
     }
@@ -356,7 +356,7 @@ UtCreateEscapeSequences (
 
     /* New string buffer, 3 extra chars per escape (4 total) */
 
-    OutString = UtLocalCalloc (InStringLength + (EscapeCount * 3));
+    OutString = UtLocalCacheCalloc (InStringLength + (EscapeCount * 3));
     OutStringPtr = OutString;
 
     /* Convert non-ascii or non-printable chars to escape sequences */

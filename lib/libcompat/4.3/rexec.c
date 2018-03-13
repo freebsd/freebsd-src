@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -354,7 +356,7 @@ retry:
 			goto bad;
 		}
 		port = ntohs((u_short)sin2.sin_port);
-		(void) sprintf(num, "%u", port);
+		(void) sprintf(num, "%hu", port);
 		(void) write(s, num, strlen(num)+1);
 		{ int len = sizeof (from);
 		  s3 = accept(s2, (struct sockaddr *)&from, &len);

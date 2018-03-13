@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 11, 2012
+.Dd January 15, 2018
 .Dt SERVICE 8
 .Os
 .Sh NAME
@@ -32,13 +32,17 @@
 .Nd "control (start/stop/etc.) or list system services"
 .Sh SYNOPSIS
 .Nm
+.Op Fl j Ao jail name or id Ac
 .Fl e
 .Nm
+.Op Fl j Ao jail name or id Ac
 .Fl R
 .Nm
+.Op Fl j Ao jail name or id Ac
 .Op Fl v
 .Fl l | r
 .Nm
+.Op Fl j Ao jail name or id Ac
 .Op Fl v
 .Ar <rc.d script> start|stop|etc.
 .Sh DESCRIPTION
@@ -54,6 +58,8 @@ the scripts using various criteria.
 .Pp
 The options are as follows:
 .Bl -tag -width F1
+.It Fl j Ao jail name or id Ac
+Perform the given actions under the named jail.
 .It Fl e
 List services that are enabled.
 The list of scripts to check is compiled using
@@ -107,6 +113,7 @@ The following are examples of typical usage of the
 command:
 .Pp
 .Dl "service named status"
+.Dl "service -j dns named status"
 .Dl "service -rv"
 .Pp
 The following programmable completion entry can be use in

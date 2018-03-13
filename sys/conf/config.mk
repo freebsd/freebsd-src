@@ -50,7 +50,8 @@ KERN_OPTS!=cat ${KERNBUILDDIR}/opt*.h | awk '{print $$2;}' | sort -u
 .export KERN_OPTS
 .endif
 
-.if !defined(NO_MODULES) && !defined(__MPATH)
+.if !defined(NO_MODULES) && !defined(__MPATH) && !make(install) && \
+    (empty(.MAKEFLAGS:M-V) || defined(NO_SKIP_MPATH))
 __MPATH!=find ${SYSDIR:tA}/ -name \*_if.m
 .export __MPATH
 .endif

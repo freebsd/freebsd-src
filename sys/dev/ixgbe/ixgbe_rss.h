@@ -49,7 +49,6 @@
 #define RSS_HASHTYPE_RSS_IPV6_EX       (1 << 5)
 #define RSS_HASHTYPE_RSS_TCP_IPV6_EX   (1 << 6)
 #define RSS_HASHTYPE_RSS_UDP_IPV4      (1 << 7)
-#define RSS_HASHTYPE_RSS_UDP_IPV4_EX   (1 << 8)
 #define RSS_HASHTYPE_RSS_UDP_IPV6      (1 << 9)
 #define RSS_HASHTYPE_RSS_UDP_IPV6_EX   (1 << 10)
 

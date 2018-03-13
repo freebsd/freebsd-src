@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * Copyright (c) 2000, Michael Smith <msmith@freebsd.org>
  * Copyright (c) 2000, BSDi
@@ -88,10 +90,16 @@ int		pci_enable_io_method(device_t dev, device_t child, int space);
 int		pci_disable_io_method(device_t dev, device_t child, int space);
 int		pci_find_cap_method(device_t dev, device_t child,
 		    int capability, int *capreg);
+int		pci_find_next_cap_method(device_t dev, device_t child,
+		    int capability, int start, int *capreg);
 int		pci_find_extcap_method(device_t dev, device_t child,
 		    int capability, int *capreg);
+int		pci_find_next_extcap_method(device_t dev, device_t child,
+		    int capability, int start, int *capreg);
 int		pci_find_htcap_method(device_t dev, device_t child,
 		    int capability, int *capreg);
+int		pci_find_next_htcap_method(device_t dev, device_t child,
+		    int capability, int start, int *capreg);
 int		pci_alloc_msi_method(device_t dev, device_t child, int *count);
 int		pci_alloc_msix_method(device_t dev, device_t child, int *count);
 void		pci_enable_msi_method(device_t dev, device_t child,

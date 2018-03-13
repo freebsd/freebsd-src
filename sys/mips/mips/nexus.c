@@ -76,7 +76,11 @@ __FBSDID("$FreeBSD$");
 #define dprintf(x, arg...)
 #endif  /* NEXUS_DEBUG */
 
-#define NUM_MIPS_IRQS	6
+#ifdef INTRNG
+#define	NUM_MIPS_IRQS	NIRQ	/* Any INTRNG-mapped IRQ */
+#else
+#define	NUM_MIPS_IRQS	6	/* HW IRQs only */
+#endif
 
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 
@@ -200,6 +204,12 @@ nexus_probe(device_t dev)
 static int
 nexus_attach(device_t dev)
 {
+#if defined(INTRNG) && !defined(FDT)
+	int error;
+
+	if ((error = mips_pic_map_fixed_intrs()))
+		return (error);
+#endif
 
 	bus_generic_probe(dev);
 	bus_enumerate_hinted_children(dev);
@@ -291,7 +301,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * and we know what the resources for this device are (ie. they aren't
 	 * maintained by a child bus), then work out the start/end values.
 	 */
-	if (isdefault) {
+	if (!passthrough && isdefault) {
 		rle = resource_list_find(&ndev->nx_resources, type, *rid);
 		if (rle == NULL)
 			return (NULL);
@@ -432,20 +442,11 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 		rman_set_bushandle(r, (bus_space_handle_t)(uintptr_t)vaddr);
 	} else if (type == SYS_RES_IRQ) {
 #ifdef INTRNG
-#ifdef FDT
-		err = intr_activate_irq(child, r);
+		err = mips_pic_activate_intr(child, r);
 		if (err != 0) {
 			rman_deactivate_resource(r);
 			return (err);
 		}
-#else
-		/*
-		 * INTRNG without FDT needs to have the interrupt properly
-		 * mapped first. cpu_create_intr_map() will do that and
-		 * call intr_activate_irq() at the end.
-		 */
-		cpu_create_intr_map(rman_get_start(r));
-#endif
 #endif
 	}
 
@@ -468,7 +469,7 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 		rman_set_bushandle(r, 0);
 	} else if (type == SYS_RES_IRQ) {
 #ifdef INTRNG
-		intr_deactivate_irq(child, r);
+		mips_pic_deactivate_intr(child, r);
 #endif
 	}
 
@@ -480,12 +481,7 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
 #ifdef INTRNG
-	struct resource *r = res;
-
-#ifndef FDT
-	r = cpu_get_irq_resource(rman_get_start(r));
-#endif
-	return (intr_setup_irq(child, r, filt, intr, arg, flags, cookiep));
+	return (intr_setup_irq(child, res, filt, intr, arg, flags, cookiep));
 #else
 	int irq;
 	register_t s;

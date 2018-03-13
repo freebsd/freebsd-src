@@ -266,7 +266,7 @@ struct sysent freebsd32_sysent[] = {
 	{ AS(undelete_args), (sy_call_t *)sys_undelete, AUE_UNDELETE, NULL, 0, 0, 0, SY_THR_STATIC },	/* 205 = undelete */
 	{ AS(freebsd32_futimes_args), (sy_call_t *)freebsd32_futimes, AUE_FUTIMES, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 206 = freebsd32_futimes */
 	{ AS(getpgid_args), (sy_call_t *)sys_getpgid, AUE_GETPGID, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 207 = getpgid */
-	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 208 = newreboot */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 208 = nosys */
 	{ AS(poll_args), (sy_call_t *)sys_poll, AUE_POLL, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 209 = poll */
 	{ AS(nosys_args), (sy_call_t *)lkmnosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },	/* 210 = lkmnosys */
 	{ AS(nosys_args), (sy_call_t *)lkmnosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },	/* 211 = lkmnosys */
@@ -602,11 +602,11 @@ struct sysent freebsd32_sysent[] = {
 	{ AS(rctl_add_rule_args), (sy_call_t *)sys_rctl_add_rule, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 528 = rctl_add_rule */
 	{ AS(rctl_remove_rule_args), (sy_call_t *)sys_rctl_remove_rule, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 529 = rctl_remove_rule */
 #ifdef PAD64_REQUIRED
-	{ AS(freebsd32_posix_fallocate_args), (sy_call_t *)freebsd32_posix_fallocate, AUE_POSIX_FALLOCATE, NULL, 0, 0, 0, SY_THR_STATIC },	/* 530 = freebsd32_posix_fallocate */
+	{ AS(freebsd32_posix_fallocate_args), (sy_call_t *)freebsd32_posix_fallocate, AUE_POSIX_FALLOCATE, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 530 = freebsd32_posix_fallocate */
 	{ AS(freebsd32_posix_fadvise_args), (sy_call_t *)freebsd32_posix_fadvise, AUE_POSIX_FADVISE, NULL, 0, 0, 0, SY_THR_STATIC },	/* 531 = freebsd32_posix_fadvise */
 	{ AS(freebsd32_wait6_args), (sy_call_t *)freebsd32_wait6, AUE_WAIT6, NULL, 0, 0, 0, SY_THR_STATIC },	/* 532 = freebsd32_wait6 */
 #else
-	{ AS(freebsd32_posix_fallocate_args), (sy_call_t *)freebsd32_posix_fallocate, AUE_POSIX_FALLOCATE, NULL, 0, 0, 0, SY_THR_STATIC },	/* 530 = freebsd32_posix_fallocate */
+	{ AS(freebsd32_posix_fallocate_args), (sy_call_t *)freebsd32_posix_fallocate, AUE_POSIX_FALLOCATE, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 530 = freebsd32_posix_fallocate */
 	{ AS(freebsd32_posix_fadvise_args), (sy_call_t *)freebsd32_posix_fadvise, AUE_POSIX_FADVISE, NULL, 0, 0, 0, SY_THR_STATIC },	/* 531 = freebsd32_posix_fadvise */
 	{ AS(freebsd32_wait6_args), (sy_call_t *)freebsd32_wait6, AUE_WAIT6, NULL, 0, 0, 0, SY_THR_STATIC },	/* 532 = freebsd32_wait6 */
 #endif
@@ -629,17 +629,19 @@ struct sysent freebsd32_sysent[] = {
 	{ AS(freebsd32_ppoll_args), (sy_call_t *)freebsd32_ppoll, AUE_POLL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 545 = freebsd32_ppoll */
 	{ AS(freebsd32_futimens_args), (sy_call_t *)freebsd32_futimens, AUE_FUTIMES, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 546 = freebsd32_futimens */
 	{ AS(freebsd32_utimensat_args), (sy_call_t *)freebsd32_utimensat, AUE_FUTIMESAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 547 = freebsd32_utimensat */
-	{ AS(numa_getaffinity_args), (sy_call_t *)sys_numa_getaffinity, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 548 = numa_getaffinity */
-	{ AS(numa_setaffinity_args), (sy_call_t *)sys_numa_setaffinity, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 549 = numa_setaffinity */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 548 = numa_getaffinity */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 549 = numa_setaffinity */
 	{ AS(fdatasync_args), (sy_call_t *)sys_fdatasync, AUE_FSYNC, NULL, 0, 0, 0, SY_THR_STATIC },	/* 550 = fdatasync */
 	{ AS(freebsd32_fstat_args), (sy_call_t *)freebsd32_fstat, AUE_FSTAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 551 = freebsd32_fstat */
 	{ AS(freebsd32_fstatat_args), (sy_call_t *)freebsd32_fstatat, AUE_FSTATAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 552 = freebsd32_fstatat */
 	{ AS(freebsd32_fhstat_args), (sy_call_t *)freebsd32_fhstat, AUE_FHSTAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 553 = freebsd32_fhstat */
-	{ AS(freebsd32_getdirentries_args), (sy_call_t *)freebsd32_getdirentries, AUE_GETDIRENTRIES, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 554 = freebsd32_getdirentries */
+	{ AS(getdirentries_args), (sy_call_t *)sys_getdirentries, AUE_GETDIRENTRIES, NULL, 0, 0, 0, SY_THR_STATIC },	/* 554 = getdirentries */
 	{ AS(statfs_args), (sy_call_t *)sys_statfs, AUE_STATFS, NULL, 0, 0, 0, SY_THR_STATIC },	/* 555 = statfs */
 	{ AS(fstatfs_args), (sy_call_t *)sys_fstatfs, AUE_FSTATFS, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 556 = fstatfs */
 	{ AS(getfsstat_args), (sy_call_t *)sys_getfsstat, AUE_GETFSSTAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 557 = getfsstat */
 	{ AS(fhstatfs_args), (sy_call_t *)sys_fhstatfs, AUE_FHSTATFS, NULL, 0, 0, 0, SY_THR_STATIC },	/* 558 = fhstatfs */
 	{ AS(mknodat_args), (sy_call_t *)sys_mknodat, AUE_MKNODAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 559 = mknodat */
 	{ AS(freebsd32_kevent_args), (sy_call_t *)freebsd32_kevent, AUE_KEVENT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 560 = freebsd32_kevent */
+	{ AS(freebsd32_cpuset_getdomain_args), (sy_call_t *)freebsd32_cpuset_getdomain, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 561 = freebsd32_cpuset_getdomain */
+	{ AS(freebsd32_cpuset_setdomain_args), (sy_call_t *)freebsd32_cpuset_setdomain, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 562 = freebsd32_cpuset_setdomain */
 };

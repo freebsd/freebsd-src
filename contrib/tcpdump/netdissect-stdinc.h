@@ -394,6 +394,11 @@ struct in6_addr {
  * end of Apple deprecation workaround macros
  */
 
+/*
+ * Function attributes, for various compilers.
+ */
+#include "funcattrs.h"
+
 #ifndef min
 #define min(a,b) ((a)>(b)?(b):(a))
 #endif

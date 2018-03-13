@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2005 Poul-Henning Kamp
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -258,8 +260,8 @@ __printf_render_int(struct __printf_io *io, const struct printf_info *pi, const 
 	const union arg *argp;
 	char buf[BUF];
 	char *p, *pe;
-	char ns, l;
-	int rdx, sign, zext, ngrp;
+	char ns;
+	int l, ngrp, rdx, sign, zext;
 	const char *nalt, *digit;
 	char thousands_sep;	/* locale specific thousands separator */
 	const char *grouping;	/* locale specific numeric grouping rules */

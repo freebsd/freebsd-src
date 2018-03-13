@@ -137,6 +137,8 @@ int ieee802_11_send_wnmsleep_req(struct wpa_supplicant *wpa_s,
 	if (res < 0)
 		wpa_printf(MSG_DEBUG, "Failed to send WNM-Sleep Request "
 			   "(action=%d, intval=%d)", action, intval);
+	else
+		wpa_s->wnmsleep_used = 1;
 
 	os_free(wnmsleep_ie);
 	os_free(wnmtfs_ie);
@@ -186,6 +188,12 @@ static void wnm_sleep_mode_exit_success(struct wpa_supplicant *wpa_s,
 	ptr = (u8 *) frm + 1 + 2;
 	end = ptr + key_len_total;
 	wpa_hexdump_key(MSG_DEBUG, "WNM: Key Data", ptr, key_len_total);
+
+	if (key_len_total && !wpa_sm_pmf_enabled(wpa_s->wpa)) {
+		wpa_msg(wpa_s, MSG_INFO,
+			"WNM: Ignore Key Data in WNM-Sleep Mode Response - PMF not enabled");
+		return;
+	}
 
 	while (ptr + 1 < end) {
 		if (ptr + 2 + ptr[1] > end) {
@@ -247,6 +255,12 @@ static void ieee802_11_rx_wnmsleep_resp(struct wpa_supplicant *wpa_s,
 	u8 *tfsresp_ie_end = NULL;
 	size_t left;
 
+	if (!wpa_s->wnmsleep_used) {
+		wpa_printf(MSG_DEBUG,
+			   "WNM: Ignore WNM-Sleep Mode Response frame since WNM-Sleep Mode operation has not been requested");
+		return;
+	}
+
 	if (len < 3)
 		return;
 	key_len_total = WPA_GET_LE16(frm + 1);
@@ -281,6 +295,8 @@ static void ieee802_11_rx_wnmsleep_resp(struct wpa_supplicant *wpa_s,
 		wpa_printf(MSG_DEBUG, "No WNM-Sleep IE found");
 		return;
 	}
+
+	wpa_s->wnmsleep_used = 0;
 
 	if (wnmsleep_ie->status == WNM_STATUS_SLEEP_ACCEPT ||
 	    wnmsleep_ie->status == WNM_STATUS_SLEEP_EXIT_ACCEPT_GTK_UPDATE) {

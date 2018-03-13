@@ -6,6 +6,8 @@
  * 
  * adw_pci.c	ABP[3]940UW, ABP950UW, ABP3940U2W
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998, 1999, 2000 Justin Gibbs.
  * All rights reserved.
  *
@@ -1171,6 +1173,7 @@ adw_attach(struct adw_softc *adw)
 		xpt_action((union ccb *)&csa);
 	}
 
+	gone_in_dev(adw->device, 12, "adw(4) driver");
 fail:
 	mtx_unlock(&adw->lock);
 	return (error);

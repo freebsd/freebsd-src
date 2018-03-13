@@ -12,7 +12,6 @@ arm/xilinx/zy7_devcfg.c				standard
 arm/xilinx/zy7_mp.c				optional smp
 
 dev/cadence/if_cgem.c				optional cgem
-dev/sdhci/sdhci_fdt.c				optional sdhci
 arm/xilinx/zy7_ehci.c 				optional ehci
 arm/xilinx/uart_dev_cdnc.c			optional uart
 arm/xilinx/zy7_gpio.c				optional gpio

@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2017 Oliver Pinter
  * Copyright (c) 2000-2015 Mark R V Murray
  * All rights reserved.
  *
@@ -321,6 +322,8 @@ random_source_register(struct random_source *rsource)
 	rrs = malloc(sizeof(*rrs), M_ENTROPY, M_WAITOK);
 	rrs->rrs_source = rsource;
 
+	random_harvest_register_source(rsource->rs_source);
+
 	printf("random: registering fast source %s\n", rsource->rs_ident);
 	LIST_INSERT_HEAD(&source_list, rrs, rrs_entries);
 }
@@ -331,6 +334,9 @@ random_source_deregister(struct random_source *rsource)
 	struct random_sources *rrs = NULL;
 
 	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
+
+	random_harvest_deregister_source(rsource->rs_source);
+
 	LIST_FOREACH(rrs, &source_list, rrs_entries)
 		if (rrs->rrs_source == rsource) {
 			LIST_REMOVE(rrs, rrs_entries);

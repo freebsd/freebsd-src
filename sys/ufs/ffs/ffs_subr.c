@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -35,9 +37,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #ifndef _KERNEL
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <time.h>
+#include <sys/errno.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
-#else
+
+struct malloc_type;
+#define UFS_MALLOC(size, type, flags) malloc(size)
+#define UFS_FREE(ptr, type) free(ptr)
+#define UFS_TIME time(NULL)
+
+#else /* _KERNEL */
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -54,6 +67,10 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/ufs_extern.h>
 #include <ufs/ffs/ffs_extern.h>
 #include <ufs/ffs/fs.h>
+
+#define UFS_MALLOC(size, type, flags) malloc(size, type, flags)
+#define UFS_FREE(ptr, type) free(ptr, type)
+#define UFS_TIME time_second
 
 /*
  * Return buffer with the contents of block "offset" from the beginning of
@@ -117,6 +134,189 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 	}
 }
 #endif /* KERNEL */
+
+/*
+ * These are the low-level functions that actually read and write
+ * the superblock and its associated data.
+ */
+static off_t sblock_try[] = SBLOCKSEARCH;
+static int readsuper(void *, struct fs **, off_t, int,
+	int (*)(void *, off_t, void **, int));
+
+/*
+ * Read a superblock from the devfd device.
+ *
+ * If an alternate superblock is specified, it is read. Otherwise the
+ * set of locations given in the SBLOCKSEARCH list is searched for a
+ * superblock. Memory is allocated for the superblock by the readfunc and
+ * is returned. If filltype is non-NULL, additional memory is allocated
+ * of type filltype and filled in with the superblock summary information.
+ * All memory is freed when any error is returned.
+ *
+ * If a superblock is found, zero is returned. Otherwise one of the
+ * following error values is returned:
+ *     EIO: non-existent or truncated superblock.
+ *     EIO: error reading summary information.
+ *     ENOENT: no usable known superblock found.
+ *     ENOSPC: failed to allocate space for the superblock.
+ *     EINVAL: The previous newfs operation on this volume did not complete.
+ *         The administrator must complete newfs before using this volume.
+ */
+int
+ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
+    struct malloc_type *filltype,
+    int (*readfunc)(void *devfd, off_t loc, void **bufp, int size))
+{
+	struct fs *fs;
+	int i, error, size, blks;
+	uint8_t *space;
+	int32_t *lp;
+	char *buf;
+
+	fs = NULL;
+	*fsp = NULL;
+	if (altsblock != -1) {
+		if ((error = readsuper(devfd, &fs, altsblock, 1,
+		     readfunc)) != 0) {
+			if (fs != NULL)
+				UFS_FREE(fs, filltype);
+			return (error);
+		}
+	} else {
+		for (i = 0; sblock_try[i] != -1; i++) {
+			if ((error = readsuper(devfd, &fs, sblock_try[i], 0,
+			     readfunc)) == 0)
+				break;
+			if (fs != NULL) {
+				UFS_FREE(fs, filltype);
+				fs = NULL;
+			}
+			if (error == ENOENT)
+				continue;
+			return (error);
+		}
+		if (sblock_try[i] == -1)
+			return (ENOENT);
+	}
+	/*
+	 * Read in the superblock summary information.
+	 */
+	size = fs->fs_cssize;
+	blks = howmany(size, fs->fs_fsize);
+	if (fs->fs_contigsumsize > 0)
+		size += fs->fs_ncg * sizeof(int32_t);
+	size += fs->fs_ncg * sizeof(u_int8_t);
+	/* When running in libufs or libsa, UFS_MALLOC may fail */
+	if ((space = UFS_MALLOC(size, filltype, M_WAITOK)) == NULL) {
+		UFS_FREE(fs, filltype);
+		return (ENOSPC);
+	}
+	fs->fs_csp = (struct csum *)space;
+	for (i = 0; i < blks; i += fs->fs_frag) {
+		size = fs->fs_bsize;
+		if (i + fs->fs_frag > blks)
+			size = (blks - i) * fs->fs_fsize;
+		buf = NULL;
+		error = (*readfunc)(devfd,
+		    dbtob(fsbtodb(fs, fs->fs_csaddr + i)), (void **)&buf, size);
+		if (error) {
+			if (buf != NULL)
+				UFS_FREE(buf, filltype);
+			UFS_FREE(fs->fs_csp, filltype);
+			UFS_FREE(fs, filltype);
+			return (error);
+		}
+		memcpy(space, buf, size);
+		UFS_FREE(buf, filltype);
+		space += size;
+	}
+	if (fs->fs_contigsumsize > 0) {
+		fs->fs_maxcluster = lp = (int32_t *)space;
+		for (i = 0; i < fs->fs_ncg; i++)
+			*lp++ = fs->fs_contigsumsize;
+		space = (uint8_t *)lp;
+	}
+	size = fs->fs_ncg * sizeof(u_int8_t);
+	fs->fs_contigdirs = (u_int8_t *)space;
+	bzero(fs->fs_contigdirs, size);
+	*fsp = fs;
+	return (0);
+}
+
+/*
+ * Try to read a superblock from the location specified by sblockloc.
+ * Return zero on success or an errno on failure.
+ */
+static int
+readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
+    int (*readfunc)(void *devfd, off_t loc, void **bufp, int size))
+{
+	struct fs *fs;
+	int error;
+
+	error = (*readfunc)(devfd, sblockloc, (void **)fsp, SBLOCKSIZE);
+	if (error != 0)
+		return (error);
+	fs = *fsp;
+	if (fs->fs_magic == FS_BAD_MAGIC)
+		return (EINVAL);
+	if (((fs->fs_magic == FS_UFS1_MAGIC && (isaltsblk ||
+	      sblockloc <= SBLOCK_UFS1)) ||
+	     (fs->fs_magic == FS_UFS2_MAGIC && (isaltsblk ||
+	      sblockloc == fs->fs_sblockloc))) &&
+	    fs->fs_ncg >= 1 &&
+	    fs->fs_bsize >= MINBSIZE &&
+	    fs->fs_bsize <= MAXBSIZE &&
+	    fs->fs_bsize >= roundup(sizeof(struct fs), DEV_BSIZE)) {
+		/* Have to set for old filesystems that predate this field */
+		fs->fs_sblockactualloc = sblockloc;
+		/* Not yet any summary information */
+		fs->fs_csp = NULL;
+		return (0);
+	}
+	return (ENOENT);
+}
+
+/*
+ * Write a superblock to the devfd device from the memory pointed to by fs.
+ * Write out the superblock summary information if it is present.
+ *
+ * If the write is successful, zero is returned. Otherwise one of the
+ * following error values is returned:
+ *     EIO: failed to write superblock.
+ *     EIO: failed to write superblock summary information.
+ */
+int
+ffs_sbput(void *devfd, struct fs *fs, off_t loc,
+    int (*writefunc)(void *devfd, off_t loc, void *buf, int size))
+{
+	int i, error, blks, size;
+	uint8_t *space;
+
+	/*
+	 * If there is summary information, write it first, so if there
+	 * is an error, the superblock will not be marked as clean.
+	 */
+	if (fs->fs_csp != NULL) {
+		blks = howmany(fs->fs_cssize, fs->fs_fsize);
+		space = (uint8_t *)fs->fs_csp;
+		for (i = 0; i < blks; i += fs->fs_frag) {
+			size = fs->fs_bsize;
+			if (i + fs->fs_frag > blks)
+				size = (blks - i) * fs->fs_fsize;
+			if ((error = (*writefunc)(devfd,
+			     dbtob(fsbtodb(fs, fs->fs_csaddr + i)),
+			     space, size)) != 0)
+				return (error);
+			space += size;
+		}
+	}
+	fs->fs_fmod = 0;
+	fs->fs_time = UFS_TIME;
+	if ((error = (*writefunc)(devfd, loc, fs, fs->fs_sbsize)) != 0)
+		return (error);
+	return (0);
+}
 
 /*
  * Update the frsum fields to reflect addition or deletion

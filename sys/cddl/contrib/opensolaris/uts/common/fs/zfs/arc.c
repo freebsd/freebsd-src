@@ -20,10 +20,10 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2018, Joyent, Inc.
  * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 by Saso Kiselkov. All rights reserved.
- * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2017 Nexenta Systems, Inc.  All rights reserved.
  */
 
 /*
@@ -309,6 +309,9 @@ int zfs_arc_evict_batch_limit = 10;
 /* number of seconds before growing cache again */
 static int		arc_grow_retry = 60;
 
+/* number of milliseconds before attempting a kmem-cache-reap */
+static int		arc_kmem_cache_reap_retry_ms = 1000;
+
 /* shift of arc_c for calculating overflow limit in arc_get_data_impl */
 int		zfs_arc_overflow_shift = 8;
 
@@ -350,6 +353,11 @@ extern boolean_t zfs_prefetch_disable;
 static boolean_t arc_warm;
 
 /*
+ * log2 fraction of the zio arena to keep free.
+ */
+int arc_zio_arena_free_shift = 2;
+
+/*
  * These tunables are for performance analysis.
  */
 uint64_t zfs_arc_max;
@@ -379,7 +387,7 @@ static void
 arc_free_target_init(void *unused __unused)
 {
 
-	zfs_arc_free_target = vm_pageout_wakeup_thresh;
+	zfs_arc_free_target = (vm_cnt.v_free_min / 10) * 11;
 }
 SYSINIT(arc_free_target_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_ANY,
     arc_free_target_init, NULL);
@@ -1857,8 +1865,9 @@ arc_cksum_is_equal(arc_buf_hdr_t *hdr, zio_t *zio)
 		uint64_t lsize = HDR_GET_LSIZE(hdr);
 		uint64_t csize;
 
-		void *cbuf = zio_buf_alloc(HDR_GET_PSIZE(hdr));
-		csize = zio_compress_data(compress, zio->io_abd, cbuf, lsize);
+		abd_t *cdata = abd_alloc_linear(HDR_GET_PSIZE(hdr), B_TRUE);
+		csize = zio_compress_data(compress, zio->io_abd,
+		    abd_to_buf(cdata), lsize);
 
 		ASSERT3U(csize, <=, HDR_GET_PSIZE(hdr));
 		if (csize < HDR_GET_PSIZE(hdr)) {
@@ -1874,10 +1883,10 @@ arc_cksum_is_equal(arc_buf_hdr_t *hdr, zio_t *zio)
 			 * and zero out any part that should not contain
 			 * data.
 			 */
-			bzero((char *)cbuf + csize, HDR_GET_PSIZE(hdr) - csize);
+			abd_zero_off(cdata, csize, HDR_GET_PSIZE(hdr) - csize);
 			csize = HDR_GET_PSIZE(hdr);
 		}
-		zio_push_transform(zio, cbuf, csize, HDR_GET_PSIZE(hdr), NULL);
+		zio_push_transform(zio, cdata, csize, HDR_GET_PSIZE(hdr), NULL);
 	}
 
 	/*
@@ -4199,8 +4208,6 @@ arc_shrink(int64_t to_free)
 	}
 }
 
-static long needfree = 0;
-
 typedef enum free_memory_reason_t {
 	FMR_UNKNOWN,
 	FMR_NEEDFREE,
@@ -4209,7 +4216,6 @@ typedef enum free_memory_reason_t {
 	FMR_PAGES_PP_MAXIMUM,
 	FMR_HEAP_ARENA,
 	FMR_ZIO_ARENA,
-	FMR_ZIO_FRAG,
 } free_memory_reason_t;
 
 int64_t last_free_memory;
@@ -4238,14 +4244,7 @@ arc_available_memory(void)
 	free_memory_reason_t r = FMR_UNKNOWN;
 
 #ifdef _KERNEL
-	if (needfree > 0) {
-		n = PAGESIZE * (-needfree);
-		if (n < lowest) {
-			lowest = n;
-			r = FMR_NEEDFREE;
-		}
-	}
-
+#ifdef __FreeBSD__
 	/*
 	 * Cooperate with pagedaemon when it's time for it to scan
 	 * and reclaim some pages.
@@ -4256,7 +4255,15 @@ arc_available_memory(void)
 		r = FMR_LOTSFREE;
 	}
 
-#ifdef illumos
+#else
+	if (needfree > 0) {
+		n = PAGESIZE * (-needfree);
+		if (n < lowest) {
+			lowest = n;
+			r = FMR_NEEDFREE;
+		}
+	}
+
 	/*
 	 * check that we're out of range of the pageout scanner.  It starts to
 	 * schedule paging if freemem is less than lotsfree and needfree.
@@ -4299,7 +4306,7 @@ arc_available_memory(void)
 		r = FMR_PAGES_PP_MAXIMUM;
 	}
 
-#endif	/* illumos */
+#endif	/* __FreeBSD__ */
 #if defined(__i386) || !defined(UMA_MD_SMALL_ALLOC)
 	/*
 	 * If we're on an i386 platform, it's possible that we'll exhaust the
@@ -4312,46 +4319,29 @@ arc_available_memory(void)
 	 * heap is allocated.  (Or, in the calculation, if less than 1/4th is
 	 * free)
 	 */
-	n = (int64_t)vmem_size(heap_arena, VMEM_FREE) -
-	    (vmem_size(heap_arena, VMEM_FREE | VMEM_ALLOC) >> 2);
+	n = uma_avail() - (long)(uma_limit() / 4);
 	if (n < lowest) {
 		lowest = n;
 		r = FMR_HEAP_ARENA;
 	}
-#define	zio_arena	NULL
-#else
-#define	zio_arena	heap_arena
 #endif
 
 	/*
 	 * If zio data pages are being allocated out of a separate heap segment,
 	 * then enforce that the size of available vmem for this arena remains
-	 * above about 1/16th free.
+	 * above about 1/4th (1/(2^arc_zio_arena_free_shift)) free.
 	 *
-	 * Note: The 1/16th arena free requirement was put in place
-	 * to aggressively evict memory from the arc in order to avoid
-	 * memory fragmentation issues.
+	 * Note that reducing the arc_zio_arena_free_shift keeps more virtual
+	 * memory (in the zio_arena) free, which can avoid memory
+	 * fragmentation issues.
 	 */
 	if (zio_arena != NULL) {
 		n = (int64_t)vmem_size(zio_arena, VMEM_FREE) -
-		    (vmem_size(zio_arena, VMEM_ALLOC) >> 4);
+		    (vmem_size(zio_arena, VMEM_ALLOC) >>
+		    arc_zio_arena_free_shift);
 		if (n < lowest) {
 			lowest = n;
 			r = FMR_ZIO_ARENA;
-		}
-	}
-
-	/*
-	 * Above limits know nothing about real level of KVA fragmentation.
-	 * Start aggressive reclamation if too little sequential KVA left.
-	 */
-	if (lowest > 0) {
-		n = (vmem_size(heap_arena, VMEM_MAXFREE) < SPA_MAXBLOCKSIZE) ?
-		    -((int64_t)vmem_size(heap_arena, VMEM_ALLOC) >> 4) :
-		    INT64_MAX;
-		if (n < lowest) {
-			lowest = n;
-			r = FMR_ZIO_FRAG;
 		}
 	}
 
@@ -4408,21 +4398,31 @@ arc_kmem_reap_now(void)
 #endif
 #endif
 
+	/*
+	 * If a kmem reap is already active, don't schedule more.  We must
+	 * check for this because kmem_cache_reap_soon() won't actually
+	 * block on the cache being reaped (this is to prevent callers from
+	 * becoming implicitly blocked by a system-wide kmem reap -- which,
+	 * on a system with many, many full magazines, can take minutes).
+	 */
+	if (kmem_cache_reap_active())
+		return;
+
 	for (i = 0; i < SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT; i++) {
 		if (zio_buf_cache[i] != prev_cache) {
 			prev_cache = zio_buf_cache[i];
-			kmem_cache_reap_now(zio_buf_cache[i]);
+			kmem_cache_reap_soon(zio_buf_cache[i]);
 		}
 		if (zio_data_buf_cache[i] != prev_data_cache) {
 			prev_data_cache = zio_data_buf_cache[i];
-			kmem_cache_reap_now(zio_data_buf_cache[i]);
+			kmem_cache_reap_soon(zio_data_buf_cache[i]);
 		}
 	}
-	kmem_cache_reap_now(abd_chunk_cache);
-	kmem_cache_reap_now(buf_cache);
-	kmem_cache_reap_now(hdr_full_cache);
-	kmem_cache_reap_now(hdr_l2only_cache);
-	kmem_cache_reap_now(range_seg_cache);
+	kmem_cache_reap_soon(abd_chunk_cache);
+	kmem_cache_reap_soon(buf_cache);
+	kmem_cache_reap_soon(hdr_full_cache);
+	kmem_cache_reap_soon(hdr_l2only_cache);
+	kmem_cache_reap_soon(range_seg_cache);
 
 #ifdef illumos
 	if (zio_arena != NULL) {
@@ -4452,10 +4452,12 @@ arc_kmem_reap_now(void)
  * This possible deadlock is avoided by always acquiring a hash lock
  * using mutex_tryenter() from arc_reclaim_thread().
  */
+/* ARGSUSED */
 static void
-arc_reclaim_thread(void *dummy __unused)
+arc_reclaim_thread(void *unused __unused)
 {
 	hrtime_t		growtime = 0;
+	hrtime_t		kmem_reap_time = 0;
 	callb_cpr_t		cpr;
 
 	CALLB_CPR_INIT(&cpr, &arc_reclaim_lock, callb_generic_cpr, FTAG);
@@ -4489,7 +4491,7 @@ arc_reclaim_thread(void *dummy __unused)
 
 		int64_t free_memory = arc_available_memory();
 		if (free_memory < 0) {
-
+			hrtime_t curtime = gethrtime();
 			arc_no_grow = B_TRUE;
 			arc_warm = B_TRUE;
 
@@ -4497,9 +4499,20 @@ arc_reclaim_thread(void *dummy __unused)
 			 * Wait at least zfs_grow_retry (default 60) seconds
 			 * before considering growing.
 			 */
-			growtime = gethrtime() + SEC2NSEC(arc_grow_retry);
+			growtime = curtime + SEC2NSEC(arc_grow_retry);
 
-			arc_kmem_reap_now();
+			/*
+			 * Wait at least arc_kmem_cache_reap_retry_ms
+			 * between arc_kmem_reap_now() calls. Without
+			 * this check it is possible to end up in a
+			 * situation where we spend lots of time
+			 * reaping caches, while we're near arc_c_min.
+			 */
+			if (curtime >= kmem_reap_time) {
+				arc_kmem_reap_now();
+				kmem_reap_time = gethrtime() +
+				    MSEC2NSEC(arc_kmem_cache_reap_retry_ms);
+			}
 
 			/*
 			 * If we are still low on memory, shrink the ARC
@@ -4511,7 +4524,9 @@ arc_reclaim_thread(void *dummy __unused)
 			    (arc_c >> arc_shrink_shift) - free_memory;
 			if (to_free > 0) {
 #ifdef _KERNEL
+#ifdef illumos
 				to_free = MAX(to_free, ptob(needfree));
+#endif
 #endif
 				arc_shrink(to_free);
 			}
@@ -4533,9 +4548,6 @@ arc_reclaim_thread(void *dummy __unused)
 		 * infinite loop.
 		 */
 		if (arc_size <= arc_c || evicted == 0) {
-#ifdef _KERNEL
-			needfree = 0;
-#endif
 			/*
 			 * We're either no longer overflowing, or we
 			 * can't evict anything more, so we should wake
@@ -5428,7 +5440,7 @@ top:
 			devw = hdr->b_l2hdr.b_dev->l2ad_writing;
 			addr = hdr->b_l2hdr.b_daddr;
 			/*
-			 * Lock out device removal.
+			 * Lock out L2ARC device removal.
 			 */
 			if (vdev_is_dead(vd) ||
 			    !spa_config_tryenter(spa, SCL_L2ARC, vd, RW_READER))
@@ -6126,8 +6138,7 @@ arc_memory_throttle(uint64_t reserve, uint64_t txg)
 	static uint64_t last_txg = 0;
 
 #if defined(__i386) || !defined(UMA_MD_SMALL_ALLOC)
-	available_memory =
-	    MIN(available_memory, ptob(vmem_size(heap_arena, VMEM_FREE)));
+	available_memory = MIN(available_memory, uma_avail());
 #endif
 
 	if (freemem > (uint64_t)physmem * arc_lotsfree_percent / 100)
@@ -6310,9 +6321,7 @@ arc_lowmem(void *arg __unused, int howto __unused)
 {
 
 	mutex_enter(&arc_reclaim_lock);
-	/* XXX: Memory deficit should be passed as argument. */
-	needfree = btoc(arc_c >> arc_shrink_shift);
-	DTRACE_PROBE(arc__needfree);
+	DTRACE_PROBE1(arc__needfree, int64_t, ((int64_t)freemem - zfs_arc_free_target) * PAGESIZE);
 	cv_signal(&arc_reclaim_thread_cv);
 
 	/*
@@ -6510,8 +6519,12 @@ arc_init(void)
 	 * Metadata is stored in the kernel's heap.  Don't let us
 	 * use more than half the heap for the ARC.
 	 */
+#ifdef __FreeBSD__
+	arc_meta_limit = MIN(arc_meta_limit, uma_limit() / 2);
+#else
 	arc_meta_limit = MIN(arc_meta_limit,
 	    vmem_size(heap_arena, VMEM_ALLOC | VMEM_FREE) / 2);
+#endif
 #endif
 
 	/* Allow the tunable to override if it is reasonable */
@@ -6637,6 +6650,11 @@ arc_init(void)
 void
 arc_fini(void)
 {
+#ifdef _KERNEL
+	if (arc_event_lowmem != NULL)
+		EVENTHANDLER_DEREGISTER(vm_lowmem, arc_event_lowmem);
+#endif
+
 	mutex_enter(&arc_reclaim_lock);
 	arc_reclaim_thread_exit = B_TRUE;
 	/*
@@ -6682,11 +6700,6 @@ arc_fini(void)
 	buf_fini();
 
 	ASSERT0(arc_loaned_bytes);
-
-#ifdef _KERNEL
-	if (arc_event_lowmem != NULL)
-		EVENTHANDLER_DEREGISTER(vm_lowmem, arc_event_lowmem);
-#endif
 }
 
 /*
@@ -7593,8 +7606,9 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
  * This thread feeds the L2ARC at regular intervals.  This is the beating
  * heart of the L2ARC.
  */
+/* ARGSUSED */
 static void
-l2arc_feed_thread(void *dummy __unused)
+l2arc_feed_thread(void *unused __unused)
 {
 	callb_cpr_t cpr;
 	l2arc_dev_t *dev;

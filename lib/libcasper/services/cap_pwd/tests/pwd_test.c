@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -31,6 +33,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/capsicum.h>
+#include <sys/nv.h>
 
 #include <assert.h>
 #include <err.h>

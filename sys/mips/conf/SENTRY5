@@ -83,6 +83,7 @@ device		ehci			# EHCI PCI->USB interface (USB 2.0)
 device		cfi			# parallel flash
 device		cfid
 
+device		gpio
 device		uart
 
 device		loop

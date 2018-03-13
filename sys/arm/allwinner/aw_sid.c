@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
 #include <machine/bus.h>
@@ -48,32 +50,75 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/allwinner/aw_sid.h>
 
+/* efuse registers */
+#define	SID_PRCTL		0x40
+#define	 SID_PRCTL_OFFSET_MASK	0xff
+#define	 SID_PRCTL_OFFSET(n)	(((n) & SID_PRCTL_OFFSET_MASK) << 16)
+#define	 SID_PRCTL_LOCK		(0xac << 8)
+#define	 SID_PRCTL_READ		(0x01 << 1)
+#define	 SID_PRCTL_WRITE	(0x01 << 0)
+#define	SID_PRKEY		0x50
+#define	SID_RDKEY		0x60
+
 #define	SID_SRAM		0x200
 #define	SID_THERMAL_CALIB0	(SID_SRAM + 0x34)
 #define	SID_THERMAL_CALIB1	(SID_SRAM + 0x38)
 
-#define	A10_ROOT_KEY_OFF	0x0
-#define	A83T_ROOT_KEY_OFF	SID_SRAM
-
 #define	ROOT_KEY_SIZE		4
 
-enum sid_type {
-	A10_SID = 1,
-	A20_SID,
-	A83T_SID,
+struct aw_sid_conf {
+	bus_size_t	efuse_size;
+	bus_size_t	rootkey_offset;
+	bool		has_prctl;
+	bool		has_thermal;
+	bool		requires_prctl_read;
+};
+
+static const struct aw_sid_conf a10_conf = {
+	.efuse_size = 0x10,
+	.rootkey_offset = 0,
+};
+
+static const struct aw_sid_conf a20_conf = {
+	.efuse_size = 0x10,
+	.rootkey_offset = 0,
+};
+
+static const struct aw_sid_conf a64_conf = {
+	.efuse_size = 0x100,
+	.rootkey_offset = SID_SRAM,
+	.has_prctl = true,
+	.has_thermal = true,
+};
+
+static const struct aw_sid_conf a83t_conf = {
+	.efuse_size = 0x100,
+	.rootkey_offset = SID_SRAM,
+	.has_prctl = true,
+	.has_thermal = true,
+};
+
+static const struct aw_sid_conf h3_conf = {
+	.efuse_size = 0x100,
+	.rootkey_offset = SID_SRAM,
+	.has_prctl = true,
+	.has_thermal = true,
+	.requires_prctl_read = true,
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun4i-a10-sid",		A10_SID},
-	{ "allwinner,sun7i-a20-sid",		A20_SID},
-	{ "allwinner,sun8i-a83t-sid",		A83T_SID},
+	{ "allwinner,sun4i-a10-sid",		(uintptr_t)&a10_conf},
+	{ "allwinner,sun7i-a20-sid",		(uintptr_t)&a20_conf},
+	{ "allwinner,sun50i-a64-sid",		(uintptr_t)&a64_conf},
+	{ "allwinner,sun8i-a83t-sid",		(uintptr_t)&a83t_conf},
+	{ "allwinner,sun8i-h3-sid",		(uintptr_t)&h3_conf},
 	{ NULL,					0 }
 };
 
 struct aw_sid_softc {
 	struct resource		*res;
-	int			type;
-	bus_size_t		root_key_off;
+	struct aw_sid_conf	*sid_conf;
+	struct mtx		prctl_mtx;
 };
 
 static struct aw_sid_softc *aw_sid_sc;
@@ -91,6 +136,35 @@ enum sid_keys {
 #define	WR4(sc, reg, val)	bus_write_4((sc)->res, (reg), (val))
 
 static int aw_sid_sysctl(SYSCTL_HANDLER_ARGS);
+static int aw_sid_prctl_read(device_t dev, bus_size_t offset, uint32_t *val);
+
+
+/*
+ * offset here is offset into efuse space, rather than offset into sid register
+ * space. This form of read is only an option for newer SoC: A83t, H3, A64
+ */
+static int
+aw_sid_prctl_read(device_t dev, bus_size_t offset, uint32_t *val)
+{
+	struct aw_sid_softc *sc;
+	uint32_t readval;
+
+	sc = device_get_softc(dev);
+	if (!sc->sid_conf->has_prctl)
+		return (1);
+
+	mtx_lock(&sc->prctl_mtx);
+	readval = SID_PRCTL_OFFSET(offset) | SID_PRCTL_LOCK | SID_PRCTL_READ;
+	WR4(sc, SID_PRCTL, readval);
+	/* Read bit will be cleared once read has concluded */
+	while (RD4(sc, SID_PRCTL) & SID_PRCTL_READ)
+		continue;
+	readval = RD4(sc, SID_RDKEY);
+	mtx_unlock(&sc->prctl_mtx);
+	*val = readval;
+
+	return (0);
+}
 
 static int
 aw_sid_probe(device_t dev)
@@ -109,6 +183,8 @@ static int
 aw_sid_attach(device_t dev)
 {
 	struct aw_sid_softc *sc;
+	bus_size_t i;
+	uint32_t val;
 
 	sc = device_get_softc(dev);
 
@@ -117,17 +193,22 @@ aw_sid_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	mtx_init(&sc->prctl_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
+	sc->sid_conf = (struct aw_sid_conf *)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	aw_sid_sc = sc;
 
-	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
-	switch (sc->type) {
-	case A83T_SID:
-		sc->root_key_off = A83T_ROOT_KEY_OFF;
-		break;
-	default:
-		sc->root_key_off = A10_ROOT_KEY_OFF;
-		break;
-	}
+	/*
+	 * This set of reads is solely for working around a silicon bug on some
+	 * SoC that require a prctl read in order for direct register access to
+	 * return a non-garbled value. Hence, the values we read are simply
+	 * ignored.
+	 */
+	if (sc->sid_conf->requires_prctl_read)
+		for (i = 0; i < sc->sid_conf->efuse_size; i += 4)
+			if (aw_sid_prctl_read(dev, i, &val) != 0) {
+				device_printf(dev, "failed prctl read\n");
+				return (ENXIO);
+			}
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -146,7 +227,7 @@ aw_sid_read_tscalib(uint32_t *calib0, uint32_t *calib1)
 	sc = aw_sid_sc;
 	if (sc == NULL)
 		return (ENXIO);
-	if (sc->type != A83T_SID)
+	if (!sc->sid_conf->has_thermal)
 		return (ENXIO);
 
 	*calib0 = RD4(sc, SID_THERMAL_CALIB0);
@@ -160,14 +241,15 @@ aw_sid_get_rootkey(u_char *out)
 {
 	struct aw_sid_softc *sc;
 	int i;
+	bus_size_t root_key_off;
 	u_int tmp;
 
 	sc = aw_sid_sc;
 	if (sc == NULL)
 		return (ENXIO);
-
+	root_key_off = aw_sid_sc->sid_conf->rootkey_offset;
 	for (i = 0; i < ROOT_KEY_SIZE ; i++) {
-		tmp = RD4(aw_sid_sc, aw_sid_sc->root_key_off + (i * 4));
+		tmp = RD4(aw_sid_sc, root_key_off + (i * 4));
 		be32enc(&out[i * 4], tmp);
 	}
 

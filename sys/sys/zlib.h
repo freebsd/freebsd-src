@@ -17,6 +17,8 @@
 
 /* +++ zlib.h */
 /*-
+  SPDX-License-Identifier: BSD-3-Clause
+
   zlib.h -- interface of the 'zlib' general purpose compression library
   version 1.0.4, Jul 24th, 1996.
 

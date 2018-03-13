@@ -6,13 +6,13 @@
 # XXX MISSING:		icheck ncheck
 
 SUBDIR=adjkerntz \
-	badsect \
 	camcontrol \
 	clri \
 	comcontrol \
 	conscontrol \
 	ddb \
 	devfs \
+	devmatch \
 	dhclient \
 	dmesg \
 	dump \

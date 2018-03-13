@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991 The Regents of the University of California.
  * All rights reserved.
  *
@@ -74,6 +76,7 @@
 #define	CR4_PCIDE 0x00020000	/* Enable Context ID */
 #define	CR4_XSAVE 0x00040000	/* XSETBV/XGETBV */
 #define	CR4_SMEP 0x00100000	/* Supervisor-Mode Execution Prevention */
+#define	CR4_SMAP 0x00200000	/* Supervisor-Mode Access Prevention */
 
 /*
  * Bits in AMD64 special registers.  EFER is 64 bits wide.
@@ -187,6 +190,35 @@
 #define	CPUTPM1_TURBO	0x00000002
 #define	CPUTPM1_ARAT	0x00000004
 #define	CPUTPM2_EFFREQ	0x00000001
+
+/* Intel Processor Trace CPUID. */
+
+/* Leaf 0 ebx. */
+#define	CPUPT_CR3		(1 << 0)	/* CR3 Filtering Support */
+#define	CPUPT_PSB		(1 << 1)	/* Configurable PSB and Cycle-Accurate Mode Supported */
+#define	CPUPT_IPF		(1 << 2)	/* IP Filtering and TraceStop supported */
+#define	CPUPT_MTC		(1 << 3)	/* MTC Supported */
+#define	CPUPT_PRW		(1 << 4)	/* PTWRITE Supported */
+#define	CPUPT_PWR		(1 << 5)	/* Power Event Trace Supported */
+
+/* Leaf 0 ecx. */
+#define	CPUPT_TOPA		(1 << 0)	/* ToPA Output Supported */
+#define	CPUPT_TOPA_MULTI	(1 << 1)	/* ToPA Tables Allow Multiple Output Entries */
+#define	CPUPT_SINGLE		(1 << 2)	/* Single-Range Output Supported */
+#define	CPUPT_TT_OUT		(1 << 3)	/* Output to Trace Transport Subsystem Supported */
+#define	CPUPT_LINEAR_IP		(1 << 31)	/* IP Payloads are Linear IP, otherwise IP is effective */
+
+/* Leaf 1 eax. */
+#define	CPUPT_NADDR_S		0	/* Number of Address Ranges */
+#define	CPUPT_NADDR_M		(0x7 << CPUPT_NADDR_S)
+#define	CPUPT_MTC_BITMAP_S	16	/* Bitmap of supported MTC Period Encodings */
+#define	CPUPT_MTC_BITMAP_M	(0xffff << CPUPT_MTC_BITMAP_S)
+
+/* Leaf 1 ebx. */
+#define	CPUPT_CT_BITMAP_S	0	/* Bitmap of supported Cycle Threshold values */
+#define	CPUPT_CT_BITMAP_M	(0xffff << CPUPT_CT_BITMAP_S)
+#define	CPUPT_PFE_BITMAP_S	16	/* Bitmap of supported Configurable PSB Frequency encoding */
+#define	CPUPT_PFE_BITMAP_M	(0xffff << CPUPT_PFE_BITMAP_S)
 
 /*
  * Important bits in the AMD extended cpuid flags
@@ -378,6 +410,7 @@
 #define	CPUID_STDEXT_AVX512CD	0x10000000
 #define	CPUID_STDEXT_SHA	0x20000000
 #define	CPUID_STDEXT_AVX512BW	0x40000000
+#define	CPUID_STDEXT_AVX512VL	0x80000000
 
 /*
  * CPUID instruction 7 Structured Extended Features, leaf 0 ecx info
@@ -388,6 +421,17 @@
 #define	CPUID_STDEXT2_OSPKE	0x00000010
 #define	CPUID_STDEXT2_RDPID	0x00400000
 #define	CPUID_STDEXT2_SGXLC	0x40000000
+
+/*
+ * CPUID instruction 7 Structured Extended Features, leaf 0 edx info
+ */
+#define	CPUID_STDEXT3_IBPB	0x04000000
+#define	CPUID_STDEXT3_STIBP	0x08000000
+#define	CPUID_STDEXT3_ARCH_CAP	0x20000000
+
+/* MSR IA32_ARCH_CAP(ABILITIES) bits */
+#define	IA32_ARCH_CAP_RDCL_NO	0x00000001
+#define	IA32_ARCH_CAP_IBRS_ALL	0x00000002
 
 /*
  * CPUID manufacturers identifiers
@@ -417,6 +461,8 @@
 #define	MSR_EBL_CR_POWERON	0x02a
 #define	MSR_TEST_CTL		0x033
 #define	MSR_IA32_FEATURE_CONTROL 0x03a
+#define	MSR_IA32_SPEC_CTRL	0x048
+#define	MSR_IA32_PRED_CMD	0x049
 #define	MSR_BIOS_UPDT_TRIG	0x079
 #define	MSR_BBL_CR_D0		0x088
 #define	MSR_BBL_CR_D1		0x089
@@ -429,6 +475,7 @@
 #define	MSR_APERF		0x0e8
 #define	MSR_IA32_EXT_CONFIG	0x0ee	/* Undocumented. Core Solo/Duo only */
 #define	MSR_MTRRcap		0x0fe
+#define	MSR_IA32_ARCH_CAP	0x10a
 #define	MSR_BBL_CR_ADDR		0x116
 #define	MSR_BBL_CR_DECC		0x118
 #define	MSR_BBL_CR_CTL		0x119
@@ -547,6 +594,85 @@
 #define	MSR_IA32_XSS		0xda0
 
 /*
+ * Intel Processor Trace (PT) MSRs.
+ */
+#define	MSR_IA32_RTIT_OUTPUT_BASE	0x560	/* Trace Output Base Register (R/W) */
+#define	MSR_IA32_RTIT_OUTPUT_MASK_PTRS	0x561	/* Trace Output Mask Pointers Register (R/W) */
+#define	MSR_IA32_RTIT_CTL		0x570	/* Trace Control Register (R/W) */
+#define	 RTIT_CTL_TRACEEN	(1 << 0)
+#define	 RTIT_CTL_CYCEN		(1 << 1)
+#define	 RTIT_CTL_OS		(1 << 2)
+#define	 RTIT_CTL_USER		(1 << 3)
+#define	 RTIT_CTL_PWREVTEN	(1 << 4)
+#define	 RTIT_CTL_FUPONPTW	(1 << 5)
+#define	 RTIT_CTL_FABRICEN	(1 << 6)
+#define	 RTIT_CTL_CR3FILTER	(1 << 7)
+#define	 RTIT_CTL_TOPA		(1 << 8)
+#define	 RTIT_CTL_MTCEN		(1 << 9)
+#define	 RTIT_CTL_TSCEN		(1 << 10)
+#define	 RTIT_CTL_DISRETC	(1 << 11)
+#define	 RTIT_CTL_PTWEN		(1 << 12)
+#define	 RTIT_CTL_BRANCHEN	(1 << 13)
+#define	 RTIT_CTL_MTC_FREQ_S	14
+#define	 RTIT_CTL_MTC_FREQ(n)	((n) << RTIT_CTL_MTC_FREQ_S)
+#define	 RTIT_CTL_MTC_FREQ_M	(0xf << RTIT_CTL_MTC_FREQ_S)
+#define	 RTIT_CTL_CYC_THRESH_S	19
+#define	 RTIT_CTL_CYC_THRESH_M	(0xf << RTIT_CTL_CYC_THRESH_S)
+#define	 RTIT_CTL_PSB_FREQ_S	24
+#define	 RTIT_CTL_PSB_FREQ_M	(0xf << RTIT_CTL_PSB_FREQ_S)
+#define	 RTIT_CTL_ADDR_CFG_S(n) (32 + (n) * 4)
+#define	 RTIT_CTL_ADDR0_CFG_S	32
+#define	 RTIT_CTL_ADDR0_CFG_M	(0xfULL << RTIT_CTL_ADDR0_CFG_S)
+#define	 RTIT_CTL_ADDR1_CFG_S	36
+#define	 RTIT_CTL_ADDR1_CFG_M	(0xfULL << RTIT_CTL_ADDR1_CFG_S)
+#define	 RTIT_CTL_ADDR2_CFG_S	40
+#define	 RTIT_CTL_ADDR2_CFG_M	(0xfULL << RTIT_CTL_ADDR2_CFG_S)
+#define	 RTIT_CTL_ADDR3_CFG_S	44
+#define	 RTIT_CTL_ADDR3_CFG_M	(0xfULL << RTIT_CTL_ADDR3_CFG_S)
+#define	MSR_IA32_RTIT_STATUS		0x571	/* Tracing Status Register (R/W) */
+#define	 RTIT_STATUS_FILTEREN	(1 << 0)
+#define	 RTIT_STATUS_CONTEXTEN	(1 << 1)
+#define	 RTIT_STATUS_TRIGGEREN	(1 << 2)
+#define	 RTIT_STATUS_ERROR	(1 << 4)
+#define	 RTIT_STATUS_STOPPED	(1 << 5)
+#define	 RTIT_STATUS_PACKETBYTECNT_S	32
+#define	 RTIT_STATUS_PACKETBYTECNT_M	(0x1ffffULL << RTIT_STATUS_PACKETBYTECNT_S)
+#define	MSR_IA32_RTIT_CR3_MATCH		0x572	/* Trace Filter CR3 Match Register (R/W) */
+#define	MSR_IA32_RTIT_ADDR_A(n)		(0x580 + (n) * 2)
+#define	MSR_IA32_RTIT_ADDR_B(n)		(0x581 + (n) * 2)
+#define	MSR_IA32_RTIT_ADDR0_A		0x580	/* Region 0 Start Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR0_B		0x581	/* Region 0 End Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR1_A		0x582	/* Region 1 Start Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR1_B		0x583	/* Region 1 End Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR2_A		0x584	/* Region 2 Start Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR2_B		0x585	/* Region 2 End Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR3_A		0x586	/* Region 3 Start Address (R/W) */
+#define	MSR_IA32_RTIT_ADDR3_B		0x587	/* Region 3 End Address (R/W) */
+
+/* Intel Processor Trace Table of Physical Addresses (ToPA). */
+#define	TOPA_SIZE_S	6
+#define	TOPA_SIZE_M	(0xf << TOPA_SIZE_S)
+#define	TOPA_SIZE_4K	(0 << TOPA_SIZE_S)
+#define	TOPA_SIZE_8K	(1 << TOPA_SIZE_S)
+#define	TOPA_SIZE_16K	(2 << TOPA_SIZE_S)
+#define	TOPA_SIZE_32K	(3 << TOPA_SIZE_S)
+#define	TOPA_SIZE_64K	(4 << TOPA_SIZE_S)
+#define	TOPA_SIZE_128K	(5 << TOPA_SIZE_S)
+#define	TOPA_SIZE_256K	(6 << TOPA_SIZE_S)
+#define	TOPA_SIZE_512K	(7 << TOPA_SIZE_S)
+#define	TOPA_SIZE_1M	(8 << TOPA_SIZE_S)
+#define	TOPA_SIZE_2M	(9 << TOPA_SIZE_S)
+#define	TOPA_SIZE_4M	(10 << TOPA_SIZE_S)
+#define	TOPA_SIZE_8M	(11 << TOPA_SIZE_S)
+#define	TOPA_SIZE_16M	(12 << TOPA_SIZE_S)
+#define	TOPA_SIZE_32M	(13 << TOPA_SIZE_S)
+#define	TOPA_SIZE_64M	(14 << TOPA_SIZE_S)
+#define	TOPA_SIZE_128M	(15 << TOPA_SIZE_S)
+#define	TOPA_STOP	(1 << 4)
+#define	TOPA_INT	(1 << 2)
+#define	TOPA_END	(1 << 0)
+
+/*
  * Constants related to MSR's.
  */
 #define	APICBASE_RESERVED	0x000002ff
@@ -570,6 +696,17 @@
 #define	IA32_MISC_EN_LIMCPUID	0x0000000000400000ULL
 #define	IA32_MISC_EN_xTPRD	0x0000000000800000ULL
 #define	IA32_MISC_EN_XDD	0x0000000400000000ULL
+
+/*
+ * IA32_SPEC_CTRL and IA32_PRED_CMD MSRs are described in the Intel'
+ * document 336996-001 Speculative Execution Side Channel Mitigations.
+ */
+/* MSR IA32_SPEC_CTRL */
+#define	IA32_SPEC_CTRL_IBRS	0x00000001
+#define	IA32_SPEC_CTRL_STIBP	0x00000002
+
+/* MSR IA32_PRED_CMD */
+#define	IA32_PRED_CMD_IBPB_BARRIER	0x0000000000000001ULL
 
 /*
  * PAT modes.

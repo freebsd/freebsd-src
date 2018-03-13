@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1990, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -129,14 +131,12 @@ _sleep(void *ident, struct lock_object *lock, int priority,
     const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 {
 	struct thread *td;
-	struct proc *p;
 	struct lock_class *class;
 	uintptr_t lock_state;
 	int catch, pri, rval, sleepq_flags;
 	WITNESS_SAVE_DECL(lock_witness);
 
 	td = curthread;
-	p = td->td_proc;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(1, 0, wmesg);
@@ -175,7 +175,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 
 	sleepq_lock(ident);
 	CTR5(KTR_PROC, "sleep: thread %ld (pid %ld, %s) on %s (%p)",
-	    td->td_tid, p->p_pid, td->td_name, wmesg, ident);
+	    td->td_tid, td->td_proc->p_pid, td->td_name, wmesg, ident);
 
 	if (lock == &Giant.lock_object)
 		mtx_assert(&Giant, MA_OWNED);
@@ -233,12 +233,10 @@ msleep_spin_sbt(void *ident, struct mtx *mtx, const char *wmesg,
     sbintime_t sbt, sbintime_t pr, int flags)
 {
 	struct thread *td;
-	struct proc *p;
 	int rval;
 	WITNESS_SAVE_DECL(mtx);
 
 	td = curthread;
-	p = td->td_proc;
 	KASSERT(mtx != NULL, ("sleeping without a mutex"));
 	KASSERT(ident != NULL, ("msleep_spin_sbt: NULL ident"));
 	KASSERT(TD_IS_RUNNING(td), ("msleep_spin_sbt: curthread not running"));
@@ -248,7 +246,7 @@ msleep_spin_sbt(void *ident, struct mtx *mtx, const char *wmesg,
 
 	sleepq_lock(ident);
 	CTR5(KTR_PROC, "msleep_spin: thread %ld (pid %ld, %s) on %s (%p)",
-	    td->td_tid, p->p_pid, td->td_name, wmesg, ident);
+	    td->td_tid, td->td_proc->p_pid, td->td_name, wmesg, ident);
 
 	DROP_GIANT();
 	mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
@@ -299,16 +297,16 @@ msleep_spin_sbt(void *ident, struct mtx *mtx, const char *wmesg,
 }
 
 /*
- * pause() delays the calling thread by the given number of system ticks.
- * During cold bootup, pause() uses the DELAY() function instead of
- * the tsleep() function to do the waiting. The "timo" argument must be
- * greater than or equal to zero. A "timo" value of zero is equivalent
- * to a "timo" value of one.
+ * pause_sbt() delays the calling thread by the given signed binary
+ * time. During cold bootup, pause_sbt() uses the DELAY() function
+ * instead of the _sleep() function to do the waiting. The "sbt"
+ * argument must be greater than or equal to zero. A "sbt" value of
+ * zero is equivalent to a "sbt" value of one tick.
  */
 int
 pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 {
-	KASSERT(sbt >= 0, ("pause: timeout must be >= 0"));
+	KASSERT(sbt >= 0, ("pause_sbt: timeout must be >= 0"));
 
 	/* silently convert invalid timeouts */
 	if (sbt == 0)
@@ -328,9 +326,10 @@ pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 		sbt = howmany(sbt, SBT_1US);
 		if (sbt > 0)
 			DELAY(sbt);
-		return (0);
+		return (EWOULDBLOCK);
 	}
-	return (_sleep(&pause_wchan[curcpu], NULL, 0, wmesg, sbt, pr, flags));
+	return (_sleep(&pause_wchan[curcpu], NULL,
+	    (flags & C_CATCH) ? PCATCH : 0, wmesg, sbt, pr, flags));
 }
 
 /*

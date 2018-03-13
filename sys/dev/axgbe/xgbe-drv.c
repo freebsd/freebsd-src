@@ -954,7 +954,7 @@ static int xgbe_rx_poll(struct xgbe_channel *channel, int budget)
 	struct xgbe_packet_data *packet;
 	struct ifnet *ifp = pdata->netdev;
 	struct mbuf *m;
-	unsigned int incomplete, context_next, context;
+	unsigned int incomplete, context_next;
 	unsigned int received = 0;
 	int packet_count = 0;
 
@@ -992,9 +992,6 @@ read_again:
 		context_next = XGMAC_GET_BITS(packet->attributes,
 					      RX_PACKET_ATTRIBUTES,
 					      CONTEXT_NEXT);
-		context = XGMAC_GET_BITS(packet->attributes,
-					 RX_PACKET_ATTRIBUTES,
-					 CONTEXT);
 
 		/* Earlier error, just drain the remaining data */
 		if (incomplete || context_next) {

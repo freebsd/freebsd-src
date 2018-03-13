@@ -1,9 +1,9 @@
-.Dd March 21 2017
+.Dd February 27 2018
 .Dt NTPD 1ntpdmdoc User Commands
 .Os
 .\"  EDIT THIS FILE WITH CAUTION  (ntpd-opts.mdoc)
 .\"
-.\"  It has been AutoGen-ed  March 21, 2017 at 10:44:23 AM by AutoGen 5.18.5
+.\"  It has been AutoGen-ed  February 27, 2018 at 05:14:47 PM by AutoGen 5.18.5
 .\"  From the definitions    ntpd-opts.def
 .\"  and the template file   agmdoc-cmd.tpl
 .Sh NAME

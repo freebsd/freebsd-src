@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -500,7 +500,7 @@ AcpiPsGetNextNamepath (
 
     if (ACPI_FAILURE (Status))
     {
-        ACPI_ERROR_NAMESPACE (Path, Status);
+        ACPI_ERROR_NAMESPACE (WalkState->ScopeInfo, Path, Status);
 
         if ((WalkState->ParseFlags & ACPI_PARSE_MODE_MASK) ==
             ACPI_PARSE_EXECUTE)
@@ -1067,10 +1067,9 @@ AcpiPsGetNextArg (
     case ARGP_DATAOBJ:
     case ARGP_TERMARG:
 
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
-        "**** TermArg/DataObj: %s (%2.2X)\n",
-        AcpiUtGetArgumentTypeName (ArgType), ArgType));
+        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
+            "**** TermArg/DataObj: %s (%2.2X)\n",
+            AcpiUtGetArgumentTypeName (ArgType), ArgType));
 
         /* Single complex argument, nothing returned */
 

@@ -6,7 +6,6 @@ DIRDEPS = \
 	cddl/lib/libnvpair \
 	cddl/lib/libumem \
 	gnu/lib/csu \
-	gnu/lib/libgcc \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \

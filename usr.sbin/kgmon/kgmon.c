@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -509,6 +511,7 @@ reset(struct kvmvars *kvp)
 		if (kvm_write(kvp->kd, (u_long)kvp->gpm.tos, zbuf,
 		    kvp->gpm.tossize) != (ssize_t)kvp->gpm.tossize)
 			errx(15, "tos zero: %s", kvm_geterr(kvp->kd));
+		free(zbuf);
 		return;
 	}
 	(void)seteuid(0);

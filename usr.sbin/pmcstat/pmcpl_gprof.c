@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2007, Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
  * Copyright (c) 2009, Fabien Thomas
@@ -75,6 +77,9 @@ __FBSDID("$FreeBSD$");
 #include "pmcpl_gprof.h"
 
 typedef	uint64_t	WIDEHISTCOUNTER;
+
+#define	min(A,B)		((A) < (B) ? (A) : (B))
+#define	max(A,B)		((A) > (B) ? (A) : (B))
 
 #define	WIDEHISTCOUNTER_MAX		UINT64_MAX
 #define	HISTCOUNTER_MAX			USHRT_MAX
@@ -436,7 +441,7 @@ pmcpl_gmon_process(struct pmcstat_process *pp, struct pmcstat_pmcrecord *pmcr,
 	 * this executable image, try determine its parameters.
 	 */
 	if (image->pi_type == PMCSTAT_IMAGE_UNKNOWN)
-		pmcstat_image_determine_type(image);
+		pmcstat_image_determine_type(image, &args);
 
 	assert(image->pi_type != PMCSTAT_IMAGE_UNKNOWN);
 

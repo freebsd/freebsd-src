@@ -53,10 +53,6 @@
 #define CK_PR_DISABLE_DOUBLE
 #endif /* CK_PR_DISABLE_DOUBLE */
 
-#ifndef CK_MD_RMO
-#define CK_MD_RMO
-#endif /* CK_MD_RMO */
-
 #define CK_VERSION "0.6.0"
 #define CK_GIT_SHA ""
 
@@ -65,11 +61,20 @@
  */
 #if defined(__i386__) && !defined(__x86__)
 #define __x86__
+#define CK_MD_TSO
+#elif defined(__amd64__)
+#define CK_MD_TSO
 #elif defined(__sparc64__) && !defined(__sparcv9__)
 #define __sparcv9__
+#define CK_MD_TSO
 #elif defined(__powerpc64__) && !defined(__ppc64__)
 #define __ppc64__
 #elif defined(__powerpc__) && !defined(__ppc__)
 #define __ppc__
 #endif
+
+#if !defined(CK_MD_RMO) && !defined(CK_MD_TSO) && !defined(CK_MD_PSO)
+#define CK_MD_RMO
+#endif
+
 #endif /* CK_MD_H */

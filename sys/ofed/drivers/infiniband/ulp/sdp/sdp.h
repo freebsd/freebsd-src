@@ -52,7 +52,6 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 #include <rdma/ib_cm.h>
-#include <rdma/sdp_socket.h>
 #include <rdma/ib_fmr_pool.h>
 
 #ifdef SDP_DEBUG
@@ -338,7 +337,6 @@ struct sdp_rx_ring {
 
 struct sdp_device {
 	struct ib_pd 		*pd;
-	struct ib_mr 		*mr;
 	struct ib_fmr_pool 	*fmr_pool;
 };
 

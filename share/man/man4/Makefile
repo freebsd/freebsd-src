@@ -70,15 +70,24 @@ MAN=	aac.4 \
 	audit.4 \
 	auditpipe.4 \
 	aue.4 \
+	${_aw_gpio.4} \
+	${_aw_mmc.4} \
+	${_aw_rtc.4} \
+	${_aw_sid.4} \
+	${_aw_syscon.4} \
 	axe.4 \
 	axge.4 \
 	bce.4 \
+	${_bcm283x_pwm.4} \
 	bcma.4 \
 	bfe.4 \
 	bge.4 \
 	${_bhyve.4} \
 	bhnd.4 \
+	bhnd_chipc.4 \
+	bhnd_pmu.4 \
 	bhndb.4 \
+	bhndb_pci.4 \
 	bktr.4 \
 	blackhole.4 \
 	bnxt.4 \
@@ -88,6 +97,7 @@ MAN=	aac.4 \
 	bwi.4 \
 	bwn.4 \
 	${_bytgpio.4} \
+	${_chvgpio.4} \
 	capsicum.4 \
 	cardbus.4 \
 	carp.4 \
@@ -155,6 +165,7 @@ MAN=	aac.4 \
 	fd.4 \
 	fdc.4 \
 	fdt.4 \
+	fdt_pinctrl.4 \
 	fdtbus.4 \
 	ffclock.4 \
 	filemon.4 \
@@ -208,6 +219,7 @@ MAN=	aac.4 \
 	iicbus.4 \
 	iicsmb.4 \
 	iir.4 \
+	${_imcsmb.4} \
 	inet.4 \
 	inet6.4 \
 	intpm.4 \
@@ -238,6 +250,7 @@ MAN=	aac.4 \
 	ixgbe.4 \
 	ixl.4 \
 	ixlv.4 \
+	jedec_dimm.4 \
 	jedec_ts.4 \
 	jme.4 \
 	joy.4 \
@@ -379,6 +392,7 @@ MAN=	aac.4 \
 	${_ntb_hw_intel.4} \
 	${_ntb_hw_plx.4} \
 	${_ntb_transport.4} \
+	${_nda.4} \
 	${_if_ntb.4} \
 	null.4 \
 	numa.4 \
@@ -547,6 +561,7 @@ MAN=	aac.4 \
 	vkbd.4 \
 	vlan.4 \
 	vxlan.4 \
+	${_vmm.4} \
 	${_vmx.4} \
 	vpo.4 \
 	vr.4 \
@@ -602,7 +617,8 @@ MLINKS+=${_bxe.4} ${_if_bxe.4}
 MLINKS+=cas.4 if_cas.4
 MLINKS+=cdce.4 if_cdce.4
 MLINKS+=cfi.4 cfid.4
-MLINKS+=cloudabi.4 cloudabi64.4
+MLINKS+=cloudabi.4 cloudabi32.4 \
+	cloudabi.4 cloudabi64.4
 MLINKS+=crypto.4 cryptodev.4
 MLINKS+=cue.4 if_cue.4
 MLINKS+=cxgb.4 if_cxgb.4
@@ -751,6 +767,14 @@ MLINKS+=xl.4 if_xl.4
 _armv8crypto.4=	armv8crypto.4
 .endif
 
+.if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "aarch64"
+_aw_gpio.4=	aw_gpio.4
+_aw_mmc.4=	aw_mmc.4
+_aw_rtc.4=	aw_rtc.4
+_aw_sid.4=	aw_sid.4
+_aw_syscon.4=	aw_syscon.4
+.endif
+
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 _acpi_asus.4=	acpi_asus.4
 _acpi_asus_wmi.4=	acpi_asus_wmi.4
@@ -776,6 +800,7 @@ _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
 _bxe.4=		bxe.4
 _bytgpio.4=	bytgpio.4
+_chvgpio.4=	chvgpio.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
 _dpms.4=	dpms.4
@@ -801,9 +826,11 @@ _if_vmx.4=	if_vmx.4
 _if_vtnet.4=	if_vtnet.4
 _if_vxge.4=	if_vxge.4
 _if_wpi.4=	if_wpi.4
+_imcsmb.4=	imcsmb.4
 _ipmi.4=	ipmi.4
 _io.4=		io.4
 _linux.4=	linux.4
+_nda.4=		nda.4
 _ndis.4=	ndis.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
@@ -855,11 +882,16 @@ MLINKS+=sfxge.4 if_sfxge.4
 
 .if ${MK_BHYVE} != "no"
 _bhyve.4=	bhyve.4
+_vmm.4=		vmm.4
 .endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
 _nvram2env.4=	nvram2env.4
+.endif
+
+.if ${MACHINE_ARCH:Marmv[67]*} != "" || ${MACHINE_CPUARCH} == "aarch64"
+_bcm283x_pwm.4=  bcm283x_pwm.4
 .endif
 
 .if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
@@ -894,6 +926,10 @@ MAN+=		iser.4
 .if ${MK_OFED} != "no"
 MAN+=		mlx4ib.4
 MAN+=		mlx5ib.4
+.endif
+
+.if ${MK_MLX5TOOL} != "no"
+MAN+=		mlx5io.4
 .endif
 
 .if ${MK_TESTS} != "no"

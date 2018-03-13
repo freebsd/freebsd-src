@@ -1,5 +1,5 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
- * All rights reserved.
+/*
+ * Copyright 2008-2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,6 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 /*------------------------------------------------------*/
 /* File: sprint.c                                       */
 /*                                                      */
@@ -38,7 +39,6 @@
 /*------------------------------------------------------*/
 #include "string_ext.h"
 #include "stdlib_ext.h"
-#include "ctype_ext.h"
 #include "stdarg_ext.h"
 #include "sprint_ext.h"
 #include "std_ext.h"

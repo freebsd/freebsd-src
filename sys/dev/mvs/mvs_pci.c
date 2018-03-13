@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
@@ -336,7 +338,7 @@ mvs_intr(void *data)
 
 	ic = ATA_INL(ctlr->r_mem, CHIP_MIC);
 	if (ctlr->msi) {
-		/* We have to to mask MSI during processing. */
+		/* We have to mask MSI during processing. */
 		mtx_lock(&ctlr->mtx);
 		ATA_OUTL(ctlr->r_mem, CHIP_MIM, 0);
 		ctlr->msia = 1; /* Deny MIM update during processing. */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -74,7 +76,7 @@ void	npx_set_fpregs_xmm(struct save87 *, struct savexmm *);
 
 struct fpu_kern_ctx *fpu_kern_alloc_ctx(u_int flags);
 void	fpu_kern_free_ctx(struct fpu_kern_ctx *ctx);
-int	fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx,
+void	fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx,
 	    u_int flags);
 int	fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx);
 int	fpu_kern_thread(u_int flags);

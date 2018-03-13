@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -174,7 +176,7 @@ SATI_STATUS sati_write_long_translate_command(
             sati_ata_write_uncorrectable_construct(
                ata_io,
                sequence,
-               ATA_WRITE_UNCORRECTABLE_PSUEDO
+               ATA_WRITE_UNCORRECTABLE_PSEUDO
             );
             sequence->type = SATI_SEQUENCE_WRITE_LONG;
             status = SATI_SUCCESS;
@@ -186,7 +188,7 @@ SATI_STATUS sati_write_long_translate_command(
          sati_ata_write_uncorrectable_construct(
             ata_io,
             sequence,
-            ATA_WRITE_UNCORRECTABLE_PSUEDO
+            ATA_WRITE_UNCORRECTABLE_PSEUDO
          );
          sequence->type = SATI_SEQUENCE_WRITE_LONG;
          status = SATI_SUCCESS;

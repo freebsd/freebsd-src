@@ -43,11 +43,7 @@
 
 extern unsigned int    lio_hwlro;
 
-#ifdef __LP64__
 #define LIO_CAST64(v)	((long long)(long)(v))
-#else
-#error "Unknown system architecture"
-#endif
 
 #define LIO_DRV_NAME	"lio"
 
@@ -107,9 +103,9 @@ lio_map_pci_barx(struct octeon_device *oct, int baridx)
 	oct->mem_bus_space[baridx].handle =
 		rman_get_bushandle(oct->mem_bus_space[baridx].pci_mem);
 
-	lio_dev_dbg(oct, "BAR%d Tag 0x%lx Handle 0x%lx\n",
-		    baridx, oct->mem_bus_space[baridx].tag,
-		    oct->mem_bus_space[baridx].handle);
+	lio_dev_dbg(oct, "BAR%d Tag 0x%llx Handle 0x%llx\n",
+		    baridx, LIO_CAST64(oct->mem_bus_space[baridx].tag),
+		    LIO_CAST64(oct->mem_bus_space[baridx].handle));
 
 	return (0);
 }

@@ -120,7 +120,8 @@ struct tsd_s {
 	t use_a_getter_or_setter_instead_##n;
 MALLOC_TSD
 #undef O
-};
+/* AddressSanitizer requires TLS data to be aligned to at least 8 bytes. */
+} JEMALLOC_ALIGNED(16);
 
 /*
  * Wrapper around tsd_t that makes it possible to avoid implicit conversion

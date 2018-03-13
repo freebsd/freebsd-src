@@ -3,6 +3,8 @@
 /*	$FreeBSD$	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 James Howard and Dag-Erling Coïdan Smørgrav
  * Copyright (c) 2008-2009 Gabor Kovesdan <gabor@FreeBSD.org>
  * All rights reserved.

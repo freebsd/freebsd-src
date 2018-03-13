@@ -28,6 +28,7 @@
 
 #include <sys/queue.h>
 
+#include <linux/sched.h>
 #include <linux/ww_mutex.h>
 
 struct ww_mutex_thread {
@@ -72,9 +73,12 @@ linux_ww_unlock(void)
 int
 linux_ww_mutex_lock_sub(struct ww_mutex *lock, int catch_signal)
 {
+	struct task_struct *task;
 	struct ww_mutex_thread entry;
 	struct ww_mutex_thread *other;
 	int retval = 0;
+
+	task = current;
 
 	linux_ww_lock();
 	if (unlikely(sx_try_xlock(&lock->base.sx) == 0)) {
@@ -105,7 +109,9 @@ linux_ww_mutex_lock_sub(struct ww_mutex *lock, int catch_signal)
 				}
 			}
 			if (catch_signal) {
-				if (cv_wait_sig(&lock->condvar, &ww_mutex_global) != 0) {
+				retval = -cv_wait_sig(&lock->condvar, &ww_mutex_global);
+				if (retval != 0) {
+					linux_schedule_save_interrupt_value(task, retval);
 					retval = -EINTR;
 					goto done;
 				}
@@ -133,4 +139,30 @@ linux_ww_mutex_unlock_sub(struct ww_mutex *lock)
 	/* wakeup a lock waiter, if any */
 	cv_signal(&lock->condvar);
 	linux_ww_unlock();
+}
+
+int
+linux_mutex_lock_interruptible(mutex_t *m)
+{
+	int error;
+
+	error = -sx_xlock_sig(&m->sx);
+	if (error != 0) {
+		linux_schedule_save_interrupt_value(current, error);
+		error = -EINTR;
+	}
+	return (error);
+}
+
+int
+linux_down_write_killable(struct rw_semaphore *rw)
+{
+	int error;
+
+	error = -sx_xlock_sig(&rw->sx);
+	if (error != 0) {
+		linux_schedule_save_interrupt_value(current, error);
+		error = -EINTR;
+	}
+	return (error);
 }

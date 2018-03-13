@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Robert N. M. Watson
  * Copyright (c) 2015 Allan Jude <allanjude@freebsd.org>
  * All rights reserved.
@@ -46,7 +48,7 @@ procstat_bin(struct procstat *prstat, struct kinfo_proc *kipp)
 	int osrel;
 	static char pathname[PATH_MAX];
 
-	if (!hflag)
+	if ((procstat_opts & PS_OPT_NOHEADER) == 0)
 		xo_emit("{T:/%5s %-16s %8s %s}\n", "PID", "COMM", "OSREL",
 		    "PATH");
 

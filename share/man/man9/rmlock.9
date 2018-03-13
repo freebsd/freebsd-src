@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .\" Based on rwlock.9 man page
-.Dd December 13, 2014
+.Dd November 11, 2017
 .Dt RMLOCK 9
 .Os
 .Sh NAME
@@ -42,7 +42,8 @@
 .Nm rm_wowned ,
 .Nm rm_sleep ,
 .Nm rm_assert ,
-.Nm RM_SYSINIT
+.Nm RM_SYSINIT ,
+.Nm RM_SYSINIT_FLAGS
 .Nd kernel reader/writer lock optimized for read-mostly access patterns
 .Sh SYNOPSIS
 .In sys/param.h
@@ -74,7 +75,8 @@
 .Ft void
 .Fn rm_assert "struct rmlock *rm" "int what"
 .In sys/kernel.h
-.Fn RM_SYSINIT "name" "struct rmlock *rm" "const char *desc" "int opts"
+.Fn RM_SYSINIT "name" "struct rmlock *rm" "const char *desc"
+.Fn RM_SYSINIT_FLAGS "name" "struct rmlock *rm" "const char *desc" "int flags"
 .Sh DESCRIPTION
 Read-mostly locks allow shared access to protected data by multiple threads,
 or exclusive access by a single thread.

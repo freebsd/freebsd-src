@@ -256,7 +256,7 @@ fpu_kern_free_ctx(struct fpu_kern_ctx *ctx)
 	free(ctx, M_FPUKERN_CTX);
 }
 
-int
+void
 fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 {
 	struct pcb *pcb;
@@ -273,21 +273,18 @@ fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 		critical_enter();
 		if (curthread == PCPU_GET(fpcurthread)) {
 			vfp_save_state(curthread, pcb);
-			PCPU_SET(fpcurthread, NULL);
-		} else {
-			KASSERT(PCPU_GET(fpcurthread) == NULL,
-			    ("invalid fpcurthread"));
 		}
+		PCPU_SET(fpcurthread, NULL);
 
 		vfp_enable();
 		pcb->pcb_fpflags |= PCB_FP_KERN | PCB_FP_NOSAVE |
 		    PCB_FP_STARTED;
-		return (0);
+		return;
 	}
 
 	if ((flags & FPU_KERN_KTHR) != 0 && is_fpu_kern_thread(0)) {
 		ctx->flags = FPU_KERN_CTX_DUMMY | FPU_KERN_CTX_INUSE;
-		return (0);
+		return;
 	}
 	/*
 	 * Check either we are already using the VFP in the kernel, or
@@ -303,7 +300,7 @@ fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 	pcb->pcb_fpflags |= PCB_FP_KERN;
 	pcb->pcb_fpflags &= ~PCB_FP_STARTED;
 
-	return (0);
+	return;
 }
 
 int

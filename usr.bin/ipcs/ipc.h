@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994 SigmaSoft, Th. Lockert <tholo@sigmasoft.com>
  * All rights reserved.
  *
@@ -66,3 +68,6 @@ extern kvm_t *kd;
 extern struct semid_kernel	*sema;
 extern struct msqid_kernel	*msqids;
 extern struct shmid_kernel	*shmsegs;
+extern struct seminfo		 seminfo;
+extern struct msginfo		 msginfo;
+extern struct shminfo		 shminfo;

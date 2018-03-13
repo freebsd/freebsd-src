@@ -1,6 +1,8 @@
 /*	$NetBSD: icsphy.c,v 1.41 2006/11/16 21:24:07 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998, 1999, 2000 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

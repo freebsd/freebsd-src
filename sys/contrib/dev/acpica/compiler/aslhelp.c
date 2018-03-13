@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -173,6 +173,7 @@ void
 Usage (
     void)
 {
+    printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
     printf ("%s\n\n", ASL_COMPLIANCE);
     ACPI_USAGE_HEADER ("iasl [Options] [Files]");
 

@@ -311,22 +311,9 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 	}
 	dseg = ((struct mlx5_wqe_data_seg *)&wqe->ctrl) + ds_cnt;
 
-	/* Trim off empty mbufs */
-	while (mb->m_len == 0) {
-		mb = m_free(mb);
-		/* Check if all data has been inlined */
-		if (mb == NULL)
-			goto skip_dma;
-	}
-
 	err = bus_dmamap_load_mbuf_sg(sq->dma_tag, sq->mbuf[pi].dma_map,
 	    mb, segs, &nsegs, BUS_DMA_NOWAIT);
 	if (err == EFBIG) {
-		/*
-		 * Update *mbp before defrag in case it was trimmed in the
-		 * loop above
-		 */
-		*mbp = mb;
 		/* Update statistics */
 		sq->stats.defragged++;
 		/* Too many mbuf fragments */
@@ -343,6 +330,17 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 	if (err != 0)
 		goto tx_drop;
 
+	/* Make sure all mbuf data, if any, is written to RAM */
+	if (nsegs != 0) {
+		bus_dmamap_sync(sq->dma_tag, sq->mbuf[pi].dma_map,
+		    BUS_DMASYNC_PREWRITE);
+	} else {
+		/* All data was inlined, free the mbuf. */
+		bus_dmamap_unload(sq->dma_tag, sq->mbuf[pi].dma_map);
+		m_freem(mb);
+		mb = NULL;
+	}
+
 	for (x = 0; x != nsegs; x++) {
 		if (segs[x].ds_len == 0)
 			continue;
@@ -351,7 +349,7 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 		dseg->byte_count = cpu_to_be32((uint32_t)segs[x].ds_len);
 		dseg++;
 	}
-skip_dma:
+
 	ds_cnt = (dseg - ((struct mlx5_wqe_data_seg *)&wqe->ctrl));
 
 	wqe->ctrl.opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | opcode);
@@ -368,10 +366,6 @@ skip_dma:
 	sq->mbuf[pi].mbuf = mb;
 	sq->mbuf[pi].num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
 	sq->pc += sq->mbuf[pi].num_wqebbs;
-
-	/* Make sure all mbuf data is written to RAM */
-	if (mb != NULL)
-		bus_dmamap_sync(sq->dma_tag, sq->mbuf[pi].dma_map, BUS_DMASYNC_PREWRITE);
 
 	sq->stats.packets++;
 	*mbp = NULL;	/* safety clear */
@@ -435,7 +429,7 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 	mlx5_cqwq_update_db_record(&sq->cq.wq);
 
 	/* Ensure cq space is freed before enabling more cqes */
-	wmb();
+	atomic_thread_fence_rel();
 
 	sq->cc = sqcc;
 

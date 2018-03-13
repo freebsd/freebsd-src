@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995 Terrence R. Lambert
  * All rights reserved.
  *
@@ -85,9 +87,9 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <vm/vm_domain.h>
 #include <sys/copyright.h>
 
 #include <ddb/ddb.h>
@@ -135,6 +137,11 @@ SYSINIT(placeholder, SI_SUB_DUMMY, SI_ORDER_ANY, NULL, NULL);
 SET_DECLARE(sysinit_set, struct sysinit);
 struct sysinit **sysinit, **sysinit_end;
 struct sysinit **newsysinit, **newsysinit_end;
+
+EVENTHANDLER_LIST_DECLARE(process_init);
+EVENTHANDLER_LIST_DECLARE(thread_init);
+EVENTHANDLER_LIST_DECLARE(process_ctor);
+EVENTHANDLER_LIST_DECLARE(thread_ctor);
 
 /*
  * Merge a new sysinit set into the current set, reallocating it if
@@ -212,6 +219,8 @@ mi_startup(void)
 	int last;
 	int verbose;
 #endif
+
+	TSENTER();
 
 	if (boothowto & RB_VERBOSE)
 		bootverbose++;
@@ -305,6 +314,8 @@ restart:
 			goto restart;
 		}
 	}
+
+	TSEXIT();	/* Here so we don't overlap with start_init. */
 
 	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
 	mtx_unlock(&Giant);
@@ -420,6 +431,10 @@ proc0_init(void *dummy __unused)
 	struct proc *p;
 	struct thread *td;
 	struct ucred *newcred;
+	struct uidinfo tmpuinfo;
+	struct loginclass tmplc = {
+		.lc_name = "",
+	};
 	vm_paddr_t pageablemem;
 	int i;
 
@@ -482,10 +497,7 @@ proc0_init(void *dummy __unused)
 	td->td_flags = TDF_INMEM;
 	td->td_pflags = TDP_KTHREAD;
 	td->td_cpuset = cpuset_thread0();
-	vm_domain_policy_init(&td->td_vm_dom_policy);
-	vm_domain_policy_set(&td->td_vm_dom_policy, VM_POLICY_NONE, -1);
-	vm_domain_policy_init(&p->p_vm_dom_policy);
-	vm_domain_policy_set(&p->p_vm_dom_policy, VM_POLICY_NONE, -1);
+	td->td_domain.dr_policy = td->td_cpuset->cs_domain;
 	prison0_init();
 	p->p_peers = 0;
 	p->p_leader = p;
@@ -502,10 +514,17 @@ proc0_init(void *dummy __unused)
 	/* Create credentials. */
 	newcred = crget();
 	newcred->cr_ngroups = 1;	/* group 0 */
+	/* A hack to prevent uifind from tripping over NULL pointers. */
+	curthread->td_ucred = newcred;
+	tmpuinfo.ui_uid = 1;
+	newcred->cr_uidinfo = newcred->cr_ruidinfo = &tmpuinfo;
 	newcred->cr_uidinfo = uifind(0);
 	newcred->cr_ruidinfo = uifind(0);
-	newcred->cr_prison = &prison0;
+	newcred->cr_loginclass = &tmplc;
 	newcred->cr_loginclass = loginclass_find("default");
+	/* End hack. creds get properly set later with thread_cow_get_proc */
+	curthread->td_ucred = NULL;
+	newcred->cr_prison = &prison0;
 	proc_set_cred_init(p, newcred);
 #ifdef AUDIT
 	audit_cred_kproc0(newcred);
@@ -537,7 +556,7 @@ proc0_init(void *dummy __unused)
 	p->p_limit->pl_rlimit[RLIMIT_STACK].rlim_cur = dflssiz;
 	p->p_limit->pl_rlimit[RLIMIT_STACK].rlim_max = maxssiz;
 	/* Cast to avoid overflow on i386/PAE. */
-	pageablemem = ptoa((vm_paddr_t)vm_cnt.v_free_count);
+	pageablemem = ptoa((vm_paddr_t)vm_free_count());
 	p->p_limit->pl_rlimit[RLIMIT_RSS].rlim_cur =
 	    p->p_limit->pl_rlimit[RLIMIT_RSS].rlim_max = pageablemem;
 	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_cur = pageablemem / 3;
@@ -569,10 +588,10 @@ proc0_init(void *dummy __unused)
 	 * Call the init and ctor for the new thread and proc.  We wait
 	 * to do this until all other structures are fairly sane.
 	 */
-	EVENTHANDLER_INVOKE(process_init, p);
-	EVENTHANDLER_INVOKE(thread_init, td);
-	EVENTHANDLER_INVOKE(process_ctor, p);
-	EVENTHANDLER_INVOKE(thread_ctor, td);
+	EVENTHANDLER_DIRECT_INVOKE(process_init, p);
+	EVENTHANDLER_DIRECT_INVOKE(thread_init, td);
+	EVENTHANDLER_DIRECT_INVOKE(process_ctor, p);
+	EVENTHANDLER_DIRECT_INVOKE(thread_ctor, td);
 
 	/*
 	 * Charge root for one process.
@@ -688,6 +707,8 @@ start_init(void *dummy)
 
 	GIANT_REQUIRED;
 
+	TSENTER();	/* Here so we don't overlap with mi_startup. */
+
 	td = curthread;
 	p = td->td_proc;
 
@@ -779,8 +800,9 @@ start_init(void *dummy)
 		 * Otherwise, return via fork_trampoline() all the way
 		 * to user mode as init!
 		 */
-		if ((error = sys_execve(td, &args)) == 0) {
+		if ((error = sys_execve(td, &args)) == EJUSTRETURN) {
 			mtx_unlock(&Giant);
+			TSEXIT();
 			return;
 		}
 		if (error != ENOENT)

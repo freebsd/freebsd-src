@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
  * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
@@ -64,6 +66,7 @@ typedef enum {
 	BHND_DEVCLASS_USB_HOST,		/**< USB host controller */
 	BHND_DEVCLASS_USB_DEV,		/**< USB device controller */
 	BHND_DEVCLASS_USB_DUAL,		/**< USB host/device controller */
+	BHND_DEVCLASS_SOFTMODEM,	/**< analog/PSTN softmodem codec */
 
 	BHND_DEVCLASS_OTHER	= 1000,	/**< other / unknown */
 	BHND_DEVCLASS_INVALID		/**< no/invalid class */
@@ -72,8 +75,10 @@ typedef enum {
 /** bhnd(4) platform services. */
 typedef enum {
 	BHND_SERVICE_CHIPC,		/**< chipcommon service; implements the bhnd_chipc interface */
+	BHND_SERVICE_PWRCTL,		/**< legacy pwrctl service; implements the bhnd_pwrctl interface */
 	BHND_SERVICE_PMU,		/**< pmu service; implements the bhnd_pmu interface */
 	BHND_SERVICE_NVRAM,		/**< nvram service; implements the bhnd_nvram interface */
+	BHND_SERVICE_GPIO,		/**< gpio service; implements the standard gpio interface */
 
 	BHND_SERVICE_ANY = 1000,	/**< match on any service type */
 } bhnd_service_t;

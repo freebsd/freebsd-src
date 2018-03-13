@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -150,8 +150,6 @@
  *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/compiler/dtcompiler.h>
-
 
 #define _COMPONENT          ASL_PREPROCESSOR
         ACPI_MODULE_NAME    ("prutils")
@@ -514,7 +512,7 @@ PrPushInputFileStack (
     /* Reset the global line count and filename */
 
     Gbl_Files[ASL_FILE_INPUT].Filename =
-        UtStringCacheCalloc (strlen (Filename) + 1);
+        UtLocalCacheCalloc (strlen (Filename) + 1);
     strcpy (Gbl_Files[ASL_FILE_INPUT].Filename, Filename);
 
     Gbl_Files[ASL_FILE_INPUT].Handle = InputFile;

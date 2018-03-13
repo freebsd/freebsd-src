@@ -1,6 +1,8 @@
 /*	$NetBSD: tmpfs_vnops.c,v 1.39 2007/07/23 15:41:01 jmmv Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2005, 2006 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -37,9 +39,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/dirent.h>
 #include <sys/fcntl.h>
+#include <sys/limits.h>
 #include <sys/lockf.h>
 #include <sys/lock.h>
+#include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
@@ -614,8 +619,8 @@ tmpfs_link(struct vop_link_args *v)
 
 	/* Ensure that we do not overflow the maximum number of links imposed
 	 * by the system. */
-	MPASS(node->tn_links <= LINK_MAX);
-	if (node->tn_links == LINK_MAX) {
+	MPASS(node->tn_links <= TMPFS_LINK_MAX);
+	if (node->tn_links == TMPFS_LINK_MAX) {
 		error = EMLINK;
 		goto out;
 	}
@@ -1333,17 +1338,37 @@ tmpfs_print(struct vop_print_args *v)
 	return 0;
 }
 
-static int
+int
 tmpfs_pathconf(struct vop_pathconf_args *v)
 {
+	struct vnode *vp = v->a_vp;
 	int name = v->a_name;
-	register_t *retval = v->a_retval;
+	long *retval = v->a_retval;
 
 	int error;
 
 	error = 0;
 
 	switch (name) {
+	case _PC_LINK_MAX:
+		*retval = TMPFS_LINK_MAX;
+		break;
+
+	case _PC_NAME_MAX:
+		*retval = NAME_MAX;
+		break;
+
+	case _PC_PIPE_BUF:
+		if (vp->v_type == VDIR || vp->v_type == VFIFO)
+			*retval = PIPE_BUF;
+		else
+			error = EINVAL;
+		break;
+
+	case _PC_CHOWN_RESTRICTED:
+		*retval = 1;
+		break;
+
 	case _PC_NO_TRUNC:
 		*retval = 1;
 		break;

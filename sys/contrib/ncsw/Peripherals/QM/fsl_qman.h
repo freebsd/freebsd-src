@@ -117,7 +117,7 @@ struct qm_portal_config {
      * affinity configured. */
     int cpu;
     /* portal interrupt line */
-    int irq;
+    uintptr_t irq;
     /* The portal's dedicated channel id, use this value for initializing
      * frame queues to target this portal when scheduled. */
     e_QmFQChannel channel;

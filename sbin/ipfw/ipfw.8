@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2017
+.Dd March 12, 2018
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1070,49 +1070,49 @@ Set specified DiffServ codepoint for an IPv4/IPv6 packet.
 Processing continues at the next rule.
 Supported values are:
 .Pp
-.Cm CS0
+.Cm cs0
 .Pq Dv 000000 ,
-.Cm CS1
+.Cm cs1
 .Pq Dv 001000 ,
-.Cm CS2
+.Cm cs2
 .Pq Dv 010000 ,
-.Cm CS3
+.Cm cs3
 .Pq Dv 011000 ,
-.Cm CS4
+.Cm cs4
 .Pq Dv 100000 ,
-.Cm CS5
+.Cm cs5
 .Pq Dv 101000 ,
-.Cm CS6
+.Cm cs6
 .Pq Dv 110000 ,
-.Cm CS7
+.Cm cs7
 .Pq Dv 111000 ,
-.Cm AF11
+.Cm af11
 .Pq Dv 001010 ,
-.Cm AF12
+.Cm af12
 .Pq Dv 001100 ,
-.Cm AF13
+.Cm af13
 .Pq Dv 001110 ,
-.Cm AF21
+.Cm af21
 .Pq Dv 010010 ,
-.Cm AF22
+.Cm af22
 .Pq Dv 010100 ,
-.Cm AF23
+.Cm af23
 .Pq Dv 010110 ,
-.Cm AF31
+.Cm af31
 .Pq Dv 011010 ,
-.Cm AF32
+.Cm af32
 .Pq Dv 011100 ,
-.Cm AF33
+.Cm af33
 .Pq Dv 011110 ,
-.Cm AF41
+.Cm af41
 .Pq Dv 100010 ,
-.Cm AF42
+.Cm af42
 .Pq Dv 100100 ,
-.Cm AF43
+.Cm af43
 .Pq Dv 100110 ,
-.Cm EF
+.Cm ef
 .Pq Dv 101110 ,
-.Cm BE
+.Cm be
 .Pq Dv 000000 .
 Additionally, DSCP value can be specified by number (0..64).
 It is also possible to use the
@@ -1135,7 +1135,7 @@ Regardless of matched a packet or not by the
 .Cm tcp-setmss
 rule, the search continues with the next rule.
 .It Cm reass
-Queue and reassemble IP fragments.
+Queue and reassemble IPv4 fragments.
 If the packet is not fragmented, counters are updated and
 processing continues with the next rule.
 If the packet is the last logical fragment, the packet is reassembled and, if
@@ -1173,6 +1173,14 @@ ipfw add reass all from any to any in
 .Ed
 .Pp
 is all you need at the beginning of your ruleset.
+.It Cm abort
+Discard packets that match this rule, and if the packet is an SCTP packet,
+try to send an SCTP packet containing an ABORT chunk.
+The search terminates.
+.It Cm abort6
+Discard packets that match this rule, and if the packet is an SCTP packet,
+try to send an SCTP packet containing an ABORT chunk.
+The search terminates.
 .El
 .Ss RULE BODY
 The body of a rule contains zero or more patterns (such as
@@ -3012,7 +3020,7 @@ supports in-kernel IPv6/IPv4 network address and protocol translation.
 Stateful NAT64 translation allows IPv6-only clients to contact IPv4 servers
 using unicast TCP, UDP or ICMP protocols.
 One or more IPv4 addresses assigned to a stateful NAT64 translator are shared
-among serveral IPv6-only clients.
+among several IPv6-only clients.
 When stateful NAT64 is used in conjunction with DNS64, no changes are usually
 required in the IPv6 client or the IPv4 server.
 The kernel module

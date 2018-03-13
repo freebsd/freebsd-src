@@ -200,6 +200,7 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 	if (name != NULL) {
 		if (strcmp(name, "calltrap") == 0 ||
 		    strcmp(name, "fork_trampoline") == 0 ||
+		    strcmp(name, "mchk_calltrap") == 0 ||
 		    strcmp(name, "nmi_calltrap") == 0 ||
 		    strcmp(name, "Xdblfault") == 0)
 			frame_type = TRAP;
@@ -211,7 +212,9 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 		    strcmp(name, "Xcpususpend") == 0 ||
 		    strcmp(name, "Xrendezvous") == 0)
 			frame_type = INTERRUPT;
-		else if (strcmp(name, "Xfast_syscall") == 0)
+		else if (strcmp(name, "Xfast_syscall") == 0 ||
+		    strcmp(name, "Xfast_syscall_pti") == 0 ||
+		    strcmp(name, "fast_syscall_common") == 0)
 			frame_type = SYSCALL;
 #ifdef COMPAT_FREEBSD32
 		else if (strcmp(name, "Xint0x80_syscall") == 0)
@@ -335,7 +338,8 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct amd64_frame *frame,
 					/* Probably an assembler symbol. */
 					actframe = (void *)(tf->tf_rsp - 8);
 				}
-			} else if (strcmp(name, "fork_trampoline") == 0) {
+			} else if (name != NULL &&
+			    strcmp(name, "fork_trampoline") == 0) {
 				/*
 				 * Don't try to walk back on a stack for a
 				 * process that hasn't actually been run yet.

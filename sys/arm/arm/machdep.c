@@ -1,6 +1,8 @@
 /*	$NetBSD: arm32_machdep.c,v 1.44 2004/03/24 15:34:47 atatat Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2004 Olivier Houchard
  * Copyright (c) 1994-1998 Mark Brinicombe.
  * Copyright (c) 1994 Brini.
@@ -64,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/msgbuf.h>
+#include <sys/reboot.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/syscallsubr.h>
@@ -226,8 +229,8 @@ cpu_startup(void *dummy)
 	    (uintmax_t)arm32_ptob(realmem),
 	    (uintmax_t)arm32_ptob(realmem) / mbyte);
 	printf("avail memory = %ju (%ju MB)\n",
-	    (uintmax_t)arm32_ptob(vm_cnt.v_free_count),
-	    (uintmax_t)arm32_ptob(vm_cnt.v_free_count) / mbyte);
+	    (uintmax_t)arm32_ptob(vm_free_count()),
+	    (uintmax_t)arm32_ptob(vm_free_count()) / mbyte);
 	if (bootverbose) {
 		arm_physmem_print_tables();
 		devmap_print_table();
@@ -345,7 +348,9 @@ void
 DELAY(int usec)
 {
 
+	TSENTER();
 	delay_impl(usec, delay_arg);
+	TSEXIT();
 }
 #endif
 
@@ -443,6 +448,30 @@ set_vfpcontext(struct thread *td, mcontext_vfp_t *vfp)
 }
 #endif
 
+int
+arm_get_vfpstate(struct thread *td, void *args)
+{
+	int rv;
+	struct arm_get_vfpstate_args ua;
+	mcontext_vfp_t	mcontext_vfp;
+
+	rv = copyin(args, &ua, sizeof(ua));
+	if (rv != 0)
+		return (rv);
+	if (ua.mc_vfp_size != sizeof(mcontext_vfp_t))
+		return (EINVAL);
+#ifdef VFP
+	get_vfpcontext(td, &mcontext_vfp);
+#else
+	bzero(&mcontext_vfp, sizeof(mcontext_vfp));
+#endif
+
+	rv = copyout(&mcontext_vfp, ua.mc_vfp,  sizeof(mcontext_vfp));
+	if (rv != 0)
+		return (rv);
+	return (0);
+}
+
 /*
  * Get machine context.
  */
@@ -494,6 +523,16 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	mcontext_vfp_t mc_vfp, *vfp;
 	struct trapframe *tf = td->td_frame;
 	const __greg_t *gr = mcp->__gregs;
+	int spsr;
+
+	/*
+	 * Make sure the processor mode has not been tampered with and
+	 * interrupts have not been disabled.
+	 */
+	spsr = gr[_REG_CPSR];
+	if ((spsr & PSR_MODE) != PSR_USR32_MODE ||
+	    (spsr & (PSR_I | PSR_F)) != 0)
+		return (EINVAL);
 
 #ifdef WITNESS
 	if (mcp->mc_vfp_size != 0 && mcp->mc_vfp_size != sizeof(mc_vfp)) {
@@ -653,22 +692,16 @@ sys_sigreturn(td, uap)
 	} */ *uap;
 {
 	ucontext_t uc;
-	int spsr;
+	int error;
 
 	if (uap == NULL)
 		return (EFAULT);
 	if (copyin(uap->sigcntxp, &uc, sizeof(uc)))
 		return (EFAULT);
-	/*
-	 * Make sure the processor mode has not been tampered with and
-	 * interrupts have not been disabled.
-	 */
-	spsr = uc.uc_mcontext.__gregs[_REG_CPSR];
-	if ((spsr & PSR_MODE) != PSR_USR32_MODE ||
-	    (spsr & (PSR_I | PSR_F)) != 0)
-		return (EINVAL);
 	/* Restore register context. */
-	set_mcontext(td, &uc.uc_mcontext);
+	error = set_mcontext(td, &uc.uc_mcontext);
+	if (error != 0)
+		return (error);
 
 	/* Restore signal mask. */
 	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
@@ -753,6 +786,16 @@ set_stackptrs(int cpu)
 }
 #endif
 
+static void
+arm_kdb_init(void)
+{
+
+	kdb_init();
+#ifdef KDB
+	if (boothowto & RB_KDB)
+		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
+#endif
+}
 
 #ifdef FDT
 #if __ARM_ARCH < 6
@@ -1022,7 +1065,7 @@ initarm(struct arm_boot_params *abp)
 
 	init_param2(physmem);
 	dbg_monitor_init();
-	kdb_init();
+	arm_kdb_init();
 
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
@@ -1099,6 +1142,19 @@ initarm(struct arm_boot_params *abp)
 	pmap_bootstrap_prepare(lastaddr);
 
 	/*
+	 * If EARLY_PRINTF support is enabled, we need to re-establish the
+	 * mapping after pmap_bootstrap_prepare() switches to new page tables.
+	 * Note that we can only do the remapping if the VA is outside the
+	 * kernel, now that we have real virtual (not VA=PA) mappings in effect.
+	 * Early printf does not work between the time pmap_set_tex() does
+	 * cp15_prrr_set() and this code remaps the VA.
+	 */
+#if defined(EARLY_PRINTF) && defined(SOCDEV_PA) && defined(SOCDEV_VA) && SOCDEV_VA < KERNBASE
+	pmap_preboot_map_attr(SOCDEV_PA, SOCDEV_VA, 1024 * 1024, 
+	    VM_PROT_READ | VM_PROT_WRITE, VM_MEMATTR_DEVICE);
+#endif
+
+	/*
 	 * Now that proper page tables are installed, call cpu_setup() to enable
 	 * instruction and data caches and other chip-specific features.
 	 */
@@ -1161,6 +1217,14 @@ initarm(struct arm_boot_params *abp)
 	platform_gpio_init();
 	cninit();
 
+	/*
+	 * If we made a mapping for EARLY_PRINTF after pmap_bootstrap_prepare(),
+	 * undo it now that the normal console printf works.
+	 */
+#if defined(EARLY_PRINTF) && defined(SOCDEV_PA) && defined(SOCDEV_VA) && SOCDEV_VA < KERNBASE
+	pmap_kremove(SOCDEV_VA);
+#endif
+
 	debugf("initarm: console initialized\n");
 	debugf(" arg1 kmdp = 0x%08x\n", (uint32_t)kmdp);
 	debugf(" boothowto = 0x%08x\n", boothowto);
@@ -1210,7 +1274,9 @@ initarm(struct arm_boot_params *abp)
 	/* Init message buffer. */
 	msgbufinit(msgbufp, msgbufsize);
 	dbg_monitor_init();
-	kdb_init();
+	arm_kdb_init();
+	/* Apply possible BP hardening. */
+	cpuinfo_init_bp_hardening();
 	return ((void *)STACKALIGN(thread0.td_pcb));
 
 }

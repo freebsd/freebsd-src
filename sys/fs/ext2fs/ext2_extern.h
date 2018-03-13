@@ -5,6 +5,8 @@
  *  University of Utah, Department of Computer Science
  */
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -51,7 +53,7 @@ struct vnode;
 int	ext2_add_entry(struct vnode *, struct ext2fs_direct_2 *);
 int	ext2_alloc(struct inode *, daddr_t, e4fs_daddr_t, int,
 	    struct ucred *, e4fs_daddr_t *);
-daddr_t ext2_allocfacl(struct inode *ip);
+e4fs_daddr_t ext2_alloc_meta(struct inode *ip);
 int	ext2_balloc(struct inode *,
 	    e2fs_lbn_t, int, struct ucred *, struct buf **, int);
 int	ext2_blkatoff(struct vnode *, off_t, char **, struct buf **);
@@ -60,10 +62,11 @@ e4fs_daddr_t	ext2_blkpref(struct inode *, e2fs_lbn_t, int, e2fs_daddr_t *,
 	    e2fs_daddr_t);
 int	ext2_bmap(struct vop_bmap_args *);
 int	ext2_bmaparray(struct vnode *, daddr_t, daddr_t *, int *, int *);
-void	ext2_clusteracct(struct m_ext2fs *, char *, int, daddr_t, int);
+int	ext4_bmapext(struct vnode *, int32_t, int64_t *, int *, int *);
+void	ext2_clusteracct(struct m_ext2fs *, char *, int, e4fs_daddr_t, int);
 void	ext2_dirbad(struct inode *ip, doff_t offset, char *how);
 void	ext2_fserr(struct m_ext2fs *, uid_t, char *);
-void	ext2_ei2i(struct ext2fs_dinode *, struct inode *);
+int	ext2_ei2i(struct ext2fs_dinode *, struct inode *);
 int	ext2_getlbns(struct vnode *, daddr_t, struct indir *, int *);
 int	ext2_i2ei(struct inode *, struct ext2fs_dinode *);
 void	ext2_itimes(struct vnode *vp);
@@ -99,8 +102,26 @@ int	ext2_htree_lookup(struct inode *, const char *, int, struct buf **,
 	    int *, doff_t *, doff_t *, doff_t *, struct ext2fs_searchslot *);
 int	ext2_search_dirblock(struct inode *, void *, int *, const char *, int,
 	    int *, doff_t *, doff_t *, doff_t *, struct ext2fs_searchslot *);
-int	ext2_gd_csum_verify(struct m_ext2fs *fs, struct cdev *dev);
-void	ext2_gd_csum_set(struct m_ext2fs *fs);
+uint32_t	e2fs_gd_get_ndirs(struct ext2_gd *gd);
+uint64_t	e2fs_gd_get_i_tables(struct ext2_gd *);
+void	ext2_sb_csum_set_seed(struct m_ext2fs *);
+int	ext2_sb_csum_verify(struct m_ext2fs *);
+void	ext2_sb_csum_set(struct m_ext2fs *);
+int	ext2_extattr_blk_csum_verify(struct inode *, struct buf *);
+void	ext2_extattr_blk_csum_set(struct inode *, struct buf *);
+int	ext2_dir_blk_csum_verify(struct inode *, struct buf *);
+void	ext2_dir_blk_csum_set(struct inode *, struct buf *);
+void	ext2_dir_blk_csum_set_mem(struct inode *, char *, int);
+int	ext2_extent_blk_csum_verify(struct inode *, void *);
+void	ext2_extent_blk_csum_set(struct inode *, void *);
+int	ext2_gd_i_bitmap_csum_verify(struct m_ext2fs *, int, struct buf *);
+void	ext2_gd_i_bitmap_csum_set(struct m_ext2fs *, int, struct buf *);
+int	ext2_gd_b_bitmap_csum_verify(struct m_ext2fs *, int, struct buf *);
+void	ext2_gd_b_bitmap_csum_set(struct m_ext2fs *, int, struct buf *);
+int	ext2_ei_csum_verify(struct inode *, struct ext2fs_dinode *);
+void	ext2_ei_csum_set(struct inode *, struct ext2fs_dinode *);
+int	ext2_gd_csum_verify(struct m_ext2fs *, struct cdev *);
+void	ext2_gd_csum_set(struct m_ext2fs *);
 
 
 /* Flags to low-level allocation routines.

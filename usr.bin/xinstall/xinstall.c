@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2012, 2013 SRI International
  * Copyright (c) 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -531,9 +533,11 @@ do_link(const char *from_name, const char *to_name,
 				unlink(tmpl);
 				err(EX_OSERR, "%s", to_name);
 			}
+#if HAVE_STRUCT_STAT_ST_FLAGS
 			if (target_sb->st_flags & NOCHANGEBITS)
 				(void)chflags(to_name, target_sb->st_flags &
 				     ~NOCHANGEBITS);
+#endif
 			if (verbose)
 				printf("install: link %s -> %s\n",
 				    from_name, to_name);
@@ -577,9 +581,11 @@ do_symlink(const char *from_name, const char *to_name,
 			(void)unlink(tmpl);
 			err(EX_OSERR, "%s", to_name);
 		}
+#if HAVE_STRUCT_STAT_ST_FLAGS
 		if (target_sb->st_flags & NOCHANGEBITS)
 			(void)chflags(to_name, target_sb->st_flags &
 			     ~NOCHANGEBITS);
+#endif
 		if (verbose)
 			printf("install: symlink %s -> %s\n",
 			    from_name, to_name);
@@ -777,9 +783,11 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		if (target && !safecopy) {
 			if (to_sb.st_mode & S_IFDIR && rmdir(to_name) == -1)
 				err(EX_OSERR, "%s", to_name);
+#if HAVE_STRUCT_STAT_ST_FLAGS
 			if (to_sb.st_flags & NOCHANGEBITS)
 				(void)chflags(to_name,
 				    to_sb.st_flags & ~NOCHANGEBITS);
+#endif
 			unlink(to_name);
 		}
 		makelink(from_name, to_name, target ? &to_sb : NULL);
@@ -891,9 +899,11 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	 * and the files are different (or just not compared).
 	 */
 	if (tempcopy && !files_match) {
+#if HAVE_STRUCT_STAT_ST_FLAGS
 		/* Try to turn off the immutable bits. */
 		if (to_sb.st_flags & NOCHANGEBITS)
 			(void)chflags(to_name, to_sb.st_flags & ~NOCHANGEBITS);
+#endif
 		if (dobackup) {
 			if ((size_t)snprintf(backup, MAXPATHLEN, "%s%s", to_name,
 			    suffix) != strlen(to_name) + strlen(suffix)) {
@@ -905,8 +915,10 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 				(void)printf("install: %s -> %s\n", to_name, backup);
 			if (unlink(backup) < 0 && errno != ENOENT) {
 				serrno = errno;
+#if HAVE_STRUCT_STAT_ST_FLAGS
 				if (to_sb.st_flags & NOCHANGEBITS)
 					(void)chflags(to_name, to_sb.st_flags);
+#endif
 				unlink(tempfile);
 				errno = serrno;
 				err(EX_OSERR, "unlink: %s", backup);
@@ -914,8 +926,10 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			if (link(to_name, backup) < 0) {
 				serrno = errno;
 				unlink(tempfile);
+#if HAVE_STRUCT_STAT_ST_FLAGS
 				if (to_sb.st_flags & NOCHANGEBITS)
 					(void)chflags(to_name, to_sb.st_flags);
+#endif
 				errno = serrno;
 				err(EX_OSERR, "link: %s to %s", to_name,
 				     backup);
@@ -960,9 +974,11 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	if (!dounpriv && ((gid != (gid_t)-1 && gid != to_sb.st_gid) ||
 	    (uid != (uid_t)-1 && uid != to_sb.st_uid) ||
 	    (mode != (to_sb.st_mode & ALLPERMS)))) {
+#if HAVE_STRUCT_STAT_ST_FLAGS
 		/* Try to turn off the immutable bits. */
 		if (to_sb.st_flags & NOCHANGEBITS)
 			(void)fchflags(to_fd, to_sb.st_flags & ~NOCHANGEBITS);
+#endif
 	}
 
 	if (!dounpriv & 
@@ -984,7 +1000,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			err(EX_OSERR, "%s: chmod", to_name);
 		}
 	}
-
+#if HAVE_STRUCT_STAT_ST_FLAGS
 	/*
 	 * If provided a set of flags, set them, otherwise, preserve the
 	 * flags, except for the dump flag.
@@ -1007,6 +1023,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			}
 		}
 	}
+#endif
 
 	(void)close(to_fd);
 	if (!devnull)
@@ -1133,15 +1150,19 @@ create_newfile(const char *path, int target, struct stat *sbp)
 		 * off the append/immutable bits -- if we fail, go ahead,
 		 * it might work.
 		 */
+#if HAVE_STRUCT_STAT_ST_FLAGS
 		if (sbp->st_flags & NOCHANGEBITS)
 			(void)chflags(path, sbp->st_flags & ~NOCHANGEBITS);
+#endif
 
 		if (dobackup) {
 			if ((size_t)snprintf(backup, MAXPATHLEN, "%s%s",
 			    path, suffix) != strlen(path) + strlen(suffix)) {
 				saved_errno = errno;
+#if HAVE_STRUCT_STAT_ST_FLAGS
 				if (sbp->st_flags & NOCHANGEBITS)
 					(void)chflags(path, sbp->st_flags);
+#endif
 				errno = saved_errno;
 				errx(EX_OSERR, "%s: backup filename too long",
 				    path);
@@ -1153,8 +1174,10 @@ create_newfile(const char *path, int target, struct stat *sbp)
 				    path, backup);
 			if (rename(path, backup) < 0) {
 				saved_errno = errno;
+#if HAVE_STRUCT_STAT_ST_FLAGS
 				if (sbp->st_flags & NOCHANGEBITS)
 					(void)chflags(path, sbp->st_flags);
+#endif
 				errno = saved_errno;
 				err(EX_OSERR, "rename: %s to %s", path, backup);
 			}
@@ -1292,17 +1315,19 @@ install_dir(char *path)
 {
 	char *p;
 	struct stat sb;
-	int ch;
+	int ch, tried_mkdir;
 
 	for (p = path;; ++p)
 		if (!*p || (p != path && *p  == '/')) {
+			tried_mkdir = 0;
 			ch = *p;
 			*p = '\0';
 again:
 			if (stat(path, &sb) < 0) {
-				if (errno != ENOENT)
+				if (errno != ENOENT || tried_mkdir)
 					err(EX_OSERR, "stat %s", path);
 				if (mkdir(path, 0755) < 0) {
+					tried_mkdir = 1;
 					if (errno == EEXIST)
 						goto again;
 					err(EX_OSERR, "mkdir %s", path);

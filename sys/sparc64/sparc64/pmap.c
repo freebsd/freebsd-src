@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
  * Copyright (c) 1994 John S. Dyson
@@ -96,11 +98,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/tte.h>
 #include <machine/tsb.h>
 #include <machine/ver.h>
-
-/*
- * Virtual address of message buffer
- */
-struct msgbuf *msgbufp;
 
 /*
  * Map of physical memory reagions
@@ -1311,8 +1308,7 @@ pmap_release(pmap_t pm)
 	while (!TAILQ_EMPTY(&obj->memq)) {
 		m = TAILQ_FIRST(&obj->memq);
 		m->md.pmap = NULL;
-		m->wire_count--;
-		atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+		vm_page_unwire_noq(m);
 		vm_page_free_zero(m);
 	}
 	VM_OBJECT_WUNLOCK(obj);

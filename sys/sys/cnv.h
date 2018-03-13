@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2016 Adam Starak <starak.adam@gmail.com>
  * All rights reserved.
  *
@@ -46,6 +48,12 @@ typedef struct nvlist nvlist_t;
 #endif
 
 __BEGIN_DECLS
+
+/*
+ * Functions which returns information about the given cookie.
+ */
+const char	*cnvlist_name(void *cookiep);
+int		 cnvlist_type(void *cookiep);
 
 /*
  * The cnvlist_get functions returns value associated with the given cookie.

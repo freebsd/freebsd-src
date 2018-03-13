@@ -27,7 +27,7 @@
 #ifndef _CUSE_DEFS_H_
 #define	_CUSE_DEFS_H_
 
-#define	CUSE_VERSION		0x000122
+#define	CUSE_VERSION		0x000123
 
 #define	CUSE_ERR_NONE		0
 #define	CUSE_ERR_BUSY		-1
@@ -38,6 +38,7 @@
 #define	CUSE_ERR_SIGNAL		-6
 #define	CUSE_ERR_OTHER		-7
 #define	CUSE_ERR_NOT_LOADED	-8
+#define	CUSE_ERR_NO_DEVICE	-9
 
 #define	CUSE_POLL_NONE		0
 #define	CUSE_POLL_READ		1

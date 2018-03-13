@@ -273,6 +273,15 @@ cksummer(void *arg)
 	ofp = fdopen(dda->inputfd, "r");
 	while (ssread(drr, sizeof (*drr), ofp) != 0) {
 
+		/*
+		 * kernel filled in checksum, we are going to write same
+		 * record, but need to regenerate checksum.
+		 */
+		if (drr->drr_type != DRR_BEGIN) {
+			bzero(&drr->drr_u.drr_checksum.drr_checksum,
+			    sizeof (drr->drr_u.drr_checksum.drr_checksum));
+		}
+
 		switch (drr->drr_type) {
 		case DRR_BEGIN:
 		{
@@ -1576,6 +1585,7 @@ zfs_send_resume(libzfs_handle_t *hdl, sendflags_t *flags, int outfd,
 	int error = 0;
 	char name[ZFS_MAX_DATASET_NAME_LEN];
 	enum lzc_send_flags lzc_flags = 0;
+	FILE *fout = (flags->verbose && flags->dryrun) ? stdout : stderr;
 
 	(void) snprintf(errbuf, sizeof (errbuf), dgettext(TEXT_DOMAIN,
 	    "cannot resume send"));
@@ -1590,9 +1600,9 @@ zfs_send_resume(libzfs_handle_t *hdl, sendflags_t *flags, int outfd,
 		return (zfs_error(hdl, EZFS_FAULT, errbuf));
 	}
 	if (flags->verbose) {
-		(void) fprintf(stderr, dgettext(TEXT_DOMAIN,
+		(void) fprintf(fout, dgettext(TEXT_DOMAIN,
 		    "resume token contents:\n"));
-		nvlist_print(stderr, resume_nvl);
+		nvlist_print(fout, resume_nvl);
 	}
 
 	if (nvlist_lookup_string(resume_nvl, "toname", &toname) != 0 ||
@@ -1649,7 +1659,7 @@ zfs_send_resume(libzfs_handle_t *hdl, sendflags_t *flags, int outfd,
 		    lzc_flags, &size);
 		if (error == 0)
 			size = MAX(0, (int64_t)(size - bytes));
-		send_print_verbose(stderr, zhp->zfs_name, fromname,
+		send_print_verbose(fout, zhp->zfs_name, fromname,
 		    size, flags->parsable);
 	}
 
@@ -3212,7 +3222,12 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 	/*
 	 * Determine the name of the origin snapshot, store in zc_string.
 	 */
-	if (drrb->drr_flags & DRR_FLAG_CLONE) {
+	if (originsnap) {
+		(void) strncpy(zc.zc_string, originsnap, sizeof (zc.zc_string));
+		if (flags->verbose)
+			(void) printf("using provided clone origin %s\n",
+			    zc.zc_string);
+	} else if (drrb->drr_flags & DRR_FLAG_CLONE) {
 		if (guid_to_name(hdl, zc.zc_value,
 		    drrb->drr_fromguid, B_FALSE, zc.zc_string) != 0) {
 			zcmd_free_nvlists(&zc);
@@ -3223,11 +3238,6 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 		}
 		if (flags->verbose)
 			(void) printf("found clone origin %s\n", zc.zc_string);
-	} else if (originsnap) {
-		(void) strncpy(zc.zc_string, originsnap, sizeof (zc.zc_string));
-		if (flags->verbose)
-			(void) printf("using provided clone origin %s\n",
-			    zc.zc_string);
 	}
 
 	boolean_t resuming = DMU_GET_FEATUREFLAGS(drrb->drr_versioninfo) &

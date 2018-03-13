@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Benno Rice.
  * Copyright (C) 2007-2008 MARVELL INTERNATIONAL LTD.
  * All rights reserved.
@@ -270,6 +272,7 @@ DELAY(int usec)
 				__asm __volatile("nop" ::: "memory");
 		return;
 	}
+	TSENTER();
 
 	val = mv_get_timer(1);
 	nticks = ((MV_CLOCK_SRC / 1000000 + 1) * usec);
@@ -283,6 +286,7 @@ DELAY(int usec)
 
 		val = val_temp;
 	}
+	TSEXIT();
 }
 
 static uint32_t

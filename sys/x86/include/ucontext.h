@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003 Peter Wemm
  * Copyright (c) 1999 Marcel Moolenaar
  * All rights reserved.
@@ -161,10 +163,5 @@ typedef struct __mcontext {
 	long	mc_spare[4];
 } mcontext_t;
 #endif /* __amd64__ */
-
-#ifdef __LINT__
-typedef struct __mcontext {
-} mcontext_t;
-#endif /* __LINT__ */
 
 #endif /* !_X86_UCONTEXT_H_ */

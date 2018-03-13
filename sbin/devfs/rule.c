@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Dima Dorfman.
  * All rights reserved.
  *
@@ -265,7 +267,7 @@ ruleset_main(int ac, char **av)
  * differs from the other rulespec_in*() routines in that it also
  * calls ioctl() for the rules, since it is impractical (and not very
  * useful) to return a list (or array) of rules, just so the caller
- * can call call ioctl() for each of them.
+ * can call ioctl() for each of them.
  */
 static void
 rulespec_infp(FILE *fp, unsigned long request, devfs_rsnum rsnum)

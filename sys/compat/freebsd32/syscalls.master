@@ -16,7 +16,7 @@
 ;		COMPAT7, COMPAT11, NODEF, NOARGS, NOPROTO, NOSTD
 ;		The COMPAT* options may be combined with one or more NO*
 ;		options separated by '|' with no spaces (e.g. COMPAT|NOARGS)
-;	name	psuedo-prototype of syscall routine
+;	name	pseudo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
 ;	altname	name of system call if different
 ;	alttag	name of args struct tag if different from [o]`name'"_args"
@@ -392,7 +392,7 @@
 206	AUE_FUTIMES	STD	{ int freebsd32_futimes(int fd, \
 				    struct timeval32 *tptr); }
 207	AUE_GETPGID	NOPROTO	{ int getpgid(pid_t pid); }
-208	AUE_NULL	UNIMPL	newreboot (NetBSD)
+208	AUE_NULL	UNIMPL	nosys
 209	AUE_POLL	NOPROTO	{ int poll(struct pollfd *fds, u_int nfds, \
 				    int timeout); }
 
@@ -410,10 +410,6 @@
 218	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
 219	AUE_NULL	NODEF|NOTSTATIC	lkmnosys lkmnosys nosys_args int
 
-;
-; The following were introduced with NetBSD/4.4Lite-2
-; They are initialized by their respective modules/sysinits
-; XXX PROBLEM!!
 220	AUE_SEMCTL	COMPAT7|NOSTD	{ int freebsd32_semctl( \
 				    int semid, int semnum, \
 				    int cmd, union semun32 *arg); }
@@ -475,7 +471,6 @@
 				    int which, clockid_t *clock_id); }
 248	AUE_NULL	UNIMPL	ntp_gettime
 249	AUE_NULL	UNIMPL	nosys
-; syscall numbers initially used in OpenBSD
 250	AUE_MINHERIT	NOPROTO	{ int minherit(void *addr, size_t len, \
 				    int inherit); }
 251	AUE_RFORK	NOPROTO	{ int rfork(int flags); }
@@ -525,7 +520,6 @@
 286	AUE_NULL	UNIMPL	nosys
 287	AUE_NULL	UNIMPL	nosys
 288	AUE_NULL	UNIMPL	nosys
-; 289 and 290 from NetBSD (OpenBSD: 267 and 268)
 289	AUE_PREADV	STD	{ ssize_t freebsd32_preadv(int fd, \
 					struct iovec32 *iovp, \
 					u_int iovcnt, \
@@ -540,7 +534,6 @@
 294	AUE_NULL	UNIMPL	nosys
 295	AUE_NULL	UNIMPL	nosys
 296	AUE_NULL	UNIMPL	nosys
-; XXX 297 is 300 in NetBSD 
 297	AUE_FHSTATFS	COMPAT4	{ int freebsd32_fhstatfs( \
 				    const struct fhandle *u_fhp, \
 				    struct statfs32 *buf); }
@@ -1086,12 +1079,8 @@
 547	AUE_FUTIMESAT	STD	{ int freebsd32_utimensat(int fd, \
 				    char *path, \
 				    struct timespec *times, int flag); }
-548	AUE_NULL	NOPROTO	{ int numa_getaffinity(cpuwhich_t which, \
-				    id_t id, \
-				    struct vm_domain_policy *policy); }
-549	AUE_NULL	NOPROTO	{ int numa_setaffinity(cpuwhich_t which, \
-				    id_t id, \
-				    const struct vm_domain_policy *policy); }
+548	AUE_NULL	UNIMPL	numa_getaffinity
+549	AUE_NULL	UNIMPL	numa_setaffinity
 550	AUE_FSYNC	NOPROTO	{ int fdatasync(int fd); }
 551	AUE_FSTAT	STD	{ int freebsd32_fstat(int fd, \
 				    struct stat32 *ub); }
@@ -1101,9 +1090,9 @@
 553	AUE_FHSTAT	STD	{ int freebsd32_fhstat( \
 				    const struct fhandle *u_fhp, \
 				    struct stat32 *sb); }
-554	AUE_GETDIRENTRIES STD	{ ssize_t freebsd32_getdirentries( \
+554	AUE_GETDIRENTRIES NOPROTO	{ ssize_t getdirentries( \
 				    int fd, char *buf, size_t count, \
-				    int32_t *basep); }
+				    off_t *basep); }
 555	AUE_STATFS	NOPROTO	{ int statfs(char *path, \
 				    struct statfs32 *buf); }
 556	AUE_FSTATFS	NOPROTO	{ int fstatfs(int fd, struct statfs32 *buf); }
@@ -1119,3 +1108,13 @@
 				    struct kevent32 *eventlist, \
 				    int nevents, \
 				    const struct timespec32 *timeout); }
+561	AUE_NULL	STD	{ int freebsd32_cpuset_getdomain(cpulevel_t level, \
+				    cpuwhich_t which, uint32_t id1, uint32_t id2, \
+				    size_t domainsetsize, domainset_t *mask, \
+				    int *policy); }
+562	AUE_NULL	STD	{ int freebsd32_cpuset_setdomain(cpulevel_t level, \
+				    cpuwhich_t which, uint32_t id1, uint32_t id2, \
+				    size_t domainsetsize, domainset_t *mask, \
+				    int policy); }
+
+; vim: syntax=off

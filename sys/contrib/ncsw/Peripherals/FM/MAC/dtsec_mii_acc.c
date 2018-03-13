@@ -1,5 +1,5 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
- * All rights reserved.
+/*
+ * Copyright 2008-2013 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,6 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 /******************************************************************************
  @File          dtsec_mii_acc.c
 
@@ -40,6 +41,7 @@
 #include "std_ext.h"
 #include "fm_mac.h"
 #include "dtsec.h"
+#include "fsl_fman_dtsec_mii_acc.h"
 
 
 /*****************************************************************************/
@@ -48,33 +50,20 @@ t_Error DTSEC_MII_WritePhyReg(t_Handle    h_Dtsec,
                               uint8_t     reg,
                               uint16_t    data)
 {
-    t_Dtsec             *p_Dtsec = (t_Dtsec *)h_Dtsec;
-    t_MiiAccessMemMap   *p_MiiAccess;
-    uint32_t            tmpReg;
+    t_Dtsec              *p_Dtsec = (t_Dtsec *)h_Dtsec;
+    struct dtsec_mii_reg *miiregs;
+    uint16_t              dtsec_freq;
+    t_Error                   err;
 
     SANITY_CHECK_RETURN_ERROR(p_Dtsec, E_INVALID_HANDLE);
     SANITY_CHECK_RETURN_ERROR(p_Dtsec->p_MiiMemMap, E_INVALID_HANDLE);
 
-    p_MiiAccess = p_Dtsec->p_MiiMemMap;
+    dtsec_freq = (uint16_t)(p_Dtsec->fmMacControllerDriver.clkFreq >> 1);
+    miiregs = p_Dtsec->p_MiiMemMap;
 
-    /* Stop the MII management read cycle */
-    WRITE_UINT32(p_MiiAccess->miimcom, 0);
-    /* Dummy read to make sure MIIMCOM is written */
-    tmpReg = GET_UINT32(p_MiiAccess->miimcom);
+    err = (t_Error)fman_dtsec_mii_write_reg(miiregs, phyAddr, reg, data, dtsec_freq);
 
-    /* Setting up MII Management Address Register */
-    tmpReg = (uint32_t)((phyAddr << MIIMADD_PHY_ADDR_SHIFT) | reg);
-    WRITE_UINT32(p_MiiAccess->miimadd, tmpReg);
-
-    /* Setting up MII Management Control Register with data */
-    WRITE_UINT32(p_MiiAccess->miimcon, (uint32_t)data);
-    /* Dummy read to make sure MIIMCON is written */
-    tmpReg = GET_UINT32(p_MiiAccess->miimcon);
-
-    /* Wait till MII management write is complete */
-    while ((GET_UINT32(p_MiiAccess->miimind)) & MIIMIND_BUSY) ;
-
-    return E_OK;
+    return err;
 }
 
 /*****************************************************************************/
@@ -83,38 +72,26 @@ t_Error DTSEC_MII_ReadPhyReg(t_Handle h_Dtsec,
                              uint8_t  reg,
                              uint16_t *p_Data)
 {
-    t_Dtsec             *p_Dtsec = (t_Dtsec *)h_Dtsec;
-    t_MiiAccessMemMap   *p_MiiAccess;
-    uint32_t            tmpReg;
+    t_Dtsec               *p_Dtsec = (t_Dtsec *)h_Dtsec;
+    struct dtsec_mii_reg  *miiregs;
+    uint16_t               dtsec_freq;
+    t_Error                    err;
 
     SANITY_CHECK_RETURN_ERROR(p_Dtsec, E_INVALID_HANDLE);
     SANITY_CHECK_RETURN_ERROR(p_Dtsec->p_MiiMemMap, E_INVALID_HANDLE);
 
-    p_MiiAccess = p_Dtsec->p_MiiMemMap;
+    dtsec_freq = (uint16_t)(p_Dtsec->fmMacControllerDriver.clkFreq >> 1);
+    miiregs = p_Dtsec->p_MiiMemMap;
 
-    /* Setting up the MII Management Address Register */
-    tmpReg = (uint32_t)((phyAddr << MIIMADD_PHY_ADDR_SHIFT) | reg);
-    WRITE_UINT32(p_MiiAccess->miimadd, tmpReg);
-
-    /* Perform an MII management read cycle */
-    WRITE_UINT32(p_MiiAccess->miimcom, MIIMCOM_READ_CYCLE);
-    /* Dummy read to make sure MIIMCOM is written */
-    tmpReg = GET_UINT32(p_MiiAccess->miimcom);
-
-    /* Wait till MII management read is complete */
-    while ((GET_UINT32(p_MiiAccess->miimind)) & MIIMIND_BUSY) ;
-
-    /* Read MII management status  */
-    *p_Data = (uint16_t)GET_UINT32(p_MiiAccess->miimstat);
-
-    WRITE_UINT32(p_MiiAccess->miimcom, 0);
-    /* Dummy read to make sure MIIMCOM is written */
-    tmpReg = GET_UINT32(p_MiiAccess->miimcom);
+    err = fman_dtsec_mii_read_reg(miiregs, phyAddr, reg, p_Data, dtsec_freq);
 
     if (*p_Data == 0xffff)
         RETURN_ERROR(MINOR, E_NO_DEVICE,
                      ("Read wrong data (0xffff): phyAddr 0x%x, reg 0x%x",
                       phyAddr, reg));
+    if (err)
+        RETURN_ERROR(MINOR, (t_Error)err, NO_MSG);
 
     return E_OK;
 }
+

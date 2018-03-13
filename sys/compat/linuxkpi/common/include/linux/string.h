@@ -71,6 +71,22 @@ memdup_user(const void *ptr, size_t len)
 }
 
 static inline void *
+memdup_user_nul(const void *ptr, size_t len)
+{
+	char *retval;
+	int error;
+
+	retval = malloc(len + 1, M_KMALLOC, M_WAITOK);
+	error = linux_copyin(ptr, retval, len);
+	if (error != 0) {
+		free(retval, M_KMALLOC);
+		return (ERR_PTR(error));
+	}
+	retval[len] = '\0';
+	return (retval);
+}
+
+static inline void *
 kmemdup(const void *src, size_t len, gfp_t gfp)
 {
 	void *dst;

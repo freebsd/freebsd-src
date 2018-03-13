@@ -44,6 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_xpt_internal.h>	// Yes, this is wrong.
 #include <cam/cam_debug.h>
 
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+
 #include "nvme_private.h"
 
 #define ccb_accb_ptr spriv_ptr0
@@ -73,6 +76,7 @@ nvme_sim_nvmeio_done(void *ccb_arg, const struct nvme_completion *cpl)
 	 * it means. Make our best guess, though for the status code.
 	 */
 	memcpy(&ccb->nvmeio.cpl, cpl, sizeof(*cpl));
+	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	if (nvme_completion_is_error(cpl)) {
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 		xpt_done(ccb);
@@ -111,6 +115,7 @@ nvme_sim_nvmeio(struct cam_sim *sim, union ccb *ccb)
 		xpt_done(ccb);
 		return;
 	}
+	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 
 	memcpy(&req->cmd, &ccb->nvmeio.cmd, sizeof(ccb->nvmeio.cmd));
 
@@ -118,8 +123,24 @@ nvme_sim_nvmeio(struct cam_sim *sim, union ccb *ccb)
 		nvme_ctrlr_submit_io_request(ctrlr, req);
 	else
 		nvme_ctrlr_submit_admin_request(ctrlr, req);
+}
 
-	ccb->ccb_h.status |= CAM_SIM_QUEUED;
+static uint32_t
+nvme_link_kBps(struct nvme_controller *ctrlr)
+{
+	uint32_t speed, lanes, link[] = { 1, 250000, 500000, 985000, 1970000 };
+	uint32_t status;
+
+	status = pcie_read_config(ctrlr->dev, PCIER_LINK_STA, 2);
+	speed = status & PCIEM_LINK_STA_SPEED;
+	lanes = (status & PCIEM_LINK_STA_WIDTH) >> 4;
+	/*
+	 * Failsafe on link speed indicator. If it is insane report the number of
+	 * lanes as the speed. Not 100% accurate, but may be diagnostic.
+	 */
+	if (speed >= nitems(link))
+		speed = 0;
+	return link[speed] * lanes;
 }
 
 static void
@@ -161,7 +182,8 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	case XPT_PATH_INQ:		/* Path routing inquiry */
 	{
-		struct ccb_pathinq *cpi = &ccb->cpi;
+		struct ccb_pathinq	*cpi = &ccb->cpi;
+		device_t		dev = ctrlr->dev;
 
 		/*
 		 * NVMe may have multiple LUNs on the same path. Current generation
@@ -179,16 +201,21 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->maxio = nvme_ns_get_max_io_xfer_size(ns);
 		cpi->initiator_id = 0;
 		cpi->bus_id = cam_sim_bus(sim);
-		cpi->base_transfer_speed = 4000000;	/* 4 GB/s 4 lanes pcie 3 */
+		cpi->base_transfer_speed = nvme_link_kBps(ctrlr);
 		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strlcpy(cpi->hba_vid, "NVMe", HBA_IDLEN);
 		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
 		cpi->transport = XPORT_NVME;		/* XXX XPORT_PCIE ? */
-		cpi->transport_version = 1;		/* XXX Get PCIe spec ? */
+		cpi->transport_version = nvme_mmio_read_4(ctrlr, vs);
 		cpi->protocol = PROTO_NVME;
-		cpi->protocol_version = NVME_REV_1;	/* Groks all 1.x NVMe cards */
+		cpi->protocol_version = nvme_mmio_read_4(ctrlr, vs);
 		cpi->xport_specific.nvme.nsid = ns->id;
+		cpi->xport_specific.nvme.domain = pci_get_domain(dev);
+		cpi->xport_specific.nvme.bus = pci_get_bus(dev);
+		cpi->xport_specific.nvme.slot = pci_get_slot(dev);
+		cpi->xport_specific.nvme.function = pci_get_function(dev);
+		cpi->xport_specific.nvme.extra = 0;
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
@@ -197,20 +224,27 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		struct ccb_trans_settings	*cts;
 		struct ccb_trans_settings_nvme	*nvmep;
 		struct ccb_trans_settings_nvme	*nvmex;
+		device_t dev;
+		uint32_t status, caps;
 
+		dev = ctrlr->dev;
 		cts = &ccb->cts;
 		nvmex = &cts->xport_specific.nvme;
 		nvmep = &cts->proto_specific.nvme;
 
-		nvmex->valid = CTS_NVME_VALID_SPEC;
-		nvmex->spec_major = 1;			/* XXX read from card */
-		nvmex->spec_minor = 2;
-		nvmex->spec_tiny = 0;
+		status = pcie_read_config(dev, PCIER_LINK_STA, 2);
+		caps = pcie_read_config(dev, PCIER_LINK_CAP, 2);
+		nvmex->valid = CTS_NVME_VALID_SPEC | CTS_NVME_VALID_LINK;
+		nvmex->spec = nvme_mmio_read_4(ctrlr, vs);
+		nvmex->speed = status & PCIEM_LINK_STA_SPEED;
+		nvmex->lanes = (status & PCIEM_LINK_STA_WIDTH) >> 4;
+		nvmex->max_speed = caps & PCIEM_LINK_CAP_MAX_SPEED;
+		nvmex->max_lanes = (caps & PCIEM_LINK_CAP_MAX_WIDTH) >> 4;
 
-		nvmep->valid = CTS_NVME_VALID_SPEC;
-		nvmep->spec_major = 1;			/* XXX read from card */
-		nvmep->spec_minor = 2;
-		nvmep->spec_tiny = 0;
+		/* XXX these should be something else maybe ? */
+		nvmep->valid = 1;
+		nvmep->spec = nvmex->spec;
+
 		cts->transport = XPORT_NVME;
 		cts->protocol = PROTO_NVME;
 		cts->ccb_h.status = CAM_REQ_CMP;
@@ -246,7 +280,7 @@ static void
 nvme_sim_poll(struct cam_sim *sim)
 {
 
-	nvme_ctrlr_intx_handler(sim2ctrlr(sim));
+	nvme_ctrlr_poll(sim2ctrlr(sim));
 }
 
 static void *

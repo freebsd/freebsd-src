@@ -48,7 +48,6 @@ DIRDEPS+= \
 	sbin/adjkerntz \
 	sbin/atacontrol \
 	sbin/atm/atmconfig \
-	sbin/badsect \
 	sbin/camcontrol \
 	sbin/ccdconfig \
 	sbin/clri \
@@ -100,11 +99,9 @@ DIRDEPS+= \
 	sbin/ipf/ipf \
 	sbin/ipf/ipfs \
 	sbin/ipf/ipfstat \
-	sbin/ipf/ipftest \
 	sbin/ipf/ipmon \
 	sbin/ipf/ipnat \
 	sbin/ipf/ippool \
-	sbin/ipf/ipresend \
 	sbin/ipf/libipf \
 	sbin/ipfw \
 	sbin/iscontrol \
@@ -199,7 +196,6 @@ DIRDEPS+= \
 	usr.bin/cpio \
 	usr.bin/cpuset \
 	usr.bin/csplit \
-	usr.bin/csup \
 	usr.bin/ctags \
 	usr.bin/ctlstat \
 	usr.bin/cut \
@@ -420,10 +416,6 @@ DIRDEPS+= \
 	usr.bin/write \
 	usr.bin/xargs \
 	usr.bin/xinstall \
-	usr.bin/xlint/lint1 \
-	usr.bin/xlint/lint2 \
-	usr.bin/xlint/llib \
-	usr.bin/xlint/xlint \
 	usr.bin/xo \
 	usr.bin/xstr \
 	usr.bin/xz \
@@ -536,7 +528,6 @@ DIRDEPS+= \
 	usr.sbin/bsnmpd/modules/snmp_wlan \
 	usr.sbin/bsnmpd/tools/bsnmptools \
 	usr.sbin/bsnmpd/tools/libbsnmptools \
-	usr.sbin/burncd \
 	usr.sbin/cdcontrol \
 	usr.sbin/chkgrp \
 	usr.sbin/chown \
@@ -689,13 +680,6 @@ DIRDEPS+= \
 	usr.sbin/pciconf \
 	usr.sbin/periodic \
 	usr.sbin/pkg \
-	usr.sbin/pkg_install/add \
-	usr.sbin/pkg_install/create \
-	usr.sbin/pkg_install/delete \
-	usr.sbin/pkg_install/info \
-	usr.sbin/pkg_install/lib \
-	usr.sbin/pkg_install/updating \
-	usr.sbin/pkg_install/version \
 	usr.sbin/pmcannotate \
 	usr.sbin/pmccontrol \
 	usr.sbin/pmcstat \
@@ -905,29 +889,12 @@ DIRDEPS+= \
 DIRDEPS+= usr.sbin/cxgbetool
 .endif
 
-.if ${MK_GPL_DTC} != "yes"
-DIRDEPS+= usr.bin/dtc
+.if ${MK_MLX5TOOL} != "no"
+DIRDEPS+= usr.sbin/mlx5tool
 .endif
 
-.if ${MK_OFED} != "no"
-DIRDEPS+= \
-	  contrib/ofed/usr.bin/ibaddr \
-	  contrib/ofed/usr.bin/ibnetdiscover \
-	  contrib/ofed/usr.bin/ibping \
-	  contrib/ofed/usr.bin/ibportstate \
-	  contrib/ofed/usr.bin/ibroute \
-	  contrib/ofed/usr.bin/ibsendtrap \
-	  contrib/ofed/usr.bin/ibstat \
-	  contrib/ofed/usr.bin/ibsysstat \
-	  contrib/ofed/usr.bin/ibtracert \
-	  contrib/ofed/usr.bin/opensm \
-	  contrib/ofed/usr.bin/osmtest \
-	  contrib/ofed/usr.bin/perfquery \
-	  contrib/ofed/usr.bin/saquery \
-	  contrib/ofed/usr.bin/sminfo \
-	  contrib/ofed/usr.bin/smpdump \
-	  contrib/ofed/usr.bin/smpquery \
-	  contrib/ofed/usr.bin/vendstat
+.if ${MK_GPL_DTC} != "yes"
+DIRDEPS+= usr.bin/dtc
 .endif
 
 DIRDEPS+= ${DIRDEPS.${MACHINE}:U}

@@ -467,7 +467,7 @@ armv8_crypto_cipher_process(struct armv8_crypto_session *ses,
 	struct fpu_kern_ctx *ctx;
 	uint8_t *buf;
 	uint8_t iv[AES_BLOCK_LEN];
-	int allocated, error, i;
+	int allocated, i;
 	int encflag, ivlen;
 	int kt;
 
@@ -477,15 +477,11 @@ armv8_crypto_cipher_process(struct armv8_crypto_session *ses,
 	if (buf == NULL)
 		return (ENOMEM);
 
-	error = 0;
-
 	kt = is_fpu_kern_thread(0);
 	if (!kt) {
 		AQUIRE_CTX(i, ctx);
-		error = fpu_kern_enter(curthread, ctx,
+		fpu_kern_enter(curthread, ctx,
 		    FPU_KERN_NORMAL | FPU_KERN_KTHR);
-		if (error != 0)
-			goto out;
 	}
 
 	if ((enccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0) {
@@ -534,14 +530,13 @@ armv8_crypto_cipher_process(struct armv8_crypto_session *ses,
 
 	if (!kt) {
 		fpu_kern_leave(curthread, ctx);
-out:
 		RELEASE_CTX(i, ctx);
 	}
 	if (allocated) {
 		bzero(buf, enccrd->crd_len);
 		free(buf, M_ARMV8_CRYPTO);
 	}
-	return (error);
+	return (0);
 }
 
 static device_method_t armv8_crypto_methods[] = {

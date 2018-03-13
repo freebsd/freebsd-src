@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -353,6 +353,10 @@ typedef enum
     ASL_MSG_CROSS_TABLE_SCOPE,
     ASL_MSG_EXCEPTION_NOT_RECEIVED,
     ASL_MSG_NULL_RESOURCE_TEMPLATE,
+    ASL_MSG_FOUND_HERE,
+    ASL_MSG_ILLEGAL_RECURSION,
+    ASL_MSG_EXTERN_COLLISION,
+    ASL_MSG_EXTERN_FOUND_HERE,
 
     /* These messages are used by the Data Table compiler only */
 

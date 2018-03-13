@@ -1,4 +1,8 @@
-/*
+/*	$NetBSD: sprayd.c,v 1.15 2009/10/21 01:07:46 snj Exp $	*/
+
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1994 Christos Zoulas
  * All rights reserved.
  *
@@ -10,11 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Christos Zoulas.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -59,21 +58,21 @@ static int from_inetd = 1;
 
 #define TIMEOUT 120
 
-void
+static void
 cleanup(int sig __unused)
 {
-	(void) rpcb_unset(SPRAYPROG, SPRAYVERS, NULL);
+	(void)rpcb_unset(SPRAYPROG, SPRAYVERS, NULL);
 	exit(0);
 }
 
-void
+static void
 die(int sig __unused)
 {
 	exit(0);
 }
 
 int
-main(int argc, char *argv[])
+main(int argc __unused, char *argv[] __unused)
 {
 	SVCXPRT *transp;
 	int ok;
@@ -91,17 +90,17 @@ main(int argc, char *argv[])
 	if (!from_inetd) {
 		daemon(0, 0);
 
-		(void) rpcb_unset(SPRAYPROG, SPRAYVERS, NULL);
+		(void)rpcb_unset(SPRAYPROG, SPRAYVERS, NULL);
 
-		(void) signal(SIGINT, cleanup);
-		(void) signal(SIGTERM, cleanup);
-		(void) signal(SIGHUP, cleanup);
+		(void)signal(SIGINT, cleanup);
+		(void)signal(SIGTERM, cleanup);
+		(void)signal(SIGHUP, cleanup);
 	} else {
-		(void) signal(SIGALRM, die);
+		(void)signal(SIGALRM, die);
 		alarm(TIMEOUT);
 	}
 
-	openlog("rpc.sprayd", LOG_CONS|LOG_PID, LOG_DAEMON);
+	openlog("rpc.sprayd", LOG_PID, LOG_DAEMON);
 
 	if (from_inetd) {
 		transp = svc_tli_create(0, NULL, NULL, 0, 0);
@@ -118,7 +117,7 @@ main(int argc, char *argv[])
 		syslog(LOG_ERR,
 		    "unable to register (SPRAYPROG, SPRAYVERS, %s)",
 		    (!from_inetd)?"udp":"(inetd)");
-		return 1;
+		exit(1);
 	}
 
 	svc_run();
@@ -136,7 +135,7 @@ spray_service(struct svc_req *rqstp, SVCXPRT *transp)
 	switch (rqstp->rq_proc) {
 	case SPRAYPROC_CLEAR:
 		scum.counter = 0;
-		(void) gettimeofday(&clear, 0);
+		(void)gettimeofday(&clear, 0);
 		/*FALLTHROUGH*/
 
 	case NULLPROC:
@@ -148,7 +147,7 @@ spray_service(struct svc_req *rqstp, SVCXPRT *transp)
 		return;
 
 	case SPRAYPROC_GET:
-		(void) gettimeofday(&get, 0);
+		(void)gettimeofday(&get, 0);
 		timersub(&get, &clear, &get);
 		scum.clock.sec = get.tv_sec;
 		scum.clock.usec = get.tv_usec;
@@ -161,6 +160,6 @@ spray_service(struct svc_req *rqstp, SVCXPRT *transp)
 
 	if (!svc_sendreply(transp, (xdrproc_t)xdr_spraycumul, &scum)) {
 		svcerr_systemerr(transp);
-		syslog(LOG_ERR, "bad svc_sendreply");
+		syslog(LOG_WARNING, "bad svc_sendreply");
 	}
 }

@@ -200,7 +200,8 @@ extern void *int_performance_counter;
 	    ("Handler " #handler " too far from interrupt vector base")); \
 	mtspr(ivor, (uintptr_t)(&handler) & 0xffffUL);
 
-uintptr_t powerpc_init(vm_offset_t fdt, vm_offset_t, vm_offset_t, void *mdp);
+uintptr_t powerpc_init(vm_offset_t fdt, vm_offset_t, vm_offset_t, void *mdp,
+    uint32_t mdp_cookie);
 void booke_cpu_init(void);
 
 void
@@ -208,6 +209,16 @@ booke_cpu_init(void)
 {
 
 	cpu_features |= PPC_FEATURE_BOOKE;
+
+	psl_kernset = PSL_CE | PSL_ME | PSL_EE;
+#ifdef __powerpc64__
+	psl_kernset |= PSL_CM;
+#endif
+	psl_userset = psl_kernset | PSL_PR;
+#ifdef __powerpc64__
+	psl_userset32 = psl_userset & ~PSL_CM;
+#endif
+	psl_userstatic = ~(PSL_VEC | PSL_FP | PSL_FE0 | PSL_FE1);
 
 	pmap_mmu_install(MMU_TYPE_BOOKE, BUS_PROBE_GENERIC);
 }
@@ -346,7 +357,11 @@ booke_init(u_long arg1, u_long arg2)
 		break;
 	}
 
-	ret = powerpc_init(dtbp, 0, 0, mdp);
+	/*
+	 * Last element is a magic cookie that indicates that the metadata
+	 * pointer is meaningful.
+	 */
+	ret = powerpc_init(dtbp, 0, 0, mdp, (mdp == NULL) ? 0 : 0xfb5d104d);
 
 	/* Enable caches */
 	booke_enable_l1_cache();
@@ -357,7 +372,7 @@ booke_init(u_long arg1, u_long arg2)
 	return (ret);
 }
 
-#define RES_GRANULE 32
+#define RES_GRANULE cacheline_size
 extern uintptr_t tlb0_miss_locks[];
 
 /* Initialise a struct pcpu. */
@@ -365,14 +380,14 @@ void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 {
 
-	pcpu->pc_tid_next = TID_MIN;
+	pcpu->pc_booke.tid_next = TID_MIN;
 
 #ifdef SMP
 	uintptr_t *ptr;
 	int words_per_gran = RES_GRANULE / sizeof(uintptr_t);
 
 	ptr = &tlb0_miss_locks[cpuid * words_per_gran];
-	pcpu->pc_booke_tlb_lock = ptr;
+	pcpu->pc_booke.tlb_lock = ptr;
 	*ptr = TLB_UNLOCKED;
 	*(ptr + 1) = 0;		/* recurse counter */
 #endif

@@ -120,7 +120,8 @@ archive_read_new(void)
  * Record the do-not-extract-to file. This belongs in archive_read_extract.c.
  */
 void
-archive_read_extract_set_skip_file(struct archive *_a, int64_t d, int64_t i)
+archive_read_extract_set_skip_file(struct archive *_a, la_int64_t d,
+    la_int64_t i)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 
@@ -747,7 +748,7 @@ choose_format(struct archive_read *a)
  * Return the file offset (within the uncompressed data stream) where
  * the last header started.
  */
-int64_t
+la_int64_t
 archive_read_header_position(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
@@ -943,7 +944,7 @@ archive_read_data_skip(struct archive *_a)
 	return (r);
 }
 
-int64_t
+la_int64_t
 archive_seek_data(struct archive *_a, int64_t offset, int whence)
 {
 	struct archive_read *a = (struct archive_read *)_a;
@@ -1626,7 +1627,8 @@ __archive_read_filter_seek(struct archive_read_filter *filter, int64_t offset,
 	switch (whence) {
 	case SEEK_CUR:
 		/* Adjust the offset and use SEEK_SET instead */
-		offset += filter->position;			
+		offset += filter->position;
+		__LA_FALLTHROUGH;
 	case SEEK_SET:
 		cursor = 0;
 		while (1)

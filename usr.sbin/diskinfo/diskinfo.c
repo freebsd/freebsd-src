@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003 Poul-Henning Kamp
  * Copyright (c) 2015 Spectra Logic Corporation
  * Copyright (c) 2017 Alexander Motin <mav@FreeBSD.org>
@@ -31,6 +33,7 @@
  * $FreeBSD$
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -42,6 +45,7 @@
 #include <libutil.h>
 #include <paths.h>
 #include <err.h>
+#include <geom/geom_disk.h>
 #include <sysexits.h>
 #include <sys/aio.h>
 #include <sys/disk.h>
@@ -62,9 +66,11 @@ usage(void)
 
 static int opt_c, opt_i, opt_p, opt_s, opt_S, opt_t, opt_v, opt_w;
 
+static bool candelete(int fd);
 static void speeddisk(int fd, off_t mediasize, u_int sectorsize);
 static void commandtime(int fd, off_t mediasize, u_int sectorsize);
 static void iopsbench(int fd, off_t mediasize, u_int sectorsize);
+static void rotationrate(int fd, char *buf, size_t buflen);
 static void slogbench(int fd, int isreg, off_t mediasize, u_int sectorsize);
 static int zonecheck(int fd, uint32_t *zone_mode, char *zone_str,
 		     size_t zone_str_len);
@@ -78,6 +84,7 @@ main(int argc, char **argv)
 	int i, ch, fd, error, exitval = 0;
 	char tstr[BUFSIZ], ident[DISK_IDENT_SIZE], physpath[MAXPATHLEN];
 	char zone_desc[64];
+	char rrate[64];
 	struct diocgattr_arg arg;
 	off_t	mediasize, stripesize, stripeoffset;
 	u_int	sectorsize, fwsectors, fwheads, zoned = 0, isreg;
@@ -246,6 +253,10 @@ main(int argc, char **argv)
 				printf("\t%-12s\t# Disk ident.\n", ident);
 			if (ioctl(fd, DIOCGPHYSPATH, physpath) == 0)
 				printf("\t%-12s\t# Physical path\n", physpath);
+			printf("\t%-12s\t# TRIM/UNMAP support\n",
+			    candelete(fd) ? "Yes" : "No");
+			rotationrate(fd, rrate, sizeof(rrate));
+			printf("\t%-12s\t# Rotation rate in RPM\n", rrate);
 			if (zoned != 0)
 				printf("\t%-12s\t# Zone Mode\n", zone_desc);
 		}
@@ -263,6 +274,39 @@ out:
 	}
 	free(buf);
 	exit (exitval);
+}
+
+static bool
+candelete(int fd)
+{
+	struct diocgattr_arg arg;
+
+	strlcpy(arg.name, "GEOM::candelete", sizeof(arg.name));
+	arg.len = sizeof(arg.value.i);
+	if (ioctl(fd, DIOCGATTR, &arg) == 0)
+		return (arg.value.i != 0);
+	else
+		return (false);
+}
+
+static void
+rotationrate(int fd, char *rate, size_t buflen)
+{
+	struct diocgattr_arg arg;
+	int ret;
+
+	strlcpy(arg.name, "GEOM::rotation_rate", sizeof(arg.name));
+	arg.len = sizeof(arg.value.u16);
+
+	ret = ioctl(fd, DIOCGATTR, &arg);
+	if (ret < 0 || arg.value.u16 == DISK_RR_UNKNOWN)
+		snprintf(rate, buflen, "Unknown");
+	else if (arg.value.u16 == DISK_RR_NON_ROTATING)
+		snprintf(rate, buflen, "%d", 0);
+	else if (arg.value.u16 >= DISK_RR_MIN && arg.value.u16 <= DISK_RR_MAX)
+		snprintf(rate, buflen, "%d", arg.value.u16);
+	else
+		snprintf(rate, buflen, "Invalid");
 }
 
 static void
@@ -354,7 +398,7 @@ TS(u_int size, int count)
 
 	dt = delta_t();
 	printf("%8.1f usec/IO = %8.1f Mbytes/s\n",
-	    dt * 1000000.0 / count, size * count / dt / (1024 * 1024));
+	    dt * 1000000.0 / count, (double)size * count / dt / (1024 * 1024));
 }
 
 static void
@@ -363,9 +407,14 @@ speeddisk(int fd, off_t mediasize, u_int sectorsize)
 	int bulk, i;
 	off_t b0, b1, sectorcount, step;
 
+	/*
+	 * Drives smaller than 1MB produce negative sector numbers,
+	 * as do 2048 or fewer sectors.
+	 */
 	sectorcount = mediasize / sectorsize;
-	if (sectorcount <= 0)
-		return;		/* Can't test devices with no sectors */
+	if (mediasize < 1024 * 1024 || sectorcount < 2048)
+		return;
+
 
 	step = 1ULL << (flsll(sectorcount / (4 * 200)) - 1);
 	if (step > 16384)
@@ -602,22 +651,22 @@ parwrite(int fd, size_t size, off_t off)
 {
 	struct aiocb aios[MAXIOS];
 	off_t o;
-	size_t s;
 	int n, error;
 	struct aiocb *aiop;
 
-	for (n = 0, o = 0; size > MAXIO; n++, size -= s, o += s) {
-		s = (size >= MAXIO) ? MAXIO : size;
+	// if size > MAXIO, use AIO to write n - 1 pieces in parallel
+	for (n = 0, o = 0; size > MAXIO; n++, size -= MAXIO, o += MAXIO) {
 		aiop = &aios[n];
 		bzero(aiop, sizeof(*aiop));
 		aiop->aio_buf = &buf[o];
 		aiop->aio_fildes = fd;
 		aiop->aio_offset = off + o;
-		aiop->aio_nbytes = s;
+		aiop->aio_nbytes = MAXIO;
 		error = aio_write(aiop);
 		if (error != 0)
 			err(EX_IOERR, "AIO write submit error");
 	}
+	// Use synchronous writes for the runt of size <= MAXIO
 	error = pwrite(fd, &buf[o], size, off + o);
 	if (error < 0)
 		err(EX_IOERR, "Sync write error");

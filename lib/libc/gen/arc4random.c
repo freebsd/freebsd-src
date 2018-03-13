@@ -59,7 +59,6 @@ struct arc4_stream {
 
 static pthread_mutex_t	arc4random_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-#define	RANDOMDEV	"/dev/random"
 #define	KEYSIZE		128
 #define	_ARC4_LOCK()						\
 	do {							\

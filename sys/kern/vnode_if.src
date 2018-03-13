@@ -429,7 +429,7 @@ vop_print {
 vop_pathconf {
 	IN struct vnode *vp;
 	IN int name;
-	OUT register_t *retval;
+	OUT long *retval;
 };
 
 

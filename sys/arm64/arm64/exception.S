@@ -26,6 +26,7 @@
  */
 
 #include <machine/asm.h>
+#include <machine/armreg.h>
 __FBSDID("$FreeBSD$");
 
 #include "assym.s"
@@ -114,9 +115,11 @@ __FBSDID("$FreeBSD$");
 .endm
 
 .macro	do_ast
-	/* Disable interrupts */
 	mrs	x19, daif
+	/* Make sure the IRQs are enabled before calling ast() */
+	bic	x19, x19, #PSR_I
 1:
+	/* Disable interrupts */
 	msr	daifset, #2
 
 	/* Read the current thread flags */
@@ -219,8 +222,8 @@ exception_vectors:
 	vempty			/* FIQ 64-bit EL0 */
 	vector el0_error	/* Error 64-bit EL0 */
 
-	vempty			/* Synchronous 32-bit EL0 */
-	vempty			/* IRQ 32-bit EL0 */
+	vector el0_sync		/* Synchronous 32-bit EL0 */
+	vector el0_irq		/* IRQ 32-bit EL0 */
 	vempty			/* FIQ 32-bit EL0 */
-	vempty			/* Error 32-bit EL0 */
+	vector el0_error	/* Error 32-bit EL0 */
 

@@ -134,8 +134,10 @@ _gtaskqueue_create(const char *name, int mflags,
 	snprintf(tq_name, TASKQUEUE_NAMELEN, "%s", (name) ? name : "taskqueue");
 
 	queue = malloc(sizeof(struct gtaskqueue), M_GTASKQUEUE, mflags | M_ZERO);
-	if (!queue)
+	if (!queue) {
+		free(tq_name, M_GTASKQUEUE);
 		return (NULL);
+	}
 
 	STAILQ_INIT(&queue->tq_queue);
 	TAILQ_INIT(&queue->tq_active);
@@ -681,7 +683,7 @@ taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *gtask,
 		mtx_unlock(&qgroup->tqg_lock);
 		error = intr_setaffinity(irq, CPU_WHICH_IRQ, &mask);
 		if (error)
-			printf("%s: setaffinity failed: %d\n", __func__, error);
+			printf("%s: setaffinity failed for %s: %d\n", __func__, gtask->gt_name, error);
 	} else
 		mtx_unlock(&qgroup->tqg_lock);
 }

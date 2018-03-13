@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -70,7 +72,7 @@ typedef	__max_align_t	max_align_t;
 #endif
 #endif
 
-#define	offsetof(type, member)	__offsetof(type, member)
+#define	offsetof(type, field)	__offsetof(type, field)
 
 #if __EXT1_VISIBLE
 /* ISO/IEC 9899:2011 K.3.3.2 */

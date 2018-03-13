@@ -1,6 +1,6 @@
 Here you can find some simple examples how to use BootFORTH (part of the
 new bootloader) together with terminal emulation code (available when
-compiling /sys/boot/i386/libi386 with -DTERM_EMU).
+compiling /stand/i386/libi386 with -DTERM_EMU).
 
 Normally, you can place the files in /boot as they are here, and they will be
 automatically loaded by /boot/loader. You must choose between boot.4th or

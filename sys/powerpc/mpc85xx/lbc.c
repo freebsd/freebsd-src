@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2006-2008, Juniper Networks, Inc.
  * Copyright (c) 2008 Semihalf, Rafal Czubak
  * Copyright (c) 2009 The FreeBSD Foundation
@@ -651,8 +653,8 @@ lbc_attach(device_t dev)
 			free(di, M_LBC);
 			continue;
 		}
-		debugf("added child name='%s', node=%p\n", di->di_ofw.obd_name,
-		    (void *)child);
+		debugf("added child name='%s', node=%x\n", di->di_ofw.obd_name,
+		    child);
 		device_set_ivars(cdev, di);
 	}
 

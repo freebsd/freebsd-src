@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2009 Luigi Rizzo, Universita` di Pisa
  *
  * Redistribution and use in source and binary forms, with or without
@@ -669,7 +671,7 @@ struct ipfw_flow_id {
 	uint32_t	src_ip;
 	uint16_t	dst_port;
 	uint16_t	src_port;
-	uint8_t		fib;
+	uint8_t		fib;	/* XXX: must be uint16_t */
 	uint8_t		proto;
 	uint8_t		_flags;	/* protocol-specific flags */
 	uint8_t		addr_type; /* 4=ip4, 6=ip6, 1=ether ? */
@@ -680,6 +682,7 @@ struct ipfw_flow_id {
 };
 #endif
 
+#define	IS_IP4_FLOW_ID(id)	((id)->addr_type == 4)
 #define IS_IP6_FLOW_ID(id)	((id)->addr_type == 6)
 
 /*
@@ -728,6 +731,8 @@ struct _ipfw_dyn_rule {
 
 #define	ICMP_REJECT_RST		0x100	/* fake ICMP code (send a TCP RST) */
 #define	ICMP6_UNREACH_RST	0x100	/* fake ICMPv6 code (send a TCP RST) */
+#define	ICMP_REJECT_ABORT	0x101	/* fake ICMP code (send an SCTP ABORT) */
+#define	ICMP6_UNREACH_ABORT	0x101	/* fake ICMPv6 code (send an SCTP ABORT) */
 
 /*
  * These are used for lookup tables.

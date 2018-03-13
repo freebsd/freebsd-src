@@ -60,6 +60,8 @@ SUBDIR=	\
 	${_autofs} \
 	${_auxio} \
 	${_bce} \
+	${_bcm283x_clkman} \
+	${_bcm283x_pwm} \
 	bfe \
 	bge \
 	bhnd \
@@ -71,14 +73,15 @@ SUBDIR=	\
 	bridgestp \
 	bwi \
 	bwn \
-	bwn_pci \
 	${_bytgpio} \
+	${_chvgpio} \
 	cam \
 	${_cardbus} \
 	${_carp} \
 	cas \
 	${_cbb} \
 	cc \
+	${_ccp} \
 	cd9660 \
 	cd9660_iconv \
 	${_ce} \
@@ -115,7 +118,6 @@ SUBDIR=	\
 	dummynet \
 	${_ed} \
 	${_efirt} \
-	${_elink} \
 	${_em} \
 	${_ena} \
 	${_ep} \
@@ -218,7 +220,6 @@ SUBDIR=	\
 	lge \
 	libalias \
 	libiconv \
-	libmbpool \
 	libmchain \
 	${_linprocfs} \
 	${_linsysfs} \
@@ -351,7 +352,6 @@ SUBDIR=	\
 	sge \
 	${_sgx} \
 	${_sgx_linux} \
-	siba_bwn \
 	siftr \
 	siis \
 	sis \
@@ -361,7 +361,7 @@ SUBDIR=	\
 	snp \
 	sound \
 	${_speaker} \
-	spigen \
+	spi \
 	${_splash} \
 	${_sppp} \
 	ste \
@@ -426,7 +426,7 @@ _autofs=	autofs
 .endif
 
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
-.if (${MACHINE_CPUARCH} != "arm" || ${MACHINE_ARCH:Marmv6*} != "") && \
+.if (${MACHINE_CPUARCH} != "arm" || ${MACHINE_ARCH:Marmv[67]*} != "") && \
 	${MACHINE_CPUARCH} != "mips" && \
 	${MACHINE_CPUARCH} != "sparc64"
 SUBDIR+=	dtrace
@@ -562,6 +562,7 @@ _cxgb=		cxgb
 
 .if ${MACHINE_CPUARCH} == "aarch64"
 _armv8crypto=	armv8crypto
+_efirt=		efirt
 _em=		em
 .endif
 
@@ -603,6 +604,9 @@ _ixv=		ixv
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
+.if ${MK_SOURCELESS_UCODE} != "no"
+_lio=		lio
+.endif
 _nctgpio=	nctgpio
 _ndis=		ndis
 _pccard=	pccard
@@ -633,6 +637,7 @@ _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
 _bytgpio=	bytgpio
+_chvgpio=	chvgpio
 _ciss=		ciss
 _chromebook_platform=	chromebook_platform
 _cmx=		cmx
@@ -673,13 +678,11 @@ _mlx4en=	mlx4en
 _mlx5en=	mlx5en
 .endif
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_mthca=		mthca
 _mlx4ib=	mlx4ib
 _mlx5ib=	mlx5ib
 .endif
 _mly=		mly
-.if ${MK_OFED} != "no" || defined(ALL_MODULES)
-_mthca=		mthca
-.endif
 _nfe=		nfe
 _nvd=		nvd
 _nvme=		nvme
@@ -705,15 +708,13 @@ _x86bios=	x86bios
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
+_ccp=		ccp
 _efirt=		efirt
 _ioat=		ioat
 _ixl=		ixl
 _ixlv=		ixlv
 _linux64=	linux64
 _linux_common=	linux_common
-.if ${MK_SOURCELESS_UCODE} != "no"
-_lio=		lio
-.endif
 _ntb=		ntb
 _pms=		pms
 _qlxge=		qlxge
@@ -746,7 +747,6 @@ _coff=		coff
 .if ${MK_SOURCELESS_UCODE} != "no"
 _cp=		cp
 .endif
-_elink=		elink
 _glxiic=	glxiic
 _glxsb=		glxsb
 #_ibcs2=		ibcs2
@@ -800,8 +800,8 @@ _em=		em
 _epic=		epic
 .endif
 
-.if (${MACHINE_CPUARCH} == "amd64" || ${MACHINE_ARCH} == "armv6" || \
-     ${MACHINE_CPUARCH} == "i386")
+.if (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+     ${MACHINE_ARCH:Marmv[67]*} != "" || ${MACHINE_CPUARCH} == "i386")
 _cloudabi32=	cloudabi32
 .endif
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
@@ -810,8 +810,9 @@ _cloudabi64=	cloudabi64
 
 .endif
 
-.if ${MACHINE_ARCH} == "armv6"
-_ffec=		ffec
+.if ${MACHINE_ARCH:Marmv[67]*} != "" || ${MACHINE_CPUARCH} == "aarch64"
+_bcm283x_clkman=  bcm283x_clkman
+_bcm283x_pwm=  bcm283x_pwm
 .endif
 
 SUBDIR+=${MODULES_EXTRA}

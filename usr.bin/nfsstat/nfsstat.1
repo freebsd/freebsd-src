@@ -28,7 +28,7 @@
 .\"     From: @(#)nfsstat.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd November 23, 2016
+.Dd January 22, 2018
 .Dt NFSSTAT 1
 .Os
 .Sh NAME
@@ -38,6 +38,7 @@
 statistics
 .Sh SYNOPSIS
 .Nm
+.Op Fl -libxo
 .Op Fl cdEemszW
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -124,6 +125,15 @@ activity for both the client and server at
 second intervals.
 .It Fl z
 Reset statistics after displaying them.
+.It Fl q
+Do not print header
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /boot/kernel/kernel" -compact

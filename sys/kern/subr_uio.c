@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -503,8 +505,8 @@ copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz)
 /*
  * XXXKIB The temporal implementation of fue*() functions which do not
  * handle usermode -1 properly, mixing it with the fault code.  Keep
- * this until MD code is written.  Currently sparc64 and mips do not
- * have proper implementation.
+ * this until MD code is written.  Currently sparc64 does not have a
+ * proper implementation.
  */
 
 int

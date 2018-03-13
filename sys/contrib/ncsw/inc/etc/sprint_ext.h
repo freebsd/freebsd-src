@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
+/* Copyright (c) 2008-2012 Freescale Semiconductor, Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/******************************************************************************
 
+/**************************************************************************//**
  @File          sprint_ext.h
 
  @Description   Debug routines (externals).
@@ -44,13 +44,6 @@
 
 #if defined(NCSW_LINUX) && defined(__KERNEL__)
 #include <linux/kernel.h>
-
-#elif defined(NCSW_LINUX_USD)
-#include <stdio.h>
-#include "stdarg_ext.h"
-#include "std_ext.h"
-
-extern int vsscanf(const char *, const char *, va_list);
 
 #elif defined(NCSW_VXWORKS)
 #include "private/stdioP.h"

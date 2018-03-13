@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -91,9 +93,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #endif
 
-#ifdef TCP_RFC7413
-#include <netinet/tcp_fastopen.h>
-#endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
@@ -105,6 +104,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/tcp6_var.h>
 #endif
 #include <netinet/tcpip.h>
+#include <netinet/tcp_fastopen.h>
 #ifdef TCPPCAP
 #include <netinet/tcp_pcap.h>
 #endif
@@ -753,9 +753,7 @@ tcp_init(void)
 	V_sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 
-#ifdef TCP_RFC7413
 	tcp_fastopen_init();
-#endif
 
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
@@ -842,13 +840,11 @@ tcp_destroy(void *unused __unused)
 	uma_zdestroy(V_sack_hole_zone);
 	uma_zdestroy(V_tcpcb_zone);
 
-#ifdef TCP_RFC7413
 	/*
 	 * Cannot free the zone until all tcpcbs are released as we attach
 	 * the allocations to them.
 	 */
 	tcp_fastopen_destroy();
-#endif
 
 #ifdef TCP_HHOOK
 	error = hhook_head_deregister(V_tcp_hhh[HHOOK_TCP_EST_IN]);
@@ -1236,16 +1232,20 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	if (flags & TH_RST)
 		TCP_PROBE5(accept__refused, NULL, NULL, m, tp, nth);
 
-	TCP_PROBE5(send, NULL, tp, m, tp, nth);
 #ifdef INET6
-	if (isipv6)
-		(void) ip6_output(m, NULL, NULL, 0, NULL, NULL, inp);
+	if (isipv6) {
+		TCP_PROBE5(send, NULL, tp, ip6, tp, nth);
+		(void)ip6_output(m, NULL, NULL, 0, NULL, NULL, inp);
+	}
 #endif /* INET6 */
 #if defined(INET) && defined(INET6)
 	else
 #endif
 #ifdef INET
-		(void) ip_output(m, NULL, NULL, 0, NULL, inp);
+	{
+		TCP_PROBE5(send, NULL, tp, ip, tp, nth);
+		(void)ip_output(m, NULL, NULL, 0, NULL, inp);
+	}
 #endif
 }
 
@@ -1641,7 +1641,6 @@ tcp_close(struct tcpcb *tp)
 	if (tp->t_state == TCPS_LISTEN)
 		tcp_offload_listen_stop(tp);
 #endif
-#ifdef TCP_RFC7413
 	/*
 	 * This releases the TFO pending counter resource for TFO listen
 	 * sockets as well as passively-created TFO sockets that transition
@@ -1651,7 +1650,6 @@ tcp_close(struct tcpcb *tp)
 		tcp_fastopen_decrement_counter(tp->t_tfo_pending);
 		tp->t_tfo_pending = NULL;
 	}
-#endif
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);
 	if (tp->t_state != TCPS_CLOSED)
@@ -2401,6 +2399,9 @@ tcp_drop_syn_sent(struct inpcb *inp, int errno)
 	if (tp->t_state != TCPS_SYN_SENT)
 		return (inp);
 
+	if (IS_FASTOPEN(tp->t_flags))
+		tcp_fastopen_disable_path(tp);
+	
 	tp = tcp_drop(tp, errno);
 	if (tp != NULL)
 		return (inp);

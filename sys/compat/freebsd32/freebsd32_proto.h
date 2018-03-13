@@ -11,6 +11,7 @@
 #include <sys/signal.h>
 #include <sys/acl.h>
 #include <sys/cpuset.h>
+#include <sys/domainset.h>
 #include <sys/_ffcounter.h>
 #include <sys/_semaphore.h>
 #include <sys/ucontext.h>
@@ -679,12 +680,6 @@ struct freebsd32_fhstat_args {
 	char u_fhp_l_[PADL_(const struct fhandle *)]; const struct fhandle * u_fhp; char u_fhp_r_[PADR_(const struct fhandle *)];
 	char sb_l_[PADL_(struct stat32 *)]; struct stat32 * sb; char sb_r_[PADR_(struct stat32 *)];
 };
-struct freebsd32_getdirentries_args {
-	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
-	char count_l_[PADL_(size_t)]; size_t count; char count_r_[PADR_(size_t)];
-	char basep_l_[PADL_(int32_t *)]; int32_t * basep; char basep_r_[PADR_(int32_t *)];
-};
 struct freebsd32_kevent_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char changelist_l_[PADL_(const struct kevent32 *)]; const struct kevent32 * changelist; char changelist_r_[PADR_(const struct kevent32 *)];
@@ -692,6 +687,24 @@ struct freebsd32_kevent_args {
 	char eventlist_l_[PADL_(struct kevent32 *)]; struct kevent32 * eventlist; char eventlist_r_[PADR_(struct kevent32 *)];
 	char nevents_l_[PADL_(int)]; int nevents; char nevents_r_[PADR_(int)];
 	char timeout_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * timeout; char timeout_r_[PADR_(const struct timespec32 *)];
+};
+struct freebsd32_cpuset_getdomain_args {
+	char level_l_[PADL_(cpulevel_t)]; cpulevel_t level; char level_r_[PADR_(cpulevel_t)];
+	char which_l_[PADL_(cpuwhich_t)]; cpuwhich_t which; char which_r_[PADR_(cpuwhich_t)];
+	char id1_l_[PADL_(uint32_t)]; uint32_t id1; char id1_r_[PADR_(uint32_t)];
+	char id2_l_[PADL_(uint32_t)]; uint32_t id2; char id2_r_[PADR_(uint32_t)];
+	char domainsetsize_l_[PADL_(size_t)]; size_t domainsetsize; char domainsetsize_r_[PADR_(size_t)];
+	char mask_l_[PADL_(domainset_t *)]; domainset_t * mask; char mask_r_[PADR_(domainset_t *)];
+	char policy_l_[PADL_(int *)]; int * policy; char policy_r_[PADR_(int *)];
+};
+struct freebsd32_cpuset_setdomain_args {
+	char level_l_[PADL_(cpulevel_t)]; cpulevel_t level; char level_r_[PADR_(cpulevel_t)];
+	char which_l_[PADL_(cpuwhich_t)]; cpuwhich_t which; char which_r_[PADR_(cpuwhich_t)];
+	char id1_l_[PADL_(uint32_t)]; uint32_t id1; char id1_r_[PADR_(uint32_t)];
+	char id2_l_[PADL_(uint32_t)]; uint32_t id2; char id2_r_[PADR_(uint32_t)];
+	char domainsetsize_l_[PADL_(size_t)]; size_t domainsetsize; char domainsetsize_r_[PADR_(size_t)];
+	char mask_l_[PADL_(domainset_t *)]; domainset_t * mask; char mask_r_[PADR_(domainset_t *)];
+	char policy_l_[PADL_(int)]; int policy; char policy_r_[PADR_(int)];
 };
 #if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
 #define PAD64_REQUIRED
@@ -821,8 +834,9 @@ int	freebsd32_utimensat(struct thread *, struct freebsd32_utimensat_args *);
 int	freebsd32_fstat(struct thread *, struct freebsd32_fstat_args *);
 int	freebsd32_fstatat(struct thread *, struct freebsd32_fstatat_args *);
 int	freebsd32_fhstat(struct thread *, struct freebsd32_fhstat_args *);
-int	freebsd32_getdirentries(struct thread *, struct freebsd32_getdirentries_args *);
 int	freebsd32_kevent(struct thread *, struct freebsd32_kevent_args *);
+int	freebsd32_cpuset_getdomain(struct thread *, struct freebsd32_cpuset_getdomain_args *);
+int	freebsd32_cpuset_setdomain(struct thread *, struct freebsd32_cpuset_setdomain_args *);
 
 #ifdef COMPAT_43
 
@@ -1368,8 +1382,9 @@ int	freebsd11_freebsd32_mknodat(struct thread *, struct freebsd11_freebsd32_mkno
 #define	FREEBSD32_SYS_AUE_freebsd32_fstat	AUE_FSTAT
 #define	FREEBSD32_SYS_AUE_freebsd32_fstatat	AUE_FSTATAT
 #define	FREEBSD32_SYS_AUE_freebsd32_fhstat	AUE_FHSTAT
-#define	FREEBSD32_SYS_AUE_freebsd32_getdirentries	AUE_GETDIRENTRIES
 #define	FREEBSD32_SYS_AUE_freebsd32_kevent	AUE_KEVENT
+#define	FREEBSD32_SYS_AUE_freebsd32_cpuset_getdomain	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_cpuset_setdomain	AUE_NULL
 
 #undef PAD_
 #undef PADL_

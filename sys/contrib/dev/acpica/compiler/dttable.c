@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -152,7 +152,6 @@
 /* Compile routines for the basic ACPI tables */
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/compiler/dtcompiler.h>
 
 #define _COMPONENT          DT_COMPILER
         ACPI_MODULE_NAME    ("dttable")
@@ -183,7 +182,7 @@ DtCompileRsdp (
     /* Compile the "common" RSDP (ACPI 1.0) */
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoRsdp1,
-        &Gbl_RootTable, TRUE);
+        &Gbl_RootTable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -197,7 +196,7 @@ DtCompileRsdp (
         /* Compile the "extended" part of the RSDP as a subtable */
 
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoRsdp2,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -241,7 +240,7 @@ DtCompileFadt (
 
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt1,
-        &Subtable, TRUE);
+        &Subtable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -256,7 +255,7 @@ DtCompileFadt (
     if (Revision == 2)
     {
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt2,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -267,7 +266,7 @@ DtCompileFadt (
     else if (Revision >= 2)
     {
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt3,
-            &Subtable, TRUE);
+            &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -278,7 +277,7 @@ DtCompileFadt (
         if (Revision >= 5)
         {
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt5,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -290,7 +289,7 @@ DtCompileFadt (
         if (Revision >= 6)
         {
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt6,
-                &Subtable, TRUE);
+                &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -327,7 +326,7 @@ DtCompileFacs (
 
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoFacs,
-        &Gbl_RootTable, TRUE);
+        &Gbl_RootTable);
     if (ACPI_FAILURE (Status))
     {
         return (Status);

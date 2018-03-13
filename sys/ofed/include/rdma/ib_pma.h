@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
  * All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
@@ -30,6 +32,8 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * $FreeBSD$
  */
 
 #if !defined(IB_PMA_H)
@@ -37,30 +41,12 @@
 
 #include <rdma/ib_mad.h>
 
-#define MAX_U32 0xffffffffULL
-#define MAX_U16 0xffffUL
-
-/* Counters should be saturate once they reach their maximum value */
-#define ASSIGN_32BIT_COUNTER(counter, value) do {	\
-	if ((value) > MAX_U32)				\
-		counter = cpu_to_be32(MAX_U32);		\
-	else						\
-		counter = cpu_to_be32(value);		\
-} while (0)
-
-/* Counters should be saturate once they reach their maximum value */
-#define ASSIGN_16BIT_COUNTER(counter, value) do {	\
-	if ((value) > MAX_U16)				\
-		counter = cpu_to_be16(MAX_U16);		\
-	else						\
-		counter = cpu_to_be16(value);		\
-} while (0)
-
 /*
  * PMA class portinfo capability mask bits
  */
 #define IB_PMA_CLASS_CAP_ALLPORTSELECT  cpu_to_be16(1 << 8)
 #define IB_PMA_CLASS_CAP_EXT_WIDTH      cpu_to_be16(1 << 9)
+#define IB_PMA_CLASS_CAP_EXT_WIDTH_NOIETF cpu_to_be16(1 << 10)
 #define IB_PMA_CLASS_CAP_XMIT_WAIT      cpu_to_be16(1 << 12)
 
 #define IB_PMA_CLASS_PORT_INFO          cpu_to_be16(0x0001)

@@ -38,6 +38,11 @@
 
 __FBSDID("$FreeBSD$");
 
+/* We map 64MB of kernel unless overridden in assym.s by the kernel option. */
+#ifndef LOCORE_MAP_MB
+#define	LOCORE_MAP_MB	64
+#endif
+
 #if __ARM_ARCH >= 7
 #if defined(__ARM_ARCH_7VE__) || defined(__clang__)
 /*
@@ -176,12 +181,13 @@ ASENTRY_NP(_start)
 	bl	build_pagetables
 
 	/* 
-	 * Next we do 64MiB starting at the physical load address, mapped to
-	 * the VA the kernel is linked for.
+	 * Next we map the kernel starting at the physical load address, mapped
+	 * to the VA the kernel is linked for.  The default size we map is 64MiB
+	 * but it can be overridden with a kernel option.
 	 */
 	mov	r1, r5
 	ldr	r2, =(KERNVIRTADDR)
-	mov	r3, #64
+	ldr	r3, =(LOCORE_MAP_MB)
 	bl	build_pagetables
 
 	/* Create a device mapping for early_printf if specified. */

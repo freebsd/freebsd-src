@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2012 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -353,7 +355,7 @@ if_clone_alloc(const char *name, int maxunit)
 
 	return (ifc);
 }
-	
+
 static int
 if_clone_attach(struct if_clone *ifc)
 {
@@ -385,10 +387,8 @@ if_clone_advanced(const char *name, u_int maxunit, ifc_match_t match,
 	ifc->ifc_create = create;
 	ifc->ifc_destroy = destroy;
 
-	if (if_clone_attach(ifc) != 0) {
-		if_clone_free(ifc);
+	if (if_clone_attach(ifc) != 0)
 		return (NULL);
-	}
 
 	EVENTHANDLER_INVOKE(if_clone_event, ifc);
 
@@ -408,10 +408,8 @@ if_clone_simple(const char *name, ifcs_create_t create, ifcs_destroy_t destroy,
 	ifc->ifcs_destroy = destroy;
 	ifc->ifcs_minifs = minifs;
 
-	if (if_clone_attach(ifc) != 0) {
-		if_clone_free(ifc);
+	if (if_clone_attach(ifc) != 0)
 		return (NULL);
-	}
 
 	for (unit = 0; unit < minifs; unit++) {
 		char name[IFNAMSIZ];
@@ -448,7 +446,7 @@ if_clone_detach(struct if_clone *ifc)
 	/* destroy all interfaces for this cloner */
 	while (!LIST_EMPTY(&ifc->ifc_iflist))
 		if_clone_destroyif(ifc, LIST_FIRST(&ifc->ifc_iflist));
-	
+
 	IF_CLONE_REMREF(ifc);
 }
 
@@ -510,7 +508,7 @@ if_clone_list(struct if_clonereq *ifcr)
 
 done:
 	IF_CLONERS_UNLOCK();
-	if (err == 0)
+	if (err == 0 && dst != NULL)
 		err = copyout(outbuf, dst, buf_count*IFNAMSIZ);
 	if (outbuf != NULL)
 		free(outbuf, M_CLONE);
@@ -595,44 +593,56 @@ ifc_name2unit(const char *name, int *unit)
 	return (0);
 }
 
-int
-ifc_alloc_unit(struct if_clone *ifc, int *unit)
+static int
+ifc_alloc_unit_specific(struct if_clone *ifc, int *unit)
 {
 	char name[IFNAMSIZ];
-	int wildcard;
 
-	wildcard = (*unit < 0);
-retry:
 	if (*unit > ifc->ifc_maxunit)
 		return (ENOSPC);
-	if (*unit < 0) {
-		*unit = alloc_unr(ifc->ifc_unrhdr);
-		if (*unit == -1)
-			return (ENOSPC);
-	} else {
-		*unit = alloc_unr_specific(ifc->ifc_unrhdr, *unit);
-		if (*unit == -1) {
-			if (wildcard) {
-				(*unit)++;
-				goto retry;
-			} else
-				return (EEXIST);
-		}
-	}
+
+	if (alloc_unr_specific(ifc->ifc_unrhdr, *unit) == -1)
+		return (EEXIST);
 
 	snprintf(name, IFNAMSIZ, "%s%d", ifc->ifc_name, *unit);
 	if (ifunit(name) != NULL) {
 		free_unr(ifc->ifc_unrhdr, *unit);
-		if (wildcard) {
-			(*unit)++;
-			goto retry;
-		} else
-			return (EEXIST);
+		return (EEXIST);
 	}
 
 	IF_CLONE_ADDREF(ifc);
 
 	return (0);
+}
+
+static int
+ifc_alloc_unit_next(struct if_clone *ifc, int *unit)
+{
+	int error;
+
+	*unit = alloc_unr(ifc->ifc_unrhdr);
+	if (*unit == -1)
+		return (ENOSPC);
+
+	free_unr(ifc->ifc_unrhdr, *unit);
+	for (;;) {
+		error = ifc_alloc_unit_specific(ifc, unit);
+		if (error != EEXIST)
+			break;
+
+		(*unit)++;
+	}
+
+	return (error);
+}
+
+int
+ifc_alloc_unit(struct if_clone *ifc, int *unit)
+{
+	if (*unit < 0)
+		return (ifc_alloc_unit_next(ifc, unit));
+	else
+		return (ifc_alloc_unit_specific(ifc, unit));
 }
 
 void

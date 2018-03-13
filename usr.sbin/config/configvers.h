@@ -49,5 +49,5 @@
  *
  * $FreeBSD$
  */
-#define	CONFIGVERS	600014
+#define	CONFIGVERS	600015
 #define	MAJOR_VERS(x)	((x) / 100000)

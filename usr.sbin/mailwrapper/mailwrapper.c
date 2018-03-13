@@ -1,7 +1,9 @@
 /*	$OpenBSD: mailwrapper.c,v 1.18 2007/11/06 14:39:19 otto Exp $	*/
 /*	$NetBSD: mailwrapper.c,v 1.9 2003/03/09 08:10:43 mjl Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1998
  * 	Perry E. Metzger.  All rights reserved.
  *

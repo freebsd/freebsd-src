@@ -106,10 +106,19 @@ print_hex_dump_bytes(const char *prefix_str, const int prefix_type,
 	print_hex_dump(NULL, prefix_str, prefix_type, 16, 1, buf, len, 0);
 }
 
-#define	printk_ratelimited(...) do {		\
+#define	printk_ratelimit() ({			\
 	static linux_ratelimit_t __ratelimited;	\
-	if (linux_ratelimited(&__ratelimited))	\
+	linux_ratelimited(&__ratelimited);	\
+})
+
+#define	printk_ratelimited(...) ({		\
+	bool __retval = printk_ratelimit();	\
+	if (__retval)				\
 		printk(__VA_ARGS__);		\
-} while (0)
+	__retval;				\
+})
+
+#define	pr_err_ratelimited(fmt, ...) \
+	printk_ratelimited(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
 
 #endif					/* _LINUX_PRINTK_H_ */

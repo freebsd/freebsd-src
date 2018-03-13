@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Damjan Marion <dmarion@Freebsd.org>
  * All rights reserved.
  *
@@ -129,6 +131,13 @@ struct bcm_intc_softc {
 	struct resource *	intc_irq_res;
 	void *			intc_irq_hdl;
 	struct bcm_intc_irqsrc	intc_isrcs[BCM_INTC_NIRQS];
+};
+
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-armctrl-ic",		1},
+	{"brcm,bcm2835-armctrl-ic",		1},
+	{"brcm,bcm2836-armctrl-ic",		1},
+	{NULL,					0}
 };
 
 static struct bcm_intc_softc *bcm_intc_sc = NULL;
@@ -364,9 +373,9 @@ bcm_intc_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-armctrl-ic") &&
-	    !ofw_bus_is_compatible(dev, "brcm,bcm2836-armctrl-ic"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
+
 	device_set_desc(dev, "BCM2835 Interrupt Controller");
 	return (BUS_PROBE_DEFAULT);
 }

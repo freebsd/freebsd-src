@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 
 static struct ofw_compat_data compat_data[] = {
 	{"broadcom,bcm2835-usb",	1},
+	{"brcm,bcm2835-usb",		1},
 	{"brcm,bcm2708-usb",		1},
 	{NULL,				0}
 };

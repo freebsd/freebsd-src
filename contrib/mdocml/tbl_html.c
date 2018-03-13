@@ -1,4 +1,4 @@
-/*	$Id: tbl_html.c,v 1.22 2017/06/12 20:14:18 schwarze Exp $ */
+/*	$Id: tbl_html.c,v 1.23 2017/07/31 16:14:10 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -49,6 +49,9 @@ html_tbl_strlen(const char *p, void *arg)
 static size_t
 html_tbl_sulen(const struct roffsu *su, void *arg)
 {
+	if (su->scale < 0.0)
+		return 0;
+
 	switch (su->unit) {
 	case SCALE_FS:  /* 2^16 basic units */
 		return su->scale * 65536.0 / 24.0;

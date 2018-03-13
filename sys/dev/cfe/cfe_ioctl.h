@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2000, 2001, 2002, 2003
  * Broadcom Corporation. All rights reserved.
  *

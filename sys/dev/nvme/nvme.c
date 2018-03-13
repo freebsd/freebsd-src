@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2012-2014 Intel Corporation
  * All rights reserved.
  *
@@ -88,6 +90,7 @@ static struct _pcsid
 	int		match_subdevice;
 	uint16_t	subdevice;
 	const char	*desc;
+	uint32_t	quirks;
 } pci_ids[] = {
 	{ 0x01118086,		0, 0, "NVMe Controller"  },
 	{ IDT32_PCI_ID,		0, 0, "IDT NVMe Controller (32 channel)"  },
@@ -98,6 +101,11 @@ static struct _pcsid
 	{ 0x09538086,		1, 0x3705, "DC P3500 SSD [2.5\" SFF]" },
 	{ 0x09538086,		1, 0x3709, "DC P3600 SSD [Add-in Card]" },
 	{ 0x09538086,		1, 0x370a, "DC P3600 SSD [2.5\" SFF]" },
+	{ 0x00031c58,		0, 0, "HGST SN100",	QUIRK_DELAY_B4_CHK_RDY },
+	{ 0x00231c58,		0, 0, "WDC SN200",	QUIRK_DELAY_B4_CHK_RDY },
+	{ 0x05401c5f,		0, 0, "Memblaze Pblaze4", QUIRK_DELAY_B4_CHK_RDY },
+	{ 0xa821144d,		0, 0, "Samsung PM1725", QUIRK_DELAY_B4_CHK_RDY },
+	{ 0xa822144d,		0, 0, "Samsung PM1725a", QUIRK_DELAY_B4_CHK_RDY },
 	{ 0x00000000,		0, 0, NULL  }
 };
 
@@ -214,23 +222,38 @@ nvme_modevent(module_t mod, int type, void *arg)
 void
 nvme_dump_command(struct nvme_command *cmd)
 {
+	uint8_t opc, fuse;
+
+	opc = (cmd->opc_fuse >> NVME_CMD_OPC_SHIFT) & NVME_CMD_OPC_MASK;
+	fuse = (cmd->opc_fuse >> NVME_CMD_FUSE_SHIFT) & NVME_CMD_FUSE_MASK;
+
 	printf(
-"opc:%x f:%x r1:%x cid:%x nsid:%x r2:%x r3:%x mptr:%jx prp1:%jx prp2:%jx cdw:%x %x %x %x %x %x\n",
-	    cmd->opc, cmd->fuse, cmd->rsvd1, cmd->cid, cmd->nsid,
+"opc:%x f:%x cid:%x nsid:%x r2:%x r3:%x mptr:%jx prp1:%jx prp2:%jx cdw:%x %x %x %x %x %x\n",
+	    opc, fuse, cmd->cid, le32toh(cmd->nsid),
 	    cmd->rsvd2, cmd->rsvd3,
-	    (uintmax_t)cmd->mptr, (uintmax_t)cmd->prp1, (uintmax_t)cmd->prp2,
-	    cmd->cdw10, cmd->cdw11, cmd->cdw12, cmd->cdw13, cmd->cdw14,
-	    cmd->cdw15);
+	    (uintmax_t)le64toh(cmd->mptr), (uintmax_t)le64toh(cmd->prp1), (uintmax_t)le64toh(cmd->prp2),
+	    le32toh(cmd->cdw10), le32toh(cmd->cdw11), le32toh(cmd->cdw12),
+	    le32toh(cmd->cdw13), le32toh(cmd->cdw14), le32toh(cmd->cdw15));
 }
 
 void
 nvme_dump_completion(struct nvme_completion *cpl)
 {
+	uint8_t p, sc, sct, m, dnr;
+	uint16_t status;
+
+	status = le16toh(cpl->status);
+
+	p = NVME_STATUS_GET_P(status);
+	sc = NVME_STATUS_GET_SC(status);
+	sct = NVME_STATUS_GET_SCT(status);
+	m = NVME_STATUS_GET_M(status);
+	dnr = NVME_STATUS_GET_DNR(status);
+
 	printf("cdw0:%08x sqhd:%04x sqid:%04x "
 	    "cid:%04x p:%x sc:%02x sct:%x m:%x dnr:%x\n",
-	    cpl->cdw0, cpl->sqhd, cpl->sqid,
-	    cpl->cid, cpl->status.p, cpl->status.sc, cpl->status.sct,
-	    cpl->status.m, cpl->status.dnr);
+	    le32toh(cpl->cdw0), le16toh(cpl->sqhd), le16toh(cpl->sqid),
+	    cpl->cid, p, sc, sct, m, dnr);
 }
 
 static int
@@ -238,6 +261,19 @@ nvme_attach(device_t dev)
 {
 	struct nvme_controller	*ctrlr = DEVICE2SOFTC(dev);
 	int			status;
+	struct _pcsid		*ep;
+	uint32_t		devid;
+	uint16_t		subdevice;
+
+	devid = pci_get_devid(dev);
+	subdevice = pci_get_subdevice(dev);
+	ep = pci_ids;
+	while (ep->devid) {
+		if (nvme_match(devid, subdevice, ep))
+			break;
+		++ep;
+	}
+	ctrlr->quirks = ep->quirks;
 
 	status = nvme_ctrlr_construct(ctrlr, dev);
 
@@ -448,6 +484,5 @@ nvme_completion_poll_cb(void *arg, const struct nvme_completion *cpl)
 	 *  the request passed or failed.
 	 */
 	memcpy(&status->cpl, cpl, sizeof(*cpl));
-	wmb();
-	status->done = TRUE;
+	atomic_store_rel_int(&status->done, 1);
 }

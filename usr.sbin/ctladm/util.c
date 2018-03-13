@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Written By Julian ELischer
  * Copyright julian Elischer 1993.
  * Permission is granted to use or redistribute this file in any way as long

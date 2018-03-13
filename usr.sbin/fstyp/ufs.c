@@ -33,77 +33,32 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
+
+#include <errno.h>
+#include <libufs.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <ufs/ufs/dinode.h>
-#include <ufs/ffs/fs.h>
-
 #include "fstyp.h"
-
-static const int superblocks[] = SBLOCKSEARCH;
 
 int
 fstyp_ufs(FILE *fp, char *label, size_t labelsize)
 {
-	int sb, superblock;
 	struct fs *fs;
 
-	/*
-	 * Walk through the standard places that superblocks hide and look
-	 * for UFS magic. If we find magic, then check that the size in the
-	 * superblock corresponds to the size of the underlying provider.
-	 * Finally, look for a volume label and create an appropriate
-	 * provider based on that.
-	 */
-	for (sb = 0; (superblock = superblocks[sb]) != -1; sb++) {
-		fs = (struct fs *)read_buf(fp, superblock, SBLOCKSIZE);
-		if (fs == NULL)
-			continue;
-		/*
-		 * Check for magic. We also need to check if file system size is equal
-		 * to providers size, because sysinstall(8) used to bogusly put first
-		 * partition at offset 0 instead of 16, and glabel/ufs would find file
-		 * system on slice instead of partition.
-		 */
-#ifdef notyet
-		if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_fsize > 0 &&
-		    ((pp->mediasize / fs->fs_fsize == fs->fs_old_size) ||
-		    (pp->mediasize / fs->fs_fsize == fs->fs_providersize))) {
-		    	/* Valid UFS1. */
-		} else if (fs->fs_magic == FS_UFS2_MAGIC && fs->fs_fsize > 0 &&
-		    ((pp->mediasize / fs->fs_fsize == fs->fs_size) ||
-		    (pp->mediasize / fs->fs_fsize == fs->fs_providersize))) {
-		    	/* Valid UFS2. */
-		} else {
-			g_free(fs);
-			continue;
-		}
-#else
-		if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_fsize > 0) {
-		    	/* Valid UFS1. */
-		} else if (fs->fs_magic == FS_UFS2_MAGIC && fs->fs_fsize > 0) {
-		    	/* Valid UFS2. */
-		} else {
-			free(fs);
-			continue;
-		}
-#endif
-
-		if (fs->fs_sblockloc != superblock || fs->fs_ncg < 1 ||
-		    fs->fs_bsize < MINBSIZE ||
-		    (size_t)fs->fs_bsize < sizeof(struct fs)) {
-			free(fs);
-			continue;
-		}
-
+	switch (sbget(fileno(fp), &fs, -1)) {
+	case 0:
 		strlcpy(label, fs->fs_volname, labelsize);
-
-		free(fs);
 		return (0);
+	case ENOENT:
+		/* Cannot find file system superblock */
+		return (1);
+	default:
+		/* Unable to read file system superblock */
+		return (1);
 	}
-
-	return (1);
 }

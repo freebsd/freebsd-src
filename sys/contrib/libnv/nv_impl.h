@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 The FreeBSD Foundation
  * Copyright (c) 2013-2015 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * All rights reserved.
@@ -51,7 +53,7 @@ typedef struct nvpair nvpair_t;
 
 #ifdef _KERNEL
 #define	nv_malloc(size)			malloc((size), M_NVLIST, M_WAITOK)
-#define	nv_calloc(n, size)		malloc((n) * (size), M_NVLIST, \
+#define	nv_calloc(n, size)		mallocarray((n), (size), M_NVLIST, \
 					    M_WAITOK | M_ZERO)
 #define	nv_realloc(buf, size)		realloc((buf), (size), M_NVLIST, \
 					    M_WAITOK)

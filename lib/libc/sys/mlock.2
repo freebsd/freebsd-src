@@ -28,7 +28,7 @@
 .\"	@(#)mlock.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2014
+.Dd Jan 22, 2018
 .Dt MLOCK 2
 .Os
 .Sh NAME
@@ -125,7 +125,7 @@ will fail if:
 .Va security.bsd.unprivileged_mlock
 is set to 0 and the caller is not the super-user.
 .It Bq Er EINVAL
-The address given is not page aligned or the length is negative.
+The address range given wraps around zero.
 .It Bq Er EAGAIN
 Locking the indicated range would exceed the system limit for locked memory.
 .It Bq Er ENOMEM
@@ -143,7 +143,7 @@ will fail if:
 .Va security.bsd.unprivileged_mlock
 is set to 0 and the caller is not the super-user.
 .It Bq Er EINVAL
-The address given is not page aligned or the length is negative.
+The address range given wraps around zero.
 .It Bq Er ENOMEM
 Some or all of the address range specified by the addr and len
 arguments does not correspond to valid mapped pages in the address space

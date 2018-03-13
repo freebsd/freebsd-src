@@ -23,6 +23,7 @@
  * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright 2017 RackTop Systems.
  */
 
 #include <sys/zfs_context.h>
@@ -59,8 +60,16 @@ static dnode_phys_t dnode_phys_zero;
 int zfs_default_bs = SPA_MINBLOCKSHIFT;
 int zfs_default_ibs = DN_MAX_INDBLKSHIFT;
 
+SYSCTL_DECL(_vfs_zfs);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, default_bs, CTLFLAG_RWTUN,
+    &zfs_default_bs, 0, "Default dnode block shift");
+SYSCTL_INT(_vfs_zfs, OID_AUTO, default_ibs, CTLFLAG_RWTUN,
+    &zfs_default_ibs, 0, "Default dnode indirect block shift");
+
 #ifdef illumos
+#ifdef	_KERNEL
 static kmem_cbrc_t dnode_move(void *, void *, size_t, void *);
+#endif	/* _KERNEL */
 #endif
 
 static int
@@ -216,7 +225,9 @@ dnode_init(void)
 	dnode_cache = kmem_cache_create("dnode_t",
 	    sizeof (dnode_t),
 	    0, dnode_cons, dnode_dest, NULL, NULL, NULL, 0);
+#ifdef	_KERNEL
 	kmem_cache_set_move(dnode_cache, dnode_move);
+#endif	/* _KERNEL */
 }
 
 void
@@ -408,7 +419,9 @@ dnode_create(objset_t *os, dnode_phys_t *dnp, dmu_buf_impl_t *db,
 	dnode_t *dn;
 
 	dn = kmem_cache_alloc(dnode_cache, KM_SLEEP);
+#ifdef _KERNEL
 	ASSERT(!POINTER_IS_VALID(dn->dn_objset));
+#endif /* _KERNEL */
 	dn->dn_moved = 0;
 
 	/*
@@ -700,6 +713,7 @@ static struct {
 } dnode_move_stats;
 #endif	/* DNODE_STATS */
 
+#ifdef	_KERNEL
 static void
 dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 {
@@ -837,7 +851,6 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 }
 
 #ifdef illumos
-#ifdef	_KERNEL
 /*ARGSUSED*/
 static kmem_cbrc_t
 dnode_move(void *buf, void *newbuf, size_t size, void *arg)
@@ -978,8 +991,8 @@ dnode_move(void *buf, void *newbuf, size_t size, void *arg)
 
 	return (KMEM_CBRC_YES);
 }
-#endif	/* _KERNEL */
 #endif	/* illumos */
+#endif	/* _KERNEL */
 
 void
 dnode_special_close(dnode_handle_t *dnh)
@@ -1695,8 +1708,7 @@ done:
 	mutex_enter(&dn->dn_mtx);
 	int txgoff = tx->tx_txg & TXG_MASK;
 	if (dn->dn_free_ranges[txgoff] == NULL) {
-		dn->dn_free_ranges[txgoff] =
-		    range_tree_create(NULL, NULL, &dn->dn_mtx);
+		dn->dn_free_ranges[txgoff] = range_tree_create(NULL, NULL);
 	}
 	range_tree_clear(dn->dn_free_ranges[txgoff], blkid, nblks);
 	range_tree_add(dn->dn_free_ranges[txgoff], blkid, nblks);

@@ -1,6 +1,8 @@
 /*-
  * Implementation of the SCSI Transport
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998, 1999 Justin T. Gibbs.
  * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.
@@ -655,7 +657,6 @@ static cam_status
 proberegister(struct cam_periph *periph, void *arg)
 {
 	union ccb *request_ccb;	/* CCB representing the probe request */
-	cam_status status;
 	probe_softc *softc;
 
 	request_ccb = (union ccb *)arg;
@@ -679,10 +680,9 @@ proberegister(struct cam_periph *periph, void *arg)
 	periph->softc = softc;
 	softc->periph = periph;
 	softc->action = PROBE_INVALID;
-	status = cam_periph_acquire(periph);
-	if (status != CAM_REQ_CMP) {
-		return (status);
-	}
+	if (cam_periph_acquire(periph) != 0)
+		return (CAM_REQ_CMP_ERR);
+
 	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe started\n"));
 	scsi_devise_transport(periph->path);
 
@@ -707,9 +707,7 @@ probeschedule(struct cam_periph *periph)
 	softc = (probe_softc *)periph->softc;
 	ccb = (union ccb *)TAILQ_FIRST(&softc->request_ccbs);
 
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NONE);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 
 	/*
 	 * If a device has gone away and another device, or the same one,
@@ -1171,14 +1169,15 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	softc = (probe_softc *)periph->softc;
 	path = done_ccb->ccb_h.path;
 	priority = done_ccb->ccb_h.pinfo.priority;
+	cam_periph_assert(periph, MA_OWNED);
 
 	switch (softc->action) {
 	case PROBE_TUR:
 	{
 		if (cam_ccb_status(done_ccb) != CAM_REQ_CMP) {
 
-			if (cam_periph_error(done_ccb, 0,
-					     SF_NO_PRINT, NULL) == ERESTART) {
+			if (cam_periph_error(done_ccb, 0, SF_NO_PRINT) ==
+			    ERESTART) {
 outr:
 				/* Drop freeze taken due to CAM_DEV_QFREEZE */
 				cam_release_devq(path, 0, 0, 0, FALSE);
@@ -1275,8 +1274,7 @@ out:
 		} else if (cam_periph_error(done_ccb, 0,
 					    done_ccb->ccb_h.target_lun > 0
 					    ? SF_RETRY_UA|SF_QUIET_IR
-					    : SF_RETRY_UA,
-					    &softc->saved_ccb) == ERESTART) {
+					    : SF_RETRY_UA) == ERESTART) {
 			goto outr;
 		} else {
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
@@ -1318,9 +1316,9 @@ out:
 
 		if (cam_ccb_status(done_ccb) != CAM_REQ_CMP) {
 			if (cam_periph_error(done_ccb, 0,
-			    done_ccb->ccb_h.target_lun > 0 ?
-			    SF_RETRY_UA|SF_QUIET_IR : SF_RETRY_UA,
-			    &softc->saved_ccb) == ERESTART) {
+				done_ccb->ccb_h.target_lun > 0 ?
+				SF_RETRY_UA|SF_QUIET_IR : SF_RETRY_UA) ==
+			    ERESTART) {
 				goto outr;
 			}
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
@@ -1424,8 +1422,7 @@ out:
 			page = (struct scsi_control_page *)offset;
 			path->device->queue_flags = page->queue_flags;
 		} else if (cam_periph_error(done_ccb, 0,
-					    SF_RETRY_UA|SF_NO_PRINT,
-					    &softc->saved_ccb) == ERESTART) {
+			SF_RETRY_UA|SF_NO_PRINT) == ERESTART) {
 			goto outr;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
@@ -1467,8 +1464,7 @@ out:
 			xpt_schedule(periph, priority);
 			goto out;
 		} else if (cam_periph_error(done_ccb, 0,
-					    SF_RETRY_UA|SF_NO_PRINT,
-					    &softc->saved_ccb) == ERESTART) {
+			SF_RETRY_UA|SF_NO_PRINT) == ERESTART) {
 			goto outr;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
@@ -1512,8 +1508,7 @@ out:
 				path->device->device_id = (uint8_t *)devid;
 			}
 		} else if (cam_periph_error(done_ccb, 0,
-					    SF_RETRY_UA,
-					    &softc->saved_ccb) == ERESTART) {
+			SF_RETRY_UA) == ERESTART) {
 			goto outr;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
@@ -1555,9 +1550,8 @@ out:
 				path->device->ext_inq_len = length;
 				path->device->ext_inq = (uint8_t *)ext_inq;
 			}
-		} else if (cam_periph_error(done_ccb, 0,
-					    SF_RETRY_UA,
-					    &softc->saved_ccb) == ERESTART) {
+		} else if (cam_periph_error(done_ccb, 0, SF_RETRY_UA) ==
+		    ERESTART) {
 			goto outr;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
@@ -1620,8 +1614,7 @@ probe_device_check:
 				path->device->serial_num[slen] = '\0';
 			}
 		} else if (cam_periph_error(done_ccb, 0,
-					    SF_RETRY_UA|SF_NO_PRINT,
-					    &softc->saved_ccb) == ERESTART) {
+			SF_RETRY_UA|SF_NO_PRINT) == ERESTART) {
 			goto outr;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
@@ -1690,7 +1683,7 @@ probe_device_check:
 	case PROBE_DV_EXIT:
 		if (cam_ccb_status(done_ccb) != CAM_REQ_CMP) {
 			cam_periph_error(done_ccb, 0,
-			    SF_NO_PRINT | SF_NO_RECOVERY | SF_NO_RETRY, NULL);
+			    SF_NO_PRINT | SF_NO_RECOVERY | SF_NO_RETRY);
 		}
 		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
@@ -1741,7 +1734,7 @@ probe_device_check:
 
 		if (cam_ccb_status(done_ccb) != CAM_REQ_CMP) {
 			cam_periph_error(done_ccb, 0,
-			    SF_NO_PRINT | SF_NO_RECOVERY | SF_NO_RETRY, NULL);
+			    SF_NO_PRINT | SF_NO_RECOVERY | SF_NO_RETRY);
 		}
 		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
@@ -2549,8 +2542,8 @@ scsi_dev_advinfo(union ccb *start_ccb)
 			if (device->physpath != NULL) {
 				free(device->physpath, M_CAMXPT);
 				device->physpath = NULL;
+				device->physpath_len = 0;
 			}
-			device->physpath_len = cdai->bufsiz;
 			/* Clear existing buffer if zero length */
 			if (cdai->bufsiz == 0)
 				break;
@@ -2559,6 +2552,7 @@ scsi_dev_advinfo(union ccb *start_ccb)
 				start_ccb->ccb_h.status = CAM_REQ_ABORTED;
 				return;
 			}
+			device->physpath_len = cdai->bufsiz;
 			memcpy(device->physpath, cdai->buf, cdai->bufsiz);
 		} else {
 			cdai->provsiz = device->physpath_len;

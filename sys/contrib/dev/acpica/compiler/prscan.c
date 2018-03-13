@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -152,7 +152,6 @@
 #define _DECLARE_PR_GLOBALS
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/compiler/dtcompiler.h>
 
 /*
  * TBDs:
@@ -1197,7 +1196,7 @@ PrPushDirective (
     Info->Next = Gbl_DirectiveStack;
     Info->Directive = Directive;
     Info->IgnoringThisCodeBlock = Gbl_IgnoringThisCodeBlock;
-    strncpy (Info->Argument, Argument, MAX_ARGUMENT_LENGTH);
+    AcpiUtSafeStrncpy (Info->Argument, Argument, MAX_ARGUMENT_LENGTH);
 
     DbgPrint (ASL_DEBUG_OUTPUT,
         "Pr(%.4u) - [%u %s] %*s Pushed [#%s %s]: IgnoreFlag = %s\n",

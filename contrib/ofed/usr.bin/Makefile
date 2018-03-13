@@ -1,10 +1,10 @@
-.include <src.opts.mk>
+# $FreeBSD$
 
-SUBDIR= ibaddr ibnetdiscover ibping ibportstate ibroute ibsendtrap ibstat \
-	ibsysstat ibtracert opensm perfquery saquery \
-	sminfo smpdump smpquery vendstat
-
-SUBDIR.${MK_TESTS}+= osmtest
+SUBDIR= \
+../libibverbs/examples/build \
+../librdmacm/examples/build \
+../opensm/opensm \
+../infiniband-diags/build
 
 SUBDIR_PARALLEL=
 

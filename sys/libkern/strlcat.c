@@ -1,6 +1,8 @@
 /*	$OpenBSD: strlcat.c,v 1.2 1999/06/17 16:28:58 millert Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1998 Todd C. Miller <Todd.Miller@courtesan.com>
  * All rights reserved.
  *
@@ -44,10 +46,7 @@ __FBSDID("$FreeBSD$");
  * If retval >= siz, truncation occurred.
  */
 size_t
-strlcat(dst, src, siz)
-	char *dst;
-	const char *src;
-	size_t siz;
+strlcat(char *dst, const char *src, size_t siz)
 {
 	char *d = dst;
 	const char *s = src;

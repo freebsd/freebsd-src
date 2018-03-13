@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 The FreeBSD Foundation
  * Copyright (c) 2015 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * Copyright (c) 2017 Robert N. M. Watson
@@ -199,6 +201,8 @@ casper_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	nvlist_destroy(nvl);
 
 	nvlist_move_descriptor(nvlout, "chanfd", chanfd);
+	nvlist_add_number(nvlout, "chanflags",
+	    service_get_channel_flags(casserv->cs_service));
 
 	return (0);
 }

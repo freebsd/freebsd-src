@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1994, David Greenman
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -162,9 +164,6 @@ SYSCTL_INT(_machdep, OID_AUTO, uprintf_signal, CTLFLAG_RWTUN,
 void
 trap(struct trapframe *frame)
 {
-#ifdef KDTRACE_HOOKS
-	struct reg regs;
-#endif
 	ksiginfo_t ksi;
 	struct thread *td;
 	struct proc *p;
@@ -221,11 +220,6 @@ trap(struct trapframe *frame)
 #endif
 	}
 
-	if (type == T_MCHK) {
-		mca_intr();
-		return;
-	}
-
 	if ((frame->tf_rflags & PSL_I) == 0) {
 		/*
 		 * Buggy application or kernel code has disabled
@@ -276,9 +270,8 @@ trap(struct trapframe *frame)
 			enable_intr();
 #ifdef KDTRACE_HOOKS
 			if (type == T_BPTFLT) {
-				fill_frame_regs(frame, &regs);
 				if (dtrace_pid_probe_ptr != NULL &&
-				    dtrace_pid_probe_ptr(&regs) == 0)
+				    dtrace_pid_probe_ptr(frame) == 0)
 					return;
 			}
 #endif
@@ -404,9 +397,8 @@ trap(struct trapframe *frame)
 #ifdef KDTRACE_HOOKS
 		case T_DTRACE_RET:
 			enable_intr();
-			fill_frame_regs(frame, &regs);
 			if (dtrace_return_probe_ptr != NULL)
-				dtrace_return_probe_ptr(&regs);
+				dtrace_return_probe_ptr(frame);
 			return;
 #endif
 		}
@@ -451,9 +443,28 @@ trap(struct trapframe *frame)
 			 * problem here and not have to check all the
 			 * selectors and pointers when the user changes
 			 * them.
+			 *
+			 * In case of PTI, the IRETQ faulted while the
+			 * kernel used the pti stack, and exception
+			 * frame records %rsp value pointing to that
+			 * stack.  If we return normally to
+			 * doreti_iret_fault, the trapframe is
+			 * reconstructed on pti stack, and calltrap()
+			 * called on it as well.  Due to the very
+			 * limited pti stack size, kernel does not
+			 * survive for too long.  Switch to the normal
+			 * thread stack for the trap handling.
+			 *
+			 * Magic '5' is the number of qwords occupied by
+			 * the hardware trap frame.
 			 */
 			if (frame->tf_rip == (long)doreti_iret) {
 				frame->tf_rip = (long)doreti_iret_fault;
+				if (pti && frame->tf_rsp == (uintptr_t)PCPU_PTR(
+				    pti_stack) + (PC_PTI_STACK_SZ - 5) *
+				    sizeof(register_t))
+					frame->tf_rsp = PCPU_GET(rsp0) - 5 *
+					    sizeof(register_t);
 				return;
 			}
 			if (frame->tf_rip == (long)ld_ds) {
@@ -611,7 +622,6 @@ trap_pfault(struct trapframe *frame, int usermode)
 	td = curthread;
 	p = td->td_proc;
 	eva = frame->tf_addr;
-	rv = 0;
 
 	if (__predict_false((td->td_pflags & TDP_NOFAULTING) != 0)) {
 		/*
@@ -663,7 +673,7 @@ trap_pfault(struct trapframe *frame, int usermode)
 		 * Don't allow user-mode faults in kernel address space.
 		 */
 		if (usermode)
-			goto nogo;
+			return (SIGSEGV);
 
 		map = kernel_map;
 	} else {
@@ -692,6 +702,17 @@ trap_pfault(struct trapframe *frame, int usermode)
 	}
 
 	/*
+	 * If nx protection of the usermode portion of kernel page
+	 * tables caused trap, panic.
+	 */
+	if (pti && usermode && pg_nx != 0 && (frame->tf_err & (PGEX_P | PGEX_W |
+	    PGEX_U | PGEX_I)) == (PGEX_P | PGEX_U | PGEX_I) &&
+	    (curpcb->pcb_saved_ucr3 & ~CR3_PCID_MASK)==
+	    (PCPU_GET(curpmap)->pm_cr3 & ~CR3_PCID_MASK))
+		panic("PTI: pid %d comm %s tf_err %#lx\n", p->p_pid,
+		    p->p_comm, frame->tf_err);
+
+	/*
 	 * PGEX_I is defined only if the execute disable bit capability is
 	 * supported and enabled.
 	 */
@@ -718,7 +739,6 @@ trap_pfault(struct trapframe *frame, int usermode)
 #endif
 		return (0);
 	}
-nogo:
 	if (!usermode) {
 		if (td->td_intr_nesting_level == 0 &&
 		    curpcb->pcb_onfault != NULL) {

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2010 Weongyo Jeong <weongyo@freebsd.org>
  * All rights reserved.
  *
@@ -32,13 +34,13 @@
 #ifndef _IF_BWNVAR_H
 #define	_IF_BWNVAR_H
 
-struct siba_dev_softc;
+#include <dev/bhnd/bhnd.h>
+
 struct bwn_softc;
 struct bwn_mac;
 
 #define	N(a)			(sizeof(a) / sizeof(a[0]))
 #define	BWN_ALIGN			0x1000
-#define	BWN_BUS_SPACE_MAXADDR_30BIT	0x3fffffff
 #define	BWN_RETRY_SHORT			7
 #define	BWN_RETRY_LONG			4
 #define	BWN_STAID_MAX			64
@@ -65,10 +67,12 @@ struct bwn_mac;
 	((uint16_t)((((uint16_t)tq->tq_index + 1) << 12) | tp->tp_index))
 #define	BWN_DMA_COOKIE(dr, slot)					\
 	((uint16_t)(((uint16_t)dr->dr_index + 1) << 12) | (uint16_t)slot)
-#define	BWN_READ_2(mac, o)		(siba_read_2(mac->mac_sc->sc_dev, o))
-#define	BWN_READ_4(mac, o)		(siba_read_4(mac->mac_sc->sc_dev, o))
+#define	BWN_READ_2(mac, o)						\
+	(bus_read_2((mac)->mac_sc->sc_mem_res, (o)))
+#define	BWN_READ_4(mac, o)						\
+	(bus_read_4((mac)->mac_sc->sc_mem_res, (o)))
 #define	BWN_WRITE_2(mac, o, v)						\
-	(siba_write_2(mac->mac_sc->sc_dev, o, v))
+	(bus_write_2((mac)->mac_sc->sc_mem_res, (o), (v)))
 #define	BWN_WRITE_2_F(mac, o, v) do { \
 	(BWN_WRITE_2(mac, o, v)); \
 	BWN_READ_2(mac, o); \
@@ -76,13 +80,13 @@ struct bwn_mac;
 #define	BWN_WRITE_SETMASK2(mac, offset, mask, set)			\
 	BWN_WRITE_2(mac, offset, (BWN_READ_2(mac, offset) & mask) | set)
 #define	BWN_WRITE_4(mac, o, v)						\
-	(siba_write_4(mac->mac_sc->sc_dev, o, v))
+	(bus_write_4((mac)->mac_sc->sc_mem_res, (o), (v)))
 #define	BWN_WRITE_SETMASK4(mac, offset, mask, set)			\
 	BWN_WRITE_4(mac, offset, (BWN_READ_4(mac, offset) & mask) | set)
 #define	BWN_PIO_TXQOFFSET(mac)						\
-	((siba_get_revid(mac->mac_sc->sc_dev) >= 11) ? 0x18 : 0)
+	((bhnd_get_hwrev(mac->mac_sc->sc_dev) >= 11) ? 0x18 : 0)
 #define	BWN_PIO_RXQOFFSET(mac)						\
-	((siba_get_revid(mac->mac_sc->sc_dev) >= 11) ? 0x38 : 8)
+	((bhnd_get_hwrev(mac->mac_sc->sc_dev) >= 11) ? 0x38 : 8)
 #define	BWN_SEC_NEWAPI(mac)		(mac->mac_fw.rev >= 351)
 #define	BWN_SEC_KEY2FW(mac, idx)					\
 	(BWN_SEC_NEWAPI(mac) ? idx : ((idx >= 4) ? idx - 4 : idx))
@@ -136,7 +140,6 @@ struct bwn_mac;
 #define BWN_LO_CALIB_EXPIRE		(1000 * (30 - 2))
 #define BWN_LO_PWRVEC_EXPIRE		(1000 * (30 - 2))
 #define BWN_LO_TXCTL_EXPIRE		(1000 * (180 - 4))
-#define	BWN_DMA_BIT_MASK(n)		(((n) == 64) ? ~0ULL : ((1ULL<<(n))-1))
 #define BWN_LPD(L, P, D)		(((L) << 2) | ((P) << 1) | ((D) << 0))
 #define BWN_BITREV4(tmp)		(BWN_BITREV8(tmp) >> 4)
 #define	BWN_BITREV8(byte)		(bwn_bitrev_table[byte])
@@ -151,7 +154,8 @@ struct bwn_mac;
 	(rate == BWN_CCK_RATE_1MB || rate == BWN_CCK_RATE_2MB ||	\
 	 rate == BWN_CCK_RATE_5MB || rate == BWN_CCK_RATE_11MB)
 #define	BWN_ISOFDMRATE(rate)		(!BWN_ISCCKRATE(rate))
-#define	BWN_BARRIER(mac, flags)		siba_barrier(mac->mac_sc->sc_dev, flags)
+#define	BWN_BARRIER(mac, offset, length, flags)			\
+	bus_barrier((mac)->mac_sc->sc_mem_res, (offset), (length), (flags))
 #define	BWN_DMA_READ(dr, offset)				\
 	(BWN_READ_4(dr->dr_mac, dr->dr_base + offset))
 #define	BWN_DMA_WRITE(dr, offset, value)			\
@@ -341,6 +345,7 @@ struct bwn_phy_g {
 	uint16_t			pg_radioctx_overval;
 	uint16_t			pg_minlowsig[2];
 	uint16_t			pg_minlowsigpos[2];
+	uint16_t			pg_pa0maxpwr;
 	int8_t				*pg_tssi2dbm;
 	int				pg_idletssi;
 	int				pg_curtssi;
@@ -598,10 +603,6 @@ struct bwn_noise {
 	int8_t				noi_samples[8][4];
 };
 
-#define	BWN_DMA_30BIT			30
-#define	BWN_DMA_32BIT			32
-#define	BWN_DMA_64BIT			64
-
 struct bwn_dmadesc_meta {
 	bus_dmamap_t			mt_dmap;
 	bus_addr_t			mt_paddr;
@@ -693,10 +694,11 @@ struct bwn_dma_ring {
 };
 
 struct bwn_dma {
-	int				dmatype;
 	bus_dma_tag_t			parent_dtag;
 	bus_dma_tag_t			rxbuf_dtag;
 	bus_dma_tag_t			txbuf_dtag;
+	struct bhnd_dma_translation	translation;
+	u_int				addrext_shift;
 
 	struct bwn_dma_ring		*wme[5];
 	struct bwn_dma_ring		*mcast;
@@ -940,11 +942,9 @@ struct bwn_mac {
 #define	BWN_MAC_FLAG_WME		(1 << 4)
 #define	BWN_MAC_FLAG_HWCRYPTO		(1 << 5)
 
-	struct resource_spec		*mac_intr_spec;
-#define	BWN_MSI_MESSAGES		1
-	struct resource			*mac_res_irq[BWN_MSI_MESSAGES];
-	void				*mac_intrhand[BWN_MSI_MESSAGES];
-	int				mac_msi;
+	struct resource			*mac_res_irq;
+	int				 mac_rid_irq;
+	void				*mac_intrhand;
 
 	struct bwn_noise		mac_noise;
 	struct bwn_phy			mac_phy;
@@ -956,6 +956,7 @@ struct bwn_mac {
 
 	struct bwn_fw			mac_fw;
 
+	int				mac_dmatype;
 	union {
 		struct bwn_dma		dma;
 		struct bwn_pio		pio;
@@ -1001,8 +1002,31 @@ struct bwn_vap {
 #define	BWN_VAP(vap)			((struct bwn_vap *)(vap))
 #define	BWN_VAP_CONST(vap)		((const struct mwl_vap *)(vap))
 
+enum bwn_quirk {
+	/**
+	 * The ucode PCI slowclock workaround is required on this device.
+	 * @see BWN_HF_PCI_SLOWCLOCK_WORKAROUND.
+	 */
+	BWN_QUIRK_UCODE_SLOWCLOCK_WAR	= (1<<0),
+
+	/**
+	 * DMA is unsupported on this device; PIO should be used instead.
+	 */
+	BWN_QUIRK_NODMA			= (1<<1),
+};
+
 struct bwn_softc {
 	device_t			sc_dev;
+	struct bhnd_board_info		sc_board_info;
+	struct bhnd_chipid		sc_cid;
+	uint32_t			sc_quirks;	/**< @see bwn_quirk */
+	struct resource			*sc_mem_res;
+	int				sc_mem_rid;
+
+	device_t			sc_chipc;	/**< ChipCommon device */
+	device_t			sc_gpio;	/**< GPIO device */
+	device_t			sc_pmu;		/**< PMU device, or NULL if unsupported */
+
 	struct mtx			sc_mtx;
 	struct ieee80211com		sc_ic;
 	struct mbufq			sc_snd;
@@ -1044,6 +1068,9 @@ struct bwn_softc {
 	struct bwn_led			sc_leds[BWN_LED_MAX];
 	int				sc_led_idle;
 	int				sc_led_blink;
+
+	uint8_t				sc_ant2g;	/**< available 2GHz antennas */
+	uint8_t				sc_ant5g;	/**< available 5GHz antennas */
 
 	struct bwn_tx_radiotap_header	sc_tx_th;
 	struct bwn_rx_radiotap_header	sc_rx_th;
@@ -1150,14 +1177,4 @@ bwn_get_chan_power(struct bwn_mac *mac, struct ieee80211_channel *c)
 	return c->ic_maxpower / 2;
 }
 
-/*
- * For now there's no bhnd bus support.  Places where it matters
- * should call this routine so we can start logging things.
- */
-static inline int
-bwn_is_bus_siba(struct bwn_mac *mac)
-{
-
-	return 1;
-}
 #endif	/* !_IF_BWNVAR_H */

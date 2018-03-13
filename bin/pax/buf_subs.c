@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -483,7 +485,7 @@ wr_rdbuf(char *out, int outcnt)
 	int cnt;
 
 	/*
-	 * while there is data to copy copy into the write buffer. when the
+	 * while there is data to copy into the write buffer. when the
 	 * write buffer fills, flush it to the archive and continue
 	 */
 	while (outcnt > 0) {

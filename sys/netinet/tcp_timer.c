@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -116,9 +118,9 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_slop, CTLTYPE_INT|CTLFLAG_RW,
     &tcp_rexmit_slop, 0, sysctl_msec_to_ticks, "I",
     "Retransmission Timer Slop");
 
-static int	always_keepalive = 1;
+int	tcp_always_keepalive = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, always_keepalive, CTLFLAG_RW,
-    &always_keepalive , 0, "Assume SO_KEEPALIVE on all TCP connections");
+    &tcp_always_keepalive , 0, "Assume SO_KEEPALIVE on all TCP connections");
 
 int    tcp_fast_finwait2_recycle = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, fast_finwait2_recycle, CTLFLAG_RW, 
@@ -141,16 +143,14 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, rexmit_drop_options, CTLFLAG_RW,
     &tcp_rexmit_drop_options, 0,
     "Drop TCP options from 3rd and later retransmitted SYN");
 
-static VNET_DEFINE(int, tcp_pmtud_blackhole_detect);
-#define	V_tcp_pmtud_blackhole_detect	VNET(tcp_pmtud_blackhole_detect)
+VNET_DEFINE(int, tcp_pmtud_blackhole_detect);
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_detection,
     CTLFLAG_RW|CTLFLAG_VNET,
     &VNET_NAME(tcp_pmtud_blackhole_detect), 0,
     "Path MTU Discovery Black Hole Detection Enabled");
 
 #ifdef INET
-static VNET_DEFINE(int, tcp_pmtud_blackhole_mss) = 1200;
-#define	V_tcp_pmtud_blackhole_mss	VNET(tcp_pmtud_blackhole_mss)
+VNET_DEFINE(int, tcp_pmtud_blackhole_mss) = 1200;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_mss,
     CTLFLAG_RW|CTLFLAG_VNET,
     &VNET_NAME(tcp_pmtud_blackhole_mss), 0,
@@ -158,8 +158,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_mss,
 #endif
 
 #ifdef INET6
-static VNET_DEFINE(int, tcp_v6pmtud_blackhole_mss) = 1220;
-#define	V_tcp_v6pmtud_blackhole_mss	VNET(tcp_v6pmtud_blackhole_mss)
+VNET_DEFINE(int, tcp_v6pmtud_blackhole_mss) = 1220;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, v6pmtud_blackhole_mss,
     CTLFLAG_RW|CTLFLAG_VNET,
     &VNET_NAME(tcp_v6pmtud_blackhole_mss), 0,
@@ -472,7 +471,8 @@ tcp_timer_keep(void *xtp)
 	TCPSTAT_INC(tcps_keeptimeo);
 	if (tp->t_state < TCPS_ESTABLISHED)
 		goto dropit;
-	if ((always_keepalive || inp->inp_socket->so_options & SO_KEEPALIVE) &&
+	if ((tcp_always_keepalive ||
+	    inp->inp_socket->so_options & SO_KEEPALIVE) &&
 	    tp->t_state <= TCPS_CLOSING) {
 		if (ticks - tp->t_rcvtime >= TP_KEEPIDLE(tp) + TP_MAXIDLE(tp))
 			goto dropit;

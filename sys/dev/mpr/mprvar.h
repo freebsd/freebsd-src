@@ -41,7 +41,7 @@
 #define MPR_PRI_REQ_FRAMES	128
 #define MPR_EVT_REPLY_FRAMES	32
 #define MPR_REPLY_FRAMES	MPR_REQ_FRAMES
-#define MPR_CHAIN_FRAMES	2048
+#define MPR_CHAIN_FRAMES	16384
 #define MPR_MAXIO_PAGES		(-1)
 #define MPR_SENSE_LEN		SSD_FULL_SIZE
 #define MPR_MSI_MAX		1
@@ -243,6 +243,7 @@ struct mpr_command {
 #define MPR_CM_STATE_FREE		0
 #define MPR_CM_STATE_BUSY		1
 #define MPR_CM_STATE_TIMEDOUT		2
+#define MPR_CM_STATE_INQUEUE		3
 	bus_dmamap_t			cm_dmamap;
 	struct scsi_sense_data		*cm_sense;
 	uint64_t			*nvme_error_response;
@@ -263,6 +264,16 @@ struct mpr_event_handle {
 	mpr_evt_callback_t		*callback;
 	void				*data;
 	uint8_t				mask[16];
+};
+
+struct mpr_busdma_context {
+	int				completed;
+	int				abandoned;
+	int				error;
+	bus_addr_t			*addr;
+	struct mpr_softc		*softc;
+	bus_dmamap_t			buffer_dmamap;
+	bus_dma_tag_t			buffer_dmat;
 };
 
 struct mpr_queue {
@@ -299,6 +310,8 @@ struct mpr_softc {
 #define	MPR_FLAGS_REALLOCATED	(1 << 7)
 	u_int				mpr_debug;
 	int				msi_msgs;
+	u_int				reqframesz;
+	u_int				replyframesz;
 	u_int				atomic_desc_capable;
 	int				tm_cmds_active;
 	int				io_cmds_active;
@@ -309,7 +322,6 @@ struct mpr_softc {
 	u_int				maxio;
 	int				chain_free_lowwater;
 	uint32_t			chain_frame_size;
-	uint16_t			chain_seg_size;
 	int				prp_buffer_size;
 	int				prp_pages_free;
 	int				prp_pages_free_lowwater;
@@ -347,7 +359,9 @@ struct mpr_softc {
 
 	MPI2_IOC_FACTS_REPLY		*facts;
 	int				num_reqs;
+	int				num_prireqs;
 	int				num_replies;
+	int				num_chains;
 	int				fqdepth;	/* Free queue */
 	int				pqdepth;	/* Post queue */
 
@@ -374,7 +388,6 @@ struct mpr_softc {
 	bus_dmamap_t			sense_map;
 
 	uint8_t				*chain_frames;
-	bus_addr_t			chain_busaddr;
 	bus_dma_tag_t			chain_dmat;
 	bus_dmamap_t			chain_map;
 
@@ -555,6 +568,8 @@ mpr_free_command(struct mpr_softc *sc, struct mpr_command *cm)
 	struct mpr_chain *chain, *chain_temp;
 	struct mpr_prp_page *prp_page, *prp_page_temp;
 
+	KASSERT(cm->cm_state == MPR_CM_STATE_BUSY, ("state not busy\n"));
+
 	if (cm->cm_reply != NULL)
 		mpr_free_reply(sc, cm->cm_reply_data);
 	cm->cm_reply = NULL;
@@ -593,9 +608,10 @@ mpr_alloc_command(struct mpr_softc *sc)
 	if (cm == NULL)
 		return (NULL);
 
+	KASSERT(cm->cm_state == MPR_CM_STATE_FREE,
+	    ("mpr: Allocating busy command\n"));
+
 	TAILQ_REMOVE(&sc->req_list, cm, cm_link);
-	KASSERT(cm->cm_state == MPR_CM_STATE_FREE, ("mpr: Allocating busy "
-	    "command\n"));
 	cm->cm_state = MPR_CM_STATE_BUSY;
 	return (cm);
 }
@@ -604,6 +620,8 @@ static __inline void
 mpr_free_high_priority_command(struct mpr_softc *sc, struct mpr_command *cm)
 {
 	struct mpr_chain *chain, *chain_temp;
+
+	KASSERT(cm->cm_state == MPR_CM_STATE_BUSY, ("state not busy\n"));
 
 	if (cm->cm_reply != NULL)
 		mpr_free_reply(sc, cm->cm_reply_data);
@@ -631,9 +649,10 @@ mpr_alloc_high_priority_command(struct mpr_softc *sc)
 	if (cm == NULL)
 		return (NULL);
 
+	KASSERT(cm->cm_state == MPR_CM_STATE_FREE,
+	    ("mpr: Allocating busy command\n"));
+
 	TAILQ_REMOVE(&sc->high_priority_req_list, cm, cm_link);
-	KASSERT(cm->cm_state == MPR_CM_STATE_FREE, ("mpr: Allocating busy "
-	    "command\n"));
 	cm->cm_state = MPR_CM_STATE_BUSY;
 	return (cm);
 }
@@ -752,6 +771,7 @@ int mpr_detach_sas(struct mpr_softc *sc);
 int mpr_read_config_page(struct mpr_softc *, struct mpr_config_params *);
 int mpr_write_config_page(struct mpr_softc *, struct mpr_config_params *);
 void mpr_memaddr_cb(void *, bus_dma_segment_t *, int , int );
+void mpr_memaddr_wait_cb(void *, bus_dma_segment_t *, int , int );
 void mpr_init_sge(struct mpr_command *cm, void *req, void *sge);
 int mpr_attach_user(struct mpr_softc *);
 void mpr_detach_user(struct mpr_softc *);

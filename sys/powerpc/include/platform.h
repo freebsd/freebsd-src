@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1996 Wolfgang Solfrank.
  * Copyright (C) 1996 TooLs GmbH.
  * All rights reserved.
@@ -43,6 +45,8 @@ struct mem_region {
 	uint64_t	mr_size;
 };
 
+/* Documentation for these functions is in platform_if.m */
+
 void	mem_regions(struct mem_region **, int *, struct mem_region **, int *);
 vm_offset_t platform_real_maxaddr(void);
 
@@ -52,12 +56,11 @@ int	platform_smp_first_cpu(struct cpuref *);
 int	platform_smp_next_cpu(struct cpuref *);
 int	platform_smp_get_bsp(struct cpuref *);
 int	platform_smp_start_cpu(struct pcpu *);
+void	platform_smp_timebase_sync(u_long tb, int ap);
 void	platform_smp_ap_init(void);
   
 const char *installed_platform(void);
 void platform_probe_and_attach(void);
-
-void	platform_cpu_idle(int);
 
 void platform_sleep(void);
   

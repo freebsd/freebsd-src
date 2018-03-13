@@ -1,4 +1,4 @@
-# $Id: whats.mk,v 1.1 2014/08/30 22:40:47 sjg Exp $
+# $Id: whats.mk,v 1.3 2017/10/19 06:09:14 sjg Exp $
 #
 #	@(#) Copyright (c) 2014, Simon J. Gerraty
 #
@@ -36,7 +36,8 @@ what_build_thing?= ${KMOD}.ko
 
 .if !empty(what_thing)
 # a unique name that won't conflict with anything
-what_uuid = what_${.CURDIR:T:hash}
+what_uuid = what_${what_thing}_${.CURDIR:T:hash}
+what_var = what_${.CURDIR:T:hash}
 
 .if !empty(what_build_thing)
 ${what_build_thing}: ${what_build_exts:@e@${what_uuid}.$e@}
@@ -57,7 +58,7 @@ _what1:= @(\#)${what_thing:tu} built ${%Y%m%d:L:localtime} by ${USER}
 _what2:= @(\#)${what_location}
 
 ${what_uuid}.c:
-	echo '${_what_t} ${what_uuid}1[] = "${_what1}";' > $@ ${.OODATE:MNO_META_CMP}
-	echo '${_what_t} ${what_uuid}2[] = "${_what2}";' >> $@
+	echo '${_what_t} ${what_var}1[] = "${_what1}";' > $@ ${.OODATE:MNO_META_CMP}
+	echo '${_what_t} ${what_var}2[] = "${_what2}";' >> $@
 .endif
 .endif

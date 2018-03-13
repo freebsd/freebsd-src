@@ -1,4 +1,4 @@
-/*	$OpenBSD: if_iwm.c,v 1.42 2015/05/30 02:49:23 deraadt Exp $	*/
+/*	$OpenBSD: if_iwm.c,v 1.167 2017/04/04 00:40:52 claudio Exp $	*/
 
 /*
  * Copyright (c) 2014 genua mbh <info@genua.de>
@@ -5690,6 +5690,7 @@ iwm_intr(void *arg)
 #define	PCI_PRODUCT_INTEL_WL_7265_2	0x095b
 #define	PCI_PRODUCT_INTEL_WL_8260_1	0x24f3
 #define	PCI_PRODUCT_INTEL_WL_8260_2	0x24f4
+#define	PCI_PRODUCT_INTEL_WL_8265_1	0x24fd
 
 static const struct iwm_devices {
 	uint16_t		device;
@@ -5705,6 +5706,7 @@ static const struct iwm_devices {
 	{ PCI_PRODUCT_INTEL_WL_7265_2, &iwm7265_cfg },
 	{ PCI_PRODUCT_INTEL_WL_8260_1, &iwm8260_cfg },
 	{ PCI_PRODUCT_INTEL_WL_8260_2, &iwm8260_cfg },
+	{ PCI_PRODUCT_INTEL_WL_8265_1, &iwm8265_cfg },
 };
 
 static int
@@ -6039,6 +6041,7 @@ iwm_wme_update(struct ieee80211com *ic)
 {
 #define IWM_EXP2(x)	((1 << (x)) - 1)	/* CWmin = 2^ECWmin - 1 */
 	struct iwm_softc *sc = ic->ic_softc;
+	struct chanAccParams chp;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct iwm_vap *ivp = IWM_VAP(vap);
 	struct iwm_node *in;
@@ -6048,9 +6051,11 @@ iwm_wme_update(struct ieee80211com *ic)
 	if (vap == NULL)
 		return (0);
 
+	ieee80211_wme_ic_getparams(ic, &chp);
+
 	IEEE80211_LOCK(ic);
 	for (aci = 0; aci < WME_NUM_AC; aci++)
-		tmp[aci] = ic->ic_wme.wme_chanParams.cap_wmeParams[aci];
+		tmp[aci] = chp.cap_wmeParams[aci];
 	IEEE80211_UNLOCK(ic);
 
 	IWM_LOCK(sc);

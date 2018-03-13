@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -32,7 +34,8 @@
 
 #define DEF_POINTS (KTRFAC_SYSCALL | KTRFAC_SYSRET | KTRFAC_NAMEI | \
 		    KTRFAC_GENIO | KTRFAC_PSIG | KTRFAC_USER | \
-		    KTRFAC_STRUCT | KTRFAC_SYSCTL | KTRFAC_CAPFAIL)
+		    KTRFAC_STRUCT | KTRFAC_SYSCTL | KTRFAC_CAPFAIL | \
+		    KTRFAC_STRUCT_ARRAY)
 
 #define PROC_ABI_POINTS (KTRFAC_PROCCTOR | KTRFAC_PROCDTOR)
 

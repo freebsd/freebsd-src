@@ -154,10 +154,19 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 	   CTLFLAG_RD, &cacheline_size, 0, "");
 
-uintptr_t	powerpc_init(vm_offset_t, vm_offset_t, vm_offset_t, void *);
+uintptr_t	powerpc_init(vm_offset_t, vm_offset_t, vm_offset_t, void *,
+		    uint32_t);
 
 long		Maxmem = 0;
 long		realmem = 0;
+
+/* Default MSR values set in the AIM/Book-E early startup code */
+register_t	psl_kernset;
+register_t	psl_userset;
+register_t	psl_userstatic;
+#ifdef __powerpc64__
+register_t	psl_userset32;
+#endif
 
 struct kva_md_info kmi;
 
@@ -212,8 +221,8 @@ cpu_startup(void *dummy)
 	vm_ksubmap_init(&kmi);
 
 	printf("avail memory = %ju (%ju MB)\n",
-	    ptoa((uintmax_t)vm_cnt.v_free_count),
-	    ptoa((uintmax_t)vm_cnt.v_free_count) / 1048576);
+	    ptoa((uintmax_t)vm_free_count()),
+	    ptoa((uintmax_t)vm_free_count()) / 1048576);
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
@@ -228,42 +237,47 @@ extern unsigned char	__sbss_start[];
 extern unsigned char	__sbss_end[];
 extern unsigned char	_end[];
 
+void aim_early_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry,
+    void *mdp, uint32_t mdp_cookie);
 void aim_cpu_init(vm_offset_t toc);
 void booke_cpu_init(void);
 
 uintptr_t
-powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
+powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
+    uint32_t mdp_cookie)
 {
 	struct		pcpu *pc;
+	struct cpuref	bsp;
 	vm_offset_t	startkernel, endkernel;
-	void		*kmdp;
-        char		*env;
+	char		*env;
         bool		ofw_bootargs = false;
 #ifdef DDB
 	vm_offset_t ksym_start;
 	vm_offset_t ksym_end;
 #endif
 
-	kmdp = NULL;
-
 	/* First guess at start/end kernel positions */
 	startkernel = __startkernel;
 	endkernel = __endkernel;
 
-	/* Check for ePAPR loader, which puts a magic value into r6 */
-	if (mdp == (void *)0x65504150)
+	/*
+	 * If the metadata pointer cookie is not set to the magic value,
+	 * the number in mdp should be treated as nonsense.
+	 */
+	if (mdp_cookie != 0xfb5d104d)
 		mdp = NULL;
 
-#ifdef AIM
+#if !defined(BOOKE)
 	/*
-	 * If running from an FDT, make sure we are in real mode to avoid
-	 * tromping on firmware page tables. Everything in the kernel assumes
-	 * 1:1 mappings out of firmware, so this won't break anything not
-	 * already broken. This doesn't work if there is live OF, since OF
-	 * may internally use non-1:1 mappings.
+	 * On BOOKE the BSS is already cleared and some variables
+	 * initialized.  Do not wipe them out.
 	 */
-	if (ofentry == 0)
-		mtmsr(mfmsr() & ~(PSL_IR | PSL_DR));
+	bzero(__sbss_start, __sbss_end - __sbss_start);
+	bzero(__bss_start, _end - __bss_start);
+#endif
+
+#ifdef AIM
+	aim_early_init(fdt, toc, ofentry, mdp, mdp_cookie);
 #endif
 
 	/*
@@ -272,14 +286,33 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	 * boothowto.
 	 */
 	if (mdp != NULL) {
+		void *kmdp = NULL;
+		char *envp = NULL;
+		uintptr_t md_offset = 0;
+		vm_paddr_t kernelendphys;
+
+#ifdef AIM
+		if ((uintptr_t)&powerpc_init > DMAP_BASE_ADDRESS)
+			md_offset = DMAP_BASE_ADDRESS;
+#endif
+
 		preload_metadata = mdp;
+		if (md_offset > 0) {
+			preload_metadata += md_offset;
+			preload_bootstrap_relocate(md_offset);
+		}
 		kmdp = preload_search_by_type("elf kernel");
 		if (kmdp != NULL) {
 			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-			init_static_kenv(MD_FETCH(kmdp, MODINFOMD_ENVP, char *),
-			    0);
-			endkernel = ulmax(endkernel, MD_FETCH(kmdp,
-			    MODINFOMD_KERNEND, vm_offset_t));
+			envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+			if (envp != NULL)
+				envp += md_offset;
+			init_static_kenv(envp, 0);
+			kernelendphys = MD_FETCH(kmdp, MODINFOMD_KERNEND,
+			    vm_offset_t);
+			if (kernelendphys != 0)
+				kernelendphys += md_offset;
+			endkernel = ulmax(endkernel, kernelendphys);
 #ifdef DDB
 			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
@@ -287,14 +320,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 #endif
 		}
 	} else {
-#if !defined(BOOKE)
-		/*
-		 * On BOOKE the BSS is already cleared and some variables
-		 * initialized.  Do not wipe them out.
-		 */
-		bzero(__sbss_start, __sbss_end - __sbss_start);
-		bzero(__bss_start, _end - __bss_start);
-#endif
 		init_static_kenv(init_kenv, sizeof(init_kenv));
 		ofw_bootargs = true;
 	}
@@ -311,32 +336,20 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	 */
 	proc_linkup0(&proc0, &thread0);
 	thread0.td_frame = &frame0;
-
-	/*
-	 * Set up per-cpu data.
-	 */
-	pc = __pcpu;
-	pcpu_init(pc, 0, sizeof(struct pcpu));
-	pc->pc_curthread = &thread0;
 #ifdef __powerpc64__
-	__asm __volatile("mr 13,%0" :: "r"(pc->pc_curthread));
+	__asm __volatile("mr 13,%0" :: "r"(&thread0));
 #else
-	__asm __volatile("mr 2,%0" :: "r"(pc->pc_curthread));
+	__asm __volatile("mr 2,%0" :: "r"(&thread0));
 #endif
-	pc->pc_cpuid = 0;
-
-	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
 
 	/*
 	 * Init mutexes, which we use heavily in PMAP
 	 */
-
 	mutex_init();
 
 	/*
 	 * Install the OF client interface
 	 */
-
 	OF_bootstrap();
 
 	if (ofw_bootargs)
@@ -346,19 +359,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	 * Initialize the console before printing anything.
 	 */
 	cninit();
-
-	/*
-	 * Complain if there is no metadata.
-	 */
-	if (mdp == NULL || kmdp == NULL) {
-		printf("powerpc_init: no loader metadata.\n");
-	}
-
-	/*
-	 * Init KDB
-	 */
-
-	kdb_init();
 
 #ifdef AIM
 	aim_cpu_init(toc);
@@ -376,10 +376,29 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	platform_probe_and_attach();
 
 	/*
+	 * Set up per-cpu data for the BSP now that the platform can tell
+	 * us which that is.
+	 */
+	if (platform_smp_get_bsp(&bsp) != 0)
+		bsp.cr_cpuid = 0;
+	pc = &__pcpu[bsp.cr_cpuid];
+	pcpu_init(pc, bsp.cr_cpuid, sizeof(struct pcpu));
+	pc->pc_curthread = &thread0;
+	thread0.td_oncpu = bsp.cr_cpuid;
+	pc->pc_cpuid = bsp.cr_cpuid;
+	pc->pc_hwref = bsp.cr_hwref;
+	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
+
+	/*
+	 * Init KDB
+	 */
+	kdb_init();
+
+	/*
 	 * Bring up MMU
 	 */
 	pmap_bootstrap(startkernel, endkernel);
-	mtmsr(PSL_KERNSET & ~PSL_EE);
+	mtmsr(psl_kernset & ~PSL_EE);
 
 	/*
 	 * Initialize params/tunables that are derived from memsize

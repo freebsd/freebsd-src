@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015-2017 Landon Fuller <landonf@landonf.org>
  * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
@@ -398,7 +400,7 @@ bcma_erom_get_core_table(bhnd_erom_t *erom, struct bhnd_core_info **cores,
 	}
 
 	/* Allocate our output buffer */
-	buffer = malloc(sizeof(struct bhnd_core_info) * count, M_BHND,
+	buffer = mallocarray(count, sizeof(struct bhnd_core_info), M_BHND,
 	    M_NOWAIT);
 	if (buffer == NULL) {
 		error = ENOMEM;

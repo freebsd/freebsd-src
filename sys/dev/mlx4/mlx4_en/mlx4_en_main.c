@@ -58,7 +58,7 @@
 
 /* Enable RSS UDP traffic */
 MLX4_EN_PARM_INT(udp_rss, 1,
-		 "Enable RSS for incoming UDP traffic");
+		 "Enable RSS for incoming UDP traffic or disabled (0)");
 
 /* Priority pausing */
 MLX4_EN_PARM_INT(pfctx, 0, "Priority based Flow Control policy on TX[7:0]."
@@ -66,9 +66,11 @@ MLX4_EN_PARM_INT(pfctx, 0, "Priority based Flow Control policy on TX[7:0]."
 MLX4_EN_PARM_INT(pfcrx, 0, "Priority based Flow Control policy on RX[7:0]."
 			   " Per priority bit mask");
 
-#define MAX_PFC_TX	0xff
-#define MAX_PFC_RX	0xff
+MLX4_EN_PARM_INT(inline_thold, MAX_INLINE,
+		 "Threshold for using inline data (range: 17-104, default: 104)");
 
+#define MAX_PFC_TX     0xff
+#define MAX_PFC_RX     0xff
 
 static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 {
@@ -93,6 +95,7 @@ static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 		params->prof[i].tx_ring_num = params->num_tx_rings_p_up *
 			MLX4_EN_NUM_UP;
 		params->prof[i].rss_rings = 0;
+		params->prof[i].inline_thold = inline_thold;
 	}
 
 	return 0;
@@ -142,7 +145,7 @@ static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
 static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 {
 	struct mlx4_en_dev *mdev = endev_ptr;
-	int i, ret;
+	int i;
 
 	mutex_lock(&mdev->state_lock);
 	mdev->device_up = false;
@@ -154,28 +157,34 @@ static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 
 	flush_workqueue(mdev->workqueue);
 	destroy_workqueue(mdev->workqueue);
-	ret = mlx4_mr_free(dev, &mdev->mr);
-	if (ret)
-		mlx4_err(mdev, "Error deregistering MR. The system may have become unstable.");
+	(void) mlx4_mr_free(dev, &mdev->mr);
 	iounmap(mdev->uar_map);
 	mlx4_uar_free(dev, &mdev->priv_uar);
 	mlx4_pd_free(dev, mdev->priv_pdn);
 	kfree(mdev);
 }
 
+static void mlx4_en_activate(struct mlx4_dev *dev, void *ctx)
+{
+	int i;
+	struct mlx4_en_dev *mdev = ctx;
+
+	/* Create a netdev for each port */
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
+		mlx4_info(mdev, "Activating port:%d\n", i);
+		if (mlx4_en_init_netdev(mdev, i, &mdev->profile.prof[i]))
+			mdev->pndev[i] = NULL;
+	}
+}
+
 static void *mlx4_en_add(struct mlx4_dev *dev)
 {
 	struct mlx4_en_dev *mdev;
 	int i;
-	int err;
 
-	mdev = kzalloc(sizeof *mdev, GFP_KERNEL);
-	if (!mdev) {
-		dev_err(&dev->pdev->dev, "Device struct alloc failed, "
-			"aborting.\n");
-		err = -ENOMEM;
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	if (!mdev)
 		goto err_free_res;
-	}
 
 	if (mlx4_pd_alloc(dev, &mdev->priv_pdn))
 		goto err_free_dev;
@@ -190,8 +199,8 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	spin_lock_init(&mdev->uar_lock);
 
 	mdev->dev = dev;
-	mdev->dma_device = &(dev->pdev->dev);
-	mdev->pdev = dev->pdev;
+	mdev->dma_device = &dev->persist->pdev->dev;
+	mdev->pdev = dev->persist->pdev;
 	mdev->device_up = false;
 
 	mdev->LSO_support = !!(dev->caps.flags & (1 << 15));
@@ -211,9 +220,8 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	}
 
 	/* Build device profile according to supplied module parameters */
-	err = mlx4_en_get_profile(mdev);
-	if (err) {
-		mlx4_err(mdev, "Bad module parameters, aborting.\n");
+	if (mlx4_en_get_profile(mdev)) {
+		mlx4_err(mdev, "Bad module parameters, aborting\n");
 		goto err_mr;
 	}
 
@@ -222,50 +230,25 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH)
 		mdev->port_cnt++;
 
-
-	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
-		if (!dev->caps.comp_pool) {
-			mdev->profile.prof[i].rx_ring_num =
-				rounddown_pow_of_two(max_t(int, MIN_RX_RINGS,
-							   min_t(int,
-								 dev->caps.num_comp_vectors,
-								 DEF_RX_RINGS)));
-		} else {
-			mdev->profile.prof[i].rx_ring_num = rounddown_pow_of_two(
-				min_t(int, dev->caps.comp_pool /
-				      dev->caps.num_ports, MAX_MSIX_P_PORT));
-		}
-	}
+	/* Set default number of RX rings*/
+	mlx4_en_set_num_rx_rings(mdev);
 
 	/* Create our own workqueue for reset/multicast tasks
 	 * Note: we cannot use the shared workqueue because of deadlocks caused
 	 *       by the rtnl lock */
 	mdev->workqueue = create_singlethread_workqueue("mlx4_en");
-	if (!mdev->workqueue) {
-		err = -ENOMEM;
+	if (!mdev->workqueue)
 		goto err_mr;
-	}
 
 	/* At this stage all non-port specific tasks are complete:
 	 * mark the card state as up */
 	mutex_init(&mdev->state_lock);
 	mdev->device_up = true;
 
-	/* Setup ports */
-
-	/* Create a netdev for each port */
-	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
-		mlx4_info(mdev, "Activating port:%d\n", i);
-		if (mlx4_en_init_netdev(mdev, i, &mdev->profile.prof[i]))
-			mdev->pndev[i] = NULL;
-	}
-
 	return mdev;
 
 err_mr:
-	err = mlx4_mr_free(dev, &mdev->mr);
-	if (err)
-		mlx4_err(mdev, "Error deregistering MR. The system may have become unstable.");
+	(void) mlx4_mr_free(dev, &mdev->mr);
 err_map:
 	if (mdev->uar_map)
 		iounmap(mdev->uar_map);
@@ -285,45 +268,40 @@ static struct mlx4_interface mlx4_en_interface = {
 	.event		= mlx4_en_event,
 	.get_dev	= mlx4_en_get_netdev,
 	.protocol	= MLX4_PROT_ETH,
+	.activate	= mlx4_en_activate,
 };
 
 static void mlx4_en_verify_params(void)
 {
-        if (pfctx > MAX_PFC_TX) {
-                pr_warn("mlx4_en: WARNING: illegal module parameter pfctx 0x%x - "
-                                "should be in range 0-0x%x, will be changed to default (0)\n",
-                                pfctx, MAX_PFC_TX);
-                pfctx = 0;
-        }
+	if (pfctx > MAX_PFC_TX) {
+		pr_warn("mlx4_en: WARNING: illegal module parameter pfctx 0x%x - should be in range 0-0x%x, will be changed to default (0)\n",
+			pfctx, MAX_PFC_TX);
+		pfctx = 0;
+	}
 
-        if (pfcrx > MAX_PFC_RX) {
-                pr_warn("mlx4_en: WARNING: illegal module parameter pfcrx 0x%x - "
-                                "should be in range 0-0x%x, will be changed to default (0)\n",
-                                pfcrx, MAX_PFC_RX);
-                pfcrx = 0;
-        }
+	if (pfcrx > MAX_PFC_RX) {
+		pr_warn("mlx4_en: WARNING: illegal module parameter pfcrx 0x%x - should be in range 0-0x%x, will be changed to default (0)\n",
+			pfcrx, MAX_PFC_RX);
+		pfcrx = 0;
+	}
+
+	if (inline_thold < MIN_PKT_LEN || inline_thold > MAX_INLINE) {
+		pr_warn("mlx4_en: WARNING: illegal module parameter inline_thold %d - should be in range %d-%d, will be changed to default (%d)\n",
+			inline_thold, MIN_PKT_LEN, MAX_INLINE, MAX_INLINE);
+		inline_thold = MAX_INLINE;
+	}
 }
-
 
 static int __init mlx4_en_init(void)
 {
-        mlx4_en_verify_params();
+	mlx4_en_verify_params();
 
-#ifdef CONFIG_DEBUG_FS
-	int err = 0;
-	err = mlx4_en_register_debugfs();
-	if (err)
-		pr_err(KERN_ERR "Failed to register debugfs\n");
-#endif
 	return mlx4_register_interface(&mlx4_en_interface);
 }
 
 static void __exit mlx4_en_cleanup(void)
 {
 	mlx4_unregister_interface(&mlx4_en_interface);
-#ifdef CONFIG_DEBUG_FS
-	mlx4_en_unregister_debugfs();
-#endif
 }
 
 module_init(mlx4_en_init);

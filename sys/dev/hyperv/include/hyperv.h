@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2012,2016-2017 Microsoft Corp.
  * Copyright (c) 2012 NetApp Inc.
  * Copyright (c) 2012 Citrix Inc.
@@ -90,6 +92,7 @@ int			hyperv_guid2str(const struct hyperv_guid *, char *,
  */
 extern hyperv_tc64_t	hyperv_tc64;
 extern u_int		hyperv_features;	/* CPUID_HV_MSR_ */
+extern u_int		hyperv_ver_major;
 
 #endif	/* _KERNEL */
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012, 2015 Chelsio Communications, Inc.
  * All rights reserved.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
@@ -70,19 +72,6 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_tcb.h"
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
-
-VNET_DECLARE(int, tcp_do_autosndbuf);
-#define V_tcp_do_autosndbuf VNET(tcp_do_autosndbuf)
-VNET_DECLARE(int, tcp_autosndbuf_inc);
-#define V_tcp_autosndbuf_inc VNET(tcp_autosndbuf_inc)
-VNET_DECLARE(int, tcp_autosndbuf_max);
-#define V_tcp_autosndbuf_max VNET(tcp_autosndbuf_max)
-VNET_DECLARE(int, tcp_do_autorcvbuf);
-#define V_tcp_do_autorcvbuf VNET(tcp_do_autorcvbuf)
-VNET_DECLARE(int, tcp_autorcvbuf_inc);
-#define V_tcp_autorcvbuf_inc VNET(tcp_autorcvbuf_inc)
-VNET_DECLARE(int, tcp_autorcvbuf_max);
-#define V_tcp_autorcvbuf_max VNET(tcp_autorcvbuf_max)
 
 #define	IS_AIOTX_MBUF(m)						\
 	((m)->m_flags & M_EXT && (m)->m_ext.ext_flags & EXT_FLAG_AIOTX)
@@ -1242,7 +1231,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	so = inp->inp_socket;
 	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
 		DDP_LOCK(toep);
-		if (__predict_false(toep->ddp_flags &
+		if (__predict_false(toep->ddp.flags &
 		    (DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE)))
 			handle_ddp_close(toep, tp, cpl->rcv_nxt);
 		DDP_UNLOCK(toep);
@@ -1618,23 +1607,23 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 			toep->rx_credits += newsize - hiwat;
 	}
 
-	if (toep->ddp_waiting_count != 0 || toep->ddp_active_count != 0)
-		CTR3(KTR_CXGBE, "%s: tid %u, non-ddp rx (%d bytes)", __func__,
-		    tid, len);
-
 	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
-		int changed = !(toep->ddp_flags & DDP_ON) ^ cpl->ddp_off;
+		int changed = !(toep->ddp.flags & DDP_ON) ^ cpl->ddp_off;
+
+		if (toep->ddp.waiting_count != 0 || toep->ddp.active_count != 0)
+			CTR3(KTR_CXGBE, "%s: tid %u, non-ddp rx (%d bytes)",
+			    __func__, tid, len);
 
 		if (changed) {
-			if (toep->ddp_flags & DDP_SC_REQ)
-				toep->ddp_flags ^= DDP_ON | DDP_SC_REQ;
+			if (toep->ddp.flags & DDP_SC_REQ)
+				toep->ddp.flags ^= DDP_ON | DDP_SC_REQ;
 			else {
 				KASSERT(cpl->ddp_off == 1,
 				    ("%s: DDP switched on by itself.",
 				    __func__));
 
 				/* Fell out of DDP mode */
-				toep->ddp_flags &= ~DDP_ON;
+				toep->ddp.flags &= ~DDP_ON;
 				CTR1(KTR_CXGBE, "%s: fell out of DDP mode",
 				    __func__);
 
@@ -1642,7 +1631,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 			}
 		}
 
-		if (toep->ddp_flags & DDP_ON) {
+		if (toep->ddp.flags & DDP_ON) {
 			/*
 			 * CPL_RX_DATA with DDP on can only be an indicate.
 			 * Start posting queued AIO requests via DDP.  The
@@ -1668,7 +1657,8 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		tp->rcv_adv += credits;
 	}
 
-	if (toep->ddp_waiting_count > 0 && sbavail(sb) != 0) {
+	if (toep->ulp_mode == ULP_MODE_TCPDDP && toep->ddp.waiting_count > 0 &&
+	    sbavail(sb) != 0) {
 		CTR2(KTR_CXGBE, "%s: tid %u queueing AIO task", __func__,
 		    tid);
 		ddp_queue_toep(toep);
@@ -1979,9 +1969,9 @@ free_aiotx_buffer(struct aiotx_buffer *ab)
 }
 
 static void
-t4_aiotx_mbuf_free(struct mbuf *m, void *buffer, void *arg)
+t4_aiotx_mbuf_free(struct mbuf *m)
 {
-	struct aiotx_buffer *ab = buffer;
+	struct aiotx_buffer *ab = m->m_ext.ext_arg1;
 
 #ifdef VERBOSE_TRACES
 	CTR3(KTR_CXGBE, "%s: completed %d bytes for tid %d", __func__,

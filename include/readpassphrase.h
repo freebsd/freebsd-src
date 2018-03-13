@@ -1,7 +1,9 @@
 /*	$OpenBSD: readpassphrase.h,v 1.5 2003/06/17 21:56:23 millert Exp $	*/
 /*	$FreeBSD$	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2000, 2002 Todd C. Miller <Todd.Miller@courtesan.com>
  *
  * Permission to use, copy, modify, and distribute this software for any

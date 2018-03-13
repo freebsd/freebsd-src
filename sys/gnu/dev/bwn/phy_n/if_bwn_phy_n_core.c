@@ -62,9 +62,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-#include <dev/siba/siba_ids.h>
-#include <dev/siba/sibareg.h>
-#include <dev/siba/sibavar.h>
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
@@ -72,22 +69,30 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_phy.h>
 #include <net80211/ieee80211_ratectl.h>
 
+#include <dev/bhnd/bhnd.h>
+#include <dev/bhnd/bhnd_ids.h>
+
+#include <dev/bhnd/cores/pmu/bhnd_pmu.h>
+#include <dev/bhnd/cores/chipc/chipc.h>
+
 #include <dev/bwn/if_bwnreg.h>
 #include <dev/bwn/if_bwnvar.h>
 #include <dev/bwn/if_bwn_misc.h>
 #include <dev/bwn/if_bwn_util.h>
 #include <dev/bwn/if_bwn_debug.h>
 #include <dev/bwn/if_bwn_phy_common.h>
-#include <dev/bwn/if_bwn_chipid.h>
 #include <dev/bwn/if_bwn_cordic.h>
 
 #include <gnu/dev/bwn/phy_n/if_bwn_phy_n_regs.h>
 #include <gnu/dev/bwn/phy_n/if_bwn_phy_n_ppr.h>
+#include <gnu/dev/bwn/phy_n/if_bwn_phy_n_sprom.h>
 #include <gnu/dev/bwn/phy_n/if_bwn_phy_n_tables.h>
 #include <gnu/dev/bwn/phy_n/if_bwn_radio_2055.h>
 #include <gnu/dev/bwn/phy_n/if_bwn_radio_2056.h>
 #include <gnu/dev/bwn/phy_n/if_bwn_radio_2057.h>
 #include <gnu/dev/bwn/phy_n/if_bwn_phy_n_core.h>
+
+#include "bhnd_nvram_map.h"
 
 struct bwn_nphy_txgains {
 	uint16_t tx_lpf[2];
@@ -593,7 +598,7 @@ static uint16_t bwn_nphy_classifier(struct bwn_mac *mac, uint16_t mask, uint16_t
 	struct bwn_softc *sc = mac->mac_sc;
 	uint16_t tmp;
 
-	if (siba_get_revid(sc->sc_dev) == 16)
+	if (bhnd_get_hwrev(sc->sc_dev) == 16)
 		bwn_mac_suspend(mac);
 
 	tmp = BWN_PHY_READ(mac, BWN_NPHY_CLASSCTL);
@@ -603,7 +608,7 @@ static uint16_t bwn_nphy_classifier(struct bwn_mac *mac, uint16_t mask, uint16_t
 	tmp |= (val & mask);
 	BWN_PHY_SETMASK(mac, BWN_NPHY_CLASSCTL, 0xFFF8, tmp);
 
-	if (siba_get_revid(sc->sc_dev) == 16)
+	if (bhnd_get_hwrev(sc->sc_dev) == 16)
 		bwn_mac_enable(mac);
 
 	return tmp;
@@ -1235,20 +1240,20 @@ static void bwn_radio_2056_setup(struct bwn_mac *mac,
 	}
 
 	is_pkg_fab_smic =
-		((siba_get_chipid(sc->sc_dev) == BCMA_CHIP_ID_BCM43224 ||
-		  siba_get_chipid(sc->sc_dev) == BCMA_CHIP_ID_BCM43225 ||
-		  siba_get_chipid(sc->sc_dev) == BCMA_CHIP_ID_BCM43421) &&
-		 siba_get_chippkg(sc->sc_dev) == BCMA_PKG_ID_BCM43224_FAB_SMIC);
+		((sc->sc_cid.chip_id == BHND_CHIPID_BCM43224 ||
+		  sc->sc_cid.chip_id == BHND_CHIPID_BCM43225 ||
+		  sc->sc_cid.chip_id == BHND_CHIPID_BCM43421) &&
+		 sc->sc_cid.chip_pkg == BHND_PKGID_BCM43224_FAB_SMIC);
 
 	bwn_chantab_radio_2056_upload(mac, e);
 	b2056_upload_syn_pll_cp2(mac, band == BWN_BAND_5G);
 
-	if (siba_sprom_get_bf2_lo(sc->sc_dev) & BWN_BFL2_GPLL_WAR &&
+	if (sc->sc_board_info.board_flags2 & BHND_BFL2_GPLL_WAR &&
 	    bwn_current_band(mac) == BWN_BAND_2G) {
 		BWN_RF_WRITE(mac, B2056_SYN_PLL_LOOPFILTER1, 0x1F);
 		BWN_RF_WRITE(mac, B2056_SYN_PLL_LOOPFILTER2, 0x1F);
-		if (siba_get_chipid(sc->sc_dev) == BCMA_CHIP_ID_BCM4716 ||
-		    siba_get_chipid(sc->sc_dev) == BCMA_CHIP_ID_BCM47162) {
+		if (sc->sc_cid.chip_id == BHND_CHIPID_BCM4716 ||
+		    sc->sc_cid.chip_id == BHND_CHIPID_BCM47162) {
 			BWN_RF_WRITE(mac, B2056_SYN_PLL_LOOPFILTER4, 0x14);
 			BWN_RF_WRITE(mac, B2056_SYN_PLL_CP2, 0);
 		} else {
@@ -1256,14 +1261,14 @@ static void bwn_radio_2056_setup(struct bwn_mac *mac,
 			BWN_RF_WRITE(mac, B2056_SYN_PLL_CP2, 0x14);
 		}
 	}
-	if (siba_sprom_get_bf2_hi(sc->sc_dev) & BWN_BFH2_GPLL_WAR2 &&
+	if (sc->sc_board_info.board_flags2 & BHND_BFL2_GPLL_WAR &&
 	    bwn_current_band(mac) == BWN_BAND_2G) {
 		BWN_RF_WRITE(mac, B2056_SYN_PLL_LOOPFILTER1, 0x1f);
 		BWN_RF_WRITE(mac, B2056_SYN_PLL_LOOPFILTER2, 0x1f);
 		BWN_RF_WRITE(mac, B2056_SYN_PLL_LOOPFILTER4, 0x0b);
 		BWN_RF_WRITE(mac, B2056_SYN_PLL_CP2, 0x20);
 	}
-	if (siba_sprom_get_bf2_lo(sc->sc_dev) & BWN_BFL2_APLL_WAR &&
+	if (sc->sc_board_info.board_flags2 & BHND_BFL2_APLL_WAR &&
 	    bwn_current_band(mac) == BWN_BAND_5G) {
 		BWN_RF_WRITE(mac, B2056_SYN_PLL_LOOPFILTER1, 0x1F);
 		BWN_RF_WRITE(mac, B2056_SYN_PLL_LOOPFILTER2, 0x1F);
@@ -1278,8 +1283,8 @@ static void bwn_radio_2056_setup(struct bwn_mac *mac,
 				BWN_RF_WRITE(mac,
 					offset | B2056_TX_PADG_IDAC, 0xcc);
 
-				if (siba_get_chipid(sc->sc_dev) == BCMA_CHIP_ID_BCM4716 ||
-				    siba_get_chipid(sc->sc_dev) == BCMA_CHIP_ID_BCM47162) {
+				if (sc->sc_cid.chip_id == BHND_CHIPID_BCM4716 ||
+				    sc->sc_cid.chip_id == BHND_CHIPID_BCM47162) {
 					bias = 0x40;
 					cbias = 0x45;
 					pag_boost = 0x5;
@@ -1554,14 +1559,14 @@ static void bwn_radio_init2055_post(struct bwn_mac *mac)
 	struct bwn_phy_n *nphy = mac->mac_phy.phy_n;
 	bool workaround = false;
 
-	if (siba_get_revid(sc->sc_dev) < 4)
+	if (bhnd_get_hwrev(sc->sc_dev) < 4)
 		workaround =
-		    (siba_get_pci_subvendor(sc->sc_dev) != SIBA_BOARDVENDOR_BCM)
-		    && (siba_get_pci_subdevice(sc->sc_dev) == SIBA_BOARD_BCM4321)
-		      && (siba_sprom_get_brev(sc->sc_dev) >= 0x41);
+		    (sc->sc_board_info.board_vendor != PCI_VENDOR_BROADCOM)
+		    && (sc->sc_board_info.board_type == BHND_BOARD_BCM4321CB2)
+		      && (sc->sc_board_info.board_rev >= 0x41);
 	else
 		workaround =
-			!(siba_sprom_get_bf2_lo(sc->sc_dev) & BWN_BFL2_RXBB_INT_REG_DIS);
+			!(sc->sc_board_info.board_flags2 & BHND_BFL2_RXBB_INT_REG_DIS);
 
 	BWN_RF_MASK(mac, B2055_MASTER1, 0xFFF3);
 	if (workaround) {
@@ -2621,8 +2626,8 @@ static void bwn_nphy_gain_ctl_workarounds_rev3(struct bwn_mac *mac)
 	/* Prepare values */
 	ghz5 = BWN_PHY_READ(mac, BWN_NPHY_BANDCTL)
 		& BWN_NPHY_BANDCTL_5GHZ;
-	ext_lna = ghz5 ? siba_sprom_get_bf_hi(sc->sc_dev) & BWN_BFH_EXTLNA_5GHZ :
-		siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_EXTLNA;
+	ext_lna = ghz5 ? sc->sc_board_info.board_flags & BHND_BFL_EXTLNA_5GHZ :
+		sc->sc_board_info.board_flags & BHND_BFL_EXTLNA;
 	e = bwn_nphy_get_gain_ctl_workaround_ent(mac, ghz5, ext_lna);
 	if (ghz5 && mac->mac_phy.rev >= 5)
 		rssi_gain = 0x90;
@@ -2814,7 +2819,7 @@ static void bwn_nphy_gain_ctl_workarounds(struct bwn_mac *mac)
 		bwn_nphy_gain_ctl_workarounds_rev1_2(mac);
 }
 
-static void bwn_nphy_workarounds_rev7plus(struct bwn_mac *mac)
+static int bwn_nphy_workarounds_rev7plus(struct bwn_mac *mac)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 	struct bwn_phy *phy = &mac->mac_phy;
@@ -3076,8 +3081,8 @@ static void bwn_nphy_workarounds_rev7plus(struct bwn_mac *mac)
 		bwn_nphy_rf_ctl_override_rev7(mac, 4, 1, 3, false, 0);
 
 	if (phy->rf_rev == 3 || phy->rf_rev == 4 || phy->rf_rev == 6) {
-		if (siba_sprom_get_rev(sc->sc_dev) &&
-		    siba_sprom_get_bf2_hi(sc->sc_dev) & BWN_BFH2_IPALVLSHIFT_3P3) {
+		if (sc->sc_board_info.board_srom_rev &&
+		    sc->sc_board_info.board_flags2 & BHND_BFL2_IPALVLSHIFT_3P3) {
 			BWN_RF_WRITE(mac, 0x5, 0x05);
 			BWN_RF_WRITE(mac, 0x6, 0x30);
 			BWN_RF_WRITE(mac, 0x7, 0x00);
@@ -3257,9 +3262,11 @@ static void bwn_nphy_workarounds_rev7plus(struct bwn_mac *mac)
 	bwn_ntab_write_bulk(mac, BWN_NTAB16(8, 0x1C), 4,
 			    aux_adc_gain_rev7);
 	*/
+
+	return (0);
 }
 
-static void bwn_nphy_workarounds_rev3plus(struct bwn_mac *mac)
+static int bwn_nphy_workarounds_rev3plus(struct bwn_mac *mac)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 	struct bwn_phy_n *nphy = mac->mac_phy.phy_n;
@@ -3290,9 +3297,11 @@ static void bwn_nphy_workarounds_rev3plus(struct bwn_mac *mac)
 	};
 	uint16_t *vmid, *gain;
 
+	const char *pdet_range_var;
 	uint8_t pdet_range;
 	uint16_t tmp16;
 	uint32_t tmp32;
+	int error;
 
 	BWN_PHY_WRITE(mac, BWN_NPHY_FORCEFRONT0, 0x1f8);
 	BWN_PHY_WRITE(mac, BWN_NPHY_FORCEFRONT1, 0x1f8);
@@ -3350,9 +3359,18 @@ static void bwn_nphy_workarounds_rev3plus(struct bwn_mac *mac)
 	bwn_ntab_write(mac, BWN_NTAB16(8, 16), 2);
 
 	if (bwn_current_band(mac) == BWN_BAND_2G)
-		pdet_range = siba_sprom_get_fem_2ghz_pdet_range(sc->sc_dev);
+		pdet_range_var = BHND_NVAR_PDETRANGE2G;
 	else
-		pdet_range = siba_sprom_get_fem_5ghz_pdet_range(sc->sc_dev);
+		pdet_range_var = BHND_NVAR_PDETRANGE5G;
+
+	error = bhnd_nvram_getvar_uint8(sc->sc_dev, pdet_range_var,
+	    &pdet_range);
+	if (error) {
+		BWN_ERRPRINTF(mac->mac_sc, "Error reading PDet range %s from "
+		    "NVRAM: %d\n", pdet_range_var, error);
+		return (error);
+	}
+
 	/* uint16_t min() */
 	vmid = vmids[min(pdet_range, 4)];
 	gain = gains[min(pdet_range, 4)];
@@ -3431,9 +3449,9 @@ static void bwn_nphy_workarounds_rev3plus(struct bwn_mac *mac)
 
 	/* N PHY WAR TX Chain Update with hw_phytxchain as argument */
 
-	if ((siba_sprom_get_bf2_lo(sc->sc_dev) & BWN_BFL2_APLL_WAR &&
+	if ((sc->sc_board_info.board_flags2 & BHND_BFL2_APLL_WAR &&
 	     bwn_current_band(mac) == BWN_BAND_5G) ||
-	    (siba_sprom_get_bf2_lo(sc->sc_dev) & BWN_BFL2_GPLL_WAR &&
+	    (sc->sc_board_info.board_flags2 & BHND_BFL2_GPLL_WAR2 &&
 	     bwn_current_band(mac) == BWN_BAND_2G))
 		tmp32 = 0x00088888;
 	else
@@ -3464,11 +3482,13 @@ static void bwn_nphy_workarounds_rev3plus(struct bwn_mac *mac)
 	BWN_PHY_WRITE(mac, BWN_NPHY_ED_CRS20UDEASSERTTHRESH0, 0x0381);
 	BWN_PHY_WRITE(mac, BWN_NPHY_ED_CRS20UDEASSERTTHRESH1, 0x0381);
 
-	if (mac->mac_phy.rev >= 6 && siba_sprom_get_bf2_lo(sc->sc_dev) & BWN_BFL2_SINGLEANT_CCK)
+	if (mac->mac_phy.rev >= 6 && sc->sc_board_info.board_flags2 & BHND_BFL2_SINGLEANT_CCK)
 		; /* TODO: 0x0080000000000000 HF */
+
+	return (0);
 }
 
-static void bwn_nphy_workarounds_rev1_2(struct bwn_mac *mac)
+static int bwn_nphy_workarounds_rev1_2(struct bwn_mac *mac)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 	struct bwn_phy *phy = &mac->mac_phy;
@@ -3480,8 +3500,8 @@ static void bwn_nphy_workarounds_rev1_2(struct bwn_mac *mac)
 	uint8_t events2[7] = { 0x0, 0x3, 0x5, 0x4, 0x2, 0x1, 0x8 };
 	uint8_t delays2[7] = { 0x8, 0x6, 0x2, 0x4, 0x4, 0x6, 0x1 };
 
-	if (siba_sprom_get_bf2_lo(sc->sc_dev) & BWN_BFL2_SKWRKFEM_BRD ||
-	    siba_get_pci_subdevice(sc->sc_dev)== BCMA_BOARD_TYPE_BCM943224M93) {
+	if (sc->sc_board_info.board_flags2 & BHND_BFL2_SKWRKFEM_BRD ||
+	    sc->sc_board_info.board_type == BHND_BOARD_BCM943224M93) {
 		delays1[0] = 0x1;
 		delays1[5] = 0x14;
 	}
@@ -3553,13 +3573,16 @@ static void bwn_nphy_workarounds_rev1_2(struct bwn_mac *mac)
 	if (mac->mac_phy.rev == 2)
 		BWN_PHY_SET(mac, BWN_NPHY_FINERX2_CGC,
 				BWN_NPHY_FINERX2_CGC_DECGC);
+
+	return (0);
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/Workarounds */
-static void bwn_nphy_workarounds(struct bwn_mac *mac)
+static int bwn_nphy_workarounds(struct bwn_mac *mac)
 {
 	struct bwn_phy *phy = &mac->mac_phy;
 	struct bwn_phy_n *nphy = phy->phy_n;
+	int error;
 
 	if (bwn_current_band(mac) == BWN_BAND_5G)
 		bwn_nphy_classifier(mac, 1, 0);
@@ -3574,14 +3597,19 @@ static void bwn_nphy_workarounds(struct bwn_mac *mac)
 
 	/* TODO: rev19+ */
 	if (mac->mac_phy.rev >= 7)
-		bwn_nphy_workarounds_rev7plus(mac);
+		error = bwn_nphy_workarounds_rev7plus(mac);
 	else if (mac->mac_phy.rev >= 3)
-		bwn_nphy_workarounds_rev3plus(mac);
+		error = bwn_nphy_workarounds_rev3plus(mac);
 	else
-		bwn_nphy_workarounds_rev1_2(mac);
+		error = bwn_nphy_workarounds_rev1_2(mac);
+
+	if (error)
+		return (error);
 
 	if (nphy->hang_avoid)
 		bwn_nphy_stay_in_carrier_search(mac, 0);
+
+	return (0);
 }
 
 /**************************************************
@@ -3855,7 +3883,7 @@ static void bwn_nphy_tx_power_ctrl(struct bwn_mac *mac, bool enable)
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxPwrFix */
-static void bwn_nphy_tx_power_fix(struct bwn_mac *mac)
+static int bwn_nphy_tx_power_fix(struct bwn_mac *mac)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 	struct bwn_phy_n *nphy = mac->mac_phy.phy_n;
@@ -3875,26 +3903,43 @@ static void bwn_nphy_tx_power_fix(struct bwn_mac *mac)
 	} else if (mac->mac_phy.rev >= 3) {
 		txpi[0] = 40;
 		txpi[1] = 40;
-	} else if (siba_sprom_get_rev(sc->sc_dev) < 4) {
+	} else if (sc->sc_board_info.board_srom_rev < 4) {
 		txpi[0] = 72;
 		txpi[1] = 72;
+	} else if (sc->sc_board_info.board_srom_rev > 7) {
+		txpi[0] = 0;
+		txpi[1] = 0;
 	} else {
+#define	BWN_NPHY_GET_TXPI(_name, _result)				\
+do {									\
+	int error;							\
+	error = bhnd_nvram_getvar_uint8(sc->sc_dev, (_name),		\
+	    (_result));							\
+	if (error) {							\
+		device_printf(sc->sc_dev, "NVRAM variable %s "		\
+		     "unreadable: %d\n", (_name), error);		\
+		return (error);						\
+	}								\
+} while(0)
+
 		if (bwn_current_band(mac) == BWN_BAND_2G) {
-			txpi[0] = siba_sprom_get_txpid_2g_0(sc->sc_dev);
-			txpi[1] = siba_sprom_get_txpid_2g_1(sc->sc_dev);
+			BWN_NPHY_GET_TXPI(BHND_NVAR_TXPID2GA0, &txpi[0]);
+			BWN_NPHY_GET_TXPI(BHND_NVAR_TXPID2GA1, &txpi[1]);
 		} else if (freq >= 4900 && freq < 5100) {
-			txpi[0] = siba_sprom_get_txpid_5gl_0(sc->sc_dev);
-			txpi[1] = siba_sprom_get_txpid_5gl_1(sc->sc_dev);
+			BWN_NPHY_GET_TXPI(BHND_NVAR_TXPID5GLA0, &txpi[0]);
+			BWN_NPHY_GET_TXPI(BHND_NVAR_TXPID5GLA1, &txpi[1]);
 		} else if (freq >= 5100 && freq < 5500) {
-			txpi[0] = siba_sprom_get_txpid_5g_0(sc->sc_dev);
-			txpi[1] = siba_sprom_get_txpid_5g_1(sc->sc_dev);
+			BWN_NPHY_GET_TXPI(BHND_NVAR_TXPID5GA0, &txpi[0]);
+			BWN_NPHY_GET_TXPI(BHND_NVAR_TXPID5GA1, &txpi[1]);
 		} else if (freq >= 5500) {
-			txpi[0] = siba_sprom_get_txpid_5gh_0(sc->sc_dev);
-			txpi[1] = siba_sprom_get_txpid_5gh_1(sc->sc_dev);
+			BWN_NPHY_GET_TXPI(BHND_NVAR_TXPID5GHA0, &txpi[0]);
+			BWN_NPHY_GET_TXPI(BHND_NVAR_TXPID5GHA1, &txpi[1]);
 		} else {
 			txpi[0] = 91;
 			txpi[1] = 91;
 		}
+
+#undef	BWN_NPHY_GET_TXPI
 	}
 	if (mac->mac_phy.rev < 7 &&
 	    (txpi[0] < 40 || txpi[0] > 100 || txpi[1] < 40 || txpi[1] > 100))
@@ -3963,6 +4008,8 @@ static void bwn_nphy_tx_power_fix(struct bwn_mac *mac)
 
 	if (nphy->hang_avoid)
 		bwn_nphy_stay_in_carrier_search(mac, 0);
+
+	return (0);
 }
 
 static void bwn_nphy_ipa_internal_tssi_setup(struct bwn_mac *mac)
@@ -4166,7 +4213,7 @@ static void bwn_nphy_tx_power_ctl_setup(struct bwn_mac *mac)
 	struct bwn_softc *sc = mac->mac_sc;
 	struct bwn_phy *phy = &mac->mac_phy;
 	struct bwn_phy_n *nphy = mac->mac_phy.phy_n;
-	struct siba_sprom_core_pwr_info core_pwr_info[4];
+	struct bwn_phy_n_core_pwr_info core_pwr_info[4];
 	int n;
 
 	int16_t a1[2], b0[2], b1[2];
@@ -4183,7 +4230,7 @@ static void bwn_nphy_tx_power_ctl_setup(struct bwn_mac *mac)
 
 	for (n = 0; n < 4; n++) {
 		bzero(&core_pwr_info[n], sizeof(core_pwr_info[n]));
-		if (siba_sprom_get_core_power_info(sc->sc_dev, n,
+		if (bwn_nphy_get_core_power_info(mac, n,
 		    &core_pwr_info[n]) != 0) {
 			BWN_ERRPRINTF(mac->mac_sc,
 			    "%s: failed to get core_pwr_info for core %d\n",
@@ -4192,7 +4239,7 @@ static void bwn_nphy_tx_power_ctl_setup(struct bwn_mac *mac)
 		}
 	}
 
-	if (siba_get_revid(sc->sc_dev) == 11 || siba_get_revid(sc->sc_dev) == 12) {
+	if (bhnd_get_hwrev(sc->sc_dev) == 11 || bhnd_get_hwrev(sc->sc_dev) == 12) {
 		BWN_WRITE_SETMASK4(mac, BWN_MACCTL, ~0, 0x200000);
 		BWN_READ_4(mac, BWN_MACCTL);
 		DELAY(1);
@@ -4209,14 +4256,14 @@ static void bwn_nphy_tx_power_ctl_setup(struct bwn_mac *mac)
 		BWN_PHY_SET(mac, BWN_NPHY_TXPCTL_CMD,
 			    BWN_NPHY_TXPCTL_CMD_PCTLEN);
 
-	if (siba_get_revid(sc->sc_dev) == 11 || siba_get_revid(sc->sc_dev) == 12)
+	if (bhnd_get_hwrev(sc->sc_dev) == 11 || bhnd_get_hwrev(sc->sc_dev) == 12)
 		BWN_WRITE_SETMASK4(mac, BWN_MACCTL, ~0x200000, 0);
 
 	/*
 	 * XXX TODO: see if those bandsbelow map to 5g-lo, 5g-mid, 5g-hi in
 	 * any way.
 	 */
-	if (siba_sprom_get_rev(sc->sc_dev) < 4) {
+	if (sc->sc_board_info.board_srom_rev < 4) {
 		idle[0] = nphy->pwr_ctl_info[0].idle_tssi_2g;
 		idle[1] = nphy->pwr_ctl_info[1].idle_tssi_2g;
 		target[0] = target[1] = 52;
@@ -4273,7 +4320,7 @@ static void bwn_nphy_tx_power_ctl_setup(struct bwn_mac *mac)
 	}
 
 	if (mac->mac_phy.rev >= 3) {
-		if (siba_sprom_get_fem_2ghz_tssipos(sc->sc_dev))
+		if (nphy->tsspos_2g)
 			BWN_PHY_SET(mac, BWN_NPHY_TXPCTL_ITSSI, 0x4000);
 		if (mac->mac_phy.rev >= 7) {
 			for (c = 0; c < 2; c++) {
@@ -4297,7 +4344,7 @@ static void bwn_nphy_tx_power_ctl_setup(struct bwn_mac *mac)
 		}
 	}
 
-	if (siba_get_revid(sc->sc_dev) == 11 || siba_get_revid(sc->sc_dev) == 12) {
+	if (bhnd_get_hwrev(sc->sc_dev) == 11 || bhnd_get_hwrev(sc->sc_dev) == 12) {
 		BWN_WRITE_SETMASK4(mac, BWN_MACCTL, ~0, 0x200000);
 		BWN_READ_4(mac, BWN_MACCTL);
 		DELAY(1);
@@ -4318,7 +4365,7 @@ static void bwn_nphy_tx_power_ctl_setup(struct bwn_mac *mac)
 				~BWN_NPHY_TXPCTL_INIT_PIDXI1, 0x40);
 	}
 
-	if (siba_get_revid(sc->sc_dev) == 11 || siba_get_revid(sc->sc_dev) == 12)
+	if (bhnd_get_hwrev(sc->sc_dev) == 11 || bhnd_get_hwrev(sc->sc_dev) == 12)
 		BWN_WRITE_SETMASK4(mac, BWN_MACCTL, ~0x200000, 0);
 
 	BWN_PHY_WRITE(mac, BWN_NPHY_TXPCTL_N,
@@ -6064,13 +6111,13 @@ bwn_nphy_op_recalc_txpower(struct bwn_mac *mac, bool ignore_tssi)
 	tx_pwr_state = nphy->txpwrctrl;
 	bwn_mac_suspend(mac);
 	bwn_nphy_tx_power_ctl_setup(mac);
-	if (siba_get_revid(sc->sc_dev) == 11 || siba_get_revid(sc->sc_dev) == 12) {
+	if (bhnd_get_hwrev(sc->sc_dev) == 11 || bhnd_get_hwrev(sc->sc_dev) == 12) {
 		BWN_WRITE_SETMASK4(mac, BWN_MACCTL, ~0, BWN_MACCTL_PHY_LOCK);
 		BWN_READ_4(mac, BWN_MACCTL);
 		DELAY(1);
 	}
 	bwn_nphy_tx_power_ctrl(mac, nphy->txpwrctrl);
-	if (siba_get_revid(sc->sc_dev) == 11 || siba_get_revid(sc->sc_dev) == 12)
+	if (bhnd_get_hwrev(sc->sc_dev) == 11 || bhnd_get_hwrev(sc->sc_dev) == 12)
 		BWN_WRITE_SETMASK4(mac, BWN_MACCTL, ~BWN_MACCTL_PHY_LOCK, 0);
 	bwn_mac_enable(mac);
 
@@ -6118,16 +6165,16 @@ static void bwn_nphy_bphy_init(struct bwn_mac *mac)
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/SuperSwitchInit */
-static void bwn_nphy_superswitch_init(struct bwn_mac *mac, bool init)
+static int bwn_nphy_superswitch_init(struct bwn_mac *mac, bool init)
 {
-	struct bwn_softc *sc = mac->mac_sc;
+	int error;
 
 	if (mac->mac_phy.rev >= 7)
-		return;
+		return (0);
 
 	if (mac->mac_phy.rev >= 3) {
 		if (!init)
-			return;
+			return (0);
 		if (0 /* FIXME */) {
 			bwn_ntab_write(mac, BWN_NTAB16(9, 2), 0x211);
 			bwn_ntab_write(mac, BWN_NTAB16(9, 3), 0x222);
@@ -6138,10 +6185,8 @@ static void bwn_nphy_superswitch_init(struct bwn_mac *mac, bool init)
 		BWN_PHY_WRITE(mac, BWN_NPHY_GPIO_LOOEN, 0);
 		BWN_PHY_WRITE(mac, BWN_NPHY_GPIO_HIOEN, 0);
 
-		/* XXX handle bhnd bus */
-		if (bwn_is_bus_siba(mac)) {
-			siba_gpio_set(sc->sc_dev, 0xfc00);
-		}
+		if ((error = bwn_gpio_control(mac, 0xfc00)))
+			return (error);
 
 		BWN_WRITE_SETMASK4(mac, BWN_MACCTL, ~BWN_MACCTL_GPOUT_MASK, 0);
 		BWN_WRITE_SETMASK2(mac, BWN_GPIO_MASK, ~0, 0xFC00);
@@ -6155,6 +6200,8 @@ static void bwn_nphy_superswitch_init(struct bwn_mac *mac, bool init)
 			BWN_PHY_WRITE(mac, BWN_NPHY_RFCTL_LUT_TRSW_UP2, 0x301);
 		}
 	}
+
+	return (0);
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/Init/N */
@@ -6165,6 +6212,7 @@ static int bwn_phy_initn(struct bwn_mac *mac)
 	struct bwn_phy_n *nphy = phy->phy_n;
 	uint8_t tx_pwr_state;
 	struct bwn_nphy_txgains target;
+	int error;
 	uint16_t tmp;
 	bwn_band_t tmp2;
 	bool do_rssi_cal;
@@ -6172,18 +6220,28 @@ static int bwn_phy_initn(struct bwn_mac *mac)
 	uint16_t clip[2];
 	bool do_cal = false;
 
-	if ((mac->mac_phy.rev >= 3) &&
-	   (siba_sprom_get_bf_lo(sc->sc_dev) & BWN_BFL_EXTLNA) &&
-	   (bwn_current_band(mac) == BWN_BAND_2G)) {
-		/* XXX bhnd bus */
-		if (bwn_is_bus_siba(mac)) {
-			siba_cc_set32(sc->sc_dev, SIBA_CC_CHIPCTL, 0x40);
+	if (mac->mac_phy.rev >= 3) {
+		error = bhnd_nvram_getvar_uint8(sc->sc_dev, BHND_NVAR_TSSIPOS2G,
+		    &nphy->tsspos_2g);
+		if (error) {
+			BWN_ERRPRINTF(mac->mac_sc, "Error reading %s from "
+			    "NVRAM: %d\n", BHND_NVAR_TSSIPOS2G, error);
+			return (error);
 		}
+	} else {
+		nphy->tsspos_2g = 0;
+	}
+
+	if ((mac->mac_phy.rev >= 3) &&
+	   (sc->sc_board_info.board_flags & BHND_BFL_EXTLNA) &&
+	   (bwn_current_band(mac) == BWN_BAND_2G))
+	{
+		BHND_CHIPC_WRITE_CHIPCTRL(sc->sc_chipc, 0x40, 0x40);
 	}
 	nphy->use_int_tx_iq_lo_cal = bwn_nphy_ipa(mac) ||
 		phy->rev >= 7 ||
 		(phy->rev >= 5 &&
-		 siba_sprom_get_bf2_hi(sc->sc_dev) & BWN_BFH2_INTERNDET_TXIQCAL);
+		 sc->sc_board_info.board_flags2 & BHND_BFL2_INTERNDET_TXIQCAL);
 	nphy->deaf_count = 0;
 	bwn_nphy_tables_init(mac);
 	nphy->crsminpwr_adjusted = false;
@@ -6230,9 +6288,9 @@ static int bwn_phy_initn(struct bwn_mac *mac)
 	BWN_PHY_WRITE(mac, BWN_NPHY_AFESEQ_TX2RX_PUD_20M, 0x20);
 	BWN_PHY_WRITE(mac, BWN_NPHY_AFESEQ_TX2RX_PUD_40M, 0x20);
 
-	if (siba_sprom_get_bf2_lo(sc->sc_dev) & BWN_BFL2_SKWRKFEM_BRD ||
-	    (siba_get_pci_subvendor(sc->sc_dev) == PCI_VENDOR_APPLE &&
-	     siba_get_pci_subdevice(sc->sc_dev) == BCMA_BOARD_TYPE_BCM943224M93))
+	if (sc->sc_board_info.board_flags2 & BHND_BFL2_SKWRKFEM_BRD ||
+	    (sc->sc_board_info.board_vendor == PCI_VENDOR_APPLE &&
+	     sc->sc_board_info.board_type == BHND_BOARD_BCM943224M93))
 		BWN_PHY_WRITE(mac, BWN_NPHY_TXREALFD, 0xA0);
 	else
 		BWN_PHY_WRITE(mac, BWN_NPHY_TXREALFD, 0xB8);
@@ -6263,7 +6321,8 @@ static int bwn_phy_initn(struct bwn_mac *mac)
 		bwn_nphy_ext_pa_set_tx_dig_filters(mac);
 	}
 
-	bwn_nphy_workarounds(mac);
+	if ((error = bwn_nphy_workarounds(mac)))
+		return (error);
 
 	/* Reset CCA, in init code it differs a little from standard way */
 	bwn_phy_force_clock(mac, 1);
@@ -6288,7 +6347,8 @@ static int bwn_phy_initn(struct bwn_mac *mac)
 
 	tx_pwr_state = nphy->txpwrctrl;
 	bwn_nphy_tx_power_ctrl(mac, false);
-	bwn_nphy_tx_power_fix(mac);
+	if ((error = bwn_nphy_tx_power_fix(mac)))
+		return (error);
 	bwn_nphy_tx_power_ctl_idle_tssi(mac);
 	bwn_nphy_tx_power_ctl_setup(mac);
 	bwn_nphy_tx_gain_table_upload(mac);
@@ -6325,8 +6385,11 @@ static int bwn_phy_initn(struct bwn_mac *mac)
 		if (do_cal) {
 			target = bwn_nphy_get_tx_gains(mac);
 
-			if (nphy->antsel_type == 2)
-				bwn_nphy_superswitch_init(mac, true);
+			if (nphy->antsel_type == 2) {
+				error = bwn_nphy_superswitch_init(mac, true);
+				if (error)
+					return (error);
+			}
 			if (nphy->perical != 2) {
 				bwn_nphy_rssi_cal(mac);
 				if (phy->rev >= 3) {
@@ -6376,19 +6439,28 @@ static void bwn_chantab_phy_upload(struct bwn_mac *mac,
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PmuSpurAvoid */
-static void bwn_nphy_pmu_spur_avoid(struct bwn_mac *mac, bool avoid)
+static void bwn_nphy_pmu_spur_avoid(struct bwn_mac *mac,
+				    bhnd_pmu_spuravoid mode)
 {
 	struct bwn_softc *sc = mac->mac_sc;
+	int error;
 
-	/* XXX bhnd */
-	if (bwn_is_bus_siba(mac)) {
-		DPRINTF(sc, BWN_DEBUG_RESET, "%s: spuravoid %d\n", __func__, avoid);
-		siba_pmu_spuravoid_pllupdate(sc->sc_dev, avoid);
+	DPRINTF(sc, BWN_DEBUG_RESET, "%s: spuravoid %d\n", __func__, mode);
+
+	if (sc->sc_pmu == NULL) {
+		BWN_ERRPRINTF(mac->mac_sc, "no PMU; cannot configure spurious "
+		    "signal avoidance\n");
+		return;
+	}
+
+	if ((error = bhnd_pmu_request_spuravoid(sc->sc_pmu, mode))) {
+		device_printf(sc->sc_dev, "spuravoid request failed: %d",
+		    error);
 	}
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/ChanspecSetup */
-static void bwn_nphy_channel_setup(struct bwn_mac *mac,
+static int bwn_nphy_channel_setup(struct bwn_mac *mac,
 				const struct bwn_phy_n_sfo_cfg *e,
 				struct ieee80211_channel *new_channel)
 {
@@ -6396,6 +6468,7 @@ static void bwn_nphy_channel_setup(struct bwn_mac *mac,
 	struct bwn_phy *phy = &mac->mac_phy;
 	struct bwn_phy_n *nphy = mac->mac_phy.phy_n;
 	int ch = new_channel->ic_ieee;
+	int error;
 	uint16_t tmp16;
 
 	if (bwn_channel_band(mac, new_channel) == BWN_BAND_5G) {
@@ -6434,8 +6507,10 @@ static void bwn_nphy_channel_setup(struct bwn_mac *mac,
 			BWN_PHY_MASK(mac, BWN_PHY_B_TEST, ~0x840);
 	}
 
-	if (!nphy->txpwrctrl)
-		bwn_nphy_tx_power_fix(mac);
+	if (!nphy->txpwrctrl) {
+		if ((error = bwn_nphy_tx_power_fix(mac)))
+			return (error);
+	}
 
 	if (mac->mac_phy.rev < 3)
 		bwn_nphy_adjust_lna_gain_table(mac);
@@ -6444,10 +6519,10 @@ static void bwn_nphy_channel_setup(struct bwn_mac *mac,
 
 	if (mac->mac_phy.rev >= 3 &&
 	    mac->mac_phy.phy_n->spur_avoid != BWN_SPUR_AVOID_DISABLE) {
-		uint8_t spuravoid = 0;
+		bhnd_pmu_spuravoid spuravoid = BHND_PMU_SPURAVOID_NONE;
 
 		if (mac->mac_phy.phy_n->spur_avoid == BWN_SPUR_AVOID_FORCE) {
-			spuravoid = 1;
+			spuravoid = BHND_PMU_SPURAVOID_M1;
 		} else if (phy->rev >= 19) {
 			/* TODO */
 		} else if (phy->rev >= 18) {
@@ -6459,19 +6534,20 @@ static void bwn_nphy_channel_setup(struct bwn_mac *mac,
 		} else if (phy->rev >= 7) {
 			if (!bwn_is_40mhz(mac)) { /* 20MHz */
 				if (ch == 13 || ch == 14 || ch == 153)
-					spuravoid = 1;
+					spuravoid = BHND_PMU_SPURAVOID_M1;
 			} else { /* 40 MHz */
 				if (ch == 54)
-					spuravoid = 1;
+					spuravoid = BHND_PMU_SPURAVOID_M1;
 			}
 		} else {
 			if (!bwn_is_40mhz(mac)) { /* 20MHz */
 				if ((ch >= 5 && ch <= 8) || ch == 13 || ch == 14)
-					spuravoid = 1;
+					spuravoid = BHND_PMU_SPURAVOID_M1;
 			} else { /* 40MHz */
 				if (nphy->aband_spurwar_en &&
-				    (ch == 38 || ch == 102 || ch == 118))
-					spuravoid = siba_get_chipid(sc->sc_dev) == 0x4716;
+				    (ch == 38 || ch == 102 || ch == 118) &&
+				    sc->sc_cid.chip_id == BHND_CHIPID_BCM4716)
+					spuravoid = BHND_PMU_SPURAVOID_M1;
 			}
 		}
 
@@ -6482,7 +6558,7 @@ static void bwn_nphy_channel_setup(struct bwn_mac *mac,
 		if (mac->mac_phy.rev == 3 || mac->mac_phy.rev == 4)
 			bwn_wireless_core_phy_pll_reset(mac);
 
-		if (spuravoid)
+		if (spuravoid != BHND_PMU_SPURAVOID_NONE)
 			BWN_PHY_SET(mac, BWN_NPHY_BBCFG, BWN_NPHY_BBCFG_RSTRX);
 		else
 			BWN_PHY_MASK(mac, BWN_NPHY_BBCFG,
@@ -6497,6 +6573,8 @@ static void bwn_nphy_channel_setup(struct bwn_mac *mac,
 
 	if (phy->rev >= 3)
 		bwn_nphy_spur_workaround(mac);
+
+	return (0);
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/SetChanspec */
@@ -6511,6 +6589,7 @@ static int bwn_nphy_set_channel(struct bwn_mac *mac,
 	const struct bwn_nphy_chantabent_rev7 *tabent_r7 = NULL;
 	const struct bwn_nphy_chantabent_rev7_2g *tabent_r7_2g = NULL;
 
+	int error;
 	uint8_t tmp;
 
 	if (phy->rev >= 19) {
@@ -6557,6 +6636,7 @@ static int bwn_nphy_set_channel(struct bwn_mac *mac,
 
 	if (phy->rev >= 19) {
 		/* TODO */
+		error = ENODEV;
 	} else if (phy->rev >= 7) {
 		const struct bwn_phy_n_sfo_cfg *phy_regs = tabent_r7 ?
 			&(tabent_r7->phy_regs) : &(tabent_r7_2g->phy_regs);
@@ -6568,20 +6648,22 @@ static int bwn_nphy_set_channel(struct bwn_mac *mac,
 		}
 
 		bwn_radio_2057_setup(mac, tabent_r7, tabent_r7_2g);
-		bwn_nphy_channel_setup(mac, phy_regs, channel);
+		error = bwn_nphy_channel_setup(mac, phy_regs, channel);
 	} else if (phy->rev >= 3) {
 		tmp = (bwn_channel_band(mac, channel) == BWN_BAND_5G) ? 4 : 0;
 		BWN_RF_SETMASK(mac, 0x08, 0xFFFB, tmp);
 		bwn_radio_2056_setup(mac, tabent_r3);
-		bwn_nphy_channel_setup(mac, &(tabent_r3->phy_regs), channel);
+		error = bwn_nphy_channel_setup(mac, &(tabent_r3->phy_regs),
+		    channel);
 	} else {
 		tmp = (bwn_channel_band(mac, channel) == BWN_BAND_5G) ? 0x0020 : 0x0050;
 		BWN_RF_SETMASK(mac, B2055_MASTER1, 0xFF8F, tmp);
 		bwn_radio_2055_setup(mac, tabent_r2);
-		bwn_nphy_channel_setup(mac, &(tabent_r2->phy_regs), channel);
+		error = bwn_nphy_channel_setup(mac, &(tabent_r2->phy_regs),
+		    channel);
 	}
 
-	return 0;
+	return (error);
 }
 
 /**************************************************
@@ -6602,12 +6684,13 @@ bwn_nphy_op_allocate(struct bwn_mac *mac)
 	return 0;
 }
 
-void
+int
 bwn_nphy_op_prepare_structs(struct bwn_mac *mac)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 	struct bwn_phy *phy = &mac->mac_phy;
 	struct bwn_phy_n *nphy = phy->phy_n;
+	int error;
 
 	memset(nphy, 0, sizeof(*nphy));
 
@@ -6627,29 +6710,46 @@ bwn_nphy_op_prepare_structs(struct bwn_mac *mac)
 	nphy->txpwrctrl = false;
 	nphy->pwg_gain_5ghz = false;
 	if (mac->mac_phy.rev >= 3 ||
-	    (siba_get_pci_subvendor(sc->sc_dev) == PCI_VENDOR_APPLE &&
-	     (siba_get_revid(sc->sc_dev) == 11 || siba_get_revid(sc->sc_dev) == 12))) {
+	    (sc->sc_board_info.board_vendor == PCI_VENDOR_APPLE &&
+	     (bhnd_get_hwrev(sc->sc_dev) == 11 || bhnd_get_hwrev(sc->sc_dev) == 12))) {
 		nphy->txpwrctrl = true;
 		nphy->pwg_gain_5ghz = true;
-	} else if (siba_sprom_get_rev(sc->sc_dev) >= 4) {
+	} else if (sc->sc_board_info.board_srom_rev >= 4) {
 		if (mac->mac_phy.rev >= 2 &&
-		    (siba_sprom_get_bf2_lo(sc->sc_dev) & BWN_BFL2_TXPWRCTRL_EN)) {
+		    (sc->sc_board_info.board_flags2 & BHND_BFL2_TXPWRCTRL_EN)) {
 			nphy->txpwrctrl = true;
-			if (bwn_is_bus_siba(mac) &&
-			    (siba_get_type(sc->sc_dev) == SIBA_TYPE_PCI)) {
-				if ((siba_get_pci_device(sc->sc_dev) == 0x4328) ||
-				    (siba_get_pci_device(sc->sc_dev) == 0x432a))
-					nphy->pwg_gain_5ghz = true;
-			}
-		} else if (siba_sprom_get_bf2_lo(sc->sc_dev) & BWN_BFL2_5G_PWRGAIN) {
+			if ((sc->sc_board_info.board_devid == PCI_DEVID_BCM4321_D11N) ||
+			    (sc->sc_board_info.board_devid == PCI_DEVID_BCM4321_D11N5G))
+				nphy->pwg_gain_5ghz = true;
+		} else if (sc->sc_board_info.board_flags2 & BHND_BFL2_5G_PWRGAIN) {
 			nphy->pwg_gain_5ghz = true;
 		}
 	}
 
 	if (mac->mac_phy.rev >= 3) {
-		nphy->ipa2g_on = siba_sprom_get_fem_2ghz_extpa_gain(sc->sc_dev) == 2;
-		nphy->ipa5g_on = siba_sprom_get_fem_5ghz_extpa_gain(sc->sc_dev) == 2;
+		uint8_t extpa_gain2g, extpa_gain5g;
+
+		error = bhnd_nvram_getvar_uint8(sc->sc_dev,
+		    BHND_NVAR_EXTPAGAIN2G, &extpa_gain2g);
+		if (error) {
+			BWN_ERRPRINTF(mac->mac_sc, "Error reading 2GHz EPA "
+			    "gain configuration from NVRAM: %d\n", error);
+			return (error);
+		}
+
+		error = bhnd_nvram_getvar_uint8(sc->sc_dev,
+		    BHND_NVAR_EXTPAGAIN5G, &extpa_gain5g);
+		if (error) {
+			BWN_ERRPRINTF(mac->mac_sc, "Error reading 5GHz EPA "
+			    "gain configuration from NVRAM: %d\n", error);
+			return (error);
+		}
+
+		nphy->ipa2g_on = (extpa_gain2g == 2);
+		nphy->ipa5g_on = (extpa_gain5g == 2);
 	}
+
+	return (0);
 }
 
 void

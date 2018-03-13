@@ -1,97 +1,102 @@
-#!/bin/sh
 # $FreeBSD$
 
-. $(dirname $0)/conf.sh
+atf_test_case kill cleanup
+kill_head()
+{
+	atf_set "descr" "geli kill will wipe a provider's metadata"
+	atf_set "require.user" "root"
+}
+kill_body()
+{
+	. $(atf_get_srcdir)/conf.sh
 
-base=`basename $0`
-sectors=100
-keyfile1=`mktemp $base.XXXXXX` || exit 1
-keyfile2=`mktemp $base.XXXXXX` || exit 1
-mdconfig -a -t malloc -s `expr $sectors + 1` -u $no || exit 1
+	sectors=100
+	md=$(attach_md -t malloc -s `expr $sectors + 1`)
 
-echo "1..9"
+	atf_check dd if=/dev/random of=keyfile1 bs=512 count=16 status=none
+	atf_check dd if=/dev/random of=keyfile2 bs=512 count=16 status=none
 
-dd if=/dev/random of=${keyfile1} bs=512 count=16 >/dev/null 2>&1
-dd if=/dev/random of=${keyfile2} bs=512 count=16 >/dev/null 2>&1
+	atf_check geli init -B none -P -K keyfile1 ${md}
+	atf_check geli attach -p -k keyfile1 ${md}
+	atf_check -s exit:0 -o ignore geli setkey -n 1 -P -K keyfile2 ${md}
 
-geli init -B none -P -K $keyfile1 md${no}
-geli attach -p -k $keyfile1 md${no}
-geli setkey -n 1 -P -K $keyfile2 md${no}
+	# Kill attached provider.
+	atf_check geli kill ${md}
+	sleep 1
+	# Provider should be automatically detached.
+	if [ -c /dev/${md}.eli ]; then
+		atf_fail "Provider did not detach when killed"
+	fi
 
-# Kill attached provider.
-geli kill md${no}
-if [ $? -eq 0 ]; then
-	echo "ok 1"
-else
-	echo "not ok 1"
-fi
-sleep 1
-# Provider should be automatically detached.
-if [ ! -c /dev/md{$no}.eli ]; then
-	echo "ok 2"
-else
-	echo "not ok 2"
-fi
+	# We cannot use keyfile1 anymore.
+	atf_check -s not-exit:0 -e match:"Cannot read metadata" \
+		geli attach -p -k keyfile1 ${md}
 
-# We cannot use keyfile1 anymore.
-geli attach -p -k $keyfile1 md${no} 2>/dev/null
-if [ $? -ne 0 ]; then
-	echo "ok 3"
-else
-	echo "not ok 3"
-fi
+	# We cannot use keyfile2 anymore.
+	atf_check -s not-exit:0 -e match:"Cannot read metadata" \
+		geli attach -p -k keyfile2 ${md}
 
-# We cannot use keyfile2 anymore.
-geli attach -p -k $keyfile2 md${no} 2>/dev/null
-if [ $? -ne 0 ]; then
-	echo "ok 4"
-else
-	echo "not ok 4"
-fi
+	atf_check geli init -B none -P -K keyfile1 ${md}
+	atf_check -s exit:0 -o ignore \
+		geli setkey -n 1 -p -k keyfile1 -P -K keyfile2 ${md}
 
-geli init -B none -P -K $keyfile1 md${no}
-geli setkey -n 1 -p -k $keyfile1 -P -K $keyfile2 md${no}
+	# Should be possible to attach with keyfile1.
+	atf_check geli attach -p -k keyfile1 ${md}
+	atf_check geli detach ${md}
 
-# Should be possible to attach with keyfile1.
-geli attach -p -k $keyfile1 md${no}
-if [ $? -eq 0 ]; then
-	echo "ok 5"
-else
-	echo "not ok 5"
-fi
-geli detach md${no}
+	# Should be possible to attach with keyfile2.
+	atf_check geli attach -p -k keyfile2 ${md}
+	atf_check geli detach ${md}
 
-# Should be possible to attach with keyfile2.
-geli attach -p -k $keyfile2 md${no}
-if [ $? -eq 0 ]; then
-	echo "ok 6"
-else
-	echo "not ok 6"
-fi
-geli detach md${no}
+	# Kill detached provider.
+	atf_check geli kill ${md}
 
-# Kill detached provider.
-geli kill md${no}
-if [ $? -eq 0 ]; then
-	echo "ok 7"
-else
-	echo "not ok 7"
-fi
+	# We cannot use keyfile1 anymore.
+	atf_check -s not-exit:0 -e match:"Cannot read metadata" \
+		geli attach -p -k keyfile1 ${md}
 
-# We cannot use keyfile1 anymore.
-geli attach -p -k $keyfile1 md${no} 2>/dev/null
-if [ $? -ne 0 ]; then
-	echo "ok 8"
-else
-	echo "not ok 8"
-fi
+	# We cannot use keyfile2 anymore.
+	atf_check -s not-exit:0 -e match:"Cannot read metadata" \
+		geli attach -p -k keyfile2 ${md}
+}
+kill_cleanup()
+{
+	. $(atf_get_srcdir)/conf.sh
+	geli_test_cleanup
+}
 
-# We cannot use keyfile2 anymore.
-geli attach -p -k $keyfile2 md${no} 2>/dev/null
-if [ $? -ne 0 ]; then
-	echo "ok 9"
-else
-	echo "not ok 9"
-fi
+atf_test_case kill_readonly cleanup
+kill_readonly_head()
+{
+	atf_set "descr" "geli kill will not destroy the keys of a readonly provider"
+	atf_set "require.user" "root"
+}
+kill_readonly_body()
+{
+	. $(atf_get_srcdir)/conf.sh
 
-rm -f $keyfile1 $keyfile2
+	sectors=100
+	md=$(attach_md -t malloc -s `expr $sectors + 1`)
+	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
+
+	atf_check geli init -B none -P -K keyfile ${md}
+	# Attach read-only
+	atf_check geli attach -r -p -k keyfile ${md}
+
+	atf_check geli kill ${md}
+	# The provider will be detached
+	atf_check [ ! -c /dev/${md}.eli ]
+	# But its keys should not be destroyed
+	atf_check geli attach -p -k keyfile ${md}
+}
+kill_readonly_cleanup()
+{
+	. $(atf_get_srcdir)/conf.sh
+	geli_test_cleanup
+}
+
+atf_init_test_cases()
+{
+	atf_add_test_case kill
+	atf_add_test_case kill_readonly
+}

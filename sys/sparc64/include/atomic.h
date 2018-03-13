@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 Doug Rabson.
  * Copyright (c) 2001 Jake Burkholder.
  * All rights reserved.
@@ -36,6 +38,8 @@
 #define	mb()	__asm__ __volatile__ ("membar #MemIssue": : :"memory")
 #define	wmb()	mb()
 #define	rmb()	mb()
+
+#include <sys/atomic_common.h>
 
 /* Userland needs different ASI's. */
 #ifdef _KERNEL
@@ -253,11 +257,6 @@ atomic_fcmpset_rel_ ## name(volatile ptype p, vtype *ep, vtype s)	\
 	return (0);							\
 }									\
 									\
-static __inline vtype							\
-atomic_load_ ## name(volatile ptype p)					\
-{									\
-	return ((vtype)atomic_cas((p), 0, 0, sz));			\
-}									\
 static __inline vtype							\
 atomic_load_acq_ ## name(volatile ptype p)				\
 {									\

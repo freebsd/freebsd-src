@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -69,10 +71,6 @@
 			 : "ax", "dx", "cx", "di", "si", "r8", "r9", "memory")
 #define	MEXITCOUNT_OVERHEAD_GETLABEL(labelp)				\
 	__asm __volatile("movq $1b,%0" : "=rm" (labelp))
-#elif defined(lint)
-#define	MCOUNT_OVERHEAD(label)
-#define	MEXITCOUNT_OVERHEAD()
-#define	MEXITCOUNT_OVERHEAD_GETLABEL()
 #else
 #error this file needs to be ported to your compiler
 #endif /* !__GNUCLIKE_ASM */

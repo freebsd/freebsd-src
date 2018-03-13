@@ -465,8 +465,6 @@
 #define	SYS_ppoll	545
 #define	SYS_futimens	546
 #define	SYS_utimensat	547
-#define	SYS_numa_getaffinity	548
-#define	SYS_numa_setaffinity	549
 #define	SYS_fdatasync	550
 #define	SYS_fstat	551
 #define	SYS_fstatat	552
@@ -478,4 +476,6 @@
 #define	SYS_fhstatfs	558
 #define	SYS_mknodat	559
 #define	SYS_kevent	560
-#define	SYS_MAXSYSCALL	561
+#define	SYS_cpuset_getdomain	561
+#define	SYS_cpuset_setdomain	562
+#define	SYS_MAXSYSCALL	563

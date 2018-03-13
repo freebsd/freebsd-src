@@ -30,6 +30,7 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_acpi.h"
 #include "opt_platform.h"
 
 #include <sys/cdefs.h>
@@ -61,6 +62,11 @@ __FBSDID("$FreeBSD$");
 #ifdef FDT
 #include <dev/fdt/fdt_intr.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#endif
+
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
 #endif
 
 #include "pic_if.h"
@@ -343,7 +349,7 @@ gic_v3_detach(device_t dev)
 	for (rid = 0; rid < (sc->gic_redists.nregions + 1); rid++)
 		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->gic_res[rid]);
 
-	for (i = 0; i < mp_ncpus; i++)
+	for (i = 0; i <= mp_maxid; i++)
 		free(sc->gic_redists.pcpu[i], M_GIC_V3);
 
 	free(sc->gic_res, M_GIC_V3);
@@ -408,9 +414,7 @@ arm_gic_v3_intr(void *arg)
 	struct intr_pic *pic;
 	uint64_t active_irq;
 	struct trapframe *tf;
-	bool first;
 
-	first = true;
 	pic = sc->gic_pic;
 
 	while (1) {
@@ -572,6 +576,9 @@ do_gic_v3_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
 #ifdef FDT
 	struct intr_map_data_fdt *daf;
 #endif
+#ifdef DEV_ACPI
+	struct intr_map_data_acpi *daa;
+#endif
 	u_int irq;
 
 	sc = device_get_softc(dev);
@@ -583,6 +590,14 @@ do_gic_v3_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
 		if (gic_map_fdt(dev, daf->ncells, daf->cells, &irq, &pol,
 		    &trig) != 0)
 			return (EINVAL);
+		break;
+#endif
+#ifdef DEV_ACPI
+	case INTR_MAP_DATA_ACPI:
+		daa = (struct intr_map_data_acpi *)data;
+		irq = daa->irq;
+		pol = daa->pol;
+		trig = daa->trig;
 		break;
 #endif
 	case INTR_MAP_DATA_MSI:
@@ -895,7 +910,7 @@ gic_v3_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus,
 	val = 0;
 
 	/* Iterate through all CPUs in set */
-	for (i = 0; i < mp_ncpus; i++) {
+	for (i = 0; i <= mp_maxid; i++) {
 		/* Move to the next affinity group */
 		if (aff != GIC_AFFINITY(i)) {
 			/* Send the IPI */
@@ -1103,7 +1118,7 @@ gic_v3_redist_alloc(struct gic_v3_softc *sc)
 	u_int cpuid;
 
 	/* Allocate struct resource for all CPU's Re-Distributor registers */
-	for (cpuid = 0; cpuid < mp_ncpus; cpuid++)
+	for (cpuid = 0; cpuid <= mp_maxid; cpuid++)
 		if (CPU_ISSET(cpuid, &all_cpus) != 0)
 			sc->gic_redists.pcpu[cpuid] =
 				malloc(sizeof(*sc->gic_redists.pcpu[0]),

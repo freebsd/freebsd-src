@@ -785,7 +785,7 @@ i16	pa0b2 {
 	#desc <variable description>
 	#help <variable help>
 }
-u8	pa0itssit {
+i8	pa0itssit {
 	fmt decimal
 	#desc <variable description>
 	#help <variable help>
@@ -830,7 +830,7 @@ u8	pa1himaxpwr {
 	#desc <variable description>
 	#help <variable help>
 }
-u8	pa1itssit {
+i8	pa1itssit {
 	fmt decimal
 	#desc <variable description>
 	#help <variable help>
@@ -1880,8 +1880,8 @@ srom 1 {
 	0x06A:	i16	pa1b0
 	0x06C:	i16	pa1b1
 	0x06E:	i16	pa1b2
-	0x070:	u8	pa0itssit
-	0x071:	u8	pa1itssit
+	0x070:	i8	pa0itssit
+	0x071:	i8	pa1itssit
 	0x072:	u16	boardflags
 	0x074:	u8	ag0
 	0x075:	u8	ag1
@@ -1945,8 +1945,8 @@ srom 2-3 {
 	0x06A:	i16	pa1b0
 	0x06C:	i16	pa1b1
 	0x06E:	i16	pa1b2
-	0x070:	u8	pa0itssit
-	0x071:	u8	pa1itssit
+	0x070:	i8	pa0itssit
+	0x071:	i8	pa1itssit
 	srom 2 {
 		0x072:	u32	boardflags {
 					+0x0:	u16 |
@@ -2392,7 +2392,7 @@ srom 8 {
 			}
 	0x0C0:	u8	pa0maxpwr
 	0x0C0:	u8	maxp2ga0
-	0x0C1:	u8	pa0itssit
+	0x0C1:	i8	pa0itssit
 	0x0C1:	u8	itt2ga0
 	0x0C2:	i16	pa0b0
 	0x0C2:	u16	pa2gw0a0
@@ -2403,7 +2403,7 @@ srom 8 {
 	0x0C8:	u8	pa1maxpwr
 	0x0C8:	u8	maxp5ga0[1]
 	0x0C9:	u8	itt5ga0
-	0x0C9:	u8	pa1itssit
+	0x0C9:	i8	pa1itssit
 	0x0CA:	u8	maxp5gha0
 	0x0CA:	u8	pa1himaxpwr
 	0x0CB:	u8	maxp5gla0
@@ -2657,7 +2657,7 @@ srom 9-10 {
 	0x0C0:	u8	pa0maxpwr
 	0x0C0:	u8	maxp2ga0
 	0x0C1:	u8	itt2ga0
-	0x0C1:	u8	pa0itssit
+	0x0C1:	i8	pa0itssit
 	0x0C2:	u16	pa2gw0a0
 	0x0C2:	i16	pa0b0
 	0x0C4:	i16	pa0b1
@@ -2667,7 +2667,7 @@ srom 9-10 {
 	0x0C8:	u8	pa1maxpwr
 	0x0C8:	u8	maxp5ga0[1]
 	0x0C9:	u8	itt5ga0
-	0x0C9:	u8	pa1itssit
+	0x0C9:	i8	pa1itssit
 	0x0CA:	u8	pa1himaxpwr
 	0x0CA:	u8	maxp5gha0
 	0x0CB:	u8	maxp5gla0

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 John Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -176,6 +178,8 @@ struct intsrc *
 intr_lookup_source(int vector)
 {
 
+	if (vector < 0 || vector >= nitems(interrupt_sources))
+		return (NULL);
 	return (interrupt_sources[vector]);
 }
 

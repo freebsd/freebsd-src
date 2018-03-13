@@ -50,7 +50,17 @@ options 	NO_FFS_SNAPSHOT		# We don't require snapshot support
 include 	"std.AR_MIPS_BASE"
 makeoptions 	MODULES_OVERRIDE+="hwpmc_mips74k"
 
+# EEPROM caldata for AHB connected device
+options 	AR71XX_ATH_EEPROM
+device 		ar71xx_caldata
+device 		firmware
+
+# Support QCA955x in the HAL
 option		AH_SUPPORT_QCA9550	# Chipset support
+
+# Support EEPROM caldata in AHB devices
+options 	ATH_EEPROM_FIRMWARE
+
 device		uart_ar71xx
 
 device		ar71xx_apb

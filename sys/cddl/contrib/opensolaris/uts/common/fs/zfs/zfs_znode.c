@@ -1250,6 +1250,16 @@ zfs_rezget(znode_t *zp)
 	int count = 0;
 	uint64_t gen;
 
+	/*
+	 * Remove cached pages before reloading the znode, so that they are not
+	 * lingering after we run into any error.  Ideally, we should vgone()
+	 * the vnode in case of error, but currently we cannot do that
+	 * because of the LOR between the vnode lock and z_teardown_lock.
+	 * So, instead, we have to "doom" the znode in the illumos style.
+	 */
+	vp = ZTOV(zp);
+	vn_pages_remove(vp, 0, 0);
+
 	ZFS_OBJ_HOLD_ENTER(zfsvfs, obj_num);
 
 	mutex_enter(&zp->z_acl_lock);
@@ -1329,16 +1339,29 @@ zfs_rezget(znode_t *zp)
 	 * (e.g. via a look-up).  The old vnode and znode will be
 	 * recycled when the last vnode reference is dropped.
 	 */
-	vp = ZTOV(zp);
 	if (vp->v_type != IFTOVT((mode_t)zp->z_mode)) {
 		zfs_znode_dmu_fini(zp);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
-		return (EIO);
+		return (SET_ERROR(EIO));
 	}
 
+	/*
+	 * If the file has zero links, then it has been unlinked on the send
+	 * side and it must be in the received unlinked set.
+	 * We call zfs_znode_dmu_fini() now to prevent any accesses to the
+	 * stale data and to prevent automatical removal of the file in
+	 * zfs_zinactive().  The file will be removed either when it is removed
+	 * on the send side and the next incremental stream is received or
+	 * when the unlinked set gets processed.
+	 */
 	zp->z_unlinked = (zp->z_links == 0);
+	if (zp->z_unlinked) {
+		zfs_znode_dmu_fini(zp);
+		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
+		return (0);
+	}
+
 	zp->z_blksz = doi.doi_data_block_size;
-	vn_pages_remove(vp, 0, 0);
 	if (zp->z_size != size)
 		vnode_pager_setsize(vp, zp->z_size);
 
@@ -1380,13 +1403,20 @@ zfs_zinactive(znode_t *zp)
 	ZFS_OBJ_HOLD_ENTER(zfsvfs, z_id);
 
 	/*
-	 * If this was the last reference to a file with no links,
-	 * remove the file from the file system.
+	 * If this was the last reference to a file with no links, remove
+	 * the file from the file system unless the file system is mounted
+	 * read-only.  That can happen, for example, if the file system was
+	 * originally read-write, the file was opened, then unlinked and
+	 * the file system was made read-only before the file was finally
+	 * closed.  The file will remain in the unlinked set.
 	 */
 	if (zp->z_unlinked) {
-		ZFS_OBJ_HOLD_EXIT(zfsvfs, z_id);
-		zfs_rmnode(zp);
-		return;
+		ASSERT(!zfsvfs->z_issnap);
+		if ((zfsvfs->z_vfs->vfs_flag & VFS_RDONLY) == 0) {
+			ZFS_OBJ_HOLD_EXIT(zfsvfs, z_id);
+			zfs_rmnode(zp);
+			return;
+		}
 	}
 
 	zfs_znode_dmu_fini(zp);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2007, Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
@@ -72,6 +74,9 @@ __FBSDID("$FreeBSD$");
 #include "pmcstat_log.h"
 #include "pmcstat_top.h"
 #include "pmcpl_callgraph.h"
+
+#define	min(A,B)		((A) < (B) ? (A) : (B))
+#define	max(A,B)		((A) > (B) ? (A) : (B))
 
 /* Get the sample value in percent related to nsamples. */
 #define PMCPL_CG_COUNTP(a) \
@@ -638,8 +643,11 @@ pmcpl_cg_topdisplay(void)
  */
 
 int
-pmcpl_cg_topkeypress(int c, WINDOW *w)
+pmcpl_cg_topkeypress(int c, void *arg)
 {
+	WINDOW *w;
+
+	w = (WINDOW *)arg;
 
 	(void) c; (void) w;
 

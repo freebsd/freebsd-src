@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -288,5 +290,5 @@ makemsg(char *fname)
 		err(1, "out of memory");
 	if ((int)fread(mbuf, sizeof(*mbuf), mbufsize, fp) != mbufsize)
 		err(1, "can't read temporary file");
-	(void)close(fd);
+	fclose(fp);
 }

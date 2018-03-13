@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -90,10 +92,10 @@
 #define RCSID(x)	.text; .asciz x
 
 #undef __FBSDID
-#if !defined(lint) && !defined(STRIP_FBSDID)
+#if !defined(STRIP_FBSDID)
 #define __FBSDID(s)	.ident s
 #else
 #define __FBSDID(s)	/* nothing */
-#endif /* not lint and not STRIP_FBSDID */
+#endif /* !STRIP_FBSDID */
 
 #endif /* !_MACHINE_ASM_H_ */

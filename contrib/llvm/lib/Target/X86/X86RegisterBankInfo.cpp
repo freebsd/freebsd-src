@@ -16,7 +16,7 @@
 #include "llvm/CodeGen/GlobalISel/RegisterBank.h"
 #include "llvm/CodeGen/GlobalISel/RegisterBankInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 
 #define GET_TARGET_REGBANK_IMPL
 #include "X86GenRegisterBank.inc"
@@ -25,10 +25,6 @@ using namespace llvm;
 // This file will be TableGen'ed at some point.
 #define GET_TARGET_REGBANK_INFO_IMPL
 #include "X86GenRegisterBankInfo.def"
-
-#ifndef LLVM_BUILD_GLOBAL_ISEL
-#error "You shouldn't build this"
-#endif
 
 X86RegisterBankInfo::X86RegisterBankInfo(const TargetRegisterInfo &TRI)
     : X86GenRegisterBankInfo() {
@@ -164,7 +160,7 @@ X86RegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
 
   // Try the default logic for non-generic instructions that are either copies
   // or already have some operands assigned to banks.
-  if (!isPreISelGenericOpcode(Opc)) {
+  if (!isPreISelGenericOpcode(Opc) || Opc == TargetOpcode::G_PHI) {
     const InstructionMapping &Mapping = getInstrMappingImpl(MI);
     if (Mapping.isValid())
       return Mapping;
@@ -186,10 +182,19 @@ X86RegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
   }
 
   unsigned NumOperands = MI.getNumOperands();
-
-  // Track the bank of each register, use NotFP mapping (all scalars in GPRs)
   SmallVector<PartialMappingIdx, 4> OpRegBankIdx(NumOperands);
-  getInstrPartialMappingIdxs(MI, MRI, /* isFP */ false, OpRegBankIdx);
+
+  switch (Opc) {
+  case TargetOpcode::G_FPEXT:
+  case TargetOpcode::G_FCONSTANT:
+    // Instruction having only floating-point operands (all scalars in VECRReg)
+    getInstrPartialMappingIdxs(MI, MRI, /* isFP */ true, OpRegBankIdx);
+    break;
+  default:
+    // Track the bank of each register, use NotFP mapping (all scalars in GPRs)
+    getInstrPartialMappingIdxs(MI, MRI, /* isFP */ false, OpRegBankIdx);
+    break;
+  }
 
   // Finally construct the computed mapping.
   SmallVector<const ValueMapping *, 8> OpdsMapping(NumOperands);
@@ -215,7 +220,8 @@ X86RegisterBankInfo::getInstrAlternativeMappings(const MachineInstr &MI) const {
 
   switch (MI.getOpcode()) {
   case TargetOpcode::G_LOAD:
-  case TargetOpcode::G_STORE: {
+  case TargetOpcode::G_STORE:
+  case TargetOpcode::G_IMPLICIT_DEF: {
     // we going to try to map 32/64 bit to PMI_FP32/PMI_FP64
     unsigned Size = getSizeInBits(MI.getOperand(0).getReg(), MRI, TRI);
     if (Size != 32 && Size != 64)

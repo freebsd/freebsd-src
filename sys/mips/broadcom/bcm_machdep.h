@@ -55,12 +55,15 @@ struct bcm_platform {
 	uint32_t			 cc_caps;	/**< chipc capabilities */
 	uint32_t			 cc_caps_ext;	/**< chipc extended capabilies */
 
+	struct bhnd_core_info		 cpu_id;	/**< cpu core info */
+	uintptr_t			 cpu_addr;	/**< cpu core phys address */
+
 	/* On non-AOB devices, the PMU register block is mapped to chipc;
 	 * the pmu_id and pmu_addr values will be copied from cc_id
 	 * and cc_addr. */
-	struct bhnd_core_info		 pmu_id;		/**< PMU core info */
+	struct bhnd_core_info		 pmu_id;	/**< PMU core info */
 	uintptr_t			 pmu_addr;	/**< PMU core phys address, or
-						     0x0 if no PMU */
+							     0x0 if no PMU */
 
 	struct bhnd_pmu_query		 pmu;		/**< PMU query instance */
 
@@ -121,6 +124,11 @@ int			 bcm_get_nvram(struct bcm_platform *bp,
 	BCM_CORE_READ_4(_bp, cc_addr, (_reg))
 #define	BCM_CHIPC_WRITE_4(_bp, _reg, _val)		\
 	BCM_CORE_WRITE_4(_bp, cc_addr, (_reg), (_val))
+
+#define	BCM_CPU_READ_4(_bp, _reg)			\
+	BCM_CORE_READ_4(_bp, cpu_addr, (_reg))
+#define	BCM_CPU_WRITE_4(_bp, _reg, _val)		\
+	BCM_CORE_WRITE_4(_bp, cpu_addr, (_reg), (_val))
 
 #define	BCM_PMU_READ_4(_bp, _reg)			\
 	BCM_CORE_READ_4(_bp, pmu_addr, (_reg))

@@ -377,10 +377,7 @@ padlock_hash_process(struct padlock_session *ses, struct cryptodesc *maccrd,
 	int error;
 
 	td = curthread;
-	error = fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL |
-	    FPU_KERN_KTHR);
-	if (error != 0)
-		return (error);
+	fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL | FPU_KERN_KTHR);
 	if ((maccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0)
 		padlock_hash_key_setup(ses, maccrd->crd_key, maccrd->crd_klen);
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Lukas Ertl
  * Copyright (c) 2007, 2009 Ulf Lilleengen
  * All rights reserved.

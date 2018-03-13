@@ -80,6 +80,10 @@
 
 #include "zfs_namecheck.h"
 
+/* Common access mode for all virtual directories under the ctldir */
+const u_short zfsctl_ctldir_mode = S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP |
+    S_IROTH | S_IXOTH;
+
 /*
  * "Synthetic" filesystem implementation.
  */
@@ -496,8 +500,7 @@ zfsctl_common_getattr(vnode_t *vp, vattr_t *vap)
 	vap->va_nblocks = 0;
 	vap->va_seq = 0;
 	vn_fsid(vp, vap);
-	vap->va_mode = S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP |
-	    S_IROTH | S_IXOTH;
+	vap->va_mode = zfsctl_ctldir_mode;
 	vap->va_type = VDIR;
 	/*
 	 * We live in the now (for atime).
@@ -724,6 +727,91 @@ zfsctl_root_vptocnp(struct vop_vptocnp_args *ap)
 	return (0);
 }
 
+static int
+zfsctl_common_pathconf(ap)
+	struct vop_pathconf_args /* {
+		struct vnode *a_vp;
+		int a_name;
+		int *a_retval;
+	} */ *ap;
+{
+	/*
+	 * We care about ACL variables so that user land utilities like ls
+	 * can display them correctly.  Since the ctldir's st_dev is set to be
+	 * the same as the parent dataset, we must support all variables that
+	 * it supports.
+	 */
+	switch (ap->a_name) {
+	case _PC_LINK_MAX:
+		*ap->a_retval = MIN(LONG_MAX, ZFS_LINK_MAX);
+		return (0);
+
+	case _PC_FILESIZEBITS:
+		*ap->a_retval = 64;
+		return (0);
+
+	case _PC_MIN_HOLE_SIZE:
+		*ap->a_retval = (int)SPA_MINBLOCKSIZE;
+		return (0);
+
+	case _PC_ACL_EXTENDED:
+		*ap->a_retval = 0;
+		return (0);
+
+	case _PC_ACL_NFS4:
+		*ap->a_retval = 1;
+		return (0);
+
+	case _PC_ACL_PATH_MAX:
+		*ap->a_retval = ACL_MAX_ENTRIES;
+		return (0);
+
+	case _PC_NAME_MAX:
+		*ap->a_retval = NAME_MAX;
+		return (0);
+
+	default:
+		return (vop_stdpathconf(ap));
+	}
+}
+
+/**
+ * Returns a trivial ACL
+ */
+int
+zfsctl_common_getacl(ap)
+	struct vop_getacl_args /* {
+		struct vnode *vp;
+		acl_type_t a_type;
+		struct acl *a_aclp;
+		struct ucred *cred;
+		struct thread *td;
+	} */ *ap;
+{
+	int i;
+
+	if (ap->a_type != ACL_TYPE_NFS4)
+		return (EINVAL);
+
+	acl_nfs4_sync_acl_from_mode(ap->a_aclp, zfsctl_ctldir_mode, 0);
+	/*
+	 * acl_nfs4_sync_acl_from_mode assumes that the owner can always modify
+	 * attributes.  That is not the case for the ctldir, so we must clear
+	 * those bits.  We also must clear ACL_READ_NAMED_ATTRS, because xattrs
+	 * aren't supported by the ctldir.
+	 */
+	for (i = 0; i < ap->a_aclp->acl_cnt; i++) {
+		struct acl_entry *entry;
+		entry = &(ap->a_aclp->acl_entry[i]);
+		uint32_t old_perm = entry->ae_perm;
+		entry->ae_perm &= ~(ACL_WRITE_ACL | ACL_WRITE_OWNER |
+		    ACL_WRITE_ATTRIBUTES | ACL_WRITE_NAMED_ATTRS |
+		    ACL_READ_NAMED_ATTRS );
+	}
+
+	return (0);
+}
+
 static struct vop_vector zfsctl_ops_root = {
 	.vop_default =	&default_vnodeops,
 	.vop_open =	zfsctl_common_open,
@@ -738,6 +826,8 @@ static struct vop_vector zfsctl_ops_root = {
 	.vop_fid =	zfsctl_common_fid,
 	.vop_print =	zfsctl_common_print,
 	.vop_vptocnp =	zfsctl_root_vptocnp,
+	.vop_pathconf =	zfsctl_common_pathconf,
+	.vop_getacl =	zfsctl_common_getacl,
 };
 
 static int
@@ -886,13 +976,6 @@ zfsctl_snapdir_lookup(ap)
 			break;
 
 		/*
-		 * The vnode must be referenced at least by this thread and
-		 * the mount point or the thread doing the mounting.
-		 * There can be more references from concurrent lookups.
-		 */
-		KASSERT(vrefcnt(*vpp) > 1, ("found unreferenced mountpoint"));
-
-		/*
 		 * Check if a snapshot is already mounted on top of the vnode.
 		 */
 		err = zfsctl_mounted_here(vpp, lkflags);
@@ -988,6 +1071,7 @@ zfsctl_snapdir_readdir(ap)
 		return (error);
 	}
 
+	ZFS_ENTER(zfsvfs);
 	for (;;) {
 		uint64_t cookie;
 		uint64_t id;
@@ -1004,6 +1088,7 @@ zfsctl_snapdir_readdir(ap)
 					*eofp = 1;
 				error = 0;
 			}
+			ZFS_EXIT(zfsvfs);
 			return (error);
 		}
 
@@ -1016,6 +1101,7 @@ zfsctl_snapdir_readdir(ap)
 		if (error != 0) {
 			if (error == ENAMETOOLONG)
 				error = 0;
+			ZFS_EXIT(zfsvfs);
 			return (SET_ERROR(error));
 		}
 		uio->uio_offset = cookie + dots_offset;
@@ -1039,6 +1125,7 @@ zfsctl_snapdir_getattr(ap)
 	uint64_t snap_count;
 	int err;
 
+	ZFS_ENTER(zfsvfs);
 	zfsctl_common_getattr(vp, vap);
 	vap->va_ctime = dmu_objset_snap_cmtime(zfsvfs->z_os);
 	vap->va_mtime = vap->va_ctime;
@@ -1046,12 +1133,15 @@ zfsctl_snapdir_getattr(ap)
 	if (dsl_dataset_phys(ds)->ds_snapnames_zapobj != 0) {
 		err = zap_count(dmu_objset_pool(ds->ds_objset)->dp_meta_objset,
 		    dsl_dataset_phys(ds)->ds_snapnames_zapobj, &snap_count);
-		if (err != 0)
+		if (err != 0) {
+			ZFS_EXIT(zfsvfs);
 			return (err);
+		}
 		vap->va_nlink += snap_count;
 	}
 	vap->va_size = vap->va_nlink;
 
+	ZFS_EXIT(zfsvfs);
 	return (0);
 }
 
@@ -1066,6 +1156,8 @@ static struct vop_vector zfsctl_ops_snapdir = {
 	.vop_reclaim =	zfsctl_common_reclaim,
 	.vop_fid =	zfsctl_common_fid,
 	.vop_print =	zfsctl_common_print,
+	.vop_pathconf =	zfsctl_common_pathconf,
+	.vop_getacl =	zfsctl_common_getacl,
 };
 
 static int

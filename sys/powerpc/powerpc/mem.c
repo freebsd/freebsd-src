@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1982, 1986, 1990 The Regents of the University of California.
  * All rights reserved.
@@ -123,8 +125,9 @@ kmem_direct_mapped:	v = uio->uio_offset;
 				break;
 			}
 	
-			if (!pmap_dev_direct_mapped(v, cnt)) {
-				error = uiomove((void *)v, cnt, uio);
+			if (hw_direct_map && !pmap_dev_direct_mapped(v, cnt)) {
+				error = uiomove((void *)PHYS_TO_DMAP(v), cnt,
+				    uio);
 			} else {
 				m.phys_addr = trunc_page(v);
 				marr = &m;

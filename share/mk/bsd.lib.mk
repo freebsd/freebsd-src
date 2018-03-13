@@ -169,7 +169,9 @@ LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 
 .if defined(LIB) && !empty(LIB) || defined(SHLIB_NAME)
 OBJS+=		${SRCS:N*.h:${OBJS_SRCS_FILTER:ts:}:S/$/.o/}
-CLEANFILES+=	${OBJS} ${STATICOBJS}
+BCOBJS+=	${SRCS:N*.[hsS]:N*.asm:${OBJS_SRCS_FILTER:ts:}:S/$/.bco/g}
+LLOBJS+=	${SRCS:N*.[hsS]:N*.asm:${OBJS_SRCS_FILTER:ts:}:S/$/.llo/g}
+CLEANFILES+=	${OBJS} ${BCOBJS} ${LLOBJS} ${STATICOBJS}
 .endif
 
 .if defined(LIB) && !empty(LIB)
@@ -200,15 +202,13 @@ lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
 .endif
 
 .if defined(LLVM_LINK)
-BCOBJS=		${OBJS:.o=.bco} ${STATICOBJS:.o=.bco}
-LLOBJS=		${OBJS:.o=.llo} ${STATICOBJS:.o=.llo}
-CLEANFILES+=	${BCOBJS} ${LLOBJS}
-
 lib${LIB_PRIVATE}${LIB}.bc: ${BCOBJS}
 	${LLVM_LINK} -o ${.TARGET} ${BCOBJS}
 
 lib${LIB_PRIVATE}${LIB}.ll: ${LLOBJS}
 	${LLVM_LINK} -S -o ${.TARGET} ${LLOBJS}
+
+CLEANFILES+=	lib${LIB_PRIVATE}${LIB}.bc lib${LIB_PRIVATE}${LIB}.ll
 .endif
 
 .if defined(SHLIB_NAME) || \
@@ -283,18 +283,6 @@ lib${LIB_PRIVATE}${LIB}_pic.a: ${SOBJS}
 	@rm -f ${.TARGET}
 	${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
-.endif
-
-.if defined(WANT_LINT) && !defined(NO_LINT) && defined(LIB) && !empty(LIB)
-LINTLIB=	llib-l${LIB}.ln
-_LIBS+=		${LINTLIB}
-LINTOBJS+=	${SRCS:M*.c:.c=.ln}
-CLEANFILES+=	${LINTOBJS}
-
-${LINTLIB}: ${LINTOBJS}
-	@${ECHO} building lint library ${.TARGET}
-	@rm -f ${.TARGET}
-	${LINT} ${LINTLIBFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
 
 .endif # !defined(INTERNALLIB)
@@ -403,10 +391,6 @@ _libinstall:
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},development} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${_LIBDIR}/
 .endif
-.if defined(WANT_LINT) && !defined(NO_LINT) && defined(LIB) && !empty(LIB)
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},development} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} ${LINTLIB} ${DESTDIR}${LINTLIBDIR}/
-.endif
 .endif # !defined(INTERNALLIB)
 
 .if !defined(LIBRARIES_ONLY)
@@ -423,11 +407,6 @@ realinstall: maninstall
 .ORDER: beforeinstall maninstall
 .endif
 
-.endif
-
-.if !target(lint)
-lint: ${SRCS:M*.c}
-	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
 
 .if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)

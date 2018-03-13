@@ -145,6 +145,39 @@ EVP_CIPHER_CTX_free(EVP_CIPHER_CTX *ctx)
 }
 #endif
 
+#ifdef HAVE_EVP_CIPHERINIT_EX
+/*
+ * Initialize the cipher by calling EVP_CipherInit_ex(), because
+ * calling EVP_CipherInit() will reset the cipher context, clearing
+ * the cipher, so calling it twice, with the second call having a
+ * null cipher, will clear the already-set cipher.  EVP_CipherInit_ex(),
+ * however, won't reset the cipher context, so you can use it to specify
+ * the IV oin a second call after a first call to EVP_CipherInit_ex()
+ * to set the cipher and the key.
+ *
+ * XXX - is there some reason why we need to make two calls?
+ */
+static int
+set_cipher_parameters(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
+		      const unsigned char *key,
+		      const unsigned char *iv, int enc)
+{
+	return EVP_CipherInit_ex(ctx, cipher, NULL, key, iv, enc);
+}
+#else
+/*
+ * Initialize the cipher by calling EVP_CipherInit(), because we don't
+ * have EVP_CipherInit_ex(); we rely on it not trashing the context.
+ */
+static int
+set_cipher_parameters(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
+		      const unsigned char *key,
+		      const unsigned char *iv, int enc)
+{
+	return EVP_CipherInit(ctx, cipher, key, iv, enc);
+}
+#endif
+
 /*
  * this will adjust ndo_packetp and ndo_snapend to new buffer!
  */
@@ -156,8 +189,10 @@ int esp_print_decrypt_buffer_by_ikev2(netdissect_options *ndo,
 {
 	struct sa_list *sa;
 	const u_char *iv;
-	int len;
+	unsigned int len;
 	EVP_CIPHER_CTX *ctx;
+	unsigned int block_size, output_buffer_size;
+	u_char *output_buffer;
 
 	/* initiator arg is any non-zero value */
 	if(initiator) initiator=1;
@@ -188,17 +223,36 @@ int esp_print_decrypt_buffer_by_ikev2(netdissect_options *ndo,
 	ctx = EVP_CIPHER_CTX_new();
 	if (ctx == NULL)
 		return 0;
-	if (EVP_CipherInit(ctx, sa->evp, sa->secret, NULL, 0) < 0)
+	if (set_cipher_parameters(ctx, sa->evp, sa->secret, NULL, 0) < 0)
 		(*ndo->ndo_warning)(ndo, "espkey init failed");
-	EVP_CipherInit(ctx, NULL, NULL, iv, 0);
-	EVP_Cipher(ctx, __DECONST(u_char *, buf), buf, len);
+	set_cipher_parameters(ctx, NULL, NULL, iv, 0);
+	/*
+	 * Allocate a buffer for the decrypted data.
+	 * The output buffer must be separate from the input buffer, and
+	 * its size must be a multiple of the cipher block size.
+	 */
+	block_size = (unsigned int)EVP_CIPHER_CTX_block_size(ctx);
+	output_buffer_size = len + (block_size - len % block_size);
+	output_buffer = (u_char *)malloc(output_buffer_size);
+	if (output_buffer == NULL) {
+		(*ndo->ndo_warning)(ndo, "can't allocate memory for decryption buffer");
+		EVP_CIPHER_CTX_free(ctx);
+		return 0;
+	}
+	EVP_Cipher(ctx, output_buffer, buf, len);
 	EVP_CIPHER_CTX_free(ctx);
+
+	/*
+	 * XXX - of course this is wrong, because buf is a const buffer,
+	 * but changing this would require a more complicated fix.
+	 */
+	memcpy(__DECONST(u_char *, buf), output_buffer, len);
+	free(output_buffer);
 
 	ndo->ndo_packetp = buf;
 	ndo->ndo_snapend = end;
 
 	return 1;
-
 }
 USES_APPLE_RST
 
@@ -606,6 +660,8 @@ esp_print(netdissect_options *ndo,
 	const u_char *ivoff;
 	const u_char *p;
 	EVP_CIPHER_CTX *ctx;
+	unsigned int block_size, output_buffer_size;
+	u_char *output_buffer;
 #endif
 
 	esp = (const struct newesp *)bp;
@@ -703,7 +759,9 @@ esp_print(netdissect_options *ndo,
 		ep = bp2 + len;
 	}
 
+	/* pointer to the IV, if there is one */
 	ivoff = (const u_char *)(esp + 1) + 0;
+	/* length of the IV, if there is one; 0, if there isn't */
 	ivlen = sa->ivlen;
 	secret = sa->secret;
 	ep = ep - sa->authlen;
@@ -711,14 +769,37 @@ esp_print(netdissect_options *ndo,
 	if (sa->evp) {
 		ctx = EVP_CIPHER_CTX_new();
 		if (ctx != NULL) {
-			if (EVP_CipherInit(ctx, sa->evp, secret, NULL, 0) < 0)
+			if (set_cipher_parameters(ctx, sa->evp, secret, NULL, 0) < 0)
 				(*ndo->ndo_warning)(ndo, "espkey init failed");
 
 			p = ivoff;
-			EVP_CipherInit(ctx, NULL, NULL, p, 0);
-			EVP_Cipher(ctx, __DECONST(u_char *, p + ivlen),
-			    p + ivlen, ep - (p + ivlen));
+			set_cipher_parameters(ctx, NULL, NULL, p, 0);
+			len = ep - (p + ivlen);
+
+			/*
+			 * Allocate a buffer for the decrypted data.
+			 * The output buffer must be separate from the
+			 * input buffer, and its size must be a multiple
+			 * of the cipher block size.
+			 */
+			block_size = (unsigned int)EVP_CIPHER_CTX_block_size(ctx);
+			output_buffer_size = len + (block_size - len % block_size);
+			output_buffer = (u_char *)malloc(output_buffer_size);
+			if (output_buffer == NULL) {
+				(*ndo->ndo_warning)(ndo, "can't allocate memory for decryption buffer");
+				EVP_CIPHER_CTX_free(ctx);
+				return -1;
+			}
+
+			EVP_Cipher(ctx, output_buffer, p + ivlen, len);
 			EVP_CIPHER_CTX_free(ctx);
+			/*
+			 * XXX - of course this is wrong, because buf is a
+			 * const buffer, but changing this would require a
+			 * more complicated fix.
+			 */
+			memcpy(__DECONST(u_char *, p + ivlen), output_buffer, len);
+			free(output_buffer);
 			advance = ivoff - (const u_char *)esp + ivlen;
 		} else
 			advance = sizeof(struct newesp);

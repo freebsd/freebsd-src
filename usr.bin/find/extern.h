@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -114,7 +116,7 @@ exec_f	f_sparse;
 exec_f	f_type;
 exec_f	f_user;
 
-extern int ftsoptions, ignore_readdir_race, isdeprecated, isdepth, isoutput;
+extern int ftsoptions, ignore_readdir_race, isdepth, isoutput;
 extern int issort, isxargs;
 extern int mindepth, maxdepth;
 extern int regexp_flags;

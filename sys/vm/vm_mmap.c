@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -541,8 +543,7 @@ kern_munmap(struct thread *td, uintptr_t addr0, size_t size)
 		 */
 		pkm.pm_address = (uintptr_t) NULL;
 		if (vm_map_lookup_entry(map, addr, &entry)) {
-			for (;
-			    entry != &map->header && entry->start < addr + size;
+			for (; entry->start < addr + size;
 			    entry = entry->next) {
 				if (vm_map_check_protection(map, entry->start,
 					entry->end, VM_PROT_EXECUTE) == TRUE) {
@@ -768,16 +769,12 @@ RestartScan:
 	 * up the pages elsewhere.
 	 */
 	lastvecindex = -1;
-	for (current = entry;
-	    (current != &map->header) && (current->start < end);
-	    current = current->next) {
+	for (current = entry; current->start < end; current = current->next) {
 
 		/*
 		 * check for contiguity
 		 */
-		if (current->end < end &&
-		    (entry->next == &map->header ||
-		     current->next->start > current->end)) {
+		if (current->end < end && current->next->start > current->end) {
 			vm_map_unlock_read(map);
 			return (ENOMEM);
 		}
@@ -1005,7 +1002,7 @@ kern_mlock(struct proc *proc, struct ucred *cred, uintptr_t addr0, size_t len)
 		return (ENOMEM);
 	}
 	PROC_UNLOCK(proc);
-	if (npages + vm_cnt.v_wire_count > vm_page_max_wired)
+	if (npages + vm_wire_count() > vm_page_max_wired)
 		return (EAGAIN);
 #ifdef RACCT
 	if (racct_enable) {
@@ -1196,7 +1193,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 {
 	struct vattr va;
 	vm_object_t obj;
-	vm_offset_t foff;
+	vm_ooffset_t foff;
 	struct ucred *cred;
 	int error, flags, locktype;
 

@@ -1,6 +1,8 @@
 /*	$NetBSD: cd9660.c,v 1.32 2011/08/23 17:09:11 christos Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-4-Clause
+ *
  * Copyright (c) 2005 Daniel Watt, Walter Deignan, Ryan Gabrys, Alan
  * Perez-Rathke and Ram Vedam.  All rights reserved.
  *
@@ -2119,7 +2121,7 @@ cd9660_add_generic_bootimage(iso9660_disk *diskStructure, const char *bootimage)
 	}
 
 	if (diskStructure->verbose_level > 0) {
-		printf("Generic boot image image has size %lld\n",
+		printf("Generic boot image has size %lld\n",
 		    (long long)stbuf.st_size);
 	}
 

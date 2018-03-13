@@ -1,6 +1,8 @@
 /*	$NetBSD: ibcs2_signal.h,v 1.7 1995/08/14 02:26:01 mycroft Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994, 1995 Scott Bartram
  * All rights reserved.
  *

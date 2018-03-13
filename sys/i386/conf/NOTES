@@ -221,23 +221,6 @@ options 	NPX_DEBUG	# enable npx debugging
 #
 options 	PERFMON
 
-#
-# XBOX causes the kernel to be bootable on the Microsoft XBox console system.
-# The resulting kernel will auto-detect whether it is being booted on a XBox,
-# so kernels compiled with this option will also work on an ordinary PC.
-# This option require I686_CPU.
-#
-# xboxfb includes support for the XBox frame buffer device. It is fully USB-
-# keyboard aware, and will only be used if an xbox is detected. This option
-# (obviously) requires XBOX support in your kernel.
-#
-# NOTE: xboxfb currently conflicts with syscons(4); if you have an XBOX and
-# include both in your kernel; you will not get any video output. Ordinary
-# PC's do not suffer from this.
-#
-options 	XBOX
-device		xboxfb
-
 
 #####################################################################
 # NETWORKING OPTIONS
@@ -545,21 +528,18 @@ hint.mse.0.irq="5"
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 #       HP PC Lan+, various PC Card devices
 #       (requires miibus)
-# ie:   AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210;
-#       Intel EtherExpress
 # ipw:	Intel PRO/Wireless 2100 IEEE 802.11 adapter
 # iwi:	Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 adapters
 #	Requires the iwi firmware module
 # iwn:	Intel Wireless WiFi Link 1000/105/135/2000/4965/5000/6000/6050 abgn
 #	802.11 network adapters
 #	Requires the iwn firmware module
+# mthca: Mellanox HCA InfiniBand
 # mlx4ib: Mellanox ConnectX HCA InfiniBand
 # mlx4en: Mellanox ConnectX HCA Ethernet
-# mthca: Mellanox HCA InfiniBand
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
 # sbni: Granch SBNI12-xx ISA and PCI adapters
 # vmx:	VMware VMXNET3 Ethernet (BSD open source)
-# wl:   Lucent Wavelan (ISA card only).
 # wpi:	Intel 3945ABG Wireless LAN controller
 #	Requires the wpi firmware module
 
@@ -593,10 +573,10 @@ hint.le.0.at="isa"
 hint.le.0.port="0x280"
 hint.le.0.irq="10"
 hint.le.0.drq="0"
+device  	mthca		# Mellanox HCA InfiniBand
 device		mlx4		# Shared code module between IB and Ethernet
 device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
 device  	mlx4en		# Mellanox ConnectX HCA Ethernet
-device  	mthca		# Mellanox HCA InfiniBand
 device		nfe		# nVidia nForce MCP on-board Ethernet
 device		sbni
 hint.sbni.0.at="isa"
@@ -730,6 +710,11 @@ device		hptrr
 device		hptiop
 
 #
+# Intel integrated Memory Controller (iMC) SMBus controller
+#	Sandybridge-Xeon, Ivybridge-Xeon, Haswell-Xeon, Broadwell-Xeon
+device		imcsmb
+
+#
 # IBM (now Adaptec) ServeRAID controllers
 device		ips
 
@@ -796,7 +781,6 @@ device 		hyperv		# HyperV drivers
 # smapi: System Management Application Program Interface driver
 # smbios: DMI/SMBIOS entry point
 # vpd: Vital Product Data kernel interface
-# pmtimer: Adjust system timer at wakeup time
 # pbio: Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
 # asmc: Apple System Management Controller
 # si: Specialix International SI/XIO or SX intelligent serial card driver
@@ -830,7 +814,6 @@ device		ipmi
 device		smapi
 device		smbios
 device		vpd
-device		pmtimer
 device		pbio
 hint.pbio.0.at="isa"
 hint.pbio.0.port="0x360"
@@ -987,7 +970,7 @@ device		ndis
 # KSTACK_PAGES is the number of memory pages to assign to the kernel
 # stack of each thread.
 
-options 	KSTACK_PAGES=3
+options 	KSTACK_PAGES=5
 
 # Enable detailed accounting by the PV entry allocator.
 

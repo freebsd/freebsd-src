@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
@@ -52,14 +54,21 @@ static struct virtio_ident {
 	uint16_t	devid;
 	const char	*name;
 } virtio_ident_table[] = {
-	{ VIRTIO_ID_NETWORK,	"Network"	},
-	{ VIRTIO_ID_BLOCK,	"Block"		},
-	{ VIRTIO_ID_CONSOLE,	"Console"	},
-	{ VIRTIO_ID_ENTROPY,	"Entropy"	},
-	{ VIRTIO_ID_BALLOON,	"Balloon"	},
-	{ VIRTIO_ID_IOMEMORY,	"IOMemory"	},
-	{ VIRTIO_ID_SCSI,	"SCSI"		},
-	{ VIRTIO_ID_9P,		"9P Transport"	},
+	{ VIRTIO_ID_NETWORK,		"Network"			},
+	{ VIRTIO_ID_BLOCK,		"Block"				},
+	{ VIRTIO_ID_CONSOLE,		"Console"			},
+	{ VIRTIO_ID_ENTROPY,		"Entropy"			},
+	{ VIRTIO_ID_BALLOON,		"Balloon"			},
+	{ VIRTIO_ID_IOMEMORY,		"IOMemory"			},
+	{ VIRTIO_ID_RPMSG,		"Remote Processor Messaging" 	},
+	{ VIRTIO_ID_SCSI,		"SCSI"				},
+	{ VIRTIO_ID_9P,			"9P Transport"			},
+	{ VIRTIO_ID_RPROC_SERIAL,	"Remote Processor Serial"	},
+	{ VIRTIO_ID_CAIF,		"CAIF"				},
+	{ VIRTIO_ID_GPU,		"GPU"				},
+	{ VIRTIO_ID_INPUT,		"Input" 			},
+	{ VIRTIO_ID_VSOCK,		"VSOCK Transport" 		},
+	{ VIRTIO_ID_CRYPTO,		"Crypto" 			},
 
 	{ 0, NULL }
 };
@@ -229,6 +238,13 @@ virtio_reinit_complete(device_t dev)
 {
 
 	VIRTIO_BUS_REINIT_COMPLETE(device_get_parent(dev));
+}
+
+int
+virtio_config_generation(device_t dev)
+{
+
+	return (VIRTIO_BUS_CONFIG_GENERATION(device_get_parent(dev)));
 }
 
 void

@@ -9,6 +9,7 @@
 
 
 #include "less.h"
+#include "position.h"
 
 extern IFILE curr_ifile;
 extern int sc_height;
@@ -86,7 +87,7 @@ getmark(c)
 		}
 		m = &sm;
 		m->m_scrpos.pos = ch_tell();
-		m->m_scrpos.ln = sc_height-1;
+		m->m_scrpos.ln = sc_height;
 		m->m_ifile = curr_ifile;
 		break;
 	case '.':
@@ -94,7 +95,7 @@ getmark(c)
 		 * Current position in the current file.
 		 */
 		m = &sm;
-		get_scrpos(&m->m_scrpos);
+		get_scrpos(&m->m_scrpos, TOP);
 		m->m_ifile = curr_ifile;
 		break;
 	case '\'':
@@ -134,8 +135,9 @@ badmark(c)
  * Set a user-defined mark.
  */
 	public void
-setmark(c)
+setmark(c, where)
 	int c;
+	int where;
 {
 	struct mark *m;
 	struct scrpos scrpos;
@@ -143,9 +145,24 @@ setmark(c)
 	m = getumark(c);
 	if (m == NULL)
 		return;
-	get_scrpos(&scrpos);
+	get_scrpos(&scrpos, where);
 	m->m_scrpos = scrpos;
 	m->m_ifile = curr_ifile;
+}
+
+/*
+ * Clear a user-defined mark.
+ */
+	public void
+clrmark(c)
+	int c;
+{
+	struct mark *m;
+
+	m = getumark(c);
+	if (m == NULL)
+		return;
+	m->m_scrpos.pos = NULL_POSITION;
 }
 
 /*
@@ -158,7 +175,7 @@ lastmark()
 
 	if (ch_getflags() & CH_HELPFILE)
 		return;
-	get_scrpos(&scrpos);
+	get_scrpos(&scrpos, TOP);
 	if (scrpos.pos == NULL_POSITION)
 		return;
 	marks[LASTMARK].m_scrpos = scrpos;
@@ -232,6 +249,27 @@ markpos(c)
 		return (NULL_POSITION);
 	}
 	return (m->m_scrpos.pos);
+}
+
+/*
+ * Return the mark associated with a given position, if any.
+ */
+	public char
+posmark(pos)
+	POSITION pos;
+{
+	int i;
+
+	/* Only lower case and upper case letters */
+	for (i = 0;  i < 26*2;  i++)
+	{
+		if (marks[i].m_ifile == curr_ifile && marks[i].m_scrpos.pos == pos)
+		{
+			if (i < 26) return 'a' + i;
+			return 'A' + i - 26;
+		}
+	}
+	return 0;
 }
 
 /*

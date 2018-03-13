@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Rick Macklem, University of Guelph
  * All rights reserved.
  *
@@ -232,16 +234,16 @@ nfscl_open(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t amode, int usedeleg,
 	 * Might need one or both of these, so MALLOC them now, to
 	 * avoid a tsleep() in MALLOC later.
 	 */
-	MALLOC(nowp, struct nfsclowner *, sizeof (struct nfsclowner),
+	nowp = malloc(sizeof (struct nfsclowner),
 	    M_NFSCLOWNER, M_WAITOK);
 	if (nfhp != NULL)
-	    MALLOC(nop, struct nfsclopen *, sizeof (struct nfsclopen) +
+	    nop = malloc(sizeof (struct nfsclopen) +
 		fhlen - 1, M_NFSCLOPEN, M_WAITOK);
 	ret = nfscl_getcl(vnode_mount(vp), cred, p, 1, &clp);
 	if (ret != 0) {
-		FREE((caddr_t)nowp, M_NFSCLOWNER);
+		free(nowp, M_NFSCLOWNER);
 		if (nop != NULL)
-			FREE((caddr_t)nop, M_NFSCLOPEN);
+			free(nop, M_NFSCLOPEN);
 		return (ret);
 	}
 
@@ -329,9 +331,9 @@ nfscl_open(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t amode, int usedeleg,
 	}
 	NFSUNLOCKCLSTATE();
 	if (nowp != NULL)
-		FREE((caddr_t)nowp, M_NFSCLOWNER);
+		free(nowp, M_NFSCLOWNER);
 	if (nop != NULL)
-		FREE((caddr_t)nop, M_NFSCLOPEN);
+		free(nop, M_NFSCLOPEN);
 	if (owpp != NULL)
 		*owpp = owp;
 	if (opp != NULL)
@@ -438,7 +440,7 @@ nfscl_deleg(mount_t mp, struct nfsclclient *clp, u_int8_t *nfhp,
 	if (mp != NULL && dp != NULL && !NFSMNT_RDONLY(mp) &&
 	    (dp->nfsdl_flags & NFSCLDL_READ)) {
 		(void) nfscl_trydelegreturn(dp, cred, VFSTONFS(mp), p);
-		FREE((caddr_t)dp, M_NFSCLDELEG);
+		free(dp, M_NFSCLDELEG);
 		*dpp = NULL;
 		return (0);
 	}
@@ -464,7 +466,7 @@ nfscl_deleg(mount_t mp, struct nfsclclient *clp, u_int8_t *nfhp,
 		 */
 		if (dp != NULL) {
 			printf("Deleg already exists!\n");
-			FREE((caddr_t)dp, M_NFSCLDELEG);
+			free(dp, M_NFSCLDELEG);
 			*dpp = NULL;
 		} else {
 			*dpp = tdp;
@@ -793,7 +795,7 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 			idlen += sizeof (u_int64_t);
 		else
 			idlen += sizeof (u_int64_t) + 16; /* 16 random bytes */
-		MALLOC(newclp, struct nfsclclient *,
+		newclp = malloc(
 		    sizeof (struct nfsclclient) + idlen - 1, M_NFSCLCLIENT,
 		    M_WAITOK | M_ZERO);
 	}
@@ -1010,11 +1012,11 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 	 * Might need these, so MALLOC them now, to
 	 * avoid a tsleep() in MALLOC later.
 	 */
-	MALLOC(nlp, struct nfscllockowner *,
+	nlp = malloc(
 	    sizeof (struct nfscllockowner), M_NFSCLLOCKOWNER, M_WAITOK);
-	MALLOC(otherlop, struct nfscllock *,
+	otherlop = malloc(
 	    sizeof (struct nfscllock), M_NFSCLLOCK, M_WAITOK);
-	MALLOC(nlop, struct nfscllock *,
+	nlop = malloc(
 	    sizeof (struct nfscllock), M_NFSCLLOCK, M_WAITOK);
 	nlop->nfslo_type = type;
 	nlop->nfslo_first = off;
@@ -1033,9 +1035,9 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 			error = nfscl_getcl(vnode_mount(vp), cred, p, 1, &clp);
 	}
 	if (error) {
-		FREE((caddr_t)nlp, M_NFSCLLOCKOWNER);
-		FREE((caddr_t)otherlop, M_NFSCLLOCK);
-		FREE((caddr_t)nlop, M_NFSCLLOCK);
+		free(nlp, M_NFSCLLOCKOWNER);
+		free(otherlop, M_NFSCLLOCK);
+		free(nlop, M_NFSCLLOCK);
 		return (error);
 	}
 
@@ -1104,9 +1106,9 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 			nfscl_clrelease(clp);
 			NFSUNLOCKCLSTATE();
 		}
-		FREE((caddr_t)nlp, M_NFSCLLOCKOWNER);
-		FREE((caddr_t)otherlop, M_NFSCLLOCK);
-		FREE((caddr_t)nlop, M_NFSCLLOCK);
+		free(nlp, M_NFSCLLOCKOWNER);
+		free(otherlop, M_NFSCLLOCK);
+		free(nlop, M_NFSCLLOCK);
 		return (error);
 	}
 
@@ -1166,11 +1168,11 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 		NFSUNLOCKCLSTATE();
 
 	if (nlp)
-		FREE((caddr_t)nlp, M_NFSCLLOCKOWNER);
+		free(nlp, M_NFSCLLOCKOWNER);
 	if (nlop)
-		FREE((caddr_t)nlop, M_NFSCLLOCK);
+		free(nlop, M_NFSCLLOCK);
 	if (otherlop)
-		FREE((caddr_t)otherlop, M_NFSCLLOCK);
+		free(otherlop, M_NFSCLLOCK);
 
 	*lpp = lp;
 	return (0);
@@ -1202,7 +1204,7 @@ nfscl_relbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 	 * Might need these, so MALLOC them now, to
 	 * avoid a tsleep() in MALLOC later.
 	 */
-	MALLOC(nlop, struct nfscllock *,
+	nlop = malloc(
 	    sizeof (struct nfscllock), M_NFSCLLOCK, M_WAITOK);
 	nlop->nfslo_type = F_UNLCK;
 	nlop->nfslo_first = off;
@@ -1211,12 +1213,12 @@ nfscl_relbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 	} else {
 		nlop->nfslo_end = off + len;
 		if (nlop->nfslo_end <= nlop->nfslo_first) {
-			FREE((caddr_t)nlop, M_NFSCLLOCK);
+			free(nlop, M_NFSCLLOCK);
 			return (NFSERR_INVAL);
 		}
 	}
 	if (callcnt == 0) {
-		MALLOC(other_lop, struct nfscllock *,
+		other_lop = malloc(
 		    sizeof (struct nfscllock), M_NFSCLLOCK, M_WAITOK);
 		*other_lop = *nlop;
 	}
@@ -1282,9 +1284,9 @@ nfscl_relbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 	}
 	NFSUNLOCKCLSTATE();
 	if (nlop)
-		FREE((caddr_t)nlop, M_NFSCLLOCK);
+		free(nlop, M_NFSCLLOCK);
 	if (other_lop)
-		FREE((caddr_t)other_lop, M_NFSCLLOCK);
+		free(other_lop, M_NFSCLLOCK);
 	return (0);
 }
 
@@ -1462,7 +1464,7 @@ nfscl_freeopen(struct nfsclopen *op, int local)
 
 	LIST_REMOVE(op, nfso_list);
 	nfscl_freealllocks(&op->nfso_lock, local);
-	FREE((caddr_t)op, M_NFSCLOPEN);
+	free(op, M_NFSCLOPEN);
 	if (local)
 		nfsstatsv1.cllocalopens--;
 	else
@@ -1518,7 +1520,7 @@ nfscl_expireopen(struct nfsclclient *clp, struct nfsclopen *op,
 		if (error) {
 			mustdelete = 1;
 			if (dp != NULL) {
-				FREE((caddr_t)dp, M_NFSCLDELEG);
+				free(dp, M_NFSCLDELEG);
 				dp = NULL;
 			}
 		}
@@ -1543,7 +1545,7 @@ nfscl_freeopenowner(struct nfsclowner *owp, int local)
 {
 
 	LIST_REMOVE(owp, nfsow_list);
-	FREE((caddr_t)owp, M_NFSCLOWNER);
+	free(owp, M_NFSCLOWNER);
 	if (local)
 		nfsstatsv1.cllocalopenowners--;
 	else
@@ -1562,7 +1564,7 @@ nfscl_freelockowner(struct nfscllockowner *lp, int local)
 	LIST_FOREACH_SAFE(lop, &lp->nfsl_lock, nfslo_list, nlop) {
 		nfscl_freelock(lop, local);
 	}
-	FREE((caddr_t)lp, M_NFSCLLOCKOWNER);
+	free(lp, M_NFSCLLOCKOWNER);
 	if (local)
 		nfsstatsv1.cllocallockowners--;
 	else
@@ -1577,7 +1579,7 @@ nfscl_freelock(struct nfscllock *lop, int local)
 {
 
 	LIST_REMOVE(lop, nfslo_list);
-	FREE((caddr_t)lop, M_NFSCLLOCK);
+	free(lop, M_NFSCLLOCK);
 	if (local)
 		nfsstatsv1.cllocallocks--;
 	else
@@ -1614,7 +1616,7 @@ nfscl_freedeleg(struct nfscldeleghead *hdp, struct nfscldeleg *dp)
 
 	TAILQ_REMOVE(hdp, dp, nfsdl_list);
 	LIST_REMOVE(dp, nfsdl_hash);
-	FREE((caddr_t)dp, M_NFSCLDELEG);
+	free(dp, M_NFSCLDELEG);
 	nfsstatsv1.cldelegates--;
 	nfscl_delegcnt--;
 }
@@ -2102,7 +2104,7 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 				    dp->nfsdl_flags &= ~NFSCLDL_NEEDRECLAIM;
 				    if ((ndp->nfsdl_flags & NFSCLDL_RECALL))
 					dp->nfsdl_flags |= NFSCLDL_RECALL;
-				    FREE((caddr_t)ndp, M_NFSCLDELEG);
+				    free(ndp, M_NFSCLDELEG);
 				    ndp = NULL;
 				    break;
 				}
@@ -2158,7 +2160,7 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 	    ndp = TAILQ_NEXT(dp, nfsdl_list);
 	    if ((dp->nfsdl_flags & NFSCLDL_NEEDRECLAIM)) {
 		if (nowp == NULL) {
-		    MALLOC(nowp, struct nfsclowner *,
+		    nowp = malloc(
 			sizeof (struct nfsclowner), M_NFSCLOWNER, M_WAITOK);
 		    /*
 		     * Name must be as long an largest possible
@@ -2174,7 +2176,7 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 		}
 		nop = NULL;
 		if (error != NFSERR_NOGRACE && error != NFSERR_BADSESSION) {
-		    MALLOC(nop, struct nfsclopen *, sizeof (struct nfsclopen) +
+		    nop = malloc(sizeof (struct nfsclopen) +
 			dp->nfsdl_fhlen - 1, M_NFSCLOPEN, M_WAITOK);
 		    nop->nfso_own = nowp;
 		    if ((dp->nfsdl_flags & NFSCLDL_WRITE)) {
@@ -2216,7 +2218,7 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 			    dp->nfsdl_flags &= ~NFSCLDL_NEEDRECLAIM;
 			    if ((tdp->nfsdl_flags & NFSCLDL_RECALL))
 				dp->nfsdl_flags |= NFSCLDL_RECALL;
-			    FREE((caddr_t)tdp, M_NFSCLDELEG);
+			    free(tdp, M_NFSCLDELEG);
 			} else {
 			    TAILQ_INSERT_HEAD(&extra_deleg, tdp, nfsdl_list);
 			}
@@ -2224,7 +2226,7 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 		}
 		if (error) {
 		    if (nop != NULL)
-			FREE((caddr_t)nop, M_NFSCLOPEN);
+			free(nop, M_NFSCLOPEN);
 		    /*
 		     * Couldn't reclaim it, so throw the state
 		     * away. Ouch!!
@@ -2249,10 +2251,10 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 				(void) nfs_catnap(PZERO, error, "nfsexcls");
 		} while (error == NFSERR_GRACE);
 		LIST_REMOVE(op, nfso_list);
-		FREE((caddr_t)op, M_NFSCLOPEN);
+		free(op, M_NFSCLOPEN);
 	}
 	if (nowp != NULL)
-		FREE((caddr_t)nowp, M_NFSCLOWNER);
+		free(nowp, M_NFSCLOWNER);
 
 	TAILQ_FOREACH_SAFE(dp, &extra_deleg, nfsdl_list, ndp) {
 		do {
@@ -2262,7 +2264,7 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 				(void) nfs_catnap(PZERO, error, "nfsexdlg");
 		} while (error == NFSERR_GRACE);
 		TAILQ_REMOVE(&extra_deleg, dp, nfsdl_list);
-		FREE((caddr_t)dp, M_NFSCLDELEG);
+		free(dp, M_NFSCLDELEG);
 	}
 
 	/* For NFSv4.1 or later, do a RECLAIM_COMPLETE. */
@@ -2793,7 +2795,7 @@ tryagain2:
 			newnfs_copycred(&dp->nfsdl_cred, cred);
 			(void) nfscl_trydelegreturn(dp, cred, clp->nfsc_nmp, p);
 			TAILQ_REMOVE(&dh, dp, nfsdl_list);
-			FREE((caddr_t)dp, M_NFSCLDELEG);
+			free(dp, M_NFSCLDELEG);
 		}
 
 		SLIST_INIT(&lfh);
@@ -3367,7 +3369,7 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 			if (mp != NULL)
 				vfs_unbusy(mp);
 			if (nfhp != NULL)
-				FREE((caddr_t)nfhp, M_NFSFH);
+				free(nfhp, M_NFSFH);
 			if (!error)
 				(void) nfsv4_fillattr(nd, NULL, NULL, NULL, &va,
 				    NULL, 0, &rattrbits, NULL, p, 0, 0, 0, 0,
@@ -3407,7 +3409,7 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 				NFSUNLOCKCLSTATE();
 			}
 			if (nfhp != NULL)
-				FREE((caddr_t)nfhp, M_NFSFH);
+				free(nfhp, M_NFSFH);
 			break;
 		case NFSV4OP_CBLAYOUTRECALL:
 			NFSCL_DEBUG(4, "cblayrec\n");
@@ -3975,7 +3977,7 @@ nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
 			 * for it.
 			 */
 			if (owp == NULL) {
-				MALLOC(nowp, struct nfsclowner *,
+				nowp = malloc(
 				    sizeof (struct nfsclowner), M_NFSCLOWNER,
 				    M_WAITOK);
 				nfscl_newopen(clp, NULL, &owp, &nowp, &op, 
@@ -4058,7 +4060,7 @@ nfscl_moveopen(vnode_t vp, struct nfsclclient *clp, struct nfsmount *nmp,
 
 	/* No appropriate open, so we have to do one against the server. */
 	np = VTONFS(vp);
-	MALLOC(nop, struct nfsclopen *, sizeof (struct nfsclopen) +
+	nop = malloc(sizeof (struct nfsclopen) +
 	    lop->nfso_fhlen - 1, M_NFSCLOPEN, M_WAITOK);
 	newone = 0;
 	nfscl_newopen(clp, NULL, &owp, NULL, &op, &nop, owp->nfsow_owner,
@@ -4076,7 +4078,7 @@ nfscl_moveopen(vnode_t vp, struct nfsclclient *clp, struct nfsmount *nmp,
 		nfscl_freeopen(lop, 1);
 	}
 	if (nop != NULL)
-		FREE((caddr_t)nop, M_NFSCLOPEN);
+		free(nop, M_NFSCLOPEN);
 	if (ndp != NULL) {
 		/*
 		 * What should I do with the returned delegation, since the
@@ -4084,7 +4086,7 @@ nfscl_moveopen(vnode_t vp, struct nfsclclient *clp, struct nfsmount *nmp,
 		 * through it away.
 		 */
 		printf("Moveopen returned deleg\n");
-		FREE((caddr_t)ndp, M_NFSCLDELEG);
+		free(ndp, M_NFSCLDELEG);
 	}
 	return (error);
 }
@@ -4114,7 +4116,6 @@ nfscl_relock(vnode_t vp, struct nfsclclient *clp, struct nfsmount *nmp,
 	struct nfscllockowner *nlp;
 	struct nfsfh *nfhp;
 	u_int64_t off, len;
-	u_int32_t clidrev = 0;
 	int error, newone, donelocally;
 
 	off = lop->nfslo_first;
@@ -4124,10 +4125,6 @@ nfscl_relock(vnode_t vp, struct nfsclclient *clp, struct nfsmount *nmp,
 	    lp->nfsl_openowner, &nlp, &newone, &donelocally);
 	if (error || donelocally)
 		return (error);
-	if (nmp->nm_clp != NULL)
-		clidrev = nmp->nm_clp->nfsc_clientidrev;
-	else
-		clidrev = 0;
 	nfhp = VTONFS(vp)->n_fhp;
 	error = nfscl_trylock(nmp, vp, nfhp->nfh_fh,
 	    nfhp->nfh_len, nlp, newone, 0, off,
@@ -4783,7 +4780,7 @@ nfscl_errmap(struct nfsrv_descript *nd, u_int32_t minorvers)
  */
 APPLESTATIC int
 nfscl_layout(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
-    nfsv4stateid_t *stateidp, int retonclose,
+    nfsv4stateid_t *stateidp, int layouttype, int retonclose,
     struct nfsclflayouthead *fhlp, struct nfscllayout **lypp,
     struct ucred *cred, NFSPROC_T *p)
 {
@@ -4835,8 +4832,12 @@ nfscl_layout(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
 			lyp->nfsly_filesid[0] = np->n_vattr.na_filesid[0];
 			lyp->nfsly_filesid[1] = np->n_vattr.na_filesid[1];
 			lyp->nfsly_clp = clp;
-			lyp->nfsly_flags = (retonclose != 0) ?
-			    (NFSLY_FILES | NFSLY_RETONCLOSE) : NFSLY_FILES;
+			if (layouttype == NFSLAYOUT_FLEXFILE)
+				lyp->nfsly_flags = NFSLY_FLEXFILE;
+			else
+				lyp->nfsly_flags = NFSLY_FILES;
+			if (retonclose != 0)
+				lyp->nfsly_flags |= NFSLY_RETONCLOSE;
 			lyp->nfsly_fhlen = fhlen;
 			NFSBCOPY(fhp, lyp->nfsly_fh, fhlen);
 			TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
@@ -5079,6 +5080,7 @@ nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip,
 {
 	struct nfsclclient *clp;
 	struct nfscldevinfo *tdip;
+	uint8_t *dev;
 
 	NFSLOCKCLSTATE();
 	clp = nmp->nm_clp;
@@ -5088,7 +5090,11 @@ nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip,
 			free(dip, M_NFSDEVINFO);
 		return (ENODEV);
 	}
-	tdip = nfscl_finddevinfo(clp, flp->nfsfl_dev);
+	if ((flp->nfsfl_flags & NFSFL_FILE) != 0)
+		dev = flp->nfsfl_dev;
+	else
+		dev = flp->nfsfl_ffm[0].dev;
+	tdip = nfscl_finddevinfo(clp, dev);
 	if (tdip != NULL) {
 		tdip->nfsdi_layoutrefs++;
 		flp->nfsfl_devp = tdip;
@@ -5140,10 +5146,15 @@ nfscl_freelayout(struct nfscllayout *layp)
 APPLESTATIC void
 nfscl_freeflayout(struct nfsclflayout *flp)
 {
-	int i;
+	int i, j;
 
-	for (i = 0; i < flp->nfsfl_fhcnt; i++)
-		free(flp->nfsfl_fh[i], M_NFSFH);
+	if ((flp->nfsfl_flags & NFSFL_FILE) != 0)
+		for (i = 0; i < flp->nfsfl_fhcnt; i++)
+			free(flp->nfsfl_fh[i], M_NFSFH);
+	if ((flp->nfsfl_flags & NFSFL_FLEXFILE) != 0)
+		for (i = 0; i < flp->nfsfl_mirrorcnt; i++)
+			for (j = 0; j < flp->nfsfl_ffm[i].fhcnt; j++)
+				free(flp->nfsfl_ffm[i].fh[j], M_NFSFH);
 	if (flp->nfsfl_devp != NULL)
 		flp->nfsfl_devp->nfsdi_layoutrefs--;
 	free(flp, M_NFSFLAYOUT);
@@ -5235,12 +5246,17 @@ nfscl_layoutreturn(struct nfsmount *nmp, struct nfscllayout *lyp,
 {
 	struct nfsclrecalllayout *rp;
 	nfsv4stateid_t stateid;
+	int layouttype;
 
 	NFSBCOPY(lyp->nfsly_stateid.other, stateid.other, NFSX_STATEIDOTHER);
 	stateid.seqid = lyp->nfsly_stateid.seqid;
+	if ((lyp->nfsly_flags & NFSLY_FILES) != 0)
+		layouttype = NFSLAYOUT_NFSV4_1_FILES;
+	else
+		layouttype = NFSLAYOUT_FLEXFILE;
 	LIST_FOREACH(rp, &lyp->nfsly_recall, nfsrecly_list) {
 		(void)nfsrpc_layoutreturn(nmp, lyp->nfsly_fh,
-		    lyp->nfsly_fhlen, 0, NFSLAYOUT_NFSV4_1_FILES,
+		    lyp->nfsly_fhlen, 0, layouttype,
 		    rp->nfsrecly_iomode, rp->nfsrecly_recalltype,
 		    rp->nfsrecly_off, rp->nfsrecly_len,
 		    &stateid, cred, p, NULL);
@@ -5256,15 +5272,27 @@ nfscl_dolayoutcommit(struct nfsmount *nmp, struct nfscllayout *lyp,
 {
 	struct nfsclflayout *flp;
 	uint64_t len;
-	int error;
+	int error, layouttype;
 
+	if ((lyp->nfsly_flags & NFSLY_FILES) != 0)
+		layouttype = NFSLAYOUT_NFSV4_1_FILES;
+	else
+		layouttype = NFSLAYOUT_FLEXFILE;
 	LIST_FOREACH(flp, &lyp->nfsly_flayrw, nfsfl_list) {
-		if (flp->nfsfl_off <= lyp->nfsly_lastbyte) {
+		if (layouttype == NFSLAYOUT_FLEXFILE &&
+		    (flp->nfsfl_fflags & NFSFLEXFLAG_NO_LAYOUTCOMMIT) != 0) {
+			NFSCL_DEBUG(4, "Flex file: no layoutcommit\n");
+			/* If not supported, don't bother doing it. */
+			NFSLOCKMNT(nmp);
+			nmp->nm_state |= NFSSTA_NOLAYOUTCOMMIT;
+			NFSUNLOCKMNT(nmp);
+			break;
+		} else if (flp->nfsfl_off <= lyp->nfsly_lastbyte) {
 			len = flp->nfsfl_end - flp->nfsfl_off;
 			error = nfsrpc_layoutcommit(nmp, lyp->nfsly_fh,
 			    lyp->nfsly_fhlen, 0, flp->nfsfl_off, len,
 			    lyp->nfsly_lastbyte, &lyp->nfsly_stateid,
-			    NFSLAYOUT_NFSV4_1_FILES, cred, p, NULL);
+			    layouttype, cred, p, NULL);
 			NFSCL_DEBUG(4, "layoutcommit err=%d\n", error);
 			if (error == NFSERR_NOTSUPP) {
 				/* If not supported, don't bother doing it. */

@@ -76,6 +76,11 @@ __FBSDID("$FreeBSD$");
 
 FEATURE(security_mac, "Mandatory Access Control Framework support");
 
+static int	kern___mac_get_path(struct thread *td, const char *path_p,
+		    struct mac *mac_p, int follow);
+static int	kern___mac_set_path(struct thread *td, const char *path_p,
+		    struct mac *mac_p, int follow);
+
 int
 sys___mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 {
@@ -230,7 +235,6 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	struct pipe *pipe;
 	struct socket *so;
 	cap_rights_t rights;
-	short label_type;
 	int error;
 
 	error = copyin(uap->mac_p, &mac, sizeof(mac));
@@ -253,7 +257,6 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	if (error)
 		goto out;
 
-	label_type = fp->f_type;
 	switch (fp->f_type) {
 	case DTYPE_FIFO:
 	case DTYPE_VNODE:
@@ -317,56 +320,20 @@ out:
 int
 sys___mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
 {
-	char *elements, *buffer;
-	struct nameidata nd;
-	struct label *intlabel;
-	struct mac mac;
-	int error;
 
-	if (!(mac_labeled & MPC_OBJECT_VNODE))
-		return (EINVAL);
-
-	error = copyin(uap->mac_p, &mac, sizeof(mac));
-	if (error)
-		return (error);
-
-	error = mac_check_structmac_consistent(&mac);
-	if (error)
-		return (error);
-
-	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
-	if (error) {
-		free(elements, M_MACTEMP);
-		return (error);
-	}
-
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_USERSPACE,
-	    uap->path_p, td);
-	error = namei(&nd);
-	if (error)
-		goto out;
-
-	intlabel = mac_vnode_label_alloc();
-	mac_vnode_copy_label(nd.ni_vp->v_label, intlabel);
-	error = mac_vnode_externalize_label(intlabel, elements, buffer,
-	    mac.m_buflen);
-
-	NDFREE(&nd, 0);
-	mac_vnode_label_free(intlabel);
-	if (error == 0)
-		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
-
-out:
-	free(buffer, M_MACTEMP);
-	free(elements, M_MACTEMP);
-
-	return (error);
+	return (kern___mac_get_path(td, uap->path_p, uap->mac_p, FOLLOW));
 }
 
 int
 sys___mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
+{
+
+	return (kern___mac_get_path(td, uap->path_p, uap->mac_p, NOFOLLOW));
+}
+
+static int
+kern___mac_get_path(struct thread *td, const char *path_p, struct mac *mac_p,
+   int follow)
 {
 	char *elements, *buffer;
 	struct nameidata nd;
@@ -377,7 +344,7 @@ sys___mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
 	if (!(mac_labeled & MPC_OBJECT_VNODE))
 		return (EINVAL);
 
-	error = copyin(uap->mac_p, &mac, sizeof(mac));
+	error = copyin(mac_p, &mac, sizeof(mac));
 	if (error)
 		return (error);
 
@@ -393,8 +360,7 @@ sys___mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
 	}
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-	NDINIT(&nd, LOOKUP, LOCKLEAF | NOFOLLOW, UIO_USERSPACE,
-	    uap->path_p, td);
+	NDINIT(&nd, LOOKUP, LOCKLEAF | follow, UIO_USERSPACE, path_p, td);
 	error = namei(&nd);
 	if (error)
 		goto out;
@@ -520,57 +486,20 @@ out:
 int
 sys___mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
 {
-	struct label *intlabel;
-	struct nameidata nd;
-	struct mount *mp;
-	struct mac mac;
-	char *buffer;
-	int error;
 
-	if (!(mac_labeled & MPC_OBJECT_VNODE))
-		return (EINVAL);
-
-	error = copyin(uap->mac_p, &mac, sizeof(mac));
-	if (error)
-		return (error);
-
-	error = mac_check_structmac_consistent(&mac);
-	if (error)
-		return (error);
-
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
-	if (error) {
-		free(buffer, M_MACTEMP);
-		return (error);
-	}
-
-	intlabel = mac_vnode_label_alloc();
-	error = mac_vnode_internalize_label(intlabel, buffer);
-	free(buffer, M_MACTEMP);
-	if (error)
-		goto out;
-
-	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_USERSPACE,
-	    uap->path_p, td);
-	error = namei(&nd);
-	if (error == 0) {
-		error = vn_start_write(nd.ni_vp, &mp, V_WAIT | PCATCH);
-		if (error == 0) {
-			error = vn_setlabel(nd.ni_vp, intlabel,
-			    td->td_ucred);
-			vn_finished_write(mp);
-		}
-	}
-
-	NDFREE(&nd, 0);
-out:
-	mac_vnode_label_free(intlabel);
-	return (error);
+	return (kern___mac_set_path(td, uap->path_p, uap->mac_p, FOLLOW));
 }
 
 int
 sys___mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
+{
+
+	return (kern___mac_set_path(td, uap->path_p, uap->mac_p, NOFOLLOW));
+}
+
+static int
+kern___mac_set_path(struct thread *td, const char *path_p, struct mac *mac_p,
+    int follow)
 {
 	struct label *intlabel;
 	struct nameidata nd;
@@ -582,7 +511,7 @@ sys___mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
 	if (!(mac_labeled & MPC_OBJECT_VNODE))
 		return (EINVAL);
 
-	error = copyin(uap->mac_p, &mac, sizeof(mac));
+	error = copyin(mac_p, &mac, sizeof(mac));
 	if (error)
 		return (error);
 
@@ -603,8 +532,7 @@ sys___mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
 	if (error)
 		goto out;
 
-	NDINIT(&nd, LOOKUP, LOCKLEAF | NOFOLLOW, UIO_USERSPACE,
-	    uap->path_p, td);
+	NDINIT(&nd, LOOKUP, LOCKLEAF | follow, UIO_USERSPACE, path_p, td);
 	error = namei(&nd);
 	if (error == 0) {
 		error = vn_start_write(nd.ni_vp, &mp, V_WAIT | PCATCH);

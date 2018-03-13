@@ -170,6 +170,7 @@
 #define	VIRT_IN_DMAP(va)	((va) >= DMAP_MIN_ADDRESS && \
     (va) < (dmap_max_addr))
 
+#define	PMAP_HAS_DMAP	1
 #define	PHYS_TO_DMAP(pa)						\
 ({									\
 	KASSERT(PHYS_IN_DMAP(pa),					\

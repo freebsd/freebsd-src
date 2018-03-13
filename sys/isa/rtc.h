@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -112,7 +114,6 @@
 #define	RTC_CENTURY	0x32	/* current century */
 
 #ifdef _KERNEL
-extern  struct mtx clock_lock;
 extern  struct mtx atrtc_time_lock;
 extern	int atrtcclock_disable;
 int	rtcin(int reg);

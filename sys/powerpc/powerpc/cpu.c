@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Matt Thomas.
  * Copyright (c) 2001 Tsubai Masanari.
  * Copyright (c) 1998, 1999, 2001 Internet Research Institute, Inc.
@@ -66,6 +68,8 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
+#include <sys/sched.h>
+#include <sys/smp.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
@@ -79,11 +83,15 @@
 static void	cpu_6xx_setup(int cpuid, uint16_t vers);
 static void	cpu_970_setup(int cpuid, uint16_t vers);
 static void	cpu_booke_setup(int cpuid, uint16_t vers);
+static void	cpu_powerx_setup(int cpuid, uint16_t vers);
 
 int powerpc_pow_enabled;
 void (*cpu_idle_hook)(sbintime_t) = NULL;
 static void	cpu_idle_60x(sbintime_t);
 static void	cpu_idle_booke(sbintime_t);
+#if defined(__powerpc64__) && defined(AIM)
+static void	cpu_idle_powerx(sbintime_t);
+#endif
 
 struct cputab {
 	const char	*name;
@@ -153,13 +161,19 @@ static const struct cputab models[] = {
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
 	   PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
 	   PPC_FEATURE_HAS_VSX,
-	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HAS_HTM |
-	   PPC_FEATURE2_HAS_VCRYPTO, NULL },
+	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HAS_HTM | PPC_FEATURE2_ISEL |
+	   PPC_FEATURE2_HAS_VCRYPTO, cpu_powerx_setup },
         { "IBM POWER8",		IBMPOWER8,	REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
 	   PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
 	   PPC_FEATURE_HAS_VSX,
-	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HAS_HTM |
+	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HAS_HTM | PPC_FEATURE2_ISEL |
+	   PPC_FEATURE2_HAS_VCRYPTO, cpu_powerx_setup },
+        { "IBM POWER9",		IBMPOWER9,	REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
+	   PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
+	   PPC_FEATURE_HAS_VSX,
+	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HAS_HTM | PPC_FEATURE2_ISEL |
 	   PPC_FEATURE2_HAS_VCRYPTO, NULL },
         { "Motorola PowerPC 7400",	MPC7400,	REVFMT_MAJMIN,
 	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
@@ -181,19 +195,20 @@ static const struct cputab models[] = {
 	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Freescale e500v1 core",	FSL_E500v1,	REVFMT_MAJMIN,
 	   PPC_FEATURE_BOOKE | PPC_FEATURE_HAS_SPE | PPC_FEATURE_HAS_EFP_SINGLE,
-	   0, cpu_booke_setup },
+	   PPC_FEATURE2_ISEL, cpu_booke_setup },
         { "Freescale e500v2 core",	FSL_E500v2,	REVFMT_MAJMIN,
 	   PPC_FEATURE_BOOKE | PPC_FEATURE_HAS_SPE |
-	   PPC_FEATURE_HAS_EFP_SINGLE | PPC_FEATURE_HAS_EFP_DOUBLE, 0,
-	   cpu_booke_setup },
+	   PPC_FEATURE_HAS_EFP_SINGLE | PPC_FEATURE_HAS_EFP_DOUBLE,
+	   PPC_FEATURE2_ISEL, cpu_booke_setup },
 	{ "Freescale e500mc core",	FSL_E500mc,	REVFMT_MAJMIN,
-	   PPC_FEATURE_BOOKE | PPC_FEATURE_HAS_FPU, 0, cpu_booke_setup },
-	{ "Freescale e5500 core",	FSL_E5500,	REVFMT_MAJMIN,
-	   PPC_FEATURE_BOOKE | PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, 0,
+	   PPC_FEATURE_BOOKE | PPC_FEATURE_HAS_FPU, PPC_FEATURE2_ISEL,
 	   cpu_booke_setup },
+	{ "Freescale e5500 core",	FSL_E5500,	REVFMT_MAJMIN,
+	   PPC_FEATURE_BOOKE | PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU,
+	   PPC_FEATURE2_ISEL, cpu_booke_setup },
 	{ "Freescale e6500 core",	FSL_E6500,	REVFMT_MAJMIN,
 	   PPC_FEATURE_BOOKE | PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC |
-	   PPC_FEATURE_HAS_FPU, 0, cpu_booke_setup },
+	   PPC_FEATURE_HAS_FPU, PPC_FEATURE2_ISEL, cpu_booke_setup },
         { "IBM Cell Broadband Engine",	IBMCELLBE,	REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
 	   PPC_FEATURE_SMT, 0, NULL},
@@ -546,7 +561,7 @@ cpu_booke_setup(int cpuid, uint16_t vers)
 	case FSL_E500v2:
 		/* Only e500v1/v2 support HID0 power management setup. */
 
-		/* Programe power-management mode. */
+		/* Program power-management mode. */
 		hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
 		hid0 |= HID0_DOZE;
 
@@ -599,6 +614,29 @@ cpu_970_setup(int cpuid, uint16_t vers)
 #endif
 
 	cpu_idle_hook = cpu_idle_60x;
+}
+
+static void
+cpu_powerx_setup(int cpuid, uint16_t vers)
+{
+
+#if defined(__powerpc64__) && defined(AIM)
+	if ((mfmsr() & PSL_HV) == 0)
+		return;
+
+	/* Configure power-saving */
+	switch (vers) {
+	case IBMPOWER8:
+	case IBMPOWER8E:
+		mtspr(SPR_LPCR, mfspr(SPR_LPCR) | LPCR_PECE_WAKESET);
+		isync();
+		break;
+	default:
+		return;
+	}
+
+	cpu_idle_hook = cpu_idle_powerx;
+#endif
 }
 
 static int
@@ -681,9 +719,59 @@ cpu_idle_60x(sbintime_t sbt)
 static void
 cpu_idle_booke(sbintime_t sbt)
 {
+	register_t msr;
+	uint16_t vers;
 
-#ifdef BOOKE_E500
-	platform_cpu_idle(PCPU_GET(cpuid));
+	msr = mfmsr();
+	vers = mfpvr() >> 16;
+
+#ifdef BOOKE
+	switch (vers) {
+	case FSL_E500mc:
+	case FSL_E5500:
+	case FSL_E6500:
+		/*
+		 * Base binutils doesn't know what the 'wait' instruction is, so
+		 * use the opcode encoding here.
+		 */
+		__asm __volatile(".long 0x7c00007c");
+		break;
+	default:
+		powerpc_sync();
+		mtmsr(msr | PSL_WE);
+		isync();
+		break;
+	}
 #endif
 }
 
+#if defined(__powerpc64__) && defined(AIM)
+static void
+cpu_idle_powerx(sbintime_t sbt)
+{
+
+	/* Sleeping when running on one cpu gives no advantages - avoid it */
+	if (smp_started == 0)
+		return;
+
+	spinlock_enter();
+	if (sched_runnable()) {
+		spinlock_exit();
+		return;
+	}
+
+	if (can_wakeup == 0)
+		can_wakeup = 1;
+	mb();
+
+	enter_idle_powerx();
+	spinlock_exit();
+}
+#endif
+
+int
+cpu_idle_wakeup(int cpu)
+{
+
+	return (0);
+}

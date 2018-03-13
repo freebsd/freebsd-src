@@ -38,7 +38,7 @@
 # token marks the end of a list.  The third column is the name to print in
 # error messages.
 
-temp=`/usr/bin/mktemp -t ka`
+temp=`mktemp -t ka`
 cat > $temp <<\!
 TEOF	1	end of file
 TNL	0	newline

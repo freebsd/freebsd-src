@@ -42,6 +42,7 @@
  * using our derived config, and record the results.
  */
 
+#include <aio.h>
 #include <ctype.h>
 #include <devid.h>
 #include <dirent.h>
@@ -239,9 +240,12 @@ add_config(libzfs_handle_t *hdl, pool_list_t *pl, const char *path,
 			free(ne);
 			return (-1);
 		}
+
 		ne->ne_guid = vdev_guid;
 		ne->ne_next = pl->names;
 		pl->names = ne;
+
+		nvlist_free(config);
 		return (0);
 	}
 
@@ -436,7 +440,8 @@ vdev_is_hole(uint64_t *hole_array, uint_t holes, uint_t id)
  * return to the user.
  */
 static nvlist_t *
-get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
+get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok,
+    nvlist_t *policy)
 {
 	pool_entry_t *pe;
 	vdev_entry_t *ve;
@@ -770,6 +775,12 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 			continue;
 		}
 
+		if (policy != NULL) {
+			if (nvlist_add_nvlist(config, ZPOOL_REWIND_POLICY,
+			    policy) != 0)
+				goto nomem;
+		}
+
 		if ((nvl = refresh_config(hdl, config)) == NULL) {
 			nvlist_free(config);
 			config = NULL;
@@ -912,6 +923,7 @@ zpool_read_label(int fd, nvlist_t **config)
 
 	free(label);
 	*config = NULL;
+	errno = ENOENT;
 	return (-1);
 }
 
@@ -919,13 +931,17 @@ zpool_read_label(int fd, nvlist_t **config)
  * Given a file descriptor, read the label information and return an nvlist
  * describing the configuration, if there is one.
  * returns the number of valid labels found
+ * If a label is found, returns it via config.  The caller is responsible for
+ * freeing it.
  */
 int
 zpool_read_all_labels(int fd, nvlist_t **config)
 {
 	struct stat64 statbuf;
+	struct aiocb aiocbs[VDEV_LABELS];
+	struct aiocb *aiocbps[VDEV_LABELS];
 	int l;
-	vdev_label_t *label;
+	vdev_phys_t *labels;
 	uint64_t state, txg, size;
 	int nlabels = 0;
 
@@ -935,19 +951,40 @@ zpool_read_all_labels(int fd, nvlist_t **config)
 		return (0);
 	size = P2ALIGN_TYPED(statbuf.st_size, sizeof (vdev_label_t), uint64_t);
 
-	if ((label = malloc(sizeof (vdev_label_t))) == NULL)
+	if ((labels = calloc(VDEV_LABELS, sizeof (vdev_phys_t))) == NULL)
 		return (0);
+
+	memset(aiocbs, 0, sizeof(aiocbs));
+	for (l = 0; l < VDEV_LABELS; l++) {
+		aiocbs[l].aio_fildes = fd;
+		aiocbs[l].aio_offset = label_offset(size, l) + VDEV_SKIP_SIZE;
+		aiocbs[l].aio_buf = &labels[l];
+		aiocbs[l].aio_nbytes = sizeof(vdev_phys_t);
+		aiocbs[l].aio_lio_opcode = LIO_READ;
+		aiocbps[l] = &aiocbs[l];
+	}
+
+	if (lio_listio(LIO_WAIT, aiocbps, VDEV_LABELS, NULL) != 0) {
+		if (errno == EAGAIN || errno == EINTR || errno == EIO) {
+			for (l = 0; l < VDEV_LABELS; l++) {
+				errno = 0;
+				int r = aio_error(&aiocbs[l]);
+				if (r != EINVAL)
+					(void)aio_return(&aiocbs[l]);
+			}
+		}
+		free(labels);
+		return (0);
+	}
 
 	for (l = 0; l < VDEV_LABELS; l++) {
 		nvlist_t *temp = NULL;
 
-		/* TODO: use aio_read so we can read al 4 labels in parallel */
-		if (pread64(fd, label, sizeof (vdev_label_t),
-		    label_offset(size, l)) != sizeof (vdev_label_t))
+		if (aio_return(&aiocbs[l]) != sizeof(vdev_phys_t))
 			continue;
 
-		if (nvlist_unpack(label->vl_vdev_phys.vp_nvlist,
-		    sizeof (label->vl_vdev_phys.vp_nvlist), &temp, 0) != 0)
+		if (nvlist_unpack(labels[l].vp_nvlist,
+		    sizeof (labels[l].vp_nvlist), &temp, 0) != 0)
 			continue;
 
 		if (nvlist_lookup_uint64(temp, ZPOOL_CONFIG_POOL_STATE,
@@ -970,7 +1007,7 @@ zpool_read_all_labels(int fd, nvlist_t **config)
 		nlabels++;
 	}
 
-	free(label);
+	free(labels);
 	return (nlabels);
 }
 
@@ -1383,7 +1420,7 @@ skipdir:
 			goto error;
 	}
 
-	ret = get_configs(hdl, &pools, iarg->can_be_active);
+	ret = get_configs(hdl, &pools, iarg->can_be_active, iarg->policy);
 
 error:
 	for (pe = pools.pools; pe != NULL; pe = penext) {
@@ -1512,6 +1549,14 @@ zpool_find_import_cached(libzfs_handle_t *hdl, const char *cachefile,
 
 		if (active)
 			continue;
+
+		if (nvlist_add_string(src, ZPOOL_CONFIG_CACHEFILE,
+		    cachefile) != 0) {
+			(void) no_memory(hdl);
+			nvlist_free(raw);
+			nvlist_free(pools);
+			return (NULL);
+		}
 
 		if ((dst = refresh_config(hdl, src)) == NULL) {
 			nvlist_free(raw);

@@ -835,7 +835,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 }
 
 int
-archive_write_disk_set_skip_file(struct archive *_a, int64_t d, int64_t i)
+archive_write_disk_set_skip_file(struct archive *_a, la_int64_t d, la_int64_t i)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
@@ -1786,7 +1786,7 @@ finish_metadata:
 int
 archive_write_disk_set_group_lookup(struct archive *_a,
     void *private_data,
-    int64_t (*lookup_gid)(void *private, const char *gname, int64_t gid),
+    la_int64_t (*lookup_gid)(void *private, const char *gname, la_int64_t gid),
     void (*cleanup_gid)(void *private))
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
@@ -1822,7 +1822,7 @@ archive_write_disk_set_user_lookup(struct archive *_a,
 }
 
 int64_t
-archive_write_disk_gid(struct archive *_a, const char *name, int64_t id)
+archive_write_disk_gid(struct archive *_a, const char *name, la_int64_t id)
 {
        struct archive_write_disk *a = (struct archive_write_disk *)_a;
        archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
@@ -1833,7 +1833,7 @@ archive_write_disk_gid(struct archive *_a, const char *name, int64_t id)
 }
  
 int64_t
-archive_write_disk_uid(struct archive *_a, const char *name, int64_t id)
+archive_write_disk_uid(struct archive *_a, const char *name, la_int64_t id)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
@@ -1981,6 +1981,10 @@ restore_entry(struct archive_write_disk *a)
 	if ((en == EISDIR || en == EEXIST)
 	    && (a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
 		/* If we're not overwriting, we're done. */
+		if (S_ISDIR(a->mode)) {
+			/* Don't overwrite any settings on existing directories. */
+			a->todo = 0;
+		}
 		archive_entry_unset_size(a->entry);
 		return (ARCHIVE_OK);
 	}

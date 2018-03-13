@@ -108,16 +108,10 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 	    V_FW_IQ_CMD_VFN(0));
 	c.alloc_to_len16 = htobe32(F_FW_IQ_CMD_ALLOC | F_FW_IQ_CMD_IQSTART |
 	    FW_LEN16(c));
-	if (vi->flags & INTR_RXQ) {
-		KASSERT(nm_rxq->intr_idx < sc->intr_count,
-		    ("%s: invalid direct intr_idx %d", __func__,
-		    nm_rxq->intr_idx));
-		v = V_FW_IQ_CMD_IQANDSTINDEX(nm_rxq->intr_idx);
-	} else {
-		CXGBE_UNIMPLEMENTED(__func__);	/* XXXNM: needs review */
-		v = V_FW_IQ_CMD_IQANDSTINDEX(nm_rxq->intr_idx) |
-		    F_FW_IQ_CMD_IQANDST;
-	}
+	MPASS(!forwarding_intr_to_fwq(sc));
+	KASSERT(nm_rxq->intr_idx < sc->intr_count,
+	    ("%s: invalid direct intr_idx %d", __func__, nm_rxq->intr_idx));
+	v = V_FW_IQ_CMD_IQANDSTINDEX(nm_rxq->intr_idx);
 	c.type_to_iqandstindex = htobe32(v |
 	    V_FW_IQ_CMD_TYPE(FW_IQ_TYPE_FL_INT_CAP) |
 	    V_FW_IQ_CMD_VIID(vi->viid) |
@@ -980,7 +974,7 @@ t4_nm_intr(void *arg)
 			case CPL_RX_PKT:
 				ring->slot[fl_cidx].len = G_RSPD_LEN(lq) -
 				    sc->params.sge.fl_pktshift;
-				ring->slot[fl_cidx].flags = kring->nkr_slot_flags;
+				ring->slot[fl_cidx].flags = 0;
 				fl_cidx += (lq & F_RSPD_NEWBUF) ? 1 : 0;
 				fl_credits += (lq & F_RSPD_NEWBUF) ? 1 : 0;
 				if (__predict_false(fl_cidx == nm_rxq->fl_sidx))

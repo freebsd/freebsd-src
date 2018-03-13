@@ -41,6 +41,7 @@ int	psci_cpu_on(unsigned long, unsigned long, unsigned long);
 int	psci_hvc_despatch(register_t, register_t, register_t, register_t);
 int	psci_smc_despatch(register_t, register_t, register_t, register_t);
 
+int	psci_get_version(void);
 
 /*
  * PSCI return codes.

@@ -589,7 +589,7 @@ retry:
 		if (tries < 1) {
 			if (!vm_page_reclaim_contig(req, 1, 0, 0xffffffff,
 			    PAGE_SIZE, 0))
-				VM_WAIT;
+				vm_wait(NULL);
 			tries++;
 			goto retry;
 		}

@@ -1,6 +1,8 @@
 /*	$NetBSD: ieee8023ad_lacp.c,v 1.3 2005/12/11 12:24:54 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c)2005 YAMAMOTO Takashi,
  * Copyright (c)2008 Andrew Thompson <thompsa@FreeBSD.org>
  * All rights reserved.
@@ -199,8 +201,8 @@ SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, debug, CTLFLAG_RWTUN | CTLFLAG_VNET,
     &VNET_NAME(lacp_debug), 0, "Enable LACP debug logging (1=debug, 2=trace)");
 
 static VNET_DEFINE(int, lacp_default_strict_mode) = 1;
-SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, default_strict_mode, CTLFLAG_RWTUN,
-    &VNET_NAME(lacp_default_strict_mode), 0,
+SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, default_strict_mode,
+    CTLFLAG_RWTUN | CTLFLAG_VNET, &VNET_NAME(lacp_default_strict_mode), 0,
     "LACP strict protocol compliance default");
 
 #define LACP_DPRINTF(a) if (V_lacp_debug & 0x01) { lacp_dprintf a ; }

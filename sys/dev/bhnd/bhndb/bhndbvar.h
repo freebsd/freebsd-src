@@ -55,6 +55,8 @@
 
 DECLARE_CLASS(bhndb_driver);
 
+/* forward declarations */
+struct bhndb_intr_isrc;
 struct bhndb_resources;
 struct bhndb_host_resources;
 
@@ -82,9 +84,17 @@ int				 bhndb_find_hostb_core(
 				     bhnd_devclass_t bridge_devclass,
 				     struct bhnd_core_info *core);
 
-int				 bhndb_alloc_host_resources(device_t dev,
-				     const struct bhndb_hwcfg *hwcfg,
-				     struct bhndb_host_resources **resources);
+struct bhndb_intr_isrc		*bhndb_alloc_intr_isrc(device_t owner, int rid,
+				     rman_res_t start, rman_res_t end,
+				     rman_res_t count, u_int flags);
+void				 bhndb_free_intr_isrc(
+				     struct bhndb_intr_isrc *isrc);
+
+int				 bhndb_alloc_host_resources(
+				     struct bhndb_host_resources **resources,
+				     device_t dev, device_t parent_dev,
+				     const struct bhndb_hwcfg *hwcfg);
+
 void				 bhndb_release_host_resources(
 				     struct bhndb_host_resources *resources);
 struct resource			*bhndb_host_resource_for_range(
@@ -108,13 +118,15 @@ const struct bhndb_regwin	*bhndb_regwin_find_core(
 				     const struct bhndb_regwin *table,
 				     bhnd_devclass_t class, int unit,
 				     bhnd_port_type port_type, u_int port,
-				     u_int region);
+				     u_int region, bus_size_t offset,
+				     bus_size_t min_size);
 
 const struct bhndb_regwin	*bhndb_regwin_find_best(
 				     const struct bhndb_regwin *table,
 				     bhnd_devclass_t class, int unit,
 				     bhnd_port_type port_type, u_int port,
-				     u_int region, bus_size_t min_size);
+				     u_int region, bus_size_t offset,
+				     bus_size_t min_size);
 
 bool				 bhndb_regwin_match_core(
 				     const struct bhndb_regwin *regw,
@@ -137,6 +149,15 @@ struct bhndb_devinfo {
 };
 
 /**
+ * Host interrupt source to which bridged interrupts may be routed.
+ */
+struct bhndb_intr_isrc {
+	device_t	 is_owner;	/**< host device (e.g. the pci device). */
+	struct resource	*is_res;	/**< irq resource */
+	int		 is_rid;	/**< irq resource ID */
+};
+
+/**
  * Host resources allocated for a bridge hardware configuration.
  */
 struct bhndb_host_resources {
@@ -144,6 +165,9 @@ struct bhndb_host_resources {
 	const struct bhndb_hwcfg	*cfg;			/**< bridge hardware configuration */
 	struct resource_spec		*resource_specs;	/**< resource specification table */
 	struct resource			**resources;		/**< allocated resource table */
+	bus_dma_tag_t			*dma_tags;		/**< DMA tags for all hwcfg DMA translations, or NULL
+								     if DMA is not supported */
+	size_t				 num_dma_tags;		/**< DMA tag count */
 };
 
 /**
@@ -162,6 +186,7 @@ struct bhndb_softc {
 
 	struct mtx			 sc_mtx;	/**< resource lock. */
 	struct bhndb_resources		*bus_res;	/**< bus resource state */
+	STAILQ_HEAD(,bhndb_intr_handler) bus_intrs;	/**< attached child interrupt handlers */
 };
 
 #endif /* _BHND_BHNDBVAR_H_ */

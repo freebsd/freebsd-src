@@ -1,6 +1,8 @@
 /*	$OpenBSD: if_txp.c,v 1.48 2001/06/27 06:34:50 kjc Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001
  *	Jason L. Wright <jason@thought.net>, Theo de Raadt, and
  *	Aaron Campbell <aaron@monkey.org>.  All rights reserved.
@@ -371,7 +373,7 @@ txp_attach(device_t dev)
 	 * diagnose sleep image specific issues.
 	 */
 	rsp = NULL;
-	if (txp_ext_command(sc, TXP_CMD_READ_VERSION, 0, 0, 0, NULL, 0,
+	if (txp_ext_command(sc, TXP_CMD_VERSIONS_READ, 0, 0, 0, NULL, 0,
 	    &rsp, TXP_CMD_WAIT)) {
 		device_printf(dev, "can not read sleep image version\n");
 		error = ENXIO;

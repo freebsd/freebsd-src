@@ -6,6 +6,8 @@
  * sys/dev/buslogic/bt_mca.c	BT-64X, SDC3211B, SDC3211F
  * sys/dev/buslogic/bt_pci.c	BT-946, BT-948, BT-956, BT-958 cards
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998, 1999 Justin T. Gibbs.
  * All rights reserved.
  *

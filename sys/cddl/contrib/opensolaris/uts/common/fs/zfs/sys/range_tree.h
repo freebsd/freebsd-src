@@ -24,7 +24,7 @@
  */
 
 /*
- * Copyright (c) 2013, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2015 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_RANGE_TREE_H
@@ -41,6 +41,10 @@ extern "C" {
 
 typedef struct range_tree_ops range_tree_ops_t;
 
+/*
+ * Note: the range_tree may not be accessed concurrently; consumers
+ * must provide external locking if required.
+ */
 typedef struct range_tree {
 	avl_tree_t	rt_root;	/* offset-ordered segment AVL tree */
 	uint64_t	rt_space;	/* sum of all segments in the map */
@@ -53,7 +57,6 @@ typedef struct range_tree {
 	 * 2^i <= size of range in bytes < 2^(i+1)
 	 */
 	uint64_t	rt_histogram[RANGE_TREE_HISTOGRAM_SIZE];
-	kmutex_t	*rt_lock;	/* pointer to lock that protects map */
 } range_tree_t;
 
 typedef struct range_seg {
@@ -75,7 +78,7 @@ typedef void range_tree_func_t(void *arg, uint64_t start, uint64_t size);
 
 void range_tree_init(void);
 void range_tree_fini(void);
-range_tree_t *range_tree_create(range_tree_ops_t *ops, void *arg, kmutex_t *lp);
+range_tree_t *range_tree_create(range_tree_ops_t *ops, void *arg);
 void range_tree_destroy(range_tree_t *rt);
 boolean_t range_tree_contains(range_tree_t *rt, uint64_t start, uint64_t size);
 uint64_t range_tree_space(range_tree_t *rt);

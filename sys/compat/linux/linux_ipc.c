@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
  *
@@ -6,24 +8,22 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
@@ -548,6 +548,9 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 	register_t rval;
 	int cmd, error;
 
+	memset(&linux_seminfo, 0, sizeof(linux_seminfo));
+	memset(&linux_semid64, 0, sizeof(linux_semid64));
+
 	switch (args->cmd & ~LINUX_IPC_64) {
 	case LINUX_IPC_RMID:
 		cmd = IPC_RMID;
@@ -702,12 +705,15 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
 	struct l_msqid64_ds linux_msqid64;
 	struct msqid_ds bsd_msqid;
 
+	memset(&linux_msqid64, 0, sizeof(linux_msqid64));
+
 	bsd_cmd = args->cmd & ~LINUX_IPC_64;
 	switch (bsd_cmd) {
 	case LINUX_IPC_INFO:
 	case LINUX_MSG_INFO: {
 		struct l_msginfo linux_msginfo;
 
+		memset(&linux_msginfo, 0, sizeof(linux_msginfo));
 		/*
 		 * XXX MSG_INFO uses the same data structure but returns different
 		 * dynamic counters in msgpool, msgmap, and msgtql fields.
@@ -729,8 +735,8 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
 		return (error);
 	}
 
-	/* 
-	 * TODO: implement this 
+	/*
+	 * TODO: implement this
 	 * case LINUX_MSG_STAT:
 	 */
 	case LINUX_IPC_STAT:
@@ -832,6 +838,10 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 	struct l_shm_info linux_shm_info;
 	struct shmid_ds bsd_shmid;
 	int error;
+
+	memset(&linux_shm_info, 0, sizeof(linux_shm_info));
+	memset(&linux_shmid64, 0, sizeof(linux_shmid64));
+	memset(&linux_shminfo64, 0, sizeof(linux_shminfo64));
 
 	switch (args->cmd & ~LINUX_IPC_64) {
 

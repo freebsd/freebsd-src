@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -644,7 +644,8 @@ AcpiNsConvertToReference (
     {
         /* Check if we are resolving a named reference within a package */
 
-        ACPI_ERROR_NAMESPACE (OriginalObject->String.Pointer, Status);
+        ACPI_ERROR_NAMESPACE (&ScopeInfo,
+            OriginalObject->String.Pointer, Status);
         goto ErrorExit;
     }
 

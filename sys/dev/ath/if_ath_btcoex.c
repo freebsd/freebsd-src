@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Adrian Chadd <adrian@FreeBSD.org>
  * All rights reserved.
  *
@@ -457,7 +459,7 @@ ath_btcoex_ioctl(struct ath_softc *sc, struct ath_diag *ad)
 		 * pointer for us to use below in reclaiming the buffer;
 		 * may want to be more defensive.
 		 */
-		outdata = malloc(outsize, M_TEMP, M_NOWAIT);
+		outdata = malloc(outsize, M_TEMP, M_NOWAIT | M_ZERO);
 		if (outdata == NULL) {
 			error = ENOMEM;
 			goto bad;
@@ -466,6 +468,7 @@ ath_btcoex_ioctl(struct ath_softc *sc, struct ath_diag *ad)
 	switch (id) {
 		default:
 			error = EINVAL;
+			goto bad;
 	}
 	if (outsize < ad->ad_out_size)
 		ad->ad_out_size = outsize;

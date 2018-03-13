@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1995
  *	The Regents of the University of California.
  * Copyright (c) 2005 Robert N. M. Watson
@@ -86,7 +88,7 @@ struct vop_vector fifo_specops = {
 	.vop_mkdir =		VOP_PANIC,
 	.vop_mknod =		VOP_PANIC,
 	.vop_open =		fifo_open,
-	.vop_pathconf =		vop_stdpathconf,
+	.vop_pathconf =		VOP_PANIC,
 	.vop_print =		fifo_print,
 	.vop_read =		VOP_PANIC,
 	.vop_readdir =		VOP_PANIC,

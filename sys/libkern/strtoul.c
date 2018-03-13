@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -47,10 +49,7 @@ __FBSDID("$FreeBSD$");
  * alphabets and digits are each contiguous.
  */
 unsigned long
-strtoul(nptr, endptr, base)
-	const char *nptr;
-	char **endptr;
-	int base;
+strtoul(const char *nptr, char **endptr, int base)
 {
 	const char *s = nptr;
 	unsigned long acc;

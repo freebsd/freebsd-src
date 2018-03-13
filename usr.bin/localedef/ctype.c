@@ -224,7 +224,7 @@ add_ctype_range(wchar_t end)
  * A word about widths: if the width mask is specified, then libc
  * unconditionally honors it.  Otherwise, it assumes printable
  * characters have width 1, and non-printable characters have width
- * -1 (except for NULL which is special with with 0).  Hence, we have
+ * -1 (except for NULL which is special with width 0).  Hence, we have
  * no need to inject defaults here -- the "default" unset value of 0
  * indicates that libc should use its own logic in wcwidth as described.
  */

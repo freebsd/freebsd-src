@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -637,6 +639,7 @@
 #define	NFSLAYOUT_NFSV4_1_FILES		0x1
 #define	NFSLAYOUT_OSD2_OBJECTS		0x2
 #define	NFSLAYOUT_BLOCK_VOLUME		0x3
+#define	NFSLAYOUT_FLEXFILE		0x4
 
 #define	NFSLAYOUTIOMODE_READ		1
 #define	NFSLAYOUTIOMODE_RW		2
@@ -649,6 +652,12 @@
 /* Flags for File Layout. */
 #define	NFSFLAYUTIL_DENSE		0x1
 #define	NFSFLAYUTIL_COMMIT_THRU_MDS	0x2
+
+/* Flags for Flex File Layout. */
+#define	NFSFLEXFLAG_NO_LAYOUTCOMMIT	0x00000001
+#define	NFSFLEXFLAG_NOIO_MDS		0x00000002
+#define	NFSFLEXFLAG_NO_READIO		0x00000004
+#define	NFSFLEXFLAG_WRITE_ONEMIRROR	0x00000008
 
 /* Conversion macros */
 #define	vtonfsv2_mode(t,m) 						\
@@ -775,6 +784,8 @@ struct nfs_fattr {
 #define	fa3_atime		fa_un.fa_nfsv3.nfsv3fa_atime
 #define	fa3_mtime		fa_un.fa_nfsv3.nfsv3fa_mtime
 #define	fa3_ctime		fa_un.fa_nfsv3.nfsv3fa_ctime
+
+#define	NFS_LINK_MAX	UINT32_MAX
 
 struct nfsv2_sattr {
 	u_int32_t sa_mode;

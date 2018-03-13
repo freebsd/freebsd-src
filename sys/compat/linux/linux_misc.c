@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Doug Rabson
  * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
@@ -114,7 +116,7 @@ int stclohz;				/* Statistics clock frequency */
 static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
 	RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
 	RLIMIT_CORE, RLIMIT_RSS, RLIMIT_NPROC, RLIMIT_NOFILE,
-	RLIMIT_MEMLOCK, RLIMIT_AS 
+	RLIMIT_MEMLOCK, RLIMIT_AS
 };
 
 struct l_sysinfo {
@@ -163,7 +165,7 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 		    LINUX_SYSINFO_LOADS_SCALE / averunnable.fscale;
 
 	sysinfo.totalram = physmem * PAGE_SIZE;
-	sysinfo.freeram = sysinfo.totalram - vm_cnt.v_wire_count * PAGE_SIZE;
+	sysinfo.freeram = sysinfo.totalram - vm_wire_count() * PAGE_SIZE;
 
 	sysinfo.sharedram = 0;
 	mtx_lock(&vm_object_list_mtx);
@@ -837,7 +839,7 @@ linux_utimensat_nsec_valid(l_long nsec)
 	return (1);
 }
 
-int 
+int
 linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 {
 	struct l_timespec l_times[2];
@@ -912,7 +914,7 @@ linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 		error = kern_futimens(td, dfd, timesp, UIO_SYSSPACE);
 	else {
 		error = kern_utimensat(td, dfd, path, UIO_SYSSPACE, timesp,
-	    		UIO_SYSSPACE, flags);
+			UIO_SYSSPACE, flags);
 		LFREEPATH(path);
 	}
 
@@ -1220,7 +1222,7 @@ struct l_itimerval {
 	l_timeval it_value;
 };
 
-#define	B2L_ITIMERVAL(bip, lip) 					\
+#define	B2L_ITIMERVAL(bip, lip)						\
 	(bip)->it_interval.tv_sec = (lip)->it_interval.tv_sec;		\
 	(bip)->it_interval.tv_usec = (lip)->it_interval.tv_usec;	\
 	(bip)->it_value.tv_sec = (lip)->it_value.tv_sec;		\
@@ -1995,7 +1997,7 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 	case LINUX_PR_SET_NAME:
 		/*
 		 * To be on the safe side we need to make sure to not
-		 * overflow the size a linux program expects. We already
+		 * overflow the size a Linux program expects. We already
 		 * do this here in the copyin, so that we don't need to
 		 * check on copyout.
 		 */

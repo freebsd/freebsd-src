@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -83,6 +85,7 @@ struct ctlname {
 #define	CTLFLAG_RD	0x80000000	/* Allow reads of variable */
 #define	CTLFLAG_WR	0x40000000	/* Allow writes to the variable */
 #define	CTLFLAG_RW	(CTLFLAG_RD|CTLFLAG_WR)
+#define	CTLFLAG_DORMANT	0x20000000	/* This sysctl is not active yet */
 #define	CTLFLAG_ANYBODY	0x10000000	/* All users can set this var */
 #define	CTLFLAG_SECURE	0x08000000	/* Permit set only if securelevel<=0 */
 #define	CTLFLAG_PRISON	0x04000000	/* Prisoned roots can fiddle */
@@ -144,7 +147,7 @@ struct ctlname {
 #define	REQ_WIRED	2
 
 /* definitions for sysctl_req 'flags' member */
-#if defined(__amd64__) || defined(__powerpc64__) ||\
+#if defined(__aarch64__) || defined(__amd64__) || defined(__powerpc64__) ||\
     (defined(__mips__) && defined(__mips_n64))
 #define	SCTL_MASK32	1	/* 32 bit emulation */
 #endif
@@ -219,6 +222,8 @@ int sysctl_dpcpu_quad(SYSCTL_HANDLER_ARGS);
  * These functions are used to add/remove an oid from the mib.
  */
 void sysctl_register_oid(struct sysctl_oid *oidp);
+void sysctl_register_disabled_oid(struct sysctl_oid *oidp);
+void sysctl_enable_oid(struct sysctl_oid *oidp);
 void sysctl_unregister_oid(struct sysctl_oid *oidp);
 
 /* Declare a static oid to allow child oids to be added to it. */

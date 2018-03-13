@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011-2012 Stefan Bethke.
  * Copyright (c) 2012 Adrian Chadd.
  * All rights reserved.
@@ -98,8 +100,6 @@ ar7240_hw_global_setup(struct arswitch_softc *sc)
 	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_GLOBAL_CTRL,
 	    AR7240_GLOBAL_CTRL_MTU_MASK,
 	    SM(1536, AR7240_GLOBAL_CTRL_MTU_MASK));
-
-	/* XXX ARP? Frame Age enable? */
 
 	/* Service Tag */
 	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_SERVICE_TAG,

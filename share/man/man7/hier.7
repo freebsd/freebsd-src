@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 10, 2017
+.Dd January 27, 2018
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -63,6 +63,11 @@ at boot time) and kernel modules
 third-party loadable kernel modules;
 see
 .Xr kldstat 8
+.It Pa overlays/
+Compiled flattened device tree (FDT) overlays; see
+.Xr fdt 4
+and
+.Xr dtc 1
 .It Pa zfs/
 .Xr zfs 8
 zpool cache files
@@ -364,10 +369,6 @@ configuration data
 linker scripts;
 see
 .Xr ld 1
-.It Pa lint/
-various prebuilt lint libraries;
-see
-.Xr lint 1
 .El
 .Pp
 .It Pa libexec/
@@ -648,6 +649,8 @@ build directory for files in
 .It Pa share/
 source for files in
 .Pa /usr/share
+.It Pa stand/
+boot loader source code
 .It Pa sys/
 kernel source code
 .Bl -tag -width "opencrypto/" -compact
@@ -657,8 +660,6 @@ AMD64 architecture support
 ARM architecture support
 .It Pa arm64/
 ARMv8 architecture support
-.It Pa boot/
-bootloader code
 .It Pa cam/
 .Xr cam 4
 and

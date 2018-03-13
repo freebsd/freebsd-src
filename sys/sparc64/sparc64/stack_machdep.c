@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Antoine Brodin
  * All rights reserved.
  *
@@ -93,5 +95,5 @@ void
 stack_save(struct stack *st)
 {
 
-	stack_capture(st, (struct frame *)__builtin_frame_address(1));
+	stack_capture(st, (struct frame *)__builtin_frame_address(0));
 }

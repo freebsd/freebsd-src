@@ -47,6 +47,7 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     EXTRA_TCP_STACKS \
+    KERNEL_RETPOLINE \
     NAND \
     OFED \
     RATELIMIT \
@@ -62,7 +63,7 @@ __DEFAULT_NO_OPTIONS = \
 
 # Things that don't work based on the CPU
 .if ${MACHINE_CPUARCH} == "arm"
-. if ${MACHINE_ARCH:Marmv6*} == ""
+. if ${MACHINE_ARCH:Marmv[67]*} == ""
 BROKEN_OPTIONS+= CDDL ZFS
 . endif
 .endif
@@ -83,6 +84,11 @@ BROKEN_OPTIONS+= FORMAT_EXTENSIONS
 # for them.
 .if ${MACHINE} != "i386" && ${MACHINE} != "amd64"
 BROKEN_OPTIONS+= OFED
+.endif
+
+# Things that don't work based on toolchain support.
+.if ${MACHINE} != "amd64"
+BROKEN_OPTIONS+= KERNEL_RETPOLINE
 .endif
 
 # expanded inline from bsd.mkopt.mk to avoid share/mk dependency

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
@@ -53,6 +55,7 @@ static struct nvme_function funcs[] = {
 	{"reset",	reset,		RESET_USAGE},
 	{"logpage",	logpage,	LOGPAGE_USAGE},
 	{"firmware",	firmware,	FIRMWARE_USAGE},
+	{"format",	format,		FORMAT_USAGE},
 	{"power",	power,		POWER_USAGE},
 	{"wdc",		wdc,		WDC_USAGE},
 	{NULL,		NULL,		NULL},
@@ -144,8 +147,8 @@ read_controller_data(int fd, struct nvme_controller_data *cdata)
 	struct nvme_pt_command	pt;
 
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc = NVME_OPC_IDENTIFY;
-	pt.cmd.cdw10 = 1;
+	pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_IDENTIFY);
+	pt.cmd.cdw10 = htole32(1);
 	pt.buf = cdata;
 	pt.len = sizeof(*cdata);
 	pt.is_read = 1;
@@ -153,24 +156,30 @@ read_controller_data(int fd, struct nvme_controller_data *cdata)
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(1, "identify request failed");
 
+	/* Convert data to host endian */
+	nvme_controller_data_swapbytes(cdata);
+
 	if (nvme_completion_is_error(&pt.cpl))
 		errx(1, "identify request returned error");
 }
 
 void
-read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata)
+read_namespace_data(int fd, uint32_t nsid, struct nvme_namespace_data *nsdata)
 {
 	struct nvme_pt_command	pt;
 
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc = NVME_OPC_IDENTIFY;
-	pt.cmd.nsid = nsid;
+	pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_IDENTIFY);
+	pt.cmd.nsid = htole32(nsid);
 	pt.buf = nsdata;
 	pt.len = sizeof(*nsdata);
 	pt.is_read = 1;
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(1, "identify request failed");
+
+	/* Convert data to host endian */
+	nvme_namespace_data_swapbytes(nsdata);
 
 	if (nvme_completion_is_error(&pt.cpl))
 		errx(1, "identify request returned error");
@@ -206,7 +215,7 @@ open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 }
 
 void
-parse_ns_str(const char *ns_str, char *ctrlr_str, int *nsid)
+parse_ns_str(const char *ns_str, char *ctrlr_str, uint32_t *nsid)
 {
 	char	*nsloc;
 

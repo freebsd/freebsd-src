@@ -601,8 +601,8 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 	pid_t ppid = p->p_pid;
 	int i;
 
-#ifdef illumos
 	ASSERT(curproc == p);
+#ifdef illumos
 	ASSERT(p->p_proc_flag & P_PR_LOCK);
 #else
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -610,26 +610,15 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 #ifdef illumos
 	ASSERT(p->p_dtrace_count > 0);
 #else
-	if (p->p_dtrace_helpers) {
-		/*
-		 * dtrace_helpers_duplicate() allocates memory.
-		 */
-		_PHOLD(cp);
-		PROC_UNLOCK(p);
-		PROC_UNLOCK(cp);
-		dtrace_helpers_duplicate(p, cp);
-		PROC_LOCK(cp);
-		PROC_LOCK(p);
-		_PRELE(cp);
-	}
 	/*
 	 * This check is purposely here instead of in kern_fork.c because,
 	 * for legal resons, we cannot include the dtrace_cddl.h header
 	 * inside kern_fork.c and insert if-clause there.
 	 */
-	if (p->p_dtrace_count == 0)
+	if (p->p_dtrace_count == 0 && p->p_dtrace_helpers == NULL)
 		return;
 #endif
+
 	ASSERT(cp->p_dtrace_count == 0);
 
 	/*
@@ -658,6 +647,8 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 	_PHOLD(cp);
 	PROC_UNLOCK(cp);
 	PROC_UNLOCK(p);
+	if (p->p_dtrace_count == 0)
+		goto dup_helpers;
 #endif
 
 	/*
@@ -711,6 +702,9 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 	mutex_enter(&cp->p_lock);
 	sprunlock(cp);
 #else
+dup_helpers:
+	if (p->p_dtrace_helpers != NULL)
+		dtrace_helpers_duplicate(p, cp);
 	PROC_LOCK(p);
 	PROC_LOCK(cp);
 	_PRELE(cp);

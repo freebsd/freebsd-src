@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
  *
@@ -44,6 +46,14 @@ enum _mode
 	M_LOCK,
 	M_UNLOCK,
         M_NUM
+};
+
+enum _passmode
+{
+	P_NO,
+	P_NONE,
+	P_RANDOM,
+	P_YES
 };
 
 enum _which

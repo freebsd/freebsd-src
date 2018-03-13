@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2016 by Delphix. All rights reserved.
  * Copyright 2017 Nexenta Systems, Inc.
  */
 
@@ -428,8 +428,8 @@ zfs_rmnode(znode_t *zp)
 		error = dmu_free_long_range(os, zp->z_id, 0, DMU_OBJECT_END);
 		if (error) {
 			/*
-			 * Not enough space.  Leave the file in the unlinked
-			 * set.
+			 * Not enough space or we were interrupted by unmount.
+			 * Leave the file in the unlinked set.
 			 */
 			zfs_znode_dmu_fini(zp);
 			zfs_znode_free(zp);
@@ -527,12 +527,10 @@ zfs_link_create(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
 
 	ASSERT_VOP_ELOCKED(ZTOV(dzp), __func__);
 	ASSERT_VOP_ELOCKED(ZTOV(zp), __func__);
-#if 0
+#ifdef __FreeBSD__
 	if (zp_is_dir) {
-		error = 0;
-		if (dzp->z_links >= LINK_MAX)
-			error = SET_ERROR(EMLINK);
-		return (error);
+		if (dzp->z_links >= ZFS_LINK_MAX)
+			return (SET_ERROR(EMLINK));
 	}
 #endif
 	if (!(flag & ZRENAMING)) {
@@ -540,8 +538,8 @@ zfs_link_create(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
 			ASSERT(!(flag & (ZNEW | ZEXISTS)));
 			return (SET_ERROR(ENOENT));
 		}
-#if 0
-		if (zp->z_links >= LINK_MAX) {
+#ifdef __FreeBSD__
+		if (zp->z_links >= ZFS_LINK_MAX - zp_is_dir) {
 			return (SET_ERROR(EMLINK));
 		}
 #endif

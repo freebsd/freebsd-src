@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2009 University of Zagreb
  * Copyright (c) 2006-2009 FreeBSD Foundation
  * All rights reserved.
@@ -312,9 +314,8 @@ static void
 vnet0_init(void *arg __unused)
 {
 
-	/* Warn people before take off - in case we crash early. */
-	printf("WARNING: VIMAGE (virtualized network stack) is a highly "
-	    "experimental feature.\n");
+	if (bootverbose)
+		printf("VIMAGE (virtualized network stack) enabled\n");
 
 	/*
 	 * We MUST clear curvnet in vi_init_done() before going SMP,

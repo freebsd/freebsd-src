@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 1997 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,8 +59,8 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
-	    "usage: truss [-cfaedDS] [-o file] [-s strsize] -p pid",
-	    "       truss [-cfaedDS] [-o file] [-s strsize] command [args]");
+	    "usage: truss [-cfaedDHS] [-o file] [-s strsize] -p pid",
+	    "       truss [-cfaedDHS] [-o file] [-s strsize] command [args]");
 	exit(1);
 }
 

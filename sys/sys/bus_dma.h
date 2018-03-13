@@ -1,6 +1,8 @@
 /*	$NetBSD: bus.h,v 1.12 1997/10/01 08:25:15 fvdl Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause-NetBSD AND BSD-4-Clause)
+ *
  * Copyright (c) 1996, 1997 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -173,6 +175,14 @@ int bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		       void *filtfuncarg, bus_size_t maxsize, int nsegments,
 		       bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
 		       void *lockfuncarg, bus_dma_tag_t *dmat);
+
+/*
+ * Set the memory domain to be used for allocations.
+ *
+ * Automatic for PCI devices.  Must be set prior to creating maps or
+ * allocating memory.
+ */
+int bus_dma_tag_set_domain(bus_dma_tag_t dmat, int domain);
 
 int bus_dma_tag_destroy(bus_dma_tag_t dmat);
 

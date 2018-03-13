@@ -1,6 +1,8 @@
 /*	$NetBSD: svc_dg.c,v 1.4 2000/07/06 03:10:35 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -66,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #include "rpc_com.h"
 #include "mt_misc.h"
 
-#define	su_data(xprt)	((struct svc_dg_data *)(xprt->xp_p2))
+#define	su_data(xprt)	((struct svc_dg_data *)((xprt)->xp_p2))
 #define	rpc_buffer(xprt) ((xprt)->xp_p1)
 
 #ifndef MAX

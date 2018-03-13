@@ -95,3 +95,10 @@ void			negate(struct number *);
 void			split_number(const struct number *, BIGNUM *, BIGNUM *);
 void			bmul_number(struct number *, struct number *,
 			    struct number *, u_int scale);
+	
+static __inline u_int
+max(u_int a, u_int b)
+{
+
+	return (a > b ? a : b);
+}

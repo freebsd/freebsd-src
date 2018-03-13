@@ -1005,6 +1005,7 @@ writeit(const char *name, const char *reg, const char *data, int width)
 
 	if (ioctl(fd, PCIOCWRITE, &pi) < 0)
 		err(1, "ioctl(PCIOCWRITE)");
+	close(fd);
 }
 
 static void
@@ -1024,4 +1025,5 @@ chkattached(const char *name)
 
 	exitstatus = pi.pi_data ? 0 : 2; /* exit(2), if NOT attached */
 	printf("%s: %s%s\n", name, pi.pi_data == 0 ? "not " : "", "attached");
+	close(fd);
 }

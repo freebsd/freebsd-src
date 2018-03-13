@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -188,7 +190,7 @@ sysctl_load_tunable_by_oid_locked(struct sysctl_oid *oidp)
 	struct sysctl_req req;
 	struct sysctl_oid *curr;
 	char *penv = NULL;
-	char path[64];
+	char path[96];
 	ssize_t rem = sizeof(path);
 	ssize_t len;
 	uint8_t val_8;
@@ -507,6 +509,37 @@ retry:
 		/* try to fetch value from kernel environment */
 		sysctl_load_tunable_by_oid_locked(oidp);
 	}
+}
+
+void
+sysctl_register_disabled_oid(struct sysctl_oid *oidp)
+{
+
+	/*
+	 * Mark the leaf as dormant if it's not to be immediately enabled.
+	 * We do not disable nodes as they can be shared between modules
+	 * and it is always safe to access a node.
+	 */
+	KASSERT((oidp->oid_kind & CTLFLAG_DORMANT) == 0,
+	    ("internal flag is set in oid_kind"));
+	if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE)
+		oidp->oid_kind |= CTLFLAG_DORMANT;
+	sysctl_register_oid(oidp);
+}
+
+void
+sysctl_enable_oid(struct sysctl_oid *oidp)
+{
+
+	SYSCTL_ASSERT_WLOCKED();
+	if ((oidp->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
+		KASSERT((oidp->oid_kind & CTLFLAG_DORMANT) == 0,
+		    ("sysctl node is marked as dormant"));
+		return;
+	}
+	KASSERT((oidp->oid_kind & CTLFLAG_DORMANT) != 0,
+	    ("enabling already enabled sysctl oid"));
+	oidp->oid_kind &= ~CTLFLAG_DORMANT;
 }
 
 void
@@ -1057,7 +1090,7 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 		*next = oidp->oid_number;
 		*oidpp = oidp;
 
-		if (oidp->oid_kind & CTLFLAG_SKIP)
+		if ((oidp->oid_kind & (CTLFLAG_SKIP | CTLFLAG_DORMANT)) != 0)
 			continue;
 
 		if (!namelen) {
@@ -1178,17 +1211,21 @@ sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 	int error, oid[CTL_MAXNAME], len = 0;
 	struct sysctl_oid *op = NULL;
 	struct rm_priotracker tracker;
+	char buf[32];
 
 	if (!req->newlen) 
 		return (ENOENT);
 	if (req->newlen >= MAXPATHLEN)	/* XXX arbitrary, undocumented */
 		return (ENAMETOOLONG);
 
-	p = malloc(req->newlen+1, M_SYSCTL, M_WAITOK);
+	p = buf;
+	if (req->newlen >= sizeof(buf))
+		p = malloc(req->newlen+1, M_SYSCTL, M_WAITOK);
 
 	error = SYSCTL_IN(req, p, req->newlen);
 	if (error) {
-		free(p, M_SYSCTL);
+		if (p != buf)
+			free(p, M_SYSCTL);
 		return (error);
 	}
 
@@ -1198,7 +1235,8 @@ sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 	error = name2oid(p, oid, &len, &op);
 	SYSCTL_RUNLOCK(&tracker);
 
-	free(p, M_SYSCTL);
+	if (p != buf)
+		free(p, M_SYSCTL);
 
 	if (error)
 		return (error);
@@ -1878,6 +1916,8 @@ sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 			}
 			lsp = SYSCTL_CHILDREN(oid);
 		} else if (indx == namelen) {
+			if ((oid->oid_kind & CTLFLAG_DORMANT) != 0)
+				return (ENOENT);
 			*noid = oid;
 			if (nindx != NULL)
 				*nindx = indx;
@@ -2076,12 +2116,11 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	if (KTRPOINT(curthread, KTR_SYSCTL))
 		ktrsysctl(name, namelen);
 #endif
-
-	if (req.oldptr && req.oldlen > PAGE_SIZE) {
+	memlocked = 0;
+	if (req.oldptr && req.oldlen > 4 * PAGE_SIZE) {
 		memlocked = 1;
 		sx_xlock(&sysctlmemlock);
-	} else
-		memlocked = 0;
+	}
 	CURVNET_SET(TD_TO_VNET(td));
 
 	for (;;) {

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -69,9 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #endif
-#ifdef TCP_RFC7413
-#include <netinet/tcp_fastopen.h>
-#endif
 #include <netinet/tcp.h>
 #define	TCPOUTFLAGS
 #include <netinet/tcp_fsm.h>
@@ -80,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/cc/cc.h>
+#include <netinet/tcp_fastopen.h>
 #ifdef TCPPCAP
 #include <netinet/tcp_pcap.h>
 #endif
@@ -102,7 +102,6 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, path_mtu_discovery, CTLFLAG_VNET | CTLFLAG_R
 	"Enable Path MTU Discovery");
 
 VNET_DEFINE(int, tcp_do_tso) = 1;
-#define	V_tcp_do_tso		VNET(tcp_do_tso)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, tso, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_do_tso), 0,
 	"Enable TCP Segmentation Offload");
@@ -113,19 +112,16 @@ SYSCTL_INT(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace, CTLFLAG_VNET | CTLFLAG_RW
 	&VNET_NAME(tcp_sendspace), 0, "Initial send socket buffer size");
 
 VNET_DEFINE(int, tcp_do_autosndbuf) = 1;
-#define	V_tcp_do_autosndbuf	VNET(tcp_do_autosndbuf)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_auto, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_do_autosndbuf), 0,
 	"Enable automatic send buffer sizing");
 
 VNET_DEFINE(int, tcp_autosndbuf_inc) = 8*1024;
-#define	V_tcp_autosndbuf_inc	VNET(tcp_autosndbuf_inc)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_inc, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_autosndbuf_inc), 0,
 	"Incrementor step size of automatic send buffer");
 
 VNET_DEFINE(int, tcp_autosndbuf_max) = 2*1024*1024;
-#define	V_tcp_autosndbuf_max	VNET(tcp_autosndbuf_max)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_autosndbuf_max), 0,
 	"Max size of automatic send buffer");
@@ -200,7 +196,9 @@ tcp_output(struct tcpcb *tp)
 	int off, flags, error = 0;	/* Keep compiler happy */
 	struct mbuf *m;
 	struct ip *ip = NULL;
+#ifdef TCPDEBUG
 	struct ipovly *ipov = NULL;
+#endif
 	struct tcphdr *th;
 	u_char opt[TCP_MAXOLEN];
 	unsigned ipoptlen, optlen, hdrlen;
@@ -212,6 +210,8 @@ tcp_output(struct tcpcb *tp)
 	struct sackhole *p;
 	int tso, mtu;
 	struct tcpopt to;
+	unsigned int wanted_cookie = 0;
+	unsigned int dont_sendalot = 0;
 #if 0
 	int maxburst = TCP_MAXBURST;
 #endif
@@ -229,7 +229,6 @@ tcp_output(struct tcpcb *tp)
 		return (tcp_offload_output(tp));
 #endif
 
-#ifdef TCP_RFC7413
 	/*
 	 * For TFO connections in SYN_RECEIVED, only allow the initial
 	 * SYN|ACK and those sent by the retransmit timer.
@@ -237,9 +236,9 @@ tcp_output(struct tcpcb *tp)
 	if (IS_FASTOPEN(tp->t_flags) &&
 	    (tp->t_state == TCPS_SYN_RECEIVED) &&
 	    SEQ_GT(tp->snd_max, tp->snd_una) &&    /* initial SYN|ACK sent */
-	    (tp->snd_nxt != tp->snd_una))          /* not a retransmit */
+	    (tp->snd_nxt != tp->snd_una))         /* not a retransmit */
 		return (0);
-#endif
+
 	/*
 	 * Determine length of data that should be transmitted,
 	 * and flags that will be used.
@@ -425,7 +424,6 @@ after_sack_rexmit:
 	if ((flags & TH_SYN) && SEQ_GT(tp->snd_nxt, tp->snd_una)) {
 		if (tp->t_state != TCPS_SYN_RECEIVED)
 			flags &= ~TH_SYN;
-#ifdef TCP_RFC7413
 		/*
 		 * When sending additional segments following a TFO SYN|ACK,
 		 * do not include the SYN bit.
@@ -433,7 +431,6 @@ after_sack_rexmit:
 		if (IS_FASTOPEN(tp->t_flags) &&
 		    (tp->t_state == TCPS_SYN_RECEIVED))
 			flags &= ~TH_SYN;
-#endif
 		off--, len++;
 	}
 
@@ -447,17 +444,24 @@ after_sack_rexmit:
 		flags &= ~TH_FIN;
 	}
 
-#ifdef TCP_RFC7413
 	/*
-	 * When retransmitting SYN|ACK on a passively-created TFO socket,
-	 * don't include data, as the presence of data may have caused the
-	 * original SYN|ACK to have been dropped by a middlebox.
+	 * On TFO sockets, ensure no data is sent in the following cases:
+	 *
+	 *  - When retransmitting SYN|ACK on a passively-created socket
+	 *
+	 *  - When retransmitting SYN on an actively created socket
+	 *
+	 *  - When sending a zero-length cookie (cookie request) on an
+	 *    actively created socket
+	 *
+	 *  - When the socket is in the CLOSED state (RST is being sent)
 	 */
 	if (IS_FASTOPEN(tp->t_flags) &&
-	    (((tp->t_state == TCPS_SYN_RECEIVED) && (tp->t_rxtshift > 0)) ||
+	    (((flags & TH_SYN) && (tp->t_rxtshift > 0)) ||
+	     ((tp->t_state == TCPS_SYN_SENT) &&
+	      (tp->t_tfo_client_cookie_len == 0)) ||
 	     (flags & TH_RST)))
 		len = 0;
-#endif
 	if (len <= 0) {
 		/*
 		 * If FIN has been sent but not acked,
@@ -489,59 +493,7 @@ after_sack_rexmit:
 	/* len will be >= 0 after this point. */
 	KASSERT(len >= 0, ("[%s:%d]: len < 0", __func__, __LINE__));
 
-	/*
-	 * Automatic sizing of send socket buffer.  Often the send buffer
-	 * size is not optimally adjusted to the actual network conditions
-	 * at hand (delay bandwidth product).  Setting the buffer size too
-	 * small limits throughput on links with high bandwidth and high
-	 * delay (eg. trans-continental/oceanic links).  Setting the
-	 * buffer size too big consumes too much real kernel memory,
-	 * especially with many connections on busy servers.
-	 *
-	 * The criteria to step up the send buffer one notch are:
-	 *  1. receive window of remote host is larger than send buffer
-	 *     (with a fudge factor of 5/4th);
-	 *  2. send buffer is filled to 7/8th with data (so we actually
-	 *     have data to make use of it);
-	 *  3. send buffer fill has not hit maximal automatic size;
-	 *  4. our send window (slow start and cogestion controlled) is
-	 *     larger than sent but unacknowledged data in send buffer.
-	 *
-	 * The remote host receive window scaling factor may limit the
-	 * growing of the send buffer before it reaches its allowed
-	 * maximum.
-	 *
-	 * It scales directly with slow start or congestion window
-	 * and does at most one step per received ACK.  This fast
-	 * scaling has the drawback of growing the send buffer beyond
-	 * what is strictly necessary to make full use of a given
-	 * delay*bandwidth product.  However testing has shown this not
-	 * to be much of an problem.  At worst we are trading wasting
-	 * of available bandwidth (the non-use of it) for wasting some
-	 * socket buffer memory.
-	 *
-	 * TODO: Shrink send buffer during idle periods together
-	 * with congestion window.  Requires another timer.  Has to
-	 * wait for upcoming tcp timer rewrite.
-	 *
-	 * XXXGL: should there be used sbused() or sbavail()?
-	 */
-	if (V_tcp_do_autosndbuf && so->so_snd.sb_flags & SB_AUTOSIZE) {
-		int autosndbuf_mod = 0;
-		if (V_tcp_sendbuf_auto_lowat)
-			autosndbuf_mod = so->so_snd.sb_lowat;
-
-		if ((tp->snd_wnd / 4 * 5) >= so->so_snd.sb_hiwat - autosndbuf_mod &&
-		    sbused(&so->so_snd) >= (so->so_snd.sb_hiwat / 8 * 7) - autosndbuf_mod &&
-		    sbused(&so->so_snd) < V_tcp_autosndbuf_max &&
-		    sendwin >= (sbused(&so->so_snd) -
-		    (tp->snd_nxt - tp->snd_una))) {
-			if (!sbreserve_locked(&so->so_snd,
-			    min(so->so_snd.sb_hiwat + V_tcp_autosndbuf_inc,
-			     V_tcp_autosndbuf_max), so, curthread))
-				so->so_snd.sb_flags &= ~SB_AUTOSIZE;
-		}
-	}
+	tcp_sndbuf_autoscale(tp, so, sendwin);
 
 	/*
 	 * Decide if we can use TCP Segmentation Offloading (if supported by
@@ -593,7 +545,7 @@ after_sack_rexmit:
 	if ((tp->t_flags & TF_TSO) && V_tcp_do_tso && len > tp->t_maxseg &&
 	    ((tp->t_flags & TF_SIGNATURE) == 0) &&
 	    tp->rcv_numsacks == 0 && sack_rxmit == 0 &&
-	    ipoptlen == 0)
+	    ipoptlen == 0 && !(flags & TH_SYN))
 		tso = 1;
 
 	if (sack_rxmit) {
@@ -813,22 +765,39 @@ send:
 			tp->snd_nxt = tp->iss;
 			to.to_mss = tcp_mssopt(&tp->t_inpcb->inp_inc);
 			to.to_flags |= TOF_MSS;
-#ifdef TCP_RFC7413
+
 			/*
-			 * Only include the TFO option on the first
-			 * transmission of the SYN|ACK on a
-			 * passively-created TFO socket, as the presence of
-			 * the TFO option may have caused the original
-			 * SYN|ACK to have been dropped by a middlebox.
+			 * On SYN or SYN|ACK transmits on TFO connections,
+			 * only include the TFO option if it is not a
+			 * retransmit, as the presence of the TFO option may
+			 * have caused the original SYN or SYN|ACK to have
+			 * been dropped by a middlebox.
 			 */
 			if (IS_FASTOPEN(tp->t_flags) &&
-			    (tp->t_state == TCPS_SYN_RECEIVED) &&
 			    (tp->t_rxtshift == 0)) {
-				to.to_tfo_len = TCP_FASTOPEN_COOKIE_LEN;
-				to.to_tfo_cookie = (u_char *)&tp->t_tfo_cookie;
-				to.to_flags |= TOF_FASTOPEN;
+				if (tp->t_state == TCPS_SYN_RECEIVED) {
+					to.to_tfo_len = TCP_FASTOPEN_COOKIE_LEN;
+					to.to_tfo_cookie =
+					    (u_int8_t *)&tp->t_tfo_cookie.server;
+					to.to_flags |= TOF_FASTOPEN;
+					wanted_cookie = 1;
+				} else if (tp->t_state == TCPS_SYN_SENT) {
+					to.to_tfo_len =
+					    tp->t_tfo_client_cookie_len;
+					to.to_tfo_cookie =
+					    tp->t_tfo_cookie.client;
+					to.to_flags |= TOF_FASTOPEN;
+					wanted_cookie = 1;
+					/*
+					 * If we wind up having more data to
+					 * send with the SYN than can fit in
+					 * one segment, don't send any more
+					 * until the SYN|ACK comes back from
+					 * the other end.
+					 */
+					dont_sendalot = 1;
+				}
 			}
-#endif
 		}
 		/* Window scaling. */
 		if ((flags & TH_SYN) && (tp->t_flags & TF_REQ_SCALE)) {
@@ -872,6 +841,13 @@ send:
 
 		/* Processing the options. */
 		hdrlen += optlen = tcp_addoptions(&to, opt);
+		/*
+		 * If we wanted a TFO option to be added, but it was unable
+		 * to fit, ensure no data is sent.
+		 */
+		if (IS_FASTOPEN(tp->t_flags) && wanted_cookie &&
+		    !(to.to_flags & TOF_FASTOPEN))
+			len = 0;
 	}
 
 	/*
@@ -1016,6 +992,8 @@ send:
 		} else {
 			len = tp->t_maxseg - optlen - ipoptlen;
 			sendalot = 1;
+			if (dont_sendalot)
+				sendalot = 0;
 		}
 	} else
 		tso = 0;
@@ -1145,7 +1123,9 @@ send:
 #endif /* INET6 */
 	{
 		ip = mtod(m, struct ip *);
+#ifdef TCPDEBUG
 		ipov = (struct ipovly *)ip;
+#endif
 		th = (struct tcphdr *)(ip + 1);
 		tcpip_fillheaders(tp->t_inpcb, ip, th);
 	}
@@ -1293,12 +1273,13 @@ send:
 		 * NOTE: since TCP options buffer doesn't point into
 		 * mbuf's data, calculate offset and use it.
 		 */
-		if (!TCPMD5_ENABLED() || TCPMD5_OUTPUT(m, th,
-		    (u_char *)(th + 1) + (to.to_signature - opt)) != 0) {
+		if (!TCPMD5_ENABLED() || (error = TCPMD5_OUTPUT(m, th,
+		    (u_char *)(th + 1) + (to.to_signature - opt))) != 0) {
 			/*
 			 * Do not send segment if the calculation of MD5
 			 * digest has failed.
 			 */
+			m_freem(m);
 			goto out;
 		}
 	}
@@ -1816,15 +1797,16 @@ tcp_addoptions(struct tcpopt *to, u_char *optp)
 			TCPSTAT_INC(tcps_sack_send_blocks);
 			break;
 			}
-#ifdef TCP_RFC7413
 		case TOF_FASTOPEN:
 			{
 			int total_len;
 
 			/* XXX is there any point to aligning this option? */
 			total_len = TCPOLEN_FAST_OPEN_EMPTY + to->to_tfo_len;
-			if (TCP_MAXOLEN - optlen < total_len)
+			if (TCP_MAXOLEN - optlen < total_len) {
+				to->to_flags &= ~TOF_FASTOPEN;
 				continue;
+			}
 			*optp++ = TCPOPT_FAST_OPEN;
 			*optp++ = total_len;
 			if (to->to_tfo_len > 0) {
@@ -1834,7 +1816,6 @@ tcp_addoptions(struct tcpopt *to, u_char *optp)
 			optlen += total_len;
 			break;
 			}
-#endif
 		default:
 			panic("%s: unknown TCP option type", __func__);
 			break;
@@ -1859,4 +1840,63 @@ tcp_addoptions(struct tcpopt *to, u_char *optp)
 
 	KASSERT(optlen <= TCP_MAXOLEN, ("%s: TCP options too long", __func__));
 	return (optlen);
+}
+
+void
+tcp_sndbuf_autoscale(struct tcpcb *tp, struct socket *so, uint32_t sendwin)
+{
+
+	/*
+	 * Automatic sizing of send socket buffer.  Often the send buffer
+	 * size is not optimally adjusted to the actual network conditions
+	 * at hand (delay bandwidth product).  Setting the buffer size too
+	 * small limits throughput on links with high bandwidth and high
+	 * delay (eg. trans-continental/oceanic links).  Setting the
+	 * buffer size too big consumes too much real kernel memory,
+	 * especially with many connections on busy servers.
+	 *
+	 * The criteria to step up the send buffer one notch are:
+	 *  1. receive window of remote host is larger than send buffer
+	 *     (with a fudge factor of 5/4th);
+	 *  2. send buffer is filled to 7/8th with data (so we actually
+	 *     have data to make use of it);
+	 *  3. send buffer fill has not hit maximal automatic size;
+	 *  4. our send window (slow start and cogestion controlled) is
+	 *     larger than sent but unacknowledged data in send buffer.
+	 *
+	 * The remote host receive window scaling factor may limit the
+	 * growing of the send buffer before it reaches its allowed
+	 * maximum.
+	 *
+	 * It scales directly with slow start or congestion window
+	 * and does at most one step per received ACK.  This fast
+	 * scaling has the drawback of growing the send buffer beyond
+	 * what is strictly necessary to make full use of a given
+	 * delay*bandwidth product.  However testing has shown this not
+	 * to be much of an problem.  At worst we are trading wasting
+	 * of available bandwidth (the non-use of it) for wasting some
+	 * socket buffer memory.
+	 *
+	 * TODO: Shrink send buffer during idle periods together
+	 * with congestion window.  Requires another timer.  Has to
+	 * wait for upcoming tcp timer rewrite.
+	 *
+	 * XXXGL: should there be used sbused() or sbavail()?
+	 */
+	if (V_tcp_do_autosndbuf && so->so_snd.sb_flags & SB_AUTOSIZE) {
+		int lowat;
+
+		lowat = V_tcp_sendbuf_auto_lowat ? so->so_snd.sb_lowat : 0;
+		if ((tp->snd_wnd / 4 * 5) >= so->so_snd.sb_hiwat - lowat &&
+		    sbused(&so->so_snd) >=
+		    (so->so_snd.sb_hiwat / 8 * 7) - lowat &&
+		    sbused(&so->so_snd) < V_tcp_autosndbuf_max &&
+		    sendwin >= (sbused(&so->so_snd) -
+		    (tp->snd_nxt - tp->snd_una))) {
+			if (!sbreserve_locked(&so->so_snd,
+			    min(so->so_snd.sb_hiwat + V_tcp_autosndbuf_inc,
+			     V_tcp_autosndbuf_max), so, curthread))
+				so->so_snd.sb_flags &= ~SB_AUTOSIZE;
+		}
+	}
 }

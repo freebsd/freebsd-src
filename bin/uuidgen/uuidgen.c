@@ -28,6 +28,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/capsicum.h>
+
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -79,6 +82,12 @@ main(int argc, char *argv[])
 
 	if (argc)
 		usage();
+
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0)
+		err(1, "Unable to limit stdio");
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "Unable to enter capability mode");
 
 	if (count == -1)
 		count = 1;

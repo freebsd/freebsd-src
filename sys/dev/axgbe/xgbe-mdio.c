@@ -752,36 +752,30 @@ static void xgbe_an_init(struct xgbe_prv_data *pdata)
 
 static void xgbe_phy_adjust_link(struct xgbe_prv_data *pdata)
 {
-	int new_state = 0;
 
 	if (pdata->phy.link) {
 		/* Flow control support */
 		pdata->pause_autoneg = pdata->phy.pause_autoneg;
 
 		if (pdata->tx_pause != pdata->phy.tx_pause) {
-			new_state = 1;
 			pdata->hw_if.config_tx_flow_control(pdata);
 			pdata->tx_pause = pdata->phy.tx_pause;
 		}
 
 		if (pdata->rx_pause != pdata->phy.rx_pause) {
-			new_state = 1;
 			pdata->hw_if.config_rx_flow_control(pdata);
 			pdata->rx_pause = pdata->phy.rx_pause;
 		}
 
 		/* Speed support */
 		if (pdata->phy_speed != pdata->phy.speed) {
-			new_state = 1;
 			pdata->phy_speed = pdata->phy.speed;
 		}
 
 		if (pdata->phy_link != pdata->phy.link) {
-			new_state = 1;
 			pdata->phy_link = pdata->phy.link;
 		}
 	} else if (pdata->phy_link) {
-		new_state = 1;
 		pdata->phy_link = 0;
 		pdata->phy_speed = SPEED_UNKNOWN;
 	}

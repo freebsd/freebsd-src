@@ -3266,10 +3266,10 @@ static int
 ta_init_fhash(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
     char *data, uint8_t tflags)
 {
-	int i;
 	struct fhash_cfg *cfg;
 	struct fhashentry4 *fe4;
 	struct fhashentry6 *fe6;
+	u_int i;
 
 	cfg = malloc(sizeof(struct fhash_cfg), M_IPFW, M_WAITOK | M_ZERO);
 
@@ -3672,7 +3672,7 @@ ta_prepare_mod_fhash(void *ta_buf, uint64_t *pflags)
 {
 	struct mod_item *mi;
 	struct fhashbhead *head;
-	int i;
+	u_int i;
 
 	mi = (struct mod_item *)ta_buf;
 

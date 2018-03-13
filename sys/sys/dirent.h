@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -110,7 +112,7 @@ struct freebsd11_dirent {
 
 /*
  * The _GENERIC_DIRSIZ macro gives the minimum record length which will hold
- * the directory entry.  This returns the amount of space in struct direct
+ * the directory entry.  This returns the amount of space in struct dirent
  * without the d_name field, plus enough space for the name with a terminating
  * null byte (dp->d_namlen+1), rounded up to a 8 byte boundary.
  *

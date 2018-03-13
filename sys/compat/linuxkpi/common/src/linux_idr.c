@@ -680,7 +680,7 @@ idr_alloc_cyclic(struct idr *idr, void *ptr, int start, int end, gfp_t gfp_mask)
 }
 
 static int
-idr_for_each_layer(struct idr_layer *il, int layer,
+idr_for_each_layer(struct idr_layer *il, int offset, int layer,
     int (*f)(int id, void *p, void *data), void *data)
 {
 	int i, err;
@@ -691,7 +691,7 @@ idr_for_each_layer(struct idr_layer *il, int layer,
 		for (i = 0; i < IDR_SIZE; i++) {
 			if (il->ary[i] == NULL)
 				continue;
-			err = f(i, il->ary[i],  data);
+			err = f(i + offset, il->ary[i],  data);
 			if (err)
 				return (err);
 		}
@@ -700,7 +700,8 @@ idr_for_each_layer(struct idr_layer *il, int layer,
 	for (i = 0; i < IDR_SIZE; i++) {
 		if (il->ary[i] == NULL)
 			continue;
-		err = idr_for_each_layer(il->ary[i], layer - 1, f, data);
+		err = idr_for_each_layer(il->ary[i],
+		    (i + offset) * IDR_SIZE, layer - 1, f, data);
 		if (err)
 			return (err);
 	}
@@ -711,7 +712,7 @@ idr_for_each_layer(struct idr_layer *il, int layer,
 int
 idr_for_each(struct idr *idp, int (*f)(int id, void *p, void *data), void *data)
 {
-	return (idr_for_each_layer(idp->top, idp->layers - 1, f, data));
+	return (idr_for_each_layer(idp->top, 0, idp->layers - 1, f, data));
 }
 
 int

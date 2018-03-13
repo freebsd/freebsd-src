@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1996  Peter Wemm <peter@FreeBSD.org>.
  * All rights reserved.
  * Copyright (c) 2002 Networks Associates Technology, Inc.

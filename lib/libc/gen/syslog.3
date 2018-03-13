@@ -28,7 +28,7 @@
 .\"     @(#)syslog.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2015
+.Dd November 5, 2017
 .Dt SYSLOG 3
 .Os
 .Sh NAME
@@ -270,7 +270,7 @@ setlogmask(LOG_UPTO(LOG_ERR));
 
 syslog(LOG_INFO, "Connection from host %d", CallingHost);
 
-syslog(LOG_INFO|LOG_LOCAL2, "foobar error: %m");
+syslog(LOG_ERR|LOG_LOCAL2, "foobar error: %m");
 .Ed
 .Sh SEE ALSO
 .Xr logger 1 ,

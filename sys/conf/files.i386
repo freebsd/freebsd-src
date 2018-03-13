@@ -201,6 +201,7 @@ dev/ed/if_ed_isa.c		optional ed isa
 dev/ed/if_ed_wd80x3.c		optional ed isa
 dev/ed/if_ed_hpp.c		optional ed isa ed_hpp
 dev/ed/if_ed_sic.c		optional ed isa ed_sic
+dev/ep/elink.c			optional ep
 dev/fb/fb.c			optional fb | vga
 dev/fb/s3_pci.c			optional s3pci
 dev/fb/vesa.c			optional vga vesa
@@ -214,6 +215,7 @@ dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb
 dev/gpio/bytgpio.c		optional	bytgpio
+dev/gpio/chvgpio.c		optional	chvgpio
 dev/hpt27xx/hpt27xx_os_bsd.c	optional hpt27xx
 dev/hpt27xx/hpt27xx_osm_bsd.c	optional hpt27xx
 dev/hpt27xx/hpt27xx_config.c	optional hpt27xx
@@ -264,6 +266,8 @@ dev/if_ndis/if_ndis.c		optional ndis
 dev/if_ndis/if_ndis_pccard.c	optional ndis pccard
 dev/if_ndis/if_ndis_pci.c	optional ndis cardbus | ndis pci
 dev/if_ndis/if_ndis_usb.c	optional ndis usb
+dev/imcsmb/imcsmb.c		optional imcsmb
+dev/imcsmb/imcsmb_pci.c		optional imcsmb pci
 dev/intel/spi.c			optional intelspi
 dev/io/iodev.c			optional io
 dev/ipmi/ipmi.c			optional ipmi
@@ -327,7 +331,6 @@ dev/acpica/acpi_hpet.c		optional acpi
 dev/acpica/acpi_timer.c		optional acpi
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/wbwd/wbwd.c			optional wbwd
-dev/wpi/if_wpi.c		optional wpi
 dev/isci/isci.c							optional isci
 dev/isci/isci_controller.c					optional isci
 dev/isci/isci_domain.c						optional isci
@@ -489,9 +492,12 @@ i386/i386/minidump_machdep.c	standard
 i386/i386/mp_clock.c		optional smp
 i386/i386/mp_machdep.c		optional smp
 i386/i386/mpboot.s		optional smp
+i386/i386/npx.c			standard
 i386/i386/perfmon.c		optional perfmon
 i386/i386/pmap.c		standard
+i386/i386/prof_machdep.c	optional profiling-routine
 i386/i386/ptrace_machdep.c	standard
+i386/i386/sigtramp.s		standard
 i386/i386/support.s		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
@@ -518,10 +524,6 @@ i386/ibcs2/ibcs2_util.c		optional ibcs2
 i386/ibcs2/ibcs2_xenix.c	optional ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional ibcs2
 i386/ibcs2/imgact_coff.c	optional ibcs2
-i386/isa/elink.c		optional ep | ie
-i386/isa/npx.c			standard
-i386/isa/pmtimer.c		optional pmtimer
-i386/isa/prof_machdep.c		optional profiling-routine
 i386/linux/imgact_linux.c	optional compat_linux
 i386/linux/linux_dummy.c	optional compat_linux
 i386/linux/linux_machdep.c	optional compat_linux
@@ -549,10 +551,6 @@ libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
 libkern/x86/crc32_sse42.c	standard
-i386/xbox/xbox.c		optional xbox
-i386/xbox/xboxfb.c		optional xboxfb
-dev/fb/boot_font.c		optional xboxfb
-i386/xbox/pic16l.s		optional xbox
 #
 # x86 real mode BIOS support, required by dpms/pci/vesa
 #

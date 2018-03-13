@@ -194,6 +194,16 @@ passin:
 		in6_ifstat_inc(rcvif, ifs6_in_noroute);
 		goto dropin;
 	}
+
+	/*
+	 * Outgoing packet firewall processing.
+	 */
+	if (!PFIL_HOOKED(&V_inet6_pfil_hook))
+		goto passout;
+	if (pfil_run_hooks(&V_inet6_pfil_hook, &m, nh.nh_ifp, PFIL_OUT,
+	    NULL) != 0 || m == NULL)
+		goto dropout;
+
 	/*
 	 * We used slow path processing for packets with scoped addresses.
 	 * So, scope checks aren't needed here.
@@ -205,14 +215,6 @@ passin:
 		goto dropout;
 	}
 
-	/*
-	 * Outgoing packet firewall processing.
-	 */
-	if (!PFIL_HOOKED(&V_inet6_pfil_hook))
-		goto passout;
-	if (pfil_run_hooks(&V_inet6_pfil_hook, &m, nh.nh_ifp, PFIL_OUT,
-	    NULL) != 0 || m == NULL)
-		goto dropout;
 	/*
 	 * If packet filter sets the M_FASTFWD_OURS flag, this means
 	 * that new destination or next hop is our local address.

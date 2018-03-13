@@ -1,5 +1,7 @@
 default FU=<v>fu</v> FOO=<v>foo</v> VAR=<v></v>
 two FU=<v>bar</v> FOO=<v>goo</v> VAR=<v></v>
+immutable FU='bar'
+immutable FOO='goo'
 three FU=<v>bar</v> FOO=<v>goo</v> VAR=<v></v>
 four FU=<v>bar</v> FOO=<v>goo</v> VAR=<v>Internal</v>
 five FU=<v>bar</v> FOO=<v>goo</v> VAR=<v>Internal</v>

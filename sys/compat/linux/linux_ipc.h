@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2000 Marcel Moolenaar
  * All rights reserved.
  *
@@ -84,7 +86,7 @@
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 
-struct linux_msgctl_args 
+struct linux_msgctl_args
 {
 	l_int		msqid;
 	l_int		cmd;

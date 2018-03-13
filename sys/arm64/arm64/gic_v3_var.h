@@ -32,6 +32,8 @@
 #ifndef _GIC_V3_VAR_H_
 #define _GIC_V3_VAR_H_
 
+#include <arm/arm/gic_common.h>
+
 #define	GIC_V3_DEVSTR	"ARM Generic Interrupt Controller v3.0"
 
 DECLARE_CLASS(gic_v3_driver);
@@ -92,10 +94,8 @@ struct gic_v3_devinfo {
 MALLOC_DECLARE(M_GIC_V3);
 
 /* ivars */
-enum {
-	GICV3_IVAR_NIRQS,
-	GICV3_IVAR_REDIST_VADDR,
-};
+#define	GICV3_IVAR_NIRQS	1000
+#define	GICV3_IVAR_REDIST_VADDR	1001
 
 __BUS_ACCESSOR(gicv3, nirqs, GICV3, NIRQS, u_int);
 __BUS_ACCESSOR(gicv3, redist_vaddr, GICV3, REDIST_VADDR, void *);

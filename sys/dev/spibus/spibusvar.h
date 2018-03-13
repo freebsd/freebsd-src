@@ -68,3 +68,5 @@ SPIBUS_ACCESSOR(clock,		CLOCK,		uint32_t)
 
 extern driver_t spibus_driver;
 extern devclass_t spibus_devclass;
+extern driver_t ofw_spibus_driver;
+extern devclass_t ofw_spibus_devclass;

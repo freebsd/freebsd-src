@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2013 Chelsio, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -34,7 +36,7 @@
 #ifndef __C4IW_USER_H__
 #define __C4IW_USER_H__
 
-#define C4IW_UVERBS_ABI_VERSION	2
+#define C4IW_UVERBS_ABI_VERSION	3
 
 /*
  * Make sure that all structs defined in this file remain laid out so
@@ -67,5 +69,11 @@ struct c4iw_create_qp_resp {
 	__u32 rq_size;
 	__u32 qid_mask;
 	__u32 flags;
+};
+
+struct c4iw_alloc_ucontext_resp {
+	__u64 status_page_key;
+	__u32 status_page_size;
+	__u32 reserved; /* explicit padding (optional for i386) */
 };
 #endif

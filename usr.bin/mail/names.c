@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -573,7 +575,7 @@ unpack(struct name *np)
 		extra++;
 	top = (char **)salloc((t + extra) * sizeof(*top));
 	ap = top;
-	*ap++ = "send-mail";
+	*ap++ = "sendmail";
 	*ap++ = "-i";
 	if (metoo)
 		*ap++ = "-m";

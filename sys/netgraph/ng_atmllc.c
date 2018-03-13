@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2004 Benno Rice <benno@eloquent.com.au>
  * All Rights Reserved.
  *
@@ -169,7 +171,7 @@ ng_atmllc_rcvdata(hook_p hook, item_p item)
 	padding = 0;
 
 	if (hook == priv->atm) {
-		/* Ditch the psuedoheader. */
+		/* Ditch the pseudoheader. */
 		hdr = mtod(m, struct atmllc *);
 		/* m_adj(m, sizeof(struct atm_pseudohdr)); */
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2003 Mike Frantzen <frantzen@w4g.org>
  *
  * Permission to use, copy, modify, and distribute this software for any

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -66,7 +68,9 @@ struct cpu_ops {
 };
 
 extern struct	cpu_ops cpu_ops;
+extern char	brwsection[];
 extern char	btext[];
+extern char	_end[];
 extern char	etext[];
 
 /* Resume hook for VMM. */

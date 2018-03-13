@@ -137,18 +137,27 @@ static struct ofw_compat_data compat_data[] = {
 };
 #endif
 
+/*
+ * When doing i2c IO, indicate that we need to wait for exclusive bus ownership,
+ * but that we should not wait if we already own the bus.  This lets us put
+ * iicbus_acquire_bus() calls with a non-recursive wait at the entry of our API
+ * functions to ensure that only one client at a time accesses the hardware for
+ * the entire series of operations it takes to read or write the clock.
+ */
+#define	WAITFLAGS	(IIC_WAIT | IIC_RECURSIVE)
+
 static inline int
 isl12xx_read1(struct isl12xx_softc *sc, uint8_t reg, uint8_t *data) 
 {
 
-	return (iicdev_readfrom(sc->dev, reg, data, 1, IIC_WAIT));
+	return (iicdev_readfrom(sc->dev, reg, data, 1, WAITFLAGS));
 }
 
 static inline int
 isl12xx_write1(struct isl12xx_softc *sc, uint8_t reg, uint8_t val) 
 {
 
-	return (iicdev_writeto(sc->dev, reg, &val, 1, IIC_WAIT));
+	return (iicdev_writeto(sc->dev, reg, &val, 1, WAITFLAGS));
 }
 
 static void
@@ -224,20 +233,26 @@ static int
 isl12xx_gettime(device_t dev, struct timespec *ts)
 {
 	struct isl12xx_softc *sc = device_get_softc(dev);
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct time_regs tregs;
 	int err;
 	uint8_t hourmask, sreg;
 
-	/* If power failed, we can't provide valid time. */
-	if ((err = isl12xx_read1(sc, ISL12XX_SR_REG, &sreg)) != 0)
+	/*
+	 * Read the status and time registers.
+	 */
+	if ((err = iicbus_request_bus(sc->busdev, sc->dev, IIC_WAIT)) == 0) {
+		if ((err = isl12xx_read1(sc, ISL12XX_SR_REG, &sreg)) == 0) {
+			err = iicdev_readfrom(sc->dev, ISL12XX_SC_REG, &tregs,
+			    sizeof(tregs), WAITFLAGS);
+		}
+		iicbus_release_bus(sc->busdev, sc->dev);
+	}
+	if (err != 0)
 		return (err);
-	if (sreg & ISL12XX_SR_RTCF)
-		return (EINVAL);
 
-	/* Read the bcd time registers. */
-	if ((err = iicdev_readfrom(sc->dev, ISL12XX_SC_REG, &tregs, sizeof(tregs),
-	    IIC_WAIT)) != 0)
+	/* If power failed, we can't provide valid time. */
+	if (sreg & ISL12XX_SR_RTCF)
 		return (EINVAL);
 
 	/* If chip is in AM/PM mode remember that for when we set time. */
@@ -248,29 +263,24 @@ isl12xx_gettime(device_t dev, struct timespec *ts)
 		hourmask = ISL12xx_12HR_MASK;
 	}
 
-	ct.nsec = 0;
-	ct.sec  = FROMBCD(tregs.sec);
-	ct.min  = FROMBCD(tregs.min);
-	ct.hour = FROMBCD(tregs.hour & hourmask);
-	ct.day  = FROMBCD(tregs.day);
-	ct.mon  = FROMBCD(tregs.month);
-	ct.year = FROMBCD(tregs.year);
+	bct.nsec = 0;
+	bct.sec  = tregs.sec;
+	bct.min  = tregs.min;
+	bct.hour = tregs.hour & hourmask;
+	bct.day  = tregs.day;
+	bct.mon  = tregs.month;
+	bct.year = tregs.year;
+	bct.ispm = tregs.hour & ISL12XX_PM_FLAG;
 
-	if (sc->use_ampm) {
-		if (ct.hour == 12)
-			ct.hour = 0;
-		if (tregs.hour & ISL12XX_PM_FLAG)
-			ct.hour += 12;
-	}
-
-	return (clock_ct_to_ts(&ct, ts));
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct); 
+	return (clock_bcd_to_ts(&bct, ts, sc->use_ampm));
 }
 
 static int
 isl12xx_settime(device_t dev, struct timespec *ts)
 {
 	struct isl12xx_softc *sc = device_get_softc(dev);
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct time_regs tregs;
 	int err;
 	uint8_t ampmflags, sreg;
@@ -281,27 +291,21 @@ isl12xx_settime(device_t dev, struct timespec *ts)
 	 */
 	ts->tv_sec -= utc_offset();
 	ts->tv_nsec = 0;
-	clock_ts_to_ct(ts, &ct);
+	clock_ts_to_bcd(ts, &bct, sc->use_ampm);
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_WRITE, &bct); 
 
-	/* If the chip is in AM/PM mode, adjust hour and set flags as needed. */
-	if (!sc->use_ampm) {
+	/* If the chip is in AM/PM mode, set flags as needed. */
+	if (!sc->use_ampm)
 		ampmflags = ISL12XX_24HR_FLAG;
-	} else {
-		ampmflags = 0;
-		if (ct.hour >= 12) {
-			ct.hour -= 12;
-			ampmflags |= ISL12XX_PM_FLAG;
-		}
-		if (ct.hour == 0)
-			ct.hour = 12;
-	}
+	else
+		ampmflags = bct.ispm ? ISL12XX_PM_FLAG : 0;
 
-	tregs.sec   = TOBCD(ct.sec);
-	tregs.min   = TOBCD(ct.min);
-	tregs.hour  = TOBCD(ct.hour) | ampmflags;
-	tregs.day   = TOBCD(ct.day);
-	tregs.month = TOBCD(ct.mon);
-	tregs.year  = TOBCD(ct.year % 100);
+	tregs.sec   = bct.sec;
+	tregs.min   = bct.min;
+	tregs.hour  = bct.hour | ampmflags;
+	tregs.day   = bct.day;
+	tregs.month = bct.mon;
+	tregs.year  = bct.year % 100;
 
 	/*
 	 * To set the time we have to set the WRTC enable bit in the control
@@ -319,7 +323,7 @@ isl12xx_settime(device_t dev, struct timespec *ts)
 		sreg |= ISL12XX_SR_WRTC | ISL12XX_SR_W0C_BITS;
 		if ((err = isl12xx_write1(sc, ISL12XX_SR_REG, sreg)) == 0) {
 			err = iicdev_writeto(sc->dev, ISL12XX_SC_REG, &tregs,
-			    sizeof(tregs), IIC_WAIT);
+			    sizeof(tregs), WAITFLAGS);
 			sreg &= ~ISL12XX_SR_WRTC;
 			isl12xx_write1(sc, ISL12XX_SR_REG, sreg);
 		}

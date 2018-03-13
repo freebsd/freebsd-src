@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 EMC Corp.
  * Copyright (c) 2011 Jeffrey Roberson <jeff@freebsd.org>
  * Copyright (c) 2008 Mayur Shardul <mayur.shardul@gmail.com>
@@ -36,6 +38,7 @@
 #ifdef _KERNEL
 
 int		vm_radix_insert(struct vm_radix *rtree, vm_page_t page);
+void		vm_radix_wait(void);
 boolean_t	vm_radix_is_singleton(struct vm_radix *rtree);
 vm_page_t	vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index);
 vm_page_t	vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index);

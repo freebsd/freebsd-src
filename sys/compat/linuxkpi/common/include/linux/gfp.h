@@ -54,6 +54,8 @@
 #define	__GFP_NO_KSWAPD	0
 #define	__GFP_WAIT	M_WAITOK
 #define	__GFP_DMA32	(1U << 24) /* LinuxKPI only */
+#define	__GFP_BITS_SHIFT 25
+#define	__GFP_BITS_MASK	((1 << __GFP_BITS_SHIFT) - 1)
 
 #define	GFP_NOWAIT	M_NOWAIT
 #define	GFP_ATOMIC	(M_NOWAIT | M_USE_RESERVE)
@@ -66,6 +68,9 @@
 #define	GFP_DMA32	__GFP_DMA32
 #define	GFP_TEMPORARY	M_NOWAIT
 #define	GFP_NATIVE_MASK	(M_NOWAIT | M_WAITOK | M_USE_RESERVE | M_ZERO)
+
+CTASSERT((__GFP_DMA32 & GFP_NATIVE_MASK) == 0);
+CTASSERT((__GFP_BITS_MASK & GFP_NATIVE_MASK) == GFP_NATIVE_MASK);
 
 /*
  * Resolve a page into a virtual address:

@@ -32,8 +32,6 @@
 #
 # LIBEXECDIR	Base path for system daemons and utilities. [/usr/libexec]
 #
-# LINTLIBDIR	Base path for lint libraries. [/usr/libdata/lint]
-#
 # SHLIBDIR	Base path for shared libraries. [${LIBDIR}]
 #
 # LIBOWN	Library owner. [${BINOWN}]
@@ -162,7 +160,6 @@ LIBDIR?=	${LIBDIR_BASE}
 LIBCOMPATDIR?=	/usr/lib/compat
 LIBDATADIR?=	/usr/libdata
 LIBEXECDIR?=	/usr/libexec
-LINTLIBDIR?=	/usr/libdata/lint
 SHLIBDIR?=	${LIBDIR}
 LIBOWN?=	${BINOWN}
 LIBGRP?=	${BINGRP}
@@ -231,17 +228,6 @@ XZ_THREADS?=	0
 XZ_CMD?=	xz -T ${XZ_THREADS}
 .else
 XZ_CMD?=	xz
-.endif
-
-.if !defined(SVNVERSION_CMD) && empty(SVNVERSION_CMD)
-. for _D in ${PATH:S,:, ,g}
-.  if exists(${_D}/svnversion)
-SVNVERSION_CMD?=${_D}/svnversion
-.  endif
-.  if exists(${_D}/svnliteversion)
-SVNVERSION_CMD?=${_D}/svnliteversion
-.  endif
-. endfor
 .endif
 
 PKG_CMD?=	pkg

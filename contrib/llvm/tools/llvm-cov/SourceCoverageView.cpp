@@ -84,22 +84,15 @@ CoveragePrinter::create(const CoverageViewOptions &Opts) {
 }
 
 unsigned SourceCoverageView::getFirstUncoveredLineNo() {
-  auto CheckIfUncovered = [](const coverage::CoverageSegment &S) {
+  const auto MinSegIt = find_if(CoverageInfo, [](const CoverageSegment &S) {
     return S.HasCount && S.Count == 0;
-  };
-  // L is less than R if (1) it's an uncovered segment (has a 0 count), and (2)
-  // either R is not an uncovered segment, or L has a lower line number than R.
-  const auto MinSegIt =
-      std::min_element(CoverageInfo.begin(), CoverageInfo.end(),
-                       [CheckIfUncovered](const coverage::CoverageSegment &L,
-                                          const coverage::CoverageSegment &R) {
-                         return (CheckIfUncovered(L) &&
-                                 (!CheckIfUncovered(R) || (L.Line < R.Line)));
-                       });
-  if (CheckIfUncovered(*MinSegIt))
-    return (*MinSegIt).Line;
+  });
+
   // There is no uncovered line, return zero.
-  return 0;
+  if (MinSegIt == CoverageInfo.end())
+    return 0;
+
+  return (*MinSegIt).Line;
 }
 
 std::string SourceCoverageView::formatCount(uint64_t N) {
@@ -118,9 +111,20 @@ std::string SourceCoverageView::formatCount(uint64_t N) {
 }
 
 bool SourceCoverageView::shouldRenderRegionMarkers(
-    bool LineHasMultipleRegions) const {
-  return getOptions().ShowRegionMarkers &&
-         (!getOptions().ShowLineStatsOrRegionMarkers || LineHasMultipleRegions);
+    const LineCoverageStats &LCS) const {
+  if (!getOptions().ShowRegionMarkers)
+    return false;
+
+  CoverageSegmentArray Segments = LCS.getLineSegments();
+  if (Segments.empty())
+    return false;
+  for (unsigned I = 0, E = Segments.size() - 1; I < E; ++I) {
+    const auto *CurSeg = Segments[I];
+    if (!CurSeg->IsRegionEntry || CurSeg->Count == LCS.getExecutionCount())
+      continue;
+    return true;
+  }
+  return false;
 }
 
 bool SourceCoverageView::hasSubViews() const {
@@ -130,7 +134,7 @@ bool SourceCoverageView::hasSubViews() const {
 std::unique_ptr<SourceCoverageView>
 SourceCoverageView::create(StringRef SourceName, const MemoryBuffer &File,
                            const CoverageViewOptions &Options,
-                           coverage::CoverageData &&CoverageInfo) {
+                           CoverageData &&CoverageInfo) {
   switch (Options.Format) {
   case CoverageViewOptions::OutputFormat::Text:
     return llvm::make_unique<SourceCoverageViewText>(
@@ -150,7 +154,7 @@ std::string SourceCoverageView::getSourceName() const {
 }
 
 void SourceCoverageView::addExpansion(
-    const coverage::CounterMappingRegion &Region,
+    const CounterMappingRegion &Region,
     std::unique_ptr<SourceCoverageView> View) {
   ExpansionSubViews.emplace_back(Region, std::move(View));
 }
@@ -162,8 +166,9 @@ void SourceCoverageView::addInstantiation(
 }
 
 void SourceCoverageView::print(raw_ostream &OS, bool WholeFile,
-                               bool ShowSourceName, unsigned ViewDepth) {
-  if (WholeFile && getOptions().hasOutputDirectory())
+                               bool ShowSourceName, bool ShowTitle,
+                               unsigned ViewDepth) {
+  if (ShowTitle)
     renderTitle(OS, "Coverage Report");
 
   renderViewHeader(OS);
@@ -176,50 +181,37 @@ void SourceCoverageView::print(raw_ostream &OS, bool WholeFile,
 
   // We need the expansions and instantiations sorted so we can go through them
   // while we iterate lines.
-  std::sort(ExpansionSubViews.begin(), ExpansionSubViews.end());
-  std::sort(InstantiationSubViews.begin(), InstantiationSubViews.end());
+  std::stable_sort(ExpansionSubViews.begin(), ExpansionSubViews.end());
+  std::stable_sort(InstantiationSubViews.begin(), InstantiationSubViews.end());
   auto NextESV = ExpansionSubViews.begin();
   auto EndESV = ExpansionSubViews.end();
   auto NextISV = InstantiationSubViews.begin();
   auto EndISV = InstantiationSubViews.end();
 
   // Get the coverage information for the file.
-  auto NextSegment = CoverageInfo.begin();
+  auto StartSegment = CoverageInfo.begin();
   auto EndSegment = CoverageInfo.end();
+  LineCoverageIterator LCI{CoverageInfo, 1};
+  LineCoverageIterator LCIEnd = LCI.getEnd();
 
-  unsigned FirstLine = NextSegment != EndSegment ? NextSegment->Line : 0;
-  const coverage::CoverageSegment *WrappedSegment = nullptr;
-  SmallVector<const coverage::CoverageSegment *, 8> LineSegments;
-  for (line_iterator LI(File, /*SkipBlanks=*/false); !LI.is_at_eof(); ++LI) {
+  unsigned FirstLine = StartSegment != EndSegment ? StartSegment->Line : 0;
+  for (line_iterator LI(File, /*SkipBlanks=*/false); !LI.is_at_eof();
+       ++LI, ++LCI) {
     // If we aren't rendering the whole file, we need to filter out the prologue
     // and epilogue.
     if (!WholeFile) {
-      if (NextSegment == EndSegment)
+      if (LCI == LCIEnd)
         break;
       else if (LI.line_number() < FirstLine)
         continue;
     }
 
-    // Collect the coverage information relevant to this line.
-    if (LineSegments.size())
-      WrappedSegment = LineSegments.back();
-    LineSegments.clear();
-    while (NextSegment != EndSegment && NextSegment->Line == LI.line_number())
-      LineSegments.push_back(&*NextSegment++);
-
-    // Calculate a count to be for the line as a whole.
-    LineCoverageStats LineCount;
-    if (WrappedSegment && WrappedSegment->HasCount)
-      LineCount.addRegionCount(WrappedSegment->Count);
-    for (const auto *S : LineSegments)
-      if (S->HasCount && S->IsRegionEntry)
-        LineCount.addRegionStartCount(S->Count);
-
     renderLinePrefix(OS, ViewDepth);
     if (getOptions().ShowLineNumbers)
       renderLineNumberColumn(OS, LI.line_number());
+
     if (getOptions().ShowLineStats)
-      renderLineCoverageColumn(OS, LineCount);
+      renderLineCoverageColumn(OS, *LCI);
 
     // If there are expansion subviews, we want to highlight the first one.
     unsigned ExpansionColumn = 0;
@@ -228,12 +220,11 @@ void SourceCoverageView::print(raw_ostream &OS, bool WholeFile,
       ExpansionColumn = NextESV->getStartCol();
 
     // Display the source code for the current line.
-    renderLine(OS, {*LI, LI.line_number()}, WrappedSegment, LineSegments,
-               ExpansionColumn, ViewDepth);
+    renderLine(OS, {*LI, LI.line_number()}, *LCI, ExpansionColumn, ViewDepth);
 
     // Show the region markers.
-    if (shouldRenderRegionMarkers(LineCount.hasMultipleRegions()))
-      renderRegionMarkers(OS, LineSegments, ViewDepth);
+    if (shouldRenderRegionMarkers(*LCI))
+      renderRegionMarkers(OS, *LCI, ViewDepth);
 
     // Show the expansions and instantiations for this line.
     bool RenderedSubView = false;
@@ -245,8 +236,8 @@ void SourceCoverageView::print(raw_ostream &OS, bool WholeFile,
       // this subview.
       if (RenderedSubView) {
         ExpansionColumn = NextESV->getStartCol();
-        renderExpansionSite(OS, {*LI, LI.line_number()}, WrappedSegment,
-                            LineSegments, ExpansionColumn, ViewDepth);
+        renderExpansionSite(OS, {*LI, LI.line_number()}, *LCI, ExpansionColumn,
+                            ViewDepth);
         renderViewDivider(OS, ViewDepth + 1);
       }
 

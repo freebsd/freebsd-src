@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997,1998,2003 Doug Rabson
  * All rights reserved.
  *
@@ -491,6 +493,7 @@ struct resource_spec {
 	int	rid;
 	int	flags;
 };
+#define	RESOURCE_SPEC_END	{-1, 0, 0}
 
 int	bus_alloc_resources(device_t dev, struct resource_spec *rs,
 			    struct resource **res);
@@ -632,7 +635,6 @@ struct sysctl_oid *devclass_get_sysctl_tree(devclass_t dc);
 /*
  * Access functions for device resources.
  */
-
 int	resource_int_value(const char *name, int unit, const char *resname,
 			   int *result);
 int	resource_long_value(const char *name, int unit, const char *resname,
@@ -644,12 +646,6 @@ int	resource_find_match(int *anchor, const char **name, int *unit,
 			    const char *resname, const char *value);
 int	resource_find_dev(int *anchor, const char *name, int *unit,
 			  const char *resname, const char *value);
-int	resource_set_int(const char *name, int unit, const char *resname,
-			 int value);
-int	resource_set_long(const char *name, int unit, const char *resname,
-			  long value);
-int	resource_set_string(const char *name, int unit, const char *resname,
-			    const char *value);
 int	resource_unset_value(const char *name, int unit, const char *resname);
 
 /*
@@ -706,6 +702,7 @@ void	bus_data_generation_update(void);
 #define	BUS_PASS_INTERRUPT	40	/* Interrupt controllers. */
 #define	BUS_PASS_TIMER		50	/* Timers and clocks. */
 #define	BUS_PASS_SCHEDULER	60	/* Start scheduler. */
+#define	BUS_PASS_SUPPORTDEV	100000	/* Drivers which support DEFAULT drivers. */
 #define	BUS_PASS_DEFAULT	__INT_MAX /* Everything else. */
 
 #define	BUS_PASS_ORDER_FIRST	0

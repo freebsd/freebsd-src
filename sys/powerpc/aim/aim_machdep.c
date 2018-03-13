@@ -130,7 +130,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #ifdef __powerpc64__
-extern int n_slbs;
+#include "mmu_oea64.h"
 #endif
 
 #ifndef __powerpc64__
@@ -150,7 +150,6 @@ extern Elf_Addr	_GLOBAL_OFFSET_TABLE_[];
 extern void	*rstcode, *rstcodeend;
 extern void	*trapcode, *trapcodeend;
 extern void	*generictrap, *generictrap64;
-extern void	*slbtrap, *slbtrapend;
 extern void	*alitrap, *aliend;
 extern void	*dsitrap, *dsiend;
 extern void	*decrint, *decrsize;
@@ -161,23 +160,38 @@ extern void	*dlmisstrap, *dlmisssize;
 extern void	*dsmisstrap, *dsmisssize;
 
 extern void *ap_pcpu;
+extern void __restartkernel(vm_offset_t, vm_offset_t, vm_offset_t, void *, uint32_t, register_t offset, register_t msr);
 
+void aim_early_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry,
+    void *mdp, uint32_t mdp_cookie);
 void aim_cpu_init(vm_offset_t toc);
 
 void
-aim_cpu_init(vm_offset_t toc)
+aim_early_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
+    uint32_t mdp_cookie)
 {
-	size_t		trap_offset, trapsize;
-	vm_offset_t	trap;
-	register_t	msr, scratch;
-	uint8_t		*cache_check;
-	int		cacheline_warn;
-	#ifndef __powerpc64__
-	int		ppc64;
-	#endif
+	register_t	scratch;
 
-	trap_offset = 0;
-	cacheline_warn = 0;
+	/*
+	 * If running from an FDT, make sure we are in real mode to avoid
+	 * tromping on firmware page tables. Everything in the kernel assumes
+	 * 1:1 mappings out of firmware, so this won't break anything not
+	 * already broken. This doesn't work if there is live OF, since OF
+	 * may internally use non-1:1 mappings.
+	 */
+	if (ofentry == 0)
+		mtmsr(mfmsr() & ~(PSL_IR | PSL_DR));
+
+#ifdef __powerpc64__
+	/*
+	 * If in real mode, relocate to high memory so that the kernel
+	 * can execute from the direct map.
+	 */
+	if (!(mfmsr() & PSL_DR) &&
+	    (vm_offset_t)&aim_early_init < DMAP_BASE_ADDRESS)
+		__restartkernel(fdt, 0, ofentry, mdp, mdp_cookie,
+		    DMAP_BASE_ADDRESS, mfmsr());
+#endif
 
 	/* Various very early CPU fix ups */
 	switch (mfpvr() >> 16) {
@@ -204,6 +218,44 @@ aim_cpu_init(vm_offset_t toc)
 			break;
 	#endif
 	}
+}
+
+void
+aim_cpu_init(vm_offset_t toc)
+{
+	size_t		trap_offset, trapsize;
+	vm_offset_t	trap;
+	register_t	msr;
+	uint8_t		*cache_check;
+	int		cacheline_warn;
+#ifndef __powerpc64__
+	register_t	scratch;
+	int		ppc64;
+#endif
+
+	trap_offset = 0;
+	cacheline_warn = 0;
+
+	/* General setup for AIM CPUs */
+	psl_kernset = PSL_EE | PSL_ME | PSL_IR | PSL_DR | PSL_RI;
+
+#ifdef __powerpc64__
+	psl_kernset |= PSL_SF;
+	if (mfmsr() & PSL_HV)
+		psl_kernset |= PSL_HV;
+#endif
+	psl_userset = psl_kernset | PSL_PR;
+#ifdef __powerpc64__
+	psl_userset32 = psl_userset & ~PSL_SF;
+#endif
+
+	/* Bits that users aren't allowed to change */
+	psl_userstatic = ~(PSL_VEC | PSL_FP | PSL_FE0 | PSL_FE1);
+	/*
+	 * Mask bits from the SRR1 that aren't really the MSR:
+	 * Bits 1-4, 10-15 (ppc32), 33-36, 42-47 (ppc64)
+	 */
+	psl_userstatic &= ~0x783f0000UL;
 
 	/*
 	 * Initialize the interrupt tables and figure out our cache line
@@ -332,9 +384,6 @@ aim_cpu_init(vm_offset_t toc)
 	/* Set TOC base so that the interrupt code can get at it */
 	*((void **)TRAP_GENTRAP) = &generictrap;
 	*((register_t *)TRAP_TOCBASE) = toc;
-
-	bcopy(&slbtrap, (void *)EXC_DSE,(size_t)&slbtrapend - (size_t)&slbtrap);
-	bcopy(&slbtrap, (void *)EXC_ISE,(size_t)&slbtrapend - (size_t)&slbtrap);
 	#else
 	/* Set branch address for trap code */
 	if (cpu_features & PPC_FEATURE_64)
@@ -425,7 +474,7 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 {
 #ifdef __powerpc64__
 /* Copy the SLB contents from the current CPU */
-memcpy(pcpu->pc_slb, PCPU_GET(slb), sizeof(pcpu->pc_slb));
+memcpy(pcpu->pc_aim.slb, PCPU_GET(aim.slb), sizeof(pcpu->pc_aim.slb));
 #endif
 }
 
@@ -438,11 +487,33 @@ va_to_vsid(pmap_t pm, vm_offset_t va)
 
 #endif
 
+/*
+ * These functions need to provide addresses that both (a) work in real mode
+ * (or whatever mode/circumstances the kernel is in in early boot (now)) and
+ * (b) can still, in principle, work once the kernel is going. Because these
+ * rely on existing mappings/real mode, unmap is a no-op.
+ */
 vm_offset_t
 pmap_early_io_map(vm_paddr_t pa, vm_size_t size)
 {
+	KASSERT(!pmap_bootstrapped, ("Not available after PMAP started!"));
 
-	return (pa);
+	/*
+	 * If we have the MMU up in early boot, assume it is 1:1. Otherwise,
+	 * try to get the address in a memory region compatible with the
+	 * direct map for efficiency later.
+	 */
+	if (mfmsr() & PSL_DR)
+		return (pa);
+	else
+		return (DMAP_BASE_ADDRESS + pa);
+}
+
+void
+pmap_early_io_unmap(vm_offset_t va, vm_size_t size)
+{
+
+	KASSERT(!pmap_bootstrapped, ("Not available after PMAP started!"));
 }
 
 /* From p3-53 of the MPC7450 RISC Microprocessor Family Reference Manual */
@@ -595,7 +666,7 @@ cpu_sleep()
 		while (1)
 			mtmsr(msr);
 	}
-	mttb(timebase);
+	platform_smp_timebase_sync(timebase, 0);
 	PCPU_SET(curthread, curthread);
 	PCPU_SET(curpcb, curthread->td_pcb);
 	pmap_activate(curthread);

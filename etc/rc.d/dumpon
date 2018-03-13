@@ -16,11 +16,14 @@ stop_cmd="dumpon_stop"
 
 dumpon_try()
 {
+	local flags
+
+	flags=${dumpon_flags}
 	if [ -n "${dumppubkey}" ]; then
-		/sbin/dumpon -k "${dumppubkey}" "${1}"
-	else
-		/sbin/dumpon "${1}"
+		warn "The dumppubkey variable is deprecated.  Use dumpon_flags."
+		flags="${flags} -k ${dumppubkey}"
 	fi
+	/sbin/dumpon ${flags} "${1}"
 	if [ $? -eq 0 ]; then
 		# Make a symlink in devfs for savecore
 		ln -fs "${1}" /dev/dumpdev

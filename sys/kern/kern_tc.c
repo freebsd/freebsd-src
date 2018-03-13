@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: Beerware
+ *
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
@@ -1413,10 +1415,8 @@ tc_windup(struct bintime *new_boottimebin)
 		if (bt.sec != t)
 			th->th_boottime.sec += bt.sec - t;
 	}
-	th->th_bintime = th->th_offset;
-	bintime_add(&th->th_bintime, &th->th_boottime);
 	/* Update the UTC timestamps used by the get*() functions. */
-	/* XXX shouldn't do this here.  Should force non-`get' versions. */
+	th->th_bintime = bt;
 	bintime2timeval(&bt, &th->th_microtime);
 	bintime2timespec(&bt, &th->th_nanotime);
 
@@ -1601,10 +1601,10 @@ pps_fetch(struct pps_fetch_args *fapi, struct pps_state *pps)
 			tv.tv_usec = fapi->timeout.tv_nsec / 1000;
 			timo = tvtohz(&tv);
 		}
-		aseq = pps->ppsinfo.assert_sequence;
-		cseq = pps->ppsinfo.clear_sequence;
-		while (aseq == pps->ppsinfo.assert_sequence &&
-		    cseq == pps->ppsinfo.clear_sequence) {
+		aseq = atomic_load_int(&pps->ppsinfo.assert_sequence);
+		cseq = atomic_load_int(&pps->ppsinfo.clear_sequence);
+		while (aseq == atomic_load_int(&pps->ppsinfo.assert_sequence) &&
+		    cseq == atomic_load_int(&pps->ppsinfo.clear_sequence)) {
 			if (abi_aware(pps, 1) && pps->driver_mtx != NULL) {
 				if (pps->flags & PPSFLAG_MTX_SPIN) {
 					err = msleep_spin(pps, pps->driver_mtx,

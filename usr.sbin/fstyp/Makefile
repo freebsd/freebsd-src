@@ -37,7 +37,7 @@ CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/head
 
 CFLAGS+=-I${SRCTOP}/sys
 
-LIBADD=	geom md
+LIBADD=	geom md ufs
 
 .if ${MK_ZFS} != "no"
 LIBADD+=nvpair zfs

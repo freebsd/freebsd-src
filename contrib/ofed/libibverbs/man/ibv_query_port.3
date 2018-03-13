@@ -1,4 +1,5 @@
 .\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
 .\"
 .TH IBV_QUERY_PORT 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
 .SH "NAME"
@@ -48,6 +49,9 @@ uint8_t                 link_layer;     /* link layer protocol of the port */
 .in -8
 };
 .sp
+possible values for the link layer field are IBV_LINK_LAYER_INFINIBAND,
+IBV_LINK_LAYER_ETHERNET, or IBV_LINK_LAYER_UNSPECIFIED.
+.sp
 .fi
 .SH "RETURN VALUE"
 .B ibv_query_port()
@@ -59,4 +63,4 @@ returns 0 on success, or the value of errno on failure (which indicates the fail
 .BR ibv_create_ah (3)
 .SH "AUTHORS"
 .TP
-Dotan Barak <dotanb@mellanox.co.il>
+Dotan Barak <dotanba@gmail.com>

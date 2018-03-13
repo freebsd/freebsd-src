@@ -676,9 +676,10 @@ tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 			if (error)
 				return (error);
 		}
+		if (TUN2IFP(tp)->if_type != tunp->type)
+			return (EPROTOTYPE);
 		mtx_lock(&tp->tun_mtx);
 		TUN2IFP(tp)->if_mtu = tunp->mtu;
-		TUN2IFP(tp)->if_type = tunp->type;
 		TUN2IFP(tp)->if_baudrate = tunp->baudrate;
 		mtx_unlock(&tp->tun_mtx);
 		break;

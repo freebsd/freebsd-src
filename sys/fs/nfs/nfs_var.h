@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -369,8 +371,7 @@ struct ucred *newnfs_getcred(void);
 void newnfs_setroot(struct ucred *);
 int nfs_catnap(int, int, const char *);
 struct nfsreferral *nfsv4root_getreferral(vnode_t, vnode_t, u_int32_t);
-int nfsvno_pathconf(vnode_t, int, register_t *, struct ucred *,
-    NFSPROC_T *);
+int nfsvno_pathconf(vnode_t, int, long *, struct ucred *, NFSPROC_T *);
 int nfsrv_atroot(vnode_t, uint64_t *);
 void newnfs_timer(void *);
 int nfs_supportsnfsv4acls(vnode_t);
@@ -555,7 +556,7 @@ int nfscl_tryclose(struct nfsclopen *, struct ucred *,
     struct nfsmount *, NFSPROC_T *);
 void nfscl_cleanup(NFSPROC_T *);
 int nfscl_layout(struct nfsmount *, vnode_t, u_int8_t *, int, nfsv4stateid_t *,
-    int, struct nfsclflayouthead *, struct nfscllayout **, struct ucred *,
+    int, int, struct nfsclflayouthead *, struct nfscllayout **, struct ucred *,
     NFSPROC_T *);
 struct nfscllayout *nfscl_getlayout(struct nfsclclient *, uint8_t *, int,
     uint64_t, struct nfsclflayout **, int *);

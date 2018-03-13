@@ -74,13 +74,16 @@
 } while (0)
 
 #define	rcu_access_pointer(p)			\
-	((__typeof(*p) *)(READ_ONCE(p)))
+	((__typeof(*p) *)READ_ONCE(p))
 
 #define	rcu_dereference_protected(p, c)		\
-	((__typeof(*p) *)(p))
+	((__typeof(*p) *)READ_ONCE(p))
 
 #define	rcu_dereference(p)			\
 	rcu_dereference_protected(p, 0)
+
+#define	rcu_dereference_raw(p)			\
+	((__typeof(*p) *)READ_ONCE(p))
 
 #define	rcu_pointer_handoff(p) (p)
 

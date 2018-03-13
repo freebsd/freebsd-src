@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006-2008 Marcel Moolenaar
  * All rights reserved.
  *
@@ -36,6 +38,7 @@
 #define	G_PART_PROBE_PRI_HIGH	0
 
 enum g_part_alias {
+	G_PART_ALIAS_APPLE_APFS,	/* An Apple APFS partition. */
 	G_PART_ALIAS_APPLE_BOOT,	/* An Apple boot partition entry. */
 	G_PART_ALIAS_APPLE_CORE_STORAGE,/* An Apple Core Storage partition. */
 	G_PART_ALIAS_APPLE_HFS,		/* An HFS+ file system entry. */

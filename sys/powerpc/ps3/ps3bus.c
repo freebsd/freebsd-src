@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2010 Nathan Whitehorn
  * Copyright (C) 2011 glevand (geoffrey.levand@mail.ru)
  * All rights reserved.
@@ -335,7 +337,7 @@ ps3bus_attach(device_t self)
 	rman_manage_region(&sc->sc_intr_rman, 0, ~0);
 
 	/* Get memory regions for DMA */
-	mem_regions(&sc->regions, &sc->rcount, &sc->regions, &sc->rcount);
+	mem_regions(&sc->regions, &sc->rcount, NULL, NULL);
 
 	/*
 	 * Probe all the PS3's buses.

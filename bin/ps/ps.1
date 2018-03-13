@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd September 7, 2017
+.Dd March 13, 2018
 .Dt PS 1
 .Os
 .Sh NAME
@@ -101,6 +101,14 @@ The default output format includes, for each process, the process' ID,
 controlling terminal, state, CPU time (including both user and system time)
 and associated command.
 .Pp
+If the
+.Nm
+process is associated with a terminal, the default output width is that of the
+terminal; otherwise the output width is unlimited.
+See also the
+.Fl w
+option.
+.Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl -libxo
@@ -148,12 +156,7 @@ This option is honored only if the UID of the user is 0.
 Display information about processes which are running with the specified
 real group IDs.
 .It Fl H
-Show all of the
-.Em kernel visible
-threads associated with each process.
-Depending on the threading package that
-is in use, this may show only the process, only the kernel scheduled entities,
-or all of the process threads.
+Show all of the threads associated with each process.
 .It Fl h
 Repeat the information header as often as necessary to guarantee one
 header per page of information.
@@ -262,13 +265,15 @@ option implies the
 .Fl m
 option.
 .It Fl w
-Use 132 columns to display information, instead of the default which
-is your window size.
+Use at least 132 columns to display information, instead of the default which
+is the window size if
+.Nm
+is associated with a terminal.
 If the
 .Fl w
 option is specified more than once,
 .Nm
-will use as many columns as necessary without regard for your window size.
+will use as many columns as necessary without regard for the window size.
 Note that this option has no effect if the
 .Dq command
 column is not the last column displayed.
@@ -571,6 +576,8 @@ group name (from egid) (alias
 .It Cm inblk
 total blocks read (alias
 .Cm inblock )
+.It Cm jail
+jail name
 .It Cm jid
 jail ID
 .It Cm jobc
@@ -588,7 +595,8 @@ login name of user who started the session
 .It Cm lstart
 time started
 .It Cm lwp
-process thread-id
+thread (light-weight process) ID (alias
+.Cm tid )
 .It Cm majflt
 total page faults
 .It Cm minflt
@@ -605,7 +613,7 @@ nice value (alias
 .It Cm nivcsw
 total involuntary context switches
 .It Cm nlwp
-number of threads tied to a process
+number of threads (light-weight processes) tied to a process
 .It Cm nsigs
 total signals taken (alias
 .Cm nsignals )
@@ -675,6 +683,8 @@ saved UID from a setuid executable
 accumulated system CPU time
 .It Cm tdaddr
 thread address
+.It Cm tdname
+thread name
 .It Cm tdev
 control terminal device number
 .It Cm time
@@ -708,6 +718,8 @@ process pointer
 user name (from UID)
 .It Cm usertime
 accumulated user CPU time
+.It Cm vmaddr
+vmspace pointer
 .It Cm vsz
 virtual size in Kbytes (alias
 .Cm vsize )

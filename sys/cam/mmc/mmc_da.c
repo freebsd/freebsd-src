@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Bernd Walter <tisco@FreeBSD.org>
  * Copyright (c) 2006 M. Warner Losh <imp@FreeBSD.org>
  * Copyright (c) 2009 Alexander Motin <mav@FreeBSD.org>
@@ -367,7 +369,7 @@ sddaopen(struct disk *dp)
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		return(ENXIO);
 	}
 
@@ -685,10 +687,7 @@ sdda_hook_into_geom(struct cam_periph *periph)
 
 	softc = (struct sdda_softc*) periph->softc;
 
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NONE);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 
 	bzero(&cgd, sizeof(cgd));
 	xpt_setup_ccb(&cgd.ccb_h, periph->path, CAM_PRIORITY_NONE);
@@ -745,7 +744,7 @@ sdda_hook_into_geom(struct cam_periph *periph)
 	 * We'll release this reference once GEOM calls us back (via
 	 * sddadiskgonecb()) telling us that our provider has been freed.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -1425,6 +1424,6 @@ sddadone(struct cam_periph *periph, union ccb *done_ccb)
 static int
 sddaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
-	return(cam_periph_error(ccb, cam_flags, sense_flags, NULL));
+	return(cam_periph_error(ccb, cam_flags, sense_flags));
 }
 #endif /* _KERNEL */

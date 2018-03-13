@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1994, 2001 by Joerg Wunsch, Dresden
  * All rights reserved.
  *
@@ -80,6 +82,7 @@ main(int argc, char **argv)
 
 		case 'a':
 			autofmt = 1;
+			/*FALLTHROUGH*/
 		case 'F':
 			showfmt = 1;
 			show = 0;

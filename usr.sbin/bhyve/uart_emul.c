@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 NetApp, Inc.
  * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
  * All rights reserved.
@@ -678,20 +680,24 @@ uart_set_backend(struct uart_softc *sc, const char *opts)
 	if (retval == 0)
 		retval = fcntl(sc->tty.fd, F_SETFL, O_NONBLOCK);
 
+	if (retval == 0) {
 #ifndef WITHOUT_CAPSICUM
-	cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ, CAP_WRITE);
-	if (cap_rights_limit(sc->tty.fd, &rights) == -1 && errno != ENOSYS)
-		errx(EX_OSERR, "Unable to apply rights for sandbox");
-	if (cap_ioctls_limit(sc->tty.fd, cmds, nitems(cmds)) == -1 && errno != ENOSYS)
-		errx(EX_OSERR, "Unable to apply rights for sandbox");
-	if (!uart_stdio) {
-		if (caph_limit_stdin() == -1 && errno != ENOSYS)
+		cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ,
+		    CAP_WRITE);
+		if (cap_rights_limit(sc->tty.fd, &rights) == -1 &&
+		    errno != ENOSYS)
 			errx(EX_OSERR, "Unable to apply rights for sandbox");
-	}
+		if (cap_ioctls_limit(sc->tty.fd, cmds, nitems(cmds)) == -1 &&
+		    errno != ENOSYS)
+			errx(EX_OSERR, "Unable to apply rights for sandbox");
+		if (!uart_stdio) {
+			if (caph_limit_stdin() == -1 && errno != ENOSYS)
+				errx(EX_OSERR,
+				    "Unable to apply rights for sandbox");
+		}
 #endif
-
-	if (retval == 0)
 		uart_opentty(sc);
+	}
 
 	return (retval);
 }

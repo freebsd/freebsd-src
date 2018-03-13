@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -255,9 +255,9 @@
 
 #define ACPI_ADDRESS_RANGE_MAX          2
 
-/* Maximum number of While() loops before abort */
+/* Maximum time (default 30s) of While() loops before abort */
 
-#define ACPI_MAX_LOOP_COUNT             0x000FFFFF
+#define ACPI_MAX_LOOP_TIMEOUT           30
 
 
 /******************************************************************************

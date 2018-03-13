@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1993, David Greenman
  * All rights reserved.
  *
@@ -335,5 +337,8 @@ exec_aout_imgact(struct image_params *imgp)
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
  */
-static struct execsw aout_execsw = { exec_aout_imgact, "a.out" };
+static struct execsw aout_execsw = {
+	.ex_imgact = exec_aout_imgact,
+	.ex_name = "a.out"
+};
 EXEC_SET(aout, aout_execsw);

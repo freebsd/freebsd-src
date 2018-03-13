@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -47,10 +49,10 @@ strncpy(char * __restrict dst, const char * __restrict src, size_t n)
 		const char *s = src;
 
 		do {
-			if ((*d++ = *s++) == 0) {
+			if ((*d++ = *s++) == '\0') {
 				/* NUL pad the remaining n-1 bytes */
 				while (--n != 0)
-					*d++ = 0;
+					*d++ = '\0';
 				break;
 			}
 		} while (--n != 0);

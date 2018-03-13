@@ -5,6 +5,8 @@
  *  University of Utah, Department of Computer Science
  */
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -82,8 +84,8 @@
 #include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2_acl.h>
-#include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_dir.h>
 #include <fs/ext2fs/ext2_mount.h>
@@ -91,8 +93,6 @@
 
 static int ext2_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
 static void ext2_itimes_locked(struct vnode *);
-static int ext4_ext_read(struct vop_read_args *);
-static int ext2_ind_read(struct vop_read_args *);
 
 static vop_access_t	ext2_access;
 static int ext2_chmod(struct vnode *, int, struct ucred *, struct thread *);
@@ -180,6 +180,7 @@ struct vop_vector ext2_fifoops = {
 	.vop_getattr =		ext2_getattr,
 	.vop_inactive =		ext2_inactive,
 	.vop_kqfilter =		ext2fifo_kqfilter,
+	.vop_pathconf =		ext2_pathconf,
 	.vop_print =		ext2_print,
 	.vop_read =		VOP_PANIC,
 	.vop_reclaim =		ext2_reclaim,
@@ -630,7 +631,8 @@ ext2_mknod(struct vop_mknod_args *ap)
 		 * Want to be able to use this to make badblock
 		 * inodes, so don't truncate the dev number.
 		 */
-		ip->i_rdev = vap->va_rdev;
+		if (!(ip->i_flag & IN_E4EXTENTS))
+			ip->i_rdev = vap->va_rdev;
 	}
 	/*
 	 * Remove inode, then reload it through VFS_VGET so it is
@@ -782,7 +784,7 @@ ext2_rename(struct vop_rename_args *ap)
 	struct componentname *tcnp = ap->a_tcnp;
 	struct componentname *fcnp = ap->a_fcnp;
 	struct inode *ip, *xp, *dp;
-	struct dirtemplate dirbuf;
+	struct dirtemplate *dirbuf;
 	int doingdirectory = 0, oldparent = 0, newparent = 0;
 	int error = 0;
 	u_char namlen;
@@ -1069,23 +1071,31 @@ abortit:
 		if (doingdirectory && newparent) {
 			ext2_dec_nlink(dp);
 			dp->i_flag |= IN_CHANGE;
-			error = vn_rdwr(UIO_READ, fvp, (caddr_t)&dirbuf,
-			    sizeof(struct dirtemplate), (off_t)0,
+			dirbuf = malloc(dp->i_e2fs->e2fs_bsize, M_TEMP, M_WAITOK | M_ZERO);
+			if (!dirbuf) {
+				error = ENOMEM;
+				goto bad;
+			}
+			error = vn_rdwr(UIO_READ, fvp, (caddr_t)dirbuf,
+			    ip->i_e2fs->e2fs_bsize, (off_t)0,
 			    UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK,
 			    tcnp->cn_cred, NOCRED, NULL, NULL);
 			if (error == 0) {
 				/* Like ufs little-endian: */
-				namlen = dirbuf.dotdot_type;
+				namlen = dirbuf->dotdot_type;
 				if (namlen != 2 ||
-				    dirbuf.dotdot_name[0] != '.' ||
-				    dirbuf.dotdot_name[1] != '.') {
+				    dirbuf->dotdot_name[0] != '.' ||
+				    dirbuf->dotdot_name[1] != '.') {
 					ext2_dirbad(xp, (doff_t)12,
 					    "rename: mangled dir");
 				} else {
-					dirbuf.dotdot_ino = newparent;
+					dirbuf->dotdot_ino = newparent;
+					ext2_dir_blk_csum_set_mem(ip,
+					    (char *)dirbuf,
+					    ip->i_e2fs->e2fs_bsize);
 					(void)vn_rdwr(UIO_WRITE, fvp,
-					    (caddr_t)&dirbuf,
-					    sizeof(struct dirtemplate),
+					    (caddr_t)dirbuf,
+					    ip->i_e2fs->e2fs_bsize,
 					    (off_t)0, UIO_SYSSPACE,
 					    IO_NODELOCKED | IO_SYNC |
 					    IO_NOMACCHECK, tcnp->cn_cred,
@@ -1093,6 +1103,7 @@ abortit:
 					cache_purge(fdvp);
 				}
 			}
+			free(dirbuf, M_TEMP);
 		}
 		error = ext2_dirremove(fdvp, fcnp);
 		if (!error) {
@@ -1272,18 +1283,28 @@ out:
 
 #endif /* UFS_ACL */
 
+static void
+ext2_init_dirent_tail(struct ext2fs_direct_tail *tp)
+{
+	memset(tp, 0, sizeof(struct ext2fs_direct_tail));
+	tp->e2dt_rec_len = sizeof(struct ext2fs_direct_tail);
+	tp->e2dt_reserved_ft = EXT2_FT_DIR_CSUM;
+}
+
 /*
  * Mkdir system call
  */
 static int
 ext2_mkdir(struct vop_mkdir_args *ap)
 {
+	struct m_ext2fs *fs;
 	struct vnode *dvp = ap->a_dvp;
 	struct vattr *vap = ap->a_vap;
 	struct componentname *cnp = ap->a_cnp;
 	struct inode *ip, *dp;
 	struct vnode *tvp;
 	struct dirtemplate dirtemplate, *dtp;
+	char *buf = NULL;
 	int error, dmode;
 
 #ifdef INVARIANTS
@@ -1307,6 +1328,7 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 	if (error)
 		goto out;
 	ip = VTOI(tvp);
+	fs = ip->i_e2fs;
 	ip->i_gid = dp->i_gid;
 #ifdef SUIDDIR
 	{
@@ -1365,8 +1387,21 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 #undef  DIRBLKSIZ
 #define DIRBLKSIZ  VTOI(dvp)->i_e2fs->e2fs_bsize
 	dirtemplate.dotdot_reclen = DIRBLKSIZ - 12;
-	error = vn_rdwr(UIO_WRITE, tvp, (caddr_t)&dirtemplate,
-	    sizeof(dirtemplate), (off_t)0, UIO_SYSSPACE,
+	buf = malloc(DIRBLKSIZ, M_TEMP, M_WAITOK | M_ZERO);
+	if (!buf) {
+		error = ENOMEM;
+		ext2_dec_nlink(dp);
+		dp->i_flag |= IN_CHANGE;
+		goto bad;
+	}
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM)) {
+		dirtemplate.dotdot_reclen -= sizeof(struct ext2fs_direct_tail);
+		ext2_init_dirent_tail(EXT2_DIRENT_TAIL(buf, DIRBLKSIZ));
+	}
+	memcpy(buf, &dirtemplate, sizeof(dirtemplate));
+	ext2_dir_blk_csum_set_mem(ip, buf, DIRBLKSIZ);
+	error = vn_rdwr(UIO_WRITE, tvp, (caddr_t)buf,
+	    DIRBLKSIZ, (off_t)0, UIO_SYSSPACE,
 	    IO_NODELOCKED | IO_SYNC | IO_NOMACCHECK, cnp->cn_cred, NOCRED,
 	    NULL, NULL);
 	if (error) {
@@ -1410,6 +1445,7 @@ bad:
 	} else
 		*ap->a_vpp = tvp;
 out:
+	free(buf, M_TEMP);
 	return (error);
 #undef  DIRBLKSIZ
 #define DIRBLKSIZ  DEV_BSIZE
@@ -1542,7 +1578,12 @@ ext2_strategy(struct vop_strategy_args *ap)
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("ext2_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
-		error = ext2_bmaparray(vp, bp->b_lblkno, &blkno, NULL, NULL);
+
+		if (VTOI(ap->a_vp)->i_flag & IN_E4EXTENTS)
+			error = ext4_bmapext(vp, bp->b_lblkno, &blkno, NULL, NULL);
+		else
+			error = ext2_bmaparray(vp, bp->b_lblkno, &blkno, NULL, NULL);
+
 		bp->b_blkno = blkno;
 		if (error) {
 			bp->b_error = error;
@@ -1626,6 +1667,18 @@ ext2_pathconf(struct vop_pathconf_args *ap)
 			*ap->a_retval = INT_MAX;
 		else
 			*ap->a_retval = ext2_max_nlink(VTOI(ap->a_vp));
+		break;
+	case _PC_NAME_MAX:
+		*ap->a_retval = NAME_MAX;
+		break;
+	case _PC_PIPE_BUF:
+		if (ap->a_vp->v_type == VDIR || ap->a_vp->v_type == VFIFO)
+			*ap->a_retval = PIPE_BUF;
+		else
+			error = EINVAL;
+		break;
+	case _PC_CHOWN_RESTRICTED:
+		*ap->a_retval = 1;
 		break;
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 1;
@@ -1990,28 +2043,6 @@ ext2_read(struct vop_read_args *ap)
 {
 	struct vnode *vp;
 	struct inode *ip;
-	int error;
-
-	vp = ap->a_vp;
-	ip = VTOI(vp);
-
-	/* EXT4_EXT_LOCK(ip); */
-	if (ip->i_flag & IN_E4EXTENTS)
-		error = ext4_ext_read(ap);
-	else
-		error = ext2_ind_read(ap);
-	/* EXT4_EXT_UNLOCK(ip); */
-	return (error);
-}
-
-/*
- * Vnode op for reading.
- */
-static int
-ext2_ind_read(struct vop_read_args *ap)
-{
-	struct vnode *vp;
-	struct inode *ip;
 	struct uio *uio;
 	struct m_ext2fs *fs;
 	struct buf *bp;
@@ -2128,122 +2159,6 @@ ext2_ioctl(struct vop_ioctl_args *ap)
 	default:
 		return (ENOTTY);
 	}
-}
-
-/*
- * this function handles ext4 extents block mapping
- */
-static int
-ext4_ext_read(struct vop_read_args *ap)
-{
-	static unsigned char zeroes[EXT2_MAX_BLOCK_SIZE];
-	struct vnode *vp;
-	struct inode *ip;
-	struct uio *uio;
-	struct m_ext2fs *fs;
-	struct buf *bp;
-	struct ext4_extent nex, *ep;
-	struct ext4_extent_path path;
-	daddr_t lbn, newblk;
-	off_t bytesinfile;
-	int cache_type;
-	ssize_t orig_resid;
-	int error;
-	long size, xfersize, blkoffset;
-
-	vp = ap->a_vp;
-	ip = VTOI(vp);
-	uio = ap->a_uio;
-	memset(&path, 0, sizeof(path));
-
-	orig_resid = uio->uio_resid;
-	KASSERT(orig_resid >= 0, ("%s: uio->uio_resid < 0", __func__));
-	if (orig_resid == 0)
-		return (0);
-	KASSERT(uio->uio_offset >= 0, ("%s: uio->uio_offset < 0", __func__));
-	fs = ip->i_e2fs;
-	if (uio->uio_offset < ip->i_size && uio->uio_offset >= fs->e2fs_maxfilesize)
-		return (EOVERFLOW);
-
-	while (uio->uio_resid > 0) {
-		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
-			break;
-		lbn = lblkno(fs, uio->uio_offset);
-		size = blksize(fs, ip, lbn);
-		blkoffset = blkoff(fs, uio->uio_offset);
-
-		xfersize = fs->e2fs_fsize - blkoffset;
-		xfersize = MIN(xfersize, uio->uio_resid);
-		xfersize = MIN(xfersize, bytesinfile);
-
-		/* get block from ext4 extent cache */
-		cache_type = ext4_ext_in_cache(ip, lbn, &nex);
-		switch (cache_type) {
-		case EXT4_EXT_CACHE_NO:
-			ext4_ext_find_extent(fs, ip, lbn, &path);
-			if (path.ep_is_sparse)
-				ep = &path.ep_sparse_ext;
-			else
-				ep = path.ep_ext;
-			if (ep == NULL)
-				return (EIO);
-
-			ext4_ext_put_cache(ip, ep,
-			    path.ep_is_sparse ? EXT4_EXT_CACHE_GAP : EXT4_EXT_CACHE_IN);
-
-			newblk = lbn - ep->e_blk + (ep->e_start_lo |
-			    (daddr_t)ep->e_start_hi << 32);
-
-			if (path.ep_bp != NULL) {
-				brelse(path.ep_bp);
-				path.ep_bp = NULL;
-			}
-			break;
-
-		case EXT4_EXT_CACHE_GAP:
-			/* block has not been allocated yet */
-			break;
-
-		case EXT4_EXT_CACHE_IN:
-			newblk = lbn - nex.e_blk + (nex.e_start_lo |
-			    (daddr_t)nex.e_start_hi << 32);
-			break;
-
-		default:
-			panic("%s: invalid cache type", __func__);
-		}
-
-		if (cache_type == EXT4_EXT_CACHE_GAP ||
-		    (cache_type == EXT4_EXT_CACHE_NO && path.ep_is_sparse)) {
-			if (xfersize > sizeof(zeroes))
-				xfersize = sizeof(zeroes);
-			error = uiomove(zeroes, xfersize, uio);
-			if (error)
-				return (error);
-		} else {
-			error = bread(ip->i_devvp, fsbtodb(fs, newblk), size,
-			    NOCRED, &bp);
-			if (error) {
-				brelse(bp);
-				return (error);
-			}
-
-			size -= bp->b_resid;
-			if (size < xfersize) {
-				if (size == 0) {
-					bqrelse(bp);
-					break;
-				}
-				xfersize = size;
-			}
-			error = uiomove(bp->b_data + blkoffset, xfersize, uio);
-			bqrelse(bp);
-			if (error)
-				return (error);
-		}
-	}
-
-	return (0);
 }
 
 /*

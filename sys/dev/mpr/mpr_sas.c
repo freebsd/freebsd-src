@@ -728,7 +728,7 @@ mpr_attach_sas(struct mpr_softc *sc)
 {
 	struct mprsas_softc *sassc;
 	cam_status status;
-	int unit, error = 0;
+	int unit, error = 0, reqs;
 
 	MPR_FUNCTRACE(sc);
 	mpr_dprint(sc, MPR_INIT, "%s entered\n", __func__);
@@ -758,7 +758,8 @@ mpr_attach_sas(struct mpr_softc *sc)
 	sc->sassc = sassc;
 	sassc->sc = sc;
 
-	if ((sassc->devq = cam_simq_alloc(sc->num_reqs)) == NULL) {
+	reqs = sc->num_reqs - sc->num_prireqs - 1;
+	if ((sassc->devq = cam_simq_alloc(reqs)) == NULL) {
 		mpr_dprint(sc, MPR_INIT|MPR_ERROR, "Cannot allocate SIMQ\n");
 		error = ENOMEM;
 		goto out;
@@ -766,7 +767,7 @@ mpr_attach_sas(struct mpr_softc *sc)
 
 	unit = device_get_unit(sc->mpr_dev);
 	sassc->sim = cam_sim_alloc(mprsas_action, mprsas_poll, "mpr", sassc,
-	    unit, &sc->mpr_mtx, sc->num_reqs, sc->num_reqs, sassc->devq);
+	    unit, &sc->mpr_mtx, reqs, reqs, sassc->devq);
 	if (sassc->sim == NULL) {
 		mpr_dprint(sc, MPR_INIT|MPR_ERROR, "Cannot allocate SIM\n");
 		error = EINVAL;
@@ -1008,7 +1009,6 @@ mprsas_action(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct ccb_pathinq *cpi = &ccb->cpi;
 		struct mpr_softc *sc = sassc->sc;
-		uint8_t sges_per_frame;
 
 		cpi->version_num = 1;
 		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
@@ -1042,24 +1042,7 @@ mprsas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->transport_version = 0;
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_SPC;
-
-		/*
-		 * Max IO Size is Page Size * the following:
-		 * ((SGEs per frame - 1 for chain element) *
-		 * Max Chain Depth) + 1 for no chain needed in last frame
-		 *
-		 * If user suggests a Max IO size to use, use the smaller of the
-		 * user's value and the calculated value as long as the user's
-		 * value is larger than 0. The user's value is in pages.
-		 */
-		sges_per_frame = (sc->chain_frame_size /
-		    sizeof(MPI2_IEEE_SGE_SIMPLE64)) - 1;
-		cpi->maxio = (sges_per_frame * sc->facts->MaxChainDepth) + 1;
-		cpi->maxio *= PAGE_SIZE;
-		if ((sc->max_io_pages > 0) && (sc->max_io_pages * PAGE_SIZE <
-		    cpi->maxio))
-			cpi->maxio = sc->max_io_pages * PAGE_SIZE;
-		sc->maxio = cpi->maxio;
+		cpi->maxio = sc->maxio;
 		mprsas_set_ccbstatus(ccb, CAM_REQ_CMP);
 		break;
 	}
@@ -1178,6 +1161,10 @@ mprsas_complete_all_commands(struct mpr_softc *sc)
 	/* complete all commands with a NULL reply */
 	for (i = 1; i < sc->num_reqs; i++) {
 		cm = &sc->commands[i];
+		if (cm->cm_state == MPR_CM_STATE_FREE)
+			continue;
+
+		cm->cm_state = MPR_CM_STATE_BUSY;
 		cm->cm_reply = NULL;
 		completed = 0;
 
@@ -1190,9 +1177,7 @@ mprsas_complete_all_commands(struct mpr_softc *sc)
 			    cm, cm->cm_state, cm->cm_ccb);
 			cm->cm_complete(sc, cm);
 			completed = 1;
-		}
-
-		if (cm->cm_flags & MPR_CM_FLAGS_WAKEUP) {
+		} else if (cm->cm_flags & MPR_CM_FLAGS_WAKEUP) {
 			mprsas_log_command(cm, MPR_RECOVERY,
 			    "waking up cm %p state %x ccb %p for diag reset\n", 
 			    cm, cm->cm_state, cm->cm_ccb);
@@ -1200,9 +1185,6 @@ mprsas_complete_all_commands(struct mpr_softc *sc)
 			completed = 1;
 		}
 
-		if (cm->cm_sc->io_cmds_active != 0)
-			cm->cm_sc->io_cmds_active--;
-		
 		if ((completed == 0) && (cm->cm_state != MPR_CM_STATE_FREE)) {
 			/* this should never happen, but if it does, log */
 			mprsas_log_command(cm, MPR_RECOVERY,
@@ -1211,6 +1193,8 @@ mprsas_complete_all_commands(struct mpr_softc *sc)
 			    cm->cm_ccb);
 		}
 	}
+
+	sc->io_cmds_active = 0;
 }
 
 void
@@ -1265,6 +1249,11 @@ mprsas_tm_timeout(void *data)
 
 	mprsas_log_command(tm, MPR_INFO|MPR_RECOVERY, "task mgmt %p timed "
 	    "out\n", tm);
+
+	KASSERT(tm->cm_state == MPR_CM_STATE_INQUEUE,
+	    ("command not inqueue\n"));
+
+	tm->cm_state = MPR_CM_STATE_BUSY;
 	mpr_reinit(sc);
 }
 
@@ -1674,7 +1663,7 @@ mprsas_scsiio_timeout(void *data)
 	 * and been re-used, though this is unlikely.
 	 */
 	mpr_intr_locked(sc);
-	if (cm->cm_state == MPR_CM_STATE_FREE) {
+	if (cm->cm_state != MPR_CM_STATE_INQUEUE) {
 		mprsas_log_command(cm, MPR_XINFO,
 		    "SCSI command %p almost timed out\n", cm);
 		return;
@@ -1850,7 +1839,7 @@ mprsas_build_nvme_unmap(struct mpr_softc *sc, struct mpr_command *cm,
 
 	/* Build NVMe DSM command */
 	c = (struct nvme_command *) req->NVMe_Command;
-	c->opc = NVME_OPC_DATASET_MANAGEMENT;
+	c->opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_DATASET_MANAGEMENT);
 	c->nsid = htole32(csio->ccb_h.target_lun + 1);
 	c->cdw10 = htole32(ndesc - 1);
 	c->cdw11 = htole32(NVME_DSM_ATTR_DEALLOCATE);
@@ -2274,22 +2263,26 @@ mpr_sc_failed_io_info(struct mpr_softc *sc, struct ccb_scsiio *csio,
  * Returns appropriate scsi_status
  */
 static u8
-mprsas_nvme_trans_status_code(struct nvme_status nvme_status,
+mprsas_nvme_trans_status_code(uint16_t nvme_status,
     struct mpr_command *cm)
 {
 	u8 status = MPI2_SCSI_STATUS_GOOD;
 	int skey, asc, ascq;
 	union ccb *ccb = cm->cm_complete_data;
 	int returned_sense_len;
+	uint8_t sct, sc;
+
+	sct = NVME_STATUS_GET_SCT(nvme_status);
+	sc = NVME_STATUS_GET_SC(nvme_status);
 
 	status = MPI2_SCSI_STATUS_CHECK_CONDITION;
 	skey = SSD_KEY_ILLEGAL_REQUEST;
 	asc = SCSI_ASC_NO_SENSE;
 	ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
 
-	switch (nvme_status.sct) {
+	switch (sct) {
 	case NVME_SCT_GENERIC:
-		switch (nvme_status.sc) {
+		switch (sc) {
 		case NVME_SC_SUCCESS:
 			status = MPI2_SCSI_STATUS_GOOD;
 			skey = SSD_KEY_NO_SENSE;
@@ -2362,7 +2355,7 @@ mprsas_nvme_trans_status_code(struct nvme_status nvme_status,
 		}
 		break;
 	case NVME_SCT_COMMAND_SPECIFIC:
-		switch (nvme_status.sc) {
+		switch (sc) {
 		case NVME_SC_INVALID_FORMAT:
 			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
 			skey = SSD_KEY_ILLEGAL_REQUEST;
@@ -2378,7 +2371,7 @@ mprsas_nvme_trans_status_code(struct nvme_status nvme_status,
 		}
 		break;
 	case NVME_SCT_MEDIA_ERROR:
-		switch (nvme_status.sc) {
+		switch (sc) {
 		case NVME_SC_WRITE_FAULTS:
 			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
 			skey = SSD_KEY_MEDIUM_ERROR;
@@ -2509,6 +2502,7 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 
 	if (cm->cm_state == MPR_CM_STATE_TIMEDOUT) {
 		TAILQ_REMOVE(&cm->cm_targ->timedout_commands, cm, cm_recovery);
+		cm->cm_state = MPR_CM_STATE_BUSY;
 		if (cm->cm_reply != NULL)
 			mprsas_log_command(cm, MPR_RECOVERY,
 			    "completed timedout cm %p ccb %p during recovery "

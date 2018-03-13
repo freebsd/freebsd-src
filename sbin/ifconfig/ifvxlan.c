@@ -236,25 +236,23 @@ DECL_CMD_FUNC(setvxlan_local, addr, d)
 	switch (ai->ai_family) {
 #ifdef INET
 	case AF_INET: {
-		struct in_addr addr = ((struct sockaddr_in *) sa)->sin_addr;
+		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
 
-		if (IN_MULTICAST(ntohl(addr.s_addr)))
+		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			errx(1, "local address cannot be multicast");
 
-		cmd.vxlcmd_sa.in4.sin_family = AF_INET;
-		cmd.vxlcmd_sa.in4.sin_addr = addr;
+		cmd.vxlcmd_sa.in4 = *sin;
 		break;
 	}
 #endif
 #ifdef INET6
 	case AF_INET6: {
-		struct in6_addr *addr = &((struct sockaddr_in6 *)sa)->sin6_addr;
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
 
-		if (IN6_IS_ADDR_MULTICAST(addr))
+		if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			errx(1, "local address cannot be multicast");
 
-		cmd.vxlcmd_sa.in6.sin6_family = AF_INET6;
-		cmd.vxlcmd_sa.in6.sin6_addr = *addr;
+		cmd.vxlcmd_sa.in6 = *sin6;
 		break;
 	}
 #endif
@@ -267,10 +265,10 @@ DECL_CMD_FUNC(setvxlan_local, addr, d)
 	if (!vxlan_exists(s)) {
 		if (cmd.vxlcmd_sa.sa.sa_family == AF_INET) {
 			params.vxlp_with |= VXLAN_PARAM_WITH_LOCAL_ADDR4;
-			params.vxlp_local_in4 = cmd.vxlcmd_sa.in4.sin_addr;
+			params.vxlp_local_sa.in4 = cmd.vxlcmd_sa.in4;
 		} else {
 			params.vxlp_with |= VXLAN_PARAM_WITH_LOCAL_ADDR6;
-			params.vxlp_local_in6 = cmd.vxlcmd_sa.in6.sin6_addr;
+			params.vxlp_local_sa.in6 = cmd.vxlcmd_sa.in6;
 		}
 		return;
 	}
@@ -298,25 +296,23 @@ DECL_CMD_FUNC(setvxlan_remote, addr, d)
 	switch (ai->ai_family) {
 #ifdef INET
 	case AF_INET: {
-		struct in_addr addr = ((struct sockaddr_in *)sa)->sin_addr;
+		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
 
-		if (IN_MULTICAST(ntohl(addr.s_addr)))
+		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			errx(1, "remote address cannot be multicast");
 
-		cmd.vxlcmd_sa.in4.sin_family = AF_INET;
-		cmd.vxlcmd_sa.in4.sin_addr = addr;
+		cmd.vxlcmd_sa.in4 = *sin;
 		break;
 	}
 #endif
 #ifdef INET6
 	case AF_INET6: {
-		struct in6_addr *addr = &((struct sockaddr_in6 *)sa)->sin6_addr;
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
 
-		if (IN6_IS_ADDR_MULTICAST(addr))
+		if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			errx(1, "remote address cannot be multicast");
 
-		cmd.vxlcmd_sa.in6.sin6_family = AF_INET6;
-		cmd.vxlcmd_sa.in6.sin6_addr = *addr;
+		cmd.vxlcmd_sa.in6 = *sin6;
 		break;
 	}
 #endif
@@ -329,10 +325,10 @@ DECL_CMD_FUNC(setvxlan_remote, addr, d)
 	if (!vxlan_exists(s)) {
 		if (cmd.vxlcmd_sa.sa.sa_family == AF_INET) {
 			params.vxlp_with |= VXLAN_PARAM_WITH_REMOTE_ADDR4;
-			params.vxlp_remote_in4 = cmd.vxlcmd_sa.in4.sin_addr;
+			params.vxlp_remote_sa.in4 = cmd.vxlcmd_sa.in4;
 		} else {
 			params.vxlp_with |= VXLAN_PARAM_WITH_REMOTE_ADDR6;
-			params.vxlp_remote_in6 = cmd.vxlcmd_sa.in6.sin6_addr;
+			params.vxlp_remote_sa.in6 = cmd.vxlcmd_sa.in6;
 		}
 		return;
 	}
@@ -360,25 +356,23 @@ DECL_CMD_FUNC(setvxlan_group, addr, d)
 	switch (ai->ai_family) {
 #ifdef INET
 	case AF_INET: {
-		struct in_addr addr = ((struct sockaddr_in *)sa)->sin_addr;
+		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
 
-		if (!IN_MULTICAST(ntohl(addr.s_addr)))
+		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			errx(1, "group address must be multicast");
 
-		cmd.vxlcmd_sa.in4.sin_family = AF_INET;
-		cmd.vxlcmd_sa.in4.sin_addr = addr;
+		cmd.vxlcmd_sa.in4 = *sin;
 		break;
 	}
 #endif
 #ifdef INET6
 	case AF_INET6: {
-		struct in6_addr *addr = &((struct sockaddr_in6 *)sa)->sin6_addr;
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
 
-		if (!IN6_IS_ADDR_MULTICAST(addr))
+		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			errx(1, "group address must be multicast");
 
-		cmd.vxlcmd_sa.in6.sin6_family = AF_INET6;
-		cmd.vxlcmd_sa.in6.sin6_addr = *addr;
+		cmd.vxlcmd_sa.in6 = *sin6;
 		break;
 	}
 #endif
@@ -391,10 +385,10 @@ DECL_CMD_FUNC(setvxlan_group, addr, d)
 	if (!vxlan_exists(s)) {
 		if (cmd.vxlcmd_sa.sa.sa_family == AF_INET) {
 			params.vxlp_with |= VXLAN_PARAM_WITH_REMOTE_ADDR4;
-			params.vxlp_remote_in4 = cmd.vxlcmd_sa.in4.sin_addr;
+			params.vxlp_remote_sa.in4 = cmd.vxlcmd_sa.in4;
 		} else {
 			params.vxlp_with |= VXLAN_PARAM_WITH_REMOTE_ADDR6;
-			params.vxlp_remote_in6 = cmd.vxlcmd_sa.in6.sin6_addr;
+			params.vxlp_remote_sa.in6 = cmd.vxlcmd_sa.in6;
 		}
 		return;
 	}
@@ -594,6 +588,7 @@ setvxlan_flush(const char *val, int d, int s, const struct afswtch *afp)
 
 static struct cmd vxlan_cmds[] = {
 
+	DEF_CLONE_CMD_ARG("vni",                setvxlan_vni),
 	DEF_CLONE_CMD_ARG("vxlanid",		setvxlan_vni),
 	DEF_CLONE_CMD_ARG("vxlanlocal",		setvxlan_local),
 	DEF_CLONE_CMD_ARG("vxlanremote",	setvxlan_remote),
@@ -608,7 +603,8 @@ static struct cmd vxlan_cmds[] = {
 	DEF_CLONE_CMD("vxlanlearn", 1,		setvxlan_learn),
 	DEF_CLONE_CMD("-vxlanlearn", 0,		setvxlan_learn),
 
-	DEF_CMD_ARG("vxlanvni",			setvxlan_vni),
+	DEF_CMD_ARG("vni",			setvxlan_vni),
+	DEF_CMD_ARG("vxlanid",			setvxlan_vni),
 	DEF_CMD_ARG("vxlanlocal",		setvxlan_local),
 	DEF_CMD_ARG("vxlanremote",		setvxlan_remote),
 	DEF_CMD_ARG("vxlangroup",		setvxlan_group),

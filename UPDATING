@@ -6,7 +6,7 @@ COMMON ITEMS: section later in the file.  These instructions assume that you
 basically know what you are doing.  If not, then please consult the FreeBSD
 handbook:
 
-    https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/updating-src.html
+    https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html
 
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
@@ -50,6 +50,130 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	will allow the upgrade. Otherwise it will print a reminder.
 
 ****************************** SPECIAL WARNING: ******************************
+
+20180212:
+	FreeBSD boot loader enhanced with Lua scripting. It's purely opt-in for
+	now by building WITH_LOADER_LUA and WITHOUT_FORTH in /etc/src.conf.
+	Co-existance for the transition period will come shortly. Booting is a
+	complex environment and test coverage for Lua-enabled loaders has been
+	thin, so it would be prudent to assume it might not work and make
+	provisions for backup boot methods.
+
+20180211:
+	devmatch functionality has been turned on in devd. It will automatically
+	load drivers for unattached devices. This may cause unexpected drivers to
+	be loaded. Please report any problems to current@ and imp@freebsd.org.
+
+20180114:
+	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
+	6.0.0.  Please see the 20141231 entry below for information about
+	prerequisites and upgrading, if you are not already using clang 3.5.0
+	or higher.
+
+20180110:
+	LLVM's lld linker is now used as the FreeBSD/amd64 bootstrap linker.
+	This means it is used to link the kernel and userland libraries and
+	executables, but is not yet installed as /usr/bin/ld by default.
+
+	To revert to ld.bfd as the bootstrap linker, in /etc/src.conf set
+        WITHOUT_LLD_BOOTSTRAP=yes
+
+20180110:
+	On i386, pmtimer has been removed. Its functionality has been folded
+	into apm. It was a no-op on ACPI in current for a while now (but was still
+	needed on i386 in FreeBSD 11 and earlier). Users may need to remove it
+	from kernel config files.
+
+20180104:
+	The use of RSS hash from the network card aka flowid has been
+	disabled by default for lagg(4) as it's currently incompatible with
+	the lacp and loadbalance protocols.
+
+	This can be re-enabled by setting the following in loader.conf:
+	net.link.lagg.default_use_flowid="1"
+
+20180102:
+	The SW_WATCHDOG option is no longer necessary to enable the
+	hardclock-based software watchdog if no hardware watchdog is
+	configured. As before, SW_WATCHDOG will cause the software
+	watchdog to be enabled even if a hardware watchdog is configured.
+
+20171215:
+	r326887 fixes the issue described in the 20171214 UPDATING entry.
+	r326888 flips the switch back to building GELI support always.
+
+20171214:
+	r362593 broke ZFS + GELI support for reasons unknown. However,
+	it also broke ZFS support generally, so GELI has been turned off
+	by default as the lesser evil in r326857. If you boot off ZFS and/or
+	GELI, it might not be a good time to update.
+
+20171125:
+	PowerPC users must update loader(8) by rebuilding world before
+	installing a new kernel, as the protocol connecting them has
+	changed. Without the update, loader metadata will not be passed
+	successfully to the kernel and users will have to enter their
+	root partition at the kernel mountroot prompt to continue booting.
+	Newer versions of loader can boot old kernels without issue.
+
+20171110:
+	The LOADER_FIREWIRE_SUPPORT build variable as been renamed to
+	WITH/OUT_LOADER_FIREWIRE. LOADER_{NO_,}GELI_SUPPORT has been renamed
+	to WITH/OUT_LOADER_GELI.
+
+20171106:
+	The naive and non-compliant support of posix_fallocate(2) in ZFS
+	has been removed as of r325320.  The system call now returns EINVAL
+	when used on a ZFS file.  Although the new behavior complies with the
+	standard, some consumers are not prepared to cope with it.
+	One known victim is lld prior to r325420.
+
+20171102:
+	Building in a FreeBSD src checkout will automatically create object
+	directories now rather than store files in the current directory if
+	'make obj' was not ran.  Calling 'make obj' is no longer necessary.
+	This feature can be disabled by setting WITHOUT_AUTO_OBJ=yes in
+	/etc/src-env.conf (not /etc/src.conf), or passing the option in the
+	environment.
+
+20171101:
+	The default MAKEOBJDIR has changed from /usr/obj/<srcdir> for native
+	builds, and /usr/obj/<arch>/<srcdir> for cross-builds, to a unified
+	/usr/obj/<srcdir>/<arch>.  This behavior can be changed to the old
+	format by setting WITHOUT_UNIFIED_OBJDIR=yes in /etc/src-env.conf,
+	the environment, or with -DWITHOUT_UNIFIED_OBJDIR when building.
+	The UNIFIED_OBJDIR option is a transitional feature that will be
+	removed for 12.0 release; please migrate to the new format for any
+	tools by looking up the OBJDIR used by 'make -V .OBJDIR' means rather
+	than hardcoding paths.
+
+20171028:
+	The native-xtools target no longer installs the files by default to the
+	OBJDIR.  Use the native-xtools-install target with a DESTDIR to install
+	to ${DESTDIR}/${NXTP} where NXTP defaults to /nxb-bin.
+
+20171021:
+	As part of the boot loader infrastructure cleanup, LOADER_*_SUPPORT
+	options are changing from controlling the build if defined / undefined
+	to controlling the build with explicit 'yes' or 'no' values. They will
+	shift to WITH/WITHOUT options to match other options in the system.
+
+20171010:
+	libstand has turned into a private library for sys/boot use only.
+	It is no longer supported as a public interface outside of sys/boot.
+
+20171005:
+	The arm port has split armv6 into armv6 and armv7. armv7 is now
+	a valid TARGET_ARCH/MACHINE_ARCH setting. If you have an armv7 system
+	and are running a kernel from before r324363, you will need to add
+	MACHINE_ARCH=armv7 to 'make buildworld' to do a native build.
+
+20171003:
+	When building multiple kernels using KERNCONF, non-existent KERNCONF
+	files will produce an error and buildkernel will fail. Previously
+	missing KERNCONF files silently failed giving no indication as to
+	why, only to subsequently discover during installkernel that the
+	desired kernel was never built in the first place.
 
 20170912:
 	The default serial number format for CTL LUNs has changed.  This will
@@ -104,7 +228,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	will create the recovery information. If you have a filesystem
 	created prior to this change and wish to have a recovery block
 	created for your filesystem, you can do so by running fsck in
-	forground mode (i.e., do not use the -p or -y options). As it
+	foreground mode (i.e., do not use the -p or -y options). As it
 	starts, fsck will ask ``SAVE DATA TO FIND ALTERNATE SUPERBLOCKS''
 	to which you should answer yes.
 
@@ -203,7 +327,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	full procedure documented below under the heading "To rebuild
 	everything and install it on the current system."  Specifically,
 	a reboot is required after installing the new kernel before
-	installing world.  
+	installing world.
 
 20170424:
 	The NATM framework including the en(4), fatm(4), hatm(4), and
@@ -744,7 +868,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 20150623:
 	An additional fix for the issue described in the 20150614 sendmail
-	entry below has been been committed in revision 284717.
+	entry below has been committed in revision 284717.
 
 20150616:
 	FreeBSD's old make (fmake) has been removed from the system. It is
@@ -752,7 +876,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 20150615:
 	The fix for the issue described in the 20150614 sendmail entry
-	below has been been committed in revision 284436.  The work
+	below has been committed in revision 284436.  The work
 	around described in that entry is no longer needed unless the
 	default setting is overridden by a confDH_PARAMETERS configuration
 	setting of '5' or pointing to a 512 bit DH parameter file.
@@ -1764,7 +1888,7 @@ COMMON ITEMS:
 	do an upgrade to the new branch. This is the best-tested upgrade path,
 	and has the highest probability of being successful.  Please try this
 	approach if you encounter problems with a major version upgrade.  Since
-	the stable 4.x branch point, one has generally been able to upgade from
+	the stable 4.x branch point, one has generally been able to upgrade from
 	anywhere in the most recent stable branch to head / current (or even the
 	last couple of stable branches). See the top of this file when there's
 	an exception.
@@ -1815,21 +1939,6 @@ COMMON ITEMS:
 	make installkernel KERNCONF=YOUR_KERNEL_HERE KODIR=/boot/testkernel
 	nextboot -k testkernel
 
-	To just build a kernel when you know that it won't mess you up
-	--------------------------------------------------------------
-	This assumes you are already running a CURRENT system.  Replace
-	${arch} with the architecture of your machine (e.g. "i386",
-	"arm", "amd64", "ia64", "pc98", "sparc64", "powerpc", "mips", etc).
-
-	cd src/sys/${arch}/conf
-	config KERNEL_NAME_HERE
-	cd ../compile/KERNEL_NAME_HERE
-	make depend
-	make
-	make install
-
-	If this fails, go to the "To build a kernel" section.
-
 	To rebuild everything and install it on the current system.
 	-----------------------------------------------------------
 	# Note: sometimes if you are running current you gotta do more than
@@ -1837,7 +1946,8 @@ COMMON ITEMS:
 
 	<make sure you have good level 0 dumps>
 	make buildworld
-	make kernel KERNCONF=YOUR_KERNEL_HERE
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
 							[1]
 	<reboot in single user>				[3]
 	mergemaster -Fp					[5]
@@ -1916,7 +2026,7 @@ COMMON ITEMS:
 	for potential gotchas.  The -U option is also useful to consider.
 	See mergemaster(8) for more information.
 
-	[5] Usually this step is a noop.  However, from time to time
+	[5] Usually this step is a no-op.  However, from time to time
 	you may need to do this if you get unknown user in the following
 	step.  It never hurts to do it all the time.  You may need to
 	install a new mergemaster (cd src/usr.sbin/mergemaster && make
@@ -1937,10 +2047,7 @@ COMMON ITEMS:
 	Make sure that you merge any new devices from GENERIC since the
 	last time you updated your kernel config file.
 
-	[9] When checking out sources, you must include the -P flag to have
-	cvs prune empty directories.
-
-	If CPUTYPE is defined in your /etc/make.conf, make sure to use the
+	[9] If CPUTYPE is defined in your /etc/make.conf, make sure to use the
 	"?=" instead of the "=" assignment operator, so that buildworld can
 	override the CPUTYPE if it needs to.
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
@@ -342,10 +344,8 @@ static void
 g_raid_tr_iostart_raid5(struct g_raid_tr_object *tr, struct bio *bp)
 {
 	struct g_raid_volume *vol;
-	struct g_raid_tr_raid5_object *trs;
 
 	vol = tr->tro_volume;
-	trs = (struct g_raid_tr_raid5_object *)tr;
 	if (vol->v_state < G_RAID_VOLUME_S_SUBOPTIMAL) {
 		g_raid_iodone(bp, EIO);
 		return;
@@ -371,15 +371,15 @@ g_raid_tr_iodone_raid5(struct g_raid_tr_object *tr,
     struct g_raid_subdisk *sd, struct bio *bp)
 {
 	struct bio *pbp;
-	int error;
 
 	pbp = bp->bio_parent;
+	if (pbp->bio_error == 0)
+		pbp->bio_error = bp->bio_error;
 	pbp->bio_inbed++;
-	error = bp->bio_error;
 	g_destroy_bio(bp);
 	if (pbp->bio_children == pbp->bio_inbed) {
 		pbp->bio_completed = pbp->bio_length;
-		g_raid_iodone(pbp, error);
+		g_raid_iodone(pbp, pbp->bio_error);
 	}
 }
 

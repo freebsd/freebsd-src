@@ -12,7 +12,7 @@
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
  *
- * Original code by Hannes Gredler (hannes@juniper.net)
+ * Original code by Hannes Gredler (hannes@gredler.at)
  */
 
 /* \summary: IEEE 802.1ag Connectivity Fault Management (CFM) protocols printer */
@@ -217,7 +217,7 @@ static const struct tok cfm_tlv_senderid_chassisid_values[] = {
 
 static int
 cfm_network_addr_print(netdissect_options *ndo,
-                       register const u_char *tptr)
+                       register const u_char *tptr, const u_int length)
 {
     u_int network_addr_type;
     u_int hexdump =  FALSE;
@@ -227,6 +227,11 @@ cfm_network_addr_print(netdissect_options *ndo,
      * 802.1ab specifies that this field width
      * is only once octet
      */
+    if (length < 1) {
+        ND_PRINT((ndo, "\n\t  Network Address Type (invalid, no data"));
+        return hexdump;
+    }
+    /* The calling function must make any due ND_TCHECK calls. */
     network_addr_type = *tptr;
     ND_PRINT((ndo, "\n\t  Network Address Type %s (%u)",
            tok2str(af_values, "Unknown", network_addr_type),
@@ -237,10 +242,20 @@ cfm_network_addr_print(netdissect_options *ndo,
      */
     switch(network_addr_type) {
     case AFNUM_INET:
+        if (length != 1 + 4) {
+            ND_PRINT((ndo, "(invalid IPv4 address length %u)", length - 1));
+            hexdump = TRUE;
+            break;
+        }
         ND_PRINT((ndo, ", %s", ipaddr_string(ndo, tptr + 1)));
         break;
 
     case AFNUM_INET6:
+        if (length != 1 + 16) {
+            ND_PRINT((ndo, "(invalid IPv6 address length %u)", length - 1));
+            hexdump = TRUE;
+            break;
+        }
         ND_PRINT((ndo, ", %s", ip6addr_string(ndo, tptr + 1)));
         break;
 
@@ -368,8 +383,11 @@ cfm_print(netdissect_options *ndo,
                    md_nameformat,
                    md_namelength));
 
-            /* -2 for the MA short name format and length */
-            if (md_namelength > names_data_remaining - 2) {
+            /*
+             * -3 for the MA short name format and length and one byte
+             * of MA short name.
+             */
+            if (md_namelength > names_data_remaining - 3) {
                 ND_PRINT((ndo, " (too large, must be <= %u)", names_data_remaining - 2));
                 return;
             }
@@ -581,11 +599,12 @@ cfm_print(netdissect_options *ndo,
 
             if (cfm_tlv_len < 1) {
                 ND_PRINT((ndo, " (too short, must be >= 1)"));
-                return;
+                goto next_tlv;
             }
 
             /*
              * Get the Chassis ID length and check it.
+             * IEEE 802.1Q-2014 Section 21.5.3.1
              */
             chassis_id_length = *tptr;
             tptr++;
@@ -593,9 +612,14 @@ cfm_print(netdissect_options *ndo,
             cfm_tlv_len--;
 
             if (chassis_id_length) {
+                /*
+                 * IEEE 802.1Q-2014 Section 21.5.3.2: Chassis ID Subtype, references
+                 * IEEE 802.1AB-2005 Section 9.5.2.2, subsequently
+                 * IEEE 802.1AB-2016 Section 8.5.2.2: chassis ID subtype
+                 */
                 if (cfm_tlv_len < 1) {
                     ND_PRINT((ndo, "\n\t  (TLV too short)"));
-                    return;
+                    goto next_tlv;
                 }
                 chassis_id_type = *tptr;
                 cfm_tlv_len--;
@@ -608,16 +632,22 @@ cfm_print(netdissect_options *ndo,
 
                 if (cfm_tlv_len < chassis_id_length) {
                     ND_PRINT((ndo, "\n\t  (TLV too short)"));
-                    return;
+                    goto next_tlv;
                 }
 
+                /* IEEE 802.1Q-2014 Section 21.5.3.3: Chassis ID */
                 switch (chassis_id_type) {
                 case CFM_CHASSIS_ID_MAC_ADDRESS:
+                    if (chassis_id_length != ETHER_ADDR_LEN) {
+                        ND_PRINT((ndo, " (invalid MAC address length)"));
+                        hexdump = TRUE;
+                        break;
+                    }
                     ND_PRINT((ndo, "\n\t  MAC %s", etheraddr_string(ndo, tptr + 1)));
                     break;
 
                 case CFM_CHASSIS_ID_NETWORK_ADDRESS:
-                    hexdump |= cfm_network_addr_print(ndo, tptr);
+                    hexdump |= cfm_network_addr_print(ndo, tptr + 1, chassis_id_length);
                     break;
 
                 case CFM_CHASSIS_ID_INTERFACE_NAME: /* fall through */
@@ -640,38 +670,53 @@ cfm_print(netdissect_options *ndo,
 
             /*
              * Check if there is a Management Address.
+             * IEEE 802.1Q-2014 Section 21.5.3.4: Management Address Domain Length
+             * This and all subsequent fields are not present if the TLV length
+             * allows only the above fields.
              */
             if (cfm_tlv_len == 0) {
                 /* No, there isn't; we're done. */
-                return;
+                break;
             }
 
+            /* Here mgmt_addr_length stands for the management domain length. */
             mgmt_addr_length = *tptr;
             tptr++;
             tlen--;
             cfm_tlv_len--;
+            ND_PRINT((ndo, "\n\t  Management Address Domain Length %u", mgmt_addr_length));
             if (mgmt_addr_length) {
+                /* IEEE 802.1Q-2014 Section 21.5.3.5: Management Address Domain */
                 if (cfm_tlv_len < mgmt_addr_length) {
                     ND_PRINT((ndo, "\n\t  (TLV too short)"));
-                    return;
+                    goto next_tlv;
                 }
                 cfm_tlv_len -= mgmt_addr_length;
                 /*
                  * XXX - this is an OID; print it as such.
                  */
+                hex_print(ndo, "\n\t  Management Address Domain: ", tptr, mgmt_addr_length);
                 tptr += mgmt_addr_length;
                 tlen -= mgmt_addr_length;
 
+                /*
+                 * IEEE 802.1Q-2014 Section 21.5.3.6: Management Address Length
+                 * This field is present if Management Address Domain Length is not 0.
+                 */
                 if (cfm_tlv_len < 1) {
-                    ND_PRINT((ndo, "\n\t  (TLV too short)"));
-                    return;
+                    ND_PRINT((ndo, " (Management Address Length is missing)"));
+                    hexdump = TRUE;
+                    break;
                 }
-                
+
+                /* Here mgmt_addr_length stands for the management address length. */
                 mgmt_addr_length = *tptr;
                 tptr++;
                 tlen--;
                 cfm_tlv_len--;
+                ND_PRINT((ndo, "\n\t  Management Address Length %u", mgmt_addr_length));
                 if (mgmt_addr_length) {
+                    /* IEEE 802.1Q-2014 Section 21.5.3.7: Management Address */
                     if (cfm_tlv_len < mgmt_addr_length) {
                         ND_PRINT((ndo, "\n\t  (TLV too short)"));
                         return;
@@ -680,6 +725,7 @@ cfm_print(netdissect_options *ndo,
                     /*
                      * XXX - this is a TransportDomain; print it as such.
                      */
+                    hex_print(ndo, "\n\t  Management Address: ", tptr, mgmt_addr_length);
                     tptr += mgmt_addr_length;
                     tlen -= mgmt_addr_length;
                 }
@@ -703,6 +749,7 @@ cfm_print(netdissect_options *ndo,
         if (hexdump || ndo->ndo_vflag > 1)
             print_unknown_data(ndo, tlv_ptr, "\n\t  ", cfm_tlv_len);
 
+next_tlv:
         tptr+=cfm_tlv_len;
         tlen-=cfm_tlv_len;
     }

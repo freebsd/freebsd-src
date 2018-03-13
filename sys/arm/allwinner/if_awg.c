@@ -69,7 +69,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/regulator/regulator.h>
+#include <dev/extres/syscon/syscon.h>
 
+#include "syscon_if.h"
 #include "miibus_if.h"
 #include "gpio_if.h"
 
@@ -92,7 +94,7 @@ __FBSDID("$FreeBSD$");
 #define	TX_SKIP(n, o)		(((n) + (o)) & (TX_DESC_COUNT - 1))
 #define	RX_NEXT(n)		(((n) + 1) & (RX_DESC_COUNT - 1))
 
-#define	TX_MAX_SEGS		10
+#define	TX_MAX_SEGS		20
 
 #define	SOFT_RST_RETRY		1000
 #define	MII_BUSY_RETRY		1000
@@ -105,6 +107,7 @@ __FBSDID("$FreeBSD$");
 #define	RX_BATCH_DEFAULT	64
 
 /* syscon EMAC clock register */
+#define	EMAC_CLK_REG		0x30
 #define	EMAC_CLK_EPHY_ADDR	(0x1f << 20)	/* H3 */
 #define	EMAC_CLK_EPHY_ADDR_SHIFT 20
 #define	EMAC_CLK_EPHY_LED_POL	(1 << 17)	/* H3 */
@@ -169,6 +172,7 @@ struct awg_txring {
 	bus_dma_tag_t		buf_tag;
 	struct awg_bufmap	buf_map[TX_DESC_COUNT];
 	u_int			cur, next, queued;
+	u_int			segs;
 };
 
 struct awg_rxring {
@@ -178,6 +182,7 @@ struct awg_rxring {
 	bus_addr_t		desc_ring_paddr;
 	bus_dma_tag_t		buf_tag;
 	struct awg_bufmap	buf_map[RX_DESC_COUNT];
+	bus_dmamap_t		buf_spare_map;
 	u_int			cur;
 };
 
@@ -192,6 +197,7 @@ struct awg_softc {
 	struct resource		*res[_RES_NITEMS];
 	struct mtx		mtx;
 	if_t			ifp;
+	device_t		dev;
 	device_t		miibus;
 	struct callout		stat_ch;
 	struct task		link_task;
@@ -200,6 +206,7 @@ struct awg_softc {
 	int			link;
 	int			if_flags;
 	enum awg_type		type;
+	struct syscon		*syscon;
 
 	struct awg_txring	tx;
 	struct awg_rxring	rx;
@@ -211,6 +218,13 @@ static struct resource_spec awg_spec[] = {
 	{ SYS_RES_MEMORY,	1,	RF_ACTIVE | RF_OPTIONAL },
 	{ -1, 0 }
 };
+
+static void awg_txeof(struct awg_softc *sc);
+
+static uint32_t syscon_read_emac_clk_reg(device_t dev);
+static void syscon_write_emac_clk_reg(device_t dev, uint32_t val);
+static phandle_t awg_get_phy_node(device_t dev);
+static bool awg_has_internal_phy(device_t dev);
 
 static int
 awg_miibus_readreg(device_t dev, int phy, int reg)
@@ -385,55 +399,57 @@ awg_media_change(if_t ifp)
 	return (error);
 }
 
-static void
-awg_setup_txdesc(struct awg_softc *sc, int index, int flags, bus_addr_t paddr,
-    u_int len)
-{
-	uint32_t status, size;
-
-	if (paddr == 0 || len == 0) {
-		status = 0;
-		size = 0;
-		--sc->tx.queued;
-	} else {
-		status = TX_DESC_CTL;
-		size = flags | len;
-		if ((index & (awg_tx_interval - 1)) == 0)
-			size |= TX_INT_CTL;
-		++sc->tx.queued;
-	}
-
-	sc->tx.desc_ring[index].addr = htole32((uint32_t)paddr);
-	sc->tx.desc_ring[index].size = htole32(size);
-	sc->tx.desc_ring[index].status = htole32(status);
-}
-
 static int
-awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
+awg_encap(struct awg_softc *sc, struct mbuf **mp)
 {
+	bus_dmamap_t map;
 	bus_dma_segment_t segs[TX_MAX_SEGS];
-	int error, nsegs, cur, i, flags;
+	int error, nsegs, cur, first, last, i;
 	u_int csum_flags;
+	uint32_t flags, status;
 	struct mbuf *m;
 
+	cur = first = sc->tx.cur;
+	map = sc->tx.buf_map[first].map;
+
 	m = *mp;
-	error = bus_dmamap_load_mbuf_sg(sc->tx.buf_tag,
-	    sc->tx.buf_map[index].map, m, segs, &nsegs, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(sc->tx.buf_tag, map, m, segs,
+	    &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
 		m = m_collapse(m, M_NOWAIT, TX_MAX_SEGS);
-		if (m == NULL)
-			return (0);
+		if (m == NULL) {
+			device_printf(sc->dev, "awg_encap: m_collapse failed\n");
+			m_freem(*mp);
+			*mp = NULL;
+			return (ENOMEM);
+		}
 		*mp = m;
-		error = bus_dmamap_load_mbuf_sg(sc->tx.buf_tag,
-		    sc->tx.buf_map[index].map, m, segs, &nsegs, BUS_DMA_NOWAIT);
+		error = bus_dmamap_load_mbuf_sg(sc->tx.buf_tag, map, m,
+		    segs, &nsegs, BUS_DMA_NOWAIT);
+		if (error != 0) {
+			m_freem(*mp);
+			*mp = NULL;
+		}
 	}
-	if (error != 0)
-		return (0);
+	if (error != 0) {
+		device_printf(sc->dev, "awg_encap: bus_dmamap_load_mbuf_sg failed\n");
+		return (error);
+	}
+	if (nsegs == 0) {
+		m_freem(*mp);
+		*mp = NULL;
+		return (EIO);
+	}
 
-	bus_dmamap_sync(sc->tx.buf_tag, sc->tx.buf_map[index].map,
-	    BUS_DMASYNC_PREWRITE);
+	if (sc->tx.queued + nsegs > TX_DESC_COUNT) {
+		bus_dmamap_unload(sc->tx.buf_tag, map);
+		return (ENOBUFS);
+	}
+
+	bus_dmamap_sync(sc->tx.buf_tag, map, BUS_DMASYNC_PREWRITE);
 
 	flags = TX_FIR_DESC;
+	status = 0;
 	if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0) {
 		if ((m->m_pkthdr.csum_flags & (CSUM_TCP|CSUM_UDP)) != 0)
 			csum_flags = TX_CHECKSUM_CTL_FULL;
@@ -442,17 +458,67 @@ awg_setup_txbuf(struct awg_softc *sc, int index, struct mbuf **mp)
 		flags |= (csum_flags << TX_CHECKSUM_CTL_SHIFT);
 	}
 
-	for (cur = index, i = 0; i < nsegs; i++) {
-		sc->tx.buf_map[cur].mbuf = (i == 0 ? m : NULL);
-		if (i == nsegs - 1)
+	for (i = 0; i < nsegs; i++) {
+		sc->tx.segs++;
+		if (i == nsegs - 1) {
 			flags |= TX_LAST_DESC;
-		awg_setup_txdesc(sc, cur, flags, segs[i].ds_addr,
-		    segs[i].ds_len);
+			/*
+			 * Can only request TX completion
+			 * interrupt on last descriptor.
+			 */
+			if (sc->tx.segs >= awg_tx_interval) {
+				sc->tx.segs = 0;
+				flags |= TX_INT_CTL;
+			}
+		}
+
+		sc->tx.desc_ring[cur].addr = htole32((uint32_t)segs[i].ds_addr);
+		sc->tx.desc_ring[cur].size = htole32(flags | segs[i].ds_len);
+		sc->tx.desc_ring[cur].status = htole32(status);
+
 		flags &= ~TX_FIR_DESC;
+		/*
+		 * Setting of the valid bit in the first descriptor is
+		 * deferred until the whole chain is fully set up.
+		 */
+		status = TX_DESC_CTL;
+
+		++sc->tx.queued;
 		cur = TX_NEXT(cur);
 	}
 
-	return (nsegs);
+	sc->tx.cur = cur;
+
+	/* Store mapping and mbuf in the last segment */
+	last = TX_SKIP(cur, TX_DESC_COUNT - 1);
+	sc->tx.buf_map[first].map = sc->tx.buf_map[last].map;
+	sc->tx.buf_map[last].map = map;
+	sc->tx.buf_map[last].mbuf = m;
+
+	/*
+	 * The whole mbuf chain has been DMA mapped,
+	 * fix the first descriptor.
+	 */
+	sc->tx.desc_ring[first].status = htole32(TX_DESC_CTL);
+
+	return (0);
+}
+
+static void
+awg_clean_txbuf(struct awg_softc *sc, int index)
+{
+	struct awg_bufmap *bmap;
+
+	--sc->tx.queued;
+
+	bmap = &sc->tx.buf_map[index];
+	if (bmap->mbuf != NULL) {
+		bus_dmamap_sync(sc->tx.buf_tag, bmap->map,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(sc->tx.buf_tag, bmap->map);
+		m_freem(bmap->mbuf);
+		bmap->mbuf = NULL;
+	}
 }
 
 static void
@@ -465,24 +531,45 @@ awg_setup_rxdesc(struct awg_softc *sc, int index, bus_addr_t paddr)
 
 	sc->rx.desc_ring[index].addr = htole32((uint32_t)paddr);
 	sc->rx.desc_ring[index].size = htole32(size);
-	sc->rx.desc_ring[index].next =
-	    htole32(sc->rx.desc_ring_paddr + DESC_OFF(RX_NEXT(index)));
 	sc->rx.desc_ring[index].status = htole32(status);
 }
 
-static int
-awg_setup_rxbuf(struct awg_softc *sc, int index, struct mbuf *m)
+static void
+awg_reuse_rxdesc(struct awg_softc *sc, int index)
 {
-	bus_dma_segment_t seg;
-	int error, nsegs;
 
+	sc->rx.desc_ring[index].status = htole32(RX_DESC_CTL);
+}
+
+static int
+awg_newbuf_rx(struct awg_softc *sc, int index)
+{
+	struct mbuf *m;
+	bus_dma_segment_t seg;
+	bus_dmamap_t map;
+	int nsegs;
+
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	if (m == NULL)
+		return (ENOBUFS);
+
+	m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
 	m_adj(m, ETHER_ALIGN);
 
-	error = bus_dmamap_load_mbuf_sg(sc->rx.buf_tag,
-	    sc->rx.buf_map[index].map, m, &seg, &nsegs, 0);
-	if (error != 0)
-		return (error);
+	if (bus_dmamap_load_mbuf_sg(sc->rx.buf_tag, sc->rx.buf_spare_map,
+	    m, &seg, &nsegs, BUS_DMA_NOWAIT) != 0) {
+		m_freem(m);
+		return (ENOBUFS);
+	}
 
+	if (sc->rx.buf_map[index].mbuf != NULL) {
+		bus_dmamap_sync(sc->rx.buf_tag, sc->rx.buf_map[index].map,
+		    BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->rx.buf_tag, sc->rx.buf_map[index].map);
+	}
+	map = sc->rx.buf_map[index].map;
+	sc->rx.buf_map[index].map = sc->rx.buf_spare_map;
+	sc->rx.buf_spare_map = map;
 	bus_dmamap_sync(sc->rx.buf_tag, sc->rx.buf_map[index].map,
 	    BUS_DMASYNC_PREREAD);
 
@@ -492,25 +579,13 @@ awg_setup_rxbuf(struct awg_softc *sc, int index, struct mbuf *m)
 	return (0);
 }
 
-static struct mbuf *
-awg_alloc_mbufcl(struct awg_softc *sc)
-{
-	struct mbuf *m;
-
-	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-	if (m != NULL)
-		m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
-
-	return (m);
-}
-
 static void
 awg_start_locked(struct awg_softc *sc)
 {
 	struct mbuf *m;
 	uint32_t val;
 	if_t ifp;
-	int cnt, nsegs;
+	int cnt, err;
 
 	AWG_ASSERT_LOCKED(sc);
 
@@ -524,22 +599,19 @@ awg_start_locked(struct awg_softc *sc)
 		return;
 
 	for (cnt = 0; ; cnt++) {
-		if (sc->tx.queued >= TX_DESC_COUNT - TX_MAX_SEGS) {
-			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
-			break;
-		}
-
 		m = if_dequeue(ifp);
 		if (m == NULL)
 			break;
 
-		nsegs = awg_setup_txbuf(sc, sc->tx.cur, &m);
-		if (nsegs == 0) {
-			if_sendq_prepend(ifp, m);
+		err = awg_encap(sc, &m);
+		if (err != 0) {
+			if (err == ENOBUFS)
+				if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
+			if (m != NULL)
+				if_sendq_prepend(ifp, m);
 			break;
 		}
 		if_bpfmtap(ifp, m);
-		sc->tx.cur = TX_SKIP(sc->tx.cur, nsegs);
 	}
 
 	if (cnt != 0) {
@@ -748,6 +820,7 @@ awg_stop(struct awg_softc *sc)
 {
 	if_t ifp;
 	uint32_t val;
+	int i;
 
 	AWG_ASSERT_LOCKED(sc);
 
@@ -782,6 +855,39 @@ awg_stop(struct awg_softc *sc)
 
 	sc->link = 0;
 
+	/* Finish handling transmitted buffers */
+	awg_txeof(sc);
+
+	/* Release any untransmitted buffers. */
+	for (i = sc->tx.next; sc->tx.queued > 0; i = TX_NEXT(i)) {
+		val = le32toh(sc->tx.desc_ring[i].status);
+		if ((val & TX_DESC_CTL) != 0)
+			break;
+		awg_clean_txbuf(sc, i);
+	}
+	sc->tx.next = i;
+	for (; sc->tx.queued > 0; i = TX_NEXT(i)) {
+		sc->tx.desc_ring[i].status = 0;
+		awg_clean_txbuf(sc, i);
+	}
+	sc->tx.cur = sc->tx.next;
+	bus_dmamap_sync(sc->tx.desc_tag, sc->tx.desc_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
+	/* Setup RX buffers for reuse */
+	bus_dmamap_sync(sc->rx.desc_tag, sc->rx.desc_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+
+	for (i = sc->rx.cur; ; i = RX_NEXT(i)) {
+		val = le32toh(sc->rx.desc_ring[i].status);
+		if ((val & RX_DESC_CTL) != 0)
+			break;
+		awg_reuse_rxdesc(sc, i);
+	}
+	sc->rx.cur = i;
+	bus_dmamap_sync(sc->rx.desc_tag, sc->rx.desc_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
 	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }
 
@@ -789,7 +895,7 @@ static int
 awg_rxintr(struct awg_softc *sc)
 {
 	if_t ifp;
-	struct mbuf *m, *m0, *mh, *mt;
+	struct mbuf *m, *mh, *mt;
 	int error, index, len, cnt, npkt;
 	uint32_t status;
 
@@ -806,61 +912,62 @@ awg_rxintr(struct awg_softc *sc)
 		if ((status & RX_DESC_CTL) != 0)
 			break;
 
-		bus_dmamap_sync(sc->rx.buf_tag, sc->rx.buf_map[index].map,
-		    BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->rx.buf_tag, sc->rx.buf_map[index].map);
-
 		len = (status & RX_FRM_LEN) >> RX_FRM_LEN_SHIFT;
-		if (len != 0) {
-			m = sc->rx.buf_map[index].mbuf;
-			m->m_pkthdr.rcvif = ifp;
-			m->m_pkthdr.len = len;
-			m->m_len = len;
-			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
-			if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0 &&
-			    (status & RX_FRM_TYPE) != 0) {
-				m->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
-				if ((status & RX_HEADER_ERR) == 0)
-					m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
-				if ((status & RX_PAYLOAD_ERR) == 0) {
-					m->m_pkthdr.csum_flags |=
-					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-					m->m_pkthdr.csum_data = 0xffff;
-				}
-			}
-
-			m->m_nextpkt = NULL;
-			if (mh == NULL)
-				mh = m;
-			else
-				mt->m_nextpkt = m;
-			mt = m;
-			++cnt;
-			++npkt;
-
-			if (cnt == awg_rx_batch) {
-				AWG_UNLOCK(sc);
-				if_input(ifp, mh);
-				AWG_LOCK(sc);
-				mh = mt = NULL;
-				cnt = 0;
-			}
-			
+		if (len == 0) {
+			if ((status & (RX_NO_ENOUGH_BUF_ERR | RX_OVERFLOW_ERR)) != 0)
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+			awg_reuse_rxdesc(sc, index);
+			continue;
 		}
 
-		if ((m0 = awg_alloc_mbufcl(sc)) != NULL) {
-			error = awg_setup_rxbuf(sc, index, m0);
-			if (error != 0) {
-				/* XXX hole in RX ring */
-			}
-		} else
+		m = sc->rx.buf_map[index].mbuf;
+
+		error = awg_newbuf_rx(sc, index);
+		if (error != 0) {
 			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+			awg_reuse_rxdesc(sc, index);
+			continue;
+		}
+
+		m->m_pkthdr.rcvif = ifp;
+		m->m_pkthdr.len = len;
+		m->m_len = len;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+
+		if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0 &&
+		    (status & RX_FRM_TYPE) != 0) {
+			m->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
+			if ((status & RX_HEADER_ERR) == 0)
+				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+			if ((status & RX_PAYLOAD_ERR) == 0) {
+				m->m_pkthdr.csum_flags |=
+				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+		}
+
+		m->m_nextpkt = NULL;
+		if (mh == NULL)
+			mh = m;
+		else
+			mt->m_nextpkt = m;
+		mt = m;
+		++cnt;
+		++npkt;
+
+		if (cnt == awg_rx_batch) {
+			AWG_UNLOCK(sc);
+			if_input(ifp, mh);
+			AWG_LOCK(sc);
+			mh = mt = NULL;
+			cnt = 0;
+		}
 	}
 
 	if (index != sc->rx.cur) {
 		bus_dmamap_sync(sc->rx.desc_tag, sc->rx.desc_map,
-		    BUS_DMASYNC_PREWRITE);
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	}
 
 	if (mh != NULL) {
@@ -875,13 +982,12 @@ awg_rxintr(struct awg_softc *sc)
 }
 
 static void
-awg_txintr(struct awg_softc *sc)
+awg_txeof(struct awg_softc *sc)
 {
-	struct awg_bufmap *bmap;
 	struct emac_desc *desc;
-	uint32_t status;
+	uint32_t status, size;
 	if_t ifp;
-	int i;
+	int i, prog;
 
 	AWG_ASSERT_LOCKED(sc);
 
@@ -889,28 +995,28 @@ awg_txintr(struct awg_softc *sc)
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 	ifp = sc->ifp;
+
+	prog = 0;
 	for (i = sc->tx.next; sc->tx.queued > 0; i = TX_NEXT(i)) {
 		desc = &sc->tx.desc_ring[i];
 		status = le32toh(desc->status);
 		if ((status & TX_DESC_CTL) != 0)
 			break;
-		bmap = &sc->tx.buf_map[i];
-		if (bmap->mbuf != NULL) {
-			bus_dmamap_sync(sc->tx.buf_tag, bmap->map,
-			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(sc->tx.buf_tag, bmap->map);
-			m_freem(bmap->mbuf);
-			bmap->mbuf = NULL;
+		size = le32toh(desc->size);
+		if (size & TX_LAST_DESC) {
+			if ((status & (TX_HEADER_ERR | TX_PAYLOAD_ERR)) != 0)
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			else
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		}
-		awg_setup_txdesc(sc, i, 0, 0, 0);
-		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
-		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		prog++;
+		awg_clean_txbuf(sc, i);
 	}
 
-	sc->tx.next = i;
-
-	bus_dmamap_sync(sc->tx.desc_tag, sc->tx.desc_map,
-	    BUS_DMASYNC_PREWRITE);
+	if (prog > 0) {
+		sc->tx.next = i;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
+	}
 }
 
 static void
@@ -928,8 +1034,10 @@ awg_intr(void *arg)
 	if (val & RX_INT)
 		awg_rxintr(sc);
 
-	if (val & (TX_INT|TX_BUF_UA_INT)) {
-		awg_txintr(sc);
+	if (val & TX_INT)
+		awg_txeof(sc);
+
+	if (val & (TX_INT | TX_BUF_UA_INT)) {
 		if (!if_sendq_empty(sc->ifp))
 			awg_start_locked(sc);
 	}
@@ -956,7 +1064,7 @@ awg_poll(if_t ifp, enum poll_cmd cmd, int count)
 	}
 
 	rx_npkts = awg_rxintr(sc);
-	awg_txintr(sc);
+	awg_txeof(sc);
 	if (!if_sendq_empty(ifp))
 		awg_start_locked(sc);
 
@@ -1054,6 +1162,61 @@ awg_ioctl(if_t ifp, u_long cmd, caddr_t data)
 	return (error);
 }
 
+static uint32_t
+syscon_read_emac_clk_reg(device_t dev)
+{
+	struct awg_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->syscon != NULL)
+		return (SYSCON_READ_4(sc->syscon, EMAC_CLK_REG));
+	else if (sc->res[_RES_SYSCON] != NULL)
+		return (bus_read_4(sc->res[_RES_SYSCON], 0));
+
+	return (0);
+}
+
+static void
+syscon_write_emac_clk_reg(device_t dev, uint32_t val)
+{
+	struct awg_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->syscon != NULL)
+		SYSCON_WRITE_4(sc->syscon, EMAC_CLK_REG, val);
+	else if (sc->res[_RES_SYSCON] != NULL)
+		bus_write_4(sc->res[_RES_SYSCON], 0, val);
+}
+
+static phandle_t
+awg_get_phy_node(device_t dev)
+{
+	phandle_t node;
+	pcell_t phy_handle;
+
+	node = ofw_bus_get_node(dev);
+	if (OF_getencprop(node, "phy-handle", (void *)&phy_handle,
+	    sizeof(phy_handle)) <= 0)
+		return (0);
+
+	return (OF_node_from_xref(phy_handle));
+}
+
+static bool
+awg_has_internal_phy(device_t dev)
+{
+	phandle_t node, phy_node;
+
+	node = ofw_bus_get_node(dev);
+	/* Legacy binding */
+	if (OF_hasprop(node, "allwinner,use-internal-phy"))
+		return (true);
+
+	phy_node = awg_get_phy_node(dev);
+	return (phy_node != 0 && ofw_bus_node_is_compatible(OF_parent(phy_node),
+	    "allwinner,sun8i-h3-mdio-internal") != 0);
+}
+
 static int
 awg_setup_phy(device_t dev)
 {
@@ -1064,21 +1227,33 @@ awg_setup_phy(device_t dev)
 	phandle_t node;
 	uint32_t reg, tx_delay, rx_delay;
 	int error;
+	bool use_syscon;
 
 	sc = device_get_softc(dev);
 	node = ofw_bus_get_node(dev);
+	use_syscon = false;
 
 	if (OF_getprop_alloc(node, "phy-mode", 1, (void **)&phy_type) == 0)
 		return (0);
 
+	if (sc->syscon != NULL || sc->res[_RES_SYSCON] != NULL)
+		use_syscon = true;
+
 	if (bootverbose)
 		device_printf(dev, "PHY type: %s, conf mode: %s\n", phy_type,
-		    sc->res[_RES_SYSCON] != NULL ? "reg" : "clk");
+		    use_syscon ? "reg" : "clk");
 
-	if (sc->res[_RES_SYSCON] != NULL) {
-		reg = bus_read_4(sc->res[_RES_SYSCON], 0);
+	if (use_syscon) {
+		/*
+		 * Abstract away writing to syscon for devices like the pine64.
+		 * For the pine64, we get dtb from U-Boot and it still uses the
+		 * legacy setup of specifying syscon register in emac node
+		 * rather than as its own node and using an xref in emac.
+		 * These abstractions can go away once U-Boot dts is up-to-date.
+		 */
+		reg = syscon_read_emac_clk_reg(dev);
 		reg &= ~(EMAC_CLK_PIT | EMAC_CLK_SRC | EMAC_CLK_RMII_EN);
-		if (strcmp(phy_type, "rgmii") == 0)
+		if (strncmp(phy_type, "rgmii", 5) == 0)
 			reg |= EMAC_CLK_PIT_RGMII | EMAC_CLK_SRC_RGMII;
 		else if (strcmp(phy_type, "rmii") == 0)
 			reg |= EMAC_CLK_RMII_EN;
@@ -1097,7 +1272,7 @@ awg_setup_phy(device_t dev)
 		}
 
 		if (sc->type == EMAC_H3) {
-			if (OF_hasprop(node, "allwinner,use-internal-phy")) {
+			if (awg_has_internal_phy(dev)) {
 				reg |= EMAC_CLK_EPHY_SELECT;
 				reg &= ~EMAC_CLK_EPHY_SHUTDOWN;
 				if (OF_hasprop(node,
@@ -1116,9 +1291,9 @@ awg_setup_phy(device_t dev)
 
 		if (bootverbose)
 			device_printf(dev, "EMAC clock: 0x%08x\n", reg);
-		bus_write_4(sc->res[_RES_SYSCON], 0, reg);
+		syscon_write_emac_clk_reg(dev, reg);
 	} else {
-		if (strcmp(phy_type, "rgmii") == 0)
+		if (strncmp(phy_type, "rgmii", 5) == 0)
 			tx_parent_name = "emac_int_tx";
 		else
 			tx_parent_name = "mii_phy_tx";
@@ -1164,35 +1339,56 @@ static int
 awg_setup_extres(device_t dev)
 {
 	struct awg_softc *sc;
+	phandle_t node, phy_node;
 	hwreset_t rst_ahb, rst_ephy;
 	clk_t clk_ahb, clk_ephy;
 	regulator_t reg;
-	phandle_t node;
 	uint64_t freq;
 	int error, div;
 
 	sc = device_get_softc(dev);
-	node = ofw_bus_get_node(dev);
 	rst_ahb = rst_ephy = NULL;
 	clk_ahb = clk_ephy = NULL;
 	reg = NULL;
+	node = ofw_bus_get_node(dev);
+	phy_node = awg_get_phy_node(dev);
+
+	if (phy_node == 0 && OF_hasprop(node, "phy-handle")) {
+		error = ENXIO;
+		device_printf(dev, "cannot get phy handle\n");
+		goto fail;
+	}
 
 	/* Get AHB clock and reset resources */
-	error = hwreset_get_by_ofw_name(dev, 0, "ahb", &rst_ahb);
+	error = hwreset_get_by_ofw_name(dev, 0, "stmmaceth", &rst_ahb);
+	if (error != 0)
+		error = hwreset_get_by_ofw_name(dev, 0, "ahb", &rst_ahb);
 	if (error != 0) {
 		device_printf(dev, "cannot get ahb reset\n");
 		goto fail;
 	}
 	if (hwreset_get_by_ofw_name(dev, 0, "ephy", &rst_ephy) != 0)
-		rst_ephy = NULL;
-	error = clk_get_by_ofw_name(dev, 0, "ahb", &clk_ahb);
+		if (phy_node == 0 || hwreset_get_by_ofw_idx(dev, phy_node, 0,
+		    &rst_ephy) != 0)
+			rst_ephy = NULL;
+	error = clk_get_by_ofw_name(dev, 0, "stmmaceth", &clk_ahb);
+	if (error != 0)
+		error = clk_get_by_ofw_name(dev, 0, "ahb", &clk_ahb);
 	if (error != 0) {
 		device_printf(dev, "cannot get ahb clock\n");
 		goto fail;
 	}
 	if (clk_get_by_ofw_name(dev, 0, "ephy", &clk_ephy) != 0)
-		clk_ephy = NULL;
-	
+		if (phy_node == 0 || clk_get_by_ofw_index(dev, phy_node, 0,
+		    &clk_ephy) != 0)
+			clk_ephy = NULL;
+
+	if (OF_hasprop(node, "syscon") && syscon_get_by_ofw_property(dev, node,
+	    "syscon", &sc->syscon) != 0) {
+		device_printf(dev, "cannot get syscon driver handle\n");
+		goto fail;
+	}
+
 	/* Configure PHY for MII or RGMII mode */
 	if (awg_setup_phy(dev) != 0)
 		goto fail;
@@ -1448,7 +1644,6 @@ static int
 awg_setup_dma(device_t dev)
 {
 	struct awg_softc *sc;
-	struct mbuf *m;
 	int error, i;
 
 	sc = device_get_softc(dev);
@@ -1505,7 +1700,7 @@ awg_setup_dma(device_t dev)
 		return (error);
 	}
 
-	sc->tx.queued = TX_DESC_COUNT;
+	sc->tx.queued = 0;
 	for (i = 0; i < TX_DESC_COUNT; i++) {
 		error = bus_dmamap_create(sc->tx.buf_tag, 0,
 		    &sc->tx.buf_map[i].map);
@@ -1513,7 +1708,6 @@ awg_setup_dma(device_t dev)
 			device_printf(dev, "cannot create TX buffer map\n");
 			return (error);
 		}
-		awg_setup_txdesc(sc, i, 0, 0, 0);
 	}
 
 	/* Setup RX ring */
@@ -1564,18 +1758,25 @@ awg_setup_dma(device_t dev)
 		return (error);
 	}
 
+	error = bus_dmamap_create(sc->rx.buf_tag, 0, &sc->rx.buf_spare_map);
+	if (error != 0) {
+		device_printf(dev,
+		    "cannot create RX buffer spare map\n");
+		return (error);
+	}
+
 	for (i = 0; i < RX_DESC_COUNT; i++) {
+		sc->rx.desc_ring[i].next =
+		    htole32(sc->rx.desc_ring_paddr + DESC_OFF(RX_NEXT(i)));
+
 		error = bus_dmamap_create(sc->rx.buf_tag, 0,
 		    &sc->rx.buf_map[i].map);
 		if (error != 0) {
 			device_printf(dev, "cannot create RX buffer map\n");
 			return (error);
 		}
-		if ((m = awg_alloc_mbufcl(sc)) == NULL) {
-			device_printf(dev, "cannot allocate RX mbuf\n");
-			return (ENOMEM);
-		}
-		error = awg_setup_rxbuf(sc, i, m);
+		sc->rx.buf_map[i].mbuf = NULL;
+		error = awg_newbuf_rx(sc, i);
 		if (error != 0) {
 			device_printf(dev, "cannot create RX buffer\n");
 			return (error);
@@ -1609,12 +1810,11 @@ awg_attach(device_t dev)
 {
 	uint8_t eaddr[ETHER_ADDR_LEN];
 	struct awg_softc *sc;
-	phandle_t node;
 	int error;
 
 	sc = device_get_softc(dev);
+	sc->dev = dev;
 	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
-	node = ofw_bus_get_node(dev);
 
 	if (bus_alloc_resources(dev, awg_spec, sc->res) != 0) {
 		device_printf(dev, "cannot allocate resources for device\n");

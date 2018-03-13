@@ -2,7 +2,9 @@
 
 /* Errors and warnings... */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1996 The Internet Software Consortium.
  * All Rights Reserved.
  * Copyright (c) 1995 RadioMail Corporation.  All rights reserved.
@@ -47,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include "dhcpd.h"
 
-static void do_percentm(char *obuf, size_t size, char *ibuf);
+static void do_percentm(char *obuf, size_t size, const char *ibuf);
 
 static char mbuf[1024];
 static char fbuf[1024];
@@ -58,7 +60,7 @@ int warnings_occurred;
  * Log an error message, then exit.
  */
 void
-error(char *fmt, ...)
+error(const char *fmt, ...)
 {
 	va_list list;
 
@@ -69,7 +71,7 @@ error(char *fmt, ...)
 	va_end(list);
 
 #ifndef DEBUG
-	syslog(log_priority | LOG_ERR, "%s", mbuf);
+	cap_syslog(capsyslog, log_priority | LOG_ERR, "%s", mbuf);
 #endif
 
 	/* Also log it to stderr? */
@@ -78,7 +80,7 @@ error(char *fmt, ...)
 		write(2, "\n", 1);
 	}
 
-	syslog(LOG_CRIT, "exiting.");
+	cap_syslog(capsyslog, LOG_CRIT, "exiting.");
 	if (log_perror) {
 		fprintf(stderr, "exiting.\n");
 		fflush(stderr);
@@ -92,7 +94,7 @@ error(char *fmt, ...)
  * Log a warning message...
  */
 int
-warning(char *fmt, ...)
+warning(const char *fmt, ...)
 {
 	va_list list;
 
@@ -103,7 +105,7 @@ warning(char *fmt, ...)
 	va_end(list);
 
 #ifndef DEBUG
-	syslog(log_priority | LOG_ERR, "%s", mbuf);
+	cap_syslog(capsyslog, log_priority | LOG_ERR, "%s", mbuf);
 #endif
 
 	if (log_perror) {
@@ -118,7 +120,7 @@ warning(char *fmt, ...)
  * Log a note...
  */
 int
-note(char *fmt, ...)
+note(const char *fmt, ...)
 {
 	va_list list;
 
@@ -129,7 +131,7 @@ note(char *fmt, ...)
 	va_end(list);
 
 #ifndef DEBUG
-	syslog(log_priority | LOG_INFO, "%s", mbuf);
+	cap_syslog(capsyslog, log_priority | LOG_INFO, "%s", mbuf);
 #endif
 
 	if (log_perror) {
@@ -144,7 +146,7 @@ note(char *fmt, ...)
  * Log a debug message...
  */
 int
-debug(char *fmt, ...)
+debug(const char *fmt, ...)
 {
 	va_list list;
 
@@ -155,7 +157,7 @@ debug(char *fmt, ...)
 	va_end(list);
 
 #ifndef DEBUG
-	syslog(log_priority | LOG_DEBUG, "%s", mbuf);
+	cap_syslog(capsyslog, log_priority | LOG_DEBUG, "%s", mbuf);
 #endif
 
 	if (log_perror) {
@@ -170,10 +172,10 @@ debug(char *fmt, ...)
  * Find %m in the input string and substitute an error message string.
  */
 static void
-do_percentm(char *obuf, size_t size, char *ibuf)
+do_percentm(char *obuf, size_t size, const char *ibuf)
 {
 	char ch;
-	char *s = ibuf;
+	const char *s = ibuf;
 	char *t = obuf;
 	size_t prlen;
 	size_t fmt_left;
@@ -203,7 +205,7 @@ do_percentm(char *obuf, size_t size, char *ibuf)
 }
 
 int
-parse_warn(char *fmt, ...)
+parse_warn(const char *fmt, ...)
 {
 	va_list list;
 	static char spaces[] =
@@ -217,10 +219,10 @@ parse_warn(char *fmt, ...)
 	va_end(list);
 
 #ifndef DEBUG
-	syslog(log_priority | LOG_ERR, "%s", mbuf);
-	syslog(log_priority | LOG_ERR, "%s", token_line);
+	cap_syslog(capsyslog, log_priority | LOG_ERR, "%s", mbuf);
+	cap_syslog(capsyslog, log_priority | LOG_ERR, "%s", token_line);
 	if (lexline < 81)
-		syslog(log_priority | LOG_ERR,
+		cap_syslog(capsyslog, log_priority | LOG_ERR,
 		    "%s^", &spaces[sizeof(spaces) - lexchar]);
 #endif
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 George V. Neville-Neil
  * All rights reserved.
  *
@@ -377,7 +379,7 @@ enum {
 
 /*
  * Table 3.2 Identifier values.
- * Identifier constants has taken from SFF-8024 rev 2.9 table 4.1
+ * Identifier constants has taken from SFF-8024 rev 4.2 table 4.1
  * (as referenced by table 3.2 footer)
  * */
 enum {
@@ -398,13 +400,15 @@ enum {
 	SFF_8024_ID_CXP		= 0xE, /* CXP */
 	SFF_8024_ID_HD4X	= 0xF, /* Shielded Mini Multilane HD 4X */ 
 	SFF_8024_ID_HD8X	= 0x10, /* Shielded Mini Multilane HD 8X */ 
-	SFF_8024_ID_QSFP28	= 0x11, /* QSFP28 */
+	SFF_8024_ID_QSFP28	= 0x11, /* QSFP28 or later */
 	SFF_8024_ID_CXP2	= 0x12, /* CXP2 (aka CXP28) */
 	SFF_8024_ID_CDFP	= 0x13, /* CDFP (Style 1/Style 2) */
 	SFF_8024_ID_SMM4	= 0x14, /* Shielded Mini Multilate HD 4X Fanout */
 	SFF_8024_ID_SMM8	= 0x15, /* Shielded Mini Multilate HD 8X Fanout */
 	SFF_8024_ID_CDFP3	= 0x16, /* CDFP (Style3) */
-	SFF_8024_ID_LAST	= SFF_8024_ID_CDFP3
+	SFF_8024_ID_MICROQSFP	= 0x17, /* microQSFP */
+	SFF_8024_ID_QSFP_DD	= 0x18, /* QSFP-DD 8X Pluggable Transceiver */
+	SFF_8024_ID_LAST	= SFF_8024_ID_QSFP_DD
 	};
 
 static const char *sff_8024_id[SFF_8024_ID_LAST + 1] = {"Unknown",
@@ -429,7 +433,9 @@ static const char *sff_8024_id[SFF_8024_ID_LAST + 1] = {"Unknown",
 					     "CDFP",
 					     "SMM4",
 					     "SMM8",
-					     "CDFP3"};
+					     "CDFP3",
+					     "microQSFP",
+					     "QSFP-DD"};
 
 /* Keep compatibility with old definitions */
 #define	SFF_8472_ID_UNKNOWN	SFF_8024_ID_UNKNOWN

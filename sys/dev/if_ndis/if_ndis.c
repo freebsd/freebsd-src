@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003
  *	Bill Paul <wpaul@windriver.com>.  All rights reserved.
  *
@@ -1418,7 +1420,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 			p = packets[i];
 			if (p->np_oob.npo_status == NDIS_STATUS_SUCCESS) {
 				p->np_refcnt++;
-				(void)ndis_return_packet(NULL ,p, block);
+				ndis_return_packet(p);
 			}
 		}
 		return;
@@ -1431,7 +1433,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 		if (ndis_ptom(&m0, p)) {
 			device_printf(sc->ndis_dev, "ptom failed\n");
 			if (p->np_oob.npo_status == NDIS_STATUS_SUCCESS)
-				(void)ndis_return_packet(NULL, p, block);
+				ndis_return_packet(p);
 		} else {
 #ifdef notdef
 			if (p->np_oob.npo_status == NDIS_STATUS_RESOURCES) {

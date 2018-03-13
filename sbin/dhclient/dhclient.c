@@ -1,6 +1,8 @@
 /*	$OpenBSD: dhclient.c,v 1.63 2005/02/06 17:10:13 krw Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2004 Henning Brauer <henning@openbsd.org>
  * Copyright (c) 1995, 1996, 1997, 1998, 1999
  * The Internet Software Consortium.    All rights reserved.
@@ -84,10 +86,12 @@ __FBSDID("$FreeBSD$");
 
 #define	CLIENT_PATH "PATH=/usr/bin:/usr/sbin:/bin:/sbin"
 
+cap_channel_t *capsyslog;
+
 time_t cur_time;
 time_t default_lease_time = 43200; /* 12 hours... */
 
-char *path_dhclient_conf = _PATH_DHCLIENT_CONF;
+const char *path_dhclient_conf = _PATH_DHCLIENT_CONF;
 char *path_dhclient_db = NULL;
 
 int log_perror = 1;
@@ -127,10 +131,10 @@ void		 routehandler(struct protocol *);
 void		 usage(void);
 int		 check_option(struct client_lease *l, int option);
 int		 check_classless_option(unsigned char *data, int len);
-int		 ipv4addrs(char * buf);
+int		 ipv4addrs(const char * buf);
 int		 res_hnok(const char *dn);
 int		 check_search(const char *srch);
-char		*option_as_string(unsigned int code, unsigned char *data, int len);
+const char	*option_as_string(unsigned int code, unsigned char *data, int len);
 int		 fork_privchld(int, int);
 
 #define	ROUNDUP(a) \
@@ -146,7 +150,7 @@ int
 findproto(char *cp, int n)
 {
 	struct sockaddr *sa;
-	int i;
+	unsigned i;
 
 	if (n == 0)
 		return -1;
@@ -176,7 +180,7 @@ struct sockaddr *
 get_ifa(char *cp, int n)
 {
 	struct sockaddr *sa;
-	int i;
+	unsigned i;
 
 	if (n == 0)
 		return (NULL);
@@ -191,32 +195,31 @@ get_ifa(char *cp, int n)
 	return (NULL);
 }
 
-struct iaddr defaddr = { 4 };
+struct iaddr defaddr = { .len = 4 };
 uint8_t curbssid[6];
 
 static void
 disassoc(void *arg)
 {
-	struct interface_info *ifi = arg;
+	struct interface_info *_ifi = arg;
 
 	/*
 	 * Clear existing state.
 	 */
-	if (ifi->client->active != NULL) {
+	if (_ifi->client->active != NULL) {
 		script_init("EXPIRE", NULL);
 		script_write_params("old_",
-		    ifi->client->active);
-		if (ifi->client->alias)
+		    _ifi->client->active);
+		if (_ifi->client->alias)
 			script_write_params("alias_",
-				ifi->client->alias);
+				_ifi->client->alias);
 		script_go();
 	}
-	ifi->client->state = S_INIT;
+	_ifi->client->state = S_INIT;
 }
 
-/* ARGSUSED */
 void
-routehandler(struct protocol *p)
+routehandler(struct protocol *p __unused)
 {
 	char msg[2048], *addr;
 	struct rt_msghdr *rtm;
@@ -226,14 +229,15 @@ routehandler(struct protocol *p)
 	struct ieee80211_join_event *jev;
 	struct client_lease *l;
 	time_t t = time(NULL);
-	struct sockaddr *sa;
+	struct sockaddr_in *sa;
 	struct iaddr a;
 	ssize_t n;
 	int linkstat;
 
 	n = read(routefd, &msg, sizeof(msg));
 	rtm = (struct rt_msghdr *)msg;
-	if (n < sizeof(rtm->rtm_msglen) || n < rtm->rtm_msglen ||
+	if (n < (ssize_t)sizeof(rtm->rtm_msglen) ||
+	    n < (ssize_t)rtm->rtm_msglen ||
 	    rtm->rtm_version != RTM_VERSION)
 		return;
 
@@ -249,13 +253,13 @@ routehandler(struct protocol *p)
 		if (scripttime == 0 || t < scripttime + 10)
 			break;
 
-		sa = get_ifa((char *)(ifam + 1), ifam->ifam_addrs);
+		sa = (struct sockaddr_in*)get_ifa((char *)(ifam + 1), ifam->ifam_addrs);
 		if (sa == NULL)
 			break;
 
 		if ((a.len = sizeof(struct in_addr)) > sizeof(a.iabuf))
 			error("king bula sez: len mismatch");
-		memcpy(a.iabuf, &((struct sockaddr_in *)sa)->sin_addr, a.len);
+		memcpy(a.iabuf, &sa->sin_addr, a.len);
 		if (addr_eq(a, defaddr))
 			break;
 
@@ -266,7 +270,7 @@ routehandler(struct protocol *p)
 		if (l == NULL)	/* added/deleted addr is not the one we set */
 			break;
 
-		addr = inet_ntoa(((struct sockaddr_in *)sa)->sin_addr);
+		addr = inet_ntoa(sa->sin_addr);
 		if (rtm->rtm_type == RTM_NEWADDR)  {
 			/*
 			 * XXX: If someone other than us adds our address,
@@ -345,6 +349,21 @@ die:
 	exit(1);
 }
 
+static void
+init_casper(void)
+{
+	cap_channel_t		*casper;
+
+	casper = cap_init();
+	if (casper == NULL)
+		error("unable to start casper");
+
+	capsyslog = cap_service_open(casper, "system.syslog");
+	cap_close(casper);
+	if (capsyslog == NULL)
+		error("unable to open system.syslog service");
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -356,9 +375,11 @@ main(int argc, char *argv[])
 	pid_t			 otherpid;
 	cap_rights_t		 rights;
 
+	init_casper();
+
 	/* Initially, log errors to stderr as well as to syslogd. */
-	openlog(__progname, LOG_PID | LOG_NDELAY, DHCPD_LOG_FACILITY);
-	setlogmask(LOG_UPTO(LOG_DEBUG));
+	cap_openlog(capsyslog, __progname, LOG_PID | LOG_NDELAY, DHCPD_LOG_FACILITY);
+	cap_setlogmask(capsyslog, LOG_UPTO(LOG_DEBUG));
 
 	while ((ch = getopt(argc, argv, "bc:dl:p:qu")) != -1)
 		switch (ch) {
@@ -518,7 +539,7 @@ main(int argc, char *argv[])
 
 	setproctitle("%s", ifi->name);
 
-	if (cap_enter() < 0 && errno != ENOSYS)
+	if (CASPER_SUPPORT && cap_enter() < 0 && errno != ENOSYS)
 		error("can't enter capability mode: %m");
 
 	if (immediate_daemon)
@@ -924,7 +945,7 @@ dhcp(struct packet *packet)
 {
 	struct iaddrlist *ap;
 	void (*handler)(struct packet *);
-	char *type;
+	const char *type;
 
 	switch (packet->packet_type) {
 	case DHCPOFFER:
@@ -962,7 +983,7 @@ dhcpoffer(struct packet *packet)
 	struct client_lease *lease, *lp;
 	int i;
 	int arp_timeout_needed, stop_selecting;
-	char *name = packet->options[DHO_DHCP_MESSAGE_TYPE].len ?
+	const char *name = packet->options[DHO_DHCP_MESSAGE_TYPE].len ?
 	    "DHCPOFFER" : "BOOTREPLY";
 
 	/* If we're not receptive to an offer right now, or if the offer
@@ -1492,7 +1513,8 @@ cancel:
 		memcpy(&to.s_addr, ip->client->destination.iabuf,
 		    sizeof(to.s_addr));
 
-	if (ip->client->state != S_REQUESTING)
+	if (ip->client->state != S_REQUESTING &&
+	    ip->client->state != S_REBOOTING)
 		memcpy(&from, ip->client->active->address.iabuf,
 		    sizeof(from));
 	else
@@ -1971,7 +1993,7 @@ write_client_lease(struct interface_info *ip, struct client_lease *lease,
 }
 
 void
-script_init(char *reason, struct string_list *medium)
+script_init(const char *reason, struct string_list *medium)
 {
 	size_t		 len, mediumlen = 0;
 	struct imsg_hdr	 hdr;
@@ -2006,7 +2028,7 @@ script_init(char *reason, struct string_list *medium)
 }
 
 void
-priv_script_init(char *reason, char *medium)
+priv_script_init(const char *reason, char *medium)
 {
 	struct interface_info *ip = ifi;
 
@@ -2034,11 +2056,12 @@ priv_script_init(char *reason, char *medium)
 }
 
 void
-priv_script_write_params(char *prefix, struct client_lease *lease)
+priv_script_write_params(const char *prefix, struct client_lease *lease)
 {
 	struct interface_info *ip = ifi;
 	u_int8_t dbuf[1500], *dp = NULL;
-	int i, len;
+	int i;
+	size_t len;
 	char tbuf[128];
 
 	script_set_env(ip->client, prefix, "ip_address",
@@ -2173,7 +2196,7 @@ supersede:
 }
 
 void
-script_write_params(char *prefix, struct client_lease *lease)
+script_write_params(const char *prefix, struct client_lease *lease)
 {
 	size_t		 fn_len = 0, sn_len = 0, pr_len = 0;
 	struct imsg_hdr	 hdr;
@@ -2188,12 +2211,14 @@ script_write_params(char *prefix, struct client_lease *lease)
 		pr_len = strlen(prefix);
 
 	hdr.code = IMSG_SCRIPT_WRITE_PARAMS;
-	hdr.len = sizeof(hdr) + sizeof(struct client_lease) +
-	    sizeof(size_t) + fn_len + sizeof(size_t) + sn_len +
-	    sizeof(size_t) + pr_len;
+	hdr.len = sizeof(hdr) + sizeof(*lease) +
+	    sizeof(fn_len) + fn_len + sizeof(sn_len) + sn_len +
+	    sizeof(pr_len) + pr_len;
 
-	for (i = 0; i < 256; i++)
-		hdr.len += sizeof(int) + lease->options[i].len;
+	for (i = 0; i < 256; i++) {
+		hdr.len += sizeof(lease->options[i].len);
+		hdr.len += lease->options[i].len;
+	}
 
 	scripttime = time(NULL);
 
@@ -2202,7 +2227,7 @@ script_write_params(char *prefix, struct client_lease *lease)
 
 	errs = 0;
 	errs += buf_add(buf, &hdr, sizeof(hdr));
-	errs += buf_add(buf, lease, sizeof(struct client_lease));
+	errs += buf_add(buf, lease, sizeof(*lease));
 	errs += buf_add(buf, &fn_len, sizeof(fn_len));
 	errs += buf_add(buf, lease->filename, fn_len);
 	errs += buf_add(buf, &sn_len, sizeof(sn_len));
@@ -2307,7 +2332,8 @@ void
 script_set_env(struct client_state *client, const char *prefix,
     const char *name, const char *value)
 {
-	int i, j, namelen;
+	int i, namelen;
+	size_t j;
 
 	/* No `` or $() command substitution allowed in environment values! */
 	for (j=0; j < strlen(value); j++)
@@ -2375,7 +2401,7 @@ script_flush_env(struct client_state *client)
 int
 dhcp_option_ev_name(char *buf, size_t buflen, struct option *option)
 {
-	int i;
+	size_t i;
 
 	for (i = 0; option->name[i]; i++) {
 		if (i + 1 == buflen)
@@ -2404,7 +2430,7 @@ go_daemon(void)
 	/* Stop logging to stderr... */
 	log_perror = 0;
 
-	if (daemon(1, 0) == -1)
+	if (daemonfd(-1, nullfd) == -1)
 		error("daemon");
 
 	cap_rights_init(&rights);
@@ -2417,11 +2443,7 @@ go_daemon(void)
 		}
 	}
 
-	/* we are chrooted, daemon(3) fails to open /dev/null */
 	if (nullfd != -1) {
-		dup2(nullfd, STDIN_FILENO);
-		dup2(nullfd, STDOUT_FILENO);
-		dup2(nullfd, STDERR_FILENO);
 		close(nullfd);
 		nullfd = -1;
 	}
@@ -2438,8 +2460,8 @@ go_daemon(void)
 int
 check_option(struct client_lease *l, int option)
 {
-	char *opbuf;
-	char *sbuf;
+	const char *opbuf;
+	const char *sbuf;
 
 	/* we use this, since this is what gets passed to dhclient-script */
 
@@ -2699,7 +2721,7 @@ check_search(const char *srch)
  * otherwise, return 0
  */
 int
-ipv4addrs(char * buf)
+ipv4addrs(const char * buf)
 {
 	struct in_addr jnk;
 	int count = 0;
@@ -2717,7 +2739,7 @@ ipv4addrs(char * buf)
 }
 
 
-char *
+const char *
 option_as_string(unsigned int code, unsigned char *data, int len)
 {
 	static char optbuf[32768]; /* XXX */

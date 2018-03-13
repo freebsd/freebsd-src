@@ -68,6 +68,9 @@ CWARNEXTRA+=	-Wno-error=misleading-indentation		\
 .else
 # For gcc 4.2, eliminate the too-often-wrong warnings about uninitialized vars.
 CWARNEXTRA?=	-Wno-uninitialized
+# GCC 4.2 doesn't have -Wno-error=cast-qual, so just disable the warning for
+# the few files that are already known to generate cast-qual warnings.
+NO_WCAST_QUAL= -Wno-cast-qual
 .endif
 .endif
 
@@ -172,10 +175,16 @@ CFLAGS.gcc+=	-mno-spe
 .endif
 
 #
-# Use dot symbols on powerpc64 to make ddb happy
+# Use dot symbols (or, better, the V2 ELF ABI) on powerpc64 to make
+# DDB happy. ELFv2, if available, has some other efficiency benefits.
 #
 .if ${MACHINE_ARCH} == "powerpc64"
+.if ${COMPILER_VERSION} >= 40900
+CFLAGS.gcc+=	-mabi=elfv2
+.else
 CFLAGS.gcc+=	-mcall-aixdesc
+.endif
+CFLAGS.clang+=	-mabi=elfv2
 .endif
 
 #
@@ -184,9 +193,6 @@ CFLAGS.gcc+=	-mcall-aixdesc
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-msoft-float
 INLINE_LIMIT?=	8000
-.if ${MACHINE_ARCH:Mmips*hf} != ""
-CFLAGS+= -DCPU_HAVEFPU
-.endif
 .endif
 
 #
@@ -200,7 +206,7 @@ CFLAGS+=	-ffreestanding
 # gcc and clang opimizers take advantage of this.  The kernel makes
 # use of signed integer wraparound mechanics so we need the compiler
 # to treat it as a wraparound and not take shortcuts.
-# 
+#
 CFLAGS+=	-fwrapv
 
 #
@@ -209,6 +215,14 @@ CFLAGS+=	-fwrapv
 .if ${MK_SSP} != "no" && \
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 CFLAGS+=	-fstack-protector
+.endif
+
+#
+# Retpoline speculative execution vulnerability mitigation (CVE-2017-5715)
+#
+.if defined(COMPILER_FEATURES) && ${COMPILER_FEATURES:Mretpoline} != "" && \
+    ${MK_KERNEL_RETPOLINE} != "no"
+CFLAGS+=	-mretpoline
 .endif
 
 #
@@ -231,7 +245,7 @@ PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 		beforelinking build build-tools buildfiles buildincludes \
 		checkdpadd clean cleandepend cleandir cleanobj configure \
 		depend distclean distribute exe \
-		html includes install installfiles installincludes lint \
+		html includes install installfiles installincludes \
 		obj objlink objs objwarn \
 		realinstall regress \
 		tags whereobj
@@ -259,6 +273,7 @@ LD_EMULATION_amd64=elf_x86_64_fbsd
 LD_EMULATION_arm=armelf_fbsd
 LD_EMULATION_armeb=armelfb_fbsd
 LD_EMULATION_armv6=armelf_fbsd
+LD_EMULATION_armv7=armelf_fbsd
 LD_EMULATION_i386=elf_i386_fbsd
 LD_EMULATION_mips= elf32btsmip_fbsd
 LD_EMULATION_mips64= elf64btsmip_fbsd

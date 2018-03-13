@@ -43,6 +43,7 @@
  * board setup code has to handle those things.
  */
 
+uint32_t imx_ccm_ecspi_hz(void);
 uint32_t imx_ccm_ipg_hz(void);
 uint32_t imx_ccm_perclk_hz(void);
 uint32_t imx_ccm_sdhci_hz(void);

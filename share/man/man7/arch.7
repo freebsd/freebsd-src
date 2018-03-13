@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2017
+.Dd February 5, 2018
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -68,7 +68,7 @@ and
 .Vt ptrdiff_t
 should be avoided.
 .Pp
-On some architectures, e.g.
+On some architectures, e.g.,
 .Dv sparc64 ,
 .Dv powerpc
 and AIM variants of
@@ -95,6 +95,7 @@ architectures, the final release.
 .It arm         Ta 6.0
 .It armeb       Ta 8.0
 .It armv6       Ta 10.0
+.It armv7       Ta 12.0
 .It arm64       Ta 11.0
 .It ia64        Ta 5.0   Ta 10.x
 .It i386        Ta 1.0
@@ -164,6 +165,8 @@ Examples are:
 .Dv arm64
 currently does not support execution of
 .Dv armv6
+or
+.Dv armv7
 binaries, even if the CPU implements
 .Dv AArch32
 execution state.
@@ -212,8 +215,7 @@ Machine-dependent type sizes:
 .El
 .Pp
 .Sy time_t
-is 8 bytes on all supported architectures except i386 and 32-bit
-variants of powerpc.
+is 8 bytes on all supported architectures except i386.
 .Ss Endianness and Char Signedness
 .Bl -column -offset indent "Sy Architecture" "Sy Endianness" "Sy char Signedness"
 .It Sy Architecture Ta Sy Endianness Ta Sy char Signedness
@@ -221,6 +223,7 @@ variants of powerpc.
 .It arm         Ta little Ta unsigned
 .It armeb       Ta big    Ta unsigned
 .It armv6       Ta little Ta unsigned
+.It armv7       Ta little Ta unsigned
 .It arm64       Ta little Ta unsigned
 .It i386        Ta little Ta   signed
 .It mips        Ta big    Ta   signed
@@ -246,6 +249,7 @@ variants of powerpc.
 .It arm         Ta 4K
 .It armeb       Ta 4K
 .It armv6       Ta 4K, 1M
+.It armv7       Ta 4K, 1M
 .It arm64       Ta 4K, 2M, 1G
 .It i386        Ta 4K, 2M (PAE), 4M
 .It mips        Ta 4K
@@ -271,6 +275,7 @@ variants of powerpc.
 .It arm         Ta soft Ta soft, double precision
 .It armeb       Ta soft Ta soft, double precision
 .It armv6       Ta hard(1) Ta hard, double precision
+.It armv7       Ta hard(1) Ta hard, double precision
 .It arm64       Ta hard Ta soft, quad precision
 .It i386        Ta hard Ta hard, 80 bit
 .It mips        Ta soft Ta identical to double
@@ -323,6 +328,7 @@ Architecture-specific macros:
 .It arm         Ta Dv __arm__
 .It armeb       Ta Dv __arm__
 .It armv6       Ta Dv __arm__, Dv __ARM_ARCH >= 6
+.It armv7       Ta Dv __arm__, Dv __ARM_ARCH >= 7
 .It arm64       Ta Dv __aarch64__
 .It i386        Ta Dv __i386__
 .It mips        Ta Dv __mips__, Dv __MIPSEB__, Dv __mips_o32
@@ -340,6 +346,111 @@ Architecture-specific macros:
 .It riscv64     Ta Dv __riscv, Dv __riscv_xlen == 64
 .It riscv64sf   Ta Dv __riscv, Dv __riscv_xlen == 64
 .It sparc64     Ta Dv __sparc64__
+.El
+.Ss Important Xr make 1 variables
+Most of the externally settable variables are defined in the
+.Xr build 7
+man page.
+These variables are not otherwise documented and are used extensively
+in the build system.
+.Bl -column -offset indent "Sy Variable" "Sy Meaning and usage"
+.It Dv MACHINE	Represent the hardware platform.
+This is the same as the native platform's
+.Xr uname 1
+.Fl m
+output.
+It defines both the userland / kernel interface, as well as the
+bootloader / kernel interface.
+It should only be used in these contexts.
+Each CPU architecture may have multiple hardware platforms it supports
+where
+.Dv MACHINE
+differs among them.
+It is used to collect together all the files from
+.Xr config 8
+to build the kernel.
+It is often the same as
+.Dv MACHINE_ARCH
+just as one CPU architecture can be implemented by many different
+hardware platforms, one hardware platform may support multiple CPU
+architecture family members, though with different binaries.
+For example,
+.Dv MACHINE
+of i386 supported the IBM-AT hardware platform while the
+.Dv MACHINE
+of pc98 supported the Japanese company NEC's PC-9801 and PC-9821
+hardware platforms.
+Both of these hardware platforms supported only the
+.Dv MACHINE_ARCH
+of i386 where they shared a common ABI, except for certain kernel /
+userland interfaces relating to underlying hardware platform
+differences in bus architecture, device enumeration and boot interface.
+Generally,
+.Dv MACHINE
+should only be used in src/sys and src/stand or in system imagers or
+installers.
+.It Dv MACHINE_ARCH	Represents the CPU processor architecture.
+This is the same as the native platforms
+.Xr uname 1
+.Fl p
+output.
+It defines the CPU instruction family supported.
+It may also encode a variation in the byte ordering of multi-byte
+integers (endian).
+It may also encode a variation in the size of the integer or pointer.
+It may also encode a ISA revision.
+It may also encode hard versus soft floating point ABI and usage.
+It may also encode a variant ABI when the other factors do not
+uniquely define the ABI (e.g., MIPS' n32 ABI).
+It, along with
+.Dv MACHINE ,
+defines the ABI used by the system.
+For example, the MIPS CPU processor family supports 9 different
+combinations encoding pointer size, endian and hard versus soft float (for
+8 combinations) as well as N32 (which only ever had one variation of
+all these).
+Generally, the plain CPU name specifies the most common (or at least
+first) variant of the CPU.
+This is why mips and mips64 imply 'big endian' while 'arm' and 'armv7'
+imply little endian.
+If we ever were to support the so-called x32 ABI (using 32-bit
+pointers on the amd64 architecture), it would most likely be encoded
+as amd64-x32.
+It is unfortunate that amd64 specifies the 64-bit evolution of the x86
+platform (it matches the 'first rule') as everybody else uses x86_64.
+There is no standard name for the processor: each OS selects its own
+conventions.
+.It Dv MACHINE_CPUARCH	Represents the source location for a given
+.Dv MACHINE_ARCH .
+For example,
+.Dv MACHINE_CPUARCH
+is defined to be mips for all the flavors of mips that we support
+since we support them all with a shared set of sources.
+While amd64 and i386 are closely related, MACHINE_CPUARCH is not x86
+for them.
+The FreeBSD source base supports amd64 and i386 with two
+distinct source bases living in subdirectories named amd64 and i386
+(though behind the scenes there's some sharing that fits into this
+framework).
+.It Dv CPUTYPE	Sets the flavor of
+.Dv MACHINE_ARCH
+to build.
+It is used to optimize the build for a specific CPU / core that the
+binaries run on.
+Generally, this does not change the ABI, though it can be a fine line
+between optimization for specific cases.
+.It Dv TARGET	Used to set
+.Dv MACHINE
+in the top level Makefile for cross building.
+Unused outside of that scope.
+It is not passed down to the rest of the build.
+Makefiles outside of the top level should not use it at all (though
+some have their own private copy for hysterical raisons).
+.It Dv TARGET_ARCH	Used to set
+.Dv MACHINE_ARCH
+by the top level Makefile for cross building.
+Like
+.Dv TARGET , it is unused outside of that scope.
 .El
 .Sh SEE ALSO
 .Xr src.conf 5 ,

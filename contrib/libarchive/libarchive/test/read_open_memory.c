@@ -91,9 +91,11 @@ read_open_memory_internal(struct archive *a, const void *buff,
 	switch (level) {
 	case 3:
 		archive_read_set_seek_callback(a, memory_read_seek);
+		__LA_FALLTHROUGH;
 	case 2:
 		archive_read_set_open_callback(a, memory_read_open);
 		archive_read_set_skip_callback(a, memory_read_skip);
+		__LA_FALLTHROUGH;
 	case 1:
 		mine = malloc(sizeof(*mine));
 		if (mine == NULL) {

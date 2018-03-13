@@ -200,7 +200,7 @@
 	<translation encoding="ISO8859-13" cldr="EURO SIGN" string="Eu" />
 
 	<!-- Minus and dashes -->
-	<translation encoding="ISO8859-1 ISO8859-4 ISO8859-13 ISO8859-15"
+	<translation encoding="ISO8859-1 ISO8859-2 ISO8859-4 ISO8859-13 ISO8859-15"
 	    cldr="MINUS SIGN" unicode="HYPHEN-MINUS" />
 	<translation encoding="ISO8859-2"
 	    cldr="EN DASH" unicode="HYPHEN-MINUS" />

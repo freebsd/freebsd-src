@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -626,18 +628,7 @@ void nfsrvd_rcv(struct socket *, void *, int);
  * mbufs any more.)
  */
 #define	NFSSOCKADDR(a, t)	((t)(a))
-#define	NFSSOCKADDRALLOC(a) 					\
-    do {							\
-	MALLOC((a), struct sockaddr *, sizeof (struct sockaddr), \
-	    M_SONAME, M_WAITOK); 				\
-	NFSBZERO((a), sizeof (struct sockaddr)); 		\
-    } while (0)
 #define	NFSSOCKADDRSIZE(a, s)		((a)->sa_len = (s))
-#define	NFSSOCKADDRFREE(a) 					\
-	do { 							\
-		if (a) 						\
-			FREE((caddr_t)(a), M_SONAME); 		\
-	} while (0)
 
 /*
  * These should be defined as a process or thread structure, as required
@@ -709,6 +700,25 @@ void nfsrvd_rcv(struct socket *, void *, int);
 #define	NFSSESSIONMUTEXPTR(s)	(&((s)->mtx))
 #define	NFSLOCKSESSION(s)	mtx_lock(&((s)->mtx))
 #define	NFSUNLOCKSESSION(s)	mtx_unlock(&((s)->mtx))
+#define	NFSLOCKLAYOUT(l)	mtx_lock(&((l)->mtx))
+#define	NFSUNLOCKLAYOUT(l)	mtx_unlock(&((l)->mtx))
+#define	NFSDDSLOCK()		mtx_lock(&nfsrv_dslock_mtx)
+#define	NFSDDSUNLOCK()		mtx_unlock(&nfsrv_dslock_mtx)
+#define	NFSDSCLOCKMUTEXPTR	(&nfsrv_dsclock_mtx)
+#define	NFSDSCLOCK()		mtx_lock(&nfsrv_dsclock_mtx)
+#define	NFSDSCUNLOCK()		mtx_unlock(&nfsrv_dsclock_mtx)
+#define	NFSDSRMLOCKMUTEXPTR	(&nfsrv_dsrmlock_mtx)
+#define	NFSDSRMLOCK()		mtx_lock(&nfsrv_dsrmlock_mtx)
+#define	NFSDSRMUNLOCK()		mtx_unlock(&nfsrv_dsrmlock_mtx)
+#define	NFSDWRPCLOCKMUTEXPTR	(&nfsrv_dwrpclock_mtx)
+#define	NFSDWRPCLOCK()		mtx_lock(&nfsrv_dwrpclock_mtx)
+#define	NFSDWRPCUNLOCK()	mtx_unlock(&nfsrv_dwrpclock_mtx)
+#define	NFSDSRPCLOCKMUTEXPTR	(&nfsrv_dsrpclock_mtx)
+#define	NFSDSRPCLOCK()		mtx_lock(&nfsrv_dsrpclock_mtx)
+#define	NFSDSRPCUNLOCK()	mtx_unlock(&nfsrv_dsrpclock_mtx)
+#define	NFSDARPCLOCKMUTEXPTR	(&nfsrv_darpclock_mtx)
+#define	NFSDARPCLOCK()		mtx_lock(&nfsrv_darpclock_mtx)
+#define	NFSDARPCUNLOCK()	mtx_unlock(&nfsrv_darpclock_mtx)
 
 /*
  * Use these macros to initialize/free a mutex.

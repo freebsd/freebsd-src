@@ -141,10 +141,10 @@ if [ -e ${firstboot_sentinel} ]; then
 	if [ -e ${firstboot_sentinel}-reboot ]; then
 		chflags -R 0 ${firstboot_sentinel}-reboot
 		rm -rf ${firstboot_sentinel}-reboot
-    		checkyesno root_rw_mount && mount -ur /
+    		checkyesno root_rw_mount || mount -ur /
 		kill -INT 1
 	fi
-    	checkyesno root_rw_mount && mount -ur /
+    	checkyesno root_rw_mount || mount -ur /
 fi
 
 echo ''

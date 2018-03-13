@@ -136,7 +136,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	ppp/ppp.secret.sample \
 	ppp/ppp.secret.span-isp \
 	ppp/ppp.secret.span-isp.working \
-	printing/README \
 	printing/diablo-if-net \
 	printing/hpdf \
 	printing/hpif \

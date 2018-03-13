@@ -391,6 +391,7 @@ GNTOOLS+=	genattr genattrtab genautomata gencodes gencheck genchecksum \
 
 ${GNTOOLS:C,$,.o,} ${GNTOOLS}: ${BUILD_TOOLS_META}
 all: ${GNTOOLS} ${GENSRCS} ${GENONLY}
+build-tools: all
 beforedepend: ${GENONLY}
 
 #

@@ -246,12 +246,10 @@ padlock_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 
 	if (macini != NULL) {
 		td = curthread;
-		error = fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL |
+		fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL |
 		    FPU_KERN_KTHR);
-		if (error == 0) {
-			error = padlock_hash_setup(ses, macini);
-			fpu_kern_leave(td, ses->ses_fpu_ctx);
-		}
+		error = padlock_hash_setup(ses, macini);
+		fpu_kern_leave(td, ses->ses_fpu_ctx);
 		if (error != 0) {
 			padlock_freesession_one(sc, ses, 0);
 			return (error);

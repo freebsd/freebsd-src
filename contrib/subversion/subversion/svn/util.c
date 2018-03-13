@@ -352,6 +352,7 @@ static const char *prefixes[] = {
   "Relnotes:",
   "Security:",
   "Sponsored by:",
+  "Pull Request:",
   "Differential Revision:",
 };
 
@@ -443,6 +444,7 @@ svn_cl__get_log_message(const char **log_msg,
   if (sponsored_by != NULL)
 	  svn_stringbuf_appendcstr(default_msg, sponsored_by);
   svn_stringbuf_appendcstr(default_msg, APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "Pull Request:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Differential Revision:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, EDITOR_EOF_PREFIX);
   svn_stringbuf_appendcstr(default_msg, APR_EOL_STR);
@@ -458,6 +460,7 @@ svn_cl__get_log_message(const char **log_msg,
   svn_stringbuf_appendcstr(default_msg, "> Relnotes:                 Set to 'yes' for mention in release notes." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Security:                 Vulnerability reference (one per line) or description." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Sponsored by:             If the change was sponsored by an organization." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Pull Request:             https://github.com/freebsd/freebsd/pull/### (*full* GitHub URL needed)." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Differential Revision:    https://reviews.freebsd.org/D### (*full* phabric URL needed)." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Empty fields above will be automatically removed." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, APR_EOL_STR);

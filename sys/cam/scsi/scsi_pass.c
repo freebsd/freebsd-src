@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998, 2000 Justin T. Gibbs.
  * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.
@@ -28,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -43,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/selinfo.h>
 #include <sys/sdt.h>
+#include <sys/sysent.h>
 #include <sys/taskqueue.h>
 #include <vm/uma.h>
 #include <vm/vm.h>
@@ -516,7 +521,6 @@ passasync(void *callback_arg, u_int32_t code,
 		buftype = (uintptr_t)arg;
 		if (buftype == CDAI_TYPE_PHYS_PATH) {
 			struct pass_softc *softc;
-			cam_status status;
 
 			softc = (struct pass_softc *)periph->softc;
 			/*
@@ -525,8 +529,7 @@ passasync(void *callback_arg, u_int32_t code,
 			 * a situation where the periph goes away before
 			 * the task queue has a chance to run.
 			 */
-			status = cam_periph_acquire(periph);
-			if (status != CAM_REQ_CMP)
+			if (cam_periph_acquire(periph) != 0)
 				break;
 
 			taskqueue_enqueue(taskqueue_thread,
@@ -586,10 +589,7 @@ passregister(struct cam_periph *periph, void *arg)
 	softc->io_zone_size = MAXPHYS;
 	knlist_init_mtx(&softc->read_select.si_note, cam_periph_mtx(periph));
 
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 
 	if (cpi.maxio == 0)
 		softc->maxio = DFLTPHYS;	/* traditional default */
@@ -627,7 +627,7 @@ passregister(struct cam_periph *periph, void *arg)
 	 * Acquire a reference to the periph that we can release once we've
 	 * cleaned up the kqueue.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -639,7 +639,7 @@ passregister(struct cam_periph *periph, void *arg)
 	 * instance for it.  We'll release this reference once the devfs
 	 * instance has been freed.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -666,7 +666,7 @@ passregister(struct cam_periph *periph, void *arg)
 	 * Hold a reference to the periph before we create the physical
 	 * path alias so it can't go away.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -706,7 +706,7 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	int error;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) != 0)
 		return (ENXIO);
 
 	cam_periph_lock(periph);
@@ -1700,13 +1700,11 @@ static int
 passmemdone(struct cam_periph *periph, struct pass_io_req *io_req)
 {
 	struct pass_softc *softc;
-	union ccb *ccb;
 	int error;
 	int i;
 
 	error = 0;
 	softc = (struct pass_softc *)periph->softc;
-	ccb = &io_req->ccb;
 
 	switch (io_req->data_flags) {
 	case CAM_DATA_VADDR:
@@ -1864,6 +1862,12 @@ passdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread 
 		union ccb **user_ccb, *ccb;
 		xpt_opcode fc;
 
+#ifdef COMPAT_FREEBSD32
+		if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
+			error = ENOTTY;
+			goto bailout;
+		}
+#endif
 		if ((softc->flags & PASS_FLAG_ZONE_VALID) == 0) {
 			error = passcreatezone(periph);
 			if (error != 0)
@@ -2038,6 +2042,12 @@ camioqueue_error:
 		struct pass_io_req *io_req;
 		int old_error;
 
+#ifdef COMPAT_FREEBSD32
+		if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
+			error = ENOTTY;
+			goto bailout;
+		}
+#endif
 		user_ccb = (union ccb **)addr;
 		old_error = 0;
 
@@ -2275,6 +2285,5 @@ passerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct pass_softc *)periph->softc;
 	
-	return(cam_periph_error(ccb, cam_flags, sense_flags, 
-				 &softc->saved_ccb));
+	return(cam_periph_error(ccb, cam_flags, sense_flags));
 }

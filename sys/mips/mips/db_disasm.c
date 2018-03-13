@@ -1,5 +1,7 @@
 /*	$OpenBSD: db_disasm.c,v 1.1 1998/03/16 09:03:24 pefo Exp $	*/
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

@@ -530,16 +530,16 @@ MALLOC_DECLARE(M_IPFILTER);
 #   endif /* M_PFIL */
 #  endif /* IPFILTER_M_IPFILTER */
 #  if !defined(KMALLOC)
-#   define	KMALLOC(a, b)	MALLOC((a), b, sizeof(*(a)), _M_IPF, M_NOWAIT)
+#   define	KMALLOC(a, b)		(a) = (b)malloc(sizeof(*(a)), _M_IPF, M_NOWAIT)
 #  endif
 #  if !defined(KMALLOCS)
-#   define	KMALLOCS(a, b, c)	MALLOC((a), b, (c), _M_IPF, M_NOWAIT)
+#   define	KMALLOCS(a, b, c)	(a) = (b)malloc((c), _M_IPF, M_NOWAIT)
 #  endif
 #  if !defined(KFREE)
-#   define	KFREE(x)	FREE((x), _M_IPF)
+#   define	KFREE(x)	free((x), _M_IPF)
 #  endif
 #   if !defined(KFREES)
-#  define	KFREES(x,s)	FREE((x), _M_IPF)
+#  define	KFREES(x,s)	free((x), _M_IPF)
 #  endif
 #  define	UIOMOVE(a,b,c,d)	uiomove((caddr_t)a,b,d)
 #  define	SLEEP(id, n)	tsleep((id), PPAUSE|PCATCH, n, 0)

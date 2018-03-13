@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-3-Clause AND MIT-CMU)
+ *
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
  * Copyright (c) 1998 Matthew Dillon.  All Rights Reserved.
@@ -89,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
+#include <sys/domainset.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/linker.h>
@@ -107,12 +110,15 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
+#include <vm/vm_domainset.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
-#include <vm/vm_pager.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_pagequeue.h>
+#include <vm/vm_pager.h>
 #include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
 #include <vm/vm_extern.h>
@@ -121,15 +127,25 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/md_var.h>
 
+extern int	uma_startup_count(int);
+extern void	uma_startup(void *, int);
+extern int	vmem_startup_count(void);
+
 /*
  *	Associated with page of user-allocatable memory is a
  *	page structure.
  */
 
 struct vm_domain vm_dom[MAXMEMDOM];
-struct mtx_padalign __exclusive_cache_line vm_page_queue_free_mtx;
 
 struct mtx_padalign __exclusive_cache_line pa_lock[PA_LOCK_COUNT];
+struct mtx_padalign __exclusive_cache_line vm_domainset_lock;
+domainset_t __exclusive_cache_line vm_min_domains;
+domainset_t __exclusive_cache_line vm_severe_domains;
+static int vm_min_waiters;
+static int vm_severe_waiters;
+static int vm_pageproc_waiters;
+
 
 /*
  * bogus page -- for I/O to/from partially complete buffers,
@@ -141,7 +157,7 @@ vm_page_t vm_page_array;
 long vm_page_array_size;
 long first_page;
 
-static int boot_pages = UMA_BOOT_PAGES;
+static int boot_pages;
 SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &boot_pages, 0,
     "number of pages allocated for bootstrapping the VM system");
@@ -155,23 +171,22 @@ static int sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_vm, OID_AUTO, page_blacklist, CTLTYPE_STRING | CTLFLAG_RD |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_vm_page_blacklist, "A", "Blacklist pages");
 
-/* Is the page daemon waiting for free pages? */
-static int vm_pageout_pages_needed;
-
 static uma_zone_t fakepg_zone;
 
 static void vm_page_alloc_check(vm_page_t m);
 static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
 static void vm_page_enqueue(uint8_t queue, vm_page_t m);
-static void vm_page_free_phys(vm_page_t m);
-static void vm_page_free_wakeup(void);
+static void vm_page_free_phys(struct vm_domain *vmd, vm_page_t m);
 static void vm_page_init(void *dummy);
 static int vm_page_insert_after(vm_page_t m, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mpred);
 static void vm_page_insert_radixdone(vm_page_t m, vm_object_t object,
     vm_page_t mpred);
-static int vm_page_reclaim_run(int req_class, u_long npages, vm_page_t m_run,
-    vm_paddr_t high);
+static int vm_page_reclaim_run(int req_class, int domain, u_long npages,
+    vm_page_t m_run, vm_paddr_t high);
+static void vm_domain_free_wakeup(struct vm_domain *);
+static int vm_domain_alloc_fail(struct vm_domain *vmd, vm_object_t object,
+    int req);
 
 SYSINIT(vm_page, SI_SUB_VM, SI_ORDER_SECOND, vm_page_init, NULL);
 
@@ -308,6 +323,7 @@ vm_page_blacklist_next(char **list, char *end)
 static void
 vm_page_blacklist_check(char *list, char *end)
 {
+	struct vm_domain *vmd;
 	vm_paddr_t pa;
 	vm_page_t m;
 	char *next;
@@ -320,9 +336,10 @@ vm_page_blacklist_check(char *list, char *end)
 		m = vm_phys_paddr_to_vm_page(pa);
 		if (m == NULL)
 			continue;
-		mtx_lock(&vm_page_queue_free_mtx);
+		vmd = vm_pagequeue_domain(m);
+		vm_domain_free_lock(vmd);
 		ret = vm_phys_unfree_page(m);
-		mtx_unlock(&vm_page_queue_free_mtx);
+		vm_domain_free_unlock(vmd);
 		if (ret == TRUE) {
 			TAILQ_INSERT_TAIL(&blacklist_head, m, listq);
 			if (bootverbose)
@@ -385,28 +402,23 @@ sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS)
 }
 
 static void
-vm_page_domain_init(struct vm_domain *vmd)
+vm_page_domain_init(int domain)
 {
+	struct vm_domain *vmd;
 	struct vm_pagequeue *pq;
 	int i;
 
+	vmd = VM_DOMAIN(domain);
+	bzero(vmd, sizeof(*vmd));
 	*__DECONST(char **, &vmd->vmd_pagequeues[PQ_INACTIVE].pq_name) =
 	    "vm inactive pagequeue";
-	*__DECONST(u_int **, &vmd->vmd_pagequeues[PQ_INACTIVE].pq_vcnt) =
-	    &vm_cnt.v_inactive_count;
 	*__DECONST(char **, &vmd->vmd_pagequeues[PQ_ACTIVE].pq_name) =
 	    "vm active pagequeue";
-	*__DECONST(u_int **, &vmd->vmd_pagequeues[PQ_ACTIVE].pq_vcnt) =
-	    &vm_cnt.v_active_count;
 	*__DECONST(char **, &vmd->vmd_pagequeues[PQ_LAUNDRY].pq_name) =
 	    "vm laundry pagequeue";
-	*__DECONST(int **, &vmd->vmd_pagequeues[PQ_LAUNDRY].pq_vcnt) =
-	    &vm_cnt.v_laundry_count;
 	*__DECONST(char **, &vmd->vmd_pagequeues[PQ_UNSWAPPABLE].pq_name) =
 	    "vm unswappable pagequeue";
-	/* Unswappable dirty pages are counted as being in the laundry. */
-	*__DECONST(int **, &vmd->vmd_pagequeues[PQ_UNSWAPPABLE].pq_vcnt) =
-	    &vm_cnt.v_laundry_count;
+	vmd->vmd_domain = domain;
 	vmd->vmd_page_count = 0;
 	vmd->vmd_free_count = 0;
 	vmd->vmd_segs = 0;
@@ -417,6 +429,31 @@ vm_page_domain_init(struct vm_domain *vmd)
 		mtx_init(&pq->pq_mutex, pq->pq_name, "vm pagequeue",
 		    MTX_DEF | MTX_DUPOK);
 	}
+	mtx_init(&vmd->vmd_free_mtx, "vm page free queue", NULL, MTX_DEF);
+	snprintf(vmd->vmd_name, sizeof(vmd->vmd_name), "%d", domain);
+}
+
+/*
+ * Initialize a physical page in preparation for adding it to the free
+ * lists.
+ */
+static void
+vm_page_init_page(vm_page_t m, vm_paddr_t pa, int segind)
+{
+
+	m->object = NULL;
+	m->wire_count = 0;
+	m->busy_lock = VPB_UNBUSIED;
+	m->hold_count = 0;
+	m->flags = 0;
+	m->phys_addr = pa;
+	m->queue = PQ_NONE;
+	m->psind = 0;
+	m->segind = segind;
+	m->order = VM_NFREEORDER;
+	m->pool = VM_FREEPOOL_DEFAULT;
+	m->valid = m->dirty = 0;
+	pmap_page_init(m);
 }
 
 /*
@@ -430,7 +467,6 @@ vm_page_domain_init(struct vm_domain *vmd)
 vm_offset_t
 vm_page_startup(vm_offset_t vaddr)
 {
-	struct vm_domain *vmd;
 	struct vm_phys_seg *seg;
 	vm_page_t m;
 	char *list, *listend;
@@ -438,7 +474,7 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_paddr_t end, high_avail, low_avail, new_end, page_range, size;
 	vm_paddr_t biggestsize, last_pa, pa;
 	u_long pagecount;
-	int biggestone, i, pages_per_zone, segind;
+	int biggestone, i, segind;
 
 	biggestsize = 0;
 	biggestone = 0;
@@ -461,30 +497,36 @@ vm_page_startup(vm_offset_t vaddr)
 	/*
 	 * Initialize the page and queue locks.
 	 */
-	mtx_init(&vm_page_queue_free_mtx, "vm page free queue", NULL, MTX_DEF);
+	mtx_init(&vm_domainset_lock, "vm domainset lock", NULL, MTX_DEF);
 	for (i = 0; i < PA_LOCK_COUNT; i++)
 		mtx_init(&pa_lock[i], "vm page", NULL, MTX_DEF);
 	for (i = 0; i < vm_ndomains; i++)
-		vm_page_domain_init(&vm_dom[i]);
-
-	/*
-	 * Almost all of the pages needed for bootstrapping UMA are used
-	 * for zone structures, so if the number of CPUs results in those
-	 * structures taking more than one page each, we set aside more pages
-	 * in proportion to the zone structure size.
-	 */
-	pages_per_zone = howmany(sizeof(struct uma_zone) +
-	    sizeof(struct uma_cache) * (mp_maxid + 1) +
-	    roundup2(sizeof(struct uma_slab), sizeof(void *)), UMA_SLAB_SIZE);
-	if (pages_per_zone > 1) {
-		/* Reserve more pages so that we don't run out. */
-		boot_pages = UMA_BOOT_PAGES_ZONES * pages_per_zone;
-	}
+		vm_page_domain_init(i);
 
 	/*
 	 * Allocate memory for use when boot strapping the kernel memory
-	 * allocator.
+	 * allocator.  Tell UMA how many zones we are going to create
+	 * before going fully functional.  UMA will add its zones.
 	 *
+	 * VM startup zones: vmem, vmem_btag, VM OBJECT, RADIX NODE, MAP,
+	 * KMAP ENTRY, MAP ENTRY, VMSPACE.
+	 */
+	boot_pages = uma_startup_count(8);
+
+#ifndef UMA_MD_SMALL_ALLOC
+	/* vmem_startup() calls uma_prealloc(). */
+	boot_pages += vmem_startup_count();
+	/* vm_map_startup() calls uma_prealloc(). */
+	boot_pages += howmany(MAX_KMAP,
+	    UMA_SLAB_SPACE / sizeof(struct vm_map));
+
+	/*
+	 * Before going fully functional kmem_init() does allocation
+	 * from "KMAP ENTRY" and vmem_create() does allocation from "vmem".
+	 */
+	boot_pages += 2;
+#endif
+	/*
 	 * CTFLAG_RDTUN doesn't work during the early boot process, so we must
 	 * manually fetch the value.
 	 */
@@ -663,11 +705,11 @@ vm_page_startup(vm_offset_t vaddr)
 	 * physical memory allocator's free lists.
 	 */
 	vm_cnt.v_page_count = 0;
-	vm_cnt.v_free_count = 0;
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		seg = &vm_phys_segs[segind];
-		for (pa = seg->start; pa < seg->end; pa += PAGE_SIZE)
-			vm_phys_init_page(pa);
+		for (m = seg->first_page, pa = seg->start; pa < seg->end;
+		    m++, pa += PAGE_SIZE)
+			vm_page_init_page(m, pa, segind);
 
 		/*
 		 * Add the segment to the free lists only if it is covered by
@@ -677,6 +719,8 @@ vm_page_startup(vm_offset_t vaddr)
 		 * or doesn't overlap any of them.
 		 */
 		for (i = 0; phys_avail[i + 1] != 0; i += 2) {
+			struct vm_domain *vmd;
+
 			if (seg->start < phys_avail[i] ||
 			    seg->end > phys_avail[i + 1])
 				continue;
@@ -684,13 +728,14 @@ vm_page_startup(vm_offset_t vaddr)
 			m = seg->first_page;
 			pagecount = (u_long)atop(seg->end - seg->start);
 
-			mtx_lock(&vm_page_queue_free_mtx);
+			vmd = VM_DOMAIN(seg->domain);
+			vm_domain_free_lock(vmd);
 			vm_phys_free_contig(m, pagecount);
-			vm_phys_freecnt_adj(m, (int)pagecount);
-			mtx_unlock(&vm_page_queue_free_mtx);
+			vm_domain_freecnt_adj(vmd, (int)pagecount);
+			vm_domain_free_unlock(vmd);
 			vm_cnt.v_page_count += (u_int)pagecount;
 
-			vmd = &vm_dom[seg->domain];
+			vmd = VM_DOMAIN(seg->domain);
 			vmd->vmd_page_count += (u_int)pagecount;
 			vmd->vmd_segs |= 1UL << m->segind;
 			break;
@@ -714,6 +759,12 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	vm_reserv_init();
 #endif
+	/*
+	 * Set an initial domain policy for thread0 so that allocations
+	 * can work.
+	 */
+	domainset_zero();
+
 	return (vaddr);
 }
 
@@ -1565,8 +1616,6 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
  *	VM_ALLOC_SBUSY		shared busy the allocated page
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
- *
- *	This routine may not sleep.
  */
 vm_page_t
 vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
@@ -1576,6 +1625,16 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	    vm_radix_lookup_le(&object->rtree, pindex) : NULL));
 }
 
+vm_page_t
+vm_page_alloc_domain(vm_object_t object, vm_pindex_t pindex, int domain,
+    int req)
+{
+
+	return (vm_page_alloc_domain_after(object, pindex, domain, req,
+	    object != NULL ? vm_radix_lookup_le(&object->rtree, pindex) :
+	    NULL));
+}
+
 /*
  * Allocate a page in the specified object with the given page index.  To
  * optimize insertion of the page into the object, the caller must also specifiy
@@ -1583,71 +1642,117 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
  * page index, or NULL if no such page exists.
  */
 vm_page_t
-vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex, int req,
-    vm_page_t mpred)
+vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex,
+    int req, vm_page_t mpred)
 {
+	struct vm_domainset_iter di;
 	vm_page_t m;
-	int flags, req_class;
+	int domain;
+
+	vm_domainset_iter_page_init(&di, object, &domain, &req);
+	do {
+		m = vm_page_alloc_domain_after(object, pindex, domain, req,
+		    mpred);
+		if (m != NULL)
+			break;
+	} while (vm_domainset_iter_page(&di, &domain, &req) == 0);
+
+	return (m);
+}
+
+/*
+ * Returns true if the number of free pages exceeds the minimum
+ * for the request class and false otherwise.
+ */
+int
+vm_domain_available(struct vm_domain *vmd, int req, int npages)
+{
+
+	vm_domain_free_assert_locked(vmd);
+	req = req & VM_ALLOC_CLASS_MASK;
+
+	/*
+	 * The page daemon is allowed to dig deeper into the free page list.
+	 */
+	if (curproc == pageproc && req != VM_ALLOC_INTERRUPT)
+		req = VM_ALLOC_SYSTEM;
+
+	if (vmd->vmd_free_count >= npages + vmd->vmd_free_reserved ||
+	    (req == VM_ALLOC_SYSTEM &&
+	    vmd->vmd_free_count >= npages + vmd->vmd_interrupt_free_min) ||
+	    (req == VM_ALLOC_INTERRUPT &&
+	    vmd->vmd_free_count >= npages))
+		return (1);
+
+	return (0);
+}
+
+vm_page_t
+vm_page_alloc_domain_after(vm_object_t object, vm_pindex_t pindex, int domain,
+    int req, vm_page_t mpred)
+{
+	struct vm_domain *vmd;
+	vm_page_t m;
+	int flags;
+	u_int free_count;
 
 	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0) &&
 	    (object != NULL || (req & VM_ALLOC_SBUSY) == 0) &&
 	    ((req & (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)) !=
 	    (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)),
 	    ("inconsistent object(%p)/req(%x)", object, req));
+	KASSERT(object == NULL || (req & VM_ALLOC_WAITOK) == 0,
+	    ("Can't sleep and retry object insertion."));
 	KASSERT(mpred == NULL || mpred->pindex < pindex,
 	    ("mpred %p doesn't precede pindex 0x%jx", mpred,
 	    (uintmax_t)pindex));
 	if (object != NULL)
 		VM_OBJECT_ASSERT_WLOCKED(object);
 
-	req_class = req & VM_ALLOC_CLASS_MASK;
-
-	/*
-	 * The page daemon is allowed to dig deeper into the free page list.
-	 */
-	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
-		req_class = VM_ALLOC_SYSTEM;
-
-	/*
-	 * Allocate a page if the number of free pages exceeds the minimum
-	 * for the request class.
-	 */
-	mtx_lock(&vm_page_queue_free_mtx);
-	if (vm_cnt.v_free_count > vm_cnt.v_free_reserved ||
-	    (req_class == VM_ALLOC_SYSTEM &&
-	    vm_cnt.v_free_count > vm_cnt.v_interrupt_free_min) ||
-	    (req_class == VM_ALLOC_INTERRUPT &&
-	    vm_cnt.v_free_count > 0)) {
+again:
+	m = NULL;
+#if VM_NRESERVLEVEL > 0
+	if (vm_object_reserv(object) &&
+	    (m = vm_reserv_extend(req, object, pindex, domain, mpred))
+	    != NULL) {
+		domain = vm_phys_domain(m);
+		vmd = VM_DOMAIN(domain);
+		goto found;
+	}
+#endif
+	vmd = VM_DOMAIN(domain);
+	vm_domain_free_lock(vmd);
+	if (vm_domain_available(vmd, req, 1)) {
 		/*
 		 * Can we allocate the page from a reservation?
 		 */
 #if VM_NRESERVLEVEL > 0
-		if (object == NULL || (object->flags & (OBJ_COLORED |
-		    OBJ_FICTITIOUS)) != OBJ_COLORED || (m =
-		    vm_reserv_alloc_page(object, pindex, mpred)) == NULL)
+		if (!vm_object_reserv(object) ||
+		    (m = vm_reserv_alloc_page(object, pindex,
+		    domain, mpred)) == NULL)
 #endif
 		{
 			/*
 			 * If not, allocate it from the free page queues.
 			 */
-			m = vm_phys_alloc_pages(object != NULL ?
+			m = vm_phys_alloc_pages(domain, object != NULL ?
 			    VM_FREEPOOL_DEFAULT : VM_FREEPOOL_DIRECT, 0);
 #if VM_NRESERVLEVEL > 0
-			if (m == NULL && vm_reserv_reclaim_inactive()) {
-				m = vm_phys_alloc_pages(object != NULL ?
+			if (m == NULL && vm_reserv_reclaim_inactive(domain)) {
+				m = vm_phys_alloc_pages(domain,
+				    object != NULL ?
 				    VM_FREEPOOL_DEFAULT : VM_FREEPOOL_DIRECT,
 				    0);
 			}
 #endif
 		}
-	} else {
+	}
+	if (m == NULL) {
 		/*
 		 * Not allocatable, give up.
 		 */
-		mtx_unlock(&vm_page_queue_free_mtx);
-		atomic_add_int(&vm_pageout_deficit,
-		    max((u_int)req >> VM_ALLOC_COUNT_SHIFT, 1));
-		pagedaemon_wakeup();
+		if (vm_domain_alloc_fail(vmd, object, req))
+			goto again;
 		return (NULL);
 	}
 
@@ -1655,8 +1760,18 @@ vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex, int req,
 	 *  At this point we had better have found a good page.
 	 */
 	KASSERT(m != NULL, ("missing page"));
-	vm_phys_freecnt_adj(m, -1);
-	mtx_unlock(&vm_page_queue_free_mtx);
+	free_count = vm_domain_freecnt_adj(vmd, -1);
+	vm_domain_free_unlock(vmd);
+
+	/*
+	 * Don't wakeup too often - wakeup the pageout daemon when
+	 * we would be nearly out of memory.
+	 */
+	if (vm_paging_needed(vmd, free_count))
+		pagedaemon_wakeup(vmd->vmd_domain);
+#if VM_NRESERVLEVEL > 0
+found:
+#endif
 	vm_page_alloc_check(m);
 
 	/*
@@ -1682,16 +1797,16 @@ vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex, int req,
 		 * The page lock is not required for wiring a page until that
 		 * page is inserted into the object.
 		 */
-		atomic_add_int(&vm_cnt.v_wire_count, 1);
+		vm_wire_add(1);
 		m->wire_count = 1;
 	}
 	m->act_count = 0;
 
 	if (object != NULL) {
 		if (vm_page_insert_after(m, object, pindex, mpred)) {
-			pagedaemon_wakeup();
+			pagedaemon_wakeup(domain);
 			if (req & VM_ALLOC_WIRED) {
-				atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+				vm_wire_sub(1);
 				m->wire_count = 0;
 			}
 			KASSERT(m->object == NULL, ("page %p has object", m));
@@ -1699,6 +1814,11 @@ vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex, int req,
 			m->busy_lock = VPB_UNBUSIED;
 			/* Don't change PG_ZERO. */
 			vm_page_free_toq(m);
+			if (req & VM_ALLOC_WAITFAIL) {
+				VM_OBJECT_WUNLOCK(object);
+				vm_radix_wait();
+				VM_OBJECT_WLOCK(object);
+			}
 			return (NULL);
 		}
 
@@ -1708,13 +1828,6 @@ vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex, int req,
 			pmap_page_set_memattr(m, object->memattr);
 	} else
 		m->pindex = pindex;
-
-	/*
-	 * Don't wakeup too often - wakeup the pageout daemon when
-	 * we would be nearly out of memory.
-	 */
-	if (vm_paging_needed())
-		pagedaemon_wakeup();
 
 	return (m);
 }
@@ -1757,17 +1870,35 @@ vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex, int req,
  *	VM_ALLOC_SBUSY		shared busy the allocated page
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
- *
- *	This routine may not sleep.
  */
 vm_page_t
 vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
     u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
     vm_paddr_t boundary, vm_memattr_t memattr)
 {
+	struct vm_domainset_iter di;
+	vm_page_t m;
+	int domain;
+
+	vm_domainset_iter_page_init(&di, object, &domain, &req);
+	do {
+		m = vm_page_alloc_contig_domain(object, pindex, domain, req,
+		    npages, low, high, alignment, boundary, memattr);
+		if (m != NULL)
+			break;
+	} while (vm_domainset_iter_page(&di, &domain, &req) == 0);
+
+	return (m);
+}
+
+vm_page_t
+vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
+    int req, u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
+    vm_paddr_t boundary, vm_memattr_t memattr)
+{
+	struct vm_domain *vmd;
 	vm_page_t m, m_ret, mpred;
 	u_int busy_lock, flags, oflags;
-	int req_class;
 
 	mpred = NULL;	/* XXX: pacify gcc */
 	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0) &&
@@ -1776,6 +1907,8 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 	    (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)),
 	    ("vm_page_alloc_contig: inconsistent object(%p)/req(%x)", object,
 	    req));
+	KASSERT(object == NULL || (req & VM_ALLOC_WAITOK) == 0,
+	    ("Can't sleep and retry object insertion."));
 	if (object != NULL) {
 		VM_OBJECT_ASSERT_WLOCKED(object);
 		KASSERT((object->flags & OBJ_FICTITIOUS) == 0,
@@ -1783,13 +1916,6 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 		    object));
 	}
 	KASSERT(npages > 0, ("vm_page_alloc_contig: npages is zero"));
-	req_class = req & VM_ALLOC_CLASS_MASK;
-
-	/*
-	 * The page daemon is allowed to dig deeper into the free page list.
-	 */
-	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
-		req_class = VM_ALLOC_SYSTEM;
 
 	if (object != NULL) {
 		mpred = vm_radix_lookup_le(&object->rtree, pindex);
@@ -1801,44 +1927,50 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 	 * Can we allocate the pages without the number of free pages falling
 	 * below the lower bound for the allocation class?
 	 */
-	mtx_lock(&vm_page_queue_free_mtx);
-	if (vm_cnt.v_free_count >= npages + vm_cnt.v_free_reserved ||
-	    (req_class == VM_ALLOC_SYSTEM &&
-	    vm_cnt.v_free_count >= npages + vm_cnt.v_interrupt_free_min) ||
-	    (req_class == VM_ALLOC_INTERRUPT &&
-	    vm_cnt.v_free_count >= npages)) {
+again:
+#if VM_NRESERVLEVEL > 0
+	if (vm_object_reserv(object) &&
+	    (m_ret = vm_reserv_extend_contig(req, object, pindex, domain,
+	    npages, low, high, alignment, boundary, mpred)) != NULL) {
+		domain = vm_phys_domain(m_ret);
+		vmd = VM_DOMAIN(domain);
+		goto found;
+	}
+#endif
+	m_ret = NULL;
+	vmd = VM_DOMAIN(domain);
+	vm_domain_free_lock(vmd);
+	if (vm_domain_available(vmd, req, npages)) {
 		/*
 		 * Can we allocate the pages from a reservation?
 		 */
 #if VM_NRESERVLEVEL > 0
 retry:
-		if (object == NULL || (object->flags & OBJ_COLORED) == 0 ||
-		    (m_ret = vm_reserv_alloc_contig(object, pindex, npages,
-		    low, high, alignment, boundary, mpred)) == NULL)
+		if (!vm_object_reserv(object) ||
+		    (m_ret = vm_reserv_alloc_contig(object, pindex, domain,
+		    npages, low, high, alignment, boundary, mpred)) == NULL)
 #endif
 			/*
 			 * If not, allocate them from the free page queues.
 			 */
-			m_ret = vm_phys_alloc_contig(npages, low, high,
+			m_ret = vm_phys_alloc_contig(domain, npages, low, high,
 			    alignment, boundary);
-	} else {
-		mtx_unlock(&vm_page_queue_free_mtx);
-		atomic_add_int(&vm_pageout_deficit, npages);
-		pagedaemon_wakeup();
-		return (NULL);
-	}
-	if (m_ret != NULL)
-		vm_phys_freecnt_adj(m_ret, -npages);
-	else {
 #if VM_NRESERVLEVEL > 0
-		if (vm_reserv_reclaim_contig(npages, low, high, alignment,
-		    boundary))
+		if (m_ret == NULL && vm_reserv_reclaim_contig(
+		    domain, npages, low, high, alignment, boundary))
 			goto retry;
 #endif
 	}
-	mtx_unlock(&vm_page_queue_free_mtx);
-	if (m_ret == NULL)
+	if (m_ret == NULL) {
+		if (vm_domain_alloc_fail(vmd, object, req))
+			goto again;
 		return (NULL);
+	}
+	vm_domain_freecnt_adj(vmd, -npages);
+	vm_domain_free_unlock(vmd);
+#if VM_NRESERVLEVEL > 0
+found:
+#endif
 	for (m = m_ret; m < &m_ret[npages]; m++)
 		vm_page_alloc_check(m);
 
@@ -1858,7 +1990,7 @@ retry:
 	if ((req & VM_ALLOC_SBUSY) != 0)
 		busy_lock = VPB_SHARERS_WORD(1);
 	if ((req & VM_ALLOC_WIRED) != 0)
-		atomic_add_int(&vm_cnt.v_wire_count, npages);
+		vm_wire_add(npages);
 	if (object != NULL) {
 		if (object->memattr != VM_MEMATTR_DEFAULT &&
 		    memattr == VM_MEMATTR_DEFAULT)
@@ -1874,10 +2006,9 @@ retry:
 		m->oflags = oflags;
 		if (object != NULL) {
 			if (vm_page_insert_after(m, object, pindex, mpred)) {
-				pagedaemon_wakeup();
+				pagedaemon_wakeup(domain);
 				if ((req & VM_ALLOC_WIRED) != 0)
-					atomic_subtract_int(
-					    &vm_cnt.v_wire_count, npages);
+					vm_wire_sub(npages);
 				KASSERT(m->object == NULL,
 				    ("page %p has object", m));
 				mpred = m;
@@ -1890,6 +2021,11 @@ retry:
 					/* Don't change PG_ZERO. */
 					vm_page_free_toq(m);
 				}
+				if (req & VM_ALLOC_WAITFAIL) {
+					VM_OBJECT_WUNLOCK(object);
+					vm_radix_wait();
+					VM_OBJECT_WLOCK(object);
+				}
 				return (NULL);
 			}
 			mpred = m;
@@ -1899,8 +2035,9 @@ retry:
 			pmap_page_set_memattr(m, memattr);
 		pindex++;
 	}
-	if (vm_paging_needed())
-		pagedaemon_wakeup();
+	vmd = VM_DOMAIN(domain);
+	if (vm_paging_needed(vmd, vmd->vmd_free_count))
+		pagedaemon_wakeup(domain);
 	return (m_ret);
 }
 
@@ -1914,8 +2051,7 @@ vm_page_alloc_check(vm_page_t m)
 	KASSERT(m->object == NULL, ("page %p has object", m));
 	KASSERT(m->queue == PQ_NONE,
 	    ("page %p has unexpected queue %d", m, m->queue));
-	KASSERT(m->wire_count == 0, ("page %p is wired", m));
-	KASSERT(m->hold_count == 0, ("page %p is held", m));
+	KASSERT(!vm_page_held(m), ("page %p is held", m));
 	KASSERT(!vm_page_busied(m), ("page %p is busy", m));
 	KASSERT(m->dirty == 0, ("page %p is dirty", m));
 	KASSERT(pmap_page_get_memattr(m) == VM_MEMATTR_DEFAULT,
@@ -1941,47 +2077,47 @@ vm_page_alloc_check(vm_page_t m)
  *				intends to allocate
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
- *
- *	This routine may not sleep.
  */
 vm_page_t
-vm_page_alloc_freelist(int flind, int req)
+vm_page_alloc_freelist(int freelist, int req)
 {
+	struct vm_domainset_iter di;
 	vm_page_t m;
-	u_int flags;
-	int req_class;
+	int domain;
 
-	req_class = req & VM_ALLOC_CLASS_MASK;
+	vm_domainset_iter_page_init(&di, kernel_object, &domain, &req);
+	do {
+		m = vm_page_alloc_freelist_domain(domain, freelist, req);
+		if (m != NULL)
+			break;
+	} while (vm_domainset_iter_page(&di, &domain, &req) == 0);
 
-	/*
-	 * The page daemon is allowed to dig deeper into the free page list.
-	 */
-	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
-		req_class = VM_ALLOC_SYSTEM;
+	return (m);
+}
+
+vm_page_t
+vm_page_alloc_freelist_domain(int domain, int freelist, int req)
+{
+	struct vm_domain *vmd;
+	vm_page_t m;
+	u_int flags, free_count;
 
 	/*
 	 * Do not allocate reserved pages unless the req has asked for it.
 	 */
-	mtx_lock(&vm_page_queue_free_mtx);
-	if (vm_cnt.v_free_count > vm_cnt.v_free_reserved ||
-	    (req_class == VM_ALLOC_SYSTEM &&
-	    vm_cnt.v_free_count > vm_cnt.v_interrupt_free_min) ||
-	    (req_class == VM_ALLOC_INTERRUPT &&
-	    vm_cnt.v_free_count > 0))
-		m = vm_phys_alloc_freelist_pages(flind, VM_FREEPOOL_DIRECT, 0);
-	else {
-		mtx_unlock(&vm_page_queue_free_mtx);
-		atomic_add_int(&vm_pageout_deficit,
-		    max((u_int)req >> VM_ALLOC_COUNT_SHIFT, 1));
-		pagedaemon_wakeup();
-		return (NULL);
-	}
+	vmd = VM_DOMAIN(domain);
+again:
+	vm_domain_free_lock(vmd);
+	if (vm_domain_available(vmd, req, 1))
+		m = vm_phys_alloc_freelist_pages(domain, freelist,
+		    VM_FREEPOOL_DIRECT, 0);
 	if (m == NULL) {
-		mtx_unlock(&vm_page_queue_free_mtx);
+		if (vm_domain_alloc_fail(vmd, NULL, req))
+			goto again;
 		return (NULL);
 	}
-	vm_phys_freecnt_adj(m, -1);
-	mtx_unlock(&vm_page_queue_free_mtx);
+	free_count = vm_domain_freecnt_adj(vmd, -1);
+	vm_domain_free_unlock(vmd);
 	vm_page_alloc_check(m);
 
 	/*
@@ -1997,13 +2133,13 @@ vm_page_alloc_freelist(int flind, int req)
 		 * The page lock is not required for wiring a page that does
 		 * not belong to an object.
 		 */
-		atomic_add_int(&vm_cnt.v_wire_count, 1);
+		vm_wire_add(1);
 		m->wire_count = 1;
 	}
 	/* Unmanaged pages don't use "act_count". */
 	m->oflags = VPO_UNMANAGED;
-	if (vm_paging_needed())
-		pagedaemon_wakeup();
+	if (vm_paging_needed(vmd, free_count))
+		pagedaemon_wakeup(domain);
 	return (m);
 }
 
@@ -2049,8 +2185,10 @@ vm_page_scan_contig(u_long npages, vm_page_t m_start, vm_page_t m_end,
 	run_len = 0;
 	m_mtx = NULL;
 	for (m = m_start; m < m_end && run_len < npages; m += m_inc) {
-		KASSERT((m->flags & (PG_FICTITIOUS | PG_MARKER)) == 0,
-		    ("page %p is PG_FICTITIOUS or PG_MARKER", m));
+		KASSERT((m->flags & PG_MARKER) == 0,
+		    ("page %p is PG_MARKER", m));
+		KASSERT((m->flags & PG_FICTITIOUS) == 0 || m->wire_count == 1,
+		    ("fictitious page %p has invalid wire count", m));
 
 		/*
 		 * If the current page would be the start of a run, check its
@@ -2079,7 +2217,7 @@ vm_page_scan_contig(u_long npages, vm_page_t m_start, vm_page_t m_end,
 		vm_page_change_lock(m, &m_mtx);
 		m_inc = 1;
 retry:
-		if (m->wire_count != 0 || m->hold_count != 0)
+		if (vm_page_held(m))
 			run_ext = 0;
 #if VM_NRESERVLEVEL > 0
 		else if ((level = vm_reserv_level(m)) >= 0 &&
@@ -2107,8 +2245,7 @@ retry:
 					 */
 					VM_OBJECT_RUNLOCK(object);
 					goto retry;
-				} else if (m->wire_count != 0 ||
-				    m->hold_count != 0) {
+				} else if (vm_page_held(m)) {
 					run_ext = 0;
 					goto unlock;
 				}
@@ -2223,9 +2360,10 @@ unlock:
  *	"req_class" must be an allocation class.
  */
 static int
-vm_page_reclaim_run(int req_class, u_long npages, vm_page_t m_run,
+vm_page_reclaim_run(int req_class, int domain, u_long npages, vm_page_t m_run,
     vm_paddr_t high)
 {
+	struct vm_domain *vmd;
 	struct mtx *m_mtx;
 	struct spglist free;
 	vm_object_t object;
@@ -2249,7 +2387,7 @@ vm_page_reclaim_run(int req_class, u_long npages, vm_page_t m_run,
 		 */
 		vm_page_change_lock(m, &m_mtx);
 retry:
-		if (m->wire_count != 0 || m->hold_count != 0)
+		if (vm_page_held(m))
 			error = EBUSY;
 		else if ((object = m->object) != NULL) {
 			/*
@@ -2266,8 +2404,7 @@ retry:
 					 */
 					VM_OBJECT_WUNLOCK(object);
 					goto retry;
-				} else if (m->wire_count != 0 ||
-				    m->hold_count != 0) {
+				} else if (vm_page_held(m)) {
 					error = EBUSY;
 					goto unlock;
 				}
@@ -2375,7 +2512,9 @@ retry:
 unlock:
 			VM_OBJECT_WUNLOCK(object);
 		} else {
-			mtx_lock(&vm_page_queue_free_mtx);
+			MPASS(vm_phys_domain(m) == domain);
+			vmd = VM_DOMAIN(domain);
+			vm_domain_free_lock(vmd);
 			order = m->order;
 			if (order < VM_NFREEORDER) {
 				/*
@@ -2392,7 +2531,7 @@ unlock:
 			else if (vm_reserv_is_page_free(m))
 				order = 0;
 #endif
-			mtx_unlock(&vm_page_queue_free_mtx);
+			vm_domain_free_unlock(vmd);
 			if (order == VM_NFREEORDER)
 				error = EINVAL;
 		}
@@ -2400,13 +2539,15 @@ unlock:
 	if (m_mtx != NULL)
 		mtx_unlock(m_mtx);
 	if ((m = SLIST_FIRST(&free)) != NULL) {
-		mtx_lock(&vm_page_queue_free_mtx);
+		vmd = VM_DOMAIN(domain);
+		vm_domain_free_lock(vmd);
 		do {
+			MPASS(vm_phys_domain(m) == domain);
 			SLIST_REMOVE_HEAD(&free, plinks.s.ss);
-			vm_page_free_phys(m);
+			vm_page_free_phys(vmd, m);
 		} while ((m = SLIST_FIRST(&free)) != NULL);
-		vm_page_free_wakeup();
-		mtx_unlock(&vm_page_queue_free_mtx);
+		vm_domain_free_wakeup(vmd);
+		vm_domain_free_unlock(vmd);
 	}
 	return (error);
 }
@@ -2427,7 +2568,7 @@ CTASSERT(powerof2(NRUNS));
  *	Returns true if reclamation is successful and false otherwise.  Since
  *	relocation requires the allocation of physical pages, reclamation may
  *	fail due to a shortage of free pages.  When reclamation fails, callers
- *	are expected to perform VM_WAIT before retrying a failed allocation
+ *	are expected to perform vm_wait() before retrying a failed allocation
  *	operation, e.g., vm_page_alloc_contig().
  *
  *	The caller must always specify an allocation class through "req".
@@ -2443,9 +2584,10 @@ CTASSERT(powerof2(NRUNS));
  *	must be a power of two.
  */
 bool
-vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
-    u_long alignment, vm_paddr_t boundary)
+vm_page_reclaim_contig_domain(int domain, int req, u_long npages,
+    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary)
 {
+	struct vm_domain *vmd;
 	vm_paddr_t curr_low;
 	vm_page_t m_run, m_runs[NRUNS];
 	u_long count, reclaimed;
@@ -2466,9 +2608,10 @@ vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
 	 * Return if the number of free pages cannot satisfy the requested
 	 * allocation.
 	 */
-	count = vm_cnt.v_free_count;
-	if (count < npages + vm_cnt.v_free_reserved || (count < npages +
-	    vm_cnt.v_interrupt_free_min && req_class == VM_ALLOC_SYSTEM) ||
+	vmd = VM_DOMAIN(domain);
+	count = vmd->vmd_free_count;
+	if (count < npages + vmd->vmd_free_reserved || (count < npages +
+	    vmd->vmd_interrupt_free_min && req_class == VM_ALLOC_SYSTEM) ||
 	    (count < npages && req_class == VM_ALLOC_INTERRUPT))
 		return (false);
 
@@ -2484,8 +2627,8 @@ vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
 		curr_low = low;
 		count = 0;
 		for (;;) {
-			m_run = vm_phys_scan_contig(npages, curr_low, high,
-			    alignment, boundary, options);
+			m_run = vm_phys_scan_contig(domain, npages, curr_low,
+			    high, alignment, boundary, options);
 			if (m_run == NULL)
 				break;
 			curr_low = VM_PAGE_TO_PHYS(m_run) + ptoa(npages);
@@ -2504,8 +2647,8 @@ vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
 		for (i = 0; count > 0 && i < NRUNS; i++) {
 			count--;
 			m_run = m_runs[RUN_INDEX(count)];
-			error = vm_page_reclaim_run(req_class, npages, m_run,
-			    high);
+			error = vm_page_reclaim_run(req_class, domain, npages,
+			    m_run, high);
 			if (error == 0) {
 				reclaimed += npages;
 				if (reclaimed >= MIN_RECLAIM)
@@ -2526,36 +2669,234 @@ vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
 	}
 }
 
+bool
+vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
+    u_long alignment, vm_paddr_t boundary)
+{
+	struct vm_domainset_iter di;
+	int domain;
+	bool ret;
+
+	vm_domainset_iter_page_init(&di, kernel_object, &domain, &req);
+	do {
+		ret = vm_page_reclaim_contig_domain(domain, req, npages, low,
+		    high, alignment, boundary);
+		if (ret)
+			break;
+	} while (vm_domainset_iter_page(&di, &domain, &req) == 0);
+
+	return (ret);
+}
+
 /*
- *	vm_wait:	(also see VM_WAIT macro)
- *
- *	Sleep until free pages are available for allocation.
- *	- Called in various places before memory allocations.
+ * Set the domain in the appropriate page level domainset.
  */
 void
-vm_wait(void)
+vm_domain_set(struct vm_domain *vmd)
 {
 
-	mtx_lock(&vm_page_queue_free_mtx);
-	if (curproc == pageproc) {
-		vm_pageout_pages_needed = 1;
-		msleep(&vm_pageout_pages_needed, &vm_page_queue_free_mtx,
-		    PDROP | PSWP, "VMWait", 0);
-	} else {
-		if (__predict_false(pageproc == NULL))
-			panic("vm_wait in early boot");
-		if (!vm_pageout_wanted) {
-			vm_pageout_wanted = true;
-			wakeup(&vm_pageout_wanted);
+	mtx_lock(&vm_domainset_lock);
+	if (!vmd->vmd_minset && vm_paging_min(vmd)) {
+		vmd->vmd_minset = 1;
+		DOMAINSET_SET(vmd->vmd_domain, &vm_min_domains);
+	}
+	if (!vmd->vmd_severeset && vm_paging_severe(vmd)) {
+		vmd->vmd_severeset = 1;
+		DOMAINSET_CLR(vmd->vmd_domain, &vm_severe_domains);
+	}
+	mtx_unlock(&vm_domainset_lock);
+}
+
+/*
+ * Clear the domain from the appropriate page level domainset.
+ */
+static void
+vm_domain_clear(struct vm_domain *vmd)
+{
+
+	mtx_lock(&vm_domainset_lock);
+	if (vmd->vmd_minset && !vm_paging_min(vmd)) {
+		vmd->vmd_minset = 0;
+		DOMAINSET_CLR(vmd->vmd_domain, &vm_min_domains);
+		if (vm_min_waiters != 0) {
+			vm_min_waiters = 0;
+			wakeup(&vm_min_domains);
 		}
-		vm_pages_needed = true;
-		msleep(&vm_cnt.v_free_count, &vm_page_queue_free_mtx, PDROP | PVM,
+	}
+	if (vmd->vmd_severeset && !vm_paging_severe(vmd)) {
+		vmd->vmd_severeset = 0;
+		DOMAINSET_CLR(vmd->vmd_domain, &vm_severe_domains);
+		if (vm_severe_waiters != 0) {
+			vm_severe_waiters = 0;
+			wakeup(&vm_severe_domains);
+		}
+	}
+	mtx_unlock(&vm_domainset_lock);
+}
+
+/*
+ * Wait for free pages to exceed the min threshold globally.
+ */
+void
+vm_wait_min(void)
+{
+
+	mtx_lock(&vm_domainset_lock);
+	while (vm_page_count_min()) {
+		vm_min_waiters++;
+		msleep(&vm_min_domains, &vm_domainset_lock, PVM, "vmwait", 0);
+	}
+	mtx_unlock(&vm_domainset_lock);
+}
+
+/*
+ * Wait for free pages to exceed the severe threshold globally.
+ */
+void
+vm_wait_severe(void)
+{
+
+	mtx_lock(&vm_domainset_lock);
+	while (vm_page_count_severe()) {
+		vm_severe_waiters++;
+		msleep(&vm_severe_domains, &vm_domainset_lock, PVM,
 		    "vmwait", 0);
+	}
+	mtx_unlock(&vm_domainset_lock);
+}
+
+u_int
+vm_wait_count(void)
+{
+
+	return (vm_severe_waiters + vm_min_waiters);
+}
+
+static void
+vm_wait_doms(const domainset_t *wdoms)
+{
+
+	/*
+	 * We use racey wakeup synchronization to avoid expensive global
+	 * locking for the pageproc when sleeping with a non-specific vm_wait.
+	 * To handle this, we only sleep for one tick in this instance.  It
+	 * is expected that most allocations for the pageproc will come from
+	 * kmem or vm_page_grab* which will use the more specific and
+	 * race-free vm_wait_domain().
+	 */
+	if (curproc == pageproc) {
+		mtx_lock(&vm_domainset_lock);
+		vm_pageproc_waiters++;
+		msleep(&vm_pageproc_waiters, &vm_domainset_lock, PVM,
+		    "pageprocwait", 1);
+		mtx_unlock(&vm_domainset_lock);
+	} else {
+		/*
+		 * XXX Ideally we would wait only until the allocation could
+		 * be satisfied.  This condition can cause new allocators to
+		 * consume all freed pages while old allocators wait.
+		 */
+		mtx_lock(&vm_domainset_lock);
+		if (DOMAINSET_SUBSET(&vm_min_domains, wdoms)) {
+			vm_min_waiters++;
+			msleep(&vm_min_domains, &vm_domainset_lock, PVM,
+			    "vmwait", 0);
+		}
+		mtx_unlock(&vm_domainset_lock);
 	}
 }
 
 /*
- *	vm_waitpfault:	(also see VM_WAITPFAULT macro)
+ *	vm_wait_domain:
+ *
+ *	Sleep until free pages are available for allocation.
+ *	- Called in various places after failed memory allocations.
+ */
+void
+vm_wait_domain(int domain)
+{
+	struct vm_domain *vmd;
+	domainset_t wdom;
+
+	vmd = VM_DOMAIN(domain);
+	vm_domain_free_assert_locked(vmd);
+
+	if (curproc == pageproc) {
+		vmd->vmd_pageout_pages_needed = 1;
+		msleep(&vmd->vmd_pageout_pages_needed,
+		    vm_domain_free_lockptr(vmd), PDROP | PSWP, "VMWait", 0);
+	} else {
+		vm_domain_free_unlock(vmd);
+		if (pageproc == NULL)
+			panic("vm_wait in early boot");
+		DOMAINSET_ZERO(&wdom);
+		DOMAINSET_SET(vmd->vmd_domain, &wdom);
+		vm_wait_doms(&wdom);
+	}
+}
+
+/*
+ *	vm_wait:
+ *
+ *	Sleep until free pages are available for allocation in the
+ *	affinity domains of the obj.  If obj is NULL, the domain set
+ *	for the calling thread is used.
+ *	Called in various places after failed memory allocations.
+ */
+void
+vm_wait(vm_object_t obj)
+{
+	struct domainset *d;
+
+	d = NULL;
+
+	/*
+	 * Carefully fetch pointers only once: the struct domainset
+	 * itself is ummutable but the pointer might change.
+	 */
+	if (obj != NULL)
+		d = obj->domain.dr_policy;
+	if (d == NULL)
+		d = curthread->td_domain.dr_policy;
+
+	vm_wait_doms(&d->ds_mask);
+}
+
+/*
+ *	vm_domain_alloc_fail:
+ *
+ *	Called when a page allocation function fails.  Informs the
+ *	pagedaemon and performs the requested wait.  Requires the
+ *	domain_free and object lock on entry.  Returns with the
+ *	object lock held and free lock released.  Returns an error when
+ *	retry is necessary.
+ *
+ */
+static int
+vm_domain_alloc_fail(struct vm_domain *vmd, vm_object_t object, int req)
+{
+
+	vm_domain_free_assert_locked(vmd);
+
+	atomic_add_int(&vmd->vmd_pageout_deficit,
+	    max((u_int)req >> VM_ALLOC_COUNT_SHIFT, 1));
+	if (req & (VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL)) {
+		if (object != NULL) 
+			VM_OBJECT_WUNLOCK(object);
+		vm_wait_domain(vmd->vmd_domain);
+		if (object != NULL) 
+			VM_OBJECT_WLOCK(object);
+		if (req & VM_ALLOC_WAITOK)
+			return (EAGAIN);
+	} else {
+		vm_domain_free_unlock(vmd);
+		pagedaemon_wakeup(vmd->vmd_domain);
+	}
+	return (0);
+}
+
+/*
+ *	vm_waitpfault:
  *
  *	Sleep until free pages are available for allocation.
  *	- Called only in vm_fault so that processes page faulting
@@ -2568,24 +2909,19 @@ void
 vm_waitpfault(void)
 {
 
-	mtx_lock(&vm_page_queue_free_mtx);
-	if (!vm_pageout_wanted) {
-		vm_pageout_wanted = true;
-		wakeup(&vm_pageout_wanted);
+	mtx_lock(&vm_domainset_lock);
+	if (vm_page_count_min()) {
+		vm_min_waiters++;
+		msleep(&vm_min_domains, &vm_domainset_lock, PUSER, "pfault", 0);
 	}
-	vm_pages_needed = true;
-	msleep(&vm_cnt.v_free_count, &vm_page_queue_free_mtx, PDROP | PUSER,
-	    "pfault", 0);
+	mtx_unlock(&vm_domainset_lock);
 }
 
 struct vm_pagequeue *
 vm_page_pagequeue(vm_page_t m)
 {
 
-	if (vm_page_in_laundry(m))
-		return (&vm_dom[0].vmd_pagequeues[m->queue]);
-	else
-		return (&vm_phys_domain(m)->vmd_pagequeues[m->queue]);
+	return (&vm_pagequeue_domain(m)->vmd_pagequeues[m->queue]);
 }
 
 /*
@@ -2647,10 +2983,7 @@ vm_page_enqueue(uint8_t queue, vm_page_t m)
 	KASSERT(queue < PQ_COUNT,
 	    ("vm_page_enqueue: invalid queue %u request for page %p",
 	    queue, m));
-	if (queue == PQ_LAUNDRY || queue == PQ_UNSWAPPABLE)
-		pq = &vm_dom[0].vmd_pagequeues[queue];
-	else
-		pq = &vm_phys_domain(m)->vmd_pagequeues[queue];
+	pq = &vm_pagequeue_domain(m)->vmd_pagequeues[queue];
 	vm_pagequeue_lock(pq);
 	m->queue = queue;
 	TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
@@ -2722,9 +3055,7 @@ vm_page_activate(vm_page_t m)
 			if (queue != PQ_NONE)
 				vm_page_dequeue(m);
 			vm_page_enqueue(PQ_ACTIVE, m);
-		} else
-			KASSERT(queue == PQ_NONE,
-			    ("vm_page_activate: wired page %p is queued", m));
+		}
 	} else {
 		if (m->act_count < ACT_INIT)
 			m->act_count = ACT_INIT;
@@ -2732,7 +3063,7 @@ vm_page_activate(vm_page_t m)
 }
 
 /*
- *	vm_page_free_wakeup:
+ *	vm_domain_free_wakeup:
  *
  *	Helper routine for vm_page_free_toq().  This routine is called
  *	when a page is added to the free queues.
@@ -2740,28 +3071,35 @@ vm_page_activate(vm_page_t m)
  *	The page queues must be locked.
  */
 static void
-vm_page_free_wakeup(void)
+vm_domain_free_wakeup(struct vm_domain *vmd)
 {
 
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	vm_domain_free_assert_locked(vmd);
+
 	/*
 	 * if pageout daemon needs pages, then tell it that there are
 	 * some free.
 	 */
-	if (vm_pageout_pages_needed &&
-	    vm_cnt.v_free_count >= vm_cnt.v_pageout_free_min) {
-		wakeup(&vm_pageout_pages_needed);
-		vm_pageout_pages_needed = 0;
+	if (vmd->vmd_pageout_pages_needed &&
+	    vmd->vmd_free_count >= vmd->vmd_pageout_free_min) {
+		wakeup(&vmd->vmd_pageout_pages_needed);
+		vmd->vmd_pageout_pages_needed = 0;
 	}
 	/*
 	 * wakeup processes that are waiting on memory if we hit a
 	 * high water mark. And wakeup scheduler process if we have
 	 * lots of memory. this process will swapin processes.
 	 */
-	if (vm_pages_needed && !vm_page_count_min()) {
-		vm_pages_needed = false;
-		wakeup(&vm_cnt.v_free_count);
+	if ((vmd->vmd_minset && !vm_paging_min(vmd)) ||
+	    (vmd->vmd_severeset && !vm_paging_severe(vmd)))
+		vm_domain_clear(vmd);
+
+	/* See comments in vm_wait(); */
+	if (vm_pageproc_waiters) {
+		vm_pageproc_waiters = 0;
+		wakeup(&vm_pageproc_waiters);
 	}
+
 }
 
 /*
@@ -2779,6 +3117,16 @@ bool
 vm_page_free_prep(vm_page_t m, bool pagequeue_locked)
 {
 
+#if defined(DIAGNOSTIC) && defined(PHYS_TO_DMAP)
+	if (PMAP_HAS_DMAP && (m->flags & PG_ZERO) != 0) {
+		uint64_t *p;
+		int i;
+		p = (uint64_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
+		for (i = 0; i < PAGE_SIZE / sizeof(uint64_t); i++, p++)
+			KASSERT(*p == 0, ("vm_page_free_prep %p PG_ZERO %d %jx",
+			    m, i, (uintmax_t)*p));
+	}
+#endif
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		vm_page_lock_assert(m, MA_OWNED);
 		KASSERT(!pmap_page_is_mapped(m),
@@ -2791,27 +3139,26 @@ vm_page_free_prep(vm_page_t m, bool pagequeue_locked)
 	if (vm_page_sbusied(m))
 		panic("vm_page_free: freeing busy page %p", m);
 
+	vm_page_remove(m);
+
 	/*
-	 * Unqueue, then remove page.  Note that we cannot destroy
-	 * the page here because we do not want to call the pager's
-	 * callback routine until after we've put the page on the
-	 * appropriate free queue.
+	 * If fictitious remove object association and
+	 * return.
 	 */
+	if ((m->flags & PG_FICTITIOUS) != 0) {
+		KASSERT(m->wire_count == 1,
+		    ("fictitious page %p is not wired", m));
+		KASSERT(m->queue == PQ_NONE,
+		    ("fictitious page %p is queued", m));
+		return (false);
+	}
+
 	if (m->queue != PQ_NONE) {
 		if (pagequeue_locked)
 			vm_page_dequeue_locked(m);
 		else
 			vm_page_dequeue(m);
 	}
-	vm_page_remove(m);
-
-	/*
-	 * If fictitious remove object association and
-	 * return, otherwise delay object association removal.
-	 */
-	if ((m->flags & PG_FICTITIOUS) != 0)
-		return (false);
-
 	m->valid = 0;
 	vm_page_undirty(m);
 
@@ -2839,12 +3186,12 @@ vm_page_free_prep(vm_page_t m, bool pagequeue_locked)
  * queues.  This is the last step to free a page.
  */
 static void
-vm_page_free_phys(vm_page_t m)
+vm_page_free_phys(struct vm_domain *vmd, vm_page_t m)
 {
 
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	vm_domain_free_assert_locked(vmd);
 
-	vm_phys_freecnt_adj(m, 1);
+	vm_domain_freecnt_adj(vmd, 1);
 #if VM_NRESERVLEVEL > 0
 	if (!vm_reserv_free_page(m))
 #endif
@@ -2854,13 +3201,27 @@ vm_page_free_phys(vm_page_t m)
 void
 vm_page_free_phys_pglist(struct pglist *tq)
 {
+	struct vm_domain *vmd;
 	vm_page_t m;
 
-	mtx_lock(&vm_page_queue_free_mtx);
-	TAILQ_FOREACH(m, tq, listq)
-		vm_page_free_phys(m);
-	vm_page_free_wakeup();
-	mtx_unlock(&vm_page_queue_free_mtx);
+	if (TAILQ_EMPTY(tq))
+		return;
+	vmd = NULL;
+	TAILQ_FOREACH(m, tq, listq) {
+		if (vmd != vm_pagequeue_domain(m)) {
+			if (vmd != NULL) {
+				vm_domain_free_wakeup(vmd);
+				vm_domain_free_unlock(vmd);
+			}
+			vmd = vm_pagequeue_domain(m);
+			vm_domain_free_lock(vmd);
+		}
+		vm_page_free_phys(vmd, m);
+	}
+	if (vmd != NULL) {
+		vm_domain_free_wakeup(vmd);
+		vm_domain_free_unlock(vmd);
+	}
 }
 
 /*
@@ -2875,36 +3236,65 @@ vm_page_free_phys_pglist(struct pglist *tq)
 void
 vm_page_free_toq(vm_page_t m)
 {
+	struct vm_domain *vmd;
 
 	if (!vm_page_free_prep(m, false))
 		return;
-	mtx_lock(&vm_page_queue_free_mtx);
-	vm_page_free_phys(m);
-	vm_page_free_wakeup();
-	mtx_unlock(&vm_page_queue_free_mtx);
+	vmd = vm_pagequeue_domain(m);
+	vm_domain_free_lock(vmd);
+	vm_page_free_phys(vmd, m);
+	vm_domain_free_wakeup(vmd);
+	vm_domain_free_unlock(vmd);
+}
+
+/*
+ *	vm_page_free_pages_toq:
+ *
+ *	Returns a list of pages to the free list, disassociating it
+ *	from any VM object.  In other words, this is equivalent to
+ *	calling vm_page_free_toq() for each page of a list of VM objects.
+ *
+ *	The objects must be locked.  The pages must be locked if it is
+ *	managed.
+ */
+void
+vm_page_free_pages_toq(struct spglist *free, bool update_wire_count)
+{
+	vm_page_t m;
+	struct pglist pgl;
+	int count;
+
+	if (SLIST_EMPTY(free))
+		return;
+
+	count = 0;
+	TAILQ_INIT(&pgl);
+	while ((m = SLIST_FIRST(free)) != NULL) {
+		count++;
+		SLIST_REMOVE_HEAD(free, plinks.s.ss);
+		if (vm_page_free_prep(m, false))
+			TAILQ_INSERT_TAIL(&pgl, m, listq);
+	}
+
+	vm_page_free_phys_pglist(&pgl);
+
+	if (update_wire_count)
+		vm_wire_sub(count);
 }
 
 /*
  *	vm_page_wire:
  *
- *	Mark this page as wired down by yet
- *	another map, removing it from paging queues
- *	as necessary.
+ * Mark this page as wired down.  If the page is fictitious, then
+ * its wire count must remain one.
  *
- *	If the page is fictitious, then its wire count must remain one.
- *
- *	The page must be locked.
+ * The page must be locked.
  */
 void
 vm_page_wire(vm_page_t m)
 {
 
-	/*
-	 * Only bump the wire statistics if the page is not already wired,
-	 * and only unqueue the page if it is on some queue (if it is unmanaged
-	 * it is already off the queues).
-	 */
-	vm_page_lock_assert(m, MA_OWNED);
+	vm_page_assert_locked(m);
 	if ((m->flags & PG_FICTITIOUS) != 0) {
 		KASSERT(m->wire_count == 1,
 		    ("vm_page_wire: fictitious page %p's wire count isn't one",
@@ -2915,8 +3305,7 @@ vm_page_wire(vm_page_t m)
 		KASSERT((m->oflags & VPO_UNMANAGED) == 0 ||
 		    m->queue == PQ_NONE,
 		    ("vm_page_wire: unmanaged page %p is queued", m));
-		vm_page_remque(m);
-		atomic_add_int(&vm_cnt.v_wire_count, 1);
+		vm_wire_add(1);
 	}
 	m->wire_count++;
 	KASSERT(m->wire_count != 0, ("vm_page_wire: wire_count overflow m=%p", m));
@@ -2932,38 +3321,69 @@ vm_page_wire(vm_page_t m)
  * Only managed pages belonging to an object can be paged out.  If the number
  * of wirings transitions to zero and the page is eligible for page out, then
  * the page is added to the specified paging queue (unless PQ_NONE is
- * specified).
+ * specified, in which case the page is dequeued if it belongs to a paging
+ * queue).
  *
  * If a page is fictitious, then its wire count must always be one.
  *
  * A managed page must be locked.
  */
-boolean_t
+bool
 vm_page_unwire(vm_page_t m, uint8_t queue)
 {
+	bool unwired;
 
 	KASSERT(queue < PQ_COUNT || queue == PQ_NONE,
 	    ("vm_page_unwire: invalid queue %u request for page %p",
 	    queue, m));
+
+	unwired = vm_page_unwire_noq(m);
+	if (unwired && (m->oflags & VPO_UNMANAGED) == 0 && m->object != NULL) {
+		if (m->queue == queue) {
+			if (queue == PQ_ACTIVE)
+				vm_page_reference(m);
+			else if (queue != PQ_NONE)
+				vm_page_requeue(m);
+		} else {
+			vm_page_remque(m);
+			if (queue != PQ_NONE) {
+				vm_page_enqueue(queue, m);
+				if (queue == PQ_ACTIVE)
+					/* Initialize act_count. */
+					vm_page_activate(m);
+			}
+		}
+	}
+	return (unwired);
+}
+
+/*
+ *
+ * vm_page_unwire_noq:
+ *
+ * Unwire a page without (re-)inserting it into a page queue.  It is up
+ * to the caller to enqueue, requeue, or free the page as appropriate.
+ * In most cases, vm_page_unwire() should be used instead.
+ */
+bool
+vm_page_unwire_noq(vm_page_t m)
+{
+
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		vm_page_assert_locked(m);
 	if ((m->flags & PG_FICTITIOUS) != 0) {
 		KASSERT(m->wire_count == 1,
 	    ("vm_page_unwire: fictitious page %p's wire count isn't one", m));
-		return (FALSE);
+		return (false);
 	}
-	if (m->wire_count > 0) {
-		m->wire_count--;
-		if (m->wire_count == 0) {
-			atomic_subtract_int(&vm_cnt.v_wire_count, 1);
-			if ((m->oflags & VPO_UNMANAGED) == 0 &&
-			    m->object != NULL && queue != PQ_NONE)
-				vm_page_enqueue(queue, m);
-			return (TRUE);
-		} else
-			return (FALSE);
-	} else
+	if (m->wire_count == 0)
 		panic("vm_page_unwire: page %p's wire count is zero", m);
+	m->wire_count--;
+	if (m->wire_count == 0) {
+		vm_wire_sub(1);
+		return (true);
+	} else
+		return (false);
 }
 
 /*
@@ -2992,7 +3412,7 @@ _vm_page_deactivate(vm_page_t m, boolean_t noreuse)
 	if ((queue = m->queue) == PQ_INACTIVE && !noreuse)
 		return;
 	if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
-		pq = &vm_phys_domain(m)->vmd_pagequeues[PQ_INACTIVE];
+		pq = &vm_pagequeue_domain(m)->vmd_pagequeues[PQ_INACTIVE];
 		/* Avoid multiple acquisitions of the inactive queue lock. */
 		if (queue == PQ_INACTIVE) {
 			vm_pagequeue_lock(pq);
@@ -3004,8 +3424,9 @@ _vm_page_deactivate(vm_page_t m, boolean_t noreuse)
 		}
 		m->queue = PQ_INACTIVE;
 		if (noreuse)
-			TAILQ_INSERT_BEFORE(&vm_phys_domain(m)->vmd_inacthead,
-			    m, plinks.q);
+			TAILQ_INSERT_BEFORE(
+			    &vm_pagequeue_domain(m)->vmd_inacthead, m,
+			    plinks.q);
 		else
 			TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
 		vm_pagequeue_cnt_inc(pq);
@@ -3049,14 +3470,11 @@ vm_page_launder(vm_page_t m)
 	int queue;
 
 	vm_page_assert_locked(m);
-	if ((queue = m->queue) != PQ_LAUNDRY) {
-		if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
-			if (queue != PQ_NONE)
-				vm_page_dequeue(m);
-			vm_page_enqueue(PQ_LAUNDRY, m);
-		} else
-			KASSERT(queue == PQ_NONE,
-			    ("wired page %p is queued", m));
+	if ((queue = m->queue) != PQ_LAUNDRY && m->wire_count == 0 &&
+	    (m->oflags & VPO_UNMANAGED) == 0) {
+		if (queue != PQ_NONE)
+			vm_page_dequeue(m);
+		vm_page_enqueue(PQ_LAUNDRY, m);
 	}
 }
 
@@ -3091,8 +3509,7 @@ vm_page_try_to_free(vm_page_t m)
 	vm_page_assert_locked(m);
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0, ("page %p is unmanaged", m));
-	if (m->dirty != 0 || m->hold_count != 0 || m->wire_count != 0 ||
-	    vm_page_busied(m))
+	if (m->dirty != 0 || vm_page_held(m) || vm_page_busied(m))
 		return (false);
 	if (m->object->ref_count != 0) {
 		pmap_remove_all(m);
@@ -3167,11 +3584,16 @@ vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 {
 	vm_page_t m;
 	int sleep;
+	int pflags;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((allocflags & VM_ALLOC_SBUSY) == 0 ||
 	    (allocflags & VM_ALLOC_IGN_SBUSY) != 0,
 	    ("vm_page_grab: VM_ALLOC_SBUSY/VM_ALLOC_IGN_SBUSY mismatch"));
+	pflags = allocflags &
+	    ~(VM_ALLOC_NOWAIT | VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL);
+	if ((allocflags & VM_ALLOC_NOWAIT) == 0)
+		pflags |= VM_ALLOC_WAITFAIL;
 retrylookup:
 	if ((m = vm_page_lookup(object, pindex)) != NULL) {
 		sleep = (allocflags & VM_ALLOC_IGN_SBUSY) != 0 ?
@@ -3205,13 +3627,10 @@ retrylookup:
 			return (m);
 		}
 	}
-	m = vm_page_alloc(object, pindex, allocflags);
+	m = vm_page_alloc(object, pindex, pflags);
 	if (m == NULL) {
 		if ((allocflags & VM_ALLOC_NOWAIT) != 0)
 			return (NULL);
-		VM_OBJECT_WUNLOCK(object);
-		VM_WAIT;
-		VM_OBJECT_WLOCK(object);
 		goto retrylookup;
 	}
 	if (allocflags & VM_ALLOC_ZERO && (m->flags & PG_ZERO) == 0)
@@ -3250,6 +3669,7 @@ vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
     vm_page_t *ma, int count)
 {
 	vm_page_t m, mpred;
+	int pflags;
 	int i;
 	bool sleep;
 
@@ -3264,6 +3684,10 @@ vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
 	    ("vm_page_grab_pages: VM_ALLOC_SBUSY/IGN_SBUSY mismatch"));
 	if (count == 0)
 		return (0);
+	pflags = allocflags & ~(VM_ALLOC_NOWAIT | VM_ALLOC_WAITOK |
+	    VM_ALLOC_WAITFAIL | VM_ALLOC_IGN_SBUSY);
+	if ((allocflags & VM_ALLOC_NOWAIT) == 0)
+		pflags |= VM_ALLOC_WAITFAIL;
 	i = 0;
 retrylookup:
 	m = vm_radix_lookup_le(&object->rtree, pindex + i);
@@ -3304,14 +3728,10 @@ retrylookup:
 				vm_page_sbusy(m);
 		} else {
 			m = vm_page_alloc_after(object, pindex + i,
-			    (allocflags & ~VM_ALLOC_IGN_SBUSY) |
-			    VM_ALLOC_COUNT(count - i), mpred);
+			    pflags | VM_ALLOC_COUNT(count - i), mpred);
 			if (m == NULL) {
 				if ((allocflags & VM_ALLOC_NOWAIT) != 0)
 					break;
-				VM_OBJECT_WUNLOCK(object);
-				VM_WAIT;
-				VM_OBJECT_WLOCK(object);
 				goto retrylookup;
 			}
 		}
@@ -3779,11 +4199,11 @@ vm_page_assert_pga_writeable(vm_page_t m, uint8_t bits)
 DB_SHOW_COMMAND(page, vm_page_print_page_info)
 {
 
-	db_printf("vm_cnt.v_free_count: %d\n", vm_cnt.v_free_count);
-	db_printf("vm_cnt.v_inactive_count: %d\n", vm_cnt.v_inactive_count);
-	db_printf("vm_cnt.v_active_count: %d\n", vm_cnt.v_active_count);
-	db_printf("vm_cnt.v_laundry_count: %d\n", vm_cnt.v_laundry_count);
-	db_printf("vm_cnt.v_wire_count: %d\n", vm_cnt.v_wire_count);
+	db_printf("vm_cnt.v_free_count: %d\n", vm_free_count());
+	db_printf("vm_cnt.v_inactive_count: %d\n", vm_inactive_count());
+	db_printf("vm_cnt.v_active_count: %d\n", vm_active_count());
+	db_printf("vm_cnt.v_laundry_count: %d\n", vm_laundry_count());
+	db_printf("vm_cnt.v_wire_count: %d\n", vm_wire_count());
 	db_printf("vm_cnt.v_free_reserved: %d\n", vm_cnt.v_free_reserved);
 	db_printf("vm_cnt.v_free_min: %d\n", vm_cnt.v_free_min);
 	db_printf("vm_cnt.v_free_target: %d\n", vm_cnt.v_free_target);
@@ -3794,7 +4214,7 @@ DB_SHOW_COMMAND(pageq, vm_page_print_pageq_info)
 {
 	int dom;
 
-	db_printf("pq_free %d\n", vm_cnt.v_free_count);
+	db_printf("pq_free %d\n", vm_free_count());
 	for (dom = 0; dom < vm_ndomains; dom++) {
 		db_printf(
     "dom %d page_cnt %d free %d pq_act %d pq_inact %d pq_laund %d pq_unsw %d\n",

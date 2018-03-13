@@ -22,8 +22,9 @@
 /*
  * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2014, 2016 by Delphix. All rights reserved.
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
+ * Copyright 2017 Joyent, Inc.
  * Copyright 2017 RackTop Systems.
  */
 
@@ -66,6 +67,7 @@
 #include <dirent.h>
 #include <dlfcn.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <libgen.h>
 #include <libintl.h>
 #include <stdio.h>
@@ -76,6 +78,7 @@
 #include <sys/mntent.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 
 #include <libzfs.h>
 
@@ -176,19 +179,46 @@ is_shared(libzfs_handle_t *hdl, const char *mountpoint, zfs_share_proto_t proto)
 }
 
 #ifdef illumos
-/*
- * Returns true if the specified directory is empty.  If we can't open the
- * directory at all, return true so that the mount can fail with a more
- * informative error message.
- */
 static boolean_t
-dir_is_empty(const char *dirname)
+dir_is_empty_stat(const char *dirname)
+{
+	struct stat st;
+
+	/*
+	 * We only want to return false if the given path is a non empty
+	 * directory, all other errors are handled elsewhere.
+	 */
+	if (stat(dirname, &st) < 0 || !S_ISDIR(st.st_mode)) {
+		return (B_TRUE);
+	}
+
+	/*
+	 * An empty directory will still have two entries in it, one
+	 * entry for each of "." and "..".
+	 */
+	if (st.st_size > 2) {
+		return (B_FALSE);
+	}
+
+	return (B_TRUE);
+}
+
+static boolean_t
+dir_is_empty_readdir(const char *dirname)
 {
 	DIR *dirp;
 	struct dirent64 *dp;
+	int dirfd;
 
-	if ((dirp = opendir(dirname)) == NULL)
+	if ((dirfd = openat(AT_FDCWD, dirname,
+	    O_RDONLY | O_NDELAY | O_LARGEFILE | O_CLOEXEC, 0)) < 0) {
 		return (B_TRUE);
+	}
+
+	if ((dirp = fdopendir(dirfd)) == NULL) {
+		(void) close(dirfd);
+		return (B_TRUE);
+	}
 
 	while ((dp = readdir64(dirp)) != NULL) {
 
@@ -202,6 +232,42 @@ dir_is_empty(const char *dirname)
 
 	(void) closedir(dirp);
 	return (B_TRUE);
+}
+
+/*
+ * Returns true if the specified directory is empty.  If we can't open the
+ * directory at all, return true so that the mount can fail with a more
+ * informative error message.
+ */
+static boolean_t
+dir_is_empty(const char *dirname)
+{
+	struct statvfs64 st;
+
+	/*
+	 * If the statvfs call fails or the filesystem is not a ZFS
+	 * filesystem, fall back to the slow path which uses readdir.
+	 */
+	if ((statvfs64(dirname, &st) != 0) ||
+	    (strcmp(st.f_basetype, "zfs") != 0)) {
+		return (dir_is_empty_readdir(dirname));
+	}
+
+	/*
+	 * At this point, we know the provided path is on a ZFS
+	 * filesystem, so we can use stat instead of readdir to
+	 * determine if the directory is empty or not. We try to avoid
+	 * using readdir because that requires opening "dirname"; this
+	 * open file descriptor can potentially end up in a child
+	 * process if there's a concurrent fork, thus preventing the
+	 * zfs_mount() from otherwise succeeding (the open file
+	 * descriptor inherited by the child process will cause the
+	 * parent's mount to fail with EBUSY). The performance
+	 * implications of replacing the open, read, and close with a
+	 * single stat is nice; but is not the main motivation for the
+	 * added complexity.
+	 */
+	return (dir_is_empty_stat(dirname));
 }
 #endif
 
@@ -607,37 +673,38 @@ _zfs_init_libshare(void)
 int
 zfs_init_libshare(libzfs_handle_t *zhandle, int service)
 {
-	int ret = SA_OK;
-
 #ifdef illumos
+	/*
+	 * libshare is either not installed or we're in a branded zone. The
+	 * rest of the wrapper functions around the libshare calls already
+	 * handle NULL function pointers, but we don't want the callers of
+	 * zfs_init_libshare() to fail prematurely if libshare is not available.
+	 */
 	if (_sa_init == NULL)
-		ret = SA_CONFIG_ERR;
+		return (SA_OK);
 
-	if (ret == SA_OK && zhandle->libzfs_shareflags & ZFSSHARE_MISS) {
-		/*
-		 * We had a cache miss. Most likely it is a new ZFS
-		 * dataset that was just created. We want to make sure
-		 * so check timestamps to see if a different process
-		 * has updated any of the configuration. If there was
-		 * some non-ZFS change, we need to re-initialize the
-		 * internal cache.
-		 */
-		zhandle->libzfs_shareflags &= ~ZFSSHARE_MISS;
-		if (_sa_needs_refresh != NULL &&
-		    _sa_needs_refresh(zhandle->libzfs_sharehdl)) {
-			zfs_uninit_libshare(zhandle);
-			zhandle->libzfs_sharehdl = _sa_init(service);
-		}
+	/*
+	 * Attempt to refresh libshare. This is necessary if there was a cache
+	 * miss for a new ZFS dataset that was just created, or if state of the
+	 * sharetab file has changed since libshare was last initialized. We
+	 * want to make sure so check timestamps to see if a different process
+	 * has updated any of the configuration. If there was some non-ZFS
+	 * change, we need to re-initialize the internal cache.
+	 */
+	if (_sa_needs_refresh != NULL &&
+	    _sa_needs_refresh(zhandle->libzfs_sharehdl)) {
+		zfs_uninit_libshare(zhandle);
+		zhandle->libzfs_sharehdl = _sa_init(service);
 	}
 
-	if (ret == SA_OK && zhandle && zhandle->libzfs_sharehdl == NULL)
+	if (zhandle && zhandle->libzfs_sharehdl == NULL)
 		zhandle->libzfs_sharehdl = _sa_init(service);
 
-	if (ret == SA_OK && zhandle->libzfs_sharehdl == NULL)
-		ret = SA_NO_MEMORY;
+	if (zhandle->libzfs_sharehdl == NULL)
+		return (SA_NO_MEMORY);
 #endif
 
-	return (ret);
+	return (SA_OK);
 }
 
 /*
@@ -793,7 +860,6 @@ zfs_share_proto(zfs_handle_t *zhp, zfs_share_proto_t *proto)
 				    zfs_get_name(zhp));
 				return (-1);
 			}
-			hdl->libzfs_shareflags |= ZFSSHARE_MISS;
 			share = zfs_sa_find_share(hdl->libzfs_sharehdl,
 			    mountpoint);
 		}

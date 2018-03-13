@@ -28,7 +28,7 @@
 .\"     @(#)reboot.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2015
+.Dd October 24, 2017
 .Dt REBOOT 2
 .Os
 .Sh NAME
@@ -84,6 +84,14 @@ for more information.
 .It Dv RB_HALT
 The processor is simply halted; no reboot takes place.
 This option should be used with caution.
+.It Dv RB_POWERCYCLE
+After halting, the shutdown code will do what it can to turn
+off the power and then turn the power back on.
+This requires hardware support, usually an auxiliary microprocessor
+that can sequence the power supply.
+At present only the
+.Xr ipmi 4
+driver implements this feature.
 .It Dv RB_POWEROFF
 After halting, the shutdown code will do what it can to turn
 off the power.

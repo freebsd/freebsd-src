@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -55,6 +57,10 @@
 #define	htod64(x)	(x)
 #endif
 
+#define	KERNELDUMP_COMP_NONE		0
+#define	KERNELDUMP_COMP_GZIP		1
+#define	KERNELDUMP_COMP_ZSTD		2
+
 #define	KERNELDUMP_ENC_NONE		0
 #define	KERNELDUMP_ENC_AES_256_CBC	1
 
@@ -75,8 +81,8 @@ struct kerneldumpheader {
 #define	KERNELDUMPMAGIC_CLEARED	"Cleared Kernel Dump"
 	char		architecture[12];
 	uint32_t	version;
-#define	KERNELDUMPVERSION		2
-#define	KERNELDUMP_TEXT_VERSION		2
+#define	KERNELDUMPVERSION		3
+#define	KERNELDUMP_TEXT_VERSION		3
 	uint32_t	architectureversion;
 #define	KERNELDUMP_AARCH64_VERSION	1
 #define	KERNELDUMP_AMD64_VERSION	2
@@ -87,12 +93,14 @@ struct kerneldumpheader {
 #define	KERNELDUMP_RISCV_VERSION	1
 #define	KERNELDUMP_SPARC64_VERSION	1
 	uint64_t	dumplength;		/* excl headers */
+	uint64_t	dumpextent;
 	uint64_t	dumptime;
 	uint32_t	dumpkeysize;
 	uint32_t	blocksize;
+	uint8_t		compression;
 	char		hostname[64];
 	char		versionstring[192];
-	char		panicstring[188];
+	char		panicstring[179];
 	uint32_t	parity;
 };
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 John Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -167,7 +169,7 @@
 #define	IRQ_DISABLED		(NUM_IO_INTS + 4)
 
 /*
- * An APIC enumerator is a psuedo bus driver that enumerates APIC's including
+ * An APIC enumerator is a pseudo bus driver that enumerates APIC's including
  * CPU's and I/O APIC's.
  */
 struct apic_enumerator {
@@ -183,7 +185,11 @@ inthand_t
 	IDTVEC(apic_isr1), IDTVEC(apic_isr2), IDTVEC(apic_isr3),
 	IDTVEC(apic_isr4), IDTVEC(apic_isr5), IDTVEC(apic_isr6),
 	IDTVEC(apic_isr7), IDTVEC(cmcint), IDTVEC(errorint),
-	IDTVEC(spuriousint), IDTVEC(timerint);
+	IDTVEC(spuriousint), IDTVEC(timerint),
+	IDTVEC(apic_isr1_pti), IDTVEC(apic_isr2_pti), IDTVEC(apic_isr3_pti),
+	IDTVEC(apic_isr4_pti), IDTVEC(apic_isr5_pti), IDTVEC(apic_isr6_pti),
+	IDTVEC(apic_isr7_pti), IDTVEC(cmcint_pti), IDTVEC(errorint_pti),
+	IDTVEC(spuriousint_pti), IDTVEC(timerint_pti);
 
 extern vm_paddr_t lapic_paddr;
 extern int *apic_cpuids;

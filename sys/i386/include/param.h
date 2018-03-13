@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -111,7 +113,7 @@
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 
 #ifndef KSTACK_PAGES
-#define KSTACK_PAGES 2		/* Includes pcb! */
+#define KSTACK_PAGES 4		/* Includes pcb! */
 #endif
 #define KSTACK_GUARD_PAGES 1	/* pages of kstack guard; 0 disables */
 #if KSTACK_PAGES < 4

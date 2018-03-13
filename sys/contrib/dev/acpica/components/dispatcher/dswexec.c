@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -723,8 +723,8 @@ AcpiDsExecEndOp (
         case AML_TYPE_CREATE_OBJECT:
 
             ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-                "Executing CreateObject (Buffer/Package) Op=%p AMLPtr=%p\n",
-                Op, Op->Named.Data));
+                "Executing CreateObject (Buffer/Package) Op=%p Child=%p ParentOpcode=%4.4X\n",
+                Op, Op->Named.Value.Arg, Op->Common.Parent->Common.AmlOpcode));
 
             switch (Op->Common.Parent->Common.AmlOpcode)
             {

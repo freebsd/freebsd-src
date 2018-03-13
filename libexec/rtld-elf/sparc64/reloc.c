@@ -1,6 +1,8 @@
 /*	$NetBSD: mdreloc.c,v 1.42 2008/04/28 20:23:04 martin Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2000 Eduardo Horvath.
  * Copyright (c) 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -365,8 +367,7 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache,
 	 * Note: R_SPARC_TLS_TPOFF64 must be the numerically largest
 	 * relocation type.
 	 */
-	if (type >= sizeof(reloc_target_bitmask) /
-	    sizeof(*reloc_target_bitmask)) {
+	if (type >= nitems(reloc_target_bitmask)) {
 		_rtld_error("%s: Unsupported relocation type %d in non-PLT "
 		    "object\n", obj->path, type);
 		return (-1);
@@ -791,6 +792,16 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 void
 ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
 {
+
+}
+
+extern void __sparc_utrap_setup(void);
+
+void
+pre_init(void)
+{
+
+	__sparc_utrap_setup();
 }
 
 /*
@@ -821,6 +832,7 @@ init_pltgot(Obj_Entry *obj)
 static void
 install_plt(Elf_Word *pltgot, Elf_Addr proc)
 {
+
 	pltgot[0] = SAVE;
 	flush(pltgot, 0);
 	pltgot[1] = SETHI_l0 | HIVAL(proc, 42);

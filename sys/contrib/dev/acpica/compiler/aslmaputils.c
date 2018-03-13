@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -212,7 +212,7 @@ MpGetHidFromParseTree (
 
             /* Convert EISAID to a string */
 
-            HidString = UtStringCacheCalloc (ACPI_EISAID_STRING_SIZE);
+            HidString = UtLocalCacheCalloc (ACPI_EISAID_STRING_SIZE);
             AcpiExEisaIdToString (HidString, Arg->Asl.Value.Integer);
             return (HidString);
 
@@ -277,7 +277,7 @@ MpGetHidValue (
 
         /* Convert EISAID to a string */
 
-        HidString = UtStringCacheCalloc (ACPI_EISAID_STRING_SIZE);
+        HidString = UtLocalCacheCalloc (ACPI_EISAID_STRING_SIZE);
         AcpiExEisaIdToString (HidString, HidNode->Object->Integer.Value);
         return (HidString);
 

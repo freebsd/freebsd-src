@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -451,8 +453,10 @@ cacheino(union dinode *dp, ino_t inumber)
 
 	if (howmany(DIP(dp, di_size), sblock.fs_bsize) > UFS_NDADDR)
 		blks = UFS_NDADDR + UFS_NIADDR;
-	else
+	else if (DIP(dp, di_size) > 0)
 		blks = howmany(DIP(dp, di_size), sblock.fs_bsize);
+	else
+		blks = 1;
 	inp = (struct inoinfo *)
 		Malloc(sizeof(*inp) + (blks - 1) * sizeof(ufs2_daddr_t));
 	if (inp == NULL)
@@ -671,7 +675,7 @@ allocino(ino_t request, int type)
 	if (ino == maxino)
 		return (0);
 	cg = ino_to_cg(&sblock, ino);
-	cgbp = cgget(cg);
+	cgbp = cglookup(cg);
 	cgp = cgbp->b_un.b_cg;
 	if (!check_cgmagic(cg, cgbp))
 		return (0);

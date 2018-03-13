@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012, 2016 Chelsio Communications, Inc.
  * All rights reserved.
  *
@@ -2662,13 +2664,16 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 }
 
 /*
- * Partial EEPROM Vital Product Data structure.  Includes only the ID and
- * VPD-R sections.
+ * Partial EEPROM Vital Product Data structure.  The VPD starts with one ID
+ * header followed by one or more VPD-R sections, each with its own header.
  */
 struct t4_vpd_hdr {
 	u8  id_tag;
 	u8  id_len[2];
 	u8  id_data[ID_LEN];
+};
+
+struct t4_vpdr_hdr {
 	u8  vpdr_tag;
 	u8  vpdr_len[2];
 };
@@ -2903,32 +2908,43 @@ int t4_seeprom_wp(struct adapter *adapter, int enable)
 
 /**
  *	get_vpd_keyword_val - Locates an information field keyword in the VPD
- *	@v: Pointer to buffered vpd data structure
+ *	@vpd: Pointer to buffered vpd data structure
  *	@kw: The keyword to search for
+ *	@region: VPD region to search (starting from 0)
  *
  *	Returns the value of the information field keyword or
  *	-ENOENT otherwise.
  */
-static int get_vpd_keyword_val(const struct t4_vpd_hdr *v, const char *kw)
+static int get_vpd_keyword_val(const u8 *vpd, const char *kw, int region)
 {
-	int i;
-	unsigned int offset , len;
-	const u8 *buf = (const u8 *)v;
-	const u8 *vpdr_len = &v->vpdr_len[0];
-	offset = sizeof(struct t4_vpd_hdr);
-	len =  (u16)vpdr_len[0] + ((u16)vpdr_len[1] << 8);
+	int i, tag;
+	unsigned int offset, len;
+	const struct t4_vpdr_hdr *vpdr;
 
-	if (len + sizeof(struct t4_vpd_hdr) > VPD_LEN) {
+	offset = sizeof(struct t4_vpd_hdr);
+	vpdr = (const void *)(vpd + offset);
+	tag = vpdr->vpdr_tag;
+	len = (u16)vpdr->vpdr_len[0] + ((u16)vpdr->vpdr_len[1] << 8);
+	while (region--) {
+		offset += sizeof(struct t4_vpdr_hdr) + len;
+		vpdr = (const void *)(vpd + offset);
+		if (++tag != vpdr->vpdr_tag)
+			return -ENOENT;
+		len = (u16)vpdr->vpdr_len[0] + ((u16)vpdr->vpdr_len[1] << 8);
+	}
+	offset += sizeof(struct t4_vpdr_hdr);
+
+	if (offset + len > VPD_LEN) {
 		return -ENOENT;
 	}
 
 	for (i = offset; i + VPD_INFO_FLD_HDR_SIZE <= offset + len;) {
-		if(memcmp(buf + i , kw , 2) == 0){
+		if (memcmp(vpd + i , kw , 2) == 0){
 			i += VPD_INFO_FLD_HDR_SIZE;
 			return i;
 		}
 
-		i += VPD_INFO_FLD_HDR_SIZE + buf[i+2];
+		i += VPD_INFO_FLD_HDR_SIZE + vpd[i+2];
 	}
 
 	return -ENOENT;
@@ -2944,18 +2960,18 @@ static int get_vpd_keyword_val(const struct t4_vpd_hdr *v, const char *kw)
  *	Reads card parameters stored in VPD EEPROM.
  */
 static int get_vpd_params(struct adapter *adapter, struct vpd_params *p,
-    u8 *vpd)
+    u32 *buf)
 {
 	int i, ret, addr;
-	int ec, sn, pn, na;
+	int ec, sn, pn, na, md;
 	u8 csum;
-	const struct t4_vpd_hdr *v;
+	const u8 *vpd = (const u8 *)buf;
 
 	/*
 	 * Card information normally starts at VPD_BASE but early cards had
 	 * it at 0.
 	 */
-	ret = t4_seeprom_read(adapter, VPD_BASE, (u32 *)(vpd));
+	ret = t4_seeprom_read(adapter, VPD_BASE, buf);
 	if (ret)
 		return (ret);
 
@@ -2969,14 +2985,13 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p,
 	addr = *vpd == CHELSIO_VPD_UNIQUE_ID ? VPD_BASE : VPD_BASE_OLD;
 
 	for (i = 0; i < VPD_LEN; i += 4) {
-		ret = t4_seeprom_read(adapter, addr + i, (u32 *)(vpd + i));
+		ret = t4_seeprom_read(adapter, addr + i, buf++);
 		if (ret)
 			return ret;
 	}
- 	v = (const struct t4_vpd_hdr *)vpd;
 
 #define FIND_VPD_KW(var,name) do { \
-	var = get_vpd_keyword_val(v , name); \
+	var = get_vpd_keyword_val(vpd, name, 0); \
 	if (var < 0) { \
 		CH_ERR(adapter, "missing VPD keyword " name "\n"); \
 		return -EINVAL; \
@@ -2999,7 +3014,7 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p,
 	FIND_VPD_KW(na, "NA");
 #undef FIND_VPD_KW
 
-	memcpy(p->id, v->id_data, ID_LEN);
+	memcpy(p->id, vpd + offsetof(struct t4_vpd_hdr, id_data), ID_LEN);
 	strstrip(p->id);
 	memcpy(p->ec, vpd + ec, EC_LEN);
 	strstrip(p->ec);
@@ -3012,6 +3027,14 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p,
 	i = vpd[na - VPD_INFO_FLD_HDR_SIZE + 2];
 	memcpy(p->na, vpd + na, min(i, MACADDR_LEN));
 	strstrip((char *)p->na);
+
+	md = get_vpd_keyword_val(vpd, "VF", 1);
+	if (md < 0) {
+		snprintf(p->md, sizeof(p->md), "unknown");
+	} else {
+		i = vpd[md - VPD_INFO_FLD_HDR_SIZE + 2];
+		memcpy(p->md, vpd + md, min(i, MD_LEN));
+	}
 
 	return 0;
 }
@@ -3682,7 +3705,7 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 {
 	struct fw_port_cmd c;
 	unsigned int mdi = V_FW_PORT_CAP_MDI(FW_PORT_CAP_MDI_AUTO);
-	unsigned int aneg, fc, fec, speed;
+	unsigned int aneg, fc, fec, speed, rcap;
 
 	fc = 0;
 	if (lc->requested_fc & PAUSE_RX)
@@ -3727,6 +3750,16 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		    V_FW_PORT_CAP_SPEED(M_FW_PORT_CAP_SPEED);
 	}
 
+	rcap = aneg | speed | fc | fec;
+	if ((rcap | lc->supported) != lc->supported) {
+#ifdef INVARIANTS
+		CH_WARN(adap, "rcap 0x%08x, pcap 0x%08x\n", rcap,
+		    lc->supported);
+#endif
+		rcap &= lc->supported;
+	}
+	rcap |= mdi;
+
 	memset(&c, 0, sizeof(c));
 	c.op_to_portid = cpu_to_be32(V_FW_CMD_OP(FW_PORT_CMD) |
 				     F_FW_CMD_REQUEST | F_FW_CMD_EXEC |
@@ -3734,7 +3767,7 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 	c.action_to_len16 =
 		cpu_to_be32(V_FW_PORT_CMD_ACTION(FW_PORT_ACTION_L1_CFG) |
 			    FW_LEN16(c));
-	c.u.l1cfg.rcap = cpu_to_be32(aneg | speed | fc | fec | mdi);
+	c.u.l1cfg.rcap = cpu_to_be32(rcap);
 
 	return t4_wr_mbox_ns(adap, mbox, &c, sizeof(c), NULL);
 }
@@ -5895,6 +5928,24 @@ void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
  */
 static unsigned int t4_get_mps_bg_map(struct adapter *adap, int idx)
 {
+	u32 n;
+
+	if (adap->params.mps_bg_map)
+		return ((adap->params.mps_bg_map >> (idx << 3)) & 0xff);
+
+	n = G_NUMPORTS(t4_read_reg(adap, A_MPS_CMN_CTL));
+	if (n == 0)
+		return idx == 0 ? 0xf : 0;
+	if (n == 1 && chip_id(adap) <= CHELSIO_T5)
+		return idx < 2 ? (3 << (2 * idx)) : 0;
+	return 1 << idx;
+}
+
+/*
+ * TP RX e-channels associated with the port.
+ */
+static unsigned int t4_get_rx_e_chan_map(struct adapter *adap, int idx)
+{
 	u32 n = G_NUMPORTS(t4_read_reg(adap, A_MPS_CMN_CTL));
 
 	if (n == 0)
@@ -5972,7 +6023,7 @@ void t4_get_port_stats_offset(struct adapter *adap, int idx,
  */
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 {
-	u32 bgmap = t4_get_mps_bg_map(adap, idx);
+	u32 bgmap = adap2pinfo(adap, idx)->mps_bg_map;
 	u32 stat_ctl = t4_read_reg(adap, A_MPS_STAT_CTL);
 
 #define GET_STAT(name) \
@@ -6074,7 +6125,7 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
  */
 void t4_get_lb_stats(struct adapter *adap, int idx, struct lb_port_stats *p)
 {
-	u32 bgmap = t4_get_mps_bg_map(adap, idx);
+	u32 bgmap = adap2pinfo(adap, idx)->mps_bg_map;
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
@@ -7969,7 +8020,7 @@ const struct chip_params *t4_get_chip_params(int chipid)
  *	values for some adapter tunables, take PHYs out of reset, and
  *	initialize the MDIO interface.
  */
-int t4_prep_adapter(struct adapter *adapter, u8 *buf)
+int t4_prep_adapter(struct adapter *adapter, u32 *buf)
 {
 	int ret;
 	uint16_t device_id;
@@ -8059,6 +8110,98 @@ int t4_shutdown_adapter(struct adapter *adapter)
 	}
 	t4_set_reg_field(adapter, A_SGE_CONTROL, F_GLOBALENABLE, 0);
 
+	return 0;
+}
+
+/**
+ *	t4_bar2_sge_qregs - return BAR2 SGE Queue register information
+ *	@adapter: the adapter
+ *	@qid: the Queue ID
+ *	@qtype: the Ingress or Egress type for @qid
+ *	@user: true if this request is for a user mode queue
+ *	@pbar2_qoffset: BAR2 Queue Offset
+ *	@pbar2_qid: BAR2 Queue ID or 0 for Queue ID inferred SGE Queues
+ *
+ *	Returns the BAR2 SGE Queue Registers information associated with the
+ *	indicated Absolute Queue ID.  These are passed back in return value
+ *	pointers.  @qtype should be T4_BAR2_QTYPE_EGRESS for Egress Queue
+ *	and T4_BAR2_QTYPE_INGRESS for Ingress Queues.
+ *
+ *	This may return an error which indicates that BAR2 SGE Queue
+ *	registers aren't available.  If an error is not returned, then the
+ *	following values are returned:
+ *
+ *	  *@pbar2_qoffset: the BAR2 Offset of the @qid Registers
+ *	  *@pbar2_qid: the BAR2 SGE Queue ID or 0 of @qid
+ *
+ *	If the returned BAR2 Queue ID is 0, then BAR2 SGE registers which
+ *	require the "Inferred Queue ID" ability may be used.  E.g. the
+ *	Write Combining Doorbell Buffer. If the BAR2 Queue ID is not 0,
+ *	then these "Inferred Queue ID" register may not be used.
+ */
+int t4_bar2_sge_qregs(struct adapter *adapter,
+		      unsigned int qid,
+		      enum t4_bar2_qtype qtype,
+		      int user,
+		      u64 *pbar2_qoffset,
+		      unsigned int *pbar2_qid)
+{
+	unsigned int page_shift, page_size, qpp_shift, qpp_mask;
+	u64 bar2_page_offset, bar2_qoffset;
+	unsigned int bar2_qid, bar2_qid_offset, bar2_qinferred;
+
+	/* T4 doesn't support BAR2 SGE Queue registers for kernel
+	 * mode queues.
+	 */
+	if (!user && is_t4(adapter))
+		return -EINVAL;
+
+	/* Get our SGE Page Size parameters.
+	 */
+	page_shift = adapter->params.sge.page_shift;
+	page_size = 1 << page_shift;
+
+	/* Get the right Queues per Page parameters for our Queue.
+	 */
+	qpp_shift = (qtype == T4_BAR2_QTYPE_EGRESS
+		     ? adapter->params.sge.eq_s_qpp
+		     : adapter->params.sge.iq_s_qpp);
+	qpp_mask = (1 << qpp_shift) - 1;
+
+	/* Calculate the basics of the BAR2 SGE Queue register area:
+	 *  o The BAR2 page the Queue registers will be in.
+	 *  o The BAR2 Queue ID.
+	 *  o The BAR2 Queue ID Offset into the BAR2 page.
+	 */
+	bar2_page_offset = ((u64)(qid >> qpp_shift) << page_shift);
+	bar2_qid = qid & qpp_mask;
+	bar2_qid_offset = bar2_qid * SGE_UDB_SIZE;
+
+	/* If the BAR2 Queue ID Offset is less than the Page Size, then the
+	 * hardware will infer the Absolute Queue ID simply from the writes to
+	 * the BAR2 Queue ID Offset within the BAR2 Page (and we need to use a
+	 * BAR2 Queue ID of 0 for those writes).  Otherwise, we'll simply
+	 * write to the first BAR2 SGE Queue Area within the BAR2 Page with
+	 * the BAR2 Queue ID and the hardware will infer the Absolute Queue ID
+	 * from the BAR2 Page and BAR2 Queue ID.
+	 *
+	 * One important censequence of this is that some BAR2 SGE registers
+	 * have a "Queue ID" field and we can write the BAR2 SGE Queue ID
+	 * there.  But other registers synthesize the SGE Queue ID purely
+	 * from the writes to the registers -- the Write Combined Doorbell
+	 * Buffer is a good example.  These BAR2 SGE Registers are only
+	 * available for those BAR2 SGE Register areas where the SGE Absolute
+	 * Queue ID can be inferred from simple writes.
+	 */
+	bar2_qoffset = bar2_page_offset;
+	bar2_qinferred = (bar2_qid_offset < page_size);
+	if (bar2_qinferred) {
+		bar2_qoffset += bar2_qid_offset;
+		bar2_qid = 0;
+	}
+
+	*pbar2_qoffset = bar2_qoffset;
+	*pbar2_qid = bar2_qid;
 	return 0;
 }
 
@@ -8379,7 +8522,8 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 	else
 		p->vi[0].smt_idx = (ret & 0x7f);
 	p->tx_chan = j;
-	p->rx_chan_map = t4_get_mps_bg_map(adap, j);
+	p->mps_bg_map = t4_get_mps_bg_map(adap, j);
+	p->rx_e_chan_map = t4_get_rx_e_chan_map(adap, j);
 	p->lport = j;
 	p->vi[0].rss_size = rss_size;
 	t4_os_set_hw_addr(p, addr);
@@ -9374,7 +9518,7 @@ int t4_set_filter_mode(struct adapter *adap, unsigned int mode_map,
 void t4_clr_port_stats(struct adapter *adap, int idx)
 {
 	unsigned int i;
-	u32 bgmap = t4_get_mps_bg_map(adap, idx);
+	u32 bgmap = adap2pinfo(adap, idx)->mps_bg_map;
 	u32 port_base_addr;
 
 	if (is_t4(adap))

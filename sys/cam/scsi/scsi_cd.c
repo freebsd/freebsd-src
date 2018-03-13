@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Justin T. Gibbs.
  * Copyright (c) 1997, 1998, 1999, 2000, 2001, 2002, 2003 Kenneth D. Merry.
  * All rights reserved.
@@ -443,7 +445,7 @@ cdasync(void *callback_arg, u_int32_t code,
 	case AC_SCSI_AEN:
 		softc = (struct cd_softc *)periph->softc;
 		if (softc->state == CD_STATE_NORMAL && !softc->tur) {
-			if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
+			if (cam_periph_acquire(periph) == 0) {
 				softc->tur = 1;
 				xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 			}
@@ -475,10 +477,10 @@ cdsysctlinit(void *context, int pending)
 {
 	struct cam_periph *periph;
 	struct cd_softc *softc;
-	char tmpstr[80], tmpstr2[80];
+	char tmpstr[32], tmpstr2[16];
 
 	periph = (struct cam_periph *)context;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) != 0)
 		return;
 
 	softc = (struct cd_softc *)periph->softc;
@@ -593,10 +595,7 @@ cdregister(struct cam_periph *periph, void *arg)
 		softc->quirks = CD_Q_NONE;
 
 	/* Check if the SIM does not want 6 byte commands */
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 	if (cpi.ccb_h.status == CAM_REQ_CMP && (cpi.hba_misc & PIM_NO_6_BYTE))
 		softc->quirks |= CD_Q_10_BYTE_ONLY;
 
@@ -677,7 +676,7 @@ cdregister(struct cam_periph *periph, void *arg)
 	 * We'll release this reference once GEOM calls us back (via
 	 * dadiskgonecb()) telling us that our provider has been freed.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -718,7 +717,7 @@ cdopen(struct disk *dp)
 	periph = (struct cam_periph *)dp->d_drv1;
 	softc = (struct cd_softc *)periph->softc;
 
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) != 0)
 		return(ENXIO);
 
 	cam_periph_lock(periph);
@@ -1058,6 +1057,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 
 		cdp = &softc->params;
 		announce_buf = softc->announce_temp;
+		bzero(announce_buf, CD_ANNOUNCETMP_SZ);
 
 		rdcap = (struct scsi_read_capacity_data *)csio->data_ptr;
 		
@@ -1128,7 +1128,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 							&sense_key_desc,
 							&asc_desc);
 					snprintf(announce_buf,
-					    sizeof(announce_buf),
+					    CD_ANNOUNCETMP_SZ,
 						"Attempt to query device "
 						"size failed: %s, %s",
 						sense_key_desc,
@@ -1139,7 +1139,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
  				      && (csio->scsi_status ==
  					  SCSI_STATUS_BUSY)) {
  					snprintf(announce_buf,
- 					    sizeof(announce_buf),
+					    CD_ANNOUNCETMP_SZ,
  					    "Attempt to query device "
  					    "size failed: SCSI Status: %s",
 					    scsi_status_string(csio));
@@ -2591,8 +2591,7 @@ cderror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 
 	if (softc->quirks & CD_Q_RETRY_BUSY)
 		sense_flags |= SF_RETRY_BUSY;
-	return (cam_periph_error(ccb, cam_flags, sense_flags, 
-				 &softc->saved_ccb));
+	return (cam_periph_error(ccb, cam_flags, sense_flags));
 }
 
 static void
@@ -2603,7 +2602,7 @@ cdmediapoll(void *arg)
 
 	if (softc->state == CD_STATE_NORMAL && !softc->tur &&
 	    softc->outstanding_cmds == 0) {
-		if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
+		if (cam_periph_acquire(periph) == 0) {
 			softc->tur = 1;
 			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 		}

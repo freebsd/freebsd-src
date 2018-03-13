@@ -199,7 +199,10 @@ enum zio_flag {
 
 #define	ZIO_VDEV_CHILD_FLAGS(zio)				\
 	(((zio)->io_flags & ZIO_FLAG_VDEV_INHERIT) |		\
-	ZIO_FLAG_CANFAIL)
+	ZIO_FLAG_DONT_PROPAGATE | ZIO_FLAG_CANFAIL)
+
+#define	ZIO_CHILD_BIT(x)		(1 << (x))
+#define	ZIO_CHILD_BIT_IS_SET(val, x)	((val) & (1 << (x)))
 
 enum zio_child {
 	ZIO_CHILD_VDEV = 0,
@@ -208,6 +211,14 @@ enum zio_child {
 	ZIO_CHILD_LOGICAL,
 	ZIO_CHILD_TYPES
 };
+
+#define	ZIO_CHILD_VDEV_BIT		ZIO_CHILD_BIT(ZIO_CHILD_VDEV)
+#define	ZIO_CHILD_GANG_BIT		ZIO_CHILD_BIT(ZIO_CHILD_GANG)
+#define	ZIO_CHILD_DDT_BIT		ZIO_CHILD_BIT(ZIO_CHILD_DDT)
+#define	ZIO_CHILD_LOGICAL_BIT		ZIO_CHILD_BIT(ZIO_CHILD_LOGICAL)
+#define	ZIO_CHILD_ALL_BITS					\
+	(ZIO_CHILD_VDEV_BIT | ZIO_CHILD_GANG_BIT | 		\
+	ZIO_CHILD_DDT_BIT | ZIO_CHILD_LOGICAL_BIT)
 
 enum zio_wait_type {
 	ZIO_WAIT_READY = 0,
@@ -593,7 +604,6 @@ extern enum zio_checksum zio_checksum_dedup_select(spa_t *spa,
 extern enum zio_compress zio_compress_select(spa_t *spa,
     enum zio_compress child, enum zio_compress parent);
 
-extern void zio_cancel(zio_t *zio);
 extern void zio_suspend(spa_t *spa, zio_t *zio);
 extern int zio_resume(spa_t *spa);
 extern void zio_resume_wait(spa_t *spa);

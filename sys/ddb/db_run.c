@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: MIT-CMU
+ *
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
@@ -38,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/proc.h>
+#include <sys/systm.h>
 
 #include <machine/kdb.h>
 #include <machine/pcb.h>

@@ -29,6 +29,17 @@
 #ifndef __CCU_NG_H__
 #define __CCU_NG_H__
 
+enum aw_ccung_type {
+	H3_CCU = 1,
+	H3_R_CCU,
+	A31_CCU,
+	A64_CCU,
+	A64_R_CCU,
+	A13_CCU,
+	A83T_CCU,
+	A83T_R_CCU,
+};
+
 struct aw_ccung_softc {
 	device_t		dev;
 	struct resource		*res;

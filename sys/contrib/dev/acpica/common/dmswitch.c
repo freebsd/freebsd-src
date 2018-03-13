@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -543,6 +543,10 @@ AcpiDmIsSwitchBlock (
      * statement, so check for it.
      */
     CurrentOp = StoreOp->Common.Next->Common.Next;
+    if (!CurrentOp)
+    {
+        return (FALSE);
+    }
     if (CurrentOp->Common.AmlOpcode == AML_ELSE_OP)
     {
         CurrentOp = CurrentOp->Common.Next;

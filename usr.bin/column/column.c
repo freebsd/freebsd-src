@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -268,7 +270,12 @@ maketbl(void)
 			(void)wprintf(L"%ls%*ls", t->list[coloff],
 			    lens[coloff] - t->len[coloff] + 2, L" ");
 		(void)wprintf(L"%ls\n", t->list[coloff]);
+		free(t->list);
+		free(t->len);
 	}
+	free(lens);
+	free(cols);
+	free(tbl);
 }
 
 #define	DEFNUM		1000

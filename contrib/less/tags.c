@@ -22,6 +22,7 @@ static int curseq;
 
 extern int linenums;
 extern int sigs;
+extern int ctldisp;
 
 enum tag_result {
 	TAG_FOUND,
@@ -100,6 +101,8 @@ cleantags()
 	while ((tp = taglist.tl_first) != TAG_END)
 	{
 		TAG_RM(tp);
+		free(tp->tag_file);
+		free(tp->tag_pattern);
 		free(tp);
 	}
 	curtag = NULL;
@@ -384,6 +387,26 @@ edit_tagfile()
 	return (edit(curtag->tag_file));
 }
 
+	static int
+curtag_match(char const *line, POSITION linepos)
+{
+	/*
+	 * Test the line to see if we have a match.
+	 * Use strncmp because the pattern may be
+	 * truncated (in the tags file) if it is too long.
+	 * If tagendline is set, make sure we match all
+	 * the way to end of line (no extra chars after the match).
+	 */
+	int len = (int) strlen(curtag->tag_pattern);
+	if (strncmp(curtag->tag_pattern, line, len) == 0 &&
+	    (!curtag->tag_endline || line[len] == '\0' || line[len] == '\r'))
+	{
+		curtag->tag_linenum = find_linenum(linepos);
+		return 1;
+	}
+	return 0;
+}
+
 /*
  * Search for a tag.
  * This is a stripped-down version of search().
@@ -398,13 +421,14 @@ ctagsearch()
 {
 	POSITION pos, linepos;
 	LINENUM linenum;
-	int len;
+	int line_len;
 	char *line;
+	int found;
 
 	pos = ch_zero();
 	linenum = find_linenum(pos);
 
-	for (;;)
+	for (found = 0; !found;)
 	{
 		/*
 		 * Get lines until we find a matching one or 
@@ -418,7 +442,7 @@ ctagsearch()
 		 * starting position of that line in linepos.
 		 */
 		linepos = pos;
-		pos = forw_raw_line(pos, &line, (int *)NULL);
+		pos = forw_raw_line(pos, &line, &line_len);
 		if (linenum != 0)
 			linenum++;
 
@@ -439,19 +463,21 @@ ctagsearch()
 		if (linenums)
 			add_lnum(linenum, pos);
 
-		/*
-		 * Test the line to see if we have a match.
-		 * Use strncmp because the pattern may be
-		 * truncated (in the tags file) if it is too long.
-		 * If tagendline is set, make sure we match all
-		 * the way to end of line (no extra chars after the match).
-		 */
-		len = (int) strlen(curtag->tag_pattern);
-		if (strncmp(curtag->tag_pattern, line, len) == 0 &&
-		    (!curtag->tag_endline || line[len] == '\0' || line[len] == '\r'))
+		if (ctldisp != OPT_ONPLUS)
 		{
-			curtag->tag_linenum = find_linenum(linepos);
-			break;
+			if (curtag_match(line, linepos))
+				found = 1;
+		} else
+		{
+			int cvt_ops = CVT_ANSI;
+			int cvt_len = cvt_length(line_len, cvt_ops);
+			int *chpos = cvt_alloc_chpos(cvt_len);
+			char *cline = (char *) ecalloc(1, cvt_len);
+			cvt_text(cline, line, chpos, &line_len, cvt_ops);
+			if (curtag_match(cline, linepos))
+				found = 1;
+			free(chpos);
+			free(cline);
 		}
 	}
 

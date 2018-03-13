@@ -27,6 +27,7 @@
  */
 
 #include "opt_platform.h"
+#include "opt_ddb.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -46,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/metadata.h>
 #include <machine/physmem.h>
+#include <machine/vmparam.h>	/* For KERNVIRTADDR */
 
 #ifdef FDT
 #include <contrib/libfdt/libfdt.h>
@@ -54,6 +56,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef EFI
 #include <sys/efi.h>
+#endif
+
+#ifdef DDB
+#include <ddb/ddb.h>
 #endif
 
 #ifdef DEBUG

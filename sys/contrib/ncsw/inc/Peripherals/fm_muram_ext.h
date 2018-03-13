@@ -1,5 +1,5 @@
-/* Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
- * All rights reserved.
+/*
+ * Copyright 2008-2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,6 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 
 /**************************************************************************//**
  @File          fm_muram_ext.h
@@ -60,7 +61,7 @@
 *//***************************************************************************/
 
 /**************************************************************************//**
- @Group         FM_muram_init_grp FM MURAM Initialization
+ @Group         FM_muram_init_grp FM MURAM Initialization Unit
 
  @Description   FM MURAM initialization API functions, definitions and enums
 
@@ -103,7 +104,7 @@ t_Error  FM_MURAM_Free(t_Handle h_FmMuram);
 
 
 /**************************************************************************//**
- @Group         FM_muram_ctrl_grp FM MURAM Control
+ @Group         FM_muram_ctrl_grp FM MURAM Control Unit
 
  @Description   FM MURAM control API functions, definitions and enums
 
@@ -148,6 +149,17 @@ void  * FM_MURAM_AllocMemForce(t_Handle h_FmMuram, uint64_t base, uint32_t size)
  @Return        E_OK on success; Error code otherwise.
 *//***************************************************************************/
 t_Error FM_MURAM_FreeMem(t_Handle h_FmMuram, void *ptr);
+
+/**************************************************************************//**
+ @Function      FM_MURAM_GetFreeMemSize
+
+ @Description   Returns the size (in bytes) of free MURAM memory.
+
+ @Param[in]     h_FmMuram - FM-MURAM module descriptor.
+
+ @Return        Free MURAM memory size in bytes.
+*//***************************************************************************/
+uint64_t FM_MURAM_GetFreeMemSize(t_Handle h_FmMuram);
 
 /** @} */ /* end of FM_muram_ctrl_grp group */
 /** @} */ /* end of FM_muram_grp group */

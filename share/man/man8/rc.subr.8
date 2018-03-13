@@ -551,7 +551,7 @@ is mounted.
 A list of environment variables to run
 .Va command
 with.
-This will be passed as arguments to
+This will be passed as arguments to the
 .Xr env 1
 utility.
 .It Va ${name}_fib
@@ -583,6 +583,13 @@ as.
 Only supported after
 .Pa /usr
 is mounted.
+.It Va ${name}_limits
+.Xr limits 1
+to apply to
+.Va command .
+This will be passed as arguments to the
+.Xr limits 1
+utility.
 .It Va ${name}_oomprotect
 .Xr protect 1
 .Va command

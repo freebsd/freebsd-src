@@ -17,6 +17,8 @@ static const char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
 #define YYPURE 0
 
 #line 35 "parse.y"
+/* SPDX-License-Identifier: BSD-2-Clause */
+
 /*  Copyright (c) 1990 The Regents of the University of California. */
 /*  All rights reserved. */
 

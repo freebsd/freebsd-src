@@ -20,7 +20,7 @@ CFLAGS+= -DFS_DEBUG
 NO_WCAST_ALIGN= yes
 .endif
 
-LIBADD=	util
+LIBADD=	ufs util
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests

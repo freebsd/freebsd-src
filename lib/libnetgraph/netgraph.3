@@ -43,7 +43,7 @@
 .Nm NgNameNode ,
 .Nm NgSendMsg ,
 .Nm NgSendAsciiMsg ,
-.Nm NgSendMsgReply ,
+.Nm NgSendReplyMsg ,
 .Nm NgRecvMsg ,
 .Nm NgAllocRecvMsg ,
 .Nm NgRecvAsciiMsg ,
@@ -70,7 +70,7 @@
 .Ft int
 .Fn NgSendAsciiMsg "int cs" "const char *path" "const char *fmt" ...
 .Ft int
-.Fo NgSendMsgReply
+.Fo NgSendReplyMsg
 .Fa "int cs" "const char *path" "struct ng_mesg *msg" "const void *arg"
 .Fa "size_t arglen"
 .Fc
@@ -162,7 +162,7 @@ header is returned.
 This value is typically used to associate replies.
 .Pp
 Use
-.Fn NgSendMsgReply
+.Fn NgSendReplyMsg
 to send reply to a previously received control message.
 The original message header should be pointed to by
 .Fa msg .

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995 Bruce D. Evans.
  * All rights reserved.
  *
@@ -39,6 +41,7 @@ extern int szsigcode;
 extern uint32_t *vm_page_dump;
 extern int vm_page_dump_size;
 extern u_long elf_hwcap;
+extern u_long elf_hwcap2;
 
 extern int (*_arm_memcpy)(void *, void *, int, int);
 extern int (*_arm_bzero)(void *, int, int);

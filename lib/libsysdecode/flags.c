@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/acl.h>
 #include <sys/capsicum.h>
+#include <sys/event.h>
 #include <sys/extattr.h>
 #include <sys/linker.h>
 #include <sys/mman.h>
@@ -501,6 +502,116 @@ sysdecode_getrusage_who(int who)
 	return (lookup_value(rusage, who));
 }
 
+static struct name_table kevent_user_ffctrl[] = {
+	X(NOTE_FFNOP) X(NOTE_FFAND) X(NOTE_FFOR) X(NOTE_FFCOPY)
+	XEND
+};
+
+static struct name_table kevent_rdwr_fflags[] = {
+	X(NOTE_LOWAT) X(NOTE_FILE_POLL) XEND
+};
+
+static struct name_table kevent_vnode_fflags[] = {
+	X(NOTE_DELETE) X(NOTE_WRITE) X(NOTE_EXTEND) X(NOTE_ATTRIB)
+	X(NOTE_LINK) X(NOTE_RENAME) X(NOTE_REVOKE) X(NOTE_OPEN) X(NOTE_CLOSE)
+	X(NOTE_CLOSE_WRITE) X(NOTE_READ) XEND
+};
+
+static struct name_table kevent_proc_fflags[] = {
+	X(NOTE_EXIT) X(NOTE_FORK) X(NOTE_EXEC) X(NOTE_TRACK) X(NOTE_TRACKERR)
+	X(NOTE_CHILD) XEND
+};
+
+static struct name_table kevent_timer_fflags[] = {
+	X(NOTE_SECONDS) X(NOTE_MSECONDS) X(NOTE_USECONDS) X(NOTE_NSECONDS)
+	X(NOTE_ABSTIME) XEND
+};
+
+void
+sysdecode_kevent_fflags(FILE *fp, short filter, int fflags, int base)
+{
+	int rem;
+
+	if (fflags == 0) {
+		fputs("0", fp);
+		return;
+	}
+
+	switch (filter) {
+	case EVFILT_READ:
+	case EVFILT_WRITE:
+		if (!print_mask_int(fp, kevent_rdwr_fflags, fflags, &rem))
+			fprintf(fp, "%#x", rem);
+		else if (rem != 0)
+			fprintf(fp, "|%#x", rem);
+		break;
+	case EVFILT_VNODE:
+		if (!print_mask_int(fp, kevent_vnode_fflags, fflags, &rem))
+			fprintf(fp, "%#x", rem);
+		else if (rem != 0)
+			fprintf(fp, "|%#x", rem);
+		break;
+	case EVFILT_PROC:
+	case EVFILT_PROCDESC:
+		if (!print_mask_int(fp, kevent_proc_fflags, fflags, &rem))
+			fprintf(fp, "%#x", rem);
+		else if (rem != 0)
+			fprintf(fp, "|%#x", rem);
+		break;
+	case EVFILT_TIMER:
+		if (!print_mask_int(fp, kevent_timer_fflags, fflags, &rem))
+			fprintf(fp, "%#x", rem);
+		else if (rem != 0)
+			fprintf(fp, "|%#x", rem);
+		break;
+	case EVFILT_USER: {
+		unsigned int ctrl, data;
+
+		ctrl = fflags & NOTE_FFCTRLMASK;
+		data = fflags & NOTE_FFLAGSMASK;
+
+		if (fflags & NOTE_TRIGGER) {
+			fputs("NOTE_TRIGGER", fp);
+			if (fflags == NOTE_TRIGGER)
+				return;
+			fputc('|', fp);
+		}
+
+		/*
+		 * An event with 'ctrl' == NOTE_FFNOP is either a reported
+		 * (output) event for which only 'data' should be output
+		 * or a pointless input event.  Assume that pointless
+		 * input events don't occur in practice.  An event with
+		 * NOTE_TRIGGER is always an input event.
+		 */
+		if (ctrl != NOTE_FFNOP || fflags & NOTE_TRIGGER) {
+			fprintf(fp, "%s|%#x",
+			    lookup_value(kevent_user_ffctrl, ctrl), data);
+		} else {
+			print_integer(fp, data, base);
+		}
+		break;
+	}
+	default:
+		print_integer(fp, fflags, base);
+		break;
+	}
+}
+
+bool
+sysdecode_kevent_flags(FILE *fp, int flags, int *rem)
+{
+
+	return (print_mask_int(fp, keventflags, flags, rem));
+}
+
+const char *
+sysdecode_kevent_filter(int filter)
+{
+
+	return (lookup_value(keventfilters, filter));
+}
+
 const char *
 sysdecode_kldsym_cmd(int cmd)
 {
@@ -647,9 +758,11 @@ sysdecode_reboot_howto(FILE *fp, int howto, int *rem)
 	/*
 	 * RB_AUTOBOOT is special in that its value is zero, but it is
 	 * also an implied argument if a different operation is not
-	 * requested via RB_HALT, RB_POWEROFF, or RB_REROOT.
+	 * requested via RB_HALT, RB_POWERCYCLE, RB_POWEROFF, or
+	 * RB_REROOT.
 	 */
-	if (howto != 0 && (howto & (RB_HALT | RB_POWEROFF | RB_REROOT)) == 0) {
+	if (howto != 0 && (howto & (RB_HALT | RB_POWEROFF | RB_REROOT |
+	    RB_POWERCYCLE)) == 0) {
 		fputs("RB_AUTOBOOT|", fp);
 		printed = true;
 	} else
@@ -1042,6 +1155,115 @@ sysdecode_cap_rights(FILE *fp, cap_rights_t *rightsp)
 		if (cap_rights_is_set(rightsp, t->val)) {
 			fprintf(fp, "%s%s", comma ? "," : "", t->str);
 			comma = true;
+		}
+	}
+}
+
+static struct name_table cmsgtypeip[] = {
+	X(IP_RECVDSTADDR) X(IP_RECVTTL) X(IP_RECVOPTS) X(IP_RECVRETOPTS)
+	X(IP_RECVIF) X(IP_RECVTOS) X(IP_FLOWID) X(IP_FLOWTYPE)
+	X(IP_RSSBUCKETID) XEND
+};
+
+static struct name_table cmsgtypeipv6[] = {
+#if 0
+	/* The RFC 2292 defines are kernel space only. */
+	X(IPV6_2292PKTINFO) X(IPV6_2292HOPLIMIT) X(IPV6_2292HOPOPTS)
+	X(IPV6_2292DSTOPTS) X(IPV6_2292RTHDR) X(IPV6_2292NEXTHOP)
+#endif
+	X(IPV6_PKTINFO)  X(IPV6_HOPLIMIT) X(IPV6_HOPOPTS)
+	X(IPV6_DSTOPTS) X(IPV6_RTHDR) X(IPV6_NEXTHOP)
+	X(IPV6_TCLASS) X(IPV6_FLOWID) X(IPV6_FLOWTYPE) X(IPV6_RSSBUCKETID)
+	X(IPV6_PATHMTU) X(IPV6_RTHDRDSTOPTS) X(IPV6_USE_MIN_MTU)
+	X(IPV6_DONTFRAG) X(IPV6_PREFER_TEMPADDR) XEND
+};
+
+static struct name_table cmsgtypesctp[] = {
+	X(SCTP_INIT) X(SCTP_SNDRCV) X(SCTP_EXTRCV) X(SCTP_SNDINFO)
+	X(SCTP_RCVINFO) X(SCTP_NXTINFO) X(SCTP_PRINFO) X(SCTP_AUTHINFO)
+	X(SCTP_DSTADDRV4) X(SCTP_DSTADDRV6) XEND
+};
+
+const char *
+sysdecode_cmsg_type(int cmsg_level, int cmsg_type)
+{
+
+	if (cmsg_level == SOL_SOCKET)
+		return (lookup_value(cmsgtypesocket, cmsg_type));
+	if (cmsg_level == IPPROTO_IP)
+		return (lookup_value(cmsgtypeip, cmsg_type));
+	if (cmsg_level == IPPROTO_IPV6)
+		return (lookup_value(cmsgtypeipv6, cmsg_type));
+	if (cmsg_level == IPPROTO_SCTP)
+		return (lookup_value(cmsgtypesctp, cmsg_type));
+	return (NULL);
+}
+
+const char *
+sysdecode_sctp_pr_policy(int policy)
+{
+
+	return (lookup_value(sctpprpolicy, policy));
+}
+
+static struct name_table sctpsndflags[] = {
+	X(SCTP_EOF) X(SCTP_ABORT) X(SCTP_UNORDERED) X(SCTP_ADDR_OVER)
+	X(SCTP_SENDALL) X(SCTP_SACK_IMMEDIATELY) XEND
+};
+
+bool
+sysdecode_sctp_snd_flags(FILE *fp, int flags, int *rem)
+{
+
+	return (print_mask_int(fp, sctpsndflags, flags, rem));
+}
+
+static struct name_table sctprcvflags[] = {
+	X(SCTP_UNORDERED) XEND
+};
+
+bool
+sysdecode_sctp_rcv_flags(FILE *fp, int flags, int *rem)
+{
+
+	return (print_mask_int(fp, sctprcvflags, flags, rem));
+}
+
+static struct name_table sctpnxtflags[] = {
+	X(SCTP_UNORDERED) X(SCTP_COMPLETE) X(SCTP_NOTIFICATION) XEND
+};
+
+bool
+sysdecode_sctp_nxt_flags(FILE *fp, int flags, int *rem)
+{
+
+	return (print_mask_int(fp, sctpnxtflags, flags, rem));
+}
+
+static struct name_table sctpsinfoflags[] = {
+	X(SCTP_EOF) X(SCTP_ABORT) X(SCTP_UNORDERED) X(SCTP_ADDR_OVER)
+	X(SCTP_SENDALL) X(SCTP_EOR) X(SCTP_SACK_IMMEDIATELY) XEND
+};
+
+void
+sysdecode_sctp_sinfo_flags(FILE *fp, int sinfo_flags)
+{
+	const char *temp;
+	int rem;
+	bool printed;
+
+	printed = print_mask_0(fp, sctpsinfoflags, sinfo_flags, &rem);
+	if (rem & ~SCTP_PR_SCTP_ALL) {
+		fprintf(fp, "%s%#x", printed ? "|" : "", rem & ~SCTP_PR_SCTP_ALL);
+		printed = true;
+		rem &= ~SCTP_PR_SCTP_ALL;
+	}
+	if (rem != 0) {
+		temp = sysdecode_sctp_pr_policy(rem);
+		if (temp != NULL) {
+			fprintf(fp, "%s%s", printed ? "|" : "", temp);
+		} else {
+			fprintf(fp, "%s%#x", printed ? "|" : "", rem);
 		}
 	}
 }

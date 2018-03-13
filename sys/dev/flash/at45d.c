@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 M. Warner Losh
  * Copyright (c) 2011-2012 Ian Lepore
  * Copyright (c) 2012 Marius Strobl <marius@FreeBSD.org>
@@ -448,3 +450,4 @@ static driver_t at45d_driver = {
 };
 
 DRIVER_MODULE(at45d, spibus, at45d_driver, at45d_devclass, NULL, NULL);
+MODULE_DEPEND(at45d, spibus, 1, 1, 1);

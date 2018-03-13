@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999, 2000 Matthew R. Green
  * Copyright (c) 2001 - 2003 by Thomas Moestl <tmm@FreeBSD.org>
  * Copyright (c) 2005 - 2006 Marius Strobl <marius@FreeBSD.org>

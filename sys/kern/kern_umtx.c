@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015, 2016 The FreeBSD Foundation
  * Copyright (c) 2004, David Xu <davidxu@freebsd.org>
  * Copyright (c) 2002, Jeffrey Roberson <jeff@freebsd.org>
@@ -1579,8 +1581,7 @@ umtx_pi_setowner(struct umtx_pi *pi, struct thread *owner)
 
 	uq_owner = owner->td_umtxq;
 	mtx_assert(&umtx_lock, MA_OWNED);
-	if (pi->pi_owner != NULL)
-		panic("pi_owner != NULL");
+	MPASS(pi->pi_owner == NULL);
 	pi->pi_owner = owner;
 	TAILQ_INSERT_TAIL(&uq_owner->uq_pi_contested, pi, pi_link);
 }
@@ -4117,7 +4118,7 @@ __umtx_op_lock_umutex_compat32(struct thread *td, struct _umtx_op_args *uap)
 	if (uap->uaddr2 == NULL)
 		tm_p = NULL;
 	else {
-		error = umtx_copyin_umtx_time(uap->uaddr2,
+		error = umtx_copyin_umtx_time32(uap->uaddr2,
 			    (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);

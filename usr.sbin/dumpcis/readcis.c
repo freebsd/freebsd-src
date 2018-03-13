@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995 Andrew McRae.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,16 +26,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Code cleanup, bug-fix and extension
  * by Tatsumi Hosokawa <hosokawa@mt.cs.keio.ac.jp>
  */
 
+#include <assert.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,42 +51,44 @@ static struct tuple_list *read_tuples(int);
 static struct tuple *find_tuple_in_list(struct tuple_list *, unsigned char);
 static struct tuple_info *get_tuple_info(unsigned char);
 
+#define LENGTH_ANY 255
+
 static struct tuple_info tuple_info[] = {
 	{"Null tuple", CIS_NULL, 0},
-	{"Common memory descriptor", CIS_MEM_COMMON, 255},
-	{"Long link to next chain for CardBus", CIS_LONGLINK_CB, 255},
-	{"Indirect access", CIS_INDIRECT, 255},
-	{"Configuration map for CardBus", CIS_CONF_MAP_CB, 255},
-	{"Configuration entry for CardBus", CIS_CONFIG_CB, 255},
-	{"Long link to next chain for MFC", CIS_LONGLINK_MFC, 255},
+	{"Common memory descriptor", CIS_MEM_COMMON, LENGTH_ANY},
+	{"Long link to next chain for CardBus", CIS_LONGLINK_CB, LENGTH_ANY},
+	{"Indirect access", CIS_INDIRECT, LENGTH_ANY},
+	{"Configuration map for CardBus", CIS_CONF_MAP_CB, LENGTH_ANY},
+	{"Configuration entry for CardBus", CIS_CONFIG_CB, LENGTH_ANY},
+	{"Long link to next chain for MFC", CIS_LONGLINK_MFC, LENGTH_ANY},
 	{"Base address register for CardBus", CIS_BAR, 6},
 	{"Checksum", CIS_CHECKSUM, 5},
 	{"Long link to attribute memory", CIS_LONGLINK_A, 4},
 	{"Long link to common memory", CIS_LONGLINK_C, 4},
 	{"Link target", CIS_LINKTARGET, 3},
 	{"No link", CIS_NOLINK, 0},
-	{"Version 1 info", CIS_INFO_V1, 255},
-	{"Alternate language string", CIS_ALTSTR, 255},
-	{"Attribute memory descriptor", CIS_MEM_ATTR, 255},
-	{"JEDEC descr for common memory", CIS_JEDEC_C, 255},
-	{"JEDEC descr for attribute memory", CIS_JEDEC_A, 255},
-	{"Configuration map", CIS_CONF_MAP, 255},
-	{"Configuration entry", CIS_CONFIG, 255},
-	{"Other conditions for common memory", CIS_DEVICE_OC, 255},
-	{"Other conditions for attribute memory", CIS_DEVICE_OA, 255},
-	{"Geometry info for common memory", CIS_DEVICEGEO, 255},
-	{"Geometry info for attribute memory", CIS_DEVICEGEO_A, 255},
+	{"Version 1 info", CIS_INFO_V1, LENGTH_ANY},
+	{"Alternate language string", CIS_ALTSTR, LENGTH_ANY},
+	{"Attribute memory descriptor", CIS_MEM_ATTR, LENGTH_ANY},
+	{"JEDEC descr for common memory", CIS_JEDEC_C, LENGTH_ANY},
+	{"JEDEC descr for attribute memory", CIS_JEDEC_A, LENGTH_ANY},
+	{"Configuration map", CIS_CONF_MAP, LENGTH_ANY},
+	{"Configuration entry", CIS_CONFIG, LENGTH_ANY},
+	{"Other conditions for common memory", CIS_DEVICE_OC, LENGTH_ANY},
+	{"Other conditions for attribute memory", CIS_DEVICE_OA, LENGTH_ANY},
+	{"Geometry info for common memory", CIS_DEVICEGEO, LENGTH_ANY},
+	{"Geometry info for attribute memory", CIS_DEVICEGEO_A, LENGTH_ANY},
 	{"Manufacturer ID", CIS_MANUF_ID, 4},
 	{"Functional ID", CIS_FUNC_ID, 2},
-	{"Functional EXT", CIS_FUNC_EXT, 255},
+	{"Functional EXT", CIS_FUNC_EXT, LENGTH_ANY},
 	{"Software interleave", CIS_SW_INTERLV, 2},
-	{"Version 2 Info", CIS_VERS_2, 255},
-	{"Data format", CIS_FORMAT, 255},
+	{"Version 2 Info", CIS_VERS_2, LENGTH_ANY},
+	{"Data format", CIS_FORMAT, LENGTH_ANY},
 	{"Geometry", CIS_GEOMETRY, 4},
 	{"Byte order", CIS_BYTEORDER, 2},
 	{"Card init date", CIS_DATE, 4},
 	{"Battery replacement", CIS_BATTERY, 4},
-	{"Organization", CIS_ORG, 255},
+	{"Organization", CIS_ORG, LENGTH_ANY},
 	{"Terminator", CIS_END, 0},
 	{0, 0, 0}
 };
@@ -97,10 +100,9 @@ xmalloc(int sz)
 
 	sz = (sz + 7) & ~7;
 	p = malloc(sz);
-	if (p)
-		bzero(p, sz);
-	else
+	if (p == NULL)
 		errx(1, "malloc");
+	bzero(p, sz);
 	return (p);
 }
 
@@ -203,39 +205,40 @@ read_tuples(int fd)
 	do {
 		flag = MDF_ATTR;
 		tp = find_tuple_in_list(last_tl, CIS_LONGLINK_A);
-		if (tp == 0) {
+		if (tp == NULL) {
 			flag = 0;
 			tp = find_tuple_in_list(last_tl, CIS_LONGLINK_C);
 		}
-		if (tp && tp->length == 4) {
-			offs = tpl32(tp->data);
+
+		if (tp == NULL || tp->length != 4)
+			break;
+
+		offs = (uint32_t)tpl32(tp->data);
 #ifdef	DEBUG
-			printf("Checking long link at %zd (%s memory)\n",
-			    offs, flag ? "Attribute" : "Common");
+		printf("Checking long link at %zd (%s memory)\n",
+		    offs, flag ? "Attribute" : "Common");
 #endif
-			/* If a link was found, read the tuple list from it. */
-			if (ck_linktarget(fd, offs, flag)) {
-				tl = read_one_tuplelist(fd, flag, offs);
-				last_tl->next = tl;
-				last_tl = tl;
-			}
-		} else
-			tl = 0;
+		/*
+		 * If a link was found, it looks sane read the tuple list from it.
+		 */
+		if (offs > 0 && offs < 32 * 1024 && ck_linktarget(fd, offs, flag)) {
+			tl = read_one_tuplelist(fd, flag, offs);
+			last_tl->next = tl;
+			last_tl = tl;
+		}
 	} while (tl);
 
 	/*
-	 * If the primary list had no NOLINK tuple, and no LINKTARGET,
-	 * then try to read a tuple list at common memory (offset 0).
+	 * If the primary list had no NOLINK tuple, and no LINKTARGET, then try
+	 * to read a tuple list at common memory (offset 0).
 	 */
 	if (find_tuple_in_list(tlist, CIS_NOLINK) == 0 &&
 	    find_tuple_in_list(tlist, CIS_LINKTARGET) == 0 &&
 	    ck_linktarget(fd, (off_t) 0, 0)) {
-		offs = 0;
 #ifdef	DEBUG
-		printf("Reading long link at %zd (%s memory)\n",
-		    offs, flag ? "Attribute" : "Common");
+		printf("Reading long link at 0 (Common memory)\n");
 #endif
-		tlist->next = read_one_tuplelist(fd, 0, offs);
+		tlist->next = read_one_tuplelist(fd, 0, 0);
 	}
 	return (tlist);
 }
@@ -259,13 +262,15 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 	tl = xmalloc(sizeof(*tl));
 	tl->offs = offs;
 	tl->flags = flags & MDF_ATTR;
-	ioctl(fd, PIOCRWFLAG, &flags);
-	lseek(fd, offs, SEEK_SET);
+	if (ioctl(fd, PIOCRWFLAG, &flags) < 0)
+		err(1, "Setting flag to rad %s memory failed",
+		    flags ? "attribute" : "common");
+	if (lseek(fd, offs, SEEK_SET) < 0)
+		err(1, "Unable to seek to memory offset %ju",
+		    (uintmax_t)offs);
 	do {
-		if (read(fd, &code, 1) != 1) {
-			warn("CIS code read");
-			break;
-		}
+		if (read(fd, &code, 1) != 1)
+			errx(1, "CIS code read");
 		total++;
 		if (code == CIS_NULL)
 			continue;
@@ -274,42 +279,50 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 		if (code == CIS_END)
 			length = 0;
 		else {
-			if (read(fd, &length, 1) != 1) {
-				warn("CIS len read");
-				break;
-			}
+			if (read(fd, &length, 1) != 1)
+				errx(1, "CIS len read");
 			total++;
 		}
-		tp->length = length;
 #ifdef	DEBUG
 		printf("Tuple code = 0x%x, len = %d\n", code, length);
 #endif
+
+		/*
+		 * A length of 255 is invalid, all others are valid. Treat a
+		 * length of 255 as the end of the list. Some cards don't have a
+		 * CIS_END at the end. These work on other systems because the
+		 * end of the CIS eventually sees an area that's not decoded and
+		 * read back as 0xff.
+		 */
 		if (length == 0xFF) {
-			length = tp->length = 0;
+			length = 0;
 			code = CIS_END;
 		}
-		if (length != 0) {
-			total += length;
-			tp->data = xmalloc(length);
-			if (read(fd, tp->data, length) != length) {
-				warn("CIS read");
-				break;
-			}
-		}
+		assert(length < 0xff);
 
 		/*
 		 * Check the tuple, and ignore it if it isn't in the table
 		 * or the length is illegal.
 		 */
 		tinfo = get_tuple_info(code);
-		if (tinfo != NULL && (tinfo->length != 255 && tinfo->length > length)) {
+		if (tinfo == NULL || (tinfo->length != LENGTH_ANY && tinfo->length > length)) {
 			printf("code %s (%d) ignored\n", tuple_name(code), code);
-			tp->code = CIS_NULL;
+			continue;
 		}
-		if (tl->tuples == NULL)
-			tl->tuples = tp;
-		else
+		tp->length = length;
+		if (length != 0) {
+			total += length;
+			tp->data = xmalloc(length);
+			if (read(fd, tp->data, length) != length)
+				errx(1, "Can't read CIS data");
+		}
+
+		if (last_tp != NULL)
 			last_tp->next = tp;
+		if (tl->tuples == NULL) {
+			tl->tuples = tp;
+			tp->next = NULL;
+		}
 		last_tp = tp;
 	} while (code != CIS_END && total < 1024);
 	return (tl);
@@ -323,8 +336,12 @@ ck_linktarget(int fd, off_t offs, int flag)
 {
 	char    blk[5];
 
-	ioctl(fd, PIOCRWFLAG, &flag);
-	lseek(fd, offs, SEEK_SET);
+	if (ioctl(fd, PIOCRWFLAG, &flag) < 0)
+		err(1, "Setting flag to rad %s memory failed",
+		    flag ? "attribute" : "common");
+	if (lseek(fd, offs, SEEK_SET) < 0)
+		err(1, "Unable to seek to memory offset %ju",
+		    (uintmax_t)offs);
 	if (read(fd, blk, 5) != 5)
 		return (0);
 	if (blk[0] == CIS_LINKTARGET &&

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -479,7 +481,7 @@ cd9660_readdir(ap)
 	int error = 0;
 	int reclen;
 	u_short namelen;
-	int ncookies = 0;
+	u_int ncookies = 0;
 	u_long *cookies = NULL;
 	cd_ino_t ino;
 

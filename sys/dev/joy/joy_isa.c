@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995 Jean-Marc Zucconi
  * All rights reserved.
  *
@@ -83,3 +85,4 @@ static driver_t joy_isa_driver = {
 
 DRIVER_MODULE(joy, isa, joy_isa_driver, joy_devclass, 0, 0);
 DRIVER_MODULE(joy, acpi, joy_isa_driver, joy_devclass, 0, 0);
+ISA_PNP_INFO(joy_ids);

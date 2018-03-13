@@ -2,7 +2,9 @@
 
 /* Packet assembly code, originally contributed by Archie Cobbs. */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995, 1996, 1999 The Internet Software Consortium.
  * All rights reserved.
  *
@@ -58,7 +60,7 @@ u_int32_t	wrapsum(u_int32_t);
 u_int32_t
 checksum(unsigned char *buf, unsigned nbytes, u_int32_t sum)
 {
-	int i;
+	unsigned i;
 
 	/* Checksum all the pairs of bytes first... */
 	for (i = 0; i < (nbytes & ~1U); i += 2) {

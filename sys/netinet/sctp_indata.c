@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
@@ -88,12 +90,14 @@ sctp_calc_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
 	if (stcb->sctp_socket == NULL) {
 		return (calc);
 	}
+	KASSERT(asoc->cnt_on_reasm_queue > 0 || asoc->size_on_reasm_queue == 0,
+	    ("size_on_reasm_queue is %u", asoc->size_on_reasm_queue));
+	KASSERT(asoc->cnt_on_all_streams > 0 || asoc->size_on_all_streams == 0,
+	    ("size_on_all_streams is %u", asoc->size_on_all_streams));
 	if (stcb->asoc.sb_cc == 0 &&
-	    asoc->size_on_reasm_queue == 0 &&
-	    asoc->size_on_all_streams == 0) {
+	    asoc->cnt_on_reasm_queue == 0 &&
+	    asoc->cnt_on_all_streams == 0) {
 		/* Full rwnd granted */
-		KASSERT(asoc->cnt_on_reasm_queue == 0, ("cnt_on_reasm_queue is %u", asoc->cnt_on_reasm_queue));
-		KASSERT(asoc->cnt_on_all_streams == 0, ("cnt_on_all_streams is %u", asoc->cnt_on_all_streams));
 		calc = max(SCTP_SB_LIMIT_RCV(stcb->sctp_socket), SCTP_MINIMAL_RWND);
 		return (calc);
 	}
@@ -1245,6 +1249,19 @@ deliver_more:
 			}
 			done = (control->end_added) && (control->last_frag_seen);
 			if (control->on_read_q == 0) {
+				if (!done) {
+					if (asoc->size_on_all_streams >= control->length) {
+						asoc->size_on_all_streams -= control->length;
+					} else {
+#ifdef INVARIANTS
+						panic("size_on_all_streams = %u smaller than control length %u", asoc->size_on_all_streams, control->length);
+#else
+						asoc->size_on_all_streams = 0;
+#endif
+					}
+					strm->pd_api_started = 1;
+					control->pdapi_started = 1;
+				}
 				sctp_add_to_readq(stcb->sctp_ep, stcb,
 				    control,
 				    &stcb->sctp_socket->so_rcv, control->end_added,
@@ -1254,10 +1271,6 @@ deliver_more:
 			if (done) {
 				control = nctl;
 				goto deliver_more;
-			} else {
-				/* We are now doing PD API */
-				strm->pd_api_started = 1;
-				control->pdapi_started = 1;
 			}
 		}
 	}
@@ -1316,15 +1329,11 @@ sctp_add_chk_to_control(struct sctp_queued_to_read *control,
 			} else if (control->on_strm_q == SCTP_ON_ORDERED) {
 				/* Ordered */
 				TAILQ_REMOVE(&strm->inqueue, control, next_instrm);
-				if (asoc->size_on_all_streams >= control->length) {
-					asoc->size_on_all_streams -= control->length;
-				} else {
-#ifdef INVARIANTS
-					panic("size_on_all_streams = %u smaller than control length %u", asoc->size_on_all_streams, control->length);
-#else
-					asoc->size_on_all_streams = 0;
-#endif
-				}
+				/*
+				 * Don't need to decrement
+				 * size_on_all_streams, since control is on
+				 * the read queue.
+				 */
 				sctp_ucount_decr(asoc->cnt_on_all_streams);
 				control->on_strm_q = 0;
 #ifdef INVARIANTS
@@ -2641,10 +2650,11 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 	struct sctp_association *asoc;
 	int num_chunks = 0;	/* number of control chunks processed */
 	int stop_proc = 0;
-	int chk_length, break_flag, last_chunk;
+	int break_flag, last_chunk;
 	int abort_flag = 0, was_a_gap;
 	struct mbuf *m;
 	uint32_t highest_tsn;
+	uint16_t chk_length;
 
 	/* set the rwnd */
 	sctp_set_rwnd(stcb, &stcb->asoc);
@@ -2696,7 +2706,8 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 	}
 	/* get pointer to the first chunk header */
 	ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
-	    sizeof(struct sctp_chunkhdr), (uint8_t *)&chunk_buf);
+	    sizeof(struct sctp_chunkhdr),
+	    (uint8_t *)&chunk_buf);
 	if (ch == NULL) {
 		return (1);
 	}
@@ -2738,7 +2749,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 		}
 		if ((ch->chunk_type == SCTP_DATA) ||
 		    (ch->chunk_type == SCTP_IDATA)) {
-			int clen;
+			uint16_t clen;
 
 			if (ch->chunk_type == SCTP_DATA) {
 				clen = sizeof(struct sctp_data_chunk);
@@ -2753,7 +2764,8 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				struct mbuf *op_err;
 				char msg[SCTP_DIAG_INFO_LEN];
 
-				snprintf(msg, sizeof(msg), "DATA chunk of length %d",
+				snprintf(msg, sizeof(msg), "%s chunk of length %u",
+				    ch->chunk_type == SCTP_DATA ? "DATA" : "I-DATA",
 				    chk_length);
 				op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_20;
@@ -2830,7 +2842,25 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 					return (2);
 				}
 			default:
-				/* unknown chunk type, use bit rules */
+				/*
+				 * Unknown chunk type: use bit rules after
+				 * checking length
+				 */
+				if (chk_length < sizeof(struct sctp_chunkhdr)) {
+					/*
+					 * Need to send an abort since we
+					 * had a invalid chunk.
+					 */
+					struct mbuf *op_err;
+					char msg[SCTP_DIAG_INFO_LEN];
+
+					snprintf(msg, sizeof(msg), "Chunk of length %u",
+					    chk_length);
+					op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_20;
+					sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
+					return (2);
+				}
 				if (ch->chunk_type & 0x40) {
 					/* Add a error report to the queue */
 					struct mbuf *op_err;
@@ -2866,7 +2896,8 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 			continue;
 		}
 		ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
-		    sizeof(struct sctp_chunkhdr), (uint8_t *)&chunk_buf);
+		    sizeof(struct sctp_chunkhdr),
+		    (uint8_t *)&chunk_buf);
 		if (ch == NULL) {
 			*offset = length;
 			stop_proc = 1;
@@ -3058,7 +3089,6 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 									    &stcb->asoc,
 									    tp1->whoTo,
 									    &tp1->sent_rcv_time,
-									    sctp_align_safe_nocopy,
 									    SCTP_RTT_FROM_DATA);
 									*rto_ok = 0;
 								}
@@ -3334,7 +3364,8 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				}
 			}
 		}
-		if (SCTP_TSN_GT(tp1->rec.data.tsn, asoc->this_sack_highest_gap)) {
+		if (SCTP_TSN_GT(tp1->rec.data.tsn, asoc->this_sack_highest_gap) &&
+		    !(accum_moved && asoc->fast_retran_loss_recovery)) {
 			/* we are beyond the tsn in the sack  */
 			break;
 		}
@@ -3358,8 +3389,10 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			 * FR using this SACK.
 			 */
 			continue;
-		} else if (tp1->whoTo && SCTP_TSN_GT(tp1->rec.data.tsn,
-		    tp1->whoTo->this_sack_highest_newack)) {
+		} else if (tp1->whoTo &&
+			    SCTP_TSN_GT(tp1->rec.data.tsn,
+			    tp1->whoTo->this_sack_highest_newack) &&
+		    !(accum_moved && asoc->fast_retran_loss_recovery)) {
 			/*
 			 * CMT: New acks were receieved for data sent to
 			 * this dest. But no new acks were seen for data
@@ -3644,7 +3677,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					tp1->whoTo->find_pseudo_cumack = 1;
 					tp1->whoTo->find_rtx_pseudo_cumack = 1;
 				}
-			} else {/* CMT is OFF */
+			} else {	/* CMT is OFF */
 
 #ifdef SCTP_FR_TO_ALTERNATE
 				/* Can we find an alternate? */
@@ -4030,7 +4063,6 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 								    sctp_calculate_rto(stcb,
 								    asoc, tp1->whoTo,
 								    &tp1->sent_rcv_time,
-								    sctp_align_safe_nocopy,
 								    SCTP_RTT_FROM_DATA);
 								rto_ok = 0;
 							}
@@ -4574,6 +4606,13 @@ hopeless_peer:
 		if (stcb->asoc.cc_functions.sctp_cwnd_prepare_net_for_sack) {
 			(*stcb->asoc.cc_functions.sctp_cwnd_prepare_net_for_sack) (stcb, net);
 		}
+		/*
+		 * CMT: SFR algo (and HTNA) - this_sack_highest_newack has
+		 * to be greater than the cumack. Also reset saw_newack to 0
+		 * for all dests.
+		 */
+		net->saw_newack = 0;
+		net->this_sack_highest_newack = last_tsn;
 	}
 	/* process the new consecutive TSN first */
 	TAILQ_FOREACH(tp1, &asoc->sent_queue, sctp_next) {
@@ -4636,7 +4675,6 @@ hopeless_peer:
 								    sctp_calculate_rto(stcb,
 								    asoc, tp1->whoTo,
 								    &tp1->sent_rcv_time,
-								    sctp_align_safe_nocopy,
 								    SCTP_RTT_FROM_DATA);
 								rto_ok = 0;
 							}
@@ -4700,16 +4738,6 @@ hopeless_peer:
 	asoc->this_sack_highest_gap = last_tsn;
 
 	if ((num_seg > 0) || (num_nr_seg > 0)) {
-
-		/*
-		 * CMT: SFR algo (and HTNA) - this_sack_highest_newack has
-		 * to be greater than the cumack. Also reset saw_newack to 0
-		 * for all dests.
-		 */
-		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
-			net->saw_newack = 0;
-			net->this_sack_highest_newack = last_tsn;
-		}
 
 		/*
 		 * thisSackHighestGap will increase while handling NEW

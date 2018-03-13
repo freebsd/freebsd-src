@@ -343,7 +343,7 @@ epoll_to_kevent(struct thread *td, struct file *epfp,
 	return (0);
 }
 
-/* 
+/*
  * Structure converting function from kevent to epoll. In a case
  * this is called on error in registration we store the error in
  * event->data and pick it up later in linux_epoll_ctl().
@@ -370,7 +370,7 @@ kevent_to_epoll(struct kevent *kevent, struct epoll_event *l_event)
 	}
 }
 
-/* 
+/*
  * Copyout callback used by kevent. This converts kevent
  * events to epoll events and copies them back to the
  * userspace. This is also called on error on registering
@@ -417,7 +417,7 @@ epoll_kev_copyout(void *arg, struct kevent *kevp, int count)
 
 /*
  * Copyin callback used by kevent. This copies already
- * converted filters from kernel memory to the kevent 
+ * converted filters from kernel memory to the kevent
  * internal kernel memory. Hence the memcpy instead of
  * copyin.
  */
@@ -600,7 +600,7 @@ linux_epoll_wait_common(struct thread *td, int epfd, struct epoll_event *events,
 	if (error == 0 && coargs.error != 0)
 		error = coargs.error;
 
-	/* 
+	/*
 	 * kern_kevent might return ENOMEM which is not expected from epoll_wait.
 	 * Maybe we should translate that but I don't think it matters at all.
 	 */
@@ -696,7 +696,7 @@ eventfd_create(struct thread *td, uint32_t initval, int flags)
 
 	knlist_init_mtx(&efd->efd_sel.si_note, &efd->efd_lock);
 
-	fflags = FREAD | FWRITE; 
+	fflags = FREAD | FWRITE;
 	if ((flags & LINUX_O_NONBLOCK) != 0)
 		fflags |= FNONBLOCK;
 

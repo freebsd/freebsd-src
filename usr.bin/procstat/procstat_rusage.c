@@ -106,7 +106,7 @@ print_prefix(struct kinfo_proc *kipp)
 {
 
 	xo_emit("{d:process_id/%5d/%d} ", kipp->ki_pid);
-	if (Hflag)
+	if ((procstat_opts & PS_OPT_PERTHREAD) != 0)
 		xo_emit("{d:thread_id/%6d/%d} ", kipp->ki_tid);
 	xo_emit("{d:command/%-16s/%s} ", kipp->ki_comm);
 }
@@ -125,7 +125,7 @@ print_rusage(struct kinfo_proc *kipp)
 	xo_emit("{d:resource/%-14s} {d:usage/%29s}{P:   }\n", "system time",
 	    format_time(&kipp->ki_rusage.ru_stime));
 
-	if (Hflag) {
+	if ((procstat_opts & PS_OPT_PERTHREAD) != 0) {
 		asprintf(&threadid, "%d", kipp->ki_tid);
 		if (threadid == NULL)
 			xo_errc(1, ENOMEM,
@@ -154,7 +154,7 @@ print_rusage(struct kinfo_proc *kipp)
 		    rusage_info[i].ri_scale));
 		lp++;
 	}
-	if (Hflag) {
+	if ((procstat_opts & PS_OPT_PERTHREAD) != 0) {
 		xo_close_container(threadid);
 		free(threadid);
 	}
@@ -166,15 +166,15 @@ procstat_rusage(struct procstat *procstat, struct kinfo_proc *kipp)
 	struct kinfo_proc *kip;
 	unsigned int count, i;
 
-	if (!hflag) {
+	if ((procstat_opts & PS_OPT_NOHEADER) == 0) {
 		xo_emit("{d:ta/%5s} ", "PID");
-		if (Hflag)
+		if ((procstat_opts & PS_OPT_PERTHREAD) != 0)
 			xo_emit("{d:tb/%6s} ", "TID");
 		xo_emit("{d:tc/%-16s %-32s %14s}\n", "COMM", "RESOURCE",
 		    "VALUE        ");
 	}
 
-	if (!Hflag) {
+	if ((procstat_opts & PS_OPT_PERTHREAD) == 0) {
 		print_rusage(kipp);
 		return;
 	}

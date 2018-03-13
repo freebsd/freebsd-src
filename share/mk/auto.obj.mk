@@ -61,11 +61,17 @@ __objdir_made != echo ${__objdir}/; umask ${OBJDIR_UMASK:U002}; \
 .endif
 # This causes make to use the specified directory as .OBJDIR
 .OBJDIR: ${__objdir}
-.if ${.OBJDIR:tA} != ${__objdir:tA} && ${__objdir_made:Uno:M${__objdir}/*} != ""
+.if ${.OBJDIR:tA} != ${__objdir:tA}
+# we did not get what we want - do we care?
+.if ${__objdir_made:Uno:M${__objdir}/*} != ""
 # watch out for __objdir being relative path
 .if !(${__objdir:M/*} == "" && ${.OBJDIR:tA} == ${${.CURDIR}/${__objdir}:L:tA})
 .error could not use ${__objdir}: .OBJDIR=${.OBJDIR}
 .endif
+.endif
+# apparently we can live with it
+# make sure we know what we have
+.OBJDIR: ${.CURDIR}
 .endif
 .endif
 .endif

@@ -82,10 +82,10 @@ The Regents of the University of California.  All rights reserved.\n";
 #include <sys/ioccom.h>
 #include <net/bpf.h>
 #include <libgen.h>
-#ifdef WITH_CASPER
+#ifdef HAVE_CASPER
 #include <libcasper.h>
 #include <casper/cap_dns.h>
-#endif	/* WITH_CASPER */
+#endif	/* HAVE_CASPER */
 #endif	/* HAVE_CAPSICUM */
 #include <pcap.h>
 #include <signal.h>
@@ -136,7 +136,7 @@ The Regents of the University of California.  All rights reserved.\n";
 #endif
 
 static int Bflag;			/* buffer size */
-static int Cflag;			/* rotate dump files after this many bytes */
+static long Cflag;			/* rotate dump files after this many bytes */
 static int Cflag_count;			/* Keep track of which file number we're writing */
 static int Dflag;			/* list available devices and exit */
 /*
@@ -176,31 +176,22 @@ static int infoprint;
 
 char *program_name;
 
-#ifdef WITH_CASPER
+#ifdef HAVE_CASPER
 cap_channel_t *capdns;
 #endif
 
 /* Forwards */
-static void error(const char *, ...)
-     __attribute__((noreturn))
-#ifdef __ATTRIBUTE___FORMAT_OK
-     __attribute__((format (printf, 1, 2)))
-#endif /* __ATTRIBUTE___FORMAT_OK */
-     ;
-static void warning(const char *, ...)
-#ifdef __ATTRIBUTE___FORMAT_OK
-     __attribute__((format (printf, 1, 2)))
-#endif /* __ATTRIBUTE___FORMAT_OK */
-     ;
-static void exit_tcpdump(int) __attribute__((noreturn));
+static void error(FORMAT_STRING(const char *), ...) NORETURN PRINTFLIKE(1, 2);
+static void warning(FORMAT_STRING(const char *), ...) PRINTFLIKE(1, 2);
+static void exit_tcpdump(int) NORETURN;
 static RETSIGTYPE cleanup(int);
 static RETSIGTYPE child_cleanup(int);
 static void print_version(void);
 static void print_usage(void);
-static void show_tstamp_types_and_exit(pcap_t *, const char *device) __attribute__((noreturn));
-static void show_dlts_and_exit(pcap_t *, const char *device) __attribute__((noreturn));
+static void show_tstamp_types_and_exit(pcap_t *, const char *device) NORETURN;
+static void show_dlts_and_exit(pcap_t *, const char *device) NORETURN;
 #ifdef HAVE_PCAP_FINDALLDEVS
-static void show_devices_and_exit (void) __attribute__((noreturn));
+static void show_devices_and_exit (void) NORETURN;
 #endif
 
 static void print_packet(u_char *, const struct pcap_pkthdr *, const u_char *);
@@ -730,7 +721,7 @@ get_next_file(FILE *VFile, char *ptr)
 	return ret;
 }
 
-#ifdef WITH_CASPER
+#ifdef HAVE_CASPER
 static cap_channel_t *
 capdns_setup(void)
 {
@@ -757,7 +748,7 @@ capdns_setup(void)
 
 	return (capdnsloc);
 }
-#endif	/* WITH_CASPER */
+#endif	/* HAVE_CASPER */
 
 #ifdef HAVE_PCAP_SET_TSTAMP_PRECISION
 static int
@@ -1839,10 +1830,10 @@ main(int argc, char **argv)
 		exit_tcpdump(0);
 	}
 
-#ifdef WITH_CASPER
+#ifdef HAVE_CASPER
 	if (!ndo->ndo_nflag)
 		capdns = capdns_setup();
-#endif	/* WITH_CASPER */
+#endif	/* HAVE_CASPER */
 
 	init_print(ndo, localnet, netmask, timezone_offset);
 
@@ -1922,10 +1913,10 @@ main(int argc, char **argv)
 
 		/*
 		 * The various libpcap devices use a combination of
-		 * read (bpf), ioctl (bpf, netmap), poll (netmap).
-		 * Grant the relevant access rights, sorted by name.
+		 * read (bpf), ioctl (bpf, netmap), poll (netmap)
+		 * so we add the relevant access rights.
 		 */
-		cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ);
+		cap_rights_init(&rights, CAP_IOCTL, CAP_READ, CAP_EVENT);
 		if (cap_rights_limit(pcap_fileno(pd), &rights) < 0 &&
 		    errno != ENOSYS) {
 			error("unable to limit pcap descriptor");
@@ -2066,11 +2057,11 @@ main(int argc, char **argv)
 
 #ifdef HAVE_CAPSICUM
 	cansandbox = (VFileName == NULL && zflag == NULL);
-#ifdef WITH_CASPER
+#ifdef HAVE_CASPER
 	cansandbox = (cansandbox && (ndo->ndo_nflag || capdns != NULL));
 #else
 	cansandbox = (cansandbox && ndo->ndo_nflag);
-#endif	/* WITH_CASPER */
+#endif	/* HAVE_CASPER */
 	if (cansandbox && cap_enter() < 0 && errno != ENOSYS)
 		error("unable to enter the capability mode");
 #endif	/* HAVE_CAPSICUM */
@@ -2674,6 +2665,14 @@ print_version(void)
 	smi_version_string = nd_smi_version_string();
 	if (smi_version_string != NULL)
 		(void)fprintf (stderr, "SMI-library: %s\n", smi_version_string);
+
+#if defined(__SANITIZE_ADDRESS__)
+	(void)fprintf (stderr, "Compiled with AddressSanitizer/GCC.\n");
+#elif defined(__has_feature)
+#  if __has_feature(address_sanitizer)
+	(void)fprintf (stderr, "Compiled with AddressSanitizer/CLang.\n");
+#  endif
+#endif /* __SANITIZE_ADDRESS__ or __has_feature */
 }
 USES_APPLE_RST
 

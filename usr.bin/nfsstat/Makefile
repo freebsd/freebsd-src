@@ -4,6 +4,6 @@
 PROG=	nfsstat
 CFLAGS+=-DNFS
 
-LIBADD+= devstat
+LIBADD+= devstat xo
 
 .include <bsd.prog.mk>

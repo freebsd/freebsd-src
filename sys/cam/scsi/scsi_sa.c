@@ -1,6 +1,8 @@
 /*-
  * Implementation of SCSI Sequential Access Peripheral driver for CAM.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999, 2000 Matthew Jacob
  * Copyright (c) 2013, 2014, 2015 Spectra Logic Corporation
  * All rights reserved.
@@ -655,7 +657,7 @@ saopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	int error;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		return (ENXIO);
 	}
 
@@ -2294,7 +2296,7 @@ sasysctlinit(void *context, int pending)
 {
 	struct cam_periph *periph;
 	struct sa_softc *softc;
-	char tmpstr[80], tmpstr2[80];
+	char tmpstr[32], tmpstr2[16];
 
 	periph = (struct cam_periph *)context;
 	/*
@@ -2425,10 +2427,7 @@ saregister(struct cam_periph *periph, void *arg)
 			softc->flags |= SA_FLAG_PROTECT_SUPP;
 	}
 
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 
 	/*
 	 * The SA driver supports a blocksize, but we don't know the
@@ -2496,7 +2495,7 @@ saregister(struct cam_periph *periph, void *arg)
 	 * instances for it.  We'll release this reference once the devfs
 	 * instances have been freed.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -3467,7 +3466,7 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 		/*
 		 * Otherwise, we let the common code handle this.
 		 */
-		return (cam_periph_error(ccb, cflgs, sflgs, &softc->saved_ccb));
+		return (cam_periph_error(ccb, cflgs, sflgs));
 
 	/*
 	 * XXX: To Be Fixed
@@ -3480,7 +3479,7 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 		}
 		/* FALLTHROUGH */
 	default:
-		return (cam_periph_error(ccb, cflgs, sflgs, &softc->saved_ccb));
+		return (cam_periph_error(ccb, cflgs, sflgs));
 	}
 
 	/*

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.
  * Copyright (c) 2004-2009 Robert N. M. Watson
@@ -1552,13 +1554,13 @@ unp_disconnect(struct unpcb *unp, struct unpcb *unp2)
 static int
 unp_pcblist(SYSCTL_HANDLER_ARGS)
 {
-	int error, i, n;
-	int freeunp;
 	struct unpcb *unp, **unp_list;
 	unp_gen_t gencnt;
 	struct xunpgen *xug;
 	struct unp_head *head;
 	struct xunpcb *xu;
+	u_int i;
+	int error, freeunp, n;
 
 	switch ((intptr_t)arg1) {
 	case SOCK_STREAM:

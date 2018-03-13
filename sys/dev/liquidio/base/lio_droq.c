@@ -294,8 +294,8 @@ lio_init_droq(struct octeon_device *oct, uint32_t q_no,
 		return (1);
 	}
 
-	lio_dev_dbg(oct, "droq[%d]: desc_ring: virt: 0x%p, dma: %lx\n", q_no,
-		    droq->desc_ring, droq->desc_ring_dma);
+	lio_dev_dbg(oct, "droq[%d]: desc_ring: virt: 0x%p, dma: %llx\n", q_no,
+		    droq->desc_ring, LIO_CAST64(droq->desc_ring_dma));
 	lio_dev_dbg(oct, "droq[%d]: num_desc: %d\n", q_no, droq->max_count);
 
 	size = droq->max_count * LIO_DROQ_RECVBUF_SIZE;

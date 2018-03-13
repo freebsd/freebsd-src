@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: Beerware
+ *
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
@@ -206,6 +208,12 @@ static double
 Var(struct dataset *ds)
 {
 
+	/*
+	 * Due to limited precision it is possible that sy^2/n > syy,
+	 * but variance cannot actually be negative.
+	 */
+	if (ds->syy <= ds->sy * ds->sy / ds->n)
+		return (0);
 	return (ds->syy - ds->sy * ds->sy / ds->n) / (ds->n - 1.0);
 }
 

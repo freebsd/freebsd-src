@@ -326,6 +326,7 @@ DELAY(int usec)
 				;
 		return;
 	}
+	TSENTER();
 
 	first = rt1310_get_timecount(&rt1310_timecounter);
 	while (val > 0) {
@@ -338,4 +339,5 @@ DELAY(int usec)
 		val -= (last - first);
 		first = last;
 	}
+	TSEXIT();
 }

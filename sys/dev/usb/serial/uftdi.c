@@ -1,6 +1,8 @@
 /*	$NetBSD: uftdi.c,v 1.13 2002/09/23 05:51:23 simonb Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -439,7 +441,7 @@ static const STRUCT_USB_HOST_ID uftdi_devs[] = {
 	UFTDI_DEV(FTDI, IPLUS2, 0),
 	UFTDI_DEV(FTDI, IRTRANS, 0),
 	UFTDI_DEV(FTDI, KBS, 0),
-	UFTDI_DEV(FTDI, KTLINK, 0),
+	UFTDI_DEV(FTDI, KTLINK, UFTDI_JTAG_IFACE(0)),
 	UFTDI_DEV(FTDI, LENZ_LIUSB, 0),
 	UFTDI_DEV(FTDI, LK202, 0),
 	UFTDI_DEV(FTDI, LK204, 0),
@@ -520,6 +522,7 @@ static const STRUCT_USB_HOST_ID uftdi_devs[] = {
 	UFTDI_DEV(FTDI, TERATRONIK_D2XX, 0),
 	UFTDI_DEV(FTDI, TERATRONIK_VCP, 0),
 	UFTDI_DEV(FTDI, THORLABS, 0),
+	UFTDI_DEV(FTDI, TIAO, 0),
 	UFTDI_DEV(FTDI, TNC_X, 0),
 	UFTDI_DEV(FTDI, TTUSB, 0),
 	UFTDI_DEV(FTDI, TURTELIZER2, UFTDI_JTAG_IFACE(0)),

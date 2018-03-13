@@ -1896,26 +1896,29 @@ dumpstate(int argc, const char *argv[])
 		return (EINVAL);
 	}
 
-	fd = open(fname, O_CREAT | O_TRUNC | O_EXCL | O_WRONLY,
-	    S_IRUSR | S_IRGRP);
-	if (fd < 0) {
-		warn("open(%s)", fname);
-		return (errno);
-	}
-
 	dump.wr_flash = 0;
 	memset(&dump.bitmap, 0xff, sizeof(dump.bitmap));
 	dump.len = 8 * 1024 * 1024;
 	dump.data = malloc(dump.len);
 	if (dump.data == NULL) {
-		close(fd);
 		return (ENOMEM);
 	}
 
 	rc = doit(CHELSIO_T4_CUDBG_DUMP, &dump);
+	if (rc != 0)
+		goto done;
+
+	fd = open(fname, O_CREAT | O_TRUNC | O_EXCL | O_WRONLY,
+	    S_IRUSR | S_IRGRP | S_IROTH);
+	if (fd < 0) {
+		warn("open(%s)", fname);
+		rc = errno;
+		goto done;
+	}
 	write(fd, dump.data, dump.len);
-	free(dump.data);
 	close(fd);
+done:
+	free(dump.data);
 	return (rc);
 }
 

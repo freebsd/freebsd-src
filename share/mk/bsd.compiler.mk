@@ -19,7 +19,9 @@
 # COMPILER_FEATURES will contain one or more of the following, based on
 # compiler support for that feature:
 #
-# - c++11 : supports full (or nearly full) C++11 programming environment.
+# - c++11:     supports full (or nearly full) C++11 programming environment.
+# - retpoline: supports the retpoline speculative execution vulnerability
+#              mitigation.
 #
 # These variables with an X_ prefix will also be provided if XCC is set.
 #
@@ -178,11 +180,13 @@ ${X_}COMPILER_FREEBSD_VERSION=	unknown
 .endif
 .endif
 
+${X_}COMPILER_FEATURES=
 .if ${${X_}COMPILER_TYPE} == "clang" || \
 	(${${X_}COMPILER_TYPE} == "gcc" && ${${X_}COMPILER_VERSION} >= 40800)
-${X_}COMPILER_FEATURES=	c++11
-.else
-${X_}COMPILER_FEATURES=
+${X_}COMPILER_FEATURES+=	c++11
+.endif
+.if ${${X_}COMPILER_TYPE} == "clang" && ${${X_}COMPILER_VERSION} >= 60000
+${X_}COMPILER_FEATURES+=	retpoline
 .endif
 
 .else

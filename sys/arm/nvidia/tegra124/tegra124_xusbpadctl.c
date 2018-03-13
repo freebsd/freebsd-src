@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -50,7 +51,7 @@
 
 #include <gnu/dts/include/dt-bindings/pinctrl/pinctrl-tegra-xusb.h>
 
-#include "phy_if.h"
+#include "phydev_if.h"
 
 /* FUSE calibration data. */
 #define	FUSE_XUSB_CALIB				0x0F0
@@ -216,7 +217,6 @@ struct padctl_port {
 				    struct padctl_port *port);
 
 	/* Runtime data. */
-	phandle_t		xref;
 	bool			enabled;
 	regulator_t		supply_vbus;	/* USB2, USB3 */
 	bool			internal;	/* ULPI, USB2, USB3 */
@@ -303,7 +303,6 @@ struct padctl_lane {
 	int			nmux;
 	/* Runtime data. */
 	bool			enabled;
-	phandle_t		xref;
 	struct padctl_pad	*pad;
 	struct padctl_port	*port;
 	int			mux_idx;
@@ -352,6 +351,16 @@ static struct padctl_lane_map lane_map_tbl[] = {
 						/* -- or -- */
 	LANE_MAP(1, PADCTL_PAD_SATA, 0), 	/* port USB3-1 -> lane SATA-0 */
 };
+
+ /* Phy class and methods. */
+static int xusbpadctl_phy_enable(struct phynode *phy, bool enable);
+static phynode_method_t xusbpadctl_phynode_methods[] = {
+	PHYNODEMETHOD(phynode_enable,	xusbpadctl_phy_enable),
+	PHYNODEMETHOD_END
+
+};
+DEFINE_CLASS_1(xusbpadctl_phynode, xusbpadctl_phynode_class,
+    xusbpadctl_phynode_methods, 0, phynode_class);
 
 static struct padctl_port *search_lane_port(struct padctl_softc *sc,
     struct padctl_lane *lane);
@@ -683,13 +692,17 @@ phy_powerdown(struct padctl_softc *sc)
 }
 
 static int
-xusbpadctl_phy_enable(device_t dev, intptr_t id, bool enable)
+xusbpadctl_phy_enable(struct phynode *phy, bool enable)
 {
+	device_t dev;
+	intptr_t id;
 	struct padctl_softc *sc;
 	struct padctl_lane *lane;
 	struct padctl_pad *pad;
 	int rv;
 
+	dev = phynode_get_device(phy);
+	id = phynode_get_id(phy);
 	sc = device_get_softc(dev);
 
 	if (id < 0 || id >= nitems(lanes_tbl)) {
@@ -729,24 +742,6 @@ xusbpadctl_phy_enable(device_t dev, intptr_t id, bool enable)
 	}
 
 	return (0);
-}
-
-static int
-xusbpadctl_phy_map(device_t provider, phandle_t xref, int ncells,
-    pcell_t *cells, intptr_t *id)
-{
-	int i;
-
-	if (ncells != 0)
-		return  (ERANGE);
-
-	for (i = 0; i < nitems(lanes_tbl); i++) {
-		if (lanes_tbl[i].xref == xref) {
-			*id = i;
-			return (0);
-		}
-	}
-	return (ENXIO);
 }
 
 /* -------------------------------------------------------------------------
@@ -871,6 +866,8 @@ static int
 process_lane(struct padctl_softc *sc, phandle_t node, struct padctl_pad *pad)
 {
 	struct padctl_lane *lane;
+	struct phynode *phynode;
+	struct phynode_init_def phy_init;
 	char *name;
 	char *function;
 	int rv;
@@ -913,10 +910,25 @@ process_lane(struct padctl_softc *sc, phandle_t node, struct padctl_pad *pad)
 		rv = ENXIO;
 		goto end;
 	}
-	lane->xref = OF_xref_from_node(node);
 	lane->pad = pad;
 	lane->enabled = true;
 	pad->lanes[pad->nlanes++] = lane;
+
+	/* Create and register phy. */
+	bzero(&phy_init, sizeof(phy_init));
+	phy_init.id = lane - lanes_tbl;
+	phy_init.ofw_node = node;
+	phynode = phynode_create(sc->dev, &xusbpadctl_phynode_class, &phy_init);
+	if (phynode == NULL) {
+		device_printf(sc->dev, "Cannot create phy\n");
+		rv = ENXIO;
+		goto end;
+	}
+	if (phynode_register(phynode) == NULL) {
+		device_printf(sc->dev, "Cannot create phy\n");
+		return (ENXIO);
+	}
+
 	rv = 0;
 
 end:
@@ -930,7 +942,6 @@ end:
 static int
 process_pad(struct padctl_softc *sc, phandle_t node)
 {
-	phandle_t  xref;
 	struct padctl_pad *pad;
 	char *name;
 	int rv;
@@ -963,9 +974,6 @@ process_pad(struct padctl_softc *sc, phandle_t node)
 		rv = process_lane(sc, node, pad);
 		if (rv != 0)
 			goto end;
-
-		xref = OF_xref_from_node(node);
-		OF_device_register_xref(xref, sc->dev);
 	}
 	pad->enabled = true;
 	rv = 0;
@@ -1193,10 +1201,6 @@ static device_method_t tegra_xusbpadctl_methods[] = {
 	DEVMETHOD(device_probe,         xusbpadctl_probe),
 	DEVMETHOD(device_attach,        xusbpadctl_attach),
 	DEVMETHOD(device_detach,        xusbpadctl_detach),
-
-	/* phy interface */
-	DEVMETHOD(phy_enable,		xusbpadctl_phy_enable),
-	DEVMETHOD(phy_map,		xusbpadctl_phy_map),
 
 	DEVMETHOD_END
 };

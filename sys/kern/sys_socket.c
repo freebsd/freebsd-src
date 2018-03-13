@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -353,6 +355,7 @@ soo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 
 	kif->kf_type = KF_TYPE_SOCKET;
 	so = fp->f_data;
+	CURVNET_SET(so->so_vnet);
 	kif->kf_un.kf_sock.kf_sock_domain0 =
 	    so->so_proto->pr_domain->dom_family;
 	kif->kf_un.kf_sock.kf_sock_type0 = so->so_type;
@@ -405,6 +408,7 @@ soo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	}
 	strncpy(kif->kf_path, so->so_proto->pr_domain->dom_name,
 	    sizeof(kif->kf_path));
+	CURVNET_RESTORE();
 	return (0);	
 }
 

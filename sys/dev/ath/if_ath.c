@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -1079,7 +1081,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_txq_node_psq_maxdepth = 16;
 
 	/*
-	 * Default the maximum queue to to 1/4'th the TX buffers, or
+	 * Default the maximum queue to 1/4'th the TX buffers, or
 	 * 64, whichever is smaller.
 	 */
 	sc->sc_txq_node_maxdepth = MIN(64, ath_txbuf / 4);
@@ -1622,7 +1624,7 @@ ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	}
 
 	/* STA, AHDEMO? */
-	if (opmode == IEEE80211_M_HOSTAP || opmode == IEEE80211_M_MBSS) {
+	if (opmode == IEEE80211_M_HOSTAP || opmode == IEEE80211_M_MBSS || opmode == IEEE80211_M_STA) {
 		assign_address(sc, mac, flags & IEEE80211_CLONE_BSSID);
 		ath_hal_setbssidmask(sc->sc_ah, sc->sc_hwbssidmask);
 	}
@@ -1856,6 +1858,7 @@ ath_vap_delete(struct ieee80211vap *vap)
 		if (sc->sc_nstavaps == 0 && sc->sc_swbmiss)
 			sc->sc_swbmiss = 0;
 	} else if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
+	    vap->iv_opmode == IEEE80211_M_STA ||
 	    vap->iv_opmode == IEEE80211_M_MBSS) {
 		reclaim_address(sc, vap->iv_myaddr);
 		ath_hal_setbssidmask(ah, sc->sc_hwbssidmask);
@@ -4049,9 +4052,13 @@ ath_txq_update(struct ath_softc *sc, int ac)
 #define	ATH_EXPONENT_TO_VALUE(v)	((1<<v)-1)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_txq *txq = sc->sc_ac2q[ac];
-	struct wmeParams *wmep = &ic->ic_wme.wme_chanParams.cap_wmeParams[ac];
+	struct chanAccParams chp;
+	struct wmeParams *wmep;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_TXQ_INFO qi;
+
+	ieee80211_wme_ic_getparams(ic, &chp);
+	wmep = &chp.cap_wmeParams[ac];
 
 	ath_hal_gettxqueueprops(ah, txq->axq_qnum, &qi);
 #ifdef IEEE80211_SUPPORT_TDMA

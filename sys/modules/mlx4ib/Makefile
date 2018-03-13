@@ -9,7 +9,6 @@ SRCS=	device_if.h bus_if.h vnode_if.h pci_if.h \
 	mlx4_ib_sysfs.c \
 	mlx4_ib_ah.c \
 	mlx4_ib_cq.c \
-	mlx4_ib_exp.c \
 	mlx4_ib_doorbell.c \
 	mlx4_ib_mad.c \
 	mlx4_ib_main.c \
@@ -20,6 +19,7 @@ SRCS=	device_if.h bus_if.h vnode_if.h pci_if.h \
 	mlx4_ib_cm.c
 
 CFLAGS+= -I${SRCTOP}/sys/ofed/include
+CFLAGS+= -I${SRCTOP}/sys/ofed/include/uapi
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+= -DCONFIG_INFINIBAND_USER_MEM
 CFLAGS+= -DINET6 -DINET

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004, 2005,
  *	Bosko Milekic <bmilekic@FreeBSD.org>.  All rights reserved.
  *
@@ -281,7 +283,7 @@ static void	mb_dtor_pack(void *, int, void *);
 static int	mb_zinit_pack(void *, int, int);
 static void	mb_zfini_pack(void *, int);
 static void	mb_reclaim(uma_zone_t, int);
-static void    *mbuf_jumbo_alloc(uma_zone_t, vm_size_t, uint8_t *, int);
+static void    *mbuf_jumbo_alloc(uma_zone_t, vm_size_t, int, uint8_t *, int);
 
 /* Ensure that MSIZE is a power of 2. */
 CTASSERT((((MSIZE - 1) ^ MSIZE) + 1) >> 1 == MSIZE);
@@ -384,12 +386,13 @@ SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbuf_init, NULL);
  * pages.
  */
 static void *
-mbuf_jumbo_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *flags, int wait)
+mbuf_jumbo_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
+    int wait)
 {
 
 	/* Inform UMA that this allocator uses kernel_map/object. */
 	*flags = UMA_SLAB_KERNEL;
-	return ((void *)kmem_alloc_contig(kernel_arena, bytes, wait,
+	return ((void *)kmem_alloc_contig_domain(domain, bytes, wait,
 	    (vm_paddr_t)0, ~(vm_paddr_t)0, 1, 0, VM_MEMATTR_DEFAULT));
 }
 
@@ -504,7 +507,7 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 #endif
 	m = (struct mbuf *)arg;
 	if (m != NULL) {
-		m->m_ext.ext_buf = (caddr_t)mem;
+		m->m_ext.ext_buf = (char *)mem;
 		m->m_data = m->m_ext.ext_buf;
 		m->m_flags |= M_EXT;
 		m->m_ext.ext_free = NULL;
@@ -675,28 +678,18 @@ mb_free_ext(struct mbuf *m)
 			uma_zfree(zone_mbuf, mref);
 			break;
 		case EXT_SFBUF:
-			sf_ext_free(m->m_ext.ext_arg1, m->m_ext.ext_arg2);
-			uma_zfree(zone_mbuf, mref);
-			break;
-		case EXT_SFBUF_NOCACHE:
-			sf_ext_free_nocache(m->m_ext.ext_arg1,
-			    m->m_ext.ext_arg2);
-			uma_zfree(zone_mbuf, mref);
-			break;
 		case EXT_NET_DRV:
 		case EXT_MOD_TYPE:
 		case EXT_DISPOSABLE:
-			KASSERT(m->m_ext.ext_free != NULL,
+			KASSERT(mref->m_ext.ext_free != NULL,
 				("%s: ext_free not set", __func__));
-			(*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
-			    m->m_ext.ext_arg2);
+			mref->m_ext.ext_free(mref);
 			uma_zfree(zone_mbuf, mref);
 			break;
 		case EXT_EXTREF:
 			KASSERT(m->m_ext.ext_free != NULL,
 				("%s: ext_free not set", __func__));
-			(*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
-			    m->m_ext.ext_arg2);
+			m->m_ext.ext_free(m);
 			break;
 		default:
 			KASSERT(m->m_ext.ext_type == 0,
@@ -918,9 +911,8 @@ m_getm2(struct mbuf *m, int len, int how, short type, int flags)
  *    Nothing.
  */
 void
-m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
-    void (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2,
-    int flags, int type)
+m_extadd(struct mbuf *mb, char *buf, u_int size, m_ext_free_t freef,
+    void *arg1, void *arg2, int flags, int type)
 {
 
 	KASSERT(type != EXT_CLUSTER, ("%s: EXT_CLUSTER not allowed", __func__));

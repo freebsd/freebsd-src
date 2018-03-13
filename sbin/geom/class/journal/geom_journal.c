@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -142,6 +144,7 @@ journal_label(struct gctl_req *req)
 	intmax_t jsize, msize, ssize;
 	int error, force, i, nargs, checksum, hardcode;
 
+	bzero(sector, sizeof(sector));
 	nargs = gctl_get_int(req, "nargs");
 	str = NULL;	/* gcc */
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD AND BSD-1-Clause)
+ *
  * Copyright (c) 2006 Sam Leffler, Errno Consulting
  * Copyright (c) 2008-2009 Weongyo Jeong <weongyo@freebsd.org>
  * All rights reserved.
@@ -65,6 +67,9 @@ __FBSDID("$FreeBSD$");
  * for these devices does not work in this way and so does not work
  * with this driver.
  */
+
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>

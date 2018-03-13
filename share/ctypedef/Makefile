@@ -5,7 +5,7 @@
 LOCALEDIR=	${SHAREDIR}/locale
 FILESNAME=	LC_CTYPE
 .SUFFIXES:	.src .LC_CTYPE
-MAPLOC=		${SRCTOP}/tools/tools/locale/etc/final-maps
+MAPLOC=		${.CURDIR}/../../tools/tools/locale/etc/final-maps
 
 .src.LC_CTYPE:
 	localedef -D -U -c -w ${MAPLOC}/widths.txt \
@@ -219,6 +219,7 @@ SYMLINKS+=	../$f/${FILESNAME} \
 FILESDIR_${f}.LC_CTYPE= ${LOCALEDIR}/${f}
 .endfor
 
+SYMPAIRS+=	ja_JP.eucJP.src ja_JP.SJIS.src
 SYMPAIRS+=	en_US.ISO8859-1.src en_US.ISO8859-15.src
 SYMPAIRS+=	en_US.ISO8859-1.src en_US.US-ASCII.src
 SYMPAIRS+=	en_US.ISO8859-1.src lv_LV.ISO8859-13.src
@@ -234,7 +235,6 @@ SYMPAIRS+=	be_BY.CP1131.src ru_RU.CP1251.src
 SYMPAIRS+=	be_BY.CP1131.src ru_RU.CP866.src
 SYMPAIRS+=	be_BY.CP1131.src ru_RU.ISO8859-5.src
 SYMPAIRS+=	be_BY.CP1131.src ru_RU.KOI8-R.src
-SYMPAIRS+=	ja_JP.eucJP.src ja_JP.SJIS.src
 
 .for s t in ${SYMPAIRS}
 ${t:S/src$/LC_CTYPE/}: $s

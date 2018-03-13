@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 1996, 1997, 1998, 1999 John D. Polstra.
  * All rights reserved.
  *
@@ -482,6 +484,12 @@ ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
 		cpu_stdext_feature = p[1];
 		cpu_stdext_feature2 = p[2];
 	}
+}
+
+void
+pre_init(void)
+{
+
 }
 
 void

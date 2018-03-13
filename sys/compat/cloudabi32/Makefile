@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# Don't use an OBJDIR
+.OBJDIR: ${.CURDIR}
+
 all:
 	@echo "make sysent only"
 

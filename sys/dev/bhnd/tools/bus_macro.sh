@@ -43,7 +43,7 @@ macro () {
 		echo -n ", ${i}"
 	done
 	echo ") \\"
-	echo "    ((r)->direct) ? \\"
+	echo "    (((r)->direct) ? \\"
 	echo -n "	bus_${n}((r)->res"
 	for i
 	do
@@ -57,7 +57,7 @@ macro () {
 	do
 		echo -n ", (${i})"
 	done
-	echo ")"
+	echo "))"
 
 }
 

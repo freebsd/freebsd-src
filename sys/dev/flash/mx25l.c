@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 M. Warner Losh.  All rights reserved.
  * Copyright (c) 2009 Oleksandr Tymoshenko.  All rights reserved.
  *
@@ -87,7 +89,12 @@ struct mx25l_softc
 	struct proc	*sc_p;
 	struct bio_queue_head sc_bio_queue;
 	unsigned int	sc_flags;
+	unsigned int	sc_taskstate;
 };
+
+#define	TSTATE_STOPPED	0
+#define	TSTATE_STOPPING	1
+#define	TSTATE_RUNNING	2
 
 #define M25PXX_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	M25PXX_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
@@ -122,6 +129,7 @@ struct mx25l_flash_ident flash_devices[] = {
 	{ "s25fl064",	0x01, 0x0216, 64 * 1024, 128, FL_NONE },
 	{ "s25fl128",	0x01, 0x2018, 64 * 1024, 256, FL_NONE },
 	{ "s25fl256s",	0x01, 0x0219, 64 * 1024, 512, FL_NONE },
+	{ "SST25VF010A", 0xbf, 0x2549, 4 * 1024, 32, FL_ERASE_4K | FL_ERASE_32K },
 	{ "SST25VF032B", 0xbf, 0x254a, 64 * 1024, 64, FL_ERASE_4K | FL_ERASE_32K },
 
 	/* Winbond -- w25x "blocks" are 64K, "sectors" are 4KiB */
@@ -524,6 +532,8 @@ mx25l_attach(device_t dev)
 	bioq_init(&sc->sc_bio_queue);
 
 	kproc_create(&mx25l_task, sc, &sc->sc_p, 0, 0, "task: mx25l flash");
+	sc->sc_taskstate = TSTATE_RUNNING;
+
 	device_printf(sc->sc_dev, "%s, sector %d bytes, %d sectors\n", 
 	    ident->name, ident->sectorsize, ident->sectorcount);
 
@@ -533,8 +543,33 @@ mx25l_attach(device_t dev)
 static int
 mx25l_detach(device_t dev)
 {
+	struct mx25l_softc *sc;
+	int err;
 
-	return (EIO);
+	sc = device_get_softc(dev);
+	err = 0;
+
+	M25PXX_LOCK(sc);
+	if (sc->sc_taskstate == TSTATE_RUNNING) {
+		sc->sc_taskstate = TSTATE_STOPPING;
+		wakeup(sc);
+		while (err == 0 && sc->sc_taskstate != TSTATE_STOPPED) {
+			err = msleep(sc, &sc->sc_mtx, 0, "mx25dt", hz * 3);
+			if (err != 0) {
+				sc->sc_taskstate = TSTATE_RUNNING;
+				device_printf(dev,
+				    "Failed to stop queue task\n");
+			}
+		}
+	}
+	M25PXX_UNLOCK(sc);
+
+	if (err == 0 && sc->sc_taskstate == TSTATE_STOPPED) {
+		disk_destroy(sc->sc_disk);
+		bioq_flush(&sc->sc_bio_queue, NULL, ENXIO);
+		M25PXX_LOCK_DESTROY(sc);
+	}
+	return (err);
 }
 
 static int
@@ -602,9 +637,15 @@ mx25l_task(void *arg)
 		dev = sc->sc_dev;
 		M25PXX_LOCK(sc);
 		do {
+			if (sc->sc_taskstate == TSTATE_STOPPING) {
+				sc->sc_taskstate = TSTATE_STOPPED;
+				M25PXX_UNLOCK(sc);
+				wakeup(sc);
+				kproc_exit(0);
+			}
 			bp = bioq_first(&sc->sc_bio_queue);
 			if (bp == NULL)
-				msleep(sc, &sc->sc_mtx, PRIBIO, "jobqueue", 0);
+				msleep(sc, &sc->sc_mtx, PRIBIO, "mx25jq", 0);
 		} while (bp == NULL);
 		bioq_remove(&sc->sc_bio_queue, bp);
 		M25PXX_UNLOCK(sc);
@@ -645,3 +686,4 @@ static driver_t mx25l_driver = {
 };
 
 DRIVER_MODULE(mx25l, spibus, mx25l_driver, mx25l_devclass, 0, 0);
+MODULE_DEPEND(mx25l, spibus, 1, 1, 1);

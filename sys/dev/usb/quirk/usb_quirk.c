@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998 The NetBSD Foundation, Inc. All rights reserved.
  * Copyright (c) 1998 Lennart Augustsson. All rights reserved.
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
@@ -135,6 +137,8 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(CORSAIR, K60, 0x0000, 0xffff, UQ_KBD_BOOTPROTO),
 	/* Quirk for Corsair Vengeance K70 keyboard */
 	USB_QUIRK(CORSAIR, K70, 0x0000, 0xffff, UQ_KBD_BOOTPROTO),
+	/* Quirk for Corsair K70 RGB keyboard */
+	USB_QUIRK(CORSAIR, K70_RGB, 0x0000, 0xffff, UQ_KBD_BOOTPROTO),
 	/* Quirk for Corsair STRAFE Gaming keyboard */
 	USB_QUIRK(CORSAIR, STRAFE, 0x0000, 0xffff, UQ_KBD_BOOTPROTO),
 	/* umodem(4) device quirks */
@@ -242,6 +246,7 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(IOMEGA, ZIP100, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_BBB,
 	    UQ_MSC_FORCE_PROTO_SCSI,
 	    UQ_MSC_NO_TEST_UNIT_READY), /* XXX ZIP drives can also use ATAPI */
+	USB_QUIRK(JMICRON, JMS567, 0x0000, 0xffff, UQ_MSC_NO_GETMAXLUN),
 	USB_QUIRK(JMICRON, JM20337, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_BBB,
 	    UQ_MSC_FORCE_PROTO_SCSI,
 	    UQ_MSC_NO_SYNC_CACHE),

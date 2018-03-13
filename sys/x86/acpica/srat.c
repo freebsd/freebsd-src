@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Hudson River Trading LLC
  * Written by: John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
@@ -151,7 +153,7 @@ parse_slit(void)
 	acpi_unmap_table(slit);
 	slit = NULL;
 
-#ifdef VM_NUMA_ALLOC
+#ifdef NUMA
 	/* Tell the VM about it! */
 	mem_locality = vm_locality_table;
 #endif
@@ -250,7 +252,8 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			    "enabled" : "disabled");
 		if (!(mem->Flags & ACPI_SRAT_MEM_ENABLED))
 			break;
-		if (!overlaps_phys_avail(mem->BaseAddress,
+		if (mem->BaseAddress >= cpu_getmaxphyaddr() || 
+		    !overlaps_phys_avail(mem->BaseAddress,
 		    mem->BaseAddress + mem->Length)) {
 			printf("SRAT: Ignoring memory at addr 0x%jx\n",
 			    (uintmax_t)mem->BaseAddress);
@@ -466,7 +469,7 @@ parse_srat(void)
 		return (-1);
 	}
 
-#ifdef VM_NUMA_ALLOC
+#ifdef NUMA
 	/* Point vm_phys at our memory affinity table. */
 	vm_ndomains = ndomain;
 	mem_affinity = mem_info;

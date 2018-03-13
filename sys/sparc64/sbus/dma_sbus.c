@@ -2,6 +2,8 @@
 /*	$NetBSD: dma_sbus.c,v 1.32 2008/04/28 20:23:57 martin Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

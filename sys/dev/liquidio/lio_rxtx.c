@@ -218,8 +218,8 @@ retry:
 
 drop_packet:
 	stats->tx_dropped++;
-	lio_dev_err(oct, "IQ%d Transmit dropped: %lu\n", iq_no,
-		    stats->tx_dropped);
+	lio_dev_err(oct, "IQ%d Transmit dropped: %llu\n", iq_no,
+		    LIO_CAST64(stats->tx_dropped));
 
 	m_freem(*m_headp);
 	*m_headp = NULL;

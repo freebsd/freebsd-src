@@ -10,6 +10,6 @@ GDBLIBS= ${OBJ_GDB}/libgdb/libgdb.a
 
 DPADD=	${GDBLIBS} ${BULIBS}
 LDADD=	${GDBLIBS} ${BULIBS}
-LIBADD+=	m readline ncursesw gnuregex kvm
+LIBADD+=	m edit ncursesw gnuregex kvm
 
 .include <bsd.prog.mk>

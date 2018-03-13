@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * Copyright (c) 2013 The FreeBSD Foundation
@@ -947,6 +949,32 @@ g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error)
 	return (ptr);
 }
 
+/*
+ * A read function for use by ffs_sbget when used by GEOM-layer routines.
+ */
+int
+g_use_g_read_data(void *devfd, off_t loc, void **bufp, int size)
+{
+	struct g_consumer *cp;
+
+	KASSERT(*bufp == NULL,
+	    ("g_use_g_read_data: non-NULL *bufp %p\n", *bufp));
+
+	cp = (struct g_consumer *)devfd;
+	/*
+	 * Take care not to issue an invalid I/O request. The offset of
+	 * the superblock candidate must be multiples of the provider's
+	 * sector size, otherwise an FFS can't exist on the provider
+	 * anyway.
+	 */
+	if (loc % cp->provider->sectorsize != 0)
+		return (ENOENT);
+	*bufp = g_read_data(cp, loc, size, NULL);
+	if (*bufp == NULL)
+		return (ENOENT);
+	return (0);
+}
+
 int
 g_write_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length)
 {
@@ -967,6 +995,16 @@ g_write_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length)
 	error = biowait(bp, "gwrite");
 	g_destroy_bio(bp);
 	return (error);
+}
+
+/*
+ * A write function for use by ffs_sbput when used by GEOM-layer routines.
+ */
+int
+g_use_g_write_data(void *devfd, off_t loc, void *buf, int size)
+{
+
+	return (g_write_data((struct g_consumer *)devfd, loc, buf, size));
 }
 
 int

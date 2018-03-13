@@ -31,11 +31,24 @@
 
 #define	MODINFOMD_EFI_MAP	0x1001
 #define	MODINFOMD_DTBP		0x1002
+#define	MODINFOMD_EFI_FB	0x1003
 
 struct efi_map_header {
 	size_t		memory_size;
 	size_t		descriptor_size;
 	uint32_t	descriptor_version;
+};
+
+struct efi_fb {
+	uint64_t	fb_addr;
+	uint64_t	fb_size;
+	uint32_t	fb_height;
+	uint32_t	fb_width;
+	uint32_t	fb_stride;
+	uint32_t	fb_mask_red;
+	uint32_t	fb_mask_green;
+	uint32_t	fb_mask_blue;
+	uint32_t	fb_mask_reserved;
 };
 
 #endif /* !_MACHINE_METADATA_H_ */

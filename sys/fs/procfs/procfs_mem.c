@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993 Jan-Simon Pendry
  * Copyright (c) 1993 Sean Eric Fagan
  * Copyright (c) 1993

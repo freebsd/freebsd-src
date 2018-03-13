@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Nathan Whitehorn
  * Copyright (c) 2014 Devin Teske <dteske@FreeBSD.org>
  * All rights reserved.
@@ -308,7 +310,15 @@ extract_files(struct dpv_file_node *file, int out __unused)
 		archive = NULL;
 		file->status = DPV_STATUS_DONE;
 		return (100);
-	} else if (retval != ARCHIVE_OK) {
+	} else if (retval != ARCHIVE_OK &&
+	    !(retval == ARCHIVE_WARN &&
+	    strcmp(archive_error_string(archive), "Can't restore time") == 0)) {
+		/*
+		 * Print any warning/error messages except inability to set
+		 * ctime/mtime, which is not fatal, or even interesting,
+		 * for our purposes. Would be nice if this were a libarchive
+		 * option.
+		 */
 		snprintf(errormsg, sizeof(errormsg),
 		    "Error while extracting %s: %s\n", file->name,
 		    archive_error_string(archive));

@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 PROG_CXX=	llvm-pdbutil
-MAN=
 
 SRCDIR=		tools/llvm-pdbutil
 SRCS+=		Analyze.cpp
@@ -10,6 +9,7 @@ SRCS+=		Diff.cpp
 SRCS+=		DiffPrinter.cpp
 SRCS+=		DumpOutputStyle.cpp
 SRCS+=		FormatUtil.cpp
+SRCS+=		InputFile.cpp
 SRCS+=		LinePrinter.cpp
 SRCS+=		MinimalSymbolDumper.cpp
 SRCS+=		MinimalTypeDumper.cpp

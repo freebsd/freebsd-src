@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 12, 2017
+.Dd January 23, 2018
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -83,6 +83,8 @@ The
 argument is a comma-separated list of protocol names,
 as they are defined in
 .Xr protocols 5 .
+.It Fl q
+Quiet mode, do not print the header line.
 .It Fl S
 Display the protocol stack, if applicable.
 This is currently only implemented for TCP.

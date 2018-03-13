@@ -464,7 +464,7 @@ wherechar(p, wp)
 		case 'm':   *wp = MIDDLE;		break;
 		case 'b':   *wp = BOTTOM;		break;
 		case 'B':   *wp = BOTTOM_PLUS_ONE;	break;
-		case 'j':   *wp = adjsline(jump_sline);	break;
+		case 'j':   *wp = sindex_from_sline(jump_sline); break;
 		default:    *wp = TOP;  p--;		break;
 		}
 	}

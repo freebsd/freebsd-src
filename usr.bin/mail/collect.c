@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -131,7 +133,6 @@ collect(struct header *hp, int printheaders)
 		escape = ESCAPE;
 	eofcount = 0;
 	hadintr = 0;
-	lastlong = 0;
 	longline = 0;
 
 	if (!setjmp(colljmp)) {

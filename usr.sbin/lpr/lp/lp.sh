@@ -1,6 +1,8 @@
 #!/bin/sh
 #
 #
+# SPDX-License-Identifier: BSD-4-Clause
+#
 # Copyright (c) 1995 Joerg Wunsch
 #
 # All rights reserved.

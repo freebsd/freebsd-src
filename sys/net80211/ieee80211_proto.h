@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Atsushi Onoe
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
@@ -138,6 +140,8 @@ struct mbuf *ieee80211_alloc_rts(struct ieee80211com *ic,
 		const uint8_t [IEEE80211_ADDR_LEN], uint16_t);
 struct mbuf *ieee80211_alloc_cts(struct ieee80211com *,
 		const uint8_t [IEEE80211_ADDR_LEN], uint16_t);
+struct mbuf *ieee80211_alloc_prot(struct ieee80211_node *,
+		const struct mbuf *, uint8_t, int);
 
 uint8_t *ieee80211_add_rates(uint8_t *, const struct ieee80211_rateset *);
 uint8_t *ieee80211_add_xrates(uint8_t *, const struct ieee80211_rateset *);
@@ -296,6 +300,7 @@ void	ieee80211_wme_vap_getparams(struct ieee80211vap *vap,
 	    struct chanAccParams *);
 void	ieee80211_wme_ic_getparams(struct ieee80211com *ic,
 	    struct chanAccParams *);
+int	ieee80211_wme_vap_ac_is_noack(struct ieee80211vap *vap, int ac);
 
 /*
  * Return the WME TID from a QoS frame.  If no TID

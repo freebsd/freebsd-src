@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Yahoo! Inc.
  * Copyright (c) 2011-2015 LSI Corp.
  * Copyright (c) 2013-2015 Avago Technologies
@@ -716,7 +718,7 @@ mps_attach_sas(struct mps_softc *sc)
 {
 	struct mpssas_softc *sassc;
 	cam_status status;
-	int unit, error = 0;
+	int unit, error = 0, reqs;
 
 	MPS_FUNCTRACE(sc);
 	mps_dprint(sc, MPS_INIT, "%s entered\n", __func__);
@@ -746,7 +748,8 @@ mps_attach_sas(struct mps_softc *sc)
 	sc->sassc = sassc;
 	sassc->sc = sc;
 
-	if ((sassc->devq = cam_simq_alloc(sc->num_reqs)) == NULL) {
+	reqs = sc->num_reqs - sc->num_prireqs - 1;
+	if ((sassc->devq = cam_simq_alloc(reqs)) == NULL) {
 		mps_dprint(sc, MPS_ERROR, "Cannot allocate SIMQ\n");
 		error = ENOMEM;
 		goto out;
@@ -754,7 +757,7 @@ mps_attach_sas(struct mps_softc *sc)
 
 	unit = device_get_unit(sc->mps_dev);
 	sassc->sim = cam_sim_alloc(mpssas_action, mpssas_poll, "mps", sassc,
-	    unit, &sc->mps_mtx, sc->num_reqs, sc->num_reqs, sassc->devq);
+	    unit, &sc->mps_mtx, reqs, reqs, sassc->devq);
 	if (sassc->sim == NULL) {
 		mps_dprint(sc, MPS_INIT|MPS_ERROR, "Cannot allocate SIM\n");
 		error = EINVAL;
@@ -955,7 +958,6 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct ccb_pathinq *cpi = &ccb->cpi;
 		struct mps_softc *sc = sassc->sc;
-		uint8_t sges_per_frame;
 
 		cpi->version_num = 1;
 		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
@@ -984,23 +986,7 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->transport_version = 0;
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_SPC;
-
-		/*
-		 * Max IO Size is Page Size * the following:
-		 * ((SGEs per frame - 1 for chain element) *
-		 * Max Chain Depth) + 1 for no chain needed in last frame
-		 *
-		 * If user suggests a Max IO size to use, use the smaller of the
-		 * user's value and the calculated value as long as the user's
-		 * value is larger than 0. The user's value is in pages.
-		 */
-		sges_per_frame = ((sc->facts->IOCRequestFrameSize * 4) /
-		    sizeof(MPI2_SGE_SIMPLE64)) - 1;
-		cpi->maxio = (sges_per_frame * sc->facts->MaxChainDepth) + 1;
-		cpi->maxio *= PAGE_SIZE;
-		if ((sc->max_io_pages > 0) && (sc->max_io_pages * PAGE_SIZE <
-		    cpi->maxio))
-			cpi->maxio = sc->max_io_pages * PAGE_SIZE;
+		cpi->maxio = sc->maxio;
 		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP);
 		break;
 	}
@@ -1115,6 +1101,10 @@ mpssas_complete_all_commands(struct mps_softc *sc)
 	/* complete all commands with a NULL reply */
 	for (i = 1; i < sc->num_reqs; i++) {
 		cm = &sc->commands[i];
+		if (cm->cm_state == MPS_CM_STATE_FREE)
+			continue;
+
+		cm->cm_state = MPS_CM_STATE_BUSY;
 		cm->cm_reply = NULL;
 		completed = 0;
 
@@ -1123,14 +1113,12 @@ mpssas_complete_all_commands(struct mps_softc *sc)
 
 		if (cm->cm_complete != NULL) {
 			mpssas_log_command(cm, MPS_RECOVERY,
-			    "completing cm %p state %x ccb %p for diag reset\n", 
+			    "completing cm %p state %x ccb %p for diag reset\n",
 			    cm, cm->cm_state, cm->cm_ccb);
 
 			cm->cm_complete(sc, cm);
 			completed = 1;
-		}
-
-		if (cm->cm_flags & MPS_CM_FLAGS_WAKEUP) {
+		} else if (cm->cm_flags & MPS_CM_FLAGS_WAKEUP) {
 			mpssas_log_command(cm, MPS_RECOVERY,
 			    "waking up cm %p state %x ccb %p for diag reset\n", 
 			    cm, cm->cm_state, cm->cm_ccb);
@@ -1138,9 +1126,6 @@ mpssas_complete_all_commands(struct mps_softc *sc)
 			completed = 1;
 		}
 
-		if (cm->cm_sc->io_cmds_active != 0)
-			cm->cm_sc->io_cmds_active--;
-		
 		if ((completed == 0) && (cm->cm_state != MPS_CM_STATE_FREE)) {
 			/* this should never happen, but if it does, log */
 			mpssas_log_command(cm, MPS_RECOVERY,
@@ -1149,6 +1134,8 @@ mpssas_complete_all_commands(struct mps_softc *sc)
 			    cm->cm_ccb);
 		}
 	}
+
+	sc->io_cmds_active = 0;
 }
 
 void
@@ -1205,6 +1192,11 @@ mpssas_tm_timeout(void *data)
 
 	mpssas_log_command(tm, MPS_INFO|MPS_RECOVERY,
 	    "task mgmt %p timed out\n", tm);
+
+	KASSERT(tm->cm_state == MPS_CM_STATE_INQUEUE,
+	    ("command not inqueue\n"));
+
+	tm->cm_state = MPS_CM_STATE_BUSY;
 	mps_reinit(sc);
 }
 
@@ -1605,7 +1597,7 @@ mpssas_scsiio_timeout(void *data)
 	 * and been re-used, though this is unlikely.
 	 */
 	mps_intr_locked(sc);
-	if (cm->cm_state == MPS_CM_STATE_FREE) {
+	if (cm->cm_state != MPS_CM_STATE_INQUEUE) {
 		mpssas_log_command(cm, MPS_XINFO,
 		    "SCSI command %p almost timed out\n", cm);
 		return;
@@ -2045,12 +2037,13 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 
 	if (cm->cm_state == MPS_CM_STATE_TIMEDOUT) {
 		TAILQ_REMOVE(&cm->cm_targ->timedout_commands, cm, cm_recovery);
+		cm->cm_state = MPS_CM_STATE_BUSY;
 		if (cm->cm_reply != NULL)
 			mpssas_log_command(cm, MPS_RECOVERY,
 			    "completed timedout cm %p ccb %p during recovery "
 			    "ioc %x scsi %x state %x xfer %u\n",
-			    cm, cm->cm_ccb,
-			    le16toh(rep->IOCStatus), rep->SCSIStatus, rep->SCSIState,
+			    cm, cm->cm_ccb, le16toh(rep->IOCStatus),
+			    rep->SCSIStatus, rep->SCSIState,
 			    le32toh(rep->TransferCount));
 		else
 			mpssas_log_command(cm, MPS_RECOVERY,
@@ -2061,8 +2054,8 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 			mpssas_log_command(cm, MPS_RECOVERY,
 			    "completed cm %p ccb %p during recovery "
 			    "ioc %x scsi %x state %x xfer %u\n",
-			    cm, cm->cm_ccb,
-			    le16toh(rep->IOCStatus), rep->SCSIStatus, rep->SCSIState,
+			    cm, cm->cm_ccb, le16toh(rep->IOCStatus),
+			    rep->SCSIStatus, rep->SCSIState,
 			    le32toh(rep->TransferCount));
 		else
 			mpssas_log_command(cm, MPS_RECOVERY,

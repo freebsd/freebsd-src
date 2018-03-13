@@ -38,6 +38,10 @@
 
  @Description   BM low-level implementation
 *//***************************************************************************/
+#include <sys/cdefs.h>
+#include <sys/types.h>
+#include <machine/atomic.h>
+
 #include "std_ext.h"
 #include "core_ext.h"
 #include "xx_ext.h"
@@ -259,7 +263,7 @@ void bm_rcr_pci_commit(struct bm_portal *portal, uint8_t myverb)
     rcr->cursor->__dont_write_directly__verb = (uint8_t)(myverb | rcr->vbit);
     RCR_INC(rcr);
     rcr->available--;
-    hwsync();
+    mb();
     bm_out(RCR_PI_CINH, RCR_PTR2IDX(rcr->cursor));
 #ifdef BM_CHECKING
     rcr->busy = 0;
@@ -281,7 +285,7 @@ void bm_rcr_pce_commit(struct bm_portal *portal, uint8_t myverb)
     rcr->cursor->__dont_write_directly__verb = (uint8_t)(myverb | rcr->vbit);
     RCR_INC(rcr);
     rcr->available--;
-    lwsync();
+    wmb();
     bm_cl_out(RCR_PI, RCR_PTR2IDX(rcr->cursor));
 #ifdef BM_CHECKING
     rcr->busy = 0;
@@ -294,7 +298,7 @@ void bm_rcr_pvb_commit(struct bm_portal *portal, uint8_t myverb)
     struct bm_rcr_entry *rcursor;
     ASSERT_COND(rcr->busy);
     ASSERT_COND(rcr->pmode == e_BmPortalPVB);
-    lwsync();
+    rmb();
     rcursor = rcr->cursor;
     rcursor->__dont_write_directly__verb = (uint8_t)(myverb | rcr->vbit);
     dcbf_64(rcursor);
@@ -432,7 +436,7 @@ void bm_mc_commit(struct bm_portal *portal, uint8_t myverb)
 {
     register struct bm_mc *mc = &portal->mc;
     ASSERT_COND(mc->state == mc_user);
-    lwsync();
+    rmb();
     mc->cr->__dont_write_directly__verb = (uint8_t)(myverb | mc->vbit);
     dcbf_64(mc->cr);
     dcbit_ro(mc->rr + mc->rridx);

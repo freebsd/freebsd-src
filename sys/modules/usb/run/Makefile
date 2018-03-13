@@ -30,7 +30,7 @@ S=	${SRCTOP}/sys
 .PATH:	$S/dev/usb/wlan
 
 KMOD=	if_run
-SRCS=	opt_bus.h opt_usb.h device_if.h bus_if.h usb_if.h usbdevs.h \
-	if_run.c
+SRCS=	opt_bus.h opt_usb.h opt_wlan.h device_if.h bus_if.h usb_if.h \
+	usbdevs.h if_run.c
 
 .include <bsd.kmod.mk>

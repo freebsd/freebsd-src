@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 22, 2017
+.Dd December 6, 2017
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -677,7 +677,7 @@ Userland code shall use
 .Xr ioctl 2 .
 .Pp
 The following capabilities are currently supported by the system:
-.Bl -tag -width ".Dv IFCAP_POLLING_NOCOUNT" -offset indent
+.Bl -tag -width ".Dv IFCAP_VLAN_HWTAGGING" -offset indent
 .It Dv IFCAP_RXCSUM
 This interface can do checksum validation on receiving data.
 Some interfaces do not have sufficient buffer storage to store frames
@@ -752,9 +752,6 @@ A shorthand for
 This interface supports frame filtering in hardware on
 .Xr vlan 4
 interfaces.
-.It Dv IFCAP_POLLING_NOCOUNT
-The return value for the number of processed packets should be
-skipped for this interface.
 .It Dv IFCAP_VLAN_HWTSO
 This interface supports TCP Segmentation offloading on
 .Xr vlan 4

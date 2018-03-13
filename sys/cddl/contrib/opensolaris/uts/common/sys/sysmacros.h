@@ -388,7 +388,7 @@ highbit(ulong_t i)
 #if defined(__FreeBSD__) && defined(_KERNEL) && defined(HAVE_INLINE_FLSL)
 	return (flsl(i));
 #else
-	register int h = 1;
+	int h = 1;
 
 	if (i == 0)
 		return (0);

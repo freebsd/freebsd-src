@@ -50,10 +50,11 @@ ixgbe_init_fdir(struct adapter *adapter)
 } /* ixgbe_init_fdir */
 
 void
-ixgbe_reinit_fdir(void *context, int pending)
+ixgbe_reinit_fdir(void *context)
 {
-	struct adapter *adapter = context;
-	struct ifnet   *ifp = adapter->ifp;
+	if_ctx_t       ctx = context;
+	struct adapter *adapter = iflib_get_softc(ctx);
+	struct ifnet   *ifp = iflib_get_ifp(ctx);
 
 	if (!(adapter->feat_en & IXGBE_FEATURE_FDIR))
 		return;
@@ -146,9 +147,9 @@ ixgbe_atr(struct tx_ring *txr, struct mbuf *mp)
 
 /* TASK_INIT needs this function defined regardless if it's enabled */
 void
-ixgbe_reinit_fdir(void *context, int pending)
+ixgbe_reinit_fdir(void *context)
 {
-	UNREFERENCED_2PARAMETER(context, pending);
+	UNREFERENCED_PARAMETER(context);
 } /* ixgbe_reinit_fdir */
 
 void

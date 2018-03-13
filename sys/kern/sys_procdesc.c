@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, 2016 Robert N. M. Watson
  * All rights reserved.
  *
@@ -396,7 +398,6 @@ procdesc_close(struct file *fp, struct thread *td)
 			 * process's reference to the process descriptor when it
 			 * calls back into procdesc_reap().
 			 */
-			PROC_SLOCK(p);
 			proc_reap(curthread, p, NULL, 0);
 		} else {
 			/*

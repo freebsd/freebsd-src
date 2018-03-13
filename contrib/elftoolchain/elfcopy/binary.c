@@ -101,10 +101,10 @@ create_binary(int ifd, int ofd)
 		    sh.sh_size == 0)
 			continue;
 		(void) elf_errno();
-		if ((d = elf_getdata(scn, NULL)) == NULL) {
+		if ((d = elf_rawdata(scn, NULL)) == NULL) {
 			elferr = elf_errno();
 			if (elferr != 0)
-				warnx("elf_getdata failed: %s", elf_errmsg(-1));
+				warnx("elf_rawdata failed: %s", elf_errmsg(-1));
 			continue;
 		}
 		if (d->d_buf == NULL || d->d_size == 0)

@@ -96,8 +96,8 @@ bman_attach(device_t dev)
 
 	/* Allocate resources */
 	sc->sc_rrid = 0;
-	sc->sc_rres = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &sc->sc_rrid, 0, ~0, BMAN_CCSR_SIZE, RF_ACTIVE);
+	sc->sc_rres = bus_alloc_resource_anywhere(dev, SYS_RES_MEMORY,
+	    &sc->sc_rrid, BMAN_CCSR_SIZE, RF_ACTIVE);
 	if (sc->sc_rres == NULL)
 		return (ENXIO);
 

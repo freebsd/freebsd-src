@@ -7,6 +7,8 @@
  * $FreeBSD$
  */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Aditya Sarawgi
  * All rights reserved.
  *
@@ -154,6 +156,9 @@ struct m_ext2fs {
 	char     e2fs_fsmnt[MAXMNTLEN];/* name mounted on */
 	char     e2fs_ronly;	  /* mounted read-only flag */
 	char     e2fs_fmod;	  /* super block modified flag */
+	uint64_t e2fs_bcount;	  /* blocks count */
+	uint64_t e2fs_rbcount;	  /* reserved blocks count */
+	uint64_t e2fs_fbcount;	  /* free blocks count */
 	uint32_t e2fs_bsize;	  /* Block size */
 	uint32_t e2fs_bshift;	  /* calc of logical block no */
 	uint32_t e2fs_bpg;	  /* Number of blocks per group */
@@ -177,6 +182,7 @@ struct m_ext2fs {
 	int32_t *e2fs_maxcluster;       /* max cluster in each cyl group */
 	struct   csum *e2fs_clustersum; /* cluster summary in each cyl group */
 	int32_t  e2fs_uhash;	  /* 3 if hash should be signed, 0 if not */
+	uint32_t e2fs_csum_seed;  /* sb checksum seed */
 };
 
 /* cluster summary information */
@@ -198,6 +204,11 @@ struct csum {
 #define	E2FS_REV1		1	/* V2 format w/ dynamic inode sizes */
 
 #define	E2FS_REV0_INODE_SIZE 128
+
+/*
+ * Metadata checksum algorithm codes
+ */
+#define EXT4_CRC32C_CHKSUM		1
 
 /*
  * compatible/incompatible features
@@ -308,24 +319,21 @@ static const struct ext2_feature incompat[] = {
  * - EXT2F_ROCOMPAT_HUGE_FILE
  * - EXT2F_INCOMPAT_EXTENTS
  *
- * We do not support these EXT4 features but they are irrelevant
- * for read-only support:
- * - EXT2F_INCOMPAT_RECOVER
- * - EXT2F_INCOMPAT_FLEX_BG
- * - EXT2F_INCOMPAT_META_BG
  */
 #define	EXT2F_COMPAT_SUPP		EXT2F_COMPAT_DIRHASHINDEX
 #define	EXT2F_ROCOMPAT_SUPP		(EXT2F_ROCOMPAT_SPARSESUPER | \
 					 EXT2F_ROCOMPAT_LARGEFILE | \
 					 EXT2F_ROCOMPAT_GDT_CSUM | \
+					 EXT2F_ROCOMPAT_METADATA_CKSUM | \
 					 EXT2F_ROCOMPAT_DIR_NLINK | \
 					 EXT2F_ROCOMPAT_HUGE_FILE | \
 					 EXT2F_ROCOMPAT_EXTRA_ISIZE)
-#define	EXT2F_INCOMPAT_SUPP		EXT2F_INCOMPAT_FTYPE
-#define	EXT4F_RO_INCOMPAT_SUPP		(EXT2F_INCOMPAT_EXTENTS | \
-					 EXT2F_INCOMPAT_RECOVER | \
+#define	EXT2F_INCOMPAT_SUPP		(EXT2F_INCOMPAT_FTYPE | \
+					 EXT2F_INCOMPAT_META_BG | \
+					 EXT2F_INCOMPAT_EXTENTS | \
+					 EXT2F_INCOMPAT_64BIT | \
 					 EXT2F_INCOMPAT_FLEX_BG | \
-					 EXT2F_INCOMPAT_META_BG )
+					 EXT2F_INCOMPAT_CSUM_SEED)
 
 /* Assume that user mode programs are passing in an ext2fs superblock, not
  * a kernel struct super_block.  This will allow us to call the feature-test
@@ -373,19 +381,24 @@ struct ext2_gd {
 	uint16_t ext4bgd_i_bmap_csum;	/* inode bitmap checksum */
 	uint16_t ext4bgd_i_unused;	/* unused inode count */
 	uint16_t ext4bgd_csum;		/* group descriptor checksum */
+	uint32_t ext4bgd_b_bitmap_hi;	/* high bits of blocks bitmap block */
+	uint32_t ext4bgd_i_bitmap_hi;	/* high bits of inodes bitmap block */
+	uint32_t ext4bgd_i_tables_hi;	/* high bits of inodes table block */
+	uint16_t ext4bgd_nbfree_hi;	/* high bits of number of free blocks */
+	uint16_t ext4bgd_nifree_hi;	/* high bits of number of free inodes */
+	uint16_t ext4bgd_ndirs_hi;	/* high bits of number of directories */
+	uint16_t ext4bgd_i_unused_hi;	/* high bits of unused inode count */
+	uint32_t ext4bgd_x_bitmap_hi;   /* high bits of snapshot exclusion */
+	uint16_t ext4bgd_b_bmap_csum_hi;/* high bits of block bitmap checksum */
+	uint16_t ext4bgd_i_bmap_csum_hi;/* high bits of inode bitmap checksum */
+	uint32_t ext4bgd_reserved;
 };
 
-/* EXT2FS metadata is stored in little-endian byte order. These macros
- * help reading it.
- */
-
-#define	e2fs_cgload(old, new, size) memcpy((new), (old), (size));
-#define	e2fs_cgsave(old, new, size) memcpy((new), (old), (size));
+#define	E2FS_REV0_GD_SIZE (sizeof(struct ext2_gd) / 2)
 
 /*
  * Macro-instructions used to manage several block sizes
  */
-#define	EXT2_MAX_BLOCK_SIZE		4096
 #define	EXT2_MIN_BLOCK_LOG_SIZE		  10
 #define	EXT2_BLOCK_SIZE(s)		((s)->e2fs_bsize)
 #define	EXT2_ADDR_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof(uint32_t))
@@ -404,5 +417,8 @@ struct ext2_gd {
  * Macro-instructions used to manage group descriptors
  */
 #define	EXT2_BLOCKS_PER_GROUP(s)	(EXT2_SB(s)->e2fs_bpg)
+#define	EXT2_DESCS_PER_BLOCK(s)		(EXT2_HAS_INCOMPAT_FEATURE((s), \
+	EXT2F_INCOMPAT_64BIT) ? ((s)->e2fs_bsize / sizeof(struct ext2_gd)) : \
+	((s)->e2fs_bsize / E2FS_REV0_GD_SIZE))
 
 #endif	/* !_FS_EXT2FS_EXT2FS_H_ */

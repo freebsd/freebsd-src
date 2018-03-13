@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2018 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/filio.h>
 #include <sys/rwlock.h>
+#include <sys/mman.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -391,18 +392,6 @@ kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 }
 
 static void
-linux_file_dtor(void *cdp)
-{
-	struct linux_file *filp;
-
-	linux_set_current(curthread);
-	filp = cdp;
-	filp->f_op->release(filp->f_vnode, filp);
-	vdrop(filp->f_vnode);
-	kfree(filp);
-}
-
-static void
 linux_kq_lock(void *arg)
 {
 	spinlock_t *s = arg;
@@ -438,7 +427,7 @@ linux_kq_lock_unowned(void *arg)
 }
 
 static void
-linux_dev_kqfilter_poll(struct linux_file *, int);
+linux_file_kqfilter_poll(struct linux_file *, int);
 
 struct linux_file *
 linux_file_alloc(void)
@@ -549,6 +538,7 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 		vmf.flags = (fault_type & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
 		vmf.pgoff = 0;
 		vmf.page = NULL;
+		vmf.vma = vmap;
 
 		vmap->vm_pfn_count = 0;
 		vmap->vm_pfn_pcount = &vmap->vm_pfn_count;
@@ -605,24 +595,6 @@ linux_cdev_handle_free(struct vm_area_struct *vmap)
 	mmput(vmap->vm_mm);
 
 	kfree(vmap);
-}
-
-static struct vm_area_struct *
-linux_cdev_handle_insert(void *handle, struct vm_area_struct *vmap)
-{
-	struct vm_area_struct *ptr;
-
-	rw_wlock(&linux_vma_lock);
-	TAILQ_FOREACH(ptr, &linux_vma_head, vm_entry) {
-		if (ptr->vm_private_data == handle) {
-			rw_wunlock(&linux_vma_lock);
-			linux_cdev_handle_free(vmap);
-			return (NULL);
-		}
-	}
-	TAILQ_INSERT_TAIL(&linux_vma_head, vmap, vm_entry);
-	rw_wunlock(&linux_vma_lock);
-	return (vmap);
 }
 
 static void
@@ -696,24 +668,31 @@ static struct cdev_pager_ops linux_cdev_pager_ops[2] = {
   },
 };
 
+#define	OPW(fp,td,code) ({			\
+	struct file *__fpop;			\
+	__typeof(code) __retval;		\
+						\
+	__fpop = (td)->td_fpop;			\
+	(td)->td_fpop = (fp);			\
+	__retval = (code);			\
+	(td)->td_fpop = __fpop;			\
+	__retval;				\
+})
+
 static int
-linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+linux_dev_fdopen(struct cdev *dev, int fflags, struct thread *td, struct file *file)
 {
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
-	struct file *file;
 	int error;
 
-	file = td->td_fpop;
 	ldev = dev->si_drv1;
-	if (ldev == NULL)
-		return (ENODEV);
 
 	filp = linux_file_alloc();
 	filp->f_dentry = &filp->f_dentry_store;
 	filp->f_op = ldev->ops;
+	filp->f_mode = file->f_flag;
 	filp->f_flags = file->f_flag;
-	vhold(file->f_vnode);
 	filp->f_vnode = file->f_vnode;
 	filp->_file = file;
 
@@ -722,37 +701,17 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	if (filp->f_op->open) {
 		error = -filp->f_op->open(file->f_vnode, filp);
 		if (error) {
-			vdrop(filp->f_vnode);
 			kfree(filp);
-			goto done;
+			return (error);
 		}
 	}
-	error = devfs_set_cdevpriv(filp, linux_file_dtor);
-	if (error) {
-		filp->f_op->release(file->f_vnode, filp);
-		vdrop(filp->f_vnode);
-		kfree(filp);
-	}
-done:
-	return (error);
-}
 
-static int
-linux_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
-{
-	struct linux_file *filp;
-	struct file *file;
-	int error;
+	/* hold on to the vnode - used for fstat() */
+	vhold(filp->f_vnode);
 
-	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (0);
-	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
-		return (error);
-	filp->f_flags = file->f_flag;
-	devfs_clear_cdevpriv();
-
-	return (0);
+	/* release the file from devfs */
+	finit(file, filp->f_mode, DTYPE_DEV, filp, &linuxfileops);
+	return (ENXIO);
 }
 
 #define	LINUX_IOCTL_MIN_PTR 0x10000UL
@@ -869,27 +828,30 @@ linux_access_ok(int rw, const void *uaddr, size_t len)
 	    (eaddr > saddr && eaddr <= VM_MAXUSER_ADDRESS));
 }
 
+/*
+ * This function should return either EINTR or ERESTART depending on
+ * the signal type sent to this thread:
+ */
 static int
-linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
-    struct thread *td)
+linux_get_error(struct task_struct *task, int error)
 {
-	struct linux_file *filp;
-	struct file *file;
+	/* check for signal type interrupt code */
+	if (error == EINTR || error == ERESTARTSYS || error == ERESTART) {
+		error = -linux_schedule_get_interrupt_value(task);
+		if (error == 0)
+			error = EINTR;
+	}
+	return (error);
+}
+
+static int
+linux_file_ioctl_sub(struct file *fp, struct linux_file *filp,
+    u_long cmd, caddr_t data, struct thread *td)
+{
+	struct task_struct *task = current;
 	unsigned size;
 	int error;
 
-	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENXIO);
-	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
-		return (error);
-	filp->f_flags = file->f_flag;
-
-	/* the LinuxKPI supports blocking and non-blocking I/O */
-	if (cmd == FIONBIO || cmd == FIOASYNC)
-		return (0);
-
-	linux_set_current(td);
 	size = IOCPARM_LEN(cmd);
 	/* refer to logic in sys_ioctl() */
 	if (size > 0) {
@@ -899,8 +861,8 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		 * Background: Linux code expects a user-space address
 		 * while FreeBSD supplies a kernel-space address.
 		 */
-		current->bsd_ioctl_data = data;
-		current->bsd_ioctl_len = size;
+		task->bsd_ioctl_data = data;
+		task->bsd_ioctl_len = size;
 		data = (void *)LINUX_IOCTL_MIN_PTR;
 	} else {
 		/* fetch user-space pointer */
@@ -910,141 +872,35 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	if (td->td_proc->p_elf_machine == EM_386) {
 		/* try the compat IOCTL handler first */
 		if (filp->f_op->compat_ioctl != NULL)
-			error = -filp->f_op->compat_ioctl(filp, cmd, (u_long)data);
+			error = -OPW(fp, td, filp->f_op->compat_ioctl(filp, cmd, (u_long)data));
 		else
 			error = ENOTTY;
 
 		/* fallback to the regular IOCTL handler, if any */
 		if (error == ENOTTY && filp->f_op->unlocked_ioctl != NULL)
-			error = -filp->f_op->unlocked_ioctl(filp, cmd, (u_long)data);
+			error = -OPW(fp, td, filp->f_op->unlocked_ioctl(filp, cmd, (u_long)data));
 	} else
 #endif
 	if (filp->f_op->unlocked_ioctl != NULL)
-		error = -filp->f_op->unlocked_ioctl(filp, cmd, (u_long)data);
+		error = -OPW(fp, td, filp->f_op->unlocked_ioctl(filp, cmd, (u_long)data));
 	else
 		error = ENOTTY;
 	if (size > 0) {
-		current->bsd_ioctl_data = NULL;
-		current->bsd_ioctl_len = 0;
+		task->bsd_ioctl_data = NULL;
+		task->bsd_ioctl_len = 0;
 	}
 
 	if (error == EWOULDBLOCK) {
 		/* update kqfilter status, if any */
-		linux_dev_kqfilter_poll(filp,
+		linux_file_kqfilter_poll(filp,
 		    LINUX_KQ_FLAG_HAS_READ | LINUX_KQ_FLAG_HAS_WRITE);
-	} else if (error == ERESTARTSYS)
-		error = ERESTART;
+	} else {
+		error = linux_get_error(task, error);
+	}
 	return (error);
 }
 
-static int
-linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
-{
-	struct linux_file *filp;
-	struct thread *td;
-	struct file *file;
-	ssize_t bytes;
-	int error;
-
-	td = curthread;
-	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENXIO);
-	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
-		return (error);
-	filp->f_flags = file->f_flag;
-	/* XXX no support for I/O vectors currently */
-	if (uio->uio_iovcnt != 1)
-		return (EOPNOTSUPP);
-	linux_set_current(td);
-	if (filp->f_op->read) {
-		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
-		    uio->uio_iov->iov_len, &uio->uio_offset);
-		if (bytes >= 0) {
-			uio->uio_iov->iov_base =
-			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
-			uio->uio_iov->iov_len -= bytes;
-			uio->uio_resid -= bytes;
-		} else {
-			error = -bytes;
-			if (error == ERESTARTSYS)
-				error = ERESTART;
-		}
-	} else
-		error = ENXIO;
-
-	/* update kqfilter status, if any */
-	linux_dev_kqfilter_poll(filp, LINUX_KQ_FLAG_HAS_READ);
-
-	return (error);
-}
-
-static int
-linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
-{
-	struct linux_file *filp;
-	struct thread *td;
-	struct file *file;
-	ssize_t bytes;
-	int error;
-
-	td = curthread;
-	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENXIO);
-	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
-		return (error);
-	filp->f_flags = file->f_flag;
-	/* XXX no support for I/O vectors currently */
-	if (uio->uio_iovcnt != 1)
-		return (EOPNOTSUPP);
-	linux_set_current(td);
-	if (filp->f_op->write) {
-		bytes = filp->f_op->write(filp, uio->uio_iov->iov_base,
-		    uio->uio_iov->iov_len, &uio->uio_offset);
-		if (bytes >= 0) {
-			uio->uio_iov->iov_base =
-			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
-			uio->uio_iov->iov_len -= bytes;
-			uio->uio_resid -= bytes;
-		} else {
-			error = -bytes;
-			if (error == ERESTARTSYS)
-				error = ERESTART;
-		}
-	} else
-		error = ENXIO;
-
-	/* update kqfilter status, if any */
-	linux_dev_kqfilter_poll(filp, LINUX_KQ_FLAG_HAS_WRITE);
-
-	return (error);
-}
-
-static int
-linux_dev_poll(struct cdev *dev, int events, struct thread *td)
-{
-	struct linux_file *filp;
-	struct file *file;
-	int revents;
-
-	if (dev->si_drv1 == NULL)
-		goto error;
-	if (devfs_get_cdevpriv((void **)&filp) != 0)
-		goto error;
-
-	file = td->td_fpop;
-	filp->f_flags = file->f_flag;
-	linux_set_current(td);
-	if (filp->f_op->poll != NULL)
-		revents = filp->f_op->poll(filp, NULL) & events;
-	else
-		revents = 0;
-
-	return (revents);
-error:
-	return (events & (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
-}
+#define	LINUX_POLL_TABLE_NORMAL ((poll_table *)1)
 
 /*
  * This function atomically updates the poll wakeup state and returns
@@ -1094,7 +950,9 @@ linux_poll_wait(struct linux_file *filp, wait_queue_head_t *wqh, poll_table *p)
 		[LINUX_FWQ_STATE_READY] = LINUX_FWQ_STATE_QUEUED,
 	};
 
-	selrecord(curthread, &filp->f_selinfo);
+	/* check if we are called inside the select system call */
+	if (p == LINUX_POLL_TABLE_NORMAL)
+		selrecord(curthread, &filp->f_selinfo);
 
 	switch (linux_poll_wakeup_state(&filp->f_wait_queue.state, state)) {
 	case LINUX_FWQ_STATE_INIT:
@@ -1151,7 +1009,7 @@ linux_poll_wakeup(struct linux_file *filp)
 }
 
 static void
-linux_dev_kqfilter_detach(struct knote *kn)
+linux_file_kqfilter_detach(struct knote *kn)
 {
 	struct linux_file *filp = kn->kn_hook;
 
@@ -1161,7 +1019,7 @@ linux_dev_kqfilter_detach(struct knote *kn)
 }
 
 static int
-linux_dev_kqfilter_read_event(struct knote *kn, long hint)
+linux_file_kqfilter_read_event(struct knote *kn, long hint)
 {
 	struct linux_file *filp = kn->kn_hook;
 
@@ -1171,7 +1029,7 @@ linux_dev_kqfilter_read_event(struct knote *kn, long hint)
 }
 
 static int
-linux_dev_kqfilter_write_event(struct knote *kn, long hint)
+linux_file_kqfilter_write_event(struct knote *kn, long hint)
 {
 	struct linux_file *filp = kn->kn_hook;
 
@@ -1182,24 +1040,26 @@ linux_dev_kqfilter_write_event(struct knote *kn, long hint)
 
 static struct filterops linux_dev_kqfiltops_read = {
 	.f_isfd = 1,
-	.f_detach = linux_dev_kqfilter_detach,
-	.f_event = linux_dev_kqfilter_read_event,
+	.f_detach = linux_file_kqfilter_detach,
+	.f_event = linux_file_kqfilter_read_event,
 };
 
 static struct filterops linux_dev_kqfiltops_write = {
 	.f_isfd = 1,
-	.f_detach = linux_dev_kqfilter_detach,
-	.f_event = linux_dev_kqfilter_write_event,
+	.f_detach = linux_file_kqfilter_detach,
+	.f_event = linux_file_kqfilter_write_event,
 };
 
 static void
-linux_dev_kqfilter_poll(struct linux_file *filp, int kqflags)
+linux_file_kqfilter_poll(struct linux_file *filp, int kqflags)
 {
 	int temp;
 
 	if (filp->f_kqflags & kqflags) {
+		struct thread *td = curthread;
+
 		/* get the latest polling state */
-		temp = filp->f_op->poll(filp, NULL);
+		temp = OPW(filp->_file, td, filp->f_op->poll(filp, NULL));
 
 		spin_lock(&filp->f_kqlock);
 		/* clear kqflags */
@@ -1220,19 +1080,14 @@ linux_dev_kqfilter_poll(struct linux_file *filp, int kqflags)
 }
 
 static int
-linux_dev_kqfilter(struct cdev *dev, struct knote *kn)
+linux_file_kqfilter(struct file *file, struct knote *kn)
 {
 	struct linux_file *filp;
-	struct file *file;
 	struct thread *td;
 	int error;
 
 	td = curthread;
-	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENXIO);
-	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
-		return (error);
+	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
 	if (filp->f_op->poll == NULL)
 		return (EINVAL);
@@ -1244,12 +1099,14 @@ linux_dev_kqfilter(struct cdev *dev, struct knote *kn)
 		kn->kn_fop = &linux_dev_kqfiltops_read;
 		kn->kn_hook = filp;
 		knlist_add(&filp->f_selinfo.si_note, kn, 1);
+		error = 0;
 		break;
 	case EVFILT_WRITE:
 		filp->f_kqflags |= LINUX_KQ_FLAG_HAS_WRITE;
 		kn->kn_fop = &linux_dev_kqfiltops_write;
 		kn->kn_hook = filp;
 		knlist_add(&filp->f_selinfo.si_note, kn, 1);
+		error = 0;
 		break;
 	default:
 		error = EINVAL;
@@ -1261,34 +1118,29 @@ linux_dev_kqfilter(struct cdev *dev, struct knote *kn)
 		linux_set_current(td);
 
 		/* update kqfilter status, if any */
-		linux_dev_kqfilter_poll(filp,
+		linux_file_kqfilter_poll(filp,
 		    LINUX_KQ_FLAG_HAS_READ | LINUX_KQ_FLAG_HAS_WRITE);
 	}
 	return (error);
 }
 
 static int
-linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
-    vm_size_t size, struct vm_object **object, int nprot)
+linux_file_mmap_single(struct file *fp, vm_ooffset_t *offset,
+    vm_size_t size, struct vm_object **object, int nprot,
+    struct thread *td)
 {
+	struct task_struct *task;
 	struct vm_area_struct *vmap;
 	struct mm_struct *mm;
 	struct linux_file *filp;
-	struct thread *td;
-	struct file *file;
 	vm_memattr_t attr;
 	int error;
 
-	td = curthread;
-	file = td->td_fpop;
-	if (dev->si_drv1 == NULL)
-		return (ENODEV);
-	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
-		return (error);
-	filp->f_flags = file->f_flag;
+	filp = (struct linux_file *)fp->f_data;
+	filp->f_flags = fp->f_flag;
 
 	if (filp->f_op->mmap == NULL)
-		return (ENODEV);
+		return (EOPNOTSUPP);
 
 	linux_set_current(td);
 
@@ -1299,7 +1151,8 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	 * The atomic reference below makes sure the mm_struct is
 	 * available as long as the vmap is in the linux_vma_head.
 	 */
-	mm = current->mm;
+	task = current;
+	mm = task->mm;
 	if (atomic_inc_not_zero(&mm->mm_users) == 0)
 		return (EINVAL);
 
@@ -1314,9 +1167,10 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	vmap->vm_mm = mm;
 
 	if (unlikely(down_write_killable(&vmap->vm_mm->mmap_sem))) {
-		error = EINTR;
+		error = linux_get_error(task, EINTR);
 	} else {
-		error = -filp->f_op->mmap(filp, vmap);
+		error = -OPW(fp, td, filp->f_op->mmap(filp, vmap));
+		error = linux_get_error(task, error);
 		up_write(&vmap->vm_mm->mmap_sem);
 	}
 
@@ -1328,32 +1182,72 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	attr = pgprot2cachemode(vmap->vm_page_prot);
 
 	if (vmap->vm_ops != NULL) {
+		struct vm_area_struct *ptr;
 		void *vm_private_data;
+		bool vm_no_fault;
 
 		if (vmap->vm_ops->open == NULL ||
 		    vmap->vm_ops->close == NULL ||
 		    vmap->vm_private_data == NULL) {
+			/* free allocated VM area struct */
 			linux_cdev_handle_free(vmap);
 			return (EINVAL);
 		}
 
 		vm_private_data = vmap->vm_private_data;
 
-		vmap = linux_cdev_handle_insert(vm_private_data, vmap);
+		rw_wlock(&linux_vma_lock);
+		TAILQ_FOREACH(ptr, &linux_vma_head, vm_entry) {
+			if (ptr->vm_private_data == vm_private_data)
+				break;
+		}
+		/* check if there is an existing VM area struct */
+		if (ptr != NULL) {
+			/* check if the VM area structure is invalid */
+			if (ptr->vm_ops == NULL ||
+			    ptr->vm_ops->open == NULL ||
+			    ptr->vm_ops->close == NULL) {
+				error = ESTALE;
+				vm_no_fault = 1;
+			} else {
+				error = EEXIST;
+				vm_no_fault = (ptr->vm_ops->fault == NULL);
+			}
+		} else {
+			/* insert VM area structure into list */
+			TAILQ_INSERT_TAIL(&linux_vma_head, vmap, vm_entry);
+			error = 0;
+			vm_no_fault = (vmap->vm_ops->fault == NULL);
+		}
+		rw_wunlock(&linux_vma_lock);
 
-		if (vmap->vm_ops->fault == NULL) {
+		if (error != 0) {
+			/* free allocated VM area struct */
+			linux_cdev_handle_free(vmap);
+			/* check for stale VM area struct */
+			if (error != EEXIST)
+				return (error);
+		}
+
+		/* check if there is no fault handler */
+		if (vm_no_fault) {
 			*object = cdev_pager_allocate(vm_private_data, OBJT_DEVICE,
 			    &linux_cdev_pager_ops[1], size, nprot, *offset,
-			    curthread->td_ucred);
+			    td->td_ucred);
 		} else {
 			*object = cdev_pager_allocate(vm_private_data, OBJT_MGTDEVICE,
 			    &linux_cdev_pager_ops[0], size, nprot, *offset,
-			    curthread->td_ucred);
+			    td->td_ucred);
 		}
 
+		/* check if allocating the VM object failed */
 		if (*object == NULL) {
-			linux_cdev_handle_remove(vmap);
-			linux_cdev_handle_free(vmap);
+			if (error == 0) {
+				/* remove VM area struct from list */
+				linux_cdev_handle_remove(vmap);
+				/* free allocated VM area struct */
+				linux_cdev_handle_free(vmap);
+			}
 			return (EINVAL);
 		}
 	} else {
@@ -1364,7 +1258,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 		    (vm_paddr_t)vmap->vm_pfn << PAGE_SHIFT, vmap->vm_len);
 
 		*object = vm_pager_allocate(OBJT_SG, sg, vmap->vm_len,
-		    nprot, 0, curthread->td_ucred);
+		    nprot, 0, td->td_ucred);
 
 		linux_cdev_handle_free(vmap);
 
@@ -1385,15 +1279,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 
 struct cdevsw linuxcdevsw = {
 	.d_version = D_VERSION,
-	.d_flags = D_TRACKCLOSE,
-	.d_open = linux_dev_open,
-	.d_close = linux_dev_close,
-	.d_read = linux_dev_read,
-	.d_write = linux_dev_write,
-	.d_ioctl = linux_dev_ioctl,
-	.d_mmap_single = linux_dev_mmap_single,
-	.d_poll = linux_dev_poll,
-	.d_kqfilter = linux_dev_kqfilter,
+	.d_fdopen = linux_dev_fdopen,
 	.d_name = "lkpidev",
 };
 
@@ -1411,19 +1297,62 @@ linux_file_read(struct file *file, struct uio *uio, struct ucred *active_cred,
 	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
 		return (EOPNOTSUPP);
+	if (uio->uio_resid > DEVFS_IOSIZE_MAX)
+		return (EINVAL);
 	linux_set_current(td);
 	if (filp->f_op->read) {
-		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
-		    uio->uio_iov->iov_len, &uio->uio_offset);
+		bytes = OPW(file, td, filp->f_op->read(filp, uio->uio_iov->iov_base,
+		    uio->uio_iov->iov_len, &uio->uio_offset));
 		if (bytes >= 0) {
 			uio->uio_iov->iov_base =
 			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
 			uio->uio_iov->iov_len -= bytes;
 			uio->uio_resid -= bytes;
-		} else
-			error = -bytes;
+		} else {
+			error = linux_get_error(current, -bytes);
+		}
 	} else
 		error = ENXIO;
+
+	/* update kqfilter status, if any */
+	linux_file_kqfilter_poll(filp, LINUX_KQ_FLAG_HAS_READ);
+
+	return (error);
+}
+
+static int
+linux_file_write(struct file *file, struct uio *uio, struct ucred *active_cred,
+    int flags, struct thread *td)
+{
+	struct linux_file *filp;
+	ssize_t bytes;
+	int error;
+
+	error = 0;
+	filp = (struct linux_file *)file->f_data;
+	filp->f_flags = file->f_flag;
+	/* XXX no support for I/O vectors currently */
+	if (uio->uio_iovcnt != 1)
+		return (EOPNOTSUPP);
+	if (uio->uio_resid > DEVFS_IOSIZE_MAX)
+		return (EINVAL);
+	linux_set_current(td);
+	if (filp->f_op->write) {
+		bytes = OPW(file, td, filp->f_op->write(filp, uio->uio_iov->iov_base,
+		    uio->uio_iov->iov_len, &uio->uio_offset));
+		if (bytes >= 0) {
+			uio->uio_iov->iov_base =
+			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
+			uio->uio_iov->iov_len -= bytes;
+			uio->uio_resid -= bytes;
+		} else {
+			error = linux_get_error(current, -bytes);
+		}
+	} else
+		error = ENXIO;
+
+	/* update kqfilter status, if any */
+	linux_file_kqfilter_poll(filp, LINUX_KQ_FLAG_HAS_WRITE);
 
 	return (error);
 }
@@ -1438,10 +1367,9 @@ linux_file_poll(struct file *file, int events, struct ucred *active_cred,
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
 	linux_set_current(td);
-	if (filp->f_op->poll != NULL) {
-		selrecord(td, &filp->f_selinfo);
-		revents = filp->f_op->poll(filp, NULL) & events;
-	} else
+	if (filp->f_op->poll != NULL)
+		revents = OPW(file, td, filp->f_op->poll(filp, LINUX_POLL_TABLE_NORMAL)) & events;
+	else
 		revents = 0;
 
 	return (revents);
@@ -1454,11 +1382,16 @@ linux_file_close(struct file *file, struct thread *td)
 	int error;
 
 	filp = (struct linux_file *)file->f_data;
+
+	KASSERT(file_count(filp) == 0, ("File refcount(%d) is not zero", file_count(filp)));
+
 	filp->f_flags = file->f_flag;
 	linux_set_current(td);
 	linux_poll_wait_dequeue(filp);
-	error = -filp->f_op->release(NULL, filp);
+	error = -OPW(file, td, filp->f_op->release(filp->f_vnode, filp));
 	funsetown(&filp->f_sigio);
+	if (filp->f_vnode != NULL)
+		vdrop(filp->f_vnode);
 	kfree(filp);
 
 	return (error);
@@ -1482,21 +1415,106 @@ linux_file_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *cred,
 	case FIOASYNC:
 		if (filp->f_op->fasync == NULL)
 			break;
-		error = filp->f_op->fasync(0, filp, fp->f_flag & FASYNC);
+		error = -OPW(fp, td, filp->f_op->fasync(0, filp, fp->f_flag & FASYNC));
 		break;
 	case FIOSETOWN:
 		error = fsetown(*(int *)data, &filp->f_sigio);
-		if (error == 0)
-			error = filp->f_op->fasync(0, filp,
-			    fp->f_flag & FASYNC);
+		if (error == 0) {
+			if (filp->f_op->fasync == NULL)
+				break;
+			error = -OPW(fp, td, filp->f_op->fasync(0, filp,
+			    fp->f_flag & FASYNC));
+		}
 		break;
 	case FIOGETOWN:
 		*(int *)data = fgetown(&filp->f_sigio);
 		break;
 	default:
-		error = ENOTTY;
+		error = linux_file_ioctl_sub(fp, filp, cmd, data, td);
 		break;
 	}
+	return (error);
+}
+
+static int
+linux_file_mmap_sub(struct thread *td, vm_size_t objsize, vm_prot_t prot,
+    vm_prot_t *maxprotp, int *flagsp, struct file *fp,
+    vm_ooffset_t *foff, vm_object_t *objp)
+{
+	/*
+	 * Character devices do not provide private mappings
+	 * of any kind:
+	 */
+	if ((*maxprotp & VM_PROT_WRITE) == 0 &&
+	    (prot & VM_PROT_WRITE) != 0)
+		return (EACCES);
+	if ((*flagsp & (MAP_PRIVATE | MAP_COPY)) != 0)
+		return (EINVAL);
+
+	return (linux_file_mmap_single(fp, foff, objsize, objp, (int)prot, td));
+}
+
+static int
+linux_file_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
+    vm_prot_t prot, vm_prot_t cap_maxprot, int flags, vm_ooffset_t foff,
+    struct thread *td)
+{
+	struct linux_file *filp;
+	struct mount *mp;
+	struct vnode *vp;
+	vm_object_t object;
+	vm_prot_t maxprot;
+	int error;
+
+	filp = (struct linux_file *)fp->f_data;
+
+	vp = filp->f_vnode;
+	if (vp == NULL)
+		return (EOPNOTSUPP);
+
+	/*
+	 * Ensure that file and memory protections are
+	 * compatible.
+	 */
+	mp = vp->v_mount;
+	if (mp != NULL && (mp->mnt_flag & MNT_NOEXEC) != 0) {
+		maxprot = VM_PROT_NONE;
+		if ((prot & VM_PROT_EXECUTE) != 0)
+			return (EACCES);
+	} else
+		maxprot = VM_PROT_EXECUTE;
+	if ((fp->f_flag & FREAD) != 0)
+		maxprot |= VM_PROT_READ;
+	else if ((prot & VM_PROT_READ) != 0)
+		return (EACCES);
+
+	/*
+	 * If we are sharing potential changes via MAP_SHARED and we
+	 * are trying to get write permission although we opened it
+	 * without asking for it, bail out.
+	 *
+	 * Note that most character devices always share mappings.
+	 *
+	 * Rely on linux_file_mmap_sub() to fail invalid MAP_PRIVATE
+	 * requests rather than doing it here.
+	 */
+	if ((flags & MAP_SHARED) != 0) {
+		if ((fp->f_flag & FWRITE) != 0)
+			maxprot |= VM_PROT_WRITE;
+		else if ((prot & VM_PROT_WRITE) != 0)
+			return (EACCES);
+	}
+	maxprot &= cap_maxprot;
+
+	error = linux_file_mmap_sub(td, size, prot, &maxprot, &flags, fp, &foff,
+	    &object);
+	if (error != 0)
+		return (error);
+
+	error = vm_mmap_object(map, addr, size, prot, maxprot, flags, object,
+	    foff, FALSE, td);
+	if (error != 0)
+		vm_object_deallocate(object);
 	return (error);
 }
 
@@ -1504,8 +1522,21 @@ static int
 linux_file_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
     struct thread *td)
 {
+	struct linux_file *filp;
+	struct vnode *vp;
+	int error;
 
-	return (EOPNOTSUPP);
+	filp = (struct linux_file *)fp->f_data;
+	if (filp->f_vnode == NULL)
+		return (EOPNOTSUPP);
+
+	vp = filp->f_vnode;
+
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	error = vn_stat(vp, sb, td->td_ucred, NOCRED, td);
+	VOP_UNLOCK(vp, 0);
+
+	return (error);
 }
 
 static int
@@ -1533,17 +1564,19 @@ linux_iminor(struct inode *inode)
 
 struct fileops linuxfileops = {
 	.fo_read = linux_file_read,
-	.fo_write = invfo_rdwr,
+	.fo_write = linux_file_write,
 	.fo_truncate = invfo_truncate,
-	.fo_kqfilter = invfo_kqfilter,
+	.fo_kqfilter = linux_file_kqfilter,
 	.fo_stat = linux_file_stat,
 	.fo_fill_kinfo = linux_file_fill_kinfo,
 	.fo_poll = linux_file_poll,
 	.fo_close = linux_file_close,
 	.fo_ioctl = linux_file_ioctl,
+	.fo_mmap = linux_file_mmap,
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
+	.fo_flags = DFLAG_PASSABLE,
 };
 
 /*
@@ -1701,7 +1734,7 @@ mod_timer(struct timer_list *timer, int expires)
 {
 
 	timer->expires = expires;
-	callout_reset(&timer->timer_callout,		      
+	callout_reset(&timer->callout,
 	    linux_timer_jiffies_until(expires),
 	    &linux_timer_callback_wrapper, timer);
 }
@@ -1710,7 +1743,7 @@ void
 add_timer(struct timer_list *timer)
 {
 
-	callout_reset(&timer->timer_callout,
+	callout_reset(&timer->callout,
 	    linux_timer_jiffies_until(timer->expires),
 	    &linux_timer_callback_wrapper, timer);
 }
@@ -1719,7 +1752,7 @@ void
 add_timer_on(struct timer_list *timer, int cpu)
 {
 
-	callout_reset_on(&timer->timer_callout,
+	callout_reset_on(&timer->callout,
 	    linux_timer_jiffies_until(timer->expires),
 	    &linux_timer_callback_wrapper, timer, cpu);
 }
@@ -1746,11 +1779,14 @@ linux_complete_common(struct completion *c, int all)
 	int wakeup_swapper;
 
 	sleepq_lock(c);
-	c->done++;
-	if (all)
+	if (all) {
+		c->done = UINT_MAX;
 		wakeup_swapper = sleepq_broadcast(c, SLEEPQ_SLEEP, 0, 0);
-	else
+	} else {
+		if (c->done != UINT_MAX)
+			c->done++;
 		wakeup_swapper = sleepq_signal(c, SLEEPQ_SLEEP, 0, 0);
+	}
 	sleepq_release(c);
 	if (wakeup_swapper)
 		kick_proc0();
@@ -1762,12 +1798,15 @@ linux_complete_common(struct completion *c, int all)
 int
 linux_wait_for_common(struct completion *c, int flags)
 {
+	struct task_struct *task;
 	int error;
 
 	if (SCHEDULER_STOPPED())
 		return (0);
 
 	DROP_GIANT();
+
+	task = current;
 
 	if (flags != 0)
 		flags = SLEEPQ_INTERRUPTIBLE | SLEEPQ_SLEEP;
@@ -1780,14 +1819,17 @@ linux_wait_for_common(struct completion *c, int flags)
 			break;
 		sleepq_add(c, NULL, "completion", flags, 0);
 		if (flags & SLEEPQ_INTERRUPTIBLE) {
-			if (sleepq_wait_sig(c, 0) != 0) {
+			error = -sleepq_wait_sig(c, 0);
+			if (error != 0) {
+				linux_schedule_save_interrupt_value(task, error);
 				error = -ERESTARTSYS;
 				goto intr;
 			}
 		} else
 			sleepq_wait(c, 0);
 	}
-	c->done--;
+	if (c->done != UINT_MAX)
+		c->done--;
 	sleepq_release(c);
 
 intr:
@@ -1802,22 +1844,22 @@ intr:
 int
 linux_wait_for_timeout_common(struct completion *c, int timeout, int flags)
 {
+	struct task_struct *task;
 	int end = jiffies + timeout;
 	int error;
-	int ret;
 
 	if (SCHEDULER_STOPPED())
 		return (0);
 
 	DROP_GIANT();
 
+	task = current;
+
 	if (flags != 0)
 		flags = SLEEPQ_INTERRUPTIBLE | SLEEPQ_SLEEP;
 	else
 		flags = SLEEPQ_SLEEP;
 
-	error = 0;
-	ret = 0;
 	for (;;) {
 		sleepq_lock(c);
 		if (c->done)
@@ -1825,26 +1867,31 @@ linux_wait_for_timeout_common(struct completion *c, int timeout, int flags)
 		sleepq_add(c, NULL, "completion", flags, 0);
 		sleepq_set_timeout(c, linux_timer_jiffies_until(end));
 		if (flags & SLEEPQ_INTERRUPTIBLE)
-			ret = sleepq_timedwait_sig(c, 0);
+			error = -sleepq_timedwait_sig(c, 0);
 		else
-			ret = sleepq_timedwait(c, 0);
-		if (ret != 0) {
-			/* check for timeout or signal */
-			if (ret == EWOULDBLOCK)
-				error = 0;
-			else
+			error = -sleepq_timedwait(c, 0);
+		if (error != 0) {
+			/* check for timeout */
+			if (error == -EWOULDBLOCK) {
+				error = 0;	/* timeout */
+			} else {
+				/* signal happened */
+				linux_schedule_save_interrupt_value(task, error);
 				error = -ERESTARTSYS;
-			goto intr;
+			}
+			goto done;
 		}
 	}
-	c->done--;
+	if (c->done != UINT_MAX)
+		c->done--;
 	sleepq_release(c);
 
-intr:
+	/* return how many jiffies are left */
+	error = linux_timer_jiffies_until(end);
+done:
 	PICKUP_GIANT();
 
-	/* return how many jiffies are left */
-	return (ret != 0 ? error : linux_timer_jiffies_until(end));
+	return (error);
 }
 
 int
@@ -1852,12 +1899,10 @@ linux_try_wait_for_completion(struct completion *c)
 {
 	int isdone;
 
-	isdone = 1;
 	sleepq_lock(c);
-	if (c->done)
+	isdone = (c->done != 0);
+	if (c->done != 0 && c->done != UINT_MAX)
 		c->done--;
-	else
-		isdone = 0;
 	sleepq_release(c);
 	return (isdone);
 }
@@ -1867,10 +1912,8 @@ linux_completion_done(struct completion *c)
 {
 	int isdone;
 
-	isdone = 1;
 	sleepq_lock(c);
-	if (c->done == 0)
-		isdone = 0;
+	isdone = (c->done != 0);
 	sleepq_release(c);
 	return (isdone);
 }

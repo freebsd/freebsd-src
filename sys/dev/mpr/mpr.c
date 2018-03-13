@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/eventhandler.h>
 #include <sys/sbuf.h>
+#include <sys/priv.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -107,6 +108,7 @@ static void mpr_enqueue_request(struct mpr_softc *sc, struct mpr_command *cm);
 static int mpr_get_iocfacts(struct mpr_softc *sc, MPI2_IOC_FACTS_REPLY *facts);
 static int mpr_wait_db_ack(struct mpr_softc *sc, int timeout, int sleep_flag);
 static int mpr_debug_sysctl(SYSCTL_HANDLER_ARGS);
+static int mpr_dump_reqs(SYSCTL_HANDLER_ARGS);
 static void mpr_parse_debug(struct mpr_softc *sc, char *list);
 
 SYSCTL_NODE(_hw, OID_AUTO, mpr, CTLFLAG_RD, 0, "MPR Driver Parameters");
@@ -382,7 +384,7 @@ mpr_transition_operational(struct mpr_softc *sc)
 static void
 mpr_resize_queues(struct mpr_softc *sc)
 {
-	int reqcr, prireqcr;
+	u_int reqcr, prireqcr, maxio, sges_per_frame, chain_seg_size;
 
 	/*
 	 * Size the queues. Since the reply queues always need one free
@@ -397,8 +399,59 @@ mpr_resize_queues(struct mpr_softc *sc)
 	reqcr = MIN(reqcr, sc->facts->RequestCredit);
 
 	sc->num_reqs = prireqcr + reqcr;
+	sc->num_prireqs = prireqcr;
 	sc->num_replies = MIN(sc->max_replyframes + sc->max_evtframes,
 	    sc->facts->MaxReplyDescriptorPostQueueDepth) - 1;
+
+	/* Store the request frame size in bytes rather than as 32bit words */
+	sc->reqframesz = sc->facts->IOCRequestFrameSize * 4;
+
+	/*
+	 * Gen3 and beyond uses the IOCMaxChainSegmentSize from IOC Facts to
+	 * get the size of a Chain Frame.  Previous versions use the size as a
+	 * Request Frame for the Chain Frame size.  If IOCMaxChainSegmentSize
+	 * is 0, use the default value.  The IOCMaxChainSegmentSize is the
+	 * number of 16-byte elelements that can fit in a Chain Frame, which is
+	 * the size of an IEEE Simple SGE.
+	 */
+	if (sc->facts->MsgVersion >= MPI2_VERSION_02_05) {
+		chain_seg_size = htole16(sc->facts->IOCMaxChainSegmentSize);
+		if (chain_seg_size == 0)
+			chain_seg_size = MPR_DEFAULT_CHAIN_SEG_SIZE;
+		sc->chain_frame_size = chain_seg_size *
+		    MPR_MAX_CHAIN_ELEMENT_SIZE;
+	} else {
+		sc->chain_frame_size = sc->reqframesz;
+	}
+
+	/*
+	 * Max IO Size is Page Size * the following:
+	 * ((SGEs per frame - 1 for chain element) * Max Chain Depth)
+	 * + 1 for no chain needed in last frame
+	 *
+	 * If user suggests a Max IO size to use, use the smaller of the
+	 * user's value and the calculated value as long as the user's
+	 * value is larger than 0. The user's value is in pages.
+	 */
+	sges_per_frame = sc->chain_frame_size/sizeof(MPI2_IEEE_SGE_SIMPLE64)-1;
+	maxio = (sges_per_frame * sc->facts->MaxChainDepth + 1) * PAGE_SIZE;
+
+	/*
+	 * If I/O size limitation requested then use it and pass up to CAM.
+	 * If not, use MAXPHYS as an optimization hint, but report HW limit.
+	 */
+	if (sc->max_io_pages > 0) {
+		maxio = min(maxio, sc->max_io_pages * PAGE_SIZE);
+		sc->maxio = maxio;
+	} else {
+		sc->maxio = maxio;
+		maxio = min(maxio, MAXPHYS);
+	}
+
+	sc->num_chains = (maxio / PAGE_SIZE + sges_per_frame - 2) /
+	    sges_per_frame * reqcr;
+	if (sc->max_chains > 0 && sc->max_chains < sc->num_chains)
+		sc->num_chains = sc->max_chains;
 
 	/*
 	 * Figure out the number of MSIx-based queues.  If the firmware or
@@ -677,7 +730,11 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 		return (error);
 	}
 
-	if ((error = mpr_pci_setup_interrupts(sc)) != 0) {
+	/*
+	 * XXX If the number of MSI-X vectors changes during re-init, this
+	 * won't see it and adjust.
+	 */
+	if (attaching && (error = mpr_pci_setup_interrupts(sc)) != 0) {
 		mpr_dprint(sc, MPR_INIT|MPR_ERROR,
 		    "Failed to setup interrupts\n");
 		mpr_free(sc);
@@ -707,11 +764,11 @@ mpr_iocfacts_free(struct mpr_softc *sc)
 	if (sc->queues_dmat != NULL)
 		bus_dma_tag_destroy(sc->queues_dmat);
 
-	if (sc->chain_busaddr != 0)
+	if (sc->chain_frames != NULL) {
 		bus_dmamap_unload(sc->chain_dmat, sc->chain_map);
-	if (sc->chain_frames != NULL)
 		bus_dmamem_free(sc->chain_dmat, sc->chain_frames,
 		    sc->chain_map);
+	}
 	if (sc->chain_dmat != NULL)
 		bus_dma_tag_destroy(sc->chain_dmat);
 
@@ -1076,6 +1133,9 @@ mpr_enqueue_request(struct mpr_softc *sc, struct mpr_command *cm)
 	if (++sc->io_cmds_active > sc->io_cmds_highwater)
 		sc->io_cmds_highwater++;
 
+	KASSERT(cm->cm_state == MPR_CM_STATE_BUSY, ("command not busy\n"));
+	cm->cm_state = MPR_CM_STATE_INQUEUE;
+
 	if (sc->atomic_desc_capable) {
 		rd.u.low = cm->cm_desc.Words.Low;
 		mpr_regwrite(sc, MPI26_ATOMIC_REQUEST_DESCRIPTOR_POST_OFFSET,
@@ -1128,6 +1188,14 @@ mpr_send_iocinit(struct mpr_softc *sc)
 	MPR_FUNCTRACE(sc);
 	mpr_dprint(sc, MPR_INIT, "%s entered\n", __func__);
 
+	/* Do a quick sanity check on proper initialization */
+	if ((sc->pqdepth == 0) || (sc->fqdepth == 0) || (sc->reqframesz == 0)
+	    || (sc->replyframesz == 0)) {
+		mpr_dprint(sc, MPR_INIT|MPR_ERROR,
+		    "Driver not fully initialized for IOCInit\n");
+		return (EINVAL);
+	}
+
 	req_sz = sizeof(MPI2_IOC_INIT_REQUEST);
 	reply_sz = sizeof(MPI2_IOC_INIT_REPLY);
 	bzero(&init, req_sz);
@@ -1142,7 +1210,7 @@ mpr_send_iocinit(struct mpr_softc *sc)
 	init.WhoInit = MPI2_WHOINIT_HOST_DRIVER;
 	init.MsgVersion = htole16(MPI2_VERSION);
 	init.HeaderVersion = htole16(MPI2_HEADER_VERSION);
-	init.SystemRequestFrameSize = htole16(sc->facts->IOCRequestFrameSize);
+	init.SystemRequestFrameSize = htole16((uint16_t)(sc->reqframesz / 4));
 	init.ReplyDescriptorPostQueueDepth = htole16(sc->pqdepth);
 	init.ReplyFreeQueueDepth = htole16(sc->fqdepth);
 	init.SenseBufferAddressHigh = 0;
@@ -1177,6 +1245,42 @@ mpr_memaddr_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 
 	addr = arg;
 	*addr = segs[0].ds_addr;
+}
+
+void
+mpr_memaddr_wait_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+{
+	struct mpr_busdma_context *ctx;
+	int need_unload, need_free;
+
+	ctx = (struct mpr_busdma_context *)arg;
+	need_unload = 0;
+	need_free = 0;
+
+	mpr_lock(ctx->softc);
+	ctx->error = error;
+	ctx->completed = 1;
+	if ((error == 0) && (ctx->abandoned == 0)) {
+		*ctx->addr = segs[0].ds_addr;
+	} else {
+		if (nsegs != 0)
+			need_unload = 1;
+		if (ctx->abandoned != 0)
+			need_free = 1;
+	}
+	if (need_free == 0)
+		wakeup(ctx);
+
+	mpr_unlock(ctx->softc);
+
+	if (need_unload != 0) {
+		bus_dmamap_unload(ctx->buffer_dmat,
+				  ctx->buffer_dmamap);
+		*ctx->addr = 0;
+	}
+
+	if (need_free != 0)
+		free(ctx, M_MPR);
 }
 
 static int
@@ -1253,6 +1357,10 @@ mpr_alloc_hw_queues(struct mpr_softc *sc)
 	sc->free_busaddr = queues_busaddr;
 	sc->post_queue = (MPI2_REPLY_DESCRIPTORS_UNION *)(queues + fqsize);
 	sc->post_busaddr = queues_busaddr + fqsize;
+	mpr_dprint(sc, MPR_INIT, "free queue busaddr= %#016jx size= %d\n",
+	    (uintmax_t)sc->free_busaddr, fqsize);
+	mpr_dprint(sc, MPR_INIT, "reply queue busaddr= %#016jx size= %d\n",
+	    (uintmax_t)sc->post_busaddr, pqsize);
 
 	return (0);
 }
@@ -1262,6 +1370,9 @@ mpr_alloc_replies(struct mpr_softc *sc)
 {
 	int rsize, num_replies;
 
+	/* Store the reply frame size in bytes rather than as 32bit words */
+	sc->replyframesz = sc->facts->ReplyFrameSize * 4;
+
 	/*
 	 * sc->num_replies should be one less than sc->fqdepth.  We need to
 	 * allocate space for sc->fqdepth replies, but only sc->num_replies
@@ -1269,7 +1380,7 @@ mpr_alloc_replies(struct mpr_softc *sc)
 	 */
 	num_replies = max(sc->fqdepth, sc->num_replies);
 
-	rsize = sc->facts->ReplyFrameSize * num_replies * 4; 
+	rsize = sc->replyframesz * num_replies; 
         if (bus_dma_tag_create( sc->mpr_parent_dmat,    /* parent */
 				4, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
@@ -1292,18 +1403,45 @@ mpr_alloc_replies(struct mpr_softc *sc)
         bzero(sc->reply_frames, rsize);
         bus_dmamap_load(sc->reply_dmat, sc->reply_map, sc->reply_frames, rsize,
 	    mpr_memaddr_cb, &sc->reply_busaddr, 0);
+	mpr_dprint(sc, MPR_INIT, "reply frames busaddr= %#016jx size= %d\n",
+	    (uintmax_t)sc->reply_busaddr, rsize);
 
 	return (0);
+}
+
+static void
+mpr_load_chains_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+{
+	struct mpr_softc *sc = arg;
+	struct mpr_chain *chain;
+	bus_size_t bo;
+	int i, o, s;
+
+	if (error != 0)
+		return;
+
+	for (i = 0, o = 0, s = 0; s < nsegs; s++) {
+		for (bo = 0; bo + sc->chain_frame_size <= segs[s].ds_len;
+		    bo += sc->chain_frame_size) {
+			chain = &sc->chains[i++];
+			chain->chain =(MPI2_SGE_IO_UNION *)(sc->chain_frames+o);
+			chain->chain_busaddr = segs[s].ds_addr + bo;
+			o += sc->chain_frame_size;
+			mpr_free_chain(sc, chain);
+		}
+		if (bo != segs[s].ds_len)
+			o += segs[s].ds_len - bo;
+	}
+	sc->chain_free_lowwater = i;
 }
 
 static int
 mpr_alloc_requests(struct mpr_softc *sc)
 {
 	struct mpr_command *cm;
-	struct mpr_chain *chain;
 	int i, rsize, nsegs;
 
-	rsize = sc->facts->IOCRequestFrameSize * sc->num_reqs * 4;
+	rsize = sc->reqframesz * sc->num_reqs;
         if (bus_dma_tag_create( sc->mpr_parent_dmat,    /* parent */
 				16, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
@@ -1326,51 +1464,42 @@ mpr_alloc_requests(struct mpr_softc *sc)
         bzero(sc->req_frames, rsize);
         bus_dmamap_load(sc->req_dmat, sc->req_map, sc->req_frames, rsize,
 	    mpr_memaddr_cb, &sc->req_busaddr, 0);
+	mpr_dprint(sc, MPR_INIT, "request frames busaddr= %#016jx size= %d\n",
+	    (uintmax_t)sc->req_busaddr, rsize);
 
-	/*
-	 * Gen3 and beyond uses the IOCMaxChainSegmentSize from IOC Facts to
-	 * get the size of a Chain Frame.  Previous versions use the size as a
-	 * Request Frame for the Chain Frame size.  If IOCMaxChainSegmentSize
-	 * is 0, use the default value.  The IOCMaxChainSegmentSize is the
-	 * number of 16-byte elelements that can fit in a Chain Frame, which is
-	 * the size of an IEEE Simple SGE.
-	 */
-	if (sc->facts->MsgVersion >= MPI2_VERSION_02_05) {
-		sc->chain_seg_size =
-		    htole16(sc->facts->IOCMaxChainSegmentSize);
-		if (sc->chain_seg_size == 0) {
-			sc->chain_frame_size = MPR_DEFAULT_CHAIN_SEG_SIZE *
-			    MPR_MAX_CHAIN_ELEMENT_SIZE;
-		} else {
-			sc->chain_frame_size = sc->chain_seg_size *
-			    MPR_MAX_CHAIN_ELEMENT_SIZE;
-		}
-	} else {
-		sc->chain_frame_size = sc->facts->IOCRequestFrameSize * 4;
+	sc->chains = malloc(sizeof(struct mpr_chain) * sc->num_chains, M_MPR,
+	    M_NOWAIT | M_ZERO);
+	if (!sc->chains) {
+		mpr_dprint(sc, MPR_ERROR, "Cannot allocate chain memory\n");
+		return (ENOMEM);
 	}
-	rsize = sc->chain_frame_size * sc->max_chains;
-        if (bus_dma_tag_create( sc->mpr_parent_dmat,    /* parent */
+	rsize = sc->chain_frame_size * sc->num_chains;
+	if (bus_dma_tag_create( sc->mpr_parent_dmat,	/* parent */
 				16, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
-                                rsize,			/* maxsize */
-                                1,			/* nsegments */
-                                rsize,			/* maxsegsize */
-                                0,			/* flags */
-                                NULL, NULL,		/* lockfunc, lockarg */
-                                &sc->chain_dmat)) {
+				rsize,			/* maxsize */
+				howmany(rsize, PAGE_SIZE), /* nsegments */
+				rsize,			/* maxsegsize */
+				0,			/* flags */
+				NULL, NULL,		/* lockfunc, lockarg */
+				&sc->chain_dmat)) {
 		mpr_dprint(sc, MPR_ERROR, "Cannot allocate chain DMA tag\n");
 		return (ENOMEM);
-        }
-        if (bus_dmamem_alloc(sc->chain_dmat, (void **)&sc->chain_frames,
-	    BUS_DMA_NOWAIT, &sc->chain_map)) {
+	}
+	if (bus_dmamem_alloc(sc->chain_dmat, (void **)&sc->chain_frames,
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &sc->chain_map)) {
 		mpr_dprint(sc, MPR_ERROR, "Cannot allocate chain memory\n");
 		return (ENOMEM);
-        }
-        bzero(sc->chain_frames, rsize);
-        bus_dmamap_load(sc->chain_dmat, sc->chain_map, sc->chain_frames, rsize,
-	    mpr_memaddr_cb, &sc->chain_busaddr, 0);
+	}
+	if (bus_dmamap_load(sc->chain_dmat, sc->chain_map, sc->chain_frames,
+	    rsize, mpr_load_chains_cb, sc, BUS_DMA_NOWAIT)) {
+		mpr_dprint(sc, MPR_ERROR, "Cannot load chain memory\n");
+		bus_dmamem_free(sc->chain_dmat, sc->chain_frames,
+		    sc->chain_map);
+		return (ENOMEM);
+	}
 
 	rsize = MPR_SENSE_LEN * sc->num_reqs;
 	if (bus_dma_tag_create( sc->mpr_parent_dmat,    /* parent */
@@ -1395,22 +1524,8 @@ mpr_alloc_requests(struct mpr_softc *sc)
         bzero(sc->sense_frames, rsize);
         bus_dmamap_load(sc->sense_dmat, sc->sense_map, sc->sense_frames, rsize,
 	    mpr_memaddr_cb, &sc->sense_busaddr, 0);
-
-	sc->chains = malloc(sizeof(struct mpr_chain) * sc->max_chains, M_MPR,
-	    M_WAITOK | M_ZERO);
-	if (!sc->chains) {
-		mpr_dprint(sc, MPR_ERROR, "Cannot allocate chain memory\n");
-		return (ENOMEM);
-	}
-	for (i = 0; i < sc->max_chains; i++) {
-		chain = &sc->chains[i];
-		chain->chain = (MPI2_SGE_IO_UNION *)(sc->chain_frames +
-		    i * sc->chain_frame_size);
-		chain->chain_busaddr = sc->chain_busaddr +
-		    i * sc->chain_frame_size;
-		mpr_free_chain(sc, chain);
-		sc->chain_free_lowwater++;
-	}
+	mpr_dprint(sc, MPR_INIT, "sense frames busaddr= %#016jx size= %d\n",
+	    (uintmax_t)sc->sense_busaddr, rsize);
 
 	/*
 	 * Allocate NVMe PRP Pages for NVMe SGL support only if the FW supports
@@ -1422,8 +1537,7 @@ mpr_alloc_requests(struct mpr_softc *sc)
 			return (ENOMEM);
 	}
 
-	/* XXX Need to pick a more precise value */
-	nsegs = (MAXPHYS / PAGE_SIZE) + 1;
+	nsegs = (sc->maxio / PAGE_SIZE) + 1;
         if (bus_dma_tag_create( sc->mpr_parent_dmat,    /* parent */
 				1, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
@@ -1452,14 +1566,13 @@ mpr_alloc_requests(struct mpr_softc *sc)
 	}
 	for (i = 1; i < sc->num_reqs; i++) {
 		cm = &sc->commands[i];
-		cm->cm_req = sc->req_frames +
-		    i * sc->facts->IOCRequestFrameSize * 4;
-		cm->cm_req_busaddr = sc->req_busaddr +
-		    i * sc->facts->IOCRequestFrameSize * 4;
+		cm->cm_req = sc->req_frames + i * sc->reqframesz;
+		cm->cm_req_busaddr = sc->req_busaddr + i * sc->reqframesz;
 		cm->cm_sense = &sc->sense_frames[i];
 		cm->cm_sense_busaddr = sc->sense_busaddr + i * MPR_SENSE_LEN;
 		cm->cm_desc.Default.SMID = i;
 		cm->cm_sc = sc;
+		cm->cm_state = MPR_CM_STATE_BUSY;
 		TAILQ_INIT(&cm->cm_chain_list);
 		TAILQ_INIT(&cm->cm_prp_page_list);
 		callout_init_mtx(&cm->cm_callout, &sc->mpr_mtx, 0);
@@ -1467,7 +1580,7 @@ mpr_alloc_requests(struct mpr_softc *sc)
 		/* XXX Is a failure here a critical problem? */
 		if (bus_dmamap_create(sc->buffer_dmat, 0, &cm->cm_dmamap)
 		    == 0) {
-			if (i <= sc->facts->HighPriorityCredit)
+			if (i <= sc->num_prireqs)
 				mpr_free_high_priority_command(sc, cm);
 			else
 				mpr_free_command(sc, cm);
@@ -1580,8 +1693,7 @@ mpr_init_queues(struct mpr_softc *sc)
 	 * Initialize all of the free queue entries.
 	 */
 	for (i = 0; i < sc->fqdepth; i++) {
-		sc->free_queue[i] = sc->reply_busaddr +
-		    (i * sc->facts->ReplyFrameSize * 4);
+		sc->free_queue[i] = sc->reply_busaddr + (i * sc->replyframesz);
 	}
 	sc->replyfreeindex = sc->num_replies;
 
@@ -1800,6 +1912,10 @@ mpr_setup_sysctl(struct mpr_softc *sc)
 	    &sc->spinup_wait_time, DEFAULT_SPINUP_WAIT, "seconds to wait for "
 	    "spinup after SATA ID error");
 
+	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "dump_reqs", CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_SKIP, sc, 0,
+	    mpr_dump_reqs, "I", "Dump Active Requests");
+
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "use_phy_num", CTLFLAG_RD, &sc->use_phynum, 0,
 	    "Use the phy number for enumeration");
@@ -1941,6 +2057,70 @@ mpr_parse_debug(struct mpr_softc *sc, char *list)
 		break;
 	}
 	return;
+}
+
+struct mpr_dumpreq_hdr {
+	uint32_t	smid;
+	uint32_t	state;
+	uint32_t	numframes;
+	uint32_t	deschi;
+	uint32_t	desclo;
+};
+
+static int
+mpr_dump_reqs(SYSCTL_HANDLER_ARGS)
+{
+	struct mpr_softc *sc;
+	struct mpr_chain *chain, *chain1;
+	struct mpr_command *cm;
+	struct mpr_dumpreq_hdr hdr;
+	struct sbuf *sb;
+	uint32_t smid, state;
+	int i, numreqs, error = 0;
+
+	sc = (struct mpr_softc *)arg1;
+
+	if ((error = priv_check(curthread, PRIV_DRIVER)) != 0) {
+		printf("priv check error %d\n", error);
+		return (error);
+	}
+
+	state = MPR_CM_STATE_INQUEUE;
+	smid = 1;
+	numreqs = sc->num_reqs;
+
+	if (req->newptr != NULL)
+		return (EINVAL);
+
+	if (smid == 0 || smid > sc->num_reqs)
+		return (EINVAL);
+	if (numreqs <= 0 || (numreqs + smid > sc->num_reqs))
+		numreqs = sc->num_reqs;
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+
+	/* Best effort, no locking */
+	for (i = smid; i < numreqs; i++) {
+		cm = &sc->commands[i];
+		if (cm->cm_state != state)
+			continue;
+		hdr.smid = i;
+		hdr.state = cm->cm_state;
+		hdr.numframes = 1;
+		hdr.deschi = cm->cm_desc.Words.High;
+		hdr.desclo = cm->cm_desc.Words.Low;
+		TAILQ_FOREACH_SAFE(chain, &cm->cm_chain_list, chain_link,
+		   chain1)
+			hdr.numframes++;
+		sbuf_bcat(sb, &hdr, sizeof(hdr));
+		sbuf_bcat(sb, cm->cm_req, 128);
+		TAILQ_FOREACH_SAFE(chain, &cm->cm_chain_list, chain_link,
+		    chain1)
+			sbuf_bcat(sb, chain->chain, 128);
+	}
+
+	error = sbuf_finish(sb);
+	sbuf_delete(sb);
+	return (error);
 }
 
 int
@@ -2351,6 +2531,9 @@ mpr_intr_locked(void *data)
 		case MPI25_RPY_DESCRIPT_FLAGS_FAST_PATH_SCSI_IO_SUCCESS:
 		case MPI26_RPY_DESCRIPT_FLAGS_PCIE_ENCAPSULATED_SUCCESS:
 			cm = &sc->commands[le16toh(desc->SCSIIOSuccess.SMID)];
+			KASSERT(cm->cm_state == MPR_CM_STATE_INQUEUE,
+			    ("command not inqueue\n"));
+			cm->cm_state = MPR_CM_STATE_BUSY;
 			cm->cm_reply = NULL;
 			break;
 		case MPI2_RPY_DESCRIPT_FLAGS_ADDRESS_REPLY:
@@ -2378,13 +2561,13 @@ mpr_intr_locked(void *data)
 			 */
 			if ((reply < sc->reply_frames)
 			 || (reply > (sc->reply_frames +
-			     (sc->fqdepth * sc->facts->ReplyFrameSize * 4)))) {
+			     (sc->fqdepth * sc->replyframesz)))) {
 				printf("%s: WARNING: reply %p out of range!\n",
 				       __func__, reply);
 				printf("%s: reply_frames %p, fqdepth %d, "
 				       "frame size %d\n", __func__,
 				       sc->reply_frames, sc->fqdepth,
-				       sc->facts->ReplyFrameSize * 4);
+				       sc->replyframesz);
 				printf("%s: baddr %#x,\n", __func__, baddr);
 				/* LSI-TODO. See Linux Code for Graceful exit */
 				panic("Reply address out of range");
@@ -2420,6 +2603,9 @@ mpr_intr_locked(void *data)
 			} else {
 				cm = &sc->commands[
 				    le16toh(desc->AddressReply.SMID)];
+				KASSERT(cm->cm_state == MPR_CM_STATE_INQUEUE,
+				    ("command not inqueue\n"));
+				cm->cm_state = MPR_CM_STATE_BUSY;
 				cm->cm_reply = reply;
 				cm->cm_reply_data =
 				    le32toh(desc->AddressReply.
@@ -2450,8 +2636,7 @@ mpr_intr_locked(void *data)
 	}
 
 	if (pq != sc->replypostindex) {
-		mpr_dprint(sc, MPR_TRACE,
-		    "%s sc %p writing postindex %d\n",
+		mpr_dprint(sc, MPR_TRACE, "%s sc %p writing postindex %d\n",
 		    __func__, sc, sc->replypostindex);
 		mpr_regwrite(sc, MPI2_REPLY_POST_HOST_INDEX_OFFSET,
 		    sc->replypostindex);
@@ -2759,7 +2944,7 @@ mpr_build_nvme_prp(struct mpr_softc *sc, struct mpr_command *cm,
 	prp_entry_phys = prp_page_phys;
 
 	/* Get physical address and length of the data buffer. */
-	paddr = (bus_addr_t)data;
+	paddr = (bus_addr_t)(uintptr_t)data;
 	if (data_in_sz)
 		length = data_in_sz;
 	else
@@ -2922,7 +3107,7 @@ mpr_check_pcie_native_sgl(struct mpr_softc *sc, struct mpr_command *cm,
 	 * put in the main message frame (H/W can only translate an SGL that
 	 * is contained entirely in the main message frame).
 	 */
-	sges_in_segment = (sc->facts->IOCRequestFrameSize -
+	sges_in_segment = (sc->reqframesz -
 	    offsetof(Mpi25SCSIIORequest_t, SGL)) / sizeof(MPI25_SGE_IO_UNION);
 	if (segs_left > sges_in_segment)
 		build_native_sgl = 1;
@@ -2943,7 +3128,7 @@ mpr_check_pcie_native_sgl(struct mpr_softc *sc, struct mpr_command *cm,
 		else if ((buff_len > (PAGE_SIZE * 4)) &&
 		    (buff_len <= (PAGE_SIZE * 5)) )
 		{
-			msg_phys = (uint64_t *)segs[0].ds_addr;
+			msg_phys = (uint64_t *)(uintptr_t)segs[0].ds_addr;
 			first_page_offset =
 			    ((uint32_t)(uint64_t)(uintptr_t)msg_phys &
 			    page_mask);

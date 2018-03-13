@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008, 2009 Silicon Graphics International Corp.
  * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
@@ -457,7 +459,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 	struct ctlfe_lun_softc *softc;
 	union ccb ccb;
 	cam_status status;
-	int i;
+	int i, acstatus;
 
 	softc = (struct ctlfe_lun_softc *)arg;
 	bus_softc = softc->parent_softc;
@@ -537,11 +539,11 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		}
 	}
 
-	status = cam_periph_acquire(periph);
-	if ((status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+	acstatus = cam_periph_acquire(periph);
+	if (acstatus != 0) {
 		xpt_print(periph->path, "%s: could not acquire reference "
-			  "count, status = %#x\n", __func__, status);
-		return (status);
+			  "count, status = %#x\n", __func__, acstatus);
+		return (CAM_REQ_CMP_ERR);
 	}
 
 	if (i == 0) {
@@ -726,7 +728,7 @@ ctlfedata(struct ctlfe_lun_softc *softc, union ctl_io *io,
 		cam_sglist = cmd_info->cam_sglist;
 		*dxfer_len = 0;
 		for (i = 0; i < io->scsiio.kern_sg_entries - idx; i++) {
-			cam_sglist[i].ds_addr = (bus_addr_t)ctl_sglist[i + idx].addr + off;
+			cam_sglist[i].ds_addr = (bus_addr_t)(uintptr_t)ctl_sglist[i + idx].addr + off;
 			if (ctl_sglist[i + idx].len - off <= bus_softc->maxio - *dxfer_len) {
 				cam_sglist[i].ds_len = ctl_sglist[idx + i].len - off;
 				*dxfer_len += cam_sglist[i].ds_len;

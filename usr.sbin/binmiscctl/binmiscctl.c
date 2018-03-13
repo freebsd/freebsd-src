@@ -299,10 +299,12 @@ add_cmd(__unused int argc, char *argv[], ximgact_binmisc_entry_t *xbe)
 			break;
 
 		case 'm':
+			free(magic);
 			magic = strdup(optarg);
 			break;
 
 		case 'M':
+			free(mask);
 			mask = strdup(optarg);
 			xbe->xbe_flags |= IBF_USE_MASK;
 			break;

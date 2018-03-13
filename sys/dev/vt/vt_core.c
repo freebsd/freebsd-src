@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, 2013 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -518,6 +520,27 @@ vt_window_switch(struct vt_window *vw)
 	struct vt_window *curvw = vd->vd_curwindow;
 	keyboard_t *kbd;
 
+	if (kdb_active) {
+		/*
+		 * When grabbing the console for the debugger, avoid
+		 * locks as that can result in deadlock.  While this
+		 * could use try locks, that wouldn't really make a
+		 * difference as there are sufficient barriers in
+		 * debugger entry/exit to be equivalent to
+		 * successfully try-locking here.
+		 */
+		if (curvw == vw)
+			return (0);
+		if (!(vw->vw_flags & (VWF_OPENED|VWF_CONSOLE)))
+			return (EINVAL);
+		
+		vd->vd_curwindow = vw;
+		vd->vd_flags |= VDF_INVALID;
+		if (vd->vd_driver->vd_postswitch)
+			vd->vd_driver->vd_postswitch(vd);
+		return (0);
+	}
+		
 	VT_LOCK(vd);
 	if (curvw == vw) {
 		/* Nothing to do. */
@@ -2161,6 +2184,10 @@ skip_thunk:
 
 		return (error);
 	}
+	case KDGETMODE:
+		*(int *)data = (vw->vw_flags & VWF_GRAPHICS) ?
+		    KD_GRAPHICS : KD_TEXT;
+		return (0);
 	case KDGKBMODE: {
 		error = 0;
 
@@ -2214,6 +2241,13 @@ skip_thunk:
 	case CONS_BLANKTIME:
 		/* XXX */
 		return (0);
+	case CONS_HISTORY:
+		if (*(int *)data < 0)
+			return EINVAL;
+		if (*(int *)data != vd->vd_curwindow->vw_buf.vb_history_size)
+			vtbuf_sethistory_size(&vd->vd_curwindow->vw_buf,
+			    *(int *)data);
+		return 0;
 	case CONS_GET:
 		/* XXX */
 		*(int *)data = M_CG640x480;

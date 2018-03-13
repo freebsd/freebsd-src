@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * Copyright (c) 2012 Damjan Marion <dmarion@freebsd.org>
  * All rights reserved.
@@ -86,6 +88,12 @@ static struct resource_spec bcm_systimer_irq_spec[] = {
 	{ SYS_RES_IRQ,      2,  RF_ACTIVE },
 	{ SYS_RES_IRQ,      3,  RF_ACTIVE },
 	{ -1,               0,  0 }
+};
+
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-system-timer",	1},
+	{"brcm,bcm2835-system-timer",		1},
+	{NULL,					0}
 };
 
 static struct bcm_systimer_softc *bcm_systimer_sc = NULL;
@@ -194,12 +202,10 @@ bcm_systimer_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "broadcom,bcm2835-system-timer")) {
-		device_set_desc(dev, "BCM2835 System Timer");
-		return (BUS_PROBE_DEFAULT);
-	}
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
 
-	return (ENXIO);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

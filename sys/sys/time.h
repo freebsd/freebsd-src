@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -171,7 +173,7 @@ static __inline sbintime_t
 nstosbt(int64_t _ns)
 {
 
-	return ((_ns * (((uint64_t)1 << 63) / 500000000) >> 32));
+	return ((_ns * (((uint64_t)1 << 63) / 500000000)) >> 32);
 }
 
 static __inline int64_t
@@ -185,7 +187,7 @@ static __inline sbintime_t
 ustosbt(int64_t _us)
 {
 
-	return ((_us * (((uint64_t)1 << 63) / 500000) >> 32));
+	return ((_us * (((uint64_t)1 << 63) / 500000)) >> 32);
 }
 
 static __inline int64_t
@@ -199,7 +201,7 @@ static __inline sbintime_t
 mstosbt(int64_t _ms)
 {
 
-	return ((_ms * (((uint64_t)1 << 63) / 500) >> 32));
+	return ((_ms * (((uint64_t)1 << 63) / 500)) >> 32);
 }
 
 /*-

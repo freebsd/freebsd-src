@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 EMC Corp.
  * Copyright (c) 2011 Jeffrey Roberson <jeff@freebsd.org>
  * Copyright (c) 2008 Mayur Shardul <mayur.shardul@gmail.com>
@@ -282,6 +284,7 @@ vm_radix_node_zone_dtor(void *mem, int size __unused, void *arg __unused)
 #endif
 
 #ifndef UMA_MD_SMALL_ALLOC
+void vm_radix_reserve_kva(void);
 /*
  * Reserve the KVA necessary to satisfy the node allocation.
  * This is mandatory in architectures not supporting direct
@@ -289,8 +292,8 @@ vm_radix_node_zone_dtor(void *mem, int size __unused, void *arg __unused)
  * every node allocation, resulting into deadlocks for consumers already
  * working with kernel maps.
  */
-static void
-vm_radix_reserve_kva(void *arg __unused)
+void
+vm_radix_reserve_kva(void)
 {
 
 	/*
@@ -302,8 +305,6 @@ vm_radix_reserve_kva(void *arg __unused)
 	    sizeof(struct vm_radix_node))))
 		panic("%s: unable to reserve KVA", __func__);
 }
-SYSINIT(vm_radix_reserve_kva, SI_SUB_KMEM, SI_ORDER_THIRD,
-    vm_radix_reserve_kva, NULL);
 #endif
 
 /*
@@ -773,6 +774,12 @@ vm_radix_replace(struct vm_radix *rtree, vm_page_t newpage)
 		rnode = rnode->rn_child[slot];
 	}
 	panic("%s: original replacing page not found", __func__);
+}
+
+void
+vm_radix_wait(void)
+{
+	uma_zwait(vm_radix_node_zone);
 }
 
 #ifdef DDB

@@ -35,6 +35,7 @@
 #define	CUSE_BUF_MIN_PTR	0x10000UL
 #define	CUSE_BUF_MAX_PTR	0x20000UL
 #define	CUSE_ALLOC_UNIT_MAX	128	/* units */
+/* All memory allocations must be less than the following limit */
 #define	CUSE_ALLOC_PAGES_MAX	(((16UL * 1024UL * 1024UL) + PAGE_SIZE - 1) / PAGE_SIZE)
 
 struct cuse_dev;

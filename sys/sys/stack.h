@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Antoine Brodin
  * All rights reserved.
  *
@@ -34,7 +36,7 @@
 struct sbuf;
 
 /* MI Routines. */
-struct stack	*stack_create(void);
+struct stack	*stack_create(int);
 void		 stack_destroy(struct stack *);
 int		 stack_put(struct stack *, vm_offset_t);
 void		 stack_copy(const struct stack *, struct stack *);

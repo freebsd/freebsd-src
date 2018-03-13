@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1988, 1993
  *	The Regents of the University of California.
  * All rights reserved.
@@ -154,14 +156,20 @@ struct pkthdr {
 
 	/* Layer crossing persistent information. */
 	uint32_t	 flowid;	/* packet's 4-tuple system */
-	uint64_t	 csum_flags;	/* checksum and offload features */
+	uint32_t	 csum_flags;	/* checksum and offload features */
 	uint16_t	 fibnum;	/* this packet should use this fib */
 	uint8_t		 cosqos;	/* class/quality of service */
 	uint8_t		 rsstype;	/* hash type */
-	uint8_t		 l2hlen;	/* layer 2 header length */
-	uint8_t		 l3hlen;	/* layer 3 header length */
-	uint8_t		 l4hlen;	/* layer 4 header length */
-	uint8_t		 l5hlen;	/* layer 5 header length */
+	union {
+		uint64_t	rcv_tstmp;	/* timestamp in ns */
+		struct {
+			uint8_t		 l2hlen;	/* layer 2 hdr len */
+			uint8_t		 l3hlen;	/* layer 3 hdr len */
+			uint8_t		 l4hlen;	/* layer 4 hdr len */
+			uint8_t		 l5hlen;	/* layer 5 hdr len */
+			uint32_t	 spare;
+		};
+	};
 	union {
 		uint8_t  eight[8];
 		uint16_t sixteen[4];
@@ -197,17 +205,33 @@ struct pkthdr {
  * Compile-time assertions in uipc_mbuf.c test these values to ensure that
  * they are correct.
  */
+typedef	void m_ext_free_t(struct mbuf *);
 struct m_ext {
 	union {
-		volatile u_int	 ext_count;	/* value of ref count info */
-		volatile u_int	*ext_cnt;	/* pointer to ref count info */
+		/*
+		 * If EXT_FLAG_EMBREF is set, then we use refcount in the
+		 * mbuf, the 'ext_count' member.  Otherwise, we have a
+		 * shadow copy and we use pointer 'ext_cnt'.  The original
+		 * mbuf is responsible to carry the pointer to free routine
+		 * and its arguments.  They aren't copied into shadows in
+		 * mb_dupcl() to avoid dereferencing next cachelines.
+		 */
+		volatile u_int	 ext_count;
+		volatile u_int	*ext_cnt;
 	};
-	caddr_t		 ext_buf;	/* start of buffer */
+	char		*ext_buf;	/* start of buffer */
 	uint32_t	 ext_size;	/* size of buffer, for ext_free */
 	uint32_t	 ext_type:8,	/* type of external storage */
 			 ext_flags:24;	/* external storage mbuf flags */
-	void		(*ext_free)	/* free routine if not the usual */
-			    (struct mbuf *, void *, void *);
+	/*
+	 * Fields below store the free context for the external storage.
+	 * They are valid only in the refcount carrying mbuf, the one with
+	 * EXT_FLAG_EMBREF flag, with exclusion for EXT_EXTREF type, where
+	 * the free context is copied into all mbufs that use same external
+	 * storage.
+	 */
+#define	m_ext_copylen	offsetof(struct m_ext, ext_free)
+	m_ext_free_t	*ext_free;	/* free routine if not the usual */
 	void		*ext_arg1;	/* optional argument pointer */
 	void		*ext_arg2;	/* optional argument pointer */
 };
@@ -277,6 +301,10 @@ struct mbuf {
 #define	M_VLANTAG	0x00000080 /* ether_vtag is valid */
 #define	M_UNUSED_8	0x00000100 /* --available-- */
 #define	M_NOFREE	0x00000200 /* do not free mbuf, embedded in cluster */
+#define	M_TSTMP		0x00000400 /* rcv_tstmp field is valid */
+#define	M_TSTMP_HPREC	0x00000800 /* rcv_tstmp is high-prec, typically
+				      hw-stamped on port (useful for IEEE 1588
+				      and 802.1AS) */
 
 #define	M_PROTO1	0x00001000 /* protocol-specific */
 #define	M_PROTO2	0x00002000 /* protocol-specific */
@@ -304,15 +332,15 @@ struct mbuf {
  * Flags preserved when copying m_pkthdr.
  */
 #define M_COPYFLAGS \
-    (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_PROMISC|M_VLANTAG| \
-     M_PROTOFLAGS)
+    (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_PROMISC|M_VLANTAG|M_TSTMP| \
+     M_TSTMP_HPREC|M_PROTOFLAGS)
 
 /*
  * Mbuf flag description for use with printf(9) %b identifier.
  */
 #define	M_FLAG_BITS \
     "\20\1M_EXT\2M_PKTHDR\3M_EOR\4M_RDONLY\5M_BCAST\6M_MCAST" \
-    "\7M_PROMISC\10M_VLANTAG"
+    "\7M_PROMISC\10M_VLANTAG\13M_TSTMP\14M_TSTMP_HPREC"
 #define	M_FLAG_PROTOBITS \
     "\15M_PROTO1\16M_PROTO2\17M_PROTO3\20M_PROTO4\21M_PROTO5" \
     "\22M_PROTO6\23M_PROTO7\24M_PROTO8\25M_PROTO9\26M_PROTO10" \
@@ -410,7 +438,6 @@ struct mbuf {
 #define	EXT_JUMBO16	5	/* jumbo cluster 16184 bytes */
 #define	EXT_PACKET	6	/* mbuf+cluster from packet zone */
 #define	EXT_MBUF	7	/* external mbuf reference */
-#define	EXT_SFBUF_NOCACHE 8	/* sendfile(2)'s sf_buf not to be cached */
 
 #define	EXT_VENDOR1	224	/* for vendor-internal use */
 #define	EXT_VENDOR2	225	/* for vendor-internal use */
@@ -436,10 +463,10 @@ struct mbuf {
 
 #define	EXT_FLAG_NOFREE		0x000010	/* don't free mbuf to pool, notyet */
 
-#define	EXT_FLAG_VENDOR1	0x010000	/* for vendor-internal use */
-#define	EXT_FLAG_VENDOR2	0x020000	/* for vendor-internal use */
-#define	EXT_FLAG_VENDOR3	0x040000	/* for vendor-internal use */
-#define	EXT_FLAG_VENDOR4	0x080000	/* for vendor-internal use */
+#define	EXT_FLAG_VENDOR1	0x010000	/* These flags are vendor */
+#define	EXT_FLAG_VENDOR2	0x020000	/* or submodule specific, */
+#define	EXT_FLAG_VENDOR3	0x040000	/* not used by mbuf code. */
+#define	EXT_FLAG_VENDOR4	0x080000	/* Set/read by submodule. */
 
 #define	EXT_FLAG_EXP1		0x100000	/* for experimental use */
 #define	EXT_FLAG_EXP2		0x200000	/* for experimental use */
@@ -454,12 +481,6 @@ struct mbuf {
     "\21EXT_FLAG_VENDOR1\22EXT_FLAG_VENDOR2\23EXT_FLAG_VENDOR3" \
     "\24EXT_FLAG_VENDOR4\25EXT_FLAG_EXP1\26EXT_FLAG_EXP2\27EXT_FLAG_EXP3" \
     "\30EXT_FLAG_EXP4"
-
-/*
- * External reference/free functions.
- */
-void sf_ext_free(void *, void *);
-void sf_ext_free_nocache(void *, void *);
 
 /*
  * Flags indicating checksum, segmentation and other offload work to be
@@ -610,9 +631,8 @@ struct mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*)(char *, caddr_t, u_int));
 struct mbuf	*m_dup(const struct mbuf *, int);
 int		 m_dup_pkthdr(struct mbuf *, const struct mbuf *, int);
-void		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    void (*)(struct mbuf *, void *, void *), void *, void *,
-		    int, int);
+void		 m_extadd(struct mbuf *, char *, u_int, m_ext_free_t,
+		    void *, void *, int, int);
 u_int		 m_fixhdr(struct mbuf *);
 struct mbuf	*m_fragment(struct mbuf *, int, int);
 void		 m_freem(struct mbuf *);
@@ -667,8 +687,8 @@ m_gettype(int size)
  * Associated an external reference counted buffer with an mbuf.
  */
 static __inline void
-m_extaddref(struct mbuf *m, caddr_t buf, u_int size, u_int *ref_cnt,
-    void (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2)
+m_extaddref(struct mbuf *m, char *buf, u_int size, u_int *ref_cnt,
+    m_ext_free_t freef, void *arg1, void *arg2)
 {
 
 	KASSERT(ref_cnt != NULL, ("%s: ref_cnt not provided", __func__));
@@ -864,7 +884,7 @@ m_extrefcnt(struct mbuf *m)
 #define	MGETHDR(m, how, type)	((m) = m_gethdr((how), (type)))
 #define	MCLGET(m, how)		m_clget((m), (how))
 #define	MEXTADD(m, buf, size, free, arg1, arg2, flags, type)		\
-    m_extadd((m), (caddr_t)(buf), (size), (free), (arg1), (arg2),	\
+    m_extadd((m), (char *)(buf), (size), (free), (arg1), (arg2),	\
     (flags), (type))
 #define	m_getm(m, len, how, type)					\
     m_getm2((m), (len), (how), (type), M_PKTHDR)
@@ -1339,6 +1359,18 @@ mbufq_concat(struct mbufq *mq_dst, struct mbufq *mq_src)
 	STAILQ_CONCAT(&mq_dst->mq_head, &mq_src->mq_head);
 	mq_src->mq_len = 0;
 }
+
+#ifdef _SYS_TIMESPEC_H_
+static inline void
+mbuf_tstmp2timespec(struct mbuf *m, struct timespec *ts)
+{
+
+	KASSERT((m->m_flags & M_PKTHDR) != 0, ("mbuf %p no M_PKTHDR", m));
+	KASSERT((m->m_flags & M_TSTMP) != 0, ("mbuf %p no M_TSTMP", m));
+	ts->tv_sec = m->m_pkthdr.rcv_tstmp / 1000000000;
+	ts->tv_nsec = m->m_pkthdr.rcv_tstmp % 1000000000;
+}
+#endif
 
 #endif /* _KERNEL */
 #endif /* !_SYS_MBUF_H_ */

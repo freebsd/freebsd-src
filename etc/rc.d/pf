@@ -47,16 +47,13 @@ pf_stop()
 pf_check()
 {
 	echo "Checking pf rules."
-	$pf_program -n -f "$pf_rules"
+	$pf_program -n -f "$pf_rules" $pf_flags
 }
 
 pf_reload()
 {
 	echo "Reloading pf rules."
-	$pf_program -n -f "$pf_rules" || return 1
-	# Flush everything but existing state entries that way when
-	# rules are read in, it doesn't break established connections.
-	$pf_program -Fnat -Fqueue -Frules -FSources -Finfo -FTables -Fosfp > /dev/null 2>&1
+	$pf_program -n -f "$pf_rules" $pf_flags || return 1
 	$pf_program -f "$pf_rules" $pf_flags
 }
 

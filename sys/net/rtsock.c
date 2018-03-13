@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -110,6 +112,12 @@ struct ifa_msghdrl32 {
 	int32_t	ifam_metric;
 	struct	if_data ifam_data;
 };
+
+#define SA_SIZE32(sa)						\
+    (  (((struct sockaddr *)(sa))->sa_len == 0) ?		\
+	sizeof(int)		:				\
+	1 + ( (((struct sockaddr *)(sa))->sa_len - 1) | (sizeof(int) - 1) ) )
+
 #endif /* COMPAT_FREEBSD32 */
 
 MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
@@ -666,12 +674,15 @@ route_output(struct mbuf *m, struct socket *so, ...)
 
 	case RTM_ADD:
 	case RTM_CHANGE:
-		if (info.rti_info[RTAX_GATEWAY] == NULL)
-			senderr(EINVAL);
+		if (rtm->rtm_type == RTM_ADD) {
+			if (info.rti_info[RTAX_GATEWAY] == NULL)
+				senderr(EINVAL);
+		}
 		saved_nrt = NULL;
 
 		/* support for new ARP code */
-		if (info.rti_info[RTAX_GATEWAY]->sa_family == AF_LINK &&
+		if (info.rti_info[RTAX_GATEWAY] != NULL &&
+		    info.rti_info[RTAX_GATEWAY]->sa_family == AF_LINK &&
 		    (rtm->rtm_flags & RTF_LLDATA) != 0) {
 			error = lla_rt_output(rtm, &info);
 #ifdef INET6
@@ -1114,6 +1125,9 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 	struct sockaddr_storage ss;
 	struct sockaddr_in6 *sin6;
 #endif
+#ifdef COMPAT_FREEBSD32
+	bool compat32 = false;
+#endif
 
 	switch (type) {
 
@@ -1121,9 +1135,10 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 	case RTM_NEWADDR:
 		if (w != NULL && w->w_op == NET_RT_IFLISTL) {
 #ifdef COMPAT_FREEBSD32
-			if (w->w_req->flags & SCTL_MASK32)
+			if (w->w_req->flags & SCTL_MASK32) {
 				len = sizeof(struct ifa_msghdrl32);
-			else
+				compat32 = true;
+			} else
 #endif
 				len = sizeof(struct ifa_msghdrl);
 		} else
@@ -1137,6 +1152,7 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 				len = sizeof(struct if_msghdrl32);
 			else
 				len = sizeof(struct if_msghdr32);
+			compat32 = true;
 			break;
 		}
 #endif
@@ -1167,7 +1183,12 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 		if ((sa = rtinfo->rti_info[i]) == NULL)
 			continue;
 		rtinfo->rti_addrs |= (1 << i);
-		dlen = SA_SIZE(sa);
+#ifdef COMPAT_FREEBSD32
+		if (compat32)
+			dlen = SA_SIZE32(sa);
+		else
+#endif
+			dlen = SA_SIZE(sa);
 		if (cp != NULL && buflen >= dlen) {
 #ifdef INET6
 			if (V_deembed_scopeid && sa->sa_family == AF_INET6) {

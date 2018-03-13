@@ -1,4 +1,4 @@
-/*
+/*-
  * $FreeBSD$
  *
  * Copyright (c) 2002-2004 David Boggs. (boggs@boggs.palo-alto.ca.us)

@@ -42,6 +42,7 @@
 #include <linux/wait.h>
 #include <linux/semaphore.h>
 #include <linux/spinlock.h>
+#include <linux/dcache.h>
 
 struct module;
 struct kiocb;
@@ -64,11 +65,6 @@ struct pfs_node;
 
 
 typedef struct files_struct *fl_owner_t;
-
-struct dentry {
-	struct inode	*d_inode;
-	struct pfs_node	*d_pfs_node;
-};
 
 struct file_operations;
 
@@ -286,6 +282,20 @@ noop_llseek(struct linux_file *file, loff_t offset, int whence)
 {
 
 	return (file->_file->f_offset);
+}
+
+static inline struct vnode *
+file_inode(const struct linux_file *file)
+{
+
+	return (file->f_vnode);
+}
+
+static inline int
+call_mmap(struct linux_file *file, struct vm_area_struct *vma)
+{
+
+	return (file->f_op->mmap(file, vma));
 }
 
 /* Shared memory support */

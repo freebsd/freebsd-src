@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994-1996 Søren Schmidt
  * All rights reserved.
  *
@@ -1359,7 +1361,7 @@ set_history(char *opt)
 
 	if ((*opt == '\0') || size < 0) {
 		revert();
-		errx(1, "argument must be a positive number");
+		errx(1, "argument must not be less than zero");
 	}
 
 	if (ioctl(0, CONS_HISTORY, &size) == -1) {

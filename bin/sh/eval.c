@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/resource.h>
-#include <sys/wait.h> /* For WIFSIGNALED(status) */
 #include <errno.h>
 
 /*
@@ -840,7 +839,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	struct parsefile *savetopfile;
 	volatile int e;
 	char *lastarg;
-	int realstatus;
+	int signaled;
 	int do_clearcmdentry;
 	const char *path = pathval();
 	int i;
@@ -1163,9 +1162,9 @@ cmddone:
 parent:	/* parent process gets here (if we forked) */
 	if (mode == FORK_FG) {	/* argument to fork */
 		INTOFF;
-		exitstatus = waitforjob(jp, &realstatus);
+		exitstatus = waitforjob(jp, &signaled);
 		INTON;
-		if (iflag && loopnest > 0 && WIFSIGNALED(realstatus)) {
+		if (iflag && loopnest > 0 && signaled) {
 			evalskip = SKIPBREAK;
 			skipcount = loopnest;
 		}

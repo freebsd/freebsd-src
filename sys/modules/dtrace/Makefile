@@ -23,6 +23,7 @@ SUBDIR+=	systrace_linux32
 SUBDIR+=	fbt fasttrap
 .endif
 .if ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "aarch64" || \
     ${MACHINE_ARCH} == "mips64" || \
     ${MACHINE_ARCH} == "powerpc64"
 SUBDIR+=	systrace_freebsd32

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
  * All rights reserved.
  *
@@ -58,6 +60,13 @@ __FBSDID("$FreeBSD$");
 
 #include <isa/isareg.h>
 #include <isa/isavar.h>
+
+#define VGA_ID		0x0009d041	/* PNP0900 */
+
+static struct isa_pnp_id vga_ids[] = {
+	{ VGA_ID,	NULL },		/* PNP0900 */
+	{ 0,		NULL },
+};
 
 static void
 vga_suspend(device_t dev)
@@ -173,6 +182,8 @@ isavga_probe(device_t dev)
 				 adp.va_io_base, adp.va_io_size);
 		bus_set_resource(dev, SYS_RES_MEMORY, 0,
 				 adp.va_mem_base, adp.va_mem_size);
+		isa_set_vendorid(dev, VGA_ID);
+		isa_set_logicalid(dev, VGA_ID);
 #if 0
 		isa_set_port(dev, adp.va_io_base);
 		isa_set_portsize(dev, adp.va_io_size);
@@ -380,3 +391,4 @@ static driver_t vgapm_driver = {
 };
 
 DRIVER_MODULE(vgapm, vgapci, vgapm_driver, vgapm_devclass, 0, 0);
+ISA_PNP_INFO(vga_ids);

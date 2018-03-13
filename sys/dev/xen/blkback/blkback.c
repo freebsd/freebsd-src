@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2012 Spectra Logic Corporation
  * All rights reserved.
  *
@@ -249,7 +251,7 @@ struct xbb_xen_reqlist {
 	uint8_t			*kva;
 
 	/**
-	 * Base, psuedo-physical address, corresponding to the start
+	 * Base, pseudo-physical address, corresponding to the start
 	 * of this request's kva region.
 	 */
 	uint64_t	 	 gnt_base;
@@ -588,7 +590,7 @@ struct xbb_softc {
 	 */
 	vm_offset_t		  kva;
 
-	/** Psuedo-physical address corresponding to kva. */
+	/** Pseudo-physical address corresponding to kva. */
 	uint64_t		  gnt_base_addr;
 
 	/** The size of the global kva pool. */
@@ -934,7 +936,7 @@ xbb_reqlist_ioaddr(struct xbb_xen_reqlist *reqlist, int pagenr, int sector)
 
 /**
  * Given a page index and 512b sector offset within that page, calculate
- * an offset into the local psuedo-physical address space used to map a
+ * an offset into the local pseudo-physical address space used to map a
  * front-end's request data into a request.
  *
  * \param reqlist The request list structure whose pseudo-physical region

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Luoqi Chen.
  * All rights reserved.
  *
@@ -1575,6 +1577,7 @@ aic_attach(struct aic_softc *aic)
 		printf(", fast SCSI");
 	printf("\n");
 	mtx_unlock(&aic->lock);
+	gone_in_dev(aic->dev, 12, "aic(4) driver");
 	return (0);
 }
 

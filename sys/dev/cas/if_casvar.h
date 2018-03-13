@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2001 Eduardo Horvath.
  * Copyright (c) 2008 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
@@ -119,10 +121,6 @@ struct cas_rxdsoft {
 	void *rxds_buf;			/* receive buffer */
 	bus_dmamap_t rxds_dmamap;	/* our DMA map */
 	bus_addr_t rxds_paddr;		/* physical address of the segment */
-#if __FreeBSD_version < 800016
-	struct cas_softc *rxds_sc;	/* softc pointer */
-	u_int rxds_idx;			/* our index */
-#endif
 	u_int rxds_refcount;		/* hardware + mbuf references */
 };
 
@@ -239,18 +237,7 @@ do {									\
 	__CAS_UPDATE_RXDESC(&(sc)->sc_rxdescs[(d)],			\
 	    &(sc)->sc_rxdsoft[(s)], (s))
 
-#if __FreeBSD_version < 800016
-#define	CAS_INIT_RXDESC(sc, d, s)					\
-do {									\
-	struct cas_rxdsoft *__rxds = &(sc)->sc_rxdsoft[(s)];		\
-									\
-	__rxds->rxds_sc = (sc);						\
-	__rxds->rxds_idx = (s);						\
-	__CAS_UPDATE_RXDESC(&(sc)->sc_rxdescs[(d)], __rxds, (s));	\
-} while (0)
-#else
 #define	CAS_INIT_RXDESC(sc, d, s)	CAS_UPDATE_RXDESC(sc, d, s)
-#endif
 
 #define	CAS_LOCK_INIT(_sc, _name)					\
 	mtx_init(&(_sc)->sc_mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)

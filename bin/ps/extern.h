@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -53,6 +55,7 @@ char	 *emulname(KINFO *, VARENT *);
 VARENT	*find_varentry(VAR *);
 const	 char *fmt_argv(char **, char *, char *, size_t);
 double	 getpcpu(const KINFO *);
+char	 *jailname(KINFO *, VARENT *);
 char	 *kvar(KINFO *, VARENT *);
 char	 *label(KINFO *, VARENT *);
 char	 *loginclass(KINFO *, VARENT *);

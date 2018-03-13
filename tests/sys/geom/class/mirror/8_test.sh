@@ -35,9 +35,7 @@ devwait # This will take kern.geom.mirror.timeout seconds.
 
 # Re-attach the second mirror and wait for it to synchronize.
 us1=$(attach_md -t vnode -f $m2) || exit 1
-while [ $(gmirror status $name | grep ACTIVE | wc -l) -ne 2 ]; do
-    sleep 1
-done
+syncwait
 
 # Verify the two mirrors are identical. Destroy the gmirror first so that
 # the mirror metadata is wiped; otherwise the metadata blocks will fail
@@ -45,9 +43,9 @@ done
 # command instead.
 gmirror destroy $name
 if cmp -s ${m1} ${m2}; then
-    echo "ok 1"
+	echo "ok 1"
 else
-    echo "not ok 1"
+	echo "not ok 1"
 fi
 
 rm -f $m1 $m2

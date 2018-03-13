@@ -44,6 +44,10 @@
 #
 # DESTDIR	The tree where the module gets installed. [not set]
 #
+# KERNBUILDDIR
+#		Set to the location of the kernel build directory where
+#		the opt_*.h files, .o's and kernel winds up.
+#
 # +++ targets +++
 #
 # 	install:
@@ -239,14 +243,14 @@ ${FULLPROG}: ${OBJS}
 .if ${EXPORT_SYMS} == NO
 	:> export_syms
 .elif !exists(${.CURDIR}/${EXPORT_SYMS})
-	echo ${EXPORT_SYMS} > export_syms
+	echo -n "${EXPORT_SYMS:@s@$s${.newline}@}" > export_syms
 .else
 	grep -v '^#' < ${EXPORT_SYMS} > export_syms
 .endif
 	${AWK} -f ${SYSDIR}/conf/kmod_syms.awk ${.TARGET} \
 	    export_syms | xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
-.endif
+.endif # defined(EXPORT_SYMS)
 .if defined(PREFIX_SYMS)
 	${AWK} -v prefix=${PREFIX_SYMS} -f ${SYSDIR}/conf/kmod_syms_prefix.awk \
 	    ${.TARGET} /dev/null | xargs -J% ${OBJCOPY} % ${.TARGET}
@@ -288,7 +292,7 @@ ${_ILINKS}:
 	esac ; \
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET:T} "->" $$path ; \
-	ln -fhs $$path ${.TARGET:T}
+	ln -fns $$path ${.TARGET:T}
 
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS}
 
@@ -464,9 +468,6 @@ genassym.o: ${SRCS:Mopt_*.h}
 	${CC} -c ${CFLAGS:N-flto:N-fno-common} \
 	    ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 .endif
-
-lint: ${SRCS}
-	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC:M*.c}
 
 .if defined(KERNBUILDDIR)
 ${OBJS}: opt_global.h

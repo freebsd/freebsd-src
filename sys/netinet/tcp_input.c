@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1994, 1995
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 2007-2008,2010
@@ -98,9 +100,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
-#ifdef TCP_RFC7413
-#include <netinet/tcp_fastopen.h>
-#endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
@@ -109,6 +108,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/tcp6_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/cc/cc.h>
+#include <netinet/tcp_fastopen.h>
 #ifdef TCPPCAP
 #include <netinet/tcp_pcap.h>
 #endif
@@ -145,7 +145,6 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_VNET | CTLFLAG_RW,
     "Delay ACK to try and piggyback it onto a data packet");
 
 VNET_DEFINE(int, drop_synfin) = 0;
-#define	V_drop_synfin		VNET(drop_synfin)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(drop_synfin), 0,
     "Drop TCP packets with SYN+FIN set");
@@ -156,7 +155,6 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc6675_pipe, CTLFLAG_VNET | CTLFLAG_RW,
     "Use calculated pipe/in-flight bytes per RFC 6675");
 
 VNET_DEFINE(int, tcp_do_rfc3042) = 1;
-#define	V_tcp_do_rfc3042	VNET(tcp_do_rfc3042)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc3042), 0,
     "Enable RFC 3042 (Limited Transmit)");
@@ -194,13 +192,11 @@ SYSCTL_INT(_net_inet_tcp_ecn, OID_AUTO, maxretries, CTLFLAG_VNET | CTLFLAG_RW,
     "Max retries before giving up on ECN");
 
 VNET_DEFINE(int, tcp_insecure_syn) = 0;
-#define	V_tcp_insecure_syn	VNET(tcp_insecure_syn)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, insecure_syn, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_insecure_syn), 0,
     "Follow RFC793 instead of RFC5961 criteria for accepting SYN packets");
 
 VNET_DEFINE(int, tcp_insecure_rst) = 0;
-#define	V_tcp_insecure_rst	VNET(tcp_insecure_rst)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, insecure_rst, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_insecure_rst), 0,
     "Follow RFC793 instead of RFC5961 criteria for accepting RST packets");
@@ -211,19 +207,16 @@ SYSCTL_INT(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_VNET | CTLFLAG_RW
     &VNET_NAME(tcp_recvspace), 0, "Initial receive socket buffer size");
 
 VNET_DEFINE(int, tcp_do_autorcvbuf) = 1;
-#define	V_tcp_do_autorcvbuf	VNET(tcp_do_autorcvbuf)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_auto, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_autorcvbuf), 0,
     "Enable automatic receive buffer sizing");
 
 VNET_DEFINE(int, tcp_autorcvbuf_inc) = 16*1024;
-#define	V_tcp_autorcvbuf_inc	VNET(tcp_autorcvbuf_inc)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_inc, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_autorcvbuf_inc), 0,
     "Incrementor step size of automatic receive buffer");
 
 VNET_DEFINE(int, tcp_autorcvbuf_max) = 2*1024*1024;
-#define	V_tcp_autorcvbuf_max	VNET(tcp_autorcvbuf_max)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_max, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_autorcvbuf_max), 0,
     "Max size of automatic receive buffer");
@@ -712,6 +705,7 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 			ip->ip_tos = iptos;
 			/* Re-initialization for later version check */
 			ip->ip_v = IPVERSION;
+			ip->ip_hl = off0 >> 2;
 		}
 
 		if (th->th_sum) {
@@ -1134,9 +1128,7 @@ relocked:
 				rstreason = BANDLIM_RST_OPENPORT;
 				goto dropwithreset;
 			}
-#ifdef TCP_RFC7413
 tfo_socket_result:
-#endif
 			if (so == NULL) {
 				/*
 				 * We completed the 3-way handshake
@@ -1379,12 +1371,9 @@ tfo_socket_result:
 #endif
 		TCP_PROBE3(debug__input, tp, th, m);
 		tcp_dooptions(&to, optp, optlen, TO_SYN);
-#ifdef TCP_RFC7413
 		if (syncache_add(&inc, &to, th, inp, &so, m, NULL, NULL))
 			goto tfo_socket_result;
-#else
-		syncache_add(&inc, &to, th, inp, &so, m, NULL, NULL);
-#endif
+
 		/*
 		 * Entry added to syncache and mbuf consumed.
 		 * Only the listen socket is unlocked by syncache_add().
@@ -1554,9 +1543,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	struct in_conninfo *inc;
 	struct mbuf *mfree;
 	struct tcpopt to;
-#ifdef TCP_RFC7413
 	int tfo_syn;
-#endif
 	
 #ifdef TCPDEBUG
 	/*
@@ -1721,6 +1708,13 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if ((tp->t_flags & TF_SACK_PERMIT) &&
 		    (to.to_flags & TOF_SACKPERM) == 0)
 			tp->t_flags &= ~TF_SACK_PERMIT;
+		if (IS_FASTOPEN(tp->t_flags)) {
+			if (to.to_flags & TOF_FASTOPEN)
+				tcp_fastopen_update_cache(tp, to.to_mss,
+				    to.to_tfo_len, to.to_tfo_cookie);
+			else
+				tcp_fastopen_disable_path(tp);
+		}
 	}
 
 	/*
@@ -1978,7 +1972,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				rstreason = BANDLIM_RST_OPENPORT;
 				goto dropwithreset;
 		}
-#ifdef TCP_RFC7413
 		if (IS_FASTOPEN(tp->t_flags)) {
 			/*
 			 * When a TFO connection is in SYN_RECEIVED, the
@@ -1999,7 +1992,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				goto drop;
 			}
 		}
-#endif
 		break;
 
 	/*
@@ -2031,6 +2023,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		tp->irs = th->th_seq;
 		tcp_rcvseqinit(tp);
 		if (thflags & TH_ACK) {
+			int tfo_partial_ack = 0;
+
 			TCPSTAT_INC(tcps_connects);
 			soisconnected(so);
 #ifdef MAC
@@ -2045,10 +2039,19 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			    TCP_MAXWIN << tp->rcv_scale);
 			tp->snd_una++;		/* SYN is acked */
 			/*
+			 * If not all the data that was sent in the TFO SYN
+			 * has been acked, resend the remainder right away.
+			 */
+			if (IS_FASTOPEN(tp->t_flags) &&
+			    (tp->snd_una != tp->snd_max)) {
+				tp->snd_nxt = th->th_ack;
+				tfo_partial_ack = 1;
+			}
+			/*
 			 * If there's data, delay ACK; if there's also a FIN
 			 * ACKNOW will be turned on later.
 			 */
-			if (DELAY_ACK(tp, tlen) && tlen != 0)
+			if (DELAY_ACK(tp, tlen) && tlen != 0 && !tfo_partial_ack)
 				tcp_timer_activate(tp, TT_DELACK,
 				    tcp_delacktime);
 			else
@@ -2407,13 +2410,11 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if ((thflags & TH_ACK) == 0) {
 		if (tp->t_state == TCPS_SYN_RECEIVED ||
 		    (tp->t_flags & TF_NEEDSYN)) {
-#ifdef TCP_RFC7413
 			if (tp->t_state == TCPS_SYN_RECEIVED &&
 			    IS_FASTOPEN(tp->t_flags)) {
 				tp->snd_wnd = tiwin;
 				cc_conn_init(tp);
 			}
-#endif
 			goto step6;
 		} else if (tp->t_flags & TF_ACKNOW)
 			goto dropafterack;
@@ -2454,8 +2455,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tcp_state_change(tp, TCPS_ESTABLISHED);
 			TCP_PROBE5(accept__established, NULL, tp,
 			    m, tp, th);
-#ifdef TCP_RFC7413
-			if (tp->t_tfo_pending) {
+			if (IS_FASTOPEN(tp->t_flags) && tp->t_tfo_pending) {
 				tcp_fastopen_decrement_counter(tp->t_tfo_pending);
 				tp->t_tfo_pending = NULL;
 
@@ -2473,7 +2473,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 * is retransmitted.
 			 */
 			if (!IS_FASTOPEN(tp->t_flags))
-#endif
 				cc_conn_init(tp);
 			tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
 		}
@@ -3039,12 +3038,8 @@ dodata:							/* XXX */
 	 * case PRU_RCVD).  If a FIN has already been received on this
 	 * connection then we just ignore the text.
 	 */
-#ifdef TCP_RFC7413
 	tfo_syn = ((tp->t_state == TCPS_SYN_RECEIVED) &&
 		   IS_FASTOPEN(tp->t_flags));
-#else
-#define	tfo_syn	(false)
-#endif
 	if ((tlen || (thflags & TH_FIN) || tfo_syn) &&
 	    TCPS_HAVERCVDFIN(tp->t_state) == 0) {
 		tcp_seq save_start = th->th_seq;
@@ -3268,9 +3263,6 @@ drop:
 	if (tp != NULL)
 		INP_WUNLOCK(tp->t_inpcb);
 	m_freem(m);
-#ifndef TCP_RFC7413
-#undef	tfo_syn
-#endif
 }
 
 /*
@@ -3424,21 +3416,21 @@ tcp_dooptions(struct tcpopt *to, u_char *cp, int cnt, int flags)
 			to->to_sacks = cp + 2;
 			TCPSTAT_INC(tcps_sack_rcv_blocks);
 			break;
-#ifdef TCP_RFC7413
 		case TCPOPT_FAST_OPEN:
-			if ((optlen != TCPOLEN_FAST_OPEN_EMPTY) &&
-			    (optlen < TCPOLEN_FAST_OPEN_MIN) &&
-			    (optlen > TCPOLEN_FAST_OPEN_MAX))
-				continue;
+			/*
+			 * Cookie length validation is performed by the
+			 * server side cookie checking code or the client
+			 * side cookie cache update code.
+			 */
 			if (!(flags & TO_SYN))
 				continue;
-			if (!V_tcp_fastopen_enabled)
+			if (!V_tcp_fastopen_client_enable &&
+			    !V_tcp_fastopen_server_enable)
 				continue;
 			to->to_flags |= TOF_FASTOPEN;
 			to->to_tfo_len = optlen - 2;
 			to->to_tfo_cookie = to->to_tfo_len ? cp + 2 : NULL;
 			break;
-#endif
 		default:
 			continue;
 		}

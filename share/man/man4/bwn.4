@@ -24,26 +24,29 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 11, 2015
+.Dd December 16, 2017
 .Dt BWN 4
 .Os
 .Sh NAME
 .Nm bwn
-.Nd Broadcom BCM43xx IEEE 802.11b/g wireless network driver
+.Nd Broadcom BCM43xx SoftMAC IEEE 802.11 wireless network driver
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
+To compile this driver into the kernel, add the following lines to the kernel
+configuration file:
 .Bd -ragged -offset indent
-.Cd "device siba_bwn"
 .Cd "device bwn"
+.Cd "device bhnd"
+.Cd "device bhndb"
+.Cd "device bhndb_pci"
+.Cd "device bcma"
+.Cd "device siba"
+.Cd "device gpio"
 .Cd "device wlan"
 .Cd "device wlan_amrr"
 .Cd "device firmware"
 .Ed
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+To load the driver as a module at boot, add the following lines to
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_bwn_load="YES"
@@ -122,9 +125,6 @@ Tunables can be set at the
 prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width indent
-.It Va hw.bwn.msi_disable
-This tunable disables MSI support on the hardware.
-The default value is 0.
 .It Va hw.bwn.usedma
 This tunable enables DMA operations on the hardware.
 If the value is 0, PIO mode would be used.
@@ -132,10 +132,14 @@ The default value is 1.
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,
+.Xr bcma 4 ,
+.Xr bhnd 4 ,
+.Xr bhndb 4 ,
 .Xr bwi 4 ,
 .Xr cardbus 4 ,
 .Xr intro 4 ,
 .Xr pci 4 ,
+.Xr siba 4 ,
 .Xr wlan 4 ,
 .Xr wlan_amrr 4 ,
 .Xr ifconfig 8 ,
@@ -145,12 +149,20 @@ The
 .Nm
 driver first appeared in
 .Fx 8.1 .
+The driver was updated to support the common Broadcom
+.Xr bhnd 4
+bus interface in
+.Fx 12.0 .
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
 driver was written by
 .An Weongyo Jeong Aq Mt weongyo@FreeBSD.org .
+Support for
+.Xr bhnd 4
+was added by
+.An Landon Fuller Aq Mt landonf@FreeBSD.org .
 .\".Sh BUGS
 .\"Some card based on the BCM4306 and BCM4309 chips do not work properly
 .\"on channel 1, 2 and 3.

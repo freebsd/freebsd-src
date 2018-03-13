@@ -24,6 +24,7 @@
  * All rights reserved.
  * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright 2016 Nexenta Systems, Inc. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -477,7 +478,7 @@ zfs_register_callbacks(vfs_t *vfsp)
 	 * dsl_prop_get_int_ds() to handle the special nbmand property below.
 	 * dsl_prop_get_integer() can not be used, because it has to acquire
 	 * spa_namespace_lock and we can not do that because we already hold
-	 * z_teardown_lock.  The problem is that spa_config_sync() is called
+	 * z_teardown_lock.  The problem is that spa_write_cachefile() is called
 	 * with spa_namespace_lock held and the function calls ZFS vnode
 	 * operations to write the cache file and thus z_teardown_lock is
 	 * acquired after spa_namespace_lock.
@@ -1629,13 +1630,21 @@ zfs_mount(vfs_t *vfsp)
 	 * can be interrogated.
 	 */
 	if ((uap->flags & MS_DATA) && uap->datalen > 0)
+		return (SET_ERROR(EINVAL));
+
+	/*
+	 * Get the objset name (the "special" mount argument).
+	 */
+	if (error = pn_get(uap->spec, fromspace, &spn))
+		return (error);
+
+	osname = spn.pn_path;
 #else	/* !illumos */
 	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_ZFS))
 		return (SET_ERROR(EPERM));
 
 	if (vfs_getopt(vfsp->mnt_optnew, "from", (void **)&osname, NULL))
 		return (SET_ERROR(EINVAL));
-#endif	/* illumos */
 
 	/*
 	 * If full-owner-access is enabled and delegated administration is
@@ -1645,6 +1654,7 @@ zfs_mount(vfs_t *vfsp)
 	    dsl_deleg_access(osname, ZFS_DELEG_PERM_MOUNT, cr) != ECANCELED) {
 		secpolicy_fs_mount_clearopts(cr, vfsp);
 	}
+#endif	/* illumos */
 
 	/*
 	 * Check for mount privilege?
@@ -1837,7 +1847,7 @@ zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp)
 /*
  * Teardown the zfsvfs::z_os.
  *
- * Note, if 'unmounting' if FALSE, we return with the 'z_teardown_lock'
+ * Note, if 'unmounting' is FALSE, we return with the 'z_teardown_lock'
  * and 'z_teardown_inactive_lock' held.
  */
 static int
@@ -1905,8 +1915,8 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 	 */
 	if (unmounting) {
 		zfsvfs->z_unmounted = B_TRUE;
-		rrm_exit(&zfsvfs->z_teardown_lock, FTAG);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
+		rrm_exit(&zfsvfs->z_teardown_lock, FTAG);
 	}
 
 	/*
@@ -2496,6 +2506,29 @@ zfs_get_zplprop(objset_t *os, zfs_prop_t prop, uint64_t *value)
 		error = 0;
 	}
 	return (error);
+}
+
+/*
+ * Return true if the coresponding vfs's unmounted flag is set.
+ * Otherwise return false.
+ * If this function returns true we know VFS unmount has been initiated.
+ */
+boolean_t
+zfs_get_vfs_flag_unmounted(objset_t *os)
+{
+	zfsvfs_t *zfvp;
+	boolean_t unmounted = B_FALSE;
+
+	ASSERT(dmu_objset_type(os) == DMU_OST_ZFS);
+
+	mutex_enter(&os->os_user_ptr_lock);
+	zfvp = dmu_objset_get_user(os);
+	if (zfvp != NULL && zfvp->z_vfs != NULL &&
+	    (zfvp->z_vfs->mnt_kern_flag & MNTK_UNMOUNT))
+		unmounted = B_TRUE;
+	mutex_exit(&os->os_user_ptr_lock);
+
+	return (unmounted);
 }
 
 #ifdef _KERNEL

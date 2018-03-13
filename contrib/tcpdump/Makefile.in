@@ -263,6 +263,7 @@ HDR = \
 	ether.h \
 	ethertype.h \
 	extract.h \
+	funcattrs.h \
 	getopt_long.h \
 	gmpls.h \
 	gmt2local.h \

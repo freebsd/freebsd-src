@@ -70,6 +70,7 @@ as_lapic_eoi:
 #define	ISR_VEC(index, vec_name)					\
 	.text ;								\
 	SUPERALIGN_TEXT ;						\
+IDTVEC(vec_name ## _pti) ;						\
 IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
 	SET_KERNEL_SREGS ;						\
@@ -123,6 +124,7 @@ IDTVEC(spuriousint)
  */
 	.text
 	SUPERALIGN_TEXT
+IDTVEC(timerint_pti)
 IDTVEC(timerint)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
@@ -139,6 +141,7 @@ IDTVEC(timerint)
  */
 	.text
 	SUPERALIGN_TEXT
+IDTVEC(cmcint_pti)
 IDTVEC(cmcint)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
@@ -153,6 +156,7 @@ IDTVEC(cmcint)
  */
 	.text
 	SUPERALIGN_TEXT
+IDTVEC(errorint_pti)
 IDTVEC(errorint)
 	PUSH_FRAME
 	SET_KERNEL_SREGS

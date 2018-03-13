@@ -185,7 +185,7 @@ generic_ohci_attach(device_t dev)
 
 	/* Enable phy */
 	if (phy_get_by_ofw_name(dev, 0, "usb", &sc->phy) == 0) {
-		err = phy_enable(dev, sc->phy);
+		err = phy_enable(sc->phy);
 		if (err != 0) {
 			device_printf(dev, "Could not enable phy\n");
 			goto error;
@@ -259,7 +259,7 @@ generic_ohci_detach(device_t dev)
 #ifdef EXT_RESOURCES
 	/* Disable phy */
 	if (sc->phy) {
-		err = phy_disable(dev, sc->phy);
+		err = phy_disable(sc->phy);
 		if (err != 0)
 			device_printf(dev, "Could not disable phy\n");
 		phy_release(sc->phy);

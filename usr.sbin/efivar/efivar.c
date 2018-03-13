@@ -147,7 +147,7 @@ write_variable(char *name, char *val)
 
 	breakdown_name(name, &guid, &vname);
 	data = get_value(val, &datalen);
-	if (efi_set_variable(guid, vname, data, datalen, attrib, 0) < 0)
+	if (efi_set_variable(guid, vname, data, datalen, attrib) < 0)
 		err(1, "efi_set_variable");
 }
 
@@ -255,7 +255,7 @@ parse_args(int argc, char **argv)
 {
 	int ch, i;
 
-	while ((ch = getopt_long(argc, argv, "aAbdDf:gHlLNn:OpRt:w",
+	while ((ch = getopt_long(argc, argv, "aAbdDf:gHlLNn:OpRt:uw",
 		    longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'a':

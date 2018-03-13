@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Suleiman Souhlal
  * All rights reserved.
  *
@@ -64,7 +66,7 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 	int i, regargs, stackargs;
 
 	/* Sanity checks */
-	if ((ucp == NULL) || (argc < 0) || (argc > NCARGS)
+	if ((ucp == NULL) || (argc < 0)
 	    || (ucp->uc_stack.ss_sp == NULL)
 	    || (ucp->uc_stack.ss_size < MINSIGSTKSZ)) {
 		/* invalidate context */

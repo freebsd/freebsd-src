@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <vm/vm.h>
 #include <kvm.h>
 
 #include "../../sys/arm64/include/minidump.h"
@@ -50,8 +51,15 @@ __FBSDID("$FreeBSD$");
 
 struct vmstate {
 	struct minidumphdr hdr;
-	uint64_t *page_map;
 };
+
+static aarch64_pte_t
+_aarch64_pte_get(kvm_t *kd, u_long pteindex)
+{
+	aarch64_pte_t *pte = _kvm_pmap_get(kd, pteindex, sizeof(*pte));
+
+	return le64toh(*pte);
+}
 
 static int
 _aarch64_minidump_probe(kvm_t *kd)
@@ -66,7 +74,6 @@ _aarch64_minidump_freevtop(kvm_t *kd)
 {
 	struct vmstate *vm = kd->vmst;
 
-	free(vm->page_map);
 	free(vm);
 	kd->vmst = NULL;
 }
@@ -116,28 +123,11 @@ _aarch64_minidump_initvtop(kvm_t *kd)
 	    aarch64_round_page(vmst->hdr.pmapsize);
 	if (_kvm_pt_init(kd, vmst->hdr.bitmapsize, off, sparse_off,
 	    AARCH64_PAGE_SIZE, sizeof(uint64_t)) == -1) {
-		_kvm_err(kd, kd->program, "cannot load core bitmap");
 		return (-1);
 	}
 	off += aarch64_round_page(vmst->hdr.bitmapsize);
 
-	vmst->page_map = _kvm_malloc(kd, vmst->hdr.pmapsize);
-	if (vmst->page_map == NULL) {
-		_kvm_err(kd, kd->program,
-		    "cannot allocate %d bytes for page_map",
-		    vmst->hdr.pmapsize);
-		return (-1);
-	}
-	/* This is the end of the dump, savecore may have truncated it. */
-	/*
-	 * XXX: This doesn't make sense.  The pmap is not at the end,
-	 * and if it is truncated we don't have any actual data (it's
-	 * all stored after the bitmap and pmap.  -- jhb
-	 */
-	if (pread(kd->pmfd, vmst->page_map, vmst->hdr.pmapsize, off) <
-	    AARCH64_PAGE_SIZE) {
-		_kvm_err(kd, kd->program, "cannot read %d bytes for page_map",
-		    vmst->hdr.pmapsize);
+	if (_kvm_pmap_init(kd, vmst->hdr.pmapsize, off) == -1) {
 		return (-1);
 	}
 	off += aarch64_round_page(vmst->hdr.pmapsize);
@@ -161,7 +151,7 @@ _aarch64_minidump_vatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 	if (va >= vm->hdr.dmapbase && va < vm->hdr.dmapend) {
 		a = (va - vm->hdr.dmapbase + vm->hdr.dmapphys) &
 		    ~AARCH64_PAGE_MASK;
-		ofs = _kvm_pt_find(kd, a);
+		ofs = _kvm_pt_find(kd, a, AARCH64_PAGE_SIZE);
 		if (ofs == -1) {
 			_kvm_err(kd, kd->program, "_aarch64_minidump_vatop: "
 			    "direct map address 0x%jx not in minidump",
@@ -172,16 +162,16 @@ _aarch64_minidump_vatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 		return (AARCH64_PAGE_SIZE - offset);
 	} else if (va >= vm->hdr.kernbase) {
 		l3_index = (va - vm->hdr.kernbase) >> AARCH64_L3_SHIFT;
-		if (l3_index >= vm->hdr.pmapsize / sizeof(*vm->page_map))
+		if (l3_index >= vm->hdr.pmapsize / sizeof(l3))
 			goto invalid;
-		l3 = le64toh(vm->page_map[l3_index]);
+		l3 = _aarch64_pte_get(kd, l3_index);
 		if ((l3 & AARCH64_ATTR_DESCR_MASK) != AARCH64_L3_PAGE) {
 			_kvm_err(kd, kd->program,
 			    "_aarch64_minidump_vatop: pde not valid");
 			goto invalid;
 		}
 		a = l3 & ~AARCH64_ATTR_MASK;
-		ofs = _kvm_pt_find(kd, a);
+		ofs = _kvm_pt_find(kd, a, AARCH64_PAGE_SIZE);
 		if (ofs == -1) {
 			_kvm_err(kd, kd->program, "_aarch64_minidump_vatop: "
 			    "physical address 0x%jx not in minidump",
@@ -225,12 +215,73 @@ _aarch64_native(kvm_t *kd __unused)
 #endif
 }
 
+static vm_prot_t
+_aarch64_entry_to_prot(aarch64_pte_t pte)
+{
+	vm_prot_t prot = VM_PROT_READ;
+
+	/* Source: arm64/arm64/pmap.c:pmap_protect() */
+	if ((pte & AARCH64_ATTR_AP(AARCH64_ATTR_AP_RO)) == 0)
+		prot |= VM_PROT_WRITE;
+	if ((pte & AARCH64_ATTR_XN) == 0)
+		prot |= VM_PROT_EXECUTE;
+	return prot;
+}
+
+static int
+_aarch64_minidump_walk_pages(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *arg)
+{
+	struct vmstate *vm = kd->vmst;
+	u_long nptes = vm->hdr.pmapsize / sizeof(aarch64_pte_t);
+	u_long bmindex, dva, pa, pteindex, va;
+	struct kvm_bitmap bm;
+	vm_prot_t prot;
+	int ret = 0;
+
+	if (!_kvm_bitmap_init(&bm, vm->hdr.bitmapsize, &bmindex))
+		return (0);
+
+	for (pteindex = 0; pteindex < nptes; pteindex++) {
+		aarch64_pte_t pte = _aarch64_pte_get(kd, pteindex);
+
+		if ((pte & AARCH64_ATTR_DESCR_MASK) != AARCH64_L3_PAGE)
+			continue;
+
+		va = vm->hdr.kernbase + (pteindex << AARCH64_L3_SHIFT);
+		pa = pte & ~AARCH64_ATTR_MASK;
+		dva = vm->hdr.dmapbase + pa;
+		if (!_kvm_visit_cb(kd, cb, arg, pa, va, dva,
+		    _aarch64_entry_to_prot(pte), AARCH64_PAGE_SIZE, 0)) {
+			goto out;
+		}
+	}
+
+	while (_kvm_bitmap_next(&bm, &bmindex)) {
+		pa = bmindex * AARCH64_PAGE_SIZE;
+		dva = vm->hdr.dmapbase + pa;
+		if (vm->hdr.dmapend < (dva + AARCH64_PAGE_SIZE))
+			break;
+		va = 0;
+		prot = VM_PROT_READ | VM_PROT_WRITE;
+		if (!_kvm_visit_cb(kd, cb, arg, pa, va, dva,
+		    prot, AARCH64_PAGE_SIZE, 0)) {
+			goto out;
+		}
+	}
+	ret = 1;
+
+out:
+	_kvm_bitmap_deinit(&bm);
+	return (ret);
+}
+
 static struct kvm_arch kvm_aarch64_minidump = {
 	.ka_probe = _aarch64_minidump_probe,
 	.ka_initvtop = _aarch64_minidump_initvtop,
 	.ka_freevtop = _aarch64_minidump_freevtop,
 	.ka_kvatop = _aarch64_minidump_kvatop,
 	.ka_native = _aarch64_native,
+	.ka_walk_pages = _aarch64_minidump_walk_pages,
 };
 
 KVM_ARCH(kvm_aarch64_minidump);

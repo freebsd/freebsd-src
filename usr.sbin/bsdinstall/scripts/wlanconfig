@@ -280,14 +280,14 @@ if echo "$ENCRYPTION" | grep -q PSK; then
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	) || exec "$0" "$@"
 	awk 'sub(/^\t/,"")||1' \
-		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<-EOF
-	network={
-		ssid="$NETWORK"
-		scan_ssid=$SCANSSID
-		psk="$PASS"
-		priority=5
-	}
-	EOF
+		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<EOF
+network={
+	ssid="$NETWORK"
+	scan_ssid=$SCANSSID
+	psk="$PASS"
+	priority=5
+}
+EOF
 elif echo "$ENCRYPTION" | grep -q EAP; then
 	USERPASS=$( $DIALOG \
 		--title "WPA-Enterprise Setup"   \
@@ -301,18 +301,18 @@ elif echo "$ENCRYPTION" | grep -q EAP; then
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	) || exec "$0" "$@"
 	awk 'sub(/^\t/,"")||1' \
-		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<-EOF
-	network={
-		ssid="$NETWORK"
-		scan_ssid=$SCANSSID
-		key_mgmt=WPA-EAP$(
-		echo "$USERPASS" | awk '
-			NR == 1 { printf "\n\t\tidentity=\"%s\"", $1 }
-			NR == 2 { printf "\n\t\tpassword=\"%s\"", $1 }
-		' )
-		priority=5
-	}
-	EOF
+		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<EOF
+network={
+	ssid="$NETWORK"
+	scan_ssid=$SCANSSID
+	key_mgmt=WPA-EAP$(
+	echo "$USERPASS" | awk '
+		NR == 1 { printf "\n\t\tidentity=\"%s\"", $1 }
+		NR == 2 { printf "\n\t\tpassword=\"%s\"", $1 }
+	' )
+	priority=5
+}
+EOF
 elif echo "$ENCRYPTION" | grep -q WEP; then
 	WEPKEY=$( $DIALOG \
 		--title "WEP Setup"              \
@@ -325,26 +325,26 @@ elif echo "$ENCRYPTION" | grep -q WEP; then
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	) || exec "$0" "$@"
 	awk 'sub(/^\t/,"")||1' \
-		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<-EOF
-	network={
-		ssid="$NETWORK"
-		scan_ssid=$SCANSSID
-		key_mgmt=NONE
-		wep_key0="$WEPKEY"
-		wep_tx_keyidx=0
-		priority=5
-	}
-	EOF
+		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<EOF
+network={
+	ssid="$NETWORK"
+	scan_ssid=$SCANSSID
+	key_mgmt=NONE
+	wep_key0="$WEPKEY"
+	wep_tx_keyidx=0
+	priority=5
+}
+EOF
 else # Open
 	awk 'sub(/^\t/,"")||1' \
-		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<-EOF
-	network={
-		ssid="$NETWORK"
-		scan_ssid=$SCANSSID
-		key_mgmt=NONE
-		priority=5
-	}
-	EOF
+		>> "$BSDINSTALL_TMPETC/wpa_supplicant.conf" <<EOF
+network={
+	ssid="$NETWORK"
+	scan_ssid=$SCANSSID
+	key_mgmt=NONE
+	priority=5
+}
+EOF
 fi
 
 # Connect to any open networks policy

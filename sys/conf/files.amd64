@@ -244,6 +244,8 @@ dev/if_ndis/if_ndis.c		optional	ndis
 dev/if_ndis/if_ndis_pccard.c	optional	ndis pccard
 dev/if_ndis/if_ndis_pci.c	optional	ndis cardbus | ndis pci
 dev/if_ndis/if_ndis_usb.c	optional	ndis usb
+dev/imcsmb/imcsmb.c		optional	imcsmb
+dev/imcsmb/imcsmb_pci.c		optional	imcsmb pci
 dev/intel/spi.c			optional	intelspi
 dev/io/iodev.c			optional	io
 dev/ioat/ioat.c			optional	ioat pci
@@ -293,6 +295,7 @@ dev/fdc/fdc_acpi.c		optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa
 dev/fdc/fdc_pccard.c		optional	fdc pccard
 dev/gpio/bytgpio.c		optional	bytgpio
+dev/gpio/chvgpio.c		optional	chvgpio
 dev/hpt27xx/hpt27xx_os_bsd.c	optional	hpt27xx
 dev/hpt27xx/hpt27xx_osm_bsd.c	optional	hpt27xx
 dev/hpt27xx/hpt27xx_config.c	optional	hpt27xx
@@ -473,7 +476,6 @@ dev/uart/uart_cpu_x86.c		optional	uart
 dev/viawd/viawd.c		optional	viawd
 dev/vmware/vmxnet3/if_vmx.c	optional	vmx
 dev/wbwd/wbwd.c			optional	wbwd
-dev/wpi/if_wpi.c		optional	wpi
 dev/xen/pci/xen_acpi_pci.c	optional	xenhvm
 dev/xen/pci/xen_pci.c		optional	xenhvm
 dev/isci/isci.c							optional isci

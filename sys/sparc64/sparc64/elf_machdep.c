@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2001 Jake Burkholder.
  * Copyright (c) 2000 Eduardo Horvath.
  * Copyright (c) 1999 The NetBSD Foundation, Inc.

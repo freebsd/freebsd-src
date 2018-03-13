@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) KATO Takenori, 1997, 1998.
  * 
  * All rights reserved.  Unpublished rights reserved under the copyright
@@ -216,11 +218,12 @@ initializecpu(void)
 	if (!IS_BSP() && (cpu_stdext_feature & CPUID_STDEXT_SMEP))
 		cr4 |= CR4_SMEP;
 	load_cr4(cr4);
-	if ((amd_feature & AMDID_NX) != 0) {
+	if (IS_BSP() && (amd_feature & AMDID_NX) != 0) {
 		msr = rdmsr(MSR_EFER) | EFER_NXE;
 		wrmsr(MSR_EFER, msr);
 		pg_nx = PG_NX;
 	}
+	hw_ibrs_recalculate();
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
 		init_amd();

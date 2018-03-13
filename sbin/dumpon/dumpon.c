@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -71,7 +73,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: dumpon [-v] [-k public_key_file] special_file",
+	    "usage: dumpon [-v] [-k public_key_file] [-Zz] special_file",
 	    "       dumpon [-v] off",
 	    "       dumpon [-v] -l");
 	exit(EX_USAGE);
@@ -190,11 +192,12 @@ main(int argc, char *argv[])
 	int ch;
 	int i, fd;
 	int do_listdumpdev = 0;
-	bool enable;
+	bool enable, gzip, zstd;
 
+	gzip = zstd = false;
 	pubkeyfile = NULL;
 
-	while ((ch = getopt(argc, argv, "k:lv")) != -1)
+	while ((ch = getopt(argc, argv, "k:lvZz")) != -1)
 		switch((char)ch) {
 		case 'k':
 			pubkeyfile = optarg;
@@ -205,9 +208,18 @@ main(int argc, char *argv[])
 		case 'v':
 			verbose = 1;
 			break;
+		case 'Z':
+			zstd = true;
+			break;
+		case 'z':
+			gzip = true;
+			break;
 		default:
 			usage();
 		}
+
+	if (gzip && zstd)
+		errx(EX_USAGE, "The -z and -Z options are mutually exclusive.");
 
 	argc -= optind;
 	argv += optind;
@@ -247,9 +259,11 @@ main(int argc, char *argv[])
 		fd = open(dumpdev, O_RDONLY);
 		if (fd < 0)
 			err(EX_OSFILE, "%s", dumpdev);
-		check_size(fd, dumpdev);
-		bzero(&kda, sizeof(kda));
 
+		if (!gzip && !zstd)
+			check_size(fd, dumpdev);
+
+		bzero(&kda, sizeof(kda));
 		kda.kda_enable = 0;
 		i = ioctl(fd, DIOCSKERNELDUMP, &kda);
 		explicit_bzero(&kda, sizeof(kda));
@@ -260,6 +274,11 @@ main(int argc, char *argv[])
 #endif
 
 		kda.kda_enable = 1;
+		kda.kda_compression = KERNELDUMP_COMP_NONE;
+		if (zstd)
+			kda.kda_compression = KERNELDUMP_COMP_ZSTD;
+		else if (gzip)
+			kda.kda_compression = KERNELDUMP_COMP_GZIP;
 		i = ioctl(fd, DIOCSKERNELDUMP, &kda);
 		explicit_bzero(kda.kda_encryptedkey, kda.kda_encryptedkeysize);
 		free(kda.kda_encryptedkey);

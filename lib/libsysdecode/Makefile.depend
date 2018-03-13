@@ -4,7 +4,6 @@
 DIRDEPS = \
 	gnu/lib/csu \
 	gnu/lib/libdialog \
-	gnu/lib/libgcc \
 	gnu/lib/libgomp \
 	gnu/lib/libregex \
 	gnu/lib/libssp \
@@ -90,6 +89,7 @@ DIRDEPS = \
 	lib/libpam/libpam \
 	lib/libpcap \
 	lib/libpmc \
+	lib/libpmcstat \
 	lib/libproc \
 	lib/libprocstat \
 	lib/libradius \
@@ -97,7 +97,6 @@ DIRDEPS = \
 	lib/librtld_db \
 	lib/libsdp \
 	lib/libsqlite3 \
-	lib/libstand \
 	lib/libstdthreads \
 	lib/libtacplus \
 	lib/libthread_db \

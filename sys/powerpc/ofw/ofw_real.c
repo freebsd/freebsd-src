@@ -1,6 +1,8 @@
 /*	$NetBSD: Locore.c,v 1.7 2000/08/20 07:04:59 tsubai Exp $	*/
 
 /*-
+ * SPDX-License-Identifier:BSD-4-Clause AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
  * All rights reserved.
@@ -221,7 +223,7 @@ ofw_real_bounce_alloc(void *junk)
 	 * we have a 32-bit virtual address to give OF.
 	 */
 
-	if (!ofw_real_mode && !hw_direct_map) 
+	if (!ofw_real_mode && (!hw_direct_map || DMAP_BASE_ADDRESS != 0)) 
 		pmap_kenter(of_bounce_phys, of_bounce_phys);
 
 	mtx_unlock(&of_bounce_mtx);
@@ -242,7 +244,7 @@ ofw_real_map(const void *buf, size_t len)
 		 * can use right now is memory mapped by firmware.
 		 */
 		if (!pmap_bootstrapped)
-			return (cell_t)(uintptr_t)buf;
+			return (cell_t)((uintptr_t)buf & ~DMAP_BASE_ADDRESS);
 
 		/*
 		 * XXX: It is possible for us to get called before the VM has
@@ -251,7 +253,8 @@ ofw_real_map(const void *buf, size_t len)
 		 * Copy into the emergency buffer, and reset at the end.
 		 */
 		of_bounce_virt = emergency_buffer;
-		of_bounce_phys = (vm_offset_t)of_bounce_virt;
+		of_bounce_phys = (vm_offset_t)of_bounce_virt &
+		    ~DMAP_BASE_ADDRESS;
 		of_bounce_size = sizeof(emergency_buffer);
 	}
 
@@ -259,7 +262,8 @@ ofw_real_map(const void *buf, size_t len)
 	 * Make sure the bounce page offset satisfies any reasonable
 	 * alignment constraint.
 	 */
-	of_bounce_offset += sizeof(register_t) - (of_bounce_offset % sizeof(register_t));
+	of_bounce_offset += sizeof(register_t) -
+	    (of_bounce_offset % sizeof(register_t));
 
 	if (of_bounce_offset + len > of_bounce_size) {
 		panic("Oversize Open Firmware call!");
@@ -364,7 +368,7 @@ ofw_real_peer(ofw_t ofw, phandle_t node)
 	argsptr = ofw_real_map(&args, sizeof(args));
 	if (openfirmware((void *)argsptr) == -1) {
 		ofw_real_stop();
-		return (-1);
+		return (0);
 	}
 	ofw_real_unmap(argsptr, &args, sizeof(args));
 	ofw_real_stop();
@@ -393,7 +397,7 @@ ofw_real_child(ofw_t ofw, phandle_t node)
 	argsptr = ofw_real_map(&args, sizeof(args));
 	if (openfirmware((void *)argsptr) == -1) {
 		ofw_real_stop();
-		return (-1);
+		return (0);
 	}
 	ofw_real_unmap(argsptr, &args, sizeof(args));
 	ofw_real_stop();
@@ -422,7 +426,7 @@ ofw_real_parent(ofw_t ofw, phandle_t node)
 	argsptr = ofw_real_map(&args, sizeof(args));
 	if (openfirmware((void *)argsptr) == -1) {
 		ofw_real_stop();
-		return (-1);
+		return (0);
 	}
 	ofw_real_unmap(argsptr, &args, sizeof(args));
 	ofw_real_stop();

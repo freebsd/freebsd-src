@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2010 Weongyo Jeong <weongyo@freebsd.org>
  * All rights reserved.
  *
@@ -32,83 +34,22 @@
 #ifndef _IF_BWNREG_H
 #define	_IF_BWNREG_H
 
-#define	PCI_VENDOR_COMPAQ		0x0e11
-#define	PCI_VENDOR_DELL			0x1028
-#define	PCI_VENDOR_HP			0x103c
-#define	PCI_VENDOR_ASUSTEK		0x1043
-#define	PCI_VENDOR_MOTOROLA		0x1057
-#define	PCI_VENDOR_APPLE		0x106b
-#define	PCI_VENDOR_BROADCOM		0x14e4
-#define	PCI_VENDOR_LINKSYS		0x1737
-
-/* SPROM flags */
-#define	BWN_BFL_BTCOEXIST		0x0001  /* implements Bluetooth coexistance */
-#define	BWN_BFL_PACTRL			0x0002  /* GPIO 9 controlling the PA */
-#define	BWN_BFL_AIRLINEMODE		0x0004  /* implements GPIO 13 radio disable indication */
-#define	BWN_BFL_RSSI			0x0008  /* software calculates nrssi slope. */
-#define	BWN_BFL_ENETSPI			0x0010  /* has ephy roboswitch spi */
-#define	BWN_BFL_CRYSTAL_NOSLOW		0x0020  /* no slow clock available */
-#define	BWN_BFL_CCKHIPWR		0x0040  /* can do high power CCK transmission */
-#define	BWN_BFL_ENETADM			0x0080  /* has ADMtek switch */
-#define	BWN_BFL_ENETVLAN		0x0100  /* can do vlan */
-#define	BWN_BFL_AFTERBURNER		0x0200  /* supports Afterburner mode */
-#define	BWN_BFL_NOPCI			0x0400  /* leaves PCI floating */
-#define	BWN_BFL_FEM			0x0800  /* supports the Front End Module */
-#define	BWN_BFL_EXTLNA			0x1000  /* has an external LNA */
-#define	BWN_BFL_HGPA			0x2000  /* had high gain PA */
-#define	BWN_BFL_BTCMOD			0x4000  /* BFL_BTCOEXIST is given in alternate GPIOs */
-#define	BWN_BFL_ALTIQ			0x8000  /* alternate I/Q settings */
-
-/* SPROM boardflags_hi values */
-#define	BWN_BFH_NOPA			0x0001  /* has no PA */
-#define	BWN_BFH_RSSIINV			0x0002  /* RSSI uses positive slope (not TSSI) */
-#define	BWN_BFH_LDO_PAREF		0x0004  /* uses the PARef LDO */
-#define	BWN_BFH_3TSWITCH		0x0008  /* uses a triple throw switch shared
-						 * with bluetooth */
-#define	BWN_BFH_PHASESHIFT		0x0010  /* can support phase shifter */
-#define	BWN_BFH_BUCKBOOST		0x0020  /* has buck/booster */
-#define	BWN_BFH_FEM_BT			0x0040  /* has FEM and switch to share antenna
-						 * with bluetooth */
-#define	BWN_BFH_NOCBUCK			0x0080
-#define	BWN_BFH_PALDO			0x0200
-#define	BWN_BFH_EXTLNA_5GHZ		0x1000  /* has an external LNA (5GHz mode) */
-
-/* SPROM boardflags2_lo values */
-#define	BWN_BFL2_RXBB_INT_REG_DIS	0x0001  /* external RX BB regulator present */
-#define	BWN_BFL2_APLL_WAR		0x0002  /* alternative A-band PLL settings implemented */
-#define	BWN_BFL2_TXPWRCTRL_EN		0x0004  /* permits enabling TX Power Control */
-#define	BWN_BFL2_2X4_DIV		0x0008  /* 2x4 diversity switch */
-#define	BWN_BFL2_5G_PWRGAIN		0x0010  /* supports 5G band power gain */
-#define	BWN_BFL2_PCIEWAR_OVR		0x0020  /* overrides ASPM and Clkreq settings */
-#define	BWN_BFL2_CAESERS_BRD		0x0040  /* is Caesers board (unused) */
-#define	BWN_BFL2_BTC3WIRE		0x0080  /* used 3-wire bluetooth coexist */
-#define	BWN_BFL2_SKWRKFEM_BRD		0x0100  /* 4321mcm93 uses Skyworks FEM */
-#define	BWN_BFL2_SPUR_WAR		0x0200  /* has a workaround for clock-harmonic spurs */
-#define	BWN_BFL2_GPLL_WAR		0x0400  /* altenative G-band PLL settings implemented */
-#define	BWN_BFL2_SINGLEANT_CCK		0x1000
-#define	BWN_BFL2_2G_SPUR_WAR		0x2000
-
-/* SPROM boardflags2_hi values */
-#define	BWN_BFH2_GPLL_WAR2		0x0001
-#define	BWN_BFH2_IPALVLSHIFT_3P3	0x0002
-#define	BWN_BFH2_INTERNDET_TXIQCAL	0x0004
-#define	BWN_BFH2_XTALBUFOUTEN		0x0008
-
-/* SIBA control registers */
-#define	BWN_TGSLOW_PHYCLOCK_ENABLE	0x00040000
-#define	BWN_TGSLOW_PHYRESET		0x00080000
-#define	BWN_TGSLOW_MACPHYCLKEN		0x00100000      /* MAC PHY Clock Control Enable (rev >= 5) */
-#define	BWN_TGSLOW_PLLREFSEL		0x00200000      /* PLL Frequency Reference Select (rev >= 5) */
+/* D11-specific I/O control flags */
+#define	BWN_IOCTL_PHYCLOCK_ENABLE	0x0004
+#define	BWN_IOCTL_PHYRESET		0x0008
+#define	BWN_IOCTL_MACPHYCLKEN		0x0010	/* MAC PHY Clock Control Enable (rev >= 5) */
+#define	BWN_IOCTL_PLLREFSEL		0x0020	/* PLL Frequency Reference Select (rev >= 5) */
 /* PHY_BANDWIDTH: N-PHY only */
-#define	BWN_TGSLOW_PHY_BANDWIDTH	0x00C00000
-#define	BWN_TGSLOW_PHY_BANDWIDTH_10MHZ	0x00000000
-#define	BWN_TGSLOW_PHY_BANDWIDTH_20MHZ	0x00400000
-#define	BWN_TGSLOW_PHY_BANDWIDTH_40MHZ	0x00800000
-#define	BWN_TGSLOW_SUPPORT_G		0x20000000
+#define	BWN_IOCTL_PHY_BANDWIDTH		0x00C0
+#define	BWN_IOCTL_PHY_BANDWIDTH_10MHZ	0x0000
+#define	BWN_IOCTL_PHY_BANDWIDTH_20MHZ	0x0040
+#define	BWN_IOCTL_PHY_BANDWIDTH_40MHZ	0x0080
+#define	BWN_IOCTL_SUPPORT_G		0x2000
 
-#define	BWN_TGSHIGH_HAVE_2GHZ		0x00010000
-#define	BWN_TGSHIGH_HAVE_5GHZ		0x00020000
-#define	BWN_TGSHIGH_DUALPHY		0x00080000
+/* D11-specific I/O status flags */
+#define	BWN_IOST_HAVE_2GHZ		0x0001
+#define	BWN_IOST_HAVE_5GHZ		0x0002
+#define	BWN_IOST_DUALPHY		0x0008
 
 #define	BWN_PHYTYPE_A			0x00
 #define	BWN_PHYTYPE_B			0x01
@@ -408,6 +349,7 @@
 #define	BWN_DMA32_TXCTL			0x00
 #define	BWN_DMA32_TXENABLE		0x00000001
 #define	BWN_DMA32_TXSUSPEND		0x00000002
+#define	BWN_DMA32_TXPARITY_DISABLE	0x00000800
 #define	BWN_DMA32_TXADDREXT_MASK	0x00030000
 #define	BWN_DMA32_TXADDREXT_SHIFT	16
 #define	BWN_DMA32_TXRING		0x04
@@ -421,6 +363,7 @@
 #define	BWN_DMA32_RXENABLE		0x00000001
 #define	BWN_DMA32_RXFROFF_SHIFT		1
 #define	BWN_DMA32_RXDIRECTFIFO		0x00000100
+#define	BWN_DMA32_RXPARITY_DISABLE	0x00000800
 #define	BWN_DMA32_RXADDREXT_MASK	0x00030000
 #define	BWN_DMA32_RXADDREXT_SHIFT	16
 #define	BWN_DMA32_RXRING		0x14
@@ -429,9 +372,12 @@
 #define	BWN_DMA32_RXDPTR		0x00000fff
 #define	BWN_DMA32_RXSTATE		0x0000f000
 #define	BWN_DMA32_RXSTAT_DISABLED	0x00000000
+#define	BWN_DMA32_ADDREXT_MASK		0xC0000000
+#define	BWN_DMA32_ADDREXT_SHIFT		30
 #define	BWN_DMA64_TXCTL			0x00
 #define	BWN_DMA64_TXENABLE		0x00000001
 #define	BWN_DMA64_TXSUSPEND		0x00000002
+#define	BWN_DMA64_TXPARITY_DISABLE	0x00000800
 #define	BWN_DMA64_TXADDREXT_MASK	0x00030000
 #define	BWN_DMA64_TXADDREXT_SHIFT	16
 #define	BWN_DMA64_TXINDEX		0x04
@@ -446,6 +392,7 @@
 #define	BWN_DMA64_RXENABLE		0x00000001
 #define	BWN_DMA64_RXFROFF_SHIFT		1
 #define	BWN_DMA64_RXDIRECTFIFO		0x00000100
+#define	BWN_DMA64_RXPARITY_DISABLE	0x00000800
 #define	BWN_DMA64_RXADDREXT_MASK	0x00030000
 #define	BWN_DMA64_RXADDREXT_SHIFT	16
 #define	BWN_DMA64_RXINDEX		0x24
@@ -455,6 +402,8 @@
 #define	BWN_DMA64_RXSTATDPTR		0x00001fff
 #define	BWN_DMA64_RXSTAT		0xf0000000
 #define	BWN_DMA64_RXSTAT_DISABLED	0x00000000
+#define	BWN_DMA64_ADDREXT_MASK		0xC000000000000000ULL
+#define	BWN_DMA64_ADDREXT_SHIFT		62
 #define	BWN_DMA_RINGMEMSIZE		PAGE_SIZE
 #define	BWN_DMA0_RX_FRAMEOFFSET_FW351	30
 #define	BWN_DMA0_RX_FRAMEOFFSET_FW598	38
@@ -718,6 +667,23 @@
 #define	BWN_TAB_NOISESCALE_SIZE		27
 
 /*
+ * SPROM rev 1 locale codes. Later SPROM revisions use a two-character
+ * country code.
+ */
+enum {
+	BWN_SPROM1_CC_WORLDWIDE	= 0,
+	BWN_SPROM1_CC_THAILAND	= 1,
+	BWN_SPROM1_CC_ISRAEL	= 2,
+	BWN_SPROM1_CC_JORDAN	= 3,
+	BWN_SPROM1_CC_CHINA	= 4,
+	BWN_SPROM1_CC_JP	= 5,
+	BWN_SPROM1_CC_USA	= 6,
+	BWN_SPROM1_CC_EUROPE	= 7,
+	BWN_SPROM1_CC_US_LOW	= 8,
+	BWN_SPROM1_CC_JP_HIGH	= 9,
+};
+
+/*
  * SPROM GPIO
  */
 #define	BWN_LED_ACT_LOW			0x80
@@ -735,7 +701,7 @@
 #define	BWN_LED_ACT_ASSOC		10
 #define	BWN_LED_ACT_NULL		11
 
-#define	BWN_VENDOR_LED_ACT_COMPAQ	\
+#define	BWN_VENDOR_LED_ACT_HP_COMPAQ	\
 	BWN_LED_ACT_RF_ENABLED,		\
 	BWN_LED_ACT_2GHZ,		\
 	BWN_LED_ACT_5GHZ,		\

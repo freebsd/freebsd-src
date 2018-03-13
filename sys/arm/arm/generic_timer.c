@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2011 The FreeBSD Foundation
  * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
@@ -70,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_ACPI
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
+#include "acpi_bus_if.h"
 #endif
 
 #define	GT_CTRL_ENABLE		(1 << 0)
@@ -311,6 +314,15 @@ arm_tmr_fdt_probe(device_t dev)
 
 #ifdef DEV_ACPI
 static void
+arm_tmr_acpi_add_irq(device_t parent, device_t dev, int rid, u_int irq)
+{
+
+	irq = ACPI_BUS_MAP_INTR(parent, dev, irq,
+		INTR_TRIGGER_LEVEL, INTR_POLARITY_HIGH);
+	BUS_SET_RESOURCE(parent, dev, SYS_RES_IRQ, rid, irq, 1);
+}
+
+static void
 arm_tmr_acpi_identify(driver_t *driver, device_t parent)
 {
 	ACPI_TABLE_GTDT *gtdt;
@@ -334,12 +346,9 @@ arm_tmr_acpi_identify(driver_t *driver, device_t parent)
 		goto out;
 	}
 
-	BUS_SET_RESOURCE(parent, dev, SYS_RES_IRQ, 0,
-	    gtdt->SecureEl1Interrupt, 1);
-	BUS_SET_RESOURCE(parent, dev, SYS_RES_IRQ, 1,
-	    gtdt->NonSecureEl1Interrupt, 1);
-	BUS_SET_RESOURCE(parent, dev, SYS_RES_IRQ, 2,
-	    gtdt->VirtualTimerInterrupt, 1);
+	arm_tmr_acpi_add_irq(parent, dev, 0, gtdt->SecureEl1Interrupt);
+	arm_tmr_acpi_add_irq(parent, dev, 1, gtdt->NonSecureEl1Interrupt);
+	arm_tmr_acpi_add_irq(parent, dev, 2, gtdt->VirtualTimerInterrupt);
 
 out:
 	acpi_unmap_table(gtdt);
@@ -524,6 +533,7 @@ DELAY(int usec)
 {
 	int32_t counts;
 
+	TSENTER();
 	/*
 	 * Check the timers are setup, if not just
 	 * use a for loop for the meantime
@@ -538,6 +548,7 @@ DELAY(int usec)
 				cpufunc_nullop();
 	} else
 		arm_tmr_do_delay(usec, arm_tmr_sc);
+	TSEXIT();
 }
 #endif
 

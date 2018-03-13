@@ -9,7 +9,8 @@
       "type": "spelling"
     },
     "chmod": {
-      "type": "chmod"
+      "type": "chmod",
+      "exclude": "(/tests/)"
     },
     "merge-conflict": {
       "type": "merge-conflict"

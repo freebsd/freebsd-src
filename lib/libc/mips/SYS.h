@@ -2,6 +2,8 @@
 /* $FreeBSD$ */
 
 /*-
+ * SPDX-License-Identifier: (BSD-4-Clause AND BSD-3-Clause)
+ *
  * Copyright (c) 1996 Jonathan Stone
  * All rights reserved.
  *

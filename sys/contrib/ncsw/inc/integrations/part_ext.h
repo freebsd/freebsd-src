@@ -44,21 +44,8 @@
 #include "enet_ext.h"
 #include "dpaa_integration_ext.h"
 
-#define CORE_E500MC
-
-/*****************************************************************************
- INTEGRATION-SPECIFIC MODULE CODES
-******************************************************************************/
-#define MODULE_MEM              0x00010000
-#define MODULE_MM               0x00020000
-#define MODULE_QM               0x000d0000
-#define MODULE_BM               0x000e0000
-#define MODULE_FM               0x00130000
-#define MODULE_FM_MURAM         0x00140000
-#define MODULE_FM_PCD           0x00150000
-#define MODULE_FM_RTC           0x00160000
-#define MODULE_FM_MAC           0x00170000
-#define MODULE_FM_PORT          0x00180000
+#define	CORE_E500MC
+#define	INTG_MAX_NUM_OF_CORES	24
 
 /**************************************************************************//*
  @Description   Part data structure - must be contained in any integration

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006-2007 Bruce M. Simpson.
  * Copyright (c) 2003-2004 Juli Mallett.
  * All rights reserved.
@@ -195,6 +197,7 @@ DELAY(int n)
 {
 	uint32_t cur, last, delta, usecs;
 
+	TSENTER();
 	/*
 	 * This works by polling the timer and counting the number of
 	 * microseconds that go by.
@@ -218,6 +221,7 @@ DELAY(int n)
 			delta %= cycles_per_usec;
 		}
 	}
+	TSEXIT();
 }
 
 static int

@@ -85,6 +85,8 @@ ig4iic_acpi_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	sc->dev = dev;
+	/* All the HIDs matched are Atom SOCs. */
+	sc->version = IG4_ATOM;
 	sc->regs_rid = 0;
 	sc->regs_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 					  &sc->regs_rid, RF_ACTIVE);

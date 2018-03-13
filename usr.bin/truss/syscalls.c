@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 1997 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/capsicum.h>
 #include <sys/types.h>
+#define	_WANT_FREEBSD11_KEVENT
 #include <sys/event.h>
 #include <sys/ioccom.h>
 #include <sys/mount.h>
@@ -50,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
+#include <netinet/sctp.h>
 #include <arpa/inet.h>
 
 #include <assert.h>
@@ -150,6 +154,9 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "compat11.fstatat", .ret_type = 1, .nargs = 4,
 	  .args = { { Atfd, 0 }, { Name | IN, 1 }, { Stat11 | OUT, 2 },
 		    { Atflags, 3 } } },
+	{ .name = "compat11.kevent", .ret_type = 1, .nargs = 6,
+	  .args = { { Int, 0 }, { Kevent11, 1 }, { Int, 2 },
+		    { Kevent11 | OUT, 3 }, { Int, 4 }, { Timespec, 5 } } },
 	{ .name = "compat11.lstat", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Stat11 | OUT, 1 } } },
 	{ .name = "compat11.stat", .ret_type = 1, .nargs = 2,
@@ -385,6 +392,8 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "readlinkat", .ret_type = 1, .nargs = 4,
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Readlinkres | OUT, 2 },
 		    { Sizet, 3 } } },
+	{ .name = "readv", .ret_type = 1, .nargs = 3,
+	  .args = { { Int, 0 }, { Iovec | OUT, 1 }, { Int, 2 } } },
 	{ .name = "reboot", .ret_type = 1, .nargs = 1,
 	  .args = { { Reboothowto, 0 } } },
 	{ .name = "recvfrom", .ret_type = 1, .nargs = 6,
@@ -392,7 +401,7 @@ static struct syscall decoded_syscalls[] = {
 	            { Msgflags, 3 }, { Sockaddr | OUT, 4 },
 	            { Ptr | OUT, 5 } } },
 	{ .name = "recvmsg", .ret_type = 1, .nargs = 3,
-	  .args = { { Int, 0 }, { Ptr, 1 }, { Msgflags, 2 } } },
+	  .args = { { Int, 0 }, { Msghdr | OUT, 1 }, { Msgflags, 2 } } },
 	{ .name = "rename", .ret_type = 1, .nargs = 2,
 	  .args = { { Name, 0 }, { Name, 1 } } },
 	{ .name = "renameat", .ret_type = 1, .nargs = 4,
@@ -420,18 +429,22 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "sched_setscheduler", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { Schedpolicy, 1 }, { Schedparam, 2 } } },
 	{ .name = "sctp_generic_recvmsg", .ret_type = 1, .nargs = 7,
-	  .args = { { Int, 0 }, { Ptr | IN, 1 }, { Int, 2 },
-	            { Sockaddr | OUT, 3 }, { Ptr | OUT, 4 }, { Ptr | OUT, 5 },
-	            { Ptr | OUT, 6 } } },
+	  .args = { { Int, 0 }, { Iovec | OUT, 1 }, { Int, 2 },
+	            { Sockaddr | OUT, 3 }, { Ptr | OUT, 4 },
+	            { Sctpsndrcvinfo | OUT, 5 }, { Ptr | OUT, 6 } } },
 	{ .name = "sctp_generic_sendmsg", .ret_type = 1, .nargs = 7,
 	  .args = { { Int, 0 }, { BinString | IN, 1 }, { Int, 2 },
-	            { Sockaddr | IN, 3 }, { Socklent, 4 }, { Ptr | IN, 5 },
-	            { Msgflags, 6 } } },
+	            { Sockaddr | IN, 3 }, { Socklent, 4 },
+	            { Sctpsndrcvinfo | IN, 5 }, { Msgflags, 6 } } },
+	{ .name = "sctp_generic_sendmsg_iov", .ret_type = 1, .nargs = 7,
+	  .args = { { Int, 0 }, { Iovec | IN, 1 }, { Int, 2 },
+	            { Sockaddr | IN, 3 }, { Socklent, 4 },
+	            { Sctpsndrcvinfo | IN, 5 }, { Msgflags, 6 } } },
 	{ .name = "select", .ret_type = 1, .nargs = 5,
 	  .args = { { Int, 0 }, { Fd_set, 1 }, { Fd_set, 2 }, { Fd_set, 3 },
 		    { Timeval, 4 } } },
 	{ .name = "sendmsg", .ret_type = 1, .nargs = 3,
-	  .args = { { Int, 0 }, { Ptr, 1 }, { Msgflags, 2 } } },
+	  .args = { { Int, 0 }, { Msghdr | IN, 1 }, { Msgflags, 2 } } },
 	{ .name = "sendto", .ret_type = 1, .nargs = 6,
 	  .args = { { Int, 0 }, { BinString | IN, 1 }, { Sizet, 2 },
 	            { Msgflags, 3 }, { Sockaddr | IN, 4 },
@@ -514,6 +527,8 @@ static struct syscall decoded_syscalls[] = {
 		    { Siginfo | OUT, 5 } } },
 	{ .name = "write", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { BinString | IN, 1 }, { Sizet, 2 } } },
+	{ .name = "writev", .ret_type = 1, .nargs = 3,
+	  .args = { { Int, 0 }, { Iovec | IN, 1 }, { Int, 2 } } },
 
 	/* Linux ABI */
 	{ .name = "linux_access", .ret_type = 1, .nargs = 2,
@@ -648,43 +663,6 @@ struct xlat {
 #define	X(a)	{ a, #a },
 #define	XEND	{ 0, NULL }
 
-static struct xlat kevent_filters[] = {
-	X(EVFILT_READ) X(EVFILT_WRITE) X(EVFILT_AIO) X(EVFILT_VNODE)
-	X(EVFILT_PROC) X(EVFILT_SIGNAL) X(EVFILT_TIMER)
-	X(EVFILT_PROCDESC) X(EVFILT_FS) X(EVFILT_LIO) X(EVFILT_USER)
-	X(EVFILT_SENDFILE) XEND
-};
-
-static struct xlat kevent_flags[] = {
-	X(EV_ADD) X(EV_DELETE) X(EV_ENABLE) X(EV_DISABLE) X(EV_ONESHOT)
-	X(EV_CLEAR) X(EV_RECEIPT) X(EV_DISPATCH) X(EV_FORCEONESHOT)
-	X(EV_DROP) X(EV_FLAG1) X(EV_ERROR) X(EV_EOF) XEND
-};
-
-static struct xlat kevent_user_ffctrl[] = {
-	X(NOTE_FFNOP) X(NOTE_FFAND) X(NOTE_FFOR) X(NOTE_FFCOPY)
-	XEND
-};
-
-static struct xlat kevent_rdwr_fflags[] = {
-	X(NOTE_LOWAT) X(NOTE_FILE_POLL) XEND
-};
-
-static struct xlat kevent_vnode_fflags[] = {
-	X(NOTE_DELETE) X(NOTE_WRITE) X(NOTE_EXTEND) X(NOTE_ATTRIB)
-	X(NOTE_LINK) X(NOTE_RENAME) X(NOTE_REVOKE) XEND
-};
-
-static struct xlat kevent_proc_fflags[] = {
-	X(NOTE_EXIT) X(NOTE_FORK) X(NOTE_EXEC) X(NOTE_TRACK) X(NOTE_TRACKERR)
-	X(NOTE_CHILD) XEND
-};
-
-static struct xlat kevent_timer_fflags[] = {
-	X(NOTE_SECONDS) X(NOTE_MSECONDS) X(NOTE_USECONDS) X(NOTE_NSECONDS)
-	XEND
-};
-
 static struct xlat poll_flags[] = {
 	X(POLLSTANDARD) X(POLLIN) X(POLLPRI) X(POLLOUT) X(POLLERR)
 	X(POLLHUP) X(POLLNVAL) X(POLLRDNORM) X(POLLRDBAND)
@@ -734,7 +712,7 @@ static struct xlat cloudabi_fdsflags[] = {
 static struct xlat cloudabi_filetype[] = {
 	X(FILETYPE_UNKNOWN) X(FILETYPE_BLOCK_DEVICE)
 	X(FILETYPE_CHARACTER_DEVICE) X(FILETYPE_DIRECTORY)
-	X(FILETYPE_POLL) X(FILETYPE_PROCESS) X(FILETYPE_REGULAR_FILE)
+	X(FILETYPE_PROCESS) X(FILETYPE_REGULAR_FILE)
 	X(FILETYPE_SHARED_MEMORY) X(FILETYPE_SOCKET_DGRAM)
 	X(FILETYPE_SOCKET_STREAM) X(FILETYPE_SYMBOLIC_LINK)
 	XEND
@@ -1135,7 +1113,7 @@ strsig2(int sig)
 }
 
 static void
-print_kevent(FILE *fp, struct kevent *ke, int input)
+print_kevent(FILE *fp, struct kevent *ke)
 {
 
 	switch (ke->filter) {
@@ -1145,6 +1123,7 @@ print_kevent(FILE *fp, struct kevent *ke, int input)
 	case EVFILT_PROC:
 	case EVFILT_TIMER:
 	case EVFILT_PROCDESC:
+	case EVFILT_EMPTY:
 		fprintf(fp, "%ju", (uintmax_t)ke->ident);
 		break;
 	case EVFILT_SIGNAL:
@@ -1153,42 +1132,12 @@ print_kevent(FILE *fp, struct kevent *ke, int input)
 	default:
 		fprintf(fp, "%p", (void *)ke->ident);
 	}
-	fprintf(fp, ",%s,%s,", xlookup(kevent_filters, ke->filter),
-	    xlookup_bits(kevent_flags, ke->flags));
-	switch (ke->filter) {
-	case EVFILT_READ:
-	case EVFILT_WRITE:
-		fputs(xlookup_bits(kevent_rdwr_fflags, ke->fflags), fp);
-		break;
-	case EVFILT_VNODE:
-		fputs(xlookup_bits(kevent_vnode_fflags, ke->fflags), fp);
-		break;
-	case EVFILT_PROC:
-	case EVFILT_PROCDESC:
-		fputs(xlookup_bits(kevent_proc_fflags, ke->fflags), fp);
-		break;
-	case EVFILT_TIMER:
-		fputs(xlookup_bits(kevent_timer_fflags, ke->fflags), fp);
-		break;
-	case EVFILT_USER: {
-		int ctrl, data;
-
-		ctrl = ke->fflags & NOTE_FFCTRLMASK;
-		data = ke->fflags & NOTE_FFLAGSMASK;
-		if (input) {
-			fputs(xlookup(kevent_user_ffctrl, ctrl), fp);
-			if (ke->fflags & NOTE_TRIGGER)
-				fputs("|NOTE_TRIGGER", fp);
-			if (data != 0)
-				fprintf(fp, "|%#x", data);
-		} else {
-			fprintf(fp, "%#x", data);
-		}
-		break;
-	}
-	default:
-		fprintf(fp, "%#x", ke->fflags);
-	}
+	fprintf(fp, ",");
+	print_integer_arg(sysdecode_kevent_filter, fp, ke->filter);
+	fprintf(fp, ",");
+	print_mask_arg(sysdecode_kevent_flags, fp, ke->flags);
+	fprintf(fp, ",");
+	sysdecode_kevent_fflags(fp, ke->filter, ke->fflags, 16);
 	fprintf(fp, ",%#jx,%p", (uintmax_t)ke->data, ke->udata);
 }
 
@@ -1208,6 +1157,384 @@ print_utrace(FILE *fp, void *utrace_addr, size_t len)
 	while (len--)
 		fprintf(fp, " %02x", *utrace_buffer++);
 	fprintf(fp, " }");
+}
+
+static void
+print_sockaddr(FILE *fp, struct trussinfo *trussinfo, void *arg, socklen_t len)
+{
+	char addr[64];
+	struct sockaddr_in *lsin;
+	struct sockaddr_in6 *lsin6;
+	struct sockaddr_un *sun;
+	struct sockaddr *sa;
+	u_char *q;
+	pid_t pid = trussinfo->curthread->proc->pid;
+
+	if (arg == NULL) {
+		fputs("NULL", fp);
+		return;
+	}
+	/* If the length is too small, just bail. */
+	if (len < sizeof(*sa)) {
+		fprintf(fp, "%p", arg);
+		return;
+	}
+
+	sa = calloc(1, len);
+	if (get_struct(pid, arg, sa, len) == -1) {
+		free(sa);
+		fprintf(fp, "%p", arg);
+		return;
+	}
+
+	switch (sa->sa_family) {
+	case AF_INET:
+		if (len < sizeof(*lsin))
+			goto sockaddr_short;
+		lsin = (struct sockaddr_in *)(void *)sa;
+		inet_ntop(AF_INET, &lsin->sin_addr, addr, sizeof(addr));
+		fprintf(fp, "{ AF_INET %s:%d }", addr,
+		    htons(lsin->sin_port));
+		break;
+	case AF_INET6:
+		if (len < sizeof(*lsin6))
+			goto sockaddr_short;
+		lsin6 = (struct sockaddr_in6 *)(void *)sa;
+		inet_ntop(AF_INET6, &lsin6->sin6_addr, addr,
+		    sizeof(addr));
+		fprintf(fp, "{ AF_INET6 [%s]:%d }", addr,
+		    htons(lsin6->sin6_port));
+		break;
+	case AF_UNIX:
+		sun = (struct sockaddr_un *)sa;
+		fprintf(fp, "{ AF_UNIX \"%.*s\" }",
+		    (int)(len - offsetof(struct sockaddr_un, sun_path)),
+		    sun->sun_path);
+		break;
+	default:
+	sockaddr_short:
+		fprintf(fp,
+		    "{ sa_len = %d, sa_family = %d, sa_data = {",
+		    (int)sa->sa_len, (int)sa->sa_family);
+		for (q = (u_char *)sa->sa_data;
+		     q < (u_char *)sa + len; q++)
+			fprintf(fp, "%s 0x%02x",
+			    q == (u_char *)sa->sa_data ? "" : ",",
+			    *q);
+		fputs(" } }", fp);
+	}
+	free(sa);
+}
+
+#define IOV_LIMIT 16
+
+static void
+print_iovec(FILE *fp, struct trussinfo *trussinfo, void *arg, int iovcnt)
+{
+	struct iovec iov[IOV_LIMIT];
+	size_t max_string = trussinfo->strsize;
+	char tmp2[max_string + 1], *tmp3;
+	size_t len;
+	pid_t pid = trussinfo->curthread->proc->pid;
+	int i;
+	bool buf_truncated, iov_truncated;
+
+	if (iovcnt <= 0) {
+		fprintf(fp, "%p", arg);
+		return;
+	}
+	if (iovcnt > IOV_LIMIT) {
+		iovcnt = IOV_LIMIT;
+		iov_truncated = true;
+	} else {
+		iov_truncated = false;
+	}
+	if (get_struct(pid, arg, &iov, iovcnt * sizeof(struct iovec)) == -1) {
+		fprintf(fp, "%p", arg);
+		return;
+	}
+
+	fputs("[", fp);
+	for (i = 0; i < iovcnt; i++) {
+		len = iov[i].iov_len;
+		if (len > max_string) {
+			len = max_string;
+			buf_truncated = true;
+		} else {
+			buf_truncated = false;
+		}
+		fprintf(fp, "%s{", (i > 0) ? "," : "");
+		if (len && get_struct(pid, iov[i].iov_base, &tmp2, len) != -1) {
+			tmp3 = malloc(len * 4 + 1);
+			while (len) {
+				if (strvisx(tmp3, tmp2, len,
+				    VIS_CSTYLE|VIS_TAB|VIS_NL) <=
+				    (int)max_string)
+					break;
+				len--;
+				buf_truncated = true;
+			}
+			fprintf(fp, "\"%s\"%s", tmp3,
+			    buf_truncated ? "..." : "");
+			free(tmp3);
+		} else {
+			fprintf(fp, "%p", iov[i].iov_base);
+		}
+		fprintf(fp, ",%zu}", iov[i].iov_len);
+	}
+	fprintf(fp, "%s%s", iov_truncated ? ",..." : "", "]");
+}
+
+static void
+print_gen_cmsg(FILE *fp, struct cmsghdr *cmsghdr)
+{
+	u_char *q;
+
+	fputs("{", fp);
+	for (q = CMSG_DATA(cmsghdr);
+	     q < (u_char *)cmsghdr + cmsghdr->cmsg_len; q++) {
+		fprintf(fp, "%s0x%02x", q == CMSG_DATA(cmsghdr) ? "" : ",", *q);
+	}
+	fputs("}", fp);
+}
+
+static void
+print_sctp_initmsg(FILE *fp, struct sctp_initmsg *init)
+{
+	fprintf(fp, "{out=%u,", init->sinit_num_ostreams);
+	fprintf(fp, "in=%u,", init->sinit_max_instreams);
+	fprintf(fp, "max_rtx=%u,", init->sinit_max_attempts);
+	fprintf(fp, "max_rto=%u}", init->sinit_max_init_timeo);
+}
+
+static void
+print_sctp_sndrcvinfo(FILE *fp, bool receive, struct sctp_sndrcvinfo *info)
+{
+	fprintf(fp, "{sid=%u,", info->sinfo_stream);
+	if (receive) {
+		fprintf(fp, "ssn=%u,", info->sinfo_ssn);
+	}
+	fputs("flgs=", fp);
+	sysdecode_sctp_sinfo_flags(fp, info->sinfo_flags);
+	fprintf(fp, ",ppid=%u,", ntohl(info->sinfo_ppid));
+	if (!receive) {
+		fprintf(fp, "ctx=%u,", info->sinfo_context);
+		fprintf(fp, "ttl=%u,", info->sinfo_timetolive);
+	}
+	if (receive) {
+		fprintf(fp, "tsn=%u,", info->sinfo_tsn);
+		fprintf(fp, "cumtsn=%u,", info->sinfo_cumtsn);
+	}
+	fprintf(fp, "id=%u}", info->sinfo_assoc_id);
+}
+
+static void
+print_sctp_sndinfo(FILE *fp, struct sctp_sndinfo *info)
+{
+	fprintf(fp, "{sid=%u,", info->snd_sid);
+	fputs("flgs=", fp);
+	print_mask_arg(sysdecode_sctp_snd_flags, fp, info->snd_flags);
+	fprintf(fp, ",ppid=%u,", ntohl(info->snd_ppid));
+	fprintf(fp, "ctx=%u,", info->snd_context);
+	fprintf(fp, "id=%u}", info->snd_assoc_id);
+}
+
+static void
+print_sctp_rcvinfo(FILE *fp, struct sctp_rcvinfo *info)
+{
+	fprintf(fp, "{sid=%u,", info->rcv_sid);
+	fprintf(fp, "ssn=%u,", info->rcv_ssn);
+	fputs("flgs=", fp);
+	print_mask_arg(sysdecode_sctp_rcv_flags, fp, info->rcv_flags);
+	fprintf(fp, ",ppid=%u,", ntohl(info->rcv_ppid));
+	fprintf(fp, "tsn=%u,", info->rcv_tsn);
+	fprintf(fp, "cumtsn=%u,", info->rcv_cumtsn);
+	fprintf(fp, "ctx=%u,", info->rcv_context);
+	fprintf(fp, "id=%u}", info->rcv_assoc_id);
+}
+
+static void
+print_sctp_nxtinfo(FILE *fp, struct sctp_nxtinfo *info)
+{
+	fprintf(fp, "{sid=%u,", info->nxt_sid);
+	fputs("flgs=", fp);
+	print_mask_arg(sysdecode_sctp_nxt_flags, fp, info->nxt_flags);
+	fprintf(fp, ",ppid=%u,", ntohl(info->nxt_ppid));
+	fprintf(fp, "len=%u,", info->nxt_length);
+	fprintf(fp, "id=%u}", info->nxt_assoc_id);
+}
+
+static void
+print_sctp_prinfo(FILE *fp, struct sctp_prinfo *info)
+{
+	fputs("{pol=", fp);
+	print_integer_arg(sysdecode_sctp_pr_policy, fp, info->pr_policy);
+	fprintf(fp, ",val=%u}", info->pr_value);
+}
+
+static void
+print_sctp_authinfo(FILE *fp, struct sctp_authinfo *info)
+{
+	fprintf(fp, "{num=%u}", info->auth_keynumber);
+}
+
+static void
+print_sctp_ipv4_addr(FILE *fp, struct in_addr *addr)
+{
+	char buf[INET_ADDRSTRLEN];
+	const char *s;
+
+	s = inet_ntop(AF_INET, addr, buf, INET_ADDRSTRLEN);
+	if (s != NULL)
+		fprintf(fp, "{addr=%s}", s);
+	else
+		fputs("{addr=???}", fp);
+}
+
+static void
+print_sctp_ipv6_addr(FILE *fp, struct in6_addr *addr)
+{
+	char buf[INET6_ADDRSTRLEN];
+	const char *s;
+
+	s = inet_ntop(AF_INET6, addr, buf, INET6_ADDRSTRLEN);
+	if (s != NULL)
+		fprintf(fp, "{addr=%s}", s);
+	else
+		fputs("{addr=???}", fp);
+}
+
+static void
+print_sctp_cmsg(FILE *fp, bool receive, struct cmsghdr *cmsghdr)
+{
+	void *data;
+	socklen_t len;
+
+	len = cmsghdr->cmsg_len;
+	data = CMSG_DATA(cmsghdr);
+	switch (cmsghdr->cmsg_type) {
+	case SCTP_INIT:
+		if (len == CMSG_LEN(sizeof(struct sctp_initmsg)))
+			print_sctp_initmsg(fp, (struct sctp_initmsg *)data);
+		else
+			print_gen_cmsg(fp, cmsghdr);
+		break;
+	case SCTP_SNDRCV:
+		if (len == CMSG_LEN(sizeof(struct sctp_sndrcvinfo)))
+			print_sctp_sndrcvinfo(fp, receive,
+			    (struct sctp_sndrcvinfo *)data);
+		else
+			print_gen_cmsg(fp, cmsghdr);
+		break;
+#if 0
+	case SCTP_EXTRCV:
+		if (len == CMSG_LEN(sizeof(struct sctp_extrcvinfo)))
+			print_sctp_extrcvinfo(fp,
+			    (struct sctp_extrcvinfo *)data);
+		else
+			print_gen_cmsg(fp, cmsghdr);
+		break;
+#endif
+	case SCTP_SNDINFO:
+		if (len == CMSG_LEN(sizeof(struct sctp_sndinfo)))
+			print_sctp_sndinfo(fp, (struct sctp_sndinfo *)data);
+		else
+			print_gen_cmsg(fp, cmsghdr);
+		break;
+	case SCTP_RCVINFO:
+		if (len == CMSG_LEN(sizeof(struct sctp_rcvinfo)))
+			print_sctp_rcvinfo(fp, (struct sctp_rcvinfo *)data);
+		else
+			print_gen_cmsg(fp, cmsghdr);
+		break;
+	case SCTP_NXTINFO:
+		if (len == CMSG_LEN(sizeof(struct sctp_nxtinfo)))
+			print_sctp_nxtinfo(fp, (struct sctp_nxtinfo *)data);
+		else
+			print_gen_cmsg(fp, cmsghdr);
+		break;
+	case SCTP_PRINFO:
+		if (len == CMSG_LEN(sizeof(struct sctp_prinfo)))
+			print_sctp_prinfo(fp, (struct sctp_prinfo *)data);
+		else
+			print_gen_cmsg(fp, cmsghdr);
+		break;
+	case SCTP_AUTHINFO:
+		if (len == CMSG_LEN(sizeof(struct sctp_authinfo)))
+			print_sctp_authinfo(fp, (struct sctp_authinfo *)data);
+		else
+			print_gen_cmsg(fp, cmsghdr);
+		break;
+	case SCTP_DSTADDRV4:
+		if (len == CMSG_LEN(sizeof(struct in_addr)))
+			print_sctp_ipv4_addr(fp, (struct in_addr *)data);
+		else
+			print_gen_cmsg(fp, cmsghdr);
+		break;
+	case SCTP_DSTADDRV6:
+		if (len == CMSG_LEN(sizeof(struct in6_addr)))
+			print_sctp_ipv6_addr(fp, (struct in6_addr *)data);
+		else
+			print_gen_cmsg(fp, cmsghdr);
+		break;
+	default:
+		print_gen_cmsg(fp, cmsghdr);
+	}
+}
+
+static void
+print_cmsgs(FILE *fp, pid_t pid, bool receive, struct msghdr *msghdr)
+{
+	struct cmsghdr *cmsghdr;
+	char *cmsgbuf;
+	const char *temp;
+	socklen_t len;
+	int level, type;
+	bool first;
+
+	len = msghdr->msg_controllen;
+	if (len == 0) {
+		fputs("{}", fp);
+		return;
+	}
+	cmsgbuf = calloc(1, len);
+	if (get_struct(pid, msghdr->msg_control, cmsgbuf, len) == -1) {
+		fprintf(fp, "%p", msghdr->msg_control);
+		free(cmsgbuf);
+		return;
+	}
+	msghdr->msg_control = cmsgbuf;
+	first = true;
+	fputs("{", fp);
+	for (cmsghdr = CMSG_FIRSTHDR(msghdr);
+	   cmsghdr != NULL;
+	   cmsghdr = CMSG_NXTHDR(msghdr, cmsghdr)) {
+		level = cmsghdr->cmsg_level;
+		type = cmsghdr->cmsg_type;
+		len = cmsghdr->cmsg_len;
+		fprintf(fp, "%s{level=", first ? "" : ",");
+		print_integer_arg(sysdecode_sockopt_level, fp, level);
+		fputs(",type=", fp);
+		temp = sysdecode_cmsg_type(level, type);
+		if (temp) {
+			fputs(temp, fp);
+		} else {
+			fprintf(fp, "%d", type);
+		}
+		fputs(",data=", fp);
+		switch (level) {
+		case IPPROTO_SCTP:
+			print_sctp_cmsg(fp, receive, cmsghdr);
+			break;
+		default:
+			print_gen_cmsg(fp, cmsghdr);
+			break;
+		}
+		fputs("}", fp);
+		first = false;
+	}
+	fputs("}", fp);
+	free(cmsgbuf);
 }
 
 /*
@@ -1664,13 +1991,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		print_mask_arg(sysdecode_rfork_flags, fp, args[sc->offset]);
 		break;
 	case Sockaddr: {
-		char addr[64];
-		struct sockaddr_in *lsin;
-		struct sockaddr_in6 *lsin6;
-		struct sockaddr_un *sun;
-		struct sockaddr *sa;
 		socklen_t len;
-		u_char *q;
 
 		if (args[sc->offset] == 0) {
 			fputs("NULL", fp);
@@ -1692,56 +2013,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		} else
 			len = args[sc->offset + 1];
 
-		/* If the length is too small, just bail. */
-		if (len < sizeof(*sa)) {
-			fprintf(fp, "0x%lx", args[sc->offset]);
-			break;
-		}
-
-		sa = calloc(1, len);
-		if (get_struct(pid, (void *)args[sc->offset], sa, len) == -1) {
-			free(sa);
-			fprintf(fp, "0x%lx", args[sc->offset]);
-			break;
-		}
-
-		switch (sa->sa_family) {
-		case AF_INET:
-			if (len < sizeof(*lsin))
-				goto sockaddr_short;
-			lsin = (struct sockaddr_in *)(void *)sa;
-			inet_ntop(AF_INET, &lsin->sin_addr, addr, sizeof(addr));
-			fprintf(fp, "{ AF_INET %s:%d }", addr,
-			    htons(lsin->sin_port));
-			break;
-		case AF_INET6:
-			if (len < sizeof(*lsin6))
-				goto sockaddr_short;
-			lsin6 = (struct sockaddr_in6 *)(void *)sa;
-			inet_ntop(AF_INET6, &lsin6->sin6_addr, addr,
-			    sizeof(addr));
-			fprintf(fp, "{ AF_INET6 [%s]:%d }", addr,
-			    htons(lsin6->sin6_port));
-			break;
-		case AF_UNIX:
-			sun = (struct sockaddr_un *)sa;
-			fprintf(fp, "{ AF_UNIX \"%.*s\" }",
-			    (int)(len - offsetof(struct sockaddr_un, sun_path)),
-			    sun->sun_path);
-			break;
-		default:
-		sockaddr_short:
-			fprintf(fp,
-			    "{ sa_len = %d, sa_family = %d, sa_data = {",
-			    (int)sa->sa_len, (int)sa->sa_family);
-			for (q = (u_char *)sa->sa_data;
-			     q < (u_char *)sa + len; q++)
-				fprintf(fp, "%s 0x%02x",
-				    q == (u_char *)sa->sa_data ? "" : ",",
-				    *q);
-			fputs(" } }", fp);
-		}
-		free(sa);
+		print_sockaddr(fp, trussinfo, (void *)args[sc->offset], len);
 		break;
 	}
 	case Sigaction: {
@@ -1793,13 +2065,54 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			fputc('{', fp);
 			for (i = 0; i < numevents; i++) {
 				fputc(' ', fp);
-				print_kevent(fp, &ke[i], sc->offset == 1);
+				print_kevent(fp, &ke[i]);
 			}
 			fputs(" }", fp);
 		} else {
 			fprintf(fp, "0x%lx", args[sc->offset]);
 		}
 		free(ke);
+		break;
+	}
+	case Kevent11: {
+		struct kevent_freebsd11 *ke11;
+		struct kevent ke;
+		int numevents = -1;
+		size_t bytes;
+		int i;
+
+		if (sc->offset == 1)
+			numevents = args[sc->offset+1];
+		else if (sc->offset == 3 && retval[0] != -1)
+			numevents = retval[0];
+
+		if (numevents >= 0) {
+			bytes = sizeof(struct kevent_freebsd11) * numevents;
+			if ((ke11 = malloc(bytes)) == NULL)
+				err(1,
+				    "Cannot malloc %zu bytes for kevent array",
+				    bytes);
+		} else
+			ke11 = NULL;
+		memset(&ke, 0, sizeof(ke));
+		if (numevents >= 0 && get_struct(pid, (void *)args[sc->offset],
+		    ke11, bytes) != -1) {
+			fputc('{', fp);
+			for (i = 0; i < numevents; i++) {
+				fputc(' ', fp);
+				ke.ident = ke11[i].ident;
+				ke.filter = ke11[i].filter;
+				ke.flags = ke11[i].flags;
+				ke.fflags = ke11[i].fflags;
+				ke.data = ke11[i].data;
+				ke.udata = ke11[i].udata;
+				print_kevent(fp, &ke);
+			}
+			fputs(" }", fp);
+		} else {
+			fprintf(fp, "0x%lx", args[sc->offset]);
+		}
+		free(ke11);
 		break;
 	}
 	case Stat: {
@@ -2156,6 +2469,45 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			fprintf(fp, " }");
 		} else
 			fprintf(fp, "0x%lx", args[sc->offset]);
+		break;
+	}
+	case Iovec:
+		/*
+		 * Print argument as an array of struct iovec, where the next
+		 * syscall argument is the number of elements of the array.
+		 */
+
+		print_iovec(fp, trussinfo, (void *)args[sc->offset],
+		    (int)args[sc->offset + 1]);
+		break;
+	case Sctpsndrcvinfo: {
+		struct sctp_sndrcvinfo info;
+
+		if (get_struct(pid, (void *)args[sc->offset],
+		    &info, sizeof(struct sctp_sndrcvinfo)) == -1) {
+			fprintf(fp, "0x%lx", args[sc->offset]);
+			break;
+		}
+		print_sctp_sndrcvinfo(fp, sc->type & OUT, &info);
+		break;
+	}
+	case Msghdr: {
+		struct msghdr msghdr;
+
+		if (get_struct(pid, (void *)args[sc->offset],
+		    &msghdr, sizeof(struct msghdr)) == -1) {
+			fprintf(fp, "0x%lx", args[sc->offset]);
+			break;
+		}
+		fputs("{", fp);
+		print_sockaddr(fp, trussinfo, msghdr.msg_name, msghdr.msg_namelen);
+		fprintf(fp, ",%d,", msghdr.msg_namelen);
+		print_iovec(fp, trussinfo, msghdr.msg_iov, msghdr.msg_iovlen);
+		fprintf(fp, ",%d,", msghdr.msg_iovlen);
+		print_cmsgs(fp, pid, sc->type & OUT, &msghdr);
+		fprintf(fp, ",%u,", msghdr.msg_controllen);
+		print_mask_arg(sysdecode_msg_flags, fp, msghdr.msg_flags);
+		fputs("}", fp);
 		break;
 	}
 

@@ -13,7 +13,7 @@
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
  *
- * Original code by Hannes Gredler <hannes@juniper.net>
+ * Original code by Hannes Gredler <hannes@gredler.at>
  * IPv6 additions by Florian Forster <octo at verplant.org>
  */
 
@@ -359,10 +359,9 @@ olsr_print(netdissect_options *ndo,
         } msgptr;
         int msg_len_valid = 0;
 
-        ND_TCHECK2(*tptr, sizeof(struct olsr_msg4));
-
         if (is_ipv6)
         {
+            ND_TCHECK2(*tptr, sizeof(struct olsr_msg6));
             msgptr.v6 = (const struct olsr_msg6 *) tptr;
             msg_type = msgptr.v6->msg_type;
             msg_len = EXTRACT_16BITS(msgptr.v6->msg_len);
@@ -393,6 +392,7 @@ olsr_print(netdissect_options *ndo,
         }
         else /* (!is_ipv6) */
         {
+            ND_TCHECK2(*tptr, sizeof(struct olsr_msg4));
             msgptr.v4 = (const struct olsr_msg4 *) tptr;
             msg_type = msgptr.v4->msg_type;
             msg_len = EXTRACT_16BITS(msgptr.v4->msg_len);
@@ -616,21 +616,24 @@ olsr_print(netdissect_options *ndo,
 
         case OLSR_NAMESERVICE_MSG:
         {
-            u_int name_entries = EXTRACT_16BITS(msg_data+2);
-            u_int addr_size = 4;
-            int name_entries_valid = 0;
+            u_int name_entries;
+            u_int addr_size;
+            int name_entries_valid;
             u_int i;
-
-            if (is_ipv6)
-                addr_size = 16;
-
-            if ((name_entries > 0)
-                    && ((name_entries * (4 + addr_size)) <= msg_tlen))
-                name_entries_valid = 1;
 
             if (msg_tlen < 4)
                 goto trunc;
             ND_TCHECK2(*msg_data, 4);
+
+            name_entries = EXTRACT_16BITS(msg_data+2);
+            addr_size = 4;
+            if (is_ipv6)
+                addr_size = 16;
+
+            name_entries_valid = 0;
+            if ((name_entries > 0)
+                    && ((name_entries * (4 + addr_size)) <= msg_tlen))
+                name_entries_valid = 1;
 
             ND_PRINT((ndo, "\n\t  Version %u, Entries %u%s",
                    EXTRACT_16BITS(msg_data),

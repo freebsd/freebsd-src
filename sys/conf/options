@@ -67,9 +67,10 @@ EARLY_PRINTF	opt_global.h
 TEXTDUMP_PREFERRED	opt_ddb.h
 TEXTDUMP_VERBOSE	opt_ddb.h
 NUM_CORE_FILES	opt_global.h
+TSLOG	opt_global.h
+TSLOGSIZE	opt_global.h
 
 # Miscellaneous options.
-ADAPTIVE_LOCKMGRS
 ALQ
 ALTERA_SDCARD_FAST_SIM	opt_altera_sdcard.h
 ATSE_CFI_HACK	opt_cfi.h
@@ -94,7 +95,6 @@ COMPAT_LINUXKPI	opt_compat.h
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
-DEVICE_NUMA
 EXT_RESOURCES	opt_global.h
 DIRECTIO
 FILEMON		opt_dontuse.h
@@ -166,6 +166,7 @@ MAC_STUB	opt_dontuse.h
 MAC_TEST	opt_dontuse.h
 MD_ROOT		opt_md.h
 MD_ROOT_FSTYPE	opt_md.h
+MD_ROOT_READONLY	opt_md.h
 MD_ROOT_SIZE	opt_md.h
 MFI_DEBUG	opt_mfi.h
 MFI_DECODE_LOG	opt_mfi.h
@@ -176,6 +177,7 @@ NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 NO_ADAPTIVE_RWLOCKS
 NO_ADAPTIVE_SX
 NO_EVENTTIMERS		opt_timer.h
+NO_OBSOLETE_CODE	opt_global.h
 NO_SYSCTL_DESCR	opt_global.h
 NSWBUF_MIN	opt_swap.h
 MBUF_PACKET_ZONE_DISABLE	opt_global.h
@@ -220,6 +222,7 @@ TURNSTILE_PROFILING
 UMTX_PROFILING
 UMTX_CHAINS	opt_global.h
 VERBOSE_SYSINIT
+ZSTDIO		opt_zstdio.h
 
 # POSIX kernel options
 P1003_1B_MQUEUE			opt_posix.h
@@ -344,6 +347,9 @@ ATA_STATIC_ID		opt_ada.h
 CHANGER_MIN_BUSY_SECONDS	opt_cd.h
 CHANGER_MAX_BUSY_SECONDS	opt_cd.h
 
+# Options used only in cam/scsi/scsi_da.c
+DA_TRACK_REFS		opt_da.h
+
 # Options used only in cam/scsi/scsi_sa.c.
 SA_IO_TIMEOUT		opt_sa.h
 SA_SPACE_TIMEOUT	opt_sa.h
@@ -432,7 +438,6 @@ IPSEC_SUPPORT		opt_ipsec.h
 IPSTEALTH
 KRPC
 LIBALIAS
-LIBMBPOOL
 LIBMCHAIN
 MBUF_PROFILING
 MBUF_STRESS_TEST
@@ -451,6 +456,7 @@ TCP_HHOOK		opt_inet.h
 TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
 TCP_RFC7413		opt_inet.h
 TCP_RFC7413_MAX_KEYS	opt_inet.h
+TCP_RFC7413_MAX_PSKS	opt_inet.h
 TCP_SIGNATURE		opt_ipsec.h
 VLAN_ARRAY		opt_vlan.h
 XBONEHACK
@@ -460,7 +466,6 @@ XBONEHACK
 #
 SCTP			opt_sctp.h
 SCTP_DEBUG		opt_sctp.h # Enable debug printfs
-SCTP_WITH_NO_CSUM	opt_sctp.h # Use this at your peril
 SCTP_LOCK_LOGGING	opt_sctp.h # Log to KTR lock activity
 SCTP_MBUF_LOGGING	opt_sctp.h # Log to KTR general mbuf aloc/free
 SCTP_MBCNT_LOGGING	opt_sctp.h # Log to KTR mbcnt activity
@@ -605,7 +610,6 @@ VM_KMEM_SIZE		opt_vm.h
 VM_KMEM_SIZE_SCALE	opt_vm.h
 VM_KMEM_SIZE_MAX	opt_vm.h
 VM_NRESERVLEVEL		opt_vm.h
-VM_NUMA_ALLOC		opt_vm.h
 VM_LEVEL_0_ORDER	opt_vm.h
 NO_SWAPPING		opt_vm.h
 MALLOC_MAKE_FAILURES	opt_vm.h
@@ -621,6 +625,7 @@ DEBUG_REDZONE		opt_vm.h
 # Standard SMP options
 EARLY_AP_STARTUP	opt_global.h
 SMP			opt_global.h
+NUMA			opt_global.h
 
 # Size of the kernel message buffer
 MSGBUF_SIZE		opt_msgbuf.h
@@ -852,6 +857,7 @@ BWI_DEBUG_VERBOSE	opt_bwi.h
 # options for the Brodacom BCM43xx driver (bwn)
 BWN_DEBUG		opt_bwn.h
 BWN_GPL_PHY		opt_bwn.h
+BWN_USE_SIBA		opt_bwn.h
 
 # Options for the SIBA driver
 SIBA_DEBUG		opt_siba.h
@@ -892,9 +898,6 @@ DCONS_FORCE_GDB		opt_dcons.h
 HWPMC_DEBUG		opt_global.h
 HWPMC_HOOKS
 HWPMC_MIPS_BACKTRACE 	opt_hwpmc_hooks.h
-
-# XBOX options for FreeBSD/i386, but some files are MI
-XBOX			opt_xbox.h
 
 # Interrupt filtering
 INTR_FILTER

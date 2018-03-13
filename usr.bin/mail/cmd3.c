@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -259,7 +261,7 @@ dorespond(int *msgvec)
 }
 
 /*
- * Modify the subject we are replying to to begin with Re: if
+ * Modify the message subject to begin with "Re:" if
  * it does not already.
  */
 char *

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -144,7 +146,9 @@ __BEGIN_DECLS
 char *asctime(const struct tm *);
 clock_t clock(void);
 char *ctime(const time_t *);
+#ifndef _STANDALONE
 double difftime(time_t, time_t);
+#endif
 /* XXX missing: getdate() */
 struct tm *gmtime(const time_t *);
 struct tm *localtime(const time_t *);

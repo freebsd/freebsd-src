@@ -46,9 +46,6 @@
 
 #include <sys/bus.h>
 
-enum irqreturn	{ IRQ_NONE = 0, IRQ_HANDLED, IRQ_WAKE_THREAD, };
-typedef enum irqreturn	irqreturn_t;
-
 struct device;
 struct fwnode_handle;
 

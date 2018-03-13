@@ -221,9 +221,9 @@ extern int fasttrap_tracepoint_init(proc_t *, fasttrap_tracepoint_t *,
 extern int fasttrap_tracepoint_install(proc_t *, fasttrap_tracepoint_t *);
 extern int fasttrap_tracepoint_remove(proc_t *, fasttrap_tracepoint_t *);
 
-struct reg;
-extern int fasttrap_pid_probe(struct reg *);
-extern int fasttrap_return_probe(struct reg *);
+struct trapframe;
+extern int fasttrap_pid_probe(struct trapframe *);
+extern int fasttrap_return_probe(struct trapframe *);
 
 extern uint64_t fasttrap_pid_getarg(void *, dtrace_id_t, void *, int, int);
 extern uint64_t fasttrap_usdt_getarg(void *, dtrace_id_t, void *, int, int);

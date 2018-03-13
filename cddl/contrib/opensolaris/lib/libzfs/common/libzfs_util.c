@@ -49,6 +49,7 @@
 #include <sys/mnttab.h>
 #include <sys/mntent.h>
 #include <sys/types.h>
+#include <libcmdutils.h>
 
 #include <libzfs.h>
 #include <libzfs_core.h>
@@ -239,6 +240,9 @@ libzfs_error_description(libzfs_handle_t *hdl)
 		return (dgettext(TEXT_DOMAIN, "invalid diff data"));
 	case EZFS_POOLREADONLY:
 		return (dgettext(TEXT_DOMAIN, "pool is read-only"));
+	case EZFS_NO_PENDING:
+		return (dgettext(TEXT_DOMAIN, "operation is not "
+		    "in progress"));
 	case EZFS_UNKNOWN:
 		return (dgettext(TEXT_DOMAIN, "unknown error"));
 	default:
@@ -486,6 +490,10 @@ zpool_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 	case EROFS:
 		zfs_verror(hdl, EZFS_POOLREADONLY, fmt, ap);
 		break;
+	/* There is no pending operation to cancel */
+	case ESRCH:
+		zfs_verror(hdl, EZFS_NO_PENDING, fmt, ap);
+		break;
 
 	default:
 		zfs_error_aux(hdl, strerror(error));
@@ -579,42 +587,7 @@ zfs_strdup(libzfs_handle_t *hdl, const char *str)
 void
 zfs_nicenum(uint64_t num, char *buf, size_t buflen)
 {
-	uint64_t n = num;
-	int index = 0;
-	char u;
-
-	while (n >= 1024) {
-		n /= 1024;
-		index++;
-	}
-
-	u = " KMGTPE"[index];
-
-	if (index == 0) {
-		(void) snprintf(buf, buflen, "%llu", n);
-	} else if ((num & ((1ULL << 10 * index) - 1)) == 0) {
-		/*
-		 * If this is an even multiple of the base, always display
-		 * without any decimal precision.
-		 */
-		(void) snprintf(buf, buflen, "%llu%c", n, u);
-	} else {
-		/*
-		 * We want to choose a precision that reflects the best choice
-		 * for fitting in 5 characters.  This can get rather tricky when
-		 * we have numbers that are very close to an order of magnitude.
-		 * For example, when displaying 10239 (which is really 9.999K),
-		 * we want only a single place of precision for 10.0K.  We could
-		 * develop some complex heuristics for this, but it's much
-		 * easier just to try each combination in turn.
-		 */
-		int i;
-		for (i = 2; i >= 0; i--) {
-			if (snprintf(buf, buflen, "%.*f%c", i,
-			    (double)num / (1ULL << 10 * index), u) <= 5)
-				break;
-		}
-	}
+	nicenum(num, buf, buflen);
 }
 
 void

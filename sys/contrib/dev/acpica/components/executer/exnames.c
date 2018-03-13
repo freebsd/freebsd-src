@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -309,14 +309,11 @@ AcpiExNameSegment (
         return_ACPI_STATUS (AE_CTRL_PENDING);
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_LOAD, "Bytes from stream:\n"));
-
     for (Index = 0;
         (Index < ACPI_NAME_SIZE) && (AcpiUtValidNameChar (*AmlAddress, 0));
         Index++)
     {
         CharBuf[Index] = *AmlAddress++;
-        ACPI_DEBUG_PRINT ((ACPI_DB_LOAD, "%c\n", CharBuf[Index]));
     }
 
 
@@ -330,9 +327,9 @@ AcpiExNameSegment (
 
         if (NameString)
         {
-            strcat (NameString, CharBuf);
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-                "Appended to - %s\n", NameString));
+                "Appending NameSeg %s\n", CharBuf));
+            strcat (NameString, CharBuf);
         }
         else
         {

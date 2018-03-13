@@ -1,4 +1,5 @@
 /******************************************************************************
+SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 
 Copyright (c) 2006-2013, Myricom Inc.
 All rights reserved.
@@ -4161,11 +4162,6 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	err = 0;
 	switch (command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-		err = ether_ioctl(ifp, command, data);
-		break;
-
 	case SIOCSIFMTU:
 		err = mxge_change_mtu(sc, ifr->ifr_mtu);
 		break;
@@ -4289,7 +4285,8 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	default:
-		err = ENOTTY;
+		err = ether_ioctl(ifp, command, data);
+		break;
 	}
 	return err;
 }

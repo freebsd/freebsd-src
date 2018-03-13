@@ -40,7 +40,6 @@
 
 #include <ifaddrs.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 #include <atf-c.h>
 

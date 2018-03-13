@@ -133,8 +133,8 @@ _NOTE(CONSTCOND) } while (0)
 #ifndef CTASSERT
 #define	CTASSERT(x)		_CTASSERT(x, __LINE__)
 #define	_CTASSERT(x, y)		__CTASSERT(x, y)
-#define	__CTASSERT(x, y) \
-	typedef char __compile_time_assertion__ ## y [(x) ? 1 : -1]
+#define	__CTASSERT(x, y) 	\
+	_Static_assert((x), "Static assert failed at " #y)
 #endif
 
 #ifdef	_KERNEL

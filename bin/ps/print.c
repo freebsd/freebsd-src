@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -49,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <grp.h>
+#include <jail.h>
 #include <langinfo.h>
 #include <locale.h>
 #include <math.h>
@@ -837,4 +840,17 @@ loginclass(KINFO *k, VARENT *ve __unused)
 		return (strdup("-"));
 	}
 	return (strdup(k->ki_p->ki_loginclass));
+}
+
+char *
+jailname(KINFO *k, VARENT *ve __unused)
+{
+	char *name;
+
+	if (k->ki_p->ki_jid == 0)
+		return (strdup("-"));
+	name = jail_getname(k->ki_p->ki_jid);
+	if (name == NULL)
+		return (strdup("-"));
+	return (name);
 }

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Sandvine, Inc.
  * Copyright (c) 2012 NetApp, Inc.
  * All rights reserved.
@@ -108,6 +110,10 @@ static const struct vie_op one_byte_opcodes[256] = {
 	[0x0F] = {
 		.op_byte = 0x0F,
 		.op_type = VIE_OP_TYPE_TWO_BYTE
+	},
+	[0x0B] = {
+		.op_byte = 0x0B,
+		.op_type = VIE_OP_TYPE_OR,
 	},
 	[0x2B] = {
 		.op_byte = 0x2B,
@@ -992,12 +998,38 @@ emulate_or(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
 {
 	int error, size;
-	uint64_t val1, result, rflags, rflags2;
+	enum vm_reg_name reg;
+	uint64_t result, rflags, rflags2, val1, val2;
 
 	size = vie->opsize;
 	error = EINVAL;
 
 	switch (vie->op.op_byte) {
+	case 0x0B:
+		/*
+		 * OR reg (ModRM:reg) and mem (ModRM:r/m) and store the
+		 * result in reg.
+		 *
+		 * 0b/r         or r16, r/m16
+		 * 0b/r         or r32, r/m32
+		 * REX.W + 0b/r or r64, r/m64
+		 */
+
+		/* get the first operand */
+		reg = gpr_map[vie->reg];
+		error = vie_read_register(vm, vcpuid, reg, &val1);
+		if (error)
+			break;
+		
+		/* get the second operand */
+		error = memread(vm, vcpuid, gpa, &val2, size, arg);
+		if (error)
+			break;
+
+		/* perform the operation and write the result */
+		result = val1 | val2;
+		error = vie_update_register(vm, vcpuid, reg, result, size);
+		break;
 	case 0x81:
 	case 0x83:
 		/*
@@ -1686,9 +1718,9 @@ ptp_hold(struct vm *vm, int vcpu, vm_paddr_t ptpphys, size_t len, void **cookie)
 	return (ptr);
 }
 
-int
-vm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
-    uint64_t gla, int prot, uint64_t *gpa, int *guest_fault)
+static int
+_vm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
+    uint64_t gla, int prot, uint64_t *gpa, int *guest_fault, bool check_only)
 {
 	int nlevels, pfcode, ptpshift, ptpindex, retval, usermode, writable;
 	u_int retries;
@@ -1714,7 +1746,8 @@ restart:
 		 * XXX assuming a non-stack reference otherwise a stack fault
 		 * should be generated.
 		 */
-		vm_inject_gp(vm, vcpuid);
+		if (!check_only)
+			vm_inject_gp(vm, vcpuid);
 		goto fault;
 	}
 
@@ -1744,9 +1777,11 @@ restart:
 			if ((pte32 & PG_V) == 0 ||
 			    (usermode && (pte32 & PG_U) == 0) ||
 			    (writable && (pte32 & PG_RW) == 0)) {
-				pfcode = pf_error_code(usermode, prot, 0,
-				    pte32);
-				vm_inject_pf(vm, vcpuid, pfcode, gla);
+				if (!check_only) {
+					pfcode = pf_error_code(usermode, prot, 0,
+					    pte32);
+					vm_inject_pf(vm, vcpuid, pfcode, gla);
+				}
 				goto fault;
 			}
 
@@ -1757,7 +1792,7 @@ restart:
 			 * is only set at the last level providing the guest
 			 * physical address.
 			 */
-			if ((pte32 & PG_A) == 0) {
+			if (!check_only && (pte32 & PG_A) == 0) {
 				if (atomic_cmpset_32(&ptpbase32[ptpindex],
 				    pte32, pte32 | PG_A) == 0) {
 					goto restart;
@@ -1772,7 +1807,7 @@ restart:
 		}
 
 		/* Set the dirty bit in the page table entry if necessary */
-		if (writable && (pte32 & PG_M) == 0) {
+		if (!check_only && writable && (pte32 & PG_M) == 0) {
 			if (atomic_cmpset_32(&ptpbase32[ptpindex],
 			    pte32, pte32 | PG_M) == 0) {
 				goto restart;
@@ -1799,8 +1834,10 @@ restart:
 		pte = ptpbase[ptpindex];
 
 		if ((pte & PG_V) == 0) {
-			pfcode = pf_error_code(usermode, prot, 0, pte);
-			vm_inject_pf(vm, vcpuid, pfcode, gla);
+			if (!check_only) {
+				pfcode = pf_error_code(usermode, prot, 0, pte);
+				vm_inject_pf(vm, vcpuid, pfcode, gla);
+			}
 			goto fault;
 		}
 
@@ -1826,13 +1863,15 @@ restart:
 		if ((pte & PG_V) == 0 ||
 		    (usermode && (pte & PG_U) == 0) ||
 		    (writable && (pte & PG_RW) == 0)) {
-			pfcode = pf_error_code(usermode, prot, 0, pte);
-			vm_inject_pf(vm, vcpuid, pfcode, gla);
+			if (!check_only) {
+				pfcode = pf_error_code(usermode, prot, 0, pte);
+				vm_inject_pf(vm, vcpuid, pfcode, gla);
+			}
 			goto fault;
 		}
 
 		/* Set the accessed bit in the page table entry */
-		if ((pte & PG_A) == 0) {
+		if (!check_only && (pte & PG_A) == 0) {
 			if (atomic_cmpset_64(&ptpbase[ptpindex],
 			    pte, pte | PG_A) == 0) {
 				goto restart;
@@ -1841,8 +1880,11 @@ restart:
 
 		if (nlevels > 0 && (pte & PG_PS) != 0) {
 			if (pgsize > 1 * GB) {
-				pfcode = pf_error_code(usermode, prot, 1, pte);
-				vm_inject_pf(vm, vcpuid, pfcode, gla);
+				if (!check_only) {
+					pfcode = pf_error_code(usermode, prot, 1,
+					    pte);
+					vm_inject_pf(vm, vcpuid, pfcode, gla);
+				}
 				goto fault;
 			}
 			break;
@@ -1852,7 +1894,7 @@ restart:
 	}
 
 	/* Set the dirty bit in the page table entry if necessary */
-	if (writable && (pte & PG_M) == 0) {
+	if (!check_only && writable && (pte & PG_M) == 0) {
 		if (atomic_cmpset_64(&ptpbase[ptpindex], pte, pte | PG_M) == 0)
 			goto restart;
 	}
@@ -1871,6 +1913,24 @@ error:
 fault:
 	*guest_fault = 1;
 	goto done;
+}
+
+int
+vm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
+    uint64_t gla, int prot, uint64_t *gpa, int *guest_fault)
+{
+
+	return (_vm_gla2gpa(vm, vcpuid, paging, gla, prot, gpa, guest_fault,
+	    false));
+}
+
+int
+vm_gla2gpa_nofault(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
+    uint64_t gla, int prot, uint64_t *gpa, int *guest_fault)
+{
+
+	return (_vm_gla2gpa(vm, vcpuid, paging, gla, prot, gpa, guest_fault,
+	    true));
 }
 
 int

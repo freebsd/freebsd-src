@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-4-Clause
+ *
  * Copyright (c) 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -318,6 +320,11 @@ void moea_dumpsys_map(mmu_t mmu, vm_paddr_t pa, size_t sz, void **va);
 void moea_scan_init(mmu_t mmu);
 vm_offset_t moea_quick_enter_page(mmu_t mmu, vm_page_t m);
 void moea_quick_remove_page(mmu_t mmu, vm_offset_t addr);
+static int moea_map_user_ptr(mmu_t mmu, pmap_t pm,
+    volatile const void *uaddr, void **kaddr, size_t ulen, size_t *klen);
+static int moea_decode_kernel_ptr(mmu_t mmu, vm_offset_t addr,
+    int *is_user, vm_offset_t *decoded_addr);
+
 
 static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_clear_modify,	moea_clear_modify),
@@ -368,6 +375,8 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_dev_direct_mapped,moea_dev_direct_mapped),
 	MMUMETHOD(mmu_scan_init,	moea_scan_init),
 	MMUMETHOD(mmu_dumpsys_map,	moea_dumpsys_map),
+	MMUMETHOD(mmu_map_user_ptr,	moea_map_user_ptr),
+	MMUMETHOD(mmu_decode_kernel_ptr, moea_decode_kernel_ptr),
 
 	{ 0, 0 }
 };
@@ -1115,7 +1124,7 @@ moea_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if ((flags & PMAP_ENTER_NOSLEEP) != 0)
 			return (KERN_RESOURCE_SHORTAGE);
 		VM_OBJECT_ASSERT_UNLOCKED(m->object);
-		VM_WAIT;
+		vm_wait(NULL);
 	}
 }
 
@@ -1540,6 +1549,70 @@ moea_kremove(mmu_t mmu, vm_offset_t va)
 {
 
 	moea_remove(mmu, kernel_pmap, va, va + PAGE_SIZE);
+}
+
+/*
+ * Provide a kernel pointer corresponding to a given userland pointer.
+ * The returned pointer is valid until the next time this function is
+ * called in this thread. This is used internally in copyin/copyout.
+ */
+int
+moea_map_user_ptr(mmu_t mmu, pmap_t pm, volatile const void *uaddr,
+    void **kaddr, size_t ulen, size_t *klen)
+{
+	size_t l;
+	register_t vsid;
+
+	*kaddr = (char *)USER_ADDR + ((uintptr_t)uaddr & ~SEGMENT_MASK);
+	l = ((char *)USER_ADDR + SEGMENT_LENGTH) - (char *)(*kaddr);
+	if (l > ulen)
+		l = ulen;
+	if (klen)
+		*klen = l;
+	else if (l != ulen)
+		return (EFAULT);
+
+	vsid = va_to_vsid(pm, (vm_offset_t)uaddr);
+ 
+	/* Mark segment no-execute */
+	vsid |= SR_N;
+ 
+	/* If we have already set this VSID, we can just return */
+	if (curthread->td_pcb->pcb_cpu.aim.usr_vsid == vsid)
+		return (0);
+ 
+	__asm __volatile("isync");
+	curthread->td_pcb->pcb_cpu.aim.usr_segm =
+	    (uintptr_t)uaddr >> ADDR_SR_SHFT;
+	curthread->td_pcb->pcb_cpu.aim.usr_vsid = vsid;
+	__asm __volatile("mtsr %0,%1; isync" :: "n"(USER_SR), "r"(vsid));
+
+	return (0);
+}
+
+/*
+ * Figure out where a given kernel pointer (usually in a fault) points
+ * to from the VM's perspective, potentially remapping into userland's
+ * address space.
+ */
+static int
+moea_decode_kernel_ptr(mmu_t mmu, vm_offset_t addr, int *is_user,
+    vm_offset_t *decoded_addr)
+{
+	vm_offset_t user_sr;
+
+	if ((addr >> ADDR_SR_SHFT) == (USER_ADDR >> ADDR_SR_SHFT)) {
+		user_sr = curthread->td_pcb->pcb_cpu.aim.usr_segm;
+		addr &= ADDR_PIDX | ADDR_POFF;
+		addr |= user_sr << ADDR_SR_SHFT;
+		*decoded_addr = addr;
+		*is_user = 1;
+	} else {
+		*decoded_addr = addr;
+		*is_user = 0;
+	}
+
+	return (0);
 }
 
 /*

@@ -112,6 +112,7 @@ static int zfs_do_diff(int argc, char **argv);
 static int zfs_do_jail(int argc, char **argv);
 static int zfs_do_unjail(int argc, char **argv);
 static int zfs_do_bookmark(int argc, char **argv);
+static int zfs_do_remap(int argc, char **argv);
 static int zfs_do_channel_program(int argc, char **argv);
 
 /*
@@ -161,6 +162,7 @@ typedef enum {
 	HELP_HOLDS,
 	HELP_RELEASE,
 	HELP_DIFF,
+	HELP_REMAP,
 	HELP_BOOKMARK,
 	HELP_CHANNEL_PROGRAM,
 } zfs_help_t;
@@ -220,6 +222,7 @@ static zfs_command_t command_table[] = {
 	{ NULL },
 	{ "jail",	zfs_do_jail,		HELP_JAIL		},
 	{ "unjail",	zfs_do_unjail,		HELP_UNJAIL		},
+	{ "remap",	zfs_do_remap,		HELP_REMAP		},
 };
 
 #define	NCOMMAND	(sizeof (command_table) / sizeof (command_table[0]))
@@ -342,10 +345,12 @@ get_usage(zfs_help_t idx)
 	case HELP_DIFF:
 		return (gettext("\tdiff [-FHt] <snapshot> "
 		    "[snapshot|filesystem]\n"));
+	case HELP_REMAP:
+		return (gettext("\tremap <filesystem | volume>\n"));
 	case HELP_BOOKMARK:
 		return (gettext("\tbookmark <snapshot> <bookmark>\n"));
 	case HELP_CHANNEL_PROGRAM:
-		return (gettext("\tprogram [-t <instruction limit>] "
+		return (gettext("\tprogram [-n] [-t <instruction limit>] "
 		    "[-m <memory limit (b)>] <pool> <program file> "
 		    "[lua args...]\n"));
 	}
@@ -4170,6 +4175,7 @@ zfs_do_receive(int argc, char **argv)
 #define	ZFS_DELEG_PERM_RELEASE		"release"
 #define	ZFS_DELEG_PERM_DIFF		"diff"
 #define	ZFS_DELEG_PERM_BOOKMARK		"bookmark"
+#define	ZFS_DELEG_PERM_REMAP		"remap"
 
 #define	ZFS_NUM_DELEG_NOTES ZFS_DELEG_NOTE_NONE
 
@@ -4190,6 +4196,7 @@ static zfs_deleg_perm_tab_t zfs_deleg_perm_tbl[] = {
 	{ ZFS_DELEG_PERM_SHARE, ZFS_DELEG_NOTE_SHARE },
 	{ ZFS_DELEG_PERM_SNAPSHOT, ZFS_DELEG_NOTE_SNAPSHOT },
 	{ ZFS_DELEG_PERM_BOOKMARK, ZFS_DELEG_NOTE_BOOKMARK },
+	{ ZFS_DELEG_PERM_REMAP, ZFS_DELEG_NOTE_REMAP },
 
 	{ ZFS_DELEG_PERM_GROUPQUOTA, ZFS_DELEG_NOTE_GROUPQUOTA },
 	{ ZFS_DELEG_PERM_GROUPUSED, ZFS_DELEG_NOTE_GROUPUSED },
@@ -5636,8 +5643,6 @@ print_holds(boolean_t scripted, boolean_t literal, size_t nwidth,
 			uint64_t val = 0;
 			time_t time;
 			struct tm t;
-			char sep = scripted ? '\t' : ' ';
-			size_t sepnum = scripted ? 1 : 2;
 
 			(void) nvpair_value_uint64(nvp2, &val);
 			if (literal)
@@ -5649,8 +5654,13 @@ print_holds(boolean_t scripted, boolean_t literal, size_t nwidth,
 				    gettext(STRFTIME_FMT_STR), &t);
 			}
 
-			(void) printf("%-*s%*c%-*s%*c%s\n", nwidth, zname,
-			    sepnum, sep, tagwidth, tagname, sepnum, sep, tsbuf);
+			if (scripted) {
+				(void) printf("%s\t%s\t%s\n", zname,
+				    tagname, tsbuf);
+			} else {
+				(void) printf("%-*s  %-*s  %s\n", nwidth,
+				    zname, tagwidth, tagname, tsbuf);
+			}
 		}
 	}
 }
@@ -6975,7 +6985,7 @@ zfs_do_diff(int argc, char **argv)
 
 	if (argc < 1) {
 		(void) fprintf(stderr,
-		gettext("must provide at least one snapshot name\n"));
+		    gettext("must provide at least one snapshot name\n"));
 		usage(B_FALSE);
 	}
 
@@ -7014,6 +7024,22 @@ zfs_do_diff(int argc, char **argv)
 	zfs_close(zhp);
 
 	return (err != 0);
+}
+
+static int
+zfs_do_remap(int argc, char **argv)
+{
+	const char *fsname;
+	int err = 0;
+	if (argc != 2) {
+		(void) fprintf(stderr, gettext("wrong number of arguments\n"));
+		usage(B_FALSE);
+	}
+
+	fsname = argv[1];
+	err = zfs_remap_indirects(g_zfs, fsname);
+
+	return (err);
 }
 
 /*
@@ -7131,11 +7157,12 @@ zfs_do_channel_program(int argc, char **argv)
 	nvlist_t *outnvl;
 	uint64_t instrlimit = ZCP_DEFAULT_INSTRLIMIT;
 	uint64_t memlimit = ZCP_DEFAULT_MEMLIMIT;
+	boolean_t sync_flag = B_TRUE;
 	zpool_handle_t *zhp;
 
 	/* check options */
 	while (-1 !=
-	    (c = getopt(argc, argv, "t:(instr-limit)m:(memory-limit)"))) {
+	    (c = getopt(argc, argv, "nt:(instr-limit)m:(memory-limit)"))) {
 		switch (c) {
 		case 't':
 		case 'm': {
@@ -7171,6 +7198,10 @@ zfs_do_channel_program(int argc, char **argv)
 					memlimit = arg;
 				}
 			}
+			break;
+		}
+		case 'n': {
+			sync_flag = B_FALSE;
 			break;
 		}
 		case '?':
@@ -7244,8 +7275,13 @@ zfs_do_channel_program(int argc, char **argv)
 	nvlist_t *argnvl = fnvlist_alloc();
 	fnvlist_add_string_array(argnvl, ZCP_ARG_CLIARGV, argv + 2, argc - 2);
 
-	ret = lzc_channel_program(poolname, progbuf, instrlimit, memlimit,
-	    argnvl, &outnvl);
+	if (sync_flag) {
+		ret = lzc_channel_program(poolname, progbuf,
+		    instrlimit, memlimit, argnvl, &outnvl);
+	} else {
+		ret = lzc_channel_program_nosync(poolname, progbuf,
+		    instrlimit, memlimit, argnvl, &outnvl);
+	}
 
 	if (ret != 0) {
 		/*

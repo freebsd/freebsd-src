@@ -16,6 +16,32 @@
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  */
 
+/*-
+ * Copyright (c) 2000 Mitsuru IWASAKI <iwasaki@FreeBSD.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -38,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/timetc.h>
 #include <sys/time.h>
 #include <sys/uio.h>
 
@@ -205,7 +232,7 @@ static int
 apm_driver_version(int version)
 {
 	struct apm_softc *sc = &apm_softc;
- 
+
 	sc->bios.r.eax = (APM_BIOS << 8) | APM_DRVVERSION;
 	sc->bios.r.ebx  = 0x0;
 	sc->bios.r.ecx  = version;
@@ -220,28 +247,28 @@ apm_driver_version(int version)
 
 	return (1);
 }
- 
+
 /* engage/disengage power management (APM 1.1 or later) */
 static int
 apm_engage_disengage_pm(int engage)
 {
 	struct apm_softc *sc = &apm_softc;
- 
+
 	sc->bios.r.eax = (APM_BIOS << 8) | APM_ENGAGEDISENGAGEPM;
 	sc->bios.r.ebx = PMDV_ALLDEV;
 	sc->bios.r.ecx = engage;
 	sc->bios.r.edx = 0;
 	return (apm_bioscall());
 }
- 
+
 /* get PM event */
 static u_int
 apm_getevent(void)
 {
 	struct apm_softc *sc = &apm_softc;
- 
+
 	sc->bios.r.eax = (APM_BIOS << 8) | APM_GETPMEVENT;
- 
+
 	sc->bios.r.ebx = 0;
 	sc->bios.r.ecx = 0;
 	sc->bios.r.edx = 0;
@@ -249,18 +276,18 @@ apm_getevent(void)
 		return (PMEV_NOEVENT);
 	return (sc->bios.r.ebx & 0xffff);
 }
- 
+
 /* suspend entire system */
 static int
 apm_suspend_system(int state)
 {
 	struct apm_softc *sc = &apm_softc;
- 
+
 	sc->bios.r.eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	sc->bios.r.ebx = PMDV_ALLDEV;
 	sc->bios.r.ecx = state;
 	sc->bios.r.edx = 0;
- 
+
 	if (apm_bioscall()) {
  		printf("Entire system suspend failure: errcode = %d\n",
 		       0xff & (sc->bios.r.eax >> 8));
@@ -280,7 +307,7 @@ int
 apm_display(int newstate)
 {
 	struct apm_softc *sc = &apm_softc;
- 
+
 	sc->bios.r.eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	sc->bios.r.ebx = PMDV_DISP0;
 	sc->bios.r.ecx = newstate ? PMST_APMENABLED:PMST_SUSPEND;
@@ -331,12 +358,10 @@ apm_battery_low(void)
 static struct apmhook *
 apm_add_hook(struct apmhook **list, struct apmhook *ah)
 {
-	int s;
 	struct apmhook *p, *prev;
 
 	APM_DPRINT("Add hook \"%s\"\n", ah->ah_name);
 
-	s = splhigh();
 	if (ah == NULL)
 		panic("illegal apm_hook!");
 	prev = NULL;
@@ -351,30 +376,25 @@ apm_add_hook(struct apmhook **list, struct apmhook *ah)
 		ah->ah_next = prev->ah_next;
 		prev->ah_next = ah;
 	}
-	splx(s);
 	return ah;
 }
 
 static void
 apm_del_hook(struct apmhook **list, struct apmhook *ah)
 {
-	int s;
 	struct apmhook *p, *prev;
 
-	s = splhigh();
 	prev = NULL;
 	for (p = *list; p != NULL; prev = p, p = p->ah_next)
 		if (p == ah)
 			goto deleteit;
 	panic("Tried to delete unregistered apm_hook.");
-	goto nosuchnode;
+	return;
 deleteit:
 	if (prev != NULL)
 		prev->ah_next = p->ah_next;
 	else
 		*list = p->ah_next;
-nosuchnode:
-	splx(s);
 }
 
 
@@ -468,7 +488,7 @@ apm_do_standby(void)
 	sc->standbys = sc->standby_countdown = 0;
 
 	/*
-	 * As far as standby, we don't need to execute 
+	 * As far as standby, we don't need to execute
 	 * all of suspend hooks.
 	 */
 	if (apm_suspend_system(PMST_STANDBY) == 0)
@@ -1047,6 +1067,49 @@ apm_processevent(void)
 	} while (apm_event != PMEV_NOEVENT);
 }
 
+static struct timeval suspend_time;
+static struct timeval diff_time;
+
+static int
+apm_rtc_suspend(void *arg __unused)
+{
+
+	microtime(&diff_time);
+	inittodr(0);
+	microtime(&suspend_time);
+	timevalsub(&diff_time, &suspend_time);
+	return (0);
+}
+
+static int
+apm_rtc_resume(void *arg __unused)
+{
+	u_int second, minute, hour;
+	struct timeval resume_time, tmp_time;
+
+	/* modified for adjkerntz */
+	timer_restore();		/* restore the all timers */
+	inittodr(0);			/* adjust time to RTC */
+	microtime(&resume_time);
+	getmicrotime(&tmp_time);
+	timevaladd(&tmp_time, &diff_time);
+	/* Calculate the delta time suspended */
+	timevalsub(&resume_time, &suspend_time);
+
+#ifdef PMTIMER_FIXUP_CALLTODO
+	/* Fixup the calltodo list with the delta time. */
+	adjust_timeout_calltodo(&resume_time);
+#endif /* PMTIMER_FIXUP_CALLTODO */
+	second = resume_time.tv_sec;
+	hour = second / 3600;
+	second %= 3600;
+	minute = second / 60;
+	second %= 60;
+	log(LOG_NOTICE, "wakeup from sleeping state (slept %02d:%02d:%02d)\n",
+		hour, minute, second);
+	return (0);
+}
+
 /*
  * Attach APM:
  *
@@ -1128,7 +1191,7 @@ apm_attach(device_t dev)
 	}
 
 	/* Power the system off using APM */
-	EVENTHANDLER_REGISTER(shutdown_final, apm_power_off, NULL, 
+	EVENTHANDLER_REGISTER(shutdown_final, apm_power_off, NULL,
 			      SHUTDOWN_PRI_LAST);
 
 	/* Register APM again to pass the correct argument of pm_func. */
@@ -1142,6 +1205,15 @@ apm_attach(device_t dev)
 	    UID_ROOT, GID_OPERATOR, 0664, "apm");
 	make_dev(&apm_cdevsw, APMDEV_CTL,
 	    UID_ROOT, GID_OPERATOR, 0660, "apmctl");
+
+	sc->sc_suspend.ah_fun = apm_rtc_suspend;
+	sc->sc_suspend.ah_arg = sc;
+	apm_hook_establish(APM_HOOK_SUSPEND, &sc->sc_suspend);
+
+	sc->sc_resume.ah_fun = apm_rtc_resume;
+	sc->sc_resume.ah_arg = sc;
+	apm_hook_establish(APM_HOOK_RESUME, &sc->sc_resume);
+
 	return 0;
 }
 
@@ -1362,7 +1434,7 @@ apmwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	if ((error = uiomove((caddr_t)&event_type, sizeof(u_int), uio)))
 		return(error);
 
-	if (event_type < 0 || event_type >= APM_NPMEV)
+	if (event_type >= APM_NPMEV)
 		return(EINVAL);
 
 	if (sc->event_filter[event_type] == 0) {

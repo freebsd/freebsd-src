@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -62,6 +64,13 @@ struct vm_seg_desc {			/* data or code segment */
 	int		cpuid;
 	int		regnum;		/* enum vm_reg_name */
 	struct seg_desc desc;
+};
+
+struct vm_register_set {
+	int		cpuid;
+	unsigned int	count;
+	const int	*regnums;	/* enum vm_reg_name */
+	uint64_t	*regvals;
 };
 
 struct vm_run {
@@ -234,12 +243,15 @@ enum {
 	IOCNUM_GET_MEMSEG = 15,
 	IOCNUM_MMAP_MEMSEG = 16,
 	IOCNUM_MMAP_GETNEXT = 17,
+	IOCNUM_GLA2GPA_NOFAULT = 18,
 
 	/* register/state accessors */
 	IOCNUM_SET_REGISTER = 20,
 	IOCNUM_GET_REGISTER = 21,
 	IOCNUM_SET_SEGMENT_DESCRIPTOR = 22,
 	IOCNUM_GET_SEGMENT_DESCRIPTOR = 23,
+	IOCNUM_SET_REGISTER_SET = 24,
+	IOCNUM_GET_REGISTER_SET = 25,
 
 	/* interrupt injection */
 	IOCNUM_GET_INTINFO = 28,
@@ -310,6 +322,10 @@ enum {
 	_IOW('v', IOCNUM_SET_SEGMENT_DESCRIPTOR, struct vm_seg_desc)
 #define	VM_GET_SEGMENT_DESCRIPTOR \
 	_IOWR('v', IOCNUM_GET_SEGMENT_DESCRIPTOR, struct vm_seg_desc)
+#define	VM_SET_REGISTER_SET \
+	_IOW('v', IOCNUM_SET_REGISTER_SET, struct vm_register_set)
+#define	VM_GET_REGISTER_SET \
+	_IOWR('v', IOCNUM_GET_REGISTER_SET, struct vm_register_set)
 #define	VM_INJECT_EXCEPTION	\
 	_IOW('v', IOCNUM_INJECT_EXCEPTION, struct vm_exception)
 #define	VM_LAPIC_IRQ 		\
@@ -364,6 +380,8 @@ enum {
 	_IOWR('v', IOCNUM_GET_GPA_PMAP, struct vm_gpa_pte)
 #define	VM_GLA2GPA	\
 	_IOWR('v', IOCNUM_GLA2GPA, struct vm_gla2gpa)
+#define	VM_GLA2GPA_NOFAULT \
+	_IOWR('v', IOCNUM_GLA2GPA_NOFAULT, struct vm_gla2gpa)
 #define	VM_ACTIVATE_CPU	\
 	_IOW('v', IOCNUM_ACTIVATE_CPU, struct vm_activate_cpu)
 #define	VM_GET_CPUS	\

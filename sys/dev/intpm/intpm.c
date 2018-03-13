@@ -895,5 +895,5 @@ DRIVER_MODULE_ORDERED(intsmb, pci, intsmb_driver, intsmb_devclass, 0, 0,
 DRIVER_MODULE(smbus, intsmb, smbus_driver, smbus_devclass, 0, 0);
 MODULE_DEPEND(intsmb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(intsmb, 1);
-MODULE_PNP_INFO("W32:vendor/device;D:human", pci, intpm, intsmb_products,
+MODULE_PNP_INFO("W32:vendor/device;D:#", pci, intpm, intsmb_products,
     sizeof(intsmb_products[0]), nitems(intsmb_products));

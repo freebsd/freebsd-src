@@ -37,6 +37,7 @@
  */
 	.text
 	SUPERALIGN_TEXT
+IDTVEC(vmbus_isr_pti)
 IDTVEC(vmbus_isr)
 	PUSH_FRAME
 	SET_KERNEL_SREGS

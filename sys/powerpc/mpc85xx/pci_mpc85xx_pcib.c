@@ -50,11 +50,29 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_pci.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
 
+#include <machine/intr_machdep.h>
+
 #include "pcib_if.h"
+
+struct fsl_pcib_softc {
+        /*
+         * This is here so that we can use pci bridge methods, too - the
+         * generic routines only need the dev, secbus and subbus members
+         * filled.
+         */
+        struct pcib_softc       ops_pcib_sc;
+	phandle_t		ops_node;
+        struct ofw_bus_iinfo    ops_iinfo;
+};
 
 static int
 fsl_pcib_rc_probe(device_t dev)
@@ -72,13 +90,89 @@ fsl_pcib_rc_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
+static int
+fsl_pcib_rc_attach(device_t dev)
+{
+	struct fsl_pcib_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->ops_pcib_sc.dev = dev;
+	sc->ops_node = ofw_bus_get_node(dev);
+
+	ofw_bus_setup_iinfo(sc->ops_node, &sc->ops_iinfo,
+	    sizeof(cell_t));
+
+	pcib_attach_common(dev);
+	return (pcib_attach_child(dev));
+}
+
+static phandle_t
+fsl_pcib_rc_get_node(device_t bridge, device_t dev)
+{
+	/* We have only one child, the PCI bus, so pass it our node */
+
+	return (ofw_bus_get_node(bridge));
+}
+
+static int
+fsl_pcib_rc_route_interrupt(device_t bridge, device_t dev, int intpin)
+{
+	struct fsl_pcib_softc *sc;
+	struct ofw_bus_iinfo *ii;
+	struct ofw_pci_register reg;
+	cell_t pintr, mintr[2];
+	int intrcells;
+	phandle_t iparent;
+
+	sc = device_get_softc(bridge);
+	ii = &sc->ops_iinfo;
+	if (ii->opi_imapsz > 0) {
+		pintr = intpin;
+
+		/* Fabricate imap information if this isn't an OFW device */
+		bzero(&reg, sizeof(reg));
+		reg.phys_hi = (pci_get_bus(dev) << OFW_PCI_PHYS_HI_BUSSHIFT) |
+		    (pci_get_slot(dev) << OFW_PCI_PHYS_HI_DEVICESHIFT) |
+		    (pci_get_function(dev) << OFW_PCI_PHYS_HI_FUNCTIONSHIFT);
+
+		intrcells = ofw_bus_lookup_imap(ofw_bus_get_node(dev), ii, &reg,
+		    sizeof(reg), &pintr, sizeof(pintr), mintr, sizeof(mintr),
+		    &iparent);
+		if (intrcells) {
+			/*
+			 * If we've found a mapping, return it and don't map
+			 * it again on higher levels - that causes problems
+			 * in some cases, and never seems to be required.
+			 */
+			mintr[0] = ofw_bus_map_intr(dev, iparent, intrcells,
+			    mintr);
+			return (mintr[0]);
+		}
+	} else if (intpin >= 1 && intpin <= 4) {
+		/*
+		 * When an interrupt map is missing, we need to do the
+		 * standard PCI swizzle and continue mapping at the parent.
+		 */
+		return (pcib_route_interrupt(bridge, dev, intpin));
+	}
+	return (PCIB_ROUTE_INTERRUPT(device_get_parent(device_get_parent(
+	    bridge)), bridge, intpin));
+}
+
 static device_method_t fsl_pcib_rc_methods[] = {
 	DEVMETHOD(device_probe,		fsl_pcib_rc_probe),
+	DEVMETHOD(device_attach,	fsl_pcib_rc_attach),
+
+	/* pcib interface */
+	DEVMETHOD(pcib_route_interrupt,	fsl_pcib_rc_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,	fsl_pcib_rc_get_node),
 	DEVMETHOD_END
 };
 
 static devclass_t fsl_pcib_rc_devclass;
 DEFINE_CLASS_1(pcib, fsl_pcib_rc_driver, fsl_pcib_rc_methods,
-    sizeof(struct pcib_softc), pcib_driver);
+    sizeof(struct fsl_pcib_softc), pcib_driver);
 DRIVER_MODULE(rcpcib, pci, fsl_pcib_rc_driver, fsl_pcib_rc_devclass, 0, 0);
-

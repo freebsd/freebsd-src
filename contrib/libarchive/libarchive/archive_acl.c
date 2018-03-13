@@ -1159,6 +1159,7 @@ archive_acl_from_text_w(struct archive_acl *acl, const wchar_t *text,
 	switch (want_type) {
 	case ARCHIVE_ENTRY_ACL_TYPE_POSIX1E:
 		want_type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
+		__LA_FALLTHROUGH;
 	case ARCHIVE_ENTRY_ACL_TYPE_ACCESS:
 	case ARCHIVE_ENTRY_ACL_TYPE_DEFAULT:
 		numfields = 5;
@@ -1626,6 +1627,7 @@ archive_acl_from_text_l(struct archive_acl *acl, const char *text,
 	switch (want_type) {
 	case ARCHIVE_ENTRY_ACL_TYPE_POSIX1E:
 		want_type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
+		__LA_FALLTHROUGH;
 	case ARCHIVE_ENTRY_ACL_TYPE_ACCESS:
 	case ARCHIVE_ENTRY_ACL_TYPE_DEFAULT:
 		numfields = 5;

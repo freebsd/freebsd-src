@@ -5801,7 +5801,7 @@ if test "x$ac_cv_func_pcap_loop" = xyes; then :
 
 else
 
-	    as_fn_error $? "Report this to tcpdump-workers@lists.tcpdump.org, and include the
+	    as_fn_error $? "This is a bug, please follow the guidelines in CONTRIBUTING and include the
 config.log file in your report.  If you have downloaded libpcap from
 tcpdump.org, and built it yourself, please also include the config.log
 file from the libpcap source directory, the Makefile from the libpcap
@@ -8116,17 +8116,32 @@ fi
 done
 
 			#
-			# OK, do we have EVP_CIPHER_CTX_new?
+			# OK, then:
+			#
+			# 1) do we have EVP_CIPHER_CTX_new?
 			# If so, we use it to allocate an
 			# EVP_CIPHER_CTX, as EVP_CIPHER_CTX may be
 			# opaque; otherwise, we allocate it ourselves.
 			#
-			for ac_func in EVP_CIPHER_CTX_new
+			# 2) do we have EVP_CipherInit_ex()?
+			# If so, we use it, because we need to be
+			# able to make two "initialize the cipher"
+			# calls, one with the cipher and key, and
+			# one with the IV, and, as of OpenSSL 1.1,
+			# You Can't Do That with EVP_CipherInit(),
+			# because a call to EVP_CipherInit() will
+			# unconditionally clear the context, and
+			# if you don't supply a cipher, it'll
+			# clear the cipher, rendering the context
+			# unusable and causing a crash.
+			#
+			for ac_func in EVP_CIPHER_CTX_new EVP_CipherInit_ex
 do :
-  ac_fn_c_check_func "$LINENO" "EVP_CIPHER_CTX_new" "ac_cv_func_EVP_CIPHER_CTX_new"
-if test "x$ac_cv_func_EVP_CIPHER_CTX_new" = xyes; then :
+  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
   cat >>confdefs.h <<_ACEOF
-#define HAVE_EVP_CIPHER_CTX_NEW 1
+#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
 _ACEOF
 
 fi

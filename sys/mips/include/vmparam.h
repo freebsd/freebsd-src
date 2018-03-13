@@ -2,6 +2,8 @@
 /*	$NetBSD: vmparam.h,v 1.5 1994/10/26 21:10:10 cgd Exp $	*/
 
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -187,6 +189,12 @@
 #ifndef __mips_n64
 #define	SFBUF
 #define	SFBUF_MAP
+#define	PMAP_HAS_DMAP	0
+#else
+#define	PMAP_HAS_DMAP	1
 #endif
+
+#define	PHYS_TO_DMAP(x)	MIPS_PHYS_TO_DIRECT(x)
+#define	DMAP_TO_PHYS(x)	MIPS_DIRECT_TO_PHYS(x)
 
 #endif /* !_MACHINE_VMPARAM_H_ */

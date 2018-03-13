@@ -69,6 +69,10 @@ PORTSMODULESENV=\
 	-u CC \
 	-u CXX \
 	-u CPP \
+	-u MAKESYSPATH \
+	-u MAKEOBJDIR \
+	MAKEFLAGS="${MAKEFLAGS:M*:tW:S/^-m /-m_/g:S/ -m / -m_/g:tw:N-m_*}" \
+	SYSDIR=${SYSDIR} \
 	PATH=${PATH}:${LOCALBASE}/bin:${LOCALBASE}/sbin \
 	SRC_BASE=${SRC_BASE} \
 	OSVERSION=${OSRELDATE} \
@@ -87,7 +91,7 @@ ${__target}: ports-${__target}
 ports-${__target}:
 .for __i in ${PORTS_MODULES}
 	@${ECHO} "===> Ports module ${__i} (${__target})"
-	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B ${__target:C/install/deinstall reinstall/:C/reinstall/deinstall reinstall/}
+	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B ${__target:C/(re)?install/deinstall reinstall/}
 .endfor
 .endfor
 .endif
@@ -153,7 +157,6 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 
 OBJS_DEPEND_GUESS+=	assym.s vnode_if.h ${BEFORE_DEPEND:M*.h} \
 			${MFILES:T:S/.m$/.h/}
-LNFILES=	${CFILES:T:S/.c$/.ln/}
 
 .for mfile in ${MFILES}
 # XXX the low quality .m.o rules gnerated by config are normally used
@@ -167,14 +170,10 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 kernel-clean:
 	rm -f *.o *.so *.pico *.ko *.s eddep errs \
 	    ${FULLKERNEL} ${KERNEL_KO} ${KERNEL_KO}.debug \
-	    linterrs tags vers.c \
+	    tags vers.c \
 	    vnode_if.c vnode_if.h vnode_if_newproto.h vnode_if_typedef.h \
 	    ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	    ${CLEAN}
-
-lint: ${LNFILES}
-	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC} 2>&1 | \
-	    tee -a linterrs
 
 # This is a hack.  BFD "optimizes" away dynamic mode if there are no
 # dynamic references.  We could probably do a '-Bforcedynamic' mode like
@@ -201,7 +200,9 @@ _meta_filemon=	1
 # Also skip generating or including .depend.* files if in meta+filemon mode
 # since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used
 # for _meta_filemon but not for _SKIP_DEPEND.
-.if !defined(NO_SKIP_DEPEND) && (make(*obj) || \
+.if !defined(NO_SKIP_DEPEND) && \
+    ((!empty(.MAKEFLAGS:M-V) && empty(.MAKEFLAGS:M*DEP*)) || \
+    ${.TARGETS:M*obj} == ${.TARGETS} || \
     ${.TARGETS:M*clean*} == ${.TARGETS} || \
     ${.TARGETS:M*install*} == ${.TARGETS})
 _SKIP_DEPEND=	1
@@ -214,9 +215,8 @@ kernel-depend: .depend
 SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	${MFILES:T:S/.m$/.h/}
-DEPENDFILES=	.depend .depend.*
 DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o
-DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
+DEPENDFILES=	${DEPENDOBJS:O:u:C/^/.depend./}
 .if ${MAKE_VERSION} < 20160220
 DEPEND_MP?=	-MP
 .endif
@@ -225,9 +225,8 @@ DEPEND_MP?=	-MP
 ${DEPENDOBJS}:	.NOMETA
 .depend:	.NOMETA
 # Unset these to avoid looping/statting on them later.
-.undef DEPENDSRCS
 .undef DEPENDOBJS
-.undef DEPENDFILES_OBJS
+.undef DEPENDFILES
 .endif	# defined(_SKIP_DEPEND)
 DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF.depend.${.TARGET}
 DEPEND_CFLAGS+=	-MT${.TARGET}
@@ -238,7 +237,7 @@ DEPEND_CFLAGS+=	-MT${.TARGET}
 DEPEND_CFLAGS_CONDITION= "${DEPENDOBJS:M${.TARGET}}" != ""
 CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
 .endif
-.for __depend_obj in ${DEPENDFILES_OBJS}
+.for __depend_obj in ${DEPENDFILES}
 .if ${MAKE_VERSION} < 20160220
 .sinclude "${.OBJDIR}/${__depend_obj}"
 .else
@@ -280,7 +279,7 @@ ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 .endif	# !exists(${_depfile})
 .endfor
 
-.NOPATH: .depend ${DEPENDFILES_OBJS}
+.NOPATH: .depend ${DEPENDFILES}
 
 .depend: .PRECIOUS ${SRCS}
 
@@ -307,11 +306,11 @@ ${_ILINKS}:
 		path=${S}/${.TARGET}/include ;; \
 	esac ; \
 	${ECHO} ${.TARGET} "->" $$path ; \
-	ln -fhs $$path ${.TARGET}
+	ln -fns $$path ${.TARGET}
 
 # .depend needs include links so we remove them only together.
 kernel-cleandepend: .PHONY
-	rm -f ${DEPENDFILES} ${_ILINKS}
+	rm -f .depend .depend.* ${_ILINKS}
 
 kernel-tags:
 	@[ -f .depend ] || { echo "you must make depend first"; exit 1; }
@@ -364,9 +363,6 @@ kernel-reinstall:
 config.o env.o hints.o vers.o vnode_if.o:
 	${NORMAL_C}
 	${NORMAL_CTFCONVERT}
-
-config.ln env.ln hints.ln vers.ln vnode_if.ln:
-	${NORMAL_LINT}
 
 .if ${MK_REPRODUCIBLE_BUILD} != "no"
 REPRO_FLAG="-r"

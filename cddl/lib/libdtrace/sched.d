@@ -81,4 +81,3 @@ inline chipid_t chip = curcpu->cpu_chip;
 inline lgrp_id_t lgrp = curcpu->cpu_lgrp;
 #pragma D attributes Stable/Stable/Common lgrp
 #pragma D binding "1.0" lgrp
-

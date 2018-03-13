@@ -10,7 +10,6 @@ DIRDEPS = \
 	cddl/lib/libzfs_core \
 	cddl/lib/libzpool \
 	gnu/lib/csu \
-	gnu/lib/libgcc \
 	include \
 	include/arpa \
 	include/protocols \
@@ -25,6 +24,8 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcam \
 	lib/libcapsicum \
+	lib/libcasper/libcasper \
+	lib/libcasper/services/cap_dns \
 	lib/libcompiler_rt \
 	lib/libcrypt \
 	lib/libdevstat \

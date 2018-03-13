@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 John D. Polstra
  * Copyright (c) 1999,2001 Peter Wemm <peter@FreeBSD.org>
  * All rights reserved.
@@ -61,10 +63,7 @@
 	__set_##set##_sym_##sym __section("set_" #set)	\
 	__used = &(sym)
 #else /* !__GNUCLIKE___SECTION */
-#ifndef lint
 #error this file needs to be ported to your compiler
-#endif /* lint */
-#define __MAKE_SET(set, sym)	extern void const * const (__set_##set##_sym_##sym)
 #endif /* __GNUCLIKE___SECTION */
 
 /*

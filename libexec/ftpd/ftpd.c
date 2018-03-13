@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1985, 1988, 1990, 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -429,6 +431,10 @@ main(int argc, char *argv[], char **envp)
 			break;
 		}
 	}
+
+	/* handle filesize limit gracefully */
+	sa.sa_handler = SIG_IGN;
+	(void)sigaction(SIGXFSZ, &sa, NULL);
 
 	if (daemon_mode) {
 		int *ctl_sock, fd, maxfd = -1, nfds, i;
@@ -1071,7 +1077,7 @@ user(char *name)
 		}
 	}
 	if (logging)
-		strncpy(curname, name, sizeof(curname)-1);
+		strlcpy(curname, name, sizeof(curname));
 
 	pwok = 0;
 #ifdef USE_PAM
@@ -1196,14 +1202,14 @@ end_login(void)
 #endif
 
 	(void) seteuid(0);
-	if (logged_in && dowtmp)
-		ftpd_logwtmp(wtmpid, NULL, NULL);
-	pw = NULL;
 #ifdef	LOGIN_CAP
 	setusercontext(NULL, getpwuid(0), 0, LOGIN_SETALL & ~(LOGIN_SETLOGIN |
 		       LOGIN_SETUSER | LOGIN_SETGROUP | LOGIN_SETPATH |
 		       LOGIN_SETENV));
 #endif
+	if (logged_in && dowtmp)
+		ftpd_logwtmp(wtmpid, NULL, NULL);
+	pw = NULL;
 #ifdef USE_PAM
 	if (pamh) {
 		if ((e = pam_setcred(pamh, PAM_DELETE_CRED)) != PAM_SUCCESS)
@@ -1478,7 +1484,7 @@ skip:
 		}
 	}
 	setusercontext(lc, pw, 0, LOGIN_SETALL &
-		       ~(LOGIN_SETUSER | LOGIN_SETPATH | LOGIN_SETENV));
+		       ~(LOGIN_SETRESOURCES | LOGIN_SETUSER | LOGIN_SETPATH | LOGIN_SETENV));
 #else
 	setlogin(pw->pw_name);
 	(void) initgroups(pw->pw_name, pw->pw_gid);
@@ -1519,6 +1525,10 @@ skip:
 		ftpd_logwtmp(wtmpid, pw->pw_name,
 		    (struct sockaddr *)&his_addr);
 	logged_in = 1;
+
+#ifdef	LOGIN_CAP
+	setusercontext(lc, pw, 0, LOGIN_SETRESOURCES);
+#endif
 
 	if (guest && stats && statfd < 0)
 #ifdef VIRTUAL_HOSTING
@@ -2770,6 +2780,11 @@ dologout(int status)
 
 	if (logged_in && dowtmp) {
 		(void) seteuid(0);
+#ifdef		LOGIN_CAP
+ 	        setusercontext(NULL, getpwuid(0), 0, LOGIN_SETALL & ~(LOGIN_SETLOGIN |
+		       LOGIN_SETUSER | LOGIN_SETGROUP | LOGIN_SETPATH |
+		       LOGIN_SETENV));
+#endif
 		ftpd_logwtmp(wtmpid, NULL, NULL);
 	}
 	/* beware of flushing buffers after a SIGPIPE */

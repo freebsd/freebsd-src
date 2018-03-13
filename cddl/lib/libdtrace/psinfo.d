@@ -97,4 +97,3 @@ inline psinfo_t *curpsinfo = xlate <psinfo_t *> (curthread->td_proc);
 inline lwpsinfo_t *curlwpsinfo = xlate <lwpsinfo_t *> (curthread);
 #pragma D attributes Stable/Stable/Common curlwpsinfo
 #pragma D binding "1.0" curlwpsinfo
-

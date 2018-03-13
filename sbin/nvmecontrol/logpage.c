@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 EMC Corp.
  * All rights reserved.
  *
@@ -44,16 +46,12 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <sys/endian.h>
 
-#if _BYTE_ORDER != _LITTLE_ENDIAN
-#error "Code only works on little endian machines"
-#endif
-
 #include "nvmecontrol.h"
 
 #define DEFAULT_SIZE	(4096)
 #define MAX_FW_SLOTS	(7)
 
-typedef void (*print_fn_t)(void *buf, uint32_t size);
+typedef void (*print_fn_t)(const struct nvme_controller_data *cdata, void *buf, uint32_t size);
 
 struct kv_name
 {
@@ -75,8 +73,16 @@ kv_lookup(const struct kv_name *kv, size_t kv_count, uint32_t key)
 }
 
 static void
-print_bin(void *data, uint32_t length)
+print_log_hex(const struct nvme_controller_data *cdata __unused, void *data, uint32_t length)
 {
+
+	print_hex(data, length);
+}
+
+static void
+print_bin(const struct nvme_controller_data *cdata __unused, void *data, uint32_t length)
+{
+
 	write(STDOUT_FILENO, data, length);
 }
 
@@ -93,16 +99,19 @@ get_log_buffer(uint32_t size)
 }
 
 void
-read_logpage(int fd, uint8_t log_page, int nsid, void *payload,
+read_logpage(int fd, uint8_t log_page, uint32_t nsid, void *payload,
     uint32_t payload_size)
 {
 	struct nvme_pt_command	pt;
+	struct nvme_error_information_entry	*err_entry;
+	int i, err_pages;
 
 	memset(&pt, 0, sizeof(pt));
-	pt.cmd.opc = NVME_OPC_GET_LOG_PAGE;
-	pt.cmd.nsid = nsid;
+	pt.cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_GET_LOG_PAGE);
+	pt.cmd.nsid = htole32(nsid);
 	pt.cmd.cdw10 = ((payload_size/sizeof(uint32_t)) - 1) << 16;
 	pt.cmd.cdw10 |= log_page;
+	pt.cmd.cdw10 = htole32(pt.cmd.cdw10);
 	pt.buf = payload;
 	pt.len = payload_size;
 	pt.is_read = 1;
@@ -110,16 +119,41 @@ read_logpage(int fd, uint8_t log_page, int nsid, void *payload,
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(1, "get log page request failed");
 
+	/* Convert data to host endian */
+	switch (log_page) {
+	case NVME_LOG_ERROR:
+		err_entry = (struct nvme_error_information_entry *)payload;
+		err_pages = payload_size / sizeof(struct nvme_error_information_entry);
+		for (i = 0; i < err_pages; i++)
+			nvme_error_information_entry_swapbytes(err_entry++);
+		break;
+	case NVME_LOG_HEALTH_INFORMATION:
+		nvme_health_information_page_swapbytes(
+		    (struct nvme_health_information_page *)payload);
+		break;
+	case NVME_LOG_FIRMWARE_SLOT:
+		nvme_firmware_page_swapbytes(
+		    (struct nvme_firmware_page *)payload);
+		break;
+	case INTEL_LOG_TEMP_STATS:
+		intel_log_temp_stats_swapbytes(
+		    (struct intel_log_temp_stats *)payload);
+		break;
+	default:
+		break;
+	}
+
 	if (nvme_completion_is_error(&pt.cpl))
 		errx(1, "get log page request returned error");
 }
 
 static void
-print_log_error(void *buf, uint32_t size)
+print_log_error(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size)
 {
 	int					i, nentries;
+	uint16_t				status;
+	uint8_t					p, sc, sct, m, dnr;
 	struct nvme_error_information_entry	*entry = buf;
-	struct nvme_status			*status;
 
 	printf("Error Information Log\n");
 	printf("=====================\n");
@@ -134,7 +168,14 @@ print_log_error(void *buf, uint32_t size)
 		if (entry->error_count == 0)
 			break;
 
-		status = &entry->status;
+		status = entry->status;
+
+		p = NVME_STATUS_GET_P(status);
+		sc = NVME_STATUS_GET_SC(status);
+		sct = NVME_STATUS_GET_SCT(status);
+		m = NVME_STATUS_GET_M(status);
+		dnr = NVME_STATUS_GET_DNR(status);
+
 		printf("Entry %02d\n", i + 1);
 		printf("=========\n");
 		printf(" Error count:          %ju\n", entry->error_count);
@@ -142,11 +183,11 @@ print_log_error(void *buf, uint32_t size)
 		printf(" Command ID:           %u\n", entry->cid);
 		/* TODO: Export nvme_status_string structures from kernel? */
 		printf(" Status:\n");
-		printf("  Phase tag:           %d\n", status->p);
-		printf("  Status code:         %d\n", status->sc);
-		printf("  Status code type:    %d\n", status->sct);
-		printf("  More:                %d\n", status->m);
-		printf("  DNR:                 %d\n", status->dnr);
+		printf("  Phase tag:           %d\n", p);
+		printf("  Status code:         %d\n", sc);
+		printf("  Status code type:    %d\n", sct);
+		printf("  More:                %d\n", m);
+		printf("  DNR:                 %d\n", dnr);
 		printf(" Error location:       %u\n", entry->error_location);
 		printf(" LBA:                  %ju\n", entry->lba);
 		printf(" Namespace ID:         %u\n", entry->nsid);
@@ -162,27 +203,29 @@ print_temp(uint16_t t)
 
 
 static void
-print_log_health(void *buf, uint32_t size __unused)
+print_log_health(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size __unused)
 {
 	struct nvme_health_information_page *health = buf;
 	char cbuf[UINT128_DIG + 1];
+	uint8_t	warning;
 	int i;
+
+	warning = health->critical_warning;
 
 	printf("SMART/Health Information Log\n");
 	printf("============================\n");
 
-	printf("Critical Warning State:         0x%02x\n",
-	    health->critical_warning.raw);
+	printf("Critical Warning State:         0x%02x\n", warning);
 	printf(" Available spare:               %d\n",
-	    health->critical_warning.bits.available_spare);
+	    !!(warning & NVME_CRIT_WARN_ST_AVAILABLE_SPARE));
 	printf(" Temperature:                   %d\n",
-	    health->critical_warning.bits.temperature);
+	    !!(warning & NVME_CRIT_WARN_ST_TEMPERATURE));
 	printf(" Device reliability:            %d\n",
-	    health->critical_warning.bits.device_reliability);
+	    !!(warning & NVME_CRIT_WARN_ST_DEVICE_RELIABILITY));
 	printf(" Read only:                     %d\n",
-	    health->critical_warning.bits.read_only);
+	    !!(warning & NVME_CRIT_WARN_ST_READ_ONLY));
 	printf(" Volatile memory backup:        %d\n",
-	    health->critical_warning.bits.volatile_memory_backup);
+	    !!(warning & NVME_CRIT_WARN_ST_VOLATILE_MEMORY_BACKUP));
 	printf("Temperature:                    ");
 	print_temp(health->temperature);
 	printf("Available spare:                %u\n",
@@ -215,7 +258,7 @@ print_log_health(void *buf, uint32_t size __unused)
 
 	printf("Warning Temp Composite Time:    %d\n", health->warning_temp_time);
 	printf("Error Temp Composite Time:      %d\n", health->error_temp_time);
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < 8; i++) {
 		if (health->temp_sensor[i] == 0)
 			continue;
 		printf("Temperature Sensor %d:           ", i + 1);
@@ -224,18 +267,34 @@ print_log_health(void *buf, uint32_t size __unused)
 }
 
 static void
-print_log_firmware(void *buf, uint32_t size __unused)
+print_log_firmware(const struct nvme_controller_data *cdata, void *buf, uint32_t size __unused)
 {
-	int				i;
+	int				i, slots;
 	const char			*status;
 	struct nvme_firmware_page	*fw = buf;
+	uint8_t				afi_slot;
+	uint16_t			oacs_fw;
+	uint8_t				fw_num_slots;
+
+	afi_slot = fw->afi >> NVME_FIRMWARE_PAGE_AFI_SLOT_SHIFT;
+	afi_slot &= NVME_FIRMWARE_PAGE_AFI_SLOT_MASK;
+
+	oacs_fw = (cdata->oacs >> NVME_CTRLR_DATA_OACS_FIRMWARE_SHIFT) &
+		NVME_CTRLR_DATA_OACS_FIRMWARE_MASK;
+	fw_num_slots = (cdata->frmw >> NVME_CTRLR_DATA_FRMW_NUM_SLOTS_SHIFT) &
+		NVME_CTRLR_DATA_FRMW_NUM_SLOTS_MASK;
 
 	printf("Firmware Slot Log\n");
 	printf("=================\n");
 
-	for (i = 0; i < MAX_FW_SLOTS; i++) {
+	if (oacs_fw == 0)
+		slots = 1;
+	else
+		slots = MIN(fw_num_slots, MAX_FW_SLOTS);
+
+	for (i = 0; i < slots; i++) {
 		printf("Slot %d: ", i + 1);
-		if (fw->afi.slot == i + 1)
+		if (afi_slot == i + 1)
 			status = "  Active";
 		else
 			status = "Inactive";
@@ -260,7 +319,7 @@ print_log_firmware(void *buf, uint32_t size __unused)
  * offset 147: it is only 1 byte, not 6.
  */
 static void
-print_intel_temp_stats(void *buf, uint32_t size __unused)
+print_intel_temp_stats(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size __unused)
 {
 	struct intel_log_temp_stats	*temp = buf;
 
@@ -287,7 +346,7 @@ print_intel_temp_stats(void *buf, uint32_t size __unused)
  * Read and write stats pages have identical encoding.
  */
 static void
-print_intel_read_write_lat_log(void *buf, uint32_t size __unused)
+print_intel_read_write_lat_log(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size __unused)
 {
 	const char *walker = buf;
 	int i;
@@ -303,28 +362,28 @@ print_intel_read_write_lat_log(void *buf, uint32_t size __unused)
 }
 
 static void
-print_intel_read_lat_log(void *buf, uint32_t size)
+print_intel_read_lat_log(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size)
 {
 
 	printf("Intel Read Latency Log\n");
 	printf("======================\n");
-	print_intel_read_write_lat_log(buf, size);
+	print_intel_read_write_lat_log(cdata, buf, size);
 }
 
 static void
-print_intel_write_lat_log(void *buf, uint32_t size)
+print_intel_write_lat_log(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size)
 {
 
 	printf("Intel Write Latency Log\n");
 	printf("=======================\n");
-	print_intel_read_write_lat_log(buf, size);
+	print_intel_read_write_lat_log(cdata, buf, size);
 }
 
 /*
  * Table 19. 5.4 SMART Attributes. Samsung also implements this and some extra data not documented.
  */
 static void
-print_intel_add_smart(void *buf, uint32_t size __unused)
+print_intel_add_smart(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size __unused)
 {
 	uint8_t *walker = buf;
 	uint8_t *end = walker + 150;
@@ -753,7 +812,7 @@ kv_indirect(void *buf, uint32_t subtype, uint8_t res, uint32_t size, struct subp
 }
 
 static void
-print_hgst_info_log(void *buf, uint32_t size __unused)
+print_hgst_info_log(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size __unused)
 {
 	uint8_t	*walker, *end, *subpage;
 	int pages;
@@ -850,20 +909,22 @@ logpage_help(void)
 void
 logpage(int argc, char *argv[])
 {
-	int				fd, nsid;
+	int				fd;
 	int				log_page = 0, pageflag = false;
 	int				binflag = false, hexflag = false, ns_specified;
-	char				ch, *p;
+	int				opt;
+	char				*p;
 	char				cname[64];
-	uint32_t			size;
+	uint32_t			nsid, size;
 	void				*buf;
 	const char			*vendor = NULL;
 	struct logpage_function		*f;
 	struct nvme_controller_data	cdata;
 	print_fn_t			print_fn;
+	uint8_t				ns_smart;
 
-	while ((ch = getopt(argc, argv, "bp:xv:")) != -1) {
-		switch (ch) {
+	while ((opt = getopt(argc, argv, "bp:xv:")) != -1) {
+		switch (opt) {
 		case 'b':
 			binflag = true;
 			break;
@@ -913,6 +974,9 @@ logpage(int argc, char *argv[])
 
 	read_controller_data(fd, &cdata);
 
+	ns_smart = (cdata.lpa >> NVME_CTRLR_DATA_LPA_NS_SMART_SHIFT) &
+		NVME_CTRLR_DATA_LPA_NS_SMART_MASK;
+
 	/*
 	 * The log page attribtues indicate whether or not the controller
 	 * supports the SMART/Health information log page on a per
@@ -922,13 +986,13 @@ logpage(int argc, char *argv[])
 		if (log_page != NVME_LOG_HEALTH_INFORMATION)
 			errx(1, "log page %d valid only at controller level",
 			    log_page);
-		if (cdata.lpa.ns_smart == 0)
+		if (ns_smart == 0)
 			errx(1,
 			    "controller does not support per namespace "
 			    "smart/health information");
 	}
 
-	print_fn = print_hex;
+	print_fn = print_log_hex;
 	size = DEFAULT_SIZE;
 	if (binflag)
 		print_fn = print_bin;
@@ -960,7 +1024,7 @@ logpage(int argc, char *argv[])
 	/* Read the log page */
 	buf = get_log_buffer(size);
 	read_logpage(fd, log_page, nsid, buf, size);
-	print_fn(buf, size);
+	print_fn(&cdata, buf, size);
 
 	close(fd);
 	exit(0);

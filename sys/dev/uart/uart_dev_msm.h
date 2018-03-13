@@ -80,22 +80,6 @@ enum UART_DM_BITS_PER_CHAR {
 
 /* UART Clock Selection Register, write only */
 #define	UART_DM_CSR				0x08
-#define	 UART_DM_CSR_115200			0xff
-#define	 UART_DM_CSR_57600			0xee
-#define	 UART_DM_CSR_38400			0xdd
-#define	 UART_DM_CSR_28800			0xcc
-#define	 UART_DM_CSR_19200			0xbb
-#define	 UART_DM_CSR_14400			0xaa
-#define	 UART_DM_CSR_9600			0x99
-#define	 UART_DM_CSR_7200			0x88
-#define	 UART_DM_CSR_4800			0x77
-#define	 UART_DM_CSR_3600			0x66
-#define	 UART_DM_CSR_2400			0x55
-#define	 UART_DM_CSR_1200			0x44
-#define	 UART_DM_CSR_600			0x33
-#define	 UART_DM_CSR_300			0x22
-#define	 UART_DM_CSR_150			0x11
-#define	 UART_DM_CSR_75				0x00
 
 /* UART DM TX FIFO Registers - 4, write only */
 #define	UART_DM_TF(x)				(0x70 + (4 * (x)))
@@ -177,6 +161,11 @@ enum UART_DM_BITS_PER_CHAR {
 
 /* UART Data Mover Enable Register */
 #define	UART_DM_DMEN				0x3c
+/*
+ * Single-Character mode for RX channel (every character received
+ * is zero-padded into a word).
+ */
+#define	 UART_DM_DMEN_RX_SC_ENABLE		(1 << 5)
 
 /* Number of characters for Transmission */
 #define	UART_DM_NO_CHARS_FOR_TX			0x40

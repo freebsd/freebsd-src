@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 27, 2016
+.Dd November 30, 2017
 .Dt GMIRROR 8
 .Os
 .Sh NAME
@@ -179,7 +179,7 @@ Defaults to 4096 bytes.
 Clear metadata on the given providers.
 .It Cm create
 Similar to
-.Cm label,
+.Cm label ,
 but creates mirror without storing on-disk metadata in last sector.
 This special "manual" operation mode assumes some external control to manage
 mirror detection after reboot, device hot-plug and other external events.
@@ -337,6 +337,45 @@ gmirror deactivate data da1
 dd if=/dev/da1 of=/backup/data.img bs=1m
 gmirror activate data da1
 .Ed
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to configure behavior for all mirrors.
+.Bl -tag -width indent
+.It Va kern.geom.mirror.debug
+Control the verbosity of kernel logging related to mirrors.
+A value larger than 0 will enable debug logging.
+.It Va kern.geom.mirror.timeout
+The amount of time, in seconds, to wait for all copies of a mirror to
+appear before starting the mirror.
+Disks that appear after the mirror has been started are not automatically
+added to the mirror.
+.It Va kern.geom.mirror.idletime
+The amount of time, in seconds, which must elapse after the last write to
+a mirror before that mirror is marked clean.
+Clean mirrors do not need to be synchronized after a power failure or
+system crash.
+A small value may result in frequent overwrites of the disks' metadata
+sectors, and thus may reduce the longevity of the disks.
+.It Va kern.geom.mirror.disconnect_on_failure
+Determine whether a disk is automatically removed from its mirror when an
+I/O request to that disk fails.
+.It Va kern.geom.mirror.sync_requests
+The number of parallel I/O requests used while synchronizing a mirror.
+This parameter may only be configured as a
+.Xr loader.conf 5
+tunable.
+.It Va kern.geom.mirror.sync_update_period
+The period, in seconds, at which a synchronizing mirror's metadata is
+updated.
+Periodic updates are used to record a synchronization's progress so that
+an interrupted synchronization may be resumed starting at the recorded
+offset, rather than at the beginning.
+A smaller value results in more accurate progress tracking, but also
+increases the number of non-sequential writes to the disk being synchronized.
+If the sysctl value is 0, no updates are performed until the synchronization
+is complete.
+.El
 .Sh NOTES
 Doing kernel dumps to
 .Nm
@@ -382,6 +421,7 @@ there.
 .Xr mount 8 ,
 .Xr newfs 8 ,
 .Xr savecore 8 ,
+.Xr sysctl 8 ,
 .Xr umount 8
 .Sh HISTORY
 The
@@ -394,7 +434,3 @@ utility appeared in
 There should be a way to change a component's priority inside a running mirror.
 .Pp
 There should be a section with an implementation description.
-.Pp
-Documentation for sysctls
-.Va kern.geom.mirror.*
-is missing.

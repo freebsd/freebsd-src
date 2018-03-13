@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -138,7 +140,7 @@ g_dev_setdumpdev(struct cdev *dev, struct diocskerneldump_arg *kda,
 	int error, len;
 
 	if (dev == NULL || kda == NULL)
-		return (set_dumper(NULL, NULL, td, 0, NULL, 0, NULL));
+		return (set_dumper(NULL, NULL, td, 0, 0, NULL, 0, NULL));
 
 	cp = dev->si_drv2;
 	len = sizeof(kd);
@@ -148,8 +150,9 @@ g_dev_setdumpdev(struct cdev *dev, struct diocskerneldump_arg *kda,
 	if (error != 0)
 		return (error);
 
-	error = set_dumper(&kd.di, devtoname(dev), td, kda->kda_encryption,
-	    kda->kda_key, kda->kda_encryptedkeysize, kda->kda_encryptedkey);
+	error = set_dumper(&kd.di, devtoname(dev), td, kda->kda_compression,
+	    kda->kda_encryption, kda->kda_key, kda->kda_encryptedkeysize,
+	    kda->kda_encryptedkey);
 	if (error == 0)
 		dev->si_flags |= SI_DUMPDEV;
 
@@ -832,7 +835,7 @@ g_dev_orphan(struct g_consumer *cp)
 
 	/* Reset any dump-area set on this device */
 	if (dev->si_flags & SI_DUMPDEV)
-		(void)set_dumper(NULL, NULL, curthread, 0, NULL, 0, NULL);
+		(void)set_dumper(NULL, NULL, curthread, 0, 0, NULL, 0, NULL);
 
 	/* Destroy the struct cdev *so we get no more requests */
 	destroy_dev_sched_cb(dev, g_dev_callback, cp);

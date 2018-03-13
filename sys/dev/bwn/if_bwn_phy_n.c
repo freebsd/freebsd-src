@@ -65,9 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-#include <dev/siba/siba_ids.h>
-#include <dev/siba/sibareg.h>
-#include <dev/siba/sibavar.h>
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
@@ -122,8 +119,7 @@ bwn_phy_n_prepare_hw(struct bwn_mac *mac)
 {
 
 #ifdef	BWN_GPL_PHY
-	bwn_nphy_op_prepare_structs(mac);
-	return (0);
+	return (bwn_nphy_op_prepare_structs(mac));
 #else
 	return (ENXIO);
 #endif

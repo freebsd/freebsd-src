@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 1998, 2000 Marshall Kirk McKusick. All Rights Reserved.
  *
  * The soft updates code is derived from the appendix of a University

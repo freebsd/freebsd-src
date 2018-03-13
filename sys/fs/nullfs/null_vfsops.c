@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -318,7 +320,8 @@ nullfs_statfs(mp, sbp)
 	/* now copy across the "interesting" information and fake the rest */
 	sbp->f_type = mstat->f_type;
 	sbp->f_flags = (sbp->f_flags & (MNT_RDONLY | MNT_NOEXEC | MNT_NOSUID |
-	    MNT_UNION | MNT_NOSYMFOLLOW)) | (mstat->f_flags & ~MNT_ROOTFS);
+	    MNT_UNION | MNT_NOSYMFOLLOW | MNT_AUTOMOUNTED)) |
+	    (mstat->f_flags & ~(MNT_ROOTFS | MNT_AUTOMOUNTED));
 	sbp->f_bsize = mstat->f_bsize;
 	sbp->f_iosize = mstat->f_iosize;
 	sbp->f_blocks = mstat->f_blocks;

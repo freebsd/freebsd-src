@@ -52,12 +52,10 @@ run(int n, ...)
 
 	va_start(va, n);
 #ifdef __FreeBSD__
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__sparc64__)
 	for (i = 0; i < 5; i++) {
-#elif defined(__aarch64__)
+#elif defined(__aarch64__) || defined(__riscv__)
 	for (i = 0; i < 7; i++) {
-#elif defined(__mips__)
-	for (i = 0; i < 5; i++) {
 #else
 	for (i = 0; i < 9; i++) {
 #endif
@@ -121,18 +119,20 @@ ATF_TC_BODY(setcontext_link, tc)
 		uc[i].uc_link = (i > 0) ? &uc[i - 1] : &save;
 
 #ifdef __FreeBSD__
-#if defined(__amd64__)
-		/* FreeBSD/amd64 only permits up to 6 arguments. */
+#if defined(__amd64__) || defined(__sparc64__)
+		/*
+		 * FreeBSD/amd64 and FreeBSD/sparc64 only permit up to
+		 * 6 arguments.
+		 */
 		makecontext(&uc[i], (void *)run, 6, i,
 			0, 1, 2, 3, 4);
-#elif defined(__aarch64__)
-		/* FreeBSD/arm64 only permits up to 8 arguments. */
+#elif defined(__aarch64__) || defined(__riscv__)
+		/*
+		 * FreeBSD/arm64 and FreeBSD/riscv64 only permit up to
+		 * 8 arguments.
+		 */
 		makecontext(&uc[i], (void *)run, 8, i,
 			0, 1, 2, 3, 4, 5, 6);
-#elif defined(__mips__)
-		/* FreeBSD/mips only permits up to 6 arguments. */
-		makecontext(&uc[i], (void *)run, 6, i,
-			0, 1, 2, 3, 4);
 #else
 		makecontext(&uc[i], (void *)run, 10, i,
 			0, 1, 2, 3, 4, 5, 6, 7, 8);

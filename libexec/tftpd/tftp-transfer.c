@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2008 Edwin Groothuis. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -301,6 +303,8 @@ send_ack:
 		}
 		gettimeofday(&(ts->tstop), NULL);
 	} while (n_data == segsize);
+
+	write_close();
 
 	/* Don't do late packet management for the client implementation */
 	if (acting_as_client)

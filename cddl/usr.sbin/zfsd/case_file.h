@@ -89,6 +89,8 @@ public:
 	 * \brief Find a CaseFile object by a vdev's pool/vdev GUID tuple.
 	 *
 	 * \param poolGUID  Pool GUID for the vdev of the CaseFile to find.
+	 * 		    If InvalidGuid, then only match the vdev GUID
+	 * 		    instead of both pool and vdev GUIDs.
 	 * \param vdevGUID  Vdev GUID for the vdev of the CaseFile to find.
 	 *
 	 * \return  If found, a pointer to a valid CaseFile object.
@@ -131,6 +133,11 @@ public:
 	 *        the file system.
 	 */
 	static void      DeSerialize();
+
+	/**
+	 * \brief returns true if there are no CaseFiles
+	 */
+	static bool	Empty();
 
 	/**
 	 * \brief Emit syslog data on all active CaseFile%%s in the system.

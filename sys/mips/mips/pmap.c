@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
  * Copyright (c) 1994 John S. Dyson
@@ -1007,7 +1009,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	 * If the page is finally unwired, simply free it.
 	 */
 	vm_page_free_zero(m);
-	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+	vm_wire_sub(1);
 }
 
 /*
@@ -1048,11 +1050,11 @@ pmap_grow_direct_page(int req)
 {
 
 #ifdef __mips_n64
-	VM_WAIT;
+	vm_wait(NULL);
 #else
 	if (!vm_page_reclaim_contig(req, 1, 0, MIPS_KSEG0_LARGEST_PHYS,
 	    PAGE_SIZE, 0))
-		VM_WAIT;
+		vm_wait(NULL);
 #endif
 }
 
@@ -1157,8 +1159,7 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex, u_int flags)
 			if (_pmap_allocpte(pmap, NUPDE + segindex,
 			    flags) == NULL) {
 				/* alloc failed, release current */
-				--m->wire_count;
-				atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+				vm_page_unwire_noq(m);
 				vm_page_free_zero(m);
 				return (NULL);
 			}
@@ -1236,8 +1237,7 @@ pmap_release(pmap_t pmap)
 	ptdva = (vm_offset_t)pmap->pm_segtab;
 	ptdpg = PHYS_TO_VM_PAGE(MIPS_DIRECT_TO_PHYS(ptdva));
 
-	ptdpg->wire_count--;
-	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+	vm_page_unwire_noq(ptdpg);
 	vm_page_free_zero(ptdpg);
 }
 

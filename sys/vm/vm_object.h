@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-3-Clause AND MIT-CMU)
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -72,6 +74,7 @@
 #include <sys/_mutex.h>
 #include <sys/_pctrie.h>
 #include <sys/_rwlock.h>
+#include <sys/_domainset.h>
 
 #include <vm/_vm_radix.h>
 
@@ -100,6 +103,7 @@ struct vm_object {
 	struct pglist memq;		/* list of resident pages */
 	struct vm_radix rtree;		/* root of the resident page radix trie*/
 	vm_pindex_t size;		/* Object size */
+	struct domainset_ref domain;	/* NUMA policy. */
 	int generation;			/* generation ID */
 	int ref_count;			/* How many refs?? */
 	int shadow_count;		/* how many objects that this is a shadow for */
@@ -225,10 +229,10 @@ extern struct object_q vm_object_list;	/* list of allocated objects */
 extern struct mtx vm_object_list_mtx;	/* lock for object list and count */
 
 extern struct vm_object kernel_object_store;
-extern struct vm_object kmem_object_store;
 
+/* kernel and kmem are aliased for backwards KPI compat. */
 #define	kernel_object	(&kernel_object_store)
-#define	kmem_object	(&kmem_object_store)
+#define	kmem_object	(&kernel_object_store)
 
 #define	VM_OBJECT_ASSERT_LOCKED(object)					\
 	rw_assert(&(object)->lock, RA_LOCKED)
@@ -291,6 +295,17 @@ vm_object_color(vm_object_t object, u_short color)
 		object->pg_color = color;
 		object->flags |= OBJ_COLORED;
 	}
+}
+
+static __inline bool
+vm_object_reserv(vm_object_t object)
+{
+
+	if (object != NULL &&
+	    (object->flags & (OBJ_COLORED | OBJ_FICTITIOUS)) == OBJ_COLORED) {
+		return (true);
+	}
+	return (false);
 }
 
 void vm_object_clear_flag(vm_object_t object, u_short bits);

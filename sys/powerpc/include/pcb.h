@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
  * All rights reserved.
@@ -37,6 +39,7 @@
 
 #include <machine/setjmp.h>
 
+#ifndef _STANDALONE
 struct pcb {
 	register_t	pcb_context[20];	/* non-volatile r14-r31 */
 	register_t	pcb_cr;			/* Condition register */
@@ -79,6 +82,7 @@ struct pcb {
 		} booke;
 	} pcb_cpu;
 };
+#endif
 
 #ifdef	_KERNEL
 

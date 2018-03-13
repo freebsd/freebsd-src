@@ -73,6 +73,7 @@ enum fw_retval {
 	FW_SCSI_OVER_FLOW_ERR   = 140,	/* */
 	FW_SCSI_DDP_ERR		= 141,	/* DDP error*/
 	FW_SCSI_TASK_ERR	= 142,	/* No SCSI tasks available */
+	FW_SCSI_IO_BLOCK	= 143,	/* IO is going to be blocked due to resource failure */
 };
 
 /******************************************************************************
@@ -140,9 +141,10 @@ enum fw_wr_opcodes {
 	FW_PTP_TX_PKT_WR        = 0x46,
 	FW_TLSTX_DATA_WR	= 0x68,
 	FW_CRYPTO_LOOKASIDE_WR	= 0x6d,
-	FW_COiSCSI_TGT_WR	= 0x70,
-	FW_COiSCSI_TGT_CONN_WR	= 0x71,
-	FW_COiSCSI_TGT_XMIT_WR	= 0x72,
+	FW_COISCSI_TGT_WR	= 0x70,
+	FW_COISCSI_TGT_CONN_WR	= 0x71,
+	FW_COISCSI_TGT_XMIT_WR	= 0x72,
+	FW_COISCSI_STATS_WR	 = 0x73,
 	FW_ISNS_WR		= 0x75,
 	FW_ISNS_XMIT_WR		= 0x76,
 	FW_FILTER2_WR		= 0x77,
@@ -2093,6 +2095,8 @@ struct fw_ri_wr {
 
 #define	FW_FOISCSI_NAME_MAX_LEN		224
 #define	FW_FOISCSI_ALIAS_MAX_LEN	224
+#define	FW_FOISCSI_KEY_MAX_LEN	64
+#define	FW_FOISCSI_VAL_MAX_LEN	256
 #define FW_FOISCSI_CHAP_SEC_MAX_LEN	128
 #define	FW_FOISCSI_INIT_NODE_MAX	8
 
@@ -2124,19 +2128,36 @@ enum fw_chnet_ifconf_wr_subop {
 	FW_CHNET_IFCONF_WR_SUBOP_RA_BASED_ADDR_SET,
 	FW_CHNET_IFCONF_WR_SUBOP_ADDR_EXPIRED,
 
+	FW_CHNET_IFCONF_WR_SUBOP_ICMP_PING4,
+	FW_CHNET_IFCONF_WR_SUBOP_ICMP_PING6,
+
 	FW_CHNET_IFCONF_WR_SUBOP_MAX,
 };
 
 struct fw_chnet_ifconf_wr {
 	__be32 op_compl;
 	__be32 flowid_len16;
-	__be64 cookie;
+	__u64  cookie;
 	__be32 if_flowid;
 	__u8   idx;
 	__u8   subop;
 	__u8   retval;
 	__u8   r2;
-	__be64 r3;
+	union {
+		__be64 r3;
+		struct fw_chnet_ifconf_ping {
+			__be16 ping_time;
+			__u8   ping_rsptype;
+			__u8   ping_param_rspcode_to_fin_bit;
+			__u8   ping_pktsize;
+			__u8   ping_ttl;
+			__be16 ping_seq;
+		} ping;
+		struct fw_chnet_ifconf_mac {
+			__u8   peer_mac[6];
+			__u8   smac_idx;
+		} mac;
+	} u;
 	struct fw_chnet_ifconf_params {
 		__be32 r0;
 		__be16 vlanid;
@@ -2162,6 +2183,23 @@ struct fw_chnet_ifconf_wr {
 		} in_attr;
 	} param;
 };
+
+#define S_FW_CHNET_IFCONF_WR_PING_MACBIT	1
+#define M_FW_CHNET_IFCONF_WR_PING_MACBIT	0x1
+#define V_FW_CHNET_IFCONF_WR_PING_MACBIT(x)	\
+    ((x) << S_FW_CHNET_IFCONF_WR_PING_MACBIT)
+#define G_FW_CHNET_IFCONF_WR_PING_MACBIT(x)	\
+    (((x) >> S_FW_CHNET_IFCONF_WR_PING_MACBIT) & \
+     M_FW_CHNET_IFCONF_WR_PING_MACBIT)
+#define F_FW_CHNET_IFCONF_WR_PING_MACBIT	\
+    V_FW_CHNET_IFCONF_WR_PING_MACBIT(1U)
+
+#define S_FW_CHNET_IFCONF_WR_FIN_BIT	0
+#define M_FW_CHNET_IFCONF_WR_FIN_BIT	0x1
+#define V_FW_CHNET_IFCONF_WR_FIN_BIT(x)	((x) << S_FW_CHNET_IFCONF_WR_FIN_BIT)
+#define G_FW_CHNET_IFCONF_WR_FIN_BIT(x)	\
+    (((x) >> S_FW_CHNET_IFCONF_WR_FIN_BIT) & M_FW_CHNET_IFCONF_WR_FIN_BIT)
+#define F_FW_CHNET_IFCONF_WR_FIN_BIT	V_FW_CHNET_IFCONF_WR_FIN_BIT(1U)
 
 enum fw_foiscsi_node_type {
 	FW_FOISCSI_NODE_TYPE_INITIATOR = 0,
@@ -2196,6 +2234,13 @@ enum fw_foiscsi_wr_subop {
 	FW_FOISCSI_WR_SUBOP_ADD = 1,
 	FW_FOISCSI_WR_SUBOP_DEL = 2,
 	FW_FOISCSI_WR_SUBOP_MOD = 4,
+};
+
+enum fw_coiscsi_stats_wr_subop {
+	FW_COISCSI_WR_SUBOP_TOT = 1,
+	FW_COISCSI_WR_SUBOP_MAX = 2,
+	FW_COISCSI_WR_SUBOP_CUR = 3,
+	FW_COISCSI_WR_SUBOP_CLR = 4,
 };
 
 enum fw_foiscsi_ctrl_state {
@@ -2487,7 +2532,7 @@ struct fw_rdev_wr {
 
 struct fw_foiscsi_node_wr {
 	__be32 op_to_immdlen;
-	__be32 flowid_len16;
+	__be32 no_sess_recv_to_len16;
 	__u64  cookie;
 	__u8   subop;
 	__u8   status;
@@ -2500,6 +2545,7 @@ struct fw_foiscsi_node_wr {
 	__be16 r3;
 	__u8   iqn[224];
 	__u8   alias[224];
+	__be32 isid_tval_to_isid_cval;
 };
 
 #define S_FW_FOISCSI_NODE_WR_IMMDLEN	0
@@ -2508,8 +2554,46 @@ struct fw_foiscsi_node_wr {
 #define G_FW_FOISCSI_NODE_WR_IMMDLEN(x)	\
     (((x) >> S_FW_FOISCSI_NODE_WR_IMMDLEN) & M_FW_FOISCSI_NODE_WR_IMMDLEN)
 
+#define S_FW_FOISCSI_NODE_WR_NO_SESS_RECV	28
+#define M_FW_FOISCSI_NODE_WR_NO_SESS_RECV	0x1
+#define V_FW_FOISCSI_NODE_WR_NO_SESS_RECV(x)	\
+    ((x) << S_FW_FOISCSI_NODE_WR_NO_SESS_RECV)
+#define G_FW_FOISCSI_NODE_WR_NO_SESS_RECV(x)	\
+    (((x) >> S_FW_FOISCSI_NODE_WR_NO_SESS_RECV) & \
+     M_FW_FOISCSI_NODE_WR_NO_SESS_RECV)
+#define F_FW_FOISCSI_NODE_WR_NO_SESS_RECV	\
+    V_FW_FOISCSI_NODE_WR_NO_SESS_RECV(1U)
+
+#define S_FW_FOISCSI_NODE_WR_ISID_TVAL		30
+#define M_FW_FOISCSI_NODE_WR_ISID_TVAL		0x3
+#define V_FW_FOISCSI_NODE_WR_ISID_TVAL(x)	\
+    ((x) << S_FW_FOISCSI_NODE_WR_ISID_TVAL)
+#define G_FW_FOISCSI_NODE_WR_ISID_TVAL(x)	\
+    (((x) >> S_FW_FOISCSI_NODE_WR_ISID_TVAL) & M_FW_FOISCSI_NODE_WR_ISID_TVAL)
+
+#define S_FW_FOISCSI_NODE_WR_ISID_AVAL		24
+#define M_FW_FOISCSI_NODE_WR_ISID_AVAL		0x3f
+#define V_FW_FOISCSI_NODE_WR_ISID_AVAL(x)	\
+    ((x) << S_FW_FOISCSI_NODE_WR_ISID_AVAL)
+#define G_FW_FOISCSI_NODE_WR_ISID_AVAL(x)	\
+    (((x) >> S_FW_FOISCSI_NODE_WR_ISID_AVAL) & M_FW_FOISCSI_NODE_WR_ISID_AVAL)
+
+#define S_FW_FOISCSI_NODE_WR_ISID_BVAL		8
+#define M_FW_FOISCSI_NODE_WR_ISID_BVAL		0xffff
+#define V_FW_FOISCSI_NODE_WR_ISID_BVAL(x)	\
+    ((x) << S_FW_FOISCSI_NODE_WR_ISID_BVAL)
+#define G_FW_FOISCSI_NODE_WR_ISID_BVAL(x)	\
+    (((x) >> S_FW_FOISCSI_NODE_WR_ISID_BVAL) & M_FW_FOISCSI_NODE_WR_ISID_BVAL)
+
+#define S_FW_FOISCSI_NODE_WR_ISID_CVAL		0
+#define M_FW_FOISCSI_NODE_WR_ISID_CVAL		0xff
+#define V_FW_FOISCSI_NODE_WR_ISID_CVAL(x)	\
+    ((x) << S_FW_FOISCSI_NODE_WR_ISID_CVAL)
+#define G_FW_FOISCSI_NODE_WR_ISID_CVAL(x)	\
+    (((x) >> S_FW_FOISCSI_NODE_WR_ISID_CVAL) & M_FW_FOISCSI_NODE_WR_ISID_CVAL)
+
 struct fw_foiscsi_ctrl_wr {
-	__be32 op_compl;
+	__be32 op_to_no_fin;
 	__be32 flowid_len16;
 	__u64  cookie;
 	__u8   subop;
@@ -2530,7 +2614,7 @@ struct fw_foiscsi_ctrl_wr {
 		__be32 r1;
 	} sess_attr;
 	struct fw_foiscsi_conn_attr {
-		__be32 hdigest_to_ddp_pgsz;
+		__be32 hdigest_to_tcp_ws_en;
 		__be32 max_rcv_dsl;
 		__be32 ping_tmo;
 		__be16 dst_port;
@@ -2550,6 +2634,13 @@ struct fw_foiscsi_ctrl_wr {
 	__u8   r3[7];
 	__u8   tgt_name[FW_FOISCSI_NAME_MAX_LEN];
 };
+
+#define S_FW_FOISCSI_CTRL_WR_NO_FIN	0
+#define M_FW_FOISCSI_CTRL_WR_NO_FIN	0x1
+#define V_FW_FOISCSI_CTRL_WR_NO_FIN(x)	((x) << S_FW_FOISCSI_CTRL_WR_NO_FIN)
+#define G_FW_FOISCSI_CTRL_WR_NO_FIN(x)	\
+    (((x) >> S_FW_FOISCSI_CTRL_WR_NO_FIN) & M_FW_FOISCSI_CTRL_WR_NO_FIN)
+#define F_FW_FOISCSI_CTRL_WR_NO_FIN	V_FW_FOISCSI_CTRL_WR_NO_FIN(1U)
 
 #define S_FW_FOISCSI_CTRL_WR_SESS_TYPE		30
 #define M_FW_FOISCSI_CTRL_WR_SESS_TYPE		0x3
@@ -2646,19 +2737,63 @@ struct fw_foiscsi_ctrl_wr {
     (((x) >> S_FW_FOISCSI_CTRL_WR_IPV6) & M_FW_FOISCSI_CTRL_WR_IPV6)
 #define F_FW_FOISCSI_CTRL_WR_IPV6	V_FW_FOISCSI_CTRL_WR_IPV6(1U)
 
+#define S_FW_FOISCSI_CTRL_WR_DDP_PGIDX		16
+#define M_FW_FOISCSI_CTRL_WR_DDP_PGIDX		0xf
+#define V_FW_FOISCSI_CTRL_WR_DDP_PGIDX(x)	\
+    ((x) << S_FW_FOISCSI_CTRL_WR_DDP_PGIDX)
+#define G_FW_FOISCSI_CTRL_WR_DDP_PGIDX(x)	\
+    (((x) >> S_FW_FOISCSI_CTRL_WR_DDP_PGIDX) & M_FW_FOISCSI_CTRL_WR_DDP_PGIDX)
+
+#define S_FW_FOISCSI_CTRL_WR_TCP_WS	12
+#define M_FW_FOISCSI_CTRL_WR_TCP_WS	0xf
+#define V_FW_FOISCSI_CTRL_WR_TCP_WS(x)	((x) << S_FW_FOISCSI_CTRL_WR_TCP_WS)
+#define G_FW_FOISCSI_CTRL_WR_TCP_WS(x)	\
+    (((x) >> S_FW_FOISCSI_CTRL_WR_TCP_WS) & M_FW_FOISCSI_CTRL_WR_TCP_WS)
+
+#define S_FW_FOISCSI_CTRL_WR_TCP_WS_EN		11
+#define M_FW_FOISCSI_CTRL_WR_TCP_WS_EN		0x1
+#define V_FW_FOISCSI_CTRL_WR_TCP_WS_EN(x)	\
+    ((x) << S_FW_FOISCSI_CTRL_WR_TCP_WS_EN)
+#define G_FW_FOISCSI_CTRL_WR_TCP_WS_EN(x)	\
+    (((x) >> S_FW_FOISCSI_CTRL_WR_TCP_WS_EN) & M_FW_FOISCSI_CTRL_WR_TCP_WS_EN)
+#define F_FW_FOISCSI_CTRL_WR_TCP_WS_EN	V_FW_FOISCSI_CTRL_WR_TCP_WS_EN(1U)
+
 struct fw_foiscsi_chap_wr {
-	__be32 op_compl;
+	__be32 op_to_kv_flag;
 	__be32 flowid_len16;
 	__u64  cookie;
 	__u8   status;
-	__u8   id_len;
-	__u8   sec_len;
+	union fw_foiscsi_len {
+		struct fw_foiscsi_chap_lens {
+			__u8   id_len;
+			__u8   sec_len;
+		} chapl;
+		struct fw_foiscsi_vend_kv_lens {
+			__u8   key_len;
+			__u8   val_len;
+		} vend_kvl;
+	} lenu;
 	__u8   node_type;
 	__be16 node_id;
 	__u8   r3[2];
-	__u8   chap_id[FW_FOISCSI_NAME_MAX_LEN];
-	__u8   chap_sec[FW_FOISCSI_CHAP_SEC_MAX_LEN];
+	union fw_foiscsi_chap_vend {
+		struct fw_foiscsi_chap {
+			__u8   chap_id[224];
+			__u8   chap_sec[128];
+		} chap;
+		struct fw_foiscsi_vend_kv {
+			__u8   vend_key[64];
+			__u8   vend_val[256];
+		} vend_kv;
+	} u;
 };
+
+#define S_FW_FOISCSI_CHAP_WR_KV_FLAG	20
+#define M_FW_FOISCSI_CHAP_WR_KV_FLAG	0x1
+#define V_FW_FOISCSI_CHAP_WR_KV_FLAG(x)	((x) << S_FW_FOISCSI_CHAP_WR_KV_FLAG)
+#define G_FW_FOISCSI_CHAP_WR_KV_FLAG(x)	\
+    (((x) >> S_FW_FOISCSI_CHAP_WR_KV_FLAG) & M_FW_FOISCSI_CHAP_WR_KV_FLAG)
+#define F_FW_FOISCSI_CHAP_WR_KV_FLAG	V_FW_FOISCSI_CHAP_WR_KV_FLAG(1U)
 
 /******************************************************************************
  *  C O i S C S I  W O R K R E Q U E S T S
@@ -2711,22 +2846,31 @@ struct fw_coiscsi_tgt_conn_wr {
 	__be16 iq_id;
 	__be32 in_stid;
 	__be32 io_id;
-	__be32 flags;
-	struct fw_coiscsi_tgt_conn_tcp {
-		__be16 in_sport;
-		__be16 in_dport;
-		__be32 r4;
-		union fw_coiscsi_tgt_conn_tcp_addr {
-			struct fw_coiscsi_tgt_conn_tcp_in_addr {
-				__be32 saddr;
-				__be32 daddr;
-			} in_addr;
-			struct fw_coiscsi_tgt_conn_tcp_in_addr6 {
-				__be64 saddr[2];
-				__be64 daddr[2];
-			} in_addr6;
-		} u;
-	} conn_tcp;
+	__be32 flags_fin;
+	union {
+		struct fw_coiscsi_tgt_conn_tcp {
+			__be16 in_sport;
+			__be16 in_dport;
+			__u8   wscale_wsen;
+			__u8   r4[3];
+			union fw_coiscsi_tgt_conn_tcp_addr {
+				struct fw_coiscsi_tgt_conn_tcp_in_addr {
+					__be32 saddr;
+					__be32 daddr;
+				} in_addr;
+				struct fw_coiscsi_tgt_conn_tcp_in_addr6 {
+					__be64 saddr[2];
+					__be64 daddr[2];
+				} in_addr6;
+			} u;
+		} conn_tcp;
+		struct fw_coiscsi_tgt_conn_stats {
+			__be32 ddp_reqs;
+			__be32 ddp_cmpls;
+			__be16 ddp_aborts;
+			__be16 ddp_bps;
+		} stats;
+	} u;
 	struct fw_coiscsi_tgt_conn_iscsi {
 		__be32 hdigest_to_ddp_pgsz;
 		__be32 tgt_id;
@@ -2735,79 +2879,148 @@ struct fw_coiscsi_tgt_conn_wr {
 		__be32 max_burst;
 		__be32 max_rdsl;
 		__be32 max_tdsl;
-		__be32 nxt_sn;
+		__be32 cur_sn;
 		__be32 r6;
 	} conn_iscsi;
 };
 
+#define S_FW_COISCSI_TGT_CONN_WR_FIN	0
+#define M_FW_COISCSI_TGT_CONN_WR_FIN	0x1
+#define V_FW_COISCSI_TGT_CONN_WR_FIN(x)	((x) << S_FW_COISCSI_TGT_CONN_WR_FIN)
+#define G_FW_COISCSI_TGT_CONN_WR_FIN(x)	\
+    (((x) >> S_FW_COISCSI_TGT_CONN_WR_FIN) & M_FW_COISCSI_TGT_CONN_WR_FIN)
+#define F_FW_COISCSI_TGT_CONN_WR_FIN	V_FW_COISCSI_TGT_CONN_WR_FIN(1U)
+
+#define S_FW_COISCSI_TGT_CONN_WR_WSCALE		1
+#define M_FW_COISCSI_TGT_CONN_WR_WSCALE		0xf
+#define V_FW_COISCSI_TGT_CONN_WR_WSCALE(x)	\
+    ((x) << S_FW_COISCSI_TGT_CONN_WR_WSCALE)
+#define G_FW_COISCSI_TGT_CONN_WR_WSCALE(x)	\
+    (((x) >> S_FW_COISCSI_TGT_CONN_WR_WSCALE) & \
+     M_FW_COISCSI_TGT_CONN_WR_WSCALE)
+
+#define S_FW_COISCSI_TGT_CONN_WR_WSEN		0
+#define M_FW_COISCSI_TGT_CONN_WR_WSEN		0x1
+#define V_FW_COISCSI_TGT_CONN_WR_WSEN(x)	\
+    ((x) << S_FW_COISCSI_TGT_CONN_WR_WSEN)
+#define G_FW_COISCSI_TGT_CONN_WR_WSEN(x)	\
+    (((x) >> S_FW_COISCSI_TGT_CONN_WR_WSEN) & M_FW_COISCSI_TGT_CONN_WR_WSEN)
+#define F_FW_COISCSI_TGT_CONN_WR_WSEN	V_FW_COISCSI_TGT_CONN_WR_WSEN(1U)
+
 struct fw_coiscsi_tgt_xmit_wr {
 	__be32 op_to_immdlen;
-	__be32 flowid_len16;
-	__be64 cookie;
+	union {
+		struct cmpl_stat {
+			__be32 cmpl_status_pkd;
+		} cs;
+		struct flowid_len {
+			__be32 flowid_len16;
+		} fllen;
+	} u;
+	__u64  cookie;
 	__be16 iq_id;
-	__be16 r4;
-	__be32 datasn;
+	__be16 r3;
+	__be32 pz_off;
 	__be32 t_xfer_len;
-	__be32 flags;
-	__be32 tag;
-	__be32 tidx;
-	__be32 r5[2];
+	union {
+		__be32 tag;
+		__be32 datasn;
+		__be32 ddp_status;
+	} cu;
 };
 
-#define S_FW_COiSCSI_TGT_XMIT_WR_DDGST		23
-#define M_FW_COiSCSI_TGT_XMIT_WR_DDGST		0x1
-#define V_FW_COiSCSI_TGT_XMIT_WR_DDGST(x)	\
-    ((x) << S_FW_COiSCSI_TGT_XMIT_WR_DDGST)
-#define G_FW_COiSCSI_TGT_XMIT_WR_DDGST(x)	\
-    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_DDGST) & M_FW_COiSCSI_TGT_XMIT_WR_DDGST)
-#define F_FW_COiSCSI_TGT_XMIT_WR_DDGST	V_FW_COiSCSI_TGT_XMIT_WR_DDGST(1U)
+#define S_FW_COISCSI_TGT_XMIT_WR_DDGST		23
+#define M_FW_COISCSI_TGT_XMIT_WR_DDGST		0x1
+#define V_FW_COISCSI_TGT_XMIT_WR_DDGST(x)	\
+    ((x) << S_FW_COISCSI_TGT_XMIT_WR_DDGST)
+#define G_FW_COISCSI_TGT_XMIT_WR_DDGST(x)	\
+    (((x) >> S_FW_COISCSI_TGT_XMIT_WR_DDGST) & M_FW_COISCSI_TGT_XMIT_WR_DDGST)
+#define F_FW_COISCSI_TGT_XMIT_WR_DDGST	V_FW_COISCSI_TGT_XMIT_WR_DDGST(1U)
 
-#define S_FW_COiSCSI_TGT_XMIT_WR_HDGST		22
-#define M_FW_COiSCSI_TGT_XMIT_WR_HDGST		0x1
-#define V_FW_COiSCSI_TGT_XMIT_WR_HDGST(x)	\
-    ((x) << S_FW_COiSCSI_TGT_XMIT_WR_HDGST)
-#define G_FW_COiSCSI_TGT_XMIT_WR_HDGST(x)	\
-    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_HDGST) & M_FW_COiSCSI_TGT_XMIT_WR_HDGST)
-#define F_FW_COiSCSI_TGT_XMIT_WR_HDGST	V_FW_COiSCSI_TGT_XMIT_WR_HDGST(1U)
+#define S_FW_COISCSI_TGT_XMIT_WR_HDGST		22
+#define M_FW_COISCSI_TGT_XMIT_WR_HDGST		0x1
+#define V_FW_COISCSI_TGT_XMIT_WR_HDGST(x)	\
+    ((x) << S_FW_COISCSI_TGT_XMIT_WR_HDGST)
+#define G_FW_COISCSI_TGT_XMIT_WR_HDGST(x)	\
+    (((x) >> S_FW_COISCSI_TGT_XMIT_WR_HDGST) & M_FW_COISCSI_TGT_XMIT_WR_HDGST)
+#define F_FW_COISCSI_TGT_XMIT_WR_HDGST	V_FW_COISCSI_TGT_XMIT_WR_HDGST(1U)
 
-#define S_FW_COiSCSI_TGT_XMIT_WR_DDP	20
-#define M_FW_COiSCSI_TGT_XMIT_WR_DDP	0x1
-#define V_FW_COiSCSI_TGT_XMIT_WR_DDP(x)	((x) << S_FW_COiSCSI_TGT_XMIT_WR_DDP)
-#define G_FW_COiSCSI_TGT_XMIT_WR_DDP(x)	\
-    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_DDP) & M_FW_COiSCSI_TGT_XMIT_WR_DDP)
-#define F_FW_COiSCSI_TGT_XMIT_WR_DDP	V_FW_COiSCSI_TGT_XMIT_WR_DDP(1U)
+#define S_FW_COISCSI_TGT_XMIT_WR_DDP	20
+#define M_FW_COISCSI_TGT_XMIT_WR_DDP	0x1
+#define V_FW_COISCSI_TGT_XMIT_WR_DDP(x)	((x) << S_FW_COISCSI_TGT_XMIT_WR_DDP)
+#define G_FW_COISCSI_TGT_XMIT_WR_DDP(x)	\
+    (((x) >> S_FW_COISCSI_TGT_XMIT_WR_DDP) & M_FW_COISCSI_TGT_XMIT_WR_DDP)
+#define F_FW_COISCSI_TGT_XMIT_WR_DDP	V_FW_COISCSI_TGT_XMIT_WR_DDP(1U)
 
-#define S_FW_COiSCSI_TGT_XMIT_WR_ABORT		19
-#define M_FW_COiSCSI_TGT_XMIT_WR_ABORT		0x1
-#define V_FW_COiSCSI_TGT_XMIT_WR_ABORT(x)	\
-    ((x) << S_FW_COiSCSI_TGT_XMIT_WR_ABORT)
-#define G_FW_COiSCSI_TGT_XMIT_WR_ABORT(x)	\
-    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_ABORT) & M_FW_COiSCSI_TGT_XMIT_WR_ABORT)
-#define F_FW_COiSCSI_TGT_XMIT_WR_ABORT	V_FW_COiSCSI_TGT_XMIT_WR_ABORT(1U)
+#define S_FW_COISCSI_TGT_XMIT_WR_ABORT		19
+#define M_FW_COISCSI_TGT_XMIT_WR_ABORT		0x1
+#define V_FW_COISCSI_TGT_XMIT_WR_ABORT(x)	\
+    ((x) << S_FW_COISCSI_TGT_XMIT_WR_ABORT)
+#define G_FW_COISCSI_TGT_XMIT_WR_ABORT(x)	\
+    (((x) >> S_FW_COISCSI_TGT_XMIT_WR_ABORT) & M_FW_COISCSI_TGT_XMIT_WR_ABORT)
+#define F_FW_COISCSI_TGT_XMIT_WR_ABORT	V_FW_COISCSI_TGT_XMIT_WR_ABORT(1U)
 
-#define S_FW_COiSCSI_TGT_XMIT_WR_FINAL		18
-#define M_FW_COiSCSI_TGT_XMIT_WR_FINAL		0x1
-#define V_FW_COiSCSI_TGT_XMIT_WR_FINAL(x)	\
-    ((x) << S_FW_COiSCSI_TGT_XMIT_WR_FINAL)
-#define G_FW_COiSCSI_TGT_XMIT_WR_FINAL(x)	\
-    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_FINAL) & M_FW_COiSCSI_TGT_XMIT_WR_FINAL)
-#define F_FW_COiSCSI_TGT_XMIT_WR_FINAL	V_FW_COiSCSI_TGT_XMIT_WR_FINAL(1U)
+#define S_FW_COISCSI_TGT_XMIT_WR_FINAL		18
+#define M_FW_COISCSI_TGT_XMIT_WR_FINAL		0x1
+#define V_FW_COISCSI_TGT_XMIT_WR_FINAL(x)	\
+    ((x) << S_FW_COISCSI_TGT_XMIT_WR_FINAL)
+#define G_FW_COISCSI_TGT_XMIT_WR_FINAL(x)	\
+    (((x) >> S_FW_COISCSI_TGT_XMIT_WR_FINAL) & M_FW_COISCSI_TGT_XMIT_WR_FINAL)
+#define F_FW_COISCSI_TGT_XMIT_WR_FINAL	V_FW_COISCSI_TGT_XMIT_WR_FINAL(1U)
 
-#define S_FW_COiSCSI_TGT_XMIT_WR_PADLEN		16
-#define M_FW_COiSCSI_TGT_XMIT_WR_PADLEN		0x3
-#define V_FW_COiSCSI_TGT_XMIT_WR_PADLEN(x)	\
-    ((x) << S_FW_COiSCSI_TGT_XMIT_WR_PADLEN)
-#define G_FW_COiSCSI_TGT_XMIT_WR_PADLEN(x)	\
-    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_PADLEN) & \
-     M_FW_COiSCSI_TGT_XMIT_WR_PADLEN)
+#define S_FW_COISCSI_TGT_XMIT_WR_PADLEN		16
+#define M_FW_COISCSI_TGT_XMIT_WR_PADLEN		0x3
+#define V_FW_COISCSI_TGT_XMIT_WR_PADLEN(x)	\
+    ((x) << S_FW_COISCSI_TGT_XMIT_WR_PADLEN)
+#define G_FW_COISCSI_TGT_XMIT_WR_PADLEN(x)	\
+    (((x) >> S_FW_COISCSI_TGT_XMIT_WR_PADLEN) & \
+     M_FW_COISCSI_TGT_XMIT_WR_PADLEN)
 
-#define S_FW_COiSCSI_TGT_XMIT_WR_IMMDLEN	0
-#define M_FW_COiSCSI_TGT_XMIT_WR_IMMDLEN	0xff
-#define V_FW_COiSCSI_TGT_XMIT_WR_IMMDLEN(x)	\
-    ((x) << S_FW_COiSCSI_TGT_XMIT_WR_IMMDLEN)
-#define G_FW_COiSCSI_TGT_XMIT_WR_IMMDLEN(x)	\
-    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_IMMDLEN) & \
-     M_FW_COiSCSI_TGT_XMIT_WR_IMMDLEN)
+#define S_FW_COISCSI_TGT_XMIT_WR_INCSTATSN	15
+#define M_FW_COISCSI_TGT_XMIT_WR_INCSTATSN	0x1
+#define V_FW_COISCSI_TGT_XMIT_WR_INCSTATSN(x)	\
+    ((x) << S_FW_COISCSI_TGT_XMIT_WR_INCSTATSN)
+#define G_FW_COISCSI_TGT_XMIT_WR_INCSTATSN(x)	\
+    (((x) >> S_FW_COISCSI_TGT_XMIT_WR_INCSTATSN) & \
+     M_FW_COISCSI_TGT_XMIT_WR_INCSTATSN)
+#define F_FW_COISCSI_TGT_XMIT_WR_INCSTATSN	\
+    V_FW_COISCSI_TGT_XMIT_WR_INCSTATSN(1U)
+
+#define S_FW_COISCSI_TGT_XMIT_WR_IMMDLEN	0
+#define M_FW_COISCSI_TGT_XMIT_WR_IMMDLEN	0xff
+#define V_FW_COISCSI_TGT_XMIT_WR_IMMDLEN(x)	\
+    ((x) << S_FW_COISCSI_TGT_XMIT_WR_IMMDLEN)
+#define G_FW_COISCSI_TGT_XMIT_WR_IMMDLEN(x)	\
+    (((x) >> S_FW_COISCSI_TGT_XMIT_WR_IMMDLEN) & \
+     M_FW_COISCSI_TGT_XMIT_WR_IMMDLEN)
+
+#define S_FW_COISCSI_TGT_XMIT_WR_CMPL_STATUS	8
+#define M_FW_COISCSI_TGT_XMIT_WR_CMPL_STATUS	0xff
+#define V_FW_COISCSI_TGT_XMIT_WR_CMPL_STATUS(x)	\
+    ((x) << S_FW_COISCSI_TGT_XMIT_WR_CMPL_STATUS)
+#define G_FW_COISCSI_TGT_XMIT_WR_CMPL_STATUS(x)	\
+    (((x) >> S_FW_COISCSI_TGT_XMIT_WR_CMPL_STATUS) & \
+     M_FW_COISCSI_TGT_XMIT_WR_CMPL_STATUS)
+
+struct fw_coiscsi_stats_wr {
+	__be32 op_compl;
+	__be32 flowid_len16;
+	__u64  cookie;
+	__u8   subop;
+	__u8   status;
+	union fw_coiscsi_stats {
+		struct fw_coiscsi_resource {
+			__u8   num_ipv4_tgt;
+			__u8   num_ipv6_tgt;
+			__be16 num_l2t_entries;
+			__be16 num_csocks;
+			__be16 num_tasks;
+			__be16 num_ppods_zone[11];
+			__be32 num_bufll64;
+			__u8   r2[12];
+		} rsrc;
+	} u;
+};
 
 struct fw_isns_wr {
 	__be32 op_compl;
@@ -2816,7 +3029,8 @@ struct fw_isns_wr {
 	__u8   subop;
 	__u8   status;
 	__be16 iq_id;
-	__be32 r4;
+	__be16 vlanid;
+	__be16 r4;
 	struct fw_tcp_conn_attr {
 		__be32 in_tid;
 		__be16 in_port;
@@ -2838,7 +3052,7 @@ struct fw_isns_wr {
 struct fw_isns_xmit_wr {
 	__be32 op_to_immdlen;
 	__be32 flowid_len16;
-	__be64 cookie;
+	__u64  cookie;
 	__be16 iq_id;
 	__be16 r4;
 	__be32 xfer_len;
@@ -8289,7 +8503,7 @@ enum fw_devlog_facility {
 	FW_DEVLOG_FACILITY_FOISCSI	= 0x30,
 	FW_DEVLOG_FACILITY_FOFCOE	= 0x32,
 	FW_DEVLOG_FACILITY_CHNET	= 0x34,
-	FW_DEVLOG_FACILITY_COiSCSI	= 0x36,
+	FW_DEVLOG_FACILITY_COISCSI	= 0x36,
 	FW_DEVLOG_FACILITY_MAX		= 0x38,
 };
 
@@ -8830,7 +9044,8 @@ struct fw_dcb_ieee_cmd {
 		} dcbx_app_stats;
 		struct fw_dcbx_control {
 			__be32 multi_peer_invalidated;
-			__be32 r5_lo;
+			__u8 version;
+			__u8 r6[3];
 		} dcbx_control;
 	} u;
 };
@@ -9383,17 +9598,17 @@ enum fw_hdr_chip {
 enum {
 	T4FW_VERSION_MAJOR	= 0x01,
 	T4FW_VERSION_MINOR	= 0x10,
-	T4FW_VERSION_MICRO	= 0x3b,
+	T4FW_VERSION_MICRO	= 0x3f,
 	T4FW_VERSION_BUILD	= 0x00,
 
 	T5FW_VERSION_MAJOR	= 0x01,
 	T5FW_VERSION_MINOR	= 0x10,
-	T5FW_VERSION_MICRO	= 0x3b,
+	T5FW_VERSION_MICRO	= 0x3f,
 	T5FW_VERSION_BUILD	= 0x00,
 
 	T6FW_VERSION_MAJOR	= 0x01,
 	T6FW_VERSION_MINOR	= 0x10,
-	T6FW_VERSION_MICRO	= 0x3b,
+	T6FW_VERSION_MICRO	= 0x3f,
 	T6FW_VERSION_BUILD	= 0x00,
 };
 
@@ -9459,6 +9674,17 @@ struct fw_ephy_hdr {
 
 enum {
 	FW_EPHY_HDR_MAGIC	= 0x65706879,
+};
+	
+struct fw_ifconf_dhcp_info {
+	__be32		addr;
+	__be32		mask;
+	__be16		vlanid;
+	__be16		mtu;
+	__be32		gw;
+	__u8		op;
+	__u8		len;
+	__u8		data[270];
 };
 
 #endif /* _T4FW_INTERFACE_H_ */

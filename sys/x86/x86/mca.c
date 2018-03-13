@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Hudson River Trading LLC
  * Written by: John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
@@ -839,7 +841,7 @@ cmci_setup(void)
 static void
 amd_thresholding_setup(void)
 {
-	int i;
+	u_int i;
 
 	amd_et_state = malloc((mp_maxid + 1) * sizeof(struct amd_et_state *),
 	    M_MCA, M_WAITOK);

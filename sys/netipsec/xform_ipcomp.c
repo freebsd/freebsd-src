@@ -2,6 +2,8 @@
 /* $OpenBSD: ip_ipcomp.c,v 1.1 2001/07/05 12:08:52 jjbg Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001 Jean-Jacques Bernard-Gundol (jj@wabbitt.org)
  *
  * Redistribution and use in source and binary forms, with or without
@@ -272,7 +274,6 @@ static int
 ipcomp_input_cb(struct cryptop *crp)
 {
 	IPSEC_DEBUG_DECLARE(char buf[IPSEC_ADDRSTRLEN]);
-	struct cryptodesc *crd;
 	struct xform_data *xd;
 	struct mbuf *m;
 	struct secasvar *sav;
@@ -282,8 +283,6 @@ ipcomp_input_cb(struct cryptop *crp)
 	int hlen = IPCOMP_HLENGTH, error, clen;
 	int skip, protoff;
 	uint8_t nproto;
-
-	crd = crp->crp_desc;
 
 	m = (struct mbuf *) crp->crp_buf;
 	xd = (struct xform_data *) crp->crp_opaque;

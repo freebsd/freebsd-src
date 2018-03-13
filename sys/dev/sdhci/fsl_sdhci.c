@@ -92,6 +92,7 @@ struct fsl_sdhci_softc {
 	uint16_t		sdclockreg_freq_bits;
 	uint8_t			r1bfix_type;
 	uint8_t			hwtype;
+	bool			slot_init_done;
 };
 
 #define	R1BFIX_NONE	0	/* No fix needed at next interrupt. */
@@ -803,9 +804,28 @@ fsl_sdhci_get_platform_clock(device_t dev)
 static int
 fsl_sdhci_detach(device_t dev)
 {
+	struct fsl_sdhci_softc *sc = device_get_softc(dev);
 
-	/* sdhci_fdt_gpio_teardown(sc->gpio); */
-	return (EBUSY);
+	if (sc->gpio != NULL)
+		sdhci_fdt_gpio_teardown(sc->gpio);
+
+	callout_drain(&sc->r1bfix_callout);
+
+	if (sc->slot_init_done)
+		sdhci_cleanup_slot(&sc->slot);
+
+	if (sc->intr_cookie != NULL)
+		bus_teardown_intr(dev, sc->irq_res, sc->intr_cookie);
+	if (sc->irq_res != NULL)
+		bus_release_resource(dev, SYS_RES_IRQ,
+		    rman_get_rid(sc->irq_res), sc->irq_res);
+
+	if (sc->mem_res != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->mem_res), sc->mem_res);
+	}
+
+	return (0);
 }
 
 static int
@@ -819,6 +839,8 @@ fsl_sdhci_attach(device_t dev)
 #endif
 
 	sc->dev = dev;
+
+	callout_init(&sc->r1bfix_callout, 1);
 
 	sc->hwtype = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	if (sc->hwtype == HWTYPE_NONE)
@@ -907,8 +929,8 @@ fsl_sdhci_attach(device_t dev)
 	WR4(sc, SDHC_PROT_CTRL, protctl);
 #endif
 
-	callout_init(&sc->r1bfix_callout, 1);
 	sdhci_init_slot(dev, &sc->slot, 0);
+	sc->slot_init_done = true;
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
@@ -918,13 +940,7 @@ fsl_sdhci_attach(device_t dev)
 	return (0);
 
 fail:
-	if (sc->intr_cookie)
-		bus_teardown_intr(dev, sc->irq_res, sc->intr_cookie);
-	if (sc->irq_res)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
-	if (sc->mem_res)
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->mem_res);
-
+	fsl_sdhci_detach(dev);
 	return (err);
 }
 
@@ -932,7 +948,7 @@ static int
 fsl_sdhci_probe(device_t dev)
 {
 
-        if (!ofw_bus_status_okay(dev))
+	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
 	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004  Hannes Gredler <hannes@tcpdump.org>
+ * Copyright (c) 1998-2004  Hannes Gredler <hannes@gredler.at>
  *      The TCPDUMP project
  *
  * Redistribution and use in source and binary forms, with or without

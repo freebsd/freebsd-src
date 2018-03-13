@@ -261,6 +261,7 @@ DELAY(int usec)
 				cpufunc_nullop();
 		return;
 	}
+	TSENTER();
 
 	/* Get the number of times to count */
 	counts_per_usec = ((riscv_timer_timecount.tc_frequency / 1000000) + 1);
@@ -283,4 +284,5 @@ DELAY(int usec)
 		counts -= (int64_t)(last - first);
 		first = last;
 	}
+	TSEXIT();
 }

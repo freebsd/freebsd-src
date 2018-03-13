@@ -35,7 +35,8 @@ enum sysdecode_abi {
 	SYSDECODE_ABI_FREEBSD32,
 	SYSDECODE_ABI_LINUX,
 	SYSDECODE_ABI_LINUX32,
-	SYSDECODE_ABI_CLOUDABI64
+	SYSDECODE_ABI_CLOUDABI64,
+	SYSDECODE_ABI_CLOUDABI32
 };
 
 int	sysdecode_abi_to_freebsd_errno(enum sysdecode_abi _abi, int _error);
@@ -45,6 +46,7 @@ const char *sysdecode_atfd(int _fd);
 bool	sysdecode_atflags(FILE *_fp, int _flags, int *_rem);
 bool	sysdecode_cap_fcntlrights(FILE *_fp, uint32_t _rights, uint32_t *_rem);
 void	sysdecode_cap_rights(FILE *_fp, cap_rights_t *_rightsp);
+const char *sysdecode_cmsg_type(int _cmsg_level, int _cmsg_type);
 const char *sysdecode_extattrnamespace(int _namespace);
 const char *sysdecode_fadvice(int _advice);
 void	sysdecode_fcntl_arg(FILE *_fp, int _cmd, uintptr_t _arg, int _base);
@@ -60,6 +62,10 @@ const char *sysdecode_getrusage_who(int _who);
 const char *sysdecode_idtype(int _idtype);
 const char *sysdecode_ioctlname(unsigned long _val);
 const char *sysdecode_ipproto(int _protocol);
+void	sysdecode_kevent_fflags(FILE *_fp, short _filter, int _fflags,
+	    int _base);
+const char *sysdecode_kevent_filter(int _filter);
+bool	sysdecode_kevent_flags(FILE *_fp, int _flags, int *_rem);
 const char *sysdecode_kldsym_cmd(int _cmd);
 const char *sysdecode_kldunload_flags(int _flags);
 const char *sysdecode_lio_listio_mode(int _mode);
@@ -85,6 +91,11 @@ bool	sysdecode_rfork_flags(FILE *_fp, int _flags, int *_rem);
 const char *sysdecode_rlimit(int _resource);
 const char *sysdecode_rtprio_function(int _function);
 const char *sysdecode_scheduler_policy(int _policy);
+bool	sysdecode_sctp_nxt_flags(FILE *_fp, int _flags, int *_rem);
+const char *sysdecode_sctp_pr_policy(int _policy);
+bool	sysdecode_sctp_rcv_flags(FILE *_fp, int _flags, int *_rem);
+void	sysdecode_sctp_sinfo_flags(FILE *_fp, int _sinfo_flags);
+bool	sysdecode_sctp_snd_flags(FILE *_fp, int _flags, int *_rem);
 const char *sysdecode_semctl_cmd(int _cmd);
 bool	sysdecode_semget_flags(FILE *_fp, int _flag, int *_rem);
 bool	sysdecode_sendfile_flags(FILE *_fp, int _flags, int *_rem);

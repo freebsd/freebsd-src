@@ -3,6 +3,8 @@
  *      3940, 2940, aic7895, aic7890, aic7880,
  *	aic7870, aic7860 and aic7850 SCSI controllers
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994-2001 Justin T. Gibbs.
  * Copyright (c) 2000-2001 Adaptec Inc.
  * All rights reserved.

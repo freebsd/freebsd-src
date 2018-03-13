@@ -1,5 +1,7 @@
 /*	$OpenBSD: sbbc.c,v 1.7 2009/11/09 17:53:39 nicm Exp $	*/
 /*-
+ * SPDX-License-Identifier: (ISC AND BSD-2-Clause-FreeBSD)
+ *
  * Copyright (c) 2008 Mark Kettenis
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -325,7 +327,7 @@ sbbc_pci_attach(device_t dev)
 	int error, rid;
 	uint32_t val;
 
-	/* Nothing to to if we're not the chosen one. */
+	/* Nothing to do if we're not the chosen one. */
 	if ((node = OF_finddevice("/chosen")) == -1) {
 		device_printf(dev, "failed to find /chosen\n");
 		return (ENXIO);

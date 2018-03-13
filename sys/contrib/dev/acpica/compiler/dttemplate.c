@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -151,7 +151,6 @@
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/include/acapps.h>
-#include <contrib/dev/acpica/compiler/dtcompiler.h>
 #include <contrib/dev/acpica/compiler/dttemplate.h> /* Contains the hex ACPI table templates */
 
 #define _COMPONENT          DT_COMPILER
@@ -315,7 +314,7 @@ Exit:
     /* Shutdown ACPICA subsystem */
 
     (void) AcpiTerminate ();
-    CmDeleteCaches ();
+    UtDeleteLocalCaches ();
     return (Status);
 }
 

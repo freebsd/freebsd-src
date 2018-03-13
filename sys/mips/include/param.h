@@ -1,6 +1,8 @@
 /*	$OpenBSD: param.h,v 1.11 1998/08/30 22:05:35 millert Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -182,9 +184,5 @@
 #define	ptoa(x)			((x) << PAGE_SHIFT)
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
-
-#ifdef _KERNEL
-#define	NO_FUEWORD	1
-#endif
 
 #endif /* !_MIPS_INCLUDE_PARAM_H_ */

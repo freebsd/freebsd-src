@@ -1,6 +1,8 @@
 /*	$KAME: getaddrinfo.c,v 1.15 2000/07/09 04:37:24 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -1275,7 +1277,8 @@ explore_numeric(const struct addrinfo *pai, const char *hostname,
 		 * does not accept.  So we need to separate the case for
 		 * AF_INET.
 		 */
-		if (inet_aton(hostname, (struct in_addr *)pton) != 1)
+		if (inet_aton(hostname, (struct in_addr *)pton) != 1 ||
+		    hostname[strspn(hostname, "0123456789.xabcdefXABCDEF")] != '\0')
 			return 0;
 		p = pton;
 		break;

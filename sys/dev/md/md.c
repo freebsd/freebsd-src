@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (Beerware AND BSD-3-Clause)
+ *
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
@@ -207,6 +209,7 @@ struct md_s {
 	unsigned opencount;
 	unsigned fwheads;
 	unsigned fwsectors;
+	char ident[32];
 	unsigned flags;
 	char name[20];
 	struct proc *procp;
@@ -1181,6 +1184,9 @@ md_kthread(void *arg)
 			    sc->fwheads))) ||
 			    g_handleattr_int(bp, "GEOM::candelete", 1))
 				error = -1;
+			else if (sc->ident[0] != '\0' &&
+			    g_handleattr_str(bp, "GEOM::ident", sc->ident))
+				error = -1;
 			else if (g_handleattr_int(bp, "MNT::verified", isv))
 				error = -1;
 			else
@@ -1386,7 +1392,7 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	 * set the FWRITE mask before trying to open the backing store.
 	 */
 	flags = FREAD | ((mdio->md_options & MD_READONLY) ? 0 : FWRITE) \
-	    | ((mdio->md_options & MD_VERIFY) ? 0 : O_VERIFY);
+	    | ((mdio->md_options & MD_VERIFY) ? O_VERIFY : 0);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->file, td);
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)
@@ -1414,6 +1420,8 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 		sc->fwsectors = mdio->md_fwsectors;
 	if (mdio->md_fwheads != 0)
 		sc->fwheads = mdio->md_fwheads;
+	snprintf(sc->ident, sizeof(sc->ident), "MD-DEV%ju-INO%ju",
+	    (uintmax_t)vattr.va_fsid, (uintmax_t)vattr.va_fileid);
 	sc->flags = mdio->md_options & (MD_FORCE | MD_ASYNC | MD_VERIFY);
 	if (!(flags & FWRITE))
 		sc->flags |= MD_READONLY;
@@ -1783,9 +1791,15 @@ md_preloaded(u_char *image, size_t length, const char *name)
 	sc->start = mdstart_preload;
 	if (name != NULL)
 		strlcpy(sc->file, name, sizeof(sc->file));
-#if defined(MD_ROOT) && !defined(ROOTDEVNAME)
-	if (sc->unit == 0)
+#ifdef MD_ROOT
+	if (sc->unit == 0) {
+#ifndef ROOTDEVNAME
 		rootdevnames[0] = MD_ROOT_FSTYPE ":/dev/md0";
+#endif
+#ifdef MD_ROOT_READONLY
+		sc->flags |= MD_READONLY;
+#endif
+	}
 #endif
 	mdinit(sc);
 	if (name != NULL) {
@@ -1898,6 +1912,11 @@ g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			    indent, (uintmax_t) mp->fwheads);
 			sbuf_printf(sb, "%s<fwsectors>%ju</fwsectors>\n",
 			    indent, (uintmax_t) mp->fwsectors);
+			if (mp->ident[0] != '\0') {
+				sbuf_printf(sb, "%s<ident>", indent);
+				g_conf_printf_escaped(sb, "%s", mp->ident);
+				sbuf_printf(sb, "</ident>\n");
+			}
 			sbuf_printf(sb, "%s<length>%ju</length>\n",
 			    indent, (uintmax_t) mp->mediasize);
 			sbuf_printf(sb, "%s<compression>%s</compression>\n", indent,

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -334,7 +336,7 @@ nfsrvd_getcache(struct nfsrv_descript *nd)
 
 	if (nd->nd_procnum == NFSPROC_NULL)
 		panic("nfsd cache null");
-	MALLOC(newrp, struct nfsrvcache *, sizeof (struct nfsrvcache),
+	newrp = malloc(sizeof (struct nfsrvcache),
 	    M_NFSRVCACHE, M_WAITOK);
 	NFSBZERO((caddr_t)newrp, sizeof (struct nfsrvcache));
 	if (nd->nd_flag & ND_NFSV4)
@@ -421,7 +423,7 @@ loop:
 				panic("nfs udp cache1");
 			}
 			nfsrc_unlock(rp);
-			free((caddr_t)newrp, M_NFSRVCACHE);
+			free(newrp, M_NFSRVCACHE);
 			goto out;
 		}
 	}
@@ -708,7 +710,7 @@ tryagain:
 			panic("nfs tcp cache1");
 		}
 		nfsrc_unlock(rp);
-		free((caddr_t)newrp, M_NFSRVCACHE);
+		free(newrp, M_NFSRVCACHE);
 		goto out;
 	}
 	nfsstatsv1.srvcache_misses++;
@@ -800,7 +802,7 @@ nfsrc_freecache(struct nfsrvcache *rp)
 		if (!(rp->rc_flag & RC_UDP))
 			atomic_add_int(&nfsrc_tcpsavedreplies, -1);
 	}
-	FREE((caddr_t)rp, M_NFSRVCACHE);
+	free(rp, M_NFSRVCACHE);
 	atomic_add_int(&nfsstatsv1.srvcache_size, -1);
 }
 

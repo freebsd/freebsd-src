@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015 Netflix, Inc.
  * All rights reserved.
  *
@@ -196,7 +198,6 @@ static cam_status
 nvme_probe_register(struct cam_periph *periph, void *arg)
 {
 	union ccb *request_ccb;	/* CCB representing the probe request */
-	cam_status status;
 	nvme_probe_softc *softc;
 
 	request_ccb = (union ccb *)arg;
@@ -220,10 +221,9 @@ nvme_probe_register(struct cam_periph *periph, void *arg)
 	periph->softc = softc;
 	softc->periph = periph;
 	softc->action = NVME_PROBE_INVALID;
-	status = cam_periph_acquire(periph);
-	if (status != CAM_REQ_CMP) {
-		return (status);
-	}
+	if (cam_periph_acquire(periph) != 0)
+		return (CAM_REQ_CMP_ERR);
+
 	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe started\n"));
 
 //	nvme_device_transport(periph->path);
@@ -318,8 +318,7 @@ nvme_probe_start(struct cam_periph *periph, union ccb *start_ccb)
 		xpt_done(start_ccb);
 	}
 	cam_periph_invalidate(periph);
-	/* Can't release periph since we hit a (possibly bogus) assertion */
-//	cam_periph_release_locked(periph);
+	cam_periph_release_locked(periph);
 }
 
 static void
@@ -365,9 +364,7 @@ nvme_scan_lun(struct cam_periph *periph, struct cam_path *path,
 
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("nvme_scan_lun\n"));
 
-	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NONE);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, path);
 
 	if (cpi.ccb_h.status != CAM_REQ_CMP) {
 		if (request_ccb != NULL) {
@@ -458,9 +455,7 @@ nvme_device_transport(struct cam_path *path)
 	/* XXX get data from nvme namespace and other info ??? */
 
 	/* Get transport information from the SIM */
-	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NONE);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, path);
 
 	path->device->transport = cpi.transport;
 	path->device->transport_version = cpi.transport_version;
@@ -619,33 +614,47 @@ nvme_announce_periph(struct cam_periph *periph)
 	struct	ccb_pathinq cpi;
 	struct	ccb_trans_settings cts;
 	struct	cam_path *path = periph->path;
+	struct ccb_trans_settings_nvme	*nvmex;
 
 	cam_periph_assert(periph, MA_OWNED);
 
+	/* Ask the SIM for connection details */
 	xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_CURRENT_SETTINGS;
 	xpt_action((union ccb*)&cts);
 	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 		return;
+	nvmex = &cts.xport_specific.nvme;
+
 	/* Ask the SIM for its base transfer speed */
-	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
-	/* XXX NVME STUFF HERE */
+	xpt_path_inq(&cpi, periph->path);
+	printf("%s%d: nvme version %d.%d x%d (max x%d) lanes PCIe Gen%d (max Gen%d) link",
+	    periph->periph_name, periph->unit_number,
+	    NVME_MAJOR(nvmex->spec),
+	    NVME_MINOR(nvmex->spec),
+	    nvmex->lanes, nvmex->max_lanes,
+	    nvmex->speed, nvmex->max_speed);
 	printf("\n");
 }
 
 static void
 nvme_proto_announce(struct cam_ed *device)
 {
-	nvme_print_ident(device->nvme_cdata, device->nvme_data);
+	struct sbuf	sb;
+	char		buffer[120];
+
+	sbuf_new(&sb, buffer, sizeof(buffer), SBUF_FIXEDLEN);
+	nvme_print_ident(device->nvme_cdata, device->nvme_data, &sb);
+	sbuf_finish(&sb);
+	sbuf_putbuf(&sb);
 }
 
 static void
 nvme_proto_denounce(struct cam_ed *device)
 {
-	nvme_print_ident(device->nvme_cdata, device->nvme_data);
+
+	nvme_proto_announce(device);
 }
 
 static void

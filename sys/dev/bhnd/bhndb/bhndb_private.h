@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Landon Fuller
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Portions of this software were developed by Landon Fuller
  * under sponsorship from the FreeBSD Foundation.
@@ -51,6 +55,7 @@
  */
 
 struct bhndb_dw_alloc;
+struct bhndb_intr_handler;
 struct bhndb_region;
 struct bhndb_resources;
 
@@ -65,12 +70,33 @@ int				 bhndb_add_resource_region(
 				     struct bhndb_resources *br,
 				     bhnd_addr_t addr, bhnd_size_t size,
 				     bhndb_priority_t priority,
+				     uint32_t alloc_flags,
 				     const struct bhndb_regwin *static_regwin);
 
 int				 bhndb_find_resource_limits(
-				     struct bhndb_resources *br,
+				     struct bhndb_resources *br, int type,
 				     struct resource *r, rman_res_t *start,
 				     rman_res_t *end);
+
+struct bhndb_intr_handler	*bhndb_alloc_intr_handler(device_t owner,
+				     struct resource *r,
+				     struct bhndb_intr_isrc *isrc);
+void				 bhndb_free_intr_handler(
+				     struct bhndb_intr_handler *ih);
+
+void				 bhndb_register_intr_handler(
+				     struct bhndb_resources *br,
+				     struct bhndb_intr_handler *ih);
+void				 bhndb_deregister_intr_handler(
+				     struct bhndb_resources *br,
+				     struct bhndb_intr_handler *ih);
+struct bhndb_intr_handler	*bhndb_find_intr_handler(
+				     struct bhndb_resources *br,
+				     void *cookiep);
+
+bool				 bhndb_has_static_region_mapping(
+				     struct bhndb_resources *br,
+				     bhnd_addr_t addr, bhnd_size_t size);
 
 struct bhndb_region		*bhndb_find_resource_region(
 				     struct bhndb_resources *br,
@@ -99,9 +125,23 @@ int				 bhndb_dw_set_addr(device_t dev,
 				     struct bhndb_dw_alloc *dwa,
 				     bus_addr_t addr, bus_size_t size);
 
+struct bhndb_dw_alloc		*bhndb_dw_steal(struct bhndb_resources *br,
+				     bus_addr_t *saved);
+
+void				 bhndb_dw_return_stolen(device_t dev,
+				     struct bhndb_resources *br,
+				     struct bhndb_dw_alloc *dwa,
+				     bus_addr_t saved);
+
 const struct bhndb_hw_priority	*bhndb_hw_priority_find_core(
 				     const struct bhndb_hw_priority *table,
 				     struct bhnd_core_info *core);
+
+const struct bhndb_port_priority *bhndb_hw_priorty_find_port(
+				     const struct bhndb_hw_priority *table,
+				     struct bhnd_core_info *core,
+				     bhnd_port_type port_type, u_int port,
+				     u_int region);
 
 
 /**
@@ -131,9 +171,23 @@ struct bhndb_region {
 	bhnd_addr_t			 addr;		/**< start of mapped range */
 	bhnd_size_t			 size;		/**< size of mapped range */
 	bhndb_priority_t		 priority;	/**< direct resource allocation priority */
+	uint32_t			 alloc_flags;	/**< resource allocation flags (@see bhndb_alloc_flags) */
 	const struct bhndb_regwin	*static_regwin;	/**< fixed mapping regwin, if any */
 
 	STAILQ_ENTRY(bhndb_region)	 link;
+};
+
+/**
+ * Attached interrupt handler state
+ */
+struct bhndb_intr_handler {
+	device_t		 ih_owner;	/**< child device */
+	struct resource		*ih_res;	/**< child resource */
+	void			*ih_cookiep;	/**< hostb-assigned cookiep, or NULL if bus_setup_intr() incomplete. */
+	struct bhndb_intr_isrc	*ih_isrc;	/**< host interrupt source routing the child's interrupt  */
+	bool			 ih_active;	/**< handler has been registered via bhndb_register_intr_handler */
+
+	STAILQ_ENTRY(bhndb_intr_handler) ih_link;
 };
 
 /**
@@ -147,14 +201,18 @@ struct bhndb_resources {
 	
 	struct rman			 ht_mem_rman;	/**< host memory manager */
 	struct rman			 br_mem_rman;	/**< bridged memory manager */
+	struct rman			 br_irq_rman;	/**< bridged irq manager */
 
 	STAILQ_HEAD(, bhndb_region) 	 bus_regions;	/**< bus region descriptors */
 
+	struct mtx			 dw_steal_mtx;	/**< spinlock must be held when stealing a dynamic window allocation */
 	struct bhndb_dw_alloc		*dw_alloc;	/**< dynamic window allocation records */
 	size_t				 dwa_count;	/**< number of dynamic windows available. */
 	bitstr_t			*dwa_freelist;	/**< dynamic window free list */
 	bhndb_priority_t		 min_prio;	/**< minimum resource priority required to
 							     allocate a dynamic window */
+
+	STAILQ_HEAD(,bhndb_intr_handler) bus_intrs;	/**< attached child interrupt handlers */
 };
 
 /**

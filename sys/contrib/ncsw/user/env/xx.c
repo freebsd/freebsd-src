@@ -120,7 +120,7 @@ struct XX_PortalInfo {
 	uint32_t	portal_ci_size[2][MAXCPU];
 	vm_offset_t	portal_ce_va[2];
 	vm_offset_t	portal_ci_va[2];
-	uint32_t	portal_intr[2][MAXCPU];
+	uintptr_t	portal_intr[2][MAXCPU];
 };
 
 static struct XX_PortalInfo XX_PInfo;
@@ -283,16 +283,8 @@ XX_RestoreAllIntr(uint32_t flags)
 	intr_restore(flags);
 }
 
-t_Error
-XX_Call(uint32_t qid, t_Error (* f)(t_Handle), t_Handle id, t_Handle appId, uint16_t flags )
-{
-	/* Not referenced */
-	printf("NetCommSW: Unimplemented function %s() called!\n", __func__);
-	return (E_OK);
-}
-
 static bool
-XX_IsPortalIntr(int irq)
+XX_IsPortalIntr(uintptr_t irq)
 {
 	int cpu, type;
 	/* Check interrupt numbers of all available portals */
@@ -597,71 +589,6 @@ XX_UnlockIntrSpinlock(t_Handle h_Spinlock, uint32_t intrFlags)
 {
 
 	XX_UnlockSpinlock(h_Spinlock);
-}
-
-uint32_t
-XX_CurrentTime(void)
-{
-	/* Not referenced */
-	printf("NetCommSW: Unimplemented function %s() called!\n", __func__);
-	return (0);
-}
-
-
-t_Handle
-XX_CreateTimer(void)
-{
-	/* Not referenced */
-	printf("NetCommSW: Unimplemented function %s() called!\n", __func__);
-	return (NULL);
-}
-
-void
-XX_FreeTimer(t_Handle h_Timer)
-{
-	/* Not referenced */
-	printf("NetCommSW: Unimplemented function %s() called!\n", __func__);
-}
-
-void
-XX_StartTimer(t_Handle h_Timer,
-                   uint32_t msecs,
-                   bool     periodic,
-                   void     (*f_TimerExpired)(t_Handle),
-                   t_Handle h_Arg)
-{
-	/* Not referenced */
-	printf("NetCommSW: Unimplemented function %s() called!\n", __func__);
-}
-
-uint32_t
-XX_GetExpirationTime(t_Handle h_Timer)
-{
-	/* Not referenced */
-	printf("NetCommSW: Unimplemented function %s() called!\n", __func__);
-	return (0);
-}
-
-void
-XX_StopTimer(t_Handle h_Timer)
-{
-	/* Not referenced */
-	printf("NetCommSW: Unimplemented function %s() called!\n", __func__);
-}
-
-void
-XX_ModTimer(t_Handle h_Timer, uint32_t msecs)
-{
-	/* Not referenced */
-	printf("NetCommSW: Unimplemented function %s() called!\n", __func__);
-}
-
-int
-XX_TimerIsActive(t_Handle h_Timer)
-{
-	/* Not referenced */
-	printf("NetCommSW: Unimplemented function %s() called!\n", __func__);
-	return (0);
 }
 
 uint32_t

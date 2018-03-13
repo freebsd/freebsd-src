@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * All rights reserved.
  *
@@ -65,16 +67,9 @@ __FBSDID("$FreeBSD$");
 
 #define EHCI_HC_DEVSTR			"Allwinner Integrated USB 2.0 controller"
 
-#define SW_USB_PMU_IRQ_ENABLE		0x800
-
 #define SW_SDRAM_REG_HPCR_USB1		(0x250 + ((1 << 2) * 4))
 #define SW_SDRAM_REG_HPCR_USB2		(0x250 + ((1 << 2) * 5))
 #define SW_SDRAM_BP_HPCR_ACCESS		(1 << 0)
-
-#define SW_ULPI_BYPASS			(1 << 0)
-#define SW_AHB_INCRX_ALIGN		(1 << 8)
-#define SW_AHB_INCR4			(1 << 9)
-#define SW_AHB_INCR8			(1 << 10)
 
 #define	USB_CONF(d)			\
 	(void *)ofw_bus_search_compatible((d), compat_data)->ocd_data
@@ -124,7 +119,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun7i-a20-ehci",	(uintptr_t)&a10_ehci_conf },
 	{ "allwinner,sun8i-a83t-ehci",	(uintptr_t)&a31_ehci_conf },
 	{ "allwinner,sun8i-h3-ehci",	(uintptr_t)&a31_ehci_conf },
-	/* { "allwinner,sun50i-a64-ehci",	(uintptr_t)&a31_ehci_conf }, */
+	{ "allwinner,sun50i-a64-ehci",	(uintptr_t)&a31_ehci_conf },
 	{ NULL,				(uintptr_t)NULL }
 };
 
@@ -247,20 +242,12 @@ a10_ehci_attach(device_t self)
 
 	/* Enable USB PHY */
 	if (phy_get_by_ofw_name(self, 0, "usb", &aw_sc->phy) == 0) {
-		err = phy_enable(self, aw_sc->phy);
+		err = phy_enable(aw_sc->phy);
 		if (err != 0) {
 			device_printf(self, "Could not enable phy\n");
 			goto error;
 		}
 	}
-
-	/* Enable passby */
-	reg_value = A10_READ_4(sc, SW_USB_PMU_IRQ_ENABLE);
-	reg_value |= SW_AHB_INCR8; /* AHB INCR8 enable */
-	reg_value |= SW_AHB_INCR4; /* AHB burst type INCR4 enable */
-	reg_value |= SW_AHB_INCRX_ALIGN; /* AHB INCRX align enable */
-	reg_value |= SW_ULPI_BYPASS; /* ULPI bypass enable */
-	A10_WRITE_4(sc, SW_USB_PMU_IRQ_ENABLE, reg_value);
 
 	/* Configure port */
 	if (conf->sdram_init) {
@@ -332,14 +319,6 @@ a10_ehci_detach(device_t self)
 		reg_value &= ~SW_SDRAM_BP_HPCR_ACCESS;
 		A10_WRITE_4(sc, SW_SDRAM_REG_HPCR_USB2, reg_value);
 	}
-
-	/* Disable passby */
-	reg_value = A10_READ_4(sc, SW_USB_PMU_IRQ_ENABLE);
-	reg_value &= ~SW_AHB_INCR8; /* AHB INCR8 disable */
-	reg_value &= ~SW_AHB_INCR4; /* AHB burst type INCR4 disable */
-	reg_value &= ~SW_AHB_INCRX_ALIGN; /* AHB INCRX align disable */
-	reg_value &= ~SW_ULPI_BYPASS; /* ULPI bypass disable */
-	A10_WRITE_4(sc, SW_USB_PMU_IRQ_ENABLE, reg_value);
 
 	/* Disable clock */
 	TAILQ_FOREACH_SAFE(clk, &aw_sc->clk_list, next, clk_tmp) {
