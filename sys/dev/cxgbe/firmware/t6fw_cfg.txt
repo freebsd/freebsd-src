@@ -163,10 +163,12 @@
 	nserver = 512
 	nhpfilter = 0
 	nhash = 16384
-	protocol = ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, crypto_lookaside
+	protocol = ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside
 	tp_l2t = 4096
 	tp_ddp = 2
 	tp_ddp_iscsi = 2
+	tp_tls_key = 3
+	tp_tls_mxrxsize = 17408    # 16384 + 1024, governs max rx data, pm max xfer len, rx coalesce sizes
 	tp_stag = 2
 	tp_pbl = 5
 	tp_rq = 7
@@ -273,7 +275,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0x7191019f
+	checksum = 0x9e8952d2
 #
 # $FreeBSD$
 #

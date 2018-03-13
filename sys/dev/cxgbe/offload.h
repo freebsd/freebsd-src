@@ -151,6 +151,9 @@ struct tom_tunables {
 	int sndbuf;
 	int ddp;
 	int rx_coalesce;
+	int tls;
+	int *tls_rx_ports;
+	int num_tls_rx_ports;
 	int tx_align;
 	int tx_zcopy;
 };
