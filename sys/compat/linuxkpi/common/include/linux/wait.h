@@ -194,11 +194,19 @@ int linux_wait_event_common(wait_queue_head_t *, wait_queue_t *, int,
 })
 
 /*
- * Hold the (locked) spinlock when testing the cond.
+ * The passed spinlock is held when testing the condition.
  */
 #define	wait_event_interruptible_lock_irq(wqh, cond, lock) ({		\
 	__wait_event_common(wqh, cond, MAX_SCHEDULE_TIMEOUT,		\
 	    TASK_INTERRUPTIBLE, &(lock));				\
+})
+
+/*
+ * The passed spinlock is held when testing the condition.
+ */
+#define	wait_event_lock_irq(wqh, cond, lock) ({			\
+	__wait_event_common(wqh, cond, MAX_SCHEDULE_TIMEOUT,	\
+	    TASK_UNINTERRUPTIBLE, &(lock));			\
 })
 
 static inline void
