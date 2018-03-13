@@ -387,5 +387,8 @@ Flush(void *vp, u_char * ptr, u_long siz)
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
  */
-static struct execsw gzip_execsw = {exec_gzip_imgact, "gzip"};
+static struct execsw gzip_execsw = {
+	.ex_imgact = exec_gzip_imgact,
+	.ex_name = "gzip"
+};
 EXEC_SET(execgzip, gzip_execsw);
