@@ -384,8 +384,9 @@ identify_ns(int argc, char *argv[])
 {
 	struct nvme_namespace_data	nsdata;
 	char				path[64];
-	int				ch, fd, hexflag = 0, hexlength, nsid;
+	int				ch, fd, hexflag = 0, hexlength;
 	int				verboseflag = 0;
+	uint32_t			nsid;
 
 	while ((ch = getopt(argc, argv, "vx")) != -1) {
 		switch ((char)ch) {

@@ -99,7 +99,7 @@ get_log_buffer(uint32_t size)
 }
 
 void
-read_logpage(int fd, uint8_t log_page, int nsid, void *payload,
+read_logpage(int fd, uint8_t log_page, uint32_t nsid, void *payload,
     uint32_t payload_size)
 {
 	struct nvme_pt_command	pt;
@@ -909,13 +909,13 @@ logpage_help(void)
 void
 logpage(int argc, char *argv[])
 {
-	int				fd, nsid;
+	int				fd;
 	int				log_page = 0, pageflag = false;
 	int				binflag = false, hexflag = false, ns_specified;
 	int				opt;
 	char				*p;
 	char				cname[64];
-	uint32_t			size;
+	uint32_t			nsid, size;
 	void				*buf;
 	const char			*vendor = NULL;
 	struct logpage_function		*f;
