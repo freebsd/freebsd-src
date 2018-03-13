@@ -63,7 +63,7 @@ typedef struct {
 	Elf_Note	hdr;
 	const char *	vendor;
 	int		flags;
-	boolean_t	(*trans_osrel)(const Elf_Note *, int32_t *);
+	bool		(*trans_osrel)(const Elf_Note *, int32_t *);
 #define	BN_CAN_FETCH_OSREL	0x0001	/* Deprecated. */
 #define	BN_TRANSLATE_OSREL	0x0002	/* Use trans_osrel to fetch osrel */
 		/* after checking the image ABI specification, if needed. */
