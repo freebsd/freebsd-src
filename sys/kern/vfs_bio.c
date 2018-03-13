@@ -613,7 +613,7 @@ bufspace_adjust(struct buf *bp, int bufsize)
 	diff = bufsize - bp->b_bufsize;
 	if (diff < 0) {
 		atomic_subtract_long(&bd->bd_bufspace, -diff);
-	} else {
+	} else if (diff > 0) {
 		space = atomic_fetchadd_long(&bd->bd_bufspace, diff);
 		/* Wake up the daemon on the transition. */
 		if (space < bd->bd_bufspacethresh &&
