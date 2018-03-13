@@ -701,6 +701,7 @@ moea64_early_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelen
 {
 	int		i, j;
 	vm_size_t	physsz, hwphyssz;
+	vm_paddr_t	kernelphysstart, kernelphysend;
 
 #ifndef __powerpc64__
 	/* We don't have a direct map since there is no BAT */
@@ -726,6 +727,9 @@ moea64_early_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelen
 	__syncicache((void *)EXC_DSE, 0x80);
 	__syncicache((void *)EXC_ISE, 0x80);
 #endif
+
+	kernelphysstart = kernelstart & ~DMAP_BASE_ADDRESS;
+	kernelphysend = kernelend & ~DMAP_BASE_ADDRESS;
 
 	/* Get physical memory regions from firmware */
 	mem_regions(&pregions, &pregions_sz, &regions, &regions_sz);
@@ -764,29 +768,30 @@ moea64_early_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelen
 		if (phys_avail[j] < EXC_LAST)
 			phys_avail[j] += EXC_LAST;
 
-		if (kernelstart >= phys_avail[j] &&
-		    kernelstart < phys_avail[j+1]) {
-			if (kernelend < phys_avail[j+1]) {
+		if (kernelphysstart >= phys_avail[j] &&
+		    kernelphysstart < phys_avail[j+1]) {
+			if (kernelphysend < phys_avail[j+1]) {
 				phys_avail[2*phys_avail_count] =
-				    (kernelend & ~PAGE_MASK) + PAGE_SIZE;
+				    (kernelphysend & ~PAGE_MASK) + PAGE_SIZE;
 				phys_avail[2*phys_avail_count + 1] =
 				    phys_avail[j+1];
 				phys_avail_count++;
 			}
 
-			phys_avail[j+1] = kernelstart & ~PAGE_MASK;
+			phys_avail[j+1] = kernelphysstart & ~PAGE_MASK;
 		}
 
-		if (kernelend >= phys_avail[j] &&
-		    kernelend < phys_avail[j+1]) {
-			if (kernelstart > phys_avail[j]) {
+		if (kernelphysend >= phys_avail[j] &&
+		    kernelphysend < phys_avail[j+1]) {
+			if (kernelphysstart > phys_avail[j]) {
 				phys_avail[2*phys_avail_count] = phys_avail[j];
 				phys_avail[2*phys_avail_count + 1] =
-				    kernelstart & ~PAGE_MASK;
+				    kernelphysstart & ~PAGE_MASK;
 				phys_avail_count++;
 			}
 
-			phys_avail[j] = (kernelend & ~PAGE_MASK) + PAGE_SIZE;
+			phys_avail[j] = (kernelphysend & ~PAGE_MASK) +
+			    PAGE_SIZE;
 		}
 	}
 

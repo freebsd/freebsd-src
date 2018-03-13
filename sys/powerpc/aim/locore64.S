@@ -105,7 +105,6 @@ ap_kexec_start:		/* At 0x60 past start, copied to 0x60 by kexec */
 	mtsrr1	%r1
 	ba	EXC_RST
 
-
 /*
  * Now start the real text section
  */
@@ -149,9 +148,12 @@ ASENTRY_NOPROF(__start)
 	subf    %r31,%r31,%r2	/* Subtract from real TOC base to get base */
 
 	/* Set up the stack pointer */
-	ld	%r1,TOC_REF(tmpstk)(%r2)
-	addi	%r1,%r1,TMPSTKSZ-96
-	add	%r1,%r1,%r31
+	bl	1f
+	.llong	tmpstk + TMPSTKSZ - 96 - .
+1:	mflr	%r30
+	ld	%r1,0(%r30)
+	add	%r1,%r1,%r30
+	nop
 
 	/* Relocate kernel */
 	std	%r3,48(%r1)
@@ -188,5 +190,21 @@ ASENTRY_NOPROF(__start)
 
 	/* Unreachable */
 	b	.
+
+ASENTRY_NOPROF(__restartkernel)
+	/*
+	 * r3-r7: arguments to go to __start
+	 * r8: offset from current kernel address to apply
+	 * r9: MSR to set when (atomically) jumping to __start + r8
+	 */
+	mtsrr1	%r9
+	bl	1f
+1:	mflr	%r25
+	add	%r25,%r8,%r25
+	addi	%r25,%r25,2f-1b
+	mtsrr0	%r25
+	rfid
+2:	bl	__start
+	nop
 
 #include <powerpc/aim/trap_subr64.S>
