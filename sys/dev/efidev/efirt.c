@@ -259,12 +259,19 @@ efi_get_time_locked(struct efi_tm *tm, struct efi_tmcap *tmcap)
 int
 efi_get_time(struct efi_tm *tm)
 {
+	struct efi_tmcap dummy;
 	int error;
 
 	if (efi_runtime == NULL)
 		return (ENXIO);
 	EFI_TIME_LOCK()
-	error = efi_get_time_locked(tm, NULL);
+	/*
+	 * UEFI spec states that the Capabilities argument to GetTime is
+	 * optional, but some UEFI implementations choke when passed a NULL
+	 * pointer. Pass a dummy efi_dmcap, even though we won't use it,
+	 * to workaround such implementations.
+	 */
+	error = efi_get_time_locked(tm, &dummy);
 	EFI_TIME_UNLOCK()
 	return (error);
 }
