@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Nov 2, 2015
+.Dd Mar 13, 2018
 .Dt FIGPAR 3
 .Os
 .Sh NAME
@@ -38,22 +38,30 @@
 .In figpar.h
 .Ft int
 .Fo parse_config
-.Fa "struct figpar_config options[], const char *path"
-.Fa "int \*[lp]*unknown\*[rp]\*[lp]struct figpar_config *option, uint32_t line"
-.Fa "char *directive, char *value\*[rp], uint8_t processing_options"
+.Fa "struct figpar_config options[]"
+.Fa "const char *path"
+.Fa "int \*[lp]*unknown\*[rp]\*[lp]struct figpar_config *option"
+.Fa "uint32_t line"
+.Fa "char *directive"
+.Fa "char *value\*[rp]"
+.Fa "uint8_t processing_options"
 .Fc
 .Ft "struct figpar_config *"
 .Fo get_config_option
-.Fa "struct figpar_config options[], const char *directive"
+.Fa "struct figpar_config options[]"
+.Fa "const char *directive"
 .Fc
 .In string_m.h
 .Ft int
 .Fo replaceall
-.Fa "char *source, const char *find, const char *replace"
+.Fa "char *source"
+.Fa "const char *find"
+.Fa "const char *replace"
 .Fc
 .Ft unsigned int
 .Fo strcount
-.Fa "const char *source, const char *find"
+.Fa "const char *source"
+.Fa "const char *find"
 .Fc
 .Ft void
 .Fo strexpand
@@ -70,7 +78,8 @@
 .Sh DESCRIPTION
 The
 .Nm
-library provides a light-weight, portable framework for parsing configuration
+library provides a light-weight,
+portable framework for parsing configuration
 files.
 The library uses
 .Xr open 2 ,
@@ -87,8 +96,9 @@ provides raw data to a set of callback functions.
 These callback functions can in-turn initiate abort through their return value,
 allowing custom syntax validation during parsing.
 .Pp
-Configuration directives, types, and callback functions are provided through
-data structures defined in
+Configuration directives,
+types,
+and callback functions are provided through data structures defined in
 .In figpar.h :
 .Bd -literal -offset indent
 struct figpar_config {
@@ -132,7 +142,7 @@ argument to
 .Fn parse_config
 is a mask of bit fields which indicate various
 processing options.
-The possible flags are as follows:
+The possible flags are:
 .Bl -tag -width FIGPAR_BREAK_ON_SEMICOLON
 .It Dv FIGPAR_BREAK_ON_EQUALS
 An equals sign
@@ -151,7 +161,8 @@ Normally directives are matched case insensitively using
 .Xr fnmatch 3 .
 This flag enables directive matching to be case sensitive.
 .It Dv FIGPAR_REQUIRE_EQUALS
-If a directive is not followed by an equals, processing is aborted.
+If a directive is not followed by an equals,
+processing is aborted.
 .It Dv FIGPAR_STRICT_EQUALS
 Equals must be part of the directive to be considered a delimiter between
 directive and value.
@@ -159,7 +170,7 @@ directive and value.
 .Pp
 The
 .Fa options
-struct array pointer can be NULL and every directive will invoke the
+struct array pointer can be NULL and every directive will run the
 .Fn unknown
 function argument.
 .Pp
@@ -168,13 +179,16 @@ The directive for each figpar_config item in the
 options argument is matched against each parsed directive using
 .Xr fnmatch 3
 until a match is found.
-If a match is found, the
+If a match is found,
+the
 .Fn action
-function for that figpar_config directive is invoked with the line number,
-directive, and value.
-Otherwise if no match, the
+function for that figpar_config directive is run with the line number,
+directive,
+and value.
+Otherwise if no match,
+the
 .Fn unknown
-function is invoked
+function is run
 .Pq with the same arguments .
 .Pp
 If either
@@ -197,19 +211,20 @@ is entirely optional as-is the use of
 .Fa "enum figpar_cfgtype"
 or
 .Fa "union figpar_cfgvalue" .
-For example, you could choose to pass a NULL pointer to
+For example,
+a NULL pointer can be passed to
 .Fn parse_config
-for the first argument and then provide a simple
+for the first argument while providing a simple
 .Fa unknown
 function based on
 .Xr queue 3
-that populates a singly-linked list of your own struct containing the
+that populates a singly-linked list of a struct containing the
 .Fa directive
 and
 .Fa value .
 .Pp
-In addition, the following miscellaneous string manipulation routines are
-provided by
+In addition,
+miscellaneous string manipulation routines are provided by
 .In string_m.h :
 .Bl -tag -width strexpandnl()
 .It Fn replaceall
@@ -224,8 +239,7 @@ Count the number of occurrences of one string that appear in the
 .Fa source
 string.
 Return value is the total count.
-An example use would be if you need to know how large a block of memory needs
-to be for a
+An example use would be to show how large a block of memory needs to be for a
 .Fn replaceall
 series.
 .It Fn strexpand
