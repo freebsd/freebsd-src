@@ -1,7 +1,9 @@
 /*	$OpenBSD: tipout.c,v 1.18 2006/05/31 07:03:08 jason Exp $	*/
 /*	$NetBSD: tipout.c,v 1.5 1996/12/29 10:34:12 cgd Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

@@ -1,6 +1,8 @@
 /*	$KAME: ipsec_dump_policy.c,v 1.13 2002/06/27 14:35:11 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
  * All rights reserved.
  *

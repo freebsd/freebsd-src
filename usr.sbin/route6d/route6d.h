@@ -1,7 +1,9 @@
 /*	$FreeBSD$	*/
 /*	$KAME: route6d.h,v 1.8 2003/05/28 09:11:13 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  * 

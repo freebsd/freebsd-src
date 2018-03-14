@@ -1,6 +1,8 @@
 /*	$KAME: dump.c,v 1.13 2003/10/05 00:09:36 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
  * 

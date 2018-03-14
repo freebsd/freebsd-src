@@ -6,6 +6,8 @@
 #define	NCV_IO_CONTROL_FLAGS	(0)
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * [NetBSD for NEC PC-98 series]
  *  Copyright (c) 1995, 1996, 1997, 1998, 1999, 2000, 2001
  *	NetBSD/pc98 porting staff. All rights reserved.

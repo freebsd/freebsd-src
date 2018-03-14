@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright Rusty Russell IBM Corporation 2007.
  *
  * This header is BSD licensed so anyone can use the definitions to implement

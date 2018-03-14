@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2004, 2007 Lukas Ertl
  * Copyright (c) 1997, 1998, 1999
  *      Nan Yang Computer Services Limited.  All rights reserved.

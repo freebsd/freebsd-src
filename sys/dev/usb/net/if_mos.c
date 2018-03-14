@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: 0BSD AND BSD-4-Clause
+ *
  * Copyright (c) 2011 Rick van der Zwet <info@rickvanderzwet.nl>
  *
  * Permission to use, copy, modify, and distribute this software for any

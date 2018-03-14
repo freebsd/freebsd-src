@@ -1,6 +1,8 @@
 /*	$NetBSD: nsphyreg.h,v 1.1 1998/08/10 23:58:39 thorpej Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

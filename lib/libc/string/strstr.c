@@ -1,7 +1,8 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ * Copyright (c) 2005-2014 Rich Felker, et al.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
- *
  * This code is derived from software contributed to Berkeley by
  * Chris Torek.
  *

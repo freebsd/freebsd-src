@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Matt Thomas.
  * Copyright (c) 2001 Tsubai Masanari.
  * Copyright (c) 1998, 1999, 2001 Internet Research Institute, Inc.

@@ -1,6 +1,8 @@
 /*	$NetBSD: parse.c,v 1.11 2000/09/24 02:19:54 augustss Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1999, 2001 Lennart Augustsson <augustss@netbsd.org>
  * All rights reserved.
  *

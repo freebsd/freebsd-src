@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2008 MARVELL INTERNATIONAL LTD.
  * Copyright (c) 2010 The FreeBSD Foundation
  * Copyright (c) 2010-2015 Semihalf

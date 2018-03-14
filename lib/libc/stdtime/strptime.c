@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Gary Mills
  * Copyright 2011, Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 1994 Powerdog Industries.  All rights reserved.

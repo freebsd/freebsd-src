@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Benno Rice.  All rights reserved.
  * Copyright (c) 2002 David E. O'Brien.  All rights reserved.
  *

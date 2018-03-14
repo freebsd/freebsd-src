@@ -1,5 +1,7 @@
 /*	$FreeBSD$	*/
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1996 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

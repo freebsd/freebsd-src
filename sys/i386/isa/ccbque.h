@@ -1,5 +1,7 @@
 /*	$NetBSD$	*/
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * [NetBSD for NEC PC98 series]
  *  Copyright (c) 1994, 1995, 1996 NetBSD/pc98 porting staff.
  *  All rights reserved.

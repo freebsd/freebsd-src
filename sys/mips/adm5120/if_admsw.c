@@ -1,6 +1,8 @@
 /* $NetBSD: if_admsw.c,v 1.3 2007/04/22 19:26:25 dyoung Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007 Ruslan Ermilov and Vsevolod Lobko.
  * All rights reserved.
  *

@@ -5,6 +5,8 @@
  *   PCI SCSI Bus Master Host Adapter Device Driver	
  *   (SCSI chip set used Tekram ASIC TRM-S1040)	
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * (C)Copyright 1995-2001 Tekram Technology Co.,Ltd.
  *
  * Redistribution and use in source and binary forms, with or without

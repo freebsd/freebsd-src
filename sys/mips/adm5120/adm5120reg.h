@@ -1,6 +1,8 @@
 /*	$NetBSD: adm5120reg.h,v 1.1 2007/03/20 08:52:03 dyoung Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007 Ruslan Ermilov and Vsevolod Lobko.
  * All rights reserved.
  *

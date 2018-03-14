@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Luoqi Chen <luoqi@freebsd.org>
  * Copyright (c) Peter Wemm <peter@netplex.com.au>
  * All rights reserved.
