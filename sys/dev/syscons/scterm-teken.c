@@ -178,7 +178,7 @@ scteken_puts(scr_stat *scp, u_char *buf, int len, int kernel)
 	if (kernel) {
 		/* Use special colors for kernel messages. */
 		backup = *teken_get_curattr(&ts->ts_teken);
-		scteken_revattr(SC_KERNEL_CONS_ATTR, &kattr);
+		scteken_revattr(sc_kattr(), &kattr);
 		teken_set_curattr(&ts->ts_teken, &kattr);
 		teken_input(&ts->ts_teken, buf, len);
 		teken_set_curattr(&ts->ts_teken, &backup);

@@ -591,6 +591,7 @@ void		sc_paste(scr_stat *scp, const u_char *p, int count);
 void		sc_respond(scr_stat *scp, const u_char *p,
 			   int count, int wakeup);
 void		sc_bell(scr_stat *scp, int pitch, int duration);
+int		sc_kattr(void);
 
 /* schistory.c */
 #ifndef SC_NO_HISTORY
