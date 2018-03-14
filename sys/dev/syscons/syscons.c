@@ -79,6 +79,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/fb/splashreg.h>
 #include <dev/syscons/syscons.h>
 
+struct sc_cnstate;		/* not used yet */
+
 #define COLD 0
 #define WARM 1
 
@@ -185,7 +187,7 @@ static void scterm(int unit, int flags);
 static void scshutdown(void *, int);
 static void scsuspend(void *);
 static void scresume(void *);
-static u_int scgetc(sc_softc_t *sc, u_int flags);
+static u_int scgetc(sc_softc_t *sc, u_int flags, struct sc_cnstate *sp);
 static void sc_puts(scr_stat *scp, u_char *buf, int len, int kernel);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
@@ -750,7 +752,7 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
      * I don't think this is nessesary, and it doesn't fix
      * the Xaccel-2.1 keyboard hang, but it can't hurt.		XXX
      */
-    while ((c = scgetc(sc, SCGETC_NONBLOCK)) != NOKEY) {
+    while ((c = scgetc(sc, SCGETC_NONBLOCK, NULL)) != NOKEY) {
 
 	cur_tty = SC_DEV(sc, sc->cur_scp->index);
 	if (!tty_opened_ns(cur_tty))
@@ -1645,7 +1647,6 @@ sc_cnterm(struct consdev *cp)
     sc_console = NULL;
 }
 
-struct sc_cnstate;		/* not used yet */
 static void sccnclose(sc_softc_t *sc, struct sc_cnstate *sp);
 static void sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags);
 
@@ -1654,14 +1655,8 @@ sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags)
 {
     int kbd_mode;
 
-    if (!cold &&
-	sc->cur_scp->index != sc_console->index &&
-	sc->cur_scp->smode.mode == VT_AUTO &&
-	sc_console->smode.mode == VT_AUTO)
-	    sc_switch_scr(sc, sc_console->index);
-
     if (sc->kbd == NULL)
-	return;
+	goto over_keyboard;
 
     /*
      * Make sure the keyboard is accessible even when the kbd device
@@ -1673,6 +1668,14 @@ sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags)
     kbd_mode = K_XLATE;
     (void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&kbd_mode);
     kbdd_poll(sc->kbd, TRUE);
+over_keyboard: ;
+
+    if (!cold &&
+	sc->cur_scp->index != sc_console->index &&
+	sc->cur_scp->smode.mode == VT_AUTO &&
+	sc_console->smode.mode == VT_AUTO)
+	    sc_switch_scr(sc, sc_console->index);
+
 }
 
 static void
@@ -1787,7 +1790,7 @@ sc_cngetc(struct consdev *cd)
 	return -1;
     }
 
-    c = scgetc(scp->sc, SCGETC_CN | SCGETC_NONBLOCK);
+    c = scgetc(scp->sc, SCGETC_CN | SCGETC_NONBLOCK, NULL);
 
     switch (KEYFLAGS(c)) {
     case 0:	/* normal char */
@@ -3383,7 +3386,7 @@ sc_init_emulator(scr_stat *scp, char *name)
  * return NOKEY if there is nothing there.
  */
 static u_int
-scgetc(sc_softc_t *sc, u_int flags)
+scgetc(sc_softc_t *sc, u_int flags, struct sc_cnstate *sp)
 {
     scr_stat *scp;
 #ifndef SC_NO_HISTORY
