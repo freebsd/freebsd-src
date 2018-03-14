@@ -171,8 +171,17 @@
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Load ACPI/AML table by executing the entire table as a
- *              TermList.
+ * DESCRIPTION: Load ACPI/AML table by executing the entire table as a single
+ *              large control method.
+ *
+ * NOTE: The point of this is to execute any module-level code in-place
+ * as the table is parsed. Some AML code depends on this behavior.
+ *
+ * It is a run-time option at this time, but will eventually become
+ * the default.
+ *
+ * Note: This causes the table to only have a single-pass parse.
+ * However, this is compatible with other ACPI implementations.
  *
  ******************************************************************************/
 
@@ -403,8 +412,19 @@ AcpiNsParseTable (
     ACPI_FUNCTION_TRACE (NsParseTable);
 
 
-    if (AcpiGbl_ParseTableAsTermList)
+    if (AcpiGbl_ExecuteTablesAsMethods)
     {
+        /*
+         * This case executes the AML table as one large control method.
+         * The point of this is to execute any module-level code in-place
+         * as the table is parsed. Some AML code depends on this behavior.
+         *
+         * It is a run-time option at this time, but will eventually become
+         * the default.
+         *
+         * Note: This causes the table to only have a single-pass parse.
+         * However, this is compatible with other ACPI implementations.
+         */
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_PARSE,
             "%s: **** Start table execution pass\n", ACPI_GET_FUNCTION_NAME));
 
