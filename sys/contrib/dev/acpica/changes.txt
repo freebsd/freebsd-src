@@ -1,4 +1,50 @@
 ----------------------------------------
+13 March 2018. Summary of changes for version 20180313:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Implemented various improvements to the GPE support:
+
+1) Dispatch all active GPEs at initialization time so that no GPEs are 
+lost.
+2) Enable runtime GPEs earlier. Some systems expect GPEs to be enabled 
+before devices are enumerated.
+3) Don't unconditionally clear ACPI IRQs during suspend/resume, so that 
+IRQs are not lost.
+4) Add parallel GPE handling to eliminate the possibility of dispatching 
+the same GPE twice.
+5) Dispatch any pending GPEs after enabling for the first time.
+
+AcpiGetObjectInfo - removed support for the _STA method. This was causing 
+problems on some platforms.
+
+Added a new _OSI string, "Windows 2017.2".
+
+Cleaned up and simplified the module-level code support. These changes 
+are in preparation for the eventual removal of the legacy MLC support 
+(deferred execution), replaced by the new MLC architecture which executes 
+the MLC as a table is loaded (DSDT/SSDTs).
+
+Changed a compile-time option to a runtime option. Changes the option to 
+ignore ACPI table load-time package resolution errors into a runtime 
+option. Used only for platforms that generate many AE_NOT_FOUND errors 
+during boot. AcpiGbl_IgnorePackageResolutionErrors.
+
+Fixed the ACPI_ERROR_NAMESPACE macro. This change involves putting some 
+ACPI_ERROR_NAMESPACE parameters inside macros. By doing so, we avoid 
+compilation errors from unused variables (seen with some compilers).
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+ASLTS: parallelized execution in order to achieve an (approximately) 2X 
+performance increase.
+
+ASLTS: Updated to use the iASL __LINE__ and __METHOD__ macros. Improves 
+error reporting.
+
+----------------------------------------
 09 February 2018. Summary of changes for version 20180209:
 
 
