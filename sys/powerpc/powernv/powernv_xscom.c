@@ -57,14 +57,17 @@ struct powernv_xscom_softc
 
 static int powernv_xscom_attach(device_t);
 static int powernv_xscom_probe(device_t);
+#ifdef FDT
 static const struct ofw_bus_devinfo *
     powernv_xscom_get_devinfo(device_t, device_t);
+#endif
 
 static device_method_t powernv_xscom_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		powernv_xscom_probe),
 	DEVMETHOD(device_attach,	powernv_xscom_attach),
 
+#ifdef FDT
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	powernv_xscom_get_devinfo),
 	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
@@ -72,6 +75,7 @@ static device_method_t powernv_xscom_methods[] = {
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+#endif
 
 	DEVMETHOD_END
 };
@@ -82,7 +86,9 @@ static int
 powernv_xscom_probe(device_t dev)
 {
 
+#ifdef FDT
 	if (!(ofw_bus_is_compatible(dev, "ibm,xscom")))
+#endif
 		return (ENXIO);
 
 	device_set_desc(dev, "xscom");
@@ -92,6 +98,7 @@ powernv_xscom_probe(device_t dev)
 static int
 powernv_xscom_attach(device_t dev)
 {
+#ifdef FDT
 	phandle_t child;
 	device_t cdev;
 	struct ofw_bus_devinfo *dinfo;
@@ -115,13 +122,18 @@ powernv_xscom_attach(device_t dev)
 	}
 
 	return (bus_generic_attach(dev));
+#else
+	return (ENXIO);
+#endif
 }
 
+#ifdef FDT
 static const struct ofw_bus_devinfo *
 powernv_xscom_get_devinfo(device_t dev, device_t child)
 {
         return (device_get_ivars(child));
 }
+#endif
 
 DEFINE_CLASS_0(powernv_xscom, powernv_xscom_driver, powernv_xscom_methods,
     sizeof(struct powernv_xscom_softc));
