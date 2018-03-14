@@ -60,7 +60,6 @@ vm_page_t	vm_reserv_extend(int req, vm_object_t object,
 		    vm_pindex_t pindex, int domain, vm_page_t mpred);
 void		vm_reserv_break_all(vm_object_t object);
 boolean_t	vm_reserv_free_page(vm_page_t m);
-void		vm_reserv_init(void);
 bool		vm_reserv_is_page_free(vm_page_t m);
 int		vm_reserv_level(vm_page_t m);
 int		vm_reserv_level_iffullpop(vm_page_t m);

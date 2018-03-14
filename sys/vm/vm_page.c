@@ -800,12 +800,7 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_page_blacklist_check(list, NULL);
 
 	freeenv(list);
-#if VM_NRESERVLEVEL > 0
-	/*
-	 * Initialize the reservation management system.
-	 */
-	vm_reserv_init();
-#endif
+
 	/*
 	 * Set an initial domain policy for thread0 so that allocations
 	 * can work.
