@@ -1996,4 +1996,14 @@ ENTRY(cpu_sync_core)
 	iretq
 END(cpu_sync_core)
 
+/* External Retpoline thunk */
+ENTRY(__x86_indirect_thunk_r11)
+	callq	2f
+1:	pause
+	lfence
+	jmp	1b
+2:	movq	%r11, (%rsp)
+	retq
+END(__x86_indirect_thunk_r11)
+
 	.section .note.GNU-stack,"",%progbits

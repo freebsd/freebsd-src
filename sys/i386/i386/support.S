@@ -587,4 +587,14 @@ ENTRY(cpu_sync_core)
 	iretl
 END(cpu_sync_core)
 
+/* External retpoline thunk */
+ENTRY(__x86_indirect_thunk_eax)
+	calll	2f
+1:	pause
+	lfence
+	jmp	1b
+2:	movl	%eax, (%esp)
+	retl
+END(__x86_indirect_thunk_eax)
+
 	.section .note.GNU-stack,"",%progbits
