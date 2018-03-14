@@ -1493,7 +1493,7 @@ cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
 			printf("Completing command with bio_cmd == %#x\n", bp->bio_cmd);
 	}
 
-	if (!(bp->bio_flags & BIO_ERROR))
+	if (!(bp->bio_flags & BIO_ERROR) && done_ccb != NULL)
 		cam_iosched_io_metric_update(isc,
 		    cam_iosched_sbintime_t(done_ccb->ccb_h.qos.periph_data),
 		    bp->bio_cmd, bp->bio_bcount);
