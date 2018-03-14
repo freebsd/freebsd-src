@@ -153,7 +153,6 @@ vt_fini_logos(void *dummy __unused)
 	struct winsize wsz;
 	term_pos_t size;
 	unsigned int i;
-	int row;
 
 	if (!vt_draw_logo_cpus)
 		return;
@@ -171,7 +170,7 @@ vt_fini_logos(void *dummy __unused)
 	vt_draw_logo_cpus = 0;
 	VT_UNLOCK(vd);
 
-	for (i = row = 0; i < VT_MAXWINDOWS; i++) {
+	for (i = 0; i < VT_MAXWINDOWS; i++) {
 		vw = vd->vd_windows[i];
 		if (vw == NULL)
 			continue;
@@ -194,16 +193,11 @@ vt_fini_logos(void *dummy __unused)
 		vt_compute_drawable_area(vw);
 
 		if (vd->vd_curwindow == vw) {
-			row = vw->vw_draw_area.tr_begin.tp_row;
 			vd->vd_flags |= VDF_INVALID;
 			vt_resume_flush_timer(vd, 0);
 		}
 		VT_UNLOCK(vd);
 	}
-
-	if (row > 0 && vd->vd_driver->vd_drawrect != NULL)
-		vd->vd_driver->vd_drawrect(vd, 0, 0, vd->vd_width, row - 1,
-		    1, TC_BLACK);
 }
 
 static void
