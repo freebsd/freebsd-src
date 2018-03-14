@@ -32,7 +32,7 @@ dev/adb/adb_buttons.c		optional	adb
 dev/agp/agp_apple.c		optional	agp powermac
 dev/fb/fb.c			optional	sc
 # ofwbus depends on simplebus.
-dev/fdt/simplebus.c		optional	aim | fdt
+dev/fdt/simplebus.c		optional	standard
 dev/hwpmc/hwpmc_e500.c		optional	hwpmc
 dev/hwpmc/hwpmc_mpc7xxx.c	optional	hwpmc
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
@@ -55,7 +55,7 @@ dev/ofw/ofw_if.m		optional	aim
 dev/ofw/ofw_bus_subr.c		optional	aim
 dev/ofw/ofw_console.c		optional	aim
 dev/ofw/ofw_disk.c		optional	ofwd aim
-dev/ofw/ofwbus.c		optional	aim | fdt
+dev/ofw/ofwbus.c		optional	aim
 dev/ofw/ofwpci.c		optional 	pci
 dev/ofw/ofw_standard.c		optional	aim powerpc
 dev/ofw/ofw_subr.c		optional	aim powerpc
@@ -74,7 +74,7 @@ dev/syscons/scgfbrndr.c		optional	sc
 dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvtb.c		optional	sc
 dev/tsec/if_tsec.c		optional	tsec
-dev/tsec/if_tsec_fdt.c		optional	tsec fdt
+dev/tsec/if_tsec_fdt.c		optional	tsec 
 dev/uart/uart_cpu_powerpc.c	optional	uart
 dev/usb/controller/ehci_fsl.c	optional	ehci mpc85xx
 dev/vt/hw/ofwfb/ofwfb.c		optional	vt aim
@@ -136,12 +136,12 @@ powerpc/mambo/mambo_disk.c	optional	mambo
 powerpc/mikrotik/platform_rb.c	optional	mikrotik
 powerpc/mikrotik/rb_led.c	optional	mikrotik
 powerpc/mpc85xx/atpic.c		optional	mpc85xx isa
-powerpc/mpc85xx/ds1553_bus_fdt.c	optional	ds1553 fdt
+powerpc/mpc85xx/ds1553_bus_fdt.c	optional	ds1553
 powerpc/mpc85xx/ds1553_core.c	optional	ds1553
 powerpc/mpc85xx/fsl_diu.c	optional	mpc85xx diu
 powerpc/mpc85xx/fsl_espi.c	optional	mpc85xx spibus
 powerpc/mpc85xx/fsl_sata.c	optional	mpc85xx ata
-powerpc/mpc85xx/i2c.c		optional	iicbus fdt
+powerpc/mpc85xx/i2c.c		optional	iicbus
 powerpc/mpc85xx/isa.c		optional	mpc85xx isa
 powerpc/mpc85xx/lbc.c		optional	mpc85xx
 powerpc/mpc85xx/mpc85xx.c	optional	mpc85xx
@@ -158,7 +158,7 @@ powerpc/ofw/ofw_real.c		optional	aim
 powerpc/ofw/ofw_syscons.c	optional	sc aim
 powerpc/ofw/ofwcall32.S		optional	aim powerpc
 powerpc/ofw/ofwcall64.S		optional	aim powerpc64
-powerpc/ofw/openpic_ofw.c	optional	aim | fdt
+powerpc/ofw/openpic_ofw.c	optional	standard
 powerpc/ofw/rtas.c		optional	aim
 powerpc/powermac/ata_kauai.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/ata_macio.c	optional	powermac ata | powermac atamacio
