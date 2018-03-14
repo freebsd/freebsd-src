@@ -321,18 +321,6 @@ mbuf_ulp_submode(struct mbuf *m)
 	return (m->m_pkthdr.PH_per.eight[0]);
 }
 
-static inline int
-is_tls_offload(struct toepcb *toep)
-{
-	return (toep->ulp_mode == ULP_MODE_TLS);
-}
-
-static inline int
-can_tls_offload(struct adapter *sc)
-{
-	return (sc->tt.tls && sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS);
-}
-
 /* t4_tom.c */
 struct toepcb *alloc_toepcb(struct vi_info *, int, int, int);
 struct toepcb *hold_toepcb(struct toepcb *);
@@ -430,6 +418,7 @@ void handle_ddp_tcb_rpl(struct toepcb *, const struct cpl_set_tcb_rpl *);
 void insert_ddp_data(struct toepcb *, uint32_t);
 
 /* t4_tls.c */
+bool can_tls_offload(struct adapter *);
 int t4_ctloutput_tls(struct socket *, struct sockopt *);
 void t4_push_tls_records(struct adapter *, struct toepcb *, int);
 void t4_tls_mod_load(void);
