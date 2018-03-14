@@ -514,6 +514,34 @@ nvme_ctrlr_create_qpairs(struct nvme_controller *ctrlr)
 }
 
 static int
+nvme_ctrlr_destroy_qpair(struct nvme_controller *ctrlr, struct nvme_qpair *qpair)
+{
+	struct nvme_completion_poll_status	status;
+
+	status.done = 0;
+	nvme_ctrlr_cmd_delete_io_sq(qpair->ctrlr, qpair,
+	    nvme_completion_poll_cb, &status);
+	while (!atomic_load_acq_int(&status.done))
+		pause("nvme", 1);
+	if (nvme_completion_is_error(&status.cpl)) {
+		nvme_printf(ctrlr, "nvme_create_io_sq failed!\n");
+		return (ENXIO);
+	}
+
+	status.done = 0;
+	nvme_ctrlr_cmd_delete_io_cq(ctrlr, qpair,
+	    nvme_completion_poll_cb, &status);
+	while (!atomic_load_acq_int(&status.done))
+		pause("nvme", 1);
+	if (nvme_completion_is_error(&status.cpl)) {
+		nvme_printf(ctrlr, "nvme_create_io_cq failed!\n");
+		return (ENXIO);
+	}
+
+	return (0);
+}
+
+static int
 nvme_ctrlr_construct_namespaces(struct nvme_controller *ctrlr)
 {
 	struct nvme_namespace	*ns;
@@ -1274,6 +1302,7 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 		destroy_dev(ctrlr->cdev);
 
 	for (i = 0; i < ctrlr->num_io_queues; i++) {
+		nvme_ctrlr_destroy_qpair(ctrlr, &ctrlr->ioq[i]);
 		nvme_io_qpair_destroy(&ctrlr->ioq[i]);
 	}
 
