@@ -1,5 +1,5 @@
 /*-
- *  Copyright (c) 2009-2017 Alexander Motin <mav@FreeBSD.org>
+ *  Copyright (c) 2009-2018 Alexander Motin <mav@FreeBSD.org>
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
  *
@@ -224,7 +224,10 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			btype = "2532";
 			break;
 		case ISP_HA_FC_2600:
-			btype = "2031";
+			btype = "2600";
+			break;
+		case ISP_HA_FC_2700:
+			btype = "2700";
 			break;
 		default:
 			break;
@@ -2018,7 +2021,7 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	}
 
 	icbp->icb_execthrottle = DEFAULT_EXEC_THROTTLE(isp);
-	if (icbp->icb_execthrottle < 1) {
+	if (icbp->icb_execthrottle < 1 && !IS_26XX(isp)) {
 		isp_prt(isp, ISP_LOGERR, "bad execution throttle of %d- using %d", DEFAULT_EXEC_THROTTLE(isp), ICB_DFLT_THROTTLE);
 		icbp->icb_execthrottle = ICB_DFLT_THROTTLE;
 	}
@@ -2123,11 +2126,15 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	} else if (isp->isp_confopts & ISP_CFG_16GB) {
 		icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_MASK;
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_16GB;
+	} else if (isp->isp_confopts & ISP_CFG_32GB) {
+		icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_MASK;
+		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_32GB;
 	} else {
 		switch (icbp->icb_fwoptions3 & ICB2400_OPT3_RATE_MASK) {
 		case ICB2400_OPT3_RATE_4GB:
 		case ICB2400_OPT3_RATE_8GB:
 		case ICB2400_OPT3_RATE_16GB:
+		case ICB2400_OPT3_RATE_32GB:
 		case ICB2400_OPT3_RATE_AUTO:
 			break;
 		case ICB2400_OPT3_RATE_2GB:
@@ -3092,6 +3099,8 @@ not_on_fabric:
 		if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
 			if (mbs.param[1] == MBGSD_10GB)
 				fcp->isp_gbspeed = 10;
+			else if (mbs.param[1] == MBGSD_32GB)
+				fcp->isp_gbspeed = 32;
 			else if (mbs.param[1] == MBGSD_16GB)
 				fcp->isp_gbspeed = 16;
 			else if (mbs.param[1] == MBGSD_8GB)
@@ -5900,6 +5909,13 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		isp_prt(isp, ISP_LOGERR, "Temperature alert (subcode 0x%x)",
 		    ISP_READ(isp, OUTMAILBOX1));
 		break;
+	case ASYNC_TRANSCEIVER_INSERTION:
+		isp_prt(isp, ISP_LOGDEBUG0, "Transceiver insertion (0x%x)",
+		    ISP_READ(isp, OUTMAILBOX1));
+		break;
+	case ASYNC_TRANSCEIVER_REMOVAL:
+		isp_prt(isp, ISP_LOGDEBUG0, "Transceiver removal");
+		break;
 	case ASYNC_AUTOLOAD_FW_COMPLETE:
 		isp_prt(isp, ISP_LOGDEBUG0, "Autoload FW init complete");
 		break;
@@ -6824,7 +6840,7 @@ static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x07, 0x01),	/* 0x66: MBOX_TARGET_RESET */
 	ISP_FC_OPMAP(0x07, 0x01),	/* 0x67: MBOX_CLEAR_TASK_SET */
 	ISP_FC_OPMAP(0x07, 0x01),	/* 0x68: MBOX_ABORT_TASK_SET */
-	ISP_FC_OPMAP(0x01, 0x07),	/* 0x69: MBOX_GET_FW_STATE */
+	ISP_FC_OPMAP_HALF(0x00, 0x01, 0x0f, 0x1f),	/* 0x69: MBOX_GET_FW_STATE */
 	ISP_FC_OPMAP_HALF(0x6, 0x03, 0x0, 0xcf),	/* 0x6a: MBOX_GET_PORT_NAME */
 	ISP_FC_OPMAP(0xcf, 0x01),	/* 0x6b: MBOX_GET_LINK_STATUS */
 	ISP_FC_OPMAP(0x0f, 0x01),	/* 0x6c: MBOX_INIT_LIP_RESET */
