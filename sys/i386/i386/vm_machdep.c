@@ -795,7 +795,7 @@ sf_buf_shootdown(struct sf_buf *sf, int flags)
 		CPU_NAND(&other_cpus, &sf->cpumask);
 		if (!CPU_EMPTY(&other_cpus)) {
 			CPU_OR(&sf->cpumask, &other_cpus);
-			smp_masked_invlpg(other_cpus, sf->kva);
+			smp_masked_invlpg(other_cpus, sf->kva, kernel_pmap);
 		}
 	}
 	sched_unpin();

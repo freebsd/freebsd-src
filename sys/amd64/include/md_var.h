@@ -35,9 +35,17 @@
 #include <x86/x86_var.h>
 
 extern  uint64_t *vm_page_dump;
+extern int	hw_ibrs_disable;
+
+/*
+ * The file "conf/ldscript.amd64" defines the symbol "kernphys".  Its
+ * value is the physical address at which the kernel is loaded.
+ */
+extern char kernphys[];
 
 struct	savefpu;
 
+void	amd64_conf_fast_syscall(void);
 void	amd64_db_resume_dbreg(void);
 void	amd64_syscall(struct thread *td, int traced);
 void	doreti_iret(void) __asm(__STRING(doreti_iret));

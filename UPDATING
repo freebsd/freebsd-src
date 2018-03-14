@@ -16,6 +16,11 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20180314	p8	FreeBSD-SA-18:03.speculative_execution
+
+	Add mitigations for two classes of speculative execution vulnerabilities
+	on amd64.
+
 20180307	p7	FreeBSD-SA-18:01.ipsec
 			FreeBSD-SA-18:02.ntp
 			FreeBSD-EN-18:01.tzdata

@@ -374,6 +374,17 @@
 #define	CPUID_STDEXT2_SGXLC	0x40000000
 
 /*
+ * CPUID instruction 7 Structured Extended Features, leaf 0 edx info
+ */
+#define	CPUID_STDEXT3_IBPB	0x04000000
+#define	CPUID_STDEXT3_STIBP	0x08000000
+#define	CPUID_STDEXT3_ARCH_CAP	0x20000000
+
+/* MSR IA32_ARCH_CAP(ABILITIES) bits */
+#define	IA32_ARCH_CAP_RDCL_NO	0x00000001
+#define	IA32_ARCH_CAP_IBRS_ALL	0x00000002
+
+/*
  * CPUID manufacturers identifiers
  */
 #define	AMD_VENDOR_ID		"AuthenticAMD"
@@ -401,6 +412,8 @@
 #define	MSR_EBL_CR_POWERON	0x02a
 #define	MSR_TEST_CTL		0x033
 #define	MSR_IA32_FEATURE_CONTROL 0x03a
+#define	MSR_IA32_SPEC_CTRL	0x048
+#define	MSR_IA32_PRED_CMD	0x049
 #define	MSR_BIOS_UPDT_TRIG	0x079
 #define	MSR_BBL_CR_D0		0x088
 #define	MSR_BBL_CR_D1		0x089
@@ -413,6 +426,7 @@
 #define	MSR_APERF		0x0e8
 #define	MSR_IA32_EXT_CONFIG	0x0ee	/* Undocumented. Core Solo/Duo only */
 #define	MSR_MTRRcap		0x0fe
+#define	MSR_IA32_ARCH_CAP	0x10a
 #define	MSR_BBL_CR_ADDR		0x116
 #define	MSR_BBL_CR_DECC		0x118
 #define	MSR_BBL_CR_CTL		0x119
@@ -554,6 +568,17 @@
 #define	IA32_MISC_EN_LIMCPUID	0x0000000000400000ULL
 #define	IA32_MISC_EN_xTPRD	0x0000000000800000ULL
 #define	IA32_MISC_EN_XDD	0x0000000400000000ULL
+
+/*
+ * IA32_SPEC_CTRL and IA32_PRED_CMD MSRs are described in the Intel'
+ * document 336996-001 Speculative Execution Side Channel Mitigations.
+ */
+/* MSR IA32_SPEC_CTRL */
+#define	IA32_SPEC_CTRL_IBRS	0x00000001
+#define	IA32_SPEC_CTRL_STIBP	0x00000002
+
+/* MSR IA32_PRED_CMD */
+#define	IA32_PRED_CMD_IBPB_BARRIER	0x0000000000000001ULL
 
 /*
  * PAT modes.

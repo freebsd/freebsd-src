@@ -191,9 +191,11 @@ do_kthread:
 done_tss:
 	movq	%r8,PCPU(RSP0)
 	movq	%r8,PCPU(CURPCB)
-	/* Update the TSS_RSP0 pointer for the next interrupt */
+	/* Update the COMMON_TSS_RSP0 pointer for the next interrupt */
+	cmpb	$0,pti(%rip)
+	jne	1f
 	movq	%r8,COMMON_TSS_RSP0(%rdx)
-	movq	%r12,PCPU(CURTHREAD)		/* into next thread */
+1:	movq	%r12,PCPU(CURTHREAD)		/* into next thread */
 
 	/* Test if debug registers should be restored. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
@@ -270,7 +272,12 @@ do_tss:	movq	%rdx,PCPU(TSSP)
 	shrq	$8,%rcx
 	movl	%ecx,8(%rax)
 	movb	$0x89,5(%rax)	/* unset busy */
-	movl	$TSSSEL,%eax
+	cmpb	$0,pti(%rip)
+	je	1f
+	movq	PCPU(PRVSPACE),%rax
+	addq	$PC_PTI_STACK+PC_PTI_STACK_SZ*8,%rax
+	movq	%rax,COMMON_TSS_RSP0(%rdx)
+1:	movl	$TSSSEL,%eax
 	ltr	%ax
 	jmp	done_tss
 

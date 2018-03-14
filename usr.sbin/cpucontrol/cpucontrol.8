@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2009
+.Dd January 5, 2018
 .Dt CPUCONTROL 8
 .Os
 .Sh NAME
@@ -36,44 +36,48 @@ device
 .Nm
 .Op Fl vh
 .Fl m Ar msr
-.Bk
 .Ar device
 .Ek
+.Bk
 .Nm
 .Op Fl vh
 .Fl m Ar msr Ns = Ns Ar value
-.Bk
 .Ar device
 .Ek
+.Bk
 .Nm
 .Op Fl vh
 .Fl m Ar msr Ns &= Ns Ar mask
-.Bk
 .Ar device
 .Ek
+.Bk
 .Nm
 .Op Fl vh
 .Fl m Ar msr Ns |= Ns Ar mask
-.Bk
 .Ar device
 .Ek
+.Bk
 .Nm
 .Op Fl vh
 .Fl i Ar level
-.Bk
 .Ar device
 .Ek
+.Bk
 .Nm
 .Op Fl vh
 .Fl i Ar level,level_type
-.Bk
 .Ar device
 .Ek
+.Bk
 .Nm
 .Op Fl vh
 .Op Fl d Ar datadir
 .Fl u
+.Ar device
+.Ek
 .Bk
+.Nm
+.Fl e
 .Ar device
 .Ek
 .Sh DESCRIPTION
@@ -129,6 +133,20 @@ The
 .Nm
 utility will walk through the configured data directories
 and apply all firmware updates available for this CPU.
+.It Fl e
+Re-evaluate the kernel flags indicating the present CPU features.
+This command is typically executed after a firmware update was applied
+which changes information reported by the
+.Dv CPUID
+instruction.
+.Pp
+.Bf -symbolic
+Only execute the
+.Fl e
+command after the microcode update was applied to all CPUs in the system.
+The kernel does not operate correctly if the features of processors are
+not identical.
+.Ef
 .It Fl v
 Increase the verbosity level.
 .It Fl h

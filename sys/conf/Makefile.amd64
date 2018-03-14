@@ -39,6 +39,7 @@ CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 
 ASM_CFLAGS.acpi_wakecode.S=	${CLANG_NO_IAS34}
 ASM_CFLAGS.mpboot.S=		${CLANG_NO_IAS34}
+ASM_CFLAGS.support.S=		${CLANG_NO_IAS}
 
 %BEFORE_DEPEND
 

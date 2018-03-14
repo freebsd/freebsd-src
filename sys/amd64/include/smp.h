@@ -28,12 +28,36 @@ extern u_int32_t		mptramp_pagetables;
 
 /* IPI handlers */
 inthand_t
+	IDTVEC(justreturn),	/* interrupt CPU with minimum overhead */
+	IDTVEC(justreturn1_pti),
+	IDTVEC(invltlb_pti),
+	IDTVEC(invltlb_pcid_pti),
 	IDTVEC(invltlb_pcid),	/* TLB shootdowns - global, pcid */
-	IDTVEC(invltlb_invpcid),/* TLB shootdowns - global, invpcid */
-	IDTVEC(justreturn);	/* interrupt CPU with minimum overhead */
+	IDTVEC(invltlb_invpcid_pti_pti),
+	IDTVEC(invltlb_invpcid_nopti),
+	IDTVEC(invlpg_pti),
+	IDTVEC(invlpg_invpcid_pti),
+	IDTVEC(invlpg_invpcid),
+	IDTVEC(invlpg_pcid_pti),
+	IDTVEC(invlpg_pcid),
+	IDTVEC(invlrng_pti),
+	IDTVEC(invlrng_invpcid_pti),
+	IDTVEC(invlrng_invpcid),
+	IDTVEC(invlrng_pcid_pti),
+	IDTVEC(invlrng_pcid),
+	IDTVEC(invlcache_pti),
+	IDTVEC(ipi_intr_bitmap_handler_pti),
+	IDTVEC(cpustop_pti),
+	IDTVEC(cpususpend_pti),
+	IDTVEC(rendezvous_pti);
 
 void	invltlb_pcid_handler(void);
 void	invltlb_invpcid_handler(void);
+void	invltlb_invpcid_pti_handler(void);
+void	invlpg_invpcid_handler(void);
+void	invlpg_pcid_handler(void);
+void	invlrng_invpcid_handler(void);
+void	invlrng_pcid_handler(void);
 int	native_start_all_aps(void);
 
 #endif /* !LOCORE */

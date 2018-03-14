@@ -166,13 +166,23 @@ static inthand_t *ioint_handlers[] = {
 	IDTVEC(apic_isr7),	/* 224 - 255 */
 };
 
+static inthand_t *ioint_pti_handlers[] = {
+	NULL,			/* 0 - 31 */
+	IDTVEC(apic_isr1_pti),	/* 32 - 63 */
+	IDTVEC(apic_isr2_pti),	/* 64 - 95 */
+	IDTVEC(apic_isr3_pti),	/* 96 - 127 */
+	IDTVEC(apic_isr4_pti),	/* 128 - 159 */
+	IDTVEC(apic_isr5_pti),	/* 160 - 191 */
+	IDTVEC(apic_isr6_pti),	/* 192 - 223 */
+	IDTVEC(apic_isr7_pti),	/* 224 - 255 */
+};
 
 static u_int32_t lapic_timer_divisors[] = {
 	APIC_TDCR_1, APIC_TDCR_2, APIC_TDCR_4, APIC_TDCR_8, APIC_TDCR_16,
 	APIC_TDCR_32, APIC_TDCR_64, APIC_TDCR_128
 };
 
-extern inthand_t IDTVEC(rsvd);
+extern inthand_t IDTVEC(rsvd_pti), IDTVEC(rsvd);
 
 volatile char *lapic_map;
 vm_paddr_t lapic_paddr;
@@ -489,15 +499,18 @@ native_lapic_init(vm_paddr_t addr)
 	PCPU_SET(apic_id, lapic_id());
 
 	/* Local APIC timer interrupt. */
-	setidt(APIC_TIMER_INT, IDTVEC(timerint), SDT_APIC, SEL_KPL, GSEL_APIC);
+	setidt(APIC_TIMER_INT, pti ? IDTVEC(timerint_pti) : IDTVEC(timerint),
+	    SDT_APIC, SEL_KPL, GSEL_APIC);
 
 	/* Local APIC error interrupt. */
-	setidt(APIC_ERROR_INT, IDTVEC(errorint), SDT_APIC, SEL_KPL, GSEL_APIC);
+	setidt(APIC_ERROR_INT, pti ? IDTVEC(errorint_pti) : IDTVEC(errorint),
+	    SDT_APIC, SEL_KPL, GSEL_APIC);
 
 	/* XXX: Thermal interrupt */
 
 	/* Local APIC CMCI. */
-	setidt(APIC_CMC_INT, IDTVEC(cmcint), SDT_APICT, SEL_KPL, GSEL_APIC);
+	setidt(APIC_CMC_INT, pti ? IDTVEC(cmcint_pti) : IDTVEC(cmcint),
+	    SDT_APICT, SEL_KPL, GSEL_APIC);
 
 	if ((resource_int_value("apic", 0, "clock", &i) != 0 || i != 0)) {
 		arat = 0;
@@ -1561,8 +1574,8 @@ native_apic_enable_vector(u_int apic_id, u_int vector)
 	KASSERT(vector != IDT_DTRACE_RET,
 	    ("Attempt to overwrite DTrace entry"));
 #endif
-	setidt(vector, ioint_handlers[vector / 32], SDT_APIC, SEL_KPL,
-	    GSEL_APIC);
+	setidt(vector, (pti ? ioint_pti_handlers : ioint_handlers)[vector / 32],
+	    SDT_APIC, SEL_KPL, GSEL_APIC);
 }
 
 static void
@@ -1581,7 +1594,8 @@ native_apic_disable_vector(u_int apic_id, u_int vector)
 	 * We can not currently clear the idt entry because other cpus
 	 * may have a valid vector at this offset.
 	 */
-	setidt(vector, &IDTVEC(rsvd), SDT_APICT, SEL_KPL, GSEL_APIC);
+	setidt(vector, pti ? &IDTVEC(rsvd_pti) : &IDTVEC(rsvd), SDT_APICT,
+	    SEL_KPL, GSEL_APIC);
 #endif
 }
 
@@ -2084,14 +2098,16 @@ native_lapic_ipi_alloc(inthand_t *ipifunc)
 	long func;
 	int idx, vector;
 
-	KASSERT(ipifunc != &IDTVEC(rsvd), ("invalid ipifunc %p", ipifunc));
+	KASSERT(ipifunc != &IDTVEC(rsvd) && ipifunc != &IDTVEC(rsvd_pti),
+	    ("invalid ipifunc %p", ipifunc));
 
 	vector = -1;
 	mtx_lock_spin(&icu_lock);
 	for (idx = IPI_DYN_FIRST; idx <= IPI_DYN_LAST; idx++) {
 		ip = &idt[idx];
 		func = (ip->gd_hioffset << 16) | ip->gd_looffset;
-		if (func == (uintptr_t)&IDTVEC(rsvd)) {
+		if ((!pti && func == (uintptr_t)&IDTVEC(rsvd)) ||
+		    (pti && func == (uintptr_t)&IDTVEC(rsvd_pti))) {
 			vector = idx;
 			setidt(vector, ipifunc, SDT_APIC, SEL_KPL, GSEL_APIC);
 			break;
@@ -2113,8 +2129,10 @@ native_lapic_ipi_free(int vector)
 	mtx_lock_spin(&icu_lock);
 	ip = &idt[vector];
 	func = (ip->gd_hioffset << 16) | ip->gd_looffset;
-	KASSERT(func != (uintptr_t)&IDTVEC(rsvd),
+	KASSERT(func != (uintptr_t)&IDTVEC(rsvd) &&
+	    func != (uintptr_t)&IDTVEC(rsvd_pti),
 	    ("invalid idtfunc %#lx", func));
-	setidt(vector, &IDTVEC(rsvd), SDT_APICT, SEL_KPL, GSEL_APIC);
+	setidt(vector, pti ? &IDTVEC(rsvd_pti) : &IDTVEC(rsvd), SDT_APICT,
+	    SEL_KPL, GSEL_APIC);
 	mtx_unlock_spin(&icu_lock);
 }
