@@ -173,6 +173,9 @@ AcpiUtCopyIobjectToEobject (
     ACPI_OPERAND_OBJECT     *Obj,
     ACPI_BUFFER             *RetBuffer)
 {
+    ACPI_EXCEPTION ((AE_INFO, AE_NOT_IMPLEMENTED,
+        "Stubbed function"));
+
     return (AE_NOT_IMPLEMENTED);
 }
 
@@ -181,6 +184,9 @@ AcpiUtCopyEobjectToIobject (
     ACPI_OBJECT             *Obj,
     ACPI_OPERAND_OBJECT     **InternalObj)
 {
+    ACPI_EXCEPTION ((AE_INFO, AE_NOT_IMPLEMENTED,
+        "Stubbed function"));
+
     return (AE_NOT_IMPLEMENTED);
 }
 
@@ -190,6 +196,9 @@ AcpiUtCopyIobjectToIobject (
     ACPI_OPERAND_OBJECT     **DestDesc,
     ACPI_WALK_STATE         *WalkState)
 {
+    ACPI_EXCEPTION ((AE_INFO, AE_NOT_IMPLEMENTED,
+        "Stubbed function"));
+
     return (AE_NOT_IMPLEMENTED);
 }
 
@@ -248,6 +257,9 @@ AcpiExReadDataFromField (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     ACPI_OPERAND_OBJECT     **RetBufferDesc)
 {
+    ACPI_EXCEPTION ((AE_INFO, AE_NOT_IMPLEMENTED,
+        "Stubbed function"));
+
     return (AE_NOT_IMPLEMENTED);
 }
 
@@ -257,6 +269,9 @@ AcpiExWriteDataToField (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     ACPI_OPERAND_OBJECT     **ResultDesc)
 {
+    ACPI_EXCEPTION ((AE_INFO, AE_NOT_IMPLEMENTED,
+        "Stubbed function"));
+
     return (AE_NOT_IMPLEMENTED);
 }
 
@@ -267,6 +282,9 @@ AcpiExStoreObjectToNode (
     ACPI_WALK_STATE         *WalkState,
     UINT8                   ImplicitConversion)
 {
+    ACPI_EXCEPTION ((AE_INFO, AE_NOT_IMPLEMENTED,
+        "Stubbed function"));
+
     return (AE_NOT_IMPLEMENTED);
 }
 
@@ -277,6 +295,9 @@ ACPI_STATUS
 AcpiNsEvaluate (
     ACPI_EVALUATE_INFO      *Info)
 {
+    ACPI_EXCEPTION ((AE_INFO, AE_NOT_IMPLEMENTED,
+        "Stubbed function"));
+
     return (AE_NOT_IMPLEMENTED);
 }
 
@@ -284,6 +305,7 @@ void
 AcpiNsExecModuleCodeList (
     void)
 {
+    return;
 }
 
 void
@@ -364,6 +386,9 @@ AcpiDsCallControlMethod (
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op)
 {
+    ACPI_EXCEPTION ((AE_INFO, AE_NOT_IMPLEMENTED,
+        "Stubbed function"));
+
     return (AE_NOT_IMPLEMENTED);
 }
 
@@ -372,6 +397,9 @@ AcpiDsRestartControlMethod (
     ACPI_WALK_STATE         *WalkState,
     ACPI_OPERAND_OBJECT     *ReturnDesc)
 {
+    ACPI_EXCEPTION ((AE_INFO, AE_NOT_IMPLEMENTED,
+        "Stubbed function"));
+
     return (AE_NOT_IMPLEMENTED);
 }
 
@@ -387,6 +415,9 @@ AcpiDsMethodError (
     ACPI_STATUS             Status,
     ACPI_WALK_STATE         *WalkState)
 {
+    ACPI_EXCEPTION ((AE_INFO, AE_NOT_IMPLEMENTED,
+        "Stubbed function"));
+
     return (AE_NOT_IMPLEMENTED);
 }
 
@@ -396,6 +427,9 @@ AcpiDsBeginMethodExecution (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     ACPI_WALK_STATE         *WalkState)
 {
+    ACPI_EXCEPTION ((AE_INFO, AE_NOT_IMPLEMENTED,
+        "Stubbed function"));
+
     return (AE_NOT_IMPLEMENTED);
 }
 
@@ -404,6 +438,9 @@ AcpiDsGetPredicateValue (
     ACPI_WALK_STATE         *WalkState,
     ACPI_OPERAND_OBJECT     *ResultObj)
 {
+    ACPI_EXCEPTION ((AE_INFO, AE_NOT_IMPLEMENTED,
+        "Stubbed function"));
+
     return (AE_NOT_IMPLEMENTED);
 }
 
@@ -447,6 +484,9 @@ AcpiDsExecBeginOp (
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       **OutOp)
 {
+    ACPI_EXCEPTION ((AE_INFO, AE_NOT_IMPLEMENTED,
+        "Stubbed function"));
+
     return (AE_NOT_IMPLEMENTED);
 }
 
@@ -454,5 +494,8 @@ ACPI_STATUS
 AcpiDsExecEndOp (
     ACPI_WALK_STATE         *State)
 {
+    ACPI_EXCEPTION ((AE_INFO, AE_NOT_IMPLEMENTED,
+        "Stubbed function"));
+
     return (AE_NOT_IMPLEMENTED);
 }

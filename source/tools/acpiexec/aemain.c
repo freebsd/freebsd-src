@@ -342,7 +342,7 @@ AeDoOptions (
 
         case 'p':
 
-            AcpiGbl_ParseTableAsTermList = FALSE;
+            AcpiGbl_ExecuteTablesAsMethods = FALSE;
             break;
 
         case 'r':
@@ -607,6 +607,11 @@ main (
     AcpiDbgLevel = ACPI_NORMAL_DEFAULT;
     AcpiDbgLayer = 0xFFFFFFFF;
 
+    /* Module-level code. Use new architecture */
+
+    AcpiGbl_ExecuteTablesAsMethods = TRUE;
+    AcpiGbl_GroupModuleLevelCode = FALSE;
+
     /*
      * Initialize ACPICA and start debugger thread.
      *
@@ -711,6 +716,25 @@ main (
         goto EnterDebugger;
     }
 
+    Status = AeLoadTables ();
+
+    /*
+     * Exit namespace initialization for the "load namespace only" option.
+     * No control methods will be executed. However, still enter the
+     * the debugger.
+     */
+    if (AcpiGbl_AeLoadOnly)
+    {
+        goto EnterDebugger;
+    }
+
+    if (ACPI_FAILURE (Status))
+    {
+        printf ("**** Could not load ACPI tables, %s\n",
+            AcpiFormatException (Status));
+        goto EnterDebugger;
+    }
+
     /* Setup initialization flags for ACPICA */
 
     InitFlags = (ACPI_NO_HANDLER_INIT | ACPI_NO_ACPI_ENABLE);
@@ -737,30 +761,17 @@ main (
         goto EnterDebugger;
     }
 
-    Status = AeLoadTables ();
-
-    /*
-     * Exit namespace initialization for the "load namespace only" option.
-     * No control methods will be executed. However, still enter the
-     * the debugger.
-     */
-    if (AcpiGbl_AeLoadOnly)
-    {
-        goto EnterDebugger;
-    }
-
-    if (ACPI_FAILURE (Status))
-    {
-        printf ("**** Could not load ACPI tables, %s\n",
-            AcpiFormatException (Status));
-        goto EnterDebugger;
-    }
-
     /*
      * Install handlers for "device driver" space IDs (EC,SMBus, etc.)
      * and fixed event handlers
      */
     AeInstallLateHandlers ();
+
+    /*
+     * This call implements the "initialization file" option for AcpiExec.
+     * This is the precise point that we want to perform the overrides.
+     */
+    AeDoObjectOverrides ();
 
     /* Finish the ACPICA initialization */
 

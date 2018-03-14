@@ -243,12 +243,9 @@ AsReplaceData (
          * 1) If adding more bytes than removing, make room for the new data
          * 2) if removing more bytes than adding, delete the extra space
          */
-        if (LengthToRemove > 0)
-        {
-            Gbl_MadeChanges = TRUE;
-            memmove ((Buffer + LengthToAdd), (Buffer + LengthToRemove),
-                (BufferLength - LengthToRemove));
-        }
+        Gbl_MadeChanges = TRUE;
+        memmove ((Buffer + LengthToAdd), (Buffer + LengthToRemove),
+            (BufferLength - LengthToRemove));
     }
 
     /*

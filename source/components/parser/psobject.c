@@ -182,7 +182,7 @@ static ACPI_STATUS
 AcpiPsGetAmlOpcode (
     ACPI_WALK_STATE         *WalkState)
 {
-    UINT32                  AmlOffset;
+    ACPI_ERROR_ONLY (UINT32 AmlOffset);
 
 
     ACPI_FUNCTION_TRACE_PTR (PsGetAmlOpcode, WalkState);
@@ -217,8 +217,8 @@ AcpiPsGetAmlOpcode (
 
         if (WalkState->PassNumber == 2)
         {
-            AmlOffset = (UINT32) ACPI_PTR_DIFF (WalkState->Aml,
-                WalkState->ParserState.AmlStart);
+            ACPI_ERROR_ONLY(AmlOffset = (UINT32) ACPI_PTR_DIFF (WalkState->Aml,
+                WalkState->ParserState.AmlStart));
 
             ACPI_ERROR ((AE_INFO,
                 "Unknown opcode 0x%.2X at table offset 0x%.4X, ignoring",

@@ -183,12 +183,18 @@ AsCountLines (
     char                    *Filename);
 
 
+
+#define MODULE_HEADER_BEGIN "/******************************************************************************\n *\n * Module Name:";
+#define MODULE_HEADER_END   " *****************************************************************************/\n\n"
+#define INTEL_COPYRIGHT     " * Copyright (C) 2000 - 2018, Intel Corp.\n"
+
 /* Opening signature of the Intel legal header */
 
 char        *HeaderBegin = "/******************************************************************************\n *\n * 1. Copyright Notice";
 
 UINT32      NonAnsiCommentCount;
 
+char        CopyRightHeaderEnd[] = INTEL_COPYRIGHT " *\n" MODULE_HEADER_END;
 
 /******************************************************************************
  *
@@ -756,6 +762,39 @@ AsReplaceHeader (
         NewHeader, strlen (NewHeader));
 }
 
+
+/******************************************************************************
+ *
+ * FUNCTION:    AsDoSpdxHeader
+ *
+ * DESCRIPTION: Replace the default Intel legal header with a new header
+ *
+ ******************************************************************************/
+
+void
+AsDoSpdxHeader (
+    char                    *Buffer,
+    char                    *SpdxHeader)
+{
+    char                    *SubBuffer;
+
+
+    /* Place an SPDX header at the very top */
+
+    AsReplaceData (Buffer, 0,
+        SpdxHeader, strlen (SpdxHeader));
+
+    /* Place an Intel copyright notice in the module header */
+
+    SubBuffer = strstr (Buffer, MODULE_HEADER_END);
+    if (!SubBuffer)
+    {
+        return;
+    }
+
+    AsReplaceData (SubBuffer, strlen (MODULE_HEADER_END),
+        CopyRightHeaderEnd, strlen (CopyRightHeaderEnd));
+}
 
 /******************************************************************************
  *
