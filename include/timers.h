@@ -1,4 +1,6 @@
 /* ==== timers.h ============================================================
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994 by Chris Provenzano, proven@mit.edu
  * All rights reserved.
  *

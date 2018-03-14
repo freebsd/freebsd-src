@@ -2,6 +2,8 @@
 /*	$NetBSD$	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * [Ported for FreeBSD]
  *  Copyright (c) 2000
  *      Noriaki Mitsunaga, Mitsuru Iwasaki and Takanori Watanabe.

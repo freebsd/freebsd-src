@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1995-1997 Wolfgang Solfrank.
  * Copyright (C) 1995-1997 TooLs GmbH.
  * All rights reserved.

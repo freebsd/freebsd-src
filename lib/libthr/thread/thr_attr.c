@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003 Craig Rodrigues <rodrigc@attbi.com>.
  * All rights reserved.
  *

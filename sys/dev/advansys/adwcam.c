@@ -6,6 +6,8 @@
  * 
  * adw_pci.c	ABP[3]940UW, ABP950UW, ABP3940U2W
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998, 1999, 2000 Justin Gibbs.
  * All rights reserved.
  *

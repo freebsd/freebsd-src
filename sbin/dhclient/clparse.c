@@ -2,7 +2,9 @@
 
 /* Parser for dhclient config and lease files... */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1997 The Internet Software Consortium.
  * All rights reserved.
  *

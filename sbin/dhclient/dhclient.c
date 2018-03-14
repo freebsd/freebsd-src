@@ -1,6 +1,8 @@
 /*	$OpenBSD: dhclient.c,v 1.63 2005/02/06 17:10:13 krw Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2004 Henning Brauer <henning@openbsd.org>
  * Copyright (c) 1995, 1996, 1997, 1998, 1999
  * The Internet Software Consortium.    All rights reserved.

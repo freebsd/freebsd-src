@@ -1,5 +1,7 @@
 /* $Id: list.h,v 1.6 2006/10/31 06:25:28 gmm Exp $ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2005-2011 HighPoint Technologies, Inc.
  * All rights reserved.
  *

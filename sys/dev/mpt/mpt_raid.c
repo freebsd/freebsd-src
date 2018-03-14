@@ -1,6 +1,8 @@
 /*-
  * Routines for handling the integrated RAID features LSI MPT Fusion adapters.
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2005, WHEEL Sp. z o.o.
  * Copyright (c) 2005 Justin T. Gibbs.
  * All rights reserved.

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 David E. O'Brien
  * Copyright (c) 1996-1997 John D. Polstra.
  * All rights reserved.

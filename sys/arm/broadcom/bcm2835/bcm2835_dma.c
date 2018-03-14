@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Daisuke Aoyama <aoyama@peach.ne.jp>
  * Copyright (c) 2013 Oleksandr Tymoshenko <gonzo@bluezbox.com>
  *

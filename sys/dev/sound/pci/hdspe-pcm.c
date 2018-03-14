@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2012 Ruslan Bukin <br@bsdpad.com>
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2012-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,10 +85,14 @@ static int
 hdspe_hw_mixer(struct sc_chinfo *ch, unsigned int dst,
     unsigned int src, unsigned short data)
 {
-	struct sc_pcminfo *scp = ch->parent;
-	struct sc_info *sc = scp->sc;
-	int offs = 0;
+	struct sc_pcminfo *scp;
+	struct sc_info *sc;
+	int offs;
 
+	scp = ch->parent;
+	sc = scp->sc;
+
+	offs = 0;
 	if (ch->dir == PCMDIR_PLAY)
 		offs = 64;
 
@@ -94,7 +100,7 @@ hdspe_hw_mixer(struct sc_chinfo *ch, unsigned int dst,
 	    ((offs + src + 128 * dst) * sizeof(uint32_t)),
 	    data & 0xFFFF);
 
-	return 0;
+	return (0);
 };
 
 static int
@@ -106,18 +112,20 @@ hdspechan_setgain(struct sc_chinfo *ch)
 	hdspe_hw_mixer(ch, ch->rslot, ch->rslot,
 	    ch->rvol * HDSPE_MAX_GAIN / 100);
 
-	return 0;
+	return (0);
 }
 
 static int
 hdspemixer_init(struct snd_mixer *m)
 {
-	struct sc_pcminfo *scp = mix_getdevinfo(m);
-	struct sc_info *sc = scp->sc;
+	struct sc_pcminfo *scp;
+	struct sc_info *sc;
 	int mask;
 
+	scp = mix_getdevinfo(m);
+	sc = scp->sc;
 	if (sc == NULL)
-		return -1;
+		return (-1);
 
 	mask = SOUND_MASK_PCM;
 
@@ -132,20 +140,22 @@ hdspemixer_init(struct snd_mixer *m)
 	mix_setdevs(m, mask);
 	snd_mtxunlock(sc->lock);
 
-	return 0;
+	return (0);
 }
 
 static int
 hdspemixer_set(struct snd_mixer *m, unsigned dev,
     unsigned left, unsigned right)
 {
-	struct sc_pcminfo *scp = mix_getdevinfo(m);
+	struct sc_pcminfo *scp;
 	struct sc_chinfo *ch;
 	int i;
 
+	scp = mix_getdevinfo(m);
+
 #if 0
 	device_printf(scp->dev, "hdspemixer_set() %d %d\n",
-	    left,right);
+	    left, right);
 #endif
 
 	for (i = 0; i < scp->chnum; i++) {
@@ -159,7 +169,7 @@ hdspemixer_set(struct snd_mixer *m, unsigned dev,
 		}
 	}
 
-	return 0;
+	return (0);
 }
 
 static kobj_method_t hdspemixer_methods[] = {
@@ -172,9 +182,12 @@ MIXER_DECLARE(hdspemixer);
 static void
 hdspechan_enable(struct sc_chinfo *ch, int value)
 {
-	struct sc_pcminfo *scp = ch->parent;
-	struct sc_info *sc = scp->sc;
+	struct sc_pcminfo *scp;
+	struct sc_info *sc;
 	int reg;
+
+	scp = ch->parent;
+	sc = scp->sc;
 
 	if (ch->dir == PCMDIR_PLAY)
 		reg = HDSPE_OUT_ENABLE_BASE;
@@ -192,8 +205,10 @@ hdspe_running(struct sc_info *sc)
 {
 	struct sc_pcminfo *scp;
 	struct sc_chinfo *ch;
-	int i, j, devcount, err;
 	device_t *devlist;
+	int devcount;
+	int i, j;
+	int err;
 
 	if ((err = device_get_children(sc->dev, &devlist, &devcount)) != 0)
 		goto bad;
@@ -208,15 +223,17 @@ hdspe_running(struct sc_info *sc)
 	}
 
 	free(devlist, M_TEMP);
-	return 0;
+
+	return (0);
 bad:
 
 #if 0
-	device_printf(sc->dev,"hdspe is running\n");
+	device_printf(sc->dev, "hdspe is running\n");
 #endif
 
 	free(devlist, M_TEMP);
-	return 1;
+
+	return (1);
 }
 
 static void
@@ -242,11 +259,15 @@ hdspe_stop_audio(struct sc_info *sc)
 static void
 buffer_copy(struct sc_chinfo *ch)
 {
-	struct sc_pcminfo *scp = ch->parent;
-	struct sc_info *sc = scp->sc;
-	int length,src,dst;
+	struct sc_pcminfo *scp;
+	struct sc_info *sc;
 	int ssize, dsize;
+	int src, dst;
+	int length;
 	int i;
+
+	scp = ch->parent;
+	sc = scp->sc;
 
 	length = sndbuf_getready(ch->buffer) /
 	    (4 /* Bytes per sample. */ * 2 /* channels */);
@@ -289,10 +310,15 @@ buffer_copy(struct sc_chinfo *ch)
 }
 
 static int
-clean(struct sc_chinfo *ch){
-	struct sc_pcminfo *scp = ch->parent;
-	struct sc_info *sc = scp->sc;
-	uint32_t *buf = sc->rbuf;
+clean(struct sc_chinfo *ch)
+{
+	struct sc_pcminfo *scp;
+	struct sc_info *sc;
+	uint32_t *buf;
+
+	scp = ch->parent;
+	sc = scp->sc;
+	buf = sc->rbuf;
 
 	if (ch->dir == PCMDIR_PLAY) {
 		buf = sc->pbuf;
@@ -301,19 +327,22 @@ clean(struct sc_chinfo *ch){
 	bzero(buf + HDSPE_CHANBUF_SAMPLES * ch->lslot, HDSPE_CHANBUF_SIZE);
 	bzero(buf + HDSPE_CHANBUF_SAMPLES * ch->rslot, HDSPE_CHANBUF_SIZE);
 
-	return 0;
+	return (0);
 }
 
 
 /* Channel interface. */
 static void *
 hdspechan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
-               struct pcm_channel *c, int dir)
+    struct pcm_channel *c, int dir)
 {
-	struct sc_pcminfo *scp = devinfo;
-	struct sc_info *sc = scp->sc;
+	struct sc_pcminfo *scp;
 	struct sc_chinfo *ch;
+	struct sc_info *sc;
 	int num;
+
+	scp = devinfo;
+	sc = scp->sc;
 
 	snd_mtxlock(sc->lock);
 	num = scp->chnum;
@@ -338,18 +367,22 @@ hdspechan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 
 	if (sndbuf_setup(ch->buffer, ch->data, ch->size) != 0) {
 		device_printf(scp->dev, "Can't setup sndbuf.\n");
-		return NULL;
+		return (NULL);
 	}
 
-	return ch;
+	return (ch);
 }
 
 static int
 hdspechan_trigger(kobj_t obj, void *data, int go)
 {
-	struct sc_chinfo *ch = data;
-	struct sc_pcminfo *scp = ch->parent;
-	struct sc_info *sc = scp->sc;
+	struct sc_pcminfo *scp;
+	struct sc_chinfo *ch;
+	struct sc_info *sc;
+
+	ch = data;
+	scp = ch->parent;
+	sc = scp->sc;
 
 	snd_mtxlock(sc->lock);
 	switch (go) {
@@ -381,16 +414,20 @@ hdspechan_trigger(kobj_t obj, void *data, int go)
 
 	snd_mtxunlock(sc->lock);
 
-	return 0;
+	return (0);
 }
 
 static uint32_t
 hdspechan_getptr(kobj_t obj, void *data)
 {
-	struct sc_chinfo *ch = data;
-	struct sc_pcminfo *scp = ch->parent;
-	struct sc_info *sc = scp->sc;
+	struct sc_pcminfo *scp;
+	struct sc_chinfo *ch;
+	struct sc_info *sc;
 	uint32_t ret, pos;
+
+	ch = data;
+	scp = ch->parent;
+	sc = scp->sc;
 
 	snd_mtxlock(sc->lock);
 	ret = hdspe_read_2(sc, HDSPE_STATUS_REG);
@@ -399,19 +436,24 @@ hdspechan_getptr(kobj_t obj, void *data)
 	pos = ret & HDSPE_BUF_POSITION_MASK;
 	pos *= 2; /* Hardbuf twice bigger. */
 
-	return pos;
+	return (pos);
 }
 
 static int
 hdspechan_free(kobj_t obj, void *data)
 {
-	struct sc_chinfo *ch = data;
-	struct sc_pcminfo *scp = ch->parent;
-	struct sc_info *sc = scp->sc;
+	struct sc_pcminfo *scp;
+	struct sc_chinfo *ch;
+	struct sc_info *sc;
+
+	ch = data;
+	scp = ch->parent;
+	sc = scp->sc;
 
 #if 0
 	device_printf(scp->dev, "hdspechan_free()\n");
 #endif
+
 	snd_mtxlock(sc->lock);
 	if (ch->data != NULL) {
 		free(ch->data, M_HDSPE);
@@ -419,13 +461,15 @@ hdspechan_free(kobj_t obj, void *data)
 	}
 	snd_mtxunlock(sc->lock);
 
-	return 0;
+	return (0);
 }
 
 static int
 hdspechan_setformat(kobj_t obj, void *data, uint32_t format)
 {
-	struct sc_chinfo *ch = data;
+	struct sc_chinfo *ch;
+
+	ch = data;
 
 #if 0
 	struct sc_pcminfo *scp = ch->parent;
@@ -434,19 +478,24 @@ hdspechan_setformat(kobj_t obj, void *data, uint32_t format)
 
 	ch->format = format;
 
-	return 0;
+	return (0);
 }
 
 static uint32_t
 hdspechan_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
-	struct sc_chinfo *ch = data;
-	struct sc_pcminfo *scp = ch->parent;
-	struct sc_info *sc = scp->sc;
-	struct hdspe_rate *hr = NULL;
+	struct sc_pcminfo *scp;
+	struct hdspe_rate *hr;
+	struct sc_chinfo *ch;
+	struct sc_info *sc;
 	long long period;
 	int threshold;
 	int i;
+
+	ch = data;
+	scp = ch->parent;
+	sc = scp->sc;
+	hr = NULL;
 
 #if 0
 	device_printf(scp->dev, "hdspechan_setspeed(%d)\n", speed);
@@ -499,18 +548,24 @@ hdspechan_setspeed(kobj_t obj, void *data, uint32_t speed)
 
 	sc->speed = hr->speed;
 end:
-	return sc->speed;
+
+	return (sc->speed);
 }
 
 static uint32_t
 hdspechan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
-	struct sc_chinfo *ch = data;
-	struct sc_pcminfo *scp = ch->parent;
-	struct sc_info *sc = scp->sc;
-	struct hdspe_latency *hl = NULL;
+	struct hdspe_latency *hl;
+	struct sc_pcminfo *scp;
+	struct sc_chinfo *ch;
+	struct sc_info *sc;
 	int threshold;
 	int i;
+
+	ch = data;
+	scp = ch->parent;
+	sc = scp->sc;
+	hl = NULL;
 
 #if 0
 	device_printf(scp->dev, "hdspechan_setblocksize(%d)\n", blocksize);
@@ -558,7 +613,8 @@ hdspechan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 	sndbuf_resize(ch->buffer, (HDSPE_CHANBUF_SIZE * 2) / (sc->period * 4),
 	    (sc->period * 4));
 end:
-	return sndbuf_getblksz(ch->buffer);
+
+	return (sndbuf_getblksz(ch->buffer));
 }
 
 static uint32_t hdspe_rfmt[] = {
@@ -578,15 +634,17 @@ static struct pcmchan_caps hdspe_pcaps = {32000, 192000, hdspe_pfmt, 0};
 static struct pcmchan_caps *
 hdspechan_getcaps(kobj_t obj, void *data)
 {
-	struct sc_chinfo *ch = data;
+	struct sc_chinfo *ch;
+
+	ch = data;
 
 #if 0
 	struct sc_pcminfo *scl = ch->parent;
 	device_printf(scp->dev, "hdspechan_getcaps()\n");
 #endif
 
-	return (ch->dir == PCMDIR_PLAY) ?
-	    &hdspe_pcaps : &hdspe_rcaps;
+	return ((ch->dir == PCMDIR_PLAY) ?
+	    &hdspe_pcaps : &hdspe_rcaps);
 }
 
 static kobj_method_t hdspechan_methods[] = {
@@ -611,14 +669,17 @@ hdspe_pcm_probe(device_t dev)
 	device_printf(dev,"hdspe_pcm_probe()\n");
 #endif
 
-	return 0;
+	return (0);
 }
 
 static uint32_t
-hdspe_pcm_intr(struct sc_pcminfo *scp) {
+hdspe_pcm_intr(struct sc_pcminfo *scp)
+{
 	struct sc_chinfo *ch;
-	struct sc_info *sc = scp->sc;
+	struct sc_info *sc;
 	int i;
+
+	sc = scp->sc;
 
 	for (i = 0; i < scp->chnum; i++) {
 		ch = &scp->chan[i];
@@ -627,14 +688,14 @@ hdspe_pcm_intr(struct sc_pcminfo *scp) {
 		snd_mtxlock(sc->lock);
 	}
 
-	return 0;
+	return (0);
 }
 
 static int
 hdspe_pcm_attach(device_t dev)
 {
-	struct sc_pcminfo *scp;
 	char status[SND_STATUSLEN];
+	struct sc_pcminfo *scp;
 	char desc[64];
 	int i, err;
 
@@ -654,7 +715,7 @@ hdspe_pcm_attach(device_t dev)
 	err = pcm_register(dev, scp, scp->hc->play, scp->hc->rec);
 	if (err) {
 		device_printf(dev, "Can't register pcm.\n");
-		return ENXIO;
+		return (ENXIO);
 	}
 
 	scp->chnum = 0;
@@ -676,7 +737,7 @@ hdspe_pcm_attach(device_t dev)
 
 	mixer_init(dev, &hdspemixer_class, scp);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -687,10 +748,10 @@ hdspe_pcm_detach(device_t dev)
 	err = pcm_unregister(dev);
 	if (err) {
 		device_printf(dev, "Can't unregister device.\n");
-		return err;
+		return (err);
 	}
 
-	return 0;
+	return (0);
 }
 
 static device_method_t hdspe_pcm_methods[] = {

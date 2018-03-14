@@ -1,6 +1,8 @@
 /* $NetBSD: aureg.h,v 1.18 2006/10/02 06:44:00 gdamore Exp $ */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *
@@ -33,6 +35,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef	_MIPS_ALCHEMY_AUREG_H

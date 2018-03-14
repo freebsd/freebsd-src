@@ -1,6 +1,8 @@
 /*	$NetBSD: ncr53c9xreg.h,v 1.16 2009/09/07 13:31:44 tsutsui Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994 Peter Galbavy.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

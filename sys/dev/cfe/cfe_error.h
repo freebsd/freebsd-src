@@ -2,6 +2,8 @@
 /* from: SiByte Id: cfe_error.h,v 1.2 2002/07/09 19:37:52 cgd Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2000, 2001, 2002
  * Broadcom Corporation. All rights reserved.
  *

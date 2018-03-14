@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Jonathan Lemon
  * Copyright (c) 1999, 2000 Michael Smith
  * Copyright (c) 2000 BSDi

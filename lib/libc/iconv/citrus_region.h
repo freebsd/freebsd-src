@@ -2,6 +2,8 @@
 /* $NetBSD: citrus_region.h,v 1.7 2008/02/09 14:56:20 junyoung Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2003 Citrus Project,
  * All rights reserved.
  *

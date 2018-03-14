@@ -2,6 +2,8 @@
 __FBSDID("$FreeBSD$");
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Scott Long
  * All rights reserved.
  *

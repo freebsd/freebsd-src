@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008-2010 Atheros Communications Inc.
  * Copyright (c) 2010-2011 Adrian Chadd, Xenion Pty Ltd.
  *

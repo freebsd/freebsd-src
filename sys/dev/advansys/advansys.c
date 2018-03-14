@@ -8,6 +8,8 @@
  *			ABP940UA, ABP950, ABP960, ABP960U, ABP960UA,
  *			ABP970, ABP970U
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996-2000 Justin Gibbs.
  * All rights reserved.
  *

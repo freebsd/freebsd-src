@@ -3,6 +3,8 @@
     (Special thanks to Kevin MacPherson of OSITECH)
     (Thanks to Ositech Communications for permitting for BSDL distribution)
 
+ SPDX-License-Identifier: BSD-2-Clause
+
 Copyright 2002 Ositech Communications Inc.  All Rights Reserved
 
 Redistribution and use in source and binary forms, with or without

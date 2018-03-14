@@ -1,6 +1,8 @@
 /*	$KAME: rtsold.h,v 1.19 2003/04/16 09:48:15 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  * 

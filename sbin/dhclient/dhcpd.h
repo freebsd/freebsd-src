@@ -1,6 +1,8 @@
 /*	$OpenBSD: dhcpd.h,v 1.33 2004/05/06 22:29:15 deraadt Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2004 Henning Brauer <henning@openbsd.org>
  * Copyright (c) 1995, 1996, 1997, 1998, 1999
  * The Internet Software Consortium.    All rights reserved.

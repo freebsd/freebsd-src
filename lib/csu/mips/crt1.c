@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
  * Copyright (c) 1995 Christopher G. Demetriou

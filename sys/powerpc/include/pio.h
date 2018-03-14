@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997 Per Fogelstrom, Opsycon AB and RTMX Inc, USA.
  * 
  * Redistribution and use in source and binary forms, with or without

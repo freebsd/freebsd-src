@@ -1,6 +1,8 @@
 /* $NetBSD: uart.c,v 1.2 2007/03/23 20:05:47 dogcow Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Aleksandr Rybalko.
  * Copyright (c) 2007 Ruslan Ermilov and Vsevolod Lobko.
  * Copyright (c) 2007 Oleksandr Tymoshenko.

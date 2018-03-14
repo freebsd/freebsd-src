@@ -1,6 +1,8 @@
 /*	$NetBSD: am79900var.h,v 1.4 2005/12/11 12:21:25 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

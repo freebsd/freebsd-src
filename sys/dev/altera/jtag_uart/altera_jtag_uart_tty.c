@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2011-2012 Robert N. M. Watson
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2011-2012, 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -40,10 +42,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/reboot.h>
+#include <sys/sysctl.h>
 #include <sys/tty.h>
 
 #include <ddb/ddb.h>
 
+#include <machine/atomic.h>
 #include <machine/bus.h>
 
 #include <dev/altera/jtag_uart/altera_jtag_uart.h>
@@ -65,15 +69,62 @@ static struct ttydevsw aju_ttydevsw = {
 
 /*
  * When polling for the AC bit, the number of times we have to not see it
- * before assuming JTAG has disappeared on us.  By default, two seconds.
+ * before assuming JTAG has disappeared on us.  By default, four seconds.
  */
-#define	AJU_JTAG_MAXMISS		10
+#define	AJU_JTAG_MAXMISS		20
 
 /*
  * Polling intervals for input/output and JTAG connection events.
  */
 #define	AJU_IO_POLLINTERVAL		(hz/100)
 #define	AJU_AC_POLLINTERVAL		(hz/5)
+
+/*
+ * Statistics on JTAG removal events when sending, for debugging purposes
+ * only.
+ */
+static u_int aju_jtag_vanished;
+SYSCTL_UINT(_debug, OID_AUTO, aju_jtag_vanished, CTLFLAG_RW,
+    &aju_jtag_vanished, 0, "Number of times JTAG has vanished");
+
+static u_int aju_jtag_appeared;
+SYSCTL_UINT(_debug, OID_AUTO, aju_jtag_appeared, CTLFLAG_RW,
+    &aju_jtag_appeared, 0, "Number of times JTAG has appeared");
+
+SYSCTL_INT(_debug, OID_AUTO, aju_cons_jtag_present, CTLFLAG_RW,
+    &aju_cons_jtag_present, 0, "JTAG console present flag");
+
+SYSCTL_UINT(_debug, OID_AUTO, aju_cons_jtag_missed, CTLFLAG_RW,
+    &aju_cons_jtag_missed, 0, "JTAG console missed counter");
+
+/*
+ * Interrupt-related statistics.
+ */
+static u_int aju_intr_readable_enabled;
+SYSCTL_UINT(_debug, OID_AUTO, aju_intr_readable_enabled, CTLFLAG_RW,
+    &aju_intr_readable_enabled, 0, "Number of times read interrupt enabled");
+
+static u_int aju_intr_writable_disabled;
+SYSCTL_UINT(_debug, OID_AUTO, aju_intr_writable_disabled, CTLFLAG_RW,
+    &aju_intr_writable_disabled, 0,
+    "Number of times write interrupt disabled");
+
+static u_int aju_intr_writable_enabled;
+SYSCTL_UINT(_debug, OID_AUTO, aju_intr_writable_enabled, CTLFLAG_RW,
+    &aju_intr_writable_enabled, 0,
+    "Number of times write interrupt enabled");
+
+static u_int aju_intr_disabled;
+SYSCTL_UINT(_debug, OID_AUTO, aju_intr_disabled, CTLFLAG_RW,
+    &aju_intr_disabled, 0, "Number of times write interrupt disabled");
+
+static u_int aju_intr_read_count;
+SYSCTL_UINT(_debug, OID_AUTO, aju_intr_read_count, CTLFLAG_RW,
+    &aju_intr_read_count, 0, "Number of times read interrupt fired");
+
+static u_int aju_intr_write_count;
+SYSCTL_UINT(_debug, OID_AUTO, aju_intr_write_count, CTLFLAG_RW,
+    &aju_intr_write_count, 0, "Number of times write interrupt fired");
 
 /*
  * Low-level read and write register routines; the Altera UART is little
@@ -160,6 +211,7 @@ aju_intr_readable_enable(struct altera_jtag_uart_softc *sc)
 
 	AJU_LOCK_ASSERT(sc);
 
+	atomic_add_int(&aju_intr_readable_enabled, 1);
 	v = aju_control_read(sc);
 	v |= ALTERA_JTAG_UART_CONTROL_RE;
 	aju_control_write(sc, v);
@@ -172,6 +224,7 @@ aju_intr_writable_enable(struct altera_jtag_uart_softc *sc)
 
 	AJU_LOCK_ASSERT(sc);
 
+	atomic_add_int(&aju_intr_writable_enabled, 1);
 	v = aju_control_read(sc);
 	v |= ALTERA_JTAG_UART_CONTROL_WE;
 	aju_control_write(sc, v);
@@ -184,6 +237,7 @@ aju_intr_writable_disable(struct altera_jtag_uart_softc *sc)
 
 	AJU_LOCK_ASSERT(sc);
 
+	atomic_add_int(&aju_intr_writable_disabled, 1);
 	v = aju_control_read(sc);
 	v &= ~ALTERA_JTAG_UART_CONTROL_WE;
 	aju_control_write(sc, v);
@@ -196,6 +250,7 @@ aju_intr_disable(struct altera_jtag_uart_softc *sc)
 
 	AJU_LOCK_ASSERT(sc);
 
+	atomic_add_int(&aju_intr_disabled, 1);
 	v = aju_control_read(sc);
 	v &= ~(ALTERA_JTAG_UART_CONTROL_RE | ALTERA_JTAG_UART_CONTROL_WE);
 	aju_control_write(sc, v);
@@ -249,30 +304,7 @@ aju_handle_output(struct altera_jtag_uart_softc *sc, struct tty *tp)
 	AJU_UNLOCK(sc);
 	while (ttydisc_getc_poll(tp) != 0) {
 		AJU_LOCK(sc);
-		v = aju_control_read(sc);
-		if ((v & ALTERA_JTAG_UART_CONTROL_WSPACE) != 0) {
-			AJU_UNLOCK(sc);
-			if (ttydisc_getc(tp, &ch, sizeof(ch)) != sizeof(ch))
-				panic("%s: ttydisc_getc", __func__);
-			AJU_LOCK(sc);
-
-			/*
-			 * XXXRW: There is a slight race here in which we test
-			 * for writability, drop the lock, get the character
-			 * from the tty layer, re-acquire the lock, and then
-			 * write.  It's possible for other code --
-			 * specifically, the low-level console -- to have
-			 * written in the mean time, which might mean that
-			 * there is no longer space.  The BERI memory bus will
-			 * cause this write to block, wedging the processor
-			 * until space is available -- which could be a while
-			 * if JTAG is not attached!
-			 *
-			 * The 'easy' fix is to drop the character if WSPACE
-			 * has become unset.  Not sure what the 'hard' fix is.
-			 */
-			aju_data_write(sc, ch);
-		} else {
+		if (*sc->ajus_jtag_presentp == 0) {
 			/*
 			 * If JTAG is not present, then we will drop this
 			 * character instead of perhaps scheduling an
@@ -281,21 +313,50 @@ aju_handle_output(struct altera_jtag_uart_softc *sc, struct tty *tp)
 			 * later even though we aren't interested in sending
 			 * anymore.  Loop to drain TTY-layer buffer.
 			 */
-			if (*sc->ajus_jtag_presentp == 0) {
-				if (ttydisc_getc(tp, &ch, sizeof(ch)) !=
-				    sizeof(ch))
-					panic("%s: ttydisc_getc 2", __func__);
-				AJU_UNLOCK(sc);
-				continue;
-			}
-			if (sc->ajus_irq_res != NULL)
+			AJU_UNLOCK(sc);
+			if (ttydisc_getc(tp, &ch, sizeof(ch)) !=
+			    sizeof(ch))
+				panic("%s: ttydisc_getc", __func__);
+			continue;
+		}
+		v = aju_control_read(sc);
+		if ((v & ALTERA_JTAG_UART_CONTROL_WSPACE) == 0) {
+			if (sc->ajus_irq_res != NULL &&
+			    (v & ALTERA_JTAG_UART_CONTROL_WE) == 0)
 				aju_intr_writable_enable(sc);
 			return;
 		}
 		AJU_UNLOCK(sc);
+		if (ttydisc_getc(tp, &ch, sizeof(ch)) != sizeof(ch))
+			panic("%s: ttydisc_getc 2", __func__);
+		AJU_LOCK(sc);
+
+		/*
+		 * XXXRW: There is a slight race here in which we test for
+		 * writability, drop the lock, get the character from the tty
+		 * layer, re-acquire the lock, and then write.  It's possible
+		 * for other code -- specifically, the low-level console -- to
+		 * have* written in the mean time, which might mean that there
+		 * is no longer space.  The BERI memory bus will cause this
+		 * write to block, wedging the processor until space is
+		 * available -- which could be a while if JTAG is not
+		 * attached!
+		 *
+		 * The 'easy' fix is to drop the character if WSPACE has
+		 * become unset.  Not sure what the 'hard' fix is.
+		 */
+		aju_data_write(sc, ch);
+		AJU_UNLOCK(sc);
 	}
 	AJU_LOCK(sc);
-	aju_intr_writable_disable(sc);
+
+	/*
+	 * If interrupts are configured, and there's no data to write, but we
+	 * had previously enabled write interrupts, disable them now.
+	 */
+	v = aju_control_read(sc);
+	if (sc->ajus_irq_res != NULL && (v & ALTERA_JTAG_UART_CONTROL_WE) != 0)
+		aju_intr_writable_disable(sc);
 }
 
 static void
@@ -355,16 +416,25 @@ aju_ac_callout(void *arg)
 		v &= ~ALTERA_JTAG_UART_CONTROL_AC;
 		aju_control_write(sc, v);
 		if (*sc->ajus_jtag_presentp == 0) {
-			*sc->ajus_jtag_missedp = 0;
 			*sc->ajus_jtag_presentp = 1;
+			atomic_add_int(&aju_jtag_appeared, 1);
 			aju_handle_output(sc, tp);
 		}
+
+		/* Any hit eliminates all recent misses. */
+		*sc->ajus_jtag_missedp = 0;
 	} else if (*sc->ajus_jtag_presentp != 0) {
-		(*sc->ajus_jtag_missedp)++;
-		if (*sc->ajus_jtag_missedp >= AJU_JTAG_MAXMISS) {
+		/*
+		 * If we've exceeded our tolerance for misses, mark JTAG as
+		 * disconnected and drain output.  Otherwise, bump the miss
+		 * counter.
+		 */
+		if (*sc->ajus_jtag_missedp > AJU_JTAG_MAXMISS) {
 			*sc->ajus_jtag_presentp = 0;
+			atomic_add_int(&aju_jtag_vanished, 1);
 			aju_handle_output(sc, tp);
-		}
+		} else
+			(*sc->ajus_jtag_missedp)++;
 	}
 	callout_reset(&sc->ajus_ac_callout, AJU_AC_POLLINTERVAL,
 	    aju_ac_callout, sc);
@@ -382,10 +452,14 @@ aju_intr(void *arg)
 	tty_lock(tp);
 	AJU_LOCK(sc);
 	v = aju_control_read(sc);
-	if (v & ALTERA_JTAG_UART_CONTROL_RI)
+	if (v & ALTERA_JTAG_UART_CONTROL_RI) {
+		atomic_add_int(&aju_intr_read_count, 1);
 		aju_handle_input(sc, tp);
-	if (v & ALTERA_JTAG_UART_CONTROL_WI)
+	}
+	if (v & ALTERA_JTAG_UART_CONTROL_WI) {
+		atomic_add_int(&aju_intr_write_count, 1);
 		aju_handle_output(sc, tp);
+	}
 	AJU_UNLOCK(sc);
 	tty_unlock(tp);
 }

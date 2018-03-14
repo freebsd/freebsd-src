@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * Copyright (c) 2010-2011 Juniper Networks, Inc.
  * Copyright (c) 2014 Kevin Lo
