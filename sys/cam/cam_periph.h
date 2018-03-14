@@ -37,6 +37,7 @@
 #include <cam/cam_sim.h>
 
 #ifdef _KERNEL
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
 #include <cam/cam_xpt.h>
@@ -198,6 +199,7 @@ void		cam_periph_freeze_after_event(struct cam_periph *periph,
 					      u_int duration_ms);
 int		cam_periph_error(union ccb *ccb, cam_flags camflags,
 				 u_int32_t sense_flags);
+int		cam_periph_invalidate_sysctl(SYSCTL_HANDLER_ARGS);
 
 static __inline struct mtx *
 cam_periph_mtx(struct cam_periph *periph)

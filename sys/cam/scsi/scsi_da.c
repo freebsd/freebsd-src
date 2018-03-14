@@ -2203,6 +2203,13 @@ dasysctlinit(void *context, int pending)
 		       0,
 		       "Rotating media");
 
+#ifdef CAM_TEST_FAILURE
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "invalidate", CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE,
+		periph, 0, cam_periph_invalidate_sysctl, "I",
+		"Write 1 to invalidate the drive immediately");
+#endif
+
 	/*
 	 * Add some addressing info.
 	 */
