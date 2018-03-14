@@ -1473,18 +1473,18 @@ cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
 		printf("done: %p %#x\n", bp, bp->bio_cmd);
 	if (bp->bio_cmd == BIO_WRITE) {
 		retval = cam_iosched_limiter_iodone(&isc->write_stats, bp);
-		if (!(bp->bio_flags & BIO_ERROR))
+		if ((bp->bio_flags & BIO_ERROR) != 0)
 			isc->write_stats.errs++;
 		isc->write_stats.out++;
 		isc->write_stats.pending--;
 	} else if (bp->bio_cmd == BIO_READ) {
 		retval = cam_iosched_limiter_iodone(&isc->read_stats, bp);
-		if (!(bp->bio_flags & BIO_ERROR))
+		if ((bp->bio_flags & BIO_ERROR) != 0)
 			isc->read_stats.errs++;
 		isc->read_stats.out++;
 		isc->read_stats.pending--;
 	} else if (bp->bio_cmd == BIO_DELETE) {
-		if (!(bp->bio_flags & BIO_ERROR))
+		if ((bp->bio_flags & BIO_ERROR) != 0)
 			isc->trim_stats.errs++;
 		isc->trim_stats.out++;
 		isc->trim_stats.pending--;
