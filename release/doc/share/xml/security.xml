@@ -75,6 +75,22 @@
 	<entry>07&nbsp;March&nbsp;2018</entry>
 	<entry><para>Multiple vulnerabilities</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-18:03.speculative_execution.asc">FreeBSD-SA-18:03.speculative_execution</link></entry>
+	<entry>14&nbsp;March&nbsp;2018</entry>
+	<entry>
+	  <para>Speculative Execution Vulnerabilities</para>
+	  <note>
+	    <para>This advisory addresses the most significant issues
+	      for &os;&nbsp;11.1 on &arch.amd64; CPUs.  We expect to
+	      update this advisory to include 10.x for &arch.amd64;
+	      CPUs.  Future &os; releases will address this issue on
+	      &arch.i386; and other CPUs.</para>
+	  </note>
+	</entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
