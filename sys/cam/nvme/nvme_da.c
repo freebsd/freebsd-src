@@ -93,12 +93,10 @@ typedef enum {
 } nda_ccb_state;
 
 /* Offsets into our private area for storing information */
-#define ccb_state	ppriv_field0
-#define ccb_bp		ppriv_ptr1
+#define ccb_state	ccb_h.ppriv_field0
+#define ccb_bp		ccb_h.ppriv_ptr1	/* For NDA_CCB_BUFFER_IO */
+#define ccb_trim	ccb_h.ppriv_ptr1	/* For NDA_CCB_TRIM */
 
-struct trim_request {
-	TAILQ_HEAD(, bio) bps;
-};
 struct nda_softc {
 	struct   cam_iosched_softc *cam_iosched;
 	int			outstanding_cmds;	/* Number of active commands */
@@ -107,12 +105,13 @@ struct nda_softc {
 	nda_flags		flags;
 	nda_quirks		quirks;
 	int			unmappedio;
+	quad_t			deletes;
+	quad_t			dsm_req;
 	uint32_t		nsid;			/* Namespace ID for this nda device */
 	struct disk		*disk;
 	struct task		sysctl_task;
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
-	struct trim_request	trim_req;
 #ifdef CAM_IO_STATS
 	struct sysctl_ctx_list	sysctl_stats_ctx;
 	struct sysctl_oid	*sysctl_stats_tree;
@@ -120,6 +119,14 @@ struct nda_softc {
 	u_int			errors;
 	u_int			invalidations;
 #endif
+};
+
+struct nda_trim_request {
+	union {
+		struct nvme_dsm_range dsm;
+		uint8_t		data[NVME_MAX_DSM_TRIM];
+	};
+	TAILQ_HEAD(, bio) bps;
 };
 
 /* Need quirk table */
@@ -150,11 +157,14 @@ static void		ndasuspend(void *arg);
 #ifndef	NDA_DEFAULT_RETRY
 #define	NDA_DEFAULT_RETRY	4
 #endif
-
+#ifndef NDA_MAX_TRIM_ENTRIES
+#define NDA_MAX_TRIM_ENTRIES 256	/* Number of DSM trims to use, max 256 */
+#endif
 
 //static int nda_retry_count = NDA_DEFAULT_RETRY;
 static int nda_send_ordered = NDA_DEFAULT_SEND_ORDERED;
 static int nda_default_timeout = NDA_DEFAULT_TIMEOUT;
+static int nda_max_trim_entries = NDA_MAX_TRIM_ENTRIES;
 
 /*
  * All NVMe media is non-rotational, so all nvme device instances
@@ -361,6 +371,9 @@ ndastrategy(struct bio *bp)
 		return;
 	}
 	
+	if (bp->bio_cmd == BIO_DELETE)
+		softc->deletes++;
+
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
@@ -401,7 +414,7 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	memset(&nvmeio, 0, sizeof(nvmeio));
 	if (length > 0) {
 		xpt_setup_ccb(&nvmeio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-		nvmeio.ccb_h.ccb_state = NDA_CCB_DUMP;
+		nvmeio.ccb_state = NDA_CCB_DUMP;
 		nda_nvme_write(softc, &nvmeio, virtual, lba, length, count);
 		error = cam_periph_runccb((union ccb *)&nvmeio, cam_periph_error,
 		    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
@@ -414,7 +427,7 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	/* Flush */
 	xpt_setup_ccb(&nvmeio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 
-	nvmeio.ccb_h.ccb_state = NDA_CCB_DUMP;
+	nvmeio.ccb_state = NDA_CCB_DUMP;
 	nda_nvme_flush(softc, &nvmeio);
 	error = cam_periph_runccb((union ccb *)&nvmeio, cam_periph_error,
 	    0, SF_NO_RECOVERY | SF_NO_RETRY, NULL);
@@ -609,6 +622,14 @@ ndasysctlinit(void *context, int pending)
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "unmapped_io", CTLFLAG_RD | CTLFLAG_MPSAFE,
 		&softc->unmappedio, 0, "Unmapped I/O leaf");
+
+	SYSCTL_ADD_QUAD(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "deletes", CTLFLAG_RD | CTLFLAG_MPSAFE,
+		&softc->deletes, "Number of BIO_DELETE requests");
+
+	SYSCTL_ADD_QUAD(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "dsm_req", CTLFLAG_RD | CTLFLAG_MPSAFE,
+		&softc->dsm_req, "Number of DSM requests sent to SIM");
 
 	SYSCTL_ADD_INT(&softc->sysctl_ctx,
 		       SYSCTL_CHILDREN(softc->sysctl_tree),
@@ -902,24 +923,42 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 		}
 		case BIO_DELETE:
 		{
-			struct nvme_dsm_range *dsm_range;
+			struct nvme_dsm_range *dsm_range, *dsm_end;
+			struct nda_trim_request *trim;
+			struct bio *bp1;
+			int ents;
 
-			dsm_range =
-			    malloc(sizeof(*dsm_range), M_NVMEDA, M_ZERO | M_NOWAIT);
-			if (dsm_range == NULL) {
+			trim = malloc(sizeof(*trim), M_NVMEDA, M_ZERO | M_NOWAIT);
+			if (trim == NULL) {
 				biofinish(bp, NULL, ENOMEM);
 				xpt_release_ccb(start_ccb);
 				ndaschedule(periph);
 				return;
 			}
-			dsm_range->length =
-			    htole32(bp->bio_bcount / softc->disk->d_sectorsize);
-			dsm_range->starting_lba =
-			    htole64(bp->bio_offset / softc->disk->d_sectorsize);
-			bp->bio_driver2 = dsm_range;
-			nda_nvme_trim(softc, &start_ccb->nvmeio, dsm_range, 1);
-			start_ccb->ccb_h.ccb_state = NDA_CCB_TRIM;
-			start_ccb->ccb_h.flags |= CAM_UNLOCKED;
+			TAILQ_INIT(&trim->bps);
+			bp1 = bp;
+			ents = sizeof(trim->data) / sizeof(struct nvme_dsm_range);
+			ents = min(ents, nda_max_trim_entries);
+			dsm_range = &trim->dsm;
+			dsm_end = dsm_range + ents;
+			do {
+				TAILQ_INSERT_TAIL(&trim->bps, bp1, bio_queue);
+				dsm_range->length =
+				    htole32(bp1->bio_bcount / softc->disk->d_sectorsize);
+				dsm_range->starting_lba =
+				    htole32(bp1->bio_offset / softc->disk->d_sectorsize);
+				dsm_range++;
+				if (dsm_range >= dsm_end)
+					break;
+				bp1 = cam_iosched_next_trim(softc->cam_iosched);
+				/* XXX -- Could collapse adjacent ranges, but we don't for now */
+				/* XXX -- Could limit based on total payload size */
+			} while (bp1 != NULL);
+			start_ccb->ccb_trim = trim;
+			softc->dsm_req++;
+			nda_nvme_trim(softc, &start_ccb->nvmeio, &trim->dsm,
+			    dsm_range - &trim->dsm);
+			start_ccb->ccb_state = NDA_CCB_TRIM;
 			/*
 			 * Note: We can have multiple TRIMs in flight, so we don't call
 			 * cam_iosched_submit_trim(softc->cam_iosched);
@@ -932,10 +971,10 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 			nda_nvme_flush(softc, nvmeio);
 			break;
 		}
-		start_ccb->ccb_h.ccb_state = NDA_CCB_BUFFER_IO;
-		start_ccb->ccb_h.flags |= CAM_UNLOCKED;
+		start_ccb->ccb_state = NDA_CCB_BUFFER_IO;
+		start_ccb->ccb_bp = bp;
 out:
-		start_ccb->ccb_h.ccb_bp = bp;
+		start_ccb->ccb_h.flags |= CAM_UNLOCKED;
 		softc->outstanding_cmds++;
 		softc->refcount++;
 		cam_periph_unlock(periph);
@@ -963,16 +1002,14 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("ndadone\n"));
 
-	state = nvmeio->ccb_h.ccb_state & NDA_CCB_TYPE_MASK;
+	state = nvmeio->ccb_state & NDA_CCB_TYPE_MASK;
 	switch (state) {
 	case NDA_CCB_BUFFER_IO:
 	case NDA_CCB_TRIM:
 	{
-		struct bio *bp;
 		int error;
 
 		cam_periph_lock(periph);
-		bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			error = ndaerror(done_ccb, 0, 0);
 			if (error == ERESTART) {
@@ -991,59 +1028,68 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 				panic("REQ_CMP with QFRZN");
 			error = 0;
 		}
-		bp->bio_error = error;
-		if (error != 0) {
-			bp->bio_resid = bp->bio_bcount;
-			bp->bio_flags |= BIO_ERROR;
-		} else {
-			bp->bio_resid = 0;
-		}
-		if (state == NDA_CCB_TRIM)
-			free(bp->bio_driver2, M_NVMEDA);
-		softc->outstanding_cmds--;
+		if (state == NDA_CCB_BUFFER_IO) {
+			struct bio *bp;
 
-		/*
-		 * We need to call cam_iosched before we call biodone so that we
-		 * don't measure any activity that happens in the completion
-		 * routine, which in the case of sendfile can be quite
-		 * extensive.
-		 */
-		cam_iosched_bio_complete(softc->cam_iosched, bp, done_ccb);
-		xpt_release_ccb(done_ccb);
-		if (state == NDA_CCB_TRIM) {
-#ifdef notyet
+			bp = (struct bio *)done_ccb->ccb_bp;
+			bp->bio_error = error;
+			if (error != 0) {
+				bp->bio_resid = bp->bio_bcount;
+				bp->bio_flags |= BIO_ERROR;
+			} else {
+				bp->bio_resid = 0;
+			}
+			softc->outstanding_cmds--;
+
+			/*
+			 * We need to call cam_iosched before we call biodone so that we
+			 * don't measure any activity that happens in the completion
+			 * routine, which in the case of sendfile can be quite
+			 * extensive.
+			 */
+			cam_iosched_bio_complete(softc->cam_iosched, bp, done_ccb);
+			xpt_release_ccb(done_ccb);
+			ndaschedule(periph);
+			cam_periph_unlock(periph);
+			biodone(bp);
+		} else { /* state == NDA_CCB_TRIM */
+			struct nda_trim_request *trim;
+			struct bio *bp1, *bp2;
 			TAILQ_HEAD(, bio) queue;
-			struct bio *bp1;
 
+			trim = nvmeio->ccb_trim;
 			TAILQ_INIT(&queue);
-			TAILQ_CONCAT(&queue, &softc->trim_req.bps, bio_queue);
-#endif
+			TAILQ_CONCAT(&queue, &trim->bps, bio_queue);
+			free(trim, M_NVMEDA);
+
 			/*
 			 * Since we can have multiple trims in flight, we don't
 			 * need to call this here.
 			 * cam_iosched_trim_done(softc->cam_iosched);
 			 */
+			/*
+			 * The the I/O scheduler that we're finishing the I/O
+			 * so we can keep book. The first one we pass in the CCB
+			 * which has the timing information. The rest we pass in NULL
+			 * so we can keep proper counts.
+			 */
+			bp1 = TAILQ_FIRST(&queue);
+			cam_iosched_bio_complete(softc->cam_iosched, bp1, done_ccb);
+			xpt_release_ccb(done_ccb);
 			ndaschedule(periph);
 			cam_periph_unlock(periph);
-#ifdef notyet
-/* Not yet collapsing several BIO_DELETE requests into one TRIM */
-			while ((bp1 = TAILQ_FIRST(&queue)) != NULL) {
-				TAILQ_REMOVE(&queue, bp1, bio_queue);
-				bp1->bio_error = error;
+			while ((bp2 = TAILQ_FIRST(&queue)) != NULL) {
+				TAILQ_REMOVE(&queue, bp2, bio_queue);
+				bp2->bio_error = error;
 				if (error != 0) {
-					bp1->bio_flags |= BIO_ERROR;
-					bp1->bio_resid = bp1->bio_bcount;
+					bp2->bio_flags |= BIO_ERROR;
+					bp2->bio_resid = bp1->bio_bcount;
 				} else
-					bp1->bio_resid = 0;
-				biodone(bp1);
+					bp2->bio_resid = 0;
+				if (bp1 != bp2)
+					cam_iosched_bio_complete(softc->cam_iosched, bp2, NULL);
+				biodone(bp2);
 			}
-#else
-			biodone(bp);
-#endif
-		} else {
-			ndaschedule(periph);
-			cam_periph_unlock(periph);
-			biodone(bp);
 		}
 		return;
 	}
