@@ -295,6 +295,9 @@ kstrtoul(const char *cp, unsigned int base, unsigned long *res)
 
 	*res = strtoul(cp, &end, base);
 
+	/* skip newline character, if any */
+	if (*end == '\n')
+		end++;
 	if (*cp == 0 || *end != 0)
 		return (-EINVAL);
 	return (0);
@@ -307,6 +310,9 @@ kstrtol(const char *cp, unsigned int base, long *res)
 
 	*res = strtol(cp, &end, base);
 
+	/* skip newline character, if any */
+	if (*end == '\n')
+		end++;
 	if (*cp == 0 || *end != 0)
 		return (-EINVAL);
 	return (0);
@@ -320,6 +326,9 @@ kstrtoint(const char *cp, unsigned int base, int *res)
 
 	*res = temp = strtol(cp, &end, base);
 
+	/* skip newline character, if any */
+	if (*end == '\n')
+		end++;
 	if (*cp == 0 || *end != 0)
 		return (-EINVAL);
 	if (temp != (int)temp)
@@ -335,6 +344,9 @@ kstrtouint(const char *cp, unsigned int base, unsigned int *res)
 
 	*res = temp = strtoul(cp, &end, base);
 
+	/* skip newline character, if any */
+	if (*end == '\n')
+		end++;
 	if (*cp == 0 || *end != 0)
 		return (-EINVAL);
 	if (temp != (unsigned int)temp)
@@ -350,6 +362,9 @@ kstrtou32(const char *cp, unsigned int base, u32 *res)
 
 	*res = temp = strtoul(cp, &end, base);
 
+	/* skip newline character, if any */
+	if (*end == '\n')
+		end++;
 	if (*cp == 0 || *end != 0)
 		return (-EINVAL);
 	if (temp != (u32)temp)
