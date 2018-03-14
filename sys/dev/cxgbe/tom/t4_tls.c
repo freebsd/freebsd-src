@@ -1175,7 +1175,8 @@ t4_push_tls_records(struct adapter *sc, struct toepcb *toep, int drop)
 		 * Send a FIN if requested, but only if there's no
 		 * more data to send.
 		 */
-		if (sbavail(sb) == 0 && toep->flags & TPF_SEND_FIN) {
+		if (sbavail(sb) == tls_ofld->sb_off &&
+		    toep->flags & TPF_SEND_FIN) {
 			if (sowwakeup)
 				sowwakeup_locked(so);
 			else
