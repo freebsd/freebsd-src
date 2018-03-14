@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
 
 #include <teken/teken.h>
 
-static void scteken_revattr(unsigned char, teken_attr_t *);
-static unsigned int scteken_attr(const teken_attr_t *);
+static void scteken_sc_to_te_attr(unsigned char, teken_attr_t *);
+static int scteken_te_to_sc_attr(const teken_attr_t *);
 
 static sc_term_init_t		scteken_init;
 static sc_term_term_t		scteken_term;
@@ -64,6 +64,7 @@ static sc_term_default_attr_t	scteken_default_attr;
 static sc_term_clear_t		scteken_clear;
 static sc_term_input_t		scteken_input;
 static sc_term_fkeystr_t	scteken_fkeystr;
+static sc_term_set_cursor_t	scteken_set_cursor;
 static void			scteken_nop(void);
 
 typedef struct {
@@ -90,6 +91,7 @@ static sc_term_sw_t sc_term_scteken = {
 	(sc_term_notify_t *)scteken_nop,
 	scteken_input,
 	scteken_fkeystr,
+	scteken_set_cursor,
 };
 
 SCTERM_MODULE(scteken, sc_term_scteken);
@@ -142,13 +144,6 @@ scteken_init(scr_stat *scp, void **softc, int code)
 		tp.tp_row = scp->ysize;
 		tp.tp_col = scp->xsize;
 		teken_set_winsize(&ts->ts_teken, &tp);
-
-		if (scp->cursor_pos < scp->ysize * scp->xsize) {
-			/* Valid old cursor position. */
-			tp.tp_row = scp->cursor_pos / scp->xsize;
-			tp.tp_col = scp->cursor_pos % scp->xsize;
-			teken_set_cursor(&ts->ts_teken, &tp);
-		}
 		break;
 	}
 
@@ -178,7 +173,7 @@ scteken_puts(scr_stat *scp, u_char *buf, int len, int kernel)
 	if (kernel) {
 		/* Use special colors for kernel messages. */
 		backup = *teken_get_curattr(&ts->ts_teken);
-		scteken_revattr(sc_kattr(), &kattr);
+		scteken_sc_to_te_attr(sc_kattr(), &kattr);
 		teken_set_curattr(&ts->ts_teken, &kattr);
 		teken_input(&ts->ts_teken, buf, len);
 		teken_set_curattr(&ts->ts_teken, &backup);
@@ -195,19 +190,19 @@ scteken_ioctl(scr_stat *scp, struct tty *tp, u_long cmd, caddr_t data,
 {
 	teken_stat *ts = scp->ts;
 	vid_info_t *vi;
-	unsigned int attr;
+	int attr;
 
 	switch (cmd) {
 	case GIO_ATTR:      	/* get current attributes */
 		*(int*)data =
-		    scteken_attr(teken_get_curattr(&ts->ts_teken));
+		    scteken_te_to_sc_attr(teken_get_curattr(&ts->ts_teken));
 		return (0);
 	case CONS_GETINFO:  	/* get current (virtual) console info */
 		vi = (vid_info_t *)data;
 		if (vi->size != sizeof(struct vid_info))
 			return EINVAL;
 
-		attr = scteken_attr(teken_get_defattr(&ts->ts_teken));
+		attr = scteken_te_to_sc_attr(teken_get_defattr(&ts->ts_teken));
 		vi->mv_norm.fore = attr & 0x0f;
 		vi->mv_norm.back = (attr >> 4) & 0x0f;
 		vi->mv_rev.fore = vi->mv_norm.back;
@@ -227,16 +222,20 @@ scteken_default_attr(scr_stat *scp, int color, int rev_color)
 	teken_stat *ts = scp->ts;
 	teken_attr_t ta;
 
-	scteken_revattr(color, &ta);
+	scteken_sc_to_te_attr(color, &ta);
 	teken_set_defattr(&ts->ts_teken, &ta);
 }
 
 static void
 scteken_clear(scr_stat *scp)
 {
+	teken_stat *ts = scp->ts;
 
 	sc_move_cursor(scp, 0, 0);
-	sc_vtb_clear(&scp->vtb, scp->sc->scr_map[0x20], SC_NORM_ATTR << 8);
+	scteken_set_cursor(scp, 0, 0);
+	sc_vtb_clear(&scp->vtb, scp->sc->scr_map[0x20],
+		     scteken_te_to_sc_attr(teken_get_curattr(&ts->ts_teken))
+		     << 8);
 	mark_all(scp);
 }
 
@@ -298,6 +297,17 @@ scteken_fkeystr(scr_stat *scp, int c)
 }
 
 static void
+scteken_set_cursor(scr_stat *scp, int col, int row)
+{
+	teken_stat *ts = scp->ts;
+	teken_pos_t tp;
+
+	tp.tp_col = col;
+	tp.tp_row = row;
+	teken_set_cursor(&ts->ts_teken, &tp);
+}
+
+static void
 scteken_nop(void)
 {
 
@@ -323,7 +333,7 @@ static const unsigned char bgcolors[TC_NCOLORS] = {
 };
 
 static void
-scteken_revattr(unsigned char color, teken_attr_t *a)
+scteken_sc_to_te_attr(unsigned char color, teken_attr_t *a)
 {
 	teken_color_t fg, bg;
 
@@ -362,10 +372,10 @@ scteken_revattr(unsigned char color, teken_attr_t *a)
 	}
 }
 
-static unsigned int
-scteken_attr(const teken_attr_t *a)
+static int
+scteken_te_to_sc_attr(const teken_attr_t *a)
 {
-	unsigned int attr = 0;
+	int attr = 0;
 	teken_color_t fg, bg;
 
 	if (a->ta_format & TF_REVERSE) {
@@ -560,7 +570,7 @@ scteken_putchar(void *arg, const teken_pos_t *tp, teken_char_t c,
 	 * characters. Simply print a space and assume that the left
 	 * hand side describes the entire character.
 	 */
-	attr = scteken_attr(a) << 8;
+	attr = scteken_te_to_sc_attr(a) << 8;
 	if (a->ta_format & TF_CJK_RIGHT)
 		c = ' ';
 #ifdef TEKEN_UTF8
@@ -592,7 +602,7 @@ scteken_fill(void *arg, const teken_rect_t *r, teken_char_t c,
 	unsigned int width;
 	int attr, row;
 
-	attr = scteken_attr(a) << 8;
+	attr = scteken_te_to_sc_attr(a) << 8;
 #ifdef TEKEN_UTF8
 	scteken_get_cp437(&c, &attr);
 #endif /* TEKEN_UTF8 */
