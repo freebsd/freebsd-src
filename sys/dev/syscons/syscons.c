@@ -3148,16 +3148,6 @@ scinit(int unit, int flags)
 	    init_scp(sc, sc->first_vty, scp);
 	    sc_vtb_init(&scp->vtb, VTB_MEMORY, scp->xsize, scp->ysize,
 			(void *)sc_buffer, FALSE);
-
-	    /* move cursors to the initial positions */
-	    if (col >= scp->xsize)
-		col = 0;
-	    if (row >= scp->ysize)
-		row = scp->ysize - 1;
-	    scp->xpos = col;
-	    scp->ypos = row;
-	    scp->cursor_pos = scp->cursor_oldpos = row*scp->xsize + col;
-
 	    if (sc_init_emulator(scp, SC_DFLT_TERM))
 		sc_init_emulator(scp, "*");
 	    (*scp->tsw->te_default_attr)(scp, SC_NORM_ATTR, SC_NORM_REV_ATTR);
@@ -3179,6 +3169,17 @@ scinit(int unit, int flags)
 	    sc_vtb_copy(&scp->scr, 0, &scp->vtb, 0, scp->xsize*scp->ysize);
 #endif
 
+	/* Sync h/w cursor position to s/w (sc and teken). */
+	if (col >= scp->xsize)
+	    col = 0;
+	if (row >= scp->ysize)
+	    row = scp->ysize - 1;
+	scp->xpos = col;
+	scp->ypos = row;
+	scp->cursor_pos = scp->cursor_oldpos = row*scp->xsize + col;
+	(*scp->tsw->te_set_cursor)(scp, col, row);
+
+	/* Sync BIOS cursor shape to s/w (sc only). */
 	if (bios_value.cursor_end < scp->font_size)
 	    sc->dflt_curs_attr.base = scp->font_size - 
 					  bios_value.cursor_end - 1;
