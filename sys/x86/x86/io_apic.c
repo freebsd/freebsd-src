@@ -252,7 +252,7 @@ static void
 ioapic_program_intpin(struct ioapic_intsrc *intpin)
 {
 	struct ioapic *io = (struct ioapic *)intpin->io_intsrc.is_pic;
-	uint32_t low, high, value;
+	uint32_t low, high;
 
 	/*
 	 * If a pin is completely invalid or if it is valid but hasn't
@@ -270,7 +270,11 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 		return;
 	}
 
-	/* Set the destination. */
+	/*
+	 * Set the destination.  Note that with Intel interrupt remapping,
+	 * the previously reserved bits 55:48 now have a purpose so ensure
+	 * these are zero.
+	 */
 	low = IOART_DESTPHY;
 	high = intpin->io_cpu << APIC_ID_SHIFT;
 
@@ -308,10 +312,7 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 	}
 
 	/* Write the values to the APIC. */
-	value = ioapic_read(io->io_addr, IOAPIC_REDTBL_HI(intpin->io_intpin));
-	value &= ~IOART_DEST;
-	value |= high;
-	ioapic_write(io->io_addr, IOAPIC_REDTBL_HI(intpin->io_intpin), value);
+	ioapic_write(io->io_addr, IOAPIC_REDTBL_HI(intpin->io_intpin), high);
 	intpin->io_lowreg = low;
 	ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin), low);
 }
