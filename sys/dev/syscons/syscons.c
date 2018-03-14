@@ -93,16 +93,6 @@ __FBSDID("$FreeBSD$");
 /* NULL-safe version of "tty_opened()" */
 #define	tty_opened_ns(tp)	((tp) != NULL && tty_opened(tp))
 
-typedef struct default_attr {
-	int		std_color;		/* normal hardware color */
-	int		rev_color;		/* reverse hardware color */
-} default_attr;
-
-static default_attr user_default = {
-    SC_NORM_ATTR,
-    SC_NORM_REV_ATTR,
-};
-
 static	u_char		sc_kattrtab[MAXCPU];
 
 static	int		sc_console_unit = -1;
@@ -3170,9 +3160,7 @@ scinit(int unit, int flags)
 
 	    if (sc_init_emulator(scp, SC_DFLT_TERM))
 		sc_init_emulator(scp, "*");
-	    (*scp->tsw->te_default_attr)(scp,
-					 user_default.std_color,
-					 user_default.rev_color);
+	    (*scp->tsw->te_default_attr)(scp, SC_NORM_ATTR, SC_NORM_REV_ATTR);
 	} else {
 	    /* assert(sc_malloc) */
 	    sc->dev = malloc(sizeof(struct tty *)*sc->vtys, M_DEVBUF,
@@ -3589,8 +3577,7 @@ sc_init_emulator(scr_stat *scp, char *name)
     scp->rndr = rndr;
     scp->rndr->init(scp);
 
-    /* XXX */
-    (*sw->te_default_attr)(scp, user_default.std_color, user_default.rev_color);
+    (*sw->te_default_attr)(scp, SC_NORM_ATTR, SC_NORM_REV_ATTR);
     sc_clear_screen(scp);
 
     return 0;
