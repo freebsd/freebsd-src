@@ -1281,10 +1281,10 @@ iscsi_pdu_handle_async_message(struct icl_pdu *response)
 		iscsi_session_terminate(is);
 		break;
 	case BHSAM_EVENT_TARGET_TERMINATES_CONNECTION:
-		ISCSI_SESSION_WARN(is, "target indicates it will drop drop the connection");
+		ISCSI_SESSION_WARN(is, "target indicates it will drop the connection");
 		break;
 	case BHSAM_EVENT_TARGET_TERMINATES_SESSION:
-		ISCSI_SESSION_WARN(is, "target indicates it will drop drop the session");
+		ISCSI_SESSION_WARN(is, "target indicates it will drop the session");
 		break;
 	default:
 		/*
