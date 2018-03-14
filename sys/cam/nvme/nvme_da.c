@@ -112,6 +112,12 @@ struct nda_softc {
 	struct task		sysctl_task;
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
+#ifdef CAM_TEST_FAILURE
+	int			force_read_error;
+	int			force_write_error;
+	int			periodic_read_error;
+	int			periodic_read_count;
+#endif
 #ifdef CAM_IO_STATS
 	struct sysctl_ctx_list	sysctl_stats_ctx;
 	struct sysctl_oid	*sysctl_stats_tree;
@@ -666,6 +672,13 @@ ndasysctlinit(void *context, int pending)
 		"Device pack invalidations.");
 #endif
 
+#ifdef CAM_TEST_FAILURE
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "invalidate", CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE,
+		periph, 0, cam_periph_invalidate_sysctl, "I",
+		"Write 1 to invalidate the drive immediately");
+#endif
+
 	cam_iosched_sysctl_init(softc->cam_iosched, &softc->sysctl_ctx,
 	    softc->sysctl_tree);
 
@@ -876,7 +889,7 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 			/* FALLTHROUGH */
 		case BIO_READ:
 		{
-#ifdef NDA_TEST_FAILURE
+#ifdef CAM_TEST_FAILURE
 			int fail = 0;
 
 			/*
