@@ -1,9 +1,10 @@
 # $FreeBSD$
 
+#
 #	List of PCI ID's
 #
-#	Version: 2018.02.15
-#	Date:    2018-02-15 03:15:01
+#	Version: 2018.03.06
+#	Date:    2018-03-06 03:15:02
 #
 #	Maintained by Albert Pool, Martin Mares, and other volunteers from
 #	the PCI ID Project at http://pci-ids.ucw.cz/.
@@ -26,6 +27,17 @@
 0010  Allied Telesis, Inc (Wrong ID)
 # This is a relabelled RTL-8139
 	8139  AT-2500TX V3 Ethernet
+0014  Loongson Technology LLC
+	7a02  APB (Advanced Peripheral Bus) Controller
+	7a03  Gigabit Ethernet Controller
+	7a04  OTG USB Controller
+	7a05  Vivante GPU (Graphics Processing Unit)
+	7a06  DC (Display Controller)
+	7a07  HDA (High Definition Audio) Controller
+	7a08  SATA AHCI Controller
+	7a0f  DMA (Direct Memory Access) Controller
+	7a14  EHCI USB Controller
+	7a24  OHCI USB Controller
 001c  PEAK-System Technik GmbH
 	0001  PCAN-PCI CAN-Bus controller
 		001c 0004  2 Channel CAN Bus SJC1000
@@ -753,7 +765,9 @@
 	131b  Kaveri [Radeon R4 Graphics]
 	131c  Kaveri [Radeon R7 Graphics]
 	131d  Kaveri [Radeon R6 Graphics]
-	15dd  Vega [Radeon Vega 8 Mobile]
+	15dd  Raven Ridge [Radeon Vega Series / Radeon Vega Mobile Series]
+		103c 83c6  Radeon Vega 8 Mobile
+		1458 d000  Radeon RX Vega 11
 	15ff  Vega [Radeon Vega 28 Mobile]
 	1714  BeaverCreek HDMI Audio [Radeon HD 6500D and 6400G-6600G series]
 		103c 168b  ProBook 4535s
@@ -1601,10 +1615,12 @@
 		103c 2100  FirePro M4100
 	6602  Mars
 	6603  Mars
-	6604  Opal XT [Radeon R7 M265]
+	6604  Opal XT [Radeon R7 M265/M365X/M465]
 		103c 8006  FirePro M4170
+		103c 814f  Litho XT [Radeon R7 M365X]
+		103c 82aa  Litho XT [Radeon R7 M465]
 		17aa 3643  Radeon R7 A360
-	6605  Opal PRO [Radeon R7 M260]
+	6605  Opal PRO [Radeon R7 M260X]
 		103c 2259  FirePro M4150
 	6606  Mars XTX [Radeon HD 8790M]
 		1028 0684  FirePro W4170M
@@ -1679,6 +1695,7 @@
 		103c 80be  Radeon R5 M330
 		103c 8136  Radeon R5 M330
 		103c 8329  Radeon R7 M520
+		17aa 3633  Radeon R5 A330
 		17aa 3804  Radeon R5 M330
 		17aa 3809  Radeon R5 M330
 		17aa 381a  Radeon R5 M430
@@ -2298,8 +2315,11 @@
 		1043 04fb  Radeon RX 480
 		1043 04fd  Radeon RX 480 8GB
 		1458 22f0  Radeon RX 570
+		1458 22f7  Radeon RX 570 Gaming 4G
 		1462 3411  Radeon RX 470
 		1462 3413  Radeon RX 480
+		1462 3416  Radeon RX 570
+		1462 3418  Radeon RX 580 Armor 4G OC
 		148c 2372  Radeon RX 480
 		148c 2373  Radeon RX 470
 		1682 9470  Radeon RX 470
@@ -2334,7 +2354,14 @@
 		106b 0179  Radeon Pro 560
 		1642 1727  Polaris 21 XL [Radeon RX 560D]
 		1682 956d  Polaris 21 XL [Radeon RX 560D]
-	67ff  Baffin [Radeon RX 560]
+	67ff  Baffin [Radeon RX 550 640SP / RX 560]
+		1002 0b04  Radeon RX 560
+		1043 04bc  Radeon RX 560
+		1458 22ed  Radeon RX 560
+		148c 2381  Radeon RX 560
+		1682 9560  Radeon RX 560
+		1da2 e348  Radeon RX 560
+		1da2 e367  Radeon RX 550 640SP
 	6800  Wimbledon XT [Radeon HD 7970M]
 		1002 0124  Radeon HD 7970M
 		8086 2110  Radeon HD 7970M
@@ -2349,7 +2376,9 @@
 	6808  Pitcairn XT GL [FirePro W7000]
 		1002 0310  FirePro S7000
 		1002 0420  Radeon Sky 500
+		103c 030c  MED-X7000
 		13cc 3d25  MXRT-7500
+		15c3 030c  MED-X7000
 	6809  Pitcairn LE GL [FirePro W5000]
 		13cc 3d23  MXRT-5500
 		13cc 3d24  MXRT-5550
@@ -2411,8 +2440,6 @@
 	682d  Chelsea XT GL [FirePro M4000]
 	682f  Chelsea LP [Radeon HD 7730M]
 		103c 1851  Radeon HD 7750M
-	6830  Cape Verde [Radeon HD 7800M Series]
-	6831  Cape Verde [AMD Radeon HD 7700M Series]
 	6835  Cape Verde PRX [Radeon R9 255 OEM]
 	6837  Cape Verde LE [Radeon HD 7730/8730]
 		1462 2796  Radeon HD 8730
@@ -3026,6 +3053,7 @@
 		103c 2269  Radeon R7 M260
 		103c 22c6  Radeon R7 M260
 		103c 22c8  Radeon R7 M260
+		103c 2b45  Radeon R7 A360
 		103c 808c  Radeon R7 M260
 		103c 8099  Radeon R7 M360
 		103c 80b5  Radeon R7 M360
@@ -3062,7 +3090,8 @@
 		148c 9380  Radeon R9 380
 # Make naming scheme consistent
 		174b e308  Radeon R9 380 Nitro 4G D5
-	694c  Vega [Radeon RX Vega M]
+	694c  Polaris 22 [Radeon RX Vega M GH]
+	694e  Polaris 22 [Radeon RX Vega M GL]
 	6980  Polaris12
 	6981  Polaris12
 	6985  Lexa XT [Radeon PRO WX 3100]
@@ -3351,11 +3380,13 @@
 	9553  RV710/M92 [Mobility Radeon HD 4530/4570/545v]
 		1025 015e  Mobility Radeon HD 4570
 		1025 017d  Mobility Radeon HD 4570
-		1025 0205  Mobility Radeon HD 4570
+		1025 0205  Mobility Radeon HD 4570 / 545v
 		1025 0206  Mobility Radeon HD 4570
 		1025 0237  Mobility Radeon HD 4570
-		1028 02be  Mobility Radeon HD 4570
+		1028 02be  Mobility Radeon HD 4570 / 545v
 		1028 02e8  Mobility Radeon HD 4530
+		103c 143c  Mobility Radeon HD 545v
+		103c 1446  Mobility Radeon HD 545v
 		103c 3624  Mobility Radeon HD 4530
 		103c 3628  Mobility Radeon HD 4530
 		103c 3636  Mobility Radeon HD 4530
@@ -3363,6 +3394,12 @@
 		1043 1b42  Mobility Radeon HD 4570
 		104d 9056  Mobility Radeon HD 4570
 		1179 ff82  Satellite L505-13T GPU (Mobility Radeon HD 5145)
+		144d c07f  Mobility Radeon HD 545v
+		144d c571  Mobility Radeon HD 545v
+		1462 1006  Mobility Radeon HD 545v
+		17aa 2129  Mobility Radeon HD 545v
+		17aa 215b  Mobility Radeon HD 545v
+		17aa 21bb  Mobility Radeon HD 545v
 	9555  RV710/M92 [Mobility Radeon HD 4350/4550]
 		103c 1411  ProBook 4720s GPU (Mobility Radeon HD 4350)
 	9557  RV711 GL [FirePro RG220]
@@ -3409,7 +3446,7 @@
 	95c6  RV620 LE [Radeon HD 3450 AGP]
 	95c9  RV620 LE [Radeon HD 3450 PCI]
 	95cc  RV620 GL [FirePro V3700]
-	95cd  RV620 [FirePro 2450]
+	95cd  RV620 GL [FirePro 2450]
 	95cf  RV620 GL [FirePro 2260]
 	960f  RS780 HDMI Audio [Radeon 3000/3100 / HD 3200/3300]
 	9610  RS780 [Radeon HD 3200]
@@ -3485,7 +3522,19 @@
 	985d  Mullins
 	985e  Mullins
 	985f  Mullins
-	9874  Carrizo
+	9874  Wani [Radeon R5/R6/R7 Graphics]
+		1002 1871  Radeon R5 Graphics
+		1002 1e20  Radeon R7 Graphics
+		1028 06bd  Radeon R6 Graphics
+		103c 2b44  Radeon R6 Graphics
+		103c 8221  Radeon R5 Graphics
+		103c 8223  Radeon R5 Graphics
+		103c 8238  Radeon R7 Graphics
+		103c 8353  Radeon R7 Graphics
+		1458 d000  Radeon R7 Graphics
+		17aa 5113  Radeon R6 Graphics
+		17aa 5116  Radeon R6 Graphics
+		17aa 5118  Radeon R5 Graphics
 	9900  Trinity [Radeon HD 7660G]
 		103c 1985  Pavilion 17-e163sg Notebook PC
 # AMD A10-5800K CPU
@@ -9871,7 +9920,7 @@
 	0863  C79 [GeForce 9400M]
 		106b 00aa  MacBook5,1
 	0864  C79 [GeForce 9300]
-	0865  C79 [GeForce 9300/ION]
+	0865  C79 [GeForce 9300 / ION]
 	0866  C79 [GeForce 9400M G]
 		106b 00b1  GeForce 9400M
 	0867  C79 [GeForce 9400]
@@ -9895,12 +9944,12 @@
 		1043 1c12  GeForce G102M
 		1043 1c52  GeForce G205M
 	0874  C79 [ION]
-	0876  ION VGA [GeForce 9400M]
+	0876  C79 [GeForce 9400M / ION]
 	087a  C79 [GeForce 9400]
-	087d  ION VGA
+	087d  C79 [ION]
 		19da a123  IONITX-F-E
-	087e  ION LE VGA
-	087f  ION LE VGA
+	087e  C79 [ION LE]
+	087f  C79 [ION LE]
 	08a0  MCP89 [GeForce 320M]
 	08a2  MCP89 [GeForce 320M]
 	08a3  MCP89 [GeForce 320M]
@@ -9931,6 +9980,7 @@
 	0a64  GT218 [ION]
 	0a65  GT218 [GeForce 210]
 		1043 8334  EN210 SILENT
+		1458 36a9  GV-N210D3-1GI (rev. 6.0/6.1)
 		1462 8094  N210 [Geforce 210] PCIe graphics adapter
 	0a66  GT218 [GeForce 310]
 	0a67  GT218 [GeForce 315]
@@ -9941,7 +9991,7 @@
 		1028 040b  Latitude E6510
 		17aa 2142  ThinkPad T410
 	0a6e  GT218M [GeForce 305M]
-	0a6f  GT218 [ION]
+	0a6f  GT218M [ION]
 	0a70  GT218M [GeForce 310M]
 	0a71  GT218M [GeForce 305M]
 	0a72  GT218M [GeForce 310M]
@@ -9949,7 +9999,7 @@
 	0a74  GT218M [GeForce G210M]
 		1b0a 903a  GeForce G210
 	0a75  GT218M [GeForce 310M]
-	0a76  GT218 [ION 2]
+	0a76  GT218M [ION 2]
 	0a78  GT218GL [Quadro FX 380 LP]
 	0a7a  GT218M [GeForce 315M]
 		104d 907e  GeForce 315M
@@ -10869,6 +10919,7 @@
 	1288  GK208B [GeForce GT 720]
 	1289  GK208 [GeForce GT 710]
 	128b  GK208B [GeForce GT 710]
+		1043 85f7  GT710-SL-1GD5
 	1290  GK208M [GeForce GT 730M]
 		103c 2afa  GeForce GT 730A
 		103c 2b04  GeForce GT 730A
@@ -11040,6 +11091,7 @@
 	1bb7  GP104GLM [Quadro P4000 Mobile]
 		1462 11e9  Quadro P4000 Max-Q
 	1bb8  GP104GLM [Quadro P3000 Mobile]
+	1bbb  GP104GLM [Quadro P3200 Mobile]
 	1bc7  GP104 [P104-101]
 	1be0  GP104M [GeForce GTX 1080 Mobile]
 		1028 07c0  GeForce GTX 1080 Max-Q
@@ -11079,6 +11131,8 @@
 	1cb6  GP107GL [Quadro P620]
 	1d01  GP108 [GeForce GT 1030]
 	1d10  GP108M [GeForce MX150]
+	1d12  GP108M [GeForce MX150]
+		1d72 1701  Mi Notebook Pro [GeForce MX150]
 	1d33  GP108GL [Quadro P500]
 	1d81  GV100 [TITAN V]
 	1db1  GV100GL [Tesla V100 SXM2]
@@ -11424,6 +11478,7 @@
 	8821  RTL8821AE 802.11ac PCIe Wireless Network Adapter
 	b723  RTL8723BE PCIe Wireless Network Adapter
 		10ec 8739  Dell Wireless 1801
+	b822  RTL8822BE 802.11a/b/g/n/ac WiFi adapter
 	c821  RTL8821CE 802.11ac PCIe Wireless Network Adapter
 10ed  Ascii Corporation
 	7310  V7310
@@ -13354,6 +13409,7 @@
 	0102  Extended IDE Controller
 	0103  EX-IDE Type-B
 	010f  NVMe Controller
+	0115  XG4 NVMe SSD Controller
 	0404  DVD Decoder card
 	0406  Tecra Video Capture device
 	0407  DVD Decoder card (Version 2)
@@ -13482,6 +13538,7 @@
 		1028 01d7  XPS M1210
 		1028 01f3  Inspiron 1420
 		1028 022f  Inspiron 1525
+		103c 1521  HP EliteBook 8540w
 		103c 30b5  Presario V3242AU
 		103c 30b7  Presario V6133CL
 		103c 30cc  Pavilion dv6700
@@ -13533,6 +13590,7 @@
 		1028 01f5  Inspiron 1501
 		1028 024f  Latitude e6500
 		103c 03b5  Presario V3242AU
+		103c 1521  HP EliteBook 8540w
 		103c 30b7  Presario V6133CL
 		103c 30cf  Pavilion dv9500/9600/9700 series
 		1183 0843  Alienware Aurora m9700
@@ -15032,7 +15090,7 @@
 12a2  Newgen Systems Corporation
 12a3  Lucent Technologies
 	8105  T8105 H100 Digital Switch
-12a4  NTT Electronics Technology Company
+12a4  NTT Electronics Corporation
 12a5  Vision Dynamics Ltd.
 12a6  Scalable Networks, Inc.
 12a7  AMO GmbH
@@ -18684,6 +18742,7 @@
 		15b3 0026  ConnectX-3 IB FDR Dual Port Mezzanine Card
 		15b3 0028  ConnectX-3 VPI Dual QSFP+ Port QDR Infiniband 40Gb/s or 10Gb Ethernet
 		15b3 0059  ConnectX-3 VPI IB FDR/40 GbE Single Port QSFP+ Mezzanine Card
+		15b3 0064  ConnectX-3 EN 10/40 GbE Single Port QSFP+ Adapter (MCX313A-BCBT)
 		15b3 0065  ConnectX-3 VPI IB FDR/40 GbE Dual Port QSFP+ Adapter
 		15b3 0066  ConnectX-3 IB FDR10 Dual Port Mezzanine Card
 		15b3 0067  ConnectX-3 VPI IB FDR/40 GbE Single Port QSFP+ Adapter
@@ -18731,9 +18790,10 @@
 		15b3 0050  ConnectX-4 100 GbE Dual Port QSFP28 Adapter
 	1014  MT27700 Family [ConnectX-4 Virtual Function]
 	1015  MT27710 Family [ConnectX-4 Lx]
+		15b3 0001  ConnectX-4 Lx EN network interface card, 25GbE single-port SFP28, PCIe3.0 x8, tall bracket, ROHS R6
+		15b3 0003  Stand-up ConnectX-4 Lx EN, 25GbE dual-port SFP28, PCIe3.0 x8, MCX4121A-ACAT
 		15b3 0004  ConnectX-4 Lx Stand-up dual-port 10GbE MCX4121A-XCAT
 		15b3 0005  Mellanox Technologies ConnectX-4 Lx Stand-up single-port 40GbE MCX4131A-BCAT
-		15b3 0016  ConnectX-4 Lx 25 GbE Dual Port SFP28 Adapter
 		15b3 0020  MCX4411A-ACQN, ConnectX-4 Lx EN OCP, 1x25Gb
 		15b3 0021  MCX4421A-ACQN ConnectX-4 Lx EN OCP,2x25G
 		15b3 0025  ConnectX-4 Lx 25 GbE Dual Port SFP28 rNDC
@@ -20665,6 +20725,7 @@
 	5808  DDRdrive X8
 	dd52  DDRdrive X1-30
 19e5  Huawei Technologies Co., Ltd.
+	1710  iBMA Virtual Network Adapter
 	1711  Hi1710 [iBMC Intelligent Management system chip w/VGA support]
 19e7  NET (Network Equipment Technologies)
 	1001  STIX DSP Card
@@ -20717,12 +20778,15 @@
 	0200  TILE-Gx processor
 	0201  TILE-Gx Processor Virtual Function
 	2000  TILE-Gx PCI Express Root Port
-1a4a  SLAC National Accelerator Lab PPA-REG
+1a4a  SLAC National Accelerator Lab TID-AIR
 	1000  MCOR Power Supply Controller
 	1010  AMC EVR - Stockholm Timing Board
 	2000  PGPCard - 4 Lane
 	2001  PGPCard - 8 Lane Plus EVR
 	2010  PCI-Express EVR
+# PC-260-101-03
+	2020  PGP-GEN3 PCIe
+	2030  data_dev
 1a51  Hectronic AB
 1a55  Rohde & Schwarz DVS GmbH
 	0010  SDStationOEM
@@ -21246,6 +21310,7 @@
 	100e  AR-ARKA-FX1 [Arkville 64B DPDK Data Mover]
 		1d6c 2001  DPDK-Aware Virtual Function [Arkville VF]
 	4200  A5PL-E1-10GETI [10 GbE Ethernet Traffic Instrument]
+1d72  Xiaomi
 1d78  DERA
 1d7c  Aerotech, Inc.
 1d87  Fuzhou Rockchip Electronics Co., Ltd
