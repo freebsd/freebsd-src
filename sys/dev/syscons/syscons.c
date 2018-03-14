@@ -343,7 +343,9 @@ sctty_outwakeup(struct tty *tp)
 	len = ttydisc_getc(tp, buf, sizeof buf);
 	if (len == 0)
 	    break;
+	SC_VIDEO_LOCK(scp->sc);
 	sc_puts(scp, buf, len, 0);
+	SC_VIDEO_UNLOCK(scp->sc);
     }
 }
 
@@ -1760,6 +1762,8 @@ sc_cnputc(struct consdev *cd, int c)
 
     /* assert(sc_console != NULL) */
 
+    SC_VIDEO_LOCK(scp->sc);
+
 #ifndef SC_NO_HISTORY
     if (scp == scp->sc->cur_scp && scp->status & SLKED) {
 	scp->status &= ~SLKED;
@@ -1793,6 +1797,7 @@ sc_cnputc(struct consdev *cd, int c)
     s = spltty();	/* block sckbdevent and scrn_timer */
     sccnupdate(scp);
     splx(s);
+    SC_VIDEO_UNLOCK(scp->sc);
 }
 
 static int
@@ -2726,24 +2731,14 @@ exchange_scr(sc_softc_t *sc)
 static void
 sc_puts(scr_stat *scp, u_char *buf, int len, int kernel)
 {
-    int need_unlock = 0;
-
 #ifdef DEV_SPLASH
     /* make screensaver happy */
     if (!sticky_splash && scp == scp->sc->cur_scp && !sc_saver_keyb_only)
 	run_scrn_saver = FALSE;
 #endif
 
-    if (scp->tsw) {
-	if (!kdb_active && !mtx_owned(&scp->sc->scr_lock)) {
-		need_unlock = 1;
-		mtx_lock_spin(&scp->sc->scr_lock);
-	}
+    if (scp->tsw)
 	(*scp->tsw->te_puts)(scp, buf, len, kernel);
-	if (need_unlock)
-		mtx_unlock_spin(&scp->sc->scr_lock);
-    }
-
     if (scp->sc->delayed_next_scr)
 	sc_switch_scr(scp->sc, scp->sc->delayed_next_scr - 1);
 }
@@ -2906,10 +2901,8 @@ scinit(int unit, int flags)
      * disappeared...
      */
     sc = sc_get_softc(unit, flags & SC_KERNEL_CONSOLE);
-    if ((sc->flags & SC_INIT_DONE) == 0) {
-	mtx_init(&sc->scr_lock, "scrlock", NULL, MTX_SPIN);
+    if ((sc->flags & SC_INIT_DONE) == 0)
 	SC_VIDEO_LOCKINIT(sc);
-    }
 
     adp = NULL;
     if (sc->adapter >= 0) {
@@ -3126,7 +3119,6 @@ scterm(int unit, int flags)
 	(*scp->tsw->te_term)(scp, &scp->ts);
     if (scp->ts != NULL)
 	free(scp->ts, M_DEVBUF);
-    mtx_destroy(&sc->scr_lock);
     mtx_destroy(&sc->video_mtx);
 
     /* clear the structure */
