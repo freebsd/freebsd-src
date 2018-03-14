@@ -31,8 +31,6 @@ dev/adb/adb_if.m		optional	adb
 dev/adb/adb_buttons.c		optional	adb
 dev/agp/agp_apple.c		optional	agp powermac
 dev/fb/fb.c			optional	sc
-# ofwbus depends on simplebus.
-dev/fdt/simplebus.c		optional	standard
 dev/hwpmc/hwpmc_e500.c		optional	hwpmc
 dev/hwpmc/hwpmc_mpc7xxx.c	optional	hwpmc
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
@@ -46,19 +44,21 @@ dev/iicbus/max6690.c		optional	max6690 powermac
 dev/iicbus/ofw_iicbus.c		optional	iicbus aim
 dev/nand/nfc_fsl.c		optional	nand mpc85xx
 dev/nand/nfc_rb.c		optional	nand mpc85xx
-# ofw can be either aim or fdt: fdt case handled in files. aim only powerpc specific.
-dev/ofw/openfirm.c		optional	aim
-dev/ofw/openfirmio.c		optional	aim
-dev/ofw/ofw_bus_if.m		optional	aim
-dev/ofw/ofw_cpu.c		optional	aim
-dev/ofw/ofw_if.m		optional	aim
-dev/ofw/ofw_bus_subr.c		optional	aim
+# Most ofw stuff below is brought in by conf/files for options FDT, but
+# we always want it, even on non-FDT platforms.
+dev/fdt/simplebus.c		standard
+dev/ofw/openfirm.c		standard
+dev/ofw/openfirmio.c		standard
+dev/ofw/ofw_bus_if.m		standard
+dev/ofw/ofw_cpu.c		standard
+dev/ofw/ofw_if.m		standard
+dev/ofw/ofw_bus_subr.c		standard
 dev/ofw/ofw_console.c		optional	aim
 dev/ofw/ofw_disk.c		optional	ofwd aim
-dev/ofw/ofwbus.c		optional	aim
+dev/ofw/ofwbus.c		standard
 dev/ofw/ofwpci.c		optional 	pci
 dev/ofw/ofw_standard.c		optional	aim powerpc
-dev/ofw/ofw_subr.c		optional	aim powerpc
+dev/ofw/ofw_subr.c		standard
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
 dev/quicc/quicc_bfe_fdt.c	optional	quicc mpc85xx
 dev/scc/scc_bfe_macio.c		optional	scc powermac
