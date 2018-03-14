@@ -154,6 +154,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_release_resource,	pci_release_resource),
 	DEVMETHOD(bus_activate_resource, pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
+	DEVMETHOD(bus_child_deleted,	pci_child_deleted),
 	DEVMETHOD(bus_child_detached,	pci_child_detached),
 	DEVMETHOD(bus_child_pnpinfo_str, pci_child_pnpinfo_str_method),
 	DEVMETHOD(bus_child_location_str, pci_child_location_str_method),
@@ -4883,7 +4884,7 @@ pci_deactivate_resource(device_t dev, device_t child, int type,
 }
 
 void
-pci_delete_child(device_t dev, device_t child)
+pci_child_deleted(device_t dev, device_t child)
 {
 	struct resource_list_entry *rle;
 	struct resource_list *rl;
@@ -4892,12 +4893,13 @@ pci_delete_child(device_t dev, device_t child)
 	dinfo = device_get_ivars(child);
 	rl = &dinfo->resources;
 
-	if (device_is_attached(child))
-		device_detach(child);
-
 	/* Turn off access to resources we're about to free */
-	pci_write_config(child, PCIR_COMMAND, pci_read_config(child,
-	    PCIR_COMMAND, 2) & ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN), 2);
+	if (bus_child_present(child) != 0) {
+		pci_write_config(child, PCIR_COMMAND, pci_read_config(child,
+		    PCIR_COMMAND, 2) & ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN), 2);
+
+		pci_disable_busmaster(child);
+	}
 
 	/* Free all allocated resources */
 	STAILQ_FOREACH(rle, rl, link) {
@@ -4918,8 +4920,17 @@ pci_delete_child(device_t dev, device_t child)
 	}
 	resource_list_free(rl);
 
-	device_delete_child(dev, child);
 	pci_freecfg(dinfo);
+}
+
+/* KBI compatability shim. */
+extern void pci_delete_child(device_t dev, device_t child);
+
+void
+pci_delete_child(device_t dev, device_t child)
+{
+
+	device_delete_child (dev, child);
 }
 
 void

@@ -54,7 +54,6 @@ void		pci_add_child(device_t bus, struct pci_devinfo *dinfo);
 void		pci_add_resources(device_t bus, device_t dev, int force,
 		    uint32_t prefetchmask);
 int		pci_attach_common(device_t dev);
-void		pci_delete_child(device_t dev, device_t child);
 void		pci_driver_added(device_t dev, driver_t *driver);
 int		pci_print_child(device_t dev, device_t child);
 void		pci_probe_nomatch(device_t dev, device_t child);
@@ -118,6 +117,7 @@ struct pci_devinfo *pci_read_device(device_t pcib, int d, int b, int s, int f,
 		    size_t size);
 void		pci_print_verbose(struct pci_devinfo *dinfo);
 int		pci_freecfg(struct pci_devinfo *dinfo);
+void		pci_child_deleted(device_t dev, device_t child);
 void		pci_child_detached(device_t dev, device_t child);
 int		pci_child_location_str_method(device_t cbdev, device_t child,
 		    char *buf, size_t buflen);
