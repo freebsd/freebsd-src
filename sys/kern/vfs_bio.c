@@ -2450,6 +2450,7 @@ buf_dirty_count_severe(void)
 void
 brelse(struct buf *bp)
 {
+	struct mount *v_mnt;
 	int qindex;
 
 	/*
@@ -2560,11 +2561,13 @@ brelse(struct buf *bp)
 	 * around to prevent it from being reconstituted and starting a second
 	 * background write.
 	 */
+
+	v_mnt = bp->b_vp != NULL ? bp->b_vp->v_mount : NULL;
+
 	if ((bp->b_flags & B_VMIO) && (bp->b_flags & B_NOCACHE ||
 	    (bp->b_ioflags & BIO_ERROR && bp->b_iocmd == BIO_READ)) &&
-	    !(bp->b_vp->v_mount != NULL &&
-	    (bp->b_vp->v_mount->mnt_vfc->vfc_flags & VFCF_NETWORK) != 0 &&
-	    !vn_isdisk(bp->b_vp, NULL) && (bp->b_flags & B_DELWRI))) {
+	    (v_mnt == NULL || (v_mnt->mnt_vfc->vfc_flags & VFCF_NETWORK) == 0 ||
+	    vn_isdisk(bp->b_vp, NULL) || (bp->b_flags & B_DELWRI) == 0)) {
 		vfs_vmio_invalidate(bp);
 		allocbuf(bp, 0);
 	}
@@ -4977,6 +4980,7 @@ vfs_bio_getpages(struct vnode *vp, vm_page_t *ma, int count,
 
 	object = vp->v_object;
 	mp = vp->v_mount;
+	error = 0;
 	la = IDX_TO_OFF(ma[count - 1]->pindex);
 	if (la >= object->un_pager.vnp.vnp_size)
 		return (VM_PAGER_BAD);
