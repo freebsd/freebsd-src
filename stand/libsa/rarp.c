@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 
 
 static ssize_t rarpsend(struct iodesc *, void *, size_t);
-static ssize_t rarprecv(struct iodesc *, void **, void **, time_t);
+static ssize_t rarprecv(struct iodesc *, void **, void **, time_t, void *);
 
 /*
  * Ethernet (Reverse) Address Resolution Protocol (see RFC 903, and 826).
@@ -99,7 +99,7 @@ rarp_getipaddress(int sock)
 
 	if (sendrecv(d,
 	    rarpsend, &wbuf.data, sizeof(wbuf.data),
-	    rarprecv, &pkt, (void *)&ap) < 0) {
+	    rarprecv, &pkt, (void *)&ap, NULL) < 0) {
 		printf("No response for RARP request\n");
 		return (-1);
 	}
@@ -143,7 +143,8 @@ rarpsend(struct iodesc *d, void *pkt, size_t len)
  * else -1 (and errno == 0)
  */
 static ssize_t
-rarprecv(struct iodesc *d, void **pkt, void **payload, time_t tleft)
+rarprecv(struct iodesc *d, void **pkt, void **payload, time_t tleft,
+    void *extra)
 {
 	ssize_t n;
 	struct ether_arp *ap;

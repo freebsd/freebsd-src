@@ -65,7 +65,7 @@ int arp_num = 1;
 
 /* Local forwards */
 static	ssize_t arpsend(struct iodesc *, void *, size_t);
-static	ssize_t arprecv(struct iodesc *, void **, void **, time_t);
+static	ssize_t arprecv(struct iodesc *, void **, void **, time_t, void *);
 
 /* Broadcast an ARP packet, asking who has addr on interface d */
 u_char *
@@ -118,7 +118,7 @@ arpwhohas(struct iodesc *d, struct in_addr addr)
 	ah = NULL;
 	i = sendrecv(d,
 	    arpsend, &wbuf.data, sizeof(wbuf.data),
-	    arprecv, &pkt, (void **)&ah);
+	    arprecv, &pkt, (void **)&ah, NULL);
 	if (i == -1) {
 		panic("arp: no response for %s\n",
 			  inet_ntoa(addr));
@@ -160,7 +160,7 @@ arpsend(struct iodesc *d, void *pkt, size_t len)
  * else -1 (and errno == 0)
  */
 static ssize_t
-arprecv(struct iodesc *d, void **pkt, void **payload, time_t tleft)
+arprecv(struct iodesc *d, void **pkt, void **payload, time_t tleft, void *extra)
 {
 	ssize_t n;
 	struct ether_arp *ah;
