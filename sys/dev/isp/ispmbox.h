@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- *  Copyright (c) 2009-2017 Alexander Motin <mav@FreeBSD.org>
+ *  Copyright (c) 2009-2018 Alexander Motin <mav@FreeBSD.org>
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
  * 
@@ -176,6 +176,7 @@
 #define		MBGSD_4GB	0x03		/* 24XX only */
 #define		MBGSD_8GB	0x04		/* 25XX only */
 #define		MBGSD_16GB	0x05		/* 26XX only */
+#define		MBGSD_32GB	0x06		/* 27XX only */
 #define		MBGSD_10GB	0x13		/* 26XX only */
 #define	MBOX_SEND_RNFT			0x005e
 #define	MBOX_INIT_FIRMWARE		0x0060
@@ -297,6 +298,8 @@
 #define	ASYNC_INTER_DRIVER_COMP		0x8100	/* FCoE only */
 #define	ASYNC_INTER_DRIVER_NOTIFY	0x8101	/* FCoE only */
 #define	ASYNC_INTER_DRIVER_TIME_EXT	0x8102	/* FCoE only */
+#define	ASYNC_TRANSCEIVER_INSERTION	0x8130
+#define	ASYNC_TRANSCEIVER_REMOVAL	0x8131
 #define	ASYNC_NIC_FW_STATE_CHANGE	0x8200	/* FCoE only */
 #define	ASYNC_AUTOLOAD_FW_COMPLETE	0x8400
 #define	ASYNC_AUTOLOAD_FW_FAILURE	0x8401
@@ -1070,6 +1073,7 @@ typedef struct {
 #define	ICB2400_OPT3_RATE_4GB		0x00006000
 #define	ICB2400_OPT3_RATE_8GB		0x00008000
 #define	ICB2400_OPT3_RATE_16GB		0x0000A000
+#define	ICB2400_OPT3_RATE_32GB		0x0000C000
 #define	ICB2400_OPT3_ENA_OOF_XFRDY	0x00000200
 #define	ICB2400_OPT3_NO_N2N_LOGI	0x00000100
 #define	ICB2400_OPT3_NO_LOCAL_PLOGI	0x00000080
