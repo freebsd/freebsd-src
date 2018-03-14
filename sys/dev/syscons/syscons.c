@@ -1645,56 +1645,67 @@ sc_cnterm(struct consdev *cp)
     sc_console = NULL;
 }
 
+struct sc_cnstate;		/* not used yet */
+static void sccnclose(sc_softc_t *sc, struct sc_cnstate *sp);
+static void sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags);
+
 static void
-sc_cngrab(struct consdev *cp)
+sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags)
 {
-    scr_stat *scp;
+    int kbd_mode;
 
     if (!cold &&
-	sc_console->sc->cur_scp->index != sc_console->index &&
-	sc_console->sc->cur_scp->smode.mode == VT_AUTO &&
+	sc->cur_scp->index != sc_console->index &&
+	sc->cur_scp->smode.mode == VT_AUTO &&
 	sc_console->smode.mode == VT_AUTO)
-	    sc_switch_scr(sc_console->sc, sc_console->index);
+	    sc_switch_scr(sc, sc_console->index);
 
-    scp = sc_console->sc->cur_scp;
-
-    if (scp->sc->kbd == NULL)
-	return;
-
-    if (scp->sc->grab_level++ > 0)
+    if (sc->kbd == NULL)
 	return;
 
     /*
      * Make sure the keyboard is accessible even when the kbd device
      * driver is disabled.
      */
-    kbdd_enable(scp->sc->kbd);
+    kbdd_enable(sc->kbd);
 
-    /* we shall always use the keyboard in the XLATE mode here */
-    scp->kbd_prev_mode = scp->kbd_mode;
-    scp->kbd_mode = K_XLATE;
-    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+    /* Switch the keyboard to console mode (K_XLATE, polled) on all scp's. */
+    kbd_mode = K_XLATE;
+    (void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&kbd_mode);
+    kbdd_poll(sc->kbd, TRUE);
+}
 
-    kbdd_poll(scp->sc->kbd, TRUE);
+static void
+sccnclose(sc_softc_t *sc, struct sc_cnstate *sp)
+{
+    if (sc->kbd == NULL)
+	return;
+
+    /* Restore keyboard mode (for the current, possibly-changed scp). */
+    kbdd_poll(sc->kbd, FALSE);
+    (void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&sc->cur_scp->kbd_mode);
+
+    kbdd_disable(sc->kbd);
+}
+
+static void
+sc_cngrab(struct consdev *cp)
+{
+    sc_softc_t *sc;
+
+    sc = sc_console->sc;
+    if (sc->grab_level++ == 0)
+	sccnopen(sc, NULL, 0);
 }
 
 static void
 sc_cnungrab(struct consdev *cp)
 {
-    scr_stat *scp;
+    sc_softc_t *sc;
 
-    scp = sc_console->sc->cur_scp;	/* XXX */
-    if (scp->sc->kbd == NULL)
-	return;
-
-    if (--scp->sc->grab_level > 0)
-	return;
-
-    kbdd_poll(scp->sc->kbd, FALSE);
-
-    scp->kbd_mode = scp->kbd_prev_mode;
-    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
-    kbdd_disable(scp->sc->kbd);
+    sc = sc_console->sc;
+    if (--sc->grab_level == 0)
+	sccnclose(sc, NULL);
 }
 
 static void
@@ -2667,7 +2678,7 @@ exchange_scr(sc_softc_t *sc)
     sc_set_border(scp, scp->border);
 
     /* set up the keyboard for the new screen */
-    if (sc->old_scp->kbd_mode != scp->kbd_mode)
+    if (sc->grab_level == 0 && sc->old_scp->kbd_mode != scp->kbd_mode)
 	(void)kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
     update_kbd_state(scp, scp->status, LOCK_MASK);
 
@@ -3412,7 +3423,7 @@ next_code:
     if (!(flags & SCGETC_CN))
 	random_harvest_queue(&c, sizeof(c), 1, RANDOM_KEYBOARD);
 
-    if (scp->kbd_mode != K_XLATE)
+    if (sc->grab_level == 0 && scp->kbd_mode != K_XLATE)
 	return KEYCHAR(c);
 
     /* if scroll-lock pressed allow history browsing */
