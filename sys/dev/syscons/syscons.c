@@ -1651,20 +1651,68 @@ sc_cnterm(struct consdev *cp)
 
 static void sccnclose(sc_softc_t *sc, struct sc_cnstate *sp);
 static int sc_cngetc_locked(struct sc_cnstate *sp);
+static void sccnkbdlock(sc_softc_t *sc, struct sc_cnstate *sp);
+static void sccnkbdunlock(sc_softc_t *sc, struct sc_cnstate *sp);
 static void sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags);
 static void sccnscrlock(sc_softc_t *sc, struct sc_cnstate *sp);
 static void sccnscrunlock(sc_softc_t *sc, struct sc_cnstate *sp);
 
 static void
+sccnkbdlock(sc_softc_t *sc, struct sc_cnstate *sp)
+{
+    /*
+     * Locking method: hope for the best.
+     * The keyboard is supposed to be Giant locked.  We can't handle that
+     * in general.  The kdb_active case here is not safe, and we will
+     * proceed without the lock in all cases.
+     */
+    sp->kbd_locked = !kdb_active && mtx_trylock(&Giant);
+}
+
+static void
+sccnkbdunlock(sc_softc_t *sc, struct sc_cnstate *sp)
+{
+    if (sp->kbd_locked)
+	mtx_unlock(&Giant);
+    sp->kbd_locked = FALSE;
+}
+
+static void
 sccnscrlock(sc_softc_t *sc, struct sc_cnstate *sp)
 {
-    SC_VIDEO_LOCK(sc);
+    int retries;
+
+    /**
+     * Locking method:
+     * - if kdb_active and video_mtx is not owned by anyone, then lock
+     *   by kdb remaining active
+     * - if !kdb_active, try to acquire video_mtx without blocking or
+     *   recursing; if we get it then it works normally.
+     * Note that video_mtx is especially unusable if we already own it,
+     * since then it is protecting something and syscons is not reentrant
+     * enough to ignore the protection even in the kdb_active case.
+     */
+    if (kdb_active) {
+	sp->kdb_locked = sc->video_mtx.mtx_lock == MTX_UNOWNED || panicstr;
+	sp->mtx_locked = FALSE;
+    } else {
+	sp->kdb_locked = FALSE;
+	for (retries = 0; retries < 1000; retries++) {
+	    sp->mtx_locked = mtx_trylock_spin_flags(&sc->video_mtx,
+		MTX_QUIET) != 0 || panicstr;
+	    if (sp->mtx_locked)
+		break;
+	    DELAY(1);
+	}
+    }
 }
 
 static void
 sccnscrunlock(sc_softc_t *sc, struct sc_cnstate *sp)
 {
-    SC_VIDEO_UNLOCK(sc);
+    if (sp->mtx_locked)
+	mtx_unlock_spin(&sc->video_mtx);
+    sp->mtx_locked = sp->kdb_locked = FALSE;
 }
 
 static void
@@ -1676,10 +1724,13 @@ sccnopen(sc_softc_t *sc, struct sc_cnstate *sp, int flags)
 
     sp->kbd_opened = FALSE;
     sp->scr_opened = FALSE;
+    sp->kbd_locked = FALSE;
 
     /* Opening the keyboard is optional. */
     if (!(flags & 1) || sc->kbd == NULL)
 	goto over_keyboard;
+
+    sccnkbdlock(sc, sp);
 
     /*
      * Make sure the keyboard is accessible even when the kbd device
@@ -1698,6 +1749,8 @@ over_keyboard: ;
 
     /* The screen is opened iff locking it succeeds. */
     sccnscrlock(sc, sp);
+    if (!sp->kdb_locked && !sp->mtx_locked)
+	return;
     sp->scr_opened = TRUE;
 
     /* The screen switch is optional. */
@@ -1728,6 +1781,7 @@ sccnclose(sc_softc_t *sc, struct sc_cnstate *sp)
 
     kbdd_disable(sc->kbd);
     sp->kbd_opened = FALSE;
+    sccnkbdunlock(sc, sp);
 }
 
 /*
@@ -1753,6 +1807,7 @@ sc_cngrab(struct consdev *cp)
     if (lev >= 0 && lev < 2) {
 	sccnopen(sc, &sc->grab_state[lev], 1 | 2);
 	sccnscrunlock(sc, &sc->grab_state[lev]);
+	sccnkbdunlock(sc, &sc->grab_state[lev]);
     }
 }
 
@@ -1765,11 +1820,16 @@ sc_cnungrab(struct consdev *cp)
     sc = sc_console->sc;
     lev = atomic_load_acq_int(&sc->grab_level) - 1;
     if (lev >= 0 && lev < 2) {
+	sccnkbdlock(sc, &sc->grab_state[lev]);
 	sccnscrlock(sc, &sc->grab_state[lev]);
 	sccnclose(sc, &sc->grab_state[lev]);
     }
     atomic_add_int(&sc->grab_level, -1);
 }
+
+static char sc_cnputc_log[0x1000];
+static u_int sc_cnputc_loghead;
+static u_int sc_cnputc_logtail;
 
 static void
 sc_cnputc(struct consdev *cd, int c)
@@ -1782,11 +1842,27 @@ sc_cnputc(struct consdev *cd, int c)
     struct tty *tp;
 #endif
 #endif /* !SC_NO_HISTORY */
+    u_int head;
     int s;
 
     /* assert(sc_console != NULL) */
 
     sccnopen(scp->sc, &st, 0);
+
+    /*
+     * Log the output.
+     *
+     * In the unlocked case, the logging is intentionally only
+     * perfectly atomic for the indexes.
+     */
+    head = atomic_fetchadd_int(&sc_cnputc_loghead, 1);
+    sc_cnputc_log[head % sizeof(sc_cnputc_log)] = c;
+
+    /*
+     * If we couldn't open, return to defer output.
+     */
+    if (!st.scr_opened)
+	return;
 
 #ifndef SC_NO_HISTORY
     if (scp == scp->sc->cur_scp && scp->status & SLKED) {
@@ -1815,8 +1891,14 @@ sc_cnputc(struct consdev *cd, int c)
     }
 #endif /* !SC_NO_HISTORY */
 
-    buf[0] = c;
-    sc_puts(scp, buf, 1, 1);
+    /* Play any output still in the log (our char may already be done). */
+    while (sc_cnputc_logtail != atomic_load_acq_int(&sc_cnputc_loghead)) {
+	buf[0] = sc_cnputc_log[sc_cnputc_logtail++ % sizeof(sc_cnputc_log)];
+	if (atomic_load_acq_int(&sc_cnputc_loghead) - sc_cnputc_logtail >=
+	    sizeof(sc_cnputc_log))
+	    continue;
+	sc_puts(scp, buf, 1, 1);
+    }
 
     s = spltty();	/* block sckbdevent and scrn_timer */
     sccnupdate(scp);
@@ -1827,16 +1909,20 @@ sc_cnputc(struct consdev *cd, int c)
 static int
 sc_cngetc(struct consdev *cd)
 {
+    struct sc_cnstate st;
     int c, s;
 
     /* assert(sc_console != NULL) */
+    sccnopen(sc_console->sc, &st, 1);
     s = spltty();	/* block sckbdevent and scrn_timer while we poll */
-    if (sc_console->sc->kbd == NULL) {
+    if (!st.kbd_opened) {
 	splx(s);
-	return -1;
+	sccnclose(sc_console->sc, &st);
+	return -1;	/* means no keyboard since we fudged the locking */
     }
-    c = sc_cngetc_locked(NULL);
+    c = sc_cngetc_locked(&st);
     splx(s);
+    sccnclose(sc_console->sc, &st);
     return c;
 }
 
@@ -1853,14 +1939,16 @@ sc_cngetc_locked(struct sc_cnstate *sp)
      * Stop the screen saver and update the screen if necessary.
      * What if we have been running in the screen saver code... XXX
      */
-    sc_touch_scrn_saver();
+    if (sp->scr_opened)
+	sc_touch_scrn_saver();
     scp = sc_console->sc->cur_scp;	/* XXX */
-    sccnupdate(scp);
+    if (sp->scr_opened)
+	sccnupdate(scp);
 
     if (fkeycp < fkey.len)
 	return fkey.str[fkeycp++];
 
-    c = scgetc(scp->sc, SCGETC_CN | SCGETC_NONBLOCK, NULL);
+    c = scgetc(scp->sc, SCGETC_CN | SCGETC_NONBLOCK, sp);
 
     switch (KEYFLAGS(c)) {
     case 0:	/* normal char */
@@ -3466,7 +3554,11 @@ next_code:
     scp = sc->cur_scp;
     /* first see if there is something in the keyboard port */
     for (;;) {
+	if (flags & SCGETC_CN)
+	    sccnscrunlock(sc, sp);
 	c = kbdd_read_char(sc->kbd, !(flags & SCGETC_NONBLOCK));
+	if (flags & SCGETC_CN)
+	    sccnscrlock(sc, sp);
 	if (c == ERRKEY) {
 	    if (!(flags & SCGETC_CN))
 		sc_bell(scp, bios_value.bell_pitch, BELL_DURATION);

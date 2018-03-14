@@ -192,6 +192,9 @@ struct scr_stat;
 struct tty;
 
 struct sc_cnstate {
+	u_char		kbd_locked;
+	u_char		kdb_locked;
+	u_char		mtx_locked;
 	u_char		kbd_opened;
 	u_char		scr_opened;
 };
