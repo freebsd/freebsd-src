@@ -17,6 +17,6 @@ desc = <<EOD
 EOD
 scripts: {
 	post-install = <<EOD
-	/usr/sbin/kldxref ${PKG_ROOTDIR}/boot/kernel
+	/usr/sbin/kldxref ${PKG_ROOTDIR}/boot/%KERNELDIR%
 EOD
 }
