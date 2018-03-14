@@ -57,14 +57,17 @@ struct opal_i2cm_softc
 
 static int opal_i2cm_attach(device_t);
 static int opal_i2cm_probe(device_t);
+#ifdef FDT
 static const struct ofw_bus_devinfo *
     opal_i2cm_get_devinfo(device_t, device_t);
+#endif
 
 static device_method_t opal_i2cm_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		opal_i2cm_probe),
 	DEVMETHOD(device_attach,	opal_i2cm_attach),
 
+#ifdef FDT
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	opal_i2cm_get_devinfo),
 	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
@@ -72,6 +75,7 @@ static device_method_t opal_i2cm_methods[] = {
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+#endif
 
 	DEVMETHOD_END
 };
@@ -82,8 +86,10 @@ static int
 opal_i2cm_probe(device_t dev)
 {
 
+#ifdef FDT
 	if (!(ofw_bus_is_compatible(dev, "ibm,centaur-i2cm") ||
 	    ofw_bus_is_compatible(dev, "ibm,power8-i2cm")))
+#endif
 		return (ENXIO);
 
 	device_set_desc(dev, "centaur-i2cm");
@@ -93,6 +99,7 @@ opal_i2cm_probe(device_t dev)
 static int
 opal_i2cm_attach(device_t dev)
 {
+#ifdef FDT
 	phandle_t child;
 	device_t cdev;
 	struct ofw_bus_devinfo *dinfo;
@@ -116,13 +123,18 @@ opal_i2cm_attach(device_t dev)
 	}
 
 	return (bus_generic_attach(dev));
+#else
+	return (ENXIO);
+#endif
 }
 
+#ifdef FDT
 static const struct ofw_bus_devinfo *
 opal_i2cm_get_devinfo(device_t dev, device_t child)
 {
         return (device_get_ivars(child));
 }
+#endif
 
 DEFINE_CLASS_0(opal_i2cm, opal_i2cm_driver, opal_i2cm_methods,
     sizeof(struct opal_i2cm_softc));

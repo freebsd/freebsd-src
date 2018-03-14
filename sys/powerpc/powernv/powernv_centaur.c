@@ -57,14 +57,17 @@ struct powernv_centaur_softc
 
 static int powernv_centaur_attach(device_t);
 static int powernv_centaur_probe(device_t);
+#ifdef FDT
 static const struct ofw_bus_devinfo *
     powernv_centaur_get_devinfo(device_t, device_t);
+#endif
 
 static device_method_t powernv_centaur_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		powernv_centaur_probe),
 	DEVMETHOD(device_attach,	powernv_centaur_attach),
 
+#ifdef FDT
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	powernv_centaur_get_devinfo),
 	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
@@ -72,7 +75,7 @@ static device_method_t powernv_centaur_methods[] = {
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
-
+#endif
 	DEVMETHOD_END
 };
 
@@ -82,7 +85,9 @@ static int
 powernv_centaur_probe(device_t dev)
 {
 
+#ifdef FDT
 	if (!(ofw_bus_is_compatible(dev, "ibm,centaur")))
+#endif
 		return (ENXIO);
 
 	device_set_desc(dev, "centaur");
@@ -92,6 +97,7 @@ powernv_centaur_probe(device_t dev)
 static int
 powernv_centaur_attach(device_t dev)
 {
+#ifdef FDT
 	phandle_t child;
 	device_t cdev;
 	struct ofw_bus_devinfo *dinfo;
@@ -115,13 +121,18 @@ powernv_centaur_attach(device_t dev)
 	}
 
 	return (bus_generic_attach(dev));
+#else
+	return (ENXIO);
+#endif
 }
 
+#ifdef FDT
 static const struct ofw_bus_devinfo *
 powernv_centaur_get_devinfo(device_t dev, device_t child)
 {
         return (device_get_ivars(child));
 }
+#endif
 
 DEFINE_CLASS_0(powernv_centaur, powernv_centaur_driver, powernv_centaur_methods,
     sizeof(struct powernv_centaur_softc));
