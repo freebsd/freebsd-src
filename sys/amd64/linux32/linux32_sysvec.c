@@ -1036,7 +1036,7 @@ linux_vdso_deinstall(void *param)
 {
 
 	__elfN(linux_shared_page_fini)(linux_shared_page_obj);
-};
+}
 SYSUNINIT(elf_linux_vdso_uninit, SI_SUB_EXEC, SI_ORDER_FIRST,
     (sysinit_cfunc_t)linux_vdso_deinstall, NULL);
 
