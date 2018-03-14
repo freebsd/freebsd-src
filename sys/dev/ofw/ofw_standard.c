@@ -232,7 +232,7 @@ ofw_std_peer(ofw_t ofw, phandle_t node)
 
 	args.node = node;
 	if (openfirmware(&args) == -1)
-		return (-1);
+		return (0);
 	return (args.next);
 }
 
@@ -254,7 +254,7 @@ ofw_std_child(ofw_t ofw, phandle_t node)
 
 	args.node = node;
 	if (openfirmware(&args) == -1)
-		return (-1);
+		return (0);
 	return (args.child);
 }
 
@@ -276,7 +276,7 @@ ofw_std_parent(ofw_t ofw, phandle_t node)
 
 	args.node = node;
 	if (openfirmware(&args) == -1)
-		return (-1);
+		return (0);
 	return (args.parent);
 }
 
