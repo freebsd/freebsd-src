@@ -1,4 +1,4 @@
-/*	$NetBSD: ffs.h,v 1.1 2004/12/20 20:51:42 jmc Exp $	*/
+/*	$NetBSD: ffs.h,v 1.2 2004/12/20 20:51:42 jmc Exp $	*/
 
 /*-
  * SPDX-License-Identifier: BSD-4-Clause
