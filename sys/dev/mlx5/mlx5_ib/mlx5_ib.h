@@ -783,6 +783,11 @@ int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index,
 int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 			  u64 length, u64 virt_addr, int access_flags,
 			  struct ib_pd *pd, struct ib_udata *udata);
+struct ib_mr *mlx5_ib_reg_phys_mr(struct ib_pd *pd,
+				  struct ib_phys_buf *buffer_list,
+				  int num_phys_buf,
+				  int access_flags,
+				  u64 *virt_addr);
 int mlx5_ib_dereg_mr(struct ib_mr *ibmr);
 struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 			       enum ib_mr_type mr_type,

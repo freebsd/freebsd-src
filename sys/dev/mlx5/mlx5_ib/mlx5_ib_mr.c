@@ -1309,6 +1309,129 @@ static int clean_mr(struct mlx5_ib_mr *mr)
 	return 0;
 }
 
+CTASSERT(sizeof(((struct ib_phys_buf *)0)->size) == 8);
+
+struct ib_mr *
+mlx5_ib_reg_phys_mr(struct ib_pd *pd,
+		    struct ib_phys_buf *buffer_list,
+		    int num_phys_buf,
+		    int access_flags,
+		    u64 *virt_addr)
+{
+	struct mlx5_ib_dev *dev = to_mdev(pd->device);
+	struct mlx5_ib_mr *mr;
+	__be64 *pas;
+	void *mkc;
+	u32 *in;
+	u64 total_size;
+	u32 octo_len;
+	bool pg_cap = !!(MLX5_CAP_GEN(dev->mdev, pg));
+	unsigned long mask;
+	int shift;
+	int npages;
+	int inlen;
+	int err;
+	int i, j, n;
+
+	mask = buffer_list[0].addr ^ *virt_addr;
+	total_size = 0;
+	for (i = 0; i < num_phys_buf; ++i) {
+		if (i != 0)
+			mask |= buffer_list[i].addr;
+		if (i != num_phys_buf - 1)
+			mask |= buffer_list[i].addr + buffer_list[i].size;
+
+		total_size += buffer_list[i].size;
+	}
+
+	if (mask & ~PAGE_MASK)
+		return ERR_PTR(-EINVAL);
+
+	shift = __ffs(mask | 1 << 31);
+
+	buffer_list[0].size += buffer_list[0].addr & ((1ULL << shift) - 1);
+	buffer_list[0].addr &= ~0ULL << shift;
+
+	npages = 0;
+	for (i = 0; i < num_phys_buf; ++i)
+		npages += (buffer_list[i].size + (1ULL << shift) - 1) >> shift;
+
+	if (!npages) {
+		mlx5_ib_warn(dev, "avoid zero region\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	mr = kzalloc(sizeof *mr, GFP_KERNEL);
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
+
+	octo_len = get_octo_len(*virt_addr, total_size, 1ULL << shift);
+	octo_len = ALIGN(octo_len, 4);
+
+	inlen = MLX5_ST_SZ_BYTES(create_mkey_in) + (octo_len * 16);
+	in = mlx5_vzalloc(inlen);
+	if (!in) {
+		kfree(mr);
+		return ERR_PTR(-ENOMEM);
+	}
+	pas = (__be64 *)MLX5_ADDR_OF(create_mkey_in, in, klm_pas_mtt);
+
+	n = 0;
+	for (i = 0; i < num_phys_buf; ++i) {
+		for (j = 0;
+		     j < (buffer_list[i].size + (1ULL << shift) - 1) >> shift;
+		     ++j) {
+			u64 temp = buffer_list[i].addr + ((u64) j << shift);
+			if (pg_cap)
+				temp |= MLX5_IB_MTT_PRESENT;
+			pas[n++] = cpu_to_be64(temp);
+		}
+	}
+
+	/*
+	 * The MLX5_MKEY_INBOX_PG_ACCESS bit allows setting the access
+	 * flags in the page list submitted with the command:
+	 */
+	MLX5_SET(create_mkey_in, in, pg_access, !!(pg_cap));
+
+	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
+	MLX5_SET(mkc, mkc, access_mode, MLX5_ACCESS_MODE_MTT);
+	MLX5_SET(mkc, mkc, a, !!(access_flags & IB_ACCESS_REMOTE_ATOMIC));
+	MLX5_SET(mkc, mkc, rw, !!(access_flags & IB_ACCESS_REMOTE_WRITE));
+	MLX5_SET(mkc, mkc, rr, !!(access_flags & IB_ACCESS_REMOTE_READ));
+	MLX5_SET(mkc, mkc, lw, !!(access_flags & IB_ACCESS_LOCAL_WRITE));
+	MLX5_SET(mkc, mkc, lr, 1);
+
+	MLX5_SET64(mkc, mkc, start_addr, *virt_addr);
+	MLX5_SET64(mkc, mkc, len, total_size);
+	MLX5_SET(mkc, mkc, pd, to_mpd(pd)->pdn);
+	MLX5_SET(mkc, mkc, bsf_octword_size, 0);
+	MLX5_SET(mkc, mkc, translations_octword_size, octo_len);
+	MLX5_SET(mkc, mkc, log_page_size, shift);
+	MLX5_SET(mkc, mkc, qpn, 0xffffff);
+	MLX5_SET(create_mkey_in, in, translations_octword_actual_size, octo_len);
+
+	err = mlx5_core_create_mkey(dev->mdev, &mr->mmkey,
+				    (struct mlx5_create_mkey_mbox_in *)in, inlen,
+				    NULL, NULL, NULL);
+	mr->umem = NULL;
+	mr->dev = dev;
+	mr->live = 1;
+	mr->npages = npages;
+	mr->ibmr.lkey = mr->mmkey.key;
+	mr->ibmr.rkey = mr->mmkey.key;
+	mr->ibmr.length = total_size;
+	mr->access_flags = access_flags;
+
+	kvfree(in);
+
+	if (err) {
+		kfree(mr);
+		return ERR_PTR(err);
+	}
+	return &mr->ibmr;
+}
+
 int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibmr->device);
