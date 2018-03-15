@@ -426,7 +426,11 @@ extern int zfs_secpolicy_destroy_perms(const char *, cred_t *);
 extern int zfs_busy(void);
 extern void zfs_unmount_snap(const char *);
 extern void zfs_destroy_unmount_origin(const char *);
+#ifdef illumos
 extern int getzfsvfs_impl(struct objset *, struct zfsvfs **);
+#else
+extern int getzfsvfs_impl(struct objset *, vfs_t **);
+#endif
 extern int getzfsvfs(const char *, struct zfsvfs **);
 
 /*
