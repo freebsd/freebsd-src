@@ -4664,24 +4664,24 @@ Eterm|Eterm Terminal Emulator (X11 Window System):\
 
 # Termcap for xterm-termite
 xterm-termite|VTE-based terminal:\
-        :NP:am:hs:mi:ms:ut:xn:\
-        :Co#256:co#80:it#8:li#24:pa#32767:\
-        :@7=\EOF:@8=\EOM:AB=\E[48;5;%dm:AF=\E[38;5;%dm:AL=\E[%dL:\
-        :DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:F1=\E[23~:F2=\E[24~:\
-        :IC=\E[%d@:K2=\EOE:Km=\E[M:LE=\E[%dD:RA=\E[?7l:RI=\E[%dC:\
-        :SA=\E[?7h:SF=\E[%dS:SR=\E[%dT:UP=\E[%dA:ZH=\E[3m:\
-        :ZR=\E[23m:al=\E[L:bl=^G:bt=\E[Z:cb=\E[1K:cd=\E[J:ce=\E[K:\
-        :ch=\E[%i%dG:cl=\E[H\E[J:cm=\E[%i%d;%dH:cr=^M:\
-        :cs=\E[%i%d;%dr:cv=\E[%i%dd:dc=\E[P:dl=\E[M:do=^J:\
-        :ds=\E]2;\007:ec=\E[%dX:ei=\E[4l:fs=^G:ho=\E[H:im=\E[4h:\
-        :k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\E[15~:k6=\E[17~:\
-        :k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:kB=\E[Z:kD=\E[3~:\
-        :kI=\E[2~:kN=\E[6~:kP=\E[5~:kb=\177:kd=\EOB:ke=\E[?1l:\
-        :kh=\EOH:kl=\EOD:kr=\EOC:ks=\E[?1h:ku=\EOA:le=^H:md=\E[1m:\
-        :me=\E[m:mr=\E[7m:nd=\E[C:op=\E[39;49m:r1=\Ec:rc=\E8:\
-        :sc=\E7:se=\E[27m:sf=^J:so=\E[7m:sr=\EM:ta=^I:te=\E[?1049l:\
-        :ti=\E[?1049h:ts=\E]2;:u6=\E[%i%d;%dR:u7=\E[6n:ue=\E[24m:\
-        :up=\E[A:us=\E[4m:ve=\E[?25h:vi=\E[?25l:
+	:NP:am:hs:mi:ms:ut:xn:\
+	:Co#256:co#80:it#8:li#24:pa#32767:\
+	:@7=\EOF:@8=\EOM:AB=\E[48;5;%dm:AF=\E[38;5;%dm:AL=\E[%dL:\
+	:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:F1=\E[23~:F2=\E[24~:\
+	:IC=\E[%d@:K2=\EOE:Km=\E[M:LE=\E[%dD:RA=\E[?7l:RI=\E[%dC:\
+	:SA=\E[?7h:SF=\E[%dS:SR=\E[%dT:UP=\E[%dA:ZH=\E[3m:\
+	:ZR=\E[23m:al=\E[L:bl=^G:bt=\E[Z:cb=\E[1K:cd=\E[J:ce=\E[K:\
+	:ch=\E[%i%dG:cl=\E[H\E[J:cm=\E[%i%d;%dH:cr=^M:\
+	:cs=\E[%i%d;%dr:cv=\E[%i%dd:dc=\E[P:dl=\E[M:do=^J:\
+	:ds=\E]2;\007:ec=\E[%dX:ei=\E[4l:fs=^G:ho=\E[H:im=\E[4h:\
+	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\E[15~:k6=\E[17~:\
+	:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:kB=\E[Z:kD=\E[3~:\
+	:kI=\E[2~:kN=\E[6~:kP=\E[5~:kb=\177:kd=\EOB:ke=\E[?1l:\
+	:kh=\EOH:kl=\EOD:kr=\EOC:ks=\E[?1h:ku=\EOA:le=^H:md=\E[1m:\
+	:me=\E[m:mr=\E[7m:nd=\E[C:op=\E[39;49m:r1=\Ec:rc=\E8:\
+	:sc=\E7:se=\E[27m:sf=^J:so=\E[7m:sr=\EM:ta=^I:te=\E[?1049l:\
+	:ti=\E[?1049h:ts=\E]2;:u6=\E[%i%d;%dR:u7=\E[6n:ue=\E[24m:\
+	:up=\E[A:us=\E[4m:ve=\E[?25h:vi=\E[?25l:
 
 #
 # END OF TERMCAP
