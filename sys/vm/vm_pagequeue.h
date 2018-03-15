@@ -76,17 +76,31 @@ struct vm_pagequeue {
 #include <sys/pidctrl.h>
 struct sysctl_oid;
 
+/*
+ * One vm_domain per-numa domain.  Contains pagequeues, free page structures,
+ * and accounting.
+ *
+ * Lock Key:
+ * f   vmd_free_mtx
+ * p   vmd_pageout_mtx
+ * d   vm_domainset_lock
+ * a   atomic
+ * c   const after boot
+*/
 struct vm_domain {
 	struct vm_pagequeue vmd_pagequeues[PQ_COUNT];
 	struct mtx_padalign vmd_free_mtx;
-	struct vmem *vmd_kernel_arena;
-	u_int vmd_domain;		/* Domain number. */
-	u_int vmd_page_count;
-	long vmd_segs;			/* bitmask of the segments */
+	struct mtx_padalign vmd_pageout_mtx;
+	struct vmem *vmd_kernel_arena;	/* (c) per-domain kva arena. */
+	u_int vmd_domain;		/* (c) Domain number. */
+	u_int vmd_page_count;		/* (c) Total page count. */
+	long vmd_segs;			/* (c) bitmask of the segments */
+	u_int __aligned(CACHE_LINE_SIZE) vmd_free_count; /* (a,f) free page count */
+	u_int vmd_pageout_deficit;	/* (a) Estimated number of pages deficit */
+	uint8_t vmd_pad[CACHE_LINE_SIZE - (sizeof(u_int) * 2)];
 
-	/* Paging control variables, locked by domain_free_mtx. */
+	/* Paging control variables, used within single threaded page daemon. */
 	struct pidctrl vmd_pid;		/* Pageout controller. */
-	u_int vmd_free_count;
 	boolean_t vmd_oom;
 	int vmd_oom_seq;
 	int vmd_last_active_scan;
@@ -94,11 +108,10 @@ struct vm_domain {
 	struct vm_page vmd_marker; /* marker for pagedaemon private use */
 	struct vm_page vmd_inacthead; /* marker for LRU-defeating insertions */
 
-	int vmd_pageout_pages_needed;	/* page daemon waiting for pages? */
-	int vmd_pageout_deficit;	/* Estimated number of pages deficit */
-	bool vmd_pageout_wanted;	/* pageout daemon wait channel */
-	bool vmd_minset;		/* Are we in vm_min_domains? */
-	bool vmd_severeset;		/* Are we in vm_severe_domains? */
+	int vmd_pageout_wanted;		/* (a, p) pageout daemon wait channel */
+	int vmd_pageout_pages_needed;	/* (d) page daemon waiting for pages? */
+	bool vmd_minset;		/* (d) Are we in vm_min_domains? */
+	bool vmd_severeset;		/* (d) Are we in vm_severe_domains? */
 	int vmd_inactq_scans;
 	enum {
 		VM_LAUNDRY_IDLE = 0,
@@ -142,6 +155,17 @@ extern struct vm_domain vm_dom[MAXMEMDOM];
 #define	vm_domain_free_unlock(d)					\
 	    mtx_unlock(vm_domain_free_lockptr((d)))
 
+#define	vm_domain_pageout_lockptr(d)					\
+	    (&(d)->vmd_pageout_mtx)
+#define	vm_domain_pageout_assert_locked(n)				\
+	    mtx_assert(vm_domain_pageout_lockptr((n)), MA_OWNED)
+#define	vm_domain_pageout_assert_unlocked(n)				\
+	    mtx_assert(vm_domain_pageout_lockptr((n)), MA_NOTOWNED)
+#define	vm_domain_pageout_lock(d)					\
+	    mtx_lock(vm_domain_pageout_lockptr((d)))
+#define	vm_domain_pageout_unlock(d)					\
+	    mtx_unlock(vm_domain_pageout_lockptr((d)))
+
 static __inline void
 vm_pagequeue_cnt_add(struct vm_pagequeue *pq, int addend)
 {
@@ -155,6 +179,7 @@ vm_pagequeue_cnt_add(struct vm_pagequeue *pq, int addend)
 #define	vm_pagequeue_cnt_dec(pq)	vm_pagequeue_cnt_add((pq), -1)
 
 void vm_domain_set(struct vm_domain *vmd);
+void vm_domain_clear(struct vm_domain *vmd);
 int vm_domain_available(struct vm_domain *vmd, int req, int npages);
 
 /*
@@ -221,18 +246,40 @@ vm_laundry_target(struct vm_domain *vmd)
 	return (vm_paging_target(vmd));
 }
 
-static inline u_int
-vm_domain_freecnt_adj(struct vm_domain *vmd, int adj)
+void pagedaemon_wakeup(int domain);
+
+static inline void
+vm_domain_freecnt_inc(struct vm_domain *vmd, int adj)
 {
-	u_int ret;
+	u_int old, new;
 
-	vm_domain_free_assert_locked(vmd);
-	ret = vmd->vmd_free_count += adj;
-	if ((!vmd->vmd_minset && vm_paging_min(vmd)) ||
-	    (!vmd->vmd_severeset && vm_paging_severe(vmd)))
+	old = atomic_fetchadd_int(&vmd->vmd_free_count, adj);
+	new = old + adj;
+	/*
+	 * Only update bitsets on transitions.  Notice we short-circuit the
+	 * rest of the checks if we're above min already.
+	 */
+	if (old < vmd->vmd_free_min && (new >= vmd->vmd_free_min ||
+	    (old < vmd->vmd_free_severe && new >= vmd->vmd_free_severe) ||
+	    (old < vmd->vmd_pageout_free_min &&
+	    new >= vmd->vmd_pageout_free_min)))
+		vm_domain_clear(vmd);
+}
+
+static inline void
+vm_domain_freecnt_dec(struct vm_domain *vmd, int adj)
+{
+	u_int old, new;
+
+	old = atomic_fetchadd_int(&vmd->vmd_free_count, -adj);
+	new = old - adj;
+	KASSERT(new >= 0, ("vm_domain_freecnt_dec: free count underflow"));
+	if (vm_paging_needed(vmd, new) && !vm_paging_needed(vmd, old))
+		pagedaemon_wakeup(vmd->vmd_domain);
+	/* Only update bitsets on transitions. */
+	if ((old >= vmd->vmd_free_min && new < vmd->vmd_free_min) ||
+	    (old >= vmd->vmd_free_severe && new < vmd->vmd_free_severe))
 		vm_domain_set(vmd);
-
-	return (ret);
 }
 
 
