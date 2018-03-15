@@ -120,9 +120,7 @@ static int
 opal_i2c_probe(device_t dev)
 {
 
-#ifdef FDT
 	if (!(ofw_bus_is_compatible(dev, "ibm,opal-i2c")))
-#endif
 		return (ENXIO);
 
 	device_set_desc(dev, "opal-i2c");
@@ -133,7 +131,6 @@ opal_i2c_probe(device_t dev)
 static int
 opal_i2c_attach(device_t dev)
 {
-#ifdef FDT
 	struct opal_i2c_softc *sc;
 	int len;
 
@@ -153,9 +150,6 @@ opal_i2c_attach(device_t dev)
 	I2C_LOCK_INIT(sc);
 
 	return (bus_generic_attach(dev));
-#else
-	return (ENXIO);
-#endif
 }
 
 static int
