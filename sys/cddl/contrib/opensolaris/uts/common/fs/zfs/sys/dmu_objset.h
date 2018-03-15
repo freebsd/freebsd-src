@@ -153,7 +153,8 @@ int dmu_objset_own(const char *name, dmu_objset_type_t type,
     boolean_t readonly, void *tag, objset_t **osp);
 int dmu_objset_own_obj(struct dsl_pool *dp, uint64_t obj,
     dmu_objset_type_t type, boolean_t readonly, void *tag, objset_t **osp);
-void dmu_objset_refresh_ownership(objset_t *os, void *tag);
+void dmu_objset_refresh_ownership(struct dsl_dataset *ds,
+    struct dsl_dataset **newds, void *tag);
 void dmu_objset_rele(objset_t *os, void *tag);
 void dmu_objset_disown(objset_t *os, void *tag);
 int dmu_objset_from_ds(struct dsl_dataset *ds, objset_t **osp);
