@@ -124,26 +124,36 @@ getnameinfo(const struct sockaddr *sa, socklen_t salen,
 	afd = find_afd(sa->sa_family);
 	if (afd == NULL)
 		return (EAI_FAMILY);
+	/*
+	 * getnameinfo() accepts an salen of sizeof(struct sockaddr_storage)
+	 * at maximum as shown in RFC 4038 Sec.6.2.3.
+	 */
+	if (salen > sizeof(struct sockaddr_storage))
+		return (EAI_FAMILY);
+
 	switch (sa->sa_family) {
 	case PF_LOCAL:
 		/*
-		 * PF_LOCAL uses variable sa->sa_len depending on the
+		 * PF_LOCAL uses variable salen depending on the
 		 * content length of sun_path.  Require 1 byte in
 		 * sun_path at least.
 		 */
-		if (salen > afd->a_socklen ||
-		    salen <= afd->a_socklen -
+		if (salen <= afd->a_socklen -
 			sizeofmember(struct sockaddr_un, sun_path))
-			return (EAI_FAIL);
+			return (EAI_FAMILY);
+		else if (salen > afd->a_socklen)
+			salen = afd->a_socklen;
 		break;
 	case PF_LINK:
 		if (salen <= afd->a_socklen -
 			sizeofmember(struct sockaddr_dl, sdl_data))
-			return (EAI_FAIL);
+			return (EAI_FAMILY);
 		break;
 	default:
-		if (salen != afd->a_socklen)
-			return (EAI_FAIL);
+		if (salen < afd->a_socklen)
+			return (EAI_FAMILY);
+		else
+			salen = afd->a_socklen;
 		break;
 	}
 
@@ -517,7 +527,7 @@ getnameinfo_un(const struct afd *afd,
 	if (serv != NULL && servlen > 0)
 		*serv = '\0';
 	if (host != NULL && hostlen > 0) {
-		pathlen = sa->sa_len - afd->a_off;
+		pathlen = salen - afd->a_off;
 
 		if (pathlen + 1 > hostlen) {
 			*host = '\0';
