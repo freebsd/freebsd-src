@@ -560,6 +560,7 @@ _cxgb=		cxgb
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64"
+_efirt=		efirt
 _em=		em
 _igb=		igb
 .endif
