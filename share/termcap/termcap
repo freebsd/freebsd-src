@@ -4683,6 +4683,43 @@ xterm-termite|VTE-based terminal:\
 	:ti=\E[?1049h:ts=\E]2;:u6=\E[%i%d;%dR:u7=\E[6n:ue=\E[24m:\
 	:up=\E[A:us=\E[4m:ve=\E[?25h:vi=\E[?25l:
 
+# Termcap for st terminal taken from the st-0.8 sources
+st|simpleterm:\
+	:am:hs:mi:ms:xn:\
+	:co#80:it#8:li#24:\
+	:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:IC=\E[%d@:\
+	:K1=\E[1~:K2=\EOu:K3=\E[5~:K4=\E[4~:K5=\E[6~:LE=\E[%dD:\
+	:RI=\E[%dC:SF=\E[%dS:UP=\E[%dA:ae=\E(B:al=\E[L:as=\E(0:\
+	:bl=^G:bt=\E[Z:cd=\E[J:ce=\E[K:cl=\E[H\E[2J:\
+	:cm=\E[%i%d;%dH:cr=\r:cs=\E[%i%d;%dr:ct=\E[3g:dc=\E[P:\
+	:dl=\E[M:do=\n:ec=\E[%dX:ei=\E[4l:fs=^G:ho=\E[H:im=\E[4h:\
+	:is=\E[4l\E>\E[?1034l:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:\
+	:k5=\E[15~:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:\
+	:kD=\E[3~:kI=\E[2~:kN=\E[6~:kP=\E[5~:kb=\177:kd=\EOB:\
+	:ke=\E[?1l\E>:kh=\E[1~:kl=\EOD:kr=\EOC:ks=\E[?1h\E=:\
+	:ku=\EOA:le=^H:mb=\E[5m:md=\E[1m:me=\E[0m:mh=\E[2m:\
+	:mr=\E[7m:nd=\E[C:rc=\E8:sc=\E7:se=\E[27m:sf=\n:so=\E[7m:\
+	:sr=\EM:st=\EH:ta=^I:te=\E[?1049l:ti=\E[?1049h:ts=\E]0;:\
+	:ue=\E[24m:up=\E[A:us=\E[4m:vb=\E[?5h\E[?5l:\
+	:ve=\E[?12l\E[?25h:vi=\E[?25l:vs=\E[?25h:
+
+st-256color|simpleterm with 256 colors:\
+	:cc:\
+	:Co#256:pa#32767:\
+	:AB=\E[48;5;%dm:AF=\E[38;5;%dm:\
+	:..Ic=\E]4;%p1%d;rgb\:%p2%{255}%*%{1000}%/%2.2X/%p3%{255}%*%{1000}%/%2.2X/%p4%{255}%*%{1000}%/%2.2X\E\\:\
+	:oc=\E]104\007:tc=st:
+
+st-meta|simpleterm with meta key:\
+	:km:\
+	:is=\E[4l\E>\E[?1034h:mm=\E[?1034h:mo=\E[?1034l:\
+	:rs=\E[4l\E>\E[?1034h:tc=st:
+
+st-meta-256color|simpleterm with meta key and 256 colors:\
+	:km:\
+	:is=\E[4l\E>\E[?1034h:mm=\E[?1034h:mo=\E[?1034l:\
+	:rs=\E[4l\E>\E[?1034h:tc=st-256color:
+
 #
 # END OF TERMCAP
 # ------------------------
