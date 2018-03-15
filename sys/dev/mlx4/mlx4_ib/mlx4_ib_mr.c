@@ -551,3 +551,104 @@ int mlx4_ib_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 
 	return rc;
 }
+
+CTASSERT(sizeof(((struct ib_phys_buf *)0)->size) == 8);
+
+struct ib_mr *
+mlx4_ib_reg_phys_mr(struct ib_pd *pd,
+		    struct ib_phys_buf *buffer_list,
+		    int num_phys_buf,
+		    int access_flags,
+		    u64 *virt_addr)
+{
+	struct mlx4_ib_dev *dev = to_mdev(pd->device);
+	struct mlx4_ib_mr *mr;
+	u64 *pages;
+	u64 total_size;
+	unsigned long mask;
+	int shift;
+	int npages;
+	int err;
+	int i, j, n;
+
+	mask = buffer_list[0].addr ^ *virt_addr;
+	total_size = 0;
+	for (i = 0; i < num_phys_buf; ++i) {
+		if (i != 0)
+			mask |= buffer_list[i].addr;
+		if (i != num_phys_buf - 1)
+			mask |= buffer_list[i].addr + buffer_list[i].size;
+
+		total_size += buffer_list[i].size;
+	}
+
+	if (mask & ~PAGE_MASK)
+		return ERR_PTR(-EINVAL);
+
+	shift = __ffs(mask | 1 << 31);
+
+	buffer_list[0].size += buffer_list[0].addr & ((1ULL << shift) - 1);
+	buffer_list[0].addr &= ~0ULL << shift;
+
+	npages = 0;
+	for (i = 0; i < num_phys_buf; ++i)
+		npages += (buffer_list[i].size + (1ULL << shift) - 1) >> shift;
+
+	if (!npages)
+		return ERR_PTR(-EINVAL);
+
+	mr = kzalloc(sizeof *mr, GFP_KERNEL);
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
+
+	pages = kzalloc(sizeof(pages[0]) * npages, GFP_KERNEL);
+	if (!pages) {
+		kfree(mr);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	err = mlx4_mr_alloc(dev->dev, to_mpd(pd)->pdn, *virt_addr, total_size,
+			    convert_access(access_flags), npages, shift, &mr->mmr);
+	if (err) {
+		kfree(mr);
+		kfree(pages);
+		return ERR_PTR(err);
+	}
+
+	n = 0;
+	for (i = 0; i < num_phys_buf; ++i) {
+		for (j = 0;
+		     j < (buffer_list[i].size + (1ULL << shift) - 1) >> shift;
+		     ++j) {
+			u64 temp = buffer_list[i].addr + ((u64) j << shift);
+			pages[n++] = temp;
+		}
+	}
+
+	mr->npages = npages;
+	mr->max_pages = npages;
+	
+	err = mlx4_write_mtt(dev->dev, &mr->mmr.mtt, 0, npages, pages);
+	if (err)
+		goto err_mr;
+
+	err = mlx4_mr_enable(dev->dev, &mr->mmr);
+	if (err)
+		goto err_mr;
+
+	mr->umem = NULL;
+	mr->ibmr.lkey = mr->mmr.key;
+	mr->ibmr.rkey = mr->mmr.key;
+	mr->ibmr.length = total_size;
+
+	kfree(pages);
+
+	return &mr->ibmr;
+
+err_mr:
+	(void) mlx4_mr_free(dev->dev, &mr->mmr);
+	kfree(mr);
+	kfree(pages);
+
+	return ERR_PTR(err);
+}
