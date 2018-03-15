@@ -678,7 +678,7 @@ function set_partition #<slice_num> <slice_start> <size_plus_units>  <whole_disk
 function get_disk_size #<disk>
 {
 	typeset disk=$1
-	diskinfo da0 | awk '{print $3}'
+	diskinfo $disk | awk '{print $3}'
 }
 
 function get_available_disk_size #<disk>
