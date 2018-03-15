@@ -32,6 +32,4 @@
 . ${STF_SUITE}/include/libtest.kshlib
 verify_runnable "both"
 
-DISK=${DISKS%% *}
-
 default_setup $DISK
