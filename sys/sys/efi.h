@@ -179,6 +179,7 @@ void efi_destroy_1t1_map(void);
 int efi_rt_ok(void);
 int efi_get_table(struct uuid *uuid, void **ptr);
 int efi_get_time(struct efi_tm *tm);
+int efi_get_time_capabilities(struct efi_tmcap *tmcap);
 int efi_reset_system(void);
 int efi_set_time(struct efi_tm *tm);
 int efi_var_get(uint16_t *name, struct uuid *vendor, uint32_t *attrib,
