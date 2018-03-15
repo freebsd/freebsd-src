@@ -365,6 +365,14 @@ static inline struct ib_mr *
 ib_get_dma_mr(struct ib_pd *pd, int mr_access_flags)
 {
 	struct ib_mr *mr;
+	int err;
+
+	err = ib_check_mr_access(mr_access_flags);
+	if (err)
+		return ERR_PTR(err);
+
+	if (!pd->device->get_dma_mr)
+		return ERR_PTR(-ENOSYS);
 
 	mr = pd->device->get_dma_mr(pd, mr_access_flags);
 	if (IS_ERR(mr))
