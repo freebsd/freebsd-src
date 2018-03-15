@@ -202,6 +202,11 @@ main(int argc, char *argv[])
 	 * any of stdout, stderr, or stdin is a terminal.  The intent
 	 * is that "ps", "ps | more", and "ps | grep" all use the same
 	 * default line length unless -w is specified.
+	 *
+	 * If not interactive, the default length was traditionally 79.
+	 * It has been changed to unlimited.  This is mostly for the
+	 * benefit of non-interactive scripts, which arguably should
+	 * use -ww, but is compatible with Linux.
 	 */
 	if ((cols = getenv("COLUMNS")) != NULL && *cols != '\0')
 		termwidth = atoi(cols);
@@ -209,7 +214,7 @@ main(int argc, char *argv[])
 	     ioctl(STDERR_FILENO, TIOCGWINSZ, (char *)&ws) == -1 &&
 	     ioctl(STDIN_FILENO,  TIOCGWINSZ, (char *)&ws) == -1) ||
 	     ws.ws_col == 0)
-		termwidth = 79;
+		termwidth = UNLIMITED;
 	else
 		termwidth = ws.ws_col - 1;
 

@@ -33,8 +33,8 @@
 #ifndef _CONS_H_
 #define	_CONS_H_
 
-int	getc(void);
+int	beri_getc(void);
 int	keyhit(int);
-void	putc(int);
+void	beri_putc(int);
 
 #endif

@@ -382,6 +382,8 @@
         ..
         rtld-elf
         ..
+        tftpd
+        ..
     ..
     sbin
         dhclient

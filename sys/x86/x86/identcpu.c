@@ -1395,7 +1395,8 @@ fix_cpuid(void)
 	 * See BIOS and Kernel Developer’s Guide (BKDG) for AMD Family 15h
 	 * Models 60h-6Fh Processors, Publication # 50742.
 	 */
-	if (cpu_vendor_id == CPU_VENDOR_AMD && CPUID_TO_FAMILY(cpu_id) == 0x15) {
+	if (vm_guest == VM_GUEST_NO && cpu_vendor_id == CPU_VENDOR_AMD &&
+	    CPUID_TO_FAMILY(cpu_id) == 0x15) {
 		msr = rdmsr(MSR_EXTFEATURES);
 		if ((msr & ((uint64_t)1 << 54)) == 0) {
 			msr |= (uint64_t)1 << 54;

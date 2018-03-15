@@ -135,8 +135,8 @@ userdisk_print(int verbose)
 		ret = pager_output(line);
 		if (ret != 0)
 			break;
-		dev.d_dev = &userboot_disk;
-		dev.d_unit = i;
+		dev.dd.d_dev = &userboot_disk;
+		dev.dd.d_unit = i;
 		dev.d_slice = -1;
 		dev.d_partition = -1;
 		if (disk_open(&dev, ud_info[i].mediasize,
@@ -164,13 +164,13 @@ userdisk_open(struct open_file *f, ...)
 	dev = va_arg(ap, struct disk_devdesc *);
 	va_end(ap);
 
-	if (dev->d_unit < 0 || dev->d_unit >= userdisk_maxunit)
+	if (dev->dd.d_unit < 0 || dev->dd.d_unit >= userdisk_maxunit)
 		return (EIO);
-	ud_info[dev->d_unit].ud_open++;
-	if (ud_info[dev->d_unit].ud_bcache == NULL)
-		ud_info[dev->d_unit].ud_bcache = bcache_allocate();
-	return (disk_open(dev, ud_info[dev->d_unit].mediasize,
-	    ud_info[dev->d_unit].sectorsize));
+	ud_info[dev->dd.d_unit].ud_open++;
+	if (ud_info[dev->dd.d_unit].ud_bcache == NULL)
+		ud_info[dev->dd.d_unit].ud_bcache = bcache_allocate();
+	return (disk_open(dev, ud_info[dev->dd.d_unit].mediasize,
+	    ud_info[dev->dd.d_unit].sectorsize));
 }
 
 static int
@@ -179,10 +179,10 @@ userdisk_close(struct open_file *f)
 	struct disk_devdesc *dev;
 
 	dev = (struct disk_devdesc *)f->f_devdata;
-	ud_info[dev->d_unit].ud_open--;
-	if (ud_info[dev->d_unit].ud_open == 0) {
-		bcache_free(ud_info[dev->d_unit].ud_bcache);
-		ud_info[dev->d_unit].ud_bcache = NULL;
+	ud_info[dev->dd.d_unit].ud_open--;
+	if (ud_info[dev->dd.d_unit].ud_open == 0) {
+		bcache_free(ud_info[dev->dd.d_unit].ud_bcache);
+		ud_info[dev->dd.d_unit].ud_bcache = NULL;
 	}
 	return (disk_close(dev));
 }
@@ -197,7 +197,7 @@ userdisk_strategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	dev = (struct disk_devdesc *)devdata;
 	bcd.dv_strategy = userdisk_realstrategy;
 	bcd.dv_devdata = devdata;
-	bcd.dv_cache = ud_info[dev->d_unit].ud_bcache;
+	bcd.dv_cache = ud_info[dev->dd.d_unit].ud_bcache;
 	return (bcache_strategy(&bcd, rw, dblk + dev->d_offset,
 	    size, buf, rsize));
 }
@@ -218,8 +218,8 @@ userdisk_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 		return (EINVAL);
 	if (rsize)
 		*rsize = 0;
-	off = dblk * ud_info[dev->d_unit].sectorsize;
-	rc = CALLBACK(diskread, dev->d_unit, off, buf, size, &resid);
+	off = dblk * ud_info[dev->dd.d_unit].sectorsize;
+	rc = CALLBACK(diskread, dev->dd.d_unit, off, buf, size, &resid);
 	if (rc)
 		return (rc);
 	if (rsize)
@@ -238,5 +238,5 @@ userdisk_ioctl(struct open_file *f, u_long cmd, void *data)
 	if (rc != ENOTTY)
 		return (rc);
 
-	return (CALLBACK(diskioctl, dev->d_unit, cmd, data));
+	return (CALLBACK(diskioctl, dev->dd.d_unit, cmd, data));
 }

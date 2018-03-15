@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #define AAC_DRIVERNAME			"aac"
 
 #include "opt_aac.h"
+#include "opt_compat.h"
 
 /* #include <stddef.h> */
 #include <sys/param.h>
@@ -45,7 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/poll.h>
 #include <sys/ioccom.h>
 
@@ -3521,7 +3524,19 @@ aac_getnext_aif(struct aac_softc *sc, caddr_t arg)
 
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	if ((error = copyin(arg, &agf, sizeof(agf))) == 0) {
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32)) {
+		struct get_adapter_fib_ioctl32 agf32;
+		error = copyin(arg, &agf32, sizeof(agf32));
+		if (error == 0) {
+			agf.AdapterFibContext = agf32.AdapterFibContext;
+			agf.Wait = agf32.Wait;
+			agf.AifFib = (caddr_t)(uintptr_t)agf32.AifFib;
+		}
+	} else
+#endif
+		error = copyin(arg, &agf, sizeof(agf));
+	if (error == 0) {
 		for (ctx = sc->fibctx; ctx; ctx = ctx->next) {
 			if (agf.AdapterFibContext == ctx->unique)
 				break;

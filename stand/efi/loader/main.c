@@ -175,9 +175,7 @@ set_devdesc_currdev(struct devsw *dev, int unit)
 	char *devname;
 
 	currdev.d_dev = dev;
-	currdev.d_type = currdev.d_dev->dv_type;
 	currdev.d_unit = unit;
-	currdev.d_opendata = NULL;
 	devname = efi_fmtdev(&currdev);
 
 	env_setenv("currdev", EV_VOLATILE, devname, efi_setcurrdev,
@@ -202,10 +200,8 @@ find_currdev(EFI_LOADED_IMAGE *img)
 	if (pool_guid != 0) {
 		struct zfs_devdesc currdev;
 
-		currdev.d_dev = &zfs_dev;
-		currdev.d_unit = 0;
-		currdev.d_type = currdev.d_dev->dv_type;
-		currdev.d_opendata = NULL;
+		currdev.dd.d_dev = &zfs_dev;
+		currdev.dd.d_unit = 0;
 		currdev.pool_guid = pool_guid;
 		currdev.root_guid = 0;
 		devname = efi_fmtdev(&currdev);
@@ -224,10 +220,8 @@ find_currdev(EFI_LOADED_IMAGE *img)
 	STAILQ_FOREACH(dp, pdi_list, pd_link) {
 		struct disk_devdesc currdev;
 
-		currdev.d_dev = &efipart_hddev;
-		currdev.d_type = currdev.d_dev->dv_type;
-		currdev.d_unit = dp->pd_unit;
-		currdev.d_opendata = NULL;
+		currdev.dd.d_dev = &efipart_hddev;
+		currdev.dd.d_unit = dp->pd_unit;
 		currdev.d_slice = -1;
 		currdev.d_partition = -1;
 
@@ -318,6 +312,12 @@ main(int argc, CHAR16 *argv[])
 	int i, j, vargood, howto;
 	UINTN k;
 	int has_kbd;
+	CHAR16 *text;
+	UINT16 boot_current;
+	size_t sz;
+	UINT16 boot_order[100];
+	EFI_DEVICE_PATH *imgpath;
+	EFI_STATUS status;
 #if !defined(__arm__)
 	char buf[40];
 #endif
@@ -478,6 +478,36 @@ main(int argc, CHAR16 *argv[])
 	    ST->FirmwareRevision >> 16, ST->FirmwareRevision & 0xffff);
 
 	printf("\n%s", bootprog_info);
+
+	text = efi_devpath_name(img->FilePath);
+	if (text != NULL) {
+		printf("   Load Path: %S\n", text);
+		efi_setenv_freebsd_wcs("LoaderPath", text);
+		efi_free_devpath_name(text);
+	}
+
+	status = BS->HandleProtocol(img->DeviceHandle, &devid, (void **)&imgpath);
+	if (status == EFI_SUCCESS) {
+		text = efi_devpath_name(imgpath);
+		if (text != NULL) {
+			printf("   Load Device: %S\n", text);
+			efi_setenv_freebsd_wcs("LoaderDev", text);
+			efi_free_devpath_name(text);
+		}
+	}
+
+	boot_current = 0;
+	sz = sizeof(boot_current);
+	efi_global_getenv("BootCurrent", &boot_current, &sz);
+	printf("   BootCurrent: %04x\n", boot_current);
+
+	sz = sizeof(boot_order);
+	efi_global_getenv("BootOrder", &boot_order, &sz);
+	printf("   BootOrder:");
+	for (i = 0; i < sz / sizeof(boot_order[0]); i++)
+		printf(" %04x%s", boot_order[i],
+		    boot_order[i] == boot_current ? "[*]" : "");
+	printf("\n");
 
 	/*
 	 * Disable the watchdog timer. By default the boot manager sets
@@ -848,7 +878,7 @@ command_chain(int argc, char *argv[])
 		struct disk_devdesc *d_dev;
 		pdinfo_t *hd, *pd;
 
-		switch (dev->d_type) {
+		switch (dev->d_dev->dv_type) {
 #ifdef EFI_ZFS_BOOT
 		case DEVT_ZFS:
 			z_dev = (struct zfs_devdesc *)dev;

@@ -153,6 +153,17 @@
 #define NVME_PWR_ST_APS_SHIFT				(6)
 #define NVME_PWR_ST_APS_MASK				(0x3)
 
+/** Controller Multi-path I/O and Namespace Sharing Capabilities */
+/* More then one port */
+#define NVME_CTRLR_DATA_MIC_MPORTS_SHIFT		(0)
+#define NVME_CTRLR_DATA_MIC_MPORTS_MASK			(0x1)
+/* More then one controller */
+#define NVME_CTRLR_DATA_MIC_MCTRLRS_SHIFT		(1)
+#define NVME_CTRLR_DATA_MIC_MCTRLRS_MASK		(0x1)
+/* SR-IOV Virtual Function */
+#define NVME_CTRLR_DATA_MIC_SRIOVVF_SHIFT		(2)
+#define NVME_CTRLR_DATA_MIC_SRIOVVF_MASK		(0x1)
+
 /** OACS - optional admin command support */
 /* supports security send/receive commands */
 #define NVME_CTRLR_DATA_OACS_SECURITY_SHIFT		(0)
@@ -166,6 +177,21 @@
 /* supports namespace management commands */
 #define NVME_CTRLR_DATA_OACS_NSMGMT_SHIFT		(3)
 #define NVME_CTRLR_DATA_OACS_NSMGMT_MASK		(0x1)
+/* supports Device Self-test command */
+#define NVME_CTRLR_DATA_OACS_SELFTEST_SHIFT		(4)
+#define NVME_CTRLR_DATA_OACS_SELFTEST_MASK		(0x1)
+/* supports Directives */
+#define NVME_CTRLR_DATA_OACS_DIRECTIVES_SHIFT		(5)
+#define NVME_CTRLR_DATA_OACS_DIRECTIVES_MASK		(0x1)
+/* supports NVMe-MI Send/Receive */
+#define NVME_CTRLR_DATA_OACS_NVMEMI_SHIFT		(6)
+#define NVME_CTRLR_DATA_OACS_NVMEMI_MASK		(0x1)
+/* supports Virtualization Management */
+#define NVME_CTRLR_DATA_OACS_VM_SHIFT			(7)
+#define NVME_CTRLR_DATA_OACS_VM_MASK			(0x1)
+/* supports Doorbell Buffer Config */
+#define NVME_CTRLR_DATA_OACS_DBBUFFER_SHIFT		(8)
+#define NVME_CTRLR_DATA_OACS_DBBUFFER_MASK		(0x1)
 
 /** firmware updates */
 /* first slot is read-only */
@@ -209,6 +235,26 @@
 #define NVME_CTRLR_DATA_ONCS_WRITE_UNC_MASK		(0x1)
 #define NVME_CTRLR_DATA_ONCS_DSM_SHIFT			(2)
 #define NVME_CTRLR_DATA_ONCS_DSM_MASK			(0x1)
+#define NVME_CTRLR_DATA_ONCS_WRZERO_SHIFT		(3)
+#define NVME_CTRLR_DATA_ONCS_WRZERO_MASK		(0x1)
+#define NVME_CTRLR_DATA_ONCS_SAVEFEAT_SHIFT		(4)
+#define NVME_CTRLR_DATA_ONCS_SAVEFEAT_MASK		(0x1)
+#define NVME_CTRLR_DATA_ONCS_RESERV_SHIFT		(5)
+#define NVME_CTRLR_DATA_ONCS_RESERV_MASK		(0x1)
+#define NVME_CTRLR_DATA_ONCS_TIMESTAMP_SHIFT		(6)
+#define NVME_CTRLR_DATA_ONCS_TIMESTAMP_MASK		(0x1)
+
+/** Fused Operation Support */
+#define NVME_CTRLR_DATA_FUSES_CNW_SHIFT		(0)
+#define NVME_CTRLR_DATA_FUSES_CNW_MASK		(0x1)
+
+/** Format NVM Attributes */
+#define NVME_CTRLR_DATA_FNA_FORMAT_ALL_SHIFT		(0)
+#define NVME_CTRLR_DATA_FNA_FORMAT_ALL_MASK		(0x1)
+#define NVME_CTRLR_DATA_FNA_ERASE_ALL_SHIFT		(1)
+#define NVME_CTRLR_DATA_FNA_ERASE_ALL_MASK		(0x1)
+#define NVME_CTRLR_DATA_FNA_CRYPTO_ERASE_SHIFT		(2)
+#define NVME_CTRLR_DATA_FNA_CRYPTO_ERASE_MASK		(0x1)
 
 /** volatile write cache */
 #define NVME_CTRLR_DATA_VWC_PRESENT_SHIFT		(0)
@@ -218,6 +264,15 @@
 /* thin provisioning */
 #define NVME_NS_DATA_NSFEAT_THIN_PROV_SHIFT		(0)
 #define NVME_NS_DATA_NSFEAT_THIN_PROV_MASK		(0x1)
+/* NAWUN, NAWUPF, and NACWU fields are valid */
+#define NVME_NS_DATA_NSFEAT_NA_FIELDS_SHIFT		(1)
+#define NVME_NS_DATA_NSFEAT_NA_FIELDS_MASK		(0x1)
+/* Deallocated or Unwritten Logical Block errors supported */
+#define NVME_NS_DATA_NSFEAT_DEALLOC_SHIFT		(2)
+#define NVME_NS_DATA_NSFEAT_DEALLOC_MASK		(0x1)
+/* NGUID and EUI64 fields are not reusable */
+#define NVME_NS_DATA_NSFEAT_NO_ID_REUSE_SHIFT		(3)
+#define NVME_NS_DATA_NSFEAT_NO_ID_REUSE_MASK		(0x1)
 
 /** formatted lba size */
 #define NVME_NS_DATA_FLBAS_FORMAT_SHIFT			(0)
@@ -258,6 +313,45 @@
 /* 0 == protection info transferred at end of metadata */
 #define NVME_NS_DATA_DPS_MD_START_SHIFT			(3)
 #define NVME_NS_DATA_DPS_MD_START_MASK			(0x1)
+
+/** Namespace Multi-path I/O and Namespace Sharing Capabilities */
+/* the namespace may be attached to two or more controllers */
+#define NVME_NS_DATA_NMIC_MAY_BE_SHARED_SHIFT		(0)
+#define NVME_NS_DATA_NMIC_MAY_BE_SHARED_MASK		(0x1)
+
+/** Reservation Capabilities */
+/* Persist Through Power Loss */
+#define NVME_NS_DATA_RESCAP_PTPL_SHIFT		(0)
+#define NVME_NS_DATA_RESCAP_PTPL_MASK		(0x1)
+/* supports the Write Exclusive */
+#define NVME_NS_DATA_RESCAP_WR_EX_SHIFT		(1)
+#define NVME_NS_DATA_RESCAP_WR_EX_MASK		(0x1)
+/* supports the Exclusive Access */
+#define NVME_NS_DATA_RESCAP_EX_AC_SHIFT		(2)
+#define NVME_NS_DATA_RESCAP_EX_AC_MASK		(0x1)
+/* supports the Write Exclusive – Registrants Only */
+#define NVME_NS_DATA_RESCAP_WR_EX_RO_SHIFT	(3)
+#define NVME_NS_DATA_RESCAP_WR_EX_RO_MASK	(0x1)
+/* supports the Exclusive Access - Registrants Only */
+#define NVME_NS_DATA_RESCAP_EX_AC_RO_SHIFT	(4)
+#define NVME_NS_DATA_RESCAP_EX_AC_RO_MASK	(0x1)
+/* supports the Write Exclusive – All Registrants */
+#define NVME_NS_DATA_RESCAP_WR_EX_AR_SHIFT	(5)
+#define NVME_NS_DATA_RESCAP_WR_EX_AR_MASK	(0x1)
+/* supports the Exclusive Access - All Registrants */
+#define NVME_NS_DATA_RESCAP_EX_AC_AR_SHIFT	(6)
+#define NVME_NS_DATA_RESCAP_EX_AC_AR_MASK	(0x1)
+/* Ignore Existing Key is used as defined in revision 1.3 or later */
+#define NVME_NS_DATA_RESCAP_IEKEY13_SHIFT	(7)
+#define NVME_NS_DATA_RESCAP_IEKEY13_MASK	(0x1)
+
+/** Format Progress Indicator */
+/* percentage of the Format NVM command that remains to be completed */
+#define NVME_NS_DATA_FPI_PERC_SHIFT		(0)
+#define NVME_NS_DATA_FPI_PERC_MASK		(0x7f)
+/* namespace supports the Format Progress Indicator */
+#define NVME_NS_DATA_FPI_SUPP_SHIFT		(7)
+#define NVME_NS_DATA_FPI_SUPP_MASK		(0x1)
 
 /** lba format support */
 /* metadata size */
@@ -390,6 +484,9 @@ struct nvme_dsm_range {
 	uint64_t starting_lba;
 } __packed;
 
+/* Largest DSM Trim that can be done */
+#define NVME_MAX_DSM_TRIM		4096
+
 _Static_assert(sizeof(struct nvme_dsm_range) == 16, "bad size for nvme_dsm_ranage");
 
 /* status code types */
@@ -416,10 +513,31 @@ enum nvme_generic_command_status_code {
 	NVME_SC_ABORTED_MISSING_FUSED		= 0x0a,
 	NVME_SC_INVALID_NAMESPACE_OR_FORMAT	= 0x0b,
 	NVME_SC_COMMAND_SEQUENCE_ERROR		= 0x0c,
+	NVME_SC_INVALID_SGL_SEGMENT_DESCR	= 0x0d,
+	NVME_SC_INVALID_NUMBER_OF_SGL_DESCR	= 0x0e,
+	NVME_SC_DATA_SGL_LENGTH_INVALID		= 0x0f,
+	NVME_SC_METADATA_SGL_LENGTH_INVALID	= 0x10,
+	NVME_SC_SGL_DESCRIPTOR_TYPE_INVALID	= 0x11,
+	NVME_SC_INVALID_USE_OF_CMB		= 0x12,
+	NVME_SC_PRP_OFFET_INVALID		= 0x13,
+	NVME_SC_ATOMIC_WRITE_UNIT_EXCEEDED	= 0x14,
+	NVME_SC_OPERATION_DENIED		= 0x15,
+	NVME_SC_SGL_OFFSET_INVALID		= 0x16,
+	/* 0x17 - reserved */
+	NVME_SC_HOST_ID_INCONSISTENT_FORMAT	= 0x18,
+	NVME_SC_KEEP_ALIVE_TIMEOUT_EXPIRED	= 0x19,
+	NVME_SC_KEEP_ALIVE_TIMEOUT_INVALID	= 0x1a,
+	NVME_SC_ABORTED_DUE_TO_PREEMPT		= 0x1b,
+	NVME_SC_SANITIZE_FAILED			= 0x1c,
+	NVME_SC_SANITIZE_IN_PROGRESS		= 0x1d,
+	NVME_SC_SGL_DATA_BLOCK_GRAN_INVALID	= 0x1e,
+	NVME_SC_NOT_SUPPORTED_IN_CMB		= 0x1f,
 
 	NVME_SC_LBA_OUT_OF_RANGE		= 0x80,
 	NVME_SC_CAPACITY_EXCEEDED		= 0x81,
 	NVME_SC_NAMESPACE_NOT_READY		= 0x82,
+	NVME_SC_RESERVATION_CONFLICT		= 0x83,
+	NVME_SC_FORMAT_IN_PROGRESS		= 0x84,
 };
 
 /* command specific status codes */
@@ -436,6 +554,29 @@ enum nvme_command_specific_status_code {
 	NVME_SC_INVALID_LOG_PAGE		= 0x09,
 	NVME_SC_INVALID_FORMAT			= 0x0a,
 	NVME_SC_FIRMWARE_REQUIRES_RESET		= 0x0b,
+	NVME_SC_INVALID_QUEUE_DELETION		= 0x0c,
+	NVME_SC_FEATURE_NOT_SAVEABLE		= 0x0d,
+	NVME_SC_FEATURE_NOT_CHANGEABLE		= 0x0e,
+	NVME_SC_FEATURE_NOT_NS_SPECIFIC		= 0x0f,
+	NVME_SC_FW_ACT_REQUIRES_NVMS_RESET	= 0x10,
+	NVME_SC_FW_ACT_REQUIRES_RESET		= 0x11,
+	NVME_SC_FW_ACT_REQUIRES_TIME		= 0x12,
+	NVME_SC_FW_ACT_PROHIBITED		= 0x13,
+	NVME_SC_OVERLAPPING_RANGE		= 0x14,
+	NVME_SC_NS_INSUFFICIENT_CAPACITY	= 0x15,
+	NVME_SC_NS_ID_UNAVAILABLE		= 0x16,
+	/* 0x17 - reserved */
+	NVME_SC_NS_ALREADY_ATTACHED		= 0x18,
+	NVME_SC_NS_IS_PRIVATE			= 0x19,
+	NVME_SC_NS_NOT_ATTACHED			= 0x1a,
+	NVME_SC_THIN_PROV_NOT_SUPPORTED		= 0x1b,
+	NVME_SC_CTRLR_LIST_INVALID		= 0x1c,
+	NVME_SC_SELT_TEST_IN_PROGRESS		= 0x1d,
+	NVME_SC_BOOT_PART_WRITE_PROHIB		= 0x1e,
+	NVME_SC_INVALID_CTRLR_ID		= 0x1f,
+	NVME_SC_INVALID_SEC_CTRLR_STATE		= 0x20,
+	NVME_SC_INVALID_NUM_OF_CTRLR_RESRC	= 0x21,
+	NVME_SC_INVALID_RESOURCE_ID		= 0x22,
 
 	NVME_SC_CONFLICTING_ATTRIBUTES		= 0x80,
 	NVME_SC_INVALID_PROTECTION_INFO		= 0x81,
@@ -451,6 +592,7 @@ enum nvme_media_error_status_code {
 	NVME_SC_REFERENCE_TAG_CHECK_ERROR	= 0x84,
 	NVME_SC_COMPARE_FAILURE			= 0x85,
 	NVME_SC_ACCESS_DENIED			= 0x86,
+	NVME_SC_DEALLOCATED_OR_UNWRITTEN	= 0x87,
 };
 
 /* admin opcodes */
@@ -472,11 +614,20 @@ enum nvme_admin_opcode {
 	/* 0x0e-0x0f - reserved */
 	NVME_OPC_FIRMWARE_ACTIVATE		= 0x10,
 	NVME_OPC_FIRMWARE_IMAGE_DOWNLOAD	= 0x11,
+	NVME_OPC_DEVICE_SELF_TEST		= 0x14,
 	NVME_OPC_NAMESPACE_ATTACHMENT		= 0x15,
+	NVME_OPC_KEEP_ALIVE			= 0x18,
+	NVME_OPC_DIRECTIVE_SEND			= 0x19,
+	NVME_OPC_DIRECTIVE_RECEIVE		= 0x1a,
+	NVME_OPC_VIRTUALIZATION_MANAGEMENT	= 0x1c,
+	NVME_OPC_NVME_MI_SEND			= 0x1d,
+	NVME_OPC_NVME_MI_RECEIVE		= 0x1e,
+	NVME_OPC_DOORBELL_BUFFER_CONFIG		= 0x7c,
 
 	NVME_OPC_FORMAT_NVM			= 0x80,
 	NVME_OPC_SECURITY_SEND			= 0x81,
 	NVME_OPC_SECURITY_RECEIVE		= 0x82,
+	NVME_OPC_SANITIZE			= 0x84,
 };
 
 /* nvme nvm opcodes */
@@ -487,8 +638,17 @@ enum nvme_nvm_opcode {
 	/* 0x03 - reserved */
 	NVME_OPC_WRITE_UNCORRECTABLE		= 0x04,
 	NVME_OPC_COMPARE			= 0x05,
-	/* 0x06-0x07 - reserved */
+	/* 0x06 - reserved */
+	NVME_OPC_WRITE_ZEROES			= 0x08,
+	/* 0x07 - reserved */
 	NVME_OPC_DATASET_MANAGEMENT		= 0x09,
+	/* 0x0a-0x0c - reserved */
+	NVME_OPC_RESERVATION_REGISTER		= 0x0d,
+	NVME_OPC_RESERVATION_REPORT		= 0x0e,
+	/* 0x0f-0x10 - reserved */
+	NVME_OPC_RESERVATION_ACQUIRE		= 0x11,
+	/* 0x12-0x14 - reserved */
+	NVME_OPC_RESERVATION_RELEASE		= 0x15,
 };
 
 enum nvme_feature {
@@ -719,11 +879,34 @@ struct nvme_controller_data {
 	/** volatile write cache */
 	uint8_t			vwc;
 
-	/* TODO: flesh out remaining nvm command set attributes */
-	uint8_t			reserved5[178];
+	/** Atomic Write Unit Normal */
+	uint16_t		awun;
 
-	/* bytes 704-2047: i/o command set attributes */
-	uint8_t			reserved6[1344];
+	/** Atomic Write Unit Power Fail */
+	uint16_t		awupf;
+
+	/** NVM Vendor Specific Command Configuration */
+	uint8_t			nvscc;
+	uint8_t			reserved5;
+
+	/** Atomic Compare & Write Unit */
+	uint16_t		acwu;
+	uint16_t		reserved6;
+
+	/** SGL Support */
+	uint32_t		sgls;
+
+	/* bytes 540-767: Reserved */
+	uint8_t			reserved7[228];
+
+	/** NVM Subsystem NVMe Qualified Name */
+	uint8_t			subnqn[256];
+
+	/* bytes 1024-1791: Reserved */
+	uint8_t			reserved8[768];
+
+	/* bytes 1792-2047: NVMe over Fabrics specification */
+	uint8_t			reserved9[256];
 
 	/* bytes 2048-3071: power state descriptors */
 	struct nvme_power_state power_state[32];
@@ -763,7 +946,50 @@ struct nvme_namespace_data {
 	/** end-to-end data protection type settings */
 	uint8_t			dps;
 
-	uint8_t			reserved5[98];
+	/** Namespace Multi-path I/O and Namespace Sharing Capabilities */
+	uint8_t			nmic;
+
+	/** Reservation Capabilities */
+	uint8_t			rescap;
+
+	/** Format Progress Indicator */
+	uint8_t			fpi;
+
+	/** Deallocate Logical Block Features */
+	uint8_t			dlfeat;
+
+	/** Namespace Atomic Write Unit Normal  */
+	uint16_t		nawun;
+
+	/** Namespace Atomic Write Unit Power Fail */
+	uint16_t		nawupf;
+
+	/** Namespace Atomic Compare & Write Unit */
+	uint16_t		nacwu;
+
+	/** Namespace Atomic Boundary Size Normal */
+	uint16_t		nabsn;
+
+	/** Namespace Atomic Boundary Offset */
+	uint16_t		nabo;
+
+	/** Namespace Atomic Boundary Size Power Fail */
+	uint16_t		nabspf;
+
+	/** Namespace Optimal IO Boundary */
+	uint16_t		noiob;
+
+	/** NVM Capacity */
+	uint8_t			nvmcap[16];
+
+	/* bytes 64-103: Reserved */
+	uint8_t			reserved5[40];
+
+	/** Namespace Globally Unique Identifier */
+	uint8_t			nguid[16];
+
+	/** IEEE Extended Unique Identifier */
+	uint8_t			eui64[8];
 
 	/** lba format support */
 	uint32_t		lbaf[16];
@@ -1154,6 +1380,10 @@ void	nvme_controller_data_swapbytes(struct nvme_controller_data *s)
 	s->nn = le32toh(s->nn);
 	s->oncs = le16toh(s->oncs);
 	s->fuses = le16toh(s->fuses);
+	s->awun = le16toh(s->awun);
+	s->awupf = le16toh(s->awupf);
+	s->acwu = le16toh(s->acwu);
+	s->sgls = le32toh(s->sgls);
 	for (i = 0; i < 32; i++)
 		nvme_power_state_swapbytes(&s->power_state[i]);
 }
@@ -1166,6 +1396,13 @@ void	nvme_namespace_data_swapbytes(struct nvme_namespace_data *s)
 	s->nsze = le64toh(s->nsze);
 	s->ncap = le64toh(s->ncap);
 	s->nuse = le64toh(s->nuse);
+	s->nawun = le16toh(s->nawun);
+	s->nawupf = le16toh(s->nawupf);
+	s->nacwu = le16toh(s->nacwu);
+	s->nabsn = le16toh(s->nabsn);
+	s->nabo = le16toh(s->nabo);
+	s->nabspf = le16toh(s->nabspf);
+	s->noiob = le16toh(s->noiob);
 	for (i = 0; i < 16; i++)
 		s->lbaf[i] = le32toh(s->lbaf[i]);
 }

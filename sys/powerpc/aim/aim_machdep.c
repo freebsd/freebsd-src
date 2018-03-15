@@ -160,44 +160,38 @@ extern void	*dlmisstrap, *dlmisssize;
 extern void	*dsmisstrap, *dsmisssize;
 
 extern void *ap_pcpu;
+extern void __restartkernel(vm_offset_t, vm_offset_t, vm_offset_t, void *, uint32_t, register_t offset, register_t msr);
 
+void aim_early_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry,
+    void *mdp, uint32_t mdp_cookie);
 void aim_cpu_init(vm_offset_t toc);
 
 void
-aim_cpu_init(vm_offset_t toc)
+aim_early_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
+    uint32_t mdp_cookie)
 {
-	size_t		trap_offset, trapsize;
-	vm_offset_t	trap;
-	register_t	msr, scratch;
-	uint8_t		*cache_check;
-	int		cacheline_warn;
-	#ifndef __powerpc64__
-	int		ppc64;
-	#endif
+	register_t	scratch;
 
-	trap_offset = 0;
-	cacheline_warn = 0;
-
-	/* General setup for AIM CPUs */
-	psl_kernset = PSL_EE | PSL_ME | PSL_IR | PSL_DR | PSL_RI;
-
-#ifdef __powerpc64__
-	psl_kernset |= PSL_SF;
-	if (mfmsr() & PSL_HV)
-		psl_kernset |= PSL_HV;
-#endif
-	psl_userset = psl_kernset | PSL_PR;
-#ifdef __powerpc64__
-	psl_userset32 = psl_userset & ~PSL_SF;
-#endif
-
-	/* Bits that users aren't allowed to change */
-	psl_userstatic = ~(PSL_VEC | PSL_FP | PSL_FE0 | PSL_FE1);
 	/*
-	 * Mask bits from the SRR1 that aren't really the MSR:
-	 * Bits 1-4, 10-15 (ppc32), 33-36, 42-47 (ppc64)
+	 * If running from an FDT, make sure we are in real mode to avoid
+	 * tromping on firmware page tables. Everything in the kernel assumes
+	 * 1:1 mappings out of firmware, so this won't break anything not
+	 * already broken. This doesn't work if there is live OF, since OF
+	 * may internally use non-1:1 mappings.
 	 */
-	psl_userstatic &= ~0x783f0000UL;
+	if (ofentry == 0)
+		mtmsr(mfmsr() & ~(PSL_IR | PSL_DR));
+
+#ifdef __powerpc64__
+	/*
+	 * If in real mode, relocate to high memory so that the kernel
+	 * can execute from the direct map.
+	 */
+	if (!(mfmsr() & PSL_DR) &&
+	    (vm_offset_t)&aim_early_init < DMAP_BASE_ADDRESS)
+		__restartkernel(fdt, 0, ofentry, mdp, mdp_cookie,
+		    DMAP_BASE_ADDRESS, mfmsr());
+#endif
 
 	/* Various very early CPU fix ups */
 	switch (mfpvr() >> 16) {
@@ -224,6 +218,44 @@ aim_cpu_init(vm_offset_t toc)
 			break;
 	#endif
 	}
+}
+
+void
+aim_cpu_init(vm_offset_t toc)
+{
+	size_t		trap_offset, trapsize;
+	vm_offset_t	trap;
+	register_t	msr;
+	uint8_t		*cache_check;
+	int		cacheline_warn;
+#ifndef __powerpc64__
+	register_t	scratch;
+	int		ppc64;
+#endif
+
+	trap_offset = 0;
+	cacheline_warn = 0;
+
+	/* General setup for AIM CPUs */
+	psl_kernset = PSL_EE | PSL_ME | PSL_IR | PSL_DR | PSL_RI;
+
+#ifdef __powerpc64__
+	psl_kernset |= PSL_SF;
+	if (mfmsr() & PSL_HV)
+		psl_kernset |= PSL_HV;
+#endif
+	psl_userset = psl_kernset | PSL_PR;
+#ifdef __powerpc64__
+	psl_userset32 = psl_userset & ~PSL_SF;
+#endif
+
+	/* Bits that users aren't allowed to change */
+	psl_userstatic = ~(PSL_VEC | PSL_FP | PSL_FE0 | PSL_FE1);
+	/*
+	 * Mask bits from the SRR1 that aren't really the MSR:
+	 * Bits 1-4, 10-15 (ppc32), 33-36, 42-47 (ppc64)
+	 */
+	psl_userstatic &= ~0x783f0000UL;
 
 	/*
 	 * Initialize the interrupt tables and figure out our cache line

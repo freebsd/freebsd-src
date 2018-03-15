@@ -212,7 +212,7 @@ static U64 XXH_read64(const void* memPtr)
 #if defined(_MSC_VER)     /* Visual Studio */
 #  define XXH_swap32 _byteswap_ulong
 #  define XXH_swap64 _byteswap_uint64
-#elif (GCC_VERSION >= 403 && !defined(__riscv))
+#elif GCC_VERSION >= 403
 #  define XXH_swap32 __builtin_bswap32
 #  define XXH_swap64 __builtin_bswap64
 #else

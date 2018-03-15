@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_acpi.h"
 #include "opt_isa.h"
 
 #include <sys/param.h>
@@ -55,16 +56,24 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include "clock_if.h"
 
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#endif
+
 /*
- * clock_lock protects low-level access to individual hardware registers.
+ * atrtc_lock protects low-level access to individual hardware registers.
  * atrtc_time_lock protects the entire sequence of accessing multiple registers
  * to read or write the date and time.
  */
-#define	RTC_LOCK	do { if (!kdb_active) mtx_lock_spin(&clock_lock); } while (0)
-#define	RTC_UNLOCK	do { if (!kdb_active) mtx_unlock_spin(&clock_lock); } while (0)
+static struct mtx atrtc_lock;
+MTX_SYSINIT(atrtc_lock_init, &atrtc_lock, "atrtc", MTX_SPIN);
+
+/* Force RTC enabled/disabled. */
+static int atrtc_enabled = -1;
+TUNABLE_INT("hw.atrtc.enabled", &atrtc_enabled);
 
 struct mtx atrtc_time_lock;
-MTX_SYSINIT(atrtc_lock_init, &atrtc_time_lock, "atrtc", MTX_DEF);
+MTX_SYSINIT(atrtc_time_lock_init, &atrtc_time_lock, "atrtc_time", MTX_DEF);
 
 int	atrtcclock_disable = 0;
 
@@ -108,9 +117,9 @@ rtcin(int reg)
 {
 	u_char val;
 
-	RTC_LOCK;
+	mtx_lock_spin(&atrtc_lock);
 	val = rtcin_locked(reg);
-	RTC_UNLOCK;
+	mtx_unlock_spin(&atrtc_lock);
 	return (val);
 }
 
@@ -118,17 +127,19 @@ void
 writertc(int reg, u_char val)
 {
 
-	RTC_LOCK;
+	mtx_lock_spin(&atrtc_lock);
 	rtcout_locked(reg, val);
-	RTC_UNLOCK;
+	mtx_unlock_spin(&atrtc_lock);
 }
 
 static void
 atrtc_start(void)
 {
 
-	writertc(RTC_STATUSA, rtc_statusa);
-	writertc(RTC_STATUSB, RTCSB_24HR);
+	mtx_lock_spin(&atrtc_lock);
+	rtcout_locked(RTC_STATUSA, rtc_statusa);
+	rtcout_locked(RTC_STATUSB, RTCSB_24HR);
+	mtx_unlock_spin(&atrtc_lock);
 }
 
 static void
@@ -144,8 +155,10 @@ atrtc_enable_intr(void)
 {
 
 	rtc_statusb |= RTCSB_PINTR;
-	writertc(RTC_STATUSB, rtc_statusb);
-	rtcin(RTC_INTR);
+	mtx_lock_spin(&atrtc_lock);
+	rtcout_locked(RTC_STATUSB, rtc_statusb);
+	rtcin_locked(RTC_INTR);
+	mtx_unlock_spin(&atrtc_lock);
 }
 
 static void
@@ -153,8 +166,10 @@ atrtc_disable_intr(void)
 {
 
 	rtc_statusb &= ~RTCSB_PINTR;
-	writertc(RTC_STATUSB, rtc_statusb);
-	rtcin(RTC_INTR);
+	mtx_lock_spin(&atrtc_lock);
+	rtcout_locked(RTC_STATUSB, rtc_statusb);
+	rtcin_locked(RTC_INTR);
+	mtx_unlock_spin(&atrtc_lock);
 }
 
 void
@@ -162,11 +177,13 @@ atrtc_restore(void)
 {
 
 	/* Restore all of the RTC's "status" (actually, control) registers. */
-	rtcin(RTC_STATUSA);	/* dummy to get rtc_reg set */
-	writertc(RTC_STATUSB, RTCSB_24HR);
-	writertc(RTC_STATUSA, rtc_statusa);
-	writertc(RTC_STATUSB, rtc_statusb);
-	rtcin(RTC_INTR);
+	mtx_lock_spin(&atrtc_lock);
+	rtcin_locked(RTC_STATUSA);	/* dummy to get rtc_reg set */
+	rtcout_locked(RTC_STATUSB, RTCSB_24HR);
+	rtcout_locked(RTC_STATUSA, rtc_statusa);
+	rtcout_locked(RTC_STATUSB, rtc_statusb);
+	rtcin_locked(RTC_INTR);
+	mtx_unlock_spin(&atrtc_lock);
 }
 
 /**********************************************************************
@@ -241,11 +258,43 @@ static struct isa_pnp_id atrtc_ids[] = {
 	{ 0 }
 };
 
+static bool
+atrtc_acpi_disabled(void)
+{
+#ifdef DEV_ACPI
+	ACPI_TABLE_FADT *fadt;
+	vm_paddr_t physaddr;
+	uint16_t flags;
+
+	physaddr = acpi_find_table(ACPI_SIG_FADT);
+	if (physaddr == 0)
+		return (false);
+
+	fadt = acpi_map_table(physaddr, ACPI_SIG_FADT);
+	if (fadt == NULL) {
+		printf("at_rtc: unable to map FADT ACPI table\n");
+		return (false);
+	}
+
+	flags = fadt->BootFlags;
+	acpi_unmap_table(fadt);
+
+	if (flags & ACPI_FADT_NO_CMOS_RTC)
+		return (true);
+#endif
+
+	return (false);
+}
+
 static int
 atrtc_probe(device_t dev)
 {
 	int result;
-	
+
+	if ((atrtc_enabled == -1 && atrtc_acpi_disabled()) ||
+	    (atrtc_enabled == 0))
+		return (ENXIO);
+
 	result = ISA_PNP_PROBE(device_get_parent(dev), dev, atrtc_ids);
 	/* ENOENT means no PnP-ID, device is hinted. */
 	if (result == ENOENT) {
@@ -318,9 +367,10 @@ atrtc_settime(device_t dev __unused, struct timespec *ts)
 	struct bcd_clocktime bct;
 
 	clock_ts_to_bcd(ts, &bct, false);
+	clock_dbgprint_bcd(dev, CLOCK_DBG_WRITE, &bct);
 
 	mtx_lock(&atrtc_time_lock);
-	RTC_LOCK;
+	mtx_lock_spin(&atrtc_lock);
 
 	/* Disable RTC updates and interrupts.  */
 	rtcout_locked(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
@@ -343,7 +393,7 @@ atrtc_settime(device_t dev __unused, struct timespec *ts)
 	rtcout_locked(RTC_STATUSB, rtc_statusb);
 	rtcin_locked(RTC_INTR);
 
-	RTC_UNLOCK;
+	mtx_unlock_spin(&atrtc_lock);
 	mtx_unlock(&atrtc_time_lock);
 
 	return (0);
@@ -370,7 +420,7 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 	mtx_lock(&atrtc_time_lock);
 	while (rtcin(RTC_STATUSA) & RTCSA_TUP)
 		continue;
-	RTC_LOCK;
+	mtx_lock_spin(&atrtc_lock);
 	bct.sec  = rtcin_locked(RTC_SEC);
 	bct.min  = rtcin_locked(RTC_MIN);
 	bct.hour = rtcin_locked(RTC_HRS);
@@ -380,11 +430,12 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 #ifdef USE_RTC_CENTURY
 	bct.year |= rtcin_locked(RTC_CENTURY) << 8;
 #endif
-	RTC_UNLOCK;
+	mtx_unlock_spin(&atrtc_lock);
 	mtx_unlock(&atrtc_time_lock);
 	/* dow is unused in timespec conversion and we have no nsec info. */
 	bct.dow  = 0;
 	bct.nsec = 0;
+	clock_dbgprint_bcd(dev, CLOCK_DBG_READ, &bct);
 	return (clock_bcd_to_ts(&bct, ts, false));
 }
 
@@ -416,16 +467,3 @@ static devclass_t atrtc_devclass;
 DRIVER_MODULE(atrtc, isa, atrtc_driver, atrtc_devclass, 0, 0);
 DRIVER_MODULE(atrtc, acpi, atrtc_driver, atrtc_devclass, 0, 0);
 ISA_PNP_INFO(atrtc_ids);
-
-#include "opt_ddb.h"
-#ifdef DDB
-#include <ddb/ddb.h>
-
-DB_SHOW_COMMAND(rtc, rtc)
-{
-	printf("%02x/%02x/%02x %02x:%02x:%02x, A = %02x, B = %02x, C = %02x\n",
-		rtcin(RTC_YEAR), rtcin(RTC_MONTH), rtcin(RTC_DAY),
-		rtcin(RTC_HRS), rtcin(RTC_MIN), rtcin(RTC_SEC),
-		rtcin(RTC_STATUSA), rtcin(RTC_STATUSB), rtcin(RTC_INTR));
-}
-#endif /* DDB */

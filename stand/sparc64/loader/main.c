@@ -117,7 +117,7 @@ uint32_t cpu_get_mid_sun4u(void);
 static void tlb_init_sun4u(void);
 
 #ifdef LOADER_DEBUG
-typedef u_int64_t tte_t;
+typedef uint64_t tte_t;
 
 static void pmap_print_tlb_sun4u(void);
 static void pmap_print_tte_sun4u(tte_t, tte_t);
@@ -806,8 +806,7 @@ sparc64_zfs_probe(void)
 	if (guid != 0) {
 		zfs_currdev.pool_guid = guid;
 		zfs_currdev.root_guid = 0;
-		zfs_currdev.d_dev = &zfs_dev;
-		zfs_currdev.d_type = zfs_currdev.d_dev->dv_type;
+		zfs_currdev.dd.d_dev = &zfs_dev;
 	}
 }
 #endif /* LOADER_ZFS_SUPPORT */

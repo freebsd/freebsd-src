@@ -1679,7 +1679,7 @@ static s32 e1000_setup_serdes_link_82575(struct e1000_hw *hw)
 	case E1000_CTRL_EXT_LINK_MODE_1000BASE_KX:
 		/* disable PCS autoneg and support parallel detect only */
 		pcs_autoneg = FALSE;
-		/* fall through to default case */
+		/* FALLTHROUGH */
 	default:
 		if (hw->mac.type == e1000_82575 ||
 		    hw->mac.type == e1000_82576) {
@@ -1806,6 +1806,7 @@ static s32 e1000_get_media_type_82575(struct e1000_hw *hw)
 			break;
 		}
 		/* fall through for I2C based SGMII */
+		/* FALLTHROUGH */
 	case E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES:
 		/* read media type from SFP EEPROM */
 		ret_val = e1000_set_sfp_media_type_82575(hw);

@@ -55,6 +55,7 @@ char	 *emulname(KINFO *, VARENT *);
 VARENT	*find_varentry(VAR *);
 const	 char *fmt_argv(char **, char *, char *, size_t);
 double	 getpcpu(const KINFO *);
+char	 *jailname(KINFO *, VARENT *);
 char	 *kvar(KINFO *, VARENT *);
 char	 *label(KINFO *, VARENT *);
 char	 *loginclass(KINFO *, VARENT *);

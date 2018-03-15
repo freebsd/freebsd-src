@@ -65,6 +65,9 @@ struct nvme_function {
 #define FIRMWARE_USAGE							       \
 "       nvmecontrol firmware [-s slot] [-f path_to_firmware] [-a] <controller id>\n"
 
+#define FORMAT_USAGE							       \
+"       nvmecontrol format [-f fmt] [-m mset] [-p pi] [-l pil] [-E] [-C] <controller id|namespace id>\n"
+
 #define POWER_USAGE							       \
 "       nvmecontrol power [-l] [-p new-state [-w workload-hint]] <controller id>\n"
 
@@ -77,15 +80,16 @@ void perftest(int argc, char *argv[]);
 void reset(int argc, char *argv[]);
 void logpage(int argc, char *argv[]);
 void firmware(int argc, char *argv[]);
+void format(int argc, char *argv[]);
 void power(int argc, char *argv[]);
 void wdc(int argc, char *argv[]);
 
 int open_dev(const char *str, int *fd, int show_error, int exit_on_error);
-void parse_ns_str(const char *ns_str, char *ctrlr_str, int *nsid);
+void parse_ns_str(const char *ns_str, char *ctrlr_str, uint32_t *nsid);
 void read_controller_data(int fd, struct nvme_controller_data *cdata);
-void read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata);
+void read_namespace_data(int fd, uint32_t nsid, struct nvme_namespace_data *nsdata);
 void print_hex(void *data, uint32_t length);
-void read_logpage(int fd, uint8_t log_page, int nsid, void *payload,
+void read_logpage(int fd, uint8_t log_page, uint32_t nsid, void *payload,
     uint32_t payload_size);
 void gen_usage(struct nvme_function *);
 void dispatch(int argc, char *argv[], struct nvme_function *f);

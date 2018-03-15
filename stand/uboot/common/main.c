@@ -41,6 +41,10 @@ __FBSDID("$FreeBSD$");
 #define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #endif
 
+#ifndef HEAP_SIZE
+#define	HEAP_SIZE	(1 * 1024 * 1024)
+#endif
+
 struct uboot_devdesc currdev;
 struct arch_switch archsw;		/* MI/MD interface boundary */
 int devs_no;
@@ -318,7 +322,7 @@ print_disk_probe_info()
 		strcpy(partition, "<auto>");
 
 	printf("  Checking unit=%d slice=%s partition=%s...",
-	    currdev.d_unit, slice, partition);
+	    currdev.dd.d_unit, slice, partition);
 
 }
 
@@ -338,8 +342,8 @@ probe_disks(int devidx, int load_type, int load_unit, int load_slice,
 	if (load_type == -1) {
 		printf("  Probing all disk devices...\n");
 		/* Try each disk in succession until one works.  */
-		for (currdev.d_unit = 0; currdev.d_unit < UB_MAX_DEV;
-		     currdev.d_unit++) {
+		for (currdev.dd.d_unit = 0; currdev.dd.d_unit < UB_MAX_DEV;
+		     currdev.dd.d_unit++) {
 			print_disk_probe_info();
 			open_result = devsw[devidx]->dv_open(&f, &currdev);
 			if (open_result == 0) {
@@ -355,8 +359,8 @@ probe_disks(int devidx, int load_type, int load_unit, int load_slice,
 		printf("  Probing all %s devices...\n", device_typename(load_type));
 		/* Try each disk of given type in succession until one works. */
 		for (unit = 0; unit < UB_MAX_DEV; unit++) {
-			currdev.d_unit = uboot_diskgetunit(load_type, unit);
-			if (currdev.d_unit == -1)
+			currdev.dd.d_unit = uboot_diskgetunit(load_type, unit);
+			if (currdev.dd.d_unit == -1)
 				break;
 			print_disk_probe_info();
 			open_result = devsw[devidx]->dv_open(&f, &currdev);
@@ -369,7 +373,7 @@ probe_disks(int devidx, int load_type, int load_unit, int load_slice,
 		return (-1);
 	}
 
-	if ((currdev.d_unit = uboot_diskgetunit(load_type, load_unit)) != -1) {
+	if ((currdev.dd.d_unit = uboot_diskgetunit(load_type, load_unit)) != -1) {
 		print_disk_probe_info();
 		open_result = devsw[devidx]->dv_open(&f,&currdev);
 		if (open_result == 0) {
@@ -421,7 +425,7 @@ main(int argc, char **argv)
 	 * of our bss and the bottom of the u-boot stack to avoid overlap.
 	 */
 	uboot_heap_start = round_page((uintptr_t)end);
-	uboot_heap_end   = uboot_heap_start + 512 * 1024;
+	uboot_heap_end   = uboot_heap_start + HEAP_SIZE;
 	setheap((void *)uboot_heap_start, (void *)uboot_heap_end);
 
 	/*
@@ -459,9 +463,8 @@ main(int argc, char **argv)
 
 		printf("Found U-Boot device: %s\n", devsw[i]->dv_name);
 
-		currdev.d_dev = devsw[i];
-		currdev.d_type = currdev.d_dev->dv_type;
-		currdev.d_unit = 0;
+		currdev.dd.d_dev = devsw[i];
+		currdev.dd.d_unit = 0;
 
 		if ((load_type == -1 || (load_type & DEV_TYP_STOR)) &&
 		    strcmp(devsw[i]->dv_name, "disk") == 0) {

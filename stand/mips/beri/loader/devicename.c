@@ -139,7 +139,7 @@ beri_arch_parsedev(struct disk_devdesc **dev, const char *devspec,
 	    goto fail;
 	}
 
-	idev->d_unit = unit;
+	idev->dd.d_unit = unit;
 	if (path != NULL)
 	    *path = (*cp == 0) ? cp : cp + 1;
 	break;
@@ -148,8 +148,7 @@ beri_arch_parsedev(struct disk_devdesc **dev, const char *devspec,
 	err = EINVAL;
 	goto fail;
     }
-    idev->d_dev = dv;
-    idev->d_type = dv->dv_type;
+    idev->dd.d_dev = dv;
     if (dev == NULL) {
 	free(idev);
     } else {
@@ -169,13 +168,13 @@ beri_arch_fmtdev(void *vdev)
     struct disk_devdesc	*dev = (struct disk_devdesc *)vdev;
     static char		buf[128];	/* XXX device length constant? */
 
-    switch(dev->d_type) {
+    switch(dev->dd.d_dev->dv_type) {
     case DEVT_NONE:
 	strcpy(buf, "(no device)");
 	break;
 
     case DEVT_CD:
-	sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
+	sprintf(buf, "%s%d:", dev->dd.d_dev->dv_name, dev->dd.d_unit);
 	break;
 
     case DEVT_DISK:
@@ -183,7 +182,7 @@ beri_arch_fmtdev(void *vdev)
 
     case DEVT_NET:
     case DEVT_ZFS:
-	sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
+	sprintf(buf, "%s%d:", dev->dd.d_dev->dv_name, dev->dd.d_unit);
 	break;
     }
     return(buf);

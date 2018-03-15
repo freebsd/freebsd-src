@@ -421,8 +421,7 @@ main(int argc, char *argv[])
 			    "%s read access denied", peername);
 			exit(1);
 		}
-	}
-	if (tp->th_opcode == WRQ) {
+	} else if (tp->th_opcode == WRQ) {
 		if (allow_wo)
 			tftp_wrq(peer, tp->th_stuff, n - 1);
 		else {
@@ -430,7 +429,8 @@ main(int argc, char *argv[])
 			    "%s write access denied", peername);
 			exit(1);
 		}
-	}
+	} else
+		send_error(peer, EBADOP);
 	exit(1);
 }
 
@@ -545,6 +545,10 @@ tftp_wrq(int peer, char *recvbuffer, ssize_t size)
 			    filename, errtomsg(ecode));
 	}
 
+	if (ecode) {
+		send_error(peer, ecode);
+		exit(1);
+	}
 	tftp_recvfile(peer, mode);
 	exit(0);
 }
@@ -743,8 +747,12 @@ validate_access(int peer, char **filep, int mode)
 				dirp->name, filename);
 			if (stat(pathname, &stbuf) == 0 &&
 			    (stbuf.st_mode & S_IFMT) == S_IFREG) {
-				if ((stbuf.st_mode & S_IROTH) != 0) {
-					break;
+				if (mode == RRQ) {
+					if ((stbuf.st_mode & S_IROTH) != 0)
+						break;
+				} else {
+					if ((stbuf.st_mode & S_IWOTH) != 0)
+						break;
 				}
 				err = EACCESS;
 			}
@@ -752,6 +760,8 @@ validate_access(int peer, char **filep, int mode)
 		if (dirp->name != NULL)
 			*filep = filename = pathname;
 		else if (mode == RRQ)
+			return (err);
+		else if (err != ENOTFOUND || !create_new)
 			return (err);
 	}
 
@@ -823,7 +833,6 @@ tftp_recvfile(int peer, const char *mode)
 	block = 0;
 	tftp_receive(peer, &block, &ts, NULL, 0);
 
-	write_close();
 	gettimeofday(&now2, NULL);
 
 	if (debug&DEBUG_SIMPLE) {

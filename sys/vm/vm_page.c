@@ -2634,7 +2634,21 @@ unlock:
 	}
 	if (m_mtx != NULL)
 		mtx_unlock(m_mtx);
-	vm_page_free_pages_toq(&free, false);
+	if ((m = SLIST_FIRST(&free)) != NULL) {
+		struct vm_domain *vmd;
+		int cnt;
+
+		vmd = VM_DOMAIN(domain);
+		cnt = 0;
+		vm_domain_free_lock(vmd);
+		do {
+			MPASS(vm_phys_domain(m) == domain);
+			SLIST_REMOVE_HEAD(&free, plinks.s.ss);
+			cnt += vm_page_free_phys(vmd, m);
+		} while ((m = SLIST_FIRST(&free)) != NULL);
+		vm_domain_free_unlock(vmd);
+		vm_domain_freecnt_inc(vmd, cnt);
+	}
 	return (error);
 }
 

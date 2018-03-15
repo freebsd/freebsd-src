@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2018
+.Dd March 13, 2018
 .Dt PS 1
 .Os
 .Sh NAME
@@ -100,6 +100,14 @@ options).
 The default output format includes, for each process, the process' ID,
 controlling terminal, state, CPU time (including both user and system time)
 and associated command.
+.Pp
+If the
+.Nm
+process is associated with a terminal, the default output width is that of the
+terminal; otherwise the output width is unlimited.
+See also the
+.Fl w
+option.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -257,13 +265,15 @@ option implies the
 .Fl m
 option.
 .It Fl w
-Use 132 columns to display information, instead of the default which
-is your window size.
+Use at least 132 columns to display information, instead of the default which
+is the window size if
+.Nm
+is associated with a terminal.
 If the
 .Fl w
 option is specified more than once,
 .Nm
-will use as many columns as necessary without regard for your window size.
+will use as many columns as necessary without regard for the window size.
 Note that this option has no effect if the
 .Dq command
 column is not the last column displayed.
@@ -566,6 +576,8 @@ group name (from egid) (alias
 .It Cm inblk
 total blocks read (alias
 .Cm inblock )
+.It Cm jail
+jail name
 .It Cm jid
 jail ID
 .It Cm jobc

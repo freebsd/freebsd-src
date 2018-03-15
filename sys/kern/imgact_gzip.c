@@ -69,8 +69,7 @@ static int do_aout_hdr(struct imgact_gzip *);
 static int Flush(void *vp, u_char *, u_long siz);
 
 static int
-exec_gzip_imgact(imgp)
-	struct image_params *imgp;
+exec_gzip_imgact(struct image_params *imgp)
 {
 	int             error;
 	const u_char   *p = (const u_char *) imgp->image_header;
@@ -388,5 +387,8 @@ Flush(void *vp, u_char * ptr, u_long siz)
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
  */
-static struct execsw gzip_execsw = {exec_gzip_imgact, "gzip"};
+static struct execsw gzip_execsw = {
+	.ex_imgact = exec_gzip_imgact,
+	.ex_name = "gzip"
+};
 EXEC_SET(execgzip, gzip_execsw);

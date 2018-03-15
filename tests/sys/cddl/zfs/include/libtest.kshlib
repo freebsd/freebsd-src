@@ -640,7 +640,7 @@ function wipe_partition_table #<whole_disk_name> [<whole_disk_name> ...]
 	while [[ -n $* ]]; do
 		typeset diskname=$1
 		[ ! -e $diskname ] && log_fail "ERROR: $diskname doesn't exist"
-		if gpart list $(basename $diskname) >/dev/null 2>&1; then
+		if gpart list ${diskname#/dev/} >/dev/null 2>&1; then
 			wait_for 5 1 $GPART destroy -F $diskname
 		else
 			log_note "No GPT partitions detected on $diskname"
@@ -678,7 +678,7 @@ function set_partition #<slice_num> <slice_start> <size_plus_units>  <whole_disk
 function get_disk_size #<disk>
 {
 	typeset disk=$1
-	diskinfo da0 | awk '{print $3}'
+	diskinfo $disk | awk '{print $3}'
 }
 
 function get_available_disk_size #<disk>

@@ -44,7 +44,7 @@ static dev_info_t *devinfo;
 static dev_info_t *devices;
 
 static int
-dskread(void *buf, u_int64_t lba, int nblk)
+dskread(void *buf, uint64_t lba, int nblk)
 {
 	int size;
 	EFI_STATUS status;

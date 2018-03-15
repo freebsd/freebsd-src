@@ -605,7 +605,8 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 			xo_emit("{V:name/%-36s/%s} {V:portal/%-16s/%s} ",
 			    conf->isc_target, conf->isc_target_addr);
 
-			if (state->iss_reason[0] != '\0') {
+			if (state->iss_reason[0] != '\0' &&
+			    conf->isc_enable != 0) {
 				xo_emit("{V:state/%s}\n", state->iss_reason);
 			} else {
 				if (conf->isc_discovery) {

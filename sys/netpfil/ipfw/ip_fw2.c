@@ -3018,8 +3018,10 @@ do {								\
 			case O_REASS: {
 				int ip_off;
 
-				IPFW_INC_RULE_COUNTER(f, pktlen);
 				l = 0;	/* in any case exit inner loop */
+				if (is_ipv6) /* IPv6 is not supported yet */
+					break;
+				IPFW_INC_RULE_COUNTER(f, pktlen);
 				ip_off = ntohs(ip->ip_off);
 
 				/* if not fragmented, go to next rule */

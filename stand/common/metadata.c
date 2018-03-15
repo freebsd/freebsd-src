@@ -217,7 +217,7 @@ md_copyenv(vm_offset_t addr)
 static int align;
 
 #define COPY32(v, a, c) {			\
-    u_int32_t	x = (v);			\
+    uint32_t	x = (v);			\
     if (c)					\
         archsw.arch_copyin(&x, a, sizeof(x));	\
     a += sizeof(x);				\

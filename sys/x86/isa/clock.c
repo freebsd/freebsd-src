@@ -83,7 +83,7 @@ TUNABLE_INT("hw.i8254.freq", &i8254_freq);
 int	i8254_max_count;
 static int i8254_timecounter = 1;
 
-struct mtx clock_lock;
+static	struct mtx clock_lock;
 static	struct intsrc *i8254_intsrc;
 static	uint16_t i8254_lastcount;
 static	uint16_t i8254_offset;

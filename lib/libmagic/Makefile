@@ -8,7 +8,9 @@ CONTRDIR=	${SRCTOP}/contrib/file
 
 LIB=	magic
 SHLIB_MAJOR=	4
+.if !make(build-tools)
 LIBADD=	z
+.endif
 MAN=	libmagic.3 magic.5
 
 SRCS=	apprentice.c apptype.c ascmagic.c cdf.c cdf_time.c compress.c \

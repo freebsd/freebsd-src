@@ -304,6 +304,8 @@ send_ack:
 		gettimeofday(&(ts->tstop), NULL);
 	} while (n_data == segsize);
 
+	write_close();
+
 	/* Don't do late packet management for the client implementation */
 	if (acting_as_client)
 		return;
