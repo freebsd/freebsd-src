@@ -85,6 +85,7 @@ pluknet [label="Sergey Kandaurov\npluknet@FreeBSD.org\n2012/02/14"]
 remko [label="Remko Lodder\nremko@FreeBSD.org\n2004/10/16"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2008/11/03"]
 ryusuke [label="Ryusuke Suzuki\nryusuke@FreeBSD.org\n2009/12/21"]
+sevan [label="Sevan Janiyan\nsevan@FreeBSD.org\n2016/09/16"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2003/07/20"]
 skreuzer [label="Steven Kreuzer\nskreuzer@FreeBSD.org\n2014/01/15"]
 taras [label="Taras Korenko\ntaras@FreeBSD.org\n2010/06/25"]
@@ -104,6 +105,7 @@ bcr -> crees
 bcr -> jgh
 bcr -> allanjude
 bcr -> bhd
+bcr -> sevan
 
 blackend -> ale
 
