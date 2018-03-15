@@ -121,8 +121,28 @@ negative_test "-r -rf" "$CTR $FS $VOL"
 typeset mtpt_dir=$(get_prop mountpoint $FS)
 make_dir_busy $mtpt_dir
 negative_test "-R -rR" $CTR
-check_dataset datasetexists $CTR $FS $VOL $VOLSNAP $VOLCLONE
-log_must datasetnonexists $FSSNAP $FSCLONE
+
+#
+# Checking the outcome of the test above is tricky, because the order in
+# which datasets are destroyed is not deterministic. Both $FS and $VOL are
+# busy, and the remaining datasets will be different depending on whether we
+# tried (and failed) to delete $FS or $VOL first.
+
+# The following datasets will exist independent of the order
+check_dataset datasetexists $CTR $FS $VOL
+
+if datasetexists $VOLSNAP && datasetnonexists $FSSNAP; then
+	# The recursive destroy failed on $FS
+	check_dataset datasetnonexists $FSSNAP $FSCLONE
+	check_dataset datasetexists $VOLSNAP $VOLCLONE
+elif datasetexists $FSSNAP && datasetnonexists $VOLSNAP; then
+	# The recursive destroy failed on $VOL
+	check_dataset datasetnonexists $VOLSNAP $VOLCLONE
+	check_dataset datasetexists $FSSNAP $FSCLONE
+else
+	log_must zfs list -rtall
+	log_fail "Unexpected datasets remaining"
+fi
 
 #
 # Create the clones for test environment, then verify 'zfs destroy $FS'
@@ -148,7 +168,17 @@ if is_global_zone; then
 	make_dir_busy $TESTDIR1
 	negative_test "-R -rR" $CTR
 	log_must datasetexists $CTR $VOL
-	log_must datasetnonexists $FS $FSSNAP $FSCLONE $VOLSNAP $VOLCLONE
+	log_must datasetnonexists $VOLSNAP $VOLCLONE
+
+	# Here again, the non-determinism of destroy order is a factor. $FS,
+	# $FSSNAP and $FSCLONE will still exist here iff we attempted to destroy
+	# $VOL (and failed) first. So check that either all of the datasets are
+	# present, or they're all gone.
+	if datasetexists $FS; then
+		check_dataset datasetexists $FS $FSSNAP $FSCLONE
+	else
+		check_dataset datasetnonexists $FS $FSSNAP $FSCLONE
+	fi
 
 	#
 	# Create the clones for test environment and make the volume busy.
