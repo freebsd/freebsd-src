@@ -129,8 +129,8 @@ Starting with
 .Nm
 sending files off the
 .Xr ffs 7
-filesystem doesn't block on I/O
-(see 
+filesystem does not block on I/O
+(see
 .Sx IMPLEMENTATION NOTES
 ), so the condition no longer applies.
 However, it is safe if an application utilizes
@@ -140,8 +140,8 @@ and on
 performs the same action as it did in
 older
 .Fx
-versions, e.g.
-.Xr aio_read 2,
+versions, e.g.,
+.Xr aio_read 2 ,
 .Xr read 2
 or
 .Nm
@@ -210,7 +210,7 @@ The
 .Fx
 implementation of
 .Fn sendfile
-doesn't block on disk I/O when it sends a file off the
+does not block on disk I/O when it sends a file off the
 .Xr ffs 7
 filesystem.
 The syscall returns success before the actual I/O completes, and data
