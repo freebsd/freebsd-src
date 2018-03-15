@@ -170,7 +170,6 @@ zfs_copies_006_pos_body()
 	. $(atf_get_srcdir)/zfs_copies.cfg
 
 	verify_disk_count "$DISKS" 1
-	atf_skip "PR 225960 g_access leak when unmounting UFS on a zvol"
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zfs_copies_006_pos.ksh || atf_fail "Testcase failed"
 }
