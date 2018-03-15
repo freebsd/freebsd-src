@@ -241,7 +241,7 @@ struct asmc_softc {
 				  "cpu0_proximity", "hdd_bay", \
 				  "northbridge_die", \
 				  "northbridge_proximity", \
-				  "wireless_module", }
+				  "wireless_proximity", }
 
 #define ASMC_MM31_TEMPDESCS	{ "CPU0 Die Core Temperature", \
 				  "CPU0 Heatsink Temperature", \
@@ -249,7 +249,7 @@ struct asmc_softc {
 				  "HDD Bay Temperature", \
 				  "Northbridge Die Core Temperature", \
 				  "Northbridge Proximity Temperature", \
-				  "Wireless Module Temperature", }
+				  "Wireless Module Proximity Temperature", }
 
 #define ASMC_MP_TEMPS		{ "TA0P", "TCAG", "TCAH", "TCBG", "TCBH", \
 				  "TC0C", "TC0D", "TC0P", "TC1C", "TC1D", \
