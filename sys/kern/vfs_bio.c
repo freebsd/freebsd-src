@@ -5384,7 +5384,7 @@ DB_SHOW_COMMAND(bufqueues, bufqueues)
 				cnt++;
 				total += buf[j].b_bufsize;
 			}
-		db_printf("\tLocked buffers: %d space %jd\n", cnt, total);
+		db_printf("\tLocked buffers: %d space %ld\n", cnt, total);
 		cnt = 0;
 		total = 0;
 		for (j = 0; j < nbuf; j++)
@@ -5392,7 +5392,7 @@ DB_SHOW_COMMAND(bufqueues, bufqueues)
 				cnt++;
 				total += buf[j].b_bufsize;
 			}
-		db_printf("\tTotal buffers: %d space %jd\n", cnt, total);
+		db_printf("\tTotal buffers: %d space %ld\n", cnt, total);
 	}
 }
 
