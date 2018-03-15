@@ -43,6 +43,7 @@
 #include <linux/wait.h>
 #include <sys/priv.h>
 #include <sys/resourcevar.h>
+#include <sys/vmmeter.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_map.h>
 #include "uverbs.h"

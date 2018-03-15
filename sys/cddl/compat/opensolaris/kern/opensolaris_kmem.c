@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kmem.h>
 #include <sys/debug.h>
 #include <sys/mutex.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>

@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
+#include <sys/vmmeter.h>
 
 #include <security/mac/mac_framework.h>
 
