@@ -114,6 +114,21 @@
 #define MD_NSECT (10000 * 2)
 #endif
 
+struct md_req {
+	unsigned	md_unit;	/* unit number */
+	enum md_types	md_type;	/* type of disk */
+	off_t		md_mediasize;	/* size of disk in bytes */
+	unsigned	md_sectorsize;	/* sectorsize */
+	unsigned	md_options;	/* options */
+	int		md_fwheads;	/* firmware heads */
+	int		md_fwsectors;	/* firmware sectors */
+	char		*md_file;	/* pathname of file to mount */
+	enum uio_seg	md_file_seg;	/* location of md_file */
+	char		*md_label;	/* label of the device (userspace) */
+	int		*md_units;	/* pointer to units array (kernel) */
+	size_t		md_units_nitems; /* items in md_units array */
+};
+
 static MALLOC_DEFINE(M_MD, "md_disk", "Memory Disk");
 static MALLOC_DEFINE(M_MDSECT, "md_sectors", "Memory Disk Sectors");
 
@@ -1285,29 +1300,29 @@ mdinit(struct md_s *sc)
 }
 
 static int
-mdcreate_malloc(struct md_s *sc, struct md_ioctl *mdio)
+mdcreate_malloc(struct md_s *sc, struct md_req *mdr)
 {
 	uintptr_t sp;
 	int error;
 	off_t u;
 
 	error = 0;
-	if (mdio->md_options & ~(MD_AUTOUNIT | MD_COMPRESS | MD_RESERVE))
+	if (mdr->md_options & ~(MD_AUTOUNIT | MD_COMPRESS | MD_RESERVE))
 		return (EINVAL);
-	if (mdio->md_sectorsize != 0 && !powerof2(mdio->md_sectorsize))
+	if (mdr->md_sectorsize != 0 && !powerof2(mdr->md_sectorsize))
 		return (EINVAL);
 	/* Compression doesn't make sense if we have reserved space */
-	if (mdio->md_options & MD_RESERVE)
-		mdio->md_options &= ~MD_COMPRESS;
-	if (mdio->md_fwsectors != 0)
-		sc->fwsectors = mdio->md_fwsectors;
-	if (mdio->md_fwheads != 0)
-		sc->fwheads = mdio->md_fwheads;
-	sc->flags = mdio->md_options & (MD_COMPRESS | MD_FORCE);
+	if (mdr->md_options & MD_RESERVE)
+		mdr->md_options &= ~MD_COMPRESS;
+	if (mdr->md_fwsectors != 0)
+		sc->fwsectors = mdr->md_fwsectors;
+	if (mdr->md_fwheads != 0)
+		sc->fwheads = mdr->md_fwheads;
+	sc->flags = mdr->md_options & (MD_COMPRESS | MD_FORCE);
 	sc->indir = dimension(sc->mediasize / sc->sectorsize);
 	sc->uma = uma_zcreate(sc->name, sc->sectorsize, NULL, NULL, NULL, NULL,
 	    0x1ff, 0);
-	if (mdio->md_options & MD_RESERVE) {
+	if (mdr->md_options & MD_RESERVE) {
 		off_t nsectors;
 
 		nsectors = sc->mediasize / sc->sectorsize;
@@ -1368,19 +1383,15 @@ mdsetcred(struct md_s *sc, struct ucred *cred)
 }
 
 static int
-mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
+mdcreate_vnode(struct md_s *sc, struct md_req *mdr, struct thread *td)
 {
 	struct vattr vattr;
 	struct nameidata nd;
 	char *fname;
 	int error, flags;
 
-	/*
-	 * Kernel-originated requests must have the filename appended
-	 * to the mdio structure to protect against malicious software.
-	 */
-	fname = mdio->md_file;
-	if ((void *)fname != (void *)(mdio + 1)) {
+	fname = mdr->md_file;
+	if (mdr->md_file_seg == UIO_USERSPACE) {
 		error = copyinstr(fname, sc->file, sizeof(sc->file), NULL);
 		if (error != 0)
 			return (error);
@@ -1391,8 +1402,8 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	 * If the user specified that this is a read only device, don't
 	 * set the FWRITE mask before trying to open the backing store.
 	 */
-	flags = FREAD | ((mdio->md_options & MD_READONLY) ? 0 : FWRITE) \
-	    | ((mdio->md_options & MD_VERIFY) ? O_VERIFY : 0);
+	flags = FREAD | ((mdr->md_options & MD_READONLY) ? 0 : FWRITE) \
+	    | ((mdr->md_options & MD_VERIFY) ? O_VERIFY : 0);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->file, td);
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)
@@ -1416,13 +1427,13 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	nd.ni_vp->v_vflag |= VV_MD;
 	VOP_UNLOCK(nd.ni_vp, 0);
 
-	if (mdio->md_fwsectors != 0)
-		sc->fwsectors = mdio->md_fwsectors;
-	if (mdio->md_fwheads != 0)
-		sc->fwheads = mdio->md_fwheads;
+	if (mdr->md_fwsectors != 0)
+		sc->fwsectors = mdr->md_fwsectors;
+	if (mdr->md_fwheads != 0)
+		sc->fwheads = mdr->md_fwheads;
 	snprintf(sc->ident, sizeof(sc->ident), "MD-DEV%ju-INO%ju",
 	    (uintmax_t)vattr.va_fsid, (uintmax_t)vattr.va_fileid);
-	sc->flags = mdio->md_options & (MD_FORCE | MD_ASYNC | MD_VERIFY);
+	sc->flags = mdr->md_options & (MD_FORCE | MD_ASYNC | MD_VERIFY);
 	if (!(flags & FWRITE))
 		sc->flags |= MD_READONLY;
 	sc->vnode = nd.ni_vp;
@@ -1488,7 +1499,7 @@ mddestroy(struct md_s *sc, struct thread *td)
 }
 
 static int
-mdresize(struct md_s *sc, struct md_ioctl *mdio)
+mdresize(struct md_s *sc, struct md_req *mdr)
 {
 	int error, res;
 	vm_pindex_t oldpages, newpages;
@@ -1498,11 +1509,11 @@ mdresize(struct md_s *sc, struct md_ioctl *mdio)
 	case MD_NULL:
 		break;
 	case MD_SWAP:
-		if (mdio->md_mediasize <= 0 ||
-		    (mdio->md_mediasize % PAGE_SIZE) != 0)
+		if (mdr->md_mediasize <= 0 ||
+		    (mdr->md_mediasize % PAGE_SIZE) != 0)
 			return (EDOM);
 		oldpages = OFF_TO_IDX(round_page(sc->mediasize));
-		newpages = OFF_TO_IDX(round_page(mdio->md_mediasize));
+		newpages = OFF_TO_IDX(round_page(mdr->md_mediasize));
 		if (newpages < oldpages) {
 			VM_OBJECT_WLOCK(sc->object);
 			vm_object_page_remove(sc->object, newpages, 0, 0);
@@ -1518,7 +1529,7 @@ mdresize(struct md_s *sc, struct md_ioctl *mdio)
 			    oldpages), sc->cred);
 			if (!res)
 				return (ENOMEM);
-			if ((mdio->md_options & MD_RESERVE) ||
+			if ((mdr->md_options & MD_RESERVE) ||
 			    (sc->flags & MD_RESERVE)) {
 				error = swap_pager_reserve(sc->object,
 				    oldpages, newpages - oldpages);
@@ -1539,7 +1550,7 @@ mdresize(struct md_s *sc, struct md_ioctl *mdio)
 		return (EOPNOTSUPP);
 	}
 
-	sc->mediasize = mdio->md_mediasize;
+	sc->mediasize = mdr->md_mediasize;
 	g_topology_lock();
 	g_resize_provider(sc->pp, sc->mediasize);
 	g_topology_unlock();
@@ -1547,7 +1558,7 @@ mdresize(struct md_s *sc, struct md_ioctl *mdio)
 }
 
 static int
-mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
+mdcreate_swap(struct md_s *sc, struct md_req *mdr, struct thread *td)
 {
 	vm_ooffset_t npage;
 	int error;
@@ -1565,19 +1576,19 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	 * Note the truncation.
 	 */
 
-	if ((mdio->md_options & MD_VERIFY) != 0)
+	if ((mdr->md_options & MD_VERIFY) != 0)
 		return (EINVAL);
-	npage = mdio->md_mediasize / PAGE_SIZE;
-	if (mdio->md_fwsectors != 0)
-		sc->fwsectors = mdio->md_fwsectors;
-	if (mdio->md_fwheads != 0)
-		sc->fwheads = mdio->md_fwheads;
+	npage = mdr->md_mediasize / PAGE_SIZE;
+	if (mdr->md_fwsectors != 0)
+		sc->fwsectors = mdr->md_fwsectors;
+	if (mdr->md_fwheads != 0)
+		sc->fwheads = mdr->md_fwheads;
 	sc->object = vm_pager_allocate(OBJT_SWAP, NULL, PAGE_SIZE * npage,
 	    VM_PROT_DEFAULT, 0, td->td_ucred);
 	if (sc->object == NULL)
 		return (ENOMEM);
-	sc->flags = mdio->md_options & (MD_FORCE | MD_RESERVE);
-	if (mdio->md_options & MD_RESERVE) {
+	sc->flags = mdr->md_options & (MD_FORCE | MD_RESERVE);
+	if (mdr->md_options & MD_RESERVE) {
 		if (swap_pager_reserve(sc->object, 0, npage) < 0) {
 			error = EDOM;
 			goto finish;
@@ -1593,7 +1604,7 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 }
 
 static int
-mdcreate_null(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
+mdcreate_null(struct md_s *sc, struct md_req *mdr, struct thread *td)
 {
 
 	/*
@@ -1607,7 +1618,7 @@ mdcreate_null(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 }
 
 static int
-kern_mdattach_locked(struct thread *td, struct md_ioctl *mdio)
+kern_mdattach_locked(struct thread *td, struct md_req *mdr)
 {
 	struct md_s *sc;
 	unsigned sectsize;
@@ -1615,7 +1626,7 @@ kern_mdattach_locked(struct thread *td, struct md_ioctl *mdio)
 
 	sx_assert(&md_sx, SA_XLOCKED);
 
-	switch (mdio->md_type) {
+	switch (mdr->md_type) {
 	case MD_MALLOC:
 	case MD_PRELOAD:
 	case MD_VNODE:
@@ -1625,35 +1636,35 @@ kern_mdattach_locked(struct thread *td, struct md_ioctl *mdio)
 	default:
 		return (EINVAL);
 	}
-	if (mdio->md_sectorsize == 0)
+	if (mdr->md_sectorsize == 0)
 		sectsize = DEV_BSIZE;
 	else
-		sectsize = mdio->md_sectorsize;
-	if (sectsize > MAXPHYS || mdio->md_mediasize < sectsize)
+		sectsize = mdr->md_sectorsize;
+	if (sectsize > MAXPHYS || mdr->md_mediasize < sectsize)
 		return (EINVAL);
-	if (mdio->md_options & MD_AUTOUNIT)
-		sc = mdnew(-1, &error, mdio->md_type);
+	if (mdr->md_options & MD_AUTOUNIT)
+		sc = mdnew(-1, &error, mdr->md_type);
 	else {
-		if (mdio->md_unit > INT_MAX)
+		if (mdr->md_unit > INT_MAX)
 			return (EINVAL);
-		sc = mdnew(mdio->md_unit, &error, mdio->md_type);
+		sc = mdnew(mdr->md_unit, &error, mdr->md_type);
 	}
 	if (sc == NULL)
 		return (error);
-	if (mdio->md_label != NULL)
-		error = copyinstr(mdio->md_label, sc->label,
+	if (mdr->md_label != NULL)
+		error = copyinstr(mdr->md_label, sc->label,
 		    sizeof(sc->label), NULL);
 	if (error != 0)
 		goto err_after_new;
-	if (mdio->md_options & MD_AUTOUNIT)
-		mdio->md_unit = sc->unit;
-	sc->mediasize = mdio->md_mediasize;
+	if (mdr->md_options & MD_AUTOUNIT)
+		mdr->md_unit = sc->unit;
+	sc->mediasize = mdr->md_mediasize;
 	sc->sectorsize = sectsize;
 	error = EDOOFUS;
 	switch (sc->type) {
 	case MD_MALLOC:
 		sc->start = mdstart_malloc;
-		error = mdcreate_malloc(sc, mdio);
+		error = mdcreate_malloc(sc, mdr);
 		break;
 	case MD_PRELOAD:
 		/*
@@ -1665,15 +1676,15 @@ kern_mdattach_locked(struct thread *td, struct md_ioctl *mdio)
 		break;
 	case MD_VNODE:
 		sc->start = mdstart_vnode;
-		error = mdcreate_vnode(sc, mdio, td);
+		error = mdcreate_vnode(sc, mdr, td);
 		break;
 	case MD_SWAP:
 		sc->start = mdstart_swap;
-		error = mdcreate_swap(sc, mdio, td);
+		error = mdcreate_swap(sc, mdr, td);
 		break;
 	case MD_NULL:
 		sc->start = mdstart_null;
-		error = mdcreate_null(sc, mdio, td);
+		error = mdcreate_null(sc, mdr, td);
 		break;
 	}
 err_after_new:
@@ -1691,122 +1702,122 @@ err_after_new:
 }
 
 static int
-kern_mdattach(struct thread *td, struct md_ioctl *mdio)
+kern_mdattach(struct thread *td, struct md_req *mdr)
 {
 	int error;
 
 	sx_xlock(&md_sx);
-	error = kern_mdattach_locked(td, mdio);
+	error = kern_mdattach_locked(td, mdr);
 	sx_xunlock(&md_sx);
 	return (error);
 }
 
 static int
-kern_mddetach_locked(struct thread *td, struct md_ioctl *mdio)
+kern_mddetach_locked(struct thread *td, struct md_req *mdr)
 {
 	struct md_s *sc;
 
 	sx_assert(&md_sx, SA_XLOCKED);
 
-	if (mdio->md_mediasize != 0 ||
-	    (mdio->md_options & ~MD_FORCE) != 0)
+	if (mdr->md_mediasize != 0 ||
+	    (mdr->md_options & ~MD_FORCE) != 0)
 		return (EINVAL);
 
-	sc = mdfind(mdio->md_unit);
+	sc = mdfind(mdr->md_unit);
 	if (sc == NULL)
 		return (ENOENT);
 	if (sc->opencount != 0 && !(sc->flags & MD_FORCE) &&
-	    !(mdio->md_options & MD_FORCE))
+	    !(mdr->md_options & MD_FORCE))
 		return (EBUSY);
 	return (mddestroy(sc, td));
 }
 
 static int
-kern_mddetach(struct thread *td, struct md_ioctl *mdio)
+kern_mddetach(struct thread *td, struct md_req *mdr)
 {
 	int error;
 
 	sx_xlock(&md_sx);
-	error = kern_mddetach_locked(td, mdio);
+	error = kern_mddetach_locked(td, mdr);
 	sx_xunlock(&md_sx);
 	return (error);
 }
 
 static int
-kern_mdresize_locked(struct md_ioctl *mdio)
+kern_mdresize_locked(struct md_req *mdr)
 {
 	struct md_s *sc;
 
 	sx_assert(&md_sx, SA_XLOCKED);
 
-	if ((mdio->md_options & ~(MD_FORCE | MD_RESERVE)) != 0)
+	if ((mdr->md_options & ~(MD_FORCE | MD_RESERVE)) != 0)
 		return (EINVAL);
 
-	sc = mdfind(mdio->md_unit);
+	sc = mdfind(mdr->md_unit);
 	if (sc == NULL)
 		return (ENOENT);
-	if (mdio->md_mediasize < sc->sectorsize)
+	if (mdr->md_mediasize < sc->sectorsize)
 		return (EINVAL);
-	if (mdio->md_mediasize < sc->mediasize &&
+	if (mdr->md_mediasize < sc->mediasize &&
 	    !(sc->flags & MD_FORCE) &&
-	    !(mdio->md_options & MD_FORCE))
+	    !(mdr->md_options & MD_FORCE))
 		return (EBUSY);
-	return (mdresize(sc, mdio));
+	return (mdresize(sc, mdr));
 }
 
 static int
-kern_mdresize(struct md_ioctl *mdio)
+kern_mdresize(struct md_req *mdr)
 {
 	int error;
 
 	sx_xlock(&md_sx);
-	error = kern_mdresize_locked(mdio);
+	error = kern_mdresize_locked(mdr);
 	sx_xunlock(&md_sx);
 	return (error);
 }
 
 static int
-kern_mdquery_locked(struct md_ioctl *mdio)
+kern_mdquery_locked(struct md_req *mdr)
 {
 	struct md_s *sc;
 	int error;
 
 	sx_assert(&md_sx, SA_XLOCKED);
 
-	sc = mdfind(mdio->md_unit);
+	sc = mdfind(mdr->md_unit);
 	if (sc == NULL)
 		return (ENOENT);
-	mdio->md_type = sc->type;
-	mdio->md_options = sc->flags;
-	mdio->md_mediasize = sc->mediasize;
-	mdio->md_sectorsize = sc->sectorsize;
+	mdr->md_type = sc->type;
+	mdr->md_options = sc->flags;
+	mdr->md_mediasize = sc->mediasize;
+	mdr->md_sectorsize = sc->sectorsize;
 	error = 0;
-	if (mdio->md_label != NULL) {
-		error = copyout(sc->label, mdio->md_label,
+	if (mdr->md_label != NULL) {
+		error = copyout(sc->label, mdr->md_label,
 		    strlen(sc->label) + 1);
 		if (error != 0)
 			return (error);
 	}
 	if (sc->type == MD_VNODE ||
-	    (sc->type == MD_PRELOAD && mdio->md_file != NULL))
-		error = copyout(sc->file, mdio->md_file,
+	    (sc->type == MD_PRELOAD && mdr->md_file != NULL))
+		error = copyout(sc->file, mdr->md_file,
 		    strlen(sc->file) + 1);
 	return (error);
 }
 
 static int
-kern_mdquery(struct md_ioctl *mdio)
+kern_mdquery(struct md_req *mdr)
 {
 	int error;
 
 	sx_xlock(&md_sx);
-	error = kern_mdquery_locked(mdio);
+	error = kern_mdquery_locked(mdr);
 	sx_xunlock(&md_sx);
 	return (error);
 }
 
 static int
-kern_mdlist_locked(struct md_ioctl *mdio)
+kern_mdlist_locked(struct md_req *mdr)
 {
 	struct md_s *sc;
 	int i;
@@ -1814,9 +1825,9 @@ kern_mdlist_locked(struct md_ioctl *mdio)
 	sx_assert(&md_sx, SA_XLOCKED);
 
 	/*
-	 * Write the number of md devices to mdio->md_pad[0].
-	 * Write the unit number of the first (MDNPAD - 2) units
-	 * to mdio->md_pad[1::(MDNPAD - 2)] and terminate the
+	 * Write the number of md devices to mdr->md_units[0].
+	 * Write the unit number of the first (mdr->md_units_nitems - 2)
+	 * units to mdr->md_units[1::(mdr->md_units - 2)] and terminate the
 	 * list with -1.
 	 *
 	 * XXX: There is currently no mechanism to retrieve unit
@@ -1827,22 +1838,22 @@ kern_mdlist_locked(struct md_ioctl *mdio)
 	 */
 	i = 1;
 	LIST_FOREACH(sc, &md_softc_list, list) {
-		if (i < MDNPAD - 1)
-			mdio->md_pad[i] = sc->unit;
+		if (i < mdr->md_units_nitems - 1)
+			mdr->md_units[i] = sc->unit;
 		i++;
 	}
-	mdio->md_pad[MIN(i, MDNPAD - 1)] = -1;
-	mdio->md_pad[0] = i - 1;
+	mdr->md_units[MIN(i, mdr->md_units_nitems - 1)] = -1;
+	mdr->md_units[0] = i - 1;
 	return (0);
 }
 
 static int
-kern_mdlist(struct md_ioctl *mdio)
+kern_mdlist(struct md_req *mdr)
 {
 	int error;
 
 	sx_xlock(&md_sx);
-	error = kern_mdlist_locked(mdio);
+	error = kern_mdlist_locked(mdr);
 	sx_xunlock(&md_sx);
 	return (error);
 }
@@ -1851,6 +1862,7 @@ static int
 mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
     struct thread *td)
 {
+	struct md_req mdr;
 	struct md_ioctl *mdio;
 	int error;
 
@@ -1858,37 +1870,67 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		printf("mdctlioctl(%s %lx %p %x %p)\n",
 			devtoname(dev), cmd, addr, flags, td);
 
-	mdio = (struct md_ioctl *)addr;
-	if (mdio->md_version != MDIOVERSION)
-		return (EINVAL);
+	switch (cmd) {
+	case MDIOCATTACH:
+	case MDIOCDETACH:
+	case MDIOCRESIZE:
+	case MDIOCQUERY:
+	case MDIOCLIST:
+		mdio = (struct md_ioctl *)addr;
+		if (mdio->md_version != MDIOVERSION)
+			return (EINVAL);
+		mdr.md_unit = mdio->md_unit;
+		mdr.md_type = mdio->md_type;
+		mdr.md_mediasize = mdio->md_mediasize;
+		mdr.md_sectorsize = mdio->md_sectorsize;
+		mdr.md_options = mdio->md_options;
+		mdr.md_fwheads = mdio->md_fwheads;
+		mdr.md_fwsectors = mdio->md_fwsectors;
+		mdr.md_file = mdio->md_file;
+		/* If the file is adjacent to the md_ioctl it's in kernel. */
+		if ((void *)mdio->md_file == (void *)(mdio + 1))
+			mdr.md_file_seg = UIO_SYSSPACE;
+		else
+			mdr.md_file_seg = UIO_USERSPACE;
+		mdr.md_label = mdio->md_label;
+		mdr.md_units = &mdio->md_pad[0];
+		mdr.md_units_nitems = nitems(mdio->md_pad);
+		break;
+	}
 
-	/*
-	 * We assert the version number in the individual ioctl
-	 * handlers instead of out here because (a) it is possible we
-	 * may add another ioctl in the future which doesn't read an
-	 * mdio, and (b) the correct return value for an unknown ioctl
-	 * is ENOIOCTL, not EINVAL.
-	 */
 	error = 0;
 	switch (cmd) {
 	case MDIOCATTACH:
-		error = kern_mdattach(td, mdio);
+		error = kern_mdattach(td, &mdr);
 		break;
 	case MDIOCDETACH:
-		error = kern_mddetach(td, mdio);
+		error = kern_mddetach(td, &mdr);
 		break;
 	case MDIOCRESIZE:
-		error = kern_mdresize(mdio);
+		error = kern_mdresize(&mdr);
 		break;
 	case MDIOCQUERY:
-		error = kern_mdquery(mdio);
+		error = kern_mdquery(&mdr);
 		break;
 	case MDIOCLIST:
-		error = kern_mdlist(mdio);
+		error = kern_mdlist(&mdr);
 		break;
 	default:
 		error = ENOIOCTL;
-	};
+	}
+
+	switch (cmd) {
+	case MDIOCATTACH:
+	case MDIOCQUERY:
+		mdio->md_unit = mdr.md_unit;
+		mdio->md_type = mdr.md_type;
+		mdio->md_mediasize = mdr.md_mediasize;
+		mdio->md_sectorsize = mdr.md_sectorsize;
+		mdio->md_options = mdr.md_options;
+		mdio->md_fwheads = mdr.md_fwheads;
+		mdio->md_fwsectors = mdr.md_fwsectors;
+		break;
+	}
 
 	return (error);
 }
