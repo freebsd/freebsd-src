@@ -87,7 +87,7 @@ BROKEN_OPTIONS+= OFED
 .endif
 
 # Things that don't work based on toolchain support.
-.if ${MACHINE} != "amd64"
+.if ${MACHINE} != "i386" && ${MACHINE} != "amd64"
 BROKEN_OPTIONS+= KERNEL_RETPOLINE
 .endif
 
