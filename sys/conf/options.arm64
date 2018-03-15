@@ -7,6 +7,10 @@ SOCDEV_VA			opt_global.h
 THUNDERX_PASS_1_1_ERRATA	opt_global.h
 VFP				opt_global.h
 
+# EFI Runtime services support
+EFIRT				opt_efirt.h
+
+# Devices
 DEV_PSCI			opt_platform.h
 
 # SoC Support
