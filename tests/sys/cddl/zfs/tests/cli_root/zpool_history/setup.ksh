@@ -31,5 +31,4 @@
 
 . $STF_SUITE/include/libtest.kshlib
 
-DISK=${DISKS%% *}
 default_container_volume_setup $DISK
