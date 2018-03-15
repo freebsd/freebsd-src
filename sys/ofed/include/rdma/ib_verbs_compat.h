@@ -159,11 +159,6 @@ struct ib_mw_bind_info {
 	int	mw_access_flags;
 };
 
-struct ib_phys_buf {
-	u64	addr;
-	u64	size;
-};
-
 struct ib_mr_attr {
 	struct ib_pd *pd;
 	u64	device_virt_addr;
@@ -391,7 +386,27 @@ ib_reg_phys_mr(struct ib_pd *pd,
     int mr_access_flags,
     u64 * iova_start)
 {
-	return (ERR_PTR(-ENOSYS));
+	struct ib_mr *mr;
+	int err;
+
+	err = ib_check_mr_access(mr_access_flags);
+	if (err)
+		return ERR_PTR(err);
+
+	if (!pd->device->reg_phys_mr)
+		return ERR_PTR(-ENOSYS);
+
+	mr = pd->device->reg_phys_mr(pd, phys_buf_array, num_phys_buf,
+				     mr_access_flags, iova_start);
+	if (IS_ERR(mr))
+		return ERR_CAST(mr);
+
+	mr->device = pd->device;
+	mr->pd = pd;
+	mr->uobject = NULL;
+	atomic_inc(&pd->usecnt);
+
+	return (mr);
 }
 
 static inline int

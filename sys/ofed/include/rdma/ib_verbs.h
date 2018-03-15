@@ -1317,6 +1317,11 @@ enum ib_access_flags {
 	IB_ACCESS_ON_DEMAND     = (1<<6),
 };
 
+struct ib_phys_buf {
+	u64	addr;
+	u64	size;
+};
+
 /*
  * XXX: these are apparently used for ->rereg_user_mr, no idea why they
  * are hidden here instead of a uapi header!
@@ -1988,6 +1993,11 @@ struct ib_device {
 						      int wc_cnt);
 	struct ib_mr *             (*get_dma_mr)(struct ib_pd *pd,
 						 int mr_access_flags);
+	struct ib_mr *		   (*reg_phys_mr)(struct ib_pd *pd,
+						  struct ib_phys_buf *phys_buf_array,
+						  int num_phys_buf,
+						  int mr_access_flags,
+						  u64 *iova_start);
 	struct ib_mr *             (*reg_user_mr)(struct ib_pd *pd,
 						  u64 start, u64 length,
 						  u64 virt_addr,
