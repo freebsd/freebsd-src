@@ -1790,7 +1790,13 @@ vm_pageout_worker(void *arg)
 	 * The pageout daemon worker is never done, so loop forever.
 	 */
 	while (TRUE) {
-		vm_domain_free_lock(vmd);
+		vm_domain_pageout_lock(vmd);
+		/*
+		 * We need to clear wanted before we check the limits.  This
+		 * prevents races with wakers who will check wanted after they
+		 * reach the limit.
+		 */
+		atomic_store_int(&vmd->vmd_pageout_wanted, 0);
 
 		/*
 		 * Might the page daemon need to run again?
@@ -1801,7 +1807,7 @@ vm_pageout_worker(void *arg)
 			 * we have performed a level >= 1 (page reclamation)
 			 * scan, then sleep a bit and try again.
 			 */
-			vm_domain_free_unlock(vmd);
+			vm_domain_pageout_unlock(vmd);
 			if (pass > 1)
 				pause("pwait", hz / VM_INACT_SCAN_RATE);
 		} else {
@@ -1809,12 +1815,18 @@ vm_pageout_worker(void *arg)
 			 * No, sleep until the next wakeup or until pages
 			 * need to have their reference stats updated.
 			 */
-			vmd->vmd_pageout_wanted = false;
 			if (mtx_sleep(&vmd->vmd_pageout_wanted,
-			    vm_domain_free_lockptr(vmd), PDROP | PVM,
+			    vm_domain_pageout_lockptr(vmd), PDROP | PVM,
 			    "psleep", hz / VM_INACT_SCAN_RATE) == 0)
 				VM_CNT_INC(v_pdwakeups);
 		}
+		/* Prevent spurious wakeups by ensuring that wanted is set. */
+		atomic_store_int(&vmd->vmd_pageout_wanted, 1);
+
+		/*
+		 * Use the controller to calculate how many pages to free in
+		 * this interval.
+		 */
 		shortage = pidctrl_daemon(&vmd->vmd_pid, vmd->vmd_free_count);
 		if (shortage && pass == 0)
 			pass = 1;
@@ -1970,10 +1982,14 @@ pagedaemon_wakeup(int domain)
 	struct vm_domain *vmd;
 
 	vmd = VM_DOMAIN(domain);
-	vm_domain_free_assert_unlocked(vmd);
+	vm_domain_pageout_assert_unlocked(vmd);
+	if (curproc == pageproc)
+		return;
 
-	if (!vmd->vmd_pageout_wanted && curthread->td_proc != pageproc) {
-		vmd->vmd_pageout_wanted = true;
+	if (atomic_fetchadd_int(&vmd->vmd_pageout_wanted, 1) == 0) {
+		vm_domain_pageout_lock(vmd);
+		atomic_store_int(&vmd->vmd_pageout_wanted, 1);
 		wakeup(&vmd->vmd_pageout_wanted);
+		vm_domain_pageout_unlock(vmd);
 	}
 }
