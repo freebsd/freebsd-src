@@ -356,7 +356,7 @@ retry:
 			goto bad;
 		}
 		port = ntohs((u_short)sin2.sin_port);
-		(void) sprintf(num, "%u", port);
+		(void) sprintf(num, "%hu", port);
 		(void) write(s, num, strlen(num)+1);
 		{ int len = sizeof (from);
 		  s3 = accept(s2, (struct sockaddr *)&from, &len);
