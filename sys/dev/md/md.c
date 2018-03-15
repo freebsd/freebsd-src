@@ -1765,7 +1765,8 @@ err_after_new:
 		i = 1;
 		LIST_FOREACH(sc, &md_softc_list, list) {
 			if (i < MDNPAD - 1)
-				mdio->md_pad[i++] = sc->unit;
+				mdio->md_pad[i] = sc->unit;
+			i++;
 		}
 		mdio->md_pad[MIN(i, MDNPAD - 1)] = -1;
 		mdio->md_pad[0] = i - 1;
