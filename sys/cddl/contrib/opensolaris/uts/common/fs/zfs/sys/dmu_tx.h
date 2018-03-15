@@ -66,14 +66,14 @@ struct dmu_tx {
 	/* placeholder for syncing context, doesn't need specific holds */
 	boolean_t tx_anyobj;
 
-	/* has this transaction already been delayed? */
-	boolean_t tx_waited;
-
 	/* time this transaction was created */
 	hrtime_t tx_start;
 
 	/* need to wait for sufficient dirty space */
 	boolean_t tx_wait_dirty;
+
+	/* has this transaction already been delayed? */
+	boolean_t tx_dirty_delayed;
 
 	int tx_err;
 #ifdef ZFS_DEBUG
@@ -124,7 +124,7 @@ typedef struct dmu_tx_callback {
  * These routines are defined in dmu.h, and are called by the user.
  */
 dmu_tx_t *dmu_tx_create(objset_t *dd);
-int dmu_tx_assign(dmu_tx_t *tx, txg_how_t txg_how);
+int dmu_tx_assign(dmu_tx_t *tx, uint64_t txg_how);
 void dmu_tx_commit(dmu_tx_t *tx);
 void dmu_tx_abort(dmu_tx_t *tx);
 uint64_t dmu_tx_get_txg(dmu_tx_t *tx);
