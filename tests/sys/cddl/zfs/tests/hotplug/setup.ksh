@@ -31,5 +31,6 @@
 
 . $STF_SUITE/tests/hotplug/hotplug.kshlib
 
+log_must destroy_gnops $ALL_DISKS
 log_must create_gnops $ALL_DISKS
 log_pass
