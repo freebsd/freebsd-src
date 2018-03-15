@@ -327,8 +327,8 @@ unhandled:
 		return (EINVAL);
 	}
 	/*
-	 * Free sessions goes first, so if first session is used, we need to
-	 * allocate one.
+	 * Free sessions are inserted at the head of the list.  So if the first
+	 * session is used, none are free and we must allocate a new one.
 	 */
 	ses = TAILQ_FIRST(&sc->sessions);
 	if (ses == NULL || ses->used) {
@@ -403,11 +403,13 @@ aesni_freesession(device_t dev, uint64_t tid)
 static int
 aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 {
-	struct aesni_softc *sc = device_get_softc(dev);
-	struct aesni_session *ses = NULL;
+	struct aesni_softc *sc;
+	struct aesni_session *ses;
 	struct cryptodesc *crd, *enccrd, *authcrd;
 	int error, needauth;
 
+	sc = device_get_softc(dev);
+	ses = NULL;
 	error = 0;
 	enccrd = NULL;
 	authcrd = NULL;
@@ -538,7 +540,7 @@ static device_method_t aesni_methods[] = {
 	DEVMETHOD(cryptodev_freesession, aesni_freesession),
 	DEVMETHOD(cryptodev_process, aesni_process),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t aesni_driver = {
