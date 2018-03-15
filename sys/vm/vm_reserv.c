@@ -593,7 +593,7 @@ vm_reserv_extend_contig(int req, vm_object_t object, vm_pindex_t pindex,
 	}
 	for (i = 0; i < npages; i++)
 		vm_reserv_populate(rv, index + i);
-	vm_domain_freecnt_adj(vmd, -npages);
+	vm_domain_freecnt_dec(vmd, npages);
 out:
 	vm_domain_free_unlock(vmd);
 	return (m);
@@ -789,7 +789,7 @@ vm_reserv_extend(int req, vm_object_t object, vm_pindex_t pindex, int domain,
 	struct vm_domain *vmd;
 	vm_page_t m, msucc;
 	vm_reserv_t rv;
-	int index, free_count;
+	int index;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
@@ -822,13 +822,9 @@ vm_reserv_extend(int req, vm_object_t object, vm_pindex_t pindex, int domain,
 		m = NULL;
 	if (m != NULL) {
 		vm_reserv_populate(rv, index);
-		free_count = vm_domain_freecnt_adj(vmd, -1);
-	} else
-		free_count = vmd->vmd_free_count;
+		vm_domain_freecnt_dec(vmd, 1);
+	}
 	vm_domain_free_unlock(vmd);
-
-	if (vm_paging_needed(vmd, free_count))
-		pagedaemon_wakeup(domain);
 
 	return (m);
 }
