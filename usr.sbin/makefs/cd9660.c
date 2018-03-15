@@ -1,4 +1,4 @@
-/*	$NetBSD: cd9660.c,v 1.31 2011/08/06 23:25:19 christos Exp $	*/
+/*	$NetBSD: cd9660.c,v 1.32 2011/08/23 17:09:11 christos Exp $	*/
 
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-4-Clause
@@ -1624,6 +1624,7 @@ cd9660_level1_convert_filename(const char *oldname, char *newname, int is_file)
 			if (diskStructure.archimedes_enabled &&
 			    *oldname == ',' && strlen(oldname) == 4)
 				break;
+
 			/* Enforce 12.3 / 8 */
 			if (namelen == 8 && !found_ext)
 				break;
@@ -1631,7 +1632,7 @@ cd9660_level1_convert_filename(const char *oldname, char *newname, int is_file)
 			if (islower((unsigned char)*oldname))
 				*newname++ = toupper((unsigned char)*oldname);
 			else if (isupper((unsigned char)*oldname)
-				    || isdigit((unsigned char)*oldname))
+			    || isdigit((unsigned char)*oldname))
 				*newname++ = *oldname;
 			else
 				*newname++ = '_';
@@ -1641,7 +1642,7 @@ cd9660_level1_convert_filename(const char *oldname, char *newname, int is_file)
 			else
 				namelen++;
 		}
-		oldname ++;
+		oldname++;
 	}
 	if (is_file) {
 		if (!found_ext && !diskStructure.omit_trailing_period)
