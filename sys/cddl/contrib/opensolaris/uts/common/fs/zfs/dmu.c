@@ -1518,6 +1518,188 @@ dmu_write_pages(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 	dmu_buf_rele_array(dbp, numbufs, FTAG);
 	return (err);
 }
+
+int
+dmu_read_pages(objset_t *os, uint64_t object, vm_page_t *ma, int count,
+    int *rbehind, int *rahead, int last_size)
+{
+	struct sf_buf *sf;
+	vm_object_t vmobj;
+	vm_page_t m;
+	dmu_buf_t **dbp;
+	dmu_buf_t *db;
+	caddr_t va;
+	int numbufs, i;
+	int bufoff, pgoff, tocpy;
+	int mi, di;
+	int err;
+
+	ASSERT3U(ma[0]->pindex + count - 1, ==, ma[count - 1]->pindex);
+	ASSERT(last_size <= PAGE_SIZE);
+
+	err = dmu_buf_hold_array(os, object, IDX_TO_OFF(ma[0]->pindex),
+	    IDX_TO_OFF(count - 1) + last_size, TRUE, FTAG, &numbufs, &dbp);
+	if (err != 0)
+		return (err);
+
+#ifdef DEBUG
+	IMPLY(last_size < PAGE_SIZE, *rahead == 0);
+	if (dbp[0]->db_offset != 0 || numbufs > 1) {
+		for (i = 0; i < numbufs; i++) {
+			ASSERT(ISP2(dbp[i]->db_size));
+			ASSERT((dbp[i]->db_offset % dbp[i]->db_size) == 0);
+			ASSERT3U(dbp[i]->db_size, ==, dbp[0]->db_size);
+		}
+	}
+#endif
+
+	vmobj = ma[0]->object;
+	zfs_vmobject_wlock(vmobj);
+
+	db = dbp[0];
+	for (i = 0; i < *rbehind; i++) {
+		m = vm_page_grab(vmobj, ma[0]->pindex - 1 - i,
+		    VM_ALLOC_NORMAL | VM_ALLOC_NOWAIT | VM_ALLOC_NOBUSY);
+		if (m == NULL)
+			break;
+		if (m->valid != 0) {
+			ASSERT3U(m->valid, ==, VM_PAGE_BITS_ALL);
+			break;
+		}
+		ASSERT(m->dirty == 0);
+		ASSERT(!pmap_page_is_mapped(m));
+
+		ASSERT(db->db_size > PAGE_SIZE);
+		bufoff = IDX_TO_OFF(m->pindex) % db->db_size;
+		va = zfs_map_page(m, &sf);
+		bcopy((char *)db->db_data + bufoff, va, PAGESIZE);
+		zfs_unmap_page(sf);
+		m->valid = VM_PAGE_BITS_ALL;
+		vm_page_lock(m);
+		if ((m->busy_lock & VPB_BIT_WAITERS) != 0)
+			vm_page_activate(m);
+		else
+			vm_page_deactivate(m);
+		vm_page_unlock(m);
+	}
+	*rbehind = i;
+
+	bufoff = IDX_TO_OFF(ma[0]->pindex) % db->db_size;
+	pgoff = 0;
+	for (mi = 0, di = 0; mi < count && di < numbufs; ) {
+		if (pgoff == 0) {
+			m = ma[mi];
+			vm_page_assert_xbusied(m);
+			ASSERT(m->valid == 0);
+			ASSERT(m->dirty == 0);
+			ASSERT(!pmap_page_is_mapped(m));
+			va = zfs_map_page(m, &sf);
+		}
+		if (bufoff == 0)
+			db = dbp[di];
+
+		ASSERT3U(IDX_TO_OFF(m->pindex) + pgoff, ==,
+		    db->db_offset + bufoff);
+
+		/*
+		 * We do not need to clamp the copy size by the file
+		 * size as the last block is zero-filled beyond the
+		 * end of file anyway.
+		 */
+		tocpy = MIN(db->db_size - bufoff, PAGESIZE - pgoff);
+		bcopy((char *)db->db_data + bufoff, va + pgoff, tocpy);
+
+		pgoff += tocpy;
+		ASSERT(pgoff <= PAGESIZE);
+		if (pgoff == PAGESIZE) {
+			zfs_unmap_page(sf);
+			m->valid = VM_PAGE_BITS_ALL;
+			ASSERT(mi < count);
+			mi++;
+			pgoff = 0;
+		}
+
+		bufoff += tocpy;
+		ASSERT(bufoff <= db->db_size);
+		if (bufoff == db->db_size) {
+			ASSERT(di < numbufs);
+			di++;
+			bufoff = 0;
+		}
+	}
+
+#ifdef DEBUG
+	/*
+	 * Three possibilities:
+	 * - last requested page ends at a buffer boundary and , thus,
+	 *   all pages and buffers have been iterated;
+	 * - all requested pages are filled, but the last buffer
+	 *   has not been exhausted;
+	 *   the read-ahead is possible only in this case;
+	 * - all buffers have been read, but the last page has not been
+	 *   fully filled;
+	 *   this is only possible if the file has only a single buffer
+	 *   with a size that is not a multiple of the page size.
+	 */
+	if (mi == count) {
+		ASSERT(di >= numbufs - 1);
+		IMPLY(*rahead != 0, di == numbufs - 1);
+		IMPLY(*rahead != 0, bufoff != 0);
+		ASSERT(pgoff == 0);
+	}
+	if (di == numbufs) {
+		ASSERT(mi >= count - 1);
+		ASSERT(*rahead == 0);
+		IMPLY(pgoff == 0, mi == count);
+		if (pgoff != 0) {
+			ASSERT(mi == count - 1);
+			ASSERT((dbp[0]->db_size & PAGE_MASK) != 0);
+		}
+	}
+#endif
+	if (pgoff != 0) {
+		bzero(va + pgoff, PAGESIZE - pgoff);
+		zfs_unmap_page(sf);
+		m->valid = VM_PAGE_BITS_ALL;
+	}
+
+	for (i = 0; i < *rahead; i++) {
+		m = vm_page_grab(vmobj, ma[count - 1]->pindex + 1 + i,
+		    VM_ALLOC_NORMAL | VM_ALLOC_NOWAIT | VM_ALLOC_NOBUSY);
+		if (m == NULL)
+			break;
+		if (m->valid != 0) {
+			ASSERT3U(m->valid, ==, VM_PAGE_BITS_ALL);
+			break;
+		}
+		ASSERT(m->dirty == 0);
+		ASSERT(!pmap_page_is_mapped(m));
+
+		ASSERT(db->db_size > PAGE_SIZE);
+		bufoff = IDX_TO_OFF(m->pindex) % db->db_size;
+		tocpy = MIN(db->db_size - bufoff, PAGESIZE);
+		va = zfs_map_page(m, &sf);
+		bcopy((char *)db->db_data + bufoff, va, tocpy);
+		if (tocpy < PAGESIZE) {
+			ASSERT(i == *rahead - 1);
+			ASSERT((db->db_size & PAGE_MASK) != 0);
+			bzero(va + tocpy, PAGESIZE - tocpy);
+		}
+		zfs_unmap_page(sf);
+		m->valid = VM_PAGE_BITS_ALL;
+		vm_page_lock(m);
+		if ((m->busy_lock & VPB_BIT_WAITERS) != 0)
+			vm_page_activate(m);
+		else
+			vm_page_deactivate(m);
+		vm_page_unlock(m);
+	}
+	*rahead = i;
+	zfs_vmobject_wunlock(vmobj);
+
+	dmu_buf_rele_array(dbp, numbufs, FTAG);
+	return (0);
+}
 #endif	/* illumos */
 #endif	/* _KERNEL */
 
