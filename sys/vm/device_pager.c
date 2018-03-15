@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/rwlock.h>
 #include <sys/sx.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
