@@ -39,27 +39,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/efi.h>
 #include <sys/efiio.h>
 
-static d_open_t efidev_open;
 static d_ioctl_t efidev_ioctl;
 
 static struct cdevsw efi_cdevsw = {
 	.d_name = "efi",
 	.d_version = D_VERSION,
-	.d_open = efidev_open,
 	.d_ioctl = efidev_ioctl,
 };
 	
-static int
-efidev_open(struct cdev *dev __unused, int oflags __unused,
-    int devtype __unused, struct thread *td __unused)
-{
-	/*
-	 * Only return success when we have an actual runtime to call.
-	 */
-
-	return efi_rt_ok();
-}
-
 static int
 efidev_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
     int flags __unused, struct thread *td __unused)
@@ -195,6 +182,11 @@ efidev_modevents(module_t m, int event, void *arg __unused)
 
 	switch (event) {
 	case MOD_LOAD:
+		/*
+		 * If we have no efi environment, then don't create the device.
+		 */
+		if (efi_rt_ok() != 0)
+			return (0);
 		make_dev_args_init(&mda);
 		mda.mda_flags = MAKEDEV_WAITOK | MAKEDEV_CHECKNAME;
 		mda.mda_devsw = &efi_cdevsw;
