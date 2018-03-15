@@ -144,6 +144,14 @@ include		: INCLUDE STRING			{
 		;
 
 varset		: STRING '=' STRING			{
+			char *s = $1;
+			while (*s++) {
+				if (isspace((unsigned char) *s)) {
+					yyerror("macro name cannot contain "
+					  "whitespace");
+					YYERROR;
+				}
+			}
 			if (symset($1, $3, 0) == -1)
 				fatal("cannot store variable");
 			free($1);
