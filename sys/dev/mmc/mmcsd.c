@@ -914,6 +914,16 @@ mmcsd_ioctl_cmd(struct mmcsd_part *part, struct mmc_ioc_cmd *mic, int fflag)
 		default:
 			break;
 		}
+		/*
+		 * No partition switching in userland; it's almost impossible
+		 * to recover from that, especially if things go wrong.
+		 */
+		if (cmd.opcode == MMC_SWITCH_FUNC && dp != NULL &&
+		    (((uint8_t *)dp)[EXT_CSD_PART_CONFIG] &
+		    EXT_CSD_PART_CONFIG_ACC_MASK) != part->type) {
+			err = EINVAL;
+			goto out;
+		}
 	}
 	dev = sc->dev;
 	mmcbus = sc->mmcbus;
@@ -934,7 +944,7 @@ mmcsd_ioctl_cmd(struct mmcsd_part *part, struct mmc_ioc_cmd *mic, int fflag)
 	if (part->type == EXT_CSD_PART_CONFIG_ACC_RPMB) {
 		/*
 		 * If the request went to the RPMB partition, try to ensure
-		 * that the command actually has completed ...
+		 * that the command actually has completed.
 		 */
 		retries = MMCSD_CMD_RETRIES;
 		do {
@@ -946,13 +956,6 @@ mmcsd_ioctl_cmd(struct mmcsd_part *part, struct mmc_ioc_cmd *mic, int fflag)
 				break;
 			DELAY(1000);
 		} while (retries-- > 0);
-
-switch_back:
-		/* ... and always switch back to the default partition. */
-		err = mmcsd_switch_part(mmcbus, dev, rca,
-		    EXT_CSD_PART_CONFIG_ACC_DEFAULT);
-		if (err != MMC_ERR_NONE)
-			goto release;
 	}
 	/*
 	 * If EXT_CSD was changed, our copy is outdated now.  Specifically,
@@ -961,6 +964,17 @@ switch_back:
 	 */
 	if (cmd.opcode == MMC_SWITCH_FUNC) {
 		err = mmc_send_ext_csd(mmcbus, dev, sc->ext_csd);
+		if (err != MMC_ERR_NONE)
+			goto release;
+	}
+switch_back:
+	if (part->type == EXT_CSD_PART_CONFIG_ACC_RPMB) {
+		/*
+		 * If the request went to the RPMB partition, always switch
+		 * back to the default partition (see mmcsd_switch_part()).
+		 */
+		err = mmcsd_switch_part(mmcbus, dev, rca,
+		    EXT_CSD_PART_CONFIG_ACC_DEFAULT);
 		if (err != MMC_ERR_NONE)
 			goto release;
 	}
