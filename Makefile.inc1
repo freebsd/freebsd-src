@@ -1371,11 +1371,9 @@ ${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/c
 ${_bt}-usr.bin/clang/tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
 .endif
 
-# dtrace tools are required for older bootstrap env and cross-build
-.if ${MK_CDDL} != "no" && \
-    ((${BOOTSTRAPPING} < 1000034 && \
-          !(${BOOTSTRAPPING} >= 901505 && ${BOOTSTRAPPING} < 999999)) \
-      || (${MACHINE} != ${TARGET} || ${MACHINE_ARCH} != ${TARGET_ARCH}))
+# Rebuild ctfconvert and ctfmerge to avoid difficult-to-diagnose failures
+# resulting from missing bug fixes or ELF Toolchain updates.
+.if ${MK_CDDL} != "no"
 _dtrace_tools= cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
 
