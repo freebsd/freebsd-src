@@ -1438,9 +1438,9 @@ put_nvlist(zfs_cmd_t *zc, nvlist_t *nvl)
 }
 
 int
-getzfsvfs_impl(objset_t *os, zfsvfs_t **zfvp)
+getzfsvfs_impl(objset_t *os, vfs_t **vfsp)
 {
-	vfs_t *vfsp;
+	zfsvfs_t *zfvp;
 	int error = 0;
 
 	if (dmu_objset_type(os) != DMU_OST_ZFS) {
@@ -1448,9 +1448,10 @@ getzfsvfs_impl(objset_t *os, zfsvfs_t **zfvp)
 	}
 
 	mutex_enter(&os->os_user_ptr_lock);
-	*zfvp = dmu_objset_get_user(os);
-	if (*zfvp) {
-		vfs_ref((*zfvp)->z_vfs);
+	zfvp = dmu_objset_get_user(os);
+	if (zfvp) {
+		*vfsp = zfvp->z_vfs;
+		vfs_ref(zfvp->z_vfs);
 	} else {
 		error = SET_ERROR(ESRCH);
 	}
@@ -1458,57 +1459,31 @@ getzfsvfs_impl(objset_t *os, zfsvfs_t **zfvp)
 	return (error);
 }
 
-#ifdef illumos
 int
 getzfsvfs(const char *dsname, zfsvfs_t **zfvp)
 {
 	objset_t *os;
+	vfs_t *vfsp;
 	int error;
 
 	error = dmu_objset_hold(dsname, FTAG, &os);
 	if (error != 0)
 		return (error);
-
-	error = getzfsvfs_impl(os, zfvp);
+	error = getzfsvfs_impl(os, &vfsp);
 	dmu_objset_rele(os, FTAG);
-	return (error);
-}
-
-#else
-
-static int
-getzfsvfs_ref(const char *dsname, zfsvfs_t **zfvp)
-{
-	objset_t *os;
-	int error;
-
-	error = dmu_objset_hold(dsname, FTAG, &os);
 	if (error != 0)
 		return (error);
 
-	error = getzfsvfs_impl(os, zfvp);
-	dmu_objset_rele(os, FTAG);
-	return (error);
-}
-
-int
-getzfsvfs(const char *dsname, zfsvfs_t **zfvp)
-{
-	objset_t *os;
-	int error;
-
-	error = getzfsvfs_ref(dsname, zfvp);
-	if (error != 0)
-		return (error);
-	error = vfs_busy((*zfvp)->z_vfs, 0);
-	vfs_rel((*zfvp)->z_vfs);
+	error = vfs_busy(vfsp, 0);
+	vfs_rel(vfsp);
 	if (error != 0) {
 		*zfvp = NULL;
 		error = SET_ERROR(ESRCH);
+	} else {
+		*zfvp = vfsp->vfs_data;
 	}
 	return (error);
 }
-#endif
 
 /*
  * Find a zfsvfs_t for a mounted filesystem, or create our own, in which
@@ -3572,7 +3547,7 @@ zfs_unmount_snap(const char *snapname)
 	if (strchr(snapname, '@') == NULL)
 		return;
 
-	int err = getzfsvfs_ref(snapname, &zfsvfs);
+	int err = getzfsvfs(snapname, &zfsvfs);
 	if (err != 0) {
 		ASSERT3P(zfsvfs, ==, NULL);
 		return;
@@ -3594,6 +3569,8 @@ zfs_unmount_snap(const char *snapname)
 #ifdef illumos
 	(void) dounmount(vfsp, MS_FORCE, kcred);
 #else
+	vfs_ref(vfsp);
+	vfs_unbusy(vfsp);
 	(void) dounmount(vfsp, MS_FORCE, curthread);
 #endif
 }
