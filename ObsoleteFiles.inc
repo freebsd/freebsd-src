@@ -38,6 +38,12 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180311: remove sys/sys/i386/include/pcaudioio.h
+.if ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/machine/pcaudioio.h
+.endif
+# 20180310: remove sys/sys/dataacq.h
+OLD_FILES+=usr/include/sys/dataacq.h
 # 20180306: remove DTrace scripts made obsolete by dwatch(1)
 OLD_FILES+=usr/share/dtrace/watch_execve
 OLD_FILES+=usr/share/dtrace/watch_kill
