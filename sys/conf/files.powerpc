@@ -186,8 +186,8 @@ powerpc/powermac/vcoregpio.c	optional	powermac
 powerpc/powernv/opal.c		optional	powernv
 powerpc/powernv/opal_console.c	optional	powernv
 powerpc/powernv/opal_dev.c	optional	powernv
-powerpc/powernv/opal_i2c.c	optional	iicbus powernv
-powerpc/powernv/opal_i2cm.c	optional	iicbus powernv
+powerpc/powernv/opal_i2c.c	optional	iicbus fdt powernv
+powerpc/powernv/opal_i2cm.c	optional	iicbus fdt powernv
 powerpc/powernv/opal_pci.c	optional	powernv pci
 powerpc/powernv/opalcall.S	optional	powernv
 powerpc/powernv/platform_powernv.c optional	powernv
