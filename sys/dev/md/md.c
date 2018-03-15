@@ -1607,12 +1607,252 @@ mdcreate_null(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 }
 
 static int
-xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
+kern_mdattach_locked(struct thread *td, struct md_ioctl *mdio)
+{
+	struct md_s *sc;
+	unsigned sectsize;
+	int error, i;
+
+	sx_assert(&md_sx, SA_XLOCKED);
+
+	switch (mdio->md_type) {
+	case MD_MALLOC:
+	case MD_PRELOAD:
+	case MD_VNODE:
+	case MD_SWAP:
+	case MD_NULL:
+		break;
+	default:
+		return (EINVAL);
+	}
+	if (mdio->md_sectorsize == 0)
+		sectsize = DEV_BSIZE;
+	else
+		sectsize = mdio->md_sectorsize;
+	if (sectsize > MAXPHYS || mdio->md_mediasize < sectsize)
+		return (EINVAL);
+	if (mdio->md_options & MD_AUTOUNIT)
+		sc = mdnew(-1, &error, mdio->md_type);
+	else {
+		if (mdio->md_unit > INT_MAX)
+			return (EINVAL);
+		sc = mdnew(mdio->md_unit, &error, mdio->md_type);
+	}
+	if (sc == NULL)
+		return (error);
+	if (mdio->md_label != NULL)
+		error = copyinstr(mdio->md_label, sc->label,
+		    sizeof(sc->label), NULL);
+	if (error != 0)
+		goto err_after_new;
+	if (mdio->md_options & MD_AUTOUNIT)
+		mdio->md_unit = sc->unit;
+	sc->mediasize = mdio->md_mediasize;
+	sc->sectorsize = sectsize;
+	error = EDOOFUS;
+	switch (sc->type) {
+	case MD_MALLOC:
+		sc->start = mdstart_malloc;
+		error = mdcreate_malloc(sc, mdio);
+		break;
+	case MD_PRELOAD:
+		/*
+		 * We disallow attaching preloaded memory disks via
+		 * ioctl. Preloaded memory disks are automatically
+		 * attached in g_md_init().
+		 */
+		error = EOPNOTSUPP;
+		break;
+	case MD_VNODE:
+		sc->start = mdstart_vnode;
+		error = mdcreate_vnode(sc, mdio, td);
+		break;
+	case MD_SWAP:
+		sc->start = mdstart_swap;
+		error = mdcreate_swap(sc, mdio, td);
+		break;
+	case MD_NULL:
+		sc->start = mdstart_null;
+		error = mdcreate_null(sc, mdio, td);
+		break;
+	}
+err_after_new:
+	if (error != 0) {
+		mddestroy(sc, td);
+		return (error);
+	}
+
+	/* Prune off any residual fractional sector */
+	i = sc->mediasize % sc->sectorsize;
+	sc->mediasize -= i;
+
+	mdinit(sc);
+	return (0);
+}
+
+static int
+kern_mdattach(struct thread *td, struct md_ioctl *mdio)
+{
+	int error;
+
+	sx_xlock(&md_sx);
+	error = kern_mdattach_locked(td, mdio);
+	sx_xunlock(&md_sx);
+	return (error);
+}
+
+static int
+kern_mddetach_locked(struct thread *td, struct md_ioctl *mdio)
+{
+	struct md_s *sc;
+
+	sx_assert(&md_sx, SA_XLOCKED);
+
+	if (mdio->md_mediasize != 0 ||
+	    (mdio->md_options & ~MD_FORCE) != 0)
+		return (EINVAL);
+
+	sc = mdfind(mdio->md_unit);
+	if (sc == NULL)
+		return (ENOENT);
+	if (sc->opencount != 0 && !(sc->flags & MD_FORCE) &&
+	    !(mdio->md_options & MD_FORCE))
+		return (EBUSY);
+	return (mddestroy(sc, td));
+}
+
+static int
+kern_mddetach(struct thread *td, struct md_ioctl *mdio)
+{
+	int error;
+
+	sx_xlock(&md_sx);
+	error = kern_mddetach_locked(td, mdio);
+	sx_xunlock(&md_sx);
+	return (error);
+}
+
+static int
+kern_mdresize_locked(struct md_ioctl *mdio)
+{
+	struct md_s *sc;
+
+	sx_assert(&md_sx, SA_XLOCKED);
+
+	if ((mdio->md_options & ~(MD_FORCE | MD_RESERVE)) != 0)
+		return (EINVAL);
+
+	sc = mdfind(mdio->md_unit);
+	if (sc == NULL)
+		return (ENOENT);
+	if (mdio->md_mediasize < sc->sectorsize)
+		return (EINVAL);
+	if (mdio->md_mediasize < sc->mediasize &&
+	    !(sc->flags & MD_FORCE) &&
+	    !(mdio->md_options & MD_FORCE))
+		return (EBUSY);
+	return (mdresize(sc, mdio));
+}
+
+static int
+kern_mdresize(struct md_ioctl *mdio)
+{
+	int error;
+
+	sx_xlock(&md_sx);
+	error = kern_mdresize_locked(mdio);
+	sx_xunlock(&md_sx);
+	return (error);
+}
+
+static int
+kern_mdquery_locked(struct md_ioctl *mdio)
+{
+	struct md_s *sc;
+	int error;
+
+	sx_assert(&md_sx, SA_XLOCKED);
+
+	sc = mdfind(mdio->md_unit);
+	if (sc == NULL)
+		return (ENOENT);
+	mdio->md_type = sc->type;
+	mdio->md_options = sc->flags;
+	mdio->md_mediasize = sc->mediasize;
+	mdio->md_sectorsize = sc->sectorsize;
+	error = 0;
+	if (mdio->md_label != NULL) {
+		error = copyout(sc->label, mdio->md_label,
+		    strlen(sc->label) + 1);
+		if (error != 0)
+			return (error);
+	}
+	if (sc->type == MD_VNODE ||
+	    (sc->type == MD_PRELOAD && mdio->md_file != NULL))
+		error = copyout(sc->file, mdio->md_file,
+		    strlen(sc->file) + 1);
+	return (error);
+}
+
+static int
+kern_mdquery(struct md_ioctl *mdio)
+{
+	int error;
+
+	sx_xlock(&md_sx);
+	error = kern_mdquery_locked(mdio);
+	sx_xunlock(&md_sx);
+	return (error);
+}
+
+static int
+kern_mdlist_locked(struct md_ioctl *mdio)
+{
+	struct md_s *sc;
+	int i;
+
+	sx_assert(&md_sx, SA_XLOCKED);
+
+	/*
+	 * Write the number of md devices to mdio->md_pad[0].
+	 * Write the unit number of the first (MDNPAD - 2) units
+	 * to mdio->md_pad[1::(MDNPAD - 2)] and terminate the
+	 * list with -1.
+	 *
+	 * XXX: There is currently no mechanism to retrieve unit
+	 * numbers for more than (MDNPAD - 2) units.
+	 *
+	 * XXX: Due to the use of LIST_INSERT_HEAD in mdnew(), the
+	 * list of visible unit numbers not stable.
+	 */
+	i = 1;
+	LIST_FOREACH(sc, &md_softc_list, list) {
+		if (i < MDNPAD - 1)
+			mdio->md_pad[i] = sc->unit;
+		i++;
+	}
+	mdio->md_pad[MIN(i, MDNPAD - 1)] = -1;
+	mdio->md_pad[0] = i - 1;
+	return (0);
+}
+
+static int
+kern_mdlist(struct md_ioctl *mdio)
+{
+	int error;
+
+	sx_xlock(&md_sx);
+	error = kern_mdlist_locked(mdio);
+	sx_xunlock(&md_sx);
+	return (error);
+}
+
+static int
+mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
+    struct thread *td)
 {
 	struct md_ioctl *mdio;
-	struct md_s *sc;
-	int error, i;
-	unsigned sectsize;
+	int error;
 
 	if (md_debug)
 		printf("mdctlioctl(%s %lx %p %x %p)\n",
@@ -1632,158 +1872,24 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 	error = 0;
 	switch (cmd) {
 	case MDIOCATTACH:
-		switch (mdio->md_type) {
-		case MD_MALLOC:
-		case MD_PRELOAD:
-		case MD_VNODE:
-		case MD_SWAP:
-		case MD_NULL:
-			break;
-		default:
-			return (EINVAL);
-		}
-		if (mdio->md_sectorsize == 0)
-			sectsize = DEV_BSIZE;
-		else
-			sectsize = mdio->md_sectorsize;
-		if (sectsize > MAXPHYS || mdio->md_mediasize < sectsize)
-			return (EINVAL);
-		if (mdio->md_options & MD_AUTOUNIT)
-			sc = mdnew(-1, &error, mdio->md_type);
-		else {
-			if (mdio->md_unit > INT_MAX)
-				return (EINVAL);
-			sc = mdnew(mdio->md_unit, &error, mdio->md_type);
-		}
-		if (sc == NULL)
-			return (error);
-		if (mdio->md_label != NULL)
-			error = copyinstr(mdio->md_label, sc->label,
-			    sizeof(sc->label), NULL);
-		if (error != 0)
-			goto err_after_new;
-		if (mdio->md_options & MD_AUTOUNIT)
-			mdio->md_unit = sc->unit;
-		sc->mediasize = mdio->md_mediasize;
-		sc->sectorsize = sectsize;
-		error = EDOOFUS;
-		switch (sc->type) {
-		case MD_MALLOC:
-			sc->start = mdstart_malloc;
-			error = mdcreate_malloc(sc, mdio);
-			break;
-		case MD_PRELOAD:
-			/*
-			 * We disallow attaching preloaded memory disks via
-			 * ioctl. Preloaded memory disks are automatically
-			 * attached in g_md_init().
-			 */
-			error = EOPNOTSUPP;
-			break;
-		case MD_VNODE:
-			sc->start = mdstart_vnode;
-			error = mdcreate_vnode(sc, mdio, td);
-			break;
-		case MD_SWAP:
-			sc->start = mdstart_swap;
-			error = mdcreate_swap(sc, mdio, td);
-			break;
-		case MD_NULL:
-			sc->start = mdstart_null;
-			error = mdcreate_null(sc, mdio, td);
-			break;
-		}
-err_after_new:
-		if (error != 0) {
-			mddestroy(sc, td);
-			return (error);
-		}
-
-		/* Prune off any residual fractional sector */
-		i = sc->mediasize % sc->sectorsize;
-		sc->mediasize -= i;
-
-		mdinit(sc);
-		return (0);
+		error = kern_mdattach(td, mdio);
+		break;
 	case MDIOCDETACH:
-		if (mdio->md_mediasize != 0 ||
-		    (mdio->md_options & ~MD_FORCE) != 0)
-			return (EINVAL);
-
-		sc = mdfind(mdio->md_unit);
-		if (sc == NULL)
-			return (ENOENT);
-		if (sc->opencount != 0 && !(sc->flags & MD_FORCE) &&
-		    !(mdio->md_options & MD_FORCE))
-			return (EBUSY);
-		return (mddestroy(sc, td));
+		error = kern_mddetach(td, mdio);
+		break;
 	case MDIOCRESIZE:
-		if ((mdio->md_options & ~(MD_FORCE | MD_RESERVE)) != 0)
-			return (EINVAL);
-
-		sc = mdfind(mdio->md_unit);
-		if (sc == NULL)
-			return (ENOENT);
-		if (mdio->md_mediasize < sc->sectorsize)
-			return (EINVAL);
-		if (mdio->md_mediasize < sc->mediasize &&
-		    !(sc->flags & MD_FORCE) &&
-		    !(mdio->md_options & MD_FORCE))
-			return (EBUSY);
-		return (mdresize(sc, mdio));
+		error = kern_mdresize(mdio);
+		break;
 	case MDIOCQUERY:
-		sc = mdfind(mdio->md_unit);
-		if (sc == NULL)
-			return (ENOENT);
-		mdio->md_type = sc->type;
-		mdio->md_options = sc->flags;
-		mdio->md_mediasize = sc->mediasize;
-		mdio->md_sectorsize = sc->sectorsize;
-		error = 0;
-		if (mdio->md_label != NULL) {
-			error = copyout(sc->label, mdio->md_label,
-			    strlen(sc->label) + 1);
-		}
-		if (sc->type == MD_VNODE ||
-		    (sc->type == MD_PRELOAD && mdio->md_file != NULL))
-			error = copyout(sc->file, mdio->md_file,
-			    strlen(sc->file) + 1);
-		return (error);
+		error = kern_mdquery(mdio);
+		break;
 	case MDIOCLIST:
-		/*
-		 * Write the number of md devices to mdio->md_pad[0].
-		 * Write the unit number of the first (MDNPAD - 2) units
-		 * to mdio->md_pad[1::(MDNPAD - 2)] and terminate the
-		 * list with -1.
-		 *
-		 * XXX: There is currently no mechanism to retrieve unit
-		 * numbers for more than (MDNPAD - 2) units.
-		 *
-		 * XXX: Due to the use of LIST_INSERT_HEAD in mdnew(), the
-		 * list of visible unit numbers not stable.
-		 */
-		i = 1;
-		LIST_FOREACH(sc, &md_softc_list, list) {
-			if (i < MDNPAD - 1)
-				mdio->md_pad[i] = sc->unit;
-			i++;
-		}
-		mdio->md_pad[MIN(i, MDNPAD - 1)] = -1;
-		mdio->md_pad[0] = i - 1;
-		return (0);
+		error = kern_mdlist(mdio);
+		break;
 	default:
-		return (ENOIOCTL);
+		error = ENOIOCTL;
 	};
-}
 
-static int
-mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
-{
-	int error;
-
-	sx_xlock(&md_sx);
-	error = xmdctlioctl(dev, cmd, addr, flags, td);
-	sx_xunlock(&md_sx);
 	return (error);
 }
 
