@@ -409,7 +409,6 @@ again:
 			err(1, "write failed");
 		}
 	}
-	close(fd);
 	fprintf(stderr, "\n");
 send_end:
 	gettimeofday(&end, NULL);
@@ -417,4 +416,5 @@ send_end:
 			+ (end.tv_usec - start.tv_usec) * 1e-6;
 	fprintf(stderr, "%d frames, %.2f secs, %.2f frames/sec\n",
 			frames, rtime, frames/rtime);
+	close(fd);
 }
