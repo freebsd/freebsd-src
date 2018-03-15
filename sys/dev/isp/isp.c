@@ -876,6 +876,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			}
 		}
 	} else if (IS_26XX(isp)) {
+		isp_prt(isp, ISP_LOGDEBUG1, "loading firmware from flash");
 		MBSINIT(&mbs, MBOX_LOAD_FLASH_FIRMWARE, MBLOGALL, 5000000);
 		mbs.ibitm = 0x01;
 		mbs.obitm = 0x07;
@@ -913,7 +914,10 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 * we still need to (re)start it.
 	 */
 	MBSINIT(&mbs, MBOX_EXEC_FIRMWARE, MBLOGALL, 5000000);
-	if (IS_24XX(isp)) {
+	if (IS_26XX(isp)) {
+		mbs.param[1] = code_org >> 16;
+		mbs.param[2] = code_org;
+	} else if (IS_24XX(isp)) {
 		mbs.param[1] = code_org >> 16;
 		mbs.param[2] = code_org;
 		if (isp->isp_loaded_fw) {
@@ -954,7 +958,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 * Ask the chip for the current firmware version.
 	 * This should prove that the new firmware is working.
 	 */
-	MBSINIT(&mbs, MBOX_ABOUT_FIRMWARE, MBLOGALL, 0);
+	MBSINIT(&mbs, MBOX_ABOUT_FIRMWARE, MBLOGALL, 5000000);
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		return;
@@ -6739,7 +6743,7 @@ static const char *scsi_mbcmd_names[] = {
 static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
 	ISP_FC_OPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
-	ISP_FC_OPMAP_HALF(0x07, 0xff, 0x00, 0x03),	/* 0x02: MBOX_EXEC_FIRMWARE */
+	ISP_FC_OPMAP_HALF(0x07, 0xff, 0x00, 0x1f),	/* 0x02: MBOX_EXEC_FIRMWARE */
 	ISP_FC_OPMAP(0xdf, 0x01),	/* 0x03: MBOX_DUMP_RAM */
 	ISP_FC_OPMAP(0x07, 0x07),	/* 0x04: MBOX_WRITE_RAM_WORD */
 	ISP_FC_OPMAP(0x03, 0x07),	/* 0x05: MBOX_READ_RAM_WORD */
