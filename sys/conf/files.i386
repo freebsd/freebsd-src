@@ -88,6 +88,7 @@ compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
 compat/linux/linux_event.c	optional compat_linux
 compat/linux/linux_emul.c	optional compat_linux
+compat/linux/linux_errno.c	optional compat_linux
 compat/linux/linux_file.c	optional compat_linux
 compat/linux/linux_fork.c	optional compat_linux
 compat/linux/linux_futex.c	optional compat_linux
