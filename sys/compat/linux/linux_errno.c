@@ -28,14 +28,15 @@
  * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
 #include <sys/errno.h>
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
  * Reference:
  *   FreeBSD: src/sys/sys/errno.h
- *   Linux:   linux-2.6.17.8/include/asm-generic/errno-base.h
- *            linux-2.6.17.8/include/asm-generic/errno.h
+ *   Linux:   include/uapi/asm-generic/errno-base.h
+ *            include/uapi/asm-generic/errno.h
  */
 const int bsd_to_linux_errno_generic[ELAST + 1] = {
 	-0,
@@ -140,4 +141,11 @@ const int bsd_to_linux_errno_generic[ELAST + 1] = {
 	-72,
 	-67,
 	-71,
+	-1,	/* ENOTCAPABLE -> EPERM */
+	-1,	/* ECAPMODE -> EPERM */
+	-131,	/* ENOTRECOVERABLE */
+	-130,	/* EOWNERDEAD */
 };
+
+_Static_assert(ELAST == 96,
+    "missing errno entries in bsd_to_linux_errno_generic");
