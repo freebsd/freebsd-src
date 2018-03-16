@@ -9,6 +9,7 @@ SRCS=	imx_spi.c
 SRCS+=	\
 	bus_if.h \
 	device_if.h \
+	gpio_if.h \
 	ofw_bus_if.h \
 	opt_platform.h \
 	spibus_if.h \
