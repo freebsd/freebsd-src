@@ -130,8 +130,7 @@ POPL(struct vm86frame *vmf)
 }
 
 int
-vm86_emulate(vmf)
-	struct vm86frame *vmf;
+vm86_emulate(struct vm86frame *vmf)
 {
 	struct vm86_kernel *vm86;
 	caddr_t addr;
@@ -588,10 +587,7 @@ vm86_intcall(int intnum, struct vm86frame *vmf)
  * caller's cs:ip routine.  
  */
 int
-vm86_datacall(intnum, vmf, vmc)
-	int intnum;
-	struct vm86frame *vmf;
-	struct vm86context *vmc;
+vm86_datacall(int intnum, struct vm86frame *vmf, struct vm86context *vmc)
 {
 	pt_entry_t *pte = (pt_entry_t *)vm86paddr;
 	vm_paddr_t page;
@@ -636,11 +632,8 @@ vm86_getaddr(struct vm86context *vmc, u_short sel, u_short off)
 }
 
 int
-vm86_getptr(vmc, kva, sel, off)
-	struct vm86context *vmc;
-	vm_offset_t kva;
-	u_short *sel;
-	u_short *off;
+vm86_getptr(struct vm86context *vmc, vm_offset_t kva, u_short *sel,
+     u_short *off)
 {
 	int i;
 
@@ -655,9 +648,7 @@ vm86_getptr(vmc, kva, sel, off)
 }
 	
 int
-vm86_sysarch(td, args)
-	struct thread *td;
-	char *args;
+vm86_sysarch(struct thread *td, char *args)
 {
 	int error = 0;
 	struct i386_vm86_args ua;
