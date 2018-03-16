@@ -131,26 +131,6 @@ static bool	linux32_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static void	linux_vdso_install(void *param);
 static void	linux_vdso_deinstall(void *param);
 
-/*
- * Linux syscalls return negative errno's, we do positive and map them
- * Reference:
- *   FreeBSD: src/sys/sys/errno.h
- *   Linux:   linux-2.6.17.8/include/asm-generic/errno-base.h
- *            linux-2.6.17.8/include/asm-generic/errno.h
- */
-static int bsd_to_linux_errno[ELAST + 1] = {
-	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
-	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
-	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
-	-30, -31, -32, -33, -34, -11,-115,-114, -88, -89,
-	-90, -91, -92, -93, -94, -95, -96, -97, -98, -99,
-	-100,-101,-102,-103,-104,-105,-106,-107,-108,-109,
-	-110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
-	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
-	  -6,  -6, -43, -42, -75,-125, -84, -61, -16, -74,
-	 -72, -67, -71
-};
-
 #define LINUX_T_UNKNOWN  255
 static int _bsd_to_linux_trapcode[] = {
 	LINUX_T_UNKNOWN,	/* 0 */
@@ -973,7 +953,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_table	= linux32_sysent,
 	.sv_mask	= 0,
 	.sv_errsize	= ELAST + 1,
-	.sv_errtbl	= bsd_to_linux_errno,
+	.sv_errtbl	= bsd_to_linux_errno_generic,
 	.sv_transtrap	= translate_traps,
 	.sv_fixup	= elf_linux_fixup,
 	.sv_sendsig	= linux_sendsig,
