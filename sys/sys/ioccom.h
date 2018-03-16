@@ -61,6 +61,10 @@
 #define	_IOW(g,n,t)	_IOC(IOC_IN,	(g), (n), sizeof(t))
 /* this should be _IORW, but stdio got there first */
 #define	_IOWR(g,n,t)	_IOC(IOC_INOUT,	(g), (n), sizeof(t))
+/* Replace length/type in an ioctl command. */
+#define	_IOC_NEWLEN(ioc, len) \
+    (((~(IOCPARM_MASK << 16)) & (ioc)) | (((len) & IOCPARM_MASK) << 16))
+#define	_IOC_NEWTYPE(ioc, type)	_IOC_NEWLEN((ioc), sizeof(type))
 
 #ifdef _KERNEL
 
