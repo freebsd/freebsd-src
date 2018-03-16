@@ -93,6 +93,7 @@ delphij [label="Xin Li\ndelphij@FreeBSD.org\n2006/05/01"]
 demon [label="Dmitry Sivachenko\ndemon@FreeBSD.org\n2000/11/13"]
 dhn [label="Dennis Herrmann\ndhn@FreeBSD.org\n2009/03/03"]
 dryice [label="Dryice Dong Liu\ndryice@FreeBSD.org\n2006/12/25"]
+dteske [label="Devin Teske\ndteske@FreeBSD.org\n2018/03/01"]
 dumbbell [label="Jean-Sebastien Pedron\ndumbbell@FreeBSD.org\n2017/01/10"]
 dvl [label="Dan Langille\ndvl@FreeBSD.org\n2014/08/10"]
 eadler [label="Eitan Adler\neadler@FreeBSD.org\n2011/08/17"]
@@ -433,6 +434,8 @@ glewis -> jkim
 
 ijliao -> leeym
 
+imp -> dteske
+
 itetcu -> ak
 itetcu -> araujo
 itetcu -> dryice
@@ -507,6 +510,7 @@ makc -> jhale
 makc -> rakuco
 
 mat -> bmah
+mat -> dteske
 mat -> dvl
 mat -> gordon
 mat -> mmokhi
