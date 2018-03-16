@@ -140,7 +140,8 @@ r92c_get_rx_stats(struct rtwn_softc *sc, struct ieee80211_rx_stats *rxs,
 		else
 			rxs->c_pktflags |= IEEE80211_RX_F_OFDM;
 	} else {	/* MCS0~15. */
-		rxs->c_rate = IEEE80211_RATE_MCS | (rate - 12);
+		rxs->c_rate =
+		    IEEE80211_RATE_MCS | (rate - RTWN_RIDX_HT_MCS_SHIFT);
 		rxs->c_pktflags |= IEEE80211_RX_F_HT;
 	}
 }
