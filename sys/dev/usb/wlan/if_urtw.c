@@ -1661,13 +1661,16 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 		sc->sc_xfer[URTW_8187B_BULK_TX_VO]
 	};
 	struct usb_xfer *xfer;
-	int dur = 0, rtsdur = 0, rtsenable = 0, ctsenable = 0, rate,
-	    pkttime = 0, txdur = 0, isshort = 0, xferlen;
+	int dur = 0, rtsdur = 0, rtsenable = 0, ctsenable = 0, rate, type,
+	    pkttime = 0, txdur = 0, isshort = 0, xferlen, ismcast;
 	uint16_t acktime, rtstime, ctstime;
 	uint32_t flags;
 	usb_error_t error;
 
 	URTW_ASSERT_LOCKED(sc);
+
+	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 
 	/*
 	 * Software crypto.
@@ -1697,13 +1700,13 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 		ieee80211_radiotap_tx(vap, m0);
 	}
 
-	if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_MGT ||
-	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_CTL ||
+	if (type == IEEE80211_FC0_TYPE_MGT ||
+	    type == IEEE80211_FC0_TYPE_CTL ||
 	    (m0->m_flags & M_EAPOL) != 0) {
 		rate = tp->mgmtrate;
 	} else {
 		/* for data frames */
-		if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+		if (ismcast)
 			rate = tp->mcastrate;
 		else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 			rate = tp->ucastrate;
@@ -1713,7 +1716,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 
 	sc->sc_stats.txrates[sc->sc_currate]++;
 
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+	if (ismcast)
 		txdur = pkttime = urtw_compute_txtime(m0->m_pkthdr.len +
 		    IEEE80211_CRC_LEN, rate, 0, 0);
 	else {
@@ -1776,8 +1779,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 		}
 		tx->flag = htole32(flags);
 		tx->txdur = txdur;
-		if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) ==
-		    IEEE80211_FC0_TYPE_MGT &&
+		if (type == IEEE80211_FC0_TYPE_MGT &&
 		    (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) ==
 		    IEEE80211_FC0_SUBTYPE_PROBE_RESP)
 			tx->retry = 1;
@@ -1805,7 +1807,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 	data->m = m0;
 
 	if (sc->sc_flags & URTW_RTL8187B) {
-		switch (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) {
+		switch (type) {
 		case IEEE80211_FC0_TYPE_CTL:
 		case IEEE80211_FC0_TYPE_MGT:
 			xfer = sc->sc_xfer[URTW_8187B_BULK_TX_EP12];

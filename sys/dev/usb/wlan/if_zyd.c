@@ -2443,7 +2443,7 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	struct ieee80211_frame *wh;
 	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211_key *k;
-	int rate, totlen;
+	int rate, totlen, type, ismcast;
 	static const uint8_t ratediv[] = ZYD_TX_RATEDIV;
 	uint8_t phy;
 	uint16_t pktlen;
@@ -2454,13 +2454,16 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	STAILQ_REMOVE_HEAD(&sc->tx_free, next);
 	sc->tx_nfree--;
 
-	if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_MGT ||
-	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_CTL ||
+	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+
+	if (type == IEEE80211_FC0_TYPE_MGT ||
+	    type == IEEE80211_FC0_TYPE_CTL ||
 	    (m0->m_flags & M_EAPOL) != 0) {
 		rate = tp->mgmtrate;
 	} else {
 		/* for data frames */
-		if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+		if (ismcast)
 			rate = tp->mcastrate;
 		else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 			rate = tp->ucastrate;
@@ -2498,7 +2501,7 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	desc->len = htole16(totlen);
 
 	desc->flags = ZYD_TX_FLAG_BACKOFF;
-	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+	if (!ismcast) {
 		/* multicast frames are not sent at OFDM rates in 802.11b/g */
 		if (totlen > vap->iv_rtsthreshold) {
 			desc->flags |= ZYD_TX_FLAG_RTS;
