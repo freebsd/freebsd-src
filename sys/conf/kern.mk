@@ -246,7 +246,7 @@ CFLAGS+=	-fstack-protector-strong
 #
 .if defined(COMPILER_FEATURES) && ${COMPILER_FEATURES:Mretpoline} != "" && \
     ${MK_KERNEL_RETPOLINE} != "no"
-CFLAGS+=	-mretpoline
+CFLAGS+=	-mretpoline-external-thunk
 .endif
 
 #
