@@ -89,6 +89,8 @@
 #define	SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400		(1 << 26)
 /* Controller support for SDHCI_CTRL2_PRESET_VALUE is broken. */
 #define	SDHCI_QUIRK_PRESET_VALUE_BROKEN			(1 << 27)
+/* Controller does not support or the support for ACMD12 is broken. */
+#define	SDHCI_QUIRK_BROKEN_AUTO_STOP			(1 << 28)
 
 /*
  * Controller registers
