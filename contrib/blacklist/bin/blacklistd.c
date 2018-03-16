@@ -76,6 +76,7 @@ static DB *state;
 static const char *dbfile = _PATH_BLSTATE;
 static sig_atomic_t readconf;
 static sig_atomic_t done;
+static int Bflag;
 static int vflag;
 
 static void
@@ -164,12 +165,85 @@ getremoteaddress(bl_info_t *bi, struct sockaddr_storage *rss, socklen_t *rsl)
 	return 0;
 }
 
+static const char *badnames_email[] = {
+	"info",
+	"root",
+	"admin",
+	"support",
+	"webmaster",
+	"sales",
+	"postmaster",
+	"marketing",
+	"administrator",
+	"default",
+	"noreply",
+	"ftpuser",
+	"backup",
+	"webadmin",
+	"security",
+	NULL
+};
+
+static const char *badnames_ssh[] = {
+	"admin",
+	"support",
+	"pi",
+	"info",
+	"root",
+	"guest",
+	"webmaster",
+	"ubnt",
+	"abuse",
+	"default",
+	"apache",
+	"nginx",
+	"cisco",
+	"administrator",
+	"ftpuser",
+	"supervisor",
+	"mysql",
+	"postgres",
+	"oracle",
+	"security",
+	"nagios",
+	"webadmin",
+	"usuario",
+	"uucp",
+	"PlcmSpIp",
+	" 0101",
+	NULL
+};
+
+static int
+lookup_username(int proto, int port, const char *username)
+{
+	int i;
+	const char **names;
+
+	if (proto != IPPROTO_TCP)
+		return 0;
+
+	if (port == 22)
+		names = badnames_ssh;
+	else if (port == 25 || port == 587)
+		names = badnames_email;
+	else
+		return 0;
+
+	for (i = 0; names[i] != NULL; i++) {
+		if (strcmp(username, names[i]) == 0)
+			return 1;
+	}
+	return 0;
+}
+
 static void
 process(bl_t bl)
 {
 	struct sockaddr_storage rss;
 	socklen_t rsl;
 	char rbuf[BUFSIZ];
+	int runadd, rundelete;
 	bl_info_t *bi;
 	struct conf c;
 	struct dbinfo dbi;
@@ -213,59 +287,74 @@ process(bl_t bl)
 		    fmttime(b2, sizeof(b2), ts.tv_sec));
 	}
 
+	runadd = rundelete = 0;
+
 	switch (bi->bi_type) {
 	case BL_ABUSE:
 		/*
 		 * If the application has signaled abusive behavior,
-		 * set the number of fails to be one less than the
-		 * configured limit.  Fallthrough to the normal BL_ADD
-		 * processing, which will increment the failure count
-		 * to the threshhold, and block the abusive address.
+		 * set the number of fails to be the configured limit.
 		 */
 		if (c.c_nfail != -1)
-			dbi.count = c.c_nfail - 1;
-		/*FALLTHROUGH*/
-	case BL_ADD:
-		dbi.count++;
-		dbi.last = ts.tv_sec;
-		if (dbi.id[0]) {
-			/*
-			 * We should not be getting this since the rule
-			 * should have blocked the address. A possible
-			 * explanation is that someone removed that rule,
-			 * and another would be that we got another attempt
-			 * before we added the rule. In anycase, we remove
-			 * and re-add the rule because we don't want to add
-			 * it twice, because then we'd lose track of it.
-			 */
-			(*lfun)(LOG_DEBUG, "rule exists %s", dbi.id);
-			(void)run_change("rem", &c, dbi.id, 0);
-			dbi.id[0] = '\0';
-		}
-		if (c.c_nfail != -1 && dbi.count >= c.c_nfail) {
-			int res = run_change("add", &c, dbi.id, sizeof(dbi.id));
-			if (res == -1)
-				goto out;
-			sockaddr_snprintf(rbuf, sizeof(rbuf), "%a",
-			    (void *)&rss);
-			(*lfun)(LOG_INFO,
-			    "blocked %s/%d:%d for %d seconds",
-			    rbuf, c.c_lmask, c.c_port, c.c_duration);
-				
-		}
+			dbi.count = c.c_nfail;
+		rundelete = 1;
+		runadd = 1;
 		break;
 	case BL_DELETE:
 		if (dbi.last == 0)
 			goto out;
 		dbi.count = 0;
 		dbi.last = 0;
+		rundelete = 1;
 		break;
 	case BL_BADUSER:
-		/* ignore for now */
+		(*lfun)(LOG_DEBUG, "BL_BADUSER: username %s", bi->bi_msg);
+		dbi.count--;
+		if (Bflag == 0 && lookup_username(c.c_proto, c.c_port, bi->bi_msg) == 1) {
+			dbi.count = c.c_nfail - 1;
+			(*lfun)(LOG_DEBUG, "BL_BADUSER: found %s on list (port: %d)", bi->bi_msg, c.c_port);
+		}
+		/* FALLTHROUGH */
+	case BL_ADD:
+		dbi.count++;
+		dbi.last = ts.tv_sec;
+		if (c.c_nfail != -1 && dbi.count >= c.c_nfail) {
+			rundelete = 1;
+			runadd = 1;
+		}
 		break;
 	default:
 		(*lfun)(LOG_ERR, "unknown message %d", bi->bi_type); 
 	}
+
+	if (rundelete && c.c_duration != -1) {
+		/*
+		 * We should not be getting this since the rule
+		 * should have blocked the address. A possible
+		 * explanation is that someone removed that rule,
+		 * and another would be that we got another attempt
+		 * before we added the rule. In anycase, we remove
+		 * and re-add the rule because we don't want to add
+		 * it twice, because then we'd lose track of it.
+		 */
+		if (dbi.id[0]) {
+			(*lfun)(LOG_INFO, "rule exists %s", dbi.id);
+			(void)run_change("rem", &c, dbi.id, 0);
+			dbi.id[0] = '\0';
+		}
+	}
+	if (runadd) {
+		int res = run_change("add", &c, dbi.id, sizeof(dbi.id));
+		if (res == -1)
+			goto out;
+		sockaddr_snprintf(rbuf, sizeof(rbuf), "%a",
+		    (void *)&rss);
+		(*lfun)(LOG_INFO,
+		    "blocked %s/%d:%d for %d seconds",
+		    rbuf, c.c_lmask, c.c_port, c.c_duration);
+	}
+
+	/* persist the data */
 	state_put(state, &c, &dbi);
 
 out:
@@ -404,13 +493,16 @@ rules_restore(void)
 	struct conf c;
 	struct dbinfo dbi;
 	unsigned int f;
+	static int addremove;
 
 	for (f = 1; state_iterate(state, &c, &dbi, f) == 1; f = 0) {
 		if (dbi.id[0] == '\0')
 			continue;
 		(void)run_change("rem", &c, dbi.id, 0);
 		(void)run_change("add", &c, dbi.id, sizeof(dbi.id));
+		addremove++;
 	}
+	(*lfun)(LOG_INFO, "removed and re-added %d addresses", addremove);
 }
 
 int
@@ -429,8 +521,11 @@ main(int argc, char *argv[])
 	restore = 0;
 	tout = 0;
 	flags = O_RDWR|O_EXCL|O_CLOEXEC;
-	while ((c = getopt(argc, argv, "C:c:D:dfP:rR:s:t:v")) != -1) {
+	while ((c = getopt(argc, argv, "BC:c:D:dfP:rR:s:t:v")) != -1) {
 		switch (c) {
+		case 'B':
+			Bflag++;
+			break;
 		case 'C':
 			controlprog = optarg;
 			break;

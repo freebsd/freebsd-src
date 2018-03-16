@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 7, 2016
+.Dd Dec 6, 2017
 .Dt BLACKLISTD 8
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nd block and release ports on demand to avoid DoS abuse
 .Sh SYNOPSIS
 .Nm
-.Op Fl dfrv
+.Op Fl Bdfrv
 .Op Fl C Ar controlprog
 .Op Fl c Ar configfile
 .Op Fl D Ar dbfile
@@ -154,6 +154,8 @@ The Berkeley DB file where
 .Nm
 stores its state, usually
 .Pa /var/run/blacklistd.db .
+.It Fl B
+Disable processing of bad-usernames.
 .It Fl d
 Normally,
 .Nm
