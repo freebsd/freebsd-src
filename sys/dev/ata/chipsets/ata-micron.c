@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <ata_if.h>
 
 /*
- * Cenatek chipset support functions
+ * Micron chipset support functions
  */
 static int
 ata_micron_probe(device_t dev)
