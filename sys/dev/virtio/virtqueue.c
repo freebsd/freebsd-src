@@ -369,6 +369,33 @@ virtqueue_paddr(struct virtqueue *vq)
 	return (vtophys(vq->vq_ring_mem));
 }
 
+vm_paddr_t
+virtqueue_desc_paddr(struct virtqueue *vq)
+{
+
+	return (vtophys(vq->vq_ring.desc));
+}
+
+vm_paddr_t
+virtqueue_avail_paddr(struct virtqueue *vq)
+{
+
+	return (vtophys(vq->vq_ring.avail));
+}
+
+vm_paddr_t
+virtqueue_used_paddr(struct virtqueue *vq)
+{
+
+	return (vtophys(vq->vq_ring.used));
+}
+
+uint16_t
+virtqueue_index(struct virtqueue *vq)
+{
+	return (vq->vq_queue_index);
+}
+
 int
 virtqueue_size(struct virtqueue *vq)
 {
