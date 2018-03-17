@@ -5314,7 +5314,7 @@ softdep_setup_allocdirect(ip, off, newblkno, oldblkno, newsize, oldsize, bp)
 		 * allocate an associated pagedep to track additions and
 		 * deletions.
 		 */
-		if ((ip->i_mode & IFMT) == IFDIR)
+		if ((ip->i_mode & UFS_IFMT) == UFS_IFDIR)
 			pagedep_lookup(mp, bp, ip->i_number, off, DEPALLOC,
 			    &pagedep);
 	}
@@ -5851,7 +5851,7 @@ softdep_setup_allocindir_page(ip, lbn, bp, ptrno, newblkno, oldblkno, nbp)
 	 * allocate an associated pagedep to track additions and
 	 * deletions.
 	 */
-	if ((ip->i_mode & IFMT) == IFDIR)
+	if ((ip->i_mode & UFS_IFMT) == UFS_IFDIR)
 		pagedep_lookup(mp, nbp, ip->i_number, lbn, DEPALLOC, &pagedep);
 	WORKLIST_INSERT(&nbp->b_dep, &aip->ai_block.nb_list);
 	freefrag = setup_allocindir_phase2(bp, ip, inodedep, aip, lbn);
@@ -10922,7 +10922,7 @@ initiate_write_bmsafemap(bmsafemap, bp)
 		LIST_FOREACH(jaddref, &bmsafemap->sm_jaddrefhd, ja_bmdeps) {
 			ino = jaddref->ja_ino % fs->fs_ipg;
 			if (isset(inosused, ino)) {
-				if ((jaddref->ja_mode & IFMT) == IFDIR)
+				if ((jaddref->ja_mode & UFS_IFMT) == UFS_IFDIR)
 					cgp->cg_cs.cs_ndir--;
 				cgp->cg_cs.cs_nifree++;
 				clrbit(inosused, ino);
@@ -11895,7 +11895,7 @@ handle_written_bmsafemap(bmsafemap, bp, flags)
 				    "re-allocated inode");
 			/* Do the roll-forward only if it's a real copy. */
 			if (foreground) {
-				if ((jaddref->ja_mode & IFMT) == IFDIR)
+				if ((jaddref->ja_mode & UFS_IFMT) == UFS_IFDIR)
 					cgp->cg_cs.cs_ndir++;
 				cgp->cg_cs.cs_nifree--;
 				setbit(inosused, ino);

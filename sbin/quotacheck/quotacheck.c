@@ -370,7 +370,7 @@ chkquota(char *specname, struct quotafile *qfu, struct quotafile *qfg)
 		for (i = 0; i < inosused; i++, ino++) {
 			if ((dp = getnextinode(ino)) == NULL ||
 			    ino < UFS_ROOTINO ||
-			    (mode = DIP(dp, di_mode) & IFMT) == 0)
+			    (mode = DIP(dp, di_mode) & UFS_IFMT) == 0)
 				continue;
 			/*
 			 * XXX: Do not account for UIDs or GIDs that appear
@@ -405,16 +405,16 @@ chkquota(char *specname, struct quotafile *qfu, struct quotafile *qfg)
 				fup = addid((u_long)DIP(dp, di_gid), GRPQUOTA,
 				    (char *)0, mntpt);
 				fup->fu_curinodes++;
-				if (mode == IFREG || mode == IFDIR ||
-				    mode == IFLNK)
+				if (mode == UFS_IFREG || mode == UFS_IFDIR ||
+				    mode == UFS_IFLNK)
 					fup->fu_curblocks += DIP(dp, di_blocks);
 			}
 			if (qfu) {
 				fup = addid((u_long)DIP(dp, di_uid), USRQUOTA,
 				    (char *)0, mntpt);
 				fup->fu_curinodes++;
-				if (mode == IFREG || mode == IFDIR ||
-				    mode == IFLNK)
+				if (mode == UFS_IFREG || mode == UFS_IFDIR ||
+				    mode == UFS_IFLNK)
 					fup->fu_curblocks += DIP(dp, di_blocks);
 			}
 		}

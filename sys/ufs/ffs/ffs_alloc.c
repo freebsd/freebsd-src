@@ -1052,7 +1052,7 @@ retry:
 	if (fs->fs_cstotal.cs_nifree == 0)
 		goto noinodes;
 
-	if ((mode & IFMT) == IFDIR)
+	if ((mode & UFS_IFMT) == UFS_IFDIR)
 		ipref = ffs_dirpref(pip);
 	else
 		ipref = pip->i_number;
@@ -1063,7 +1063,7 @@ retry:
 	 * Track number of dirs created one after another
 	 * in a same cg without intervening by files.
 	 */
-	if ((mode & IFMT) == IFDIR) {
+	if ((mode & UFS_IFMT) == UFS_IFDIR) {
 		if (fs->fs_contigdirs[cg] < 255)
 			fs->fs_contigdirs[cg]++;
 	} else {
@@ -1364,7 +1364,7 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
 		 * If we are allocating a directory data block, we want
 		 * to place it in the metadata area.
 		 */
-		if ((ip->i_mode & IFMT) == IFDIR)
+		if ((ip->i_mode & UFS_IFMT) == UFS_IFDIR)
 			return (cgmeta(fs, inocg));
 		/*
 		 * Until we fill all the direct and all the first indirect's
@@ -1469,7 +1469,7 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
 		 * If we are allocating a directory data block, we want
 		 * to place it in the metadata area.
 		 */
-		if ((ip->i_mode & IFMT) == IFDIR)
+		if ((ip->i_mode & UFS_IFMT) == UFS_IFDIR)
 			return (cgmeta(fs, inocg));
 		/*
 		 * Until we fill all the direct and all the first indirect's
@@ -2114,7 +2114,7 @@ gotit:
 	fs->fs_cstotal.cs_nifree--;
 	fs->fs_cs(fs, cg).cs_nifree--;
 	fs->fs_fmod = 1;
-	if ((mode & IFMT) == IFDIR) {
+	if ((mode & UFS_IFMT) == UFS_IFDIR) {
 		cgp->cg_cs.cs_ndir++;
 		fs->fs_cstotal.cs_ndir++;
 		fs->fs_cs(fs, cg).cs_ndir++;
@@ -2478,7 +2478,7 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 	UFS_LOCK(ump);
 	fs->fs_cstotal.cs_nifree++;
 	fs->fs_cs(fs, cg).cs_nifree++;
-	if ((mode & IFMT) == IFDIR) {
+	if ((mode & UFS_IFMT) == UFS_IFDIR) {
 		cgp->cg_cs.cs_ndir--;
 		fs->fs_cstotal.cs_ndir--;
 		fs->fs_cs(fs, cg).cs_ndir--;
@@ -2866,7 +2866,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		return (EROFS);
 	}
 	fs = ump->um_fs;
-	filetype = IFREG;
+	filetype = UFS_IFREG;
 
 	switch (oidp->oid_number) {
 
@@ -2921,7 +2921,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		break;
 
 	case FFS_DIR_FREE:
-		filetype = IFDIR;
+		filetype = UFS_IFDIR;
 		/* fall through */
 
 	case FFS_FILE_FREE:
@@ -2930,12 +2930,12 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			if (cmd.size == 1)
 				printf("%s: free %s inode %ju\n",
 				    mp->mnt_stat.f_mntonname,
-				    filetype == IFDIR ? "directory" : "file",
+				    filetype == UFS_IFDIR ? "directory":"file",
 				    (uintmax_t)cmd.value);
 			else
 				printf("%s: free %s inodes %ju-%ju\n",
 				    mp->mnt_stat.f_mntonname,
-				    filetype == IFDIR ? "directory" : "file",
+				    filetype == UFS_IFDIR ? "directory":"file",
 				    (uintmax_t)cmd.value,
 				    (uintmax_t)(cmd.value + cmd.size - 1));
 		}
