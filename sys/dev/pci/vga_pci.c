@@ -497,6 +497,14 @@ vga_pci_find_cap(device_t dev, device_t child, int capability,
 }
 
 static int
+vga_pci_find_next_cap(device_t dev, device_t child, int capability,
+    int start, int *capreg)
+{
+
+	return (pci_find_next_cap(dev, capability, start, capreg));
+}
+
+static int
 vga_pci_find_extcap(device_t dev, device_t child, int capability,
     int *capreg)
 {
@@ -505,11 +513,27 @@ vga_pci_find_extcap(device_t dev, device_t child, int capability,
 }
 
 static int
+vga_pci_find_next_extcap(device_t dev, device_t child, int capability,
+    int start, int *capreg)
+{
+
+	return (pci_find_next_extcap(dev, capability, start, capreg));
+}
+
+static int
 vga_pci_find_htcap(device_t dev, device_t child, int capability,
     int *capreg)
 {
 
 	return (pci_find_htcap(dev, capability, capreg));
+}
+
+static int
+vga_pci_find_next_htcap(device_t dev, device_t child, int capability,
+    int start, int *capreg)
+{
+
+	return (pci_find_next_htcap(dev, capability, start, capreg));
 }
 
 static int
@@ -622,8 +646,11 @@ static device_method_t vga_pci_methods[] = {
 	DEVMETHOD(pci_set_powerstate,	vga_pci_set_powerstate),
 	DEVMETHOD(pci_assign_interrupt,	vga_pci_assign_interrupt),
 	DEVMETHOD(pci_find_cap,		vga_pci_find_cap),
+	DEVMETHOD(pci_find_next_cap,	vga_pci_find_next_cap),
 	DEVMETHOD(pci_find_extcap,	vga_pci_find_extcap),
+	DEVMETHOD(pci_find_next_extcap,	vga_pci_find_next_extcap),
 	DEVMETHOD(pci_find_htcap,	vga_pci_find_htcap),
+	DEVMETHOD(pci_find_next_htcap,	vga_pci_find_next_htcap),
 	DEVMETHOD(pci_alloc_msi,	vga_pci_alloc_msi),
 	DEVMETHOD(pci_alloc_msix,	vga_pci_alloc_msix),
 	DEVMETHOD(pci_remap_msix,	vga_pci_remap_msix),
