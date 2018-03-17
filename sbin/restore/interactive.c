@@ -741,9 +741,9 @@ glob_stat(const char *name, struct stat *stp)
 	    (!vflag && dp->d_ino == UFS_WINO))
 		return (-1);
 	if (inodetype(dp->d_ino) == NODE)
-		stp->st_mode = IFDIR;
+		stp->st_mode = UFS_IFDIR;
 	else
-		stp->st_mode = IFREG;
+		stp->st_mode = UFS_IFREG;
 	return (0);
 }
 

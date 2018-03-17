@@ -591,7 +591,7 @@ found:
 		 * may not delete it (unless she's root). This
 		 * implements append-only directories.
 		 */
-		if ((dp->i_mode & ISVTX) &&
+		if ((dp->i_mode & EXT2_ISVTX) &&
 		    cred->cr_uid != 0 &&
 		    cred->cr_uid != dp->i_uid &&
 		    VTOI(tdp)->i_uid != cred->cr_uid) {

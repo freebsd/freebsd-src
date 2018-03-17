@@ -470,7 +470,7 @@ ufs_getattr(ap)
 	 */
 	vap->va_fsid = dev2udev(ITOUMP(ip)->um_dev);
 	vap->va_fileid = ip->i_number;
-	vap->va_mode = ip->i_mode & ~IFMT;
+	vap->va_mode = ip->i_mode & ~UFS_IFMT;
 	vap->va_nlink = ip->i_effnlink;
 	vap->va_uid = ip->i_uid;
 	vap->va_gid = ip->i_gid;
@@ -750,7 +750,7 @@ ufs_chmod(vp, mode, cred, td)
 		if (priv_check_cred(cred, PRIV_VFS_STICKYFILE, 0))
 			return (EFTYPE);
 	}
-	if (!groupmember(ip->i_gid, cred) && (mode & ISGID)) {
+	if (!groupmember(ip->i_gid, cred) && (mode & UFS_ISGID)) {
 		error = priv_check_cred(cred, PRIV_VFS_SETGID, 0);
 		if (error)
 			return (error);
@@ -759,7 +759,7 @@ ufs_chmod(vp, mode, cred, td)
 	/*
 	 * Deny setting setuid if we are not the file owner.
 	 */
-	if ((mode & ISUID) && ip->i_uid != cred->cr_uid) {
+	if ((mode & UFS_ISUID) && ip->i_uid != cred->cr_uid) {
 		error = priv_check_cred(cred, PRIV_VFS_ADMIN, 0);
 		if (error)
 			return (error);
@@ -888,9 +888,10 @@ good:
 		panic("ufs_chown: lost quota");
 #endif /* QUOTA */
 	ip->i_flag |= IN_CHANGE;
-	if ((ip->i_mode & (ISUID | ISGID)) && (ouid != uid || ogid != gid)) {
+	if ((ip->i_mode & (UFS_ISUID | UFS_ISGID)) &&
+	    (ouid != uid || ogid != gid)) {
 		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, 0)) {
-			ip->i_mode &= ~(ISUID | ISGID);
+			ip->i_mode &= ~(UFS_ISUID | UFS_ISGID);
 			DIP_SET(ip, i_mode, ip->i_mode);
 		}
 	}
@@ -1276,7 +1277,7 @@ relock:
 		error = EPERM;
 		goto unlockout;
 	}
-	if ((fip->i_mode & IFMT) == IFDIR) {
+	if ((fip->i_mode & UFS_IFMT) == UFS_IFDIR) {
 		/*
 		 * Avoid ".", "..", and aliases of "." for obvious reasons.
 		 */
@@ -1408,7 +1409,7 @@ relock:
 		 * to it. Also, ensure source and target are compatible
 		 * (both directories, or both not directories).
 		 */
-		if ((tip->i_mode & IFMT) == IFDIR) {
+		if ((tip->i_mode & UFS_IFMT) == UFS_IFDIR) {
 			if ((tip->i_effnlink > 2) ||
 			    !ufs_dirempty(tip, tdp->i_number, tcnp->cn_cred)) {
 				error = ENOTEMPTY;
@@ -1800,7 +1801,7 @@ ufs_mkdir(ap)
 		goto out;
 	}
 	dmode = vap->va_mode & 0777;
-	dmode |= IFDIR;
+	dmode |= UFS_IFDIR;
 	/*
 	 * Must simulate part of ufs_makeinode here to acquire the inode,
 	 * but not have it entered in the parent directory. The entry is
@@ -1833,8 +1834,8 @@ ufs_mkdir(ap)
 		 * 'give it away' so that the SUID is still forced on.
 		 */
 		if ((dvp->v_mount->mnt_flag & MNT_SUIDDIR) &&
-		    (dp->i_mode & ISUID) && dp->i_uid) {
-			dmode |= ISUID;
+		    (dp->i_mode & UFS_ISUID) && dp->i_uid) {
+			dmode |= UFS_ISUID;
 			ip->i_uid = dp->i_uid;
 			DIP_SET(ip, i_uid, dp->i_uid);
 #ifdef QUOTA
@@ -2124,7 +2125,7 @@ ufs_symlink(ap)
 	struct inode *ip;
 	int len, error;
 
-	error = ufs_makeinode(IFLNK | ap->a_vap->va_mode, ap->a_dvp,
+	error = ufs_makeinode(UFS_IFLNK | ap->a_vap->va_mode, ap->a_dvp,
 	    vpp, ap->a_cnp, "ufs_symlink");
 	if (error)
 		return (error);
@@ -2569,8 +2570,8 @@ ufs_makeinode(mode, dvp, vpp, cnp, callfunc)
 		panic("%s: no name", callfunc);
 #endif
 	*vpp = NULL;
-	if ((mode & IFMT) == 0)
-		mode |= IFREG;
+	if ((mode & UFS_IFMT) == 0)
+		mode |= UFS_IFREG;
 
 	if (pdir->i_effnlink < 2) {
 		print_bad_link_count(callfunc, dvp);
@@ -2597,7 +2598,7 @@ ufs_makeinode(mode, dvp, vpp, cnp, callfunc)
 		 * Note that this drops off the execute bits for security.
 		 */
 		if ((dvp->v_mount->mnt_flag & MNT_SUIDDIR) &&
-		    (pdir->i_mode & ISUID) &&
+		    (pdir->i_mode & UFS_ISUID) &&
 		    (pdir->i_uid != cnp->cn_cred->cr_uid) && pdir->i_uid) {
 			ip->i_uid = pdir->i_uid;
 			DIP_SET(ip, i_uid, ip->i_uid);
@@ -2656,9 +2657,9 @@ ufs_makeinode(mode, dvp, vpp, cnp, callfunc)
 	DIP_SET(ip, i_nlink, 1);
 	if (DOINGSOFTDEP(tvp))
 		softdep_setup_create(VTOI(dvp), ip);
-	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred) &&
+	if ((ip->i_mode & UFS_ISGID) && !groupmember(ip->i_gid, cnp->cn_cred) &&
 	    priv_check_cred(cnp->cn_cred, PRIV_VFS_SETGID, 0)) {
-		ip->i_mode &= ~ISGID;
+		ip->i_mode &= ~UFS_ISGID;
 		DIP_SET(ip, i_mode, ip->i_mode);
 	}
 

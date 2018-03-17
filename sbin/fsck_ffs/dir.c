@@ -264,7 +264,7 @@ fileerror(ino_t cwd, ino_t ino, const char *errmesg)
 	dp = ginode(ino);
 	if (ftypeok(dp))
 		pfatal("%s=%s\n",
-		    (DIP(dp, di_mode) & IFMT) == IFDIR ? "DIR" : "FILE",
+		    (DIP(dp, di_mode) & UFS_IFMT) == UFS_IFDIR ? "DIR" : "FILE",
 		    pathbuf);
 	else
 		pfatal("NAME=%s\n", pathbuf);
@@ -308,7 +308,8 @@ adjust(struct inodesc *idesc, int lcnt)
 	}
 	if (lcnt != 0) {
 		pwarn("LINK COUNT %s", (lfdir == idesc->id_number) ? lfname :
-			((DIP(dp, di_mode) & IFMT) == IFDIR ? "DIR" : "FILE"));
+			((DIP(dp, di_mode) & UFS_IFMT) == UFS_IFDIR ?
+			    "DIR" : "FILE"));
 		pinode(idesc->id_number);
 		printf(" COUNT %d SHOULD BE %d",
 			DIP(dp, di_nlink), DIP(dp, di_nlink) - lcnt);
@@ -388,7 +389,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 
 	memset(&idesc, 0, sizeof(struct inodesc));
 	dp = ginode(orphan);
-	lostdir = (DIP(dp, di_mode) & IFMT) == IFDIR;
+	lostdir = (DIP(dp, di_mode) & UFS_IFMT) == UFS_IFDIR;
 	pwarn("UNREF %s ", lostdir ? "DIR" : "FILE");
 	pinode(orphan);
 	if (preen && DIP(dp, di_size) == 0)
@@ -436,7 +437,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 		}
 	}
 	dp = ginode(lfdir);
-	if ((DIP(dp, di_mode) & IFMT) != IFDIR) {
+	if ((DIP(dp, di_mode) & UFS_IFMT) != UFS_IFDIR) {
 		pfatal("lost+found IS NOT A DIRECTORY");
 		if (reply("REALLOCATE") == 0)
 			return (0);
@@ -615,7 +616,7 @@ allocdir(ino_t parent, ino_t request, int mode)
 	struct inoinfo *inp;
 	struct dirtemplate *dirp;
 
-	ino = allocino(request, IFDIR|mode);
+	ino = allocino(request, UFS_IFDIR|mode);
 	dirp = &dirhead;
 	dirp->dot_ino = ino;
 	dirp->dotdot_ino = parent;
