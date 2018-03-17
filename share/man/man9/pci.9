@@ -42,6 +42,9 @@
 .Nm pci_find_device ,
 .Nm pci_find_extcap ,
 .Nm pci_find_htcap ,
+.Nm pci_find_next_cap ,
+.Nm pci_find_next_extcap ,
+.Nm pci_find_next_htcap ,
 .Nm pci_find_pcie_root_port ,
 .Nm pci_get_id ,
 .Nm pci_get_max_payload ,
@@ -100,6 +103,12 @@
 .Fn pci_find_extcap "device_t dev" "int capability" "int *capreg"
 .Ft int
 .Fn pci_find_htcap "device_t dev" "int capability" "int *capreg"
+.Ft int
+.Fn pci_find_next_cap "device_t dev" "int capability" "int start" "int *capreg"
+.Ft int
+.Fn pci_find_next_extcap "device_t dev" "int capability" "int start" "int *capreg"
+.Ft int
+.Fn pci_find_next_htcap "device_t dev" "int capability" "int start" "int *capreg"
 .Ft device_t
 .Fn pci_find_pcie_root_port "device_t dev"
 .Ft int
@@ -330,6 +339,22 @@ returns zero.
 If the capability is not found or the device does not support capabilities,
 .Fn pci_find_cap
 returns an error.
+The
+.Fn pci_find_next_cap
+function is used to locate the next instance of a PCI capability
+register set for the device
+.Fa dev .
+The
+.Fa start
+should be the
+.Fa *capreg
+returned by a prior
+.Fn pci_find_cap
+or
+.Fn pci_find_next_cap .
+When no more instances are located
+.Fn pci_find_next_cap
+returns an error.
 .Pp
 The
 .Fn pci_find_extcap
@@ -352,6 +377,22 @@ If the extended capability is not found or the device is not a
 PCI-express device,
 .Fn pci_find_extcap
 returns an error.
+The
+.Fn pci_find_next_extcap
+function is used to locate the next instance of a PCI-express
+extended capability register set for the device
+.Fa dev .
+The
+.Fa start
+should be the
+.Fa *capreg
+returned by a prior
+.Fn pci_find_extcap
+or
+.Fn pci_find_next_extcap .
+When no more instances are located
+.Fn pci_find_next_extcap
+returns an error.
 .Pp
 The
 .Fn pci_find_htcap
@@ -372,6 +413,22 @@ and
 returns zero.
 If the capability is not found or the device is not a HyperTransport device,
 .Fn pci_find_htcap
+returns an error.
+The
+.Fn pci_find_next_htcap
+function is used to locate the next instance of a HyperTransport capability
+register set for the device
+.Fa dev .
+The
+.Fa start
+should be the
+.Fa *capreg
+returned by a prior
+.Fn pci_find_htcap
+or
+.Fn pci_find_next_htcap .
+When no more instances are located
+.Fn pci_find_next_htcap
 returns an error.
 .Pp
 The
