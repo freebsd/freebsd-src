@@ -112,8 +112,8 @@ pass2(void)
 			exit(EEXIT);
 		}
 		dp = ginode(UFS_ROOTINO);
-		DIP_SET(dp, di_mode, DIP(dp, di_mode) & ~UFS_IFMT);
-		DIP_SET(dp, di_mode, DIP(dp, di_mode) | UFS_IFDIR);
+		DIP_SET(dp, di_mode, DIP(dp, di_mode) & ~IFMT);
+		DIP_SET(dp, di_mode, DIP(dp, di_mode) | IFDIR);
 		inodirty();
 		break;
 
@@ -184,7 +184,7 @@ pass2(void)
 		}
 		dp = &dino;
 		memset(dp, 0, sizeof(struct ufs2_dinode));
-		DIP_SET(dp, di_mode, UFS_IFDIR);
+		DIP_SET(dp, di_mode, IFDIR);
 		DIP_SET(dp, di_size, inp->i_isize);
 		for (i = 0; i < MIN(inp->i_numblks, UFS_NDADDR); i++)
 			DIP_SET(dp, di_db[i], inp->i_blks[i]);
@@ -478,8 +478,7 @@ again:
 				break;
 			dp = ginode(dirp->d_ino);
 			inoinfo(dirp->d_ino)->ino_state =
-			   (DIP(dp, di_mode) & UFS_IFMT) == UFS_IFDIR ?
-			    DSTATE : FSTATE;
+			   (DIP(dp, di_mode) & IFMT) == IFDIR ? DSTATE : FSTATE;
 			inoinfo(dirp->d_ino)->ino_linkcnt = DIP(dp, di_nlink);
 			goto again;
 

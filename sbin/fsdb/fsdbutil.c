@@ -120,20 +120,20 @@ printstat(const char *cp, ino_t inum, union dinode *dp)
     time_t t;
 
     printf("%s: ", cp);
-    switch (DIP(dp, di_mode) & UFS_IFMT) {
-    case UFS_IFDIR:
+    switch (DIP(dp, di_mode) & IFMT) {
+    case IFDIR:
 	puts("directory");
 	break;
-    case UFS_IFREG:
+    case IFREG:
 	puts("regular file");
 	break;
-    case UFS_IFBLK:
+    case IFBLK:
 	printf("block special (%#jx)", (uintmax_t)DIP(dp, di_rdev));
 	break;
-    case UFS_IFCHR:
+    case IFCHR:
 	printf("character special (%#jx)", DIP(dp, di_rdev));
 	break;
-    case UFS_IFLNK:
+    case IFLNK:
 	fputs("symlink",stdout);
 	if (DIP(dp, di_size) > 0 &&
 	    DIP(dp, di_size) < sblock.fs_maxsymlinklen &&
@@ -147,10 +147,10 @@ printstat(const char *cp, ino_t inum, union dinode *dp)
 	    putchar('\n');
 	}
 	break;
-    case UFS_IFSOCK:
+    case IFSOCK:
 	puts("socket");
 	break;
-    case UFS_IFIFO:
+    case IFIFO:
 	puts("fifo");
 	break;
     }
@@ -338,7 +338,7 @@ checkactivedir(void)
 	warnx("no current inode\n");
 	return 0;
     }
-    if ((DIP(curinode, di_mode) & UFS_IFMT) != UFS_IFDIR) {
+    if ((DIP(curinode, di_mode) & IFMT) != IFDIR) {
 	warnx("inode %ju not a directory", (uintmax_t)curinum);
 	return 0;
     }
@@ -350,14 +350,14 @@ printactive(int doblocks)
 {
     if (!checkactive())
 	return 1;
-    switch (DIP(curinode, di_mode) & UFS_IFMT) {
-    case UFS_IFDIR:
-    case UFS_IFREG:
-    case UFS_IFBLK:
-    case UFS_IFCHR:
-    case UFS_IFLNK:
-    case UFS_IFSOCK:
-    case UFS_IFIFO:
+    switch (DIP(curinode, di_mode) & IFMT) {
+    case IFDIR:
+    case IFREG:
+    case IFBLK:
+    case IFCHR:
+    case IFLNK:
+    case IFSOCK:
+    case IFIFO:
 	if (doblocks)
 	    printblocks(curinum, curinode);
 	else
@@ -368,7 +368,7 @@ printactive(int doblocks)
 	break;
     default:
 	printf("current inode %ju: screwy itype 0%o (mode 0%o)?\n",
-	    (uintmax_t)curinum, DIP(curinode, di_mode) & UFS_IFMT,
+	    (uintmax_t)curinum, DIP(curinode, di_mode) & IFMT,
 	    DIP(curinode, di_mode));
 	break;
     }

@@ -284,7 +284,7 @@ nandfs_write(struct vop_write_args *ap)
 	if (modified) {
 		if (resid > uio->uio_resid && ap->a_cred &&
 		    ap->a_cred->cr_uid != 0)
-			node->nn_inode.i_mode &= ~(NANDFS_ISUID | NANDFS_ISGID);
+			node->nn_inode.i_mode &= ~(ISUID | ISGID);
 
 		if (file_size < uio->uio_offset + uio->uio_resid) {
 			node->nn_inode.i_size = uio->uio_offset +
@@ -443,7 +443,7 @@ nandfs_lookup(struct vop_cachedlookup_args *ap)
 					node->nn_diroff = off;
 				}
 
-				if ((dir_node->nn_inode.i_mode & NANDFS_ISVTX)&&
+				if ((dir_node->nn_inode.i_mode & ISVTX) &&
 				    cred->cr_uid != 0 &&
 				    cred->cr_uid != dir_node->nn_inode.i_uid &&
 				    node->nn_inode.i_uid != cred->cr_uid) {
@@ -724,7 +724,7 @@ nandfs_chmod(struct vnode *vp, int mode, struct ucred *cred, struct thread *td)
 		if (priv_check_cred(cred, PRIV_VFS_STICKYFILE, 0))
 			return (EFTYPE);
 	}
-	if (!groupmember(inode->i_gid, cred) && (mode & NANDFS_ISGID)) {
+	if (!groupmember(inode->i_gid, cred) && (mode & ISGID)) {
 		error = priv_check_cred(cred, PRIV_VFS_SETGID, 0);
 		if (error)
 			return (error);
@@ -733,7 +733,7 @@ nandfs_chmod(struct vnode *vp, int mode, struct ucred *cred, struct thread *td)
 	/*
 	 * Deny setting setuid if we are not the file owner.
 	 */
-	if ((mode & NANDFS_ISUID) && inode->i_uid != cred->cr_uid) {
+	if ((mode & ISUID) && inode->i_uid != cred->cr_uid) {
 		error = priv_check_cred(cred, PRIV_VFS_ADMIN, 0);
 		if (error)
 			return (error);
@@ -786,10 +786,10 @@ nandfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	inode->i_uid = uid;
 
 	node->nn_flags |= IN_CHANGE;
-	if ((inode->i_mode & (NANDFS_ISUID | NANDFS_ISGID)) &&
+	if ((inode->i_mode & (ISUID | ISGID)) &&
 	    (ouid != uid || ogid != gid)) {
 		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, 0))
-			inode->i_mode &= ~(NANDFS_ISUID | NANDFS_ISGID);
+			inode->i_mode &= ~(ISUID | ISGID);
 	}
 	DPRINTF(VNCALL, ("%s: vp %p, cred %p, td %p - ret OK\n", __func__, vp,
 	    cred, td));

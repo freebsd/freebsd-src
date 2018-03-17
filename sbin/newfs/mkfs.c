@@ -883,7 +883,7 @@ fsinit(time_t utime)
 		/*
 		 * create the root directory
 		 */
-		node.dp1.di_mode = UFS_IFDIR | UMASK;
+		node.dp1.di_mode = IFDIR | UMASK;
 		node.dp1.di_nlink = entries;
 		node.dp1.di_size = makedir(root_dir, entries);
 		node.dp1.di_db[0] = alloc(sblock.fs_fsize, node.dp1.di_mode);
@@ -919,7 +919,7 @@ fsinit(time_t utime)
 		/*
 		 * create the root directory
 		 */
-		node.dp2.di_mode = UFS_IFDIR | UMASK;
+		node.dp2.di_mode = IFDIR | UMASK;
 		node.dp2.di_nlink = entries;
 		node.dp2.di_size = makedir(root_dir, entries);
 		node.dp2.di_db[0] = alloc(sblock.fs_fsize, node.dp2.di_mode);
@@ -1002,7 +1002,7 @@ goth:
 	acg.cg_cs.cs_nbfree--;
 	sblock.fs_cstotal.cs_nbfree--;
 	fscs[0].cs_nbfree--;
-	if (mode & UFS_IFDIR) {
+	if (mode & IFDIR) {
 		acg.cg_cs.cs_ndir++;
 		sblock.fs_cstotal.cs_ndir++;
 		fscs[0].cs_ndir++;

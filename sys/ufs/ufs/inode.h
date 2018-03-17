@@ -113,7 +113,7 @@ struct inode {
 	u_int32_t i_flags;	/* Status flags (chflags). */
 	u_int32_t i_uid;	/* File owner. */
 	u_int32_t i_gid;	/* File group. */
-	u_int16_t i_mode;	/* UFS_IFMT, permissions; see below. */
+	u_int16_t i_mode;	/* IFMT, permissions; see below. */
 	int16_t	  i_nlink;	/* File link count. */
 };
 /*

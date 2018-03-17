@@ -393,7 +393,7 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	 * ext2_dirpref else obtain it using ino_to_cg. The preferred inode is
 	 * always the next inode.
 	 */
-	if ((mode & EXT2_IFMT) == EXT2_IFDIR) {
+	if ((mode & IFMT) == IFDIR) {
 		cg = ext2_dirpref(pip);
 		if (fs->e2fs_contigdirs[cg] < 255)
 			fs->e2fs_contigdirs[cg]++;
@@ -1290,7 +1290,7 @@ gotit:
 		    e2fs_gd_get_i_unused(&fs->e2fs_gd[cg]) - 1);
 	fs->e2fs->e2fs_ficount--;
 	fs->e2fs_fmod = 1;
-	if ((mode & EXT2_IFMT) == EXT2_IFDIR) {
+	if ((mode & IFMT) == IFDIR) {
 		e2fs_gd_set_ndirs(&fs->e2fs_gd[cg],
 		    e2fs_gd_get_ndirs(&fs->e2fs_gd[cg]) + 1);
 		fs->e2fs_total_dir++;
@@ -1395,7 +1395,7 @@ ext2_vfree(struct vnode *pvp, ino_t ino, int mode)
 	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM))
 		e2fs_gd_set_i_unused(&fs->e2fs_gd[cg],
 		    e2fs_gd_get_i_unused(&fs->e2fs_gd[cg]) + 1);
-	if ((mode & EXT2_IFMT) == EXT2_IFDIR) {
+	if ((mode & IFMT) == IFDIR) {
 		e2fs_gd_set_ndirs(&fs->e2fs_gd[cg],
 		    e2fs_gd_get_ndirs(&fs->e2fs_gd[cg]) - 1);
 		fs->e2fs_total_dir--;
