@@ -195,7 +195,7 @@ mapfiles(ino_t maxino, long *tapesize)
 		for (i = 0; i < inosused; i++, ino++) {
 			if (ino < UFS_ROOTINO ||
 			    (dp = getinode(ino, &mode)) == NULL ||
-			    (mode & UFS_IFMT) == 0)
+			    (mode & IFMT) == 0)
 				continue;
 			if (ino >= maxino) {
 				msg("Skipping inode %ju >= maxino %ju\n",
@@ -209,19 +209,19 @@ mapfiles(ino_t maxino, long *tapesize)
 			 * (this is used in mapdirs()).
 			 */
 			SETINO(ino, usedinomap);
-			if (mode == UFS_IFDIR)
+			if (mode == IFDIR)
 				SETINO(ino, dumpdirmap);
 			if (WANTTODUMP(dp)) {
 				SETINO(ino, dumpinomap);
-				if (mode != UFS_IFREG &&
-				    mode != UFS_IFDIR &&
-				    mode != UFS_IFLNK)
+				if (mode != IFREG &&
+				    mode != IFDIR &&
+				    mode != IFLNK)
 					*tapesize += 1;
 				else
 					*tapesize += blockest(dp);
 				continue;
 			}
-			if (mode == UFS_IFDIR) {
+			if (mode == IFDIR) {
 				if (!nonodump &&
 				    (DIP(dp, di_flags) & UF_NODUMP))
 					CLRINO(ino, usedinomap);
@@ -429,7 +429,7 @@ searchdir(
 			 * Add back to dumpdirmap and remove from usedinomap
 			 * to propagate nodump.
 			 */
-			if (mode == UFS_IFDIR) {
+			if (mode == IFDIR) {
 				SETINO(dp->d_ino, dumpdirmap);
 				CLRINO(dp->d_ino, usedinomap);
 				ret |= HASSUBDIRS;
@@ -554,7 +554,7 @@ dumpino(union dinode *dp, ino_t ino)
 
 	default:
 		msg("Warning: undefined file type 0%o\n",
-		    DIP(dp, di_mode) & UFS_IFMT);
+		    DIP(dp, di_mode) & IFMT);
 		return;
 	}
 	if (DIP(dp, di_size) > UFS_NDADDR * sblock->fs_bsize) {
@@ -890,11 +890,11 @@ getinode(ino_t inum, int *modep)
 gotit:
 	if (sblock->fs_magic == FS_UFS1_MAGIC) {
 		dp1 = &((struct ufs1_dinode *)inoblock)[inum - minino];
-		*modep = (dp1->di_mode & UFS_IFMT);
+		*modep = (dp1->di_mode & IFMT);
 		return ((union dinode *)dp1);
 	}
 	dp2 = &((struct ufs2_dinode *)inoblock)[inum - minino];
-	*modep = (dp2->di_mode & UFS_IFMT);
+	*modep = (dp2->di_mode & IFMT);
 	return ((union dinode *)dp2);
 }
 

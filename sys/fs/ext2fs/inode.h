@@ -92,7 +92,7 @@ struct inode {
 	uint32_t i_next_alloc_goal;
 
 	/* Fields from struct dinode in UFS. */
-	uint16_t	i_mode;		/* EXT2_IFMT, permissions; see below. */
+	uint16_t	i_mode;		/* IFMT, permissions; see below. */
 	int32_t		i_nlink;	/* File link count. */
 	uint32_t	i_uid;		/* File owner. */
 	uint32_t	i_gid;		/* File group. */
@@ -131,23 +131,23 @@ struct inode {
 #define	i_rdev		i_db[0]
 
 /* File permissions. */
-#define	EXT2_IEXEC	0000100		/* Executable. */
-#define	EXT2_IWRITE	0000200		/* Writeable. */
-#define	EXT2_IREAD	0000400		/* Readable. */
-#define	EXT2_ISVTX	0001000		/* Sticky bit. */
-#define	EXT2_ISGID	0002000		/* Set-gid. */
-#define	EXT2_ISUID	0004000		/* Set-uid. */
+#define	IEXEC		0000100		/* Executable. */
+#define	IWRITE		0000200		/* Writeable. */
+#define	IREAD		0000400		/* Readable. */
+#define	ISVTX		0001000		/* Sticky bit. */
+#define	ISGID		0002000		/* Set-gid. */
+#define	ISUID		0004000		/* Set-uid. */
 
 /* File types. */
-#define	EXT2_IFMT	0170000		/* Mask of file type. */
-#define	EXT2_IFIFO	0010000		/* Named pipe (fifo). */
-#define	EXT2_IFCHR	0020000		/* Character device. */
-#define	EXT2_IFDIR	0040000		/* Directory file. */
-#define	EXT2_IFBLK	0060000		/* Block device. */
-#define	EXT2_IFREG	0100000		/* Regular file. */
-#define	EXT2_IFLNK	0120000		/* Symbolic link. */
-#define	EXT2_IFSOCK	0140000		/* UNIX domain socket. */
-#define	EXT2_IFWHT	0160000		/* Whiteout. */
+#define	IFMT		0170000		/* Mask of file type. */
+#define	IFIFO		0010000		/* Named pipe (fifo). */
+#define	IFCHR		0020000		/* Character device. */
+#define	IFDIR		0040000		/* Directory file. */
+#define	IFBLK		0060000		/* Block device. */
+#define	IFREG		0100000		/* Regular file. */
+#define	IFLNK		0120000		/* Symbolic link. */
+#define	IFSOCK		0140000		/* UNIX domain socket. */
+#define	IFWHT		0160000		/* Whiteout. */
 
 /* These flags are kept in i_flag. */
 #define	IN_ACCESS	0x0001		/* Access time update request. */

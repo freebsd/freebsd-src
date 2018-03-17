@@ -100,15 +100,15 @@ fsutilinit(void)
 int
 ftypeok(union dinode *dp)
 {
-	switch (DIP(dp, di_mode) & UFS_IFMT) {
+	switch (DIP(dp, di_mode) & IFMT) {
 
-	case UFS_IFDIR:
-	case UFS_IFREG:
-	case UFS_IFBLK:
-	case UFS_IFCHR:
-	case UFS_IFLNK:
-	case UFS_IFSOCK:
-	case UFS_IFIFO:
+	case IFDIR:
+	case IFREG:
+	case IFBLK:
+	case IFCHR:
+	case IFLNK:
+	case IFSOCK:
+	case IFIFO:
 		return (1);
 
 	default:

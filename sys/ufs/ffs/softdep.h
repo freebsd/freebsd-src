@@ -783,7 +783,7 @@ struct inoref {
 	ino_t		if_ino;		/* Inode number. */
 	ino_t		if_parent;	/* Parent inode number. */
 	nlink_t		if_nlink;	/* nlink before addition. */
-	uint16_t	if_mode;	/* File mode, needed for UFS_IFMT. */
+	uint16_t	if_mode;	/* File mode, needed for IFMT. */
 };
 
 /*

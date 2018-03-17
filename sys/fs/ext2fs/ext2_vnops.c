@@ -352,7 +352,7 @@ ext2_getattr(struct vop_getattr_args *ap)
 	 */
 	vap->va_fsid = dev2udev(ip->i_devvp->v_rdev);
 	vap->va_fileid = ip->i_number;
-	vap->va_mode = ip->i_mode & ~EXT2_IFMT;
+	vap->va_mode = ip->i_mode & ~IFMT;
 	vap->va_nlink = ip->i_nlink;
 	vap->va_uid = ip->i_uid;
 	vap->va_gid = ip->i_gid;
@@ -534,7 +534,7 @@ ext2_chmod(struct vnode *vp, int mode, struct ucred *cred, struct thread *td)
 		if (error)
 			return (EFTYPE);
 	}
-	if (!groupmember(ip->i_gid, cred) && (mode & EXT2_ISGID)) {
+	if (!groupmember(ip->i_gid, cred) && (mode & ISGID)) {
 		error = priv_check_cred(cred, PRIV_VFS_SETGID, 0);
 		if (error)
 			return (error);
@@ -584,10 +584,9 @@ ext2_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	ip->i_gid = gid;
 	ip->i_uid = uid;
 	ip->i_flag |= IN_CHANGE;
-	if ((ip->i_mode & (EXT2_ISUID | EXT2_ISGID)) &&
-	    (ouid != uid || ogid != gid)) {
+	if ((ip->i_mode & (ISUID | ISGID)) && (ouid != uid || ogid != gid)) {
 		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, 0) != 0)
-			ip->i_mode &= ~(EXT2_ISUID | EXT2_ISGID);
+			ip->i_mode &= ~(ISUID | ISGID);
 	}
 	return (0);
 }
@@ -844,7 +843,7 @@ abortit:
 		error = EPERM;
 		goto abortit;
 	}
-	if ((ip->i_mode & EXT2_IFMT) == EXT2_IFDIR) {
+	if ((ip->i_mode & IFMT) == IFDIR) {
 		/*
 		 * Avoid ".", "..", and aliases of "." for obvious reasons.
 		 */
@@ -975,7 +974,7 @@ abortit:
 		 * to it. Also, ensure source and target are compatible
 		 * (both directories, or both not directories).
 		 */
-		if ((xp->i_mode & EXT2_IFMT) == EXT2_IFDIR) {
+		if ((xp->i_mode & IFMT) == IFDIR) {
 			if (!ext2_dirempty(xp, dp->i_number, tcnp->cn_cred)) {
 				error = ENOTEMPTY;
 				goto bad;
@@ -1319,7 +1318,7 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 		goto out;
 	}
 	dmode = vap->va_mode & 0777;
-	dmode |= EXT2_IFDIR;
+	dmode |= IFDIR;
 	/*
 	 * Must simulate part of ext2_makeinode here to acquire the inode,
 	 * but not have it entered in the parent directory. The entry is
@@ -1342,8 +1341,8 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 		 * 'give it away' so that the SUID is still forced on.
 		 */
 		if ((dvp->v_mount->mnt_flag & MNT_SUIDDIR) &&
-		    (dp->i_mode & EXT2_ISUID) && dp->i_uid) {
-			dmode |= EXT2_ISUID;
+		    (dp->i_mode & ISUID) && dp->i_uid) {
+			dmode |= ISUID;
 			ip->i_uid = dp->i_uid;
 		} else {
 			ip->i_uid = cnp->cn_cred->cr_uid;
@@ -1522,7 +1521,7 @@ ext2_symlink(struct vop_symlink_args *ap)
 	struct inode *ip;
 	int len, error;
 
-	error = ext2_makeinode(EXT2_IFLNK | ap->a_vap->va_mode, ap->a_dvp,
+	error = ext2_makeinode(IFLNK | ap->a_vap->va_mode, ap->a_dvp,
 	    vpp, ap->a_cnp);
 	if (error)
 		return (error);
@@ -1959,8 +1958,8 @@ ext2_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
 		panic("ext2_makeinode: no name");
 #endif
 	*vpp = NULL;
-	if ((mode & EXT2_IFMT) == 0)
-		mode |= EXT2_IFREG;
+	if ((mode & IFMT) == 0)
+		mode |= IFREG;
 
 	error = ext2_valloc(dvp, mode, cnp->cn_cred, &tvp);
 	if (error) {
@@ -1979,7 +1978,7 @@ ext2_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
 		 * Note that this drops off the execute bits for security.
 		 */
 		if ((dvp->v_mount->mnt_flag & MNT_SUIDDIR) &&
-		    (pdir->i_mode & EXT2_ISUID) &&
+		    (pdir->i_mode & ISUID) &&
 		    (pdir->i_uid != cnp->cn_cred->cr_uid) && pdir->i_uid) {
 			ip->i_uid = pdir->i_uid;
 			mode &= ~07111;
@@ -1994,10 +1993,9 @@ ext2_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
 	ip->i_mode = mode;
 	tvp->v_type = IFTOVT(mode);	/* Rest init'd in getnewvnode(). */
 	ip->i_nlink = 1;
-	if ((ip->i_mode & EXT2_ISGID) &&
-	    !groupmember(ip->i_gid, cnp->cn_cred)) {
+	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred)) {
 		if (priv_check_cred(cnp->cn_cred, PRIV_VFS_RETAINSUGID, 0))
-			ip->i_mode &= ~EXT2_ISGID;
+			ip->i_mode &= ~ISGID;
 	}
 
 	if (cnp->cn_flags & ISWHITEOUT)
@@ -2322,10 +2320,10 @@ ext2_write(struct vop_write_args *ap)
 	 * we clear the setuid and setgid bits as a precaution against
 	 * tampering.
 	 */
-	if ((ip->i_mode & (EXT2_ISUID | EXT2_ISGID)) &&
-	    resid > uio->uio_resid && ap->a_cred) {
+	if ((ip->i_mode & (ISUID | ISGID)) && resid > uio->uio_resid &&
+	    ap->a_cred) {
 		if (priv_check_cred(ap->a_cred, PRIV_VFS_RETAINSUGID, 0))
-			ip->i_mode &= ~(EXT2_ISUID | EXT2_ISGID);
+			ip->i_mode &= ~(ISUID | ISGID);
 	}
 	if (error) {
 		if (ioflag & IO_UNIT) {

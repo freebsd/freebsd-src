@@ -81,12 +81,12 @@ getino(struct uufsd *disk, void **dino, ino_t inode, int *mode)
 gotit:	switch (disk->d_ufs) {
 	case 1:
 		dp1 = &((struct ufs1_dinode *)inoblock)[inode - min];
-		*mode = dp1->di_mode & UFS_IFMT;
+		*mode = dp1->di_mode & IFMT;
 		*dino = dp1;
 		return (0);
 	case 2:
 		dp2 = &((struct ufs2_dinode *)inoblock)[inode - min];
-		*mode = dp2->di_mode & UFS_IFMT;
+		*mode = dp2->di_mode & IFMT;
 		*dino = dp2;
 		return (0);
 	default:

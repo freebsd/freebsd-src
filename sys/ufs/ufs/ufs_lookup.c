@@ -125,7 +125,7 @@ ufs_delete_denied(struct vnode *vdp, struct vnode *tdp, struct ucred *cred,
 	 * may not delete it (unless she's root). This
 	 * implements append-only directories.
 	 */
-	if ((VTOI(vdp)->i_mode & UFS_ISVTX) &&
+	if ((VTOI(vdp)->i_mode & ISVTX) &&
 	    VOP_ACCESS(vdp, VADMIN, cred, td) &&
 	    VOP_ACCESS(tdp, VADMIN, cred, td))
 		return (EPERM);

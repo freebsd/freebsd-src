@@ -295,12 +295,12 @@ struct nandfs_node {
 #define	IN_RENAME	0x0010	/* node is being renamed. */
 
 /* File permissions. */
-#define	NANDFS_IEXEC	0000100	/* Executable. */
-#define	NANDFS_IWRITE	0000200	/* Writeable. */
-#define	NANDFS_IREAD	0000400	/* Readable. */
-#define	NANDFS_ISVTX	0001000	/* Sticky bit. */
-#define	NANDFS_ISGID	0002000	/* Set-gid. */
-#define	NANDFS_ISUID	0004000	/* Set-uid. */
+#define	IEXEC		0000100	/* Executable. */
+#define	IWRITE		0000200	/* Writeable. */
+#define	IREAD		0000400	/* Readable. */
+#define	ISVTX		0001000	/* Sticky bit. */
+#define	ISGID		0002000	/* Set-gid. */
+#define	ISUID		0004000	/* Set-uid. */
 
 #define	PRINT_NODE_FLAGS \
 	"\10\1IN_ACCESS\2IN_CHANGE\3IN_UPDATE\4IN_MODIFIED\5IN_RENAME"

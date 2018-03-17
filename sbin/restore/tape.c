@@ -592,19 +592,19 @@ extractfile(char *name)
 	gid = curfile.gid;
 	mode = curfile.mode;
 	flags = curfile.file_flags;
-	switch (mode & UFS_IFMT) {
+	switch (mode & IFMT) {
 
 	default:
 		fprintf(stderr, "%s: unknown file mode 0%o\n", name, mode);
 		skipfile();
 		return (FAIL);
 
-	case UFS_IFSOCK:
+	case IFSOCK:
 		vprintf(stdout, "skipped socket %s\n", name);
 		skipfile();
 		return (GOOD);
 
-	case UFS_IFDIR:
+	case IFDIR:
 		if (mflag) {
 			ep = lookupname(name);
 			if (ep == NULL || ep->e_flags & EXTRACT)
@@ -615,7 +615,7 @@ extractfile(char *name)
 		vprintf(stdout, "extract file %s\n", name);
 		return (genliteraldir(name, curfile.ino));
 
-	case UFS_IFLNK:
+	case IFLNK:
 		lnkbuf[0] = '\0';
 		pathlen = 0;
 		buf = setupextattr(extsize);
@@ -639,7 +639,7 @@ extractfile(char *name)
 		}
 		return (FAIL);
 
-	case UFS_IFIFO:
+	case IFIFO:
 		vprintf(stdout, "extract fifo %s\n", name);
 		if (Nflag) {
 			skipfile();
@@ -667,8 +667,8 @@ extractfile(char *name)
 		(void) chflags(name, flags);
 		return (GOOD);
 
-	case UFS_IFCHR:
-	case UFS_IFBLK:
+	case IFCHR:
+	case IFBLK:
 		vprintf(stdout, "extract special file %s\n", name);
 		if (Nflag) {
 			skipfile();
@@ -676,7 +676,7 @@ extractfile(char *name)
 		}
 		if (uflag)
 			(void) unlink(name);
-		if (mknod(name, (mode & (UFS_IFCHR | UFS_IFBLK)) | 0600,
+		if (mknod(name, (mode & (IFCHR | IFBLK)) | 0600,
 		    (int)curfile.rdev) < 0) {
 			fprintf(stderr, "%s: cannot create special file: %s\n",
 			    name, strerror(errno));
@@ -697,7 +697,7 @@ extractfile(char *name)
 		(void) chflags(name, flags);
 		return (GOOD);
 
-	case UFS_IFREG:
+	case IFREG:
 		vprintf(stdout, "extract file %s\n", name);
 		if (Nflag) {
 			skipfile();
