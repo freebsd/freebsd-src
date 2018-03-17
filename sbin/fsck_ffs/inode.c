@@ -71,8 +71,8 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 	idesc->id_lbn = -1;
 	idesc->id_entryno = 0;
 	idesc->id_filesize = DIP(dp, di_size);
-	mode = DIP(dp, di_mode) & IFMT;
-	if (mode == IFBLK || mode == IFCHR || (mode == IFLNK &&
+	mode = DIP(dp, di_mode) & UFS_IFMT;
+	if (mode == UFS_IFBLK || mode == UFS_IFCHR || (mode == UFS_IFLNK &&
 	    DIP(dp, di_size) < (unsigned)sblock.fs_maxsymlinklen))
 		return (KEEPON);
 	if (sblock.fs_magic == FS_UFS1_MAGIC)
@@ -347,7 +347,7 @@ getnextinode(ino_t inumber, int rebuildcg)
 		 * Try to determine if we have reached the end of the
 		 * allocated inodes.
 		 */
-		mode = DIP(dp, di_mode) & IFMT;
+		mode = DIP(dp, di_mode) & UFS_IFMT;
 		if (mode == 0) {
 			if (memcmp(dp->dp2.di_db, ufs2_zino.di_db,
 				UFS_NDADDR * sizeof(ufs2_daddr_t)) ||
@@ -362,9 +362,9 @@ getnextinode(ino_t inumber, int rebuildcg)
 		ndb = howmany(DIP(dp, di_size), sblock.fs_bsize);
 		if (ndb < 0)
 			return (NULL);
-		if (mode == IFBLK || mode == IFCHR)
+		if (mode == UFS_IFBLK || mode == UFS_IFCHR)
 			ndb++;
-		if (mode == IFLNK) {
+		if (mode == UFS_IFLNK) {
 			/*
 			 * Fake ndb value so direct/indirect block checks below
 			 * will detect any garbage after symlink string.
@@ -533,7 +533,7 @@ clri(struct inodesc *idesc, const char *type, int flag)
 	dp = ginode(idesc->id_number);
 	if (flag == 1) {
 		pwarn("%s %s", type,
-		    (DIP(dp, di_mode) & IFMT) == IFDIR ? "DIR" : "FILE");
+		    (DIP(dp, di_mode) & UFS_IFMT) == UFS_IFDIR ? "DIR":"FILE");
 		pinode(idesc->id_number);
 	}
 	if (preen || reply("CLEAR") == 1) {
@@ -681,13 +681,13 @@ allocino(ino_t request, int type)
 		return (0);
 	setbit(cg_inosused(cgp), ino % sblock.fs_ipg);
 	cgp->cg_cs.cs_nifree--;
-	switch (type & IFMT) {
-	case IFDIR:
+	switch (type & UFS_IFMT) {
+	case UFS_IFDIR:
 		inoinfo(ino)->ino_state = DSTATE;
 		cgp->cg_cs.cs_ndir++;
 		break;
-	case IFREG:
-	case IFLNK:
+	case UFS_IFREG:
+	case UFS_IFLNK:
 		inoinfo(ino)->ino_state = FSTATE;
 		break;
 	default:

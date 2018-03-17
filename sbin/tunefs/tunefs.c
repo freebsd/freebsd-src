@@ -1021,7 +1021,7 @@ journal_alloc(int64_t size)
 		if (sblock.fs_magic == FS_UFS1_MAGIC) {
 			bzero(dp1, sizeof(*dp1));
 			dp1->di_size = size;
-			dp1->di_mode = IFREG | IREAD;
+			dp1->di_mode = UFS_IFREG | UFS_IREAD;
 			dp1->di_nlink = 1;
 			dp1->di_flags = SF_IMMUTABLE | SF_NOUNLINK | UF_NODUMP;
 			dp1->di_atime = utime;
@@ -1030,7 +1030,7 @@ journal_alloc(int64_t size)
 		} else {
 			bzero(dp2, sizeof(*dp2));
 			dp2->di_size = size;
-			dp2->di_mode = IFREG | IREAD;
+			dp2->di_mode = UFS_IFREG | UFS_IREAD;
 			dp2->di_nlink = 1;
 			dp2->di_flags = SF_IMMUTABLE | SF_NOUNLINK | UF_NODUMP;
 			dp2->di_atime = utime;

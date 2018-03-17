@@ -178,7 +178,7 @@ extractdirs(int genmode)
 	for (;;) {
 		curfile.name = "<directory file - name unknown>";
 		curfile.action = USING;
-		if (curfile.mode == 0 || (curfile.mode & IFMT) != IFDIR)
+		if (curfile.mode == 0 || (curfile.mode & UFS_IFMT) != UFS_IFDIR)
 			break;
 		itp = allocinotab(&curfile, seekpt);
 		getfile(putdir, putdirattrs, xtrnull);
@@ -205,7 +205,7 @@ void
 skipdirs(void)
 {
 
-	while (curfile.ino && (curfile.mode & IFMT) == IFDIR) {
+	while (curfile.ino && (curfile.mode & UFS_IFMT) == UFS_IFDIR) {
 		skipfile();
 	}
 }

@@ -557,7 +557,7 @@ ufs_open(upath, f)
 		/*
 		 * Check that current node is a directory.
 		 */
-		if ((DIP(fp, di_mode) & IFMT) != IFDIR) {
+		if ((DIP(fp, di_mode) & UFS_IFMT) != UFS_IFDIR) {
 			rc = ENOTDIR;
 			goto out;
 		}
@@ -599,7 +599,7 @@ ufs_open(upath, f)
 		/*
 		 * Check for symbolic link.
 		 */
-		if ((DIP(fp, di_mode) & IFMT) == IFLNK) {
+		if ((DIP(fp, di_mode) & UFS_IFMT) == UFS_IFLNK) {
 			int link_len = DIP(fp, di_size);
 			int len;
 

@@ -654,7 +654,7 @@ nandfs_lookup_path(struct nandfs *fs, const char *path)
 	while ((strp = strsep(&lpath, "/")) != NULL) {
 		if (*strp == '\0')
 			continue;
-		if ((node->inode->i_mode & IFMT) != IFDIR) {
+		if ((node->inode->i_mode & NANDFS_IFMT) != NANDFS_IFDIR) {
 			nandfs_free_node(node);
 			node = NULL;
 			goto out;
@@ -710,7 +710,7 @@ nandfs_lookup_path(struct nandfs *fs, const char *path)
 		NANDFS_DEBUG("%s: %.*s has mode %o\n", __func__,
 		    dirent->name_len, dirent->name, node->inode->i_mode);
 
-		if ((node->inode->i_mode & IFMT) == IFLNK) {
+		if ((node->inode->i_mode & NANDFS_IFMT) == NANDFS_IFLNK) {
 			NANDFS_DEBUG("%s: %.*s is symlink\n",
 			    __func__, dirent->name_len, dirent->name);
 			link_len = node->inode->i_size;

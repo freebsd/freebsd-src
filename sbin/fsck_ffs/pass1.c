@@ -251,7 +251,7 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 
 	if ((dp = getnextinode(inumber, rebuildcg)) == NULL)
 		return (0);
-	mode = DIP(dp, di_mode) & IFMT;
+	mode = DIP(dp, di_mode) & UFS_IFMT;
 	if (mode == 0) {
 		if ((sblock.fs_magic == FS_UFS1_MAGIC &&
 		     (memcmp(dp->dp1.di_db, ufs1_zino.di_db,
@@ -284,25 +284,25 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 		kernmaxfilesize = sblock.fs_maxfilesize;
 	if (DIP(dp, di_size) > kernmaxfilesize ||
 	    DIP(dp, di_size) > sblock.fs_maxfilesize ||
-	    (mode == IFDIR && DIP(dp, di_size) > MAXDIRSIZE)) {
+	    (mode == UFS_IFDIR && DIP(dp, di_size) > MAXDIRSIZE)) {
 		if (debug)
 			printf("bad size %ju:", (uintmax_t)DIP(dp, di_size));
 		goto unknown;
 	}
-	if (!preen && mode == IFMT && reply("HOLD BAD BLOCK") == 1) {
+	if (!preen && mode == UFS_IFMT && reply("HOLD BAD BLOCK") == 1) {
 		dp = ginode(inumber);
 		DIP_SET(dp, di_size, sblock.fs_fsize);
-		DIP_SET(dp, di_mode, IFREG|0600);
+		DIP_SET(dp, di_mode, UFS_IFREG|0600);
 		inodirty();
 	}
-	if ((mode == IFBLK || mode == IFCHR || mode == IFIFO ||
-	     mode == IFSOCK) && DIP(dp, di_size) != 0) {
+	if ((mode == UFS_IFBLK || mode == UFS_IFCHR || mode == UFS_IFIFO ||
+	     mode == UFS_IFSOCK) && DIP(dp, di_size) != 0) {
 		if (debug)
 			printf("bad special-file size %ju:",
 			    (uintmax_t)DIP(dp, di_size));
 		goto unknown;
 	}
-	if ((mode == IFBLK || mode == IFCHR) &&
+	if ((mode == UFS_IFBLK || mode == UFS_IFCHR) &&
 	    (dev_t)DIP(dp, di_rdev) == NODEV) {
 		if (debug)
 			printf("bad special-file rdev NODEV:");
@@ -315,9 +315,9 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 				(uintmax_t)DIP(dp, di_size), (uintmax_t)ndb);
 		goto unknown;
 	}
-	if (mode == IFBLK || mode == IFCHR)
+	if (mode == UFS_IFBLK || mode == UFS_IFCHR)
 		ndb++;
-	if (mode == IFLNK) {
+	if (mode == UFS_IFLNK) {
 		/*
 		 * Fake ndb value so direct/indirect block checks below
 		 * will detect any garbage after symlink string.
@@ -357,7 +357,7 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 		goto unknown;
 	n_files++;
 	inoinfo(inumber)->ino_linkcnt = DIP(dp, di_nlink);
-	if (mode == IFDIR) {
+	if (mode == UFS_IFDIR) {
 		if (DIP(dp, di_size) == 0)
 			inoinfo(inumber)->ino_state = DCLEAR;
 		else if (DIP(dp, di_nlink) <= 0)

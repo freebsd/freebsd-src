@@ -105,7 +105,7 @@
  * Structure of an inode on the disk
  */
 struct ext2fs_dinode {
-	uint16_t	e2di_mode;	/*   0: IFMT, permissions; see below. */
+	uint16_t	e2di_mode;	/*   0: EXT2_IFMT, permissions; below.*/
 	uint16_t	e2di_uid;	/*   2: Owner UID */
 	uint32_t	e2di_size;	/*   4: Size (in bytes) */
 	uint32_t	e2di_atime;	/*   8: Access time */
