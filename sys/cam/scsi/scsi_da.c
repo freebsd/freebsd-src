@@ -2039,26 +2039,30 @@ daasync(void *callback_arg, u_int32_t code,
 		 * Handle all UNIT ATTENTIONs except our own,
 		 * as they will be handled by daerror().
 		 */
-		cam_periph_lock(periph);
 		if (xpt_path_periph(ccb->ccb_h.path) != periph &&
 		    scsi_extract_sense_ccb(ccb,
 		     &error_code, &sense_key, &asc, &ascq)) {
 			if (asc == 0x2A && ascq == 0x09) {
 				xpt_print(ccb->ccb_h.path,
 				    "Capacity data has changed\n");
+				cam_periph_lock(periph);
 				softc->flags &= ~DA_FLAG_PROBED;
+				cam_periph_unlock(periph);
 				dareprobe(periph);
 			} else if (asc == 0x28 && ascq == 0x00) {
+				cam_periph_lock(periph);
 				softc->flags &= ~DA_FLAG_PROBED;
+				cam_periph_unlock(periph);
 				disk_media_changed(softc->disk, M_NOWAIT);
 			} else if (asc == 0x3F && ascq == 0x03) {
 				xpt_print(ccb->ccb_h.path,
 				    "INQUIRY data has changed\n");
+				cam_periph_lock(periph);
 				softc->flags &= ~DA_FLAG_PROBED;
+				cam_periph_unlock(periph);
 				dareprobe(periph);
 			}
 		}
-		cam_periph_unlock(periph);
 		break;
 	}
 	case AC_SCSI_AEN:
