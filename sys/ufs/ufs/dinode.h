@@ -95,23 +95,23 @@ typedef int64_t ufs_lbn_t;
 typedef int64_t ufs_time_t;
 
 /* File permissions. */
-#define	UFS_IEXEC	0000100		/* Executable. */
-#define	UFS_IWRITE	0000200		/* Writeable. */
-#define	UFS_IREAD	0000400		/* Readable. */
-#define	UFS_ISVTX	0001000		/* Sticky bit. */
-#define	UFS_ISGID	0002000		/* Set-gid. */
-#define	UFS_ISUID	0004000		/* Set-uid. */
+#define	IEXEC		0000100		/* Executable. */
+#define	IWRITE		0000200		/* Writeable. */
+#define	IREAD		0000400		/* Readable. */
+#define	ISVTX		0001000		/* Sticky bit. */
+#define	ISGID		0002000		/* Set-gid. */
+#define	ISUID		0004000		/* Set-uid. */
 
 /* File types. */
-#define	UFS_IFMT	0170000		/* Mask of file type. */
-#define	UFS_IFIFO	0010000		/* Named pipe (fifo). */
-#define	UFS_IFCHR	0020000		/* Character device. */
-#define	UFS_IFDIR	0040000		/* Directory file. */
-#define	UFS_IFBLK	0060000		/* Block device. */
-#define	UFS_IFREG	0100000		/* Regular file. */
-#define	UFS_IFLNK	0120000		/* Symbolic link. */
-#define	UFS_IFSOCK	0140000		/* UNIX domain socket. */
-#define	UFS_IFWHT	0160000		/* Whiteout. */
+#define	IFMT		0170000		/* Mask of file type. */
+#define	IFIFO		0010000		/* Named pipe (fifo). */
+#define	IFCHR		0020000		/* Character device. */
+#define	IFDIR		0040000		/* Directory file. */
+#define	IFBLK		0060000		/* Block device. */
+#define	IFREG		0100000		/* Regular file. */
+#define	IFLNK		0120000		/* Symbolic link. */
+#define	IFSOCK		0140000		/* UNIX domain socket. */
+#define	IFWHT		0160000		/* Whiteout. */
 
 /*
  * A dinode contains all the meta-data associated with a UFS2 file.
@@ -125,7 +125,7 @@ typedef int64_t ufs_time_t;
 #define	UFS_NIADDR	3		/* Indirect addresses in inode. */
 
 struct ufs2_dinode {
-	u_int16_t	di_mode;	/*   0: UFS_IFMT, permissions; below. */
+	u_int16_t	di_mode;	/*   0: IFMT, permissions; see below. */
 	int16_t		di_nlink;	/*   2: File link count. */
 	u_int32_t	di_uid;		/*   4: File owner. */
 	u_int32_t	di_gid;		/*   8: File group. */
@@ -168,7 +168,7 @@ struct ufs2_dinode {
  * are defined by types with precise widths.
  */
 struct ufs1_dinode {
-	u_int16_t	di_mode;	/*   0: UFS_IFMT, permissions; below. */
+	u_int16_t	di_mode;	/*   0: IFMT, permissions; see below. */
 	int16_t		di_nlink;	/*   2: File link count. */
 	uint32_t	di_freelink;	/*   4: SUJ: Next unlinked inode. */
 	u_int64_t	di_size;	/*   8: File byte count. */

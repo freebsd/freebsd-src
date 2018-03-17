@@ -550,7 +550,7 @@ main(int argc, char *argv[])
 		 * Skip directory inodes deleted and maybe reallocated
 		 */
 		dp = getinode(ino, &mode);
-		if (mode != UFS_IFDIR)
+		if (mode != IFDIR)
 			continue;
 		(void)dumpino(dp, ino);
 	}
@@ -569,7 +569,7 @@ main(int argc, char *argv[])
 		 * Skip inodes deleted and reallocated as directories.
 		 */
 		dp = getinode(ino, &mode);
-		if (mode == UFS_IFDIR)
+		if (mode == IFDIR)
 			continue;
 		(void)dumpino(dp, ino);
 	}

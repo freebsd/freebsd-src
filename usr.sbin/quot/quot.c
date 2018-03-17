@@ -203,24 +203,23 @@ static int
 isfree(struct fs *super, union dinode *dp)
 {
 #ifdef	COMPAT
-	return (DIP(super, dp, di_mode) & UFS_IFMT) == 0;
+	return (DIP(super, dp, di_mode) & IFMT) == 0;
 #else	/* COMPAT */
 
-	switch (DIP(super, dp, di_mode) & UFS_IFMT) {
-	case UFS_IFIFO:
-	case UFS_IFLNK:		/* should check FASTSYMLINK? */
-	case UFS_IFDIR:
-	case UFS_IFREG:
+	switch (DIP(super, dp, di_mode) & IFMT) {
+	case IFIFO:
+	case IFLNK:		/* should check FASTSYMLINK? */
+	case IFDIR:
+	case IFREG:
 		return 0;
-	case UFS_IFCHR:
-	case UFS_IFBLK:
-	case UFS_IFSOCK:
-	case UFS_IFWHT:
+	case IFCHR:
+	case IFBLK:
+	case IFSOCK:
+	case IFWHT:
 	case 0:
 		return 1;
 	default:
-		errx(1, "unknown UFS_IFMT 0%o",
-		    DIP(super, dp, di_mode) & UFS_IFMT);
+		errx(1, "unknown IFMT 0%o", DIP(super, dp, di_mode) & IFMT);
 	}
 #endif
 }
@@ -390,8 +389,8 @@ dofsizes(int fd, struct fs *super, char *name)
 		errno = 0;
 		if ((dp = get_inode(fd,super,inode))
 #ifdef	COMPAT
-		    && ((DIP(super, dp, di_mode) & UFS_IFMT) == UFS_IFREG
-			|| (DIP(super, dp, di_mode) & UFS_IFMT) == UFS_IFDIR)
+		    && ((DIP(super, dp, di_mode) & IFMT) == IFREG
+			|| (DIP(super, dp, di_mode) & IFMT) == IFDIR)
 #else	/* COMPAT */
 		    && !isfree(super, dp)
 #endif	/* COMPAT */

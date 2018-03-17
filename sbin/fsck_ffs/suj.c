@@ -605,7 +605,7 @@ ino_free(ino_t ino, int mode)
 	if (ino < cgp->cg_irotor)
 		cgp->cg_irotor = ino;
 	cgp->cg_cs.cs_nifree++;
-	if ((mode & UFS_IFMT) == UFS_IFDIR) {
+	if ((mode & IFMT) == IFDIR) {
 		freedir++;
 		cgp->cg_cs.cs_ndir--;
 	}
@@ -748,7 +748,7 @@ ino_blkatoff(union dinode *ip, ino_t ino, ufs_lbn_t lbn, int *frags)
 	/*
 	 * Now direct and indirect.
 	 */
-	if (DIP(ip, di_mode) == UFS_IFLNK &&
+	if (DIP(ip, di_mode) == IFLNK &&
 	    DIP(ip, di_size) < fs->fs_maxsymlinklen)
 		return (0);
 	if (lbn >= 0 && lbn < UFS_NDADDR) {
@@ -853,7 +853,7 @@ ino_isat(ino_t parent, off_t diroff, ino_t child, int *mode, int *isdot)
 	*isdot = 0;
 	dip = ino_read(parent);
 	*mode = DIP(dip, di_mode);
-	if ((*mode & UFS_IFMT) != UFS_IFDIR) {
+	if ((*mode & IFMT) != IFDIR) {
 		if (debug) {
 			/*
 			 * This can happen if the parent inode
@@ -1013,7 +1013,7 @@ ino_visit(union dinode *ip, ino_t ino, ino_visitor visitor, int flags)
 	int i;
 
 	size = DIP(ip, di_size);
-	mode = DIP(ip, di_mode) & UFS_IFMT;
+	mode = DIP(ip, di_mode) & IFMT;
 	fragcnt = 0;
 	if ((flags & VISIT_EXT) &&
 	    fs->fs_magic == FS_UFS2_MAGIC && ip->dp2.di_extsize) {
@@ -1027,8 +1027,8 @@ ino_visit(union dinode *ip, ino_t ino, ino_visitor visitor, int flags)
 		}
 	}
 	/* Skip datablocks for short links and devices. */
-	if (mode == UFS_IFBLK || mode == UFS_IFCHR ||
-	    (mode == UFS_IFLNK && size < fs->fs_maxsymlinklen))
+	if (mode == IFBLK || mode == IFCHR ||
+	    (mode == IFLNK && size < fs->fs_maxsymlinklen))
 		return (fragcnt);
 	for (i = 0; i < UFS_NDADDR; i++) {
 		if (DIP(ip, di_db[i]) == 0)
@@ -1265,7 +1265,7 @@ ino_reclaim(union dinode *ip, ino_t ino, int mode)
 		    (uintmax_t)ino, DIP(ip, di_nlink), DIP(ip, di_mode));
 
 	/* We are freeing an inode or directory. */
-	if ((DIP(ip, di_mode) & UFS_IFMT) == UFS_IFDIR)
+	if ((DIP(ip, di_mode) & IFMT) == IFDIR)
 		ino_visit(ip, ino, ino_free_children, 0);
 	DIP_SET(ip, di_nlink, 0);
 	ino_visit(ip, ino, blk_free_visit, VISIT_EXT | VISIT_INDIR);
@@ -1300,7 +1300,7 @@ ino_decr(ino_t ino)
 	if (mode == 0)
 		err_suj("Inode %d has a link of %d with 0 mode\n", ino, nlink);
 	nlink--;
-	if ((mode & UFS_IFMT) == UFS_IFDIR)
+	if ((mode & IFMT) == IFDIR)
 		reqlink = 2;
 	else
 		reqlink = 1;
@@ -1335,13 +1335,13 @@ ino_adjust(struct suj_ino *sino)
 
 	nlink = sino->si_nlink;
 	ino = sino->si_ino;
-	mode = sino->si_mode & UFS_IFMT;
+	mode = sino->si_mode & IFMT;
 	/*
 	 * If it's a directory with no dot links, it was truncated before
 	 * the name was cleared.  We need to clear the dirent that
 	 * points at it.
 	 */
-	if (mode == UFS_IFDIR && nlink == 1 && sino->si_dotlinks == 0) {
+	if (mode == IFDIR && nlink == 1 && sino->si_dotlinks == 0) {
 		sino->si_nlink = nlink = 0;
 		TAILQ_FOREACH(srec, &sino->si_recs, sr_next) {
 			rrec = (struct jrefrec *)srec->sr_rec;
@@ -1358,7 +1358,7 @@ ino_adjust(struct suj_ino *sino)
 	 * If it's a directory with no real names pointing to it go ahead
 	 * and truncate it.  This will free any children.
 	 */
-	if (mode == UFS_IFDIR && nlink - sino->si_dotlinks == 0) {
+	if (mode == IFDIR && nlink - sino->si_dotlinks == 0) {
 		sino->si_nlink = nlink = 0;
 		/*
 		 * Mark any .. links so they know not to free this inode
@@ -1374,7 +1374,7 @@ ino_adjust(struct suj_ino *sino)
 		}
 	}
 	ip = ino_read(ino);
-	mode = DIP(ip, di_mode) & UFS_IFMT;
+	mode = DIP(ip, di_mode) & IFMT;
 	if (nlink > UFS_LINK_MAX)
 		err_suj("ino %ju nlink manipulation error, new %ju, old %d\n",
 		    (uintmax_t)ino, (uintmax_t)nlink, DIP(ip, di_nlink));
@@ -1393,7 +1393,7 @@ ino_adjust(struct suj_ino *sino)
 	if (mode != sino->si_mode && debug)
 		printf("ino %ju, mode %o != %o\n",
 		    (uintmax_t)ino, mode, sino->si_mode);
-	if ((mode & UFS_IFMT) == UFS_IFDIR)
+	if ((mode & IFMT) == IFDIR)
 		reqlink = 2;
 	else
 		reqlink = 1;
@@ -1506,15 +1506,15 @@ ino_trunc(ino_t ino, off_t size)
 	int mode;
 
 	ip = ino_read(ino);
-	mode = DIP(ip, di_mode) & UFS_IFMT;
+	mode = DIP(ip, di_mode) & IFMT;
 	cursize = DIP(ip, di_size);
 	if (debug)
 		printf("Truncating ino %ju, mode %o to size %jd from size %jd\n",
 		    (uintmax_t)ino, mode, size, cursize);
 
 	/* Skip datablocks for short links and devices. */
-	if (mode == 0 || mode == UFS_IFBLK || mode == UFS_IFCHR ||
-	    (mode == UFS_IFLNK && cursize < fs->fs_maxsymlinklen))
+	if (mode == 0 || mode == IFBLK || mode == IFCHR ||
+	    (mode == IFLNK && cursize < fs->fs_maxsymlinklen))
 		return;
 	/* Don't extend. */
 	if (size > cursize)
@@ -1587,7 +1587,7 @@ ino_trunc(ino_t ino, off_t size)
 	 * uninitialized space later.
 	 */
 	off = blkoff(fs, size);
-	if (off && DIP(ip, di_mode) != UFS_IFDIR) {
+	if (off && DIP(ip, di_mode) != IFDIR) {
 		uint8_t *buf;
 		long clrsize;
 
@@ -1635,7 +1635,7 @@ ino_check(struct suj_ino *sino)
 		rrec = (struct jrefrec *)srec->sr_rec;
 		isat = ino_isat(rrec->jr_parent, rrec->jr_diroff,
 		    rrec->jr_ino, &mode, &isdot);
-		if (isat && (mode & UFS_IFMT) != (rrec->jr_mode & UFS_IFMT))
+		if (isat && (mode & IFMT) != (rrec->jr_mode & IFMT))
 			err_suj("Inode mode/directory type mismatch %o != %o\n",
 			    mode, rrec->jr_mode);
 		if (debug)
@@ -1646,7 +1646,7 @@ ino_check(struct suj_ino *sino)
 			    (uintmax_t)rrec->jr_parent,
 			    (uintmax_t)rrec->jr_diroff,
 			    rrec->jr_mode, isat, isdot);
-		mode = rrec->jr_mode & UFS_IFMT;
+		mode = rrec->jr_mode & IFMT;
 		if (rrec->jr_op == JOP_REMREF)
 			removes++;
 		newlinks += isat;
@@ -1915,7 +1915,7 @@ ino_unlinked(void)
 	fs->fs_sujfree = 0;
 	while (ino != 0) {
 		ip = ino_read(ino);
-		mode = DIP(ip, di_mode) & UFS_IFMT;
+		mode = DIP(ip, di_mode) & IFMT;
 		inon = DIP(ip, di_freelink);
 		DIP_SET(ip, di_freelink, 0);
 		/*
@@ -2371,7 +2371,7 @@ suj_verifyino(union dinode *ip)
 		return (-1);
 	}
 
-	if (DIP(ip, di_mode) != (UFS_IFREG | UFS_IREAD)) {
+	if (DIP(ip, di_mode) != (IFREG | IREAD)) {
 		printf("Invalid mode %o for journal inode %ju\n",
 		    DIP(ip, di_mode), (uintmax_t)sujino);
 		return (-1);

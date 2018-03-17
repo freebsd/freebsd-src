@@ -837,10 +837,10 @@ ffs_write(ap)
 	 * we clear the setuid and setgid bits as a precaution against
 	 * tampering.
 	 */
-	if ((ip->i_mode & (UFS_ISUID | UFS_ISGID)) && resid > uio->uio_resid &&
+	if ((ip->i_mode & (ISUID | ISGID)) && resid > uio->uio_resid &&
 	    ap->a_cred) {
 		if (priv_check_cred(ap->a_cred, PRIV_VFS_RETAINSUGID, 0)) {
-			ip->i_mode &= ~(UFS_ISUID | UFS_ISGID);
+			ip->i_mode &= ~(ISUID | ISGID);
 			DIP_SET(ip, i_mode, ip->i_mode);
 		}
 	}
@@ -1080,10 +1080,9 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	 * we clear the setuid and setgid bits as a precaution against
 	 * tampering.
 	 */
-	if ((ip->i_mode & (UFS_ISUID | UFS_ISGID)) && resid > uio->uio_resid &&
-	    ucred) {
+	if ((ip->i_mode & (ISUID | ISGID)) && resid > uio->uio_resid && ucred) {
 		if (priv_check_cred(ucred, PRIV_VFS_RETAINSUGID, 0)) {
-			ip->i_mode &= ~(UFS_ISUID | UFS_ISGID);
+			ip->i_mode &= ~(ISUID | ISGID);
 			dp->di_mode = ip->i_mode;
 		}
 	}

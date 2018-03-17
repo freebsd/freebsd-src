@@ -512,14 +512,14 @@ CMDFUNCSTART(findblk)
 	    /* Get on-disk inode aka dinode. */
 	    curinum = inum;
 	    curinode = ginode(inum);
-	    /* Find UFS_IFLNK dinode with allocated data blocks. */
-	    switch (DIP(curinode, di_mode) & UFS_IFMT) {
-	    case UFS_IFDIR:
-	    case UFS_IFREG:
+	    /* Find IFLNK dinode with allocated data blocks. */
+	    switch (DIP(curinode, di_mode) & IFMT) {
+	    case IFDIR:
+	    case IFREG:
 		if (DIP(curinode, di_blocks) == 0)
 		    continue;
 		break;
-	    case UFS_IFLNK:
+	    case IFLNK:
 		{
 		    uint64_t size = DIP(curinode, di_size);
 		    if (size > 0 && size < sblock.fs_maxsymlinklen &&
@@ -889,10 +889,10 @@ struct typemap {
     const char *typename;
     int typebits;
 } typenamemap[]  = {
-    {"file", UFS_IFREG},
-    {"dir", UFS_IFDIR},
-    {"socket", UFS_IFSOCK},
-    {"fifo", UFS_IFIFO},
+    {"file", IFREG},
+    {"dir", IFDIR},
+    {"socket", IFSOCK},
+    {"fifo", IFIFO},
 };
 
 CMDFUNCSTART(newtype)
@@ -902,7 +902,7 @@ CMDFUNCSTART(newtype)
 
     if (!checkactive())
 	return 1;
-    type = DIP(curinode, di_mode) & UFS_IFMT;
+    type = DIP(curinode, di_mode) & IFMT;
     for (tp = typenamemap;
 	 tp < &typenamemap[nitems(typenamemap)];
 	 tp++) {
@@ -917,7 +917,7 @@ CMDFUNCSTART(newtype)
 	warnx("try one of `file', `dir', `socket', `fifo'");
 	return 1;
     }
-    DIP_SET(curinode, di_mode, DIP(curinode, di_mode) & ~UFS_IFMT);
+    DIP_SET(curinode, di_mode, DIP(curinode, di_mode) & ~IFMT);
     DIP_SET(curinode, di_mode, DIP(curinode, di_mode) | type);
     inodirty();
     printactive(0);
