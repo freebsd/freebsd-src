@@ -1040,6 +1040,42 @@ ATF_TC_BODY(aio_socket_short_write_cancel, tc)
 	close(s[0]);
 }
 
+/* 
+ * test aio_fsync's behavior with bad inputs 
+ */
+ATF_TC_WITHOUT_HEAD(aio_fsync_errors);
+ATF_TC_BODY(aio_fsync_errors, tc)
+{
+	int fd;
+	struct aiocb iocb;
+
+	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
+
+	fd = open(FILE_PATHNAME, O_RDWR | O_CREAT, 0600);
+	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
+	unlink(FILE_PATHNAME);
+
+	/* aio_fsync should return EINVAL unless op is O_SYNC */
+	memset(&iocb, 0, sizeof(iocb));
+	iocb.aio_fildes = fd;
+	ATF_CHECK_EQ(-1, aio_fsync(666, &iocb));
+	ATF_CHECK_EQ(EINVAL, errno);
+
+	/* aio_fsync should return EBADF if fd is not a valid descriptor */
+	memset(&iocb, 0, sizeof(iocb));
+	iocb.aio_fildes = 666;
+	ATF_CHECK_EQ(-1, aio_fsync(O_SYNC, &iocb));
+	ATF_CHECK_EQ(EBADF, errno);
+
+	/* aio_fsync should return EINVAL if sigev_notify is invalid */
+	memset(&iocb, 0, sizeof(iocb));
+	iocb.aio_fildes = fd;
+	iocb.aio_sigevent.sigev_notify = 666;
+	ATF_CHECK_EQ(-1, aio_fsync(666, &iocb));
+	ATF_CHECK_EQ(EINVAL, errno);
+}
+
 /*
  * This test just performs a basic test of aio_fsync().
  */
@@ -1153,6 +1189,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, md_suspend);
 	ATF_TP_ADD_TC(tp, md_thread);
 	ATF_TP_ADD_TC(tp, md_waitcomplete);
+	ATF_TP_ADD_TC(tp, aio_fsync_errors);
 	ATF_TP_ADD_TC(tp, aio_fsync_test);
 	ATF_TP_ADD_TC(tp, aio_large_read_test);
 	ATF_TP_ADD_TC(tp, aio_socket_two_reads);
