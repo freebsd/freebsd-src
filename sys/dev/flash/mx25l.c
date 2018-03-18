@@ -247,7 +247,6 @@ mx25l_erase_cmd(device_t dev, off_t sector, uint8_t ecmd)
 
 	sc = device_get_softc(dev);
 
-	mx25l_wait_for_device_ready(dev);
 	mx25l_set_writable(dev, 1);
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -272,6 +271,7 @@ mx25l_erase_cmd(device_t dev, off_t sector, uint8_t ecmd)
 		txBuf[3] = (sector & 0xff);
 	}
 	err = SPIBUS_TRANSFER(device_get_parent(dev), dev, &cmd);
+	mx25l_wait_for_device_ready(dev);
 }
 
 static int
@@ -339,6 +339,7 @@ mx25l_write(device_t dev, off_t offset, caddr_t data, off_t count)
 		mx25l_set_writable(dev, 1);
 
 		err = SPIBUS_TRANSFER(pdev, dev, &cmd);
+		mx25l_wait_for_device_ready(dev);
 		if (err)
 			break;
 
