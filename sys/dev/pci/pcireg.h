@@ -480,6 +480,11 @@
 #define	PCIS_DASP_MGMT_CARD	0x20
 #define	PCIS_DASP_OTHER		0x80
 
+#define	PCIC_ACCEL	0x12
+#define	PCIS_ACCEL_PROCESSING	0x00
+
+#define	PCIC_INSTRUMENT	0x13
+
 #define	PCIC_OTHER	0xff
 
 /* Bridge Control Values. */
