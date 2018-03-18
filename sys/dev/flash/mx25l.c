@@ -280,8 +280,7 @@ mx25l_write(device_t dev, off_t offset, caddr_t data, off_t count)
 	struct mx25l_softc *sc;
 	uint8_t txBuf[8], rxBuf[8];
 	struct spi_command cmd;
-	off_t write_offset;
-	long bytes_to_write, bytes_writen;
+	off_t bytes_to_write;
 	device_t pdev;
 	int err = 0;
 
@@ -296,9 +295,6 @@ mx25l_write(device_t dev, off_t offset, caddr_t data, off_t count)
 		cmd.rx_cmd_sz = 4;
 	}
 
-	bytes_writen = 0;
-	write_offset = offset;
-
 	/*
 	 * Writes must be aligned to the erase sectorsize, since blocks are
 	 * fully erased before they're written to.
@@ -307,43 +303,37 @@ mx25l_write(device_t dev, off_t offset, caddr_t data, off_t count)
 		return (EIO);
 
 	/*
-	 * Maximum write size for CMD_PAGE_PROGRAM is 
-	 * FLASH_PAGE_SIZE, so split data to chunks 
-	 * FLASH_PAGE_SIZE bytes eash and write them
-	 * one by one
+	 * Maximum write size for CMD_PAGE_PROGRAM is FLASH_PAGE_SIZE, so loop
+	 * to write chunks of FLASH_PAGE_SIZE bytes each.
 	 */
-	while (bytes_writen < count) {
-		/*
-		 * If we crossed sector boundary - erase next sector
-		 */
-		if (((offset + bytes_writen) % sc->sc_sectorsize) == 0)
-			mx25l_erase_cmd(dev, offset + bytes_writen, CMD_SECTOR_ERASE);
+	while (count != 0) {
+		/* If we crossed a sector boundary, erase the next sector. */
+		if (((offset) % sc->sc_sectorsize) == 0)
+			mx25l_erase_cmd(dev, offset, CMD_SECTOR_ERASE);
 
 		txBuf[0] = CMD_PAGE_PROGRAM;
 		if (sc->sc_flags & FL_ENABLE_4B_ADDR) {
-			txBuf[1] = ((write_offset >> 24) & 0xff);
-			txBuf[2] = ((write_offset >> 16) & 0xff);
-			txBuf[3] = ((write_offset >> 8) & 0xff);
-			txBuf[4] = (write_offset & 0xff);
+			txBuf[1] = (offset >> 24) & 0xff;
+			txBuf[2] = (offset >> 16) & 0xff;
+			txBuf[3] = (offset >> 8) & 0xff;
+			txBuf[4] = offset & 0xff;
 		} else {
-			txBuf[1] = ((write_offset >> 16) & 0xff);
-			txBuf[2] = ((write_offset >> 8) & 0xff);
-			txBuf[3] = (write_offset & 0xff);
+			txBuf[1] = (offset >> 16) & 0xff;
+			txBuf[2] = (offset >> 8) & 0xff;
+			txBuf[3] = offset & 0xff;
 		}
 
-		bytes_to_write = MIN(FLASH_PAGE_SIZE,
-		    count - bytes_writen);
+		bytes_to_write = MIN(FLASH_PAGE_SIZE, count);
 		cmd.tx_cmd = txBuf;
 		cmd.rx_cmd = rxBuf;
-		cmd.tx_data = data + bytes_writen;
-		cmd.tx_data_sz = bytes_to_write;
+		cmd.tx_data = data;
 		cmd.rx_data = sc->sc_dummybuf;
-		cmd.rx_data_sz = bytes_to_write;
+		cmd.tx_data_sz = (uint32_t)bytes_to_write;
+		cmd.rx_data_sz = (uint32_t)bytes_to_write;
 
 		/*
-		 * Eash completed write operation resets WEL 
-		 * (write enable latch) to disabled state,
-		 * so we re-enable it here 
+		 * Each completed write operation resets WEL (write enable
+		 * latch) to disabled state, so we re-enable it here.
 		 */
 		mx25l_wait_for_device_ready(dev);
 		mx25l_set_writable(dev, 1);
@@ -352,8 +342,9 @@ mx25l_write(device_t dev, off_t offset, caddr_t data, off_t count)
 		if (err)
 			break;
 
-		bytes_writen += bytes_to_write;
-		write_offset += bytes_to_write;
+		data   += bytes_to_write;
+		offset += bytes_to_write;
+		count  -= bytes_to_write;
 	}
 
 	return (err);
@@ -372,12 +363,12 @@ mx25l_read(device_t dev, off_t offset, caddr_t data, off_t count)
 	sc = device_get_softc(dev);
 
 	/*
-	 * Enforce the disk read sectorsize not the erase sectorsize.
-	 * In this way, smaller read IO is possible,dramatically
-	 * speeding up filesystem/geom_compress access.
+	 * Enforce that reads are aligned to the disk sectorsize, not the
+	 * erase sectorsize.  In this way, smaller read IO is possible,
+	 * dramatically speeding up filesystem/geom_compress access.
 	 */
-	if (count % sc->sc_disk->d_sectorsize != 0
-	    || offset % sc->sc_disk->d_sectorsize != 0)
+	if (count % sc->sc_disk->d_sectorsize != 0 ||
+	    offset % sc->sc_disk->d_sectorsize != 0)
 		return (EIO);
 
 	txBuf[0] = CMD_FAST_READ;
@@ -385,19 +376,19 @@ mx25l_read(device_t dev, off_t offset, caddr_t data, off_t count)
 		cmd.tx_cmd_sz = 6;
 		cmd.rx_cmd_sz = 6;
 
-		txBuf[1] = ((offset >> 24) & 0xff);
-		txBuf[2] = ((offset >> 16) & 0xff);
-		txBuf[3] = ((offset >> 8) & 0xff);
-		txBuf[4] = (offset & 0xff);
+		txBuf[1] = (offset >> 24) & 0xff;
+		txBuf[2] = (offset >> 16) & 0xff;
+		txBuf[3] = (offset >> 8) & 0xff;
+		txBuf[4] = offset & 0xff;
 		/* Dummy byte */
 		txBuf[5] = 0;
 	} else {
 		cmd.tx_cmd_sz = 5;
 		cmd.rx_cmd_sz = 5;
 
-		txBuf[1] = ((offset >> 16) & 0xff);
-		txBuf[2] = ((offset >> 8) & 0xff);
-		txBuf[3] = (offset & 0xff);
+		txBuf[1] = (offset >> 16) & 0xff;
+		txBuf[2] = (offset >> 8) & 0xff;
+		txBuf[3] = offset & 0xff;
 		/* Dummy byte */
 		txBuf[4] = 0;
 	}
@@ -405,8 +396,8 @@ mx25l_read(device_t dev, off_t offset, caddr_t data, off_t count)
 	cmd.tx_cmd = txBuf;
 	cmd.rx_cmd = rxBuf;
 	cmd.tx_data = data;
-	cmd.tx_data_sz = count;
 	cmd.rx_data = data;
+	cmd.tx_data_sz = count;
 	cmd.rx_data_sz = count;
 
 	err = SPIBUS_TRANSFER(pdev, dev, &cmd);
