@@ -1379,7 +1379,8 @@ vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr, int ahead)
 				 * active queue.
 				 */
 				vm_page_lock(m);
-				vm_page_deactivate(m);
+				if (!vm_page_inactive(m))
+					vm_page_deactivate(m);
 				vm_page_unlock(m);
 			}
 		}

@@ -2936,10 +2936,8 @@ vfs_vmio_unwire(struct buf *bp, vm_page_t m)
 				vm_page_deactivate_noreuse(m);
 			else if (m->queue == PQ_ACTIVE)
 				vm_page_reference(m);
-			else if (m->queue != PQ_INACTIVE)
-				vm_page_deactivate(m);
 			else
-				vm_page_requeue(m);
+				vm_page_deactivate(m);
 		}
 	}
 	vm_page_unlock(m);
