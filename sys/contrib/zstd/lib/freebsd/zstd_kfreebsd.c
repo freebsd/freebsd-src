@@ -27,7 +27,12 @@
  */
 
 #include "zstd_kfreebsd.h"
+#include <sys/param.h>
 #include <sys/endian.h>
+
+#ifndef _KERNEL
+#include <strings.h>
+#endif
 
 /*
  * The kernel as a standalone target does not link against libgcc or
