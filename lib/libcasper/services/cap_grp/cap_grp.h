@@ -57,7 +57,7 @@ int cap_grp_limit_cmds(cap_channel_t *chan, const char * const *cmds,
 int cap_grp_limit_fields(cap_channel_t *chan, const char * const *fields,
     size_t nfields);
 int cap_grp_limit_groups(cap_channel_t *chan, const char * const *names,
-    size_t nnames, gid_t *gids, size_t ngids);
+    size_t nnames, const gid_t *gids, size_t ngids);
 #else
 #define	cap_getgrent(chan)		getgrent()
 #define	cap_getgrnam(chan, name)	getgrnam(name)
