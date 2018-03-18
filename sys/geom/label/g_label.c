@@ -200,7 +200,6 @@ g_label_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	struct g_provider *pp2;
 	struct g_consumer *cp;
 	char name[64];
-	int n;
 
 	g_topology_assert();
 
@@ -214,8 +213,7 @@ g_label_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	}
 	gp = NULL;
 	cp = NULL;
-	n = snprintf(name, sizeof(name), "%s/%s", dir, label);
-	if (n >= sizeof(name)) {
+	if (snprintf(name, sizeof(name), "%s/%s", dir, label) >= sizeof(name)) {
 		if (req != NULL)
 			gctl_error(req, "Label name %s is too long.", label);
 		return (NULL);
