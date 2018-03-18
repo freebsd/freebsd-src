@@ -24,7 +24,7 @@ CFLAGS+=-I${.CURDIR}
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
-MAN+=	cap_sysctl
+MAN+=	cap_sysctl.3
 
 MLINKS+=cap_sysctl.3 libcap_sysctl.3
 MLINKS+=cap_sysctl.3 cap_sysctlbyname.3
