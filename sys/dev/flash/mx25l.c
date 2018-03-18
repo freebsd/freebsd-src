@@ -300,19 +300,11 @@ mx25l_write(device_t dev, off_t offset, caddr_t data, off_t count)
 	write_offset = offset;
 
 	/*
-	 * Use the erase sectorsize here since blocks are fully erased
-	 * first before they're written to.
+	 * Writes must be aligned to the erase sectorsize, since blocks are
+	 * fully erased before they're written to.
 	 */
 	if (count % sc->sc_sectorsize != 0 || offset % sc->sc_sectorsize != 0)
 		return (EIO);
-
-	/*
-	 * Assume here that we write per-sector only 
-	 * and sector size should be 256 bytes aligned
-	 */
-	KASSERT(write_offset % FLASH_PAGE_SIZE == 0,
-	    ("offset for BIO_WRITE is not page size (%d bytes) aligned",
-		FLASH_PAGE_SIZE));
 
 	/*
 	 * Maximum write size for CMD_PAGE_PROGRAM is 
