@@ -84,7 +84,7 @@ struct mx25l_softc
 	device_t	sc_parent;
 	uint8_t		sc_manufacturer_id;
 	uint16_t	sc_device_id;
-	unsigned int	sc_sectorsize;
+	unsigned int	sc_erasesize;
 	struct mtx	sc_mtx;
 	struct disk	*sc_disk;
 	struct proc	*sc_p;
@@ -233,7 +233,7 @@ mx25l_set_writable(struct mx25l_softc *sc, int writable)
 }
 
 static int
-mx25l_erase_cmd(struct mx25l_softc *sc, off_t sector, uint8_t ecmd)
+mx25l_erase_cmd(struct mx25l_softc *sc, off_t sector)
 {
 	uint8_t txBuf[5], rxBuf[5];
 	struct spi_command cmd;
@@ -246,9 +246,16 @@ mx25l_erase_cmd(struct mx25l_softc *sc, off_t sector, uint8_t ecmd)
 	memset(txBuf, 0, sizeof(txBuf));
 	memset(rxBuf, 0, sizeof(rxBuf));
 
-	txBuf[0] = ecmd;
 	cmd.tx_cmd = txBuf;
 	cmd.rx_cmd = rxBuf;
+
+	if (sc->sc_flags & FL_ERASE_4K)
+		txBuf[0] = CMD_BLOCK_4K_ERASE;
+	else if (sc->sc_flags & FL_ERASE_32K)
+		txBuf[0] = CMD_BLOCK_32K_ERASE;
+	else
+		txBuf[0] = CMD_SECTOR_ERASE;
+
 	if (sc->sc_flags & FL_ENABLE_4B_ADDR) {
 		cmd.rx_cmd_sz = 5;
 		cmd.tx_cmd_sz = 5;
@@ -289,7 +296,7 @@ mx25l_write(struct mx25l_softc *sc, off_t offset, caddr_t data, off_t count)
 	 * Writes must be aligned to the erase sectorsize, since blocks are
 	 * fully erased before they're written to.
 	 */
-	if (count % sc->sc_sectorsize != 0 || offset % sc->sc_sectorsize != 0)
+	if (count % sc->sc_erasesize != 0 || offset % sc->sc_erasesize != 0)
 		return (EIO);
 
 	/*
@@ -298,8 +305,8 @@ mx25l_write(struct mx25l_softc *sc, off_t offset, caddr_t data, off_t count)
 	 */
 	while (count != 0) {
 		/* If we crossed a sector boundary, erase the next sector. */
-		if (((offset) % sc->sc_sectorsize) == 0) {
-			err = mx25l_erase_cmd(sc, offset, CMD_SECTOR_ERASE);
+		if (((offset) % sc->sc_erasesize) == 0) {
+			err = mx25l_erase_cmd(sc, offset);
 			if (err)
 				break;
 		}
@@ -478,6 +485,15 @@ mx25l_attach(device_t dev)
 	if ((err = mx25l_wait_for_device_ready(sc)) != 0)
 		return (err);
 
+	sc->sc_flags = ident->flags;
+
+	if (sc->sc_flags & FL_ERASE_4K)
+		sc->sc_erasesize = 4 * 1024;
+	else if (sc->sc_flags & FL_ERASE_32K)
+		sc->sc_erasesize = 32 * 1024;
+	else
+		sc->sc_erasesize = ident->sectorsize;
+
 	if (sc->sc_flags & FL_ENABLE_4B_ADDR) {
 		if ((err = mx25l_set_4b_mode(sc, CMD_ENTER_4B_MODE)) != 0)
 			return (err);
@@ -497,14 +513,9 @@ mx25l_attach(device_t dev)
 	sc->sc_disk->d_maxsize = DFLTPHYS;
 	sc->sc_disk->d_sectorsize = MX25L_SECTORSIZE;
 	sc->sc_disk->d_mediasize = ident->sectorsize * ident->sectorcount;
+	sc->sc_disk->d_stripesize = sc->sc_erasesize;
 	sc->sc_disk->d_unit = device_get_unit(sc->sc_dev);
 	sc->sc_disk->d_dump = NULL;		/* NB: no dumps */
-	/* Sectorsize for erase operations */
-	sc->sc_sectorsize =  ident->sectorsize;
-	sc->sc_flags = ident->flags;
-
-	/* NB: use stripesize to hold the erase/region size for RedBoot */
-	sc->sc_disk->d_stripesize = ident->sectorsize;
 
 	disk_create(sc->sc_disk, DISK_VERSION);
 	bioq_init(&sc->sc_bio_queue);
