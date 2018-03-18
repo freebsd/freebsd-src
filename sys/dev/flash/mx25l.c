@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2006 M. Warner Losh.  All rights reserved.
  * Copyright (c) 2009 Oleksandr Tymoshenko.  All rights reserved.
+ * Copyright (c) 2018 Ian Lepore.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -516,6 +517,8 @@ mx25l_attach(device_t dev)
 	sc->sc_disk->d_stripesize = sc->sc_erasesize;
 	sc->sc_disk->d_unit = device_get_unit(sc->sc_dev);
 	sc->sc_disk->d_dump = NULL;		/* NB: no dumps */
+	strlcpy(sc->sc_disk->d_descr, ident->name,
+	    sizeof(sc->sc_disk->d_descr));
 
 	disk_create(sc->sc_disk, DISK_VERSION);
 	bioq_init(&sc->sc_bio_queue);
@@ -523,8 +526,12 @@ mx25l_attach(device_t dev)
 	kproc_create(&mx25l_task, sc, &sc->sc_p, 0, 0, "task: mx25l flash");
 	sc->sc_taskstate = TSTATE_RUNNING;
 
-	device_printf(sc->sc_dev, "%s, sector %d bytes, %d sectors\n", 
-	    ident->name, ident->sectorsize, ident->sectorcount);
+	device_printf(sc->sc_dev, 
+	    "device type %s, size %dK in %d sectors of %dK, erase size %dK\n",
+	    ident->name,
+	    ident->sectorcount * ident->sectorsize / 1024,
+	    ident->sectorcount, ident->sectorsize / 1024,
+	    sc->sc_erasesize / 1024);
 
 	return (0);
 }
