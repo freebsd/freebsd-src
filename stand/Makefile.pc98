@@ -1,3 +1,4 @@
 # $FreeBSD$
 
-SUBDIR+=		libstand32
+# Need an empty file here so Makefile.i386 isn't used (which contains options
+# that don't work on pc98).
