@@ -90,6 +90,7 @@ struct mx25l_softc
 	struct bio_queue_head sc_bio_queue;
 	unsigned int	sc_flags;
 	unsigned int	sc_taskstate;
+	uint8_t		sc_dummybuf[FLASH_PAGE_SIZE];
 };
 
 #define	TSTATE_STOPPED	0
@@ -344,7 +345,7 @@ mx25l_write(device_t dev, off_t offset, caddr_t data, off_t count)
 		cmd.rx_cmd = rxBuf;
 		cmd.tx_data = data + bytes_writen;
 		cmd.tx_data_sz = bytes_to_write;
-		cmd.rx_data = data + bytes_writen;
+		cmd.rx_data = sc->sc_dummybuf;
 		cmd.rx_data_sz = bytes_to_write;
 
 		/*
