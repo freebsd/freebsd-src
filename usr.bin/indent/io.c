@@ -1,4 +1,4 @@
-/*
+/*-
  * SPDX-License-Identifier: BSD-4-Clause
  *
  * Copyright (c) 1985 Sun Microsystems, Inc.
@@ -118,6 +118,7 @@ dump_line(void)
 	    }
 	    while (e_lab > s_lab && (e_lab[-1] == ' ' || e_lab[-1] == '\t'))
 		e_lab--;
+	    *e_lab = '\0';
 	    cur_col = pad_output(1, compute_label_target());
 	    if (s_lab[0] == '#' && (strncmp(s_lab, "#else", 5) == 0
 				    || strncmp(s_lab, "#endif", 6) == 0)) {
@@ -201,6 +202,7 @@ dump_line(void)
 				break;
 			    case '\\':
 				putc('\\', output);
+				/* add a backslash to escape the '\' */
 			    default:
 				putc(*follow, output);
 			    }
@@ -225,8 +227,9 @@ dump_line(void)
 		char *com_st = s_com;
 
 		target += ps.comment_delta;
-		while (*com_st == '\t')
-		    com_st++, target += 8;	/* ? */
+		while (*com_st == '\t')	/* consider original indentation in
+					 * case this is a box comment */
+		    com_st++, target += 8;
 		while (target <= 0)
 		    if (*com_st == ' ')
 			target++, com_st++;
@@ -242,18 +245,9 @@ dump_line(void)
 		}
 		while (e_com > com_st && isspace(e_com[-1]))
 		    e_com--;
-		cur_col = pad_output(cur_col, target);
-		if (!ps.box_com) {
-		    if (star_comment_cont && (com_st[1] != '*' || e_com <= com_st + 1)) {
-			if (com_st[1] == ' ' && com_st[0] == ' ' && e_com > com_st + 1)
-			    com_st[1] = '*';
-			else
-			    fwrite(" * ", com_st[0] == '\t' ? 2 : com_st[0] == '*' ? 1 : 3, 1, output);
-		    }
-		}
+		(void)pad_output(cur_col, target);
 		fwrite(com_st, e_com - com_st, 1, output);
 		ps.comment_delta = ps.n_comment_delta;
-		cur_col = count_spaces(cur_col, com_st);
 		++ps.com_lines;	/* count lines with comments */
 	    }
 	}
@@ -283,10 +277,11 @@ inhibit_newline:
     ps.dumped_decl_indent = 0;
     *(e_lab = s_lab) = '\0';	/* reset buffers */
     *(e_code = s_code) = '\0';
-    *(e_com = s_com) = '\0';
+    *(e_com = s_com = combuf + 1) = '\0';
     ps.ind_level = ps.i_l_follow;
     ps.paren_level = ps.p_l_follow;
-    paren_target = -ps.paren_indents[ps.paren_level - 1];
+    if (ps.paren_level > 0)
+	paren_target = -ps.paren_indents[ps.paren_level - 1];
     not_first_line = 1;
 }
 
@@ -349,10 +344,10 @@ fill_buffer(void)
     int i;
     FILE *f = input;
 
-    if (bp_save != 0) {		/* there is a partly filled input buffer left */
-	buf_ptr = bp_save;	/* dont read anything, just switch buffers */
+    if (bp_save != NULL) {	/* there is a partly filled input buffer left */
+	buf_ptr = bp_save;	/* do not read anything, just switch buffers */
 	buf_end = be_save;
-	bp_save = be_save = 0;
+	bp_save = be_save = NULL;
 	if (buf_ptr < buf_end)
 	    return;		/* only return if there is really something in
 				 * this buffer */
@@ -379,7 +374,7 @@ fill_buffer(void)
     }
     buf_ptr = in_buffer;
     buf_end = p;
-    if (p[-2] == '/' && p[-3] == '*') {
+    if (p - in_buffer > 2 && p[-2] == '/' && p[-3] == '*') {
 	if (in_buffer[3] == 'I' && strncmp(in_buffer, "/**INDENT**", 11) == 0)
 	    fill_buffer();	/* flush indent error message */
 	else {
@@ -507,18 +502,15 @@ pad_output(int current, int target)
  *
  */
 int
-count_spaces(int current, char *buffer)
+count_spaces_until(int cur, char *buffer, char *end)
 /*
  * this routine figures out where the character position will be after
  * printing the text in buffer starting at column "current"
  */
 {
     char *buf;		/* used to look thru buffer */
-    int cur;		/* current character counter */
 
-    cur = current;
-
-    for (buf = buffer; *buf != '\0'; ++buf) {
+    for (buf = buffer; *buf != '\0' && buf != end; ++buf) {
 	switch (*buf) {
 
 	case '\n':
@@ -540,6 +532,12 @@ count_spaces(int current, char *buffer)
 	}			/* end of switch */
     }				/* end of for loop */
     return (cur);
+}
+
+int
+count_spaces(int cur, char *buffer)
+{
+    return (count_spaces_until(cur, buffer, NULL));
 }
 
 void
@@ -636,7 +634,7 @@ parsefont(struct fstate *f, const char *s0)
     const char *s = s0;
     int         sizedelta = 0;
 
-    bzero(f, sizeof *f);
+    memset(f, '\0', sizeof(*f));
     while (*s) {
 	if (isdigit(*s))
 	    f->size = f->size * 10 + *s - '0';
