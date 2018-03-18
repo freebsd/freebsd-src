@@ -1,4 +1,5 @@
 .\" Copyright (c) 2013 The FreeBSD Foundation
+.\" Copyright (c) 2018 Mariusz Zaborski <oshogbo@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" This documentation was written by Pawel Jakub Dawidek under sponsorship
@@ -27,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2018
+.Dd March 6, 2018
 .Dt LIBCASPER 3
 .Os
 .Sh NAME
@@ -252,63 +253,18 @@ The
 and
 .Fn cap_unwrap
 functions always succeed.
-.Sh EXAMPLES
-The following example first opens capability to the casper then using this
-capability creates new capability to the
-.Nm system.dns
-casper service and uses the latter capability to resolve IP address.
-.Bd -literal
-cap_channel_t *capcas, *capdns;
-nvlist_t *limits;
-const char *ipstr = "127.0.0.1";
-struct in_addr ip;
-struct hostent *hp;
-
-/* Open capability to the Casper. */
-capcas = cap_init();
-if (capcas == NULL)
-	err(1, "Unable to contact Casper");
-
-/* Enter capability mode sandbox. */
-if (cap_enter() < 0 && errno != ENOSYS)
-	err(1, "Unable to enter capability mode");
-
-/* Use Casper capability to create capability to the system.dns service. */
-capdns = cap_service_open(capcas, "system.dns");
-if (capdns == NULL)
-	err(1, "Unable to open system.dns service");
-
-/* Close Casper capability, we don't need it anymore. */
-cap_close(capcas);
-
-/* Limit system.dns to reverse DNS lookups and IPv4 addresses. */
-limits = nvlist_create(0);
-nvlist_add_string(limits, "type", "ADDR");
-nvlist_add_number(limits, "family", (uint64_t)AF_INET);
-if (cap_limit_set(capdns, limits) < 0)
-	err(1, "Unable to limit access to the system.dns service");
-
-/* Convert IP address in C-string to in_addr. */
-if (!inet_aton(ipstr, &ip))
-	errx(1, "Unable to parse IP address %s.", ipstr);
-
-/* Find hostname for the given IP address. */
-hp = cap_gethostbyaddr(capdns, (const void *)&ip, sizeof(ip), AF_INET);
-if (hp == NULL)
-	errx(1, "No name associated with %s.", ipstr);
-
-printf("Name associated with %s is %s.\\n", ipstr, hp->h_name);
-.Ed
 .Sh SEE ALSO
-.Xr cap_enter 2 ,
+.Xr errno 2 ,
 .Xr execve 2 ,
 .Xr kevent 2 ,
 .Xr poll 2 ,
 .Xr select 2 ,
-.Xr cap_gethostbyaddr 3 ,
-.Xr err 3 ,
-.Xr gethostbyaddr 3 ,
-.Xr inet_aton 3 ,
+.Xr cap_dns 3 ,
+.Xr cap_grp 3 ,
+.Xr cap_pwd 3 ,
+.Xr cap_ranodm 3 ,
+.Xr cap_sysctl 3 ,
+.Xr cap_syslog 3 ,
 .Xr capsicum 4 ,
 .Xr unix 4 ,
 .Xr nv 9
