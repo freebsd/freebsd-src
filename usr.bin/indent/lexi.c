@@ -1,4 +1,4 @@
-/*
+/*-
  * SPDX-License-Identifier: BSD-4-Clause
  *
  * Copyright (c) 1985 Sun Microsystems, Inc.
@@ -59,7 +59,9 @@ __FBSDID("$FreeBSD$");
 #include "indent.h"
 
 #define alphanum 1
+#ifdef undef
 #define opchar 3
+#endif
 
 struct templ {
     const char *rwd;
@@ -68,13 +70,13 @@ struct templ {
 
 struct templ specials[1000] =
 {
-    {"switch", 1},
-    {"case", 2},
-    {"break", 0},
+    {"switch", 7},
+    {"case", 8},
+    {"break", 9},
     {"struct", 3},
     {"union", 3},
     {"enum", 3},
-    {"default", 2},
+    {"default", 8},
     {"int", 4},
     {"char", 4},
     {"float", 4},
@@ -90,14 +92,15 @@ struct templ specials[1000] =
     {"void", 4},
     {"const", 4},
     {"volatile", 4},
-    {"goto", 0},
-    {"return", 0},
+    {"goto", 9},
+    {"return", 9},
     {"if", 5},
     {"while", 5},
     {"for", 5},
     {"else", 6},
     {"do", 6},
-    {"sizeof", 7},
+    {"sizeof", 2},
+    {"offsetof", 1},
     {0, 0}
 };
 
@@ -157,19 +160,47 @@ lexi(void)
 	struct templ *p;
 
 	if (isdigit(*buf_ptr) || (buf_ptr[0] == '.' && isdigit(buf_ptr[1]))) {
+	    enum base {
+		BASE_2, BASE_8, BASE_10, BASE_16
+	    };
 	    int         seendot = 0,
 	                seenexp = 0,
 			seensfx = 0;
-	    if (*buf_ptr == '0' &&
-		    (buf_ptr[1] == 'x' || buf_ptr[1] == 'X')) {
+	    enum base	in_base = BASE_10;
+
+	    if (*buf_ptr == '0') {
+		if (buf_ptr[1] == 'b' || buf_ptr[1] == 'B')
+		    in_base = BASE_2;
+		else if (buf_ptr[1] == 'x' || buf_ptr[1] == 'X')
+		    in_base = BASE_16;
+		else if (isdigit(buf_ptr[1]))
+		    in_base = BASE_8;
+	    }
+	    switch (in_base) {
+	    case BASE_2:
+		*e_token++ = *buf_ptr++;
+		*e_token++ = *buf_ptr++;
+		while (*buf_ptr == '0' || *buf_ptr == '1') {
+		    CHECK_SIZE_TOKEN;
+		    *e_token++ = *buf_ptr++;
+		}
+		break;
+	    case BASE_8:
+		*e_token++ = *buf_ptr++;
+		while (*buf_ptr >= '0' && *buf_ptr <= '8') {
+		    CHECK_SIZE_TOKEN;
+		    *e_token++ = *buf_ptr++;
+		}
+		break;
+	    case BASE_16:
 		*e_token++ = *buf_ptr++;
 		*e_token++ = *buf_ptr++;
 		while (isxdigit(*buf_ptr)) {
 		    CHECK_SIZE_TOKEN;
 		    *e_token++ = *buf_ptr++;
 		}
-	    }
-	    else
+		break;
+	    case BASE_10:
 		while (1) {
 		    if (*buf_ptr == '.') {
 			if (seendot)
@@ -192,16 +223,16 @@ lexi(void)
 			}
 		    }
 		}
+		break;
+	    }
 	    while (1) {
-		if (!(seensfx & 1) &&
-			(*buf_ptr == 'U' || *buf_ptr == 'u')) {
+		if (!(seensfx & 1) && (*buf_ptr == 'U' || *buf_ptr == 'u')) {
 		    CHECK_SIZE_TOKEN;
 		    *e_token++ = *buf_ptr++;
 		    seensfx |= 1;
 		    continue;
 		}
-        	if (!(seensfx & 2) &&
-			(*buf_ptr == 'L' || *buf_ptr == 'l')) {
+		if (!(seensfx & 2) && (strchr("fFlL", *buf_ptr) != NULL)) {
 		    CHECK_SIZE_TOKEN;
 		    if (buf_ptr[1] == buf_ptr[0])
 		        *e_token++ = *buf_ptr++;
@@ -239,8 +270,7 @@ lexi(void)
 	    if (++buf_ptr >= buf_end)
 		fill_buffer();
 	}
-	ps.its_a_keyword = false;
-	ps.sizeof_keyword = false;
+	ps.keyword = 0;
 	if (l_struct && !ps.p_l_follow) {
 				/* if last token was 'struct' and we're not
 				 * in parentheses, then this token
@@ -262,7 +292,7 @@ lexi(void)
 	    /* Check if we have an "_t" in the end */
 	    if (q_len > 2 &&
 	        (strcmp(q + q_len - 2, "_t") == 0)) {
-	        ps.its_a_keyword = true;
+	        ps.keyword = 4;	/* a type name */
 		ps.last_u_d = true;
 	        goto found_auto_typedef;
 	    }
@@ -271,7 +301,7 @@ lexi(void)
 	/*
 	 * This loop will check if the token is a keyword.
 	 */
-	for (p = specials; (j = p->rwd) != 0; p++) {
+	for (p = specials; (j = p->rwd) != NULL; p++) {
 	    const char *q = s_token;	/* point at scanned token */
 	    if (*j++ != *q++ || *j++ != *q++)
 		continue;	/* This test depends on the fact that
@@ -287,12 +317,12 @@ lexi(void)
 	}
 	if (p->rwd) {		/* we have a keyword */
     found_keyword:
-	    ps.its_a_keyword = true;
+	    ps.keyword = p->rwcode;
 	    ps.last_u_d = true;
 	    switch (p->rwcode) {
-	    case 1:		/* it is a switch */
+	    case 7:		/* it is a switch */
 		return (swstmt);
-	    case 2:		/* a case or default */
+	    case 8:		/* a case or default */
 		return (casestmt);
 
 	    case 3:		/* a "struct" */
@@ -306,8 +336,9 @@ lexi(void)
 	    case 4:		/* one of the declaration keywords */
 	    found_auto_typedef:
 		if (ps.p_l_follow) {
-		    ps.cast_mask |= (1 << ps.p_l_follow) & ~ps.sizeof_mask;
-		    break;	/* inside parens: cast, param list or sizeof */
+		    /* inside parens: cast, param list, offsetof or sizeof */
+		    ps.cast_mask |= (1 << ps.p_l_follow) & ~ps.not_cast_mask;
+		    break;
 		}
 		last_code = decl;
 		return (decl);
@@ -318,8 +349,6 @@ lexi(void)
 	    case 6:		/* do, else */
 		return (sp_nparen);
 
-	    case 7:
-		ps.sizeof_keyword = true;
 	    default:		/* all others are treated like any other
 				 * identifier */
 		return (ident);
@@ -346,7 +375,7 @@ lexi(void)
 		&& (ps.last_token == rparen || ps.last_token == semicolon ||
 		    ps.last_token == decl ||
 		    ps.last_token == lbrace || ps.last_token == rbrace)) {
-	    ps.its_a_keyword = true;
+	    ps.keyword = 4;	/* a type name */
 	    ps.last_u_d = true;
 	    last_code = decl;
 	    return decl;
@@ -610,6 +639,6 @@ addkey(char *key, int val)
 				 * ignored */
     p->rwd = key;
     p->rwcode = val;
-    p[1].rwd = 0;
+    p[1].rwd = NULL;
     p[1].rwcode = 0;
 }
