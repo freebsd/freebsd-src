@@ -42,7 +42,7 @@
  *          Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  *  Creation Date:  October 11, 2006
  *
- *  mpi2_ioc.h Version:  02.00.30
+ *  mpi2_ioc.h Version:  02.00.32
  *
  *  NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *        prefix are for use only on MPI v2.5 products, and must not be used
@@ -200,6 +200,11 @@
  *                      Active Cable Exception Event.
  *                      Added MPI2_EVENT_ENCL_DEVICE_STATUS_CHANGE and
  *                      MPI26_EVENT_DATA_ENCL_DEV_STATUS_CHANGE.
+ * 11-23-16   02.00.31  Added MPI2_EVENT_SAS_DEVICE_DISCOVERY_ERROR and
+ *                      MPI25_EVENT_DATA_SAS_DEVICE_DISCOVERY_ERROR.
+ * 02-02-17   02.00.32  Added MPI2_FW_DOWNLOAD_ITYPE_CBB_BACKUP.
+ *                      Added MPI25_EVENT_DATA_ACTIVE_CABLE_EXCEPT and related
+ *                      defines for the ReasonCode field.
  *  --------------------------------------------------------------------------
  */
 
@@ -610,6 +615,7 @@ typedef struct _MPI2_EVENT_NOTIFICATION_REPLY
 #define MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST        (0x0032) /* MPI v2.6 and later */
 #define MPI2_EVENT_PCIE_LINK_COUNTER                (0x0033) /* MPI v2.6 and later */
 #define MPI2_EVENT_ACTIVE_CABLE_EXCEPTION           (0x0034) /* MPI v2.6 and later */
+#define MPI2_EVENT_SAS_DEVICE_DISCOVERY_ERROR       (0x0035) /* MPI v2.5 and later */
 #define MPI2_EVENT_MIN_PRODUCT_SPECIFIC             (0x006E)
 #define MPI2_EVENT_MAX_PRODUCT_SPECIFIC             (0x007F)
 
@@ -715,12 +721,21 @@ typedef struct _MPI26_EVENT_DATA_ACTIVE_CABLE_EXCEPT
     U8          ReasonCode;                         /* 0x04 */
     U8          ReceptacleID;                       /* 0x05 */
     U16         Reserved1;                          /* 0x06 */
-} MPI26_EVENT_DATA_ACTIVE_CABLE_EXCEPT,
+} MPI25_EVENT_DATA_ACTIVE_CABLE_EXCEPT,
+  MPI2_POINTER PTR_MPI25_EVENT_DATA_ACTIVE_CABLE_EXCEPT,
+  Mpi25EventDataActiveCableExcept_t,
+  MPI2_POINTER pMpi25EventDataActiveCableExcept_t,
+  MPI26_EVENT_DATA_ACTIVE_CABLE_EXCEPT,
   MPI2_POINTER PTR_MPI26_EVENT_DATA_ACTIVE_CABLE_EXCEPT,
   Mpi26EventDataActiveCableExcept_t,
   MPI2_POINTER pMpi26EventDataActiveCableExcept_t;
 
-/* defines for ReasonCode field */
+/* MPI2.5 defines for the ReasonCode field */
+#define MPI25_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER     (0x00)
+#define MPI25_EVENT_ACTIVE_CABLE_PRESENT                (0x01)
+#define MPI25_EVENT_ACTIVE_CABLE_DEGRADED               (0x02)
+
+/* MPI2.6 defines for the ReasonCode field */
 #define MPI26_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER     (0x00)
 #define MPI26_EVENT_ACTIVE_CABLE_PRESENT                (0x01)
 #define MPI26_EVENT_ACTIVE_CABLE_DEGRADED               (0x02)
@@ -1168,6 +1183,24 @@ typedef struct _MPI2_EVENT_DATA_SAS_QUIESCE
 #define MPI2_EVENT_SAS_QUIESCE_RC_COMPLETED                 (0x02)
 
 
+typedef struct _MPI25_EVENT_DATA_SAS_DEVICE_DISCOVERY_ERROR
+{
+    U16         DevHandle;                  /* 0x00 */
+    U8          ReasonCode;                 /* 0x02 */
+    U8          PhysicalPort;               /* 0x03 */
+    U32         Reserved1[2];               /* 0x04 */
+    U64         SASAddress;                 /* 0x0C */
+    U32         Reserved2[2];               /* 0x14 */
+} MPI25_EVENT_DATA_SAS_DEVICE_DISCOVERY_ERROR,
+  MPI2_POINTER PTR_MPI25_EVENT_DATA_SAS_DEVICE_DISCOVERY_ERROR,
+  Mpi25EventDataSasDeviceDiscoveryError_t,
+  MPI2_POINTER pMpi25EventDataSasDeviceDiscoveryError_t;
+
+/* SAS Device Discovery Error Event data ReasonCode values */
+#define MPI25_EVENT_SAS_DISC_ERR_SMP_FAILED         (0x01)
+#define MPI25_EVENT_SAS_DISC_ERR_SMP_TIMEOUT        (0x02)
+
+
 /* Host Based Discovery Phy Event data */
 
 typedef struct _MPI2_EVENT_HBD_PHY_SAS
@@ -1493,6 +1526,7 @@ typedef struct _MPI2_FW_DOWNLOAD_REQUEST
 #define MPI2_FW_DOWNLOAD_ITYPE_COMPLETE             (0x0A)
 #define MPI2_FW_DOWNLOAD_ITYPE_COMMON_BOOT_BLOCK    (0x0B)
 #define MPI2_FW_DOWNLOAD_ITYPE_PUBLIC_KEY           (0x0C) /* MPI v2.5 and newer */
+#define MPI2_FW_DOWNLOAD_ITYPE_CBB_BACKUP           (0x0D)
 #define MPI2_FW_DOWNLOAD_ITYPE_SBR                  (0x0E)
 #define MPI2_FW_DOWNLOAD_ITYPE_SBR_BACKUP           (0x0F)
 #define MPI2_FW_DOWNLOAD_ITYPE_HIIM                 (0x10)
