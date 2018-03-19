@@ -96,7 +96,7 @@ typedef struct __mcontext {
 
 #ifdef __amd64__
 /*
- * mc_trapno bits. Shall be in sync with TF_XXX.
+ * mc_flags bits. Shall be in sync with TF_XXX.
  */
 #define	_MC_HASSEGS	0x1
 #define	_MC_HASBASES	0x2
