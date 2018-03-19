@@ -45,6 +45,10 @@
  * are the smallest unit programmable into the underlying
  * hardware. The IEEE 802.1Qaz specification do not use bandwidth
  * groups so this is much simplified from the CEE case.
+ * @bw: bandwidth index by traffic class
+ * @refill: refill credits index by traffic class
+ * @max: max credits by traffic class
+ * @max_frame_size: maximum frame size
  */
 s32 ixgbe_dcb_calculate_tc_credits(u8 *bw, u16 *refill, u16 *max,
 				   int max_frame_size)
@@ -79,8 +83,10 @@ s32 ixgbe_dcb_calculate_tc_credits(u8 *bw, u16 *refill, u16 *max,
 
 /**
  * ixgbe_dcb_calculate_tc_credits_cee - Calculates traffic class credits
- * @ixgbe_dcb_config: Struct containing DCB settings.
- * @direction: Configuring either Tx or Rx.
+ * @hw: pointer to hardware structure
+ * @dcb_config: Struct containing DCB settings
+ * @max_frame_size: Maximum frame size
+ * @direction: Configuring either Tx or Rx
  *
  * This function calculates the credits allocated to each traffic class.
  * It should be called only after the rules are checked by
