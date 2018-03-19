@@ -64,6 +64,12 @@ extern struct cc_algo newreno_cc_algo;
 VNET_DECLARE(struct cc_algo *, default_cc_ptr);
 #define	V_default_cc_ptr VNET(default_cc_ptr)
 
+VNET_DECLARE(int, cc_do_abe);
+#define	V_cc_do_abe			VNET(cc_do_abe)
+
+VNET_DECLARE(int, cc_abe_frlossreduce);
+#define	V_cc_abe_frlossreduce		VNET(cc_abe_frlossreduce)
+
 /* Define the new net.inet.tcp.cc sysctl tree. */
 SYSCTL_DECL(_net_inet_tcp_cc);
 
