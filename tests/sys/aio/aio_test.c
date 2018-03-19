@@ -667,7 +667,6 @@ aio_md_test(completion comp, struct sigevent *sev)
 	char buf[80];
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
-	ATF_REQUIRE_UNSAFE_AIO();
 
 	mdctl_fd = open("/dev/" MDCTL_NAME, O_RDWR, 0);
 	ATF_REQUIRE_MSG(mdctl_fd != -1,
