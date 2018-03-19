@@ -90,9 +90,10 @@ eventhandler_find_or_create_list(const char *name)
 		CTR2(KTR_EVH, "%s: creating list \"%s\"", __func__, name);
 		list = new_list;
 		TAILQ_INIT(&list->el_entries);
-		mtx_init(&list->el_lock, name, "eventhandler list", MTX_DEF);
 		list->el_name = (char *)(list + 1);
 		strcpy(list->el_name, name);
+		mtx_init(&list->el_lock, list->el_name, "eventhandler list",
+		    MTX_DEF);
 		TAILQ_INSERT_HEAD(&eventhandler_lists, list, el_link);
 	    }
 	}
