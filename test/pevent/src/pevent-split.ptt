@@ -1,0 +1,135 @@
+; Copyright (c) 2017-2018, Intel Corporation
+;
+; Redistribution and use in source and binary forms, with or without
+; modification, are permitted provided that the following conditions are met:
+;
+;  * Redistributions of source code must retain the above copyright notice,
+;    this list of conditions and the following disclaimer.
+;  * Redistributions in binary form must reproduce the above copyright notice,
+;    this list of conditions and the following disclaimer in the documentation
+;    and/or other materials provided with the distribution.
+;  * Neither the name of Intel Corporation nor the names of its contributors
+;    may be used to endorse or promote products derived from this software
+;    without specific prior written permission.
+;
+; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+; ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+; LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+; CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+; SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+; INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+; CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+; POSSIBILITY OF SUCH DAMAGE.
+
+; Test that we handle section splits correctly.
+;
+;     There is a corner case when a linear sequence of instructions that jumps
+;     back to the section in which it begins is split by adding a new section
+;     in the middle of this sequence.
+;
+;     If we do not handle this correctly, we may leave a stale block cache entry
+;     that would cause us to miss the change made to this sequence by jumping
+;     over the newly added section and back into the original section.
+;
+;
+; opt:ptdump --sb:compact --sb:offset
+; opt:ptxed --event:tick --sb:compact --sb:offset
+;
+
+org 0x1000
+bits 64
+
+
+; @sb primary(pevent)
+; @sb pevent-sample_type(time)
+; @sb s0: pevent-mmap-section(text, 1, 1, 0x0)
+; @sb s1: pevent-itrace-start(1, 1, 0x0)
+
+section text vstart=0x1000 start=0x1000
+; @pt p0:  psb()
+; @pt p1:  mode.exec(64bit)
+; @pt p2:  tsc(0x1)
+; @pt p3:  fup(3: %l0)
+; @pt p4:  psbend()
+l0: nop
+l1: nop
+l2: nop
+l3: nop
+
+; @pt p5: tip(1: %l6)
+l4: jmp rax
+l5: hlt
+
+l6: nop
+l7: nop
+l8: nop
+l9: nop
+l10: nop
+l11: nop
+l12: nop
+
+l13: jmp l0
+l14: hlt
+
+; @pt p6: tsc(0x2)
+; @pt p7: tip(1: %l6)
+; @sb s2: pevent-mmap-section(foo, 1, 1, 0x2)
+
+; @pt p8:  tip(1: %l15)
+
+; @pt p9:  fup(1: %l16)
+; @pt p10: tip.pgd(0: %l16)
+l15: nop
+l16: hlt
+
+section foo vstart=0x1008 start=0x1100
+l17: jmp rax
+
+
+; @pt .exp(ptdump)
+;%0p0   psb
+;%0p1   mode.exec    cs.l
+;%0s0   PERF_RECORD_MMAP 1/1, 1000, 13, 0, pevent-split.bin { 0 }
+;%0s1   PERF_RECORD_ITRACE_START 1/1 { 0 }
+;%0p2   tsc          1
+;%0p3   fup          3: %?l0
+;%0p4   psbend
+;%0p5   tip          1: %?l6.2
+;%0s2   PERF_RECORD_MMAP 1/1, 1008, 2, 100, pevent-split.bin { 2 }
+;%0p6   tsc          2
+;%0p7   tip          1: %?l6.2
+;%0p8   tip          1: %?l15.2
+;%0p9   fup          1: %?l16.2
+;%0p10  tip.pgd      0: %?l16.0
+
+
+; @pt .exp(ptxed)
+;%0s0   PERF_RECORD_MMAP 1/1, 1000, 13, 0, pevent-split.bin { 0 }
+;%0s1   PERF_RECORD_ITRACE_START 1/1 { 0 }
+;%0l0  # nop
+;%0l1  # nop
+;%0l2  # nop
+;%0l3  # nop
+;%0l4  # jmp rax
+;%0l6  # nop
+;%0l7  # nop
+;%0l8  # nop
+;%0l9  # nop
+;%0l10 # nop
+;%0l11 # nop
+;%0l12 # nop
+;%0l13 # jmp l0
+;%0l0  # nop
+;%0l1  # nop
+;%0l2  # nop
+;%0l3  # nop
+;%0l4  # jmp rax
+;[tick]
+;%0s2   PERF_RECORD_MMAP 1/1, 1008, 2, 100, pevent-split.bin { 2 }
+;%0l6  # nop
+;%0l17 # jmp rax
+;%0l15 # nop
+;[disabled]

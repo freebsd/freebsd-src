@@ -1,0 +1,361 @@
+; Copyright (c) 2014-2018, Intel Corporation
+;
+; Redistribution and use in source and binary forms, with or without
+; modification, are permitted provided that the following conditions are met:
+;
+;  * Redistributions of source code must retain the above copyright notice,
+;    this list of conditions and the following disclaimer.
+;  * Redistributions in binary form must reproduce the above copyright notice,
+;    this list of conditions and the following disclaimer in the documentation
+;    and/or other materials provided with the distribution.
+;  * Neither the name of Intel Corporation nor the names of its contributors
+;    may be used to endorse or promote products derived from this software
+;    without specific prior written permission.
+;
+; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+; ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+; LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+; CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+; SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+; INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+; CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+; POSSIBILITY OF SUCH DAMAGE.
+
+; Test that far returns are not considered for ret compression
+;
+
+org 0x100000
+bits 64
+
+; @pt p1: psb()
+; @pt p2: fup(3: %l1)
+; @pt p3: mode.exec(64bit)
+; @pt p4: psbend()
+
+l1:     call l5
+l2:     nop
+l3:     nop
+l4:     hlt
+
+l5:     test eax, 0
+l6:     jz l10
+l7:     call l5
+l8:     ret
+l9:     hlt
+
+l10:    call far [rax] ; l13
+l11:    jmp l8
+l12:    hlt
+
+l13:    retf
+l14:    hlt
+
+; Let's assume the call in l7 is executed 63 times.  This doesn't make sense
+; from looking at the code above, but that's not the point, here.
+;
+; All calls are direct, so far, but we have a conditional jump in l6, which
+; is executed 64 times.  On the 64th execution, it is taken and brings us to
+; the far call in l10.
+;
+; @pt p5: tnt64(nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn)
+; @pt p6: tnt64(nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnt)
+
+; Together with the call in l1 we now have a full return compression stack.
+;
+; @pt p7: tip(3: %l13)
+
+; The far return is not compressed.
+;
+; @pt p8: tip(3: %l11)
+
+; The following 64 returns are.
+;
+; @pt p9: tnt64(tttttttttttttttttttttttttttttttt)
+; @pt p10: tnt64(tttttttttttttttttttttttttttttttt)
+
+; Disable tracing to complete the test.
+;
+; @pt p11: fup(3: %l3)
+; @pt p12: tip.pgd(0: %l4)
+
+
+; @pt .exp(ptdump)
+;%0p1  psb
+;%0p2  fup        3: %0l1
+;%0p3  mode.exec  cs.l
+;%0p4  psbend
+;%0p5  tnt.64     ................................
+;%0p6  tnt.64     ...............................!
+;%0p7  tip        3: %0l13
+;%0p8  tip        3: %0l11
+;%0p9  tnt.64     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+;%0p10  tnt.64     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+;%0p11  fup        3: %0l3
+;%0p12  tip.pgd    0: %?l4.0
+
+
+; @pt .exp(ptxed)
+;%0l1 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l7 # call l5
+;%0l5 # test eax
+;%0l6 # jz l10
+;%0l10 # call far [rax] # l13
+;%0l13 # retf
+;%0l11 # jmp l8
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l8 # ret
+;%0l2 # nop
+;[disabled]

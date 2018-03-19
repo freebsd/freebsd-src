@@ -1,0 +1,79 @@
+Intel(R) Processor Trace Decoder Library
+========================================
+
+The Intel Processor Trace (Intel PT) Decoder Library is Intel's reference
+implementation for decoding Intel PT.  It can be used as a standalone library or
+it can be partially or fully integrated into your tool.
+
+The library comes with a set of sample tools built on top of it and a test
+system built on top of the sample tools.  The samples demonstrate how to use the
+library and may serve as a starting point for integrating the library into your
+tool.
+
+Go to https://software.intel.com/en-us/intel-platform-analysis-library for
+support of upcoming (non-public) processors (NDA required).
+
+
+Contents
+--------
+
+  README        this file
+
+  libipt        A packet encoder/decoder library
+
+
+Optional Contents and Samples
+-----------------------------
+
+  ptdump        Example implementation of a packet dumper
+
+  ptxed         Example implementation of a trace disassembler
+
+  pttc          A trace test generator
+
+  ptunit        A simple unit test system
+
+  sideband      A sideband correlation library
+
+  pevent        A library for reading/writing Linux perf event records
+
+  script        A collection of scripts
+
+  test          A collection of tests
+
+  include       A collection of substitute headers
+
+  doc           A document describing the build
+                A document describing how to get started
+                A document describing the usage of the decoder library
+                A document describing how to capture trace
+                A document describing pttc
+
+  doc/man       Man pages for the encoder/decoder library
+
+
+Dependencies
+------------
+
+We use cmake for building.
+
+  cmake         The cross-platform open-source build system.
+                http://www.cmake.org
+
+
+Other packages you need for some of the above optional components.
+
+  xed           The Intel x86 instruction encoder and decoder.
+                https://github.com/intelxed/xed
+
+                This is needed to build and run ptxed.
+
+  yasm          The Yasm Modular Assembler
+                http://github.com/yasm
+
+                This is needed to run pttc.
+
+  pandoc        A universal document converter
+                http://pandoc.org
+
+                This is needed for man pages.

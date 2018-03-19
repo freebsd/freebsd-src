@@ -1,0 +1,97 @@
+; Copyright (c) 2013-2018, Intel Corporation
+;
+; Redistribution and use in source and binary forms, with or without
+; modification, are permitted provided that the following conditions are met:
+;
+;  * Redistributions of source code must retain the above copyright notice,
+;    this list of conditions and the following disclaimer.
+;  * Redistributions in binary form must reproduce the above copyright notice,
+;    this list of conditions and the following disclaimer in the documentation
+;    and/or other materials provided with the distribution.
+;  * Neither the name of Intel Corporation nor the names of its contributors
+;    may be used to endorse or promote products derived from this software
+;    without specific prior written permission.
+;
+; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+; ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+; LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+; CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+; SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+; INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+; CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+; POSSIBILITY OF SUCH DAMAGE.
+
+; BDM70: Intel(R) Processor Trace PSB+ Packets May Contain Unexpected Packets.
+;
+;        Some Intel Processor Trace packets should be issued only between
+;        TIP.PGE and TIP.PGD packets.  Due to this erratum, when a TIP.PGE
+;        packet is generated it may be preceded by a PSB+ that incorrectly
+;        includes FUP and MODE.Exec packets.
+;
+;   cpu 6/61
+;   cpu 6/71
+;   cpu 6/79
+;   cpu 6/86
+;   cpu 6/78
+;   cpu 6/94
+;   cpu 6/142
+;   cpu 6/158
+;
+; Variant: sync at an earlier PSB.
+;
+;          Process status updates in the PSB+ directly preceding TIP.PGE
+;          with tracing still disabled.
+;
+
+org 0x100000
+bits 64
+
+; @pt p1: psb()
+; @pt p2: mode.exec(64bit)
+; @pt p3: mode.tsx(begin)
+; @pt p4: fup(3: %l1)
+; @pt p5: psbend()
+l1:     jle l4
+; @pt p6: tip.pgd(1: %l2)
+l2:     nop
+
+; @pt p7: psb()
+; @pt p8: mode.exec(64bit)
+; @pt p9: fup(3: %l3)
+; @pt p10: mode.tsx(begin)
+; @pt p11: psbend()
+
+; @pt p12: tip.pge(3: %l3)
+l3:     nop
+l4:     nop
+; @pt p13: fup(1: %l4)
+; @pt p14: tip.pgd(0: %l5)
+l5:     hlt
+
+
+; @pt .exp(ptdump)
+;%0p1   psb
+;%0p2   mode.exec  cs.l
+;%0p3   mode.tsx   intx
+;%0p4   fup        3: %0l1
+;%0p5   psbend
+;%0p6   tip.pgd    1: %?l2.2
+;%0p7   psb
+;%0p8   mode.exec  cs.l
+;%0p9   fup        3: %0l3
+;%0p10  mode.tsx   intx
+;%0p11  psbend
+;%0p12  tip.pge    3: %0l3
+;%0p13  fup        1: %?l4.2
+;%0p14  tip.pgd    0: %?l5.0
+
+
+; @pt .exp(ptxed)
+;? %0l1 # jle l4
+;[disabled]
+;[enabled]
+;? %0l3 # nop
+;[disabled]

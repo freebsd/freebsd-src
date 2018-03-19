@@ -1,0 +1,94 @@
+; Copyright (c) 2014-2018, Intel Corporation
+;
+; Redistribution and use in source and binary forms, with or without
+; modification, are permitted provided that the following conditions are met:
+;
+;  * Redistributions of source code must retain the above copyright notice,
+;    this list of conditions and the following disclaimer.
+;  * Redistributions in binary form must reproduce the above copyright notice,
+;    this list of conditions and the following disclaimer in the documentation
+;    and/or other materials provided with the distribution.
+;  * Neither the name of Intel Corporation nor the names of its contributors
+;    may be used to endorse or promote products derived from this software
+;    without specific prior written permission.
+;
+; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+; ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+; LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+; CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+; SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+; INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+; CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+; POSSIBILITY OF SUCH DAMAGE.
+
+; Test that an INT followed by an IRET are decoded correctly.
+;
+; Variant: cpl 0 filtered out
+;
+;
+;           Software interrupts receive FUP(CLIP) + TIP(BLIP?)
+;
+;           We can not reliably determine whether the FUP/TIP belongs to the
+;           software interrupt or to an asynchronous interrupt that was taken
+;           before the instruction.
+;
+;           To distinguish the two cases we would need to read ahead but that
+;           may require decoding an unknown amount of code (e.g. in different
+;           processes for system-wide ring-3 tracing) until we return either
+;           to CLIP if it was an asynchronous interrupt or to NLIP (or even to
+;           a later IP) if it wasn't.
+;
+;           Instead, we assume that it was an asynchronous interrupt.  Tracing
+;           appears to get disabled before and re-enabled after the instruction.
+;
+;           This is wrong most of the time.  But it is predictably wrong and it
+;           avoids the case where we incorrectly assume a synchronous transfer
+;           and get out of sync.
+;
+
+org 0x100000
+bits 64
+; @pt p1: psb()
+; @pt p2: fup(3: %l0)
+; @pt p3: mode.exec(64bit)
+; @pt p4: psbend()
+l0: nop
+
+; @pt p5: fup(1: %l1)
+; @pt p6: tip.pgd(0: %l5)
+
+l1: int 42
+l2: nop
+l3: nop
+l4: hlt
+
+l5: nop
+l6: iret
+l7: hlt
+
+; @pt p7: tip.pge(3: %l2)
+
+; @pt p8: fup(1: %l3)
+; @pt p9: tip.pgd(0: %l4)
+
+
+; @pt .exp(ptdump)
+;%0p1  psb
+;%0p2  fup        3: %0l0
+;%0p3  mode.exec  cs.l
+;%0p4  psbend
+;%0p5  fup        1: %?l1.2
+;%0p6  tip.pgd    0: %?l5.0
+;%0p7  tip.pge    3: %?l2
+;%0p8  fup        1: %?l3.2
+;%0p9  tip.pgd    0: %?l4.0
+
+; @pt .exp(ptxed)
+;%0l0 # nop - missing:  l1: int 42
+;[disabled]
+;[enabled]
+;%0l2 # nop
+;[disabled]
