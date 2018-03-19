@@ -47,7 +47,7 @@
 /************************************************************************
  * Driver version
  ************************************************************************/
-char ixgbe_driver_version[] = "4.0.0-k";
+char ixgbe_driver_version[] = "4.0.1-k";
 
 
 /************************************************************************
@@ -92,6 +92,7 @@ static pci_vendor_info_t ixgbe_vendor_info_array[] =
   PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_KR,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
   PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_KX4,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
   PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_10G_T,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_1G_T,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
   PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_SFP, "Intel(R) PRO/10GbE PCI-Express Network Driver"),
   PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_KR, "Intel(R) PRO/10GbE PCI-Express Network Driver"),
   PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_KR_L, "Intel(R) PRO/10GbE PCI-Express Network Driver"),
