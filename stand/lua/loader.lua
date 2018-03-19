@@ -34,6 +34,7 @@
 -- Other modules will also need some of the functions it defines to safely
 -- execute loader commands.
 require("cli")
+local color = require("color")
 local core = require("core")
 local config = require("config")
 local menu
@@ -49,6 +50,11 @@ if result ~= nil then
 end
 
 config.load()
+-- Our console may have been setup for a different color scheme before we get
+-- here, so make sure we set the default.
+if color.isEnabled() then
+	printc(color.default())
+end
 password.check()
 -- menu might be disabled
 if menu ~= nil then
