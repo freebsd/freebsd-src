@@ -51,6 +51,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20180319:
+	For UEFI systems: the UEFI loader(8), loader.efi, should be updated in
+	conjunction with installing a new kernel after r330868. The kernel,
+	after this revision, will be more lenient when mapping addresses for
+	UEFI Runtime Services and this may result in a kernel panic without the
+	corresponding loader(8) update.
+
 20180212:
 	FreeBSD boot loader enhanced with Lua scripting. It's purely opt-in for
 	now by building WITH_LOADER_LUA and WITHOUT_FORTH in /etc/src.conf.
