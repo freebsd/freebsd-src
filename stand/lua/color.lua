@@ -89,7 +89,7 @@ function color.default()
 	if color.disabled then
 		return ""
 	end
-	return core.KEYSTR_CSI .. "0;37;40m"
+	return color.escape(color.WHITE, color.BLACK, color.DEFAULT)
 end
 
 function color.highlight(str)
