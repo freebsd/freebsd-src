@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 26, 2016
+.Dd March 12, 2018
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1016,7 +1016,7 @@ keyword with setdscp.
 If the tablearg value is not within the 0..64 range, lower 6 bits of supplied
 value are used.
 .It Cm reass
-Queue and reassemble IP fragments.
+Queue and reassemble IPv4 fragments.
 If the packet is not fragmented, counters are updated and
 processing continues with the next rule.
 If the packet is the last logical fragment, the packet is reassembled and, if
