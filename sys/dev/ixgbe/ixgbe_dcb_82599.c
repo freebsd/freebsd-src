@@ -111,7 +111,11 @@ s32 ixgbe_dcb_get_pfc_stats_82599(struct ixgbe_hw *hw,
 /**
  * ixgbe_dcb_config_rx_arbiter_82599 - Config Rx Data arbiter
  * @hw: pointer to hardware structure
- * @dcb_config: pointer to ixgbe_dcb_config structure
+ * @refill: refill credits index by traffic class
+ * @max: max credits index by traffic class
+ * @bwg_id: bandwidth grouping indexed by traffic class
+ * @tsa: transmission selection algorithm indexed by traffic class
+ * @map: priority to tc assignments indexed by priority
  *
  * Configure Rx Packet Arbiter and credits for each traffic class.
  */
@@ -170,7 +174,10 @@ s32 ixgbe_dcb_config_rx_arbiter_82599(struct ixgbe_hw *hw, u16 *refill,
 /**
  * ixgbe_dcb_config_tx_desc_arbiter_82599 - Config Tx Desc. arbiter
  * @hw: pointer to hardware structure
- * @dcb_config: pointer to ixgbe_dcb_config structure
+ * @refill: refill credits index by traffic class
+ * @max: max credits index by traffic class
+ * @bwg_id: bandwidth grouping indexed by traffic class
+ * @tsa: transmission selection algorithm indexed by traffic class
  *
  * Configure Tx Descriptor Arbiter and credits for each traffic class.
  */
@@ -215,7 +222,11 @@ s32 ixgbe_dcb_config_tx_desc_arbiter_82599(struct ixgbe_hw *hw, u16 *refill,
 /**
  * ixgbe_dcb_config_tx_data_arbiter_82599 - Config Tx Data arbiter
  * @hw: pointer to hardware structure
- * @dcb_config: pointer to ixgbe_dcb_config structure
+ * @refill: refill credits index by traffic class
+ * @max: max credits index by traffic class
+ * @bwg_id: bandwidth grouping indexed by traffic class
+ * @tsa: transmission selection algorithm indexed by traffic class
+ * @map: priority to tc assignments indexed by priority
  *
  * Configure Tx Packet Arbiter and credits for each traffic class.
  */
@@ -363,6 +374,7 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw, u8 pfc_en, u8 *map)
 /**
  * ixgbe_dcb_config_tc_stats_82599 - Config traffic class statistics
  * @hw: pointer to hardware structure
+ * @dcb_config: pointer to ixgbe_dcb_config structure
  *
  * Configure queue statistics registers, all queues belonging to same traffic
  * class uses a single set of queue statistics counters.
@@ -573,7 +585,12 @@ s32 ixgbe_dcb_config_82599(struct ixgbe_hw *hw,
 /**
  * ixgbe_dcb_hw_config_82599 - Configure and enable DCB
  * @hw: pointer to hardware structure
- * @dcb_config: pointer to ixgbe_dcb_config structure
+ * @link_speed: unused
+ * @refill: refill credits index by traffic class
+ * @max: max credits index by traffic class
+ * @bwg_id: bandwidth grouping indexed by traffic class
+ * @tsa: transmission selection algorithm indexed by traffic class
+ * @map: priority to tc assignments indexed by priority
  *
  * Configure dcb settings and enable dcb mode.
  */
