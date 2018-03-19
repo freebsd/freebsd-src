@@ -90,6 +90,12 @@ struct buf_ops {
 #define BO_WRITE(bo, bp)	((bo)->bo_ops->bop_write((bp)))
 #define BO_BDFLUSH(bo, bp)	((bo)->bo_ops->bop_bdflush((bo), (bp)))
 
+/*
+ * Locking notes:
+ * 'S' is sync_mtx
+ * 'v' is the vnode lock which embeds the bufobj.
+ * '-' Constant and unchanging after initialization.
+ */
 struct bufobj {
 	struct rwlock	bo_lock;	/* Lock which protects "i" things */
 	struct buf_ops	*bo_ops;	/* - Buffer operations */
