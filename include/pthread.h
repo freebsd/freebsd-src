@@ -349,4 +349,4 @@ void		__pthread_cleanup_pop_imp(int);
 __END_DECLS
 __NULLABILITY_PRAGMA_POP
 
-#endif	/* _PTHREAD_H_ */
+#endif	/* !_PTHREAD_H_ */
