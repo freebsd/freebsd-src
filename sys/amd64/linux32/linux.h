@@ -116,7 +116,7 @@ typedef struct {
  */
 #define	LINUX_AT_COUNT		20	/* Count of used aux entry types.
 					 * Keep this synchronized with
-					 * elf_linux_fixup() code.
+					 * linux_fixup_elf() code.
 					 */
 struct l___sysctl_args
 {
