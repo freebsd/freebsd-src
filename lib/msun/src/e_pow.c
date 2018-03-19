@@ -4,7 +4,7 @@
  * Copyright (C) 2004 by Sun Microsystems, Inc. All rights reserved.
  *
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
@@ -19,7 +19,7 @@ __FBSDID("$FreeBSD$");
  *	1. Compute and return log2(x) in two pieces:
  *		log2(x) = w1 + w2,
  *	   where w1 has 53-24 = 29 bit trailing zeros.
- *	2. Perform y*log2(x) = n+y' by simulating multi-precision 
+ *	2. Perform y*log2(x) = n+y' by simulating multi-precision
  *	   arithmetic, where |y'|<=0.5.
  *	3. Return x**y = 2**n*exp(y'*log2)
  *
@@ -47,13 +47,13 @@ __FBSDID("$FreeBSD$");
  * Accuracy:
  *	pow(x,y) returns x**y nearly rounded. In particular
  *			pow(integer,integer)
- *	always returns the correct integer provided it is 
+ *	always returns the correct integer provided it is
  *	representable.
  *
  * Constants :
- * The hexadecimal values are the intended ones for the following 
- * constants. The decimal values may be used, provided that the 
- * compiler will convert from decimal to binary accurately enough 
+ * The hexadecimal values are the intended ones for the following
+ * constants. The decimal values may be used, provided that the
+ * compiler will convert from decimal to binary accurately enough
  * to produce the hexadecimal values shown.
  */
 
@@ -107,14 +107,14 @@ __ieee754_pow(double x, double y)
 	ix = hx&0x7fffffff;  iy = hy&0x7fffffff;
 
     /* y==zero: x**0 = 1 */
-	if((iy|ly)==0) return one; 	
+	if((iy|ly)==0) return one;
 
     /* x==1: 1**y = 1, even if y is NaN */
 	if (hx==0x3ff00000 && lx == 0) return one;
 
     /* y!=zero: result is NaN if either arg is NaN */
 	if(ix > 0x7ff00000 || ((ix==0x7ff00000)&&(lx!=0)) ||
-	   iy > 0x7ff00000 || ((iy==0x7ff00000)&&(ly!=0))) 
+	   iy > 0x7ff00000 || ((iy==0x7ff00000)&&(ly!=0)))
 		return (x+0.0)+(y+0.0);
 
     /* determine if y is an odd int when x < 0
@@ -123,7 +123,7 @@ __ieee754_pow(double x, double y)
      * yisint = 2	... y is an even int
      */
 	yisint  = 0;
-	if(hx<0) {	
+	if(hx<0) {
 	    if(iy>=0x43400000) yisint = 2; /* even integer y */
 	    else if(iy>=0x3ff00000) {
 		k = (iy>>20)-0x3ff;	   /* exponent */
@@ -134,11 +134,11 @@ __ieee754_pow(double x, double y)
 		    j = iy>>(20-k);
 		    if((j<<(20-k))==iy) yisint = 2-(j&1);
 		}
-	    }		
-	} 
+	    }
+	}
 
     /* special value of y */
-	if(ly==0) { 	
+	if(ly==0) {
 	    if (iy==0x7ff00000) {	/* y is +-inf */
 	        if(((ix-0x3ff00000)|lx)==0)
 		    return  one;	/* (-1)**+-inf is 1 */
@@ -146,14 +146,14 @@ __ieee754_pow(double x, double y)
 		    return (hy>=0)? y: zero;
 	        else			/* (|x|<1)**-,+inf = inf,0 */
 		    return (hy<0)?-y: zero;
-	    } 
+	    }
 	    if(iy==0x3ff00000) {	/* y is  +-1 */
 		if(hy<0) return one/x; else return x;
 	    }
 	    if(hy==0x40000000) return x*x; /* y is  2 */
 	    if(hy==0x3fe00000) {	/* y is  0.5 */
 		if(hx>=0)	/* x >= +0 */
-		return sqrt(x);	
+		return sqrt(x);
 	    }
 	}
 
@@ -166,13 +166,13 @@ __ieee754_pow(double x, double y)
 		if(hx<0) {
 		    if(((ix-0x3ff00000)|yisint)==0) {
 			z = (z-z)/(z-z); /* (-1)**non-int is NaN */
-		    } else if(yisint==1) 
+		    } else if(yisint==1)
 			z = -z;		/* (x<0)**odd = -(|x|**odd) */
 		}
 		return z;
 	    }
 	}
-    
+
     /* CYGNUS LOCAL + fdlibm-5.3 fix: This used to be
 	n = (hx>>31)+1;
        but ANSI C says a right shift of a signed negative quantity is
@@ -194,7 +194,7 @@ __ieee754_pow(double x, double y)
 	/* over/underflow if x is not close to one */
 	    if(ix<0x3fefffff) return (hy<0)? s*huge*huge:s*tiny*tiny;
 	    if(ix>0x3ff00000) return (hy>0)? s*huge*huge:s*tiny*tiny;
-	/* now |1-x| is tiny <= 2**-20, suffice to compute 
+	/* now |1-x| is tiny <= 2**-20, suffice to compute
 	   log(x) by x-x^2/2+x^3/3-x^4/4 */
 	    t = ax-one;		/* t has 20 trailing zeros */
 	    w = (t*t)*(0.5-t*(0.3333333333333333333333-t*0.25));
@@ -287,7 +287,7 @@ __ieee754_pow(double x, double y)
 	    n = ((n&0x000fffff)|0x00100000)>>(20-k);
 	    if(j<0) n = -n;
 	    p_h -= t;
-	} 
+	}
 	t = p_l+p_h;
 	SET_LOW_WORD(t,0);
 	u = t*lg2_h;
