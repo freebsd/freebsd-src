@@ -22,6 +22,7 @@
 /*
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright 2017-2018 Mark Johnston <markj@FreeBSD.org>
  */
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
@@ -265,7 +266,7 @@ prepare_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf32_t *dep)
 			sym->st_value = 0;
 			sym->st_size = 0;
 			sym->st_info = ELF32_ST_INFO(STB_GLOBAL, STT_FUNC);
-			sym->st_other = 0;
+			sym->st_other = ELF32_ST_VISIBILITY(STV_HIDDEN);
 			sym->st_shndx = SHN_UNDEF;
 
 			rel++;
@@ -449,7 +450,7 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 			sym->st_value = 0;
 			sym->st_size = 0;
 			sym->st_info = GELF_ST_INFO(STB_GLOBAL, STT_FUNC);
-			sym->st_other = 0;
+			sym->st_other = ELF64_ST_VISIBILITY(STV_HIDDEN);
 			sym->st_shndx = SHN_UNDEF;
 
 			rel++;
