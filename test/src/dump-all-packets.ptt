@@ -1,0 +1,143 @@
+; Copyright (c) 2013-2018, Intel Corporation
+;
+; Redistribution and use in source and binary forms, with or without
+; modification, are permitted provided that the following conditions are met:
+;
+;  * Redistributions of source code must retain the above copyright notice,
+;    this list of conditions and the following disclaimer.
+;  * Redistributions in binary form must reproduce the above copyright notice,
+;    this list of conditions and the following disclaimer in the documentation
+;    and/or other materials provided with the distribution.
+;  * Neither the name of Intel Corporation nor the names of its contributors
+;    may be used to endorse or promote products derived from this software
+;    without specific prior written permission.
+;
+; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+; ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+; LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+; CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+; SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+; INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+; CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+; POSSIBILITY OF SUCH DAMAGE.
+
+; Test dumping of all packets.
+;
+; opt:ptdump --no-sync
+
+org 0x42
+bits 64
+
+; @pt p01: psbend()
+; @pt p02: psb()
+; @pt p03: pad()
+; @pt p04: ovf()
+; @pt p05: tnt(tnnnt)
+; @pt p06: tnt64(tnntnntnnttnntnntnnttnntnntnnttnntnntnnttnnttnt)
+; @pt p07: tip(3: 0xffffffffffff1000)
+; @pt p08: tip(3: 0x1000)
+; @pt p09: tip(2: 0x1001)
+; @pt p10: tip(1: 0x1002)
+; @pt p11: tip(0: 0x1003)
+; @pt p12: tip.pge(3: 0xffffffffffff2000)
+; @pt p13: tip.pge(3: 0x2000)
+; @pt p14: tip.pge(2: 0x2001)
+; @pt p15: tip.pge(1: 0x2002)
+; @pt p16: tip.pge(0: 0x2003)
+; @pt p17: tip.pgd(3: 0xffffffffffff3000)
+; @pt p18: tip.pgd(3: 0x3000)
+; @pt p19: tip.pgd(2: 0x3001)
+; @pt p20: tip.pgd(1: 0x3002)
+; @pt p21: tip.pgd(0: 0x3003)
+; @pt p22: fup(3: 0xffffffffffff4000)
+; @pt p23: fup(3: 0x4000)
+; @pt p24: fup(2: 0x4001)
+; @pt p25: fup(1: 0x4002)
+; @pt p26: fup(0: 0x4003)
+; @pt p27: mode.exec(16bit)
+; @pt p28: mode.exec(32bit)
+; @pt p29: mode.exec(64bit)
+; @pt p30: mode.tsx(begin)
+; @pt p31: mode.tsx(commit)
+; @pt p32: mode.tsx(abort)
+; @pt p33: pip(0xafafaf)
+; @pt p34: pip(0xafafaf, nr)
+; @pt p35: tsc(0x12345)
+; @pt p36: cbr(0x24)
+; @pt p37: tma(0x12, 0x34)
+; @pt p38: mtc(0x94)
+; @pt p39: cyc(0x57)
+; @pt p40: stop()
+; @pt p41: vmcs(0xabcd000)
+; @pt p42: mnt(0x2a2242e5d4c3b2a1)
+; @pt p43: tip(6: 0x00cccccccccc4000)
+; @pt p44: tip(4: 0xffffffff4000)
+; @pt p45: exstop()
+; @pt p46: exstop(ip)
+; @pt p47: mwait(0xb, 0x1)
+; @pt p48: pwre(c0.0)
+; @pt p49: pwre(c0.0, hw)
+; @pt p50: pwrx(int: c1, c6)
+; @pt p51: pwrx(st: c1, c6)
+; @pt p52: pwrx(hw: c1, c6)
+; @pt p53: ptw(0: 0x90abcdef, ip)
+; @pt p54: ptw(1: 0x1234567890abcdef)
+
+; @pt .exp(ptdump)
+;%0p01  psbend
+;%0p02  psb
+;%0p03  pad
+;%0p04  ovf
+;%0p05  tnt.8      !...!
+;%0p06  tnt.64     !..!..!..!!..!..!..!!..!..!..!!..!..!..!!..!!.!
+;%0p07  tip        3: ffffffffffff1000
+;%0p08  tip        3: 0000000000001000
+;%0p09  tip        2: ????????00001001
+;%0p10  tip        1: ????????????1002
+;%0p11  tip        0: ????????????????
+;%0p12  tip.pge    3: ffffffffffff2000
+;%0p13  tip.pge    3: 0000000000002000
+;%0p14  tip.pge    2: ????????00002001
+;%0p15  tip.pge    1: ????????????2002
+;%0p16  tip.pge    0: ????????????????
+;%0p17  tip.pgd    3: ffffffffffff3000
+;%0p18  tip.pgd    3: 0000000000003000
+;%0p19  tip.pgd    2: ????????00003001
+;%0p20  tip.pgd    1: ????????????3002
+;%0p21  tip.pgd    0: ????????????????
+;%0p22  fup        3: ffffffffffff4000
+;%0p23  fup        3: 0000000000004000
+;%0p24  fup        2: ????????00004001
+;%0p25  fup        1: ????????????4002
+;%0p26  fup        0: ????????????????
+;%0p27  mode.exec
+;%0p28  mode.exec  cs.d
+;%0p29  mode.exec  cs.l
+;%0p30  mode.tsx   intx
+;%0p31  mode.tsx
+;%0p32  mode.tsx   abrt
+;%0p33  pip        afafa0               cr3 0000000000afafa0
+;%0p34  pip        afafa0, nr           cr3 0000000000afafa0
+;%0p35  tsc        12345
+;%0p36  cbr        24
+;%0p37  tma        12, 34
+;%0p38  mtc        94
+;%0p39  cyc        57
+;%0p40  stop
+;%0p41  vmcs       abcd000              vmcs 000000000abcd000
+;%0p42  mnt        2a2242e5d4c3b2a1
+;%0p43  tip        6: 00cccccccccc4000
+;%0p44  tip        4: ????ffffffff4000
+;%0p45  exstop
+;%0p46  exstop     ip
+;%0p47  mwait      0000000b, 00000001
+;%0p48  pwre       c0.0
+;%0p49  pwre       c0.0, hw
+;%0p50  pwrx       int: c1, c6
+;%0p51  pwrx       st: c1, c6
+;%0p52  pwrx       hw: c1, c6
+;%0p53  ptw        0: 90abcdef, ip
+;%0p54  ptw        1: 1234567890abcdef

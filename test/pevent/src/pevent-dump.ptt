@@ -1,0 +1,83 @@
+; Copyright (c) 2017-2018, Intel Corporation
+;
+; Redistribution and use in source and binary forms, with or without
+; modification, are permitted provided that the following conditions are met:
+;
+;  * Redistributions of source code must retain the above copyright notice,
+;    this list of conditions and the following disclaimer.
+;  * Redistributions in binary form must reproduce the above copyright notice,
+;    this list of conditions and the following disclaimer in the documentation
+;    and/or other materials provided with the distribution.
+;  * Neither the name of Intel Corporation nor the names of its contributors
+;    may be used to endorse or promote products derived from this software
+;    without specific prior written permission.
+;
+; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+; ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+; LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+; CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+; SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+; INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+; CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+; POSSIBILITY OF SUCH DAMAGE.
+
+; Test dumping all supported perf event packets.
+;
+; Variant: compact format
+;
+; opt:ptdump --sb:compact --sb:offset --sb:time
+;
+
+org 0x1000
+bits 64
+
+
+; @sb primary(pevent)
+; @sb pevent-sample_type(tid, time, id, stream, cpu, identifier)
+
+; @pt p0: psb()
+
+; @sb s0:  pevent-mmap-section(text, 1, 1, 1, 1, 0, 1, 2, 3, 4)
+; @sb s1:  pevent-lost(3, 8, 1, 2, 0, 3, 4, 5, 6)
+; @sb s2:  pevent-comm(1, 1, foo, 1, 1, 0, 2, 3, 4, 5)
+; @sb s3:  pevent-comm.exec(2, 2, bar, 2, 2, 0, 3, 4, 5, 6)
+; @sb s4:  pevent-exit(2, 1, 2, 1, 0, 2, 2, 0, 3, 4, 5, 6)
+; @sb s5:  pevent-fork(2, 1, 2, 1, 0, 2, 2, 0, 3, 4, 5, 6)
+; @sb s6:  pevent-aux(0xa000, 0x1000, 0, 2, 2, 0, 3, 4, 5, 6)
+; @sb s7:  pevent-aux(0xb000, 0x700, 1, 2, 2, 0, 3, 4, 5, 6)
+; @sb s8:  pevent-itrace-start(1, 2, 1, 2, 2, 3, 4, 5, 6)
+
+; @pt p1: tsc(2)
+; @pt p2: psbend()
+
+; @sb s9:  pevent-lost-samples(8, 1, 2, 3, 4, 5, 6, 7)
+; @sb s10: pevent-switch.in(1, 2, 3, 4, 5, 6, 7)
+; @sb s11: pevent-switch.out(1, 2, 3, 4, 5, 6, 7)
+; @sb s12: pevent-switch-cpu-wide.in(8, 9, 1, 2, 3, 4, 5, 6, 7)
+; @sb s13: pevent-switch-cpu-wide.out(8, 9, 1, 2, 3, 4, 5, 6, 7)
+
+section text vstart=0xa000 start=0x1000
+        nop
+
+
+; @pt .exp(ptdump)
+;%0p0  psb
+;%0s0  0000000000000000  PERF_RECORD_MMAP 1/1, a000, 1, 0, pevent-dump.bin  { 1/1 0 1 cpu-2 3 4 }
+;%0s1  0000000000000000  PERF_RECORD_LOST 3, 8  { 1/2 0 3 cpu-4 5 6 }
+;%0s2  0000000000000000  PERF_RECORD_COMM 1/1, foo { 1/1 0 2 cpu-3 4 5 }
+;%0s3  0000000000000000  PERF_RECORD_COMM.EXEC 2/2, bar { 2/2 0 3 cpu-4 5 6 }
+;%0s4  0000000000000000  PERF_RECORD_EXIT 2/2, 1/1, 0 { 2/2 0 3 cpu-4 5 6 }
+;%0s5  0000000000000000  PERF_RECORD_FORK 2/2, 1/1, 0 { 2/2 0 3 cpu-4 5 6 }
+;%0s6  0000000000000000  PERF_RECORD_AUX a000, 1000, 0 { 2/2 0 3 cpu-4 5 6 }
+;%0s7  0000000000000000  PERF_RECORD_AUX.TRUNCATED b000, 700, 1 { 2/2 0 3 cpu-4 5 6 }
+;%0s8  0000000000000002  PERF_RECORD_ITRACE_START 1/2  { 1/2 2 3 cpu-4 5 6 }
+;%0p1  tsc      2
+;%0p2  psbend
+;%0s9  0000000000000003  PERF_RECORD_LOST_SAMPLES 8  { 1/2 3 4 cpu-5 6 7 }
+;%0s10 0000000000000003  PERF_RECORD_SWITCH.IN  { 1/2 3 4 cpu-5 6 7 }
+;%0s11 0000000000000003  PERF_RECORD_SWITCH.OUT  { 1/2 3 4 cpu-5 6 7 }
+;%0s12 0000000000000003  PERF_RECORD_SWITCH_CPU_WIDE.IN 8/9  { 1/2 3 4 cpu-5 6 7 }
+;%0s13 0000000000000003  PERF_RECORD_SWITCH_CPU_WIDE.OUT 8/9  { 1/2 3 4 cpu-5 6 7 }

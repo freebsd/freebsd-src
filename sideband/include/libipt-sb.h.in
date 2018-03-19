@@ -1,0 +1,530 @@
+/*
+ * Copyright (c) 2017-2018, Intel Corporation
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *  * Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *  * Neither the name of Intel Corporation nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#ifndef LIBIPT_SB_H
+#define LIBIPT_SB_H
+
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct pt_image_section_cache;
+struct pt_image;
+struct pt_event;
+
+
+/* A macro to mark functions as exported. */
+#ifndef pt_sb_export
+#  if defined(__GNUC__)
+#    define pt_sb_export __attribute__((visibility("default")))
+#  elif defined(_MSC_VER)
+#    define pt_sb_export __declspec(dllimport)
+#  else
+#    error "unknown compiler"
+#  endif
+#endif
+
+
+/** The header version. */
+#define LIBIPT_SB_VERSION_MAJOR ${PT_VERSION_MAJOR}
+#define LIBIPT_SB_VERSION_MINOR ${PT_VERSION_MINOR}
+
+#define LIBIPT_SB_VERSION ((LIBIPT_SB_VERSION_MAJOR << 8) +	\
+			   LIBIPT_SB_VERSION_MINOR)
+
+
+/* Sideband decode errors and warnings. */
+enum pt_sb_error_code {
+	/* No error.  Everything is OK. */
+	ptse_ok,
+
+	/* Sideband records have been lost. */
+	ptse_lost,
+
+	/* Trace has been lost. */
+	ptse_trace_lost,
+
+	/* An image section has been lost (ignored). */
+	ptse_section_lost
+};
+
+/** Return a human readable error string. */
+extern pt_sb_export const char *pt_sb_errstr(enum pt_sb_error_code);
+
+
+/* An Intel(R) Processor Trace (Intel PT) sideband tracing session.
+ *
+ * The session serves one Intel PT decoder.
+ *
+ * It is not thread-safe.  It doesn't need to be.  If a trace stream is decoded
+ * by multiple decoders in parallel, each decoder needs its own sideband tracing
+ * session since each decoder will be looking at the trace at a different point
+ * in time and may see a different memory image.
+ *
+ * A sideband tracing session contains all sideband decoders that are relevant
+ * for that trace stream.  We distinguish primary and secondary sideband
+ * channels:
+ *
+ * - primary sideband channels affect decode directly.
+ *
+ *     They actively change the Intel PT decoder's memory image on context
+ *     switch sideband records.
+ *
+ *     For per-cpu trace decode, for example, the sideband channel of the cpu
+ *     for which trace is being decoded is a primary sideband channel.
+ *
+ * - secondary sideband channels affect decode indirectly.
+ *
+ *     They maintain the memory image for different process contexts but do not
+ *     actively switch the Intel PT decoder's memory image.  They typically
+ *     ignore context switch sideband records.
+ *
+ *     They may still directly affect the Intel PT decoder's memory image by
+ *     adding new sections while trace in that context is being decoded.
+ *
+ *     For per-cpu trace decode, for example, the sideband channels of other
+ *     cpus are secondary sideband channels.
+ */
+struct pt_sb_session;
+
+/* Allocate a tracing session.
+ *
+ * If @iscache is not NULL, it will be used for allocating new image sections.
+ *
+ * It is highly recommended to use an image section cache and to use the same
+ * cache for related tracing sessions, e.g. for all cpus in a per-cpu trace.
+ *
+ * Returns a pointer to the new tracing session or NULL if out of memory.
+ */
+extern pt_sb_export struct pt_sb_session *
+pt_sb_alloc(struct pt_image_section_cache *iscache);
+
+/* Free a tracing session.
+ *
+ * Also frees all sideband decoders and memory images contained in @session.
+ */
+extern pt_sb_export void pt_sb_free(struct pt_sb_session *session);
+
+/* Get the image section cache.
+ *
+ * Returns @session's image section cache provided at pt_sb_alloc().
+ */
+extern pt_sb_export struct pt_image_section_cache *
+pt_sb_iscache(struct pt_sb_session *session);
+
+/* Get the kernel image.
+ *
+ * Returns a non-NULL image for the Operating System in @session.
+ *
+ * It is not clear, yet, how virtualization will be handled.
+ *
+ * The returned image will be freed when @session is freed with a call to
+ * pt_sb_free().
+ */
+extern pt_sb_export struct pt_image *
+pt_sb_kernel_image(struct pt_sb_session *session);
+
+/* A sideband decode error/warning notifier.
+ *
+ * It will be called by sideband decoders to report @errcode encountered while
+ * processing sideband at @offset in @filename.  Fatal errors will further cause
+ * the sideband decoder to be removed.  Non-fatal errors and warnings will
+ * otherwise be ignored.
+ *
+ * Positive @errcode numbers are enum pt_sb_error_code constants.
+ * Negative @errcode numbers are enum pt_error_code constants.
+ *
+ * It shall return zero on success, a negative pt_error_code otherwise.
+ */
+typedef int (pt_sb_error_notifier_t)(int errcode,  const char *filename,
+				     uint64_t offset, void *priv);
+
+/* Install an error notifier.
+ *
+ * If @notifier is not NULL, will be called on errors and warnings encountered
+ * by sideband decoders.
+ *
+ * Returns the previously installed notifier or NULL.
+ */
+extern pt_sb_export pt_sb_error_notifier_t *
+pt_sb_notify_error(struct pt_sb_session *session,
+		   pt_sb_error_notifier_t *notifier, void *priv);
+
+/* Initialize newly added decoders.
+ *
+ * Initialize decoders that have been added since pt_sb_alloc() or since the
+ * last pt_sb_init_decoders() call by fetching their first sideband record.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+extern pt_sb_export int pt_sb_init_decoders(struct pt_sb_session *session);
+
+/* Apply an event to all sideband decoders contained in a session.
+ *
+ * Applies @event to all decoders in @session.  This may involve a series of
+ * @apply and subsequent @fetch calls.  See comments on @apply and @fetch for
+ * details.
+ *
+ * Decoders that return an error will be removed from @session and freed.
+ *
+ * Primary decoders are offered @image and may change it to point to a new
+ * memory image.
+ *
+ * For debugging purposes, decoders are also asked to @print the current record
+ * to @stream according to @flags.  Pass a NULL @stream to ask decoders to not
+ * print anything.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+extern pt_sb_export int pt_sb_event(struct pt_sb_session *session,
+				    struct pt_image **image,
+				    const struct pt_event *event, size_t size,
+				    FILE *stream, uint32_t flags);
+
+/* Dump sideband records up to a given timestamp.
+ *
+ * Asks all sideband decoders in @session to @print their current record to
+ * @stream according to @flags and @fetch the next record as long as the current
+ * record's timestamp is smaller or equal to @tsc.
+ *
+ * Decoders that return an error will be removed from @session and freed.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+extern pt_sb_export int pt_sb_dump(struct pt_sb_session *session, FILE *stream,
+				   uint32_t flags, uint64_t tsc);
+
+
+/* A process context.
+ *
+ * We maintain a separate image per process so we can switch between them
+ * easily.  Each image contains both user-space and kernel-space.
+ *
+ * Image sections are shared between processes using an image section cache.
+ *
+ * Process contexts are not thread-safe.  The process memory image changes over
+ * time depending on sideband information.  Sections of trace between process
+ * image changes can be decoded in parallel but threads will need to synchronize
+ * across process image changes.
+ */
+struct pt_sb_context;
+
+/* Get a context reference.
+ *
+ * Increment @context's use count.
+ */
+extern pt_sb_export int pt_sb_ctx_get(struct pt_sb_context *context);
+
+/* Put a context reference.
+ *
+ * Decrement @context's use count and free @context when it reaches zero.
+ */
+extern pt_sb_export int pt_sb_ctx_put(struct pt_sb_context *context);
+
+/* Get the context's memory image.
+ *
+ * The caller must hold a reference to @context as long as the image is used.
+ *
+ * Returns a non-NULL memory image for @context.
+ */
+extern pt_sb_export struct pt_image *
+pt_sb_ctx_image(const struct pt_sb_context *context);
+
+/* Map a file section into a context's image.
+ *
+ * Adds a section of @size bytes from @filename starting at @offset to @context's
+ * image at @vaddr.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+extern pt_sb_export int pt_sb_ctx_mmap(struct pt_sb_session *session,
+				       struct pt_sb_context *context,
+				       const char *filename, uint64_t offset,
+				       uint64_t size, uint64_t vaddr);
+
+/* Switch to context's image.
+ *
+ * Install @context->image in @image.  The caller is responsible for holding a
+ * reference to @context as long as its image is in use.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+extern pt_sb_export int
+pt_sb_ctx_switch_to(struct pt_image **image, struct pt_sb_session *session,
+		    const struct pt_sb_context *context);
+
+/* A context switch notifier.
+ *
+ * It shall return zero on success, a negative pt_error_code otherwise.
+ */
+typedef int (pt_sb_ctx_switch_notifier_t)(const struct pt_sb_context *,
+					  void *priv);
+
+/* Install a context-switch notifier.
+ *
+ * If @notifier is not NULL, will be called with the switched-to context on a
+ * context switch via pt_sb_ctx_switch_to().
+ *
+ * Returns the previously installed notifier or NULL.
+ */
+extern pt_sb_export pt_sb_ctx_switch_notifier_t *
+pt_sb_notify_switch(struct pt_sb_session *session,
+		    pt_sb_ctx_switch_notifier_t *notifier, void *priv);
+
+/* Get the context for pid.
+ *
+ * Provide a non-NULL process context for @pid in @context.  This may create a
+ * new context if no context for @pid exists in @session.  The new context is
+ * populated with kernel image sections.
+ *
+ * This does not provide a new reference to @context.  Use pt_sb_ctx_get() if
+ * you need to keep the context.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+extern pt_sb_export int
+pt_sb_get_context_by_pid(struct pt_sb_context **context,
+			 struct pt_sb_session *session, uint32_t pid);
+
+/* Find a context by pid.
+ *
+ * Provide a non-NULL process context for @pid in @context if it exists in
+ * @session.  This does not provide a new reference to @context.  Use
+ * pt_sb_ctx_get() if you need to keep the context.
+ *
+ * Provide a NULL process context in @context if a context for @pid does not
+ * exist in @session.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+extern pt_sb_export int
+pt_sb_find_context_by_pid(struct pt_sb_context **context,
+			  struct pt_sb_session *session, uint32_t pid);
+
+/* Remove a context.
+ *
+ * Removes @context from @session and puts @session's reference to @context.
+ * Future lookups won't find @context but it won't be freed until the last user
+ * puts it.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+extern pt_sb_export int pt_sb_remove_context(struct pt_sb_session *session,
+					     struct pt_sb_context *context);
+
+
+/* A collection of print options. */
+enum pt_sb_print_flag {
+	/* Print sideband records in compact mode. */
+	ptsbp_compact		= 1 << 0,
+
+	/* Print sideband records in verbose mode. */
+	ptsbp_verbose		= 1 << 1,
+
+	/* Print the sideband filename. */
+	ptsbp_filename		= 1 << 2,
+
+	/* Print the offset into the sideband file. */
+	ptsbp_file_offset	= 1 << 3,
+
+	/* Print the sideband record's timestamp. */
+	ptsbp_tsc		= 1 << 4
+
+};
+
+/* An Intel PT sideband decoder configuration. */
+struct pt_sb_decoder_config {
+	/* The size of the config structure in bytes. */
+	size_t size;
+
+	/* Fetch the next sideband record and provide its timestamp.
+	 *
+	 * Return zero on success, a negative error code otherwise.
+	 */
+	int (*fetch)(struct pt_sb_session *session, uint64_t *tsc, void *priv);
+
+	/* Apply the current sideband record.
+	 *
+	 * For master sideband channels, @image will be non-NULL and point to
+	 * the image object that is currently used.  If the image shall be
+	 * switched, set @image to the new image to be used.
+	 *
+	 * For secondary sideband channels, @image will be NULL.
+	 *
+	 * The @event argument points to a pt_event object.  Unknown event types
+	 * shall be ignored.
+	 *
+	 * Initially, it will be passed to sideband decoders in the order of
+	 * their next record's timestamp.  It must only be applied to the
+	 * current sideband record.
+	 *
+	 * If the record's timestamp is smaller or equal to the event's
+	 * timestamp, @fetch will be called to fetch the next sideband record,
+	 * and @apply will be called again for the new sideband record with the
+	 * same @event.
+	 *
+	 * This repeats until the @event's timestamp is smaller than the current
+	 * record's timestamp.
+	 *
+	 * The event will then be passed to all sideband decoders irrespective
+	 * of their next record's timestamp.  This allows sideband decoders to
+	 * postpone actions until a suitable event.
+	 *
+	 * Return zero on success, a negative error code otherwise.
+	 */
+	int (*apply)(struct pt_sb_session *session, struct pt_image **image,
+		     const struct pt_event *event, void *priv);
+
+	/* Print the current sideband record.
+	 *
+	 * The output shall be determined based on @flags, which is a bit-vector
+	 * of enum pt_sb_print_flag.  A value of zero means that only errors
+	 * shall be printed.
+	 *
+	 * Return zero on success, a negative error code otherwise.
+	 */
+	int (*print)(struct pt_sb_session *session, FILE *stream,
+		     uint32_t flags, void *priv);
+
+	/* Destroy the private data. */
+	void (*dtor)(void *priv);
+
+	/* Decoder-specific private data. */
+	void *priv;
+
+	/* A collection of configuration flags saying:
+	 *
+	 * - whether this is a primary decoder (secondary if clear).
+	 */
+	uint32_t primary:1;
+};
+
+/* Add an Intel PT sideband decoder.
+ *
+ * Allocate a new sideband decoder based on @config and add it to @session.
+ *
+ * The sideband decoder will automatically be freed when @session is freed with
+ * a call to pt_sb_free() or when it is removed from @session after returning an
+ * error from one of its callback functions.
+ *
+ * Returns zero on success, a negative pt_error_code otherwise.
+ */
+extern pt_sb_export int
+pt_sb_alloc_decoder(struct pt_sb_session *session,
+		    const struct pt_sb_decoder_config *config);
+
+
+/* The configuration for a Linux perf event sideband decoder. */
+struct pt_sb_pevent_config {
+	/* The size of the config structure in bytes. */
+	size_t size;
+
+	/* The name of the file containing the sideband data. */
+	const char *filename;
+
+	/* The offset into the file from which to start reading. */
+	size_t begin;
+
+	/* The optional end offset into the file at which to stop reading.
+	 *
+	 * Zero means read until the end of the file.
+	 */
+	size_t end;
+
+	/* The optional system root directory.
+	 *
+	 * If not NULL, this is prepended to every filename referenced in perf
+	 * event sideband records.
+	 */
+	const char *sysroot;
+
+	/* The optional 64-bit vdso. */
+	const char *vdso_x64;
+
+	/* The optional x32 vdso. */
+	const char *vdso_x32;
+
+	/* The optional 32-bit vdso. */
+	const char *vdso_ia32;
+
+	/* An offset to be subtracted from every perf event record timestamp.
+	 *
+	 * This applies perf event records a little bit earlier to compensate
+	 * for too coarse timing.
+	 */
+	uint64_t tsc_offset;
+
+	/* The respective field in struct perf_event_attr.
+	 *
+	 * We require sample_id_all in struct perf_event_attr to be set.
+	 */
+	uint64_t sample_type;
+
+	/* The start address of the kernel.
+	 *
+	 * This is used to distinguish kernel from user addresses:
+	 *
+	 *   kernel >= @kernel_start
+	 *   user   <  @kernel_start
+	 *
+	 * Set to UINT64_MAX if ring-0 is not being traced.
+	 */
+	uint64_t kernel_start;
+
+	/* The respective fields in struct perf_event_mmap_page. */
+	uint16_t time_shift;
+	uint32_t time_mult;
+	uint64_t time_zero;
+
+	/* A collection of configuration flags saying:
+	 *
+	 * - whether this is a primary decoder (secondary if clear).
+	 */
+	uint32_t primary:1;
+};
+
+/* Allocate a Linux perf event sideband decoder.
+ *
+ * Allocates a sideband decoder for the Linux perf event format based on @config
+ * and adds it to @session.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+extern pt_sb_export int
+pt_sb_alloc_pevent_decoder(struct pt_sb_session *session,
+			   const struct pt_sb_pevent_config *config);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* LIBIPT_SB_H */

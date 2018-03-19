@@ -1,0 +1,56 @@
+; Copyright (c) 2014-2018, Intel Corporation
+;
+; Redistribution and use in source and binary forms, with or without
+; modification, are permitted provided that the following conditions are met:
+;
+;  * Redistributions of source code must retain the above copyright notice,
+;    this list of conditions and the following disclaimer.
+;  * Redistributions in binary form must reproduce the above copyright notice,
+;    this list of conditions and the following disclaimer in the documentation
+;    and/or other materials provided with the distribution.
+;  * Neither the name of Intel Corporation nor the names of its contributors
+;    may be used to endorse or promote products derived from this software
+;    without specific prior written permission.
+;
+; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+; ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+; LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+; CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+; SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+; INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+; CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+; POSSIBILITY OF SUCH DAMAGE.
+
+; Test MTC and CYC-based TSC estimation.
+;
+; Variant: CBR-based calibration
+;
+; opt:ptdump --time --time-delta
+; opt:ptdump --nom-freq 4 --mtc-freq 8 --cpuid-0x15.eax 1 --cpuid-0x15.ebx 4
+
+org 0x100000
+bits 64
+
+; @pt p1: psb()
+; @pt p2: psbend()
+
+; @pt p3: tsc(0xa0000)
+; @pt p4: tma(0x102, 0x8)
+; @pt p5: cbr(0x2)
+; @pt p6: mtc(0x2)
+; @pt p7: cyc(0x3)
+; @pt p8: cyc(0x1)
+
+
+; @pt .exp(ptdump)
+;%0p1   psb
+;%0p2   psbend
+;%0p3   tsc a0000       tsc +a0000
+;%0p4   tma 102, 8      tsc +0
+;%0p5   cbr 2
+;%0p6   mtc 2           tsc +3f0
+;%0p7   cyc 3           tsc +6
+;%0p8   cyc 1           tsc +2
