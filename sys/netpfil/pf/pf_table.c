@@ -1131,8 +1131,10 @@ pfr_add_tables(struct pfr_table *tbl, int size, int *nadd, int flags)
 			if (p == NULL)
 				senderr(ENOMEM);
 			SLIST_FOREACH(q, &addq, pfrkt_workq) {
-				if (!pfr_ktable_compare(p, q))
+				if (!pfr_ktable_compare(p, q)) {
+					pfr_destroy_ktable(p, 0);
 					goto _skip;
+				}
 			}
 			SLIST_INSERT_HEAD(&addq, p, pfrkt_workq);
 			xadd++;
