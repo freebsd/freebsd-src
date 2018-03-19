@@ -371,8 +371,6 @@ void dump_Elf_Rela(Obj_Entry *, const Elf_Rela *, u_long);
 unsigned long elf_hash(const char *);
 const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
   const Obj_Entry **, int, SymCache *, struct Struct_RtldLockState *);
-void ifunc_init(Elf_Auxinfo[__min_size(AT_COUNT)]);
-void init_pltgot(Obj_Entry *);
 void lockdflt_init(void);
 void digest_notes(Obj_Entry *, Elf_Addr, Elf_Addr);
 Obj_Entry *globallist_curr(const Obj_Entry *obj);
@@ -402,6 +400,9 @@ int reloc_plt(Obj_Entry *);
 int reloc_jmpslots(Obj_Entry *, int flags, struct Struct_RtldLockState *);
 int reloc_iresolve(Obj_Entry *, struct Struct_RtldLockState *);
 int reloc_gnu_ifunc(Obj_Entry *, int flags, struct Struct_RtldLockState *);
+void ifunc_init(Elf_Auxinfo[__min_size(AT_COUNT)]);
+void pre_init(void);
+void init_pltgot(Obj_Entry *);
 void allocate_initial_tls(Obj_Entry *);
 
 #endif /* } */
