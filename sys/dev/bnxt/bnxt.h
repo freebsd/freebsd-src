@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #define BCM57417_NPAR1	0x16c0
 #define BCM57417_NPAR2	0x16cc
 #define BCM57417_SFP	0x16e2
+#define BCM57454	0x1614
 #define BCM58700	0x16cd
 #define NETXTREME_C_VF1	0x16cb
 #define NETXTREME_C_VF2	0x16e1
