@@ -1438,8 +1438,7 @@ shell(int argc, char *argv[])
 	}
 	oldintr = xsignal(SIGINT, SIG_IGN);
 	if ((pid = fork()) == 0) {
-		for (pid = 3; pid < 20; pid++)
-			(void)close(pid);
+		(void)closefrom(3);
 		(void)xsignal(SIGINT, SIG_DFL);
 		shellp = getenv("SHELL");
 		if (shellp == NULL)
