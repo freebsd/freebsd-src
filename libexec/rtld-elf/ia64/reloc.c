@@ -606,6 +606,13 @@ call_init_pointer(const Obj_Entry *obj, Elf_Addr target)
 void  
 ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
 {
+
+}
+
+void
+pre_init(void)
+{
+
 }
 
 /* Initialize the special PLT entries. */
