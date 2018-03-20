@@ -164,7 +164,7 @@ static void		ndasuspend(void *arg);
 #define	NDA_DEFAULT_RETRY	4
 #endif
 #ifndef NDA_MAX_TRIM_ENTRIES
-#define NDA_MAX_TRIM_ENTRIES 256	/* Number of DSM trims to use, max 256 */
+#define NDA_MAX_TRIM_ENTRIES  (NVME_MAX_DSM_TRIM / sizeof(struct nvme_dsm_range))/* Number of DSM trims to use, max 256 */
 #endif
 
 static SYSCTL_NODE(_kern_cam, OID_AUTO, nda, CTLFLAG_RD, 0,
@@ -218,6 +218,8 @@ static void
 nda_nvme_trim(struct nda_softc *softc, struct ccb_nvmeio *nvmeio,
     void *payload, uint32_t num_ranges)
 {
+	KASSERT(num_ranges * sizeof(struct nvme_dsm_range) < NVME_MAX_DSM_TRIM);
+
 	cam_fill_nvmeio(nvmeio,
 	    0,			/* retries */
 	    ndadone,		/* cbfcnp */
@@ -957,7 +959,7 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 				dsm_range->length =
 				    htole32(bp1->bio_bcount / softc->disk->d_sectorsize);
 				dsm_range->starting_lba =
-				    htole32(bp1->bio_offset / softc->disk->d_sectorsize);
+				    htole64(bp1->bio_offset / softc->disk->d_sectorsize);
 				dsm_range++;
 				if (dsm_range >= dsm_end)
 					break;
