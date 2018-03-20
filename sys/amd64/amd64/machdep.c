@@ -2597,6 +2597,31 @@ clear_pcb_flags(struct pcb *pcb, const u_int flags)
 	    : "cc", "memory");
 }
 
+/*
+ * Enable and restore kernel text write permissions.
+ * Callers must ensure that disable_wp()/restore_wp() are executed
+ * without rescheduling on the same core.
+ */
+bool
+disable_wp(void)
+{
+	u_int cr0;
+
+	cr0 = rcr0();
+	if ((cr0 & CR0_WP) == 0)
+		return (false);
+	load_cr0(cr0 & ~CR0_WP);
+	return (true);
+}
+
+void
+restore_wp(bool old_wp)
+{
+
+	if (old_wp)
+		load_cr0(rcr0() | CR0_WP);
+}
+
 #ifdef KDB
 
 /*
