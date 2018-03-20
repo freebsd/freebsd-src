@@ -205,6 +205,7 @@ fpuinit_bsp1(void)
 {
 	u_int cp[4];
 	uint64_t xsave_mask_user;
+	bool old_wp;
 
 	if ((cpu_feature2 & CPUID2_XSAVE) != 0) {
 		use_xsave = 1;
@@ -233,8 +234,14 @@ fpuinit_bsp1(void)
 		 * Patch the XSAVE instruction in the cpu_switch code
 		 * to XSAVEOPT.  We assume that XSAVE encoding used
 		 * REX byte, and set the bit 4 of the r/m byte.
+		 *
+		 * It seems that some BIOSes give control to the OS
+		 * with CR0.WP already set, making the kernel text
+		 * read-only before cpu_startup().
 		 */
+		old_wp = disable_wp();
 		ctx_switch_xsave[3] |= 0x10;
+		restore_wp(old_wp);
 	}
 }
 
