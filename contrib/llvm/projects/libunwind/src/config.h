@@ -70,7 +70,7 @@
 #if defined(__i386__) || defined(__x86_64__) ||                                \
     (!defined(__APPLE__) && defined(__arm__)) ||                               \
     (defined(__arm64__) || defined(__aarch64__)) ||                            \
-    (defined(__APPLE__) && defined(__mips__)) ||                               \
+    (defined(__mips__)) ||                                                     \
     defined(__riscv)
 #define _LIBUNWIND_BUILD_ZERO_COST_APIS 1
 #else

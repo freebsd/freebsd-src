@@ -53,6 +53,38 @@
 #  define _LIBUNWIND_CONTEXT_SIZE 64
 #  define _LIBUNWIND_CURSOR_SIZE 76
 #  define _LIBUNWIND_MAX_REGISTER 96
+# elif defined(__mips__)
+#  if defined(_ABIO32) && _MIPS_SIM == _ABIO32
+#    define _LIBUNWIND_TARGET_MIPS_O32 1
+#    if defined(__mips_hard_float)
+#      define _LIBUNWIND_CONTEXT_SIZE 50
+#      define _LIBUNWIND_CURSOR_SIZE 61
+#    else
+#      define _LIBUNWIND_CONTEXT_SIZE 18
+#      define _LIBUNWIND_CURSOR_SIZE 29
+#    endif
+#  elif defined(_ABIN32) && _MIPS_SIM == _ABIN32
+#    define _LIBUNWIND_TARGET_MIPS_NEWABI 1
+#    if defined(__mips_hard_float)
+#      define _LIBUNWIND_CONTEXT_SIZE 67
+#      define _LIBUNWIND_CURSOR_SIZE 78
+#    else
+#      define _LIBUNWIND_CONTEXT_SIZE 35
+#      define _LIBUNWIND_CURSOR_SIZE 46
+#    endif
+#  elif defined(_ABI64) && _MIPS_SIM == _ABI64
+#    define _LIBUNWIND_TARGET_MIPS_NEWABI 1
+#    if defined(__mips_hard_float)
+#      define _LIBUNWIND_CONTEXT_SIZE 67
+#      define _LIBUNWIND_CURSOR_SIZE 79
+#    else
+#      define _LIBUNWIND_CONTEXT_SIZE 35
+#      define _LIBUNWIND_CURSOR_SIZE 47
+#    endif
+#  else
+#    error "Unsupported MIPS ABI and/or environment"
+#  endif
+#  define _LIBUNWIND_MAX_REGISTER 66
 # else
 #  error "Unsupported architecture."
 # endif
@@ -63,6 +95,8 @@
 # define _LIBUNWIND_TARGET_AARCH64 1
 # define _LIBUNWIND_TARGET_ARM 1
 # define _LIBUNWIND_TARGET_OR1K 1
+# define _LIBUNWIND_TARGET_MIPS_O32 1
+# define _LIBUNWIND_TARGET_MIPS_NEWABI 1
 # define _LIBUNWIND_CONTEXT_SIZE 128
 # define _LIBUNWIND_CURSOR_SIZE 140
 # define _LIBUNWIND_MAX_REGISTER 120
