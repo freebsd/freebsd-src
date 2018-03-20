@@ -53,8 +53,6 @@ void	amd64_conf_fast_syscall(void);
 void	amd64_db_resume_dbreg(void);
 void	amd64_lower_shared_page(struct sysentvec *);
 void	amd64_syscall(struct thread *td, int traced);
-bool	disable_wp(void);
-void	restore_wp(bool old_wp);
 void	doreti_iret(void) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault(void) __asm(__STRING(doreti_iret_fault));
 void	ld_ds(void) __asm(__STRING(ld_ds));
