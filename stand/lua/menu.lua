@@ -120,7 +120,7 @@ menu.boot_environments = {
 					name_color = color.escapef(color.BLUE)
 				end
 				bootenv_name = bootenv_name .. name_color ..
-				    choice .. color.default()
+				    choice .. color.resetf()
 				return color.highlight("A").."ctive: " ..
 				    bootenv_name .. " (" .. idx .. " of " ..
 				    #all_choices .. ")"
@@ -306,7 +306,7 @@ menu.welcome = {
 					name_color = color.escapef(color.BLUE)
 				end
 				kernel_name = kernel_name .. name_color ..
-				    choice .. color.default()
+				    choice .. color.resetf()
 				return color.highlight("K") .. "ernel: " ..
 				    kernel_name .. " (" .. idx .. " of " ..
 				    #all_choices .. ")"
