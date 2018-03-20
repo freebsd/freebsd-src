@@ -65,7 +65,7 @@
 #define	KTR_VM		0x00100000		/* The virtual memory system */
 #define	KTR_INET	0x00200000		/* IPv4 stack */
 #define	KTR_RUNQ	0x00400000		/* Run queue */
-#define	KTR_CONTENTION	0x00800000		/* Lock contention */
+#define	KTR_SPARE5	0x00800000
 #define	KTR_UMA		0x01000000		/* UMA slab allocator */
 #define	KTR_CALLOUT	0x02000000		/* Callouts and timeouts */
 #define	KTR_GEOM	0x04000000		/* GEOM I/O events */

@@ -473,9 +473,6 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 	struct turnstile *ts;
 	uintptr_t tid;
 	struct thread *owner;
-#ifdef KTR
-	int cont_logged = 0;
-#endif
 #ifdef LOCK_PROFILING
 	int contested = 0;
 	uint64_t waittime = 0;
@@ -629,17 +626,6 @@ retry_turnstile:
 		 */
 		mtx_assert(m, MA_NOTOWNED);
 
-#ifdef KTR
-		if (!cont_logged) {
-			CTR6(KTR_CONTENTION,
-			    "contention: %p at %s:%d wants %s, taken by %s:%d",
-			    (void *)tid, file, line, m->lock_object.lo_name,
-			    WITNESS_FILE(&m->lock_object),
-			    WITNESS_LINE(&m->lock_object));
-			cont_logged = 1;
-		}
-#endif
-
 		/*
 		 * Block on the turnstile.
 		 */
@@ -657,13 +643,6 @@ retry_turnstile:
 #endif
 		v = MTX_READ_VALUE(m);
 	}
-#ifdef KTR
-	if (cont_logged) {
-		CTR4(KTR_CONTENTION,
-		    "contention end: %s acquired by %p at %s:%d",
-		    m->lock_object.lo_name, (void *)tid, file, line);
-	}
-#endif
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
 	if (__predict_true(!doing_lockprof))
 		return;
