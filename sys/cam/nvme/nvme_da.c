@@ -167,19 +167,22 @@ static void		ndasuspend(void *arg);
 #define NDA_MAX_TRIM_ENTRIES 256	/* Number of DSM trims to use, max 256 */
 #endif
 
+static SYSCTL_NODE(_kern_cam, OID_AUTO, nda, CTLFLAG_RD, 0,
+            "CAM Direct Access Disk driver");
+
 //static int nda_retry_count = NDA_DEFAULT_RETRY;
 static int nda_send_ordered = NDA_DEFAULT_SEND_ORDERED;
 static int nda_default_timeout = NDA_DEFAULT_TIMEOUT;
 static int nda_max_trim_entries = NDA_MAX_TRIM_ENTRIES;
+SYSCTL_INT(_kern_cam_nda, OID_AUTO, max_trim, CTLFLAG_RDTUN,
+    &nda_max_trim_entries, NDA_MAX_TRIM_ENTRIES,
+    "Maximum number of BIO_DELETE to send down as a DSM TRIM.");
 
 /*
  * All NVMe media is non-rotational, so all nvme device instances
  * share this to implement the sysctl.
  */
 static int nda_rotating_media = 0;
-
-static SYSCTL_NODE(_kern_cam, OID_AUTO, nda, CTLFLAG_RD, 0,
-            "CAM Direct Access Disk driver");
 
 static struct periph_driver ndadriver =
 {
