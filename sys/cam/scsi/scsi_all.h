@@ -25,7 +25,11 @@
 #define	_SCSI_SCSI_ALL_H 1
 
 #include <sys/cdefs.h>
+#ifdef _KERNEL
 #include <machine/stdarg.h>
+#else
+#include <stdarg.h>
+#endif
 
 #ifdef _KERNEL
 /*
