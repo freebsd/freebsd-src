@@ -1395,7 +1395,7 @@ INSTALLKERNEL= ${_kernel}
 .endfor
 
 _cleankernobj_fast_depend_hack: .PHONY
-# 20170202 remove stale generated assym.s after renaming to .inc in r331254
+# 20180320 remove stale generated assym.s after renaming to .inc in r331254
 .if exists(${OBJTOP}/sys/${KERNCONF}/assym.s)
 	@echo Removing stale generated assym files
 	@rm -f ${OBJTOP}/sys/${KERNCONF}/assym.* \
