@@ -470,14 +470,6 @@ cbb_event_thread(void *arg)
 	sc->flags |= CBB_KTHREAD_RUNNING;
 	while ((sc->flags & CBB_KTHREAD_DONE) == 0) {
 		mtx_unlock(&sc->mtx);
-		/*
-		 * We take out Giant here because we need it deep,
-		 * down in the bowels of the vm system for mapping the
-		 * memory we need to read the CIS.  In addition, since
-		 * we are adding/deleting devices from the dev tree,
-		 * and that code isn't MP safe, we have to hold Giant.
-		 */
-		mtx_lock(&Giant);
 		status = cbb_get(sc, CBB_SOCKET_STATE);
 		DPRINTF(("Status is 0x%x\n", status));
 		if (!CBB_CARD_PRESENT(status)) {
@@ -503,7 +495,6 @@ cbb_event_thread(void *arg)
 			not_a_card = 0;		/* We know card type */
 			cbb_insert(sc);
 		}
-		mtx_unlock(&Giant);
 
 		/*
 		 * First time through we need to tell mountroot that we're
