@@ -32,7 +32,7 @@
 	
 #include <machine/asmacros.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	.data
 	ALIGN_DATA

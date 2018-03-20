@@ -13,9 +13,9 @@ SRCS=	linux_fork.c linux_dummy.c linux_file.c linux_event.c \
 	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h \
 	vnode_if.h device_if.h bus_if.h \
 	linux_support.s
-DPSRCS=	assym.s linux_genassym.c
+DPSRCS=	assym.inc linux_genassym.c
 
-# XXX: for assym.s
+# XXX: for assym.inc
 SRCS+=  opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
 .if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	opt_apic.h
@@ -40,7 +40,7 @@ ${VDSO}.so: linux_locore.o
 	    -S -g --binary-architecture i386:x86-64 linux_locore.o ${.TARGET}
 	strip -N _binary_linux_locore_o_size ${.TARGET}
 
-linux_support.o: assym.s linux_assym.h
+linux_support.o: assym.inc linux_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 	    ${.IMPSRC} -o ${.TARGET}
 

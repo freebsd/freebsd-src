@@ -28,7 +28,7 @@
  * Use is subject to license terms.
  */
 
-#include "assym.s"
+#include "assym.inc"
 
 #define _ASM
 

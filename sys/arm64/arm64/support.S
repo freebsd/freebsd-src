@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/param.h>
 #include <machine/vmparam.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 /*
  * One of the fu* or su* functions failed, return -1.

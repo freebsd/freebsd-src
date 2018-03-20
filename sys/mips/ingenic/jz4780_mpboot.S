@@ -27,7 +27,7 @@
  */
 
 #include <machine/asm.h>
-#include "assym.s"
+#include "assym.inc"
 
 	.text
 	.set	noat

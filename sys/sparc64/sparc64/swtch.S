@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/tstate.h>
 
-#include "assym.s"
+#include "assym.inc"
 #include "opt_sched.h"
 
 	.register	%g2, #ignore
