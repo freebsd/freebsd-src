@@ -35,6 +35,7 @@
 #include <sys/dtrace.h>
 
 #include <machine/cpufunc.h>
+#include <machine/md_var.h>
 
 #include "fbt.h"
 
@@ -145,15 +146,11 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 void
 fbt_patch_tracepoint(fbt_probe_t *fbt, fbt_patchval_t val)
 {
-	u_long cr0save;
-	register_t intr;
+	bool old_wp;
 
-	intr = intr_disable();
-	cr0save = rcr0();
-	load_cr0(cr0save & ~CR0_WP);
+	old_wp = disable_wp();
 	*fbt->fbtp_patchpoint = val;
-	load_cr0(cr0save);
-	intr_restore(intr);
+	restore_wp(old_wp);
 }
 
 int
