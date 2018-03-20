@@ -107,11 +107,7 @@ Only add
 .Dq Li "From: "
 in front of foreign VCS IDs if the file is renamed.
 .Bd -literal
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)style	1.14 (Berkeley) 4/28/95";
-#endif /* not lint */
-#endif
+/* From: @(#)style	1.14 (Berkeley) 4/28/95 */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -234,10 +230,6 @@ This comment should be used only for (subjectively) long regions, regions
 greater than 20 lines, or where a series of nested
 .Ic #ifdef 's
 may be confusing to the reader.
-Exceptions may be made for cases where code is conditionally not compiled for
-the purposes of
-.Xr lint 1 ,
-even though the uncompiled region may be small.
 The comment should be separated from the
 .Ic #endif
 or
