@@ -626,25 +626,20 @@ ndasysctlinit(void *context, int pending)
 	}
 
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-		OID_AUTO, "unmapped_io", CTLFLAG_RD | CTLFLAG_MPSAFE,
-		&softc->unmappedio, 0, "Unmapped I/O leaf");
+	    OID_AUTO, "unmapped_io", CTLFLAG_RD,
+	    &softc->unmappedio, 0, "Unmapped I/O leaf");
 
 	SYSCTL_ADD_QUAD(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-		OID_AUTO, "deletes", CTLFLAG_RD | CTLFLAG_MPSAFE,
-		&softc->deletes, "Number of BIO_DELETE requests");
+	    OID_AUTO, "deletes", CTLFLAG_RD,
+	    &softc->deletes, "Number of BIO_DELETE requests");
 
 	SYSCTL_ADD_QUAD(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-		OID_AUTO, "dsm_req", CTLFLAG_RD | CTLFLAG_MPSAFE,
-		&softc->dsm_req, "Number of DSM requests sent to SIM");
+	    OID_AUTO, "dsm_req", CTLFLAG_RD,
+	    &softc->dsm_req, "Number of DSM requests sent to SIM");
 
-	SYSCTL_ADD_INT(&softc->sysctl_ctx,
-		       SYSCTL_CHILDREN(softc->sysctl_tree),
-		       OID_AUTO,
-		       "rotating",
-		       CTLFLAG_RD | CTLFLAG_MPSAFE, 
-		       &nda_rotating_media,
-		       0,
-		       "Rotating media");
+	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+	    OID_AUTO, "rotating", CTLFLAG_RD, &nda_rotating_media, 1,
+	    "Rotating media");
 
 #ifdef CAM_IO_STATS
 	softc->sysctl_stats_tree = SYSCTL_ADD_NODE(&softc->sysctl_stats_ctx,
@@ -657,17 +652,17 @@ ndasysctlinit(void *context, int pending)
 	}
 	SYSCTL_ADD_INT(&softc->sysctl_stats_ctx,
 		SYSCTL_CHILDREN(softc->sysctl_stats_tree),
-		OID_AUTO, "timeouts", CTLFLAG_RD | CTLFLAG_MPSAFE,
+		OID_AUTO, "timeouts", CTLFLAG_RD,
 		&softc->timeouts, 0,
 		"Device timeouts reported by the SIM");
 	SYSCTL_ADD_INT(&softc->sysctl_stats_ctx,
 		SYSCTL_CHILDREN(softc->sysctl_stats_tree),
-		OID_AUTO, "errors", CTLFLAG_RD | CTLFLAG_MPSAFE,
+		OID_AUTO, "errors", CTLFLAG_RD,
 		&softc->errors, 0,
 		"Transport errors reported by the SIM.");
 	SYSCTL_ADD_INT(&softc->sysctl_stats_ctx,
 		SYSCTL_CHILDREN(softc->sysctl_stats_tree),
-		OID_AUTO, "pack_invalidations", CTLFLAG_RD | CTLFLAG_MPSAFE,
+		OID_AUTO, "pack_invalidations", CTLFLAG_RD,
 		&softc->invalidations, 0,
 		"Device pack invalidations.");
 #endif
