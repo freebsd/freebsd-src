@@ -96,7 +96,9 @@ function color.highlight(str)
 	if color.disabled then
 		return str
 	end
-	return core.KEYSTR_CSI .. "1m" .. str .. core.KEYSTR_CSI .. "0m"
+	-- We need to reset attributes as well as color scheme here, just in
+	-- case the terminal defaults don't match what we're expecting.
+	return core.KEYSTR_CSI .. "1m" .. str .. color.default()
 end
 
 return color
