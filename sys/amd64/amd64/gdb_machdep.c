@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
 #include <machine/gdb_machdep.h>
+#include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
 #include <machine/reg.h>
@@ -127,17 +128,14 @@ gdb_cpu_signal(int type, int code)
 void *
 gdb_begin_write(void)
 {
-	u_long cr0save;
 
-	cr0save = rcr0();
-	load_cr0(cr0save & ~CR0_WP);
-	return ((void *)cr0save);
+	return (disable_wp() ? &gdb_begin_write : NULL);
 }
 
 void
 gdb_end_write(void *arg)
 {
 
-	load_cr0((u_long)arg);
+	restore_wp(arg != NULL);
 }
 
