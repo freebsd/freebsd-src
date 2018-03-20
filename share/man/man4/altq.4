@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2017
+.Dd March 20, 2018
 .Dt ALTQ 4
 .Os
 .Sh NAME
@@ -45,7 +45,8 @@
 .Sh DESCRIPTION
 The
 .Nm
-framework provides several disciplines for queuing outgoing network packets.
+system is a framework which provides several disciplines for queuing outgoing
+network packets.
 This is done by modifications to the interface packet queues.
 See
 .Xr altq 9
@@ -59,7 +60,7 @@ utility, so please refer to the
 .Xr pfctl 8
 and the
 .Xr pf.conf 5
-manpages for a complete description of the
+man pages for a complete description of the
 .Nm
 capabilities and how to use it.
 .Ss Kernel Options
@@ -195,3 +196,11 @@ pseudo drivers also do support
 .Xr ipfw 8 ,
 .Xr pfctl 8 ,
 .Xr altq 9
+.Sh HISTORY
+The
+.Nm
+system first appeared in March 1997 and found home in the KAME project
+(http://www.kame.net).
+It was imported to
+.Fx
+in 5.3 .
