@@ -218,8 +218,6 @@ static void
 nda_nvme_trim(struct nda_softc *softc, struct ccb_nvmeio *nvmeio,
     void *payload, uint32_t num_ranges)
 {
-	KASSERT(num_ranges * sizeof(struct nvme_dsm_range) < NVME_MAX_DSM_TRIM);
-
 	cam_fill_nvmeio(nvmeio,
 	    0,			/* retries */
 	    ndadone,		/* cbfcnp */
