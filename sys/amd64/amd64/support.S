@@ -36,7 +36,7 @@
 #include <machine/specialreg.h>
 #include <machine/pmap.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	.text
 

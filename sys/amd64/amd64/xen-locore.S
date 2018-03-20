@@ -40,7 +40,7 @@
 #define __ASSEMBLY__
 #include <xen/interface/elfnote.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 .section __xen_guest
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz, "FreeBSD")

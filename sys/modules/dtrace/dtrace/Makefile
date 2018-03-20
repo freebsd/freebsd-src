@@ -27,9 +27,9 @@ CFLAGS+=	-I${SYSDIR}/cddl/contrib/opensolaris/uts/intel \
 SRCS+=		bus_if.h device_if.h vnode_if.h
 
 # Needed for dtrace_asm.S
-DPSRCS+=	assym.s
+DPSRCS+=	assym.inc
 
-# These are needed for assym.s
+# These are needed for assym.inc
 SRCS+=		opt_compat.h opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
 
 #This is needed for dtrace.c
@@ -53,7 +53,7 @@ EXPORT_SYMS=	dtrace_register \
 		dtrace_unregister \
 		dtrace_probe_lookup
 
-dtrace_asm.o:  assym.s
+dtrace_asm.o:  assym.inc
 
 .include <bsd.kmod.mk>
 

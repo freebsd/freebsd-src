@@ -36,7 +36,7 @@
 #include <machine/asmacros.h>
 #include <machine/specialreg.h>
 
-#include "assym.s"
+#include "assym.inc"
 #include "opt_sched.h"
 
 /*****************************************************************************/

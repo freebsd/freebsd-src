@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmparam.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 /*
  * Fault handler for the copy{in,out} functions below.

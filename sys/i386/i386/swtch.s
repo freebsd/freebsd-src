@@ -36,7 +36,7 @@
 
 #include <machine/asmacros.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 #if defined(SMP) && defined(SCHED_ULE)
 #define	SETOP		xchgl

@@ -31,7 +31,7 @@
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 /*
  * Compiled KERNBASE location

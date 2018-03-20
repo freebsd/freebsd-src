@@ -34,7 +34,7 @@
 #include <machine/asmacros.h>
 #include <amd64/sgx/sgxvar.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	.text
 

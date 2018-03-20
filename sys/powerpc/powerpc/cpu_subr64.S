@@ -27,7 +27,7 @@
  * $FreeBSD$
  */
 
-#include "assym.s"
+#include "assym.inc"
 
 #include <machine/asm.h>
 
