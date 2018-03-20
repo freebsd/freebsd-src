@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.54 2017/07/06 23:20:33 sjg Exp $
+# $Id: meta.stage.mk,v 1.55 2017/10/27 01:17:09 sjg Exp $
 #
 #	@(#) Copyright (c) 2011-2017, Simon J. Gerraty
 #
@@ -20,9 +20,9 @@
 
 .if ${.MAKE.DEPENDFILE_PREFERENCE:U${.MAKE.DEPENDFILE}:M*.${MACHINE}} != ""
 # this is generally safer anyway
-_dirdep = ${RELDIR}.${MACHINE}
+_dirdep ?= ${RELDIR}.${MACHINE}
 .else
-_dirdep = ${RELDIR}
+_dirdep ?= ${RELDIR}
 .endif
 
 CLEANFILES+= .dirdep

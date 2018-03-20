@@ -13,7 +13,7 @@ esac
 CC="@CC@"
 CFLAGS="@CFLAGS@ -I. -I${srcdir} @DEFS@ @CPPFLAGS@ -DMAKE_NATIVE ${XDEFS} -DBMAKE_PATH_MAX=@bmake_path_max@"
 
-MAKE_VERSION=`sed -n '/^_MAKE_VERSION=/s,.*=[^0-9]*,,p' $srcdir/Makefile`
+MAKE_VERSION=@_MAKE_VERSION@
 
 MDEFS="-DMAKE_VERSION=\"$MAKE_VERSION\" \
 -D@force_machine@MACHINE=\"@machine@\" -DMACHINE_ARCH=\"@machine_arch@\" \

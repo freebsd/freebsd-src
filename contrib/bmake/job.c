@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.191 2017/07/20 19:29:54 sjg Exp $	*/
+/*	$NetBSD: job.c,v 1.192 2018/02/08 09:05:21 dholland Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: job.c,v 1.191 2017/07/20 19:29:54 sjg Exp $";
+static char rcsid[] = "$NetBSD: job.c,v 1.192 2018/02/08 09:05:21 dholland Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)job.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: job.c,v 1.191 2017/07/20 19:29:54 sjg Exp $");
+__RCSID("$NetBSD: job.c,v 1.192 2018/02/08 09:05:21 dholland Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -102,7 +102,7 @@ __RCSID("$NetBSD: job.c,v 1.191 2017/07/20 19:29:54 sjg Exp $");
  *	    	  	    	a time given by the SEL_* constants, below,
  *	    	  	    	or until output is ready.
  *
- *	Job_Init  	    	Called to intialize this module. in addition,
+ *	Job_Init  	    	Called to initialize this module. in addition,
  *	    	  	    	any commands attached to the .BEGIN target
  *	    	  	    	are executed before this function returns.
  *	    	  	    	Hence, the makefile must have been parsed
