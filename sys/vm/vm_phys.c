@@ -1189,6 +1189,8 @@ vm_phys_alloc_seg_contig(struct vm_phys_seg *seg, u_long npages,
 					 */
 					pa = VM_PAGE_TO_PHYS(m_ret);
 					pa_end = pa + size;
+					if (pa_end < pa)
+						continue;
 					for (;;) {
 						pa += 1 << (PAGE_SHIFT +
 						    VM_NFREEORDER - 1);
