@@ -28,7 +28,7 @@
 .\"	@(#)mlock.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd Jan 22, 2018
+.Dd March 20, 2018
 .Dt MLOCK 2
 .Os
 .Sh NAME
@@ -78,9 +78,7 @@ are removed.
 Multiple processes may have the same physical pages locked via their own
 virtual address mappings.
 A single process may likewise have pages multiply-locked via different virtual
-mappings of the same pages or via nested
-.Fn mlock
-calls on the same address range.
+mappings of the same physical pages.
 Unlocking is performed explicitly by
 .Fn munlock
 or implicitly by a call to
