@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
+#include <netinet/tcp_seq.h>
 #include <netinet/tcp_lro.h>
 #include <netinet/tcp_var.h>
 
@@ -734,7 +735,9 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 
 		/* Try to append the new segment. */
 		if (__predict_false(seq != le->next_seq ||
-		    (tcp_data_len == 0 && le->ack_seq == th->th_ack))) {
+		    (tcp_data_len == 0 &&
+		    le->ack_seq == th->th_ack &&
+		    le->window == th->th_win))) {
 			/* Out of order packet or duplicate ACK. */
 			tcp_lro_active_remove(le);
 			tcp_lro_flush(lc, le);
@@ -751,12 +754,20 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 			le->tsval = tsval;
 			le->tsecr = *(ts_ptr + 2);
 		}
-
-		le->next_seq += tcp_data_len;
-		le->ack_seq = th->th_ack;
-		le->window = th->th_win;
-		le->append_cnt++;
-
+		if (tcp_data_len || SEQ_GT(ntohl(th->th_ack), ntohl(le->ack_seq))) {
+			le->next_seq += tcp_data_len;
+			le->ack_seq = th->th_ack;
+			le->window = th->th_win;
+			le->append_cnt++;
+		} else if (th->th_ack == le->ack_seq) {
+			le->window = WIN_MAX(le->window, th->th_win);
+			le->append_cnt++;
+		} else {
+			/* no data and old ack */
+			le->append_cnt++;
+			m_freem(m);
+			return (0);
+		}
 #ifdef TCP_LRO_UPDATE_CSUM
 		le->ulp_csum += tcp_lro_rx_csum_fixup(le, l3hdr, th,
 		    tcp_data_len, ~csum);
