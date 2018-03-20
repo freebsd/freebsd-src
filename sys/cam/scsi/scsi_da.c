@@ -3114,6 +3114,7 @@ more:
 		if (bp == NULL) {
 			if (cam_iosched_has_work_flags(softc->cam_iosched, DA_WORK_TUR)) {
 				cam_iosched_clr_work_flags(softc->cam_iosched, DA_WORK_TUR);
+				da_periph_release_locked(periph, DA_REF_TUR);
 				scsi_test_unit_ready(&start_ccb->csio,
 				     /*retries*/ da_retry_count,
 				     dadone,
@@ -3137,11 +3138,6 @@ more:
 				biofinish(bp, NULL, 0);
 				goto more;
 			}
-		}
-
-		if (cam_iosched_has_work_flags(softc->cam_iosched, DA_WORK_TUR)) {
-			cam_iosched_clr_work_flags(softc->cam_iosched, DA_WORK_TUR);
-			da_periph_release_locked(periph, DA_REF_TUR);
 		}
 
 		if ((bp->bio_flags & BIO_ORDERED) != 0 ||
