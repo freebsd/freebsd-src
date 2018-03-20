@@ -255,14 +255,14 @@ aml8726_clkmsr_bus_frequency()
 	 * Try to access the clkmsr node directly i.e. through /aliases/.
 	 */
 
-	if ((node = OF_finddevice("clkmsr")) != 0)
+	if ((node = OF_finddevice("clkmsr")) != -1)
 		if (fdt_is_compatible_strict(node, "amlogic,aml8726-clkmsr"))
 			 goto moveon;
 
 	/*
 	 * Find the node the long way.
 	 */
-	if ((node = OF_finddevice("/soc")) == 0)
+	if ((node = OF_finddevice("/soc")) == -1)
 		return (0);
 
 	if ((node = fdt_find_compatible(node,

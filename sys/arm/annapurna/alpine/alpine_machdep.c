@@ -71,7 +71,7 @@ alpine_get_devmap_base(bus_addr_t *pa, bus_addr_t *size)
 {
 	phandle_t node;
 
-	if ((node = OF_finddevice("/")) == 0)
+	if ((node = OF_finddevice("/")) == -1)
 		return (ENXIO);
 
 	if ((node = fdt_find_compatible(node, "simple-bus", 1)) == 0)

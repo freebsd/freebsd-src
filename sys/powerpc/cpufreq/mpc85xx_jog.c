@@ -129,7 +129,7 @@ mpc85xx_jog_devcompat()
 	int i;
 
 	node = OF_finddevice("/soc");
-	if (node <= 0)
+	if (node == -1)
 		return (NULL);
 
 	for (i = 0; jog_compat[i].ocd_str != NULL; i++)
