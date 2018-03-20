@@ -117,7 +117,7 @@ aml8726_usb_phy_mode(const char *dwcotg_path, uint32_t *mode)
 	phandle_t node;
 	ssize_t len;
 	
-	if ((node = OF_finddevice(dwcotg_path)) == 0)
+	if ((node = OF_finddevice(dwcotg_path)) == -1)
 		return (ENXIO);
 
 	if (fdt_is_compatible_strict(node, "synopsys,designware-hs-otg2") == 0)

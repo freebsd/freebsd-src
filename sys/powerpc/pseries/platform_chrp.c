@@ -291,7 +291,7 @@ chrp_timebase_freq(platform_t plat, struct cpuref *cpuref)
 	char buf[8];
 
 	cpus = OF_finddevice("/cpus");
-	if (cpus <= 0)
+	if (cpus == -1)
 		panic("CPU tree not found on Open Firmware\n");
 
 	for (cpunode = OF_child(cpus); cpunode != 0; cpunode = OF_peer(cpunode)) {

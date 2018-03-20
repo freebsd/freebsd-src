@@ -336,7 +336,7 @@ bgx_fdt_find_node(struct bgx *bgx)
 	snprintf(bgx_sel, len + 1, "/"BGX_NODE_NAME"%d", bgx->bgx_id);
 	/* First try the root node */
 	node =  OF_finddevice(bgx_sel);
-	if ((int)node > 0) {
+	if (node != -1) {
 		/* Found relevant node */
 		goto out;
 	}

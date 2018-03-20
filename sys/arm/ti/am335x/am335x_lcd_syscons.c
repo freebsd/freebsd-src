@@ -382,7 +382,7 @@ am335x_syscons_configure(int flags)
 	 * to fetch data from FDT and go with defaults if failed
 	 */
 	root = OF_finddevice("/");
-	if ((root != 0) && 
+	if ((root != -1) && 
 	    (display = am335x_syscons_find_panel_node(root))) {
 		if ((OF_getencprop(display, "panel_width", &cell,
 		    sizeof(cell))) > 0)
