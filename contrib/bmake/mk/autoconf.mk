@@ -1,4 +1,4 @@
-# $Id: autoconf.mk,v 1.8 2012/11/19 05:37:48 sjg Exp $
+# $Id: autoconf.mk,v 1.9 2017/08/13 20:03:13 sjg Exp $
 #
 #	@(#) Copyright (c) 1996-2009, Simon J. Gerraty
 #
@@ -15,8 +15,10 @@
 
 .NOPATH:	config.h config.status
 
+CONFIGURE_DEPS += ${.CURDIR}/config.h.in ${.CURDIR}/configure
+
 .if !target(config.h)
-config.h:	${.CURDIR}/config.h.in config.status
+config.h:	${CONFIGURE_DEPS} config.status
 	./config.status
 .endif
 
@@ -28,11 +30,11 @@ config.status:	config.recheck
 config.status:  config.gen
 .endif
 
-config.recheck: config.h.in ${.CURDIR}/configure
+config.recheck: ${CONFIGURE_DEPS}
 	./config.status --recheck
 	@touch $@
 
-config.gen: config.h.in ${.CURDIR}/configure
+config.gen: ${CONFIGURE_DEPS}
 	CC="${CC} ${CCMODE}" ${.CURDIR}/configure --no-create ${CONFIGURE_ARGS}
 	@touch $@ config.recheck
 

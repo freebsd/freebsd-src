@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.62 2017/06/11 03:24:04 sjg Exp $
+# $Id: lib.mk,v 1.68 2018/01/26 20:08:16 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -36,6 +36,8 @@ PICO?= .pico
 .SUFFIXES: .sh .m4 .m
 
 CFLAGS+=	${COPTS}
+
+META_NOECHO?= echo
 
 # Originally derrived from NetBSD-1.6
 
@@ -370,6 +372,11 @@ _LIBS+=llib-l${LIB}.ln
 
 .if empty(LIB)
 _LIBS=
+.elif ${MK_LDORDER_MK} != "no"
+# Record any libs that we need to be linked with
+_LIBS+= ${libLDORDER_INC}
+
+.include <ldorder.mk>
 .endif
 
 .if !defined(_SKIP_BUILD)
@@ -507,20 +514,24 @@ libinstall:
 	[ -d ${DESTDIR}/${LIBDIR} ] || \
 	${INSTALL} -d ${LIB_INSTALL_OWN} -m 775 ${DESTDIR}${LIBDIR}
 .if ${MK_ARCHIVE} != "no"
-	${INSTALL} ${COPY} ${LIB_INSTALL_OWN} -m 600 lib${LIB}.a \
+	${INSTALL} ${COPY} ${LIB_INSTALL_OWN} -m 644 lib${LIB}.a \
 	    ${DESTDIR}${LIBDIR}
 	${RANLIB} ${DESTDIR}${LIBDIR}/lib${LIB}.a
 	chmod ${LIBMODE} ${DESTDIR}${LIBDIR}/lib${LIB}.a
 .endif
 .if ${MK_PROFILE} != "no"
-	${INSTALL} ${COPY} ${LIB_INSTALL_OWN} -m 600 \
+	${INSTALL} ${COPY} ${LIB_INSTALL_OWN} -m 644 \
 	    lib${LIB}_p.a ${DESTDIR}${LIBDIR}
 	${RANLIB} ${DESTDIR}${LIBDIR}/lib${LIB}_p.a
 	chmod ${LIBMODE} ${DESTDIR}${LIBDIR}/lib${LIB}_p.a
 .endif
+.if ${MK_LDORDER_MK} != "no"
+	${INSTALL} ${COPY} ${LIB_INSTALL_OWN} -m 644 \
+		lib${LIB}.ldorder.inc ${DESTDIR}${LIBDIR}
+.endif
 .if ${MK_PIC} != "no"
 .if ${MK_PICLIB} != "no"
-	${INSTALL} ${COPY} ${LIB_INSTALL_OWN} -m 600 \
+	${INSTALL} ${COPY} ${LIB_INSTALL_OWN} -m 644 \
 	    lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
 	${RANLIB} ${DESTDIR}${LIBDIR}/lib${LIB}_pic.a
 	chmod ${LIBMODE} ${DESTDIR}${LIBDIR}/lib${LIB}_pic.a
