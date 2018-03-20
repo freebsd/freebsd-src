@@ -255,6 +255,7 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	xd->sav = sav;
 	xd->protoff = protoff;
 	xd->skip = skip;
+	xd->vnet = curvnet;
 
 	SECASVAR_LOCK(sav);
 	crp->crp_sid = xd->cryptoid = sav->tdb_cryptoid;
@@ -286,6 +287,7 @@ ipcomp_input_cb(struct cryptop *crp)
 
 	m = (struct mbuf *) crp->crp_buf;
 	xd = (struct xform_data *) crp->crp_opaque;
+	CURVNET_SET(xd->vnet);
 	sav = xd->sav;
 	skip = xd->skip;
 	protoff = xd->protoff;
@@ -302,6 +304,7 @@ ipcomp_input_cb(struct cryptop *crp)
 			if (ipsec_updateid(sav, &crp->crp_sid, &cryptoid) != 0)
 				crypto_freesession(cryptoid);
 			xd->cryptoid = crp->crp_sid;
+			CURVNET_RESTORE();
 			return (crypto_dispatch(crp));
 		}
 		IPCOMPSTAT_INC(ipcomps_noxform);
@@ -366,8 +369,10 @@ ipcomp_input_cb(struct cryptop *crp)
 		panic("%s: Unexpected address family: %d saidx=%p", __func__,
 		    saidx->dst.sa.sa_family, saidx);
 	}
+	CURVNET_RESTORE();
 	return error;
 bad:
+	CURVNET_RESTORE();
 	if (sav != NULL)
 		key_freesav(&sav);
 	if (m != NULL)
@@ -493,6 +498,7 @@ ipcomp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	xd->idx = idx;
 	xd->skip = skip;
 	xd->protoff = protoff;
+	xd->vnet = curvnet;
 
 	/* Crypto operation descriptor */
 	crp->crp_ilen = m->m_pkthdr.len;	/* Total input length */
@@ -531,6 +537,7 @@ ipcomp_output_cb(struct cryptop *crp)
 
 	m = (struct mbuf *) crp->crp_buf;
 	xd = (struct xform_data *) crp->crp_opaque;
+	CURVNET_SET(xd->vnet);
 	idx = xd->idx;
 	sp = xd->sp;
 	sav = xd->sav;
@@ -545,6 +552,7 @@ ipcomp_output_cb(struct cryptop *crp)
 			if (ipsec_updateid(sav, &crp->crp_sid, &cryptoid) != 0)
 				crypto_freesession(cryptoid);
 			xd->cryptoid = crp->crp_sid;
+			CURVNET_RESTORE();
 			return (crypto_dispatch(crp));
 		}
 		IPCOMPSTAT_INC(ipcomps_noxform);
@@ -640,10 +648,12 @@ ipcomp_output_cb(struct cryptop *crp)
 
 	/* NB: m is reclaimed by ipsec_process_done. */
 	error = ipsec_process_done(m, sp, sav, idx);
+	CURVNET_RESTORE();
 	return (error);
 bad:
 	if (m)
 		m_freem(m);
+	CURVNET_RESTORE();
 	free(xd, M_XDATA);
 	crypto_freereq(crp);
 	key_freesav(&sav);
