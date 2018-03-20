@@ -1394,6 +1394,14 @@ INSTALLKERNEL= ${_kernel}
 .endif
 .endfor
 
+_cleankernobj_fast_depend_hack: .PHONY
+# 20170202 remove stale generated assym.s after renaming to .inc in r331254
+.if exists(${OBJTOP}/sys/${KERNCONF}/assym.s)
+	@echo Removing stale generated assym files
+	@rm -f ${OBJTOP}/sys/${KERNCONF}/assym.* \
+	    ${OBJTOP}/sys/${KERNCONF}/.depend.assym.*
+.endif
+
 ${WMAKE_TGTS:N_worldtmp:Nbuild${libcompat}} ${.ALLTARGETS:M_*:N_worldtmp}: .MAKE .PHONY
 
 #
@@ -1429,6 +1437,8 @@ buildkernel: .MAKE .PHONY
 	@echo ">>> stage 2.1: cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} ${CLEANDIR}
+.else
+	${_+_}cd ${.CURDIR}; ${WMAKE} _cleankernobj_fast_depend_hack
 .endif
 .if !defined(NO_KERNELOBJ)
 	@echo
