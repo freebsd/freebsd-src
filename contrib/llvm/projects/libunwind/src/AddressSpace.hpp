@@ -148,6 +148,7 @@ public:
     return val;
   }
   uintptr_t       getP(pint_t addr);
+  uint64_t        getRegister(pint_t addr);
   static uint64_t getULEB128(pint_t &addr, pint_t end);
   static int64_t  getSLEB128(pint_t &addr, pint_t end);
 
@@ -163,6 +164,14 @@ public:
 
 inline uintptr_t LocalAddressSpace::getP(pint_t addr) {
 #ifdef __LP64__
+  return get64(addr);
+#else
+  return get32(addr);
+#endif
+}
+
+inline uint64_t LocalAddressSpace::getRegister(pint_t addr) {
+#if defined(__LP64__) || defined(__mips64)
   return get64(addr);
 #else
   return get32(addr);
@@ -496,6 +505,7 @@ public:
   uint32_t  get32(pint_t addr);
   uint64_t  get64(pint_t addr);
   pint_t    getP(pint_t addr);
+  uint64_t  getRegister(pint_t addr);
   uint64_t  getULEB128(pint_t &addr, pint_t end);
   int64_t   getSLEB128(pint_t &addr, pint_t end);
   pint_t    getEncodedP(pint_t &addr, pint_t end, uint8_t encoding,
@@ -529,6 +539,11 @@ template <typename P> uint64_t OtherAddressSpace<P>::get64(pint_t addr) {
 template <typename P>
 typename P::uint_t OtherAddressSpace<P>::getP(pint_t addr) {
   return P::getP(*(uint64_t *)localCopy(addr));
+}
+
+template <typename P>
+typename P::uint_t OtherAddressSpace<P>::getRegister(pint_t addr) {
+  return P::getRegister(*(uint64_t *)localCopy(addr));
 }
 
 template <typename P>
