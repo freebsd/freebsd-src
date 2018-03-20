@@ -30,7 +30,7 @@
 #include <machine/cpu.h>
 #include <machine/cpuregs.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	.text
 	.set	noat

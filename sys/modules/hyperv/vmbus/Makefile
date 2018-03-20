@@ -17,13 +17,13 @@ SRCS=	hyperv.c \
 	vmbus_xact.c
 SRCS+=	acpi_if.h bus_if.h device_if.h opt_acpi.h pci_if.h pcib_if.h vmbus_if.h
 
-# XXX: for assym.s
+# XXX: for assym.inc
 SRCS+=  opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h opt_compat.h
 .if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	opt_apic.h
 .endif
 
-DPSRCS+=	assym.s
+DPSRCS=	assym.inc
 
 vmbus_vector.o:
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \

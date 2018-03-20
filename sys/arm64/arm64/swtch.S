@@ -29,7 +29,7 @@
  *
  */
 
-#include "assym.s"
+#include "assym.inc"
 #include "opt_kstack_pages.h"
 #include "opt_sched.h"
 

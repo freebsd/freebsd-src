@@ -5,7 +5,7 @@
 
 #include <i386/linux/linux_syscall.h>		/* system call numbers */
 
-#include "assym.s"
+#include "assym.inc"
 
 /*
  * To avoid excess stack frame the signal trampoline code emulates

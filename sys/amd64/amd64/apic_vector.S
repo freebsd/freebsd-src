@@ -44,7 +44,7 @@
 
 #include "opt_smp.h"
 
-#include "assym.s"
+#include "assym.inc"
 
 #include <machine/asmacros.h>
 #include <machine/specialreg.h>

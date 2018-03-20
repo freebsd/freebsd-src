@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/errno.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 /*
  * Fault handler for the copy{in,out} functions below.

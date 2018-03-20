@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pstate.h>
 #include <machine/wstate.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	.register %g2, #ignore
 	.register %g3, #ignore

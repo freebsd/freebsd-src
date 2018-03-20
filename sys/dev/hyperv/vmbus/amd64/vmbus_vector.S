@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include "assym.s"
+#include "assym.inc"
 
 #include <machine/asmacros.h>
 #include <machine/specialreg.h>

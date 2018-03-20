@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 #include <machine/armreg.h>
-#include "assym.s"
+#include "assym.inc"
 __FBSDID("$FreeBSD$");
 
 	.syntax	unified
