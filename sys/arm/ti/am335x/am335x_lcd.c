@@ -961,7 +961,7 @@ am335x_lcd_attach(device_t dev)
 	am335x_read_hdmi_property(dev);
 
 	root = OF_finddevice("/");
-	if (root == 0) {
+	if (root == -1) {
 		device_printf(dev, "failed to get FDT root node\n");
 		return (ENXIO);
 	}

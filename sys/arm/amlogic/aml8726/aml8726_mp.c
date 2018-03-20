@@ -178,7 +178,7 @@ find_node_for_device(const char *device, const char **compatible)
 	 * Try to access the node directly i.e. through /aliases/.
 	 */
 
-	if ((node = OF_finddevice(device)) != 0)
+	if ((node = OF_finddevice(device)) != -1)
 		for (i = 0; compatible[i]; i++)
 			if (fdt_is_compatible_strict(node, compatible[i]))
 				return node;
@@ -188,7 +188,7 @@ find_node_for_device(const char *device, const char **compatible)
 	 */
 
 	for (i = 0; compatible[i]; i++) {
-		if ((node = OF_finddevice("/soc")) == 0)
+		if ((node = OF_finddevice("/soc")) == -1)
 			return (0);
 
 		if ((node = fdt_find_compatible(node, compatible[i], 1)) != 0)

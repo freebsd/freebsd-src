@@ -2367,7 +2367,7 @@ win_cpu_from_dt(void)
 		if (ofw_bus_node_is_compatible(node, "mrvl,cesa-sram"))
 			goto moveon;
 
-	if ((node = OF_finddevice("/")) == 0)
+	if ((node = OF_finddevice("/")) == -1)
 		return (ENXIO);
 
 	if ((node = fdt_find_compatible(node, "mrvl,cesa-sram", 0)) == 0)
@@ -2551,7 +2551,7 @@ fdt_fixup_busfreq(phandle_t root)
 	/*
 	 * Fix bus speed in cpu node
 	 */
-	if ((sb = OF_finddevice("cpu")) != 0)
+	if ((sb = OF_finddevice("cpu")) != -1)
 		if (fdt_is_compatible_strict(sb, "ARM,88VS584"))
 			OF_setprop(sb, "bus-frequency", (void *)&freq,
 			    sizeof(freq));
