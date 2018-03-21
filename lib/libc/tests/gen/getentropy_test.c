@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <errno.h>
+#include <signal.h>
 #include <unistd.h>
 
 #include <atf-c.h>
@@ -76,6 +77,8 @@ ATF_TC_BODY(getentropy_sizes, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
+
+	signal(SIGSYS, SIG_IGN);
 
 	ATF_TP_ADD_TC(tp, getentropy_count);
 	ATF_TP_ADD_TC(tp, getentropy_fault);
