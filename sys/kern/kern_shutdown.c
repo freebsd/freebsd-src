@@ -268,13 +268,10 @@ sys_reboot(struct thread *td, struct reboot_args *uap)
 	if (error == 0)
 		error = priv_check(td, PRIV_REBOOT);
 	if (error == 0) {
-		if (uap->opt & RB_REROOT) {
+		if (uap->opt & RB_REROOT)
 			error = kern_reroot();
-		} else {
-			mtx_lock(&Giant);
+		else
 			kern_reboot(uap->opt);
-			mtx_unlock(&Giant);
-		}
 	}
 	return (error);
 }
