@@ -2901,7 +2901,8 @@ vfs_vmio_iodone(struct buf *bp)
 }
 
 /*
- * Unwire a page held by a buf and place it on the appropriate vm queue.
+ * Unwire a page held by a buf and either free it or update the page queues to
+ * reflect its recent use.
  */
 static void
 vfs_vmio_unwire(struct buf *bp, vm_page_t m)
@@ -2910,24 +2911,26 @@ vfs_vmio_unwire(struct buf *bp, vm_page_t m)
 
 	vm_page_lock(m);
 	if (vm_page_unwire_noq(m)) {
-		/*
-		 * Determine if the page should be freed before adding
-		 * it to the inactive queue.
-		 */
-		if (m->valid == 0) {
-			freed = !vm_page_busied(m);
-			if (freed)
-				vm_page_free(m);
-		} else if ((bp->b_flags & B_DIRECT) != 0)
+		if ((bp->b_flags & B_DIRECT) != 0)
 			freed = vm_page_try_to_free(m);
 		else
 			freed = false;
 		if (!freed) {
 			/*
-			 * If the page is unlikely to be reused, let the
-			 * VM know.  Otherwise, maintain LRU.
+			 * Use a racy check of the valid bits to determine
+			 * whether we can accelerate reclamation of the page.
+			 * The valid bits will be stable unless the page is
+			 * being mapped or is referenced by multiple buffers,
+			 * and in those cases we expect races to be rare.  At
+			 * worst we will either accelerate reclamation of a
+			 * valid page and violate LRU, or unnecessarily defer
+			 * reclamation of an invalid page.
+			 *
+			 * The B_NOREUSE flag marks data that is not expected to
+			 * be reused, so accelerate reclamation in that case
+			 * too.  Otherwise, maintain LRU.
 			 */
-			if ((bp->b_flags & B_NOREUSE) != 0)
+			if (m->valid == 0 || (bp->b_flags & B_NOREUSE) != 0)
 				vm_page_deactivate_noreuse(m);
 			else if (m->queue == PQ_ACTIVE)
 				vm_page_reference(m);
@@ -3014,7 +3017,11 @@ vfs_vmio_truncate(struct buf *bp, int desiredpages)
 		    (desiredpages << PAGE_SHIFT), bp->b_npages - desiredpages);
 	} else
 		BUF_CHECK_UNMAPPED(bp);
-	obj = bp->b_bufobj->bo_object;
+
+	/*
+	 * The object lock is needed only if we will attempt to free pages.
+	 */
+	obj = (bp->b_flags & B_DIRECT) != 0 ? bp->b_bufobj->bo_object : NULL;
 	if (obj != NULL)
 		VM_OBJECT_WLOCK(obj);
 	for (i = desiredpages; i < bp->b_npages; i++) {
