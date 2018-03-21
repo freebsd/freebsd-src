@@ -58,28 +58,28 @@ end
 
 color.disabled = not color.isEnabled()
 
-function color.escapef(color_value)
+function color.escapefg(color_value)
 	if color.disabled then
 		return color_value
 	end
 	return core.KEYSTR_CSI .. "3" .. color_value .. "m"
 end
 
-function color.resetf()
+function color.resetfg()
 	if color.disabled then
 		return ''
 	end
 	return core.KEYSTR_CSI .. "39m"
 end
 
-function color.escapeb(color_value)
+function color.escapebg(color_value)
 	if color.disabled then
 		return color_value
 	end
 	return core.KEYSTR_CSI .. "4" .. color_value .. "m"
 end
 
-function color.resetb()
+function color.resetbg()
 	if color.disabled then
 		return ''
 	end
