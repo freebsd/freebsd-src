@@ -29,6 +29,8 @@
 -- $FreeBSD$
 --
 
+local hook = require("hook")
+
 local config = {}
 local modules = {}
 local carousel_choices = {}
@@ -503,7 +505,7 @@ function config.reload(file)
 	modules = {}
 	config.restoreEnv()
 	config.load(file)
-	core.configReloaded()
+	hook.runAll("config.reloaded")
 end
 
 function config.loadelf()
@@ -523,4 +525,5 @@ function config.loadelf()
 	end
 end
 
+hook.registerType("config.reloaded")
 return config
