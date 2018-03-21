@@ -197,6 +197,7 @@ MAN+=	abort2.2 \
 	getpgrp.2 \
 	getpid.2 \
 	getpriority.2 \
+	getrandom.2 \
 	getrlimit.2 \
 	getrusage.2 \
 	getsid.2 \

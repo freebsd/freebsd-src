@@ -1021,6 +1021,8 @@
 				    cpuwhich_t which, id_t id, \
 				    size_t domainsetsize, domainset_t *mask, \
 				    int policy); }
+563	AUE_NULL	STD	{ int getrandom(void *buf, size_t buflen, \
+				    unsigned int flags); }
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

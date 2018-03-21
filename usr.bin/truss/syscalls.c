@@ -259,6 +259,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 } } },
 	{ .name = "getpriority", .ret_type = 1, .nargs = 2,
 	  .args = { { Priowhich, 0 }, { Int, 1 } } },
+	{ .name = "getrandom", .ret_type = 1, .nargs = 3,
+	  .args = { { BinString | OUT, 0 }, { Sizet, 1 }, { UInt, 2 } } },
 	{ .name = "getrlimit", .ret_type = 1, .nargs = 2,
 	  .args = { { Resource, 0 }, { Rlimit | OUT, 1 } } },
 	{ .name = "getrusage", .ret_type = 1, .nargs = 2,
