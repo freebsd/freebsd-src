@@ -37,6 +37,39 @@ __FBSDID("$FreeBSD$");
 
 #include "libc_private.h"
 
+/*
+ * If a newer libc is accidentally installed on an older kernel, provide high
+ * quality random data anyway.  The sysctl interface is not as fast and does
+ * not block by itself, but is provided by even very old kernels.
+ */
+static int
+getentropy_fallback(void *buf, size_t buflen)
+{
+	/*
+	 * oldp (buf) == NULL has a special meaning for sysctl that results in
+	 * no EFAULT.  For compatibility with the kernel getrandom(2), detect
+	 * this case and return the appropriate error.
+	 */
+	if (buf == NULL && buflen > 0) {
+		errno = EFAULT;
+		return (-1);
+	}
+	if (__arc4_sysctl(buf, buflen) != buflen) {
+		if (errno == EFAULT)
+			return (-1);
+		/*
+		 * This cannot happen.  _arc4_sysctl() spins until the random
+		 * device is seeded and then repeatedly reads until the full
+		 * request is satisfied.  The only way for this to return a zero
+		 * byte or short read is if sysctl(2) on the kern.arandom MIB
+		 * fails.  In this case, exceping the user-provided-a-bogus-
+		 * buffer EFAULT, give up (like for arc4random(3)'s arc4_stir).
+		 */
+		abort();
+	}
+	return (0);
+}
+
 int
 getentropy(void *buf, size_t buflen)
 {
@@ -53,7 +86,7 @@ getentropy(void *buf, size_t buflen)
 			if (errno == EINTR)
 				continue;
 			else if (errno == ENOSYS)
-				abort();
+				return (getentropy_fallback(buf, buflen));
 			else
 				return (-1);
 		}
