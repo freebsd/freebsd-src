@@ -8,6 +8,7 @@ FILES=	cli.lua \
 	config.lua \
 	core.lua \
 	drawer.lua \
+	hook.lua \
 	loader.lua \
 	menu.lua \
 	password.lua \
