@@ -803,6 +803,8 @@ pmclog_close(struct pmc_owner *po)
 
 	PMCDBG1(LOG,CLO,1, "po=%p", po);
 
+	pmclog_process_closelog(po);
+
 	mtx_lock(&pmc_kthread_mtx);
 
 	/*
