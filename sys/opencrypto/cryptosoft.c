@@ -1053,8 +1053,10 @@ swcr_freesession_locked(device_t dev, u_int64_t tid)
 		case CRYPTO_SHA1:
 			axf = swd->sw_axf;
 
-			if (swd->sw_ictx)
+			if (swd->sw_ictx) {
+				explicit_bzero(swd->sw_ictx, axf->ctxsize);
 				free(swd->sw_ictx, M_CRYPTO_DATA);
+			}
 			break;
 
 		case CRYPTO_DEFLATE_COMP:
