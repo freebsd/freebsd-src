@@ -1376,25 +1376,20 @@ bufshutdown(int show_busybufs)
 
 #ifdef PREEMPTION
 		/*
-		 * Drop Giant and spin for a while to allow
-		 * interrupt threads to run.
+		 * Spin for a while to allow interrupt threads to run.
 		 */
-		DROP_GIANT();
 		DELAY(50000 * iter);
-		PICKUP_GIANT();
 #else
 		/*
-		 * Drop Giant and context switch several times to
-		 * allow interrupt threads to run.
+		 * Context switch several times to allow interrupt
+		 * threads to run.
 		 */
-		DROP_GIANT();
 		for (subiter = 0; subiter < 50 * iter; subiter++) {
 			thread_lock(curthread);
 			mi_switch(SW_VOL, NULL);
 			thread_unlock(curthread);
 			DELAY(1000);
 		}
-		PICKUP_GIANT();
 #endif
 	}
 	printf("\n");
