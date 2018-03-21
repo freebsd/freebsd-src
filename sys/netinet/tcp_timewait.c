@@ -172,7 +172,7 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw, CTLTYPE_INT|CTLFLAG_RW,
     &maxtcptw, 0, sysctl_maxtcptw, "IU",
     "Maximum number of compressed TCP TIME_WAIT entries");
 
-VNET_DEFINE(int, nolocaltimewait) = 0;
+static VNET_DEFINE(int, nolocaltimewait) = 0;
 #define	V_nolocaltimewait	VNET(nolocaltimewait)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, nolocaltimewait, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(nolocaltimewait), 0,
@@ -225,12 +225,12 @@ tcp_tw_destroy(void)
 void
 tcp_twstart(struct tcpcb *tp)
 {
-	struct tcptw *tw;
+	struct tcptw twlocal, *tw;
 	struct inpcb *inp = tp->t_inpcb;
-	int acknow;
 	struct socket *so;
+	bool acknow, local;
 #ifdef INET6
-	int isipv6 = inp->inp_inc.inc_flags & INC_ISIPV6;
+	bool isipv6 = inp->inp_inc.inc_flags & INC_ISIPV6;
 #endif
 
 	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
@@ -241,25 +241,18 @@ tcp_twstart(struct tcpcb *tp)
 	    "(inp->inp_flags & INP_DROPPED) != 0"));
 
 	if (V_nolocaltimewait) {
-		int error = 0;
 #ifdef INET6
 		if (isipv6)
-			error = in6_localaddr(&inp->in6p_faddr);
+			local = in6_localaddr(&inp->in6p_faddr);
 #endif
 #if defined(INET6) && defined(INET)
 		else
 #endif
 #ifdef INET
-			error = in_localip(inp->inp_faddr);
+			local = in_localip(inp->inp_faddr);
 #endif
-		if (error) {
-			tp = tcp_close(tp);
-			if (tp != NULL)
-				INP_WUNLOCK(inp);
-			return;
-		}
-	}
-
+	} else
+		local = false;
 
 	/*
 	 * For use only by DTrace.  We do not reference the state
@@ -267,7 +260,10 @@ tcp_twstart(struct tcpcb *tp)
 	 */
 	tcp_state_change(tp, TCPS_TIME_WAIT);
 
-	tw = uma_zalloc(V_tcptw_zone, M_NOWAIT);
+	if (local)
+		tw = &twlocal;
+	else
+		tw = uma_zalloc(V_tcptw_zone, M_NOWAIT);
 	if (tw == NULL) {
 		/*
 		 * Reached limit on total number of TIMEWAIT connections
@@ -286,11 +282,10 @@ tcp_twstart(struct tcpcb *tp)
 		}
 	}
 	/*
-	 * The tcptw will hold a reference on its inpcb until tcp_twclose
-	 * is called
+	 * For !local case the tcptw will hold a reference on its inpcb
+	 * until tcp_twclose is called.
 	 */
 	tw->tw_inpcb = inp;
-	in_pcbref(inp);	/* Reference from tw */
 
 	/*
 	 * Recover last window size sent.
@@ -337,16 +332,19 @@ tcp_twstart(struct tcpcb *tp)
 	tcp_discardcb(tp);
 	so = inp->inp_socket;
 	soisdisconnected(so);
-	tw->tw_cred = crhold(so->so_cred);
-	SOCK_LOCK(so);
 	tw->tw_so_options = so->so_options;
-	SOCK_UNLOCK(so);
+	inp->inp_flags |= INP_TIMEWAIT;
 	if (acknow)
 		tcp_twrespond(tw, TH_ACK);
-	inp->inp_ppcb = tw;
-	inp->inp_flags |= INP_TIMEWAIT;
-	TCPSTATES_INC(TCPS_TIME_WAIT);
-	tcp_tw_2msl_reset(tw, 0);
+	if (local)
+		in_pcbdrop(inp);
+	else {
+		in_pcbref(inp);	/* Reference from tw */
+		tw->tw_cred = crhold(so->so_cred);
+		inp->inp_ppcb = tw;
+		TCPSTATES_INC(TCPS_TIME_WAIT);
+		tcp_tw_2msl_reset(tw, 0);
+	}
 
 	/*
 	 * If the inpcb owns the sole reference to the socket, then we can
