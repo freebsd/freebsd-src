@@ -274,6 +274,12 @@ function core.isSingleUserBoot()
 	return single_user ~= nil and single_user:lower() == "yes"
 end
 
+function core.isUEFIBoot()
+	local efiver = loader.getenv("efi-version")
+
+	return efiver ~= nil
+end
+
 function core.isZFSBoot()
 	local c = loader.getenv("currdev")
 

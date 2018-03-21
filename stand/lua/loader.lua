@@ -50,6 +50,9 @@ if result ~= nil then
 end
 
 config.load()
+if core.isUEFIBoot() then
+	loader.perform("efi-autoresizecons")
+end
 -- Our console may have been setup for a different color scheme before we get
 -- here, so make sure we set the default.
 if color.isEnabled() then
