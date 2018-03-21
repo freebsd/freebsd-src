@@ -261,17 +261,17 @@ SYSCTL_PROC(_vfs, OID_AUTO, numdirtybuffers,
     "Number of buffers that are dirty (has unwritten changes) at the moment");
 static int lodirtybuffers;
 SYSCTL_PROC(_vfs, OID_AUTO, lodirtybuffers,
-    CTLTYPE_LONG|CTLFLAG_MPSAFE|CTLFLAG_RW, &lodirtybuffers,
+    CTLTYPE_INT|CTLFLAG_MPSAFE|CTLFLAG_RW, &lodirtybuffers,
     __offsetof(struct bufdomain, bd_lodirtybuffers), sysctl_bufdomain_int, "L",
     "How many buffers we want to have free before bufdaemon can sleep");
 static int hidirtybuffers;
 SYSCTL_PROC(_vfs, OID_AUTO, hidirtybuffers,
-    CTLTYPE_LONG|CTLFLAG_MPSAFE|CTLFLAG_RW, &hidirtybuffers,
+    CTLTYPE_INT|CTLFLAG_MPSAFE|CTLFLAG_RW, &hidirtybuffers,
     __offsetof(struct bufdomain, bd_hidirtybuffers), sysctl_bufdomain_int, "L",
     "When the number of dirty buffers is considered severe");
 int dirtybufthresh;
 SYSCTL_PROC(_vfs, OID_AUTO, dirtybufthresh,
-    CTLTYPE_LONG|CTLFLAG_MPSAFE|CTLFLAG_RW, &dirtybufthresh,
+    CTLTYPE_INT|CTLFLAG_MPSAFE|CTLFLAG_RW, &dirtybufthresh,
     __offsetof(struct bufdomain, bd_dirtybufthresh), sysctl_bufdomain_int, "L",
     "Number of bdwrite to bawrite conversions to clear dirty buffers");
 static int numfreebuffers;
@@ -279,12 +279,12 @@ SYSCTL_INT(_vfs, OID_AUTO, numfreebuffers, CTLFLAG_RD, &numfreebuffers, 0,
     "Number of free buffers");
 static int lofreebuffers;
 SYSCTL_PROC(_vfs, OID_AUTO, lofreebuffers,
-    CTLTYPE_LONG|CTLFLAG_MPSAFE|CTLFLAG_RW, &lofreebuffers,
+    CTLTYPE_INT|CTLFLAG_MPSAFE|CTLFLAG_RW, &lofreebuffers,
     __offsetof(struct bufdomain, bd_lofreebuffers), sysctl_bufdomain_int, "L",
    "Target number of free buffers");
 static int hifreebuffers;
 SYSCTL_PROC(_vfs, OID_AUTO, hifreebuffers,
-    CTLTYPE_LONG|CTLFLAG_MPSAFE|CTLFLAG_RW, &hifreebuffers,
+    CTLTYPE_INT|CTLFLAG_MPSAFE|CTLFLAG_RW, &hifreebuffers,
     __offsetof(struct bufdomain, bd_hifreebuffers), sysctl_bufdomain_int, "L",
    "Threshold for clean buffer recycling");
 static counter_u64_t getnewbufcalls;
