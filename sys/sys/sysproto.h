@@ -1768,6 +1768,11 @@ struct cpuset_setdomain_args {
 	char mask_l_[PADL_(domainset_t *)]; domainset_t * mask; char mask_r_[PADR_(domainset_t *)];
 	char policy_l_[PADL_(int)]; int policy; char policy_r_[PADR_(int)];
 };
+struct getrandom_args {
+	char buf_l_[PADL_(void *)]; void * buf; char buf_r_[PADR_(void *)];
+	char buflen_l_[PADL_(size_t)]; size_t buflen; char buflen_r_[PADR_(size_t)];
+	char flags_l_[PADL_(unsigned int)]; unsigned int flags; char flags_r_[PADR_(unsigned int)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_sys_exit(struct thread *, struct sys_exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
@@ -2148,6 +2153,7 @@ int	sys_mknodat(struct thread *, struct mknodat_args *);
 int	sys_kevent(struct thread *, struct kevent_args *);
 int	sys_cpuset_getdomain(struct thread *, struct cpuset_getdomain_args *);
 int	sys_cpuset_setdomain(struct thread *, struct cpuset_setdomain_args *);
+int	sys_getrandom(struct thread *, struct getrandom_args *);
 
 #ifdef COMPAT_43
 
@@ -3040,6 +3046,7 @@ int	freebsd11_mknodat(struct thread *, struct freebsd11_mknodat_args *);
 #define	SYS_AUE_kevent	AUE_KEVENT
 #define	SYS_AUE_cpuset_getdomain	AUE_NULL
 #define	SYS_AUE_cpuset_setdomain	AUE_NULL
+#define	SYS_AUE_getrandom	AUE_NULL
 
 #undef PAD_
 #undef PADL_

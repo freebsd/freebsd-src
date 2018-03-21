@@ -405,4 +405,5 @@ MIASM =  \
 	mknodat.o \
 	kevent.o \
 	cpuset_getdomain.o \
-	cpuset_setdomain.o
+	cpuset_setdomain.o \
+	getrandom.o
