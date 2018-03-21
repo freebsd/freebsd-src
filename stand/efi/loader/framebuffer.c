@@ -462,6 +462,72 @@ print_efifb(int mode, struct efi_fb *efifb, int verbose)
 	}
 }
 
+static int
+gop_autoresize(EFI_GRAPHICS_OUTPUT *gop)
+{
+	struct efi_fb efifb;
+	EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info;
+	EFI_STATUS status;
+	UINTN infosz;
+	UINT32 best_mode, currdim, maxdim, mode;
+
+	best_mode = maxdim = 0;
+	for (mode = 0; mode < gop->Mode->MaxMode; mode++) {
+		status = gop->QueryMode(gop, mode, &infosz, &info);
+		if (EFI_ERROR(status))
+			continue;
+		efifb_from_gop(&efifb, gop->Mode, info);
+		currdim = info->HorizontalResolution * info->VerticalResolution;
+		/* XXX TODO: Allow tunable or something for max resolution */
+		if (currdim > maxdim) {
+			maxdim = currdim;
+			best_mode = mode;
+		}
+	}
+
+	status = gop->SetMode(gop, best_mode);
+	if (EFI_ERROR(status)) {
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "gop_autoresize: Unable to set mode to %u (error=%lu)",
+		    mode, EFI_ERROR_CODE(status));
+		return (CMD_ERROR);
+	}
+	return (CMD_OK);
+}
+
+static int
+uga_autoresize(EFI_UGA_DRAW_PROTOCOL *gop)
+{
+
+	return (CMD_OK);
+}
+
+COMMAND_SET(efi_autoresize, "efi-autoresizecons", "EFI Auto-resize Console", command_autoresize);
+
+static int
+command_autoresize(int argc, char *argv[])
+{
+	EFI_GRAPHICS_OUTPUT *gop;
+	EFI_UGA_DRAW_PROTOCOL *uga;
+	EFI_STATUS status;
+	u_int mode;
+
+	gop = NULL;
+	uga = NULL;
+	status = BS->LocateProtocol(&gop_guid, NULL, (VOID **)&gop);
+	if (EFI_ERROR(status) == 0)
+		return (gop_autoresize(gop));
+
+	status = BS->LocateProtocol(&uga_guid, NULL, (VOID **)&uga);
+	if (EFI_ERROR(status) == 0)
+		return (uga_autoresize(uga));
+
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "%s: Neither Graphics Output Protocol nor Universal Graphics Adapter present",
+	    argv[0]);
+	return (CMD_ERROR);
+}
+
 COMMAND_SET(gop, "gop", "graphics output protocol", command_gop);
 
 static int
