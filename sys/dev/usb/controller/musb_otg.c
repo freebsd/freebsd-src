@@ -149,6 +149,27 @@ static const struct usb_hw_ep_profile musbotg_ep_profile[1] = {
 	}
 };
 
+static const struct musb_otg_ep_cfg musbotg_ep_default[] = {
+	{
+		.ep_end = 1,
+		.ep_fifosz_shift = 12,
+		.ep_fifosz_reg = MUSB2_VAL_FIFOSZ_4096 | MUSB2_MASK_FIFODB,
+	},
+	{
+		.ep_end = 7,
+		.ep_fifosz_shift = 9,
+		.ep_fifosz_reg = MUSB2_VAL_FIFOSZ_512 | MUSB2_MASK_FIFODB,
+	},
+	{
+		.ep_end = 15,
+		.ep_fifosz_shift = 7,
+		.ep_fifosz_reg = MUSB2_VAL_FIFOSZ_128,
+	},
+	{
+		.ep_end = -1,
+	},
+};
+
 static int
 musbotg_channel_alloc(struct musbotg_softc *sc, struct musbotg_td *td, uint8_t is_tx)
 {
@@ -3059,7 +3080,9 @@ musbotg_clear_stall(struct usb_device *udev, struct usb_endpoint *ep)
 usb_error_t
 musbotg_init(struct musbotg_softc *sc)
 {
+	const struct musb_otg_ep_cfg *cfg;
 	struct usb_hw_ep_profile *pf;
+	int i;
 	uint16_t offset;
 	uint8_t nrx;
 	uint8_t ntx;
@@ -3074,6 +3097,10 @@ musbotg_init(struct musbotg_softc *sc)
 	/* set up the bus structure */
 	sc->sc_bus.usbrev = USB_REV_2_0;
 	sc->sc_bus.methods = &musbotg_bus_methods;
+
+	/* Set a default endpoint configuration */
+	if (sc->sc_ep_cfg == NULL)
+		sc->sc_ep_cfg = musbotg_ep_default;
 
 	USB_BUS_LOCK(&sc->sc_bus);
 
@@ -3193,20 +3220,15 @@ musbotg_init(struct musbotg_softc *sc)
 
 		if (dynfifo) {
 			if (frx && (temp <= nrx)) {
-				if (temp == 1) {
-					frx = 12;	/* 4K */
-					MUSB2_WRITE_1(sc, MUSB2_REG_RXFIFOSZ, 
-					    MUSB2_VAL_FIFOSZ_4096 |
-					    MUSB2_MASK_FIFODB);
-				} else if (temp < 8) {
-					frx = 10;	/* 1K */
-					MUSB2_WRITE_1(sc, MUSB2_REG_RXFIFOSZ, 
-					    MUSB2_VAL_FIFOSZ_512 |
-					    MUSB2_MASK_FIFODB);
-				} else {
-					frx = 7;	/* 128 bytes */
-					MUSB2_WRITE_1(sc, MUSB2_REG_RXFIFOSZ, 
-					    MUSB2_VAL_FIFOSZ_128);
+				for (i = 0; sc->sc_ep_cfg[i].ep_end >= 0; i++) {
+					cfg = &sc->sc_ep_cfg[i];
+					if (temp <= cfg->ep_end) {
+						frx = cfg->ep_fifosz_shift;
+						MUSB2_WRITE_1(sc,
+						    MUSB2_REG_RXFIFOSZ,
+						    cfg->ep_fifosz_reg);
+						break;
+					}
 				}
 
 				MUSB2_WRITE_2(sc, MUSB2_REG_RXFIFOADD,
@@ -3215,20 +3237,15 @@ musbotg_init(struct musbotg_softc *sc)
 				offset += (1 << frx);
 			}
 			if (ftx && (temp <= ntx)) {
-				if (temp == 1) {
-					ftx = 12;	/* 4K */
-					MUSB2_WRITE_1(sc, MUSB2_REG_TXFIFOSZ,
-	 				    MUSB2_VAL_FIFOSZ_4096 |
-	 				    MUSB2_MASK_FIFODB);
-				} else if (temp < 8) {
-					ftx = 10;	/* 1K */
-					MUSB2_WRITE_1(sc, MUSB2_REG_TXFIFOSZ,
-	 				    MUSB2_VAL_FIFOSZ_512 |
-	 				    MUSB2_MASK_FIFODB);
-				} else {
-					ftx = 7;	/* 128 bytes */
-					MUSB2_WRITE_1(sc, MUSB2_REG_TXFIFOSZ,
-	 				    MUSB2_VAL_FIFOSZ_128);
+				for (i = 0; sc->sc_ep_cfg[i].ep_end >= 0; i++) {
+					cfg = &sc->sc_ep_cfg[i];
+					if (temp <= cfg->ep_end) {
+						ftx = cfg->ep_fifosz_shift;
+						MUSB2_WRITE_1(sc,
+						    MUSB2_REG_TXFIFOSZ,
+						    cfg->ep_fifosz_reg);
+						break;
+					}
 				}
 
 				MUSB2_WRITE_2(sc, MUSB2_REG_TXFIFOADD,
