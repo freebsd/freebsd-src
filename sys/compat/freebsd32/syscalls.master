@@ -1116,5 +1116,7 @@
 				    cpuwhich_t which, uint32_t id1, uint32_t id2, \
 				    size_t domainsetsize, domainset_t *mask, \
 				    int policy); }
+563	AUE_NULL	NOPROTO	{ int getrandom(void *buf, size_t buflen, \
+				    unsigned int flags); }
 
 ; vim: syntax=off
