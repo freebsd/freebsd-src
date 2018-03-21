@@ -198,15 +198,18 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 		 * XXXRW: Would it be cleaner to free the tcptw here?
 		 *
 		 * Astute question indeed, from twtcp perspective there are
-		 * three cases to consider:
+		 * four cases to consider:
 		 *
 		 * #1 tcp_detach is called at tcptw creation time by
 		 *  tcp_twstart, then do not discard the newly created tcptw
 		 *  and leave inpcb present until timewait ends
-		 * #2 tcp_detach is called at timewait end (or reuse) by
+		 * #2 tcp_detach is called at tcptw creation time by
+		 *  tcp_twstart, but connection is local and tw will be
+		 *  discarded immediately
+		 * #3 tcp_detach is called at timewait end (or reuse) by
 		 *  tcp_twclose, then the tcptw has already been discarded
 		 *  (or reused) and inpcb is freed here
-		 * #3 tcp_detach is called() after timewait ends (or reuse)
+		 * #4 tcp_detach is called() after timewait ends (or reuse)
 		 *  (e.g. by soclose), then tcptw has already been discarded
 		 *  (or reused) and inpcb is freed here
 		 *
