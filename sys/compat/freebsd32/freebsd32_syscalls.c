@@ -595,4 +595,5 @@ const char *freebsd32_syscallnames[] = {
 	"freebsd32_kevent",			/* 560 = freebsd32_kevent */
 	"freebsd32_cpuset_getdomain",			/* 561 = freebsd32_cpuset_getdomain */
 	"freebsd32_cpuset_setdomain",			/* 562 = freebsd32_cpuset_setdomain */
+	"getrandom",			/* 563 = getrandom */
 };
