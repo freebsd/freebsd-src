@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <zstd.h>
 
-const static unsigned valid_flags[] = { 0, GRND_NONBLOCK, GRND_RANDOM,
+static const unsigned valid_flags[] = { 0, GRND_NONBLOCK, GRND_RANDOM,
     GRND_NONBLOCK | GRND_RANDOM };
 
 ATF_TC_WITHOUT_HEAD(getrandom_randomness);
