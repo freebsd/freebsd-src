@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 2, 2018
+.Dd March 21, 2018
 .Dt CORE.LUA 8
 .Os
 .Sh NAME
@@ -138,6 +138,16 @@ and
 If
 .Fa safeMode
 is omitted, toggle the current safe mode setting.
+.It Fn core.clearCachedKernels
+Clears out the cache of kernels to be displayed on the boot menu.
+This function is registered as a
+.Ev config.reloaded
+hook.
+It is used to invalidate the kernel list whenever it may have changed, either
+due to a boot environment change or a potential change in either
+.Ic kernel
+or
+.Ic kernels .
 .It Fn core.kernelList
 Returns a table of kernels to display on the boot menu.
 This will combine
