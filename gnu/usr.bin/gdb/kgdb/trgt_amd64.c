@@ -189,6 +189,8 @@ kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
 	if (pname == NULL)
 		return (NULL);
 	if (strcmp(pname, "calltrap") == 0 ||
+	    strcmp(pname, "fast_syscall_common") == 0 ||
+	    strcmp(pname, "mchk_calltrap") == 0 ||
 	    strcmp(pname, "nmi_calltrap") == 0 ||
 	    (pname[0] == 'X' && pname[1] != '_'))
 		return (&kgdb_trgt_trapframe_unwind);
