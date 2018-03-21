@@ -41,6 +41,10 @@ __FBSDID("$FreeBSD$");
 #define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #endif
 
+#ifndef HEAP_SIZE
+#define	HEAP_SIZE	(1 * 1024 * 1024)
+#endif
+
 struct uboot_devdesc currdev;
 struct arch_switch archsw;		/* MI/MD interface boundary */
 int devs_no;
@@ -421,7 +425,7 @@ main(int argc, char **argv)
 	 * of our bss and the bottom of the u-boot stack to avoid overlap.
 	 */
 	uboot_heap_start = round_page((uintptr_t)end);
-	uboot_heap_end   = uboot_heap_start + 512 * 1024;
+	uboot_heap_end   = uboot_heap_start + HEAP_SIZE;
 	setheap((void *)uboot_heap_start, (void *)uboot_heap_end);
 
 	/*
