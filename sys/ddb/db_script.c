@@ -294,7 +294,7 @@ db_script_exec(const char *scriptname, int warnifnotfound)
 	buffer = drd->drd_buffer;
 	strcpy(buffer, dsp->ds_script);
 	while ((command = strsep(&buffer, ";")) != NULL) {
-		db_printf("db:%d:%s> %s\n", db_recursion, scriptname,
+		db_printf("db:%d:%s> %s\n", db_recursion, dsp->ds_scriptname,
 		    command);
 		db_command_trim(&command);
 		prev_jb = kdb_jmpbuf(jb);
