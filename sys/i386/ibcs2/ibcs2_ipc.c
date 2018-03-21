@@ -282,7 +282,7 @@ cvt_semid2isemid(bp, ibp)
 struct semid_ds *bp;
 struct ibcs2_semid_ds *ibp;
 {
-	memset(ibp, 0, sizeof(*ibp);
+	memset(ibp, 0, sizeof(*ibp));
 	cvt_perm2iperm(&bp->sem_perm, &ibp->sem_perm);
 	ibp->sem_nsems = bp->sem_nsems;
 	ibp->sem_otime = bp->sem_otime;
