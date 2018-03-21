@@ -259,6 +259,7 @@ svr4_sys_getdents64(td, uap)
 	u_long *cookies = NULL, *cookiep;
 	int ncookies;
 
+	memset(&svr4_dirent, 0, sizeof(svr4_dirent));
 	DPRINTF(("svr4_sys_getdents64(%d, *, %d)\n",
 		uap->fd, uap->nbytes));
 	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_READ), &fp);
