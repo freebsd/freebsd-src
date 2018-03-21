@@ -9,6 +9,8 @@
 .PATH:	${SRCTOP}/sys/crypto/sha2
 .PATH:	${SRCTOP}/sys/crypto/siphash
 .PATH:	${SRCTOP}/sys/crypto/skein
+.PATH:	${SRCTOP}/sys/crypto/blake2
+.PATH:	${SRCTOP}/sys/contrib/libb2
 
 KMOD	= crypto
 SRCS	= crypto.c cryptodev_if.c
@@ -31,6 +33,14 @@ AFLAGS+= --defsym SKEIN_LOOP=0
 .endif
 SRCS	+= siphash.c
 SRCS	+= gmac.c gfmult.c
+SRCS	+= blake2b-ref.c
+SRCS	+= blake2s-ref.c
+SRCS	+= blake2-sw.c
+CFLAGS.blake2b-ref.c	+= -I${SRCTOP}/sys/crypto/blake2 -DSUFFIX=_ref
+CFLAGS.blake2s-ref.c	+= -I${SRCTOP}/sys/crypto/blake2 -DSUFFIX=_ref
+CFLAGS.blake2-sw.c	+= -I${SRCTOP}/sys/crypto/blake2
+CWARNFLAGS.blake2b-ref.c	+= ${NO_WCAST_QUAL}
+CWARNFLAGS.blake2s-ref.c	+= ${NO_WCAST_QUAL}
 SRCS	+= opt_param.h cryptodev_if.h bus_if.h device_if.h
 SRCS	+= opt_ddb.h
 
