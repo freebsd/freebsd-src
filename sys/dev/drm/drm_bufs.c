@@ -935,6 +935,7 @@ int drm_infobufs(struct drm_device *dev, void *data, struct drm_file *file_priv)
 			if (dma->bufs[i].buf_count) {
 				struct drm_buf_desc from;
 
+				memset(&from, 0, sizeof(from));
 				from.count = dma->bufs[i].buf_count;
 				from.size = dma->bufs[i].buf_size;
 				from.low_mark = dma->bufs[i].freelist.low_mark;
