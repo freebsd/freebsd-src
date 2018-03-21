@@ -3858,22 +3858,28 @@ next_code:
 
 	    case RBT:
 #ifndef SC_DISABLE_REBOOT
-		if (enable_reboot && !(flags & SCGETC_CN))
+		if (enable_reboot && !(flags & SCGETC_CN)) {
+			mtx_unlock(&Giant);
 			shutdown_nice(0);
+		}
 #endif
 		break;
 
 	    case HALT:
 #ifndef SC_DISABLE_REBOOT
-		if (enable_reboot && !(flags & SCGETC_CN))
+		if (enable_reboot && !(flags & SCGETC_CN)) {
+			mtx_unlock(&Giant);
 			shutdown_nice(RB_HALT);
+		}
 #endif
 		break;
 
 	    case PDWN:
 #ifndef SC_DISABLE_REBOOT
-		if (enable_reboot && !(flags & SCGETC_CN))
+		if (enable_reboot && !(flags & SCGETC_CN)) {
+			mtx_unlock(&Giant);
 			shutdown_nice(RB_HALT|RB_POWEROFF);
+		}
 #endif
 		break;
 
