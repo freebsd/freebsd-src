@@ -579,9 +579,7 @@ parse_dir_md(char **conf)
 
 	if (root_mount_mddev != -1) {
 		mdio->md_unit = root_mount_mddev;
-		DROP_GIANT();
 		error = kern_ioctl(td, fd, MDIOCDETACH, (void *)mdio);
-		PICKUP_GIANT();
 		/* Ignore errors. We don't care. */
 		root_mount_mddev = -1;
 	}
@@ -590,9 +588,7 @@ parse_dir_md(char **conf)
 	mdio->md_options = MD_AUTOUNIT | MD_READONLY;
 	mdio->md_mediasize = sb.st_size;
 	mdio->md_unit = 0;
-	DROP_GIANT();
 	error = kern_ioctl(td, fd, MDIOCATTACH, (void *)mdio);
-	PICKUP_GIANT();
 	if (error)
 		goto out;
 
@@ -601,9 +597,7 @@ parse_dir_md(char **conf)
 		mdio->md_file = NULL;
 		mdio->md_options = 0;
 		mdio->md_mediasize = 0;
-		DROP_GIANT();
 		error = kern_ioctl(td, fd, MDIOCDETACH, (void *)mdio);
-		PICKUP_GIANT();
 		/* Ignore errors. We don't care. */
 		error = ERANGE;
 		goto out;
@@ -960,9 +954,7 @@ vfs_mountroot_wait(void)
 
 	curfail = 0;
 	while (1) {
-		DROP_GIANT();
 		g_waitidle();
-		PICKUP_GIANT();
 		mtx_lock(&root_holds_mtx);
 		if (LIST_EMPTY(&root_holds)) {
 			mtx_unlock(&root_holds_mtx);
@@ -1004,9 +996,7 @@ vfs_mountroot_wait_if_neccessary(const char *fs, const char *dev)
 	 * Note that we must wait for GEOM to finish reconfiguring itself,
 	 * eg for geom_part(4) to finish tasting.
 	 */
-	DROP_GIANT();
 	g_waitidle();
-	PICKUP_GIANT();
 	if (parse_mount_dev_present(dev))
 		return (0);
 
@@ -1038,6 +1028,8 @@ vfs_mountroot(void)
 	time_t timebase;
 	int error;
 	
+	mtx_assert(&Giant, MA_NOTOWNED);
+
 	TSENTER();
 
 	td = curthread;

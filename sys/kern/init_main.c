@@ -703,10 +703,6 @@ start_init(void *dummy)
 	struct thread *td;
 	struct proc *p;
 
-	mtx_lock(&Giant);
-
-	GIANT_REQUIRED;
-
 	TSENTER();	/* Here so we don't overlap with mi_startup. */
 
 	td = curthread;
@@ -801,7 +797,6 @@ start_init(void *dummy)
 		 * to user mode as init!
 		 */
 		if ((error = sys_execve(td, &args)) == EJUSTRETURN) {
-			mtx_unlock(&Giant);
 			TSEXIT();
 			return;
 		}
