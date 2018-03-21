@@ -46,11 +46,11 @@ local return_menu_entry = {
 
 local function OnOff(str, value)
 	if value then
-		return str .. color.escapef(color.GREEN) .. "On" ..
-		    color.escapef(color.WHITE)
+		return str .. color.escapefg(color.GREEN) .. "On" ..
+		    color.escapefg(color.WHITE)
 	else
-		return str .. color.escapef(color.RED) .. "off" ..
-		    color.escapef(color.WHITE)
+		return str .. color.escapefg(color.RED) .. "off" ..
+		    color.escapefg(color.WHITE)
 	end
 end
 
@@ -115,12 +115,12 @@ menu.boot_environments = {
 				local bootenv_name = ""
 				local name_color
 				if is_default then
-					name_color = color.escapef(color.GREEN)
+					name_color = color.escapefg(color.GREEN)
 				else
-					name_color = color.escapef(color.BLUE)
+					name_color = color.escapefg(color.BLUE)
 				end
 				bootenv_name = bootenv_name .. name_color ..
-				    choice .. color.resetf()
+				    choice .. color.resetfg()
 				return color.highlight("A").."ctive: " ..
 				    bootenv_name .. " (" .. idx .. " of " ..
 				    #all_choices .. ")"
@@ -300,13 +300,13 @@ menu.welcome = {
 				local kernel_name = ""
 				local name_color
 				if is_default then
-					name_color = color.escapef(color.GREEN)
+					name_color = color.escapefg(color.GREEN)
 					kernel_name = "default/"
 				else
-					name_color = color.escapef(color.BLUE)
+					name_color = color.escapefg(color.BLUE)
 				end
 				kernel_name = kernel_name .. name_color ..
-				    choice .. color.resetf()
+				    choice .. color.resetfg()
 				return color.highlight("K") .. "ernel: " ..
 				    kernel_name .. " (" .. idx .. " of " ..
 				    #all_choices .. ")"
