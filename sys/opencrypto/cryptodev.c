@@ -492,6 +492,14 @@ cryptof_ioctl(
 		case CRYPTO_NULL_HMAC:
 			thash = &auth_hash_null;
 			break;
+
+		case CRYPTO_BLAKE2B:
+			thash = &auth_hash_blake2b;
+			break;
+		case CRYPTO_BLAKE2S:
+			thash = &auth_hash_blake2s;
+			break;
+
 		default:
 			CRYPTDEB("invalid mac");
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);

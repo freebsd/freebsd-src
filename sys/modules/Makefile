@@ -68,6 +68,7 @@ SUBDIR=	\
 	${_bxe} \
 	${_bios} \
 	${_bktr} \
+	${_blake2} \
 	${_bm} \
 	bnxt \
 	bridgestp \
@@ -635,6 +636,9 @@ _amdsmn=	amdsmn
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
+.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
+_blake2=	blake2
+.endif
 _bytgpio=	bytgpio
 _chvgpio=	chvgpio
 _ciss=		ciss
