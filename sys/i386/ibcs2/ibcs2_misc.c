@@ -330,6 +330,7 @@ ibcs2_getdents(struct thread *td, struct ibcs2_getdents_args *uap)
 #define	BSD_DIRENT(cp)		((struct dirent *)(cp))
 #define	IBCS2_RECLEN(reclen)	(reclen + sizeof(u_short))
 
+	memset(&idb, 0, sizeof(idb));
 	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_READ), &fp);
 	if (error != 0)
 		return (error);
