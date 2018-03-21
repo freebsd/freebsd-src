@@ -372,6 +372,11 @@ swcr_authprepare(struct auth_hash *axf, struct swcr_data *sw, u_char *key,
 		axf->Final(buf, sw->sw_ictx);
 		break;
 	}
+	case CRYPTO_BLAKE2B:
+	case CRYPTO_BLAKE2S:
+		axf->Setkey(sw->sw_ictx, key, klen);
+		axf->Init(sw->sw_ictx);
+		break;
 	default:
 		printf("%s: CRD_F_KEY_EXPLICIT flag given, but algorithm %d "
 		    "doesn't use keys.\n", __func__, axf->type);
@@ -438,6 +443,8 @@ swcr_authcompute(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 		axf->Final(aalg, &ctx);
 		break;
 
+	case CRYPTO_BLAKE2B:
+	case CRYPTO_BLAKE2S:
 	case CRYPTO_NULL_HMAC:
 		axf->Final(aalg, &ctx);
 		break;
@@ -946,6 +953,25 @@ swcr_newsession(device_t dev, u_int32_t *sid, struct cryptoini *cri)
 			(*swd)->sw_axf = axf;
 			break;
 
+		case CRYPTO_BLAKE2B:
+			axf = &auth_hash_blake2b;
+			goto auth5common;
+		case CRYPTO_BLAKE2S:
+			axf = &auth_hash_blake2s;
+		auth5common:
+			(*swd)->sw_ictx = malloc(axf->ctxsize, M_CRYPTO_DATA,
+			    M_NOWAIT);
+			if ((*swd)->sw_ictx == NULL) {
+				swcr_freesession_locked(dev, i);
+				rw_runlock(&swcr_sessions_lock);
+				return ENOBUFS;
+			}
+			axf->Setkey((*swd)->sw_ictx, cri->cri_key,
+			    cri->cri_klen / 8);
+			axf->Init((*swd)->sw_ictx);
+			(*swd)->sw_axf = axf;
+			break;
+
 		case CRYPTO_DEFLATE_COMP:
 			cxf = &comp_algo_deflate;
 			(*swd)->sw_cxf = cxf;
@@ -1049,6 +1075,8 @@ swcr_freesession_locked(device_t dev, u_int64_t tid)
 			}
 			break;
 
+		case CRYPTO_BLAKE2B:
+		case CRYPTO_BLAKE2S:
 		case CRYPTO_MD5:
 		case CRYPTO_SHA1:
 			axf = swd->sw_axf;
@@ -1155,6 +1183,8 @@ swcr_process(device_t dev, struct cryptop *crp, int hint)
 		case CRYPTO_SHA1_KPDK:
 		case CRYPTO_MD5:
 		case CRYPTO_SHA1:
+		case CRYPTO_BLAKE2B:
+		case CRYPTO_BLAKE2S:
 			if ((crp->crp_etype = swcr_authcompute(crd, sw,
 			    crp->crp_buf, crp->crp_flags)) != 0)
 				goto done;
@@ -1246,6 +1276,8 @@ swcr_attach(device_t dev)
 	REGISTER(CRYPTO_AES_256_NIST_GMAC);
  	REGISTER(CRYPTO_CAMELLIA_CBC);
 	REGISTER(CRYPTO_DEFLATE_COMP);
+	REGISTER(CRYPTO_BLAKE2B);
+	REGISTER(CRYPTO_BLAKE2S);
 #undef REGISTER
 
 	return 0;

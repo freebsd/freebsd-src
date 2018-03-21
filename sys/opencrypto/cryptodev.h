@@ -178,7 +178,9 @@
 #define	CRYPTO_AES_128_NIST_GMAC 26 /* auth side */
 #define	CRYPTO_AES_192_NIST_GMAC 27 /* auth side */
 #define	CRYPTO_AES_256_NIST_GMAC 28 /* auth side */
-#define	CRYPTO_ALGORITHM_MAX	28 /* Keep updated - see below */
+#define	CRYPTO_BLAKE2B		29 /* Blake2b hash */
+#define	CRYPTO_BLAKE2S		30 /* Blake2s hash */
+#define	CRYPTO_ALGORITHM_MAX	30 /* Keep updated - see below */
 
 #define	CRYPTO_ALGO_VALID(x)	((x) >= CRYPTO_ALGORITHM_MIN && \
 				 (x) <= CRYPTO_ALGORITHM_MAX)
