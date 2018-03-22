@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
+#include <sys/taskqueue.h>
 #include <sys/vnode.h>
 #include <sys/watchdog.h>
 
@@ -276,6 +277,28 @@ sys_reboot(struct thread *td, struct reboot_args *uap)
 	return (error);
 }
 
+static void
+shutdown_nice_task_fn(void *arg, int pending __unused)
+{
+	int howto;
+
+	howto = (uintptr_t)arg;
+	/* Send a signal to init(8) and have it shutdown the world. */
+	PROC_LOCK(initproc);
+	if (howto & RB_POWEROFF)
+		kern_psignal(initproc, SIGUSR2);
+	else if (howto & RB_POWERCYCLE)
+		kern_psignal(initproc, SIGWINCH);
+	else if (howto & RB_HALT)
+		kern_psignal(initproc, SIGUSR1);
+	else
+		kern_psignal(initproc, SIGINT);
+	PROC_UNLOCK(initproc);
+}
+
+static struct task shutdown_nice_task = TASK_INITIALIZER(0,
+    &shutdown_nice_task_fn, NULL);
+
 /*
  * Called by events that want to shut down.. e.g  <CTL><ALT><DEL> on a PC
  */
@@ -283,20 +306,14 @@ void
 shutdown_nice(int howto)
 {
 
-	if (initproc != NULL) {
-		/* Send a signal to init(8) and have it shutdown the world. */
-		PROC_LOCK(initproc);
-		if (howto & RB_POWEROFF)
-			kern_psignal(initproc, SIGUSR2);
-		else if (howto & RB_POWERCYCLE)
-			kern_psignal(initproc, SIGWINCH);
-		else if (howto & RB_HALT)
-			kern_psignal(initproc, SIGUSR1);
-		else
-			kern_psignal(initproc, SIGINT);
-		PROC_UNLOCK(initproc);
+	if (initproc != NULL && !SCHEDULER_STOPPED()) {
+		shutdown_nice_task.ta_context = (void *)(uintptr_t)howto;
+		taskqueue_enqueue(taskqueue_fast, &shutdown_nice_task);
 	} else {
-		/* No init(8) running, so simply reboot. */
+		/*
+		 * No init(8) running, or scheduler would not allow it
+		 * to run, so simply reboot.
+		 */
 		kern_reboot(howto | RB_NOSYNC);
 	}
 }
