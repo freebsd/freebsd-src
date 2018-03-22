@@ -157,7 +157,7 @@ static const struct musb_otg_ep_cfg musbotg_ep_default[] = {
 	},
 	{
 		.ep_end = 7,
-		.ep_fifosz_shift = 9,
+		.ep_fifosz_shift = 10,
 		.ep_fifosz_reg = MUSB2_VAL_FIFOSZ_512 | MUSB2_MASK_FIFODB,
 	},
 	{
