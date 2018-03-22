@@ -277,6 +277,8 @@ const char *witness_file(struct lock_object *);
 void	witness_thread_exit(struct thread *);
 
 #ifdef	WITNESS
+int	witness_startup_count(void);
+void	witness_startup(void *);
 
 /* Flags for witness_warn(). */
 #define	WARN_GIANTOK	0x01	/* Giant is exempt from this check. */
