@@ -1425,8 +1425,10 @@ ztest_log_setattr(ztest_ds_t *zd, dmu_tx_t *tx, lr_setattr_t *lr)
  * ZIL replay ops
  */
 static int
-ztest_replay_create(ztest_ds_t *zd, lr_create_t *lr, boolean_t byteswap)
+ztest_replay_create(void *arg1, void *arg2, boolean_t byteswap)
 {
+	ztest_ds_t *zd = arg1;
+	lr_create_t *lr = arg2;
 	char *name = (void *)(lr + 1);		/* name follows lr */
 	objset_t *os = zd->zd_os;
 	ztest_block_tag_t *bbt;
@@ -1509,8 +1511,10 @@ ztest_replay_create(ztest_ds_t *zd, lr_create_t *lr, boolean_t byteswap)
 }
 
 static int
-ztest_replay_remove(ztest_ds_t *zd, lr_remove_t *lr, boolean_t byteswap)
+ztest_replay_remove(void *arg1, void *arg2, boolean_t byteswap)
 {
+	ztest_ds_t *zd = arg1;
+	lr_remove_t *lr = arg2;
 	char *name = (void *)(lr + 1);		/* name follows lr */
 	objset_t *os = zd->zd_os;
 	dmu_object_info_t doi;
@@ -1560,8 +1564,10 @@ ztest_replay_remove(ztest_ds_t *zd, lr_remove_t *lr, boolean_t byteswap)
 }
 
 static int
-ztest_replay_write(ztest_ds_t *zd, lr_write_t *lr, boolean_t byteswap)
+ztest_replay_write(void *arg1, void *arg2, boolean_t byteswap)
 {
+	ztest_ds_t *zd = arg1;
+	lr_write_t *lr = arg2;
 	objset_t *os = zd->zd_os;
 	void *data = lr + 1;			/* data follows lr */
 	uint64_t offset, length;
@@ -1685,8 +1691,10 @@ ztest_replay_write(ztest_ds_t *zd, lr_write_t *lr, boolean_t byteswap)
 }
 
 static int
-ztest_replay_truncate(ztest_ds_t *zd, lr_truncate_t *lr, boolean_t byteswap)
+ztest_replay_truncate(void *arg1, void *arg2, boolean_t byteswap)
 {
+	ztest_ds_t *zd = arg1;
+	lr_truncate_t *lr = arg2;
 	objset_t *os = zd->zd_os;
 	dmu_tx_t *tx;
 	uint64_t txg;
@@ -1724,8 +1732,10 @@ ztest_replay_truncate(ztest_ds_t *zd, lr_truncate_t *lr, boolean_t byteswap)
 }
 
 static int
-ztest_replay_setattr(ztest_ds_t *zd, lr_setattr_t *lr, boolean_t byteswap)
+ztest_replay_setattr(void *arg1, void *arg2, boolean_t byteswap)
 {
+	ztest_ds_t *zd = arg1;
+	lr_setattr_t *lr = arg2;
 	objset_t *os = zd->zd_os;
 	dmu_tx_t *tx;
 	dmu_buf_t *db;
