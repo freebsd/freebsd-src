@@ -1646,7 +1646,7 @@ vm_restore_mem(struct vmctx *ctx, int vmmem_fd, size_t size)
 
 	if ( lseek(vmmem_fd, 0 , SEEK_SET) < 0) {
 		fprintf(stderr,
-			"%s: Could not change file offser errno = %d\r\n",
+			"%s: Could not change file offset errno = %d\r\n",
 			__func__, errno);
 		return (-1);
 	}
@@ -1667,6 +1667,14 @@ vm_restore_mem(struct vmctx *ctx, int vmmem_fd, size_t size)
 		read_total = 0;
 		to_read = ctx->highmem;
 		cnt_read = 0;
+
+		// Move file offset to the highmem's start position
+		if ( lseek(vmmem_fd, 4*GB, SEEK_SET) < 0 ) {
+				printf(stderr,
+				"%s: Could not change file offser errno = %d\r\n",
+					__func__, errno);
+			return (-1);
+		}
 
 		while (read_total < ctx->highmem) {
 			cnt_read = read(vmmem_fd,
