@@ -366,6 +366,17 @@ kern_reboot(int howto)
 {
 	static int once = 0;
 
+	/*
+	 * Normal paths here don't hold Giant, but we can wind up here
+	 * unexpectedly with it held.  Drop it now so we don't have to
+	 * drop and pick it up elsewhere. The paths it is locking will
+	 * never be returned to, and it is preferable to preclude
+	 * deadlock than to lock against code that won't ever
+	 * continue.
+	 */
+	while (mtx_owned(&Giant))
+		mtx_unlock(&Giant);
+
 #if defined(SMP)
 	/*
 	 * Bind us to the first CPU so that all shutdown code runs there.  Some
