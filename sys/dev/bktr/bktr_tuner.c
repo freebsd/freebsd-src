@@ -564,12 +564,10 @@ static int weurope[] = {
  *  8: 193.25MHz - 12: 217.25MHz  (VHF)
  * 13: 471.25MHz - 62: 765.25MHz  (UHF)
  *
- * IF freq: 45.75 mHz
- *  OR
  * IF freq: 58.75 mHz
  */
 #define OFFSET  6.00
-#define IF_FREQ 45.75
+#define IF_FREQ 58.75
 static int jpnbcst[] = {
 	62,     (int)(IF_FREQ * FREQFACTOR),    0,
 	13,     (int)(471.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
@@ -591,10 +589,10 @@ static int jpnbcst[] = {
  * 22: 165.25MHz
  * 23: 223.25MHz - 63: 463.25MHz
  *
- * IF freq: 45.75 mHz
+ * IF freq: 58.75 mHz
  */
 #define OFFSET  6.00
-#define IF_FREQ 45.75
+#define IF_FREQ 58.75
 static int jpncable[] = {
 	63,     (int)(IF_FREQ * FREQFACTOR),    0,
 	23,     (int)(223.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
