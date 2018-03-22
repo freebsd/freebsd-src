@@ -224,19 +224,17 @@ do { \
 static void
 cleanup(void)
 {
-	int fd = -1;
-	char buffer[80] = {0};
+	FILE *f;
 	pid_t pid;
 
-	fd = open(pidfile, O_RDONLY);
-	if (fd < 0)
+	f = fopen(pidfile, "r");
+	if (f == NULL)
 		return;
-	if (read(fd, buffer, sizeof(buffer)) > 0) {
-		sscanf(buffer, "%d", &pid);
+	if (fscanf(f, "%d", &pid) == 1) {
 		kill(pid, SIGTERM);
 		waitpid(pid, NULL, 0);
 	}
-	close(fd);
+	fclose(f);
 	unlink(pidfile);
 }
 
@@ -698,6 +696,7 @@ TFTPD_TC_DEFINE(w_flag,, w_flag = 1;)
 	recv_ack(1);
 
 	fd = open("small.txt", O_RDONLY);
+	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
 	close(fd);
 	require_bufeq(contents, contents_len, buffer, r);
@@ -734,6 +733,7 @@ TFTPD_TC_DEFINE(wrq_dropped_ack,)
 	recv_ack(2);
 
 	fd = open("medium.txt", O_RDONLY);
+	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
 	close(fd);
 	require_bufeq((const char*)contents, 768, buffer, r);
@@ -766,6 +766,7 @@ TFTPD_TC_DEFINE(wrq_dropped_data,)
 	recv_ack(1);
 
 	fd = open("small.txt", O_RDONLY);
+	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
 	close(fd);
 	require_bufeq(contents, contents_len, buffer, r);
@@ -799,6 +800,7 @@ TFTPD_TC_DEFINE(wrq_duped_data,)
 	recv_ack(2);
 
 	fd = open("medium.txt", O_RDONLY);
+	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
 	close(fd);
 	require_bufeq((const char*)contents, 768, buffer, r);
@@ -862,6 +864,7 @@ TFTPD_TC_DEFINE(wrq_medium,)
 	recv_ack(2);
 
 	fd = open("medium.txt", O_RDONLY);
+	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
 	close(fd);
 	require_bufeq((const char*)contents, 768, buffer, r);
@@ -894,6 +897,7 @@ TFTPD_TC_DEFINE(wrq_netascii,)
 	recv_ack(1);
 
 	fd = open("unix.txt", O_RDONLY);
+	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
 	close(fd);
 	require_bufeq(expected, sizeof(expected), buffer, r);
@@ -931,6 +935,7 @@ TFTPD_TC_DEFINE(wrq_small,)
 	recv_ack(1);
 
 	fd = open("small.txt", O_RDONLY);
+	ATF_REQUIRE(fd >= 0);
 	r = read(fd, buffer, sizeof(buffer));
 	close(fd);
 	require_bufeq(contents, contents_len, buffer, r);
