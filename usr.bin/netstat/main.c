@@ -214,6 +214,7 @@ int	mflag;		/* show memory stats */
 int	noutputs = 0;	/* how much outputs before we exit */
 int	numeric_addr;	/* show addresses numerically */
 int	numeric_port;	/* show ports numerically */
+int	Pflag;		/* show TCP log ID */
 static int pflag;	/* show given protocol */
 static int	Qflag;		/* show netisr information */
 int	rflag;		/* show routing tables (or routing stats) */
@@ -247,7 +248,7 @@ main(int argc, char *argv[])
 	if (argc < 0)
 		exit(EXIT_FAILURE);
 
-	while ((ch = getopt(argc, argv, "46AaBbdF:f:ghI:iLlM:mN:np:Qq:RrSTsuWw:xz"))
+	while ((ch = getopt(argc, argv, "46AaBbdF:f:ghI:iLlM:mN:nPp:Qq:RrSTsuWw:xz"))
 	    != -1)
 		switch(ch) {
 		case '4':
@@ -343,6 +344,9 @@ main(int argc, char *argv[])
 			break;
 		case 'n':
 			numeric_addr = numeric_port = 1;
+			break;
+		case 'P':
+			Pflag = 1;
 			break;
 		case 'p':
 			if ((tp = name2protox(optarg)) == NULL) {
