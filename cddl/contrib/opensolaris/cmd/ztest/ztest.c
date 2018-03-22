@@ -5277,7 +5277,7 @@ ztest_run_zdb(char *pool)
 	isa = strdup(isa);
 	/* LINTED */
 	(void) sprintf(bin,
-	    "/usr/sbin%.*s/zdb -bcc%s%s -d -U %s %s",
+	    "/usr/sbin%.*s/zdb -bcc%s%s -G -d -U %s %s",
 	    isalen,
 	    isa,
 	    ztest_opts.zo_verbose >= 3 ? "s" : "",
