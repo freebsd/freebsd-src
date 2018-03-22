@@ -34,7 +34,7 @@ only forth definitions
 
 : maybe-efi-resizecons
 	efiboot? if
-		efi-autoresizecons
+		s" efi-autoresizecons" evaluate
 	then
 ;
 
