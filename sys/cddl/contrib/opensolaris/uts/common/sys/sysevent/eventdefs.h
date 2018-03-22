@@ -18,9 +18,10 @@
  *
  * CDDL HEADER END
  */
+
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2016 Nexenta Systems, Inc.
  */
 
 #ifndef	_SYS_SYSEVENT_EVENTDEFS_H
@@ -59,67 +60,6 @@ extern "C" {
  * by Sun Cluster software.
  */
 #define	EC_CLUSTER	"EC_Cluster"
-
-/*
- * The following classes are exclusively reserved for use by the
- * Solaris Volume Manager (SVM)
- */
-#define	EC_SVM_CONFIG	"EC_SVM_Config"
-#define	EC_SVM_STATE	"EC_SVM_State"
-
-/*
- * EC_SVM_CONFIG subclass definitions - supporting attributes (name/value pairs)
- * are found in sys/sysevent/svm.h
- */
-#define	ESC_SVM_CREATE		"ESC_SVM_Create"
-#define	ESC_SVM_DELETE		"ESC_SVM_Delete"
-#define	ESC_SVM_ADD		"ESC_SVM_Add"
-#define	ESC_SVM_REMOVE		"ESC_SVM_Remove"
-#define	ESC_SVM_REPLACE		"ESC_SVM_Replace"
-#define	ESC_SVM_GROW		"ESC_SVM_Grow"
-#define	ESC_SVM_RENAME_SRC	"ESC_SVM_Rename_Src"
-#define	ESC_SVM_RENAME_DST	"ESC_SVM_Rename_Dst"
-#define	ESC_SVM_MEDIATOR_ADD	"ESC_SVM_Mediator_Add"
-#define	ESC_SVM_MEDIATOR_DELETE	"ESC_SVM_Mediator_Delete"
-#define	ESC_SVM_HOST_ADD	"ESC_SVM_Host_Add"
-#define	ESC_SVM_HOST_DELETE	"ESC_SVM_Host_Delete"
-#define	ESC_SVM_DRIVE_ADD	"ESC_SVM_Drive_Add"
-#define	ESC_SVM_DRIVE_DELETE	"ESC_SVM_Drive_Delete"
-#define	ESC_SVM_DETACH		"ESC_SVM_Detach"
-#define	ESC_SVM_DETACHING	"ESC_SVM_Detaching"
-#define	ESC_SVM_ATTACH		"ESC_SVM_Attach"
-#define	ESC_SVM_ATTACHING	"ESC_SVM_Attaching"
-
-/*
- * EC_SVM_STATE subclass definitions - supporting attributes (name/value pairs)
- * are found in sys/sysevent/svm.h
- */
-#define	ESC_SVM_INIT_START	"ESC_SVM_Init_Start"
-#define	ESC_SVM_INIT_FAILED	"ESC_SVM_Init_Failed"
-#define	ESC_SVM_INIT_FATAL	"ESC_SVM_Init_Fatal"
-#define	ESC_SVM_INIT_SUCCESS	"ESC_SVM_Init_Success"
-#define	ESC_SVM_IOERR		"ESC_SVM_Ioerr"
-#define	ESC_SVM_ERRED		"ESC_SVM_Erred"
-#define	ESC_SVM_LASTERRED	"ESC_SVM_Lasterred"
-#define	ESC_SVM_OK		"ESC_SVM_Ok"
-#define	ESC_SVM_ENABLE		"ESC_SVM_Enable"
-#define	ESC_SVM_RESYNC_START	"ESC_SVM_Resync_Start"
-#define	ESC_SVM_RESYNC_FAILED	"ESC_SVM_Resync_Failed"
-#define	ESC_SVM_RESYNC_SUCCESS	"ESC_SVM_Resync_Success"
-#define	ESC_SVM_RESYNC_DONE	"ESC_SVM_Resync_Done"
-#define	ESC_SVM_HOTSPARED	"ESC_SVM_Hotspared"
-#define	ESC_SVM_HS_FREED	"ESC_SVM_HS_Freed"
-#define	ESC_SVM_HS_CHANGED	"ESC_SVM_HS_Changed"
-#define	ESC_SVM_TAKEOVER	"ESC_SVM_Takeover"
-#define	ESC_SVM_RELEASE		"ESC_SVM_Release"
-#define	ESC_SVM_OPEN_FAIL	"ESC_SVM_Open_Fail"
-#define	ESC_SVM_OFFLINE		"ESC_SVM_Offline"
-#define	ESC_SVM_ONLINE		"ESC_SVM_Online"
-#define	ESC_SVM_CHANGE		"ESC_SVM_Change"
-#define	ESC_SVM_EXCHANGE	"ESC_SVM_Exchange"
-#define	ESC_SVM_REGEN_START	"ESC_SVM_Regen_Start"
-#define	ESC_SVM_REGEN_DONE	"ESC_SVM_Regen_Done"
-#define	ESC_SVM_REGEN_FAILED	"ESC_SVM_Regen_Failed"
 
 /*
  * EC_DR subclass definitions - supporting attributes (name/value pairs)
