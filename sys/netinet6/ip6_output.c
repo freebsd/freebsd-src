@@ -1596,23 +1596,34 @@ do { \
 } while (/*CONSTCOND*/ 0)
 #define OPTBIT(bit) (in6p->inp_flags & (bit) ? 1 : 0)
 
-#define OPTSET2(bit, val) do {						\
-	INP_WLOCK(in6p);						\
+#define OPTSET2_N(bit, val) do {					\
 	if (val)							\
 		in6p->inp_flags2 |= bit;				\
 	else								\
 		in6p->inp_flags2 &= ~bit;				\
+} while (0)
+#define OPTSET2(bit, val) do {						\
+	INP_WLOCK(in6p);						\
+	OPTSET2_N(bit, val);						\
 	INP_WUNLOCK(in6p);						\
 } while (0)
 #define OPTBIT2(bit) (in6p->inp_flags2 & (bit) ? 1 : 0)
+#define OPTSET2292_EXCLUSIVE(bit)					\
+do {									\
+	INP_WLOCK(in6p);						\
+	if (OPTBIT(IN6P_RFC2292)) {					\
+		error = EINVAL;						\
+	} else {							\
+		if (optval)						\
+			in6p->inp_flags |= (bit);			\
+		else							\
+			in6p->inp_flags &= ~(bit);			\
+	}								\
+	INP_WUNLOCK(in6p);						\
+} while (/*CONSTCOND*/ 0)
 
 				case IPV6_RECVPKTINFO:
-					/* cannot mix with RFC2292 */
-					if (OPTBIT(IN6P_RFC2292)) {
-						error = EINVAL;
-						break;
-					}
-					OPTSET(IN6P_PKTINFO);
+					OPTSET2292_EXCLUSIVE(IN6P_PKTINFO);
 					break;
 
 				case IPV6_HOPLIMIT:
@@ -1633,48 +1644,23 @@ do { \
 				}
 
 				case IPV6_RECVHOPLIMIT:
-					/* cannot mix with RFC2292 */
-					if (OPTBIT(IN6P_RFC2292)) {
-						error = EINVAL;
-						break;
-					}
-					OPTSET(IN6P_HOPLIMIT);
+					OPTSET2292_EXCLUSIVE(IN6P_HOPLIMIT);
 					break;
 
 				case IPV6_RECVHOPOPTS:
-					/* cannot mix with RFC2292 */
-					if (OPTBIT(IN6P_RFC2292)) {
-						error = EINVAL;
-						break;
-					}
-					OPTSET(IN6P_HOPOPTS);
+					OPTSET2292_EXCLUSIVE(IN6P_HOPOPTS);
 					break;
 
 				case IPV6_RECVDSTOPTS:
-					/* cannot mix with RFC2292 */
-					if (OPTBIT(IN6P_RFC2292)) {
-						error = EINVAL;
-						break;
-					}
-					OPTSET(IN6P_DSTOPTS);
+					OPTSET2292_EXCLUSIVE(IN6P_DSTOPTS);
 					break;
 
 				case IPV6_RECVRTHDRDSTOPTS:
-					/* cannot mix with RFC2292 */
-					if (OPTBIT(IN6P_RFC2292)) {
-						error = EINVAL;
-						break;
-					}
-					OPTSET(IN6P_RTHDRDSTOPTS);
+					OPTSET2292_EXCLUSIVE(IN6P_RTHDRDSTOPTS);
 					break;
 
 				case IPV6_RECVRTHDR:
-					/* cannot mix with RFC2292 */
-					if (OPTBIT(IN6P_RFC2292)) {
-						error = EINVAL;
-						break;
-					}
-					OPTSET(IN6P_RTHDR);
+					OPTSET2292_EXCLUSIVE(IN6P_RTHDR);
 					break;
 
 				case IPV6_RECVPATHMTU:
@@ -1717,11 +1703,7 @@ do { \
 					break;
 				case IPV6_RECVTCLASS:
 					/* cannot mix with RFC2292 XXX */
-					if (OPTBIT(IN6P_RFC2292)) {
-						error = EINVAL;
-						break;
-					}
-					OPTSET(IN6P_TCLASS);
+					OPTSET2292_EXCLUSIVE(IN6P_TCLASS);
 					break;
 				case IPV6_AUTOFLOWLABEL:
 					OPTSET(IN6P_AUTOFLOWLABEL);
@@ -1741,8 +1723,10 @@ do { \
 				case IPV6_RSS_LISTEN_BUCKET:
 					if ((optval >= 0) &&
 					    (optval < rss_getnumbuckets())) {
+						INP_WLOCK(in6p);
 						in6p->inp_rss_listen_bucket = optval;
-						OPTSET2(INP_RSS_BUCKET_SET, 1);
+						OPTSET2_N(INP_RSS_BUCKET_SET, 1);
+						INP_WUNLOCK(in6p);
 					} else {
 						error = EINVAL;
 					}
