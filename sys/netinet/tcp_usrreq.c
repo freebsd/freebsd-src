@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_log_buf.h>
 #include <netinet/tcpip.h>
 #include <netinet/cc/cc.h>
 #include <netinet/tcp_fastopen.h>
@@ -1026,6 +1027,11 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			tp->t_flags &= ~TF_FORCEDATA;
 		}
 	}
+	TCP_LOG_EVENT(tp, NULL,
+	    &inp->inp_socket->so_rcv,
+	    &inp->inp_socket->so_snd,
+	    TCP_LOG_USERSEND, error,
+	    0, NULL, false);
 out:
 	TCPDEBUG2((flags & PRUS_OOB) ? PRU_SENDOOB :
 		  ((flags & PRUS_EOF) ? PRU_SEND_EOF : PRU_SEND));
@@ -1533,6 +1539,15 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 	return (tp->t_fb->tfb_tcp_ctloutput(so, sopt, inp, tp));
 }
 
+/*
+ * If this assert becomes untrue, we need to change the size of the buf
+ * variable in tcp_default_ctloutput().
+ */
+#ifdef CTASSERT
+CTASSERT(TCP_CA_NAME_MAX <= TCP_LOG_ID_LEN);
+CTASSERT(TCP_LOG_REASON_LEN <= TCP_LOG_ID_LEN);
+#endif
+
 int
 tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp, struct tcpcb *tp)
 {
@@ -1540,7 +1555,7 @@ tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp
 	u_int	ui;
 	struct	tcp_info ti;
 	struct cc_algo *algo;
-	char	*pbuf, buf[TCP_CA_NAME_MAX];
+	char	*pbuf, buf[TCP_LOG_ID_LEN];
 	size_t	len;
 
 	/*
@@ -1822,6 +1837,55 @@ unlock_and_done:
 			goto unlock_and_done;
 		}
 
+		case TCP_LOG:
+			INP_WUNLOCK(inp);
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+			    sizeof optval);
+			if (error)
+				return (error);
+
+			INP_WLOCK_RECHECK(inp);
+			error = tcp_log_state_change(tp, optval);
+			goto unlock_and_done;
+
+		case TCP_LOGBUF:
+			INP_WUNLOCK(inp);
+			error = EINVAL;
+			break;
+
+		case TCP_LOGID:
+			INP_WUNLOCK(inp);
+			error = sooptcopyin(sopt, buf, TCP_LOG_ID_LEN - 1, 0);
+			if (error)
+				break;
+			buf[sopt->sopt_valsize] = '\0';
+			INP_WLOCK_RECHECK(inp);
+			error = tcp_log_set_id(tp, buf);
+			/* tcp_log_set_id() unlocks the INP. */
+			break;
+
+		case TCP_LOGDUMP:
+		case TCP_LOGDUMPID:
+			INP_WUNLOCK(inp);
+			error =
+			    sooptcopyin(sopt, buf, TCP_LOG_REASON_LEN - 1, 0);
+			if (error)
+				break;
+			buf[sopt->sopt_valsize] = '\0';
+			INP_WLOCK_RECHECK(inp);
+			if (sopt->sopt_name == TCP_LOGDUMP) {
+				error = tcp_log_dump_tp_logbuf(tp, buf,
+				    M_WAITOK, true);
+				INP_WUNLOCK(inp);
+			} else {
+				tcp_log_dump_tp_bucket_logbufs(tp, buf);
+				/*
+				 * tcp_log_dump_tp_bucket_logbufs() drops the
+				 * INP lock.
+				 */
+			}
+			break;
+
 		default:
 			INP_WUNLOCK(inp);
 			error = ENOPROTOOPT;
@@ -1906,6 +1970,25 @@ unlock_and_done:
 			optval = tp->t_flags & TF_FASTOPEN;
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, &optval, sizeof optval);
+			break;
+		case TCP_LOG:
+			optval = tp->t_logstate;
+			INP_WUNLOCK(inp);
+			error = sooptcopyout(sopt, &optval, sizeof(optval));
+			break;
+		case TCP_LOGBUF:
+			/* tcp_log_getlogbuf() does INP_WUNLOCK(inp) */
+			error = tcp_log_getlogbuf(sopt, tp);
+			break;
+		case TCP_LOGID:
+			len = tcp_log_get_id(tp, buf);
+			INP_WUNLOCK(inp);
+			error = sooptcopyout(sopt, buf, len + 1);
+			break;
+		case TCP_LOGDUMP:
+		case TCP_LOGDUMPID:
+			INP_WUNLOCK(inp);
+			error = EINVAL;
 			break;
 		default:
 			INP_WUNLOCK(inp);
