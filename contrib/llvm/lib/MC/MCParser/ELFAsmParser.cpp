@@ -767,12 +767,8 @@ bool ELFAsmParser::ParseDirectiveSymver(StringRef, SMLoc) {
   if (AliasName.find('@') == StringRef::npos)
     return TokError("expected a '@' in the name");
 
-  MCSymbol *Alias = getContext().getOrCreateSymbol(AliasName);
   MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
-  const MCExpr *Value = MCSymbolRefExpr::create(Sym, getContext());
-
-  getStreamer().EmitAssignment(Alias, Value);
-  getStreamer().emitELFSymverDirective(Alias, Sym);
+  getStreamer().emitELFSymverDirective(AliasName, Sym);
   return false;
 }
 
