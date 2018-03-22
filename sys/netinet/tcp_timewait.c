@@ -244,12 +244,12 @@ tcp_twstart(struct tcpcb *tp)
 #ifdef INET6
 		if (isipv6)
 			local = in6_localaddr(&inp->in6p_faddr);
-#endif
-#if defined(INET6) && defined(INET)
 		else
 #endif
 #ifdef INET
 			local = in_localip(inp->inp_faddr);
+#else
+			local = false;
 #endif
 	} else
 		local = false;
