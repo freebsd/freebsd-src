@@ -37,25 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sysdecode.h>
 
 #if defined(__i386__) || defined(__amd64__)
-/*
- * Linux syscalls return negative errno's, we do positive and map them
- * Reference:
- *   FreeBSD: src/sys/sys/errno.h
- *   Linux:   include/uapi/asm-generic/errno-base.h
- *            include/uapi/asm-generic/errno.h
- */
-static int bsd_to_linux_errno[ELAST + 1] = {
-	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
-	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
-	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
-	-30, -31, -32, -33, -34, -11,-115,-114, -88, -89,
-	-90, -91, -92, -93, -94, -95, -96, -97, -98, -99,
-	-100,-101,-102,-103,-104,-105,-106,-107,-108,-109,
-	-110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
-	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
-	  -6,  -6, -43, -42, -75,-125, -84, -61, -16, -74,
-	 -72, -67, -71,  -1,  -1, -131, -130
-};
+static
+#include <compat/linux/linux_errno.inc>
 #endif
 
 #include <contrib/cloudabi/cloudabi_types_common.h>
@@ -156,8 +139,8 @@ sysdecode_abi_to_freebsd_errno(enum sysdecode_abi abi, int error)
 		 * This is imprecise since it returns the first
 		 * matching errno.
 		 */
-		for (i = 0; i < nitems(bsd_to_linux_errno); i++) {
-			if (error == bsd_to_linux_errno[i])
+		for (i = 0; i < nitems(linux_errtbl); i++) {
+			if (error == linux_errtbl[i])
 				return (i);
 		}
 		break;
@@ -187,7 +170,7 @@ sysdecode_freebsd_to_abi_errno(enum sysdecode_abi abi, int error)
 	case SYSDECODE_ABI_LINUX:
 	case SYSDECODE_ABI_LINUX32:
 		if (error >= 0 && error <= ELAST)
-			return (bsd_to_linux_errno[error]);
+			return (linux_errtbl[error]);
 		break;
 #endif
 	case SYSDECODE_ABI_CLOUDABI32:
