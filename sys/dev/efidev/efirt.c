@@ -450,5 +450,6 @@ static moduledata_t efirt_moddata = {
 	.evhand = efirt_modevents,
 	.priv = NULL,
 };
-DECLARE_MODULE(efirt, efirt_moddata, SI_SUB_VM_CONF, SI_ORDER_ANY);
+/* After fpuinitstate, before efidev */
+DECLARE_MODULE(efirt, efirt_moddata, SI_SUB_DRIVERS, SI_ORDER_SECOND);
 MODULE_VERSION(efirt, 1);
