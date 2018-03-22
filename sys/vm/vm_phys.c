@@ -73,14 +73,14 @@ _Static_assert(sizeof(long) * NBBY >= VM_PHYSSEG_MAX,
     "Too many physsegs.");
 
 #ifdef NUMA
-struct mem_affinity *mem_affinity;
-int *mem_locality;
+struct mem_affinity __read_mostly *mem_affinity;
+int __read_mostly *mem_locality;
 #endif
 
-int vm_ndomains = 1;
+int __read_mostly vm_ndomains = 1;
 
-struct vm_phys_seg vm_phys_segs[VM_PHYSSEG_MAX];
-int vm_phys_nsegs;
+struct vm_phys_seg __read_mostly vm_phys_segs[VM_PHYSSEG_MAX];
+int __read_mostly vm_phys_nsegs;
 
 struct vm_phys_fictitious_seg;
 static int vm_phys_fictitious_cmp(struct vm_phys_fictitious_seg *,
@@ -100,18 +100,18 @@ struct vm_phys_fictitious_seg {
 RB_GENERATE_STATIC(fict_tree, vm_phys_fictitious_seg, node,
     vm_phys_fictitious_cmp);
 
-static struct rwlock vm_phys_fictitious_reg_lock;
+static struct rwlock_padalign vm_phys_fictitious_reg_lock;
 MALLOC_DEFINE(M_FICT_PAGES, "vm_fictitious", "Fictitious VM pages");
 
-static struct vm_freelist
+static struct vm_freelist __aligned(CACHE_LINE_SIZE)
     vm_phys_free_queues[MAXMEMDOM][VM_NFREELIST][VM_NFREEPOOL][VM_NFREEORDER];
 
-static int vm_nfreelists;
+static int __read_mostly vm_nfreelists;
 
 /*
  * Provides the mapping from VM_FREELIST_* to free list indices (flind).
  */
-static int vm_freelist_to_flind[VM_NFREELIST];
+static int __read_mostly vm_freelist_to_flind[VM_NFREELIST];
 
 CTASSERT(VM_FREELIST_DEFAULT == 0);
 
