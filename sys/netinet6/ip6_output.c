@@ -135,7 +135,7 @@ static int ip6_pcbopt(int, u_char *, int, struct ip6_pktopts **,
 			   struct ucred *, int);
 static int ip6_pcbopts(struct ip6_pktopts **, struct mbuf *,
 	struct socket *, struct sockopt *);
-static int ip6_getpcbopt(struct ip6_pktopts *, int, struct sockopt *);
+static int ip6_getpcbopt(struct inpcb *, int, struct sockopt *);
 static int ip6_setpktopt(int, u_char *, int, struct ip6_pktopts *,
 	struct ucred *, int, int, int);
 
@@ -2132,8 +2132,7 @@ do {									\
 			case IPV6_DONTFRAG:
 			case IPV6_USE_MIN_MTU:
 			case IPV6_PREFER_TEMPADDR:
-				error = ip6_getpcbopt(in6p->in6p_outputopts,
-				    optname, sopt);
+				error = ip6_getpcbopt(in6p, optname, sopt);
 				break;
 
 			case IPV6_MULTICAST_IF:
@@ -2310,17 +2309,50 @@ ip6_pcbopt(int optname, u_char *buf, int len, struct ip6_pktopts **pktopt,
 	return (ip6_setpktopt(optname, buf, len, opt, cred, 1, 0, uproto));
 }
 
+#define GET_PKTOPT_VAR(field, lenexpr) do {					\
+	if (pktopt && pktopt->field) {						\
+		INP_RUNLOCK(in6p);						\
+		optdata = malloc(sopt->sopt_valsize, M_TEMP, M_WAITOK);		\
+		malloc_optdata = true;						\
+		INP_RLOCK(in6p);						\
+		if (in6p->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {		\
+			INP_RUNLOCK(in6p);					\
+			free(optdata, M_TEMP);					\
+			return (ECONNRESET);					\
+		}								\
+		pktopt = in6p->in6p_outputopts;					\
+		if (pktopt && pktopt->field) {					\
+			optdatalen = min(lenexpr, sopt->sopt_valsize);		\
+			bcopy(&pktopt->field, optdata, optdatalen);		\
+		} else {							\
+			free(optdata, M_TEMP);					\
+			optdata = NULL;						\
+			malloc_optdata = false;					\
+		}								\
+	}									\
+} while(0)
+
+#define GET_PKTOPT_EXT_HDR(field) GET_PKTOPT_VAR(field,				\
+	(((struct ip6_ext *)pktopt->field)->ip6e_len + 1) << 3)
+
+#define GET_PKTOPT_SOCKADDR(field) GET_PKTOPT_VAR(field,			\
+	pktopt->field->sa_len)
+
 static int
-ip6_getpcbopt(struct ip6_pktopts *pktopt, int optname, struct sockopt *sopt)
+ip6_getpcbopt(struct inpcb *in6p, int optname, struct sockopt *sopt)
 {
 	void *optdata = NULL;
+	bool malloc_optdata = false;
 	int optdatalen = 0;
-	struct ip6_ext *ip6e;
 	int error = 0;
 	struct in6_pktinfo null_pktinfo;
 	int deftclass = 0, on;
 	int defminmtu = IP6PO_MINMTU_MCASTONLY;
 	int defpreftemp = IP6PO_TEMPADDR_SYSTEM;
+	struct ip6_pktopts *pktopt;
+
+	INP_RLOCK(in6p);
+	pktopt = in6p->in6p_outputopts;
 
 	switch (optname) {
 	case IPV6_PKTINFO:
@@ -2337,50 +2369,29 @@ ip6_getpcbopt(struct ip6_pktopts *pktopt, int optname, struct sockopt *sopt)
 		break;
 	case IPV6_TCLASS:
 		if (pktopt && pktopt->ip6po_tclass >= 0)
-			optdata = (void *)&pktopt->ip6po_tclass;
-		else
-			optdata = (void *)&deftclass;
+			deftclass = pktopt->ip6po_tclass;
+		optdata = (void *)&deftclass;
 		optdatalen = sizeof(int);
 		break;
 	case IPV6_HOPOPTS:
-		if (pktopt && pktopt->ip6po_hbh) {
-			optdata = (void *)pktopt->ip6po_hbh;
-			ip6e = (struct ip6_ext *)pktopt->ip6po_hbh;
-			optdatalen = (ip6e->ip6e_len + 1) << 3;
-		}
+		GET_PKTOPT_EXT_HDR(ip6po_hbh);
 		break;
 	case IPV6_RTHDR:
-		if (pktopt && pktopt->ip6po_rthdr) {
-			optdata = (void *)pktopt->ip6po_rthdr;
-			ip6e = (struct ip6_ext *)pktopt->ip6po_rthdr;
-			optdatalen = (ip6e->ip6e_len + 1) << 3;
-		}
+		GET_PKTOPT_EXT_HDR(ip6po_rthdr);
 		break;
 	case IPV6_RTHDRDSTOPTS:
-		if (pktopt && pktopt->ip6po_dest1) {
-			optdata = (void *)pktopt->ip6po_dest1;
-			ip6e = (struct ip6_ext *)pktopt->ip6po_dest1;
-			optdatalen = (ip6e->ip6e_len + 1) << 3;
-		}
+		GET_PKTOPT_EXT_HDR(ip6po_dest1);
 		break;
 	case IPV6_DSTOPTS:
-		if (pktopt && pktopt->ip6po_dest2) {
-			optdata = (void *)pktopt->ip6po_dest2;
-			ip6e = (struct ip6_ext *)pktopt->ip6po_dest2;
-			optdatalen = (ip6e->ip6e_len + 1) << 3;
-		}
+		GET_PKTOPT_EXT_HDR(ip6po_dest2);
 		break;
 	case IPV6_NEXTHOP:
-		if (pktopt && pktopt->ip6po_nexthop) {
-			optdata = (void *)pktopt->ip6po_nexthop;
-			optdatalen = pktopt->ip6po_nexthop->sa_len;
-		}
+		GET_PKTOPT_SOCKADDR(ip6po_nexthop);
 		break;
 	case IPV6_USE_MIN_MTU:
 		if (pktopt)
-			optdata = (void *)&pktopt->ip6po_minmtu;
-		else
-			optdata = (void *)&defminmtu;
+			defminmtu = pktopt->ip6po_minmtu;
+		optdata = (void *)&defminmtu;
 		optdatalen = sizeof(int);
 		break;
 	case IPV6_DONTFRAG:
@@ -2393,19 +2404,22 @@ ip6_getpcbopt(struct ip6_pktopts *pktopt, int optname, struct sockopt *sopt)
 		break;
 	case IPV6_PREFER_TEMPADDR:
 		if (pktopt)
-			optdata = (void *)&pktopt->ip6po_prefer_tempaddr;
-		else
-			optdata = (void *)&defpreftemp;
+			defpreftemp = pktopt->ip6po_prefer_tempaddr;
+		optdata = (void *)&defpreftemp;
 		optdatalen = sizeof(int);
 		break;
 	default:		/* should not happen */
 #ifdef DIAGNOSTIC
 		panic("ip6_getpcbopt: unexpected option\n");
 #endif
+		INP_RUNLOCK(in6p);
 		return (ENOPROTOOPT);
 	}
+	INP_RUNLOCK(in6p);
 
 	error = sooptcopyout(sopt, optdata, optdatalen);
+	if (malloc_optdata)
+		free(optdata, M_TEMP);
 
 	return (error);
 }
