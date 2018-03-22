@@ -425,6 +425,15 @@ pci_disable_msix(struct pci_dev *pdev)
 {
 
 	pci_release_msi(pdev->dev.bsddev);
+
+	/*
+	 * The MSIX IRQ numbers associated with this PCI device are no
+	 * longer valid and might be re-assigned. Make sure
+	 * linux_pci_find_irq_dev() does no longer see them by
+	 * resetting their references to zero:
+	 */
+	pdev->dev.msix = 0;
+	pdev->dev.msix_max = 0;
 }
 
 static inline bus_addr_t
