@@ -640,6 +640,14 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "db->db_mtx", &lock_class_sx },
 	{ NULL, NULL },
 	/*
+	 * TCP log locks
+	 */
+	{ "TCP ID tree", &lock_class_rw },
+	{ "tcp log id bucket", &lock_class_mtx_sleep },
+	{ "tcpinp", &lock_class_rw },
+	{ "TCP log expireq", &lock_class_mtx_sleep },
+	{ NULL, NULL },
+	/*
 	 * spin locks
 	 */
 #ifdef SMP

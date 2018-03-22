@@ -47,7 +47,7 @@ LSUBDIRS=	cam/ata cam/mmc cam/nvme cam/scsi \
 	dev/hwpmc dev/hyperv \
 	dev/ic dev/iicbus dev/io dev/lmc dev/mfi dev/mmc dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/smbus \
-	dev/speaker dev/vkbd dev/wi \
+	dev/speaker dev/tcp_log dev/vkbd dev/wi \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/nullfs \
 	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \

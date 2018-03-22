@@ -39,7 +39,7 @@
 .Bl -tag -width "netstat"
 .It Nm
 .Op Fl -libxo
-.Op Fl 46AaLnRSTWx
+.Op Fl 46AaLnPRSTWx
 .Op Fl f Ar protocol_family | Fl p Ar protocol
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -181,6 +181,8 @@ and the third count is the maximum number of queued connections.
 Do not resolve numeric addresses and port numbers to names.
 See
 .Sx GENERAL OPTIONS .
+.It Fl P
+Display the log ID for each socket.
 .It Fl R
 Display the flowid and flowtype for each socket.
 flowid is a 32 bit hardware specific identifier for each flow.
