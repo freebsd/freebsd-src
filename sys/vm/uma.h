@@ -47,7 +47,6 @@
 /* Types and type defs */
 
 struct uma_zone;
-struct vm_domain_iterator;
 /* Opaque type used as a handle to the zone */
 typedef struct uma_zone * uma_zone_t;
 

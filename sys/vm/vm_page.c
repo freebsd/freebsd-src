@@ -790,7 +790,7 @@ vm_page_startup(vm_offset_t vaddr)
 			vm_domain_freecnt_inc(vmd, pagecount);
 			vm_cnt.v_page_count += (u_int)pagecount;
 
-			vmd = VM_DOMAIN(seg->domain);;
+			vmd = VM_DOMAIN(seg->domain);
 			vmd->vmd_page_count += (u_int)pagecount;
 			vmd->vmd_segs |= 1UL << m->segind;
 			break;
@@ -808,7 +808,12 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_page_blacklist_check(list, NULL);
 
 	freeenv(list);
-
+#if VM_NRESERVLEVEL > 0
+	/*
+	 * Initialize the reservation management system.
+	 */
+	vm_reserv_init();
+#endif
 	/*
 	 * Set an initial domain policy for thread0 so that allocations
 	 * can work.
@@ -1865,9 +1870,7 @@ found:
 			m->oflags = VPO_UNMANAGED;
 			m->busy_lock = VPB_UNBUSIED;
 			/* Don't change PG_ZERO. */
-			vm_page_lock(m);
 			vm_page_free_toq(m);
-			vm_page_unlock(m);
 			if (req & VM_ALLOC_WAITFAIL) {
 				VM_OBJECT_WUNLOCK(object);
 				vm_radix_wait();
@@ -2070,9 +2073,7 @@ found:
 					m->oflags = VPO_UNMANAGED;
 					m->busy_lock = VPB_UNBUSIED;
 					/* Don't change PG_ZERO. */
-					vm_page_lock(m);
 					vm_page_free_toq(m);
-					vm_page_unlock(m);
 				}
 				if (req & VM_ALLOC_WAITFAIL) {
 					VM_OBJECT_WUNLOCK(object);
@@ -2458,6 +2459,7 @@ static int
 vm_page_reclaim_run(int req_class, int domain, u_long npages, vm_page_t m_run,
     vm_paddr_t high)
 {
+	struct vm_domain *vmd;
 	struct mtx *m_mtx;
 	struct spglist free;
 	vm_object_t object;
@@ -2587,12 +2589,7 @@ retry:
 					if (vm_page_free_prep(m, false))
 						SLIST_INSERT_HEAD(&free, m,
 						    plinks.s.ss);
-					m->oflags = VPO_UNMANAGED;
-#if VM_NRESERVLEVEL > 0
-					if (!vm_reserv_free_page(m))
-#endif
-						SLIST_INSERT_HEAD(&free, m,
-						    plinks.s.ss);
+
 					/*
 					 * The new page must be deactivated
 					 * before the object is unlocked.
@@ -2608,12 +2605,6 @@ retry:
 						    plinks.s.ss);
 					KASSERT(m->dirty == 0,
 					    ("page %p is dirty", m));
-					m->oflags = VPO_UNMANAGED;
-#if VM_NRESERVLEVEL > 0
-					if (!vm_reserv_free_page(m))
-#endif
-						SLIST_INSERT_HEAD(&free, m,
-						    plinks.s.ss);
 				}
 			} else
 				error = EBUSY;
@@ -2621,7 +2612,8 @@ unlock:
 			VM_OBJECT_WUNLOCK(object);
 		} else {
 			MPASS(vm_phys_domain(m) == domain);
-			/* XXX order unsynchronized? */
+			vmd = VM_DOMAIN(domain);
+			vm_domain_free_lock(vmd);
 			order = m->order;
 			if (order < VM_NFREEORDER) {
 				/*
@@ -2638,6 +2630,7 @@ unlock:
 			else if (vm_reserv_is_page_free(m))
 				order = 0;
 #endif
+			vm_domain_free_unlock(vmd);
 			if (order == VM_NFREEORDER)
 				error = EINVAL;
 		}
@@ -2645,7 +2638,6 @@ unlock:
 	if (m_mtx != NULL)
 		mtx_unlock(m_mtx);
 	if ((m = SLIST_FIRST(&free)) != NULL) {
-		struct vm_domain *vmd;
 		int cnt;
 
 		vmd = VM_DOMAIN(domain);
@@ -3297,10 +3289,6 @@ vm_page_free_prep(vm_page_t m, bool pagequeue_locked)
 	 */
 	if (pmap_page_get_memattr(m) != VM_MEMATTR_DEFAULT)
 		pmap_page_set_memattr(m, VM_MEMATTR_DEFAULT);
-#if VM_NRESERVLEVEL > 0
-	if (vm_reserv_free_page(m))
-		return (false);
-#endif
 
 #if VM_NRESERVLEVEL > 0
 	if (vm_reserv_free_page(m))
