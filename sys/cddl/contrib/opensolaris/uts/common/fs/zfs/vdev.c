@@ -2922,8 +2922,8 @@ vdev_get_stats(vdev_t *vd, vdev_stat_t *vs)
 	 * since that determines how much space the pool can expand.
 	 */
 	if (vd->vdev_aux == NULL && tvd != NULL && vd->vdev_max_asize != 0) {
-		vs->vs_esize = P2ALIGN(vd->vdev_max_asize - vd->vdev_asize,
-		    1ULL << tvd->vdev_ms_shift);
+		vs->vs_esize = P2ALIGN(vd->vdev_max_asize - vd->vdev_asize -
+		    spa->spa_bootsize, 1ULL << tvd->vdev_ms_shift);
 	}
 	vs->vs_configured_ashift = vd->vdev_top != NULL
 	    ? vd->vdev_top->vdev_ashift : vd->vdev_ashift;
