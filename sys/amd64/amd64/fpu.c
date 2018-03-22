@@ -366,7 +366,8 @@ fpuinitstate(void *arg __unused)
 	start_emulating();
 	intr_restore(saveintr);
 }
-SYSINIT(fpuinitstate, SI_SUB_DRIVERS, SI_ORDER_ANY, fpuinitstate, NULL);
+/* EFIRT needs this to be initialized before we can enter our EFI environment */
+SYSINIT(fpuinitstate, SI_SUB_DRIVERS, SI_ORDER_FIRST, fpuinitstate, NULL);
 
 /*
  * Free coprocessor (if we have it).
