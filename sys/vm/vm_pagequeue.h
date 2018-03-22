@@ -180,7 +180,7 @@ vm_pagequeue_cnt_add(struct vm_pagequeue *pq, int addend)
 
 void vm_domain_set(struct vm_domain *vmd);
 void vm_domain_clear(struct vm_domain *vmd);
-int vm_domain_available(struct vm_domain *vmd, int req, int npages);
+int vm_domain_allocate(struct vm_domain *vmd, int req, int npages);
 
 /*
  *      vm_pagequeue_domain:
@@ -265,23 +265,6 @@ vm_domain_freecnt_inc(struct vm_domain *vmd, int adj)
 	    new >= vmd->vmd_pageout_free_min)))
 		vm_domain_clear(vmd);
 }
-
-static inline void
-vm_domain_freecnt_dec(struct vm_domain *vmd, int adj)
-{
-	u_int old, new;
-
-	old = atomic_fetchadd_int(&vmd->vmd_free_count, -adj);
-	new = old - adj;
-	KASSERT(new >= 0, ("vm_domain_freecnt_dec: free count underflow"));
-	if (vm_paging_needed(vmd, new) && !vm_paging_needed(vmd, old))
-		pagedaemon_wakeup(vmd->vmd_domain);
-	/* Only update bitsets on transitions. */
-	if ((old >= vmd->vmd_free_min && new < vmd->vmd_free_min) ||
-	    (old >= vmd->vmd_free_severe && new < vmd->vmd_free_severe))
-		vm_domain_set(vmd);
-}
-
 
 #endif	/* _KERNEL */
 #endif				/* !_VM_PAGEQUEUE_ */
