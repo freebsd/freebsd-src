@@ -80,7 +80,7 @@ SRCS	+= string.h
 
 SRCS	+= blake2_cryptodev.c
 
-SRCS	+= opt_param.h cryptodev_if.h
+SRCS	+= opt_param.h cryptodev_if.h bus_if.h device_if.h
 
 WARNS	?= 6
 
