@@ -139,7 +139,7 @@ __FBSDID("$FreeBSD$");
 #define	WITNESS_COUNT 		1536
 #endif
 #define	WITNESS_HASH_SIZE	251	/* Prime, gives load factor < 2 */
-#define	WITNESS_PENDLIST	(2048 + (MAXCPU * 4))
+#define	WITNESS_PENDLIST	(512 + (MAXCPU * 4))
 
 /* Allocate 256 KB of stack data space */
 #define	WITNESS_LO_DATA_COUNT	2048
@@ -752,27 +752,45 @@ fixup_filename(const char *file)
 }
 
 /*
+ * Calculate the size of early witness structures.
+ */
+int
+witness_startup_count(void)
+{
+	int sz;
+
+	sz = sizeof(struct witness) * witness_count;
+	sz += sizeof(*w_rmatrix) * (witness_count + 1);
+	sz += sizeof(*w_rmatrix[0]) * (witness_count + 1) *
+	    (witness_count + 1);
+
+	return (sz);
+}
+
+/*
  * The WITNESS-enabled diagnostic code.  Note that the witness code does
  * assume that the early boot is single-threaded at least until after this
  * routine is completed.
  */
-static void
-witness_initialize(void *dummy __unused)
+void
+witness_startup(void *mem)
 {
 	struct lock_object *lock;
 	struct witness_order_list_entry *order;
 	struct witness *w, *w1;
+	uintptr_t p;
 	int i;
 
-	w_data = malloc(sizeof (struct witness) * witness_count, M_WITNESS,
-	    M_WAITOK | M_ZERO);
+	p = (uintptr_t)mem;
+	w_data = (void *)p;
+	p += sizeof(struct witness) * witness_count;
 
-	w_rmatrix = malloc(sizeof(*w_rmatrix) * (witness_count + 1),
-	    M_WITNESS, M_WAITOK | M_ZERO);
+	w_rmatrix = (void *)p;
+	p += sizeof(*w_rmatrix) * (witness_count + 1);
 
 	for (i = 0; i < witness_count + 1; i++) {
-		w_rmatrix[i] = malloc(sizeof(*w_rmatrix[i]) *
-		    (witness_count + 1), M_WITNESS, M_WAITOK | M_ZERO);
+		w_rmatrix[i] = (void *)p;
+		p += sizeof(*w_rmatrix[i]) * (witness_count + 1);
 	}
 	badstack_sbuf_size = witness_count * 256;
 
@@ -840,8 +858,6 @@ witness_initialize(void *dummy __unused)
 
 	mtx_lock(&Giant);
 }
-SYSINIT(witness_init, SI_SUB_WITNESS, SI_ORDER_FIRST, witness_initialize,
-    NULL);
 
 void
 witness_init(struct lock_object *lock, const char *type)

@@ -539,6 +539,15 @@ vm_page_startup(vm_offset_t vaddr)
 	bzero((void *)mapped, end - new_end);
 	uma_startup((void *)mapped, boot_pages);
 
+#ifdef WITNESS
+	end = new_end;
+	new_end = end - round_page(witness_startup_count());
+	mapped = pmap_map(&vaddr, new_end, end,
+	    VM_PROT_READ | VM_PROT_WRITE);
+	bzero((void *)mapped, end - new_end);
+	witness_startup((void *)mapped);
+#endif
+
 #if defined(__aarch64__) || defined(__amd64__) || defined(__arm__) || \
     defined(__i386__) || defined(__mips__)
 	/*
