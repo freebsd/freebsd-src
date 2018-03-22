@@ -1119,6 +1119,7 @@ conf_parse(const char *f)
 				confset_free(&lc);
 				confset_free(&rc);
 				fclose(fp);
+				free(line);
 				return;
 			}
 		}

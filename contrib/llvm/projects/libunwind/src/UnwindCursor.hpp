@@ -508,6 +508,18 @@ private:
   }
 #endif
 
+#if defined(_LIBUNWIND_TARGET_MIPS_O32)
+  int stepWithCompactEncoding(Registers_mips_o32 &) {
+    return UNW_EINVAL;
+  }
+#endif
+
+#if defined(_LIBUNWIND_TARGET_MIPS_NEWABI)
+  int stepWithCompactEncoding(Registers_mips_newabi &) {
+    return UNW_EINVAL;
+  }
+#endif
+
   bool compactSaysUseDwarf(uint32_t *offset=NULL) const {
     R dummy;
     return compactSaysUseDwarf(dummy, offset);
@@ -551,6 +563,18 @@ private:
     return false;
   }
 #endif
+
+#if defined(_LIBUNWIND_TARGET_MIPS_O32)
+  bool compactSaysUseDwarf(Registers_mips_o32 &, uint32_t *) const {
+    return true;
+  }
+#endif
+
+#if defined(_LIBUNWIND_TARGET_MIPS_NEWABI)
+  bool compactSaysUseDwarf(Registers_mips_newabi &, uint32_t *) const {
+    return true;
+  }
+#endif
 #endif // _LIBUNWIND_SUPPORT_COMPACT_UNWIND
 
 #if _LIBUNWIND_SUPPORT_DWARF_UNWIND
@@ -591,6 +615,18 @@ private:
 
 #if defined (_LIBUNWIND_TARGET_RISCV)
   compact_unwind_encoding_t dwarfEncoding(Registers_riscv &) const {
+    return 0;
+  }
+#endif
+
+#if defined (_LIBUNWIND_TARGET_MIPS_O32)
+  compact_unwind_encoding_t dwarfEncoding(Registers_mips_o32 &) const {
+    return 0;
+  }
+#endif
+
+#if defined (_LIBUNWIND_TARGET_MIPS_NEWABI)
+  compact_unwind_encoding_t dwarfEncoding(Registers_mips_newabi &) const {
     return 0;
   }
 #endif

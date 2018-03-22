@@ -109,10 +109,11 @@ SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
 static int	linux_fixup(register_t **stack_base,
 		    struct image_params *iparams);
-static int	elf_linux_fixup(register_t **stack_base,
+static int	linux_fixup_elf(register_t **stack_base,
 		    struct image_params *iparams);
 static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
-static void	exec_linux_setregs(struct thread *td,
+static int	linux_exec_imgact_try(struct image_params *iparams);
+static void	linux_exec_setregs(struct thread *td,
 		    struct image_params *imgp, u_long stack);
 static register_t *linux_copyout_strings(struct image_params *imgp);
 static bool	linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
@@ -125,26 +126,6 @@ const char *linux_kplatform;
 static eventhandler_tag linux_exit_tag;
 static eventhandler_tag linux_exec_tag;
 static eventhandler_tag linux_thread_dtor_tag;
-
-/*
- * Linux syscalls return negative errno's, we do positive and map them
- * Reference:
- *   FreeBSD: src/sys/sys/errno.h
- *   Linux:   linux-2.6.17.8/include/asm-generic/errno-base.h
- *            linux-2.6.17.8/include/asm-generic/errno.h
- */
-static int bsd_to_linux_errno[ELAST + 1] = {
-	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
-	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
-	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
-	-30, -31, -32, -33, -34, -11,-115,-114, -88, -89,
-	-90, -91, -92, -93, -94, -95, -96, -97, -98, -99,
-	-100,-101,-102,-103,-104,-105,-106,-107,-108,-109,
-	-110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
-	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
-	  -6,  -6, -43, -42, -75,-125, -84, -61, -16, -74,
-	 -72, -67, -71
-};
 
 #define LINUX_T_UNKNOWN  255
 static int _bsd_to_linux_trapcode[] = {
@@ -196,7 +177,7 @@ LINUX_VDSO_SYM_INTPTR(linux_vsyscall);
  * MPSAFE
  */
 static int
-translate_traps(int signal, int trap_code)
+linux_translate_traps(int signal, int trap_code)
 {
 	if (signal != SIGBUS)
 		return (signal);
@@ -228,7 +209,7 @@ linux_fixup(register_t **stack_base, struct image_params *imgp)
 }
 
 static int
-elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
+linux_fixup_elf(register_t **stack_base, struct image_params *imgp)
 {
 	struct proc *p;
 	Elf32_Auxargs *args;
@@ -238,7 +219,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	int issetugid;
 
 	KASSERT(curthread->td_proc == imgp->proc,
-	    ("unsafe elf_linux_fixup(), should be curproc"));
+	    ("unsafe linux_fixup_elf(), should be curproc"));
 
 	p = imgp->proc;
 	issetugid = imgp->proc->p_flag & P_SUGID ? 1 : 0;
@@ -839,35 +820,34 @@ linux_fetch_syscall_args(struct thread *td)
  * be able to modify the interpreter path.  We only do this if a Linux
  * binary is doing the exec, so we do not create an EXEC module for it.
  */
-static int	exec_linux_imgact_try(struct image_params *iparams);
-
 static int
-exec_linux_imgact_try(struct image_params *imgp)
+linux_exec_imgact_try(struct image_params *imgp)
 {
-    const char *head = (const char *)imgp->image_header;
-    char *rpath;
-    int error = -1;
+	const char *head = (const char *)imgp->image_header;
+	char *rpath;
+	int error = -1;
 
-    /*
-     * The interpreter for shell scripts run from a Linux binary needs
-     * to be located in /compat/linux if possible in order to recursively
-     * maintain Linux path emulation.
-     */
-    if (((const short *)head)[0] == SHELLMAGIC) {
-	    /*
-	     * Run our normal shell image activator.  If it succeeds attempt
-	     * to use the alternate path for the interpreter.  If an alternate
-	     * path is found, use our stringspace to store it.
-	     */
-	    if ((error = exec_shell_imgact(imgp)) == 0) {
-		    linux_emul_convpath(FIRST_THREAD_IN_PROC(imgp->proc),
-			imgp->interpreter_name, UIO_SYSSPACE, &rpath, 0, AT_FDCWD);
-		    if (rpath != NULL)
-			    imgp->args->fname_buf =
-				imgp->interpreter_name = rpath;
-	    }
-    }
-    return (error);
+	/*
+	 * The interpreter for shell scripts run from a Linux binary needs
+	 * to be located in /compat/linux if possible in order to recursively
+	 * maintain Linux path emulation.
+	 */
+	if (((const short *)head)[0] == SHELLMAGIC) {
+		/*
+		 * Run our normal shell image activator.  If it succeeds then
+		 * attempt to use the alternate path for the interpreter.  If
+		 * an alternate path is found, use our stringspace to store it.
+		 */
+		if ((error = exec_shell_imgact(imgp)) == 0) {
+			linux_emul_convpath(FIRST_THREAD_IN_PROC(imgp->proc),
+			    imgp->interpreter_name, UIO_SYSSPACE, &rpath, 0,
+			    AT_FDCWD);
+			if (rpath != NULL)
+				imgp->args->fname_buf =
+				    imgp->interpreter_name = rpath;
+		}
+	}
+	return (error);
 }
 
 /*
@@ -876,7 +856,7 @@ exec_linux_imgact_try(struct image_params *imgp)
  * override the exec_setregs default(s) here.
  */
 static void
-exec_linux_setregs(struct thread *td, struct image_params *imgp, u_long stack)
+linux_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct pcb *pcb = td->td_pcb;
 
@@ -913,15 +893,15 @@ struct sysentvec linux_sysvec = {
 	.sv_table	= linux_sysent,
 	.sv_mask	= 0,
 	.sv_errsize	= ELAST + 1,
-	.sv_errtbl	= bsd_to_linux_errno,
-	.sv_transtrap	= translate_traps,
+	.sv_errtbl	= linux_errtbl,
+	.sv_transtrap	= linux_translate_traps,
 	.sv_fixup	= linux_fixup,
 	.sv_sendsig	= linux_sendsig,
 	.sv_sigcode	= &_binary_linux_locore_o_start,
 	.sv_szsigcode	= &linux_szsigcode,
 	.sv_name	= "Linux a.out",
 	.sv_coredump	= NULL,
-	.sv_imgact_try	= exec_linux_imgact_try,
+	.sv_imgact_try	= linux_exec_imgact_try,
 	.sv_minsigstksz	= LINUX_MINSIGSTKSZ,
 	.sv_pagesize	= PAGE_SIZE,
 	.sv_minuser	= VM_MIN_ADDRESS,
@@ -930,7 +910,7 @@ struct sysentvec linux_sysvec = {
 	.sv_psstrings	= PS_STRINGS,
 	.sv_stackprot	= VM_PROT_ALL,
 	.sv_copyout_strings = exec_copyout_strings,
-	.sv_setregs	= exec_linux_setregs,
+	.sv_setregs	= linux_exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
 	.sv_flags	= SV_ABI_LINUX | SV_AOUT | SV_IA32 | SV_ILP32,
@@ -950,15 +930,15 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_table	= linux_sysent,
 	.sv_mask	= 0,
 	.sv_errsize	= ELAST + 1,
-	.sv_errtbl	= bsd_to_linux_errno,
-	.sv_transtrap	= translate_traps,
-	.sv_fixup	= elf_linux_fixup,
+	.sv_errtbl	= linux_errtbl,
+	.sv_transtrap	= linux_translate_traps,
+	.sv_fixup	= linux_fixup_elf,
 	.sv_sendsig	= linux_sendsig,
 	.sv_sigcode	= &_binary_linux_locore_o_start,
 	.sv_szsigcode	= &linux_szsigcode,
 	.sv_name	= "Linux ELF",
 	.sv_coredump	= elf32_coredump,
-	.sv_imgact_try	= exec_linux_imgact_try,
+	.sv_imgact_try	= linux_exec_imgact_try,
 	.sv_minsigstksz	= LINUX_MINSIGSTKSZ,
 	.sv_pagesize	= PAGE_SIZE,
 	.sv_minuser	= VM_MIN_ADDRESS,
@@ -967,7 +947,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_psstrings	= LINUX_PS_STRINGS,
 	.sv_stackprot	= VM_PROT_ALL,
 	.sv_copyout_strings = linux_copyout_strings,
-	.sv_setregs	= exec_linux_setregs,
+	.sv_setregs	= linux_exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
 	.sv_flags	= SV_ABI_LINUX | SV_IA32 | SV_ILP32 | SV_SHP,

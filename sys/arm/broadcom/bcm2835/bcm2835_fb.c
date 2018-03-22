@@ -452,7 +452,7 @@ bcmfb_configure(int flags)
 	 * finally go with defaults if everything else has failed.
 	 */
 	chosen = OF_finddevice("/chosen");
-	if (chosen != 0 &&
+	if (chosen != -1 &&
 	    OF_getprop(chosen, "bootargs", &bootargs, sizeof(bootargs)) > 0) {
 		p = bootargs;
 		while ((v = strsep(&p, " ")) != NULL) {
@@ -472,7 +472,7 @@ bcmfb_configure(int flags)
 	}
 
 	root = OF_finddevice("/");
-	if ((root != 0) && 
+	if ((root != -1) && 
 	    (display = fdt_find_compatible(root, "broadcom,bcm2835-fb", 1))) {
 		if (sc->width == 0) {
 			if ((OF_getencprop(display, "broadcom,width",

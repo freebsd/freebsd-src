@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
+#include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/cc/cc.h>
@@ -644,6 +645,7 @@ tcp_timer_rexmt(void * xtp)
 	KASSERT((tp->t_timers->tt_flags & TT_STOPPED) == 0,
 		("%s: tp %p tcpcb can't be stopped here", __func__, tp));
 	tcp_free_sackholes(tp);
+	TCP_LOG_EVENT(tp, NULL, NULL, NULL, TCP_LOG_RTO, 0, 0, NULL, false);
 	if (tp->t_fb->tfb_tcp_rexmit_tmr) {
 		/* The stack has a timer action too. */
 		(*tp->t_fb->tfb_tcp_rexmit_tmr)(tp);

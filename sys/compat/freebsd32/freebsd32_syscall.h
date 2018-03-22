@@ -468,4 +468,5 @@
 #define	FREEBSD32_SYS_freebsd32_kevent	560
 #define	FREEBSD32_SYS_freebsd32_cpuset_getdomain	561
 #define	FREEBSD32_SYS_freebsd32_cpuset_setdomain	562
-#define	FREEBSD32_SYS_MAXSYSCALL	563
+#define	FREEBSD32_SYS_getrandom	563
+#define	FREEBSD32_SYS_MAXSYSCALL	564

@@ -1,8 +1,9 @@
 # $FreeBSD$
 
-.PATH:	${SRCTOP}/sys/dev/iser/
+SYSDIR?=${SRCTOP}/sys
+.include "${SYSDIR}/conf/kern.opts.mk"
 
-.include <bsd.own.mk>
+.PATH:	${SYSDIR}/dev/iser/
 
 KMOD=	iser
 
@@ -18,7 +19,7 @@ SRCS+=	bus_if.h
 SRCS+=	device_if.h
 SRCS+=	icl_conn_if.h
 
-CFLAGS+= -I${SRCTOP}/sys/
+CFLAGS+= -I${SYSDIR}/
 CFLAGS+= -I${SYSDIR}/ofed/include
 CFLAGS+= -I${SYSDIR}/ofed/include/uapi
 CFLAGS+= -I${SYSDIR}/compat/linuxkpi/common/include

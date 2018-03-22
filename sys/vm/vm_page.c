@@ -184,7 +184,6 @@ static uma_zone_t fakepg_zone;
 static void vm_page_alloc_check(vm_page_t m);
 static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
 static void vm_page_enqueue(uint8_t queue, vm_page_t m);
-static int vm_page_free_phys(struct vm_domain *vmd, vm_page_t m);
 static void vm_page_init(void *dummy);
 static int vm_page_insert_after(vm_page_t m, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mpred);
@@ -584,6 +583,15 @@ vm_page_startup(vm_offset_t vaddr)
 	    VM_PROT_READ | VM_PROT_WRITE);
 	bzero((void *)mapped, end - new_end);
 	uma_startup((void *)mapped, boot_pages);
+
+#ifdef WITNESS
+	end = new_end;
+	new_end = end - round_page(witness_startup_count());
+	mapped = pmap_map(&vaddr, new_end, end,
+	    VM_PROT_READ | VM_PROT_WRITE);
+	bzero((void *)mapped, end - new_end);
+	witness_startup((void *)mapped);
+#endif
 
 #if defined(__aarch64__) || defined(__amd64__) || defined(__arm__) || \
     defined(__i386__) || defined(__mips__)
@@ -1546,7 +1554,9 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(mnew->object == NULL,
-	    ("vm_page_replace: page already in object"));
+	    ("vm_page_replace: page %p already in object", mnew));
+	KASSERT(mnew->queue == PQ_NONE,
+	    ("vm_page_replace: new page %p is on a paging queue", mnew));
 
 	/*
 	 * This function mostly follows vm_page_insert() and
@@ -1558,7 +1568,7 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 	mnew->pindex = pindex;
 	mold = vm_radix_replace(&object->rtree, mnew);
 	KASSERT(mold->queue == PQ_NONE,
-	    ("vm_page_replace: mold is on a paging queue"));
+	    ("vm_page_replace: old page %p is on a paging queue", mold));
 
 	/* Keep the resident page list in sorted order. */
 	TAILQ_INSERT_AFTER(&object->memq, mold, mnew, listq);
@@ -1729,12 +1739,12 @@ vm_domain_allocate(struct vm_domain *vmd, int req, int npages)
 	 * Attempt to reserve the pages.  Fail if we're below the limit.
 	 */
 	limit += npages;
+	old = vmd->vmd_free_count;
 	do {
-		old = vmd->vmd_free_count;
 		if (old < limit)
 			return (0);
 		new = old - npages;
-	} while (atomic_cmpset_int(&vmd->vmd_free_count, old, new) == 0);
+	} while (atomic_fcmpset_int(&vmd->vmd_free_count, &old, new) == 0);
 
 	/* Wake the page daemon if we've crossed the threshold. */
 	if (vm_paging_needed(vmd, new) && !vm_paging_needed(vmd, old))
@@ -1784,12 +1794,6 @@ again:
 	}
 #endif
 	vmd = VM_DOMAIN(domain);
-	if (object != NULL && !vm_object_reserv(object) &&
-	    vmd->vmd_pgcache != NULL) {
-		m = uma_zalloc(vmd->vmd_pgcache, M_NOWAIT);
-		if (m != NULL)
-			goto found;
-	}
 	if (vm_domain_allocate(vmd, req, 1)) {
 		/*
 		 * If not, allocate it from the free page queues.
@@ -1798,14 +1802,15 @@ again:
 		m = vm_phys_alloc_pages(domain, object != NULL ?
 		    VM_FREEPOOL_DEFAULT : VM_FREEPOOL_DIRECT, 0);
 		vm_domain_free_unlock(vmd);
-		if (m == NULL)
+		if (m == NULL) {
 			vm_domain_freecnt_inc(vmd, 1);
+#if VM_NRESERVLEVEL > 0
+			if (vm_reserv_reclaim_inactive(domain))
+				goto again;
+#endif
+		}
 	}
 	if (m == NULL) {
-#if VM_NRESERVLEVEL > 0
-		if (vm_reserv_reclaim_inactive(domain))
-			goto again;
-#endif
 		/*
 		 * Not allocatable, give up.
 		 */
@@ -2001,15 +2006,16 @@ again:
 		m_ret = vm_phys_alloc_contig(domain, npages, low, high,
 		    alignment, boundary);
 		vm_domain_free_unlock(vmd);
-		if (m_ret == NULL)
+		if (m_ret == NULL) {
 			vm_domain_freecnt_inc(vmd, npages);
+#if VM_NRESERVLEVEL > 0
+			if (vm_reserv_reclaim_contig(domain, npages, low,
+			    high, alignment, boundary))
+				goto again;
+#endif
+		}
 	}
 	if (m_ret == NULL) {
-#if VM_NRESERVLEVEL > 0
-		if (vm_reserv_reclaim_contig(domain, npages, low, high, alignment,
-		    boundary))
-			goto again;
-#endif
 		if (vm_domain_alloc_fail(vmd, object, req))
 			goto again;
 		return (NULL);
@@ -2578,8 +2584,9 @@ retry:
 					vm_page_remque(m);
 					vm_page_replace_checked(m_new, object,
 					    m->pindex, m);
-					m->valid = 0;
-					vm_page_undirty(m);
+					if (vm_page_free_prep(m, false))
+						SLIST_INSERT_HEAD(&free, m,
+						    plinks.s.ss);
 					m->oflags = VPO_UNMANAGED;
 #if VM_NRESERVLEVEL > 0
 					if (!vm_reserv_free_page(m))
@@ -2596,6 +2603,9 @@ retry:
 					m->flags &= ~PG_ZERO;
 					vm_page_remque(m);
 					vm_page_remove(m);
+					if (vm_page_free_prep(m, false))
+						SLIST_INSERT_HEAD(&free, m,
+						    plinks.s.ss);
 					KASSERT(m->dirty == 0,
 					    ("page %p is dirty", m));
 					m->oflags = VPO_UNMANAGED;
@@ -2644,7 +2654,8 @@ unlock:
 		do {
 			MPASS(vm_phys_domain(m) == domain);
 			SLIST_REMOVE_HEAD(&free, plinks.s.ss);
-			cnt += vm_page_free_phys(vmd, m);
+			vm_phys_free_pages(m, 0);
+			cnt++;
 		} while ((m = SLIST_FIRST(&free)) != NULL);
 		vm_domain_free_unlock(vmd);
 		vm_domain_freecnt_inc(vmd, cnt);
@@ -3291,26 +3302,12 @@ vm_page_free_prep(vm_page_t m, bool pagequeue_locked)
 		return (false);
 #endif
 
-	return (true);
-}
-
-/*
- * Insert the page into the physical memory allocator's free page
- * queues.  This is the last step to free a page.  The caller is
- * responsible for adjusting the free page count.
- */
-static int
-vm_page_free_phys(struct vm_domain *vmd, vm_page_t m)
-{
-
-	vm_domain_free_assert_locked(vmd);
-
 #if VM_NRESERVLEVEL > 0
 	if (vm_reserv_free_page(m))
-		return (0);
+		return (false);
 #endif
-	vm_phys_free_pages(m, 0);
-	return (1);
+
+	return (true);
 }
 
 void
@@ -3334,7 +3331,8 @@ vm_page_free_phys_pglist(struct pglist *tq)
 			vmd = vm_pagequeue_domain(m);
 			vm_domain_free_lock(vmd);
 		}
-		cnt += vm_page_free_phys(vmd, m);
+		vm_phys_free_pages(m, 0);
+		cnt++;
 	}
 	if (vmd != NULL) {
 		vm_domain_free_unlock(vmd);
@@ -3355,16 +3353,14 @@ void
 vm_page_free_toq(vm_page_t m)
 {
 	struct vm_domain *vmd;
-	int freed;
 
 	if (!vm_page_free_prep(m, false))
 		return;
 	vmd = vm_pagequeue_domain(m);
 	vm_domain_free_lock(vmd);
-	freed = vm_page_free_phys(vmd, m);
+	vm_phys_free_pages(m, 0);
 	vm_domain_free_unlock(vmd);
-	if (freed)
-		vm_domain_freecnt_inc(vmd, 1);
+	vm_domain_freecnt_inc(vmd, 1);
 }
 
 /*
@@ -3507,7 +3503,8 @@ vm_page_unwire_noq(vm_page_t m)
 }
 
 /*
- * Move the specified page to the inactive queue.
+ * Move the specified page to the inactive queue, or requeue the page if it is
+ * already in the inactive queue.
  *
  * Normally, "noreuse" is FALSE, resulting in LRU ordering of the inactive
  * queue.  However, setting "noreuse" to TRUE will accelerate the specified
@@ -3526,15 +3523,10 @@ _vm_page_deactivate(vm_page_t m, boolean_t noreuse)
 
 	vm_page_assert_locked(m);
 
-	/*
-	 * Ignore if the page is already inactive, unless it is unlikely to be
-	 * reactivated.
-	 */
-	if ((queue = m->queue) == PQ_INACTIVE && !noreuse)
-		return;
 	if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
 		pq = &vm_pagequeue_domain(m)->vmd_pagequeues[PQ_INACTIVE];
 		/* Avoid multiple acquisitions of the inactive queue lock. */
+		queue = m->queue;
 		if (queue == PQ_INACTIVE) {
 			vm_pagequeue_lock(pq);
 			vm_page_dequeue_locked(m);
@@ -3564,7 +3556,8 @@ _vm_page_deactivate(vm_page_t m, boolean_t noreuse)
 }
 
 /*
- * Move the specified page to the inactive queue.
+ * Move the specified page to the inactive queue, or requeue the page if it is
+ * already in the inactive queue.
  *
  * The page must be locked.
  */
@@ -3591,19 +3584,20 @@ vm_page_deactivate_noreuse(vm_page_t m)
 /*
  * vm_page_launder
  *
- * 	Put a page in the laundry.
+ * 	Put a page in the laundry, or requeue it if it is already there.
  */
 void
 vm_page_launder(vm_page_t m)
 {
-	int queue;
 
 	vm_page_assert_locked(m);
-	if ((queue = m->queue) != PQ_LAUNDRY && m->wire_count == 0 &&
-	    (m->oflags & VPO_UNMANAGED) == 0) {
-		if (queue != PQ_NONE)
-			vm_page_dequeue(m);
-		vm_page_enqueue(PQ_LAUNDRY, m);
+	if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
+		if (m->queue == PQ_LAUNDRY)
+			vm_page_requeue(m);
+		else {
+			vm_page_remque(m);
+			vm_page_enqueue(PQ_LAUNDRY, m);
+		}
 	}
 }
 
@@ -3693,7 +3687,7 @@ vm_page_advise(vm_page_t m, int advice)
 	 */
 	if (m->dirty == 0)
 		vm_page_deactivate_noreuse(m);
-	else
+	else if (!vm_page_in_laundry(m))
 		vm_page_launder(m);
 }
 

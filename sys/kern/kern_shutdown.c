@@ -268,13 +268,10 @@ sys_reboot(struct thread *td, struct reboot_args *uap)
 	if (error == 0)
 		error = priv_check(td, PRIV_REBOOT);
 	if (error == 0) {
-		if (uap->opt & RB_REROOT) {
+		if (uap->opt & RB_REROOT)
 			error = kern_reroot();
-		} else {
-			mtx_lock(&Giant);
+		else
 			kern_reboot(uap->opt);
-			mtx_unlock(&Giant);
-		}
 	}
 	return (error);
 }
@@ -368,6 +365,17 @@ void
 kern_reboot(int howto)
 {
 	static int once = 0;
+
+	/*
+	 * Normal paths here don't hold Giant, but we can wind up here
+	 * unexpectedly with it held.  Drop it now so we don't have to
+	 * drop and pick it up elsewhere. The paths it is locking will
+	 * never be returned to, and it is preferable to preclude
+	 * deadlock than to lock against code that won't ever
+	 * continue.
+	 */
+	while (mtx_owned(&Giant))
+		mtx_unlock(&Giant);
 
 #if defined(SMP)
 	/*

@@ -77,4 +77,6 @@ struct linux_pemuldata {
 
 struct linux_pemuldata	*pem_find(struct proc *);
 
+extern const int linux_errtbl[];
+
 #endif	/* !_LINUX_EMUL_H_ */

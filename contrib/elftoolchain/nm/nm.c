@@ -1310,14 +1310,17 @@ read_elf(Elf *elf, const char *filename, Elf_Kind kind)
 	line_info = malloc(sizeof(struct line_info_head));
 	func_info = malloc(sizeof(struct func_info_head));
 	var_info = malloc(sizeof(struct var_info_head));
+	if (line_info != NULL)
+		SLIST_INIT(line_info);
+	if (func_info != NULL)
+		SLIST_INIT(func_info);
+	if (var_info != NULL)
+		SLIST_INIT(var_info);
 	if (line_info == NULL || func_info == NULL || var_info == NULL) {
 		warn("malloc");
 		(void) dwarf_finish(dbg, &de);
 		goto process_sym;
 	}
-	SLIST_INIT(line_info);
-	SLIST_INIT(func_info);
-	SLIST_INIT(var_info);
 
 	while ((ret = dwarf_next_cu_header(dbg, NULL, NULL, NULL, NULL, NULL,
 	    &de)) ==  DW_DLV_OK) {

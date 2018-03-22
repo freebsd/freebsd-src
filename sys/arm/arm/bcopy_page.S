@@ -42,7 +42,7 @@
 
 __FBSDID("$FreeBSD$");
 
-#include "assym.s"
+#include "assym.inc"
 
 #ifndef _ARM_ARCH_5E
 

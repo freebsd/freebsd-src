@@ -72,7 +72,6 @@
 #endif
 
 #include <vm/vm.h>
-#include <vm/vm_extern.h>
 
 #define	MAX_STRAY_LOG	5
 

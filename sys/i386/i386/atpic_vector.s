@@ -38,7 +38,7 @@
 
 #include <machine/asmacros.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 /*
  * Macros for interrupt entry, call to handler, and exit.

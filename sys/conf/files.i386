@@ -88,6 +88,7 @@ compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
 compat/linux/linux_event.c	optional compat_linux
 compat/linux/linux_emul.c	optional compat_linux
+compat/linux/linux_errno.c	optional compat_linux
 compat/linux/linux_file.c	optional compat_linux
 compat/linux/linux_fork.c	optional compat_linux
 compat/linux/linux_futex.c	optional compat_linux
@@ -442,7 +443,7 @@ dev/isci/scil/scif_sas_task_request_states.c			optional isci
 dev/isci/scil/scif_sas_timer.c					optional isci
 i386/acpica/acpi_machdep.c	optional acpi
 acpi_wakecode.o			optional acpi				\
-	dependency	"$S/i386/acpica/acpi_wakecode.S assym.s"	\
+	dependency	"$S/i386/acpica/acpi_wakecode.S assym.inc"	\
 	compile-with	"${NORMAL_S}"					\
 	no-obj no-implicit-rule before-depend				\
 	clean		"acpi_wakecode.o"

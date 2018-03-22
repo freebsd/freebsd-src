@@ -168,6 +168,12 @@ struct tcphdr {
 #define TCP_NOOPT	8	/* don't use TCP options */
 #define TCP_MD5SIG	16	/* use MD5 digests (RFC2385) */
 #define	TCP_INFO	32	/* retrieve tcp_info structure */
+#define	TCP_LOG		34	/* configure event logging for connection */
+#define	TCP_LOGBUF	35	/* retrieve event log for connection */
+#define	TCP_LOGID	36	/* configure log ID to correlate connections */
+#define	TCP_LOGDUMP	37	/* dump connection log events to device */
+#define	TCP_LOGDUMPID	38	/* dump events from connections with same ID to
+				   device */
 #define	TCP_CONGESTION	64	/* get/set congestion control algorithm */
 #define	TCP_CCALGOOPT	65	/* get/set cc algorithm specific options */
 #define	TCP_KEEPINIT	128	/* N, time to establish connection */
@@ -188,6 +194,9 @@ struct tcphdr {
 #define	TCPI_OPT_WSCALE		0x04
 #define	TCPI_OPT_ECN		0x08
 #define	TCPI_OPT_TOE		0x10
+
+/* Maximum length of log ID. */
+#define TCP_LOG_ID_LEN	64
 
 /*
  * The TCP_INFO socket option comes from the Linux 2.6 TCP API, and permits

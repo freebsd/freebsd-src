@@ -391,7 +391,7 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	EFI_STATUS status;
 	EFI_CONSOLE_CONTROL_PROTOCOL *ConsoleControl = NULL;
 	SIMPLE_TEXT_OUTPUT_INTERFACE *conout = NULL;
-	UINTN i, max_dim, best_mode, cols, rows, hsize, nhandles;
+	UINTN i, hsize, nhandles;
 	CHAR16 *text;
 	UINT16 boot_current;
 	size_t sz;
@@ -410,22 +410,11 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 		(void)ConsoleControl->SetMode(ConsoleControl,
 		    EfiConsoleControlScreenText);
 	/*
-	 * Reset the console and find the best text mode.
+	 * Reset the console enable the cursor. Later we'll choose a better
+	 * console size through GOP/UGA.
 	 */
 	conout = ST->ConOut;
 	conout->Reset(conout, TRUE);
-	max_dim = best_mode = 0;
-	for (i = 0; i < conout->Mode->MaxMode; i++) {
-		status = conout->QueryMode(conout, i, &cols, &rows);
-		if (EFI_ERROR(status))
-			continue;
-		if (cols * rows > max_dim) {
-			max_dim = cols * rows;
-			best_mode = i;
-		}
-	}
-	if (max_dim > 0)
-		conout->SetMode(conout, best_mode);
 	conout->EnableCursor(conout, TRUE);
 	conout->ClearScreen(conout);
 
@@ -467,16 +456,18 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 
 	boot_current = 0;
 	sz = sizeof(boot_current);
-	efi_global_getenv("BootCurrent", &boot_current, &sz);
-	printf("   BootCurrent: %04x\n", boot_current);
+	if (efi_global_getenv("BootCurrent", &boot_current, &sz) == EFI_SUCCESS) {
+		printf("   BootCurrent: %04x\n", boot_current);
 
-	sz = sizeof(boot_order);
-	efi_global_getenv("BootOrder", &boot_order, &sz);
-	printf("   BootOrder:");
-	for (i = 0; i < sz / sizeof(boot_order[0]); i++)
-		printf(" %04x%s", boot_order[i],
-		    boot_order[i] == boot_current ? "[*]" : "");
-	printf("\n");
+		sz = sizeof(boot_order);
+		if (efi_global_getenv("BootOrder", &boot_order, &sz) == EFI_SUCCESS) {
+			printf("   BootOrder:");
+			for (i = 0; i < sz / sizeof(boot_order[0]); i++)
+				printf(" %04x%s", boot_order[i],
+				    boot_order[i] == boot_current ? "[*]" : "");
+			printf("\n");
+		}
+	}
 
 #ifdef TEST_FAILURE
 	/*

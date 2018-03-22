@@ -115,7 +115,8 @@ r12a_ratectl_tx_complete(struct rtwn_softc *sc, uint8_t *buf, int len)
 		txs.long_retries = ntries;
 		if (rpt->final_rate > RTWN_RIDX_OFDM54) {	/* MCS */
 			txs.final_rate =
-			    (rpt->final_rate - 12) | IEEE80211_RATE_MCS;
+			    rpt->final_rate - RTWN_RIDX_HT_MCS_SHIFT;
+			txs.final_rate |= IEEE80211_RATE_MCS;
 		} else
 			txs.final_rate = ridx2rate[rpt->final_rate];
 		if (rpt->txrptb0 & R12A_TXRPTB0_RETRY_OVER)
@@ -310,7 +311,8 @@ r12a_get_rx_stats(struct rtwn_softc *sc, struct ieee80211_rx_stats *rxs,
 			rxs->c_pktflags |= IEEE80211_RX_F_OFDM;
 	} else {	/* MCS0~15. */
 		/* TODO: VHT rates */
-		rxs->c_rate = IEEE80211_RATE_MCS | (rate - 12);
+		rxs->c_rate =
+		    IEEE80211_RATE_MCS | (rate - RTWN_RIDX_HT_MCS_SHIFT);
 		rxs->c_pktflags |= IEEE80211_RX_F_HT;
 	}
 

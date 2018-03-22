@@ -313,7 +313,7 @@ function drawer.drawmenu(menudef)
 			entry_num = entry_num + 1
 			screen.setcursor(x, y + effective_line_num)
 
-			print(entry_num .. ". " .. menuEntryName(menudef, e))
+			printc(entry_num .. ". " .. menuEntryName(menudef, e))
 
 			-- fill the alias table
 			alias_table[tostring(entry_num)] = e
@@ -324,7 +324,7 @@ function drawer.drawmenu(menudef)
 			end
 		else
 			screen.setcursor(x, y + effective_line_num)
-			print(menuEntryName(menudef, e))
+			printc(menuEntryName(menudef, e))
 		end
 		::continue::
 	end

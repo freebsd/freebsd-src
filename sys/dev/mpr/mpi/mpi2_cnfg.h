@@ -42,7 +42,7 @@
  *          Title:  MPI Configuration messages and pages
  *  Creation Date:  November 10, 2006
  *
- *    mpi2_cnfg.h Version:  02.00.39
+ *    mpi2_cnfg.h Version:  02.00.40
  *
  *  NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *        prefix are for use only on MPI v2.5 products, and must not be used
@@ -255,6 +255,10 @@
  *  09-01-16  02.00.39  Added MPI26_CONFIG_PAGE_ENCLOSURE_0 and related defines.
  *                      Added MPI26_ENCLOS_PGAD_FORM_GET_NEXT_HANDLE and
  *                      MPI26_ENCLOS_PGAD_FORM_HANDLE page address formats.
+ *  02-02-17  02.00.40  Added MPI2_MANPAGE7_SLOT_UNKNOWN.
+ *                      Added ChassisSlot field to SAS Enclosure Page 0.
+ *                      Added ChassisSlot Valid bit (bit 5) to the Flags field
+ *                      in SAS Enclosure Page 0.
  *  --------------------------------------------------------------------------
  */
 
@@ -852,6 +856,9 @@ typedef struct _MPI2_MANPAGE7_CONNECTOR_INFO
 #define MPI2_MANPAGE7_LOCATION_AUTO                     (0x10)
 #define MPI2_MANPAGE7_LOCATION_NOT_PRESENT              (0x20)
 #define MPI2_MANPAGE7_LOCATION_NOT_CONNECTED            (0x80)
+
+/* defines for the Slot field */
+#define MPI2_MANPAGE7_SLOT_UNKNOWN                      (0xFFFF)
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
@@ -3092,11 +3099,11 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0
     U16                                 EnclosureHandle;            /* 0x16 */
     U16                                 NumSlots;                   /* 0x18 */
     U16                                 StartSlot;                  /* 0x1A */
-    U8                                  Reserved2;                  /* 0x1C */
+    U8                                  ChassisSlot;                /* 0x1C */
     U8                                  EnclosureLevel;             /* 0x1D */
     U16                                 SEPDevHandle;               /* 0x1E */
-    U32                                 Reserved3;                  /* 0x20 */
-    U32                                 Reserved4;                  /* 0x24 */
+    U32                                 Reserved2;                  /* 0x20 */
+    U32                                 Reserved3;                  /* 0x24 */
 } MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0,
   MPI2_POINTER PTR_MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0,
   Mpi2SasEnclosurePage0_t, MPI2_POINTER pMpi2SasEnclosurePage0_t,
@@ -3107,6 +3114,7 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0
 #define MPI2_SASENCLOSURE0_PAGEVERSION      (0x04)
 
 /* values for SAS Enclosure Page 0 Flags field */
+#define MPI2_SAS_ENCLS0_FLAGS_CHASSIS_SLOT_VALID    (0x0020)
 #define MPI2_SAS_ENCLS0_FLAGS_ENCL_LEVEL_VALID      (0x0010)
 #define MPI2_SAS_ENCLS0_FLAGS_MNG_MASK              (0x000F)
 #define MPI2_SAS_ENCLS0_FLAGS_MNG_UNKNOWN           (0x0000)
@@ -3119,6 +3127,7 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0
 #define MPI26_ENCLOSURE0_PAGEVERSION        (0x04)
 
 /* Values for Enclosure Page 0 Flags field */
+#define MPI26_ENCLS0_FLAGS_CHASSIS_SLOT_VALID       (0x0020)
 #define MPI26_ENCLS0_FLAGS_ENCL_LEVEL_VALID         (0x0010)
 #define MPI26_ENCLS0_FLAGS_MNG_MASK                 (0x000F)
 #define MPI26_ENCLS0_FLAGS_MNG_UNKNOWN              (0x0000)

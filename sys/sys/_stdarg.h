@@ -52,18 +52,5 @@
   #define	va_end(ap)		__builtin_va_end(ap)
 #endif
 
-#if defined(lint) && !defined(va_start)
-  /*
-   * Provide a fake implementation for lint's benefit
-   * This very much assumes that __va_list ends up being a pointer
-   */
-  #define va_start(ap, last) ((void)((ap) = (char *) (&(last)+1)))
-  #if __ISO_C_VISIBLE >= 1999
-    #define va_copy(dst, src) ((dst) = (src))
-  #endif
-  #define va_arg(ap, type) (*((type*)(((ap) += sizeof(type)) - sizeof(type))))
-  #define va_end(ap) ((void)0)
-#endif
-
 #endif /* ! _SYS__STDARG_H_ */
 

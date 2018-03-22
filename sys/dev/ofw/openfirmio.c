@@ -247,7 +247,7 @@ openfirm_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 		if (error)
 			break;
 		node = OF_finddevice(name);
-		if (node == 0 || node == -1) {
+		if (node == -1) {
 			error = ENOENT;
 			break;
 		}

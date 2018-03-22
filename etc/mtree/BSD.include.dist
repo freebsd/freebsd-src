@@ -158,6 +158,8 @@
         ..
         speaker
         ..
+        tcp_log
+        ..
         usb
         ..
         vkbd
@@ -256,6 +258,8 @@
     krb5
     ..
     lib80211
+    ..
+    libipt
     ..
     libmilter
     ..

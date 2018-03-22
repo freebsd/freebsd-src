@@ -152,6 +152,9 @@ CFLAGS+=	-mlittle-endian
 # Make sure we use the machine link we're about to create
 CFLAGS+=-I.
 
+all: ${PROG}
+
+.if !defined(NO_OBJ)
 _ILINKS=machine
 .if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
 _ILINKS+=${MACHINE_CPUARCH}
@@ -161,9 +164,6 @@ _ILINKS+=x86
 .endif
 CLEANFILES+=${_ILINKS}
 
-all: ${PROG}
-
-.if !defined(NO_OBJ)
 beforedepend: ${_ILINKS}
 beforebuild: ${_ILINKS}
 
@@ -172,7 +172,7 @@ beforebuild: ${_ILINKS}
 .for _link in ${_ILINKS}
 .if !exists(${.OBJDIR}/${_link})
 ${OBJS}:       ${_link}
-.endif
+.endif # _link exists
 .endfor
 
 .NOPATH: ${_ILINKS}
@@ -191,5 +191,5 @@ ${_ILINKS}:
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET:T} "->" $$path ; \
 	ln -fhs $$path ${.TARGET:T}
-.endif
+.endif # !NO_OBJ
 .endif # __BOOT_DEFS_MK__

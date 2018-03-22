@@ -19,9 +19,9 @@ SRCS=	linux_fork.c linux${SFX}_dummy.c linux_file.c linux_event.c \
 	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h vnode_if.h \
 	device_if.h bus_if.h \
 	linux${SFX}_support.s
-DPSRCS=	assym.s linux${SFX}_genassym.c
+DPSRCS=	assym.inc linux${SFX}_genassym.c
 
-# XXX: for assym.s
+# XXX: for assym.inc
 SRCS+=  opt_kstack_pages.h opt_nfs.h opt_compat.h opt_hwpmc_hooks.h
 .if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	opt_apic.h
@@ -31,7 +31,7 @@ OBJS=	${VDSO}.so
 
 .if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	linux_ptrace.c imgact_linux.c linux_util.c linux_mib.c linux_mmap.c \
-	linux_emul.c opt_cpu.h linux.c
+	linux_emul.c linux_errno.c opt_cpu.h linux.c
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"
@@ -48,7 +48,7 @@ CLEANFILES=	linux${SFX}_assym.h linux${SFX}_genassym.o linux${SFX}_locore.o
 linux${SFX}_assym.h: linux${SFX}_genassym.o
 	sh ${SYSDIR}/kern/genassym.sh linux${SFX}_genassym.o > ${.TARGET}
 
-linux${SFX}_locore.o: linux${SFX}_assym.h assym.s
+linux${SFX}_locore.o: linux${SFX}_assym.h assym.inc
 	${CC} -x assembler-with-cpp -DLOCORE -m32 -shared -s			\
 	-pipe -I. -I${SYSDIR} -Werror -Wall -fno-common -nostdinc -nostdlib	\
 	-fno-omit-frame-pointer -fPIC						\
@@ -56,7 +56,7 @@ linux${SFX}_locore.o: linux${SFX}_assym.h assym.s
 	-Wl,-soname=${VDSO}.so.1,--eh-frame-hdr,-warn-common		\
 	    ${.IMPSRC} -o ${.TARGET}
 
-linux${SFX}_support.o: linux${SFX}_assym.h assym.s
+linux${SFX}_support.o: linux${SFX}_assym.h assym.inc
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 	    ${.IMPSRC} -o ${.TARGET}
 

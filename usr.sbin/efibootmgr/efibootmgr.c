@@ -285,8 +285,10 @@ print_order(void)
 	uint8_t *data;
 	size_t size, i;
 
-	if (efi_get_variable(EFI_GLOBAL_GUID, "BootOrder", &data, &size, &attrs) < 0)
-		errx(1, "Couldn't get value for BootOrder\n");
+	if (efi_get_variable(EFI_GLOBAL_GUID, "BootOrder", &data, &size, &attrs) < 0) {
+		printf("BootOrder : Couldn't get value for BootOrder\n");
+		return;
+	}
 
 	if (size % 2 == 1)
 		errx(1, "Bad BootOrder variable: odd length");

@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/utrap.h>
 #include <machine/wstate.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 #define	TSB_ASI			0x0
 #define	TSB_KERNEL		0x0

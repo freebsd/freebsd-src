@@ -565,6 +565,23 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 	int extra_work = 0;
 
 	tid = (uintptr_t)curthread;
+
+#ifdef KDTRACE_HOOKS
+	if (LOCKSTAT_PROFILE_ENABLED(sx__acquire)) {
+		while (x == SX_LOCK_UNLOCKED) {
+			if (atomic_fcmpset_acq_ptr(&sx->sx_lock, &x, tid))
+				goto out_lockstat;
+		}
+		extra_work = 1;
+		all_time -= lockstat_nsecs(&sx->lock_object);
+		state = x;
+	}
+#endif
+#ifdef LOCK_PROFILING
+	extra_work = 1;
+	state = x;
+#endif
+
 	if (SCHEDULER_STOPPED())
 		return (0);
 
@@ -603,16 +620,6 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 	lock_profile_obtain_lock_failed(&sx->lock_object, &contested,
 	    &waittime);
 
-#ifdef LOCK_PROFILING
-	extra_work = 1;
-	state = x;
-#elif defined(KDTRACE_HOOKS)
-	extra_work = lockstat_enabled;
-	if (__predict_false(extra_work)) {
-		all_time -= lockstat_nsecs(&sx->lock_object);
-		state = x;
-	}
-#endif
 #ifndef INVARIANTS
 	GIANT_SAVE(extra_work);
 #endif
@@ -800,6 +807,7 @@ retry_sleepq:
 		LOCKSTAT_RECORD4(sx__spin, sx, all_time - sleep_time,
 		    LOCKSTAT_WRITER, (state & SX_LOCK_SHARED) == 0,
 		    (state & SX_LOCK_SHARED) == 0 ? 0 : SX_SHARERS(state));
+out_lockstat:
 #endif
 	if (!error)
 		LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(sx__acquire, sx,
@@ -932,6 +940,20 @@ _sx_slock_hard(struct sx *sx, int opts, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 #endif
 	int extra_work = 0;
 
+#ifdef KDTRACE_HOOKS
+	if (LOCKSTAT_PROFILE_ENABLED(sx__acquire)) {
+		if (__sx_slock_try(sx, &x LOCK_FILE_LINE_ARG))
+			goto out_lockstat;
+		extra_work = 1;
+		all_time -= lockstat_nsecs(&sx->lock_object);
+		state = x;
+	}
+#endif
+#ifdef LOCK_PROFILING
+	extra_work = 1;
+	state = x;
+#endif
+
 	if (SCHEDULER_STOPPED())
 		return (0);
 
@@ -951,16 +973,6 @@ _sx_slock_hard(struct sx *sx, int opts, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 	lock_profile_obtain_lock_failed(&sx->lock_object, &contested,
 	    &waittime);
 
-#ifdef LOCK_PROFILING
-	extra_work = 1;
-	state = x;
-#elif defined(KDTRACE_HOOKS)
-	extra_work = lockstat_enabled;
-	if (__predict_false(extra_work)) {
-		all_time -= lockstat_nsecs(&sx->lock_object);
-		state = x;
-	}
-#endif
 #ifndef INVARIANTS
 	GIANT_SAVE(extra_work);
 #endif
@@ -1102,6 +1114,7 @@ retry_sleepq:
 		LOCKSTAT_RECORD4(sx__spin, sx, all_time - sleep_time,
 		    LOCKSTAT_READER, (state & SX_LOCK_SHARED) == 0,
 		    (state & SX_LOCK_SHARED) == 0 ? 0 : SX_SHARERS(state));
+out_lockstat:
 #endif
 	if (error == 0) {
 		LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(sx__acquire, sx,

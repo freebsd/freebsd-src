@@ -33,7 +33,7 @@
  *
  */
 
-#include "assym.s"
+#include "assym.inc"
 #include <sys/syscall.h>
 #include <machine/asm.h>
 #include <machine/armreg.h>

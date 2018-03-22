@@ -30,6 +30,7 @@
 --
 
 local config = require("config")
+local hook = require("hook")
 
 local core = {}
 
@@ -138,7 +139,7 @@ function core.setSafeMode(safe_mode)
 	core.sm = safe_mode
 end
 
-function core.configReloaded()
+function core.clearCachedKernels()
 	-- Clear the kernel cache on config changes, autodetect might have
 	-- changed or if we've switched boot environments then we could have
 	-- a new kernel set.
@@ -273,6 +274,12 @@ function core.isSingleUserBoot()
 	return single_user ~= nil and single_user:lower() == "yes"
 end
 
+function core.isUEFIBoot()
+	local efiver = loader.getenv("efi-version")
+
+	return efiver ~= nil
+end
+
 function core.isZFSBoot()
 	local c = loader.getenv("currdev")
 
@@ -364,4 +371,6 @@ end
 if core.isSystem386() and core.getACPIPresent(false) then
 	core.setACPI(true)
 end
+
+hook.register("config.reloaded", core.clearCachedKernels)
 return core

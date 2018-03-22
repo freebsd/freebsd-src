@@ -31,7 +31,7 @@
 #include "linux_assym.h"		/* system definitions */
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 
-#include "assym.s"
+#include "assym.inc"
 
 futex_fault_decx:
 	movl	PCPU(CURPCB),%ecx

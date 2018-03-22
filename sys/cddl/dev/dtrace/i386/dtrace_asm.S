@@ -32,7 +32,7 @@
 #include <sys/cpuvar_defs.h>
 #include <sys/dtrace.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	ENTRY(dtrace_invop_start)
 

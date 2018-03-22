@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2017 Dag-Erling Smørgrav
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2018 Conrad Meyer <cem@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,9 +12,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -25,29 +24,64 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef SYS_CRYPTO_CHACHA20_H_INCLUDED
-#define SYS_CRYPTO_CHACHA20_H_INCLUDED
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <sys/param.h>
+#include <errno.h>
+#include <signal.h>
+#include <unistd.h>
 
-typedef struct {
-	uint32_t state[16];
-} chacha20_ctx;
+#include <atf-c.h>
 
-void chacha20_init(chacha20_ctx *, const uint8_t *, size_t);
-void chacha20_reset(chacha20_ctx *, const uint8_t *);
-size_t chacha20_encrypt(chacha20_ctx *, const void *, uint8_t *, size_t);
-size_t chacha20_decrypt(chacha20_ctx *, const uint8_t *, void *, size_t);
-void chacha20_finish(chacha20_ctx *);
+ATF_TC_WITHOUT_HEAD(getentropy_count);
+ATF_TC_BODY(getentropy_count, tc)
+{
+	char buf[2];
+	int ret;
 
-#ifdef __cplusplus
+	/* getentropy(2) does not modify buf past the requested length */
+	buf[1] = 0x7C;
+	ret = getentropy(buf, 1);
+	ATF_REQUIRE_EQ(ret, 0);
+	ATF_REQUIRE_EQ(buf[1], 0x7C);
 }
-#endif
 
-#endif
+ATF_TC_WITHOUT_HEAD(getentropy_fault);
+ATF_TC_BODY(getentropy_fault, tc)
+{
+	int ret;
+
+	ret = getentropy(NULL, 1);
+	ATF_REQUIRE_EQ(ret, -1);
+	ATF_REQUIRE_EQ(errno, EFAULT);
+}
+
+ATF_TC_WITHOUT_HEAD(getentropy_sizes);
+ATF_TC_BODY(getentropy_sizes, tc)
+{
+	char buf[512];
+
+	ATF_REQUIRE_EQ(getentropy(buf, sizeof(buf)), -1);
+	ATF_REQUIRE_EQ(errno, EIO);
+	ATF_REQUIRE_EQ(getentropy(buf, 257), -1);
+	ATF_REQUIRE_EQ(errno, EIO);
+
+	/* Smaller sizes always succeed: */
+	ATF_REQUIRE_EQ(getentropy(buf, 256), 0);
+	ATF_REQUIRE_EQ(getentropy(buf, 128), 0);
+	ATF_REQUIRE_EQ(getentropy(buf, 0), 0);
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+
+	signal(SIGSYS, SIG_IGN);
+
+	ATF_TP_ADD_TC(tp, getentropy_count);
+	ATF_TP_ADD_TC(tp, getentropy_fault);
+	ATF_TP_ADD_TC(tp, getentropy_sizes);
+	return (atf_no_error());
+}

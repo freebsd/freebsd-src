@@ -29,7 +29,7 @@
 #include <machine/armreg.h>
 __FBSDID("$FreeBSD$");
 
-#include "assym.s"
+#include "assym.inc"
 
 	.text
 

@@ -722,8 +722,8 @@ lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 				class = LOCK_CLASS(ilk);
 				class->lc_unlock(ilk);
 			}
-	panic("%s: recursing on non recursive lockmgr %s @ %s:%d\n",
-			    __func__, iwmesg, file, line);
+			panic("%s: recursing on non recursive lockmgr %p "
+			    "@ %s:%d\n", __func__, lk, file, line);
 		}
 		lk->lk_recurse++;
 		LOCK_LOG2(lk, "%s: %p recursing", __func__, lk);

@@ -45,6 +45,7 @@
 #include <sys/selinfo.h>
 #include <sys/queue.h>
 #include <sys/conf.h>
+#include <sys/counter.h>
 #include <net/if.h>
 
 /*
@@ -76,8 +77,8 @@ struct bpf_d {
 	struct bpf_insn *bd_rfilter; 	/* read filter code */
 	struct bpf_insn *bd_wfilter;	/* write filter code */
 	void		*bd_bfilter;	/* binary filter code */
-	u_int64_t	bd_rcount;	/* number of packets received */
-	u_int64_t	bd_dcount;	/* number of packets dropped */
+	counter_u64_t	bd_rcount;	/* number of packets received */
+	counter_u64_t	bd_dcount;	/* number of packets dropped */
 
 	u_char		bd_promisc;	/* true if listening promiscuously */
 	u_char		bd_state;	/* idle, waiting, or timed out */
@@ -94,14 +95,14 @@ struct bpf_d {
 	struct mtx	bd_lock;	/* per-descriptor lock */
 	struct callout	bd_callout;	/* for BPF timeouts with select */
 	struct label	*bd_label;	/* MAC label for descriptor */
-	u_int64_t	bd_fcount;	/* number of packets which matched filter */
+	counter_u64_t	bd_fcount;	/* number of packets which matched filter */
 	pid_t		bd_pid;		/* PID which created descriptor */
 	int		bd_locked;	/* true if descriptor is locked */
 	u_int		bd_bufmode;	/* Current buffer mode. */
-	u_int64_t	bd_wcount;	/* number of packets written */
-	u_int64_t	bd_wfcount;	/* number of packets that matched write filter */
-	u_int64_t	bd_wdcount;	/* number of packets dropped during a write */
-	u_int64_t	bd_zcopy;	/* number of zero copy operations */
+	counter_u64_t	bd_wcount;	/* number of packets written */
+	counter_u64_t	bd_wfcount;	/* number of packets that matched write filter */
+	counter_u64_t	bd_wdcount;	/* number of packets dropped during a write */
+	counter_u64_t	bd_zcopy;	/* number of zero copy operations */
 	u_char		bd_compat32;	/* 32-bit stream on LP64 system */
 };
 

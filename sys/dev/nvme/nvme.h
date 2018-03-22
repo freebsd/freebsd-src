@@ -478,7 +478,6 @@ struct nvme_completion {
 _Static_assert(sizeof(struct nvme_completion) == 4 * 4, "bad size for nvme_completion");
 
 struct nvme_dsm_range {
-
 	uint32_t attributes;
 	uint32_t length;
 	uint64_t starting_lba;

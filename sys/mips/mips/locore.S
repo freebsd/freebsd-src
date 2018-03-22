@@ -70,7 +70,7 @@
 #include <machine/cpuregs.h>
 #include <machine/regnum.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	.data
 #ifdef YAMON

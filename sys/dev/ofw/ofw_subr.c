@@ -232,7 +232,7 @@ ofw_parse_bootargs(void)
 	int err;
 
 	chosen = OF_finddevice("/chosen");
-	if (chosen <= 0)
+	if (chosen == -1)
 		return (chosen);
 
 	if ((err = OF_getprop(chosen, "bootargs", buf, sizeof(buf))) != -1) {

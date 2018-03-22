@@ -215,13 +215,13 @@ fdt_immr_addr(vm_offset_t immr_va)
 	/*
 	 * Try to access the SOC node directly i.e. through /aliases/.
 	 */
-	if ((node = OF_finddevice("soc")) != 0)
+	if ((node = OF_finddevice("soc")) != -1)
 		if (fdt_is_compatible(node, "simple-bus"))
 			goto moveon;
 	/*
 	 * Find the node the long way.
 	 */
-	if ((node = OF_finddevice("/")) == 0)
+	if ((node = OF_finddevice("/")) == -1)
 		return (ENXIO);
 
 	if ((node = fdt_find_compatible(node, "simple-bus", 0)) == 0)

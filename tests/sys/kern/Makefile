@@ -11,6 +11,7 @@ ATF_TESTS_C+=	ptrace_test
 TEST_METADATA.ptrace_test+=		timeout="15"
 ATF_TESTS_C+=	reaper
 PLAIN_TESTS_C+=	subr_unit_test
+ATF_TESTS_C+=	sys_getrandom
 ATF_TESTS_C+=	unix_seqpacket_test
 ATF_TESTS_C+=	unix_passfd_test
 TEST_METADATA.unix_seqpacket_test+=	timeout="15"
@@ -21,6 +22,10 @@ ATF_TESTS_SH+=	coredump_phnum_test
 BINDIR=		${TESTSDIR}
 PROGS+=		coredump_phnum_helper
 
+CFLAGS.sys_getrandom+=			-I${SRCTOP}/sys/contrib/zstd/lib
+LIBADD.sys_getrandom+=			zstd
+LIBADD.sys_getrandom+=			c
+LIBADD.sys_getrandom+=			pthread
 LIBADD.ptrace_test+=			pthread
 LIBADD.unix_seqpacket_test+=		pthread
 

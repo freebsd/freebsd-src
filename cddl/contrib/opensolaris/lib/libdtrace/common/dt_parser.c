@@ -3069,9 +3069,10 @@ dt_cook_op1(dt_node_t *dnp, uint_t idflags)
 			    "cannot take address of bit-field\n");
 		}
 
-		dtt.dtt_object = NULL;
-		dtt.dtt_ctfp = cp->dn_ctfp;
-		dtt.dtt_type = cp->dn_type;
+		dtt = (dtrace_typeinfo_t){
+			.dtt_ctfp = cp->dn_ctfp,
+			.dtt_type = cp->dn_type,
+		};
 
 		if (dt_type_pointer(&dtt) == -1) {
 			xyerror(D_TYPE_ERR, "cannot find type for \"&\": %s*\n",

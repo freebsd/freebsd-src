@@ -708,6 +708,7 @@ mprsas_register_events(struct mpr_softc *sc)
 	setbit(events, MPI2_EVENT_IR_PHYSICAL_DISK);
 	setbit(events, MPI2_EVENT_IR_OPERATION_STATUS);
 	setbit(events, MPI2_EVENT_TEMP_THRESHOLD);
+	setbit(events, MPI2_EVENT_SAS_DEVICE_DISCOVERY_ERROR);
 	if (sc->facts->MsgVersion >= MPI2_VERSION_02_06) {
 		setbit(events, MPI2_EVENT_ACTIVE_CABLE_EXCEPTION);
 		if (sc->mpr_flags & MPR_FLAGS_GEN35_IOC) {

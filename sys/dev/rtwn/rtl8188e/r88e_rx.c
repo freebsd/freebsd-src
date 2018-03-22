@@ -108,7 +108,8 @@ r88e_ratectl_tx_complete(struct rtwn_softc *sc, uint8_t *buf, int len)
 		txs.long_retries = ntries;
 		if (rpt->final_rate > RTWN_RIDX_OFDM54) {	/* MCS */
 			txs.final_rate =
-			    (rpt->final_rate - 12) | IEEE80211_RATE_MCS;
+			    rpt->final_rate - RTWN_RIDX_HT_MCS_SHIFT;
+			txs.final_rate |= IEEE80211_RATE_MCS;
 		} else
 			txs.final_rate = ridx2rate[rpt->final_rate];
 		if (rpt->rptb1 & R88E_RPTB1_PKT_OK)

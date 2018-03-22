@@ -170,18 +170,25 @@ main (int argc, char *argv[])
 				kq_iocb = kq_returned.udata;
 #ifdef DEBUG
 				printf("kevent %d %d errno %d return.ident %p "
-				       "return.data %p return.udata %p %p\n",
+				       "return.data %p return.udata %p %p"
+				       " filter %d flags %#x fflags %#x\n",
 				       i, result, error,
 				       (void*)kq_returned.ident,
 				       (void*)kq_returned.data,
 				       kq_returned.udata,
-				       kq_iocb);
+				       kq_iocb,
+				       kq_returned.filter,
+				       kq_returned.flags,
+				       kq_returned.fflags);
+				if (result > 0)
+					printf("\tsigev_notify_kevent_flags %#x\n",
+				       ((struct aiocb*)(kq_returned.ident))->aio_sigevent.sigev_notify_kevent_flags);
 #endif
 
 				if (kq_iocb)
 					break;
 #ifdef DEBUG
-				printf("Try again left %d out of %lu %d\n",
+				printf("Try again left %d out of %d %d\n",
 				    pending, max_queue_per_proc, cancel);
 #endif
 			}

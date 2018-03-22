@@ -569,4 +569,5 @@ const char *syscallnames[] = {
 	"kevent",			/* 560 = kevent */
 	"cpuset_getdomain",			/* 561 = cpuset_getdomain */
 	"cpuset_setdomain",			/* 562 = cpuset_setdomain */
+	"getrandom",			/* 563 = getrandom */
 };

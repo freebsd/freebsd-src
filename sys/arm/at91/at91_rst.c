@@ -124,7 +124,7 @@ at91_rst_attach(device_t dev)
 	at91_rst_sc = sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
-	callout_init(&sc->tick_ch, 0);
+	callout_init(&sc->tick_ch, 1);
 
 	rid = 0;
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,

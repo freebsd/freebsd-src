@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include "assym.s"
+#include "assym.inc"
 
 #include "opt_hwpmc_hooks.h"
 

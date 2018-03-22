@@ -3503,7 +3503,7 @@ list_scan(int s)
 
 	getchaninfo(s);
 
-	ssidmax = verbose ? IEEE80211_NWID_LEN : 14;
+	ssidmax = verbose ? IEEE80211_NWID_LEN : 32;
 	printf("%-*.*s  %-17.17s  %4s %4s   %-7s  %3s %4s\n"
 		, ssidmax, ssidmax, "SSID/MESH ID"
 		, "BSSID"

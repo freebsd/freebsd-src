@@ -164,22 +164,25 @@ static void		ndasuspend(void *arg);
 #define	NDA_DEFAULT_RETRY	4
 #endif
 #ifndef NDA_MAX_TRIM_ENTRIES
-#define NDA_MAX_TRIM_ENTRIES 256	/* Number of DSM trims to use, max 256 */
+#define NDA_MAX_TRIM_ENTRIES  (NVME_MAX_DSM_TRIM / sizeof(struct nvme_dsm_range))/* Number of DSM trims to use, max 256 */
 #endif
+
+static SYSCTL_NODE(_kern_cam, OID_AUTO, nda, CTLFLAG_RD, 0,
+            "CAM Direct Access Disk driver");
 
 //static int nda_retry_count = NDA_DEFAULT_RETRY;
 static int nda_send_ordered = NDA_DEFAULT_SEND_ORDERED;
 static int nda_default_timeout = NDA_DEFAULT_TIMEOUT;
 static int nda_max_trim_entries = NDA_MAX_TRIM_ENTRIES;
+SYSCTL_INT(_kern_cam_nda, OID_AUTO, max_trim, CTLFLAG_RDTUN,
+    &nda_max_trim_entries, NDA_MAX_TRIM_ENTRIES,
+    "Maximum number of BIO_DELETE to send down as a DSM TRIM.");
 
 /*
  * All NVMe media is non-rotational, so all nvme device instances
  * share this to implement the sysctl.
  */
 static int nda_rotating_media = 0;
-
-static SYSCTL_NODE(_kern_cam, OID_AUTO, nda, CTLFLAG_RD, 0,
-            "CAM Direct Access Disk driver");
 
 static struct periph_driver ndadriver =
 {
@@ -626,25 +629,20 @@ ndasysctlinit(void *context, int pending)
 	}
 
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-		OID_AUTO, "unmapped_io", CTLFLAG_RD | CTLFLAG_MPSAFE,
-		&softc->unmappedio, 0, "Unmapped I/O leaf");
+	    OID_AUTO, "unmapped_io", CTLFLAG_RD,
+	    &softc->unmappedio, 0, "Unmapped I/O leaf");
 
 	SYSCTL_ADD_QUAD(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-		OID_AUTO, "deletes", CTLFLAG_RD | CTLFLAG_MPSAFE,
-		&softc->deletes, "Number of BIO_DELETE requests");
+	    OID_AUTO, "deletes", CTLFLAG_RD,
+	    &softc->deletes, "Number of BIO_DELETE requests");
 
 	SYSCTL_ADD_QUAD(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-		OID_AUTO, "dsm_req", CTLFLAG_RD | CTLFLAG_MPSAFE,
-		&softc->dsm_req, "Number of DSM requests sent to SIM");
+	    OID_AUTO, "dsm_req", CTLFLAG_RD,
+	    &softc->dsm_req, "Number of DSM requests sent to SIM");
 
-	SYSCTL_ADD_INT(&softc->sysctl_ctx,
-		       SYSCTL_CHILDREN(softc->sysctl_tree),
-		       OID_AUTO,
-		       "rotating",
-		       CTLFLAG_RD | CTLFLAG_MPSAFE, 
-		       &nda_rotating_media,
-		       0,
-		       "Rotating media");
+	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+	    OID_AUTO, "rotating", CTLFLAG_RD, &nda_rotating_media, 1,
+	    "Rotating media");
 
 #ifdef CAM_IO_STATS
 	softc->sysctl_stats_tree = SYSCTL_ADD_NODE(&softc->sysctl_stats_ctx,
@@ -657,17 +655,17 @@ ndasysctlinit(void *context, int pending)
 	}
 	SYSCTL_ADD_INT(&softc->sysctl_stats_ctx,
 		SYSCTL_CHILDREN(softc->sysctl_stats_tree),
-		OID_AUTO, "timeouts", CTLFLAG_RD | CTLFLAG_MPSAFE,
+		OID_AUTO, "timeouts", CTLFLAG_RD,
 		&softc->timeouts, 0,
 		"Device timeouts reported by the SIM");
 	SYSCTL_ADD_INT(&softc->sysctl_stats_ctx,
 		SYSCTL_CHILDREN(softc->sysctl_stats_tree),
-		OID_AUTO, "errors", CTLFLAG_RD | CTLFLAG_MPSAFE,
+		OID_AUTO, "errors", CTLFLAG_RD,
 		&softc->errors, 0,
 		"Transport errors reported by the SIM.");
 	SYSCTL_ADD_INT(&softc->sysctl_stats_ctx,
 		SYSCTL_CHILDREN(softc->sysctl_stats_tree),
-		OID_AUTO, "pack_invalidations", CTLFLAG_RD | CTLFLAG_MPSAFE,
+		OID_AUTO, "pack_invalidations", CTLFLAG_RD,
 		&softc->invalidations, 0,
 		"Device pack invalidations.");
 #endif
@@ -959,7 +957,7 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 				dsm_range->length =
 				    htole32(bp1->bio_bcount / softc->disk->d_sectorsize);
 				dsm_range->starting_lba =
-				    htole32(bp1->bio_offset / softc->disk->d_sectorsize);
+				    htole64(bp1->bio_offset / softc->disk->d_sectorsize);
 				dsm_range++;
 				if (dsm_range >= dsm_end)
 					break;
