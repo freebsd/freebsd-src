@@ -88,6 +88,9 @@ static int efi_status2err[25] = {
 	EPROTO		/* EFI_PROTOCOL_ERROR */
 };
 
+static int efi_enter(void);
+static void efi_leave(void);
+
 static int
 efi_status_to_errno(efi_status status)
 {
@@ -190,9 +193,14 @@ efi_init(void)
 	 * call RS->SetVirtualAddressMap. As this is not always the case, e.g.
 	 * with an old loader.efi, check if the RS->GetTime function is within
 	 * the EFI map, and fail to attach if not.
+	 *
+	 * We need to enter into the EFI environment as efi_runtime may point
+	 * to an EFI address.
 	 */
+	efi_enter();
 	if (!efi_is_in_map(map, efihdr->memory_size / efihdr->descriptor_size,
 	    efihdr->descriptor_size, (vm_offset_t)efi_runtime->rt_gettime)) {
+		efi_leave();
 		if (bootverbose)
 			printf(
 			 "EFI runtime services table has an invalid pointer\n");
@@ -200,6 +208,7 @@ efi_init(void)
 		efi_destroy_1t1_map();
 		return (ENXIO);
 	}
+	efi_leave();
 
 	return (0);
 }
