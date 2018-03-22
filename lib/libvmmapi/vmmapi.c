@@ -1631,29 +1631,25 @@ vm_snapshot_req(struct vmctx *ctx, enum snapshot_req req, char *buffer, size_t m
 	return (error);
 }
 
-int
-vm_restore_mem(struct vmctx *ctx, int vmmem_fd, size_t size)
+static int
+vm_mem_read_from_file(int fd, void *dest, size_t dest_offset,
+				size_t file_offset, size_t len)
 {
 	int cnt_read = 0;
-	int read_total = 0;
-	int to_read = ctx->lowmem;
+	size_t read_total = 0;
+	size_t to_read = len;
 
-	if (ctx->lowmem + ctx->highmem != size) {
-		fprintf(stderr, "%s: mem size mismatch: %ld vs %ld\n",
-			__func__, ctx->lowmem + ctx->highmem, size);
-		return (-1);
-	}
-
-	if ( lseek(vmmem_fd, 0 , SEEK_SET) < 0) {
+	if ( lseek(fd, file_offset , SEEK_SET) < 0) {
 		fprintf(stderr,
 			"%s: Could not change file offset errno = %d\r\n",
 			__func__, errno);
 		return (-1);
 	}
 
-	while (read_total < ctx->lowmem) {
-		cnt_read = read(vmmem_fd, ctx->baseaddr + read_total, to_read);
+	while (read_total < len) {
+		cnt_read = read(fd, dest + read_total, to_read);
 		printf("%s: cnt_read  = %d\r\n", __func__, cnt_read);
+		// TODO - fix for when read returns 0
 		if (cnt_read <= 0) {
 			fprintf(stderr,"%s: read error: %d\r\n",
 			__func__,  errno);
@@ -1663,30 +1659,34 @@ vm_restore_mem(struct vmctx *ctx, int vmmem_fd, size_t size)
 		to_read -= cnt_read;
 	}
 
+	return (0);
+}
+
+int
+vm_restore_mem(struct vmctx *ctx, int vmmem_fd, size_t size)
+{
+
+	if (ctx->lowmem + ctx->highmem != size) {
+		fprintf(stderr, "%s: mem size mismatch: %ld vs %ld\n",
+			__func__, ctx->lowmem + ctx->highmem, size);
+		return (-1);
+	}
+
+	if (vm_mem_read_from_file(vmmem_fd, ctx->baseaddr,
+				0, 0, ctx->lowmem) != 0) {
+		fprintf(stderr,
+			"%s: Could not read lowmem from file\r\n", __func__);
+		return (-1);
+	}
+
 	if (ctx->highmem > 0) {
-		read_total = 0;
-		to_read = ctx->highmem;
-		cnt_read = 0;
+		if (vm_mem_read_from_file(vmmem_fd, ctx->baseaddr,
+				4*GB, ctx->lowmem, ctx->highmem) != 0) {
 
-		// Move file offset to the highmem's start position
-		if ( lseek(vmmem_fd, 4*GB, SEEK_SET) < 0 ) {
-				printf(stderr,
-				"%s: Could not change file offser errno = %d\r\n",
-					__func__, errno);
+			fprintf(stderr,
+				"%s: Could not read highmem from file\r\n",
+				__func__);
 			return (-1);
-		}
-
-		while (read_total < ctx->highmem) {
-			cnt_read = read(vmmem_fd,
-					ctx->baseaddr + 4*GB + read_total,
-					to_read);
-			if (cnt_read <= 0) {
-				fprintf(stderr, "%s: read error: %d\r\n",
-				__func__, errno);
-				return (-1);
-			}
-			read_total += cnt_read;
-			to_read -= cnt_read;
 		}
 	}
 
