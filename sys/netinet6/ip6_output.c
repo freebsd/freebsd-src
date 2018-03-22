@@ -2053,6 +2053,7 @@ do {									\
 			{
 				u_long pmtu = 0;
 				struct ip6_mtuinfo mtuinfo;
+				struct in6_addr addr;
 
 				if (!(so->so_state & SS_ISCONNECTED))
 					return (ENOTCONN);
@@ -2060,9 +2061,14 @@ do {									\
 				 * XXX: we dot not consider the case of source
 				 * routing, or optional information to specify
 				 * the outgoing interface.
+				 * Copy faddr out of in6p to avoid holding lock
+				 * on inp during route lookup.
 				 */
+				INP_RLOCK(in6p);
+				bcopy(&in6p->in6p_faddr, &addr, sizeof(addr));
+				INP_RUNLOCK(in6p);
 				error = ip6_getpmtu_ctl(so->so_fibnum,
-				    &in6p->in6p_faddr, &pmtu);
+				    &addr, &pmtu);
 				if (error)
 					break;
 				if (pmtu > IPV6_MAXPACKET)
