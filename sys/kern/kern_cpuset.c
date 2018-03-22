@@ -65,9 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/vm.h>
 #include <vm/vm_object.h>
-#include <vm/vm_page.h>
-#include <vm/vm_param.h>
-#include <vm/vm_phys.h>
+#include <vm/vm_extern.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>

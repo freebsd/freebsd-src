@@ -45,6 +45,8 @@ struct vmem;
 struct cdev;
 struct cdevsw;
 
+extern int vm_ndomains;
+
 /* These operate on kernel virtual addresses only. */
 vm_offset_t kva_alloc(vm_size_t);
 void kva_free(vm_offset_t, vm_size_t);
