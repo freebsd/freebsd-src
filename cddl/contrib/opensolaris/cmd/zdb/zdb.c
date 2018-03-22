@@ -3570,6 +3570,7 @@ zdb_read_block(char *thing, spa_t *spa)
 		s = "offset must be a multiple of sector size";
 	if (s) {
 		(void) printf("Invalid block specifier: %s  - %s\n", thing, s);
+		free(flagstr);
 		free(dup);
 		return;
 	}
@@ -3595,6 +3596,7 @@ zdb_read_block(char *thing, spa_t *spa)
 				blkptr_offset = strtoull(p, &p, 16);
 			if (*p != ':' && *p != '\0') {
 				(void) printf("***Invalid flag arg: '%s'\n", s);
+				free(flagstr);
 				free(dup);
 				return;
 			}
