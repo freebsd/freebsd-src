@@ -1314,12 +1314,14 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				break;
 
 			case IP_PORTRANGE:
+				INP_RLOCK(inp);
 				if (inp->inp_flags & INP_HIGHPORT)
 					optval = IP_PORTRANGE_HIGH;
 				else if (inp->inp_flags & INP_LOWPORT)
 					optval = IP_PORTRANGE_LOW;
 				else
 					optval = 0;
+				INP_RUNLOCK(inp);
 				break;
 
 			case IP_ONESBCAST:
@@ -1345,9 +1347,11 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				break;
 #ifdef	RSS
 			case IP_RSSBUCKETID:
+				INP_RLOCK(inp);
 				retval = rss_hash2bucket(inp->inp_flowid,
 				    inp->inp_flowtype,
 				    &rss_bucket);
+				INP_RUNLOCK(inp);
 				if (retval == 0)
 					optval = rss_bucket;
 				else
