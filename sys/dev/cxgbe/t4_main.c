@@ -9650,7 +9650,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		rc = read_i2c(sc, (struct t4_i2c_data *)data);
 		break;
 	case CHELSIO_T4_CLEAR_STATS: {
-		int i, v;
+		int i, v, bg_map;
 		u_int port_id = *(uint32_t *)data;
 		struct port_info *pi;
 		struct vi_info *vi;
@@ -9664,10 +9664,19 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		/* MAC stats */
 		t4_clr_port_stats(sc, pi->tx_chan);
 		pi->tx_parse_error = 0;
+		pi->tnl_cong_drops = 0;
 		mtx_lock(&sc->reg_lock);
 		for_each_vi(pi, v, vi) {
 			if (vi->flags & VI_INIT_DONE)
 				t4_clr_vi_stats(sc, vi->viid);
+		}
+		bg_map = pi->mps_bg_map;
+		v = 0;	/* reuse */
+		while (bg_map) {
+			i = ffs(bg_map) - 1;
+			t4_write_indirect(sc, A_TP_MIB_INDEX, A_TP_MIB_DATA, &v,
+			    1, A_TP_MIB_TNL_CNG_DROP_0 + i);
+			bg_map &= ~(1 << i);
 		}
 		mtx_unlock(&sc->reg_lock);
 
