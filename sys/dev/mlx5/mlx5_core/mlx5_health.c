@@ -48,6 +48,8 @@ enum {
 enum {
 	MLX5_DROP_NEW_HEALTH_WORK,
 	MLX5_DROP_NEW_RECOVERY_WORK,
+	MLX5_SKIP_SW_RESET,
+	MLX5_SW_RESET_SEM_LOCKED,
 };
 
 enum  {
@@ -58,6 +60,33 @@ enum  {
 	MLX5_SENSOR_NIC_SW_RESET	= 4,
 	MLX5_SENSOR_FW_SYND_RFR		= 5,
 };
+
+static int lock_sem_sw_reset(struct mlx5_core_dev *dev, int state)
+{
+	int ret, err;
+
+	/* Lock GW access */
+	ret = mlx5_pciconf_cap9_sem(dev, LOCK);
+	if (ret) {
+		mlx5_core_warn(dev, "Timed out locking gateway %d, %d\n", state, ret);
+		return ret;
+	}
+
+	ret = mlx5_pciconf_set_sem_addr_space(dev, MLX5_SEMAPHORE_SW_RESET, state);
+	if (ret && state == LOCK) {
+		if (ret == -EBUSY)
+			mlx5_core_dbg(dev, "SW reset FW semaphore already locked, another function will handle the reset\n");
+		else
+			mlx5_core_warn(dev, "SW reset semaphore lock return %d\n", ret);
+	}
+
+	/* Unlock GW access */
+	err = mlx5_pciconf_cap9_sem(dev, UNLOCK);
+	if (err)
+		mlx5_core_warn(dev, "Timed out unlocking gateway: state %d, err %d\n", state, err);
+
+	return ret;
+}
 
 static u8 get_nic_mode(struct mlx5_core_dev *dev)
 {
@@ -138,6 +167,7 @@ static void reset_fw_if_needed(struct mlx5_core_dev *dev)
 {
 	bool supported = (ioread32be(&dev->iseg->initializing) >>
 			  MLX5_FW_RESET_SUPPORTED_OFFSET) & 1;
+	struct mlx5_core_health *health = &dev->priv.health;
 	u32 cmdq_addr, fatal_error;
 
 	if (!supported)
@@ -151,7 +181,8 @@ static void reset_fw_if_needed(struct mlx5_core_dev *dev)
 	fatal_error = check_fatal_sensors(dev);
 	if (fatal_error == MLX5_SENSOR_PCI_COMM_ERR ||
 	    fatal_error == MLX5_SENSOR_NIC_DISABLED ||
-	    fatal_error == MLX5_SENSOR_NIC_SW_RESET) {
+	    fatal_error == MLX5_SENSOR_NIC_SW_RESET ||
+	    test_bit(MLX5_SKIP_SW_RESET, &health->flags)) {
 		mlx5_core_warn(dev, "Not issuing FW reset. Either it's already done or won't help.");
 		return;
 	}
@@ -223,6 +254,7 @@ static void health_recover(struct work_struct *work)
 	struct delayed_work *dwork;
 	struct mlx5_core_dev *dev;
 	struct mlx5_priv *priv;
+	bool recover = true;
 	u8 nic_mode;
 
 	dwork = container_of(work, struct delayed_work, work);
@@ -232,7 +264,8 @@ static void health_recover(struct work_struct *work)
 
 	if (sensor_pci_no_comm(dev)) {
 		dev_err(&dev->pdev->dev, "health recovery flow aborted, PCI reads still not working\n");
-		return;
+		recover = false;
+		goto clear_sem;
 	}
 
 	nic_mode = get_nic_mode(dev);
@@ -245,11 +278,21 @@ static void health_recover(struct work_struct *work)
 	if (nic_mode != MLX5_NIC_IFC_DISABLED) {
 		dev_err(&dev->pdev->dev, "health recovery flow aborted, unexpected NIC IFC mode %d.\n",
 			nic_mode);
-		return;
+		recover = false;
 	}
 
-	dev_err(&dev->pdev->dev, "starting health recovery flow\n");
-	mlx5_recover_device(dev);
+clear_sem:
+	if (test_and_clear_bit(MLX5_SW_RESET_SEM_LOCKED, &health->flags)) {
+		mlx5_core_dbg(dev, "Unlocking FW reset semaphore\n");
+		lock_sem_sw_reset(dev, UNLOCK);
+	}
+
+	test_and_clear_bit(MLX5_SKIP_SW_RESET, &health->flags);
+
+	if (recover) {
+		dev_err(&dev->pdev->dev, "starting health recovery flow\n");
+		mlx5_recover_device(dev);
+	}
 }
 
 /* How much time to wait until health resetting the driver (in msecs) */
@@ -269,10 +312,29 @@ static void health_care(struct work_struct *work)
 	struct mlx5_core_dev *dev;
 	struct mlx5_priv *priv;
 	unsigned long flags;
+	int ret;
 
 	health = container_of(work, struct mlx5_core_health, work);
 	priv = container_of(health, struct mlx5_priv, health);
 	dev = container_of(priv, struct mlx5_core_dev, priv);
+
+	if (mlx5_core_is_pf(dev)) {
+		ret = lock_sem_sw_reset(dev, LOCK);
+		if (!ret) {
+			mlx5_core_warn(dev, "Locked FW reset semaphore\n");
+			set_bit(MLX5_SW_RESET_SEM_LOCKED, &health->flags);
+		}
+		else if (ret == -EBUSY) {
+			/* sw reset will be skipped only in case we detect the
+			 * semaphore was already taken. In case of an error
+			 * while taking the semaphore we prefer to issue a
+			 * reset since longer cr-dump time and multiple resets
+			 * are better than a stuck fw.
+			 */
+			set_bit(MLX5_SKIP_SW_RESET, &health->flags);
+		}
+	}
+
 	mlx5_core_warn(dev, "handling bad device here\n");
 	mlx5_handle_bad_state(dev);
 	recover_delay = msecs_to_jiffies(get_recovery_delay(dev));
