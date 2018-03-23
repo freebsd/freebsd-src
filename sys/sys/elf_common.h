@@ -344,10 +344,24 @@ typedef struct {
 #define	EF_MIPS_UCODE		0x00000010
 #define	EF_MIPS_ABI2		0x00000020	/* N32 */
 #define	EF_MIPS_OPTIONS_FIRST	0x00000080
+#define	EF_MIPS_ABI		0x0000F000
+#define	EF_MIPS_ABI_O32		0x00001000
+#define	EF_MIPS_ABI_O64		0x00002000
+#define	EF_MIPS_ABI_EABI32	0x00003000
+#define	EF_MIPS_ABI_EABI64	0x00004000
 #define	EF_MIPS_ARCH_ASE	0x0F000000	/* Architectural extensions */
 #define	EF_MIPS_ARCH_ASE_MDMX	0x08000000	/* MDMX multimedia extension */
 #define	EF_MIPS_ARCH_ASE_M16	0x04000000	/* MIPS-16 ISA extensions */
 #define	EF_MIPS_ARCH		0xF0000000	/* Architecture field */
+#define	EF_MIPS_ARCH_1		0x00000000	/* -mips1 code */
+#define	EF_MIPS_ARCH_2		0x10000000	/* -mips2 code */
+#define	EF_MIPS_ARCH_3		0x20000000	/* -mips3 code */
+#define	EF_MIPS_ARCH_4		0x30000000	/* -mips4 code */
+#define	EF_MIPS_ARCH_5		0x40000000	/* -mips5 code */
+#define	EF_MIPS_ARCH_32		0x50000000	/* -mips32 code */
+#define	EF_MIPS_ARCH_64		0x60000000	/* -mips64 code */
+#define	EF_MIPS_ARCH_32R2	0x70000000	/* -mips32r2 code */
+#define	EF_MIPS_ARCH_64R2	0x80000000	/* -mips64r2 code */
 
 #define	EF_PPC_EMB		0x80000000
 #define	EF_PPC_RELOCATABLE	0x00010000
