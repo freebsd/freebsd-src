@@ -769,6 +769,8 @@ struct mlx5e_priv {
 	struct mlx5e_stats stats;
 	int	counter_set_id;
 
+	struct workqueue_struct *wq;
+
 	eventhandler_tag vlan_detach;
 	eventhandler_tag vlan_attach;
 	struct ifmedia media;
