@@ -417,8 +417,8 @@ vm86_initialize(void)
 	 * pcb_esp	=    stack frame pointer at time of switch
 	 * pcb_ebx	= va of vm86 page table
 	 * pcb_eip	=    argument pointer to initial call
-	 * pcb_spare[0]	=    saved TSS descriptor, word 0
-	 * pcb_space[1]	=    saved TSS descriptor, word 1
+	 * pcb_vm86[0]	=    saved TSS descriptor, word 0
+	 * pcb_vm86[1]	=    saved TSS descriptor, word 1
 	 */
 #define new_ptd		pcb_esi
 #define vm86_frame	pcb_ebp
