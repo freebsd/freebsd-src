@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <net/radix_mpath.h>
 #include <net/vnet.h>
 
+#include <net/pfil.h>
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
 #include <net/if_pfsync.h>
@@ -5506,7 +5507,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		goto bad;
 
 	if (oifp != ifp) {
-		if (pf_test(PF_OUT, ifp, &m0, NULL) != PF_PASS)
+		if (pf_test(PF_OUT, 0, ifp, &m0, NULL) != PF_PASS)
 			goto bad;
 		else if (m0 == NULL)
 			goto done;
@@ -5668,7 +5669,7 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		goto bad;
 
 	if (oifp != ifp) {
-		if (pf_test6(PF_FWD, ifp, &m0, NULL) != PF_PASS)
+		if (pf_test6(PF_OUT, PFIL_FWD, ifp, &m0, NULL) != PF_PASS)
 			goto bad;
 		else if (m0 == NULL)
 			goto done;
@@ -5858,7 +5859,7 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 
 #ifdef INET
 int
-pf_test(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
+pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 {
 	struct pfi_kif		*kif;
 	u_short			 action, reason = 0, log = 0;
@@ -6245,7 +6246,7 @@ done:
 
 #ifdef INET6
 int
-pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
+pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 {
 	struct pfi_kif		*kif;
 	u_short			 action, reason = 0, log = 0;
@@ -6257,27 +6258,8 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 	struct pf_ruleset	*ruleset = NULL;
 	struct pf_pdesc		 pd;
 	int			 off, terminal = 0, dirndx, rh_cnt = 0, pqid = 0;
-	int			 fwdir = dir;
 
 	M_ASSERTPKTHDR(m);
-
-	/* Detect packet forwarding.
-	 * If the input interface is different from the output interface we're
-	 * forwarding.
-	 * We do need to be careful about bridges. If the
-	 * net.link.bridge.pfil_bridge sysctl is set we can be filtering on a
-	 * bridge, so if the input interface is a bridge member and the output
-	 * interface is its bridge or a member of the same bridge we're not
-	 * actually forwarding but bridging.
-	 */
-	if (dir == PF_OUT && m->m_pkthdr.rcvif && ifp != m->m_pkthdr.rcvif &&
-	    (m->m_pkthdr.rcvif->if_bridge == NULL ||
-	    (m->m_pkthdr.rcvif->if_bridge != ifp->if_softc &&
-	    m->m_pkthdr.rcvif->if_bridge != ifp->if_bridge)))
-		fwdir = PF_FWD;
-
-	if (dir == PF_FWD)
-		dir = PF_OUT;
 
 	if (!V_pf_status.running)
 		return (PF_PASS);
@@ -6656,7 +6638,7 @@ done:
 		PF_STATE_UNLOCK(s);
 
 	/* If reassembled packet passed, create new fragments. */
-	if (action == PF_PASS && *m0 && fwdir == PF_FWD &&
+	if (action == PF_PASS && *m0 && (pflags & PFIL_FWD) &&
 	    (mtag = m_tag_find(m, PF_REASSEMBLED, NULL)) != NULL)
 		action = pf_refragment6(ifp, m0, mtag);
 
