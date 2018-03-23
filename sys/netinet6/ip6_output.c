@@ -1498,10 +1498,8 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 				error = soopt_mcopyin(sopt, m); /* XXX */
 				if (error != 0)
 					break;
-				INP_WLOCK(in6p);
 				error = ip6_pcbopts(&in6p->in6p_outputopts,
 						    m, so, sopt);
-				INP_WUNLOCK(in6p);
 				m_freem(m); /* XXX */
 				break;
 			}
@@ -1637,13 +1635,11 @@ do {									\
 						error = EINVAL;
 						break;
 					}
-					INP_WLOCK(in6p);
 					optp = &in6p->in6p_outputopts;
 					error = ip6_pcbopt(IPV6_HOPLIMIT,
 					    (u_char *)&optval, sizeof(optval),
 					    optp, (td != NULL) ? td->td_ucred :
 					    NULL, uproto);
-					INP_WUNLOCK(in6p);
 					break;
 				}
 
@@ -1694,10 +1690,8 @@ do {									\
 					 * available only prior to bind(2).
 					 * see ipng mailing list, Jun 22 2001.
 					 */
-					INP_WLOCK(in6p);
 					if (in6p->inp_lport ||
 					    !IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_laddr)) {
-						INP_WUNLOCK(in6p);
 						error = EINVAL;
 						break;
 					}
@@ -1706,7 +1700,6 @@ do {									\
 						in6p->inp_vflag &= ~INP_IPV4;
 					else
 						in6p->inp_vflag |= INP_IPV4;
-					INP_WUNLOCK(in6p);
 					break;
 				case IPV6_RECVTCLASS:
 					/* cannot mix with RFC2292 XXX */
@@ -1756,13 +1749,11 @@ do {									\
 					break;
 				{
 					struct ip6_pktopts **optp;
-					INP_WLOCK(in6p);
 					optp = &in6p->in6p_outputopts;
 					error = ip6_pcbopt(optname,
 					    (u_char *)&optval, sizeof(optval),
 					    optp, (td != NULL) ? td->td_ucred :
 					    NULL, uproto);
-					INP_WUNLOCK(in6p);
 					break;
 				}
 
@@ -1827,6 +1818,12 @@ do {									\
 				int optlen;
 				struct ip6_pktopts **optp;
 
+				/* cannot mix with RFC2292 */
+				if (OPTBIT(IN6P_RFC2292)) {
+					error = EINVAL;
+					break;
+				}
+
 				/*
 				 * We only ensure valsize is not too large
 				 * here.  Further validation will be done
@@ -1836,21 +1833,12 @@ do {									\
 				    sizeof(optbuf_storage), 0);
 				if (error)
 					break;
-
-				INP_WLOCK(in6p);
-				/* cannot mix with RFC2292 */
-				if (OPTBIT(IN6P_RFC2292)) {
-					INP_WUNLOCK(in6p);
-					error = EINVAL;
-					break;
-				}
 				optlen = sopt->sopt_valsize;
 				optbuf = optbuf_storage;
 				optp = &in6p->in6p_outputopts;
 				error = ip6_pcbopt(optname, optbuf, optlen,
 				    optp, (td != NULL) ? td->td_ucred : NULL,
 				    uproto);
-				INP_WUNLOCK(in6p);
 				break;
 			}
 #undef OPTSET
@@ -2035,12 +2023,10 @@ do {									\
 					break;
 #ifdef	RSS
 				case IPV6_RSSBUCKETID:
-					INP_RLOCK(in6p);
 					retval =
 					    rss_hash2bucket(in6p->inp_flowid,
 					    in6p->inp_flowtype,
 					    &rss_bucket);
-					INP_RUNLOCK(in6p);
 					if (retval == 0)
 						optval = rss_bucket;
 					else
@@ -2242,8 +2228,6 @@ ip6_pcbopts(struct ip6_pktopts **pktopt, struct mbuf *m,
 	struct ip6_pktopts *opt = *pktopt;
 	int error = 0;
 	struct thread *td = sopt->sopt_td;
-
-	INP_WLOCK_ASSERT(sotoinpcb(so));
 
 	/* turn off any old options. */
 	if (opt) {
@@ -3103,8 +3087,6 @@ int
 ip6_optlen(struct inpcb *in6p)
 {
 	int len;
-
-	INP_WLOCK_ASSERT(in6p);
 
 	if (!in6p->in6p_outputopts)
 		return 0;

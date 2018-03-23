@@ -639,12 +639,10 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 					    sizeof optval);
 			if (error)
 				break;
-			INP_WLOCK(inp);
 			if (optval)
 				inp->inp_flags |= INP_HDRINCL;
 			else
 				inp->inp_flags &= ~INP_HDRINCL;
-			INP_WUNLOCK(inp);
 			break;
 
 		case IP_FW3:	/* generic ipfw v.3 functions */
