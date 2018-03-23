@@ -1659,6 +1659,35 @@ err_pci:
 }
 
 static int
+vm_mem_write_to_file(int fd, const void *src, size_t src_offset,
+			size_t dst_offset, size_t len)
+{
+	int write_total;
+	int cnt_write;
+	int to_write;
+
+	write_total = 0;
+	to_write = len;
+
+	if (lseek(fd, dst_offset, SEEK_SET) < 0 ) {
+		perror("Failed to changed file offset");
+		return (-1);
+	}
+
+	while (write_total < len) {
+		cnt_write = write(fd, src + write_total, to_write);
+		if (cnt_write < 0) {
+			perror("Failed to write in file");
+			return (-1);
+		}
+		to_write -= cnt_write;
+		write_total += cnt_write;
+	}
+
+	return (0);
+}
+
+static int
 vm_checkpoint(struct vmctx *ctx, char *checkpoint_file, bool stop_vm)
 {
 	int fd_checkpoint = 0, kdata_fd = 0;
@@ -1753,20 +1782,21 @@ vm_checkpoint(struct vmctx *ctx, char *checkpoint_file, bool stop_vm)
 	 * mmap checkpoint file in memory so we can easily copy VMs
 	 * system address space (lowmem + highmem) from kernel space
 	 */
-	mmap_checkpoint_file = mmap(NULL, guest_memsize, PROT_WRITE | PROT_READ,
-			MAP_SHARED, fd_checkpoint, 0);
-
-	if (mmap_checkpoint_file == MAP_FAILED) {
-		perror("Failed to mmap checkpoint file");
+	if (vm_mem_write_to_file(fd_checkpoint, mmap_vm_lowmem, 0,
+				0, guest_lowmem) != 0) {
+		perror("Could not write lowmem");
 		error = -1;
 		goto done_unlock;
 	}
 
-	memcpy(mmap_checkpoint_file, mmap_vm_lowmem, guest_lowmem);
-
-	if (guest_highmem > 0)
-		memcpy(mmap_checkpoint_file + guest_lowmem,
-		       mmap_vm_highmem, guest_highmem);
+	if (guest_highmem > 0) {
+		if (vm_mem_write_to_file(fd_checkpoint, mmap_vm_highmem, 0,
+				guest_lowmem, guest_highmem) != 0) {
+			perror("Could not write highmem");
+			error = -1;
+			goto done_unlock;
+		}
+	}
 
 	ret = vm_snapshot_kern_data(ctx, kdata_fd, xop);
 	if (ret != 0) {
