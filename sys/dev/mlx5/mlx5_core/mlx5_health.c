@@ -56,11 +56,24 @@ enum  {
 	MLX5_SENSOR_PCI_ERR		= 2,
 	MLX5_SENSOR_NIC_DISABLED	= 3,
 	MLX5_SENSOR_NIC_SW_RESET	= 4,
+	MLX5_SENSOR_FW_SYND_RFR		= 5,
 };
 
 static u8 get_nic_mode(struct mlx5_core_dev *dev)
 {
 	return (ioread32be(&dev->iseg->cmdq_addr_l_sz) >> 8) & 7;
+}
+
+static bool sensor_fw_synd_rfr(struct mlx5_core_dev *dev)
+{
+	struct mlx5_core_health *health = &dev->priv.health;
+	struct mlx5_health_buffer __iomem *h = health->health;
+	u32 rfr = ioread32be(&h->rfr) >> MLX5_RFR_OFFSET;
+	u8 synd = ioread8(&h->synd);
+
+	if (rfr && synd)
+		mlx5_core_dbg(dev, "FW requests reset, synd: %d\n", synd);
+	return rfr && synd;
 }
 
 static void mlx5_trigger_cmd_completions(struct mlx5_core_dev *dev)
@@ -115,8 +128,42 @@ static u32 check_fatal_sensors(struct mlx5_core_dev *dev)
 		return MLX5_SENSOR_NIC_DISABLED;
 	if (sensor_nic_sw_reset(dev))
 		return MLX5_SENSOR_NIC_SW_RESET;
+	if (sensor_fw_synd_rfr(dev))
+		return MLX5_SENSOR_FW_SYND_RFR;
 
 	return MLX5_SENSOR_NO_ERR;
+}
+
+static void reset_fw_if_needed(struct mlx5_core_dev *dev)
+{
+	bool supported = (ioread32be(&dev->iseg->initializing) >>
+			  MLX5_FW_RESET_SUPPORTED_OFFSET) & 1;
+	u32 cmdq_addr, fatal_error;
+
+	if (!supported)
+		return;
+
+	/* The reset only needs to be issued by one PF. The health buffer is
+	 * shared between all functions, and will be cleared during a reset.
+	 * Check again to avoid a redundant 2nd reset. If the fatal erros was
+	 * PCI related a reset won't help.
+	 */
+	fatal_error = check_fatal_sensors(dev);
+	if (fatal_error == MLX5_SENSOR_PCI_COMM_ERR ||
+	    fatal_error == MLX5_SENSOR_NIC_DISABLED ||
+	    fatal_error == MLX5_SENSOR_NIC_SW_RESET) {
+		mlx5_core_warn(dev, "Not issuing FW reset. Either it's already done or won't help.");
+		return;
+	}
+
+	mlx5_core_warn(dev, "Issuing FW Reset\n");
+	/* Write the NIC interface field to initiate the reset, the command
+	 * interface address also resides here, don't overwrite it.
+	 */
+	cmdq_addr = ioread32be(&dev->iseg->cmdq_addr_l_sz);
+	iowrite32be((cmdq_addr & 0xFFFFF000) |
+		    MLX5_NIC_IFC_SW_RESET << MLX5_NIC_IFC_OFFSET,
+		    &dev->iseg->cmdq_addr_l_sz);
 }
 
 void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
@@ -130,6 +177,7 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 	if (!force)
 		mlx5_core_err(dev, "internal state error detected\n");
 	if (check_fatal_sensors(dev) || force) {
+		reset_fw_if_needed(dev);
 		dev->state = MLX5_DEVICE_STATE_INTERNAL_ERROR;
 		mlx5_trigger_cmd_completions(dev);
 	}
@@ -230,11 +278,14 @@ static void health_care(struct work_struct *work)
 	recover_delay = msecs_to_jiffies(get_recovery_delay(dev));
 
 	spin_lock_irqsave(&health->wq_lock, flags);
-	if (!test_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags))
+	if (!test_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags)) {
+		mlx5_core_warn(dev, "Scheduling recovery work with %lums delay\n",
+			       recover_delay);
 		schedule_delayed_work(&health->recover_work, recover_delay);
-	else
+	} else {
 		dev_err(&dev->pdev->dev,
 			"new health works are not permitted at this stage\n");
+	}
 	spin_unlock_irqrestore(&health->wq_lock, flags);
 }
 
