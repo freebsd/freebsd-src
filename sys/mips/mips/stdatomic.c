@@ -327,7 +327,7 @@ __sync_bool_compare_and_swap_4(uint32_t *mem, uint32_t expected,
 {
 
 	return (do_compare_and_swap_4(mem, expected, desired) ==
-	    desired);
+	    expected);
 }
 
 #define	EMIT_FETCH_AND_OP_4(name, op)					\
