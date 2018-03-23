@@ -354,9 +354,9 @@ vm_freelist_add(struct vm_freelist *fl, vm_page_t m, int order, int tail)
 
 	m->order = order;
 	if (tail)
-		TAILQ_INSERT_TAIL(&fl[order].pl, m, plinks.q);
+		TAILQ_INSERT_TAIL(&fl[order].pl, m, listq);
 	else
-		TAILQ_INSERT_HEAD(&fl[order].pl, m, plinks.q);
+		TAILQ_INSERT_HEAD(&fl[order].pl, m, listq);
 	fl[order].lcnt++;
 }
 
@@ -364,7 +364,7 @@ static void
 vm_freelist_rem(struct vm_freelist *fl, vm_page_t m, int order)
 {
 
-	TAILQ_REMOVE(&fl[order].pl, m, plinks.q);
+	TAILQ_REMOVE(&fl[order].pl, m, listq);
 	fl[order].lcnt--;
 	m->order = VM_NFREEORDER;
 }
@@ -1196,7 +1196,7 @@ vm_phys_alloc_seg_contig(struct vm_phys_seg *seg, u_long npages,
 	    oind++) {
 		for (pind = 0; pind < VM_NFREEPOOL; pind++) {
 			fl = (*seg->free_queues)[pind];
-			TAILQ_FOREACH(m_ret, &fl[oind].pl, plinks.q) {
+			TAILQ_FOREACH(m_ret, &fl[oind].pl, listq) {
 				/*
 				 * Is the size of this allocation request
 				 * larger than the largest block size?

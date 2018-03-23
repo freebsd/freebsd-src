@@ -66,24 +66,26 @@
 #define	_VM_PAGEQUEUE_
 
 #ifdef _KERNEL
-
-#define	BPQ_COUNT	PA_LOCK_COUNT
-#define	BPQ_IDX(m)	(pa_index(VM_PAGE_TO_PHYS(m)) % BPQ_COUNT)
-
-struct vm_batchqueue {
-	struct pglist	bpq_pl;
-	int		bpq_cnt;
-	int		bpq_lim;
-} __aligned(CACHE_LINE_SIZE);
-
 struct vm_pagequeue {
 	struct mtx	pq_mutex;
 	struct pglist	pq_pl;
 	int		pq_cnt;
 	const char	* const pq_name;
-	char            _pq_pad[0] __aligned(CACHE_LINE_SIZE);
-	struct vm_batchqueue pq_bpqs[BPQ_COUNT];
 } __aligned(CACHE_LINE_SIZE);
+
+#ifndef VM_BATCHQUEUE_SIZE
+#define	VM_BATCHQUEUE_SIZE	7
+#endif
+
+struct vm_batchqueue {
+	vm_page_t	bq_pa[VM_BATCHQUEUE_SIZE];
+	int		bq_cnt;
+} __aligned(CACHE_LINE_SIZE);
+
+#define	VM_BATCHQ_FOREACH(batchqp, page)				\
+	for (vm_page_t *__mp = &(batchqp)->bq_pa[0];			\
+	    (page) = *__mp, __mp != &(batchqp)->bq_pa[(batchqp)->bq_cnt]; \
+	    __mp++)
 
 #include <vm/uma.h>
 #include <sys/pidctrl.h>
@@ -157,6 +159,7 @@ extern struct vm_domain vm_dom[MAXMEMDOM];
 #define	vm_pagequeue_assert_locked(pq)	mtx_assert(&(pq)->pq_mutex, MA_OWNED)
 #define	vm_pagequeue_lock(pq)		mtx_lock(&(pq)->pq_mutex)
 #define	vm_pagequeue_lockptr(pq)	(&(pq)->pq_mutex)
+#define	vm_pagequeue_trylock(pq)	mtx_trylock(&(pq)->pq_mutex)
 #define	vm_pagequeue_unlock(pq)		mtx_unlock(&(pq)->pq_mutex)
 
 #define	vm_domain_free_assert_locked(n)					\
@@ -167,6 +170,8 @@ extern struct vm_domain vm_dom[MAXMEMDOM];
 	    mtx_lock(vm_domain_free_lockptr((d)))
 #define	vm_domain_free_lockptr(d)					\
 	    (&(d)->vmd_free_mtx)
+#define	vm_domain_free_trylock(d)					\
+	    mtx_trylock(vm_domain_free_lockptr((d)))
 #define	vm_domain_free_unlock(d)					\
 	    mtx_unlock(vm_domain_free_lockptr((d)))
 
@@ -185,13 +190,29 @@ static __inline void
 vm_pagequeue_cnt_add(struct vm_pagequeue *pq, int addend)
 {
 
-#ifdef notyet
 	vm_pagequeue_assert_locked(pq);
-#endif
 	pq->pq_cnt += addend;
 }
 #define	vm_pagequeue_cnt_inc(pq)	vm_pagequeue_cnt_add((pq), 1)
 #define	vm_pagequeue_cnt_dec(pq)	vm_pagequeue_cnt_add((pq), -1)
+
+static inline void
+vm_batchqueue_init(struct vm_batchqueue *bq)
+{
+
+	bq->bq_cnt = 0;
+}
+
+static inline bool
+vm_batchqueue_insert(struct vm_batchqueue *bq, vm_page_t m)
+{
+
+	if (bq->bq_cnt < nitems(bq->bq_pa)) {
+		bq->bq_pa[bq->bq_cnt++] = m;
+		return (true);
+	}
+	return (false);
+}
 
 void vm_domain_set(struct vm_domain *vmd);
 void vm_domain_clear(struct vm_domain *vmd);

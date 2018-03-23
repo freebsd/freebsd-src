@@ -94,7 +94,9 @@
  *	In general, operations on this structure's mutable fields are
  *	synchronized using either one of or a combination of the lock on the
  *	object that the page belongs to (O), the pool lock for the page (P),
- *	or the lock for either the free or paging queue (Q).  If a field is
+ *	the per-domain lock for the free queues (F), or the page's queue
+ *	lock (Q).  The queue lock for a page depends on the value of its
+ *	queue field and described in detail below.  If a field is
  *	annotated below with two of these locks, then holding either lock is
  *	sufficient for read access, but both locks are required for write
  *	access.  An annotation of (C) indicates that the field is immutable.
@@ -143,6 +145,28 @@
  *	causing the thread to block.  vm_page_sleep_if_busy() can be used to
  *	sleep until the page's busy state changes, after which the caller
  *	must re-lookup the page and re-evaluate its state.
+ *
+ *	The queue field is the index of the page queue containing the
+ *	page, or PQ_NONE if the page is not enqueued.  The queue lock of a
+ *	page is the page queue lock corresponding to the page queue index,
+ *	or the page lock (P) for the page.  To modify the queue field, the
+ *	queue lock for the old value of the field must be held.  It is
+ *	invalid for a page's queue field to transition between two distinct
+ *	page queue indices.  That is, when updating the queue field, either
+ *	the new value or the old value must be PQ_NONE.
+ *
+ *	To avoid contention on page queue locks, page queue operations
+ *	(enqueue, dequeue, requeue) are batched using per-CPU queues.
+ *	A deferred operation is requested by inserting an entry into a
+ *	batch queue; the entry is simply a pointer to the page, and the
+ *	request type is encoded in the page's aflags field using the values
+ *	in PGA_QUEUE_STATE_MASK.  The type-stability of struct vm_pages is
+ *	crucial to this scheme since the processing of entries in a given
+ *	batch queue may be deferred indefinitely.  In particular, a page
+ *	may be freed before its pending batch queue entries have been
+ *	processed.  The page lock (P) must be held to schedule a batched
+ *	queue operation, and the page queue lock must be held in order to
+ *	process batch queue entries for the page queue.
  */
 
 #if PAGE_SIZE == 4096
@@ -174,7 +198,7 @@ struct vm_page {
 	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) */
 	vm_object_t object;		/* which object am I in (O,P) */
 	vm_pindex_t pindex;		/* offset into object (O,P) */
-	vm_paddr_t phys_addr;		/* physical address of page */
+	vm_paddr_t phys_addr;		/* physical address of page (C) */
 	struct md_page md;		/* machine dependent stuff */
 	u_int wire_count;		/* wired down maps refs (P) */
 	volatile u_int busy_lock;	/* busy owners lock */
@@ -182,11 +206,11 @@ struct vm_page {
 	uint16_t flags;			/* page PG_* flags (P) */
 	uint8_t aflags;			/* access is atomic */
 	uint8_t oflags;			/* page VPO_* flags (O) */
-	uint8_t	queue;			/* page queue index (P,Q) */
+	uint8_t	queue;			/* page queue index (Q) */
 	int8_t psind;			/* pagesizes[] index (O) */
 	int8_t segind;			/* vm_phys segment index (C) */
-	uint8_t	order;			/* index of the buddy queue */
-	uint8_t pool;			/* vm_phys freepool index (Q) */
+	uint8_t	order;			/* index of the buddy queue (F) */
+	uint8_t pool;			/* vm_phys freepool index (F) */
 	u_char	act_count;		/* page usage count (P) */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
@@ -314,10 +338,32 @@ extern struct mtx_padalign pa_lock[];
  *
  * PGA_EXECUTABLE may be set by pmap routines, and indicates that a page has
  * at least one executable mapping.  It is not consumed by the MI VM layer.
+ *
+ * PGA_ENQUEUED is set and cleared when a page is inserted into or removed
+ * from a page queue, respectively.  It determines whether the plinks.q field
+ * of the page is valid.  To set or clear this flag, the queue lock for the
+ * page must be held: the page queue lock corresponding to the page's "queue"
+ * field if its value is not PQ_NONE, and the page lock otherwise.
+ *
+ * PGA_DEQUEUE is set when the page is scheduled to be dequeued from a page
+ * queue, and cleared when the dequeue request is processed.  A page may
+ * have PGA_DEQUEUE set and PGA_ENQUEUED cleared, for instance if a dequeue
+ * is requested after the page is scheduled to be enqueued but before it is
+ * actually inserted into the page queue.  The page lock must be held to set
+ * this flag, and the queue lock for the page must be held to clear it.
+ *
+ * PGA_REQUEUE is set when the page is scheduled to be requeued in its page
+ * queue.  The page lock must be held to set this flag, and the queue lock
+ * for the page must be held to clear it.
  */
 #define	PGA_WRITEABLE	0x01		/* page may be mapped writeable */
 #define	PGA_REFERENCED	0x02		/* page has been referenced */
 #define	PGA_EXECUTABLE	0x04		/* page may be mapped executable */
+#define	PGA_ENQUEUED	0x08		/* page is enqueued in a page queue */
+#define	PGA_DEQUEUE	0x10		/* page is due to be dequeued */
+#define	PGA_REQUEUE	0x20		/* page is due to be requeued */
+
+#define	PGA_QUEUE_STATE_MASK	(PGA_ENQUEUED | PGA_DEQUEUE | PGA_REQUEUE)
 
 /*
  * Page flags.  If changed at any other time than page allocation or
@@ -486,7 +532,7 @@ void vm_page_dequeue(vm_page_t m);
 void vm_page_dequeue_locked(vm_page_t m);
 vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
 void vm_page_free_phys_pglist(struct pglist *tq);
-bool vm_page_free_prep(vm_page_t m, bool pagequeue_locked);
+bool vm_page_free_prep(vm_page_t m);
 vm_page_t vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_initfake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
 int vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
