@@ -54,7 +54,7 @@
 #define BIT_WORD(nr)		((nr) / BITS_PER_LONG)
 #define	GENMASK(h, l)		(((~0UL) >> (BITS_PER_LONG - (h) - 1)) & ((~0UL) << (l)))
 #define	GENMASK_ULL(h, l)	(((~0ULL) >> (BITS_PER_LONG_LONG - (h) - 1)) & ((~0ULL) << (l)))
-#define BITS_PER_BYTE           8
+#define BITS_PER_BYTE		8
 
 #define	hweight8(x)	bitcount((uint8_t)(x))
 #define	hweight16(x)	bitcount16(x)

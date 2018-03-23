@@ -96,8 +96,8 @@ struct pci_device_id {
 #define	PCI_SUBDEVICE_ID_QEMU		0x1100
 
 #define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))
-#define PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
-#define PCI_FUNC(devfn)         ((devfn) & 0x07)
+#define PCI_SLOT(devfn)		(((devfn) >> 3) & 0x1f)
+#define PCI_FUNC(devfn)		((devfn) & 0x07)
 
 #define PCI_VDEVICE(_vendor, _device)					\
 	    .vendor = PCI_VENDOR_ID_##_vendor, .device = (_device),	\
@@ -467,7 +467,7 @@ pci_find_capability(struct pci_dev *pdev, int capid)
 
 static inline int pci_pcie_cap(struct pci_dev *dev)
 {
-        return pci_find_capability(dev, PCI_CAP_ID_EXP);
+	return pci_find_capability(dev, PCI_CAP_ID_EXP);
 }
 
 
@@ -598,12 +598,12 @@ pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
 
 static inline int pci_channel_offline(struct pci_dev *pdev)
 {
-        return false;
+	return false;
 }
 
 static inline int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn)
 {
-        return -ENODEV;
+	return -ENODEV;
 }
 static inline void pci_disable_sriov(struct pci_dev *dev)
 {
@@ -666,169 +666,167 @@ typedef unsigned int __bitwise pci_channel_state_t;
 typedef unsigned int __bitwise pci_ers_result_t;
 
 enum pci_channel_state {
-        pci_channel_io_normal = 1,
-        pci_channel_io_frozen = 2,
-        pci_channel_io_perm_failure = 3,
+	pci_channel_io_normal = 1,
+	pci_channel_io_frozen = 2,
+	pci_channel_io_perm_failure = 3,
 };
 
 enum pci_ers_result {
-        PCI_ERS_RESULT_NONE = 1,
-        PCI_ERS_RESULT_CAN_RECOVER = 2,
-        PCI_ERS_RESULT_NEED_RESET = 3,
-        PCI_ERS_RESULT_DISCONNECT = 4,
-        PCI_ERS_RESULT_RECOVERED = 5,
+	PCI_ERS_RESULT_NONE = 1,
+	PCI_ERS_RESULT_CAN_RECOVER = 2,
+	PCI_ERS_RESULT_NEED_RESET = 3,
+	PCI_ERS_RESULT_DISCONNECT = 4,
+	PCI_ERS_RESULT_RECOVERED = 5,
 };
 
 
 /* PCI bus error event callbacks */
 struct pci_error_handlers {
-        pci_ers_result_t (*error_detected)(struct pci_dev *dev,
-                        enum pci_channel_state error);
-        pci_ers_result_t (*mmio_enabled)(struct pci_dev *dev);
-        pci_ers_result_t (*link_reset)(struct pci_dev *dev);
-        pci_ers_result_t (*slot_reset)(struct pci_dev *dev);
-        void (*resume)(struct pci_dev *dev);
+	pci_ers_result_t (*error_detected)(struct pci_dev *dev,
+	    enum pci_channel_state error);
+	pci_ers_result_t (*mmio_enabled)(struct pci_dev *dev);
+	pci_ers_result_t (*link_reset)(struct pci_dev *dev);
+	pci_ers_result_t (*slot_reset)(struct pci_dev *dev);
+	void (*resume)(struct pci_dev *dev);
 };
 
 /* FreeBSD does not support SRIOV - yet */
 static inline struct pci_dev *pci_physfn(struct pci_dev *dev)
 {
-        return dev;
+	return dev;
 }
 
 static inline bool pci_is_pcie(struct pci_dev *dev)
 {
-        return !!pci_pcie_cap(dev);
+	return !!pci_pcie_cap(dev);
 }
 
 static inline u16 pcie_flags_reg(struct pci_dev *dev)
 {
-        int pos;
-        u16 reg16;
+	int pos;
+	u16 reg16;
 
-        pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
-        if (!pos)
-                return 0;
+	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	if (!pos)
+		return 0;
 
-        pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &reg16);
+	pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &reg16);
 
-        return reg16;
+	return reg16;
 }
 
 
 static inline int pci_pcie_type(struct pci_dev *dev)
 {
-        return (pcie_flags_reg(dev) & PCI_EXP_FLAGS_TYPE) >> 4;
+	return (pcie_flags_reg(dev) & PCI_EXP_FLAGS_TYPE) >> 4;
 }
 
 static inline int pcie_cap_version(struct pci_dev *dev)
 {
-        return pcie_flags_reg(dev) & PCI_EXP_FLAGS_VERS;
+	return pcie_flags_reg(dev) & PCI_EXP_FLAGS_VERS;
 }
 
 static inline bool pcie_cap_has_lnkctl(struct pci_dev *dev)
 {
-        int type = pci_pcie_type(dev);
+	int type = pci_pcie_type(dev);
 
-        return pcie_cap_version(dev) > 1 ||
-               type == PCI_EXP_TYPE_ROOT_PORT ||
-               type == PCI_EXP_TYPE_ENDPOINT ||
-               type == PCI_EXP_TYPE_LEG_END;
+	return pcie_cap_version(dev) > 1 ||
+	       type == PCI_EXP_TYPE_ROOT_PORT ||
+	       type == PCI_EXP_TYPE_ENDPOINT ||
+	       type == PCI_EXP_TYPE_LEG_END;
 }
 
 static inline bool pcie_cap_has_devctl(const struct pci_dev *dev)
 {
-                return true;
+		return true;
 }
 
 static inline bool pcie_cap_has_sltctl(struct pci_dev *dev)
 {
-        int type = pci_pcie_type(dev);
+	int type = pci_pcie_type(dev);
 
-        return pcie_cap_version(dev) > 1 ||
-               type == PCI_EXP_TYPE_ROOT_PORT ||
-               (type == PCI_EXP_TYPE_DOWNSTREAM &&
-                pcie_flags_reg(dev) & PCI_EXP_FLAGS_SLOT);
+	return pcie_cap_version(dev) > 1 || type == PCI_EXP_TYPE_ROOT_PORT ||
+	    (type == PCI_EXP_TYPE_DOWNSTREAM &&
+	    pcie_flags_reg(dev) & PCI_EXP_FLAGS_SLOT);
 }
 
 static inline bool pcie_cap_has_rtctl(struct pci_dev *dev)
 {
-        int type = pci_pcie_type(dev);
+	int type = pci_pcie_type(dev);
 
-        return pcie_cap_version(dev) > 1 ||
-               type == PCI_EXP_TYPE_ROOT_PORT ||
-               type == PCI_EXP_TYPE_RC_EC;
+	return pcie_cap_version(dev) > 1 || type == PCI_EXP_TYPE_ROOT_PORT ||
+	    type == PCI_EXP_TYPE_RC_EC;
 }
 
 static bool pcie_capability_reg_implemented(struct pci_dev *dev, int pos)
 {
-        if (!pci_is_pcie(dev))
-                return false;
+	if (!pci_is_pcie(dev))
+		return false;
 
-        switch (pos) {
-        case PCI_EXP_FLAGS_TYPE:
-                return true;
-        case PCI_EXP_DEVCAP:
-        case PCI_EXP_DEVCTL:
-        case PCI_EXP_DEVSTA:
-                return pcie_cap_has_devctl(dev);
-        case PCI_EXP_LNKCAP:
-        case PCI_EXP_LNKCTL:
-        case PCI_EXP_LNKSTA:
-                return pcie_cap_has_lnkctl(dev);
-        case PCI_EXP_SLTCAP:
-        case PCI_EXP_SLTCTL:
-        case PCI_EXP_SLTSTA:
-                return pcie_cap_has_sltctl(dev);
-        case PCI_EXP_RTCTL:
-        case PCI_EXP_RTCAP:
-        case PCI_EXP_RTSTA:
-                return pcie_cap_has_rtctl(dev);
-        case PCI_EXP_DEVCAP2:
-        case PCI_EXP_DEVCTL2:
-        case PCI_EXP_LNKCAP2:
-        case PCI_EXP_LNKCTL2:
-        case PCI_EXP_LNKSTA2:
-                return pcie_cap_version(dev) > 1;
-        default:
-                return false;
-        }
+	switch (pos) {
+	case PCI_EXP_FLAGS_TYPE:
+		return true;
+	case PCI_EXP_DEVCAP:
+	case PCI_EXP_DEVCTL:
+	case PCI_EXP_DEVSTA:
+		return pcie_cap_has_devctl(dev);
+	case PCI_EXP_LNKCAP:
+	case PCI_EXP_LNKCTL:
+	case PCI_EXP_LNKSTA:
+		return pcie_cap_has_lnkctl(dev);
+	case PCI_EXP_SLTCAP:
+	case PCI_EXP_SLTCTL:
+	case PCI_EXP_SLTSTA:
+		return pcie_cap_has_sltctl(dev);
+	case PCI_EXP_RTCTL:
+	case PCI_EXP_RTCAP:
+	case PCI_EXP_RTSTA:
+		return pcie_cap_has_rtctl(dev);
+	case PCI_EXP_DEVCAP2:
+	case PCI_EXP_DEVCTL2:
+	case PCI_EXP_LNKCAP2:
+	case PCI_EXP_LNKCTL2:
+	case PCI_EXP_LNKSTA2:
+		return pcie_cap_version(dev) > 1;
+	default:
+		return false;
+	}
 }
 
 static inline int
 pcie_capability_read_dword(struct pci_dev *dev, int pos, u32 *dst)
 {
-        if (pos & 3)
-                return -EINVAL;
+	if (pos & 3)
+		return -EINVAL;
 
-        if (!pcie_capability_reg_implemented(dev, pos))
-                return -EINVAL;
+	if (!pcie_capability_reg_implemented(dev, pos))
+		return -EINVAL;
 
-        return pci_read_config_dword(dev, pci_pcie_cap(dev) + pos, dst);
+	return pci_read_config_dword(dev, pci_pcie_cap(dev) + pos, dst);
 }
 
 static inline int
 pcie_capability_read_word(struct pci_dev *dev, int pos, u16 *dst)
 {
-        if (pos & 3)
-                return -EINVAL;
+	if (pos & 3)
+		return -EINVAL;
 
-        if (!pcie_capability_reg_implemented(dev, pos))
-                return -EINVAL;
+	if (!pcie_capability_reg_implemented(dev, pos))
+		return -EINVAL;
 
-        return pci_read_config_word(dev, pci_pcie_cap(dev) + pos, dst);
+	return pci_read_config_word(dev, pci_pcie_cap(dev) + pos, dst);
 }
 
 static inline int
 pcie_capability_write_word(struct pci_dev *dev, int pos, u16 val)
 {
-        if (pos & 1)
-                return -EINVAL;
+	if (pos & 1)
+		return -EINVAL;
 
-        if (!pcie_capability_reg_implemented(dev, pos))
-                return 0;
+	if (!pcie_capability_reg_implemented(dev, pos))
+		return 0;
 
-        return pci_write_config_word(dev, pci_pcie_cap(dev) + pos, val);
+	return pci_write_config_word(dev, pci_pcie_cap(dev) + pos, val);
 }
 
 static inline int pcie_get_minimum_link(struct pci_dev *dev,

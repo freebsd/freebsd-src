@@ -112,7 +112,7 @@ cdev_add_ext(struct linux_cdev *cdev, dev_t dev, uid_t uid, gid_t gid, int mode)
 	int error;
 
 	cdev->dev = dev;
-	
+
 	/* Setup arguments for make_dev_s() */
 	make_dev_args_init(&args);
 	args.mda_devsw = &linuxcdevsw;

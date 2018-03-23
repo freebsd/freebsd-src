@@ -82,7 +82,7 @@ struct linux_file_wait_queue {
 struct linux_file {
 	struct file	*_file;
 	const struct file_operations	*f_op;
-	void 		*private_data;
+	void		*private_data;
 	int		f_flags;
 	int		f_mode;	/* Just starting mode. */
 	struct dentry	*f_dentry;
@@ -140,7 +140,7 @@ struct file_operations {
 	int (*fasync)(int, struct file *, int);
 
 /* Although not supported in FreeBSD, to align with Linux code
- * we are adding llseek() only when it is mapped to no_llseek which returns 
+ * we are adding llseek() only when it is mapped to no_llseek which returns
  * an illegal seek error
  */
 	loff_t (*llseek)(struct file *, loff_t, int);
@@ -270,7 +270,7 @@ iput(struct inode *inode)
 	vrele(inode);
 }
 
-static inline loff_t 
+static inline loff_t
 no_llseek(struct file *file, loff_t offset, int whence)
 {
 
