@@ -498,6 +498,7 @@ struct mlx5_core_health {
 	struct workqueue_struct	       *wq;
 	unsigned long			flags;
 	struct work_struct		work;
+	struct delayed_work		recover_work;
 };
 
 #define	MLX5_CQ_LINEAR_ARRAY_SIZE	1024
@@ -887,6 +888,7 @@ int mlx5_health_init(struct mlx5_core_dev *dev);
 void mlx5_start_health_poll(struct mlx5_core_dev *dev);
 void mlx5_stop_health_poll(struct mlx5_core_dev *dev);
 void mlx5_drain_health_wq(struct mlx5_core_dev *dev);
+void mlx5_trigger_health_work(struct mlx5_core_dev *dev);
 
 #define	mlx5_buf_alloc_node(dev, size, direct, buf, node) \
 	mlx5_buf_alloc(dev, size, direct, buf)

@@ -1257,11 +1257,6 @@ static pci_ers_result_t mlx5_pci_slot_reset(struct pci_dev *pdev)
 	return err ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
 }
 
-void mlx5_disable_device(struct mlx5_core_dev *dev)
-{
-	mlx5_pci_err_detected(dev->pdev, 0);
-}
-
 /* wait for the device to show vital signs. For now we check
  * that we can read the device ID and that the health buffer
  * shows a non zero value which is different than 0xffffffff
@@ -1376,6 +1371,18 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, mlx5_core_pci_table);
+
+void mlx5_disable_device(struct mlx5_core_dev *dev)
+{
+	mlx5_pci_err_detected(dev->pdev, 0);
+}
+
+void mlx5_recover_device(struct mlx5_core_dev *dev)
+{
+	mlx5_pci_disable_device(dev);
+	if (mlx5_pci_slot_reset(dev->pdev) == PCI_ERS_RESULT_RECOVERED)
+		mlx5_pci_resume(dev->pdev);
+}
 
 struct pci_driver mlx5_core_driver = {
 	.name           = DRIVER_NAME,
