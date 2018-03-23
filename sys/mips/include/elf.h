@@ -243,24 +243,4 @@ __ElfType(Auxinfo);
 #define	R_MIPS_COPY		126
 #define	R_MIPS_JUMP_SLOT	127
 
-/*
- * ELF Flags
- */
-
-#define	EF_MIPS_ARCH_1		0x00000000	/* -mips1 code */
-#define	EF_MIPS_ARCH_2		0x10000000	/* -mips2 code */
-#define	EF_MIPS_ARCH_3		0x20000000	/* -mips3 code */
-#define	EF_MIPS_ARCH_4		0x30000000	/* -mips4 code */
-#define	EF_MIPS_ARCH_5		0x40000000	/* -mips5 code */
-#define	EF_MIPS_ARCH_32		0x50000000	/* -mips32 code */
-#define	EF_MIPS_ARCH_64		0x60000000	/* -mips64 code */
-#define	EF_MIPS_ARCH_32R2	0x70000000	/* -mips32r2 code */
-#define	EF_MIPS_ARCH_64R2	0x80000000	/* -mips64r2 code */
-
-#define	EF_MIPS_ABI		0x0000f000
-#define	EF_MIPS_ABI_O32		0x00001000
-#define	EF_MIPS_ABI_O64		0x00002000
-#define	EF_MIPS_ABI_EABI32	0x00003000
-#define	EF_MIPS_ABI_EABI64	0x00004000
-
 #endif /* __MIPS_ELF_H */
