@@ -44,6 +44,7 @@
 #define	ET_SYS_X86	0
 #define	ET_SYS_PPC	1
 #define	ET_SYS_MAC	2
+#define	ET_SYS_UEFI	0xef
 
 #define ET_BOOT_ENTRY_SIZE 0x20
 
