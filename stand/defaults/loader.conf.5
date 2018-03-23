@@ -222,11 +222,17 @@ replacing it with
 character (useful for embedded products and such).
 .It Va efi_max_resolution
 Specify the maximum desired resolution for the EFI console.
-The following pre-defined values are accepted: 480p, 720p, 1080p, 2160p or 4k,
-5k.
-The standard
-.Va WidthxHeight
-format is also accepted, e.g., 1920x1080.
+The following values are accepted:
+.Bl -column "WidthxHeight"
+.It Sy Value Ta Sy Resolution
+.It 480p Ta 640x480
+.It 720p Ta 1280x720
+.It 1080p Ta 1920x1080
+.It 2160p Ta 3840x2160
+.It 4k Ta 3840x2160
+.It 5k Ta 5120x2880
+.It Va Width Ns x Ns Va Height Ta Va Width Ns x Ns Va Height
+.El
 .It Va kernel
 .Pq Dq kernel
 .It Va kernels
