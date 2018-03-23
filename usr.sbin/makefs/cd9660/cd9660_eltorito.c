@@ -468,11 +468,14 @@ cd9660_setup_boot(iso9660_disk *diskStructure, int first_sector)
 	}
 
 	/* Find the last Section Header entry and mark it as the last. */
+	head = NULL;
 	LIST_FOREACH(next, &diskStructure->boot_entries, ll_struct) {
 		if (next->entry_type == ET_ENTRY_SH)
 			head = next;
 	}
-	head->entry_data.SH.header_indicator[0] = ET_SECTION_HEADER_LAST;
+	if (head != NULL)
+		head->entry_data.SH.header_indicator[0] =
+		    ET_SECTION_HEADER_LAST;
 
 	/* TODO: Remaining boot disks when implemented */
 
