@@ -907,8 +907,7 @@ mlx5e_destroy_rq(struct mlx5e_rq *rq)
 	wq_sz = mlx5_wq_ll_get_size(&rq->wq);
 	for (i = 0; i != wq_sz; i++) {
 		if (rq->mbuf[i].mbuf != NULL) {
-			bus_dmamap_unload(rq->dma_tag,
-			    rq->mbuf[i].dma_map);
+			bus_dmamap_unload(rq->dma_tag, rq->mbuf[i].dma_map);
 			m_freem(rq->mbuf[i].mbuf);
 		}
 		bus_dmamap_destroy(rq->dma_tag, rq->mbuf[i].dma_map);
@@ -1064,8 +1063,11 @@ mlx5e_close_rq(struct mlx5e_rq *rq)
 static void
 mlx5e_close_rq_wait(struct mlx5e_rq *rq)
 {
+	struct mlx5_core_dev *mdev = rq->channel->priv->mdev;
+
 	/* wait till RQ is empty */
-	while (!mlx5_wq_ll_is_empty(&rq->wq)) {
+	while (!mlx5_wq_ll_is_empty(&rq->wq) &&
+	       (mdev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR)) {
 		msleep(4);
 		rq->cq.mcq.comp(&rq->cq.mcq);
 	}
@@ -1404,6 +1406,7 @@ void
 mlx5e_drain_sq(struct mlx5e_sq *sq)
 {
 	int error;
+	struct mlx5_core_dev *mdev= sq->priv->mdev;
 
 	/*
 	 * Check if already stopped.
@@ -1436,7 +1439,8 @@ mlx5e_drain_sq(struct mlx5e_sq *sq)
 	/* wait till SQ is empty or link is down */
 	mtx_lock(&sq->lock);
 	while (sq->cc != sq->pc &&
-	    (sq->priv->media_status_last & IFM_ACTIVE) != 0) {
+	    (sq->priv->media_status_last & IFM_ACTIVE) != 0 &&
+	    mdev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR) {
 		mtx_unlock(&sq->lock);
 		msleep(1);
 		sq->cq.mcq.comp(&sq->cq.mcq);
@@ -1453,7 +1457,8 @@ mlx5e_drain_sq(struct mlx5e_sq *sq)
 
 	/* wait till SQ is empty */
 	mtx_lock(&sq->lock);
-	while (sq->cc != sq->pc) {
+	while (sq->cc != sq->pc &&
+	       mdev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR) {
 		mtx_unlock(&sq->lock);
 		msleep(1);
 		sq->cq.mcq.comp(&sq->cq.mcq);
