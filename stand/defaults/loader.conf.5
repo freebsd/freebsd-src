@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd March 19, 2018
+.Dd March 23, 2018
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -220,6 +220,13 @@ selects the video console which prevents any input and hides all output
 replacing it with
 .Dq spinning
 character (useful for embedded products and such).
+.It Va efi_max_resolution
+Specify the maximum desired resolution for the EFI console.
+The following pre-defined values are accepted: 480p, 720p, 1080p, 2160p or 4k,
+5k.
+The standard
+.Va WidthxHeight
+format is also accepted, e.g., 1920x1080.
 .It Va kernel
 .Pq Dq kernel
 .It Va kernels
