@@ -96,7 +96,7 @@ int	idr_for_each(struct idr *idp, int (*fn)(int id, void *p, void *data), void *
 
 #define	IDA_CHUNK_SIZE		128	/* 128 bytes per chunk */
 #define	IDA_BITMAP_LONGS	(IDA_CHUNK_SIZE / sizeof(long) - 1)
-#define	IDA_BITMAP_BITS 	(IDA_BITMAP_LONGS * sizeof(long) * 8)
+#define	IDA_BITMAP_BITS		(IDA_BITMAP_LONGS * sizeof(long) * 8)
 
 struct ida_bitmap {
 	long			nr_busy;

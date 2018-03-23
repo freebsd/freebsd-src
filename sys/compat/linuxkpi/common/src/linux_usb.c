@@ -418,11 +418,11 @@ usb_submit_urb(struct urb *urb, uint16_t mem_flags)
 	}
 
 	/*
-         * Check to see if the urb is in the process of being killed
-         * and stop a urb that is in the process of being killed from
-         * being re-submitted (e.g. from its completion callback
-         * function).
-         */
+	 * Check to see if the urb is in the process of being killed
+	 * and stop a urb that is in the process of being killed from
+	 * being re-submitted (e.g. from its completion callback
+	 * function).
+	 */
 	if (urb->kill_count != 0) {
 		err = -EPERM;
 		goto done;
@@ -1593,9 +1593,9 @@ tr_setup:
 		if (xfer->flags_int.control_xfr) {
 
 			/*
-		         * USB control transfers need special handling.
-		         * First copy in the header, then copy in data!
-		         */
+			 * USB control transfers need special handling.
+			 * First copy in the header, then copy in data!
+			 */
 			if (!xfer->flags.ext_buffer) {
 				usbd_copy_in(xfer->frbuffers, 0,
 				    urb->setup_packet, REQ_SIZE);
@@ -1725,7 +1725,7 @@ usb_bulk_msg(struct usb_device *udev, struct usb_host_endpoint *uhe,
 	if (urb == NULL)
 		return (-ENOMEM);
 
-        usb_fill_bulk_urb(urb, udev, uhe, data, len,
+	usb_fill_bulk_urb(urb, udev, uhe, data, len,
 	    usb_linux_wait_complete, NULL);
 
 	err = usb_start_wait_urb(urb, timeout, pactlen);

@@ -93,7 +93,7 @@ INIT_LIST_HEAD(struct list_head *list)
 
 	list->next = list->prev = list;
 }
- 
+
 static inline int
 list_empty(const struct list_head *head)
 {
@@ -159,7 +159,7 @@ linux_list_add(struct list_head *new, struct list_head *prev,
 
 static inline void
 list_del_init(struct list_head *entry)
-{	
+{
 
 	list_del(entry);
 	INIT_LIST_HEAD(entry);
@@ -167,8 +167,8 @@ list_del_init(struct list_head *entry)
 
 #define	list_entry(ptr, type, field)	container_of(ptr, type, field)
 
-#define list_first_entry(ptr, type, member) \
-        list_entry((ptr)->next, type, member)
+#define	list_first_entry(ptr, type, member) \
+	list_entry((ptr)->next, type, member)
 
 #define	list_last_entry(ptr, type, member)	\
 	list_entry((ptr)->prev, type, member)
@@ -196,7 +196,7 @@ list_del_init(struct list_head *entry)
 	    p = list_entry((p)->field.next, typeof(*p), field))
 
 #define list_for_each_entry_safe(p, n, h, field)			\
-	for (p = list_entry((h)->next, typeof(*p), field), 		\
+	for (p = list_entry((h)->next, typeof(*p), field),		\
 	    n = list_entry((p)->field.next, typeof(*p), field); &(p)->field != (h);\
 	    p = n, n = list_entry(n->field.next, typeof(*n), field))
 
@@ -208,7 +208,7 @@ list_del_init(struct list_head *entry)
 	for (p = list_next_entry((p), field); &(p)->field != (h);	\
 	    p = list_next_entry((p), field))
 
-#define	list_for_each_entry_safe_from(pos, n, head, member) 			\
+#define	list_for_each_entry_safe_from(pos, n, head, member)			\
 	for (n = list_entry((pos)->member.next, typeof(*pos), member);		\
 	     &(pos)->member != (head);						\
 	     pos = n, n = list_entry(n->member.next, typeof(*n), member))
@@ -218,7 +218,7 @@ list_del_init(struct list_head *entry)
 	    p = list_entry((p)->field.prev, typeof(*p), field))
 
 #define	list_for_each_entry_safe_reverse(p, n, h, field)		\
-	for (p = list_entry((h)->prev, typeof(*p), field), 		\
+	for (p = list_entry((h)->prev, typeof(*p), field),		\
 	    n = list_entry((p)->field.prev, typeof(*p), field); &(p)->field != (h); \
 	    p = n, n = list_entry(n->field.prev, typeof(*n), field))
 
@@ -259,7 +259,7 @@ list_move_tail(struct list_head *entry, struct list_head *head)
 }
 
 static inline void
-linux_list_splice(const struct list_head *list, struct list_head *prev,  
+linux_list_splice(const struct list_head *list, struct list_head *prev,
     struct list_head *next)
 {
 	struct list_head *first;
@@ -280,7 +280,7 @@ list_splice(const struct list_head *list, struct list_head *head)
 {
 
 	linux_list_splice(list, head, head->next);
-} 
+}
 
 static inline void
 list_splice_tail(struct list_head *list, struct list_head *head)
@@ -288,15 +288,15 @@ list_splice_tail(struct list_head *list, struct list_head *head)
 
 	linux_list_splice(list, head->prev, head);
 }
- 
+
 static inline void
 list_splice_init(struct list_head *list, struct list_head *head)
 {
 
 	linux_list_splice(list, head, head->next);
-	INIT_LIST_HEAD(list);   
+	INIT_LIST_HEAD(list);
 }
- 
+
 static inline void
 list_splice_tail_init(struct list_head *list, struct list_head *head)
 {
@@ -344,9 +344,9 @@ static inline void
 hlist_del(struct hlist_node *n)
 {
 
-        if (n->next)
-                n->next->pprev = n->pprev;
-        *n->pprev = n->next;
+	if (n->next)
+		n->next->pprev = n->pprev;
+	*n->pprev = n->next;
 }
 
 static inline void
@@ -379,7 +379,7 @@ hlist_add_before(struct hlist_node *n, struct hlist_node *next)
 	next->pprev = &n->next;
 	*(n->pprev) = n;
 }
- 
+
 static inline void
 hlist_add_after(struct hlist_node *n, struct hlist_node *next)
 {
@@ -390,7 +390,7 @@ hlist_add_after(struct hlist_node *n, struct hlist_node *next)
 	if (next->next)
 		next->next->pprev = &next->next;
 }
- 
+
 static inline void
 hlist_move_list(struct hlist_head *old, struct hlist_head *new)
 {
@@ -433,11 +433,11 @@ static inline void list_cut_position(struct list_head *list,
 }
 
 static inline int list_is_last(const struct list_head *list,
-                                const struct list_head *head)
+				const struct list_head *head)
 {
-        return list->next == head;
+	return list->next == head;
 }
- 
+
 #define	hlist_entry(ptr, type, field)	container_of(ptr, type, field)
 
 #define	hlist_for_each(p, head)						\

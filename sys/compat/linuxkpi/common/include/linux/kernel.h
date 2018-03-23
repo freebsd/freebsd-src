@@ -49,7 +49,7 @@
 #include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/jiffies.h>
-#include <linux/log2.h> 
+#include <linux/log2.h>
 #include <asm/byteorder.h>
 
 #include <machine/stdarg.h>
@@ -170,12 +170,12 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
  */
 #ifdef DEBUG
 #define pr_debug(fmt, ...) \
-        log(LOG_DEBUG, fmt, ##__VA_ARGS__)
+	log(LOG_DEBUG, fmt, ##__VA_ARGS__)
 #define pr_devel(fmt, ...) \
 	log(LOG_DEBUG, pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_debug(fmt, ...) \
-        ({ if (0) log(LOG_DEBUG, fmt, ##__VA_ARGS__); 0; })
+	({ if (0) log(LOG_DEBUG, fmt, ##__VA_ARGS__); 0; })
 #define pr_devel(fmt, ...) \
 	({ if (0) log(LOG_DEBUG, pr_fmt(fmt), ##__VA_ARGS__); 0; })
 #endif
@@ -238,19 +238,19 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 
 #ifndef WARN
 #define	WARN(condition, ...) ({			\
-        bool __ret_warn_on = (condition);	\
-        if (unlikely(__ret_warn_on))		\
-                pr_warning(__VA_ARGS__);	\
-        unlikely(__ret_warn_on);		\
+	bool __ret_warn_on = (condition);	\
+	if (unlikely(__ret_warn_on))		\
+		pr_warning(__VA_ARGS__);	\
+	unlikely(__ret_warn_on);		\
 })
 #endif
 
 #ifndef WARN_ONCE
 #define	WARN_ONCE(condition, ...) ({		\
-        bool __ret_warn_on = (condition);	\
-        if (unlikely(__ret_warn_on))		\
-                pr_warn_once(__VA_ARGS__);	\
-        unlikely(__ret_warn_on);		\
+	bool __ret_warn_on = (condition);	\
+	if (unlikely(__ret_warn_on))		\
+		pr_warn_once(__VA_ARGS__);	\
+	unlikely(__ret_warn_on);		\
 })
 #endif
 
@@ -259,7 +259,7 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 	const __typeof(((type *)0)->member) *__p = (ptr);	\
 	(type *)((uintptr_t)__p - offsetof(type, member));	\
 })
-  
+
 #define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
 #define	u64_to_user_ptr(val)	((void *)(uintptr_t)(val))
@@ -412,7 +412,7 @@ extern bool linux_cpu_has_clflush;
 #endif
 
 typedef struct pm_message {
-        int event;
+	int event;
 } pm_message_t;
 
 /* Swap values of a and b */
