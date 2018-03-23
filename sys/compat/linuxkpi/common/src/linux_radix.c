@@ -252,6 +252,6 @@ radix_tree_insert(struct radix_tree_root *root, unsigned long index, void *item)
 		return (-EEXIST);
 	node->slots[idx] = item;
 	node->count++;
-	
+
 	return (0);
 }
