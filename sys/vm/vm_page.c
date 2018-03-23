@@ -2473,7 +2473,7 @@ retry:
 						goto unlock;
 					}
 					KASSERT(m_new->wire_count == 0,
-					    ("page %p is wired", m));
+					    ("page %p is wired", m_new));
 
 					/*
 					 * Replace "m" with the new page.  For
@@ -2485,7 +2485,7 @@ retry:
 						pmap_remove_all(m);
 					m_new->aflags = m->aflags;
 					KASSERT(m_new->oflags == VPO_UNMANAGED,
-					    ("page %p is managed", m));
+					    ("page %p is managed", m_new));
 					m_new->oflags = m->oflags & VPO_NOSYNC;
 					pmap_copy_page(m, m_new);
 					m_new->valid = m->valid;
