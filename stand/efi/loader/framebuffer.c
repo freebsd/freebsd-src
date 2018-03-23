@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <bootstrap.h>
 #include <sys/endian.h>
+#include <sys/param.h>
 #include <stand.h>
 
 #include <efi.h>
@@ -44,6 +45,40 @@ __FBSDID("$FreeBSD$");
 static EFI_GUID gop_guid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 static EFI_GUID pciio_guid = EFI_PCI_IO_PROTOCOL_GUID;
 static EFI_GUID uga_guid = EFI_UGA_DRAW_PROTOCOL_GUID;
+
+static struct named_resolution {
+	const char *name;
+	const char *alias;
+	unsigned int width;
+	unsigned int height;
+} resolutions[] = {
+	{
+		.name = "480p",
+		.width = 640,
+		.height = 480,
+	},
+	{
+		.name = "720p",
+		.width = 1280,
+		.height = 720,
+	},
+	{
+		.name = "1080p",
+		.width = 1920,
+		.height = 1080,
+	},
+	{
+		.name = "2160p",
+		.alias = "4k",
+		.width = 3840,
+		.height = 2160,
+	},
+	{
+		.name = "5k",
+		.width = 5120,
+		.height = 2880,
+	}
+};
 
 static u_int
 efifb_color_depth(struct efi_fb *efifb)
@@ -462,6 +497,57 @@ print_efifb(int mode, struct efi_fb *efifb, int verbose)
 	}
 }
 
+static bool
+efi_resolution_compare(struct named_resolution *res, const char *cmp)
+{
+
+	if (strcasecmp(res->name, cmp) == 0)
+		return (true);
+	if (res->alias != NULL && strcasecmp(res->alias, cmp) == 0)
+		return (true);
+	return (false);
+}
+
+
+static void
+efi_get_max_resolution(int *width, int *height)
+{
+	struct named_resolution *res;
+	char *maxres;
+	char *height_start, *width_start;
+	int idx;
+
+	*width = *height = 0;
+	maxres = getenv("efi_max_resolution");
+	/* No max_resolution set? Bail out; choose highest resolution */
+	if (maxres == NULL)
+		return;
+	/* See if it matches one of our known resolutions */
+	for (idx = 0; idx < nitems(resolutions); ++idx) {
+		res = &resolutions[idx];
+		if (efi_resolution_compare(res, maxres)) {
+			*width = res->width;
+			*height = res->height;
+			return;
+		}
+	}
+	/* Not a known resolution, try to parse it; make a copy we can modify */
+	maxres = strdup(maxres);
+	if (maxres == NULL)
+		return;
+	height_start = strchr(maxres, 'x');
+	if (height_start == NULL) {
+		free(maxres);
+		return;
+	}
+	width_start = maxres;
+	*height_start++ = 0;
+	/* Errors from this will effectively mean "no max" */
+	*width = (int)strtol(width_start, NULL, 0);
+	*height = (int)strtol(height_start, NULL, 0);
+	free(maxres);
+}
+
 static int
 gop_autoresize(EFI_GRAPHICS_OUTPUT *gop)
 {
@@ -470,16 +556,22 @@ gop_autoresize(EFI_GRAPHICS_OUTPUT *gop)
 	EFI_STATUS status;
 	UINTN infosz;
 	UINT32 best_mode, currdim, maxdim, mode;
+	int height, max_height, max_width, width;
 
 	best_mode = maxdim = 0;
+	efi_get_max_resolution(&max_width, &max_height);
 	for (mode = 0; mode < gop->Mode->MaxMode; mode++) {
 		status = gop->QueryMode(gop, mode, &infosz, &info);
 		if (EFI_ERROR(status))
 			continue;
 		efifb_from_gop(&efifb, gop->Mode, info);
-		currdim = info->HorizontalResolution * info->VerticalResolution;
-		/* XXX TODO: Allow tunable or something for max resolution */
+		width = info->HorizontalResolution;
+		height = info->VerticalResolution;
+		currdim = width * height;
 		if (currdim > maxdim) {
+			if ((max_width != 0 && width > max_width) ||
+			    (max_height != 0 && height > max_height))
+				continue;
 			maxdim = currdim;
 			best_mode = mode;
 		}
