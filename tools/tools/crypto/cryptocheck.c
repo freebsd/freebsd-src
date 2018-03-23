@@ -59,6 +59,8 @@
  *	sha256		256-bit sha2 hmac
  *	sha384		384-bit sha2 hmac
  *	sha512		512-bit	sha2 hmac
+ *	blake2b		Blake2-B
+ *	blake2s		Blake2-S
  *
  * Block Ciphers:
  *	aes-cbc		128-bit aes cbc
@@ -115,6 +117,10 @@ struct alg {
 	  .evp_md = EVP_sha384 },
 	{ .name = "sha512", .mac = CRYPTO_SHA2_512_HMAC, .type = T_HMAC,
 	  .evp_md = EVP_sha512 },
+	{ .name = "blake2b", .mac = CRYPTO_BLAKE2B, .type = T_HMAC,
+	  .evp_md = EVP_blake2b512 },
+	{ .name = "blake2s", .mac = CRYPTO_BLAKE2S, .type = T_HMAC,
+	  .evp_md = EVP_blake2s256 },
 	{ .name = "aes-cbc", .cipher = CRYPTO_AES_CBC, .type = T_BLKCIPHER,
 	  .evp_cipher = EVP_aes_128_cbc },
 	{ .name = "aes-cbc192", .cipher = CRYPTO_AES_CBC, .type = T_BLKCIPHER,
