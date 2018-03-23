@@ -642,7 +642,7 @@ mlx5e_update_stats(void *arg)
 {
 	struct mlx5e_priv *priv = arg;
 
-	schedule_work(&priv->update_stats_work);
+	queue_work(priv->wq, &priv->update_stats_work);
 
 	callout_reset(&priv->watchdog, hz, &mlx5e_update_stats, priv);
 }
@@ -654,7 +654,7 @@ mlx5e_async_event_sub(struct mlx5e_priv *priv,
 	switch (event) {
 	case MLX5_DEV_EVENT_PORT_UP:
 	case MLX5_DEV_EVENT_PORT_DOWN:
-		schedule_work(&priv->update_carrier_work);
+		queue_work(priv->wq, &priv->update_carrier_work);
 		break;
 
 	default:
@@ -2686,7 +2686,7 @@ mlx5e_set_rx_mode(struct ifnet *ifp)
 {
 	struct mlx5e_priv *priv = ifp->if_softc;
 
-	schedule_work(&priv->set_rx_mode_work);
+	queue_work(priv->wq, &priv->set_rx_mode_work);
 }
 
 static int
@@ -3540,11 +3540,20 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		goto err_free_sysctl;
 	}
 	mlx5e_build_ifp_priv(mdev, priv, ncv);
+
+	snprintf(unit, sizeof(unit), "mce%u_wq",
+	    device_get_unit(mdev->pdev->dev.bsddev));
+	priv->wq = alloc_workqueue(unit, 0, 1);
+	if (priv->wq == NULL) {
+		if_printf(ifp, "%s: alloc_workqueue failed\n", __func__);
+		goto err_free_sysctl;
+	}
+
 	err = mlx5_alloc_map_uar(mdev, &priv->cq_uar);
 	if (err) {
 		if_printf(ifp, "%s: mlx5_alloc_map_uar failed, %d\n",
 		    __func__, err);
-		goto err_free_sysctl;
+		goto err_free_wq;
 	}
 	err = mlx5_core_alloc_pd(mdev, &priv->pdn);
 	if (err) {
@@ -3666,6 +3675,9 @@ err_dealloc_pd:
 err_unmap_free_uar:
 	mlx5_unmap_free_uar(mdev, &priv->cq_uar);
 
+err_free_wq:
+	destroy_workqueue(priv->wq);
+
 err_free_sysctl:
 	sysctl_ctx_free(&priv->sysctl_ctx);
 
@@ -3728,7 +3740,7 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	mlx5_core_dealloc_pd(priv->mdev, priv->pdn);
 	mlx5_unmap_free_uar(priv->mdev, &priv->cq_uar);
 	mlx5e_disable_async_events(priv);
-	flush_scheduled_work();
+	destroy_workqueue(priv->wq);
 	mlx5e_priv_mtx_destroy(priv);
 	free(priv, M_MLX5EN);
 }
