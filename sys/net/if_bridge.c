@@ -3176,7 +3176,8 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	if (PFIL_HOOKED(&V_link_pfil_hook) && V_pfil_ipfw != 0 &&
 			dir == PFIL_OUT && ifp != NULL) {
 
-		error = pfil_run_hooks(&V_link_pfil_hook, mp, ifp, dir, NULL);
+		error = pfil_run_hooks(&V_link_pfil_hook, mp, ifp, dir, 0,
+		    NULL);
 
 		if (*mp == NULL || error != 0) /* packet consumed by filter */
 			return (error);
@@ -3228,21 +3229,21 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 		 */
 		if (V_pfil_bridge && dir == PFIL_OUT && bifp != NULL)
 			error = pfil_run_hooks(&V_inet_pfil_hook, mp, bifp,
-					dir, NULL);
+					dir, 0, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
 		if (V_pfil_member && ifp != NULL)
 			error = pfil_run_hooks(&V_inet_pfil_hook, mp, ifp,
-					dir, NULL);
+					dir, 0, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
 		if (V_pfil_bridge && dir == PFIL_IN && bifp != NULL)
 			error = pfil_run_hooks(&V_inet_pfil_hook, mp, bifp,
-					dir, NULL);
+					dir, 0, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
@@ -3282,21 +3283,21 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	case ETHERTYPE_IPV6:
 		if (V_pfil_bridge && dir == PFIL_OUT && bifp != NULL)
 			error = pfil_run_hooks(&V_inet6_pfil_hook, mp, bifp,
-					dir, NULL);
+					dir, 0, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
 		if (V_pfil_member && ifp != NULL)
 			error = pfil_run_hooks(&V_inet6_pfil_hook, mp, ifp,
-					dir, NULL);
+					dir, 0, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
 		if (V_pfil_bridge && dir == PFIL_IN && bifp != NULL)
 			error = pfil_run_hooks(&V_inet6_pfil_hook, mp, bifp,
-					dir, NULL);
+					dir, 0, NULL);
 		break;
 #endif
 	default:

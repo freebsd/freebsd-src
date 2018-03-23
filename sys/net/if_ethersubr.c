@@ -449,7 +449,8 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 	int i;
 
 	if (PFIL_HOOKED(&V_link_pfil_hook)) {
-		i = pfil_run_hooks(&V_link_pfil_hook, &m, ifp, PFIL_OUT, NULL);
+		i = pfil_run_hooks(&V_link_pfil_hook, &m, ifp, PFIL_OUT, 0,
+		    NULL);
 
 		if (i != 0)
 			return (EACCES);
@@ -782,7 +783,8 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 
 	/* Do not grab PROMISC frames in case we are re-entered. */
 	if (PFIL_HOOKED(&V_link_pfil_hook) && !(m->m_flags & M_PROMISC)) {
-		i = pfil_run_hooks(&V_link_pfil_hook, &m, ifp, PFIL_IN, NULL);
+		i = pfil_run_hooks(&V_link_pfil_hook, &m, ifp, PFIL_IN, 0,
+		    NULL);
 
 		if (i != 0 || m == NULL)
 			return;
