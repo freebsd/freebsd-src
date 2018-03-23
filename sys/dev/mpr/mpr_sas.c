@@ -2130,8 +2130,8 @@ mprsas_action_scsiio(struct mprsas_softc *sassc, union ccb *ccb)
 				    CDB.EEDP32.PrimaryReferenceTag);
 				req->CDB.EEDP32.PrimaryApplicationTagMask =
 				    0xFFFF;
-				req->CDB.CDB32[1] = (req->CDB.CDB32[1] & 0x1F) |
-				    0x20;
+				req->CDB.CDB32[1] =
+				    (req->CDB.CDB32[1] & 0x1F) | 0x20;
 			} else {
 				eedp_flags |=
 				    MPI2_SCSIIO_EEDPFLAGS_INC_PRI_APPTAG;
@@ -3502,8 +3502,19 @@ mprsas_async(void *callback_arg, uint32_t code, struct cam_path *path,
 
 		if ((mprsas_get_ccbstatus((union ccb *)&cdai) == CAM_REQ_CMP)
 		    && (rcap_buf.prot & SRC16_PROT_EN)) {
-			lun->eedp_formatted = TRUE;
-			lun->eedp_block_size = scsi_4btoul(rcap_buf.length);
+			switch (rcap_buf.prot & SRC16_P_TYPE) {
+			case SRC16_PTYPE_1:
+			case SRC16_PTYPE_3:
+				lun->eedp_formatted = TRUE;
+				lun->eedp_block_size =
+				    scsi_4btoul(rcap_buf.length);
+				break;
+			case SRC16_PTYPE_2:
+			default:
+				lun->eedp_formatted = FALSE;
+				lun->eedp_block_size = 0;
+				break;
+			}
 		} else {
 			lun->eedp_formatted = FALSE;
 			lun->eedp_block_size = 0;
