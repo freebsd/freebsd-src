@@ -983,7 +983,7 @@ linux_vdso_install(void *param)
 	elf_linux_sysvec.sv_shared_page_obj = linux_shared_page_obj;
 }
 SYSINIT(elf_linux_vdso_init, SI_SUB_EXEC, SI_ORDER_ANY,
-    (sysinit_cfunc_t)linux_vdso_install, NULL);
+    linux_vdso_install, NULL);
 
 static void
 linux_vdso_deinstall(void *param)
@@ -992,7 +992,7 @@ linux_vdso_deinstall(void *param)
 	__elfN(linux_shared_page_fini)(linux_shared_page_obj);
 }
 SYSUNINIT(elf_linux_vdso_uninit, SI_SUB_EXEC, SI_ORDER_FIRST,
-    (sysinit_cfunc_t)linux_vdso_deinstall, NULL);
+    linux_vdso_deinstall, NULL);
 
 static char GNU_ABI_VENDOR[] = "GNU";
 static int GNULINUX_ABI_DESC = 0;
