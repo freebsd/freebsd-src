@@ -36,13 +36,12 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
 #include <sys/capsicum.h>
-#include <sys/file.h>
-#include <sys/fcntl.h>
 #include <sys/clock.h>
+#include <sys/fcntl.h>
+#include <sys/file.h>
 #include <sys/imgact.h>
+#include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -54,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
+#include <sys/systm.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
 
@@ -63,19 +63,19 @@ __FBSDID("$FreeBSD$");
 #include <machine/segments.h>
 #include <machine/specialreg.h>
 
-#include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm.h>
 #include <vm/vm_map.h>
 
 #include <compat/freebsd32/freebsd32_util.h>
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_proto.h>
+#include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_ipc.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_mmap.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
-#include <compat/linux/linux_emul.h>
 
 static void	bsd_to_linux_rusage(struct rusage *ru, struct l_rusage *lru);
 
