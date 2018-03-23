@@ -294,7 +294,10 @@ cd9660_boot_setup_section_head(char platform)
 		return NULL;
 
 	sh = &entry->entry_data.SH;
-	/* More by default. The last one will manually be set to 0x91 */
+	/*
+	 * More by default.
+	 * The last one will manually be set to ET_SECTION_HEADER_LAST
+	 */
 	sh->header_indicator[0] = ET_SECTION_HEADER_MORE;
 	sh->platform_id[0] = platform;
 	sh->num_section_entries[0] = 0;
@@ -463,6 +466,13 @@ cd9660_setup_boot(iso9660_disk *diskStructure, int first_sector)
 		LIST_INSERT_AFTER(head, temp, ll_struct);
 		tmp_disk = TAILQ_NEXT(tmp_disk, image_list);
 	}
+
+	/* Find the last Section Header entry and mark it as the last. */
+	LIST_FOREACH(next, &diskStructure->boot_entries, ll_struct) {
+		if (next->entry_type == ET_ENTRY_SH)
+			head = next;
+	}
+	head->entry_data.SH.header_indicator[0] = ET_SECTION_HEADER_LAST;
 
 	/* TODO: Remaining boot disks when implemented */
 
