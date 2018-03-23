@@ -873,6 +873,8 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	struct pci_dev *pdev = dev->pdev;
 	int err;
 
+	mlx5_vsec_init(dev);
+
 	err = mlx5_query_hca_caps(dev);
 	if (err) {
 		dev_err(&pdev->dev, "query hca failed\n");
