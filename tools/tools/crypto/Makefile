@@ -32,7 +32,10 @@ MAN=
 BINDIR?=	/usr/local/bin
 
 # cryptocheck: test symmetric crypto functions
-LIBADD.cryptocheck+=	crypto ssl util
+# Use openssl from ports for Blake2 algorithms
+CFLAGS.cryptocheck.c+=	$$(pkg-config --cflags openssl)
+LDFLAGS.cryptocheck+=	$$(pkg-config --libs openssl)
+LIBADD.cryptocheck+=	util
 
 # cryptokeytest: test asymmetric crypto functions
 LIBADD.cryptokeytest+=	crypto
