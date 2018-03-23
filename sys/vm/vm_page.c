@@ -1783,7 +1783,9 @@ again:
 	 */
 	KASSERT(m != NULL, ("missing page"));
 
+#if VM_NRESERVLEVEL > 0
 found:
+#endif
 	vm_page_alloc_check(m);
 
 	/*
