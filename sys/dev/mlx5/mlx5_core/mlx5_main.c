@@ -1224,6 +1224,7 @@ static int init_one(struct pci_dev *pdev,
 		goto clean_health;
 	}
 
+	pci_save_state(pdev->dev.bsddev);
 	return 0;
 
 clean_health:
@@ -1264,7 +1265,6 @@ static pci_ers_result_t mlx5_pci_err_detected(struct pci_dev *pdev,
 	mlx5_enter_error_state(dev, false);
 	mlx5_unload_one(dev, priv, false);
 	if (state) {
-		pci_save_state(pdev->dev.bsddev);
 		mlx5_drain_health_wq(dev);
 		mlx5_pci_disable_device(dev);
 	}
@@ -1289,6 +1289,7 @@ static pci_ers_result_t mlx5_pci_slot_reset(struct pci_dev *pdev)
 	pci_set_master(pdev);
 	pci_set_powerstate(pdev->dev.bsddev, PCI_POWERSTATE_D0);
 	pci_restore_state(pdev->dev.bsddev);
+	pci_save_state(pdev->dev.bsddev);
 
 	return err ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
 }
@@ -1343,7 +1344,6 @@ static void mlx5_pci_resume(struct pci_dev *pdev)
 
 	dev_info(&pdev->dev, "%s was called\n", __func__);
 
-	pci_save_state(pdev->dev.bsddev);
 	wait_vital(pdev);
 
 	err = mlx5_load_one(dev, priv, false);
