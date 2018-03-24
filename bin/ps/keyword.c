@@ -96,6 +96,7 @@ static VAR var[] = {
 	{"ignored", "", "sigignore", 0, NULL, 0, CHAR, NULL, 0},
 	{"inblk", "INBLK", NULL, USER, rvar, ROFF(ru_inblock), LONG, "ld", 0},
 	{"inblock", "", "inblk", 0, NULL, 0, CHAR, NULL, 0},
+	{"jail", "JAIL", NULL, LJUST, jailname, 0, CHAR, NULL, 0},
 	{"jid", "JID", NULL, 0, kvar, KOFF(ki_jid), INT, "d", 0},
 	{"jobc", "JOBC", NULL, 0, kvar, KOFF(ki_jobc), SHORT, "d", 0},
 	{"ktrace", "KTRACE", NULL, 0, kvar, KOFF(ki_traceflag), INT, "x", 0},
