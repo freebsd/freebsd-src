@@ -1,0 +1,18 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "allwinner,sun8i-h3";
+
+	fragment@0 {
+		target-path = "/soc";
+
+		__overlay__ {
+			sid: eeprom@1c14000 {
+				compatible = "allwinner,sun8i-h3-sid";
+				reg = <0x1c14000 0x400>;
+				status = "okay";
+			};
+		};
+	};
+};
