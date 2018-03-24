@@ -3981,12 +3981,11 @@ init_l1cfg(struct port_info *pi)
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
+	lc->requested_speed = port_top_speed(pi);	/* in Gbps */
 	if (t4_autoneg != 0 && lc->supported & FW_PORT_CAP_ANEG) {
 		lc->requested_aneg = AUTONEG_ENABLE;
-		lc->requested_speed = 0;
 	} else {
 		lc->requested_aneg = AUTONEG_DISABLE;
-		lc->requested_speed = port_top_speed(pi);	/* in Gbps */
 	}
 
 	lc->requested_fc = t4_pause_settings & (PAUSE_TX | PAUSE_RX);
