@@ -373,8 +373,6 @@ ahci_a10_detach(device_t dev)
 	return (ahci_detach(dev));
 }
 
-static devclass_t ahci_devclass;
-
 static device_method_t ahci_ata_methods[] = {
 	DEVMETHOD(device_probe,     ahci_a10_probe),
 	DEVMETHOD(device_attach,    ahci_a10_attach),

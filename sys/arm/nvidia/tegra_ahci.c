@@ -619,8 +619,7 @@ static device_method_t tegra_ahci_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t tegra_ahci_devclass;
 static DEFINE_CLASS_0(ahci, tegra_ahci_driver, tegra_ahci_methods,
     sizeof(struct tegra_ahci_sc));
-DRIVER_MODULE(tegra_ahci, simplebus, tegra_ahci_driver, tegra_ahci_devclass,
+DRIVER_MODULE(tegra_ahci, simplebus, tegra_ahci_driver, ahci_devclass,
     NULL, NULL);
