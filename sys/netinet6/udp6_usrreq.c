@@ -220,7 +220,6 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	uint8_t nxt;
 
 	ifp = m->m_pkthdr.rcvif;
-	ip6 = mtod(m, struct ip6_hdr *);
 
 #ifndef PULLDOWN_TEST
 	IP6_EXTHDR_CHECK(m, off, sizeof(struct udphdr), IPPROTO_DONE);
@@ -230,6 +229,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	IP6_EXTHDR_GET(uh, struct udphdr *, m, off, sizeof(*uh));
 	if (!uh)
 		return (IPPROTO_DONE);
+	ip6 = mtod(m, struct ip6_hdr *);
 #endif
 
 	UDPSTAT_INC(udps_ipackets);
