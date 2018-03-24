@@ -1048,7 +1048,7 @@ sendorfree:
 	m = m0->m_nextpkt;
 	m0->m_nextpkt = 0;
 	m_freem(m0);
-	for (m0 = m; m; m = m0) {
+	for (; m; m = m0) {
 		m0 = m->m_nextpkt;
 		m->m_nextpkt = 0;
 		if (error == 0) {

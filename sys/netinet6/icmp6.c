@@ -594,7 +594,6 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			n->m_pkthdr.len = n0len + (noff - off);
 			n->m_next = n0;
 		} else {
-			nip6 = mtod(n, struct ip6_hdr *);
 			IP6_EXTHDR_GET(nicmp6, struct icmp6_hdr *, n, off,
 			    sizeof(*nicmp6));
 			noff = off;
