@@ -72,8 +72,8 @@ static STAILQ_HEAD(, tcp_log_id_node) tcp_log_expireq_head =
     STAILQ_HEAD_INITIALIZER(tcp_log_expireq_head);
 static struct mtx tcp_log_expireq_mtx;
 static struct callout tcp_log_expireq_callout;
-static uint64_t tcp_log_auto_ratio = 0;
-static uint64_t tcp_log_auto_ratio_cur = 0;
+static u_long tcp_log_auto_ratio = 0;
+static volatile u_long tcp_log_auto_ratio_cur = 0;
 static uint32_t tcp_log_auto_mode = TCP_LOG_STATE_TAIL;
 static bool tcp_log_auto_all = false;
 
@@ -109,7 +109,7 @@ SYSCTL_UMA_CUR(_net_inet_tcp_bb, OID_AUTO, log_id_tcpcb_entries, CTLFLAG_RD,
 SYSCTL_U32(_net_inet_tcp_bb, OID_AUTO, log_version, CTLFLAG_RD, &tcp_log_version,
     0, "Version of log formats exported");
 
-SYSCTL_U64(_net_inet_tcp_bb, OID_AUTO, log_auto_ratio, CTLFLAG_RW,
+SYSCTL_ULONG(_net_inet_tcp_bb, OID_AUTO, log_auto_ratio, CTLFLAG_RW,
     &tcp_log_auto_ratio, 0, "Do auto capturing for 1 out of N sessions");
 
 SYSCTL_U32(_net_inet_tcp_bb, OID_AUTO, log_auto_mode, CTLFLAG_RW,
@@ -283,7 +283,7 @@ tcp_log_selectauto(void)
 	 * this session.
 	 */
 	if (tcp_log_auto_ratio &&
-	    (atomic_fetchadd_64(&tcp_log_auto_ratio_cur, 1) %
+	    (atomic_fetchadd_long(&tcp_log_auto_ratio_cur, 1) %
 	    tcp_log_auto_ratio) == 0)
 		return (true);
 	return (false);
