@@ -12,7 +12,7 @@
 #     of ISO 3166 2-character country codes.  See the file 'iso3166.tab'.
 # 2.  Latitude and longitude of the zone's principal location
 #     in ISO 6709 sign-degrees-minutes-seconds format,
-#     either +-DDMM+-DDDMM or +-DDMMSS+-DDDMMSS,
+#     either ±DDMM±DDDMM or ±DDMMSS±DDDMMSS,
 #     first latitude (+ is north), then longitude (+ is east).
 # 3.  Zone name used in value of TZ environment variable.
 #     Please see the theory.html file for how zone names are chosen.
@@ -371,7 +371,7 @@ US	+593249-1394338	America/Yakutat	Alaska - Yakutat
 US	+643004-1652423	America/Nome	Alaska (west)
 US	+515248-1763929	America/Adak	Aleutian Islands
 US,UM	+211825-1575130	Pacific/Honolulu	Hawaii
-UY	-3453-05611	America/Montevideo
+UY	-345433-0561245	America/Montevideo
 UZ	+3940+06648	Asia/Samarkand	Uzbekistan (west)
 UZ	+4120+06918	Asia/Tashkent	Uzbekistan (east)
 VE	+1030-06656	America/Caracas
