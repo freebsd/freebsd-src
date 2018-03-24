@@ -233,7 +233,7 @@ static int
 isl12xx_gettime(device_t dev, struct timespec *ts)
 {
 	struct isl12xx_softc *sc = device_get_softc(dev);
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct time_regs tregs;
 	int err;
 	uint8_t hourmask, sreg;
@@ -263,29 +263,24 @@ isl12xx_gettime(device_t dev, struct timespec *ts)
 		hourmask = ISL12xx_12HR_MASK;
 	}
 
-	ct.nsec = 0;
-	ct.sec  = FROMBCD(tregs.sec);
-	ct.min  = FROMBCD(tregs.min);
-	ct.hour = FROMBCD(tregs.hour & hourmask);
-	ct.day  = FROMBCD(tregs.day);
-	ct.mon  = FROMBCD(tregs.month);
-	ct.year = FROMBCD(tregs.year);
+	bct.nsec = 0;
+	bct.sec  = tregs.sec;
+	bct.min  = tregs.min;
+	bct.hour = tregs.hour & hourmask;
+	bct.day  = tregs.day;
+	bct.mon  = tregs.month;
+	bct.year = tregs.year;
+	bct.ispm = tregs.hour & ISL12XX_PM_FLAG;
 
-	if (sc->use_ampm) {
-		if (ct.hour == 12)
-			ct.hour = 0;
-		if (tregs.hour & ISL12XX_PM_FLAG)
-			ct.hour += 12;
-	}
-
-	return (clock_ct_to_ts(&ct, ts));
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct); 
+	return (clock_bcd_to_ts(&bct, ts, sc->use_ampm));
 }
 
 static int
 isl12xx_settime(device_t dev, struct timespec *ts)
 {
 	struct isl12xx_softc *sc = device_get_softc(dev);
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct time_regs tregs;
 	int err;
 	uint8_t ampmflags, sreg;
@@ -296,27 +291,21 @@ isl12xx_settime(device_t dev, struct timespec *ts)
 	 */
 	ts->tv_sec -= utc_offset();
 	ts->tv_nsec = 0;
-	clock_ts_to_ct(ts, &ct);
+	clock_ts_to_bcd(ts, &bct, sc->use_ampm);
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_WRITE, &bct); 
 
-	/* If the chip is in AM/PM mode, adjust hour and set flags as needed. */
-	if (!sc->use_ampm) {
+	/* If the chip is in AM/PM mode, set flags as needed. */
+	if (!sc->use_ampm)
 		ampmflags = ISL12XX_24HR_FLAG;
-	} else {
-		ampmflags = 0;
-		if (ct.hour >= 12) {
-			ct.hour -= 12;
-			ampmflags |= ISL12XX_PM_FLAG;
-		}
-		if (ct.hour == 0)
-			ct.hour = 12;
-	}
+	else
+		ampmflags = bct.ispm ? ISL12XX_PM_FLAG : 0;
 
-	tregs.sec   = TOBCD(ct.sec);
-	tregs.min   = TOBCD(ct.min);
-	tregs.hour  = TOBCD(ct.hour) | ampmflags;
-	tregs.day   = TOBCD(ct.day);
-	tregs.month = TOBCD(ct.mon);
-	tregs.year  = TOBCD(ct.year % 100);
+	tregs.sec   = bct.sec;
+	tregs.min   = bct.min;
+	tregs.hour  = bct.hour | ampmflags;
+	tregs.day   = bct.day;
+	tregs.month = bct.mon;
+	tregs.year  = bct.year % 100;
 
 	/*
 	 * To set the time we have to set the WRTC enable bit in the control

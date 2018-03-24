@@ -108,6 +108,14 @@ static const int recent_base_year = 2017;
 static const int recent_base_days = 17167;
 
 /*
+ * Table to 'calculate' pow(10, 9 - nsdigits) via lookup of nsdigits.
+ * Before doing the lookup, the code asserts 0 <= nsdigits <= 9.
+ */
+static u_int nsdivisors[] = {
+    1000000000, 100000000, 10000000, 1000000, 100000, 10000, 1000, 100, 10, 1
+};
+
+/*
  * This inline avoids some unnecessary modulo operations
  * as compared with the usual macro:
  *   ( ((year % 4) == 0 &&
@@ -131,23 +139,15 @@ leapyear(int year)
 	return (rv);
 }
 
-static void
-print_ct(struct clocktime *ct)
-{
-	printf("[%04d-%02d-%02d %02d:%02d:%02d]",
-	    ct->year, ct->mon, ct->day,
-	    ct->hour, ct->min, ct->sec);
-}
-
 int
-clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
+clock_ct_to_ts(const struct clocktime *ct, struct timespec *ts)
 {
 	int i, year, days;
 
 	if (ct_debug) {
-		printf("ct_to_ts(");
-		print_ct(ct);
-		printf(")");
+		printf("ct_to_ts([");
+		clock_print_ct(ct, 9);
+		printf("])");
 	}
 
 	/*
@@ -200,7 +200,7 @@ clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
 }
 
 int
-clock_bcd_to_ts(struct bcd_clocktime *bct, struct timespec *ts, bool ampm)
+clock_bcd_to_ts(const struct bcd_clocktime *bct, struct timespec *ts, bool ampm)
 {
 	struct clocktime ct;
 	int bcent, byear;
@@ -249,7 +249,7 @@ clock_bcd_to_ts(struct bcd_clocktime *bct, struct timespec *ts, bool ampm)
 }
 
 void
-clock_ts_to_ct(struct timespec *ts, struct clocktime *ct)
+clock_ts_to_ct(const struct timespec *ts, struct clocktime *ct)
 {
 	int i, year, days;
 	time_t rsec;	/* remainder seconds */
@@ -288,15 +288,15 @@ clock_ts_to_ct(struct timespec *ts, struct clocktime *ct)
 	ct->sec  = rsec;
 	ct->nsec = ts->tv_nsec;
 	if (ct_debug) {
-		printf("ts_to_ct(%jd.%09ld) = ",
+		printf("ts_to_ct(%jd.%09ld) = [",
 		    (intmax_t)ts->tv_sec, ts->tv_nsec);
-		print_ct(ct);
-		printf("\n");
+		clock_print_ct(ct, 9);
+		printf("]\n");
 	}
 }
 
 void
-clock_ts_to_bcd(struct timespec *ts, struct bcd_clocktime *bct, bool ampm)
+clock_ts_to_bcd(const struct timespec *ts, struct bcd_clocktime *bct, bool ampm)
 {
 	struct clocktime ct;
 
@@ -321,6 +321,51 @@ clock_ts_to_bcd(struct timespec *ts, struct bcd_clocktime *bct, bool ampm)
 	bct->sec  = TOBCD(ct.sec);
 	bct->dow  = ct.dow;
 	bct->nsec = ct.nsec;
+}
+
+void
+clock_print_bcd(const struct bcd_clocktime *bct, int nsdigits)
+{
+
+	KASSERT(nsdigits >= 0 && nsdigits <= 9, ("bad nsdigits %d", nsdigits));
+
+	if (nsdigits > 0) {
+		printf("%4.4x-%2.2x-%2.2x %2.2x:%2.2x:%2.2x.%*.*ld",
+		    bct->year, bct->mon, bct->day,
+		    bct->hour, bct->min, bct->sec,
+		    nsdigits, nsdigits, bct->nsec / nsdivisors[nsdigits]);
+	} else {
+		printf("%4.4x-%2.2x-%2.2x %2.2x:%2.2x:%2.2x",
+		    bct->year, bct->mon, bct->day,
+		    bct->hour, bct->min, bct->sec);
+	}
+}
+
+void
+clock_print_ct(const struct clocktime *ct, int nsdigits)
+{
+
+	KASSERT(nsdigits >= 0 && nsdigits <= 9, ("bad nsdigits %d", nsdigits));
+
+	if (nsdigits > 0) {
+		printf("%04d-%02d-%02d %02d:%02d:%02d.%*.*ld",
+		    ct->year, ct->mon, ct->day,
+		    ct->hour, ct->min, ct->sec,
+		    nsdigits, nsdigits, ct->nsec / nsdivisors[nsdigits]);
+	} else {
+		printf("%04d-%02d-%02d %02d:%02d:%02d",
+		    ct->year, ct->mon, ct->day,
+		    ct->hour, ct->min, ct->sec);
+	}
+}
+
+void
+clock_print_ts(const struct timespec *ts, int nsdigits)
+{
+	struct clocktime ct;
+
+	clock_ts_to_ct(ts, &ct);
+	clock_print_ct(&ct, nsdigits);
 }
 
 int
