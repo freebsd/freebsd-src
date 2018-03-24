@@ -108,6 +108,7 @@ static VAR var[] = {
 	{"inblk", "INBLK", NULL, "read-blocks", USER, rvar, ROFF(ru_inblock),
 	    LONG, "ld", 0},
 	{"inblock", "", "inblk", NULL, 0, NULL, 0, CHAR, NULL, 0},
+	{"jail", "JAIL", NULL, "jail-name", LJUST, jailname, 0, CHAR, NULL, 0},
 	{"jid", "JID", NULL, "jail-id", 0, kvar, KOFF(ki_jid), INT, "d", 0},
 	{"jobc", "JOBC", NULL, "job-control-count", 0, kvar, KOFF(ki_jobc),
 	    SHORT, "d", 0},
