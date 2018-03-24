@@ -196,11 +196,16 @@ vslock(void *addr, size_t len)
 #endif
 	error = vm_map_wire(&curproc->p_vmspace->vm_map, start, end,
 	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
+	if (error == KERN_SUCCESS) {
+		curthread->td_vslock_sz += len;
+		return (0);
+	}
+
 	/*
 	 * Return EFAULT on error to match copy{in,out}() behaviour
 	 * rather than returning ENOMEM like mlock() would.
 	 */
-	return (error == KERN_SUCCESS ? 0 : EFAULT);
+	return (EFAULT);
 }
 
 void
@@ -208,6 +213,8 @@ vsunlock(void *addr, size_t len)
 {
 
 	/* Rely on the parameter sanity checks performed by vslock(). */
+	MPASS(curthread->td_vslock_sz >= len);
+	curthread->td_vslock_sz -= len;
 	(void)vm_map_unwire(&curproc->p_vmspace->vm_map,
 	    trunc_page((vm_offset_t)addr), round_page((vm_offset_t)addr + len),
 	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);

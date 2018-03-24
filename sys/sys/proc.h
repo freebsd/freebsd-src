@@ -297,6 +297,7 @@ struct thread {
 	void		*td_su;		/* (k) FFS SU private */
 	sbintime_t	td_sleeptimo;	/* (t) Sleep timeout. */
 	int		td_rtcgen;	/* (s) rtc_generation of abs. sleep */
+	size_t		td_vslock_sz;	/* (k) amount of vslock-ed space */
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
