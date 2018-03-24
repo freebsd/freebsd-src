@@ -588,6 +588,29 @@ gop_autoresize(EFI_GRAPHICS_OUTPUT *gop)
 }
 
 static int
+text_autoresize()
+{
+	SIMPLE_TEXT_OUTPUT_INTERFACE *conout;
+	EFI_STATUS status;
+	UINTN i, max_dim, best_mode, cols, rows;
+
+	conout = ST->ConOut;
+	max_dim = best_mode = 0;
+	for (i = 0; i < conout->Mode->MaxMode; i++) {
+		status = conout->QueryMode(conout, i, &cols, &rows);
+		if (EFI_ERROR(status))
+			continue;
+		if (cols * rows > max_dim) {
+			max_dim = cols * rows;
+			best_mode = i;
+		}
+	}
+	if (max_dim > 0)
+		conout->SetMode(conout, best_mode);
+	return (CMD_OK);
+}
+
+static int
 uga_autoresize(EFI_UGA_DRAW_PROTOCOL *gop)
 {
 
@@ -601,8 +624,14 @@ command_autoresize(int argc, char *argv[])
 {
 	EFI_GRAPHICS_OUTPUT *gop;
 	EFI_UGA_DRAW_PROTOCOL *uga;
+	char *textmode;
 	EFI_STATUS status;
 	u_int mode;
+
+	textmode = getenv("hw.vga.textmode");
+	/* If it's set and non-zero, we'll select a console mode instead */
+	if (textmode != NULL && strcmp(textmode, "0") != 0)
+		return (text_autoresize());
 
 	gop = NULL;
 	uga = NULL;
