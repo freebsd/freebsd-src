@@ -34,6 +34,10 @@ local hook = require("hook")
 local config = {}
 local modules = {}
 local carousel_choices = {}
+-- Which variables we changed
+local env_changed = {}
+-- Values to restore env to (nil to unset)
+local env_restore = {}
 
 local MSG_FAILEXEC = "Failed to exec '%s'"
 local MSG_FAILSETENV = "Failed to '%s' with value: %s"
@@ -49,6 +53,44 @@ local MSG_KERNFAIL = "Failed to load kernel '%s'"
 local MSG_KERNLOADING = "Loading kernel..."
 local MSG_MODLOADING = "Loading configured modules..."
 local MSG_MODLOADFAIL = "Could not load one or more modules!"
+
+local function restoreEnv()
+	-- Examine changed environment variables
+	for k, v in pairs(env_changed) do
+		local restore_value = env_restore[k]
+		if restore_value == nil then
+			-- This one doesn't need restored for some reason
+			goto continue
+		end
+		local current_value = loader.getenv(k)
+		if current_value ~= v then
+			-- This was overwritten by some action taken on the menu
+			-- most likely; we'll leave it be.
+			goto continue
+		end
+		restore_value = restore_value.value
+		if restore_value ~= nil then
+			loader.setenv(k, restore_value)
+		else
+			loader.unsetenv(k)
+		end
+		::continue::
+	end
+
+	env_changed = {}
+	env_restore = {}
+end
+
+local function setEnv(key, value)
+	-- Track the original value for this if we haven't already
+	if env_restore[key] == nil then
+		env_restore[key] = {value = loader.getenv(key)}
+	end
+
+	env_changed[key] = value
+
+	return loader.setenv(key, value)
+end
 
 local pattern_table = {
 	{
@@ -120,7 +162,7 @@ local pattern_table = {
 	{
 		str = "^%s*([%w%p]+)%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			if config.setenv(k, v) ~= 0 then
+			if setEnv(k, v) ~= 0 then
 				print(MSG_FAILSETENV:format(k, v))
 			end
 		end,
@@ -129,7 +171,7 @@ local pattern_table = {
 	{
 		str = "^%s*([%w%p]+)%s*=%s*(%d+)%s*(.*)",
 		process = function(k, v)
-			if config.setenv(k, v) ~= 0 then
+			if setEnv(k, v) ~= 0 then
 				print(MSG_FAILSETENV:format(k, tostring(v)))
 			end
 		end,
@@ -195,10 +237,6 @@ local function checkNextboot()
 end
 
 -- Module exports
--- Which variables we changed
-config.env_changed = {}
--- Values to restore env to (nil to unset)
-config.env_restore = {}
 config.verbose = false
 
 -- The first item in every carousel is always the default item.
@@ -212,44 +250,6 @@ end
 
 function config.setCarouselIndex(id, idx)
 	carousel_choices[id] = idx
-end
-
-function config.restoreEnv()
-	-- Examine changed environment variables
-	for k, v in pairs(config.env_changed) do
-		local restore_value = config.env_restore[k]
-		if restore_value == nil then
-			-- This one doesn't need restored for some reason
-			goto continue
-		end
-		local current_value = loader.getenv(k)
-		if current_value ~= v then
-			-- This was overwritten by some action taken on the menu
-			-- most likely; we'll leave it be.
-			goto continue
-		end
-		restore_value = restore_value.value
-		if restore_value ~= nil then
-			loader.setenv(k, restore_value)
-		else
-			loader.unsetenv(k)
-		end
-		::continue::
-	end
-
-	config.env_changed = {}
-	config.env_restore = {}
-end
-
-function config.setenv(key, value)
-	-- Track the original value for this if we haven't already
-	if config.env_restore[key] == nil then
-		config.env_restore[key] = {value = loader.getenv(key)}
-	end
-
-	config.env_changed[key] = value
-
-	return loader.setenv(key, value)
 end
 
 -- name here is one of 'name', 'type', flags', 'before', 'after', or 'error.'
@@ -503,7 +503,7 @@ end
 -- Reload configuration
 function config.reload(file)
 	modules = {}
-	config.restoreEnv()
+	restoreEnv()
 	config.load(file)
 	hook.runAll("config.reloaded")
 end
