@@ -824,8 +824,9 @@ _cloudabi64=	cloudabi64
 
 .endif
 
-.if ${MACHINE_ARCH} == "armv6"
-_ffec=		ffec
+.if ${MACHINE_ARCH:Marmv[67]*} != "" || ${MACHINE_CPUARCH} == "aarch64"
+_bcm283x_clkman=  bcm283x_clkman
+_bcm283x_pwm=  bcm283x_pwm
 .endif
 
 SUBDIR+=${MODULES_EXTRA}

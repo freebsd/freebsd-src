@@ -80,6 +80,12 @@ __FBSDID("$FreeBSD$");
  * per-soc logic.  We handle this at platform attach time rather than via the
  * fdt_fixup_table, because the latter requires matching on the FDT "model"
  * property, and this applies to all boards including those not yet invented.
+ *
+ * This just in:  as of the import of dts files from linux 4.15 on 2018-02-10,
+ * they appear to have applied a new style rule to the dts which forbids leading
+ * zeroes in the @address qualifiers on node names.  Since we have to find those
+ * nodes by string matching we now have to search for both flavors of each node
+ * name involved.
  */
 static void
 fix_fdt_interrupt_data(void)
@@ -99,8 +105,12 @@ fix_fdt_interrupt_data(void)
 
 	/* GIC node may be child of soc node, or appear directly at root. */
 	gicnode = OF_finddevice("/soc/interrupt-controller@00a01000");
+	if (gicnode == -1)
+		gicnode = OF_finddevice("/soc/interrupt-controller@a01000");
 	if (gicnode == -1) {
 		gicnode = OF_finddevice("/interrupt-controller@00a01000");
+		if (gicnode == -1)
+			gicnode = OF_finddevice("/interrupt-controller@a01000");
 		if (gicnode == -1)
 			return;
 	}
@@ -113,6 +123,8 @@ fix_fdt_interrupt_data(void)
 		gicipar = gicxref;
 
 	gpcnode = OF_finddevice("/soc/aips-bus@02000000/gpc@020dc000");
+	if (gpcnode == -1)
+		gpcnode = OF_finddevice("/soc/aips-bus@2000000/gpc@20dc000");
 	if (gpcnode == -1)
 		return;
 	result = OF_getencprop(gpcnode, "interrupt-parent", &gpcipar,

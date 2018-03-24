@@ -86,6 +86,7 @@ struct fsl_sdhci_softc {
 	uint16_t		sdclockreg_freq_bits;
 	uint8_t			r1bfix_type;
 	uint8_t			hwtype;
+	bool			slot_init_done;
 };
 
 #define	R1BFIX_NONE	0	/* No fix needed at next interrupt. */
@@ -814,6 +815,9 @@ fsl_sdhci_detach(device_t dev)
 
 	callout_drain(&sc->r1bfix_callout);
 
+	if (sc->slot_init_done)
+		sdhci_cleanup_slot(&sc->slot);
+
 	if (sc->intr_cookie != NULL)
 		bus_teardown_intr(dev, sc->irq_res, sc->intr_cookie);
 	if (sc->irq_res != NULL)
@@ -821,7 +825,6 @@ fsl_sdhci_detach(device_t dev)
 		    rman_get_rid(sc->irq_res), sc->irq_res);
 
 	if (sc->mem_res != NULL) {
-		sdhci_cleanup_slot(&sc->slot);
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->mem_res), sc->mem_res);
 	}
@@ -840,6 +843,8 @@ fsl_sdhci_attach(device_t dev)
 #endif
 
 	sc->dev = dev;
+
+	callout_init(&sc->r1bfix_callout, 1);
 
 	sc->hwtype = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	if (sc->hwtype == HWTYPE_NONE)
@@ -928,8 +933,8 @@ fsl_sdhci_attach(device_t dev)
 	WR4(sc, SDHC_PROT_CTRL, protctl);
 #endif
 
-	callout_init(&sc->r1bfix_callout, 1);
 	sdhci_init_slot(dev, &sc->slot, 0);
+	sc->slot_init_done = true;
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);

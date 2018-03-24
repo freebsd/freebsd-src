@@ -117,7 +117,7 @@ device		hdmi
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
-makeoptions	MODULES_EXTRA=dtb/imx6
+makeoptions	MODULES_EXTRA="dtb/imx6 imx"
 
 # SoC-specific devices
 device		ffec			# Freescale Fast Ethernet Controller
