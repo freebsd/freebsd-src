@@ -92,6 +92,16 @@ local function setEnv(key, value)
 	return loader.setenv(key, value)
 end
 
+-- name here is one of 'name', 'type', flags', 'before', 'after', or 'error.'
+-- These are set from lines in loader.conf(5): ${key}_${name}="${value}" where
+-- ${key} is a module name.
+local function setKey(key, name, value)
+	if modules[key] == nil then
+		modules[key] = {}
+	end
+	modules[key][name] = value
+end
+
 local pattern_table = {
 	{
 		str = "^%s*(#.*)",
@@ -111,42 +121,42 @@ local pattern_table = {
 	{
 		str = "^%s*([%w_]+)_name%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			config.setKey(k, "name", v)
+			setKey(k, "name", v)
 		end,
 	},
 	--  module_type="value"
 	{
 		str = "^%s*([%w_]+)_type%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			config.setKey(k, "type", v)
+			setKey(k, "type", v)
 		end,
 	},
 	--  module_flags="value"
 	{
 		str = "^%s*([%w_]+)_flags%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			config.setKey(k, "flags", v)
+			setKey(k, "flags", v)
 		end,
 	},
 	--  module_before="value"
 	{
 		str = "^%s*([%w_]+)_before%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			config.setKey(k, "before", v)
+			setKey(k, "before", v)
 		end,
 	},
 	--  module_after="value"
 	{
 		str = "^%s*([%w_]+)_after%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			config.setKey(k, "after", v)
+			setKey(k, "after", v)
 		end,
 	},
 	--  module_error="value"
 	{
 		str = "^%s*([%w_]+)_error%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			config.setKey(k, "error", v)
+			setKey(k, "error", v)
 		end,
 	},
 	--  exec="command"
@@ -177,6 +187,73 @@ local pattern_table = {
 		end,
 	},
 }
+
+local function isValidComment(line)
+	if line ~= nil then
+		local s = line:match("^%s*#.*")
+		if s == nil then
+			s = line:match("^%s*$")
+		end
+		if s == nil then
+			return false
+		end
+	end
+	return true
+end
+
+local function loadModule(mod, silent)
+	local status = true
+	local pstatus
+	for k, v in pairs(mod) do
+		if v.load == "YES" then
+			local str = "load "
+			if v.flags ~= nil then
+				str = str .. v.flags .. " "
+			end
+			if v.type ~= nil then
+				str = str .. "-t " .. v.type .. " "
+			end
+			if v.name ~= nil then
+				str = str .. v.name
+			else
+				str = str .. k
+			end
+			if v.before ~= nil then
+				pstatus = cli_execute_unparsed(v.before) == 0
+				if not pstatus and not silent then
+					print(MSG_FAILEXBEF:format(v.before, k))
+				end
+				status = status and pstatus
+			end
+
+			if cli_execute_unparsed(str) ~= 0 then
+				if not silent then
+					print(MSG_FAILEXMOD:format(str))
+				end
+				if v.error ~= nil then
+					cli_execute_unparsed(v.error)
+				end
+				status = false
+			end
+
+			if v.after ~= nil then
+				pstatus = cli_execute_unparsed(v.after) == 0
+				if not pstatus and not silent then
+					print(MSG_FAILEXAF:format(v.after, k))
+				end
+				status = status and pstatus
+			end
+
+--		else
+--			if not silent then
+--				print("Skipping module '". . k .. "'")
+--			end
+		end
+	end
+
+	return status
+end
+
 
 local function readFile(name, silent)
 	local f = io.open(name)
@@ -252,82 +329,6 @@ function config.setCarouselIndex(id, idx)
 	carousel_choices[id] = idx
 end
 
--- name here is one of 'name', 'type', flags', 'before', 'after', or 'error.'
--- These are set from lines in loader.conf(5): ${key}_${name}="${value}" where
--- ${key} is a module name.
-function config.setKey(key, name, value)
-	if modules[key] == nil then
-		modules[key] = {}
-	end
-	modules[key][name] = value
-end
-
-function config.isValidComment(line)
-	if line ~= nil then
-		local s = line:match("^%s*#.*")
-		if s == nil then
-			s = line:match("^%s*$")
-		end
-		if s == nil then
-			return false
-		end
-	end
-	return true
-end
-
-function config.loadmod(mod, silent)
-	local status = true
-	local pstatus
-	for k, v in pairs(mod) do
-		if v.load == "YES" then
-			local str = "load "
-			if v.flags ~= nil then
-				str = str .. v.flags .. " "
-			end
-			if v.type ~= nil then
-				str = str .. "-t " .. v.type .. " "
-			end
-			if v.name ~= nil then
-				str = str .. v.name
-			else
-				str = str .. k
-			end
-			if v.before ~= nil then
-				pstatus = cli_execute_unparsed(v.before) == 0
-				if not pstatus and not silent then
-					print(MSG_FAILEXBEF:format(v.before, k))
-				end
-				status = status and pstatus
-			end
-
-			if cli_execute_unparsed(str) ~= 0 then
-				if not silent then
-					print(MSG_FAILEXMOD:format(str))
-				end
-				if v.error ~= nil then
-					cli_execute_unparsed(v.error)
-				end
-				status = false
-			end
-
-			if v.after ~= nil then
-				pstatus = cli_execute_unparsed(v.after) == 0
-				if not pstatus and not silent then
-					print(MSG_FAILEXAF:format(v.after, k))
-				end
-				status = status and pstatus
-			end
-
---		else
---			if not silent then
---				print("Skipping module '". . k .. "'")
---			end
-		end
-	end
-
-	return status
-end
-
 -- Returns true if we processed the file successfully, false if we did not.
 -- If 'silent' is true, being unable to read the file is not considered a
 -- failure.
@@ -358,7 +359,7 @@ function config.parse(text)
 				if k ~= nil then
 					found = true
 
-					if config.isValidComment(c) then
+					if isValidComment(c) then
 						val.process(k, v)
 					else
 						print(MSG_MALFORMED:format(n,
@@ -520,7 +521,7 @@ function config.loadelf()
 	end
 
 	print(MSG_MODLOADING)
-	if not config.loadmod(modules, not config.verbose) then
+	if not loadModule(modules, not config.verbose) then
 		print(MSG_MODLOADFAIL)
 	end
 end
