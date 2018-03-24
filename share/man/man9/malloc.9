@@ -46,9 +46,13 @@
 .Ft void *
 .Fn malloc "size_t size" "struct malloc_type *type" "int flags"
 .Ft void *
+.Fn malloc_domain "size_t size" "struct malloc_type *type" "int domain" "int flags"
+.Ft void *
 .Fn mallocarray "size_t nmemb" "size_t size" "struct malloc_type *type" "int flags"
 .Ft void
 .Fn free "void *addr" "struct malloc_type *type"
+.Ft void
+.Fn free_domain "void *addr" "struct malloc_type *type"
 .Ft void *
 .Fn realloc "void *addr" "size_t size" "struct malloc_type *type" "int flags"
 .Ft void *
@@ -64,6 +68,14 @@ The
 function allocates uninitialized memory in kernel address space for an
 object whose size is specified by
 .Fa size .
+.Pp
+The
+.Fn malloc_domain
+variant allocates the object from the specified memory domain.  Memory allocated
+with this function should be returned with
+.Fn free_domain .
+See
+.Xr numa 9 for more details.
 .Pp
 The
 .Fn mallocarray

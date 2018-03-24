@@ -174,6 +174,7 @@ MAN+=	abort2.2 \
 	connectat.2 \
 	cpuset.2 \
 	cpuset_getaffinity.2 \
+	cpuset_getdomain.2 \
 	dup.2 \
 	execve.2 \
 	_exit.2 \
@@ -371,6 +372,7 @@ MLINKS+=nanosleep.2 clock_nanosleep.2
 MLINKS+=cpuset.2 cpuset_getid.2 \
 	cpuset.2 cpuset_setid.2
 MLINKS+=cpuset_getaffinity.2 cpuset_setaffinity.2
+MLINKS+=cpuset_getdomain.2 cpuset_setdomain.2
 MLINKS+=dup.2 dup2.2
 MLINKS+=execve.2 fexecve.2
 MLINKS+=extattr_get_file.2 extattr.2 \
