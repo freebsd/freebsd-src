@@ -848,8 +848,10 @@ tcp_init(void)
 	/* Setup the tcp function block list */
 	init_tcp_functions();
 	register_tcp_functions(&tcp_def_funcblk, M_WAITOK);
+#ifdef TCP_BLACKBOX
 	/* Initialize the TCP logging data. */
 	tcp_log_init();
+#endif
 
 	if (tcp_soreceive_stream) {
 #ifdef INET
@@ -1431,8 +1433,10 @@ tcp_newtcpcb(struct inpcb *inp)
 	 */
 	tcp_pcap_tcpcb_init(tp);
 #endif
+#ifdef TCP_BLACKBOX
 	/* Initialize the per-TCPCB log data. */
 	tcp_log_tcpcbinit(tp);
+#endif
 	if (tp->t_fb->tfb_tcp_fb_init) {
 		(*tp->t_fb->tfb_tcp_fb_init)(tp);
 	}
@@ -1650,7 +1654,9 @@ tcp_discardcb(struct tcpcb *tp)
 	inp->inp_ppcb = NULL;
 	if (tp->t_timers->tt_draincnt == 0) {
 		/* We own the last reference on tcpcb, let's free it. */
+#ifdef TCP_BLACKBOX
 		tcp_log_tcpcbfini(tp);
+#endif
 		TCPSTATES_DEC(tp->t_state);
 		if (tp->t_fb->tfb_tcp_fb_fini)
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
@@ -1681,7 +1687,9 @@ tcp_timer_discard(void *ptp)
 	tp->t_timers->tt_draincnt--;
 	if (tp->t_timers->tt_draincnt == 0) {
 		/* We own the last reference on this tcpcb, let's free it. */
+#ifdef TCP_BLACKBOX
 		tcp_log_tcpcbfini(tp);
+#endif
 		TCPSTATES_DEC(tp->t_state);
 		if (tp->t_fb->tfb_tcp_fb_fini)
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
@@ -1775,7 +1783,9 @@ tcp_drain(void)
 			if ((tcpb = intotcpcb(inpb)) != NULL) {
 				tcp_reass_flush(tcpb);
 				tcp_clean_sackreport(tcpb);
+#ifdef TCP_BLACKBOX
 				tcp_log_drain(tcpb);
+#endif
 #ifdef TCPPCAP
 				if (tcp_pcap_aggressive_free) {
 					/* Free the TCP PCAP queues. */
@@ -2957,7 +2967,9 @@ tcp_inptoxtp(const struct inpcb *inp, struct xtcpcb *xt)
 		bcopy(tp->t_fb->tfb_tcp_block_name, xt->xt_stack,
 		    TCP_FUNCTION_NAME_LEN_MAX);
 		bzero(xt->xt_logid, TCP_LOG_ID_LEN);
+#ifdef TCP_BLACKBOX
 		(void)tcp_log_get_id(tp, xt->xt_logid);
+#endif
 	}
 
 	xt->xt_len = sizeof(struct xtcpcb);
