@@ -345,7 +345,7 @@ ds13rtc_start(void *arg)
 static int
 ds13rtc_gettime(device_t dev, struct timespec *ts)
 {
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct time_regs tregs;
 	struct ds13rtc_softc *sc;
 	int err;
@@ -379,29 +379,23 @@ ds13rtc_gettime(device_t dev, struct timespec *ts)
 	else
 		hourmask = DS13xx_M_24HOUR;
 
-	ct.sec  = FROMBCD(tregs.sec   & DS13xx_M_SECOND);
-	ct.min  = FROMBCD(tregs.min   & DS13xx_M_MINUTE);
-	ct.hour = FROMBCD(tregs.hour  & hourmask);
-	ct.day  = FROMBCD(tregs.day   & DS13xx_M_DAY);
-	ct.mon  = FROMBCD(tregs.month & DS13xx_M_MONTH);
-	ct.year = FROMBCD(tregs.year  & DS13xx_M_YEAR);
-	ct.nsec = 0;
-
-	if (sc->use_ampm) {
-		if (ct.hour == 12)
-			ct.hour = 0;
-		if (tregs.hour & DS13xx_B_HOUR_PM)
-			ct.hour += 12;
-	}
+	bct.nsec = 0;
+	bct.ispm = tregs.hour  & DS13xx_B_HOUR_PM;
+	bct.sec  = tregs.sec   & DS13xx_M_SECOND;
+	bct.min  = tregs.min   & DS13xx_M_MINUTE;
+	bct.hour = tregs.hour  & hourmask;
+	bct.day  = tregs.day   & DS13xx_M_DAY;
+	bct.mon  = tregs.month & DS13xx_M_MONTH;
+	bct.year = tregs.year  & DS13xx_M_YEAR;
 
 	/*
 	 * If this chip has a century bit, honor it.  Otherwise let
 	 * clock_ct_to_ts() infer the century from the 2-digit year.
 	 */
 	if (sc->use_century)
-		ct.year += (tregs.month & DS13xx_B_MONTH_CENTURY) ? 2000 : 1900;
+		bct.year += (tregs.month & DS13xx_B_MONTH_CENTURY) ? 0x100 : 0;
 
-	err = clock_ct_to_ts(&ct, ts);
+	err = clock_bcd_to_ts(&bct, ts, sc->use_ampm);
 
 	return (err);
 }
@@ -409,7 +403,7 @@ ds13rtc_gettime(device_t dev, struct timespec *ts)
 static int
 ds13rtc_settime(device_t dev, struct timespec *ts)
 {
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct time_regs tregs;
 	struct ds13rtc_softc *sc;
 	int err;
@@ -427,34 +421,30 @@ ds13rtc_settime(device_t dev, struct timespec *ts)
 	if (sc->is_binary_counter)
 		return (write_timeword(sc, ts->tv_sec));
 
-	clock_ts_to_ct(ts, &ct);
+	clock_ts_to_bcd(ts, &bct, sc->use_ampm);
 
 	/* If the chip is in AMPM mode deal with the PM flag. */
 	pmflags = 0;
 	if (sc->use_ampm) {
 		pmflags = DS13xx_B_HOUR_AMPM;
-		if (ct.hour >= 12) {
-			ct.hour -= 12;
+		if (bct.ispm)
 			pmflags |= DS13xx_B_HOUR_PM;
-		}
-		if (ct.hour == 0)
-			ct.hour = 12;
 	}
 
 	/* If the chip has a century bit, set it as needed. */
 	cflag = 0;
 	if (sc->use_century) {
-		if (ct.year >= 2000)
+		if (bct.year >= 2000)
 			cflag |= DS13xx_B_MONTH_CENTURY;
 	}
 
-	tregs.sec   = TOBCD(ct.sec);
-	tregs.min   = TOBCD(ct.min);
-	tregs.hour  = TOBCD(ct.hour) | pmflags;
-	tregs.day   = TOBCD(ct.day);
-	tregs.month = TOBCD(ct.mon) | cflag;
-	tregs.year  = TOBCD(ct.year % 100);
-	tregs.wday  = ct.dow;
+	tregs.sec   = bct.sec;
+	tregs.min   = bct.min;
+	tregs.hour  = bct.hour | pmflags;
+	tregs.day   = bct.day;
+	tregs.month = bct.mon | cflag;
+	tregs.year  = bct.year & 0xff;
+	tregs.wday  = bct.dow;
 
 	/*
 	 * Set the time.  Reset the OSF bit if it is on and it is not part of

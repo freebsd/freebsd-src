@@ -192,10 +192,10 @@ struct nxprtc_softc {
 	uint8_t		secaddr;	/* Address of seconds register */
 	uint8_t		tmcaddr;	/* Address of timer count register */
 	bool		use_timer;	/* Use timer for fractional sec */
+	bool		use_ampm;	/* Chip is set to use am/pm mode */
 };
 
 #define	SC_F_CPOL	(1 << 0)	/* Century bit means 19xx */
-#define	SC_F_AMPM	(1 << 1)	/* Use PM flag in hours reg */
 
 /*
  * We use the compat_data table to look up hint strings in the non-FDT case, so
@@ -382,10 +382,10 @@ pcf8523_start(struct nxprtc_softc *sc)
 	/* Remember whether we're running in AM/PM mode. */
 	if (is2129) {
 		if (cs1 & PCF2129_B_CS1_12HR)
-			sc->flags |= SC_F_AMPM;
+			sc->use_ampm = true;
 	} else {
 		if (cs1 & PCF8523_B_CS1_12HR)
-			sc->flags |= SC_F_AMPM;
+			sc->use_ampm = true;
 	}
 
 	return (0);
@@ -543,7 +543,7 @@ nxprtc_start(void *dev)
 static int
 nxprtc_gettime(device_t dev, struct timespec *ts)
 {
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct time_regs tregs;
 	struct nxprtc_softc *sc;
 	int err;
@@ -570,21 +570,19 @@ nxprtc_gettime(device_t dev, struct timespec *ts)
 		return (EINVAL); /* hardware is good, time is not. */
 	}
 
-	if (sc->flags & SC_F_AMPM)
+	if (sc->use_ampm)
 		hourmask = PCF85xx_M_12HOUR;
 	else
 		hourmask = PCF85xx_M_24HOUR;
 
-	ct.nsec = ((uint64_t)tmrcount * 1000000000) / TMR_TICKS_SEC;
-	ct.sec  = FROMBCD(tregs.sec   & PCF85xx_M_SECOND);
-	ct.min  = FROMBCD(tregs.min   & PCF85xx_M_MINUTE);
-	ct.hour = FROMBCD(tregs.hour  & hourmask);
-	ct.day  = FROMBCD(tregs.day   & PCF85xx_M_DAY);
-	ct.mon  = FROMBCD(tregs.month & PCF85xx_M_MONTH);
-	ct.year = FROMBCD(tregs.year  & PCF85xx_M_YEAR);
-	ct.year += 1900;
-	if (ct.year < POSIX_BASE_YEAR)
-		ct.year += 100;	/* assume [1970, 2069] */
+	bct.nsec = ((uint64_t)tmrcount * 1000000000) / TMR_TICKS_SEC;
+	bct.ispm = (tregs.hour & PCF8523_B_HOUR_PM) != 0;
+	bct.sec  = tregs.sec   & PCF85xx_M_SECOND;
+	bct.min  = tregs.min   & PCF85xx_M_MINUTE;
+	bct.hour = tregs.hour  & hourmask;
+	bct.day  = tregs.day   & PCF85xx_M_DAY;
+	bct.mon  = tregs.month & PCF85xx_M_MONTH;
+	bct.year = tregs.year  & PCF85xx_M_YEAR;
 
 	/*
 	 * Old PCF8563 datasheets recommended that the C bit be 1 for 19xx and 0
@@ -594,21 +592,13 @@ nxprtc_gettime(device_t dev, struct timespec *ts)
 	 */
 	if (sc->chiptype == TYPE_PCF8563) {
 		if (tregs.month & PCF8563_B_MONTH_C) {
-			if (ct.year >= 2000)
+			if (bct.year < 0x70)
 				sc->flags |= SC_F_CPOL;
-		} else if (ct.year < 2000)
+		} else if (bct.year >= 0x70)
 				sc->flags |= SC_F_CPOL;
 	}
 
-	/* If this chip is running in 12-hour/AMPM mode, deal with it. */
-	if (sc->flags & SC_F_AMPM) {
-		if (ct.hour == 12)
-			ct.hour = 0;
-		if (tregs.hour & PCF8523_B_HOUR_PM)
-			ct.hour += 12;
-	}
-
-	err = clock_ct_to_ts(&ct, ts);
+	err = clock_bcd_to_ts(&bct, ts, sc->use_ampm);
 	ts->tv_sec += utc_offset();
 
 	return (err);
@@ -617,11 +607,11 @@ nxprtc_gettime(device_t dev, struct timespec *ts)
 static int
 nxprtc_settime(device_t dev, struct timespec *ts)
 {
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct time_regs tregs;
 	struct nxprtc_softc *sc;
 	int err;
-	uint8_t cflag, cs1, pmflag;
+	uint8_t cflag, cs1;
 
 	sc = device_get_softc(dev);
 
@@ -647,36 +637,25 @@ nxprtc_settime(device_t dev, struct timespec *ts)
 	getnanotime(ts);
 	ts->tv_sec -= utc_offset();
 	ts->tv_nsec = 0;
-	clock_ts_to_ct(ts, &ct);
-
-	/* If the chip is in AMPM mode deal with the PM flag. */
-	pmflag = 0;
-	if (sc->flags & SC_F_AMPM) {
-		if (ct.hour >= 12) {
-			ct.hour -= 12;
-			pmflag = PCF8523_B_HOUR_PM;
-		}
-		if (ct.hour == 0)
-			ct.hour = 12;
-	}
+	clock_ts_to_bcd(ts, &bct, sc->use_ampm);
 
 	/* On 8563 set the century based on the polarity seen when reading. */
 	cflag = 0;
 	if (sc->chiptype == TYPE_PCF8563) {
 		if ((sc->flags & SC_F_CPOL) != 0) {
-			if (ct.year >= 2000)
+			if (bct.year >= 0x2000)
 				cflag = PCF8563_B_MONTH_C;
-		} else if (ct.year < 2000)
+		} else if (bct.year < 0x2000)
 				cflag = PCF8563_B_MONTH_C;
 	}
 
-	tregs.sec   = TOBCD(ct.sec);
-	tregs.min   = TOBCD(ct.min);
-	tregs.hour  = TOBCD(ct.hour) | pmflag;
-	tregs.day   = TOBCD(ct.day);
-	tregs.month = TOBCD(ct.mon);
-	tregs.year  = TOBCD(ct.year % 100) | cflag;
-	tregs.wday  = ct.dow;
+	tregs.sec   = bct.sec;
+	tregs.min   = bct.min;
+	tregs.hour  = bct.hour | (bct.ispm ? PCF8523_B_HOUR_PM : 0);
+	tregs.day   = bct.day;
+	tregs.month = bct.mon;
+	tregs.year  = (bct.year & 0xff) | cflag;
+	tregs.wday  = bct.dow;
 
 	/*
 	 * Set the time, reset the timer count register, then start the clocks.
