@@ -46,6 +46,8 @@ struct spibus_ivar
 	uint32_t	clock;
 };
 
+#define	SPIBUS_CS_HIGH	(1U << 31)
+
 enum {
 	SPIBUS_IVAR_CS,		/* chip select that we're on */
 	SPIBUS_IVAR_MODE,	/* SPI mode (0-3) */
@@ -66,3 +68,5 @@ SPIBUS_ACCESSOR(clock,		CLOCK,		uint32_t)
 
 extern driver_t spibus_driver;
 extern devclass_t spibus_devclass;
+extern driver_t ofw_spibus_driver;
+extern devclass_t ofw_spibus_devclass;

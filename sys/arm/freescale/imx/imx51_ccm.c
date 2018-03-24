@@ -622,6 +622,13 @@ imx_ccm_usbphy_enable(device_t dev)
 }
 
 uint32_t
+imx_ccm_ecspi_hz(void)
+{
+
+	return (imx51_get_clock(IMX51CLK_CSPI_CLK_ROOT));
+}
+
+uint32_t
 imx_ccm_ipg_hz(void)
 {
 
@@ -655,3 +662,4 @@ imx_ccm_ahb_hz(void)
 
 	return (imx51_get_clock(IMX51CLK_AHB_CLK_ROOT));
 }
+
