@@ -956,23 +956,30 @@ static int
 vn_io_fault_doio(struct vn_io_fault_args *args, struct uio *uio,
     struct thread *td)
 {
+	int error, save;
 
+	error = 0;
+	save = vm_fault_disable_pagefaults();
 	switch (args->kind) {
 	case VN_IO_FAULT_FOP:
-		return ((args->args.fop_args.doio)(args->args.fop_args.fp,
-		    uio, args->cred, args->flags, td));
+		error = (args->args.fop_args.doio)(args->args.fop_args.fp,
+		    uio, args->cred, args->flags, td);
+		break;
 	case VN_IO_FAULT_VOP:
 		if (uio->uio_rw == UIO_READ) {
-			return (VOP_READ(args->args.vop_args.vp, uio,
-			    args->flags, args->cred));
+			error = VOP_READ(args->args.vop_args.vp, uio,
+			    args->flags, args->cred);
 		} else if (uio->uio_rw == UIO_WRITE) {
-			return (VOP_WRITE(args->args.vop_args.vp, uio,
-			    args->flags, args->cred));
+			error = VOP_WRITE(args->args.vop_args.vp, uio,
+			    args->flags, args->cred);
 		}
 		break;
+	default:
+		panic("vn_io_fault_doio: unknown kind of io %d %d",
+		    args->kind, uio->uio_rw);
 	}
-	panic("vn_io_fault_doio: unknown kind of io %d %d", args->kind,
-	    uio->uio_rw);
+	vm_fault_enable_pagefaults(save);
+	return (error);
 }
 
 static int
@@ -1047,7 +1054,7 @@ vn_io_fault1(struct vnode *vp, struct uio *uio, struct vn_io_fault_args *args,
 	vm_offset_t addr, end;
 	size_t len, resid;
 	ssize_t adv;
-	int error, cnt, save, saveheld, prev_td_ma_cnt;
+	int error, cnt, saveheld, prev_td_ma_cnt;
 
 	if (vn_io_fault_prefault) {
 		error = vn_io_fault_prefault_user(uio);
@@ -1073,7 +1080,6 @@ vn_io_fault1(struct vnode *vp, struct uio *uio, struct vn_io_fault_args *args,
 	short_uio.uio_rw = uio->uio_rw;
 	short_uio.uio_td = uio->uio_td;
 
-	save = vm_fault_disable_pagefaults();
 	error = vn_io_fault_doio(args, uio, td);
 	if (error != EFAULT)
 		goto out;
@@ -1144,7 +1150,6 @@ vn_io_fault1(struct vnode *vp, struct uio *uio, struct vn_io_fault_args *args,
 	td->td_ma_cnt = prev_td_ma_cnt;
 	curthread_pflags_restore(saveheld);
 out:
-	vm_fault_enable_pagefaults(save);
 	free(uio_clone, M_IOV);
 	return (error);
 }
