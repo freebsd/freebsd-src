@@ -1768,6 +1768,7 @@ dev/iicbus/ds1307.c		optional ds1307
 dev/iicbus/ds13rtc.c		optional ds13rtc | ds133x | ds1374
 dev/iicbus/ds1672.c		optional ds1672
 dev/iicbus/ds3231.c		optional ds3231
+dev/iicbus/rtc8583.c		optional rtc8583
 dev/iicbus/icee.c		optional icee
 dev/iicbus/if_ic.c		optional ic
 dev/iicbus/iic.c		optional iic
