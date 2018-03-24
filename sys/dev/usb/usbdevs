@@ -2136,6 +2136,7 @@ product FTDI TAVIR_STK500	0xfa33	FTDI compatible adapter
 product FTDI TERATRONIK_D2XX	0xec89	FTDI compatible adapter
 product FTDI TERATRONIK_VCP	0xec88	FTDI compatible adapter
 product FTDI THORLABS		0xfaf0	FTDI compatible adapter
+product FTDI TIAO		0x8a98	FTDI compatible adapter
 product FTDI TNC_X		0xebe0	FTDI compatible adapter
 product FTDI TTUSB		0xff20	FTDI compatible adapter
 product FTDI USBX_707		0xf857	FTDI compatible adapter
