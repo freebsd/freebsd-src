@@ -176,6 +176,7 @@ martymac [label="Ganael Laplanche\nmartymac@FreeBSD.org\n2010/09/24"]
 mat [label="Mathieu Arnold\nmat@FreeBSD.org\n2003/08/15"]
 matthew [label="Matthew Seaman\nmatthew@FreeBSD.org\n2012/02/07"]
 mezz [label="Jeremy Messenger\nmezz@FreeBSD.org\n2004/04/30"]
+mfechner [label="Matthias Fechner\nmfechner@FreeBSD.org\n2018/03/01"]
 mharo [label="Michael Haro\nmharo@FreeBSD.org\n1999/04/13"]
 milki [label="Jonathan Chu\nmilki@FreeBSD.org\n2013/12/15"]
 misha [label="Mikhail Pchelin\nmisha@FreeBSD.org\n2016/11/15"]
@@ -641,6 +642,7 @@ swills -> dch
 swills -> feld
 swills -> jmd
 swills -> jrm
+swills -> mfechner
 swills -> milki
 swills -> pclin
 swills -> rezny
@@ -678,6 +680,7 @@ tmclaugh -> xride
 
 tz -> joneum
 tz -> fernape
+tz -> mfechner
 
 vsevolod -> eugen
 
