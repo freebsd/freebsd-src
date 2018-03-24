@@ -217,7 +217,7 @@ ds1307_probe(device_t dev)
 
 	compat = ofw_bus_search_compatible(dev, ds1307_compat_data);
 
-	if (compat == NULL)
+	if (compat->ocd_str == NULL)
 		return (ENXIO);
 
 	device_set_desc(dev, (const char *)compat->ocd_data);
@@ -272,6 +272,7 @@ ds1307_start(void *xdev)
 	struct sysctl_oid *tree_node;
 	struct sysctl_oid_list *tree;
 	uint8_t secs;
+	uint8_t osc_en;
 
 	dev = (device_t)xdev;
 	sc = device_get_softc(dev);
@@ -286,7 +287,12 @@ ds1307_start(void *xdev)
 		device_printf(sc->sc_dev, "cannot read from RTC.\n");
 		return;
 	}
-	if ((secs & DS1307_SECS_CH) != 0) {
+	if (sc->sc_mcp7941x)
+		osc_en = 0x80;
+	else
+		osc_en = 0x00;
+
+	if (((secs & DS1307_SECS_CH) ^ osc_en) != 0) {
 		device_printf(sc->sc_dev,
 		    "WARNING: RTC clock stopped, check the battery.\n");
 	}
@@ -316,9 +322,9 @@ static int
 ds1307_gettime(device_t dev, struct timespec *ts)
 {
 	int error;
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct ds1307_softc *sc;
-	uint8_t data[7], hourmask;
+	uint8_t data[7], hourmask, st_mask;
 
 	sc = device_get_softc(dev);
 	error = iicdev_readfrom(sc->sc_dev, DS1307_SECS, data, sizeof(data),
@@ -329,7 +335,12 @@ ds1307_gettime(device_t dev, struct timespec *ts)
 	}
 
 	/* If the clock halted, we don't have good data. */
-	if (data[DS1307_SECS] & DS1307_SECS_CH)
+	if (sc->sc_mcp7941x)
+		st_mask = 0x80;
+	else
+		st_mask = 0x00;
+
+	if (((data[DS1307_SECS] & DS1307_SECS_CH) ^ st_mask) != 0)
 		return (EINVAL);
 
 	/* If chip is in AM/PM mode remember that. */
@@ -339,30 +350,24 @@ ds1307_gettime(device_t dev, struct timespec *ts)
 	} else
 		hourmask = DS1307_HOUR_MASK_24HR;
 
-	ct.nsec = 0;
-	ct.sec  = FROMBCD(data[DS1307_SECS]  & DS1307_SECS_MASK);
-	ct.min  = FROMBCD(data[DS1307_MINS]  & DS1307_MINS_MASK);
-	ct.hour = FROMBCD(data[DS1307_HOUR]  & hourmask);
-	ct.day  = FROMBCD(data[DS1307_DATE]  & DS1307_DATE_MASK);
-	ct.mon  = FROMBCD(data[DS1307_MONTH] & DS1307_MONTH_MASK);
-	ct.year = FROMBCD(data[DS1307_YEAR]  & DS1307_YEAR_MASK);
+	bct.nsec = 0;
+	bct.ispm = (data[DS1307_HOUR] & DS1307_HOUR_IS_PM) != 0;
+	bct.sec  = data[DS1307_SECS]  & DS1307_SECS_MASK;
+	bct.min  = data[DS1307_MINS]  & DS1307_MINS_MASK;
+	bct.hour = data[DS1307_HOUR]  & hourmask;
+	bct.day  = data[DS1307_DATE]  & DS1307_DATE_MASK;
+	bct.mon  = data[DS1307_MONTH] & DS1307_MONTH_MASK;
+	bct.year = data[DS1307_YEAR]  & DS1307_YEAR_MASK;
 
-	if (sc->sc_use_ampm) {
-		if (ct.hour == 12)
-			ct.hour = 0;
-		if (data[DS1307_HOUR] & DS1307_HOUR_IS_PM)
-			ct.hour += 12;
-	}
-
-	return (clock_ct_to_ts(&ct, ts));
+	return (clock_bcd_to_ts(&bct, ts, sc->sc_use_ampm));
 }
 
 static int
 ds1307_settime(device_t dev, struct timespec *ts)
 {
-	struct clocktime ct;
+	struct bcd_clocktime bct;
 	struct ds1307_softc *sc;
-	int error;
+	int error, year;
 	uint8_t data[7];
 	uint8_t pmflags;
 
@@ -373,27 +378,30 @@ ds1307_settime(device_t dev, struct timespec *ts)
 	 * disables utc adjustment, so apply that ourselves.
 	 */
 	ts->tv_sec -= utc_offset();
-	clock_ts_to_ct(ts, &ct);
+	clock_ts_to_bcd(ts, &bct, sc->sc_use_ampm);
 
 	/* If the chip is in AM/PM mode, adjust hour and set flags as needed. */
 	if (sc->sc_use_ampm) {
 		pmflags = DS1307_HOUR_USE_AMPM;
-		if (ct.hour >= 12) {
-			ct.hour -= 12;
+		if (bct.ispm)
 			pmflags |= DS1307_HOUR_IS_PM;
-		}
-		if (ct.hour == 0)
-			ct.hour = 12;
 	} else
 		pmflags = 0;
 
-	data[DS1307_SECS]    = TOBCD(ct.sec);
-	data[DS1307_MINS]    = TOBCD(ct.min);
-	data[DS1307_HOUR]    = TOBCD(ct.hour) | pmflags;
-	data[DS1307_DATE]    = TOBCD(ct.day);
-	data[DS1307_WEEKDAY] = ct.dow;
-	data[DS1307_MONTH]   = TOBCD(ct.mon);
-	data[DS1307_YEAR]    = TOBCD(ct.year % 100);
+	data[DS1307_SECS]    = bct.sec;
+	data[DS1307_MINS]    = bct.min;
+	data[DS1307_HOUR]    = bct.hour | pmflags;
+	data[DS1307_DATE]    = bct.day;
+	data[DS1307_WEEKDAY] = bct.dow;
+	data[DS1307_MONTH]   = bct.mon;
+	data[DS1307_YEAR]    = bct.year & 0xff;
+	if (sc->sc_mcp7941x) {
+		data[DS1307_SECS] |= MCP7941X_SECS_ST;
+		data[DS1307_WEEKDAY] |= MCP7941X_WEEKDAY_VBATEN;
+		year = bcd2bin(bct.year >> 8) * 100 + bcd2bin(bct.year & 0xff);
+		if ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0)
+			data[DS1307_MONTH] |= MCP7941X_MONTH_LPYR;
+	}
 	/* Write the time back to RTC. */
 	error = iicdev_writeto(sc->sc_dev, DS1307_SECS, data, sizeof(data),
 	    IIC_INTRWAIT);

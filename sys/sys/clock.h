@@ -60,9 +60,22 @@ extern int tz_dsttime;
 int utc_offset(void);
 
 /*
- * Structure to hold the values typically reported by time-of-day clocks.
- * This can be passed to the generic conversion functions to be converted
- * to a struct timespec.
+ * Structure to hold the values typically reported by time-of-day clocks,
+ * expressed as binary integers (see below for a BCD version).  This can be
+ * passed to the conversion functions to be converted to/from a struct timespec.
+ *
+ * On input, the year is interpreted as follows:
+ *       0 -   69 = 2000 - 2069
+ *      70 -   99 = 1970 - 1999
+ *     100 -  199 = 2000 - 2099 (Supports hardware "century bit".)
+ *     200 - 1969 = Invalid.
+ *    1970 - 9999 = Full 4-digit century+year.
+ *
+ * The dow field is ignored (not even validated) on input, but is always
+ * populated with day-of-week on output.
+ *
+ * clock_ct_to_ts() returns EINVAL if any values are out of range.  The year
+ * field will always be 4-digit on output.
  */
 struct clocktime {
 	int	year;			/* year (4 digit year) */
@@ -77,6 +90,43 @@ struct clocktime {
 
 int clock_ct_to_ts(struct clocktime *, struct timespec *);
 void clock_ts_to_ct(struct timespec *, struct clocktime *);
+
+/*
+ * Structure to hold the values typically reported by time-of-day clocks,
+ * expressed as BCD.  This can be passed to the conversion functions to be
+ * converted to/from a struct timespec.
+ *
+ * The clock_bcd_to_ts() function interprets the values in the year through sec
+ * fields as BCD numbers, and returns EINVAL if any BCD values are out of range.
+ * After conversion to binary, the values are passed to clock_ct_to_ts() and
+ * undergo further validation as described above.  Year may be 2 or 4-digit BCD,
+ * interpreted as described above.  The nsec field is binary.  If the ampm arg
+ * is true, the incoming hour and ispm values are interpreted as 12-hour am/pm
+ * representation of the hour, otherwise hour is interpreted as 24-hour and ispm
+ * is ignored.
+ *
+ * The clock_ts_to_bcd() function converts the timespec to BCD values stored
+ * into year through sec.  The value in year will be 4-digit BCD (e.g.,
+ * 0x2017). The mon through sec values will be 2-digit BCD.  The nsec field will
+ * be binary, and the range of dow makes its binary and BCD values identical.
+ * If the ampm arg is true, the hour and ispm fields are set to the 12-hour
+ * time plus a pm flag, otherwise the hour is set to 24-hour time and ispm is
+ * set to false.
+ */
+struct bcd_clocktime {
+	uint16_t year;			/* year (2 or 4 digit year) */
+	uint8_t  mon;			/* month (1 - 12) */
+	uint8_t  day;			/* day (1 - 31) */
+	uint8_t  hour;			/* hour (0 - 23 or 1 - 12) */
+	uint8_t  min;			/* minute (0 - 59) */
+	uint8_t  sec;			/* second (0 - 59) */
+	uint8_t  dow;			/* day of week (0 - 6; 0 = Sunday) */
+	long     nsec;			/* nanoseconds */
+	bool     ispm;			/* true if hour represents pm time */
+};
+
+int clock_bcd_to_ts(struct bcd_clocktime *, struct timespec *, bool ampm);
+void clock_ts_to_bcd(struct timespec *, struct bcd_clocktime *, bool ampm);
 
 /*
  * Time-of-day clock functions and flags.  These functions might sleep.
