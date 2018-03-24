@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 28, 2017
+.Dd March 23, 2018
 .Dt CTLD 8
 .Os
 .Sh NAME
@@ -47,8 +47,11 @@ passing connections to the kernel part of the native iSCSI target.
 .Pp
 Upon startup, the
 .Nm
-daemon parses the configuration file and exits, if it encounters any errors.
-Then it compares the configuration with the kernel list of LUNs managed
+daemon parses the configuration file.
+If it encounters any errors,
+.Nm
+exits.
+It then compares the configuration with the kernel list of LUNs managed
 by previously running
 .Nm
 instances, removes LUNs no longer existing in the configuration file,
