@@ -1120,6 +1120,7 @@ struct dadq {
 #define	ND_OPT_NONCE_LEN32 \
 		((ND_OPT_NONCE_LEN + sizeof(uint32_t) - 1)/sizeof(uint32_t))
 	uint32_t dad_nonce[ND_OPT_NONCE_LEN32];
+	bool dad_ondadq;	/* on dadq? Protected by DADQ_WLOCK. */
 };
 
 static VNET_DEFINE(TAILQ_HEAD(, dadq), dadq);
@@ -1138,6 +1139,7 @@ nd6_dad_add(struct dadq *dp)
 
 	DADQ_WLOCK();
 	TAILQ_INSERT_TAIL(&V_dadq, dp, dad_list);
+	dp->dad_ondadq = true;
 	DADQ_WUNLOCK();
 }
 
@@ -1146,9 +1148,17 @@ nd6_dad_del(struct dadq *dp)
 {
 
 	DADQ_WLOCK();
-	TAILQ_REMOVE(&V_dadq, dp, dad_list);
-	DADQ_WUNLOCK();
-	nd6_dad_rele(dp);
+	if (dp->dad_ondadq) {
+		/*
+		 * Remove dp from the dadq and release the dadq's
+		 * reference.
+		 */
+		TAILQ_REMOVE(&V_dadq, dp, dad_list);
+		dp->dad_ondadq = false;
+		DADQ_WUNLOCK();
+		nd6_dad_rele(dp);
+	} else
+		DADQ_WUNLOCK();
 }
 
 static struct dadq *
@@ -1281,6 +1291,8 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	dp->dad_ns_icount = dp->dad_na_icount = 0;
 	dp->dad_ns_ocount = dp->dad_ns_tcount = 0;
 	dp->dad_ns_lcount = dp->dad_loopbackprobe = 0;
+
+	/* Add this to the dadq and add a reference for the dadq. */
 	refcount_init(&dp->dad_refcnt, 1);
 	nd6_dad_add(dp);
 	nd6_dad_starttimer(dp, delay, 0);
@@ -1301,17 +1313,9 @@ nd6_dad_stop(struct ifaddr *ifa)
 	}
 
 	nd6_dad_stoptimer(dp);
-
-	/*
-	 * The DAD queue entry may have been removed by nd6_dad_timer() while
-	 * we were waiting for it to stop, so re-do the lookup.
-	 */
-	nd6_dad_rele(dp);
-	dp = nd6_dad_find(ifa, NULL);
-	if (dp == NULL)
-		return;
-
 	nd6_dad_del(dp);
+
+	/* Release this function's reference, acquired by nd6_dad_find(). */
 	nd6_dad_rele(dp);
 }
 
