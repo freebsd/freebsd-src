@@ -979,6 +979,8 @@ device		lagg
 # TCPPCAP enables code which keeps the last n packets sent and received
 # on a TCP socket.
 #
+# TCP_BLACKBOX enables enhanced TCP event logging.
+#
 # TCP_HHOOK enables the hhook(9) framework hooks for the TCP stack.
 #
 # RADIX_MPATH provides support for equal-cost multi-path routing.
@@ -1000,6 +1002,7 @@ options 	IPSTEALTH		#support for stealth forwarding
 options 	PF_DEFAULT_TO_DROP	#drop everything by default
 options 	TCPDEBUG
 options 	TCPPCAP
+options 	TCP_BLACKBOX
 options 	TCP_HHOOK
 options 	RADIX_MPATH
 
