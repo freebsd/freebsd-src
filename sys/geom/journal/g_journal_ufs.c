@@ -83,6 +83,7 @@ g_journal_ufs_dirty(struct g_consumer *cp)
 	fs->fs_clean = 0;
 	fs->fs_flags |= FS_NEEDSFSCK | FS_UNCLEAN;
 	error = ffs_sbput(cp, fs, fs->fs_sblockloc, g_use_g_write_data);
+	g_free(fs->fs_csp);
 	g_free(fs);
 	if (error != 0) {
 		GJ_DEBUG(0, "Cannot mark file system %s as dirty "
