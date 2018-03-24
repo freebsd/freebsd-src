@@ -1837,6 +1837,7 @@ unlock_and_done:
 			goto unlock_and_done;
 		}
 
+#ifdef TCP_BLACKBOX
 		case TCP_LOG:
 			INP_WUNLOCK(inp);
 			error = sooptcopyin(sopt, &optval, sizeof optval,
@@ -1885,6 +1886,7 @@ unlock_and_done:
 				 */
 			}
 			break;
+#endif
 
 		default:
 			INP_WUNLOCK(inp);
@@ -1971,6 +1973,7 @@ unlock_and_done:
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
+#ifdef TCP_BLACKBOX
 		case TCP_LOG:
 			optval = tp->t_logstate;
 			INP_WUNLOCK(inp);
@@ -1990,6 +1993,7 @@ unlock_and_done:
 			INP_WUNLOCK(inp);
 			error = EINVAL;
 			break;
+#endif
 		default:
 			INP_WUNLOCK(inp);
 			error = ENOPROTOOPT;

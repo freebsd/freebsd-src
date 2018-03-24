@@ -3163,7 +3163,7 @@ dev/syscons/star/star_saver.c	optional star_saver
 dev/syscons/syscons.c		optional sc
 dev/syscons/sysmouse.c		optional sc
 dev/syscons/warp/warp_saver.c	optional warp_saver
-dev/tcp_log/tcp_log_dev.c	optional inet | inet6
+dev/tcp_log/tcp_log_dev.c	optional tcp_blackbox inet | tcp_blackbox inet6
 dev/tdfx/tdfx_linux.c		optional tdfx_linux tdfx compat_linux
 dev/tdfx/tdfx_pci.c		optional tdfx pci
 dev/ti/if_ti.c			optional ti pci
@@ -4312,7 +4312,7 @@ netinet/tcp_debug.c		optional tcpdebug
 netinet/tcp_fastopen.c		optional inet tcp_rfc7413 | inet6 tcp_rfc7413
 netinet/tcp_hostcache.c		optional inet | inet6
 netinet/tcp_input.c		optional inet | inet6
-netinet/tcp_log_buf.c		optional inet | inet6
+netinet/tcp_log_buf.c		optional tcp_blackbox inet | tcp_blackbox inet6
 netinet/tcp_lro.c		optional inet | inet6
 netinet/tcp_output.c		optional inet | inet6
 netinet/tcp_offload.c		optional tcp_offload inet | tcp_offload inet6
