@@ -365,6 +365,8 @@ FreeBSD 5.2           |      |                 |                       |
  |     |              |     |      |           |                       |
  |     |              |     |  NetBSD 7.1.1    |               DragonFly 5.0.2
  |     |              |     |      |           |                       |
+ |     |              |     |  NetBSD 7.1.2    |                       |
+ |     |              |     |      |           |                       |
  |     |              |     |      v           |                       |
  |     v              |     |                  |                       |
  |                    |     |                  |                       |
@@ -736,6 +738,7 @@ DragonFly 5.0.0		2017-10-16 [DFB]
 DragonFly 5.0.1		2017-11-06 [DFB]
 DragonFly 5.0.2		2017-12-04 [DFB]
 NetBSD 7.1.1		2017-12-22 [NBD]
+NetBSD 7.1.2		2018-03-15 [NBD]
 
 Bibliography
 ------------------------
