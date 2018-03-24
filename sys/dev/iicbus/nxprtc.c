@@ -198,6 +198,15 @@ struct nxprtc_softc {
 #define	SC_F_CPOL	(1 << 0)	/* Century bit means 19xx */
 
 /*
+ * When doing i2c IO, indicate that we need to wait for exclusive bus ownership,
+ * but that we should not wait if we already own the bus.  This lets us put
+ * iicbus_acquire_bus() calls with a non-recursive wait at the entry of our API
+ * functions to ensure that only one client at a time accesses the hardware for
+ * the entire series of operations it takes to read or write the clock.
+ */
+#define	WAITFLAGS	(IIC_WAIT | IIC_RECURSIVE)
+
+/*
  * We use the compat_data table to look up hint strings in the non-FDT case, so
  * define the struct locally when we don't get it from ofw_bus_subr.h.
  */
@@ -230,14 +239,14 @@ static int
 read_reg(struct nxprtc_softc *sc, uint8_t reg, uint8_t *val)
 {
 
-	return (iicdev_readfrom(sc->dev, reg, val, sizeof(*val), IIC_WAIT));
+	return (iicdev_readfrom(sc->dev, reg, val, sizeof(*val), WAITFLAGS));
 }
 
 static int
 write_reg(struct nxprtc_softc *sc, uint8_t reg, uint8_t val)
 {
 
-	return (iicdev_writeto(sc->dev, reg, &val, sizeof(val), IIC_WAIT));
+	return (iicdev_writeto(sc->dev, reg, &val, sizeof(val), WAITFLAGS));
 }
 
 static int
@@ -264,7 +273,7 @@ read_timeregs(struct nxprtc_softc *sc, struct time_regs *tregs, uint8_t *tmr)
 				continue;
 		}
 		if ((err = iicdev_readfrom(sc->dev, sc->secaddr, tregs,
-		    sizeof(*tregs), IIC_WAIT)) != 0)
+		    sizeof(*tregs), WAITFLAGS)) != 0)
 			break;
 	} while (sc->use_timer && tregs->sec != sec);
 
@@ -294,7 +303,7 @@ write_timeregs(struct nxprtc_softc *sc, struct time_regs *tregs)
 {
 
 	return (iicdev_writeto(sc->dev, sc->secaddr, tregs,
-	    sizeof(*tregs), IIC_WAIT));
+	    sizeof(*tregs), WAITFLAGS));
 }
 
 static int
@@ -557,14 +566,15 @@ nxprtc_gettime(device_t dev, struct timespec *ts)
 	 * bit is not set in the control reg.  The latter can happen if there
 	 * was an error when setting the time.
 	 */
-	if ((err = read_timeregs(sc, &tregs, &tmrcount)) != 0) {
-		device_printf(dev, "cannot read RTC time\n");
-		return (err);
+	if ((err = iicbus_request_bus(sc->busdev, sc->dev, IIC_WAIT)) == 0) {
+		if ((err = read_timeregs(sc, &tregs, &tmrcount)) == 0) {
+			err = read_reg(sc, PCF85xx_R_CS1, &cs1);
+		}
+		iicbus_release_bus(sc->busdev, sc->dev);
 	}
-	if ((err = read_reg(sc, PCF85xx_R_CS1, &cs1)) != 0) {
-		device_printf(dev, "cannot read RTC time\n");
+	if (err != 0)
 		return (err);
-	}
+
 	if ((tregs.sec & PCF85xx_B_SECOND_OS) || (cs1 & PCF85xx_B_CS1_STOP)) {
 		device_printf(dev, "RTC clock not running\n");
 		return (EINVAL); /* hardware is good, time is not. */
