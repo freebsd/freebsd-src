@@ -103,8 +103,7 @@ g_label_ufs_taste_common(struct g_consumer *cp, char *label, size_t size, int wh
 		|| G_LABEL_UFS_CMP(pp, fs, fs_providersize))) {
 		/* Valid UFS2. */
 	} else {
-		g_free(fs);
-		return;
+		goto out;
 	}
 	G_LABEL_DEBUG(1, "%s file system detected on %s.",
 	    fs->fs_magic == FS_UFS1_MAGIC ? "UFS1" : "UFS2", pp->name);
@@ -120,6 +119,8 @@ g_label_ufs_taste_common(struct g_consumer *cp, char *label, size_t size, int wh
 			    fs->fs_id[1]);
 		break;
 	}
+out:
+	g_free(fs->fs_csp);
 	g_free(fs);
 }
 
