@@ -51,6 +51,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20180323:
+	makefs was modified to be able to tag ISO9660 El Torito boot catalog
+	entries as EFI instead of overloading the i386 tag as done previously.
+	The amd64 mkisoimages.sh script used to build amd64 ISO images for
+	release was updated to use this. This may mean that makefs must be
+	updated before "make cdrom" can be run in the release directory. This
+	should be as simple as:
+
+		$ cd $SRCDIR/usr.sbin/makefs
+		$ make depend all install
+
 20180212:
 	FreeBSD boot loader enhanced with Lua scripting. It's purely opt-in for
 	now by building WITH_LOADER_LUA and WITHOUT_FORTH in /etc/src.conf.
