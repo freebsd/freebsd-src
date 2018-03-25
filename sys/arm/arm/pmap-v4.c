@@ -1727,6 +1727,8 @@ pmap_page_init(vm_page_t m)
 
 	TAILQ_INIT(&m->md.pv_list);
 	m->md.pv_memattr = VM_MEMATTR_DEFAULT;
+	m->md.pvh_attrs = 0;
+	m->md.pv_kva = 0;
 }
 
 /*
