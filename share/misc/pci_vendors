@@ -1,10 +1,9 @@
 # $FreeBSD$
 
-#
 #	List of PCI ID's
 #
-#	Version: 2018.03.06
-#	Date:    2018-03-06 03:15:02
+#	Version: 2018.03.21
+#	Date:    2018-03-21 03:15:01
 #
 #	Maintained by Albert Pool, Martin Mares, and other volunteers from
 #	the PCI ID Project at http://pci-ids.ucw.cz/.
@@ -6393,6 +6392,7 @@
 		1077 000b  25GE 2P QL41262HxCU-DE Adapter
 		1077 0011  FastLinQ QL41212H 25GbE Adapter
 		1077 0012  FastLinQ QL41112H 10GbE Adapter
+		1077 0039  QLogic QL41262 PCIe 25Gb 2-Port SFP28 Ethernet Adapter
 		1590 021d  10/25GbE 2P QL41222HLCU-HP Adapter
 		1590 021e  10/25GbE 2P QL41162HMRJ-HP Adapter
 		1590 021f  10/25GbE 2P QL41262HMCU-HP Adapter
@@ -8334,8 +8334,10 @@
 	0100  Lightning 1200
 		10dd 0023  Lightning 1200 15+16M
 10de  NVIDIA Corporation
-	0008  NV1 [EDGE 3D]
-	0009  NV1 [EDGE 3D]
+	0008  NV1 [STG2000X-B Series]
+	0009  NV1 [NV1 Series]
+	0018  NV3 [Riva 128]
+	0019  NV3 [Riva 128ZX]
 	0020  NV4 [Riva TNT]
 		1043 0200  V3400 TNT
 		1048 0c18  Erazor II SGRAM
@@ -8706,12 +8708,12 @@
 	00f9  NV40 [GeForce 6800 GT/GTO/Ultra]
 		10de 00f9  NV40 [GeForce 6800 GT]
 		1682 2120  GEFORCE 6800 GT PCI-E
-	00fa  NV36 [GeForce PCX 5750]
-	00fb  NV38 [GeForce PCX 5900]
+	00fa  NV39 [GeForce PCX 5750]
+	00fb  NV35 [GeForce PCX 5900]
 	00fc  NV37GL [Quadro FX 330/GeForce PCX 5300]
 	00fd  NV37GL [Quadro PCI-E Series]
 	00fe  NV38GL [Quadro FX 1300]
-	00ff  NV18 [GeForce PCX 4300]
+	00ff  NV19 [GeForce PCX 4300]
 	0100  NV10 [GeForce 256 SDR]
 		1043 0200  AGP-V6600 SGRAM
 		1043 0201  AGP-V6600 SDRAM
@@ -11072,7 +11074,7 @@
 	1b80  GP104 [GeForce GTX 1080]
 	1b81  GP104 [GeForce GTX 1070]
 	1b82  GP104 [GeForce GTX 1070 Ti]
-	1b83  GP104
+	1b83  GP104 [GeForce GTX 1060 6GB]
 	1b84  GP104 [GeForce GTX 1060 3GB]
 	1b87  GP104 [P104-100]
 	1ba0  GP104M [GeForce GTX 1080 Mobile]
@@ -13398,6 +13400,8 @@
 1170  Inventec Corporation
 1171  Loughborough Sound Images Plc
 1172  Altera Corporation
+	00a7  Stratix V
+	0530  Stratix IV
 1173  Adobe Systems, Inc
 1174  Bridgeport Machines
 1175  Mitron Computer Inc.
@@ -15569,6 +15573,9 @@
 	5163  RealSSD P425m
 	5180  9100 PRO NVMe SSD
 	5181  9100 MAX NVMe SSD
+	5190  9200 ECO NVMe SSD
+	5191  9200 PRO NVMe SSD
+	5192  9200 MAX NVMe SSD
 1345  Arescom Inc
 1347  Odetics
 1349  Sumitomo Electric Industries, Ltd.
@@ -17068,7 +17075,7 @@
 		1028 1fc1  Express Flash NVMe PM1725 800GB SFF
 		1028 1fc2  Express Flash NVMe PM1725 1.6TB SFF
 		1028 1fc4  Express Flash NVMe PM1725 1.6TB AIC
-	a822  NVMe SSD Controller 172Xa
+	a822  NVMe SSD Controller 172Xa/172Xb
 		1014 0621  PCIe3 1.6TB NVMe Flash Adapter II x8
 		1014 0622  PCIe3 3.2TB NVMe Flash Adapter II x8
 		1014 0629  PCIe3 6.4TB NVMe Flash Adapter II x8
@@ -17079,6 +17086,14 @@
 		1028 1fdd  Express Flash PM1725a 1.6TB AIC
 		1028 1fde  Express Flash PM1725a 3.2TB AIC
 		1028 1fdf  Express Flash PM1725a 6.4TB AIC
+		1028 1ff3  Express Flash PM1725b 1.6TB SFF
+		1028 1ff4  Express Flash PM1725b 3.2TB SFF
+		1028 1ff5  Express Flash PM1725b 6.4TB SFF
+		1028 1ff6  Express Flash PM1725b 12.8TB SFF
+		1028 1ff7  Express Flash PM1725b 1.6TB AIC
+		1028 1ff8  Express Flash PM1725b 3.2TB AIC
+		1028 1ff9  Express Flash PM1725b 6.4TB AIC
+		1028 1ffa  Express Flash PM1725b 12.8TB AIC
 144e  OLITEC
 144f  Askey Computer Corp.
 1450  Octave Communications Ind.
@@ -19921,6 +19936,7 @@
 	1914  VirtexUS ASIC Emulation Board [DNVUF2A]
 	1915  Arria10 PCIe MainRef Design [DNPCIe_80G_A10_LL]
 	1916  VirtexUS PCIe Accelerator Board [DNVUF2_HPC_PCIe]
+	1917  UltrascalePlus PCIe Accelerator Board [DNPCIe_400G_VU_LL]
 	1a00  Virtex6 PCIe DMA Netlist Design
 	1a01  Virtex6 PCIe Darklite Design [DNPCIe_HXT_10G_LL]
 	1a02  Virtex7 PCIe DMA Netlist Design
@@ -19931,6 +19947,7 @@
 	1a08  KintexUS PCIe Darklite Design [DNPCIe_40G_KU_LL_QSFP]
 	1a09  Arria10 PCIe Darklite Design [DNPCIe_80G_A10_LL]
 	1a0a  VirtexUS PCIe Darklite Design [DNVUF2_HPC_PCIe]
+	1a0b  UltrascalePlus PCIe Darklite Design [DNPCIe_400G_VU_LL]
 17e4  Sectra AB
 	0001  KK671 Cardbus encryption board
 	0002  KK672 Cardbus encryption board
@@ -20786,7 +20803,7 @@
 	2010  PCI-Express EVR
 # PC-260-101-03
 	2020  PGP-GEN3 PCIe
-	2030  data_dev
+	2030  AXI Stream DAQ PCIe card
 1a51  Hectronic AB
 1a55  Rohde & Schwarz DVS GmbH
 	0010  SDStationOEM
@@ -20946,6 +20963,7 @@
 		1849 1080  Motherboard
 	1142  ASM1042A USB 3.0 Host Controller
 	1242  ASM1142 USB 3.1 Host Controller
+	1343  ASM1143 USB 3.1 Host Controller
 1b2c  Opal-RT Technologies Inc.
 1b36  Red Hat, Inc.
 	0001  QEMU PCI-PCI bridge
@@ -21031,8 +21049,8 @@
 # 2xHDMI and 2xHD-SDI inputs
 	e5f4  MPEG2 and H264 Encoder-Transcoder
 	f1c4  Dual ASI-RX/TX-CI card
-1b66  Deltacast
-	0007  Delta-3G-elp-11 SDI I/O Board
+1b66  DELTACAST
+	0007  DELTA-3G-elp-d
 1b6f  Etron Technology, Inc.
 	7023  EJ168 USB 3.0 Host Controller
 	7052  EJ188/EJ198 USB 3.0 Host Controller
@@ -23919,6 +23937,7 @@
 	1563  Ethernet Controller 10G X550T
 		1028 1fa8  Ethernet 10G 4P X550/I350 rNDC
 		1028 1fa9  Ethernet 10G 4P X550 rNDC
+		1170 0001  Intel Ethernet Controller X550-T2 OCP card
 		14c0 1201  X550 10Gb 2P RJ45 OCP Mezz
 		1590 00d1  Ethernet 10Gb 2-port 562T Adapter
 		1590 00d2  Ethernet 10Gb 2-port 562FLR-T Adapter
@@ -29137,6 +29156,7 @@
 	a2ed  200 Series PCH PCI Express Root Port #23
 	a2ee  200 Series PCH PCI Express Root Port #24
 	a2f0  200 Series PCH HD Audio
+	a370  Wireless-AC 9560 [Jefferson Peak]
 	a620  6400/6402 Advanced Memory Buffer (AMB)
 	abc0  Omni-Path Fabric Switch Silicon 100 Series
 	b152  21152 PCI-to-PCI Bridge
