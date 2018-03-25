@@ -27,6 +27,7 @@
  */
 
 #include "opt_platform.h"
+#include "opt_ddb.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -55,6 +56,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef EFI
 #include <sys/efi.h>
+#endif
+
+#ifdef DDB
+#include <ddb/ddb.h>
 #endif
 
 #ifdef DEBUG
