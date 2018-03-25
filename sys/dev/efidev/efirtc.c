@@ -41,21 +41,20 @@ __FBSDID("$FreeBSD$");
 
 #include "clock_if.h"
 
+static bool efirtc_zeroes_subseconds;
+static struct timespec efirtc_resadj;
+
+static const u_int us_per_s  = 1000000;
+static const u_int ns_per_s  = 1000000000;
+static const u_int ns_per_us = 1000;
+
 static void
 efirtc_identify(driver_t *driver, device_t parent)
 {
-	struct efi_tm tm;
-	int error;
 
-	/*
-	 * Check if we can read the time. This will stop us attaching when
-	 * there is no EFI Runtime support, or the gettime function is
-	 * unimplemented, e.g. on some builds of U-Boot.
-	 */
-	error = efi_get_time(&tm);
-	if (error != 0)
+	/* Don't add the driver unless we have working runtime services. */
+	if (efi_rt_ok() != 0)
 		return;
-
 	if (device_find_child(parent, "efirtc", -1) != NULL)
 		return;
 	if (BUS_ADD_CHILD(parent, 0, "efirtc", -1) == NULL)
@@ -65,16 +64,58 @@ efirtc_identify(driver_t *driver, device_t parent)
 static int
 efirtc_probe(device_t dev)
 {
+	struct efi_tm tm;
+	int error;
 
-	device_quiet(dev);
-	return (0);
+	/*
+	 * Check whether we can read the time.  This will stop us from attaching
+	 * when there is EFI Runtime support but the gettime function is
+	 * unimplemented, e.g. on some builds of U-Boot.
+	 */
+	if ((error = efi_get_time(&tm)) != 0) {
+		if (bootverbose)
+			device_printf(dev, "cannot read EFI realtime clock\n");
+		return (error);
+	}
+	device_set_desc(dev, "EFI Realtime Clock");
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
 efirtc_attach(device_t dev)
 {
+	struct efi_tmcap tmcap;
+	long res;
+	int error;
 
-	clock_register(dev, 1000000);
+	bzero(&tmcap, sizeof(tmcap));
+	if ((error = efi_get_time_capabilities(&tmcap)) != 0) {
+		device_printf(dev, "cannot get EFI time capabilities");
+		return (error);
+	}
+
+	/* Translate resolution in Hz to tick length in usec. */
+	if (tmcap.tc_res == 0)
+		res = us_per_s; /* 0 is insane, assume 1 Hz. */
+	else if (tmcap.tc_res > us_per_s)
+		res = 1; /* 1us is the best we can represent */
+	else
+		res = us_per_s / tmcap.tc_res;
+
+	/* Clock rounding adjustment is 1/2 of resolution, in nsec. */
+	efirtc_resadj.tv_nsec = (res * ns_per_us) / 2;
+
+	/* Does the clock zero the subseconds when time is set? */
+	efirtc_zeroes_subseconds = tmcap.tc_stz;
+
+	/*
+	 * Register.  If the clock zeroes out the subseconds when it's set,
+	 * schedule the SetTime calls to happen just before top-of-second.
+	 */
+	clock_register_flags(dev, res, CLOCKF_SETTIME_NO_ADJ);
+	if (efirtc_zeroes_subseconds)
+		clock_schedule(dev, ns_per_s - ns_per_us);
+
 	return (0);
 }
 
@@ -105,6 +146,7 @@ efirtc_gettime(device_t dev, struct timespec *ts)
 	ct.year = tm.tm_year;
 	ct.nsec = tm.tm_nsec;
 
+	clock_dbgprint_ct(dev, CLOCK_DBG_READ, &ct);
 	return (clock_ct_to_ts(&ct, ts));
 }
 
@@ -114,7 +156,17 @@ efirtc_settime(device_t dev, struct timespec *ts)
 	struct clocktime ct;
 	struct efi_tm tm;
 
+	/*
+	 * We request a timespec with no resolution-adjustment so that we can
+	 * apply it ourselves based on whether or not the clock zeroes the
+	 * sub-second part of the time when setting the time.
+	 */
+	ts->tv_sec -= utc_offset();
+	if (!efirtc_zeroes_subseconds)
+		timespecadd(ts, &efirtc_resadj);
+	
 	clock_ts_to_ct(ts, &ct);
+	clock_dbgprint_ct(dev, CLOCK_DBG_WRITE, &ct);
 
 	bzero(&tm, sizeof(tm));
 	tm.tm_sec = ct.sec;
