@@ -3559,7 +3559,6 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 
 	ms->button = touchpad_buttons;
 
-	psmgestures(sc, &f[0], nfingers, ms);
 	for (id = 0; id < PSM_FINGERS; id++)
 		psmsmoother(sc, &f[id], id, ms, x, y);
 
@@ -3569,6 +3568,8 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		ms->button = ms->obutton;
 		return (0);
 	}
+
+	psmgestures(sc, &f[0], nfingers, ms);
 
 	ms->button |= extended_buttons | guest_buttons;
 
