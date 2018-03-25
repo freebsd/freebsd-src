@@ -869,5 +869,5 @@ static driver_t imx51_gpio_driver = {
 };
 static devclass_t imx51_gpio_devclass;
 
-DRIVER_MODULE(imx51_gpio, simplebus, imx51_gpio_driver, imx51_gpio_devclass,
-    0, 0);
+EARLY_DRIVER_MODULE(imx51_gpio, simplebus, imx51_gpio_driver,
+    imx51_gpio_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

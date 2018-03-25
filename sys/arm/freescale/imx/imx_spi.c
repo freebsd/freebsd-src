@@ -541,7 +541,7 @@ spi_attach(device_t dev)
 
 	/* Allocate gpio pins for configured chip selects. */
 	node = ofw_bus_get_node(sc->dev);
-	for (err = 0, idx = 0; err == 0 && idx < nitems(sc->cspins); ++idx) {
+	for (idx = 0; idx < nitems(sc->cspins); ++idx) {
 		err = gpio_pin_get_by_ofw_propidx(sc->dev, node, "cs-gpios",
 		    idx, &sc->cspins[idx]);
 		if (err == 0) {
@@ -558,9 +558,16 @@ spi_attach(device_t dev)
 	 */
 	WR4(sc, ECSPI_CTLREG, CTLREG_CMODES_MASTER);
 
-	/* Attach the bus driver. */
+	/*
+	 * Add the spibus driver as a child, and setup a one-shot intrhook to
+	 * attach it after interrupts are working.  It will attach actual SPI
+	 * devices as its children, and those devices may need to do IO during
+	 * their attach. We can't do IO until timers and interrupts are working.
+	 */
 	sc->spibus = device_add_child(dev, "spibus", -1);
-	return (bus_generic_attach(sc->dev));
+	config_intrhook_oneshot((ich_func_t)bus_generic_attach, dev);
+
+	return (0);
 }
 
 static int
