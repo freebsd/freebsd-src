@@ -172,90 +172,6 @@ key_sendup0(struct rawcb *rp, struct mbuf *m, int promisc)
 	return error;
 }
 
-/* XXX this interface should be obsoleted. */
-int
-key_sendup(struct socket *so, struct sadb_msg *msg, u_int len, int target)
-{
-	struct mbuf *m, *n, *mprev;
-	int tlen;
-
-	/* sanity check */
-	if (so == NULL || msg == NULL)
-		panic("%s: NULL pointer was passed.\n", __func__);
-
-	KEYDBG(KEY_DUMP,
-	    printf("%s: \n", __func__);
-	    kdebug_sadb(msg));
-
-	/*
-	 * we increment statistics here, just in case we have ENOBUFS
-	 * in this function.
-	 */
-	PFKEYSTAT_INC(in_total);
-	PFKEYSTAT_ADD(in_bytes, len);
-	PFKEYSTAT_INC(in_msgtype[msg->sadb_msg_type]);
-
-	/*
-	 * Get mbuf chain whenever possible (not clusters),
-	 * to save socket buffer.  We'll be generating many SADB_ACQUIRE
-	 * messages to listening key sockets.  If we simply allocate clusters,
-	 * sbappendaddr() will raise ENOBUFS due to too little sbspace().
-	 * sbspace() computes # of actual data bytes AND mbuf region.
-	 *
-	 * TODO: SADB_ACQUIRE filters should be implemented.
-	 */
-	tlen = len;
-	m = mprev = NULL;
-	while (tlen > 0) {
-		if (tlen == len) {
-			MGETHDR(n, M_NOWAIT, MT_DATA);
-			if (n == NULL) {
-				PFKEYSTAT_INC(in_nomem);
-				return ENOBUFS;
-			}
-			n->m_len = MHLEN;
-		} else {
-			MGET(n, M_NOWAIT, MT_DATA);
-			if (n == NULL) {
-				PFKEYSTAT_INC(in_nomem);
-				return ENOBUFS;
-			}
-			n->m_len = MLEN;
-		}
-		if (tlen >= MCLBYTES) {	/*XXX better threshold? */
-			if (!(MCLGET(n, M_NOWAIT))) {
-				m_free(n);
-				m_freem(m);
-				PFKEYSTAT_INC(in_nomem);
-				return ENOBUFS;
-			}
-			n->m_len = MCLBYTES;
-		}
-
-		if (tlen < n->m_len)
-			n->m_len = tlen;
-		n->m_next = NULL;
-		if (m == NULL)
-			m = mprev = n;
-		else {
-			mprev->m_next = n;
-			mprev = n;
-		}
-		tlen -= n->m_len;
-		n = NULL;
-	}
-	m->m_pkthdr.len = len;
-	m->m_pkthdr.rcvif = NULL;
-	m_copyback(m, 0, len, (caddr_t)msg);
-
-	/* avoid duplicated statistics */
-	PFKEYSTAT_ADD(in_total, -1);
-	PFKEYSTAT_ADD(in_bytes, -len);
-	PFKEYSTAT_ADD(in_msgtype[msg->sadb_msg_type], -1);
-
-	return key_sendup_mbuf(so, m, target);
-}
-
 /* so can be NULL if target != KEY_SENDUP_ONE */
 int
 key_sendup_mbuf(struct socket *so, struct mbuf *m, int target)
@@ -266,10 +182,11 @@ key_sendup_mbuf(struct socket *so, struct mbuf *m, int target)
 	struct rawcb *rp;
 	int error = 0;
 
-	if (m == NULL)
-		panic("key_sendup_mbuf: NULL pointer was passed.\n");
-	if (so == NULL && target == KEY_SENDUP_ONE)
-		panic("%s: NULL pointer was passed.\n", __func__);
+	KASSERT(m != NULL, ("NULL mbuf pointer was passed."));
+	KASSERT(so != NULL || target != KEY_SENDUP_ONE,
+	    ("NULL socket pointer was passed."));
+	KASSERT(target == KEY_SENDUP_ONE || target == KEY_SENDUP_ALL ||
+	    target == KEY_SENDUP_REGISTERED, ("Wrong target %d", target));
 
 	PFKEYSTAT_INC(in_total);
 	PFKEYSTAT_ADD(in_bytes, m->m_pkthdr.len);
@@ -286,6 +203,11 @@ key_sendup_mbuf(struct socket *so, struct mbuf *m, int target)
 		PFKEYSTAT_INC(in_msgtype[msg->sadb_msg_type]);
 	}
 	mtx_lock(&rawcb_mtx);
+	if (V_key_cb.any_count == 0) {
+		mtx_unlock(&rawcb_mtx);
+		m_freem(m);
+		return (0);
+	}
 	LIST_FOREACH(rp, &V_rawcb_list, list)
 	{
 		if (rp->rcb_proto.sp_family != PF_KEY)
