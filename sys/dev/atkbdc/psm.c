@@ -3840,12 +3840,9 @@ psmgestures(struct psm_softc *sc, finger_t *fingers, int nfingers,
 					    (dxp > dyp) ? 2 : 1;
 			}
 		}
-		/*
-		 * Reset two finger scrolling when the number of fingers
-		 * is different from two or any button is pressed.
-		 */
-		if (two_finger_scroll && gest->in_vscroll != 0 &&
-		    (nfingers != 2 || ms->button))
+
+		/* Exit vscroll when number of fingers drops below two. */
+		if (two_finger_scroll && gest->in_vscroll != 0 && nfingers < 2)
 			gest->in_vscroll = 0;
 
 		VLOG(5, (LOG_DEBUG,
