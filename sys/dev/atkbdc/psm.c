@@ -3765,7 +3765,7 @@ psmgestures(struct psm_softc *sc, finger_t *fingers, int nfingers,
 		}
 
 		/* If in tap-hold, add the recorded button. */
-		if (gest->in_taphold)
+		if (tap_enabled != 0 && gest->in_taphold)
 			ms->button |= gest->tap_button;
 
 		/*
@@ -3944,10 +3944,13 @@ psmgestures(struct psm_softc *sc, finger_t *fingers, int nfingers,
 					gest->tap_button =
 					    MOUSE_BUTTON1DOWN;
 				}
+
 				VLOG(2, (LOG_DEBUG,
 				    "synaptics: button PRESS: %d\n",
 				    gest->tap_button));
-				ms->button |= gest->tap_button;
+
+				if (tap_enabled != 0)
+					ms->button |= gest->tap_button;
 			}
 		} else {
 			/*
@@ -3971,7 +3974,8 @@ psmgestures(struct psm_softc *sc, finger_t *fingers, int nfingers,
 		 * cleared) or during the next action.
 		 */
 		if (timevalcmp(&sc->lastsoftintr, &gest->taptimeout, <=)) {
-			ms->button |= gest->tap_button;
+			if (tap_enabled != 0)
+				ms->button |= gest->tap_button;
 		} else {
 			VLOG(2, (LOG_DEBUG, "synaptics: button RELEASE: %d\n",
 			    gest->tap_button));
