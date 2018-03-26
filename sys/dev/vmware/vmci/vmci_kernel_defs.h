@@ -16,17 +16,17 @@
 
 typedef uint32_t PPN;
 
-#define ASSERT(cond)		KASSERT(cond, (""))
+#define ASSERT(cond)		KASSERT(cond, ("%s", #cond))
 #define ASSERT_ON_COMPILE(e)	_Static_assert(e, #e);
 
-#define LIKELY(_exp)		__builtin_expect(!!(_exp), 1)
-#define UNLIKELY(_exp)		__builtin_expect((_exp), 0)
+#define LIKELY(_exp)		__predict_true(_exp)
+#define UNLIKELY(_exp)		__predict_false(_exp)
 
-#define CONST64U(c)		c##uL
+#define CONST64U(c)		UINT64_C(c)
 
-#define ARRAYSIZE(a)		(sizeof(a) / sizeof(*(a)))
+#define ARRAYSIZE(a)		nitems(a)
 
-#define ROUNDUP(x, y)		(((x) + (y) - 1) / (y) * (y))
-#define CEILING(x, y)		(((x) + (y) - 1) / (y))
+#define ROUNDUP(x, y)		roundup(x, y)
+#define CEILING(x, y)		howmany(x, y)
 
 #endif /* !_VMCI_KERNEL_DEFS_H_ */
