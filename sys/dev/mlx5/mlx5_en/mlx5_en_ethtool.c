@@ -175,6 +175,60 @@ done:
 	return (err);
 }
 
+static int
+mlx5e_get_prio_tc(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	int err = 0;
+	int i;
+
+	PRIV_LOCK(priv);
+	if (!MLX5_CAP_GEN(priv->mdev, ets)) {
+		PRIV_UNLOCK(priv);
+		return (EOPNOTSUPP);
+	}
+
+	for (i = 0; i <= mlx5_max_tc(priv->mdev); i++) {
+		err = -mlx5_query_port_prio_tc(mdev, i, &(priv->params_ethtool.prio_tc[i]));
+		if (err)
+			break;
+	}
+
+	PRIV_UNLOCK(priv);
+	return (err);
+}
+
+static int
+mlx5e_prio_to_tc_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv = arg1;
+	int prio_index = arg2;
+	struct mlx5_core_dev *mdev = priv->mdev;
+	int err;
+	uint8_t result = priv->params_ethtool.prio_tc[prio_index];
+
+	PRIV_LOCK(priv);
+	err = sysctl_handle_8(oidp, &result, 0, req);
+	if (err || !req->newptr ||
+	    result == priv->params_ethtool.prio_tc[prio_index])
+		goto done;
+
+	if (result > mlx5_max_tc(mdev)) {
+		err = ERANGE;
+		goto done;
+	}
+
+	err = -mlx5_set_port_prio_tc(mdev, prio_index, result);
+	if (err)
+		goto done;
+
+	priv->params_ethtool.prio_tc[prio_index] = result;
+
+done:
+	PRIV_UNLOCK(priv);
+	return (err);
+}
+
 #define	MLX5_PARAM_OFFSET(n)				\
     __offsetof(struct mlx5e_priv, params_ethtool.n)
 
@@ -943,5 +997,17 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 				priv, i, mlx5e_tc_maxrate_handler, "QU",
 				"Max rate for priority, specified in kilobits, where kilo=1000, \
 				max_rate must be divisible by 100000");
+	}
+
+	if (mlx5e_get_prio_tc(priv))
+		return;
+
+	for (i = 0; i <= mlx5_max_tc(mdev); i++) {
+		char name[32];
+		snprintf(name, sizeof(name), "prio_%d_to_tc", i);
+		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
+				OID_AUTO, name, CTLTYPE_U8 | CTLFLAG_RW | CTLFLAG_MPSAFE,
+				priv, i, mlx5e_prio_to_tc_handler, "CU",
+				"Set priority to traffic class");
 	}
 }

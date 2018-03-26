@@ -151,4 +151,8 @@ int mlx5_query_port_tc_rate_limit(struct mlx5_core_dev *mdev,
 int mlx5_modify_port_tc_rate_limit(struct mlx5_core_dev *mdev,
 				   const u8 *max_bw_value,
 				   const u8 *max_bw_units);
+int mlx5_query_port_prio_tc(struct mlx5_core_dev *mdev,
+			    u8 prio, u8 *tc);
+int mlx5_set_port_prio_tc(struct mlx5_core_dev *mdev, int prio_index,
+			  const u8 prio_tc);
 #endif /* __MLX5_PORT_H__ */
