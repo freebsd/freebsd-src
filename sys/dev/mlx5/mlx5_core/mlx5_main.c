@@ -956,7 +956,9 @@ static void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv)
 	dev_ctx = kmalloc(sizeof(*dev_ctx), GFP_KERNEL);
 
 	dev_ctx->intf    = intf;
+	CURVNET_SET_QUIET(vnet0);
 	dev_ctx->context = intf->add(dev);
+	CURVNET_RESTORE();
 
 	if (dev_ctx->context) {
 		spin_lock_irq(&priv->ctx_lock);
