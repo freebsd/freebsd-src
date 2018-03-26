@@ -398,6 +398,7 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 	int inlen;
 
 	eq->nent = roundup_pow_of_two(nent + MLX5_NUM_SPARE_EQE);
+	eq->cons_index = 0;
 	err = mlx5_buf_alloc(dev, eq->nent * MLX5_EQE_SIZE, 2 * PAGE_SIZE,
 			     &eq->buf);
 	if (err)
