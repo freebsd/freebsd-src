@@ -53,12 +53,12 @@ pf_check()
 pf_reload()
 {
 	echo "Reloading pf rules."
-	$pf_program -n -f "$pf_rules" $pf_flags || return 1
-	$pf_program -f "$pf_rules" $pf_flags
+	pf_resync
 }
 
 pf_resync()
 {
+	$pf_program -n -f "$pf_rules" $pf_flags || return 1
 	$pf_program -f "$pf_rules" $pf_flags
 }
 
