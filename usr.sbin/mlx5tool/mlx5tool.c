@@ -47,6 +47,10 @@ parse_pci_addr(const char *addrstr, struct mlx5_fwdump_addr *addr)
 	unsigned long selarr[4];
 	int i;
 
+	if (addrstr == NULL) {
+		warnx("no pci address specified");
+		return (1);
+	}
 	if (strncmp(addrstr, "pci", 3) == 0) {
 		addrstr += 3;
 		i = 0;
