@@ -348,10 +348,11 @@ struct cryptostats {
 #ifdef _KERNEL
 
 #if 0
-#define CRYPTDEB(s)	do { printf("%s:%d: %s\n", __FILE__, __LINE__, s); \
-			} while (0)
+#define CRYPTDEB(s, ...) do {						\
+	printf("%s:%d: " s "\n", __FILE__, __LINE__, ## __VA_ARGS__);	\
+} while (0)
 #else
-#define CRYPTDEB(s)	do { } while (0)
+#define CRYPTDEB(...)	do { } while (0)
 #endif
 
 /* Standard initialization structure beginning */
