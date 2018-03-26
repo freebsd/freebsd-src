@@ -41,6 +41,26 @@ local function composeLoaderCmd(cmd_name, argstr)
 	return cmd_name
 end
 
+-- Globals
+-- try_include will return the loaded module on success, or nil on failure.
+-- A message will also be printed on failure, with one exception: non-verbose
+-- loading will suppress 'module not found' errors.
+function try_include(module)
+	local status, ret = pcall(require, module)
+	-- ret is the module if we succeeded.
+	if status then
+		return ret
+	end
+	-- Otherwise, ret is just a message; filter out ENOENT unless we're
+	-- doing a verbose load. As a consequence, try_include prior to loading
+	-- configuration will not display 'module not found'. All other errors
+	-- in loading will be printed.
+	if config.verbose or ret:match("^module .+ not found") == nil then
+		print(ret)
+	end
+	return nil
+end
+
 -- Module exports
 -- Commonly appearing constants
 core.KEY_BACKSPACE	= 8
