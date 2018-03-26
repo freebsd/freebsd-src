@@ -2534,6 +2534,7 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	int error = 0;
 	int mask = 0;
 	int size_read = 0;
+	int module_status;
 	int module_num;
 	int max_mtu;
 	uint8_t read_addr;
@@ -2723,8 +2724,9 @@ out:
 			goto err_i2c;
 		}
 		/* Check if module is present before doing an access */
-		if (mlx5_query_module_status(priv->mdev, module_num) !=
-		    MLX5_MODULE_STATUS_PLUGGED) {
+		module_status = mlx5_query_module_status(priv->mdev, module_num);
+		if (module_status != MLX5_MODULE_STATUS_PLUGGED_ENABLED &&
+		    module_status != MLX5_MODULE_STATUS_PLUGGED_DISABLED) {
 			error = EINVAL;
 			goto err_i2c;
 		}
