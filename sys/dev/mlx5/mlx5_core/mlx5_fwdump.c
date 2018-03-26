@@ -69,15 +69,19 @@ mlx5_fwdump_destroy_dd(struct mlx5_dump_data *dd)
 	free(dd, M_MLX5_DUMP);
 }
 
-int
+void
 mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_dump_data *dd;
 	int error;
 
 	error = mlx5_vsc_find_cap(mdev);
-	if (error != 0)
-		return (error);
+	if (error != 0) {
+		/* Inability to create a firmware dump is not fatal. */
+		device_printf((&mdev->pdev->dev)->bsddev, "WARN: "
+		    "mlx5_fwdump_prep failed %d\n", error);
+		return;
+	}
 	dd = malloc(sizeof(struct mlx5_dump_data), M_MLX5_DUMP, M_WAITOK);
 	switch (pci_get_device(mdev->pdev->dev.bsddev)) {
 	case 0x1013:
@@ -92,7 +96,7 @@ mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 		break;
 	default:
 		free(dd, M_MLX5_DUMP);
-		return (0); /* silently fail to not prevent driver attach */
+		return; /* silently fail, do not prevent driver attach */
 	}
 	dd->dump_size = mlx5_fwdump_getsize(dd->rege);
 	dd->dump = malloc(dd->dump_size * sizeof(uint32_t), M_MLX5_DUMP,
@@ -102,7 +106,6 @@ mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 	if (atomic_cmpset_rel_ptr((uintptr_t *)&mdev->dump_data, 0,
 	    (uintptr_t)dd) == 0)
 		mlx5_fwdump_destroy_dd(dd);
-	return (0);
 }
 
 void

@@ -97,7 +97,7 @@ int mlx5_rename_eq(struct mlx5_core_dev *dev, int eq_ix, char *name);
 
 int mlx5_fwdump_init(void);
 void mlx5_fwdump_fini(void);
-int mlx5_fwdump_prep(struct mlx5_core_dev *mdev);
+void mlx5_fwdump_prep(struct mlx5_core_dev *mdev);
 void mlx5_fwdump(struct mlx5_core_dev *mdev);
 void mlx5_fwdump_clean(struct mlx5_core_dev *mdev);
 
