@@ -70,6 +70,8 @@
 #include <dev/mlx5/mlx5_core/transobj.h>
 #include <dev/mlx5/mlx5_core/mlx5_core.h>
 
+#define	IEEE_8021QAZ_MAX_TCS	8
+
 #define	MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE                0x7
 #define	MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE                0xa
 #define	MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE                0xe
@@ -113,6 +115,9 @@
 #define	MLX5E_MAX_TX_INLINE \
   (MLX5E_MAX_TX_HEADER - sizeof(struct mlx5e_tx_wqe) + \
   sizeof(((struct mlx5e_tx_wqe *)0)->eth.inline_hdr_start))	/* bytes */
+
+#define	MLX5E_100MB (100000)
+#define	MLX5E_1GB   (1000000)
 
 MALLOC_DECLARE(M_MLX5EN);
 
@@ -417,11 +422,13 @@ struct mlx5e_params {
   m(+1, u64 mc_local_lb, "mc_local_lb", "0: Local multicast loopback enabled 1: Disabled") \
   m(+1, u64 uc_local_lb, "uc_local_lb", "0: Local unicast loopback enabled 1: Disabled")
 
+
 #define	MLX5E_PARAMS_NUM (0 MLX5E_PARAMS(MLX5E_STATS_COUNT))
 
 struct mlx5e_params_ethtool {
 	u64	arg [0];
 	MLX5E_PARAMS(MLX5E_STATS_VAR)
+	u64	max_bw_value[IEEE_8021QAZ_MAX_TCS];
 };
 
 /* EEPROM Standards for plug in modules */
@@ -629,6 +636,12 @@ enum {
 	MLX5E_STATE_OPENED,
 };
 
+enum {
+	MLX5_BW_NO_LIMIT   = 0,
+	MLX5_100_MBPS_UNIT = 3,
+	MLX5_GBPS_UNIT     = 4,
+};
+
 struct mlx5e_vlan_db {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct mlx5_flow_rule	*active_vlans_ft_rule[VLAN_N_VID];
@@ -731,6 +744,19 @@ struct mlx5e_eeprom {
 	int	page_valid;
 	u32	*data;
 };
+
+/*
+ * This structure contains rate limit extension to the IEEE 802.1Qaz ETS
+ * managed object.
+ * Values are 64 bits long and specified in Kbps to enable usage over both
+ * slow and very fast networks.
+ *
+ * @tc_maxrate: maximal tc tx bandwidth indexed by traffic class
+ */
+struct ieee_maxrate {
+	__u64	tc_maxrate[IEEE_8021QAZ_MAX_TCS];
+};
+
 
 #define	MLX5E_FLD_MAX(typ, fld) ((1ULL << __mlx5_bit_sz(typ, fld)) - 1ULL)
 
