@@ -2341,15 +2341,29 @@ mlx5e_set_dev_port_mtu(struct ifnet *ifp, int sw_mtu)
 	int hw_mtu;
 	int err;
 
-	err = mlx5_set_port_mtu(mdev, MLX5E_SW2HW_MTU(sw_mtu));
+	hw_mtu = MLX5E_SW2HW_MTU(sw_mtu);
+
+	err = mlx5_set_port_mtu(mdev, hw_mtu);
 	if (err) {
 		if_printf(ifp, "%s: mlx5_set_port_mtu failed setting %d, err=%d\n",
 		    __func__, sw_mtu, err);
 		return (err);
 	}
 
+	/* Update vport context MTU */
+	err = mlx5_set_vport_mtu(mdev, hw_mtu);
+	if (err) {
+		if_printf(ifp, "%s: Failed updating vport context with MTU size, err=%d\n",
+		    __func__, err);
+	}
+
 	ifp->if_mtu = sw_mtu;
-	err = mlx5_query_port_oper_mtu(mdev, &hw_mtu);
+
+	err = mlx5_query_vport_mtu(mdev, &hw_mtu);
+	if (err || !hw_mtu) {
+		/* fallback to port oper mtu */
+		err = mlx5_query_port_oper_mtu(mdev, &hw_mtu);
+	}
 	if (err) {
 		if_printf(ifp, "Query port MTU, after setting new "
 		    "MTU value, failed\n");
