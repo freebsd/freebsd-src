@@ -611,10 +611,10 @@ text_autoresize()
 }
 
 static int
-uga_autoresize(EFI_UGA_DRAW_PROTOCOL *gop)
+uga_autoresize(EFI_UGA_DRAW_PROTOCOL *uga)
 {
 
-	return (CMD_OK);
+	return (text_autoresize());
 }
 
 COMMAND_SET(efi_autoresize, "efi-autoresizecons", "EFI Auto-resize Console", command_autoresize);
