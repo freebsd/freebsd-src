@@ -95,4 +95,17 @@ static inline int mlx5_cmd_exec_check_status(struct mlx5_core_dev *dev, u32 *in,
 
 int mlx5_rename_eq(struct mlx5_core_dev *dev, int eq_ix, char *name);
 
+int mlx5_fwdump_init(void);
+void mlx5_fwdump_fini(void);
+int mlx5_fwdump_prep(struct mlx5_core_dev *mdev);
+void mlx5_fwdump(struct mlx5_core_dev *mdev);
+void mlx5_fwdump_clean(struct mlx5_core_dev *mdev);
+
+struct mlx5_crspace_regmap {
+	uint32_t addr;
+	unsigned cnt;
+};
+
+extern struct pci_driver mlx5_core_driver;
+
 #endif /* __MLX5_CORE_H__ */

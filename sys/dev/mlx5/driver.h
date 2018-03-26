@@ -614,6 +614,7 @@ struct mlx5_special_contexts {
 };
 
 struct mlx5_flow_root_namespace;
+struct mlx5_dump_data;
 struct mlx5_core_dev {
 	struct pci_dev	       *pdev;
 	/* sync pci state */
@@ -647,6 +648,7 @@ struct mlx5_core_dev {
 	struct mlx5_flow_root_namespace *sniffer_rx_root_ns;
 	struct mlx5_flow_root_namespace *sniffer_tx_root_ns;
 	u32 num_q_counter_allocated[MLX5_INTERFACE_NUMBER];
+	struct mlx5_dump_data	*dump_data;
 };
 
 enum {

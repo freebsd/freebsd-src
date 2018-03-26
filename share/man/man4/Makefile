@@ -920,6 +920,10 @@ MAN+=		mlx4ib.4
 MAN+=		mlx5ib.4
 .endif
 
+.if ${MK_MLX5TOOL} != "no"
+MAN+=		mlx5io.4
+.endif
+
 .if ${MK_TESTS} != "no"
 ATF=            ${.CURDIR}/../../../contrib/atf
 .PATH:          ${ATF}/doc
