@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2010
+.Dd March 26, 2018
 .Dt WPA_SUPPLICANT.CONF 5
 .Os
 .Sh NAME
@@ -554,6 +554,21 @@ network={
         wep_key0=42FEEDDEAFBABEDEAFBEEFAA55
 	# ASCII keys denoted with quotes.
 	wep_key1="FreeBSDr0cks!"
+}
+.Ed
+.Pp
+Minimal eduroam configuration.
+.Bd -literal
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=wheel
+network={
+        ssid="eduroam"
+        scan_ssid=1
+        key_mgmt=WPA-EAP
+        eap=TTLS
+        identity="user@example.org"
+        password="foobar"
+        phase2="auth=MSCHAPV2"
 }
 .Ed
 .Sh SEE ALSO
