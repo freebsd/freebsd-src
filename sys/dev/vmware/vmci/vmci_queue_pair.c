@@ -74,8 +74,6 @@ static int	vmci_queue_pair_alloc_guest_work(struct vmci_handle *handle,
 static int	vmci_queue_pair_detach_guest_work(struct vmci_handle handle);
 static int	vmci_queue_pair_detach_hypercall(struct vmci_handle handle);
 
-extern int	vmci_send_datagram(struct vmci_datagram *);
-
 /*
  *------------------------------------------------------------------------------
  *
