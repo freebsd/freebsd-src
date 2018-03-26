@@ -417,7 +417,7 @@ struct mlx5_health_buffer {
 	__be32		rsvd2;
 	u8		irisc_index;
 	u8		synd;
-	__be16		ext_sync;
+	__be16		ext_synd;
 };
 
 struct mlx5_init_seg {
