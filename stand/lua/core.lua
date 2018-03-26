@@ -56,7 +56,7 @@ function try_include(module)
 	-- configuration will not display 'module not found'. All other errors
 	-- in loading will be printed.
 	if config.verbose or ret:match("^module .+ not found") == nil then
-		print(ret)
+		error(ret, 2)
 	end
 	return nil
 end
