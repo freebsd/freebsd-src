@@ -90,8 +90,8 @@ static const struct {
 		.subtype = IFM_10G_SR,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_10GBASE_LR] = {
-		.subtype = IFM_10G_LR,
+	[MLX5E_10GBASE_ER] = {
+		.subtype = IFM_10G_ER,
 		.baudrate = IF_Gbps(10ULL),
 	},
 	[MLX5E_40GBASE_SR4] = {
@@ -122,9 +122,9 @@ static const struct {
 		.subtype = IFM_100_TX,
 		.baudrate = IF_Mbps(100ULL),
 	},
-	[MLX5E_100BASE_T] = {
-		.subtype = IFM_100_T,
-		.baudrate = IF_Mbps(100ULL),
+	[MLX5E_1000BASE_T] = {
+		.subtype = IFM_1000_T,
+		.baudrate = IF_Mbps(1000ULL),
 	},
 	[MLX5E_10GBASE_T] = {
 		.subtype = IFM_10G_T,
@@ -176,7 +176,7 @@ mlx5e_update_carrier(struct mlx5e_priv *priv)
 		return;
 	}
 
-	error = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN);
+	error = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN, 1);
 	if (error) {
 		priv->media_active_last = IFM_ETHER;
 		priv->ifp->if_baudrate = 1;
