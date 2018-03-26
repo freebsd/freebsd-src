@@ -238,9 +238,9 @@ struct tdq {
 	volatile int	tdq_load;		/* Aggregate load. */
 	volatile int	tdq_cpu_idle;		/* cpu_idle() is active. */
 	int		tdq_sysload;		/* For loadavg, !ITHD load. */
-	int		tdq_transferable;	/* Transferable thread count. */
-	short		tdq_switchcnt;		/* Switches this tick. */
-	short		tdq_oldswitchcnt;	/* Switches last tick. */
+	volatile int	tdq_transferable;	/* Transferable thread count. */
+	volatile short	tdq_switchcnt;		/* Switches this tick. */
+	volatile short	tdq_oldswitchcnt;	/* Switches last tick. */
 	u_char		tdq_lowpri;		/* Lowest priority thread. */
 	u_char		tdq_ipipending;		/* IPI pending. */
 	u_char		tdq_idx;		/* Current insert index. */
@@ -272,6 +272,8 @@ static int balance_interval = 128;	/* Default set in sched_initticks(). */
 static int affinity;
 static int steal_idle = 1;
 static int steal_thresh = 2;
+static int always_steal = 0;
+static int trysteal_limit = 2;
 
 /*
  * One thread queue per processor.
@@ -317,7 +319,7 @@ void tdq_print(int cpu);
 static void runq_print(struct runq *rq);
 static void tdq_add(struct tdq *, struct thread *, int);
 #ifdef SMP
-static int tdq_move(struct tdq *, struct tdq *);
+static struct thread *tdq_move(struct tdq *, struct tdq *);
 static int tdq_idled(struct tdq *);
 static void tdq_notify(struct tdq *, struct thread *);
 static struct thread *tdq_steal(struct tdq *, int);
@@ -839,7 +841,7 @@ sched_balance_group(struct cpu_group *cg)
 
 	CPU_FILL(&hmask);
 	for (;;) {
-		high = sched_highest(cg, hmask, 1);
+		high = sched_highest(cg, hmask, 2);
 		/* Stop if there is no more CPU with transferrable threads. */
 		if (high == -1)
 			break;
@@ -922,33 +924,32 @@ tdq_unlock_pair(struct tdq *one, struct tdq *two)
 static int
 sched_balance_pair(struct tdq *high, struct tdq *low)
 {
-	int moved;
+	struct thread *td;
 	int cpu;
 
 	tdq_lock_pair(high, low);
-	moved = 0;
+	td = NULL;
 	/*
-	 * Determine what the imbalance is and then adjust that to how many
-	 * threads we actually have to give up (transferable).
+	 * Transfer a thread from high to low.
 	 */
 	if (high->tdq_transferable != 0 && high->tdq_load > low->tdq_load &&
-	    (moved = tdq_move(high, low)) > 0) {
+	    (td = tdq_move(high, low)) != NULL) {
 		/*
-		 * In case the target isn't the current cpu IPI it to force a
-		 * reschedule with the new workload.
+		 * In case the target isn't the current cpu notify it of the
+		 * new load, possibly sending an IPI to force it to reschedule.
 		 */
 		cpu = TDQ_ID(low);
 		if (cpu != PCPU_GET(cpuid))
-			ipi_cpu(cpu, IPI_PREEMPT);
+			tdq_notify(low, td);
 	}
 	tdq_unlock_pair(high, low);
-	return (moved);
+	return (td != NULL);
 }
 
 /*
  * Move a thread from one thread queue to another.
  */
-static int
+static struct thread *
 tdq_move(struct tdq *from, struct tdq *to)
 {
 	struct td_sched *ts;
@@ -963,7 +964,7 @@ tdq_move(struct tdq *from, struct tdq *to)
 	cpu = TDQ_ID(to);
 	td = tdq_steal(tdq, cpu);
 	if (td == NULL)
-		return (0);
+		return (NULL);
 	ts = td_get_sched(td);
 	/*
 	 * Although the run queue is locked the thread may be blocked.  Lock
@@ -976,7 +977,7 @@ tdq_move(struct tdq *from, struct tdq *to)
 	ts->ts_cpu = cpu;
 	td->td_lock = TDQ_LOCKPTR(to);
 	tdq_add(to, td, SRQ_YIELDING);
-	return (1);
+	return (td);
 }
 
 /*
@@ -989,51 +990,80 @@ tdq_idled(struct tdq *tdq)
 	struct cpu_group *cg;
 	struct tdq *steal;
 	cpuset_t mask;
-	int thresh;
-	int cpu;
+	int cpu, switchcnt;
 
-	if (smp_started == 0 || steal_idle == 0)
+	if (smp_started == 0 || steal_idle == 0 || tdq->tdq_cg == NULL)
 		return (1);
 	CPU_FILL(&mask);
 	CPU_CLR(PCPU_GET(cpuid), &mask);
-	/* We don't want to be preempted while we're iterating. */
-	spinlock_enter();
-	for (cg = tdq->tdq_cg; cg != NULL; ) {
-		if ((cg->cg_flags & CG_FLAG_THREAD) == 0)
-			thresh = steal_thresh;
-		else
-			thresh = 1;
-		cpu = sched_highest(cg, mask, thresh);
+    restart:
+	switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
+	for (cg = tdq->tdq_cg; ; ) {
+		cpu = sched_highest(cg, mask, steal_thresh);
+		/*
+		 * We were assigned a thread but not preempted.  Returning
+		 * 0 here will cause our caller to switch to it.
+		 */
+		if (tdq->tdq_load)
+			return (0);
 		if (cpu == -1) {
 			cg = cg->cg_parent;
+			if (cg == NULL)
+				return (1);
 			continue;
 		}
 		steal = TDQ_CPU(cpu);
-		CPU_CLR(cpu, &mask);
+		/*
+		 * The data returned by sched_highest() is stale and
+		 * the chosen CPU no longer has an eligible thread.
+		 *
+		 * Testing this ahead of tdq_lock_pair() only catches
+		 * this situation about 20% of the time on an 8 core
+		 * 16 thread Ryzen 7, but it still helps performance.
+		 */
+		if (steal->tdq_load < steal_thresh ||
+		    steal->tdq_transferable == 0)
+			goto restart;
 		tdq_lock_pair(tdq, steal);
-		if (steal->tdq_load < thresh || steal->tdq_transferable == 0) {
+		/*
+		 * We were assigned a thread while waiting for the locks.
+		 * Switch to it now instead of stealing a thread.
+		 */
+		if (tdq->tdq_load)
+			break;
+		/*
+		 * The data returned by sched_highest() is stale and
+		 * the chosen CPU no longer has an eligible thread, or
+		 * we were preempted and the CPU loading info may be out
+		 * of date.  The latter is rare.  In either case restart
+		 * the search.
+		 */
+		if (steal->tdq_load < steal_thresh ||
+		    steal->tdq_transferable == 0 ||
+		    switchcnt != tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt) {
 			tdq_unlock_pair(tdq, steal);
-			continue;
+			goto restart;
 		}
 		/*
-		 * If a thread was added while interrupts were disabled don't
-		 * steal one here.  If we fail to acquire one due to affinity
-		 * restrictions loop again with this cpu removed from the
-		 * set.
+		 * Steal the thread and switch to it.
 		 */
-		if (tdq->tdq_load == 0 && tdq_move(steal, tdq) == 0) {
-			tdq_unlock_pair(tdq, steal);
-			continue;
-		}
-		spinlock_exit();
-		TDQ_UNLOCK(steal);
-		mi_switch(SW_VOL | SWT_IDLE, NULL);
-		thread_unlock(curthread);
-
-		return (0);
+		if (tdq_move(steal, tdq) != NULL)
+			break;
+		/*
+		 * We failed to acquire a thread even though it looked
+		 * like one was available.  This could be due to affinity
+		 * restrictions or for other reasons.  Loop again after
+		 * removing this CPU from the set.  The restart logic
+		 * above does not restore this CPU to the set due to the
+		 * likelyhood of failing here again.
+		 */
+		CPU_CLR(cpu, &mask);
+		tdq_unlock_pair(tdq, steal);
 	}
-	spinlock_exit();
-	return (1);
+	TDQ_UNLOCK(steal);
+	mi_switch(SW_VOL | SWT_IDLE, NULL);
+	thread_unlock(curthread);
+	return (0);
 }
 
 /*
@@ -1828,6 +1858,90 @@ sched_lend_user_prio(struct thread *td, u_char prio)
 		td->td_flags |= TDF_NEEDRESCHED;
 }
 
+#ifdef SMP
+/*
+ * This tdq is about to idle.  Try to steal a thread from another CPU before
+ * choosing the idle thread.
+ */
+static void
+tdq_trysteal(struct tdq *tdq)
+{
+	struct cpu_group *cg;
+	struct tdq *steal;
+	cpuset_t mask;
+	int cpu, i;
+
+	if (smp_started == 0 || trysteal_limit == 0 || tdq->tdq_cg == NULL)
+		return;
+	CPU_FILL(&mask);
+	CPU_CLR(PCPU_GET(cpuid), &mask);
+	/* We don't want to be preempted while we're iterating. */
+	spinlock_enter();
+	TDQ_UNLOCK(tdq);
+	for (i = 1, cg = tdq->tdq_cg; ; ) {
+		cpu = sched_highest(cg, mask, steal_thresh);
+		/*
+		 * If a thread was added while interrupts were disabled don't
+		 * steal one here.
+		 */
+		if (tdq->tdq_load > 0) {
+			TDQ_LOCK(tdq);
+			break;
+		}
+		if (cpu == -1) {
+			i++;
+			cg = cg->cg_parent;
+			if (cg == NULL || i > trysteal_limit) {
+				TDQ_LOCK(tdq);
+				break;
+			}
+			continue;
+		}
+		steal = TDQ_CPU(cpu);
+		/*
+		 * The data returned by sched_highest() is stale and
+                 * the chosen CPU no longer has an eligible thread.
+		 */
+		if (steal->tdq_load < steal_thresh ||
+		    steal->tdq_transferable == 0)
+			continue;
+		tdq_lock_pair(tdq, steal);
+		/*
+		 * If we get to this point, unconditonally exit the loop
+		 * to bound the time spent in the critcal section.
+		 *
+		 * If a thread was added while interrupts were disabled don't
+		 * steal one here.
+		 */
+		if (tdq->tdq_load > 0) {
+			TDQ_UNLOCK(steal);
+			break;
+		}
+		/*
+		 * The data returned by sched_highest() is stale and
+                 * the chosen CPU no longer has an eligible thread.
+		 */
+		if (steal->tdq_load < steal_thresh ||
+		    steal->tdq_transferable == 0) {
+			TDQ_UNLOCK(steal);
+			break;
+		}
+		/*
+		 * If we fail to acquire one due to affinity restrictions,
+		 * bail out and let the idle thread to a more complete search
+		 * outside of a critical section.
+		 */
+		if (tdq_move(steal, tdq) == NULL) {
+			TDQ_UNLOCK(steal);
+			break;
+		}
+		TDQ_UNLOCK(steal);
+		break;
+	}
+	spinlock_exit();
+}
+#endif
+
 /*
  * Handle migration from sched_switch().  This happens only for
  * cpu binding.
@@ -1937,6 +2051,10 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		TDQ_LOCK(tdq);
 		mtx = thread_lock_block(td);
 		tdq_load_rem(tdq, td);
+#ifdef SMP
+		if (tdq->tdq_load == 0)
+			tdq_trysteal(tdq);
+#endif
 	}
 
 #if (KTR_COMPILE & KTR_SCHED) != 0
@@ -2667,7 +2785,7 @@ sched_idletd(void *dummy)
 		}
 		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
 #ifdef SMP
-		if (switchcnt != oldswitchcnt) {
+		if (always_steal || switchcnt != oldswitchcnt) {
 			oldswitchcnt = switchcnt;
 			if (tdq_idled(tdq) == 0)
 				continue;
@@ -2704,6 +2822,15 @@ sched_idletd(void *dummy)
 		 * to avoid race with tdq_notify.
 		 */
 		atomic_thread_fence_seq_cst();
+		/*
+		 * Checking for again after the fence picks up assigned
+		 * threads often enough to make it worthwhile to do so in
+		 * order to avoid calling cpu_idle().
+		 */
+		if (tdq->tdq_load != 0) {
+			tdq->tdq_cpu_idle = 0;
+			continue;
+		}
 		cpu_idle(switchcnt * 4 > sched_idlespinthresh);
 		tdq->tdq_cpu_idle = 0;
 
@@ -2938,6 +3065,10 @@ SYSCTL_INT(_kern_sched, OID_AUTO, steal_idle, CTLFLAG_RW, &steal_idle, 0,
     "Attempts to steal work from other cores before idling");
 SYSCTL_INT(_kern_sched, OID_AUTO, steal_thresh, CTLFLAG_RW, &steal_thresh, 0,
     "Minimum load on remote CPU before we'll steal");
+SYSCTL_INT(_kern_sched, OID_AUTO, trysteal_limit, CTLFLAG_RW, &trysteal_limit,
+    0, "Topological distance limit for stealing threads in sched_switch()");
+SYSCTL_INT(_kern_sched, OID_AUTO, always_steal, CTLFLAG_RW, &always_steal, 0,
+    "Always run the stealer from the idle thread");
 SYSCTL_PROC(_kern_sched, OID_AUTO, topology_spec, CTLTYPE_STRING |
     CTLFLAG_RD, NULL, 0, sysctl_kern_sched_topology_spec, "A",
     "XML dump of detected CPU topology");
