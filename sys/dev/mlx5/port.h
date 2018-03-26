@@ -127,11 +127,11 @@ int mlx5_set_port_status(struct mlx5_core_dev *dev,
 int mlx5_query_port_status(struct mlx5_core_dev *dev, u8 *status);
 int mlx5_query_port_admin_status(struct mlx5_core_dev *dev,
 				 enum mlx5_port_status *status);
-int mlx5_set_port_pause(struct mlx5_core_dev *dev, u32 port,
-			u32 rx_pause, u32 tx_pause);
+int mlx5_set_port_pause_and_pfc(struct mlx5_core_dev *dev, u32 port,
+				u8 rx_pause, u8 tx_pause,
+				u8 pfc_en_rx, u8 pfc_en_tx);
 int mlx5_query_port_pause(struct mlx5_core_dev *dev, u32 port,
 			  u32 *rx_pause, u32 *tx_pause);
-int mlx5_set_port_pfc(struct mlx5_core_dev *dev, u8 pfc_en_tx, u8 pfc_en_rx);
 int mlx5_query_port_pfc(struct mlx5_core_dev *dev, u8 *pfc_en_tx, u8 *pfc_en_rx);
 
 int mlx5_set_port_mtu(struct mlx5_core_dev *dev, int mtu);
