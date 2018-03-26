@@ -9331,6 +9331,13 @@ struct mlx5_ifc_mtt_bits {
 	u8         rd_en[0x1];
 };
 
+/* Vendor Specific Capabilities, VSC */
+enum {
+	MLX5_VSC_DOMAIN_ICMD			= 0x1,
+	MLX5_VSC_DOMAIN_PROTECTED_CRSPACE	= 0x6,
+	MLX5_VSC_DOMAIN_SEMAPHORES		= 0xA,
+};
+
 struct mlx5_ifc_vendor_specific_cap_bits {
 	u8         type[0x8];
 	u8         length[0x8];
