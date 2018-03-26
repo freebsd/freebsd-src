@@ -412,6 +412,7 @@ struct mlx5e_params {
   m(+1, u64 modify_rx_dma, "modify_rx_dma", "0: Enable RX 1: Disable RX") \
   m(+1, u64 diag_pci_enable, "diag_pci_enable", "0: Disabled 1: Enabled") \
   m(+1, u64 diag_general_enable, "diag_general_enable", "0: Disabled 1: Enabled") \
+  m(+1, u64 hw_mtu, "hw_mtu", "Current hardware MTU value") \
   m(+1, u64 mc_local_lb, "mc_local_lb", "0: Local multicast loopback enabled 1: Disabled") \
   m(+1, u64 uc_local_lb, "uc_local_lb", "0: Local unicast loopback enabled 1: Disabled")
 
