@@ -525,7 +525,7 @@ crypto_newsession(u_int64_t *sid, struct cryptoini *cri, int crid)
 			(*sid) |= (lid & 0xffffffff);
 			cap->cc_sessions++;
 		} else
-			CRYPTDEB("dev newsession failed");
+			CRYPTDEB("dev newsession failed: %d", err);
 	} else {
 		CRYPTDEB("no driver");
 		err = EOPNOTSUPP;
