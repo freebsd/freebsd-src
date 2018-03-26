@@ -3327,7 +3327,6 @@ mlx5e_setup_pauseframes(struct mlx5e_priv *priv)
 static void *
 mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 {
-	static volatile int mlx5_en_unit;
 	struct ifnet *ifp;
 	struct mlx5e_priv *priv;
 	u8 dev_addr[ETHER_ADDR_LEN] __aligned(4);
@@ -3351,7 +3350,7 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		goto err_free_priv;
 	}
 	ifp->if_softc = priv;
-	if_initname(ifp, "mce", atomic_fetchadd_int(&mlx5_en_unit, 1));
+	if_initname(ifp, "mce", device_get_unit(mdev->pdev->dev.bsddev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_init = mlx5e_open;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
