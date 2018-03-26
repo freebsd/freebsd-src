@@ -35,6 +35,7 @@
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <dev/mlx5/driver.h>
+#include <dev/mlx5/port.h>
 #include <dev/mlx5/vport.h>
 #include <asm/pgtable.h>
 #include <linux/fs.h>
