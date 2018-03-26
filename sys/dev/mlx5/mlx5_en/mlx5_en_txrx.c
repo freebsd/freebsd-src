@@ -38,7 +38,7 @@ mlx5e_get_cqe(struct mlx5e_cq *cq)
 		return (NULL);
 
 	/* ensure cqe content is read after cqe ownership bit */
-	rmb();
+	atomic_thread_fence_acq();
 
 	return (cqe);
 }
