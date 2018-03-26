@@ -1524,7 +1524,18 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 		 * page was mapped at the specified virtual address or that
 		 * mapping had insufficient permissions.  Attempt to fault in
 		 * and hold these pages.
+		 *
+		 * If vm_fault_disable_pagefaults() was called,
+		 * i.e., TDP_NOFAULTING is set, we must not sleep nor
+		 * acquire MD VM locks, which means we must not call
+		 * vm_fault_hold().  Some (out of tree) callers mark
+		 * too wide a code area with vm_fault_disable_pagefaults()
+		 * already, use the VM_PROT_QUICK_NOFAULT flag to request
+		 * the proper behaviour explicitly.
 		 */
+		if ((prot & VM_PROT_QUICK_NOFAULT) != 0 &&
+		    (curthread->td_pflags & TDP_NOFAULTING) != 0)
+			goto error;
 		for (mp = ma, va = addr; va < end; mp++, va += PAGE_SIZE)
 			if (*mp == NULL && vm_fault_hold(map, va, prot,
 			    VM_FAULT_NORMAL, mp) != KERN_SUCCESS)
