@@ -778,7 +778,8 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 		return;
 	for (x = 0; x != MLX5E_PARAMS_NUM; x++) {
 		/* check for read-only parameter */
-		if (strstr(mlx5e_params_desc[2 * x], "_max") != NULL) {
+		if (strstr(mlx5e_params_desc[2 * x], "_max") != NULL ||
+		    strstr(mlx5e_params_desc[2 * x], "_mtu") != NULL) {
 			SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(node), OID_AUTO,
 			    mlx5e_params_desc[2 * x], CTLTYPE_U64 | CTLFLAG_RD |
 			    CTLFLAG_MPSAFE, priv, x, &mlx5e_ethtool_handler, "QU",
