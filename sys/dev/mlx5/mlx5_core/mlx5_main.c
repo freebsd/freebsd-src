@@ -867,6 +867,9 @@ static int mlx5_pci_init(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		goto err_clr_master;
 	}
 
+	if (mlx5_vsc_find_cap(dev))
+		dev_err(&pdev->dev, "Unable to find vendor specific capabilities\n");
+
         return 0;
 
 err_clr_master:
@@ -1204,7 +1207,6 @@ static int init_one(struct pci_dev *pdev,
 		device_printf((&pdev->dev)->bsddev, "ERR: ""mlx5_register_device failed %d\n", err);
 		goto clean_health;
 	}
-
 
 	return 0;
 
