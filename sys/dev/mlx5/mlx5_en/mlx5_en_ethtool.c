@@ -377,6 +377,32 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 			mlx5e_open_locked(priv->ifp);
 		break;
 
+	case MLX5_PARAM_OFFSET(modify_tx_dma):
+		/* check if network interface is opened */
+		if (was_opened) {
+			priv->params_ethtool.modify_tx_dma =
+			    priv->params_ethtool.modify_tx_dma ? 1 : 0;
+			/* modify tx according to value */
+			mlx5e_modify_tx_dma(priv, value != 0);
+		} else {
+			/* if closed force enable tx */
+			priv->params_ethtool.modify_tx_dma = 0;
+		}
+		break;
+
+	case MLX5_PARAM_OFFSET(modify_rx_dma):
+		/* check if network interface is opened */
+		if (was_opened) {
+			priv->params_ethtool.modify_rx_dma =
+			    priv->params_ethtool.modify_rx_dma ? 1 : 0;
+			/* modify rx according to value */
+			mlx5e_modify_rx_dma(priv, value != 0);
+		} else {
+			/* if closed force enable rx */
+			priv->params_ethtool.modify_rx_dma = 0;
+		}
+		break;
+
 	case MLX5_PARAM_OFFSET(diag_pci_enable):
 		priv->params_ethtool.diag_pci_enable =
 		    priv->params_ethtool.diag_pci_enable ? 1 : 0;
