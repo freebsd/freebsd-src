@@ -17,3 +17,5 @@
 #else
 #define HAVE_ALIGNED_ACCESS_REQUIRED 1
 #endif
+
+#define HAVE_EXPLICIT_BZERO 1
