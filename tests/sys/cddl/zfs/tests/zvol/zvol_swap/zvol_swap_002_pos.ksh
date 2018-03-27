@@ -78,7 +78,7 @@ fi
 
 log_onexit cleanup
 
-voldev=/dev/zvol/dsk/$TESTPOOL/$TESTVOL
+voldev=/dev/zvol/$TESTPOOL/$TESTVOL
 
 $SWAP -l | $GREP zvol
 if (( $? != 0 )) ; then

@@ -39,11 +39,11 @@
  * Usage: devname2devid <devicepath>
  *
  * Examples:
- *	# ./devname2devid /dev/dsk/c1t4d0s0
+ *	# ./devname2devid /dev/c1t4d0s0
  *	devid id1,sd@SSEAGATE_ST318404LSUN18G_3BT2G0Z300002146G4CR/a
- *	# ./devname2devid /dev/dsk/c1t4d0
+ *	# ./devname2devid /dev/c1t4d0
  *	devid id1,sd@SSEAGATE_ST318404LSUN18G_3BT2G0Z300002146G4CR/wd
- *	# ./devname2devid /dev/dsk/c1t4d0s1
+ *	# ./devname2devid /dev/c1t4d0s1
  *	devid id1,sd@SSEAGATE_ST318404LSUN18G_3BT2G0Z300002146G4CR/b
  *	#
  *
@@ -99,7 +99,7 @@ main(int argc, char *argv[])
 	if (argc == 3) {
 		search_path = argv[2];
 	} else {
-		search_path = "/dev/rdsk";
+		search_path = "/dev/";
 	}
 
 	if (devid_deviceid_to_nmlist(search_path, devid, DEVID_MINOR_NAME_ALL,
