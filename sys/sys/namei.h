@@ -38,7 +38,7 @@
 #include <sys/caprights.h>
 #include <sys/filedesc.h>
 #include <sys/queue.h>
-#include <sys/uio.h>
+#include <sys/_uio.h>
 
 struct componentname {
 	/*

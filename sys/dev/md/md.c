@@ -89,6 +89,7 @@
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
 #include <sys/sysctl.h>
+#include <sys/uio.h>
 #include <sys/vnode.h>
 #include <sys/disk.h>
 
