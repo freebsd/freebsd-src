@@ -1090,6 +1090,40 @@ terminate(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	return 0;
 }
 
+static struct socket *
+dequeue_socket(struct socket *head)
+{
+	struct socket *so;
+	struct sockaddr_in *remote;
+
+	ACCEPT_LOCK();
+	so = TAILQ_FIRST(&head->so_comp);
+	if (!so) {
+		ACCEPT_UNLOCK();
+		return NULL;
+	}
+
+	SOCK_LOCK(so);
+	/*
+	 * Before changing the flags on the socket, we have to bump the
+	 * reference count.  Otherwise, if the protocol calls sofree(),
+	 * the socket will be released due to a zero refcount.
+	 */
+	soref(so);
+	TAILQ_REMOVE(&head->so_comp, so, so_list);
+	head->so_qlen--;
+	so->so_qstate &= ~SQ_COMP;
+	so->so_head = NULL;
+	so->so_state |= SS_NBIO;
+	SOCK_UNLOCK(so);
+	ACCEPT_UNLOCK();
+	remote = NULL;
+	soaccept(so, (struct sockaddr **)&remote);
+
+	free(remote, M_SONAME);
+	return so;
+}
+
 static void
 process_socket_event(struct c4iw_ep *ep)
 {
@@ -1113,28 +1147,11 @@ process_socket_event(struct c4iw_ep *ep)
 
 	if (state == LISTEN) {
 		struct c4iw_listen_ep *lep = (struct c4iw_listen_ep *)ep;
-		struct socket *listen_so = so, *new_so = NULL;
-		int error = 0;
+		struct socket *new_so;
 
-		SOLISTEN_LOCK(listen_so);
-		do {
-			error = solisten_dequeue(listen_so, &new_so,
-						SOCK_NONBLOCK);
-			if (error) {
-				CTR4(KTR_IW_CXGBE, "%s: lep %p listen_so %p "
-					"error %d", __func__, lep, listen_so,
-					error);
-				return;
-			}
+		while ((new_so = dequeue_socket(so)) != NULL) {
 			process_newconn(lep, new_so);
-
-			/* solisten_dequeue() unlocks while return, so aquire
-			 * lock again for sol_qlen and also for next iteration.
-			 */
-			SOLISTEN_LOCK(listen_so);
-		} while (listen_so->sol_qlen);
-		SOLISTEN_UNLOCK(listen_so);
-
+		}
 		return;
 	}
 
