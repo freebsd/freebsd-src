@@ -589,9 +589,9 @@ set_ulp_mode_iscsi(struct adapter *sc, struct toepcb *toep, int hcrc, int dcrc)
 	CTR4(KTR_CXGBE, "%s: tid %u, ULP_MODE_ISCSI, CRC hdr=%d data=%d",
 	    __func__, toep->tid, hcrc, dcrc);
 
-	t4_set_tcb_field(sc, toep->ctrlq, toep->tid, W_TCB_ULP_TYPE,
+	t4_set_tcb_field(sc, toep->ctrlq, toep, W_TCB_ULP_TYPE,
 	    V_TCB_ULP_TYPE(M_TCB_ULP_TYPE) | V_TCB_ULP_RAW(M_TCB_ULP_RAW), val,
-	    0, 0, toep->ofld_rxq->iq.abs_id);
+	    0, 0);
 }
 
 /*
