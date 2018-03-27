@@ -86,11 +86,11 @@ typeset dev_nonexist dev_notinlist
 
 case $DISK_ARRAY_NUM in
 0|1)
-	dev_nonexist=/dev/dsk/${disk}sbad_slice_num
+	dev_nonexist=/dev/${disk}sbad_slice_num
 	dev_notinlist=${disk}
 	;;
 2|*)
-	dev_nonexist=/dev/dsk/${DISK0}sbad_slice_num
+	dev_nonexist=/dev/${DISK0}sbad_slice_num
 	dev_notinlist="${DISK0} ${DISK1}"
 	;;
 esac

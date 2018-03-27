@@ -95,7 +95,7 @@ while ((i < 10)) ; do
 	# The minimum swap size should be 2 pagesize.
 	((swaplow + swaplen < pageblocks * 2)) && continue
 
-	swapname="/dev/zvol/dsk/$vol"
+	swapname="/dev/zvol/$vol"
 	if is_swap_inuse $swapname ; then
 		log_must $SWAP -d $swapname
 	fi

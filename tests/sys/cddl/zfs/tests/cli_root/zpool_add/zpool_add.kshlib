@@ -54,7 +54,7 @@ function iscontained
 
 	for vdev in $@; do
 
-# remove /dev/dsk in vdev if there is
+# remove /dev/ in vdev if there is
 		vdev=${vdev#/dev/}
 
 		$ZPOOL status "$pool" | $AWK '$1 == vdevname {exit 1}' \
