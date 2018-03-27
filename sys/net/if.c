@@ -485,6 +485,7 @@ if_alloc(u_char type)
 	for (int i = 0; i < IFCOUNTERS; i++)
 		ifp->if_counters[i] = counter_u64_alloc(M_WAITOK);
 	ifp->if_get_counter = if_get_counter_default;
+	ifp->if_pcp = IFNET_PCP_NONE;
 	ifnet_setbyindex(ifp->if_index, ifp);
 	return (ifp);
 }

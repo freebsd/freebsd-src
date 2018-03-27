@@ -344,7 +344,8 @@
 #define	PRIV_NET_SETIFDESCR	418	/* Set interface description. */
 #define	PRIV_NET_SETIFFIB	419	/* Set interface fib. */
 #define	PRIV_NET_VXLAN		420	/* Administer vxlan. */
-#define	PRIV_NET_SETVLANPCP	421	/* Set VLAN priority. */
+#define	PRIV_NET_SETLANPCP	421	/* Set LAN priority. */
+#define	PRIV_NET_SETVLANPCP	PRIV_NET_SETLANPCP /* Alias Set VLAN priority */
 
 /*
  * 802.11-related privileges.
