@@ -68,8 +68,7 @@ t4_set_tls_tcb_field(struct toepcb *toep, uint16_t word, uint64_t mask,
 {
 	struct adapter *sc = td_adapter(toep->td);
 
-	t4_set_tcb_field(sc, toep->ctrlq, toep->tid, word, mask, val, 0, 0,
-	    toep->ofld_rxq->iq.abs_id);
+	t4_set_tcb_field(sc, toep->ofld_txq, toep, word, mask, val, 0, 0);
 }
 
 /* TLS and DTLS common routines */
