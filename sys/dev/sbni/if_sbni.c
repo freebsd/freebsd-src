@@ -1144,7 +1144,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		flags.fixed_rxl = (sc->delta_rxl == 0);
 		flags.fixed_rate = 1;
 		SBNI_UNLOCK(sc);
-		bcopy(&flags, &ifr->ifr_ifru, sizeof(flags));
+		ifr->ifr_data = *(caddr_t*) &flags;
 		break;
 
 	case SIOCGINSTATS:
@@ -1163,7 +1163,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = priv_check(td, PRIV_DRIVER);
 		if (error)
 			break;
-		bcopy(&ifr->ifr_ifru, &flags, sizeof(flags));
+		flags = *(struct sbni_flags*)&ifr->ifr_data;
 		SBNI_LOCK(sc);
 		if (flags.fixed_rxl) {
 			sc->delta_rxl = 0;
