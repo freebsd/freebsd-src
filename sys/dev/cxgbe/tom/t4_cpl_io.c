@@ -1162,7 +1162,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	so = inp->inp_socket;
 	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
 		DDP_LOCK(toep);
-		if (__predict_false(toep->ddp_flags &
+		if (__predict_false(toep->ddp.flags &
 		    (DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE)))
 			handle_ddp_close(toep, tp, cpl->rcv_nxt);
 		DDP_UNLOCK(toep);
@@ -1538,23 +1538,23 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 			toep->rx_credits += newsize - hiwat;
 	}
 
-	if (toep->ddp_waiting_count != 0 || toep->ddp_active_count != 0)
-		CTR3(KTR_CXGBE, "%s: tid %u, non-ddp rx (%d bytes)", __func__,
-		    tid, len);
-
 	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
-		int changed = !(toep->ddp_flags & DDP_ON) ^ cpl->ddp_off;
+		int changed = !(toep->ddp.flags & DDP_ON) ^ cpl->ddp_off;
+
+		if (toep->ddp.waiting_count != 0 || toep->ddp.active_count != 0)
+			CTR3(KTR_CXGBE, "%s: tid %u, non-ddp rx (%d bytes)",
+			    __func__, tid, len);
 
 		if (changed) {
-			if (toep->ddp_flags & DDP_SC_REQ)
-				toep->ddp_flags ^= DDP_ON | DDP_SC_REQ;
+			if (toep->ddp.flags & DDP_SC_REQ)
+				toep->ddp.flags ^= DDP_ON | DDP_SC_REQ;
 			else {
 				KASSERT(cpl->ddp_off == 1,
 				    ("%s: DDP switched on by itself.",
 				    __func__));
 
 				/* Fell out of DDP mode */
-				toep->ddp_flags &= ~DDP_ON;
+				toep->ddp.flags &= ~DDP_ON;
 				CTR1(KTR_CXGBE, "%s: fell out of DDP mode",
 				    __func__);
 
@@ -1562,7 +1562,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 			}
 		}
 
-		if (toep->ddp_flags & DDP_ON) {
+		if (toep->ddp.flags & DDP_ON) {
 			/*
 			 * CPL_RX_DATA with DDP on can only be an indicate.
 			 * Start posting queued AIO requests via DDP.  The
@@ -1588,7 +1588,8 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		tp->rcv_adv += credits;
 	}
 
-	if (toep->ddp_waiting_count > 0 && sbavail(sb) != 0) {
+	if (toep->ulp_mode == ULP_MODE_TCPDDP && toep->ddp.waiting_count > 0 &&
+	    sbavail(sb) != 0) {
 		CTR2(KTR_CXGBE, "%s: tid %u queueing AIO task", __func__,
 		    tid);
 		ddp_queue_toep(toep);

@@ -132,6 +132,20 @@ struct ddp_buffer {
 	int cancel_pending;
 };
 
+struct ddp_pcb {
+	u_int flags;
+	struct ddp_buffer db[2];
+	TAILQ_HEAD(, pageset) cached_pagesets;
+	TAILQ_HEAD(, kaiocb) aiojobq;
+	u_int waiting_count;
+	u_int active_count;
+	u_int cached_count;
+	int active_id;	/* the currently active DDP buffer */
+	struct task requeue_task;
+	struct kaiocb *queueing;
+	struct mtx lock;
+};
+
 struct aiotx_buffer {
 	struct pageset ps;
 	struct kaiocb *job;
@@ -169,17 +183,7 @@ struct toepcb {
 	struct mbufq ulp_pduq;	/* PDUs waiting to be sent out. */
 	struct mbufq ulp_pdu_reclaimq;
 
-	u_int ddp_flags;
-	struct ddp_buffer db[2];
-	TAILQ_HEAD(, pageset) ddp_cached_pagesets;
-	TAILQ_HEAD(, kaiocb) ddp_aiojobq;
-	u_int ddp_waiting_count;
-	u_int ddp_active_count;
-	u_int ddp_cached_count;
-	int ddp_active_id;	/* the currently active DDP buffer */
-	struct task ddp_requeue_task;
-	struct kaiocb *ddp_queueing;
-	struct mtx ddp_lock;
+	struct ddp_pcb ddp;
 
 	TAILQ_HEAD(, kaiocb) aiotx_jobq;
 	struct task aiotx_task;
@@ -193,9 +197,9 @@ struct toepcb {
 	struct ofld_tx_sdesc txsd[];
 };
 
-#define	DDP_LOCK(toep)		mtx_lock(&(toep)->ddp_lock)
-#define	DDP_UNLOCK(toep)	mtx_unlock(&(toep)->ddp_lock)
-#define	DDP_ASSERT_LOCKED(toep)	mtx_assert(&(toep)->ddp_lock, MA_OWNED)
+#define	DDP_LOCK(toep)		mtx_lock(&(toep)->ddp.lock)
+#define	DDP_UNLOCK(toep)	mtx_unlock(&(toep)->ddp.lock)
+#define	DDP_ASSERT_LOCKED(toep)	mtx_assert(&(toep)->ddp.lock, MA_OWNED)
 
 struct flowc_tx_params {
 	uint32_t snd_nxt;
