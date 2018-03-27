@@ -65,6 +65,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <inttypes.h>
 #include <locale.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -234,16 +235,17 @@ main(int argc, char **argv)
 }
 
 /*
- * Parse a name into a MIB entry.
- * Lookup and print out the MIB entry if it exists.
- * Set a new value if requested.
+ * Parse a single numeric value, append it to 'newbuf', and update
+ * 'newsize'.  Returns true if the value was parsed and false if the
+ * value was invalid.  Non-numeric types (strings) are handled
+ * directly in parse().
  */
-static int
-parse(const char *string, int lineno)
+static bool
+parse_numeric(const char *newvalstr, const char *fmt, u_int kind,
+    void **newbufp, size_t *newsizep)
 {
-	int len, i, j;
+	void *newbuf;
 	const void *newval;
-	const char *newvalstr = NULL;
 	int8_t i8val;
 	uint8_t u8val;
 	int16_t i16val;
@@ -254,11 +256,111 @@ parse(const char *string, int lineno)
 	unsigned int uintval;
 	long longval;
 	unsigned long ulongval;
-	size_t newsize = Bflag;
 	int64_t i64val;
 	uint64_t u64val;
+	size_t valsize;
+	char *endptr = NULL;
+	
+	errno = 0;
+
+	switch (kind & CTLTYPE) {
+	case CTLTYPE_INT:
+		if (strncmp(fmt, "IK", 2) == 0)
+			intval = strIKtoi(newvalstr, &endptr, fmt);
+		else
+			intval = (int)strtol(newvalstr, &endptr, 0);
+		newval = &intval;
+		valsize = sizeof(intval);
+		break;
+	case CTLTYPE_UINT:
+		uintval = (int) strtoul(newvalstr, &endptr, 0);
+		newval = &uintval;
+		valsize = sizeof(uintval);
+		break;
+	case CTLTYPE_LONG:
+		longval = strtol(newvalstr, &endptr, 0);
+		newval = &longval;
+		valsize = sizeof(longval);
+		break;
+	case CTLTYPE_ULONG:
+		ulongval = strtoul(newvalstr, &endptr, 0);
+		newval = &ulongval;
+		valsize = sizeof(ulongval);
+		break;
+	case CTLTYPE_S8:
+		i8val = (int8_t)strtol(newvalstr, &endptr, 0);
+		newval = &i8val;
+		valsize = sizeof(i8val);
+		break;
+	case CTLTYPE_S16:
+		i16val = (int16_t)strtol(newvalstr, &endptr, 0);
+		newval = &i16val;
+		valsize = sizeof(i16val);
+		break;
+	case CTLTYPE_S32:
+		i32val = (int32_t)strtol(newvalstr, &endptr, 0);
+		newval = &i32val;
+		valsize = sizeof(i32val);
+		break;
+	case CTLTYPE_S64:
+		i64val = strtoimax(newvalstr, &endptr, 0);
+		newval = &i64val;
+		valsize = sizeof(i64val);
+		break;
+	case CTLTYPE_U8:
+		u8val = (uint8_t)strtoul(newvalstr, &endptr, 0);
+		newval = &u8val;
+		valsize = sizeof(u8val);
+		break;
+	case CTLTYPE_U16:
+		u16val = (uint16_t)strtoul(newvalstr, &endptr, 0);
+		newval = &u16val;
+		valsize = sizeof(u16val);
+		break;
+	case CTLTYPE_U32:
+		u32val = (uint32_t)strtoul(newvalstr, &endptr, 0);
+		newval = &u32val;
+		valsize = sizeof(u32val);
+		break;
+	case CTLTYPE_U64:
+		u64val = strtoumax(newvalstr, &endptr, 0);
+		newval = &u64val;
+		valsize = sizeof(u64val);
+		break;
+	default:
+		/* NOTREACHED */
+		abort();
+	}
+	
+	if (errno != 0 || endptr == newvalstr ||
+	    (endptr != NULL && *endptr != '\0'))
+		return (false);
+
+	newbuf = realloc(*newbufp, *newsizep + valsize);
+	if (newbuf == NULL)
+		err(1, "out of memory");
+	memcpy((char *)newbuf + *newsizep, newval, valsize);
+	*newbufp = newbuf;
+	*newsizep += valsize;
+	
+	return (true);
+}
+
+/*
+ * Parse a name into a MIB entry.
+ * Lookup and print out the MIB entry if it exists.
+ * Set a new value if requested.
+ */
+static int
+parse(const char *string, int lineno)
+{
+	int len, i, j;
+	const void *newval;
+	char *newvalstr = NULL;
+	void *newbuf;
+	size_t newsize = Bflag;
 	int mib[CTL_MAXNAME];
-	char *cp, *bufp, buf[BUFSIZ], *endptr = NULL, fmt[BUFSIZ], line[BUFSIZ];
+	char *cp, *bufp, buf[BUFSIZ], fmt[BUFSIZ], line[BUFSIZ];
 	u_int kind;
 
 	if (lineno)
@@ -377,94 +479,33 @@ parse(const char *string, int lineno)
 			return (1);
 		}
 
-		errno = 0;
+		newbuf = NULL;
 
 		switch (kind & CTLTYPE) {
-			case CTLTYPE_INT:
-				if (strncmp(fmt, "IK", 2) == 0)
-					intval = strIKtoi(newvalstr, &endptr, fmt);
-				else
-					intval = (int)strtol(newvalstr, &endptr,
-					    0);
-				newval = &intval;
-				newsize = sizeof(intval);
-				break;
-			case CTLTYPE_UINT:
-				uintval = (int) strtoul(newvalstr, &endptr, 0);
-				newval = &uintval;
-				newsize = sizeof(uintval);
-				break;
-			case CTLTYPE_LONG:
-				longval = strtol(newvalstr, &endptr, 0);
-				newval = &longval;
-				newsize = sizeof(longval);
-				break;
-			case CTLTYPE_ULONG:
-				ulongval = strtoul(newvalstr, &endptr, 0);
-				newval = &ulongval;
-				newsize = sizeof(ulongval);
-				break;
-			case CTLTYPE_STRING:
-				newval = newvalstr;
-				break;
-			case CTLTYPE_S8:
-				i8val = (int8_t)strtol(newvalstr, &endptr, 0);
-				newval = &i8val;
-				newsize = sizeof(i8val);
-				break;
-			case CTLTYPE_S16:
-				i16val = (int16_t)strtol(newvalstr, &endptr,
-				    0);
-				newval = &i16val;
-				newsize = sizeof(i16val);
-				break;
-			case CTLTYPE_S32:
-				i32val = (int32_t)strtol(newvalstr, &endptr,
-				    0);
-				newval = &i32val;
-				newsize = sizeof(i32val);
-				break;
-			case CTLTYPE_S64:
-				i64val = strtoimax(newvalstr, &endptr, 0);
-				newval = &i64val;
-				newsize = sizeof(i64val);
-				break;
-			case CTLTYPE_U8:
-				u8val = (uint8_t)strtoul(newvalstr, &endptr, 0);
-				newval = &u8val;
-				newsize = sizeof(u8val);
-				break;
-			case CTLTYPE_U16:
-				u16val = (uint16_t)strtoul(newvalstr, &endptr,
-				    0);
-				newval = &u16val;
-				newsize = sizeof(u16val);
-				break;
-			case CTLTYPE_U32:
-				u32val = (uint32_t)strtoul(newvalstr, &endptr,
-				    0);
-				newval = &u32val;
-				newsize = sizeof(u32val);
-				break;
-			case CTLTYPE_U64:
-				u64val = strtoumax(newvalstr, &endptr, 0);
-				newval = &u64val;
-				newsize = sizeof(u64val);
-				break;
-			default:
-				/* NOTREACHED */
-				abort();
-		}
-
-		if (errno != 0 || endptr == newvalstr ||
-		    (endptr != NULL && *endptr != '\0')) {
-			warnx("invalid %s '%s'%s", ctl_typename[kind & CTLTYPE],
-			    newvalstr, line);
-			return (1);
+		case CTLTYPE_STRING:
+			newval = newvalstr;
+			break;
+		default:
+			newsize = 0;
+			while ((cp = strsep(&newvalstr, " ,")) != NULL) {
+				if (*cp == '\0')
+					continue;
+				if (!parse_numeric(cp, fmt, kind, &newbuf,
+				    &newsize)) {
+					warnx("invalid %s '%s'%s",
+					    ctl_typename[kind & CTLTYPE],
+					    cp, line);
+					free(newbuf);
+					return (1);
+				}
+			}
+			newval = newbuf;
+			break;
 		}
 
 		i = show_var(mib, len);
 		if (sysctl(mib, len, 0, 0, newval, newsize) == -1) {
+			free(newbuf);
 			if (!i && !bflag)
 				putchar('\n');
 			switch (errno) {
@@ -485,6 +526,7 @@ parse(const char *string, int lineno)
 				return (1);
 			}
 		}
+		free(newbuf);
 		if (!bflag)
 			printf(" -> ");
 		i = nflag;
