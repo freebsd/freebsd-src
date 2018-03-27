@@ -115,7 +115,7 @@ static struct inpcb *in6_pcblookup_hash_locked(struct inpcbinfo *,
     struct in6_addr *, u_int, struct in6_addr *, u_int, int, struct ifnet *);
 
 int
-in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
+in6_pcbbind(struct inpcb *inp, struct sockaddr *nam,
     struct ucred *cred)
 {
 	struct socket *so = inp->inp_socket;
@@ -326,10 +326,10 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
  *   have forced minor changes in every protocol).
  */
 static int
-in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
+in6_pcbladdr(struct inpcb *inp, struct sockaddr *nam,
     struct in6_addr *plocal_addr6)
 {
-	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
+	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	int error = 0;
 	int scope_ambiguous = 0;
 	struct in6_addr in6a;
@@ -391,11 +391,11 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
  * then pick one.
  */
 int
-in6_pcbconnect_mbuf(register struct inpcb *inp, struct sockaddr *nam,
+in6_pcbconnect_mbuf(struct inpcb *inp, struct sockaddr *nam,
     struct ucred *cred, struct mbuf *m)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
-	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
+	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	struct in6_addr addr6;
 	int error;
 
@@ -496,7 +496,7 @@ in6_v4mapsin6_sockaddr(in_port_t port, struct in_addr *addr_p)
 int
 in6_getsockaddr(struct socket *so, struct sockaddr **nam)
 {
-	register struct inpcb *inp;
+	struct inpcb *inp;
 	struct in6_addr addr;
 	in_port_t port;
 
@@ -689,7 +689,7 @@ struct inpcb *
 in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
     u_short lport, int lookupflags, struct ucred *cred)
 {
-	register struct inpcb *inp;
+	struct inpcb *inp;
 	int matchwild = 3, wildcard;
 
 	KASSERT((lookupflags & ~(INPLOOKUP_WILDCARD)) == 0,

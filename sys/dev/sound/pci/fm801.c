@@ -396,7 +396,7 @@ fm801ch_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct fm801_chinfo *ch = data;
 	struct fm801_info *fm801 = ch->parent;
-	register int i;
+	int i;
 
 
 	for (i = 0; i < 10 && fm801_rates[i].limit <= speed; i++) ;

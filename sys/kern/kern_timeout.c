@@ -1477,7 +1477,7 @@ _callout_init_lock(struct callout *c, struct lock_object *lock, int flags)
 void
 adjust_timeout_calltodo(struct timeval *time_change)
 {
-	register struct callout *p;
+	struct callout *p;
 	unsigned long delta_ticks;
 
 	/* 

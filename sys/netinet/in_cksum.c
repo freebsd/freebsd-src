@@ -50,9 +50,9 @@ __FBSDID("$FreeBSD$");
 int
 in_cksum(struct mbuf *m, int len)
 {
-	register u_short *w;
-	register int sum = 0;
-	register int mlen = 0;
+	u_short *w;
+	int sum = 0;
+	int mlen = 0;
 	int byte_swapped = 0;
 
 	union {

@@ -311,7 +311,7 @@ mse_disablelogi(struct resource *port)
 static void
 mse_getlogi(struct resource *port, int *dx, int *dy, int *but)
 {
-	register char x, y;
+	char x, y;
 
 	bus_write_1(port, MSE_PORTC, MSE_HOLD | MSE_RXLOW);
 	x = bus_read_1(port, MSE_PORTA);
