@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2018 VMware, Inc. All Rights Reserved.
  *
- * SPDX-License-Identifier: (BSD-2-Clause AND GPL-2.0)
+ * SPDX-License-Identifier: (BSD-2-Clause OR GPL-2.0)
  */
 
 /* This file implements Queue accessor methods. */
