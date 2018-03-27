@@ -171,7 +171,6 @@ alloc_toepcb(struct vi_info *vi, int txqid, int rxqid, int flags)
 	toep->txsd_pidx = 0;
 	toep->txsd_cidx = 0;
 	aiotx_init_toep(toep);
-	ddp_init_toep(toep);
 
 	return (toep);
 }
@@ -196,7 +195,8 @@ free_toepcb(struct toepcb *toep)
 	KASSERT(!(toep->flags & TPF_CPL_PENDING),
 	    ("%s: CPL pending", __func__));
 
-	ddp_uninit_toep(toep);
+	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+		ddp_uninit_toep(toep);
 	free(toep, M_CXGBE);
 }
 
@@ -301,7 +301,8 @@ release_offload_resources(struct toepcb *toep)
 	MPASS(mbufq_len(&toep->ulp_pduq) == 0);
 	MPASS(mbufq_len(&toep->ulp_pdu_reclaimq) == 0);
 #ifdef INVARIANTS
-	ddp_assert_empty(toep);
+	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+		ddp_assert_empty(toep);
 #endif
 
 	if (toep->l2te)
@@ -617,7 +618,7 @@ set_tcpddp_ulp_mode(struct toepcb *toep)
 {
 
 	toep->ulp_mode = ULP_MODE_TCPDDP;
-	toep->ddp_flags = DDP_OK;
+	ddp_init_toep(toep);
 }
 
 int
