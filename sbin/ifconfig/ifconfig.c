@@ -1080,6 +1080,32 @@ setifmtu(const char *val, int dummy __unused, int s,
 }
 
 static void
+setifpcp(const char *val, int arg __unused, int s, const struct afswtch *afp)
+{
+	u_long ul;
+	char *endp;
+
+	ul = strtoul(val, &endp, 0);
+	if (*endp != '\0')
+		errx(1, "invalid value for pcp");
+	if (ul > 7)
+		errx(1, "value for pcp out of range");
+	ifr.ifr_lan_pcp = ul;
+	if (ioctl(s, SIOCSLANPCP, (caddr_t)&ifr) == -1)
+		err(1, "SIOCSLANPCP");
+}
+
+static void
+disableifpcp(const char *val, int arg __unused, int s,
+    const struct afswtch *afp)
+{
+
+	ifr.ifr_lan_pcp = IFNET_PCP_NONE;
+	if (ioctl(s, SIOCSLANPCP, (caddr_t)&ifr) == -1)
+		err(1, "SIOCSLANPCP");
+}
+
+static void
 setifname(const char *val, int dummy __unused, int s, 
     const struct afswtch *afp)
 {
@@ -1436,6 +1462,8 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("-txcsum",	-IFCAP_TXCSUM,	setifcap),
 	DEF_CMD("netcons",	IFCAP_NETCONS,	setifcap),
 	DEF_CMD("-netcons",	-IFCAP_NETCONS,	setifcap),
+	DEF_CMD_ARG("pcp",			setifpcp),
+	DEF_CMD("-pcp", 0,			disableifpcp),
 	DEF_CMD("polling",	IFCAP_POLLING,	setifcap),
 	DEF_CMD("-polling",	-IFCAP_POLLING,	setifcap),
 	DEF_CMD("tso6",		IFCAP_TSO6,	setifcap),
