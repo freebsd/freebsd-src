@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/ioccom.h>
 #include <sys/malloc.h>
-#include <sys/mdioctl.h>
 #include <sys/memrange.h>
 #include <sys/pciio.h>
 #include <sys/proc.h>
@@ -58,88 +57,11 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_ioctl.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
-CTASSERT((sizeof(struct md_ioctl32)) == 436);
 CTASSERT(sizeof(struct ioc_read_toc_entry32) == 8);
 CTASSERT(sizeof(struct mem_range_op32) == 12);
 CTASSERT(sizeof(struct pci_conf_io32) == 36);
 CTASSERT(sizeof(struct pci_match_conf32) == 44);
 CTASSERT(sizeof(struct pci_conf32) == 44);
-
-
-static int
-freebsd32_ioctl_md(struct thread *td, struct freebsd32_ioctl_args *uap,
-    struct file *fp)
-{
-	struct md_ioctl mdv;
-	struct md_ioctl32 md32;
-	u_long com = 0;
-	int i, error;
-
-	if (uap->com & IOC_IN) {
-		if ((error = copyin(uap->data, &md32, sizeof(md32)))) {
-			return (error);
-		}
-		CP(md32, mdv, md_version);
-		CP(md32, mdv, md_unit);
-		CP(md32, mdv, md_type);
-		PTRIN_CP(md32, mdv, md_file);
-		CP(md32, mdv, md_mediasize);
-		CP(md32, mdv, md_sectorsize);
-		CP(md32, mdv, md_options);
-		CP(md32, mdv, md_base);
-		CP(md32, mdv, md_fwheads);
-		CP(md32, mdv, md_fwsectors);
-		PTRIN_CP(md32, mdv, md_label);
-	} else if (uap->com & IOC_OUT) {
-		/*
-		 * Zero the buffer so the user always
-		 * gets back something deterministic.
-		 */
-		bzero(&mdv, sizeof mdv);
-	}
-
-	switch (uap->com) {
-	case MDIOCATTACH_32:
-		com = MDIOCATTACH;
-		break;
-	case MDIOCDETACH_32:
-		com = MDIOCDETACH;
-		break;
-	case MDIOCQUERY_32:
-		com = MDIOCQUERY;
-		break;
-	case MDIOCLIST_32:
-		com = MDIOCLIST;
-		break;
-	default:
-		panic("%s: unknown MDIOC %#x", __func__, uap->com);
-	}
-	error = fo_ioctl(fp, com, (caddr_t)&mdv, td->td_ucred, td);
-	if (error == 0 && (com & IOC_OUT)) {
-		CP(mdv, md32, md_version);
-		CP(mdv, md32, md_unit);
-		CP(mdv, md32, md_type);
-		PTROUT_CP(mdv, md32, md_file);
-		CP(mdv, md32, md_mediasize);
-		CP(mdv, md32, md_sectorsize);
-		CP(mdv, md32, md_options);
-		CP(mdv, md32, md_base);
-		CP(mdv, md32, md_fwheads);
-		CP(mdv, md32, md_fwsectors);
-		PTROUT_CP(mdv, md32, md_label);
-		if (com == MDIOCLIST) {
-			/*
-			 * Use MDNPAD, and not MDNPAD32.  Padding is
-			 * allocated and used by compat32 ABI.
-			 */
-			for (i = 0; i < MDNPAD; i++)
-				CP(mdv, md32, md_pad[i]);
-		}
-		error = copyout(&md32, uap->data, sizeof(md32));
-	}
-	return error;
-}
-
 
 static int
 freebsd32_ioctl_ioc_read_toc(struct thread *td,
@@ -414,13 +336,6 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 	}
 
 	switch (uap->com) {
-	case MDIOCATTACH_32:	/* FALLTHROUGH */
-	case MDIOCDETACH_32:	/* FALLTHROUGH */
-	case MDIOCQUERY_32:	/* FALLTHROUGH */
-	case MDIOCLIST_32:
-		error = freebsd32_ioctl_md(td, uap, fp);
-		break;
-
 	case CDIOREADTOCENTRYS_32:
 		error = freebsd32_ioctl_ioc_read_toc(td, uap, fp);
 		break;
