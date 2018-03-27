@@ -558,14 +558,9 @@ fddi_ioctl (ifp, command, data)
 			break;
 		}
 		break;
-	case SIOCGIFADDR: {
-			struct sockaddr *sa;
-
-			sa = (struct sockaddr *) & ifr->ifr_data;
-			bcopy(IF_LLADDR(ifp),
-			      (caddr_t) sa->sa_data, FDDI_ADDR_LEN);
-
-		}
+	case SIOCGIFADDR:
+		bcopy(IF_LLADDR(ifp), &ifr->ifr_addr.sa_data[0],
+		    FDDI_ADDR_LEN);
 		break;
 	case SIOCSIFMTU:
 		/*
