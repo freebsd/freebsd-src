@@ -138,9 +138,9 @@ CTASSERT(__offsetof(struct ifreq, ifr_ifru) ==
 #endif
 
 union ifreq_union {
-		struct ifreq	ifr;
+	struct ifreq	ifr;
 #ifdef COMPAT_FREEBSD32
-		struct ifreq32	ifr32;
+	struct ifreq32	ifr32;
 #endif
 };
 
