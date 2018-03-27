@@ -3285,6 +3285,7 @@ freebsd32_kldstat(struct thread *td, struct freebsd32_kldstat_args *uap)
 		CP(*stat, *stat32, size);
 		bcopy(&stat->pathname[0], &stat32->pathname[0],
 		    sizeof(stat->pathname));
+		stat32->version  = version;
 		error = copyout(stat32, uap->stat, version);
 	}
 	free(stat, M_TEMP);
