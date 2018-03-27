@@ -132,6 +132,7 @@ struct intsrc {
 	u_long *is_straycount;
 	u_int is_index;
 	u_int is_handlers;
+	u_int is_domain;
 	u_int is_cpu;
 };
 
@@ -168,7 +169,7 @@ void	intr_add_cpu(u_int cpu);
 #endif
 int	intr_add_handler(const char *name, int vector, driver_filter_t filter, 
 			 driver_intr_t handler, void *arg, enum intr_type flags, 
-			 void **cookiep);    
+			 void **cookiep, int domain);    
 #ifdef SMP
 int	intr_bind(u_int vector, u_char cpu);
 #endif
@@ -176,7 +177,7 @@ int	intr_config_intr(int vector, enum intr_trigger trig,
     enum intr_polarity pol);
 int	intr_describe(u_int vector, void *ih, const char *descr);
 void	intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame);
-u_int	intr_next_cpu(void);
+u_int	intr_next_cpu(int domain);
 struct intsrc *intr_lookup_source(int vector);
 int	intr_register_pic(struct pic *pic);
 int	intr_register_source(struct intsrc *isrc);

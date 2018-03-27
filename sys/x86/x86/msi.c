@@ -363,7 +363,7 @@ int
 msi_alloc(device_t dev, int count, int maxcount, int *irqs)
 {
 	struct msi_intsrc *msi, *fsrc;
-	u_int cpu;
+	u_int cpu, domain;
 	int cnt, i, *mirqs, vector;
 #ifdef ACPI_DMAR
 	u_int cookies[count];
@@ -372,6 +372,9 @@ msi_alloc(device_t dev, int count, int maxcount, int *irqs)
 
 	if (!msi_enabled)
 		return (ENXIO);
+
+	if (bus_get_domain(dev, &domain) != 0)
+		domain = 0;
 
 	if (count > 1)
 		mirqs = malloc(count * sizeof(*mirqs), M_MSI, M_WAITOK);
@@ -420,7 +423,7 @@ again:
 	KASSERT(cnt == count, ("count mismatch"));
 
 	/* Allocate 'count' IDT vectors. */
-	cpu = intr_next_cpu();
+	cpu = intr_next_cpu(domain);
 	vector = apic_alloc_vectors(cpu, irqs, count, maxcount);
 	if (vector == 0) {
 		mtx_unlock(&msi_lock);
@@ -610,7 +613,7 @@ int
 msix_alloc(device_t dev, int *irq)
 {
 	struct msi_intsrc *msi;
-	u_int cpu;
+	u_int cpu, domain;
 	int i, vector;
 #ifdef ACPI_DMAR
 	u_int cookie;
@@ -619,6 +622,9 @@ msix_alloc(device_t dev, int *irq)
 
 	if (!msi_enabled)
 		return (ENXIO);
+
+	if (bus_get_domain(dev, &domain) != 0)
+		domain = 0;
 
 again:
 	mtx_lock(&msi_lock);
@@ -651,7 +657,7 @@ again:
 	}
 
 	/* Allocate an IDT vector. */
-	cpu = intr_next_cpu();
+	cpu = intr_next_cpu(domain);
 	vector = apic_alloc_vector(cpu, i);
 	if (vector == 0) {
 		mtx_unlock(&msi_lock);
