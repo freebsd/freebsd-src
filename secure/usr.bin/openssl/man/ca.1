@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CA 1"
-.TH CA 1 "2017-12-07" "1.0.2n" "OpenSSL"
+.TH CA 1 "2018-03-27" "1.0.2o" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -487,6 +487,10 @@ The default value is \fByes\fR, to be compatible with older (pre 0.9.8)
 versions of OpenSSL.  However, to make \s-1CA\s0 certificate roll-over easier,
 it's recommended to use the value \fBno\fR, especially if combined with
 the \fB\-selfsign\fR command line option.
+.Sp
+Note that it is valid in some circumstances for certificates to be created
+without any subject. In the case where there are multiple certificates without
+subjects this does not count as a duplicate.
 .IP "\fBserial\fR" 4
 .IX Item "serial"
 a text file containing the next serial number to use in hex. Mandatory.

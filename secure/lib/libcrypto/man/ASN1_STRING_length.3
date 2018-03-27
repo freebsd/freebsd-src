@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "ASN1_STRING_length 3"
-.TH ASN1_STRING_length 3 "2017-12-07" "1.0.2n" "OpenSSL"
+.TH ASN1_STRING_length 3 "2018-03-27" "1.0.2o" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -198,8 +198,8 @@ utility functions should be used instead.
 In general it cannot be assumed that the data returned by \fIASN1_STRING_data()\fR
 is null terminated or does not contain embedded nulls. The actual format
 of the data will depend on the actual string type itself: for example
-for and IA5String the data will be \s-1ASCII,\s0 for a BMPString two bytes per
-character in big endian format, UTF8String will be in \s-1UTF8\s0 format.
+for an IA5String the data will be \s-1ASCII,\s0 for a BMPString two bytes per
+character in big endian format, and for an UTF8String it will be in \s-1UTF8\s0 format.
 .PP
 Similar care should be take to ensure the data is in the correct format
 when calling \fIASN1_STRING_set()\fR.
