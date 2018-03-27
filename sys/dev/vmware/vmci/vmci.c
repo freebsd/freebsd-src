@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2018 VMware, Inc. All Rights Reserved.
  *
- * SPDX-License-Identifier: (BSD-2-Clause AND GPL-2.0)
+ * SPDX-License-Identifier: (BSD-2-Clause OR GPL-2.0)
  */
 
 /* Driver for VMware Virtual Machine Communication Interface (VMCI) device. */
