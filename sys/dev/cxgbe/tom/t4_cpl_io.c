@@ -1934,14 +1934,14 @@ do_set_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 }
 
 void
-t4_set_tcb_field(struct adapter *sc, struct sge_wrq *wrq, int tid,
-    uint16_t word, uint64_t mask, uint64_t val, int reply, int cookie, int iqid)
+t4_set_tcb_field(struct adapter *sc, struct sge_wrq *wrq, struct toepcb *toep,
+    uint16_t word, uint64_t mask, uint64_t val, int reply, int cookie)
 {
 	struct wrqe *wr;
 	struct cpl_set_tcb_field *req;
+	struct ofld_tx_sdesc *txsd;
 
 	MPASS((cookie & ~M_COOKIE) == 0);
-	MPASS((iqid & ~M_QUEUENO) == 0);
 
 	wr = alloc_wrqe(sizeof(*req), wrq);
 	if (wr == NULL) {
@@ -1950,13 +1950,26 @@ t4_set_tcb_field(struct adapter *sc, struct sge_wrq *wrq, int tid,
 	}
 	req = wrtod(wr);
 
-	INIT_TP_WR_MIT_CPL(req, CPL_SET_TCB_FIELD, tid);
-	req->reply_ctrl = htobe16(V_QUEUENO(iqid));
+	INIT_TP_WR_MIT_CPL(req, CPL_SET_TCB_FIELD, toep->tid);
+	req->reply_ctrl = htobe16(V_QUEUENO(toep->ofld_rxq->iq.abs_id));
 	if (reply == 0)
 		req->reply_ctrl |= htobe16(F_NO_REPLY);
 	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(cookie));
 	req->mask = htobe64(mask);
 	req->val = htobe64(val);
+	if ((wrq->eq.flags & EQ_TYPEMASK) == EQ_OFLD) {
+		txsd = &toep->txsd[toep->txsd_pidx];
+		txsd->tx_credits = howmany(sizeof(*req), 16);
+		txsd->plen = 0;
+		KASSERT(toep->tx_credits >= txsd->tx_credits &&
+		    toep->txsd_avail > 0,
+		    ("%s: not enough credits (%d)", __func__,
+		    toep->tx_credits));
+		toep->tx_credits -= txsd->tx_credits;
+		if (__predict_false(++toep->txsd_pidx == toep->txsd_total))
+			toep->txsd_pidx = 0;
+		toep->txsd_avail--;
+	}
 
 	t4_wrq_tx(sc, wr);
 }
