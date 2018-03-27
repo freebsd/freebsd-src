@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_VERIFY_PARAM_set_flags 3"
-.TH X509_VERIFY_PARAM_set_flags 3 "2017-12-07" "1.0.2n" "OpenSSL"
+.TH X509_VERIFY_PARAM_set_flags 3 "2018-03-27" "1.0.2o" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -333,6 +333,27 @@ chains. By default, when building a certificate chain, if the first certificate
 chain found is not trusted, then OpenSSL will continue to check to see if an
 alternative chain can be found that is trusted. With this flag set the behaviour
 will match that of OpenSSL versions prior to 1.0.2b.
+.PP
+The \fBX509_V_FLAG_TRUSTED_FIRST\fR flag causes chain construction to look for
+issuers in the trust store before looking at the untrusted certificates
+provided as part of the the peer chain.
+Though it is not on by default in OpenSSL 1.0.2, applications should generally
+set this flag.
+Local issuer certificates are often more likely to satisfy local security
+requirements and lead to a locally trusted root.
+This is especially important When some certificates in the trust store have
+explicit trust settings (see \*(L"\s-1TRUST SETTINGS\*(R"\s0 in \fIx509\fR\|(1)).
+.PP
+The \fBX509_V_FLAG_PARTIAL_CHAIN\fR flag causes intermediate certificates in the
+trust store to be treated as trust-anchors, in the same way as the self-signed
+root \s-1CA\s0 certificates.
+This makes it possible to trust certificates issued by an intermediate \s-1CA\s0
+without having to trust its ancestor root \s-1CA.\s0
+With OpenSSL 1.0.2, chain construction continues as long as there are
+additional trusted issuers in the trust store, and the last trusted issuer
+becomes the trust-anchor.
+Thus, even when an intermediate certificate is found in the trust store, the
+verified chain passed to callbacks may still be anchored by a root \s-1CA.\s0
 .SH "NOTES"
 .IX Header "NOTES"
 The above functions should be used to manipulate verification parameters
@@ -364,7 +385,8 @@ connections associated with an \fB\s-1SSL_CTX\s0\fR structure \fBctx\fR:
 \&\fIX509_verify_cert\fR\|(3),
 \&\fIX509_check_host\fR\|(3),
 \&\fIX509_check_email\fR\|(3),
-\&\fIX509_check_ip\fR\|(3)
+\&\fIX509_check_ip\fR\|(3),
+\&\fIx509\fR\|(1)
 .SH "HISTORY"
 .IX Header "HISTORY"
 The \fBX509_V_FLAG_NO_ALT_CHAINS\fR flag was added in OpenSSL 1.0.2b
