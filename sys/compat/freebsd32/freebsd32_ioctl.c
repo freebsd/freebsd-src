@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
+#include <sys/uio.h>
 
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_ioctl.h>
