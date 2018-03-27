@@ -59,6 +59,14 @@ struct enc_xform {
 	int (*setkey) (u_int8_t **, u_int8_t *, int len);
 	void (*zerokey) (u_int8_t **);
 	void (*reinit) (caddr_t, u_int8_t *);
+	/*
+	 * Encrypt/decrypt 1+ blocks of input -- total size is 'len' bytes.
+	 * Len is guaranteed to be a multiple of the defined 'blocksize'.
+	 * Optional interface -- most useful for stream ciphers with a small
+	 * blocksize (1).
+	 */
+	void (*encrypt_multi) (void *, uint8_t *, size_t len);
+	void (*decrypt_multi) (void *, uint8_t *, size_t len);
 };
 
 
