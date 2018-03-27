@@ -45,22 +45,6 @@ struct ioc_read_toc_entry32 {
 	uint32_t data;		/* struct cd_toc_entry* */
 };
 
-#define	MDNPAD32	MDNPAD
-struct md_ioctl32 {
-	unsigned	md_version;	/* Structure layout version */
-	unsigned	md_unit;	/* unit number */
-	enum md_types	md_type;	/* type of disk */
-	caddr_t32	md_file;	/* pathname of file to mount */
-	off_t		md_mediasize;	/* size of disk in bytes */
-	unsigned	md_sectorsize;	/* sectorsize */
-	unsigned	md_options;	/* options */
-	u_int64_t	md_base;	/* base address */
-	int		md_fwheads;	/* firmware heads */
-	int		md_fwsectors;	/* firmware sectors */
-	caddr_t32	md_label;	/* label of the device */
-	int		md_pad[MDNPAD32]; /* padding for future ideas */
-} __attribute__((__packed__));
-
 struct fiodgname_arg32 {
 	int		len;
 	caddr_t32	buf;
@@ -112,10 +96,6 @@ struct pci_conf_io32 {
 };
 
 #define	CDIOREADTOCENTRYS_32 _IOWR('c', 5, struct ioc_read_toc_entry32)
-#define	MDIOCATTACH_32	_IOC(IOC_INOUT, 'm', 0, sizeof(struct md_ioctl32))
-#define	MDIOCDETACH_32	_IOC(IOC_INOUT, 'm', 1, sizeof(struct md_ioctl32))
-#define	MDIOCQUERY_32	_IOC(IOC_INOUT, 'm', 2, sizeof(struct md_ioctl32))
-#define	MDIOCLIST_32	_IOC(IOC_INOUT, 'm', 3, sizeof(struct md_ioctl32))
 #define	FIODGNAME_32	_IOW('f', 120, struct fiodgname_arg32)
 #define	MEMRANGE_GET32	_IOWR('m', 50, struct mem_range_op32)
 #define	MEMRANGE_SET32	_IOW('m', 51, struct mem_range_op32)
