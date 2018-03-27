@@ -1364,11 +1364,15 @@ int
 xge_ioctl_stats(xge_lldev_t *lldev, struct ifreq *ifreqp)
 {
 	xge_hal_status_e status = XGE_HAL_OK;
-	char *data = (char *)ifreqp->ifr_data;
+	char cmd, mode;
 	void *info = NULL;
 	int retValue = EINVAL;
 
-	switch(*data) {
+	cmd = fubyte(ifreqp->ifr_data);
+	if (cmd == -1)
+		return (EFAULT);
+
+	switch(cmd) {
 	    case XGE_QUERY_STATS:
 	        mtx_lock(&lldev->mtx_drv);
 	        status = xge_hal_stats_hw(lldev->devh,
@@ -1496,8 +1500,8 @@ xge_ioctl_stats(xge_lldev_t *lldev, struct ifreq *ifreqp)
 	    case XGE_SET_BUFFER_MODE_1:
 	    case XGE_SET_BUFFER_MODE_2:
 	    case XGE_SET_BUFFER_MODE_5:
-	        *data = (*data == XGE_SET_BUFFER_MODE_1) ? 'Y':'N';
-	        if(copyout(data, ifreqp->ifr_data, sizeof(data)) == 0)
+	        mode = (cmd == XGE_SET_BUFFER_MODE_1) ? 'Y':'N';
+	        if(copyout(&mode, ifreqp->ifr_data, sizeof(mode)) == 0)
 	            retValue = 0;
 	        break;
 	    default:
@@ -1518,10 +1522,17 @@ xge_ioctl_stats(xge_lldev_t *lldev, struct ifreq *ifreqp)
 int
 xge_ioctl_registers(xge_lldev_t *lldev, struct ifreq *ifreqp)
 {
-	xge_register_t *data = (xge_register_t *)ifreqp->ifr_data;
+	xge_register_t tmpdata;
+	xge_register_t *data;
 	xge_hal_status_e status = XGE_HAL_OK;
 	int retValue = EINVAL, offset = 0, index = 0;
+	int error;
 	u64 val64 = 0;
+
+	error = copyin(ifreqp->ifr_data, &tmpdata, sizeof(tmpdata));
+	if (error != 0)
+		return (error);
+	data = &tmpdata;
 
 	/* Reading a register */
 	if(strcmp(data->option, "-r") == 0) {
