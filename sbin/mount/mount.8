@@ -155,6 +155,10 @@ This flag indicates that the file system was mounted by
 .Xr automountd 8 .
 Automounted file systems are automatically unmounted by
 .Xr autounmountd 8 .
+.It Cm autoro
+Mount the file system read-write.
+If that fails with an error that suggests that the media could be read-only,
+then automatically try to mount the file system read-only.
 .It Cm current
 When used with the
 .Fl u
