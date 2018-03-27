@@ -95,6 +95,7 @@ PMC_SOFT_DEFINE( , , page_fault, write);
 #include <machine/smp.h>
 #endif
 #include <machine/stack.h>
+#include <machine/trap.h>
 #include <machine/tss.h>
 
 #ifdef KDTRACE_HOOKS
@@ -338,14 +339,14 @@ trap(struct trapframe *frame)
 					ucode = SEGV_ACCERR;
 				} else {
 					signo = SIGBUS;
-					ucode = BUS_PAGE_FAULT;
+					ucode = T_PAGEFLT;
 				}
 			} else if (prot_fault_translation == 1) {
 				/*
 				 * Always compat mode.
 				 */
 				signo = SIGBUS;
-				ucode = BUS_PAGE_FAULT;
+				ucode = T_PAGEFLT;
 			} else {
 				/*
 				 * Always SIGSEGV mode.

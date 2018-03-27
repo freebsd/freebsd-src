@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
+#include <machine/trap.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
