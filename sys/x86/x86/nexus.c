@@ -573,7 +573,7 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 		 int flags, driver_filter_t filter, void (*ihand)(void *),
 		 void *arg, void **cookiep)
 {
-	int		error, domain;
+	int		error;
 
 	/* somebody tried to setup an irq that failed to allocate! */
 	if (irq == NULL)
@@ -589,11 +589,9 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 	error = rman_activate_resource(irq);
 	if (error)
 		return (error);
-	if (bus_get_domain(child, &domain) != 0)
-		domain = 0;
 
 	error = intr_add_handler(device_get_nameunit(child),
-	    rman_get_start(irq), filter, ihand, arg, flags, cookiep, domain);
+	    rman_get_start(irq), filter, ihand, arg, flags, cookiep);
 
 	return (error);
 }
