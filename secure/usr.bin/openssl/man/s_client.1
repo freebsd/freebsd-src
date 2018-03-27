@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "S_CLIENT 1"
-.TH S_CLIENT 1 "2017-12-07" "1.0.2n" "OpenSSL"
+.TH S_CLIENT 1 "2018-03-27" "1.0.2o" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -345,7 +345,7 @@ use the server's cipher preferences; only used for \s-1SSLV2.\s0
 .IX Item "-starttls protocol"
 send the protocol-specific message(s) to switch to \s-1TLS\s0 for communication.
 \&\fBprotocol\fR is a keyword for the intended protocol.  Currently, the only
-supported keywords are \*(L"smtp\*(R", \*(L"pop3\*(R", \*(L"imap\*(R", and \*(L"ftp\*(R".
+supported keywords are \*(L"smtp\*(R", \*(L"pop3\*(R", \*(L"imap\*(R", \*(L"ftp\*(R" and \*(L"xmpp\*(R".
 .IP "\fB\-tlsextdebug\fR" 4
 .IX Item "-tlsextdebug"
 print out a hex dump of any \s-1TLS\s0 extensions received from the server.

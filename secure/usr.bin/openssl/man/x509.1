@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509 1"
-.TH X509 1 "2017-12-07" "1.0.2n" "OpenSSL"
+.TH X509 1 "2018-03-27" "1.0.2o" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -320,8 +320,11 @@ checks if the certificate expires within the next \fBarg\fR seconds and exits
 non-zero if yes it will expire or zero if not.
 .IP "\fB\-fingerprint\fR" 4
 .IX Item "-fingerprint"
-prints out the digest of the \s-1DER\s0 encoded version of the whole certificate
-(see digest options).
+Calculates and outputs the digest of the \s-1DER\s0 encoded version of the entire
+certificate (see digest options).
+This is commonly called a \*(L"fingerprint\*(R". Because of the nature of message
+digests, the fingerprint of a certificate is unique to that certificate and
+two certificates with the same fingerprint can be considered to be the same.
 .IP "\fB\-C\fR" 4
 .IX Item "-C"
 this outputs the certificate in the form of a C source file.
@@ -693,12 +696,6 @@ supporting \s-1UTF8:\s0
 \& openssl x509 \-in cert.pem \-noout \-subject \-nameopt oneline,\-esc_msb
 .Ve
 .PP
-Display the certificate \s-1MD5\s0 fingerprint:
-.PP
-.Vb 1
-\& openssl x509 \-in cert.pem \-noout \-fingerprint
-.Ve
-.PP
 Display the certificate \s-1SHA1\s0 fingerprint:
 .PP
 .Vb 1
@@ -767,13 +764,6 @@ The conversion to \s-1UTF8\s0 format used with the name options assumes that
 T61Strings use the \s-1ISO8859\-1\s0 character set. This is wrong but Netscape
 and \s-1MSIE\s0 do this as do many certificates. So although this is incorrect
 it is more likely to display the majority of certificates correctly.
-.PP
-The \fB\-fingerprint\fR option takes the digest of the \s-1DER\s0 encoded certificate.
-This is commonly called a \*(L"fingerprint\*(R". Because of the nature of message
-digests the fingerprint of a certificate is unique to that certificate and
-two certificates with the same fingerprint can be considered to be the same.
-.PP
-The Netscape fingerprint uses \s-1MD5\s0 whereas \s-1MSIE\s0 uses \s-1SHA1.\s0
 .PP
 The \fB\-email\fR option searches the subject name and the subject alternative
 name extension. Only unique email addresses will be printed out: it will
