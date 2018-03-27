@@ -2087,8 +2087,6 @@ vm_page_alloc_check(vm_page_t m)
 	KASSERT(m->object == NULL, ("page %p has object", m));
 	KASSERT(m->queue == PQ_NONE,
 	    ("page %p has unexpected queue %d", m, m->queue));
-	KASSERT((m->aflags & PGA_QUEUE_STATE_MASK) == 0,
-	    ("page %p has unexpected queue state", m));
 	KASSERT(!vm_page_held(m), ("page %p is held", m));
 	KASSERT(!vm_page_busied(m), ("page %p is busy", m));
 	KASSERT(m->dirty == 0, ("page %p is dirty", m));
