@@ -44,6 +44,7 @@
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
 #include <machine/psl.h>
+#include <machine/trap.h>
 #include <vm/pmap.h>
 
 extern void dtrace_getnanotime(struct timespec *tsp);

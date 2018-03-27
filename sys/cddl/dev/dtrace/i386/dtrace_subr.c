@@ -45,6 +45,7 @@
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
 #include <machine/psl.h>
+#include <machine/trap.h>
 #include <vm/pmap.h>
 
 extern uintptr_t 	kernelbase;
