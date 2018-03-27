@@ -78,10 +78,10 @@ test_requires RUNAT
 
 # Create a UFS file system that we can work in
 log_must $ZFS create -V128m $TESTPOOL/$TESTFS/zvol
-log_must eval "$ECHO y | $NEWFS /dev/zvol/dsk/$TESTPOOL/$TESTFS/zvol > /dev/null 2>&1"
+log_must eval "$ECHO y | $NEWFS /dev/zvol/$TESTPOOL/$TESTFS/zvol > /dev/null 2>&1"
 
 log_must $MKDIR $TMPDIR/ufs.${TESTCASE_ID}
-log_must $MOUNT /dev/zvol/dsk/$TESTPOOL/$TESTFS/zvol $TMPDIR/ufs.${TESTCASE_ID}
+log_must $MOUNT /dev/zvol/$TESTPOOL/$TESTFS/zvol $TMPDIR/ufs.${TESTCASE_ID}
 
 # Create files in ufs and tmpfs, and set some xattrs on them.
 log_must $TOUCH $TMPDIR/ufs.${TESTCASE_ID}/ufs-file.${TESTCASE_ID}

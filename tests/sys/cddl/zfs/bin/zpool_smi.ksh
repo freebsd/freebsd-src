@@ -42,7 +42,7 @@ label
 yes
 _EOF
 
-	labeltype=$(/usr/sbin/prtvtoc -fh /dev/rdsk/${disk}s2 | \
+	labeltype=$(/usr/sbin/prtvtoc -fh /dev/${disk}s2 | \
 		awk '{print $1}' | awk -F= '{print $2}' )
 	if [[ -z $labeltype ]]; then
 		print "${disk} not exist."
@@ -61,7 +61,7 @@ _EOF
 		 	print "q" >> $label_file
 		 	print "q" >> $label_file
 
-		 	fdisk -B /dev/rdsk/${disk}p0 >/dev/null 2>&1
+		 	fdisk -B /dev/${disk}p0 >/dev/null 2>&1
 		 	# wait a while for fdisk finishes
 			/usr/sbin/devfsadm > /dev/null 2>&1
 		elif [[ $arch == "sparc" ]]; then
@@ -105,8 +105,8 @@ typeset option
 case $cmd in
 	create|add|attach|detach|replace|remove|online|offline|clear)
 		for arg in $@; do
-			if [[ $arg == "/dev/dsk/"* ]]; then
-				arg=${arg#/dev/dsk/}
+			if [[ $arg == "/dev/"* ]]; then
+				arg=${arg#/dev/}
 			fi
 
 			print $arg | egrep "^c[0-F]+([td][0-F]+)+$" > /dev/null 2>&1
