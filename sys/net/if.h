@@ -416,6 +416,7 @@ struct	ifreq {
 #define	ifr_index	ifr_ifru.ifru_index	/* interface index */
 #define	ifr_fib		ifr_ifru.ifru_fib	/* interface fib */
 #define	ifr_vlan_pcp	ifr_ifru.ifru_vlan_pcp	/* VLAN priority */
+#define	ifr_lan_pcp	ifr_ifru.ifru_vlan_pcp	/* VLAN priority */
 };
 
 #define	_SIZEOF_ADDR_IFREQ(ifr) \
@@ -564,6 +565,8 @@ struct ifrsshash {
 	uint16_t	ifrh_spare1;
 	uint32_t	ifrh_types;		/* RSS_TYPE_ */
 };
+
+#define	IFNET_PCP_NONE	0xff	/* PCP disabled */
 
 #endif /* __BSD_VISIBLE */
 
