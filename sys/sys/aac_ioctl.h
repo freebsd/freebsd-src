@@ -175,6 +175,14 @@ struct get_adapter_fib_ioctl {
 	caddr_t		AifFib;
 };
 
+#ifdef _KERNEL
+struct get_adapter_fib_ioctl32 {
+	u_int32_t	AdapterFibContext;
+	int	  	Wait;
+	u_int32_t	AifFib;
+};
+#endif
+
 struct aac_query_disk {
 	int32_t		ContainerNumber;
 	int32_t		Bus;
