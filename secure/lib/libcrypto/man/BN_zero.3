@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BN_zero 3"
-.TH BN_zero 3 "2017-12-07" "1.0.2n" "OpenSSL"
+.TH BN_zero 3 "2018-03-27" "1.0.2o" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -147,32 +147,35 @@ operations
 \&
 \& const BIGNUM *BN_value_one(void);
 \&
-\& int BN_set_word(BIGNUM *a, unsigned long w);
-\& unsigned long BN_get_word(BIGNUM *a);
+\& int BN_set_word(BIGNUM *a, BN_ULONG w);
+\& BN_ULONG BN_get_word(BIGNUM *a);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+\&\fB\s-1BN_ULONG\s0\fR is a macro that will be an unsigned integral type optimied
+for the most efficient implementation on the local platform.
+.PP
 \&\fIBN_zero()\fR, \fIBN_one()\fR and \fIBN_set_word()\fR set \fBa\fR to the values 0, 1 and
 \&\fBw\fR respectively.  \fIBN_zero()\fR and \fIBN_one()\fR are macros.
 .PP
 \&\fIBN_value_one()\fR returns a \fB\s-1BIGNUM\s0\fR constant of value 1. This constant
 is useful for use in comparisons and assignment.
 .PP
-\&\fIBN_get_word()\fR returns \fBa\fR, if it can be represented as an unsigned
-long.
+\&\fIBN_get_word()\fR returns \fBa\fR, if it can be represented as a \fB\s-1BN_ULONG\s0\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fIBN_get_word()\fR returns the value \fBa\fR, and 0xffffffffL if \fBa\fR cannot
-be represented as an unsigned long.
+\&\fIBN_get_word()\fR returns the value \fBa\fR, or all-bits-set if \fBa\fR cannot
+be represented as a \fB\s-1BN_ULONG\s0\fR.
 .PP
 \&\fIBN_zero()\fR, \fIBN_one()\fR and \fIBN_set_word()\fR return 1 on success, 0 otherwise.
 \&\fIBN_value_one()\fR returns the constant.
 .SH "BUGS"
 .IX Header "BUGS"
-Someone might change the constant.
+If a \fB\s-1BIGNUM\s0\fR is equal to the value of all-bits-set, it will collide
+with the error condition returned by \fIBN_get_word()\fR which uses that
+as an error value.
 .PP
-If a \fB\s-1BIGNUM\s0\fR is equal to 0xffffffffL it can be represented as an
-unsigned long but this value is also returned on error.
+\&\fB\s-1BN_ULONG\s0\fR should probably be a typedef.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIbn\fR\|(3), \fIBN_bn2bin\fR\|(3)

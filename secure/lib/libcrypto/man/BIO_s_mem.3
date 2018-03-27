@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_s_mem 3"
-.TH BIO_s_mem 3 "2017-12-07" "1.0.2n" "OpenSSL"
+.TH BIO_s_mem 3 "2018-03-27" "1.0.2o" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -183,14 +183,14 @@ zero then it will return \fBv\fR when it is empty and it will set the read retry
 flag (that is BIO_read_retry(b) is true). To avoid ambiguity with a normal
 positive return value \fBv\fR should be set to a negative value, typically \-1.
 .PP
-\&\fIBIO_get_mem_data()\fR sets \fBpp\fR to a pointer to the start of the memory BIOs data
+\&\fIBIO_get_mem_data()\fR sets *\fBpp\fR to a pointer to the start of the memory BIOs data
 and returns the total amount of data available. It is implemented as a macro.
 .PP
 \&\fIBIO_set_mem_buf()\fR sets the internal \s-1BUF_MEM\s0 structure to \fBbm\fR and sets the
 close flag to \fBc\fR, that is \fBc\fR should be either \s-1BIO_CLOSE\s0 or \s-1BIO_NOCLOSE.\s0
 It is a macro.
 .PP
-\&\fIBIO_get_mem_ptr()\fR places the underlying \s-1BUF_MEM\s0 structure in \fBpp\fR. It is
+\&\fIBIO_get_mem_ptr()\fR places the underlying \s-1BUF_MEM\s0 structure in *\fBpp\fR. It is
 a macro.
 .PP
 \&\fIBIO_new_mem_buf()\fR creates a memory \s-1BIO\s0 using \fBlen\fR bytes of data at \fBbuf\fR,

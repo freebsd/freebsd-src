@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "VERIFY 1"
-.TH VERIFY 1 "2017-12-07" "1.0.2n" "OpenSSL"
+.TH VERIFY 1 "2018-03-27" "1.0.2o" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -147,7 +147,7 @@ verify \- Utility to verify certificates.
 [\fB\-ignore_critical\fR]
 [\fB\-attime timestamp\fR]
 [\fB\-check_ss_sig\fR]
-[\fB\-crlfile file\fR]
+[\fB\-CRLfile file\fR]
 [\fB\-crl_download\fR]
 [\fB\-crl_check\fR]
 [\fB\-crl_check_all\fR]
@@ -193,8 +193,8 @@ current system time. \fBtimestamp\fR is the number of seconds since
 .IX Item "-check_ss_sig"
 Verify the signature on the self-signed root \s-1CA.\s0 This is disabled by default
 because it doesn't add any security.
-.IP "\fB\-crlfile file\fR" 4
-.IX Item "-crlfile file"
+.IP "\fB\-CRLfile file\fR" 4
+.IX Item "-CRLfile file"
 File containing one or more \s-1CRL\s0's (in \s-1PEM\s0 format) to load.
 .IP "\fB\-crl_download\fR" 4
 .IX Item "-crl_download"
