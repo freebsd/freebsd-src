@@ -694,8 +694,8 @@ kern_sigaction(struct thread *td, int sig, const struct sigaction *act,
 	ps = p->p_sigacts;
 	mtx_lock(&ps->ps_mtx);
 	if (oact) {
+		memset(oact, 0, sizeof(*oact));
 		oact->sa_mask = ps->ps_catchmask[_SIG_IDX(sig)];
-		oact->sa_flags = 0;
 		if (SIGISMEMBER(ps->ps_sigonstack, sig))
 			oact->sa_flags |= SA_ONSTACK;
 		if (!SIGISMEMBER(ps->ps_sigintr, sig))
