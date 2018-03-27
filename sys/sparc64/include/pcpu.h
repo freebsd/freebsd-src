@@ -71,8 +71,8 @@ extern void *dpcpu0;
 struct pcb;
 struct pcpu;
 
-register struct pcb *curpcb __asm__(__XSTRING(PCB_REG));
-register struct pcpu *pcpup __asm__(__XSTRING(PCPU_REG));
+struct pcb *curpcb __asm__(__XSTRING(PCB_REG));
+struct pcpu *pcpup __asm__(__XSTRING(PCPU_REG));
 
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
 

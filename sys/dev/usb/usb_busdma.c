@@ -234,7 +234,7 @@ struct usb_m_copy_in_arg {
 static int
 usbd_m_copy_in_cb(void *arg, void *src, uint32_t count)
 {
-	register struct usb_m_copy_in_arg *ua = arg;
+	struct usb_m_copy_in_arg *ua = arg;
 
 	usbd_copy_in(ua->cache, ua->dst_offset, src, count);
 	ua->dst_offset += count;

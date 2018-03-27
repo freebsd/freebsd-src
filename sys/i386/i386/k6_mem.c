@@ -80,7 +80,7 @@ static __inline int
 k6_mrmake(struct mem_range_desc *desc, u_int32_t *mtrr)
 {
 	u_int32_t len = 0, wc, uc;
-	register int bit;
+	int bit;
 
 	if (desc->mr_base &~ 0xfffe0000)
 		return (EINVAL);

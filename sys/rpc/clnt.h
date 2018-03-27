@@ -531,7 +531,7 @@ extern CLIENT *clnt_tli_create(const int, const struct netconfig *,
 			       struct netbuf *, const rpcprog_t,
 			       const rpcvers_t, const u_int, const u_int);
 /*
- *	const register int fd;		-- fd
+ *	const int fd;			-- fd
  *	const struct netconfig *nconf;	-- netconfig structure
  *	struct netbuf *svcaddr;		-- servers address
  *	const u_long prog;			-- program number
