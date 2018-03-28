@@ -1988,6 +1988,20 @@ iwm3160.fw			optional iwm3160fw | iwmfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwm3160.fw"
+iwm3168fw.c			optional iwm3168fw | iwmfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm3168.fw:iwm3168fw -miwm3168fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwm3168fw.c"
+iwm3168fw.fwo			optional iwm3168fw | iwmfw		\
+	dependency	"iwm3168.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"iwm3168fw.fwo"
+iwm3168.fw			optional iwm3168fw | iwmfw		\
+	dependency	"$S/contrib/dev/iwm/iwm-3168-22.fw.uu"		\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"iwm3168.fw"
 iwm7260fw.c			optional iwm7260fw | iwmfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm7260.fw:iwm7260fw -miwm7260fw -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
