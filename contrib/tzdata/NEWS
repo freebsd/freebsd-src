@@ -1,9 +1,146 @@
 News for the tz database
 
+Release 2018d - 2018-03-22 07:05:46 -0700
+
+  Briefly:
+
+  Palestine starts DST a week earlier in 2018.
+  Add support for vanguard and rearguard data consumers.
+  Add subsecond precision to source data format, though not to data.
+
+  Changes to future time stamps
+
+    In 2018, Palestine starts DST on March 24, not March 31.
+    Adjust future predictions accordingly.  (Thanks to Sharef Mustafa.)
+
+  Changes to past and future time stamps
+
+    Casey Station in Antarctica changed from +11 to +08 on 2018-03-11
+    at 04:00.  (Thanks to Steffen Thorsen.)
+
+  Changes to past time stamps
+
+    Historical transitions for Uruguay, represented by
+    America/Montevideo, have been updated per official legal documents,
+    replacing previous data mainly originating from the inventions of
+    Shanks & Pottenger.  This has resulted in adjustments ranging from
+    30 to 90 minutes in either direction over at least two dozen
+    distinct periods ranging from one day to several years in length.
+    A mere handful of pre-1991 transitions are unaffected; data since
+    then has come from more reliable contemporaneous reporting.  These
+    changes affect various timestamps in 1920-1923, 1936, 1939,
+    1942-1943, 1959, 1966-1970, 1972, 1974-1980, and 1988-1990.
+    Additionally, Uruguay's pre-standard-time UT offset has been
+    adjusted westward by 7 seconds, from UT-03:44:44 to UT-03:44:51, to
+    match the location of the Observatory of the National Meteorological
+    Institute in Montevideo.
+    (Thanks to Jeremie Bonjour, Tim Parenti, and Michael Deckers.)
+
+    Enderbury and Kiritimati skipped New Year's Eve 1994, not
+    New Year's Day 1995.  (Thanks to Kerry Shetline.)
+
+    Fix the 1912-01-01 transition for Portugual and its colonies.
+    This transition was at 00:00 according to the new UT offset, not
+    according to the old one.  Also assume that Cape Verde switched on
+    the same date as the rest, not in 1907.  This affects
+    Africa/Bissau, Africa/Sao_Tome, Asia/Macau, Atlantic/Azores,
+    Atlantic/Cape_Verde, Atlantic/Madeira, and Europe/Lisbon.
+    (Thanks to Michael Deckers.)
+
+    Fix an off-by-1 error for pre-1913 timestamps in Jamaica and in
+    Turks & Caicos.
+
+  Changes to past time zone abbreviations
+
+    MMT took effect in Uruguay from 1908-06-10, not 1898-06-28.  There
+    is no clock change associated with the transition.
+
+  Changes to build procedure
+
+    The new DATAFORM macro in the Makefile lets the installer choose
+    among three source data formats.  The idea is to lessen downstream
+    disruption when data formats are improved.
+
+    * DATAFORM=vanguard installs from the latest, bleeding-edge
+      format.  DATAFORM=main (the default) installs from the format
+      used in the 'africa' etc. files.  DATAFORM=rearguard installs
+      from a trailing-edge format.  Eventually, elements of today's
+      vanguard format should move to the main format, and similarly
+      the main format's features should eventually move to the
+      rearguard format.
+
+    * In the current version, the main and rearguard formats are
+      identical and match that of 2018c, so this change does not
+      affect default behavior.  The vanguard format currently contains
+      one feature not in the main format: negative SAVE values.  This
+      improves support for Ireland, which uses Irish Standard Time
+      (IST, UTC+01) in summer and GMT (UTC) in winter.  tzcode has
+      supported negative SAVE values for decades, and this feature
+      should move to the main format soon.  However, it will not move
+      to the rearguard format for quite some time because some
+      downstream parsers do not support it.
+
+    * The build procedure constructs three files vanguard.zi, main.zi,
+      and rearguard.zi, one for each format.  The files represent the
+      same data as closely as the formats allow.  These three files
+      are intended for downstream data consumers and are not
+      installed.  Zoneinfo parsers that do not support negative SAVE values
+      should start using rearguard.zi, so that they will be unaffected
+      when the negative-DST feature moves from vanguard to main.
+      Bleeding-edge Zoneinfo parsers that support the new features
+      already can use vanguard.zi; in this respect, current tzcode is
+      bleeding-edge.
+
+    The Makefile should now be safe for parallelized builds, and 'make
+    -j to2050new.tzs' is now much faster on a multiprocessor host
+    with GNU Make.
+
+    When built with -DSUPPRESS_TZDIR, the tzcode library no longer
+    prepends TZDIR/ to file names that do not begin with '/'.  This is
+    not recommended for general use, due to its security implications.
+    (From a suggestion by Manuela Friedrich.)
+
+  Changes to code
+
+    zic now accepts subsecond precision in expressions like
+    00:19:32.13, which is approximately the legal time of the
+    Netherlands from 1835 to 1937.  However, because it is
+    questionable whether the few recorded uses of non-integer offsets
+    had subsecond precision in practice, there are no plans for tzdata
+    to use this feature.  (Thanks to Steve Allen for pointing out
+    the limitations of historical data in this area.)
+
+    The code is a bit more portable to MS-Windows.  Installers can
+    compile with -DRESERVE_STD_EXT_IDS on MS-Windows platforms that
+    reserve identifiers like 'localtime'.  (Thanks to Manuela
+    Friedrich).
+
+  Changes to documentation and commentary
+
+    theory.html now outlines tzdb's extensions to POSIX's model for
+    civil time, and has a section "POSIX features no longer needed"
+    that lists POSIX API components that are now vestigial.
+    (From suggestions by Steve Summit.)  It also better distinguishes
+    time zones from tz regions.  (From a suggestion by Guy Harris.)
+
+    Commentary is now more consistent about using the phrase "daylight
+    saving time", to match the C name tm_isdst.  Daylight saving time
+    need not occur in summer, and need not have a positive offset from
+    standard time.
+
+    Commentary about historical transitions in Uruguay has been expanded
+    with links to many relevant legal documents.
+    (Thanks to Tim Parenti.)
+
+    Commentary now uses some non-ASCII characters with Unicode value
+    less than U+0100, as they can be useful and should work even with
+    older editors such as XEmacs.
+
+
 Release 2018c - 2018-01-22 23:00:44 -0800
 
   Briefly:
-  Revert Irish changes that relied on negative DST offsets.
+  Revert Irish changes that relied on negative SAVE values.
 
   Changes to tm_isdst
 
@@ -14,8 +151,8 @@ Release 2018c - 2018-01-22 23:00:44 -0800
     struct tm type.  This reversion is intended to be a temporary
     workaround for problems discovered with downstream uses of
     releases 2018a and 2018b, which implemented Irish time by using
-    negative DST offsets in the Eire rules of the 'europe' file.
-    Although negative DST offsets have been part of tzcode for many
+    negative SAVE values in the Eire rules of the 'europe' file.
+    Although negative SAVE values have been part of tzcode for many
     years and are supported by many platforms, they were not
     documented before 2018a and ICU and OpenJDK do not currently
     support them.  A mechanism to export data to platforms lacking
@@ -900,7 +1037,7 @@ Release 2016b - 2016-03-12 17:30:14 -0800
     Comments in zone tables have been improved.  (Thanks to J William Piggott.)
 
     tzselect again limits its menu comments so that menus fit on a
-    24x80 alphanumeric display.
+    24×80 alphanumeric display.
 
     A new web page tz-how-to.html.  (Thanks to Bill Seymour.)
 
