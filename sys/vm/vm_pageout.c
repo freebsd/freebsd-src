@@ -248,15 +248,15 @@ vm_pageout_page_queued(vm_page_t m, int queue)
  */
 static inline void
 vm_pageout_collect_batch(struct vm_pagequeue *pq, struct vm_batchqueue *bq,
-    vm_page_t marker, int maxscan, const bool dequeue)
+    vm_page_t marker, int maxcollect, const bool dequeue)
 {
 	vm_page_t m;
 
 	vm_pagequeue_assert_locked(pq);
 
 	vm_batchqueue_init(bq);
-	for (m = TAILQ_NEXT(marker, plinks.q); m != NULL && maxscan > 0;
-	    m = TAILQ_NEXT(m, plinks.q), maxscan--) {
+	for (m = TAILQ_NEXT(marker, plinks.q); m != NULL && maxcollect > 0;
+	    m = TAILQ_NEXT(m, plinks.q), maxcollect--) {
 		VM_CNT_INC(v_pdpages);
 		if (__predict_false((m->flags & PG_MARKER) != 0))
 			continue;
@@ -659,7 +659,7 @@ unlock_mp:
 static int
 vm_pageout_launder(struct vm_domain *vmd, int launder, bool in_shortfall)
 {
-	struct vm_batchqueue bq, rq;
+	struct vm_batchqueue bq;
 	struct vm_pagequeue *pq;
 	struct mtx *mtx;
 	vm_object_t object;
@@ -703,7 +703,6 @@ scan:
 		mtx = NULL;
 		obj_locked = false;
 		object = NULL;
-		vm_batchqueue_init(&rq);
 		VM_BATCHQ_FOREACH(&bq, m) {
 			vm_page_change_lock(m, &mtx);
 
@@ -719,18 +718,22 @@ recheck:
 			 * A requeue was requested, so this page gets a second
 			 * chance.
 			 */
-			if ((m->aflags & PGA_REQUEUE) != 0)
-				goto reenqueue;
+			if ((m->aflags & PGA_REQUEUE) != 0) {
+				vm_page_requeue(m);
+				continue;
+			}
 
 			/*
+			 * Held pages are essentially stuck in the queue.
+			 *
 			 * Wired pages may not be freed.  Complete their removal
 			 * from the queue now to avoid needless revisits during
 			 * future scans.
 			 */
 			if (m->hold_count != 0)
-				goto reenqueue;
+				continue;
 			if (m->wire_count != 0) {
-				vm_page_dequeue(m);
+				vm_page_dequeue_lazy(m);
 				continue;
 			}
 
@@ -753,7 +756,7 @@ recheck:
 			}
 
 			if (vm_page_busied(m))
-				goto reenqueue;
+				continue;
 
 			/*
 			 * Invalid pages can be easily freed.  They cannot be
@@ -805,8 +808,8 @@ recheck:
 						launder--;
 					continue;
 				} else if ((object->flags & OBJ_DEAD) == 0) {
-					vm_page_aflag_set(m, PGA_REQUEUE);
-					goto reenqueue;
+					vm_page_requeue(m);
+					continue;
 				}
 			}
 
@@ -844,8 +847,8 @@ free_page:
 				else
 					pageout_ok = true;
 				if (!pageout_ok) {
-					vm_page_aflag_set(m, PGA_REQUEUE);
-					goto reenqueue;
+					vm_page_requeue(m);
+					continue;
 				}
 
 				/*
@@ -869,14 +872,9 @@ free_page:
 					pageout_lock_miss++;
 					vnodes_skipped++;
 				}
-
 				mtx = NULL;
 				obj_locked = false;
 			}
-			continue;
-reenqueue:
-			if (!vm_batchqueue_insert(&rq, m))
-				panic("failed to requeue page %p", m);
 		}
 		if (mtx != NULL)
 			mtx_unlock(mtx);
@@ -884,20 +882,6 @@ reenqueue:
 			VM_OBJECT_WUNLOCK(object);
 
 		vm_pagequeue_lock(pq);
-		VM_BATCHQ_FOREACH(&rq, m) {
-			if (m->queue == queue &&
-			    (m->aflags & PGA_ENQUEUED) != 0) {
-				TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
-				if ((m->aflags & PGA_REQUEUE) != 0) {
-					TAILQ_INSERT_TAIL(&pq->pq_pl, m,
-					    plinks.q);
-					vm_page_aflag_clear(m, PGA_REQUEUE);
-				} else
-					TAILQ_INSERT_BEFORE(&vmd->vmd_marker, m,
-					    plinks.q);
-				vm_pagequeue_cnt_inc(pq);
-			}
-		}
 	}
 	TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_laundry_marker, plinks.q);
 	vm_pagequeue_unlock(pq);
@@ -1251,15 +1235,17 @@ recheck:
 			 * The page may have been disassociated from the queue
 			 * while locks were dropped.
 			 */
-			if (!vm_pageout_page_queued(m, PQ_INACTIVE))
+			if (!vm_pageout_page_queued(m, PQ_INACTIVE)) {
+				addl_page_shortage++;
 				continue;
+			}
 
 			/*
 			 * A requeue was requested, so this page gets a second
 			 * chance.
 			 */
 			if ((m->aflags & PGA_REQUEUE) != 0)
-				goto reenqueue;
+				goto reinsert;
 
 			/*
 			 * Held pages are essentially stuck in the queue.  So,
@@ -1273,11 +1259,11 @@ recheck:
 			 */
 			if (m->hold_count != 0) {
 				addl_page_shortage++;
-				goto reenqueue;
+				goto reinsert;
 			}
 			if (m->wire_count != 0) {
 				addl_page_shortage++;
-				vm_page_dequeue(m);
+				vm_page_dequeue_lazy(m);
 				continue;
 			}
 
@@ -1301,7 +1287,7 @@ recheck:
 
 			if (vm_page_busied(m)) {
 				addl_page_shortage++;
-				goto reenqueue;
+				goto reinsert;
 			}
 
 			/*
@@ -1343,7 +1329,7 @@ recheck:
 					continue;
 				} else if ((object->flags & OBJ_DEAD) == 0) {
 					vm_page_aflag_set(m, PGA_REQUEUE);
-					goto reenqueue;
+					goto reinsert;
 				}
 			}
 
@@ -1375,7 +1361,7 @@ free_page:
 			} else if ((object->flags & OBJ_DEAD) == 0)
 				vm_page_launder(m);
 			continue;
-reenqueue:
+reinsert:
 			if (!vm_batchqueue_insert(&rq, m))
 				panic("failed to requeue page %p", m);
 		}
@@ -1507,10 +1493,10 @@ reenqueue:
 				continue;
 
 			/*
-			 * Perform lazy dequeues.
+			 * Wired pages are dequeued lazily.
 			 */
 			if (m->wire_count != 0) {
-				vm_page_dequeue(m);
+				vm_page_dequeue_lazy(m);
 				continue;
 			}
 

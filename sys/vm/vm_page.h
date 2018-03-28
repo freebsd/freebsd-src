@@ -529,6 +529,7 @@ int vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
 void vm_page_deactivate(vm_page_t);
 void vm_page_deactivate_noreuse(vm_page_t);
 void vm_page_dequeue(vm_page_t m);
+void vm_page_dequeue_lazy(vm_page_t m);
 void vm_page_dequeue_locked(vm_page_t m);
 vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
 void vm_page_free_phys_pglist(struct pglist *tq);
