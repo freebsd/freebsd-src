@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright 2015 RackTop Systems.
  * Copyright 2017 Nexenta Systems, Inc.
  */
@@ -748,7 +748,7 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok,
 		}
 
 		if (policy != NULL) {
-			if (nvlist_add_nvlist(config, ZPOOL_REWIND_POLICY,
+			if (nvlist_add_nvlist(config, ZPOOL_LOAD_POLICY,
 			    policy) != 0)
 				goto nomem;
 		}
