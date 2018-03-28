@@ -122,6 +122,7 @@ avg [label="Andriy Gapon\navg@FreeBSD.org\n2009/02/18"]
 avos [label="Andriy Voskoboinyk\navos@FreeBSD.org\n2015/09/24"]
 badger [label="Eric Badger\nbadger@FreeBSD.org\n2016/07/01"]
 bapt [label="Baptiste Daroussin\nbapt@FreeBSD.org\n2011/12/23"]
+bde [label="Bruce Evans\nbde@FreeBSD.org\n1994/08/20"]
 bdrewery [label="Bryan Drewery\nbdrewery@FreeBSD.org\n2013/12/14"]
 benl [label="Ben Laurie\nbenl@FreeBSD.org\n2011/05/18"]
 benno [label="Benno Rice\nbenno@FreeBSD.org\n2000/11/02"]
@@ -401,6 +402,8 @@ bapt -> allanjude
 bapt -> araujo
 bapt -> bdrewery
 bapt -> wulf
+
+bde -> rgrimes
 
 benno -> grehan
 
@@ -720,6 +723,7 @@ philip -> kp
 
 phk -> jkoshy
 phk -> mux
+phk -> rgrimes
 
 pjd -> def
 pjd -> kib
