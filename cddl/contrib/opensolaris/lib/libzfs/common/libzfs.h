@@ -132,6 +132,11 @@ typedef enum zfs_error {
 	EZFS_POOLREADONLY,	/* pool is in read-only mode */
 	EZFS_SCRUB_PAUSED,	/* scrub currently paused */
 	EZFS_NO_PENDING,	/* cannot cancel, no operation is pending */
+	EZFS_CHECKPOINT_EXISTS,	/* checkpoint exists */
+	EZFS_DISCARDING_CHECKPOINT,	/* currently discarding a checkpoint */
+	EZFS_NO_CHECKPOINT,	/* pool has no checkpoint */
+	EZFS_DEVRM_IN_PROGRESS,	/* a device is currently being removed */
+	EZFS_VDEV_TOO_BIG,	/* a device is too big to be used */
 	EZFS_UNKNOWN
 } zfs_error_t;
 
@@ -420,6 +425,8 @@ extern int zfs_ioctl(libzfs_handle_t *, int request, struct zfs_cmd *);
 extern int zpool_get_physpath(zpool_handle_t *, char *, size_t);
 extern void zpool_explain_recover(libzfs_handle_t *, const char *, int,
     nvlist_t *);
+extern int zpool_checkpoint(zpool_handle_t *);
+extern int zpool_discard_checkpoint(zpool_handle_t *);
 
 /*
  * Basic handle manipulations.  These functions do not create or destroy the

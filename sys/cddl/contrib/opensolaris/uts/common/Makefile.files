@@ -108,6 +108,7 @@ ZFS_COMMON_OBJS +=		\
 	sha256.o		\
 	skein_zfs.o		\
 	spa.o			\
+	spa_checkpoint.o	\
 	spa_config.o		\
 	spa_errlog.o		\
 	spa_history.o		\
