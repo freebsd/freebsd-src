@@ -2455,37 +2455,6 @@ reassignbuf(struct buf *bp)
 	BO_UNLOCK(bo);
 }
 
-/*
- * A temporary hack until refcount_* APIs are sorted out.
- */
-static __inline int
-vfs_refcount_acquire_if_not_zero(volatile u_int *count)
-{
-	u_int old;
-
-	old = *count;
-	for (;;) {
-		if (old == 0)
-			return (0);
-		if (atomic_fcmpset_int(count, &old, old + 1))
-			return (1);
-	}
-}
-
-static __inline int
-vfs_refcount_release_if_not_last(volatile u_int *count)
-{
-	u_int old;
-
-	old = *count;
-	for (;;) {
-		if (old == 1)
-			return (0);
-		if (atomic_fcmpset_int(count, &old, old - 1))
-			return (1);
-	}
-}
-
 static void
 v_init_counters(struct vnode *vp)
 {
@@ -2524,7 +2493,7 @@ v_incr_usecount(struct vnode *vp)
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 
 	if (vp->v_type != VCHR &&
-	    vfs_refcount_acquire_if_not_zero(&vp->v_usecount)) {
+	    refcount_acquire_if_not_zero(&vp->v_usecount)) {
 		VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
 		    ("vnode with usecount and VI_OWEINACT set"));
 	} else {
@@ -2616,7 +2585,7 @@ vget(struct vnode *vp, int flags, struct thread *td)
 	 * Upgrade our holdcnt to a usecount.
 	 */
 	if (vp->v_type == VCHR ||
-	    !vfs_refcount_acquire_if_not_zero(&vp->v_usecount)) {
+	    !refcount_acquire_if_not_zero(&vp->v_usecount)) {
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_OWEINACT) == 0) {
 			oweinact = 0;
@@ -2720,7 +2689,7 @@ vputx(struct vnode *vp, int func)
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 
 	if (vp->v_type != VCHR &&
-	    vfs_refcount_release_if_not_last(&vp->v_usecount)) {
+	    refcount_release_if_not_last(&vp->v_usecount)) {
 		if (func == VPUTX_VPUT)
 			VOP_UNLOCK(vp, 0);
 		vdrop(vp);
@@ -2836,7 +2805,7 @@ _vhold(struct vnode *vp, bool locked)
 		ASSERT_VI_UNLOCKED(vp, __func__);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 	if (!locked) {
-		if (vfs_refcount_acquire_if_not_zero(&vp->v_holdcnt)) {
+		if (refcount_acquire_if_not_zero(&vp->v_holdcnt)) {
 			VNASSERT((vp->v_iflag & VI_FREE) == 0, vp,
 			    ("_vhold: vnode with holdcnt is free"));
 			return;
@@ -2907,7 +2876,7 @@ _vdrop(struct vnode *vp, bool locked)
 	if ((int)vp->v_holdcnt <= 0)
 		panic("vdrop: holdcnt %d", vp->v_holdcnt);
 	if (!locked) {
-		if (vfs_refcount_release_if_not_last(&vp->v_holdcnt))
+		if (refcount_release_if_not_last(&vp->v_holdcnt))
 			return;
 		VI_LOCK(vp);
 	}
@@ -5438,12 +5407,12 @@ mnt_vnode_next_active_relock(struct vnode *mvp, struct mount *mp,
 	 * acquired with vhold(), but that might try to acquire the vnode
 	 * interlock, which would be a LOR with the mount vnode list lock.
 	 */
-	held = vfs_refcount_acquire_if_not_zero(&vp->v_holdcnt);
+	held = refcount_acquire_if_not_zero(&vp->v_holdcnt);
 	mtx_unlock(&mp->mnt_listmtx);
 	if (!held)
 		goto abort;
 	VI_LOCK(vp);
-	if (!vfs_refcount_release_if_not_last(&vp->v_holdcnt)) {
+	if (!refcount_release_if_not_last(&vp->v_holdcnt)) {
 		vdropl(vp);
 		goto abort;
 	}
