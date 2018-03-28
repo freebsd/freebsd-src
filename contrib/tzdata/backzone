@@ -170,13 +170,13 @@ Zone	Africa/Lome	0:04:52 -	LMT	1893
 
 # Angola
 #
+# From Paul Eggert (2018-02-16):
 # Shanks gives 1911-05-26 for the transition to WAT,
 # evidently confusing the date of the Portuguese decree
-# https://dre.pt/pdf1sdip/1911/05/12500/23132313.pdf
-# with the date that it took effect, namely 1912-01-01.
+# (see Europe/Lisbon) with the date that it took effect.
 #
 Zone	Africa/Luanda	0:52:56	-	LMT	1892
-			0:52:04	-	LMT	1912 Jan  1 # Luanda Mean Time?
+			0:52:04	-	LMT	1911 Dec 31 23:00u # Luanda MT?
 			1:00	-	WAT
 
 # Democratic Republic of the Congo (east)
@@ -271,8 +271,18 @@ Zone	America/Aruba	-4:40:24 -	LMT	1912 Feb 12 # Oranjestad
 
 # Cayman Is
 Zone	America/Cayman	-5:25:32 -	LMT	1890     # Georgetown
-			-5:07:11 -	KMT	1912 Feb # Kingston Mean Time
+			-5:07:10 -	KMT	1912 Feb # Kingston Mean Time
 			-5:00	-	EST
+
+# United States
+#
+# From Paul Eggert (2018-03-18):
+# America/Chillicothe would be tricky, as it was a city of two-timers:
+# "To prevent a constant mixup at Chillicothe, caused by the courthouse
+#  clock running on central time and the city running on 'daylight saving'
+#  time, a third hand was added to the dial of the courthouse clock."
+# -- Ohio news in brief. The Cedarville Herald. 1920-05-21;43(21):1 (col. 5)
+# https://digitalcommons.cedarville.edu/cedarville_herald/794
 
 # Canada
 Zone America/Coral_Harbour -5:32:40 -	LMT	1884
@@ -348,6 +358,30 @@ Zone America/Montreal	-4:54:16 -	LMT	1884
 Zone America/Montserrat	-4:08:52 -	LMT	1911 Jul  1  0:01 # Cork Hill
 			-4:00	-	AST
 
+# United States
+#
+# From Paul Eggert (2018-03-18):
+# America/Palm_Springs would be tricky, as it kept two sets of clocks
+# in 1946/7.  See the following notes.
+#
+# From Steve Allen (2018-01-19):
+# The shadow of Mt. San Jacinto brings darkness very early in the winter
+# months.  In 1946 the chamber of commerce decided to put the clocks of Palm
+# Springs forward by an hour in the winter.
+# https://www.desertsun.com/story/life/2017/12/27/palm-springs-struggle-daylight-savings-time-and-idea-sun-time/984416001/
+# Desert Sun, Number 18, 1 November 1946
+# https://cdnc.ucr.edu/cgi-bin/cdnc?a=d&d=DS19461101
+# has proposal for meeting on front page and page 21.
+# Desert Sun, Number 19, 5 November 1946
+# https://cdnc.ucr.edu/cgi-bin/cdnc?a=d&d=DS19461105
+# reports that Sun Time won at the meeting on front page and page 5.
+# Desert Sun, Number 37, 7 January 1947
+# https://cdnc.ucr.edu/cgi-bin/cdnc?a=d&d=DS19470107.2.12
+# front page reports request to abandon Sun Time and page 7 notes a "class war".
+# Desert Sun, Number 38, 10 January 1947
+# https://cdnc.ucr.edu/cgi-bin/cdnc?a=d&d=DS19470110
+# front page reports on end.
+
 # Argentina
 # This entry was intended for the following areas, but has been superseded by
 # more detailed zones.
@@ -409,7 +443,7 @@ Zone	Asia/Bahrain	3:22:20 -	LMT	1920     # Manamah
 # From Paul Eggert (2014-08-21):
 # In tomorrow's The Hindu, Nitya Menon reports that India had two civil time
 # zones starting in 1884, one in Bombay and one in Calcutta, and that railways
-# used a third time zone based on Madras time (80 deg. 18'30" E).  Also,
+# used a third time zone based on Madras time (80° 18' 30" E).  Also,
 # in 1881 Bombay briefly switched to Madras time, but switched back.  See:
 # http://www.thehindu.com/news/cities/chennai/madras-375-when-madras-clocked-the-time/article6339393.ece
 #Zone	  Asia/Chennai  [not enough info to complete]
@@ -532,7 +566,7 @@ Zone	Europe/Belfast	-0:23:40 -	LMT	1880 Aug  2
 # Data from Joseph S. Myers
 # https://mm.icann.org/pipermail/tz/2013-September/019883.html
 # References to be added
-# LMT is for Town Church, St. Peter Port, 49 degrees 27'17"N 2 degrees 32'10"W
+# LMT is for Town Church, St. Peter Port, 49° 27' 17" N, 2° 32' 10" W.
 Zone	Europe/Guernsey	-0:10:09 -	LMT	1913 Jun 18
 			 0:00	GB-Eire	%s	1940 Jul  2
 			 1:00	C-Eur	CE%sT	1945 May  8
@@ -566,7 +600,7 @@ Zone Europe/Isle_of_Man	-0:17:55 -	LMT	1883 Mar 30  0:00s
 # Data from Joseph S. Myers
 # https://mm.icann.org/pipermail/tz/2013-September/019883.html
 # References to be added
-# LMT is for Parish Church, St. Helier, 49 degrees 11'0.57"N 2 degrees 6'24.33"W
+# LMT is for Parish Church, St. Helier, 49° 11' 0.57" N, 2° 6' 24.33" W.
 Zone	Europe/Jersey	-0:08:26 -	LMT	1898 Jun 11 16:00u
 			 0:00	GB-Eire	%s	1940 Jul  2
 			 1:00	C-Eur	CE%sT	1945 May  8
