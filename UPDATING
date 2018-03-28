@@ -51,6 +51,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20180528:
+	Support for token ring networks has been removed. If you
+	have "device token" in your kernel config you should remove
+	it. No device drivers supported token ring.
+
 20180323:
 	makefs was modified to be able to tag ISO9660 El Torito boot catalog
 	entries as EFI instead of overloading the i386 tag as done previously.
