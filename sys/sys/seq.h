@@ -79,6 +79,7 @@ static __inline void
 seq_write_begin(seq_t *seqp)
 {
 
+	critical_enter();
 	MPASS(!seq_in_modify(*seqp));
 	*seqp += 1;
 	atomic_thread_fence_rel();
@@ -90,6 +91,7 @@ seq_write_end(seq_t *seqp)
 
 	atomic_store_rel_int(seqp, *seqp + 1);
 	MPASS(!seq_in_modify(*seqp));
+	critical_exit();
 }
 
 static __inline seq_t
