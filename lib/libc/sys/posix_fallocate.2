@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2014
+.Dd October 12, 2017
 .Dt POSIX_FALLOCATE 2
 .Os
 .Sh NAME
@@ -118,6 +118,10 @@ argument does not refer to a regular file.
 .It Bq Er ENOSPC
 There is insufficient free space remaining on the file system storage
 media.
+.It Bq Er ENOTCAPABLE
+The file descriptor
+.Fa fd
+has insufficient rights.
 .It Bq Er ESPIPE
 The
 .Fa fd

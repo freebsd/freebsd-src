@@ -4163,7 +4163,7 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 	/* Check for wrap. */
 	if (offset > OFF_MAX - len)
 		return (EFBIG);
-	error = fget(td, fd, cap_rights_init(&rights, CAP_WRITE), &fp);
+	error = fget(td, fd, cap_rights_init(&rights, CAP_PWRITE), &fp);
 	if (error != 0)
 		return (error);
 	if ((fp->f_ops->fo_flags & DFLAG_SEEKABLE) == 0) {
