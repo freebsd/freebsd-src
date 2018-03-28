@@ -624,7 +624,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	rebooting, e.g.:
 
 	make buildworld
-	make kernel KERNCONF=YOUR_KERNEL_HERE
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	make -C sys/boot install
 	<reboot in single user>
 
@@ -1995,7 +1996,8 @@ COMMON ITEMS:
 	----------------------------------------------
 	<make sure you have good level 0 dumps>
 	make buildworld					[9]
-	make kernel KERNCONF=YOUR_KERNEL_HERE		[8]
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE	[8]
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
 							[1]
 	<reboot in single user>				[3]
 	mergemaster -Fp					[5]
