@@ -127,6 +127,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 #include <machine/sigframe.h>
 #include <machine/specialreg.h>
+#include <machine/trap.h>
 #include <machine/tss.h>
 #ifdef SMP
 #include <machine/smp.h>
