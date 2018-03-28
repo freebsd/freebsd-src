@@ -386,10 +386,22 @@ ukbd_any_key_pressed(struct ukbd_softc *sc)
 static void
 ukbd_start_timer(struct ukbd_softc *sc)
 {
-	sbintime_t delay, prec;
+	sbintime_t delay, now, prec;
 
+	now = sbinuptime();
+
+	/* check if initial delay passed and fallback to key repeat delay */
+	if (sc->sc_delay == 0)
+		sc->sc_delay = sc->sc_kbd.kb_delay2;
+
+	/* compute timeout */
 	delay = SBT_1MS * sc->sc_delay;
 	sc->sc_co_basetime += delay;
+
+	/* check if we are running behind */
+	if (sc->sc_co_basetime < now)
+		sc->sc_co_basetime = now;
+
 	/* This is rarely called, so prefer precision to efficiency. */
 	prec = qmin(delay >> 7, SBT_1MS * 10);
 	usb_callout_reset_sbt(&sc->sc_callout, sc->sc_co_basetime, prec,
@@ -510,7 +522,6 @@ ukbd_get_key(struct ukbd_softc *sc, uint8_t wait)
 static void
 ukbd_interrupt(struct ukbd_softc *sc)
 {
-	struct timeval ctv;
 	uint32_t n_mod;
 	uint32_t o_mod;
 	uint32_t now = sc->sc_time_ms;
@@ -580,14 +591,11 @@ rfound:	;
 				break;
 			}
 		}
-		if (j < UKBD_NKEYCODE) {
-			/* Old key repeating. */
-			sc->sc_delay = sc->sc_kbd.kb_delay2;
-		} else {
-			/* New key. */
-			microuptime(&ctv);
-			sc->sc_co_basetime = tvtosbt(ctv);
+		if (j == UKBD_NKEYCODE) {
+			/* New key - set initial delay and [re]start timer */
+			sc->sc_co_basetime = sbinuptime();
 			sc->sc_delay = sc->sc_kbd.kb_delay1;
+			ukbd_start_timer(sc);
 		}
 		ukbd_put_key(sc, key | KEY_PRESS);
 
@@ -837,10 +845,6 @@ ukbd_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		}
 
 		ukbd_interrupt(sc);
-
-		if (ukbd_any_key_pressed(sc) != 0) {
-			ukbd_start_timer(sc);
-		}
 
 	case USB_ST_SETUP:
 tr_setup:
