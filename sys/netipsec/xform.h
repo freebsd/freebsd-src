@@ -76,6 +76,7 @@ struct xform_data {
 	int			protoff;	/* current protocol offset */
 	int			skip;		/* data offset */
 	uint8_t			nxt;		/* next protocol, e.g. IPV4 */
+	struct vnet		*vnet;
 };
 
 #define	XF_IP4		1	/* unused */
