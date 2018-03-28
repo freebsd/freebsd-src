@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2017 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -57,6 +57,7 @@ uberblock_update(uberblock_t *ub, vdev_t *rvd, uint64_t txg)
 	ub->ub_guid_sum = rvd->vdev_guid_sum;
 	ub->ub_timestamp = gethrestime_sec();
 	ub->ub_software_version = SPA_VERSION;
+	ub->ub_checkpoint_txg = 0;
 
 	return (ub->ub_rootbp.blk_birth == txg);
 }
