@@ -1848,10 +1848,10 @@ sdp_pcblist(SYSCTL_HANDLER_ARGS)
 		xt.xt_inp.inp_lport = ssk->lport;
 		memcpy(&xt.xt_inp.inp_faddr, &ssk->faddr, sizeof(ssk->faddr));
 		xt.xt_inp.inp_fport = ssk->fport;
-		xt.t_state = ssk->state;
+		xt.xt_tp.t_state = ssk->state;
 		if (ssk->socket != NULL)
-			sotoxsocket(ssk->socket, &xt.xt_inp.xi_socket);
-		xt.xt_inp.xi_socket.xso_protocol = IPPROTO_TCP;
+			sotoxsocket(ssk->socket, &xt.xt_socket);
+		xt.xt_socket.xso_protocol = IPPROTO_TCP;
 		SDP_RUNLOCK(ssk);
 		error = SYSCTL_OUT(req, &xt, sizeof xt);
 		if (error)
