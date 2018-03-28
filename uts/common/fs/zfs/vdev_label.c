@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2018 by Delphix. All rights reserved.
  */
 
 /*
@@ -209,6 +209,37 @@ vdev_label_write(zio_t *zio, vdev_t *vd, int l, abd_t *buf, uint64_t offset,
 	    ZIO_PRIORITY_SYNC_WRITE, flags, B_TRUE));
 }
 
+static void
+root_vdev_actions_getprogress(vdev_t *vd, nvlist_t *nvl)
+{
+	spa_t *spa = vd->vdev_spa;
+
+	if (vd != spa->spa_root_vdev)
+		return;
+
+	/* provide either current or previous scan information */
+	pool_scan_stat_t ps;
+	if (spa_scan_get_stats(spa, &ps) == 0) {
+		fnvlist_add_uint64_array(nvl,
+		    ZPOOL_CONFIG_SCAN_STATS, (uint64_t *)&ps,
+		    sizeof (pool_scan_stat_t) / sizeof (uint64_t));
+	}
+
+	pool_removal_stat_t prs;
+	if (spa_removal_get_stats(spa, &prs) == 0) {
+		fnvlist_add_uint64_array(nvl,
+		    ZPOOL_CONFIG_REMOVAL_STATS, (uint64_t *)&prs,
+		    sizeof (prs) / sizeof (uint64_t));
+	}
+
+	pool_checkpoint_stat_t pcs;
+	if (spa_checkpoint_get_stats(spa, &pcs) == 0) {
+		fnvlist_add_uint64_array(nvl,
+		    ZPOOL_CONFIG_CHECKPOINT_STATS, (uint64_t *)&pcs,
+		    sizeof (pcs) / sizeof (uint64_t));
+	}
+}
+
 /*
  * Generate the nvlist representing this vdev's config.
  */
@@ -331,20 +362,7 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 		fnvlist_add_uint64_array(nv, ZPOOL_CONFIG_VDEV_STATS,
 		    (uint64_t *)&vs, sizeof (vs) / sizeof (uint64_t));
 
-		/* provide either current or previous scan information */
-		pool_scan_stat_t ps;
-		if (spa_scan_get_stats(spa, &ps) == 0) {
-			fnvlist_add_uint64_array(nv,
-			    ZPOOL_CONFIG_SCAN_STATS, (uint64_t *)&ps,
-			    sizeof (pool_scan_stat_t) / sizeof (uint64_t));
-		}
-
-		pool_removal_stat_t prs;
-		if (spa_removal_get_stats(spa, &prs) == 0) {
-			fnvlist_add_uint64_array(nv,
-			    ZPOOL_CONFIG_REMOVAL_STATS, (uint64_t *)&prs,
-			    sizeof (prs) / sizeof (uint64_t));
-		}
+		root_vdev_actions_getprogress(vd, nv);
 
 		/*
 		 * Note: this can be called from open context
@@ -1291,11 +1309,10 @@ vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg)
 {
 	spa_t *spa = svd[0]->vdev_spa;
 	uberblock_t *ub = &spa->spa_uberblock;
-	vdev_t *vd;
-	zio_t *zio;
 	int error = 0;
 	int flags = ZIO_FLAG_CONFIG_WRITER | ZIO_FLAG_CANFAIL;
 
+	ASSERT(svdcount != 0);
 retry:
 	/*
 	 * Normally, we don't want to try too hard to write every label and
@@ -1334,9 +1351,10 @@ retry:
 	 * written in this txg will be committed to stable storage
 	 * before any uberblock that references them.
 	 */
-	zio = zio_root(spa, NULL, NULL, flags);
+	zio_t *zio = zio_root(spa, NULL, NULL, flags);
 
-	for (vd = txg_list_head(&spa->spa_vdev_txg_list, TXG_CLEAN(txg)); vd;
+	for (vdev_t *vd =
+	    txg_list_head(&spa->spa_vdev_txg_list, TXG_CLEAN(txg)); vd != NULL;
 	    vd = txg_list_next(&spa->spa_vdev_txg_list, vd, TXG_CLEAN(txg)))
 		zio_flush(zio, vd);
 
@@ -1351,8 +1369,14 @@ retry:
 	 * the new labels to disk to ensure that all even-label updates
 	 * are committed to stable storage before the uberblock update.
 	 */
-	if ((error = vdev_label_sync_list(spa, 0, txg, flags)) != 0)
+	if ((error = vdev_label_sync_list(spa, 0, txg, flags)) != 0) {
+		if ((flags & ZIO_FLAG_TRYHARD) != 0) {
+			zfs_dbgmsg("vdev_label_sync_list() returned error %d "
+			    "for pool '%s' when syncing out the even labels "
+			    "of dirty vdevs", error, spa_name(spa));
+		}
 		goto retry;
+	}
 
 	/*
 	 * Sync the uberblocks to all vdevs in svd[].
@@ -1369,8 +1393,13 @@ retry:
 	 *	been successfully committed) will be valid with respect
 	 *	to the new uberblocks.
 	 */
-	if ((error = vdev_uberblock_sync_list(svd, svdcount, ub, flags)) != 0)
+	if ((error = vdev_uberblock_sync_list(svd, svdcount, ub, flags)) != 0) {
+		if ((flags & ZIO_FLAG_TRYHARD) != 0) {
+			zfs_dbgmsg("vdev_uberblock_sync_list() returned error "
+			    "%d for pool '%s'", error, spa_name(spa));
+		}
 		goto retry;
+	}
 
 	/*
 	 * Sync out odd labels for every dirty vdev.  If the system dies
@@ -1382,8 +1411,14 @@ retry:
 	 * to disk to ensure that all odd-label updates are committed to
 	 * stable storage before the next transaction group begins.
 	 */
-	if ((error = vdev_label_sync_list(spa, 1, txg, flags)) != 0)
+	if ((error = vdev_label_sync_list(spa, 1, txg, flags)) != 0) {
+		if ((flags & ZIO_FLAG_TRYHARD) != 0) {
+			zfs_dbgmsg("vdev_label_sync_list() returned error %d "
+			    "for pool '%s' when syncing out the odd labels of "
+			    "dirty vdevs", error, spa_name(spa));
+		}
 		goto retry;
+	}
 
 	return (0);
 }

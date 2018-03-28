@@ -110,6 +110,12 @@ int zfs_remove_max_copy_bytes = 8 * 1024 * 1024;
  */
 int zfs_remove_max_segment = 1024 * 1024;
 
+/*
+ * This is used by the test suite so that it can ensure that certain
+ * actions happen while in the middle of a removal.
+ */
+uint64_t zfs_remove_max_bytes_pause = UINT64_MAX;
+
 #define	VDEV_REMOVAL_ZAP_OBJS	"lzap"
 
 static void spa_vdev_remove_thread(void *arg);
@@ -278,11 +284,11 @@ vdev_remove_initiate_sync(void *arg, dmu_tx_t *tx)
 		 * be copied.
 		 */
 		spa->spa_removing_phys.sr_to_copy -=
-		    range_tree_space(ms->ms_freeingtree);
+		    range_tree_space(ms->ms_freeing);
 
-		ASSERT0(range_tree_space(ms->ms_freedtree));
+		ASSERT0(range_tree_space(ms->ms_freed));
 		for (int t = 0; t < TXG_SIZE; t++)
-			ASSERT0(range_tree_space(ms->ms_alloctree[t]));
+			ASSERT0(range_tree_space(ms->ms_allocating[t]));
 	}
 
 	/*
@@ -462,19 +468,18 @@ spa_restart_removal(spa_t *spa)
  * and we correctly free already-copied data.
  */
 void
-free_from_removing_vdev(vdev_t *vd, uint64_t offset, uint64_t size,
-    uint64_t txg)
+free_from_removing_vdev(vdev_t *vd, uint64_t offset, uint64_t size)
 {
 	spa_t *spa = vd->vdev_spa;
 	spa_vdev_removal_t *svr = spa->spa_vdev_removal;
 	vdev_indirect_mapping_t *vim = vd->vdev_indirect_mapping;
+	uint64_t txg = spa_syncing_txg(spa);
 	uint64_t max_offset_yet = 0;
 
 	ASSERT(vd->vdev_indirect_config.vic_mapping_object != 0);
 	ASSERT3U(vd->vdev_indirect_config.vic_mapping_object, ==,
 	    vdev_indirect_mapping_object(vim));
 	ASSERT3P(vd, ==, svr->svr_vdev);
-	ASSERT3U(spa_syncing_txg(spa), ==, txg);
 
 	mutex_enter(&svr->svr_lock);
 
@@ -489,8 +494,13 @@ free_from_removing_vdev(vdev_t *vd, uint64_t offset, uint64_t size,
 	 * held, so that the remove_thread can not load this metaslab and then
 	 * visit this offset between the time that we metaslab_free_concrete()
 	 * and when we check to see if it has been visited.
+	 *
+	 * Note: The checkpoint flag is set to false as having/taking
+	 * a checkpoint and removing a device can't happen at the same
+	 * time.
 	 */
-	metaslab_free_concrete(vd, offset, size, txg);
+	ASSERT(!spa_has_checkpoint(spa));
+	metaslab_free_concrete(vd, offset, size, B_FALSE);
 
 	uint64_t synced_size = 0;
 	uint64_t synced_offset = 0;
@@ -622,16 +632,17 @@ free_from_removing_vdev(vdev_t *vd, uint64_t offset, uint64_t size,
 	 * of this free.
 	 */
 	if (synced_size > 0) {
-		vdev_indirect_mark_obsolete(vd, synced_offset, synced_size,
-		    txg);
+		vdev_indirect_mark_obsolete(vd, synced_offset, synced_size);
+
 		/*
 		 * Note: this can only be called from syncing context,
 		 * and the vdev_indirect_mapping is only changed from the
 		 * sync thread, so we don't need svr_lock while doing
 		 * metaslab_free_impl_cb.
 		 */
+		boolean_t checkpoint = B_FALSE;
 		vdev_indirect_ops.vdev_op_remap(vd, synced_offset, synced_size,
-		    metaslab_free_impl_cb, &txg);
+		    metaslab_free_impl_cb, &checkpoint);
 	}
 }
 
@@ -678,10 +689,10 @@ static void
 free_mapped_segment_cb(void *arg, uint64_t offset, uint64_t size)
 {
 	vdev_t *vd = arg;
-	vdev_indirect_mark_obsolete(vd, offset, size,
-	    vd->vdev_spa->spa_syncing_txg);
+	vdev_indirect_mark_obsolete(vd, offset, size);
+	boolean_t checkpoint = B_FALSE;
 	vdev_indirect_ops.vdev_op_remap(vd, offset, size,
-	    metaslab_free_impl_cb, &vd->vdev_spa->spa_syncing_txg);
+	    metaslab_free_impl_cb, &checkpoint);
 }
 
 /*
@@ -1198,7 +1209,7 @@ spa_vdev_remove_thread(void *arg)
 		 * Assert nothing in flight -- ms_*tree is empty.
 		 */
 		for (int i = 0; i < TXG_SIZE; i++) {
-			ASSERT0(range_tree_space(msp->ms_alloctree[i]));
+			ASSERT0(range_tree_space(msp->ms_allocating[i]));
 		}
 
 		/*
@@ -1228,7 +1239,7 @@ spa_vdev_remove_thread(void *arg)
 			    SM_ALLOC));
 			space_map_close(sm);
 
-			range_tree_walk(msp->ms_freeingtree,
+			range_tree_walk(msp->ms_freeing,
 			    range_tree_remove, svr->svr_allocd_segs);
 
 			/*
@@ -1247,9 +1258,22 @@ spa_vdev_remove_thread(void *arg)
 		    msp->ms_id);
 
 		while (!svr->svr_thread_exit &&
-		    range_tree_space(svr->svr_allocd_segs) != 0) {
+		    !range_tree_is_empty(svr->svr_allocd_segs)) {
 
 			mutex_exit(&svr->svr_lock);
+
+			/*
+			 * This delay will pause the removal around the point
+			 * specified by zfs_remove_max_bytes_pause. We do this
+			 * solely from the test suite or during debugging.
+			 */
+			uint64_t bytes_copied =
+			    spa->spa_removing_phys.sr_copied;
+			for (int i = 0; i < TXG_SIZE; i++)
+				bytes_copied += svr->svr_bytes_done[i];
+			while (zfs_remove_max_bytes_pause <= bytes_copied &&
+			    !svr->svr_thread_exit)
+				delay(hz);
 
 			mutex_enter(&vca.vca_lock);
 			while (vca.vca_outstanding_bytes >
@@ -1380,10 +1404,10 @@ spa_vdev_remove_cancel_sync(void *arg, dmu_tx_t *tx)
 		 * Assert nothing in flight -- ms_*tree is empty.
 		 */
 		for (int i = 0; i < TXG_SIZE; i++)
-			ASSERT0(range_tree_space(msp->ms_alloctree[i]));
+			ASSERT0(range_tree_space(msp->ms_allocating[i]));
 		for (int i = 0; i < TXG_DEFER_SIZE; i++)
-			ASSERT0(range_tree_space(msp->ms_defertree[i]));
-		ASSERT0(range_tree_space(msp->ms_freedtree));
+			ASSERT0(range_tree_space(msp->ms_defer[i]));
+		ASSERT0(range_tree_space(msp->ms_freed));
 
 		if (msp->ms_sm != NULL) {
 			/*
@@ -1399,7 +1423,7 @@ spa_vdev_remove_cancel_sync(void *arg, dmu_tx_t *tx)
 			mutex_enter(&svr->svr_lock);
 			VERIFY0(space_map_load(msp->ms_sm,
 			    svr->svr_allocd_segs, SM_ALLOC));
-			range_tree_walk(msp->ms_freeingtree,
+			range_tree_walk(msp->ms_freeing,
 			    range_tree_remove, svr->svr_allocd_segs);
 
 			/*
@@ -1472,7 +1496,8 @@ spa_vdev_remove_cancel(spa_t *spa)
 	uint64_t vdid = spa->spa_vdev_removal->svr_vdev->vdev_id;
 
 	int error = dsl_sync_task(spa->spa_name, spa_vdev_remove_cancel_check,
-	    spa_vdev_remove_cancel_sync, NULL, 0, ZFS_SPACE_CHECK_NONE);
+	    spa_vdev_remove_cancel_sync, NULL, 0,
+	    ZFS_SPACE_CHECK_EXTRA_RESERVED);
 
 	if (error == 0) {
 		spa_config_enter(spa, SCL_ALLOC | SCL_VDEV, FTAG, RW_WRITER);
@@ -1809,6 +1834,17 @@ spa_vdev_remove(spa_t *spa, uint64_t guid, boolean_t unspare)
 
 	if (!locked)
 		txg = spa_vdev_enter(spa);
+
+	ASSERT(MUTEX_HELD(&spa_namespace_lock));
+	if (spa_feature_is_active(spa, SPA_FEATURE_POOL_CHECKPOINT)) {
+		error = (spa_has_checkpoint(spa)) ?
+		    ZFS_ERR_CHECKPOINT_EXISTS : ZFS_ERR_DISCARDING_CHECKPOINT;
+
+		if (!locked)
+			return (spa_vdev_exit(spa, NULL, txg, error));
+
+		return (error);
+	}
 
 	vd = spa_lookup_by_guid(spa, guid, B_FALSE);
 
