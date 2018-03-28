@@ -687,6 +687,23 @@ cd /usr/src/release
 sh release.sh -c $HOME/release.conf
 .Ed
 .Pp
+Configuration files specific to various supported embedded systems, such as
+the Raspberry Pi, exist in the directory corresponding to the
+.Va TARGET
+.Xr make 1
+variable.
+For example, to build an image for the Raspberry Pi:
+.Bd -literal -offset indent
+cd /usr/src/release
+sh release.sh -c arm/RPI-B.conf
+.Ed
+.Pp
+To build an image for the Raspberry Pi 3:
+.Bd -literal -offset indent
+cd /usr/src/release
+sh release.sh -c arm64/RPI3.conf
+.Ed
+.Pp
 After running these commands, all prepared release files are available in the
 .Pa /scratch
 directory.
