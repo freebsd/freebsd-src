@@ -275,7 +275,6 @@ found:
 	case IFT_ETHER:
 	case IFT_L2VLAN:
 	case IFT_FDDI:
-	case IFT_ISO88025:
 	case IFT_ATM:
 	case IFT_IEEE1394:
 		/* IEEE802/EUI64 cases - what others? */
