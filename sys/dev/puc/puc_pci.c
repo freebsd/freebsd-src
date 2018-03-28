@@ -198,3 +198,5 @@ static driver_t puc_pci_driver = {
 };
 
 DRIVER_MODULE(puc, pci, puc_pci_driver, puc_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, puc, puc_pci_devices,
+		sizeof(puc_pci_devices[0]), nitems(puc_pci_devices) - 1);
