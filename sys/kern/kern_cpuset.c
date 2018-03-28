@@ -1363,6 +1363,7 @@ cpuset_thread0(void)
 {
 	struct cpuset *set;
 	int error;
+	int i;
 
 	cpuset_zone = uma_zcreate("cpuset", sizeof(struct cpuset), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
@@ -1374,11 +1375,11 @@ cpuset_thread0(void)
 	 * cpuset_create() due to NULL parent.
 	 */
 	set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
-	CPU_FILL(&set->cs_mask);
+	CPU_COPY(&all_cpus, &set->cs_mask);
 	LIST_INIT(&set->cs_children);
 	LIST_INSERT_HEAD(&cpuset_ids, set, cs_link);
 	set->cs_ref = 1;
-	set->cs_flags = CPU_SET_ROOT;
+	set->cs_flags = CPU_SET_ROOT | CPU_SET_RDONLY;
 	set->cs_domain = &domainset0;
 	cpuset_zero = set;
 	cpuset_root = &set->cs_mask;
@@ -1395,6 +1396,16 @@ cpuset_thread0(void)
 	 * Initialize the unit allocator. 0 and 1 are allocated above.
 	 */
 	cpuset_unr = new_unrhdr(2, INT_MAX, NULL);
+
+	/*
+	 * If MD code has not initialized per-domain cpusets, place all
+	 * CPUs in domain 0.
+	 */
+	for (i = 0; i < MAXMEMDOM; i++)
+		if (!CPU_EMPTY(&cpuset_domain[i]))
+			goto domains_set;
+	CPU_COPY(&all_cpus, &cpuset_domain[0]);
+domains_set:
 
 	return (set);
 }
@@ -1446,34 +1457,6 @@ cpuset_setproc_update_set(struct proc *p, struct cpuset *set)
 	cpuset_rel(set);
 	return (0);
 }
-
-/*
- * This is called once the final set of system cpus is known.  Modifies
- * the root set and all children and mark the root read-only.  
- */
-static void
-cpuset_init(void *arg)
-{
-	cpuset_t mask;
-	int i;
-
-	mask = all_cpus;
-	if (cpuset_modify(cpuset_zero, &mask))
-		panic("Can't set initial cpuset mask.\n");
-	cpuset_zero->cs_flags |= CPU_SET_RDONLY;
-
-	/*
-	 * If MD code has not initialized per-domain cpusets, place all
-	 * CPUs in domain 0.
-	 */
-	for (i = 0; i < MAXMEMDOM; i++)
-		if (!CPU_EMPTY(&cpuset_domain[i]))
-			goto domains_set;
-	CPU_COPY(&all_cpus, &cpuset_domain[0]);
-domains_set:
-	return;
-}
-SYSINIT(cpuset, SI_SUB_SMP, SI_ORDER_ANY, cpuset_init, NULL);
 
 #ifndef _SYS_SYSPROTO_H_
 struct cpuset_args {
