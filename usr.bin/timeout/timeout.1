@@ -1,3 +1,5 @@
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
 .\" Copyright (c) 2014 Baptiste Daroussin <bapt@FreeBSD.org>
 .\" All rights reserved.
 .\"
@@ -24,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 20, 2017
+.Dd March 28, 2018
 .Dt TIMEOUT 1
 .Os
 .Sh NAME
@@ -36,40 +38,47 @@
 .Op Fl -preserve-status
 .Op Fl -kill-after Ar time | Fl k Ar time
 .Op Fl -foreground
-.Ao Ar duration Ac
-.Ao Ar command Ac
-.Ao Ar args ... Ac
+.Ar duration
+.Ar command
+.Op Ar args ...
 .Sh DESCRIPTION
 .Nm
 starts the
 .Ar command
 with its
-.Ar args.
-If
+.Ar args .
+If the
 .Ar command
 is still running after
 .Ar duration ,
 it is killed.
 By default,
-.Ar SIGTERM.
+.Dv SIGTERM
 is sent.
-.Bl -tag -width "-k time, --kill-after time"
+The special
+.Ar duration ,
+zero, signifies no limit.
+Therefore a signal is never sent if
+.Ar duration
+is 0.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
 .It Fl -preserve-status
-Always exits with the same status as
-.Ar command
-even if it times out.
+Exit with the same status as
+.Ar command ,
+even if it times out and is killed.
 .It Fl -foreground
-Do not propagate timeout to the
-.Ar command
-children.
+Do not propagate timeout to the children of
+.Ar command .
 .It Fl s Ar sig , Fl -signal Ar sig
 Specify the signal to send on timeout.
 By default,
-.Ar SIGTERM .
+.Dv SIGTERM
 is sent.
 .It Fl k Ar time , Fl -kill-after Ar time
 Send a
-.Ar SIGKILL
+.Dv SIGKILL
 signal if
 .Ar command
 is still running after
@@ -80,18 +89,19 @@ after the first signal was sent.
 .Ar duration
 and
 .Ar time
-can be integer or decimal numbers.
-Values without unit symbols are interpreted as seconds.
+are non-negative integer or real (decimal) numbers, with an optional
+unit-specifying suffix.
+Values without an explicit unit are interpreted as seconds.
 .Pp
 Supported unit symbols are:
 .Bl -tag -width indent -compact
-.It s
+.It Cm s
 seconds
-.It m
+.It Cm m
 minutes
-.It h
+.It Cm h
 hours
-.It d
+.It Cm d
 days
 .El
 .Sh EXIT STATUS
@@ -115,17 +125,17 @@ plus 128.
 .Pp
 If
 .Ar command
-is an invalid command, the exit status returned is 126.
+refers to a non-existing program, the exit status returned is 127.
 .Pp
 If
 .Ar command
-is a non existing command, the exit status returned is 127.
+is an otherwise invalid program, the exit status returned is 126.
 .Pp
 If an invalid parameter is passed to
 .Fl s
 or
 .Fl k ,
-the exit status return is 125.
+the exit status returned is 125.
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr signal 3
