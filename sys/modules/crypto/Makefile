@@ -10,6 +10,7 @@
 .PATH:	${SRCTOP}/sys/crypto/siphash
 .PATH:	${SRCTOP}/sys/crypto/skein
 .PATH:	${SRCTOP}/sys/crypto/blake2
+.PATH:	${SRCTOP}/sys/crypto/chacha20
 .PATH:	${SRCTOP}/sys/contrib/libb2
 
 KMOD	= crypto
@@ -41,6 +42,8 @@ CFLAGS.blake2s-ref.c	+= -I${SRCTOP}/sys/crypto/blake2 -DSUFFIX=_ref
 CFLAGS.blake2-sw.c	+= -I${SRCTOP}/sys/crypto/blake2
 CWARNFLAGS.blake2b-ref.c	+= ${NO_WCAST_QUAL}
 CWARNFLAGS.blake2s-ref.c	+= ${NO_WCAST_QUAL}
+SRCS	+= chacha.c
+SRCS	+= chacha-sw.c
 SRCS	+= opt_param.h cryptodev_if.h bus_if.h device_if.h
 SRCS	+= opt_ddb.h
 
