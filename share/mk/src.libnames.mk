@@ -87,6 +87,7 @@ _LIBRARIES=	\
 		devinfo \
 		devstat \
 		dialog \
+		dl \
 		dpv \
 		dtrace \
 		dwarf \

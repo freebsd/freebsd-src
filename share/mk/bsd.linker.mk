@@ -70,6 +70,9 @@ ${X_}LINKER_FEATURES=
 .if ${${X_}LINKER_TYPE} != "bfd" || ${${X_}LINKER_VERSION} > 21750
 ${X_}LINKER_FEATURES+=	build-id
 .endif
+.if ${${X_}LINKER_TYPE} == "bfd"
+${X_}LINKER_FEATURES+=	filter
+.endif
 .endif
 .else
 # Use LD's values
