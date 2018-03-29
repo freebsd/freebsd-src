@@ -1,8 +1,6 @@
 /* $NetBSD: atomic.h,v 1.1 2002/10/19 12:22:34 bsh Exp $ */
 
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
  * Copyright (C) 2003-2004 Olivier Houchard
  * Copyright (C) 1994-1997 Mark Brinicombe
  * Copyright (C) 1994 Brini

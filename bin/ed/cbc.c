@@ -1,7 +1,5 @@
 /* cbc.c: This file contains the encryption routines for the ed line editor */
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1993 The Regents of the University of California.
  * All rights reserved.
  *

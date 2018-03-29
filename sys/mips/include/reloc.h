@@ -1,6 +1,4 @@
 /*
- * SPDX-License-Identifier: BSD-4-Clause
- *
  * Copyright (c) 1998 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *

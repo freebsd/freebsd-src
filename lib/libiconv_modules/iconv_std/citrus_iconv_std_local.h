@@ -2,8 +2,6 @@
 /*	$NetBSD: citrus_iconv_std_local.h,v 1.2 2003/07/01 09:42:16 tshiozak Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause
- *
  * Copyright (c)2003 Citrus Project,
  * All rights reserved.
  *

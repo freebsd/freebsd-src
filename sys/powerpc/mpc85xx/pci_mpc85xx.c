@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright 2006-2007 by Juniper Networks.
  * Copyright 2008 Semihalf.
  * Copyright 2010 The FreeBSD Foundation

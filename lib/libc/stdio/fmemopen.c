@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (C) 2013 Pietro Cerutti <gahr@FreeBSD.org>
  * 
  * Redistribution and use in source and binary forms, with or without

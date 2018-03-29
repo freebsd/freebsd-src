@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
  * Copyright (c) 2002
  *	M Warner Losh <imp@freebsd.org>.  All rights reserved.
  * Copyright (c) 1997, 1998, 1999

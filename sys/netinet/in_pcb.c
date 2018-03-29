@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1982, 1986, 1991, 1993, 1995
  *	The Regents of the University of California.
  * Copyright (c) 2007-2009 Robert N. M. Watson

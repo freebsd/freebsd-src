@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright 2017 Nexenta Systems, Inc.
  * Copyright (c) 2002 Tim J. Robbins
  * All rights reserved.

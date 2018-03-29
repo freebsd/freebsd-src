@@ -20,8 +20,6 @@
  *   ** This board has been sold by SIIG as the i540 SpeedMaster.
  *  *** This board has been sold by SIIG as the i542 SpeedMaster.
  *
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 1996, 1997 Justin T. Gibbs.
  * All rights reserved.
  *

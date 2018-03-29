@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
+/*
  * Copyright (c) 2005 Apple Computer, Inc.
  * All rights reserved.
  *

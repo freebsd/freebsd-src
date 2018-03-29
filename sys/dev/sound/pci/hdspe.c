@@ -1,7 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
- * Copyright (c) 2012-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2012 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,15 +87,11 @@ static struct hdspe_channel chan_map_rd[] = {
 static void
 hdspe_intr(void *p)
 {
+	struct sc_info *sc = (struct sc_info *)p;
 	struct sc_pcminfo *scp;
-	struct sc_info *sc;
 	device_t *devlist;
-	int devcount;
-	int status;
-	int err;
-	int i;
-
-	sc = (struct sc_info *)p;
+	int devcount, status;
+	int i, err;
 
 	snd_mtxlock(sc->lock);
 
@@ -122,11 +116,8 @@ hdspe_intr(void *p)
 static void
 hdspe_dmapsetmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-	struct sc_info *sc;
-
-	sc = (struct sc_info *)arg;
-
 #if 0
+	struct sc_info *sc = (struct sc_info *)arg;
 	device_printf(sc->dev, "hdspe_dmapsetmap()\n");
 #endif
 }
@@ -144,9 +135,9 @@ hdspe_alloc_resources(struct sc_info *sc)
 		device_printf(sc->dev, "Unable to map SYS_RES_MEMORY.\n");
 		return (ENXIO);
 	}
-
 	sc->cst = rman_get_bustag(sc->cs);
 	sc->csh = rman_get_bushandle(sc->cs);
+
 
 	/* Allocate interrupt resource. */
 	sc->irqid = 0;
@@ -216,7 +207,7 @@ hdspe_alloc_resources(struct sc_info *sc)
 static void
 hdspe_map_dmabuf(struct sc_info *sc)
 {
-	uint32_t paddr, raddr;
+	uint32_t paddr,raddr;
 	int i;
 
 	paddr = vtophys(sc->pbuf);
@@ -241,10 +232,10 @@ hdspe_probe(device_t dev)
 		switch (rev) {
 		case PCI_REVISION_AIO:
 			device_set_desc(dev, "RME HDSPe AIO");
-			return (0);
+			return 0;
 		case PCI_REVISION_RAYDAT:
 			device_set_desc(dev, "RME HDSPe RayDAT");
-			return (0);
+			return 0;
 		}
 	}
 
@@ -286,15 +277,15 @@ hdspe_init(struct sc_info *sc)
 	sc->settings_register = 0;
 	hdspe_write_4(sc, HDSPE_SETTINGS_REG, sc->settings_register);
 
-	return (0);
+	return 0;
 }
 
 static int
 hdspe_attach(device_t dev)
 {
-	struct hdspe_channel *chan_map;
-	struct sc_pcminfo *scp;
 	struct sc_info *sc;
+	struct sc_pcminfo *scp;
+	struct hdspe_channel *chan_map;
 	uint32_t rev;
 	int i, err;
 
@@ -319,18 +310,18 @@ hdspe_attach(device_t dev)
 		chan_map = chan_map_rd;
 		break;
 	default:
-		return (ENXIO);
+		return ENXIO;
 	}
 
 	/* Allocate resources. */
 	err = hdspe_alloc_resources(sc);
 	if (err) {
 		device_printf(dev, "Unable to allocate system resources.\n");
-		return (ENXIO);
+		return ENXIO;
 	}
 
 	if (hdspe_init(sc) != 0)
-		return (ENXIO);
+		return ENXIO;
 
 	for (i = 0; i < HDSPE_MAX_CHANS && chan_map[i].descr != NULL; i++) {
 		scp = malloc(sizeof(struct sc_pcminfo), M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -365,7 +356,7 @@ hdspe_detach(device_t dev)
 	sc = device_get_softc(dev);
 	if (sc == NULL) {
 		device_printf(dev,"Can't detach: softc is null.\n");
-		return (0);
+		return 0;
 	}
 
 	err = device_delete_children(dev);
@@ -385,7 +376,7 @@ hdspe_detach(device_t dev)
 	if (sc->lock)
 		snd_mtxfree(sc->lock);
 
-	return (0);
+	return 0;
 }
 
 static device_method_t hdspe_methods[] = {

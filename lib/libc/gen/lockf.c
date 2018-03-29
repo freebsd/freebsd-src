@@ -1,7 +1,5 @@
 /*	$NetBSD: lockf.c,v 1.3 2008/04/28 20:22:59 martin Exp $	*/
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
- *
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

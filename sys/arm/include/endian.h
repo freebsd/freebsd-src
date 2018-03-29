@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2001 David E. O'Brien
  *
  * Redistribution and use in source and binary forms, with or without

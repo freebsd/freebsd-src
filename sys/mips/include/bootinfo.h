@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
  * Copyright (c) 2013 Robert N. M. Watson
  * Copyright (C) 1994 by Rodney W. Grimes, Milwaukie, Oregon  97222
  * All rights reserved.

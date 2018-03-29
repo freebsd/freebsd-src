@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *

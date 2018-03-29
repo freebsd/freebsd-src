@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause
- *
  * Copyright (c)1999 Citrus Project,
  * All rights reserved.
  *

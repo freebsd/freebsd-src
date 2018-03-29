@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2007 Robert N. M. Watson
  * Copyright (c) 2009 Ulf Lilleengen
  * All rights reserved.

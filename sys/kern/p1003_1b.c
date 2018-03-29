@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
  * Copyright (c) 1996, 1997, 1998
  *	HD Associates, Inc.  All rights reserved.
  *

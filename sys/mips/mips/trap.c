@@ -1,8 +1,6 @@
 /*	$OpenBSD: trap.c,v 1.19 1998/09/30 12:40:41 pefo Exp $	*/
 /* tracked to 1.23 */
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.

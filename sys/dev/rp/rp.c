@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
  * Copyright (c) Comtrol Corporation <support@comtrol.com>
  * All rights reserved.
  *

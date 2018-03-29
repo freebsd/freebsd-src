@@ -1,8 +1,6 @@
 /*	$KAME: ip6addrctl.c,v 1.3 2003/12/16 08:14:28 suz Exp $	*/
 
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
+/*
  * Copyright (C) 2001 WIDE Project.
  * All rights reserved.
  *

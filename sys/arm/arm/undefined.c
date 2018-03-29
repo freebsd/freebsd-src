@@ -1,8 +1,6 @@
 /*	$NetBSD: undefined.c,v 1.22 2003/11/29 22:21:29 bjh21 Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
  * Copyright (c) 2001 Ben Harris.
  * Copyright (c) 1995 Mark Brinicombe.
  * Copyright (c) 1995 Brini.

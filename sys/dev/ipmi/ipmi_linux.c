@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2009 IronPort Systems Inc. <ambrisko@ironport.com>
  * All rights reserved.
  *

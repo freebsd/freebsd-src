@@ -1,8 +1,6 @@
 /* $NetBSD: uart.c,v 1.2 2007/03/23 20:05:47 dogcow Exp $ */
 
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2007 Ruslan Ermilov and Vsevolod Lobko.
  * All rights reserved.
  *

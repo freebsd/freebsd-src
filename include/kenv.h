@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2002 Maxime Henrion <mux@FreeBSD.org>
  * All rights reserved.
  *

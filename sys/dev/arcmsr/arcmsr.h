@@ -8,8 +8,6 @@
 **                SATA/SAS RAID HOST Adapter
 ********************************************************************************
 ********************************************************************************
-** SPDX-License-Identifier: BSD-3-Clause
-**
 ** Copyright (C) 2002 - 2012, Areca Technology Corporation All rights reserved.
 **
 ** Redistribution and use in source and binary forms,with or without

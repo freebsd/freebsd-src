@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
- *
  * Copyright (c) 2013 The NetBSD Foundation, Inc.
  * Copyright (c) 2013 Andrew Turner
  * All rights reserved.

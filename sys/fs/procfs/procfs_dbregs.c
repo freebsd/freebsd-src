@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1999 Brian Scott Dean, brdean@unx.sas.com.
  *                    All rights reserved.
  *

@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
+/*
  * Copyright (c) 2001 Alfred Perlstein
  * Author: Alfred Perlstein <alfred@FreeBSD.org>
  * All rights reserved.

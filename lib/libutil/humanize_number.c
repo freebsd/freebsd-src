@@ -1,8 +1,6 @@
 /*	$NetBSD: humanize_number.c,v 1.14 2008/04/28 20:22:59 martin Exp $	*/
 
-/*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
+/*
  * Copyright (c) 1997, 1998, 1999, 2002 The NetBSD Foundation, Inc.
  * Copyright 2013 John-Mark Gurney <jmg@FreeBSD.org>
  * All rights reserved.

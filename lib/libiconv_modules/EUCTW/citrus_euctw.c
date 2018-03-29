@@ -2,8 +2,6 @@
 /*	$NetBSD: citrus_euctw.c,v 1.11 2008/06/14 16:01:07 tnozaki Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause
- *
  * Copyright (c)2002 Citrus Project,
  * All rights reserved.
  *

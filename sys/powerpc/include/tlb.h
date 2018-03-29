@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (C) 2006-2012 Semihalf.
  * All rights reserved.
  *

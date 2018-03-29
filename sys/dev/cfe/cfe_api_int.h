@@ -2,8 +2,6 @@
 /* from: SiByte Id: cfe_api_int.h,v 1.21 2002/07/09 23:29:11 cgd Exp $ */
 
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright 2000, 2001, 2002
  * Broadcom Corporation. All rights reserved.
  *

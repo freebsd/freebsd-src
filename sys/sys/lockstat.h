@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2008-2009 Stacey Son <sson@FreeBSD.org> 
  *
  * Redistribution and use in source and binary forms, with or without

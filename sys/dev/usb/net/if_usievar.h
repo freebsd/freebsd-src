@@ -2,8 +2,6 @@
 
 /*-
  * Copyright (c) 2011 Anybots Inc
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * written by Akinori Furukoshi <moonlightakkiy@yahoo.ca>
  *  - ucom part is based on u3g.c
  *

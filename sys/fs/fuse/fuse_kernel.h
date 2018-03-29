@@ -1,4 +1,4 @@
-/*--
+/*-
  * This file defines the kernel interface of FUSE
  * Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
  *

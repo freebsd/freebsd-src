@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2002, 2004 Networks Associates Technology, Inc.
  * All rights reserved.
  *

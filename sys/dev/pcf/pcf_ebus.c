@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2004 Marius Strobl, Joerg Wunsch
  *
  * derived from sys/i386/isa/pcf.c which is:

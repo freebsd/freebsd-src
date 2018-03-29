@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2002 Kyle Martin <mkm@ieee.org>
  * All rights reserved.
  *

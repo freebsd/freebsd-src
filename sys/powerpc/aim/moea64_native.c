@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND 4-Clause-BSD
- *
  * Copyright (c) 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

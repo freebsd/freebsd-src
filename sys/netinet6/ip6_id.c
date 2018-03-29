@@ -30,8 +30,6 @@
  */
 
 /*-
- * SPDX-License-Identifier: BSD-4-Clause AND BSD-3-Clause
- *
  * Copyright 1998 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *

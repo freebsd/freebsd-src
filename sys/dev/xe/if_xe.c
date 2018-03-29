@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-3-Clause
- *
  * Copyright (c) 1998, 1999, 2003  Scott Mitchell
  * All rights reserved.
  *

@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
+/*
  * Copyright (c) 2012, Qualcomm Atheros, Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms are permitted

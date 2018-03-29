@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
  * Copyright (c) 1994 Charles Hannum.
  * Copyright (c) 1994 Jarle Greipsland.
  * All rights reserved.

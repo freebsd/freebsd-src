@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright 2000 James Bloom
  * All rights reserved.
  * Based upon code Copyright 1998 Juniper Networks, Inc.

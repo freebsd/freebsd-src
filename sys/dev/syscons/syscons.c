@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1992-1998 Søren Schmidt
  * All rights reserved.
  *

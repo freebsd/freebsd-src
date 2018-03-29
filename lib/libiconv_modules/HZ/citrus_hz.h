@@ -2,8 +2,6 @@
 /* $NetBSD: citrus_hz.h,v 1.1 2006/11/22 23:38:27 tnozaki Exp $ */
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause
- *
  * Copyright (c)2004, 2006 Citrus Project,
  * All rights reserved.
  *

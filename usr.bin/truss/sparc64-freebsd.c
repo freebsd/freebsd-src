@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
+/*
  * Copyright 1998 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without

@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
+/*
  * Copyright (c) 2010
  *	Ben Gray <ben.r.gray@gmail.com>.
  * All rights reserved.

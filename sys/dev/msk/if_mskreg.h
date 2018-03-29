@@ -46,8 +46,6 @@
  ******************************************************************************/
 
 /*-
- * SPDX-License-Identifier: BSD-4-Clause AND BSD-3-Clause
- *
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *

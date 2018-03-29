@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
+/*
  * Copyright (c) 1994, 1995 Gordon W. Ross
  * Copyright (c) 1994 Theo de Raadt
  * All rights reserved.

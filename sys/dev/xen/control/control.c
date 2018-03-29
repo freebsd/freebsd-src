@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-4-Clause
- *
  * Copyright (c) 2010 Justin T. Gibbs, Spectra Logic Corporation
  * All rights reserved.
  *

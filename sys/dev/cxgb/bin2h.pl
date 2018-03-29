@@ -22,8 +22,6 @@ unless ($success) {
 my $license = <<END;
 /**************************************************************************
 
-SPDX-License-Identifier: BSD-2-Clause-FreeBSD
-
 Copyright (c) 2007-2009, Chelsio Inc.
 All rights reserved.
 

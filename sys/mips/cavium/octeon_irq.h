@@ -1,6 +1,4 @@
 /***********************license start***************
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
  * reserved.
  *

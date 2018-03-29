@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2005 Olivier Houchard
  * Copyright (c) 1989, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.

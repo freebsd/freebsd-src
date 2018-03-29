@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
+/*
  * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
  * Copyright (c) 2006 David Xu <davidxu@freebsd.org>.
  * Copyright (c) 2015, 2016 The FreeBSD Foundation

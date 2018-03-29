@@ -1,8 +1,6 @@
 /*	$NetBSD: ffs.c,v 1.45 2011/10/09 22:49:26 christos Exp $	*/
 
-/*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
+/*
  * Copyright (c) 2001 Wasabi Systems, Inc.
  * All rights reserved.
  *

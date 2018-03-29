@@ -1,6 +1,4 @@
 /*
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1998 Todd C. Miller <Todd.Miller@courtesan.com>
  * All rights reserved.
  *

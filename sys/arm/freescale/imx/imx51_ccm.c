@@ -1,7 +1,5 @@
 /*	$NetBSD: imx51_ccm.c,v 1.1 2012/04/17 09:33:31 bsh Exp $	*/
-/*-
- * SPDX-License-Identifier: BSD-2-Clause AND BSD-2-Clause-FreeBSD
- *
+/*
  * Copyright (c) 2010, 2011, 2012  Genetec Corporation.  All rights reserved.
  * Written by Hashimoto Kenichi for Genetec Corporation.
  *

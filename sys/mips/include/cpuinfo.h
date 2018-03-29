@@ -1,8 +1,6 @@
 /*	$NetBSD: cpu.h,v 1.70 2003/01/17 23:36:08 thorpej Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

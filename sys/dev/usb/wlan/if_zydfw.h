@@ -1,6 +1,4 @@
 /*
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (C) 2001, 2002, 2003,2004 ZyDAS Technology Corporation.
  * All rights reserved.
  *

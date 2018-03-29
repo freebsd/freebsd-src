@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright 2008 Nathan Whitehorn. All rights reserved.
  * Copyright 2003 by Peter Grehan. All rights reserved.
  * Copyright (C) 1998, 1999, 2000 Tsubai Masanari.  All rights reserved.

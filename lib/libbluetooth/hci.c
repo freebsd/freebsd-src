@@ -3,8 +3,6 @@
  */
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2009 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *

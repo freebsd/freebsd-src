@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
+/*
  * Copyright (c) 2007-2009 Google Inc. and Amit Singh
  * All rights reserved.
  *

@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
+/*
  * ++Copyright++ 1983, 1993
  * -
  * Copyright (c) 1983, 1993

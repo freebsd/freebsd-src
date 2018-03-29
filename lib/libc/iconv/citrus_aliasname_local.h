@@ -2,8 +2,6 @@
 /* $NetBSD: citrus_aliasname_local.h,v 1.2 2009/01/11 02:46:24 christos Exp $ */
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause
- *
  * Copyright (c)2008 Citrus Project,
  * All rights reserved.
  *

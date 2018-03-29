@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-# SPDX-License-Identifier: BSD-3-Clause
-#
 # Copyright (c) 2012, Neville-Neil Consulting
 # All rights reserved.
 #

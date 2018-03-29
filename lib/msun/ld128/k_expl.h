@@ -1,8 +1,6 @@
 /* from: FreeBSD: head/lib/msun/ld128/s_expl.c 251345 2013-06-03 20:09:22Z kargl */
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2009-2013 Steven G. Kargl
  * All rights reserved.
  *

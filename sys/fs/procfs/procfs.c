@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
  * Copyright (c) 2001 Dag-Erling Smørgrav
  * Copyright (c) 1993 Jan-Simon Pendry
  * Copyright (c) 1993

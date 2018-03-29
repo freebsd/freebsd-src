@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2009 Isilon Inc http://www.isilon.com/
  *
  * Redistribution and use in source and binary forms, with or without

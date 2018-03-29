@@ -1,9 +1,7 @@
 /*	$NetBSD: ffs_alloc.c,v 1.14 2004/06/20 22:20:18 jmc Exp $	*/
 /* From: NetBSD: ffs_alloc.c,v 1.50 2001/09/06 02:16:01 lukem Exp */
 
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
+/*
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *

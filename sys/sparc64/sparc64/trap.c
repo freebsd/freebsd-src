@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2001, Jake Burkholder
  * Copyright (C) 1994, David Greenman
  * Copyright (c) 1990, 1993

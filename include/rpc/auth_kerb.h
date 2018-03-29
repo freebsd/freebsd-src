@@ -1,7 +1,5 @@
 /*	$FreeBSD$ */
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *

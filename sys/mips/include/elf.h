@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-2-Clause-NetBSD
- *
+/*
  * Copyright (c) 2013 M. Warner Losh. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without

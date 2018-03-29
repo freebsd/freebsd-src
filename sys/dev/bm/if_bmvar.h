@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2008 Nathan Whitehorn
  * Copyright (c) 2003 Peter Grehan
  * All rights reserved

@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  *       Copyright (c) 1997 by Simon Shapiro
  *       All Rights Reserved
  *

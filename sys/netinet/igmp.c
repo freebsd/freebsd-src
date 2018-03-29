@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2007-2009 Bruce Simpson.
  * Copyright (c) 1988 Stephen Deering.
  * Copyright (c) 1992, 1993

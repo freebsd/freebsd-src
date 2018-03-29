@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1994 Sean Eric Fagan
  * Copyright (c) 1994 Søren Schmidt
  * Copyright (c) 1995 Steven Wallace

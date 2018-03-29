@@ -1,6 +1,4 @@
 /*
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright 2003-2011 Netlogic Microsystems (Netlogic). All rights
  * reserved.
  *

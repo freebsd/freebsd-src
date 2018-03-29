@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without

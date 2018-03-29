@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1995 Jean-Marc Zucconi
  * All rights reserved.
  *

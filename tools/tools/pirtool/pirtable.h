@@ -1,6 +1,4 @@
 /*
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2002-2006 Bruce M. Simpson.
  * All rights reserved.
  *

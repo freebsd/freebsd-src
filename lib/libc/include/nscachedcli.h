@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2004 Michael Bushkov <bushman@rsu.ru>
  * All rights reserved.
  *

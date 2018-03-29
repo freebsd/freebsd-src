@@ -2,8 +2,6 @@
 __FBSDID("$FreeBSD$");
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2015 Stanislav Galabov. All rights reserved.
  * Copyright (c) 2010,2011 Aleksandr Rybalko. All rights reserved.
  * Copyright (c) 2007-2008 Hans Petter Selasky. All rights reserved.

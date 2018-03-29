@@ -29,9 +29,7 @@
  * $FreeBSD$
  */
 
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
+/*
  * Copyright (c) 2001-2005, Intel Corporation.
  * All rights reserved.
  *

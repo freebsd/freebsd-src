@@ -1,8 +1,6 @@
 /*-
  * HighPoint RAID Driver for FreeBSD
  *
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (C) 2005-2011 HighPoint Technologies, Inc. All Rights Reserved.
  * All rights reserved.
  *

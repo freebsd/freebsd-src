@@ -2,9 +2,7 @@
 
 /* Packet assembly code, originally contributed by Archie Cobbs. */
 
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
+/*
  * Copyright (c) 1995, 1996, 1999 The Internet Software Consortium.
  * All rights reserved.
  *
