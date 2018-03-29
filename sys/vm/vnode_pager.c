@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -69,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/rwlock.h>
 #include <sys/sf_buf.h>
+#include <sys/domainset.h>
 
 #include <machine/atomic.h>
 
@@ -107,6 +109,12 @@ struct pagerops vnodepagerops = {
 
 int vnode_pbuf_freecnt;
 int vnode_async_pbuf_freecnt;
+
+static struct domainset *vnode_domainset = NULL;
+
+SYSCTL_PROC(_debug, OID_AUTO, vnode_domainset, CTLTYPE_STRING | CTLFLAG_RW,
+    &vnode_domainset, 0, sysctl_handle_domainset, "A",
+    "Default vnode NUMA policy");
 
 /* Create the VM system backing object for this vnode */
 int
@@ -241,6 +249,7 @@ retry:
 
 		object->un_pager.vnp.vnp_size = size;
 		object->un_pager.vnp.writemappings = 0;
+		object->domain.dr_policy = vnode_domainset;
 
 		object->handle = handle;
 		VI_LOCK(vp);

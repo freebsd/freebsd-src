@@ -56,11 +56,14 @@ __FBSDID("$FreeBSD$");
  * assumed that most allocations are successful.
  */
 
+static int vm_domainset_default_stride = 64;
+
 /*
  * Determine which policy is to be used for this allocation.
  */
 static void
-vm_domainset_iter_domain(struct vm_domainset_iter *di, struct vm_object *obj)
+vm_domainset_iter_init(struct vm_domainset_iter *di, struct vm_object *obj,
+    vm_pindex_t pindex)
 {
 	struct domainset *domain;
 
@@ -76,18 +79,33 @@ vm_domainset_iter_domain(struct vm_domainset_iter *di, struct vm_object *obj)
 		di->di_domain = curthread->td_domain.dr_policy;
 		di->di_iter = &curthread->td_domain.dr_iterator;
 	}
+	di->di_policy = di->di_domain->ds_policy;
+	if (di->di_policy == DOMAINSET_POLICY_INTERLEAVE) {
+		if (vm_object_reserv(obj)) {
+			/*
+			 * Color the pindex so we end up on the correct
+			 * reservation boundary.
+			 */
+			pindex += obj->pg_color;
+			pindex >>= VM_LEVEL_0_ORDER;
+		} else
+			pindex /= vm_domainset_default_stride;
+		/*
+		 * Offset pindex so the first page of each object does
+		 * not end up in domain 0.
+		 */
+		if (obj != NULL)
+			pindex += (((uintptr_t)obj) / sizeof(*obj));
+		di->di_offset = pindex;
+	}
 }
 
 static void
 vm_domainset_iter_rr(struct vm_domainset_iter *di, int *domain)
 {
-	int d;
 
-	d = *di->di_iter;
-	do {
-		d = (d + 1) % di->di_domain->ds_max;
-	} while (!DOMAINSET_ISSET(d, &di->di_domain->ds_mask));
-	*di->di_iter = *domain = d;
+	*domain = di->di_domain->ds_order[
+	    ++(*di->di_iter) % di->di_domain->ds_cnt];
 }
 
 static void
@@ -95,12 +113,21 @@ vm_domainset_iter_prefer(struct vm_domainset_iter *di, int *domain)
 {
 	int d;
 
-	d = *di->di_iter;
 	do {
-		d = (d + 1) % di->di_domain->ds_max;
-	} while (!DOMAINSET_ISSET(d, &di->di_domain->ds_mask) || 
-	    d == di->di_domain->ds_prefer);
-	*di->di_iter = *domain = d;
+		d = di->di_domain->ds_order[
+		    ++(*di->di_iter) % di->di_domain->ds_cnt];
+	} while (d == di->di_domain->ds_prefer);
+	*domain = d;
+}
+
+static void
+vm_domainset_iter_interleave(struct vm_domainset_iter *di, int *domain)
+{
+	int d;
+
+	d = di->di_offset % di->di_domain->ds_cnt;
+	*di->di_iter = d;
+	*domain = di->di_domain->ds_order[d];
 }
 
 static void
@@ -109,12 +136,14 @@ vm_domainset_iter_next(struct vm_domainset_iter *di, int *domain)
 
 	KASSERT(di->di_n > 0,
 	    ("vm_domainset_iter_first: Invalid n %d", di->di_n));
-	switch (di->di_domain->ds_policy) {
+	switch (di->di_policy) {
 	case DOMAINSET_POLICY_FIRSTTOUCH:
 		/*
 		 * To prevent impossible allocations we convert an invalid
 		 * first-touch to round-robin.
 		 */
+		/* FALLTHROUGH */
+	case DOMAINSET_POLICY_INTERLEAVE:
 		/* FALLTHROUGH */
 	case DOMAINSET_POLICY_ROUNDROBIN:
 		vm_domainset_iter_rr(di, domain);
@@ -124,7 +153,7 @@ vm_domainset_iter_next(struct vm_domainset_iter *di, int *domain)
 		break;
 	default:
 		panic("vm_domainset_iter_first: Unknown policy %d",
-		    di->di_domain->ds_policy);
+		    di->di_policy);
 	}
 	KASSERT(*domain < vm_ndomains,
 	    ("vm_domainset_iter_next: Invalid domain %d", *domain));
@@ -134,11 +163,15 @@ static void
 vm_domainset_iter_first(struct vm_domainset_iter *di, int *domain)
 {
 
-	switch (di->di_domain->ds_policy) {
+	switch (di->di_policy) {
 	case DOMAINSET_POLICY_FIRSTTOUCH:
 		*domain = PCPU_GET(domain);
 		if (DOMAINSET_ISSET(*domain, &di->di_domain->ds_mask)) {
-			di->di_n = 1;
+			/*
+			 * Add an extra iteration because we will visit the
+			 * current domain a second time in the rr iterator.
+			 */
+			di->di_n = di->di_domain->ds_cnt + 1;
 			break;
 		}
 		/*
@@ -154,9 +187,13 @@ vm_domainset_iter_first(struct vm_domainset_iter *di, int *domain)
 		*domain = di->di_domain->ds_prefer;
 		di->di_n = di->di_domain->ds_cnt;
 		break;
+	case DOMAINSET_POLICY_INTERLEAVE:
+		vm_domainset_iter_interleave(di, domain);
+		di->di_n = di->di_domain->ds_cnt;
+		break;
 	default:
 		panic("vm_domainset_iter_first: Unknown policy %d",
-		    di->di_domain->ds_policy);
+		    di->di_policy);
 	}
 	KASSERT(di->di_n > 0,
 	    ("vm_domainset_iter_first: Invalid n %d", di->di_n));
@@ -166,10 +203,10 @@ vm_domainset_iter_first(struct vm_domainset_iter *di, int *domain)
 
 void
 vm_domainset_iter_page_init(struct vm_domainset_iter *di, struct vm_object *obj,
-    int *domain, int *req)
+    vm_pindex_t pindex, int *domain, int *req)
 {
 
-	vm_domainset_iter_domain(di, obj);
+	vm_domainset_iter_init(di, obj, pindex);
 	di->di_flags = *req;
 	*req = (di->di_flags & ~(VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL)) |
 	    VM_ALLOC_NOWAIT;
@@ -213,7 +250,9 @@ vm_domainset_iter_malloc_init(struct vm_domainset_iter *di,
     struct vm_object *obj, int *domain, int *flags)
 {
 
-	vm_domainset_iter_domain(di, obj);
+	vm_domainset_iter_init(di, obj, 0);
+	if (di->di_policy == DOMAINSET_POLICY_INTERLEAVE)
+		di->di_policy = DOMAINSET_POLICY_ROUNDROBIN;
 	di->di_flags = *flags;
 	*flags = (di->di_flags & ~M_WAITOK) | M_NOWAIT;
 	vm_domainset_iter_first(di, domain);
@@ -253,7 +292,7 @@ vm_domainset_iter_page(struct vm_domainset_iter *di, int *domain, int *flags)
 
 void
 vm_domainset_iter_page_init(struct vm_domainset_iter *di,
-            struct vm_object *obj, int *domain, int *flags)
+            struct vm_object *obj, vm_pindex_t pindex, int *domain, int *flags)
 {
 
 	*domain = 0;
