@@ -84,7 +84,7 @@ enum Argtype { None = 1, Hex, Octal, Int, UInt, LongHex, Name, Ptr, Stat, Stat11
 	Ptraceop, Quotactlcmd, Reboothowto, Rtpriofunc, Schedpolicy, Schedparam,
 	PSig, Siginfo, Kevent11, Iovec, Sctpsndrcvinfo, Msghdr,
 
-	CloudABIAdvice, CloudABIClockID, ClouduABIFDSFlags,
+	CloudABIAdvice, CloudABIClockID, CloudABIFDSFlags,
 	CloudABIFDStat, CloudABIFileStat, CloudABIFileType,
 	CloudABIFSFlags, CloudABILookup, CloudABIMFlags, CloudABIMProt,
 	CloudABIMSFlags, CloudABIOFlags, CloudABISDFlags,
