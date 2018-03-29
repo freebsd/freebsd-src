@@ -219,6 +219,7 @@ struct bhnd_chipid {
 	uint8_t		chip_rev;	/**< chip revision */
 	uint8_t		chip_pkg;	/**< chip package (BHND_PKGID_*) */
 	uint8_t		chip_type;	/**< chip type (BHND_CHIPTYPE_*) */
+	uint32_t	chip_caps;	/**< chip capabilities (BHND_CAP_*) */
 
 	bhnd_addr_t	enum_addr;	/**< chip_type-specific enumeration
 					  *  address; either the siba(4) base
@@ -227,6 +228,15 @@ struct bhnd_chipid {
 
 	uint8_t		ncores;		/**< number of cores, if known. 0 if
 					  *  not available. */
+};
+
+/**
+ * Chip capabilities
+ */
+enum bhnd_cap {
+	BHND_CAP_BP64	= (1<<0),	/**< Backplane supports 64-bit
+					  *  addressing */
+	BHND_CAP_PMU	= (1<<1),	/**< PMU is present */
 };
 
 /**
@@ -519,18 +529,6 @@ int				 bhnd_alloc_resources(device_t dev,
 void				 bhnd_release_resources(device_t dev,
 				     const struct resource_spec *rs,
 				     struct bhnd_resource **res);
-
-struct bhnd_chipid		 bhnd_parse_chipid(uint32_t idreg,
-				     bhnd_addr_t enum_addr);
-
-int				 bhnd_chipid_fixed_ncores(
-				     const struct bhnd_chipid *cid,
-				     uint16_t chipc_hwrev, uint8_t *ncores);
-
-int				 bhnd_read_chipid(device_t dev,
-				     struct resource_spec *rs,
-				     bus_size_t chipc_offset,
-				     struct bhnd_chipid *result);
 
 void				 bhnd_set_custom_core_desc(device_t dev,
 				     const char *name);

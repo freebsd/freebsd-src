@@ -125,6 +125,8 @@ static void		bhndb_pci_eio_init(struct bhndb_pci_eio *eio,
 			    struct bhndb_pci_probe *probe);
 static int		bhndb_pci_eio_map(struct bhnd_erom_io *eio,
 			    bhnd_addr_t addr, bhnd_size_t size);
+static int		bhndb_pci_eio_tell(struct bhnd_erom_io *eio,
+			    bhnd_addr_t *addr, bhnd_size_t *size);
 static uint32_t		bhndb_pci_eio_read(struct bhnd_erom_io *eio,
 			    bhnd_size_t offset, u_int width);
 
@@ -144,6 +146,7 @@ static struct bhndb_pci_core bhndb_pci_cores[] = {
 /* bhndb_pci erom I/O instance state */
 struct bhndb_pci_eio {
 	struct bhnd_erom_io		 eio;
+	bool				 mapped;	/**< true if a valid mapping exists */
 	bhnd_addr_t			 addr;		/**< mapped address */
 	bhnd_size_t			 size;		/**< mapped size */
 	struct bhndb_pci_probe		*probe;		/**< borrowed probe reference */
@@ -1667,9 +1670,11 @@ bhndb_pci_eio_init(struct bhndb_pci_eio *pio, struct bhndb_pci_probe *probe)
 	memset(pio, 0, sizeof(*pio));
 
 	pio->eio.map = bhndb_pci_eio_map;
+	pio->eio.tell = bhndb_pci_eio_tell;
 	pio->eio.read = bhndb_pci_eio_read;
 	pio->eio.fini = NULL;
 
+	pio->mapped = false;
 	pio->addr = 0;
 	pio->size = 0;
 	pio->probe = probe;
@@ -1687,6 +1692,23 @@ bhndb_pci_eio_map(struct bhnd_erom_io *eio, bhnd_addr_t addr,
 
 	pio->addr = addr;
 	pio->size = size;
+	pio->mapped = true;
+
+	return (0);
+}
+
+/* bhnd_erom_io_tell() implementation */
+static int
+bhndb_pci_eio_tell(struct bhnd_erom_io *eio, bhnd_addr_t *addr,
+    bhnd_size_t *size)
+{
+	struct bhndb_pci_eio *pio = (struct bhndb_pci_eio *)eio;
+
+	if (!pio->mapped)
+		return (ENXIO);
+
+	*addr = pio->addr;
+	*size = pio->size;
 
 	return (0);
 }
@@ -1697,12 +1719,16 @@ bhndb_pci_eio_read(struct bhnd_erom_io *eio, bhnd_size_t offset, u_int width)
 {
 	struct bhndb_pci_eio *pio = (struct bhndb_pci_eio *)eio;
 
+	/* Must have a valid mapping */
+	if (!pio->mapped) 
+		panic("no active mapping");
+
 	/* The requested subrange must fall within the existing mapped range */
 	if (offset > pio->size ||
 	    width > pio->size ||
 	    pio->size - offset < width)
 	{
-		return (ENXIO);
+		panic("invalid offset %#jx", offset);
 	}
 
 	return (bhndb_pci_probe_read(pio->probe, pio->addr, offset, width));
