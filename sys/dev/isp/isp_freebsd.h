@@ -1,7 +1,5 @@
 /* $FreeBSD$ */
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions
  *
  * Copyright (c) 1997-2008 by Matthew Jacob

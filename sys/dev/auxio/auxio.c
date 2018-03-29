@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-3-Clause
- *
  * Copyright (c) 2004 Pyun YongHyeon
  * All rights reserved.
  *

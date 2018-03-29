@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2006 M. Warner Losh.  All rights reserved.
  * Copyright (C) 2012 Ian Lepore. All rights reserved.
  *

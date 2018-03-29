@@ -1,8 +1,6 @@
 /*	$NetBSD: clnt.h,v 1.14 2000/06/02 22:57:55 fvdl Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2010, Oracle America, Inc.
  * All rights reserved.
  *

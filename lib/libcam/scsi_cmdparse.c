@@ -1,10 +1,7 @@
 /*
  * Taken from the original FreeBSD user SCSI library.
  */
-/*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
- * Copyright (c) 1994 HD Associates
+/* Copyright (c) 1994 HD Associates
  * (contact: dufault@hda.com)
  * All rights reserved.
  *

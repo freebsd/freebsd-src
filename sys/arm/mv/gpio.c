@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2006 Benno Rice.
  * Copyright (C) 2008 MARVELL INTERNATIONAL LTD.
  * All rights reserved.

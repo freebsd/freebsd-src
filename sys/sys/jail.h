@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 1999 Poul-Henning Kamp.
  * Copyright (c) 2009 James Gritton.
  * All rights reserved.

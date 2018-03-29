@@ -1,7 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
- * Copyright (c) 2012, 2013 Bjoern A. Zeeb
+ * Copyright (c) 2012,2013 Bjoern A. Zeeb
  * Copyright (c) 2014 Robert N. M. Watson
  * All rights reserved.
  *
@@ -137,7 +135,6 @@ a_onchip_fifo_mem_core_write(struct resource *res, uint32_t off,
 	DPRINTF("[%s:%d] FIFOW %s 0x%08x = 0x%08x\n", f, l, desc, off, val4);
 	bus_write_4(res, off, val4);
 }
-
 static inline uint32_t
 a_onchip_fifo_mem_core_read(struct resource *res, uint32_t off,
     const char *desc, const char *f, const int l)
@@ -146,7 +143,6 @@ a_onchip_fifo_mem_core_read(struct resource *res, uint32_t off,
 
 	val4 = le32toh(bus_read_4(res, off));
 	DPRINTF("[%s:%d] FIFOR %s 0x%08x = 0x%08x\n", f, l, desc, off, val4);
-
 	return (val4);
 }
 
@@ -289,7 +285,6 @@ csr_read_4(struct atse_softc *sc, uint32_t reg, const char *f, const int l)
 	val4 = le32toh(bus_read_4(sc->atse_mem_res, reg * 4));
 	DPRINTF("[%s:%d] CSR R %s 0x%08x (0x%08x) = 0x%08x\n", f, l, 
 	    "atse_mem_res", reg, reg * 4, val4);
-
 	return (val4);
 }
 
@@ -320,7 +315,6 @@ pxx_read_2(struct atse_softc *sc, bus_addr_t bmcr, uint32_t reg, const char *f,
 	val = le32toh(val4) & 0x0000ffff;
 	DPRINTF("[%s:%d] %s R %s 0x%08x (0x%08jx) = 0x%04x\n", f, l, s,
 	    "atse_mem_res", reg, (bmcr + reg) * 4, val);
-
 	return (val);
 }
 
@@ -349,7 +343,6 @@ atse_tx_locked(struct atse_softc *sc, int *sent)
 {
 	struct mbuf *m;
 	uint32_t val4, fill_level;
-	int leftm;
 	int c;
 
 	ATSE_LOCK_ASSERT(sc);
@@ -400,13 +393,15 @@ atse_tx_locked(struct atse_softc *sc, int *sent)
 	/* Set EOP *before* writing the last symbol. */
 	if (sc->atse_tx_m_offset >= (sc->atse_tx_buf_len - 4) &&
 	    fill_level < AVALON_FIFO_TX_BASIC_OPTS_DEPTH) {
+		int leftm;
+		uint32_t x;
 
 		/* Set EndOfPacket. */
 		val4 = A_ONCHIP_FIFO_MEM_CORE_EOP;
-
 		/* Set EMPTY. */
 		leftm = sc->atse_tx_buf_len - sc->atse_tx_m_offset;
 		val4 |= ((4 - leftm) << A_ONCHIP_FIFO_MEM_CORE_EMPTY_SHIFT);
+		x = val4;
 		ATSE_TX_META_WRITE(sc, val4);
 
 		/* Write last symbol. */
@@ -445,7 +440,7 @@ atse_start_locked(struct ifnet *ifp)
 		return;
 
 #if 1
-	/*
+	/* 
 	 * Disable the watchdog while sending, we are batching packets.
 	 * Though we should never reach 5 seconds, and are holding the lock,
 	 * but who knows.
@@ -490,8 +485,8 @@ atse_start(struct ifnet *ifp)
 static int
 atse_stop_locked(struct atse_softc *sc)
 {
-	uint32_t mask, val4;
 	struct ifnet *ifp;
+	uint32_t mask, val4;
 	int i;
 
 	ATSE_LOCK_ASSERT(sc);
@@ -532,8 +527,8 @@ atse_stop_locked(struct atse_softc *sc)
 static uint8_t
 atse_mchash(struct atse_softc *sc __unused, const uint8_t *addr)
 {
-	uint8_t x, y;
 	int i, j;
+	uint8_t x, y;
 
 	x = 0;
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
@@ -542,15 +537,14 @@ atse_mchash(struct atse_softc *sc __unused, const uint8_t *addr)
 			y ^= (addr[i] >> j) & 0x01;
 		x |= (y << i);
 	}
-
 	return (x);
 }
 
 static int
 atse_rxfilter_locked(struct atse_softc *sc)
 {
-	struct ifmultiaddr *ifma;
 	struct ifnet *ifp;
+	struct ifmultiaddr *ifma;
 	uint32_t val4;
 	int i;
 
@@ -573,7 +567,7 @@ atse_rxfilter_locked(struct atse_softc *sc)
 		for (i = 0; i <= MHASH_LEN; i++)
 			CSR_WRITE_4(sc, MHASH_START + i, 0x1);
 	} else {
-		/*
+		/* 
 		 * Can hold MHASH_LEN entries.
 		 * XXX-BZ bitstring.h would be more general.
 		 */
@@ -640,9 +634,8 @@ atse_ethernet_option_bits_read(device_t dev)
 	error = atse_ethernet_option_bits_read_fdt(dev);
 	if (error == 0)
 		return (0);
-
+	
 	device_printf(dev, "Cannot read Ethernet addresses from flash.\n");
-
 	return (error);
 }
 
@@ -796,9 +789,9 @@ atse_set_eth_address(struct atse_softc *sc, int n)
 static int
 atse_reset(struct atse_softc *sc)
 {
+	int i;
 	uint32_t val4, mask;
 	uint16_t val;
-	int i;
 
 	/* 1. External PHY Initialization using MDIO. */
 	/*
@@ -827,7 +820,6 @@ atse_reset(struct atse_softc *sc)
 	val = PCS_READ_2(sc, PCS_CONTROL);
 	val |= PCS_CONTROL_RESET;
 	PCS_WRITE_2(sc, PCS_CONTROL, val);
-
 	/* Wait for reset bit to clear; i=100 is excessive. */
 	for (i = 0; i < 100; i++) {
 		val = PCS_READ_2(sc, PCS_CONTROL);
@@ -835,7 +827,6 @@ atse_reset(struct atse_softc *sc)
 			break;
 		DELAY(10);
 	}
-
 	if ((val & PCS_CONTROL_RESET) != 0) {
 		device_printf(sc->atse_dev, "PCS reset timed out.\n");
 		return (ENXIO);
@@ -886,7 +877,7 @@ atse_reset(struct atse_softc *sc)
 	CSR_WRITE_4(sc, BASE_CFG_PAUSE_QUANT, 0xFFFF);
 
 	val4 = CSR_READ_4(sc, BASE_CFG_COMMAND_CONFIG);
-	/*
+	/*	
 	 * If 1000BASE-X/SGMII PCS is initialized, set the ETH_SPEED (bit 3)
 	 * and ENA_10 (bit 25) in command_config register to 0.  If half duplex
 	 * is reported in the PHY/PCS status register, set the HD_ENA (bit 10)
@@ -945,7 +936,7 @@ atse_reset(struct atse_softc *sc)
 		device_printf(sc->atse_dev, "MAC reset timed out.\n");
 		return (ENXIO);
 	}
-
+	
 	/* f. Enable MAC transmit and receive datapath. */
 	mask = BASE_CFG_COMMAND_CONFIG_TX_ENA|BASE_CFG_COMMAND_CONFIG_RX_ENA;
 	val4 = CSR_READ_4(sc, BASE_CFG_COMMAND_CONFIG);
@@ -1001,7 +992,7 @@ atse_init_locked(struct atse_softc *sc)
 	sc->atse_flags &= ATSE_FLAGS_LINK;	/* Preserve. */
 
 #ifdef DEVICE_POLLING
-	/* Only enable interrupts if we are not polling. */
+        /* Only enable interrupts if we are not polling. */
 	if (ifp->if_capenable & IFCAP_POLLING) {
 		ATSE_RX_INTR_DISABLE(sc);
 		ATSE_TX_INTR_DISABLE(sc);
@@ -1048,6 +1039,7 @@ atse_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq *ifr;
 	int error, mask;
 
+
 	error = 0;
 	sc = ifp->if_softc;
 	ifr = (struct ifreq *)data;
@@ -1064,7 +1056,7 @@ atse_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				atse_init_locked(sc);
 		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			atse_stop_locked(sc);
-		sc->atse_if_flags = ifp->if_flags;
+                sc->atse_if_flags = ifp->if_flags;
 		ATSE_UNLOCK(sc);
 		break;
 	case SIOCSIFCAP:
@@ -1201,7 +1193,7 @@ atse_tick(void *xsc)
 /*
  * Set media options.
  */
-static int
+static int 
 atse_ifmedia_upd(struct ifnet *ifp)
 {
 	struct atse_softc *sc;
@@ -1235,16 +1227,15 @@ atse_update_rx_err(struct atse_softc *sc, uint32_t mask)
 static int
 atse_rx_locked(struct atse_softc *sc)
 {
-	uint32_t fill, i, j;
-	uint32_t data, meta;
 	struct ifnet *ifp;
 	struct mbuf *m;
-	int rx_npkts;
+	uint32_t fill, i, j;
+	uint32_t data, meta;
+	int rx_npkts = 0;
 
 	ATSE_LOCK_ASSERT(sc);
 
 	ifp = sc->atse_ifp;
-	rx_npkts = 0;
 	j = 0;
 	meta = 0;
 	do {
@@ -1303,7 +1294,7 @@ outer:
 					/* XXX-BZ any better counter? */
 					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				}
-
+				
 				if ((sc->atse_flags & ATSE_FLAGS_SOP_SEEN) == 0)
 				{
 					sc->atse_flags |= ATSE_FLAGS_SOP_SEEN;
@@ -1412,7 +1403,7 @@ atse_rx_intr(void *arg)
 	if (ifp->if_capenable & IFCAP_POLLING) {
 		ATSE_UNLOCK(sc);
 		return;
-	}
+	}  
 #endif
 
 	atse_intr_debug(sc, "rx");
@@ -1469,7 +1460,7 @@ atse_tx_intr(void *arg)
 	if (ifp->if_capenable & IFCAP_POLLING) {
 		ATSE_UNLOCK(sc);
 		return;
-	}
+	}  
 #endif
 
 	/* XXX-BZ build histogram. */
@@ -1517,7 +1508,7 @@ atse_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	ATSE_LOCK(sc);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		ATSE_UNLOCK(sc);
-		return (rx_npkts);
+		return (rx_npkts); 
 	}
 
 	sc->atse_rx_cycles = count;
@@ -1667,9 +1658,9 @@ static int
 sysctl_atse_mac_stats_proc(SYSCTL_HANDLER_ARGS)
 {
 	struct atse_softc *sc;
-	int error, offset, s;
+        int error, offset, s;
 
-	sc = arg1;
+        sc = arg1;
 	offset = arg2;
 
 	s = CSR_READ_4(sc, offset);
@@ -1677,7 +1668,7 @@ sysctl_atse_mac_stats_proc(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr)
 		return (error);
 
-	return (0);
+        return (0);
 }
 
 static struct atse_rx_err_stats_regs {
@@ -1685,12 +1676,12 @@ static struct atse_rx_err_stats_regs {
 	const char *descr;
 } atse_rx_err_stats_regs[] = {
 
-#define	ATSE_RX_ERR_FIFO_THRES_EOP	0 /* FIFO threshold reached, on EOP. */
-#define	ATSE_RX_ERR_ELEN		1 /* Frame/payload length not valid. */
-#define	ATSE_RX_ERR_CRC32		2 /* CRC-32 error. */
-#define	ATSE_RX_ERR_FIFO_THRES_TRUNC	3 /* FIFO thresh., truncated frame. */
-#define	ATSE_RX_ERR_4			4 /* ? */
-#define	ATSE_RX_ERR_5			5 /* / */
+#define ATSE_RX_ERR_FIFO_THRES_EOP      0 /* FIFO threshold reached, on EOP. */
+#define ATSE_RX_ERR_ELEN                1 /* Frame/payload length not valid. */
+#define ATSE_RX_ERR_CRC32               2 /* CRC-32 error. */
+#define ATSE_RX_ERR_FIFO_THRES_TRUNC    3 /* FIFO thresh., truncated frame. */
+#define ATSE_RX_ERR_4                   4 /* ? */
+#define ATSE_RX_ERR_5                   5 /* / */
 
 	{ "rx_err_fifo_thres_eop",
 	    "FIFO threshold reached, reported on EOP." },
@@ -1710,9 +1701,9 @@ static int
 sysctl_atse_rx_err_stats_proc(SYSCTL_HANDLER_ARGS)
 {
 	struct atse_softc *sc;
-	int error, offset, s;
+        int error, offset, s;
 
-	sc = arg1;
+        sc = arg1;
 	offset = arg2;
 
 	s = sc->atse_rx_err[offset];
@@ -1720,7 +1711,7 @@ sysctl_atse_rx_err_stats_proc(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr)
 		return (error);
 
-	return (0);
+        return (0);
 }
 
 static void
@@ -1732,8 +1723,8 @@ atse_sysctl_stats_attach(device_t dev)
 	int i;
 
 	sc = device_get_softc(dev);
-	sctx = device_get_sysctl_ctx(dev);
-	soid = device_get_sysctl_tree(dev);
+        sctx = device_get_sysctl_ctx(dev);
+        soid = device_get_sysctl_tree(dev);
 
 	/* MAC statistics. */
 	for (i = 0; i < nitems(atse_mac_stats_regs); i++) {
@@ -2043,11 +2034,11 @@ atse_miibus_statchg(device_t dev)
 	sc = device_get_softc(dev);
 	ATSE_LOCK_ASSERT(sc);
 
-	mii = device_get_softc(sc->atse_miibus);
-	ifp = sc->atse_ifp;
-	if (mii == NULL || ifp == NULL ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		return;
+        mii = device_get_softc(sc->atse_miibus);
+        ifp = sc->atse_ifp;
+        if (mii == NULL || ifp == NULL ||
+            (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+                return;
 
 	val4 = CSR_READ_4(sc, BASE_CFG_COMMAND_CONFIG);
 
@@ -2078,14 +2069,14 @@ atse_miibus_statchg(device_t dev)
 		}
 	}
 
-	if ((sc->atse_flags & ATSE_FLAGS_LINK) == 0) {
+        if ((sc->atse_flags & ATSE_FLAGS_LINK) == 0) {
 		/* XXX-BZ need to stop the MAC? */
-		return;
-	}
+                return;
+        }
 
 	if (IFM_OPTIONS(mii->mii_media_active & IFM_FDX) != 0)
 		val4 &= ~BASE_CFG_COMMAND_CONFIG_HD_ENA;
-	else
+        else
 		val4 |= BASE_CFG_COMMAND_CONFIG_HD_ENA;
 	/* XXX-BZ flow control? */
 

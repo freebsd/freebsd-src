@@ -1,9 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: setkey.c,v 1.28 2003/06/27 07:15:45 itojun Exp $	*/
 
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
+/*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
  * All rights reserved.
  *

@@ -1,8 +1,6 @@
 /*	$NetBSD: ixp425.c,v 1.10 2005/12/11 12:16:51 christos Exp $ */
 
-/*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
+/*
  * Copyright (c) 2003
  *	Ichiro FUKUHARA <ichiro@ichiro.org>.
  * All rights reserved.

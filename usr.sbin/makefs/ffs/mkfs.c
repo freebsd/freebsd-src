@@ -1,8 +1,6 @@
 /*	$NetBSD: mkfs.c,v 1.22 2011/10/09 22:30:13 christos Exp $	*/
 
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
+/*
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *

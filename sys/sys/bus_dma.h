@@ -1,8 +1,6 @@
 /*	$NetBSD: bus.h,v 1.12 1997/10/01 08:25:15 fvdl Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
- *
  * Copyright (c) 1996, 1997 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

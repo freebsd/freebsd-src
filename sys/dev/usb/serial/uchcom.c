@@ -1,8 +1,6 @@
 /*	$NetBSD: uchcom.c,v 1.1 2007/09/03 17:57:37 tshiozak Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-2-Clause-NetBSD
- *
  * Copyright (c) 2007, Takanori Watanabe
  * All rights reserved.
  *

@@ -1,7 +1,4 @@
-/* $FreeBSD$ */
-
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
+/* $FreeBSD$
  *
  * Copyright 2013 Google Inc.
  * All rights reserved.

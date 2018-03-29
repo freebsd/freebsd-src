@@ -1,9 +1,7 @@
 /*	$NetBSD: ufs_bmap.c,v 1.14 2004/06/20 22:20:18 jmc Exp $	*/
 /* From: NetBSD: ufs_bmap.c,v 1.14 2001/11/08 05:00:51 chs Exp */
 
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
+/*
  * Copyright (c) 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.

@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (C) 2012-2014 Intel Corporation
  * All rights reserved.
  *

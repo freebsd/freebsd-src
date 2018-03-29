@@ -1,8 +1,5 @@
 /*-
- * SPDX-License-Identifier: MIT
- *
  * Copyright (c) 2005 Pascal Gloor <pascal.gloor@spale.com>
- * Copyright (c) 2005-2014 Rich Felker, et al.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

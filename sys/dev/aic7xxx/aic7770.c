@@ -2,8 +2,6 @@
  * Product specific probe and attach routines for:
  * 	27/284X and aic7770 motherboard SCSI controllers
  *
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1994-1998, 2000, 2001 Justin T. Gibbs.
  * All rights reserved.
  *

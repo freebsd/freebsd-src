@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
  * Copyright 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *

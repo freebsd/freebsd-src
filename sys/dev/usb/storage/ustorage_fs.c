@@ -1,7 +1,5 @@
 /* $FreeBSD$ */
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (C) 2003-2005 Alan Stern
  * Copyright (C) 2008 Hans Petter Selasky
  * All rights reserved.

@@ -1,8 +1,6 @@
 /*	$KAME: test-policy.c,v 1.16 2003/08/26 03:24:08 itojun Exp $	*/
 
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
+/*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
  * All rights reserved.
  *

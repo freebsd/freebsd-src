@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1983, 1993 The Regents of the University of California.
  * Copyright (c) 2013 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * All rights reserved.

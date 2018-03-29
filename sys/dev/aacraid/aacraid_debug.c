@@ -1,6 +1,5 @@
+
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2006-2010 Adaptec, Inc.
  * Copyright (c) 2010-2012 PMC-Sierra, Inc.
  * All rights reserved.

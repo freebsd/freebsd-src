@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
+/*
  * Copyright (c) 2004-2005 MARVELL SEMICONDUCTOR ISRAEL, LTD.
  * All rights reserved.
  *

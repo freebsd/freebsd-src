@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2010-2011 Aleksandr Rybalko <ray@ddteam.net>
  * Copyright (c) 2009-2010 Alexander Egorenkov <egorenar@gmail.com>
  * Copyright (c) 2009 Damien Bergamini <damien.bergamini@free.fr>

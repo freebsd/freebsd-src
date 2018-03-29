@@ -1,8 +1,6 @@
 /*	$NetBSD: if_cdce.c,v 1.4 2004/10/24 12:50:54 augustss Exp $ */
 
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
  * Copyright (c) 1997, 1998, 1999, 2000-2003 Bill Paul <wpaul@windriver.com>
  * Copyright (c) 2003-2005 Craig Boston
  * Copyright (c) 2004 Daniel Hartmeier

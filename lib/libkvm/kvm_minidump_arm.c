@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2008 Semihalf, Grzegorz Bernacki
  * Copyright (c) 2006 Peter Wemm
  *

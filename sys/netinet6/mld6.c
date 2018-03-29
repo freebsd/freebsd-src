@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2009 Bruce Simpson.
  *
  * Redistribution and use in source and binary forms, with or without

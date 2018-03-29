@@ -1,6 +1,4 @@
  /*-
- * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
- *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *

@@ -2,9 +2,7 @@
 
 /* Errors and warnings... */
 
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
+/*
  * Copyright (c) 1996 The Internet Software Consortium.
  * All Rights Reserved.
  * Copyright (c) 1995 RadioMail Corporation.  All rights reserved.

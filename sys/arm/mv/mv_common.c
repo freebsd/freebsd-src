@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (C) 2008-2011 MARVELL INTERNATIONAL LTD.
  * All rights reserved.
  *

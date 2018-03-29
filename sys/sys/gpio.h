@@ -1,8 +1,6 @@
 /* $NetBSD: gpio.h,v 1.7 2009/09/25 20:27:50 mbalmer Exp $ */
 /*	$OpenBSD: gpio.h,v 1.7 2008/11/26 14:51:20 mbalmer Exp $	*/
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND MIT
- *
  * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
  * All rights reserved.
  *

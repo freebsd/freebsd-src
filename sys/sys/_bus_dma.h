@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright 2006 John-Mark Gurney.
  * All rights reserved.
  *

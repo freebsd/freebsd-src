@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
+/*
  * Copyright (c) 1992/3 Theo de Raadt <deraadt@fsa.ca>
  * Copyright (c) 1998 Bill Paul <wpaul@ctr.columbia.edu>
  * All rights reserved.

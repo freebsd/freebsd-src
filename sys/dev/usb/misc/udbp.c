@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1996-2000 Whistle Communications, Inc.
  * All rights reserved.
  *

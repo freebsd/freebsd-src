@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 1999 Jason L. Wright (jason@thought.net)
  * Copyright (c) 2004 Pyun YongHyeon
  * All rights reserved.

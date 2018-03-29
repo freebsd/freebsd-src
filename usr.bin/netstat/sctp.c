@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2001-2007, by Weongyo Jeong. All rights reserved.
  * Copyright (c) 2011, by Michael Tuexen. All rights reserved.
  *

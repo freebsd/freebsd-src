@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1993 Christopher G. Demetriou
  * All rights reserved.
  *

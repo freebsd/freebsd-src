@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (C) 2009-2012 Semihalf
  * All rights reserved.
  *

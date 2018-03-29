@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
+/*
  * Copyright (c) 2000-2001, Boris Popov
  * All rights reserved.
  *

@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2009 Gallon Sylvestre.  All rights reserved.
  * Copyright (c) 2010 Greg Ansley.  All rights reserved.
  *

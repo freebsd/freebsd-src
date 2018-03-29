@@ -1,8 +1,6 @@
 /*	$OpenBSD: param.h,v 1.11 1998/08/30 22:05:35 millert Exp $ */
 
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.

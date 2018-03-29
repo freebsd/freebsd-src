@@ -1,8 +1,6 @@
 /*-
  * FreeBSD, VLB/ISA product support functions
  *
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2004 Justin T. Gibbs.
  * All rights reserved.
  *

@@ -1,6 +1,4 @@
 /*
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2010 LSI Corp. 
  * All rights reserved.
  * Author : Manjunath Ranganathaiah <manjunath.ranganathaiah@lsi.com>

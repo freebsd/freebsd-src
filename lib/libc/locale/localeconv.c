@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
+/*
  * Copyright (c) 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.

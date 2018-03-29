@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2001 Wind River Systems, Inc.
  * All rights reserved.
  * Written by: John Baldwin <jhb@FreeBSD.org>

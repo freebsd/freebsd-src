@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2004-2006 Kip Macy
  * Copyright (c) 2015 Wei Liu <wei.liu2@citrix.com>
  * All rights reserved.

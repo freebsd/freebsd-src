@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2006 Michael Lorenz
  * Copyright (c) 2008 Nathan Whitehorn
  * All rights reserved.

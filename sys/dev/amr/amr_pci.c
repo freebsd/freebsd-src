@@ -25,8 +25,6 @@
  * SUCH DAMAGE.
  */
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2002 Eric Moore
  * Copyright (c) 2002, 2004 LSI Logic Corporation
  * All rights reserved.

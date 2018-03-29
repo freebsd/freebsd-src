@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Written by: yen_cw@myson.com.tw
  * Copyright (c) 2002 Myson Technology Inc.
  * All rights reserved.

@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (C) 2011 glevand (geoffrey.levand@mail.ru)
  * All rights reserved.
  *

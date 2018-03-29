@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2012-2014 Thomas Skibo <thomasskibo@yahoo.com>
  * All rights reserved.
  *

@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
  * Copyright (c) 2001 Tamotsu Hattori.
  * Copyright (c) 2001 Mitsuru IWASAKI.
  * All rights reserved.

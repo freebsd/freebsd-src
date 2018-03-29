@@ -1,6 +1,4 @@
 /*-
-SPDX-License-Identifier: BSD-3-Clause
-
 Copyright (c) 1999-2001, Intel Corporation 
 
 All rights reserved.

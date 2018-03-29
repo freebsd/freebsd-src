@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
+/*
  * Copyright (C) 2011-2014 Matteo Landi, Luigi Rizzo. All rights reserved.
  * Copyright (C) 2013-2014 Universita` di Pisa. All rights reserved.
  *

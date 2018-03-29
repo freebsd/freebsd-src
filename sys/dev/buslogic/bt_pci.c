@@ -2,8 +2,6 @@
  * Product specific probe and attach routines for:
  *      Buslogic BT946, BT948, BT956, BT958 SCSI controllers
  *
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 1995, 1997, 1998 Justin T. Gibbs
  * All rights reserved.
  *

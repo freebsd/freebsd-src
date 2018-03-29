@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (C) 1992-1994,2001 by Joerg Wunsch, Dresden
  * All rights reserved.
  *

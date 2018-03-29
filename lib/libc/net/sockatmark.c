@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
+/*
  * Copyright (c) 2002 William C. Fenner.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

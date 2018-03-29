@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2006 Wojciech A. Koszek <wkoszek@FreeBSD.org>
  * Copyright (c) 2012-2014 Robert N. M. Watson
  * All rights reserved.

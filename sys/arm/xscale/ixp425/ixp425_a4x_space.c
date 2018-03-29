@@ -1,8 +1,6 @@
 /*	$NetBSD: ixp425_a4x_space.c,v 1.2 2005/12/11 12:16:51 christos Exp $	*/
 
-/*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
+/*
  * Copyright 2003 Wasabi Systems, Inc.
  * All rights reserved.
  *

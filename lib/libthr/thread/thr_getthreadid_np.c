@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
+/*
  * Copyright (c) 2011 Jung-uk Kim <jkim@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without

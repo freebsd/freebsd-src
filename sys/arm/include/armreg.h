@@ -1,8 +1,6 @@
 /*	$NetBSD: armreg.h,v 1.37 2007/01/06 00:50:54 christos Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
  * Copyright (c) 1998, 2001 Ben Harris
  * Copyright (c) 1994-1996 Mark Brinicombe.
  * Copyright (c) 1994 Brini.

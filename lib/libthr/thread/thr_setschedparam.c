@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
+/*
  * Copyright (c) 1998 Daniel Eischen <eischen@vigrid.com>.
  * All rights reserved.
  *

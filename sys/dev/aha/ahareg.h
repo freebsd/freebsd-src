@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Generic register and struct definitions for the Adaptech 1540, 1542,
  * 1640, 1642 SCSI host adapters. Product specific probe and attach
  * routines can be found in:

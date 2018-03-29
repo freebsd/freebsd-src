@@ -1,8 +1,6 @@
 /*	$NetBSD: rpc_generic.c,v 1.4 2000/09/28 09:07:04 kleink Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *

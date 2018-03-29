@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (C) 1996 Naoki Hamada <nao@tom-yam.or.jp>
  * All rights reserved.
  *

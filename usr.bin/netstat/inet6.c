@@ -1,7 +1,5 @@
 /*	BSDI inet.c,v 2.3 1995/10/24 02:19:29 prb Exp	*/
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

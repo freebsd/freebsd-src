@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
+/*
  * Copyright (c) 1997, 1998, 2000, 2001  Kenneth D. Merry
  * All rights reserved.
  *

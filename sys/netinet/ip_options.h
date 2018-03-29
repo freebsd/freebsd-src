@@ -1,6 +1,4 @@
 /*
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.
  * Copyright (c) 2005 Andre Oppermann, Internet Business Solutions AG.

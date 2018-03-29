@@ -1,9 +1,7 @@
 /*	$NetBSD: lockd.c,v 1.7 2000/08/12 18:08:44 thorpej Exp $	*/
 /*	$FreeBSD$ */
 
-/*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
+/*
  * Copyright (c) 1995
  *	A.R. Gordon (andrew.gordon@net-tel.co.uk).  All rights reserved.
  *

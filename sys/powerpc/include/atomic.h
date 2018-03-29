@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2008 Marcel Moolenaar
  * Copyright (c) 2001 Benno Rice
  * Copyright (c) 2001 David E. O'Brien

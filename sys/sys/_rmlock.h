@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2007 Stephan Uphoff <ups@FreeBSD.org>
  * All rights reserved.
  *

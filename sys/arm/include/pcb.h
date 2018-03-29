@@ -1,8 +1,6 @@
 /*	$NetBSD: pcb.h,v 1.10 2003/10/13 21:46:39 scw Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
  * Copyright (c) 2001 Matt Thomas <matt@3am-software.com>.
  * Copyright (c) 1994 Mark Brinicombe.
  * All rights reserved.

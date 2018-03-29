@@ -1,8 +1,6 @@
 /*	$NetBSD: pcscpreg.h,v 1.2 2008/04/28 20:23:55 martin Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
- *
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

@@ -1,8 +1,6 @@
 /*	$NetBSD: fpu_emu.c,v 1.14 2005/12/11 12:18:42 christos Exp $ */
 
-/*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
+/*
  * Copyright 2001 Wasabi Systems, Inc.
  * All rights reserved.
  *

@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2006-2007 Daniel Roethlisberger <daniel@roe.ch>
  * All rights reserved.
  *

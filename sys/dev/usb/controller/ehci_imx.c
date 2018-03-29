@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2010-2012 Semihalf
  * Copyright (c) 2012 The FreeBSD Foundation
  * Copyright (c) 2013 Ian Lepore <ian@freebsd.org>

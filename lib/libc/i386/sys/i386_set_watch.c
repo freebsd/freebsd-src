@@ -1,6 +1,4 @@
-/*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
+/*
  * Copyright 2000  Brian S. Dean <bsd@bsdhome.com>
  * All Rights Reserved.
  *

@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 2000-2014 Dag-Erling Smørgrav
  * All rights reserved.
  *

@@ -1,8 +1,6 @@
 /*-
  * Low level routines for the Advanced Systems Inc. SCSI controllers chips
  *
- * SPDX-License-Identifier: BSD-3-Clause
- *
  * Copyright (c) 1996-1997, 1999-2000 Justin Gibbs.
  * All rights reserved.
  *

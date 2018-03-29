@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2006 Peter Wemm
  *
  * Redistribution and use in source and binary forms, with or without

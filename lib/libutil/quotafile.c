@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2008 Dag-Erling Coïdan Smørgrav
  * Copyright (c) 2008 Marshall Kirk McKusick
  * All rights reserved.

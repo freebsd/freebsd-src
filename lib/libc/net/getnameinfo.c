@@ -1,8 +1,6 @@
 /*	$KAME: getnameinfo.c,v 1.61 2002/06/27 09:25:47 itojun Exp $	*/
 
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
+/*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * Copyright (c) 2000 Ben Harris.
  * All rights reserved.

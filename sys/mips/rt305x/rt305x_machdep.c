@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (C) 2010-2011 by Aleksandr Rybalko. All rights reserved.
  * Copyright (C) 2007 by Oleksandr Tymoshenko. All rights reserved.
  *

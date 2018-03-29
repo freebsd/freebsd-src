@@ -1,8 +1,6 @@
 /*	$NetBSD: fpsetround.c,v 1.3 2002/01/13 21:45:48 thorpej Exp $	*/
 
-/*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
+/*
  * Copyright (c) 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

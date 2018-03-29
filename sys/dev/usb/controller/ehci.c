@@ -1,7 +1,5 @@
 /* $FreeBSD$ */
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  * Copyright (c) 2004 The NetBSD Foundation, Inc. All rights reserved.
  * Copyright (c) 2004 Lennart Augustsson. All rights reserved.

@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-3-Clause
- *
  * Copyright 2008 by Marco Trillo. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

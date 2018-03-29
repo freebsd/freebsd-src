@@ -1,8 +1,6 @@
 /*	$NetBSD: cpufunc.c,v 1.65 2003/11/05 12:53:15 scw Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
  * arm9 support code Copyright (C) 2001 ARM Ltd
  * Copyright (c) 1997 Mark Brinicombe.
  * Copyright (c) 1997 Causality Limited
