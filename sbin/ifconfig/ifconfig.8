@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2016
+.Dd September 17, 2016
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -145,6 +145,12 @@ is specified as a series of colon-separated hex digits.
 This can be used to, for example,
 set a new MAC address on an Ethernet interface, though the
 mechanism used is not Ethernet specific.
+Use the
+.Pq Dq random
+keyword to set a randomly generated MAC address.
+A randomly-generated MAC address might be the same as one already in use
+in the network.
+Such duplications are extremely unlikely.
 If the interface is already
 up when this option is used, it will be briefly brought down and
 then brought back up again in order to ensure that the receive
@@ -254,7 +260,7 @@ Display subnet masks in dotted quad notation, for example:
 .br
 255.255.0.0 or 255.255.255.192
 .It Sy hex
-Display subnet masks in hexidecimal, for example:
+Display subnet masks in hexadecimal, for example:
 .br
 0xffff0000 or 0xffffffc0
 .El
@@ -2615,13 +2621,13 @@ and
 .Cm vlandev
 must both be set at the same time.
 .It Cm vlanpcp Ar priority_code_point
-Priority code point 
+Priority code point
 .Pq Dv PCP
 is an 3-bit field which refers to the IEEE 802.1p
 class of service and maps to the frame priority level.
 .Pp
 Values in order of priority are:
-.Cm 1 
+.Cm 1
 .Pq Dv Background (lowest) ,
 .Cm 0
 .Pq Dv Best effort (default) ,
@@ -2759,7 +2765,7 @@ interface to send the frame directly to the remote host instead of
 broadcasting the frame to the multicast group.
 This is the default.
 .It Fl vxlanlearn
-The forwarding table is not populated by recevied packets.
+The forwarding table is not populated by received packets.
 .It Cm vxlanflush
 Delete all dynamically-learned addresses from the forwarding table.
 .It Cm vxlanflushall
