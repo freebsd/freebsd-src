@@ -261,9 +261,6 @@
 	hwm = 60
 	lwm = 15
 	dwm = 30
-	#aec_retry_cnt = 4
-	flags = an_dis
-
 
 [port "1"]
 	dcb = none
@@ -272,13 +269,10 @@
 	hwm = 60
 	lwm = 15
 	dwm = 30
-	#aec_retry_cnt = 4
-	flags = an_dis
-
 
 [fini]
 	version = 0x1
-	checksum = 0xd4ef7f0
+	checksum = 0xf438bb8f
 #
 # $FreeBSD$
 #
