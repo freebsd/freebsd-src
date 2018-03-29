@@ -1820,9 +1820,9 @@ in_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 
 found:
 	if (lookupflags & INPLOOKUP_WLOCKPCB)
-		locked = TRY_INP_WLOCK(inp);
+		locked = INP_TRY_WLOCK(inp);
 	else if (lookupflags & INPLOOKUP_RLOCKPCB)
-		locked = TRY_INP_RLOCK(inp);
+		locked = INP_TRY_RLOCK(inp);
 	else
 		panic("%s: locking bug", __func__);
 	if (!locked)
