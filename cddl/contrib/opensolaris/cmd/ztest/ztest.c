@@ -436,7 +436,10 @@ static spa_t *ztest_spa = NULL;
 static ztest_ds_t *ztest_ds;
 
 static kmutex_t ztest_vdev_lock;
+<<<<<<< HEAD
+=======
 static kmutex_t ztest_checkpoint_lock;
+>>>>>>> origin/master
 
 /*
  * The ztest_name_lock protects the pool and dataset namespace used by
@@ -2843,6 +2846,10 @@ ztest_split_pool(ztest_ds_t *zd, uint64_t id)
 		--zs->zs_mirrors;
 	}
 	mutex_exit(&ztest_vdev_lock);
+<<<<<<< HEAD
+
+=======
+>>>>>>> origin/master
 }
 
 /*
@@ -3194,7 +3201,10 @@ ztest_vdev_LUN_growth(ztest_ds_t *zd, uint64_t id)
 	uint64_t top;
 	uint64_t old_class_space, new_class_space, old_ms_count, new_ms_count;
 
+<<<<<<< HEAD
+=======
 	mutex_enter(&ztest_checkpoint_lock);
+>>>>>>> origin/master
 	mutex_enter(&ztest_vdev_lock);
 	spa_config_enter(spa, SCL_STATE, spa, RW_READER);
 
@@ -3205,9 +3215,14 @@ ztest_vdev_LUN_growth(ztest_ds_t *zd, uint64_t id)
 	 * when the device removal completes).
 	 */
 	if (spa->spa_vdev_removal != NULL) {
+<<<<<<< HEAD
+		spa_config_exit(spa, SCL_STATE, FTAG);
+		mutex_exit(&ztest_vdev_lock);
+=======
 		spa_config_exit(spa, SCL_STATE, spa);
 		mutex_exit(&ztest_vdev_lock);
 		mutex_exit(&ztest_checkpoint_lock);
+>>>>>>> origin/master
 		return;
 	}
 
@@ -3237,7 +3252,10 @@ ztest_vdev_LUN_growth(ztest_ds_t *zd, uint64_t id)
 	    psize == 0 || psize >= 4 * ztest_opts.zo_vdev_size) {
 		spa_config_exit(spa, SCL_STATE, spa);
 		mutex_exit(&ztest_vdev_lock);
+<<<<<<< HEAD
+=======
 		mutex_exit(&ztest_checkpoint_lock);
+>>>>>>> origin/master
 		return;
 	}
 	ASSERT(psize > 0);
@@ -3263,7 +3281,10 @@ ztest_vdev_LUN_growth(ztest_ds_t *zd, uint64_t id)
 		}
 		spa_config_exit(spa, SCL_STATE, spa);
 		mutex_exit(&ztest_vdev_lock);
+<<<<<<< HEAD
+=======
 		mutex_exit(&ztest_checkpoint_lock);
+>>>>>>> origin/master
 		return;
 	}
 
@@ -3298,7 +3319,10 @@ ztest_vdev_LUN_growth(ztest_ds_t *zd, uint64_t id)
 		}
 		spa_config_exit(spa, SCL_STATE, spa);
 		mutex_exit(&ztest_vdev_lock);
+<<<<<<< HEAD
+=======
 		mutex_exit(&ztest_checkpoint_lock);
+>>>>>>> origin/master
 		return;
 	}
 
@@ -3329,7 +3353,10 @@ ztest_vdev_LUN_growth(ztest_ds_t *zd, uint64_t id)
 
 	spa_config_exit(spa, SCL_STATE, spa);
 	mutex_exit(&ztest_vdev_lock);
+<<<<<<< HEAD
+=======
 	mutex_exit(&ztest_checkpoint_lock);
+>>>>>>> origin/master
 }
 
 /*
@@ -5844,7 +5871,10 @@ ztest_run(ztest_shared_t *zs)
 	/*
 	 * Initialize parent/child shared state.
 	 */
+<<<<<<< HEAD
+=======
 	mutex_init(&ztest_checkpoint_lock, NULL, USYNC_THREAD, NULL);
+>>>>>>> origin/master
 	mutex_init(&ztest_vdev_lock, NULL, USYNC_THREAD, NULL);
 	rw_init(&ztest_name_lock, NULL, USYNC_THREAD, NULL);
 
@@ -6009,7 +6039,10 @@ ztest_run(ztest_shared_t *zs)
 
 	rw_destroy(&ztest_name_lock);
 	mutex_destroy(&ztest_vdev_lock);
+<<<<<<< HEAD
+=======
 	mutex_destroy(&ztest_checkpoint_lock);
+>>>>>>> origin/master
 }
 
 static void
@@ -6154,7 +6187,10 @@ ztest_init(ztest_shared_t *zs)
 	nvlist_t *nvroot, *props;
 
 	mutex_init(&ztest_vdev_lock, NULL, USYNC_THREAD, NULL);
+<<<<<<< HEAD
+=======
 	mutex_init(&ztest_checkpoint_lock, NULL, USYNC_THREAD, NULL);
+>>>>>>> origin/master
 	rw_init(&ztest_name_lock, NULL, USYNC_THREAD, NULL);
 
 	kernel_init(FREAD | FWRITE);
@@ -6195,7 +6231,10 @@ ztest_init(ztest_shared_t *zs)
 
 	rw_destroy(&ztest_name_lock);
 	mutex_destroy(&ztest_vdev_lock);
+<<<<<<< HEAD
+=======
 	mutex_destroy(&ztest_checkpoint_lock);
+>>>>>>> origin/master
 }
 
 static void
