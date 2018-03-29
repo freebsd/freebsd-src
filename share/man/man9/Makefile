@@ -118,6 +118,7 @@ MAN=	accept_filter.9 \
 	disk.9 \
 	dnv.9 \
 	domain.9 \
+	domainset.9 \
 	dpcpu.9 \
 	drbr.9 \
 	driver.9 \

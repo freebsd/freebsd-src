@@ -807,7 +807,7 @@ device		loop
 
 #  The `ether' device provides generic code to handle
 #  Ethernets; it is MANDATORY when an Ethernet device driver is
-#  configured or token-ring is enabled.
+#  configured.
 device		ether
 
 #  The `vlan' device implements the VLAN tagging of Ethernet frames
@@ -845,9 +845,6 @@ device		wlan_xauth
 #  The 'wlan_amrr' device provides AMRR transmit rate control algorithm
 device		wlan_acl
 device		wlan_amrr
-
-# Generic TokenRing
-device		token
 
 #  The `fddi' device provides generic code to support FDDI.
 device		fddi

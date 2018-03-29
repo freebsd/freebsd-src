@@ -18,31 +18,27 @@
  *
  * CDDL HEADER END
  */
+
 /*
- * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
+ * Copyright (c) 2017 by Delphix. All rights reserved.
  */
 
-#ifndef	_ZFS_COMUTIL_H
-#define	_ZFS_COMUTIL_H
+#ifndef _SYS_SPA_CHECKPOINT_H
+#define	_SYS_SPA_CHECKPOINT_H
 
-#include <sys/fs/zfs.h>
-#include <sys/types.h>
+#include <sys/zthr.h>
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
+typedef struct spa_checkpoint_info {
+	uint64_t sci_timestamp; /* when checkpointed uberblock was synced  */
+	uint64_t sci_dspace;    /* disk space used by checkpoint in bytes */
+} spa_checkpoint_info_t;
 
-extern boolean_t zfs_allocatable_devs(nvlist_t *);
-extern void zpool_get_load_policy(nvlist_t *, zpool_load_policy_t *);
+int spa_checkpoint(const char *);
+int spa_checkpoint_discard(const char *);
 
-extern int zfs_zpl_version_map(int spa_version);
-extern int zfs_spa_version_map(int zpl_version);
-#define	ZFS_NUM_LEGACY_HISTORY_EVENTS 41
-extern const char *zfs_history_event_names[ZFS_NUM_LEGACY_HISTORY_EVENTS];
+boolean_t spa_checkpoint_discard_thread_check(void *, zthr_t *);
+int spa_checkpoint_discard_thread(void *, zthr_t *);
 
-#ifdef	__cplusplus
-}
-#endif
+int spa_checkpoint_get_stats(spa_t *, pool_checkpoint_stat_t *);
 
-#endif	/* _ZFS_COMUTIL_H */
+#endif /* _SYS_SPA_CHECKPOINT_H */

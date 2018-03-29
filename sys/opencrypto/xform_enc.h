@@ -51,7 +51,7 @@
 struct enc_xform {
 	int type;
 	char *name;
-	u_int16_t blocksize;
+	u_int16_t blocksize;	/* Required input block size -- 1 for stream ciphers. */
 	u_int16_t ivsize;
 	u_int16_t minkey, maxkey;
 	void (*encrypt) (caddr_t, u_int8_t *);
@@ -83,6 +83,7 @@ extern struct enc_xform enc_xform_aes_nist_gmac;
 extern struct enc_xform enc_xform_aes_xts;
 extern struct enc_xform enc_xform_arc4;
 extern struct enc_xform enc_xform_camellia;
+extern struct enc_xform enc_xform_chacha20;
 
 struct aes_icm_ctx {
 	u_int32_t	ac_ek[4*(RIJNDAEL_MAXNR + 1)];

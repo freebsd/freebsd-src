@@ -145,13 +145,21 @@ numbers separated by '-' for ranges and commas separating individual numbers.
 A special list of
 .Dq all
 may be specified in which case the list includes all CPUs from the root set.
-.It Fl n Ar domain-list:policy
+.It Fl n Ar policy:domain-list
 Specifies a list of domains and allocation policy to apply to a target.  Ranges
 may be specified as in
 .Fl l .
-Valid policies include first-touch, ft, round-robin, rr, and prefer.  The prefer
-policy accepts only a single domain in the set.  The parent of the set is
-consulted if the preferred domain is unavailable.
+Valid policies include first-touch (ft), round-robin (rr), prefer and
+interleave (il).
+First-touch allocates on the local domain when memory is available.
+Round-robin alternates between every possible domain page at at time.
+The prefer policy accepts only a single domain in the set.
+The parent of the set is consulted if the preferred domain is unavailable.
+Interleave operates like round-robin with an implementation defined stripe
+width.
+See
+.Xr domainset 9
+for more details on policies.
 .It Fl p Ar pid
 Specifies a pid as the target of the operation.
 .It Fl s Ar setid
