@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_EVENTHANDLER, "eventhandler", "Event handler records");
 
-/* List of 'slow' lists */
+/* List of all eventhandler lists */
 static TAILQ_HEAD(, eventhandler_list)	eventhandler_lists;
 static int				eventhandler_lists_initted = 0;
 static struct mtx			eventhandler_mutex;
@@ -64,25 +64,11 @@ eventhandler_init(void *dummy __unused)
 SYSINIT(eventhandlers, SI_SUB_EVENTHANDLER, SI_ORDER_FIRST, eventhandler_init,
     NULL);
 
-/* 
- * Insertion is O(n) due to the priority scan, but optimises to O(1)
- * if all priorities are identical.
- */
-static eventhandler_tag
-eventhandler_register_internal(struct eventhandler_list *list,
-    const char *name, eventhandler_tag epn)
+static struct eventhandler_list *
+eventhandler_find_or_create_list(const char *name)
 {
-    struct eventhandler_list		*new_list;
-    struct eventhandler_entry		*ep;
-    
-    KASSERT(eventhandler_lists_initted, ("eventhandler registered too early"));
-    KASSERT(epn != NULL, ("%s: cannot register NULL event", __func__));
+	struct eventhandler_list *list, *new_list;
 
-    /* lock the eventhandler lists */
-    mtx_lock(&eventhandler_mutex);
-
-    /* Do we need to find/create the (slow) list? */
-    if (list == NULL) {
 	/* look for a matching, existing list */
 	list = _eventhandler_find_list(name);
 
@@ -90,8 +76,8 @@ eventhandler_register_internal(struct eventhandler_list *list,
 	if (list == NULL) {
 	    mtx_unlock(&eventhandler_mutex);
 
-	    new_list = malloc(sizeof(struct eventhandler_list) +
-		strlen(name) + 1, M_EVENTHANDLER, M_WAITOK);
+	    new_list = malloc(sizeof(*new_list) + strlen(name) + 1,
+		M_EVENTHANDLER, M_WAITOK | M_ZERO);
 
 	    /* If someone else created it already, then use that one. */
 	    mtx_lock(&eventhandler_mutex);
@@ -101,21 +87,36 @@ eventhandler_register_internal(struct eventhandler_list *list,
 	    } else {
 		CTR2(KTR_EVH, "%s: creating list \"%s\"", __func__, name);
 		list = new_list;
-		list->el_flags = 0;
-		list->el_runcount = 0;
-		bzero(&list->el_lock, sizeof(list->el_lock));
-		list->el_name = (char *)list + sizeof(struct eventhandler_list);
+		TAILQ_INIT(&list->el_entries);
+		list->el_name = (char *)(list + 1);
 		strcpy(list->el_name, name);
+		mtx_init(&list->el_lock, list->el_name, "eventhandler list",
+		    MTX_DEF);
 		TAILQ_INSERT_HEAD(&eventhandler_lists, list, el_link);
 	    }
 	}
+	return (list);
+}
+
+/* 
+ * Insertion is O(n) due to the priority scan, but optimises to O(1)
+ * if all priorities are identical.
+ */
+static eventhandler_tag
+eventhandler_register_internal(struct eventhandler_list *list,
+    const char *name, eventhandler_tag epn)
+{
+    struct eventhandler_entry		*ep;
+    
+    KASSERT(eventhandler_lists_initted, ("eventhandler registered too early"));
+    KASSERT(epn != NULL, ("%s: cannot register NULL event", __func__));
+
+    /* Do we need to find/create the list? */
+    if (list == NULL) {
+	    mtx_lock(&eventhandler_mutex);
+	    list = eventhandler_find_or_create_list(name);
+	    mtx_unlock(&eventhandler_mutex);
     }
-    if (!(list->el_flags & EHL_INITTED)) {
-	TAILQ_INIT(&list->el_entries);
-	mtx_init(&list->el_lock, name, "eventhandler list", MTX_DEF);
-	atomic_store_rel_int(&list->el_flags, EHL_INITTED);
-    }
-    mtx_unlock(&eventhandler_mutex);
 
     KASSERT(epn->ee_priority != EHE_DEAD_PRIORITY,
 	("%s: handler for %s registered with dead priority", __func__, name));
@@ -293,4 +294,23 @@ eventhandler_prune_list(struct eventhandler_list *list)
     }
     if (pruned > 0)
 	    wakeup(list);
+}
+
+/*
+ * Create (or get the existing) list so the pointer can be stored by
+ * EVENTHANDLER_LIST_DEFINE.
+ */
+struct eventhandler_list *
+eventhandler_create_list(const char *name)
+{
+	struct eventhandler_list *list;
+
+	KASSERT(eventhandler_lists_initted,
+	    ("eventhandler list created too early"));
+
+	mtx_lock(&eventhandler_mutex);
+	list = eventhandler_find_or_create_list(name);
+	mtx_unlock(&eventhandler_mutex);
+
+	return (list);
 }
