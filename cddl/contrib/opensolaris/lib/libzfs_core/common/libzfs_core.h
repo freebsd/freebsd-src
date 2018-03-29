@@ -92,6 +92,9 @@ int lzc_channel_program(const char *, const char *, uint64_t,
 int lzc_channel_program_nosync(const char *, const char *, uint64_t,
     uint64_t, nvlist_t *, nvlist_t **);
 
+int lzc_pool_checkpoint(const char *);
+int lzc_pool_checkpoint_discard(const char *);
+
 #ifdef	__cplusplus
 }
 #endif
