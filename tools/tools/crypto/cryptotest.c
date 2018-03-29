@@ -56,6 +56,7 @@
  *	aes	rijndael/aes 128-bit cbc
  *	aes192	rijndael/aes 192-bit cbc
  *	aes256	rijndael/aes 256-bit cbc
+ *	chacha20 Chacha20 stream cipher
  *	blake2b	Blake2b
  *	blake2s	Blake2s
  *	md5	md5 hmac
@@ -134,6 +135,7 @@ struct alg {
 	{ "aes",	0,	16,	16,	16,	CRYPTO_AES_CBC},
 	{ "aes192",	0,	16,	24,	24,	CRYPTO_AES_CBC},
 	{ "aes256",	0,	16,	32,	32,	CRYPTO_AES_CBC},
+	{ "chacha20",	0,	1,	32,	32,	CRYPTO_CHACHA20},
 	{ "blake2b",	1,	128,	64,	64,	CRYPTO_BLAKE2B },
 	{ "blake2s",	1,	64,	32,	32,	CRYPTO_BLAKE2S },
 	{ "md5",	1,	8,	16,	16,	CRYPTO_MD5_HMAC },
@@ -150,7 +152,7 @@ usage(const char* cmd)
 		cmd);
 	printf("where algorithm is one of:\n");
 	printf("    null des 3des (default) blowfish cast skipjack rij\n");
-	printf("    aes aes192 aes256 md5 sha1 sha256 sha384 sha512\n");
+	printf("    aes aes192 aes256 chacha20 md5 sha1 sha256 sha384 sha512\n");
 	printf("    blake2b blake2s\n");
 	printf(" or an encryption algorithm concatented with authentication\n");
 	printf(" algorithm with '+' in the middle, e.g., aes+sha1.\n");
