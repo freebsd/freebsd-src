@@ -86,6 +86,7 @@ struct sysctl_oid;
  * d   vm_domainset_lock
  * a   atomic
  * c   const after boot
+ * q   page queue lock
 */
 struct vm_domain {
 	struct vm_pagequeue vmd_pagequeues[PQ_COUNT];
@@ -112,15 +113,15 @@ struct vm_domain {
 	int vmd_pageout_pages_needed;	/* (d) page daemon waiting for pages? */
 	bool vmd_minset;		/* (d) Are we in vm_min_domains? */
 	bool vmd_severeset;		/* (d) Are we in vm_severe_domains? */
-	int vmd_inactq_scans;
 	enum {
 		VM_LAUNDRY_IDLE = 0,
 		VM_LAUNDRY_BACKGROUND,
 		VM_LAUNDRY_SHORTFALL
 	} vmd_laundry_request;
 
-	/* Paging thresholds. */
-	u_int vmd_background_launder_target;
+	/* Paging thresholds and targets. */
+	u_int vmd_clean_pages_freed;	/* (q) accumulator for laundry thread */
+	u_int vmd_background_launder_target; /* (c) */
 	u_int vmd_free_reserved;	/* (c) pages reserved for deadlock */
 	u_int vmd_free_target;		/* (c) pages desired free */
 	u_int vmd_free_min;		/* (c) pages desired free */
