@@ -51,7 +51,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
-20180528:
+20180328:
 	Support for token ring networks has been removed. If you
 	have "device token" in your kernel config you should remove
 	it. No device drivers supported token ring.
