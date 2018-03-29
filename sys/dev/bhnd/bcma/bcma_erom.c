@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#include <dev/bhnd/cores/chipc/chipcreg.h>
+#include <dev/bhnd/bhnd_eromvar.h>
 
 #include "bcma_eromreg.h"
 #include "bcma_eromvar.h"
@@ -168,23 +168,16 @@ static int
 bcma_erom_probe(bhnd_erom_class_t *cls, struct bhnd_erom_io *eio,
     const struct bhnd_chipid *hint, struct bhnd_chipid *cid)
 {
-	uint32_t idreg, eromptr;
+	int error;
 
 	/* Hints aren't supported; all BCMA devices have a ChipCommon
 	 * core */
 	if (hint != NULL)
 		return (EINVAL);
 
-	/* Confirm CHIPC_EROMPTR availability */	
-	idreg = bhnd_erom_io_read(eio, CHIPC_ID, 4);
-	if (!BHND_CHIPTYPE_HAS_EROM(CHIPC_GET_BITS(idreg, CHIPC_ID_BUS)))
-		return (ENXIO);
-
-	/* Fetch EROM address */
-	eromptr = bhnd_erom_io_read(eio, CHIPC_EROMPTR, 4);
-
-	/* Parse chip identifier */
-	*cid = bhnd_parse_chipid(idreg, eromptr);
+	/* Read and parse chip identification */
+	if ((error = bhnd_erom_read_chipid(eio, cid)))
+		return (error);
 
 	/* Verify chip type */
 	switch (cid->chip_type) {
