@@ -96,6 +96,7 @@
  *	aes-ctr256	256-bit aes ctr
  *	aes-xts		128-bit aes xts
  *	aes-xts256	256-bit aes xts
+ *	chacha20
  *
  * Authenticated Encryption:
  *	<block cipher>+<hmac>
@@ -162,6 +163,8 @@ struct alg {
 	  .evp_cipher = EVP_aes_128_xts },
 	{ .name = "aes-xts256", .cipher = CRYPTO_AES_XTS, .type = T_BLKCIPHER,
 	  .evp_cipher = EVP_aes_256_xts },
+	{ .name = "chacha20", .cipher = CRYPTO_CHACHA20, .type = T_BLKCIPHER,
+	  .evp_cipher = EVP_chacha20 },
 	{ .name = "aes-gcm", .cipher = CRYPTO_AES_NIST_GCM_16,
 	  .mac = CRYPTO_AES_128_NIST_GMAC, .type = T_GCM,
 	  .evp_cipher = EVP_aes_128_gcm },
