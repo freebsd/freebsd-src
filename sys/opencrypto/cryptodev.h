@@ -112,7 +112,8 @@
 #define	AES_ICM_BLOCK_LEN	1
 #define	ARC4_BLOCK_LEN		1
 #define	CAMELLIA_BLOCK_LEN	16
-#define	EALG_MAX_BLOCK_LEN	AES_BLOCK_LEN /* Keep this updated */
+#define	CHACHA20_NATIVE_BLOCK_LEN	64
+#define	EALG_MAX_BLOCK_LEN	CHACHA20_NATIVE_BLOCK_LEN /* Keep this updated */
 
 /* IV Lengths */
 
@@ -180,7 +181,8 @@
 #define	CRYPTO_AES_256_NIST_GMAC 28 /* auth side */
 #define	CRYPTO_BLAKE2B		29 /* Blake2b hash */
 #define	CRYPTO_BLAKE2S		30 /* Blake2s hash */
-#define	CRYPTO_ALGORITHM_MAX	30 /* Keep updated - see below */
+#define	CRYPTO_CHACHA20		31 /* Chacha20 stream cipher */
+#define	CRYPTO_ALGORITHM_MAX	31 /* Keep updated - see below */
 
 #define	CRYPTO_ALGO_VALID(x)	((x) >= CRYPTO_ALGORITHM_MIN && \
 				 (x) <= CRYPTO_ALGORITHM_MAX)
