@@ -77,7 +77,6 @@ dummy_callback(struct libusb20_transfer *xfer)
 #define	dummy_check_connected (void *)dummy_int
 #define	dummy_set_power_mode (void *)dummy_int
 #define	dummy_get_power_mode (void *)dummy_int
-#define	dummy_get_port_path (void *)dummy_int
 #define	dummy_get_power_usage (void *)dummy_int
 #define	dummy_kernel_driver_active (void *)dummy_int
 #define	dummy_detach_kernel_driver (void *)dummy_int
@@ -745,7 +744,26 @@ libusb20_dev_get_power_mode(struct libusb20_device *pdev)
 int
 libusb20_dev_get_port_path(struct libusb20_device *pdev, uint8_t *buf, uint8_t bufsize)
 {
-	return (pdev->methods->get_port_path(pdev, buf, bufsize));
+
+	if (pdev->port_level == 0) {
+		/*
+		 * Fallback for backends without port path:
+		 */
+		if (bufsize < 2)
+			return (LIBUSB20_ERROR_OVERFLOW);
+		buf[0] = pdev->parent_address;
+		buf[1] = pdev->parent_port;
+		return (2);
+	}
+
+	/* check if client buffer is too small */
+	if (pdev->port_level > bufsize)
+		return (LIBUSB20_ERROR_OVERFLOW);
+
+	/* copy port number information */
+	memcpy(buf, pdev->port_path, pdev->port_level);
+
+	return (pdev->port_level);	/* success */
 }
 
 uint16_t

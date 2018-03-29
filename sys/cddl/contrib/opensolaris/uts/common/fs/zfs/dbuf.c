@@ -48,6 +48,7 @@
 #include <sys/callb.h>
 #include <sys/abd.h>
 #include <sys/vdev.h>
+#include <sys/cityhash.h>
 
 uint_t zfs_dbuf_evict_key;
 
@@ -84,10 +85,10 @@ static boolean_t dbuf_evict_thread_exit;
  */
 static multilist_t *dbuf_cache;
 static refcount_t dbuf_cache_size;
-uint64_t dbuf_cache_max_bytes = 100 * 1024 * 1024;
+uint64_t dbuf_cache_max_bytes = 0;
 
-/* Cap the size of the dbuf cache to log2 fraction of arc size. */
-int dbuf_cache_max_shift = 5;
+/* Set the default size of the dbuf cache to log2 fraction of arc size. */
+int dbuf_cache_shift = 5;
 
 /*
  * The dbuf cache uses a three-stage eviction policy:
@@ -137,8 +138,8 @@ uint_t dbuf_cache_lowater_pct = 10;
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_QUAD(_vfs_zfs, OID_AUTO, dbuf_cache_max_bytes, CTLFLAG_RWTUN,
     &dbuf_cache_max_bytes, 0, "dbuf cache size in bytes");
-SYSCTL_INT(_vfs_zfs, OID_AUTO, dbuf_cache_max_shift, CTLFLAG_RDTUN,
-    &dbuf_cache_max_shift, 0, "dbuf size as log2 fraction of ARC");
+SYSCTL_INT(_vfs_zfs, OID_AUTO, dbuf_cache_shift, CTLFLAG_RDTUN,
+    &dbuf_cache_shift, 0, "dbuf cache size as log2 fraction of ARC");
 SYSCTL_UINT(_vfs_zfs, OID_AUTO, dbuf_cache_hiwater_pct, CTLFLAG_RWTUN,
     &dbuf_cache_hiwater_pct, 0, "max percents above the dbuf cache size");
 SYSCTL_UINT(_vfs_zfs, OID_AUTO, dbuf_cache_lowater_pct, CTLFLAG_RWTUN,
@@ -177,23 +178,14 @@ static dbuf_hash_table_t dbuf_hash_table;
 
 static uint64_t dbuf_hash_count;
 
+/*
+ * We use Cityhash for this. It's fast, and has good hash properties without
+ * requiring any large static buffers.
+ */
 static uint64_t
 dbuf_hash(void *os, uint64_t obj, uint8_t lvl, uint64_t blkid)
 {
-	uintptr_t osv = (uintptr_t)os;
-	uint64_t crc = -1ULL;
-
-	ASSERT(zfs_crc64_table[128] == ZFS_CRC64_POLY);
-	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (lvl)) & 0xFF];
-	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (osv >> 6)) & 0xFF];
-	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (obj >> 0)) & 0xFF];
-	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (obj >> 8)) & 0xFF];
-	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (blkid >> 0)) & 0xFF];
-	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (blkid >> 8)) & 0xFF];
-
-	crc ^= (osv>>14) ^ (obj>>16) ^ (blkid>>16);
-
-	return (crc);
+	return (cityhash4((uintptr_t)os, obj, (uint64_t)lvl, blkid));
 }
 
 #define	DBUF_EQUAL(dbuf, os, obj, level, blkid)		\
@@ -618,11 +610,15 @@ retry:
 		mutex_init(&h->hash_mutexes[i], NULL, MUTEX_DEFAULT, NULL);
 
 	/*
-	 * Setup the parameters for the dbuf cache. We cap the size of the
-	 * dbuf cache to 1/32nd (default) of the size of the ARC.
+	 * Setup the parameters for the dbuf cache. We set the size of the
+	 * dbuf cache to 1/32nd (default) of the size of the ARC. If the value
+	 * has been set in /etc/system and it's not greater than the size of
+	 * the ARC, then we honor that value.
 	 */
-	dbuf_cache_max_bytes = MIN(dbuf_cache_max_bytes,
-	    arc_max_bytes() >> dbuf_cache_max_shift);
+	if (dbuf_cache_max_bytes == 0 ||
+	    dbuf_cache_max_bytes >= arc_max_bytes())  {
+		dbuf_cache_max_bytes = arc_max_bytes() >> dbuf_cache_shift;
+	}
 
 	/*
 	 * All entries are queued via taskq_dispatch_ent(), so min/maxalloc

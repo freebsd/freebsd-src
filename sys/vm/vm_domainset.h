@@ -33,10 +33,9 @@
 struct vm_domainset_iter {
 	struct domainset	*di_domain;
 	int			*di_iter;
-	vm_pindex_t		di_pindex;
+	vm_pindex_t		di_offset;
 	int			di_policy;
 	int			di_flags;
-	int			di_stride;
 	int			di_n;
 };
 

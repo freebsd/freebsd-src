@@ -48,6 +48,10 @@ struct bhnd_erom_iobus;
 typedef int		(bhnd_erom_io_map_t)(struct bhnd_erom_io *eio,
 			     bhnd_addr_t addr, bhnd_size_t size);
 
+/** @see bhnd_erom_io_tell() */
+typedef int		(bhnd_erom_io_tell_t)(struct bhnd_erom_io *eio,
+			     bhnd_addr_t *addr, bhnd_size_t *size);
+
 /** @see bhnd_erom_io_read() */
 typedef uint32_t	(bhnd_erom_io_read_t)(struct bhnd_erom_io *eio,
 			     bhnd_size_t offset, u_int width);
@@ -55,11 +59,17 @@ typedef uint32_t	(bhnd_erom_io_read_t)(struct bhnd_erom_io *eio,
 /** @see bhnd_erom_io_fini() */
 typedef void		(bhnd_erom_io_fini_t)(struct bhnd_erom_io *eio);
 
+
+int			 bhnd_erom_read_chipid(struct bhnd_erom_io *eio,
+			     struct bhnd_chipid *cid);
+
+
 /**
  * Abstract EROM bus I/O support.
  */
 struct bhnd_erom_io {
 	bhnd_erom_io_map_t	*map;	/**< @see bhnd_erom_io_map() */
+	bhnd_erom_io_tell_t	*tell;	/**< @see bhnd_erom_io_tell() */
 	bhnd_erom_io_read_t	*read;	/**< @see bhnd_erom_io_read() */
 	bhnd_erom_io_fini_t	*fini;	/**< @see bhnd_erom_io_fini(). May be NULL */
 };

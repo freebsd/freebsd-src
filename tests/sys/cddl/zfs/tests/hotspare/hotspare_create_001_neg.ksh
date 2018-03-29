@@ -131,7 +131,7 @@ if [[ -n $DUMPADM ]]; then
     # back to something normal so we can use this $disk as a dump device
     cleanup_devices $dump_dev
 
-    log_must $DUMPADM -u -d /dev/dsk/$dump_dev
+    log_must $DUMPADM -u -d /dev/$dump_dev
     log_mustnot $ZPOOL create $TESTPOOL1 ${pooldevs[1]} spare "$dump_dev"
     log_mustnot $ZPOOL create -f $TESTPOOL1 ${pooldevs[1]} spare "$dump_dev"
 fi

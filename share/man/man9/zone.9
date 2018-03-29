@@ -32,8 +32,10 @@
 .Nm uma_zcreate ,
 .Nm uma_zalloc ,
 .Nm uma_zalloc_arg ,
+.Nm uma_zalloc_domain ,
 .Nm uma_zfree ,
 .Nm uma_zfree_arg ,
+.Nm uma_zfree_domain ,
 .Nm uma_zdestroy ,
 .Nm uma_zone_set_max ,
 .Nm uma_zone_get_max ,
@@ -55,10 +57,14 @@
 .Fn uma_zalloc "uma_zone_t zone" "int flags"
 .Ft "void *"
 .Fn uma_zalloc_arg "uma_zone_t zone" "void *arg" "int flags"
+.Ft "void *"
+.Fn uma_zalloc_domain "uma_zone_t zone" "void *arg" "int domain" "int flags"
 .Ft void
 .Fn uma_zfree "uma_zone_t zone" "void *item"
 .Ft void
 .Fn uma_zfree_arg "uma_zone_t zone" "void *item" "void *arg"
+.Ft void
+.Fn uma_zfree_domain "uma_zone_t zone" "void *item" "void *arg"
 .Ft void
 .Fn uma_zdestroy "uma_zone_t zone"
 .Ft int
@@ -78,10 +84,13 @@
 .Fn SYSCTL_ADD_UMA_CUR ctx parent nbr name access zone descr
 .Sh DESCRIPTION
 The zone allocator provides an efficient interface for managing
-dynamically-sized collections of items of similar size.
+dynamically-sized collections of items of identical size.
 The zone allocator can work with preallocated zones as well as with
 runtime-allocated ones, and is therefore available much earlier in the
-boot process than other memory management routines.
+boot process than other memory management routines.  The zone allocator
+provides per-cpu allocation caches with linear scalability on SMP
+systems as well as round-robin and first-touch policies for NUMA
+systems.
 .Pp
 A zone is an extensible collection of items of identical size.
 The zone allocator keeps track of which items are in use and which
@@ -209,6 +218,11 @@ The zone is for the
 subsystem.
 .It Dv UMA_ZONE_VM
 The zone is for the VM subsystem.
+.It Dv UMA_ZONE_NUMA
+The zone should use a first-touch NUMA policy rather than the round-robin
+default. Callers that do not free memory on the same domain it is allocated
+from will cause mixing in per-cpu caches.  See
+.Xr numa 9 for more details.
 .El
 .Pp
 To allocate an item from a zone, simply call
@@ -243,12 +257,21 @@ The variations
 .Fn uma_zalloc_arg
 and
 .Fn uma_zfree_arg
-allow to
+allow callers to
 specify an argument for the
 .Dv ctor
 and
 .Dv dtor
 functions, respectively.
+The 
+.Fn uma_zalloc_domain
+function allows callers to specify a fixed
+.Xr numa 9 domain to allocate from.  This uses a guaranteed but slow path in
+the allocator which reduces concurrency.  The 
+.Fn uma_zfree_domain
+function should be used to return memory allocated in this fashion.  This
+function infers the domain from the pointer and does not require it as an
+argument.
 .Pp
 Created zones,
 which are empty,

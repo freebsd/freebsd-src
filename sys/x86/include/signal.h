@@ -43,10 +43,6 @@
 #include <sys/cdefs.h>
 #include <sys/_sigset.h>
 
-#if __BSD_VISIBLE
-#include <machine/trap.h>	/* codes for SIGILL, SIGFPE */
-#endif
-
 #ifdef __i386__
 typedef int sig_atomic_t;
 

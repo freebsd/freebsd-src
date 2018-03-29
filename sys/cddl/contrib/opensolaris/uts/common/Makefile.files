@@ -63,12 +63,14 @@ LUA_OBJS +=			\
 
 ZFS_COMMON_OBJS +=		\
 	abd.o			\
+	aggsum.o		\
 	arc.o			\
 	bplist.o		\
 	blkptr.o		\
 	bpobj.o			\
 	bptree.o		\
 	bqueue.o		\
+	cityhash.o		\
 	dbuf.o			\
 	ddt.o			\
 	ddt_zap.o		\
@@ -106,6 +108,7 @@ ZFS_COMMON_OBJS +=		\
 	sha256.o		\
 	skein_zfs.o		\
 	spa.o			\
+	spa_checkpoint.o	\
 	spa_config.o		\
 	spa_errlog.o		\
 	spa_history.o		\

@@ -31,13 +31,14 @@
 #define _SYS_SYSCALLSUBR_H_
 
 #include <sys/signal.h>
-#include <sys/uio.h>
 #include <sys/socket.h>
 #include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/_cpuset.h>
 #include <sys/_domainset.h>
+#include <sys/_uio.h>
 
+struct __wrusage;
 struct file;
 struct filecaps;
 enum idtype;
@@ -55,12 +56,12 @@ struct pollfd;
 struct ogetdirentries_args;
 struct rlimit;
 struct rusage;
+struct sched_param;
 union semun;
 struct sockaddr;
 struct stat;
 struct thr_param;
-struct sched_param;
-struct __wrusage;
+struct uio;
 
 int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
 	    size_t buflen, size_t path_max);

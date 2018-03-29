@@ -365,6 +365,9 @@ struct ifnet {
 	if_snd_tag_query_t *if_snd_tag_query;
 	if_snd_tag_free_t *if_snd_tag_free;
 
+	/* Ethernet PCP */
+	uint8_t if_pcp;
+
 	/*
 	 * Spare fields to be added before branching a stable branch, so
 	 * that structure can be enhanced without changing the kernel

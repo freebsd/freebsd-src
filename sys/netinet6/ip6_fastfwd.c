@@ -157,7 +157,7 @@ ip6_tryforward(struct mbuf *m)
 	 */
 	if (!PFIL_HOOKED(&V_inet6_pfil_hook))
 		goto passin;
-	if (pfil_run_hooks(&V_inet6_pfil_hook, &m, rcvif, PFIL_IN,
+	if (pfil_run_hooks(&V_inet6_pfil_hook, &m, rcvif, PFIL_IN, 0,
 	    NULL) != 0 || m == NULL)
 		goto dropin;
 	/*
@@ -201,7 +201,7 @@ passin:
 	if (!PFIL_HOOKED(&V_inet6_pfil_hook))
 		goto passout;
 	if (pfil_run_hooks(&V_inet6_pfil_hook, &m, nh.nh_ifp, PFIL_OUT,
-	    NULL) != 0 || m == NULL)
+	    PFIL_FWD, NULL) != 0 || m == NULL)
 		goto dropout;
 
 	/*

@@ -513,6 +513,19 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
 cpuset_t intr_cpus = CPUSET_T_INITIALIZER(0x1);
 static int current_cpu[MAXMEMDOM];
 
+static void
+intr_init_cpus(void)
+{
+	int i;
+
+	for (i = 0; i < vm_ndomains; i++) {
+		current_cpu[i] = 0;
+		if (!CPU_ISSET(current_cpu[i], &intr_cpus) ||
+		    !CPU_ISSET(current_cpu[i], &cpuset_domain[i]))
+			intr_next_cpu(i);
+	}
+}
+
 /*
  * Return the CPU that the next interrupt source should use.  For now
  * this just returns the next local APIC according to round-robin.
@@ -573,7 +586,18 @@ intr_add_cpu(u_int cpu)
 	CPU_SET(cpu, &intr_cpus);
 }
 
-#ifndef EARLY_AP_STARTUP
+#ifdef EARLY_AP_STARTUP
+static void
+intr_smp_startup(void *arg __unused)
+{
+
+	intr_init_cpus();
+	return;
+}
+SYSINIT(intr_smp_startup, SI_SUB_SMP, SI_ORDER_SECOND, intr_smp_startup,
+    NULL);
+
+#else
 /*
  * Distribute all the interrupt sources among the available CPUs once the
  * AP's have been launched.
@@ -585,6 +609,7 @@ intr_shuffle_irqs(void *arg __unused)
 	u_int cpu;
 	int i;
 
+	intr_init_cpus();
 	/* Don't bother on UP. */
 	if (mp_ncpus == 1)
 		return;
@@ -703,8 +728,7 @@ intr_balance(void *dummy __unused, int pending __unused)
 	 * Restart the scan from the same location to avoid moving in the
 	 * common case.
 	 */
-	for (i = 0; i < vm_ndomains; i++)
-		current_cpu[i] = 0;
+	intr_init_cpus();
 
 	/*
 	 * Assign round-robin from most loaded to least.

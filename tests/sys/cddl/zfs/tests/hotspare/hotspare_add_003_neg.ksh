@@ -130,7 +130,7 @@ done
 # This part of the test can only be run on platforms for which DUMPADM is
 # defined; ie Solaris
 if [[ -n $DUMPADM ]]; then
-	log_must $DUMPADM -u -d /dev/dsk/$dump_dev
+	log_must $DUMPADM -u -d /dev/$dump_dev
 	log_mustnot $ZPOOL add "$TESTPOOL" spare $dump_dev
 	log_mustnot $ZPOOL add -f "$TESTPOOL" spare $dump_dev
 fi

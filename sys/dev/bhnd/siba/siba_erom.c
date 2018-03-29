@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/bhnd/bhnd_erom.h>
+#include <dev/bhnd/bhnd_eromvar.h>
 
 #include <dev/bhnd/cores/chipc/chipcreg.h>
 
@@ -390,7 +390,6 @@ siba_eio_read_chipid(struct siba_erom_io *io, bus_addr_t enum_addr,
     struct bhnd_chipid *cid)
 {
 	struct siba_core_id	ccid;
-	uint32_t		idreg;
 	int			error;
 
 	/* Identify the chipcommon core */
@@ -409,12 +408,39 @@ siba_eio_read_chipid(struct siba_erom_io *io, bus_addr_t enum_addr,
 	}
 
 	/* Identify the chipset */
-	idreg = siba_eio_read_4(io, 0, CHIPC_ID);
-	*cid = bhnd_parse_chipid(idreg, enum_addr);
+	if ((error = bhnd_erom_read_chipid(io->eio, cid)))
+		return (error);
 
-	/* Fix up the core count in-place */
-	return (bhnd_chipid_fixed_ncores(cid, ccid.core_info.hwrev,
-	    &cid->ncores));
+	/* Do we need to fix up the core count? */
+	if (CHIPC_NCORES_MIN_HWREV(ccid.core_info.hwrev))
+		return (0);
+
+	switch (cid->chip_id) {
+	case BHND_CHIPID_BCM4306:
+		cid->ncores = 6;
+		break;
+	case BHND_CHIPID_BCM4704:
+		cid->ncores = 9;
+		break;
+	case BHND_CHIPID_BCM5365:
+		/*
+		* BCM5365 does support ID_NUMCORE in at least
+		* some of its revisions, but for unknown
+		* reasons, Broadcom's drivers always exclude
+		* the ChipCommon revision (0x5) used by BCM5365
+		* from the set of revisions supporting
+		* ID_NUMCORE, and instead supply a fixed value.
+		* 
+		* Presumably, at least some of these devices
+		* shipped with a broken ID_NUMCORE value.
+		*/
+		cid->ncores = 7;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (0);
 }
 
 static int

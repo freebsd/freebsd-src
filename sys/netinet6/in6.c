@@ -1971,8 +1971,6 @@ in6_if2idlen(struct ifnet *ifp)
 		return (64);
 	case IFT_FDDI:		/* RFC2467 */
 		return (64);
-	case IFT_ISO88025:	/* RFC2470 (IPv6 over Token Ring) */
-		return (64);
 	case IFT_PPP:		/* RFC2472 */
 		return (64);
 	case IFT_ARCNET:	/* RFC2497 */

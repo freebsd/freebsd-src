@@ -75,19 +75,29 @@ vm_domainset_iter_init(struct vm_domainset_iter *di, struct vm_object *obj,
 	if (obj != NULL && (domain = obj->domain.dr_policy) != NULL) {
 		di->di_domain = domain;
 		di->di_iter = &obj->domain.dr_iterator;
-		if (vm_object_reserv(obj))
-			di->di_stride = 1 << VM_LEVEL_0_ORDER;
-		else if (obj->iosize)
-			di->di_stride = obj->iosize / PAGE_SIZE;
-		else
-			di->di_stride = vm_domainset_default_stride;
 	} else {
 		di->di_domain = curthread->td_domain.dr_policy;
 		di->di_iter = &curthread->td_domain.dr_iterator;
-		di->di_stride = vm_domainset_default_stride;
 	}
 	di->di_policy = di->di_domain->ds_policy;
-	di->di_pindex = pindex;
+	if (di->di_policy == DOMAINSET_POLICY_INTERLEAVE) {
+		if (vm_object_reserv(obj)) {
+			/*
+			 * Color the pindex so we end up on the correct
+			 * reservation boundary.
+			 */
+			pindex += obj->pg_color;
+			pindex >>= VM_LEVEL_0_ORDER;
+		} else
+			pindex /= vm_domainset_default_stride;
+		/*
+		 * Offset pindex so the first page of each object does
+		 * not end up in domain 0.
+		 */
+		if (obj != NULL)
+			pindex += (((uintptr_t)obj) / sizeof(*obj));
+		di->di_offset = pindex;
+	}
 }
 
 static void
@@ -115,7 +125,8 @@ vm_domainset_iter_interleave(struct vm_domainset_iter *di, int *domain)
 {
 	int d;
 
-	d = (di->di_pindex / di->di_stride) % di->di_domain->ds_cnt;
+	d = di->di_offset % di->di_domain->ds_cnt;
+	*di->di_iter = d;
 	*domain = di->di_domain->ds_order[d];
 }
 

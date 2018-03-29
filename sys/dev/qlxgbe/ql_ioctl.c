@@ -269,7 +269,8 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			}
 		} else {
 
-			if (QLA_LOCK(ha, __func__, QLA_LOCK_DEFAULT_MS_TIMEOUT, 0) == 0) {
+#define QLA_LOCK_MDUMP_MS_TIMEOUT (QLA_LOCK_DEFAULT_MS_TIMEOUT * 5)
+			if (QLA_LOCK(ha, __func__, QLA_LOCK_MDUMP_MS_TIMEOUT, 0) == 0) {
 				if (!ha->hw.mdump_done) {
 					fw_dump->saved = 0;
 					QL_INITIATE_RECOVERY(ha);
@@ -303,7 +304,7 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			}
 			fw_dump->usec_ts = ha->hw.mdump_usec_ts;
 			
-			if (QLA_LOCK(ha, __func__, QLA_LOCK_DEFAULT_MS_TIMEOUT, 0) == 0) {
+			if (QLA_LOCK(ha, __func__, QLA_LOCK_MDUMP_MS_TIMEOUT, 0) == 0) {
 				ha->hw.mdump_done = 0;
 				QLA_UNLOCK(ha, __func__);
 			} else {

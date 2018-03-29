@@ -140,4 +140,7 @@
 #define	SIOCGIFRSSHASH	_IOWR('i', 151, struct ifrsshash)/* get the current RSS
 							type/func settings */
 
+#define	SIOCGLANPCP	_IOWR('i', 152, struct ifreq)	/* Get (V)LAN PCP */
+#define	SIOCSLANPCP	 _IOW('i', 153, struct ifreq)	/* Set (V)LAN PCP */
+
 #endif /* !_SYS_SOCKIO_H_ */

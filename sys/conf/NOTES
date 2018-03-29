@@ -807,7 +807,7 @@ device		loop
 
 #  The `ether' device provides generic code to handle
 #  Ethernets; it is MANDATORY when an Ethernet device driver is
-#  configured or token-ring is enabled.
+#  configured.
 device		ether
 
 #  The `vlan' device implements the VLAN tagging of Ethernet frames
@@ -845,9 +845,6 @@ device		wlan_xauth
 #  The 'wlan_amrr' device provides AMRR transmit rate control algorithm
 device		wlan_acl
 device		wlan_amrr
-
-# Generic TokenRing
-device		token
 
 #  The `fddi' device provides generic code to support FDDI.
 device		fddi
@@ -979,6 +976,8 @@ device		lagg
 # TCPPCAP enables code which keeps the last n packets sent and received
 # on a TCP socket.
 #
+# TCP_BLACKBOX enables enhanced TCP event logging.
+#
 # TCP_HHOOK enables the hhook(9) framework hooks for the TCP stack.
 #
 # RADIX_MPATH provides support for equal-cost multi-path routing.
@@ -1000,6 +999,7 @@ options 	IPSTEALTH		#support for stealth forwarding
 options 	PF_DEFAULT_TO_DROP	#drop everything by default
 options 	TCPDEBUG
 options 	TCPPCAP
+options 	TCP_BLACKBOX
 options 	TCP_HHOOK
 options 	RADIX_MPATH
 

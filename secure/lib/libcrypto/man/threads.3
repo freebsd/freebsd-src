@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "threads 3"
-.TH threads 3 "2017-12-07" "1.0.2n" "OpenSSL"
+.TH threads 3 "2018-03-27" "1.0.2o" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -196,9 +196,13 @@ CRYPTO_destroy_dynlockid, CRYPTO_lock \- OpenSSL thread support
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-OpenSSL can safely be used in multi-threaded applications provided
-that at least two callback functions are set, locking_function and
+OpenSSL can generally be used safely in multi-threaded applications provided
+that at least two callback functions are set, the locking_function and
 threadid_func.
+Note that OpenSSL is not completely thread-safe, and unfortunately not all
+global resources have the necessary locks.
+Further, the thread-safety does not extend to things like multiple threads
+using the same \fB\s-1SSL\s0\fR object at the same time.
 .PP
 locking_function(int mode, int n, const char *file, int line) is
 needed to perform locking on shared data structures. 

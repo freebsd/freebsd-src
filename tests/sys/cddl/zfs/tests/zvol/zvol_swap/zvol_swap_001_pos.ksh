@@ -74,7 +74,7 @@ log_onexit cleanup
 
 test_requires SWAP
 
-voldev=/dev/zvol/dsk/$TESTPOOL/$TESTVOL
+voldev=/dev/zvol/$TESTPOOL/$TESTVOL
 log_note "Add zvol volume as swap space"
 log_must $SWAP -a $voldev
 

@@ -104,7 +104,7 @@ log_onexit cleanup
 
 test_requires DUMPADM
 
-voldev=/dev/zvol/dsk/$TESTPOOL/$TESTVOL
+voldev=/dev/zvol/$TESTPOOL/$TESTVOL
 savedumpdev=$(get_dumpdevice)
 
 # create snapshot over dump zvol

@@ -97,6 +97,7 @@ PMC_SOFT_DEFINE( , , page_fault, write);
 #include <machine/smp.h>
 #endif
 #include <machine/stack.h>
+#include <machine/trap.h>
 #include <machine/tss.h>
 #include <machine/vm86.h>
 
@@ -416,14 +417,14 @@ user_trctrap_out:
 					ucode = SEGV_ACCERR;
 				} else {
 					signo = SIGBUS;
-					ucode = BUS_PAGE_FAULT;
+					ucode = T_PAGEFLT;
 				}
 			} else if (prot_fault_translation == 1) {
 				/*
 				 * Always compat mode.
 				 */
 				signo = SIGBUS;
-				ucode = BUS_PAGE_FAULT;
+				ucode = T_PAGEFLT;
 			} else {
 				/*
 				 * Always SIGSEGV mode.

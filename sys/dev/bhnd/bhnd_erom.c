@@ -44,18 +44,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
+#include <dev/bhnd/bhndreg.h>
 #include <dev/bhnd/bhndvar.h>
+
 #include <dev/bhnd/bhnd_erom.h>
 #include <dev/bhnd/bhnd_eromvar.h>
 
+#include <dev/bhnd/cores/chipc/chipcreg.h>
+
 static int	bhnd_erom_iores_map(struct bhnd_erom_io *eio, bhnd_addr_t addr,
 		    bhnd_size_t size);
+static int	bhnd_erom_iores_tell(struct bhnd_erom_io *eio,
+		    bhnd_addr_t *addr, bhnd_size_t *size);
 static uint32_t	bhnd_erom_iores_read(struct bhnd_erom_io *eio,
 		    bhnd_size_t offset, u_int width);
 static void	bhnd_erom_iores_fini(struct bhnd_erom_io *eio);
 
 static int	bhnd_erom_iobus_map(struct bhnd_erom_io *eio, bhnd_addr_t addr,
 		    bhnd_size_t size);
+static int	bhnd_erom_iobus_tell(struct bhnd_erom_io *eio,
+		    bhnd_addr_t *addr, bhnd_size_t *size);
 static uint32_t	bhnd_erom_iobus_read(struct bhnd_erom_io *eio,
 		    bhnd_size_t offset, u_int width);
 
@@ -248,6 +256,62 @@ bhnd_erom_free(bhnd_erom_t *erom)
 	kobj_delete((kobj_t)erom, M_BHND);
 }
 
+/**
+ * Read the chip identification registers mapped by @p eio, popuating @p cid
+ * with the parsed result
+ * 
+ * @param	eio		A bus I/O instance, configured with a mapping
+ *				of the ChipCommon core.
+ * @param[out]	cid		On success, the parsed chip identification.
+ *
+ * @warning
+ * On early siba(4) devices, the ChipCommon core does not provide
+ * a valid CHIPC_ID_NUMCORE field. On these ChipCommon revisions
+ * (see CHIPC_NCORES_MIN_HWREV()), this function will parse and return
+ * an invalid `ncores` value.
+ */
+int
+bhnd_erom_read_chipid(struct bhnd_erom_io *eio, struct bhnd_chipid *cid)
+{
+	bhnd_addr_t	cc_addr;
+	bhnd_size_t	cc_size;
+	uint32_t	idreg, cc_caps;
+	int		error;
+
+	/* Fetch ChipCommon address */
+	if ((error = bhnd_erom_io_tell(eio, &cc_addr, &cc_size)))
+		return (error);
+
+	/* Read chip identifier */
+	idreg = bhnd_erom_io_read(eio, CHIPC_ID, 4);
+
+	/* Extract the basic chip info */
+	cid->chip_id = CHIPC_GET_BITS(idreg, CHIPC_ID_CHIP);
+	cid->chip_pkg = CHIPC_GET_BITS(idreg, CHIPC_ID_PKG);
+	cid->chip_rev = CHIPC_GET_BITS(idreg, CHIPC_ID_REV);
+	cid->chip_type = CHIPC_GET_BITS(idreg, CHIPC_ID_BUS);
+	cid->ncores = CHIPC_GET_BITS(idreg, CHIPC_ID_NUMCORE);
+
+	/* Populate EROM address */
+	if (BHND_CHIPTYPE_HAS_EROM(cid->chip_type)) {
+		cid->enum_addr = bhnd_erom_io_read(eio, CHIPC_EROMPTR, 4);
+	} else {
+		cid->enum_addr = cc_addr;
+	}
+
+	/* Populate capability flags */
+	cc_caps = bhnd_erom_io_read(eio, CHIPC_CAPABILITIES, 4);
+	cid->chip_caps = 0x0;
+
+	if (cc_caps & CHIPC_CAP_BKPLN64)
+		cid->chip_caps |= BHND_CAP_BP64;
+
+	if (cc_caps & CHIPC_CAP_PMU)
+		cid->chip_caps |= BHND_CAP_PMU;
+
+	return (0);
+}
+
 
 /**
  * Attempt to map @p size bytes at @p addr, replacing any existing
@@ -265,6 +329,23 @@ int
 bhnd_erom_io_map(struct bhnd_erom_io *eio, bhnd_addr_t addr, bhnd_size_t size)
 {
 	return (eio->map(eio, addr, size));
+}
+
+/**
+ * Return the address range mapped by @p eio, if any.
+ * 
+ * @param	eio	I/O instance state.
+ * @param[out]	addr	The address mapped by @p eio.
+ * @param[out]	size	The number of bytes mapped at @p addr.
+ * 
+ * @retval	0	success
+ * @retval	ENXIO	if @p eio has no mapping.
+ */
+int
+bhnd_erom_io_tell(struct bhnd_erom_io *eio, bhnd_addr_t *addr,
+    bhnd_size_t *size)
+{
+	return (eio->tell(eio, addr, size));
 }
 
 /**
@@ -306,6 +387,7 @@ bhnd_erom_iores_new(device_t dev, int rid)
 
 	iores = malloc(sizeof(*iores), M_BHND, M_WAITOK | M_ZERO);
 	iores->eio.map = bhnd_erom_iores_map;
+	iores->eio.tell = bhnd_erom_iores_tell;
 	iores->eio.read = bhnd_erom_iores_read;
 	iores->eio.fini = bhnd_erom_iores_fini;
 
@@ -357,6 +439,21 @@ bhnd_erom_iores_map(struct bhnd_erom_io *eio, bhnd_addr_t addr,
 		iores->mapped_rid = -1;
 		return (ENXIO);
 	}
+
+	return (0);
+}
+
+static int
+bhnd_erom_iores_tell(struct bhnd_erom_io *eio, bhnd_addr_t *addr,
+    bhnd_size_t *size)
+{
+	struct bhnd_erom_iores *iores = (struct bhnd_erom_iores *)eio;
+
+	if (iores->mapped == NULL)
+		return (ENXIO);
+
+	*addr = rman_get_start(iores->mapped->res);
+	*size = rman_get_size(iores->mapped->res);
 
 	return (0);
 }
@@ -416,6 +513,7 @@ bhnd_erom_iobus_init(struct bhnd_erom_iobus *iobus, bhnd_addr_t addr,
     bhnd_size_t size, bus_space_tag_t bst, bus_space_handle_t bsh)
 {
 	iobus->eio.map = bhnd_erom_iobus_map;
+	iobus->eio.tell = bhnd_erom_iobus_tell;
 	iobus->eio.read = bhnd_erom_iobus_read;
 	iobus->eio.fini = NULL;
 
@@ -459,6 +557,21 @@ bhnd_erom_iobus_map(struct bhnd_erom_io *eio, bhnd_addr_t addr,
 	iobus->offset = addr - iobus->addr;
 	iobus->limit = size;
 	iobus->mapped = true;
+
+	return (0);
+}
+
+static int
+bhnd_erom_iobus_tell(struct bhnd_erom_io *eio, bhnd_addr_t *addr,
+    bhnd_size_t *size)
+{
+	struct bhnd_erom_iobus *iobus = (struct bhnd_erom_iobus *)eio;
+
+	if (!iobus->mapped)
+		return (ENXIO);
+
+	*addr = iobus->addr + iobus->offset;
+	*size = iobus->limit;
 
 	return (0);
 }

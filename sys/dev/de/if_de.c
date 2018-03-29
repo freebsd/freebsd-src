@@ -4266,18 +4266,6 @@ tulip_ifioctl(struct ifnet * ifp, u_long cmd, caddr_t data)
 	    break;
 	}
 
-#ifdef SIOCGADDRROM
-	case SIOCGADDRROM: {
-	    error = copyout(sc->tulip_rombuf, ifr->ifr_data, sizeof(sc->tulip_rombuf));
-	    break;
-	}
-#endif
-#ifdef SIOCGCHIPID
-	case SIOCGCHIPID: {
-	    ifr->ifr_metric = (int) sc->tulip_chipid;
-	    break;
-	}
-#endif
 	default: {
 	    error = ether_ioctl(ifp, cmd, data);
 	    break;

@@ -936,8 +936,7 @@ vm_pageout_laundry_worker(void *arg)
 {
 	struct vm_domain *vmd;
 	struct vm_pagequeue *pq;
-	uint64_t nclean, ndirty;
-	u_int inactq_scans, last_launder;
+	uint64_t nclean, ndirty, nfreed;
 	int domain, last_target, launder, shortfall, shortfall_cycle, target;
 	bool in_shortfall;
 
@@ -951,8 +950,7 @@ vm_pageout_laundry_worker(void *arg)
 	in_shortfall = false;
 	shortfall_cycle = 0;
 	target = 0;
-	inactq_scans = 0;
-	last_launder = 0;
+	nfreed = 0;
 
 	/*
 	 * Calls to these handlers are serialized by the swap syscall lock.
@@ -993,7 +991,6 @@ vm_pageout_laundry_worker(void *arg)
 			target = 0;
 			goto trybackground;
 		}
-		last_launder = inactq_scans;
 		launder = target / shortfall_cycle--;
 		goto dolaundry;
 
@@ -1002,24 +999,23 @@ vm_pageout_laundry_worker(void *arg)
 		 * meet the conditions to perform background laundering:
 		 *
 		 * 1. The ratio of dirty to clean inactive pages exceeds the
-		 *    background laundering threshold and the pagedaemon has
-		 *    been woken up to reclaim pages since our last
-		 *    laundering, or
+		 *    background laundering threshold, or
 		 * 2. we haven't yet reached the target of the current
 		 *    background laundering run.
 		 *
 		 * The background laundering threshold is not a constant.
 		 * Instead, it is a slowly growing function of the number of
-		 * page daemon scans since the last laundering.  Thus, as the
-		 * ratio of dirty to clean inactive pages grows, the amount of
-		 * memory pressure required to trigger laundering decreases.
+		 * clean pages freed by the page daemon since the last
+		 * background laundering.  Thus, as the ratio of dirty to
+		 * clean inactive pages grows, the amount of memory pressure
+		 * required to trigger laundering decreases.
 		 */
 trybackground:
 		nclean = vmd->vmd_free_count +
 		    vmd->vmd_pagequeues[PQ_INACTIVE].pq_cnt;
 		ndirty = vmd->vmd_pagequeues[PQ_LAUNDRY].pq_cnt;
-		if (target == 0 && inactq_scans != last_launder &&
-		    ndirty * isqrt(inactq_scans - last_launder) >= nclean) {
+		if (target == 0 && ndirty * isqrt(nfreed /
+		    (vmd->vmd_free_target - vmd->vmd_free_min)) >= nclean) {
 			target = vmd->vmd_background_launder_target;
 		}
 
@@ -1032,8 +1028,8 @@ trybackground:
 		 * proceed at the background laundering rate.
 		 */
 		if (target > 0) {
-			if (inactq_scans != last_launder) {
-				last_launder = inactq_scans;
+			if (nfreed > 0) {
+				nfreed = 0;
 				last_target = target;
 			} else if (last_target - target >=
 			    vm_background_launder_max * PAGE_SIZE / 1024) {
@@ -1082,7 +1078,8 @@ dolaundry:
 
 		if (target == 0)
 			vmd->vmd_laundry_request = VM_LAUNDRY_IDLE;
-		inactq_scans = vmd->vmd_inactq_scans;
+		nfreed += vmd->vmd_clean_pages_freed;
+		vmd->vmd_clean_pages_freed = 0;
 		vm_pagequeue_unlock(pq);
 	}
 }
@@ -1414,7 +1411,8 @@ reinsert:
 				    VM_LAUNDRY_BACKGROUND;
 			wakeup(&vmd->vmd_laundry_request);
 		}
-		vmd->vmd_inactq_scans++;
+		vmd->vmd_clean_pages_freed +=
+		    starting_page_shortage - page_shortage;
 		vm_pagequeue_unlock(pq);
 	}
 

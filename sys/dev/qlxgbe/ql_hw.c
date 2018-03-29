@@ -1090,7 +1090,11 @@ ql_hw_add_sysctls(qla_host_t *ha)
                 "\t\t\t 8: mbx: mailbox command failure\n"
                 "\t\t\t 9: heartbeat failure\n"
                 "\t\t\t A: temperature failure\n"
-		"\t\t\t 11: m_getcl or m_getjcl failure\n" );
+		"\t\t\t 11: m_getcl or m_getjcl failure\n"
+		"\t\t\t 13: Invalid Descriptor Count in SGL Receive\n"
+		"\t\t\t 14: Invalid Descriptor Count in LRO Receive\n"
+		"\t\t\t 15: peer port error recovery failure\n"
+		"\t\t\t 16: tx_buf[next_prod_index].mbuf != NULL\n" );
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
                 SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -2906,7 +2910,7 @@ ql_del_hw_if_exit:
 void
 qla_confirm_9kb_enable(qla_host_t *ha)
 {
-	uint32_t supports_9kb = 0;
+//	uint32_t supports_9kb = 0;
 
 	ha->hw.mbx_intr_mask_offset = READ_REG32(ha, Q8_MBOX_INT_MASK_MSIX);
 
@@ -2914,10 +2918,12 @@ qla_confirm_9kb_enable(qla_host_t *ha)
 	WRITE_REG32(ha, Q8_MBOX_INT_ENABLE, BIT_2);
 	WRITE_REG32(ha, ha->hw.mbx_intr_mask_offset, 0x0);
 
+#if 0
 	qla_get_nic_partition(ha, &supports_9kb, NULL);
 
 	if (!supports_9kb)
-		ha->hw.enable_9kb = 0;
+#endif
+	ha->hw.enable_9kb = 0;
 
 	return;
 }
@@ -3589,6 +3595,13 @@ qla_hw_all_mcast(qla_host_t *ha, uint32_t add_mcast)
 			bcopy(ha->hw.mcast[i].addr, mcast, ETHER_ADDR_LEN);
 			mcast = mcast + ETHER_ADDR_LEN;
 			count++;
+
+			device_printf(ha->pci_dev,
+				"%s: %x:%x:%x:%x:%x:%x \n",
+				__func__, ha->hw.mcast[i].addr[0],
+				ha->hw.mcast[i].addr[1], ha->hw.mcast[i].addr[2],
+				ha->hw.mcast[i].addr[3], ha->hw.mcast[i].addr[4],
+				ha->hw.mcast[i].addr[5]);
 			
 			if (count == Q8_MAX_MAC_ADDRS) {
 				if (qla_config_mac_addr(ha, ha->hw.mac_addr_arr,
@@ -3825,6 +3838,18 @@ ql_hw_tx_done_locked(qla_host_t *ha, uint32_t txr_idx)
 	}
 
 	hw_tx_cntxt->txr_free += comp_count;
+
+	if (hw_tx_cntxt->txr_free > NUM_TX_DESCRIPTORS)
+		device_printf(ha->pci_dev, "%s [%d]: txr_idx = %d txr_free = %d"
+			"txr_next = %d txr_comp = %d\n", __func__, __LINE__,
+			txr_idx, hw_tx_cntxt->txr_free,
+			hw_tx_cntxt->txr_next, hw_tx_cntxt->txr_comp);
+
+	QL_ASSERT(ha, (hw_tx_cntxt->txr_free <= NUM_TX_DESCRIPTORS), \
+		("%s [%d]: txr_idx = %d txr_free = %d txr_next = %d txr_comp = %d\n",\
+		__func__, __LINE__, txr_idx, hw_tx_cntxt->txr_free, \
+		hw_tx_cntxt->txr_next, hw_tx_cntxt->txr_comp));
+	
 	return;
 }
 
@@ -3961,7 +3986,9 @@ qla_init_nic_func(qla_host_t *ha)
 
         if (err) {
                 device_printf(dev, "%s: failed [0x%08x]\n", __func__, err);
-        }
+        } else {
+                device_printf(dev, "%s: successful\n", __func__);
+	}
 
         return 0;
 }

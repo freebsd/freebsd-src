@@ -97,17 +97,18 @@ struct sysctl_oid;
  * and accounting.
  *
  * Lock Key:
- * f	vmd_free_mtx
- * p	vmd_pageout_mtx
- * d	vm_domainset_lock
- * a	atomic
- * c	const after boot
- */
+ * f   vmd_free_mtx
+ * p   vmd_pageout_mtx
+ * d   vm_domainset_lock
+ * a   atomic
+ * c   const after boot
+ * q   page queue lock
+*/
 struct vm_domain {
 	struct vm_pagequeue vmd_pagequeues[PQ_COUNT];
 	struct mtx_padalign vmd_free_mtx;
 	struct mtx_padalign vmd_pageout_mtx;
-	uma_zone_t vmd_pgcache;		/* (c) per-domain page free cache. */
+	uma_zone_t vmd_pgcache;		/* (c) page free cache. */
 	struct vmem *vmd_kernel_arena;	/* (c) per-domain kva arena. */
 	u_int vmd_domain;		/* (c) Domain number. */
 	u_int vmd_page_count;		/* (c) Total page count. */
@@ -129,15 +130,15 @@ struct vm_domain {
 	int vmd_pageout_pages_needed;	/* (d) page daemon waiting for pages? */
 	bool vmd_minset;		/* (d) Are we in vm_min_domains? */
 	bool vmd_severeset;		/* (d) Are we in vm_severe_domains? */
-	int vmd_inactq_scans;
 	enum {
 		VM_LAUNDRY_IDLE = 0,
 		VM_LAUNDRY_BACKGROUND,
 		VM_LAUNDRY_SHORTFALL
 	} vmd_laundry_request;
 
-	/* Paging thresholds. */
-	u_int vmd_background_launder_target;
+	/* Paging thresholds and targets. */
+	u_int vmd_clean_pages_freed;	/* (q) accumulator for laundry thread */
+	u_int vmd_background_launder_target; /* (c) */
 	u_int vmd_free_reserved;	/* (c) pages reserved for deadlock */
 	u_int vmd_free_target;		/* (c) pages desired free */
 	u_int vmd_free_min;		/* (c) pages desired free */

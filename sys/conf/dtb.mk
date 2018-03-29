@@ -45,13 +45,14 @@ SYSDIR=	${_dir:tA}
 .error "can't find kernel source tree"
 .endif
 
-.SUFFIXES: .dtb .dts
+.SUFFIXES: .dtb .dts .dtbo .dtso
 
-.PATH: ${SYSDIR}/gnu/dts/${MACHINE} ${SYSDIR}/dts/${MACHINE}
+.PATH: ${SYSDIR}/gnu/dts/${MACHINE} ${SYSDIR}/dts/${MACHINE} ${SYSDIR}/dts/${MACHINE}/overlays
 
 DTB=${DTS:R:S/$/.dtb/}
+DTBO=${DTSO:R:S/$/.dtbo/}
 
-all: ${DTB}
+all: ${DTB} ${DTBO}
 
 .if defined(DTS)
 .export DTC
@@ -60,6 +61,16 @@ ${_dts:R:S/$/.dtb/}:	${_dts} ${OP_META}
 	@echo Generating ${.TARGET} from ${_dts}
 	@${SYSDIR}/tools/fdt/make_dtb.sh ${SYSDIR} ${_dts} ${.OBJDIR}
 CLEANFILES+=${_dts:R:S/$/.dtb/}
+.endfor
+.endif
+
+.if defined(DTSO)
+.export DTC
+.for _dtso in ${DTSO}
+${_dtso:R:S/$/.dtbo/}:	${_dtso} ${OP_META}
+	@echo Generating ${.TARGET} from ${_dtso}
+	@${SYSDIR}/tools/fdt/make_dtbo.sh ${SYSDIR} overlays/${_dtso} ${.OBJDIR}
+CLEANFILES+=${_dtso:R:S/$/.dtbo/}
 .endfor
 .endif
 
@@ -75,6 +86,11 @@ _dtbinstall:
 .for _dtb in ${DTB}
 	${INSTALL} -o ${DTBOWN} -g ${DTBGRP} -m ${DTBMODE} \
 	    ${_INSTALLFLAGS} ${_dtb} ${DESTDIR}${DTBDIR}/
+.endfor
+	test -d ${DESTDIR}${DTBODIR} || ${INSTALL} -d -o ${DTBOWN} -g ${DTBGRP} ${DESTDIR}${DTBODIR}
+.for _dtbo in ${DTBO}
+	${INSTALL} -o ${DTBOWN} -g ${DTBGRP} -m ${DTBMODE} \
+	    ${_INSTALLFLAGS} ${_dtbo} ${DESTDIR}${DTBODIR}/
 .endfor
 .endif # !target(realinstall)
 .endif # !target(install)

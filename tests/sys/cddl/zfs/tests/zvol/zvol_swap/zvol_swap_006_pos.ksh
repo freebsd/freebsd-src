@@ -95,7 +95,7 @@ set -A swap_opt	$((pageblocks))	    \
 		$(((volblocks*2) / 3))  \
 		$((pageblocks * ((RANDOM % 50) + 1) + (RANDOM % pageblocks) )) 
 
-swapname=/dev/zvol/dsk/$vol
+swapname=/dev/zvol/$vol
 typeset -i i=0 count=0
 
 if is_swap_inuse $swapname ; then

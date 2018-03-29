@@ -331,6 +331,7 @@ struct tcp_log_dev_log_queue {
 	} while (0)
 
 
+#ifdef TCP_BLACKBOX
 extern bool tcp_log_verbose;
 void tcp_log_drain(struct tcpcb *tp);
 int tcp_log_dump_tp_logbuf(struct tcpcb *tp, char *reason, int how, bool force);
@@ -348,6 +349,20 @@ int tcp_log_state_change(struct tcpcb *tp, int state);
 void tcp_log_tcpcbinit(struct tcpcb *tp);
 void tcp_log_tcpcbfini(struct tcpcb *tp);
 void tcp_log_flowend(struct tcpcb *tp);
+#else /* !TCP_BLACKBOX */
+#define tcp_log_verbose	(false)
+
+static inline struct tcp_log_buffer *
+tcp_log_event_(struct tcpcb *tp, struct tcphdr *th, struct sockbuf *rxbuf,
+    struct sockbuf *txbuf, uint8_t eventid, int errornum, uint32_t len,
+    union tcp_log_stackspecific *stackinfo, int th_hostorder,
+    const char *output_caller, const char *func, int line,
+    const struct timeval *tv)
+{
+
+	return (NULL);
+}
+#endif /* TCP_BLACKBOX */
 
 #endif	/* _KERNEL */
 #endif	/* __tcp_log_buf_h__ */

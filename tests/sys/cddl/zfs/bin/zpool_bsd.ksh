@@ -16,8 +16,8 @@ typeset option
 case $cmd in
 	create|add|attach|detach|replace|remove|online|offline|clear)
 		for arg in $@; do
-			if [[ $arg == "/dev/dsk/"* ]]; then
-				arg=${arg#/dev/dsk/}
+			if [[ $arg == "/dev/"* ]]; then
+				arg=${arg#/dev/}
 				arg="/dev/"$arg
 			fi
 			if [[ $arg == "/dev/"* ]]; then

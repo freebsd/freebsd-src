@@ -384,8 +384,8 @@ void t4_rcvd_locked(struct toedev *, struct tcpcb *);
 int t4_tod_output(struct toedev *, struct tcpcb *);
 int t4_send_fin(struct toedev *, struct tcpcb *);
 int t4_send_rst(struct toedev *, struct tcpcb *);
-void t4_set_tcb_field(struct adapter *, struct sge_wrq *, int, uint16_t,
-    uint64_t, uint64_t, int, int, int);
+void t4_set_tcb_field(struct adapter *, struct sge_wrq *, struct toepcb *,
+    uint16_t, uint64_t, uint64_t, int, int);
 void t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop);
 void t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop);
 int do_set_tcb_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);

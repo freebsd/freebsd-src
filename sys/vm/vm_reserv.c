@@ -45,8 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/counter.h>
-#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -55,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/counter.h>
+#include <sys/ktr.h>
 #include <sys/vmmeter.h>
 #include <sys/smp.h>
 
@@ -419,7 +419,7 @@ vm_reserv_depopulate(vm_reserv_t rv, int index)
 	    index));
 	KASSERT(rv->popcnt > 0,
 	    ("vm_reserv_depopulate: reserv %p's popcnt is corrupted", rv));
-	KASSERT(rv->domain >= 0 && rv->domain < vm_ndomains,
+	KASSERT(rv->domain < vm_ndomains,
 	    ("vm_reserv_depopulate: reserv %p's domain is corrupted %d",
 	    rv, rv->domain));
 	if (rv->popcnt == VM_LEVEL_0_NPAGES) {
@@ -531,7 +531,7 @@ vm_reserv_populate(vm_reserv_t rv, int index)
 	    ("vm_reserv_populate: reserv %p is already full", rv));
 	KASSERT(rv->pages->psind == 0,
 	    ("vm_reserv_populate: reserv %p is already promoted", rv));
-	KASSERT(rv->domain >= 0 && rv->domain < vm_ndomains,
+	KASSERT(rv->domain < vm_ndomains,
 	    ("vm_reserv_populate: reserv %p's domain is corrupted %d",
 	    rv, rv->domain));
 	popmap_set(rv->popmap, index);
@@ -1218,7 +1218,7 @@ vm_reserv_reclaim(vm_reserv_t rv)
 	vm_reserv_domain_lock(rv->domain);
 	KASSERT(rv->inpartpopq,
 	    ("vm_reserv_reclaim: reserv %p's inpartpopq is FALSE", rv));
-	KASSERT(rv->domain >= 0 && rv->domain < vm_ndomains,
+	KASSERT(rv->domain < vm_ndomains,
 	    ("vm_reserv_reclaim: reserv %p's domain is corrupted %d",
 	    rv, rv->domain));
 	TAILQ_REMOVE(&vm_rvq_partpop[rv->domain], rv, partpopq);

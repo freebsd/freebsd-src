@@ -1244,8 +1244,8 @@ sysctl_handle_domainset(SYSCTL_HANDLER_ARGS)
 	char buf[DOMAINSETBUFSIZ];
 	struct domainset *dset;
 	struct domainset key;
+	int policy, prefer, error;
 	char *p;
-	int error;
 
 	dset = *(struct domainset **)arg1;
 	error = 0;
@@ -1268,8 +1268,10 @@ sysctl_handle_domainset(SYSCTL_HANDLER_ARGS)
 	    DOMAINSET_SETSIZE, buf)];
 	if (p == buf)
 		return (EINVAL);
-	if (sscanf(p, ":%hd:%hhd", &key.ds_policy, &key.ds_prefer) != 2)
+	if (sscanf(p, ":%d:%d", &policy, &prefer) != 2)
 		return (EINVAL);
+	key.ds_policy = policy;
+	key.ds_prefer = prefer;
 
 	/* Domainset_create() validates the policy.*/
 	dset = domainset_create(&key);
@@ -1279,8 +1281,6 @@ sysctl_handle_domainset(SYSCTL_HANDLER_ARGS)
 
 	return (error);
 }
-
-#ifdef DDB
 
 /*
  * Apply an anonymous mask or a domain to a single thread.
@@ -1386,6 +1386,7 @@ cpuset_thread0(void)
 {
 	struct cpuset *set;
 	int error;
+	int i;
 
 	cpuset_zone = uma_zcreate("cpuset", sizeof(struct cpuset), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_CACHE, 0);
@@ -1397,11 +1398,11 @@ cpuset_thread0(void)
 	 * cpuset_create() due to NULL parent.
 	 */
 	set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
-	CPU_FILL(&set->cs_mask);
+	CPU_COPY(&all_cpus, &set->cs_mask);
 	LIST_INIT(&set->cs_children);
 	LIST_INSERT_HEAD(&cpuset_ids, set, cs_link);
 	set->cs_ref = 1;
-	set->cs_flags = CPU_SET_ROOT;
+	set->cs_flags = CPU_SET_ROOT | CPU_SET_RDONLY;
 	set->cs_domain = &domainset0;
 	cpuset_zero = set;
 	cpuset_root = &set->cs_mask;
@@ -1426,6 +1427,16 @@ cpuset_thread0(void)
 	 * Initialize the unit allocator. 0 and 1 are allocated above.
 	 */
 	cpuset_unr = new_unrhdr(2, INT_MAX, NULL);
+
+	/*
+	 * If MD code has not initialized per-domain cpusets, place all
+	 * CPUs in domain 0.
+	 */
+	for (i = 0; i < MAXMEMDOM; i++)
+		if (!CPU_EMPTY(&cpuset_domain[i]))
+			goto domains_set;
+	CPU_COPY(&all_cpus, &cpuset_domain[0]);
+domains_set:
 
 	return (cpuset_default);
 }
@@ -1489,34 +1500,6 @@ cpuset_setproc_update_set(struct proc *p, struct cpuset *set)
 	cpuset_rel(set);
 	return (0);
 }
-
-/*
- * This is called once the final set of system cpus is known.  Modifies
- * the root set and all children and mark the root read-only.  
- */
-static void
-cpuset_init(void *arg)
-{
-	cpuset_t mask;
-	int i;
-
-	mask = all_cpus;
-	if (cpuset_modify(cpuset_zero, &mask))
-		panic("Can't set initial cpuset mask.\n");
-	cpuset_zero->cs_flags |= CPU_SET_RDONLY;
-
-	/*
-	 * If MD code has not initialized per-domain cpusets, place all
-	 * CPUs in domain 0.
-	 */
-	for (i = 0; i < MAXMEMDOM; i++)
-		if (!CPU_EMPTY(&cpuset_domain[i]))
-			goto domains_set;
-	CPU_COPY(&all_cpus, &cpuset_domain[0]);
-domains_set:
-	return;
-}
-SYSINIT(cpuset, SI_SUB_SMP, SI_ORDER_ANY, cpuset_init, NULL);
 
 #ifndef _SYS_SYSPROTO_H_
 struct cpuset_args {
@@ -2166,6 +2149,8 @@ out:
 	free(mask, M_TEMP);
 	return (error);
 }
+
+#ifdef DDB
 
 static void
 ddb_display_bitset(const struct bitset *set, int size)

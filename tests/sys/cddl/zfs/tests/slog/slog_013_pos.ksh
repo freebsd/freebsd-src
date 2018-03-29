@@ -104,4 +104,4 @@ log_must $ZPOOL add $TESTPOOL $mntpnt/vdev
 # Add ZFS volume
 vol=$TESTPOOL/vol
 log_must $ZPOOL create -V 64M $vol
-log_must $ZPOOL add $TESTPOOL /dev/zvol/dsk/$vol
+log_must $ZPOOL add $TESTPOOL /dev/zvol/$vol

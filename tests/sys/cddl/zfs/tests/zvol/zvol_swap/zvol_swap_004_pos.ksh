@@ -94,7 +94,7 @@ while ((i < ${#array[@]})); do
 	
 	log_must $ZFS create -b $volblksize -V ${array[$i]} $vol
 
-	swapname="/dev/zvol/dsk/$vol"
+	swapname="/dev/zvol/$vol"
 	if [[ ${array[((i+1))]} == "fail" ]]; then
 		log_mustnot $SWAP -a $swapname
 	else

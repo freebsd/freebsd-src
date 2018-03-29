@@ -38,7 +38,7 @@
 #include <sys/kernel.h>
 #include <sys/limits.h>
 
-#define jiffies                 ticks
+#define	jiffies			ticks
 #define	jiffies_64		ticks
 #define	jiffies_to_msecs(x)     (((int64_t)(int)(x)) * 1000 / hz)
 

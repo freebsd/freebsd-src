@@ -229,8 +229,12 @@ parse_fun(char *cp, iidesc_t *ii)
 		nargs++;
 		if (nargs > FUNCARG_DEF)
 			args = xrealloc(args, sizeof (tdesc_t *) * nargs);
-		if (!(cp = read_tid(cp, &args[nargs - 1])))
+		if (!(cp = read_tid(cp, &args[nargs - 1]))) {
+			if (tdp->t_type == TYPEDEF_UNRES)
+				free(tdp);
+			free(args);
 			return (-1);
+		}
 	}
 
 	ii->ii_type = iitype;

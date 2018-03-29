@@ -64,18 +64,18 @@ log_assert "Local zone contains ZFS datasets as expected."
 
 
 # check to see if our zvol exists:
-if [ ! -b /dev/zvol/dsk/zonepool/zone_zvol ]
+if [ ! -b /dev/zvol/zonepool/zone_zvol ]
 then
-    log_fail "block device /dev/zvol/dsk/zonepool/zone_zvol not found!"
+    log_fail "block device /dev/zvol/zonepool/zone_zvol not found!"
 fi
 
-if [ ! -c /dev/zvol/rdsk/zonepool/zone_zvol ]
+if [ ! -c /dev/zvol/zonepool/zone_zvol ]
 then
-    log_fail "char device /dev/zvol/rdsk/zonepool/zone_zvol not found!"
+    log_fail "char device /dev/zvol/zonepool/zone_zvol not found!"
 fi
 
 # check to see if the device appears sane - create a UFS filesystem on it.
-$ECHO y | $NEWFS /dev/zvol/rdsk/zonepool/zone_zvol > /dev/null
+$ECHO y | $NEWFS /dev/zvol/zonepool/zone_zvol > /dev/null
 
 if [ $? -ne 0 ]
 then
@@ -83,7 +83,7 @@ then
 fi
 
 $MKDIR /ufs.${TESTCASE_ID}
-log_must $MOUNT /dev/zvol/dsk/zonepool/zone_zvol /ufs.${TESTCASE_ID}
+log_must $MOUNT /dev/zvol/zonepool/zone_zvol /ufs.${TESTCASE_ID}
 log_must $UMOUNT /ufs.${TESTCASE_ID}
 $RM -rf /ufs.${TESTCASE_ID}
 

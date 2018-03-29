@@ -402,7 +402,9 @@ struct	ifreq {
 #define	ifr_addr	ifr_ifru.ifru_addr	/* address */
 #define	ifr_dstaddr	ifr_ifru.ifru_dstaddr	/* other end of p-to-p link */
 #define	ifr_broadaddr	ifr_ifru.ifru_broadaddr	/* broadcast address */
+#ifndef _KERNEL
 #define	ifr_buffer	ifr_ifru.ifru_buffer	/* user supplied buffer with its length */
+#endif
 #define	ifr_flags	ifr_ifru.ifru_flags[0]	/* flags (low 16 bits) */
 #define	ifr_flagshigh	ifr_ifru.ifru_flags[1]	/* flags (high 16 bits) */
 #define	ifr_jid		ifr_ifru.ifru_jid	/* jail/vnet */
@@ -416,6 +418,7 @@ struct	ifreq {
 #define	ifr_index	ifr_ifru.ifru_index	/* interface index */
 #define	ifr_fib		ifr_ifru.ifru_fib	/* interface fib */
 #define	ifr_vlan_pcp	ifr_ifru.ifru_vlan_pcp	/* VLAN priority */
+#define	ifr_lan_pcp	ifr_ifru.ifru_vlan_pcp	/* VLAN priority */
 };
 
 #define	_SIZEOF_ADDR_IFREQ(ifr) \
@@ -564,6 +567,8 @@ struct ifrsshash {
 	uint16_t	ifrh_spare1;
 	uint32_t	ifrh_types;		/* RSS_TYPE_ */
 };
+
+#define	IFNET_PCP_NONE	0xff	/* PCP disabled */
 
 #endif /* __BSD_VISIBLE */
 

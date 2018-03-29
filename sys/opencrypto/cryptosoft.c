@@ -248,21 +248,29 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 				break;
 		}
 
-		/*
-		 * Warning: idat may point to garbage here, but
-		 * we only use it in the while() loop, only if
-		 * there are indeed enough data.
-		 */
-		idat = (char *)uio->uio_iov[ind].iov_base + k;
-
 		while (uio->uio_iov[ind].iov_len >= k + blks && i > 0) {
+			size_t nb, rem;
+
+			nb = blks;
+			rem = uio->uio_iov[ind].iov_len - k;
+			idat = (char *)uio->uio_iov[ind].iov_base + k;
+
 			if (exf->reinit) {
-				if (crd->crd_flags & CRD_F_ENCRYPT) {
+				if ((crd->crd_flags & CRD_F_ENCRYPT) != 0 &&
+				    exf->encrypt_multi == NULL)
 					exf->encrypt(sw->sw_kschedule,
 					    idat);
-				} else {
+				else if ((crd->crd_flags & CRD_F_ENCRYPT) != 0) {
+					nb = rounddown(rem, blks);
+					exf->encrypt_multi(sw->sw_kschedule,
+					    idat, nb);
+				} else if (exf->decrypt_multi == NULL)
 					exf->decrypt(sw->sw_kschedule,
 					    idat);
+				else {
+					nb = rounddown(rem, blks);
+					exf->decrypt_multi(sw->sw_kschedule,
+					    idat, nb);
 				}
 			} else if (crd->crd_flags & CRD_F_ENCRYPT) {
 				/* XOR with previous block/IV */
@@ -288,10 +296,10 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 				ivp = nivp;
 			}
 
-			idat += blks;
-			count += blks;
-			k += blks;
-			i -= blks;
+			idat += nb;
+			count += nb;
+			k += nb;
+			i -= nb;
 		}
 
 		/*
@@ -566,14 +574,26 @@ swcr_authenc(struct cryptop *crp)
 		exf->reinit(swe->sw_kschedule, iv);
 
 	/* Do encryption/decryption with MAC */
-	for (i = 0; i < crde->crd_len; i += blksz) {
-		len = MIN(crde->crd_len - i, blksz);
+	for (i = 0; i < crde->crd_len; i += len) {
+		if (exf->encrypt_multi != NULL) {
+			len = rounddown(crde->crd_len - i, blksz);
+			if (len == 0)
+				len = blksz;
+			else
+				len = MIN(len, sizeof(blkbuf));
+		} else
+			len = blksz;
+		len = MIN(crde->crd_len - i, len);
 		if (len < blksz)
 			bzero(blk, blksz);
 		crypto_copydata(crp->crp_flags, buf, crde->crd_skip + i, len,
 		    blk);
 		if (crde->crd_flags & CRD_F_ENCRYPT) {
-			exf->encrypt(swe->sw_kschedule, blk);
+			if (exf->encrypt_multi != NULL)
+				exf->encrypt_multi(swe->sw_kschedule, blk,
+				    len);
+			else
+				exf->encrypt(swe->sw_kschedule, blk);
 			axf->Update(&ctx, blk, len);
 			crypto_copyback(crp->crp_flags, buf,
 			    crde->crd_skip + i, len, blk);
@@ -810,6 +830,9 @@ swcr_newsession(device_t dev, u_int32_t *sid, struct cryptoini *cri)
 		case CRYPTO_NULL_CBC:
 			txf = &enc_xform_null;
 			goto enccommon;
+		case CRYPTO_CHACHA20:
+			txf = &enc_xform_chacha20;
+			goto enccommon;
 		enccommon:
 			if (cri->cri_key != NULL) {
 				error = txf->setkey(&((*swd)->sw_kschedule),
@@ -1036,6 +1059,7 @@ swcr_freesession_locked(device_t dev, u_int64_t tid)
 		case CRYPTO_AES_NIST_GMAC:
 		case CRYPTO_CAMELLIA_CBC:
 		case CRYPTO_NULL_CBC:
+		case CRYPTO_CHACHA20:
 			txf = swd->sw_exf;
 
 			if (swd->sw_kschedule)
@@ -1165,6 +1189,7 @@ swcr_process(device_t dev, struct cryptop *crp, int hint)
 		case CRYPTO_AES_XTS:
 		case CRYPTO_AES_ICM:
 		case CRYPTO_CAMELLIA_CBC:
+		case CRYPTO_CHACHA20:
 			if ((crp->crp_etype = swcr_encdec(crd, sw,
 			    crp->crp_buf, crp->crp_flags)) != 0)
 				goto done;
@@ -1278,6 +1303,7 @@ swcr_attach(device_t dev)
 	REGISTER(CRYPTO_DEFLATE_COMP);
 	REGISTER(CRYPTO_BLAKE2B);
 	REGISTER(CRYPTO_BLAKE2S);
+	REGISTER(CRYPTO_CHACHA20);
 #undef REGISTER
 
 	return 0;

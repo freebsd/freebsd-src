@@ -3231,8 +3231,19 @@ mpssas_async(void *callback_arg, uint32_t code, struct cam_path *path,
 
 		if ((mpssas_get_ccbstatus((union ccb *)&cdai) == CAM_REQ_CMP)
 		 && (rcap_buf.prot & SRC16_PROT_EN)) {
-			lun->eedp_formatted = TRUE;
-			lun->eedp_block_size = scsi_4btoul(rcap_buf.length);
+			switch (rcap_buf.prot & SRC16_P_TYPE) {
+			case SRC16_PTYPE_1:
+			case SRC16_PTYPE_3:
+				lun->eedp_formatted = TRUE;
+				lun->eedp_block_size =
+				    scsi_4btoul(rcap_buf.length);
+				break;
+			case SRC16_PTYPE_2:
+			default:
+				lun->eedp_formatted = FALSE;
+				lun->eedp_block_size = 0;
+				break;
+			}
 		} else {
 			lun->eedp_formatted = FALSE;
 			lun->eedp_block_size = 0;

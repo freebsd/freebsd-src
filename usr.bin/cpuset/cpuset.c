@@ -84,7 +84,6 @@ static struct numa_policy policies[] = {
 	{ NULL, DOMAINSET_POLICY_INVALID }
 };
 
-BITSET_DEFINE(bitset, 1);
 static void printset(struct bitset *mask, int size);
 
 static void

@@ -81,8 +81,9 @@ struct tcp_log_dev_info {
 };
 STAILQ_HEAD(log_infoh, tcp_log_dev_info);
 
-
+#ifdef TCP_BLACKBOX
 MALLOC_DECLARE(M_TCPLOGDEV);
 int tcp_log_dev_add_log(struct tcp_log_dev_queue *entry);
+#endif /* TCP_BLACKBOX */
 #endif /* _KERNEL */
 #endif /* !__tcp_log_dev_h__ */

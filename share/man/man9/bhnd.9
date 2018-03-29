@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 19, 2018
+.Dd March 26, 2018
 .Dt BHND 9
 .Os
 .Sh NAME
@@ -1130,6 +1130,10 @@ chip, each of which may require driver workarounds for hardware errata,
 unpopulated components, etc.
 .It Fa chip_type
 The interconnect architecture used by this chip.
+.It Fa chip_caps
+The
+.Nm
+capability flags supported by this chip.
 .It Fa enum_addr
 The backplane enumeration address.
 On SSB devices, this will be the base address of the first SSB core.
@@ -1154,6 +1158,16 @@ This BCMA-derived interconnect is found in Broadcom BCM33xx DOCSIS SoCs, and
 BCM63xx xDSL SoCs.
 UBUS is not currently supported by
 .Xr bhnd 4 .
+.El
+.Pp
+The following
+.Fa chip_caps
+flags are supported:
+.Bl -tag -width ".Dv BHND_CAP_BP64" -offset indent -compact
+.It Dv BHND_CAP_BP64
+The backplane supports 64-bit addressing.
+.It Dv BHND_CAP_PMU
+PMU is present.
 .El
 .Pp
 Additional symbolic constants for known

@@ -859,6 +859,7 @@ static void cmd_work_handler(struct work_struct *work)
         unsigned long cb_timeout = msecs_to_jiffies(MLX5_CMD_TIMEOUT_MSEC);
 	struct mlx5_cmd_layout *lay;
 	struct semaphore *sem;
+	bool poll_cmd = ent->polling;
 
 	sem = ent->page_queue ? &cmd->pages_sem : &cmd->sem;
 	down(sem);
@@ -897,7 +898,7 @@ static void cmd_work_handler(struct work_struct *work)
 	iowrite32be(1 << ent->idx, &dev->iseg->cmd_dbell);
 	mmiowb();
 	/* if not in polling don't use ent after this point*/
-	if (cmd->mode == CMD_MODE_POLLING) {
+	if (cmd->mode == CMD_MODE_POLLING || poll_cmd) {
 		poll_timeout(ent);
 		/* make sure we read the descriptor after ownership is SW */
 		mlx5_cmd_comp_handler(dev, 1U << ent->idx);
@@ -940,7 +941,7 @@ static int wait_func(struct mlx5_core_dev *dev, struct mlx5_cmd_work_ent *ent)
 	struct mlx5_cmd *cmd = &dev->cmd;
 	int err;
 
-	if (cmd->mode == CMD_MODE_POLLING) {
+	if (cmd->mode == CMD_MODE_POLLING || ent->polling) {
 		wait_for_completion(&ent->done);
 		err = ent->ret;
 	} else if (!wait_for_completion_timeout(&ent->done, timeout)) {
@@ -969,7 +970,8 @@ static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 			   int uin_size,
 			   struct mlx5_cmd_msg *out, void *uout, int uout_size,
 			   mlx5_cmd_cbk_t callback,
-			   void *context, int page_queue, u8 *status)
+			   void *context, int page_queue, u8 *status,
+			   bool force_polling)
 {
 	struct mlx5_cmd *cmd = &dev->cmd;
 	struct mlx5_cmd_work_ent *ent;
@@ -985,6 +987,8 @@ static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 			context, page_queue);
 	if (IS_ERR(ent))
 		return PTR_ERR(ent);
+
+	ent->polling = force_polling;
 
 	if (!callback)
 		init_completion(&ent->done);
@@ -1260,7 +1264,8 @@ static int is_manage_pages(void *in)
 static int cmd_exec_helper(struct mlx5_core_dev *dev,
 			   void *in, int in_size,
 			   void *out, int out_size,
-			   mlx5_cmd_cbk_t callback, void *context)
+			   mlx5_cmd_cbk_t callback, void *context,
+			   bool force_polling)
 {
 	struct mlx5_cmd_msg *inb;
 	struct mlx5_cmd_msg *outb;
@@ -1300,7 +1305,7 @@ static int cmd_exec_helper(struct mlx5_core_dev *dev,
 	}
 
 	err = mlx5_cmd_invoke(dev, inb, in_size, outb, out, out_size, callback,
-			      context, pages_queue, &status);
+			      context, pages_queue, &status, force_polling);
 	if (err) {
 		if (err == -ETIMEDOUT)
 			return err;
@@ -1331,7 +1336,7 @@ int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 {
 	int err;
 
-	err = cmd_exec_helper(dev, in, in_size, out, out_size, NULL, NULL);
+	err = cmd_exec_helper(dev, in, in_size, out, out_size, NULL, NULL, false);
 	return err ? : mlx5_cmd_check(dev, in, out);
 }
 EXPORT_SYMBOL(mlx5_cmd_exec);
@@ -1340,9 +1345,19 @@ int mlx5_cmd_exec_cb(struct mlx5_core_dev *dev, void *in, int in_size,
 		     void *out, int out_size, mlx5_cmd_cbk_t callback,
 		     void *context)
 {
-	return cmd_exec_helper(dev, in, in_size, out, out_size, callback, context);
+	return cmd_exec_helper(dev, in, in_size, out, out_size, callback, context, false);
 }
 EXPORT_SYMBOL(mlx5_cmd_exec_cb);
+
+int mlx5_cmd_exec_polling(struct mlx5_core_dev *dev, void *in, int in_size,
+			  void *out, int out_size)
+{
+	int err;
+
+	err = cmd_exec_helper(dev, in, in_size, out, out_size, NULL, NULL, true);
+	return err ? : mlx5_cmd_check(dev, in, out);
+}
+EXPORT_SYMBOL(mlx5_cmd_exec_polling);
 
 static void destroy_msg_cache(struct mlx5_core_dev *dev)
 {

@@ -64,20 +64,19 @@ typedef void (usb_complete_t)(struct urb *);
 struct usb_driver {
 	const char *name;
 
-	int     (*probe) (struct usb_interface *intf,
-	    	const	struct usb_device_id *id);
+	int (*probe)(struct usb_interface *intf,
+	    const struct usb_device_id *id);
 
-	void    (*disconnect) (struct usb_interface *intf);
+	void (*disconnect)(struct usb_interface *intf);
 
-	int     (*ioctl) (struct usb_interface *intf, unsigned int code,
-	    	void  *buf);
+	int (*ioctl)(struct usb_interface *intf, unsigned int code, void *buf);
 
-	int     (*suspend) (struct usb_interface *intf, pm_message_t message);
-	int     (*resume) (struct usb_interface *intf);
+	int (*suspend)(struct usb_interface *intf, pm_message_t message);
+	int (*resume)(struct usb_interface *intf);
 
 	const struct usb_device_id *id_table;
 
-	void    (*shutdown) (struct usb_interface *intf);
+	void (*shutdown)(struct usb_interface *intf);
 
 	LIST_ENTRY(usb_driver) linux_driver_list;
 };

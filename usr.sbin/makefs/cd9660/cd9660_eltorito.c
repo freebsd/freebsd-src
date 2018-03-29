@@ -104,9 +104,12 @@ cd9660_add_boot_disk(iso9660_disk *diskStructure, const char *boot_info)
 	else if (strcmp(sysname, "macppc") == 0 ||
 	         strcmp(sysname, "mac68k") == 0)
 		new_image->system = ET_SYS_MAC;
+	else if (strcmp(sysname, "efi") == 0 ||
+		 strcmp(sysname, "uefi") == 0)
+		new_image->system = ET_SYS_UEFI;
 	else {
 		warnx("boot disk system must be "
-		      "i386, powerpc, macppc, or mac68k");
+		      "efi, i386, powerpc, macppc, mac68k");
 		free(temp);
 		free(new_image);
 		return 0;
@@ -291,7 +294,10 @@ cd9660_boot_setup_section_head(char platform)
 		return NULL;
 
 	sh = &entry->entry_data.SH;
-	/* More by default. The last one will manually be set to 0x91 */
+	/*
+	 * More by default.
+	 * The last one will manually be set to ET_SECTION_HEADER_LAST
+	 */
 	sh->header_indicator[0] = ET_SECTION_HEADER_MORE;
 	sh->platform_id[0] = platform;
 	sh->num_section_entries[0] = 0;
@@ -338,12 +344,12 @@ cd9660_setup_boot(iso9660_disk *diskStructure, int first_sector)
 	int used_sectors;
 	int num_entries = 0;
 	int catalog_sectors;
-	struct boot_catalog_entry *x86_head, *mac_head, *ppc_head,
+	struct boot_catalog_entry *x86_head, *mac_head, *ppc_head, *uefi_head,
 		*valid_entry, *default_entry, *temp, *head, **headp, *next;
 	struct cd9660_boot_image *tmp_disk;
 
 	headp = NULL;
-	x86_head = mac_head = ppc_head = NULL;
+	x86_head = mac_head = ppc_head = uefi_head = NULL;
 
 	/* If there are no boot disks, don't bother building boot information */
 	if (TAILQ_EMPTY(&diskStructure->boot_images))
@@ -422,6 +428,9 @@ cd9660_setup_boot(iso9660_disk *diskStructure, int first_sector)
 		case ET_SYS_MAC:
 			headp = &mac_head;
 			break;
+		case ET_SYS_UEFI:
+			headp = &uefi_head;
+			break;
 		default:
 			warnx("%s: internal error: unknown system type",
 			    __func__);
@@ -457,6 +466,16 @@ cd9660_setup_boot(iso9660_disk *diskStructure, int first_sector)
 		LIST_INSERT_AFTER(head, temp, ll_struct);
 		tmp_disk = TAILQ_NEXT(tmp_disk, image_list);
 	}
+
+	/* Find the last Section Header entry and mark it as the last. */
+	head = NULL;
+	LIST_FOREACH(next, &diskStructure->boot_entries, ll_struct) {
+		if (next->entry_type == ET_ENTRY_SH)
+			head = next;
+	}
+	if (head != NULL)
+		head->entry_data.SH.header_indicator[0] =
+		    ET_SECTION_HEADER_LAST;
 
 	/* TODO: Remaining boot disks when implemented */
 
