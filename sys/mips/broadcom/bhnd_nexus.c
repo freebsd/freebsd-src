@@ -234,10 +234,11 @@ bhnd_nexus_get_dma_translation(device_t dev, device_t child,
 	KASSERT(width > 0 && width <= BHND_DMA_ADDR_64BIT,
 	    ("invalid width %u", width));
 
+	/* Is the requested width supported? */
 	if (width > BHND_DMA_ADDR_32BIT) {
 		/* Backplane must support 64-bit addressing */
-		if (!(bp->cc_caps & CHIPC_CAP_BKPLN64))
-			return (ENOENT);
+		if (!(bp->cid.chip_caps & BHND_CAP_BP64))
+			width = BHND_DMA_ADDR_32BIT;
 	}
 
 	/* No DMA address translation required */
