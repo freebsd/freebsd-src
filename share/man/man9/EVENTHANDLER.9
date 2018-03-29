@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2017
+.Dd October 31, 2017
 .Dt EVENTHANDLER 9
 .Os
 .Sh NAME
@@ -38,6 +38,9 @@
 .Fn EVENTHANDLER_REGISTER name func arg priority
 .Fn EVENTHANDLER_DEREGISTER name tag
 .Fn EVENTHANDLER_DEREGISTER_NOWAIT name tag
+.Fn EVENTHANDLER_LIST_DECLARE name
+.Fn EVENTHANDLER_LIST_DEFINE name
+.Fn EVENTHANDLER_DIRECT_INVOKE name
 .Ft eventhandler_tag
 .Fo eventhandler_register
 .Fa "struct eventhandler_list *list"
@@ -82,8 +85,13 @@ may be used if the handler does not have a specific priority
 associated with it.
 .Pp
 The normal way to use this subsystem is via the macro interface.
-The macros that can be used for working with event handlers and callback
-function lists are:
+For events that are high frequency it is suggested that you additionally use
+.Fn EVENTHANDLER_LIST_DEFINE
+so that the event handlers can be invoked directly using
+.Fn EVENTHANDLER_DIRECT_INVOKE
+(see below).
+This saves the invoker from having to do a locked traversal of a global
+list of event handler lists.
 .Bl -tag -width indent
 .It Fn EVENTHANDLER_DECLARE
 This macro declares an event handler named by argument
@@ -148,6 +156,27 @@ Additional arguments to the macro after the
 .Fa name
 parameter are passed as the second and subsequent arguments to each
 registered callback function.
+.It Fn EVENTHANDLER_LIST_DEFINE
+This macro defines a reference to an event handler list named by
+argument
+.Fa name .
+It uses
+.Xr SYSINIT 9
+to initialize the reference and the eventhandler list.
+.It Fn EVENTHANDLER_LIST_DECLARE
+This macro declares an event handler list named by argument
+.Fa name .
+This is only needed for users of
+.Fn EVENTHANDLER_DIRECT_INVOKE
+which are not in the same compilation unit of that list's definition.
+.It Fn EVENTHANDLER_DIRECT_INVOKE
+This macro invokes the event handlers registered for the list named by
+argument
+.Fa name .
+This macro can only be used if the list was defined with
+.Fn EVENTHANDLER_LIST_DEFINE .
+The macro is variadic with the same semantics as
+.Fn EVENTHANDLER_INVOKE .
 .El
 .Pp
 The macros are implemented using the following functions:
@@ -315,7 +344,7 @@ This is never called.
 .It Vt process_fork
 Callbacks invoked when a process forks a child.
 .It Vt process_init
-Callback invoked when a process is initalized.
+Callback invoked when a process is initialized.
 .It Vt random_adaptor_attach
 Callback invoked when a new random module has been loaded.
 .It Vt register_framebuffer
@@ -337,7 +366,7 @@ Callback invoked when a thread object is created.
 .It Vt thread_dtor
 Callback invoked when a thread object is destroyed.
 .It Vt thread_init
-Callback invoked when a thread object is initalized.
+Callback invoked when a thread object is initialized.
 .It Vt thread_fini
 Callback invoked when a thread object is deinitalized.
 .It Vt usb_dev_configured
@@ -384,4 +413,6 @@ facility first appeared in
 .Fx 4.0 .
 .Sh AUTHORS
 This manual page was written by
-.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org
+and
+.An Matt Joras Aq Mt mjoras@FreeBSD.org .
