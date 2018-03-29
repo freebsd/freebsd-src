@@ -59,6 +59,7 @@ extern void ql_dump_buf32(qla_host_t *ha, const char *str, void *dbuf,
 #define INJCT_SGL_RCV_INV_DESC_COUNT			0x0000D
 #define INJCT_SGL_LRO_INV_DESC_COUNT			0x0000E
 #define INJCT_PEER_PORT_FAILURE_ERR_RECOVERY		0x0000F
+#define INJCT_TXBUF_MBUF_NON_NULL			0x00010
 
 #ifdef QL_DBG
 

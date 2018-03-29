@@ -1289,13 +1289,20 @@ qla_send(qla_host_t *ha, struct mbuf **m_headp, uint32_t txr_idx,
 
 	tx_idx = ha->hw.tx_cntxt[txr_idx].txr_next;
 
-	if (NULL != ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head) {
+	if ((NULL != ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head) ||
+		(QL_ERR_INJECT(ha, INJCT_TXBUF_MBUF_NON_NULL))){
 		QL_ASSERT(ha, 0, ("%s [%d]: txr_idx = %d tx_idx = %d "\
 			"mbuf = %p\n", __func__, __LINE__, txr_idx, tx_idx,\
 			ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head));
+
+		device_printf(ha->pci_dev, "%s [%d]: txr_idx = %d tx_idx = %d "
+			"mbuf = %p\n", __func__, __LINE__, txr_idx, tx_idx,
+			ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head);
+
 		if (m_head)
 			m_freem(m_head);
 		*m_headp = NULL;
+		QL_INITIATE_RECOVERY(ha);
 		return (ret);
 	}
 
@@ -1428,8 +1435,8 @@ qla_fp_taskqueue(void *context, int pending)
         qla_tx_fp_t *fp;
         qla_host_t *ha;
         struct ifnet *ifp;
-        struct mbuf  *mp;
-        int ret;
+        struct mbuf  *mp = NULL;
+        int ret = 0;
 	uint32_t txr_idx;
 	uint32_t iscsi_pdu = 0;
 	uint32_t rx_pkts_left = -1;
@@ -1453,7 +1460,7 @@ qla_fp_taskqueue(void *context, int pending)
         }
 
 	while (rx_pkts_left && !ha->stop_rcv &&
-		(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		(ifp->if_drv_flags & IFF_DRV_RUNNING) && ha->hw.link_up) {
 		rx_pkts_left = ql_rcv_isr(ha, fp->txr_idx, 64);
 
 #ifdef QL_ENABLE_ISCSI_TLV
@@ -1498,13 +1505,18 @@ qla_fp_taskqueue(void *context, int pending)
 
 			/* Send a copy of the frame to the BPF listener */
 			ETHER_BPF_MTAP(ifp, mp);
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+
+			if (((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) ||
+				(!ha->hw.link_up))
 				break;
 
 			mp = drbr_peek(ifp, fp->tx_br);
 		}
 	}
         mtx_unlock(&fp->tx_mtx);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		goto qla_fp_taskqueue_exit;
 
 qla_fp_taskqueue_exit0:
 
