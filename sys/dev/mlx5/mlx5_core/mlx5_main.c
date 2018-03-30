@@ -1056,8 +1056,6 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_fs;
 	}
 
-	mlx5_fwdump_prep(dev);
-
 	clear_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state);
 	set_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
 
@@ -1127,7 +1125,6 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto out;
 	}
 
-	mlx5_fwdump_clean(dev);
 	mlx5_unregister_device(dev);
 
 	mlx5_cleanup_fs(dev);
@@ -1179,7 +1176,6 @@ struct mlx5_core_event_handler {
 		      void *data);
 };
 
-
 static int init_one(struct pci_dev *pdev,
 		    const struct pci_device_id *id)
 {
@@ -1224,6 +1220,8 @@ static int init_one(struct pci_dev *pdev,
 		goto clean_health;
 	}
 
+	mlx5_fwdump_prep(dev);
+
 	pci_save_state(pdev->dev.bsddev);
 	return 0;
 
@@ -1248,6 +1246,7 @@ static void remove_one(struct pci_dev *pdev)
 		return;
 	}
 
+	mlx5_fwdump_clean(dev);
 	mlx5_pagealloc_cleanup(dev);
 	mlx5_health_cleanup(dev);
 	mlx5_pci_close(dev, priv);
@@ -1264,6 +1263,7 @@ static pci_ers_result_t mlx5_pci_err_detected(struct pci_dev *pdev,
 	dev_info(&pdev->dev, "%s was called\n", __func__);
 	mlx5_enter_error_state(dev, false);
 	mlx5_unload_one(dev, priv, false);
+
 	if (state) {
 		mlx5_drain_health_wq(dev);
 		mlx5_pci_disable_device(dev);
