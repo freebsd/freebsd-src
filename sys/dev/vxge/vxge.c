@@ -3573,12 +3573,6 @@ vxge_ioctl(ifnet_t ifp, u_long command, caddr_t data)
 		return (EBUSY);
 
 	switch (command) {
-		/* Set/Get ifnet address */
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-		ether_ioctl(ifp, command, data);
-		break;
-
 		/* Set Interface MTU */
 	case SIOCSIFMTU:
 		err = vxge_change_mtu(vdev, (unsigned long)ifr->ifr_mtu);
