@@ -476,10 +476,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			error = EINVAL;
 			goto out;
 		}
-		/*
-		 * XXX: should we check if ifa_dstaddr is NULL and return
-		 * an error?
-		 */
 		ifr->ifr_dstaddr = ia->ia_dstaddr;
 		if ((error = sa6_recoverscope(&ifr->ifr_dstaddr)) != 0)
 			goto out;
