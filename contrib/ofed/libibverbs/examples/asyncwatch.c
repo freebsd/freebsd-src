@@ -29,12 +29,13 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
-#if HAVE_CONFIG_H
-#  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#define _GNU_SOURCE
+#include <config.h>
 
 #include <stdio.h>
+#include <infiniband/endian.h>
+#include <getopt.h>
+#include <string.h>
 
 #include <infiniband/verbs.h>
 
@@ -74,35 +75,78 @@ static const char *event_name_str(enum ibv_event_type event_type)
 	}
 }
 
+static void usage(const char *argv0)
+{
+	printf("Usage:\n");
+	printf("  %s            start an asyncwatch process\n", argv0);
+	printf("\n");
+	printf("Options:\n");
+	printf("  -d, --ib-dev=<dev>     use IB device <dev> (default first device found)\n");
+	printf("  -h, --help             print a help text and exit\n");
+}
+
 int main(int argc, char *argv[])
 {
 	struct ibv_device **dev_list;
 	struct ibv_context *context;
 	struct ibv_async_event event;
+	char   *ib_devname = NULL;
+	int i = 0;
 
 	/* Force line-buffering in case stdout is redirected */
 	setvbuf(stdout, NULL, _IOLBF, 0);
 
+	while (1) {
+		int ret = 1;
+		int c;
+		static struct option long_options[] = {
+			{ .name = "ib-dev",    .has_arg = 1, .val = 'd' },
+			{ .name = "help",      .has_arg = 0, .val = 'h' },
+			{}
+		};
+
+		c = getopt_long(argc, argv, "d:h", long_options, NULL);
+		if (c == -1)
+			break;
+		switch (c) {
+		case 'd':
+			ib_devname = strdupa(optarg);
+			break;
+		case 'h':
+			ret = 0;
+			SWITCH_FALLTHROUGH;
+		default:
+			usage(argv[0]);
+			return ret;
+		}
+	}
 	dev_list = ibv_get_device_list(NULL);
 	if (!dev_list) {
 		perror("Failed to get IB devices list");
 		return 1;
 	}
+	if (ib_devname) {
+		for (; dev_list[i]; ++i) {
+			if (!strcmp(ibv_get_device_name(dev_list[i]), ib_devname))
+				break;
+		}
+	}
 
-	if (!*dev_list) {
-		fprintf(stderr, "No IB devices found\n");
+	if (!dev_list[i]) {
+		fprintf(stderr, "IB device %s not found\n",
+			ib_devname ? ib_devname : "");
 		return 1;
 	}
 
-	context = ibv_open_device(*dev_list);
+	context = ibv_open_device(dev_list[i]);
 	if (!context) {
 		fprintf(stderr, "Couldn't get context for %s\n",
-			ibv_get_device_name(*dev_list));
+			ibv_get_device_name(dev_list[i]));
 		return 1;
 	}
 
 	printf("%s: async event FD %d\n",
-	       ibv_get_device_name(*dev_list), context->async_fd);
+	       ibv_get_device_name(dev_list[i]), context->async_fd);
 
 	while (1) {
 		if (ibv_get_async_event(context, &event))

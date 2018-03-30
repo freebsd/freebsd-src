@@ -84,7 +84,7 @@ struct workqueue_struct *ipoib_workqueue;
 struct ib_sa_client ipoib_sa_client;
 
 static void ipoib_add_one(struct ib_device *device);
-static void ipoib_remove_one(struct ib_device *device);
+static void ipoib_remove_one(struct ib_device *device, void *client_data);
 static void ipoib_start(struct ifnet *dev);
 static int ipoib_output(struct ifnet *ifp, struct mbuf *m,
 	    const struct sockaddr *dst, struct route *ro);
@@ -98,6 +98,31 @@ do {								\
 		ipoib_mtap_mb((_ifp), (_m));			\
 	}							\
 } while (0)
+
+static struct unrhdr *ipoib_unrhdr;
+
+static void
+ipoib_unrhdr_init(void *arg)
+{
+
+	ipoib_unrhdr = new_unrhdr(0, 65535, NULL);
+}
+SYSINIT(ipoib_unrhdr_init, SI_SUB_KLD - 1, SI_ORDER_ANY, ipoib_unrhdr_init, NULL);
+
+static void
+ipoib_unrhdr_uninit(void *arg)
+{
+
+	if (ipoib_unrhdr != NULL) {
+		struct unrhdr *hdr;
+
+		hdr = ipoib_unrhdr;
+		ipoib_unrhdr = NULL;
+
+		delete_unrhdr(hdr);
+	}
+}
+SYSUNINIT(ipoib_unrhdr_uninit, SI_SUB_KLD - 1, SI_ORDER_ANY, ipoib_unrhdr_uninit, NULL);
 
 /*
  * This is for clients that have an ipoib_header in the mbuf.
@@ -660,7 +685,13 @@ ipoib_unicast_send(struct mbuf *mb, struct ipoib_dev_priv *priv, struct ipoib_he
 			new_path = 1;
 		}
 		if (path) {
-			_IF_ENQUEUE(&path->queue, mb);
+			if (_IF_QLEN(&path->queue) < IPOIB_MAX_PATH_REC_QUEUE)
+				_IF_ENQUEUE(&path->queue, mb);
+			else {
+				if_inc_counter(priv->dev, IFCOUNTER_OERRORS, 1);
+				m_freem(mb);
+			}
+
 			if (!path->query && path_rec_start(priv, path)) {
 				spin_unlock_irqrestore(&priv->lock, flags);
 				if (new_path)
@@ -802,6 +833,7 @@ ipoib_detach(struct ipoib_dev_priv *priv)
 		bpfdetach(dev);
 		if_detach(dev);
 		if_free(dev);
+		free_unr(ipoib_unrhdr, priv->unit);
 	} else
 		VLAN_SETCOOKIE(priv->dev, NULL);
 
@@ -827,8 +859,6 @@ ipoib_dev_cleanup(struct ipoib_dev_priv *priv)
 	priv->rx_ring = NULL;
 	priv->tx_ring = NULL;
 }
-
-static volatile int ipoib_unit;
 
 static struct ipoib_dev_priv *
 ipoib_priv_alloc(void)
@@ -870,7 +900,13 @@ ipoib_intf_alloc(const char *name)
 		return NULL;
 	}
 	dev->if_softc = priv;
-	if_initname(dev, name, atomic_fetchadd_int(&ipoib_unit, 1));
+	priv->unit = alloc_unr(ipoib_unrhdr);
+	if (priv->unit == -1) {
+		if_free(dev);
+		free(priv, M_TEMP);
+		return NULL;
+	}
+	if_initname(dev, name, priv->unit);
 	dev->if_flags = IFF_BROADCAST | IFF_MULTICAST;
 	dev->if_addrlen = INFINIBAND_ALEN;
 	dev->if_hdrlen = IPOIB_HEADER_LEN;
@@ -897,26 +933,9 @@ ipoib_intf_alloc(const char *name)
 int
 ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca)
 {
-	struct ib_device_attr *device_attr;
-	int result = -ENOMEM;
+	struct ib_device_attr *device_attr = &hca->attrs;
 
-	device_attr = kmalloc(sizeof *device_attr, GFP_KERNEL);
-	if (!device_attr) {
-		printk(KERN_WARNING "%s: allocation of %zu bytes failed\n",
-		       hca->name, sizeof *device_attr);
-		return result;
-	}
-
-	result = ib_query_device(hca, device_attr);
-	if (result) {
-		printk(KERN_WARNING "%s: ib_query_device failed (ret = %d)\n",
-		       hca->name, result);
-		kfree(device_attr);
-		return result;
-	}
 	priv->hca_caps = device_attr->device_cap_flags;
-
-	kfree(device_attr);
 
 	priv->dev->if_hwassist = 0;
 	priv->dev->if_capabilities = 0;
@@ -985,7 +1004,7 @@ ipoib_add_port(const char *format, struct ib_device *hca, u8 port)
 	priv->broadcastaddr[8] = priv->pkey >> 8;
 	priv->broadcastaddr[9] = priv->pkey & 0xff;
 
-	result = ib_query_gid(hca, port, 0, &priv->local_gid);
+	result = ib_query_gid(hca, port, 0, &priv->local_gid, NULL);
 	if (result) {
 		printk(KERN_WARNING "%s: ib_query_gid port %d failed (ret = %d)\n",
 		       hca->name, port, result);
@@ -1064,15 +1083,16 @@ ipoib_add_one(struct ib_device *device)
 }
 
 static void
-ipoib_remove_one(struct ib_device *device)
+ipoib_remove_one(struct ib_device *device, void *client_data)
 {
 	struct ipoib_dev_priv *priv, *tmp;
-	struct list_head *dev_list;
+	struct list_head *dev_list = client_data;
+
+	if (!dev_list)
+		return;
 
 	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
 		return;
-
-	dev_list = ib_get_client_data(device, &ipoib_client);
 
 	list_for_each_entry_safe(priv, tmp, dev_list, list) {
 		if (rdma_port_get_link_layer(device, priv->port) != IB_LINK_LAYER_INFINIBAND)

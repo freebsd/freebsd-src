@@ -677,13 +677,11 @@ _mlx4en=	mlx4en
 _mlx5en=	mlx5en
 .endif
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_mthca=		mthca
 _mlx4ib=	mlx4ib
 _mlx5ib=	mlx5ib
 .endif
 _mly=		mly
-.if ${MK_OFED} != "no" || defined(ALL_MODULES)
-_mthca=		mthca
-.endif
 _nfe=		nfe
 _nvd=		nvd
 _nvme=		nvme
