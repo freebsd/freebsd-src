@@ -5758,9 +5758,6 @@ int32_t sli_link_is_configurable(sli4_t *sli)
 
 /* vim: set noexpandtab textwidth=120: */
 
-extern const char *SLI_QNAME[];
-extern const sli4_reg_t regmap[SLI4_REG_MAX][SLI4_MAX_IF_TYPES];
-
 /**
  * @ingroup sli_fc
  * @brief Write an FCOE_WQ_CREATE command.
