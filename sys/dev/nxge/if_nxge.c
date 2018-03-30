@@ -1623,12 +1623,6 @@ xge_ioctl(struct ifnet *ifnetp, unsigned long command, caddr_t data)
 	}
 
 	switch(command) {
-	    /* Set/Get ifnet address */
-	    case SIOCSIFADDR:
-	    case SIOCGIFADDR:
-	        ether_ioctl(ifnetp, command, data);
-	        break;
-
 	    /* Set ifnet MTU */
 	    case SIOCSIFMTU:
 	        retValue = xge_change_mtu(lldev, ifreqp->ifr_mtu);
@@ -1713,7 +1707,7 @@ xge_ioctl(struct ifnet *ifnetp, unsigned long command, caddr_t data)
 	        break;
 
 	    default:
-	        retValue = EINVAL;
+	        retValue = ether_ioctl(ifnetp, command, data);
 	        break;
 	}
 	return retValue;
