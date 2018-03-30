@@ -74,6 +74,7 @@ void mlx5_core_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
 		     unsigned long param);
 void mlx5_enter_error_state(struct mlx5_core_dev *dev);
 void mlx5_disable_device(struct mlx5_core_dev *dev);
+void mlx5_recover_device(struct mlx5_core_dev *dev);
 
 void mlx5e_init(void);
 void mlx5e_cleanup(void);
