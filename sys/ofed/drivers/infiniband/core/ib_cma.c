@@ -107,6 +107,7 @@ const char *__attribute_const__ rdma_event_msg(enum rdma_cm_event_type event)
 }
 EXPORT_SYMBOL(rdma_event_msg);
 
+static int cma_check_linklocal(struct rdma_dev_addr *, struct sockaddr *);
 static void cma_add_one(struct ib_device *device);
 static void cma_remove_one(struct ib_device *device, void *client_data);
 
@@ -2807,6 +2808,10 @@ int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 		if (dst_addr->sa_family == AF_IB) {
 			ret = cma_resolve_ib_addr(id_priv);
 		} else {
+			ret = cma_check_linklocal(&id->route.addr.dev_addr, dst_addr);
+			if (ret)
+				goto err;
+
 			ret = rdma_resolve_ip(&addr_client, cma_src_addr(id_priv),
 					      dst_addr, &id->route.addr.dev_addr,
 					      timeout_ms, addr_handler, id_priv);
