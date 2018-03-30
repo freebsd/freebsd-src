@@ -64,6 +64,16 @@ enum {
 	MLX5_CMD_TIME, /* print command execution time */
 };
 
+enum mlx5_semaphore_space_address {
+	MLX5_SEMAPHORE_SW_RESET		= 0x20,
+};
+
+enum {
+	UNLOCK = 0,
+	LOCK = 1,
+	CAP_ID = 0x9,
+};
+
 struct mlx5_core_dev;
 
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
@@ -95,4 +105,8 @@ struct mlx5_crspace_regmap {
 
 extern struct pci_driver mlx5_core_driver;
 
+void mlx5_vsec_init(struct mlx5_core_dev *dev);
+int mlx5_pciconf_cap9_sem(struct mlx5_core_dev *dev, int state);
+int mlx5_pciconf_set_sem_addr_space(struct mlx5_core_dev *dev,
+				    u32 sem_space_address, int state);
 #endif /* __MLX5_CORE_H__ */
