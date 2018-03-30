@@ -1,3 +1,4 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
 .TH "RDMA_LISTEN" 3 "2007-05-15" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
 .SH NAME
 rdma_listen \- Listen for incoming connection requests.
@@ -16,6 +17,9 @@ backlog of incoming connection requests.
 Initiates a listen for incoming connection requests or datagram service
 lookup.  The listen will be restricted to the locally bound source
 address.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
 .SH "NOTES"
 Users must have bound the rdma_cm_id to a local address by calling
 rdma_bind_addr before calling this routine.  If the rdma_cm_id is

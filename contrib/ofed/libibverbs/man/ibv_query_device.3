@@ -1,4 +1,5 @@
 .\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
 .\"
 .TH IBV_QUERY_DEVICE 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
 .SH "NAME"
@@ -32,8 +33,8 @@ uint32_t                hw_ver;                 /* Hardware version */
 int                     max_qp;                 /* Maximum number of supported QPs */
 int                     max_qp_wr;              /* Maximum number of outstanding WR on any work queue */
 int                     device_cap_flags;       /* HCA capabilities mask */
-int                     max_sge;                /* Maximum number of s/g per WR for non-RD QPs */
-int                     max_sge_rd;             /* Maximum number of s/g per WR for RD QPs */
+int                     max_sge;                /* Maximum number of s/g per WR for SQ & RQ of QP for non RDMA Read operations */
+int                     max_sge_rd;             /* Maximum number of s/g per WR for RDMA Read operations */
 int                     max_cq;                 /* Maximum number of supported CQs */
 int                     max_cqe;                /* Maximum number of CQE capacity per CQ */
 int                     max_mr;                 /* Maximum number of supported MRs */
@@ -81,4 +82,4 @@ in use by other users/processes.
 .BR ibv_query_gid (3)
 .SH "AUTHORS"
 .TP
-Dotan Barak <dotanb@mellanox.co.il>
+Dotan Barak <dotanba@gmail.com>
