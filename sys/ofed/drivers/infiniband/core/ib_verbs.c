@@ -483,56 +483,29 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		return ret;
 
 	if (rdma_protocol_roce(device, port_num)) {
-		int if_index;
-		u16 vlan_id = wc->wc_flags & IB_WC_WITH_VLAN ?
+		struct ib_gid_attr dgid_attr;
+		const u16 vlan_id = wc->wc_flags & IB_WC_WITH_VLAN ?
 				wc->vlan_id : 0xffff;
-		struct net_device *idev;
-		struct net_device *resolved_dev;
 
 		if (!(wc->wc_flags & IB_WC_GRH))
 			return -EPROTOTYPE;
 
-		if (!device->get_netdev)
-			return -EOPNOTSUPP;
-
-		idev = device->get_netdev(device, port_num);
-		if (!idev)
-			return -ENODEV;
-
-		/*
-		 * Get network interface index early on. This is
-		 * useful for IPv6 link local addresses:
-		 */
-		if_index = idev->if_index;
-
-		ret = rdma_addr_find_l2_eth_by_grh(&dgid, &sgid,
-						   ah_attr->dmac,
-						   wc->wc_flags & IB_WC_WITH_VLAN ?
-						   NULL : &vlan_id,
-						   &if_index, &hoplimit);
-		if (ret) {
-			dev_put(idev);
-			return ret;
-		}
-
-		resolved_dev = dev_get_by_index(&init_net, if_index);
-		if (resolved_dev->if_flags & IFF_LOOPBACK) {
-			dev_put(resolved_dev);
-			resolved_dev = idev;
-			dev_hold(resolved_dev);
-		}
-		rcu_read_lock();
-		if (resolved_dev != idev && !rdma_is_upper_dev_rcu(idev,
-								   resolved_dev))
-			ret = -EHOSTUNREACH;
-		rcu_read_unlock();
-		dev_put(idev);
-		dev_put(resolved_dev);
+		ret = get_sgid_index_from_eth(device, port_num, vlan_id,
+					      &dgid, gid_type, &gid_index);
 		if (ret)
 			return ret;
 
-		ret = get_sgid_index_from_eth(device, port_num, vlan_id,
-					      &dgid, gid_type, &gid_index);
+		ret = ib_get_cached_gid(device, port_num, gid_index, &dgid, &dgid_attr);
+		if (ret)
+			return ret;
+
+		if (dgid_attr.ndev == NULL)
+			return -ENODEV;
+
+		ret = rdma_addr_find_l2_eth_by_grh(&dgid, &sgid, ah_attr->dmac,
+		    dgid_attr.ndev, &hoplimit);
+
+		dev_put(dgid_attr.ndev);
 		if (ret)
 			return ret;
 	}
@@ -1207,7 +1180,6 @@ int ib_resolve_eth_dmac(struct ib_qp *qp,
 		} else {
 			union ib_gid		sgid;
 			struct ib_gid_attr	sgid_attr;
-			int			ifindex;
 			int			hop_limit;
 
 			ret = ib_query_gid(qp->device,
@@ -1221,12 +1193,10 @@ int ib_resolve_eth_dmac(struct ib_qp *qp,
 				goto out;
 			}
 
-			ifindex = sgid_attr.ndev->if_index;
-
 			ret = rdma_addr_find_l2_eth_by_grh(&sgid,
 							   &qp_attr->ah_attr.grh.dgid,
 							   qp_attr->ah_attr.dmac,
-							   NULL, &ifindex, &hop_limit);
+							   sgid_attr.ndev, &hop_limit);
 
 			dev_put(sgid_attr.ndev);
 
