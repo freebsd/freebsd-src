@@ -5174,7 +5174,7 @@ ixl_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 		if (!pf->has_i2c)
 			return (ENOTTY);
 
-		error = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
+		error = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
 		if (error != 0)
 			break;
 		if (i2c.dev_addr != 0xA0 && i2c.dev_addr != 0xA2) {
@@ -5191,7 +5191,7 @@ ixl_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			    i2c.dev_addr, &i2c.data[i]))
 				return (EIO);
 
-		error = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
+		error = copyout(&i2c, ifr_data_get_ptr(ifr), sizeof(i2c));
 		break;
 	}
 #endif

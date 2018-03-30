@@ -2884,7 +2884,7 @@ out:
 		 * Copy from the user-space address ifr_data to the
 		 * kernel-space address i2c
 		 */
-		error = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
+		error = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
 		if (error)
 			break;
 
@@ -2948,7 +2948,7 @@ out:
 			goto err_i2c;
 		}
 
-		error = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
+		error = copyout(&i2c, ifr_data_get_ptr(ifr), sizeof(i2c));
 err_i2c:
 		PRIV_UNLOCK(priv);
 		break;

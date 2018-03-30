@@ -3567,7 +3567,8 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCG80211STATS:
 		ifr = (struct ifreq *)data;
-		copyout(&vap->iv_stats, ifr->ifr_data, sizeof (vap->iv_stats));
+		copyout(&vap->iv_stats, ifr_data_get_ptr(ifr),
+		    sizeof (vap->iv_stats));
 		break;
 	case SIOCSIFMTU:
 		ifr = (struct ifreq *)data;

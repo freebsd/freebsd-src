@@ -412,7 +412,9 @@ struct	ifreq {
 #define	ifr_mtu		ifr_ifru.ifru_mtu	/* mtu */
 #define ifr_phys	ifr_ifru.ifru_phys	/* physical wire */
 #define ifr_media	ifr_ifru.ifru_media	/* physical media */
+#ifndef _KERNEL
 #define	ifr_data	ifr_ifru.ifru_data	/* for use by interface */
+#endif
 #define	ifr_reqcap	ifr_ifru.ifru_cap[0]	/* requested capabilities */
 #define	ifr_curcap	ifr_ifru.ifru_cap[1]	/* current capabilities */
 #define	ifr_index	ifr_ifru.ifru_index	/* interface index */
