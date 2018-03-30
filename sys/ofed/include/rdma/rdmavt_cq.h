@@ -1,7 +1,8 @@
 #ifndef DEF_RDMAVT_INCCQ_H
 #define DEF_RDMAVT_INCCQ_H
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -49,6 +50,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 #include <linux/kthread.h>
