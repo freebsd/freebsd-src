@@ -2785,7 +2785,8 @@ static int cma_bind_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 			struct sockaddr_in6 *src_addr6 = (struct sockaddr_in6 *) src_addr;
 			struct sockaddr_in6 *dst_addr6 = (struct sockaddr_in6 *) dst_addr;
 			src_addr6->sin6_scope_id = dst_addr6->sin6_scope_id;
-			if (IN6_IS_SCOPE_LINKLOCAL(&dst_addr6->sin6_addr))
+			if (IN6_IS_SCOPE_LINKLOCAL(&dst_addr6->sin6_addr) ||
+			    IN6_IS_ADDR_MC_INTFACELOCAL(&dst_addr6->sin6_addr))
 				id->route.addr.dev_addr.bound_dev_if = dst_addr6->sin6_scope_id;
 		} else if (dst_addr->sa_family == AF_IB) {
 			((struct sockaddr_ib *) src_addr)->sib_pkey =
@@ -3119,13 +3120,13 @@ static int cma_check_linklocal(struct rdma_dev_addr *dev_addr,
 
 	sin6 = *(struct sockaddr_in6 *)addr;
 
-	if (!(IN6_IS_SCOPE_LINKLOCAL(&sin6.sin6_addr)))
-		return 0;
-
-	if (sa6_recoverscope(&sin6) || sin6.sin6_scope_id == 0)
-		return -EINVAL;
-
-	dev_addr->bound_dev_if = sin6.sin6_scope_id;
+	if (IN6_IS_SCOPE_LINKLOCAL(&sin6.sin6_addr) ||
+	    IN6_IS_ADDR_MC_INTFACELOCAL(&sin6.sin6_addr)) {
+		/* check if IPv6 scope ID is set */
+		if (sa6_recoverscope(&sin6) || sin6.sin6_scope_id == 0)
+			return -EINVAL;
+		dev_addr->bound_dev_if = sin6.sin6_scope_id;
+	}
 #endif
 	return 0;
 }
