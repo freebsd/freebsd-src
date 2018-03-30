@@ -42,6 +42,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/netdevice.h>
+#include <linux/in6.h>
 
 #include <rdma/ib_cache.h>
 
@@ -702,6 +703,16 @@ void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
 	make_default_gid(ndev, &gid);
 	memset(&gid_attr, 0, sizeof(gid_attr));
 	gid_attr.ndev = ndev;
+
+	/* Default GID is created using unique GUID and local subnet prefix,
+	 * as described in section 4.1.1 and 3.5.10 in IB spec 1.3.
+	 * Therefore don't create RoCEv2 default GID based on it that
+	 * resembles as IPv6 GID based on link local address when IPv6 is
+	 * disabled in kernel.
+	 */
+#ifndef INET6
+	gid_type_mask &= ~BIT(IB_GID_TYPE_ROCE_UDP_ENCAP);
+#endif
 
 	for (gid_type = 0; gid_type < IB_GID_TYPE_SIZE; ++gid_type) {
 		int ix;
