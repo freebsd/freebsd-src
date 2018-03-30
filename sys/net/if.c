@@ -97,6 +97,13 @@
 
 #include <security/mac/mac_framework.h>
 
+/*
+ * Consumers of struct ifreq such as tcpdump assume no pad between ifr_name
+ * and ifr_ifru when it is used in SIOCGIFCONF.
+ */
+_Static_assert(sizeof(((struct ifreq *)0)->ifr_name) ==
+    offsetof(struct ifreq, ifr_ifru), "gap between ifr_name and ifr_ifru");
+
 #ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>
 #include <compat/freebsd32/freebsd32.h>
