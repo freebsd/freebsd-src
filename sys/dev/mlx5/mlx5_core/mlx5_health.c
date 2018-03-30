@@ -183,7 +183,7 @@ static void reset_fw_if_needed(struct mlx5_core_dev *dev)
 	    fatal_error == MLX5_SENSOR_NIC_DISABLED ||
 	    fatal_error == MLX5_SENSOR_NIC_SW_RESET ||
 	    test_bit(MLX5_SKIP_SW_RESET, &health->flags)) {
-		mlx5_core_warn(dev, "Not issuing FW reset. Either it's already done or won't help.");
+		mlx5_core_warn(dev, "Not issuing FW reset. Either it's already done or won't help.\n");
 		return;
 	}
 
