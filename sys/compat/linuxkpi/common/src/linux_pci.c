@@ -171,12 +171,11 @@ linux_pci_attach(device_t dev)
 		pdev->bus = pbus;
 	}
 
-	DROP_GIANT();
 	spin_lock(&pci_lock);
 	list_add(&pdev->links, &pci_devices);
 	spin_unlock(&pci_lock);
+
 	error = pdrv->probe(pdev, id);
-	PICKUP_GIANT();
 	if (error) {
 		spin_lock(&pci_lock);
 		list_del(&pdev->links);
@@ -194,9 +193,9 @@ linux_pci_detach(device_t dev)
 
 	linux_set_current(curthread);
 	pdev = device_get_softc(dev);
-	DROP_GIANT();
+
 	pdev->pdrv->remove(pdev);
-	PICKUP_GIANT();
+
 	spin_lock(&pci_lock);
 	list_del(&pdev->links);
 	spin_unlock(&pci_lock);
@@ -258,11 +257,8 @@ linux_pci_shutdown(device_t dev)
 
 	linux_set_current(curthread);
 	pdev = device_get_softc(dev);
-	if (pdev->pdrv->shutdown != NULL) {
-		DROP_GIANT();
+	if (pdev->pdrv->shutdown != NULL)
 		pdev->pdrv->shutdown(pdev);
-		PICKUP_GIANT();
-	}
 	return (0);
 }
 
