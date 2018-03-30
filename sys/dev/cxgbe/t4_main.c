@@ -1800,7 +1800,7 @@ fail:
 	case SIOCGI2C: {
 		struct ifi2creq i2c;
 
-		rc = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
+		rc = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
 		if (rc != 0)
 			break;
 		if (i2c.dev_addr != 0xA0 && i2c.dev_addr != 0xA2) {
@@ -1818,7 +1818,7 @@ fail:
 		    i2c.offset, i2c.len, &i2c.data[0]);
 		end_synchronized_op(sc, 0);
 		if (rc == 0)
-			rc = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
+			rc = copyout(&i2c, ifr_data_get_ptr(ifr), sizeof(i2c));
 		break;
 	}
 

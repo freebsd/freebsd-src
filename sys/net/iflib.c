@@ -3984,7 +3984,7 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 	{
 		struct ifi2creq i2c;
 
-		err = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
+		err = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
 		if (err != 0)
 			break;
 		if (i2c.dev_addr != 0xA0 && i2c.dev_addr != 0xA2) {
@@ -3997,7 +3997,8 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		}
 
 		if ((err = IFDI_I2C_REQ(ctx, &i2c)) == 0)
-			err = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
+			err = copyout(&i2c, ifr_data_get_ptr(ifr),
+			    sizeof(i2c));
 		break;
 	}
 	case SIOCSIFCAP:

@@ -529,7 +529,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 	{
 		struct ifi2creq i2c;
 
-		error = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
+		error = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
 		if (error != 0)
 			break;
 
@@ -544,7 +544,8 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 						&i2c.data[0]);
 		SFXGE_ADAPTER_UNLOCK(sc);
 		if (error == 0)
-			error = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
+			error = copyout(&i2c, ifr_data_get_ptr(ifr),
+			    sizeof(i2c));
 		break;
 	}
 #endif
@@ -552,12 +553,13 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		error = priv_check(curthread, PRIV_DRIVER);
 		if (error != 0)
 			break;
-		error = copyin(ifr->ifr_data, &ioc, sizeof(ioc));
+		error = copyin(ifr_data_get_ptr(ifr), &ioc, sizeof(ioc));
 		if (error != 0)
 			return (error);
 		error = sfxge_private_ioctl(sc, &ioc);
 		if (error == 0) {
-			error = copyout(&ioc, ifr->ifr_data, sizeof(ioc));
+			error = copyout(&ioc, ifr_data_get_ptr(ifr),
+			    sizeof(ioc));
 		}
 		break;
 	default:
