@@ -2578,6 +2578,27 @@ dev/oce/oce_mbox.c		optional oce pci
 dev/oce/oce_queue.c		optional oce pci
 dev/oce/oce_sysctl.c		optional oce pci
 dev/oce/oce_util.c		optional oce pci
+dev/ocs_fc/ocs_pci.c		optional ocs_fc pci
+dev/ocs_fc/ocs_ioctl.c		optional ocs_fc pci
+dev/ocs_fc/ocs_os.c		optional ocs_fc pci
+dev/ocs_fc/ocs_utils.c		optional ocs_fc pci
+dev/ocs_fc/ocs_hw.c		optional ocs_fc pci
+dev/ocs_fc/ocs_hw_queues.c	optional ocs_fc pci
+dev/ocs_fc/sli4.c		optional ocs_fc pci
+dev/ocs_fc/ocs_sm.c		optional ocs_fc pci
+dev/ocs_fc/ocs_device.c		optional ocs_fc pci
+dev/ocs_fc/ocs_xport.c		optional ocs_fc pci
+dev/ocs_fc/ocs_domain.c		optional ocs_fc pci
+dev/ocs_fc/ocs_sport.c		optional ocs_fc pci
+dev/ocs_fc/ocs_els.c		optional ocs_fc pci
+dev/ocs_fc/ocs_fabric.c		optional ocs_fc pci
+dev/ocs_fc/ocs_io.c		optional ocs_fc pci
+dev/ocs_fc/ocs_node.c		optional ocs_fc pci
+dev/ocs_fc/ocs_scsi.c		optional ocs_fc pci
+dev/ocs_fc/ocs_unsol.c		optional ocs_fc pci
+dev/ocs_fc/ocs_ddump.c		optional ocs_fc pci
+dev/ocs_fc/ocs_mgmt.c		optional ocs_fc pci
+dev/ocs_fc/ocs_cam.c		optional ocs_fc pci
 dev/ofw/ofw_bus_if.m		optional fdt
 dev/ofw/ofw_bus_subr.c		optional fdt
 dev/ofw/ofw_cpu.c		optional fdt
