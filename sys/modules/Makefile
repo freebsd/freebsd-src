@@ -64,6 +64,7 @@ SUBDIR=	\
 	bwn \
 	bwn_pci \
 	${_bytgpio} \
+	${_chvgpio} \
 	cam \
 	${_canbepm} \
 	${_canbus} \
@@ -637,6 +638,7 @@ _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
 _bytgpio=	bytgpio
+_chvgpio=	chvgpio
 _ciss=		ciss
 _chromebook_platform=	chromebook_platform
 _cmx=		cmx
