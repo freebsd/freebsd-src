@@ -300,6 +300,8 @@ static void health_recover(struct work_struct *work)
 	priv = container_of(health, struct mlx5_priv, health);
 	dev = container_of(priv, struct mlx5_core_dev, priv);
 
+	mtx_lock(&Giant);	/* XXX newbus needs this */
+
 	if (sensor_pci_no_comm(dev)) {
 		dev_err(&dev->pdev->dev, "health recovery flow aborted, PCI reads still not working\n");
 		recover = false;
@@ -322,6 +324,8 @@ static void health_recover(struct work_struct *work)
 		dev_err(&dev->pdev->dev, "starting health recovery flow\n");
 		mlx5_recover_device(dev);
 	}
+
+	mtx_unlock(&Giant);
 }
 
 /* How much time to wait until health resetting the driver (in msecs) */
