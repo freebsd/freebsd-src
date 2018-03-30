@@ -123,7 +123,15 @@ rdma_copy_addr_sub(u8 *dst, const u8 *src, unsigned min, unsigned max)
 int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 		     const unsigned char *dst_dev_addr)
 {
-	if (dev->if_type == IFT_INFINIBAND)
+	/* check for loopback device */
+	if (dev->if_type == IFT_LOOP) {
+		dev_addr->dev_type = ARPHRD_ETHER;
+		memset(dev_addr->src_dev_addr, 0, MAX_ADDR_LEN);
+		memset(dev_addr->broadcast, 0, MAX_ADDR_LEN);
+		memset(dev_addr->dst_dev_addr, 0, MAX_ADDR_LEN);
+		dev_addr->bound_dev_if = dev->if_index;
+		return (0);
+	} else if (dev->if_type == IFT_INFINIBAND)
 		dev_addr->dev_type = ARPHRD_INFINIBAND;
 	else if (dev->if_type == IFT_ETHER)
 		dev_addr->dev_type = ARPHRD_ETHER;
@@ -240,10 +248,10 @@ static int addr_resolve_multi(u8 *edst, struct ifnet *ifp, struct sockaddr *dst_
 static int addr4_resolve(struct sockaddr_in *src_in,
 			 const struct sockaddr_in *dst_in,
 			 struct rdma_dev_addr *addr,
+			 u8 *edst,
 			 struct ifnet **ifpp)
 {
 	struct sockaddr_in dst_tmp = *dst_in;
-	u8 edst[MAX_ADDR_LEN];
 	in_port_t src_port;
 	struct sockaddr *saddr;
 	struct rtentry *rte;
@@ -278,8 +286,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 		if (rte == NULL) {
 			error = EHOSTUNREACH;
 			goto done;
-		} else if (rte->rt_ifp == NULL || rte->rt_ifp == V_loif ||
-		    RT_LINK_IS_UP(rte->rt_ifp) == 0) {
+		} else if (rte->rt_ifp == NULL || RT_LINK_IS_UP(rte->rt_ifp) == 0) {
 			RTFREE_LOCKED(rte);
 			error = EHOSTUNREACH;
 			goto done;
@@ -294,8 +301,14 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	/* Step 2 - find outgoing network interface */
 	switch (type) {
 	case 0:
-		/* source check */
-		ifp = ip_dev_find(addr->net, src_in->sin_addr.s_addr);
+		/* check for loopback device */
+		if (rte->rt_ifp->if_flags & IFF_LOOPBACK) {
+			ifp = rte->rt_ifp;
+			dev_hold(ifp);
+		} else {
+			ifp = ip_dev_find(addr->net, src_in->sin_addr.s_addr);
+		}
+		/* check source interface */
 		if (ifp == NULL) {
 			error = ENETUNREACH;
 			goto error_rt_free;
@@ -305,11 +318,17 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 		}
 		break;
 	case 1:
+		/* check for loopback device */
+		if (rte->rt_ifp->if_flags & IFF_LOOPBACK)
+			saddr = (struct sockaddr *)&dst_tmp;
+		else
+			saddr = rte->rt_ifa->ifa_addr;
+
 		/* get destination network interface from route */
 		ifp = rte->rt_ifp;
 		dev_hold(ifp);
-		saddr = rte->rt_ifa->ifa_addr;
 
+		/* update source address */
 		src_port = src_in->sin_port;
 		memcpy(src_in, saddr, rdma_addr_size(saddr));
 		src_in->sin_port = src_port;	/* preserve port number */
@@ -324,13 +343,17 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	if (dst_tmp.sin_addr.s_addr == INADDR_BROADCAST) {
 		rdma_copy_addr_sub(edst, ifp->if_broadcastaddr,
 		    ifp->if_addrlen, MAX_ADDR_LEN);
+		error = 0;
 	} else if (IN_MULTICAST(ntohl(dst_tmp.sin_addr.s_addr))) {
 		error = addr_resolve_multi(edst, ifp, (struct sockaddr *)&dst_tmp);
 		if (error != 0)
 			goto error_put_ifp;
+	} else if (ifp->if_flags & IFF_LOOPBACK) {
+		memset(edst, 0, MAX_ADDR_LEN);
+		error = 0;
 	} else {
 		bool is_gw = (rte->rt_flags & RTF_GATEWAY) != 0;
-		memset(edst, 0, sizeof(edst));
+		memset(edst, 0, MAX_ADDR_LEN);
 		error = arpresolve(ifp, is_gw, NULL, is_gw ?
 		    rte->rt_gateway : (const struct sockaddr *)&dst_tmp,
 		    edst, NULL, NULL);
@@ -339,13 +362,6 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 		else if (is_gw != 0)
 			addr->network = RDMA_NETWORK_IPV4;
 	}
-
-	/*
-	 * Step 4 - copy destination and source MAC addresses
-	 */
-	error = -rdma_copy_addr(addr, ifp, edst);
-	if (error != 0)
-		goto error_put_ifp;
 
 	if (rte != NULL)
 		RTFREE(rte);
@@ -369,6 +385,7 @@ done:
 static int addr4_resolve(struct sockaddr_in *src_in,
 			 const struct sockaddr_in *dst_in,
 			 struct rdma_dev_addr *addr,
+			 u8 *edst,
 			 struct ifnet **ifpp)
 {
 	return -EADDRNOTAVAIL;
@@ -379,10 +396,10 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 static int addr6_resolve(struct sockaddr_in6 *src_in,
 			 const struct sockaddr_in6 *dst_in,
 			 struct rdma_dev_addr *addr,
+			 u8 *edst,
 			 struct ifnet **ifpp)
 {
 	struct sockaddr_in6 dst_tmp = *dst_in;
-	u8 edst[MAX_ADDR_LEN];
 	in_port_t src_port;
 	struct sockaddr *saddr;
 	struct rtentry *rte;
@@ -424,8 +441,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		if (rte == NULL) {
 			error = EHOSTUNREACH;
 			goto done;
-		} else if (rte->rt_ifp == NULL || rte->rt_ifp == V_loif ||
-		    RT_LINK_IS_UP(rte->rt_ifp) == 0) {
+		} else if (rte->rt_ifp == NULL || RT_LINK_IS_UP(rte->rt_ifp) == 0) {
 			RTFREE_LOCKED(rte);
 			error = EHOSTUNREACH;
 			goto done;
@@ -440,8 +456,14 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	/* Step 2 - find outgoing network interface */
 	switch (type) {
 	case 0:
-		/* source check */
-		ifp = ip6_dev_find(addr->net, src_in->sin6_addr);
+		/* check for loopback device */
+		if (rte->rt_ifp->if_flags & IFF_LOOPBACK) {
+			ifp = rte->rt_ifp;
+			dev_hold(ifp);
+		} else {
+			ifp = ip6_dev_find(addr->net, src_in->sin6_addr);
+		}
+		/* check source interface */
 		if (ifp == NULL) {
 			error = ENETUNREACH;
 			goto error_rt_free;
@@ -451,10 +473,15 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		}
 		break;
 	case 1:
+		/* check for loopback device */
+		if (rte->rt_ifp->if_flags & IFF_LOOPBACK)
+			saddr = (struct sockaddr *)&dst_tmp;
+		else
+			saddr = rte->rt_ifa->ifa_addr;
+
 		/* get destination network interface from route */
 		ifp = rte->rt_ifp;
 		dev_hold(ifp);
-		saddr = rte->rt_ifa->ifa_addr;
 
 		src_port = src_in->sin6_port;
 		memcpy(src_in, saddr, rdma_addr_size(saddr));
@@ -472,9 +499,12 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		    (struct sockaddr *)&dst_tmp);
 		if (error != 0)
 			goto error_put_ifp;
+	} else if (rte->rt_ifp->if_flags & IFF_LOOPBACK) {
+		memset(edst, 0, MAX_ADDR_LEN);
+		error = 0;
 	} else {
 		bool is_gw = (rte->rt_flags & RTF_GATEWAY) != 0;
-		memset(edst, 0, sizeof(edst));
+		memset(edst, 0, MAX_ADDR_LEN);
 		error = nd6_resolve(ifp, is_gw, NULL, is_gw ?
 		    rte->rt_gateway : (const struct sockaddr *)&dst_tmp,
 		    edst, NULL, NULL);
@@ -483,13 +513,6 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		else if (is_gw != 0)
 			addr->network = RDMA_NETWORK_IPV6;
 	}
-
-	/*
-	 * Step 4 - copy destination and source MAC addresses
-	 */
-	error = -rdma_copy_addr(addr, ifp, edst);
-	if (error != 0)
-		goto error_put_ifp;
 
 	if (rte != NULL)
 		RTFREE(rte);
@@ -513,6 +536,7 @@ done:
 static int addr6_resolve(struct sockaddr_in6 *src_in,
 			 const struct sockaddr_in6 *dst_in,
 			 struct rdma_dev_addr *addr,
+			 u8 *edst,
 			 struct ifnet **ifpp)
 {
 	return -EADDRNOTAVAIL;
@@ -521,6 +545,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 
 static int addr_resolve_neigh(struct ifnet *dev,
 			      const struct sockaddr *dst_in,
+			      u8 *edst,
 			      struct rdma_dev_addr *addr)
 {
 	if (dev->if_flags & IFF_LOOPBACK) {
@@ -536,7 +561,7 @@ static int addr_resolve_neigh(struct ifnet *dev,
 
 	/* If the device doesn't do ARP internally */
 	if (!(dev->if_flags & IFF_NOARP))
-		return 0;
+		return rdma_copy_addr(addr, dev, edst);
 
 	return rdma_copy_addr(addr, dev, NULL);
 }
@@ -547,6 +572,7 @@ static int addr_resolve(struct sockaddr *src_in,
 			bool resolve_neigh)
 {
 	struct net_device *ndev = NULL;
+	u8 edst[MAX_ADDR_LEN];
 	int ret;
 
 	if (dst_in->sa_family != src_in->sa_family)
@@ -555,21 +581,21 @@ static int addr_resolve(struct sockaddr *src_in,
 	if (src_in->sa_family == AF_INET) {
 		ret = addr4_resolve((struct sockaddr_in *)src_in,
 				    (const struct sockaddr_in *)dst_in,
-				    addr, &ndev);
+				    addr, edst, &ndev);
 		if (ret)
 			return ret;
 
 		if (resolve_neigh)
-			ret = addr_resolve_neigh(ndev, dst_in, addr);
+			ret = addr_resolve_neigh(ndev, dst_in, edst, addr);
 	} else {
 		ret = addr6_resolve((struct sockaddr_in6 *)src_in,
 				    (const struct sockaddr_in6 *)dst_in, addr,
-				    &ndev);
+				    edst, &ndev);
 		if (ret)
 			return ret;
 
 		if (resolve_neigh)
-			ret = addr_resolve_neigh(ndev, dst_in, addr);
+			ret = addr_resolve_neigh(ndev, dst_in, edst, addr);
 	}
 
 	addr->bound_dev_if = ndev->if_index;
