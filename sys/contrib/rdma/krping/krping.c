@@ -301,6 +301,8 @@ static int krping_cma_event_handler(struct rdma_cm_id *cma_id,
 
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		printk(KERN_ERR PFX "cma detected device removal!!!!\n");
+		cb->state = ERROR;
+		wake_up_interruptible(&cb->sem);
 		break;
 
 	default:
