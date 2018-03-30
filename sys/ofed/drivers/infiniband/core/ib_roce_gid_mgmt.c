@@ -362,6 +362,9 @@ roce_gid_delete_all_event(struct net_device *ndev)
 	dev_hold(ndev);
 	work->ndev = ndev;
 	queue_work(roce_gid_mgmt_wq, &work->work);
+
+	/* make sure job is complete before returning */
+	flush_workqueue(roce_gid_mgmt_wq);
 }
 
 static int
