@@ -2422,8 +2422,17 @@ static int cma_resolve_iw_route(struct rdma_id_private *id_priv, int timeout_ms)
 
 static int iboe_tos_to_sl(struct net_device *ndev, int tos)
 {
-	/* TODO: Implement this function */
-	return 0;
+	/* get service level, SL, from type of service, TOS */
+	int sl = tos;
+
+	/* range check input argument and map 1:1 */
+	if (sl > 255)
+		sl = 255;
+	else if (sl < 0)
+		sl = 0;
+
+	/* final mappings are done by the vendor specific drivers */
+	return sl;
 }
 
 static enum ib_gid_type cma_route_gid_type(enum rdma_network_type network_type,
