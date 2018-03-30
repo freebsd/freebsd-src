@@ -221,10 +221,13 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 		goto err_state_done;
 
 	if (fatal_error == MLX5_SENSOR_FW_SYND_RFR) {
+		/* Get cr-dump and reset FW semaphore */
 		if (mlx5_core_is_pf(dev))
 			lock = lock_sem_sw_reset(dev, LOCK);
 
+		/* Execute cr-dump and SW reset */
 		if (lock != -EBUSY) {
+			mlx5_fwdump(dev);
 			reset_fw_if_needed(dev);
 			delay_ms = MLX5_FW_RESET_WAIT_MS;
 		}
