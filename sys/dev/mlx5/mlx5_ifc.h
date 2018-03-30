@@ -941,7 +941,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         max_indirection[0x8];
 	u8         reserved_8[0x1];
 	u8         log_max_mrw_sz[0x7];
-	u8         reserved_9[0x2];
+	u8	   force_teardown[0x1];
+	u8         reserved_9[0x1];
 	u8         log_max_bsf_list_size[0x6];
 	u8         reserved_10[0x2];
 	u8         log_max_klm_list_size[0x6];
@@ -3149,18 +3150,25 @@ struct mlx5_ifc_icmd_access_reg_in_bits {
 	u8         register_data[0][0x20];
 };
 
+enum {
+	MLX5_TEARDOWN_HCA_OUT_FORCE_STATE_SUCCESS = 0x0,
+	MLX5_TEARDOWN_HCA_OUT_FORCE_STATE_FAIL = 0x1,
+};
+
 struct mlx5_ifc_teardown_hca_out_bits {
 	u8         status[0x8];
 	u8         reserved_0[0x18];
 
 	u8         syndrome[0x20];
 
-	u8         reserved_1[0x40];
+	u8         reserved_1[0x3f];
+
+	u8	   force_state[0x1];
 };
 
 enum {
 	MLX5_TEARDOWN_HCA_IN_PROFILE_GRACEFUL_CLOSE  = 0x0,
-	MLX5_TEARDOWN_HCA_IN_PROFILE_PANIC_CLOSE     = 0x1,
+	MLX5_TEARDOWN_HCA_IN_PROFILE_FORCE_CLOSE     = 0x1,
 };
 
 struct mlx5_ifc_teardown_hca_in_bits {
