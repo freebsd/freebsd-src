@@ -103,7 +103,7 @@ to_delayed_work(struct work_struct *work)
 	return (container_of(work, struct delayed_work, work));
 }
 
-#define	INIT_WORK(work, fn) 	 					\
+#define	INIT_WORK(work, fn)						\
 do {									\
 	(work)->func = (fn);						\
 	(work)->work_queue = NULL;					\

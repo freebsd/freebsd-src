@@ -770,7 +770,7 @@ ida_simple_remove(struct ida *ida, unsigned int id)
 
 void
 ida_remove(struct ida *ida, int id)
-{	
+{
 	idr_remove(&ida->idr, id);
 }
 
