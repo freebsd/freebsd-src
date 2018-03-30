@@ -343,6 +343,7 @@ pci_disable_device(struct pci_dev *pdev)
 
 	pci_disable_io(pdev->dev.bsddev, SYS_RES_IOPORT);
 	pci_disable_io(pdev->dev.bsddev, SYS_RES_MEMORY);
+	pci_disable_busmaster(pdev->dev.bsddev);
 }
 
 static inline int
