@@ -134,7 +134,6 @@ extern int	vmem_startup_count(void);
 struct vm_domain vm_dom[MAXMEMDOM];
 
 static DPCPU_DEFINE(struct vm_batchqueue, pqbatch[MAXMEMDOM][PQ_COUNT]);
-static DPCPU_DEFINE(struct vm_batchqueue, freeqbatch[MAXMEMDOM]);
 
 struct mtx_padalign __exclusive_cache_line pa_lock[PA_LOCK_COUNT];
 
@@ -221,8 +220,7 @@ vm_page_init_cache_zones(void *dummy __unused)
 		vmd->vmd_pgcache = uma_zcache_create("vm pgcache",
 		    sizeof(struct vm_page), NULL, NULL, NULL, NULL,
 		    vm_page_import, vm_page_release, vmd,
-		    /* UMA_ZONE_NOBUCKETCACHE |*/
-		    UMA_ZONE_MAXBUCKET | UMA_ZONE_VM);
+		    UMA_ZONE_NOBUCKETCACHE | UMA_ZONE_MAXBUCKET | UMA_ZONE_VM);
 	}
 }
 SYSINIT(vm_page2, SI_SUB_VM_CONF, SI_ORDER_ANY, vm_page_init_cache_zones, NULL);
@@ -1781,6 +1779,11 @@ again:
 	}
 #endif
 	vmd = VM_DOMAIN(domain);
+	if (object != NULL && vmd->vmd_pgcache != NULL) {
+		m = uma_zalloc(vmd->vmd_pgcache, M_NOWAIT);
+		if (m != NULL)
+			goto found;
+	}
 	if (vm_domain_allocate(vmd, req, 1)) {
 		/*
 		 * If not, allocate it from the free page queues.
@@ -2188,22 +2191,23 @@ vm_page_import(void *arg, void **store, int cnt, int domain, int flags)
 	int i, j, n;
 
 	vmd = arg;
+	/* Only import if we can bring in a full bucket. */
+	if (cnt == 1 || !vm_domain_allocate(vmd, VM_ALLOC_NORMAL, cnt))
+		return (0);
 	domain = vmd->vmd_domain;
-	n = 64;	/* Starting stride. */
+	n = 64;	/* Starting stride, arbitrary. */
 	vm_domain_free_lock(vmd);
 	for (i = 0; i < cnt; i+=n) {
 		n = vm_phys_alloc_npages(domain, VM_FREELIST_DEFAULT, &m,
 		    MIN(n, cnt-i));
 		if (n == 0)
 			break;
-		if (!vm_domain_allocate(vmd, VM_ALLOC_NORMAL, n)) {
-			vm_phys_free_contig(m, n);
-			break;
-		}
 		for (j = 0; j < n; j++)
 			store[i+j] = m++;
 	}
 	vm_domain_free_unlock(vmd);
+	if (cnt != i)
+		vm_domain_freecnt_inc(vmd, cnt - i);
 
 	return (i);
 }
@@ -3431,36 +3435,6 @@ vm_page_free_prep(vm_page_t m)
 	return (true);
 }
 
-void
-vm_page_free_phys_pglist(struct pglist *tq)
-{
-	struct vm_domain *vmd;
-	vm_page_t m;
-	int cnt;
-
-	if (TAILQ_EMPTY(tq))
-		return;
-	vmd = NULL;
-	cnt = 0;
-	TAILQ_FOREACH(m, tq, listq) {
-		if (vmd != vm_pagequeue_domain(m)) {
-			if (vmd != NULL) {
-				vm_domain_free_unlock(vmd);
-				vm_domain_freecnt_inc(vmd, cnt);
-				cnt = 0;
-			}
-			vmd = vm_pagequeue_domain(m);
-			vm_domain_free_lock(vmd);
-		}
-		vm_phys_free_pages(m, 0);
-		cnt++;
-	}
-	if (vmd != NULL) {
-		vm_domain_free_unlock(vmd);
-		vm_domain_freecnt_inc(vmd, cnt);
-	}
-}
-
 /*
  *	vm_page_free_toq:
  *
@@ -3473,35 +3447,20 @@ vm_page_free_phys_pglist(struct pglist *tq)
 void
 vm_page_free_toq(vm_page_t m)
 {
-	struct vm_batchqueue *cpubq, bq;
 	struct vm_domain *vmd;
-	int domain, freed;
 
 	if (!vm_page_free_prep(m))
 		return;
 
-	domain = vm_phys_domain(m);
-	vmd = VM_DOMAIN(domain);
-
-	critical_enter();
-	cpubq = DPCPU_PTR(freeqbatch[domain]);
-	if (vm_batchqueue_insert(cpubq, m)) {
-		critical_exit();
+	vmd = vm_pagequeue_domain(m);
+	if (m->pool == VM_FREEPOOL_DEFAULT && vmd->vmd_pgcache != NULL) {
+		uma_zfree(vmd->vmd_pgcache, m);
 		return;
 	}
-	memcpy(&bq, cpubq, sizeof(bq));
-	vm_batchqueue_init(cpubq);
-	critical_exit();
-
 	vm_domain_free_lock(vmd);
 	vm_phys_free_pages(m, 0);
-	freed = 1;
-	VM_BATCHQ_FOREACH(&bq, m) {
-		vm_phys_free_pages(m, 0);
-		freed++;
-	}
 	vm_domain_free_unlock(vmd);
-	vm_domain_freecnt_inc(vmd, freed);
+	vm_domain_freecnt_inc(vmd, 1);
 }
 
 /*
