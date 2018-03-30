@@ -3318,7 +3318,7 @@ static void __exit mlx4_ib_cleanup(void)
 	destroy_workqueue(wq);
 }
 
-module_init_order(mlx4_ib_init, SI_ORDER_MIDDLE);
+module_init_order(mlx4_ib_init, SI_ORDER_THIRD);
 module_exit(mlx4_ib_cleanup);
 
 static int
