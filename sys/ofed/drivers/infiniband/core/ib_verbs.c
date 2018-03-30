@@ -483,7 +483,7 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		return ret;
 
 	if (rdma_protocol_roce(device, port_num)) {
-		int if_index = 0;
+		int if_index;
 		u16 vlan_id = wc->wc_flags & IB_WC_WITH_VLAN ?
 				wc->vlan_id : 0xffff;
 		struct net_device *idev;
@@ -498,6 +498,12 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		idev = device->get_netdev(device, port_num);
 		if (!idev)
 			return -ENODEV;
+
+		/*
+		 * Get network interface index early on. This is
+		 * useful for IPv6 link local addresses:
+		 */
+		if_index = idev->if_index;
 
 		ret = rdma_addr_find_l2_eth_by_grh(&dgid, &sgid,
 						   ah_attr->dmac,
