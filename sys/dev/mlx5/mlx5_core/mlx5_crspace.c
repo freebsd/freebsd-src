@@ -65,6 +65,8 @@ enum {
 #define MLX5_MERGE(rsrc1, rsrc2, start, len)	\
 	(((len) == 32) ? (rsrc2) : MLX5_MERGE_C(rsrc1, rsrc2, start, len))
 
+#define MLX5_SEMAPHORE_SPACE_DOMAIN 0xA
+
 static int mlx5_pciconf_wait_on_flag(struct mlx5_core_dev *dev,
 				     u8 expected_val)
 {
@@ -131,6 +133,9 @@ int mlx5_pciconf_cap9_sem(struct mlx5_core_dev *dev, int state)
 	int retries = 0;
 	u32 lock_val;
 
+	if (!dev->vsec_addr)
+		return -ENXIO;
+
 	if (state == UNLOCK) {
 		pci_write_config_dword(dev->pdev, dev->vsec_addr +
 				       PCI_SEMAPHORE_OFFSET, 0);
@@ -159,7 +164,6 @@ int mlx5_pciconf_cap9_sem(struct mlx5_core_dev *dev, int state)
 	return 0;
 }
 
-#define MLX5_PROTECTED_CR_SPACE_DOMAIN 0x6
 static int mlx5_pciconf_set_addr_space(struct mlx5_core_dev *dev,
 				       u16 space)
 {
@@ -183,7 +187,6 @@ static int mlx5_pciconf_set_addr_space(struct mlx5_core_dev *dev,
 	return 0;
 }
 
-#define MLX5_CR_SPACE_DOMAIN 0x2
 static int mlx5_get_vendor_cap_addr(struct mlx5_core_dev *dev)
 {
 	int vend_cap;
@@ -196,24 +199,27 @@ static int mlx5_get_vendor_cap_addr(struct mlx5_core_dev *dev)
 	ret = mlx5_pciconf_cap9_sem(dev, LOCK);
 	if (ret) {
 		mlx5_core_warn(dev,
-			       "pciconf_cap9_sem locking failure\n");
+		    "pciconf_cap9_sem locking failure\n");
 		return 0;
 	}
-	if (mlx5_pciconf_set_addr_space(dev, MLX5_CR_SPACE_DOMAIN))
+	if (mlx5_pciconf_set_addr_space(dev,
+	       MLX5_SEMAPHORE_SPACE_DOMAIN))
 		vend_cap = 0;
 	ret = mlx5_pciconf_cap9_sem(dev, UNLOCK);
 	if (ret)
 		mlx5_core_warn(dev,
-			       "pciconf_cap9_sem unlocking failure\n");
+		    "pciconf_cap9_sem unlocking failure\n");
 	return vend_cap;
 }
 
-#define MLX5_SEMAPHORE_SPACE_DOMAIN 0xA
 int mlx5_pciconf_set_sem_addr_space(struct mlx5_core_dev *dev,
 				    u32 sem_space_address, int state)
 {
 	u32 data, id = 0;
 	int ret;
+
+	if (!dev->vsec_addr)
+		return -ENXIO;
 
 	ret = mlx5_pciconf_set_addr_space(dev,
 					  MLX5_SEMAPHORE_SPACE_DOMAIN);
