@@ -45,14 +45,14 @@ struct sysfs_ops {
 
 struct attribute_group {
 	const char		*name;
-	mode_t                  (*is_visible)(struct kobject *,
+	mode_t			(*is_visible)(struct kobject *,
 				    struct attribute *, int);
 	struct attribute	**attrs;
 };
 
 #define	__ATTR(_name, _mode, _show, _store) {				\
 	.attr = { .name = __stringify(_name), .mode = _mode },		\
-        .show = _show, .store  = _store,				\
+	.show = _show, .store  = _store,				\
 }
 #define	__ATTR_RO(_name)	__ATTR(_name, 0444, _name##_show, NULL)
 #define	__ATTR_WO(_name)	__ATTR(_name, 0200, NULL, _name##_store)
@@ -99,7 +99,7 @@ sysctl_handle_attr(SYSCTL_HANDLER_ARGS)
 		/*
 		 * It's valid to not have a 'show' so just return an
 		 * empty string.
-	 	 */
+		 */
 		if (len < 0) {
 			error = -len;
 			if (error != EIO)
@@ -180,7 +180,7 @@ sysfs_create_dir(struct kobject *kobj)
 	kobj->oidp = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(kobj->parent->oidp),
 	    OID_AUTO, kobj->name, CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, kobj->name);
 
-        return (0);
+	return (0);
 }
 
 static inline void

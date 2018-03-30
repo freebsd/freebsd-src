@@ -44,10 +44,10 @@ static inline void ipv6_eth_mc_map(const struct in6_addr *addr, char *buf)
  *      +-------+-------+-------+-------+-------+-------+
  */
 
-        buf[0]= 0x33;
-        buf[1]= 0x33;
+	buf[0]= 0x33;
+	buf[1]= 0x33;
 
-        memcpy(buf + 2, &addr->s6_addr32[3], sizeof(__u32));
+	memcpy(buf + 2, &addr->s6_addr32[3], sizeof(__u32));
 }
 
 #endif	/* _NET_IF_INET6_H_ */
