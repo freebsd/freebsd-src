@@ -585,7 +585,8 @@ cpu_reset_proxy()
 
 	cpu_reset_proxy_active = 1;
 	while (cpu_reset_proxy_active == 1)
-		;	/* Wait for other cpu to see that we've started */
+		ia32_pause(); /* Wait for other cpu to see that we've started */
+
 	CPU_SETOF(cpu_reset_proxyid, &tcrp);
 	stop_cpus(tcrp);
 	printf("cpu_reset_proxy: Stopped CPU %d\n", cpu_reset_proxyid);
@@ -617,19 +618,21 @@ cpu_reset()
 			printf("cpu_reset: Restarting BSP\n");
 
 			/* Restart CPU #0. */
-			/* XXX: restart_cpus(1 << 0); */
 			CPU_SETOF(0, &started_cpus);
 			wmb();
 
 			cnt = 0;
-			while (cpu_reset_proxy_active == 0 && cnt < 10000000)
+			while (cpu_reset_proxy_active == 0 && cnt < 10000000) {
+				ia32_pause();
 				cnt++;	/* Wait for BSP to announce restart */
+			}
 			if (cpu_reset_proxy_active == 0)
 				printf("cpu_reset: Failed to restart BSP\n");
 			enable_intr();
 			cpu_reset_proxy_active = 2;
 
-			while (1);
+			while (1)
+				ia32_pause();
 			/* NOTREACHED */
 		}
 
