@@ -113,6 +113,7 @@ cm_isa_attach(dev)
 	if (error)
 		goto err;
 
+	gone_in_dev(dev, 12, "cm(4) driver");
 	return 0;
 
 err:
