@@ -33,42 +33,38 @@ int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 			 int size_in, void *data_out, int size_out,
 			 u16 reg_num, int arg, int write)
 {
-	struct mlx5_access_reg_mbox_in *in = NULL;
-	struct mlx5_access_reg_mbox_out *out = NULL;
+	int outlen = MLX5_ST_SZ_BYTES(access_register_out) + size_out;
+	int inlen = MLX5_ST_SZ_BYTES(access_register_in) + size_in;
 	int err = -ENOMEM;
+	u32 *out = NULL;
+	u32 *in = NULL;
+	void *data;
 
-	in = mlx5_vzalloc(sizeof(*in) + size_in);
-	if (!in)
-		return -ENOMEM;
+	in = mlx5_vzalloc(inlen);
+	out = mlx5_vzalloc(outlen);
+	if (!in || !out)
+		goto out;
 
-	out = mlx5_vzalloc(sizeof(*out) + size_out);
-	if (!out)
-		goto ex1;
+	data = MLX5_ADDR_OF(access_register_in, in, register_data);
+	memcpy(data, data_in, size_in);
 
-	memcpy(in->data, data_in, size_in);
-	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_ACCESS_REG);
-	in->hdr.opmod = cpu_to_be16(!write);
-	in->arg = cpu_to_be32(arg);
-	in->register_id = cpu_to_be16(reg_num);
-	err = mlx5_cmd_exec(dev, in, sizeof(*in) + size_in, out,
-			    sizeof(*out) + size_out);
+	MLX5_SET(access_register_in, in, opcode, MLX5_CMD_OP_ACCESS_REG);
+	MLX5_SET(access_register_in, in, op_mod, !write);
+	MLX5_SET(access_register_in, in, argument, arg);
+	MLX5_SET(access_register_in, in, register_id, reg_num);
+
+	err = mlx5_cmd_exec(dev, in, inlen, out, outlen);
 	if (err)
-		goto ex2;
+		goto out;
+	data = MLX5_ADDR_OF(access_register_out, out, register_data);
+	memcpy(data_out, data, size_out);
 
-	if (out->hdr.status)
-		err = mlx5_cmd_status_to_err(&out->hdr);
-
-	if (!err)
-		memcpy(data_out, out->data, size_out);
-
-ex2:
+out:
 	kvfree(out);
-ex1:
 	kvfree(in);
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_core_access_reg);
-
 
 struct mlx5_reg_pcap {
 	u8			rsvd0;
@@ -165,8 +161,8 @@ EXPORT_SYMBOL_GPL(mlx5_query_port_autoneg);
 int mlx5_set_port_autoneg(struct mlx5_core_dev *dev, bool disable,
 			  u32 eth_proto_admin, int proto_mask)
 {
-	u32 in[MLX5_ST_SZ_DW(ptys_reg)];
-	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+	u32 in[MLX5_ST_SZ_DW(ptys_reg)] = {0};
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)] = {0};
 	u8 an_disable_cap;
 	u8 an_disable_status;
 	int err;
@@ -177,8 +173,6 @@ int mlx5_set_port_autoneg(struct mlx5_core_dev *dev, bool disable,
 		return err;
 	if (!an_disable_cap)
 		return -EPERM;
-
-	memset(in, 0, sizeof(in));
 
 	MLX5_SET(ptys_reg, in, local_port, 1);
 	MLX5_SET(ptys_reg, in, an_disable_admin, disable);
@@ -231,11 +225,9 @@ EXPORT_SYMBOL(mlx5_query_port_eth_proto_oper);
 int mlx5_set_port_proto(struct mlx5_core_dev *dev, u32 proto_admin,
 			int proto_mask)
 {
-	u32 in[MLX5_ST_SZ_DW(ptys_reg)];
-	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+	u32 in[MLX5_ST_SZ_DW(ptys_reg)] = {0};
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)] = {0};
 	int err;
-
-	memset(in, 0, sizeof(in));
 
 	MLX5_SET(ptys_reg, in, local_port, 1);
 	MLX5_SET(ptys_reg, in, proto_mask, proto_mask);
@@ -253,11 +245,9 @@ EXPORT_SYMBOL_GPL(mlx5_set_port_proto);
 int mlx5_set_port_status(struct mlx5_core_dev *dev,
 			 enum mlx5_port_status status)
 {
-	u32 in[MLX5_ST_SZ_DW(paos_reg)];
-	u32 out[MLX5_ST_SZ_DW(paos_reg)];
+	u32 in[MLX5_ST_SZ_DW(paos_reg)] = {0};
+	u32 out[MLX5_ST_SZ_DW(paos_reg)] = {0};
 	int err;
-
-	memset(in, 0, sizeof(in));
 
 	MLX5_SET(paos_reg, in, local_port, 1);
 
@@ -271,11 +261,9 @@ int mlx5_set_port_status(struct mlx5_core_dev *dev,
 
 int mlx5_query_port_status(struct mlx5_core_dev *dev, u8 *status)
 {
-	u32 in[MLX5_ST_SZ_DW(paos_reg)];
-	u32 out[MLX5_ST_SZ_DW(paos_reg)];
+	u32 in[MLX5_ST_SZ_DW(paos_reg)] = {0};
+	u32 out[MLX5_ST_SZ_DW(paos_reg)] = {0};
 	int err;
-
-	memset(in, 0, sizeof(in));
 
 	MLX5_SET(paos_reg, in, local_port, 1);
 
@@ -308,11 +296,9 @@ EXPORT_SYMBOL_GPL(mlx5_query_port_admin_status);
 static int mlx5_query_port_mtu(struct mlx5_core_dev *dev,
 			       int *admin_mtu, int *max_mtu, int *oper_mtu)
 {
-	u32 in[MLX5_ST_SZ_DW(pmtu_reg)];
-	u32 out[MLX5_ST_SZ_DW(pmtu_reg)];
+	u32 in[MLX5_ST_SZ_DW(pmtu_reg)] = {0};
+	u32 out[MLX5_ST_SZ_DW(pmtu_reg)] = {0};
 	int err;
-
-	memset(in, 0, sizeof(in));
 
 	MLX5_SET(pmtu_reg, in, local_port, 1);
 
@@ -333,10 +319,8 @@ static int mlx5_query_port_mtu(struct mlx5_core_dev *dev,
 
 int mlx5_set_port_mtu(struct mlx5_core_dev *dev, int mtu)
 {
-	u32 in[MLX5_ST_SZ_DW(pmtu_reg)];
-	u32 out[MLX5_ST_SZ_DW(pmtu_reg)];
-
-	memset(in, 0, sizeof(in));
+	u32 in[MLX5_ST_SZ_DW(pmtu_reg)] = {0};
+	u32 out[MLX5_ST_SZ_DW(pmtu_reg)] = {0};
 
 	MLX5_SET(pmtu_reg, in, admin_mtu, mtu);
 	MLX5_SET(pmtu_reg, in, local_port, 1);
@@ -380,12 +364,9 @@ int mlx5_set_port_pause_and_pfc(struct mlx5_core_dev *dev, u32 port,
 int mlx5_query_port_pause(struct mlx5_core_dev *dev, u32 port,
 			  u32 *rx_pause, u32 *tx_pause)
 {
-	u32 in[MLX5_ST_SZ_DW(pfcc_reg)];
-	u32 out[MLX5_ST_SZ_DW(pfcc_reg)];
+	u32 in[MLX5_ST_SZ_DW(pfcc_reg)] = {0};
+	u32 out[MLX5_ST_SZ_DW(pfcc_reg)] = {0};
 	int err;
-
-	memset(in, 0, sizeof(in));
-	memset(out, 0, sizeof(out));
 
 	MLX5_SET(pfcc_reg, in, local_port, port);
 
@@ -451,34 +432,27 @@ EXPORT_SYMBOL_GPL(mlx5_is_wol_supported);
 
 int mlx5_set_wol(struct mlx5_core_dev *dev, u8 wol_mode)
 {
-	u32 in[MLX5_ST_SZ_DW(set_wol_rol_in)];
-	u32 out[MLX5_ST_SZ_DW(set_wol_rol_out)];
-
-	memset(in, 0, sizeof(in));
-	memset(out, 0, sizeof(out));
+	u32 in[MLX5_ST_SZ_DW(set_wol_rol_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(set_wol_rol_out)] = {0};
 
 	MLX5_SET(set_wol_rol_in, in, opcode, MLX5_CMD_OP_SET_WOL_ROL);
 	MLX5_SET(set_wol_rol_in, in, wol_mode_valid, 1);
 	MLX5_SET(set_wol_rol_in, in, wol_mode, wol_mode);
 
-	return mlx5_cmd_exec_check_status(dev, in, sizeof(in),
-					  out, sizeof(out));
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 EXPORT_SYMBOL_GPL(mlx5_set_wol);
 
 int mlx5_query_dropless_mode(struct mlx5_core_dev *dev, u16 *timeout)
 {
-	u32 in[MLX5_ST_SZ_DW(query_delay_drop_params_in)];
-	u32 out[MLX5_ST_SZ_DW(query_delay_drop_params_out)];
+	u32 in[MLX5_ST_SZ_DW(query_delay_drop_params_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(query_delay_drop_params_out)] = {0};
 	int err = 0;
-
-	memset(in, 0, sizeof(in));
-	memset(out, 0, sizeof(out));
 
 	MLX5_SET(query_delay_drop_params_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_DELAY_DROP_PARAMS);
 
-	err = mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, sizeof(out));
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 	if (err)
 		return err;
 
@@ -491,18 +465,14 @@ EXPORT_SYMBOL_GPL(mlx5_query_dropless_mode);
 
 int mlx5_set_dropless_mode(struct mlx5_core_dev *dev, u16 timeout)
 {
-	u32 in[MLX5_ST_SZ_DW(set_delay_drop_params_in)];
-	u32 out[MLX5_ST_SZ_DW(set_delay_drop_params_out)];
-
-	memset(in, 0, sizeof(in));
-	memset(out, 0, sizeof(out));
+	u32 in[MLX5_ST_SZ_DW(set_delay_drop_params_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(set_delay_drop_params_out)] = {0};
 
 	MLX5_SET(set_delay_drop_params_in, in, opcode,
 		 MLX5_CMD_OP_SET_DELAY_DROP_PARAMS);
 	MLX5_SET(set_delay_drop_params_in, in, delay_drop_timeout, timeout);
 
-	return mlx5_cmd_exec_check_status(dev, in, sizeof(in),
-					   out, sizeof(out));
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 EXPORT_SYMBOL_GPL(mlx5_set_dropless_mode);
 
@@ -510,12 +480,9 @@ int mlx5_core_access_pvlc(struct mlx5_core_dev *dev,
 			  struct mlx5_pvlc_reg *pvlc, int write)
 {
 	int sz = MLX5_ST_SZ_BYTES(pvlc_reg);
-	u8 in[MLX5_ST_SZ_BYTES(pvlc_reg)];
-	u8 out[MLX5_ST_SZ_BYTES(pvlc_reg)];
+	u8 in[MLX5_ST_SZ_BYTES(pvlc_reg)] = {0};
+	u8 out[MLX5_ST_SZ_BYTES(pvlc_reg)] = {0};
 	int err;
-
-	memset(out, 0, sizeof(out));
-	memset(in, 0, sizeof(in));
 
 	MLX5_SET(pvlc_reg, in, local_port, pvlc->local_port);
 	if (write)
@@ -670,12 +637,10 @@ EXPORT_SYMBOL_GPL(mlx5_core_access_pmtu);
 
 int mlx5_query_module_num(struct mlx5_core_dev *dev, int *module_num)
 {
-	u32 in[MLX5_ST_SZ_DW(pmlp_reg)];
-	u32 out[MLX5_ST_SZ_DW(pmlp_reg)];
+	u32 in[MLX5_ST_SZ_DW(pmlp_reg)] = {0};
+	u32 out[MLX5_ST_SZ_DW(pmlp_reg)] = {0};
 	int lane = 0;
 	int err;
-
-	memset(in, 0, sizeof(in));
 
 	MLX5_SET(pmlp_reg, in, local_port, 1);
 
@@ -695,13 +660,12 @@ int mlx5_query_eeprom(struct mlx5_core_dev *dev,
 		      int i2c_addr, int page_num, int device_addr,
 		      int size, int module_num, u32 *data, int *size_read)
 {
-	u32 in[MLX5_ST_SZ_DW(mcia_reg)];
-	u32 out[MLX5_ST_SZ_DW(mcia_reg)];
+	u32 in[MLX5_ST_SZ_DW(mcia_reg)] = {0};
+	u32 out[MLX5_ST_SZ_DW(mcia_reg)] = {0};
 	u32 *ptr = (u32 *)MLX5_ADDR_OF(mcia_reg, out, dword_0);
 	int status;
 	int err;
 
-	memset(in, 0, sizeof(in));
 	size = min_t(int, size, MLX5_EEPROM_MAX_BYTES);
 
 	MLX5_SET(mcia_reg, in, l, 0);
@@ -728,18 +692,15 @@ EXPORT_SYMBOL_GPL(mlx5_query_eeprom);
 
 int mlx5_vxlan_udp_port_add(struct mlx5_core_dev *dev, u16 port)
 {
-	u32 in[MLX5_ST_SZ_DW(add_vxlan_udp_dport_in)];
-	u32 out[MLX5_ST_SZ_DW(add_vxlan_udp_dport_out)];
+	u32 in[MLX5_ST_SZ_DW(add_vxlan_udp_dport_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(add_vxlan_udp_dport_out)] = {0};
 	int err;
-
-	memset(in, 0, sizeof(in));
-	memset(out, 0, sizeof(out));
 
 	MLX5_SET(add_vxlan_udp_dport_in, in, opcode,
 		 MLX5_CMD_OP_ADD_VXLAN_UDP_DPORT);
 	MLX5_SET(add_vxlan_udp_dport_in, in, vxlan_udp_port, port);
 
-	err = mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, sizeof(out));
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 	if (err) {
 		mlx5_core_err(dev, "Failed %s, port %u, err - %d",
 			      mlx5_command_str(MLX5_CMD_OP_ADD_VXLAN_UDP_DPORT),
@@ -751,18 +712,15 @@ int mlx5_vxlan_udp_port_add(struct mlx5_core_dev *dev, u16 port)
 
 int mlx5_vxlan_udp_port_delete(struct mlx5_core_dev *dev, u16 port)
 {
-	u32 in[MLX5_ST_SZ_DW(delete_vxlan_udp_dport_in)];
-	u32 out[MLX5_ST_SZ_DW(delete_vxlan_udp_dport_out)];
+	u32 in[MLX5_ST_SZ_DW(delete_vxlan_udp_dport_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(delete_vxlan_udp_dport_out)] = {0};
 	int err;
-
-	memset(in, 0, sizeof(in));
-	memset(out, 0, sizeof(out));
 
 	MLX5_SET(delete_vxlan_udp_dport_in, in, opcode,
 		 MLX5_CMD_OP_DELETE_VXLAN_UDP_DPORT);
 	MLX5_SET(delete_vxlan_udp_dport_in, in, vxlan_udp_port, port);
 
-	err = mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, sizeof(out));
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 	if (err) {
 		mlx5_core_err(dev, "Failed %s, port %u, err - %d",
 			      mlx5_command_str(MLX5_CMD_OP_DELETE_VXLAN_UDP_DPORT),
@@ -774,16 +732,13 @@ int mlx5_vxlan_udp_port_delete(struct mlx5_core_dev *dev, u16 port)
 
 int mlx5_query_wol(struct mlx5_core_dev *dev, u8 *wol_mode)
 {
-	u32 in[MLX5_ST_SZ_DW(query_wol_rol_in)];
-	u32 out[MLX5_ST_SZ_DW(query_wol_rol_out)];
+	u32 in[MLX5_ST_SZ_DW(query_wol_rol_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(query_wol_rol_out)] = {0};
 	int err;
-
-	memset(in, 0, sizeof(in));
-	memset(out, 0, sizeof(out));
 
 	MLX5_SET(query_wol_rol_in, in, opcode, MLX5_CMD_OP_QUERY_WOL_ROL);
 
-	err = mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, sizeof(out));
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 
 	if (!err)
 		*wol_mode = MLX5_GET(query_wol_rol_out, out, wol_mode);
@@ -795,12 +750,9 @@ EXPORT_SYMBOL_GPL(mlx5_query_wol);
 int mlx5_query_port_cong_status(struct mlx5_core_dev *mdev, int protocol,
 				int priority, int *is_enable)
 {
-	u32 in[MLX5_ST_SZ_DW(query_cong_status_in)];
-	u32 out[MLX5_ST_SZ_DW(query_cong_status_out)];
+	u32 in[MLX5_ST_SZ_DW(query_cong_status_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(query_cong_status_out)] = {0};
 	int err;
-
-	memset(in, 0, sizeof(in));
-	memset(out, 0, sizeof(out));
 
 	*is_enable = 0;
 
@@ -809,8 +761,7 @@ int mlx5_query_port_cong_status(struct mlx5_core_dev *mdev, int protocol,
 	MLX5_SET(query_cong_status_in, in, cong_protocol, protocol);
 	MLX5_SET(query_cong_status_in, in, priority, priority);
 
-	err = mlx5_cmd_exec_check_status(mdev, in, sizeof(in),
-					 out, sizeof(out));
+	err = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
 	if (!err)
 		*is_enable = MLX5_GET(query_cong_status_out, out, enable);
 	return err;
@@ -819,11 +770,8 @@ int mlx5_query_port_cong_status(struct mlx5_core_dev *mdev, int protocol,
 int mlx5_modify_port_cong_status(struct mlx5_core_dev *mdev, int protocol,
 				 int priority, int enable)
 {
-	u32 in[MLX5_ST_SZ_DW(modify_cong_status_in)];
-	u32 out[MLX5_ST_SZ_DW(modify_cong_status_out)];
-
-	memset(in, 0, sizeof(in));
-	memset(out, 0, sizeof(out));
+	u32 in[MLX5_ST_SZ_DW(modify_cong_status_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(modify_cong_status_out)] = {0};
 
 	MLX5_SET(modify_cong_status_in, in, opcode,
 		 MLX5_CMD_OP_MODIFY_CONG_STATUS);
@@ -831,23 +779,19 @@ int mlx5_modify_port_cong_status(struct mlx5_core_dev *mdev, int protocol,
 	MLX5_SET(modify_cong_status_in, in, priority, priority);
 	MLX5_SET(modify_cong_status_in, in, enable, enable);
 
-	return mlx5_cmd_exec_check_status(mdev, in, sizeof(in),
-					  out, sizeof(out));
+	return mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
 }
 
 int mlx5_query_port_cong_params(struct mlx5_core_dev *mdev, int protocol,
 				void *out, int out_size)
 {
-	u32 in[MLX5_ST_SZ_DW(query_cong_params_in)];
-
-	memset(in, 0, sizeof(in));
+	u32 in[MLX5_ST_SZ_DW(query_cong_params_in)] = {0};
 
 	MLX5_SET(query_cong_params_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_CONG_PARAMS);
 	MLX5_SET(query_cong_params_in, in, cong_protocol, protocol);
 
-	return mlx5_cmd_exec_check_status(mdev, in, sizeof(in),
-					  out, out_size);
+	return mlx5_cmd_exec(mdev, in, sizeof(in), out, out_size);
 }
 
 static int mlx5_query_port_qetcr_reg(struct mlx5_core_dev *mdev, u32 *out,
@@ -978,51 +922,42 @@ EXPORT_SYMBOL_GPL(mlx5_set_port_prio_tc);
 int mlx5_modify_port_cong_params(struct mlx5_core_dev *mdev,
 				 void *in, int in_size)
 {
-	u32 out[MLX5_ST_SZ_DW(modify_cong_params_out)];
-
-	memset(out, 0, sizeof(out));
+	u32 out[MLX5_ST_SZ_DW(modify_cong_params_out)] = {0};
 
 	MLX5_SET(modify_cong_params_in, in, opcode,
 		 MLX5_CMD_OP_MODIFY_CONG_PARAMS);
 
-	return mlx5_cmd_exec_check_status(mdev, in, in_size, out, sizeof(out));
+	return mlx5_cmd_exec(mdev, in, in_size, out, sizeof(out));
 }
 
 int mlx5_query_port_cong_statistics(struct mlx5_core_dev *mdev, int clear,
 				    void *out, int out_size)
 {
-	u32 in[MLX5_ST_SZ_DW(query_cong_statistics_in)];
-
-	memset(in, 0, sizeof(in));
+	u32 in[MLX5_ST_SZ_DW(query_cong_statistics_in)] = {0};
 
 	MLX5_SET(query_cong_statistics_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_CONG_STATISTICS);
 	MLX5_SET(query_cong_statistics_in, in, clear, clear);
 
-	return mlx5_cmd_exec_check_status(mdev, in, sizeof(in),
-					  out, out_size);
+	return mlx5_cmd_exec(mdev, in, sizeof(in), out, out_size);
 }
 
 int mlx5_set_diagnostic_params(struct mlx5_core_dev *mdev, void *in,
 			       int in_size)
 {
-	u32 out[MLX5_ST_SZ_DW(set_diagnostic_params_out)];
-
-	memset(out, 0, sizeof(out));
+	u32 out[MLX5_ST_SZ_DW(set_diagnostic_params_out)] = {0};
 
 	MLX5_SET(set_diagnostic_params_in, in, opcode,
 		 MLX5_CMD_OP_SET_DIAGNOSTICS);
 
-	return mlx5_cmd_exec_check_status(mdev, in, in_size, out, sizeof(out));
+	return mlx5_cmd_exec(mdev, in, in_size, out, sizeof(out));
 }
 
 int mlx5_query_diagnostic_counters(struct mlx5_core_dev *mdev,
 				   u8 num_of_samples, u16 sample_index,
 				   void *out, int out_size)
 {
-	u32 in[MLX5_ST_SZ_DW(query_diagnostic_counters_in)];
-
-	memset(in, 0, sizeof(in));
+	u32 in[MLX5_ST_SZ_DW(query_diagnostic_counters_in)] = {0};
 
 	MLX5_SET(query_diagnostic_counters_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_DIAGNOSTICS);
@@ -1030,5 +965,5 @@ int mlx5_query_diagnostic_counters(struct mlx5_core_dev *mdev,
 		 num_of_samples);
 	MLX5_SET(query_diagnostic_counters_in, in, sample_index, sample_index);
 
-	return mlx5_cmd_exec_check_status(mdev, in, sizeof(in), out, out_size);
+	return mlx5_cmd_exec(mdev, in, sizeof(in), out, out_size);
 }
