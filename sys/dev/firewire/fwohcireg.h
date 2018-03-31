@@ -330,6 +330,7 @@ struct ohci_registers {
 	struct ohci_dma dma_irch[0x20];
 };
 
+#ifndef _STANDALONE
 struct fwohcidb_tr {
 	STAILQ_ENTRY(fwohcidb_tr) link;
 	struct fw_xfer *xfer;
@@ -339,6 +340,7 @@ struct fwohcidb_tr {
 	bus_addr_t bus_addr;
 	int dbcnt;
 };
+#endif
 
 /*
  * OHCI info structure.
