@@ -78,44 +78,23 @@ ia32_osigcode:
 1:
 	jmp	1b
 
-
 /*
- * The lcall $7,$0 emulator cannot use the call gate that does an
- * inter-privilege transition. The reason is that the call gate
- * does not disable interrupts, and, before the swapgs is
- * executed, we would have a window where the ring 0 code is
- * executed with the wrong gsbase.
+ * Our lcall $7,$0 handler remains in user mode (ring 3), since lcalls
+ * don't change the interrupt mask, so if this one went directly to the
+ * kernel then there would be a window with interrupts enabled in kernel
+ * mode, and all interrupt handlers would have to be almost as complicated
+ * as the NMI handler to support this.
  *
- * Instead, set LDT descriptor 0 as code segment, which reflects
- * the lcall $7,$0 back to ring 3 trampoline.  The trampoline sets up
- * the frame for int $0x80.
+ * Instead, convert the lcall to an int0x80 call.  The kernel does most
+ * of the conversion by popping the lcall return values off the user
+ * stack and returning to them instead of to here, except when the
+ * conversion itself fails.  Adjusting the stack here is impossible for
+ * vfork() and harder for other syscalls.
  */
 	ALIGN_TEXT
 lcall_tramp:
-	cmpl	$SYS_vfork,%eax
-	je	1f
-	pushl	%ebp
-	movl	%esp,%ebp
-	pushl	0x24(%ebp) /* arg 6 */
-	pushl	0x20(%ebp)
-	pushl	0x1c(%ebp)
-	pushl	0x18(%ebp)
-	pushl	0x14(%ebp)
-	pushl	0x10(%ebp) /* arg 1 */
-	subl	$4,%esp   /* gap */
 	int	$0x80
-	leavel
-	lretl
-1:
-	/*
-	 * vfork handling is special and relies on the libc stub saving
-	 * the return ip in %ecx.  Also, we assume that the call was done
-	 * with ucode32 selector in %cs.
-	 */
-	int	$0x80
-	movl	$0x33,4(%esp)	/* GUCODE32_SEL | SEL_UPL */
-	movl	%ecx,(%esp)
-	lretl
+1:	jmp	1b
 #endif
 
 	ALIGN_TEXT
