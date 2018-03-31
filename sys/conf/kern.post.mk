@@ -70,8 +70,9 @@ PORTSMODULESENV=\
 	-u CXX \
 	-u CPP \
 	-u MAKESYSPATH \
+	-u MK_AUTO_OBJ \
 	-u MAKEOBJDIR \
-	MAKEFLAGS="${MAKEFLAGS:M*:tW:S/^-m /-m_/g:S/ -m / -m_/g:tw:N-m_*}" \
+	MAKEFLAGS="${MAKEFLAGS:M*:tW:S/^-m /-m_/g:S/ -m / -m_/g:tw:N-m_*:NMK_AUTO_OBJ=*}" \
 	SYSDIR=${SYSDIR} \
 	PATH=${PATH}:${LOCALBASE}/bin:${LOCALBASE}/sbin \
 	SRC_BASE=${SRC_BASE} \
