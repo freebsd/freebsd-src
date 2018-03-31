@@ -443,12 +443,18 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
                                  static_cast<unsigned>(Context.getTypeSize(T)));
       break;
 
-    case BuiltinType::Half:
-      // Half FP can either be storage-only (lowered to i16) or native.
+    case BuiltinType::Float16:
       ResultType =
           getTypeForFormat(getLLVMContext(), Context.getFloatTypeSemantics(T),
-                           Context.getLangOpts().NativeHalfType ||
-                               Context.getLangOpts().HalfArgsAndReturns);
+                           /* UseNativeHalf = */ true);
+      break;
+
+    case BuiltinType::Half:
+      // Half FP can either be storage-only (lowered to i16) or native.
+      ResultType = getTypeForFormat(
+          getLLVMContext(), Context.getFloatTypeSemantics(T),
+          Context.getLangOpts().NativeHalfType ||
+              !Context.getTargetInfo().useFP16ConversionIntrinsics());
       break;
     case BuiltinType::Float:
     case BuiltinType::Double:
@@ -639,7 +645,7 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
     break;
   }
   case Type::Pipe: {
-    ResultType = CGM.getOpenCLRuntime().getPipeType();
+    ResultType = CGM.getOpenCLRuntime().getPipeType(cast<PipeType>(Ty));
     break;
   }
   }

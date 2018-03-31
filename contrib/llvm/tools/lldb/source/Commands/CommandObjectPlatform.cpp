@@ -302,7 +302,7 @@ protected:
       platform_sp->GetStatus(ostrm);
       result.SetStatus(eReturnStatusSuccessFinishResult);
     } else {
-      result.AppendError("no platform us currently selected\n");
+      result.AppendError("no platform is currently selected\n");
       result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
@@ -1337,8 +1337,8 @@ protected:
         PlatformSP platform_sp =
             debugger_sp ? debugger_sp->GetPlatformList().GetSelectedPlatform()
                         : PlatformSP();
-        match_info.GetProcessInfo().GetArchitecture().SetTriple(
-            option_arg, platform_sp.get());
+        match_info.GetProcessInfo().GetArchitecture() =
+            Platform::GetAugmentedArchSpec(platform_sp.get(), option_arg);
       } break;
 
       case 'n':

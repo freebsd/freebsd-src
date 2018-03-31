@@ -22,6 +22,9 @@
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineOperand.h"
+#include "llvm/CodeGen/TargetLoweringObjectFile.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/GlobalValue.h"
@@ -33,9 +36,6 @@
 #include "llvm/MC/MachineLocation.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Target/TargetLoweringObjectFile.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 #include <cassert>
 #include <cstdint>
 #include <string>
@@ -473,11 +473,7 @@ void DwarfUnit::addBlockByrefAddress(const DbgVariable &DV, DIE &Die,
   if (Location.isIndirect())
     DwarfExpr.setMemoryLocationKind();
 
-  SmallVector<uint64_t, 9> Ops;
-  if (Location.isIndirect() && Location.getOffset()) {
-    Ops.push_back(dwarf::DW_OP_plus_uconst);
-    Ops.push_back(Location.getOffset());
-  }
+  SmallVector<uint64_t, 6> Ops;
   // If we started with a pointer to the __Block_byref... struct, then
   // the first thing we need to do is dereference the pointer (DW_OP_deref).
   if (isPointer)
@@ -964,8 +960,9 @@ void DwarfUnit::constructTypeDIE(DIE &Buffer, const DICompositeType *CTy) {
 
     // This is outside the DWARF spec, but GDB expects a DW_AT_containing_type
     // inside C++ composite types to point to the base class with the vtable.
-    if (auto *ContainingType =
-            dyn_cast_or_null<DICompositeType>(resolve(CTy->getVTableHolder())))
+    // Rust uses DW_AT_containing_type to link a vtable to the type
+    // for which it was created.
+    if (auto *ContainingType = resolve(CTy->getVTableHolder()))
       addDIEEntry(Buffer, dwarf::DW_AT_containing_type,
                   *getOrCreateTypeDIE(ContainingType));
 
@@ -1394,7 +1391,8 @@ void DwarfUnit::constructMemberDIE(DIE &Buffer, const DIDerivedType *DT) {
   if (!Name.empty())
     addString(MemberDie, dwarf::DW_AT_name, Name);
 
-  addType(MemberDie, resolve(DT->getBaseType()));
+  if (DIType *Resolved = resolve(DT->getBaseType()))
+    addType(MemberDie, Resolved);
 
   addSourceLine(MemberDie, DT);
 
