@@ -205,6 +205,9 @@ local function loadModule(mod, silent)
 	local status = true
 	local pstatus
 	for k, v in pairs(mod) do
+		if v.load == nil then
+			goto continue
+		end
 		if v.load:lower() == "yes" then
 			local str = "load "
 			if v.flags ~= nil then
@@ -232,6 +235,7 @@ local function loadModule(mod, silent)
 				end
 				if v.error ~= nil then
 					cli_execute_unparsed(v.error)
+
 				end
 				status = false
 			end
@@ -249,6 +253,7 @@ local function loadModule(mod, silent)
 --				print("Skipping module '". . k .. "'")
 --			end
 		end
+		::continue::
 	end
 
 	return status
