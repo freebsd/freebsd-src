@@ -205,7 +205,7 @@ local function loadModule(mod, silent)
 	local status = true
 	local pstatus
 	for k, v in pairs(mod) do
-		if v.load == "YES" then
+		if v.load:lower() == "yes" then
 			local str = "load "
 			if v.flags ~= nil then
 				str = str .. v.flags .. " "
