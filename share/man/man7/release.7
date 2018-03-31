@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2017
+.Dd March 28, 2018
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -679,6 +679,23 @@ cd /usr/src/release
 sh release.sh -c $HOME/release.conf
 .Ed
 .Pp
+Configuration files specific to various supported embedded systems, such as
+the Raspberry Pi, exist in the directory corresponding to the
+.Va TARGET
+.Xr make 1
+variable.
+For example, to build an image for the Raspberry Pi:
+.Bd -literal -offset indent
+cd /usr/src/release
+sh release.sh -c arm/RPI-B.conf
+.Ed
+.Pp
+To build an image for the Raspberry Pi 3:
+.Bd -literal -offset indent
+cd /usr/src/release
+sh release.sh -c arm64/RPI3.conf
+.Ed
+.Pp
 After running these commands, all prepared release files are available in the
 .Pa /scratch
 directory.
@@ -701,7 +718,7 @@ variable in
 .Xr sysctl 8
 .Rs
 .%T "FreeBSD Release Engineering"
-.%U http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/releng/
+.%U https://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/freebsd-releng/
 .Re
 .Rs
 .%T "FreeBSD Release Engineering of Third Party Packages"
