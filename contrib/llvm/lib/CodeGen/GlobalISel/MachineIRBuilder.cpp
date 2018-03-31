@@ -15,10 +15,10 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetOpcodes.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/DebugInfo.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetOpcodes.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
 
@@ -83,30 +83,26 @@ MachineInstrBuilder MachineIRBuilder::insertInstr(MachineInstrBuilder MIB) {
   return MIB;
 }
 
-MachineInstrBuilder MachineIRBuilder::buildDirectDbgValue(
-    unsigned Reg, const MDNode *Variable, const MDNode *Expr) {
+MachineInstrBuilder
+MachineIRBuilder::buildDirectDbgValue(unsigned Reg, const MDNode *Variable,
+                                      const MDNode *Expr) {
   assert(isa<DILocalVariable>(Variable) && "not a variable");
   assert(cast<DIExpression>(Expr)->isValid() && "not an expression");
   assert(cast<DILocalVariable>(Variable)->isValidLocationForIntrinsic(DL) &&
          "Expected inlined-at fields to agree");
-  return buildInstr(TargetOpcode::DBG_VALUE)
-      .addReg(Reg, RegState::Debug)
-      .addReg(0, RegState::Debug)
-      .addMetadata(Variable)
-      .addMetadata(Expr);
+  return insertInstr(BuildMI(getMF(), DL, getTII().get(TargetOpcode::DBG_VALUE),
+                             /*IsIndirect*/ false, Reg, Variable, Expr));
 }
 
-MachineInstrBuilder MachineIRBuilder::buildIndirectDbgValue(
-    unsigned Reg, unsigned Offset, const MDNode *Variable, const MDNode *Expr) {
+MachineInstrBuilder
+MachineIRBuilder::buildIndirectDbgValue(unsigned Reg, const MDNode *Variable,
+                                        const MDNode *Expr) {
   assert(isa<DILocalVariable>(Variable) && "not a variable");
   assert(cast<DIExpression>(Expr)->isValid() && "not an expression");
   assert(cast<DILocalVariable>(Variable)->isValidLocationForIntrinsic(DL) &&
          "Expected inlined-at fields to agree");
-  return buildInstr(TargetOpcode::DBG_VALUE)
-      .addReg(Reg, RegState::Debug)
-      .addImm(Offset)
-      .addMetadata(Variable)
-      .addMetadata(Expr);
+  return insertInstr(BuildMI(getMF(), DL, getTII().get(TargetOpcode::DBG_VALUE),
+                             /*IsIndirect*/ true, Reg, Variable, Expr));
 }
 
 MachineInstrBuilder MachineIRBuilder::buildFIDbgValue(int FI,
@@ -124,7 +120,6 @@ MachineInstrBuilder MachineIRBuilder::buildFIDbgValue(int FI,
 }
 
 MachineInstrBuilder MachineIRBuilder::buildConstDbgValue(const Constant &C,
-                                                         unsigned Offset,
                                                          const MDNode *Variable,
                                                          const MDNode *Expr) {
   assert(isa<DILocalVariable>(Variable) && "not a variable");
@@ -144,7 +139,7 @@ MachineInstrBuilder MachineIRBuilder::buildConstDbgValue(const Constant &C,
     MIB.addReg(0U);
   }
 
-  return MIB.addImm(Offset).addMetadata(Variable).addMetadata(Expr);
+  return MIB.addImm(0).addMetadata(Variable).addMetadata(Expr);
 }
 
 MachineInstrBuilder MachineIRBuilder::buildFrameIndex(unsigned Res, int Idx) {
@@ -268,7 +263,7 @@ MachineInstrBuilder MachineIRBuilder::buildConstant(unsigned Res,
 
   const ConstantInt *NewVal = &Val;
   if (Ty.getSizeInBits() != Val.getBitWidth())
-    NewVal = ConstantInt::get(MF->getFunction()->getContext(),
+    NewVal = ConstantInt::get(MF->getFunction().getContext(),
                               Val.getValue().sextOrTrunc(Ty.getSizeInBits()));
 
   return buildInstr(TargetOpcode::G_CONSTANT).addDef(Res).addCImm(NewVal);
@@ -276,7 +271,7 @@ MachineInstrBuilder MachineIRBuilder::buildConstant(unsigned Res,
 
 MachineInstrBuilder MachineIRBuilder::buildConstant(unsigned Res,
                                                     int64_t Val) {
-  auto IntN = IntegerType::get(MF->getFunction()->getContext(),
+  auto IntN = IntegerType::get(MF->getFunction().getContext(),
                                MRI->getType(Res).getSizeInBits());
   ConstantInt *CI = ConstantInt::get(IntN, Val, true);
   return buildConstant(Res, *CI);
@@ -351,14 +346,17 @@ MachineInstrBuilder MachineIRBuilder::buildZExt(unsigned Res, unsigned Op) {
   return buildInstr(TargetOpcode::G_ZEXT).addDef(Res).addUse(Op);
 }
 
-MachineInstrBuilder MachineIRBuilder::buildSExtOrTrunc(unsigned Res,
-                                                       unsigned Op) {
+MachineInstrBuilder
+MachineIRBuilder::buildExtOrTrunc(unsigned ExtOpc, unsigned Res, unsigned Op) {
+  assert((TargetOpcode::G_ANYEXT == ExtOpc || TargetOpcode::G_ZEXT == ExtOpc ||
+          TargetOpcode::G_SEXT == ExtOpc) &&
+         "Expecting Extending Opc");
   assert(MRI->getType(Res).isScalar() || MRI->getType(Res).isVector());
   assert(MRI->getType(Res).isScalar() == MRI->getType(Op).isScalar());
 
   unsigned Opcode = TargetOpcode::COPY;
   if (MRI->getType(Res).getSizeInBits() > MRI->getType(Op).getSizeInBits())
-    Opcode = TargetOpcode::G_SEXT;
+    Opcode = ExtOpc;
   else if (MRI->getType(Res).getSizeInBits() < MRI->getType(Op).getSizeInBits())
     Opcode = TargetOpcode::G_TRUNC;
   else
@@ -367,20 +365,19 @@ MachineInstrBuilder MachineIRBuilder::buildSExtOrTrunc(unsigned Res,
   return buildInstr(Opcode).addDef(Res).addUse(Op);
 }
 
+MachineInstrBuilder MachineIRBuilder::buildSExtOrTrunc(unsigned Res,
+                                                       unsigned Op) {
+  return buildExtOrTrunc(TargetOpcode::G_SEXT, Res, Op);
+}
+
 MachineInstrBuilder MachineIRBuilder::buildZExtOrTrunc(unsigned Res,
                                                        unsigned Op) {
-  assert(MRI->getType(Res).isScalar() || MRI->getType(Res).isVector());
-  assert(MRI->getType(Res).isScalar() == MRI->getType(Op).isScalar());
+  return buildExtOrTrunc(TargetOpcode::G_ZEXT, Res, Op);
+}
 
-  unsigned Opcode = TargetOpcode::COPY;
-  if (MRI->getType(Res).getSizeInBits() > MRI->getType(Op).getSizeInBits())
-    Opcode = TargetOpcode::G_ZEXT;
-  else if (MRI->getType(Res).getSizeInBits() < MRI->getType(Op).getSizeInBits())
-    Opcode = TargetOpcode::G_TRUNC;
-  else
-    assert(MRI->getType(Res) == MRI->getType(Op));
-
-  return buildInstr(Opcode).addDef(Res).addUse(Op);
+MachineInstrBuilder MachineIRBuilder::buildAnyExtOrTrunc(unsigned Res,
+                                                         unsigned Op) {
+  return buildExtOrTrunc(TargetOpcode::G_ANYEXT, Res, Op);
 }
 
 MachineInstrBuilder MachineIRBuilder::buildCast(unsigned Dst, unsigned Src) {
@@ -659,6 +656,31 @@ MachineInstrBuilder MachineIRBuilder::buildExtractVectorElement(unsigned Res,
       .addDef(Res)
       .addUse(Val)
       .addUse(Idx);
+}
+
+MachineInstrBuilder
+MachineIRBuilder::buildAtomicCmpXchg(unsigned OldValRes, unsigned Addr,
+                                     unsigned CmpVal, unsigned NewVal,
+                                     MachineMemOperand &MMO) {
+#ifndef NDEBUG
+  LLT OldValResTy = MRI->getType(OldValRes);
+  LLT AddrTy = MRI->getType(Addr);
+  LLT CmpValTy = MRI->getType(CmpVal);
+  LLT NewValTy = MRI->getType(NewVal);
+  assert(OldValResTy.isScalar() && "invalid operand type");
+  assert(AddrTy.isPointer() && "invalid operand type");
+  assert(CmpValTy.isValid() && "invalid operand type");
+  assert(NewValTy.isValid() && "invalid operand type");
+  assert(OldValResTy == CmpValTy && "type mismatch");
+  assert(OldValResTy == NewValTy && "type mismatch");
+#endif
+
+  return buildInstr(TargetOpcode::G_ATOMIC_CMPXCHG)
+      .addDef(OldValRes)
+      .addUse(Addr)
+      .addUse(CmpVal)
+      .addUse(NewVal)
+      .addMemOperand(&MMO);
 }
 
 void MachineIRBuilder::validateTruncExt(unsigned Dst, unsigned Src,

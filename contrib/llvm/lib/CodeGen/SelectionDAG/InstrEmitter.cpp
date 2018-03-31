@@ -21,14 +21,14 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/StackMaps.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetLowering.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "instr-emitter"
@@ -673,7 +673,6 @@ void InstrEmitter::EmitRegSequence(SDNode *Node,
 MachineInstr *
 InstrEmitter::EmitDbgValue(SDDbgValue *SD,
                            DenseMap<SDValue, unsigned> &VRBaseMap) {
-  uint64_t Offset = SD->getOffset();
   MDNode *Var = SD->getVariable();
   MDNode *Expr = SD->getExpression();
   DebugLoc DL = SD->getDebugLoc();
@@ -685,7 +684,7 @@ InstrEmitter::EmitDbgValue(SDDbgValue *SD,
     // EmitTargetCodeForFrameDebugValue is responsible for allocation.
     return BuildMI(*MF, DL, TII->get(TargetOpcode::DBG_VALUE))
         .addFrameIndex(SD->getFrameIx())
-        .addImm(Offset)
+        .addImm(0)
         .addMetadata(Var)
         .addMetadata(Expr);
   }
@@ -727,11 +726,9 @@ InstrEmitter::EmitDbgValue(SDDbgValue *SD,
 
   // Indirect addressing is indicated by an Imm as the second parameter.
   if (SD->isIndirect())
-    MIB.addImm(Offset);
-  else {
-    assert(Offset == 0 && "direct value cannot have an offset");
+    MIB.addImm(0U);
+  else
     MIB.addReg(0U, RegState::Debug);
-  }
 
   MIB.addMetadata(Var);
   MIB.addMetadata(Expr);
@@ -938,10 +935,14 @@ EmitSpecialNode(SDNode *Node, bool IsClone, bool IsCloned,
     EmitCopyFromReg(Node, 0, IsClone, IsCloned, SrcReg, VRBaseMap);
     break;
   }
-  case ISD::EH_LABEL: {
-    MCSymbol *S = cast<EHLabelSDNode>(Node)->getLabel();
+  case ISD::EH_LABEL:
+  case ISD::ANNOTATION_LABEL: {
+    unsigned Opc = (Node->getOpcode() == ISD::EH_LABEL)
+                       ? TargetOpcode::EH_LABEL
+                       : TargetOpcode::ANNOTATION_LABEL;
+    MCSymbol *S = cast<LabelSDNode>(Node)->getLabel();
     BuildMI(*MBB, InsertPos, Node->getDebugLoc(),
-            TII->get(TargetOpcode::EH_LABEL)).addSym(S);
+            TII->get(Opc)).addSym(S);
     break;
   }
 

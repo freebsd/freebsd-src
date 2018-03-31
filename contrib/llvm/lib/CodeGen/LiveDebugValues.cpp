@@ -1,4 +1,4 @@
-//===------ LiveDebugValues.cpp - Tracking Debug Value MIs ----------------===//
+//===- LiveDebugValues.cpp - Tracking Debug Value MIs ---------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -18,36 +18,51 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/SparseBitVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/UniqueVector.h"
 #include "llvm/CodeGen/LexicalScopes.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
-#include "llvm/CodeGen/Passes.h"
-#include "llvm/IR/DebugInfo.h"
+#include "llvm/CodeGen/MachineOperand.h"
+#include "llvm/CodeGen/PseudoSourceValue.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetLowering.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/DebugLoc.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Module.h"
+#include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetFrameLowering.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
-#include <list>
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <functional>
 #include <queue>
+#include <utility>
+#include <vector>
 
 using namespace llvm;
 
 #define DEBUG_TYPE "livedebugvalues"
 
 STATISTIC(NumInserted, "Number of DBG_VALUE instructions inserted");
-
-namespace {
 
 // \brief If @MI is a DBG_VALUE with debug value described by a defined
 // register, returns the number of this register. In the other case, returns 0.
@@ -59,8 +74,9 @@ static unsigned isDbgValueDescribedByReg(const MachineInstr &MI) {
   return MI.getOperand(0).isReg() ? MI.getOperand(0).getReg() : 0;
 }
 
-class LiveDebugValues : public MachineFunctionPass {
+namespace {
 
+class LiveDebugValues : public MachineFunctionPass {
 private:
   const TargetRegisterInfo *TRI;
   const TargetInstrInfo *TII;
@@ -87,15 +103,15 @@ private:
   };
 
   /// Based on std::pair so it can be used as an index into a DenseMap.
-  typedef std::pair<const DILocalVariable *, const DILocation *>
-      DebugVariableBase;
+  using DebugVariableBase =
+      std::pair<const DILocalVariable *, const DILocation *>;
   /// A potentially inlined instance of a variable.
   struct DebugVariable : public DebugVariableBase {
     DebugVariable(const DILocalVariable *Var, const DILocation *InlinedAt)
         : DebugVariableBase(Var, InlinedAt) {}
 
-    const DILocalVariable *getVar() const { return this->first; };
-    const DILocation *getInlinedAt() const { return this->second; };
+    const DILocalVariable *getVar() const { return this->first; }
+    const DILocation *getInlinedAt() const { return this->second; }
 
     bool operator<(const DebugVariable &DV) const {
       if (getVar() == DV.getVar())
@@ -109,38 +125,25 @@ private:
     const DebugVariable Var;
     const MachineInstr &MI; ///< Only used for cloning a new DBG_VALUE.
     mutable UserValueScopes UVS;
-    enum { InvalidKind = 0, RegisterKind } Kind;
+    enum { InvalidKind = 0, RegisterKind } Kind = InvalidKind;
 
     /// The value location. Stored separately to avoid repeatedly
     /// extracting it from MI.
     union {
-      struct {
-        uint32_t RegNo;
-        uint32_t Offset;
-      } RegisterLoc;
+      uint64_t RegNo;
       uint64_t Hash;
     } Loc;
 
     VarLoc(const MachineInstr &MI, LexicalScopes &LS)
         : Var(MI.getDebugVariable(), MI.getDebugLoc()->getInlinedAt()), MI(MI),
-          UVS(MI.getDebugLoc(), LS), Kind(InvalidKind) {
+          UVS(MI.getDebugLoc(), LS) {
       static_assert((sizeof(Loc) == sizeof(uint64_t)),
                     "hash does not cover all members of Loc");
       assert(MI.isDebugValue() && "not a DBG_VALUE");
       assert(MI.getNumOperands() == 4 && "malformed DBG_VALUE");
       if (int RegNo = isDbgValueDescribedByReg(MI)) {
         Kind = RegisterKind;
-        Loc.RegisterLoc.RegNo = RegNo;
-        int64_t Offset =
-            MI.isIndirectDebugValue() ? MI.getOperand(1).getImm() : 0;
-        // We don't support offsets larger than 4GiB here. They are
-        // slated to be replaced with DIExpressions anyway.
-        // With indirect debug values used for spill locations, Offset 
-        // can be negative.
-        if (Offset == INT64_MIN || std::abs(Offset) >= (1LL << 32))
-          Kind = InvalidKind;
-        else
-          Loc.RegisterLoc.Offset = Offset;
+        Loc.RegNo = RegNo;
       }
     }
 
@@ -148,7 +151,7 @@ private:
     /// otherwise return 0.
     unsigned isDescribedByReg() const {
       if (Kind == RegisterKind)
-        return Loc.RegisterLoc.RegNo;
+        return Loc.RegNo;
       return 0;
     }
 
@@ -172,14 +175,14 @@ private:
     }
   };
 
-  typedef UniqueVector<VarLoc> VarLocMap;
-  typedef SparseBitVector<> VarLocSet;
-  typedef SmallDenseMap<const MachineBasicBlock *, VarLocSet> VarLocInMBB;
+  using VarLocMap = UniqueVector<VarLoc>;
+  using VarLocSet = SparseBitVector<>;
+  using VarLocInMBB = SmallDenseMap<const MachineBasicBlock *, VarLocSet>;
   struct SpillDebugPair {
     MachineInstr *SpillInst;
     MachineInstr *DebugInst;
   };
-  typedef SmallVector<SpillDebugPair, 4> SpillMap;
+  using SpillMap = SmallVector<SpillDebugPair, 4>;
 
   /// This holds the working set of currently open ranges. For fast
   /// access, this is done both as a set of VarLocIDs, and a map of
@@ -275,14 +278,16 @@ public:
   bool runOnMachineFunction(MachineFunction &MF) override;
 };
 
-} // namespace
+} // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
 //            Implementation
 //===----------------------------------------------------------------------===//
 
 char LiveDebugValues::ID = 0;
+
 char &llvm::LiveDebugValuesID = LiveDebugValues::ID;
+
 INITIALIZE_PASS(LiveDebugValues, DEBUG_TYPE, "Live DEBUG_VALUE analysis",
                 false, false)
 
@@ -368,7 +373,7 @@ void LiveDebugValues::transferDebugValue(const MachineInstr &MI,
 void LiveDebugValues::transferRegisterDef(MachineInstr &MI,
                                           OpenRangesSet &OpenRanges,
                                           const VarLocMap &VarLocIDs) {
-  MachineFunction *MF = MI.getParent()->getParent();
+  MachineFunction *MF = MI.getMF();
   const TargetLowering *TLI = MF->getSubtarget().getTargetLowering();
   unsigned SP = TLI->getStackPointerRegisterToSaveRestore();
   SparseBitVector<> KillSet;
@@ -444,14 +449,14 @@ void LiveDebugValues::transferSpillInst(MachineInstr &MI,
                                         VarLocMap &VarLocIDs,
                                         SpillMap &Spills) {
   unsigned Reg;
-  MachineFunction *MF = MI.getParent()->getParent();
+  MachineFunction *MF = MI.getMF();
   if (!isSpillInstruction(MI, MF, Reg))
     return;
 
   // Check if the register is the location of a debug value.
   for (unsigned ID : OpenRanges.getVarLocs()) {
     if (VarLocIDs[ID].isDescribedByReg() == Reg) {
-      DEBUG(dbgs() << "Spilling Register " << PrintReg(Reg, TRI) << '('
+      DEBUG(dbgs() << "Spilling Register " << printReg(Reg, TRI) << '('
                    << VarLocIDs[ID].Var.getVar()->getName() << ")\n");
 
       // Create a DBG_VALUE instruction to describe the Var in its spilled
@@ -460,10 +465,11 @@ void LiveDebugValues::transferSpillInst(MachineInstr &MI,
       unsigned SpillBase;
       int SpillOffset = extractSpillBaseRegAndOffset(MI, SpillBase);
       const MachineInstr *DMI = &VarLocIDs[ID].MI;
+      auto *SpillExpr = DIExpression::prepend(
+          DMI->getDebugExpression(), DIExpression::NoDeref, SpillOffset);
       MachineInstr *SpDMI =
-          BuildMI(*MF, DMI->getDebugLoc(), DMI->getDesc(), true, SpillBase, 0,
-                  DMI->getDebugVariable(), DMI->getDebugExpression());
-      SpDMI->getOperand(1).setImm(SpillOffset);
+          BuildMI(*MF, DMI->getDebugLoc(), DMI->getDesc(), true, SpillBase,
+                  DMI->getDebugVariable(), SpillExpr);
       DEBUG(dbgs() << "Creating DBG_VALUE inst for spill: ";
             SpDMI->print(dbgs(), false, TII));
 
@@ -582,7 +588,7 @@ bool LiveDebugValues::join(MachineBasicBlock &MBB, VarLocInMBB &OutLocs,
     const MachineInstr *DMI = &DiffIt.MI;
     MachineInstr *MI =
         BuildMI(MBB, MBB.instr_begin(), DMI->getDebugLoc(), DMI->getDesc(),
-                DMI->isIndirectDebugValue(), DMI->getOperand(0).getReg(), 0,
+                DMI->isIndirectDebugValue(), DMI->getOperand(0).getReg(),
                 DMI->getDebugVariable(), DMI->getDebugExpression());
     if (DMI->isIndirectDebugValue())
       MI->getOperand(1).setImm(DMI->getOperand(1).getImm());
@@ -597,7 +603,6 @@ bool LiveDebugValues::join(MachineBasicBlock &MBB, VarLocInMBB &OutLocs,
 /// Calculate the liveness information for the given machine function and
 /// extend ranges across basic blocks.
 bool LiveDebugValues::ExtendRanges(MachineFunction &MF) {
-
   DEBUG(dbgs() << "\nDebug Range Extension\n");
 
   bool Changed = false;
@@ -698,8 +703,13 @@ bool LiveDebugValues::ExtendRanges(MachineFunction &MF) {
 }
 
 bool LiveDebugValues::runOnMachineFunction(MachineFunction &MF) {
-  if (!MF.getFunction()->getSubprogram())
+  if (!MF.getFunction().getSubprogram())
     // LiveDebugValues will already have removed all DBG_VALUEs.
+    return false;
+
+  // Skip functions from NoDebug compilation units.
+  if (MF.getFunction().getSubprogram()->getUnit()->getEmissionKind() ==
+      DICompileUnit::NoDebug)
     return false;
 
   TRI = MF.getSubtarget().getRegisterInfo();

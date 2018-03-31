@@ -39,6 +39,12 @@
 
 using namespace llvm;
 
+MCELFStreamer::MCELFStreamer(MCContext &Context,
+                             std::unique_ptr<MCAsmBackend> TAB,
+                             raw_pwrite_stream &OS,
+                             std::unique_ptr<MCCodeEmitter> Emitter)
+    : MCObjectStreamer(Context, std::move(TAB), OS, std::move(Emitter)) {}
+
 bool MCELFStreamer::isBundleLocked() const {
   return getCurrentSectionOnly()->isBundleLocked();
 }
@@ -62,12 +68,13 @@ void MCELFStreamer::mergeFragment(MCDataFragment *DF,
     if (RequiredBundlePadding > 0) {
       SmallString<256> Code;
       raw_svector_ostream VecOS(Code);
-      MCObjectWriter *OW = Assembler.getBackend().createObjectWriter(VecOS);
+      {
+        auto OW = Assembler.getBackend().createObjectWriter(VecOS);
 
-      EF->setBundlePadding(static_cast<uint8_t>(RequiredBundlePadding));
+        EF->setBundlePadding(static_cast<uint8_t>(RequiredBundlePadding));
 
-      Assembler.writeFragmentPadding(*EF, FSize, OW);
-      delete OW;
+        Assembler.writeFragmentPadding(*EF, FSize, OW.get());
+      }
 
       DF->getContents().append(Code.begin(), Code.end());
     }
@@ -328,6 +335,11 @@ void MCELFStreamer::EmitCommonSymbol(MCSymbol *S, uint64_t Size,
 
 void MCELFStreamer::emitELFSize(MCSymbol *Symbol, const MCExpr *Value) {
   cast<MCSymbolELF>(Symbol)->setSize(Value);
+}
+
+void MCELFStreamer::emitELFSymverDirective(StringRef AliasName,
+                                           const MCSymbol *Aliasee) {
+  getAssembler().Symvers.push_back({AliasName, Aliasee});
 }
 
 void MCELFStreamer::EmitLocalCommonSymbol(MCSymbol *S, uint64_t Size,
@@ -638,10 +650,13 @@ void MCELFStreamer::EmitTBSSSymbol(MCSection *Section, MCSymbol *Symbol,
   llvm_unreachable("ELF doesn't support this directive");
 }
 
-MCStreamer *llvm::createELFStreamer(MCContext &Context, MCAsmBackend &MAB,
-                                    raw_pwrite_stream &OS, MCCodeEmitter *CE,
+MCStreamer *llvm::createELFStreamer(MCContext &Context,
+                                    std::unique_ptr<MCAsmBackend> &&MAB,
+                                    raw_pwrite_stream &OS,
+                                    std::unique_ptr<MCCodeEmitter> &&CE,
                                     bool RelaxAll) {
-  MCELFStreamer *S = new MCELFStreamer(Context, MAB, OS, CE);
+  MCELFStreamer *S =
+      new MCELFStreamer(Context, std::move(MAB), OS, std::move(CE));
   if (RelaxAll)
     S->getAssembler().setRelaxAll(true);
   return S;

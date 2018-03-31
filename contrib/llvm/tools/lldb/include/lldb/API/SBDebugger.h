@@ -109,6 +109,8 @@ public:
                                              const char *archname);
 
   lldb::SBTarget CreateTarget(const char *filename);
+  
+  lldb::SBTarget GetDummyTarget();
 
   // Return true if target is deleted from the target list of the debugger.
   bool DeleteTarget(lldb::SBTarget &target);
@@ -131,6 +133,25 @@ public:
   lldb::SBPlatform GetSelectedPlatform();
 
   void SetSelectedPlatform(lldb::SBPlatform &platform);
+
+  /// Get the number of currently active platforms.
+  uint32_t GetNumPlatforms();
+
+  /// Get one of the currently active platforms.
+  lldb::SBPlatform GetPlatformAtIndex(uint32_t idx);
+
+  /// Get the number of available platforms.
+  ///
+  /// The return value should match the number of entries output by the
+  /// "platform list" command.
+  uint32_t GetNumAvailablePlatforms();
+
+  /// Get the name and description of one of the available platforms.
+  ///
+  /// @param[in] idx
+  ///     Zero-based index of the platform for which info should be retrieved,
+  ///     must be less than the value returned by GetNumAvailablePlatforms().
+  lldb::SBStructuredData GetAvailablePlatformInfoAtIndex(uint32_t idx);
 
   lldb::SBSourceManager GetSourceManager();
 

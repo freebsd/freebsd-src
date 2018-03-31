@@ -22,7 +22,7 @@
 #include "clang/AST/StmtVisitor.h"
 #include "clang/AST/Type.h"
 #include "clang/Analysis/Analyses/PostOrderCFGView.h"
-#include "clang/Analysis/AnalysisContext.h"
+#include "clang/Analysis/AnalysisDeclContext.h"
 #include "clang/Analysis/CFG.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/SourceLocation.h"
@@ -749,8 +749,7 @@ void ConsumedStmtVisitor::VisitCallExpr(const CallExpr *Call) {
 
   // Special case for the std::move function.
   // TODO: Make this more specific. (Deferred)
-  if (Call->getNumArgs() == 1 && FunDecl->getNameAsString() == "move" &&
-      FunDecl->isInStdNamespace()) {
+  if (Call->isCallToStdMove()) {
     copyInfo(Call->getArg(0), Call, CS_Consumed);
     return;
   }

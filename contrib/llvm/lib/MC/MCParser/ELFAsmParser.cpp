@@ -247,7 +247,7 @@ bool ELFAsmParser::ParseSectionName(StringRef &SectionName) {
     return false;
   }
 
-  while (true) {
+  while (!getParser().hasPendingError()) {
     SMLoc PrevLoc = getLexer().getLoc();
     if (getLexer().is(AsmToken::Comma) ||
       getLexer().is(AsmToken::EndOfStatement))
@@ -423,13 +423,17 @@ bool ELFAsmParser::parseGroup(StringRef &GroupName) {
   if (L.isNot(AsmToken::Comma))
     return TokError("expected group name");
   Lex();
-  if (getParser().parseIdentifier(GroupName))
-    return true;
+  if (L.is(AsmToken::Integer)) {
+    GroupName = getTok().getString();
+    Lex();
+  } else if (getParser().parseIdentifier(GroupName)) {
+    return TokError("invalid group name");
+  }
   if (L.is(AsmToken::Comma)) {
     Lex();
     StringRef Linkage;
     if (getParser().parseIdentifier(Linkage))
-      return true;
+      return TokError("invalid linkage");
     if (Linkage != "comdat")
       return TokError("Linkage must be 'comdat'");
   }
@@ -443,7 +447,7 @@ bool ELFAsmParser::parseMetadataSym(MCSymbolELF *&Associated) {
   Lex();
   StringRef Name;
   if (getParser().parseIdentifier(Name))
-    return true;
+    return TokError("invalid metadata symbol");
   Associated = dyn_cast_or_null<MCSymbolELF>(getContext().lookupSymbol(Name));
   if (!Associated || !Associated->isInSection())
     return TokError("symbol is not in a section: " + Name);
@@ -488,7 +492,6 @@ bool ELFAsmParser::ParseSectionArguments(bool IsPush, SMLoc loc) {
   unsigned Flags = 0;
   const MCExpr *Subsection = nullptr;
   bool UseLastGroup = false;
-  StringRef UniqueStr;
   MCSymbolELF *Associated = nullptr;
   int64_t UniqueID = ~0;
 
@@ -764,12 +767,8 @@ bool ELFAsmParser::ParseDirectiveSymver(StringRef, SMLoc) {
   if (AliasName.find('@') == StringRef::npos)
     return TokError("expected a '@' in the name");
 
-  MCSymbol *Alias = getContext().getOrCreateSymbol(AliasName);
   MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
-  const MCExpr *Value = MCSymbolRefExpr::create(Sym, getContext());
-
-  getStreamer().EmitAssignment(Alias, Value);
-  getStreamer().emitELFSymverDirective(Alias, Sym);
+  getStreamer().emitELFSymverDirective(AliasName, Sym);
   return false;
 }
 

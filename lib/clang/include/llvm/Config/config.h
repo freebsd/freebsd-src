@@ -121,6 +121,12 @@
 /* Define to 1 if you have the `pthread' library (-lpthread). */
 #define HAVE_LIBPTHREAD 1
 
+/* Define to 1 if you have the `pthread_getname_np' function. */
+/* #undef HAVE_PTHREAD_GETNAME_NP */
+
+/* Define to 1 if you have the `pthread_setname_np' function. */
+/* #undef HAVE_PTHREAD_SETNAME_NP */
+
 /* Define to 1 if you have the `shell32' library (-lshell32). */
 /* #undef HAVE_LIBSHELL32 */
 
@@ -192,6 +198,12 @@
 
 /* Define to 1 if you have the `setenv' function. */
 #define HAVE_SETENV 1
+
+/* Define to 1 if you have the `sched_getaffinity' function. */
+/* #undef HAVE_SCHED_GETAFFINITY */
+
+/* Define to 1 if you have the `CPU_COUNT' macro. */
+/* #undef HAVE_CPU_COUNT */
 
 /* Define to 1 if you have the `setrlimit' function. */
 #define HAVE_SETRLIMIT 1
@@ -380,16 +392,19 @@
 #define LLVM_VERSION_PRINTER_SHOW_HOST_TARGET_INFO 1
 
 /* Major version of the LLVM API */
-#define LLVM_VERSION_MAJOR 5
+#define LLVM_VERSION_MAJOR 6
 
 /* Minor version of the LLVM API */
 #define LLVM_VERSION_MINOR 0
 
 /* Patch version of the LLVM API */
-#define LLVM_VERSION_PATCH 1
+#define LLVM_VERSION_PATCH 0
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "5.0.1"
+#define LLVM_VERSION_STRING "6.0.0"
+
+/* Define if libxml2 is supported on this platform. */
+/* #undef LLVM_LIBXML2_ENABLED */
 
 /* Define to the extension used for shared libraries, say, ".so". */
 #define LTDL_SHLIB_EXT ".so"
@@ -401,13 +416,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 5.0.1"
+#define PACKAGE_STRING "LLVM 6.0.0"
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "5.0.1"
+#define PACKAGE_VERSION "6.0.0"
 
 /* Define to the vendor of this package. */
 /* #undef PACKAGE_VENDOR */
@@ -426,5 +441,11 @@
 
 /* Define to a function implementing strdup */
 /* #undef strdup */
+
+/* Whether GlobalISel rule coverage is being collected */
+#define LLVM_GISEL_COV_ENABLED 0
+
+/* Define to the default GlobalISel coverage file prefix */
+/* #undef LLVM_GISEL_COV_PREFIX */
 
 #endif

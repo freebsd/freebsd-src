@@ -40,25 +40,19 @@
 #include "../assembly.h"
     .syntax unified
     .text
-#if defined(USE_THUMB_PROLOGUE)
-    .thumb
-#endif
+    DEFINE_CODE_STATE
 
 @ int __eqsf2(float a, float b)
 
     .p2align 2
-#if defined(USE_THUMB_PROLOGUE)
-DEFINE_COMPILERRT_THUMB_FUNCTION(__eqsf2)
-#else
 DEFINE_COMPILERRT_FUNCTION(__eqsf2)
-#endif
 #if defined(COMPILER_RT_ARMHF_TARGET)
     vmov r0, s0
     vmov r1, s1
 #endif
     // Make copies of a and b with the sign bit shifted off the top.  These will
     // be used to detect zeros and NaNs.
-#if __ARM_ARCH_ISA_THUMB == 1
+#if defined(USE_THUMB_1)
     push    {r6, lr}
     lsls    r2,         r0, #1
     lsls    r3,         r1, #1
@@ -150,7 +144,7 @@ DEFINE_COMPILERRT_FUNCTION(__eqsf2)
     // If a == b, then the Z flag is set, so we can get the correct final value
     // into r0 by simply or'ing with 1 if Z is clear.
     // For Thumb-1, r0 contains -1 if a < b, 0 if a > b and 0 if a == b.
-#if defined(USE_THUMB_1)
+#if !defined(USE_THUMB_1)
     it ne
     orrne   r0,     r0, #1
 #endif
@@ -185,11 +179,7 @@ DEFINE_COMPILERRT_FUNCTION_ALIAS(__nesf2, __eqsf2)
 @ int __gtsf2(float a, float b)
 
     .p2align 2
-#if defined(USE_THUMB)
-DEFINE_COMPILERRT_THUMB_FUNCTION(__gtsf2)
-#else
 DEFINE_COMPILERRT_FUNCTION(__gtsf2)
-#endif
     // Identical to the preceding except in that we return -1 for NaN values.
     // Given that the two paths share so much code, one might be tempted to
     // unify them; however, the extra code needed to do so makes the code size
@@ -263,11 +253,7 @@ DEFINE_COMPILERRT_FUNCTION_ALIAS(__gesf2, __gtsf2)
 @ int __unordsf2(float a, float b)
 
     .p2align 2
-#if defined(USE_THUMB)
-DEFINE_COMPILERRT_THUMB_FUNCTION(__unordsf2)
-#else
 DEFINE_COMPILERRT_FUNCTION(__unordsf2)
-#endif
 
 #if defined(COMPILER_RT_ARMHF_TARGET)
     vmov    r0,         s0
