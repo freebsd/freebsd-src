@@ -235,7 +235,6 @@ local function loadModule(mod, silent)
 				end
 				if v.error ~= nil then
 					cli_execute_unparsed(v.error)
-
 				end
 				status = false
 			end
