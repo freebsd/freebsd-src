@@ -52,6 +52,9 @@ local function menuEntryName(drawing_menu, entry)
 end
 
 local function getLogodef(logo)
+	if logo == nil then
+		return nil
+	end
 	-- Look it up
 	local logodef = drawer.logodefs[logo]
 
