@@ -64,6 +64,9 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
@@ -2005,6 +2008,57 @@ out:
 	return (error);
 }
 
+static int
+domainset_copyin(struct domainset *domain, size_t domainsetsize,
+    const domainset_t *maskp, int policy)
+{
+	domainset_t *mask;
+	char *end, *cp;
+	int error;
+
+	if (domainsetsize < sizeof(domainset_t) ||
+	    domainsetsize > DOMAINSET_MAXSIZE / NBBY)
+		return (ERANGE);
+
+	if (policy <= DOMAINSET_POLICY_INVALID ||
+	    policy > DOMAINSET_POLICY_MAX)
+		return (EINVAL);
+
+	memset(domain, 0, sizeof(*domain));
+	mask = malloc(domainsetsize, M_TEMP, M_WAITOK | M_ZERO);
+	error = copyin(maskp, mask, domainsetsize);
+	if (error != 0)
+		goto out;
+	/*
+	 * Verify that no high bits are set.
+	 */
+	if (domainsetsize > sizeof(domainset_t)) {
+		end = cp = (char *)&mask->__bits;
+		end += domainsetsize;
+		cp += sizeof(domainset_t);
+		while (cp != end)
+			if (*cp++ != 0) {
+				error = EINVAL;
+				goto out;
+			}
+
+	}
+	DOMAINSET_COPY(mask, &domain->ds_mask);
+	domain->ds_policy = policy;
+	/* Translate preferred policy into a mask and fallback. */
+	if (policy == DOMAINSET_POLICY_PREFER) {
+		/* Only support a single preferred domain. */
+		if (DOMAINSET_COUNT(&domain->ds_mask) != 1) {
+			error = EINVAL;
+			goto out;
+		}
+		domain->ds_prefer = DOMAINSET_FFS(&domain->ds_mask) - 1;
+	}
+out:
+	free(mask, M_TEMP);
+	return (error);
+}
+
 #ifndef _SYS_SYSPROTO_H_
 struct cpuset_setdomain_args {
 	cpulevel_t	level;
@@ -2015,6 +2069,7 @@ struct cpuset_setdomain_args {
 	int 		policy;
 };
 #endif
+
 int
 sys_cpuset_setdomain(struct thread *td, struct cpuset_setdomain_args *uap)
 {
@@ -2032,12 +2087,8 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	struct thread *ttd;
 	struct proc *p;
 	struct domainset domain;
-	domainset_t *mask;
 	int error;
 
-	if (domainsetsize < sizeof(domainset_t) ||
-	    domainsetsize > DOMAINSET_MAXSIZE / NBBY)
-		return (ERANGE);
 	/* In Capability mode, you can only set your own CPU set. */
 	if (IN_CAPABILITY_MODE(td)) {
 		if (level != CPU_LEVEL_WHICH)
@@ -2047,43 +2098,13 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		if (id != -1)
 			return (ECAPMODE);
 	}
-	memset(&domain, 0, sizeof(domain));
-	mask = malloc(domainsetsize, M_TEMP, M_WAITOK | M_ZERO);
-	error = copyin(maskp, mask, domainsetsize);
+
+	error = domainset_copyin(&domain, domainsetsize, maskp, policy);
 	if (error)
-		goto out;
-	/*
-	 * Verify that no high bits are set.
-	 */
-	if (domainsetsize > sizeof(domainset_t)) {
-		char *end;
-		char *cp;
-
-		end = cp = (char *)&mask->__bits;
-		end += domainsetsize;
-		cp += sizeof(domainset_t);
-		while (cp != end)
-			if (*cp++ != 0) {
-				error = EINVAL;
-				goto out;
-			}
-
-	}
-	DOMAINSET_COPY(mask, &domain.ds_mask);
-	domain.ds_policy = policy;
-	if (policy <= DOMAINSET_POLICY_INVALID ||
-	    policy > DOMAINSET_POLICY_MAX)
-		return (EINVAL);
-
-	/* Translate preferred policy into a mask and fallback. */
-	if (policy == DOMAINSET_POLICY_PREFER) {
-		/* Only support a single preferred domain. */
-		if (DOMAINSET_COUNT(&domain.ds_mask) != 1)
-			return (EINVAL);
-		domain.ds_prefer = DOMAINSET_FFS(&domain.ds_mask) - 1;
-		/* This will be constrained by domainset_shadow(). */
+		return (error);
+	/* This will be constrained by cpuset_shadow(). */
+	if (policy == DOMAINSET_POLICY_PREFER) 
 		DOMAINSET_FILL(&domain.ds_mask);
-	}
 
 	switch (level) {
 	case CPU_LEVEL_ROOT:
@@ -2146,12 +2167,106 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		break;
 	}
 out:
-	free(mask, M_TEMP);
 	return (error);
 }
 
-#ifdef DDB
+#ifndef _SYS_SYSPROTO_H_
+struct msetdomain_args {
+	void 		*addr;
+	size_t		size;
+	size_t		domainsetsize;
+	domainset_t 	*mask;
+	int		policy;
+	int		flags;
+};
+#endif
 
+int
+sys_msetdomain(struct thread *td, struct msetdomain_args *uap)
+{
+	return (kern_msetdomain(td, (uintptr_t)uap->addr, uap->size,
+	    uap->domainsetsize, uap->mask, uap->policy, uap->flags));
+}
+
+int
+kern_msetdomain(struct thread *td, uintptr_t addr0, size_t size,
+    size_t domainsetsize, const domainset_t *mask, int policy, int flags)
+{
+	struct domainset domain, *set, *nset;
+	struct cpuset *cset;
+	struct thread *ttd;
+	struct proc *p;
+        vm_offset_t addr;
+        vm_size_t pageoff;
+	int error;
+
+	/* Normalize the addresses. */
+        addr = trunc_page(addr0);
+        pageoff = (addr & PAGE_MASK);
+        addr -= pageoff;
+        size += pageoff;
+        size = (vm_size_t)round_page(size);
+        if (addr + size < addr)
+                return (EINVAL);
+
+	/* Short-circuit for POLICY_INVALID == reset to default. */
+	if (policy == DOMAINSET_POLICY_INVALID) {
+		nset = NULL;
+		goto apply;
+	}
+
+	/*
+	 * Copy in and initialize the domainset from the user arguments.
+	 */
+	error = domainset_copyin(&domain, domainsetsize, mask, policy);
+	if (error)
+		return (error);
+
+	/*
+	 * Grab the list of allowed domains from the numbered cpuset this
+	 * process is a member of.
+	 */
+	error = cpuset_which(CPU_WHICH_PID, -1, &p, &ttd, &cset);
+	if (error)
+		return (error);
+	thread_lock(ttd);
+	set = cpuset_getbase(ttd->td_cpuset)->cs_domain;
+	thread_unlock(ttd);
+	PROC_UNLOCK(p);
+
+	/*
+	 * Validate the new policy against the allowed set.
+	 */
+	if (policy == DOMAINSET_POLICY_PREFER)
+		DOMAINSET_COPY(&set->ds_mask, &domain.ds_mask);
+	if (!domainset_valid(set, &domain))
+		return (EINVAL);
+
+	/*
+	 * Attempt to create a new set based on this key.
+	 */
+	nset = domainset_create(&domain);
+	if (nset == NULL)
+		return (EINVAL);
+
+	/*
+	 * Attempt to apply the new set to the memory range.
+	 */
+apply:
+	switch (vm_map_setdomain(&td->td_proc->p_vmspace->vm_map, addr,
+	    addr + size, nset, flags)) {
+	case KERN_SUCCESS:
+		break;
+	case KERN_INVALID_ADDRESS:
+		return (EFAULT);
+	default:
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+#ifdef DDB
 static void
 ddb_display_bitset(const struct bitset *set, int size)
 {

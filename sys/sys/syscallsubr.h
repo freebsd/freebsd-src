@@ -175,6 +175,9 @@ int	kern_mlock(struct proc *proc, struct ucred *cred, uintptr_t addr,
 int	kern_mmap(struct thread *td, uintptr_t addr, size_t size, int prot,
 	    int flags, int fd, off_t pos);
 int	kern_mprotect(struct thread *td, uintptr_t addr, size_t size, int prot);
+int	kern_msetdomain(struct thread *td, uintptr_t addr,
+	    size_t size, size_t domainsetsize, const domainset_t *maskp,
+	    int policy, int flags);
 int	kern_msgctl(struct thread *, int, int, struct msqid_ds *);
 int	kern_msgrcv(struct thread *, int, void *, size_t, long, int, long *);
 int	kern_msgsnd(struct thread *, int, const void *, size_t, int, long);

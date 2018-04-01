@@ -615,4 +615,5 @@ struct sysent sysent[] = {
 	{ AS(cpuset_getdomain_args), (sy_call_t *)sys_cpuset_getdomain, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 561 = cpuset_getdomain */
 	{ AS(cpuset_setdomain_args), (sy_call_t *)sys_cpuset_setdomain, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 562 = cpuset_setdomain */
 	{ AS(getrandom_args), (sy_call_t *)sys_getrandom, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 563 = getrandom */
+	{ AS(msetdomain_args), (sy_call_t *)sys_msetdomain, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 564 = msetdomain */
 };

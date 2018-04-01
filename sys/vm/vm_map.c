@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/domainset.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -845,6 +846,34 @@ vm_map_entry_create(vm_map_t map)
 	if (new_entry == NULL)
 		panic("vm_map_entry_create: kernel resources exhausted");
 	return (new_entry);
+}
+
+/*
+ *	vm_map_entry_object_allocate:	[ internal use only ]
+ *
+ *	Returns the object associated with a map entry, allocating
+ *	a default object if non presently exists.
+ */
+static vm_object_t
+vm_map_entry_object_allocate(vm_map_t map, vm_map_entry_t entry)
+{
+	vm_object_t object;
+
+	VM_MAP_ASSERT_LOCKED(map);
+	if (entry->object.vm_object != NULL)
+		return (entry->object.vm_object);
+
+	object = vm_object_allocate(OBJT_DEFAULT,
+	    atop(entry->end - entry->start));
+	entry->object.vm_object = object;
+	entry->offset = 0;
+	if (entry->cred != NULL) {
+		object->cred = entry->cred;
+		object->charge = entry->end - entry->start;
+		entry->cred = NULL;
+	}
+
+	return (object);
 }
 
 /*
@@ -1773,16 +1802,7 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 	 */
 	if (entry->object.vm_object == NULL && !map->system_map &&
 	    (entry->eflags & MAP_ENTRY_GUARD) == 0) {
-		vm_object_t object;
-		object = vm_object_allocate(OBJT_DEFAULT,
-				atop(entry->end - entry->start));
-		entry->object.vm_object = object;
-		entry->offset = 0;
-		if (entry->cred != NULL) {
-			object->cred = entry->cred;
-			object->charge = entry->end - entry->start;
-			entry->cred = NULL;
-		}
+		vm_map_entry_object_allocate(map, entry);
 	} else if (entry->object.vm_object != NULL &&
 		   ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) &&
 		   entry->cred != NULL) {
@@ -1853,16 +1873,7 @@ _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 	 */
 	if (entry->object.vm_object == NULL && !map->system_map &&
 	    (entry->eflags & MAP_ENTRY_GUARD) == 0) {
-		vm_object_t object;
-		object = vm_object_allocate(OBJT_DEFAULT,
-				atop(entry->end - entry->start));
-		entry->object.vm_object = object;
-		entry->offset = 0;
-		if (entry->cred != NULL) {
-			object->cred = entry->cred;
-			object->charge = entry->end - entry->start;
-			entry->cred = NULL;
-		}
+		vm_map_entry_object_allocate(map, entry);
 	} else if (entry->object.vm_object != NULL &&
 		   ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) &&
 		   entry->cred != NULL) {
@@ -3449,21 +3460,11 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 
 		case VM_INHERIT_SHARE:
 			/*
-			 * Clone the entry, creating the shared object if necessary.
+			 * Clone the entry, creating the shared object if
+			 * necessary.
 			 */
-			object = old_entry->object.vm_object;
-			if (object == NULL) {
-				object = vm_object_allocate(OBJT_DEFAULT,
-					atop(old_entry->end - old_entry->start));
-				old_entry->object.vm_object = object;
-				old_entry->offset = 0;
-				if (old_entry->cred != NULL) {
-					object->cred = old_entry->cred;
-					object->charge = old_entry->end -
-					    old_entry->start;
-					old_entry->cred = NULL;
-				}
-			}
+			object = vm_map_entry_object_allocate(old_map,
+			    old_entry);
 
 			/*
 			 * Add the reference before calling vm_object_shadow
@@ -4195,16 +4196,7 @@ RetryLookupLocked:
 	    !map->system_map) {
 		if (vm_map_lock_upgrade(map))
 			goto RetryLookup;
-		entry->object.vm_object = vm_object_allocate(OBJT_DEFAULT,
-		    atop(size));
-		entry->offset = 0;
-		if (entry->cred != NULL) {
-			VM_OBJECT_WLOCK(entry->object.vm_object);
-			entry->object.vm_object->cred = entry->cred;
-			entry->object.vm_object->charge = size;
-			VM_OBJECT_WUNLOCK(entry->object.vm_object);
-			entry->cred = NULL;
-		}
+		vm_map_entry_object_allocate(map, entry);
 		vm_map_lock_downgrade(map);
 	}
 
@@ -4313,6 +4305,107 @@ vm_map_lookup_done(vm_map_t map, vm_map_entry_t entry)
 	 * Unlock the main-level map
 	 */
 	vm_map_unlock_read(map);
+}
+
+/*
+ *	vm_map_setdomain:
+ *
+ *	Assigns the NUMA policy contained in 'domain' to all objects
+ *	overlapping the requested address range.
+ */
+int
+vm_map_setdomain(vm_map_t map, vm_offset_t start, vm_offset_t end,
+    struct domainset *domain, int flags)
+{
+	vm_map_entry_t current, entry;
+	vm_object_t object;
+	int error;
+
+	error = KERN_SUCCESS;
+	vm_map_lock(map);
+	if (start < vm_map_min(map) || end > vm_map_max(map) ||
+	    start >= end || map->system_map) {
+		error = KERN_INVALID_ADDRESS;
+		goto out;
+	}
+
+	/*
+	 * Locate starting entry and clip if necessary.
+	 */
+	if (!vm_map_lookup_entry(map, start, &entry)) {
+		error = KERN_INVALID_ADDRESS;
+		goto out;
+	}
+	if (entry->start > start) {
+		error = KERN_INVALID_ADDRESS;
+		goto out;
+	}
+	vm_map_clip_start(map, entry, start);
+
+	/*
+	 * Walk the range looking for holes before we apply policy.
+	 */
+	for (current = entry;
+	     (current != &map->header) && (current->start < end);
+	     current = current->next
+	) {
+		if (current->end >= end)
+			break;
+		/* We don't support gaps. */
+		if (current->end != current->next->start) {
+			error = KERN_INVALID_ADDRESS;
+			goto out;
+		}
+	}
+
+	/*
+	 * Walk each overlapping map entry and update the backing
+	 * object's memory policy.
+	 */
+	for (current = entry;
+	     (current != &map->header) && (current->start < end);
+	     current = current->next
+	) {
+		/* Skip incompatible entries. */
+		if ((current->eflags &
+		    (MAP_ENTRY_GUARD | MAP_ENTRY_IS_SUB_MAP)) != 0)
+			continue;
+
+		/*
+		 * Clip the end and allocate the object so that we are
+		 * only modifying the requested range.
+		 */
+		vm_map_clip_end(map, current, end);
+		object = vm_map_entry_object_allocate(map, current);
+		if (current->eflags & MAP_ENTRY_NEEDS_COPY) {
+			vm_object_shadow(&current->object.vm_object,
+			    &current->offset, current->end - current->start);
+			current->eflags &= ~MAP_ENTRY_NEEDS_COPY;
+			object = current->object.vm_object;
+		}
+
+		/*
+		 * If the object is anonymous memory we need to split it
+		 * so that we can apply the unique alloction property to
+		 * this range.
+		 */
+		VM_OBJECT_WLOCK(object);
+		if (object->type == OBJT_DEFAULT ||
+		    object->type == OBJT_SWAP) {
+			vm_object_collapse(object);
+			if ((object->flags & OBJ_NOSPLIT) == 0) {
+				vm_object_split(current);
+				object = current->object.vm_object;
+			}
+		}
+		object->domain.dr_policy = domain;
+		VM_OBJECT_WUNLOCK(object);
+		vm_map_simplify_entry(map, current);
+	}
+out:
+	vm_map_unlock(map);
+
+	return (error);
 }
 
 #include "opt_ddb.h"

@@ -114,6 +114,7 @@ int	cpuset_getdomain(cpulevel_t, cpuwhich_t, id_t, size_t, domainset_t *,
 	    int *);
 int	cpuset_setdomain(cpulevel_t, cpuwhich_t, id_t, size_t,
 	    const domainset_t *, int);
+int	msetdomain(void *, size_t, size_t, domainset_t *, int, int);
 
 __END_DECLS
 #endif

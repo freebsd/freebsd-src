@@ -1773,6 +1773,14 @@ struct getrandom_args {
 	char buflen_l_[PADL_(size_t)]; size_t buflen; char buflen_r_[PADR_(size_t)];
 	char flags_l_[PADL_(unsigned int)]; unsigned int flags; char flags_r_[PADR_(unsigned int)];
 };
+struct msetdomain_args {
+	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
+	char size_l_[PADL_(size_t)]; size_t size; char size_r_[PADR_(size_t)];
+	char domainsetsize_l_[PADL_(size_t)]; size_t domainsetsize; char domainsetsize_r_[PADR_(size_t)];
+	char mask_l_[PADL_(domainset_t *)]; domainset_t * mask; char mask_r_[PADR_(domainset_t *)];
+	char policy_l_[PADL_(int)]; int policy; char policy_r_[PADR_(int)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_sys_exit(struct thread *, struct sys_exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
@@ -2154,6 +2162,7 @@ int	sys_kevent(struct thread *, struct kevent_args *);
 int	sys_cpuset_getdomain(struct thread *, struct cpuset_getdomain_args *);
 int	sys_cpuset_setdomain(struct thread *, struct cpuset_setdomain_args *);
 int	sys_getrandom(struct thread *, struct getrandom_args *);
+int	sys_msetdomain(struct thread *, struct msetdomain_args *);
 
 #ifdef COMPAT_43
 
@@ -3047,6 +3056,7 @@ int	freebsd11_mknodat(struct thread *, struct freebsd11_mknodat_args *);
 #define	SYS_AUE_cpuset_getdomain	AUE_NULL
 #define	SYS_AUE_cpuset_setdomain	AUE_NULL
 #define	SYS_AUE_getrandom	AUE_NULL
+#define	SYS_AUE_msetdomain	AUE_NULL
 
 #undef PAD_
 #undef PADL_

@@ -1328,7 +1328,6 @@ vm_object_shadow(
 	result->backing_object_offset = *offset;
 	if (source != NULL) {
 		VM_OBJECT_WLOCK(source);
-		result->domain = source->domain;
 		LIST_INSERT_HEAD(&source->shadow_head, result, shadow_list);
 		source->shadow_count++;
 #if VM_NRESERVLEVEL > 0

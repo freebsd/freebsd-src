@@ -1118,5 +1118,9 @@
 				    int policy); }
 563	AUE_NULL	NOPROTO	{ int getrandom(void *buf, size_t buflen, \
 				    unsigned int flags); }
+564     AUE_NULL        NOPROTO	{ int msetdomain(void *addr, \
+				    size_t size, size_t domainsetsize, \
+				    domainset_t *mask, int policy, \
+				    int flags); }
 
 ; vim: syntax=off
