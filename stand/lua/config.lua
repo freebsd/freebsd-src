@@ -205,10 +205,7 @@ local function loadModule(mod, silent)
 	local status = true
 	local pstatus
 	for k, v in pairs(mod) do
-		if v.load == nil then
-			goto continue
-		end
-		if v.load:lower() == "yes" then
+		if v.load ~= nil and v.load:lower() == "yes" then
 			local str = "load "
 			if v.flags ~= nil then
 				str = str .. v.flags .. " "
@@ -247,12 +244,7 @@ local function loadModule(mod, silent)
 				status = status and pstatus
 			end
 
---		else
---			if not silent then
---				print("Skipping module '". . k .. "'")
---			end
 		end
-		::continue::
 	end
 
 	return status
@@ -272,11 +264,8 @@ local function readFile(name, silent)
 	-- We might have read in the whole file, this won't be needed any more.
 	io.close(f)
 
-	if text == nil then
-		if not silent then
-			print(MSG_FAILREADCFG:format(name))
-		end
-		return nil
+	if text == nil and not silent then
+		print(MSG_FAILREADCFG:format(name))
 	end
 	return text
 end
@@ -322,11 +311,7 @@ config.verbose = false
 
 -- The first item in every carousel is always the default item.
 function config.getCarouselIndex(id)
-	local val = carousel_choices[id]
-	if val == nil then
-		return 1
-	end
-	return val
+	return carousel_choices[id] or 1
 end
 
 function config.setCarouselIndex(id, idx)
@@ -498,10 +483,7 @@ function config.load(file)
 
 	-- Cache the provided module_path at load time for later use
 	config.module_path = loader.getenv("module_path")
-	local verbose = loader.getenv("verbose_loading")
-	if verbose == nil then
-		verbose = "no"
-	end
+	local verbose = loader.getenv("verbose_loading") or "no"
 	config.verbose = verbose:lower() == "yes"
 end
 
