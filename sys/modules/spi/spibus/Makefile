@@ -13,6 +13,7 @@ SRCS+=	ofw_spibus.c ofw_bus_if.h
 SRCS+=	\
 	bus_if.h \
 	device_if.h \
+	opt_platform.h \
 	spibus_if.c \
 	spibus_if.h \
 
