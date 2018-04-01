@@ -74,7 +74,7 @@
 #define		FW_DEVICE_R5C551	(0x0551 << 16)
 #define		FW_DEVICE_R5C552	(0x0552 << 16)
 #define		FW_DEVICE_PANGEA	(0x0030 << 16)
-#define		FW_DEVICE_UNINORTH	(0x0031 << 16)
+#define		FW_DEVICE_UNINORTH2	(0x0031 << 16)
 #define		FW_DEVICE_AIC5800	(0x5800 << 16)
 #define		FW_DEVICE_FW322		(0x5811 << 16)
 #define		FW_DEVICE_7007		(0x7007 << 16)
