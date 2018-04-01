@@ -286,6 +286,10 @@ uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
 					 * NUMA aware Zone.  Implements a best
 					 * effort first-touch policy.
 					 */
+#define	UMA_ZONE_NOBUCKETCACHE	0x20000	/*
+					 * Don't cache full buckets.  Limit
+					 * UMA to per-cpu state.
+					 */
 
 /*
  * These flags are shared between the keg and zone.  In zones wishing to add
