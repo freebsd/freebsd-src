@@ -653,7 +653,7 @@ amd_thresholding_update(enum scan_mode mode, int bank, int valid)
  * count of the number of valid MC records found.
  */
 static int
-mca_scan(enum scan_mode mode)
+mca_scan(enum scan_mode mode, int *recoverablep)
 {
 	struct mca_record rec;
 	uint64_t mcg_cap, ucmask;
@@ -704,7 +704,9 @@ mca_scan(enum scan_mode mode)
 	}
 	if (mode == POLLED)
 		mca_fill_freelist();
-	return (mode == MCE ? recoverable : count);
+	if (recoverablep != NULL)
+		*recoverablep = recoverable;
+	return (count);
 }
 
 /*
@@ -726,7 +728,7 @@ mca_scan_cpus(void *context, int pending)
 	CPU_FOREACH(cpu) {
 		sched_bind(td, cpu);
 		thread_unlock(td);
-		count += mca_scan(POLLED);
+		count += mca_scan(POLLED, NULL);
 		thread_lock(td);
 		sched_unbind(td);
 	}
@@ -1150,7 +1152,7 @@ void
 mca_intr(void)
 {
 	uint64_t mcg_status;
-	int old_count, recoverable;
+	int recoverable, count;
 
 	if (!(cpu_feature & CPUID_MCA)) {
 		/*
@@ -1164,20 +1166,18 @@ mca_intr(void)
 	}
 
 	/* Scan the banks and check for any non-recoverable errors. */
-	old_count = mca_count;
-	recoverable = mca_scan(MCE);
+	count = mca_scan(MCE, &recoverable);
 	mcg_status = rdmsr(MSR_MCG_STATUS);
 	if (!(mcg_status & MCG_STATUS_RIPV))
 		recoverable = 0;
 
 	if (!recoverable) {
 		/*
-		 * Wait for at least one error to be logged before
-		 * panic'ing.  Some errors will assert a machine check
-		 * on all CPUs, but only certain CPUs will find a valid
-		 * bank to log.
+		 * Only panic if the error was detected local to this CPU.
+		 * Some errors will assert a machine check on all CPUs, but
+		 * only certain CPUs will find a valid bank to log.
 		 */
-		while (mca_count == old_count)
+		while (count == 0)
 			cpu_spinwait();
 
 		panic("Unrecoverable machine check exception");
@@ -1199,7 +1199,7 @@ cmc_intr(void)
 	 * Serialize MCA bank scanning to prevent collisions from
 	 * sibling threads.
 	 */
-	count = mca_scan(CMCI);
+	count = mca_scan(CMCI, NULL);
 
 	/* If we found anything, log them to the console. */
 	if (count != 0) {
