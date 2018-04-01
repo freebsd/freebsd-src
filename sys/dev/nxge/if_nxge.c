@@ -1366,12 +1366,13 @@ xge_ioctl_stats(xge_lldev_t *lldev, struct ifreq *ifreqp)
 	xge_hal_status_e status = XGE_HAL_OK;
 	char cmd, mode;
 	void *info = NULL;
-	int retValue = EINVAL;
+	int retValue;
 
-	cmd = fubyte(ifr_data_get_ptr(ifreqp));
-	if (cmd == -1)
+	cmd = retValue = fubyte(ifr_data_get_ptr(ifreqp));
+	if (retValue == -1)
 		return (EFAULT);
 
+	retValue = EINVAL;
 	switch(cmd) {
 	    case XGE_QUERY_STATS:
 	        mtx_lock(&lldev->mtx_drv);
