@@ -186,6 +186,9 @@ static int vm_page_reclaim_run(int req_class, int domain, u_long npages,
     vm_page_t m_run, vm_paddr_t high);
 static int vm_domain_alloc_fail(struct vm_domain *vmd, vm_object_t object,
     int req);
+static int vm_page_import(void *arg, void **store, int cnt, int domain,
+    int flags);
+static void vm_page_release(void *arg, void **store, int cnt);
 
 SYSINIT(vm_page, SI_SUB_VM, SI_ORDER_SECOND, vm_page_init, NULL);
 
@@ -198,6 +201,32 @@ vm_page_init(void *dummy)
 	bogus_page = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ |
 	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
 }
+
+/*
+ * The cache page zone is initialized later since we need to be able to allocate
+ * pages before UMA is fully initialized.
+ */
+static void
+vm_page_init_cache_zones(void *dummy __unused)
+{
+	struct vm_domain *vmd;
+	int i;
+
+	for (i = 0; i < vm_ndomains; i++) {
+		vmd = VM_DOMAIN(i);
+		/*
+		 * Don't allow the page cache to take up more than .25% of
+		 * memory.
+		 */
+		if (vmd->vmd_page_count / 400 < 256 * mp_ncpus)
+			continue;
+		vmd->vmd_pgcache = uma_zcache_create("vm pgcache",
+		    sizeof(struct vm_page), NULL, NULL, NULL, NULL,
+		    vm_page_import, vm_page_release, vmd,
+		    UMA_ZONE_NOBUCKETCACHE | UMA_ZONE_MAXBUCKET | UMA_ZONE_VM);
+	}
+}
+SYSINIT(vm_page2, SI_SUB_VM_CONF, SI_ORDER_ANY, vm_page_init_cache_zones, NULL);
 
 /* Make sure that u_long is at least 64 bits when PAGE_SIZE is 32K. */
 #if PAGE_SIZE == 32768
@@ -1753,6 +1782,11 @@ again:
 	}
 #endif
 	vmd = VM_DOMAIN(domain);
+	if (object != NULL && vmd->vmd_pgcache != NULL) {
+		m = uma_zalloc(vmd->vmd_pgcache, M_NOWAIT);
+		if (m != NULL)
+			goto found;
+	}
 	if (vm_domain_allocate(vmd, req, 1)) {
 		/*
 		 * If not, allocate it from the free page queues.
@@ -1783,9 +1817,7 @@ again:
 	 */
 	KASSERT(m != NULL, ("missing page"));
 
-#if VM_NRESERVLEVEL > 0
 found:
-#endif
 	vm_page_alloc_check(m);
 
 	/*
@@ -2148,6 +2180,52 @@ again:
 	/* Unmanaged pages don't use "act_count". */
 	m->oflags = VPO_UNMANAGED;
 	return (m);
+}
+
+static int
+vm_page_import(void *arg, void **store, int cnt, int domain, int flags)
+{
+	struct vm_domain *vmd;
+	vm_page_t m;
+	int i, j, n;
+
+	vmd = arg;
+	/* Only import if we can bring in a full bucket. */
+	if (cnt == 1 || !vm_domain_allocate(vmd, VM_ALLOC_NORMAL, cnt))
+		return (0);
+	domain = vmd->vmd_domain;
+	n = 64;	/* Starting stride, arbitrary. */
+	vm_domain_free_lock(vmd);
+	for (i = 0; i < cnt; i+=n) {
+		n = vm_phys_alloc_npages(domain, VM_FREELIST_DEFAULT, &m,
+		    MIN(n, cnt-i));
+		if (n == 0)
+			break;
+		for (j = 0; j < n; j++)
+			store[i+j] = m++;
+	}
+	vm_domain_free_unlock(vmd);
+	if (cnt != i)
+		vm_domain_freecnt_inc(vmd, cnt - i);
+
+	return (i);
+}
+
+static void
+vm_page_release(void *arg, void **store, int cnt)
+{
+	struct vm_domain *vmd;
+	vm_page_t m;
+	int i;
+
+	vmd = arg;
+	vm_domain_free_lock(vmd);
+	for (i = 0; i < cnt; i++) {
+		m = (vm_page_t)store[i];
+		vm_phys_free_pages(m, 0);
+	}
+	vm_domain_free_unlock(vmd);
+	vm_domain_freecnt_inc(vmd, cnt);
 }
 
 #define	VPSC_ANY	0	/* No restrictions. */
@@ -3222,7 +3300,12 @@ vm_page_free_toq(vm_page_t m)
 
 	if (!vm_page_free_prep(m, false))
 		return;
+
 	vmd = vm_pagequeue_domain(m);
+	if (m->pool == VM_FREEPOOL_DEFAULT && vmd->vmd_pgcache != NULL) {
+		uma_zfree(vmd->vmd_pgcache, m);
+		return;
+	}
 	vm_domain_free_lock(vmd);
 	vm_phys_free_pages(m, 0);
 	vm_domain_free_unlock(vmd);
@@ -3243,22 +3326,17 @@ void
 vm_page_free_pages_toq(struct spglist *free, bool update_wire_count)
 {
 	vm_page_t m;
-	struct pglist pgl;
 	int count;
 
 	if (SLIST_EMPTY(free))
 		return;
 
 	count = 0;
-	TAILQ_INIT(&pgl);
 	while ((m = SLIST_FIRST(free)) != NULL) {
 		count++;
 		SLIST_REMOVE_HEAD(free, plinks.s.ss);
-		if (vm_page_free_prep(m, false))
-			TAILQ_INSERT_TAIL(&pgl, m, listq);
+		vm_page_free_toq(m);
 	}
-
-	vm_page_free_phys_pglist(&pgl);
 
 	if (update_wire_count)
 		vm_wire_sub(count);

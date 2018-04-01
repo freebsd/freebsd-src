@@ -624,6 +624,26 @@ vm_phys_alloc_pages(int domain, int pool, int order)
 	return (NULL);
 }
 
+int
+vm_phys_alloc_npages(int domain, int pool, vm_page_t *mp, int cnt)
+{
+	vm_page_t m;
+	int order, freelist;
+
+	for (freelist = 0; freelist < VM_NFREELIST; freelist++) {
+		for (order = fls(cnt) -1; order >= 0; order--) {
+			m = vm_phys_alloc_freelist_pages(domain, freelist,
+			    pool, order);
+			if (m != NULL) {
+				*mp = m;
+				return (1 << order);
+			}
+		}
+	}
+	*mp = NULL;
+	return (0);
+}
+
 /*
  * Allocate a contiguous, power of two-sized set of physical pages from the
  * specified free list.  The free list must be specified using one of the
