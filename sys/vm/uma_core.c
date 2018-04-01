@@ -2965,7 +2965,13 @@ zfree_start:
 		/* ub_cnt is pointing to the last free item */
 		KASSERT(bucket->ub_cnt != 0,
 		    ("uma_zfree: Attempting to insert an empty bucket onto the full list.\n"));
-		LIST_INSERT_HEAD(&zdom->uzd_buckets, bucket, ub_link);
+		if ((zone->uz_flags & UMA_ZONE_NOBUCKETCACHE) != 0) {
+			ZONE_UNLOCK(zone);
+			bucket_drain(zone, bucket);
+			bucket_free(zone, bucket, udata);
+			goto zfree_restart;
+		} else
+			LIST_INSERT_HEAD(&zdom->uzd_buckets, bucket, ub_link);
 	}
 
 	/*
