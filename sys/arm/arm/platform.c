@@ -188,6 +188,20 @@ platform_late_init(void)
 	PLATFORM_LATE_INIT(plat_obj);
 }
 
+void
+cpu_reset(void)
+{
+
+	PLATFORM_CPU_RESET(plat_obj);
+
+	printf("cpu_reset failed");
+
+	intr_disable();
+	while(1) {
+		cpu_sleep(0);
+	}
+}
+
 #ifdef MULTIDELAY
 static void
 platform_delay(int usec, void *arg __unused)
