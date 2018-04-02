@@ -1015,14 +1015,16 @@ vm_pageout_laundry_worker(void *arg)
 		 * clean pages freed by the page daemon since the last
 		 * background laundering.  Thus, as the ratio of dirty to
 		 * clean inactive pages grows, the amount of memory pressure
-		 * required to trigger laundering decreases.
+		 * required to trigger laundering decreases.  We ensure
+		 * that the threshold is non-zero after an inactive queue
+		 * scan, even if that scan failed to free a single clean page.
 		 */
 trybackground:
 		nclean = vmd->vmd_free_count +
 		    vmd->vmd_pagequeues[PQ_INACTIVE].pq_cnt;
 		ndirty = vmd->vmd_pagequeues[PQ_LAUNDRY].pq_cnt;
-		if (target == 0 && ndirty * isqrt(nfreed /
-		    (vmd->vmd_free_target - vmd->vmd_free_min)) >= nclean) {
+		if (target == 0 && ndirty * isqrt(howmany(nfreed + 1,
+		    vmd->vmd_free_target - vmd->vmd_free_min)) >= nclean) {
 			target = vmd->vmd_background_launder_target;
 		}
 
