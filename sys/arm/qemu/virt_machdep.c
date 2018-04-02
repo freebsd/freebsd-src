@@ -44,13 +44,6 @@ __FBSDID("$FreeBSD$");
 
 #include "platform_if.h"
 
-void
-cpu_reset(void)
-{
-
-	while (1);
-}
-
 static vm_offset_t
 virt_lastaddr(platform_t plat)
 {
