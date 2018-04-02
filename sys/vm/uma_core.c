@@ -1828,9 +1828,11 @@ uma_startup_count(int vm_zones)
 #endif
 
 	/* Memory for the rest of startup zones, UMA and VM, ... */
-	if (zsize > UMA_SLAB_SIZE)
+	if (zsize > UMA_SLAB_SPACE)
 		pages += (zones + vm_zones) *
 		    howmany(roundup2(zsize, UMA_BOOT_ALIGN), UMA_SLAB_SIZE);
+	else if (roundup2(zsize, UMA_BOOT_ALIGN) > UMA_SLAB_SPACE)
+		pages += zones;
 	else
 		pages += howmany(zones,
 		    UMA_SLAB_SPACE / roundup2(zsize, UMA_BOOT_ALIGN));
