@@ -104,41 +104,35 @@
 #define CK_CC_TYPEOF(X, DEFAULT) (DEFAULT)
 #endif
 
+#define CK_F_CC_FFS_G(L, T)				\
+CK_CC_INLINE static int					\
+ck_cc_##L(T v)						\
+{							\
+	unsigned int i;					\
+							\
+	if (v == 0)					\
+		return 0;				\
+							\
+	for (i = 1; (v & 1) == 0; i++, v >>= 1);	\
+	return i;					\
+}
+
 #ifndef CK_F_CC_FFS
 #define CK_F_CC_FFS
-CK_CC_INLINE static int
-ck_cc_ffs(unsigned int x)
-{
-	unsigned int i;
+CK_F_CC_FFS_G(ffs, unsigned int)
+#endif /* CK_F_CC_FFS */
 
-	if (x == 0)
-		return 0;
+#ifndef CK_F_CC_FFSL
+#define CK_F_CC_FFSL
+CK_F_CC_FFS_G(ffsl, unsigned long)
+#endif /* CK_F_CC_FFSL */
 
-	for (i = 1; (x & 1) == 0; i++, x >>= 1);
+#ifndef CK_F_CC_FFSLL
+#define CK_F_CC_FFSLL
+CK_F_CC_FFS_G(ffsll, unsigned long long)
+#endif /* CK_F_CC_FFSLL */
 
-	return i;
-}
-#endif
-
-#ifndef CK_F_CC_CLZ
-#define CK_F_CC_CLZ
-#include <ck_limits.h>
-
-CK_CC_INLINE static int
-ck_cc_clz(unsigned int x)
-{
-	unsigned int count, i;
-
-	for (count = 0, i = sizeof(unsigned int) * CHAR_BIT; i > 0; count++) {
-		unsigned int bit = 1U << --i;
-
-		if (x & bit)
-			break;
-	}
-
-	return count;
-}
-#endif
+#undef CK_F_CC_FFS_G
 
 #ifndef CK_F_CC_CTZ
 #define CK_F_CC_CTZ
@@ -151,7 +145,6 @@ ck_cc_ctz(unsigned int x)
 		return 0;
 
 	for (i = 0; (x & 1) == 0; i++, x >>= 1);
-
 	return i;
 }
 #endif
