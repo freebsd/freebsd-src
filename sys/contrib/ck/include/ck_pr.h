@@ -43,6 +43,8 @@
 #include "gcc/sparcv9/ck_pr.h"
 #elif defined(__ppc64__)
 #include "gcc/ppc64/ck_pr.h"
+#elif defined(__s390x__)
+#include "gcc/s390x/ck_pr.h"
 #elif defined(__ppc__)
 #include "gcc/ppc/ck_pr.h"
 #elif defined(__arm__)
