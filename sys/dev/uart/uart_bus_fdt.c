@@ -123,7 +123,7 @@ uart_fdt_find_compatible(phandle_t node, const struct ofw_compat_data *cd)
 	const struct ofw_compat_data *ocd;
 
 	for (ocd = cd; ocd->ocd_str != NULL; ocd++) {
-		if (fdt_is_compatible(node, ocd->ocd_str))
+		if (ofw_bus_node_is_compatible(node, ocd->ocd_str))
 			return (ocd);
 	}
 	return (NULL);

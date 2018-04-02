@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/include/platformvar.h>
 
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/fdt/fdt_common.h>
 
 #include "platform_if.h"
@@ -58,7 +59,7 @@ fdt_platform_probe(platform_t plat)
 	/* Is the device is compatible? */
 	root = OF_finddevice("/");
 	compat = FDT_PLATFORM(plat)->fdt_compatible;
-	if (fdt_is_compatible(root, compat) != 0)
+	if (ofw_bus_node_is_compatible(root, compat) != 0)
 		return 0;
 
 	/* Not compatible, return an error */
