@@ -1481,7 +1481,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	if (keg->uk_flags & UMA_ZONE_CACHESPREAD) {
 		keg_cachespread_init(keg);
 	} else {
-		if (keg->uk_size > (UMA_SLAB_SIZE - sizeof(struct uma_slab)))
+		if (keg->uk_size > UMA_SLAB_SPACE)
 			keg_large_init(keg);
 		else
 			keg_small_init(keg);
