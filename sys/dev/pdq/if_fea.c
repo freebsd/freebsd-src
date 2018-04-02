@@ -234,6 +234,7 @@ pdq_eisa_attach (dev)
 		return (error);
 	}
 
+	gone_in_dev(dev, 12, "fea(4) driver");
 	return (0);
 bad:
 	pdq_free(dev);
