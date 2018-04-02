@@ -623,13 +623,14 @@ cpu_reset()
 				ia32_pause();
 				cnt++;	/* Wait for BSP to announce restart */
 			}
-			if (cpu_reset_proxy_active == 0)
+			if (cpu_reset_proxy_active == 0) {
 				printf("cpu_reset: Failed to restart BSP\n");
-			cpu_reset_proxy_active = 2;
-
-			while (1)
-				ia32_pause();
-			/* NOTREACHED */
+			} else {
+				cpu_reset_proxy_active = 2;
+				while (1)
+					ia32_pause();
+				/* NOTREACHED */
+			}
 		}
 
 		DELAY(1000000);
