@@ -581,14 +581,11 @@ kvtop(void *addr)
 static void
 cpu_reset_proxy()
 {
-	cpuset_t tcrp;
 
 	cpu_reset_proxy_active = 1;
 	while (cpu_reset_proxy_active == 1)
 		ia32_pause(); /* Wait for other cpu to see that we've started */
 
-	CPU_SETOF(cpu_reset_proxyid, &tcrp);
-	stop_cpus(tcrp);
 	printf("cpu_reset_proxy: Stopped CPU %d\n", cpu_reset_proxyid);
 	DELAY(1000000);
 	cpu_reset_real();
@@ -628,7 +625,6 @@ cpu_reset()
 			}
 			if (cpu_reset_proxy_active == 0)
 				printf("cpu_reset: Failed to restart BSP\n");
-			enable_intr();
 			cpu_reset_proxy_active = 2;
 
 			while (1)
