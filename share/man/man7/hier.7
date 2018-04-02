@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 27, 2018
+.Dd April 2, 2018
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -84,7 +84,7 @@ comments apply
 device special files managed by
 .Xr devfs 5
 .Pp
-.Bl -tag -width "net/" -compact
+.Bl -tag -width "defaults/" -compact
 .It Pa fd/
 file descriptor files;
 see
@@ -93,7 +93,7 @@ see
 .It Pa /etc/
 system configuration files and scripts
 .Pp
-.Bl -tag -width "bluetooth/" -compact
+.Bl -tag -width "defaults/" -compact
 .It Pa defaults/
 default system configuration files;
 see
@@ -143,7 +143,7 @@ critical system libraries needed for binaries in
 and
 .Pa /sbin
 .Pp
-.Bl -tag -width "geom/" -compact
+.Bl -tag -width "defaults/" -compact
 .It Pa geom/
 class-specific libraries for the
 .Xr geom 8
@@ -183,7 +183,7 @@ temporary files that are not guaranteed to persist across system reboots
 .It Pa /usr/
 contains the majority of user utilities and applications
 .Pp
-.Bl -tag -width "libdata/" -compact
+.Bl -tag -width "defaults/" -compact
 .It Pa bin/
 common utilities, programming tools, and applications
 .It Pa compat/
@@ -264,7 +264,6 @@ RAID3 GEOM class
 .It Pa stripe/
 STRIPE GEOM class
 .El
-.Pp
 .It Pa libmilter/
 C include files for libmilter,
 the
@@ -274,7 +273,7 @@ mail filter API
 machine-specific C include files
 .It Pa net/
 miscellaneous network C include files
-.Bl -tag -width "altq/" -compact
+.Bl -tag -width Fl -compact
 .It Pa altq/
 C include files for alternate queueing
 .El
@@ -342,6 +341,7 @@ see
 shared and archive
 .Xr ar 1 Ns -type
 libraries
+.Pp
 .Bl -tag -width Fl -compact
 .It Pa aout/
 a.out archive libraries
@@ -361,6 +361,7 @@ OpenSSL (Cryptography/SSL toolkit) dynamically loadable engines
 .Pp
 .It Pa libdata/
 miscellaneous utility data files
+.Pp
 .Bl -tag -width Fl -compact
 .It Pa gcc/
 .Xr gcc 1
@@ -373,6 +374,7 @@ see
 .Pp
 .It Pa libexec/
 system daemons & system utilities (executed by other programs)
+.Pp
 .Bl -tag -width Fl -compact
 .It Pa aout/
 utilities to manipulate a.out executables
@@ -435,7 +437,7 @@ system daemons & system utilities (executed by users)
 .It Pa share/
 architecture-independent files
 .Pp
-.Bl -tag -width "calendar/" -compact
+.Bl -tag -width Fl -compact
 .It Pa calendar/
 a variety of pre-fab calendar files;
 see
@@ -444,7 +446,6 @@ see
 word lists;
 see
 .Xr look 1
-.Pp
 .Bl -tag -width Fl -compact
 .It Pa freebsd
 .Fx Ns -specific
@@ -452,7 +453,6 @@ terms, proper names, and jargon
 .It Pa web2
 words from Webster's 2nd International
 .El
-.Pp
 .It Pa doc/
 miscellaneous documentation;
 source for most of the printed
@@ -489,7 +489,6 @@ tutorials
 .It Pa zh/
 Chinese translations of documents in /usr/share/doc
 .El
-.Pp
 .It Pa examples/
 various examples for users and programmers
 .It Pa firmware/
@@ -498,14 +497,13 @@ firmware images loaded by userland programs
 ASCII text files used by various games
 .It Pa keys/
 known trusted and revoked keys.
-.Bl -tag -width "pkg/" -compact
+.Bl -tag -width Fl -compact
 .It Pa pkg/
 fingerprints for
 .Xr pkg 7
 and
 .Xr pkg 8
 .El
-.Pp
 .It Pa locale/
 localization files;
 see
@@ -553,7 +551,7 @@ MIB files
 files used by syscons;
 see
 .Xr syscons 4
-.Bl -tag -width "scrnmaps/" -compact
+.Bl -tag -width Fl -compact
 .It Pa fonts/
 console fonts;
 see
@@ -581,7 +579,7 @@ localization support and utilities for
 files used by vt;
 see
 .Xr vt 4
-.Bl -tag -width "scrnmaps/" -compact
+.Bl -tag -width Fl -compact
 .It Pa fonts/
 console fonts;
 see
@@ -602,6 +600,7 @@ timezone configuration information;
 see
 .Xr tzfile 5
 .El
+.Pp
 .It Pa src/
 .Bx ,
 third-party, and/or local source files
@@ -653,7 +652,7 @@ source for files in
 boot loader source code
 .It Pa sys/
 kernel source code
-.Bl -tag -width "opencrypto/" -compact
+.Bl -tag -width Fl -compact
 .It Pa amd64/
 AMD64 architecture support
 .It Pa arm/
@@ -741,7 +740,7 @@ for more details.
 .It Pa /var/
 multi-purpose log, temporary, transient, and spool files
 .Pp
-.Bl -tag -width "preserve/" -compact
+.Bl -tag -width "defaults/" -compact
 .It Pa account/
 system accounting files
 .Pp
@@ -756,7 +755,8 @@ see
 timed command scheduling files;
 see
 .Xr \&at 1
-.Bl -tag -width "preserve/" -compact
+.Pp
+.Bl -tag -width Fl -compact
 .It Pa jobs/
 directory containing job files
 .It Pa spool/
@@ -767,7 +767,8 @@ directory containing output spool files
 miscellaneous backup files
 .It Pa cache/
 miscellaneous cached files
-.Bl -tag -width "pkg/" -compact
+.Pp
+.Bl -tag -width Fl -compact
 .It Pa pkg/
 cached packages for
 .Xr pkg 8
@@ -782,7 +783,8 @@ and
 files used by cron;
 see
 .Xr cron 8
-.Bl -tag -width "preserve/" -compact
+.Pp
+.Bl -tag -width Fl -compact
 .It Pa tabs/
 crontab files;
 see
@@ -871,10 +873,12 @@ line printer spooling directories
 .Pp
 .It Pa tmp/
 temporary files that are kept between system reboots
+.Pp
 .Bl -tag -width Fl -compact
 .It Pa vi.recover/
 the directory where recovery files are stored
 .El
+.Pp
 .It Pa yp/
 the NIS maps
 .El
