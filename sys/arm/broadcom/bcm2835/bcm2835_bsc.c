@@ -107,6 +107,7 @@ __FBSDID("$FreeBSD$");
 static struct ofw_compat_data compat_data[] = {
 	{"broadcom,bcm2835-bsc",	1},
 	{"brcm,bcm2708-i2c",		1},
+	{"brcm,bcm2835-i2c",		1},
 	{NULL,				0}
 };
 
