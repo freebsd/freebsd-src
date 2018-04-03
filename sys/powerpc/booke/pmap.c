@@ -1724,7 +1724,11 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	debugf("mmu_booke_bootstrap: entered\n");
 
 	/* Set interesting system properties */
+#ifdef __powerpc64__
+	hw_direct_map = 1;
+#else
 	hw_direct_map = 0;
+#endif
 #if defined(COMPAT_FREEBSD32) || !defined(__powerpc64__)
 	elf32_nxstack = 1;
 #endif
@@ -1970,6 +1974,15 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	debugf("phys_avail_count = %d\n", phys_avail_count);
 	debugf("physsz = 0x%09jx physmem = %jd (0x%09jx)\n",
 	    (uintmax_t)physsz, (uintmax_t)physmem, (uintmax_t)physmem);
+
+#ifdef __powerpc64__
+	/*
+	 * Map the physical memory contiguously in TLB1.
+	 * Round so it fits into a single mapping.
+	 */
+	tlb1_mapin_region(DMAP_BASE_ADDRESS, 0,
+	    phys_avail[i + 1]);
+#endif
 
 	/*******************************************************/
 	/* Initialize (statically allocated) kernel pmap. */
