@@ -85,7 +85,7 @@
 		};
 
 		timer@21840 {
-			compatible = "mrvl,timer";
+			compatible = "marvell,armada-xp-timer";
 			reg = <0x21840 0x30>;
 			interrupts = <5>;
 			interrupt-parent = <&MPIC>;
