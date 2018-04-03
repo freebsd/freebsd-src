@@ -119,7 +119,7 @@ pinctrl_configure_children(device_t pinctrl, phandle_t parent)
 	int i, nconfigs;
 
 	for (node = OF_child(parent); node != 0; node = OF_peer(node)) {
-		if (!fdt_is_enabled(node))
+		if (!ofw_bus_node_status_okay(node))
 			continue;
 		pinctrl_configure_children(pinctrl, node);
 		nconfigs = OF_getencprop_alloc(node, "pinctrl-0",
