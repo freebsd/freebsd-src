@@ -308,6 +308,9 @@ struct mv_pcib_softc {
 	int		sc_type;
 	int		sc_mode;		/* Endpoint / Root Complex */
 
+	int		sc_msi_supported;
+	int		sc_skip_enable_procedure;
+	int		sc_enable_find_root_slot;
 	struct ofw_bus_iinfo	sc_pci_iinfo;
 };
 
@@ -341,11 +344,10 @@ static uint32_t mv_pcib_read_config(device_t, u_int, u_int, u_int, u_int, int);
 static void mv_pcib_write_config(device_t, u_int, u_int, u_int, u_int,
     uint32_t, int);
 static int mv_pcib_route_interrupt(device_t, device_t, int);
-#if defined(SOC_MV_ARMADAXP)
+
 static int mv_pcib_alloc_msi(device_t, device_t, int, int, int *);
 static int mv_pcib_map_msi(device_t, device_t, int, uint64_t *, uint32_t *);
 static int mv_pcib_release_msi(device_t, device_t, int, int *);
-#endif
 
 /*
  * Bus interface definitions.
@@ -371,11 +373,10 @@ static device_method_t mv_pcib_methods[] = {
 	DEVMETHOD(pcib_write_config,		mv_pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,		mv_pcib_route_interrupt),
 	DEVMETHOD(pcib_request_feature,		pcib_request_feature_allow),
-#if defined(SOC_MV_ARMADAXP)
+
 	DEVMETHOD(pcib_alloc_msi,		mv_pcib_alloc_msi),
 	DEVMETHOD(pcib_release_msi,		mv_pcib_release_msi),
 	DEVMETHOD(pcib_map_msi,			mv_pcib_map_msi),
-#endif
 
 	/* OFW bus interface */
 	DEVMETHOD(ofw_bus_get_compat,   ofw_bus_gen_get_compat),
@@ -442,9 +443,19 @@ mv_pcib_attach(device_t self)
 
 	if (ofw_bus_node_is_compatible(node, "mrvl,pcie")) {
 		sc->sc_type = MV_TYPE_PCIE;
-		sc->sc_win_target = MV_WIN_PCIE_TARGET(port_id);
-		sc->sc_mem_win_attr = MV_WIN_PCIE_MEM_ATTR(port_id);
-		sc->sc_io_win_attr = MV_WIN_PCIE_IO_ATTR(port_id);
+		if (ofw_bus_node_is_compatible(parnode, "marvell,armada-370-pcie")) {
+			sc->sc_win_target = MV_WIN_PCIE_TARGET_ARMADA38X(port_id);
+			sc->sc_mem_win_attr = MV_WIN_PCIE_MEM_ATTR_ARMADA38X(port_id);
+			sc->sc_io_win_attr = MV_WIN_PCIE_IO_ATTR_ARMADA38X(port_id);
+			sc->sc_enable_find_root_slot = 1;
+		} else {
+			sc->sc_win_target = MV_WIN_PCIE_TARGET(port_id);
+			sc->sc_mem_win_attr = MV_WIN_PCIE_MEM_ATTR(port_id);
+			sc->sc_io_win_attr = MV_WIN_PCIE_IO_ATTR(port_id);
+#if __ARM_ARCH >= 6
+			sc->sc_skip_enable_procedure = 1;
+#endif
+		}
 	} else if (ofw_bus_node_is_compatible(node, "mrvl,pci")) {
 		sc->sc_type = MV_TYPE_PCI;
 		sc->sc_win_target = MV_WIN_PCI_TARGET;
@@ -541,8 +552,10 @@ static void
 mv_pcib_enable(struct mv_pcib_softc *sc, uint32_t unit)
 {
 	uint32_t val;
-#if !defined(SOC_MV_ARMADAXP)
 	int timeout;
+
+	if (sc->sc_skip_enable_procedure)
+		goto pcib_enable_root_mode;
 
 	/*
 	 * Check if PCIE device is enabled.
@@ -561,9 +574,8 @@ mv_pcib_enable(struct mv_pcib_softc *sc, uint32_t unit)
 			    PCIE_REG_STATUS);
 		}
 	}
-#endif
 
-
+pcib_enable_root_mode:
 	if (sc->sc_mode == MV_MODE_ROOT) {
 		/*
 		 * Enable PCI bridge.
@@ -1042,9 +1054,12 @@ mv_pcib_maxslots(device_t dev)
 static int
 mv_pcib_root_slot(device_t dev, u_int bus, u_int slot, u_int func)
 {
-#if defined(SOC_MV_ARMADA38X)
 	struct mv_pcib_softc *sc = device_get_softc(dev);
 	uint32_t vendor, device;
+
+/* On platforms other than Armada38x, root link is always at slot 0 */
+	if (!sc->sc_enable_find_root_slot)
+		return (slot == 0);
 
 	vendor = mv_pcib_hw_cfgread(sc, bus, slot, func, PCIR_VENDOR,
 	    PCIR_VENDOR_LENGTH);
@@ -1052,10 +1067,6 @@ mv_pcib_root_slot(device_t dev, u_int bus, u_int slot, u_int func)
 	    PCIR_DEVICE_LENGTH) & MV_DEV_FAMILY_MASK;
 
 	return (vendor == PCI_VENDORID_MRVL && device == MV_DEV_ARMADA38X);
-#else
-	/* On platforms other than Armada38x, root link is always at slot 0 */
-	return (slot == 0);
-#endif
 }
 
 static uint32_t
@@ -1159,7 +1170,6 @@ mv_pcib_decode_win(phandle_t node, struct mv_pcib_softc *sc)
 	return (0);
 }
 
-#if defined(SOC_MV_ARMADAXP)
 static int
 mv_pcib_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
     uint32_t *data)
@@ -1167,6 +1177,9 @@ mv_pcib_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
 	struct mv_pcib_softc *sc;
 
 	sc = device_get_softc(dev);
+	if (!sc->sc_msi_supported)
+		return (ENOTSUP);
+
 	irq = irq - MSI_IRQ;
 
 	/* validate parameters */
@@ -1175,7 +1188,9 @@ mv_pcib_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
 		return (EINVAL);
 	}
 
+#if __ARM_ARCH >= 6 
 	mv_msi_data(irq, addr, data);
+#endif
 
 	debugf("%s: irq: %d addr: %jx data: %x\n",
 	    __func__, irq, *addr, *data);
@@ -1190,10 +1205,13 @@ mv_pcib_alloc_msi(device_t dev, device_t child, int count,
 	struct mv_pcib_softc *sc;
 	u_int start = 0, i;
 
+	sc = device_get_softc(dev);
+	if (!sc->sc_msi_supported)
+		return (ENOTSUP);
+
 	if (powerof2(count) == 0 || count > MSI_IRQ_NUM)
 		return (EINVAL);
 
-	sc = device_get_softc(dev);
 	mtx_lock(&sc->sc_msi_mtx);
 
 	for (start = 0; (start + count) < MSI_IRQ_NUM; start++) {
@@ -1227,6 +1245,9 @@ mv_pcib_release_msi(device_t dev, device_t child, int count, int *irqs)
 	u_int i;
 
 	sc = device_get_softc(dev);
+	if(!sc->sc_msi_supported)
+		return (ENOTSUP);
+
 	mtx_lock(&sc->sc_msi_mtx);
 
 	for (i = 0; i < count; i++)
@@ -1235,5 +1256,3 @@ mv_pcib_release_msi(device_t dev, device_t child, int count, int *irqs)
 	mtx_unlock(&sc->sc_msi_mtx);
 	return (0);
 }
-#endif
-
