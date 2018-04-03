@@ -335,28 +335,6 @@ fdt_depth_search_compatible(phandle_t start, const char *compat, int strict)
 }
 
 int
-fdt_is_enabled(phandle_t node)
-{
-	char *stat;
-	int ena, len;
-
-	len = OF_getprop_alloc(node, "status", sizeof(char),
-	    (void **)&stat);
-
-	if (len <= 0)
-		/* It is OK if no 'status' property. */
-		return (1);
-
-	/* Anything other than 'okay' means disabled. */
-	ena = 0;
-	if (strncmp((char *)stat, "okay", len) == 0)
-		ena = 1;
-
-	OF_prop_free(stat);
-	return (ena);
-}
-
-int
 fdt_is_type(phandle_t node, const char *typestr)
 {
 	char type[FDT_TYPE_LEN];
@@ -472,59 +450,6 @@ fdt_regsize(phandle_t node, u_long *base, u_long *size)
 	*base = fdt_data_get(&reg[0], addr_cells);
 	*size = fdt_data_get(&reg[addr_cells], size_cells);
 	return (0);
-}
-
-int
-fdt_reg_to_rl(phandle_t node, struct resource_list *rl)
-{
-	u_long end, count, start;
-	pcell_t *reg, *regptr;
-	pcell_t addr_cells, size_cells;
-	int tuple_size, tuples;
-	int i, rv;
-	long busaddr, bussize;
-
-	if (fdt_addrsize_cells(OF_parent(node), &addr_cells, &size_cells) != 0)
-		return (ENXIO);
-	if (fdt_get_range(OF_parent(node), 0, &busaddr, &bussize)) {
-		busaddr = 0;
-		bussize = 0;
-	}
-
-	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
-	tuples = OF_getprop_alloc(node, "reg", tuple_size, (void **)&reg);
-	debugf("addr_cells = %d, size_cells = %d\n", addr_cells, size_cells);
-	debugf("tuples = %d, tuple size = %d\n", tuples, tuple_size);
-	if (tuples <= 0)
-		/* No 'reg' property in this node. */
-		return (0);
-
-	regptr = reg;
-	for (i = 0; i < tuples; i++) {
-
-		rv = fdt_data_to_res(reg, addr_cells, size_cells, &start,
-		    &count);
-		if (rv != 0) {
-			resource_list_free(rl);
-			goto out;
-		}
-		reg += addr_cells + size_cells;
-
-		/* Calculate address range relative to base. */
-		start += busaddr;
-		end = start + count - 1;
-
-		debugf("reg addr start = %lx, end = %lx, count = %lx\n", start,
-		    end, count);
-
-		resource_list_add(rl, SYS_RES_MEMORY, i, start, end,
-		    count);
-	}
-	rv = 0;
-
-out:
-	OF_prop_free(regptr);
-	return (rv);
 }
 
 int
@@ -710,17 +635,6 @@ fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint64_t *memsize)
 	rv = 0;
 out:
 	return (rv);
-}
-
-int
-fdt_get_unit(device_t dev)
-{
-	const char * name;
-
-	name = ofw_bus_get_name(dev);
-	name = strchr(name, '@') + 1;
-
-	return (strtol(name,NULL,0));
 }
 
 int
