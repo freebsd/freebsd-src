@@ -267,7 +267,8 @@ linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, int timeout,
 	PHOLD(task->task_thread->td_proc);
 	sleepq_lock(task);
 	if (atomic_read(&task->state) != TASK_WAKING) {
-		ret = linux_add_to_sleepqueue(task, task, "wevent", timeout, state);
+		ret = linux_add_to_sleepqueue(task, task, "wevent", timeout,
+		    state);
 	} else {
 		sleepq_release(task);
 		ret = 0;
@@ -300,7 +301,8 @@ linux_schedule_timeout(int timeout)
 	sleepq_lock(task);
 	state = atomic_read(&task->state);
 	if (state != TASK_WAKING) {
-		ret = linux_add_to_sleepqueue(task, task, "sched", timeout, state);
+		ret = linux_add_to_sleepqueue(task, task, "sched", timeout,
+		    state);
 	} else {
 		sleepq_release(task);
 		ret = 0;
@@ -368,7 +370,8 @@ linux_wait_on_bit_timeout(unsigned long *word, int bit, unsigned int state,
 			break;
 		}
 		set_task_state(task, state);
-		ret = linux_add_to_sleepqueue(wchan, task, "wbit", timeout, state);
+		ret = linux_add_to_sleepqueue(wchan, task, "wbit", timeout,
+		    state);
 		if (ret != 0)
 			break;
 	}
