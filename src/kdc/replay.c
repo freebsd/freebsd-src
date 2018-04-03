@@ -61,7 +61,7 @@ static size_t total_size = 0;
 static krb5_ui_4 seed;
 
 #define STALE_TIME      (2*60)            /* two minutes */
-#define STALE(ptr, now) (abs((ptr)->timein - (now)) >= STALE_TIME)
+#define STALE(ptr, now) (ts_after(now, ts_incr((ptr)->timein, STALE_TIME)))
 
 /* Return x rotated to the left by r bits. */
 static inline krb5_ui_4

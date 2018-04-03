@@ -223,8 +223,11 @@ Scripts may use the following realm methods and attributes:
   command-line debugging options.  Fail if the command does not return
   0.  Log the command output appropriately, and return it as a single
   multi-line string.  Keyword arguments can contain input='string' to
-  send an input string to the command, and expected_code=N to expect a
-  return code other than 0.
+  send an input string to the command, expected_code=N to expect a
+  return code other than 0, expected_msg=MSG to expect a substring in
+  the command output, and expected_trace=('a', 'b', ...) to expect an
+  ordered series of line substrings in the command's KRB5_TRACE
+  output.
 
 * realm.kprop_port(): Returns a port number based on realm.portbase
   intended for use by kprop and kpropd.
@@ -647,9 +650,30 @@ def _stop_or_shell(stop, shell, env, ind):
         subprocess.call(os.getenv('SHELL'), env=env)
 
 
-def _run_cmd(args, env, input=None, expected_code=0):
+# Read tracefile and look for the expected strings in successive lines.
+def _check_trace(tracefile, expected):
+    output('*** Trace output for previous command:\n')
+    i = 0
+    with open(tracefile, 'r') as f:
+        for line in f:
+            output(line)
+            if i < len(expected) and expected[i] in line:
+                i += 1
+    if i < len(expected):
+        fail('Expected string not found in trace output: ' + expected[i])
+
+
+def _run_cmd(args, env, input=None, expected_code=0, expected_msg=None,
+             expected_trace=None):
     global null_input, _cmd_index, _last_cmd, _last_cmd_output, _debug
     global _stop_before, _stop_after, _shell_before, _shell_after
+
+    if expected_trace is not None:
+        tracefile = 'testtrace'
+        if os.path.exists(tracefile):
+            os.remove(tracefile)
+        env = env.copy()
+        env['KRB5_TRACE'] = tracefile
 
     if (_match_cmdnum(_debug, _cmd_index)):
         return _debug_cmd(args, env, input)
@@ -679,6 +703,13 @@ def _run_cmd(args, env, input=None, expected_code=0):
     # Check the return code and return the output.
     if code != expected_code:
         fail('%s failed with code %d.' % (args[0], code))
+
+    if expected_msg is not None and expected_msg not in outdata:
+        fail('Expected string not found in command output: ' + expected_msg)
+
+    if expected_trace is not None:
+        _check_trace(tracefile, expected_trace)
+
     return outdata
 
 

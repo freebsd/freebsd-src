@@ -38,7 +38,8 @@ krb5_error_code ktutil_add (krb5_context,
                             char *,
                             krb5_kvno,
                             char *,
-                            int);
+                            int,
+                            char *);
 
 krb5_error_code ktutil_read_keytab (krb5_context,
                                     char *,

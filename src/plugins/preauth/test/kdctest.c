@@ -1,7 +1,7 @@
 /* -*- mode: c; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /* plugins/preauth/test/kdctest.c - Test kdcpreauth module */
 /*
- * Copyright (C) 2015 by the Massachusetts Institute of Technology.
+ * Copyright (C) 2015, 2017 by the Massachusetts Institute of Technology.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,10 +40,20 @@
  *   key; the encrypted message "no attr" is sent if there is no string
  *   attribute.)  It also sets a cookie containing "method-data".
  *
- * - It retrieves the "2rt" attribute from the client principal.  If set, the
- *   verify method sends the client a KDC_ERR_MORE_PREAUTH_DATA_REQUIRED error
- *   with the contents of the 2rt attribute as pa-data, and sets a cookie
- *   containing "more".
+ * - If the "err" attribute is set on the client principal, the verify method
+ *   returns an KDC_ERR_ETYPE_NOSUPP error on the first try, with the contents
+ *   of the err attribute as pa-data.  If the client tries again with the
+ *   padata value "tryagain", the verify method preuthenticates successfully
+ *   with no additional processing.
+ *
+ * - If the "failopt" attribute is set on the client principal, the verify
+ *   method returns KDC_ERR_PREAUTH_FAILED on optimistic preauth attempts.
+ *
+ * - If the "2rt" attribute is set on client principal, the verify method sends
+ *   the client a KDC_ERR_MORE_PREAUTH_DATA_REQUIRED error with the contents of
+ *   the 2rt attribute as pa-data, and sets a cookie containing "more".  If the
+ *   "fail2rt" attribute is set on the client principal, the client's second
+ *   try results in a KDC_ERR_PREAUTH_FAILED error.
  *
  * - It receives a space-separated list from the clpreauth module and asserts
  *   each string as an authentication indicator.  It always succeeds in
@@ -52,6 +62,7 @@
 
 #include "k5-int.h"
 #include <krb5/kdcpreauth_plugin.h>
+#include "common.h"
 
 #define TEST_PA_TYPE -123
 
@@ -73,11 +84,6 @@ test_edata(krb5_context context, krb5_kdc_req *req,
 
     ret = cb->get_string(context, rock, "teststring", &attr);
     assert(!ret);
-    pa = k5alloc(sizeof(*pa), &ret);
-    assert(!ret);
-    if (pa == NULL)
-        abort();
-    pa->pa_type = TEST_PA_TYPE;
     if (k != NULL) {
         d = string2data((attr != NULL) ? attr : "no attr");
         ret = krb5_c_encrypt_length(context, k->enctype, d.length, &enclen);
@@ -86,12 +92,10 @@ test_edata(krb5_context context, krb5_kdc_req *req,
         assert(!ret);
         ret = krb5_c_encrypt(context, k, 1024, NULL, &d, &enc);
         assert(!ret);
-        pa->contents = (uint8_t *)enc.ciphertext.data;
-        pa->length = enc.ciphertext.length;
+        pa = make_pa(enc.ciphertext.data, enc.ciphertext.length);
+        free(enc.ciphertext.data);
     } else {
-        pa->contents = (uint8_t *)strdup("no key");
-        assert(pa->contents != NULL);
-        pa->length = 6;
+        pa = make_pa("no key", 6);
     }
 
     /* Exercise setting a cookie information from the edata method. */
@@ -111,12 +115,19 @@ test_verify(krb5_context context, krb5_data *req_pkt, krb5_kdc_req *request,
             krb5_kdcpreauth_verify_respond_fn respond, void *arg)
 {
     krb5_error_code ret;
-    krb5_boolean second_round_trip = FALSE;
-    krb5_pa_data **list;
+    krb5_boolean second_round_trip = FALSE, optimistic = FALSE;
+    krb5_pa_data **list = NULL;
     krb5_data cookie_data, d;
-    char *str, *ind, *attr, *toksave = NULL;
+    char *str, *ind, *toksave = NULL;
+    char *attr_err, *attr_2rt, *attr_fail2rt, *attr_failopt;
 
-    ret = cb->get_string(context, rock, "2rt", &attr);
+    ret = cb->get_string(context, rock, "err", &attr_err);
+    assert(!ret);
+    ret = cb->get_string(context, rock, "2rt", &attr_2rt);
+    assert(!ret);
+    ret = cb->get_string(context, rock, "fail2rt", &attr_fail2rt);
+    assert(!ret);
+    ret = cb->get_string(context, rock, "failopt", &attr_failopt);
     assert(!ret);
 
     /* Check the incoming cookie value. */
@@ -124,13 +135,36 @@ test_verify(krb5_context context, krb5_data *req_pkt, krb5_kdc_req *request,
         /* Make sure we are seeing optimistic preauth and not a lost cookie. */
         d = make_data(data->contents, data->length);
         assert(data_eq_string(d, "optimistic"));
+        optimistic = TRUE;
     } else if (data_eq_string(cookie_data, "more")) {
         second_round_trip = TRUE;
     } else {
-        assert(data_eq_string(cookie_data, "method-data"));
+        assert(data_eq_string(cookie_data, "method-data") ||
+               data_eq_string(cookie_data, "err"));
     }
 
-    if (attr == NULL || second_round_trip) {
+    if (attr_err != NULL) {
+        d = make_data(data->contents, data->length);
+        if (data_eq_string(d, "tryagain")) {
+            /* Authenticate successfully. */
+            enc_tkt_reply->flags |= TKT_FLG_PRE_AUTH;
+        } else {
+            d = string2data("err");
+            ret = cb->set_cookie(context, rock, TEST_PA_TYPE, &d);
+            assert(!ret);
+            ret = KRB5KDC_ERR_ETYPE_NOSUPP;
+            list = make_pa_list(attr_err, strlen(attr_err));
+        }
+    } else if (attr_2rt != NULL && !second_round_trip) {
+        d = string2data("more");
+        ret = cb->set_cookie(context, rock, TEST_PA_TYPE, &d);
+        assert(!ret);
+        ret = KRB5KDC_ERR_MORE_PREAUTH_DATA_REQUIRED;
+        list = make_pa_list(attr_2rt, strlen(attr_2rt));
+    } else if ((attr_fail2rt != NULL && second_round_trip) ||
+               (attr_failopt != NULL && optimistic)) {
+        ret = KRB5KDC_ERR_PREAUTH_FAILED;
+    } else {
         /* Parse and assert the indicators. */
         str = k5memdup0(data->contents, data->length, &ret);
         if (ret)
@@ -142,21 +176,13 @@ test_verify(krb5_context context, krb5_data *req_pkt, krb5_kdc_req *request,
         }
         free(str);
         enc_tkt_reply->flags |= TKT_FLG_PRE_AUTH;
-        cb->free_string(context, rock, attr);
-        (*respond)(arg, 0, NULL, NULL, NULL);
-    } else {
-        d = string2data("more");
-        ret = cb->set_cookie(context, rock, TEST_PA_TYPE, &d);
-        list = k5calloc(2, sizeof(*list), &ret);
-        assert(!ret);
-        list[0] = k5alloc(sizeof(*list[0]), &ret);
-        assert(!ret);
-        list[0]->pa_type = TEST_PA_TYPE;
-        list[0]->contents = (uint8_t *)attr;
-        list[0]->length = strlen(attr);
-        (*respond)(arg, KRB5KDC_ERR_MORE_PREAUTH_DATA_REQUIRED, NULL, list,
-                   NULL);
     }
+
+    cb->free_string(context, rock, attr_err);
+    cb->free_string(context, rock, attr_2rt);
+    cb->free_string(context, rock, attr_fail2rt);
+    cb->free_string(context, rock, attr_failopt);
+    (*respond)(arg, ret, NULL, list, NULL);
 }
 
 static krb5_error_code

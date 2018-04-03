@@ -207,7 +207,7 @@ convey more information about a realm's KDCs with a single query.
 
 The client performs a query for the following URI records:
 
-* ``_kerberos.REALM`` for fiding KDCs.
+* ``_kerberos.REALM`` for finding KDCs.
 * ``_kerberos-adm.REALM`` for finding kadmin services.
 * ``_kpasswd.REALM`` for finding password services.
 

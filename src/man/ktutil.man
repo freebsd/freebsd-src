@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "KTUTIL" "1" " " "1.15.1" "MIT Kerberos"
+.TH "KTUTIL" "1" " " "1.16" "MIT Kerberos"
 .SH NAME
 ktutil \- Kerberos keytab file maintenance utility
 .
@@ -113,7 +113,7 @@ Alias: \fBdelent\fP
 .INDENT 0.0
 .INDENT 3.5
 \fBadd_entry\fP {\fB\-key\fP|\fB\-password\fP} \fB\-p\fP \fIprincipal\fP
-\fB\-k\fP \fIkvno\fP \fB\-e\fP \fIenctype\fP
+\fB\-k\fP \fIkvno\fP \fB\-e\fP \fIenctype\fP [\fB\-s\fP \fIsalt\fP]
 .UNINDENT
 .UNINDENT
 .sp

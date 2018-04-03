@@ -74,7 +74,7 @@
 #endif /* defined(__MACH__) && defined(__APPLE__) */
 
 /* Macro to add deprecated attribute to DES types and functions */
-/* Currently only defined on Mac OS X 10.5 and later.           */
+/* Currently only defined on macOS 10.5 and later.              */
 #ifndef KRB5INT_DES_DEPRECATED
 #define KRB5INT_DES_DEPRECATED
 #endif

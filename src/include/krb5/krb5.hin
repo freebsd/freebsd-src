@@ -181,7 +181,16 @@ typedef krb5_int32 krb5_cryptotype;
 
 typedef krb5_int32      krb5_preauthtype; /* This may change, later on */
 typedef krb5_int32      krb5_flags;
+
+/**
+ * Represents a timestamp in seconds since the POSIX epoch.  This legacy type
+ * is used frequently in the ABI, but cannot represent timestamps after 2038 as
+ * a positive number.  Code which uses this type should cast values of it to
+ * uint32_t so that negative values are treated as timestamps between 2038 and
+ * 2106 on platforms with 64-bit time_t.
+ */
 typedef krb5_int32      krb5_timestamp;
+
 typedef krb5_int32      krb5_deltat;
 
 /**
@@ -3221,8 +3230,9 @@ krb5_get_credentials_renew(krb5_context context, krb5_flags options,
  */
 krb5_error_code KRB5_CALLCONV
 krb5_mk_req(krb5_context context, krb5_auth_context *auth_context,
-            krb5_flags ap_req_options, char *service, char *hostname,
-            krb5_data *in_data, krb5_ccache ccache, krb5_data *outbuf);
+            krb5_flags ap_req_options, const char *service,
+            const char *hostname, krb5_data *in_data, krb5_ccache ccache,
+            krb5_data *outbuf);
 
 /**
  * Create a @c KRB_AP_REQ message using supplied credentials.
@@ -5615,8 +5625,9 @@ krb5_rd_cred(krb5_context context, krb5_auth_context auth_context,
  */
 krb5_error_code KRB5_CALLCONV
 krb5_fwd_tgt_creds(krb5_context context, krb5_auth_context auth_context,
-                   char *rhost, krb5_principal client, krb5_principal server,
-                   krb5_ccache cc, int forwardable, krb5_data *outbuf);
+                   const char *rhost, krb5_principal client,
+                   krb5_principal server, krb5_ccache cc, int forwardable,
+                   krb5_data *outbuf);
 
 /**
  * Create and initialize an authentication context.
@@ -6000,15 +6011,19 @@ krb5_error_code KRB5_CALLCONV
 krb5_auth_con_getremoteseqnumber(krb5_context context, krb5_auth_context auth_context,
                                  krb5_int32 *seqnumber);
 
-#if KRB5_DEPRECATED
-/** @deprecated Not replaced.
+/**
+ * Cause an auth context to use cipher state.
  *
- * RFC 4120 doesn't have anything like the initvector concept;
- * only really old protocols may need this API.
+ * @param [in]  context         Library context
+ * @param [in]  auth_context    Authentication context
+ *
+ * Prepare @a auth_context to use cipher state when krb5_mk_priv() or
+ * krb5_rd_priv() encrypt or decrypt data.
+ *
+ * @retval 0 Success; otherwise - Kerberos error codes
  */
-KRB5_ATTR_DEPRECATED krb5_error_code KRB5_CALLCONV
+krb5_error_code KRB5_CALLCONV
 krb5_auth_con_initivector(krb5_context context, krb5_auth_context auth_context);
-#endif
 
 /**
  * Set the replay cache in an auth context.
@@ -7306,6 +7321,9 @@ typedef struct _krb5_init_creds_context *krb5_init_creds_context;
  *
  * @param [in] context          Library context
  * @param [in] ctx              Initial credentials context
+ *
+ * @a context must be the same as the one passed to krb5_init_creds_init() for
+ * this initial credentials context.
  */
 void KRB5_CALLCONV
 krb5_init_creds_free(krb5_context context, krb5_init_creds_context ctx);
@@ -7319,6 +7337,9 @@ krb5_init_creds_free(krb5_context context, krb5_init_creds_context ctx);
  * This function synchronously obtains credentials using a context created by
  * krb5_init_creds_init().  On successful return, the credentials can be
  * retrieved with krb5_init_creds_get_creds().
+ *
+ * @a context must be the same as the one passed to krb5_init_creds_init() for
+ * this initial credentials context.
  *
  * @retval 0 Success; otherwise - Kerberos error codes
  */
@@ -7370,6 +7391,10 @@ krb5_init_creds_get_error(krb5_context context, krb5_init_creds_context ctx,
  * This function creates a new context for acquiring initial credentials.  Use
  * krb5_init_creds_free() to free @a ctx when it is no longer needed.
  *
+ * Any subsequent calls to krb5_init_creds_step(), krb5_init_creds_get(), or
+ * krb5_init_creds_free() for this initial credentials context must use the
+ * same @a context argument as the one passed to this function.
+ *
  * @retval 0 Success; otherwise - Kerberos error codes
  */
 krb5_error_code KRB5_CALLCONV
@@ -7418,6 +7443,9 @@ krb5_init_creds_set_keytab(krb5_context context, krb5_init_creds_context ctx,
  * If this function returns @c KRB5KRB_ERR_RESPONSE_TOO_BIG, the caller should
  * transmit the next request using TCP rather than UDP.  If this function
  * returns any other error, the initial credential exchange has failed.
+ *
+ * @a context must be the same as the one passed to krb5_init_creds_init() for
+ * this initial credentials context.
  *
  * @retval 0 Success; otherwise - Kerberos error codes
  */
@@ -8229,9 +8257,9 @@ krb5_pac_parse(krb5_context context, const void *ptr, size_t len,
  * If successful, @a pac is marked as verified.
  *
  * @note A checksum mismatch can occur if the PAC was copied from a cross-realm
- * TGT by an ignorant KDC; also Apple Mac OS X Server Open Directory (as of
- * 10.6) generates PACs with no server checksum at all.  One should consider
- * not failing the whole authentication because of this reason, but, instead,
+ * TGT by an ignorant KDC; also macOS Server Open Directory (as of 10.6)
+ * generates PACs with no server checksum at all.  One should consider not
+ * failing the whole authentication because of this reason, but, instead,
  * treating the ticket as if it did not contain a PAC or marking the PAC
  * information as non-verified.
  *

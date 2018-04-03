@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "KDC.CONF" "5" " " "1.15.1" "MIT Kerberos"
+.TH "KDC.CONF" "5" " " "1.16" "MIT Kerberos"
 .SH NAME
 kdc.conf \- Kerberos V5 KDC configuration file
 .
@@ -145,9 +145,10 @@ The following tags may be specified in a [realms] subsection:
 .B \fBacl_file\fP
 (String.)  Location of the access control list file that
 \fIkadmind(8)\fP uses to determine which principals are allowed
-which permissions on the Kerberos database.  The default value is
-\fB@LOCALSTATEDIR@\fP\fB/krb5kdc\fP\fB/kadm5.acl\fP\&.  For more information on Kerberos ACL
-file see \fIkadm5.acl(5)\fP\&.
+which permissions on the Kerberos database.  To operate without an
+ACL file, set this relation to the empty string with \fBacl_file =
+""\fP\&.  The default value is \fB@LOCALSTATEDIR@\fP\fB/krb5kdc\fP\fB/kadm5.acl\fP\&.  For more
+information on Kerberos ACL file see \fIkadm5.acl(5)\fP\&.
 .TP
 .B \fBdatabase_module\fP
 (String.)  This relation indicates the name of the configuration
@@ -258,6 +259,11 @@ are not allowed as passwords.  The file should contain one string
 per line, with no additional whitespace.  If none is specified or
 if there is no policy assigned to the principal, no dictionary
 checks of passwords will be performed.
+.TP
+.B \fBencrypted_challenge_indicator\fP
+(String.)  Specifies the authentication indicator value that the KDC
+asserts into tickets obtained using FAST encrypted challenge
+pre\-authentication.  New in 1.16.
 .TP
 .B \fBhost_based_services\fP
 (Whitespace\- or comma\-separated list.)  Lists services which will
@@ -886,9 +892,6 @@ Specifies an authentication indicator to include in the ticket if
 pkinit is used to authenticate.  This option may be specified
 multiple times.  (New in release 1.14.)
 .TP
-.B \fBpkinit_kdc_ocsp\fP
-Specifies the location of the KDC\(aqs OCSP.
-.TP
 .B \fBpkinit_pool\fP
 Specifies the location of intermediate certificates which may be
 used by the KDC to complete the trust chain between a client\(aqs
@@ -1031,7 +1034,7 @@ _
 T{
 aes
 T}	T{
-The AES family: aes256\-cts\-hmac\-sha1\-96 and aes128\-cts\-hmac\-sha1\-96
+The AES family: aes256\-cts\-hmac\-sha1\-96, aes128\-cts\-hmac\-sha1\-96, aes256\-cts\-hmac\-sha384\-192, and aes128\-cts\-hmac\-sha256\-128
 T}
 _
 T{

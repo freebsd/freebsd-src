@@ -247,7 +247,7 @@ add_princ(context, str_newprinc)
 
     {
         /* Add mod princ to db entry */
-        krb5_int32 now;
+        krb5_timestamp now;
 
         retval = krb5_timeofday(context, &now);
         if (retval) {

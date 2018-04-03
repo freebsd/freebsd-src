@@ -47,10 +47,10 @@ krb5int_validate_times(krb5_context context, krb5_ticket_times *times)
     else
         starttime = times->authtime;
 
-    if (starttime - currenttime > context->clockskew)
+    if (ts_after(starttime, ts_incr(currenttime, context->clockskew)))
         return KRB5KRB_AP_ERR_TKT_NYV;  /* ticket not yet valid */
 
-    if ((currenttime - times->endtime) > context->clockskew)
+    if (ts_after(currenttime, ts_incr(times->endtime, context->clockskew)))
         return KRB5KRB_AP_ERR_TKT_EXPIRED; /* ticket expired */
 
     return 0;

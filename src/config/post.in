@@ -156,7 +156,7 @@ clean: clean-$(WHAT)
 
 clean-unix::
 	$(RM) $(OBJS) $(DEPTARGETS_CLEAN) $(EXTRA_FILES)
-	$(RM) et-[ch]-*.et et-[ch]-*.[ch] testlog
+	$(RM) et-[ch]-*.et et-[ch]-*.[ch] testlog testtrace
 	-$(RM) -r testdir
 
 clean-windows::
@@ -185,7 +185,7 @@ $(top_srcdir)/configure: @MAINT@ \
 		$(top_srcdir)/patchlevel.h \
 		$(top_srcdir)/aclocal.m4
 	(cd $(top_srcdir) && \
-		$(AUTOCONF) --include=$(CONFIG_RELTOPDIR) $(AUTOCONFFLAGS))
+		$(AUTOCONF) -f --include=$(CONFIG_RELTOPDIR) $(AUTOCONFFLAGS))
 
 RECURSE_TARGETS=all-recurse clean-recurse distclean-recurse install-recurse \
 	generate-files-mac-recurse \

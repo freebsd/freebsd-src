@@ -83,8 +83,6 @@ krb5int_construct_matching_creds(krb5_context context, krb5_flags options,
                                  krb5_creds *in_creds, krb5_creds *mcreds,
                                  krb5_flags *fields);
 
-#define in_clock_skew(date, now) (labs((date)-(now)) < context->clockskew)
-
 #define IS_TGS_PRINC(p) ((p)->length == 2 &&                            \
                          data_eq_string((p)->data[0], KRB5_TGS_NAME))
 
@@ -100,6 +98,9 @@ krb5_get_cred_via_tkt_ext(krb5_context context, krb5_creds *tkt,
                           krb5_pa_data ***out_padata,
                           krb5_pa_data ***enc_padata, krb5_creds **out_cred,
                           krb5_keyblock **out_subkey);
+
+krb5_error_code
+k5_generate_nonce(krb5_context context, int32_t *out);
 
 krb5_error_code
 k5_make_tgs_req(krb5_context context, struct krb5int_fast_request_state *,
@@ -187,7 +188,8 @@ k5_preauth(krb5_context context, krb5_init_creds_context ctx,
 
 krb5_error_code
 k5_preauth_tryagain(krb5_context context, krb5_init_creds_context ctx,
-                    krb5_pa_data **in_padata, krb5_pa_data ***padata_out);
+                    krb5_preauthtype pa_type, krb5_error *err,
+                    krb5_pa_data **err_padata, krb5_pa_data ***padata_out);
 
 void
 k5_init_preauth_context(krb5_context context);
@@ -196,17 +198,25 @@ void
 k5_free_preauth_context(krb5_context context);
 
 void
-k5_reset_preauth_types_tried(krb5_context context);
+k5_reset_preauth_types_tried(krb5_init_creds_context ctx);
+
+krb5_error_code
+k5_preauth_note_failed(krb5_init_creds_context ctx, krb5_preauthtype pa_type);
 
 void
 k5_preauth_prepare_request(krb5_context context, krb5_get_init_creds_opt *opt,
                            krb5_kdc_req *request);
 
 void
-k5_preauth_request_context_init(krb5_context context);
+k5_preauth_request_context_init(krb5_context context,
+                                krb5_init_creds_context ctx);
 
 void
-k5_preauth_request_context_fini(krb5_context context);
+k5_preauth_request_context_fini(krb5_context context,
+                                krb5_init_creds_context ctx);
+
+krb5_error_code
+k5_preauth_check_context(krb5_context context, krb5_init_creds_context ctx);
 
 krb5_error_code
 k5_response_items_new(k5_response_items **ri_out);

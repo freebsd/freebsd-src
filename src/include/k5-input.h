@@ -33,7 +33,7 @@
 #ifndef K5_INPUT_H
 #define K5_INPUT_H
 
-#include "k5-int.h"
+#include "k5-platform.h"
 
 /*
  * The k5input module defines helpers for safely consuming a fixed-sized block
@@ -45,7 +45,7 @@
 struct k5input {
     const unsigned char *ptr;
     size_t len;
-    krb5_error_code status;
+    int32_t status;
 };
 
 static inline void
@@ -59,7 +59,7 @@ k5_input_init(struct k5input *in, const void *ptr, size_t len)
 /* Only set the status value of in if it hasn't already been set, so status
  * reflects the first thing to go wrong. */
 static inline void
-k5_input_set_status(struct k5input *in, krb5_error_code status)
+k5_input_set_status(struct k5input *in, int32_t status)
 {
     if (!in->status)
         in->status = status;

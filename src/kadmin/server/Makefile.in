@@ -7,8 +7,10 @@ LOCALINCLUDES = -I$(top_srcdir)/lib/gssapi/generic \
 	-I$(BUILDTOP)/lib/gssapi/krb5 -I$(top_srcdir)/lib/kadm5/srv
 
 PROG = kadmind
-OBJS = kadm_rpc_svc.o server_stubs.o ovsec_kadmd.o schpw.o misc.o ipropd_svc.o
-SRCS = kadm_rpc_svc.c server_stubs.c ovsec_kadmd.c schpw.c misc.c ipropd_svc.c
+OBJS = auth.o auth_acl.o auth_self.o kadm_rpc_svc.o server_stubs.o \
+	ovsec_kadmd.o schpw.o misc.o ipropd_svc.o
+SRCS = auth.o auth_acl.c auth_self.c kadm_rpc_svc.c server_stubs.c \
+	ovsec_kadmd.c schpw.c misc.c ipropd_svc.c
 
 all: $(PROG)
 

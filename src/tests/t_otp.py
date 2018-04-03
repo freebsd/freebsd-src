@@ -199,9 +199,8 @@ realm.run([kadminl, 'setstr', realm.user_princ, 'otp', otpconfig('udp')])
 realm.kinit(realm.user_princ, 'accept', flags=flags)
 verify(daemon, queue, True, realm.user_princ.split('@')[0], 'accept')
 realm.extract_keytab(realm.krbtgt_princ, realm.keytab)
-out = realm.run(['./adata', realm.krbtgt_princ])
-if '+97: [indotp1, indotp2]' not in out:
-    fail('auth indicators not seen in OTP ticket')
+realm.run(['./adata', realm.krbtgt_princ],
+          expected_msg='+97: [indotp1, indotp2]')
 
 # Repeat with an indicators override in the string attribute.
 daemon = UDPRadiusDaemon(args=(server_addr, secret_file, 'accept', queue))
@@ -212,9 +211,8 @@ realm.run([kadminl, 'setstr', realm.user_princ, 'otp', oconf])
 realm.kinit(realm.user_princ, 'accept', flags=flags)
 verify(daemon, queue, True, realm.user_princ.split('@')[0], 'accept')
 realm.extract_keytab(realm.krbtgt_princ, realm.keytab)
-out = realm.run(['./adata', realm.krbtgt_princ])
-if '+97: [indtok1, indtok2]' not in out:
-    fail('auth indicators not seen in OTP ticket')
+realm.run(['./adata', realm.krbtgt_princ],
+          expected_msg='+97: [indtok1, indtok2]')
 
 # Detect upstream pyrad bug
 #   https://github.com/wichert/pyrad/pull/18

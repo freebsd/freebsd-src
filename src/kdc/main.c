@@ -31,6 +31,7 @@
 #include "kdc_util.h"
 #include "kdc_audit.h"
 #include "extern.h"
+#include "policy.h"
 #include "kdc5_err.h"
 #include "kdb_kt.h"
 #include "net-server.h"
@@ -986,6 +987,12 @@ int main(int argc, char **argv)
 
     load_preauth_plugins(&shandle, kcontext, ctx);
     load_authdata_plugins(kcontext);
+    retval = load_kdcpolicy_plugins(kcontext);
+    if (retval) {
+        kdc_err(kcontext, retval, _("while loading KDC policy plugin"));
+        finish_realms();
+        return 1;
+    }
 
     retval = setup_sam();
     if (retval) {
@@ -1068,6 +1075,7 @@ int main(int argc, char **argv)
     krb5_klog_syslog(LOG_INFO, _("shutting down"));
     unload_preauth_plugins(kcontext);
     unload_authdata_plugins(kcontext);
+    unload_kdcpolicy_plugins(kcontext);
     unload_audit_modules(kcontext);
     krb5_klog_close(kcontext);
     finish_realms();

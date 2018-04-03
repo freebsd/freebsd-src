@@ -37,8 +37,9 @@
 /* Get a TGT for use at the remote host */
 krb5_error_code KRB5_CALLCONV
 krb5_fwd_tgt_creds(krb5_context context, krb5_auth_context auth_context,
-                   char *rhost, krb5_principal client, krb5_principal server,
-                   krb5_ccache cc, int forwardable, krb5_data *outbuf)
+                   const char *rhost, krb5_principal client,
+                   krb5_principal server, krb5_ccache cc, int forwardable,
+                   krb5_data *outbuf)
 /* Should forwarded TGT also be forwardable? */
 {
     krb5_replay_data replaydata;
@@ -48,8 +49,8 @@ krb5_fwd_tgt_creds(krb5_context context, krb5_auth_context auth_context,
     krb5_creds creds, tgt;
     krb5_creds *pcreds;
     krb5_flags kdcoptions;
-    int close_cc = 0;
-    int free_rhost = 0;
+    krb5_ccache defcc = NULL;
+    char *def_rhost = NULL;
     krb5_enctype enctype = 0;
     krb5_keyblock *session_key;
     krb5_boolean old_use_conf_ktypes = context->use_conf_ktypes;
@@ -58,9 +59,9 @@ krb5_fwd_tgt_creds(krb5_context context, krb5_auth_context auth_context,
     memset(&tgt, 0, sizeof(creds));
 
     if (cc == 0) {
-        if ((retval = krb5int_cc_default(context, &cc)))
+        if ((retval = krb5int_cc_default(context, &defcc)))
             goto errout;
-        close_cc = 1;
+        cc = defcc;
     }
     retval = krb5_auth_con_getkey (context, auth_context, &session_key);
     if (retval)
@@ -131,11 +132,11 @@ krb5_fwd_tgt_creds(krb5_context context, krb5_auth_context auth_context,
                 goto errout;
             }
 
-            rhost = k5memdup0(server->data[1].data, server->data[1].length,
-                              &retval);
-            if (rhost == NULL)
+            def_rhost = k5memdup0(server->data[1].data, server->data[1].length,
+                                  &retval);
+            if (def_rhost == NULL)
                 goto errout;
-            free_rhost = 1;
+            rhost = def_rhost;
         }
 
         retval = k5_os_hostaddr(context, rhost, &addrs);
@@ -176,10 +177,9 @@ krb5_fwd_tgt_creds(krb5_context context, krb5_auth_context auth_context,
 errout:
     if (addrs)
         krb5_free_addresses(context, addrs);
-    if (close_cc)
-        krb5_cc_close(context, cc);
-    if (free_rhost)
-        free(rhost);
+    if (defcc)
+        krb5_cc_close(context, defcc);
+    free(def_rhost);
     krb5_free_cred_contents(context, &creds);
     krb5_free_cred_contents(context, &tgt);
     return retval;

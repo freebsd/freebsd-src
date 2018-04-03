@@ -119,6 +119,17 @@ sa_is_inet(struct sockaddr *sa)
     return sa->sa_family == AF_INET || sa->sa_family == AF_INET6;
 }
 
+/* Return true if sa is an IPv4 or IPv6 wildcard address. */
+static inline int
+sa_is_wildcard(struct sockaddr *sa)
+{
+    if (sa->sa_family == AF_INET6)
+        return IN6_IS_ADDR_UNSPECIFIED(&sa2sin6(sa)->sin6_addr);
+    else if (sa->sa_family == AF_INET)
+        return sa2sin(sa)->sin_addr.s_addr == INADDR_ANY;
+    return 0;
+}
+
 /* Return the length of an IPv4 or IPv6 socket structure; abort if it is
  * neither. */
 static inline socklen_t

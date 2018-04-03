@@ -403,7 +403,7 @@ krb5_mkt_get_entry(krb5_context context, krb5_keytab id,
                 continue;
         }
 
-        if (kvno == IGNORE_VNO) {
+        if (kvno == IGNORE_VNO || entry->vno == IGNORE_VNO) {
             if (match == NULL)
                 match = entry;
             else if (entry->vno > match->vno)

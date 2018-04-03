@@ -1734,7 +1734,7 @@ getstringtime(krb5_timestamp epochtime)
 {
     struct tm           tme;
     char                *strtime=NULL;
-    time_t              posixtime = epochtime;
+    time_t              posixtime = ts2tt(epochtime);
 
     strtime = calloc (50, 1);
     if (strtime == NULL)

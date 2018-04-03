@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "KPROPD" "8" " " "1.15.1" "MIT Kerberos"
+.TH "KPROPD" "8" " " "1.16" "MIT Kerberos"
 .SH NAME
 kpropd \- Kerberos V5 slave KDC update server
 .
@@ -40,6 +40,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 [\fB\-F\fP \fIprincipal_database\fP]
 [\fB\-p\fP \fIkdb5_util_prog\fP]
 [\fB\-P\fP \fIport\fP]
+[\fB\-\-pid\-file\fP=\fIpid_file\fP]
 [\fB\-d\fP]
 [\fB\-t\fP]
 .SH DESCRIPTION
@@ -131,6 +132,10 @@ is only useful in combination with the \fB\-S\fP option.
 .B \fB\-a\fP \fIacl_file\fP
 Allows the user to specify the path to the kpropd.acl file; by
 default the path used is \fB@LOCALSTATEDIR@\fP\fB/krb5kdc\fP\fB/kpropd.acl\fP\&.
+.TP
+.B \fB\-\-pid\-file\fP=\fIpid_file\fP
+In standalone mode, write the process ID of the daemon into
+\fIpid_file\fP\&.
 .UNINDENT
 .SH ENVIRONMENT
 .sp

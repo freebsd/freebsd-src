@@ -470,3 +470,6 @@ EXPORTS
 	krb5_get_init_creds_opt_set_pac_request		@435
 	krb5int_trace					@436 ; PRIVATE GSSAPI
 	krb5_expand_hostname				@437
+
+; new in 1.16
+	k5_enctype_to_ssf				@438 ; PRIVATE GSSAPI

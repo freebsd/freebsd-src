@@ -242,6 +242,7 @@ main(int argc, char *argv[])
     gss_cred_id_t delegated_cred_handle = GSS_C_NO_CREDENTIAL;
     gss_name_t user = GSS_C_NO_NAME, target = GSS_C_NO_NAME;
     gss_OID_set mechs;
+    gss_buffer_set_t bufset = GSS_C_NO_BUFFER_SET;
 
     if (argc < 2 || argc > 5) {
         fprintf(stderr, "Usage: %s [--spnego] [user] "
@@ -303,6 +304,25 @@ main(int argc, char *argv[])
         fprintf(stderr, " - The user is not marked sensitive and cannot be "
                 "delegated\n");
         fprintf(stderr, "\n");
+    }
+
+    if (delegated_cred_handle != GSS_C_NO_CREDENTIAL) {
+        /* Inquire impersonator status. */
+        major = gss_inquire_cred_by_oid(&minor, user_cred_handle,
+                                        GSS_KRB5_GET_CRED_IMPERSONATOR,
+                                        &bufset);
+        check_gsserr("gss_inquire_cred_by_oid", major, minor);
+        if (bufset->count == 0)
+            errout("gss_inquire_cred_by_oid(user) returned NO impersonator");
+        (void)gss_release_buffer_set(&minor, &bufset);
+
+        major = gss_inquire_cred_by_oid(&minor, impersonator_cred_handle,
+                                        GSS_KRB5_GET_CRED_IMPERSONATOR,
+                                        &bufset);
+        check_gsserr("gss_inquire_cred_by_oid", major, minor);
+        if (bufset->count != 0)
+            errout("gss_inquire_cred_by_oid(svc) returned an impersonator");
+        (void)gss_release_buffer_set(&minor, &bufset);
     }
 
     (void)gss_release_name(&minor, &user);

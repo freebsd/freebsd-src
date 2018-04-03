@@ -134,6 +134,10 @@
      More to be added, perhaps.  */
 
 #include <assert.h>
+#ifndef NDEBUG
+#include <stdio.h>
+#include <string.h>
+#endif
 
 /* The mutex structure we use, k5_mutex_t, is defined to some
    OS-specific bits.  The use of multiple layers of typedefs are an
@@ -363,12 +367,24 @@ static inline int k5_mutex_finish_init(k5_mutex_t *m)
 static inline void k5_mutex_lock(k5_mutex_t *m)
 {
     int r = k5_os_mutex_lock(m);
+#ifndef NDEBUG
+    if (r != 0) {
+        fprintf(stderr, "k5_mutex_lock: Received error %d (%s)\n",
+                r, strerror(r));
+    }
+#endif
     assert(r == 0);
 }
 
 static inline void k5_mutex_unlock(k5_mutex_t *m)
 {
     int r = k5_os_mutex_unlock(m);
+#ifndef NDEBUG
+    if (r != 0) {
+        fprintf(stderr, "k5_mutex_unlock: Received error %d (%s)\n",
+                r, strerror(r));
+    }
+#endif
     assert(r == 0);
 }
 

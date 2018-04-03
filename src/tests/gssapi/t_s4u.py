@@ -42,10 +42,8 @@ if ('auth1: ' + realm.user_princ not in output or
 # result in no delegated credential being created by
 # accept_sec_context.
 realm.kinit(realm.user_princ, password('user'), ['-c', usercache])
-output = realm.run(['./t_s4u2proxy_krb5', usercache, storagecache, pservice1,
-                    pservice1, pservice2])
-if 'no credential delegated' not in output:
-    fail('krb5 -> no delegated cred')
+realm.run(['./t_s4u2proxy_krb5', usercache, storagecache, pservice1,
+           pservice1, pservice2], expected_msg='no credential delegated')
 
 # Try S4U2Self.  Ask for an S4U2Proxy step; this won't happen because
 # service/1 isn't allowed to get a forwardable S4U2Self ticket.
@@ -61,17 +59,15 @@ if ('Warning: no delegated cred handle' not in output or
 # Correct that problem and try again.  As above, the S4U2Proxy step
 # won't actually succeed since we don't support that in DB2.
 realm.run([kadminl, 'modprinc', '+ok_to_auth_as_delegate', service1])
-output = realm.run(['./t_s4u', puser, pservice2], expected_code=1)
-if 'NOT_ALLOWED_TO_DELEGATE' not in output:
-    fail('s4u2self')
+realm.run(['./t_s4u', puser, pservice2], expected_code=1,
+          expected_msg='NOT_ALLOWED_TO_DELEGATE')
 
 # Again with SPNEGO.  This uses SPNEGO for the initial authentication,
 # but still uses krb5 for S4U2Proxy--the delegated cred is returned as
 # a krb5 cred, not a SPNEGO cred, and t_s4u uses the delegated cred
 # directly rather than saving and reacquiring it.
-output = realm.run(['./t_s4u', '--spnego', puser, pservice2], expected_code=1)
-if 'NOT_ALLOWED_TO_DELEGATE' not in output:
-    fail('s4u2self')
+realm.run(['./t_s4u', '--spnego', puser, pservice2], expected_code=1,
+          expected_msg='NOT_ALLOWED_TO_DELEGATE')
 
 realm.stop()
 
@@ -148,9 +144,8 @@ realm.stop()
 # fail, but we can check that the right server principal was used.
 r1, r2 = cross_realms(2, create_user=False)
 r1.run([kinit, '-k', r1.host_princ])
-out = r1.run(['./t_s4u', 'p:' + r2.host_princ], expected_code=1)
-if 'Server not found in Kerberos database' not in out:
-    fail('cross-realm s4u2self (t_s4u output)')
+r1.run(['./t_s4u', 'p:' + r2.host_princ], expected_code=1,
+       expected_msg='Server not found in Kerberos database')
 r1.stop()
 r2.stop()
 with open(os.path.join(r2.testdir, 'kdc.log')) as f:

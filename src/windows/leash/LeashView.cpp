@@ -229,22 +229,22 @@ static HFONT CreateBoldItalicFont(HFONT font)
 
 bool change_icon_size = true;
 
-void krb5TimestampToFileTime(krb5_timestamp t, LPFILETIME pft)
+void TimestampToFileTime(time_t t, LPFILETIME pft)
 {
     // Note that LONGLONG is a 64-bit value
-    LONGLONG ll;
+    ULONGLONG ll;
 
-    ll = Int32x32To64(t, 10000000) + 116444736000000000;
+    ll = UInt32x32To64((DWORD)t, 10000000) + 116444736000000000;
     pft->dwLowDateTime = (DWORD)ll;
     pft->dwHighDateTime = ll >> 32;
 }
 
 // allocate outstr
-void krb5TimestampToLocalizedString(krb5_timestamp t, LPTSTR *outStr)
+void TimestampToLocalizedString(time_t t, LPTSTR *outStr)
 {
     FILETIME ft, lft;
     SYSTEMTIME st;
-    krb5TimestampToFileTime(t, &ft);
+    TimestampToFileTime(t, &ft);
     FileTimeToLocalFileTime(&ft, &lft);
     FileTimeToSystemTime(&lft, &st);
     TCHAR timeFormat[80]; // 80 is max required for LOCALE_STIMEFORMAT
@@ -1125,9 +1125,9 @@ void CLeashView::AddDisplayItem(CListCtrl &list,
                                 CCacheDisplayData *elem,
                                 int iItem,
                                 char *principal,
-                                long issued,
-                                long valid_until,
-                                long renew_until,
+                                time_t issued,
+                                time_t valid_until,
+                                time_t renew_until,
                                 char *encTypes,
                                 unsigned long flags,
                                 char *ccache_name)
@@ -1145,7 +1145,7 @@ void CLeashView::AddDisplayItem(CListCtrl &list,
         if (issued == 0) {
             list.SetItemText(iItem, iSubItem++, "Unknown");
         } else {
-            krb5TimestampToLocalizedString(issued, &localTimeStr);
+            TimestampToLocalizedString(issued, &localTimeStr);
             list.SetItemText(iItem, iSubItem++, localTimeStr);
         }
     }
@@ -1155,7 +1155,7 @@ void CLeashView::AddDisplayItem(CListCtrl &list,
         } else if (valid_until < now) {
             list.SetItemText(iItem, iSubItem++, "Expired");
         } else if (renew_until) {
-            krb5TimestampToLocalizedString(renew_until, &localTimeStr);
+            TimestampToLocalizedString(renew_until, &localTimeStr);
             DurationToString(renew_until - now, &durationStr);
             if (localTimeStr && durationStr) {
                 _snprintf(tempStr, MAX_DURATION_STR, "%s %s", localTimeStr, durationStr);
@@ -1172,7 +1172,7 @@ void CLeashView::AddDisplayItem(CListCtrl &list,
         } else if (valid_until < now) {
             list.SetItemText(iItem, iSubItem++, "Expired");
         } else {
-            krb5TimestampToLocalizedString(valid_until, &localTimeStr);
+            TimestampToLocalizedString(valid_until, &localTimeStr);
             DurationToString(valid_until - now, &durationStr);
             if (localTimeStr && durationStr) {
                 _snprintf(tempStr, MAX_DURATION_STR, "%s %s", localTimeStr, durationStr);

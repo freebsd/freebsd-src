@@ -157,6 +157,13 @@ static const gss_OID_desc const_oids[] = {
     {7, (void *)"\x2b\x06\x01\x05\x05\x0d\x19"},
     {7, (void *)"\x2b\x06\x01\x05\x05\x0d\x1a"},
     {7, (void *)"\x2b\x06\x01\x05\x05\x0d\x1b"},
+
+    /*
+     * GSS_SEC_CONTEXT_SASL_SSF_OID 1.2.840.113554.1.2.2.5.15
+     * iso(1) member-body(2) United States(840) mit(113554)
+     * infosys(1) gssapi(2) krb5(2) krb5-gssapi-ext(5) sasl-ssf(15)
+     */
+    {11, (void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x02\x05\x0f"},
 };
 
 /* Here are the constants which point to the static structure above.
@@ -217,6 +224,8 @@ GSS_DLLIMP gss_const_OID GSS_C_MA_CBINDINGS         = oids+32;
 GSS_DLLIMP gss_const_OID GSS_C_MA_PFS               = oids+33;
 GSS_DLLIMP gss_const_OID GSS_C_MA_COMPRESS          = oids+34;
 GSS_DLLIMP gss_const_OID GSS_C_MA_CTX_TRANS         = oids+35;
+
+GSS_DLLIMP gss_OID GSS_C_SEC_CONTEXT_SASL_SSF = oids+36;
 
 static gss_OID_set_desc gss_ma_known_attrs_desc = { 27, oids+9 };
 gss_OID_set gss_ma_known_attrs = &gss_ma_known_attrs_desc;

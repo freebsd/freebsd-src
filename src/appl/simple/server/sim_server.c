@@ -33,6 +33,7 @@
  */
 
 #include "krb5.h"
+#include "port-sockets.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -64,7 +65,7 @@ int
 main(int argc, char *argv[])
 {
     int sock, i;
-    unsigned int len;
+    socklen_t len;
     int flags = 0;                      /* for recvfrom() */
     int on = 1;
     struct servent *serv;

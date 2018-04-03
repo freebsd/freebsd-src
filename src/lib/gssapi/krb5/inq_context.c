@@ -120,7 +120,7 @@ krb5_gss_inquire_context(minor_status, context_handle, initiator_name,
 
         /* Add the maximum allowable clock skew as a grace period for context
          * expiration, just as we do for the ticket during authentication. */
-        lifetime = ctx->krb_times.endtime - now;
+        lifetime = ts_delta(ctx->krb_times.endtime, now);
         if (!ctx->initiate)
             lifetime += context->clockskew;
         if (lifetime < 0)
@@ -309,4 +309,31 @@ gss_krb5int_extract_authtime_from_sec_context(OM_uint32 *minor_status,
     rep.length = sizeof(ctx->krb_times.authtime);
 
     return generic_gss_add_buffer_set_member(minor_status, &rep, data_set);
+}
+
+OM_uint32
+gss_krb5int_sec_context_sasl_ssf(OM_uint32 *minor_status,
+                                 const gss_ctx_id_t context_handle,
+                                 const gss_OID desired_object,
+                                 gss_buffer_set_t *data_set)
+{
+    krb5_gss_ctx_id_rec *ctx;
+    krb5_key key;
+    krb5_error_code code;
+    gss_buffer_desc ssfbuf;
+    unsigned int ssf;
+    uint8_t buf[4];
+
+    ctx = (krb5_gss_ctx_id_rec *)context_handle;
+    key = ctx->have_acceptor_subkey ? ctx->acceptor_subkey : ctx->subkey;
+
+    code = k5_enctype_to_ssf(key->keyblock.enctype, &ssf);
+    if (code)
+        return GSS_S_FAILURE;
+
+    store_32_be(ssf, buf);
+    ssfbuf.value = buf;
+    ssfbuf.length = sizeof(buf);
+
+    return generic_gss_add_buffer_set_member(minor_status, &ssfbuf, data_set);
 }

@@ -1553,6 +1553,7 @@ krb5_lcc_resolve (krb5_context context, krb5_ccache *id, const char *residual)
     data->LogonHandle = LogonHandle;
     data->PackageId = PackageId;
     data->princ = NULL;
+    data->flags = 0;
 
     data->cc_name = (char *)malloc(strlen(residual)+1);
     if (data->cc_name == NULL) {

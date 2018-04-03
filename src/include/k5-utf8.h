@@ -73,57 +73,28 @@
 typedef uint16_t krb5_ucs2;
 typedef uint32_t krb5_ucs4;
 
-#define KRB5_MAX_UTF8_LEN   (sizeof(krb5_ucs2) * 3/2)
-
 int krb5int_utf8_to_ucs2(const char *p, krb5_ucs2 *out);
 size_t krb5int_ucs2_to_utf8(krb5_ucs2 c, char *buf);
 
 int krb5int_utf8_to_ucs4(const char *p, krb5_ucs4 *out);
 size_t krb5int_ucs4_to_utf8(krb5_ucs4 c, char *buf);
 
-int
-krb5int_ucs2s_to_utf8s(const krb5_ucs2 *ucs2s,
-                       char **utf8s,
-                       size_t *utf8slen);
+/*
+ * Convert a little-endian UTF-16 string to an allocated null-terminated UTF-8
+ * string.  nbytes is the length of ucs2bytes in bytes, and must be an even
+ * number.  Return EINVAL on invalid input, ENOMEM on out of memory, or 0 on
+ * success.
+ */
+int k5_utf16le_to_utf8(const uint8_t *utf16bytes, size_t nbytes,
+                       char **utf8_out);
 
-int
-krb5int_ucs2cs_to_utf8s(const krb5_ucs2 *ucs2s,
-                        size_t ucs2slen,
-                        char **utf8s,
-                        size_t *utf8slen);
-
-int
-krb5int_ucs2les_to_utf8s(const unsigned char *ucs2les,
-                         char **utf8s,
-                         size_t *utf8slen);
-
-int
-krb5int_ucs2lecs_to_utf8s(const unsigned char *ucs2les,
-                          size_t ucs2leslen,
-                          char **utf8s,
-                          size_t *utf8slen);
-
-int
-krb5int_utf8s_to_ucs2s(const char *utf8s,
-                       krb5_ucs2 **ucs2s,
-                       size_t *ucs2chars);
-
-int
-krb5int_utf8cs_to_ucs2s(const char *utf8s,
-                        size_t utf8slen,
-                        krb5_ucs2 **ucs2s,
-                        size_t *ucs2chars);
-
-int
-krb5int_utf8s_to_ucs2les(const char *utf8s,
-                         unsigned char **ucs2les,
-                         size_t *ucs2leslen);
-
-int
-krb5int_utf8cs_to_ucs2les(const char *utf8s,
-                          size_t utf8slen,
-                          unsigned char **ucs2les,
-                          size_t *ucs2leslen);
+/*
+ * Convert a UTF-8 string to an allocated little-endian UTF-16 string.  The
+ * resulting length is in bytes and will always be even.  Return EINVAL on
+ * invalid input, ENOMEM on out of memory, or 0 on success.
+ */
+int k5_utf8_to_utf16le(const char *utf8, uint8_t **utf16_out,
+                       size_t *nbytes_out);
 
 /* returns the number of bytes in the UTF-8 string */
 size_t krb5int_utf8_bytes(const char *);

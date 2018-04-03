@@ -32,7 +32,6 @@ SRCS =	$(srcdir)/pwqual.c \
 	$(srcdir)/pwqual_princ.c \
 	$(srcdir)/svr_policy.c \
 	$(srcdir)/svr_principal.c \
-	$(srcdir)/server_acl.c \
 	$(srcdir)/server_kdb.c \
 	$(srcdir)/server_misc.c \
 	$(srcdir)/server_init.c \
@@ -48,7 +47,6 @@ OBJS =	pwqual.$(OBJEXT) \
 	kadm5_hook.$(OBJEXT) \
 	svr_policy.$(OBJEXT) \
 	svr_principal.$(OBJEXT) \
-	server_acl.$(OBJEXT) \
 	server_kdb.$(OBJEXT) \
 	server_misc.$(OBJEXT) \
 	server_init.$(OBJEXT) \
@@ -65,7 +63,6 @@ STLIBOBJS = \
 	kadm5_hook.o \
 	svr_policy.o \
 	svr_principal.o \
-	server_acl.o \
 	server_kdb.o \
 	server_misc.o \
 	server_init.o \
@@ -73,23 +70,10 @@ STLIBOBJS = \
 	svr_chpass_util.o \
 	adb_xdr.o
 
-all-unix: includes
 all-unix: all-liblinks
 all-windows: $(OBJS)
 
-generate-files-mac: includes darwin.exports
-
-includes: server_acl.h
-	if cmp $(srcdir)/server_acl.h \
-	$(BUILDTOP)/include/kadm5/server_acl.h >/dev/null 2>&1; then :; \
-	else \
-		(set -x; $(RM) $(BUILDTOP)/include/kadm5/server_acl.h; \
-		 $(CP) $(srcdir)/server_acl.h \
-			$(BUILDTOP)/include/kadm5/server_acl.h) ; \
-	fi
-
-clean-unix::
-	$(RM) $(BUILDTOP)/include/kadm5/server_acl.h
+generate-files-mac: darwin.exports
 
 check-windows:
 
@@ -103,8 +87,6 @@ install-unix:
 	$(RM) $(DESTDIR)$(KRB5_LIBDIR)/libkadm5srv$(DEPLIBEXT)
 	(cd $(DESTDIR)$(KRB5_LIBDIR) && $(LN_S) lib$(LIBBASE)$(DEPLIBEXT) \
 		libkadm5srv$(DEPLIBEXT))
-
-depend: includes
 
 @lib_frag@
 @libobj_frag@

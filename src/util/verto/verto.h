@@ -33,6 +33,7 @@
 typedef HANDLE verto_proc;
 typedef DWORD verto_proc_status;
 #else
+#include <sys/types.h>
 typedef pid_t verto_proc;
 typedef int verto_proc_status;
 #endif
@@ -195,7 +196,8 @@ verto_set_default(const char *impl, verto_ev_type reqtypes);
  * @see verto_add_idle()
  * @see verto_add_signal()
  * @see verto_add_child()
- * @param resize The allocator to use (behaves like realloc())
+ * @param resize The allocator to use (behaves like realloc();
+ *        resize(ptr, 0) must free memory at ptr.)
  * @param hierarchical Zero if the allocator is not hierarchical
  */
 int
@@ -214,6 +216,19 @@ verto_set_allocator(void *(*resize)(void *mem, size_t size), int hierarchical);
  */
 void
 verto_free(verto_ctx *ctx);
+
+/**
+ * Frees global state.
+ *
+ * Remove and free all allocated global state.  Call only when no further
+ * contexts exist and all threads have exited.
+ *
+ * @see verto_new()
+ * @see verto_free()
+ * @see verto_default()
+ */
+void
+verto_cleanup(void);
 
 /**
  * Run the verto_ctx forever, or at least until verto_break() is called.
@@ -444,7 +459,8 @@ verto_get_flags(const verto_ev *ev);
  * Sets the flags associated with the given verto_ev.
  *
  * See _VERTO_EV_FLAG_MUTABLE_MASK for the flags that can be changed
- * with this function. All others will be ignored.
+ * with this function. All others will be ignored. If the flags specified
+ * are the same as the flags the event already has, this function is a no-op.
  *
  * @see verto_add_io()
  * @see verto_add_timeout()

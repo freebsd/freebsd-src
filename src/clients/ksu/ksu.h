@@ -150,7 +150,7 @@ extern krb5_boolean krb5_find_princ_in_cred_list
 extern krb5_error_code krb5_find_princ_in_cache
 (krb5_context, krb5_ccache, krb5_principal, krb5_boolean *);
 
-extern void printtime (time_t);
+extern void printtime (krb5_timestamp);
 
 /* authorization.c */
 extern krb5_boolean fowner (FILE *, uid_t);

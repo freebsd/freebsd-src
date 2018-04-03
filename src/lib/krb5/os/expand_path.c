@@ -351,7 +351,7 @@ expand_null(krb5_context context, PTYPE param, const char *postfix, char **ret)
     return 0;
 }
 
-static const struct token {
+static const struct {
     const char *tok;
     PTYPE param;
     const char *postfix;

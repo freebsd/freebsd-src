@@ -180,7 +180,8 @@ pmap_rmt.so pmap_rmt.po $(OUTPRE)pmap_rmt.$(OBJEXT): \
   $(top_srcdir)/include/gssrpc/rpc_msg.h $(top_srcdir)/include/gssrpc/svc.h \
   $(top_srcdir)/include/gssrpc/svc_auth.h $(top_srcdir)/include/gssrpc/xdr.h \
   $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
-  $(top_srcdir)/include/port-sockets.h pmap_rmt.c
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  pmap_rmt.c
 rpc_prot.so rpc_prot.po $(OUTPRE)rpc_prot.$(OBJEXT): \
   $(BUILDTOP)/include/gssapi/gssapi.h $(BUILDTOP)/include/gssrpc/types.h \
   $(top_srcdir)/include/gssrpc/auth.h $(top_srcdir)/include/gssrpc/auth_gss.h \

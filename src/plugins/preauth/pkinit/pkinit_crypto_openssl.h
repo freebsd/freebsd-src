@@ -115,23 +115,4 @@ struct _pkinit_req_crypto_context {
     DH *dh;
 };
 
-#define CERT_MAGIC 0x53534c43
-struct _pkinit_cert_data {
-    unsigned int magic;
-    pkinit_plg_crypto_context plgctx;
-    pkinit_req_crypto_context reqctx;
-    pkinit_identity_crypto_context idctx;
-    pkinit_cred_info cred;
-    unsigned int index;	    /* Index of this cred in the creds[] array */
-};
-
-#define ITER_MAGIC 0x53534c49
-struct _pkinit_cert_iter_data {
-    unsigned int magic;
-    pkinit_plg_crypto_context plgctx;
-    pkinit_req_crypto_context reqctx;
-    pkinit_identity_crypto_context idctx;
-    unsigned int index;
-};
-
 #endif	/* _PKINIT_CRYPTO_OPENSSL_H */

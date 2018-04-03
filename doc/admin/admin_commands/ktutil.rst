@@ -87,7 +87,7 @@ add_entry
 ~~~~~~~~~
 
     **add_entry** {**-key**\|\ **-password**} **-p** *principal*
-    **-k** *kvno* **-e** *enctype*
+    **-k** *kvno* **-e** *enctype* [**-s** *salt*]
 
 Add *principal* to keylist using key or password.
 

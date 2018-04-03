@@ -169,7 +169,7 @@ if test "$enable_thread_support" = yes ; then
 fi
 dnl Maybe this should be inside the conditional above?  Doesn't cache....
 if test "$enable_thread_support" = yes; then
-  ACX_PTHREAD(,[AC_MSG_ERROR([cannot determine options for enabling thread support; try --disable-thread-support])])
+  AX_PTHREAD(,[AC_MSG_ERROR([cannot determine options for enabling thread support; try --disable-thread-support])])
   AC_MSG_NOTICE(PTHREAD_CC = $PTHREAD_CC)
   AC_MSG_NOTICE(PTHREAD_CFLAGS = $PTHREAD_CFLAGS)
   AC_MSG_NOTICE(PTHREAD_LIBS = $PTHREAD_LIBS)
@@ -450,13 +450,13 @@ krb5_ac_warn_cflags_set=${WARN_CFLAGS+set}
 krb5_ac_warn_cxxflags_set=${WARN_CXXFLAGS+set}
 ])
 dnl
-AC_DEFUN(TRY_WARN_CC_FLAG,[dnl
+AC_DEFUN(TRY_WARN_CC_FLAG_1,[dnl
   cachevar=`echo "krb5_cv_cc_flag_$1" | sed -e s/=/_eq_/g -e s/-/_dash_/g -e s/[[^a-zA-Z0-9_]]/_/g`
   AC_CACHE_CHECK([if C compiler supports $1], [$cachevar],
   [# first try without, then with
   AC_TRY_COMPILE([], 1;,
     [old_cflags="$CFLAGS"
-     CFLAGS="$CFLAGS $1"
+     CFLAGS="$CFLAGS $cflags_warning_test_flags $1"
      AC_TRY_COMPILE([], 1;, eval $cachevar=yes, eval $cachevar=no)
      CFLAGS="$old_cflags"],
     [AC_MSG_ERROR(compiling simple test program with $CFLAGS failed)])])
@@ -464,6 +464,21 @@ AC_DEFUN(TRY_WARN_CC_FLAG,[dnl
     WARN_CFLAGS="$WARN_CFLAGS $1"
   fi
   eval flag_supported='${'$cachevar'}'
+])dnl
+dnl
+dnl Are additional flags needed to make unsupported warning options
+dnl get reported as errors?
+AC_DEFUN(CHECK_CC_WARNING_TEST_FLAGS,[dnl
+  cflags_warning_test_flags=
+  TRY_WARN_CC_FLAG_1(-Werror=unknown-warning-option)
+  if test $flag_supported = yes; then
+    cflags_warning_test_flags=-Werror=unknown-warning-option
+  fi
+])dnl
+dnl
+AC_DEFUN(TRY_WARN_CC_FLAG,[dnl
+AC_REQUIRE([CHECK_CC_WARNING_TEST_FLAGS])dnl
+TRY_WARN_CC_FLAG_1($1)dnl
 ])dnl
 dnl
 AC_DEFUN(WITH_CC,[dnl
@@ -528,7 +543,7 @@ if test "$GCC" = yes ; then
     TRY_WARN_CC_FLAG(-Wno-format-zero-length)
     # Other flags here may not be supported on some versions of
     # gcc that people want to use.
-    for flag in overflow strict-overflow missing-format-attribute missing-prototypes return-type missing-braces parentheses switch unused-function unused-label unused-variable unused-value unknown-pragmas sign-compare newline-eof error=uninitialized error=pointer-arith error=int-conversion error=incompatible-pointer-types error=discarded-qualifiers ; do
+    for flag in overflow strict-overflow missing-format-attribute missing-prototypes return-type missing-braces parentheses switch unused-function unused-label unused-variable unused-value unknown-pragmas sign-compare newline-eof error=uninitialized no-maybe-uninitialized error=pointer-arith error=int-conversion error=incompatible-pointer-types error=discarded-qualifiers error=implicit-int ; do
       TRY_WARN_CC_FLAG(-W$flag)
     done
     #  old-style-definition? generates many, many warnings
@@ -615,8 +630,16 @@ else
     # works, but it also means that declaration-in-code warnings won't
     # be issued.
     # -v -fd -errwarn=E_DECLARATION_IN_CODE ...
-    WARN_CFLAGS="-errtags=yes -errwarn=E_BAD_PTR_INT_COMBINATION,E_BAD_PTR_INT_COMB_ARG,E_PTR_TO_VOID_IN_ARITHMETIC,E_NO_IMPLICIT_DECL_ALLOWED,E_ATTRIBUTE_PARAM_UNDEFINED"
-    WARN_CXXFLAGS="-errtags=yes +w +w2 -xport64"
+    if test "x$krb5_ac_warn_cflags_set" = xset ; then
+      AC_MSG_NOTICE(not adding extra warning flags because WARN_CFLAGS was set)
+    else
+      WARN_CFLAGS="-errtags=yes -errwarn=E_BAD_PTR_INT_COMBINATION,E_BAD_PTR_INT_COMB_ARG,E_PTR_TO_VOID_IN_ARITHMETIC,E_NO_IMPLICIT_DECL_ALLOWED,E_ATTRIBUTE_PARAM_UNDEFINED"
+    fi
+    if test "x$krb5_ac_warn_cxxflags_set" = xset ; then
+      AC_MSG_NOTICE(not adding extra warning flags because WARN_CXXFLAGS was set)
+    else
+      WARN_CXXFLAGS="-errtags=yes +w +w2 -xport64"
+    fi
   fi
 fi
 AC_SUBST(WARN_CFLAGS)
@@ -1352,7 +1375,6 @@ dnl =============================================================
 dnl Internal function for testing for getpeername prototype
 dnl
 AC_DEFUN([KRB5_GETPEERNAME_ARGS],[
-AC_DEFINE([GETPEERNAME_ARG2_TYPE],GETSOCKNAME_ARG2_TYPE,[Type of getpeername second argument.])
 AC_DEFINE([GETPEERNAME_ARG3_TYPE],GETSOCKNAME_ARG3_TYPE,[Type of getpeername second argument.])
 ])
 dnl
@@ -1397,7 +1419,6 @@ if test "$sock_set" = no; then
 fi
 res1=`echo "$res1" | tr -d '*' | sed -e 's/ *$//'`
 res2=`echo "$res2" | tr -d '*' | sed -e 's/ *$//'`
-AC_DEFINE_UNQUOTED([GETSOCKNAME_ARG2_TYPE],$res1,[Type of pointer target for argument 2 to getsockname])
 AC_DEFINE_UNQUOTED([GETSOCKNAME_ARG3_TYPE],$res2,[Type of pointer target for argument 3 to getsockname])
 ])
 dnl
@@ -1634,8 +1655,8 @@ if test $krb5_cv_pragma_weak_ref = yes ; then
 fi])
 dnl
 dnl
-m4_include(config/ac-archive/acx_pthread.m4)
-m4_include(config/ac-archive/relpaths.m4)
+m4_include(config/ac-archive/ax_pthread.m4)
+m4_include(config/ac-archive/ax_recursive_eval.m4)
 dnl
 dnl
 dnl

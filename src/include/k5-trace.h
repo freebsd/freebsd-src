@@ -155,6 +155,20 @@ void krb5int_trace(krb5_context context, const char *fmt, ...);
     TRACE(c, "ccselect choosing default cache {ccache} for server " \
           "principal {princ}", cache, server)
 
+#define TRACE_DNS_SRV_ANS(c, host, port, prio, weight)                \
+    TRACE(c, "SRV answer: {int} {int} {int} \"{str}\"", prio, weight, \
+          port, host)
+#define TRACE_DNS_SRV_NOTFOUND(c)               \
+    TRACE(c, "No SRV records found")
+#define TRACE_DNS_SRV_SEND(c, domain)                   \
+    TRACE(c, "Sending DNS SRV query for {str}", domain)
+#define TRACE_DNS_URI_ANS(c, uri, prio, weight)                         \
+    TRACE(c, "URI answer: {int} {int} \"{str}\"", prio, weight, uri)
+#define TRACE_DNS_URI_NOTFOUND(c)               \
+    TRACE(c, "No URI records found")
+#define TRACE_DNS_URI_SEND(c, domain)                   \
+    TRACE(c, "Sending DNS URI query for {str}", domain)
+
 #define TRACE_FAST_ARMOR_CCACHE(c, ccache_name)         \
     TRACE(c, "FAST armor ccache: {str}", ccache_name)
 #define TRACE_FAST_ARMOR_CCACHE_KEY(c, keyblock)                \
@@ -213,8 +227,19 @@ void krb5int_trace(krb5_context context, const char *fmt, ...);
     TRACE(c, "Looked up etypes in keytab: {etypes}", etypes)
 #define TRACE_INIT_CREDS_KEYTAB_LOOKUP_FAILED(c, code)          \
     TRACE(c, "Couldn't lookup etypes in keytab: {kerr}", code)
+#define TRACE_INIT_CREDS_PREAUTH(c)                     \
+    TRACE(c, "Preauthenticating using KDC method data")
 #define TRACE_INIT_CREDS_PREAUTH_DECRYPT_FAIL(c, code)                  \
     TRACE(c, "Decrypt with preauth AS key failed: {kerr}", code)
+#define TRACE_INIT_CREDS_PREAUTH_MORE(c, patype)                \
+    TRACE(c, "Continuing preauth mech {int}", (int)patype)
+#define TRACE_INIT_CREDS_PREAUTH_NONE(c)        \
+    TRACE(c, "Sending unauthenticated request")
+#define TRACE_INIT_CREDS_PREAUTH_OPTIMISTIC(c)  \
+    TRACE(c, "Attempting optimistic preauth")
+#define TRACE_INIT_CREDS_PREAUTH_TRYAGAIN(c, patype, code)              \
+    TRACE(c, "Recovering from KDC error {int} using preauth mech {int}", \
+          (int)patype, (int)code)
 #define TRACE_INIT_CREDS_RESTART_FAST(c)        \
     TRACE(c, "Restarting to upgrade to FAST")
 #define TRACE_INIT_CREDS_RESTART_PREAUTH_FAILED(c)                      \
@@ -227,6 +252,13 @@ void krb5int_trace(krb5_context context, const char *fmt, ...);
     TRACE(c, "Salt derived from principal: {data}", salt)
 #define TRACE_INIT_CREDS_SERVICE(c, service)                    \
     TRACE(c, "Setting initial creds service to {str}", service)
+
+#define TRACE_KADM5_AUTH_VTINIT_FAIL(c, ret)                            \
+    TRACE(c, "kadm5_auth module failed to init vtable: {kerr}", ret)
+#define TRACE_KADM5_AUTH_INIT_FAIL(c, name, ret)                        \
+    TRACE(c, "kadm5_auth module {str} failed to init: {kerr}", ret)
+#define TRACE_KADM5_AUTH_INIT_SKIP(c, name)                             \
+    TRACE(c, "kadm5_auth module {str} declined to initialize", name)
 
 #define TRACE_KT_GET_ENTRY(c, keytab, princ, vno, enctype, err)         \
     TRACE(c, "Retrieving {princ} from {keytab} (vno {int}, enctype {etype}) " \
@@ -287,10 +319,16 @@ void krb5int_trace(krb5_context context, const char *fmt, ...);
 #define TRACE_PREAUTH_SKIP(c, name, patype)                           \
     TRACE(c, "Skipping previously used preauth module {str} ({int})", \
           name, (int) patype)
-#define TRACE_PREAUTH_TRYAGAIN_INPUT(c, padata)                 \
-    TRACE(c, "Preauth tryagain input types: {patypes}", padata)
+#define TRACE_PREAUTH_TRYAGAIN_INPUT(c, patype, padata)                 \
+    TRACE(c, "Preauth tryagain input types ({int}): {patypes}", patype, padata)
+#define TRACE_PREAUTH_TRYAGAIN(c, name, patype, code)                   \
+    TRACE(c, "Preauth module {str} ({int}) tryagain returned: {kerr}",  \
+          name, (int)patype, code)
 #define TRACE_PREAUTH_TRYAGAIN_OUTPUT(c, padata)                        \
     TRACE(c, "Followup preauth for next request: {patypes}", padata)
+#define TRACE_PREAUTH_WRONG_CONTEXT(c)                                  \
+    TRACE(c, "Wrong context passed to krb5_init_creds_free(); leaking " \
+          "modreq objects")
 
 #define TRACE_PROFILE_ERR(c,subsection, section, retval)             \
     TRACE(c, "Bad value of {str} from [{str}] in conf file: {kerr}", \
@@ -453,5 +491,10 @@ void krb5int_trace(krb5_context context, const char *fmt, ...);
           reply, request, (kdcoptions & KDC_OPT_CANONICALIZE) ? "on" : "off")
 #define TRACE_GET_CRED_VIA_TKT_EXT_RETURN(c, ret) \
     TRACE(c, "Got cred; {kerr}", ret)
+
+#define TRACE_KDCPOLICY_VTINIT_FAIL(c, ret)                             \
+    TRACE(c, "KDC policy module failed to init vtable: {kerr}", ret)
+#define TRACE_KDCPOLICY_INIT_SKIP(c, name)                              \
+    TRACE(c, "kadm5_auth module {str} declined to initialize", name)
 
 #endif /* K5_TRACE_H */

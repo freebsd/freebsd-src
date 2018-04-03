@@ -28,6 +28,25 @@
 #include "int-proto.h"
 #include "fast.h"
 
+/* Choose a random nonce for an AS or TGS request. */
+krb5_error_code
+k5_generate_nonce(krb5_context context, int32_t *out)
+{
+    krb5_error_code ret;
+    unsigned char random_buf[4];
+    krb5_data random_data = make_data(random_buf, 4);
+
+    *out = 0;
+
+    /* We and Heimdal incorrectly encode nonces as signed, so make sure we use
+     * a non-negative value to avoid interoperability issues. */
+    ret = krb5_c_random_make_octets(context, &random_data);
+    if (ret)
+        return ret;
+    *out = 0x7FFFFFFF & load_32_n(random_buf);
+    return 0;
+}
+
 /* Construct an AP-REQ message for a TGS request. */
 static krb5_error_code
 tgs_construct_ap_req(krb5_context context, krb5_data *checksum_data,
@@ -156,10 +175,13 @@ k5_make_tgs_req(krb5_context context,
     req.till = desired->times.endtime ? desired->times.endtime :
         tgt->times.endtime;
     req.rtime = desired->times.renew_till;
+    ret = k5_generate_nonce(context, &req.nonce);
+    if (ret)
+        return ret;
+    *nonce_out = req.nonce;
     ret = krb5_timeofday(context, &time_now);
     if (ret)
         return ret;
-    *nonce_out = req.nonce = (krb5_int32)time_now;
     *timestamp_out = time_now;
 
     req.addresses = (krb5_address **)addrs;

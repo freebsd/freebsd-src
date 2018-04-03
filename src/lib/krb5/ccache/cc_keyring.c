@@ -751,7 +751,7 @@ update_keyring_expiration(krb5_context context, krb5_ccache id)
     for (;;) {
         if (krcc_next_cred(context, id, &cursor, &creds) != 0)
             break;
-        if (creds.times.endtime > endtime)
+        if (ts_after(creds.times.endtime, endtime))
             endtime = creds.times.endtime;
         krb5_free_cred_contents(context, &creds);
     }
@@ -765,7 +765,7 @@ update_keyring_expiration(krb5_context context, krb5_ccache id)
 
     /* Setting the timeout to zero would reset the timeout, so we set it to one
      * second instead if creds are already expired. */
-    timeout = (endtime > now) ? endtime - now : 1;
+    timeout = ts_after(endtime, now) ? ts_delta(endtime, now) : 1;
     (void)keyctl_set_timeout(data->cache_id, timeout);
 }
 
@@ -1316,8 +1316,10 @@ krcc_store(krb5_context context, krb5_ccache id, krb5_creds *creds)
     if (ret)
         goto errout;
 
-    if (creds->times.endtime > now)
-        (void)keyctl_set_timeout(cred_key, creds->times.endtime - now);
+    if (ts_after(creds->times.endtime, now)) {
+        (void)keyctl_set_timeout(cred_key,
+                                 ts_delta(creds->times.endtime, now));
+    }
 
     update_keyring_expiration(context, id);
 
@@ -1680,8 +1682,8 @@ static void
 krcc_update_change_time(krcc_data *data)
 {
     krb5_timestamp now_time = time(NULL);
-    data->changetime = (data->changetime >= now_time) ?
-        data->changetime + 1 : now_time;
+    data->changetime = ts_after(now_time, data->changetime) ?
+        now_time : ts_incr(data->changetime, 1);
 }
 
 /*

@@ -131,3 +131,19 @@ krb5_enctype_to_name(krb5_enctype enctype, krb5_boolean shortest,
         return ENOMEM;
     return 0;
 }
+
+/* The security of a mechanism cannot be summarized with a simple integer
+ * value, but we provide a per-enctype value for Cyrus SASL's SSF. */
+krb5_error_code
+k5_enctype_to_ssf(krb5_enctype enctype, unsigned int *ssf_out)
+{
+    const struct krb5_keytypes *ktp;
+
+    *ssf_out = 0;
+
+    ktp = find_enctype(enctype);
+    if (ktp == NULL)
+        return EINVAL;
+    *ssf_out = ktp->ssf;
+    return 0;
+}

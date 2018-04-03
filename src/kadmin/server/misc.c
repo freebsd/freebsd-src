@@ -7,96 +7,9 @@
 #include    <k5-int.h>
 #include    <kdb.h>
 #include    <kadm5/server_internal.h>
-#include    <kadm5/server_acl.h>
 #include    "misc.h"
+#include    "auth.h"
 #include    "net-server.h"
-
-/*
- * Function: chpass_principal_wrapper_3
- *
- * Purpose: wrapper to kadm5_chpass_principal that checks to see if
- *          pw_min_life has been reached. if not it returns an error.
- *          otherwise it calls kadm5_chpass_principal
- *
- * Arguments:
- *      principal       (input) krb5_principals whose password we are
- *                              changing
- *      keepold         (input) whether to preserve old keys
- *      n_ks_tuple      (input) the number of key-salt tuples in ks_tuple
- *      ks_tuple        (input) array of tuples indicating the caller's
- *                              requested enctypes/salttypes
- *      password        (input) password we are going to change to.
- *      <return value>  0 on success error code on failure.
- *
- * Requires:
- *      kadm5_init to have been run.
- *
- * Effects:
- *      calls kadm5_chpass_principal which changes the kdb and the
- *      the admin db.
- *
- */
-kadm5_ret_t
-chpass_principal_wrapper_3(void *server_handle,
-                           krb5_principal principal,
-                           krb5_boolean keepold,
-                           int n_ks_tuple,
-                           krb5_key_salt_tuple *ks_tuple,
-                           char *password)
-{
-    kadm5_ret_t                 ret;
-
-    ret = check_min_life(server_handle, principal, NULL, 0);
-    if (ret)
-        return ret;
-
-    return kadm5_chpass_principal_3(server_handle, principal,
-                                    keepold, n_ks_tuple, ks_tuple,
-                                    password);
-}
-
-
-/*
- * Function: randkey_principal_wrapper_3
- *
- * Purpose: wrapper to kadm5_randkey_principal which checks the
- *          password's min. life.
- *
- * Arguments:
- *      principal           (input) krb5_principal whose password we are
- *                                  changing
- *      keepold         (input) whether to preserve old keys
- *      n_ks_tuple      (input) the number of key-salt tuples in ks_tuple
- *      ks_tuple        (input) array of tuples indicating the caller's
- *                              requested enctypes/salttypes
- *      key                 (output) new random key
- *      <return value>      0, error code on error.
- *
- * Requires:
- *      kadm5_init       needs to be run
- *
- * Effects:
- *      calls kadm5_randkey_principal
- *
- */
-kadm5_ret_t
-randkey_principal_wrapper_3(void *server_handle,
-                            krb5_principal principal,
-                            krb5_boolean keepold,
-                            int n_ks_tuple,
-                            krb5_key_salt_tuple *ks_tuple,
-                            krb5_keyblock **keys, int *n_keys)
-{
-    kadm5_ret_t                 ret;
-
-    ret = check_min_life(server_handle, principal, NULL, 0);
-    if (ret)
-        return ret;
-    return kadm5_randkey_principal_3(server_handle, principal,
-                                     keepold, n_ks_tuple, ks_tuple,
-                                     keys, n_keys);
-}
-
 kadm5_ret_t
 schpw_util_wrapper(void *server_handle,
                    krb5_principal client,
@@ -107,8 +20,6 @@ schpw_util_wrapper(void *server_handle,
 {
     kadm5_ret_t                 ret;
     kadm5_server_handle_t       handle = server_handle;
-    krb5_boolean                access_granted;
-    krb5_boolean                self;
 
     /*
      * If no target is explicitly provided, then the target principal
@@ -117,32 +28,22 @@ schpw_util_wrapper(void *server_handle,
     if (target == NULL)
         target = client;
 
-    /*
-     * A principal can always change its own password, as long as it
-     * has an initial ticket and meets the minimum password lifetime
-     * requirement.
-     */
-    self = krb5_principal_compare(handle->context, client, target);
-    if (self) {
+    /* If the client is changing its own password, require it to use an initial
+     * ticket, and enforce the policy min_life. */
+    if (krb5_principal_compare(handle->context, client, target)) {
+        if (!initial_flag) {
+            strlcpy(msg_ret, "Ticket must be derived from a password",
+                    msg_len);
+            return KADM5_AUTH_INITIAL;
+        }
+
         ret = check_min_life(server_handle, target, msg_ret, msg_len);
         if (ret != 0)
             return ret;
-
-        access_granted = initial_flag;
-    } else
-        access_granted = FALSE;
-
-    if (!access_granted &&
-        kadm5int_acl_check_krb(handle->context, client,
-                               ACL_CHANGEPW, target, NULL)) {
-        /*
-         * Otherwise, principals with appropriate privileges can change
-         * any password
-         */
-        access_granted = TRUE;
     }
 
-    if (access_granted) {
+    if (auth(handle->context, OP_CPW, client, target,
+             NULL, NULL, NULL, NULL, 0)) {
         ret = kadm5_chpass_principal_util(server_handle,
                                           target,
                                           new_pw, ret_pw,
@@ -159,7 +60,7 @@ kadm5_ret_t
 check_min_life(void *server_handle, krb5_principal principal,
                char *msg_ret, unsigned int msg_len)
 {
-    krb5_int32                  now;
+    krb5_timestamp              now;
     kadm5_ret_t                 ret;
     kadm5_policy_ent_rec        pol;
     kadm5_principal_ent_rec     princ;
@@ -184,7 +85,7 @@ check_min_life(void *server_handle, krb5_principal principal,
             (void) kadm5_free_principal_ent(handle->lhandle, &princ);
             return (ret == KADM5_UNK_POLICY) ? 0 : ret;
         }
-        if((now - princ.last_pwd_change) < pol.pw_min_life &&
+        if(ts_delta(now, princ.last_pwd_change) < pol.pw_min_life &&
            !(princ.attributes & KRB5_KDB_REQUIRES_PWCHANGE)) {
             if (msg_ret != NULL) {
                 time_t until;

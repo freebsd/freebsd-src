@@ -111,9 +111,9 @@ struct TicketList {
     TicketList *next;
     char *service;
     char *encTypes;
-    krb5_timestamp issued;
-    krb5_timestamp valid_until;
-    krb5_timestamp renew_until;
+    time_t issued;
+    time_t valid_until;
+    time_t renew_until;
     unsigned long flags;
 };
 
@@ -124,9 +124,9 @@ struct TICKETINFO {
     char   *ccache_name;
     TicketList *ticket_list;
     int     btickets;                 /* Do we have tickets? */
-    long    issued;                   /* The issue time */
-    long    valid_until;              /* */
-    long    renew_until;              /* The Renew time (k5 only) */
+    time_t  issued;                   /* The issue time */
+    time_t  valid_until;              /* */
+    time_t  renew_until;              /* The Renew time (k5 only) */
     unsigned long flags;
 };
 

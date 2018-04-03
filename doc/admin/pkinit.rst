@@ -223,6 +223,26 @@ time as follows::
 
     kadmin -q 'add_principal +requires_preauth -nokey YOUR_PRINCNAME'
 
+By default, the KDC requires PKINIT client certificates to have the
+standard Extended Key Usage and Subject Alternative Name attributes
+for PKINIT.  Starting in release 1.16, it is possible to authorize
+client certificates based on the subject or other criteria instead of
+the standard PKINIT Subject Alternative Name, by setting the
+**pkinit_cert_match** string attribute on each client principal entry.
+For example::
+
+    kadmin set_string user@REALM pkinit_cert_match "<SUBJECT>CN=user@REALM$"
+
+The **pkinit_cert_match** string attribute follows the syntax used by
+the :ref:`krb5.conf(5)` **pkinit_cert_match** relation.  To allow the
+use of non-PKINIT client certificates, it will also be necessary to
+disable key usage checking using the **pkinit_eku_checking** relation;
+for example::
+
+    [kdcdefaults]
+        pkinit_eku_checking = none
+
+
 
 Configuring the clients
 -----------------------

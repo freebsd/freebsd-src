@@ -13,23 +13,6 @@ int
 setup_gss_names(struct svc_req *, gss_buffer_desc *,
                 gss_buffer_desc *);
 
-
-kadm5_ret_t
-chpass_principal_wrapper_3(void *server_handle,
-                           krb5_principal principal,
-                           krb5_boolean keepold,
-                           int n_ks_tuple,
-                           krb5_key_salt_tuple *ks_tuple,
-                           char *password);
-
-kadm5_ret_t
-randkey_principal_wrapper_3(void *server_handle,
-                            krb5_principal principal,
-                            krb5_boolean keepold,
-                            int n_ks_tuple,
-                            krb5_key_salt_tuple *ks_tuple,
-                            krb5_keyblock **keys, int *n_keys);
-
 kadm5_ret_t
 schpw_util_wrapper(void *server_handle, krb5_principal client,
                    krb5_principal target, krb5_boolean initial_flag,

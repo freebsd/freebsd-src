@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '1.15.1',
+        VERSION:     '1.16',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -67,7 +67,7 @@
 <h1>krb5_mk_req -  Create a KRB_AP_REQ message.<a class="headerlink" href="#krb5-mk-req-create-a-krb-ap-req-message" title="Permalink to this headline">¶</a></h1>
 <dl class="function">
 <dt id="c.krb5_mk_req">
-<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <tt class="descname">krb5_mk_req</tt><big>(</big><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_auth_context.html#c.krb5_auth_context" title="krb5_auth_context">krb5_auth_context</a> *<em>&nbsp;auth_context</em>, <a class="reference internal" href="../types/krb5_flags.html#c.krb5_flags" title="krb5_flags">krb5_flags</a><em>&nbsp;ap_req_options</em>, char *<em>&nbsp;service</em>, char *<em>&nbsp;hostname</em>, <a class="reference internal" href="../types/krb5_data.html#c.krb5_data" title="krb5_data">krb5_data</a> *<em>&nbsp;in_data</em>, <a class="reference internal" href="../types/krb5_ccache.html#c.krb5_ccache" title="krb5_ccache">krb5_ccache</a><em>&nbsp;ccache</em>, <a class="reference internal" href="../types/krb5_data.html#c.krb5_data" title="krb5_data">krb5_data</a> *<em>&nbsp;outbuf</em><big>)</big><a class="headerlink" href="#c.krb5_mk_req" title="Permalink to this definition">¶</a></dt>
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <tt class="descname">krb5_mk_req</tt><big>(</big><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_auth_context.html#c.krb5_auth_context" title="krb5_auth_context">krb5_auth_context</a> *<em>&nbsp;auth_context</em>, <a class="reference internal" href="../types/krb5_flags.html#c.krb5_flags" title="krb5_flags">krb5_flags</a><em>&nbsp;ap_req_options</em>, const char *<em>&nbsp;service</em>, const char *<em>&nbsp;hostname</em>, <a class="reference internal" href="../types/krb5_data.html#c.krb5_data" title="krb5_data">krb5_data</a> *<em>&nbsp;in_data</em>, <a class="reference internal" href="../types/krb5_ccache.html#c.krb5_ccache" title="krb5_ccache">krb5_ccache</a><em>&nbsp;ccache</em>, <a class="reference internal" href="../types/krb5_data.html#c.krb5_data" title="krb5_data">krb5_data</a> *<em>&nbsp;outbuf</em><big>)</big><a class="headerlink" href="#c.krb5_mk_req" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <table class="docutils field-list" frame="void" rules="none">
@@ -119,6 +119,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../admin/index.html">For administrators</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../../index.html">For application developers</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../../gssapi.html">Developing with GSSAPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../y2038.html">Year 2038 considerations for uses of krb5_timestamp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../h5l_mit_apidiff.html">Differences between Heimdal and MIT Kerberos API</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../init_creds.html">Initial credentials</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../princ_handle.html">Principal manipulation and parsing</a></li>
@@ -156,7 +157,7 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.15.1</i><br />
+            <div class="right" ><i>Release: 1.16</i><br />
                 &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
             </div>
             <div class="left">

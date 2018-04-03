@@ -100,7 +100,7 @@ locked_check_p(krb5_context context,
 
     /* If the entry was unlocked since the last failure, it's not locked. */
     if (krb5_dbe_lookup_last_admin_unlock(context, entry, &unlock_time) == 0 &&
-        entry->last_failed <= unlock_time)
+        !ts_after(entry->last_failed, unlock_time))
         return FALSE;
 
     if (max_fail == 0 || entry->fail_auth_count < max_fail)
@@ -109,7 +109,7 @@ locked_check_p(krb5_context context,
     if (lockout_duration == 0)
         return TRUE; /* principal permanently locked */
 
-    return (stamp < entry->last_failed + lockout_duration);
+    return ts_after(ts_incr(entry->last_failed, lockout_duration), stamp);
 }
 
 krb5_error_code
@@ -200,13 +200,13 @@ krb5_db2_lockout_audit(krb5_context context,
                 status == KRB5KRB_AP_ERR_BAD_INTEGRITY)) {
         if (krb5_dbe_lookup_last_admin_unlock(context, entry,
                                               &unlock_time) == 0 &&
-            entry->last_failed <= unlock_time) {
+            !ts_after(entry->last_failed, unlock_time)) {
             /* Reset fail_auth_count after administrative unlock. */
             entry->fail_auth_count = 0;
         }
 
         if (failcnt_interval != 0 &&
-            stamp > entry->last_failed + failcnt_interval) {
+            ts_after(stamp, ts_incr(entry->last_failed, failcnt_interval))) {
             /* Reset fail_auth_count after failcnt_interval. */
             entry->fail_auth_count = 0;
         }

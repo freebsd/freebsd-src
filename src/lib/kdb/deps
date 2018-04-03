@@ -153,5 +153,6 @@ t_ulog.so t_ulog.po $(OUTPRE)t_ulog.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/port-sockets.h \
   $(top_srcdir)/include/socket-utils.h t_ulog.c
 t_sort_key_data.so t_sort_key_data.po $(OUTPRE)t_sort_key_data.$(OBJEXT): \
-  $(BUILDTOP)/include/krb5/krb5.h $(COM_ERR_DEPS) $(top_srcdir)/include/kdb.h \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/k5-cmocka.h $(top_srcdir)/include/kdb.h \
   $(top_srcdir)/include/krb5.h t_sort_key_data.c

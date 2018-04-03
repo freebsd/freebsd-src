@@ -71,6 +71,11 @@ load_modules(krb5_context context)
     if (ret != 0)
         goto cleanup;
 
+    ret = k5_plugin_register(context, PLUGIN_INTERFACE_CCSELECT, "hostname",
+                             ccselect_hostname_initvt);
+    if (ret != 0)
+        goto cleanup;
+
     ret = k5_plugin_load_all(context, PLUGIN_INTERFACE_CCSELECT, &modules);
     if (ret != 0)
         goto cleanup;
@@ -115,14 +120,6 @@ cleanup:
     return ret;
 }
 
-static krb5_error_code
-choose(krb5_context context, struct ccselect_module_handle *h,
-       krb5_principal server, krb5_ccache *cache_out,
-       krb5_principal *princ_out)
-{
-    return h->vt.choose(context, h->data, server, cache_out, princ_out);
-}
-
 krb5_error_code KRB5_CALLCONV
 krb5_cc_select(krb5_context context, krb5_principal server,
                krb5_ccache *cache_out, krb5_principal *princ_out)
@@ -132,6 +129,8 @@ krb5_cc_select(krb5_context context, krb5_principal server,
     struct ccselect_module_handle **hp, *h;
     krb5_ccache cache;
     krb5_principal princ;
+    krb5_principal srvcp = NULL;
+    char **fbrealms = NULL;
 
     *cache_out = NULL;
     *princ_out = NULL;
@@ -139,7 +138,27 @@ krb5_cc_select(krb5_context context, krb5_principal server,
     if (context->ccselect_handles == NULL) {
         ret = load_modules(context);
         if (ret)
-            return ret;
+            goto cleanup;
+    }
+
+    /* Try to use the fallback host realm for the server if there is no
+     * authoritative realm. */
+    if (krb5_is_referral_realm(&server->realm) &&
+        server->type == KRB5_NT_SRV_HST && server->length == 2) {
+        ret = krb5_get_fallback_host_realm(context, &server->data[1],
+                                           &fbrealms);
+        if (ret)
+            goto cleanup;
+
+        /* Make a copy with the first fallback realm. */
+        ret = krb5_copy_principal(context, server, &srvcp);
+        if (ret)
+            goto cleanup;
+        ret = krb5_set_principal_realm(context, srvcp, fbrealms[0]);
+        if (ret)
+            goto cleanup;
+
+        server = srvcp;
     }
 
     /* Consult authoritative modules first, then heuristic ones. */
@@ -149,26 +168,31 @@ krb5_cc_select(krb5_context context, krb5_principal server,
             h = *hp;
             if (h->priority != priority)
                 continue;
-            ret = choose(context, h, server, &cache, &princ);
+            ret = h->vt.choose(context, h->data, server, &cache, &princ);
             if (ret == 0) {
                 TRACE_CCSELECT_MODCHOICE(context, h->vt.name, server, cache,
                                          princ);
                 *cache_out = cache;
                 *princ_out = princ;
-                return 0;
+                goto cleanup;
             } else if (ret == KRB5_CC_NOTFOUND) {
                 TRACE_CCSELECT_MODNOTFOUND(context, h->vt.name, server, princ);
                 *princ_out = princ;
-                return ret;
+                goto cleanup;
             } else if (ret != KRB5_PLUGIN_NO_HANDLE) {
                 TRACE_CCSELECT_MODFAIL(context, h->vt.name, ret, server);
-                return ret;
+                goto cleanup;
             }
         }
     }
 
     TRACE_CCSELECT_NOTFOUND(context, server);
-    return KRB5_CC_NOTFOUND;
+    ret = KRB5_CC_NOTFOUND;
+
+cleanup:
+    krb5_free_principal(context, srvcp);
+    krb5_free_host_realm(context, fbrealms);
+    return ret;
 }
 
 void

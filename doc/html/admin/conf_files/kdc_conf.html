@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../',
-        VERSION:     '1.15.1',
+        VERSION:     '1.16',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -149,9 +149,10 @@ to define one parameter for the ATHENA.MIT.EDU realm:</p>
 <dt><strong>acl_file</strong></dt>
 <dd>(String.)  Location of the access control list file that
 <a class="reference internal" href="../admin_commands/kadmind.html#kadmind-8"><em>kadmind</em></a> uses to determine which principals are allowed
-which permissions on the Kerberos database.  The default value is
-<a class="reference internal" href="../../mitK5defaults.html#paths"><em>LOCALSTATEDIR</em></a><tt class="docutils literal"><span class="pre">/krb5kdc</span></tt><tt class="docutils literal"><span class="pre">/kadm5.acl</span></tt>.  For more information on Kerberos ACL
-file see <a class="reference internal" href="kadm5_acl.html#kadm5-acl-5"><em>kadm5.acl</em></a>.</dd>
+which permissions on the Kerberos database.  To operate without an
+ACL file, set this relation to the empty string with <tt class="docutils literal"><span class="pre">acl_file</span> <span class="pre">=</span>
+<span class="pre">&quot;&quot;</span></tt>.  The default value is <a class="reference internal" href="../../mitK5defaults.html#paths"><em>LOCALSTATEDIR</em></a><tt class="docutils literal"><span class="pre">/krb5kdc</span></tt><tt class="docutils literal"><span class="pre">/kadm5.acl</span></tt>.  For more
+information on Kerberos ACL file see <a class="reference internal" href="kadm5_acl.html#kadm5-acl-5"><em>kadm5.acl</em></a>.</dd>
 <dt><strong>database_module</strong></dt>
 <dd>(String.)  This relation indicates the name of the configuration
 section under <a class="reference internal" href="#dbmodules"><em>[dbmodules]</em></a> for database-specific parameters
@@ -242,6 +243,10 @@ are not allowed as passwords.  The file should contain one string
 per line, with no additional whitespace.  If none is specified or
 if there is no policy assigned to the principal, no dictionary
 checks of passwords will be performed.</dd>
+<dt><strong>encrypted_challenge_indicator</strong></dt>
+<dd>(String.)  Specifies the authentication indicator value that the KDC
+asserts into tickets obtained using FAST encrypted challenge
+pre-authentication.  New in 1.16.</dd>
 <dt><strong>host_based_services</strong></dt>
 <dd>(Whitespace- or comma-separated list.)  Lists services which will
 get host-based referral processing even if the server principal is
@@ -741,8 +746,6 @@ This option is required if pkinit is to be supported by the KDC.</dd>
 <dd>Specifies an authentication indicator to include in the ticket if
 pkinit is used to authenticate.  This option may be specified
 multiple times.  (New in release 1.14.)</dd>
-<dt><strong>pkinit_kdc_ocsp</strong></dt>
-<dd>Specifies the location of the KDC&#8217;s OCSP.</dd>
 <dt><strong>pkinit_pool</strong></dt>
 <dd>Specifies the location of intermediate certificates which may be
 used by the KDC to complete the trust chain between a client&#8217;s
@@ -776,8 +779,8 @@ Encryption types marked as &#8220;weak&#8221; are available for compatibility bu
 not recommended for use.</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="44%" />
-<col width="56%" />
+<col width="30%" />
+<col width="70%" />
 </colgroup>
 <tbody valign="top">
 <tr class="row-odd"><td>des-cbc-crc</td>
@@ -832,7 +835,7 @@ not recommended for use.</p>
 <td>The triple DES family: des3-cbc-sha1</td>
 </tr>
 <tr class="row-even"><td>aes</td>
-<td>The AES family: aes256-cts-hmac-sha1-96 and aes128-cts-hmac-sha1-96</td>
+<td>The AES family: aes256-cts-hmac-sha1-96, aes128-cts-hmac-sha1-96, aes256-cts-hmac-sha384-192, and aes128-cts-hmac-sha256-128</td>
 </tr>
 <tr class="row-odd"><td>rc4</td>
 <td>The RC4 family: arcfour-hmac</td>
@@ -1045,7 +1048,7 @@ follows:</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.15.1</i><br />
+            <div class="right" ><i>Release: 1.16</i><br />
                 &copy; <a href="../../copyright.html">Copyright</a> 1985-2017, MIT.
             </div>
             <div class="left">

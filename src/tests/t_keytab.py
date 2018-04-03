@@ -14,9 +14,8 @@ realm.run([ktutil], input=('rkt %s\ndelent 1\nwkt %s\n' %
 realm.kinit(realm.host_princ, flags=['-k', '-t', pkeytab])
 
 # Test kinit with no keys for client in keytab.
-output = realm.kinit(realm.user_princ, flags=['-k'], expected_code=1)
-if 'no suitable keys' not in output:
-    fail('Expected error not seen in kinit output')
+realm.kinit(realm.user_princ, flags=['-k'], expected_code=1,
+            expected_msg='no suitable keys')
 
 # Test kinit and klist with client keytab defaults.
 realm.extract_keytab(realm.user_princ, realm.client_keytab);
@@ -31,14 +30,12 @@ if realm.client_keytab not in out or realm.user_princ not in out:
 
 # Test implicit request for keytab (-i or -t without -k)
 realm.run([kdestroy])
-output = realm.kinit(realm.host_princ, flags=['-t', realm.keytab])
-if 'keytab specified, forcing -k' not in output:
-    fail('Expected output not seen from kinit -t keytab')
+realm.kinit(realm.host_princ, flags=['-t', realm.keytab],
+            expected_msg='keytab specified, forcing -k')
 realm.klist(realm.host_princ)
 realm.run([kdestroy])
-output = realm.kinit(realm.user_princ, flags=['-i'])
-if 'keytab specified, forcing -k' not in output:
-    fail('Expected output not seen from kinit -i')
+realm.kinit(realm.user_princ, flags=['-i'],
+            expected_msg='keytab specified, forcing -k')
 realm.klist(realm.user_princ)
 
 # Test extracting keys with multiple key versions present.
@@ -70,12 +67,10 @@ def test_key_rotate(realm, princ, expected_kvno):
     realm.run_kadmin(['ktadd', '-k', realm.keytab, princ])
     realm.run([kadminl, 'ktrem', princ, 'old'])
     realm.kinit(princ, flags=['-k'])
-    out = realm.run([klist, '-k'])
-    if ('%d %s' % (expected_kvno, princ)) not in out:
-        fail('kvno %d not listed in keytab' % expected_kvno)
-    out = realm.run_kadmin(['getprinc', princ])
-    if ('Key: vno %d,' % expected_kvno) not in out:
-        fail('vno %d not seen in getprinc output' % expected_kvno)
+    msg = '%d %s' % (expected_kvno, princ)
+    out = realm.run([klist, '-k'], expected_msg=msg)
+    msg = 'Key: vno %d,' % expected_kvno
+    out = realm.run_kadmin(['getprinc', princ], expected_msg=msg)
 
 princ = 'foo/bar@%s' % realm.realm
 realm.addprinc(princ)
@@ -109,9 +104,8 @@ f = open(realm.keytab, 'w')
 f.write('\x05\x02\x00\x00\x00' + chr(len(record)))
 f.write(record)
 f.close()
-out = realm.run([klist, '-k'])
-if ('   2 %s' % realm.user_princ) not in out:
-    fail('Expected entry not seen in klist -k output')
+msg = '   2 %s' % realm.user_princ
+out = realm.run([klist, '-k'], expected_msg=msg)
 
 # Make sure zero-fill isn't treated as a 32-bit kvno.
 f = open(realm.keytab, 'w')
@@ -119,9 +113,8 @@ f.write('\x05\x02\x00\x00\x00' + chr(len(record) + 4))
 f.write(record)
 f.write('\x00\x00\x00\x00')
 f.close()
-out = realm.run([klist, '-k'])
-if ('   2 %s' % realm.user_princ) not in out:
-    fail('Expected entry not seen in klist -k output')
+msg = '   2 %s' % realm.user_princ
+out = realm.run([klist, '-k'], expected_msg=msg)
 
 # Make sure a hand-crafted 32-bit kvno is recognized.
 f = open(realm.keytab, 'w')
@@ -129,9 +122,8 @@ f.write('\x05\x02\x00\x00\x00' + chr(len(record) + 4))
 f.write(record)
 f.write('\x00\x00\x00\x03')
 f.close()
-out = realm.run([klist, '-k'])
-if ('   3 %s' % realm.user_princ) not in out:
-    fail('Expected entry not seen in klist -k output')
+msg = '   3 %s' % realm.user_princ
+out = realm.run([klist, '-k'], expected_msg=msg)
 
 # Test parameter expansion in profile variables
 realm.stop()
@@ -142,11 +134,9 @@ realm = K5Realm(krb5_conf=conf, create_kdb=False)
 del realm.env['KRB5_KTNAME']
 del realm.env['KRB5_CLIENT_KTNAME']
 uidstr = str(os.getuid())
-out = realm.run([klist, '-k'], expected_code=1)
-if 'FILE:testdir/abc%s' % uidstr not in out:
-    fail('Wrong keytab in klist -k output')
-out = realm.run([klist, '-ki'], expected_code=1)
-if 'FILE:testdir/xyz%s' % uidstr not in out:
-    fail('Wrong keytab in klist -ki output')
+msg = 'FILE:testdir/abc%s' % uidstr
+out = realm.run([klist, '-k'], expected_code=1, expected_msg=msg)
+msg = 'FILE:testdir/xyz%s' % uidstr
+out = realm.run([klist, '-ki'], expected_code=1, expected_msg=msg)
 
 success('Keytab-related tests')

@@ -228,7 +228,7 @@ conv_princ_2ulog(krb5_principal princ, kdb_incr_update_t *upd,
 static void
 set_from_utf8str(krb5_data *d, utf8str_t u)
 {
-    if (u.utf8str_t_len > INT_MAX-1 || u.utf8str_t_len >= SIZE_MAX-1) {
+    if (u.utf8str_t_len > INT_MAX - 1) {
         d->data = NULL;
         return;
     }
@@ -419,7 +419,7 @@ ulog_conv_2logentry(krb5_context context, krb5_db_entry *entry,
             break;
 
         case AT_FAIL_AUTH_COUNT:
-            if (!exclude_nra && entry->fail_auth_count >= (krb5_kvno)0) {
+            if (!exclude_nra) {
                 ULOG_ENTRY_TYPE(update, ++final).av_type =
                     AT_FAIL_AUTH_COUNT;
                 ULOG_ENTRY(update, final).av_fail_auth_count =

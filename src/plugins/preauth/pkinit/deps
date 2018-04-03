@@ -20,11 +20,12 @@ pkinit_srv.so pkinit_srv.po $(OUTPRE)pkinit_srv.$(OBJEXT): \
   $(top_srcdir)/include/k5-int.h $(top_srcdir)/include/k5-platform.h \
   $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
   $(top_srcdir)/include/k5-trace.h $(top_srcdir)/include/krb5.h \
-  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/clpreauth_plugin.h \
-  $(top_srcdir)/include/krb5/kdcpreauth_plugin.h $(top_srcdir)/include/krb5/plugin.h \
-  $(top_srcdir)/include/krb5/preauth_plugin.h $(top_srcdir)/include/port-sockets.h \
-  $(top_srcdir)/include/socket-utils.h pkcs11.h pkinit.h \
-  pkinit_accessor.h pkinit_crypto.h pkinit_srv.c pkinit_trace.h
+  $(top_srcdir)/include/krb5/authdata_plugin.h $(top_srcdir)/include/krb5/certauth_plugin.h \
+  $(top_srcdir)/include/krb5/clpreauth_plugin.h $(top_srcdir)/include/krb5/kdcpreauth_plugin.h \
+  $(top_srcdir)/include/krb5/plugin.h $(top_srcdir)/include/krb5/preauth_plugin.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  pkcs11.h pkinit.h pkinit_accessor.h pkinit_crypto.h \
+  pkinit_srv.c pkinit_trace.h
 pkinit_lib.so pkinit_lib.po $(OUTPRE)pkinit_lib.$(OBJEXT): \
   $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/krb5/krb5.h \
   $(BUILDTOP)/include/profile.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-int-pkinit.h \

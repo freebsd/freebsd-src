@@ -140,15 +140,18 @@ install-headers-unix install: krb5/krb5.h profile.h
 	$(INSTALL_DATA) $(srcdir)/krb5.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5.h
 	$(INSTALL_DATA) $(srcdir)/kdb.h $(DESTDIR)$(KRB5_INCDIR)$(S)kdb.h
 	$(INSTALL_DATA) krb5/krb5.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)krb5.h
+	$(INSTALL_DATA) $(srcdir)/krb5/certauth_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)certauth_plugin.h
 	$(INSTALL_DATA) $(srcdir)/krb5/ccselect_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)ccselect_plugin.h
 	$(INSTALL_DATA) $(srcdir)/krb5/clpreauth_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)clpreauth_plugin.h
 	$(INSTALL_DATA) $(srcdir)/krb5/hostrealm_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)hostrealm_plugin.h
+	$(INSTALL_DATA) $(srcdir)/krb5/kdcpolicy_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)kdcpolicy_plugin.h
 	$(INSTALL_DATA) $(srcdir)/krb5/kdcpreauth_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)kdcpreauth_plugin.h
 	$(INSTALL_DATA) $(srcdir)/krb5/localauth_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)localauth_plugin.h
 	$(INSTALL_DATA) $(srcdir)/krb5/locate_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)locate_plugin.h
 	$(INSTALL_DATA) $(srcdir)/krb5/plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)plugin.h
 	$(INSTALL_DATA) $(srcdir)/krb5/preauth_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)preauth_plugin.h
 	$(INSTALL_DATA) $(srcdir)/krb5/pwqual_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)pwqual_plugin.h
+	$(INSTALL_DATA) $(srcdir)/krb5/kadm5_auth_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)kadm5_auth_plugin.h
 	$(INSTALL_DATA) $(srcdir)/krb5/kadm5_hook_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)kadm5_hook_plugin.h
 	$(INSTALL_DATA) profile.h $(DESTDIR)$(KRB5_INCDIR)$(S)profile.h
 	$(INSTALL_DATA) $(srcdir)/gssapi.h $(DESTDIR)$(KRB5_INCDIR)$(S)gssapi.h

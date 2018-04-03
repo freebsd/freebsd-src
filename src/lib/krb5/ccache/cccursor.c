@@ -159,7 +159,7 @@ krb5_cccol_last_change_time(krb5_context context,
         ret = krb5_cccol_cursor_next(context, c, &ccache);
         if (ccache) {
             ret = krb5_cc_last_change_time(context, ccache, &last_time);
-            if (!ret && last_time > max_change_time) {
+            if (!ret && ts_after(last_time, max_change_time)) {
                 max_change_time = last_time;
             }
             ret = 0;
@@ -230,14 +230,37 @@ save_first_error(krb5_context context, krb5_error_code code,
         k5_save_ctx_error(context, code, errsave);
 }
 
+/* Return 0 if cache contains any non-config credentials.  Return KRB5_CC_END
+ * if it does not, or another error if we failed to read through it. */
+static krb5_error_code
+has_content(krb5_context context, krb5_ccache cache)
+{
+    krb5_error_code ret;
+    krb5_boolean found = FALSE;
+    krb5_cc_cursor cache_cursor;
+    krb5_creds creds;
+
+    ret = krb5_cc_start_seq_get(context, cache, &cache_cursor);
+    if (ret)
+        return ret;
+    while (!found) {
+        ret = krb5_cc_next_cred(context, cache, &cache_cursor, &creds);
+        if (ret)
+            break;
+        if (!krb5_is_config_principal(context, creds.server))
+            found = TRUE;
+        krb5_free_cred_contents(context, &creds);
+    }
+    krb5_cc_end_seq_get(context, cache, &cache_cursor);
+    return ret;
+}
+
 krb5_error_code KRB5_CALLCONV
 krb5_cccol_have_content(krb5_context context)
 {
     krb5_error_code ret;
     krb5_cccol_cursor col_cursor;
-    krb5_cc_cursor cache_cursor;
     krb5_ccache cache;
-    krb5_creds creds;
     krb5_boolean found = FALSE;
     struct errinfo errsave = EMPTY_ERRINFO;
     const char *defname;
@@ -252,24 +275,10 @@ krb5_cccol_have_content(krb5_context context)
         save_first_error(context, ret, &errsave);
         if (ret || cache == NULL)
             break;
-
-        ret = krb5_cc_start_seq_get(context, cache, &cache_cursor);
+        ret = has_content(context, cache);
         save_first_error(context, ret, &errsave);
-        if (ret) {
-            krb5_cc_close(context, cache);
-            continue;
-        }
-        while (!found) {
-            ret = krb5_cc_next_cred(context, cache, &cache_cursor, &creds);
-            save_first_error(context, ret, &errsave);
-            if (ret)
-                break;
-
-            if (!krb5_is_config_principal(context, creds.server))
-                found = TRUE;
-            krb5_free_cred_contents(context, &creds);
-        }
-        krb5_cc_end_seq_get(context, cache, &cache_cursor);
+        if (!ret)
+            found = TRUE;
         krb5_cc_close(context, cache);
     }
     krb5_cccol_cursor_free(context, &col_cursor);

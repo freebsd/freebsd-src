@@ -189,7 +189,7 @@ OM_uint32 gssint_get_mech_type_oid(OID, token)
     gss_buffer_t	token;
 {
     unsigned char * buffer_ptr;
-    int length;
+    size_t buflen, lenbytes, length, oidlen;
 
     /*
      * This routine reads the prefix of "token" in order to determine
@@ -223,25 +223,33 @@ OM_uint32 gssint_get_mech_type_oid(OID, token)
     /* Skip past the APP/Sequnce byte and the token length */
 
     buffer_ptr = (unsigned char *) token->value;
+    buflen = token->length;
 
-    if (*(buffer_ptr++) != 0x60)
+    if (buflen < 2 || *buffer_ptr++ != 0x60)
 	return (GSS_S_DEFECTIVE_TOKEN);
     length = *buffer_ptr++;
+    buflen -= 2;
 
 	/* check if token length is null */
 	if (length == 0)
 	    return (GSS_S_DEFECTIVE_TOKEN);
 
     if (length & 0x80) {
-	if ((length & 0x7f) > 4)
+	lenbytes = length & 0x7f;
+	if (lenbytes > 4 || lenbytes > buflen)
 	    return (GSS_S_DEFECTIVE_TOKEN);
-	buffer_ptr += length & 0x7f;
+	buffer_ptr += lenbytes;
+	buflen -= lenbytes;
     }
 
-    if (*(buffer_ptr++) != 0x06)
+    if (buflen < 2 || *buffer_ptr++ != 0x06)
+	return (GSS_S_DEFECTIVE_TOKEN);
+    oidlen = *buffer_ptr++;
+    buflen -= 2;
+    if (oidlen > 0x7f || oidlen > buflen)
 	return (GSS_S_DEFECTIVE_TOKEN);
 
-    OID->length = (OM_uint32) *(buffer_ptr++);
+    OID->length = oidlen;
     OID->elements = (void *) buffer_ptr;
     return (GSS_S_COMPLETE);
 }

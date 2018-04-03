@@ -30,62 +30,6 @@
 
 #include "ldap_main.h"
 
-
-#ifdef ASYNC_BIND
-
-/*
- * Update the server info structure. In case of an asynchronous bind,
- * this function is called to check the bind status. A flag
- * server_info_upate_pending is refered before calling this function.
- * This function sets the server_status to either ON or OFF and
- * sets the server_info_udpate_pending to OFF.
- * Do not lock the mutex here. The caller should lock it
- */
-
-static krb5_error_code
-krb5_update_server_info(krb5_ldap_server_handle *ldap_server_handle,
-                        krb5_ldap_server_info *server_info)
-{
-    krb5_error_code            st=0;
-    struct timeval             ztime={0, 0};
-    LDAPMessage                *result=NULL;
-
-    if (ldap_server_handle == NULL || server_info == NULL)
-        return -1;
-
-    while (st == 0) {
-        st = ldap_result(ldap_server_handle->ldap_handle, ldap_server_handle->msgid,
-                         LDAP_MSG_ALL, &ztime, &result);
-        switch (st) {
-        case -1:
-            server_info->server_status = OFF;
-            time(&server_info->downtime);
-            break;
-
-        case 0:
-            continue;
-            break;
-
-        case LDAP_RES_BIND:
-            if ((st=ldap_result2error(ldap_server_handle->ldap_handle, result, 1)) == LDAP_SUCCESS) {
-                server_info->server_status = ON;
-            } else {
-                server_info->server_status = OFF;
-                time(&server_info->downtime);
-            }
-            ldap_msgfree(result);
-            break;
-        default:
-            ldap_msgfree(result);
-            continue;
-            break;
-        }
-    }
-    ldap_server_handle->server_info_update_pending = FALSE;
-    return 0;
-}
-#endif
-
 /*
  * Return ldap server handle from the pool. If the pool is exhausted return NULL.
  * Do not lock the mutex, caller should lock it
@@ -105,18 +49,6 @@ krb5_get_ldap_handle(krb5_ldap_context *ldap_context)
                 ldap_server_handle = ldap_server_info->ldap_server_handles;
                 ldap_server_info->ldap_server_handles = ldap_server_handle->next;
                 break;
-#ifdef ASYNC_BIND
-                if (ldap_server_handle->server_info_update_pending == TRUE) {
-                    krb5_update_server_info(context, ldap_server_handle,
-                                            ldap_server_info);
-                }
-
-                if (ldap_server_info->server_status == ON) {
-                    ldap_server_info->ldap_server_handles = ldap_server_handle->next;
-                    break;
-                } else
-                    ldap_server_handle = NULL;
-#endif
             }
         }
         ++cnt;

@@ -85,11 +85,6 @@ gss_inquire_cred_by_oid(OM_uint32 *minor_status,
 
     union_cred = (gss_union_cred_t) cred_handle;
 
-    status = gss_create_empty_buffer_set(minor_status, &ret_set);
-    if (status != GSS_S_COMPLETE) {
-	return status;
-    }
-
     status = GSS_S_UNAVAILABLE;
 
     for (i = 0; i < union_cred->count; i++) {

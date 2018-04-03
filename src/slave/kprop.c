@@ -121,56 +121,34 @@ main(int argc, char **argv)
 static void
 parse_args(krb5_context context, int argc, char **argv)
 {
-    char *word, ch;
+    int c;
     krb5_error_code ret;
 
-    progname = *argv++;
-    while (--argc && (word = *argv++) != NULL) {
-        if (*word != '-') {
-            if (slave_host != NULL)
-                usage();
-            else
-                slave_host = word;
-            continue;
-        }
-        word++;
-        while (word != NULL && (ch = *word++) != '\0') {
-            switch (ch) {
-            case 'r':
-                realm = (*word != '\0') ? word : *argv++;
-                if (realm == NULL)
-                    usage();
-                word = NULL;
-                break;
-            case 'f':
-                file = (*word != '\0') ? word : *argv++;
-                if (file == NULL)
-                    usage();
-                word = NULL;
-                break;
-            case 'd':
-                debug++;
-                break;
-            case 'P':
-                port = (*word != '\0') ? word : *argv++;
-                if (port == NULL)
-                    usage();
-                word = NULL;
-                break;
-            case 's':
-                srvtab = (*word != '\0') ? word : *argv++;
-                if (srvtab == NULL)
-                    usage();
-                word = NULL;
-                break;
-            default:
-                usage();
-            }
-
+    progname = argv[0];
+    while ((c = getopt(argc, argv, "r:f:dP:s:")) != -1) {
+        switch (c) {
+        case 'r':
+            realm = optarg;
+            break;
+        case 'f':
+            file = optarg;
+            break;
+        case 'd':
+            debug++;
+            break;
+        case 'P':
+            port = optarg;
+            break;
+        case 's':
+            srvtab = optarg;
+            break;
+        default:
+            usage();
         }
     }
-    if (slave_host == NULL)
+    if (argc - optind != 1)
         usage();
+    slave_host = argv[optind];
 
     if (realm == NULL) {
         ret = krb5_get_default_realm(context, &def_realm);

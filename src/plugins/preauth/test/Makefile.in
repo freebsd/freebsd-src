@@ -9,9 +9,9 @@ RELDIR=../plugins/preauth/test
 SHLIB_EXPDEPS=$(KRB5_BASE_DEPLIBS)
 SHLIB_EXPLIBS=$(KRB5_BASE_LIBS)
 
-STLIBOBJS=cltest.o kdctest.o
+STLIBOBJS=cltest.o kdctest.o common.o
 
-SRCS= $(srcdir)/cltest.c $(srcdir)/kdctest.c
+SRCS= $(srcdir)/cltest.c $(srcdir)/kdctest.c $(srcdir)/common.c
 
 all-unix: all-liblinks
 install-unix: install-libs

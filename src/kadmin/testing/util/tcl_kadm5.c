@@ -697,13 +697,13 @@ static Tcl_DString *unparse_principal_ent(kadm5_principal_ent_t princ,
     } else
         Tcl_DStringAppendElement(str, "null");
 
-    sprintf(buf, "%d", princ->princ_expire_time);
+    sprintf(buf, "%u", (unsigned int)princ->princ_expire_time);
     Tcl_DStringAppendElement(str, buf);
 
-    sprintf(buf, "%d", princ->last_pwd_change);
+    sprintf(buf, "%u", (unsigned int)princ->last_pwd_change);
     Tcl_DStringAppendElement(str, buf);
 
-    sprintf(buf, "%d", princ->pw_expiration);
+    sprintf(buf, "%u", (unsigned int)princ->pw_expiration);
     Tcl_DStringAppendElement(str, buf);
 
     sprintf(buf, "%d", princ->max_life);
@@ -722,7 +722,7 @@ static Tcl_DString *unparse_principal_ent(kadm5_principal_ent_t princ,
     } else
         Tcl_DStringAppendElement(str, "null");
 
-    sprintf(buf, "%d", princ->mod_date);
+    sprintf(buf, "%u", (unsigned int)princ->mod_date);
     Tcl_DStringAppendElement(str, buf);
 
     if (mask & KADM5_ATTRIBUTES) {
@@ -758,10 +758,10 @@ static Tcl_DString *unparse_principal_ent(kadm5_principal_ent_t princ,
     sprintf(buf, "%d", princ->max_renewable_life);
     Tcl_DStringAppendElement(str, buf);
 
-    sprintf(buf, "%d", princ->last_success);
+    sprintf(buf, "%u", (unsigned int)princ->last_success);
     Tcl_DStringAppendElement(str, buf);
 
-    sprintf(buf, "%d", princ->last_failed);
+    sprintf(buf, "%u", (unsigned int)princ->last_failed);
     Tcl_DStringAppendElement(str, buf);
 
     sprintf(buf, "%d", princ->fail_auth_count);

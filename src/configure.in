@@ -118,15 +118,29 @@ LIBUTIL=-lutil
 ])
 AC_SUBST(LIBUTIL)
 
-AC_CHECK_HEADER(libintl.h, [
-	AC_SEARCH_LIBS(dgettext, intl, [
-		AC_DEFINE(ENABLE_NLS, 1,
-			[Define if translation functions should be used.])])])
-
-AC_CHECK_PROG(MSGFMT,msgfmt,msgfmt)
+# Determine if NLS is desired and supported.
 po=
-if test x"$MSGFMT" != x; then
-	po=po
+AC_ARG_ENABLE([nls],
+AC_HELP_STRING([--disable-nls], [disable native language support]),
+              [], [enable_nls=check])
+if test "$enable_nls" != no; then
+  AC_CHECK_HEADER(libintl.h, [
+    AC_SEARCH_LIBS(dgettext, intl, [
+      AC_DEFINE(ENABLE_NLS, 1,
+                [Define if translation functions should be used.])
+      nls_enabled=yes])])
+
+  AC_CHECK_PROG(MSGFMT,msgfmt,msgfmt)
+  if test x"$MSGFMT" != x; then
+    po=po
+  fi
+
+  # Error out if --enable-nls was explicitly requested but can't be enabled.
+  if test "$enable_nls" = yes; then
+    if test "$nls_enabled" != yes -o "x$po" = x; then
+      AC_MSG_ERROR([NLS support requested but cannot be built])
+    fi
+  fi
 fi
 AC_SUBST(po)
 
@@ -263,51 +277,6 @@ AC_SUBST(PRNG_ALG)
 if test "$PRNG_ALG" = fortuna; then
 	AC_DEFINE(FORTUNA,1,[Define if Fortuna PRNG is selected])
 fi
-
-# WITH_PKINIT_CRYPTO_IMPL
-
-PKINIT_CRYPTO_IMPL="$CRYPTO_IMPL"
-AC_ARG_WITH([pkinit-crypto-impl],
-AC_HELP_STRING([--with-pkinit-crypto-impl=IMPL], [use specified pkinit crypto implementation @<:@openssl@:>@]),
-[PKINIT_CRYPTO_IMPL=$withval
-AC_MSG_NOTICE(pkinit will use '$withval')
-], withval=$PKINIT_CRYPTO_IMPL)
-case "$withval" in
-builtin|openssl)
-  AC_CHECK_LIB(crypto, PKCS7_get_signer_info, PKINIT_CRYPTO_IMPL_LIBS=-lcrypto)
-  PKINIT_CRYPTO_IMPL=openssl
-  AC_CHECK_LIB(crypto, CMS_get0_content,
-               [AC_DEFINE([HAVE_OPENSSL_CMS], 1,
-                          [Define if OpenSSL supports cms.])])
-  ;;
-nss)
-  if test "${PKINIT_CRYPTO_IMPL_CFLAGS+set}" != set; then
-    PKINIT_CRYPTO_IMPL_CFLAGS=`pkg-config --cflags nss`
-  fi
-  if test "${PKINIT_CRYPTO_IMPL_LIBS+set}" != set; then
-    PKINIT_CRYPTO_IMPL_LIBS=`pkg-config --libs nss`
-  fi
-  AC_DEFINE(PKINIT_CRYPTO_IMPL_NSS,1,[Define if pkinit crypto implementation is NSS])
-  save_CFLAGS=$CFLAGS
-  CFLAGS="$CFLAGS $PKINIT_CRYPTO_IMPL_CFLAGS"
-  AC_COMPILE_IFELSE([AC_LANG_SOURCE([
-#include <nss.h>
-#if NSS_VMAJOR < 3 || (NSS_VMAJOR == 3 && NSS_VMINOR < 12)
-#error
-#elif NSS_VMAJOR == 3 && NSS_VMINOR == 12 && NSS_VPATCH < 11
-#error
-#endif
-  ])], [], [AC_MSG_ERROR([NSS version 3.12.11 or later required.])])
-  CFLAGS=$save_CFLAGS
-  ;;
-*)
-  AC_MSG_ERROR([Unknown crypto implementation $withval])
-  ;;
-esac
-AC_CONFIG_COMMANDS(PKINIT_CRYPTO_IMPL,,PKINIT_CRYPTO_IMPL=$PKINIT_CRYPTO_IMPL)
-AC_SUBST(PKINIT_CRYPTO_IMPL)
-AC_SUBST(PKINIT_CRYPTO_IMPL_CFLAGS)
-AC_SUBST(PKINIT_CRYPTO_IMPL_LIBS)
 
 # WITH_TLS_IMPL
 
@@ -744,6 +713,9 @@ fi
 
 AC_HEADER_TIME
 AC_CHECK_TYPE(time_t, long)
+AC_CHECK_SIZEOF(time_t)
+SIZEOF_TIME_T=$ac_cv_sizeof_time_t
+AC_SUBST(SIZEOF_TIME_T)
 
 # Determine where to put the replay cache.
 
@@ -1085,6 +1057,7 @@ fi
 if test "$k5_cv_openssl_version_okay" = yes && (test "$enable_pkinit" = yes || test "$enable_pkinit" = try); then
   K5_GEN_MAKEFILE(plugins/preauth/pkinit)
   PKINIT=yes
+  AC_CHECK_LIB(crypto, CMS_get0_content, [AC_DEFINE([HAVE_OPENSSL_CMS], 1, [Define if OpenSSL supports cms.])])
 elif test "$k5_cv_openssl_version_okay" = no && test "$enable_pkinit" = yes; then
   AC_MSG_ERROR([Version of OpenSSL is too old; cannot enable PKINIT.])
 else
@@ -1131,6 +1104,7 @@ AC_CHECK_LIB(cmocka, _cmocka_run_group_tests, [HAVE_CMOCKA_LIB=yes])
 if test "$HAVE_CMOCKA_LIB" = yes && test "$HAVE_CMOCKA_H" = yes; then
     HAVE_CMOCKA=yes
     CMOCKA_LIBS='-lcmocka'
+    AC_DEFINE([HAVE_CMOCKA],1,[Define if cmocka library is available.])
 fi
 AC_SUBST(HAVE_CMOCKA)
 AC_SUBST(CMOCKA_LIBS)
@@ -1213,11 +1187,7 @@ ldap_plugin_dir=""
 ldap_lib=""
 if test -n "$OPENLDAP_PLUGIN"; then
   AC_CHECK_HEADERS(ldap.h lber.h, :, [AC_MSG_ERROR($ac_header not found)])
-  AC_CHECK_LIB(ldap, ldap_init, :, [AC_MSG_ERROR(libldap not found or missing ldap_init)])
-  old_LIBS="$LIBS"
-  LIBS="$LIBS -lldap"
-  AC_CHECK_FUNCS(ldap_initialize ldap_url_parse_nodn ldap_unbind_ext_s ldap_str2dn ldap_explode_dn)
-  LIBS="$old_LIBS"
+  AC_CHECK_LIB(ldap, ldap_str2dn, :, [AC_MSG_ERROR(libldap not found or missing ldap_str2dn)])
 
   BER_OKAY=0
   AC_CHECK_LIB(ldap, ber_init, [BER_OKAY=1])
@@ -1342,7 +1312,7 @@ if test "${localedir+set}" != set; then
 fi
 AC_SUBST(localedir)
 
-# For KCM lib/krb5/ccache to build KCM Mach RPC support for OS X only.
+# For KCM lib/krb5/ccache to build KCM Mach RPC support for macOS only.
 case $host in
 *-*-darwin* | *-*-rhapsody*) OSX=osx ;;
 *)                           OSX=no ;;
@@ -1376,10 +1346,10 @@ dnl brackets in the glob patterns.
 if test "${DEFCCNAME+set}" != set; then
 	[case $host in
 	*-*-darwin[0-9].* | *-*-darwin10.*)
-		# Use the normal default for OS X 10.6 (Darwin 10) and prior.
+		# Use the normal default for macOS 10.6 (Darwin 10) and prior.
 		;;
 	*-*-darwin*)
-		# For OS X 10.7 (Darwin 11) and later, the native ccache uses
+		# For macOS 10.7 (Darwin 11) and later, the native ccache uses
 		# the KCM daemon.
 		DEFCCNAME=KCM:
 		;;
@@ -1392,7 +1362,7 @@ if test "${DEFKTNAME+set}" != set; then
 	DEFKTNAME=FILE:/etc/krb5.keytab
 fi
 if test "${DEFCKTNAME+set}" != set; then
-	adl_RECURSIVE_EVAL($localstatedir, exp_localstatedir)
+	AX_RECURSIVE_EVAL($localstatedir, exp_localstatedir)
 	DEFCKTNAME=FILE:$exp_localstatedir/krb5/user/%{euid}/client.keytab
 fi
 AC_MSG_NOTICE([Default ccache name: $DEFCCNAME])
@@ -1447,9 +1417,11 @@ dnl	ccapi ccapi/lib ccapi/lib/unix ccapi/server ccapi/server/unix ccapi/test
 
 	kdc slave config-files build-tools man doc include
 
+	plugins/certauth/test
 	plugins/hostrealm/test
 	plugins/localauth/test
 	plugins/kadm5_hook/test
+	plugins/kadm5_auth/test
 	plugins/pwqual/test
 	plugins/audit
 	plugins/audit/test
@@ -1462,6 +1434,7 @@ dnl	ccapi ccapi/lib ccapi/lib/unix ccapi/server ccapi/server/unix ccapi/test
 	plugins/kdb/db2/libdb2/recno
 	plugins/kdb/db2/libdb2/test
 	plugins/kdb/test
+	plugins/kdcpolicy/test
 	plugins/preauth/otp
 	plugins/preauth/test
 	plugins/authdata/greet_client

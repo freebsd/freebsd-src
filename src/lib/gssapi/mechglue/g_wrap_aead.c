@@ -256,6 +256,8 @@ gss_buffer_t		output_message_buffer;
      * call it.
      */
     ctx = (gss_union_ctx_id_t)context_handle;
+    if (ctx->internal_ctx_id == GSS_C_NO_CONTEXT)
+	return (GSS_S_NO_CONTEXT);
     mech = gssint_get_mechanism (ctx->mech_type);
     if (!mech)
 	return (GSS_S_BAD_MECH);

@@ -219,7 +219,7 @@ kg_unseal_v1(context, minor_status, ctx, ptr, bodysize, message_buffer,
         plainlen = tmsglen;
 
         conflen = kg_confounder_size(context, ctx->enc->keyblock.enctype);
-        if (tmsglen < conflen) {
+        if (tmsglen < (size_t)conflen) {
             if (sealalg != 0xffff)
                 xfree(plain);
             *minor_status = 0;

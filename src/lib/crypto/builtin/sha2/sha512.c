@@ -217,14 +217,14 @@ k5_sha512_update (SHA512_CTX *m, const void *v, size_t len)
 #if !defined(WORDS_BIGENDIAN) || defined(_CRAY)
 	    int i;
 	    uint64_t current[16];
-	    struct x64 *us = (struct x64*)m->save;
+	    struct x64 *us = (struct x64*)(void*)m->save;
 	    for(i = 0; i < 8; i++){
 		current[2*i+0] = swap_uint64_t(us[i].a);
 		current[2*i+1] = swap_uint64_t(us[i].b);
 	    }
 	    calc(m, current);
 #else
-	    calc(m, (uint64_t*)m->save);
+	    calc(m, (uint64_t*)(void*)m->save);
 #endif
 	    offset = 0;
 	}

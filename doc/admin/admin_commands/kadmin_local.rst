@@ -661,6 +661,13 @@ KDC:
     *principal*.  The *value* is a JSON string representing an array
     of objects, each having optional ``type`` and ``username`` fields.
 
+**pkinit_cert_match**
+    Specifies a matching expression that defines the certificate
+    attributes required for the client certificate used by the
+    principal during PKINIT authentication.  The matching expression
+    is in the same format as those used by the **pkinit_cert_match**
+    option in :ref:`krb5.conf(5)`.  (New in release 1.16.)
+
 This command requires the **modify** privilege.
 
 Alias: **setstr**

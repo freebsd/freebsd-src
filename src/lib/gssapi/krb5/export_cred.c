@@ -410,10 +410,11 @@ json_kgcred(krb5_context context, krb5_gss_cred_id_t cred,
     if (ret)
         goto cleanup;
 
-    ret = k5_json_array_fmt(&array, "ivvbbvvvvbiivs", cred->usage, name, imp,
+    ret = k5_json_array_fmt(&array, "ivvbbvvvvbLLvs", cred->usage, name, imp,
                             cred->default_identity, cred->iakerb_mech, keytab,
                             rcache, ccache, ckeytab, cred->have_tgt,
-                            cred->expire, cred->refresh_time, etypes,
+                            (long long)ts2tt(cred->expire),
+                            (long long)ts2tt(cred->refresh_time), etypes,
                             cred->password);
     if (ret)
         goto cleanup;

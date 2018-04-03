@@ -576,14 +576,6 @@ step_referrals(krb5_context context, krb5_tkt_creds_context ctx)
     }
 
     if (ctx->referral_count == 1) {
-        /* Cache the referral TGT only if it's from the local realm.
-         * Make sure to note the associated authdata, if any. */
-        code = krb5_copy_authdata(context, ctx->authdata,
-                                  &ctx->reply_creds->authdata);
-        if (code != 0)
-            return code;
-        (void) krb5_cc_store_cred(context, ctx->ccache, ctx->reply_creds);
-
         /* The authdata in this TGT will be copied into subsequent TGTs or the
          * final credentials, so we don't need to request it again. */
         krb5_free_authdata(context, ctx->in_creds->authdata);
@@ -816,7 +808,7 @@ get_cached_local_tgt(krb5_context context, krb5_tkt_creds_context ctx,
         return code;
 
     /* Check if the TGT is expired before bothering the KDC with it. */
-    if (now > tgt->times.endtime) {
+    if (ts_after(now, tgt->times.endtime)) {
         krb5_free_creds(context, tgt);
         return KRB5KRB_AP_ERR_TKT_EXPIRED;
     }
@@ -934,8 +926,9 @@ step_get_tgt(krb5_context context, krb5_tkt_creds_context ctx)
         /* See where we wound up on the path (or off it). */
         path_realm = find_realm_in_path(context, ctx, tgt_realm);
         if (path_realm != NULL) {
-            /* We got a realm on the expected path, so we can cache it. */
-            (void) krb5_cc_store_cred(context, ctx->ccache, ctx->cur_tgt);
+            /* Only cache the TGT if we asked for it, to avoid duplicates. */
+            if (path_realm == ctx->next_realm)
+                (void)krb5_cc_store_cred(context, ctx->ccache, ctx->cur_tgt);
             if (path_realm == ctx->last_realm) {
                 /* We received a TGT for the target realm. */
                 TRACE_TKT_CREDS_TARGET_TGT(context, ctx->cur_tgt->server);

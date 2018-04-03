@@ -27,7 +27,7 @@
 #include "ccs_os_pipe.h"
 #include <mach/port.h>
 
-/* On Mac OS X ccs_pipe_t is a mach_port_t */
+/* On macOS ccs_pipe_t is a mach_port_t */
 
 /* ------------------------------------------------------------------------ */
 
@@ -73,7 +73,7 @@ cc_int32 ccs_os_pipe_release (ccs_pipe_t io_pipe)
 {
     cc_int32 err = 0;
 
-    /* Nothing to do here on Mac OS X */
+    /* Nothing to do here on macOS */
 
     return cci_check_error (err);
 }

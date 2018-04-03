@@ -36,38 +36,36 @@
 #include <kdb.h>
 #include "extern.h"
 
-/** Server handle */
+/* Server handle */
 static void *server_handle;
 
-/**
- * @internal  Initialize KDB for given realm
- * @param context pointer to context that will be re-initialized
- * @@param realm name of realm to initialize
- */
+/* Free and reinitialize *pcontext with the KDB opened to the given realm, so
+ * that it can be used with the KDB keytab type. */
 krb5_error_code
 kinit_kdb_init(krb5_context *pcontext, char *realm)
 {
     kadm5_config_params config;
-    krb5_error_code retval = 0;
+    krb5_error_code ret;
 
     if (*pcontext) {
         krb5_free_context(*pcontext);
         *pcontext = NULL;
     }
     memset(&config, 0, sizeof config);
-    retval = kadm5_init_krb5_context(pcontext);
-    if (retval)
-        return retval;
+
+    ret = kadm5_init_krb5_context(pcontext);
+    if (ret)
+        return ret;
+
     config.mask = KADM5_CONFIG_REALM;
     config.realm = realm;
-    retval = kadm5_init(*pcontext, "kinit", NULL /*pass*/,
-                        "kinit", &config,
-                        KADM5_STRUCT_VERSION, KADM5_API_VERSION_4, NULL,
-                        &server_handle);
-    if (retval)
-        return retval;
-    retval = krb5_db_register_keytab(*pcontext);
-    return retval;
+    ret = kadm5_init(*pcontext, "kinit", NULL, "kinit", &config,
+                     KADM5_STRUCT_VERSION, KADM5_API_VERSION_4, NULL,
+                     &server_handle);
+    if (ret)
+        return ret;
+
+    return krb5_db_register_keytab(*pcontext);
 }
 
 void

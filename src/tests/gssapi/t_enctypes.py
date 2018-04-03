@@ -58,9 +58,7 @@ def test(msg, ienc, aenc, tktenc='', tktsession='', proto='', isubkey='',
 # and check that it fails with the expected error message.
 def test_err(msg, ienc, aenc, expected_err):
     shutil.copyfile(os.path.join(realm.testdir, 'save'), realm.ccache)
-    out = realm.run(cmdline(ienc, aenc), expected_code=1)
-    if expected_err not in out:
-        fail(msg)
+    realm.run(cmdline(ienc, aenc), expected_code=1, expected_msg=expected_err)
 
 
 # By default, all of the key enctypes should be aes256.

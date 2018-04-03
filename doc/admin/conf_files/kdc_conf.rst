@@ -86,9 +86,10 @@ The following tags may be specified in a [realms] subsection:
 **acl_file**
     (String.)  Location of the access control list file that
     :ref:`kadmind(8)` uses to determine which principals are allowed
-    which permissions on the Kerberos database.  The default value is
-    |kdcdir|\ ``/kadm5.acl``.  For more information on Kerberos ACL
-    file see :ref:`kadm5.acl(5)`.
+    which permissions on the Kerberos database.  To operate without an
+    ACL file, set this relation to the empty string with ``acl_file =
+    ""``.  The default value is |kdcdir|\ ``/kadm5.acl``.  For more
+    information on Kerberos ACL file see :ref:`kadm5.acl(5)`.
 
 **database_module**
     (String.)  This relation indicates the name of the configuration
@@ -197,6 +198,11 @@ The following tags may be specified in a [realms] subsection:
     per line, with no additional whitespace.  If none is specified or
     if there is no policy assigned to the principal, no dictionary
     checks of passwords will be performed.
+
+**encrypted_challenge_indicator**
+    (String.)  Specifies the authentication indicator value that the KDC
+    asserts into tickets obtained using FAST encrypted challenge
+    pre-authentication.  New in 1.16.
 
 **host_based_services**
     (Whitespace- or comma-separated list.)  Lists services which will
@@ -765,9 +771,6 @@ For information about the syntax of some of these options, see
     pkinit is used to authenticate.  This option may be specified
     multiple times.  (New in release 1.14.)
 
-**pkinit_kdc_ocsp**
-    Specifies the location of the KDC's OCSP.
-
 **pkinit_pool**
     Specifies the location of intermediate certificates which may be
     used by the KDC to complete the trust chain between a client's
@@ -824,7 +827,7 @@ camellia256-cts-cmac camellia256-cts                 Camellia-256 CTS mode with 
 camellia128-cts-cmac camellia128-cts                 Camellia-128 CTS mode with CMAC
 des                                                  The DES family: des-cbc-crc, des-cbc-md5, and des-cbc-md4 (weak)
 des3                                                 The triple DES family: des3-cbc-sha1
-aes                                                  The AES family: aes256-cts-hmac-sha1-96 and aes128-cts-hmac-sha1-96
+aes                                                  The AES family: aes256-cts-hmac-sha1-96, aes128-cts-hmac-sha1-96, aes256-cts-hmac-sha384-192, and aes128-cts-hmac-sha256-128
 rc4                                                  The RC4 family: arcfour-hmac
 camellia                                             The Camellia family: camellia256-cts-cmac and camellia128-cts-cmac
 ==================================================== =========================================================

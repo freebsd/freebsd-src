@@ -73,7 +73,7 @@ static int initparse(struct krb5int_dns_state *);
 
 #if defined(__APPLE__)
 
-/* Use the OS X interfaces dns_open, dns_search, and dns_free. */
+/* Use the macOS interfaces dns_open, dns_search, and dns_free. */
 #define DECLARE_HANDLE(h) dns_handle_t h
 #define INIT_HANDLE(h) ((h = dns_open(NULL)) != NULL)
 #define SEARCH(h, n, c, t, a, l) dns_search(h, n, c, t, a, l, NULL, NULL)

@@ -1,5 +1,5 @@
-krb5_auth_con_initivector
-=========================
+krb5_auth_con_initivector -  Cause an auth context to use cipher state. 
+========================================================================
 
 ..
 
@@ -10,30 +10,31 @@ krb5_auth_con_initivector
 
 :param:
 
-	          **context**
+	          **[in]** **context** - Library context
 
-	          **auth_context**
+	          **[in]** **auth_context** - Authentication context
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
 
 
 ..
 
 
 
-..
-
-
-DEPRECATED Not replaced. 
 
 
 
 
+Prepare *auth_context* to use cipher state when :c:func:`krb5_mk_priv()` or :c:func:`krb5_rd_priv()` encrypt or decrypt data.
 
 
 
 
-
-
-RFC 4120 doesn't have anything like the initvector concept; only really old protocols may need this API.
 
 
 

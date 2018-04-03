@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '1.15.1',
+        VERSION:     '1.16',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -92,6 +92,8 @@
 </tbody>
 </table>
 <p>This function synchronously obtains credentials using a context created by <a class="reference internal" href="krb5_init_creds_init.html#c.krb5_init_creds_init" title="krb5_init_creds_init"><tt class="xref c c-func docutils literal"><span class="pre">krb5_init_creds_init()</span></tt></a> . On successful return, the credentials can be retrieved with <a class="reference internal" href="krb5_init_creds_get_creds.html#c.krb5_init_creds_get_creds" title="krb5_init_creds_get_creds"><tt class="xref c c-func docutils literal"><span class="pre">krb5_init_creds_get_creds()</span></tt></a> .</p>
+<blockquote>
+<div><em>context</em> must be the same as the one passed to <a class="reference internal" href="krb5_init_creds_init.html#c.krb5_init_creds_init" title="krb5_init_creds_init"><tt class="xref c c-func docutils literal"><span class="pre">krb5_init_creds_init()</span></tt></a> for this initial credentials context.</div></blockquote>
 </div>
 
 
@@ -112,6 +114,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../admin/index.html">For administrators</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../../index.html">For application developers</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../../gssapi.html">Developing with GSSAPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../y2038.html">Year 2038 considerations for uses of krb5_timestamp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../h5l_mit_apidiff.html">Differences between Heimdal and MIT Kerberos API</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../init_creds.html">Initial credentials</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../princ_handle.html">Principal manipulation and parsing</a></li>
@@ -149,7 +152,7 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.15.1</i><br />
+            <div class="right" ><i>Release: 1.16</i><br />
                 &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
             </div>
             <div class="left">

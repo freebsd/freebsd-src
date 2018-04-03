@@ -52,6 +52,7 @@
 /* Test a DES implementation against known inputs & outputs. */
 
 #include "des_int.h"
+#include <ctype.h>
 #include <stdio.h>
 
 void convert (char *, unsigned char []);
@@ -160,7 +161,7 @@ convert(text, cblock)
 {
     register int i;
     for (i = 0; i < 8; i++) {
-        if (text[i*2] < 0 || text[i*2] >= 128)
+        if (!isascii((unsigned char)text[i * 2]))
             abort ();
         if (value[(int) text[i*2]] == -1 || value[(int) text[i*2+1]] == -1) {
             printf("Bad value byte %d in %s\n", i, text);

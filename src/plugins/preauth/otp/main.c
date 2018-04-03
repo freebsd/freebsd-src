@@ -331,7 +331,8 @@ otp_verify(krb5_context context, krb5_data *req_pkt, krb5_kdc_req *request,
 
     /* Send the request. */
     otp_state_verify((otp_state *)moddata, cb->event_context(context, rock),
-                     request->client, config, req, on_response, rs);
+                     cb->client_name(context, rock), config, req, on_response,
+                     rs);
     cb->free_string(context, rock, config);
 
     k5_free_pa_otp_req(context, req);

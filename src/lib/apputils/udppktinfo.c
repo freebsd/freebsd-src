@@ -141,19 +141,17 @@ is_socket_bound_to_wildcard(int sock)
 {
     struct sockaddr_storage bound_addr;
     socklen_t bound_addr_len = sizeof(bound_addr);
+    struct sockaddr *sa = ss2sa(&bound_addr);
 
-    if (getsockname(sock, ss2sa(&bound_addr), &bound_addr_len) < 0)
+    if (getsockname(sock, sa, &bound_addr_len) < 0)
         return -1;
 
-    switch (ss2sa(&bound_addr)->sa_family) {
-    case AF_INET:
-        return ss2sin(&bound_addr)->sin_addr.s_addr == INADDR_ANY;
-    case AF_INET6:
-        return IN6_IS_ADDR_UNSPECIFIED(&ss2sin6(&bound_addr)->sin6_addr);
-    default:
+    if (!sa_is_inet(sa)) {
         errno = EINVAL;
         return -1;
     }
+
+    return sa_is_wildcard(sa);
 }
 
 #ifdef HAVE_IP_PKTINFO
@@ -402,7 +400,7 @@ set_msg_from_ipv6_pktinfo(struct msghdr *msg, struct cmsghdr *cmsgptr,
     /*
      * Because of the possibility of asymmetric routing, we
      * normally don't want to specify an interface.  However,
-     * Mac OS X doesn't like sending from a link-local address
+     * macOS doesn't like sending from a link-local address
      * (which can come up in testing at least, if you wind up
      * with a "foo.local" name) unless we do specify the
      * interface.

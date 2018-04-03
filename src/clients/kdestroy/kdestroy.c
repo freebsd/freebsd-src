@@ -41,7 +41,7 @@ extern int optind;
 extern char *optarg;
 
 #ifndef _WIN32
-#define GET_PROGNAME(x) (strrchr((x), '/') ? strrchr((x), '/')+1 : (x))
+#define GET_PROGNAME(x) (strrchr((x), '/') ? strrchr((x), '/') + 1 : (x))
 #else
 #define GET_PROGNAME(x) max(max(strrchr((x), '/'), strrchr((x), '\\')) + 1,(x))
 #endif
@@ -49,10 +49,9 @@ extern char *optarg;
 char *progname;
 
 
-static void usage()
+static void
+usage()
 {
-#define KRB_AVAIL_STRING(x) ((x)?"available":"not available")
-
     fprintf(stderr, _("Usage: %s [-A] [-q] [-c cache_name]\n"), progname);
     fprintf(stderr, _("\t-A destroy all credential caches in collection\n"));
     fprintf(stderr, _("\t-q quiet mode\n"));
@@ -64,18 +63,18 @@ static void usage()
 static void
 print_remaining_cc_warning(krb5_context context)
 {
-    krb5_error_code retval;
+    krb5_error_code ret;
     krb5_ccache cache;
     krb5_cccol_cursor cursor;
 
-    retval = krb5_cccol_cursor_new(context, &cursor);
-    if (retval) {
-        com_err(progname, retval, _("while listing credential caches"));
+    ret = krb5_cccol_cursor_new(context, &cursor);
+    if (ret) {
+        com_err(progname, ret, _("while listing credential caches"));
         exit(1);
     }
 
-    retval = krb5_cccol_cursor_next(context, cursor, &cache);
-    if (retval == 0 && cache != NULL) {
+    ret = krb5_cccol_cursor_next(context, cursor, &cache);
+    if (ret == 0 && cache != NULL) {
         fprintf(stderr,
                 _("Other credential caches present, use -A to destroy all\n"));
         krb5_cc_close(context, cache);
@@ -85,20 +84,14 @@ print_remaining_cc_warning(krb5_context context)
 }
 
 int
-main(argc, argv)
-    int argc;
-    char **argv;
+main(int argc, char *argv[])
 {
-    krb5_context kcontext;
-    krb5_error_code retval;
-    int c;
+    krb5_context context;
+    krb5_error_code ret;
     krb5_ccache cache = NULL;
     krb5_cccol_cursor cursor;
     char *cache_name = NULL;
-    int code = 0;
-    int errflg = 0;
-    int quiet = 0;
-    int all = 0;
+    int code = 0, errflg = 0, quiet = 0, all = 0, c;
 
     setlocale(LC_ALL, "");
     progname = GET_PROGNAME(argv[0]);
@@ -135,62 +128,61 @@ main(argc, argv)
     if (optind != argc)
         errflg++;
 
-    if (errflg) {
+    if (errflg)
         usage();
-    }
 
-    retval = krb5_init_context(&kcontext);
-    if (retval) {
-        com_err(progname, retval, _("while initializing krb5"));
+    ret = krb5_init_context(&context);
+    if (ret) {
+        com_err(progname, ret, _("while initializing krb5"));
         exit(1);
     }
 
+    if (cache_name != NULL) {
+        code = krb5_cc_set_default_name(context, cache_name);
+        if (code) {
+            com_err(progname, code, _("while setting default cache name"));
+            exit(1);
+        }
+    }
+
     if (all) {
-        code = krb5_cccol_cursor_new(kcontext, &cursor);
+        code = krb5_cccol_cursor_new(context, &cursor);
         if (code) {
             com_err(progname, code, _("while listing credential caches"));
             exit(1);
         }
-        while ((code = krb5_cccol_cursor_next(kcontext, cursor,
-                                              &cache)) == 0 && cache != NULL) {
-            code = krb5_cc_get_full_name(kcontext, cache, &cache_name);
+        while (krb5_cccol_cursor_next(context, cursor, &cache) == 0 &&
+               cache != NULL) {
+            code = krb5_cc_get_full_name(context, cache, &cache_name);
             if (code) {
                 com_err(progname, code, _("composing ccache name"));
                 exit(1);
             }
-            code = krb5_cc_destroy(kcontext, cache);
+            code = krb5_cc_destroy(context, cache);
             if (code && code != KRB5_FCC_NOFILE) {
                 com_err(progname, code, _("while destroying cache %s"),
                         cache_name);
             }
-            krb5_free_string(kcontext, cache_name);
+            krb5_free_string(context, cache_name);
         }
-        krb5_cccol_cursor_free(kcontext, &cursor);
-        krb5_free_context(kcontext);
+        krb5_cccol_cursor_free(context, &cursor);
+        krb5_free_context(context);
         return 0;
     }
 
-    if (cache_name) {
-        code = krb5_cc_resolve (kcontext, cache_name, &cache);
-        if (code != 0) {
-            com_err(progname, code, _("while resolving %s"), cache_name);
-            exit(1);
-        }
-    } else {
-        code = krb5_cc_default(kcontext, &cache);
-        if (code) {
-            com_err(progname, code, _("while getting default ccache"));
-            exit(1);
-        }
+    code = krb5_cc_default(context, &cache);
+    if (code) {
+        com_err(progname, code, _("while resolving ccache"));
+        exit(1);
     }
 
-    code = krb5_cc_destroy (kcontext, cache);
+    code = krb5_cc_destroy(context, cache);
     if (code != 0) {
-        com_err (progname, code, _("while destroying cache"));
+        com_err(progname, code, _("while destroying cache"));
         if (code != KRB5_FCC_NOFILE) {
-            if (quiet)
+            if (quiet) {
                 fprintf(stderr, _("Ticket cache NOT destroyed!\n"));
-            else {
+            } else {
                 fprintf(stderr, _("Ticket cache %cNOT%c destroyed!\n"),
                         BELL_CHAR, BELL_CHAR);
             }
@@ -199,8 +191,9 @@ main(argc, argv)
     }
 
     if (!quiet && !errflg)
-        print_remaining_cc_warning(kcontext);
+        print_remaining_cc_warning(context);
 
-    krb5_free_context(kcontext);
+    krb5_free_context(context);
+
     return errflg;
 }

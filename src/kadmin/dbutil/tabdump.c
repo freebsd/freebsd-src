@@ -148,7 +148,7 @@ write_date_iso(struct rec_args *args, krb5_timestamp when)
     struct tm *tm = NULL;
     struct rechandle *h = args->rh;
 
-    t = when;
+    t = ts2tt(when);
     tm = gmtime(&t);
     if (tm == NULL) {
         errno = EINVAL;

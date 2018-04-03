@@ -10,6 +10,7 @@ krb5int_arcfour_string_to_key(const struct krb5_keytypes *ktp,
     krb5_error_code err = 0;
     krb5_crypto_iov iov;
     krb5_data hash_out;
+    char *utf8;
     unsigned char *copystr;
     size_t copystrlen;
 
@@ -20,8 +21,11 @@ krb5int_arcfour_string_to_key(const struct krb5_keytypes *ktp,
         return (KRB5_BAD_MSIZE);
 
     /* We ignore salt per the Microsoft spec. */
-    err = krb5int_utf8cs_to_ucs2les(string->data, string->length, &copystr,
-                                    &copystrlen);
+    utf8 = k5memdup0(string->data, string->length, &err);
+    if (utf8 == NULL)
+        return err;
+    err = k5_utf8_to_utf16le(utf8, &copystr, &copystrlen);
+    free(utf8);
     if (err)
         return err;
 

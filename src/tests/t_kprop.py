@@ -43,9 +43,7 @@ for realm in multipass_realms(create_user=False):
     realm.run([kprop, '-f', dumpfile, '-P', str(realm.kprop_port()), hostname])
     check_output(kpropd)
 
-    out = realm.run([kadminl, 'listprincs'], slave)
-    if 'wakawaka' not in out:
-        fail('Slave does not have all principals from master')
+    realm.run([kadminl, 'listprincs'], slave, expected_msg='wakawaka')
 
 # default_realm tests follow.
 # default_realm and domain_realm different than realm.realm (test -r argument).
@@ -79,9 +77,8 @@ realm.run([kdb5_util, 'dump', dumpfile])
 realm.run([kprop, '-r', realm.realm, '-f', dumpfile, '-P',
            str(realm.kprop_port()), hostname])
 check_output(kpropd)
-out = realm.run([kadminl, '-r', realm.realm, 'listprincs'], slave2)
-if 'wakawaka' not in out:
-    fail('Slave does not have all principals from master')
+realm.run([kadminl, '-r', realm.realm, 'listprincs'], slave2,
+          expected_msg='wakawaka')
 
 stop_daemon(kpropd)
 
@@ -90,8 +87,6 @@ kpropd = realm.start_kpropd(slave3, ['-d'])
 realm.run([kdb5_util, 'dump', dumpfile])
 realm.run([kprop, '-f', dumpfile, '-P', str(realm.kprop_port()), hostname])
 check_output(kpropd)
-out = realm.run([kadminl, 'listprincs'], slave3)
-if 'wakawaka' not in out:
-    fail('Slave does not have all principals from master')
+realm.run([kadminl, 'listprincs'], slave3, expected_msg='wakawaka')
 
 success('kprop tests')

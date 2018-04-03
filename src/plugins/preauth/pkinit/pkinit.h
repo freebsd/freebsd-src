@@ -73,6 +73,7 @@
 #define KRB5_CONF_PKINIT_IDENTITIES             "pkinit_identities"
 #define KRB5_CONF_PKINIT_IDENTITY               "pkinit_identity"
 #define KRB5_CONF_PKINIT_KDC_HOSTNAME           "pkinit_kdc_hostname"
+/* pkinit_kdc_ocsp has been removed */
 #define KRB5_CONF_PKINIT_KDC_OCSP               "pkinit_kdc_ocsp"
 #define KRB5_CONF_PKINIT_POOL                   "pkinit_pool"
 #define KRB5_CONF_PKINIT_REQUIRE_CRL_CHECKING   "pkinit_require_crl_checking"
@@ -173,7 +174,6 @@ typedef struct _pkinit_identity_opts {
     char **anchors;
     char **intermediates;
     char **crls;
-    char *ocsp;
     int  idtype;
     char *cert_filename;
     char *key_filename;
@@ -209,6 +209,7 @@ struct _pkinit_req_context {
     pkinit_identity_opts *idopts;
     int do_identity_matching;
     krb5_preauthtype pa_type;
+    int rfc4556_kdc;
     int rfc6112_kdc;
     int identity_initialized;
     int identity_prompted;
@@ -291,6 +292,13 @@ krb5_error_code pkinit_cert_matching
 	pkinit_req_crypto_context req_cryptoctx,
 	pkinit_identity_crypto_context id_cryptoctx,
 	krb5_principal princ);
+
+krb5_error_code pkinit_client_cert_match
+	(krb5_context context,
+	pkinit_plg_crypto_context plgctx,
+	pkinit_req_crypto_context reqctx,
+	const char *match_rule,
+	krb5_boolean *matched);
 
 /*
  * Client's list of identities for which it needs PINs or passwords

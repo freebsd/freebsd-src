@@ -62,7 +62,7 @@ int
 main(int argc, char *argv[])
 {
     int sock, i;
-    unsigned int len;
+    socklen_t len;
     int flags = 0;                      /* flags for sendto() */
     struct servent *serv;
     struct hostent *host;

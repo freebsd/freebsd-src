@@ -36,10 +36,7 @@
 
 #ifndef NOCACHE
 
-#include <stdarg.h>
-#include <stddef.h>
-#include <setjmp.h>
-#include <cmocka.h>
+#include "k5-cmocka.h"
 
 /* For wrapping functions */
 #include "k5-int.h"
@@ -623,6 +620,8 @@ test_kdc_check_lookaside_hit(void **state)
     assert_true(data_eq(rep, *result_data));
     assert_int_equal(hits, 1);
     assert_int_equal(e->num_hits, 1);
+
+    krb5_free_data(context, result_data);
 }
 
 static void
@@ -700,6 +699,8 @@ test_kdc_check_lookaside_hit_multiple(void **state)
     assert_int_equal(e1->num_hits, 1);
     assert_int_equal(e2->num_hits, 0);
 
+    krb5_free_data(context, result_data);
+
     /* Set result_data so we can verify that it is reset to NULL. */
     result_data = &req1;
     result = kdc_check_lookaside(context, &req2, &result_data);
@@ -732,6 +733,8 @@ test_kdc_check_lookaside_hit_hash_collision(void **state)
     assert_int_equal(hits, 1);
     assert_int_equal(e1->num_hits, 1);
     assert_int_equal(e2->num_hits, 0);
+
+    krb5_free_data(context, result_data);
 
     /* Set result_data so we can verify that it is reset to NULL. */
     result_data = &req1;
@@ -903,7 +906,7 @@ test_kdc_insert_lookaside_cache_expire(void **state)
     assert_non_null(e);
     e->num_hits = 5;
 
-    time_return(STALE_TIME, 0);
+    time_return(STALE_TIME + 1, 0);
     kdc_insert_lookaside(context, &req2, NULL);
 
     assert_null(K5_LIST_FIRST(&hash_table[req_hash1]));

@@ -111,6 +111,7 @@ struct krb5_keytypes {
     prf_func prf;
     krb5_cksumtype required_ctype;
     krb5_flags flags;
+    unsigned int ssf;
 };
 
 #define ETYPE_WEAK 1

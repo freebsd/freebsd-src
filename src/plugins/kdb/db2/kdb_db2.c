@@ -1314,13 +1314,6 @@ krb5_db2_delete_policy(krb5_context context, char *policy)
     return osa_adb_destroy_policy(dbc->policy_db, policy);
 }
 
-void
-krb5_db2_free_policy(krb5_context context, osa_policy_ent_t entry)
-{
-    osa_free_policy_ent(entry);
-}
-
-
 /*
  * Merge non-replicated attributes from src into dst, setting
  * changed to non-zero if dst was changed.
@@ -1558,8 +1551,10 @@ krb5_db2_check_policy_as(krb5_context kcontext, krb5_kdc_req *request,
 
 void
 krb5_db2_audit_as_req(krb5_context kcontext, krb5_kdc_req *request,
-                      krb5_db_entry *client, krb5_db_entry *server,
-                      krb5_timestamp authtime, krb5_error_code error_code)
+                      const krb5_address *local_addr,
+                      const krb5_address *remote_addr, krb5_db_entry *client,
+                      krb5_db_entry *server, krb5_timestamp authtime,
+                      krb5_error_code error_code)
 {
     (void) krb5_db2_lockout_audit(kcontext, client, authtime, error_code);
 }

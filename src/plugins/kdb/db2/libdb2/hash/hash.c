@@ -103,26 +103,15 @@ __kdb2_hash_open(file, flags, mode, info, dflags)
 	DB *dbp;
 	DBT mpool_key;
 	HTAB *hashp;
-	int32_t bpages, csize, new_table, save_errno, specified_file;
+	int32_t bpages, csize, new_table, save_errno;
 
-	if ((flags & O_ACCMODE) == O_WRONLY) {
+	if (!file || (flags & O_ACCMODE) == O_WRONLY) {
 		errno = EINVAL;
 		return (NULL);
 	}
 	if (!(hashp = (HTAB *)calloc(1, sizeof(HTAB))))
 		return (NULL);
 	hashp->fp = -1;
-
-	/* set this now, before file goes away... */
-	specified_file = (file != NULL);
-	if (!file) {
-		file = tmpnam(NULL);
-		/* store the file name so that we can unlink it later */
-		hashp->fname = file;
-#ifdef DEBUG
-		fprintf(stderr, "Using file name %s.\n", file);
-#endif
-	}
 	/*
 	 * Even if user wants write only, we need to be able to read
 	 * the actual file, so we need to open it read/write. But, the
@@ -130,7 +119,7 @@ __kdb2_hash_open(file, flags, mode, info, dflags)
 	 * we can check accesses.
 	 */
 	hashp->flags = flags;
-	hashp->save_file = specified_file && (hashp->flags & O_RDWR);
+	hashp->save_file = hashp->flags & O_RDWR;
 
 	new_table = 0;
 	if (!file || (flags & O_TRUNC) ||
@@ -542,8 +531,6 @@ hdestroy(hashp)
 		/* we need to chmod the file to allow it to be deleted... */
 		chmod(hashp->fname, 0700);
 		unlink(hashp->fname);
-		/* destroy the temporary name */
-		tmpnam(NULL);
 	}
 	free(hashp);
 

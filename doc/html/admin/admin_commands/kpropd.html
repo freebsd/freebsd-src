@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../',
-        VERSION:     '1.15.1',
+        VERSION:     '1.16',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -75,6 +75,7 @@
 [<strong>-F</strong> <em>principal_database</em>]
 [<strong>-p</strong> <em>kdb5_util_prog</em>]
 [<strong>-P</strong> <em>port</em>]
+[<strong>&#8211;pid-file</strong>=<em>pid_file</em>]
 [<strong>-d</strong>]
 [<strong>-t</strong>]</p>
 </div>
@@ -149,6 +150,9 @@ is only useful in combination with the <strong>-S</strong> option.</dd>
 <dt><strong>-a</strong> <em>acl_file</em></dt>
 <dd>Allows the user to specify the path to the kpropd.acl file; by
 default the path used is <a class="reference internal" href="../../mitK5defaults.html#paths"><em>LOCALSTATEDIR</em></a><tt class="docutils literal"><span class="pre">/krb5kdc</span></tt><tt class="docutils literal"><span class="pre">/kpropd.acl</span></tt>.</dd>
+<dt><strong>&#8211;pid-file</strong>=<em>pid_file</em></dt>
+<dd>In standalone mode, write the process ID of the daemon into
+<em>pid_file</em>.</dd>
 </dl>
 </div>
 <div class="section" id="environment">
@@ -262,7 +266,7 @@ will allow Kerberos database propagation via <a class="reference internal" href=
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.15.1</i><br />
+            <div class="right" ><i>Release: 1.16</i><br />
                 &copy; <a href="../../copyright.html">Copyright</a> 1985-2017, MIT.
             </div>
             <div class="left">

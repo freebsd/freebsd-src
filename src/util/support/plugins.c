@@ -592,9 +592,10 @@ krb5int_open_plugin_dirs (const char * const *dirnames,
                     }
                 }
 
-                if (krb5int_open_plugin (filepath, &handle, ep) == 0) {
+                if (!err && krb5int_open_plugin(filepath, &handle, ep) == 0) {
                     err = krb5int_plugin_file_handle_array_add (&h, &count, handle);
-                    if (!err) { handle = NULL; }  /* h takes ownership */
+                    if (!err)
+                        handle = NULL; /* h takes ownership */
                 }
 
                 free(filepath);

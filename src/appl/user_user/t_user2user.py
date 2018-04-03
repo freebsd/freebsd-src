@@ -10,9 +10,9 @@ for realm in multipass_realms():
     else:
         srv_output = realm.start_server(['./uuserver', '9999'], 'Server started')
 
-    output = realm.run(['./uuclient', hostname, 'testing message', '9999'])
-    if 'uu-client: server says \"Hello, other end of connection.\"' not in output:
-        fail('Message not echoed back.')
+    msg = 'uu-client: server says "Hello, other end of connection."'
+    realm.run(['./uuclient', hostname, 'testing message', '9999'],
+              expected_msg=msg)
 
 
 success('User-2-user test programs')

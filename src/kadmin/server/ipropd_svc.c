@@ -16,7 +16,6 @@
 #include <kadm5/admin.h>
 #include <kadm5/kadm_rpc.h>
 #include <kadm5/server_internal.h>
-#include <server_acl.h>
 #include <adm_proto.h>
 #include <string.h>
 #include <gssapi_krb5.h>
@@ -25,6 +24,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <kdb_log.h>
+#include "auth.h"
 #include "misc.h"
 #include "osconf.h"
 
@@ -129,6 +129,20 @@ buf_to_string(gss_buffer_desc *b)
     return s;
 }
 
+static krb5_boolean
+iprop_acl_check(krb5_context context, const char *client_name)
+{
+    krb5_principal client_princ;
+    krb5_boolean result;
+
+    if (krb5_parse_name(context, client_name, &client_princ) != 0)
+	return FALSE;
+    result = auth(context, OP_IPROP, client_princ,
+		  NULL, NULL, NULL, NULL, NULL, 0);
+    krb5_free_principal(context, client_princ);
+    return result;
+}
+
 kdb_incr_result_t *
 iprop_get_updates_1_svc(kdb_last_t *arg, struct svc_req *rqstp)
 {
@@ -174,11 +188,7 @@ iprop_get_updates_1_svc(kdb_last_t *arg, struct svc_req *rqstp)
     DPRINT("%s: clprinc=`%s'\n\tsvcprinc=`%s'\n", whoami, client_name,
 	   service_name);
 
-    if (!kadm5int_acl_check(handle->context,
-			    rqst2name(rqstp),
-			    ACL_IPROP,
-			    NULL,
-			    NULL)) {
+    if (!iprop_acl_check(handle->context, client_name)) {
 	ret.ret = UPDATE_PERM_DENIED;
 
 	DPRINT("%s: PERMISSION DENIED: clprinc=`%s'\n\tsvcprinc=`%s'\n",
@@ -301,11 +311,7 @@ ipropx_resync(uint32_t vers, struct svc_req *rqstp)
     DPRINT("%s: clprinc=`%s'\n\tsvcprinc=`%s'\n",
 	    whoami, client_name, service_name);
 
-    if (!kadm5int_acl_check(handle->context,
-			    rqst2name(rqstp),
-			    ACL_IPROP,
-			    NULL,
-			    NULL)) {
+    if (!iprop_acl_check(handle->context, client_name)) {
 	ret.ret = UPDATE_PERM_DENIED;
 
 	DPRINT("%s: Permission denied\n", whoami);
@@ -532,9 +538,9 @@ krb5_iprop_prog_1(struct svc_req *rqstp,
     union {
 	kdb_last_t iprop_get_updates_1_arg;
     } argument;
-    char *result;
+    void *result;
     bool_t (*_xdr_argument)(), (*_xdr_result)();
-    char *(*local)(/* union XXX *, struct svc_req * */);
+    void *(*local)(/* union XXX *, struct svc_req * */);
     char *whoami = "krb5_iprop_prog_1";
 
     if (!check_iprop_rpcsec_auth(rqstp)) {
@@ -555,19 +561,19 @@ krb5_iprop_prog_1(struct svc_req *rqstp,
     case IPROP_GET_UPDATES:
 	_xdr_argument = xdr_kdb_last_t;
 	_xdr_result = xdr_kdb_incr_result_t;
-	local = (char *(*)()) iprop_get_updates_1_svc;
+	local = (void *(*)()) iprop_get_updates_1_svc;
 	break;
 
     case IPROP_FULL_RESYNC:
 	_xdr_argument = xdr_void;
 	_xdr_result = xdr_kdb_fullresync_result_t;
-	local = (char *(*)()) iprop_full_resync_1_svc;
+	local = (void *(*)()) iprop_full_resync_1_svc;
 	break;
 
     case IPROP_FULL_RESYNC_EXT:
 	_xdr_argument = xdr_u_int32;
 	_xdr_result = xdr_kdb_fullresync_result_t;
-	local = (char *(*)()) iprop_full_resync_ext_1_svc;
+	local = (void *(*)()) iprop_full_resync_ext_1_svc;
 	break;
 
     default:

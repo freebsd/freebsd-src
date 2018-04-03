@@ -24,14 +24,28 @@ if ('Attribute auth-indicators Authenticated Complete') not in out:
 if '73757065727374726f6e67' not in out:
     fail('Expected auth indicator not seen in name attributes')
 
-out = realm.run(['./t_srcattrs', 'p:service/2'], expected_code=1)
-if 'gss_init_sec_context: KDC policy rejects request' not in out:
-    fail('Expected error message not seen for indicator mismatch')
+msg = 'gss_init_sec_context: KDC policy rejects request'
+realm.run(['./t_srcattrs', 'p:service/2'], expected_code=1, expected_msg=msg)
 
 realm.kinit(realm.user_princ, password('user'), ['-X', 'indicators=one two'])
 out = realm.run(['./t_srcattrs', 'p:service/2'])
 # Hexademical "one" and "two"
 if '6f6e65' not in out or '74776f' not in out:
+    fail('Expected auth indicator not seen in name attributes')
+
+realm.stop()
+
+# Test the FAST encrypted challenge auth indicator.
+kdcconf = {'realms': {'$realm': {'encrypted_challenge_indicator': 'fast'}}}
+realm = K5Realm(kdc_conf=kdcconf)
+realm.run([kadminl, 'modprinc', '+requires_preauth', realm.user_princ])
+realm.run([kadminl, 'xst', realm.host_princ])
+realm.kinit(realm.user_princ, password('user'))
+realm.kinit(realm.user_princ, password('user'), ['-T', realm.ccache])
+out = realm.run(['./t_srcattrs', 'p:' + realm.host_princ])
+if ('Attribute auth-indicators Authenticated Complete') not in out:
+    fail('Expected attribute type not seen')
+if '66617374' not in out:
     fail('Expected auth indicator not seen in name attributes')
 
 realm.stop()

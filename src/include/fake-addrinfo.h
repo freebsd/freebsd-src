@@ -52,7 +52,7 @@
    the data structures and flag values locally.
 
 
-   On Mac OS X, getaddrinfo results aren't cached (though
+   On macOS, getaddrinfo results aren't cached (though
    gethostbyname results are), so we need to build a cache here.  Now
    things are getting really messy.  Because the cache is in use, we
    use getservbyname, and throw away thread safety.  (Not that the

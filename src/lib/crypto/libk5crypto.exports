@@ -108,3 +108,4 @@ krb5int_nfold
 k5_allow_weak_pbkdf2iter
 krb5_c_prfplus
 krb5_c_derive_prfplus
+k5_enctype_to_ssf

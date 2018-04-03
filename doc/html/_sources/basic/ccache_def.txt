@@ -64,7 +64,7 @@ library.
 
    KCM client support is new in release 1.13.  A KCM daemon has not
    yet been implemented in MIT krb5, but the client will interoperate
-   with the KCM daemon implemented by Heimdal.  OS X 10.7 and higher
+   with the KCM daemon implemented by Heimdal.  macOS 10.7 and higher
    provides a KCM daemon as part of the operating system, and the
    **KCM** cache type is used as the default cache on that platform in
    a default build.

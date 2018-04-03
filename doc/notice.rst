@@ -561,7 +561,7 @@ Marked test programs in src/lib/krb5/krb have the following copyright:
 
 -------------------
 
-The KCM Mach RPC definition file used on OS X has the following copyright:
+The KCM Mach RPC definition file used on macOS has the following copyright:
 
     | Copyright |copy| 2009 Kungliga Tekniska Högskola
     | (Royal Institute of Technology, Stockholm, Sweden).

@@ -44,6 +44,10 @@ This function creates a new context for acquiring initial credentials. Use :c:fu
 
 
 
+Any subsequent calls to :c:func:`krb5_init_creds_step()` , :c:func:`krb5_init_creds_get()` , or :c:func:`krb5_init_creds_free()` for this initial credentials context must use the same *context* argument as the one passed to this function.
+
+
+
 
 
 

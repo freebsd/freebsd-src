@@ -7,7 +7,7 @@
 #  srcdir=@srcdir@
 #  top_srcdir=@top_srcdir@
 # but these are only set by autoconf 2.53, and thus not useful to us on
-# Mac OS X yet (as of 10.2):
+# macOS yet (as of 10.2):
 #  abs_srcdir=@abs_srcdir@
 #  abs_top_srcdir=@abs_top_srcdir@
 #  builddir=@builddir@
@@ -402,10 +402,10 @@ HESIOD_LIBS	= @HESIOD_LIBS@
 KRB5_BASE_LIBS	= $(KRB5_LIB) $(K5CRYPTO_LIB) $(COM_ERR_LIB) $(SUPPORT_LIB) $(GEN_LIB) $(LIBS) $(DL_LIB)
 KDB5_LIBS	= $(KDB5_LIB) $(GSSRPC_LIBS)
 GSS_LIBS	= $(GSS_KRB5_LIB)
-# needs fixing if ever used on Mac OS X!
+# needs fixing if ever used on macOS!
 GSSRPC_LIBS	= -lgssrpc $(GSS_LIBS)
 KADM_COMM_LIBS	= $(GSSRPC_LIBS)
-# need fixing if ever used on Mac OS X!
+# need fixing if ever used on macOS!
 KADMSRV_LIBS	= -lkadm5srv_mit $(HESIOD_LIBS) $(KDB5_LIBS) $(KADM_COMM_LIBS)
 KADMCLNT_LIBS	= -lkadm5clnt_mit $(KADM_COMM_LIBS)
 
@@ -435,11 +435,6 @@ TCL_INCLUDES	= @TCL_INCLUDES@
 CRYPTO_IMPL	= @CRYPTO_IMPL@
 PRNG_ALG	= @PRNG_ALG@
 
-# Crypto back-end selection and flags for PKINIT
-PKINIT_CRYPTO_IMPL		= @PKINIT_CRYPTO_IMPL@
-PKINIT_CRYPTO_IMPL_CFLAGS	= @PKINIT_CRYPTO_IMPL_CFLAGS@
-PKINIT_CRYPTO_IMPL_LIBS		= @PKINIT_CRYPTO_IMPL_LIBS@
-
 # TLS implementation selection
 TLS_IMPL	= @TLS_IMPL@
 TLS_IMPL_CFLAGS = @TLS_IMPL_CFLAGS@
@@ -450,6 +445,8 @@ HAVE_SASL = @HAVE_SASL@
 
 # Whether we have libresolv 1.1.5 for URI discovery tests
 HAVE_RESOLV_WRAPPER = @HAVE_RESOLV_WRAPPER@
+
+SIZEOF_TIME_T = @SIZEOF_TIME_T@
 
 # error table rules
 #

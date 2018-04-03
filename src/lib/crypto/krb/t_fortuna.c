@@ -85,7 +85,7 @@ head_tail_test(struct fortuna_state *st)
 {
     static unsigned char buffer[1024 * 1024];
     unsigned char c;
-    size_t i, len = sizeof(buffer);
+    int i, len = sizeof(buffer);
     int bit, bits[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
     double res;
 

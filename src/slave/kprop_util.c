@@ -45,12 +45,12 @@ sockaddr2krbaddr(krb5_context context, int family, struct sockaddr *sa,
 
     addr.magic = KV5M_ADDRESS;
     if (family == AF_INET) {
-        struct sockaddr_in *sa4 = (struct sockaddr_in *) sa;
+        struct sockaddr_in *sa4 = sa2sin(sa);
         addr.addrtype = ADDRTYPE_INET;
         addr.length = sizeof(sa4->sin_addr);
         addr.contents = (krb5_octet *) &sa4->sin_addr;
     } else if (family == AF_INET6) {
-        struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *) sa;
+        struct sockaddr_in6 *sa6 = sa2sin6(sa);
         if (IN6_IS_ADDR_V4MAPPED(&sa6->sin6_addr)) {
             addr.addrtype = ADDRTYPE_INET;
             addr.contents = (krb5_octet *) &sa6->sin6_addr + 12;

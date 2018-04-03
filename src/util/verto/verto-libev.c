@@ -80,6 +80,11 @@ libev_callback(EV_P_ ev_watcher *w, int revents)
 {
     verto_ev_flag state = VERTO_EV_FLAG_NONE;
 
+#if EV_MULTIPLICITY
+    /* Match the check in ev.h, which doesn't mark this unused */
+    (void) EV_A;
+#endif
+
     if (verto_get_type(w->data)== VERTO_EV_TYPE_CHILD)
         verto_set_proc_status(w->data, ((ev_child*) w)->rstatus);
 

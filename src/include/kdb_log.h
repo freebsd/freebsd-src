@@ -21,9 +21,8 @@ extern "C" {
 /*
  * DB macros
  */
-#define INDEX(ulog, i) (kdb_ent_header_t *)((char *)(ulog) +            \
-                                            sizeof(kdb_hlog_t) +        \
-                                            (i) * ulog->kdb_block)
+#define INDEX(ulog, i) (kdb_ent_header_t *)(void *)                     \
+    ((char *)(ulog) + sizeof(kdb_hlog_t) + (i) * ulog->kdb_block)
 
 /*
  * Current DB version #

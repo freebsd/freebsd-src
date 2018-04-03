@@ -205,7 +205,7 @@ krb5_ktsrvtab_get_entry(krb5_context context, krb5_keytab id, krb5_const_princip
     while ((kerror = krb5_ktsrvint_read_entry(context, id, &ent)) == 0) {
         ent.key.enctype = enctype;
         if (krb5_principal_compare(context, principal, ent.principal)) {
-            if (kvno == IGNORE_VNO) {
+            if (kvno == IGNORE_VNO || ent.vno == IGNORE_VNO) {
                 if (!best_entry.principal || (best_entry.vno < ent.vno)) {
                     krb5_kt_free_entry(context, &best_entry);
                     best_entry = ent;

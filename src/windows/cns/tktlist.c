@@ -35,6 +35,8 @@
 #include "cns.h"
 #include "tktlist.h"
 
+#define ts2tt(t) (time_t)(uint32_t)(t)
+
 /*
  * Ticket information for a list line
  */
@@ -167,10 +169,10 @@ ticket_init_list (HWND hwnd)
 
       ncred++;
       strcpy (buf, "  ");
-      strncat(buf, short_date (c.times.starttime - kwin_get_epoch()),
+      strncat(buf, short_date(ts2tt(c.times.starttime) - kwin_get_epoch()),
 	      sizeof(buf) - 1 - strlen(buf));
       strncat(buf, "      ", sizeof(buf) - 1 - strlen(buf));
-      strncat(buf, short_date (c.times.endtime - kwin_get_epoch()),
+      strncat(buf, short_date(ts2tt(c.times.endtime) - kwin_get_epoch()),
 	      sizeof(buf) - 1 - strlen(buf));
       strncat(buf, "      ", sizeof(buf) - 1 - strlen(buf));
 
@@ -192,8 +194,8 @@ ticket_init_list (HWND hwnd)
 	return -1;
 
       lpinfo->ticket = TRUE;
-      lpinfo->issue_time = c.times.starttime - kwin_get_epoch();
-      lpinfo->lifetime = c.times.endtime - c.times.starttime;
+      lpinfo->issue_time = ts2tt(c.times.starttime) - kwin_get_epoch();
+      lpinfo->lifetime = ts2tt(c.times.endtime) - c.times.starttime;
       strcpy(lpinfo->buf, buf);
 
       rc = ListBox_AddItemData(hwnd, lpinfo);

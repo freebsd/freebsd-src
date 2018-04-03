@@ -509,7 +509,7 @@ des_s2k(const krb5_data *pw, const krb5_data *salt, unsigned char *key_out)
 #define FETCH4(VAR, IDX)        VAR = temp.ui[IDX/4]
 #define PUT4(VAR, IDX)          temp.ui[IDX/4] = VAR
 
-    copylen = pw->length + (salt ? salt->length : 0);
+    copylen = pw->length + salt->length;
     /* Don't need NUL termination, at this point we're treating it as
        a byte array, not a string.  */
     copy = malloc(copylen);
@@ -517,7 +517,7 @@ des_s2k(const krb5_data *pw, const krb5_data *salt, unsigned char *key_out)
         return ENOMEM;
     if (pw->length > 0)
         memcpy(copy, pw->data, pw->length);
-    if (salt != NULL && salt->length > 0)
+    if (salt->length > 0)
         memcpy(copy + pw->length, salt->data, salt->length);
 
     memset(&temp, 0, sizeof(temp));

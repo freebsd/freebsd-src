@@ -36,12 +36,10 @@ if 'Expiration date: [never]' not in out or 'MKey: vno 1' not in out:
 out = realm.run([kadminl, 'getpols'])
 if 'fred\n' not in out or 'barney\n' not in out:
     fail('Missing policy after load')
-out = realm.run([kadminl, 'getpol', 'compat'])
-if 'Number of old keys kept: 5' not in out:
-    fail('Policy (1.8 format) has wrong value after load')
-out = realm.run([kadminl, 'getpol', 'barney'])
-if 'Number of old keys kept: 1' not in out:
-    fail('Policy has wrong value after load')
+realm.run([kadminl, 'getpol', 'compat'],
+          expected_msg='Number of old keys kept: 5')
+realm.run([kadminl, 'getpol', 'barney'],
+          expected_msg='Number of old keys kept: 1')
 
 # Dump/load again, and make sure everything is still there.
 realm.run([kdb5_util, 'dump', dumpfile])
@@ -81,15 +79,10 @@ dump_compare(realm, ['-ov'], srcdump_ov)
 def load_dump_check_compare(realm, opt, srcfile):
     realm.run([kdb5_util, 'destroy', '-f'])
     realm.run([kdb5_util, 'load'] + opt + [srcfile])
-    out = realm.run([kadminl, 'getprincs'])
-    if 'user@' not in out:
-        fail('Loaded dumpfile missing user principal')
-    out = realm.run([kadminl, 'getprinc', 'nokeys'])
-    if 'Number of keys: 0' not in out:
-        fail('Loading dumpfile did not process zero-key principal')
-    out = realm.run([kadminl, 'getpols'])
-    if 'testpol' not in out:
-        fail('Loaded dumpfile missing test policy')
+    realm.run([kadminl, 'getprincs'], expected_msg='user@')
+    realm.run([kadminl, 'getprinc', 'nokeys'],
+              expected_msg='Number of keys: 0')
+    realm.run([kadminl, 'getpols'], expected_msg='testpol')
     dump_compare(realm, opt, srcfile)
 
 # Load each format of dump, check it, re-dump it, and compare.
@@ -99,12 +92,8 @@ load_dump_check_compare(realm, ['-b7'], srcdump_b7)
 
 # Loading the last (-b7 format) dump won't have loaded the
 # per-principal kadm data.  Load that incrementally with -ov.
-out = realm.run([kadminl, 'getprinc', 'user'])
-if 'Policy: [none]' not in out:
-    fail('Loaded b7 dump unexpectedly contains user policy reference')
+realm.run([kadminl, 'getprinc', 'user'], expected_msg='Policy: [none]')
 realm.run([kdb5_util, 'load', '-update', '-ov', srcdump_ov])
-out = realm.run([kadminl, 'getprinc', 'user'])
-if 'Policy: testpol' not in out:
-    fail('Loading ov dump did not add user policy reference')
+realm.run([kadminl, 'getprinc', 'user'], expected_msg='Policy: testpol')
 
 success('Dump/load tests')

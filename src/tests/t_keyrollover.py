@@ -23,25 +23,17 @@ realm.run([kvno, princ1])
 realm.run([kadminl, 'purgekeys', realm.krbtgt_princ])
 # Make sure an old TGT fails after purging old TGS key.
 realm.run([kvno, princ2], expected_code=1)
-output = realm.run([klist, '-e'])
-
-expected = 'krbtgt/%s@%s\n\tEtype (skey, tkt): des-cbc-crc, des-cbc-crc' % \
+msg = 'krbtgt/%s@%s\n\tEtype (skey, tkt): des-cbc-crc, des-cbc-crc' % \
     (realm.realm, realm.realm)
-
-if expected not in output:
-    fail('keyrollover: expected TGS enctype not found')
+realm.run([klist, '-e'], expected_msg=msg)
 
 # Check that new key actually works.
 realm.kinit(realm.user_princ, password('user'))
 realm.run([kvno, realm.host_princ])
-output = realm.run([klist, '-e'])
-
-expected = 'krbtgt/%s@%s\n\tEtype (skey, tkt): ' \
+msg = 'krbtgt/%s@%s\n\tEtype (skey, tkt): ' \
     'aes256-cts-hmac-sha1-96, aes256-cts-hmac-sha1-96' % \
     (realm.realm, realm.realm)
-
-if expected not in output:
-    fail('keyrollover: expected TGS enctype not found after change')
+realm.run([klist, '-e'], expected_msg=msg)
 
 # Test that the KDC only accepts the first enctype for a kvno, for a
 # local-realm TGS request.  To set this up, we abuse an edge-case

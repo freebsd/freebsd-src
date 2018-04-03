@@ -550,7 +550,7 @@ set_refresh_time(krb5_context context, krb5_ccache ccache,
     char buf[128];
     krb5_data d;
 
-    snprintf(buf, sizeof(buf), "%ld", (long)refresh_time);
+    snprintf(buf, sizeof(buf), "%u", (unsigned int)ts2tt(refresh_time));
     d = string2data(buf);
     (void)krb5_cc_set_config(context, ccache, NULL, KRB5_CC_CONF_REFRESH_TIME,
                              &d);
@@ -566,8 +566,9 @@ kg_cred_time_to_refresh(krb5_context context, krb5_gss_cred_id_rec *cred)
 
     if (krb5_timeofday(context, &now))
         return FALSE;
-    if (cred->refresh_time != 0 && now >= cred->refresh_time) {
-        set_refresh_time(context, cred->ccache, cred->refresh_time + 30);
+    if (cred->refresh_time != 0 && !ts_after(cred->refresh_time, now)) {
+        set_refresh_time(context, cred->ccache,
+                         ts_incr(cred->refresh_time, 30));
         return TRUE;
     }
     return FALSE;
@@ -586,7 +587,8 @@ kg_cred_set_initial_refresh(krb5_context context, krb5_gss_cred_id_rec *cred,
         return;
 
     /* Make a note to refresh these when they are halfway to expired. */
-    refresh = times->starttime + (times->endtime - times->starttime) / 2;
+    refresh = ts_incr(times->starttime,
+                      ts_delta(times->endtime, times->starttime) / 2);
     set_refresh_time(context, cred->ccache, refresh);
 }
 
@@ -848,7 +850,8 @@ acquire_cred_context(krb5_context context, OM_uint32 *minor_status,
                                   GSS_C_NO_NAME);
             if (GSS_ERROR(ret))
                 goto error_out;
-            *time_rec = (cred->expire > now) ? (cred->expire - now) : 0;
+            *time_rec = ts_after(cred->expire, now) ?
+                ts_delta(cred->expire, now) : 0;
             k5_mutex_unlock(&cred->lock);
         }
     }

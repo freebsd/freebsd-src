@@ -278,11 +278,11 @@ krb5_error_code krb5_check_exp(context, tkt_time)
                 context->clockskew);
 
         fprintf(stderr,"krb5_check_exp: currenttime - endtime %d \n",
-                (currenttime - tkt_time.endtime ));
+                ts_delta(currenttime, tkt_time.endtime));
 
     }
 
-    if (currenttime - tkt_time.endtime > context->clockskew){
+    if (ts_after(currenttime, ts_incr(tkt_time.endtime, context->clockskew))) {
         retval = KRB5KRB_AP_ERR_TKT_EXPIRED ;
         return retval;
     }
@@ -323,21 +323,11 @@ char *flags_string(cred)
     return(buf);
 }
 
-void printtime(tv)
-    time_t tv;
+void printtime(krb5_timestamp ts)
 {
-    char fmtbuf[18];
-    char fill;
-    krb5_timestamp tstamp;
+    char fmtbuf[18], fill = ' ';
 
-    /* XXXX ASSUMES sizeof(krb5_timestamp) >= sizeof(time_t) */
-    (void) localtime((time_t *)&tv);
-    tstamp = tv;
-    fill = ' ';
-    if (!krb5_timestamp_to_sfstring(tstamp,
-                                    fmtbuf,
-                                    sizeof(fmtbuf),
-                                    &fill))
+    if (!krb5_timestamp_to_sfstring(ts, fmtbuf, sizeof(fmtbuf), &fill))
         printf("%s", fmtbuf);
 }
 

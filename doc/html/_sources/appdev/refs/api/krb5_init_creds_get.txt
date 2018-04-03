@@ -34,6 +34,10 @@ This function synchronously obtains credentials using a context created by :c:fu
 
 
 
+ *context* must be the same as the one passed to :c:func:`krb5_init_creds_init()` for this initial credentials context.
+
+
+
 
 
 

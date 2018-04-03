@@ -139,7 +139,8 @@ krb5_init_context_profile(profile_t profile, krb5_flags flags,
     krb5_context ctx = 0;
     krb5_error_code retval;
     struct {
-        krb5_int32 now, now_usec;
+        krb5_timestamp now;
+        krb5_int32 now_usec;
         long pid;
     } seed_data;
     krb5_data seed;

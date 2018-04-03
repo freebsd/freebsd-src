@@ -3,7 +3,7 @@ krb5_fwd_tgt_creds -  Get a forwarded TGT and format a KRB-CRED message.
 
 ..
 
-.. c:function:: krb5_error_code krb5_fwd_tgt_creds(krb5_context context, krb5_auth_context auth_context, char * rhost, krb5_principal client, krb5_principal server, krb5_ccache cc, int forwardable, krb5_data * outbuf)
+.. c:function:: krb5_error_code krb5_fwd_tgt_creds(krb5_context context, krb5_auth_context auth_context, const char * rhost, krb5_principal client, krb5_principal server, krb5_ccache cc, int forwardable, krb5_data * outbuf)
 
 ..
 

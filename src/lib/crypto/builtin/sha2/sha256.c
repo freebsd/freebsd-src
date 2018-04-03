@@ -211,14 +211,14 @@ k5_sha256_update(SHA256_CTX *m, const void *v, size_t len)
 #if !defined(WORDS_BIGENDIAN) || defined(_CRAY)
 	    int i;
 	    uint32_t current[16];
-	    struct x32 *u = (struct x32*)m->save;
+	    struct x32 *u = (struct x32*)(void*)m->save;
 	    for(i = 0; i < 8; i++){
 		current[2*i+0] = swap_uint32_t(u[i].a);
 		current[2*i+1] = swap_uint32_t(u[i].b);
 	    }
 	    calc(m, current);
 #else
-	    calc(m, (uint32_t*)m->save);
+	    calc(m, (uint32_t*)(void*)m->save);
 #endif
 	    offset = 0;
 	}

@@ -3102,8 +3102,6 @@ SWIG_InitializeModule(void *clientdata) {
   swig_module_info *module_head, *iter;
   int found, init;
 
-  clientdata = clientdata;
-
   /* check to see if the circular list has been setup, if not, set it up */
   if (swig_module.next==0) {
     /* Initialize the swig_module */

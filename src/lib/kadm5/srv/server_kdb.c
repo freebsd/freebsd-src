@@ -365,7 +365,7 @@ kdb_put_entry(kadm5_server_handle_t handle,
               krb5_db_entry *kdb, osa_princ_ent_rec *adb)
 {
     krb5_error_code ret;
-    krb5_int32 now;
+    krb5_timestamp now;
     XDR xdrs;
     krb5_tl_data tl_data;
 

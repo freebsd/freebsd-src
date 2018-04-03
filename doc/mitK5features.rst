@@ -19,8 +19,8 @@ Quick facts
 License - :ref:`mitK5license`
 
 Releases:
-    - Latest stable: http://web.mit.edu/kerberos/krb5-1.15/
-    - Supported: http://web.mit.edu/kerberos/krb5-1.14/
+    - Latest stable: http://web.mit.edu/kerberos/krb5-1.16/
+    - Supported: http://web.mit.edu/kerberos/krb5-1.15/
     - Release cycle: 9 -- 12 months
 
 Supported platforms \/ OS distributions:
@@ -162,7 +162,7 @@ Release 1.13
  -   Add client support for the Kerberos Cache Manager protocol. If
      the host is running a Heimdal kcm daemon, caches served by the
      daemon can be accessed with the KCM: cache type.
- -   When built on OS X 10.7 and higher, use "KCM:" as the default
+ -   When built on macOS 10.7 and higher, use "KCM:" as the default
      cachetype, unless overridden by command-line options or
      krb5-config values.
  -   Add support for doing unlocked database dumps for the DB2 KDC
@@ -308,6 +308,95 @@ Release 1.15
 
   - Add support for the AES-SHA2 enctypes, which allows sites to
     conform to Suite B crypto requirements.
+
+Release 1.16
+
+* Administrator experience:
+
+  - The KDC can match PKINIT client certificates against the
+    "pkinit_cert_match" string attribute on the client principal
+    entry, using the same syntax as the existing "pkinit_cert_match"
+    profile option.
+
+  - The ktutil addent command supports the "-k 0" option to ignore the
+    key version, and the "-s" option to use a non-default salt string.
+
+  - kpropd supports a --pid-file option to write a pid file at
+    startup, when it is run in standalone mode.
+
+  - The "encrypted_challenge_indicator" realm option can be used to
+    attach an authentication indicator to tickets obtained using FAST
+    encrypted challenge pre-authentication.
+
+  - Localization support can be disabled at build time with the
+    --disable-nls configure option.
+
+* Developer experience:
+
+  - The kdcpolicy pluggable interface allows modules control whether
+    tickets are issued by the KDC.
+
+  - The kadm5_auth pluggable interface allows modules to control
+    whether kadmind grants access to a kadmin request.
+
+  - The certauth pluggable interface allows modules to control which
+    PKINIT client certificates can authenticate to which client
+    principals.
+
+  - KDB modules can use the client and KDC interface IP addresses to
+    determine whether to allow an AS request.
+
+  - GSS applications can query the bit strength of a krb5 GSS context
+    using the GSS_C_SEC_CONTEXT_SASL_SSF OID with
+    gss_inquire_sec_context_by_oid().
+
+  - GSS applications can query the impersonator name of a krb5 GSS
+    credential using the GSS_KRB5_GET_CRED_IMPERSONATOR OID with
+    gss_inquire_cred_by_oid().
+
+  - kdcpreauth modules can query the KDC for the canonicalized
+    requested client principal name, or match a principal name against
+    the requested client principal name with canonicalization.
+
+* Protocol evolution:
+
+  - The client library will continue to try pre-authentication
+    mechanisms after most failure conditions.
+
+  - The KDC will issue trivially renewable tickets (where the
+    renewable lifetime is equal to or less than the ticket lifetime)
+    if requested by the client, to be friendlier to scripts.
+
+  - The client library will use a random nonce for TGS requests
+    instead of the current system time.
+
+  - For the RC4 string-to-key or PAC operations, UTF-16 is supported
+    (previously only UCS-2 was supported).
+
+  - When matching PKINIT client certificates, UPN SANs will be matched
+    correctly as UPNs, with canonicalization.
+
+* User experience:
+
+  - Dates after the year 2038 are accepted (provided that the platform
+    time facilities support them), through the year 2106.
+
+  - Automatic credential cache selection based on the client realm
+    will take into account the fallback realm and the service
+    hostname.
+
+  - Referral and alternate cross-realm TGTs will not be cached,
+    avoiding some scenarios where they can be added to the credential
+    cache multiple times.
+
+  - A German translation has been added.
+
+* Code quality:
+
+  - The build is warning-clean under clang with the configured warning
+    options.
+
+  - The automated test suite runs cleanly under AddressSanitizer.
 
 `Pre-authentication mechanisms`
 

@@ -313,14 +313,16 @@ krb5_locate_srv_conf(krb5_context context, const krb5_data *realm,
 
 #ifdef KRB5_DNS_LOOKUP
 static krb5_error_code
-locate_srv_dns_1(const krb5_data *realm, const char *service,
-                 const char *protocol, struct serverlist *serverlist)
+locate_srv_dns_1(krb5_context context, const krb5_data *realm,
+                 const char *service, const char *protocol,
+                 struct serverlist *serverlist)
 {
     struct srv_dns_entry *head = NULL, *entry = NULL;
     krb5_error_code code = 0;
     k5_transport transport;
 
-    code = krb5int_make_srv_query_realm(realm, service, protocol, &head);
+    code = krb5int_make_srv_query_realm(context, realm, service, protocol,
+                                        &head);
     if (code)
         return 0;
 
@@ -598,9 +600,10 @@ parse_uri_fields(const char *uri, k5_transport *transport_out,
  * and transport type.  Problematic entries are skipped.
  */
 static krb5_error_code
-locate_uri(const krb5_data *realm, const char *req_service,
-           struct serverlist *serverlist, k5_transport req_transport,
-           int default_port, krb5_boolean master_only)
+locate_uri(krb5_context context, const krb5_data *realm,
+           const char *req_service, struct serverlist *serverlist,
+           k5_transport req_transport, int default_port,
+           krb5_boolean master_only)
 {
     krb5_error_code ret;
     k5_transport transport, host_trans;
@@ -609,7 +612,7 @@ locate_uri(const krb5_data *realm, const char *req_service,
     const char *host_field, *path;
     int port, def_port, master;
 
-    ret = k5_make_uri_query(realm, req_service, &answers);
+    ret = k5_make_uri_query(context, realm, req_service, &answers);
     if (ret || answers == NULL)
         return ret;
 
@@ -688,10 +691,11 @@ dns_locate_server_uri(krb5_context context, const krb5_data *realm,
         return 0;
     }
 
-    ret = locate_uri(realm, svcname, serverlist, transport, def_port,
+    ret = locate_uri(context, realm, svcname, serverlist, transport, def_port,
                      find_master);
-    if (ret)
-        Tprintf("dns URI lookup returned error %d\n", ret);
+
+    if (serverlist->nservers == 0)
+        TRACE_DNS_URI_NOTFOUND(context);
 
     return ret;
 }
@@ -729,16 +733,15 @@ dns_locate_server_srv(krb5_context context, const krb5_data *realm,
     }
 
     code = 0;
-    if (transport == UDP || transport == TCP_OR_UDP) {
-        code = locate_srv_dns_1(realm, dnsname, "_udp", serverlist);
-        if (code)
-            Tprintf("dns udp lookup returned error %d\n", code);
-    }
-    if ((transport == TCP || transport == TCP_OR_UDP) && code == 0) {
-        code = locate_srv_dns_1(realm, dnsname, "_tcp", serverlist);
-        if (code)
-            Tprintf("dns tcp lookup returned error %d\n", code);
-    }
+    if (transport == UDP || transport == TCP_OR_UDP)
+        code = locate_srv_dns_1(context, realm, dnsname, "_udp", serverlist);
+
+    if ((transport == TCP || transport == TCP_OR_UDP) && code == 0)
+        code = locate_srv_dns_1(context, realm, dnsname, "_tcp", serverlist);
+
+    if (serverlist->nservers == 0)
+        TRACE_DNS_SRV_NOTFOUND(context);
+
     return code;
 }
 #endif /* KRB5_DNS_LOOKUP */

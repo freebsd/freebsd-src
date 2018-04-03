@@ -431,7 +431,7 @@ krb5_ldap_list(krb5_context context, char ***list, char *objectclass,
 {
     char                        *filter=NULL, *dn=NULL;
     krb5_error_code             st=0, tempst=0;
-    int                         i=0, count=0, filterlen=0;
+    int                         count=0, filterlen=0;
     LDAP                        *ld=NULL;
     LDAPMessage                 *result=NULL,*ent=NULL;
     kdb5_dal_handle             *dal_handle=NULL;

@@ -214,7 +214,8 @@ static krb5_error_code get_credentials(context, cred, server, now,
      * boundaries) because accept_sec_context code is also similarly
      * non-forgiving.
      */
-    if (!krb5_gss_dbg_client_expcreds && result_creds->times.endtime < now) {
+    if (!krb5_gss_dbg_client_expcreds &&
+        ts_after(now, result_creds->times.endtime)) {
         code = KRB5KRB_AP_ERR_TKT_EXPIRED;
         goto cleanup;
     }
@@ -355,9 +356,6 @@ make_gss_checksum (krb5_context context, krb5_auth_context auth_context,
     TWRITE_STR(ptr, data->md5.contents, data->md5.length);
     TWRITE_INT(ptr, data->ctx->gss_flags, 0);
 
-    /* done with this, free it */
-    xfree(data->md5.contents);
-
     if (credmsg.data) {
         TWRITE_INT16(ptr, KRB5_GSS_FOR_CREDS_OPTION, 0);
         TWRITE_INT16(ptr, credmsg.length, 0);
@@ -429,6 +427,7 @@ make_ap_req_v1(context, ctx, cred, k_cred, ad_context,
     code = krb5_mk_req_extended(context, &ctx->auth_context, mk_req_flags,
                                 NULL, k_cred, &ap_req);
     krb5_auth_con_set_authdata_context(context, ctx->auth_context, NULL);
+    krb5_free_checksum_contents(context, &cksum_struct.md5);
     krb5_free_data_contents(context, &cksum_struct.checksum_data);
     if (code)
         goto cleanup;
@@ -575,7 +574,7 @@ kg_new_connection(
     if (time_req == 0 || time_req == GSS_C_INDEFINITE) {
         ctx->krb_times.endtime = 0;
     } else {
-        ctx->krb_times.endtime = now + time_req;
+        ctx->krb_times.endtime = ts_incr(now, time_req);
     }
 
     if ((code = kg_duplicate_name(context, cred->name, &ctx->here)))
@@ -659,7 +658,7 @@ kg_new_connection(
     if (time_rec) {
         if ((code = krb5_timeofday(context, &now)))
             goto cleanup;
-        *time_rec = ctx->krb_times.endtime - now;
+        *time_rec = ts_delta(ctx->krb_times.endtime, now);
     }
 
     /* set the other returns */
@@ -873,7 +872,7 @@ mutual_auth(
     if (time_rec) {
         if ((code = krb5_timeofday(context, &now)))
             goto fail;
-        *time_rec = ctx->krb_times.endtime - now;
+        *time_rec = ts_delta(ctx->krb_times.endtime, now);
     }
 
     if (ret_flags)

@@ -33,7 +33,8 @@ utf8.so utf8.po $(OUTPRE)utf8.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
   $(top_srcdir)/include/k5-utf8.h supp-int.h utf8.c
 utf8_conv.so utf8_conv.po $(OUTPRE)utf8_conv.$(OBJEXT): \
-  $(BUILDTOP)/include/autoconf.h $(top_srcdir)/include/k5-platform.h \
+  $(BUILDTOP)/include/autoconf.h $(top_srcdir)/include/k5-buf.h \
+  $(top_srcdir)/include/k5-input.h $(top_srcdir)/include/k5-platform.h \
   $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-utf8.h \
   supp-int.h utf8_conv.c
 gettimeofday.so gettimeofday.po $(OUTPRE)gettimeofday.$(OBJEXT): \
@@ -84,6 +85,9 @@ strerror_r.so strerror_r.po $(OUTPRE)strerror_r.$(OBJEXT): \
 t_utf8.so t_utf8.po $(OUTPRE)t_utf8.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
   $(top_srcdir)/include/k5-utf8.h t_utf8.c
+t_utf16.so t_utf16.po $(OUTPRE)t_utf16.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-utf8.h t_utf16.c
 getopt.so getopt.po $(OUTPRE)getopt.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
   $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
   getopt.c

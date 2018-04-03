@@ -31,12 +31,20 @@ r2 = K5Realm(create_user=False, realm='KRBTEST2.COM', portbase=62000,
 
 host1 = 'p:' + r1.host_princ
 host2 = 'p:' + r2.host_princ
+foo = 'foo.krbtest.com'
+foo2 = 'foo.krbtest2.com'
+foobar = "foo.bar.krbtest.com"
 
-# gsserver specifies the target as a GSS name.  The resulting
-# principal will have the host-based type, but the realm won't be
-# known before the client cache is selected (since k5test realms have
-# no domain-realm mapping by default).
-gssserver = 'h:host@' + hostname
+# These strings specify the target as a GSS name.  The resulting
+# principal will have the host-based type, with the referral realm
+# (since k5test realms have no domain-realm mapping by default).
+# krb5_cc_select() will use the fallback realm, which is either the
+# uppercased parent domain, or the default realm if the hostname is a
+# single component.
+gssserver = 'h:host@' + foo
+gssserver2 = 'h:host@' + foo2
+gssserver_bar = 'h:host@' + foobar
+gsslocal = 'h:host@localhost'
 
 # refserver specifies the target as a principal in the referral realm.
 # The principal won't be treated as a host principal by the
@@ -45,9 +53,8 @@ refserver = 'p:host/' + hostname + '@'
 
 # Verify that we can't get initiator creds with no credentials in the
 # collection.
-output = r1.run(['./t_ccselect', host1, '-'], expected_code=1)
-if 'No Kerberos credentials available' not in output:
-    fail('Expected error not seen in output when no credentials available')
+r1.run(['./t_ccselect', host1, '-'], expected_code=1,
+       expected_msg='No Kerberos credentials available')
 
 # Make a directory collection and use it for client commands in both realms.
 ccdir = os.path.join(r1.testdir, 'cc')
@@ -66,6 +73,18 @@ zaphod='zaphod@KRBTEST2.COM'
 r1.addprinc(alice, password('alice'))
 r1.addprinc(bob, password('bob'))
 r2.addprinc(zaphod, password('zaphod'))
+
+# Create host principals and keytabs for fallback realm tests.
+r1.addprinc('host/localhost')
+r2.addprinc('host/localhost')
+r1.addprinc('host/' + foo)
+r2.addprinc('host/' + foo2)
+r1.addprinc('host/' + foobar)
+r1.extract_keytab('host/localhost', r1.keytab)
+r2.extract_keytab('host/localhost', r2.keytab)
+r1.extract_keytab('host/' + foo, r1.keytab)
+r2.extract_keytab('host/' + foo2, r2.keytab)
+r1.extract_keytab('host/' + foobar, r1.keytab)
 
 # Get tickets for one user in each realm (zaphod will be primary).
 r1.kinit(alice, password('alice'))
@@ -94,10 +113,29 @@ if output != (zaphod + '\n'):
     fail('zaphod not chosen as default initiator name for server in r1')
 
 # Check that primary cache is used if server realm is unknown.
-output = r2.run(['./t_ccselect', gssserver])
+output = r2.run(['./t_ccselect', refserver])
 if output != (zaphod + '\n'):
     fail('zaphod not chosen via primary cache for unknown server realm')
-r1.run(['./t_ccselect', gssserver], expected_code=1)
+r1.run(['./t_ccselect', gssserver2], expected_code=1)
+# Check ccache selection using a fallback realm.
+output = r1.run(['./t_ccselect', gssserver])
+if output != (alice + '\n'):
+    fail('alice not chosen via parent domain fallback')
+output = r2.run(['./t_ccselect', gssserver2])
+if output != (zaphod + '\n'):
+    fail('zaphod not chosen via parent domain fallback')
+# Check ccache selection using a fallback realm (default realm).
+output = r1.run(['./t_ccselect', gsslocal])
+if output != (alice + '\n'):
+    fail('alice not chosen via default realm fallback')
+output = r2.run(['./t_ccselect', gsslocal])
+if output != (zaphod + '\n'):
+    fail('zaphod not chosen via default realm fallback')
+
+# Check that realm ccselect fallback works correctly
+r1.run(['./t_ccselect', gssserver_bar], expected_msg=alice)
+r2.kinit(zaphod, password('zaphod'))
+r1.run(['./t_ccselect', gssserver_bar], expected_msg=alice)
 
 # Get a second cred in r1 (bob will be primary).
 r1.kinit(bob, password('bob'))
@@ -105,20 +143,19 @@ r1.kinit(bob, password('bob'))
 # Try some cache selections using .k5identity.
 k5id = open(os.path.join(r1.testdir, '.k5identity'), 'w')
 k5id.write('%s realm=%s\n' % (alice, r1.realm))
-k5id.write('%s service=ho*t host=%s\n' % (zaphod, hostname))
+k5id.write('%s service=ho*t host=localhost\n' % zaphod)
 k5id.write('noprinc service=bogus')
 k5id.close()
 output = r1.run(['./t_ccselect', host1])
 if output != (alice + '\n'):
     fail('alice not chosen via .k5identity realm line.')
-output = r2.run(['./t_ccselect', gssserver])
+output = r2.run(['./t_ccselect', gsslocal])
 if output != (zaphod + '\n'):
     fail('zaphod not chosen via .k5identity service/host line.')
 output = r1.run(['./t_ccselect', refserver])
 if output != (bob + '\n'):
     fail('bob not chosen via primary cache when no .k5identity line matches.')
-output = r1.run(['./t_ccselect', 'h:bogus@' + hostname], expected_code=1)
-if 'Can\'t find client principal noprinc' not in output:
-    fail('Expected error not seen when k5identity selects bad principal.')
+r1.run(['./t_ccselect', 'h:bogus@' + foo2], expected_code=1,
+       expected_msg="Can't find client principal noprinc")
 
 success('GSSAPI credential selection tests')

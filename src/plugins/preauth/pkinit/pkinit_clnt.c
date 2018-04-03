@@ -1175,15 +1175,22 @@ pkinit_client_process(krb5_context context, krb5_clpreauth_moddata moddata,
         reqctx->rfc6112_kdc = 1;
         return 0;
     case KRB5_PADATA_PK_AS_REQ:
+        reqctx->rfc4556_kdc = 1;
         pkiDebug("processing KRB5_PADATA_PK_AS_REQ\n");
         processing_request = 1;
         break;
 
     case KRB5_PADATA_PK_AS_REP:
+        reqctx->rfc4556_kdc = 1;
         pkiDebug("processing KRB5_PADATA_PK_AS_REP\n");
         break;
     case KRB5_PADATA_PK_AS_REP_OLD:
     case KRB5_PADATA_PK_AS_REQ_OLD:
+        /* Don't fall back to draft9 code if the KDC supports RFC 4556. */
+        if (reqctx->rfc4556_kdc) {
+            TRACE_PKINIT_CLIENT_NO_DRAFT9(context);
+            return KRB5KDC_ERR_PREAUTH_FAILED;
+        }
         if (in_padata->length == 0) {
             pkiDebug("processing KRB5_PADATA_PK_AS_REQ_OLD\n");
             in_padata->pa_type = KRB5_PADATA_PK_AS_REQ_OLD;

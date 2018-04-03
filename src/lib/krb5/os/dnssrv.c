@@ -104,8 +104,8 @@ place_srv_entry(struct srv_dns_entry **head, struct srv_dns_entry *new)
 
 /* Query the URI RR, collecting weight, priority, and target. */
 krb5_error_code
-k5_make_uri_query(const krb5_data *realm, const char *service,
-                  struct srv_dns_entry **answers)
+k5_make_uri_query(krb5_context context, const krb5_data *realm,
+                  const char *service, struct srv_dns_entry **answers)
 {
     const unsigned char *p = NULL, *base = NULL;
     char host[MAXDNAME];
@@ -120,6 +120,8 @@ k5_make_uri_query(const krb5_data *realm, const char *service,
     ret = prepare_lookup_buf(realm, service, NULL, host, sizeof(host));
     if (ret)
         return 0;
+
+    TRACE_DNS_URI_SEND(context, host);
 
     size = krb5int_dns_init(&ds, host, C_IN, T_URI);
     if (size < 0)
@@ -148,6 +150,7 @@ k5_make_uri_query(const krb5_data *realm, const char *service,
             goto out;
         }
 
+        TRACE_DNS_URI_ANS(context, uri->host, uri->priority, uri->weight);
         place_srv_entry(&head, uri);
     }
 
@@ -165,9 +168,8 @@ out:
  */
 
 krb5_error_code
-krb5int_make_srv_query_realm(const krb5_data *realm,
-                             const char *service,
-                             const char *protocol,
+krb5int_make_srv_query_realm(krb5_context context, const krb5_data *realm,
+                             const char *service, const char *protocol,
                              struct srv_dns_entry **answers)
 {
     const unsigned char *p = NULL, *base = NULL;
@@ -192,9 +194,7 @@ krb5int_make_srv_query_realm(const krb5_data *realm,
     if (ret)
         return 0;
 
-#ifdef TEST
-    fprintf(stderr, "sending DNS SRV query for %s\n", host);
-#endif
+    TRACE_DNS_SRV_SEND(context, host);
 
     size = krb5int_dns_init(&ds, host, C_IN, T_SRV);
     if (size < 0)
@@ -239,6 +239,8 @@ krb5int_make_srv_query_realm(const krb5_data *realm,
             goto out;
         }
 
+        TRACE_DNS_SRV_ANS(context, srv->host, srv->port, srv->priority,
+                          srv->weight);
         place_srv_entry(&head, srv);
     }
 

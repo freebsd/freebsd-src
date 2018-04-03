@@ -92,10 +92,10 @@ etype_string(krb5_enctype enctype)
 static void
 CredToTicketInfo(krb5_creds KRBv5Credentials, TICKETINFO *ticketinfo)
 {
-    ticketinfo->issued = KRBv5Credentials.times.starttime;
-    ticketinfo->valid_until = KRBv5Credentials.times.endtime;
+    ticketinfo->issued = (DWORD)KRBv5Credentials.times.starttime;
+    ticketinfo->valid_until = (DWORD)KRBv5Credentials.times.endtime;
     ticketinfo->renew_until = KRBv5Credentials.ticket_flags & TKT_FLG_RENEWABLE ?
-        KRBv5Credentials.times.renew_till : 0;
+        (DWORD)KRBv5Credentials.times.renew_till : (DWORD)0;
     _tzset();
     if ( ticketinfo->valid_until - time(0) <= 0L )
         ticketinfo->btickets = EXPD_TICKETS;
@@ -137,10 +137,10 @@ CredToTicketList(krb5_context ctx, krb5_creds KRBv5Credentials,
         functionName = "calloc()";
         goto cleanup;
     }
-    list->issued = KRBv5Credentials.times.starttime;
-    list->valid_until = KRBv5Credentials.times.endtime;
+    list->issued = (DWORD)KRBv5Credentials.times.starttime;
+    list->valid_until = (DWORD)KRBv5Credentials.times.endtime;
     if (KRBv5Credentials.ticket_flags & TKT_FLG_RENEWABLE)
-        list->renew_until = KRBv5Credentials.times.renew_till;
+        list->renew_until = (DWORD)KRBv5Credentials.times.renew_till;
     else
         list->renew_until = 0;
 

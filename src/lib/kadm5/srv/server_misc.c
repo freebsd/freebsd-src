@@ -142,3 +142,17 @@ destroy_pwqual(kadm5_server_handle_t handle)
     k5_pwqual_free_handles(handle->context, handle->qual_handles);
     handle->qual_handles = NULL;
 }
+
+kadm5_ret_t
+kadm5_get_privs(void *server_handle, long *privs)
+{
+    CHECK_HANDLE(server_handle);
+
+    /* this is impossible to do with the current interface.  For now,
+       return all privs, which will confuse some clients, but not
+       deny any access to users of "smart" clients which try to cache */
+
+    *privs = ~0;
+
+    return KADM5_OK;
+}

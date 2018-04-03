@@ -23,9 +23,7 @@ def ccache_restore(realm):
 def check(realm, args):
     ccache_restore(realm)
     realm.run(['./t_export_cred'] + args)
-    output = realm.run([klist, '-f'])
-    if 'Flags: Ff' not in output:
-        fail('Forwarded tickets not found in ccache after t_export_cred')
+    realm.run([klist, '-f'], expected_msg='Flags: Ff')
 
 # Check a given set of arguments with no specified mech and with krb5
 # and SPNEGO as the specified mech.

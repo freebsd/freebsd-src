@@ -2898,7 +2898,7 @@ static BOOL cc_have_tickets(krb5_context ctx, krb5_ccache cache)
     _tzset();
     while (!(code = pkrb5_cc_next_cred(ctx, cache, &cur, &creds))) {
         if ((!pkrb5_is_config_principal(ctx, creds.server)) &&
-            (creds.times.endtime - time(0) > 0))
+            ((time_t)(DWORD)creds.times.endtime - time(0) > 0))
             have_tickets = TRUE;
 
         pkrb5_free_cred_contents(ctx, &creds);

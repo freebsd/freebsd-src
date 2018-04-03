@@ -32,7 +32,7 @@
 
 /*
  * This cache type contacts a daemon for each cache operation, using Heimdal's
- * KCM protocol.  On OS X, the preferred transport is Mach RPC; on other
+ * KCM protocol.  On macOS, the preferred transport is Mach RPC; on other
  * Unix-like platforms or if the daemon is not available via RPC, Unix domain
  * sockets are used instead.
  */
@@ -360,7 +360,7 @@ kcmio_connect(krb5_context context, struct kcmio **io_out)
         return ENOMEM;
     io->fd = -1;
 
-    /* Try Mach RPC (OS X only), then fall back to Unix domain sockets */
+    /* Try Mach RPC (macOS only), then fall back to Unix domain sockets */
     ret = kcmio_mach_connect(context, io);
     if (ret)
         ret = kcmio_unix_socket_connect(context, io);

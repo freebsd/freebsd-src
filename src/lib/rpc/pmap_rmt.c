@@ -60,6 +60,7 @@ static char sccsid[] = "@(#)pmap_rmt.c 1.21 87/08/27 Copyr 1984 Sun Micro";
 #include <arpa/inet.h>
 #define MAX_BROADCAST_SIZE 1400
 #include <port-sockets.h>
+#include "socket-utils.h"
 
 static struct timeval timeout = { 3, 0 };
 
@@ -208,12 +209,11 @@ getbroadcastnets(
 			if (ioctl(sock, SIOCGIFBRDADDR, (char *)&ifreq) < 0) {
 				addrs[i++].s_addr = INADDR_ANY;
 			} else {
-				addrs[i++] = ((struct sockaddr_in*)
-				  &ifreq.ifr_addr)->sin_addr;
+				addrs[i++] = sa2sin(&ifreq.ifr_addr)->sin_addr;
 			}
 #else /* 4.2 BSD */
 			struct sockaddr_in *sockin;
-			sockin = (struct sockaddr_in *)&ifr->ifr_addr;
+			sockin = sa2sin(&ifr->ifr_addr);
 			addrs[i++] = inet_makeaddr(inet_netof
 			  (sockin->sin_addr.s_addr), INADDR_ANY);
 #endif

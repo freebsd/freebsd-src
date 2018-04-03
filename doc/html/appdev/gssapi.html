@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.15.1',
+        VERSION:     '1.16',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -28,7 +28,7 @@
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
     <link rel="up" title="For application developers" href="index.html" />
-    <link rel="next" title="Differences between Heimdal and MIT Kerberos API" href="h5l_mit_apidiff.html" />
+    <link rel="next" title="Year 2038 considerations for uses of krb5_timestamp" href="y2038.html" />
     <link rel="prev" title="For application developers" href="index.html" /> 
   </head>
   <body>
@@ -44,7 +44,7 @@
             accesskey="C">Contents</a> |
         <a href="index.html" title="For application developers"
             accesskey="P">previous</a> |
-        <a href="h5l_mit_apidiff.html" title="Differences between Heimdal and MIT Kerberos API"
+        <a href="y2038.html" title="Year 2038 considerations for uses of krb5_timestamp"
             accesskey="N">next</a> |
         <a href="../genindex.html" title="General Index"
             accesskey="I">index</a> |
@@ -334,6 +334,24 @@ intermediate service has the appropriate permissions, the KDC will
 issue a ticket from the client to the target service.  The GSSAPI
 library will then use this ticket to authenticate to the target
 service.</p>
+<p>If an application needs to find out whether a credential it holds is a
+proxy credential and the name of the intermediate service, it can
+query the credential with the <strong>GSS_KRB5_GET_CRED_IMPERSONATOR</strong> OID
+(new in release 1.16, declared in <tt class="docutils literal"><span class="pre">&lt;gssapi/gssapi_krb5.h&gt;</span></tt>) using
+the gss_inquire_cred_by_oid extension (declared in
+<tt class="docutils literal"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></tt>):</p>
+<div class="highlight-python"><div class="highlight"><pre>OM_uint32 gss_inquire_cred_by_oid(OM_uint32 *minor_status,
+                                  const gss_cred_id_t cred_handle,
+                                  gss_OID desired_object,
+                                  gss_buffer_set_t *data_set);
+</pre></div>
+</div>
+<p>If the call succeeds and <em>cred_handle</em> is a proxy credential,
+<em>data_set</em> will be set to a single-element buffer set containing the
+unparsed principal name of the intermediate service.  If <em>cred_handle</em>
+is not a proxy credential, <em>data_set</em> will be set to an empty buffer
+set.  If the library does not support the query,
+gss_inquire_cred_by_oid will return <strong>GSS_S_UNAVAILABLE</strong>.</p>
 </div>
 <div class="section" id="aead-message-wrapping">
 <h2>AEAD message wrapping<a class="headerlink" href="#aead-message-wrapping" title="Permalink to this headline">¶</a></h2>
@@ -649,6 +667,7 @@ if (GSS_ERROR(major))
 <li class="toctree-l2 current"><a class="current reference internal" href="">Developing with GSSAPI</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="y2038.html">Year 2038 considerations for uses of krb5_timestamp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="h5l_mit_apidiff.html">Differences between Heimdal and MIT Kerberos API</a></li>
 <li class="toctree-l2"><a class="reference internal" href="init_creds.html">Initial credentials</a></li>
 <li class="toctree-l2"><a class="reference internal" href="princ_handle.html">Principal manipulation and parsing</a></li>
@@ -681,7 +700,7 @@ if (GSS_ERROR(major))
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.15.1</i><br />
+            <div class="right" ><i>Release: 1.16</i><br />
                 &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
             </div>
             <div class="left">
@@ -690,7 +709,7 @@ if (GSS_ERROR(major))
             >Contents</a> |
         <a href="index.html" title="For application developers"
             >previous</a> |
-        <a href="h5l_mit_apidiff.html" title="Differences between Heimdal and MIT Kerberos API"
+        <a href="y2038.html" title="Year 2038 considerations for uses of krb5_timestamp"
             >next</a> |
         <a href="../genindex.html" title="General Index"
             >index</a> |

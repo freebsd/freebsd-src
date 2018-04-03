@@ -364,6 +364,7 @@ SRCS=	$(srcdir)/addr_comp.c	\
 	$(srcdir)/t_in_ccache.c	\
 	$(srcdir)/t_response_items.c \
 	$(srcdir)/t_sname_match.c \
+	$(srcdir)/t_valid_times.c \
 	$(srcdir)/t_vfy_increds.c
 
 # Someday, when we have a "maintainer mode", do this right:
@@ -457,9 +458,12 @@ t_response_items: t_response_items.o response_items.o $(KRB5_BASE_DEPLIBS)
 t_sname_match: t_sname_match.o sname_match.o $(KRB5_BASE_DEPLIBS)
 	$(CC_LINK) -o $@ t_sname_match.o sname_match.o $(KRB5_BASE_LIBS)
 
+t_valid_times: t_valid_times.o valid_times.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_valid_times.o valid_times.o $(KRB5_BASE_LIBS)
+
 TEST_PROGS= t_walk_rtree t_kerb t_ser t_deltat t_expand t_authdata t_pac \
-	t_in_ccache t_cc_config t_copy_context \
-	t_princ t_etypes t_vfy_increds t_response_items t_sname_match
+	t_in_ccache t_cc_config t_copy_context t_princ t_etypes t_vfy_increds \
+	t_response_items t_sname_match t_valid_times
 
 check-unix: $(TEST_PROGS)
 	$(RUN_TEST_LOCAL_CONF) ./t_kerb \
@@ -496,6 +500,7 @@ check-unix: $(TEST_PROGS)
 	$(RUN_TEST) ./t_response_items
 	$(RUN_TEST) ./t_copy_context
 	$(RUN_TEST) ./t_sname_match
+	$(RUN_TEST) ./t_valid_times
 
 check-pytests: t_expire_warn t_vfy_increds
 	$(RUNPYTEST) $(srcdir)/t_expire_warn.py $(PYTESTFLAGS)
@@ -522,8 +527,9 @@ clean:
 	$(OUTPRE)t_ad_fx_armor$(EXEEXT) $(OUTPRE)t_ad_fx_armor.$(OBJEXT) \
 	$(OUTPRE)t_vfy_increds$(EXEEXT) $(OUTPRE)t_vfy_increds.$(OBJEXT) \
 	$(OUTPRE)t_response_items$(EXEEXT) \
-	$(OUTPRE)t_response_items.$(OBJEXT) $(OUTPRE)t_sname_match$(EXEEXT) \
-	$(OUTPRE)t_sname_match.$(OBJEXT) \
+	$(OUTPRE)t_response_items.$(OBJEXT) \
+	$(OUTPRE)t_sname_match$(EXEEXT) $(OUTPRE)t_sname_match.$(OBJEXT) \
+	$(OUTPRE)t_valid_times$(EXEEXT) $(OUTPRE)t_valid_times.$(OBJECT) \
 	$(OUTPRE)t_parse_host_string$(EXEEXT) \
 	$(OUTPRE)t_parse_host_string.$(OBJEXT)
 

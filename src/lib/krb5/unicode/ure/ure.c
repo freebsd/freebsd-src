@@ -421,7 +421,7 @@ _ure_prop_list(ucs2_t *pp, unsigned long limit, unsigned long *mask,
           b->error = _URE_INVALID_PROPERTY;
     }
 
-    if (n != 0)
+    if (b->error == _URE_OK && n != 0)
       m |= cclass_flags[n];
 
     /*

@@ -282,7 +282,7 @@ krb5_db_def_fetch_mkey_stash(krb5_context   context,
     key->length = keylength;
 #endif
 
-    if (!key->length || ((int) key->length) < 0) {
+    if (!key->length || key->length > 1024) {
         retval = KRB5_KDB_BADSTORED_MKEY;
         goto errout;
     }

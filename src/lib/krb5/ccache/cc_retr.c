@@ -46,11 +46,11 @@ static krb5_boolean
 times_match(const krb5_ticket_times *t1, const krb5_ticket_times *t2)
 {
     if (t1->renew_till) {
-        if (t1->renew_till > t2->renew_till)
+        if (ts_after(t1->renew_till, t2->renew_till))
             return FALSE;               /* this one expires too late */
     }
     if (t1->endtime) {
-        if (t1->endtime > t2->endtime)
+        if (ts_after(t1->endtime, t2->endtime))
             return FALSE;               /* this one expires too late */
     }
     /* only care about expiration on a times_match */
@@ -211,7 +211,6 @@ krb5_cc_retrieve_cred_seq (krb5_context context, krb5_ccache id,
         int pref;
     } fetched, best;
     int have_creds = 0;
-    krb5_flags oflags = 0;
 #define fetchcreds (fetched.creds)
 
     kret = krb5_cc_start_seq_get(context, id, &cursor);

@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../',
-        VERSION:     '1.15.1',
+        VERSION:     '1.16',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -112,9 +112,10 @@ includedir DIRNAME
 directory must exist and be readable.  Including a directory includes
 all files within the directory whose names consist solely of
 alphanumeric characters, dashes, or underscores.  Starting in release
-1.15, files with names ending in &#8221;.conf&#8221; are also included.  Included
-profile files are syntactically independent of their parents, so each
-included file must begin with a section header.</p>
+1.15, files with names ending in &#8221;.conf&#8221; are also included, unless the
+name begins with &#8221;.&#8221;.  Included profile files are syntactically
+independent of their parents, so each included file must begin with a
+section header.</p>
 <p>The krb5.conf file can specify that configuration should be obtained
 from a loadable module, rather than the file itself, using the
 following directive at the beginning of a line before any section
@@ -223,7 +224,7 @@ the client should request when making a TGS-REQ, in order of
 preference from highest to lowest.  The list may be delimited with
 commas or whitespace.  See <a class="reference internal" href="kdc_conf.html#encryption-types"><em>Encryption types</em></a> in
 <a class="reference internal" href="kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a> for a list of the accepted values for this tag.
-The default value is <tt class="docutils literal"><span class="pre">aes256-cts-hmac-sha1-96</span> <span class="pre">aes128-cts-hmac-sha1-96</span> <span class="pre">des3-cbc-sha1</span> <span class="pre">arcfour-hmac-md5</span> <span class="pre">camellia256-cts-cmac</span> <span class="pre">camellia128-cts-cmac</span> <span class="pre">des-cbc-crc</span> <span class="pre">des-cbc-md5</span> <span class="pre">des-cbc-md4</span></tt>, but single-DES encryption types
+The default value is <tt class="docutils literal"><span class="pre">aes256-cts-hmac-sha1-96</span> <span class="pre">aes128-cts-hmac-sha1-96</span> <span class="pre">aes256-cts-hmac-sha384-192</span> <span class="pre">aes128-cts-hmac-sha256-128</span> <span class="pre">des3-cbc-sha1</span> <span class="pre">arcfour-hmac-md5</span> <span class="pre">camellia256-cts-cmac</span> <span class="pre">camellia128-cts-cmac</span> <span class="pre">des-cbc-crc</span> <span class="pre">des-cbc-md5</span> <span class="pre">des-cbc-md4</span></tt>, but single-DES encryption types
 will be implicitly removed from this list if the value of
 <strong>allow_weak_crypto</strong> is false.</p>
 <p class="last">Do not set this unless required for specific backward
@@ -236,7 +237,7 @@ libraries are upgraded.</p>
 the client should request when making an AS-REQ, in order of
 preference from highest to lowest.  The format is the same as for
 default_tgs_enctypes.  The default value for this tag is
-<tt class="docutils literal"><span class="pre">aes256-cts-hmac-sha1-96</span> <span class="pre">aes128-cts-hmac-sha1-96</span> <span class="pre">des3-cbc-sha1</span> <span class="pre">arcfour-hmac-md5</span> <span class="pre">camellia256-cts-cmac</span> <span class="pre">camellia128-cts-cmac</span> <span class="pre">des-cbc-crc</span> <span class="pre">des-cbc-md5</span> <span class="pre">des-cbc-md4</span></tt>, but single-DES encryption types will be implicitly
+<tt class="docutils literal"><span class="pre">aes256-cts-hmac-sha1-96</span> <span class="pre">aes128-cts-hmac-sha1-96</span> <span class="pre">aes256-cts-hmac-sha384-192</span> <span class="pre">aes128-cts-hmac-sha256-128</span> <span class="pre">des3-cbc-sha1</span> <span class="pre">arcfour-hmac-md5</span> <span class="pre">camellia256-cts-cmac</span> <span class="pre">camellia128-cts-cmac</span> <span class="pre">des-cbc-crc</span> <span class="pre">des-cbc-md5</span> <span class="pre">des-cbc-md4</span></tt>, but single-DES encryption types will be implicitly
 removed from this list if the value of <strong>allow_weak_crypto</strong> is
 false.</p>
 <p class="last">Do not set this unless required for specific backward
@@ -308,7 +309,7 @@ files in the user&#8217;s home directory, with the filename .k5login.
 For security reasons, .k5login files must be owned by
 the local user or by root.</dd>
 <dt><strong>kcm_mach_service</strong></dt>
-<dd>On OS X only, determines the name of the bootstrap service used to
+<dd>On macOS only, determines the name of the bootstrap service used to
 contact the KCM daemon for the KCM credential cache type.  If the
 value is <tt class="docutils literal"><span class="pre">-</span></tt>, Mach RPC will not be used to contact the KCM
 daemon.  The default value is <tt class="docutils literal"><span class="pre">org.h5l.kcm</span></tt>.</dd>
@@ -379,7 +380,7 @@ used across NATs.  The default value is true.</dd>
 <dt><strong>permitted_enctypes</strong></dt>
 <dd>Identifies all encryption types that are permitted for use in
 session key encryption.  The default value for this tag is
-<tt class="docutils literal"><span class="pre">aes256-cts-hmac-sha1-96</span> <span class="pre">aes128-cts-hmac-sha1-96</span> <span class="pre">des3-cbc-sha1</span> <span class="pre">arcfour-hmac-md5</span> <span class="pre">camellia256-cts-cmac</span> <span class="pre">camellia128-cts-cmac</span> <span class="pre">des-cbc-crc</span> <span class="pre">des-cbc-md5</span> <span class="pre">des-cbc-md4</span></tt>, but single-DES encryption types will be implicitly
+<tt class="docutils literal"><span class="pre">aes256-cts-hmac-sha1-96</span> <span class="pre">aes128-cts-hmac-sha1-96</span> <span class="pre">aes256-cts-hmac-sha384-192</span> <span class="pre">aes128-cts-hmac-sha256-128</span> <span class="pre">des3-cbc-sha1</span> <span class="pre">arcfour-hmac-md5</span> <span class="pre">camellia256-cts-cmac</span> <span class="pre">camellia128-cts-cmac</span> <span class="pre">des-cbc-crc</span> <span class="pre">des-cbc-md5</span> <span class="pre">des-cbc-md4</span></tt>, but single-DES encryption types will be implicitly
 removed from this list if the value of <strong>allow_weak_crypto</strong> is
 false.</dd>
 <dt><strong>plugin_base_dir</strong></dt>
@@ -749,6 +750,9 @@ client principal</dd>
 <dt><strong>realm</strong></dt>
 <dd>Uses the service realm to guess an appropriate cache from the
 collection</dd>
+<dt><strong>hostname</strong></dt>
+<dd>If the service principal is host-based, uses the service hostname
+to guess an appropriate cache from the collection</dd>
 </dl>
 </div>
 <div class="section" id="pwqual-interface">
@@ -775,6 +779,23 @@ principal creation, modification, password changes and deletion.  This
 interface can be used to write a plugin to synchronize MIT Kerberos
 with another database such as Active Directory.  No plugins are built
 in for this interface.</p>
+</div>
+<div class="section" id="kadm5-auth-interface">
+<span id="kadm5-auth"></span><h4>kadm5_auth interface<a class="headerlink" href="#kadm5-auth-interface" title="Permalink to this headline">¶</a></h4>
+<p>The kadm5_auth section (introduced in release 1.16) controls modules
+for the kadmin authorization interface, which determines whether a
+client principal is allowed to perform a kadmin operation.  The
+following built-in modules exist for this interface:</p>
+<dl class="docutils">
+<dt><strong>acl</strong></dt>
+<dd>This module reads the <a class="reference internal" href="kadm5_acl.html#kadm5-acl-5"><em>kadm5.acl</em></a> file, and authorizes
+operations which are allowed according to the rules in the file.</dd>
+<dt><strong>self</strong></dt>
+<dd>This module authorizes self-service operations including password
+changes, creation of new random keys, fetching the client&#8217;s
+principal record or string attributes, and fetching the policy
+record associated with the client principal.</dd>
+</dl>
 </div>
 <div class="section" id="clpreauth-and-kdcpreauth-interfaces">
 <span id="kdcpreauth"></span><span id="clpreauth"></span><h4>clpreauth and kdcpreauth interfaces<a class="headerlink" href="#clpreauth-and-kdcpreauth-interfaces" title="Permalink to this headline">¶</a></h4>
@@ -838,6 +859,28 @@ the account&#8217;s <a class="reference internal" href="../../user/user_config/k
 <dt><strong>an2ln</strong></dt>
 <dd>This module authorizes a principal to a local account if the
 principal name maps to the local account name.</dd>
+</dl>
+</div>
+<div class="section" id="certauth-interface">
+<span id="certauth"></span><h4>certauth interface<a class="headerlink" href="#certauth-interface" title="Permalink to this headline">¶</a></h4>
+<p>The certauth section (introduced in release 1.16) controls modules for
+the certificate authorization interface, which determines whether a
+certificate is allowed to preauthenticate a user via PKINIT.  The
+following built-in modules exist for this interface:</p>
+<dl class="docutils">
+<dt><strong>pkinit_san</strong></dt>
+<dd>This module authorizes the certificate if it contains a PKINIT
+Subject Alternative Name for the requested client principal, or a
+Microsoft UPN SAN matching the principal if <strong>pkinit_allow_upn</strong>
+is set to true for the realm.</dd>
+<dt><strong>pkinit_eku</strong></dt>
+<dd>This module rejects the certificate if it does not contain an
+Extended Key Usage attribute consistent with the
+<strong>pkinit_eku_checking</strong> value for the realm.</dd>
+<dt><strong>dbmatch</strong></dt>
+<dd>This module authorizes or rejects the certificate according to
+whether it matches the <strong>pkinit_cert_match</strong> string attribute on
+the client principal, if that attribute is present.</dd>
 </dl>
 </div>
 </div>
@@ -1195,9 +1238,11 @@ Valid parameters are:</p>
 <li><a class="reference internal" href="#ccselect-interface">ccselect interface</a></li>
 <li><a class="reference internal" href="#pwqual-interface">pwqual interface</a></li>
 <li><a class="reference internal" href="#kadm5-hook-interface">kadm5_hook interface</a></li>
+<li><a class="reference internal" href="#kadm5-auth-interface">kadm5_auth interface</a></li>
 <li><a class="reference internal" href="#clpreauth-and-kdcpreauth-interfaces">clpreauth and kdcpreauth interfaces</a></li>
 <li><a class="reference internal" href="#hostrealm-interface">hostrealm interface</a></li>
 <li><a class="reference internal" href="#localauth-interface">localauth interface</a></li>
+<li><a class="reference internal" href="#certauth-interface">certauth interface</a></li>
 </ul>
 </li>
 </ul>
@@ -1275,7 +1320,7 @@ Valid parameters are:</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.15.1</i><br />
+            <div class="right" ><i>Release: 1.16</i><br />
                 &copy; <a href="../../copyright.html">Copyright</a> 1985-2017, MIT.
             </div>
             <div class="left">

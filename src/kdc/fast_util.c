@@ -607,7 +607,7 @@ kdc_fast_read_cookie(krb5_context context, struct kdc_request_state *state,
     ret = krb5_timeofday(context, &now);
     if (ret)
         goto cleanup;
-    if (now - COOKIE_LIFETIME > cookie->time) {
+    if (ts2tt(now) > cookie->time + COOKIE_LIFETIME) {
         /* Don't accept the cookie contents.  Only return an error if the
          * cookie is relevant to the request. */
         if (is_relevant(cookie->data, req->padata))
@@ -700,7 +700,7 @@ kdc_fast_make_cookie(krb5_context context, struct kdc_request_state *state,
     ret = krb5_timeofday(context, &now);
     if (ret)
         goto cleanup;
-    cookie.time = now;
+    cookie.time = ts2tt(now);
     cookie.data = contents;
     ret = encode_krb5_secure_cookie(&cookie, &der_cookie);
     if (ret)

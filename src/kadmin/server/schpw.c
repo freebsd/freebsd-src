@@ -18,8 +18,8 @@
 
 static krb5_error_code
 process_chpw_request(krb5_context context, void *server_handle, char *realm,
-                     krb5_keytab keytab, const krb5_fulladdr *local_faddr,
-                     const krb5_fulladdr *remote_faddr, krb5_data *req,
+                     krb5_keytab keytab, const krb5_fulladdr *local_addr,
+                     const krb5_fulladdr *remote_addr, krb5_data *req,
                      krb5_data *rep)
 {
     krb5_error_code ret;
@@ -42,7 +42,7 @@ process_chpw_request(krb5_context context, void *server_handle, char *realm,
     struct sockaddr_storage ss;
     socklen_t salen;
     char addrbuf[100];
-    krb5_address *addr = remote_faddr->address;
+    krb5_address *addr = remote_addr->address;
 
     *rep = empty_data();
 
@@ -205,15 +205,6 @@ process_chpw_request(krb5_context context, void *server_handle, char *realm,
         goto chpwfail;
     }
 
-    /* for cpw, verify that this is an AS_REQ ticket */
-    if (vno == 1 &&
-        (ticket->enc_part2->flags & TKT_FLG_INITIAL) == 0) {
-        numresult = KRB5_KPASSWD_INITIAL_FLAG_NEEDED;
-        strlcpy(strresult, "Ticket must be derived from a password",
-                sizeof(strresult));
-        goto chpwfail;
-    }
-
     /* change the password */
 
     ptr = k5memdup0(clear.data, clear.length, &ret);
@@ -237,7 +228,7 @@ process_chpw_request(krb5_context context, void *server_handle, char *realm,
 
         sin->sin_family = AF_INET;
         memcpy(&sin->sin_addr, addr->contents, addr->length);
-        sin->sin_port = htons(remote_faddr->port);
+        sin->sin_port = htons(remote_addr->port);
         salen = sizeof(*sin);
         break;
     }
@@ -246,7 +237,7 @@ process_chpw_request(krb5_context context, void *server_handle, char *realm,
 
         sin6->sin6_family = AF_INET6;
         memcpy(&sin6->sin6_addr, addr->contents, addr->length);
-        sin6->sin6_port = htons(remote_faddr->port);
+        sin6->sin6_port = htons(remote_addr->port);
         salen = sizeof(*sin6);
         break;
     }
@@ -292,6 +283,9 @@ process_chpw_request(krb5_context context, void *server_handle, char *realm,
     case KADM5_AUTH_CHANGEPW:
         numresult = KRB5_KPASSWD_ACCESSDENIED;
         break;
+    case KADM5_AUTH_INITIAL:
+        numresult = KRB5_KPASSWD_INITIAL_FLAG_NEEDED;
+        break;
     case KADM5_PASS_Q_TOOSHORT:
     case KADM5_PASS_REUSE:
     case KADM5_PASS_Q_CLASS:
@@ -326,7 +320,7 @@ chpwfail:
 
     if (ap_rep.length) {
         ret = krb5_auth_con_setaddrs(context, auth_context,
-                                     local_faddr->address, NULL);
+                                     local_addr->address, NULL);
         if (ret) {
             numresult = KRB5_KPASSWD_HARDERROR;
             strlcpy(strresult,
@@ -366,7 +360,7 @@ chpwfail:
            to mk_error do. */
         krberror.error = ret;
         krberror.error -= ERROR_TABLE_BASE_krb5;
-        if (krberror.error < 0 || krberror.error > KRB_ERR_MAX)
+        if (krberror.error > KRB_ERR_MAX)
             krberror.error = KRB_ERR_GENERIC;
 
         krberror.client = NULL;
@@ -436,28 +430,14 @@ bailout:
 
 /* Dispatch routine for set/change password */
 void
-dispatch(void *handle, struct sockaddr *local_saddr,
-         const krb5_fulladdr *remote_faddr, krb5_data *request, int is_tcp,
+dispatch(void *handle, const krb5_fulladdr *local_addr,
+         const krb5_fulladdr *remote_addr, krb5_data *request, int is_tcp,
          verto_ctx *vctx, loop_respond_fn respond, void *arg)
 {
     krb5_error_code ret;
     krb5_keytab kt = NULL;
     kadm5_server_handle_t server_handle = (kadm5_server_handle_t)handle;
-    krb5_fulladdr local_faddr;
-    krb5_address **local_kaddrs = NULL, local_kaddr_buf;
     krb5_data *response = NULL;
-
-    if (local_saddr == NULL) {
-        ret = krb5_os_localaddr(server_handle->context, &local_kaddrs);
-        if (ret != 0)
-            goto egress;
-
-        local_faddr.address = local_kaddrs[0];
-        local_faddr.port = 0;
-    } else {
-        local_faddr.address = &local_kaddr_buf;
-        init_addr(&local_faddr, local_saddr);
-    }
 
     ret = krb5_kt_resolve(server_handle->context, "KDB:", &kt);
     if (ret != 0) {
@@ -474,14 +454,13 @@ dispatch(void *handle, struct sockaddr *local_saddr,
                                handle,
                                server_handle->params.realm,
                                kt,
-                               &local_faddr,
-                               remote_faddr,
+                               local_addr,
+                               remote_addr,
                                request,
                                response);
 egress:
     if (ret)
         krb5_free_data(server_handle->context, response);
-    krb5_free_addresses(server_handle->context, local_kaddrs);
     krb5_kt_close(server_handle->context, kt);
     (*respond)(arg, ret, ret == 0 ? response : NULL);
 }

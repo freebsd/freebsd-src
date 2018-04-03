@@ -4,6 +4,7 @@ verto_add_io
 verto_add_signal
 verto_add_timeout
 verto_break
+verto_cleanup
 verto_convert_module
 verto_default
 verto_del

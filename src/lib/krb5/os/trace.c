@@ -173,7 +173,7 @@ trace_format(krb5_context context, const char *fmt, va_list ap)
             p = va_arg(ap, const char *);
             if (p == NULL && len != 0)
                 k5_buf_add(&buf, "(null)");
-            else
+            else if (p != NULL)
                 buf_add_printable_len(&buf, p, len);
         } else if (strcmp(tmpbuf, "hexlenstr") == 0) {
             len = va_arg(ap, size_t);
@@ -340,7 +340,8 @@ krb5int_trace(krb5_context context, const char *fmt, ...)
     va_list ap;
     krb5_trace_info info;
     char *str = NULL, *msg = NULL;
-    krb5_int32 sec, usec;
+    krb5_timestamp sec;
+    krb5_int32 usec;
 
     if (context == NULL || context->trace_callback == NULL)
         return;
@@ -350,7 +351,7 @@ krb5int_trace(krb5_context context, const char *fmt, ...)
         goto cleanup;
     if (krb5_crypto_us_timeofday(&sec, &usec) != 0)
         goto cleanup;
-    if (asprintf(&msg, "[%d] %d.%d: %s\n", (int) getpid(), (int) sec,
+    if (asprintf(&msg, "[%d] %u.%d: %s\n", (int) getpid(), (unsigned int) sec,
                  (int) usec, str) < 0)
         goto cleanup;
     info.message = msg;

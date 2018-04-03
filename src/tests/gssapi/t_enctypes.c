@@ -32,6 +32,7 @@
 
 #include "k5-int.h"
 #include "common.h"
+#include "gssapi_ext.h"
 
 /*
  * This test program establishes contexts with the krb5 mech, the default
@@ -86,6 +87,9 @@ main(int argc, char *argv[])
     gss_krb5_lucid_context_v1_t *ilucid, *alucid;
     gss_krb5_rfc1964_keydata_t *i1964, *a1964;
     gss_krb5_cfx_keydata_t *icfx, *acfx;
+    gss_buffer_set_t bufset = GSS_C_NO_BUFFER_SET;
+    gss_OID ssf_oid = GSS_C_SEC_CONTEXT_SASL_SSF;
+    unsigned int ssf;
     size_t count;
     void *lptr;
     int c;
@@ -138,6 +142,16 @@ main(int argc, char *argv[])
     flags = GSS_C_REPLAY_FLAG | GSS_C_SEQUENCE_FLAG | GSS_C_MUTUAL_FLAG;
     establish_contexts(&mech_krb5, icred, acred, tname, flags, &ictx, &actx,
                        NULL, NULL, NULL);
+
+    /* Query the SSF value and range-check the result. */
+    major = gss_inquire_sec_context_by_oid(&minor, ictx, ssf_oid, &bufset);
+    check_gsserr("gss_inquire_sec_context_by_oid(ssf)", major, minor);
+    if (bufset->elements[0].length != 4)
+        errout("SSF buffer has unexpected length");
+    ssf = load_32_be(bufset->elements[0].value);
+    if (ssf < 56 || ssf > 256)
+        errout("SSF value not within acceptable range (56-256)");
+    (void)gss_release_buffer_set(&minor, &bufset);
 
     /* Export to lucid contexts. */
     major = gss_krb5_export_lucid_sec_context(&minor, &ictx, 1, &lptr);

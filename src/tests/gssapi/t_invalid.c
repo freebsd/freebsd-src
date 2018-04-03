@@ -31,8 +31,8 @@
  */
 
 /*
- * This file contains regression tests for some GSSAPI krb5 invalid per-message
- * token vulnerabilities.
+ * This file contains regression tests for some GSSAPI invalid token
+ * vulnerabilities.
  *
  * 1. A pre-CFX wrap or MIC token processed with a CFX-only context causes a
  *    null pointer dereference.  (The token must use SEAL_ALG_NONE or it will
@@ -54,10 +54,13 @@
  *    causes an integer underflow when computing the original message length,
  *    leading to an allocation error.
  *
+ * 5. In the mechglue, truncated encapsulation in the initial context token can
+ *    cause input buffer overruns in gss_accept_sec_context().
+ *
  * Vulnerabilities #1 and #2 also apply to IOV unwrap, although tokens with
- * fewer than 16 bytes after the ASN.1 header will be rejected.  Vulnerability
- * #2 can only be robustly detected using a memory-checking environment such as
- * valgrind.
+ * fewer than 16 bytes after the ASN.1 header will be rejected.
+ * Vulnerabilities #2 and #5 can only be robustly detected using a
+ * memory-checking environment such as valgrind.
  */
 
 #include "k5-int.h"
@@ -406,6 +409,48 @@ test_bad_pad(gss_ctx_id_t ctx, const struct test *test)
     (void)gss_release_buffer(&minor, &out);
 }
 
+static void
+try_accept(void *value, size_t len)
+{
+    OM_uint32 minor;
+    gss_buffer_desc in, out;
+    gss_ctx_id_t ctx = GSS_C_NO_CONTEXT;
+
+    /* Copy the provided value to make input overruns more obvious. */
+    in.value = malloc(len);
+    if (in.value == NULL)
+        abort();
+    memcpy(in.value, value, len);
+    in.length = len;
+    (void)gss_accept_sec_context(&minor, &ctx, GSS_C_NO_CREDENTIAL, &in,
+                                 GSS_C_NO_CHANNEL_BINDINGS, NULL, NULL,
+                                 &out, NULL, NULL, NULL);
+    gss_release_buffer(&minor, &out);
+    gss_delete_sec_context(&minor, &ctx, GSS_C_NO_BUFFER);
+    free(in.value);
+}
+
+/* Accept contexts using superficially valid but truncated encapsulations. */
+static void
+test_short_encapsulation()
+{
+    /* Include just the initial application tag, to see if we overrun reading
+     * the sequence length. */
+    try_accept("\x60", 1);
+
+    /* Indicate four additional sequence length bytes, to see if we overrun
+     * reading them (or skipping them and reading the next byte). */
+    try_accept("\x60\x84", 2);
+
+    /* Include an object identifier tag but no length, to see if we overrun
+     * reading the length. */
+    try_accept("\x60\x40\x06", 3);
+
+    /* Include an object identifier tag with a length matching the krb5 mech,
+     * but no OID bytes, to see if we overrun comparing against mechs. */
+    try_accept("\x60\x40\x06\x09", 4);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -424,6 +469,8 @@ main(int argc, char **argv)
         test_bad_pad(ctx, &tests[i]);
         free_fake_context(ctx);
     }
+
+    test_short_encapsulation();
 
     return 0;
 }

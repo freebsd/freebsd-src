@@ -40,14 +40,15 @@ krb5_error_code KRB5_CALLCONV
 krb5_set_real_time(krb5_context context, krb5_timestamp seconds, krb5_int32 microseconds)
 {
     krb5_os_context os_ctx = &context->os_context;
-    krb5_int32 sec, usec;
+    krb5_timestamp sec;
+    krb5_int32 usec;
     krb5_error_code retval;
 
     retval = krb5_crypto_us_timeofday(&sec, &usec);
     if (retval)
         return retval;
 
-    os_ctx->time_offset = seconds - sec;
+    os_ctx->time_offset = ts_delta(seconds, sec);
     os_ctx->usec_offset = (microseconds > -1) ? microseconds - usec : 0;
 
     os_ctx->os_flags = ((os_ctx->os_flags & ~KRB5_OS_TOFFSET_TIME) |

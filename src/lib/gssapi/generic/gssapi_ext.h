@@ -575,4 +575,15 @@ gss_import_cred(
 }
 #endif
 
+/*
+ * When used with gss_inquire_sec_context_by_oid(), return a buffer set with
+ * the first member containing an unsigned 32-bit integer in network byte
+ * order.  This is the Security Strength Factor (SSF) associated with the
+ * secure channel established by the security context.  NOTE: This value is
+ * made available solely as an indication for use by APIs like Cyrus SASL that
+ * classify the strength of a secure channel via this number.  The strength of
+ * a channel cannot necessarily be represented by a simple number.
+ */
+GSS_DLLIMP extern gss_OID GSS_C_SEC_CONTEXT_SASL_SSF;
+
 #endif /* GSSAPI_EXT_H_ */

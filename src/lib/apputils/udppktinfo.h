@@ -32,7 +32,7 @@
  * This holds whatever additional information might be needed to
  * properly send back to the client from the correct local address.
  *
- * In this case, we only need one datum so far: On Mac OS X, the
+ * In this case, we only need one datum so far: On macOS, the
  * kernel doesn't seem to like sending from link-local addresses
  * unless we specify the correct interface.
  */

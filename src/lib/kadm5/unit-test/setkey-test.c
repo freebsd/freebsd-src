@@ -69,7 +69,8 @@ main(int argc, char **argv)
     char *whoami, *principal, *authprinc, *authpwd;
     krb5_data pwdata;
     void *handle;
-    int ret, i, test, encnum;
+    int ret, test, encnum;
+    unsigned int i;
 
     whoami = argv[0];
 

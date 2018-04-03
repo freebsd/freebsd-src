@@ -40,7 +40,8 @@ krb5_error_code
 k5_time_with_offset(krb5_timestamp offset, krb5_int32 offset_usec,
                     krb5_timestamp *time_out, krb5_int32 *usec_out)
 {
-    krb5_int32 sec, usec;
+    krb5_timestamp sec;
+    krb5_int32 usec;
     krb5_error_code retval;
 
     retval = krb5_crypto_us_timeofday(&sec, &usec);
@@ -49,13 +50,13 @@ k5_time_with_offset(krb5_timestamp offset, krb5_int32 offset_usec,
     usec += offset_usec;
     if (usec > 1000000) {
         usec -= 1000000;
-        sec++;
+        sec = ts_incr(sec, 1);
     }
     if (usec < 0) {
         usec += 1000000;
-        sec--;
+        sec = ts_incr(sec, -1);
     }
-    sec += offset;
+    sec = ts_incr(sec, offset);
 
     *time_out = sec;
     *usec_out = usec;

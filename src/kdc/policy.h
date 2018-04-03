@@ -26,11 +26,22 @@
 #ifndef __KRB5_KDC_POLICY__
 #define __KRB5_KDC_POLICY__
 
-extern int against_postdate_policy (krb5_timestamp);
+krb5_error_code
+load_kdcpolicy_plugins(krb5_context context);
 
-extern int against_flag_policy_as (const krb5_kdc_req *);
+void
+unload_kdcpolicy_plugins(krb5_context context);
 
-extern int against_flag_policy_tgs (const krb5_kdc_req *,
-                                    const krb5_ticket *);
+krb5_error_code
+check_kdcpolicy_as(krb5_context context, const krb5_kdc_req *request,
+                   const krb5_db_entry *client, const krb5_db_entry *server,
+                   krb5_data *const *auth_indicators, krb5_timestamp kdc_time,
+                   krb5_ticket_times *times, const char **status);
+
+krb5_error_code
+check_kdcpolicy_tgs(krb5_context context, const krb5_kdc_req *request,
+                    const krb5_db_entry *server, const krb5_ticket *ticket,
+                    krb5_data *const *auth_indicators, krb5_timestamp kdc_time,
+                    krb5_ticket_times *times, const char **status);
 
 #endif /* __KRB5_KDC_POLICY__ */

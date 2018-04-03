@@ -78,21 +78,20 @@ static const int days_in_month[12] = {
 static time_t
 gmt_mktime(struct tm *t)
 {
-    time_t accum;
+    uint32_t accum;
 
 #define assert_time(cnd) if(!(cnd)) return (time_t) -1
 
     /*
-     * For 32-bit signed time_t centered on 1/1/1970, the range is:
-     * time 0x80000000 -> Fri Dec 13 16:45:52 1901
-     * time 0x7fffffff -> Mon Jan 18 22:14:07 2038
+     * For 32-bit unsigned time values starting on 1/1/1970, the range is:
+     * time 0x00000000 -> Thu Jan  1 00:00:00 1970
+     * time 0xffffffff -> Sun Feb  7 06:28:15 2106
      *
-     * So years 1901 and 2038 are allowable, but we can't encode all
-     * dates in those years, and we're not doing overflow/underflow
-     * checking for such cases.
+     * We can't encode all dates in 2106, and we're not doing overflow checking
+     * for such cases.
      */
-    assert_time(t->tm_year>=1);
-    assert_time(t->tm_year<=138);
+    assert_time(t->tm_year>=70);
+    assert_time(t->tm_year<=206);
 
     assert_time(t->tm_mon>=0);
     assert_time(t->tm_mon<=11);

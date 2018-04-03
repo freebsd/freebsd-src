@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "KRB5.CONF" "5" " " "1.15.1" "MIT Kerberos"
+.TH "KRB5.CONF" "5" " " "1.16" "MIT Kerberos"
 .SH NAME
 krb5.conf \- Kerberos configuration file
 .
@@ -112,9 +112,10 @@ includedir DIRNAME
 directory must exist and be readable.  Including a directory includes
 all files within the directory whose names consist solely of
 alphanumeric characters, dashes, or underscores.  Starting in release
-1.15, files with names ending in ".conf" are also included.  Included
-profile files are syntactically independent of their parents, so each
-included file must begin with a section header.
+1.15, files with names ending in ".conf" are also included, unless the
+name begins with ".".  Included profile files are syntactically
+independent of their parents, so each included file must begin with a
+section header.
 .sp
 The krb5.conf file can specify that configuration should be obtained
 from a loadable module, rather than the file itself, using the
@@ -257,7 +258,7 @@ the client should request when making a TGS\-REQ, in order of
 preference from highest to lowest.  The list may be delimited with
 commas or whitespace.  See \fIEncryption_types\fP in
 \fIkdc.conf(5)\fP for a list of the accepted values for this tag.
-The default value is \fBaes256\-cts\-hmac\-sha1\-96 aes128\-cts\-hmac\-sha1\-96 des3\-cbc\-sha1 arcfour\-hmac\-md5 camellia256\-cts\-cmac camellia128\-cts\-cmac des\-cbc\-crc des\-cbc\-md5 des\-cbc\-md4\fP, but single\-DES encryption types
+The default value is \fBaes256\-cts\-hmac\-sha1\-96 aes128\-cts\-hmac\-sha1\-96 aes256\-cts\-hmac\-sha384\-192 aes128\-cts\-hmac\-sha256\-128 des3\-cbc\-sha1 arcfour\-hmac\-md5 camellia256\-cts\-cmac camellia128\-cts\-cmac des\-cbc\-crc des\-cbc\-md5 des\-cbc\-md4\fP, but single\-DES encryption types
 will be implicitly removed from this list if the value of
 \fBallow_weak_crypto\fP is false.
 .sp
@@ -271,7 +272,7 @@ Identifies the supported list of session key encryption types that
 the client should request when making an AS\-REQ, in order of
 preference from highest to lowest.  The format is the same as for
 default_tgs_enctypes.  The default value for this tag is
-\fBaes256\-cts\-hmac\-sha1\-96 aes128\-cts\-hmac\-sha1\-96 des3\-cbc\-sha1 arcfour\-hmac\-md5 camellia256\-cts\-cmac camellia128\-cts\-cmac des\-cbc\-crc des\-cbc\-md5 des\-cbc\-md4\fP, but single\-DES encryption types will be implicitly
+\fBaes256\-cts\-hmac\-sha1\-96 aes128\-cts\-hmac\-sha1\-96 aes256\-cts\-hmac\-sha384\-192 aes128\-cts\-hmac\-sha256\-128 des3\-cbc\-sha1 arcfour\-hmac\-md5 camellia256\-cts\-cmac camellia128\-cts\-cmac des\-cbc\-crc des\-cbc\-md5 des\-cbc\-md4\fP, but single\-DES encryption types will be implicitly
 removed from this list if the value of \fBallow_weak_crypto\fP is
 false.
 .sp
@@ -353,7 +354,7 @@ For security reasons, .k5login files must be owned by
 the local user or by root.
 .TP
 .B \fBkcm_mach_service\fP
-On OS X only, determines the name of the bootstrap service used to
+On macOS only, determines the name of the bootstrap service used to
 contact the KCM daemon for the KCM credential cache type.  If the
 value is \fB\-\fP, Mach RPC will not be used to contact the KCM
 daemon.  The default value is \fBorg.h5l.kcm\fP\&.
@@ -454,7 +455,7 @@ used across NATs.  The default value is true.
 .B \fBpermitted_enctypes\fP
 Identifies all encryption types that are permitted for use in
 session key encryption.  The default value for this tag is
-\fBaes256\-cts\-hmac\-sha1\-96 aes128\-cts\-hmac\-sha1\-96 des3\-cbc\-sha1 arcfour\-hmac\-md5 camellia256\-cts\-cmac camellia128\-cts\-cmac des\-cbc\-crc des\-cbc\-md5 des\-cbc\-md4\fP, but single\-DES encryption types will be implicitly
+\fBaes256\-cts\-hmac\-sha1\-96 aes128\-cts\-hmac\-sha1\-96 aes256\-cts\-hmac\-sha384\-192 aes128\-cts\-hmac\-sha256\-128 des3\-cbc\-sha1 arcfour\-hmac\-md5 camellia256\-cts\-cmac camellia128\-cts\-cmac des\-cbc\-crc des\-cbc\-md5 des\-cbc\-md4\fP, but single\-DES encryption types will be implicitly
 removed from this list if the value of \fBallow_weak_crypto\fP is
 false.
 .TP
@@ -908,6 +909,10 @@ client principal
 .B \fBrealm\fP
 Uses the service realm to guess an appropriate cache from the
 collection
+.TP
+.B \fBhostname\fP
+If the service principal is host\-based, uses the service hostname
+to guess an appropriate cache from the collection
 .UNINDENT
 .SS pwqual interface
 .sp
@@ -936,6 +941,24 @@ principal creation, modification, password changes and deletion.  This
 interface can be used to write a plugin to synchronize MIT Kerberos
 with another database such as Active Directory.  No plugins are built
 in for this interface.
+.SS kadm5_auth interface
+.sp
+The kadm5_auth section (introduced in release 1.16) controls modules
+for the kadmin authorization interface, which determines whether a
+client principal is allowed to perform a kadmin operation.  The
+following built\-in modules exist for this interface:
+.INDENT 0.0
+.TP
+.B \fBacl\fP
+This module reads the \fIkadm5.acl(5)\fP file, and authorizes
+operations which are allowed according to the rules in the file.
+.TP
+.B \fBself\fP
+This module authorizes self\-service operations including password
+changes, creation of new random keys, fetching the client\(aqs
+principal record or string attributes, and fetching the policy
+record associated with the client principal.
+.UNINDENT
 .SS clpreauth and kdcpreauth interfaces
 .sp
 The clpreauth and kdcpreauth interfaces allow plugin modules to
@@ -1008,6 +1031,30 @@ the account\(aqs \fI\&.k5login(5)\fP file.
 .B \fBan2ln\fP
 This module authorizes a principal to a local account if the
 principal name maps to the local account name.
+.UNINDENT
+.SS certauth interface
+.sp
+The certauth section (introduced in release 1.16) controls modules for
+the certificate authorization interface, which determines whether a
+certificate is allowed to preauthenticate a user via PKINIT.  The
+following built\-in modules exist for this interface:
+.INDENT 0.0
+.TP
+.B \fBpkinit_san\fP
+This module authorizes the certificate if it contains a PKINIT
+Subject Alternative Name for the requested client principal, or a
+Microsoft UPN SAN matching the principal if \fBpkinit_allow_upn\fP
+is set to true for the realm.
+.TP
+.B \fBpkinit_eku\fP
+This module rejects the certificate if it does not contain an
+Extended Key Usage attribute consistent with the
+\fBpkinit_eku_checking\fP value for the realm.
+.TP
+.B \fBdbmatch\fP
+This module authorizes or rejects the certificate according to
+whether it matches the \fBpkinit_cert_match\fP string attribute on
+the client principal, if that attribute is present.
 .UNINDENT
 .SH PKINIT OPTIONS
 .sp

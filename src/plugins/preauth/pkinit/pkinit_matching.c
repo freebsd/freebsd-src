@@ -544,7 +544,7 @@ check_all_certs(krb5_context context,
                 rule_set *rs,   /* rule to check */
                 pkinit_cert_matching_data **matchdata,
                 int *match_found,
-                pkinit_cert_matching_data **matching_cert)
+                size_t *match_index)
 {
     krb5_error_code retval;
     pkinit_cert_matching_data *md;
@@ -553,12 +553,12 @@ check_all_certs(krb5_context context,
     int total_cert_matches = 0;
     rule_component *rc;
     int certs_checked = 0;
-    pkinit_cert_matching_data *save_match = NULL;
+    size_t save_index = 0;
 
-    if (match_found == NULL || matching_cert == NULL)
+    if (match_found == NULL || match_index == NULL)
         return EINVAL;
 
-    *matching_cert = NULL;
+    *match_index = 0;
     *match_found = 0;
 
     pkiDebug("%s: matching rule relation is %s with %d components\n",
@@ -590,7 +590,7 @@ check_all_certs(krb5_context context,
                 pkiDebug("%s: cert matches rule (OR relation)\n",
                          __FUNCTION__);
                 total_cert_matches++;
-                save_match = md;
+                save_index = i;
                 goto nextcert;
             }
             if (!comp_match && rs->relation == relation_and) {
@@ -602,7 +602,7 @@ check_all_certs(krb5_context context,
         if (rc == NULL && comp_match) {
             pkiDebug("%s: cert matches rule (AND relation)\n", __FUNCTION__);
             total_cert_matches++;
-            save_match = md;
+            save_index = i;
         }
     nextcert:
         continue;
@@ -611,118 +611,13 @@ check_all_certs(krb5_context context,
              __FUNCTION__, certs_checked, total_cert_matches);
     if (total_cert_matches == 1) {
         *match_found = 1;
-        *matching_cert = save_match;
+        *match_index = save_index;
     }
 
     retval = 0;
 
     pkiDebug("%s: returning %d, match_found %d\n",
              __FUNCTION__, retval, *match_found);
-    return retval;
-}
-
-static krb5_error_code
-free_all_cert_matching_data(krb5_context context,
-                            pkinit_cert_matching_data **matchdata)
-{
-    krb5_error_code retval;
-    pkinit_cert_matching_data *md;
-    int i;
-
-    if (matchdata == NULL)
-        return EINVAL;
-
-    for (i = 0, md = matchdata[i]; md != NULL; md = matchdata[++i]) {
-        pkinit_cert_handle ch = md->ch;
-        retval = crypto_cert_free_matching_data(context, md);
-        if (retval) {
-            pkiDebug("%s: crypto_cert_free_matching_data error %d, %s\n",
-                     __FUNCTION__, retval, error_message(retval));
-            goto cleanup;
-        }
-        retval = crypto_cert_release(context, ch);
-        if (retval) {
-            pkiDebug("%s: crypto_cert_release error %d, %s\n",
-                     __FUNCTION__, retval, error_message(retval));
-            goto cleanup;
-        }
-    }
-    free(matchdata);
-    retval = 0;
-
-cleanup:
-    return retval;
-}
-
-static krb5_error_code
-obtain_all_cert_matching_data(krb5_context context,
-                              pkinit_plg_crypto_context plg_cryptoctx,
-                              pkinit_req_crypto_context req_cryptoctx,
-                              pkinit_identity_crypto_context id_cryptoctx,
-                              pkinit_cert_matching_data ***all_matching_data)
-{
-    krb5_error_code retval;
-    int i, cert_count;
-    pkinit_cert_iter_handle ih = NULL;
-    pkinit_cert_handle ch;
-    pkinit_cert_matching_data **matchdata = NULL;
-
-    retval = crypto_cert_get_count(context, plg_cryptoctx, req_cryptoctx,
-                                   id_cryptoctx, &cert_count);
-    if (retval) {
-        pkiDebug("%s: crypto_cert_get_count error %d, %s\n",
-                 __FUNCTION__, retval, error_message(retval));
-        goto cleanup;
-    }
-
-    pkiDebug("%s: crypto_cert_get_count says there are %d certs\n",
-             __FUNCTION__, cert_count);
-
-    matchdata = calloc((size_t)cert_count + 1, sizeof(*matchdata));
-    if (matchdata == NULL)
-        return ENOMEM;
-
-    retval = crypto_cert_iteration_begin(context, plg_cryptoctx, req_cryptoctx,
-                                         id_cryptoctx, &ih);
-    if (retval) {
-        pkiDebug("%s: crypto_cert_iteration_begin returned %d, %s\n",
-                 __FUNCTION__, retval, error_message(retval));
-        goto cleanup;
-    }
-
-    for (i = 0; i < cert_count; i++) {
-        retval = crypto_cert_iteration_next(context, ih, &ch);
-        if (retval) {
-            if (retval == PKINIT_ITER_NO_MORE)
-                pkiDebug("%s: We thought there were %d certs, but "
-                         "crypto_cert_iteration_next stopped after %d?\n",
-                         __FUNCTION__, cert_count, i);
-            else
-                pkiDebug("%s: crypto_cert_iteration_next error %d, %s\n",
-                         __FUNCTION__, retval, error_message(retval));
-            goto cleanup;
-        }
-
-        retval = crypto_cert_get_matching_data(context, ch, &matchdata[i]);
-        if (retval) {
-            pkiDebug("%s: crypto_cert_get_matching_data error %d, %s\n",
-                     __FUNCTION__, retval, error_message(retval));
-            goto cleanup;
-        }
-
-    }
-
-    *all_matching_data = matchdata;
-    retval = 0;
-cleanup:
-    if (ih != NULL)
-        crypto_cert_iteration_end(context, ih);
-    if (retval) {
-        if (matchdata != NULL)
-            free_all_cert_matching_data(context, matchdata);
-    }
-    pkiDebug("%s: returning %d, certinfo %p\n",
-             __FUNCTION__, retval, *all_matching_data);
     return retval;
 }
 
@@ -740,7 +635,7 @@ pkinit_cert_matching(krb5_context context,
     rule_set *rs = NULL;
     int match_found = 0;
     pkinit_cert_matching_data **matchdata = NULL;
-    pkinit_cert_matching_data *the_matching_cert = NULL;
+    size_t match_index = 0;
 
     /* If no matching rules, select the default cert and we're done */
     pkinit_libdefault_strings(context, krb5_princ_realm(context, princ),
@@ -777,7 +672,7 @@ pkinit_cert_matching(krb5_context context,
          * until we are done.
          */
         if (matchdata == NULL) {
-            retval = obtain_all_cert_matching_data(context, plg_cryptoctx,
+            retval = crypto_cert_get_matching_data(context, plg_cryptoctx,
                                                    req_cryptoctx, id_cryptoctx,
                                                    &matchdata);
             if (retval || matchdata == NULL) {
@@ -790,7 +685,7 @@ pkinit_cert_matching(krb5_context context,
 
         retval = check_all_certs(context, plg_cryptoctx, req_cryptoctx,
                                  id_cryptoctx, princ, rs, matchdata,
-                                 &match_found, &the_matching_cert);
+                                 &match_found, &match_index);
         if (retval) {
             pkiDebug("%s: Error %d, checking certs against rule '%s'\n",
                      __FUNCTION__, retval, rules[x]);
@@ -803,26 +698,62 @@ pkinit_cert_matching(krb5_context context,
         }
     }
 
-    if (match_found && the_matching_cert != NULL) {
+    if (match_found) {
         pkiDebug("%s: Selecting the matching cert!\n", __FUNCTION__);
-        retval = crypto_cert_select(context, the_matching_cert);
+        retval = crypto_cert_select(context, id_cryptoctx, match_index);
         if (retval) {
             pkiDebug("%s: crypto_cert_select error %d, %s\n",
                      __FUNCTION__, retval, error_message(retval));
             goto cleanup;
         }
     } else {
+        TRACE_PKINIT_NO_MATCHING_CERT(context);
         retval = ENOENT;    /* XXX */
         goto cleanup;
     }
 
     retval = 0;
+
 cleanup:
-    if (rules != NULL)
-        profile_free_list(rules);
-    if (rs != NULL)
-        free_rule_set(context, rs);
-    if (matchdata != NULL)
-        free_all_cert_matching_data(context, matchdata);
+    profile_free_list(rules);
+    free_rule_set(context, rs);
+    crypto_cert_free_matching_data_list(context, matchdata);
     return retval;
+}
+
+krb5_error_code
+pkinit_client_cert_match(krb5_context context,
+                         pkinit_plg_crypto_context plgctx,
+                         pkinit_req_crypto_context reqctx,
+                         const char *match_rule,
+                         krb5_boolean *matched)
+{
+    krb5_error_code ret;
+    pkinit_cert_matching_data *md = NULL;
+    rule_component *rc = NULL;
+    int comp_match = 0;
+    rule_set *rs = NULL;
+
+    *matched = FALSE;
+    ret = parse_rule_set(context, match_rule, &rs);
+    if (ret)
+        goto cleanup;
+
+    ret = crypto_req_cert_matching_data(context, plgctx, reqctx, &md);
+    if (ret)
+        goto cleanup;
+
+    for (rc = rs->crs; rc != NULL; rc = rc->next) {
+        comp_match = component_match(context, rc, md);
+        if ((comp_match && rs->relation == relation_or) ||
+            (!comp_match && rs->relation == relation_and)) {
+            break;
+        }
+    }
+    *matched = comp_match;
+
+cleanup:
+    free_rule_set(context, rs);
+    crypto_cert_free_matching_data(context, md);
+    return ret;
 }

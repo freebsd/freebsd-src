@@ -59,9 +59,6 @@ enum cms_msg_types {
 #define IDTYPE_PKCS11   3
 #define IDTYPE_ENVVAR   4
 #define IDTYPE_PKCS12   5
-#ifdef PKINIT_CRYPTO_IMPL_NSS
-#define IDTYPE_NSS      6
-#endif
 
 /*
  * ca/crl types
@@ -96,7 +93,6 @@ typedef struct _pkinit_cert_iter_info *pkinit_cert_iter_handle;
 #define PKINIT_ITER_NO_MORE	0x11111111  /* XXX */
 
 typedef struct _pkinit_cert_matching_data {
-    pkinit_cert_handle ch;  /* cert handle for this certificate */
     char *subject_dn;	    /* rfc2253-style subject name string */
     char *issuer_dn;	    /* rfc2253-style issuer name string */
     unsigned int ku_bits;   /* key usage information */
@@ -458,68 +454,38 @@ krb5_error_code crypto_free_cert_info
 
 
 /*
- * Get number of certificates available after crypto_load_certs()
+ * Get a null-terminated list of certificate matching data objects for the
+ * certificates loaded in id_cryptoctx.
  */
-krb5_error_code crypto_cert_get_count
-	(krb5_context context,				/* IN */
-	pkinit_plg_crypto_context plg_cryptoctx,	/* IN */
-	pkinit_req_crypto_context req_cryptoctx,	/* IN */
-	pkinit_identity_crypto_context id_cryptoctx,	/* IN */
-	int *cert_count);				/* OUT */
+krb5_error_code
+crypto_cert_get_matching_data(krb5_context context,
+			      pkinit_plg_crypto_context plg_cryptoctx,
+			      pkinit_req_crypto_context req_cryptoctx,
+			      pkinit_identity_crypto_context id_cryptoctx,
+			      pkinit_cert_matching_data ***md_out);
 
 /*
- * Begin iteration over the certs loaded in crypto_load_certs()
+ * Free a matching data object.
  */
-krb5_error_code crypto_cert_iteration_begin
-	(krb5_context context,				/* IN */
-	pkinit_plg_crypto_context plg_cryptoctx,	/* IN */
-	pkinit_req_crypto_context req_cryptoctx,	/* IN */
-	pkinit_identity_crypto_context id_cryptoctx,	/* IN */
-	pkinit_cert_iter_handle *iter_handle);		/* OUT */
+void
+crypto_cert_free_matching_data(krb5_context context,
+			       pkinit_cert_matching_data *md);
 
 /*
- * End iteration over the certs loaded in crypto_load_certs()
+ * Free a list of matching data objects.
  */
-krb5_error_code crypto_cert_iteration_end
-	(krb5_context context,				/* IN */
-	pkinit_cert_iter_handle iter_handle);		/* IN */
+void
+crypto_cert_free_matching_data_list(krb5_context context,
+				    pkinit_cert_matching_data **matchdata);
 
 /*
- * Get next certificate handle
+ * Choose one of the certificates loaded in idctx to use for PKINIT client
+ * operations.  cred_index must be an index into the array of matching objects
+ * returned by crypto_cert_get_matching_data().
  */
-krb5_error_code crypto_cert_iteration_next
-	(krb5_context context,				/* IN */
-	pkinit_cert_iter_handle iter_handle,		/* IN */
-	pkinit_cert_handle *cert_handle);		/* OUT */
-
-/*
- * Release cert handle
- */
-krb5_error_code crypto_cert_release
-	(krb5_context context,				/* IN */
-	pkinit_cert_handle cert_handle);		/* IN */
-
-/*
- * Get certificate matching information
- */
-krb5_error_code crypto_cert_get_matching_data
-	(krb5_context context,				/* IN */
-	pkinit_cert_handle cert_handle,			/* IN */
-	pkinit_cert_matching_data **ret_data);		/* OUT */
-
-/*
- * Free certificate information
- */
-krb5_error_code crypto_cert_free_matching_data
-	(krb5_context context,				/* IN */
-	pkinit_cert_matching_data *data);		/* IN */
-
-/*
- * Make the given certificate "the chosen one"
- */
-krb5_error_code crypto_cert_select
-	(krb5_context context,				/* IN */
-	pkinit_cert_matching_data *data);		/* IN */
+krb5_error_code
+crypto_cert_select(krb5_context context, pkinit_identity_crypto_context idctx,
+		   size_t cred_index);
 
 /*
  * Select the default certificate as "the chosen one"
@@ -663,5 +629,15 @@ extern const size_t  krb5_pkinit_sha512_oid_len;
  * the order in which the server will pick.
  */
 extern krb5_data const * const supported_kdf_alg_ids[];
+
+krb5_error_code
+crypto_encode_der_cert(krb5_context context, pkinit_req_crypto_context reqctx,
+		       uint8_t **der_out, size_t *der_len);
+
+krb5_error_code
+crypto_req_cert_matching_data(krb5_context context,
+			      pkinit_plg_crypto_context plgctx,
+			      pkinit_req_crypto_context reqctx,
+			      pkinit_cert_matching_data **md_out);
 
 #endif	/* _PKINIT_CRYPTO_H */

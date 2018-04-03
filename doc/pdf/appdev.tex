@@ -15,7 +15,7 @@
 
 \title{Kerberos Application Developer Guide}
 \date{ }
-\release{1.15.1}
+\release{1.16}
 \author{MIT}
 \newcommand{\sphinxlogo}{}
 \renewcommand{\releasename}{Release}
@@ -443,6 +443,27 @@ issue a ticket from the client to the target service.  The GSSAPI
 library will then use this ticket to authenticate to the target
 service.
 
+If an application needs to find out whether a credential it holds is a
+proxy credential and the name of the intermediate service, it can
+query the credential with the \textbf{GSS\_KRB5\_GET\_CRED\_IMPERSONATOR} OID
+(new in release 1.16, declared in \code{\textless{}gssapi/gssapi\_krb5.h\textgreater{}}) using
+the gss\_inquire\_cred\_by\_oid extension (declared in
+\code{\textless{}gssapi/gssapi\_ext.h\textgreater{}}):
+
+\begin{Verbatim}[commandchars=\\\{\}]
+OM\PYGZus{}uint32 gss\PYGZus{}inquire\PYGZus{}cred\PYGZus{}by\PYGZus{}oid(OM\PYGZus{}uint32 *minor\PYGZus{}status,
+                                  const gss\PYGZus{}cred\PYGZus{}id\PYGZus{}t cred\PYGZus{}handle,
+                                  gss\PYGZus{}OID desired\PYGZus{}object,
+                                  gss\PYGZus{}buffer\PYGZus{}set\PYGZus{}t *data\PYGZus{}set);
+\end{Verbatim}
+
+If the call succeeds and \emph{cred\_handle} is a proxy credential,
+\emph{data\_set} will be set to a single-element buffer set containing the
+unparsed principal name of the intermediate service.  If \emph{cred\_handle}
+is not a proxy credential, \emph{data\_set} will be set to an empty buffer
+set.  If the library does not support the query,
+gss\_inquire\_cred\_by\_oid will return \textbf{GSS\_S\_UNAVAILABLE}.
+
 
 \section{AEAD message wrapping}
 \label{appdev/gssapi:aead-message-wrapping}
@@ -761,6 +782,37 @@ major = gss\PYGZus{}wrap\PYGZus{}iov(\PYGZam{}minor, ctx, 1, GSS\PYGZus{}C\PYGZu
 if (GSS\PYGZus{}ERROR(major))
     handle\PYGZus{}error(major, minor);
 \end{Verbatim}
+
+
+\chapter{Year 2038 considerations for uses of krb5\_timestamp}
+\label{appdev/y2038::doc}\label{appdev/y2038:year-2038-considerations-for-uses-of-krb5-timestamp}
+POSIX time values, which measure the number of seconds since January 1
+1970, will exceed the maximum value representable in a signed 32-bit
+integer in January 2038.  This documentation describes considerations
+for consumers of the MIT krb5 libraries.
+
+Applications or libraries which use libkrb5 and consume the timestamps
+included in credentials or other structures make use of the
+{\hyperref[appdev/refs/types/krb5_timestamp:c.krb5_timestamp]{\code{krb5\_timestamp}}} type.  For historical reasons, krb5\_timestamp
+is a signed 32-bit integer, even on platforms where a larger type is
+natively used to represent time values.  To behave properly for time
+values after January 2038, calling code should cast krb5\_timestamp
+values to uint32\_t, and then to time\_t:
+
+\begin{Verbatim}[commandchars=\\\{\}]
+(time\PYGZus{}t)(uint32\PYGZus{}t)timestamp
+\end{Verbatim}
+
+Used in this way, krb5\_timestamp values can represent time values up
+until February 2106, provided that the platform uses a 64-bit or
+larger time\_t type.  This usage will also remain safe if a later
+version of MIT krb5 changes krb5\_timestamp to an unsigned 32-bit
+integer.
+
+The GSSAPI only uses representations of time intervals, not absolute
+times.  Callers of the GSSAPI should require no changes to behave
+correctly after January 2038, provided that they use MIT krb5 release
+1.16 or later.
 
 
 \chapter{Differences between Heimdal and MIT Kerberos API}
@@ -1832,7 +1884,7 @@ This function frees a \emph{context} that was created by {\hyperref[appdev/refs/
 \label{appdev/refs/api/krb5_fwd_tgt_creds:krb5-fwd-tgt-creds-get-a-forwarded-tgt-and-format-a-krb-cred-message}\label{appdev/refs/api/krb5_fwd_tgt_creds::doc}\index{krb5\_fwd\_tgt\_creds (C function)}
 
 \begin{fulllineitems}
-\phantomsection\label{appdev/refs/api/krb5_fwd_tgt_creds:c.krb5_fwd_tgt_creds}\pysiglinewithargsret{{\hyperref[appdev/refs/types/krb5_error_code:c.krb5_error_code]{krb5\_error\_code}} \bfcode{krb5\_fwd\_tgt\_creds}}{{\hyperref[appdev/refs/types/krb5_context:c.krb5_context]{krb5\_context}}\emph{ context}, {\hyperref[appdev/refs/types/krb5_auth_context:c.krb5_auth_context]{krb5\_auth\_context}}\emph{ auth\_context}, char *\emph{ rhost}, {\hyperref[appdev/refs/types/krb5_principal:c.krb5_principal]{krb5\_principal}}\emph{ client}, {\hyperref[appdev/refs/types/krb5_principal:c.krb5_principal]{krb5\_principal}}\emph{ server}, {\hyperref[appdev/refs/types/krb5_ccache:c.krb5_ccache]{krb5\_ccache}}\emph{ cc}, int\emph{ forwardable}, {\hyperref[appdev/refs/types/krb5_data:c.krb5_data]{krb5\_data}} *\emph{ outbuf}}{}
+\phantomsection\label{appdev/refs/api/krb5_fwd_tgt_creds:c.krb5_fwd_tgt_creds}\pysiglinewithargsret{{\hyperref[appdev/refs/types/krb5_error_code:c.krb5_error_code]{krb5\_error\_code}} \bfcode{krb5\_fwd\_tgt\_creds}}{{\hyperref[appdev/refs/types/krb5_context:c.krb5_context]{krb5\_context}}\emph{ context}, {\hyperref[appdev/refs/types/krb5_auth_context:c.krb5_auth_context]{krb5\_auth\_context}}\emph{ auth\_context}, const char *\emph{ rhost}, {\hyperref[appdev/refs/types/krb5_principal:c.krb5_principal]{krb5\_principal}}\emph{ client}, {\hyperref[appdev/refs/types/krb5_principal:c.krb5_principal]{krb5\_principal}}\emph{ server}, {\hyperref[appdev/refs/types/krb5_ccache:c.krb5_ccache]{krb5\_ccache}}\emph{ cc}, int\emph{ forwardable}, {\hyperref[appdev/refs/types/krb5_data:c.krb5_data]{krb5\_data}} *\emph{ outbuf}}{}
 \end{fulllineitems}
 
 \begin{quote}\begin{description}
@@ -7274,6 +7326,10 @@ Create a context structure, optionally using a specified profile and initializat
 \textbf{{[}in{]}} \textbf{ctx} - Initial credentials context
 
 \end{description}\end{quote}
+\begin{quote}
+
+\emph{context} must be the same as the one passed to {\hyperref[appdev/refs/api/krb5_init_creds_init:c.krb5_init_creds_init]{\code{krb5\_init\_creds\_init()}}} for this initial credentials context.
+\end{quote}
 
 
 \subsubsection{krb5\_init\_creds\_get -  Acquire credentials using an initial credentials context.}
@@ -7300,6 +7356,10 @@ Create a context structure, optionally using a specified profile and initializat
 \end{description}\end{quote}
 
 This function synchronously obtains credentials using a context created by {\hyperref[appdev/refs/api/krb5_init_creds_init:c.krb5_init_creds_init]{\code{krb5\_init\_creds\_init()}}} . On successful return, the credentials can be retrieved with {\hyperref[appdev/refs/api/krb5_init_creds_get_creds:c.krb5_init_creds_get_creds]{\code{krb5\_init\_creds\_get\_creds()}}} .
+\begin{quote}
+
+\emph{context} must be the same as the one passed to {\hyperref[appdev/refs/api/krb5_init_creds_init:c.krb5_init_creds_init]{\code{krb5\_init\_creds\_init()}}} for this initial credentials context.
+\end{quote}
 
 
 \subsubsection{krb5\_init\_creds\_get\_creds -  Retrieve acquired credentials from an initial credentials context.}
@@ -7419,6 +7479,8 @@ The initial credentials context must have completed obtaining credentials via ei
 
 This function creates a new context for acquiring initial credentials. Use {\hyperref[appdev/refs/api/krb5_init_creds_free:c.krb5_init_creds_free]{\code{krb5\_init\_creds\_free()}}} to free \emph{ctx} when it is no longer needed.
 
+Any subsequent calls to {\hyperref[appdev/refs/api/krb5_init_creds_step:c.krb5_init_creds_step]{\code{krb5\_init\_creds\_step()}}} , {\hyperref[appdev/refs/api/krb5_init_creds_get:c.krb5_init_creds_get]{\code{krb5\_init\_creds\_get()}}} , or {\hyperref[appdev/refs/api/krb5_init_creds_free:c.krb5_init_creds_free]{\code{krb5\_init\_creds\_free()}}} for this initial credentials context must use the same \emph{context} argument as the one passed to this function.
+
 
 \subsubsection{krb5\_init\_creds\_set\_keytab -  Specify a keytab to use for acquiring initial credentials.}
 \label{appdev/refs/api/krb5_init_creds_set_keytab:krb5-init-creds-set-keytab-specify-a-keytab-to-use-for-acquiring-initial-credentials}\label{appdev/refs/api/krb5_init_creds_set_keytab::doc}\index{krb5\_init\_creds\_set\_keytab (C function)}
@@ -7501,7 +7563,7 @@ This function supplies a password to be used to construct the client key for an 
 
 \end{description}\end{quote}
 
-This function supplies a service principal string to acquire initial credentials for instead of the default krbtgt service. \emph{service} is parsed as a principal name; any realm part is ignored.
+Thisfunction supplies a service principal string to acquire initial credentials for instead of the default krbtgt service. \emph{service} is parsed as a principal name; any realm part is ignored.
 
 
 \subsubsection{krb5\_init\_creds\_step -  Get the next KDC request for acquiring initial credentials.}
@@ -7540,6 +7602,10 @@ This function constructs the next KDC request in an initial credential exchange,
 If more requests are needed, \emph{flags} will be set to {\hyperref[appdev/refs/macros/KRB5_INIT_CREDS_STEP_FLAG_CONTINUE:KRB5_INIT_CREDS_STEP_FLAG_CONTINUE]{\code{KRB5\_INIT\_CREDS\_STEP\_FLAG\_CONTINUE}}} and the next request will be placed in \emph{out} . If no more requests are needed, \emph{flags} will not contain {\hyperref[appdev/refs/macros/KRB5_INIT_CREDS_STEP_FLAG_CONTINUE:KRB5_INIT_CREDS_STEP_FLAG_CONTINUE]{\code{KRB5\_INIT\_CREDS\_STEP\_FLAG\_CONTINUE}}} and \emph{out} will be empty.
 
 If this function returns \textbf{KRB5KRB\_ERR\_RESPONSE\_TOO\_BIG} , the caller should transmit the next request using TCP rather than UDP. If this function returns any other error, the initial credential exchange has failed.
+\begin{quote}
+
+\emph{context} must be the same as the one passed to {\hyperref[appdev/refs/api/krb5_init_creds_init:c.krb5_init_creds_init]{\code{krb5\_init\_creds\_init()}}} for this initial credentials context.
+\end{quote}
 
 
 \subsubsection{krb5\_init\_keyblock -  Initialize an empty krb5\_keyblock .}
@@ -8194,7 +8260,7 @@ Use {\hyperref[appdev/refs/api/krb5_free_data_contents:c.krb5_free_data_contents
 \label{appdev/refs/api/krb5_mk_req:krb5-mk-req-create-a-krb-ap-req-message}\label{appdev/refs/api/krb5_mk_req::doc}\index{krb5\_mk\_req (C function)}
 
 \begin{fulllineitems}
-\phantomsection\label{appdev/refs/api/krb5_mk_req:c.krb5_mk_req}\pysiglinewithargsret{{\hyperref[appdev/refs/types/krb5_error_code:c.krb5_error_code]{krb5\_error\_code}} \bfcode{krb5\_mk\_req}}{{\hyperref[appdev/refs/types/krb5_context:c.krb5_context]{krb5\_context}}\emph{ context}, {\hyperref[appdev/refs/types/krb5_auth_context:c.krb5_auth_context]{krb5\_auth\_context}} *\emph{ auth\_context}, {\hyperref[appdev/refs/types/krb5_flags:c.krb5_flags]{krb5\_flags}}\emph{ ap\_req\_options}, char *\emph{ service}, char *\emph{ hostname}, {\hyperref[appdev/refs/types/krb5_data:c.krb5_data]{krb5\_data}} *\emph{ in\_data}, {\hyperref[appdev/refs/types/krb5_ccache:c.krb5_ccache]{krb5\_ccache}}\emph{ ccache}, {\hyperref[appdev/refs/types/krb5_data:c.krb5_data]{krb5\_data}} *\emph{ outbuf}}{}
+\phantomsection\label{appdev/refs/api/krb5_mk_req:c.krb5_mk_req}\pysiglinewithargsret{{\hyperref[appdev/refs/types/krb5_error_code:c.krb5_error_code]{krb5\_error\_code}} \bfcode{krb5\_mk\_req}}{{\hyperref[appdev/refs/types/krb5_context:c.krb5_context]{krb5\_context}}\emph{ context}, {\hyperref[appdev/refs/types/krb5_auth_context:c.krb5_auth_context]{krb5\_auth\_context}} *\emph{ auth\_context}, {\hyperref[appdev/refs/types/krb5_flags:c.krb5_flags]{krb5\_flags}}\emph{ ap\_req\_options}, const char *\emph{ service}, const char *\emph{ hostname}, {\hyperref[appdev/refs/types/krb5_data:c.krb5_data]{krb5\_data}} *\emph{ in\_data}, {\hyperref[appdev/refs/types/krb5_ccache:c.krb5_ccache]{krb5\_ccache}}\emph{ ccache}, {\hyperref[appdev/refs/types/krb5_data:c.krb5_data]{krb5\_data}} *\emph{ outbuf}}{}
 \end{fulllineitems}
 
 \begin{quote}\begin{description}
@@ -8616,7 +8682,7 @@ This function validates \emph{pac} against the supplied \emph{server} , \emph{pr
 If successful, \emph{pac} is marked as verified.
 
 \begin{notice}{note}{Note:}
-A checksum mismatch can occur if the PAC was copied from a cross-realm TGT by an ignorant KDC; also Apple Mac OS X Server Open Directory (as of 10.6) generates PACs with no server checksum at all. One should consider not failing the whole authentication because of this reason, but, instead, treating the ticket as if it did not contain a PAC or marking the PAC information as non-verified.
+A checksum mismatch can occur if the PAC was copied from a cross-realm TGT by an ignorant KDC; also macOS Server Open Directory (as of 10.6) generates PACs with no server checksum at all. One should consider not failing the whole authentication because of this reason, but, instead, treating the ticket as if it did not contain a PAC or marking the PAC information as non-verified.
 \end{notice}
 
 
@@ -11882,8 +11948,8 @@ DEPRECATED Replaced by krb5\_auth\_con\_getsendsubkey() .
 DEPRECATED Replaced by krb5\_auth\_con\_getrecvsubkey() .
 
 
-\subsubsection{krb5\_auth\_con\_initivector}
-\label{appdev/refs/api/krb5_auth_con_initivector:krb5-auth-con-initivector}\label{appdev/refs/api/krb5_auth_con_initivector::doc}\index{krb5\_auth\_con\_initivector (C function)}
+\subsubsection{krb5\_auth\_con\_initivector -  Cause an auth context to use cipher state.}
+\label{appdev/refs/api/krb5_auth_con_initivector::doc}\label{appdev/refs/api/krb5_auth_con_initivector:krb5-auth-con-initivector-cause-an-auth-context-to-use-cipher-state}\index{krb5\_auth\_con\_initivector (C function)}
 
 \begin{fulllineitems}
 \phantomsection\label{appdev/refs/api/krb5_auth_con_initivector:c.krb5_auth_con_initivector}\pysiglinewithargsret{{\hyperref[appdev/refs/types/krb5_error_code:c.krb5_error_code]{krb5\_error\_code}} \bfcode{krb5\_auth\_con\_initivector}}{{\hyperref[appdev/refs/types/krb5_context:c.krb5_context]{krb5\_context}}\emph{ context}, {\hyperref[appdev/refs/types/krb5_auth_context:c.krb5_auth_context]{krb5\_auth\_context}}\emph{ auth\_context}}{}
@@ -11891,15 +11957,21 @@ DEPRECATED Replaced by krb5\_auth\_con\_getrecvsubkey() .
 
 \begin{quote}\begin{description}
 \item[{param}] \leavevmode
-\textbf{context}
+\textbf{{[}in{]}} \textbf{context} - Library context
 
-\textbf{auth\_context}
+\textbf{{[}in{]}} \textbf{auth\_context} - Authentication context
+
+\end{description}\end{quote}
+\begin{quote}\begin{description}
+\item[{retval}] \leavevmode\begin{itemize}
+\item {} 
+0   Success; otherwise - Kerberos error codes
+
+\end{itemize}
 
 \end{description}\end{quote}
 
-DEPRECATED Not replaced.
-
-RFC 4120 doesn't have anything like the initvector concept; only really old protocols may need this API.
+Prepare \emph{auth\_context} to use cipher state when {\hyperref[appdev/refs/api/krb5_mk_priv:c.krb5_mk_priv]{\code{krb5\_mk\_priv()}}} or {\hyperref[appdev/refs/api/krb5_rd_priv:c.krb5_rd_priv]{\code{krb5\_rd\_priv()}}} encrypt or decrypt data.
 
 
 \subsubsection{krb5\_build\_principal\_va}
@@ -15185,6 +15257,10 @@ Latest time at which renewal of ticket can be valid.
 \phantomsection\label{appdev/refs/types/krb5_timestamp:c.krb5_timestamp}\pysigline{\bfcode{krb5\_timestamp}}
 \end{fulllineitems}
 
+
+Represents a timestamp in seconds since the POSIX epoch.
+
+This legacy type is used frequently in the ABI, but cannot represent timestamps after 2038 as a positive number. Code which uses this type should cast values of it to uint32\_t so that negative values are treated as timestamps between 2038 and 2106 on platforms with 64-bit time\_t.
 
 
 \paragraph{Declaration}

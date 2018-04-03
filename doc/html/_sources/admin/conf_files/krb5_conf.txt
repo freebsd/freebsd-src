@@ -55,9 +55,10 @@ following directives at the beginning of a line::
 directory must exist and be readable.  Including a directory includes
 all files within the directory whose names consist solely of
 alphanumeric characters, dashes, or underscores.  Starting in release
-1.15, files with names ending in ".conf" are also included.  Included
-profile files are syntactically independent of their parents, so each
-included file must begin with a section header.
+1.15, files with names ending in ".conf" are also included, unless the
+name begins with ".".  Included profile files are syntactically
+independent of their parents, so each included file must begin with a
+section header.
 
 The krb5.conf file can specify that configuration should be obtained
 from a loadable module, rather than the file itself, using the
@@ -262,7 +263,7 @@ The libdefaults section may contain any of the following relations:
     the local user or by root.
 
 **kcm_mach_service**
-    On OS X only, determines the name of the bootstrap service used to
+    On macOS only, determines the name of the bootstrap service used to
     contact the KCM daemon for the KCM credential cache type.  If the
     value is ``-``, Mach RPC will not be used to contact the KCM
     daemon.  The default value is ``org.h5l.kcm``.
@@ -744,6 +745,10 @@ disabled with the disable tag):
     Uses the service realm to guess an appropriate cache from the
     collection
 
+**hostname**
+    If the service principal is host-based, uses the service hostname
+    to guess an appropriate cache from the collection
+
 .. _pwqual:
 
 pwqual interface
@@ -776,6 +781,26 @@ principal creation, modification, password changes and deletion.  This
 interface can be used to write a plugin to synchronize MIT Kerberos
 with another database such as Active Directory.  No plugins are built
 in for this interface.
+
+.. _kadm5_auth:
+
+kadm5_auth interface
+####################
+
+The kadm5_auth section (introduced in release 1.16) controls modules
+for the kadmin authorization interface, which determines whether a
+client principal is allowed to perform a kadmin operation.  The
+following built-in modules exist for this interface:
+
+**acl**
+    This module reads the :ref:`kadm5.acl(5)` file, and authorizes
+    operations which are allowed according to the rules in the file.
+
+**self**
+    This module authorizes self-service operations including password
+    changes, creation of new random keys, fetching the client's
+    principal record or string attributes, and fetching the policy
+    record associated with the client principal.
 
 .. _clpreauth:
 
@@ -857,6 +882,32 @@ built-in modules exist for this interface:
 **an2ln**
     This module authorizes a principal to a local account if the
     principal name maps to the local account name.
+
+.. _certauth:
+
+certauth interface
+##################
+
+The certauth section (introduced in release 1.16) controls modules for
+the certificate authorization interface, which determines whether a
+certificate is allowed to preauthenticate a user via PKINIT.  The
+following built-in modules exist for this interface:
+
+**pkinit_san**
+    This module authorizes the certificate if it contains a PKINIT
+    Subject Alternative Name for the requested client principal, or a
+    Microsoft UPN SAN matching the principal if **pkinit_allow_upn**
+    is set to true for the realm.
+
+**pkinit_eku**
+    This module rejects the certificate if it does not contain an
+    Extended Key Usage attribute consistent with the
+    **pkinit_eku_checking** value for the realm.
+
+**dbmatch**
+    This module authorizes or rejects the certificate according to
+    whether it matches the **pkinit_cert_match** string attribute on
+    the client principal, if that attribute is present.
 
 
 PKINIT options

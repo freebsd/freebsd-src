@@ -205,7 +205,7 @@ int krb5int_utf8_to_ucs2(const char *p, krb5_ucs2 *out)
     return 0;
 }
 
-/* conv UCS-2 to UTF-8, not used */
+/* conv UCS-4 to UTF-8 */
 size_t krb5int_ucs4_to_utf8(krb5_ucs4 c, char *buf)
 {
     size_t len = 0;

@@ -87,12 +87,14 @@ gss_buffer_t		output_token;
     if (GSSINT_CHK_LOOP(ctx))
 	return (GSS_S_CALL_INACCESSIBLE_READ | GSS_S_NO_CONTEXT);
 
-    status = gssint_delete_internal_sec_context(minor_status,
-						ctx->mech_type,
-						&ctx->internal_ctx_id,
-						output_token);
-    if (status)
-	return status;
+    if (ctx->internal_ctx_id != GSS_C_NO_CONTEXT) {
+	status = gssint_delete_internal_sec_context(minor_status,
+						    ctx->mech_type,
+						    &ctx->internal_ctx_id,
+						    output_token);
+	if (status)
+	    return status;
+    }
 
     /* now free up the space for the union context structure */
     free(ctx->mech_type->elements);

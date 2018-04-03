@@ -31,10 +31,7 @@
  */
 
 #include "k5-int.h"
-#include <stdarg.h>
-#include <stddef.h>
-#include <setjmp.h>
-#include <cmocka.h>
+#include "k5-cmocka.h"
 #include <malloc.h>
 
 /* Call k5_parse_host_string() and check the result against the expected code,

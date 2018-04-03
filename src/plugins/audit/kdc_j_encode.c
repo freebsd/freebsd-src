@@ -861,22 +861,19 @@ tkt_to_value(krb5_ticket *tkt, k5_json_object obj,
         ret = int32_to_value(part2->session->enctype, tmp, AU_SESS_ETYPE);
         if (ret)
             goto error;
-        if (&part2->times) {
-            ret = int32_to_value(part2->times.starttime, tmp, AU_START);
-            if (ret)
-                goto error;
-            ret = int32_to_value(part2->times.endtime, tmp, AU_END);
-            if (ret)
-                goto error;
-            ret = int32_to_value(part2->times.renew_till, tmp, AU_RENEW_TILL);
-            if (ret)
-                goto error;
-            ret = int32_to_value(part2->times.authtime, tmp, AU_AUTHTIME);
-            if (ret)
-                goto error;
-        }
-        if (&part2->transited && &part2->transited.tr_contents &&
-            part2->transited.tr_contents.length > 0) {
+        ret = int32_to_value(part2->times.starttime, tmp, AU_START);
+        if (ret)
+            goto error;
+        ret = int32_to_value(part2->times.endtime, tmp, AU_END);
+        if (ret)
+            goto error;
+        ret = int32_to_value(part2->times.renew_till, tmp, AU_RENEW_TILL);
+        if (ret)
+            goto error;
+        ret = int32_to_value(part2->times.authtime, tmp, AU_AUTHTIME);
+        if (ret)
+            goto error;
+        if (part2->transited.tr_contents.length > 0) {
             ret = data_to_value(&part2->transited.tr_contents,
                                tmp, AU_TR_CONTENTS);
             if (ret)

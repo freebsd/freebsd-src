@@ -7,26 +7,28 @@
 #include "k5-platform.h"
 
 static char *prog;
+static int quiet = 0;
 
-static void xusage()
+static void
+xusage()
 {
-    fprintf(stderr, "xusage: %s [-c ccache] [-e etype] [-f flags] service1 service2 ...\n", prog);
+    fprintf(stderr, "xusage: %s [-c ccache] [-e etype] [-f flags] service1 "
+            "service2 ...\n", prog);
     exit(1);
 }
 
-int quiet = 0;
+static void
+do_kdeltkt(int argc, char *argv[], char *ccachestr, char *etypestr, int flags);
 
-static void do_kdeltkt (int argc, char *argv[], char *ccachestr, char *etypestr, int flags);
-
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
     int option;
-    char *etypestr = 0;
-    char *ccachestr = 0;
+    char *etypestr = NULL, *ccachestr = NULL;
     int flags = 0;
 
     prog = strrchr(argv[0], '/');
-    prog = prog ? (prog + 1) : argv[0];
+    prog = (prog != NULL) ? prog + 1 : argv[0];
 
     while ((option = getopt(argc, argv, "c:e:f:hq")) != -1) {
         switch (option) {
@@ -49,15 +51,16 @@ int main(int argc, char *argv[])
         }
     }
 
-    if ((argc - optind) < 1)
+    if (argc - optind < 1)
         xusage();
 
     do_kdeltkt(argc - optind, argv + optind, ccachestr, etypestr, flags);
     return 0;
 }
 
-static void do_kdeltkt (int count, char *names[],
-                        char *ccachestr, char *etypestr, int flags)
+static void
+do_kdeltkt(int count, char *names[], const char *ccachestr, char *etypestr,
+           int flags)
 {
     krb5_context context;
     krb5_error_code ret;
@@ -75,7 +78,7 @@ static void do_kdeltkt (int count, char *names[],
         exit(1);
     }
 
-    if (etypestr) {
+    if (etypestr != NULL) {
         ret = krb5_string_to_enctype(etypestr, &etype);
         if (ret) {
             com_err(prog, ret, "while converting etype");
@@ -111,9 +114,10 @@ static void do_kdeltkt (int count, char *names[],
 
         ret = krb5_parse_name(context, names[i], &in_creds.server);
         if (ret) {
-            if (!quiet)
+            if (!quiet) {
                 fprintf(stderr, "%s: %s while parsing principal name\n",
                         names[i], error_message(ret));
+            }
             errors++;
             continue;
         }
@@ -133,9 +137,7 @@ static void do_kdeltkt (int count, char *names[],
         if (ret) {
             fprintf(stderr, "%s: %s while retrieving credentials\n",
                     princ, error_message(ret));
-
             krb5_free_unparsed_name(context, princ);
-
             errors++;
             continue;
         }
@@ -147,14 +149,11 @@ static void do_kdeltkt (int count, char *names[],
         if (ret) {
             fprintf(stderr, "%s: %s while removing credentials\n",
                     princ, error_message(ret));
-
             krb5_free_cred_contents(context, &out_creds);
             krb5_free_unparsed_name(context, princ);
-
             errors++;
             continue;
         }
-
         krb5_free_unparsed_name(context, princ);
         krb5_free_cred_contents(context, &out_creds);
     }

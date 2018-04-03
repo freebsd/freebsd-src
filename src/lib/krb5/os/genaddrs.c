@@ -79,8 +79,8 @@ krb5_auth_con_genaddrs(krb5_context context, krb5_auth_context auth_context, int
     ssize = sizeof(struct sockaddr_storage);
     if ((flags & KRB5_AUTH_CONTEXT_GENERATE_LOCAL_FULL_ADDR) ||
         (flags & KRB5_AUTH_CONTEXT_GENERATE_LOCAL_ADDR)) {
-        if ((retval = getsockname(fd, (GETSOCKNAME_ARG2_TYPE *) &lsaddr,
-                                  &ssize)))
+        retval = getsockname(fd, ss2sa(&lsaddr), &ssize);
+        if (retval)
             return retval;
 
         if (cvtaddr (&lsaddr, &laddrs)) {
@@ -99,8 +99,8 @@ krb5_auth_con_genaddrs(krb5_context context, krb5_auth_context auth_context, int
     ssize = sizeof(struct sockaddr_storage);
     if ((flags & KRB5_AUTH_CONTEXT_GENERATE_REMOTE_FULL_ADDR) ||
         (flags & KRB5_AUTH_CONTEXT_GENERATE_REMOTE_ADDR)) {
-        if ((retval = getpeername(fd, (GETPEERNAME_ARG2_TYPE *) &rsaddr,
-                                  &ssize)))
+        retval = getpeername(fd, ss2sa(&rsaddr), &ssize);
+        if (retval)
             return errno;
 
         if (cvtaddr (&rsaddr, &raddrs)) {

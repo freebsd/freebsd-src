@@ -378,7 +378,7 @@ k5_time_to_seconds_since_1970(int64_t ntTime, krb5_timestamp *elapsedSeconds)
 
     abstime = ntTime > 0 ? ntTime - NT_TIME_EPOCH : -ntTime;
 
-    if (abstime > KRB5_INT32_MAX)
+    if (abstime > UINT32_MAX)
         return ERANGE;
 
     *elapsedSeconds = abstime;
@@ -436,8 +436,7 @@ k5_pac_validate_client(krb5_context context,
         pac_princname_length % 2)
         return ERANGE;
 
-    ret = krb5int_ucs2lecs_to_utf8s(p, (size_t)pac_princname_length / 2,
-                                    &pac_princname, NULL);
+    ret = k5_utf16le_to_utf8(p, pac_princname_length, &pac_princname);
     if (ret != 0)
         return ret;
 
@@ -792,8 +791,8 @@ mspac_verify(krb5_context kcontext,
      * If the above verification failed, don't fail the whole authentication,
      * just don't mark the PAC as verified.  A checksum mismatch can occur if
      * the PAC was copied from a cross-realm TGT by an ignorant KDC, and Apple
-     * Mac OS X Server Open Directory (as of 10.6) generates PACs with no
-     * server checksum at all.
+     * macOS Server Open Directory (as of 10.6) generates PACs with no server
+     * checksum at all.
      */
     return 0;
 }

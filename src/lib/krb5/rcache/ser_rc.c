@@ -72,7 +72,7 @@ krb5_rcache_size(krb5_context kcontext, krb5_pointer arg, size_t *sizep)
          *      krb5_int32      for KV5M_RCACHE
          */
         required = sizeof(krb5_int32) * 3;
-        if (rcache->ops && rcache->ops->type)
+        if (rcache->ops)
             required += (strlen(rcache->ops->type)+1);
 
         /*

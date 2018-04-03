@@ -27,7 +27,7 @@ krb5_init_creds_free -  Free an initial credentials context.
 
 
 
-
+ *context* must be the same as the one passed to :c:func:`krb5_init_creds_init()` for this initial credentials context.
 
 
 

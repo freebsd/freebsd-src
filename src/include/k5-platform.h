@@ -71,6 +71,13 @@
 #define CAN_COPY_VA_LIST
 #endif
 
+/* This attribute prevents unused function warnings in gcc and clang. */
+#ifdef __GNUC__
+#define UNUSED __attribute__((__unused__))
+#else
+#define UNUSED
+#endif
+
 #if defined(macintosh) || (defined(__MACH__) && defined(__APPLE__))
 #include <TargetConditionals.h>
 #endif
@@ -354,19 +361,7 @@ typedef struct { int error; unsigned char did_run; } k5_init_t;
 
 
 
-#if !defined(SHARED) && !defined(_WIN32)
-
-/*
- * In this case, we just don't care about finalization.
- *
- * The code will still define the function, but we won't do anything
- * with it.  Annoying: This may generate unused-function warnings.
- */
-
-# define MAKE_FINI_FUNCTION(NAME)               \
-        static void NAME(void)
-
-#elif defined(USE_LINKER_FINI_OPTION) || defined(_WIN32)
+#if defined(USE_LINKER_FINI_OPTION) || defined(_WIN32)
 /* If we're told the linker option will be used, it doesn't really
    matter what compiler we're using.  Do it the same way
    regardless.  */
@@ -399,6 +394,15 @@ typedef struct { int error; unsigned char did_run; } k5_init_t;
         void NAME(void)
 
 # endif
+
+#elif !defined(SHARED)
+
+/*
+ * In this case, we just don't care about finalization.  The code will still
+ * define the function, but we won't do anything with it.
+ */
+# define MAKE_FINI_FUNCTION(NAME)               \
+        static void NAME(void) UNUSED
 
 #elif defined(__GNUC__) && defined(DESTRUCTOR_ATTR_WORKS)
 /* If we're using gcc, if the C++ support works, the compiler should
@@ -508,7 +512,7 @@ typedef struct { int error; unsigned char did_run; } k5_init_t;
 
    Linux: byteswap.h, bswap_16 etc.
    Solaris 10: none
-   Mac OS X: machine/endian.h or byte_order.h, NXSwap{Short,Int,LongLong}
+   macOS: machine/endian.h or byte_order.h, NXSwap{Short,Int,LongLong}
    NetBSD: sys/bswap.h, bswap16 etc.  */
 
 #if defined(HAVE_BYTESWAP_H) && defined(HAVE_BSWAP_16)

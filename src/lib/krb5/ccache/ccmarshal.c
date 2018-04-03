@@ -100,8 +100,8 @@
  * second value when reading it.
  */
 
-#include "k5-input.h"
 #include "cc-int.h"
+#include "k5-input.h"
 
 /* Read a 16-bit integer in host byte order for versions 1 and 2, or in
  * big-endian byte order for later versions.*/

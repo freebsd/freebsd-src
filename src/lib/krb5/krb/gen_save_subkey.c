@@ -38,7 +38,8 @@ k5_generate_and_save_subkey(krb5_context context,
        to guarantee randomness, but to make it less likely that multiple
        sessions could pick the same subkey.  */
     struct {
-        krb5_int32 sec, usec;
+        krb5_timestamp sec;
+        krb5_int32 usec;
     } rnd_data;
     krb5_data d;
     krb5_error_code retval;

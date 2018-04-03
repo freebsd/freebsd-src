@@ -494,7 +494,7 @@ iakerb_tkt_creds_ctx(iakerb_ctx_id_t ctx,
         if (code != 0)
             goto cleanup;
 
-        creds.times.endtime = now + time_req;
+        creds.times.endtime = ts_incr(now, time_req);
     }
 
     if (cred->name->ad_context != NULL) {
@@ -669,7 +669,7 @@ iakerb_get_initial_state(iakerb_ctx_id_t ctx,
         if (code != 0)
             goto cleanup;
 
-        in_creds.times.endtime = now + time_req;
+        in_creds.times.endtime = ts_incr(now, time_req);
     }
 
     /* Make an AS request if we have no creds or it's time to refresh them. */

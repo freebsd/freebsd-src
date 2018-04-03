@@ -43,6 +43,7 @@ krb5_c_string_to_key_with_params(krb5_context context, krb5_enctype enctype,
                                  const krb5_data *params, krb5_keyblock *key)
 {
     krb5_error_code ret;
+    krb5_data empty = empty_data();
     const struct krb5_keytypes *ktp;
     size_t keylength;
 
@@ -51,8 +52,12 @@ krb5_c_string_to_key_with_params(krb5_context context, krb5_enctype enctype,
         return KRB5_BAD_ENCTYPE;
     keylength = ktp->enc->keylength;
 
+    /* For compatibility with past behavior, treat a null salt as empty. */
+    if (salt == NULL)
+        salt = &empty;
+
     /* Fail gracefully if someone is using the old AFS string-to-key hack. */
-    if (salt != NULL && salt->length == SALT_TYPE_AFS_LENGTH)
+    if (salt->length == SALT_TYPE_AFS_LENGTH)
         return EINVAL;
 
     key->contents = malloc(keylength);

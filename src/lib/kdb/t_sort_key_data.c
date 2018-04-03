@@ -30,10 +30,7 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdarg.h>
-#include <stddef.h>
-#include <setjmp.h>
-#include <cmocka.h>
+#include "k5-cmocka.h"
 #include "kdb.h"
 
 #define KEY(kvno) {                                             \

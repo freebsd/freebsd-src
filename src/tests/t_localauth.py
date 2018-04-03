@@ -14,9 +14,8 @@ def test_an2ln(env, aname, result, msg):
         fail(msg)
 
 def test_an2ln_err(env, aname, err, msg):
-    out = realm.run(['./localauth', aname], env=env, expected_code=1)
-    if err not in out:
-        fail(msg)
+    realm.run(['./localauth', aname], env=env, expected_code=1,
+              expected_msg=err)
 
 def test_userok(env, aname, lname, ok, msg):
     out = realm.run(['./localauth', aname, lname], env=env)

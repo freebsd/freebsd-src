@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '1.15.1',
+        VERSION:     '1.16',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -97,6 +97,7 @@
 </tbody>
 </table>
 <p>This function creates a new context for acquiring initial credentials. Use <a class="reference internal" href="krb5_init_creds_free.html#c.krb5_init_creds_free" title="krb5_init_creds_free"><tt class="xref c c-func docutils literal"><span class="pre">krb5_init_creds_free()</span></tt></a> to free <em>ctx</em> when it is no longer needed.</p>
+<p>Any subsequent calls to <a class="reference internal" href="krb5_init_creds_step.html#c.krb5_init_creds_step" title="krb5_init_creds_step"><tt class="xref c c-func docutils literal"><span class="pre">krb5_init_creds_step()</span></tt></a> , <a class="reference internal" href="krb5_init_creds_get.html#c.krb5_init_creds_get" title="krb5_init_creds_get"><tt class="xref c c-func docutils literal"><span class="pre">krb5_init_creds_get()</span></tt></a> , or <a class="reference internal" href="krb5_init_creds_free.html#c.krb5_init_creds_free" title="krb5_init_creds_free"><tt class="xref c c-func docutils literal"><span class="pre">krb5_init_creds_free()</span></tt></a> for this initial credentials context must use the same <em>context</em> argument as the one passed to this function.</p>
 </div>
 
 
@@ -117,6 +118,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../admin/index.html">For administrators</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../../index.html">For application developers</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../../gssapi.html">Developing with GSSAPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../y2038.html">Year 2038 considerations for uses of krb5_timestamp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../h5l_mit_apidiff.html">Differences between Heimdal and MIT Kerberos API</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../init_creds.html">Initial credentials</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../princ_handle.html">Principal manipulation and parsing</a></li>
@@ -154,7 +156,7 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.15.1</i><br />
+            <div class="right" ><i>Release: 1.16</i><br />
                 &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
             </div>
             <div class="left">

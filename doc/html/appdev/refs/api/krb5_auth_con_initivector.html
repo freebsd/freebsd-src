@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>krb5_auth_con_initivector &mdash; MIT Kerberos Documentation</title>
+    <title>krb5_auth_con_initivector - Cause an auth context to use cipher state. &mdash; MIT Kerberos Documentation</title>
     
     <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '1.15.1',
+        VERSION:     '1.16',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -50,7 +50,7 @@
             accesskey="I">index</a> |
         <a href="../../../search.html" title="Enter search criteria"
             accesskey="S">Search</a> |
-    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_auth_con_initivector">feedback</a>
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_auth_con_initivector -  Cause an auth context to use cipher state.">feedback</a>
             </div>
         </div>
     </div>
@@ -63,8 +63,8 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="krb5-auth-con-initivector">
-<h1>krb5_auth_con_initivector<a class="headerlink" href="#krb5-auth-con-initivector" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="krb5-auth-con-initivector-cause-an-auth-context-to-use-cipher-state">
+<h1>krb5_auth_con_initivector -  Cause an auth context to use cipher state.<a class="headerlink" href="#krb5-auth-con-initivector-cause-an-auth-context-to-use-cipher-state" title="Permalink to this headline">¶</a></h1>
 <dl class="function">
 <dt id="c.krb5_auth_con_initivector">
 <a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <tt class="descname">krb5_auth_con_initivector</tt><big>(</big><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_auth_context.html#c.krb5_auth_context" title="krb5_auth_context">krb5_auth_context</a><em>&nbsp;auth_context</em><big>)</big><a class="headerlink" href="#c.krb5_auth_con_initivector" title="Permalink to this definition">¶</a></dt>
@@ -74,14 +74,24 @@
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">param:</th><td class="field-body"><p class="first"><strong>context</strong></p>
-<p class="last"><strong>auth_context</strong></p>
+<tr class="field-odd field"><th class="field-name">param:</th><td class="field-body"><p class="first"><strong>[in]</strong> <strong>context</strong> - Library context</p>
+<p class="last"><strong>[in]</strong> <strong>auth_context</strong> - Authentication context</p>
 </td>
 </tr>
 </tbody>
 </table>
-<p>DEPRECATED Not replaced.</p>
-<p>RFC 4120 doesn&#8217;t have anything like the initvector concept; only really old protocols may need this API.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">retval:</th><td class="field-body"><ul class="first last simple">
+<li>0   Success; otherwise - Kerberos error codes</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Prepare <em>auth_context</em> to use cipher state when <a class="reference internal" href="krb5_mk_priv.html#c.krb5_mk_priv" title="krb5_mk_priv"><tt class="xref c c-func docutils literal"><span class="pre">krb5_mk_priv()</span></tt></a> or <a class="reference internal" href="krb5_rd_priv.html#c.krb5_rd_priv" title="krb5_rd_priv"><tt class="xref c c-func docutils literal"><span class="pre">krb5_rd_priv()</span></tt></a> encrypt or decrypt data.</p>
 </div>
 
 
@@ -92,7 +102,7 @@
         <div class="sidebar">
     <h2>On this page</h2>
     <ul>
-<li><a class="reference internal" href="#">krb5_auth_con_initivector</a></li>
+<li><a class="reference internal" href="#">krb5_auth_con_initivector -  Cause an auth context to use cipher state.</a></li>
 </ul>
 
     <br/>
@@ -102,6 +112,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../admin/index.html">For administrators</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../../index.html">For application developers</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../../gssapi.html">Developing with GSSAPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../y2038.html">Year 2038 considerations for uses of krb5_timestamp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../h5l_mit_apidiff.html">Differences between Heimdal and MIT Kerberos API</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../init_creds.html">Initial credentials</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../princ_handle.html">Principal manipulation and parsing</a></li>
@@ -139,7 +150,7 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.15.1</i><br />
+            <div class="right" ><i>Release: 1.16</i><br />
                 &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
             </div>
             <div class="left">
@@ -154,7 +165,7 @@
             >index</a> |
         <a href="../../../search.html" title="Enter search criteria"
             >Search</a> |
-    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_auth_con_initivector">feedback</a>
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_auth_con_initivector -  Cause an auth context to use cipher state.">feedback</a>
             </div>
         </div>
     </div>

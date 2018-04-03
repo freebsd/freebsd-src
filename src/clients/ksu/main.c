@@ -932,7 +932,7 @@ int standard_shell(sh)
 
 static char * ontty()
 {
-    char *p, *ttyname();
+    char *p;
     static char buf[MAXPATHLEN + 5];
     int result;
 

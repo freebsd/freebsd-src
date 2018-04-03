@@ -237,7 +237,6 @@ void *k5_getspecific (k5_key_t keynum)
     if (err)
         return NULL;
 
-    assert(keynum >= 0 && keynum < K5_KEY_MAX);
     assert(destructors_set[keynum] == 1);
 
 #ifndef ENABLE_THREADS
@@ -271,7 +270,6 @@ int k5_setspecific (k5_key_t keynum, void *value)
     if (err)
         return err;
 
-    assert(keynum >= 0 && keynum < K5_KEY_MAX);
     assert(destructors_set[keynum] == 1);
 
 #ifndef ENABLE_THREADS
@@ -334,8 +332,6 @@ int k5_key_register (k5_key_t keynum, void (*destructor)(void *))
     if (err)
         return err;
 
-    assert(keynum >= 0 && keynum < K5_KEY_MAX);
-
 #ifndef ENABLE_THREADS
 
     assert(destructors_set[keynum] == 0);
@@ -365,8 +361,6 @@ int k5_key_register (k5_key_t keynum, void (*destructor)(void *))
 
 int k5_key_delete (k5_key_t keynum)
 {
-    assert(keynum >= 0 && keynum < K5_KEY_MAX);
-
 #ifndef ENABLE_THREADS
 
     assert(destructors_set[keynum] == 1);

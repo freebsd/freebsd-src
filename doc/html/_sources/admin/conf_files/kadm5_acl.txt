@@ -116,16 +116,17 @@ Here is an example of a kadm5.acl file::
     */root@ATHENA.MIT.EDU     l   *                           # line 5
     sms@ATHENA.MIT.EDU        x   * -maxlife 9h -postdateable # line 6
 
-(line 1) Any principal in the ``ATHENA.MIT.EDU`` realm with
-an ``admin`` instance has all administrative privileges.
+(line 1) Any principal in the ``ATHENA.MIT.EDU`` realm with an
+``admin`` instance has all administrative privileges except extracting
+keys.
 
-(lines 1-3) The user ``joeadmin`` has all permissions with his
-``admin`` instance, ``joeadmin/admin@ATHENA.MIT.EDU`` (matches line
-1).  He has no permissions at all with his null instance,
-``joeadmin@ATHENA.MIT.EDU`` (matches line 2).  His ``root`` and other
-non-``admin``, non-null instances (e.g., ``extra`` or ``dbadmin``) have
-inquire permissions with any principal that has the instance ``root``
-(matches line 3).
+(lines 1-3) The user ``joeadmin`` has all permissions except
+extracting keys with his ``admin`` instance,
+``joeadmin/admin@ATHENA.MIT.EDU`` (matches line 1).  He has no
+permissions at all with his null instance, ``joeadmin@ATHENA.MIT.EDU``
+(matches line 2).  His ``root`` and other non-``admin``, non-null
+instances (e.g., ``extra`` or ``dbadmin``) have inquire permissions
+with any principal that has the instance ``root`` (matches line 3).
 
 (line 4) Any ``root`` principal in ``ATHENA.MIT.EDU`` can inquire
 or change the password of their null instance, but not any other
@@ -139,9 +140,22 @@ permission can only be granted globally, not to specific target
 principals.
 
 (line 6) Finally, the Service Management System principal
-``sms@ATHENA.MIT.EDU`` has all permissions, but any principal that it
-creates or modifies will not be able to get postdateable tickets or
-tickets with a life of longer than 9 hours.
+``sms@ATHENA.MIT.EDU`` has all permissions except extracting keys, but
+any principal that it creates or modifies will not be able to get
+postdateable tickets or tickets with a life of longer than 9 hours.
+
+MODULE BEHAVIOR
+---------------
+
+The ACL file can coexist with other authorization modules in release
+1.16 and later, as configured in the :ref:`kadm5_auth` section of
+:ref:`krb5.conf(5)`.  The ACL file will positively authorize
+operations according to the rules above, but will never
+authoritatively deny an operation, so other modules can authorize
+operations in addition to those authorized by the ACL file.
+
+To operate without an ACL file, set the *acl_file* variable in
+:ref:`kdc.conf(5)` to the empty string with ``acl_file = ""``.
 
 SEE ALSO
 --------

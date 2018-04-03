@@ -126,7 +126,7 @@ allocation_failure:
 		if (dest_union->external_name) {
 			if (dest_union->external_name->value)
 				free(dest_union->external_name->value);
-				free(dest_union->external_name);
+			free(dest_union->external_name);
 		}
 		if (dest_union->name_type)
 			(void) generic_gss_release_oid(minor_status,

@@ -110,7 +110,7 @@ store(krb5_context ctx, char *rcspec, char *client, char *server, char *msg,
     krb5_donot_replay rep;
     krb5_data d;
 
-    if (now_timestamp > 0)
+    if (now_timestamp != 0)
         krb5_set_debugging_time(ctx, now_timestamp, now_usec);
     if ((retval = krb5_rc_resolve_full(ctx, &rc, rcspec)))
         goto cleanup;
@@ -221,13 +221,13 @@ main(int argc, char **argv)
             msg = (**argv) ? *argv : NULL;
             argc--; argv++;
             if (!argc) usage(progname);
-            timestamp = (krb5_timestamp) atol(*argv);
+            timestamp = (krb5_timestamp) atoll(*argv);
             argc--; argv++;
             if (!argc) usage(progname);
             usec = (krb5_int32) atol(*argv);
             argc--; argv++;
             if (!argc) usage(progname);
-            now_timestamp = (krb5_timestamp) atol(*argv);
+            now_timestamp = (krb5_timestamp) atoll(*argv);
             argc--; argv++;
             if (!argc) usage(progname);
             now_usec = (krb5_int32) atol(*argv);
@@ -249,7 +249,7 @@ main(int argc, char **argv)
             rcspec = *argv;
             argc--; argv++;
             if (!argc) usage(progname);
-            now_timestamp = (krb5_timestamp) atol(*argv);
+            now_timestamp = (krb5_timestamp) atoll(*argv);
             argc--; argv++;
             if (!argc) usage(progname);
             now_usec = (krb5_int32) atol(*argv);

@@ -1,0 +1,28 @@
+Year 2038 considerations for uses of krb5_timestamp
+===================================================
+
+POSIX time values, which measure the number of seconds since January 1
+1970, will exceed the maximum value representable in a signed 32-bit
+integer in January 2038.  This documentation describes considerations
+for consumers of the MIT krb5 libraries.
+
+Applications or libraries which use libkrb5 and consume the timestamps
+included in credentials or other structures make use of the
+:c:type:`krb5_timestamp` type.  For historical reasons, krb5_timestamp
+is a signed 32-bit integer, even on platforms where a larger type is
+natively used to represent time values.  To behave properly for time
+values after January 2038, calling code should cast krb5_timestamp
+values to uint32_t, and then to time_t::
+
+    (time_t)(uint32_t)timestamp
+
+Used in this way, krb5_timestamp values can represent time values up
+until February 2106, provided that the platform uses a 64-bit or
+larger time_t type.  This usage will also remain safe if a later
+version of MIT krb5 changes krb5_timestamp to an unsigned 32-bit
+integer.
+
+The GSSAPI only uses representations of time intervals, not absolute
+times.  Callers of the GSSAPI should require no changes to behave
+correctly after January 2038, provided that they use MIT krb5 release
+1.16 or later.

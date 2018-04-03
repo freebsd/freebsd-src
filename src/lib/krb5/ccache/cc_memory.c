@@ -720,8 +720,8 @@ static void
 update_mcc_change_time(krb5_mcc_data *d)
 {
     krb5_timestamp now_time = time(NULL);
-    d->changetime = (d->changetime >= now_time) ?
-        d->changetime + 1 : now_time;
+    d->changetime = ts_after(now_time, d->changetime) ?
+        now_time : ts_incr(d->changetime, 1);
 }
 
 static krb5_error_code KRB5_CALLCONV

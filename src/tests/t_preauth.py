@@ -10,18 +10,177 @@ realm = K5Realm(create_host=False, get_creds=False, krb5_conf=conf)
 realm.run([kadminl, 'modprinc', '+requires_preauth', realm.user_princ])
 realm.run([kadminl, 'setstr', realm.user_princ, 'teststring', 'testval'])
 realm.run([kadminl, 'addprinc', '-nokey', '+requires_preauth', 'nokeyuser'])
-out = realm.run([kinit, realm.user_princ], input=password('user')+'\n')
-if 'testval' not in out:
-    fail('Decrypted string attribute not in kinit output')
-out = realm.run([kinit, 'nokeyuser'], input=password('user')+'\n',
-                expected_code=1)
-if 'no key' not in out:
-    fail('Expected "no key" message not in kinit output')
+realm.kinit(realm.user_princ, password('user'), expected_msg='testval')
+realm.kinit('nokeyuser', password('user'), expected_code=1,
+            expected_msg='no key')
 
-# Exercise KDC_ERR_MORE_PREAUTH_DATA_REQUIRED and secure cookies.
+# Preauth type -123 is the test preauth module type; 133 is FAST
+# PA-FX-COOKIE; 2 is encrypted timestamp.
+
+# Test normal preauth flow.
+expected_trace = ('Sending unauthenticated request',
+                  '/Additional pre-authentication required',
+                  'Preauthenticating using KDC method data',
+                  'Processing preauth types:',
+                  'Preauth module test (-123) (real) returned: 0/Success',
+                  'Produced preauth for next request: 133, -123',
+                  'Decrypted AS reply')
+realm.run(['./icred', realm.user_princ, password('user')],
+          expected_msg='testval', expected_trace=expected_trace)
+
+# Test successful optimistic preauth.
+expected_trace = ('Attempting optimistic preauth',
+                  'Processing preauth types: -123',
+                  'Preauth module test (-123) (real) returned: 0/Success',
+                  'Produced preauth for next request: -123',
+                  'Decrypted AS reply')
+realm.run(['./icred', '-o', '-123', realm.user_princ, password('user')],
+          expected_trace=expected_trace)
+
+# Test optimistic preauth failing on client, followed by successful
+# preauth using the same module.
+expected_trace = ('Attempting optimistic preauth',
+                  'Processing preauth types: -123',
+                  '/induced optimistic fail',
+                  'Sending unauthenticated request',
+                  '/Additional pre-authentication required',
+                  'Preauthenticating using KDC method data',
+                  'Processing preauth types:',
+                  'Preauth module test (-123) (real) returned: 0/Success',
+                  'Produced preauth for next request: 133, -123',
+                  'Decrypted AS reply')
+realm.run(['./icred', '-o', '-123', '-X', 'fail_optimistic', realm.user_princ,
+           password('user')], expected_msg='testval',
+          expected_trace=expected_trace)
+
+# Test optimistic preauth failing on KDC, followed by successful preauth
+# using the same module.
+realm.run([kadminl, 'setstr', realm.user_princ, 'failopt', 'yes'])
+expected_trace = ('Attempting optimistic preauth',
+                  'Processing preauth types: -123',
+                  'Preauth module test (-123) (real) returned: 0/Success',
+                  'Produced preauth for next request: -123',
+                  '/Preauthentication failed',
+                  'Preauthenticating using KDC method data',
+                  'Processing preauth types:',
+                  'Preauth module test (-123) (real) returned: 0/Success',
+                  'Produced preauth for next request: 133, -123',
+                  'Decrypted AS reply')
+realm.run(['./icred', '-o', '-123', realm.user_princ, password('user')],
+          expected_msg='testval', expected_trace=expected_trace)
+realm.run([kadminl, 'delstr', realm.user_princ, 'failopt'])
+
+# Test KDC_ERR_MORE_PREAUTH_DATA_REQUIRED and secure cookies.
 realm.run([kadminl, 'setstr', realm.user_princ, '2rt', 'secondtrip'])
-out = realm.run([kinit, realm.user_princ], input=password('user')+'\n')
-if '2rt: secondtrip' not in out:
-    fail('multi round-trip cookie test')
+expected_trace = ('Sending unauthenticated request',
+                  '/Additional pre-authentication required',
+                  'Preauthenticating using KDC method data',
+                  'Processing preauth types:',
+                  'Preauth module test (-123) (real) returned: 0/Success',
+                  'Produced preauth for next request: 133, -123',
+                  '/More preauthentication data is required',
+                  'Continuing preauth mech -123',
+                  'Processing preauth types: -123, 133',
+                  'Produced preauth for next request: 133, -123',
+                  'Decrypted AS reply')
+realm.run(['./icred', realm.user_princ, password('user')],
+          expected_msg='2rt: secondtrip', expected_trace=expected_trace)
+
+# Test client-side failure after KDC_ERR_MORE_PREAUTH_DATA_REQUIRED,
+# falling back to encrypted timestamp.
+expected_trace = ('Sending unauthenticated request',
+                  '/Additional pre-authentication required',
+                  'Preauthenticating using KDC method data',
+                  'Processing preauth types:',
+                  'Preauth module test (-123) (real) returned: 0/Success',
+                  'Produced preauth for next request: 133, -123',
+                  '/More preauthentication data is required',
+                  'Continuing preauth mech -123',
+                  'Processing preauth types: -123, 133',
+                  '/induced 2rt fail',
+                  'Preauthenticating using KDC method data',
+                  'Processing preauth types:',
+                  'Encrypted timestamp (for ',
+                  'module encrypted_timestamp (2) (real) returned: 0/Success',
+                  'Produced preauth for next request: 133, 2',
+                  'Decrypted AS reply')
+realm.run(['./icred', '-X', 'fail_2rt', realm.user_princ, password('user')],
+          expected_msg='2rt: secondtrip', expected_trace=expected_trace)
+
+# Test KDC-side failure after KDC_ERR_MORE_PREAUTH_DATA_REQUIRED,
+# falling back to encrypted timestamp.
+realm.run([kadminl, 'setstr', realm.user_princ, 'fail2rt', 'yes'])
+expected_trace = ('Sending unauthenticated request',
+                  '/Additional pre-authentication required',
+                  'Preauthenticating using KDC method data',
+                  'Processing preauth types:',
+                  'Preauth module test (-123) (real) returned: 0/Success',
+                  'Produced preauth for next request: 133, -123',
+                  '/More preauthentication data is required',
+                  'Continuing preauth mech -123',
+                  'Processing preauth types: -123, 133',
+                  'Preauth module test (-123) (real) returned: 0/Success',
+                  'Produced preauth for next request: 133, -123',
+                  '/Preauthentication failed',
+                  'Preauthenticating using KDC method data',
+                  'Processing preauth types:',
+                  'Encrypted timestamp (for ',
+                  'module encrypted_timestamp (2) (real) returned: 0/Success',
+                  'Produced preauth for next request: 133, 2',
+                  'Decrypted AS reply')
+realm.run(['./icred', realm.user_princ, password('user')],
+          expected_msg='2rt: secondtrip', expected_trace=expected_trace)
+realm.run([kadminl, 'delstr', realm.user_princ, 'fail2rt'])
+
+# Test tryagain flow by inducing a KDC_ERR_ENCTYPE_NOSUPP error on the KDC.
+realm.run([kadminl, 'setstr', realm.user_princ, 'err', 'testagain'])
+expected_trace = ('Sending unauthenticated request',
+                  '/Additional pre-authentication required',
+                  'Preauthenticating using KDC method data',
+                  'Processing preauth types:',
+                  'Preauth module test (-123) (real) returned: 0/Success',
+                  'Produced preauth for next request: 133, -123',
+                  '/KDC has no support for encryption type',
+                  'Recovering from KDC error 14 using preauth mech -123',
+                  'Preauth tryagain input types (-123): -123, 133',
+                  'Preauth module test (-123) tryagain returned: 0/Success',
+                  'Followup preauth for next request: -123, 133',
+                  'Decrypted AS reply')
+realm.run(['./icred', realm.user_princ, password('user')],
+          expected_msg='tryagain: testagain', expected_trace=expected_trace)
+
+# Test a client-side tryagain failure, falling back to encrypted
+# timestamp.
+expected_trace = ('Sending unauthenticated request',
+                  '/Additional pre-authentication required',
+                  'Preauthenticating using KDC method data',
+                  'Processing preauth types:',
+                  'Preauth module test (-123) (real) returned: 0/Success',
+                  'Produced preauth for next request: 133, -123',
+                  '/KDC has no support for encryption type',
+                  'Recovering from KDC error 14 using preauth mech -123',
+                  'Preauth tryagain input types (-123): -123, 133',
+                  '/induced tryagain fail',
+                  'Preauthenticating using KDC method data',
+                  'Processing preauth types:',
+                  'Encrypted timestamp (for ',
+                  'module encrypted_timestamp (2) (real) returned: 0/Success',
+                  'Produced preauth for next request: 133, 2',
+                  'Decrypted AS reply')
+realm.run(['./icred', '-X', 'fail_tryagain', realm.user_princ,
+           password('user')], expected_trace=expected_trace)
+
+# Test that multiple stepwise initial creds operations can be
+# performed with the same krb5_context, with proper tracking of
+# clpreauth module request handles.
+realm.run([kadminl, 'addprinc', '-pw', 'pw', 'u1'])
+realm.run([kadminl, 'addprinc', '+requires_preauth', '-pw', 'pw', 'u2'])
+realm.run([kadminl, 'addprinc', '+requires_preauth', '-pw', 'pw', 'u3'])
+realm.run([kadminl, 'setstr', 'u2', '2rt', 'extra'])
+out = realm.run(['./icinterleave', 'pw', 'u1', 'u2', 'u3'])
+if out != ('step 1\nstep 2\nstep 3\nstep 1\nfinish 1\nstep 2\nno attr\n'
+           'step 3\nno attr\nstep 2\n2rt: extra\nstep 3\nfinish 3\nstep 2\n'
+           'finish 2\n'):
+    fail('unexpected output from icinterleave')
 
 success('Pre-authentication framework tests')

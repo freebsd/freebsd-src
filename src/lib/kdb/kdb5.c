@@ -322,12 +322,7 @@ copy_vtable(const kdb_vftabl *in, kdb_vftabl *out)
     out->audit_as_req = in->audit_as_req;
     out->refresh_config = in->refresh_config;
     out->check_allowed_to_delegate = in->check_allowed_to_delegate;
-
-    /* Copy fields for minor version 1 (major version 6). */
-    assert(KRB5_KDB_DAL_MAJOR_VERSION == 6);
-    out->free_principal_e_data = NULL;
-    if (in->min_ver >= 1)
-        out->free_principal_e_data = in->free_principal_e_data;
+    out->free_principal_e_data = in->free_principal_e_data;
 
     /* Set defaults for optional fields. */
     if (out->fetch_master_key == NULL)
@@ -1220,11 +1215,12 @@ krb5_db_fetch_mkey(krb5_context context, krb5_principal mname,
             krb5_db_entry *master_entry;
 
             rc = krb5_db_get_principal(context, mname, 0, &master_entry);
-            if (rc == 0) {
+            if (rc == 0 && master_entry->n_key_data > 0)
                 *kvno = (krb5_kvno) master_entry->key_data->key_data_kvno;
-                krb5_db_free_principal(context, master_entry);
-            } else
+            else
                 *kvno = 1;
+            if (rc == 0)
+                krb5_db_free_principal(context, master_entry);
         }
 
         if (!salt)
@@ -1296,7 +1292,7 @@ find_actkvno(krb5_actkvno_node *list, krb5_timestamp now)
      * are in the future, we will return the first node; if all are in the
      * past, we will return the last node.
      */
-    while (list->next != NULL && list->next->act_time <= now)
+    while (list->next != NULL && !ts_after(list->next->act_time, now))
         list = list->next;
     return list->act_kvno;
 }
@@ -2677,8 +2673,10 @@ krb5_db_check_policy_tgs(krb5_context kcontext, krb5_kdc_req *request,
 
 void
 krb5_db_audit_as_req(krb5_context kcontext, krb5_kdc_req *request,
-                     krb5_db_entry *client, krb5_db_entry *server,
-                     krb5_timestamp authtime, krb5_error_code error_code)
+                     const krb5_address *local_addr,
+                     const krb5_address *remote_addr, krb5_db_entry *client,
+                     krb5_db_entry *server, krb5_timestamp authtime,
+                     krb5_error_code error_code)
 {
     krb5_error_code status;
     kdb_vftabl *v;
@@ -2686,7 +2684,8 @@ krb5_db_audit_as_req(krb5_context kcontext, krb5_kdc_req *request,
     status = get_vftabl(kcontext, &v);
     if (status || v->audit_as_req == NULL)
         return;
-    v->audit_as_req(kcontext, request, client, server, authtime, error_code);
+    v->audit_as_req(kcontext, request, local_addr, remote_addr,
+                    client, server, authtime, error_code);
 }
 
 void

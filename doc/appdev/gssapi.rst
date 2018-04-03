@@ -312,6 +312,25 @@ issue a ticket from the client to the target service.  The GSSAPI
 library will then use this ticket to authenticate to the target
 service.
 
+If an application needs to find out whether a credential it holds is a
+proxy credential and the name of the intermediate service, it can
+query the credential with the **GSS_KRB5_GET_CRED_IMPERSONATOR** OID
+(new in release 1.16, declared in ``<gssapi/gssapi_krb5.h>``) using
+the gss_inquire_cred_by_oid extension (declared in
+``<gssapi/gssapi_ext.h>``)::
+
+    OM_uint32 gss_inquire_cred_by_oid(OM_uint32 *minor_status,
+                                      const gss_cred_id_t cred_handle,
+                                      gss_OID desired_object,
+                                      gss_buffer_set_t *data_set);
+
+If the call succeeds and *cred_handle* is a proxy credential,
+*data_set* will be set to a single-element buffer set containing the
+unparsed principal name of the intermediate service.  If *cred_handle*
+is not a proxy credential, *data_set* will be set to an empty buffer
+set.  If the library does not support the query,
+gss_inquire_cred_by_oid will return **GSS_S_UNAVAILABLE**.
+
 
 AEAD message wrapping
 ---------------------

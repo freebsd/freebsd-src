@@ -62,9 +62,6 @@
 #undef GETHOSTBYNAME_R_RETURNS_INT
 
 /* Type of getpeername second argument. */
-#undef GETPEERNAME_ARG2_TYPE
-
-/* Type of getpeername second argument. */
 #undef GETPEERNAME_ARG3_TYPE
 
 /* Define if getpwnam_r exists but takes only 4 arguments (e.g., POSIX draft 6
@@ -80,9 +77,6 @@
 
 /* Define if getservbyname_r returns int rather than struct servent * */
 #undef GETSERVBYNAME_R_RETURNS_INT
-
-/* Type of pointer target for argument 2 to getsockname */
-#undef GETSOCKNAME_ARG2_TYPE
 
 /* Type of pointer target for argument 3 to getsockname */
 #undef GETSOCKNAME_ARG3_TYPE
@@ -123,6 +117,9 @@
 
 /* Define to 1 if you have the `chmod' function. */
 #undef HAVE_CHMOD
+
+/* Define if cmocka library is available. */
+#undef HAVE_CMOCKA
 
 /* Define to 1 if you have the `compile' function. */
 #undef HAVE_COMPILE
@@ -240,23 +237,8 @@
 /* Define to 1 if you have the <lber.h> header file. */
 #undef HAVE_LBER_H
 
-/* Define to 1 if you have the `ldap_explode_dn' function. */
-#undef HAVE_LDAP_EXPLODE_DN
-
 /* Define to 1 if you have the <ldap.h> header file. */
 #undef HAVE_LDAP_H
-
-/* Define to 1 if you have the `ldap_initialize' function. */
-#undef HAVE_LDAP_INITIALIZE
-
-/* Define to 1 if you have the `ldap_str2dn' function. */
-#undef HAVE_LDAP_STR2DN
-
-/* Define to 1 if you have the `ldap_unbind_ext_s' function. */
-#undef HAVE_LDAP_UNBIND_EXT_S
-
-/* Define to 1 if you have the `ldap_url_parse_nodn' function. */
-#undef HAVE_LDAP_URL_PARSE_NODN
 
 /* Define to 1 if you have the `crypto' library (-lcrypto). */
 #undef HAVE_LIBCRYPTO
@@ -332,6 +314,9 @@
 
 /* Define to 1 if you have the `pthread_once' function. */
 #undef HAVE_PTHREAD_ONCE
+
+/* Have PTHREAD_PRIO_INHERIT. */
+#undef HAVE_PTHREAD_PRIO_INHERIT
 
 /* Define to 1 if you have the `pthread_rwlock_init' function. */
 #undef HAVE_PTHREAD_RWLOCK_INIT
@@ -657,9 +642,6 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* Define if pkinit crypto implementation is NSS */
-#undef PKINIT_CRYPTO_IMPL_NSS
-
 /* Define if setjmp indicates POSIX interface */
 #undef POSIX_SETJMP
 
@@ -672,7 +654,7 @@
 /* Define if termios.h exists and tcsetattr exists */
 #undef POSIX_TERMIOS
 
-/* Define to the necessary symbol if this constant uses a non-standard name on
+/* Define to necessary symbol if this constant uses a non-standard name on
    your system. */
 #undef PTHREAD_CREATE_JOINABLE
 
@@ -681,6 +663,9 @@
 
 /* Define as return type of setrpcent */
 #undef SETRPCENT_TYPE
+
+/* The size of `time_t', as computed by sizeof. */
+#undef SIZEOF_TIME_T
 
 /* Define for static plugin linkage */
 #undef STATIC_PLUGINS

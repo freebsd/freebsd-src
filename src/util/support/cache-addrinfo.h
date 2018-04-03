@@ -52,12 +52,12 @@
  * the data structures and flag values locally.
  *
  *
- * On Mac OS X, getaddrinfo results aren't cached (though
- * gethostbyname results are), so we need to build a cache here.  Now
- * things are getting really messy.  Because the cache is in use, we
- * use getservbyname, and throw away thread safety.  (Not that the
- * cache is thread safe, but when we get locking support, that'll be
- * dealt with.)  This code needs tearing down and rebuilding, soon.
+ * On macOS, getaddrinfo results aren't cached (though gethostbyname
+ * results are), so we need to build a cache here.  Now things are
+ * getting really messy.  Because the cache is in use, we use
+ * getservbyname, and throw away thread safety.  (Not that the cache
+ * is thread safe, but when we get locking support, that'll be dealt
+ * with.)  This code needs tearing down and rebuilding, soon.
  *
  *
  * Note that recent Windows developers' code has an interesting hack:

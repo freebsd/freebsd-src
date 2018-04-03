@@ -54,7 +54,9 @@
 /* Someday, pass local address/port as well.  */
 /* Currently no info about name canonicalization is logged.  */
 void
-log_as_req(krb5_context context, const krb5_fulladdr *from,
+log_as_req(krb5_context context,
+           const krb5_fulladdr *local_addr,
+           const krb5_fulladdr *remote_addr,
            krb5_kdc_req *request, krb5_kdc_rep *reply,
            krb5_db_entry *client, const char *cname,
            krb5_db_entry *server, const char *sname,
@@ -67,8 +69,8 @@ log_as_req(krb5_context context, const krb5_fulladdr *from,
     const char *cname2 = cname ? cname : "<unknown client>";
     const char *sname2 = sname ? sname : "<unknown server>";
 
-    fromstring = inet_ntop(ADDRTYPE2FAMILY (from->address->addrtype),
-                           from->address->contents,
+    fromstring = inet_ntop(ADDRTYPE2FAMILY(remote_addr->address->addrtype),
+                           remote_addr->address->contents,
                            fromstringbuf, sizeof(fromstringbuf));
     if (!fromstring)
         fromstring = "<unknown>";
@@ -79,9 +81,9 @@ log_as_req(krb5_context context, const krb5_fulladdr *from,
         /* success */
         char rep_etypestr[128];
         rep_etypes2str(rep_etypestr, sizeof(rep_etypestr), reply);
-        krb5_klog_syslog(LOG_INFO, _("AS_REQ (%s) %s: ISSUE: authtime %d, %s, "
+        krb5_klog_syslog(LOG_INFO, _("AS_REQ (%s) %s: ISSUE: authtime %u, %s, "
                                      "%s for %s"),
-                         ktypestr, fromstring, authtime,
+                         ktypestr, fromstring, (unsigned int)authtime,
                          rep_etypestr, cname2, sname2);
     } else {
         /* fail */
@@ -89,14 +91,15 @@ log_as_req(krb5_context context, const krb5_fulladdr *from,
                          ktypestr, fromstring, status,
                          cname2, sname2, emsg ? ", " : "", emsg ? emsg : "");
     }
-    krb5_db_audit_as_req(context, request, client, server, authtime,
-                         errcode);
+    krb5_db_audit_as_req(context, request,
+                         local_addr->address, remote_addr->address,
+                         client, server, authtime, errcode);
 #if 0
     /* Sun (OpenSolaris) version would probably something like this.
        The client and server names passed can be null, unlike in the
        logging routines used above.  Note that a struct in_addr is
        used, but the real address could be an IPv6 address.  */
-    audit_krb5kdc_as_req(some in_addr *, (in_port_t)from->port, 0,
+    audit_krb5kdc_as_req(some in_addr *, (in_port_t)remote_addr->port, 0,
                          cname, sname, errcode);
 #endif
 }
@@ -156,10 +159,10 @@ log_tgs_req(krb5_context ctx, const krb5_fulladdr *from,
        name (useful), and doesn't log ktypestr (probably not
        important).  */
     if (errcode != KRB5KDC_ERR_SERVER_NOMATCH) {
-        krb5_klog_syslog(LOG_INFO, _("TGS_REQ (%s) %s: %s: authtime %d, %s%s "
+        krb5_klog_syslog(LOG_INFO, _("TGS_REQ (%s) %s: %s: authtime %u, %s%s "
                                      "%s for %s%s%s"),
-                         ktypestr, fromstring, status, authtime, rep_etypestr,
-                         !errcode ? "," : "", logcname, logsname,
+                         ktypestr, fromstring, status, (unsigned int)authtime,
+                         rep_etypestr, !errcode ? "," : "", logcname, logsname,
                          errcode ? ", " : "", errcode ? emsg : "");
         if (isflagset(c_flags, KRB5_KDB_FLAG_PROTOCOL_TRANSITION))
             krb5_klog_syslog(LOG_INFO,
@@ -171,9 +174,9 @@ log_tgs_req(krb5_context ctx, const krb5_fulladdr *from,
                              logaltcname);
 
     } else
-        krb5_klog_syslog(LOG_INFO, _("TGS_REQ %s: %s: authtime %d, %s for %s, "
+        krb5_klog_syslog(LOG_INFO, _("TGS_REQ %s: %s: authtime %u, %s for %s, "
                                      "2nd tkt client %s"),
-                         fromstring, status, authtime,
+                         fromstring, status, (unsigned int)authtime,
                          logcname, logsname, logaltcname);
 
     /* OpenSolaris: audit_krb5kdc_tgs_req(...)  or

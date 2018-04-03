@@ -44,8 +44,8 @@ static char *strdate(krb5_timestamp when)
 {
     struct tm *tm;
     static char out[40];
+    time_t lcltim = ts2tt(when);
 
-    time_t lcltim = when;
     tm = localtime(&lcltim);
     strftime(out, sizeof(out), "%a %b %d %H:%M:%S %Z %Y", tm);
     return out;
@@ -481,7 +481,7 @@ kdb5_use_mkey(int argc, char *argv[])
                  cur_actkvno != NULL;
                  prev_actkvno = cur_actkvno, cur_actkvno = cur_actkvno->next) {
 
-                if (new_actkvno->act_time < cur_actkvno->act_time) {
+                if (ts_after(cur_actkvno->act_time, new_actkvno->act_time)) {
                     if (prev_actkvno) {
                         prev_actkvno->next = new_actkvno;
                         new_actkvno->next = cur_actkvno;
@@ -499,7 +499,7 @@ kdb5_use_mkey(int argc, char *argv[])
         }
     }
 
-    if (actkvno_list->act_time > now) {
+    if (ts_after(actkvno_list->act_time, now)) {
         com_err(progname, EINVAL,
                 _("there must be one master key currently active"));
         exit_status++;

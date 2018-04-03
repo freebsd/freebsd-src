@@ -28,57 +28,40 @@ realm.run([kadminl, 'renprinc', 'service1/abraham', 'service1/andrew'])
 
 # Test with no acceptor name, including client/keytab principal
 # mismatch (non-fatal) and missing keytab entry (fatal).
-output = realm.run(['./t_accname', 'p:service1/andrew'])
-if 'service1/abraham' not in output:
-    fail('Expected service1/abraham in t_accname output')
-output = realm.run(['./t_accname', 'p:service1/barack'])
-if 'service1/barack' not in output:
-    fail('Expected service1/barack in t_accname output')
-output = realm.run(['./t_accname', 'p:service2/calvin'])
-if 'service2/calvin' not in output:
-    fail('Expected service1/barack in t_accname output')
-output = realm.run(['./t_accname', 'p:service2/dwight'], expected_code=1)
-if ' not found in keytab' not in output:
-    fail('Expected error message not seen in t_accname output')
+realm.run(['./t_accname', 'p:service1/andrew'],
+          expected_msg='service1/abraham')
+realm.run(['./t_accname', 'p:service1/barack'], expected_msg='service1/barack')
+realm.run(['./t_accname', 'p:service2/calvin'], expected_msg='service2/calvin')
+realm.run(['./t_accname', 'p:service2/dwight'], expected_code=1,
+          expected_msg=' not found in keytab')
 
 # Test with acceptor name containing service only, including
 # client/keytab hostname mismatch (non-fatal) and service name
 # mismatch (fatal).
-output = realm.run(['./t_accname', 'p:service1/andrew', 'h:service1'])
-if 'service1/abraham' not in output:
-    fail('Expected service1/abraham in t_accname output')
-output = realm.run(['./t_accname', 'p:service1/andrew', 'h:service2'],
-                   expected_code=1)
-if ' not found in keytab' not in output:
-    fail('Expected error message not seen in t_accname output')
-output = realm.run(['./t_accname', 'p:service2/calvin', 'h:service2'])
-if 'service2/calvin' not in output:
-    fail('Expected service2/calvin in t_accname output')
-output = realm.run(['./t_accname', 'p:service2/calvin', 'h:service1'],
-                   expected_code=1)
-if ' found in keytab but does not match server principal' not in output:
-    fail('Expected error message not seen in t_accname output')
+realm.run(['./t_accname', 'p:service1/andrew', 'h:service1'],
+          expected_msg='service1/abraham')
+realm.run(['./t_accname', 'p:service1/andrew', 'h:service2'], expected_code=1,
+          expected_msg=' not found in keytab')
+realm.run(['./t_accname', 'p:service2/calvin', 'h:service2'],
+          expected_msg='service2/calvin')
+realm.run(['./t_accname', 'p:service2/calvin', 'h:service1'], expected_code=1,
+          expected_msg=' found in keytab but does not match server principal')
 
 # Test with acceptor name containing service and host.  Use the
 # client's un-canonicalized hostname as acceptor input to mirror what
 # many servers do.
-output = realm.run(['./t_accname', 'p:' + realm.host_princ,
-                    'h:host@%s' % socket.gethostname()])
-if realm.host_princ not in output:
-    fail('Expected %s in t_accname output' % realm.host_princ)
-output = realm.run(['./t_accname', 'p:host/-nomatch-',
-                    'h:host@%s' % socket.gethostname()],
-                   expected_code=1)
-if ' not found in keytab' not in output:
-    fail('Expected error message not seen in t_accname output')
+realm.run(['./t_accname', 'p:' + realm.host_princ,
+           'h:host@%s' % socket.gethostname()], expected_msg=realm.host_princ)
+realm.run(['./t_accname', 'p:host/-nomatch-',
+           'h:host@%s' % socket.gethostname()], expected_code=1,
+          expected_msg=' not found in keytab')
 
 # Test krb5_gss_import_cred.
 realm.run(['./t_imp_cred', 'p:service1/barack'])
 realm.run(['./t_imp_cred', 'p:service1/barack', 'service1/barack'])
 realm.run(['./t_imp_cred', 'p:service1/andrew', 'service1/abraham'])
-output = realm.run(['./t_imp_cred', 'p:service2/dwight'], expected_code=1)
-if ' not found in keytab' not in output:
-    fail('Expected error message not seen in t_imp_cred output')
+realm.run(['./t_imp_cred', 'p:service2/dwight'], expected_code=1,
+          expected_msg=' not found in keytab')
 
 # Test credential store extension.
 tmpccname = 'FILE:' + os.path.join(realm.testdir, 'def_cache')
@@ -116,10 +99,8 @@ ignore_conf = {'libdefaults': {'ignore_acceptor_hostname': 'true'}}
 realm = K5Realm(krb5_conf=ignore_conf)
 realm.run([kadminl, 'addprinc', '-randkey', 'host/-nomatch-'])
 realm.run([kadminl, 'xst', 'host/-nomatch-'])
-output = realm.run(['./t_accname', 'p:host/-nomatch-',
-                    'h:host@%s' % socket.gethostname()])
-if 'host/-nomatch-' not in output:
-    fail('Expected host/-nomatch- in t_accname output')
+realm.run(['./t_accname', 'p:host/-nomatch-',
+           'h:host@%s' % socket.gethostname()], expected_msg='host/-nomatch-')
 
 realm.stop()
 
@@ -141,41 +122,25 @@ r3.stop()
 realm = K5Realm()
 
 # Test deferred resolution of the default ccache for initiator creds.
-output = realm.run(['./t_inq_cred'])
-if realm.user_princ not in output:
-    fail('Expected %s in t_inq_cred output' % realm.user_princ)
-output = realm.run(['./t_inq_cred', '-k'])
-if realm.user_princ not in output:
-    fail('Expected %s in t_inq_cred output' % realm.user_princ)
-output = realm.run(['./t_inq_cred', '-s'])
-if realm.user_princ not in output:
-    fail('Expected %s in t_inq_cred output' % realm.user_princ)
+realm.run(['./t_inq_cred'], expected_msg=realm.user_princ)
+realm.run(['./t_inq_cred', '-k'], expected_msg=realm.user_princ)
+realm.run(['./t_inq_cred', '-s'], expected_msg=realm.user_princ)
 
 # Test picking a name from the keytab for acceptor creds.
-output = realm.run(['./t_inq_cred', '-a'])
-if realm.host_princ not in output:
-    fail('Expected %s in t_inq_cred output' % realm.host_princ)
-output = realm.run(['./t_inq_cred', '-k', '-a'])
-if realm.host_princ not in output:
-    fail('Expected %s in t_inq_cred output' % realm.host_princ)
-output = realm.run(['./t_inq_cred', '-s', '-a'])
-if realm.host_princ not in output:
-    fail('Expected %s in t_inq_cred output' % realm.host_princ)
+realm.run(['./t_inq_cred', '-a'], expected_msg=realm.host_princ)
+realm.run(['./t_inq_cred', '-k', '-a'], expected_msg=realm.host_princ)
+realm.run(['./t_inq_cred', '-s', '-a'], expected_msg=realm.host_princ)
 
 # Test client keytab initiation (non-deferred) with a specified name.
 realm.extract_keytab(realm.user_princ, realm.client_keytab)
 os.remove(realm.ccache)
-output = realm.run(['./t_inq_cred', '-k'])
-if realm.user_princ not in output:
-    fail('Expected %s in t_inq_cred output' % realm.user_princ)
+realm.run(['./t_inq_cred', '-k'], expected_msg=realm.user_princ)
 
 # Test deferred client keytab initiation and GSS_C_BOTH cred usage.
 os.remove(realm.client_keytab)
 os.remove(realm.ccache)
 shutil.copyfile(realm.keytab, realm.client_keytab)
-output = realm.run(['./t_inq_cred', '-k', '-b'])
-if realm.host_princ not in output:
-    fail('Expected %s in t_inq_cred output' % realm.host_princ)
+realm.run(['./t_inq_cred', '-k', '-b'], expected_msg=realm.host_princ)
 
 # Test gss_export_name behavior.
 out = realm.run(['./t_export_name', 'u:x'])
@@ -219,5 +184,38 @@ realm.run(['./t_ciflags', 'p:' + realm.host_princ])
 # Test that inquire_context works properly, even on incomplete
 # contexts.
 realm.run(['./t_inq_ctx', 'user', password('user'), 'p:%s' % realm.host_princ])
+
+if runenv.sizeof_time_t <= 4:
+    skip_rest('y2038 GSSAPI tests', 'platform has 32-bit time_t')
+
+# Test lifetime results, using a realm with a large maximum lifetime
+# so that we can test ticket end dates after y2038.
+realm.stop()
+conf = {'realms': {'$realm': {'max_life': '9000d'}}}
+realm = K5Realm(kdc_conf=conf, get_creds=False)
+
+# Check a lifetime string result against an expected number value (or None).
+# Allow some variance due to time elapsed during the tests.
+def check_lifetime(msg, val, expected):
+    if expected is None and val != 'indefinite':
+        fail('%s: expected indefinite, got %s' % (msg, val))
+    if expected is not None and val == 'indefinite':
+        fail('%s: expected %d, got indefinite' % (msg, expected))
+    if expected is not None and abs(int(val) - expected) > 100:
+        fail('%s: expected %d, got %s' % (msg, expected, val))
+
+realm.kinit(realm.user_princ, password('user'), flags=['-l', '8500d'])
+out = realm.run(['./t_lifetime', 'p:' + realm.host_princ, str(8000 * 86400)])
+ln = out.split('\n')
+check_lifetime('icred gss_acquire_cred', ln[0], 8500 * 86400)
+check_lifetime('icred gss_inquire_cred', ln[1], 8500 * 86400)
+check_lifetime('acred gss_acquire_cred', ln[2], None)
+check_lifetime('acred gss_inquire_cred', ln[3], None)
+check_lifetime('ictx gss_init_sec_context', ln[4], 8000 * 86400)
+check_lifetime('ictx gss_inquire_context', ln[5], 8000 * 86400)
+check_lifetime('ictx gss_context_time', ln[6], 8000 * 86400)
+check_lifetime('actx gss_accept_sec_context', ln[7], 8000 * 86400 + 300)
+check_lifetime('actx gss_inquire_context', ln[8], 8000 * 86400 + 300)
+check_lifetime('actx gss_context_time', ln[9], 8000 * 86400 + 300)
 
 success('GSSAPI tests')

@@ -15,7 +15,7 @@
 
 \title{Building MIT Kerberos}
 \date{ }
-\release{1.15.1}
+\release{1.16}
 \author{MIT}
 \newcommand{\sphinxlogo}{}
 \renewcommand{\releasename}{Release}
@@ -887,10 +887,6 @@ implemented crypto backend is \code{openssl}.  (See
 Use specified PRNG algorithm.  For example, to use the OS native
 prng specify \code{-{-}with-prng-alg=os}.  The default is \code{fortuna}.
 (See \emph{mitK5features})
-
-\item[{\textbf{-}\textbf{-with-pkinit-crypto-impl=}\emph{IMPL}}] \leavevmode
-Use the specified pkinit crypto implementation \emph{IMPL}.
-Defaults to using OpenSSL.
 
 \item[{\textbf{-}\textbf{-without-libedit}}] \leavevmode
 Do not compile and link against libedit.  Some utilities will no

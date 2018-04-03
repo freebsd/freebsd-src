@@ -83,12 +83,12 @@ k5_os_hostaddr(krb5_context context, const char *name,
         switch (aip->ai_addr->sa_family) {
         case AF_INET:
             addrlen = sizeof (struct in_addr);
-            ptr = &((struct sockaddr_in *)aip->ai_addr)->sin_addr;
+            ptr = &sa2sin(aip->ai_addr)->sin_addr;
             atype = ADDRTYPE_INET;
             break;
         case AF_INET6:
             addrlen = sizeof (struct in6_addr);
-            ptr = &((struct sockaddr_in6 *)aip->ai_addr)->sin6_addr;
+            ptr = &sa2sin6(aip->ai_addr)->sin6_addr;
             atype = ADDRTYPE_INET6;
             break;
         default:

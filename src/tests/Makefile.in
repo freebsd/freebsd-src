@@ -6,12 +6,12 @@ SUBDIRS = resolve asn.1 create hammer verify gssapi dejagnu shlib \
 RUN_DB_TEST = $(RUN_SETUP) KRB5_KDC_PROFILE=kdc.conf KRB5_CONFIG=krb5.conf \
 	LC_ALL=C $(VALGRIND)
 
-OBJS= adata.o etinfo.o forward.o gcred.o hist.o hooks.o hrealm.o icred.o \
-	kdbtest.o localauth.o plugorder.o rdreq.o responder.o s2p.o \
-	s4u2proxy.o unlockiter.o
+OBJS= adata.o etinfo.o forward.o gcred.o hist.o hooks.o hrealm.o \
+	icinterleave.o icred.o kdbtest.o localauth.o plugorder.o rdreq.o \
+	responder.o s2p.o s4u2proxy.o unlockiter.o
 EXTRADEPSRCS= adata.c etinfo.c forward.c gcred.c hist.c hooks.c hrealm.c \
-	icred.c kdbtest.c localauth.c plugorder.c rdreq.o responder.c s2p.c \
-	s4u2proxy.c unlockiter.c
+	icinterleave.c icred.c kdbtest.c localauth.c plugorder.c rdreq.o \
+	responder.c s2p.c s4u2proxy.c unlockiter.c
 
 TEST_DB = ./testdb
 TEST_REALM = FOO.TEST.REALM
@@ -43,6 +43,9 @@ hooks: hooks.o $(KRB5_BASE_DEPLIBS)
 
 hrealm: hrealm.o $(KRB5_BASE_DEPLIBS)
 	$(CC_LINK) -o $@ hrealm.o $(KRB5_BASE_LIBS)
+
+icinterleave: icinterleave.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ icinterleave.o $(KRB5_BASE_LIBS)
 
 icred: icred.o $(KRB5_BASE_DEPLIBS)
 	$(CC_LINK) -o $@ icred.o $(KRB5_BASE_LIBS)
@@ -115,8 +118,9 @@ kdb_check: kdc.conf krb5.conf
 	$(RUN_DB_TEST) ../kadmin/dbutil/kdb5_util $(KADMIN_OPTS) destroy -f
 	$(RM) $(TEST_DB)* stash_file
 
-check-pytests: adata etinfo forward gcred hist hooks hrealm icred kdbtest
-check-pytests: localauth plugorder rdreq responder s2p s4u2proxy unlockiter
+check-pytests: adata etinfo forward gcred hist hooks hrealm icinterleave icred
+check-pytests: kdbtest localauth plugorder rdreq responder s2p s4u2proxy
+check-pytests: unlockiter
 	$(RUNPYTEST) $(srcdir)/t_general.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_hooks.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_dump.py $(PYTESTFLAGS)
@@ -128,6 +132,7 @@ check-pytests: localauth plugorder rdreq responder s2p s4u2proxy unlockiter
 	$(RUNPYTEST) $(srcdir)/t_otp.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_localauth.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_kadm5_hook.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_kadm5_auth.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_pwqual.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_hostrealm.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_kdb_locking.py $(PYTESTFLAGS)
@@ -167,10 +172,14 @@ check-pytests: localauth plugorder rdreq responder s2p s4u2proxy unlockiter
 	$(RUNPYTEST) $(srcdir)/t_preauth.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_princflags.py $(PYTESTFLAGS)
 	$(RUNPYTEST) $(srcdir)/t_tabdump.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_certauth.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_y2038.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_kdcpolicy.py $(PYTESTFLAGS)
 
 clean:
-	$(RM) adata etinfo forward gcred hist hooks hrealm icred kdbtest
-	$(RM) localauth plugorder rdreq responder s2p s4u2proxy unlockiter
+	$(RM) adata etinfo forward gcred hist hooks hrealm icinterleave icred
+	$(RM) kdbtest localauth plugorder rdreq responder s2p s4u2proxy
+	$(RM) unlockiter
 	$(RM) krb5.conf kdc.conf
 	$(RM) -rf kdc_realm/sandbox ldap
 	$(RM) au.log

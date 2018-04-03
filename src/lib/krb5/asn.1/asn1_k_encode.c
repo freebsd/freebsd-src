@@ -158,8 +158,7 @@ static asn1_error_code
 encode_kerberos_time(asn1buf *buf, const void *p, taginfo *rettag,
                      size_t *len_out)
 {
-    /* Range checking for time_t vs krb5_timestamp?  */
-    time_t val = *(krb5_timestamp *)p;
+    time_t val = ts2tt(*(krb5_timestamp *)p);
     rettag->asn1class = UNIVERSAL;
     rettag->construction = PRIMITIVE;
     rettag->tagnum = ASN1_GENERALTIME;

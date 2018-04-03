@@ -113,7 +113,7 @@ k5_arcfour_docrypt(krb5_key key, const krb5_data *state, krb5_crypto_iov *data,
         return KRB5_BAD_MSIZE;
 
     if (state != NULL) {
-        cipher_state = (ArcFourCipherState *)state->data;
+        cipher_state = (ArcFourCipherState *)(void *)state->data;
         arcfour_ctx = &cipher_state->ctx;
         if (cipher_state->initialized == 0) {
             ret = k5_arcfour_init(arcfour_ctx, key->keyblock.contents,

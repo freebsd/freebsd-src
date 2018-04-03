@@ -1,7 +1,7 @@
 /* -*- mode: c; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /* plugins/preauth/test/cltest.c - Test clpreauth module */
 /*
- * Copyright (C) 2015 by the Massachusetts Institute of Technology.
+ * Copyright (C) 2015, 2017 by the Massachusetts Institute of Technology.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 
 /*
  * This module is used to test preauth interface features.  At this time, the
- * clpreauth module does two things:
+ * clpreauth module does the following:
  *
  * - It decrypts a message from the initial KDC pa-data using the reply key and
  *   prints it to stdout.  (The unencrypted message "no key" can also be
@@ -45,17 +45,27 @@
  *   it to the server, instructing the kdcpreauth module to assert one or more
  *   space-separated authentication indicators.  (This string is sent on both
  *   round trips if a second round trip is requested.)
+ *
+ * - If a KDC_ERR_ENCTYPE_NOSUPP error with e-data is received, it prints the
+ *   accompanying error padata and sends a follow-up request containing
+ *   "tryagain".
+ *
+ * - If the "fail_optimistic", "fail_2rt", or "fail_tryagain" gic options are
+ *   set, it fails with a recognizable error string at the requested point in
+ *   processing.
  */
 
 #include "k5-int.h"
 #include <krb5/clpreauth_plugin.h>
-
-#define TEST_PA_TYPE -123
+#include "common.h"
 
 static krb5_preauthtype pa_types[] = { TEST_PA_TYPE, 0 };
 
 struct client_state {
     char *indicators;
+    krb5_boolean fail_optimistic;
+    krb5_boolean fail_2rt;
+    krb5_boolean fail_tryagain;
 };
 
 struct client_request_state {
@@ -70,6 +80,7 @@ test_init(krb5_context context, krb5_clpreauth_moddata *moddata_out)
     st = malloc(sizeof(*st));
     assert(st != NULL);
     st->indicators = NULL;
+    st->fail_optimistic = st->fail_2rt = st->fail_tryagain = FALSE;
     *moddata_out = (krb5_clpreauth_moddata)st;
     return 0;
 }
@@ -114,7 +125,6 @@ test_process(krb5_context context, krb5_clpreauth_moddata moddata,
     struct client_state *st = (struct client_state *)moddata;
     struct client_request_state *reqst = (struct client_request_state *)modreq;
     krb5_error_code ret;
-    krb5_pa_data **list, *pa;
     krb5_keyblock *k;
     krb5_enc_data enc;
     krb5_data plain;
@@ -123,20 +133,18 @@ test_process(krb5_context context, krb5_clpreauth_moddata moddata,
     if (pa_data->length == 0) {
         /* This is an optimistic preauth test.  Send a recognizable padata
          * value so the KDC knows not to expect a cookie. */
-        list = k5calloc(2, sizeof(*list), &ret);
-        assert(!ret);
-        pa = k5alloc(sizeof(*pa), &ret);
-        assert(!ret);
-        pa->pa_type = TEST_PA_TYPE;
-        pa->contents = (uint8_t *)strdup("optimistic");
-        assert(pa->contents != NULL);
-        pa->length = 10;
-        list[0] = pa;
-        list[1] = NULL;
-        *out_pa_data = list;
+        if (st->fail_optimistic) {
+            k5_setmsg(context, KRB5_PREAUTH_FAILED, "induced optimistic fail");
+            return KRB5_PREAUTH_FAILED;
+        }
+        *out_pa_data = make_pa_list("optimistic", 10);
         return 0;
     } else if (reqst->second_round_trip) {
         printf("2rt: %.*s\n", pa_data->length, pa_data->contents);
+        if (st->fail_2rt) {
+            k5_setmsg(context, KRB5_PREAUTH_FAILED, "induced 2rt fail");
+            return KRB5_PREAUTH_FAILED;
+        }
     } else if (pa_data->length == 6 &&
                memcmp(pa_data->contents, "no key", 6) == 0) {
         printf("no key\n");
@@ -157,17 +165,34 @@ test_process(krb5_context context, krb5_clpreauth_moddata moddata,
     reqst->second_round_trip = TRUE;
 
     indstr = (st->indicators != NULL) ? st->indicators : "";
-    list = k5calloc(2, sizeof(*list), &ret);
-    assert(!ret);
-    pa = k5alloc(sizeof(*pa), &ret);
-    assert(!ret);
-    pa->pa_type = TEST_PA_TYPE;
-    pa->contents = (uint8_t *)strdup(indstr);
-    assert(pa->contents != NULL);
-    pa->length = strlen(indstr);
-    list[0] = pa;
-    list[1] = NULL;
-    *out_pa_data = list;
+    *out_pa_data = make_pa_list(indstr, strlen(indstr));
+    return 0;
+}
+
+static krb5_error_code
+test_tryagain(krb5_context context, krb5_clpreauth_moddata moddata,
+              krb5_clpreauth_modreq modreq, krb5_get_init_creds_opt *opt,
+              krb5_clpreauth_callbacks cb, krb5_clpreauth_rock rock,
+              krb5_kdc_req *request, krb5_data *enc_req, krb5_data *enc_prev,
+              krb5_preauthtype pa_type, krb5_error *error,
+              krb5_pa_data **padata, krb5_prompter_fct prompter,
+              void *prompter_data, krb5_pa_data ***padata_out)
+{
+    struct client_state *st = (struct client_state *)moddata;
+    int i;
+
+    *padata_out = NULL;
+    if (st->fail_tryagain) {
+        k5_setmsg(context, KRB5_PREAUTH_FAILED, "induced tryagain fail");
+        return KRB5_PREAUTH_FAILED;
+    }
+    if (error->error != KDC_ERR_ENCTYPE_NOSUPP)
+        return KRB5_PREAUTH_FAILED;
+    for (i = 0; padata[i] != NULL; i++) {
+        if (padata[i]->pa_type == TEST_PA_TYPE)
+            printf("tryagain: %.*s\n", padata[i]->length, padata[i]->contents);
+    }
+    *padata_out = make_pa_list("tryagain", 8);
     return 0;
 }
 
@@ -181,6 +206,12 @@ test_gic_opt(krb5_context kcontext, krb5_clpreauth_moddata moddata,
         free(st->indicators);
         st->indicators = strdup(value);
         assert(st->indicators != NULL);
+    } else if (strcmp(attr, "fail_optimistic") == 0) {
+        st->fail_optimistic = TRUE;
+    } else if (strcmp(attr, "fail_2rt") == 0) {
+        st->fail_2rt = TRUE;
+    } else if (strcmp(attr, "fail_tryagain") == 0) {
+        st->fail_tryagain = TRUE;
     }
     return 0;
 }
@@ -205,6 +236,7 @@ clpreauth_test_initvt(krb5_context context, int maj_ver,
     vt->request_init = test_request_init;
     vt->request_fini = test_request_fini;
     vt->process = test_process;
+    vt->tryagain = test_tryagain;
     vt->gic_opts = test_gic_opt;
     return 0;
 }

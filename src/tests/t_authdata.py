@@ -24,10 +24,8 @@ if ' -5: test1' not in out or '?-6: test2' not in out:
 if 'fake' in out:
     fail('KDC-only authdata not filtered for request with authdata')
 
-out = realm.run(['./adata', realm.host_princ, '!-1', 'mandatoryforkdc'],
-                expected_code=1)
-if 'KDC policy rejects request' not in out:
-    fail('Wrong error seen for mandatory-for-kdc failure')
+realm.run(['./adata', realm.host_princ, '!-1', 'mandatoryforkdc'],
+          expected_code=1, expected_msg='KDC policy rejects request')
 
 # The no_auth_data_required server flag should suppress SIGNTICKET,
 # but not module or request authdata.
@@ -88,6 +86,7 @@ realm, realm2 = cross_realms(2, args=({'realm': 'LOCAL'},
 realm.run([kadminl, 'modprinc', '+requires_preauth', '-maxrenewlife', '2 days',
            realm.user_princ])
 realm.run([kadminl, 'modprinc', '-maxrenewlife', '2 days', realm.host_princ])
+realm.run([kadminl, 'modprinc', '-maxrenewlife', '2 days', realm.krbtgt_princ])
 realm.extract_keytab(realm.krbtgt_princ, realm.keytab)
 realm.extract_keytab(realm.host_princ, realm.keytab)
 realm.extract_keytab('krbtgt/FOREIGN', realm.keytab)
@@ -98,45 +97,32 @@ realm2.extract_keytab('krbtgt/LOCAL', realm.keytab)
 # AS request to local-realm service
 realm.kinit(realm.user_princ, password('user'),
             ['-X', 'indicators=indcl', '-r', '2d', '-S', realm.host_princ])
-out = realm.run(['./adata', realm.host_princ])
-if '+97: [indcl]' not in out:
-    fail('auth-indicator not seen for AS req to service')
+realm.run(['./adata', realm.host_princ], expected_msg='+97: [indcl]')
 
 # Ticket modification request
 realm.kinit(realm.user_princ, None, ['-R', '-S', realm.host_princ])
-out = realm.run(['./adata', realm.host_princ])
-if '+97: [indcl]' not in out:
-    fail('auth-indicator not seen for ticket modification request')
+realm.run(['./adata', realm.host_princ], expected_msg='+97: [indcl]')
 
 # AS request to cross TGT
 realm.kinit(realm.user_princ, password('user'),
             ['-X', 'indicators=indcl', '-S', 'krbtgt/FOREIGN'])
-out = realm.run(['./adata', 'krbtgt/FOREIGN'])
-if '+97: [indcl]' not in out:
-    fail('auth-indicator not seen for AS req to cross-realm TGT')
+realm.run(['./adata', 'krbtgt/FOREIGN'], expected_msg='+97: [indcl]')
 
 # Multiple indicators
 realm.kinit(realm.user_princ, password('user'),
             ['-X', 'indicators=indcl indcl2 indcl3'])
-out = realm.run(['./adata', realm.krbtgt_princ])
-if '+97: [indcl, indcl2, indcl3]' not in out:
-    fail('multiple auth-indicators not seen for normal AS req')
+realm.run(['./adata', realm.krbtgt_princ],
+          expected_msg='+97: [indcl, indcl2, indcl3]')
 
 # AS request to local TGT (resulting creds are used for TGS tests)
 realm.kinit(realm.user_princ, password('user'), ['-X', 'indicators=indcl'])
-out = realm.run(['./adata', realm.krbtgt_princ])
-if '+97: [indcl]' not in out:
-    fail('auth-indicator not seen for normal AS req')
+realm.run(['./adata', realm.krbtgt_princ], expected_msg='+97: [indcl]')
 
 # Local TGS request for local realm service
-out = realm.run(['./adata', realm.host_princ])
-if '+97: [indcl]' not in out:
-    fail('auth-indicator not seen for local TGS req')
+realm.run(['./adata', realm.host_princ], expected_msg='+97: [indcl]')
 
 # Local TGS request for cross TGT service
-out = realm.run(['./adata', 'krbtgt/FOREIGN'])
-if '+97: [indcl]' not in out:
-    fail('auth-indicator not seen for TGS req to cross-realm TGT')
+realm.run(['./adata', 'krbtgt/FOREIGN'], expected_msg='+97: [indcl]')
 
 # We don't yet have support for passing auth indicators across realms,
 # so just verify that indicators don't survive cross-realm requests.
@@ -152,16 +138,13 @@ if '97:' in out:
 
 # Test that the CAMMAC signature still works during a krbtgt rollover.
 realm.run([kadminl, 'cpw', '-randkey', '-keepold', realm.krbtgt_princ])
-out = realm.run(['./adata', realm.host_princ])
-if '+97: [indcl]' not in out:
-    fail('auth-indicator not seen for local TGS req after krbtgt rotation')
+realm.run(['./adata', realm.host_princ], expected_msg='+97: [indcl]')
 
 # Test indicator enforcement.
 realm.addprinc('restricted')
 realm.run([kadminl, 'setstr', 'restricted', 'require_auth', 'superstrong'])
-out = realm.run([kvno, 'restricted'], expected_code=1)
-if 'KDC policy rejects request' not in out:
-    fail('expected error not seen for auth indicator enforcement')
+realm.run([kvno, 'restricted'], expected_code=1,
+          expected_msg='KDC policy rejects request')
 realm.run([kadminl, 'setstr', 'restricted', 'require_auth', 'indcl'])
 realm.run([kvno, 'restricted'])
 realm.kinit(realm.user_princ, password('user'), ['-X', 'indicators=ind1 ind2'])
@@ -176,6 +159,13 @@ realm.kinit(realm.user_princ, password('user'), ['-f'])
 realm.run([kadminl, 'cpw', '-randkey', '-keepold', '-e', 'des3-cbc-sha1',
            realm.krbtgt_princ])
 realm.run(['./forward'])
+realm.run([kvno, realm.host_princ])
+
+# Repeat the above test using a renewed TGT.
+realm.kinit(realm.user_princ, password('user'), ['-r', '2d'])
+realm.run([kadminl, 'cpw', '-randkey', '-keepold', '-e', 'aes128-cts',
+           realm.krbtgt_princ])
+realm.kinit(realm.user_princ, None, ['-R'])
 realm.run([kvno, realm.host_princ])
 
 realm.stop()
@@ -222,13 +212,11 @@ if '+97: [indcl]' not in out or '[inds1]' in out:
 # Test that KDB module authdata is included in an AS request, by
 # default or with an explicit PAC request.
 realm.kinit(realm.user_princ, None, ['-k'])
-out = realm.run(['./adata', realm.krbtgt_princ])
-if '-456: db-authdata-test' not in out:
-    fail('DB authdata not seen in default AS request')
+realm.run(['./adata', realm.krbtgt_princ],
+          expected_msg='-456: db-authdata-test')
 realm.kinit(realm.user_princ, None, ['-k', '--request-pac'])
-out = realm.run(['./adata', realm.krbtgt_princ])
-if '-456: db-authdata-test' not in out:
-    fail('DB authdata not seen with --request-pac')
+realm.run(['./adata', realm.krbtgt_princ],
+          expected_msg='-456: db-authdata-test')
 
 # Test that KDB module authdata is suppressed in an AS request by a
 # negative PAC request.
@@ -238,9 +226,7 @@ if '-456: db-authdata-test' in out:
     fail('DB authdata not suppressed by --no-request-pac')
 
 # Test that KDB authdata is included in a TGS request by default.
-out = realm.run(['./adata', 'service/1'])
-if '-456: db-authdata-test' not in out:
-    fail('DB authdata not seen in TGS request')
+realm.run(['./adata', 'service/1'], expected_msg='-456: db-authdata-test')
 
 # Test that KDB authdata is suppressed in a TGS request by the
 # +no_auth_data_required flag.

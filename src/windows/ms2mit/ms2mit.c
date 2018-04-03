@@ -74,7 +74,7 @@ cc_has_tickets(krb5_context kcontext, krb5_ccache ccache, int *has_tickets)
             break;
 
         if (!krb5_is_config_principal(kcontext, creds.server) &&
-            creds.times.endtime > now)
+            ts_after(creds.times.endtime, now))
             *has_tickets = 1;
 
         krb5_free_cred_contents(kcontext, &creds);

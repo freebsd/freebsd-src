@@ -92,9 +92,8 @@ def check_stash(*expected):
 
 # Verify that the user principal has the expected mkvno.
 def check_mkvno(princ, expected_mkvno):
-    out = realm.run([kadminl, 'getprinc', princ])
-    if ('MKey: vno %d\n' % expected_mkvno) not in out:
-        fail('Unexpected mkvno in user DB entry')
+    msg = 'MKey: vno %d\n' % expected_mkvno
+    realm.run([kadminl, 'getprinc', princ], expected_msg=msg)
 
 
 # Change the password using either kadmin.local or kadmin, then check
@@ -160,9 +159,8 @@ check_mkvno(realm.user_princ, 1)
 collisionfile = os.path.join(realm.testdir, 'stash_tmp')
 f = open(collisionfile, 'w')
 f.close()
-output = realm.run([kdb5_util, 'stash'], expected_code=1)
-if 'Temporary stash file already exists' not in output:
-    fail('Did not detect temp stash file collision')
+realm.run([kdb5_util, 'stash'], expected_code=1,
+          expected_msg='Temporary stash file already exists')
 os.unlink(collisionfile)
 
 # Add a new master key with no options.  Verify that:
@@ -179,9 +177,8 @@ change_password_check_mkvno(True, realm.user_princ, 'abcd', 1)
 change_password_check_mkvno(False, realm.user_princ, 'user', 1)
 
 # Verify that use_mkey won't make all master keys inactive.
-out = realm.run([kdb5_util, 'use_mkey', '1', 'now+1day'], expected_code=1)
-if 'there must be one master key currently active' not in out:
-    fail('Unexpected error from use_mkey making all mkeys inactive')
+realm.run([kdb5_util, 'use_mkey', '1', 'now+1day'], expected_code=1,
+          expected_msg='there must be one master key currently active')
 check_mkey_list((2, defetype, False, False), (1, defetype, True, True))
 
 # Make the new master key active.  Verify that:
@@ -194,9 +191,8 @@ change_password_check_mkvno(True, realm.user_princ, 'abcd', 2)
 change_password_check_mkvno(False, realm.user_princ, 'user', 2)
 
 # Check purge_mkeys behavior with both master keys still in use.
-out = realm.run([kdb5_util, 'purge_mkeys', '-f', '-v'])
-if 'All keys in use, nothing purged.' not in out:
-    fail('Unexpected output from purge_mkeys with both mkeys in use')
+realm.run([kdb5_util, 'purge_mkeys', '-f', '-v'],
+          expected_msg='All keys in use, nothing purged.')
 
 # Do an update_princ_encryption dry run and for real.  Verify that:
 # 1. The target master key is 2 (the active mkvno).
@@ -226,9 +222,8 @@ update_princ_encryption(False, 2, nprincs - 1, 0)
 check_mkvno(realm.user_princ, 2)
 
 # Test the safety check for purging with an outdated stash file.
-out = realm.run([kdb5_util, 'purge_mkeys', '-f'], expected_code=1)
-if 'stash file needs updating' not in out:
-    fail('Unexpected error from purge_mkeys safety check')
+realm.run([kdb5_util, 'purge_mkeys', '-f'], expected_code=1,
+          expected_msg='stash file needs updating')
 
 # Update the master stash file and check it.  Save a copy of the old
 # one for a later test.
@@ -253,18 +248,15 @@ check_mkey_list((2, defetype, True, True))
 check_master_dbent(2, (2, defetype))
 os.rename(stash_file, stash_file + '.save')
 os.rename(stash_file + '.old', stash_file)
-out = realm.run([kadminl, 'getprinc', 'user'], expected_code=1)
-if 'Unable to decrypt latest master key' not in out:
-    fail('Unexpected error from kadmin.local with old stash file')
+realm.run([kadminl, 'getprinc', 'user'], expected_code=1,
+          expected_msg='Unable to decrypt latest master key')
 os.rename(stash_file + '.save', stash_file)
 realm.run([kdb5_util, 'stash'])
 check_stash((2, defetype))
-out = realm.run([kdb5_util, 'use_mkey', '1'], expected_code=1)
-if '1 is an invalid KVNO value' not in out:
-    fail('Unexpected error from use_mkey with invalid kvno')
-out = realm.run([kdb5_util, 'purge_mkeys', '-f', '-v'])
-if 'There is only one master key which can not be purged.' not in out:
-    fail('Unexpected output from purge_mkeys with one mkey')
+realm.run([kdb5_util, 'use_mkey', '1'], expected_code=1,
+          expected_msg='1 is an invalid KVNO value')
+realm.run([kdb5_util, 'purge_mkeys', '-f', '-v'],
+          expected_msg='There is only one master key which can not be purged.')
 
 # Add a third master key with a specified enctype.  Verify that:
 # 1. The new master key receives the correct number.
@@ -331,8 +323,7 @@ check_mkey_list((2, defetype, True, True), (1, des3, True, False))
 # Regression test for #8395.  Purge the master key and verify that a
 # master key fetch does not segfault.
 realm.run([kadminl, 'purgekeys', '-all', 'K/M'])
-out = realm.run([kadminl, 'getprinc', realm.user_princ], expected_code=1)
-if 'Cannot find master key record in database' not in out:
-    fail('Unexpected output from failed master key fetch')
+realm.run([kadminl, 'getprinc', realm.user_princ], expected_code=1,
+          expected_msg='Cannot find master key record in database')
 
 success('Master key rollover tests')

@@ -39,15 +39,10 @@ realm.run([kadminl, 'addprinc', '-pw', 'pass', '-pwexpire', '3 days', 'days'])
 output = realm.run(['./t_expire_warn', 'noexpire', 'pass', '0'])
 if output:
     fail('Unexpected output for noexpire')
-output = realm.run(['./t_expire_warn', 'minutes', 'pass', '0'])
-if ' less than one hour on ' not in output:
-    fail('Expected warning not seen for minutes')
-output = realm.run(['./t_expire_warn', 'hours', 'pass', '0'])
-if ' hours on ' not in output:
-    fail('Expected warning not seen for hours')
-output = realm.run(['./t_expire_warn', 'days', 'pass', '0'])
-if ' days on ' not in output:
-    fail('Expected warning not seen for days')
+realm.run(['./t_expire_warn', 'minutes', 'pass', '0'],
+          expected_msg=' less than one hour on ')
+realm.run(['./t_expire_warn', 'hours', 'pass', '0'], expected_msg=' hours on ')
+realm.run(['./t_expire_warn', 'days', 'pass', '0'], expected_msg=' days on ')
 
 # Check for expected expire callback behavior.  These tests are
 # carefully agnostic about whether the KDC supports last_req fields,

@@ -32,13 +32,14 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
+
 /* Need definition of INET6 before network headers, for IRIX.  */
 #if defined(HAVE_ARPA_INET_H)
 #include <arpa/inet.h>
 #endif
 
 #ifndef _WIN32
-#define GET_PROGNAME(x) (strrchr((x), '/') ? strrchr((x), '/')+1 : (x))
+#define GET_PROGNAME(x) (strrchr((x), '/') ? strrchr((x), '/') + 1 : (x))
 #else
 #define GET_PROGNAME(x) max(max(strrchr((x), '/'), strrchr((x), '\\')) + 1,(x))
 #endif
@@ -56,34 +57,33 @@ int show_adtype = 0, show_all = 0, list_all = 0, use_client_keytab = 0;
 int show_config = 0;
 char *defname;
 char *progname;
-krb5_int32 now;
+krb5_timestamp now;
 unsigned int timestamp_width;
 
-krb5_context kcontext;
+krb5_context context;
 
-krb5_boolean is_local_tgt (krb5_principal princ, krb5_data *realm);
-char * etype_string (krb5_enctype );
-void show_credential (krb5_creds *);
+static krb5_boolean is_local_tgt(krb5_principal princ, krb5_data *realm);
+static char *etype_string(krb5_enctype );
+static void show_credential(krb5_creds *);
 
-void list_all_ccaches (void);
-int list_ccache (krb5_ccache);
-void show_all_ccaches (void);
-void do_ccache_name (char *);
-int show_ccache (krb5_ccache);
-int check_ccache (krb5_ccache);
-void do_keytab (char *);
-void printtime (time_t);
-void one_addr (krb5_address *);
-void fillit (FILE *, unsigned int, int);
+static void list_all_ccaches(void);
+static int list_ccache(krb5_ccache);
+static void show_all_ccaches(void);
+static void do_ccache(void);
+static int show_ccache(krb5_ccache);
+static int check_ccache(krb5_ccache);
+static void do_keytab(const char *);
+static void printtime(krb5_timestamp);
+static void one_addr(krb5_address *);
+static void fillit(FILE *, unsigned int, int);
 
 #define DEFAULT 0
 #define CCACHE 1
 #define KEYTAB 2
 
-static void usage()
+static void
+usage()
 {
-#define KRB_AVAIL_STRING(x) ((x)?"available":"not available")
-
     fprintf(stderr, _("Usage: %s [-e] [-V] [[-c] [-l] [-A] [-d] [-f] [-s] "
                       "[-a [-n]]] [-k [-t] [-K]] [name]\n"), progname);
     fprintf(stderr, _("\t-c specifies credentials cache\n"));
@@ -114,21 +114,19 @@ extended_com_err_fn(const char *prog, errcode_t code, const char *fmt,
 {
     const char *msg;
 
-    msg = krb5_get_error_message(kcontext, code);
+    msg = krb5_get_error_message(context, code);
     fprintf(stderr, "%s: %s%s", prog, msg, (*fmt == '\0') ? "" : " ");
-    krb5_free_error_message(kcontext, msg);
+    krb5_free_error_message(context, msg);
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
 }
 
 int
-main(argc, argv)
-    int argc;
-    char **argv;
+main(int argc, char *argv[])
 {
-    int c;
-    char *name;
-    int mode;
+    krb5_error_code ret;
+    char *name, tmp[BUFSIZ];
+    int c, mode;
 
     setlocale(LC_ALL, "");
     progname = GET_PROGNAME(argv[0]);
@@ -136,7 +134,7 @@ main(argc, argv)
 
     name = NULL;
     mode = DEFAULT;
-    /* V=version so v can be used for verbose later if desired.  */
+    /* V = version so v can be used for verbose later if desired. */
     while ((c = getopt(argc, argv, "dfetKsnacki45lAVC")) != -1) {
         switch (c) {
         case 'd':
@@ -164,11 +162,13 @@ main(argc, argv)
             show_addresses = 1;
             break;
         case 'c':
-            if (mode != DEFAULT) usage();
+            if (mode != DEFAULT)
+                usage();
             mode = CCACHE;
             break;
         case 'k':
-            if (mode != DEFAULT) usage();
+            if (mode != DEFAULT)
+                usage();
             mode = KEYTAB;
             break;
         case 'i':
@@ -198,9 +198,8 @@ main(argc, argv)
         }
     }
 
-    if (no_resolve && !show_addresses) {
+    if (no_resolve && !show_addresses)
         usage();
-    }
 
     if (mode == DEFAULT || mode == CCACHE) {
         if (show_time || show_keys)
@@ -215,7 +214,7 @@ main(argc, argv)
 
     if (argc - optind > 1) {
         fprintf(stderr, _("Extra arguments (starting with \"%s\").\n"),
-                argv[optind+1]);
+                argv[optind + 1]);
         usage();
     }
 
@@ -228,77 +227,82 @@ main(argc, argv)
         exit(0);
     }
 
-    name = (optind == argc-1) ? argv[optind] : 0;
-
+    name = (optind == argc - 1) ? argv[optind] : NULL;
     now = time(0);
-    {
-        char tmp[BUFSIZ];
 
-        if (!krb5_timestamp_to_sfstring(now, tmp, 20, (char *) NULL) ||
-            !krb5_timestamp_to_sfstring(now, tmp, sizeof(tmp),
-                                        (char *) NULL))
-            timestamp_width = (int) strlen(tmp);
-        else
-            timestamp_width = 15;
+    if (!krb5_timestamp_to_sfstring(now, tmp, 20, NULL) ||
+        !krb5_timestamp_to_sfstring(now, tmp, sizeof(tmp), NULL))
+        timestamp_width = (int)strlen(tmp);
+    else
+        timestamp_width = 15;
+
+    ret = krb5_init_context(&context);
+    if (ret) {
+        com_err(progname, ret, _("while initializing krb5"));
+        exit(1);
     }
 
-    {
-        krb5_error_code retval;
-        retval = krb5_init_context(&kcontext);
-        if (retval) {
-            com_err(progname, retval, _("while initializing krb5"));
+    if (name != NULL && mode != KEYTAB) {
+        ret = krb5_cc_set_default_name(context, name);
+        if (ret) {
+            com_err(progname, ret, _("while setting default cache name"));
             exit(1);
         }
-
-        if (list_all)
-            list_all_ccaches();
-        else if (show_all)
-            show_all_ccaches();
-        else if (mode == DEFAULT || mode == CCACHE)
-            do_ccache_name(name);
-        else
-            do_keytab(name);
     }
 
+    if (list_all)
+        list_all_ccaches();
+    else if (show_all)
+        show_all_ccaches();
+    else if (mode == DEFAULT || mode == CCACHE)
+        do_ccache();
+    else
+        do_keytab(name);
     return 0;
 }
 
-void do_keytab(name)
-    char *name;
+static void
+do_keytab(const char *name)
 {
+    krb5_error_code ret;
     krb5_keytab kt;
     krb5_keytab_entry entry;
     krb5_kt_cursor cursor;
-    char buf[BUFSIZ]; /* hopefully large enough for any type */
+    unsigned int i;
+    char buf[BUFSIZ]; /* Hopefully large enough for any type */
     char *pname;
-    int code;
 
     if (name == NULL && use_client_keytab) {
-        if ((code = krb5_kt_client_default(kcontext, &kt))) {
-            com_err(progname, code, _("while getting default client keytab"));
+        ret = krb5_kt_client_default(context, &kt);
+        if (ret) {
+            com_err(progname, ret, _("while getting default client keytab"));
             exit(1);
         }
     } else if (name == NULL) {
-        if ((code = krb5_kt_default(kcontext, &kt))) {
-            com_err(progname, code, _("while getting default keytab"));
+        ret = krb5_kt_default(context, &kt);
+        if (ret) {
+            com_err(progname, ret, _("while getting default keytab"));
             exit(1);
         }
     } else {
-        if ((code = krb5_kt_resolve(kcontext, name, &kt))) {
-            com_err(progname, code, _("while resolving keytab %s"), name);
+        ret = krb5_kt_resolve(context, name, &kt);
+        if (ret) {
+            com_err(progname, ret, _("while resolving keytab %s"), name);
             exit(1);
         }
     }
 
-    if ((code = krb5_kt_get_name(kcontext, kt, buf, BUFSIZ))) {
-        com_err(progname, code, _("while getting keytab name"));
+    ret = krb5_kt_get_name(context, kt, buf, BUFSIZ);
+    if (ret) {
+        com_err(progname, ret, _("while getting keytab name"));
         exit(1);
     }
 
     printf("Keytab name: %s\n", buf);
 
-    if ((code = krb5_kt_start_seq_get(kcontext, kt, &cursor))) {
-        com_err(progname, code, _("while starting keytab scan"));
+    ret = krb5_kt_start_seq_get(context, kt, &cursor);
+    if (ret) {
+        com_err(progname, ret, _("while starting keytab scan"));
         exit(1);
     }
 
@@ -314,12 +318,14 @@ void do_keytab(name)
         printf("\n");
     } else {
         printf("KVNO Principal\n");
-        printf("---- --------------------------------------------------------------------------\n");
+        printf("---- ------------------------------------------------"
+               "--------------------------\n");
     }
 
-    while ((code = krb5_kt_next_entry(kcontext, kt, &entry, &cursor)) == 0) {
-        if ((code = krb5_unparse_name(kcontext, entry.principal, &pname))) {
-            com_err(progname, code, _("while unparsing principal name"));
+    while ((ret = krb5_kt_next_entry(context, kt, &entry, &cursor)) == 0) {
+        ret = krb5_unparse_name(context, entry.principal, &pname);
+        if (ret) {
+            com_err(progname, ret, _("while unparsing principal name"));
             exit(1);
         }
         printf("%4d ", entry.vno);
@@ -332,40 +338,38 @@ void do_keytab(name)
             printf(" (%s) " , etype_string(entry.key.enctype));
         if (show_keys) {
             printf(" (0x");
-            {
-                unsigned int i;
-                for (i = 0; i < entry.key.length; i++)
-                    printf("%02x", entry.key.contents[i]);
-            }
+            for (i = 0; i < entry.key.length; i++)
+                printf("%02x", entry.key.contents[i]);
             printf(")");
         }
         printf("\n");
-        krb5_free_unparsed_name(kcontext, pname);
-        krb5_free_keytab_entry_contents(kcontext, &entry);
+        krb5_free_unparsed_name(context, pname);
+        krb5_free_keytab_entry_contents(context, &entry);
     }
-    if (code && code != KRB5_KT_END) {
-        com_err(progname, code, _("while scanning keytab"));
+    if (ret && ret != KRB5_KT_END) {
+        com_err(progname, ret, _("while scanning keytab"));
         exit(1);
     }
-    if ((code = krb5_kt_end_seq_get(kcontext, kt, &cursor))) {
-        com_err(progname, code, _("while ending keytab scan"));
+    ret = krb5_kt_end_seq_get(context, kt, &cursor);
+    if (ret) {
+        com_err(progname, ret, _("while ending keytab scan"));
         exit(1);
     }
     exit(0);
 }
 
-void
-list_all_ccaches(void)
+static void
+list_all_ccaches()
 {
-    krb5_error_code code;
+    krb5_error_code ret;
     krb5_ccache cache;
     krb5_cccol_cursor cursor;
     int exit_status;
 
-    code = krb5_cccol_cursor_new(kcontext, &cursor);
-    if (code) {
+    ret = krb5_cccol_cursor_new(context, &cursor);
+    if (ret) {
         if (!status_only)
-            com_err(progname, code, _("while listing ccache collection"));
+            com_err(progname, ret, _("while listing ccache collection"));
         exit(1);
     }
 
@@ -373,31 +377,31 @@ list_all_ccaches(void)
     printf("%-30s %s\n", "Principal name", "Cache name");
     printf("%-30s %s\n", "--------------", "----------");
     exit_status = 1;
-    while (!(code = krb5_cccol_cursor_next(kcontext, cursor, &cache)) &&
+    while ((ret = krb5_cccol_cursor_next(context, cursor, &cache)) == 0 &&
            cache != NULL) {
         exit_status = list_ccache(cache) && exit_status;
-        krb5_cc_close(kcontext, cache);
+        krb5_cc_close(context, cache);
     }
-    krb5_cccol_cursor_free(kcontext, &cursor);
+    krb5_cccol_cursor_free(context, &cursor);
     exit(exit_status);
 }
 
-int
+static int
 list_ccache(krb5_ccache cache)
 {
-    krb5_error_code code;
+    krb5_error_code ret;
     krb5_principal princ = NULL;
     char *princname = NULL, *ccname = NULL;
     int expired, status = 1;
 
-    code = krb5_cc_get_principal(kcontext, cache, &princ);
-    if (code)                   /* Uninitialized cache file, probably. */
+    ret = krb5_cc_get_principal(context, cache, &princ);
+    if (ret)                    /* Uninitialized cache file, probably. */
         goto cleanup;
-    code = krb5_unparse_name(kcontext, princ, &princname);
-    if (code)
+    ret = krb5_unparse_name(context, princ, &princname);
+    if (ret)
         goto cleanup;
-    code = krb5_cc_get_full_name(kcontext, cache, &ccname);
-    if (code)
+    ret = krb5_cc_get_full_name(context, cache, &ccname);
+    if (ret)
         goto cleanup;
 
     expired = check_ccache(cache);
@@ -408,87 +412,82 @@ list_ccache(krb5_ccache cache)
     printf("\n");
 
     status = 0;
+
 cleanup:
-    krb5_free_principal(kcontext, princ);
-    krb5_free_unparsed_name(kcontext, princname);
-    krb5_free_string(kcontext, ccname);
+    krb5_free_principal(context, princ);
+    krb5_free_unparsed_name(context, princname);
+    krb5_free_string(context, ccname);
     return status;
 }
 
-void
+static void
 show_all_ccaches(void)
 {
-    krb5_error_code code;
+    krb5_error_code ret;
     krb5_ccache cache;
     krb5_cccol_cursor cursor;
     krb5_boolean first;
     int exit_status, st;
 
-    code = krb5_cccol_cursor_new(kcontext, &cursor);
-    if (code) {
+    ret = krb5_cccol_cursor_new(context, &cursor);
+    if (ret) {
         if (!status_only)
-            com_err(progname, code, _("while listing ccache collection"));
+            com_err(progname, ret, _("while listing ccache collection"));
         exit(1);
     }
     exit_status = 1;
     first = TRUE;
-    while (!(code = krb5_cccol_cursor_next(kcontext, cursor, &cache)) &&
+    while ((ret = krb5_cccol_cursor_next(context, cursor, &cache)) == 0 &&
            cache != NULL) {
         if (!status_only && !first)
             printf("\n");
         first = FALSE;
         st = status_only ? check_ccache(cache) : show_ccache(cache);
         exit_status = st && exit_status;
-        krb5_cc_close(kcontext, cache);
+        krb5_cc_close(context, cache);
     }
-    krb5_cccol_cursor_free(kcontext, &cursor);
+    krb5_cccol_cursor_free(context, &cursor);
     exit(exit_status);
 }
 
-void
-do_ccache_name(char *name)
+static void
+do_ccache()
 {
-    krb5_error_code code;
+    krb5_error_code ret;
     krb5_ccache cache;
 
-    if (name == NULL) {
-        if ((code = krb5_cc_default(kcontext, &cache))) {
-            if (!status_only)
-                com_err(progname, code, _("while getting default ccache"));
-            exit(1);
-        }
-    } else {
-        if ((code = krb5_cc_resolve(kcontext, name, &cache))) {
-            if (!status_only)
-                com_err(progname, code, _("while resolving ccache %s"),
-                        name);
-            exit(1);
-        }
+    ret = krb5_cc_default(context, &cache);
+    if (ret) {
+        if (!status_only)
+            com_err(progname, ret, _("while resolving ccache"));
+        exit(1);
     }
     exit(status_only ? check_ccache(cache) : show_ccache(cache));
 }
 
 /* Display the contents of cache. */
-int
+static int
 show_ccache(krb5_ccache cache)
 {
     krb5_cc_cursor cur;
     krb5_creds creds;
     krb5_principal princ;
-    krb5_error_code code;
+    krb5_error_code ret;
 
-    if ((code = krb5_cc_get_principal(kcontext, cache, &princ))) {
-        com_err(progname, code, "");
+    ret = krb5_cc_get_principal(context, cache, &princ);
+    if (ret) {
+        com_err(progname, ret, "");
         return 1;
     }
-    if ((code = krb5_unparse_name(kcontext, princ, &defname))) {
-        com_err(progname, code, _("while unparsing principal name"));
+    ret = krb5_unparse_name(context, princ, &defname);
+    if (ret) {
+        com_err(progname, ret, _("while unparsing principal name"));
         return 1;
     }
 
     printf(_("Ticket cache: %s:%s\nDefault principal: %s\n\n"),
-           krb5_cc_get_type(kcontext, cache),
-           krb5_cc_get_name(kcontext, cache), defname);
+           krb5_cc_get_type(context, cache), krb5_cc_get_name(context, cache),
+           defname);
     /* XXX Translating would disturb table alignment; skip for now. */
     fputs("Valid starting", stdout);
     fillit(stdout, timestamp_width - sizeof("Valid starting") + 3, (int) ' ');
@@ -496,32 +495,34 @@ show_ccache(krb5_ccache cache)
     fillit(stdout, timestamp_width - sizeof("Expires") + 3, (int) ' ');
     fputs("Service principal\n", stdout);
 
-    if ((code = krb5_cc_start_seq_get(kcontext, cache, &cur))) {
-        com_err(progname, code, _("while starting to retrieve tickets"));
+    ret = krb5_cc_start_seq_get(context, cache, &cur);
+    if (ret) {
+        com_err(progname, ret, _("while starting to retrieve tickets"));
         return 1;
     }
-    while (!(code = krb5_cc_next_cred(kcontext, cache, &cur, &creds))) {
-        if (show_config || !krb5_is_config_principal(kcontext, creds.server))
+    while ((ret = krb5_cc_next_cred(context, cache, &cur, &creds)) == 0) {
+        if (show_config || !krb5_is_config_principal(context, creds.server))
             show_credential(&creds);
-        krb5_free_cred_contents(kcontext, &creds);
+        krb5_free_cred_contents(context, &creds);
     }
-    krb5_free_principal(kcontext, princ);
-    krb5_free_unparsed_name(kcontext, defname);
+    krb5_free_principal(context, princ);
+    krb5_free_unparsed_name(context, defname);
     defname = NULL;
-    if (code == KRB5_CC_END) {
-        if ((code = krb5_cc_end_seq_get(kcontext, cache, &cur))) {
-            com_err(progname, code, _("while finishing ticket retrieval"));
+    if (ret == KRB5_CC_END) {
+        ret = krb5_cc_end_seq_get(context, cache, &cur);
+        if (ret) {
+            com_err(progname, ret, _("while finishing ticket retrieval"));
             return 1;
         }
         return 0;
     } else {
-        com_err(progname, code, _("while retrieving a ticket"));
+        com_err(progname, ret, _("while retrieving a ticket"));
         return 1;
     }
 }
 
 /* Return 0 if cache is accessible, present, and unexpired; return 1 if not. */
-int
+static int
 check_ccache(krb5_ccache cache)
 {
     krb5_error_code ret;
@@ -530,26 +531,26 @@ check_ccache(krb5_ccache cache)
     krb5_principal princ;
     krb5_boolean found_tgt, found_current_tgt, found_current_cred;
 
-    if (krb5_cc_get_principal(kcontext, cache, &princ) != 0)
+    if (krb5_cc_get_principal(context, cache, &princ) != 0)
         return 1;
-    if (krb5_cc_start_seq_get(kcontext, cache, &cur) != 0)
+    if (krb5_cc_start_seq_get(context, cache, &cur) != 0)
         return 1;
     found_tgt = found_current_tgt = found_current_cred = FALSE;
-    while (!(ret = krb5_cc_next_cred(kcontext, cache, &cur, &creds))) {
+    while ((ret = krb5_cc_next_cred(context, cache, &cur, &creds)) == 0) {
         if (is_local_tgt(creds.server, &princ->realm)) {
             found_tgt = TRUE;
-            if (creds.times.endtime > now)
+            if (ts_after(creds.times.endtime, now))
                 found_current_tgt = TRUE;
-        } else if (!krb5_is_config_principal(kcontext, creds.server) &&
-                   creds.times.endtime > now) {
+        } else if (!krb5_is_config_principal(context, creds.server) &&
+                   ts_after(creds.times.endtime, now)) {
             found_current_cred = TRUE;
         }
-        krb5_free_cred_contents(kcontext, &creds);
+        krb5_free_cred_contents(context, &creds);
     }
-    krb5_free_principal(kcontext, princ);
+    krb5_free_principal(context, princ);
     if (ret != KRB5_CC_END)
         return 1;
-    if (krb5_cc_end_seq_get(kcontext, cache, &cur) != 0)
+    if (krb5_cc_end_seq_get(context, cache, &cur) != 0)
         return 1;
 
     /* If the cache contains at least one local TGT, require that it be
@@ -560,7 +561,7 @@ check_ccache(krb5_ccache cache)
 }
 
 /* Return true if princ is the local krbtgt principal for local_realm. */
-krb5_boolean
+static krb5_boolean
 is_local_tgt(krb5_principal princ, krb5_data *realm)
 {
     return princ->length == 2 && data_eq(princ->realm, *realm) &&
@@ -568,24 +569,20 @@ is_local_tgt(krb5_principal princ, krb5_data *realm)
         data_eq(princ->data[1], *realm);
 }
 
-char *
-etype_string(enctype)
-    krb5_enctype enctype;
+static char *
+etype_string(krb5_enctype enctype)
 {
     static char buf[100];
-    krb5_error_code retval;
+    krb5_error_code ret;
 
-    if ((retval = krb5_enctype_to_name(enctype, FALSE, buf, sizeof(buf)))) {
-        /* XXX if there's an error != EINVAL, I should probably report it */
+    ret = krb5_enctype_to_name(enctype, FALSE, buf, sizeof(buf));
+    if (ret)
         snprintf(buf, sizeof(buf), "etype %d", enctype);
-    }
-
     return buf;
 }
 
 static char *
-flags_string(cred)
-    register krb5_creds *cred;
+flags_string(krb5_creds *cred)
 {
     static char buf[32];
     int i = 0;
@@ -615,27 +612,21 @@ flags_string(cred)
     if (cred->ticket_flags & TKT_FLG_TRANSIT_POLICY_CHECKED)
         buf[i++] = 'T';
     if (cred->ticket_flags & TKT_FLG_OK_AS_DELEGATE)
-        buf[i++] = 'O';         /* D/d are taken.  Use short strings?  */
+        buf[i++] = 'O';         /* D/d are taken.  Use short strings? */
     if (cred->ticket_flags & TKT_FLG_ANONYMOUS)
         buf[i++] = 'a';
     buf[i] = '\0';
-    return(buf);
+    return buf;
 }
 
-void
-printtime(tv)
-    time_t tv;
+static void
+printtime(krb5_timestamp ts)
 {
-    char timestring[BUFSIZ];
-    char fill;
+    char timestring[BUFSIZ], fill = ' ';
 
-    fill = ' ';
-    if (!krb5_timestamp_to_sfstring((krb5_timestamp) tv,
-                                    timestring,
-                                    timestamp_width+1,
-                                    &fill)) {
+    if (!krb5_timestamp_to_sfstring(ts, timestring, timestamp_width + 1,
+                                    &fill))
         printf("%s", timestring);
-    }
 }
 
 static void
@@ -663,35 +654,35 @@ print_config_data(int col, krb5_data *data)
         putchar('\n');
 }
 
-void
-show_credential(cred)
-    register krb5_creds * cred;
+static void
+show_credential(krb5_creds *cred)
 {
-    krb5_error_code retval;
+    krb5_error_code ret;
     krb5_ticket *tkt;
     char *name, *sname, *flags;
     int extra_field = 0, ccol = 0, i;
 
-    retval = krb5_unparse_name(kcontext, cred->client, &name);
-    if (retval) {
-        com_err(progname, retval, _("while unparsing client name"));
+    ret = krb5_unparse_name(context, cred->client, &name);
+    if (ret) {
+        com_err(progname, ret, _("while unparsing client name"));
         return;
     }
-    retval = krb5_unparse_name(kcontext, cred->server, &sname);
-    if (retval) {
-        com_err(progname, retval, _("while unparsing server name"));
-        krb5_free_unparsed_name(kcontext, name);
+    ret = krb5_unparse_name(context, cred->server, &sname);
+    if (ret) {
+        com_err(progname, ret, _("while unparsing server name"));
+        krb5_free_unparsed_name(context, name);
         return;
     }
     if (!cred->times.starttime)
         cred->times.starttime = cred->times.authtime;
 
-    if (!krb5_is_config_principal(kcontext, cred->server)) {
+    if (!krb5_is_config_principal(context, cred->server)) {
         printtime(cred->times.starttime);
-        putchar(' '); putchar(' ');
+        putchar(' ');
+        putchar(' ');
         printtime(cred->times.endtime);
-        putchar(' '); putchar(' ');
-
+        putchar(' ');
+        putchar(' ');
         printf("%s\n", sname);
     } else {
         fputs("config: ", stdout);
@@ -712,7 +703,7 @@ show_credential(cred)
         extra_field++;
     }
 
-    if (krb5_is_config_principal(kcontext, cred->server))
+    if (krb5_is_config_principal(context, cred->server))
         print_config_data(ccol, &cred->ticket);
 
     if (cred->times.renew_till) {
@@ -748,8 +739,8 @@ show_credential(cred)
     }
 
     if (show_etype) {
-        retval = krb5_decode_ticket(&cred->ticket, &tkt);
-        if (retval)
+        ret = krb5_decode_ticket(&cred->ticket, &tkt);
+        if (ret)
             goto err_tkt;
 
         if (!extra_field)
@@ -758,13 +749,12 @@ show_credential(cred)
             fputs(", ",stdout);
         printf(_("Etype (skey, tkt): %s, "),
                etype_string(cred->keyblock.enctype));
-        printf("%s ",
-               etype_string(tkt->enc_part.enctype));
+        printf("%s ", etype_string(tkt->enc_part.enctype));
         extra_field++;
 
     err_tkt:
         if (tkt != NULL)
-            krb5_free_ticket(kcontext, tkt);
+            krb5_free_ticket(context, tkt);
     }
 
     if (show_adtype) {
@@ -783,19 +773,18 @@ show_credential(cred)
         }
     }
 
-    /* if any additional info was printed, extra_field is non-zero */
+    /* If any additional info was printed, extra_field is non-zero. */
     if (extra_field)
         putchar('\n');
 
-
     if (show_addresses) {
-        if (!cred->addresses || !cred->addresses[0]) {
+        if (cred->addresses == NULL || cred->addresses[0] == NULL) {
             printf(_("\tAddresses: (none)\n"));
         } else {
             printf(_("\tAddresses: "));
             one_addr(cred->addresses[0]);
 
-            for (i=1; cred->addresses[i]; i++) {
+            for (i = 1; cred->addresses[i] != NULL; i++) {
                 printf(", ");
                 one_addr(cred->addresses[i]);
             }
@@ -804,45 +793,45 @@ show_credential(cred)
         }
     }
 
-    krb5_free_unparsed_name(kcontext, name);
-    krb5_free_unparsed_name(kcontext, sname);
+    krb5_free_unparsed_name(context, name);
+    krb5_free_unparsed_name(context, sname);
 }
 
 #include "port-sockets.h"
-#include "socket-utils.h" /* for ss2sin etc */
+#include "socket-utils.h" /* For ss2sin etc. */
 #include "fake-addrinfo.h"
 
-void one_addr(a)
-    krb5_address *a;
+static void
+one_addr(krb5_address *a)
 {
     struct sockaddr_storage ss;
+    struct sockaddr_in *sinp;
+    struct sockaddr_in6 *sin6p;
     int err;
     char namebuf[NI_MAXHOST];
 
-    memset (&ss, 0, sizeof (ss));
+    memset(&ss, 0, sizeof(ss));
 
     switch (a->addrtype) {
     case ADDRTYPE_INET:
         if (a->length != 4) {
-        broken:
             printf(_("broken address (type %d length %d)"),
                    a->addrtype, a->length);
             return;
         }
-        {
-            struct sockaddr_in *sinp = ss2sin (&ss);
-            sinp->sin_family = AF_INET;
-            memcpy (&sinp->sin_addr, a->contents, 4);
-        }
+        sinp = ss2sin(&ss);
+        sinp->sin_family = AF_INET;
+        memcpy(&sinp->sin_addr, a->contents, 4);
         break;
     case ADDRTYPE_INET6:
-        if (a->length != 16)
-            goto broken;
-        {
-            struct sockaddr_in6 *sin6p = ss2sin6 (&ss);
-            sin6p->sin6_family = AF_INET6;
-            memcpy (&sin6p->sin6_addr, a->contents, 16);
+        if (a->length != 16) {
+            printf(_("broken address (type %d length %d)"),
+                   a->addrtype, a->length);
+            return;
         }
+        sin6p = ss2sin6(&ss);
+        sin6p->sin6_family = AF_INET6;
+        memcpy(&sin6p->sin6_addr, a->contents, 16);
         break;
     default:
         printf(_("unknown addrtype %d"), a->addrtype);
@@ -850,25 +839,22 @@ void one_addr(a)
     }
 
     namebuf[0] = 0;
-    err = getnameinfo (ss2sa (&ss), sa_socklen (ss2sa (&ss)),
-                       namebuf, sizeof (namebuf), 0, 0,
-                       no_resolve ? NI_NUMERICHOST : 0U);
+    err = getnameinfo(ss2sa(&ss), sa_socklen(ss2sa(&ss)), namebuf,
+                      sizeof(namebuf), 0, 0,
+                      no_resolve ? NI_NUMERICHOST : 0U);
     if (err) {
         printf(_("unprintable address (type %d, error %d %s)"), a->addrtype,
-               err, gai_strerror (err));
+               err, gai_strerror(err));
         return;
     }
-    printf ("%s", namebuf);
+    printf("%s", namebuf);
 }
 
-void
-fillit(f, num, c)
-    FILE                *f;
-    unsigned int        num;
-    int                 c;
+static void
+fillit(FILE *f, unsigned int num, int c)
 {
     unsigned int i;
 
-    for (i=0; i<num; i++)
+    for (i = 0; i < num; i++)
         fputc(c, f);
 }

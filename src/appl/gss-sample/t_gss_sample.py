@@ -31,22 +31,20 @@ gss_server = os.path.join(appdir, 'gss-server')
 # Run a gss-server process and a gss-client process, with additional
 # gss-client flags given by options and additional gss-server flags
 # given by server_options.  Return the output of gss-client.
-def run_client_server(realm, options, server_options, expected_code=0):
+def run_client_server(realm, options, server_options, **kwargs):
     portstr = str(realm.server_port())
     server_args = [gss_server, '-export', '-port', portstr]
     server_args += server_options + ['host']
     server = realm.start_server(server_args, 'starting...')
-    out = realm.run([gss_client, '-port', portstr] + options +
-                    [hostname, 'host', 'testmsg'], expected_code=expected_code)
+    realm.run([gss_client, '-port', portstr] + options +
+              [hostname, 'host', 'testmsg'], **kwargs)
     stop_daemon(server)
-    return out
 
 # Run a gss-server and gss-client process, and verify that gss-client
 # displayed the expected output for a successful negotiation.
 def server_client_test(realm, options, server_options):
-    out = run_client_server(realm, options, server_options)
-    if 'Signature verified.' not in out:
-        fail('Expected message not seen in gss-client output')
+    run_client_server(realm, options, server_options,
+                      expected_msg='Signature verified.')
 
 # Make up a filename to hold user's initial credentials.
 def ccache_savefile(realm):
@@ -81,10 +79,10 @@ def pw_test(realm, options, server_options=[]):
 # IAKERB, gss_aqcuire_cred_with_password() otherwise).
 def wrong_pw_test(realm, options, server_options=[], iakerb=False):
     options = options + ['-user', realm.user_princ, '-pass', 'wrongpw']
-    out = run_client_server(realm, options, server_options, expected_code=1)
     failed_op = 'initializing context' if iakerb else 'acquiring creds'
-    if 'GSS-API error ' + failed_op not in out:
-        fail('Expected error not seen in gss-client output')
+    msg = 'GSS-API error ' + failed_op
+    run_client_server(realm, options, server_options, expected_code=1,
+                      expected_msg=msg)
 
 # Perform a test of the server and client with initial credentials
 # obtained with the client keytab

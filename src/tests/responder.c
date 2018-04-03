@@ -226,7 +226,7 @@ responder(krb5_context ctx, void *rawdata, krb5_responder_context rctx)
         if (chl != NULL &&
             chl->identities != NULL &&
             chl->identities[0] != NULL) {
-            if (strncmp(chl->identities[0]->identity, "PKCS12:", 5) == 0)
+            if (strncmp(chl->identities[0]->identity, "PKCS12:", 7) == 0)
                 krb5_responder_pkinit_set_answer(ctx, rctx, "foo", "bar");
         }
         krb5_responder_pkinit_challenge_free(ctx, rctx, chl);

@@ -37,22 +37,16 @@ realm.kinit(realm.user_princ, password('user'),
 
 # kinit should detect too much skew in the KDC response.  kinit with
 # FAST should fail from the KDC since the armor AP-REQ won't be valid.
-out = realm.kinit(realm.user_princ, password('user'), expected_code=1)
-if 'Clock skew too great in KDC reply' not in out:
-    fail('Expected error message not seen in kinit skew case')
-out = realm.kinit(realm.user_princ, None, flags=['-T', fast_cache],
-                  expected_code=1)
-if 'Clock skew too great while' not in out:
-    fail('Expected error message not seen in kinit FAST skew case')
+realm.kinit(realm.user_princ, password('user'), expected_code=1,
+            expected_msg='Clock skew too great in KDC reply')
+realm.kinit(realm.user_princ, None, flags=['-T', fast_cache], expected_code=1,
+            expected_msg='Clock skew too great while')
 
 # kinit (with preauth) should fail from the KDC, with or without FAST.
 realm.run([kadminl, 'modprinc', '+requires_preauth', 'user'])
-out = realm.kinit(realm.user_princ, password('user'), expected_code=1)
-if 'Clock skew too great while' not in out:
-    fail('Expected error message not seen in kinit skew case (preauth)')
-out = realm.kinit(realm.user_princ, None, flags=['-T', fast_cache],
-                  expected_code=1)
-if 'Clock skew too great while' not in out:
-    fail('Expected error message not seen in kinit FAST skew case (preauth)')
+realm.kinit(realm.user_princ, password('user'), expected_code=1,
+            expected_msg='Clock skew too great while')
+realm.kinit(realm.user_princ, None, flags=['-T', fast_cache], expected_code=1,
+            expected_msg='Clock skew too great while')
 
 success('Clock skew tests')

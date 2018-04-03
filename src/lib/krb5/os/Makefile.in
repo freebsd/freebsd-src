@@ -225,7 +225,7 @@ check-unix-locate: t_locate_kdc
 		$(RUN_TEST) ./t_locate_kdc $(LOCREALM); \
 	    else \
 		echo '*** WARNING: skipped t_locate_kdc test: known DNS name not found'; \
-		echo 'Skipped t_locate_kdc test: known DNS name found' >> $(SKIPTESTS); \
+		echo 'Skipped t_locate_kdc test: known DNS name not found' >> $(SKIPTESTS); \
 	    fi; \
 	else \
 		echo '*** WARNING: skipped t_locate_kdc test: OFFLINE'; \

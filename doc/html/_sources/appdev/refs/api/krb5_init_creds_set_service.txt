@@ -32,7 +32,7 @@ krb5_init_creds_set_service -  Specify a service principal for acquiring initial
 
 
 
-This function supplies a service principal string to acquire initial credentials for instead of the default krbtgt service. *service* is parsed as a principal name; any realm part is ignored.
+Thisfunction supplies a service principal string to acquire initial credentials for instead of the default krbtgt service. *service* is parsed as a principal name; any realm part is ignored.
 
 
 

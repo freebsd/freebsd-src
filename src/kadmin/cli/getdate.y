@@ -6,7 +6,7 @@
 **  <rsalz@bbn.com> and Jim Berets <jberets@bbn.com> in August, 1990;
 **  send any email to Rich.
 **
-**  This grammar has nine shift/reduce conflicts.
+**  This grammar has four shift/reduce conflicts.
 **
 **  This code is in the public domain and has no copyright.
 */
@@ -118,7 +118,7 @@ static int getdate_yyerror (char *);
 
 
 #define EPOCH		1970
-#define EPOCH_END	2038 /* assumes 32 bits */
+#define EPOCH_END	2106 /* assumes unsigned 32-bit range */
 #define HOUR(x)		((time_t)(x) * 60)
 #define SECSPERDAY	(24L * 60L * 60L)
 
@@ -175,6 +175,9 @@ static time_t	yyRelMonth;
 static time_t	yyRelSeconds;
 
 %}
+
+/* Mute shift/reduce warning as per header comment. */
+%expect 4
 
 %union {
     time_t		Number;

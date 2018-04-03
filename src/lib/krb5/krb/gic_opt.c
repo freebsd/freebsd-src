@@ -12,7 +12,7 @@
 #include <TargetConditionals.h>
 #endif
 
-/* Match struct packing of krb5_get_init_creds_opt on MacOS X. */
+/* Match struct packing of krb5_get_init_creds_opt on macOS. */
 #if TARGET_OS_MAC
 #pragma pack(push,2)
 #endif

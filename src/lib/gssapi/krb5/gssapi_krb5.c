@@ -126,6 +126,8 @@
 
 #define NO_CI_FLAGS_X_OID_LENGTH 6
 #define NO_CI_FLAGS_X_OID "\x2a\x85\x70\x2b\x0d\x1d"
+#define GET_CRED_IMPERSONATOR_OID_LENGTH 11
+#define GET_CRED_IMPERSONATOR_OID "\x2a\x86\x48\x86\xf7\x12\x01\x02\x02\x05\x0e"
 
 const gss_OID_desc krb5_gss_oid_array[] = {
     /* this is the official, rfc-specified OID */
@@ -148,6 +150,8 @@ const gss_OID_desc krb5_gss_oid_array[] = {
     /* gss_nt_krb5_principal.  Object identifier for a krb5_principal. Do not use. */
     {10, "\052\206\110\206\367\022\001\002\002\002"},
     {NO_CI_FLAGS_X_OID_LENGTH, NO_CI_FLAGS_X_OID},
+    /* this is an inquire cred OID */
+    {GET_CRED_IMPERSONATOR_OID_LENGTH, GET_CRED_IMPERSONATOR_OID},
     { 0, 0 }
 };
 
@@ -164,6 +168,7 @@ const gss_OID gss_nt_krb5_principal             = &kg_oids[6];
 const gss_OID GSS_KRB5_NT_PRINCIPAL_NAME        = &kg_oids[5];
 
 const gss_OID GSS_KRB5_CRED_NO_CI_FLAGS_X       = &kg_oids[7];
+const gss_OID GSS_KRB5_GET_CRED_IMPERSONATOR    = &kg_oids[8];
 
 static const gss_OID_set_desc oidsets[] = {
     {1, &kg_oids[0]}, /* RFC OID */
@@ -352,6 +357,10 @@ static struct {
     {
         {GSS_KRB5_EXTRACT_AUTHTIME_FROM_SEC_CONTEXT_OID_LENGTH, GSS_KRB5_EXTRACT_AUTHTIME_FROM_SEC_CONTEXT_OID},
         gss_krb5int_extract_authtime_from_sec_context
+    },
+    {
+        {GET_SEC_CONTEXT_SASL_SSF_OID_LENGTH, GET_SEC_CONTEXT_SASL_SSF_OID},
+        gss_krb5int_sec_context_sasl_ssf
     }
 };
 
@@ -400,13 +409,16 @@ krb5_gss_inquire_sec_context_by_oid (OM_uint32 *minor_status,
 /*
  * gss_inquire_cred_by_oid() methods
  */
-#if 0
+
 static struct {
     gss_OID_desc oid;
     OM_uint32 (*func)(OM_uint32 *, const gss_cred_id_t, const gss_OID, gss_buffer_set_t *);
 } krb5_gss_inquire_cred_by_oid_ops[] = {
+    {
+        {GET_CRED_IMPERSONATOR_OID_LENGTH, GET_CRED_IMPERSONATOR_OID},
+        gss_krb5int_get_cred_impersonator
+    }
 };
-#endif
 
 static OM_uint32 KRB5_CALLCONV
 krb5_gss_inquire_cred_by_oid(OM_uint32 *minor_status,
@@ -415,9 +427,7 @@ krb5_gss_inquire_cred_by_oid(OM_uint32 *minor_status,
                              gss_buffer_set_t *data_set)
 {
     OM_uint32 major_status = GSS_S_FAILURE;
-#if 0
     size_t i;
-#endif
 
     if (minor_status == NULL)
         return GSS_S_CALL_INACCESSIBLE_WRITE;
@@ -440,7 +450,6 @@ krb5_gss_inquire_cred_by_oid(OM_uint32 *minor_status,
     if (GSS_ERROR(major_status))
         return major_status;
 
-#if 0
     for (i = 0; i < sizeof(krb5_gss_inquire_cred_by_oid_ops)/
              sizeof(krb5_gss_inquire_cred_by_oid_ops[0]); i++) {
         if (g_OID_prefix_equal(desired_object, &krb5_gss_inquire_cred_by_oid_ops[i].oid)) {
@@ -450,7 +459,6 @@ krb5_gss_inquire_cred_by_oid(OM_uint32 *minor_status,
                                                                data_set);
         }
     }
-#endif
 
     *minor_status = EINVAL;
 

@@ -143,6 +143,7 @@ SRCS=\
 	$(srcdir)/bcmp.c \
 	$(srcdir)/strerror_r.c \
 	$(srcdir)/t_utf8.c \
+	$(srcdir)/t_utf16.c \
 	$(srcdir)/getopt.c \
 	$(srcdir)/getopt_long.c
 
@@ -220,7 +221,12 @@ t_unal: t_unal.o
 t_utf8: t_utf8.o utf8.o
 	$(CC_LINK) -o t_utf8 t_utf8.o utf8.o
 
-TEST_PROGS= t_k5buf t_path t_path_win t_base64 t_json t_unal t_utf8
+T_UTF16_OBJS= t_utf16.o utf8_conv.o utf8.o k5buf.o $(PRINTF_ST_OBJ)
+
+t_utf16: $(T_UTF16_OBJS)
+	$(CC_LINK) -o $@ $(T_UTF16_OBJS)
+
+TEST_PROGS= t_k5buf t_path t_path_win t_base64 t_json t_unal t_utf8 t_utf16
 
 check-unix: $(TEST_PROGS)
 	./t_k5buf
@@ -230,11 +236,13 @@ check-unix: $(TEST_PROGS)
 	./t_json
 	./t_unal
 	./t_utf8
+	./t_utf16
 
 clean:
 	$(RM) t_k5buf.o t_k5buf t_unal.o t_unal path_win.o path_win
 	$(RM) t_path_win.o t_path_win t_path.o t_path t_base64.o t_base64
 	$(RM) t_json.o t_json libkrb5support.exports t_utf8.o t_utf8
+	$(RM) t_utf16.o t_utf16
 
 @lib_frag@
 @libobj_frag@

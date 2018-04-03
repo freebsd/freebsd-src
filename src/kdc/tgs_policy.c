@@ -186,7 +186,7 @@ static int
 check_tgs_svc_time(krb5_kdc_req *req, krb5_db_entry server, krb5_ticket *tkt,
                    krb5_timestamp kdc_time, const char **status)
 {
-    if (server.expiration && server.expiration < kdc_time) {
+    if (server.expiration && ts_after(kdc_time, server.expiration)) {
         *status = "SERVICE EXPIRED";
         return KDC_ERR_SERVICE_EXP;
     }
@@ -222,7 +222,7 @@ check_tgs_times(krb5_kdc_req *req, krb5_ticket_times *times,
        KDC time. */
     if (req->kdc_options & KDC_OPT_VALIDATE) {
         starttime = times->starttime ? times->starttime : times->authtime;
-        if (starttime > kdc_time) {
+        if (ts_after(starttime, kdc_time)) {
             *status = "NOT_YET_VALID";
             return KRB_AP_ERR_TKT_NYV;
         }
@@ -231,7 +231,8 @@ check_tgs_times(krb5_kdc_req *req, krb5_ticket_times *times,
      * Check the renew_till time.  The endtime was already
      * been checked in the initial authentication check.
      */
-    if ((req->kdc_options & KDC_OPT_RENEW) && times->renew_till < kdc_time) {
+    if ((req->kdc_options & KDC_OPT_RENEW) &&
+        ts_after(kdc_time, times->renew_till)) {
         *status = "TKT_EXPIRED";
         return KRB_AP_ERR_TKT_EXPIRED;
     }
@@ -373,12 +374,6 @@ validate_tgs_request(kdc_realm_t *kdc_active_realm,
                                    ticket, status, e_data);
     if (ret && ret != KRB5_PLUGIN_OP_NOTSUPP)
         return errcode_to_protocol(ret);
-
-    /* Check local policy. */
-    errcode = against_local_policy_tgs(request, server, ticket,
-                                       status, e_data);
-    if (errcode)
-        return errcode;
 
     return 0;
 }

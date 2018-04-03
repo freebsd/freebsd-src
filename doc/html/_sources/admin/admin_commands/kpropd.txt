@@ -14,6 +14,7 @@ SYNOPSIS
 [**-F** *principal_database*]
 [**-p** *kdb5_util_prog*]
 [**-P** *port*]
+[**--pid-file**\ =\ *pid_file*]
 [**-d**]
 [**-t**]
 
@@ -103,6 +104,10 @@ OPTIONS
 **-a** *acl_file*
     Allows the user to specify the path to the kpropd.acl file; by
     default the path used is |kdcdir|\ ``/kpropd.acl``.
+
+**--pid-file**\ =\ *pid_file*
+    In standalone mode, write the process ID of the daemon into
+    *pid_file*.
 
 
 ENVIRONMENT

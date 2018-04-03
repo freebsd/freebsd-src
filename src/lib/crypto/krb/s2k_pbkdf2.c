@@ -47,7 +47,7 @@ krb5int_dk_string_to_key(const struct krb5_keytypes *ktp,
     keybytes = ktp->enc->keybytes;
     keylength = ktp->enc->keylength;
 
-    concatlen = string->length + (salt ? salt->length : 0);
+    concatlen = string->length + salt->length;
 
     concat = k5alloc(concatlen, &ret);
     if (ret != 0)
@@ -63,7 +63,7 @@ krb5int_dk_string_to_key(const struct krb5_keytypes *ktp,
 
     if (string->length > 0)
         memcpy(concat, string->data, string->length);
-    if (salt != NULL && salt->length > 0)
+    if (salt->length > 0)
         memcpy(concat + string->length, salt->data, salt->length);
 
     krb5int_nfold(concatlen*8, concat, keybytes*8, foldstring);

@@ -16,8 +16,8 @@
 #include <malloc.h>
 #endif
 
+#include "k5-int.h"
 #include "stdcc_util.h"
-#include "krb5.h"
 #ifdef _WIN32                   /* it's part of krb5.h everywhere else */
 #include "kv5m_err.h"
 #endif
@@ -321,10 +321,10 @@ copy_cc_cred_union_to_krb5_creds (krb5_context in_context,
         keyblock_contents = NULL;
 
         /* copy times */
-        out_creds->times.authtime   = cv5->authtime     + offset_seconds;
-        out_creds->times.starttime  = cv5->starttime    + offset_seconds;
-        out_creds->times.endtime    = cv5->endtime      + offset_seconds;
-        out_creds->times.renew_till = cv5->renew_till   + offset_seconds;
+        out_creds->times.authtime   = ts_incr(cv5->authtime, offset_seconds);
+        out_creds->times.starttime  = ts_incr(cv5->starttime, offset_seconds);
+        out_creds->times.endtime    = ts_incr(cv5->endtime, offset_seconds);
+        out_creds->times.renew_till = ts_incr(cv5->renew_till, offset_seconds);
         out_creds->is_skey          = cv5->is_skey;
         out_creds->ticket_flags     = cv5->ticket_flags;
 
@@ -451,11 +451,11 @@ copy_krb5_creds_to_cc_cred_union (krb5_context in_context,
         cv5->keyblock.data = keyblock_data;
         keyblock_data = NULL;
 
-        cv5->authtime     = in_creds->times.authtime   - offset_seconds;
-        cv5->starttime    = in_creds->times.starttime  - offset_seconds;
-        cv5->endtime      = in_creds->times.endtime    - offset_seconds;
-        cv5->renew_till   = in_creds->times.renew_till - offset_seconds;
-        cv5->is_skey      = in_creds->is_skey;
+        cv5->authtime = ts_incr(in_creds->times.authtime, -offset_seconds);
+        cv5->starttime = ts_incr(in_creds->times.starttime, -offset_seconds);
+        cv5->endtime = ts_incr(in_creds->times.endtime, -offset_seconds);
+        cv5->renew_till = ts_incr(in_creds->times.renew_till, -offset_seconds);
+        cv5->is_skey = in_creds->is_skey;
         cv5->ticket_flags = in_creds->ticket_flags;
 
         if (in_creds->ticket.data) {
@@ -732,10 +732,10 @@ void dupCCtoK5(krb5_context context, cc_creds *src, krb5_creds *dest)
     err = krb5_get_time_offsets(context, &offset_seconds, &offset_microseconds);
     if (err) return;
 #endif
-    dest->times.authtime   = src->authtime     + offset_seconds;
-    dest->times.starttime  = src->starttime    + offset_seconds;
-    dest->times.endtime    = src->endtime      + offset_seconds;
-    dest->times.renew_till = src->renew_till   + offset_seconds;
+    dest->times.authtime   = ts_incr(src->authtime, offset_seconds);
+    dest->times.starttime  = ts_incr(src->starttime, offset_seconds);
+    dest->times.endtime    = ts_incr(src->endtime, offset_seconds);
+    dest->times.renew_till = ts_incr(src->renew_till, offset_seconds);
     dest->is_skey          = src->is_skey;
     dest->ticket_flags     = src->ticket_flags;
 
@@ -804,10 +804,10 @@ void dupK5toCC(krb5_context context, krb5_creds *creds, cred_union **cu)
     err = krb5_get_time_offsets(context, &offset_seconds, &offset_microseconds);
     if (err) return;
 #endif
-    c->authtime     = creds->times.authtime   - offset_seconds;
-    c->starttime    = creds->times.starttime  - offset_seconds;
-    c->endtime      = creds->times.endtime    - offset_seconds;
-    c->renew_till   = creds->times.renew_till - offset_seconds;
+    c->authtime     = ts_incr(creds->times.authtime, -offset_seconds);
+    c->starttime    = ts_incr(creds->times.starttime, -offset_seconds);
+    c->endtime      = ts_incr(creds->times.endtime, -offset_seconds);
+    c->renew_till   = ts_incr(creds->times.renew_till, -offset_seconds);
     c->is_skey      = creds->is_skey;
     c->ticket_flags = creds->ticket_flags;
 
@@ -925,11 +925,11 @@ times_match(t1, t2)
     register const krb5_ticket_times *t2;
 {
     if (t1->renew_till) {
-        if (t1->renew_till > t2->renew_till)
+        if (ts_after(t1->renew_till, t2->renew_till))
             return FALSE;               /* this one expires too late */
     }
     if (t1->endtime) {
-        if (t1->endtime > t2->endtime)
+        if (ts_after(t1->endtime, t2->endtime))
             return FALSE;               /* this one expires too late */
     }
     /* only care about expiration on a times_match */

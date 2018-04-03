@@ -20,9 +20,8 @@ def test(realm, args, expected_realms, msg, env=None):
         fail(msg)
 
 def test_error(realm, args, expected_error, msg, env=None):
-    out = realm.run(['./hrealm'] + args, env=env, expected_code=1)
-    if expected_error not in out:
-        fail(msg)
+    realm.run(['./hrealm'] + args, env=env, expected_code=1,
+              expected_msg=expected_error)
 
 def testh(realm, host, expected_realms, msg, env=None):
     test(realm, ['-h', host], expected_realms, msg, env=env)

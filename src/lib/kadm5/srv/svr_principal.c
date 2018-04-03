@@ -296,7 +296,7 @@ kadm5_create_principal_3(void *server_handle,
     osa_princ_ent_rec           adb;
     kadm5_policy_ent_rec        polent;
     krb5_boolean                have_polent = FALSE;
-    krb5_int32                  now;
+    krb5_timestamp              now;
     krb5_tl_data                *tl_data_tail;
     unsigned int                ret;
     kadm5_server_handle_t handle = server_handle;
@@ -400,7 +400,7 @@ kadm5_create_principal_3(void *server_handle,
     kdb->pw_expiration = 0;
     if (have_polent) {
         if(polent.pw_max_life)
-            kdb->pw_expiration = now + polent.pw_max_life;
+            kdb->pw_expiration = ts_incr(now, polent.pw_max_life);
         else
             kdb->pw_expiration = 0;
     }
@@ -612,7 +612,7 @@ kadm5_modify_principal(void *server_handle,
                                                   &(kdb->pw_expiration));
             if (ret)
                 goto done;
-            kdb->pw_expiration += pol.pw_max_life;
+            kdb->pw_expiration = ts_incr(kdb->pw_expiration, pol.pw_max_life);
         } else {
             kdb->pw_expiration = 0;
         }
@@ -1322,11 +1322,11 @@ kadm5_chpass_principal_3(void *server_handle,
                          int n_ks_tuple, krb5_key_salt_tuple *ks_tuple,
                          char *password)
 {
-    krb5_int32                  now;
+    krb5_timestamp              now;
     kadm5_policy_ent_rec        pol;
     osa_princ_ent_rec           adb;
     krb5_db_entry               *kdb;
-    int                         ret, ret2, last_pwd, hist_added;
+    int                         ret, ret2, hist_added;
     krb5_boolean                have_pol = FALSE;
     kadm5_server_handle_t       handle = server_handle;
     osa_pw_hist_ent             hist;
@@ -1399,24 +1399,6 @@ kadm5_chpass_principal_3(void *server_handle,
     if ((adb.aux_attributes & KADM5_POLICY)) {
         /* the policy was loaded before */
 
-        ret = krb5_dbe_lookup_last_pwd_change(handle->context, kdb, &last_pwd);
-        if (ret)
-            goto done;
-
-#if 0
-        /*
-         * The spec says this check is overridden if the caller has
-         * modify privilege.  The admin server therefore makes this
-         * check itself (in chpass_principal_wrapper, misc.c). A
-         * local caller implicitly has all authorization bits.
-         */
-        if ((now - last_pwd) < pol.pw_min_life &&
-            !(kdb->attributes & KRB5_KDB_REQUIRES_PWCHANGE)) {
-            ret = KADM5_PASS_TOOSOON;
-            goto done;
-        }
-#endif
-
         ret = check_pw_reuse(handle->context, hist_keyblocks,
                              kdb->n_key_data, kdb->key_data,
                              1, &hist);
@@ -1445,7 +1427,7 @@ kadm5_chpass_principal_3(void *server_handle,
         }
 
         if (pol.pw_max_life)
-            kdb->pw_expiration = now + pol.pw_max_life;
+            kdb->pw_expiration = ts_incr(now, pol.pw_max_life);
         else
             kdb->pw_expiration = 0;
     } else {
@@ -1544,9 +1526,9 @@ kadm5_randkey_principal_3(void *server_handle,
 {
     krb5_db_entry               *kdb;
     osa_princ_ent_rec           adb;
-    krb5_int32                  now;
+    krb5_timestamp              now;
     kadm5_policy_ent_rec        pol;
-    int                         ret, last_pwd, n_new_keys;
+    int                         ret, n_new_keys;
     krb5_boolean                have_pol = FALSE;
     kadm5_server_handle_t       handle = server_handle;
     krb5_keyblock               *act_mkey;
@@ -1605,26 +1587,8 @@ kadm5_randkey_principal_3(void *server_handle,
             goto done;
     }
     if (have_pol) {
-        ret = krb5_dbe_lookup_last_pwd_change(handle->context, kdb, &last_pwd);
-        if (ret)
-            goto done;
-
-#if 0
-        /*
-         * The spec says this check is overridden if the caller has
-         * modify privilege.  The admin server therefore makes this
-         * check itself (in chpass_principal_wrapper, misc.c).  A
-         * local caller implicitly has all authorization bits.
-         */
-        if((now - last_pwd) < pol.pw_min_life &&
-           !(kdb->attributes & KRB5_KDB_REQUIRES_PWCHANGE)) {
-            ret = KADM5_PASS_TOOSOON;
-            goto done;
-        }
-#endif
-
         if (pol.pw_max_life)
-            kdb->pw_expiration = now + pol.pw_max_life;
+            kdb->pw_expiration = ts_incr(now, pol.pw_max_life);
         else
             kdb->pw_expiration = 0;
     } else {
@@ -1686,14 +1650,11 @@ kadm5_setv4key_principal(void *server_handle,
 {
     krb5_db_entry               *kdb;
     osa_princ_ent_rec           adb;
-    krb5_int32                  now;
+    krb5_timestamp              now;
     kadm5_policy_ent_rec        pol;
     krb5_keysalt                keysalt;
     int                         i, kvno, ret;
     krb5_boolean                have_pol = FALSE;
-#if 0
-    int                         last_pwd;
-#endif
     kadm5_server_handle_t       handle = server_handle;
     krb5_key_data               tmp_key_data;
     krb5_keyblock               *act_mkey;
@@ -1756,25 +1717,8 @@ kadm5_setv4key_principal(void *server_handle,
             goto done;
     }
     if (have_pol) {
-#if 0
-        /*
-         * The spec says this check is overridden if the caller has
-         * modify privilege.  The admin server therefore makes this
-         * check itself (in chpass_principal_wrapper, misc.c).  A
-         * local caller implicitly has all authorization bits.
-         */
-        if (ret = krb5_dbe_lookup_last_pwd_change(handle->context,
-                                                  kdb, &last_pwd))
-            goto done;
-        if((now - last_pwd) < pol.pw_min_life &&
-           !(kdb->attributes & KRB5_KDB_REQUIRES_PWCHANGE)) {
-            ret = KADM5_PASS_TOOSOON;
-            goto done;
-        }
-#endif
-
         if (pol.pw_max_life)
-            kdb->pw_expiration = now + pol.pw_max_life;
+            kdb->pw_expiration = ts_incr(now, pol.pw_max_life);
         else
             kdb->pw_expiration = 0;
     } else {
@@ -1787,6 +1731,9 @@ kadm5_setv4key_principal(void *server_handle,
 
     /* unlock principal on this KDC */
     kdb->fail_auth_count = 0;
+
+    /* key data changed, let the database provider know */
+    kdb->mask = KADM5_KEY_DATA | KADM5_FAIL_AUTH_COUNT;
 
     if ((ret = kdb_put_entry(handle, kdb, &adb)))
         goto done;
@@ -1888,7 +1835,7 @@ kadm5_setkey_principal_4(void *server_handle, krb5_principal principal,
 {
     krb5_db_entry *kdb;
     osa_princ_ent_rec adb;
-    krb5_int32 now;
+    krb5_timestamp now;
     kadm5_policy_ent_rec pol;
     krb5_key_data *new_key_data = NULL;
     int i, j, ret, n_new_key_data = 0;
@@ -2024,7 +1971,7 @@ kadm5_setkey_principal_4(void *server_handle, krb5_principal principal,
     }
     if (have_pol) {
         if (pol.pw_max_life)
-            kdb->pw_expiration = now + pol.pw_max_life;
+            kdb->pw_expiration = ts_incr(now, pol.pw_max_life);
         else
             kdb->pw_expiration = 0;
     } else {
@@ -2037,6 +1984,9 @@ kadm5_setkey_principal_4(void *server_handle, krb5_principal principal,
 
     /* Unlock principal on this KDC. */
     kdb->fail_auth_count = 0;
+
+    /* key data changed, let the database provider know */
+    kdb->mask = KADM5_KEY_DATA | KADM5_FAIL_AUTH_COUNT;
 
     ret = kdb_put_entry(handle, kdb, &adb);
     if (ret)

@@ -207,7 +207,7 @@ krb5_error_code KRB5_CALLCONV
 krb5_timestamp_to_string(krb5_timestamp timestamp, char *buffer, size_t buflen)
 {
     size_t ret;
-    time_t timestamp2 = timestamp;
+    time_t timestamp2 = ts2tt(timestamp);
     struct tm tmbuf;
     const char *fmt = "%c"; /* This is to get around gcc -Wall warning that
                                the year returned might be two digits */
@@ -229,7 +229,7 @@ krb5_timestamp_to_sfstring(krb5_timestamp timestamp, char *buffer, size_t buflen
     struct tm   *tmp;
     size_t i;
     size_t      ndone;
-    time_t timestamp2 = timestamp;
+    time_t timestamp2 = ts2tt(timestamp);
     struct tm tmbuf;
 
     static const char * const sftime_format_table[] = {

@@ -12,14 +12,17 @@ SUBDIRS=util include lib \
 	plugins/audit/test \
 	@audit_plugin@ \
 	plugins/kadm5_hook/test \
+	plugins/kadm5_auth/test \
 	plugins/hostrealm/test \
 	plugins/localauth/test \
 	plugins/pwqual/test \
 	plugins/authdata/greet_server \
 	plugins/authdata/greet_client \
+	plugins/certauth/test \
 	plugins/kdb/db2 \
 	@ldap_plugin_dir@ \
 	plugins/kdb/test \
+	plugins/kdcpolicy/test \
 	plugins/preauth/otp \
 	plugins/preauth/pkinit \
 	plugins/preauth/test \
@@ -501,7 +504,7 @@ check-pytests-no: check-postrecurse
 		$(SKIPTESTS)
 
 check-cmocka-no: check-postrecurse
-	@echo 'Skipped cmocka tests due to missing library or header file' >> \
+	@echo 'Skipped cmocka tests: cmocka library or header not found' >> \
 		$(SKIPTESTS)
 
 # Create a test realm and spawn a shell in an environment pointing to it.
@@ -520,6 +523,7 @@ pyrunenv.vals: Makefile
 	done > $@
 	echo "tls_impl = '$(TLS_IMPL)'" >> $@
 	echo "have_sasl = '$(HAVE_SASL)'" >> $@
+	echo "sizeof_time_t = $(SIZEOF_TIME_T)" >> $@
 
 runenv.py: pyrunenv.vals
 	echo 'env = {}' > $@

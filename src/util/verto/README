@@ -36,5 +36,5 @@ BUILTIN_MODULE define.
 
 The libverto and libev upstream project pages are at:
 
-  https://fedorahosted.org/libverto/
+  https://github.com/latchset/libverto/
   http://software.schmorp.de/pkg/libev.html

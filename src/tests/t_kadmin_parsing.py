@@ -57,33 +57,27 @@ realm = K5Realm(create_host=False, get_creds=False)
 realm.run([kadminl, 'addpol', 'pol'])
 for instr, outstr in intervals:
     realm.run([kadminl, 'modprinc', '-maxlife', instr, realm.user_princ])
-    out = realm.run([kadminl, 'getprinc', realm.user_princ])
-    if 'Maximum ticket life: ' + outstr + '\n' not in out:
-        fail('princ maxlife: ' + instr)
+    msg = 'Maximum ticket life: ' + outstr + '\n'
+    realm.run([kadminl, 'getprinc', realm.user_princ], expected_msg=msg)
 
     realm.run([kadminl, 'modprinc', '-maxrenewlife', instr, realm.user_princ])
-    out = realm.run([kadminl, 'getprinc', realm.user_princ])
-    if 'Maximum renewable life: ' + outstr + '\n' not in out:
-        fail('princ maxrenewlife: ' + instr)
+    msg = 'Maximum renewable life: ' + outstr + '\n'
+    realm.run([kadminl, 'getprinc', realm.user_princ], expected_msg=msg)
 
     realm.run([kadminl, 'modpol', '-maxlife', instr, 'pol'])
-    out = realm.run([kadminl, 'getpol', 'pol'])
-    if 'Maximum password life: ' + outstr + '\n' not in out:
-        fail('pol maxlife: ' + instr)
+    msg = 'Maximum password life: ' + outstr + '\n'
+    realm.run([kadminl, 'getpol', 'pol'], expected_msg=msg)
 
     realm.run([kadminl, 'modpol', '-minlife', instr, 'pol'])
-    out = realm.run([kadminl, 'getpol', 'pol'])
-    if 'Minimum password life: ' + outstr + '\n' not in out:
-        fail('pol maxlife: ' + instr)
+    msg = 'Minimum password life: ' + outstr + '\n'
+    realm.run([kadminl, 'getpol', 'pol'], expected_msg=msg)
 
     realm.run([kadminl, 'modpol', '-failurecountinterval', instr, 'pol'])
-    out = realm.run([kadminl, 'getpol', 'pol'])
-    if 'Password failure count reset interval: ' + outstr + '\n' not in out:
-        fail('pol maxlife: ' + instr)
+    msg = 'Password failure count reset interval: ' + outstr + '\n'
+    realm.run([kadminl, 'getpol', 'pol'], expected_msg=msg)
 
     realm.run([kadminl, 'modpol', '-lockoutduration', instr, 'pol'])
-    out = realm.run([kadminl, 'getpol', 'pol'])
-    if 'Password lockout duration: ' + outstr + '\n' not in out:
-        fail('pol maxlife: ' + instr)
+    msg = 'Password lockout duration: ' + outstr + '\n'
+    realm.run([kadminl, 'getpol', 'pol'], expected_msg=msg)
 
 success('kadmin command parsing tests')

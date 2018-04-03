@@ -193,7 +193,6 @@ initialize_server(krb5_ldap_context *ldap_context, krb5_ldap_server_info *info)
         return ret;
     }
 
-    server->server_info_update_pending = FALSE;
     server->next = info->ldap_server_handles;
     info->ldap_server_handles = server;
     info->num_conns++;

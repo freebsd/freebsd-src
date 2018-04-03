@@ -52,6 +52,8 @@ k5_path_isabs
 k5_path_join
 k5_path_split
 k5_strerror_r
+k5_utf8_to_utf16le
+k5_utf16le_to_utf8
 krb5int_key_register
 krb5int_key_delete
 krb5int_getspecific
@@ -77,9 +79,6 @@ krb5int_mutex_free
 krb5int_mutex_lock
 krb5int_mutex_unlock
 krb5int_gmt_mktime
-krb5int_utf8cs_to_ucs2les
-krb5int_utf8s_to_ucs2les
-krb5int_ucs2lecs_to_utf8s
 krb5int_ucs4_to_utf8
 krb5int_utf8_to_ucs4
 krb5int_utf8_lentab

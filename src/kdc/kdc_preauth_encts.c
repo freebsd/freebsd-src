@@ -58,7 +58,6 @@ enc_ts_verify(krb5_context context, krb5_data *req_pkt, krb5_kdc_req *request,
     krb5_keyblock               key;
     krb5_key_data *             client_key;
     krb5_int32                  start;
-    krb5_timestamp              timenow;
 
     scratch.data = (char *)pa->contents;
     scratch.length = pa->length;
@@ -95,13 +94,9 @@ enc_ts_verify(krb5_context context, krb5_data *req_pkt, krb5_kdc_req *request,
     if ((retval = decode_krb5_pa_enc_ts(&enc_ts_data, &pa_enc)) != 0)
         goto cleanup;
 
-    if ((retval = krb5_timeofday(context, &timenow)) != 0)
+    retval = krb5_check_clockskew(context, pa_enc->patimestamp);
+    if (retval)
         goto cleanup;
-
-    if (labs(timenow - pa_enc->patimestamp) > context->clockskew) {
-        retval = KRB5KRB_AP_ERR_SKEW;
-        goto cleanup;
-    }
 
     setflag(enc_tkt_reply->flags, TKT_FLG_PRE_AUTH);
 

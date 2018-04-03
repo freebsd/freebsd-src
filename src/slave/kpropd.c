@@ -119,6 +119,7 @@ static int debug = 0;
 static int nodaemon = 0;
 static char *srvtab = NULL;
 static int standalone = 0;
+static const char *pid_file = NULL;
 
 static pid_t fullprop_child = (pid_t)-1;
 
@@ -141,7 +142,7 @@ static const char *port = KPROP_SERVICE;
 static char **db_args = NULL;
 static int db_args_size = 0;
 
-static void parse_args(char **argv);
+static void parse_args(int argc, char **argv);
 static void do_standalone(void);
 static void doit(int fd);
 static krb5_error_code do_iprop(void);
@@ -171,8 +172,23 @@ usage()
             progname);
     fprintf(stderr, _("\t[-F kerberos_db_file ] [-p kdb5_util_pathname]\n"));
     fprintf(stderr, _("\t[-x db_args]* [-P port] [-a acl_file]\n"));
-    fprintf(stderr, _("\t[-A admin_server]\n"));
+    fprintf(stderr, _("\t[-A admin_server] [--pid-file=pid_file]\n"));
     exit(1);
+}
+
+static krb5_error_code
+write_pid_file(const char *path)
+{
+    FILE *fp;
+    unsigned long pid;
+
+    fp = fopen(path, "w");
+    if (fp == NULL)
+        return errno;
+    pid = (unsigned long)getpid();
+    if (fprintf(fp, "%ld\n", pid) < 0 || fclose(fp) == EOF)
+        return errno;
+    return 0;
 }
 
 typedef void (*sig_handler_fn)(int sig);
@@ -238,7 +254,7 @@ main(int argc, char **argv)
     struct stat st;
 
     setlocale(LC_ALL, "");
-    parse_args(argv);
+    parse_args(argc, argv);
 
     if (fstat(0, &st) == -1) {
         com_err(progname, errno, _("while checking if stdin is a socket"));
@@ -261,6 +277,14 @@ main(int argc, char **argv)
         } else {
             printf(_("ready\n"));
             fflush(stdout);
+        }
+        if (pid_file != NULL) {
+            retval = write_pid_file(pid_file);
+            if (retval) {
+                syslog(LOG_ERR, _("Could not write pid file %s: %s"),
+                       pid_file, strerror(errno));
+                exit(1);
+            }
         }
     } else {
         /*
@@ -483,8 +507,7 @@ doit(int fd)
         perror("getpeername");
         exit(1);
     }
-    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (caddr_t) &on,
-                   sizeof(on)) < 0) {
+    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)) < 0) {
         com_err(progname, errno,
                 _("while attempting setsockopt (SO_KEEPALIVE)"));
     }
@@ -589,13 +612,12 @@ full_resync(CLIENT *clnt)
     memset(&clnt_res, 0, sizeof(clnt_res));
 
     status = clnt_call(clnt, IPROP_FULL_RESYNC_EXT, (xdrproc_t)xdr_u_int32,
-                       (caddr_t)&vers, (xdrproc_t)xdr_kdb_fullresync_result_t,
-                       (caddr_t)&clnt_res, full_resync_timeout);
+                       &vers, (xdrproc_t)xdr_kdb_fullresync_result_t,
+                       &clnt_res, full_resync_timeout);
     if (status == RPC_PROCUNAVAIL) {
         status = clnt_call(clnt, IPROP_FULL_RESYNC, (xdrproc_t)xdr_void,
-                           (caddr_t *)&vers,
-                           (xdrproc_t)xdr_kdb_fullresync_result_t,
-                           (caddr_t)&clnt_res, full_resync_timeout);
+                           &vers, (xdrproc_t)xdr_kdb_fullresync_result_t,
+                           &clnt_res, full_resync_timeout);
     }
 
     return (status == RPC_SUCCESS) ? &clnt_res : NULL;
@@ -1017,10 +1039,15 @@ kpropd_com_err_proc(const char *whoami, long code, const char *fmt,
 }
 
 static void
-parse_args(char **argv)
+parse_args(int argc, char **argv)
 {
-    char **newargs, *word, ch;
+    char **newargs;
+    int c;
     krb5_error_code retval;
+    enum { PID_FILE = 256 };
+    struct option long_options[] = {
+        { "pid-file", 1, NULL, PID_FILE },
+    };
 
     memset(&params, 0, sizeof(params));
 
@@ -1032,101 +1059,69 @@ parse_args(char **argv)
         exit(1);
     }
 
-    progname = *argv++;
-    while ((word = *argv++) != NULL) {
-        /* We don't take any arguments, only options */
-        if (*word != '-')
-            usage();
-
-        word++;
-        while (word != NULL && (ch = *word++) != '\0') {
-            switch (ch) {
-            case 'A':
-                params.mask |= KADM5_CONFIG_ADMIN_SERVER;
-                params.admin_server = (*word != '\0') ? word : *argv++;
-                if (params.admin_server == NULL)
-                    usage();
-                word = NULL;
-                break;
-            case 'f':
-                file = (*word != '\0') ? word : *argv++;
-                if (file == NULL)
-                    usage();
-                word = NULL;
-                break;
-            case 'F':
-                kerb_database = (*word != '\0') ? word : *argv++;
-                if (kerb_database == NULL)
-                    usage();
-                word = NULL;
-                break;
-            case 'p':
-                kdb5_util = (*word != '\0') ? word : *argv++;
-                if (kdb5_util == NULL)
-                    usage();
-                word = NULL;
-                break;
-            case 'P':
-                port = (*word != '\0') ? word : *argv++;
-                if (port == NULL)
-                    usage();
-                word = NULL;
-                break;
-            case 'r':
-                realm = (*word != '\0') ? word : *argv++;
-                if (realm == NULL)
-                    usage();
-                word = NULL;
-                break;
-            case 's':
-                srvtab = (*word != '\0') ? word : *argv++;
-                if (srvtab == NULL)
-                    usage();
-                word = NULL;
-                break;
-            case 'D':
-                nodaemon++;
-                break;
-            case 'd':
-                debug++;
-                break;
-            case 'S':
-                /* Standalone mode is now auto-detected; see main(). */
-                break;
-            case 'a':
-                acl_file_name = (*word != '\0') ? word : *argv++;
-                if (acl_file_name == NULL)
-                    usage();
-                word = NULL;
-                break;
-
-            case 't':
-                /* Undocumented option - for testing only.  Run the kpropd
-                 * server exactly once. */
-                runonce = 1;
-                break;
-
-            case 'x':
-                newargs = realloc(db_args,
-                                  (db_args_size + 2) * sizeof(*db_args));
-                if (newargs == NULL) {
-                    com_err(argv[0], errno, _("copying db args"));
-                    exit(1);
-                }
-                db_args = newargs;
-                db_args[db_args_size] = (*word != '\0') ? word : *argv++;
-                if (db_args[db_args_size] == NULL)
-                    usage();
-                word = NULL;
-                db_args[db_args_size + 1] = NULL;
-                db_args_size++;
-                break;
-
-            default:
-                usage();
+    progname = argv[0];
+    while ((c = getopt_long(argc, argv, "A:f:F:p:P:r:s:DdSa:tx:",
+                            long_options, NULL)) != -1) {
+        switch (c) {
+        case 'A':
+            params.mask |= KADM5_CONFIG_ADMIN_SERVER;
+            params.admin_server = optarg;
+            break;
+        case 'f':
+            file = optarg;
+            break;
+        case 'F':
+            kerb_database = optarg;
+            break;
+        case 'p':
+            kdb5_util = optarg;
+            break;
+        case 'P':
+            port = optarg;
+            break;
+        case 'r':
+            realm = optarg;
+            break;
+        case 's':
+            srvtab = optarg;
+            break;
+        case 'D':
+            nodaemon++;
+            break;
+        case 'd':
+            debug++;
+            break;
+        case 'S':
+            /* Standalone mode is now auto-detected; see main(). */
+            break;
+        case 'a':
+            acl_file_name = optarg;
+            break;
+        case 't':
+            /* Undocumented option - for testing only.  Run the kpropd
+             * server exactly once. */
+            runonce = 1;
+            break;
+        case 'x':
+            newargs = realloc(db_args, (db_args_size + 2) * sizeof(*db_args));
+            if (newargs == NULL) {
+                com_err(argv[0], errno, _("copying db args"));
+                exit(1);
             }
+            db_args = newargs;
+            db_args[db_args_size] = optarg;
+            db_args[db_args_size + 1] = NULL;
+            db_args_size++;
+            break;
+        case PID_FILE:
+            pid_file = optarg;
+            break;
+        default:
+            usage();
         }
     }
+    if (optind != argc)
+        usage();
 
     openlog("kpropd", LOG_PID | LOG_ODELAY, SYSLOG_CLASS);
     if (!debug)

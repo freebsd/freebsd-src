@@ -15,7 +15,7 @@
 
 \title{Kerberos Plugin Module Developer Guide}
 \date{ }
-\release{1.15.1}
+\release{1.16}
 \author{MIT}
 \newcommand{\sphinxlogo}{}
 \renewcommand{\releasename}{Release}
@@ -451,6 +451,40 @@ interface (which is explicitly unstable), it may not remain as stable
 across versions as other public pluggable interfaces.
 
 
+\section{kadmin authorization interface (kadm5\_auth)}
+\label{plugindev/kadm5_auth:kadm5-auth-plugin}\label{plugindev/kadm5_auth:kadmin-authorization-interface-kadm5-auth}\label{plugindev/kadm5_auth::doc}
+The kadm5\_auth interface (new in release 1.16) allows modules to
+determine whether a client principal is authorized to perform an
+operation in the kadmin protocol, and to apply restrictions to
+principal operations.  For a detailed description of the kadm5\_auth
+interface, see the header file \code{\textless{}krb5/kadm5\_auth\_plugin.h\textgreater{}}.
+
+A module can create and destroy per-process state objects by
+implementing the \textbf{init} and \textbf{fini} methods.  State objects have
+the type kadm5\_auth\_modinfo, which is an abstract pointer type.  A
+module should typically cast this to an internal type for the state
+object.
+
+The kadm5\_auth interface has one method for each kadmin operation,
+with parameters specific to the operation.  Each method can return
+either 0 to authorize access, KRB5\_PLUGIN\_NO\_HANDLE to defer the
+decision to other modules, or another error (canonically EPERM) to
+authoritatively deny access.  Access is granted if at least one module
+grants access and no module authoritatively denies access.
+
+The \textbf{addprinc} and \textbf{modprinc} methods can also impose restrictions
+on the principal operation by returning a \code{struct
+kadm5\_auth\_restrictions} object.  The module should also implement
+the \textbf{free\_restrictions} method if it dynamically allocates
+restrictions objects for principal operations.
+
+kadm5\_auth modules can optionally inspect principal or policy objects.
+To do this, the module must also include \code{\textless{}kadm5/admin.h\textgreater{}} to gain
+access to the structure definitions for those objects.  As the kadmin
+interface is explicitly not as stable as other public interfaces,
+modules which do this may not retain compatibility across releases.
+
+
 \section{Host-to-realm interface (hostrealm)}
 \label{plugindev/hostrealm:hostrealm-plugin}\label{plugindev/hostrealm::doc}\label{plugindev/hostrealm:host-to-realm-interface-hostrealm}
 The host-to-realm interface was first introduced in release 1.12.  It
@@ -793,6 +827,55 @@ consume (in application servers) authorization data of types beyond
 those handled by the core MIT krb5 code base.  The interface is
 defined in the header file \code{\textless{}krb5/authdata\_plugin.h\textgreater{}}, which is not
 installed by the build.
+
+
+\section{PKINIT certificate authorization interface (certauth)}
+\label{plugindev/certauth:certauth-plugin}\label{plugindev/certauth::doc}\label{plugindev/certauth:pkinit-certificate-authorization-interface-certauth}
+The certauth interface was first introduced in release 1.16.  It
+allows customization of the X.509 certificate attribute requirements
+placed on certificates used by PKINIT enabled clients.  For a detailed
+description of the certauth interface, see the header file
+\code{\textless{}krb5/certauth\_plugin.h\textgreater{}}
+
+A certauth module implements the \textbf{authorize} method to determine
+whether a client's certificate is authorized to authenticate a client
+principal.  \textbf{authorize} receives the DER-encoded certificate, the
+requested client principal, and a pointer to the client's
+krb5\_db\_entry (for modules that link against libkdb5).  It returns the
+authorization status and optionally outputs a list of authentication
+indicator strings to be added to the ticket.  A module must use its
+own internal or library-provided ASN.1 certificate decoder.
+
+A module can optionally create and destroy module data with the
+\textbf{init} and \textbf{fini} methods.  Module data objects last for the
+lifetime of the KDC process.
+
+If a module allocates and returns a list of authentication indicators
+from \textbf{authorize}, it must also implement the \textbf{free\_ind} method
+to free the list.
+
+
+\section{KDC policy interface (kdcpolicy)}
+\label{plugindev/kdcpolicy:kdcpolicy-plugin}\label{plugindev/kdcpolicy::doc}\label{plugindev/kdcpolicy:kdc-policy-interface-kdcpolicy}
+The kdcpolicy interface was first introduced in release 1.16.  It
+allows modules to veto otherwise valid AS and TGS requests or restrict
+the lifetime and renew time of the resulting ticket.  For a detailed
+description of the kdcpolicy interface, see the header file
+\code{\textless{}krb5/kdcpolicy\_plugin.h\textgreater{}}.
+
+The optional \textbf{check\_as} and \textbf{check\_tgs} functions allow the module
+to perform access control.  Additionally, a module can create and
+destroy module data with the \textbf{init} and \textbf{fini} methods.  Module
+data objects last for the lifetime of the KDC process, and are
+provided to all other methods.  The data has the type
+krb5\_kdcpolicy\_moddata, which should be cast to the appropriate
+internal type.
+
+kdcpolicy modules can optionally inspect principal entries.  To do
+this, the module must also include \code{\textless{}kdb.h\textgreater{}} to gain access to the
+principal entry structure definition.  As the KDB interface is
+explicitly not as stable as other public interfaces, modules which do
+this may not retain compatibility across releases.
 
 
 

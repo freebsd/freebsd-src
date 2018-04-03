@@ -87,13 +87,14 @@ krb5_error_code ktutil_delete(context, list, idx)
  * one first.
  */
 krb5_error_code ktutil_add(context, list, princ_str, kvno,
-                           enctype_str, use_pass)
+                           enctype_str, use_pass, salt_str)
     krb5_context context;
     krb5_kt_list *list;
     char *princ_str;
     krb5_kvno kvno;
     char *enctype_str;
     int use_pass;
+    char *salt_str;
 {
     krb5_keytab_entry *entry;
     krb5_kt_list lp = NULL, prev = NULL;
@@ -101,7 +102,7 @@ krb5_error_code ktutil_add(context, list, princ_str, kvno,
     krb5_enctype enctype;
     krb5_timestamp now;
     krb5_error_code retval;
-    krb5_data password, salt;
+    krb5_data password, salt, defsalt = empty_data();
     krb5_keyblock key;
     char buf[BUFSIZ];
     char promptstr[1024];
@@ -165,9 +166,14 @@ krb5_error_code ktutil_add(context, list, princ_str, kvno,
                                     &password.length);
         if (retval)
             goto cleanup;
-        retval = krb5_principal2salt(context, princ, &salt);
-        if (retval)
-            goto cleanup;
+        if (salt_str != NULL) {
+            salt = string2data(salt_str);
+        } else {
+            retval = krb5_principal2salt(context, princ, &defsalt);
+            if (retval)
+                goto cleanup;
+            salt = defsalt;
+        }
         retval = krb5_c_string_to_key(context, enctype, &password,
                                       &salt, &key);
         if (retval)
@@ -225,6 +231,7 @@ cleanup:
     if (prev)
         prev->next = NULL;
     ktutil_free_kt_list(context, lp);
+    krb5_free_data_contents(context, &defsalt);
     return retval;
 }
 

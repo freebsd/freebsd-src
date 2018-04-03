@@ -28,9 +28,7 @@ realm = K5Realm(start_kadmind=True, create_host=False, get_creds=False)
 
 realm.prep_kadmin()
 
-out = realm.run_kadmin(['getstrs', 'user'])
-if '(No string attributes.)' not in out:
-    fail('Empty attribute query')
+realm.run_kadmin(['getstrs', 'user'], expected_msg='(No string attributes.)')
 
 realm.run_kadmin(['setstr', 'user', 'attr1', 'value1'])
 realm.run_kadmin(['setstr', 'user', 'attr2', 'value2'])

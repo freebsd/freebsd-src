@@ -212,6 +212,7 @@ typedef unsigned char   u_char;
 #define KRB5_CONF_DNS_URI_LOOKUP               "dns_uri_lookup"
 #define KRB5_CONF_DOMAIN_REALM                 "domain_realm"
 #define KRB5_CONF_ENABLE_ONLY                  "enable_only"
+#define KRB5_CONF_ENCRYPTED_CHALLENGE_INDICATOR "encrypted_challenge_indicator"
 #define KRB5_CONF_ERR_FMT                      "err_fmt"
 #define KRB5_CONF_EXTRA_ADDRESSES              "extra_addresses"
 #define KRB5_CONF_FORWARDABLE                  "forwardable"
@@ -720,7 +721,7 @@ krb5_error_code krb5int_c_copy_keyblock_contents(krb5_context context,
                                                  const krb5_keyblock *from,
                                                  krb5_keyblock *to);
 
-krb5_error_code krb5_crypto_us_timeofday(krb5_int32 *, krb5_int32 *);
+krb5_error_code krb5_crypto_us_timeofday(krb5_timestamp *, krb5_int32 *);
 
 /*
  * End "los-proto.h"
@@ -1155,7 +1156,10 @@ struct plugin_interface {
 #define PLUGIN_INTERFACE_AUDIT       7
 #define PLUGIN_INTERFACE_TLS         8
 #define PLUGIN_INTERFACE_KDCAUTHDATA 9
-#define PLUGIN_NUM_INTERFACES        10
+#define PLUGIN_INTERFACE_CERTAUTH    10
+#define PLUGIN_INTERFACE_KADM5_AUTH  11
+#define PLUGIN_INTERFACE_KDCPOLICY   12
+#define PLUGIN_NUM_INTERFACES        13
 
 /* Retrieve the plugin module of type interface_id and name modname,
  * storing the result into module. */
@@ -1194,7 +1198,7 @@ k5_plugin_free_context(krb5_context context);
 struct _kdb5_dal_handle;        /* private, in kdb5.h */
 typedef struct _kdb5_dal_handle kdb5_dal_handle;
 struct _kdb_log_context;
-typedef struct krb5_preauth_context_st krb5_preauth_context;
+typedef struct krb5_preauth_context_st *krb5_preauth_context;
 struct ccselect_module_handle;
 struct localauth_module_handle;
 struct hostrealm_module_handle;
@@ -1231,7 +1235,7 @@ struct _krb5_context {
     struct plugin_dir_handle libkrb5_plugins;
 
     /* preauth module stuff */
-    krb5_preauth_context *preauth_context;
+    krb5_preauth_context preauth_context;
 
     /* cache module stuff */
     struct ccselect_module_handle **ccselect_handles;
@@ -2112,6 +2116,7 @@ krb5_get_tgs_ktypes(krb5_context, krb5_const_principal, krb5_enctype **);
 krb5_boolean krb5_is_permitted_enctype(krb5_context, krb5_enctype);
 
 krb5_boolean KRB5_CALLCONV krb5int_c_weak_enctype(krb5_enctype);
+krb5_error_code k5_enctype_to_ssf(krb5_enctype enctype, unsigned int *ssf_out);
 
 krb5_error_code krb5_kdc_rep_decrypt_proc(krb5_context, const krb5_keyblock *,
                                           krb5_const_pointer, krb5_kdc_rep *);
@@ -2348,6 +2353,44 @@ k5memdup0(const void *in, size_t len, krb5_error_code *code)
     if (ptr != NULL && len > 0)
         memcpy(ptr, in, len);
     return ptr;
+}
+
+/* Convert a krb5_timestamp to a time_t value, treating the negative range of
+ * krb5_timestamp as times between 2038 and 2106 (if time_t is 64-bit). */
+static inline time_t
+ts2tt(krb5_timestamp timestamp)
+{
+    return (time_t)(uint32_t)timestamp;
+}
+
+/* Return the delta between two timestamps (a - b) as a signed 32-bit value,
+ * without relying on undefined behavior. */
+static inline krb5_deltat
+ts_delta(krb5_timestamp a, krb5_timestamp b)
+{
+    return (krb5_deltat)((uint32_t)a - (uint32_t)b);
+}
+
+/* Increment a timestamp by a signed 32-bit interval, without relying on
+ * undefined behavior. */
+static inline krb5_timestamp
+ts_incr(krb5_timestamp ts, krb5_deltat delta)
+{
+    return (krb5_timestamp)((uint32_t)ts + (uint32_t)delta);
+}
+
+/* Return true if a comes after b. */
+static inline krb5_boolean
+ts_after(krb5_timestamp a, krb5_timestamp b)
+{
+    return (uint32_t)a > (uint32_t)b;
+}
+
+/* Return true if a and b are within d seconds. */
+static inline krb5_boolean
+ts_within(krb5_timestamp a, krb5_timestamp b, krb5_deltat d)
+{
+    return !ts_after(a, ts_incr(b, d)) && !ts_after(b, ts_incr(a, d));
 }
 
 krb5_error_code KRB5_CALLCONV

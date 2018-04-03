@@ -140,7 +140,7 @@ cammac_check_kdcver(krb5_context context, krb5_cammac *cammac,
 /* do_as_req.c */
 void
 process_as_req (krb5_kdc_req *, krb5_data *,
-                const krb5_fulladdr *, kdc_realm_t *,
+                const krb5_fulladdr *, const krb5_fulladdr *, kdc_realm_t *,
                 verto_ctx *, loop_respond_fn, void *);
 
 /* do_tgs_req.c */
@@ -151,7 +151,7 @@ process_tgs_req (struct server_handle *, krb5_data *,
 /* dispatch.c */
 void
 dispatch (void *,
-          struct sockaddr *,
+          const krb5_fulladdr *,
           const krb5_fulladdr *,
           krb5_data *,
           int,
@@ -165,17 +165,6 @@ kdc_err(krb5_context call_context, errcode_t code, const char *fmt, ...)
     __attribute__((__format__(__printf__, 3, 4)))
 #endif
     ;
-
-/* policy.c */
-int
-against_local_policy_as (krb5_kdc_req *, krb5_db_entry,
-                         krb5_db_entry, krb5_timestamp,
-                         const char **, krb5_pa_data ***);
-
-int
-against_local_policy_tgs (krb5_kdc_req *, krb5_db_entry,
-                          krb5_ticket *, const char **,
-                          krb5_pa_data ***);
 
 /* kdc_preauth.c */
 krb5_boolean
@@ -346,7 +335,9 @@ kdc_get_ticket_renewtime(kdc_realm_t *realm, krb5_kdc_req *request,
                          krb5_db_entry *server, krb5_enc_tkt_part *tkt);
 
 void
-log_as_req(krb5_context context, const krb5_fulladdr *from,
+log_as_req(krb5_context context,
+           const krb5_fulladdr *local_addr,
+           const krb5_fulladdr *remote_addr,
            krb5_kdc_req *request, krb5_kdc_rep *reply,
            krb5_db_entry *client, const char *cname,
            krb5_db_entry *server, const char *sname,
@@ -451,6 +442,8 @@ struct krb5_kdcpreauth_rock_st {
 #define min(a, b)       ((a) < (b) ? (a) : (b))
 #define max(a, b)       ((a) > (b) ? (a) : (b))
 #endif
+
+#define ts_min(a, b) (ts_after(a, b) ? (b) : (a))
 
 #define ADDRTYPE2FAMILY(X)                                              \
     ((X) == ADDRTYPE_INET6 ? AF_INET6 : (X) == ADDRTYPE_INET ? AF_INET : -1)

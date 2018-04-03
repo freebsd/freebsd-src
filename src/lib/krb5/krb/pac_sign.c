@@ -38,8 +38,8 @@ k5_insert_client_info(krb5_context context,
     krb5_error_code ret;
     krb5_data client_info;
     char *princ_name_utf8 = NULL;
-    unsigned char *princ_name_ucs2 = NULL, *p;
-    size_t princ_name_ucs2_len = 0;
+    unsigned char *princ_name_utf16 = NULL, *p;
+    size_t princ_name_utf16_len = 0;
     uint64_t nt_authtime;
 
     /* If we already have a CLIENT_INFO buffer, then just validate it */
@@ -54,13 +54,12 @@ k5_insert_client_info(krb5_context context,
     if (ret != 0)
         goto cleanup;
 
-    ret = krb5int_utf8s_to_ucs2les(princ_name_utf8,
-                                   &princ_name_ucs2,
-                                   &princ_name_ucs2_len);
+    ret = k5_utf8_to_utf16le(princ_name_utf8, &princ_name_utf16,
+                             &princ_name_utf16_len);
     if (ret != 0)
         goto cleanup;
 
-    client_info.length = PAC_CLIENT_INFO_LENGTH + princ_name_ucs2_len;
+    client_info.length = PAC_CLIENT_INFO_LENGTH + princ_name_utf16_len;
     client_info.data = NULL;
 
     ret = k5_pac_add_buffer(context, pac, KRB5_PAC_CLIENT_INFO,
@@ -75,16 +74,16 @@ k5_insert_client_info(krb5_context context,
     store_64_le(nt_authtime, p);
     p += 8;
 
-    /* copy in number of UCS-2 characters in principal name */
-    store_16_le(princ_name_ucs2_len, p);
+    /* copy in number of UTF-16 bytes in principal name */
+    store_16_le(princ_name_utf16_len, p);
     p += 2;
 
     /* copy in principal name */
-    memcpy(p, princ_name_ucs2, princ_name_ucs2_len);
+    memcpy(p, princ_name_utf16, princ_name_utf16_len);
 
 cleanup:
-    if (princ_name_ucs2 != NULL)
-        free(princ_name_ucs2);
+    if (princ_name_utf16 != NULL)
+        free(princ_name_utf16);
     krb5_free_unparsed_name(context, princ_name_utf8);
 
     return ret;

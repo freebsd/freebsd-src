@@ -212,7 +212,7 @@ depend: $(SRCS)
 
 check-unix: t_fortuna
 	if [ $(PRNG_ALG) = fortuna ]; then \
-		$(RUN_TEST) ./t_fortuna > t_fortuna.output; \
+		$(RUN_TEST) ./t_fortuna > t_fortuna.output && \
 		cmp t_fortuna.output $(srcdir)/t_fortuna.expected; \
 	fi
 

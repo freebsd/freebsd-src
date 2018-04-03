@@ -62,13 +62,11 @@ for ks in dup_kstypes:
 # fails.
 def test_reject_afs3(realm, etype):
     query = 'ank -e ' + etype + ':afs3 -pw password princ1'
-    out = realm.run([kadminl, 'ank', '-e', etype + ':afs3', '-pw', 'password',
-                     'princ1'], expected_code=1)
-    if 'Invalid key generation parameters from KDC' not in out:
-        fail('Allowed afs3 salt for ' + etype)
-    out = realm.run([kadminl, 'getprinc', 'princ1'], expected_code=1)
-    if 'Principal does not exist' not in out:
-        fail('Created principal with afs3 salt and enctype ' + etype)
+    realm.run([kadminl, 'ank', '-e', etype + ':afs3', '-pw', 'password',
+               'princ1'], expected_code=1,
+              expected_msg='Invalid key generation parameters from KDC')
+    realm.run([kadminl, 'getprinc', 'princ1'], expected_code=1,
+              expected_msg='Principal does not exist')
 
 # Verify that the afs3 salt is rejected for arcfour and pbkdf2 enctypes.
 # We do not currently do any verification on the key-generation parameters

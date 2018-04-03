@@ -222,11 +222,15 @@ static errcode_t parse_include_file(const char *filename,
 }
 
 /* Return non-zero if filename contains only alphanumeric characters, dashes,
- * and underscores, or if the filename ends in ".conf". */
+ * and underscores, or if the filename ends in ".conf" and is not a dotfile. */
 static int valid_name(const char *filename)
 {
     const char *p;
     size_t len = strlen(filename);
+
+    /* Ignore dotfiles, which might be editor or filesystem artifacts. */
+    if (*filename == '.')
+        return 0;
 
     if (len >= 5 && !strcmp(filename + len - 5, ".conf"))
         return 1;

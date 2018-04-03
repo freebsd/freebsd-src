@@ -5,16 +5,8 @@
  */
 
 #include "autoconf.h"
-#include "krb5.h"
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include "k5-int.h"
 #include <time.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 
 #include "com_err.h"
 
@@ -37,7 +29,7 @@ test_string_to_timestamp(krb5_context ctx, char *ktime)
         com_err("krb5_string_to_timestamp", retval, 0);
         return;
     }
-    t = (time_t) timestamp;
+    t = ts2tt(timestamp);
     printf("Parsed time was %s", ctime(&t));
 }
 

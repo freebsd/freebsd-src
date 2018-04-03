@@ -370,11 +370,12 @@ k5beta7_common(krb5_context context, krb5_db_entry *entry,
     fprintf(fp, "princ\t%d\t%lu\t%d\t%d\t%d\t%s\t", (int)entry->len,
             (unsigned long)strlen(name), counter, (int)entry->n_key_data,
             (int)entry->e_length, name);
-    fprintf(fp, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d", entry->attributes,
-            entry->max_life, entry->max_renewable_life, entry->expiration,
-            entry->pw_expiration,
-            omit_nra ? 0 : entry->last_success,
-            omit_nra ? 0 : entry->last_failed,
+    fprintf(fp, "%d\t%d\t%d\t%u\t%u\t%u\t%u\t%d", entry->attributes,
+            entry->max_life, entry->max_renewable_life,
+            (unsigned int)entry->expiration,
+            (unsigned int)entry->pw_expiration,
+            (unsigned int)(omit_nra ? 0 : entry->last_success),
+            (unsigned int)(omit_nra ? 0 : entry->last_failed),
             omit_nra ? 0 : entry->fail_auth_count);
 
     /* Write out tagged data. */
@@ -688,6 +689,10 @@ process_tl_data(const char *fname, FILE *filep, int lineno,
                      _("cannot read tagged data type and length"));
             return EINVAL;
         }
+        if (i1 < INT16_MIN || i1 > INT16_MAX || u1 > UINT16_MAX) {
+            load_err(fname, lineno, _("data type or length overflowed"));
+            return EINVAL;
+        }
         tl->tl_data_type = i1;
         tl->tl_data_length = u1;
         if (read_octets_or_minus1(filep, tl->tl_data_length,
@@ -708,7 +713,7 @@ process_k5beta7_princ(krb5_context context, const char *fname, FILE *filep,
 {
     int retval, nread, i, j;
     krb5_db_entry *dbentry;
-    int t1, t2, t3, t4, t5, t6, t7;
+    int t1, t2, t3, t4;
     unsigned int u1, u2, u3, u4, u5;
     char *name = NULL;
     krb5_key_data *kp = NULL, *kd;
@@ -735,6 +740,10 @@ process_k5beta7_princ(krb5_context context, const char *fname, FILE *filep,
         goto fail;
 
     /* Get memory for and form tagged data linked list */
+    if (u3 > UINT16_MAX) {
+        load_err(fname, *linenop, _("cannot allocate tl_data (too large)"));
+        goto fail;
+    }
     if (alloc_tl_data(u3, &dbentry->tl_data))
         goto fail;
     dbentry->n_tl_data = u3;
@@ -764,8 +773,8 @@ process_k5beta7_princ(krb5_context context, const char *fname, FILE *filep,
     }
 
     /* Get the fixed principal attributes */
-    nread = fscanf(filep, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t",
-                   &t1, &t2, &t3, &t4, &t5, &t6, &t7, &u1);
+    nread = fscanf(filep, "%d\t%d\t%d\t%u\t%u\t%d\t%d\t%d\t",
+                   &t1, &t2, &t3, &u1, &u2, &u3, &u4, &u5);
     if (nread != 8) {
         load_err(fname, *linenop, _("cannot read principal attributes"));
         goto fail;
@@ -773,11 +782,11 @@ process_k5beta7_princ(krb5_context context, const char *fname, FILE *filep,
     dbentry->attributes = t1;
     dbentry->max_life = t2;
     dbentry->max_renewable_life = t3;
-    dbentry->expiration = t4;
-    dbentry->pw_expiration = t5;
-    dbentry->last_success = t6;
-    dbentry->last_failed = t7;
-    dbentry->fail_auth_count = u1;
+    dbentry->expiration = u1;
+    dbentry->pw_expiration = u2;
+    dbentry->last_success = u3;
+    dbentry->last_failed = u4;
+    dbentry->fail_auth_count = u5;
     dbentry->mask = KADM5_LOAD | KADM5_PRINCIPAL | KADM5_ATTRIBUTES |
         KADM5_MAX_LIFE | KADM5_MAX_RLIFE |
         KADM5_PRINC_EXPIRE_TIME | KADM5_LAST_SUCCESS |
@@ -823,13 +832,17 @@ process_k5beta7_princ(krb5_context context, const char *fname, FILE *filep,
             load_err(fname, *linenop, _("cannot read key size and version"));
             goto fail;
         }
+        if (t1 > KRB5_KDB_V1_KEY_DATA_ARRAY) {
+            load_err(fname, *linenop, _("unsupported key_data_ver version"));
+            goto fail;
+        }
 
         kd->key_data_ver = t1;
         kd->key_data_kvno = t2;
 
         for (j = 0; j < t1; j++) {
             nread = fscanf(filep, "%d\t%d\t", &t3, &t4);
-            if (nread != 2) {
+            if (nread != 2 || t4 < 0) {
                 load_err(fname, *linenop,
                          _("cannot read key type and length"));
                 goto fail;

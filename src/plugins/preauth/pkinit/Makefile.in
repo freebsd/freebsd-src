@@ -1,7 +1,6 @@
 mydir=plugins$(S)preauth$(S)pkinit
 BUILDTOP=$(REL)..$(S)..$(S)..
 MODULE_INSTALL_DIR = $(KRB5_PA_MODULE_DIR)
-LOCALINCLUDES = $(PKINIT_CRYPTO_IMPL_CFLAGS)
 
 LIBBASE=pkinit
 LIBMAJOR=0
@@ -11,8 +10,7 @@ RELDIR=../plugins/preauth/pkinit
 SHLIB_EXPDEPS = \
 	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
 	$(TOPLIBD)/libkrb5$(SHLIBEXT)
-SHLIB_EXPLIBS= -lkrb5 -lcom_err -lk5crypto $(PKINIT_CRYPTO_IMPL_LIBS) $(DL_LIB) $(SUPPORT_LIB) $(LIBS)
-DEFINES=-DPKINIT_DYNOBJEXT=\""$(PKINIT_DYNOBJEXT)"\"
+SHLIB_EXPLIBS= -lkrb5 -lcom_err -lk5crypto -lcrypto $(DL_LIB) $(SUPPORT_LIB) $(LIBS)
 
 STLIBOBJS= \
 	pkinit_accessor.o \
@@ -23,7 +21,7 @@ STLIBOBJS= \
 	pkinit_profile.o \
 	pkinit_identity.o \
 	pkinit_matching.o \
-	pkinit_crypto_$(PKINIT_CRYPTO_IMPL).o
+	pkinit_crypto_openssl.o
 
 SRCS= \
 	$(srcdir)/pkinit_accessor.c \
@@ -35,7 +33,7 @@ SRCS= \
 	$(srcdir)/pkinit_profile.c \
 	$(srcdir)/pkinit_identity.c \
 	$(srcdir)/pkinit_matching.c \
-	$(srcdir)/pkinit_crypto_$(PKINIT_CRYPTO_IMPL).c
+	$(srcdir)/pkinit_crypto_openssl.c
 
 all-unix: all-liblinks
 install-unix: install-libs

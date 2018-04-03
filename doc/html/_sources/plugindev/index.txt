@@ -25,11 +25,14 @@ Contents
    ccselect.rst
    pwqual.rst
    kadm5_hook.rst
+   kadm5_auth.rst
    hostrealm.rst
    localauth.rst
    locate.rst
    profile.rst
    gssapi.rst
    internal.rst
+   certauth.rst
+   kdcpolicy.rst
 
 .. TODO: GSSAPI mechanism plugins

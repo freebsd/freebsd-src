@@ -29,7 +29,10 @@
 
 k5_mutex_t krb5int_us_time_mutex = K5_MUTEX_PARTIAL_INITIALIZER;
 
-struct time_now { krb5_int32 sec, usec; };
+struct time_now {
+    krb5_timestamp sec;
+    krb5_int32 usec;
+};
 
 #if defined(_WIN32)
 
@@ -73,7 +76,7 @@ get_time_now(struct time_now *n)
 static struct time_now last_time;
 
 krb5_error_code
-krb5_crypto_us_timeofday(krb5_int32 *seconds, krb5_int32 *microseconds)
+krb5_crypto_us_timeofday(krb5_timestamp *seconds, krb5_int32 *microseconds)
 {
     struct time_now now;
     krb5_error_code err;
@@ -102,17 +105,17 @@ krb5_crypto_us_timeofday(krb5_int32 *seconds, krb5_int32 *microseconds)
        putting now.sec in the past.  But don't just use '<' because we
        need to properly handle the case where the administrator intentionally
        adjusted time backwards. */
-    if ((now.sec == last_time.sec-1) ||
-        ((now.sec == last_time.sec) && (now.usec <= last_time.usec))) {
+    if (now.sec == ts_incr(last_time.sec, -1) ||
+        (now.sec == last_time.sec && !ts_after(last_time.usec, now.usec))) {
         /* Correct 'now' to be exactly one microsecond later than 'last_time'.
            Note that _because_ we perform this hack, 'now' may be _earlier_
            than 'last_time', even though the system time is monotonically
            increasing. */
 
         now.sec = last_time.sec;
-        now.usec = ++last_time.usec;
+        now.usec = ts_incr(last_time.usec, 1);
         if (now.usec >= 1000000) {
-            ++now.sec;
+            now.sec = ts_incr(now.sec, 1);
             now.usec = 0;
         }
     }

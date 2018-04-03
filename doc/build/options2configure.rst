@@ -350,10 +350,6 @@ Optional packages
     prng specify ``--with-prng-alg=os``.  The default is ``fortuna``.
     (See :ref:`mitK5features`)
 
-**-**\ **-with-pkinit-crypto-impl=**\ *IMPL*
-    Use the specified pkinit crypto implementation *IMPL*.
-    Defaults to using OpenSSL.
-
 **-**\ **-without-libedit**
     Do not compile and link against libedit.  Some utilities will no
     longer offer command history or completion in interactive mode if

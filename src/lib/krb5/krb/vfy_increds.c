@@ -120,7 +120,7 @@ get_vfy_cred(krb5_context context, krb5_creds *creds, krb5_principal server,
         ret = krb5_timeofday(context, &in_creds.times.endtime);
         if (ret)
             goto cleanup;
-        in_creds.times.endtime += 5*60;
+        in_creds.times.endtime = ts_incr(in_creds.times.endtime, 5 * 60);
         ret = krb5_get_credentials(context, 0, ccache, &in_creds, &out_creds);
         if (ret)
             goto cleanup;

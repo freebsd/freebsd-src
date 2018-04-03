@@ -51,7 +51,6 @@
 #include <gssrpc/auth_gssapi.h>
 #include <kadm5/admin.h>
 #include <kadm5/kadm_rpc.h>
-#include <kadm5/server_acl.h>
 #include <adm_proto.h>
 #include "kdb_kt.h"  /* for krb5_ktkdb_set_context */
 #include <string.h>
@@ -59,6 +58,7 @@
 #include <kdb_log.h>
 
 #include "misc.h"
+#include "auth.h"
 
 #if defined(NEED_DAEMON_PROTO)
 int daemon(int, int);
@@ -356,6 +356,7 @@ main(int argc, char *argv[])
     verto_ctx *vctx;
     const char *pid_file = NULL;
     char **db_args = NULL, **tmpargs;
+    const char *acl_file;
     int ret, i, db_args_size = 0, strong_random = 1, proponly = 0;
 
     setlocale(LC_ALL, "");
@@ -505,7 +506,8 @@ main(int argc, char *argv[])
     if (svcauth_gss_set_svc_name(GSS_C_NO_NAME) != TRUE)
         fail_to_start(0, _("Cannot initialize GSSAPI service name"));
 
-    ret = kadm5int_acl_init(context, 0, params.acl_file);
+    acl_file = (*params.acl_file != '\0') ? params.acl_file : NULL;
+    ret = auth_init(context, acl_file);
     if (ret)
         fail_to_start(ret, _("initializing ACL file"));
 
@@ -550,7 +552,7 @@ main(int argc, char *argv[])
     svcauth_gssapi_unset_names();
     kadm5_destroy(global_server_handle);
     loop_free(vctx);
-    kadm5int_acl_finish(context, 0);
+    auth_fini(context);
     (void)gss_release_name(&minor_status, &gss_changepw_name);
     (void)gss_release_name(&minor_status, &gss_oldchangepw_name);
     for (i = 0; i < 4; i++)

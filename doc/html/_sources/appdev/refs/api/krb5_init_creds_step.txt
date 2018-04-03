@@ -50,6 +50,10 @@ If this function returns **KRB5KRB_ERR_RESPONSE_TOO_BIG** , the caller should tr
 
 
 
+ *context* must be the same as the one passed to :c:func:`krb5_init_creds_init()` for this initial credentials context.
+
+
+
 
 
 

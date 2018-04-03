@@ -436,12 +436,11 @@ int get_tgt (context, p_client_str, p_client, ccache)
 {
     char *cache_name = NULL;		/* -f option */
     long lifetime = KRB5_DEFAULT_LIFE;	/* -l option */
-    int options = KRB5_DEFAULT_OPTIONS;
     krb5_error_code code;
     krb5_creds my_creds;
     krb5_timestamp start;
-    krb5_principal tgt_server;
     float dt;
+    krb5_get_init_creds_opt *options;
 
     if (!brief)
       fprintf(stderr, "\tgetting TGT for %s\n", p_client_str);
@@ -458,22 +457,6 @@ int get_tgt (context, p_client_str, p_client, ccache)
 	return(-1);
     }
 
-
-    if ((code = krb5_build_principal_ext(context, &tgt_server,
-				krb5_princ_realm(context, *p_client)->length,
-				krb5_princ_realm(context, *p_client)->data,
-				tgtname.length,
-				tgtname.data,
-				krb5_princ_realm(context, *p_client)->length,
-				krb5_princ_realm(context, *p_client)->data,
-				0))) {
-	com_err(prog, code, "when setting up tgt principal");
-	return(-1);
-    }
-
-    my_creds.client = *p_client;
-    my_creds.server = tgt_server;
-
     code = krb5_cc_initialize (context, ccache, *p_client);
     if (code != 0) {
 	com_err (prog, code, "when initializing cache %s",
@@ -481,17 +464,26 @@ int get_tgt (context, p_client_str, p_client, ccache)
 	return(-1);
     }
 
-    my_creds.times.starttime = 0;	/* start timer when request
-					   gets to KDC */
-    my_creds.times.endtime = start + lifetime;
-    my_creds.times.renew_till = 0;
-
     if (do_timer)
 	swatch_on();
 
-    code = krb5_get_in_tkt_with_password(context, options, 0,
-					 NULL, patype, p_client_str, ccache,
-					 &my_creds, 0);
+    code = krb5_get_init_creds_opt_alloc(context, &options);
+    if (code != 0) {
+	com_err(prog, code, "when allocating init cred options");
+	return(-1);
+    }
+
+    krb5_get_init_creds_opt_set_tkt_life(options, lifetime);
+
+    code = krb5_get_init_creds_opt_set_out_ccache(context, options, ccache);
+    if (code != 0) {
+	com_err(prog, code, "when setting init cred output ccache");
+	return(-1);
+    }
+
+    code = krb5_get_init_creds_password(context, &my_creds, *p_client,
+					p_client_str, NULL, NULL, 0, NULL,
+					options);
     if (do_timer) {
 	dt = swatch_eltime();
 	in_tkt_times.ht_cumulative += dt;
@@ -501,8 +493,7 @@ int get_tgt (context, p_client_str, p_client, ccache)
 	if (dt < in_tkt_times.ht_min)
 	    in_tkt_times.ht_min = dt;
     }
-    my_creds.server = my_creds.client = 0;
-    krb5_free_principal(context, tgt_server);
+    krb5_get_init_creds_opt_free(context, options);
     krb5_free_cred_contents(context, &my_creds);
     if (code != 0) {
 	com_err (prog, code, "while getting initial credentials");

@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '1.15.1',
+        VERSION:     '1.16',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -266,6 +266,25 @@ time as follows:</p>
 <div class="highlight-python"><div class="highlight"><pre>kadmin -q &#39;add_principal +requires_preauth -nokey YOUR_PRINCNAME&#39;
 </pre></div>
 </div>
+<p>By default, the KDC requires PKINIT client certificates to have the
+standard Extended Key Usage and Subject Alternative Name attributes
+for PKINIT.  Starting in release 1.16, it is possible to authorize
+client certificates based on the subject or other criteria instead of
+the standard PKINIT Subject Alternative Name, by setting the
+<strong>pkinit_cert_match</strong> string attribute on each client principal entry.
+For example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kadmin set_string user@REALM pkinit_cert_match &quot;&lt;SUBJECT&gt;CN=user@REALM$&quot;
+</pre></div>
+</div>
+<p>The <strong>pkinit_cert_match</strong> string attribute follows the syntax used by
+the <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a> <strong>pkinit_cert_match</strong> relation.  To allow the
+use of non-PKINIT client certificates, it will also be necessary to
+disable key usage checking using the <strong>pkinit_eku_checking</strong> relation;
+for example:</p>
+<div class="highlight-python"><div class="highlight"><pre>[kdcdefaults]
+    pkinit_eku_checking = none
+</pre></div>
+</div>
 </div>
 <div class="section" id="configuring-the-clients">
 <h2>Configuring the clients<a class="headerlink" href="#configuring-the-clients" title="Permalink to this headline">¶</a></h2>
@@ -423,7 +442,7 @@ will have the client name <tt class="docutils literal"><span class="pre">WELLKNO
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.15.1</i><br />
+            <div class="right" ><i>Release: 1.16</i><br />
                 &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
             </div>
             <div class="left">

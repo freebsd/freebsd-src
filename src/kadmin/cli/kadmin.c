@@ -31,8 +31,7 @@
  * library */
 
 /* for "_" macro */
-#include "k5-platform.h"
-#include <krb5.h>
+#include "k5-int.h"
 #include <kadm5/admin.h>
 #include <adm_proto.h>
 #include <errno.h>
@@ -144,8 +143,8 @@ strdate(krb5_timestamp when)
 {
     struct tm *tm;
     static char out[40];
+    time_t lcltim = ts2tt(when);
 
-    time_t lcltim = when;
     tm = localtime(&lcltim);
     strftime(out, sizeof(out), "%a %b %d %H:%M:%S %Z %Y", tm);
     return out;
