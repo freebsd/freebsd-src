@@ -76,6 +76,19 @@ MALLOC_DEFINE(M_IDMA, "idma", "idma dma test memory");
 #define MV_DUMP_WIN	0
 #endif
 
+static enum soc_family soc_family;
+
+static int mv_win_cesa_attr(int wng_sel);
+static int mv_win_cesa_attr_armv5(int eng_sel);
+static int mv_win_cesa_attr_armada38x(int eng_sel);
+static int mv_win_cesa_attr_armadaxp(int eng_sel);
+
+uint32_t read_cpu_ctrl_armv5(uint32_t reg);
+uint32_t read_cpu_ctrl_armv7(uint32_t reg);
+
+void write_cpu_ctrl_armv5(uint32_t reg, uint32_t val);
+void write_cpu_ctrl_armv7(uint32_t reg, uint32_t val);
+
 static int win_eth_can_remap(int i);
 
 static int decode_win_cesa_valid(void);
@@ -91,9 +104,7 @@ static int decode_win_idma_valid(void);
 static int decode_win_xor_valid(void);
 
 static void decode_win_cpu_setup(void);
-#ifdef SOC_MV_ARMADAXP
 static int decode_win_sdram_fixup(void);
-#endif
 static void decode_win_cesa_setup(u_long);
 static void decode_win_usb_setup(u_long);
 static void decode_win_usb3_setup(u_long);
@@ -117,11 +128,48 @@ static void decode_win_ahci_dump(u_long base);
 static void decode_win_sdhci_dump(u_long);
 static void decode_win_pcie_dump(u_long);
 
+static uint32_t win_cpu_cr_read(int);
+static uint32_t win_cpu_armv5_cr_read(int);
+static uint32_t win_cpu_armv7_cr_read(int);
+static uint32_t win_cpu_br_read(int);
+static uint32_t win_cpu_armv5_br_read(int);
+static uint32_t win_cpu_armv7_br_read(int);
+static uint32_t win_cpu_remap_l_read(int);
+static uint32_t win_cpu_armv5_remap_l_read(int);
+static uint32_t win_cpu_armv7_remap_l_read(int);
+static uint32_t win_cpu_remap_h_read(int);
+static uint32_t win_cpu_armv5_remap_h_read(int);
+static uint32_t win_cpu_armv7_remap_h_read(int);
+
+static void win_cpu_cr_write(int, uint32_t);
+static void win_cpu_armv5_cr_write(int, uint32_t);
+static void win_cpu_armv7_cr_write(int, uint32_t);
+static void win_cpu_br_write(int, uint32_t);
+static void win_cpu_armv5_br_write(int, uint32_t);
+static void win_cpu_armv7_br_write(int, uint32_t);
+static void win_cpu_remap_l_write(int, uint32_t);
+static void win_cpu_armv5_remap_l_write(int, uint32_t);
+static void win_cpu_armv7_remap_l_write(int, uint32_t);
+static void win_cpu_remap_h_write(int, uint32_t);
+static void win_cpu_armv5_remap_h_write(int, uint32_t);
+static void win_cpu_armv7_remap_h_write(int, uint32_t);
+
+static uint32_t ddr_br_read(int);
+static uint32_t ddr_sz_read(int);
+static uint32_t ddr_armv5_br_read(int);
+static uint32_t ddr_armv5_sz_read(int);
+static uint32_t ddr_armv7_br_read(int);
+static uint32_t ddr_armv7_sz_read(int);
+static void ddr_br_write(int, uint32_t);
+static void ddr_sz_write(int, uint32_t);
+static void ddr_armv5_br_write(int, uint32_t);
+static void ddr_armv5_sz_write(int, uint32_t);
+static void ddr_armv7_br_write(int, uint32_t);
+static void ddr_armv7_sz_write(int, uint32_t);
+
 static int fdt_get_ranges(const char *, void *, int, int *, int *);
-#ifdef SOC_MV_ARMADA38X
 int gic_decode_fdt(phandle_t iparent, pcell_t *intr, int *interrupt,
     int *trig, int *pol);
-#endif
 
 static int win_cpu_from_dt(void);
 static int fdt_win_setup(void);
@@ -175,6 +223,95 @@ static struct soc_node_spec soc_nodes[] = {
 	{ "mrvl,cesa", &decode_win_cesa_setup, &decode_win_cesa_dump, &decode_win_cesa_valid},
 	{ "mrvl,pcie", &decode_win_pcie_setup, &decode_win_pcie_dump, &decode_win_pcie_valid},
 	{ NULL, NULL, NULL, NULL },
+};
+
+typedef uint32_t(*read_cpu_ctrl_t)(uint32_t);
+typedef void(*write_cpu_ctrl_t)(uint32_t, uint32_t);
+typedef uint32_t (*win_read_t)(int);
+typedef void (*win_write_t)(int, uint32_t);
+typedef int (*win_cesa_attr_t)(int);
+
+struct decode_win_spec {
+	read_cpu_ctrl_t  read_cpu_ctrl;
+	write_cpu_ctrl_t write_cpu_ctrl;
+	win_read_t	cr_read;
+	win_read_t	br_read;
+	win_read_t	remap_l_read;
+	win_read_t	remap_h_read;
+	win_write_t	cr_write;
+	win_write_t	br_write;
+	win_write_t	remap_l_write;
+	win_write_t	remap_h_write;
+	uint32_t	mv_win_cpu_max;
+	win_cesa_attr_t win_cesa_attr;
+	int 		win_cesa_target;
+	win_read_t	ddr_br_read;
+	win_read_t	ddr_sz_read;
+	win_write_t	ddr_br_write;
+	win_write_t	ddr_sz_write;
+};
+
+struct decode_win_spec *soc_decode_win_spec;
+
+static struct decode_win_spec decode_win_specs[] =
+{
+	{
+		&read_cpu_ctrl_armv7,
+		&write_cpu_ctrl_armv7,
+		&win_cpu_armv7_cr_read,
+		&win_cpu_armv7_br_read,
+		&win_cpu_armv7_remap_l_read,
+		&win_cpu_armv7_remap_h_read,
+		&win_cpu_armv7_cr_write,
+		&win_cpu_armv7_br_write,
+		&win_cpu_armv7_remap_l_write,
+		&win_cpu_armv7_remap_h_write,
+		MV_WIN_CPU_MAX_ARMV7,
+		&mv_win_cesa_attr_armada38x,
+		MV_WIN_CESA_TARGET_ARMADA38X,
+		&ddr_armv7_br_read,
+		&ddr_armv7_sz_read,
+		&ddr_armv7_br_write,
+		&ddr_armv7_sz_write,
+	},
+	{
+		&read_cpu_ctrl_armv7,
+		&write_cpu_ctrl_armv7,
+		&win_cpu_armv7_cr_read,
+		&win_cpu_armv7_br_read,
+		&win_cpu_armv7_remap_l_read,
+		&win_cpu_armv7_remap_h_read,
+		&win_cpu_armv7_cr_write,
+		&win_cpu_armv7_br_write,
+		&win_cpu_armv7_remap_l_write,
+		&win_cpu_armv7_remap_h_write,
+		MV_WIN_CPU_MAX_ARMV7,
+		&mv_win_cesa_attr_armadaxp,
+		MV_WIN_CESA_TARGET_ARMADAXP,
+		&ddr_armv7_br_read,
+		&ddr_armv7_sz_read,
+		&ddr_armv7_br_write,
+		&ddr_armv7_sz_write,
+	},
+	{
+		&read_cpu_ctrl_armv5,
+		&write_cpu_ctrl_armv5,
+		&win_cpu_armv5_cr_read,
+		&win_cpu_armv5_br_read,
+		&win_cpu_armv5_remap_l_read,
+		&win_cpu_armv5_remap_h_read,
+		&win_cpu_armv5_cr_write,
+		&win_cpu_armv5_br_write,
+		&win_cpu_armv5_remap_l_write,
+		&win_cpu_armv5_remap_h_write,
+		MV_WIN_CPU_MAX,
+		&mv_win_cesa_attr_armv5,
+		MV_WIN_CESA_TARGET,
+		&ddr_armv5_br_read,
+		&ddr_armv5_sz_read,
+		&ddr_armv5_br_write,
+		&ddr_armv5_sz_write,
+	},
 };
 
 struct fdt_pm_mask_entry {
@@ -237,6 +374,74 @@ pm_is_disabled(uint32_t mask)
  * This feature can be used only on Kirkwood and Discovery
  * machines.
  */
+
+static int mv_win_cesa_attr(int eng_sel)
+{
+
+	if (soc_decode_win_spec->win_cesa_attr != NULL)
+		return (soc_decode_win_spec->win_cesa_attr(eng_sel));
+
+	return (-1);
+}
+
+static int mv_win_cesa_attr_armv5(int eng_sel)
+{
+
+	return MV_WIN_CESA_ATTR(eng_sel);
+}
+
+static int mv_win_cesa_attr_armada38x(int eng_sel)
+{
+
+	return MV_WIN_CESA_ATTR_ARMADA38X(eng_sel);
+}
+
+static int mv_win_cesa_attr_armadaxp(int eng_sel)
+{
+
+	return MV_WIN_CESA_ATTR_ARMADAXP(eng_sel);
+}
+
+enum soc_family
+mv_check_soc_family()
+{
+	uint32_t dev, rev;
+
+	soc_id(&dev, &rev);
+	switch (dev) {
+	case MV_DEV_MV78230:
+	case MV_DEV_MV78260:
+	case MV_DEV_MV78460:
+		soc_decode_win_spec = &decode_win_specs[MV_SOC_ARMADA_XP];
+		soc_family = MV_SOC_ARMADA_XP;
+		return (MV_SOC_ARMADA_XP);
+	case MV_DEV_88F6828:
+	case MV_DEV_88F6820:
+	case MV_DEV_88F6810:
+		soc_decode_win_spec = &decode_win_specs[MV_SOC_ARMADA_38X];
+		soc_family = MV_SOC_ARMADA_38X;
+		return (MV_SOC_ARMADA_38X);
+	case MV_DEV_88F5181:
+	case MV_DEV_88F5182:
+	case MV_DEV_88F5281:
+	case MV_DEV_88F6281:
+	case MV_DEV_88RC8180:
+	case MV_DEV_88RC9480:
+	case MV_DEV_88RC9580:
+	case MV_DEV_88F6781:
+	case MV_DEV_88F6282:
+	case MV_DEV_MV78100_Z0:
+	case MV_DEV_MV78100:
+	case MV_DEV_MV78160:
+		soc_decode_win_spec = &decode_win_specs[MV_SOC_ARMV5];
+		soc_family = MV_SOC_ARMV5;
+		return (MV_SOC_ARMV5);
+	default:
+		soc_family = MV_SOC_UNSUPPORTED;
+		return (MV_SOC_UNSUPPORTED);
+	}
+}
+
 static __inline void
 pm_disable_device(int mask)
 {
@@ -297,17 +502,47 @@ uint32_t
 read_cpu_ctrl(uint32_t reg)
 {
 
+	if (soc_decode_win_spec->read_cpu_ctrl != NULL)
+		return (soc_decode_win_spec->read_cpu_ctrl(reg));
+	return (-1);
+}
+
+uint32_t
+read_cpu_ctrl_armv5(uint32_t reg)
+{
+
 	return (bus_space_read_4(fdtbus_bs_tag, MV_CPU_CONTROL_BASE, reg));
+}
+
+uint32_t
+read_cpu_ctrl_armv7(uint32_t reg)
+{
+
+	return (bus_space_read_4(fdtbus_bs_tag, MV_CPU_CONTROL_BASE_ARMV7, reg));
 }
 
 void
 write_cpu_ctrl(uint32_t reg, uint32_t val)
 {
 
+	if (soc_decode_win_spec->write_cpu_ctrl != NULL)
+		soc_decode_win_spec->write_cpu_ctrl(reg, val);
+}
+
+void
+write_cpu_ctrl_armv5(uint32_t reg, uint32_t val)
+{
+
 	bus_space_write_4(fdtbus_bs_tag, MV_CPU_CONTROL_BASE, reg, val);
 }
 
-#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
+void
+write_cpu_ctrl_armv7(uint32_t reg, uint32_t val)
+{
+
+	bus_space_write_4(fdtbus_bs_tag, MV_CPU_CONTROL_BASE_ARMV7, reg, val);
+}
+
 uint32_t
 read_cpu_mp_clocks(uint32_t reg)
 {
@@ -335,7 +570,6 @@ write_cpu_misc(uint32_t reg, uint32_t val)
 
 	bus_space_write_4(fdtbus_bs_tag, MV_MISC_BASE, reg, val);
 }
-#endif
 
 void
 cpu_reset(void)
@@ -414,6 +648,8 @@ soc_power_ctrl_set(uint32_t mask)
 void
 soc_id(uint32_t *dev, uint32_t *rev)
 {
+	uint64_t mv_pcie_base = MV_PCIE_BASE;
+	phandle_t node;
 
 	/*
 	 * Notice: system identifiers are available in the registers range of
@@ -421,8 +657,15 @@ soc_id(uint32_t *dev, uint32_t *rev)
 	 * possible) after the internal registers range has been mapped in via
 	 * devmap_bootstrap().
 	 */
-	*dev = bus_space_read_4(fdtbus_bs_tag, MV_PCIE_BASE, 0) >> 16;
-	*rev = bus_space_read_4(fdtbus_bs_tag, MV_PCIE_BASE, 8) & 0xff;
+	*dev = 0;
+	*rev = 0;
+	if ((node = OF_finddevice("/")) == -1)
+		return;
+	if (ofw_bus_node_is_compatible(node, "marvell,armada380"))
+		mv_pcie_base = MV_PCIE_BASE_ARMADA38X;
+
+	*dev = bus_space_read_4(fdtbus_bs_tag, mv_pcie_base, 0) >> 16;
+	*rev = bus_space_read_4(fdtbus_bs_tag, mv_pcie_base, 8) & 0xff;
 }
 
 static void
@@ -596,10 +839,9 @@ soc_decode_win(void)
 	/* Retrieve our ID: some windows facilities vary between SoC models */
 	soc_id(&dev, &rev);
 
-#ifdef SOC_MV_ARMADAXP
-	if ((err = decode_win_sdram_fixup()) != 0)
-		return(err);
-#endif
+	if (soc_family == MV_SOC_ARMADA_XP)
+		if ((err = decode_win_sdram_fixup()) != 0)
+			return(err);
 
 
 	decode_win_cpu_setup();
@@ -617,14 +859,91 @@ soc_decode_win(void)
 /**************************************************************************
  * Decode windows registers accessors
  **************************************************************************/
-WIN_REG_IDX_RD(win_cpu, cr, MV_WIN_CPU_CTRL, MV_MBUS_BRIDGE_BASE)
-WIN_REG_IDX_RD(win_cpu, br, MV_WIN_CPU_BASE, MV_MBUS_BRIDGE_BASE)
-WIN_REG_IDX_RD(win_cpu, remap_l, MV_WIN_CPU_REMAP_LO, MV_MBUS_BRIDGE_BASE)
-WIN_REG_IDX_RD(win_cpu, remap_h, MV_WIN_CPU_REMAP_HI, MV_MBUS_BRIDGE_BASE)
-WIN_REG_IDX_WR(win_cpu, cr, MV_WIN_CPU_CTRL, MV_MBUS_BRIDGE_BASE)
-WIN_REG_IDX_WR(win_cpu, br, MV_WIN_CPU_BASE, MV_MBUS_BRIDGE_BASE)
-WIN_REG_IDX_WR(win_cpu, remap_l, MV_WIN_CPU_REMAP_LO, MV_MBUS_BRIDGE_BASE)
-WIN_REG_IDX_WR(win_cpu, remap_h, MV_WIN_CPU_REMAP_HI, MV_MBUS_BRIDGE_BASE)
+WIN_REG_IDX_RD(win_cpu_armv5, cr, MV_WIN_CPU_CTRL_ARMV5, MV_MBUS_BRIDGE_BASE)
+WIN_REG_IDX_RD(win_cpu_armv5, br, MV_WIN_CPU_BASE_ARMV5, MV_MBUS_BRIDGE_BASE)
+WIN_REG_IDX_RD(win_cpu_armv5, remap_l, MV_WIN_CPU_REMAP_LO_ARMV5, MV_MBUS_BRIDGE_BASE)
+WIN_REG_IDX_RD(win_cpu_armv5, remap_h, MV_WIN_CPU_REMAP_HI_ARMV5, MV_MBUS_BRIDGE_BASE)
+WIN_REG_IDX_WR(win_cpu_armv5, cr, MV_WIN_CPU_CTRL_ARMV5, MV_MBUS_BRIDGE_BASE)
+WIN_REG_IDX_WR(win_cpu_armv5, br, MV_WIN_CPU_BASE_ARMV5, MV_MBUS_BRIDGE_BASE)
+WIN_REG_IDX_WR(win_cpu_armv5, remap_l, MV_WIN_CPU_REMAP_LO_ARMV5, MV_MBUS_BRIDGE_BASE)
+WIN_REG_IDX_WR(win_cpu_armv5, remap_h, MV_WIN_CPU_REMAP_HI_ARMV5, MV_MBUS_BRIDGE_BASE)
+
+WIN_REG_IDX_RD(win_cpu_armv7, cr, MV_WIN_CPU_CTRL_ARMV7, MV_MBUS_BRIDGE_BASE)
+WIN_REG_IDX_RD(win_cpu_armv7, br, MV_WIN_CPU_BASE_ARMV7, MV_MBUS_BRIDGE_BASE)
+WIN_REG_IDX_RD(win_cpu_armv7, remap_l, MV_WIN_CPU_REMAP_LO_ARMV7, MV_MBUS_BRIDGE_BASE)
+WIN_REG_IDX_RD(win_cpu_armv7, remap_h, MV_WIN_CPU_REMAP_HI_ARMV7, MV_MBUS_BRIDGE_BASE)
+WIN_REG_IDX_WR(win_cpu_armv7, cr, MV_WIN_CPU_CTRL_ARMV7, MV_MBUS_BRIDGE_BASE)
+WIN_REG_IDX_WR(win_cpu_armv7, br, MV_WIN_CPU_BASE_ARMV7, MV_MBUS_BRIDGE_BASE)
+WIN_REG_IDX_WR(win_cpu_armv7, remap_l, MV_WIN_CPU_REMAP_LO_ARMV7, MV_MBUS_BRIDGE_BASE)
+WIN_REG_IDX_WR(win_cpu_armv7, remap_h, MV_WIN_CPU_REMAP_HI_ARMV7, MV_MBUS_BRIDGE_BASE)
+
+static uint32_t
+win_cpu_cr_read(int i)
+{
+
+	if (soc_decode_win_spec->cr_read != NULL)
+		return (soc_decode_win_spec->cr_read(i));
+	return (-1);
+}
+
+static uint32_t
+win_cpu_br_read(int i)
+{
+
+	if (soc_decode_win_spec->br_read != NULL)
+		return (soc_decode_win_spec->br_read(i));
+	return (-1);
+}
+
+static uint32_t
+win_cpu_remap_l_read(int i)
+{
+
+	if (soc_decode_win_spec->remap_l_read != NULL)
+		return (soc_decode_win_spec->remap_l_read(i));
+	return (-1);
+}
+
+static uint32_t
+win_cpu_remap_h_read(int i)
+{
+
+	if (soc_decode_win_spec->remap_h_read != NULL)
+		return soc_decode_win_spec->remap_h_read(i);
+	return (-1);
+}
+
+static void
+win_cpu_cr_write(int i, uint32_t val)
+{
+
+	if (soc_decode_win_spec->cr_write != NULL)
+		soc_decode_win_spec->cr_write(i, val);
+}
+
+static void
+win_cpu_br_write(int i, uint32_t val)
+{
+
+	if (soc_decode_win_spec->br_write != NULL)
+		soc_decode_win_spec->br_write(i, val);
+}
+
+static void
+win_cpu_remap_l_write(int i, uint32_t val)
+{
+
+	if (soc_decode_win_spec->remap_l_write != NULL)
+		soc_decode_win_spec->remap_l_write(i, val);
+}
+
+static void
+win_cpu_remap_h_write(int i, uint32_t val)
+{
+
+	if (soc_decode_win_spec->remap_h_write != NULL)
+		soc_decode_win_spec->remap_h_write(i, val);
+}
 
 WIN_REG_BASE_IDX_RD(win_cesa, cr, MV_WIN_CESA_CTRL)
 WIN_REG_BASE_IDX_RD(win_cesa, br, MV_WIN_CESA_BASE)
@@ -636,12 +955,10 @@ WIN_REG_BASE_IDX_RD(win_usb, br, MV_WIN_USB_BASE)
 WIN_REG_BASE_IDX_WR(win_usb, cr, MV_WIN_USB_CTRL)
 WIN_REG_BASE_IDX_WR(win_usb, br, MV_WIN_USB_BASE)
 
-#ifdef SOC_MV_ARMADA38X
 WIN_REG_BASE_IDX_RD(win_usb3, cr, MV_WIN_USB3_CTRL)
 WIN_REG_BASE_IDX_RD(win_usb3, br, MV_WIN_USB3_BASE)
 WIN_REG_BASE_IDX_WR(win_usb3, cr, MV_WIN_USB3_CTRL)
 WIN_REG_BASE_IDX_WR(win_usb3, br, MV_WIN_USB3_BASE)
-#endif
 
 WIN_REG_BASE_IDX_RD(win_eth, br, MV_WIN_ETH_BASE)
 WIN_REG_BASE_IDX_RD(win_eth, sz, MV_WIN_ETH_SIZE)
@@ -692,10 +1009,13 @@ WIN_REG_BASE_IDX_RD(win_sata, cr, MV_WIN_SATA_CTRL);
 WIN_REG_BASE_IDX_RD(win_sata, br, MV_WIN_SATA_BASE);
 WIN_REG_BASE_IDX_WR(win_sata, cr, MV_WIN_SATA_CTRL);
 WIN_REG_BASE_IDX_WR(win_sata, br, MV_WIN_SATA_BASE);
-#if defined(SOC_MV_ARMADA38X)
-WIN_REG_BASE_IDX_RD(win_sata, sz, MV_WIN_SATA_SIZE);
-WIN_REG_BASE_IDX_WR(win_sata, sz, MV_WIN_SATA_SIZE);
-#endif
+
+WIN_REG_BASE_IDX_RD(win_sata_armada38x, sz, MV_WIN_SATA_SIZE_ARMADA38X);
+WIN_REG_BASE_IDX_WR(win_sata_armada38x, sz, MV_WIN_SATA_SIZE_ARMADA38X);
+WIN_REG_BASE_IDX_RD(win_sata_armada38x, cr, MV_WIN_SATA_CTRL_ARMADA38X);
+WIN_REG_BASE_IDX_RD(win_sata_armada38x, br, MV_WIN_SATA_BASE_ARMADA38X);
+WIN_REG_BASE_IDX_WR(win_sata_armada38x, cr, MV_WIN_SATA_CTRL_ARMADA38X);
+WIN_REG_BASE_IDX_WR(win_sata_armada38x, br, MV_WIN_SATA_BASE_ARMADA38X);
 
 WIN_REG_BASE_IDX_RD(win_sdhci, cr, MV_WIN_SDHCI_CTRL);
 WIN_REG_BASE_IDX_RD(win_sdhci, br, MV_WIN_SDHCI_BASE);
@@ -703,10 +1023,49 @@ WIN_REG_BASE_IDX_WR(win_sdhci, cr, MV_WIN_SDHCI_CTRL);
 WIN_REG_BASE_IDX_WR(win_sdhci, br, MV_WIN_SDHCI_BASE);
 
 #ifndef SOC_MV_DOVE
-WIN_REG_IDX_RD(ddr, br, MV_WIN_DDR_BASE, MV_DDR_CADR_BASE)
-WIN_REG_IDX_RD(ddr, sz, MV_WIN_DDR_SIZE, MV_DDR_CADR_BASE)
-WIN_REG_IDX_WR(ddr, br, MV_WIN_DDR_BASE, MV_DDR_CADR_BASE)
-WIN_REG_IDX_WR(ddr, sz, MV_WIN_DDR_SIZE, MV_DDR_CADR_BASE)
+WIN_REG_IDX_RD(ddr_armv5, br, MV_WIN_DDR_BASE, MV_DDR_CADR_BASE)
+WIN_REG_IDX_RD(ddr_armv5, sz, MV_WIN_DDR_SIZE, MV_DDR_CADR_BASE)
+WIN_REG_IDX_WR(ddr_armv5, br, MV_WIN_DDR_BASE, MV_DDR_CADR_BASE)
+WIN_REG_IDX_WR(ddr_armv5, sz, MV_WIN_DDR_SIZE, MV_DDR_CADR_BASE)
+
+WIN_REG_IDX_RD(ddr_armv7, br, MV_WIN_DDR_BASE, MV_DDR_CADR_BASE_ARMV7)
+WIN_REG_IDX_RD(ddr_armv7, sz, MV_WIN_DDR_SIZE, MV_DDR_CADR_BASE_ARMV7)
+WIN_REG_IDX_WR(ddr_armv7, br, MV_WIN_DDR_BASE, MV_DDR_CADR_BASE_ARMV7)
+WIN_REG_IDX_WR(ddr_armv7, sz, MV_WIN_DDR_SIZE, MV_DDR_CADR_BASE_ARMV7)
+
+static inline uint32_t
+ddr_br_read(int i)
+{
+
+	if (soc_decode_win_spec->ddr_br_read != NULL)
+		return (soc_decode_win_spec->ddr_br_read(i));
+	return (-1);
+}
+
+static inline uint32_t
+ddr_sz_read(int i)
+{
+
+	if (soc_decode_win_spec->ddr_sz_read != NULL)
+		return (soc_decode_win_spec->ddr_sz_read(i));
+	return (-1);
+}
+
+static inline void
+ddr_br_write(int i, uint32_t val)
+{
+
+	if (soc_decode_win_spec->ddr_br_write != NULL)
+		soc_decode_win_spec->ddr_br_write(i, val);
+}
+
+static inline void
+ddr_sz_write(int i, uint32_t val)
+{
+
+	if (soc_decode_win_spec->ddr_sz_write != NULL)
+		soc_decode_win_spec->ddr_sz_write(i, val);
+}
 #else
 /*
  * On 88F6781 (Dove) SoC DDR Controller is accessed through
@@ -747,12 +1106,9 @@ static inline uint32_t ddr_sz_read(int i)
 void
 soc_dump_decode_win(void)
 {
-	uint32_t dev, rev;
 	int i;
 
-	soc_id(&dev, &rev);
-
-	for (i = 0; i < MV_WIN_CPU_MAX; i++) {
+	for (i = 0; i < soc_decode_win_spec->mv_win_cpu_max; i++) {
 		printf("CPU window#%d: c 0x%08x, b 0x%08x", i,
 		    win_cpu_cr_read(i),
 		    win_cpu_br_read(i));
@@ -832,7 +1188,7 @@ decode_win_cpu_valid(void)
 	int i, j, rv;
 	uint32_t b, e, s;
 
-	if (cpu_wins_no > MV_WIN_CPU_MAX) {
+	if (cpu_wins_no > soc_decode_win_spec->mv_win_cpu_max) {
 		printf("CPU windows: too many entries: %d\n", cpu_wins_no);
 		return (0);
 	}
@@ -894,14 +1250,14 @@ decode_win_cpu_set(int target, int attr, vm_paddr_t base, uint32_t size,
 	int win, i;
 
 	if (remap == ~0) {
-		win = MV_WIN_CPU_MAX - 1;
+		win = soc_decode_win_spec->mv_win_cpu_max - 1;
 		i = -1;
 	} else {
 		win = 0;
 		i = 1;
 	}
 
-	while ((win >= 0) && (win < MV_WIN_CPU_MAX)) {
+	while ((win >= 0) && (win < soc_decode_win_spec->mv_win_cpu_max)) {
 		cr = win_cpu_cr_read(win);
 		if ((cr & MV_WIN_CPU_ENABLE_BIT) == 0)
 			break;
@@ -912,7 +1268,7 @@ decode_win_cpu_set(int target, int attr, vm_paddr_t base, uint32_t size,
 			break;
 		win += i;
 	}
-	if ((win < 0) || (win >= MV_WIN_CPU_MAX) ||
+	if ((win < 0) || (win >= soc_decode_win_spec->mv_win_cpu_max) ||
 	    ((remap != ~0) && (win_cpu_can_remap(win) == 0)))
 		return (-1);
 
@@ -947,7 +1303,7 @@ decode_win_cpu_setup(void)
 	int i;
 
 	/* Disable all CPU windows */
-	for (i = 0; i < MV_WIN_CPU_MAX; i++) {
+	for (i = 0; i < soc_decode_win_spec->mv_win_cpu_max; i++) {
 		win_cpu_cr_write(i, 0);
 		win_cpu_br_write(i, 0);
 		if (win_cpu_can_remap(i)) {
@@ -964,7 +1320,6 @@ decode_win_cpu_setup(void)
 
 }
 
-#ifdef SOC_MV_ARMADAXP
 static int
 decode_win_sdram_fixup(void)
 {
@@ -1006,7 +1361,6 @@ decode_win_sdram_fixup(void)
 
 	return (0);
 }
-#endif
 /*
  * Check if we're able to cover all active DDR banks.
  */
@@ -1147,7 +1501,6 @@ decode_win_cesa_setup(u_long base)
 			br = ddr_base(i);
 
 			size = ddr_size(i);
-#ifdef SOC_MV_ARMADA38X
 			/*
 			 * Armada 38x SoC's equipped with 4GB DRAM
 			 * suffer freeze during CESA operation, if
@@ -1156,9 +1509,9 @@ decode_win_cesa_setup(u_long base)
 			 * by setting the window size to the closest possible
 			 * value, i.e. divide it by 2.
 			 */
-			if (size + ddr_base(i) == 0x100000000ULL)
+			if ((soc_family == MV_SOC_ARMADA_38X) &&
+			    (size + ddr_base(i) == 0x100000000ULL))
 				size /= 2;
-#endif
 
 			cr = (((size - 1) & 0xffff0000) |
 			    (ddr_attr(i) << IO_WIN_ATTR_SHIFT) |
@@ -1248,7 +1601,6 @@ decode_win_usb_setup(u_long base)
 /**************************************************************************
  * USB3 windows routines
  **************************************************************************/
-#ifdef SOC_MV_ARMADA38X
 static int
 decode_win_usb3_valid(void)
 {
@@ -1302,28 +1654,8 @@ decode_win_usb3_setup(u_long base)
 		}
 	}
 }
-#else
-/*
- * Provide dummy functions to satisfy the build
- * for SoCs not equipped with USB3
- */
-static int
-decode_win_usb3_valid(void)
-{
 
-	return (1);
-}
 
-static void
-decode_win_usb3_setup(u_long base)
-{
-}
-
-static void
-decode_win_usb3_dump(u_long base)
-{
-}
-#endif
 /**************************************************************************
  * ETH windows routines
  **************************************************************************/
@@ -2140,7 +2472,6 @@ decode_win_sata_setup(u_long base)
 		}
 }
 
-#ifdef SOC_MV_ARMADA38X
 /*
  * Configure AHCI decoding windows
  */
@@ -2150,10 +2481,10 @@ decode_win_ahci_setup(u_long base)
 	uint32_t br, cr, sz;
 	int i, j;
 
-	for (i = 0; i < MV_WIN_SATA_MAX; i++) {
-		win_sata_cr_write(base, i, 0);
-		win_sata_br_write(base, i, 0);
-		win_sata_sz_write(base, i, 0);
+	for (i = 0; i < MV_WIN_SATA_MAX_ARMADA38X; i++) {
+		win_sata_armada38x_cr_write(base, i, 0);
+		win_sata_armada38x_br_write(base, i, 0);
+		win_sata_armada38x_sz_write(base, i, 0);
 	}
 
 	for (i = 0; i < MV_WIN_DDR_MAX; i++) {
@@ -2166,16 +2497,16 @@ decode_win_ahci_setup(u_long base)
 			    (IO_WIN_SIZE_MASK << IO_WIN_SIZE_SHIFT);
 
 			/* Use first available SATA window */
-			for (j = 0; j < MV_WIN_SATA_MAX; j++) {
-				if (win_sata_cr_read(base, j) & IO_WIN_ENA_MASK)
+			for (j = 0; j < MV_WIN_SATA_MAX_ARMADA38X; j++) {
+				if (win_sata_armada38x_cr_read(base, j) & IO_WIN_ENA_MASK)
 					continue;
 
 				/* BASE is set to DRAM base (0x00000000) */
-				win_sata_br_write(base, j, br);
+				win_sata_armada38x_br_write(base, j, br);
 				/* CTRL targets DRAM ctrl with 0x0E or 0x0D */
-				win_sata_cr_write(base, j, cr);
+				win_sata_armada38x_cr_write(base, j, cr);
 				/* SIZE is set to 16MB - max value */
-				win_sata_sz_write(base, j, sz);
+				win_sata_armada38x_sz_write(base, j, sz);
 				break;
 			}
 		}
@@ -2187,27 +2518,11 @@ decode_win_ahci_dump(u_long base)
 {
 	int i;
 
-	for (i = 0; i < MV_WIN_SATA_MAX; i++)
+	for (i = 0; i < MV_WIN_SATA_MAX_ARMADA38X; i++)
 		printf("SATA window#%d: cr 0x%08x, br 0x%08x, sz 0x%08x\n", i,
-		    win_sata_cr_read(base, i), win_sata_br_read(base, i),
-		    win_sata_sz_read(base,i));
+		    win_sata_armada38x_cr_read(base, i), win_sata_br_read(base, i),
+		    win_sata_armada38x_sz_read(base,i));
 }
-
-#else
-/*
- * Provide dummy functions to satisfy the build
- * for SoC's not equipped with AHCI controller
- */
-static void
-decode_win_ahci_setup(u_long base)
-{
-}
-
-static void
-decode_win_ahci_dump(u_long base)
-{
-}
-#endif
 
 static int
 decode_win_sata_valid(void)
@@ -2267,12 +2582,7 @@ static int
 decode_win_sdhci_valid(void)
 {
 
-#ifdef SOC_MV_ARMADA38X
 	return (decode_win_can_cover_ddr(MV_WIN_SDHCI_MAX));
-#endif
-
-	/* Satisfy platforms not equipped with this controller. */
-	return (1);
 }
 
 /**************************************************************************
@@ -2384,12 +2694,11 @@ moveon:
 		return (ENOMEM);
 	}
 
-	cpu_win_tbl[t].target = MV_WIN_CESA_TARGET;
-#ifdef SOC_MV_ARMADA38X
-	cpu_win_tbl[t].attr = MV_WIN_CESA_ATTR(0);
-#else
-	cpu_win_tbl[t].attr = MV_WIN_CESA_ATTR(1);
-#endif
+	cpu_win_tbl[t].target = soc_decode_win_spec->win_cesa_target;
+	if (soc_family == MV_SOC_ARMADA_38X)
+		cpu_win_tbl[t].attr = soc_decode_win_spec->win_cesa_attr(0);
+	else
+		cpu_win_tbl[t].attr = soc_decode_win_spec->win_cesa_attr(1);
 	cpu_win_tbl[t].base = sram_base;
 	cpu_win_tbl[t].size = sram_size;
 	cpu_win_tbl[t].remap = ~0;
@@ -2415,8 +2724,8 @@ moveon:
 	}
 
 	/* Configure window for CESA1 */
-	cpu_win_tbl[t].target = MV_WIN_CESA_TARGET;
-	cpu_win_tbl[t].attr = MV_WIN_CESA_ATTR(1);
+	cpu_win_tbl[t].target = soc_decode_win_spec->win_cesa_target;
+	cpu_win_tbl[t].attr = soc_decode_win_spec->win_cesa_attr(1);
 	cpu_win_tbl[t].base = sram_base;
 	cpu_win_tbl[t].size = sram_size;
 	cpu_win_tbl[t].remap = ~0;
@@ -2661,9 +2970,6 @@ fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
 }
 
 fdt_pic_decode_t fdt_pic_table[] = {
-#ifdef SOC_MV_ARMADA38X
-	&gic_decode_fdt,
-#endif
 	&fdt_pic_decode_ic,
 	NULL
 };
