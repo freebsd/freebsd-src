@@ -327,13 +327,10 @@
 #define SAMPLE_AT_RESET		0x10
 #elif defined(SOC_MV_KIRKWOOD)
 #define SAMPLE_AT_RESET		0x30
-#elif defined(SOC_MV_ARMADA38X)
-#define SAMPLE_AT_RESET		0x400
 #endif
-#if defined(SOC_MV_DISCOVERY) || defined(SOC_MV_ARMADAXP)
-#define SAMPLE_AT_RESET_LO	0x30
-#define SAMPLE_AT_RESET_HI	0x34
-#endif
+#define	SAMPLE_AT_RESET_ARMADA38X	0x400
+#define	SAMPLE_AT_RESET_LO		0x30
+#define	SAMPLE_AT_RESET_HI		0x34
 
 /*
  * Clocks
@@ -344,10 +341,10 @@
 #elif defined(SOC_MV_DISCOVERY)
 #define TCLK_MASK		0x00000180
 #define TCLK_SHIFT		0x07
-#elif defined(SOC_MV_ARMADA38X)
-#define TCLK_MASK		0x00008000
-#define TCLK_SHIFT		15
 #endif
+
+#define	TCLK_MASK_ARMADA38X		0x00008000
+#define	TCLK_SHIFT_ARMADA38X		15
 
 #define TCLK_100MHZ		100000000
 #define TCLK_125MHZ		125000000

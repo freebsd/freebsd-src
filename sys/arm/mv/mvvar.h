@@ -89,7 +89,6 @@ void soc_id(uint32_t *dev, uint32_t *rev);
 void soc_dump_decode_win(void);
 uint32_t soc_power_ctrl_get(uint32_t mask);
 void soc_power_ctrl_set(uint32_t mask);
-uint64_t get_sar_value(void);
 
 int decode_win_cpu_set(int target, int attr, vm_paddr_t base, uint32_t size,
     vm_paddr_t remap);
