@@ -254,7 +254,8 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 			break;
 
 		case MLX5_EVENT_TYPE_CMD:
-			mlx5_cmd_comp_handler(dev, be32_to_cpu(eqe->data.cmd.vector));
+			if (dev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR)
+				mlx5_cmd_comp_handler(dev, be32_to_cpu(eqe->data.cmd.vector));
 			break;
 
 		case MLX5_EVENT_TYPE_PORT_CHANGE:
