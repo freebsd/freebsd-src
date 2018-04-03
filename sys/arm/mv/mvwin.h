@@ -64,12 +64,8 @@
 #define MV_PCI_PORTS	1	/* 1x PCIE */
 #elif defined(SOC_MV_DISCOVERY)
 #define MV_PCI_PORTS	8	/* 8x PCIE */
-#elif defined(SOC_MV_ARMADAXP)
-#define MV_PCI_PORTS	3	/* 3x PCIE */
-#elif defined(SOC_MV_ARMADA38X)
-#define MV_PCI_PORTS	4	/* 4x PCIE */
 #else
-#error "MV_PCI_PORTS not configured !"
+#define	MV_PCI_PORTS    1       /* 1x PCIE -> worst case */
 #endif
 
 /* PCI/PCIE Memory */
@@ -77,15 +73,11 @@
 #define MV_PCI_MEM_SIZE		(512 * 1024 * 1024)	/* 512 MB */
 #define MV_PCI_MEM_BASE		MV_PCI_MEM_PHYS_BASE
 #define MV_PCI_MEM_SLICE_SIZE	(MV_PCI_MEM_SIZE / MV_PCI_PORTS)
-#define MV_PCI_MEM_SLICE(n)	(MV_PCI_MEM_BASE + ((n) * \
-				    MV_PCI_MEM_SLICE_SIZE))
 /* PCI/PCIE I/O */
 #define MV_PCI_IO_PHYS_BASE	0xBF000000
 #define MV_PCI_IO_SIZE		(16 * 1024 * 1024)	/* 16 MB */
 #define MV_PCI_IO_BASE		MV_PCI_IO_PHYS_BASE
 #define MV_PCI_IO_SLICE_SIZE	(MV_PCI_IO_SIZE / MV_PCI_PORTS)
-#define MV_PCI_IO_SLICE(n)	(MV_PCI_IO_BASE + ((n) * MV_PCI_IO_SLICE_SIZE))
-
 #define MV_PCI_VA_MEM_BASE	0
 #define MV_PCI_VA_IO_BASE	0
 
@@ -131,22 +123,9 @@
 #define MV_PCI_BASE		(MV_BASE + 0x30000)
 #define MV_PCI_SIZE		0x2000
 
-#if defined(SOC_MV_ARMADA38X)
-#define	MV_PCIE_BASE		(MV_BASE + 0x80000)
-#else
+#define	MV_PCIE_BASE_ARMADA38X	(MV_BASE + 0x80000)
 #define MV_PCIE_BASE		(MV_BASE + 0x40000)
-#endif
 #define MV_PCIE_SIZE		0x2000
-
-#define MV_PCIE00_BASE		(MV_PCIE_BASE + 0x00000)
-#define MV_PCIE01_BASE		(MV_PCIE_BASE + 0x04000)
-#define MV_PCIE02_BASE		(MV_PCIE_BASE + 0x08000)
-#define MV_PCIE03_BASE		(MV_PCIE_BASE + 0x0C000)
-#define MV_PCIE10_BASE		(MV_PCIE_BASE + 0x40000)
-#define MV_PCIE11_BASE		(MV_PCIE_BASE + 0x44000)
-#define MV_PCIE12_BASE		(MV_PCIE_BASE + 0x48000)
-#define MV_PCIE13_BASE		(MV_PCIE_BASE + 0x4C000)
-
 #define MV_SDIO_BASE		(MV_BASE + 0x90000)
 #define MV_SDIO_SIZE		0x10000
 
@@ -255,22 +234,24 @@
 #define MV_XOR_CHAN_MAX			2
 #define MV_XOR_NON_REMAP		4
 
+#define	MV_WIN_PCIE_TARGET_ARMADAXP(n)		(4 + (4 * ((n) % 2)))
+#define	MV_WIN_PCIE_MEM_ATTR_ARMADAXP(n)	(0xE8 + (0x10 * ((n) / 2)))
+#define	MV_WIN_PCIE_IO_ATTR_ARMADAXP(n)		(0xE0 + (0x10 * ((n) / 2)))
+#define	MV_WIN_PCIE_TARGET_ARMADA38X(n)		((n) == 0 ? 8 : 4)
+#define	MV_WIN_PCIE_MEM_ATTR_ARMADA38X(n)	((n) < 2 ? 0xE8 : (0xD8 - (((n) % 2) * 0x20)))
+#define	MV_WIN_PCIE_IO_ATTR_ARMADA38X(n)	((n) < 2 ? 0xE0 : (0xD0 - (((n) % 2) * 0x20)))
 #if defined(SOC_MV_DISCOVERY) || defined(SOC_MV_KIRKWOOD)
 #define MV_WIN_PCIE_TARGET(n)		4
 #define MV_WIN_PCIE_MEM_ATTR(n)		0xE8
 #define MV_WIN_PCIE_IO_ATTR(n)		0xE0
-#elif defined(SOC_MV_ARMADAXP)
-#define MV_WIN_PCIE_TARGET(n)		(4 + (4 * ((n) % 2)))
-#define MV_WIN_PCIE_MEM_ATTR(n)		(0xE8 + (0x10 * ((n) / 2)))
-#define MV_WIN_PCIE_IO_ATTR(n)		(0xE0 + (0x10 * ((n) / 2)))
-#elif defined(SOC_MV_ARMADA38X)
-#define	MV_WIN_PCIE_TARGET(n)		((n) == 0 ? 8 : 4)
-#define	MV_WIN_PCIE_MEM_ATTR(n)		((n) < 2 ? 0xE8 : (0xD8 - (((n) % 2) * 0x20)))
-#define	MV_WIN_PCIE_IO_ATTR(n)		((n) < 2 ? 0xE0 : (0xD0 - (((n) % 2) * 0x20)))
 #elif defined(SOC_MV_ORION)
 #define MV_WIN_PCIE_TARGET(n)		4
 #define MV_WIN_PCIE_MEM_ATTR(n)		0x59
 #define MV_WIN_PCIE_IO_ATTR(n)		0x51
+#else
+#define	MV_WIN_PCIE_TARGET(n)           (4 + (4 * ((n) % 2)))
+#define	MV_WIN_PCIE_MEM_ATTR(n)         (0xE8 + (0x10 * ((n) / 2)))
+#define	MV_WIN_PCIE_IO_ATTR(n)          (0xE0 + (0x10 * ((n) / 2)))
 #endif
 
 #define MV_WIN_PCI_TARGET		3
