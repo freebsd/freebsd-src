@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2016
+.Dd April 3, 2018
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -584,21 +584,27 @@ Only supported after
 .Pa /usr
 is mounted.
 .It Va ${name}_limits
-.Xr limits 1
-to apply to
+Resource limits to apply to
 .Va command .
 This will be passed as arguments to the
 .Xr limits 1
 utility.
+By default, the resource limits are based on the login class defined in
+.Va ${name}_login_class .
+.It Va ${name}_login_class
+Login class to use with
+.Va ${name}_limits .
+Defaults to
+.Dq Li daemon .
 .It Va ${name}_oomprotect
 .Xr protect 1
 .Va command
 from being killed when swap space is exhausted.
 If
-.Em YES
+.Dq Li YES
 is used, no child processes are protected.
 If
-.Em ALL ,
+.Dq Li ALL ,
 protect all child processes.
 .It Va ${name}_program
 Full path to the command.
