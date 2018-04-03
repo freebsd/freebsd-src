@@ -84,7 +84,7 @@ static int
 swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
     int flags)
 {
-	unsigned char iv[EALG_MAX_BLOCK_LEN], blk[EALG_MAX_BLOCK_LEN], *idat;
+	unsigned char iv[EALG_MAX_BLOCK_LEN], blk[EALG_MAX_BLOCK_LEN];
 	unsigned char *ivp, *nivp, iv2[EALG_MAX_BLOCK_LEN];
 	struct enc_xform *exf;
 	int i, j, k, blks, ind, count, ivlen;
@@ -249,11 +249,12 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 		}
 
 		while (uio->uio_iov[ind].iov_len >= k + blks && i > 0) {
+			uint8_t *idat;
 			size_t nb, rem;
 
 			nb = blks;
 			rem = uio->uio_iov[ind].iov_len - k;
-			idat = (char *)uio->uio_iov[ind].iov_base + k;
+			idat = (uint8_t *)uio->uio_iov[ind].iov_base + k;
 
 			if (exf->reinit) {
 				if ((crd->crd_flags & CRD_F_ENCRYPT) != 0 &&
@@ -296,7 +297,6 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 				ivp = nivp;
 			}
 
-			idat += nb;
 			count += nb;
 			k += nb;
 			i -= nb;
