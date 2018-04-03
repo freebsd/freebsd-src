@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 files		"../mv/files.mv"
+files		"../mv/files.arm7"
 cpu		CPU_MV_PJ4B
 machine 	arm	armv7
 makeoptions	CONF_CFLAGS="-march=armv7a"

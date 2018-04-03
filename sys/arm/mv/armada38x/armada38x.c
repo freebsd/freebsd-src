@@ -61,7 +61,7 @@ get_sar_value_armada38x(void)
 }
 
 uint32_t
-get_tclk(void)
+get_tclk_armada38x(void)
 {
 	uint32_t sar;
 
@@ -78,7 +78,7 @@ get_tclk(void)
 }
 
 uint32_t
-get_cpu_freq(void)
+get_cpu_freq_armada38x(void)
 {
 	uint32_t sar;
 
