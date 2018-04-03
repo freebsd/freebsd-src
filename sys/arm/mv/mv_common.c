@@ -230,6 +230,7 @@ typedef void(*write_cpu_ctrl_t)(uint32_t, uint32_t);
 typedef uint32_t (*win_read_t)(int);
 typedef void (*win_write_t)(int, uint32_t);
 typedef int (*win_cesa_attr_t)(int);
+typedef uint32_t (*get_t)(void);
 
 struct decode_win_spec {
 	read_cpu_ctrl_t  read_cpu_ctrl;
@@ -249,6 +250,10 @@ struct decode_win_spec {
 	win_read_t	ddr_sz_read;
 	win_write_t	ddr_br_write;
 	win_write_t	ddr_sz_write;
+#if __ARM_ARCH >= 6
+	get_t		get_tclk;
+	get_t		get_cpu_freq;
+#endif
 };
 
 struct decode_win_spec *soc_decode_win_spec;
@@ -273,6 +278,10 @@ static struct decode_win_spec decode_win_specs[] =
 		&ddr_armv7_sz_read,
 		&ddr_armv7_br_write,
 		&ddr_armv7_sz_write,
+#if __ARM_ARCH >= 6
+		&get_tclk_armada38x,
+		&get_cpu_freq_armada38x,
+#endif
 	},
 	{
 		&read_cpu_ctrl_armv7,
@@ -292,6 +301,10 @@ static struct decode_win_spec decode_win_specs[] =
 		&ddr_armv7_sz_read,
 		&ddr_armv7_br_write,
 		&ddr_armv7_sz_write,
+#if __ARM_ARCH >= 6
+		&get_tclk_armadaxp,
+		&get_cpu_freq_armadaxp,
+#endif
 	},
 	{
 		&read_cpu_ctrl_armv5,
@@ -311,6 +324,10 @@ static struct decode_win_spec decode_win_specs[] =
 		&ddr_armv5_sz_read,
 		&ddr_armv5_br_write,
 		&ddr_armv5_sz_write,
+#if __ARM_ARCH >= 6
+		NULL,
+		NULL,
+#endif
 	},
 };
 
@@ -2951,6 +2968,28 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ "mrvl,DB-78460", &fdt_fixup_ranges },
 	{ NULL, NULL }
 };
+
+#if __ARM_ARCH >= 6
+uint32_t
+get_tclk(void)
+{
+
+	if (soc_decode_win_spec->get_tclk != NULL)
+		return soc_decode_win_spec->get_tclk();
+	else
+		return -1;
+}
+
+uint32_t
+get_cpu_freq(void)
+{
+
+	if (soc_decode_win_spec->get_cpu_freq != NULL)
+		return soc_decode_win_spec->get_cpu_freq();
+	else
+		return -1;
+}
+#endif
 
 #ifndef INTRNG
 static int

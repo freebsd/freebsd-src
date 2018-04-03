@@ -138,7 +138,7 @@ get_sar_value_armadaxp(void)
 }
 
 uint32_t
-get_tclk(void)
+get_tclk_armadaxp(void)
 {
  	uint32_t cputype;
 
@@ -152,7 +152,7 @@ get_tclk(void)
 }
 
 uint32_t
-get_cpu_freq(void)
+get_cpu_freq_armadaxp(void)
 {
 
 	return (0);
