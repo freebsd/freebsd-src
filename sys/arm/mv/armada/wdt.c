@@ -53,22 +53,54 @@ __FBSDID("$FreeBSD$");
 
 #define INITIAL_TIMECOUNTER	(0xffffffff)
 #define MAX_WATCHDOG_TICKS	(0xffffffff)
+#define WD_RST_OUT_EN           0x00000002
 
-#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
-#define MV_CLOCK_SRC		25000000	/* Timers' 25MHz mode */
-#else
-#define MV_CLOCK_SRC		get_tclk()
-#endif
+#define	MV_CLOCK_SRC_ARMV7	25000000	/* Timers' 25MHz mode */
 
-#if defined(SOC_MV_ARMADA38X)
-#define	WATCHDOG_TIMER	4
-#else
-#define	WATCHDOG_TIMER	2
-#endif
+struct mv_wdt_config {
+	enum soc_family wdt_soc;
+	uint32_t wdt_timer;
+	void (*wdt_enable)(void);
+	void (*wdt_disable)(void);
+	unsigned int wdt_clock_src;
+};
+
+static void mv_wdt_enable_armv5(void);
+static void mv_wdt_enable_armada_38x(void);
+static void mv_wdt_enable_armada_xp(void);
+
+static void mv_wdt_disable_armv5(void);
+static void mv_wdt_disable_armada_38x(void);
+static void mv_wdt_disable_armada_xp(void);
+
+static struct mv_wdt_config mv_wdt_armada_38x_config = {
+	.wdt_soc = MV_SOC_ARMADA_38X,
+	.wdt_timer = 4,
+	.wdt_enable = &mv_wdt_enable_armada_38x,
+	.wdt_disable = &mv_wdt_disable_armada_38x,
+	.wdt_clock_src = MV_CLOCK_SRC_ARMV7,
+};
+
+static struct mv_wdt_config mv_wdt_armada_xp_config = {
+	.wdt_soc = MV_SOC_ARMADA_XP,
+	.wdt_timer = 2,
+	.wdt_enable = &mv_wdt_enable_armada_xp,
+	.wdt_disable = &mv_wdt_disable_armada_xp,
+	.wdt_clock_src = MV_CLOCK_SRC_ARMV7,
+};
+
+static struct mv_wdt_config mv_wdt_armv5_config = {
+	.wdt_soc = MV_SOC_ARMV5,
+	.wdt_timer = 2,
+	.wdt_enable = &mv_wdt_enable_armv5,
+	.wdt_disable = &mv_wdt_disable_armv5,
+	.wdt_clock_src = 0,
+};
 
 struct mv_wdt_softc {
 	struct resource	*	wdt_res;
 	struct mtx		wdt_mtx;
+	struct mv_wdt_config *	wdt_config;
 };
 
 static struct resource_spec mv_wdt_spec[] = {
@@ -77,8 +109,10 @@ static struct resource_spec mv_wdt_spec[] = {
 };
 
 static struct ofw_compat_data mv_wdt_compat[] = {
-	{"marvell,armada-380-wdt",	true},
-	{NULL,				false}
+	{"marvell,armada-380-wdt",	(uintptr_t)&mv_wdt_armada_38x_config},
+	{"marvell,armada-xp-wdt",	(uintptr_t)&mv_wdt_armada_xp_config},
+	{"marvell,orion-wdt",		(uintptr_t)&mv_wdt_armv5_config},
+	{NULL,				(uintptr_t)NULL}
 };
 
 static struct mv_wdt_softc *wdt_softc = NULL;
@@ -91,8 +125,6 @@ static uint32_t	mv_get_timer_control(void);
 static void mv_set_timer_control(uint32_t);
 static void mv_set_timer(uint32_t, uint32_t);
 
-static void mv_watchdog_enable(void);
-static void mv_watchdog_disable(void);
 static void mv_watchdog_event(void *, unsigned int, int *);
 
 static device_method_t mv_wdt_methods[] = {
@@ -145,7 +177,14 @@ mv_wdt_attach(device_t dev)
 
 	mtx_init(&sc->wdt_mtx, "watchdog", NULL, MTX_DEF);
 
-	mv_watchdog_disable();
+	sc->wdt_config = (struct mv_wdt_config *)
+	   ofw_bus_search_compatible(dev, mv_wdt_compat)->ocd_data;
+
+	if (sc->wdt_config->wdt_clock_src == 0)
+		sc->wdt_config->wdt_clock_src = get_tclk();
+
+	if (wdt_softc->wdt_config->wdt_disable != NULL)
+		wdt_softc->wdt_config->wdt_disable();
 	EVENTHANDLER_REGISTER(watchdog_list, mv_watchdog_event, sc, 0);
 
 	return (0);
@@ -171,28 +210,15 @@ mv_set_timer(uint32_t timer, uint32_t val)
 
 	bus_write_4(wdt_softc->wdt_res, CPU_TIMER0 + timer * 0x8, val);
 }
-
 static void
-mv_watchdog_enable(void)
+mv_wdt_enable_armv5(void)
 {
-	uint32_t val, irq_cause;
-#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
-	uint32_t irq_mask;
-#endif
+	uint32_t val, irq_cause, irq_mask;
 
 	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
 	irq_cause &= IRQ_TIMER_WD_CLR;
 	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
 
-#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
-	val = read_cpu_mp_clocks(WD_RSTOUTn_MASK);
-	val |= (WD_GLOBAL_MASK | WD_CPU0_MASK);
-	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
-
-	val = read_cpu_misc(RSTOUTn_MASK);
-	val &= ~RSTOUTn_MASK_WD;
-	write_cpu_misc(RSTOUTn_MASK, val);
-#else
 	irq_mask = read_cpu_ctrl(BRIDGE_IRQ_MASK);
 	irq_mask |= IRQ_TIMER_WD_MASK;
 	write_cpu_ctrl(BRIDGE_IRQ_MASK, irq_mask);
@@ -200,44 +226,63 @@ mv_watchdog_enable(void)
 	val = read_cpu_ctrl(RSTOUTn_MASK);
 	val |= WD_RST_OUT_EN;
 	write_cpu_ctrl(RSTOUTn_MASK, val);
-#endif
 
 	val = mv_get_timer_control();
-#if defined(SOC_MV_ARMADA38X)
-	val |= CPU_TIMER_WD_EN | CPU_TIMER_WD_AUTO | CPU_TIMER_WD_25MHZ_EN;
-#elif defined(SOC_MV_ARMADAXP)
-	val |= CPU_TIMER2_EN | CPU_TIMER2_AUTO | CPU_TIMER_WD_25MHZ_EN;
-#else
 	val |= CPU_TIMER2_EN | CPU_TIMER2_AUTO;
-#endif
+	mv_set_timer_control(val);
+}
+
+static inline void
+mv_wdt_enable_armada_38x_xp_helper()
+{
+	uint32_t val, irq_cause;
+
+	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
+	irq_cause &= IRQ_TIMER_WD_CLR;
+	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
+
+	val = read_cpu_mp_clocks(WD_RSTOUTn_MASK);
+	val |= (WD_GLOBAL_MASK | WD_CPU0_MASK);
+	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
+
+	val = read_cpu_misc(RSTOUTn_MASK);
+	val &= ~RSTOUTn_MASK_WD;
+	write_cpu_misc(RSTOUTn_MASK, val);
+}
+
+static void
+mv_wdt_enable_armada_38x(void)
+{
+	uint32_t val;
+
+	mv_wdt_enable_armada_38x_xp_helper();
+
+	val = mv_get_timer_control();
+	val |= CPU_TIMER_WD_EN | CPU_TIMER_WD_AUTO | CPU_TIMER_WD_25MHZ_EN;
 	mv_set_timer_control(val);
 }
 
 static void
-mv_watchdog_disable(void)
+mv_wdt_enable_armada_xp(void)
 {
-	uint32_t val, irq_cause;
-#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
-	uint32_t irq_mask;
-#endif
+	uint32_t val;
+
+	mv_wdt_enable_armada_38x_xp_helper();
 
 	val = mv_get_timer_control();
-#if defined(SOC_MV_ARMADA38X)
-	val &= ~(CPU_TIMER_WD_EN | CPU_TIMER_WD_AUTO);
-#else
+	val |= CPU_TIMER2_EN | CPU_TIMER2_AUTO | CPU_TIMER_WD_25MHZ_EN;
+	mv_set_timer_control(val);
+}
+
+static void
+mv_wdt_disable_armv5(void)
+{
+	uint32_t val, irq_cause, irq_mask;
+
+	val = mv_get_timer_control();
 	val &= ~(CPU_TIMER2_EN | CPU_TIMER2_AUTO);
-#endif
 	mv_set_timer_control(val);
 
-#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
-	val = read_cpu_mp_clocks(WD_RSTOUTn_MASK);
-	val &= ~(WD_GLOBAL_MASK | WD_CPU0_MASK);
-	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
-
-	val = read_cpu_misc(RSTOUTn_MASK);
-	val |= RSTOUTn_MASK_WD;
-	write_cpu_misc(RSTOUTn_MASK, RSTOUTn_MASK_WD);
-#else
 	val = read_cpu_ctrl(RSTOUTn_MASK);
 	val &= ~WD_RST_OUT_EN;
 	write_cpu_ctrl(RSTOUTn_MASK, val);
@@ -245,11 +290,48 @@ mv_watchdog_disable(void)
 	irq_mask = read_cpu_ctrl(BRIDGE_IRQ_MASK);
 	irq_mask &= ~(IRQ_TIMER_WD_MASK);
 	write_cpu_ctrl(BRIDGE_IRQ_MASK, irq_mask);
-#endif
 
 	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
 	irq_cause &= IRQ_TIMER_WD_CLR;
 	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
+}
+
+static __inline void
+mv_wdt_disable_armada_38x_xp_helper(void)
+{
+	uint32_t val;
+
+	val = read_cpu_mp_clocks(WD_RSTOUTn_MASK);
+	val &= ~(WD_GLOBAL_MASK | WD_CPU0_MASK);
+	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
+
+	val = read_cpu_misc(RSTOUTn_MASK);
+	val |= RSTOUTn_MASK_WD;
+	write_cpu_misc(RSTOUTn_MASK, RSTOUTn_MASK_WD);
+}
+
+static void
+mv_wdt_disable_armada_38x(void)
+{
+	uint32_t val;
+
+	val = mv_get_timer_control();
+	val &= ~(CPU_TIMER_WD_EN | CPU_TIMER_WD_AUTO);
+	mv_set_timer_control(val);
+
+	mv_wdt_disable_armada_38x_xp_helper();
+}
+
+static void
+mv_wdt_disable_armada_xp(void)
+{
+	uint32_t val;
+
+	val = mv_get_timer_control();
+	val &= ~(CPU_TIMER2_EN | CPU_TIMER2_AUTO);
+	mv_set_timer_control(val);
+
+	mv_wdt_disable_armada_38x_xp_helper();
 }
 
 /*
@@ -264,20 +346,24 @@ mv_watchdog_event(void *arg, unsigned int cmd, int *error)
 
 	sc = arg;
 	mtx_lock(&sc->wdt_mtx);
-	if (cmd == 0)
-		mv_watchdog_disable();
-	else {
+	if (cmd == 0) {
+		if (wdt_softc->wdt_config->wdt_disable != NULL)
+			wdt_softc->wdt_config->wdt_disable();
+	} else {
 		/*
 		 * Watchdog timeout is in nanosecs, calculation according to
 		 * watchdog(9)
 		 */
 		ns = (uint64_t)1 << (cmd & WD_INTERVAL);
-		ticks = (uint64_t)(ns * MV_CLOCK_SRC) / 1000000000;
-		if (ticks > MAX_WATCHDOG_TICKS)
-			mv_watchdog_disable();
+		ticks = (uint64_t)(ns * sc->wdt_config->wdt_clock_src) / 1000000000;
+		if (ticks > MAX_WATCHDOG_TICKS) {
+			if (wdt_softc->wdt_config->wdt_disable != NULL)
+				wdt_softc->wdt_config->wdt_disable();
+		}
 		else {
-			mv_set_timer(WATCHDOG_TIMER, ticks);
-			mv_watchdog_enable();
+			mv_set_timer(wdt_softc->wdt_config->wdt_timer, ticks);
+			if (wdt_softc->wdt_config->wdt_enable != NULL)
+				wdt_softc->wdt_config->wdt_enable();
 			*error = 0;
 		}
 	}
