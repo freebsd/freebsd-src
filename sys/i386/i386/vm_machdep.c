@@ -79,18 +79,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/vm86.h>
 
-#ifdef CPU_ELAN
-#include <machine/elan_mmcr.h>
-#endif
-
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
-
-#include <isa/isareg.h>
 
 #ifndef NSFBUFS
 #define	NSFBUFS		(512 + maxusers * 16)
