@@ -54,12 +54,6 @@
 #define ENDPOINT_IRQ_MASK(n)	0x30
 #define ENDPOINT_IRQ_MASK_HI(n)	0x34
 #define ENDPOINT_IRQ_CAUSE_SELECT 0x38
-#elif defined (SOC_MV_ARMADAXP)
-#define IRQ_CAUSE		0x18
-#define IRQ_MASK		0x30
-#elif defined (SOC_MV_ARMADA38X)
-#define	MSI_IRQ			0x3ff
-#define	ERR_IRQ			0x3ff
 #else
 #define IRQ_CAUSE		0x0
 #define IRQ_MASK		0x4
@@ -74,6 +68,14 @@
 #define IRQ_MASK_ERROR		(-1)		/* interrupt controller code */
 #endif
 
+#define MAIN_IRQ_NUM		116
+#define ERR_IRQ_NUM		32
+#define ERR_IRQ			(MAIN_IRQ_NUM)
+#define MSI_IRQ			(ERR_IRQ + ERR_IRQ_NUM)
+
+#define MSI_IRQ_NUM		32
+
+#define IRQ_CPU_SELF		0x00000001
 #if defined(SOC_MV_ARMADAXP)
 #define BRIDGE_IRQ_CAUSE	0x68
 #define IRQ_TIMER0		0x00000001
