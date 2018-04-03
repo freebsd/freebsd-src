@@ -261,9 +261,10 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 		 * chance the first one is a false alarm and may not indicate
 		 * congestion.
 		 */
-		if (CCV(ccv, t_rxtshift) >= 2)
+		if (CCV(ccv, t_rxtshift) >= 2) {
 			cubic_data->num_cong_events++;
 			cubic_data->t_last_cong = ticks;
+		}
 		break;
 	}
 }
