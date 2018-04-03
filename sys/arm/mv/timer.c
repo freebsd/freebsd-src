@@ -124,9 +124,7 @@ static void mv_watchdog_enable_armadaxp(void);
 static void mv_watchdog_disable_armv5(void);
 static void mv_watchdog_disable_armadaxp(void);
 
-#ifdef PLATFORM
-void mv_delay(int usec, void* arg);
-#endif
+static void mv_delay(int usec, void* arg);
 
 static struct mv_timer_config timer_armadaxp_config =
 {
@@ -300,24 +298,11 @@ mv_timer_get_timecount(struct timecounter *tc)
 	return (INITIAL_TIMECOUNTER - mv_get_timer(1));
 }
 
-#ifdef PLATFORM
-void
+static void
 mv_delay(int usec, void* arg)
-#else
-void
-DELAY(int usec)
-#endif
 {
 	uint32_t	val, val_temp;
 	int32_t		nticks;
-
-	if (!timers_initialized) {
-		for (; usec > 0; usec--)
-			for (val = 100; val > 0; val--)
-				__asm __volatile("nop" ::: "memory");
-		return;
-	}
-	TSENTER();
 
 	val = mv_get_timer(1);
 	nticks = ((timer_softc->config->clock_src / 1000000 + 1) * usec);
@@ -331,8 +316,25 @@ DELAY(int usec)
 
 		val = val_temp;
 	}
-	TSEXIT();
 }
+
+#ifndef PLATFORM
+void
+DELAY(int usec)
+{
+	uint32_t	val;
+
+	if (!timers_initialized) {
+		for (; usec > 0; usec--)
+			for (val = 100; val > 0; val--)
+				__asm __volatile("nop" ::: "memory");
+	} else {
+		TSENTER();
+		mv_delay(usec, NULL);
+		TSEXIT();
+	}
+}
+#endif
 
 static uint32_t
 mv_get_timer_control(void)
