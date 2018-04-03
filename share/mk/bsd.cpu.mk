@@ -199,14 +199,16 @@ MACHINE_CPU = 3dnow mmx k6 k5 i586
 MACHINE_CPU = mmx k6 k5 i586
 .  elif ${CPUTYPE} == "k5"
 MACHINE_CPU = k5 i586
-.  elif ${CPUTYPE} == "skylake" || ${CPUTYPE} == "knl"
+.  elif ${CPUTYPE} == "cannonlake" || ${CPUTYPE} == "knm" || \
+    ${CPUTYPE} == "skylake-avx512" || ${CPUTYPE} == "knl"
 MACHINE_CPU = avx512 avx2 avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
-.  elif ${CPUTYPE} == "broadwell" || ${CPUTYPE} == "haswell"
+.  elif ${CPUTYPE} == "skylake" || ${CPUTYPE} == "broadwell" || \
+    ${CPUTYPE} == "haswell"
 MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
 .  elif ${CPUTYPE} == "ivybridge" || ${CPUTYPE} == "sandybridge"
 MACHINE_CPU = avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
-.  elif ${CPUTYPE} == "westmere" || ${CPUTYPE} == "nehalem" || \
-    ${CPUTYPE} == "silvermont"
+.  elif ${CPUTYPE} == "goldmont" || ${CPUTYPE} == "westmere" || \
+    ${CPUTYPE} == "nehalem" || ${CPUTYPE} == "silvermont"
 MACHINE_CPU = sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
 .  elif ${CPUTYPE} == "penryn"
 MACHINE_CPU = sse41 ssse3 sse3 sse2 sse i686 mmx i586
@@ -260,14 +262,16 @@ MACHINE_CPU = k8 3dnow sse3
 .  elif ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64" || \
     ${CPUTYPE} == "athlon-fx" || ${CPUTYPE} == "k8"
 MACHINE_CPU = k8 3dnow
-.  elif ${CPUTYPE} == "skylake" || ${CPUTYPE} == "knl"
+.  elif ${CPUTYPE} == "cannonlake" || ${CPUTYPE} == "knm" || \
+    ${CPUTYPE} == "skylake-avx512" || ${CPUTYPE} == "knl"
 MACHINE_CPU = avx512 avx2 avx sse42 sse41 ssse3 sse3
-.  elif ${CPUTYPE} == "broadwell" || ${CPUTYPE} == "haswell"
+.  elif ${CPUTYPE} == "skylake" || ${CPUTYPE} == "broadwell" || \
+    ${CPUTYPE} == "haswell"
 MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse3
 .  elif ${CPUTYPE} == "ivybridge" || ${CPUTYPE} == "sandybridge"
 MACHINE_CPU = avx sse42 sse41 ssse3 sse3
-.  elif ${CPUTYPE} == "westmere" || ${CPUTYPE} == "nehalem" || \
-    ${CPUTYPE} == "silvermont"
+.  elif ${CPUTYPE} == "goldmont" || ${CPUTYPE} == "westmere" || \
+    ${CPUTYPE} == "nehalem" || ${CPUTYPE} == "silvermont"
 MACHINE_CPU = sse42 sse41 ssse3 sse3
 .  elif ${CPUTYPE} == "penryn"
 MACHINE_CPU = sse41 ssse3 sse3
