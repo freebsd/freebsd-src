@@ -165,6 +165,7 @@ FBSD_1.3 {
 FBSD_1.4 {
 	fdclose;
 	fopencookie;
+	gets_s;
 };
 
 FBSDprivate_1.0 {
