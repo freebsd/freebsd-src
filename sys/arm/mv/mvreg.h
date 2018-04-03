@@ -105,20 +105,20 @@
  */
 #if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 #define RSTOUTn_MASK		0x60
-#define	RSTOUTn_MASK_WD		0x400
 #define SYSTEM_SOFT_RESET	0x64
-#define WD_RSTOUTn_MASK		0x4
-#define WD_GLOBAL_MASK		0x00000100
-#define WD_CPU0_MASK		0x00000001
 #define SOFT_RST_OUT_EN		0x00000001
 #define SYS_SOFT_RST		0x00000001
 #else
 #define RSTOUTn_MASK		0x8
-#define WD_RST_OUT_EN		0x00000002
 #define SOFT_RST_OUT_EN		0x00000004
 #define SYSTEM_SOFT_RESET	0xc
 #define SYS_SOFT_RST		0x00000001
 #endif
+#define RSTOUTn_MASK_WD		0x400
+#define WD_RSTOUTn_MASK		0x4
+#define WD_GLOBAL_MASK		0x00000100
+#define WD_CPU0_MASK		0x00000001
+#define WD_RST_OUT_EN		0x00000002
 
 /*
  * Power Control
