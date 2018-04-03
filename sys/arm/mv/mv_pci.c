@@ -560,7 +560,8 @@ mv_pcib_enable(struct mv_pcib_softc *sc, uint32_t unit)
 	/*
 	 * Check if PCIE device is enabled.
 	 */
-	if (read_cpu_ctrl(CPU_CONTROL) & CPU_CONTROL_PCIE_DISABLE(unit)) {
+	if ((sc->sc_skip_enable_procedure == 0) &&
+	    (read_cpu_ctrl(CPU_CONTROL) & CPU_CONTROL_PCIE_DISABLE(unit))) {
 		write_cpu_ctrl(CPU_CONTROL, read_cpu_ctrl(CPU_CONTROL) &
 		    ~(CPU_CONTROL_PCIE_DISABLE(unit)));
 
@@ -1057,7 +1058,7 @@ mv_pcib_root_slot(device_t dev, u_int bus, u_int slot, u_int func)
 	struct mv_pcib_softc *sc = device_get_softc(dev);
 	uint32_t vendor, device;
 
-/* On platforms other than Armada38x, root link is always at slot 0 */
+	/* On platforms other than Armada38x, root link is always at slot 0 */
 	if (!sc->sc_enable_find_root_slot)
 		return (slot == 0);
 
