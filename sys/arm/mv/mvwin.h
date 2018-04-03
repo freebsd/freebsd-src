@@ -101,24 +101,18 @@
  * Integrated SoC peripherals addresses
  */
 #define MV_BASE			MV_PHYS_BASE	/* VA == PA mapping */
-#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
-#define MV_DDR_CADR_BASE	(MV_BASE + 0x20180)
-#else
+#define	MV_DDR_CADR_BASE_ARMV7	(MV_BASE + 0x20180)
 #define MV_DDR_CADR_BASE	(MV_BASE + 0x1500)
-#endif
 #define MV_MPP_BASE		(MV_BASE + 0x10000)
 
-#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
+
 #define MV_MISC_BASE		(MV_BASE + 0x18200)
 #define MV_MBUS_BRIDGE_BASE	(MV_BASE + 0x20000)
 #define MV_INTREGS_BASE		(MV_MBUS_BRIDGE_BASE + 0x80)
 #define MV_MP_CLOCKS_BASE	(MV_MBUS_BRIDGE_BASE + 0x700)
-#define MV_CPU_CONTROL_BASE	(MV_MBUS_BRIDGE_BASE + 0x1800)
-#else
-#define MV_MBUS_BRIDGE_BASE	(MV_BASE + 0x20000)
-#define MV_INTREGS_BASE		(MV_MBUS_BRIDGE_BASE + 0x80)
+
+#define	MV_CPU_CONTROL_BASE_ARMV7	(MV_MBUS_BRIDGE_BASE + 0x1800)
 #define MV_CPU_CONTROL_BASE	(MV_MBUS_BRIDGE_BASE + 0x100)
-#endif
 
 #define MV_PCI_BASE		(MV_BASE + 0x30000)
 #define MV_PCI_SIZE		0x2000
@@ -132,25 +126,22 @@
 /*
  * Decode windows definitions and macros
  */
-#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
-#define MV_WIN_CPU_CTRL(n)		(((n) < 8) ? 0x10 * (n) :  0x90 + (0x8 * ((n) - 8)))
-#define MV_WIN_CPU_BASE(n)		((((n) < 8) ? 0x10 * (n) :  0x90 + (0x8 * ((n) - 8))) + 0x4)
-#define MV_WIN_CPU_REMAP_LO(n)		(0x10 * (n) +  0x008)
-#define MV_WIN_CPU_REMAP_HI(n)		(0x10 * (n) +  0x00C)
-#else
-#define MV_WIN_CPU_CTRL(n)		(0x10 * (n) + (((n) < 8) ? 0x000 : 0x880))
-#define MV_WIN_CPU_BASE(n)		(0x10 * (n) + (((n) < 8) ? 0x004 : 0x884))
-#define MV_WIN_CPU_REMAP_LO(n)		(0x10 * (n) + (((n) < 8) ? 0x008 : 0x888))
-#define MV_WIN_CPU_REMAP_HI(n)		(0x10 * (n) + (((n) < 8) ? 0x00C : 0x88C))
-#endif
+#define	MV_WIN_CPU_CTRL_ARMV7(n)		(((n) < 8) ? 0x10 * (n) :  0x90 + (0x8 * ((n) - 8)))
+#define	MV_WIN_CPU_BASE_ARMV7(n)		((((n) < 8) ? 0x10 * (n) :  0x90 + (0x8 * ((n) - 8))) + 0x4)
+#define	MV_WIN_CPU_REMAP_LO_ARMV7(n)	(0x10 * (n) +  0x008)
+#define	MV_WIN_CPU_REMAP_HI_ARMV7(n)	(0x10 * (n) +  0x00C)
+
+#define	MV_WIN_CPU_CTRL_ARMV5(n)		(0x10 * (n) + (((n) < 8) ? 0x000 : 0x880))
+#define	MV_WIN_CPU_BASE_ARMV5(n)		(0x10 * (n) + (((n) < 8) ? 0x004 : 0x884))
+#define	MV_WIN_CPU_REMAP_LO_ARMV5(n)		(0x10 * (n) + (((n) < 8) ? 0x008 : 0x888))
+#define	MV_WIN_CPU_REMAP_HI_ARMV5(n)		(0x10 * (n) + (((n) < 8) ? 0x00C : 0x88C))
 
 #if defined(SOC_MV_DISCOVERY)
 #define MV_WIN_CPU_MAX			14
-#elif defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
-#define MV_WIN_CPU_MAX			20
 #else
 #define MV_WIN_CPU_MAX			8
 #endif
+#define	MV_WIN_CPU_MAX_ARMV7		20
 
 #define MV_WIN_CPU_ATTR_SHIFT		8
 #define MV_WIN_CPU_TARGET_SHIFT		4
@@ -170,17 +161,20 @@
 #if defined(SOC_MV_DISCOVERY)
 #define MV_WIN_CESA_TARGET		9
 #define MV_WIN_CESA_ATTR(eng_sel)	1
-#elif defined(SOC_MV_ARMADAXP)
-#define MV_WIN_CESA_TARGET		9
+#else
+#define	MV_WIN_CESA_TARGET		3
+#define	MV_WIN_CESA_ATTR(eng_sel)	0
+#endif
+
+#define	MV_WIN_CESA_TARGET_ARMADAXP	9
 /*
  * Bits [2:3] of cesa attribute select engine:
  * eng_sel:
  *  1: engine1
  *  2: engine0
  */
-#define MV_WIN_CESA_ATTR(eng_sel)	(1 | ((eng_sel) << 2))
-#elif defined(SOC_MV_ARMADA38X)
-#define MV_WIN_CESA_TARGET		9
+#define	MV_WIN_CESA_ATTR_ARMADAXP(eng_sel)	(1 | ((eng_sel) << 2))
+#define	MV_WIN_CESA_TARGET_ARMADA38X		9
 /*
  * Bits [1:0] = Data swapping
  *  0x0 = Byte swap
@@ -191,12 +185,7 @@
  *  0x6 = CESA0
  *  0x5 = CESA1
  */
-#define MV_WIN_CESA_ATTR(eng_sel)	(0x11 | (1 << (3 - (eng_sel))))
-#else
-#define MV_WIN_CESA_TARGET		3
-#define MV_WIN_CESA_ATTR(eng_sel)	0
-#endif
-
+#define	MV_WIN_CESA_ATTR_ARMADA38X(eng_sel)	(0x11 | (1 << (3 - (eng_sel))))
 /* CESA TDMA address decoding registers */
 #define MV_WIN_CESA_CTRL(n)		(0x8 * (n) + 0xA04)
 #define MV_WIN_CESA_BASE(n)		(0x8 * (n) + 0xA00)
@@ -276,22 +265,18 @@
 #define MV_PCIE_CONTROL			(0x1a00)
 #define MV_PCIE_ROOT_CMPLX		(1 << 1)
 
-#if defined(SOC_MV_ARMADA38X)
-#define	MV_WIN_SATA_CTRL(n)		(0x10 * (n) + 0x60)
-#define	MV_WIN_SATA_BASE(n)		(0x10 * (n) + 0x64)
-#define	MV_WIN_SATA_SIZE(n)		(0x10 * (n) + 0x68)
-#define	MV_WIN_SATA_MAX			4
-#else
+#define	MV_WIN_SATA_CTRL_ARMADA38X(n)	(0x10 * (n) + 0x60)
+#define	MV_WIN_SATA_BASE_ARMADA38X(n)	(0x10 * (n) + 0x64)
+#define	MV_WIN_SATA_SIZE_ARMADA38X(n)	(0x10 * (n) + 0x68)
+#define	MV_WIN_SATA_MAX_ARMADA38X	4
 #define	MV_WIN_SATA_CTRL(n)		(0x10 * (n) + 0x30)
 #define	MV_WIN_SATA_BASE(n)		(0x10 * (n) + 0x34)
 #define	MV_WIN_SATA_MAX			4
-#endif
 
 #define	MV_WIN_SDHCI_CTRL(n)		(0x8 * (n) + 0x4080)
 #define	MV_WIN_SDHCI_BASE(n)		(0x8 * (n) + 0x4084)
 #define	MV_WIN_SDHCI_MAX		8
 
-#if defined(SOC_MV_ARMADA38X)
 #define	MV_BOOTROM_MEM_ADDR	0xFFF00000
 #define	MV_BOOTROM_WIN_SIZE	0xF
 #define	MV_CPU_SUBSYS_REGS_LEN	0x100
@@ -306,7 +291,6 @@
 /* Internal Units Sync Barrier Control Register */
 #define	MV_SYNC_BARRIER_CTRL		0x84
 #define	MV_SYNC_BARRIER_CTRL_ALL	0xFFFF
-#endif
 
 /* IO Window Control Register fields */
 #define	IO_WIN_SIZE_SHIFT	16
