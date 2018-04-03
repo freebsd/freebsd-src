@@ -331,13 +331,18 @@ generic_restart_cpus(cpuset_t map, u_int type)
 
 #if defined(__amd64__) || defined(__i386__)
 	if (type == IPI_SUSPEND)
-		cpus = &suspended_cpus;
+		cpus = &resuming_cpus;
 	else
 #endif
 		cpus = &stopped_cpus;
 
 	/* signal other cpus to restart */
-	CPU_COPY_STORE_REL(&map, &started_cpus);
+#if defined(__amd64__) || defined(__i386__)
+	if (type == IPI_SUSPEND)
+		CPU_COPY_STORE_REL(&map, &toresume_cpus);
+	else
+#endif
+		CPU_COPY_STORE_REL(&map, &started_cpus);
 
 	/* wait for each to clear its bit */
 	while (CPU_OVERLAP(cpus, &map))

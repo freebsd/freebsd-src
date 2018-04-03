@@ -138,6 +138,9 @@ extern int pmap_pcid_enabled;
 
 static volatile cpuset_t ipi_nmi_pending;
 
+volatile cpuset_t resuming_cpus;
+volatile cpuset_t toresume_cpus;
+
 /* used to hold the AP's until we are ready to release them */
 static struct mtx ap_boot_mtx;
 
@@ -1486,6 +1489,13 @@ cpususpend_handler(void)
 		fpususpend(susppcbs[cpu]->sp_fpususpend);
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &suspended_cpus);
+		/*
+		 * Hack for xen, which does not use resumectx() so never
+		 * uses the next clause: set resuming_cpus early so that
+		 * resume_cpus() can wait on the same bitmap for acpi and
+		 * xen.  resuming_cpus now means eventually_resumable_cpus.
+		 */
+		CPU_SET_ATOMIC(cpu, &resuming_cpus);
 	} else {
 		fpuresume(susppcbs[cpu]->sp_fpususpend);
 		pmap_init_pat();
@@ -1493,12 +1503,12 @@ cpususpend_handler(void)
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
 
-		/* Indicate that we are resumed */
+		/* Indicate that we are resuming */
 		CPU_CLR_ATOMIC(cpu, &suspended_cpus);
 	}
 
-	/* Wait for resume */
-	while (!CPU_ISSET(cpu, &started_cpus))
+	/* Wait for resume directive */
+	while (!CPU_ISSET(cpu, &toresume_cpus))
 		ia32_pause();
 
 	if (cpu_ops.cpu_resume)
@@ -1510,9 +1520,10 @@ cpususpend_handler(void)
 	mca_resume();
 	lapic_setup(0);
 
-	CPU_CLR_ATOMIC(cpu, &started_cpus);
 	/* Indicate that we are resumed */
+	CPU_CLR_ATOMIC(cpu, &resuming_cpus);
 	CPU_CLR_ATOMIC(cpu, &suspended_cpus);
+	CPU_CLR_ATOMIC(cpu, &toresume_cpus);
 }
 
 /*
