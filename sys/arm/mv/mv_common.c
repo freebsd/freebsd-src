@@ -138,6 +138,7 @@ const struct decode_win *cpu_wins = cpu_win_tbl;
 
 typedef void (*decode_win_setup_t)(u_long);
 typedef void (*dump_win_t)(u_long);
+typedef int (*valid_t)(void);
 
 /*
  * The power status of device feature is only supported on
@@ -153,22 +154,27 @@ struct soc_node_spec {
 	const char		*compat;
 	decode_win_setup_t	decode_handler;
 	dump_win_t		dump_handler;
+	valid_t			valid_handler;
 };
 
 static struct soc_node_spec soc_nodes[] = {
-	{ "mrvl,ge", &decode_win_eth_setup, &decode_win_eth_dump },
-	{ "marvell,armada-370-neta", &decode_win_neta_setup, &decode_win_neta_dump },
-	{ "mrvl,usb-ehci", &decode_win_usb_setup, &decode_win_usb_dump },
-	{ "marvell,orion-ehci", &decode_win_usb_setup, &decode_win_usb_dump },
-	{ "marvell,armada-380-xhci", &decode_win_usb3_setup, &decode_win_usb3_dump },
-	{ "marvell,armada-380-ahci", &decode_win_ahci_setup, &decode_win_ahci_dump },
-	{ "marvell,armada-380-sdhci", &decode_win_sdhci_setup, &decode_win_sdhci_dump },
-	{ "mrvl,sata", &decode_win_sata_setup, NULL },
-	{ "mrvl,xor", &decode_win_xor_setup, &decode_win_xor_dump },
-	{ "mrvl,idma", &decode_win_idma_setup, &decode_win_idma_dump },
-	{ "mrvl,cesa", &decode_win_cesa_setup, &decode_win_cesa_dump },
-	{ "mrvl,pcie", &decode_win_pcie_setup, &decode_win_pcie_dump },
-	{ NULL, NULL, NULL },
+	{ "mrvl,ge", &decode_win_eth_setup, &decode_win_eth_dump, &decode_win_eth_valid},
+	{ "marvell,armada-370-neta", &decode_win_neta_setup,
+	    &decode_win_neta_dump, NULL },
+	{ "mrvl,usb-ehci", &decode_win_usb_setup, &decode_win_usb_dump, &decode_win_usb_valid},
+	{ "marvell,orion-ehci", &decode_win_usb_setup, &decode_win_usb_dump, &decode_win_usb_valid },
+	{ "marvell,armada-380-xhci", &decode_win_usb3_setup,
+	    &decode_win_usb3_dump, &decode_win_usb3_valid },
+	{ "marvell,armada-380-ahci", &decode_win_ahci_setup,
+	    &decode_win_ahci_dump, NULL },
+	{ "marvell,armada-380-sdhci", &decode_win_sdhci_setup,
+	    &decode_win_sdhci_dump, &decode_win_sdhci_valid},
+	{ "mrvl,sata", &decode_win_sata_setup, NULL, &decode_win_sata_valid},
+	{ "mrvl,xor", &decode_win_xor_setup, &decode_win_xor_dump, &decode_win_xor_valid},
+	{ "mrvl,idma", &decode_win_idma_setup, &decode_win_idma_dump, &decode_win_idma_valid},
+	{ "mrvl,cesa", &decode_win_cesa_setup, &decode_win_cesa_dump, &decode_win_cesa_valid},
+	{ "mrvl,pcie", &decode_win_pcie_setup, &decode_win_pcie_dump, &decode_win_pcie_valid},
+	{ NULL, NULL, NULL, NULL },
 };
 
 struct fdt_pm_mask_entry {
@@ -595,12 +601,6 @@ soc_decode_win(void)
 		return(err);
 #endif
 
-	if (!decode_win_cpu_valid() || !decode_win_usb_valid() ||
-	    !decode_win_eth_valid() || !decode_win_idma_valid() ||
-	    !decode_win_pcie_valid() || !decode_win_sata_valid() ||
-	    !decode_win_xor_valid() || !decode_win_usb3_valid() ||
-	    !decode_win_sdhci_valid() || !decode_win_cesa_valid())
-		return (EINVAL);
 
 	decode_win_cpu_setup();
 	if (MV_DUMP_WIN)
@@ -2461,6 +2461,10 @@ fdt_win_process(phandle_t child)
 		else
 			base = fdt_data_get(&reg[addr_cells - 2], 2);
 		size = fdt_data_get(&reg[addr_cells], size_cells);
+
+		if (soc_node->valid_handler != NULL)
+			if (!soc_node->valid_handler())
+				return (EINVAL);
 
 		base = (base & 0x000fffff) | fdt_immr_va;
 		if (soc_node->decode_handler != NULL)
