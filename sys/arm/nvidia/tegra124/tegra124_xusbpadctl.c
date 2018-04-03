@@ -968,7 +968,7 @@ process_pad(struct padctl_softc *sc, phandle_t node)
 	}
 
 	for (node = OF_child(node); node != 0; node = OF_peer(node)) {
-		if (!fdt_is_enabled(node))
+		if (!ofw_bus_node_status_okay(node))
 			continue;
 
 		rv = process_lane(sc, node, pad);
@@ -1079,7 +1079,7 @@ parse_fdt(struct padctl_softc *sc, phandle_t base_node)
 		return (ENXIO);
 	}
 	for (node = OF_child(node); node != 0; node = OF_peer(node)) {
-		if (!fdt_is_enabled(node))
+		if (!ofw_bus_node_status_okay(node))
 			continue;
 		rv = process_pad(sc, node);
 		if (rv != 0)
@@ -1092,7 +1092,7 @@ parse_fdt(struct padctl_softc *sc, phandle_t base_node)
 		return (ENXIO);
 	}
 	for (node = OF_child(node); node != 0; node = OF_peer(node)) {
-		if (!fdt_is_enabled(node))
+		if (!ofw_bus_node_status_okay(node))
 			continue;
 		rv = process_port(sc, node);
 		if (rv != 0)
