@@ -103,12 +103,10 @@ __FBSDID("$FreeBSD$");
 
 #define	MPIC_PPI	32
 
-#ifdef INTRNG
 struct mv_mpic_irqsrc {
 	struct intr_irqsrc	mmi_isrc;
 	u_int			mmi_irq;
 };
-#endif
 
 struct mv_mpic_softc {
 	device_t		sc_dev;
@@ -120,9 +118,7 @@ struct mv_mpic_softc {
 	bus_space_tag_t		drbl_bst;
 	bus_space_handle_t	drbl_bsh;
 	struct mtx		mtx;
-#ifdef INTRNG
 	struct mv_mpic_irqsrc *	mpic_isrcs;
-#endif
 	int			nirqs;
 	void *			intr_hand;
 };
@@ -155,10 +151,12 @@ static void	mpic_mask_irq(uintptr_t nb);
 static void	mpic_mask_irq_err(uintptr_t nb);
 static void	mpic_unmask_irq_err(uintptr_t nb);
 static boolean_t mpic_irq_is_percpu(uintptr_t);
-#ifdef INTRNG
 static int	mpic_intr(void *arg);
-#endif
 static void	mpic_unmask_msi(void);
+void mpic_init_secondary(device_t);
+void mpic_ipi_send(device_t, struct intr_irqsrc*, cpuset_t, u_int);
+int mpic_ipi_read(int);
+void mpic_ipi_clear(int);
 
 #define	MPIC_WRITE(softc, reg, val) \
     bus_space_write_4((softc)->mpic_bst, (softc)->mpic_bsh, (reg), (val))
@@ -189,7 +187,6 @@ mv_mpic_probe(device_t dev)
 	return (0);
 }
 
-#ifdef INTRNG
 static int
 mv_mpic_register_isrcs(struct mv_mpic_softc *sc)
 {
@@ -221,7 +218,6 @@ mv_mpic_register_isrcs(struct mv_mpic_softc *sc)
 	}
 	return (0);
 }
-#endif
 
 static int
 mv_mpic_attach(device_t dev)
@@ -246,13 +242,11 @@ mv_mpic_attach(device_t dev)
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
-#ifdef INTRNG
 	if (sc->mpic_res[3] == NULL)
 		device_printf(dev, "No interrupt to use.\n");
 	else
 		bus_setup_intr(dev, sc->mpic_res[3], INTR_TYPE_CLK,
 		    mpic_intr, NULL, sc, &sc->intr_hand);
-#endif
 
 	sc->mpic_bst = rman_get_bustag(sc->mpic_res[0]);
 	sc->mpic_bsh = rman_get_bushandle(sc->mpic_res[0]);
@@ -272,7 +266,6 @@ mv_mpic_attach(device_t dev)
 	val = MPIC_READ(mv_mpic_sc, MPIC_CTRL);
 	sc->nirqs = MPIC_CTRL_NIRQS(val);
 
-#ifdef INTRNG
 	if (mv_mpic_register_isrcs(sc) != 0) {
 		device_printf(dev, "could not register PIC ISRCs\n");
 		bus_release_resources(dev, mv_mpic_spec, sc->mpic_res);
@@ -286,7 +279,6 @@ mv_mpic_attach(device_t dev)
 		bus_release_resources(dev, mv_mpic_spec, sc->mpic_res);
 		return (ENXIO);
 	}
-#endif
 
 	mpic_unmask_msi();
 
@@ -299,7 +291,6 @@ mv_mpic_attach(device_t dev)
 	return (0);
 }
 
-#ifdef INTRNG
 static int
 mpic_intr(void *arg)
 {
@@ -386,20 +377,19 @@ static void
 mpic_post_filter(device_t dev, struct intr_irqsrc *isrc)
 {
 }
-#endif
 
 static device_method_t mv_mpic_methods[] = {
 	DEVMETHOD(device_probe,		mv_mpic_probe),
 	DEVMETHOD(device_attach,	mv_mpic_attach),
 
-#ifdef INTRNG
 	DEVMETHOD(pic_disable_intr,	mpic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	mpic_enable_intr),
 	DEVMETHOD(pic_map_intr,		mpic_map_intr),
 	DEVMETHOD(pic_post_filter,	mpic_post_filter),
 	DEVMETHOD(pic_post_ithread,	mpic_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	mpic_pre_ithread),
-#endif
+	DEVMETHOD(pic_init_secondary,	mpic_init_secondary),
+	DEVMETHOD(pic_ipi_send,		mpic_ipi_send),
 	{ 0, 0 }
 };
 
@@ -413,46 +403,6 @@ static devclass_t mv_mpic_devclass;
 
 EARLY_DRIVER_MODULE(mpic, simplebus, mv_mpic_driver, mv_mpic_devclass, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
-
-#ifndef INTRNG
-int
-arm_get_next_irq(int last)
-{
-	u_int irq, next = -1;
-
-	irq = mv_mpic_get_cause() & MPIC_IRQ_MASK;
-	CTR2(KTR_INTR, "%s: irq:%#x", __func__, irq);
-
-	if (irq != MPIC_IRQ_MASK) {
-		if (irq == MPIC_INT_ERR)
-			irq = mv_mpic_get_cause_err();
-		if (irq == MPIC_INT_MSI)
-			irq = mv_mpic_get_msi();
-		next = irq;
-	}
-
-	CTR3(KTR_INTR, "%s: last=%d, next=%d", __func__, last, next);
-	return (next);
-}
-
-/*
- * XXX We can make arm_enable_irq to operate on ICE and then mask/unmask only
- * by ISM/ICM and remove access to ICE in masking operation
- */
-void
-arm_mask_irq(uintptr_t nb)
-{
-
-	mpic_mask_irq(nb);
-}
-
-void
-arm_unmask_irq(uintptr_t nb)
-{
-
-	mpic_unmask_irq(nb);
-}
-#endif
 
 static void
 mpic_unmask_msi(void)
@@ -621,15 +571,13 @@ mv_msi_data(int irq, uint64_t *addr, uint32_t *data)
 	return (0);
 }
 
-
-#if defined(SMP) && defined(SOC_MV_ARMADAXP)
 void
-intr_pic_init_secondary(void)
+mpic_init_secondary(device_t dev)
 {
 }
 
 void
-pic_ipi_send(cpuset_t cpus, u_int ipi)
+mpic_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus, u_int ipi)
 {
 	uint32_t val, i;
 
@@ -642,7 +590,7 @@ pic_ipi_send(cpuset_t cpus, u_int ipi)
 }
 
 int
-pic_ipi_read(int i __unused)
+mpic_ipi_read(int i __unused)
 {
 	uint32_t val;
 	int ipi;
@@ -658,8 +606,6 @@ pic_ipi_read(int i __unused)
 }
 
 void
-pic_ipi_clear(int ipi)
+mpic_ipi_clear(int ipi)
 {
 }
-
-#endif
