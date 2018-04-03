@@ -93,7 +93,7 @@ dest6_input(struct mbuf **mp, int *offp, int proto)
 	opt = (u_int8_t *)dstopts + sizeof(struct ip6_dest);
 
 	/* search header for all options. */
-	for (optlen = 0; dstoptlen > 0; dstoptlen -= optlen, opt += optlen) {
+	for (; dstoptlen > 0; dstoptlen -= optlen, opt += optlen) {
 		if (*opt != IP6OPT_PAD1 &&
 		    (dstoptlen < IP6OPT_MINLEN || *(opt + 1) + 2 > dstoptlen)) {
 			IP6STAT_INC(ip6s_toosmall);

@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2016-2017 Matthew Macy <mmacy@mattmacy.io>
+ * Copyright (c) 2016 Nicole Graziano <nicole@nextbsd.org>
+ * Copyright (c) 2017 Matthew Macy <mmacy@mattmacy.io>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

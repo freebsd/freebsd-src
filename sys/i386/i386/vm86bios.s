@@ -29,7 +29,7 @@
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 #include <machine/trap.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 #define SCR_NEWPTD	PCB_ESI		/* readability macros */ 
 #define SCR_VMFRAME	PCB_EBP		/* see vm86.c for explanation */
@@ -61,8 +61,6 @@ ENTRY(vm86_bioscall)
 	pushl	%edi
 	pushl	%gs
 
-	pushfl
-	cli
 	movl	PCPU(CURTHREAD),%ecx
 	cmpl	%ecx,PCPU(FPCURTHREAD)	/* do we need to save fp? */
 	jne	1f
@@ -73,8 +71,6 @@ ENTRY(vm86_bioscall)
 	addl	$4,%esp
 	popl	%edx			/* recover our pcb */
 1:
-	popfl
-
 	movl	SCR_VMFRAME(%edx),%ebx	/* target frame location */
 	movl	%ebx,%edi		/* destination */
 	movl    SCR_ARGFRAME(%edx),%esi	/* source (set on entry) */

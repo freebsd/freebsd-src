@@ -49,6 +49,9 @@ macro registers a
 .Fa table
 of device-identifying data for use by
 .Xr devmatch 8 .
+Since it is built off module marking macros, it must follow a
+.Xr DRIVER_MODULE 9
+line.
 .Pp
 The macro takes a
 .Fa descriptor_string
@@ -164,6 +167,7 @@ static struct my_pciids {
 	{ 0x12345678, "Foo bar" },
 	{ 0x9abcdef0, "Baz fizz" },
 };
+
 MODULE_PNP_INFO("W32:vendor/device", pci, my_driver, my_ids, sizeof(my_ids[0]),
     nitems(my_ids));
 .Ed
@@ -176,7 +180,7 @@ MODULE_PNP_INFO("W32:vendor/device", pci, my_driver, my_ids, sizeof(my_ids[0]),
 The macro
 .Nm
 appeared in
-.Fx 12.0 .
+.Fx 11.0 .
 .Sh AUTHORS
 The PNP framework and
 .Xr devmatch 8

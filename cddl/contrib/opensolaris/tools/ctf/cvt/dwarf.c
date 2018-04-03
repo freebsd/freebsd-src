@@ -1613,6 +1613,7 @@ die_function_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp __un
 			ii->ii_vargs = 1;
 			continue;
 		}
+		free(name1);
 
 		ii->ii_nargs++;
 	}

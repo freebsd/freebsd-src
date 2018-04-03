@@ -207,7 +207,6 @@ zpool_upgrade_007_pos_body()
 	. $(atf_get_srcdir)/zpool_upgrade.cfg
 
 	verify_disk_count "$DISKS" 2
-	atf_skip "PR 225877 - panic: solaris assert: newds == os->os_dsl_dataset during"
 	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/zpool_upgrade_007_pos.ksh || atf_fail "Testcase failed"
 }

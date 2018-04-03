@@ -43,6 +43,7 @@ If you want to pick only the firmware image for your network adapter choose one
 of the following:
 .Bd -ragged -offset indent
 .Cd "device iwm3160fw"
+.Cd "device iwm3168fw"
 .Cd "device iwm7260fw"
 .Cd "device iwm7265fw"
 .Cd "device iwm8000Cfw"
@@ -54,6 +55,7 @@ module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 iwm3160fw_load="YES"
+iwm3168fw_load="YES"
 iwm7260fw_load="YES"
 iwm7265fw_load="YES"
 iwm7265Dfw_load="YES"
@@ -62,7 +64,7 @@ iwm8265fw_load="YES"
 .Ed
 .Sh DESCRIPTION
 This module provides access to firmware sets for the
-Intel Dual Band Wireless WiFi 3160, 3165, 7260, 7265, 8000, and 8260 series of
+Intel Dual Band Wireless WiFi 3160, 3165, 3168, 7260, 7265, 8000, and 8260 series of
 IEEE 802.11n/11ac adapters.
 It may be
 statically linked into the kernel, or loaded as a module.

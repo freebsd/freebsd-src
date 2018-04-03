@@ -34,7 +34,7 @@ extern "C" {
 #  include <unistd.h>     /* chown, stat */
 #  include <utime.h>      /* utime */
 #endif
-#include <time.h>         /* time */
+#include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC, nanosleep */
 #include <errno.h>
 #include "mem.h"          /* U32, U64 */
 
@@ -64,7 +64,6 @@ extern "C" {
 #elif PLATFORM_POSIX_VERSION >= 0 /* Unix-like operating system */
 #  include <unistd.h>
 #  include <sys/resource.h> /* setpriority */
-#  include <time.h>         /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
 #  if defined(PRIO_PROCESS)
 #    define SET_REALTIME_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
 #  else
@@ -118,6 +117,7 @@ static int g_utilDisplayLevel;
 *  Time functions
 ******************************************/
 #if defined(_WIN32)   /* Windows */
+    #define UTIL_TIME_INITIALIZER { { 0, 0 } }
     typedef LARGE_INTEGER UTIL_time_t;
     UTIL_STATIC UTIL_time_t UTIL_getTime(void) { UTIL_time_t x; QueryPerformanceCounter(&x); return x; }
     UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
@@ -142,8 +142,11 @@ static int g_utilDisplayLevel;
         }
         return 1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart;
     }
+
 #elif defined(__APPLE__) && defined(__MACH__)
+
     #include <mach/mach_time.h>
+    #define UTIL_TIME_INITIALIZER 0
     typedef U64 UTIL_time_t;
     UTIL_STATIC UTIL_time_t UTIL_getTime(void) { return mach_absolute_time(); }
     UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
@@ -166,8 +169,10 @@ static int g_utilDisplayLevel;
         }
         return ((clockEnd - clockStart) * (U64)rate.numer) / ((U64)rate.denom);
     }
-#elif (PLATFORM_POSIX_VERSION >= 200112L)
-    #include <time.h>
+
+#elif (PLATFORM_POSIX_VERSION >= 200112L) && (defined __UCLIBC__ || ((__GLIBC__ == 2 && __GLIBC_MINOR__ >= 17) || __GLIBC__ > 2))
+
+    #define UTIL_TIME_INITIALIZER { 0, 0 }
     typedef struct timespec UTIL_freq_t;
     typedef struct timespec UTIL_time_t;
     UTIL_STATIC UTIL_time_t UTIL_getTime(void)
@@ -207,19 +212,27 @@ static int g_utilDisplayLevel;
     }
 #else   /* relies on standard C (note : clock_t measurements can be wrong when using multi-threading) */
     typedef clock_t UTIL_time_t;
+    #define UTIL_TIME_INITIALIZER 0
     UTIL_STATIC UTIL_time_t UTIL_getTime(void) { return clock(); }
     UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
     UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
 #endif
 
+#define SEC_TO_MICRO 1000000
 
 /* returns time span in microseconds */
-UTIL_STATIC U64 UTIL_clockSpanMicro( UTIL_time_t clockStart )
+UTIL_STATIC U64 UTIL_clockSpanMicro(UTIL_time_t clockStart )
 {
     UTIL_time_t const clockEnd = UTIL_getTime();
     return UTIL_getSpanTimeMicro(clockStart, clockEnd);
 }
 
+/* returns time span in microseconds */
+UTIL_STATIC U64 UTIL_clockSpanNano(UTIL_time_t clockStart )
+{
+    UTIL_time_t const clockEnd = UTIL_getTime();
+    return UTIL_getSpanTimeNano(clockStart, clockEnd);
+}
 
 UTIL_STATIC void UTIL_waitForNextTick(void)
 {
@@ -243,10 +256,16 @@ UTIL_STATIC void UTIL_waitForNextTick(void)
 #endif
 
 
+UTIL_STATIC int UTIL_isRegularFile(const char* infilename);
+
+
 UTIL_STATIC int UTIL_setFileStat(const char *filename, stat_t *statbuf)
 {
     int res = 0;
     struct utimbuf timebuf;
+
+    if (!UTIL_isRegularFile(filename))
+        return -1;
 
     timebuf.actime = time(NULL);
     timebuf.modtime = statbuf->st_mtime;
@@ -313,33 +332,40 @@ UTIL_STATIC U32 UTIL_isLink(const char* infilename)
 }
 
 
+#define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
 UTIL_STATIC U64 UTIL_getFileSize(const char* infilename)
 {
-    int r;
+    if (!UTIL_isRegularFile(infilename)) return UTIL_FILESIZE_UNKNOWN;
+    {   int r;
 #if defined(_MSC_VER)
-    struct __stat64 statbuf;
-    r = _stat64(infilename, &statbuf);
-    if (r || !(statbuf.st_mode & S_IFREG)) return 0;   /* No good... */
+        struct __stat64 statbuf;
+        r = _stat64(infilename, &statbuf);
+        if (r || !(statbuf.st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
 #elif defined(__MINGW32__) && defined (__MSVCRT__)
-    struct _stati64 statbuf;
-    r = _stati64(infilename, &statbuf);
-    if (r || !(statbuf.st_mode & S_IFREG)) return 0;   /* No good... */
+        struct _stati64 statbuf;
+        r = _stati64(infilename, &statbuf);
+        if (r || !(statbuf.st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
 #else
-    struct stat statbuf;
-    r = stat(infilename, &statbuf);
-    if (r || !S_ISREG(statbuf.st_mode)) return 0;   /* No good... */
+        struct stat statbuf;
+        r = stat(infilename, &statbuf);
+        if (r || !S_ISREG(statbuf.st_mode)) return UTIL_FILESIZE_UNKNOWN;
 #endif
-    return (U64)statbuf.st_size;
+        return (U64)statbuf.st_size;
+    }
 }
 
 
-UTIL_STATIC U64 UTIL_getTotalFileSize(const char** fileNamesTable, unsigned nbFiles)
+UTIL_STATIC U64 UTIL_getTotalFileSize(const char* const * const fileNamesTable, unsigned nbFiles)
 {
     U64 total = 0;
+    int error = 0;
     unsigned n;
-    for (n=0; n<nbFiles; n++)
-        total += UTIL_getFileSize(fileNamesTable[n]);
-    return total;
+    for (n=0; n<nbFiles; n++) {
+        U64 const size = UTIL_getFileSize(fileNamesTable[n]);
+        error |= (size == UTIL_FILESIZE_UNKNOWN);
+        total += size;
+    }
+    return error ? UTIL_FILESIZE_UNKNOWN : total;
 }
 
 

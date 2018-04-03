@@ -45,10 +45,20 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/vmparam.h>
 
+#ifdef COMPAT_FREEBSD32
+struct ptrace_xstate_info32 {
+	uint32_t	xsave_mask1, xsave_mask2;
+	uint32_t	xsave_len;
+};
+#endif
+
 static int
 cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 {
 	struct ptrace_xstate_info info;
+#ifdef COMPAT_FREEBSD32
+	struct ptrace_xstate_info32 info32;
+#endif
 	char *savefpu;
 	int error;
 
@@ -78,13 +88,28 @@ cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 		break;
 
 	case PT_GETXSTATE_INFO:
-		if (data != sizeof(info)) {
-			error  = EINVAL;
-			break;
+#ifdef COMPAT_FREEBSD32
+		if (SV_CURPROC_FLAG(SV_ILP32)) {
+			if (data != sizeof(info32)) {
+				error = EINVAL;
+			} else {
+				info32.xsave_len = cpu_max_ext_state_size;
+				info32.xsave_mask1 = xsave_mask;
+				info32.xsave_mask2 = xsave_mask >> 32;
+				error = copyout(&info32, addr, data);
+			}
+		} else
+#endif
+		{
+			if (data != sizeof(info)) {
+				error  = EINVAL;
+			} else {
+				bzero(&info, sizeof(info));
+				info.xsave_len = cpu_max_ext_state_size;
+				info.xsave_mask = xsave_mask;
+				error = copyout(&info, addr, data);
+			}
 		}
-		info.xsave_len = cpu_max_ext_state_size;
-		info.xsave_mask = xsave_mask;
-		error = copyout(&info, addr, data);
 		break;
 
 	case PT_GETXSTATE:

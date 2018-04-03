@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2018
+.Dd March 18, 2018
 .Dt CAP_GRP 3
 .Os
 .Sh NAME
@@ -70,7 +70,7 @@
 .Ft int
 .Fn cap_grp_limit_fields "cap_channel_t *chan" "const char * const *fields" "size_t nfields"
 .Ft int
-.Fn cap_grp_limit_groups "cap_channel_t *chan" "const char * const *names" "size_t nnames" "gid_t *gids" "size_t ngids"
+.Fn cap_grp_limit_groups "cap_channel_t *chan" "const char * const *names" "size_t nnames" "const gid_t *gids" "size_t ngids"
 .Sh DESCRIPTION
 The functions
 .Fn cap_getgrent ,
@@ -163,7 +163,7 @@ casper service and uses it to get a group name.
 cap_channel_t *capcas, *capgrp;
 const char *cmds[] = { "getgrgid" };
 const char *fields[] = { "gr_name" };
-gid_t gid[] = { 1 };
+const gid_t gid[] = { 1 };
 struct group *group;
 
 /* Open capability to Casper. */

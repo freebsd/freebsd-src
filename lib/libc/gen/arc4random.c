@@ -111,8 +111,8 @@ arc4_addrandom(u_char *dat, int datlen)
 	rs.j = rs.i;
 }
 
-static size_t
-arc4_sysctl(u_char *buf, size_t size)
+size_t
+__arc4_sysctl(u_char *buf, size_t size)
 {
 	int mib[2];
 	size_t len, done;
@@ -143,7 +143,7 @@ arc4_stir(void)
 		arc4_init();
 		rs_initialized = 1;
 	}
-	if (arc4_sysctl(rdat, KEYSIZE) != KEYSIZE) {
+	if (__arc4_sysctl(rdat, KEYSIZE) != KEYSIZE) {
 		/*
 		 * The sysctl cannot fail. If it does fail on some FreeBSD
 		 * derivative or after some future change, just abort so that

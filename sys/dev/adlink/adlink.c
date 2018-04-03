@@ -137,7 +137,7 @@ adlink_intr(void *arg)
 	sc = arg;
 	u = bus_read_4(sc->res[0], 0x38);
 	if (!(u & 0x00800000))
-		return; // XXX - FILTER_STRAY?
+		return (FILTER_STRAY);
 	bus_write_4(sc->res[0], 0x38, u | 0x003f4000);
 
 	sc->sample += sc->p0->chunksize / 2;
@@ -150,7 +150,7 @@ adlink_intr(void *arg)
 
 	if (sc->p0->state != STATE_RUN) {
 		printf("adlink: stopping %d\n", sc->p0->state);
-		return; // XXX - FILTER_STRAY?
+		return (FILTER_STRAY);
 	}
 
 	pg = pg->next;
@@ -346,14 +346,32 @@ adlink_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 
 static devclass_t adlink_devclass;
 
+struct pci_id
+{
+	uint16_t	vendor;
+	uint16_t	device;
+	const char	*desc;
+} adlink_id[] = {
+	{ .vendor = 0x10e8, .device = 0x80da,
+	  .desc ="Adlink PCI-9812 4 ch 12 bit 20 msps" }
+};
+
 static int
 adlink_probe(device_t self)
 {
+	int i;
+	uint16_t vendor, device;
 
-	if (pci_get_devid(self) != 0x80da10e8)
-		return (ENXIO);
-	device_set_desc(self, "Adlink PCI-9812 4 ch 12 bit 20 msps");
-	return (BUS_PROBE_DEFAULT);
+	vendor = pci_get_vendor(self);
+	device = pci_get_device(self);
+	for (i = 0; i < nitems(adlink_id); i++) {
+		if (adlink_id[i].vendor == vendor &&
+		    adlink_id[i].device == device) {
+			device_set_desc(self, adlink_id[i].desc);
+			return (BUS_PROBE_DEFAULT);
+		}
+	}
+	return (ENXIO);
 }
 
 static struct resource_spec adlink_res_spec[] = {
@@ -420,5 +438,6 @@ static driver_t adlink_driver = {
 };
 
 DRIVER_MODULE(adlink, pci, adlink_driver, adlink_devclass, 0, 0);
-
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, adlink, adlink_id, sizeof(adlink_id[0]),
+    nitems(adlink_id));
 #endif /* _KERNEL */

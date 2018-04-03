@@ -2128,7 +2128,14 @@ bhndb_get_dma_translation(device_t dev, device_t child, u_int width,
 	if (sc->bus_res->res->dma_tags == NULL)
 		return (ENODEV);
 
-	/* Find the best matching descriptor for the requested type */
+	/* Is the requested width supported? */
+	if (width > BHND_DMA_ADDR_32BIT) {
+		/* Backplane must support 64-bit addressing */
+		if (!(sc->chipid.chip_caps & BHND_CAP_BP64))
+			width = BHND_DMA_ADDR_32BIT;
+	}
+
+	/* Find the best matching descriptor for the requested width */
 	addr_mask = BHND_DMA_ADDR_BITMASK(width);
 
 	match = NULL;

@@ -81,13 +81,17 @@ OBJCOPY?=	objcopy
 .include "config.mk"
 
 # Search for kernel source tree in standard places.
+.if empty(KERNBUILDDIR)
+.if !defined(SYSDIR)
 .for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
-.if !defined(SYSDIR) && exists(${_dir}/kern/)
+.if exists(${_dir}/kern/)
 SYSDIR=	${_dir:tA}
 .endif
 .endfor
+.endif
 .if !defined(SYSDIR) || !exists(${SYSDIR}/kern/)
 .error "can't find kernel source tree"
+.endif
 .endif
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S .m
@@ -454,14 +458,14 @@ acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirk
 	${AWK} -f ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirks
 .endif
 
-.if !empty(SRCS:Massym.s) || !empty(DPSRCS:Massym.s)
-CLEANFILES+=	assym.s genassym.o
+.if !empty(SRCS:Massym.inc) || !empty(DPSRCS:Massym.inc)
+CLEANFILES+=	assym.inc genassym.o
 DEPENDOBJS+=	genassym.o
-assym.s: genassym.o
+assym.inc: genassym.o
 .if defined(KERNBUILDDIR)
 genassym.o: opt_global.h
 .endif
-assym.s: ${SYSDIR}/kern/genassym.sh
+assym.inc: ${SYSDIR}/kern/genassym.sh
 	sh ${SYSDIR}/kern/genassym.sh genassym.o > ${.TARGET}
 genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 genassym.o: ${SRCS:Mopt_*.h}

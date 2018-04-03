@@ -43,7 +43,7 @@
 #include <machine/regnum.h>
 #include <machine/cpuregs.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 #define	SEXP_INF	0xff
 #define	DEXP_INF	0x7ff

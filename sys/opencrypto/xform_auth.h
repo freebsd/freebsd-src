@@ -75,6 +75,8 @@ extern struct auth_hash auth_hash_hmac_sha2_512;
 extern struct auth_hash auth_hash_nist_gmac_aes_128;
 extern struct auth_hash auth_hash_nist_gmac_aes_192;
 extern struct auth_hash auth_hash_nist_gmac_aes_256;
+extern struct auth_hash auth_hash_blake2b;
+extern struct auth_hash auth_hash_blake2s;
 
 union authctx {
 	MD5_CTX md5ctx;

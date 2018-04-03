@@ -90,9 +90,7 @@ function verify_cache_device
 
 	# Zpool status returns on the device name sans the /dev, so
 	# if the device contains /dev/ remove it.
-	if [[ $device =~ "^/dev/" ]]; then
-		device=`basename ${device}`
-	fi
+	device=${device#"/dev/"}
 
 	if [[ $WRAPPER == *"smi"* ]]; then
 		$ECHO $device | $EGREP "^c[0-F]+([td][0-F]+)+$" > /dev/null 2>&1

@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/jail.h>
+#include <sys/linker.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
@@ -59,6 +60,7 @@ __FBSDID("$FreeBSD$");
 static int jailparam_import_enum(const char **values, int nvalues,
     const char *valstr, size_t valsize, int *value);
 static int jailparam_type(struct jailparam *jp);
+static int kldload_param(const char *name);
 static char *noname(const char *name);
 static char *nononame(const char *name);
 
@@ -892,6 +894,9 @@ jailparam_type(struct jailparam *jp)
 			    "sysctl(0.3.%s): %s", name, strerror(errno));
 			return (-1);
 		}
+		if (kldload_param(name) >= 0 && sysctl(mib, 2, mib + 2, &miblen,
+		    desc.s, strlen(desc.s)) >= 0)
+			goto mib_desc;
 		/*
 		 * The parameter probably doesn't exist.  But it might be
 		 * the "no" counterpart to a boolean.
@@ -1028,6 +1033,33 @@ jailparam_type(struct jailparam *jp)
 		jp->jp_valuelen = 0;
 	}
 	return (0);
+}
+
+/*
+ * Attempt to load a kernel module matching an otherwise nonexistent parameter.
+ */
+static int
+kldload_param(const char *name)
+{
+	int kl;
+
+	if (strcmp(name, "linux") == 0 || strncmp(name, "linux.", 6) == 0)
+		kl = kldload("linux");
+	else if (strcmp(name, "sysvmsg") == 0 || strcmp(name, "sysvsem") == 0 ||
+	    strcmp(name, "sysvshm") == 0)
+		kl = kldload(name);
+	else {
+		errno = ENOENT;
+		return (-1);
+	}
+	if (kl < 0 && errno == EEXIST) {
+		/*
+		 * In the module is already loaded, then it must not contain
+		 * the parameter.
+		 */
+		errno = ENOENT;
+	}
+	return kl;
 }
 
 /*

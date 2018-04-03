@@ -29,9 +29,15 @@
 -- $FreeBSD$
 --
 
+local hook = require("hook")
+
 local config = {}
 local modules = {}
 local carousel_choices = {}
+-- Which variables we changed
+local env_changed = {}
+-- Values to restore env to (nil to unset)
+local env_restore = {}
 
 local MSG_FAILEXEC = "Failed to exec '%s'"
 local MSG_FAILSETENV = "Failed to '%s' with value: %s"
@@ -47,6 +53,54 @@ local MSG_KERNFAIL = "Failed to load kernel '%s'"
 local MSG_KERNLOADING = "Loading kernel..."
 local MSG_MODLOADING = "Loading configured modules..."
 local MSG_MODLOADFAIL = "Could not load one or more modules!"
+
+local function restoreEnv()
+	-- Examine changed environment variables
+	for k, v in pairs(env_changed) do
+		local restore_value = env_restore[k]
+		if restore_value == nil then
+			-- This one doesn't need restored for some reason
+			goto continue
+		end
+		local current_value = loader.getenv(k)
+		if current_value ~= v then
+			-- This was overwritten by some action taken on the menu
+			-- most likely; we'll leave it be.
+			goto continue
+		end
+		restore_value = restore_value.value
+		if restore_value ~= nil then
+			loader.setenv(k, restore_value)
+		else
+			loader.unsetenv(k)
+		end
+		::continue::
+	end
+
+	env_changed = {}
+	env_restore = {}
+end
+
+local function setEnv(key, value)
+	-- Track the original value for this if we haven't already
+	if env_restore[key] == nil then
+		env_restore[key] = {value = loader.getenv(key)}
+	end
+
+	env_changed[key] = value
+
+	return loader.setenv(key, value)
+end
+
+-- name here is one of 'name', 'type', flags', 'before', 'after', or 'error.'
+-- These are set from lines in loader.conf(5): ${key}_${name}="${value}" where
+-- ${key} is a module name.
+local function setKey(key, name, value)
+	if modules[key] == nil then
+		modules[key] = {}
+	end
+	modules[key][name] = value
+end
 
 local pattern_table = {
 	{
@@ -67,42 +121,42 @@ local pattern_table = {
 	{
 		str = "^%s*([%w_]+)_name%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			config.setKey(k, "name", v)
+			setKey(k, "name", v)
 		end,
 	},
 	--  module_type="value"
 	{
 		str = "^%s*([%w_]+)_type%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			config.setKey(k, "type", v)
+			setKey(k, "type", v)
 		end,
 	},
 	--  module_flags="value"
 	{
 		str = "^%s*([%w_]+)_flags%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			config.setKey(k, "flags", v)
+			setKey(k, "flags", v)
 		end,
 	},
 	--  module_before="value"
 	{
 		str = "^%s*([%w_]+)_before%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			config.setKey(k, "before", v)
+			setKey(k, "before", v)
 		end,
 	},
 	--  module_after="value"
 	{
 		str = "^%s*([%w_]+)_after%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			config.setKey(k, "after", v)
+			setKey(k, "after", v)
 		end,
 	},
 	--  module_error="value"
 	{
 		str = "^%s*([%w_]+)_error%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			config.setKey(k, "error", v)
+			setKey(k, "error", v)
 		end,
 	},
 	--  exec="command"
@@ -118,7 +172,7 @@ local pattern_table = {
 	{
 		str = "^%s*([%w%p]+)%s*=%s*\"([%w%s%p]-)\"%s*(.*)",
 		process = function(k, v)
-			if config.setenv(k, v) ~= 0 then
+			if setEnv(k, v) ~= 0 then
 				print(MSG_FAILSETENV:format(k, v))
 			end
 		end,
@@ -127,12 +181,75 @@ local pattern_table = {
 	{
 		str = "^%s*([%w%p]+)%s*=%s*(%d+)%s*(.*)",
 		process = function(k, v)
-			if config.setenv(k, v) ~= 0 then
+			if setEnv(k, v) ~= 0 then
 				print(MSG_FAILSETENV:format(k, tostring(v)))
 			end
 		end,
 	},
 }
+
+local function isValidComment(line)
+	if line ~= nil then
+		local s = line:match("^%s*#.*")
+		if s == nil then
+			s = line:match("^%s*$")
+		end
+		if s == nil then
+			return false
+		end
+	end
+	return true
+end
+
+local function loadModule(mod, silent)
+	local status = true
+	local pstatus
+	for k, v in pairs(mod) do
+		if v.load ~= nil and v.load:lower() == "yes" then
+			local str = "load "
+			if v.flags ~= nil then
+				str = str .. v.flags .. " "
+			end
+			if v.type ~= nil then
+				str = str .. "-t " .. v.type .. " "
+			end
+			if v.name ~= nil then
+				str = str .. v.name
+			else
+				str = str .. k
+			end
+			if v.before ~= nil then
+				pstatus = cli_execute_unparsed(v.before) == 0
+				if not pstatus and not silent then
+					print(MSG_FAILEXBEF:format(v.before, k))
+				end
+				status = status and pstatus
+			end
+
+			if cli_execute_unparsed(str) ~= 0 then
+				if not silent then
+					print(MSG_FAILEXMOD:format(str))
+				end
+				if v.error ~= nil then
+					cli_execute_unparsed(v.error)
+				end
+				status = false
+			end
+
+			if v.after ~= nil then
+				pstatus = cli_execute_unparsed(v.after) == 0
+				if not pstatus and not silent then
+					print(MSG_FAILEXAF:format(v.after, k))
+				end
+				status = status and pstatus
+			end
+
+		end
+	end
+
+	return status
+end
+
 
 local function readFile(name, silent)
 	local f = io.open(name)
@@ -147,11 +264,8 @@ local function readFile(name, silent)
 	-- We might have read in the whole file, this won't be needed any more.
 	io.close(f)
 
-	if text == nil then
-		if not silent then
-			print(MSG_FAILREADCFG:format(name))
-		end
-		return nil
+	if text == nil and not silent then
+		print(MSG_FAILREADCFG:format(name))
 	end
 	return text
 end
@@ -193,137 +307,15 @@ local function checkNextboot()
 end
 
 -- Module exports
--- Which variables we changed
-config.env_changed = {}
--- Values to restore env to (nil to unset)
-config.env_restore = {}
 config.verbose = false
 
 -- The first item in every carousel is always the default item.
 function config.getCarouselIndex(id)
-	local val = carousel_choices[id]
-	if val == nil then
-		return 1
-	end
-	return val
+	return carousel_choices[id] or 1
 end
 
 function config.setCarouselIndex(id, idx)
 	carousel_choices[id] = idx
-end
-
-function config.restoreEnv()
-	-- Examine changed environment variables
-	for k, v in pairs(config.env_changed) do
-		local restore_value = config.env_restore[k]
-		if restore_value == nil then
-			-- This one doesn't need restored for some reason
-			goto continue
-		end
-		local current_value = loader.getenv(k)
-		if current_value ~= v then
-			-- This was overwritten by some action taken on the menu
-			-- most likely; we'll leave it be.
-			goto continue
-		end
-		restore_value = restore_value.value
-		if restore_value ~= nil then
-			loader.setenv(k, restore_value)
-		else
-			loader.unsetenv(k)
-		end
-		::continue::
-	end
-
-	config.env_changed = {}
-	config.env_restore = {}
-end
-
-function config.setenv(key, value)
-	-- Track the original value for this if we haven't already
-	if config.env_restore[key] == nil then
-		config.env_restore[key] = {value = loader.getenv(key)}
-	end
-
-	config.env_changed[key] = value
-
-	return loader.setenv(key, value)
-end
-
--- name here is one of 'name', 'type', flags', 'before', 'after', or 'error.'
--- These are set from lines in loader.conf(5): ${key}_${name}="${value}" where
--- ${key} is a module name.
-function config.setKey(key, name, value)
-	if modules[key] == nil then
-		modules[key] = {}
-	end
-	modules[key][name] = value
-end
-
-function config.isValidComment(line)
-	if line ~= nil then
-		local s = line:match("^%s*#.*")
-		if s == nil then
-			s = line:match("^%s*$")
-		end
-		if s == nil then
-			return false
-		end
-	end
-	return true
-end
-
-function config.loadmod(mod, silent)
-	local status = true
-	local pstatus
-	for k, v in pairs(mod) do
-		if v.load == "YES" then
-			local str = "load "
-			if v.flags ~= nil then
-				str = str .. v.flags .. " "
-			end
-			if v.type ~= nil then
-				str = str .. "-t " .. v.type .. " "
-			end
-			if v.name ~= nil then
-				str = str .. v.name
-			else
-				str = str .. k
-			end
-			if v.before ~= nil then
-				pstatus = cli_execute_unparsed(v.before) == 0
-				if not pstatus and not silent then
-					print(MSG_FAILEXBEF:format(v.before, k))
-				end
-				status = status and pstatus
-			end
-
-			if cli_execute_unparsed(str) ~= 0 then
-				if not silent then
-					print(MSG_FAILEXMOD:format(str))
-				end
-				if v.error ~= nil then
-					cli_execute_unparsed(v.error)
-				end
-				status = false
-			end
-
-			if v.after ~= nil then
-				pstatus = cli_execute_unparsed(v.after) == 0
-				if not pstatus and not silent then
-					print(MSG_FAILEXAF:format(v.after, k))
-				end
-				status = status and pstatus
-			end
-
---		else
---			if not silent then
---				print("Skipping module '". . k .. "'")
---			end
-		end
-	end
-
-	return status
 end
 
 -- Returns true if we processed the file successfully, false if we did not.
@@ -356,7 +348,7 @@ function config.parse(text)
 				if k ~= nil then
 					found = true
 
-					if config.isValidComment(c) then
+					if isValidComment(c) then
 						val.process(k, v)
 					else
 						print(MSG_MALFORMED:format(n,
@@ -491,19 +483,16 @@ function config.load(file)
 
 	-- Cache the provided module_path at load time for later use
 	config.module_path = loader.getenv("module_path")
-	local verbose = loader.getenv("verbose_loading")
-	if verbose == nil then
-		verbose = "no"
-	end
+	local verbose = loader.getenv("verbose_loading") or "no"
 	config.verbose = verbose:lower() == "yes"
 end
 
 -- Reload configuration
 function config.reload(file)
 	modules = {}
-	config.restoreEnv()
+	restoreEnv()
 	config.load(file)
-	core.configReloaded()
+	hook.runAll("config.reloaded")
 end
 
 function config.loadelf()
@@ -518,9 +507,10 @@ function config.loadelf()
 	end
 
 	print(MSG_MODLOADING)
-	if not config.loadmod(modules, not config.verbose) then
+	if not loadModule(modules, not config.verbose) then
 		print(MSG_MODLOADFAIL)
 	end
 end
 
+hook.registerType("config.reloaded")
 return config

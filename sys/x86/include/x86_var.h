@@ -119,6 +119,8 @@ void	busdma_swi(void);
 bool	cpu_mwait_usable(void);
 void	cpu_probe_amdc1e(void);
 void	cpu_setregs(void);
+bool	disable_wp(void);
+void	restore_wp(bool old_wp);
 void	dump_add_page(vm_paddr_t);
 void	dump_drop_page(vm_paddr_t);
 void	finishidentcpu(void);

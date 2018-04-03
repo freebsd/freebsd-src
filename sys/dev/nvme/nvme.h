@@ -478,11 +478,13 @@ struct nvme_completion {
 _Static_assert(sizeof(struct nvme_completion) == 4 * 4, "bad size for nvme_completion");
 
 struct nvme_dsm_range {
-
 	uint32_t attributes;
 	uint32_t length;
 	uint64_t starting_lba;
 } __packed;
+
+/* Largest DSM Trim that can be done */
+#define NVME_MAX_DSM_TRIM		4096
 
 _Static_assert(sizeof(struct nvme_dsm_range) == 16, "bad size for nvme_dsm_ranage");
 

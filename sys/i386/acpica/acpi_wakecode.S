@@ -34,7 +34,7 @@
 #include <machine/specialreg.h>
 #include <machine/timerreg.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 /*
  * Resume entry point.  The BIOS enters here in real mode after POST with

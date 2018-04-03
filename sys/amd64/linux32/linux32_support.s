@@ -31,7 +31,7 @@
 #include "linux32_assym.h"		/* system definitions */
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 
-#include "assym.s"
+#include "assym.inc"
 
 futex_fault:
 	movq	$0,PCB_ONFAULT(%r8)

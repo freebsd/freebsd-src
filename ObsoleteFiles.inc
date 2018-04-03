@@ -38,6 +38,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180319: remove /boot/overlays, replaced by /boot/dtb/overlays
+OLD_DIRS+=boot/overlays
+# 20180311: remove sys/sys/i386/include/pcaudioio.h
+.if ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/machine/pcaudioio.h
+.endif
+# 20180310: remove sys/sys/dataacq.h
+OLD_FILES+=usr/include/sys/dataacq.h
 # 20180306: remove DTrace scripts made obsolete by dwatch(1)
 OLD_FILES+=usr/share/dtrace/watch_execve
 OLD_FILES+=usr/share/dtrace/watch_kill
@@ -51,7 +59,6 @@ OLD_FILES+=usr/share/openssl/man/man1/c_rehash.1.gz
 # 20180206: remove gdbtui
 OLD_FILES+=usr/bin/gdbtui
 # 20180201: Obsolete forth files
-OLD_FILES+=boot/efi.4th
 OLD_FILES+=boot/pcibios.4th
 # 20180114: new clang import which bumps version from 5.0.1 to 6.0.0.
 OLD_FILES+=usr/lib/clang/5.0.1/include/sanitizer/allocator_interface.h

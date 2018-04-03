@@ -383,13 +383,13 @@ close_filed(struct filed *f)
 
 	switch (f->f_type) {
 	case F_FORW:
-            if (f->f_un.f_forw.f_addr) {
-                freeaddrinfo(f->f_un.f_forw.f_addr);
-                f->f_un.f_forw.f_addr = NULL;
-            }
-            /*FALLTHROUGH*/
+		if (f->f_un.f_forw.f_addr) {
+			freeaddrinfo(f->f_un.f_forw.f_addr);
+			f->f_un.f_forw.f_addr = NULL;
+		}
+		/* FALLTHROUGH */
 
-        case F_FILE:
+	case F_FILE:
 	case F_TTY:
 	case F_CONSOLE:
 		f->f_type = F_UNUSED;
@@ -1865,7 +1865,7 @@ readconfigfile(FILE *cf, int allow_includes)
 		f = cfline(cline, prog, host);
 		if (f != NULL)
 			addfile(f);
-                free(f);
+		free(f);
 	}
 }
 
@@ -1963,11 +1963,11 @@ init(int signo)
 		f = cfline("*.ERR\t/dev/console", "*", "*");
 		if (f != NULL)
 			addfile(f);
-                free(f);
+		free(f);
 		f = cfline("*.PANIC\t*", "*", "*");
 		if (f != NULL)
 			addfile(f);
-                free(f);
+		free(f);
 		Initialized = 1;
 
 		return;

@@ -120,6 +120,7 @@ _LIBRARIES=	\
 		gssapi \
 		heimsqlite \
 		ipsec \
+		ipt \
 		jail \
 		kiconv \
 		kvm \

@@ -207,7 +207,7 @@ aw_sid_attach(device_t dev)
 		for (i = 0; i < sc->sid_conf->efuse_size; i += 4)
 			if (aw_sid_prctl_read(dev, i, &val) != 0) {
 				device_printf(dev, "failed prctl read\n");
-				return (ENXIO);
+				goto fail;
 			}
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
@@ -217,6 +217,11 @@ aw_sid_attach(device_t dev)
 	    dev, AW_SID_ROOT_KEY, aw_sid_sysctl, "A", "Root Key");
 
 	return (0);
+
+fail:
+	bus_release_resources(dev, aw_sid_spec, &sc->res);
+	mtx_destroy(&sc->prctl_mtx);
+	return (ENXIO);
 }
 
 int

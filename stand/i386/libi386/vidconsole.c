@@ -449,6 +449,13 @@ vidc_term_emu(int c)
 		    fg_c = bg_c;
 		    bg_c = t;
 		    break;
+		case 22:	/* normal intensity */
+		    fg_c &= ~0x8;
+		    break;
+		case 24:	/* not underline */
+		case 25:	/* not blinking */
+		    bg_c &= ~0x8;
+		    break;
 		case 30: case 31: case 32: case 33:
 		case 34: case 35: case 36: case 37:
 		    fg_c = ansi_col[args[i] - 30];

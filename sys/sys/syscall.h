@@ -478,4 +478,5 @@
 #define	SYS_kevent	560
 #define	SYS_cpuset_getdomain	561
 #define	SYS_cpuset_setdomain	562
-#define	SYS_MAXSYSCALL	563
+#define	SYS_getrandom	563
+#define	SYS_MAXSYSCALL	564

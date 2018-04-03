@@ -577,21 +577,9 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	 */
 	unit = device_get_unit(ctrlr->dev) * NVME_MAX_NAMESPACES + ns->id - 1;
 
-/*
- * MAKEDEV_ETERNAL was added in r210923, for cdevs that will never
- *  be destroyed.  This avoids refcounting on the cdev object.
- *  That should be OK case here, as long as we're not supporting PCIe
- *  surprise removal nor namespace deletion.
- */
-#ifdef MAKEDEV_ETERNAL_KLD
-	ns->cdev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &nvme_ns_cdevsw, unit,
-	    NULL, UID_ROOT, GID_WHEEL, 0600, "nvme%dns%d",
-	    device_get_unit(ctrlr->dev), ns->id);
-#else
 	ns->cdev = make_dev_credf(0, &nvme_ns_cdevsw, unit,
 	    NULL, UID_ROOT, GID_WHEEL, 0600, "nvme%dns%d",
 	    device_get_unit(ctrlr->dev), ns->id);
-#endif
 #ifdef NVME_UNMAPPED_BIO_SUPPORT
 	ns->cdev->si_flags |= SI_UNMAPPED;
 #endif

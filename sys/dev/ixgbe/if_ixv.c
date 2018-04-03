@@ -45,7 +45,7 @@
 /************************************************************************
  * Driver version
  ************************************************************************/
-char ixv_driver_version[] = "2.0.0-k";
+char ixv_driver_version[] = "2.0.1-k";
 
 /************************************************************************
  * PCI Device ID Table
@@ -616,6 +616,7 @@ ixv_if_init(if_ctx_t ctx)
 
 	/* Reset VF and renegotiate mailbox API version */
 	hw->mac.ops.reset_hw(hw);
+	hw->mac.ops.start_hw(hw);
 	error = ixv_negotiate_api(adapter);
 	if (error) {
 		device_printf(dev,
@@ -909,10 +910,18 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 {
 	struct adapter *adapter = iflib_get_softc(ctx);
 	device_t       dev = iflib_get_dev(ctx);
+	s32            status;
 
 	adapter->hw.mac.get_link_status = TRUE;
-	ixgbe_check_link(&adapter->hw, &adapter->link_speed, &adapter->link_up,
-	    FALSE);
+
+	status = ixgbe_check_link(&adapter->hw, &adapter->link_speed,
+	    &adapter->link_up, FALSE);
+
+	if (status != IXGBE_SUCCESS && adapter->hw.adapter_stopped == FALSE) {
+		/* Mailbox's Clear To Send status is lost or timeout occurred.
+		 * We need reinitialization. */
+		iflib_get_ifp(ctx)->if_init(ctx);
+	}
 
 	if (adapter->link_up) {
 		if (adapter->link_active == FALSE) {

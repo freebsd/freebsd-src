@@ -72,7 +72,7 @@ fsl_ocotp_devmap(void)
 	phandle_t child, root;
 	u_long base, size;
 
-	if ((root = OF_finddevice("/")) == 0)
+	if ((root = OF_finddevice("/")) == -1)
 		goto fatal;
 	if ((child = fdt_depth_search_compatible(root, "fsl,imx6q-ocotp", 0)) == 0)
 		goto fatal;

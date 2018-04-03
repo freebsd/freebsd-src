@@ -21,10 +21,10 @@ extern "C" {
 *  Compiler Options
 ****************************************/
 #if defined(_MSC_VER)
-#  define _CRT_SECURE_NO_WARNINGS   /* Disable Visual Studio warning messages for fopen, strncpy, strerror */
-#  define _CRT_SECURE_NO_DEPRECATE  /* VS2005 - must be declared before <io.h> and <windows.h> */
-#  if (_MSC_VER <= 1800)            /* (1800 = Visual Studio 2013) */
-#    define snprintf sprintf_s      /* snprintf unsupported by Visual <= 2013 */
+#  define _CRT_SECURE_NO_WARNINGS    /* Disable Visual Studio warning messages for fopen, strncpy, strerror */
+#  if (_MSC_VER <= 1800)             /* 1800 == Visual Studio 2013 */
+#    define _CRT_SECURE_NO_DEPRECATE /* VS2005 - must be declared before <io.h> and <windows.h> */
+#    define snprintf sprintf_s       /* snprintf unsupported by Visual <= 2013 */
 #  endif
 #endif
 
@@ -71,7 +71,7 @@ extern "C" {
 ***************************************************************/
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)) /* UNIX-like OS */ \
    || defined(__midipix__) || defined(__VMS))
-#  if (defined(__APPLE__) && defined(__MACH__)) || defined(__SVR4) || defined(_AIX) || defined(__hpux) /* POSIX.1–2001 (SUSv3) conformant */ \
+#  if (defined(__APPLE__) && defined(__MACH__)) || defined(__SVR4) || defined(_AIX) || defined(__hpux) /* POSIX.1-2001 (SUSv3) conformant */ \
      || defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)  /* BSD distros */
 #    define PLATFORM_POSIX_VERSION 200112L
 #  else
@@ -106,8 +106,7 @@ extern "C" {
 #  include <io.h>      /* _isatty */
 #  include <windows.h> /* DeviceIoControl, HANDLE, FSCTL_SET_SPARSE */
 #  include <stdio.h>   /* FILE */
-static __inline int IS_CONSOLE(FILE* stdStream)
-{
+static __inline int IS_CONSOLE(FILE* stdStream) {
     DWORD dummy;
     return _isatty(_fileno(stdStream)) && GetConsoleMode((HANDLE)_get_osfhandle(_fileno(stdStream)), &dummy);
 }
@@ -117,7 +116,7 @@ static __inline int IS_CONSOLE(FILE* stdStream)
 
 
 /******************************
-*  OS-specific Includes
+*  OS-specific IO behaviors
 ******************************/
 #if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32)
 #  include <fcntl.h>   /* _O_BINARY */
@@ -125,7 +124,7 @@ static __inline int IS_CONSOLE(FILE* stdStream)
 #  if !defined(__DJGPP__)
 #    include <windows.h> /* DeviceIoControl, HANDLE, FSCTL_SET_SPARSE */
 #    include <winioctl.h> /* FSCTL_SET_SPARSE */
-#    define SET_BINARY_MODE(file) { int unused=_setmode(_fileno(file), _O_BINARY); (void)unused; }
+#    define SET_BINARY_MODE(file) { int const unused=_setmode(_fileno(file), _O_BINARY); (void)unused; }
 #    define SET_SPARSE_FILE_MODE(file) { DWORD dw; DeviceIoControl((HANDLE) _get_osfhandle(_fileno(file)), FSCTL_SET_SPARSE, 0, 0, 0, 0, &dw, 0); }
 #  else
 #    define SET_BINARY_MODE(file) setmode(fileno(file), O_BINARY)

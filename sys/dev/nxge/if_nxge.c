@@ -1364,18 +1364,23 @@ int
 xge_ioctl_stats(xge_lldev_t *lldev, struct ifreq *ifreqp)
 {
 	xge_hal_status_e status = XGE_HAL_OK;
-	char *data = (char *)ifreqp->ifr_data;
+	char cmd, mode;
 	void *info = NULL;
-	int retValue = EINVAL;
+	int retValue;
 
-	switch(*data) {
+	cmd = retValue = fubyte(ifr_data_get_ptr(ifreqp));
+	if (retValue == -1)
+		return (EFAULT);
+
+	retValue = EINVAL;
+	switch(cmd) {
 	    case XGE_QUERY_STATS:
 	        mtx_lock(&lldev->mtx_drv);
 	        status = xge_hal_stats_hw(lldev->devh,
 	            (xge_hal_stats_hw_info_t **)&info);
 	        mtx_unlock(&lldev->mtx_drv);
 	        if(status == XGE_HAL_OK) {
-	            if(copyout(info, ifreqp->ifr_data,
+	            if(copyout(info, ifr_data_get_ptr(ifreqp),
 	                sizeof(xge_hal_stats_hw_info_t)) == 0)
 	                retValue = 0;
 	        }
@@ -1393,7 +1398,7 @@ xge_ioctl_stats(xge_lldev_t *lldev, struct ifreq *ifreqp)
 	                sizeof(xge_hal_pci_config_t));
 	            mtx_unlock(&lldev->mtx_drv);
 	            if(status == XGE_HAL_OK) {
-	                if(copyout(info, ifreqp->ifr_data,
+	                if(copyout(info, ifr_data_get_ptr(ifreqp),
 	                    sizeof(xge_hal_pci_config_t)) == 0)
 	                    retValue = 0;
 	            }
@@ -1413,7 +1418,7 @@ xge_ioctl_stats(xge_lldev_t *lldev, struct ifreq *ifreqp)
 	                sizeof(xge_hal_stats_device_info_t));
 	            mtx_unlock(&lldev->mtx_drv);
 	            if(status == XGE_HAL_OK) {
-	                if(copyout(info, ifreqp->ifr_data,
+	                if(copyout(info, ifr_data_get_ptr(ifreqp),
 	                    sizeof(xge_hal_stats_device_info_t)) == 0)
 	                    retValue = 0;
 	            }
@@ -1434,7 +1439,7 @@ xge_ioctl_stats(xge_lldev_t *lldev, struct ifreq *ifreqp)
 	                sizeof(xge_hal_stats_sw_err_t));
 	            mtx_unlock(&lldev->mtx_drv);
 	            if(status == XGE_HAL_OK) {
-	                if(copyout(info, ifreqp->ifr_data,
+	                if(copyout(info, ifr_data_get_ptr(ifreqp),
 	                    sizeof(xge_hal_stats_sw_err_t)) == 0)
 	                    retValue = 0;
 	            }
@@ -1447,7 +1452,7 @@ xge_ioctl_stats(xge_lldev_t *lldev, struct ifreq *ifreqp)
 	        break;
 
 	    case XGE_QUERY_DRIVERSTATS:
-		if(copyout(&lldev->driver_stats, ifreqp->ifr_data,
+		if(copyout(&lldev->driver_stats, ifr_data_get_ptr(ifreqp),
 	            sizeof(xge_driver_stats_t)) == 0) {
 	            retValue = 0;
 	        }
@@ -1461,7 +1466,8 @@ xge_ioctl_stats(xge_lldev_t *lldev, struct ifreq *ifreqp)
 	        info = xge_os_malloc(NULL, XGE_BUFFER_SIZE);
 	        if(info != NULL) {
 	            strcpy(info, XGE_DRIVER_VERSION);
-	            if(copyout(info, ifreqp->ifr_data, XGE_BUFFER_SIZE) == 0)
+	            if(copyout(info, ifr_data_get_ptr(ifreqp),
+			XGE_BUFFER_SIZE) == 0)
 	                retValue = 0;
 	            xge_os_free(NULL, info, XGE_BUFFER_SIZE);
 	        }
@@ -1475,7 +1481,7 @@ xge_ioctl_stats(xge_lldev_t *lldev, struct ifreq *ifreqp)
 	                sizeof(xge_hal_device_config_t));
 	            mtx_unlock(&lldev->mtx_drv);
 	            if(status == XGE_HAL_OK) {
-	                if(copyout(info, ifreqp->ifr_data,
+	                if(copyout(info, ifr_data_get_ptr(ifreqp),
 	                    sizeof(xge_hal_device_config_t)) == 0)
 	                    retValue = 0;
 	            }
@@ -1488,7 +1494,7 @@ xge_ioctl_stats(xge_lldev_t *lldev, struct ifreq *ifreqp)
 	        break;
 
 	    case XGE_QUERY_BUFFER_MODE:
-	        if(copyout(&lldev->buffer_mode, ifreqp->ifr_data,
+	        if(copyout(&lldev->buffer_mode, ifr_data_get_ptr(ifreqp),
 	            sizeof(int)) == 0)
 	            retValue = 0;
 	        break;
@@ -1496,8 +1502,8 @@ xge_ioctl_stats(xge_lldev_t *lldev, struct ifreq *ifreqp)
 	    case XGE_SET_BUFFER_MODE_1:
 	    case XGE_SET_BUFFER_MODE_2:
 	    case XGE_SET_BUFFER_MODE_5:
-	        *data = (*data == XGE_SET_BUFFER_MODE_1) ? 'Y':'N';
-	        if(copyout(data, ifreqp->ifr_data, sizeof(data)) == 0)
+	        mode = (cmd == XGE_SET_BUFFER_MODE_1) ? 'Y':'N';
+	        if(copyout(&mode, ifr_data_get_ptr(ifreqp), sizeof(mode)) == 0)
 	            retValue = 0;
 	        break;
 	    default:
@@ -1518,10 +1524,17 @@ xge_ioctl_stats(xge_lldev_t *lldev, struct ifreq *ifreqp)
 int
 xge_ioctl_registers(xge_lldev_t *lldev, struct ifreq *ifreqp)
 {
-	xge_register_t *data = (xge_register_t *)ifreqp->ifr_data;
+	xge_register_t tmpdata;
+	xge_register_t *data;
 	xge_hal_status_e status = XGE_HAL_OK;
 	int retValue = EINVAL, offset = 0, index = 0;
+	int error;
 	u64 val64 = 0;
+
+	error = copyin(ifr_data_get_ptr(ifreqp), &tmpdata, sizeof(tmpdata));
+	if (error != 0)
+		return (error);
+	data = &tmpdata;
 
 	/* Reading a register */
 	if(strcmp(data->option, "-r") == 0) {
@@ -1531,7 +1544,8 @@ xge_ioctl_registers(xge_lldev_t *lldev, struct ifreq *ifreqp)
 	        &data->value);
 	    mtx_unlock(&lldev->mtx_drv);
 	    if(status == XGE_HAL_OK) {
-	        if(copyout(data, ifreqp->ifr_data, sizeof(xge_register_t)) == 0)
+	        if(copyout(data, ifr_data_get_ptr(ifreqp),
+		    sizeof(xge_register_t)) == 0)
 	            retValue = 0;
 	    }
 	}
@@ -1576,7 +1590,7 @@ xge_ioctl_registers(xge_lldev_t *lldev, struct ifreq *ifreqp)
 	    mtx_unlock(&lldev->mtx_drv);
 
 	    if(retValue == 0) {
-	        if(copyout(data, ifreqp->ifr_data,
+	        if(copyout(data, ifr_data_get_ptr(ifreqp),
 	            sizeof(xge_hal_pci_bar0_t)) != 0) {
 	            xge_trace(XGE_ERR, "Copyout of register values failed");
 	            retValue = EINVAL;
@@ -1610,12 +1624,6 @@ xge_ioctl(struct ifnet *ifnetp, unsigned long command, caddr_t data)
 	}
 
 	switch(command) {
-	    /* Set/Get ifnet address */
-	    case SIOCSIFADDR:
-	    case SIOCGIFADDR:
-	        ether_ioctl(ifnetp, command, data);
-	        break;
-
 	    /* Set ifnet MTU */
 	    case SIOCSIFMTU:
 	        retValue = xge_change_mtu(lldev, ifreqp->ifr_mtu);
@@ -1700,7 +1708,7 @@ xge_ioctl(struct ifnet *ifnetp, unsigned long command, caddr_t data)
 	        break;
 
 	    default:
-	        retValue = EINVAL;
+	        retValue = ether_ioctl(ifnetp, command, data);
 	        break;
 	}
 	return retValue;

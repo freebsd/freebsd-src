@@ -78,7 +78,7 @@
  *
  */
 
-#include "assym.s"
+#include "assym.inc"
 #include "opt_sched.h"
 
 #include <machine/asm.h>

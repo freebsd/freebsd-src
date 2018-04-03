@@ -259,6 +259,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 } } },
 	{ .name = "getpriority", .ret_type = 1, .nargs = 2,
 	  .args = { { Priowhich, 0 }, { Int, 1 } } },
+	{ .name = "getrandom", .ret_type = 1, .nargs = 3,
+	  .args = { { BinString | OUT, 0 }, { Sizet, 1 }, { UInt, 2 } } },
 	{ .name = "getrlimit", .ret_type = 1, .nargs = 2,
 	  .args = { { Resource, 0 }, { Rlimit | OUT, 1 } } },
 	{ .name = "getrusage", .ret_type = 1, .nargs = 2,
@@ -578,7 +580,7 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 }, { CloudABIFDStat | OUT, 1 } } },
 	{ .name = "cloudabi_sys_fd_stat_put", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { CloudABIFDStat | IN, 1 },
-	            { ClouduABIFDSFlags, 2 } } },
+	            { CloudABIFDSFlags, 2 } } },
 	{ .name = "cloudabi_sys_fd_sync", .ret_type = 1, .nargs = 1,
 	  .args = { { Int, 0 } } },
 	{ .name = "cloudabi_sys_file_advise", .ret_type = 1, .nargs = 4,
@@ -2517,7 +2519,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case CloudABIClockID:
 		fputs(xlookup(cloudabi_clockid, args[sc->offset]), fp);
 		break;
-	case ClouduABIFDSFlags:
+	case CloudABIFDSFlags:
 		fputs(xlookup_bits(cloudabi_fdsflags, args[sc->offset]), fp);
 		break;
 	case CloudABIFDStat: {

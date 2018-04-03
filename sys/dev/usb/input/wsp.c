@@ -929,7 +929,12 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		sc->sc_status.button = 0;
 
 		if (ibt != 0) {
-			sc->sc_status.button |= MOUSE_BUTTON1DOWN;
+			if ((params->caps & HAS_INTEGRATED_BUTTON) && ntouch == 2)
+				sc->sc_status.button |= MOUSE_BUTTON3DOWN;
+			else if ((params->caps & HAS_INTEGRATED_BUTTON) && ntouch == 3)
+				sc->sc_status.button |= MOUSE_BUTTON2DOWN;
+			else 
+				sc->sc_status.button |= MOUSE_BUTTON1DOWN;
 			sc->ibtn = 1;
 		}
 		sc->intr_count++;

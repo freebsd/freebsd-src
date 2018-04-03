@@ -681,6 +681,41 @@ skip_fp_send:
 		}
 		break;
 	}
+	case MPI2_EVENT_SAS_DEVICE_DISCOVERY_ERROR:
+	{
+		pMpi25EventDataSasDeviceDiscoveryError_t discovery_error_data;
+		uint64_t sas_address;
+
+		discovery_error_data =
+		    (pMpi25EventDataSasDeviceDiscoveryError_t)
+		    fw_event->event_data;
+		
+		sas_address = discovery_error_data->SASAddress.High;
+		sas_address = (sas_address << 32) |
+		    discovery_error_data->SASAddress.Low;
+
+		switch(discovery_error_data->ReasonCode) {
+		case MPI25_EVENT_SAS_DISC_ERR_SMP_FAILED:
+		{
+			mpr_printf(sc, "SMP command failed during discovery "
+			    "for expander with SAS Address %jx and "
+			    "handle 0x%x.\n", sas_address,
+			    discovery_error_data->DevHandle);
+			break;
+		}
+		case MPI25_EVENT_SAS_DISC_ERR_SMP_TIMEOUT:
+		{
+			mpr_printf(sc, "SMP command timed out during "
+			    "discovery for expander with SAS Address %jx and "
+			    "handle 0x%x.\n", sas_address,
+			    discovery_error_data->DevHandle);
+			break;
+		}
+		default:
+			break;
+		}
+		break;
+	}
 	case MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST: 
 	{
 		MPI26_EVENT_DATA_PCIE_TOPOLOGY_CHANGE_LIST *data;

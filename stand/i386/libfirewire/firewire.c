@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <bootstrap.h>
 #include <btxv86.h>
 #include <libi386.h>
+#include <dev/firewire/firewire.h>
 #include "fwohci.h"
 #include <dev/dcons/dcons.h>
 

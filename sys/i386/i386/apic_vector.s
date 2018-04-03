@@ -42,7 +42,7 @@
 #include <machine/specialreg.h>
 #include <x86/apicreg.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	.text
 	SUPERALIGN_TEXT

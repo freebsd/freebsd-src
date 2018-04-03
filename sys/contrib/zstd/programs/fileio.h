@@ -54,7 +54,7 @@ void FIO_setDictIDFlag(unsigned dictIDFlag);
 void FIO_setChecksumFlag(unsigned checksumFlag);
 void FIO_setRemoveSrcFile(unsigned flag);
 void FIO_setMemLimit(unsigned memLimit);
-void FIO_setNbThreads(unsigned nbThreads);
+void FIO_setNbWorkers(unsigned nbWorkers);
 void FIO_setBlockSize(unsigned blockSize);
 void FIO_setOverlapLog(unsigned overlapLog);
 void FIO_setLdmFlag(unsigned ldmFlag);
@@ -84,14 +84,14 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
 /** FIO_compressMultipleFilenames() :
     @return : nb of missing files */
 int FIO_compressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles,
-                                  const char* suffix,
+                                  const char* outFileName, const char* suffix,
                                   const char* dictFileName, int compressionLevel,
                                   ZSTD_compressionParameters* comprParams);
 
 /** FIO_decompressMultipleFilenames() :
     @return : nb of missing or skipped files */
 int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles,
-                                    const char* suffix,
+                                    const char* outFileName,
                                     const char* dictFileName);
 
 

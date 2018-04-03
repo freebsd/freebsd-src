@@ -116,7 +116,8 @@ typedef enum {
 	DA_FLAG_CAN_ATA_LOG	= 0x008000,
 	DA_FLAG_CAN_ATA_IDLOG	= 0x010000,
 	DA_FLAG_CAN_ATA_SUPCAP	= 0x020000,
-	DA_FLAG_CAN_ATA_ZONE	= 0x040000
+	DA_FLAG_CAN_ATA_ZONE	= 0x040000,
+	DA_FLAG_TUR_PENDING	= 0x080000
 } da_flags;
 
 typedef enum {
@@ -2039,32 +2040,37 @@ daasync(void *callback_arg, u_int32_t code,
 		 * Handle all UNIT ATTENTIONs except our own,
 		 * as they will be handled by daerror().
 		 */
-		cam_periph_lock(periph);
 		if (xpt_path_periph(ccb->ccb_h.path) != periph &&
 		    scsi_extract_sense_ccb(ccb,
 		     &error_code, &sense_key, &asc, &ascq)) {
 			if (asc == 0x2A && ascq == 0x09) {
 				xpt_print(ccb->ccb_h.path,
 				    "Capacity data has changed\n");
+				cam_periph_lock(periph);
 				softc->flags &= ~DA_FLAG_PROBED;
+				cam_periph_unlock(periph);
 				dareprobe(periph);
 			} else if (asc == 0x28 && ascq == 0x00) {
+				cam_periph_lock(periph);
 				softc->flags &= ~DA_FLAG_PROBED;
+				cam_periph_unlock(periph);
 				disk_media_changed(softc->disk, M_NOWAIT);
 			} else if (asc == 0x3F && ascq == 0x03) {
 				xpt_print(ccb->ccb_h.path,
 				    "INQUIRY data has changed\n");
+				cam_periph_lock(periph);
 				softc->flags &= ~DA_FLAG_PROBED;
+				cam_periph_unlock(periph);
 				dareprobe(periph);
 			}
 		}
-		cam_periph_unlock(periph);
 		break;
 	}
 	case AC_SCSI_AEN:
 		softc = (struct da_softc *)periph->softc;
 		cam_periph_lock(periph);
-		if (!cam_iosched_has_work_flags(softc->cam_iosched, DA_WORK_TUR)) {
+		if (!cam_iosched_has_work_flags(softc->cam_iosched, DA_WORK_TUR) &&
+		    (softc->flags & DA_FLAG_TUR_PENDING) == 0) {
 			if (da_periph_acquire(periph, DA_REF_TUR) == 0) {
 				cam_iosched_set_work_flags(softc->cam_iosched, DA_WORK_TUR);
 				daschedule(periph);
@@ -2202,6 +2208,13 @@ dasysctlinit(void *context, int pending)
 		       &softc->rotating,
 		       0,
 		       "Rotating media");
+
+#ifdef CAM_TEST_FAILURE
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "invalidate", CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE,
+		periph, 0, cam_periph_invalidate_sysctl, "I",
+		"Write 1 to invalidate the drive immediately");
+#endif
 
 	/*
 	 * Add some addressing info.
@@ -3102,6 +3115,7 @@ more:
 		bp = cam_iosched_next_bio(softc->cam_iosched);
 		if (bp == NULL) {
 			if (cam_iosched_has_work_flags(softc->cam_iosched, DA_WORK_TUR)) {
+				softc->flags |= DA_FLAG_TUR_PENDING;
 				cam_iosched_clr_work_flags(softc->cam_iosched, DA_WORK_TUR);
 				scsi_test_unit_ready(&start_ccb->csio,
 				     /*retries*/ da_retry_count,
@@ -5559,7 +5573,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			if (daerror(done_ccb, CAM_RETRY_SELTO,
 			    SF_RETRY_UA | SF_NO_RECOVERY | SF_NO_PRINT) ==
 			    ERESTART)
-				return;
+				return;		/* Will complete again, keep reference */
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 				cam_release_devq(done_ccb->ccb_h.path,
 						 /*relsim_flags*/0,
@@ -5568,6 +5582,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 						 /*getcount_only*/0);
 		}
 		xpt_release_ccb(done_ccb);
+		softc->flags &= ~DA_FLAG_TUR_PENDING;
 		da_periph_release_locked(periph, DA_REF_TUR);
 		return;
 	}
@@ -5689,6 +5704,7 @@ damediapoll(void *arg)
 	struct da_softc *softc = periph->softc;
 
 	if (!cam_iosched_has_work_flags(softc->cam_iosched, DA_WORK_TUR) &&
+	    (softc->flags & DA_FLAG_TUR_PENDING) == 0 &&
 	    LIST_EMPTY(&softc->pending_ccbs)) {
 		if (da_periph_acquire(periph, DA_REF_TUR) == 0) {
 			cam_iosched_set_work_flags(softc->cam_iosched, DA_WORK_TUR);

@@ -410,7 +410,7 @@ cap_grp_limit_fields(cap_channel_t *chan, const char * const *fields,
 
 int
 cap_grp_limit_groups(cap_channel_t *chan, const char * const *names,
-    size_t nnames, gid_t *gids, size_t ngids)
+    size_t nnames, const gid_t *gids, size_t ngids)
 {
 	nvlist_t *limits, *groups;
 	unsigned int i;

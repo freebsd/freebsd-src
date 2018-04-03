@@ -41,16 +41,16 @@
  All rights reserved.
 
  ---------------------------------------
- Header Set Release Version:    02.00.46
- Header Set Release Date:       09-07-16
+ Header Set Release Version:    02.00.48
+ Header Set Release Date:       02-03-17
  ---------------------------------------
 
  Filename               Current version     Prior version
  ----------             ---------------     -------------
- mpi2.h                 02.00.46            02.00.45
- mpi2_cnfg.h            02.00.39            02.00.38
+ mpi2.h                 02.00.48            02.00.47
+ mpi2_cnfg.h            02.00.40            02.00.39
  mpi2_init.h            02.00.21            02.00.21
- mpi2_ioc.h             02.00.30            02.00.29
+ mpi2_ioc.h             02.00.32            02.00.31
  mpi2_raid.h            02.00.11            02.00.11
  mpi2_sas.h             02.00.10            02.00.10
  mpi2_targ.h            02.00.09            02.00.09
@@ -59,7 +59,7 @@
  mpi2_ra.h              02.00.01            02.00.01
  mpi2_hbd.h             02.00.04            02.00.04
  mpi2_pci.h             02.00.02            02.00.02
- mpi2_history.txt       02.00.43            02.00.43
+ mpi2_history.txt       02.00.45            02.00.44
 
 
  *  Date      Version   Description
@@ -161,6 +161,8 @@ mpi2.h
  * 04-10-16  02.00.44   Bumped MPI2_HEADER_VERSION_UNIT.
  * 07-06-16  02.00.45   Bumped MPI2_HEADER_VERSION_UNIT.
  * 09-02-16  02.00.46   Bumped MPI2_HEADER_VERSION_UNIT.
+ * 11-23-16  02.00.47   Bumped MPI2_HEADER_VERSION_UNIT.
+ * 02-03-17  02.00.48   Bumped MPI2_HEADER_VERSION_UNIT.
  *  --------------------------------------------------------------------------
 
 mpi2_cnfg.h
@@ -363,8 +365,12 @@ mpi2_cnfg.h
  *                      phy data.
  *                      Added InitStatus to PCIe IO Unit Page 1 header.
  *  09-01-16  02.00.39  Added MPI26_CONFIG_PAGE_ENCLOSURE_0 and related defines.
- *                      Added MPI26_ENCLOS_PGAD_FORM_GET_NEXT_HANDLE and 
- *                      MPI26_ENCLOS_PGAD_FORM_HANDLE page address formats. 
+ *                      Added MPI26_ENCLOS_PGAD_FORM_GET_NEXT_HANDLE and
+ *                      MPI26_ENCLOS_PGAD_FORM_HANDLE page address formats.
+ *  02-02-17  02.00.40  Added MPI2_MANPAGE7_SLOT_UNKNOWN.
+ *                      Added ChassisSlot field to SAS Enclosure Page 0.
+ *                      Added ChassisSlot Valid bit (bit 5) to the Flags field
+ *                      in SAS Enclosure Page 0.
  *  --------------------------------------------------------------------------
 
 mpi2_init.h
@@ -551,10 +557,15 @@ mpi2_ioc.h
  *                      Request Message.
  *                      Added new values for the RegionType field in the Layout
  *                      Data sections of the FLASH Layout Extended Image Data.
- *                      Added new defines for the ReasonCode field of 
+ *                      Added new defines for the ReasonCode field of
  *                      Active Cable Exception Event.
- *                      Added MPI2_EVENT_ENCL_DEVICE_STATUS_CHANGE and 
- *                      MPI26_EVENT_DATA_ENCL_DEV_STATUS_CHANGE. 
+ *                      Added MPI2_EVENT_ENCL_DEVICE_STATUS_CHANGE and
+ *                      MPI26_EVENT_DATA_ENCL_DEV_STATUS_CHANGE.
+ * 11-23-16   02.00.31  Added MPI2_EVENT_SAS_DEVICE_DISCOVERY_ERROR and
+ *                      MPI25_EVENT_DATA_SAS_DEVICE_DISCOVERY_ERROR.
+ * 02-02-17   02.00.32  Added MPI2_FW_DOWNLOAD_ITYPE_CBB_BACKUP.
+ *                      Added MPI25_EVENT_DATA_ACTIVE_CABLE_EXCEPT and related
+ *                      defines for the ReasonCode field.
  * --------------------------------------------------------------------------
 
 mpi2_raid.h
@@ -676,20 +687,35 @@ mpi2_pci.h
 
 mpi2_history.txt         Parts list history
 
-Filename     02.00.46  02.00.45  02.00.44  02.00.43  02.00.42
-----------   --------  --------  --------  --------  --------
-mpi2.h       02.00.46  02.00.45  02.00.44  02.00.43  02.00.42
-mpi2_cnfg.h  02.00.39  02.00.38  02.00.37  02.00.36  02.00.35
-mpi2_init.h  02.00.21  02.00.21  02.00.21  02.00.21  02.00.20
-mpi2_ioc.h   02.00.30  02.00.29  02.00.28  02.00.28  02.00.27
-mpi2_raid.h  02.00.11  02.00.11  02.00.11  02.00.11  02.00.11
-mpi2_sas.h   02.00.10  02.00.10  02.00.10  02.00.10  02.00.10
-mpi2_targ.h  02.00.09  02.00.09  02.00.09  02.00.09  02.00.09
-mpi2_tool.h  02.00.14  02.00.13  02.00.13  02.00.13  02.00.13
-mpi2_type.h  02.00.01  02.00.01  02.00.01  02.00.01  02.00.01
-mpi2_ra.h    02.00.01  02.00.01  02.00.01  02.00.01  02.00.01
-mpi2_hbd.h   02.00.04  02.00.04  02.00.04  02.00.04  02.00.03
-mpi2_pci.h   02.00.02  02.00.02  02.00.01  02.00.01  02.00.00
+Filename     02.00.48
+----------   --------
+mpi2.h       02.00.48
+mpi2_cnfg.h  02.00.40
+mpi2_init.h  02.00.21
+mpi2_ioc.h   02.00.32
+mpi2_raid.h  02.00.11
+mpi2_sas.h   02.00.10
+mpi2_targ.h  02.00.09
+mpi2_tool.h  02.00.14
+mpi2_type.h  02.00.01
+mpi2_ra.h    02.00.01
+mpi2_hbd.h   02.00.04
+mpi2_pci.h   02.00.02
+
+Filename     02.00.47  02.00.46  02.00.45  02.00.44  02.00.43  02.00.42
+----------   --------  --------  --------  --------  --------  --------
+mpi2.h       02.00.47  02.00.46  02.00.45  02.00.44  02.00.43  02.00.42
+mpi2_cnfg.h  02.00.39  02.00.39  02.00.38  02.00.37  02.00.36  02.00.35
+mpi2_init.h  02.00.21  02.00.21  02.00.21  02.00.21  02.00.21  02.00.20
+mpi2_ioc.h   02.00.31  02.00.30  02.00.29  02.00.28  02.00.28  02.00.27
+mpi2_raid.h  02.00.11  02.00.11  02.00.11  02.00.11  02.00.11  02.00.11
+mpi2_sas.h   02.00.10  02.00.10  02.00.10  02.00.10  02.00.10  02.00.10
+mpi2_targ.h  02.00.09  02.00.09  02.00.09  02.00.09  02.00.09  02.00.09
+mpi2_tool.h  02.00.14  02.00.14  02.00.13  02.00.13  02.00.13  02.00.13
+mpi2_type.h  02.00.01  02.00.01  02.00.01  02.00.01  02.00.01  02.00.01
+mpi2_ra.h    02.00.01  02.00.01  02.00.01  02.00.01  02.00.01  02.00.01
+mpi2_hbd.h   02.00.04  02.00.04  02.00.04  02.00.04  02.00.04  02.00.03
+mpi2_pci.h   02.00.02  02.00.02  02.00.02  02.00.01  02.00.01  02.00.00
 
 Filename     02.00.41  02.00.40  02.00.39  02.00.38  02.00.37  02.00.36
 ----------   --------  --------  --------  --------  --------  --------

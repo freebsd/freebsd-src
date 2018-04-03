@@ -1068,6 +1068,19 @@ in_lltable_destroy_lle_unlocked(struct llentry *lle)
 }
 
 /*
+ * Called by the datapath to indicate that
+ * the entry was used.
+ */
+static void
+in_lltable_mark_used(struct llentry *lle)
+{
+
+	LLE_REQ_LOCK(lle);
+	lle->r_skip_req = 0;
+	LLE_REQ_UNLOCK(lle);
+}
+
+/*
  * Called by LLE_FREE_LOCKED when number of references
  * drops to zero.
  */
@@ -1470,6 +1483,7 @@ in_lltattach(struct ifnet *ifp)
 	llt->llt_fill_sa_entry = in_lltable_fill_sa_entry;
 	llt->llt_free_entry = in_lltable_free_entry;
 	llt->llt_match_prefix = in_lltable_match_prefix;
+	llt->llt_mark_used = in_lltable_mark_used;
  	lltable_link(llt);
 
 	return (llt);

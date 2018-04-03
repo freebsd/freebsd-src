@@ -34,6 +34,7 @@
 -- Other modules will also need some of the functions it defines to safely
 -- execute loader commands.
 require("cli")
+local color = require("color")
 local core = require("core")
 local config = require("config")
 local menu
@@ -42,13 +43,17 @@ if not core.isMenuSkipped() then
 end
 local password = require("password")
 
-local result = lfs.attributes("/boot/lua/local.lua")
--- Effectively discard any errors; we'll just act if it succeeds.
-if result ~= nil then
-	require("local")
-end
+try_include("local")
 
 config.load()
+if core.isUEFIBoot() then
+	loader.perform("efi-autoresizecons")
+end
+-- Our console may have been setup for a different color scheme before we get
+-- here, so make sure we set the default.
+if color.isEnabled() then
+	printc(color.default())
+end
 password.check()
 -- menu might be disabled
 if menu ~= nil then

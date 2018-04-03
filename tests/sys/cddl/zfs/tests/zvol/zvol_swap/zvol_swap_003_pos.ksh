@@ -97,7 +97,7 @@ log_onexit cleanup
 
 test_requires SWAPADD
 
-voldev=/dev/zvol/dsk/$TESTPOOL/$TESTVOL
+voldev=/dev/zvol/$TESTPOOL/$TESTVOL
 VFSTAB_FILE=/etc/vfstab
 NEW_VFSTAB_FILE=$TMPDIR/zvol_vfstab.${TESTCASE_ID}
 PREV_VFSTAB_FILE=$TMPDIR/zvol_vfstab.PREV.${TESTCASE_ID}

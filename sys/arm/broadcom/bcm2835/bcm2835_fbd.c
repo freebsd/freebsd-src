@@ -223,7 +223,7 @@ bcm_fb_attach(device_t dev)
 	/* Newer firmware versions needs an inverted color palette. */
 	sc->fbswap = 0;
 	chosen = OF_finddevice("/chosen");
-	if (chosen != 0 &&
+	if (chosen != -1 &&
 	    OF_getprop(chosen, "bootargs", &bootargs, sizeof(bootargs)) > 0) {
 		p = bootargs;
 		while ((v = strsep(&p, " ")) != NULL) {

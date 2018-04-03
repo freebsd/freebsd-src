@@ -114,6 +114,8 @@ extern "C" {
 #include <vm/vm_extern.h>
 #include <vm/vnode_pager.h>
 
+#define	boot_ncpus	(mp_ncpus)
+
 #define	CPU_SEQID	(curcpu)
 
 #define	tsd_create(keyp, destructor)	do {				\

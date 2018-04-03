@@ -85,7 +85,7 @@ owc_gpiobus_identify(driver_t *driver, device_t bus)
 	 * bus overwrites the description.
 	 */
 	root = OF_finddevice("/");
-	if (root == 0)
+	if (root == -1)
 		return;
 	for (w1 = OF_child(root); w1 != 0; w1 = OF_peer(w1)) {
 		if (!fdt_is_compatible_strict(w1, "w1-gpio"))

@@ -39,8 +39,9 @@
 #include <btxv86.h>
 #include <bootstrap.h>
 
+#include <dev/firewire/firewire.h>
 #include "fwohci.h"
-#include "fwohcireg.h"
+#include <dev/firewire/fwohcireg.h>
 #include <dev/firewire/firewire_phy.h>
 
 static uint32_t fwphy_wrdata ( struct fwohci_softc *, uint32_t, uint32_t);
@@ -62,12 +63,6 @@ char *linkspeed[] = {
 	"S100", "S200", "S400", "S800",
 	"S1600", "S3200", "undef", "undef"
 };
-
-#define FW_EUI64_BYTE(eui, x) \
-	((((x)<4)?				\
-		((eui)->hi >> (8*(3-(x)))): 	\
-		((eui)->lo >> (8*(7-(x))))	\
-	) & 0xff)
 
 /*
  * Communication with PHY device

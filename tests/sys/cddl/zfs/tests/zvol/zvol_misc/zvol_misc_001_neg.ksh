@@ -73,7 +73,7 @@ log_onexit cleanup
 
 test_requires DUMPADM
 
-voldev=/dev/zvol/dsk/$TESTPOOL/$TESTVOL
+voldev=/dev/zvol/$TESTPOOL/$TESTVOL
 savedumpdev=$(get_dumpdevice)
 
 if ! is_dumpswap_supported $TESTPOOL ; then

@@ -341,10 +341,7 @@ jedec_dimm_attach(device_t dev)
 	if (resource_string_value(device_get_name(dev), device_get_unit(dev),
 	    "slotid", &slotid_str) == 0) {
 		if (slotid_str != NULL) {
-			sc->slotid_str = malloc(strlen(slotid_str) + 1,
-			    M_DEVBUF, (M_WAITOK | M_ZERO));
-			strlcpy(sc->slotid_str, slotid_str,
-			    sizeof(sc->slotid_str));
+			sc->slotid_str = strdup(slotid_str, M_DEVBUF);
 			SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "slotid",
 			    CTLFLAG_RD | CTLFLAG_MPSAFE, sc->slotid_str, 0,
 			    "DIMM Slot Identifier");

@@ -1103,7 +1103,7 @@ void
 sleepq_chains_remove_matching(bool (*matches)(struct thread *))
 {
 	struct sleepqueue_chain *sc;
-	struct sleepqueue *sq;
+	struct sleepqueue *sq, *sq1;
 	int i, wakeup_swapper;
 
 	wakeup_swapper = 0;
@@ -1112,7 +1112,7 @@ sleepq_chains_remove_matching(bool (*matches)(struct thread *))
 			continue;
 		}
 		mtx_lock_spin(&sc->sc_lock);
-		LIST_FOREACH(sq, &sc->sc_queues, sq_hash) {
+		LIST_FOREACH_SAFE(sq, &sc->sc_queues, sq_hash, sq1) {
 			for (i = 0; i < NR_SLEEPQS; ++i) {
 				wakeup_swapper |= sleepq_remove_matching(sq, i,
 				    matches, 0);

@@ -59,7 +59,7 @@ misc_register(struct miscdevice *misc)
 	misc->cdev->owner = THIS_MODULE;
 	misc->cdev->ops = misc->fops;
 	kobject_set_name(&misc->cdev->kobj, misc->name);
-        if (cdev_add(misc->cdev, misc->this_device->devt, 1))
+	if (cdev_add(misc->cdev, misc->this_device->devt, 1))
 		return -EINVAL;
 	return (0);
 }

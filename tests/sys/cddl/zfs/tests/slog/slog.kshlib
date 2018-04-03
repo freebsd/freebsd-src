@@ -34,7 +34,7 @@
 function cleanup
 {
 	poolexists $TESTPOOL && log_must $ZPOOL status $TESTPOOL
-	poolexists $TESTPOOL && log_must $ZPOOL status $TESTPOOL2
+	poolexists $TESTPOOL2 && log_must $ZPOOL status $TESTPOOL2
 	destroy_pool $TESTPOOL
 	destroy_pool $TESTPOOL2
 }

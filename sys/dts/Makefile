@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=arm arm64 mips powerpc
+SUBDIR=arm mips powerpc
 
 .include <bsd.subdir.mk>

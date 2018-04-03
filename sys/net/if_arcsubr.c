@@ -681,12 +681,7 @@ arc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCGIFADDR:
-		{
-			struct sockaddr *sa;
-
-			sa = (struct sockaddr *) &ifr->ifr_data;
-			*(u_int8_t *)sa->sa_data = ARC_LLADDR(ifp);
-		}
+		ifr->ifr_addr.sa_data[0] = ARC_LLADDR(ifp);
 		break;
 
 	case SIOCADDMULTI:

@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
+#include <sys/uio.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif

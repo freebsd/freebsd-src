@@ -213,6 +213,7 @@ typedef enum {
 	ZPOOL_PROP_LEAKED,
 	ZPOOL_PROP_MAXBLOCKSIZE,
 	ZPOOL_PROP_BOOTSIZE,
+	ZPOOL_PROP_CHECKPOINT,
 	ZPOOL_NUM_PROPS
 } zpool_prop_t;
 
@@ -500,7 +501,7 @@ typedef enum {
 #define	ZPL_VERSION_USERSPACE		ZPL_VERSION_4
 #define	ZPL_VERSION_SA			ZPL_VERSION_5
 
-/* Rewind request information */
+/* Rewind policy information */
 #define	ZPOOL_NO_REWIND		1  /* No policy - default behavior */
 #define	ZPOOL_NEVER_REWIND	2  /* Do not search for best txg or rewind */
 #define	ZPOOL_TRY_REWIND	4  /* Search for best txg, but do not rewind */
@@ -509,12 +510,12 @@ typedef enum {
 #define	ZPOOL_REWIND_MASK	28 /* All the possible rewind bits */
 #define	ZPOOL_REWIND_POLICIES	31 /* All the possible policy bits */
 
-typedef struct zpool_rewind_policy {
-	uint32_t	zrp_request;	/* rewind behavior requested */
-	uint64_t	zrp_maxmeta;	/* max acceptable meta-data errors */
-	uint64_t	zrp_maxdata;	/* max acceptable data errors */
-	uint64_t	zrp_txg;	/* specific txg to load */
-} zpool_rewind_policy_t;
+typedef struct zpool_load_policy {
+	uint32_t	zlp_rewind;	/* rewind policy requested */
+	uint64_t	zlp_maxmeta;	/* max acceptable meta-data errors */
+	uint64_t	zlp_maxdata;	/* max acceptable data errors */
+	uint64_t	zlp_txg;	/* specific txg to load */
+} zpool_load_policy_t;
 
 /*
  * The following are configuration names used in the nvlist describing a pool's
@@ -546,6 +547,7 @@ typedef struct zpool_rewind_policy {
 #define	ZPOOL_CONFIG_DTL		"DTL"
 #define	ZPOOL_CONFIG_SCAN_STATS		"scan_stats"	/* not stored on disk */
 #define	ZPOOL_CONFIG_REMOVAL_STATS	"removal_stats"	/* not stored on disk */
+#define	ZPOOL_CONFIG_CHECKPOINT_STATS	"checkpoint_stats" /* not on disk */
 #define	ZPOOL_CONFIG_VDEV_STATS		"vdev_stats"	/* not stored on disk */
 #define	ZPOOL_CONFIG_INDIRECT_SIZE	"indirect_size"	/* not stored on disk */
 #define	ZPOOL_CONFIG_WHOLE_DISK		"whole_disk"
@@ -601,12 +603,12 @@ typedef struct zpool_rewind_policy {
 #define	ZPOOL_CONFIG_FRU		"fru"
 #define	ZPOOL_CONFIG_AUX_STATE		"aux_state"
 
-/* Rewind policy parameters */
-#define	ZPOOL_REWIND_POLICY		"rewind-policy"
-#define	ZPOOL_REWIND_REQUEST		"rewind-request"
-#define	ZPOOL_REWIND_REQUEST_TXG	"rewind-request-txg"
-#define	ZPOOL_REWIND_META_THRESH	"rewind-meta-thresh"
-#define	ZPOOL_REWIND_DATA_THRESH	"rewind-data-thresh"
+/* Pool load policy parameters */
+#define	ZPOOL_LOAD_POLICY		"load-policy"
+#define	ZPOOL_LOAD_REWIND_POLICY	"load-rewind-policy"
+#define	ZPOOL_LOAD_REQUEST_TXG		"load-request-txg"
+#define	ZPOOL_LOAD_META_THRESH		"load-meta-thresh"
+#define	ZPOOL_LOAD_DATA_THRESH		"load-data-thresh"
 
 /* Rewind data discovered */
 #define	ZPOOL_CONFIG_LOAD_TIME		"rewind_txg_ts"
@@ -631,6 +633,8 @@ typedef struct zpool_rewind_policy {
 	"com.delphix:indirect_obsolete_sm"
 #define	VDEV_TOP_ZAP_OBSOLETE_COUNTS_ARE_PRECISE \
 	"com.delphix:obsolete_counts_are_precise"
+#define	VDEV_TOP_ZAP_POOL_CHECKPOINT_SM \
+	"com.delphix:pool_checkpoint_sm"
 
 /*
  * This is needed in userland to report the minimum necessary device size.
@@ -790,6 +794,18 @@ typedef enum dsl_scan_state {
 	DSS_NUM_STATES
 } dsl_scan_state_t;
 
+typedef enum {
+	CS_NONE,
+	CS_CHECKPOINT_EXISTS,
+	CS_CHECKPOINT_DISCARDING,
+	CS_NUM_STATES
+} checkpoint_state_t;
+
+typedef struct pool_checkpoint_stat {
+	uint64_t pcs_state;		/* checkpoint_state_t */
+	uint64_t pcs_start_time;	/* time checkpoint/discard started */
+	uint64_t pcs_space;		/* checkpointed space */
+} pool_checkpoint_stat_t;
 
 /*
  * Vdev statistics.  Note: all fields should be 64-bit because this
@@ -816,6 +832,7 @@ typedef struct vdev_stat {
  	uint64_t	vs_logical_ashift;	/* vdev_logical_ashift  */
  	uint64_t	vs_physical_ashift;	/* vdev_physical_ashift */
 	uint64_t	vs_fragmentation;	/* device fragmentation */
+	uint64_t	vs_checkpoint_space;    /* checkpoint-consumed space */
 } vdev_stat_t;
 #define VDEV_STAT_VALID(field, uint64_t_field_count) \
     ((uint64_t_field_count * sizeof(uint64_t)) >= \
@@ -948,8 +965,26 @@ typedef enum zfs_ioc {
 #endif
 	ZFS_IOC_CHANNEL_PROGRAM,
 	ZFS_IOC_REMAP,
+	ZFS_IOC_POOL_CHECKPOINT,
+	ZFS_IOC_POOL_DISCARD_CHECKPOINT,
 	ZFS_IOC_LAST
 } zfs_ioc_t;
+
+/*
+ * ZFS-specific error codes used for returning descriptive errors
+ * to the userland through zfs ioctls.
+ *
+ * The enum implicitly includes all the error codes from errno.h.
+ * New code should use and extend this enum for errors that are
+ * not described precisely by generic errno codes.
+ */
+typedef enum {
+	ZFS_ERR_CHECKPOINT_EXISTS = 1024,
+	ZFS_ERR_DISCARDING_CHECKPOINT,
+	ZFS_ERR_NO_CHECKPOINT,
+	ZFS_ERR_DEVRM_IN_PROGRESS,
+	ZFS_ERR_VDEV_TOO_BIG
+} zfs_errno_t;
 
 /*
  * Internal SPA load state.  Used by FMA diagnosis engine.
@@ -1011,6 +1046,7 @@ typedef enum {
 #define	ZFS_IMPORT_ANY_HOST	0x2
 #define	ZFS_IMPORT_MISSING_LOG	0x4
 #define	ZFS_IMPORT_ONLY		0x8
+#define	ZFS_IMPORT_CHECKPOINT	0x10
 
 /*
  * Channel program argument/return nvlist keys and defaults.

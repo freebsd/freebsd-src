@@ -79,8 +79,6 @@ static struct pciid {
 	{ 0x14561022, "AMD CCP-5a" },
 	{ 0x14681022, "AMD CCP-5b" },
 };
-MODULE_PNP_INFO("W32:vendor/device", pci, ccp, ccp_ids, sizeof(ccp_ids[0]),
-    nitems(ccp_ids));
 
 static struct random_source random_ccp = {
 	.rs_ident = "AMD CCP TRNG",
@@ -783,6 +781,8 @@ DRIVER_MODULE(ccp, pci, ccp_driver, ccp_devclass, NULL, NULL);
 MODULE_VERSION(ccp, 1);
 MODULE_DEPEND(ccp, crypto, 1, 1, 1);
 MODULE_DEPEND(ccp, random_device, 1, 1, 1);
+MODULE_PNP_INFO("W32:vendor/device", pci, ccp, ccp_ids, sizeof(ccp_ids[0]),
+    nitems(ccp_ids));
 
 static int
 ccp_queue_reserve_space(struct ccp_queue *qp, unsigned n, int mflags)

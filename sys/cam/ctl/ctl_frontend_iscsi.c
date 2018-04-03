@@ -1164,11 +1164,11 @@ cfiscsi_maintenance_thread(void *arg)
 
 	for (;;) {
 		CFISCSI_SESSION_LOCK(cs);
-		if (cs->cs_terminating == false)
+		if (cs->cs_terminating == false || cs->cs_handoff_in_progress)
 			cv_wait(&cs->cs_maintenance_cv, &cs->cs_lock);
 		CFISCSI_SESSION_UNLOCK(cs);
 
-		if (cs->cs_terminating) {
+		if (cs->cs_terminating && cs->cs_handoff_in_progress == false) {
 
 			/*
 			 * We used to wait up to 30 seconds to deliver queued
@@ -1196,8 +1196,6 @@ static void
 cfiscsi_session_terminate(struct cfiscsi_session *cs)
 {
 
-	if (cs->cs_terminating)
-		return;
 	cs->cs_terminating = true;
 	cv_signal(&cs->cs_maintenance_cv);
 #ifdef ICL_KERNEL_PROXY
@@ -1267,6 +1265,13 @@ cfiscsi_session_new(struct cfiscsi_softc *softc, const char *offload)
 #ifdef ICL_KERNEL_PROXY
 	cv_init(&cs->cs_login_cv, "cfiscsi_login");
 #endif
+
+	/*
+	 * The purpose of this is to avoid racing with session shutdown.
+	 * Otherwise we could have the maintenance thread call icl_conn_close()
+	 * before we call icl_conn_handoff().
+	 */
+	cs->cs_handoff_in_progress = true;
 
 	cs->cs_conn = icl_new_conn(offload, false, "cfiscsi", &cs->cs_lock);
 	if (cs->cs_conn == NULL) {
@@ -1378,8 +1383,18 @@ cfiscsi_accept(struct socket *so, struct sockaddr *sa, int portal_id)
 	icl_conn_handoff_sock(cs->cs_conn, so);
 	cs->cs_initiator_sa = sa;
 	cs->cs_portal_id = portal_id;
+	cs->cs_handoff_in_progress = false;
 	cs->cs_waiting_for_ctld = true;
 	cv_signal(&cfiscsi_softc.accept_cv);
+
+	CFISCSI_SESSION_LOCK(cs);
+	/*
+	 * Wake up the maintenance thread if we got scheduled for termination
+	 * somewhere between cfiscsi_session_new() and icl_conn_handoff_sock().
+	 */
+	if (cs->cs_terminating)
+		cfiscsi_session_terminate(cs);
+	CFISCSI_SESSION_UNLOCK(cs);
 }
 #endif
 
@@ -1559,6 +1574,7 @@ cfiscsi_ioctl_handoff(struct ctl_iscsi *ci)
 	mtx_lock(&softc->lock);
 	if (ct->ct_online == 0) {
 		mtx_unlock(&softc->lock);
+		cs->cs_handoff_in_progress = false;
 		cfiscsi_session_terminate(cs);
 		cfiscsi_target_release(ct);
 		ci->status = CTL_ISCSI_ERROR;
@@ -1569,7 +1585,6 @@ cfiscsi_ioctl_handoff(struct ctl_iscsi *ci)
 	cs->cs_target = ct;
 	mtx_unlock(&softc->lock);
 
-	refcount_acquire(&cs->cs_outstanding_ctl_pdus);
 restart:
 	if (!cs->cs_terminating) {
 		mtx_lock(&softc->lock);
@@ -1606,8 +1621,8 @@ restart:
 #endif
 		error = icl_conn_handoff(cs->cs_conn, cihp->socket);
 		if (error != 0) {
+			cs->cs_handoff_in_progress = false;
 			cfiscsi_session_terminate(cs);
-			refcount_release(&cs->cs_outstanding_ctl_pdus);
 			ci->status = CTL_ISCSI_ERROR;
 			snprintf(ci->error_str, sizeof(ci->error_str),
 			    "%s: icl_conn_handoff failed with error %d",
@@ -1632,7 +1647,16 @@ restart:
 	}
 #endif
 
-	refcount_release(&cs->cs_outstanding_ctl_pdus);
+	CFISCSI_SESSION_LOCK(cs);
+	cs->cs_handoff_in_progress = false;
+
+	/*
+	 * Wake up the maintenance thread if we got scheduled for termination.
+	 */
+	if (cs->cs_terminating)
+		cfiscsi_session_terminate(cs);
+	CFISCSI_SESSION_UNLOCK(cs);
+
 	ci->status = CTL_ISCSI_OK;
 }
 

@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
+#include <sys/taskqueue.h>
 #include <sys/vnode.h>
 #include <sys/watchdog.h>
 
@@ -268,16 +269,35 @@ sys_reboot(struct thread *td, struct reboot_args *uap)
 	if (error == 0)
 		error = priv_check(td, PRIV_REBOOT);
 	if (error == 0) {
-		if (uap->opt & RB_REROOT) {
+		if (uap->opt & RB_REROOT)
 			error = kern_reroot();
-		} else {
-			mtx_lock(&Giant);
+		else
 			kern_reboot(uap->opt);
-			mtx_unlock(&Giant);
-		}
 	}
 	return (error);
 }
+
+static void
+shutdown_nice_task_fn(void *arg, int pending __unused)
+{
+	int howto;
+
+	howto = (uintptr_t)arg;
+	/* Send a signal to init(8) and have it shutdown the world. */
+	PROC_LOCK(initproc);
+	if (howto & RB_POWEROFF)
+		kern_psignal(initproc, SIGUSR2);
+	else if (howto & RB_POWERCYCLE)
+		kern_psignal(initproc, SIGWINCH);
+	else if (howto & RB_HALT)
+		kern_psignal(initproc, SIGUSR1);
+	else
+		kern_psignal(initproc, SIGINT);
+	PROC_UNLOCK(initproc);
+}
+
+static struct task shutdown_nice_task = TASK_INITIALIZER(0,
+    &shutdown_nice_task_fn, NULL);
 
 /*
  * Called by events that want to shut down.. e.g  <CTL><ALT><DEL> on a PC
@@ -286,20 +306,14 @@ void
 shutdown_nice(int howto)
 {
 
-	if (initproc != NULL) {
-		/* Send a signal to init(8) and have it shutdown the world. */
-		PROC_LOCK(initproc);
-		if (howto & RB_POWEROFF)
-			kern_psignal(initproc, SIGUSR2);
-		else if (howto & RB_POWERCYCLE)
-			kern_psignal(initproc, SIGWINCH);
-		else if (howto & RB_HALT)
-			kern_psignal(initproc, SIGUSR1);
-		else
-			kern_psignal(initproc, SIGINT);
-		PROC_UNLOCK(initproc);
+	if (initproc != NULL && !SCHEDULER_STOPPED()) {
+		shutdown_nice_task.ta_context = (void *)(uintptr_t)howto;
+		taskqueue_enqueue(taskqueue_fast, &shutdown_nice_task);
 	} else {
-		/* No init(8) running, so simply reboot. */
+		/*
+		 * No init(8) running, or scheduler would not allow it
+		 * to run, so simply reboot.
+		 */
 		kern_reboot(howto | RB_NOSYNC);
 	}
 }
@@ -368,6 +382,17 @@ void
 kern_reboot(int howto)
 {
 	static int once = 0;
+
+	/*
+	 * Normal paths here don't hold Giant, but we can wind up here
+	 * unexpectedly with it held.  Drop it now so we don't have to
+	 * drop and pick it up elsewhere. The paths it is locking will
+	 * never be returned to, and it is preferable to preclude
+	 * deadlock than to lock against code that won't ever
+	 * continue.
+	 */
+	while (mtx_owned(&Giant))
+		mtx_unlock(&Giant);
 
 #if defined(SMP)
 	/*

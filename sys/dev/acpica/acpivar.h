@@ -320,20 +320,14 @@ void		acpi_EnterDebugger(void);
 #define	ACPI_OSC_BAD_REVISION	(1 << 3)
 #define	ACPI_OSC_CAPS_MASKED	(1 << 4)
 
-/* Values for the device _STA (status) method. */
-#define ACPI_STA_PRESENT	(1 << 0)
-#define ACPI_STA_ENABLED	(1 << 1)
-#define ACPI_STA_SHOW_IN_UI	(1 << 2)
-#define ACPI_STA_FUNCTIONAL	(1 << 3)
-#define ACPI_STA_BATT_PRESENT	(1 << 4)
-
 #define ACPI_DEVINFO_PRESENT(x, flags)					\
 	(((x) & (flags)) == (flags))
 #define ACPI_DEVICE_PRESENT(x)						\
-	ACPI_DEVINFO_PRESENT(x, ACPI_STA_PRESENT | ACPI_STA_FUNCTIONAL)
+	ACPI_DEVINFO_PRESENT(x, ACPI_STA_DEVICE_PRESENT |		\
+	    ACPI_STA_DEVICE_FUNCTIONING)
 #define ACPI_BATTERY_PRESENT(x)						\
-	ACPI_DEVINFO_PRESENT(x, ACPI_STA_PRESENT | ACPI_STA_FUNCTIONAL | \
-	    ACPI_STA_BATT_PRESENT)
+	ACPI_DEVINFO_PRESENT(x, ACPI_STA_DEVICE_PRESENT |		\
+	    ACPI_STA_DEVICE_FUNCTIONING | ACPI_STA_BATTERY_PRESENT)
 
 /* Callback function type for walking subtables within a table. */
 typedef void acpi_subtable_handler(ACPI_SUBTABLE_HEADER *, void *);

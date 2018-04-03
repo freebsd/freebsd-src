@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd March 7, 2018
+.Dd March 23, 2018
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -220,6 +220,19 @@ selects the video console which prevents any input and hides all output
 replacing it with
 .Dq spinning
 character (useful for embedded products and such).
+.It Va efi_max_resolution
+Specify the maximum desired resolution for the EFI console.
+The following values are accepted:
+.Bl -column "WidthxHeight"
+.It Sy Value Ta Sy Resolution
+.It 480p Ta 640x480
+.It 720p Ta 1280x720
+.It 1080p Ta 1920x1080
+.It 2160p Ta 3840x2160
+.It 4k Ta 3840x2160
+.It 5k Ta 5120x2880
+.It Va Width Ns x Ns Va Height Ta Va Width Ns x Ns Va Height
+.El
 .It Va kernel
 .Pq Dq kernel
 .It Va kernels
@@ -249,7 +262,6 @@ be displayed.
 If set to
 .Dq YES ,
 the beastie boot menu will be skipped.
-The beastie boot menu is always skipped if running non-x86 hardware.
 .It Va loader_logo Pq Dq Li orbbw
 Selects a desired logo in the beastie boot menu.
 Possible values are:
@@ -285,7 +297,7 @@ that have no default value:
 .Bl -tag -width bootfile -offset indent
 .It Va fdt_overlays
 Specifies a comma-delimited list of FDT overlays to apply.
-.Pa /boot/overlays
+.Pa /boot/dtb/overlays
 is created by default for overlays to be placed in.
 .It Va kernels_autodetect
 If set to

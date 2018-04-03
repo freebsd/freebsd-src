@@ -66,30 +66,6 @@
 #define	T_RESERVED	30	/* reserved (unknown) */
 #define	T_DTRACE_RET	32	/* DTrace pid return */
 
-/* XXX most of the following codes aren't used, but could be. */
-
-/* definitions for <sys/signal.h> */
-#define	    ILL_RESAD_FAULT	T_RESADFLT
-#define	    ILL_PRIVIN_FAULT	T_PRIVINFLT
-#define	    ILL_RESOP_FAULT	T_RESOPFLT
-#define	    ILL_ALIGN_FAULT	T_ALIGNFLT
-#define	    ILL_FPOP_FAULT	T_FPOPFLT	/* coprocessor operand fault */
-
-/* old FreeBSD macros, deprecated */
-#define	FPE_INTOVF_TRAP	0x1	/* integer overflow */
-#define	FPE_INTDIV_TRAP	0x2	/* integer divide by zero */
-#define	FPE_FLTDIV_TRAP	0x3	/* floating/decimal divide by zero */
-#define	FPE_FLTOVF_TRAP	0x4	/* floating overflow */
-#define	FPE_FLTUND_TRAP	0x5	/* floating underflow */
-#define	FPE_FPU_NP_TRAP	0x6	/* floating point unit not present  */
-#define	FPE_SUBRNG_TRAP	0x7	/* subrange out of bounds */
-
-/* codes for SIGBUS */
-#define	    BUS_PAGE_FAULT	T_PAGEFLT	/* page fault protection base */
-#define	    BUS_SEGNP_FAULT	T_SEGNPFLT	/* segment not present */
-#define	    BUS_STK_FAULT	T_STKFLT	/* stack segment */
-#define	    BUS_SEGM_FAULT	T_RESERVED	/* segment protection base */
-
 /* Trap's coming from user mode */
 #define	T_USER	0x100
 

@@ -189,7 +189,7 @@ frame_is_trap_inst(struct trapframe *frame)
 #ifdef AIM
 	return (frame->exc == EXC_PGM && frame->srr1 & EXC_PGM_TRAP);
 #else
-	return (frame->exc == EXC_DEBUG || frame->cpu.booke.esr & ESR_PTR);
+	return ((frame->cpu.booke.esr & ESR_PTR) != 0);
 #endif
 }
 
@@ -895,6 +895,7 @@ db_trap_glue(struct trapframe *frame)
 	    && (frame->exc == EXC_TRC || frame->exc == EXC_RUNMODETRC
 	    	|| frame_is_trap_inst(frame)
 		|| frame->exc == EXC_BPT
+		|| frame->exc == EXC_DEBUG
 		|| frame->exc == EXC_DSI)) {
 		int type = frame->exc;
 

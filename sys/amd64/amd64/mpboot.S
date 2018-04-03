@@ -29,7 +29,7 @@
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 #include <machine/specialreg.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	.data				/* So we can modify it */
 

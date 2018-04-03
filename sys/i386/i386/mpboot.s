@@ -35,7 +35,7 @@
 #include <x86/apicreg.h>
 #include <machine/specialreg.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 #define	R(x)	((x)-KERNBASE)
 

@@ -106,7 +106,7 @@ function set_dumpsize
 
 	log_must $ZFS set volsize=64m $volume
 
-	output=$($DUMPADM -d /dev/zvol/dsk/$volume 2>&1 | \
+	output=$($DUMPADM -d /dev/zvol/$volume 2>&1 | \
 			$TAIL -1 | $AWK '{print $3}')
 
 	if [[ -n $output ]]; then
@@ -125,8 +125,8 @@ function safe_dumpadm
 		log_note "No dump device volume specified."
 		return 1
 	fi
-	if [[ $device == "/dev/zvol/dsk/"* ]] ; then
-		typeset volume=${device#/dev/zvol/dsk/}
+	if [[ $device == "/dev/zvol/"* ]] ; then
+		typeset volume=${device#/dev/zvol/}
 		set_dumpsize $volume
 		log_must $DUMPADM -d $device
 	else

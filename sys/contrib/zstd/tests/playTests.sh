@@ -56,10 +56,12 @@ fi
 
 isWindows=false
 INTOVOID="/dev/null"
+DEVDEVICE="/dev/zero"
 case "$OS" in
   Windows*)
     isWindows=true
     INTOVOID="NUL"
+    DEVDEVICE="NUL"
     ;;
 esac
 
@@ -91,15 +93,20 @@ else
     hasMT="true"
 fi
 
-$ECHO "\n**** simple tests **** "
+
+$ECHO "\n===>  simple tests "
 
 ./datagen > tmp
 $ECHO "test : basic compression "
 $ZSTD -f tmp                      # trivial compression case, creates tmp.zst
 $ECHO "test : basic decompression"
 $ZSTD -df tmp.zst                 # trivial decompression case (overwrites tmp)
-$ECHO "test : too large compression level (must fail)"
+$ECHO "test : too large compression level => auto-fix"
 $ZSTD -99 -f tmp  # too large compression level, automatic sized down
+$ECHO "test : --fast aka negative compression levels"
+$ZSTD --fast -f tmp  # == -1
+$ZSTD --fast=3 -f tmp  # == -3
+$ZSTD --fast=200000 -f tmp  # == no compression
 $ECHO "test : compress to stdout"
 $ZSTD tmp -c > tmpCompressed
 $ZSTD tmp --stdout > tmpCompressed       # long command format
@@ -124,6 +131,10 @@ $ZSTD -d > $INTOVOID && die "should have refused : compressed data from terminal
 fi
 $ECHO "test : null-length file roundtrip"
 $ECHO -n '' | $ZSTD - --stdout | $ZSTD -d --stdout
+$ECHO "test : ensure small file doesn't add 3-bytes null block"
+./datagen -g1 > tmp1
+$ZSTD tmp1 -c | wc -c | grep "14"
+$ZSTD < tmp1  | wc -c | grep "14"
 $ECHO "test : decompress file with wrong suffix (must fail)"
 $ZSTD -d tmpCompressed && die "wrong suffix error not detected!"
 $ZSTD -df tmp && die "should have refused : wrong extension"
@@ -159,14 +170,42 @@ $ZSTD -f --rm tmp
 test ! -f tmp  # tmp should no longer be present
 $ZSTD -f -d --rm tmp.zst
 test ! -f tmp.zst   # tmp.zst should no longer be present
+$ECHO "test : should quietly not remove non-regular file"
+$ECHO hello > tmp
+$ZSTD tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"
+grep -v "Refusing to remove non-regular file" tmplog
+rm -f tmplog
+$ZSTD tmp -f -o "$INTONULL" 2>&1 | grep -v "Refusing to remove non-regular file"
 $ECHO "test : --rm on stdin"
 $ECHO a | $ZSTD --rm > $INTOVOID   # --rm should remain silent
 rm tmp
 $ZSTD -f tmp && die "tmp not present : should have failed"
 test ! -f tmp.zst  # tmp.zst should not be created
 
+$ECHO "test : compress multiple files"
+$ECHO hello > tmp1
+$ECHO world > tmp2
+$ZSTD tmp1 tmp2 -o "$INTOVOID"
+$ZSTD tmp1 tmp2 -c | $ZSTD -t
+$ZSTD tmp1 tmp2 -o tmp.zst
+test ! -f tmp1.zst
+test ! -f tmp2.zst
+$ZSTD tmp1 tmp2
+$ZSTD -t tmp1.zst tmp2.zst
+$ZSTD -dc tmp1.zst tmp2.zst
+$ZSTD tmp1.zst tmp2.zst -o "$INTOVOID"
+$ZSTD -d tmp1.zst tmp2.zst -o tmp
+touch tmpexists
+$ZSTD tmp1 tmp2 -f -o tmpexists
+$ZSTD tmp1 tmp2 -o tmpexists && die "should have refused to overwrite"
+# Bug: PR #972
+if [ "$?" -eq 139 ]; then
+  die "should not have segfaulted"
+fi
+rm tmp*
 
-$ECHO "\n**** Advanced compression parameters **** "
+
+$ECHO "\n===>  Advanced compression parameters "
 $ECHO "Hello world!" | $ZSTD --zstd=windowLog=21,      - -o tmp.zst && die "wrong parameters not detected!"
 $ECHO "Hello world!" | $ZSTD --zstd=windowLo=21        - -o tmp.zst && die "wrong parameters not detected!"
 $ECHO "Hello world!" | $ZSTD --zstd=windowLog=21,slog  - -o tmp.zst && die "wrong parameters not detected!"
@@ -175,19 +214,19 @@ roundTripTest -g512K
 roundTripTest -g512K " --zstd=slen=3,tlen=48,strat=6"
 roundTripTest -g512K " --zstd=strat=6,wlog=23,clog=23,hlog=22,slog=6"
 roundTripTest -g512K " --zstd=windowLog=23,chainLog=23,hashLog=22,searchLog=6,searchLength=3,targetLength=48,strategy=6"
-roundTripTest -g512K " --long --zstd=ldmHashLog=20,ldmSearchLength=64,ldmBucketSizeLog=1,ldmHashEveryLog=7"
-roundTripTest -g512K " --long --zstd=ldmhlog=20,ldmslen=64,ldmblog=1,ldmhevery=7"
+roundTripTest -g512K " --single-thread --long --zstd=ldmHashLog=20,ldmSearchLength=64,ldmBucketSizeLog=1,ldmHashEveryLog=7"
+roundTripTest -g512K " --single-thread --long --zstd=ldmhlog=20,ldmslen=64,ldmblog=1,ldmhevery=7"
 roundTripTest -g512K 19
 
 
-$ECHO "\n**** Pass-Through mode **** "
+$ECHO "\n===>  Pass-Through mode "
 $ECHO "Hello world 1!" | $ZSTD -df
 $ECHO "Hello world 2!" | $ZSTD -dcf
 $ECHO "Hello world 3!" > tmp1
 $ZSTD -dcf tmp1
 
 
-$ECHO "\n**** frame concatenation **** "
+$ECHO "\n===>  frame concatenation "
 
 $ECHO "hello " > hello.tmp
 $ECHO "world!" > world.tmp
@@ -203,8 +242,18 @@ $ZSTD -c hello.tmp > hello.zstd --no-check
 $ZSTD -c world.tmp > world.zstd --no-check
 cat hello.zstd world.zstd > helloworld.zstd
 $ZSTD -dc helloworld.zstd > result.tmp
-cat result.tmp
 $DIFF helloworld.tmp result.tmp
+$ECHO "testing zstdcat symlink"
+ln -sf $ZSTD zstdcat
+./zstdcat helloworld.zstd > result.tmp
+$DIFF helloworld.tmp result.tmp
+rm zstdcat
+rm result.tmp
+$ECHO "testing zcat symlink"
+ln -sf $ZSTD zcat
+./zcat helloworld.zstd > result.tmp
+$DIFF helloworld.tmp result.tmp
+rm zcat
 rm ./*.tmp ./*.zstd
 $ECHO "frame concatenation tests completed"
 
@@ -218,7 +267,7 @@ $ECHO "$ECHO foo | $ZSTD | $ZSTD -d > /dev/full"
 $ECHO foo | $ZSTD | $ZSTD -d > /dev/full && die "write error not detected!"
 
 
-$ECHO "\n**** symbolic link test **** "
+$ECHO "\n===>  symbolic link test "
 
 rm -f hello.tmp world.tmp hello.tmp.zst world.tmp.zst
 $ECHO "hello world" > hello.tmp
@@ -233,7 +282,7 @@ rm -f hello.tmp world.tmp hello.tmp.zst world.tmp.zst
 fi
 
 
-$ECHO "\n**** test sparse file support **** "
+$ECHO "\n===>  test sparse file support "
 
 ./datagen -g5M  -P100 > tmpSparse
 $ZSTD tmpSparse -c | $ZSTD -dv -o tmpSparseRegen
@@ -260,7 +309,7 @@ $DIFF tmpSparse2M tmpSparseRegenerated
 rm tmpSparse*
 
 
-$ECHO "\n**** multiple files tests **** "
+$ECHO "\n===>  multiple files tests "
 
 ./datagen -s1        > tmp1 2> $INTOVOID
 ./datagen -s2 -g100K > tmp2 2> $INTOVOID
@@ -283,7 +332,7 @@ $ECHO "compress multiple files including a missing one (notHere) : "
 $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 
 
-$ECHO "\n**** dictionary tests **** "
+$ECHO "\n===>  dictionary tests "
 
 $ECHO "- test with raw dict (content only) "
 ./datagen > tmpDict
@@ -294,9 +343,19 @@ $ECHO "- Create first dictionary "
 TESTFILE=../programs/zstdcli.c
 $ZSTD --train *.c ../programs/*.c -o tmpDict
 cp $TESTFILE tmp
+$ECHO "- Dictionary compression roundtrip"
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF $TESTFILE result
+$ECHO "- Dictionary compression with btlazy2 strategy"
+$ZSTD -f tmp -D tmpDict --zstd=strategy=6
+$ZSTD -d tmp.zst -D tmpDict -fo result
+$DIFF $TESTFILE result
+if [ -n "$hasMT" ]
+then
+    $ECHO "- Test dictionary compression with multithreading "
+    ./datagen -g5M | $ZSTD -T2 -D tmpDict | $ZSTD -t -D tmpDict   # fails with v1.3.2
+fi
 $ECHO "- Create second (different) dictionary "
 $ZSTD --train *.c ../programs/*.c ../programs/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
@@ -339,7 +398,7 @@ $ZSTD --train-legacy -q tmp && die "Dictionary training should fail : source is 
 rm tmp*
 
 
-$ECHO "\n**** cover dictionary tests **** "
+$ECHO "\n===>  cover dictionary builder : advanced options "
 
 TESTFILE=../programs/zstdcli.c
 ./datagen > tmpDict
@@ -359,7 +418,7 @@ $ECHO "- Create dictionary with size limit"
 $ZSTD --train-cover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
 rm tmp*
 
-$ECHO "\n**** legacy dictionary tests **** "
+$ECHO "\n===>  legacy dictionary builder "
 
 TESTFILE=../programs/zstdcli.c
 ./datagen > tmpDict
@@ -380,7 +439,7 @@ $ZSTD --train-legacy -s9 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
 rm tmp*
 
 
-$ECHO "\n**** integrity tests **** "
+$ECHO "\n===>  integrity tests "
 
 $ECHO "test one file (tmp1.zst) "
 ./datagen > tmp1
@@ -405,24 +464,26 @@ $ZSTD -t tmpSplit.* && die "bad file not detected !"
 
 
 
-$ECHO "\n**** golden files tests **** "
+$ECHO "\n===>  golden files tests "
 
 $ZSTD -t -r files
 $ZSTD -c -r files | $ZSTD -t
 
 
-$ECHO "\n**** benchmark mode tests **** "
+$ECHO "\n===>  benchmark mode tests "
 
 $ECHO "bench one file"
 ./datagen > tmp1
 $ZSTD -bi0 tmp1
 $ECHO "bench multiple levels"
 $ZSTD -i0b0e3 tmp1
+$ECHO "bench negative level"
+$ZSTD -bi0 --fast tmp1
 $ECHO "with recursive and quiet modes"
 $ZSTD -rqi1b1e2 tmp1
 
 
-$ECHO "\n**** gzip compatibility tests **** "
+$ECHO "\n===>  gzip compatibility tests "
 
 GZIPMODE=1
 $ZSTD --format=gzip -V || GZIPMODE=0
@@ -445,7 +506,7 @@ else
 fi
 
 
-$ECHO "\n**** gzip frame tests **** "
+$ECHO "\n===>  gzip frame tests "
 
 if [ $GZIPMODE -eq 1 ]; then
     ./datagen > tmp
@@ -459,7 +520,7 @@ else
 fi
 
 
-$ECHO "\n**** xz compatibility tests **** "
+$ECHO "\n===>  xz compatibility tests "
 
 LZMAMODE=1
 $ZSTD --format=xz -V || LZMAMODE=0
@@ -505,7 +566,7 @@ else
 fi
 
 
-$ECHO "\n**** xz frame tests **** "
+$ECHO "\n===>  xz frame tests "
 
 if [ $LZMAMODE -eq 1 ]; then
     ./datagen > tmp
@@ -520,7 +581,7 @@ else
     $ECHO "xz mode not supported"
 fi
 
-$ECHO "\n**** lz4 compatibility tests **** "
+$ECHO "\n===>  lz4 compatibility tests "
 
 LZ4MODE=1
 $ZSTD --format=lz4 -V || LZ4MODE=0
@@ -543,7 +604,7 @@ else
 fi
 
 
-$ECHO "\n**** lz4 frame tests **** "
+$ECHO "\n===>  lz4 frame tests "
 
 if [ $LZ4MODE -eq 1 ]; then
     ./datagen > tmp
@@ -556,7 +617,7 @@ else
     $ECHO "lz4 mode not supported"
 fi
 
-$ECHO "\n**** zstd round-trip tests **** "
+$ECHO "\n===>  zstd round-trip tests "
 
 roundTripTest
 roundTripTest -g15K       # TableID==3
@@ -569,69 +630,68 @@ roundTripTest -g516K 19   # btopt
 
 fileRoundTripTest -g500K
 
-$ECHO "\n**** zstd long distance matching round-trip tests **** "
-roundTripTest -g0 "2 --long"
-roundTripTest -g1000K "1 --long"
-roundTripTest -g517K "6 --long"
-roundTripTest -g516K "16 --long"
-roundTripTest -g518K "19 --long"
-fileRoundTripTest -g5M "3 --long"
+$ECHO "\n===>  zstd long distance matching round-trip tests "
+roundTripTest -g0 "2 --single-thread --long"
+roundTripTest -g1000K "1 --single-thread --long"
+roundTripTest -g517K "6 --single-thread --long"
+roundTripTest -g516K "16 --single-thread --long"
+roundTripTest -g518K "19 --single-thread --long"
+fileRoundTripTest -g5M "3 --single-thread --long"
 
 
+roundTripTest -g96K "5 --single-thread"
 if [ -n "$hasMT" ]
 then
-    $ECHO "\n**** zstdmt round-trip tests **** "
+    $ECHO "\n===>  zstdmt round-trip tests "
     roundTripTest -g4M "1 -T0"
     roundTripTest -g8M "3 -T2"
     roundTripTest -g8000K "2 --threads=2"
     fileRoundTripTest -g4M "19 -T2 -B1M"
 
-    $ECHO "\n**** zstdmt long distance matching round-trip tests **** "
-    roundTripTest -g8M "3 --long -T2"
+    $ECHO "\n===>  zstdmt long distance matching round-trip tests "
+    roundTripTest -g8M "3 --long=24 -T2"
 else
-    $ECHO "\n**** no multithreading, skipping zstdmt tests **** "
+    $ECHO "\n===>  no multithreading, skipping zstdmt tests "
 fi
 
 rm tmp*
 
-$ECHO "\n**** zstd --list/-l single frame tests ****"
+$ECHO "\n===>  zstd --list/-l single frame tests "
 ./datagen > tmp1
 ./datagen > tmp2
 ./datagen > tmp3
 $ZSTD tmp*
 $ZSTD -l *.zst
-$ZSTD -lv *.zst
+$ZSTD -lv *.zst | grep "Decompressed Size:"  # check that decompressed size is present in header
 $ZSTD --list *.zst
 $ZSTD --list -v *.zst
 
-$ECHO "\n**** zstd --list/-l multiple frame tests ****"
+$ECHO "\n===>  zstd --list/-l multiple frame tests "
 cat tmp1.zst tmp2.zst > tmp12.zst
 cat tmp12.zst tmp3.zst > tmp123.zst
 $ZSTD -l *.zst
 $ZSTD -lv *.zst
-$ZSTD --list *.zst
-$ZSTD --list -v *.zst
 
-$ECHO "\n**** zstd --list/-l error detection tests ****"
+$ECHO "\n===>  zstd --list/-l error detection tests "
 ! $ZSTD -l tmp1 tmp1.zst
 ! $ZSTD --list tmp*
 ! $ZSTD -lv tmp1*
 ! $ZSTD --list -v tmp2 tmp12.zst
 
-$ECHO "\n**** zstd --list/-l test with null files ****"
+$ECHO "\n===>  zstd --list/-l test with null files "
 ./datagen -g0 > tmp5
 $ZSTD tmp5
 $ZSTD -l tmp5.zst
 ! $ZSTD -l tmp5*
-$ZSTD -lv tmp5.zst
+$ZSTD -lv tmp5.zst | grep "Decompressed Size: 0.00 KB (0 B)"  # check that 0 size is present in header
 ! $ZSTD -lv tmp5*
 
-$ECHO "\n**** zstd --list/-l test with no content size field ****"
-./datagen -g1MB | $ZSTD > tmp6.zst
+$ECHO "\n===>  zstd --list/-l test with no content size field "
+./datagen -g513K | $ZSTD > tmp6.zst
 $ZSTD -l tmp6.zst
-$ZSTD -lv tmp6.zst
+! $ZSTD -lv tmp6.zst | grep "Decompressed Size:"  # must NOT be present in header
 
-$ECHO "\n**** zstd --list/-l test with no checksum ****"
+$ECHO "\n===>   zstd --list/-l test with no checksum "
 $ZSTD -f --no-check tmp1
 $ZSTD -l tmp1.zst
 $ZSTD -lv tmp1.zst
@@ -639,14 +699,14 @@ $ZSTD -lv tmp1.zst
 rm tmp*
 
 
-$ECHO "\n**** zstd long distance matching tests **** "
-roundTripTest -g0 " --long"
-roundTripTest -g9M "2 --long"
+$ECHO "\n===>   zstd long distance matching tests "
+roundTripTest -g0 " --single-thread --long"
+roundTripTest -g9M "2 --single-thread --long"
 # Test parameter parsing
-roundTripTest -g1M -P50 "1 --long=29" " --memory=512MB"
-roundTripTest -g1M -P50 "1 --long=29 --zstd=wlog=28" " --memory=256MB"
-roundTripTest -g1M -P50 "1 --long=29" " --long=28 --memory=512MB"
-roundTripTest -g1M -P50 "1 --long=29" " --zstd=wlog=28 --memory=512MB"
+roundTripTest -g1M -P50 "1 --single-thread --long=29" " --memory=512MB"
+roundTripTest -g1M -P50 "1 --single-thread --long=29 --zstd=wlog=28" " --memory=256MB"
+roundTripTest -g1M -P50 "1 --single-thread --long=29" " --long=28 --memory=512MB"
+roundTripTest -g1M -P50 "1 --single-thread --long=29" " --zstd=wlog=28 --memory=512MB"
 
 
 if [ "$1" != "--test-large-data" ]; then
@@ -654,7 +714,7 @@ if [ "$1" != "--test-large-data" ]; then
     exit 0
 fi
 
-$ECHO "\n**** large files tests **** "
+$ECHO "\n===>   large files tests "
 
 roundTripTest -g270000000 1
 roundTripTest -g250000000 2
@@ -681,23 +741,24 @@ roundTripTest -g18000018 -P94 18
 roundTripTest -g18000019 -P96 19
 
 roundTripTest -g5000000000 -P99 1
+roundTripTest -g1700000000 -P0 "1 --zstd=strategy=6"   # ensure btlazy2 can survive an overflow rescale
 
 fileRoundTripTest -g4193M -P99 1
 
 
-$ECHO "\n**** zstd long, long distance matching round-trip tests **** "
-roundTripTest -g270000000 "1 --long"
-roundTripTest -g130000000 -P60 "5 --long"
-roundTripTest -g35000000 -P70 "8 --long"
-roundTripTest -g18000001 -P80  "18 --long"
+$ECHO "\n===>   zstd long, long distance matching round-trip tests "
+roundTripTest -g270000000 "1 --single-thread --long"
+roundTripTest -g130000000 -P60 "5 --single-thread --long"
+roundTripTest -g35000000 -P70 "8 --single-thread --long"
+roundTripTest -g18000001 -P80  "18 --single-thread --long"
 # Test large window logs
-roundTripTest -g700M -P50 "1 --long=29"
-roundTripTest -g600M -P50 "1 --long --zstd=wlog=29,clog=28"
+roundTripTest -g700M -P50 "1 --single-thread --long=29"
+roundTripTest -g600M -P50 "1 --single-thread --long --zstd=wlog=29,clog=28"
 
 
 if [ -n "$hasMT" ]
 then
-    $ECHO "\n**** zstdmt long round-trip tests **** "
+    $ECHO "\n===>   zstdmt long round-trip tests "
     roundTripTest -g80000000 -P99 "19 -T2" " "
     roundTripTest -g5000000000 -P99 "1 -T2" " "
     roundTripTest -g500000000 -P97 "1 -T999" " "

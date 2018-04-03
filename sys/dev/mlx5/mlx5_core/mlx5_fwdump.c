@@ -116,14 +116,18 @@ mlx5_fwdump(struct mlx5_core_dev *mdev)
 	uint32_t i, ri;
 	int error;
 
+	dev_info(&mdev->pdev->dev, "Issuing FW dump\n");
 	dd = (struct mlx5_dump_data *)atomic_load_acq_ptr((uintptr_t *)
 	    &mdev->dump_data);
 	if (dd == NULL)
 		return;
 	mtx_lock(&dd->dump_lock);
-	if (dd->dump_valid)
+	if (dd->dump_valid) {
 		/* only one dump */
+		dev_warn(&mdev->pdev->dev,
+		    "Only one FW dump can be captured aborting FW dump\n");
 		goto failed;
+	}
 
 	/* mlx5_vsc already warns, be silent. */
 	error = mlx5_vsc_lock(mdev);

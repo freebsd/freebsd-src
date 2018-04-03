@@ -81,7 +81,7 @@ bcm2835_late_init(platform_t plat)
 	int len;
 
 	system = OF_finddevice("/system");
-	if (system != 0) {
+	if (system != -1) {
 		len = OF_getencprop(system, "linux,serial", cells,
 		    sizeof(cells));
 		if (len > 0)

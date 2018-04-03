@@ -770,6 +770,8 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 #ifdef PRE7_COMPAT
 #ifdef COMPAT_FREEBSD32
 				if (cmd == PCIOCGETCONF_OLD32) {
+					memset(&conf_old32, 0,
+					    sizeof(conf_old32));
 					conf_old32.pc_sel.pc_bus =
 					    dinfo->conf.pc_sel.pc_bus;
 					conf_old32.pc_sel.pc_dev =
@@ -803,6 +805,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 				} else
 #endif /* COMPAT_FREEBSD32 */
 				if (cmd == PCIOCGETCONF_OLD) {
+					memset(&conf_old, 0, sizeof(conf_old));
 					conf_old.pc_sel.pc_bus =
 					    dinfo->conf.pc_sel.pc_bus;
 					conf_old.pc_sel.pc_dev =

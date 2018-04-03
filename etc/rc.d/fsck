@@ -57,7 +57,7 @@ fsck_start()
 			echo "Reboot failed; help!"
 			stop_boot
 			;;
-		8)
+		8|16)
 			if checkyesno fsck_y_enable; then
 				echo "File system preen failed, trying fsck -y ${fsck_y_flags}"
 				fsck -y ${fsck_y_flags}

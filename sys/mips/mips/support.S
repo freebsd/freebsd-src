@@ -94,7 +94,7 @@
 #include <machine/cpuregs.h>
 #include <machine/pcb.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	.set	noreorder		# Noreorder is default style!
 

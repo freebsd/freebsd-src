@@ -112,6 +112,14 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_fib.h>
 #include <netinet6/in6_pcb.h>
 
+/*
+ * struct in6_ifreq and struct ifreq must be type punnable for common members
+ * of ifr_ifru to allow accessors to be shared.
+ */
+_Static_assert(offsetof(struct in6_ifreq, ifr_ifru) ==
+    offsetof(struct ifreq, ifr_ifru),
+    "struct in6_ifreq and struct ifreq are not type punnable");
+
 VNET_DECLARE(int, icmp6_nodeinfo_oldmcprefix);
 #define V_icmp6_nodeinfo_oldmcprefix	VNET(icmp6_nodeinfo_oldmcprefix)
 
@@ -476,10 +484,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			error = EINVAL;
 			goto out;
 		}
-		/*
-		 * XXX: should we check if ifa_dstaddr is NULL and return
-		 * an error?
-		 */
 		ifr->ifr_dstaddr = ia->ia_dstaddr;
 		if ((error = sa6_recoverscope(&ifr->ifr_dstaddr)) != 0)
 			goto out;
@@ -1971,8 +1975,6 @@ in6_if2idlen(struct ifnet *ifp)
 		return (64);
 	case IFT_FDDI:		/* RFC2467 */
 		return (64);
-	case IFT_ISO88025:	/* RFC2470 (IPv6 over Token Ring) */
-		return (64);
 	case IFT_PPP:		/* RFC2472 */
 		return (64);
 	case IFT_ARCNET:	/* RFC2497 */
@@ -2146,6 +2148,25 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 		return EINVAL;
 	}
 	return 0;
+}
+
+/*
+ * Called by the datapath to indicate that the entry was used.
+ */
+static void
+in6_lltable_mark_used(struct llentry *lle)
+{
+
+	LLE_REQ_LOCK(lle);
+	lle->r_skip_req = 0;
+
+	/*
+	 * Set the hit time so the callback function
+	 * can determine the remaining time before
+	 * transiting to the DELAY state.
+	 */
+	lle->lle_hittime = time_uptime;
+	LLE_REQ_UNLOCK(lle);
 }
 
 static inline uint32_t
@@ -2380,6 +2401,7 @@ in6_lltattach(struct ifnet *ifp)
 	llt->llt_fill_sa_entry = in6_lltable_fill_sa_entry;
 	llt->llt_free_entry = in6_lltable_free_entry;
 	llt->llt_match_prefix = in6_lltable_match_prefix;
+	llt->llt_mark_used = in6_lltable_mark_used;
  	lltable_link(llt);
 
 	return (llt);

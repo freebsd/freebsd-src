@@ -868,7 +868,63 @@ static void mlx5_pci_close(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	mlx5_pci_disable_device(dev);
 }
 
-static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
+static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
+{
+	struct pci_dev *pdev = dev->pdev;
+	int err;
+
+	mlx5_vsec_init(dev);
+
+	err = mlx5_query_hca_caps(dev);
+	if (err) {
+		dev_err(&pdev->dev, "query hca failed\n");
+		goto out;
+	}
+
+	err = mlx5_query_board_id(dev);
+	if (err) {
+		dev_err(&pdev->dev, "query board id failed\n");
+		goto out;
+	}
+
+	err = mlx5_eq_init(dev);
+	if (err) {
+		dev_err(&pdev->dev, "failed to initialize eq\n");
+		goto out;
+	}
+
+	MLX5_INIT_DOORBELL_LOCK(&priv->cq_uar_lock);
+
+	err = mlx5_init_cq_table(dev);
+	if (err) {
+		dev_err(&pdev->dev, "failed to initialize cq table\n");
+		goto err_eq_cleanup;
+	}
+
+	mlx5_init_qp_table(dev);
+	mlx5_init_srq_table(dev);
+	mlx5_init_mr_table(dev);
+
+	return 0;
+
+err_eq_cleanup:
+	mlx5_eq_cleanup(dev);
+
+out:
+	return err;
+}
+
+static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
+{
+	mlx5_cleanup_mr_table(dev);
+	mlx5_cleanup_srq_table(dev);
+	mlx5_cleanup_qp_table(dev);
+	mlx5_cleanup_cq_table(dev);
+	mlx5_eq_cleanup(dev);
+}
+
+static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
+			 bool boot)
 {
 	struct pci_dev *pdev = dev->pdev;
 	int err;
@@ -900,12 +956,10 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		goto err_cmd_cleanup;
 	}
 
-	mlx5_pagealloc_init(dev);
-
 	err = mlx5_core_enable_hca(dev);
 	if (err) {
 		device_printf((&pdev->dev)->bsddev, "ERR: ""enable hca failed\n");
-		goto err_pagealloc_cleanup;
+		goto err_cmd_cleanup;
 	}
 
 	err = mlx5_core_set_issi(dev);
@@ -958,34 +1012,21 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 
 	mlx5_start_health_poll(dev);
 
-	err = mlx5_query_hca_caps(dev);
-	if (err) {
-		device_printf((&pdev->dev)->bsddev, "ERR: ""query hca failed\n");
-		goto err_stop_poll;
-	}
-
-	err = mlx5_query_board_id(dev);
-	if (err) {
-		device_printf((&pdev->dev)->bsddev, "ERR: ""query board id failed\n");
+	if (boot && mlx5_init_once(dev, priv)) {
+		dev_err(&pdev->dev, "sw objs init failed\n");
 		goto err_stop_poll;
 	}
 
 	err = mlx5_enable_msix(dev);
 	if (err) {
 		device_printf((&pdev->dev)->bsddev, "ERR: ""enable msix failed\n");
-		goto err_stop_poll;
-	}
-
-	err = mlx5_eq_init(dev);
-	if (err) {
-		device_printf((&pdev->dev)->bsddev, "ERR: ""failed to initialize eq\n");
-		goto disable_msix;
+		goto err_cleanup_once;
 	}
 
 	err = mlx5_alloc_uuars(dev, &priv->uuari);
 	if (err) {
 		device_printf((&pdev->dev)->bsddev, "ERR: ""Failed allocating uar, aborting\n");
-		goto err_eq_cleanup;
+		goto err_disable_msix;
 	}
 
 	err = mlx5_start_eqs(dev);
@@ -1003,26 +1044,17 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	if (map_bf_area(dev))
 		device_printf((&pdev->dev)->bsddev, "ERR: ""Failed to map blue flame area\n");
 
-	MLX5_INIT_DOORBELL_LOCK(&priv->cq_uar_lock);
-
-	mlx5_init_cq_table(dev);
-	mlx5_init_qp_table(dev);
-	mlx5_init_srq_table(dev);
-	mlx5_init_mr_table(dev);
-
 	err = mlx5_init_fs(dev);
 	if (err) {
 		mlx5_core_err(dev, "flow steering init %d\n", err);
-		goto err_init_tables;
+		goto err_free_comp_eqs;
 	}
 
 	err = mlx5_register_device(dev);
 	if (err) {
 		dev_err(&pdev->dev, "mlx5_register_device failed %d\n", err);
-		goto err_reg_dev;
+		goto err_fs;
 	}
-
-	mlx5_fwdump_prep(dev);
 
 	clear_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state);
 	set_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
@@ -1031,13 +1063,11 @@ out:
 	mutex_unlock(&dev->intf_state_mutex);
 	return 0;
 
-err_reg_dev:
+err_fs:
 	mlx5_cleanup_fs(dev);
-err_init_tables:
-	mlx5_cleanup_mr_table(dev);
-	mlx5_cleanup_srq_table(dev);
-	mlx5_cleanup_qp_table(dev);
-	mlx5_cleanup_cq_table(dev);
+
+err_free_comp_eqs:
+	free_comp_eqs(dev);
 	unmap_bf_area(dev);
 
 err_stop_eqs:
@@ -1046,11 +1076,12 @@ err_stop_eqs:
 err_free_uar:
 	mlx5_free_uuars(dev, &priv->uuari);
 
-err_eq_cleanup:
-	mlx5_eq_cleanup(dev);
-
-disable_msix:
+err_disable_msix:
 	mlx5_disable_msix(dev);
+
+err_cleanup_once:
+	if (boot)
+		mlx5_cleanup_once(dev);
 
 err_stop_poll:
 	mlx5_stop_health_poll(dev);
@@ -1068,9 +1099,6 @@ err_pagealloc_stop:
 err_disable_hca:
 	mlx5_core_disable_hca(dev);
 
-err_pagealloc_cleanup:
-	mlx5_pagealloc_cleanup(dev);
-
 err_cmd_cleanup:
 	mlx5_cmd_cleanup(dev);
 
@@ -1081,31 +1109,33 @@ out_err:
 	return err;
 }
 
-static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
+static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
+			   bool cleanup)
 {
 	int err = 0;
+
+	if (cleanup)
+		mlx5_drain_health_recovery(dev);
 
 	mutex_lock(&dev->intf_state_mutex);
 	if (test_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state)) {
 		dev_warn(&dev->pdev->dev, "%s: interface is down, NOP\n", __func__);
+                if (cleanup)
+                        mlx5_cleanup_once(dev);
 		goto out;
 	}
 
-	mlx5_fwdump_clean(dev);
 	mlx5_unregister_device(dev);
 
 	mlx5_cleanup_fs(dev);
-	mlx5_cleanup_mr_table(dev);
-	mlx5_cleanup_srq_table(dev);
-	mlx5_cleanup_qp_table(dev);
-	mlx5_cleanup_cq_table(dev);
 	unmap_bf_area(dev);
 	mlx5_wait_for_reclaim_vfs_pages(dev);
 	free_comp_eqs(dev);
 	mlx5_stop_eqs(dev);
 	mlx5_free_uuars(dev, &priv->uuari);
-	mlx5_eq_cleanup(dev);
 	mlx5_disable_msix(dev);
+        if (cleanup)
+                mlx5_cleanup_once(dev);
 	mlx5_stop_health_poll(dev);
 	err = mlx5_cmd_teardown_hca(dev);
 	if (err) {
@@ -1115,7 +1145,6 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	mlx5_pagealloc_stop(dev);
 	mlx5_reclaim_startup_pages(dev);
 	mlx5_core_disable_hca(dev);
-	mlx5_pagealloc_cleanup(dev);
 	mlx5_cmd_cleanup(dev);
 
 out:
@@ -1146,7 +1175,6 @@ struct mlx5_core_event_handler {
 		      enum mlx5_dev_event event,
 		      void *data);
 };
-
 
 static int init_one(struct pci_dev *pdev,
 		    const struct pci_device_id *id)
@@ -1184,15 +1212,21 @@ static int init_one(struct pci_dev *pdev,
                 goto close_pci;
         }
 
-	err = mlx5_load_one(dev, priv);
+	mlx5_pagealloc_init(dev);
+
+	err = mlx5_load_one(dev, priv, true);
 	if (err) {
 		device_printf((&pdev->dev)->bsddev, "ERR: ""mlx5_register_device failed %d\n", err);
 		goto clean_health;
 	}
 
+	mlx5_fwdump_prep(dev);
+
+	pci_save_state(pdev->dev.bsddev);
 	return 0;
 
 clean_health:
+	mlx5_pagealloc_cleanup(dev);
         mlx5_health_cleanup(dev);
 close_pci:
         mlx5_pci_close(dev, priv);
@@ -1206,12 +1240,14 @@ static void remove_one(struct pci_dev *pdev)
 	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
 	struct mlx5_priv *priv = &dev->priv;
 
-	if (mlx5_unload_one(dev, priv)) {
+	if (mlx5_unload_one(dev, priv, true)) {
 		dev_err(&dev->pdev->dev, "mlx5_unload_one failed\n");
 		mlx5_health_cleanup(dev);
 		return;
 	}
 
+	mlx5_fwdump_clean(dev);
+	mlx5_pagealloc_cleanup(dev);
 	mlx5_health_cleanup(dev);
 	mlx5_pci_close(dev, priv);
 	pci_set_drvdata(pdev, NULL);
@@ -1225,10 +1261,10 @@ static pci_ers_result_t mlx5_pci_err_detected(struct pci_dev *pdev,
 	struct mlx5_priv *priv = &dev->priv;
 
 	dev_info(&pdev->dev, "%s was called\n", __func__);
-	mlx5_enter_error_state(dev);
-	mlx5_unload_one(dev, priv);
+	mlx5_enter_error_state(dev, false);
+	mlx5_unload_one(dev, priv, false);
+
 	if (state) {
-		pci_save_state(pdev->dev.bsddev);
 		mlx5_drain_health_wq(dev);
 		mlx5_pci_disable_device(dev);
 	}
@@ -1253,13 +1289,9 @@ static pci_ers_result_t mlx5_pci_slot_reset(struct pci_dev *pdev)
 	pci_set_master(pdev);
 	pci_set_powerstate(pdev->dev.bsddev, PCI_POWERSTATE_D0);
 	pci_restore_state(pdev->dev.bsddev);
+	pci_save_state(pdev->dev.bsddev);
 
 	return err ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
-}
-
-void mlx5_disable_device(struct mlx5_core_dev *dev)
-{
-	mlx5_pci_err_detected(dev->pdev, 0);
 }
 
 /* wait for the device to show vital signs. For now we check
@@ -1312,10 +1344,9 @@ static void mlx5_pci_resume(struct pci_dev *pdev)
 
 	dev_info(&pdev->dev, "%s was called\n", __func__);
 
-	pci_save_state(pdev->dev.bsddev);
 	wait_vital(pdev);
 
-	err = mlx5_load_one(dev, priv);
+	err = mlx5_load_one(dev, priv, false);
 	if (err)
 		dev_err(&pdev->dev, "%s: mlx5_load_one failed with error code: %d\n"
 			, __func__, err);
@@ -1329,13 +1360,41 @@ static const struct pci_error_handlers mlx5_err_handler = {
 	.resume		= mlx5_pci_resume
 };
 
+static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
+{
+	int err;
+
+	if (!MLX5_CAP_GEN(dev, force_teardown)) {
+		mlx5_core_dbg(dev, "force teardown is not supported in the firmware\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+		mlx5_core_dbg(dev, "Device in internal error state, giving up\n");
+		return -EAGAIN;
+	}
+
+	err = mlx5_cmd_force_teardown_hca(dev);
+	if (err) {
+		mlx5_core_dbg(dev, "Firmware couldn't do fast unload error: %d\n", err);
+		return err;
+	}
+
+	mlx5_enter_error_state(dev, true);
+
+	return 0;
+}
+
 static void shutdown_one(struct pci_dev *pdev)
 {
 	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
 	struct mlx5_priv *priv = &dev->priv;
+	int err;
 
 	set_bit(MLX5_INTERFACE_STATE_SHUTDOWN, &dev->intf_state);
-	mlx5_unload_one(dev, priv);
+	err = mlx5_try_fast_unload(dev);
+	if (err)
+	        mlx5_unload_one(dev, priv, false);
 	mlx5_pci_disable_device(dev);
 }
 
@@ -1376,6 +1435,18 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, mlx5_core_pci_table);
+
+void mlx5_disable_device(struct mlx5_core_dev *dev)
+{
+	mlx5_pci_err_detected(dev->pdev, 0);
+}
+
+void mlx5_recover_device(struct mlx5_core_dev *dev)
+{
+	mlx5_pci_disable_device(dev);
+	if (mlx5_pci_slot_reset(dev->pdev) == PCI_ERS_RESULT_RECOVERED)
+		mlx5_pci_resume(dev->pdev);
+}
 
 struct pci_driver mlx5_core_driver = {
 	.name           = DRIVER_NAME,

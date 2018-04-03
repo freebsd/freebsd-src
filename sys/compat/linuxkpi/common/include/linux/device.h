@@ -124,10 +124,10 @@ extern const struct kobj_type linux_dev_ktype;
 extern const struct kobj_type linux_class_ktype;
 
 struct class_attribute {
-        struct attribute attr;
-        ssize_t (*show)(struct class *, struct class_attribute *, char *);
-        ssize_t (*store)(struct class *, struct class_attribute *, const char *, size_t);
-        const void *(*namespace)(struct class *, const struct class_attribute *);
+	struct attribute attr;
+	ssize_t (*show)(struct class *, struct class_attribute *, char *);
+	ssize_t (*store)(struct class *, struct class_attribute *, const char *, size_t);
+	const void *(*namespace)(struct class *, const struct class_attribute *);
 };
 
 #define	CLASS_ATTR(_name, _mode, _show, _store)				\
@@ -223,7 +223,7 @@ static inline char *
 dev_name(const struct device *dev)
 {
 
- 	return kobject_name(&dev->kobj);
+	return kobject_name(&dev->kobj);
 }
 
 #define	dev_set_name(_dev, _fmt, ...)					\
@@ -533,7 +533,7 @@ class_remove_file(struct class *class, const struct class_attribute *attr)
 static inline int
 dev_to_node(struct device *dev)
 {
-                return -1;
+	return -1;
 }
 
 char *kvasprintf(gfp_t, const char *, va_list);

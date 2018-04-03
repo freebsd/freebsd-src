@@ -31,9 +31,9 @@
 #ifndef	_SYS_RANDOM_H_
 #define	_SYS_RANDOM_H_
 
-#ifdef _KERNEL
-
 #include <sys/types.h>
+
+#ifdef _KERNEL
 
 #if !defined(KLD_MODULE)
 #if defined(RANDOM_LOADABLE) && defined(RANDOM_YARROW)
@@ -126,5 +126,9 @@ void random_harvest_deregister_source(enum random_entropy_source);
 #endif /* defined(RANDOM_ENABLE_UMA) */
 
 #endif /* _KERNEL */
+
+#define GRND_NONBLOCK	0x1
+#define GRND_RANDOM	0x2
+ssize_t getrandom(void *buf, size_t buflen, unsigned int flags);
 
 #endif /* _SYS_RANDOM_H_ */

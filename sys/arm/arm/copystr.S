@@ -38,7 +38,7 @@
  * Created      : 16/05/95
  */
 
-#include "assym.s"
+#include "assym.inc"
 #include <machine/asm.h>
 #include <machine/armreg.h>
 __FBSDID("$FreeBSD$");

@@ -129,6 +129,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 #include <machine/sigframe.h>
 #include <machine/specialreg.h>
+#include <machine/trap.h>
 #include <machine/vm86.h>
 #include <x86/init.h>
 #ifdef PERFMON
