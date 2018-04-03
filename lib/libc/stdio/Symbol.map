@@ -160,12 +160,15 @@ FBSD_1.3 {
 	open_wmemstream;
 	mkostemp;
 	mkostemps;
-	gets_s;
 };
 
 FBSD_1.4 {
 	fdclose;
 	fopencookie;
+};
+
+FBSD_1.5 {
+	gets_s;
 };
 
 FBSDprivate_1.0 {
