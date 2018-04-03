@@ -51,6 +51,11 @@ typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
 
+#ifndef _RSIZE_T_DEFINED
+#define _RSIZE_T_DEFINED
+typedef size_t rsize_t;
+#endif
+
 #if __POSIX_VISIBLE >= 200809
 #ifndef _OFF_T_DECLARED
 #define	_OFF_T_DECLARED
@@ -265,6 +270,9 @@ size_t	 fwrite(const void * __restrict, size_t, size_t, FILE * __restrict);
 int	 getc(FILE *);
 int	 getchar(void);
 char	*gets(char *);
+#if defined(__EXT1_VISIBLE) && __EXT1_VISIBLE == 1
+char	*gets_s(char *, rsize_t);
+#endif
 void	 perror(const char *);
 int	 printf(const char * __restrict, ...);
 int	 putc(int, FILE *);
