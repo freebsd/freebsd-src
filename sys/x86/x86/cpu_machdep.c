@@ -85,6 +85,9 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 #include <machine/smp.h>
 #endif
+#ifdef CPU_ELAN
+#include <machine/elan_mmcr.h>
+#endif
 #include <x86/acpica_machdep.h>
 
 #include <vm/vm.h>
