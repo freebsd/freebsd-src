@@ -285,6 +285,9 @@ platform_late_init(void)
 	/*
 	 * Re-initialise decode windows
 	 */
+	if (mv_check_soc_family() == MV_SOC_UNSUPPORTED)
+		panic("Unsupported SoC family\n");
+
 	if (soc_decode_win() != 0)
 		printf("WARNING: could not re-initialise decode windows! "
 		    "Running with existing settings...\n");
@@ -323,8 +326,11 @@ platform_late_init(void)
 #endif
 #endif
 }
-
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
+#define FDT_DEVMAP_MAX (MV_WIN_CPU_MAX_ARMV7 + 2)
+#else 
 #define FDT_DEVMAP_MAX	(MV_WIN_CPU_MAX + 2)
+#endif
 static struct devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
 	{ 0, 0, 0, }
 };
