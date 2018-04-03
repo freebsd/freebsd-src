@@ -88,3 +88,5 @@ device		pci
 options 	FDT			# Configure using FDT/DTB data
 options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=db78460.dts
+
+options         INTRNG
