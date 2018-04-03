@@ -136,10 +136,13 @@ struct cpu_group *smp_topo_find(struct cpu_group *top, int cpu);
 
 extern void (*cpustop_restartfunc)(void);
 extern int smp_cpus;
-extern volatile cpuset_t started_cpus;
-extern volatile cpuset_t stopped_cpus;
-extern volatile cpuset_t suspended_cpus;
-extern cpuset_t hlt_cpus_mask;
+/* The suspend/resume cpusets are x86 only, but minimize ifdefs. */
+extern volatile cpuset_t resuming_cpus;	/* woken up cpus in suspend pen */
+extern volatile cpuset_t started_cpus;	/* cpus to let out of stop pen */
+extern volatile cpuset_t stopped_cpus;	/* cpus in stop pen */
+extern volatile cpuset_t suspended_cpus; /* cpus [near] sleeping in susp pen */
+extern volatile cpuset_t toresume_cpus;	/* cpus to let out of suspend pen */
+extern cpuset_t hlt_cpus_mask;		/* XXX 'mask' is detail in old impl */
 extern cpuset_t logical_cpus_mask;
 #endif /* SMP */
 
