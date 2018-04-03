@@ -2664,28 +2664,3 @@ fdt_pic_decode_t fdt_pic_table[] = {
 	NULL
 };
 #endif
-
-uint64_t
-get_sar_value(void)
-{
-	uint32_t sar_low, sar_high;
-
-#if defined(SOC_MV_ARMADAXP)
-	sar_high = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
-	    SAMPLE_AT_RESET_HI);
-	sar_low = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
-	    SAMPLE_AT_RESET_LO);
-#elif defined(SOC_MV_ARMADA38X)
-	sar_high = 0;
-	sar_low = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
-	    SAMPLE_AT_RESET);
-#else
-	/*
-	 * TODO: Add getting proper values for other SoC configurations
-	 */
-	sar_high = 0;
-	sar_low = 0;
-#endif
-
-	return (((uint64_t)sar_high << 32) | sar_low);
-}

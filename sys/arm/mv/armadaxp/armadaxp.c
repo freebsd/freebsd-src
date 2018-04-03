@@ -55,6 +55,7 @@ static uint32_t count_l2clk(void);
 void armadaxp_l2_init(void);
 void armadaxp_init_coher_fabric(void);
 int platform_get_ncpus(void);
+static uint64_t get_sar_value_armadaxp(void);
 
 #define ARMADAXP_L2_BASE		(MV_BASE + 0x8000)
 #define ARMADAXP_L2_CTRL		0x100
@@ -124,6 +125,18 @@ static uint16_t	cpu_clock_table[] = {
     1000, 1066, 1200, 1333, 1500, 1666, 1800, 2000, 600,  667,  800,  1600,
     2133, 2200, 2400 };
 
+static uint64_t
+get_sar_value_armadaxp(void)
+{
+	uint32_t sar_low, sar_high;
+
+	sar_high = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
+	    SAMPLE_AT_RESET_HI);
+	sar_low = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
+	    SAMPLE_AT_RESET_LO);
+	return (((uint64_t)sar_high << 32) | sar_low);
+}
+
 uint32_t
 get_tclk(void)
 {
@@ -153,7 +166,7 @@ count_l2clk(void)
 	uint8_t  sar_cpu_freq, sar_fab_freq, array_size;
 
 	/* Get value of the SAR register and process it */
-	sar_reg = get_sar_value();
+	sar_reg = get_sar_value_armadaxp();
 	sar_cpu_freq = CPU_FREQ_FIELD(sar_reg);
 	sar_fab_freq = FAB_FREQ_FIELD(sar_reg);
 

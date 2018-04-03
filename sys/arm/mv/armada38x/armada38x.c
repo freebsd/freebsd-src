@@ -43,10 +43,22 @@ int armada38x_open_bootrom_win(void);
 int armada38x_scu_enable(void);
 int armada38x_win_set_iosync_barrier(void);
 int armada38x_mbus_optimization(void);
+static uint64_t get_sar_value_armada38x(void);
 
 static int hw_clockrate;
 SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD,
     &hw_clockrate, 0, "CPU instruction clock rate");
+
+static uint64_t
+get_sar_value_armada38x(void)
+{
+	uint32_t sar_low, sar_high;
+
+	sar_high = 0;
+	sar_low = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
+	    SAMPLE_AT_RESET_ARMADA38X);
+	return (((uint64_t)sar_high << 32) | sar_low);
+}
 
 uint32_t
 get_tclk(void)
@@ -57,8 +69,8 @@ get_tclk(void)
 	 * On Armada38x TCLK can be configured to 250 MHz or 200 MHz.
 	 * Current setting is read from Sample At Reset register.
 	 */
-	sar = (uint32_t)get_sar_value();
-	sar = (sar & TCLK_MASK) >> TCLK_SHIFT;
+	sar = (uint32_t)get_sar_value_armada38x();
+	sar = (sar & TCLK_MASK_ARMADA38X) >> TCLK_SHIFT_ARMADA38X;
 	if (sar == 0)
 		return (TCLK_250MHZ);
 	else
@@ -78,7 +90,7 @@ get_cpu_freq(void)
 		1866, 0, 0, 2000
 	};
 
-	sar = (uint32_t)get_sar_value();
+	sar = (uint32_t)get_sar_value_armada38x();
 	sar = (sar & A38X_CPU_DDR_CLK_MASK) >> A38X_CPU_DDR_CLK_SHIFT;
 	if (sar >= nitems(cpu_frequencies))
 		return (0);
