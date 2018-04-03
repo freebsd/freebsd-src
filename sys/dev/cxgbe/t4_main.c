@@ -511,11 +511,6 @@ struct filter_entry {
 
 static void setup_memwin(struct adapter *);
 static void position_memwin(struct adapter *, int, uint32_t);
-static int rw_via_memwin(struct adapter *, int, uint32_t, uint32_t *, int, int);
-static inline int read_via_memwin(struct adapter *, int, uint32_t, uint32_t *,
-    int);
-static inline int write_via_memwin(struct adapter *, int, uint32_t,
-    const uint32_t *, int);
 static int validate_mem_range(struct adapter *, uint32_t, int);
 static int fwmtype_to_hwmtype(int);
 static int validate_mt_off_len(struct adapter *, int, uint32_t, int,
@@ -2391,7 +2386,7 @@ position_memwin(struct adapter *sc, int idx, uint32_t addr)
 	t4_read_reg(sc, reg);	/* flush */
 }
 
-static int
+int
 rw_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
     int len, int rw)
 {
@@ -2437,22 +2432,6 @@ rw_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
 	}
 
 	return (0);
-}
-
-static inline int
-read_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
-    int len)
-{
-
-	return (rw_via_memwin(sc, idx, addr, val, len, 0));
-}
-
-static inline int
-write_via_memwin(struct adapter *sc, int idx, uint32_t addr,
-    const uint32_t *val, int len)
-{
-
-	return (rw_via_memwin(sc, idx, addr, (void *)(uintptr_t)val, len, 1));
 }
 
 static int
