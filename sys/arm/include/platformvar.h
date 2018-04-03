@@ -97,7 +97,7 @@ extern platform_method_t fdt_platform_methods[];
 #ifdef MULTIDELAY
 #define	FDT_PLATFORM_CTASSERT(delay)	CTASSERT(delay > 0)
 #else
-#define	FDT_PLATFORM_CTASSERT(delay)	CTASSERT(delay == 0)
+#define	FDT_PLATFORM_CTASSERT(delay)
 #endif
 
 #define	PLATFORM_DATA(NAME, delay)					\
