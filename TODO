@@ -1,0 +1,19 @@
+* ETMv4/PTM - decoder updates to handle advanced configuration.
+-> Certain (currently unused by perf /  current hardware) configuration settings
+   can alter the format of the trace output. One example is Return Stack -
+   settable in the control registers for PTM/ETMv4, and removes some inline
+   addresses. Decoder must use a follower to correctly trace when this is set.
+
+* ITM packet processing and decode.
+-> ITM is primarily an M class SW trace module. I wouldn't expect to see it on
+   systems with STM, unless a companion M class was present.
+
+*Data trace - ETMv4 / ETMv3
+-> Differing solutions to data trace in v4/v3 - v4 is separate trace stream
+   completely, output at trace ID <instruction_trace_ID>+1. ETMv3 is inline with
+   the instruction trace.
+
+Cortex-A cores do not support this architecturally. On R and M profile cores it
+is an option. There are scenarios in future that could see linux on R cores, plus
+on something like Juno it is possible to switch on trace for the SCP
+(M class processor). So at some point data trace may be required.

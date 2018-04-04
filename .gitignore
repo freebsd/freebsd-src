@@ -1,0 +1,76 @@
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+
+# Vc++ build files
+*tlog
+Debug/
+ipch/
+*.opensdf
+*.sdf
+*.suo
+*.user
+*.idb
+*.pdb
+*.exp
+*.ilk
+
+# ignore emacs backup saves
+*~
+
+# ignore bin test directory
+bin/
+*.log
+ref_trace_decoder/build/win/rctdl_c_api_lib/Release/*
+ref_trace_decoder/build/win/rctdl_c_api_lib/x64/Release/*
+ref_trace_decoder/build/win/ref_trace_decode_lib/Release/*
+ref_trace_decoder/build/win/ref_trace_decode_lib/x64/Release/*
+ref_trace_decoder/tests/build/win/simple_pkt_print_c_api/Release/*
+ref_trace_decoder/tests/build/win/simple_pkt_print_c_api/x64/Release/*
+*.lastbuildstate
+*.manifest
+*.cache
+ref_trace_decoder/docs/html/*
+ref_trace_decoder/tests/build/win/simple_pkt_print_c_api/Debug-dll/*
+ref_trace_decoder/tests/build/win/simple_pkt_print_c_api/x64/Debug-dll/*
+ref_trace_decoder/tests/build/win/trc_pkt_lister/Debug-dll/*
+ref_trace_decoder/tests/build/win/trc_pkt_lister/Release-dll/*
+ref_trace_decoder/tests/build/win/trc_pkt_lister/x64/Debug-dll/*
+ref_trace_decoder/tests/build/win/trc_pkt_lister/x64/Release-dll/*
+*.bak
+*.orig
+decoder/docs/html/*
+*.orig
+*.VC.db
+*.VC.VC.opendb
+*.iobj
+*.ipdb
