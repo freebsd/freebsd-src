@@ -516,6 +516,9 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 	register_t rval;
 	int cmd, error;
 
+	memset(&linux_seminfo, 0, sizeof(linux_seminfo));
+	memset(&linux_semid64, 0, sizeof(linux_semid64));
+
 	switch (args->cmd & ~LINUX_IPC_64) {
 	case LINUX_IPC_RMID:
 		cmd = IPC_RMID;
@@ -661,12 +664,15 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
 	struct l_msqid_ds linux_msqid;
 	struct msqid_ds bsd_msqid;
 
+	memset(&linux_msqid64, 0, sizeof(linux_msqid64));
+
 	bsd_cmd = args->cmd & ~LINUX_IPC_64;
 	switch (bsd_cmd) {
 	case LINUX_IPC_INFO:
 	case LINUX_MSG_INFO: {
 		struct l_msginfo linux_msginfo;
 
+		memset(&linux_msginfo, 0, sizeof(linux_msginfo));
 		/*
 		 * XXX MSG_INFO uses the same data structure but returns different
 		 * dynamic counters in msgpool, msgmap, and msgtql fields.
@@ -788,6 +794,10 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 	struct l_shm_info linux_shm_info;
 	struct shmid_ds bsd_shmid;
 	int error;
+
+	memset(&linux_shm_info, 0, sizeof(linux_shm_info));
+	memset(&linux_shmid64, 0, sizeof(linux_shmid64));
+	memset(&linux_shminfo64, 0, sizeof(linux_shminfo64));
 
 	switch (args->cmd & ~LINUX_IPC_64) {
 
