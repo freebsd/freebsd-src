@@ -312,6 +312,8 @@ struct mv_pcib_softc {
 	int		sc_skip_enable_procedure;
 	int		sc_enable_find_root_slot;
 	struct ofw_bus_iinfo	sc_pci_iinfo;
+
+	int		ap_segment;		/* PCI domain */
 };
 
 /* Local forward prototypes */
@@ -440,6 +442,8 @@ mv_pcib_attach(device_t self)
 		else
 			return(ENXIO);
 	}
+
+	sc->ap_segment = port_id;
 
 	if (ofw_bus_node_is_compatible(node, "mrvl,pcie")) {
 		sc->sc_type = MV_TYPE_PCIE;
@@ -879,6 +883,11 @@ mv_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	case SYS_RES_MEMORY:
 		rm = &sc->sc_mem_rman;
 		break;
+#ifdef PCI_RES_BUS
+	case PCI_RES_BUS:
+		return (pci_domain_alloc_bus(sc->ap_segment, child, rid, start,
+		    end, count, flags));
+#endif
 	default:
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
 		    type, rid, start, end, count, flags));
@@ -915,7 +924,12 @@ static int
 mv_pcib_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *res)
 {
+#ifdef PCI_RES_BUS
+	struct mv_pcib_softc *sc = device_get_softc(dev);
 
+	if (type == PCI_RES_BUS)
+		return (pci_domain_release_bus(sc->ap_segment, child, rid, res));
+#endif
 	if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY)
 		return (BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
 		    type, rid, res));
