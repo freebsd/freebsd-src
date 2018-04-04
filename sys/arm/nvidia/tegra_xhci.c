@@ -583,22 +583,22 @@ enable_fdt_resources(struct tegra_xhci_softc *sc)
 		return (rv);
 	}
 
-	rv = phy_enable(sc->dev, sc->phy_usb2_0);
+	rv = phy_enable(sc->phy_usb2_0);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot enable USB2_0 phy\n");
 		return (rv);
 	}
-	rv = phy_enable(sc->dev, sc->phy_usb2_1);
+	rv = phy_enable(sc->phy_usb2_1);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot enable USB2_1 phy\n");
 		return (rv);
 	}
-	rv = phy_enable(sc->dev, sc->phy_usb2_2);
+	rv = phy_enable(sc->phy_usb2_2);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot enable USB2_2 phy\n");
 		return (rv);
 	}
-	rv = phy_enable(sc->dev, sc->phy_usb3_0);
+	rv = phy_enable(sc->phy_usb3_0);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot enable USB3_0 phy\n");
 		return (rv);

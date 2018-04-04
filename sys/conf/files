@@ -1682,7 +1682,8 @@ dev/extres/clk/clk_fixed.c	optional ext_resources clk
 dev/extres/clk/clk_gate.c	optional ext_resources clk
 dev/extres/clk/clk_mux.c	optional ext_resources clk
 dev/extres/phy/phy.c		optional ext_resources phy
-dev/extres/phy/phy_if.m		optional ext_resources phy
+dev/extres/phy/phydev_if.m	optional ext_resources phy
+dev/extres/phy/phynode_if.m	optional ext_resources phy
 dev/extres/hwreset/hwreset.c	optional ext_resources hwreset
 dev/extres/hwreset/hwreset_if.m	optional ext_resources hwreset
 dev/extres/regulator/regdev_if.m	optional ext_resources regulator
