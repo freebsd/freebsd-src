@@ -489,9 +489,9 @@ ofw_bus_msimap(phandle_t node, uint16_t pci_rid, phandle_t *msi_parent,
 	return (err);
 }
 
-int
-ofw_bus_reg_to_rl(device_t dev, phandle_t node, pcell_t acells, pcell_t scells,
-    struct resource_list *rl)
+static int
+ofw_bus_reg_to_rl_helper(device_t dev, phandle_t node, pcell_t acells, pcell_t scells,
+    struct resource_list *rl, const char *reg_source)
 {
 	uint64_t phys, size;
 	ssize_t i, j, rid, nreg, ret;
@@ -506,7 +506,7 @@ ofw_bus_reg_to_rl(device_t dev, phandle_t node, pcell_t acells, pcell_t scells,
 	if (ret == -1)
 		name = NULL;
 
-	ret = OF_getencprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
+	ret = OF_getencprop_alloc(node, reg_source, sizeof(*reg), (void **)&reg);
 	nreg = (ret == -1) ? 0 : ret;
 
 	if (nreg % (acells + scells) != 0) {
@@ -535,6 +535,23 @@ ofw_bus_reg_to_rl(device_t dev, phandle_t node, pcell_t acells, pcell_t scells,
 	free(reg, M_OFWPROP);
 
 	return (0);
+}
+
+int
+ofw_bus_reg_to_rl(device_t dev, phandle_t node, pcell_t acells, pcell_t scells,
+    struct resource_list *rl)
+{
+
+	return (ofw_bus_reg_to_rl_helper(dev, node, acells, scells, rl, "reg"));
+}
+
+int
+ofw_bus_assigned_addresses_to_rl(device_t dev, phandle_t node, pcell_t acells,
+    pcell_t scells, struct resource_list *rl)
+{
+
+	return (ofw_bus_reg_to_rl_helper(dev, node, acells, scells,
+	    rl, "assigned-addresses"));
 }
 
 /*
