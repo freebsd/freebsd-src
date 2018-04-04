@@ -365,19 +365,6 @@ fdt_parent_addr_cells(phandle_t node)
 	return ((int)fdt32_to_cpu(addr_cells));
 }
 
-int
-fdt_pm_is_enabled(phandle_t node)
-{
-	int ret;
-
-	ret = 1;
-
-#if defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
-	ret = fdt_pm(node);
-#endif
-	return (ret);
-}
-
 u_long
 fdt_data_get(void *data, int cells)
 {

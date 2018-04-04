@@ -141,6 +141,8 @@ int mv_pci_devmap(phandle_t, struct devmap_entry *, vm_offset_t,
 int fdt_localbus_devmap(phandle_t, struct devmap_entry *, int, int *);
 enum soc_family mv_check_soc_family(void);
 
+int mv_fdt_pm(phandle_t);
+
 uint32_t get_tclk_armadaxp(void);
 uint32_t get_tclk_armada38x(void);
 uint32_t get_cpu_freq_armadaxp(void);
