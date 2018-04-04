@@ -155,11 +155,9 @@ init_secondary(int cpu)
 #ifndef INTRNG
 	int start = 0, end = 0;
 #endif
-	uint32_t actlr_mask, actlr_set;
 
 	pmap_set_tex();
-	cpuinfo_get_actlr_modifier(&actlr_mask, &actlr_set);
-	reinit_mmu(pmap_kern_ttb, actlr_mask, actlr_set);
+	cpuinfo_reinit_mmu(pmap_kern_ttb);
 	cpu_setup();
 
 	/* Provide stack pointers for other processor modes. */
