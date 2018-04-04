@@ -245,9 +245,9 @@ mv_wdt_enable_armada_38x_xp_helper()
 	val |= (WD_GLOBAL_MASK | WD_CPU0_MASK);
 	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
 
-	val = read_cpu_misc(RSTOUTn_MASK);
+	val = read_cpu_misc(RSTOUTn_MASK_ARMV7);
 	val &= ~RSTOUTn_MASK_WD;
-	write_cpu_misc(RSTOUTn_MASK, val);
+	write_cpu_misc(RSTOUTn_MASK_ARMV7, val);
 }
 
 static void
@@ -305,9 +305,9 @@ mv_wdt_disable_armada_38x_xp_helper(void)
 	val &= ~(WD_GLOBAL_MASK | WD_CPU0_MASK);
 	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
 
-	val = read_cpu_misc(RSTOUTn_MASK);
+	val = read_cpu_misc(RSTOUTn_MASK_ARMV7);
 	val |= RSTOUTn_MASK_WD;
-	write_cpu_misc(RSTOUTn_MASK, RSTOUTn_MASK_WD);
+	write_cpu_misc(RSTOUTn_MASK_ARMV7, RSTOUTn_MASK_WD);
 }
 
 static void
