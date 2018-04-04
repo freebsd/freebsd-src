@@ -200,6 +200,9 @@ init_secondary(int cpu)
 	/* Configure the interrupt controller */
 	intr_pic_init_secondary();
 
+	/* Apply possible BP hardening */
+	cpuinfo_init_bp_hardening();
+
 	mtx_lock_spin(&ap_boot_mtx);
 
 	atomic_add_rel_32(&smp_cpus, 1);

@@ -145,7 +145,16 @@ ENTRY(cpu_context_switch)
 	* predictors and Requirements for branch predictor maintenance
 	* operations sections.
 	*/
-	mcr	CP15_BPIALL		/* flush entire Branch Target Cache */
+	/*
+	 * Additionally, to mitigate mistrained branch predictor attack
+	 * we must invalidate it on affected CPUs. Unfortunately, BPIALL
+	 * is effectively NOP on Cortex-A15 so it needs special treatment.
+	 */
+	ldr	r0, [r8, #PC_BP_HARDEN_KIND]
+	cmp	r0, #PCPU_BP_HARDEN_KIND_ICIALLU
+	mcrne	CP15_BPIALL		/* Flush entire Branch Target Cache   */
+	mcreq	CP15_ICIALLU		/* This is the only way how to flush  */
+					/* Branch Target Cache on Cortex-A15. */
 	DSB
 	mov	pc, lr
 END(cpu_context_switch)
