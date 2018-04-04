@@ -275,7 +275,7 @@ localbus_attach(device_t dev)
 		if (!(ofw_bus_node_status_okay(dt_child)))
 			continue;
 
-		if (!(fdt_pm_is_enabled(dt_child)))
+		if (!(mv_fdt_pm(dt_child)))
 			continue;
 
 		di = malloc(sizeof(*di), M_LOCALBUS, M_WAITOK | M_ZERO);

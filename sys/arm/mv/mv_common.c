@@ -484,7 +484,7 @@ pm_disable_device(int mask)
 }
 
 int
-fdt_pm(phandle_t node)
+mv_fdt_pm(phandle_t node)
 {
 	uint32_t cpu_pm_ctrl;
 	int i, ena, compat;
