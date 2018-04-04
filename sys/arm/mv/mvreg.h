@@ -296,15 +296,6 @@
 #define GPIO_INT_EDGE_MASK	0x18
 #define GPIO_INT_LEV_MASK	0x1c
 
-#define GPIO_HI_DATA_OUT		0x40
-#define GPIO_HI_DATA_OUT_EN_CTRL	0x44
-#define GPIO_HI_BLINK_EN		0x48
-#define GPIO_HI_DATA_IN_POLAR		0x4c
-#define GPIO_HI_DATA_IN			0x50
-#define GPIO_HI_INT_CAUSE		0x54
-#define GPIO_HI_INT_EDGE_MASK		0x58
-#define GPIO_HI_INT_LEV_MASK		0x5c
-
 #define GPIO(n)			(1 << (n))
 #define MV_GPIO_MAX_NPINS	64
 
