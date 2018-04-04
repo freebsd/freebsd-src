@@ -664,7 +664,7 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
 	struct l_msqid_ds linux_msqid;
 	struct msqid_ds bsd_msqid;
 
-	memset(&linux_msqid64, 0, sizeof(linux_msqid64));
+	memset(&linux_msqid, 0, sizeof(linux_msqid));
 
 	bsd_cmd = args->cmd & ~LINUX_IPC_64;
 	switch (bsd_cmd) {
@@ -796,8 +796,8 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 	int error;
 
 	memset(&linux_shm_info, 0, sizeof(linux_shm_info));
-	memset(&linux_shmid64, 0, sizeof(linux_shmid64));
-	memset(&linux_shminfo64, 0, sizeof(linux_shminfo64));
+	memset(&linux_shmid, 0, sizeof(linux_shmid));
+	memset(&linux_shminfo, 0, sizeof(linux_shminfo));
 
 	switch (args->cmd & ~LINUX_IPC_64) {
 
