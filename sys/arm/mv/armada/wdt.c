@@ -253,7 +253,11 @@ mv_wdt_enable_armada_38x_xp_helper()
 static void
 mv_wdt_enable_armada_38x(void)
 {
-	uint32_t val;
+	uint32_t val, irq_cause;
+
+	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
+	irq_cause &= IRQ_TIMER_WD_CLR;
+	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
 
 	mv_wdt_enable_armada_38x_xp_helper();
 
@@ -265,7 +269,10 @@ mv_wdt_enable_armada_38x(void)
 static void
 mv_wdt_enable_armada_xp(void)
 {
-	uint32_t val;
+	uint32_t val, irq_cause;
+	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE_ARMADAXP);
+	irq_cause &= IRQ_TIMER_WD_CLR_ARMADAXP;
+	write_cpu_ctrl(BRIDGE_IRQ_CAUSE_ARMADAXP, irq_cause);
 
 	mv_wdt_enable_armada_38x_xp_helper();
 
