@@ -176,7 +176,7 @@ int gic_decode_fdt(phandle_t iparent, pcell_t *intr, int *interrupt,
 static int win_cpu_from_dt(void);
 static int fdt_win_setup(void);
 
-static int fdt_win_process_child(phandle_t, struct soc_node_spec *);
+static int fdt_win_process_child(phandle_t, struct soc_node_spec *, const char*);
 
 static uint32_t dev_mask = 0;
 static int cpu_wins_no = 0;
@@ -2757,7 +2757,7 @@ fdt_win_process(phandle_t child)
 		if (!ofw_bus_node_is_compatible(child, soc_nodes[i].compat))
 			continue;
 
-		ret = fdt_win_process_child(child, &soc_nodes[i]);
+		ret = fdt_win_process_child(child, &soc_nodes[i], "reg");
 		if (ret != 0)
 			return (ret);
 	}
@@ -2766,7 +2766,8 @@ fdt_win_process(phandle_t child)
 }
 
 static int
-fdt_win_process_child(phandle_t child, struct soc_node_spec *soc_node)
+fdt_win_process_child(phandle_t child, struct soc_node_spec *soc_node,
+    const char* mimo_reg_source)
 {
 	int addr_cells, size_cells;
 	pcell_t reg[8];
@@ -2778,8 +2779,7 @@ fdt_win_process_child(phandle_t child, struct soc_node_spec *soc_node)
 
 	if ((sizeof(pcell_t) * (addr_cells + size_cells)) > sizeof(reg))
 		return (ENOMEM);
-
-	if (OF_getprop(child, "reg", &reg, sizeof(reg)) <= 0)
+	if (OF_getprop(child, mimo_reg_source, &reg, sizeof(reg)) <= 0)
 		return (EINVAL);
 
 	if (addr_cells <= 2)
@@ -2836,7 +2836,8 @@ fdt_win_setup(void)
 			child_pci = OF_child(child);
 			while (child_pci != 0) {
 				err = fdt_win_process_child(child_pci,
-				    &soc_nodes[SOC_NODE_PCIE_ENTRY_IDX]);
+				    &soc_nodes[SOC_NODE_PCIE_ENTRY_IDX],
+				    "assigned-addresses");
 				if (err != 0)
 					return (err);
 
