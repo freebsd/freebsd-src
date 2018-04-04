@@ -456,3 +456,4 @@ static driver_t spigen_driver = {
 };
 
 DRIVER_MODULE(spigen, spibus, spigen_driver, spigen_devclass, 0, 0);
+MODULE_DEPEND(spigen, spibus, 1, 1, 1);
