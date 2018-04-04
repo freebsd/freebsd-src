@@ -110,7 +110,6 @@
 			 * pcie@4,0 is not available.
 			 */
 			pcie@1,0 {
-				compatible = "mrvl,pcie";
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x80000 0 0x2000>;
 				reg = <0x0 0x0 0x80000 0x0 0x2000>;
@@ -131,7 +130,6 @@
 
 			/* x1 port */
 			pcie@2,0 {
-				compatible = "mrvl,pcie";
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x40000 0 0x2000>;
 				reg = <0x0 0x0 0x40000 0x0 0x2000>;
@@ -152,7 +150,6 @@
 
 			/* x1 port */
 			pcie@3,0 {
-				compatible = "mrvl,pcie";
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x44000 0 0x2000>;
 				reg = <0x0 0x0 0x44000 0x0 0x2000>;
@@ -176,7 +173,6 @@
 			 * configured as a x1 port
 			 */
 			pcie@4,0 {
-				compatible = "mrvl,pcie";
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x48000 0 0x2000>;
 				reg = <0x0 0x0 0x48000 0x0 0x2000>;
