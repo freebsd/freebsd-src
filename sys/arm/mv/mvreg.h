@@ -308,14 +308,16 @@
 #define GPIO(n)			(1 << (n))
 #define MV_GPIO_MAX_NPINS	64
 
-#define MV_GPIO_IN_NONE		0x0
-#define MV_GPIO_IN_POL_LOW	(1 << 16)
-#define MV_GPIO_IN_IRQ_EDGE	(2 << 16)
-#define MV_GPIO_IN_IRQ_LEVEL	(4 << 16)
-#define MV_GPIO_OUT_NONE	0x0
-#define MV_GPIO_OUT_BLINK	0x1
-#define MV_GPIO_OUT_OPEN_DRAIN	0x2
-#define MV_GPIO_OUT_OPEN_SRC	0x4
+#define MV_GPIO_IN_NONE			0x0
+#define MV_GPIO_IN_POL_LOW		(1 << 16)
+#define MV_GPIO_IN_IRQ_EDGE		(2 << 16)
+#define MV_GPIO_IN_IRQ_LEVEL		(4 << 16)
+#define MV_GPIO_IN_IRQ_DOUBLE_EDGE	(8 << 16)
+#define MV_GPIO_IN_DEBOUNCE		(16 << 16)
+#define MV_GPIO_OUT_NONE		0x0
+#define MV_GPIO_OUT_BLINK		0x1
+#define MV_GPIO_OUT_OPEN_DRAIN		0x2
+#define MV_GPIO_OUT_OPEN_SRC		0x4
 
 #define IS_GPIO_IRQ(irq)	((irq) >= NIRQ && (irq) < NIRQ + MV_GPIO_MAX_NPINS)
 #define GPIO2IRQ(gpio)		((gpio) + NIRQ)
