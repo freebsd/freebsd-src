@@ -83,15 +83,6 @@ extern const struct decode_win *xor_wins;
 extern int idma_wins_no;
 extern int xor_wins_no;
 
-/* Function prototypes */
-int mv_gpio_setup_intrhandler(const char *name, driver_filter_t *filt,
-    void (*hand)(void *), void *arg, int pin, int flags, void **cookiep);
-void mv_gpio_intr_mask(int pin);
-void mv_gpio_intr_unmask(int pin);
-int mv_gpio_configure(uint32_t pin, uint32_t flags, uint32_t mask);
-void mv_gpio_out(uint32_t pin, uint8_t val, uint8_t enable);
-uint8_t mv_gpio_in(uint32_t pin);
-
 int soc_decode_win(void);
 void soc_id(uint32_t *dev, uint32_t *rev);
 void soc_dump_decode_win(void);
