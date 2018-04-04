@@ -76,6 +76,8 @@ MALLOC_DEFINE(M_IDMA, "idma", "idma dma test memory");
 #define MV_DUMP_WIN	0
 #endif
 
+struct soc_node_spec;
+
 static enum soc_family soc_family;
 
 static int mv_win_cesa_attr(int wng_sel);
@@ -174,6 +176,8 @@ int gic_decode_fdt(phandle_t iparent, pcell_t *intr, int *interrupt,
 static int win_cpu_from_dt(void);
 static int fdt_win_setup(void);
 
+static int fdt_win_process_child(phandle_t, struct soc_node_spec *);
+
 static uint32_t dev_mask = 0;
 static int cpu_wins_no = 0;
 static int eth_port = 0;
@@ -224,6 +228,8 @@ static struct soc_node_spec soc_nodes[] = {
 	{ "mrvl,pcie", &decode_win_pcie_setup, &decode_win_pcie_dump, &decode_win_pcie_valid},
 	{ NULL, NULL, NULL, NULL },
 };
+
+#define	SOC_NODE_PCIE_ENTRY_IDX		11
 
 typedef uint32_t(*read_cpu_ctrl_t)(uint32_t);
 typedef void(*write_cpu_ctrl_t)(uint32_t, uint32_t);
@@ -2741,55 +2747,63 @@ moveon:
 static int
 fdt_win_process(phandle_t child)
 {
-	int i;
-	struct soc_node_spec *soc_node;
-	int addr_cells, size_cells;
-	pcell_t reg[8];
-	u_long size, base;
+	int i, ret;
 
 	for (i = 0; soc_nodes[i].compat != NULL; i++) {
-
-		soc_node = &soc_nodes[i];
-
 		/* Setup only for enabled devices */
 		if (ofw_bus_node_status_okay(child) == 0)
 			continue;
 
-		if (!ofw_bus_node_is_compatible(child, soc_node->compat))
+		if (!ofw_bus_node_is_compatible(child, soc_nodes[i].compat))
 			continue;
 
-		if (fdt_addrsize_cells(OF_parent(child), &addr_cells,
-		    &size_cells))
-			return (ENXIO);
-
-		if ((sizeof(pcell_t) * (addr_cells + size_cells)) > sizeof(reg))
-			return (ENOMEM);
-
-		if (OF_getprop(child, "reg", &reg, sizeof(reg)) <= 0)
-			return (EINVAL);
-
-		if (addr_cells <= 2)
-			base = fdt_data_get(&reg[0], addr_cells);
-		else
-			base = fdt_data_get(&reg[addr_cells - 2], 2);
-		size = fdt_data_get(&reg[addr_cells], size_cells);
-
-		if (soc_node->valid_handler != NULL)
-			if (!soc_node->valid_handler())
-				return (EINVAL);
-
-		base = (base & 0x000fffff) | fdt_immr_va;
-		if (soc_node->decode_handler != NULL)
-			soc_node->decode_handler(base);
-		else
-			return (ENXIO);
-
-		if (MV_DUMP_WIN && (soc_node->dump_handler != NULL))
-			soc_node->dump_handler(base);
+		ret = fdt_win_process_child(child, &soc_nodes[i]);
+		if (ret != 0)
+			return (ret);
 	}
 
 	return (0);
 }
+
+static int
+fdt_win_process_child(phandle_t child, struct soc_node_spec *soc_node)
+{
+	int addr_cells, size_cells;
+	pcell_t reg[8];
+	u_long size, base;
+
+	if (fdt_addrsize_cells(OF_parent(child), &addr_cells,
+	    &size_cells))
+		return (ENXIO);
+
+	if ((sizeof(pcell_t) * (addr_cells + size_cells)) > sizeof(reg))
+		return (ENOMEM);
+
+	if (OF_getprop(child, "reg", &reg, sizeof(reg)) <= 0)
+		return (EINVAL);
+
+	if (addr_cells <= 2)
+		base = fdt_data_get(&reg[0], addr_cells);
+	else
+		base = fdt_data_get(&reg[addr_cells - 2], 2);
+	size = fdt_data_get(&reg[addr_cells], size_cells);
+
+	if (soc_node->valid_handler != NULL)
+		if (!soc_node->valid_handler())
+			return (EINVAL);
+
+	base = (base & 0x000fffff) | fdt_immr_va;
+	if (soc_node->decode_handler != NULL)
+		soc_node->decode_handler(base);
+	else
+		return (ENXIO);
+
+	if (MV_DUMP_WIN && (soc_node->dump_handler != NULL))
+		soc_node->dump_handler(base);
+
+	return (0);
+}
+
 static int
 fdt_win_setup(void)
 {
@@ -2821,7 +2835,8 @@ fdt_win_setup(void)
 		if (ofw_bus_node_is_compatible(child, "marvell,armada-370-pcie")) {
 			child_pci = OF_child(child);
 			while (child_pci != 0) {
-				err = fdt_win_process(child_pci);
+				err = fdt_win_process_child(child_pci,
+				    &soc_nodes[SOC_NODE_PCIE_ENTRY_IDX]);
 				if (err != 0)
 					return (err);
 
