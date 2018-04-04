@@ -517,7 +517,7 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 	int cmd, error;
 
 	memset(&linux_seminfo, 0, sizeof(linux_seminfo));
-	memset(&linux_semid64, 0, sizeof(linux_semid64));
+	memset(&linux_semid, 0, sizeof(linux_semid));
 
 	switch (args->cmd & ~LINUX_IPC_64) {
 	case LINUX_IPC_RMID:
