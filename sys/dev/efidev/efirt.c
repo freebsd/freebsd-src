@@ -57,6 +57,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 
 static struct efi_systbl *efi_systbl;
+/*
+ * The following pointers point to tables in the EFI runtime service data pages.
+ * Care should be taken to make sure that we've properly entered the EFI runtime
+ * environment (efi_enter()) before dereferencing them.
+ */
 static struct efi_cfgtbl *efi_cfgtbl;
 static struct efi_rt *efi_runtime;
 
