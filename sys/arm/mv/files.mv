@@ -15,7 +15,7 @@
 arm/mv/gpio.c			optional	gpio
 arm/mv/mv_common.c		standard
 arm/mv/mv_localbus.c		standard
-arm/mv/mv_machdep.c		standard
+arm/mv/armv5_machdep.c		standard
 arm/mv/mv_pci_ctrl.c		optional	pci | fdt
 arm/mv/mv_pci.c			optional	pci
 arm/mv/mv_ts.c			standard

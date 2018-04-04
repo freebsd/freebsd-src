@@ -61,12 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/platform.h> 
 
-#if __ARM_ARCH < 6
 #include <machine/cpu-v4.h>
-#else
-#include <machine/cpu-v6.h>
-#include <machine/pte-v6.h>
-#endif
 
 #include <arm/mv/mvreg.h>	/* XXX */
 #include <arm/mv/mvvar.h>	/* XXX eventually this should be eliminated */
@@ -76,16 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 static int platform_mpp_init(void);
-#if defined(SOC_MV_ARMADAXP)
-void armadaxp_init_coher_fabric(void);
-void armadaxp_l2_init(void);
-#endif
-#if defined(SOC_MV_ARMADA38X)
-int armada38x_win_set_iosync_barrier(void);
-int armada38x_scu_enable(void);
-int armada38x_open_bootrom_win(void);
-int armada38x_mbus_optimization(void);
-#endif
+void cpu_reset(void);
 
 #define MPP_PIN_MAX		68
 #define MPP_PIN_CELLS		2
@@ -291,46 +277,8 @@ platform_late_init(void)
 	if (soc_decode_win() != 0)
 		printf("WARNING: could not re-initialise decode windows! "
 		    "Running with existing settings...\n");
-#if defined(SOC_MV_ARMADAXP)
-#if !defined(SMP)
-	/* For SMP case it should be initialized after APs are booted */
-	armadaxp_init_coher_fabric();
-#endif
-	armadaxp_l2_init();
-#endif
-
-#if defined(SOC_MV_ARMADA38X)
-	/* Configure timers' base frequency */
-	arm_tmr_change_frequency(get_cpu_freq() / 2);
-
-	/*
-	 * Workaround for Marvell Armada38X family HW issue
-	 * between Cortex-A9 CPUs and on-chip devices that may
-	 * cause hang on heavy load.
-	 * To avoid that, map all registers including PCIe IO
-	 * as strongly ordered instead of device memory.
-	 */
-	pmap_remap_vm_attr(VM_MEMATTR_DEVICE, VM_MEMATTR_SO);
-
-	/* Set IO Sync Barrier bit for all Mbus devices */
-	if (armada38x_win_set_iosync_barrier() != 0)
-		printf("WARNING: could not map CPU Subsystem registers\n");
-	if (armada38x_mbus_optimization() != 0)
-		printf("WARNING: could not enable mbus optimization\n");
-	if (armada38x_scu_enable() != 0)
-		printf("WARNING: could not enable SCU\n");
-#ifdef SMP
-	/* Open window to bootROM memory - needed for SMP */
-	if (armada38x_open_bootrom_win() != 0)
-		printf("WARNING: could not open window to bootROM\n");
-#endif
-#endif
 }
-#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
-#define FDT_DEVMAP_MAX (MV_WIN_CPU_MAX_ARMV7 + 2)
-#else 
 #define FDT_DEVMAP_MAX	(MV_WIN_CPU_MAX + 2)
-#endif
 static struct devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
 	{ 0, 0, 0, }
 };
@@ -338,19 +286,18 @@ static struct devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
 static int
 platform_sram_devmap(struct devmap_entry *map)
 {
-#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
 	phandle_t child, root;
 	u_long base, size;
 	/*
 	 * SRAM range.
 	 */
+	if ((root = OF_finddevice("/")) == 0)
+		return (ENXIO);
+
 	if ((child = OF_finddevice("/sram")) != 0)
 		if (ofw_bus_node_is_compatible(child, "mrvl,cesa-sram") ||
 		    ofw_bus_node_is_compatible(child, "mrvl,scratchpad"))
 			goto moveon;
-
-	if ((root = OF_finddevice("/")) == 0)
-		return (ENXIO);
 
 	if ((child = fdt_find_compatible(root, "mrvl,cesa-sram", 0)) == 0 &&
 	    (child = fdt_find_compatible(root, "mrvl,scratchpad", 0)) == 0)
@@ -366,7 +313,6 @@ moveon:
 
 	return (0);
 out:
-#endif
 	return (ENOENT);
 
 }
@@ -408,19 +354,9 @@ platform_devmap_init(void)
 	i = 0;
 	devmap_register_table(&fdt_devmap[0]);
 
-#ifdef SOC_MV_ARMADAXP
-	vm_paddr_t cur_immr_pa;
+	if ((root = OF_finddevice("/")) == -1)
+		return (ENXIO);
 
-	/*
-	 * Acquire SoC registers' base passed by u-boot and fill devmap
-	 * accordingly. DTB is going to be modified basing on this data
-	 * later.
-	 */
-	__asm __volatile("mrc p15, 4, %0, c15, c0, 0" : "=r" (cur_immr_pa));
-	cur_immr_pa = (cur_immr_pa << 13) & 0xff000000;
-	if (cur_immr_pa != 0)
-		fdt_immr_pa = cur_immr_pa;
-#endif
 	/*
 	 * IMMR range.
 	 */
@@ -440,8 +376,6 @@ platform_devmap_init(void)
 	 * PCI range(s).
 	 * PCI range(s) and localbus.
 	 */
-	if ((root = OF_finddevice("/")) == -1)
-		return (ENXIO);
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
 		if (fdt_is_type(child, "pci") || fdt_is_type(child, "pciep")) {
 			/*
@@ -485,7 +419,6 @@ platform_devmap_init(void)
 	return (0);
 }
 
-#if __ARM_ARCH < 6
 struct arm32_dma_range *
 bus_dma_get_range(void)
 {
@@ -499,9 +432,16 @@ bus_dma_get_range_nb(void)
 
 	return (0);
 }
-#endif
 
-#if defined(CPU_MV_PJ4B)
+void
+cpu_reset(void)
+{
+
+	write_cpu_ctrl(RSTOUTn_MASK, SOFT_RST_OUT_EN);
+	write_cpu_ctrl(SYSTEM_SOFT_RESET, SYS_SOFT_RST);
+	while(1);
+}
+
 #ifdef DDB
 #include <ddb/ddb.h>
 
@@ -557,5 +497,3 @@ DB_SHOW_COMMAND(vtop, db_show_vtop)
 		db_printf("show vtop <virt_addr>\n");
 }
 #endif /* DDB */
-#endif /* CPU_MV_PJ4B */
-

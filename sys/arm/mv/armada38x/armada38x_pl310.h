@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2017 Semihalf.
  * Copyright (c) 2017 Stormshield.
  * All rights reserved.
  *
@@ -21,62 +22,16 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-/*
- * The machine-dependent part of the arm/pl310 driver for Armada 38x SoCs.
- */
-
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
-#include <sys/rman.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-
-#include <machine/bus.h>
-#include <machine/pl310.h>
-#include <machine/platform.h>
+#ifndef ARMADA38X_PL310_H
+#define ARMADA38X_PL310_H
 #include <machine/platformvar.h>
 
-#include "armada38x_pl310.h"
-#include "platform_pl310_if.h"
+void mv_a38x_platform_pl310_init(platform_t plat, struct pl310_softc *sc);
+void mv_a38x_platform_pl310_write_ctrl(platform_t plat, struct pl310_softc *sc, uint32_t val);
+void mv_a38x_platform_pl310_write_debug(platform_t plat, struct pl310_softc *sc, uint32_t val);
 
-void
-mv_a38x_platform_pl310_init(platform_t plat, struct pl310_softc *sc)
-{
-	uint32_t reg;
-
-	/*
-	 * Enable power saving modes:
-	 *  - Dynamic Gating stops the clock when the controller is idle.
-	 */
-	reg = pl310_read4(sc, PL310_POWER_CTRL);
-	reg |= POWER_CTRL_ENABLE_GATING;
-	pl310_write4(sc, PL310_POWER_CTRL, reg);
-
-	pl310_write4(sc, PL310_PREFETCH_CTRL, PREFETCH_CTRL_DL |
-	    PREFETCH_CTRL_DATA_PREFETCH | PREFETCH_CTRL_INCR_DL |
-	    PREFETCH_CTRL_DL_ON_WRAP);
-
-	/* Disable L2 cache sync for IO coherent operation */
-	sc->sc_io_coherent = true;
-}
-
-void
-mv_a38x_platform_pl310_write_ctrl(platform_t plat, struct pl310_softc *sc, uint32_t val)
-{
-
-	pl310_write4(sc, PL310_CTRL, val);
-}
-
-void
-mv_a38x_platform_pl310_write_debug(platform_t plat, struct pl310_softc *sc, uint32_t val)
-{
-
-	pl310_write4(sc, PL310_DEBUG_CTRL, val);
-}
+#endif

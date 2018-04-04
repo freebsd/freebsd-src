@@ -48,9 +48,6 @@ device		neta
 # PCI
 device		pci
 
-# RTC
-device		mv_rtc
-
 # Interrupt controllers
 device		gic
 options 	INTRNG
@@ -95,6 +92,8 @@ device		cryptodev
 
 # L2 Cache
 device		pl310
+
+options		PLATFORM
 
 # FDT
 options 	FDT

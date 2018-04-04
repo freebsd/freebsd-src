@@ -588,20 +588,6 @@ write_cpu_misc(uint32_t reg, uint32_t val)
 	bus_space_write_4(fdtbus_bs_tag, MV_MISC_BASE, reg, val);
 }
 
-void
-cpu_reset(void)
-{
-
-#if defined(SOC_MV_ARMADAXP) || defined (SOC_MV_ARMADA38X)
-	write_cpu_misc(RSTOUTn_MASK, SOFT_RST_OUT_EN);
-	write_cpu_misc(SYSTEM_SOFT_RESET, SYS_SOFT_RST);
-#else
-	write_cpu_ctrl(RSTOUTn_MASK, SOFT_RST_OUT_EN);
-	write_cpu_ctrl(SYSTEM_SOFT_RESET, SYS_SOFT_RST);
-#endif
-	while (1);
-}
-
 uint32_t
 cpu_extra_feat(void)
 {
