@@ -2478,6 +2478,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		printf("%s(): ioctl %d on %.*s\n", __func__,
 		    args->cmd & 0xffff, LINUX_IFNAMSIZ, lifname);
 #endif
+		memset(ifname, 0, sizeof(ifname));
 		ifp = ifname_linux_to_bsd(td, lifname, ifname);
 		if (ifp == NULL)
 			return (EINVAL);
