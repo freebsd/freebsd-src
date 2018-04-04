@@ -702,6 +702,7 @@ ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 			break;
 
 		default:
+			desc_count = 0;
 			device_printf(dev, "%s: default 0x%llx!\n", __func__,
 					(long long unsigned int)sdesc->data[0]);
 			break;
