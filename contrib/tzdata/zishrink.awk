@@ -37,7 +37,7 @@ function process_input_line(line, field, end, i, n, startdef)
   # Remove comments, normalize spaces, and append a space to each line.
   sub(/#.*/, "", line)
   line = line " "
-  gsub(/[\f\r\t\v ]+/, " ", line)
+  gsub(/[\t ]+/, " ", line)
 
   # Abbreviate keywords.  Do not abbreviate "Link" to just "L",
   # as pre-2017c zic erroneously diagnoses "Li" as ambiguous.
@@ -148,7 +148,7 @@ BEGIN {
   print "# This zic input file is in the public domain."
 }
 
-/^[\f\r\t\v ]*[^#\f\r\t\v ]/ {
+/^[\t ]*[^#\t ]/ {
   process_input_line($0)
 }
 
