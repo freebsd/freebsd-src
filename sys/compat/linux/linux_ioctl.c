@@ -253,6 +253,7 @@ linux_ioctl_hdio(struct thread *td, struct linux_ioctl_args *args)
 		} else if ((args->cmd & 0xffff) == LINUX_HDIO_GET_GEO_BIG) {
 			struct linux_hd_big_geometry hdbg;
 
+			memset(&hdbg, 0, sizeof(hdbg));
 			hdbg.cylinders = fwcylinders;
 			hdbg.heads = fwheads;
 			hdbg.sectors = fwsectors;
