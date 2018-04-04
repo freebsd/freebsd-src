@@ -88,6 +88,9 @@ static int efi_status2err[25] = {
 	EPROTO		/* EFI_PROTOCOL_ERROR */
 };
 
+static int efi_enter(void);
+static void efi_leave(void);
+
 static int
 efi_status_to_errno(efi_status status)
 {
@@ -98,6 +101,25 @@ efi_status_to_errno(efi_status status)
 }
 
 static struct mtx efi_lock;
+
+static bool
+efi_is_in_map(struct efi_md *map, int ndesc, int descsz, vm_offset_t addr)
+{
+	struct efi_md *p;
+	int i;
+
+	for (i = 0, p = map; i < ndesc; i++, p = efi_next_descriptor(p,
+	    descsz)) {
+		if ((p->md_attr & EFI_MD_ATTR_RT) == 0)
+			continue;
+
+		if (addr >= (uintptr_t)p->md_virt &&
+		    addr < (uintptr_t)p->md_virt + p->md_pages * PAGE_SIZE)
+			return (true);
+	}
+
+	return (false);
+}
 
 static int
 efi_init(void)
@@ -158,6 +180,30 @@ efi_init(void)
 		efi_destroy_1t1_map();
 		return (ENXIO);
 	}
+
+	/*
+	 * Some UEFI implementations have multiple implementations of the
+	 * RS->GetTime function. They switch from one we can only use early
+	 * in the boot process to one valid as a RunTime service only when we
+	 * call RS->SetVirtualAddressMap. As this is not always the case, e.g.
+	 * with an old loader.efi, check if the RS->GetTime function is within
+	 * the EFI map, and fail to attach if not.
+	 *
+	 * We need to enter into the EFI environment as efi_runtime may point
+	 * to an EFI address.
+	 */
+	efi_enter();
+	if (!efi_is_in_map(map, efihdr->memory_size / efihdr->descriptor_size,
+	    efihdr->descriptor_size, (vm_offset_t)efi_runtime->rt_gettime)) {
+		efi_leave();
+		if (bootverbose)
+			printf(
+			 "EFI runtime services table has an invalid pointer\n");
+		efi_runtime = NULL;
+		efi_destroy_1t1_map();
+		return (ENXIO);
+	}
+	efi_leave();
 
 	return (0);
 }
@@ -405,5 +451,6 @@ static moduledata_t efirt_moddata = {
 	.evhand = efirt_modevents,
 	.priv = NULL,
 };
-DECLARE_MODULE(efirt, efirt_moddata, SI_SUB_VM_CONF, SI_ORDER_ANY);
+/* After fpuinitstate, before efidev */
+DECLARE_MODULE(efirt, efirt_moddata, SI_SUB_DRIVERS, SI_ORDER_SECOND);
 MODULE_VERSION(efirt, 1);

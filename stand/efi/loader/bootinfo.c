@@ -236,17 +236,48 @@ bi_copymodules(vm_offset_t addr)
 	return(addr);
 }
 
+static EFI_STATUS
+efi_do_vmap(EFI_MEMORY_DESCRIPTOR *mm, UINTN sz, UINTN mmsz, UINT32 mmver)
+{
+	EFI_MEMORY_DESCRIPTOR *desc, *viter, *vmap;
+	EFI_STATUS ret;
+	int curr, ndesc, nset;
+
+	nset = 0;
+	desc = mm;
+	ndesc = sz / mmsz;
+	vmap = malloc(sz);
+	if (vmap == NULL)
+		/* This isn't really an EFI error case, but pretend it is */
+		return (EFI_OUT_OF_RESOURCES);
+	viter = vmap;
+	for (curr = 0; curr < ndesc;
+	    curr++, desc = NextMemoryDescriptor(desc, mmsz)) {
+		if ((desc->Attribute & EFI_MEMORY_RUNTIME) != 0) {
+			++nset;
+			desc->VirtualStart = desc->PhysicalStart;
+			*viter = *desc;
+			viter = NextMemoryDescriptor(viter, mmsz);
+		}
+	}
+	ret = RS->SetVirtualAddressMap(nset * mmsz, mmsz, mmver, vmap);
+	free(vmap);
+	return (ret);
+}
+
 static int
 bi_load_efi_data(struct preloaded_file *kfp)
 {
 	EFI_MEMORY_DESCRIPTOR *mm;
 	EFI_PHYSICAL_ADDRESS addr;
 	EFI_STATUS status;
+	const char *efi_novmap;
 	size_t efisz;
 	UINTN efi_mapkey;
 	UINTN mmsz, pages, retry, sz;
 	UINT32 mmver;
 	struct efi_map_header *efihdr;
+	bool do_vmap;
 
 #if defined(__amd64__) || defined(__aarch64__)
 	struct efi_fb efifb;
@@ -265,6 +296,11 @@ bi_load_efi_data(struct preloaded_file *kfp)
 		file_addmetadata(kfp, MODINFOMD_EFI_FB, sizeof(efifb), &efifb);
 	}
 #endif
+
+	do_vmap = true;
+	efi_novmap = getenv("efi_disable_vmap");
+	if (efi_novmap != NULL)
+		do_vmap = strcasecmp(efi_novmap, "YES") != 0;
 
 	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
 
@@ -321,6 +357,13 @@ bi_load_efi_data(struct preloaded_file *kfp)
 		}
 		status = BS->ExitBootServices(IH, efi_mapkey);
 		if (EFI_ERROR(status) == 0) {
+			/*
+			 * This may be disabled by setting efi_disable_vmap in
+			 * loader.conf(5). By default we will setup the virtual
+			 * map entries.
+			 */
+			if (do_vmap)
+				efi_do_vmap(mm, sz, mmsz, mmver);
 			efihdr->memory_size = sz;
 			efihdr->descriptor_size = mmsz;
 			efihdr->descriptor_version = mmver;
