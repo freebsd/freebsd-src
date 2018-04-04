@@ -538,7 +538,9 @@ struct msix_entry {
  * NB: define added to prevent this definition of pci_enable_msix from
  * clashing with the native FreeBSD version.
  */
-#define	pci_enable_msix		linux_pci_enable_msix
+#define	pci_enable_msix(...) \
+  linux_pci_enable_msix(__VA_ARGS__)
+
 static inline int
 pci_enable_msix(struct pci_dev *pdev, struct msix_entry *entries, int nreq)
 {
@@ -572,7 +574,9 @@ pci_enable_msix(struct pci_dev *pdev, struct msix_entry *entries, int nreq)
 	return (0);
 }
 
-#define	pci_enable_msix_range	linux_pci_enable_msix_range
+#define	pci_enable_msix_range(...) \
+  linux_pci_enable_msix_range(__VA_ARGS__)
+
 static inline int
 pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
     int minvec, int maxvec)
