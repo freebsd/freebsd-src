@@ -16,6 +16,19 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20180404	p9	FreeBSD-SA-18:04.vt
+			FreeBSD-SA-18:05.ipsec
+			FreeBSD-EN-18:03.tzdata
+			FreeBSD-EN-18:04.mem
+
+	Fix vt console memory disclosure. [SA-18:04.vt]
+
+	Fix ipsec crash or denial of service. [SA-18:05.ipsec]
+
+	Update timezone database information. [EN-18:03.tzdata]
+
+	Fix multiple small kernel memory disclosures. [EN-18:04.mem]
+
 20180314	p8	FreeBSD-SA-18:03.speculative_execution
 
 	Add mitigations for two classes of speculative execution vulnerabilities
