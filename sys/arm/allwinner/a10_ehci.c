@@ -231,7 +231,7 @@ a10_ehci_attach(device_t self)
 		device_printf(self, "Could not get phy\n");
 		goto error;
 	}
-	err = phy_enable(self, aw_sc->phy);
+	err = phy_enable(aw_sc->phy);
 	if (err != 0) {
 		device_printf(self, "Could not enable phy\n");
 		goto error;

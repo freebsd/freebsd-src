@@ -214,7 +214,7 @@ tegra_ehci_attach(device_t dev)
 		goto out;
 	}
 
-	rv = phy_enable(sc->dev, sc->phy);
+	rv = phy_enable(sc->phy);
 	if (rv != 0) {
 		device_printf(dev, "Cannot enable phy: %d\n", rv);
 		goto out;

@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/regulator/regulator.h>
 #include <dev/extres/phy/phy.h>
 
-#include "phy_if.h"
+#include "phynode_if.h"
 
 #define	USBPHY_NPHYS	4
 
@@ -71,6 +71,16 @@ struct awusbphy_softc {
 	gpio_pin_t		vbus_det_pin;
 	int			vbus_det_valid;
 };
+
+ /* Phy class and methods. */
+static int awusbphy_phy_enable(struct phynode *phy, bool enable);
+static phynode_method_t awusbphy_phynode_methods[] = {
+	PHYNODEMETHOD(phynode_enable, awusbphy_phy_enable),
+
+	PHYNODEMETHOD_END
+};
+DEFINE_CLASS_1(awusbphy_phynode, awusbphy_phynode_class, awusbphy_phynode_methods,
+    0, phynode_class);
 
 static int
 awusbphy_init(device_t dev)
@@ -148,11 +158,17 @@ awusbphy_vbus_detect(device_t dev, int *val)
 }
 
 static int
-awusbphy_phy_enable(device_t dev, intptr_t phy, bool enable)
+awusbphy_phy_enable(struct phynode *phynode, bool enable)
 {
+	device_t dev;
+	intptr_t phy;
 	struct awusbphy_softc *sc;
 	regulator_t reg;
 	int error, vbus_det;
+
+	dev = phynode_get_device(phynode);
+	phy = phynode_get_id(phynode);
+	sc = device_get_softc(dev);
 
 	if (phy < 0 || phy >= USBPHY_NPHYS)
 		return (ERANGE);
@@ -203,6 +219,9 @@ static int
 awusbphy_attach(device_t dev)
 {
 	int error;
+	struct phynode *phynode;
+	struct phynode_init_def phy_init;
+	int i;
 
 	error = awusbphy_init(dev);
 	if (error) {
@@ -211,7 +230,22 @@ awusbphy_attach(device_t dev)
 		return (error);
 	}
 
-	phy_register_provider(dev);
+	/* Create and register phys. */
+	for (i = 0; i < USBPHY_NPHYS; i++) {
+		bzero(&phy_init, sizeof(phy_init));
+		phy_init.id = i;
+		phy_init.ofw_node = ofw_bus_get_node(dev);
+		phynode = phynode_create(dev, &awusbphy_phynode_class,
+		    &phy_init);
+		if (phynode == NULL) {
+			device_printf(dev, "failed to create USB PHY\n");
+			return (ENXIO);
+		}
+		if (phynode_register(phynode) == NULL) {
+			device_printf(dev, "failed to create USB PHY\n");
+			return (ENXIO);
+		}
+	}
 
 	return (error);
 }
@@ -220,9 +254,6 @@ static device_method_t awusbphy_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		awusbphy_probe),
 	DEVMETHOD(device_attach,	awusbphy_attach),
-
-	/* PHY interface */
-	DEVMETHOD(phy_enable,		awusbphy_phy_enable),
 
 	DEVMETHOD_END
 };
