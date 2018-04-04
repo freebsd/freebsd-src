@@ -1804,8 +1804,6 @@ linux_wait_for_common(struct completion *c, int flags)
 	if (SCHEDULER_STOPPED())
 		return (0);
 
-	DROP_GIANT();
-
 	task = current;
 
 	if (flags != 0)
@@ -1819,22 +1817,25 @@ linux_wait_for_common(struct completion *c, int flags)
 			break;
 		sleepq_add(c, NULL, "completion", flags, 0);
 		if (flags & SLEEPQ_INTERRUPTIBLE) {
+			DROP_GIANT();
 			error = -sleepq_wait_sig(c, 0);
+			PICKUP_GIANT();
 			if (error != 0) {
 				linux_schedule_save_interrupt_value(task, error);
 				error = -ERESTARTSYS;
 				goto intr;
 			}
-		} else
+		} else {
+			DROP_GIANT();
 			sleepq_wait(c, 0);
+			PICKUP_GIANT();
+		}
 	}
 	if (c->done != UINT_MAX)
 		c->done--;
 	sleepq_release(c);
 
 intr:
-	PICKUP_GIANT();
-
 	return (error);
 }
 
@@ -1851,8 +1852,6 @@ linux_wait_for_timeout_common(struct completion *c, int timeout, int flags)
 	if (SCHEDULER_STOPPED())
 		return (0);
 
-	DROP_GIANT();
-
 	task = current;
 
 	if (flags != 0)
@@ -1866,10 +1865,14 @@ linux_wait_for_timeout_common(struct completion *c, int timeout, int flags)
 			break;
 		sleepq_add(c, NULL, "completion", flags, 0);
 		sleepq_set_timeout(c, linux_timer_jiffies_until(end));
+
+		DROP_GIANT();
 		if (flags & SLEEPQ_INTERRUPTIBLE)
 			error = -sleepq_timedwait_sig(c, 0);
 		else
 			error = -sleepq_timedwait(c, 0);
+		PICKUP_GIANT();
+
 		if (error != 0) {
 			/* check for timeout */
 			if (error == -EWOULDBLOCK) {
@@ -1889,8 +1892,6 @@ linux_wait_for_timeout_common(struct completion *c, int timeout, int flags)
 	/* return how many jiffies are left */
 	error = linux_timer_jiffies_until(end);
 done:
-	PICKUP_GIANT();
-
 	return (error);
 }
 
