@@ -103,8 +103,8 @@
 				#address-cells = <3>;
 				#size-cells = <2>;
 				#interrupt-cells = <1>;
-				ranges = <0x82000000 0x0 0x0 0x82000000 0x0 0xf1200000 0x0 0x00100000
-					  0x81000000 0x0 0x0 0x81000000 0x0 0xf1300000 0x0 0x00100000>;
+				ranges = <0x82000000 0 0 0x82000000 0x1 0 1 0
+					  0x81000000 0 0 0x81000000 0x1 0 1 0>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &gic GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-parent = <&gic>;
@@ -122,8 +122,8 @@
 				#address-cells = <3>;
 				#size-cells = <2>;
 				#interrupt-cells = <1>;
-				ranges = <0x82000000 0x0 0x0 0x82000000 0x0 0xf1400000 0x0 0x00100000
-					  0x81000000 0x0 0x0 0x81000000 0x0 0xf1500000 0x0 0x00100000>;
+				ranges = <0x82000000 0 0 0x82000000 0x2 0 1 0
+					  0x81000000 0 0 0x81000000 0x2 0 1 0>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &gic GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-parent = <&gic>;
@@ -141,8 +141,8 @@
 				#address-cells = <3>;
 				#size-cells = <2>;
 				#interrupt-cells = <1>;
-				ranges = <0x82000000 0x0 0x0 0x82000000 0x0 0xf1600000 0x0 0x00100000
-					  0x81000000 0x0 0x0 0x81000000 0x0 0xf1700000 0x0 0x00100000>;
+				ranges = <0x82000000 0 0 0x82000000 0x3 0 1 0
+					  0x81000000 0 0 0x81000000 0x3 0 1 0>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &gic GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-parent = <&gic>;
