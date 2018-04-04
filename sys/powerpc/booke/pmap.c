@@ -234,7 +234,7 @@ static vm_size_t tlb1_mapin_region(vm_offset_t, vm_paddr_t, vm_size_t);
 
 static vm_size_t tsize2size(unsigned int);
 static unsigned int size2tsize(vm_size_t);
-static unsigned int ilog2(unsigned int);
+static unsigned int ilog2(unsigned long);
 
 static void set_mas4_defaults(void);
 
@@ -4020,12 +4020,17 @@ tlb1_write_entry(tlb_entry_t *e, unsigned int idx)
  * Return the largest uint value log such that 2^log <= num.
  */
 static unsigned int
-ilog2(unsigned int num)
+ilog2(unsigned long num)
 {
-	int lz;
+	long lz;
 
+#ifdef __powerpc64__
+	__asm ("cntlzd %0, %1" : "=r" (lz) : "r" (num));
+	return (63 - lz);
+#else
 	__asm ("cntlzw %0, %1" : "=r" (lz) : "r" (num));
 	return (31 - lz);
+#endif
 }
 
 /*
@@ -4163,7 +4168,8 @@ tlb1_mapin_region(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 
 	for (idx = 0; idx < nents; idx++) {
 		pgsz = pgs[idx];
-		debugf("%u: %llx -> %x, size=%x\n", idx, pa, va, pgsz);
+		debugf("%u: %llx -> %jx, size=%jx\n", idx, pa,
+		    (uintmax_t)va, (uintmax_t)pgsz);
 		tlb1_set_entry(va, pa, pgsz,
 		    _TLB_ENTRY_SHARED | _TLB_ENTRY_MEM);
 		pa += pgsz;
