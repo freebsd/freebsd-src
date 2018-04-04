@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpuset.h>
 #include <sys/systm.h>
 #include <sys/assym.h>
+#include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/vmmeter.h>
@@ -134,6 +135,10 @@ ASSYM(PCB_VFPSTATE, offsetof(struct pcb, pcb_vfpstate));
 
 #if __ARM_ARCH >= 6
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
+ASSYM(PC_BP_HARDEN_KIND, offsetof(struct pcpu, pc_bp_harden_kind));
+ASSYM(PCPU_BP_HARDEN_KIND_NONE, PCPU_BP_HARDEN_KIND_NONE);
+ASSYM(PCPU_BP_HARDEN_KIND_BPIALL, PCPU_BP_HARDEN_KIND_BPIALL);
+ASSYM(PCPU_BP_HARDEN_KIND_ICIALLU, PCPU_BP_HARDEN_KIND_ICIALLU);
 #endif
 
 ASSYM(PAGE_SIZE, PAGE_SIZE);
