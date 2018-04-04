@@ -100,6 +100,7 @@ struct mv_pci_range {
 };
 
 #define FDT_RANGES_CELLS	((3 + 3 + 2) * 2)
+#define PCI_SPACE_LEN		0x00100000
 
 static void
 mv_pci_range_dump(struct mv_pci_range *range)
@@ -122,6 +123,7 @@ mv_pci_ranges_decode(phandle_t node, struct mv_pci_range *io_space,
 	pcell_t *rangesptr;
 	pcell_t cell0, cell1, cell2;
 	int tuple_size, tuples, i, rv, offset_cells, len;
+	int  portid, is_io_space;
 
 	/*
 	 * Retrieve 'ranges' property.
@@ -163,11 +165,14 @@ mv_pci_ranges_decode(phandle_t node, struct mv_pci_range *io_space,
 		rangesptr++;
 		cell2 = fdt_data_get((void *)rangesptr, 1);
 		rangesptr++;
+		portid = fdt_data_get((void *)(rangesptr+1), 1);
 
 		if (cell0 & 0x02000000) {
 			pci_space = mem_space;
+			is_io_space = 0;
 		} else if (cell0 & 0x01000000) {
 			pci_space = io_space;
+			is_io_space = 1;
 		} else {
 			rv = ERANGE;
 			goto out;
@@ -198,6 +203,12 @@ mv_pci_ranges_decode(phandle_t node, struct mv_pci_range *io_space,
 		rangesptr += size_cells;
 
 		pci_space->base_pci = cell2;
+
+		if (pci_space->len == 0) {
+			pci_space->len = PCI_SPACE_LEN;
+			pci_space->base_parent = fdt_immr_va +
+			    PCI_SPACE_LEN * ( 2 * portid + is_io_space);
+		}
 	}
 	rv = 0;
 out:
