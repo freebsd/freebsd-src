@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/types.h>
 #include <sys/bus.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -57,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/sdhci/sdhci.h>
+#include <dev/sdhci/sdhci_fdt_gpio.h>
 
 #include "sdhci_if.h"
 
@@ -104,9 +106,8 @@ struct tegra_sdhci_softc {
 	uint32_t		max_clk; /* Max possible freq */
 	clk_t			clk;
 	hwreset_t 		reset;
-	gpio_pin_t		gpio_cd;
-	gpio_pin_t		gpio_wp;
 	gpio_pin_t		gpio_power;
+	struct sdhci_fdt_gpio	*gpio;
 
 	int			force_card_present;
 	struct sdhci_slot	slot;
@@ -212,10 +213,19 @@ tegra_sdhci_intr(void *arg)
 }
 
 static int
-tegra_generic_get_ro(device_t brdev, device_t reqdev)
+tegra_sdhci_get_ro(device_t brdev, device_t reqdev)
 {
+	struct tegra_sdhci_softc *sc = device_get_softc(brdev);
 
-	return (0);
+	return (sdhci_fdt_gpio_get_readonly(sc->gpio));
+}
+
+static bool
+tegra_sdhci_get_card_present(device_t dev, struct sdhci_slot *slot)
+{
+	struct tegra_sdhci_softc *sc = device_get_softc(dev);
+
+	return (sdhci_fdt_gpio_get_present(sc->gpio));
 }
 
 static int
@@ -297,9 +307,7 @@ tegra_sdhci_attach(device_t dev)
 		goto fail;
 	}
 
-	gpio_pin_get_by_ofw_property(sc->dev, node, "cd-gpios", &sc->gpio_cd);
 	gpio_pin_get_by_ofw_property(sc->dev, node, "power-gpios", &sc->gpio_power);
-	gpio_pin_get_by_ofw_property(sc->dev, node, "wp-gpios", &sc->gpio_wp);
 
 	rv = clk_get_by_ofw_index(dev, 0, 0, &sc->clk);
 	if (rv != 0) {
@@ -371,6 +379,8 @@ tegra_sdhci_attach(device_t dev)
 		goto fail;
 	}
 
+	sc->gpio = sdhci_fdt_gpio_setup(sc->dev, &sc->slot);
+
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 
@@ -379,18 +389,16 @@ tegra_sdhci_attach(device_t dev)
 	return (0);
 
 fail:
-	if (sc->gpio_cd != NULL)
-		gpio_pin_release(sc->gpio_cd);
-	if (sc->gpio_wp != NULL)
-		gpio_pin_release(sc->gpio_wp);
+	if (sc->gpio != NULL)
+		sdhci_fdt_gpio_teardown(sc->gpio);
+	if (sc->intr_cookie != NULL)
+		bus_teardown_intr(dev, sc->irq_res, sc->intr_cookie);
 	if (sc->gpio_power != NULL)
 		gpio_pin_release(sc->gpio_power);
 	if (sc->clk != NULL)
 		clk_release(sc->clk);
 	if (sc->reset != NULL)
 		hwreset_release(sc->reset);
-	if (sc->intr_cookie != NULL)
-		bus_teardown_intr(dev, sc->irq_res, sc->intr_cookie);
 	if (sc->irq_res != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
 	if (sc->mem_res != NULL)
@@ -406,6 +414,7 @@ tegra_sdhci_detach(device_t dev)
 	struct sdhci_slot *slot = &sc->slot;
 
 	bus_generic_detach(dev);
+	sdhci_fdt_gpio_teardown(sc->gpio);
 	clk_release(sc->clk);
 	bus_teardown_intr(dev, sc->irq_res, sc->intr_cookie);
 	bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(sc->irq_res),
@@ -431,7 +440,7 @@ static device_method_t tegra_sdhci_methods[] = {
 	/* MMC bridge interface */
 	DEVMETHOD(mmcbr_update_ios,	sdhci_generic_update_ios),
 	DEVMETHOD(mmcbr_request,	sdhci_generic_request),
-	DEVMETHOD(mmcbr_get_ro,		tegra_generic_get_ro),
+	DEVMETHOD(mmcbr_get_ro,		tegra_sdhci_get_ro),
 	DEVMETHOD(mmcbr_acquire_host,	sdhci_generic_acquire_host),
 	DEVMETHOD(mmcbr_release_host,	sdhci_generic_release_host),
 
@@ -444,6 +453,7 @@ static device_method_t tegra_sdhci_methods[] = {
 	DEVMETHOD(sdhci_write_2,	tegra_sdhci_write_2),
 	DEVMETHOD(sdhci_write_4,	tegra_sdhci_write_4),
 	DEVMETHOD(sdhci_write_multi_4,	tegra_sdhci_write_multi_4),
+	DEVMETHOD(sdhci_get_card_present, tegra_sdhci_get_card_present),
 
 	DEVMETHOD_END
 };
