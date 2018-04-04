@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2006 Benno Rice.
  * Copyright (C) 2008 MARVELL INTERNATIONAL LTD.
+ * Copyright (c) 2017 Semihalf.
  * All rights reserved.
  *
  * Adapted and extended for Marvell SoCs by Semihalf.
@@ -45,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/queue.h>
 #include <sys/timetc.h>
+#include <sys/callout.h>
+#include <sys/gpio.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
 
@@ -58,13 +61,26 @@ __FBSDID("$FreeBSD$");
 #define GPIO_MAX_INTR_COUNT	8
 #define GPIO_PINS_PER_REG	32
 
+#define DEBOUNCE_CHECK_MS	1
+#define DEBOUNCE_LO_HI_MS	2
+#define DEBOUNCE_HI_LO_MS	2
+#define DEBOUNCE_CHECK_TICKS	((hz / 1000) * DEBOUNCE_CHECK_MS)
+
 struct mv_gpio_softc {
 	struct resource *	res[GPIO_MAX_INTR_COUNT + 1];
 	void			*ih_cookie[GPIO_MAX_INTR_COUNT];
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
+	struct mtx		mutex;
 	uint8_t			pin_num;	/* number of GPIO pins */
 	uint8_t			irq_num;	/* number of real IRQs occupied by GPIO controller */
+	uint8_t			use_high;
+
+	/* Used for debouncing. */
+	uint32_t		debounced_state_lo;
+	uint32_t		debounced_state_hi;
+	struct callout		**debounce_callouts;
+	int			*debounce_counters;
 };
 
 extern struct resource_spec mv_gpio_res[];
@@ -77,6 +93,17 @@ static int	mv_gpio_attach(device_t);
 static int	mv_gpio_intr(void *);
 static int	mv_gpio_init(void);
 
+static void	mv_gpio_double_edge_init(int pin);
+
+static int	mv_gpio_debounce_setup(int pin);
+static int	mv_gpio_debounce_init(int pin);
+static void	mv_gpio_debounce_start(int pin);
+static int	mv_gpio_debounce_prepare(int pin);
+static void	mv_gpio_debounce(void *arg);
+static void	mv_gpio_debounced_state_set(int pin, uint8_t new_state);
+static uint32_t	mv_gpio_debounced_state_get(int pin);
+
+static void	mv_gpio_exec_intr_handlers(uint32_t status, int high);
 static void	mv_gpio_intr_handler(int pin);
 static uint32_t	mv_gpio_reg_read(uint32_t reg);
 static void	mv_gpio_reg_write(uint32_t reg, uint32_t val);
@@ -84,13 +111,17 @@ static void	mv_gpio_reg_set(uint32_t reg, uint32_t val);
 static void	mv_gpio_reg_clear(uint32_t reg, uint32_t val);
 
 static void	mv_gpio_blink(uint32_t pin, uint8_t enable);
-static void	mv_gpio_polarity(uint32_t pin, uint8_t enable);
+static void	mv_gpio_polarity(uint32_t pin, uint8_t enable, uint8_t toggle);
 static void	mv_gpio_level(uint32_t pin, uint8_t enable);
 static void	mv_gpio_edge(uint32_t pin, uint8_t enable);
 static void	mv_gpio_out_en(uint32_t pin, uint8_t enable);
 static void	mv_gpio_int_ack(uint32_t pin);
 static void	mv_gpio_value_set(uint32_t pin, uint8_t val);
-static uint32_t	mv_gpio_value_get(uint32_t pin);
+static uint32_t	mv_gpio_value_get(uint32_t pin, uint8_t exclude_polar);
+
+#define MV_GPIO_LOCK()		mtx_lock_spin(&mv_gpio_softc->mutex)
+#define MV_GPIO_UNLOCK()	mtx_unlock_spin(&mv_gpio_softc->mutex)
+#define MV_GPIO_ASSERT_LOCKED()	mtx_assert(&mv_gpio_softc->mutex, MA_OWNED)
 
 static device_method_t mv_gpio_methods[] = {
 	DEVMETHOD(device_probe,		mv_gpio_probe),
@@ -148,6 +179,8 @@ mv_gpio_attach(device_t dev)
 	if (sc == NULL)
 		return (ENXIO);
 
+	if (mv_gpio_softc != NULL)
+		return (ENXIO);
 	mv_gpio_softc = sc;
 
 	/* Get chip id and revision */
@@ -159,19 +192,34 @@ mv_gpio_attach(device_t dev)
 	    dev_id == MV_DEV_MV78100_Z0 ) {
 		sc->pin_num = 32;
 		sc->irq_num = 4;
+		sc->use_high = 0;
 
 	} else if (dev_id == MV_DEV_88F6281 ||
 	    dev_id == MV_DEV_88F6282) {
 		sc->pin_num = 50;
 		sc->irq_num = 7;
+		sc->use_high = 1;
 
 	} else {
 		device_printf(dev, "unknown chip id=0x%x\n", dev_id);
 		return (ENXIO);
 	}
 
+	sc->debounce_callouts = (struct callout **)malloc(sc->pin_num *
+	    sizeof(struct callout *), M_DEVBUF, M_WAITOK | M_ZERO);
+	if (sc->debounce_callouts == NULL)
+		return (ENOMEM);
+
+	sc->debounce_counters = (int *)malloc(sc->pin_num * sizeof(int),
+	    M_DEVBUF, M_WAITOK);
+	if (sc->debounce_counters == NULL)
+		return (ENOMEM);
+
+	mtx_init(&sc->mutex, device_get_nameunit(dev), NULL, MTX_SPIN);
+
 	error = bus_alloc_resources(dev, mv_gpio_res, sc->res);
 	if (error) {
+		mtx_destroy(&sc->mutex);
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
@@ -179,12 +227,11 @@ mv_gpio_attach(device_t dev)
 	sc->bst = rman_get_bustag(sc->res[0]);
 	sc->bsh = rman_get_bushandle(sc->res[0]);
 
-	/* Disable and clear all interrupts */
+	/* Disable all interrupts */
 	bus_space_write_4(sc->bst, sc->bsh, GPIO_INT_EDGE_MASK, 0);
 	bus_space_write_4(sc->bst, sc->bsh, GPIO_INT_LEV_MASK, 0);
-	bus_space_write_4(sc->bst, sc->bsh, GPIO_INT_CAUSE, 0);
 
-	if (sc->pin_num > GPIO_PINS_PER_REG) {
+	if (sc->use_high) {
 		bus_space_write_4(sc->bst, sc->bsh,
 		    GPIO_HI_INT_EDGE_MASK, 0);
 		bus_space_write_4(sc->bst, sc->bsh,
@@ -195,50 +242,66 @@ mv_gpio_attach(device_t dev)
 
 	for (i = 0; i < sc->irq_num; i++) {
 		if (bus_setup_intr(dev, sc->res[1 + i],
-		    INTR_TYPE_MISC, mv_gpio_intr, NULL,
+		    INTR_TYPE_MISC,
+		    (driver_filter_t *)mv_gpio_intr, NULL,
 		    sc, &sc->ih_cookie[i]) != 0) {
+			mtx_destroy(&sc->mutex);
 			bus_release_resources(dev, mv_gpio_res, sc->res);
 			device_printf(dev, "could not set up intr %d\n", i);
 			return (ENXIO);
 		}
 	}
 
-	return (mv_gpio_init());
+	error = mv_gpio_init();
+	if (error) {
+		device_printf(dev, "WARNING: failed to initialize GPIO pins, "
+		    "error = %d\n", error);
+	}
+
+	/* Clear interrupt status. */
+	bus_space_write_4(sc->bst, sc->bsh, GPIO_INT_CAUSE, 0);
+
+	return (0);
 }
 
 static int
 mv_gpio_intr(void *arg)
 {
 	uint32_t int_cause, gpio_val;
-	uint32_t int_cause_hi, gpio_val_hi = 0;
-	int i;
+	uint32_t int_cause_hi, gpio_val_hi;
 
+	MV_GPIO_LOCK();
+
+	/*
+	 * According to documentation, edge sensitive interrupts are asserted
+	 * when unmasked GPIO_INT_CAUSE register bits are set.
+	 */
 	int_cause = mv_gpio_reg_read(GPIO_INT_CAUSE);
+	int_cause &= mv_gpio_reg_read(GPIO_INT_EDGE_MASK);
+
+	/*
+	 * Level sensitive interrupts are asserted when unmasked GPIO_DATA_IN
+	 * register bits are set.
+	 */
 	gpio_val = mv_gpio_reg_read(GPIO_DATA_IN);
-	gpio_val &= int_cause;
-	if (mv_gpio_softc->pin_num > GPIO_PINS_PER_REG) {
+	gpio_val &= mv_gpio_reg_read(GPIO_INT_LEV_MASK);
+
+	int_cause_hi = 0;
+	gpio_val_hi = 0;
+	if (mv_gpio_softc->use_high) {
 		int_cause_hi = mv_gpio_reg_read(GPIO_HI_INT_CAUSE);
+		int_cause_hi &= mv_gpio_reg_read(GPIO_HI_INT_EDGE_MASK);
+
 		gpio_val_hi = mv_gpio_reg_read(GPIO_HI_DATA_IN);
-		gpio_val_hi &= int_cause_hi;
+		gpio_val_hi &= mv_gpio_reg_read(GPIO_HI_INT_LEV_MASK);
 	}
 
-	i = 0;
-	while (gpio_val != 0) {
-		if (gpio_val & 1)
-			mv_gpio_intr_handler(i);
-		gpio_val >>= 1;
-		i++;
-	}
+	mv_gpio_exec_intr_handlers(int_cause | gpio_val, 0);
 
-	if (mv_gpio_softc->pin_num > GPIO_PINS_PER_REG) {
-		i = 0;
-		while (gpio_val_hi != 0) {
-			if (gpio_val_hi & 1)
-				mv_gpio_intr_handler(i + GPIO_PINS_PER_REG);
-			gpio_val_hi >>= 1;
-			i++;
-		}
-	}
+	if (mv_gpio_softc->use_high)
+		mv_gpio_exec_intr_handlers(int_cause_hi | gpio_val_hi, 1);
+
+	MV_GPIO_UNLOCK();
 
 	return (FILTER_HANDLED);
 }
@@ -260,6 +323,17 @@ mv_gpio_setup_intrhandler(const char *name, driver_filter_t *filt,
 		return (ENXIO);
 	event = gpio_events[pin];
 	if (event == NULL) {
+		MV_GPIO_LOCK();
+		if (gpio_setup[pin] & MV_GPIO_IN_DEBOUNCE) {
+			error = mv_gpio_debounce_init(pin);
+			if (error != 0) {
+				MV_GPIO_UNLOCK();
+				return (error);
+			}
+		} else if (gpio_setup[pin] & MV_GPIO_IN_IRQ_DOUBLE_EDGE)
+			mv_gpio_double_edge_init(pin);
+		MV_GPIO_UNLOCK();
+
 		error = intr_event_create(&event, (void *)pin, 0, pin,
 		    (void (*)(void *))mv_gpio_intr_mask,
 		    (void (*)(void *))mv_gpio_intr_unmask,
@@ -283,10 +357,22 @@ mv_gpio_intr_mask(int pin)
 	if (pin >= mv_gpio_softc->pin_num)
 		return;
 
-	if (gpio_setup[pin] & MV_GPIO_IN_IRQ_EDGE)
+	MV_GPIO_LOCK();
+
+	if (gpio_setup[pin] & (MV_GPIO_IN_IRQ_EDGE | MV_GPIO_IN_IRQ_DOUBLE_EDGE))
 		mv_gpio_edge(pin, 0);
 	else
 		mv_gpio_level(pin, 0);
+
+	/*
+	 * The interrupt has to be acknowledged before scheduling an interrupt
+	 * thread. This way we allow for interrupt source to trigger again
+	 * (which can happen with shared IRQs e.g. PCI) while processing the
+	 * current event.
+	 */
+	mv_gpio_int_ack(pin);
+
+	MV_GPIO_UNLOCK();
 }
 
 void
@@ -296,16 +382,46 @@ mv_gpio_intr_unmask(int pin)
 	if (pin >= mv_gpio_softc->pin_num)
 		return;
 
-	if (gpio_setup[pin] & MV_GPIO_IN_IRQ_EDGE)
+	MV_GPIO_LOCK();
+
+	if (gpio_setup[pin] & (MV_GPIO_IN_IRQ_EDGE | MV_GPIO_IN_IRQ_DOUBLE_EDGE))
 		mv_gpio_edge(pin, 1);
 	else
 		mv_gpio_level(pin, 1);
+
+	MV_GPIO_UNLOCK();
+}
+
+static void
+mv_gpio_exec_intr_handlers(uint32_t status, int high)
+{
+	int i, pin;
+
+	MV_GPIO_ASSERT_LOCKED();
+
+	i = 0;
+	while (status != 0) {
+		if (status & 1) {
+			pin = (high ? (i + GPIO_PINS_PER_REG) : i);
+			if (gpio_setup[pin] & MV_GPIO_IN_DEBOUNCE)
+				mv_gpio_debounce_start(pin);
+			else if (gpio_setup[pin] & MV_GPIO_IN_IRQ_DOUBLE_EDGE) {
+				mv_gpio_polarity(pin, 0, 1);
+				mv_gpio_intr_handler(pin);
+			} else
+				mv_gpio_intr_handler(pin);
+		}
+		status >>= 1;
+		i++;
+	}
 }
 
 static void
 mv_gpio_intr_handler(int pin)
 {
 	struct intr_event *event;
+
+	MV_GPIO_ASSERT_LOCKED();
 
 	event = gpio_events[pin];
 	if (event == NULL || TAILQ_EMPTY(&event->ie_handlers))
@@ -314,40 +430,286 @@ mv_gpio_intr_handler(int pin)
 	intr_event_handle(event, NULL);
 }
 
-static int
-mv_gpio_configure(uint32_t pin, uint32_t flags)
+int
+mv_gpio_configure(uint32_t pin, uint32_t flags, uint32_t mask)
 {
+	int error;
 
 	if (pin >= mv_gpio_softc->pin_num)
 		return (EINVAL);
 
-	if (flags & MV_GPIO_OUT_BLINK)
-		mv_gpio_blink(pin, 1);
-	if (flags & MV_GPIO_IN_POL_LOW)
-		mv_gpio_polarity(pin, 1);
-	if (flags & MV_GPIO_IN_IRQ_EDGE)
-		mv_gpio_edge(pin, 1);
-	if (flags & MV_GPIO_IN_IRQ_LEVEL)
-		mv_gpio_level(pin, 1);
+	/* check flags consistency */
+	if (((flags & mask) & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) ==
+	    (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT))
+		return (EINVAL);
 
-	gpio_setup[pin] = flags;
+	if (mask & MV_GPIO_IN_DEBOUNCE) {
+		error = mv_gpio_debounce_prepare(pin);
+		if (error != 0)
+			return (error);
+	}
+
+	MV_GPIO_LOCK();
+
+	if (mask & MV_GPIO_OUT_BLINK)
+		mv_gpio_blink(pin, flags & MV_GPIO_OUT_BLINK);
+	if (mask & MV_GPIO_IN_POL_LOW)
+		mv_gpio_polarity(pin, flags & MV_GPIO_IN_POL_LOW, 0);
+	if (mask & MV_GPIO_IN_DEBOUNCE) {
+		error = mv_gpio_debounce_setup(pin);
+		if (error) {
+			MV_GPIO_UNLOCK();
+			return (error);
+		}
+	}
+
+	gpio_setup[pin] &= ~(mask);
+	gpio_setup[pin] |= (flags & mask);
+
+	MV_GPIO_UNLOCK();
 
 	return (0);
+}
+
+static void
+mv_gpio_double_edge_init(int pin)
+{
+	uint8_t raw_read;
+
+	MV_GPIO_ASSERT_LOCKED();
+
+	raw_read = (mv_gpio_value_get(pin, 1) ? 1 : 0);
+
+	if (raw_read)
+		mv_gpio_polarity(pin, 1, 0);
+	else
+		mv_gpio_polarity(pin, 0, 0);
+}
+
+static int
+mv_gpio_debounce_setup(int pin)
+{
+	struct callout *c;
+
+	MV_GPIO_ASSERT_LOCKED();
+
+	c = mv_gpio_softc->debounce_callouts[pin];
+	if (c == NULL)
+		return (ENXIO);
+
+	if (callout_active(c))
+		callout_deactivate(c);
+
+	callout_stop(c);
+
+	return (0);
+}
+
+static int
+mv_gpio_debounce_prepare(int pin)
+{
+	struct callout *c;
+	struct mv_gpio_softc *sc;
+
+	sc = (struct mv_gpio_softc *)mv_gpio_softc;
+
+	c = sc->debounce_callouts[pin];
+	if (c == NULL) {
+		c = (struct callout *)malloc(sizeof(struct callout),
+		    M_DEVBUF, M_WAITOK);
+		sc->debounce_callouts[pin] = c;
+		if (c == NULL)
+			return (ENOMEM);
+		callout_init(c, 1);
+	}
+
+	return (0);
+}
+
+static int
+mv_gpio_debounce_init(int pin)
+{
+	uint8_t raw_read;
+	int *cnt;
+
+	MV_GPIO_ASSERT_LOCKED();
+
+	cnt = &mv_gpio_softc->debounce_counters[pin];
+
+	raw_read = (mv_gpio_value_get(pin, 1) ? 1 : 0);
+	if (raw_read) {
+		mv_gpio_polarity(pin, 1, 0);
+		*cnt = DEBOUNCE_HI_LO_MS / DEBOUNCE_CHECK_MS;
+	} else {
+		mv_gpio_polarity(pin, 0, 0);
+		*cnt = DEBOUNCE_LO_HI_MS / DEBOUNCE_CHECK_MS;
+	}
+
+	mv_gpio_debounced_state_set(pin, raw_read);
+
+	return (0);
+}
+
+static void
+mv_gpio_debounce_start(int pin)
+{
+	struct callout *c;
+	int *debounced_pin;
+
+	MV_GPIO_ASSERT_LOCKED();
+
+	c = mv_gpio_softc->debounce_callouts[pin];
+	if (c == NULL) {
+		mv_gpio_int_ack(pin);
+		return;
+	}
+
+	if (callout_pending(c) || callout_active(c)) {
+		mv_gpio_int_ack(pin);
+		return;
+	}
+
+	debounced_pin = (int *)malloc(sizeof(int), M_DEVBUF,
+	    M_WAITOK);
+	if (debounced_pin == NULL) {
+		mv_gpio_int_ack(pin);
+		return;
+	}
+	*debounced_pin = pin;
+
+	callout_reset(c, DEBOUNCE_CHECK_TICKS, mv_gpio_debounce,
+	    debounced_pin);
+}
+
+static void
+mv_gpio_debounce(void *arg)
+{
+	uint8_t raw_read, last_state;
+	int pin;
+	int *debounce_counter;
+
+	pin = *((int *)arg);
+
+	MV_GPIO_LOCK();
+
+	raw_read = (mv_gpio_value_get(pin, 1) ? 1 : 0);
+	last_state = (mv_gpio_debounced_state_get(pin) ? 1 : 0);
+	debounce_counter = &mv_gpio_softc->debounce_counters[pin];
+
+	if (raw_read == last_state) {
+		if (last_state)
+			*debounce_counter = DEBOUNCE_HI_LO_MS /
+			    DEBOUNCE_CHECK_MS;
+		else
+			*debounce_counter = DEBOUNCE_LO_HI_MS /
+			    DEBOUNCE_CHECK_MS;
+
+		callout_reset(mv_gpio_softc->debounce_callouts[pin],
+		    DEBOUNCE_CHECK_TICKS, mv_gpio_debounce, arg);
+	} else {
+		*debounce_counter = *debounce_counter - 1;
+		if (*debounce_counter != 0)
+			callout_reset(mv_gpio_softc->debounce_callouts[pin],
+			    DEBOUNCE_CHECK_TICKS, mv_gpio_debounce, arg);
+		else {
+			mv_gpio_debounced_state_set(pin, raw_read);
+
+			if (last_state)
+				*debounce_counter = DEBOUNCE_HI_LO_MS /
+				    DEBOUNCE_CHECK_MS;
+			else
+				*debounce_counter = DEBOUNCE_LO_HI_MS /
+				    DEBOUNCE_CHECK_MS;
+
+			if (((gpio_setup[pin] & MV_GPIO_IN_POL_LOW) &&
+			    (raw_read == 0)) ||
+			    (((gpio_setup[pin] & MV_GPIO_IN_POL_LOW) == 0) &&
+			    raw_read) ||
+			    (gpio_setup[pin] & MV_GPIO_IN_IRQ_DOUBLE_EDGE))
+				mv_gpio_intr_handler(pin);
+
+			/* Toggle polarity for next edge. */
+			mv_gpio_polarity(pin, 0, 1);
+
+			free(arg, M_DEVBUF);
+			callout_deactivate(mv_gpio_softc->
+			    debounce_callouts[pin]);
+		}
+	}
+
+	MV_GPIO_UNLOCK();
+}
+
+static void
+mv_gpio_debounced_state_set(int pin, uint8_t new_state)
+{
+	uint32_t *old_state;
+
+	MV_GPIO_ASSERT_LOCKED();
+
+	if (pin >= GPIO_PINS_PER_REG) {
+		old_state = &mv_gpio_softc->debounced_state_hi;
+		pin -= GPIO_PINS_PER_REG;
+	} else
+		old_state = &mv_gpio_softc->debounced_state_lo;
+
+	if (new_state)
+		*old_state |= (1 << pin);
+	else
+		*old_state &= ~(1 << pin);
+}
+
+static uint32_t
+mv_gpio_debounced_state_get(int pin)
+{
+	uint32_t *state;
+
+	MV_GPIO_ASSERT_LOCKED();
+
+	if (pin >= GPIO_PINS_PER_REG) {
+		state = &mv_gpio_softc->debounced_state_hi;
+		pin -= GPIO_PINS_PER_REG;
+	} else
+		state = &mv_gpio_softc->debounced_state_lo;
+
+	return (*state & (1 << pin));
 }
 
 void
 mv_gpio_out(uint32_t pin, uint8_t val, uint8_t enable)
 {
 
+	MV_GPIO_LOCK();
+
 	mv_gpio_value_set(pin, val);
 	mv_gpio_out_en(pin, enable);
+
+	MV_GPIO_UNLOCK();
 }
 
 uint8_t
 mv_gpio_in(uint32_t pin)
 {
+	uint8_t state;
 
-	return (mv_gpio_value_get(pin) ? 1 : 0);
+	MV_GPIO_LOCK();
+
+	if (gpio_setup[pin] & MV_GPIO_IN_DEBOUNCE) {
+		if (gpio_setup[pin] & MV_GPIO_IN_POL_LOW)
+			state = (mv_gpio_debounced_state_get(pin) ? 0 : 1);
+		else
+			state = (mv_gpio_debounced_state_get(pin) ? 1 : 0);
+	} else if (gpio_setup[pin] & MV_GPIO_IN_IRQ_DOUBLE_EDGE) {
+		if (gpio_setup[pin] & MV_GPIO_IN_POL_LOW)
+			state = (mv_gpio_value_get(pin, 1) ? 0 : 1);
+		else
+			state = (mv_gpio_value_get(pin, 1) ? 1 : 0);
+	} else
+		state = (mv_gpio_value_get(pin, 0) ? 1 : 0);
+
+	MV_GPIO_UNLOCK();
+
+	return (state);
 }
 
 static uint32_t
@@ -427,9 +789,9 @@ mv_gpio_blink(uint32_t pin, uint8_t enable)
 }
 
 static void
-mv_gpio_polarity(uint32_t pin, uint8_t enable)
+mv_gpio_polarity(uint32_t pin, uint8_t enable, uint8_t toggle)
 {
-	uint32_t reg;
+	uint32_t reg, reg_val;
 
 	if (pin >= mv_gpio_softc->pin_num)
 		return;
@@ -440,7 +802,13 @@ mv_gpio_polarity(uint32_t pin, uint8_t enable)
 	} else
 		reg = GPIO_DATA_IN_POLAR;
 
-	if (enable)
+	if (toggle) {
+		reg_val = mv_gpio_reg_read(reg) & GPIO(pin);
+		if (reg_val)
+			mv_gpio_reg_clear(reg, pin);
+		else
+			mv_gpio_reg_set(reg, pin);
+	} else if (enable)
 		mv_gpio_reg_set(reg, pin);
 	else
 		mv_gpio_reg_clear(reg, pin);
@@ -504,9 +872,9 @@ mv_gpio_int_ack(uint32_t pin)
 }
 
 static uint32_t
-mv_gpio_value_get(uint32_t pin)
+mv_gpio_value_get(uint32_t pin, uint8_t exclude_polar)
 {
-	uint32_t reg, reg_val;
+	uint32_t reg, polar_reg, reg_val, polar_reg_val;
 
 	if (pin >= mv_gpio_softc->pin_num)
 		return (0);
@@ -514,12 +882,19 @@ mv_gpio_value_get(uint32_t pin)
 	if (pin >= GPIO_PINS_PER_REG) {
 		reg = GPIO_HI_DATA_IN;
 		pin -= GPIO_PINS_PER_REG;
-	} else
+		polar_reg = GPIO_HI_DATA_IN_POLAR;
+	} else {
 		reg = GPIO_DATA_IN;
+		polar_reg = GPIO_DATA_IN_POLAR;
+	}
 
 	reg_val = mv_gpio_reg_read(reg);
 
-	return (reg_val & GPIO(pin));
+	if (exclude_polar) {
+		polar_reg_val = mv_gpio_reg_read(polar_reg);
+		return ((reg_val & GPIO(pin)) ^ (polar_reg_val & GPIO(pin)));
+	} else
+		return (reg_val & GPIO(pin));
 }
 
 static void
@@ -583,7 +958,7 @@ mv_handle_gpios_prop(phandle_t ctrl, pcell_t *gpios, int len)
 		dir = gpios[1];
 		flags = gpios[2];
 
-		mv_gpio_configure(pin, flags);
+		mv_gpio_configure(pin, flags, ~0);
 
 		if (dir == 1)
 			/* Input. */
