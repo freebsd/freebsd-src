@@ -411,9 +411,9 @@ mv_watchdog_enable_armadaxp(void)
 	val |= (WD_GLOBAL_MASK | WD_CPU0_MASK);
 	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
 
-	val = read_cpu_misc(RSTOUTn_MASK);
+	val = read_cpu_misc(RSTOUTn_MASK_ARMV7);
 	val &= ~RSTOUTn_MASK_WD;
-	write_cpu_misc(RSTOUTn_MASK, val);
+	write_cpu_misc(RSTOUTn_MASK_ARMV7, val);
 
 	val = mv_get_timer_control();
 	val |= CPU_TIMER2_EN | CPU_TIMER2_AUTO | CPU_TIMER_WD_25MHZ_EN;
@@ -451,9 +451,9 @@ mv_watchdog_disable_armadaxp(void)
 	val &= ~(WD_GLOBAL_MASK | WD_CPU0_MASK);
 	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
 
-	val = read_cpu_misc(RSTOUTn_MASK);
+	val = read_cpu_misc(RSTOUTn_MASK_ARMV7);
 	val |= RSTOUTn_MASK_WD;
-	write_cpu_misc(RSTOUTn_MASK, RSTOUTn_MASK_WD);
+	write_cpu_misc(RSTOUTn_MASK_ARMV7, RSTOUTn_MASK_WD);
 
 	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
 	irq_cause &= IRQ_TIMER_WD_CLR;
