@@ -25,7 +25,8 @@ justification.  Citations should use https: URLs if available.
 
 Please submit changes against either the latest release in
 <https://www.iana.org/time-zones> or the master branch of the development
-repository.  If you use Git the following workflow may be helpful:
+repository.  The latter is preferred.  If you use Git the following
+workflow may be helpful:
 
   * Copy the development repository.
 
@@ -41,6 +42,12 @@ repository.  If you use Git the following workflow may be helpful:
     branch name for each change set.
 
       git checkout -b mybranch
+
+  * Sleuth by using 'git blame'.  For example, when fixing data for
+    Africa/Sao_Tome, if the command 'git blame africa' outputs a line
+    '2951fa3b (Paul Eggert 2018-01-08 09:03:13 -0800 1068) Zone
+    Africa/Sao_Tome 0:26:56 - LMT 1884', commit 2951fa3b should
+    provide some justification for the 'Zone Africa/Sao_Tome' line.
 
   * Edit source files.  Include commentary that justifies the
     changes by citing reliable sources.
@@ -66,6 +73,9 @@ repository.  If you use Git the following workflow may be helpful:
     for others to review.
 
       git send-email master
+
+    For an archived example of such an email, see
+    <https://mm.icann.org/pipermail/tz/2018-February/026122.html>.
 
   * Start anew by getting current with the master branch again
     (the second step above).
