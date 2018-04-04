@@ -46,6 +46,7 @@ SRCS+=	ata_machdep.c
 SRCS+=	ata_pmp.c
 SRCS+=	nvme_all.c
 SRCS+=	nvme_xpt.c
+SRCS+=	nvme_da.c
 
 EXPORT_SYMS=	YES	# XXX evaluate
 
