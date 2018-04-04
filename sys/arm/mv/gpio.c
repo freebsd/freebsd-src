@@ -67,7 +67,10 @@ __FBSDID("$FreeBSD$");
 #define DEBOUNCE_CHECK_TICKS	((hz / 1000) * DEBOUNCE_CHECK_MS)
 
 struct mv_gpio_softc {
-	struct resource *	res[GPIO_MAX_INTR_COUNT + 1];
+	struct resource	*	mem_res;
+	int			mem_rid;
+	struct resource	*	irq_res[GPIO_MAX_INTR_COUNT];
+	int			irq_rid[GPIO_MAX_INTR_COUNT];
 	void			*ih_cookie[GPIO_MAX_INTR_COUNT];
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
@@ -82,8 +85,6 @@ struct mv_gpio_softc {
 	struct callout		**debounce_callouts;
 	int			*debounce_counters;
 };
-
-extern struct resource_spec mv_gpio_res[];
 
 static struct mv_gpio_softc *mv_gpio_softc = NULL;
 static uint32_t	gpio_setup[MV_GPIO_MAX_NPINS];
@@ -118,6 +119,15 @@ static void	mv_gpio_out_en(uint32_t pin, uint8_t enable);
 static void	mv_gpio_int_ack(uint32_t pin);
 static void	mv_gpio_value_set(uint32_t pin, uint8_t val);
 static uint32_t	mv_gpio_value_get(uint32_t pin, uint8_t exclude_polar);
+
+static void 	mv_gpio_intr_mask(int pin);
+static void 	mv_gpio_intr_unmask(int pin);
+int mv_gpio_setup_intrhandler(const char *name, driver_filter_t *filt,
+    void (*hand)(void *), void *arg, int pin, int flags, void **cookiep);
+
+int mv_gpio_configure(uint32_t pin, uint32_t flags, uint32_t mask);
+void mv_gpio_out(uint32_t pin, uint8_t val, uint8_t enable);
+uint8_t mv_gpio_in(uint32_t pin);
 
 #define MV_GPIO_LOCK()		mtx_lock_spin(&mv_gpio_softc->mutex)
 #define MV_GPIO_UNLOCK()	mtx_unlock_spin(&mv_gpio_softc->mutex)
@@ -171,9 +181,12 @@ mv_gpio_probe(device_t dev)
 static int
 mv_gpio_attach(device_t dev)
 {
-	int error, i;
+	int error, i, size;
 	struct mv_gpio_softc *sc;
 	uint32_t dev_id, rev_id;
+	pcell_t pincnt = 0;
+	pcell_t irq_cells = 0;
+	phandle_t iparent;
 
 	sc = (struct mv_gpio_softc *)device_get_softc(dev);
 	if (sc == NULL)
@@ -201,7 +214,42 @@ mv_gpio_attach(device_t dev)
 		sc->use_high = 1;
 
 	} else {
-		device_printf(dev, "unknown chip id=0x%x\n", dev_id);
+		if (OF_getencprop(ofw_bus_get_node(dev), "pin-count", &pincnt,
+		    sizeof(pcell_t)) >= 0 ||
+		    OF_getencprop(ofw_bus_get_node(dev), "ngpios", &pincnt,
+		    sizeof(pcell_t)) >= 0) {
+			sc->pin_num = pincnt;
+			device_printf(dev, "%d pins available\n", sc->pin_num);
+		} else {
+			device_printf(dev, "ERROR: no pin-count entry found!\n");
+			return (ENXIO);
+		}
+	}
+
+	/* Find root interrupt controller */
+	iparent = ofw_bus_find_iparent(ofw_bus_get_node(dev));
+	if (iparent == 0) {
+		device_printf(dev, "No interrupt-parrent found. "
+				"Error in DTB\n");
+		return (ENXIO);
+	} else {
+		/* While at parent - store interrupt cells prop */
+		if (OF_searchencprop(OF_node_from_xref(iparent),
+		    "#interrupt-cells", &irq_cells, sizeof(irq_cells)) == -1) {
+			device_printf(dev, "DTB: Missing #interrupt-cells "
+			    "property in interrupt parent node\n");
+			return (ENXIO);
+		}
+	}
+
+	size = OF_getproplen(ofw_bus_get_node(dev), "interrupts");
+	if (size != -1) {
+		size = size / sizeof(pcell_t);
+		size = size / irq_cells;
+		sc->irq_num = size;
+		device_printf(dev, "%d IRQs available\n", sc->irq_num);
+	} else {
+		device_printf(dev, "ERROR: no interrupts entry found!\n");
 		return (ENXIO);
 	}
 
@@ -217,15 +265,30 @@ mv_gpio_attach(device_t dev)
 
 	mtx_init(&sc->mutex, device_get_nameunit(dev), NULL, MTX_SPIN);
 
-	error = bus_alloc_resources(dev, mv_gpio_res, sc->res);
-	if (error) {
+	sc->mem_rid = 0;
+	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
+		 RF_ACTIVE);
+
+	if (!sc->mem_res) {
 		mtx_destroy(&sc->mutex);
-		device_printf(dev, "could not allocate resources\n");
+		device_printf(dev, "could not allocate memory window\n");
 		return (ENXIO);
 	}
 
-	sc->bst = rman_get_bustag(sc->res[0]);
-	sc->bsh = rman_get_bushandle(sc->res[0]);
+	sc->bst = rman_get_bustag(sc->mem_res);
+	sc->bsh = rman_get_bushandle(sc->mem_res);
+
+	for (i = 0; i < sc->irq_num; i++) {
+		sc->irq_rid[i] = i;
+		sc->irq_res[i] = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+			&sc->irq_rid[i], RF_ACTIVE);
+		if (!sc->irq_res[i]) {
+			mtx_destroy(&sc->mutex);
+			device_printf(dev,
+			    "could not allocate gpio%d interrupt\n", i+1);
+			return (ENXIO);
+		}
+	}
 
 	/* Disable all interrupts */
 	bus_space_write_4(sc->bst, sc->bsh, GPIO_INT_EDGE_MASK, 0);
@@ -241,12 +304,13 @@ mv_gpio_attach(device_t dev)
 	}
 
 	for (i = 0; i < sc->irq_num; i++) {
-		if (bus_setup_intr(dev, sc->res[1 + i],
+		if (bus_setup_intr(dev, sc->irq_res[i],
 		    INTR_TYPE_MISC,
 		    (driver_filter_t *)mv_gpio_intr, NULL,
 		    sc, &sc->ih_cookie[i]) != 0) {
 			mtx_destroy(&sc->mutex);
-			bus_release_resources(dev, mv_gpio_res, sc->res);
+			bus_release_resource(dev, SYS_RES_IRQ,
+				sc->irq_rid[i], sc->irq_res[i]);
 			device_printf(dev, "could not set up intr %d\n", i);
 			return (ENXIO);
 		}
@@ -419,15 +483,21 @@ mv_gpio_exec_intr_handlers(uint32_t status, int high)
 static void
 mv_gpio_intr_handler(int pin)
 {
-	struct intr_event *event;
+#ifdef INTRNG
+	struct intr_irqsrc isrc;
 
 	MV_GPIO_ASSERT_LOCKED();
 
-	event = gpio_events[pin];
-	if (event == NULL || TAILQ_EMPTY(&event->ie_handlers))
+#ifdef INTR_SOLO
+	isrc.isrc_filter = NULL;
+#endif
+	isrc.isrc_event = gpio_events[pin];
+
+	if (isrc.isrc_event == NULL || TAILQ_EMPTY(&isrc.isrc_event->ie_handlers))
 		return;
 
-	intr_event_handle(event, NULL);
+	intr_isrc_dispatch(&isrc, NULL);
+#endif
 }
 
 int
