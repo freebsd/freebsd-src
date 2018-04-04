@@ -439,8 +439,8 @@ static void
 mv_cpu_reset(platform_t plat)
 {
 
-	write_cpu_misc(RSTOUTn_MASK, SOFT_RST_OUT_EN);
-	write_cpu_misc(SYSTEM_SOFT_RESET, SYS_SOFT_RST);
+	write_cpu_misc(RSTOUTn_MASK_ARMV7, SOFT_RST_OUT_EN_ARMV7);
+	write_cpu_misc(SYSTEM_SOFT_RESET_ARMV7, SYS_SOFT_RST_ARMV7);
 }
 
 #if defined(SOC_MV_ARMADA38X)
