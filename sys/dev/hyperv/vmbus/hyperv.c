@@ -27,7 +27,7 @@
  */
 
 /**
- * Implements low-level interactions with Hypver-V/Azure
+ * Implements low-level interactions with Hyper-V/Azure
  */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
