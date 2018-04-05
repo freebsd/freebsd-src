@@ -370,6 +370,7 @@ main(void)
 void
 exit(int x)
 {
+
 	while (1);
 	__unreachable();
 }
@@ -491,12 +492,13 @@ load(void)
 static int
 parse_cmds(char *cmdstr, int *dskupdated)
 {
-	char *arg = cmdstr;
+	char *arg;
 	char *ep, *p, *q;
 	const char *cp;
 	unsigned int drv;
 	int c, i, j;
 
+	arg = cmdstr;
 	*dskupdated = 0;
 	while ((c = *arg++)) {
 		if (c == ' ' || c == '\t' || c == '\n')
@@ -533,7 +535,7 @@ parse_cmds(char *cmdstr, int *dskupdated)
 				}
 				for (i = 0; c != optstr[i]; i++)
 					if (i == NOPT - 1)
-						return -1;
+						return (-1);
 				opts ^= OPT_SET(flags[i]);
 			}
 			ioctrl = OPT_CHECK(RBX_DUAL) ? (IO_SERIAL|IO_KEYBOARD) :
@@ -553,23 +555,23 @@ parse_cmds(char *cmdstr, int *dskupdated)
 					arg += 2;
 				}
 				if (q - arg != 2)
-					return -1;
+					return (-1);
 				for (i = 0; arg[0] != dev_nm[i][0] ||
 				    arg[1] != dev_nm[i][1]; i++)
 					if (i == NDEV - 1)
-						return -1;
+						return (-1);
 				dsk.type = i;
 				arg += 3;
 				dsk.unit = *arg - '0';
 				if (arg[1] != 'p' || dsk.unit > 9)
-					return -1;
+					return (-1);
 				arg += 2;
 				dsk.part = *arg - '0';
 				if (dsk.part < 1 || dsk.part > 9)
-					return -1;
+					return (-1);
 				arg++;
 				if (arg[0] != ')')
-					return -1;
+					return (-1);
 				arg++;
 				if (drv == -1)
 					drv = dsk.unit;
@@ -579,13 +581,13 @@ parse_cmds(char *cmdstr, int *dskupdated)
 			}
 			if ((i = ep - arg)) {
 				if ((size_t)i >= sizeof(kname))
-					return -1;
+					return (-1);
 				memcpy(kname, arg, i + 1);
 			}
 		}
 		arg = p;
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -617,7 +619,9 @@ vdev_read(void *vdev __unused, void *priv, off_t off, void *buf, size_t bytes)
 	char *p;
 	daddr_t lba;
 	unsigned int nb;
-	struct dsk *dskp = (struct dsk *) priv;
+	struct dsk *dskp;
+
+	dskp = (struct dsk *)priv;
 
 	if ((off & (DEV_BSIZE - 1)) || (bytes & (DEV_BSIZE - 1)))
 		return (-1);
