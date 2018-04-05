@@ -2,7 +2,7 @@
 
 SRCS+=	__vdso_gettc.c
 
-MDASM= Ovfork.S brk.S cerror.S sbrk.S shmat.S syscall.S
+MDASM= Ovfork.S brk.S cerror.S sbrk.S syscall.S
 
 # Don't generate default code for these syscalls:
 NOASM+=	vfork.o
