@@ -142,12 +142,36 @@ struct ifreq32 {
 CTASSERT(sizeof(struct ifreq) == sizeof(struct ifreq32));
 CTASSERT(__offsetof(struct ifreq, ifr_ifru) ==
     __offsetof(struct ifreq32, ifr_ifru));
-#endif
+
+struct ifgroupreq32 {
+	char	ifgr_name[IFNAMSIZ];
+	u_int	ifgr_len;
+	union {
+		char		ifgru_group[IFNAMSIZ];
+		uint32_t	ifgru_groups;
+	} ifgr_ifgru;
+};
+#define	_CASE_IOC_IFGROUPREQ_32(cmd)				\
+    case _IOC_NEWTYPE((cmd), struct ifgroupreq32):
+#else
+#define _CASE_IOC_IFGROUPREQ_32(cmd)
+#endif /* COMPAT_FREEBSD32 */
+
+#define CASE_IOC_IFGROUPREQ(cmd)	\
+    _CASE_IOC_IFGROUPREQ_32(cmd)	\
+    case (cmd)
 
 union ifreq_union {
 	struct ifreq	ifr;
 #ifdef COMPAT_FREEBSD32
 	struct ifreq32	ifr32;
+#endif
+};
+
+union ifgroupreq_union {
+	struct ifgroupreq ifgr;
+#ifdef COMPAT_FREEBSD32
+	struct ifgroupreq32 ifgr32;
 #endif
 };
 
@@ -1500,17 +1524,42 @@ if_delgroups(struct ifnet *ifp)
 	IFNET_WUNLOCK();
 }
 
+static char *
+ifgr_group_get(void *ifgrp)
+{
+	union ifgroupreq_union *ifgrup;
+
+	ifgrup = ifgrp;
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		return (&ifgrup->ifgr32.ifgr_ifgru.ifgru_group[0]);
+#endif
+	return (&ifgrup->ifgr.ifgr_ifgru.ifgru_group[0]);
+}
+
+static struct ifg_req *
+ifgr_groups_get(void *ifgrp)
+{
+	union ifgroupreq_union *ifgrup;
+
+	ifgrup = ifgrp;
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		return ((struct ifg_req *)(uintptr_t)
+		    ifgrup->ifgr32.ifgr_ifgru.ifgru_groups);
+#endif
+	return (ifgrup->ifgr.ifgr_ifgru.ifgru_groups);
+}
+
 /*
- * Stores all groups from an interface in memory pointed
- * to by data
+ * Stores all groups from an interface in memory pointed to by ifgr.
  */
 static int
-if_getgroup(struct ifgroupreq *data, struct ifnet *ifp)
+if_getgroup(struct ifgroupreq *ifgr, struct ifnet *ifp)
 {
 	int			 len, error;
 	struct ifg_list		*ifgl;
 	struct ifg_req		 ifgrq, *ifgp;
-	struct ifgroupreq	*ifgr = data;
 
 	if (ifgr->ifgr_len == 0) {
 		IF_ADDR_RLOCK(ifp);
@@ -1521,7 +1570,7 @@ if_getgroup(struct ifgroupreq *data, struct ifnet *ifp)
 	}
 
 	len = ifgr->ifgr_len;
-	ifgp = ifgr->ifgr_groups;
+	ifgp = ifgr_groups_get(ifgr);
 	/* XXX: wire */
 	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifgl, &ifp->if_groups, ifgl_next) {
@@ -1545,12 +1594,11 @@ if_getgroup(struct ifgroupreq *data, struct ifnet *ifp)
 }
 
 /*
- * Stores all members of a group in memory pointed to by data
+ * Stores all members of a group in memory pointed to by igfr
  */
 static int
-if_getgroupmembers(struct ifgroupreq *data)
+if_getgroupmembers(struct ifgroupreq *ifgr)
 {
-	struct ifgroupreq	*ifgr = data;
 	struct ifg_group	*ifg;
 	struct ifg_member	*ifgm;
 	struct ifg_req		 ifgrq, *ifgp;
@@ -1573,7 +1621,7 @@ if_getgroupmembers(struct ifgroupreq *data)
 	}
 
 	len = ifgr->ifgr_len;
-	ifgp = ifgr->ifgr_groups;
+	ifgp = ifgr_groups_get(ifgr);
 	TAILQ_FOREACH(ifgm, &ifg->ifg_members, ifgm_next) {
 		if (len < sizeof(ifgrq)) {
 			IFNET_RUNLOCK();
@@ -2803,34 +2851,28 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		error = if_gethwaddr(ifp, ifr);
 		break;
 
-	case SIOCAIFGROUP:
-	{
-		struct ifgroupreq *ifgr = (struct ifgroupreq *)ifr;
-
+	CASE_IOC_IFGROUPREQ(SIOCAIFGROUP):
 		error = priv_check(td, PRIV_NET_ADDIFGROUP);
 		if (error)
 			return (error);
-		if ((error = if_addgroup(ifp, ifgr->ifgr_group)))
-			return (error);
-		break;
-	}
-
-	case SIOCGIFGROUP:
-		if ((error = if_getgroup((struct ifgroupreq *)ifr, ifp)))
+		if ((error = if_addgroup(ifp,
+		    ifgr_group_get((struct ifgroupreq *)data))))
 			return (error);
 		break;
 
-	case SIOCDIFGROUP:
-	{
-		struct ifgroupreq *ifgr = (struct ifgroupreq *)ifr;
+	CASE_IOC_IFGROUPREQ(SIOCGIFGROUP):
+		if ((error = if_getgroup((struct ifgroupreq *)data, ifp)))
+			return (error);
+		break;
 
+	CASE_IOC_IFGROUPREQ(SIOCDIFGROUP):
 		error = priv_check(td, PRIV_NET_DELIFGROUP);
 		if (error)
 			return (error);
-		if ((error = if_delgroup(ifp, ifgr->ifgr_group)))
+		if ((error = if_delgroup(ifp,
+		    ifgr_group_get((struct ifgroupreq *)data))))
 			return (error);
 		break;
-	}
 
 	default:
 		error = ENOIOCTL;
@@ -2932,7 +2974,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		error = if_clone_list((struct if_clonereq *)data);
 		CURVNET_RESTORE();
 		return (error);
-	case SIOCGIFGMEMB:
+	CASE_IOC_IFGROUPREQ(SIOCGIFGMEMB):
 		error = if_getgroupmembers((struct ifgroupreq *)data);
 		CURVNET_RESTORE();
 		return (error);
