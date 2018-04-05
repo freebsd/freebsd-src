@@ -362,4 +362,8 @@ __END_DECLS
  */
 #define __PAST_END(array, offset) (((__typeof__(*(array)) *)(array))[offset])
 
+/* Unit conversion macros. */
+#define GiB(v) (v ## ULL << 30)
+#define MiB(v) (v ## ULL << 20)
+
 #endif	/* _SYS_PARAM_H_ */
