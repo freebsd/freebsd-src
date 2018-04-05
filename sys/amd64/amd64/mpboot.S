@@ -216,8 +216,14 @@ lgdt_desc:
 	.word	gdtend-gdt		/* Length */
 	.long	gdt-mptramp_start	/* Offset plus %ds << 4 */
 
-	.globl	mptramp_end
 mptramp_end:
+	/*
+	 * The size of the trampoline code that needs to be relocated
+	 * below the 1MiB boundary.
+	 */
+	.globl	bootMP_size
+bootMP_size:
+	.long	mptramp_end - mptramp_start
 
 	/*
 	 * From here on down is executed in the kernel .text section.

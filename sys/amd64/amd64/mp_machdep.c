@@ -96,24 +96,45 @@ char *nmi_stack;
 
 static int	start_ap(int apic_id);
 
-static u_int	bootMP_size;
-static u_int	boot_address;
-
 /*
  * Calculate usable address in base memory for AP trampoline code.
  */
-u_int
-mp_bootaddress(u_int basemem)
+void
+mp_bootaddress(vm_paddr_t *physmap, unsigned int *physmap_idx)
 {
+	unsigned int i;
+	bool allocated;
 
-	bootMP_size = mptramp_end - mptramp_start;
-	boot_address = trunc_page(basemem * 1024); /* round down to 4k boundary */
-	if (((basemem * 1024) - boot_address) < bootMP_size)
-		boot_address -= PAGE_SIZE;	/* not enough, lower by 4k */
-	/* 3 levels of page table pages */
-	mptramp_pagetables = boot_address - (PAGE_SIZE * 3);
+	alloc_ap_trampoline(physmap, physmap_idx);
 
-	return mptramp_pagetables;
+	allocated = false;
+	for (i = *physmap_idx; i <= *physmap_idx; i -= 2) {
+		/*
+		 * Find a memory region big enough below the 4GB boundary to
+		 * store the initial page tables. Note that it needs to be
+		 * aligned to a page boundary.
+		 */
+		if (physmap[i] >= GiB(4) ||
+		    (physmap[i + 1] - round_page(physmap[i])) < (PAGE_SIZE * 3))
+			continue;
+
+		allocated = true;
+		mptramp_pagetables = round_page(physmap[i]);
+		physmap[i] = round_page(physmap[i]) + (PAGE_SIZE * 3);
+		if (physmap[i] == physmap[i + 1] && *physmap_idx != 0) {
+			memmove(&physmap[i], &physmap[i + 2],
+			    sizeof(*physmap) * (*physmap_idx - i + 2));
+			*physmap_idx -= 2;
+		}
+	}
+
+	if (!allocated) {
+		mptramp_pagetables = trunc_page(boot_address) - (PAGE_SIZE * 3);
+		if (bootverbose)
+			printf(
+"Cannot find enough space for the initial AP page tables, placing them at %#x",
+			    mptramp_pagetables);
+	}
 }
 
 /*

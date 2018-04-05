@@ -41,7 +41,7 @@ struct init_ops {
 	void	(*early_clock_source_init)(void);
 	void	(*early_delay)(int);
 	void	(*parse_memmap)(caddr_t, vm_paddr_t *, int *);
-	u_int	(*mp_bootaddress)(u_int);
+	void	(*mp_bootaddress)(vm_paddr_t *, unsigned int *);
 	int	(*start_all_aps)(void);
 	void	(*msi_init)(void);
 };

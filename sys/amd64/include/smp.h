@@ -23,7 +23,6 @@
 
 /* global symbols in mpboot.S */
 extern char			mptramp_start[];
-extern char			mptramp_end[];
 extern u_int32_t		mptramp_pagetables;
 
 /* IPI handlers */
@@ -59,6 +58,7 @@ void	invlpg_pcid_handler(void);
 void	invlrng_invpcid_handler(void);
 void	invlrng_pcid_handler(void);
 int	native_start_all_aps(void);
+void	mp_bootaddress(vm_paddr_t *, unsigned int *);
 
 #endif /* !LOCORE */
 #endif /* SMP */
