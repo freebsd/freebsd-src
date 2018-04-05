@@ -400,6 +400,16 @@ sed -e '
 			}
 			if (argtype[argc] == "")
 				parserr($f, "argument definition")
+
+			# The parser adds space around parens.
+			# Remove it from annotations.
+			gsub(/ \( /, "(", argtype[argc]);
+			gsub(/ \)/, ")", argtype[argc]);
+
+			#remove annotations
+			gsub(/_In[^ ]*[_)] /, "", argtype[argc]);
+			gsub(/_Out[^ ]*[_)] /, "", argtype[argc]);
+
 			argname[argc]=$f;
 			f += 2;			# skip name, and any comma
 		}
