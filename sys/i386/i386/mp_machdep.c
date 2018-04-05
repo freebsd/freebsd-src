@@ -139,22 +139,6 @@ static void	install_ap_tramp(void);
 static int	start_all_aps(void);
 static int	start_ap(int apic_id);
 
-static u_int	boot_address;
-
-/*
- * Calculate usable address in base memory for AP trampoline code.
- */
-u_int
-mp_bootaddress(u_int basemem)
-{
-
-	boot_address = trunc_page(basemem);	/* round down to 4k boundary */
-	if ((basemem - boot_address) < bootMP_size)
-		boot_address -= PAGE_SIZE;	/* not enough, lower by 4k */
-
-	return boot_address;
-}
-
 /*
  * Initialize the IPI handlers and start up the AP's.
  */

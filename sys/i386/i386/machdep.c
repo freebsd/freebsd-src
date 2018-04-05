@@ -1903,7 +1903,7 @@ physmap_done:
 
 #ifdef SMP
 	/* make hole for AP bootstrap code */
-	physmap[1] = mp_bootaddress(physmap[1]);
+	alloc_ap_trampoline(physmap, &physmap_idx);
 #endif
 
 	/*

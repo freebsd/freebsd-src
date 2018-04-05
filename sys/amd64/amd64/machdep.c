@@ -1246,14 +1246,10 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	 * Make hole for "AP -> long mode" bootstrap code.  The
 	 * mp_bootaddress vector is only available when the kernel
 	 * is configured to support APs and APs for the system start
-	 * in 32bit mode (e.g. SMP bare metal).
+	 * in real mode mode (e.g. SMP bare metal).
 	 */
-	if (init_ops.mp_bootaddress) {
-		if (physmap[1] >= 0x100000000)
-			panic(
-	"Basemem segment is not suitable for AP bootstrap code!");
-		physmap[1] = init_ops.mp_bootaddress(physmap[1] / 1024);
-	}
+	if (init_ops.mp_bootaddress)
+		init_ops.mp_bootaddress(physmap, &physmap_idx);
 
 	/*
 	 * Maxmem isn't the "maximum memory", it's one larger than the
