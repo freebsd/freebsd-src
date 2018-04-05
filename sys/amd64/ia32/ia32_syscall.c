@@ -146,6 +146,7 @@ ia32_fetch_syscall_args(struct thread *td)
 		frame->tf_rip = eip;
 		frame->tf_cs = cs;
 		frame->tf_rsp += 2 * sizeof(u_int32_t);
+		frame->tf_err = 7;		/* size of lcall $7,$0 */
 	}
 #endif
 
