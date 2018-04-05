@@ -270,6 +270,9 @@ disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize)
 			dev->d_offset = part.start;
 			od->entrysize = part.end - part.start + 1;
 		}
+	} else if (ptable_gettype(od->table) == PTABLE_ISO9660) {
+		dev->d_offset = 0;
+		od->entrysize = mediasize;
 	} else if (slice >= 0) {
 		/* Try to get information about partition */
 		if (slice == 0)
