@@ -683,7 +683,6 @@ vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *ret_val)
 }
 
 int
-<<<<<<< HEAD
 vm_set_register_set(struct vmctx *ctx, int vcpu, unsigned int count,
     const int *regnums, uint64_t *regvals)
 {
