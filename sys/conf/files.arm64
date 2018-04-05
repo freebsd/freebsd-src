@@ -143,6 +143,14 @@ arm64/cavium/thunder_pcie_pem_fdt.c	optional	soc_cavm_thunderx pci fdt
 arm64/cavium/thunder_pcie_common.c	optional	soc_cavm_thunderx pci
 arm64/cloudabi32/cloudabi32_sysvec.c	optional compat_cloudabi32
 arm64/cloudabi64/cloudabi64_sysvec.c	optional compat_cloudabi64
+arm64/coresight/coresight.c			standard
+arm64/coresight/coresight_if.m			standard
+arm64/coresight/coresight-cmd.c			standard
+arm64/coresight/coresight-cpu-debug.c		standard
+arm64/coresight/coresight-dynamic-replicator.c	standard
+arm64/coresight/coresight-etm4x.c		standard
+arm64/coresight/coresight-funnel.c		standard
+arm64/coresight/coresight-tmc.c			standard
 contrib/vchiq/interface/compat/vchi_bsd.c	optional vchiq soc_brcm_bcm2837 \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
 contrib/vchiq/interface/vchiq_arm/vchiq_2835_arm.c	optional vchiq soc_brcm_bcm2837 \
