@@ -3129,10 +3129,10 @@ again:
 		int addrs;
 
 		/*
-		 * Zero the ifr_name buffer to make sure we don't
-		 * disclose the contents of the stack.
+		 * Zero the ifr to make sure we don't disclose the contents
+		 * of the stack.
 		 */
-		memset(ifr.ifr_name, 0, sizeof(ifr.ifr_name));
+		memset(&ifr, 0, sizeof(ifr));
 
 		if (strlcpy(ifr.ifr_name, ifp->if_xname, sizeof(ifr.ifr_name))
 		    >= sizeof(ifr.ifr_name)) {
@@ -3166,7 +3166,6 @@ again:
 		}
 		IF_ADDR_RUNLOCK(ifp);
 		if (addrs == 0) {
-			bzero((caddr_t)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
 			sbuf_bcat(sb, &ifr, sizeof(ifr));
 			max_len += sizeof(ifr);
 
