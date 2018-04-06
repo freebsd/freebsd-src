@@ -3191,7 +3191,13 @@ again:
 				continue;
 			addrs++;
 			if (sa->sa_len <= sizeof(*sa)) {
-				ifr.ifr_addr = *sa;
+				if (sa->sa_len < sizeof(*sa)) {
+					memset(&ifr.ifr_ifru.ifru_addr, 0,
+					    sizeof(ifr.ifr_ifru.ifru_addr));
+					memcpy(&ifr.ifr_ifru.ifru_addr, sa,
+					    sa->sa_len);
+				} else
+					ifr.ifr_ifru.ifru_addr = *sa;
 				sbuf_bcat(sb, &ifr, sizeof(ifr));
 				max_len += sizeof(ifr);
 			} else {
