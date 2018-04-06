@@ -85,7 +85,7 @@ beri_elf64_exec(struct preloaded_file *fp)
 	}
 	ehdr = (Elf_Ehdr *)md->md_data;
 
-	error = md_load64(fp->f_args, &mdp);
+	error = md_load64(fp->f_args, &mdp, NULL);
 	if (error) {
 		printf("%s: md_load64 failed\n", fp->f_name);
 		return (error);

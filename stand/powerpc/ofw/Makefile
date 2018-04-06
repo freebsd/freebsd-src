@@ -17,7 +17,7 @@ NEWVERSWHAT=	"Open Firmware loader" ${MACHINE_ARCH}
 INSTALLFLAGS=	-b
 
 # Architecture-specific loader code
-SRCS=		conf.c metadata.c vers.c start.c
+SRCS=		conf.c vers.c start.c
 SRCS+=		ucmpdi2.c
 
 .include	"${BOOTSRC}/fdt.mk"
