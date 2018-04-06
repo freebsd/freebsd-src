@@ -9,6 +9,7 @@ SRCS=	at45d.c
 SRCS+=	\
 	bus_if.h \
 	device_if.h \
+	opt_platform.h \
 	spibus_if.h \
 
 .if !empty(OPT_FDT)
