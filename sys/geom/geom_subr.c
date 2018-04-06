@@ -859,7 +859,11 @@ int
 g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 {
 	struct g_provider *pp;
-	int pr,pw,pe;
+	struct g_geom *gp;
+	int pw, pe;
+#ifdef INVARIANTS
+	int sr, sw, se;
+#endif
 	int error;
 
 	g_topology_assert();
@@ -867,6 +871,7 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 	pp = cp->provider;
 	KASSERT(pp != NULL, ("access but not attached"));
 	G_VALID_PROVIDER(pp);
+	gp = pp->geom;
 
 	g_trace(G_T_ACCESS, "g_access(%p(%s), %d, %d, %d)",
 	    cp, pp->name, dcr, dcw, dce);
@@ -875,7 +880,7 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 	KASSERT(cp->acw + dcw >= 0, ("access resulting in negative acw"));
 	KASSERT(cp->ace + dce >= 0, ("access resulting in negative ace"));
 	KASSERT(dcr != 0 || dcw != 0 || dce != 0, ("NOP access request"));
-	KASSERT(pp->geom->access != NULL, ("NULL geom->access"));
+	KASSERT(gp->access != NULL, ("NULL geom->access"));
 
 	/*
 	 * If our class cares about being spoiled, and we have been, we
@@ -887,10 +892,30 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 		return (ENXIO);
 
 	/*
+	 * A number of GEOM classes either need to perform an I/O on the first
+	 * open or to acquire a different subsystem's lock.  To do that they
+	 * may have to drop the topology lock.
+	 * Other GEOM classes perform special actions when opening a lower rank
+	 * geom for the first time.  As a result, more than one thread may
+	 * end up performing the special actions.
+	 * So, we prevent concurrent "first" opens by marking the consumer with
+	 * special flag.
+	 *
+	 * Note that if the geom's access method never drops the topology lock,
+	 * then we will never see G_GEOM_IN_ACCESS here.
+	 */
+	while ((gp->flags & G_GEOM_IN_ACCESS) != 0) {
+		g_trace(G_T_ACCESS,
+		    "%s: race on geom %s via provider %s and consumer of %s",
+		    __func__, gp->name, pp->name, cp->geom->name);
+		gp->flags |= G_GEOM_ACCESS_WAIT;
+		g_topology_sleep(gp, 0);
+	}
+
+	/*
 	 * Figure out what counts the provider would have had, if this
 	 * consumer had (r0w0e0) at this time.
 	 */
-	pr = pp->acr - cp->acr;
 	pw = pp->acw - cp->acw;
 	pe = pp->ace - cp->ace;
 
@@ -902,7 +927,7 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 	    pp, pp->name);
 
 	/* If foot-shooting is enabled, any open on rank#1 is OK */
-	if ((g_debugflags & 16) && pp->geom->rank == 1)
+	if ((g_debugflags & 16) && gp->rank == 1)
 		;
 	/* If we try exclusive but already write: fail */
 	else if (dce > 0 && pw > 0)
@@ -916,11 +941,27 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 
 	/* Ok then... */
 
-	error = pp->geom->access(pp, dcr, dcw, dce);
+#ifdef INVARIANTS
+	sr = cp->acr;
+	sw = cp->acw;
+	se = cp->ace;
+#endif
+	gp->flags |= G_GEOM_IN_ACCESS;
+	error = gp->access(pp, dcr, dcw, dce);
 	KASSERT(dcr > 0 || dcw > 0 || dce > 0 || error == 0,
 	    ("Geom provider %s::%s dcr=%d dcw=%d dce=%d error=%d failed "
-	    "closing ->access()", pp->geom->class->name, pp->name, dcr, dcw,
+	    "closing ->access()", gp->class->name, pp->name, dcr, dcw,
 	    dce, error));
+
+	g_topology_assert();
+	gp->flags &= ~G_GEOM_IN_ACCESS;
+	KASSERT(cp->acr == sr && cp->acw == sw && cp->ace == se,
+	    ("Access counts changed during geom->access"));
+	if ((gp->flags & G_GEOM_ACCESS_WAIT) != 0) {
+		gp->flags &= ~G_GEOM_ACCESS_WAIT;
+		wakeup(gp);
+	}
+
 	if (!error) {
 		/*
 		 * If we open first write, spoil any partner consumers.
@@ -930,7 +971,7 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 		if (pp->acw == 0 && dcw != 0)
 			g_spoil(pp, cp);
 		else if (pp->acw != 0 && pp->acw == -dcw && pp->error == 0 &&
-		    !(pp->geom->flags & G_GEOM_WITHER))
+		    !(gp->flags & G_GEOM_WITHER))
 			g_post_event(g_new_provider_event, pp, M_WAITOK, 
 			    pp, NULL);
 
