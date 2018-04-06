@@ -36,9 +36,10 @@ static char sccsid[] = "@(#)syslog.c	8.5 (Berkeley) 4/29/95";
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+#include <sys/time.h>
 #include <sys/uio.h>
 #include <sys/un.h>
 #include <netdb.h>
@@ -134,11 +135,13 @@ syslog(int pri, const char *fmt, ...)
 static void
 vsyslog1(int pri, const char *fmt, va_list ap)
 {
-	int cnt;
+	struct timeval now;
+	struct tm tm;
 	char ch, *p;
-	time_t now;
-	int fd, saved_errno;
-	char *stdp, tbuf[2048], fmt_cpy[1024], timbuf[26], errstr[64];
+	long tz_offset;
+	int cnt, fd, saved_errno;
+	char hostname[MAXHOSTNAMELEN], *stdp, tbuf[2048], fmt_cpy[1024],
+	    errstr[64], tz_sign;
 	FILE *fp, *fmt_fp;
 	struct bufcookie tbuf_cookie;
 	struct bufcookie fmt_cookie;
@@ -168,24 +171,46 @@ vsyslog1(int pri, const char *fmt, va_list ap)
 	if (fp == NULL)
 		return;
 
-	/* Build the message. */
-	(void)time(&now);
-	(void)fprintf(fp, "<%d>", pri);
-	(void)fprintf(fp, "%.15s ", ctime_r(&now, timbuf) + 4);
+	/* Build the message according to RFC 5424. Tag and version. */
+	(void)fprintf(fp, "<%d>1 ", pri);
+	/* Timestamp similar to RFC 3339. */
+	if (gettimeofday(&now, NULL) == 0 &&
+	    localtime_r(&now.tv_sec, &tm) != NULL) {
+		if (tm.tm_gmtoff < 0) {
+			tz_sign = '-';
+			tz_offset = -tm.tm_gmtoff;
+		} else {
+			tz_sign = '+';
+			tz_offset = tm.tm_gmtoff;
+		}
+
+		(void)fprintf(fp,
+		    "%04d-%02d-%02d"		/* Date. */
+		    "T%02d:%02d:%02d.%06ld"	/* Time. */
+		    "%c%02ld:%02ld ",		/* Time zone offset. */
+		    tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+		    tm.tm_hour, tm.tm_min, tm.tm_sec, now.tv_usec,
+		    tz_sign, tz_offset / 3600, (tz_offset % 3600) / 60);
+	} else
+		(void)fprintf(fp, "- ");
+	/* Hostname. */
+	(void)gethostname(hostname, sizeof(hostname));
+	(void)fprintf(fp, "%s ", hostname);
 	if (LogStat & LOG_PERROR) {
 		/* Transfer to string buffer */
 		(void)fflush(fp);
 		stdp = tbuf + (sizeof(tbuf) - tbuf_cookie.left);
 	}
+	/*
+	 * Application name, process ID, message ID and structured data.
+	 * Provide the process ID regardless of whether LOG_PID has been
+	 * specified, as it provides valuable information. Many
+	 * applications tend not to use this, even though they should.
+	 */
 	if (LogTag == NULL)
 		LogTag = _getprogname();
-	if (LogTag != NULL)
-		(void)fprintf(fp, "%s", LogTag);
-	if (LogStat & LOG_PID)
-		(void)fprintf(fp, "[%d]", getpid());
-	if (LogTag != NULL) {
-		(void)fprintf(fp, ": ");
-	}
+	(void)fprintf(fp, "%s %d - - ",
+	    LogTag == NULL ? "-" : LogTag, getpid());
 
 	/* Check to see if we can skip expanding the %m */
 	if (strstr(fmt, "%m")) {
@@ -313,7 +338,7 @@ vsyslog1(int pri, const char *fmt, va_list ap)
 		struct iovec iov[2];
 		struct iovec *v = iov;
 
-		p = strchr(tbuf, '>') + 1;
+		p = strchr(tbuf, '>') + 3;
 		v->iov_base = p;
 		v->iov_len = cnt - (p - tbuf);
 		++v;
