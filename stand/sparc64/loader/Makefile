@@ -25,7 +25,7 @@ HAVE_ZFS=	yes
 
 # Architecture-specific loader code
 .PATH:		${BOOTSRC}/sparc64/loader
-SRCS=		locore.S main.c metadata.c vers.c
+SRCS=		locore.S main.c vers.c
 
 .if ${LOADER_DEBUG} == "yes"
 CFLAGS+=	-DLOADER_DEBUG

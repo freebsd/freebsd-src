@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SRCS+=	main.c metadata.c
+SRCS+=	main.c
 
 .PATH:		${UBOOTSRC}/common
 
@@ -10,6 +10,9 @@ CFLAGS+=	-I${UBOOTSRC}/common
 LIBUBOOT=	${BOOTOBJ}/uboot/lib/libuboot.a
 CFLAGS+=	-I${UBOOTSRC}/lib
 CFLAGS+=	-I${BOOTOBJ}/uboot/lib
+.if ${MACHINE_CPUARCH} == "arm"
+SRCS+=	metadata.c
+.endif
 
 .include "${BOOTSRC}/fdt.mk"
 

@@ -291,6 +291,7 @@ main(int argc, const char **argv)
 	setenv("currdev", bootdev, 1);
 	setenv("loaddev", bootdev, 1);
 	setenv("LINES", "24", 1);
+	setenv("usefdt", "1", 1);
 
 	interact();			/* doesn't return */
 
