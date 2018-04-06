@@ -1028,6 +1028,8 @@ parsemsg_rfc5424(const char *from, int pri, char *msg)
 		msg[-1] = '\0';						\
 	}
 	PARSE_STRING("HOSTNAME", hostname);
+	if (hostname == NULL || !RemoteHostname)
+		hostname = from;
 	PARSE_STRING("APP-NAME", app_name);
 	PARSE_STRING("PROCID", procid);
 	PARSE_STRING("MSGID", msgid);
@@ -1079,7 +1081,7 @@ parsemsg_rfc5424(const char *from, int pri, char *msg)
 #undef IF_NOT_NILVALUE
 
 	parsemsg_remove_unsafe_characters(msg, line, sizeof(line));
-	logmsg(pri, timestamp, from, app_name, procid, msgid,
+	logmsg(pri, timestamp, hostname, app_name, procid, msgid,
 	    structured_data, line, 0);
 }
 
