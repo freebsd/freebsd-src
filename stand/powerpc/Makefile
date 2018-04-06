@@ -4,9 +4,7 @@ NO_OBJ=t
 
 .include <bsd.init.mk>
 
-SUBDIR=		boot1.chrp ofw uboot
-.if ${MK_FDT} == "yes"
-SUBDIR+=	kboot
-.endif
+SUBDIR.yes=		boot1.chrp ofw uboot
+SUBDIR.${MK_FDT}+=	kboot
 
 .include <bsd.subdir.mk>
