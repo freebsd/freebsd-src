@@ -1991,7 +1991,7 @@ domark(int signo __unused)
  * Print syslogd errors some place.
  */
 static void
-logerror(const char *type)
+logerror(const char *msg)
 {
 	char buf[512];
 	static int recursed = 0;
@@ -2000,15 +2000,15 @@ logerror(const char *type)
 	if (recursed)
 		return;
 	recursed++;
-	if (errno)
-		(void)snprintf(buf,
-		    sizeof buf, "syslogd: %s: %s", type, strerror(errno));
-	else
-		(void)snprintf(buf, sizeof buf, "syslogd: %s", type);
+	if (errno != 0) {
+		(void)snprintf(buf, sizeof(buf), "%s: %s", msg,
+		    strerror(errno));
+		msg = buf;
+	}
 	errno = 0;
 	dprintf("%s\n", buf);
-	logmsg(LOG_SYSLOG|LOG_ERR, NULL, LocalHostName, NULL, NULL, NULL,
-	    NULL, buf, 0);
+	logmsg(LOG_SYSLOG|LOG_ERR, NULL, LocalHostName, "syslogd", NULL, NULL,
+	    NULL, msg, 0);
 	recursed--;
 }
 
@@ -2355,18 +2355,18 @@ init(int signo)
 		}
 	}
 
-	logmsg(LOG_SYSLOG|LOG_INFO, NULL, LocalHostName, NULL, NULL, NULL,
-	    NULL, "syslogd: restart", 0);
+	logmsg(LOG_SYSLOG | LOG_INFO, NULL, LocalHostName, "syslogd", NULL,
+	    NULL, NULL, "restart", 0);
 	dprintf("syslogd: restarted\n");
 	/*
 	 * Log a change in hostname, but only on a restart.
 	 */
 	if (signo != 0 && strcmp(oldLocalHostName, LocalHostName) != 0) {
 		(void)snprintf(hostMsg, sizeof(hostMsg),
-		    "syslogd: hostname changed, \"%s\" to \"%s\"",
+		    "hostname changed, \"%s\" to \"%s\"",
 		    oldLocalHostName, LocalHostName);
-		logmsg(LOG_SYSLOG|LOG_INFO, NULL, LocalHostName, NULL, NULL,
-		    NULL, NULL, hostMsg, 0);
+		logmsg(LOG_SYSLOG | LOG_INFO, NULL, LocalHostName, "syslogd",
+		    NULL, NULL, NULL, hostMsg, 0);
 		dprintf("%s\n", hostMsg);
 	}
 	/*
@@ -2375,9 +2375,9 @@ init(int signo)
 	 */
 	if (signo == 0 && !use_bootfile) {
 		(void)snprintf(bootfileMsg, sizeof(bootfileMsg),
-		    "syslogd: kernel boot file is %s", bootfile);
-		logmsg(LOG_KERN|LOG_INFO, NULL, LocalHostName, NULL, NULL,
-		    NULL, NULL, bootfileMsg, 0);
+		    "kernel boot file is %s", bootfile);
+		logmsg(LOG_KERN | LOG_INFO, NULL, LocalHostName, "syslogd",
+		    NULL, NULL, NULL, bootfileMsg, 0);
 		dprintf("%s\n", bootfileMsg);
 	}
 }
