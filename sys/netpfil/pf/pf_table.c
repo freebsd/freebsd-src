@@ -177,7 +177,6 @@ static struct pfr_ktable
 			*pfr_lookup_table(struct pfr_table *);
 static void		 pfr_clean_node_mask(struct pfr_ktable *,
 			    struct pfr_kentryworkq *);
-static int		 pfr_table_count(struct pfr_table *, int);
 static int		 pfr_skip_table(struct pfr_table *,
 			    struct pfr_ktable *, int);
 static struct pfr_kentry
@@ -1688,7 +1687,7 @@ pfr_fix_anchor(char *anchor)
 	return (0);
 }
 
-static int
+int
 pfr_table_count(struct pfr_table *filter, int flags)
 {
 	struct pf_ruleset *rs;
