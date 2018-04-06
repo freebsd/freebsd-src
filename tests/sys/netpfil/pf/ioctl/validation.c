@@ -66,6 +66,7 @@ ATF_TC_BODY(addtables, tc)
 {
 	struct pfioc_table io;
 	struct pfr_table tbl;
+	struct pfr_table tbls[4];
 	int flags;
 
 	COMMON_HEAD();
@@ -92,6 +93,14 @@ ATF_TC_BODY(addtables, tc)
 	io.pfrio_buffer = NULL;
 	if (ioctl(dev, DIOCRADDTABLES, &io) == 0)
 		atf_tc_fail("Request with NULL buffer succeeded");
+
+	/* This can provoke a memory leak, see r331225. */
+	io.pfrio_size = 4;
+	for (int i = 0; i < io.pfrio_size; i++)
+		common_init_tbl(&tbls[i]);
+
+	io.pfrio_buffer = &tbls;
+	ioctl(dev, DIOCRADDTABLES, &io);
 
 	COMMON_CLEANUP();
 }
