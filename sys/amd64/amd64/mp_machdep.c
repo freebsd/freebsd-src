@@ -128,6 +128,7 @@ mp_bootaddress(vm_paddr_t *physmap, unsigned int *physmap_idx)
 			    sizeof(*physmap) * (*physmap_idx - i + 2));
 			*physmap_idx -= 2;
 		}
+		break;
 	}
 
 	if (!allocated) {
@@ -336,7 +337,6 @@ init_secondary(void)
 int
 native_start_all_aps(void)
 {
-	vm_offset_t va = boot_address + KERNBASE;
 	u_int64_t *pt4, *pt3, *pt2;
 	u_int32_t mpbioswarmvec;
 	int apic_id, cpu, i;
@@ -344,13 +344,11 @@ native_start_all_aps(void)
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
-	/* install the AP 1st level boot code */
-	pmap_kenter(va, boot_address);
-	pmap_invalidate_page(kernel_pmap, va);
-	bcopy(mptramp_start, (void *)va, bootMP_size);
+	/* copy the AP 1st level boot code */
+	bcopy(mptramp_start, (void *)PHYS_TO_DMAP(boot_address), bootMP_size);
 
 	/* Locate the page tables, they'll be below the trampoline */
-	pt4 = (u_int64_t *)(uintptr_t)(mptramp_pagetables + KERNBASE);
+	pt4 = (uint64_t *)PHYS_TO_DMAP(mptramp_pagetables);
 	pt3 = pt4 + (PAGE_SIZE) / sizeof(u_int64_t);
 	pt2 = pt3 + (PAGE_SIZE) / sizeof(u_int64_t);
 

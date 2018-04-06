@@ -947,6 +947,7 @@ alloc_ap_trampoline(vm_paddr_t *physmap, unsigned int *physmap_idx)
 			    sizeof(*physmap) * (*physmap_idx - i + 2));
 			*physmap_idx -= 2;
 		}
+		break;
 	}
 
 	if (!allocated) {
