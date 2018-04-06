@@ -1288,6 +1288,13 @@ in_pcbfree(struct inpcb *inp)
 
 	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
 
+	KASSERT((inp->inp_flags2 & INP_FREED) == 0,
+	    ("%s: called twice for pcb %p", __func__, inp));
+	if (inp->inp_flags2 & INP_FREED) {
+		INP_WUNLOCK(inp);
+		return;
+	}
+
 #ifdef INVARIANTS
 	if (pcbinfo == &V_tcbinfo) {
 		INP_INFO_LOCK_ASSERT(pcbinfo);
