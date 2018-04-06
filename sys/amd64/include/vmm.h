@@ -231,8 +231,11 @@ int vm_get_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state *state);
 int vm_set_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state state);
 int vm_apicid2vcpuid(struct vm *vm, int apicid);
 int vm_activate_cpu(struct vm *vm, int vcpu);
+int vm_suspend_cpu(struct vm *vm, int vcpu);
+int vm_resume_cpu(struct vm *vm, int vcpu);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
 void vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip);
+void vm_exit_debug(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_reqidle(struct vm *vm, int vcpuid, uint64_t rip);
@@ -256,6 +259,7 @@ typedef void (*vm_rendezvous_func_t)(struct vm *vm, int vcpuid, void *arg);
 void vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
     vm_rendezvous_func_t func, void *arg);
 cpuset_t vm_active_cpus(struct vm *vm);
+cpuset_t vm_debug_cpus(struct vm *vm);
 cpuset_t vm_suspended_cpus(struct vm *vm);
 #endif	/* _SYS__CPUSET_H_ */
 
@@ -279,6 +283,8 @@ vcpu_reqidle(struct vm_eventinfo *info)
 
 	return (*info->iptr);
 }
+
+int vcpu_debugged(struct vm *vm, int vcpuid);
 
 /*
  * Return 1 if device indicated by bus/slot/func is supposed to be a
@@ -540,6 +546,7 @@ enum vm_exitcode {
 	VM_EXITCODE_MWAIT,
 	VM_EXITCODE_SVM,
 	VM_EXITCODE_REQIDLE,
+	VM_EXITCODE_DEBUG,
 	VM_EXITCODE_MAX
 };
 

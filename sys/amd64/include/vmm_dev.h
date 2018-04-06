@@ -209,6 +209,7 @@ struct vm_cpuset {
 };
 #define	VM_ACTIVE_CPUS		0
 #define	VM_SUSPENDED_CPUS	1
+#define	VM_DEBUG_CPUS		2
 
 struct vm_intinfo {
 	int		vcpuid;
@@ -292,6 +293,8 @@ enum {
 	/* vm_cpuset */
 	IOCNUM_ACTIVATE_CPU = 90,
 	IOCNUM_GET_CPUSET = 91,
+	IOCNUM_SUSPEND_CPU = 92,
+	IOCNUM_RESUME_CPU = 93,
 
 	/* RTC */
 	IOCNUM_RTC_READ = 100,
@@ -386,6 +389,10 @@ enum {
 	_IOW('v', IOCNUM_ACTIVATE_CPU, struct vm_activate_cpu)
 #define	VM_GET_CPUS	\
 	_IOW('v', IOCNUM_GET_CPUSET, struct vm_cpuset)
+#define	VM_SUSPEND_CPU \
+	_IOW('v', IOCNUM_SUSPEND_CPU, struct vm_activate_cpu)
+#define	VM_RESUME_CPU \
+	_IOW('v', IOCNUM_RESUME_CPU, struct vm_activate_cpu)
 #define	VM_SET_INTINFO	\
 	_IOW('v', IOCNUM_SET_INTINFO, struct vm_intinfo)
 #define	VM_GET_INTINFO	\
