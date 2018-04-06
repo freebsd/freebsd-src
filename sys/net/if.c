@@ -2403,13 +2403,13 @@ ifunit(const char *name)
 }
 
 static void *
-ifr_buffer_get_buffer(struct thread *td, void *data)
+ifr_buffer_get_buffer(void *data)
 {
 	union ifreq_union *ifrup;
 
 	ifrup = data;
 #ifdef COMPAT_FREEBSD32
-	if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
+	if (SV_CURPROC_FLAG(SV_ILP32))
 		return ((void *)(uintptr_t)
 		    ifrup->ifr32.ifr_ifru.ifru_buffer.buffer);
 #endif
@@ -2417,13 +2417,13 @@ ifr_buffer_get_buffer(struct thread *td, void *data)
 }
 
 static void
-ifr_buffer_set_buffer_null(struct thread *td, void *data)
+ifr_buffer_set_buffer_null(void *data)
 {
 	union ifreq_union *ifrup;
 
 	ifrup = data;
 #ifdef COMPAT_FREEBSD32
-	if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
+	if (SV_CURPROC_FLAG(SV_ILP32))
 		ifrup->ifr32.ifr_ifru.ifru_buffer.buffer = 0;
 	else
 #endif
@@ -2431,26 +2431,26 @@ ifr_buffer_set_buffer_null(struct thread *td, void *data)
 }
 
 static size_t
-ifr_buffer_get_length(struct thread *td, void *data)
+ifr_buffer_get_length(void *data)
 {
 	union ifreq_union *ifrup;
 
 	ifrup = data;
 #ifdef COMPAT_FREEBSD32
-	if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
+	if (SV_CURPROC_FLAG(SV_ILP32))
 		return (ifrup->ifr32.ifr_ifru.ifru_buffer.length);
 #endif
 	return (ifrup->ifr.ifr_ifru.ifru_buffer.length);
 }
 
 static void
-ifr_buffer_set_length(struct thread *td, void *data, size_t len)
+ifr_buffer_set_length(void *data, size_t len)
 {
 	union ifreq_union *ifrup;
 
 	ifrup = data;
 #ifdef COMPAT_FREEBSD32
-	if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
+	if (SV_CURPROC_FLAG(SV_ILP32))
 		ifrup->ifr32.ifr_ifru.ifru_buffer.length = len;
 	else
 #endif
@@ -2531,12 +2531,12 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		else {
 			/* space for terminating nul */
 			descrlen = strlen(ifp->if_description) + 1;
-			if (ifr_buffer_get_length(td, ifr) < descrlen)
-				ifr_buffer_set_buffer_null(td, ifr);
+			if (ifr_buffer_get_length(ifr) < descrlen)
+				ifr_buffer_set_buffer_null(ifr);
 			else
 				error = copyout(ifp->if_description,
-				    ifr_buffer_get_buffer(td, ifr), descrlen);
-			ifr_buffer_set_length(td, ifr, descrlen);
+				    ifr_buffer_get_buffer(ifr), descrlen);
+			ifr_buffer_set_length(ifr, descrlen);
 		}
 		sx_sunlock(&ifdescr_sx);
 		break;
@@ -2552,15 +2552,15 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		 * length parameter is supposed to count the
 		 * terminating nul in.
 		 */
-		if (ifr_buffer_get_length(td, ifr) > ifdescr_maxlen)
+		if (ifr_buffer_get_length(ifr) > ifdescr_maxlen)
 			return (ENAMETOOLONG);
-		else if (ifr_buffer_get_length(td, ifr) == 0)
+		else if (ifr_buffer_get_length(ifr) == 0)
 			descrbuf = NULL;
 		else {
-			descrbuf = malloc(ifr_buffer_get_length(td, ifr),
+			descrbuf = malloc(ifr_buffer_get_length(ifr),
 			    M_IFDESCR, M_WAITOK | M_ZERO);
-			error = copyin(ifr_buffer_get_buffer(td, ifr), descrbuf,
-			    ifr_buffer_get_length(td, ifr) - 1);
+			error = copyin(ifr_buffer_get_buffer(ifr), descrbuf,
+			    ifr_buffer_get_length(ifr) - 1);
 			if (error) {
 				free(descrbuf, M_IFDESCR);
 				break;
