@@ -62,7 +62,7 @@ static struct kerneldumpheader kdh;
 /* Handle chunked writes. */
 static size_t fragsz;
 static void *dump_va;
-static size_t counter, progress, dumpsize;
+static size_t counter, progress, dumpsize, wdog_next;
 
 CTASSERT(sizeof(*vm_page_dump) == 8);
 static int dump_retry_count = 5;
@@ -134,6 +134,9 @@ report_progress(size_t progress, size_t dumpsize)
 	}
 }
 
+/* Pat the watchdog approximately every 128MB of the dump. */
+#define	WDOG_DUMP_INTERVAL	(128 * 1024 * 1024)
+
 static int
 blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 {
@@ -173,8 +176,13 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 			report_progress(progress, dumpsize);
 			counter &= (1<<24) - 1;
 		}
-
-		wdog_kern_pat(WD_LASTVAL);
+		if (progress <= wdog_next) {
+			wdog_kern_pat(WD_LASTVAL);
+			if (wdog_next > WDOG_DUMP_INTERVAL)
+				wdog_next -= WDOG_DUMP_INTERVAL;
+			else
+				wdog_next = 0;
+		}
 
 		if (ptr) {
 			error = dump_append(di, ptr, 0, len);
@@ -313,7 +321,7 @@ minidumpsys(struct dumperinfo *di)
 	}
 	dumpsize += PAGE_SIZE;
 
-	progress = dumpsize;
+	wdog_next = progress = dumpsize;
 
 	/* Initialize mdhdr */
 	bzero(&mdhdr, sizeof(mdhdr));
