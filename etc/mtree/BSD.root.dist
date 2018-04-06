@@ -11,14 +11,14 @@
         defaults
         ..
         dtb
+            overlays              tags=package=runtime
+            ..
         ..
         firmware
         ..
         kernel
         ..
         modules
-        ..
-        overlays              tags=package=runtime
         ..
         zfs
         ..
