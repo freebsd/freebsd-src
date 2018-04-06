@@ -114,6 +114,7 @@ static __inline tu_int make_tu(du_int h, du_int l) {
 
 #endif /* CRT_HAS_128BIT */
 
+#ifndef _STANDALONE
 typedef union
 {
     su_int u;
@@ -125,6 +126,7 @@ typedef union
     udwords u;
     double  f;
 } double_bits;
+#endif
 
 typedef struct
 {
@@ -137,6 +139,7 @@ typedef struct
 #endif /* _YUGA_LITTLE_ENDIAN */
 } uqwords;
 
+#ifndef _STANDALONE
 typedef union
 {
     uqwords     u;
@@ -159,6 +162,7 @@ typedef struct { long double real, imaginary; } Lcomplex;
 
 #define COMPLEX_REAL(x) (x).real
 #define COMPLEX_IMAGINARY(x) (x).imaginary
+#endif
 #endif
 #endif /* INT_TYPES_H */
 

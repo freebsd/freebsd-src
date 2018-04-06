@@ -72,8 +72,10 @@ typedef	unsigned long long	__uint64_t;
  * Standard type definitions.
  */
 typedef	__uint32_t	__clock_t;		/* clock()... */
+#ifndef _STANDALONE
 typedef	double		__double_t;
 typedef	float		__float_t;
+#endif
 #ifdef __LP64__
 typedef	__int64_t	__critical_t;
 typedef	__int64_t	__intfptr_t;
