@@ -55,7 +55,7 @@ static struct bootinfo  bi;
  * MOD_METADATA	(variable)		type-specific metadata
  */
 #define COPY32(v, a, c) {			\
-    u_int32_t	x = (v);			\
+    uint32_t	x = (v);			\
     if (c)					\
         CALLBACK(copyin, &x, a, sizeof(x));	\
     a += sizeof(x);				\

@@ -35,35 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <stdbool.h>
 #include "bootstrap.h"
 
-/*
- * Simple wrappers to the underlying UEFI functions.
- * See http://wiki.phoenix.com/wiki/index.php/EFI_RUNTIME_SERVICES
- * for details.
- */
-EFI_STATUS
-efi_get_next_variable_name(UINTN *variable_name_size, CHAR16 *variable_name,
-    EFI_GUID *vendor_guid)
-{
-	return (RS->GetNextVariableName(variable_name_size, variable_name,
-	    vendor_guid));
-}
-
-EFI_STATUS
-efi_get_variable(CHAR16 *variable_name, EFI_GUID *vendor_guid,
-    UINT32 *attributes, UINTN *data_size, void *data)
-{
-	return (RS->GetVariable(variable_name, vendor_guid, attributes,
-	    data_size, data));
-}
-
-EFI_STATUS
-efi_set_variable(CHAR16 *variable_name, EFI_GUID *vendor_guid,
-    UINT32 attributes, UINTN data_size, void *data)
-{
-	return (RS->SetVariable(variable_name, vendor_guid, attributes,
-	    data_size, data));
-}
-
 void
 efi_init_environment(void)
 {

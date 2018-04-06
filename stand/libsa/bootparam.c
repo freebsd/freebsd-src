@@ -77,7 +77,7 @@ n_short		bp_server_port;	/* net order */
  * (Note, really four ints, NOT chars.  Blech.)
  */
 struct xdr_inaddr {
-	u_int32_t  atype;
+	uint32_t  atype;
 	int32_t	addr[4];
 };
 
@@ -108,16 +108,16 @@ bp_whoami(int sockfd)
 {
 	/* RPC structures for PMAPPROC_CALLIT */
 	struct args {
-		u_int32_t prog;
-		u_int32_t vers;
-		u_int32_t proc;
-		u_int32_t arglen;
+		uint32_t prog;
+		uint32_t vers;
+		uint32_t proc;
+		uint32_t arglen;
 		struct xdr_inaddr xina;
 	} *args;
 	struct repl {
-		u_int16_t _pad;
-		u_int16_t port;
-		u_int32_t encap_len;
+		uint16_t _pad;
+		uint16_t port;
+		uint32_t encap_len;
 		/* encapsulated data here */
 		n_long  capsule[64];
 	} *repl;

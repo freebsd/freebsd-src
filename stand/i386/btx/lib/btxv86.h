@@ -58,13 +58,13 @@ void __v86int(void);
 #define v86	__v86
 #define v86int	__v86int
 
-extern u_int32_t	__base;
-extern u_int32_t	__args;
+extern uint32_t		__base;
+extern uint32_t		__args;
 
 #define	PTOV(pa)	((caddr_t)(pa) - __base)
 #define	VTOP(va)	((vm_offset_t)(va) + __base)
-#define	VTOPSEG(va)	(u_int16_t)(VTOP((caddr_t)va) >> 4)
-#define	VTOPOFF(va)	(u_int16_t)(VTOP((caddr_t)va) & 0xf)
+#define	VTOPSEG(va)	(uint16_t)(VTOP((caddr_t)va) >> 4)
+#define	VTOPOFF(va)	(uint16_t)(VTOP((caddr_t)va) & 0xf)
 
 #define	V86_CY(x)	((x) & PSL_C)
 #define	V86_ZR(x)	((x) & PSL_Z)

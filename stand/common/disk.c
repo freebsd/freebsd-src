@@ -86,7 +86,7 @@ ptblread(void *d, void *buf, size_t blocks, uint64_t offset)
 	struct open_disk *od;
 
 	dev = (struct disk_devdesc *)d;
-	od = (struct open_disk *)dev->d_opendata;
+	od = (struct open_disk *)dev->dd.d_opendata;
 
 	/*
 	 * The strategy function assumes the offset is in units of 512 byte
@@ -98,7 +98,7 @@ ptblread(void *d, void *buf, size_t blocks, uint64_t offset)
 	 * As the GPT backup partition is located at the end of the disk,
 	 * to avoid reading past disk end, flag bcache not to use RA.
 	 */
-	return (dev->d_dev->dv_strategy(dev, F_READ | F_NORA, offset,
+	return (dev->dd.d_dev->dv_strategy(dev, F_READ | F_NORA, offset,
 	    blocks * od->sectorsize, (char *)buf, NULL));
 }
 
@@ -114,7 +114,7 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 	int res;
 
 	pa = (struct print_args *)arg;
-	od = (struct open_disk *)pa->dev->d_opendata;
+	od = (struct open_disk *)pa->dev->dd.d_opendata;
 	sprintf(line, "  %s%s: %s", pa->prefix, pname,
 	    parttype2str(part->type));
 	if (pa->verbose)
@@ -127,8 +127,8 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 	res = 0;
 	if (part->type == PART_FREEBSD) {
 		/* Open slice with BSD label */
-		dev.d_dev = pa->dev->d_dev;
-		dev.d_unit = pa->dev->d_unit;
+		dev.dd.d_dev = pa->dev->dd.d_dev;
+		dev.dd.d_unit = pa->dev->dd.d_unit;
 		dev.d_slice = part->index;
 		dev.d_partition = -1;
 		if (disk_open(&dev, part->end - part->start + 1,
@@ -158,7 +158,7 @@ disk_print(struct disk_devdesc *dev, char *prefix, int verbose)
 	struct print_args pa;
 
 	/* Disk should be opened */
-	od = (struct open_disk *)dev->d_opendata;
+	od = (struct open_disk *)dev->dd.d_opendata;
 	pa.dev = dev;
 	pa.prefix = prefix;
 	pa.verbose = verbose;
@@ -171,8 +171,8 @@ disk_read(struct disk_devdesc *dev, void *buf, uint64_t offset, u_int blocks)
 	struct open_disk *od;
 	int ret;
 
-	od = (struct open_disk *)dev->d_opendata;
-	ret = dev->d_dev->dv_strategy(dev, F_READ, dev->d_offset + offset,
+	od = (struct open_disk *)dev->dd.d_opendata;
+	ret = dev->dd.d_dev->dv_strategy(dev, F_READ, dev->d_offset + offset,
 	    blocks * od->sectorsize, buf, NULL);
 
 	return (ret);
@@ -184,8 +184,8 @@ disk_write(struct disk_devdesc *dev, void *buf, uint64_t offset, u_int blocks)
 	struct open_disk *od;
 	int ret;
 
-	od = (struct open_disk *)dev->d_opendata;
-	ret = dev->d_dev->dv_strategy(dev, F_WRITE, dev->d_offset + offset,
+	od = (struct open_disk *)dev->dd.d_opendata;
+	ret = dev->dd.d_dev->dv_strategy(dev, F_WRITE, dev->d_offset + offset,
 	    blocks * od->sectorsize, buf, NULL);
 
 	return (ret);
@@ -194,7 +194,7 @@ disk_write(struct disk_devdesc *dev, void *buf, uint64_t offset, u_int blocks)
 int
 disk_ioctl(struct disk_devdesc *dev, u_long cmd, void *data)
 {
-	struct open_disk *od = dev->d_opendata;
+	struct open_disk *od = dev->dd.d_opendata;
 
 	if (od == NULL)
 		return (ENOTTY);
@@ -238,7 +238,7 @@ disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize)
 		DEBUG("no memory");
 		return (ENOMEM);
 	}
-	dev->d_opendata = od;
+	dev->dd.d_opendata = od;
 	od->entrysize = 0;
 	od->mediasize = mediasize;
 	od->sectorsize = sectorsize;
@@ -348,7 +348,7 @@ disk_close(struct disk_devdesc *dev)
 {
 	struct open_disk *od;
 
-	od = (struct open_disk *)dev->d_opendata;
+	od = (struct open_disk *)dev->dd.d_opendata;
 	DEBUG("%s closed => %p", disk_fmtdev(dev), od);
 	ptable_close(od->table);
 	free(od);
@@ -361,7 +361,7 @@ disk_fmtdev(struct disk_devdesc *dev)
 	static char buf[128];
 	char *cp;
 
-	cp = buf + sprintf(buf, "%s%d", dev->d_dev->dv_name, dev->d_unit);
+	cp = buf + sprintf(buf, "%s%d", dev->dd.d_dev->dv_name, dev->dd.d_unit);
 	if (dev->d_slice >= 0) {
 #ifdef LOADER_GPT_SUPPORT
 		if (dev->d_partition == 255) {
@@ -423,7 +423,7 @@ disk_parsedev(struct disk_devdesc *dev, const char *devspec, const char **path)
 
 	if (*cp != '\0' && *cp != ':')
 		return (EINVAL);
-	dev->d_unit = unit;
+	dev->dd.d_unit = unit;
 	dev->d_slice = slice;
 	dev->d_partition = partition;
 	if (path != NULL)

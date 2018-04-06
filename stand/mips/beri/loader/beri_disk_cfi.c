@@ -98,7 +98,7 @@ beri_cfi_disk_open(struct open_file *f, ...)
 	dev = va_arg(ap, struct disk_devdesc *);
 	va_end(ap);
 
-	if (dev->d_unit != 0)
+	if (dev->dd.d_unit != 0)
 		return (EIO);
 	return (disk_open(dev, cfi_get_mediasize(), cfi_get_sectorsize()));
 }
@@ -127,8 +127,8 @@ beri_cfi_disk_print(int verbose)
 	ret = pager_output(line);
 	if (ret != 0)
 		return (ret);
-	dev.d_dev = &beri_cfi_disk;
-	dev.d_unit = 0;
+	dev.dd.d_dev = &beri_cfi_disk;
+	dev.dd.d_unit = 0;
 	dev.d_slice = -1;
 	dev.d_partition = -1;
 	if (disk_open(&dev, cfi_get_mediasize(), cfi_get_sectorsize()) == 0) {

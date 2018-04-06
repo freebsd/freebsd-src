@@ -40,7 +40,7 @@ struct arch_switch	archsw;		/* MI/MD interface boundary */
 extern char end[];
 extern char bootprog_info[];
 
-u_int32_t	acells, scells;
+uint32_t	acells, scells;
 
 static char bootargs[128];
 
@@ -73,7 +73,7 @@ memsize(void)
 	phandle_t	memoryp;
 	cell_t		reg[24];
 	int		i, sz;
-	u_int64_t	memsz;
+	uint64_t	memsz;
 
 	memsz = 0;
 	memoryp = OF_instance_to_package(memory);

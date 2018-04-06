@@ -122,7 +122,7 @@ static ACPI_TABLE_RSDP *
 biosacpi_search_rsdp(char *base, int length)
 {
     ACPI_TABLE_RSDP	*rsdp;
-    u_int8_t		*cp, sum;
+    uint8_t		*cp, sum;
     int			ofs, idx;
 
     /* search on 16-byte boundaries */
@@ -131,7 +131,7 @@ biosacpi_search_rsdp(char *base, int length)
 
 	/* compare signature, validate checksum */
 	if (!strncmp(rsdp->Signature, ACPI_SIG_RSDP, strlen(ACPI_SIG_RSDP))) {
-	    cp = (u_int8_t *)rsdp;
+	    cp = (uint8_t *)rsdp;
 	    sum = 0;
 	    for (idx = 0; idx < RSDP_CHECKSUM_LENGTH; idx++)
 		sum += *(cp + idx);

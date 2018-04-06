@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 
 struct auth_info {
 	int32_t 	authtype;	/* auth type */
-	u_int32_t	authlen;	/* auth length */
+	uint32_t	authlen;	/* auth length */
 };
 
 struct auth_unix {
@@ -75,23 +75,23 @@ struct auth_unix {
 };
 
 struct rpc_call {
-	u_int32_t	rp_xid;		/* request transaction id */
+	uint32_t	rp_xid;		/* request transaction id */
 	int32_t 	rp_direction;	/* call direction (0) */
-	u_int32_t	rp_rpcvers;	/* rpc version (2) */
-	u_int32_t	rp_prog;	/* program */
-	u_int32_t	rp_vers;	/* version */
-	u_int32_t	rp_proc;	/* procedure */
+	uint32_t	rp_rpcvers;	/* rpc version (2) */
+	uint32_t	rp_prog;	/* program */
+	uint32_t	rp_vers;	/* version */
+	uint32_t	rp_proc;	/* procedure */
 };
 
 struct rpc_reply {
-	u_int32_t	rp_xid;		/* request transaction id */
+	uint32_t	rp_xid;		/* request transaction id */
 	int32_t 	rp_direction;	/* call direction (1) */
 	int32_t 	rp_astatus;	/* accept status (0: accepted) */
 	union {
-		u_int32_t	rpu_errno;
+		uint32_t	rpu_errno;
 		struct {
 			struct auth_info rok_auth;
-			u_int32_t	rok_status;
+			uint32_t	rok_status;
 		} rpu_rok;
 	} rp_u;
 };
@@ -283,10 +283,10 @@ rpc_fromaddr(void *pkt, struct in_addr *addr, u_short *port)
 		n_long ip_src;
 		n_long ip_dst;
 		/* UDP header: */
-		u_int16_t uh_sport;		/* source port */
-		u_int16_t uh_dport;		/* destination port */
+		uint16_t uh_sport;		/* source port */
+		uint16_t uh_dport;		/* destination port */
 		int16_t	  uh_ulen;		/* udp length */
-		u_int16_t uh_sum;		/* udp checksum */
+		uint16_t uh_sum;		/* udp checksum */
 		/* RPC reply header: */
 		struct rpc_reply rpc;
 	} *hhdr;

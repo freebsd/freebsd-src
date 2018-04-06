@@ -40,7 +40,7 @@
 #define _STAND_NET_H
 #ifndef _KERNEL	/* XXX - see <netinet/in.h> */
 #undef __IPADDR
-#define __IPADDR(x)	htonl((u_int32_t)(x))
+#define __IPADDR(x)	htonl((uint32_t)(x))
 #endif
 
 #include "iodesc.h"
