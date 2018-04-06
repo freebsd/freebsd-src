@@ -66,8 +66,6 @@ static int	cd9660_open(const char *path, struct open_file *f);
 static int	cd9660_close(struct open_file *f);
 static int	cd9660_read(struct open_file *f, void *buf, size_t size,
 		    size_t *resid);
-static int	cd9660_write(struct open_file *f, const void *buf, size_t size,
-		    size_t *resid);
 static off_t	cd9660_seek(struct open_file *f, off_t offset, int where);
 static int	cd9660_stat(struct open_file *f, struct stat *sb);
 static int	cd9660_readdir(struct open_file *f, struct dirent *d);
@@ -86,7 +84,7 @@ struct fs_ops cd9660_fsops = {
 	cd9660_open,
 	cd9660_close,
 	cd9660_read,
-	cd9660_write,
+	null_write,
 	cd9660_seek,
 	cd9660_stat,
 	cd9660_readdir
@@ -554,13 +552,6 @@ again:
 
 	fp->f_off += isonum_711(ep->length);
 	return (0);
-}
-
-static int
-cd9660_write(struct open_file *f __unused, const void *buf __unused,
-    size_t size __unused, size_t *resid __unused)
-{
-	return EROFS;
 }
 
 static off_t
