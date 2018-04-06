@@ -467,16 +467,18 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 
 	boot_current = 0;
 	sz = sizeof(boot_current);
-	efi_global_getenv("BootCurrent", &boot_current, &sz);
-	printf("   BootCurrent: %04x\n", boot_current);
+	if (efi_global_getenv("BootCurrent", &boot_current, &sz) == EFI_SUCCESS) {
+		printf("   BootCurrent: %04x\n", boot_current);
 
-	sz = sizeof(boot_order);
-	efi_global_getenv("BootOrder", &boot_order, &sz);
-	printf("   BootOrder:");
-	for (i = 0; i < sz / sizeof(boot_order[0]); i++)
-		printf(" %04x%s", boot_order[i],
-		    boot_order[i] == boot_current ? "[*]" : "");
-	printf("\n");
+		sz = sizeof(boot_order);
+		if (efi_global_getenv("BootOrder", &boot_order, &sz) == EFI_SUCCESS) {
+			printf("   BootOrder:");
+			for (i = 0; i < sz / sizeof(boot_order[0]); i++)
+				printf(" %04x%s", boot_order[i],
+				    boot_order[i] == boot_current ? "[*]" : "");
+			printf("\n");
+		}
+	}
 
 #ifdef TEST_FAILURE
 	/*
