@@ -28,7 +28,7 @@
 .\"     @(#)syslog.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2017
+.Dd April 6, 2018
 .Dt SYSLOG 3
 .Os
 .Sh NAME
@@ -156,6 +156,9 @@ Write the message to standard error output as well to the system log.
 .It Dv LOG_PID
 Log the process id with each message: useful for identifying
 instantiations of daemons.
+On
+.Fx ,
+this option is enabled by default.
 .El
 .Pp
 The
