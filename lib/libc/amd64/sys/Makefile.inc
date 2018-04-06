@@ -9,7 +9,7 @@ SRCS+=	\
 	amd64_set_gsbase.c
 
 MDASM=	vfork.S brk.S cerror.S exect.S getcontext.S \
-	sbrk.S setlogin.S
+	sbrk.S
 
 # Don't generate default code for these syscalls:
 NOASM+=	vfork.o
