@@ -109,14 +109,4 @@ efi_zfs_probe(void)
 		}
 	}
 }
-
-uint64_t
-ldi_get_size(void *priv)
-{
-	int fd = (uintptr_t) priv;
-	uint64_t size;
-
-	ioctl(fd, DIOCGMEDIASIZE, &size);
-	return (size);
-}
 #endif
