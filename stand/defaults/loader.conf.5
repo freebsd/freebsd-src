@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd January 6, 2016
+.Dd March 19, 2018
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -39,18 +39,6 @@ it, and additional modules to be loaded; and generally set all variables
 described in
 .Xr loader 8 .
 .Pp
-The file
-.Pa /boot/loader.rc
-must contain the following two lines for
-.Nm
-to be automatically processed:
-.Pp
-.Dl include /boot/loader.4th
-.Dl start
-.Pp
-If no
-.Pa /boot/loader.rc
-exists at installworld time, one with the above lines will be installed.
 .Sh SYNTAX
 Though
 .Nm Ns 's
@@ -261,7 +249,6 @@ be displayed.
 If set to
 .Dq YES ,
 the beastie boot menu will be skipped.
-The beastie boot menu is always skipped if running non-x86 hardware.
 .It Va loader_logo Pq Dq Li orbbw
 Selects a desired logo in the beastie boot menu.
 Possible values are:
@@ -290,20 +277,31 @@ See the entropy entries in
 The name of the very early
 boot-time entropy cache file.
 .El
+.Sh OTHER SETTINGS
+Other settings that may be used in
+.Nm
+that have no default value:
+.Bl -tag -width bootfile -offset indent
+.It Va fdt_overlays
+Specifies a comma-delimited list of FDT overlays to apply.
+.Pa /boot/overlays
+is created by default for overlays to be placed in.
+.It Va kernels_autodetect
+If set to
+.Dq YES ,
+attempt to auto-detect kernels installed in
+.Pa /boot .
+This is an option specific to the Lua-based loader.
+It is not available in the default Forth-based loader.
+.El
 .Sh FILES
 .Bl -tag -width /boot/defaults/loader.conf -compact
 .It Pa /boot/defaults/loader.conf
 default settings -- do not change this file.
-.It Pa /boot/loader.4th
-defines the commands used by loader to read and process
-.Nm .
 .It Pa /boot/loader.conf
 user defined settings.
 .It Pa /boot/loader.conf.local
 machine-specific settings for sites with a common loader.conf.
-.It Pa /boot/loader.rc
-contains the instructions to automatically process
-.Nm .
 .El
 .Sh SEE ALSO
 .Xr rc.conf 5 ,
