@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include "libofw.h"
 #include "bootstrap.h"
 
+#include <machine/psl.h>
+
 struct arch_switch	archsw;		/* MI/MD interface boundary */
 
 extern char end[];
@@ -46,6 +48,16 @@ static char bootargs[128];
 static char heap[HEAP_SIZE]; // In BSS, so uses no space
 
 #define OF_puts(fd, text) OF_write(fd, text, strlen(text))
+
+static __inline register_t
+mfmsr(void)
+{
+	register_t value;
+
+	__asm __volatile ("mfmsr %0" : "=r"(value));
+
+	return (value);
+}
 
 void
 init_heap(void)
@@ -144,6 +156,15 @@ main(int (*openfirm)(void *))
 	env_setenv("loaddev", EV_VOLATILE, bootpath, env_noset,
 	    env_nounset);
 	setenv("LINES", "24", 1);		/* optional */
+
+	/*
+	 * On non-Apple hardware, where it works reliably, pass flattened
+	 * device trees to the kernel by default instead of OF CI pointers.
+	 * Apple hardware is the only virtual-mode OF implementation in
+	 * existence, so far as I am aware, so use that as a flag.
+	 */
+	if (!(mfmsr() & PSL_DR))
+		setenv("usefdt", "1", 1);
 
 	archsw.arch_getdev = ofw_getdev;
 	archsw.arch_copyin = ofw_copyin;
