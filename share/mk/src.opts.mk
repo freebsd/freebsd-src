@@ -278,8 +278,9 @@ BROKEN_OPTIONS+=LLDB
 .if ${__T} != "armv6"
 BROKEN_OPTIONS+=LIBSOFT
 .endif
-# EFI doesn't exist on mips, powerpc, sparc or riscv.
-.if ${__T:Mmips*} || ${__T:Mpowerpc*} || ${__T:Msparc64} || ${__T:Mriscv*}
+# EFI doesn't exist on mips, pc98, powerpc, sparc or riscv.
+.if ${__T:Mmips*} || ${__TT:Mpc98*} || ${__T:Mpowerpc*} || ${__T:Msparc64} || \
+    ${__T:Mriscv*}
 BROKEN_OPTIONS+=EFI
 .endif
 # GELI isn't supported on !x86
