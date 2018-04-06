@@ -83,7 +83,7 @@ int	null_read (struct open_file *f, void *buf, size_t size, size_t *resid)
 	return EIO;
 }
 
-int	null_write (struct open_file *f, void *buf, size_t size, size_t *resid)
+int	null_write (struct open_file *f, const void *buf, size_t size, size_t *resid)
 {
 	return EIO;
 }
