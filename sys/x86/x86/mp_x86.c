@@ -160,6 +160,8 @@ struct cache_info {
 
 unsigned int boot_address;
 
+#define MiB(v)	(v ## ULL << 20)
+
 void
 mem_range_AP_init(void)
 {

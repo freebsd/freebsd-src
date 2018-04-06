@@ -83,6 +83,8 @@ __FBSDID("$FreeBSD$");
 #define BIOS_RESET		(0x0f)
 #define BIOS_WARM		(0x0a)
 
+#define GiB(v)			(v ## ULL << 30)
+
 extern	struct pcpu __pcpu[];
 
 /* Temporary variables for init_secondary()  */
