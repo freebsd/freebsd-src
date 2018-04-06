@@ -252,7 +252,6 @@ struct filed {
 #define	fu_pipe_pid	f_un.f_pipe.f_pid
 	char	f_prevline[MAXSVLINE];		/* last message logged */
 	struct logtime f_lasttime;		/* time of last occurrence */
-	char	f_prevhost[MAXHOSTNAMELEN];	/* host from which recd. */
 	int	f_prevpri;			/* pri of f_prevline */
 	size_t	f_prevlen;			/* length of f_prevline */
 	int	f_prevcount;			/* repetition cnt of prevline */
@@ -385,7 +384,9 @@ static void	die(int) __dead2;
 static void	dodie(int);
 static void	dofsync(void);
 static void	domark(int);
-static void	fprintlog(struct filed *, int, const char *);
+static void	fprintlog_first(struct filed *, const char *, const char *,
+    const char *, const char *, const char *, const char *, int);
+static void	fprintlog_successive(struct filed *, int);
 static void	init(int);
 static void	logerror(const char *);
 static void	logmsg(int, const struct logtime *, const char *, const char *,
@@ -1411,19 +1412,19 @@ skip_message(const char *name, const char *spec, int checkcase)
  * STRUCTURED-DATA fields are thus discarded for the time being.
  */
 static void
-logmsg(int pri, const struct logtime *timestamp, const char *from,
-    const char *app_name, const char *procid, const char *msgid __unused,
-    const char *structured_data __unused, const char *msg, int flags)
+logmsg(int pri, const struct logtime *timestamp, const char *hostname,
+    const char *app_name, const char *procid, const char *msgid,
+    const char *structured_data, const char *msg, int flags)
 {
 	struct timeval tv;
 	struct logtime timestamp_now;
 	struct filed *f;
-	size_t msglen;
+	size_t savedlen;
 	int fac, prilev;
-	char buf[MAXLINE+1];
+	char saved[MAXSVLINE];
 
 	dprintf("logmsg: pri %o, flags %x, from %s, msg %s\n",
-	    pri, flags, from, msg);
+	    pri, flags, hostname, msg);
 
 	(void)gettimeofday(&tv, NULL);
 	now = tv.tv_sec;
@@ -1445,18 +1446,6 @@ logmsg(int pri, const struct logtime *timestamp, const char *from,
 
 	prilev = LOG_PRI(pri);
 
-	/* Prepend the application name to the message if provided. */
-	if (app_name != NULL) {
-		if (procid != NULL)
-			msglen = snprintf(buf, sizeof(buf), "%s[%s]: %s",
-			    app_name, procid, msg);
-		else
-			msglen = snprintf(buf, sizeof(buf), "%s: %s",
-			    app_name, msg);
-		msg = buf;
-	} else
-		msglen = strlen(msg);
-
 	/* log the message to the particular outputs */
 	if (!Initialized) {
 		f = &consfile;
@@ -1468,12 +1457,27 @@ logmsg(int pri, const struct logtime *timestamp, const char *from,
 
 		if (f->f_file >= 0) {
 			f->f_lasttime = *timestamp;
-			fprintlog(f, flags, msg);
+			fprintlog_first(f, hostname, app_name, procid, msgid,
+			    structured_data, msg, flags);
 			close(f->f_file);
 			f->f_file = -1;
 		}
 		return;
 	}
+
+	/*
+	 * Store all of the fields of the message, except the timestamp,
+	 * in a single string. This string is used to detect duplicate
+	 * messages.
+	 */
+	assert(hostname != NULL);
+	assert(msg != NULL);
+	savedlen = snprintf(saved, sizeof(saved),
+	    "%d %s %s %s %s %s %s", pri, hostname,
+	    app_name == NULL ? "-" : app_name, procid == NULL ? "-" : procid,
+	    msgid == NULL ? "-" : msgid,
+	    structured_data == NULL ? "-" : structured_data, msg);
+
 	STAILQ_FOREACH(f, &fhead, next) {
 		/* skip messages that are incorrect priority */
 		if (!(((f->f_pcmp[fac] & PRI_EQ) && (f->f_pmask[fac] == prilev))
@@ -1484,7 +1488,7 @@ logmsg(int pri, const struct logtime *timestamp, const char *from,
 			continue;
 
 		/* skip messages with the incorrect hostname */
-		if (skip_message(from, f->f_host, 0))
+		if (skip_message(hostname, f->f_host, 0))
 			continue;
 
 		/* skip messages with the incorrect program name */
@@ -1504,9 +1508,8 @@ logmsg(int pri, const struct logtime *timestamp, const char *from,
 		 * suppress duplicate lines to this file
 		 */
 		if (no_compress - (f->f_type != F_PIPE) < 1 &&
-		    (flags & MARK) == 0 && msglen == f->f_prevlen &&
-		    !strcmp(msg, f->f_prevline) &&
-		    !strcasecmp(from, f->f_prevhost)) {
+		    (flags & MARK) == 0 && savedlen == f->f_prevlen &&
+		    strcmp(saved, f->f_prevline) == 0) {
 			f->f_lasttime = *timestamp;
 			f->f_prevcount++;
 			dprintf("msg repeated %d times, %ld sec of %d\n",
@@ -1519,27 +1522,22 @@ logmsg(int pri, const struct logtime *timestamp, const char *from,
 			 * in the future.
 			 */
 			if (now > REPEATTIME(f)) {
-				fprintlog(f, flags, (char *)NULL);
+				fprintlog_successive(f, flags);
 				BACKOFF(f);
 			}
 		} else {
 			/* new line, save it */
 			if (f->f_prevcount)
-				fprintlog(f, 0, (char *)NULL);
+				fprintlog_successive(f, 0);
 			f->f_repeatcount = 0;
 			f->f_prevpri = pri;
 			f->f_lasttime = *timestamp;
-			(void)strlcpy(f->f_prevhost, from,
-			    sizeof(f->f_prevhost));
-			if (msglen < MAXSVLINE) {
-				f->f_prevlen = msglen;
-				(void)strlcpy(f->f_prevline, msg, sizeof(f->f_prevline));
-				fprintlog(f, flags, (char *)NULL);
-			} else {
-				f->f_prevline[0] = 0;
-				f->f_prevlen = 0;
-				fprintlog(f, flags, msg);
-			}
+			static_assert(sizeof(f->f_prevline) == sizeof(saved),
+			    "Space to store saved line incorrect");
+			(void)strcpy(f->f_prevline, saved);
+			f->f_prevlen = savedlen;
+			fprintlog_first(f, hostname, app_name, procid, msgid,
+			    structured_data, msg, flags);
 		}
 	}
 }
@@ -1560,12 +1558,14 @@ dofsync(void)
 
 #define IOV_SIZE 7
 static void
-fprintlog(struct filed *f, int flags, const char *msg)
+fprintlog_first(struct filed *f, const char *hostname, const char *app_name,
+    const char *procid, const char *msgid __unused,
+    const char *structured_data __unused, const char *msg, int flags)
 {
 	struct iovec iov[IOV_SIZE];
 	struct addrinfo *r;
 	int l, lsent = 0;
-	char line[MAXLINE + 1], repbuf[80], greetings[200], *wmsg = NULL;
+	char tagged_msg[MAXLINE + 1], line[MAXLINE + 1], greetings[200];
 	char nul[] = "", space[] = " ", lf[] = "\n", crlf[] = "\r\n";
 	char timebuf[RFC3164_DATELEN + 1];
 	const char *msgret;
@@ -1583,8 +1583,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 			.iov_base = greetings,
 			.iov_len = snprintf(greetings, sizeof(greetings),
 				    "\r\n\7Message from syslogd@%s "
-				    "at %.24s ...\r\n",
-				    f->f_prevhost, timebuf)
+				    "at %.24s ...\r\n", hostname, timebuf)
 		};
 		if (iov[0].iov_len >= sizeof(greetings))
 			iov[0].iov_len = sizeof(greetings) - 1;
@@ -1647,36 +1646,28 @@ fprintlog(struct filed *f, int flags, const char *msg)
 			.iov_len = 0
 		};
 	}
+	/* Prepend the application name to the message if provided. */
+	if (app_name != NULL) {
+		if (procid != NULL)
+			snprintf(tagged_msg, sizeof(tagged_msg),
+			    "%s[%s]: %s", app_name, procid, msg);
+		else
+			snprintf(tagged_msg, sizeof(tagged_msg),
+			    "%s: %s", app_name, msg);
+		msg = tagged_msg;
+	}
 	iov[3] = (struct iovec){
-		.iov_base = f->f_prevhost,
-		.iov_len = strlen(f->f_prevhost)
+		.iov_base = __DECONST(char *, hostname),
+		.iov_len = strlen(hostname)
 	};
 	iov[4] = (struct iovec){
 		.iov_base = space,
 		.iov_len = 1
 	};
-	if (msg) {
-		wmsg = strdup(msg); /* XXX iov_base needs a `const' sibling. */
-		if (wmsg == NULL) {
-			logerror("strdup");
-			exit(1);
-		}
-		iov[5] = (struct iovec){
-			.iov_base = wmsg,
-			.iov_len = strlen(msg)
-		};
-	} else if (f->f_prevcount > 1) {
-		iov[5] = (struct iovec){
-			.iov_base = repbuf,
-			.iov_len = snprintf(repbuf, sizeof(repbuf),
-			    "last message repeated %d times", f->f_prevcount)
-		};
-	} else {
-		iov[5] = (struct iovec){
-			.iov_base = f->f_prevline,
-			.iov_len = f->f_prevlen
-		};
-	}
+	iov[5] = (struct iovec){
+		.iov_base = __DECONST(char *, msg),
+		.iov_len = strlen(msg)
+	};
 	dprintf("Logging to %s", TypeNames[f->f_type]);
 	f->f_time = now;
 
@@ -1704,11 +1695,11 @@ fprintlog(struct filed *f, int flags, const char *msg)
 			dprintf("\n");
 		}
 		/* check for local vs remote messages */
-		if (strcasecmp(f->f_prevhost, LocalHostName))
+		if (strcasecmp(hostname, LocalHostName))
 			l = snprintf(line, sizeof line - 1,
 			    "<%d>%.15s Forwarded from %s: %s",
 			    f->f_prevpri, (char *)iov[0].iov_base,
-			    f->f_prevhost, (char *)iov[5].iov_base);
+			    hostname, (char *)iov[5].iov_base);
 		else
 			l = snprintf(line, sizeof line - 1, "<%d>%.15s %s",
 			     f->f_prevpri, (char *)iov[0].iov_base,
@@ -1841,7 +1832,22 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		break;
 	}
 	f->f_prevcount = 0;
-	free(wmsg);
+}
+
+/*
+ * Prints a message to a log file that the previously logged message was
+ * received multiple times.
+ */
+static void
+fprintlog_successive(struct filed *f, int flags)
+{
+	char msg[100];
+
+	assert(f->f_prevcount > 0);
+	snprintf(msg, sizeof(msg), "last message repeated %d times",
+	    f->f_prevcount);
+	fprintlog_first(f, LocalHostName, "syslogd", NULL, NULL, NULL, msg,
+	    flags);
 }
 
 /*
@@ -2022,7 +2028,7 @@ die(int signo)
 	STAILQ_FOREACH(f, &fhead, next) {
 		/* flush any pending output */
 		if (f->f_prevcount)
-			fprintlog(f, 0, (char *)NULL);
+			fprintlog_successive(f, 0);
 		if (f->f_type == F_PIPE && f->fu_pipe_pid > 0)
 			close_filed(f);
 	}
@@ -2252,7 +2258,7 @@ init(int signo)
 	STAILQ_FOREACH(f, &fhead, next) {
 		/* flush any pending output */
 		if (f->f_prevcount)
-			fprintlog(f, 0, (char *)NULL);
+			fprintlog_successive(f, 0);
 
 		switch (f->f_type) {
 		case F_FILE:
@@ -2696,7 +2702,7 @@ markit(void)
 			dprintf("flush %s: repeated %d times, %d sec.\n",
 			    TypeNames[f->f_type], f->f_prevcount,
 			    repeatinterval[f->f_repeatcount]);
-			fprintlog(f, 0, (char *)NULL);
+			fprintlog_successive(f, 0);
 			BACKOFF(f);
 		}
 	}
