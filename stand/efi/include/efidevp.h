@@ -31,6 +31,8 @@ Revision History
 // Device Path structures - Section C
 //
 
+#pragma pack(1)
+
 typedef struct _EFI_DEVICE_PATH {
         UINT8                           Type;
         UINT8                           SubType;
@@ -450,5 +452,7 @@ typedef struct _EFI_DEVICE_PATH_TO_TEXT_PROTOCOL {
 	EFI_DEVICE_PATH_TO_TEXT_NODE ConvertDeviceNodeToText;
 	EFI_DEVICE_PATH_TO_TEXT_PATH ConvertDevicePathToText;
 } EFI_DEVICE_PATH_TO_TEXT_PROTOCOL;
+
+#pragma pack()
 
 #endif
