@@ -225,11 +225,9 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 	    EFI_SIMPLE_NETWORK_RECEIVE_BROADCAST;
 
 	status = net->ReceiveFilters(net, mask, 0, FALSE, 0, NULL);
-	if (status != EFI_SUCCESS) {
+	if (status != EFI_SUCCESS)
 		printf("net%d: cannot set rx. filters (status=%lu)\n",
 		    nif->nif_unit, EFI_ERROR_CODE(status));
-		return;
-	}
 
 #ifdef EFINET_DEBUG
 	dump_mode(net->Mode);

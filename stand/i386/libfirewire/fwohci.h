@@ -37,10 +37,6 @@
 #define MAX_OHCI 5
 #define CROMSIZE 0x400
 
-struct fw_eui64 {
-        uint32_t hi, lo;
-};
-
 struct fwohci_softc {
 	uint32_t locator;
 	uint32_t devid;
