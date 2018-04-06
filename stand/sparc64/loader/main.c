@@ -938,7 +938,7 @@ static const char *const page_sizes[] = {
 
 static void
 pmap_print_tte_sun4u(tte_t tag, tte_t tte)
-
+{
 
 	printf("%s %s ",
 	    page_sizes[(tte >> TD_SIZE_SHIFT) & TD_SIZE_MASK],
