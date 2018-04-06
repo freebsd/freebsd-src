@@ -698,7 +698,7 @@ template<typename T>
 struct divmod : public binary_operator<5, T>
 {
 	using binary_operator<5, T>::binary_operator;
-	using binary_operator_base::result;
+	using typename binary_operator_base::result;
 	result operator()() override
 	{
 		result r = (*binary_operator_base::rhs)();
