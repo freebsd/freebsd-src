@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include "../Makefile.inc"
-
 LIB=	kadm5clnt
 PRIVATELIB=	true
 LDFLAGS=	-Wl,--no-undefined

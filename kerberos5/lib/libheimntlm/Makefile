@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include "../Makefile.inc"
-
 LIB=	heimntlm
 PRIVATELIB=	true
 LDFLAGS=	-Wl,--no-undefined

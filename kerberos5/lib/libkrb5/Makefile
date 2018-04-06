@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include "../Makefile.inc"
-
 LIB=	krb5
 PRIVATELIB=	true
 LDFLAGS=	-Wl,--no-undefined
