@@ -216,7 +216,10 @@ int	vcpu_reset(struct vmctx *ctx, int vcpu);
 
 int	vm_active_cpus(struct vmctx *ctx, cpuset_t *cpus);
 int	vm_suspended_cpus(struct vmctx *ctx, cpuset_t *cpus);
+int	vm_debug_cpus(struct vmctx *ctx, cpuset_t *cpus);
 int	vm_activate_cpu(struct vmctx *ctx, int vcpu);
+int	vm_suspend_cpu(struct vmctx *ctx, int vcpu);
+int	vm_resume_cpu(struct vmctx *ctx, int vcpu);
 
 /*
  * FreeBSD specific APIs

@@ -690,11 +690,21 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			*cpuset = vm_active_cpus(sc->vm);
 		else if (vm_cpuset->which == VM_SUSPENDED_CPUS)
 			*cpuset = vm_suspended_cpus(sc->vm);
+		else if (vm_cpuset->which == VM_DEBUG_CPUS)
+			*cpuset = vm_debug_cpus(sc->vm);
 		else
 			error = EINVAL;
 		if (error == 0)
 			error = copyout(cpuset, vm_cpuset->cpus, size);
 		free(cpuset, M_TEMP);
+		break;
+	case VM_SUSPEND_CPU:
+		vac = (struct vm_activate_cpu *)data;
+		error = vm_suspend_cpu(sc->vm, vac->vcpuid);
+		break;
+	case VM_RESUME_CPU:
+		vac = (struct vm_activate_cpu *)data;
+		error = vm_resume_cpu(sc->vm, vac->vcpuid);
 		break;
 	case VM_SET_INTINFO:
 		vmii = (struct vm_intinfo *)data;

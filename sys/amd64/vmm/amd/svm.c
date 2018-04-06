@@ -2015,6 +2015,12 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 			break;
 		}
 
+		if (vcpu_debugged(vm, vcpu)) {
+			enable_gintr();
+			vm_exit_debug(vm, vcpu, state->rip);
+			break;
+		}
+
 		svm_inj_interrupts(svm_sc, vcpu, vlapic);
 
 		/* Activate the nested pmap on 'curcpu' */
