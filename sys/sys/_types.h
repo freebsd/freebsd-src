@@ -102,7 +102,9 @@ typedef	__uint_least32_t __char32_t;
 
 typedef struct {
 	long long __max_align1 __aligned(_Alignof(long long));
+#ifndef _STANDALONE
 	long double __max_align2 __aligned(_Alignof(long double));
+#endif
 } __max_align_t;
 
 typedef	__uint32_t	__dev_t;	/* device number */
