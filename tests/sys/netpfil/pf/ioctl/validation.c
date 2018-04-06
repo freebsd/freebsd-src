@@ -264,6 +264,232 @@ ATF_TC_BODY(settflags, tc)
 	COMMON_CLEANUP();
 }
 
+ATF_TC_WITHOUT_HEAD(addaddrs);
+ATF_TC_BODY(addaddrs, tc)
+{
+	struct pfioc_table io;
+	struct pfr_addr addr;
+
+	COMMON_HEAD();
+
+	bzero(&addr, sizeof(addr));
+	bzero(&io, sizeof(io));
+	io.pfrio_flags = 0;
+	io.pfrio_buffer = &addr;
+	io.pfrio_esize = sizeof(addr);
+
+	/* Negative size. */
+	io.pfrio_size = -1;
+	if (ioctl(dev, DIOCRADDADDRS, &io) == 0)
+		atf_tc_fail("Request with size -1 succeeded");
+
+	/* Overly large size. */
+	io.pfrio_size = 1 << 28;
+	if (ioctl(dev, DIOCRADDADDRS, &io) == 0)
+		atf_tc_fail("Reuqest with size 1 << 28 failed");
+
+	COMMON_CLEANUP();
+}
+
+ATF_TC_WITHOUT_HEAD(deladdrs);
+ATF_TC_BODY(deladdrs, tc)
+{
+	struct pfioc_table io;
+	struct pfr_addr addr;
+
+	COMMON_HEAD();
+
+	bzero(&addr, sizeof(addr));
+	bzero(&io, sizeof(io));
+	io.pfrio_flags = 0;
+	io.pfrio_buffer = &addr;
+	io.pfrio_esize = sizeof(addr);
+
+	/* Negative size. */
+	io.pfrio_size = -1;
+	if (ioctl(dev, DIOCRDELADDRS, &io) == 0)
+		atf_tc_fail("Request with size -1 succeeded");
+
+	/* Overly large size. */
+	io.pfrio_size = 1 << 28;
+	if (ioctl(dev, DIOCRDELADDRS, &io) == 0)
+		atf_tc_fail("Reuqest with size 1 << 28 failed");
+
+	COMMON_CLEANUP();
+}
+
+ATF_TC_WITHOUT_HEAD(setaddrs);
+ATF_TC_BODY(setaddrs, tc)
+{
+	struct pfioc_table io;
+	struct pfr_addr addr;
+
+	COMMON_HEAD();
+
+	bzero(&addr, sizeof(addr));
+	bzero(&io, sizeof(io));
+	io.pfrio_flags = 0;
+	io.pfrio_buffer = &addr;
+	io.pfrio_esize = sizeof(addr);
+
+	/* Negative size. */
+	io.pfrio_size = -1;
+	if (ioctl(dev, DIOCRSETADDRS, &io) == 0)
+		atf_tc_fail("Request with size -1 succeeded");
+
+	/* Overly large size. */
+	io.pfrio_size = 1 << 28;
+	if (ioctl(dev, DIOCRSETADDRS, &io) == 0)
+		atf_tc_fail("Reuqest with size 1 << 28 failed");
+
+	COMMON_CLEANUP();
+}
+
+ATF_TC_WITHOUT_HEAD(getaddrs);
+ATF_TC_BODY(getaddrs, tc)
+{
+	struct pfioc_table io;
+	struct pfr_addr addr;
+
+	COMMON_HEAD();
+
+	bzero(&addr, sizeof(addr));
+	bzero(&io, sizeof(io));
+	io.pfrio_flags = 0;
+	io.pfrio_buffer = &addr;
+	io.pfrio_esize = sizeof(addr);
+
+	common_init_tbl(&io.pfrio_table);
+
+	/* Negative size. */
+	io.pfrio_size = -1;
+	if (ioctl(dev, DIOCRGETADDRS, &io) == 0)
+		atf_tc_fail("Request with size -1 succeeded");
+
+	/* Overly large size. */
+	io.pfrio_size = 1 << 24;
+	if (ioctl(dev, DIOCRGETADDRS, &io) == 0)
+		atf_tc_fail("Request with size 1 << 24 failed");
+
+	COMMON_CLEANUP();
+}
+
+ATF_TC_WITHOUT_HEAD(getastats);
+ATF_TC_BODY(getastats, tc)
+{
+	struct pfioc_table io;
+	struct pfr_astats astats;
+
+	COMMON_HEAD();
+
+	bzero(&astats, sizeof(astats));
+	bzero(&io, sizeof(io));
+	io.pfrio_flags = 0;
+	io.pfrio_buffer = &astats;
+	io.pfrio_esize = sizeof(astats);
+
+	common_init_tbl(&io.pfrio_table);
+
+	/* Negative size. */
+	io.pfrio_size = -1;
+	if (ioctl(dev, DIOCRGETASTATS, &io) == 0)
+		atf_tc_fail("Request with size -1 succeeded");
+
+	/* Overly large size. */
+	io.pfrio_size = 1 << 24;
+	if (ioctl(dev, DIOCRGETASTATS, &io) == 0)
+		atf_tc_fail("Request with size 1 << 24 failed");
+
+	COMMON_CLEANUP();
+}
+
+ATF_TC_WITHOUT_HEAD(clrastats);
+ATF_TC_BODY(clrastats, tc)
+{
+	struct pfioc_table io;
+	struct pfr_addr addr;
+
+	COMMON_HEAD();
+
+	bzero(&addr, sizeof(addr));
+	bzero(&io, sizeof(io));
+	io.pfrio_flags = 0;
+	io.pfrio_buffer = &addr;
+	io.pfrio_esize = sizeof(addr);
+
+	common_init_tbl(&io.pfrio_table);
+
+	/* Negative size. */
+	io.pfrio_size = -1;
+	if (ioctl(dev, DIOCRCLRASTATS, &io) == 0)
+		atf_tc_fail("Request with size -1 succeeded");
+
+	/* Overly large size. */
+	io.pfrio_size = 1 << 24;
+	if (ioctl(dev, DIOCRCLRASTATS, &io) == 0)
+		atf_tc_fail("Request with size 1 << 24 failed");
+
+	COMMON_CLEANUP();
+}
+
+ATF_TC_WITHOUT_HEAD(tstaddrs);
+ATF_TC_BODY(tstaddrs, tc)
+{
+	struct pfioc_table io;
+	struct pfr_addr addr;
+
+	COMMON_HEAD();
+
+	bzero(&addr, sizeof(addr));
+	bzero(&io, sizeof(io));
+	io.pfrio_flags = 0;
+	io.pfrio_buffer = &addr;
+	io.pfrio_esize = sizeof(addr);
+
+	common_init_tbl(&io.pfrio_table);
+
+	/* Negative size. */
+	io.pfrio_size = -1;
+	if (ioctl(dev, DIOCRTSTADDRS, &io) == 0)
+		atf_tc_fail("Request with size -1 succeeded");
+
+	/* Overly large size. */
+	io.pfrio_size = 1 << 24;
+	if (ioctl(dev, DIOCRTSTADDRS, &io) == 0)
+		atf_tc_fail("Request with size 1 << 24 failed");
+
+	COMMON_CLEANUP();
+}
+
+ATF_TC_WITHOUT_HEAD(inadefine);
+ATF_TC_BODY(inadefine, tc)
+{
+	struct pfioc_table io;
+	struct pfr_addr addr;
+
+	COMMON_HEAD();
+
+	bzero(&addr, sizeof(addr));
+	bzero(&io, sizeof(io));
+	io.pfrio_flags = 0;
+	io.pfrio_buffer = &addr;
+	io.pfrio_esize = sizeof(addr);
+
+	common_init_tbl(&io.pfrio_table);
+
+	/* Negative size. */
+	io.pfrio_size = -1;
+	if (ioctl(dev, DIOCRINADEFINE, &io) == 0)
+		atf_tc_fail("Request with size -1 succeeded");
+
+	/* Overly large size. */
+	io.pfrio_size = 1 << 24;
+	if (ioctl(dev, DIOCRINADEFINE, &io) == 0)
+		atf_tc_fail("Request with size 1 << 24 failed");
+
+	COMMON_CLEANUP();
+}
+
 ATF_TC_WITHOUT_HEAD(igetifaces);
 ATF_TC_BODY(igetifaces, tc)
 {
@@ -286,6 +512,68 @@ ATF_TC_BODY(igetifaces, tc)
 	io.pfiio_size = 1 << 31;
 	if (ioctl(dev, DIOCIGETIFACES, &io) == 0)
 		atf_tc_fail("request with size 1 << 31 succeeded");
+
+	COMMON_CLEANUP();
+}
+
+ATF_TC_WITHOUT_HEAD(cxbegin);
+ATF_TC_BODY(cxbegin, tc)
+{
+	struct pfioc_trans io;
+	struct pfioc_trans_e ioe;
+
+	COMMON_HEAD();
+
+	bzero(&io, sizeof(io));
+	io.esize = sizeof(ioe);
+	io.array = &ioe;
+
+	/* Negative size */
+	io.size = -1;
+	if (ioctl(dev, DIOCXBEGIN, &io) == 0)
+		atf_tc_fail("request with size -1 succeeded");
+
+	/* Overflow size */
+	io.size = 1 << 30;
+	if (ioctl(dev, DIOCXBEGIN, &io) == 0)
+		atf_tc_fail("request with size 1 << 30 succeeded");
+
+	/* NULL buffer */
+	io.size = 1;
+	io.array = NULL;
+	if (ioctl(dev, DIOCXBEGIN, &io) == 0)
+		atf_tc_fail("request with size -1 succeeded");
+
+	COMMON_CLEANUP();
+}
+
+ATF_TC_WITHOUT_HEAD(cxrollback);
+ATF_TC_BODY(cxrollback, tc)
+{
+	struct pfioc_trans io;
+	struct pfioc_trans_e ioe;
+
+	COMMON_HEAD();
+
+	bzero(&io, sizeof(io));
+	io.esize = sizeof(ioe);
+	io.array = &ioe;
+
+	/* Negative size */
+	io.size = -1;
+	if (ioctl(dev, DIOCXROLLBACK, &io) == 0)
+		atf_tc_fail("request with size -1 succeeded");
+
+	/* Overflow size */
+	io.size = 1 << 30;
+	if (ioctl(dev, DIOCXROLLBACK, &io) == 0)
+		atf_tc_fail("request with size 1 << 30 succeeded");
+
+	/* NULL buffer */
+	io.size = 1;
+	io.array = NULL;
+	if (ioctl(dev, DIOCXROLLBACK, &io) == 0)
+		atf_tc_fail("request with size -1 succeeded");
 
 	COMMON_CLEANUP();
 }
@@ -329,7 +617,16 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, gettstats);
 	ATF_TP_ADD_TC(tp, clrtstats);
 	ATF_TP_ADD_TC(tp, settflags);
+	ATF_TP_ADD_TC(tp, addaddrs);
+	ATF_TP_ADD_TC(tp, deladdrs);
+	ATF_TP_ADD_TC(tp, setaddrs);
+	ATF_TP_ADD_TC(tp, getaddrs);
+	ATF_TP_ADD_TC(tp, clrastats);
+	ATF_TP_ADD_TC(tp, tstaddrs);
+	ATF_TP_ADD_TC(tp, inadefine);
 	ATF_TP_ADD_TC(tp, igetifaces);
+	ATF_TP_ADD_TC(tp, cxbegin);
+	ATF_TP_ADD_TC(tp, cxrollback);
 	ATF_TP_ADD_TC(tp, commit);
 
 	return (atf_no_error());
