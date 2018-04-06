@@ -255,6 +255,63 @@ ATF_TC_BODY(settflags, tc)
 	COMMON_CLEANUP();
 }
 
+ATF_TC_WITHOUT_HEAD(igetifaces);
+ATF_TC_BODY(igetifaces, tc)
+{
+	struct pfioc_iface io;
+	struct pfi_kif kif;
+
+	COMMON_HEAD();
+
+	bzero(&io, sizeof(io));
+	io.pfiio_flags = 0;
+	io.pfiio_buffer = &kif;
+	io.pfiio_esize = sizeof(kif);
+
+	/* Negative size */
+	io.pfiio_size = -1;
+	if (ioctl(dev, DIOCIGETIFACES, &io) == 0)
+		atf_tc_fail("request with size -1 succeeded");
+
+	/* Overflow size */
+	io.pfiio_size = 1 << 31;
+	if (ioctl(dev, DIOCIGETIFACES, &io) == 0)
+		atf_tc_fail("request with size 1 << 31 succeeded");
+
+	COMMON_CLEANUP();
+}
+
+ATF_TC_WITHOUT_HEAD(commit);
+ATF_TC_BODY(commit, tc)
+{
+	struct pfioc_trans io;
+	struct pfioc_trans_e ioe;
+
+	COMMON_HEAD();
+
+	bzero(&io, sizeof(io));
+	io.esize = sizeof(ioe);
+	io.array = &ioe;
+
+	/* Negative size */
+	io.size = -1;
+	if (ioctl(dev, DIOCXCOMMIT, &io) == 0)
+		atf_tc_fail("request with size -1 succeeded");
+
+	/* Overflow size */
+	io.size = 1 << 30;
+	if (ioctl(dev, DIOCXCOMMIT, &io) == 0)
+		atf_tc_fail("request with size 1 << 30 succeeded");
+
+	/* NULL buffer */
+	io.size = 1;
+	io.array = NULL;
+	if (ioctl(dev, DIOCXCOMMIT, &io) == 0)
+		atf_tc_fail("request with size -1 succeeded");
+
+	COMMON_CLEANUP();
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, addtables);
@@ -263,6 +320,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, gettstats);
 	ATF_TP_ADD_TC(tp, clrtstats);
 	ATF_TP_ADD_TC(tp, settflags);
+	ATF_TP_ADD_TC(tp, igetifaces);
+	ATF_TP_ADD_TC(tp, commit);
 
 	return (atf_no_error());
 }
