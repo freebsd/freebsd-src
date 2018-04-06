@@ -85,11 +85,11 @@ static ssize_t	pxe_netif_put(struct iodesc *desc, void *pkt, size_t len);
 static void	pxe_netif_end(struct netif *nif);
 
 extern struct netif_stats	pxe_st[];
-extern u_int16_t		__bangpxeseg;
-extern u_int16_t		__bangpxeoff;
+extern uint16_t			__bangpxeseg;
+extern uint16_t			__bangpxeoff;
 extern void			__bangpxeentry(void);
-extern u_int16_t		__pxenvseg;
-extern u_int16_t		__pxenvoff;
+extern uint16_t			__pxenvseg;
+extern uint16_t			__pxenvoff;
 extern void			__pxenventry(void);
 
 struct netif_dif pxe_ifs[] = {

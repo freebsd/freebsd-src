@@ -190,7 +190,7 @@ bootp(int sock)
 
 #ifdef SUPPORT_DHCP
 	if(dhcp_ok) {
-		u_int32_t leasetime;
+		uint32_t leasetime;
 		bp->bp_vend[6] = DHCPREQUEST;
 		bp->bp_vend[7] = TAG_REQ_ADDR;
 		bp->bp_vend[8] = 4;

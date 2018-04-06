@@ -161,7 +161,6 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 	}
 
 	idev->d_dev = dv;
-	idev->d_type = dv->dv_type;
 
 	if (dev != NULL)
 		*dev = idev;
@@ -180,7 +179,7 @@ efi_fmtdev(void *vdev)
 	struct devdesc *dev = (struct devdesc *)vdev;
 	static char buf[SPECNAMELEN + 1];
 
-	switch(dev->d_type) {
+	switch(dev->d_dev->dv_type) {
 	case DEVT_NONE:
 		strcpy(buf, "(no device)");
 		break;

@@ -54,7 +54,7 @@ int main(int ac, char **av);
 
 static void exit(int) __dead2;
 static void load(const char *);
-static int dskread(void *, u_int64_t, int);
+static int dskread(void *, uint64_t, int);
 
 static void usage(void);
 
@@ -79,8 +79,8 @@ static char *__ultoa(char *buf, u_long val, int base);
 /*
  * Open Firmware interface functions
  */
-typedef u_int32_t	ofwcell_t;
-typedef u_int32_t	u_ofwh_t;
+typedef uint32_t	ofwcell_t;
+typedef uint32_t	u_ofwh_t;
 typedef int (*ofwfp_t)(void *);
 ofwfp_t ofw;			/* the prom Open Firmware entry */
 ofwh_t chosenh;
@@ -94,7 +94,7 @@ static int ofw_setprop(ofwh_t, const char *, void *, size_t);
 static int ofw_read(ofwh_t, void *, size_t);
 static int ofw_write(ofwh_t, const void *, size_t);
 static int ofw_claim(void *virt, size_t len, u_int align);
-static int ofw_seek(ofwh_t, u_int64_t);
+static int ofw_seek(ofwh_t, uint64_t);
 static void ofw_exit(void) __dead2;
 
 ofwh_t bootdevh;
@@ -322,7 +322,7 @@ ofw_write(ofwh_t devh, const void *buf, size_t len)
 }
 
 static int
-ofw_seek(ofwh_t devh, u_int64_t off)
+ofw_seek(ofwh_t devh, uint64_t off)
 {
 	ofwcell_t args[] = {
 		(ofwcell_t)"seek",
@@ -541,7 +541,7 @@ load(const char *fname)
 }
 
 static int
-dskread(void *buf, u_int64_t lba, int nblk)
+dskread(void *buf, uint64_t lba, int nblk)
 {
 	/*
 	 * The Open Firmware should open the correct partition for us.

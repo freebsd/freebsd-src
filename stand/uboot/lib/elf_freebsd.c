@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 extern vm_offset_t md_load(char *, vm_offset_t *, vm_offset_t *);
 
 int
-__elfN(uboot_load)(char *filename, u_int64_t dest,
+__elfN(uboot_load)(char *filename, uint64_t dest,
     struct preloaded_file **result)
 {
 	int r;

@@ -61,7 +61,7 @@ static void bcopy(const void *src, void *dst, size_t len);
 static void bzero(void *b, size_t len);
 
 static int domount(const char *device);
-static int dskread(void *buf, u_int64_t lba, int nblk);
+static int dskread(void *buf, uint64_t lba, int nblk);
 
 static void panic(const char *fmt, ...) __dead2;
 static int printf(const char *fmt, ...);
@@ -78,8 +78,8 @@ static char *__ultoa(char *buf, u_long val, int base);
 /*
  * Open Firmware interface functions
  */
-typedef u_int64_t	ofwcell_t;
-typedef u_int32_t	u_ofwh_t;
+typedef uint64_t	ofwcell_t;
+typedef uint32_t	u_ofwh_t;
 typedef int (*ofwfp_t)(ofwcell_t []);
 static ofwfp_t ofw;			/* the PROM Open Firmware entry */
 
@@ -89,7 +89,7 @@ static ofwh_t ofw_open(const char *);
 static int ofw_getprop(ofwh_t, const char *, void *, size_t);
 static int ofw_read(ofwh_t, void *, size_t);
 static int ofw_write(ofwh_t, const void *, size_t);
-static int ofw_seek(ofwh_t, u_int64_t);
+static int ofw_seek(ofwh_t, uint64_t);
 static void ofw_exit(void) __dead2;
 
 static ofwh_t stdinh, stdouth;
@@ -251,7 +251,7 @@ ofw_write(ofwh_t devh, const void *buf, size_t len)
 }
 
 static int
-ofw_seek(ofwh_t devh, u_int64_t off)
+ofw_seek(ofwh_t devh, uint64_t off)
 {
 	ofwcell_t args[] = {
 		(ofwcell_t)"seek",
@@ -515,7 +515,7 @@ domount(const char *device)
 }
 
 static int
-dskread(void *buf, u_int64_t lba, int nblk)
+dskread(void *buf, uint64_t lba, int nblk)
 {
 
 	/*

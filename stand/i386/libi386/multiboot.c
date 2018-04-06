@@ -61,16 +61,16 @@ __FBSDID("$FreeBSD$");
 #define METADATA_RESV_SIZE(mod_num) \
 	roundup(METADATA_FIXED_SIZE + METADATA_MODULE_SIZE * mod_num, PAGE_SIZE)
 
-extern int elf32_loadfile_raw(char *filename, u_int64_t dest,
+extern int elf32_loadfile_raw(char *filename, uint64_t dest,
     struct preloaded_file **result, int multiboot);
-extern int elf64_load_modmetadata(struct preloaded_file *fp, u_int64_t dest);
-extern int elf64_obj_loadfile(char *filename, u_int64_t dest,
+extern int elf64_load_modmetadata(struct preloaded_file *fp, uint64_t dest);
+extern int elf64_obj_loadfile(char *filename, uint64_t dest,
     struct preloaded_file **result);
 
-static int multiboot_loadfile(char *, u_int64_t, struct preloaded_file **);
+static int multiboot_loadfile(char *, uint64_t, struct preloaded_file **);
 static int multiboot_exec(struct preloaded_file *);
 
-static int multiboot_obj_loadfile(char *, u_int64_t, struct preloaded_file **);
+static int multiboot_obj_loadfile(char *, uint64_t, struct preloaded_file **);
 static int multiboot_obj_exec(struct preloaded_file *fp);
 
 struct file_format multiboot = { multiboot_loadfile, multiboot_exec };
@@ -108,7 +108,7 @@ max_addr(void)
 }
 
 static int
-multiboot_loadfile(char *filename, u_int64_t dest,
+multiboot_loadfile(char *filename, uint64_t dest,
     struct preloaded_file **result)
 {
 	uint32_t		*magic;
@@ -394,7 +394,7 @@ error:
 }
 
 static int
-multiboot_obj_loadfile(char *filename, u_int64_t dest,
+multiboot_obj_loadfile(char *filename, uint64_t dest,
     struct preloaded_file **result)
 {
 	struct preloaded_file	*mfp, *kfp, *rfp;

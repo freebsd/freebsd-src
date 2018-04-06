@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
  * MOD_METADATA	(variable)		type-specific metadata
  */
 #define COPY32(v, a, c) {			\
-    u_int32_t	x = (v);			\
+    uint32_t	x = (v);			\
     if (c)					\
         CALLBACK(copyin, &x, a, sizeof(x));	\
     a += sizeof(x);				\
@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
     COPY32(strlen(s) + 1, a, c);		\
     if (c)					\
         CALLBACK(copyin, s, a, strlen(s) + 1);  \
-    a += roundup(strlen(s) + 1, sizeof(u_int64_t));\
+    a += roundup(strlen(s) + 1, sizeof(uint64_t));\
 }
 
 #define MOD_NAME(a, s, c)	MOD_STR(MODINFO_NAME, a, s, c)
@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
     COPY32(sizeof(s), a, c);			\
     if (c)					\
         CALLBACK(copyin, &s, a, sizeof(s));	\
-    a += roundup(sizeof(s), sizeof(u_int64_t));	\
+    a += roundup(sizeof(s), sizeof(uint64_t));	\
 }
 
 #define MOD_ADDR(a, s, c)	MOD_VAR(MODINFO_ADDR, a, s, c)
@@ -90,7 +90,7 @@ __FBSDID("$FreeBSD$");
     COPY32(mm->md_size, a, c);			\
     if (c)					\
         CALLBACK(copyin, mm->md_data, a, mm->md_size);    \
-    a += roundup(mm->md_size, sizeof(u_int64_t));\
+    a += roundup(mm->md_size, sizeof(uint64_t));\
 }
 
 #define MOD_END(a, c) {				\
@@ -104,7 +104,7 @@ bi_copymodules64(vm_offset_t addr)
     struct preloaded_file	*fp;
     struct file_metadata	*md;
     int				c;
-    u_int64_t			v;
+    uint64_t			v;
 
     c = addr != 0;
     /* start with the first module on the list, should be the kernel */
@@ -185,8 +185,8 @@ bi_load64(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
     struct userboot_devdesc	*rootdev;
     struct file_metadata	*md;
     vm_offset_t			addr;
-    u_int64_t			kernend;
-    u_int64_t			envp;
+    uint64_t			kernend;
+    uint64_t			envp;
     vm_offset_t			size;
     char			*rootdevname;
     int				howto;

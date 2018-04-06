@@ -70,11 +70,11 @@ typedef struct elf_file {
 	caddr_t	firstpage;
 	size_t	firstlen;
 	int		kernel;
-	u_int64_t	off;
+	uint64_t	off;
 } *elf_file_t;
 
 static int __elfN(loadimage)(struct preloaded_file *mp, elf_file_t ef,
-    u_int64_t loadaddr);
+    uint64_t loadaddr);
 static int __elfN(lookup_symbol)(struct preloaded_file *mp, elf_file_t ef,
     const char* name, Elf_Sym* sym);
 static int __elfN(reloc_ptr)(struct preloaded_file *mp, elf_file_t ef,
@@ -87,7 +87,7 @@ static char	*fake_modname(const char *name);
 const char	*__elfN(kerneltype) = "elf kernel";
 const char	*__elfN(moduletype) = "elf module";
 
-u_int64_t	__elfN(relocation_offset) = 0;
+uint64_t	__elfN(relocation_offset) = 0;
 
 extern void elf_wrong_field_size(void);
 #define CONVERT_FIELD(b, f, e)			\
@@ -265,13 +265,13 @@ error:
  * will be saved in (result).
  */
 int
-__elfN(loadfile)(char *filename, u_int64_t dest, struct preloaded_file **result)
+__elfN(loadfile)(char *filename, uint64_t dest, struct preloaded_file **result)
 {
 	return (__elfN(loadfile_raw)(filename, dest, result, 0));
 }
 
 int
-__elfN(loadfile_raw)(char *filename, u_int64_t dest,
+__elfN(loadfile_raw)(char *filename, uint64_t dest,
     struct preloaded_file **result, int multiboot)
 {
 	struct preloaded_file	*fp, *kfp;
@@ -419,7 +419,7 @@ out:
  * the Elf header, load the image at (off)
  */
 static int
-__elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
+__elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 {
 	int		i;
 	u_int		j;
@@ -883,21 +883,21 @@ fake_modname(const char *name)
 struct mod_metadata64 {
 	int		md_version;	/* structure version MDTV_* */
 	int		md_type;	/* type of entry MDT_* */
-	u_int64_t	md_data;	/* specific data */
-	u_int64_t	md_cval;	/* common string label */
+	uint64_t	md_data;	/* specific data */
+	uint64_t	md_cval;	/* common string label */
 };
 #endif
 #if defined(__amd64__) && __ELF_WORD_SIZE == 32
 struct mod_metadata32 {
 	int		md_version;	/* structure version MDTV_* */
 	int		md_type;	/* type of entry MDT_* */
-	u_int32_t	md_data;	/* specific data */
-	u_int32_t	md_cval;	/* common string label */
+	uint32_t	md_data;	/* specific data */
+	uint32_t	md_cval;	/* common string label */
 };
 #endif
 
 int
-__elfN(load_modmetadata)(struct preloaded_file *fp, u_int64_t dest)
+__elfN(load_modmetadata)(struct preloaded_file *fp, uint64_t dest)
 {
 	struct elf_file		 ef;
 	int			 err, i, j;
