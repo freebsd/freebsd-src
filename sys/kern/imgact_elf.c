@@ -35,7 +35,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
-#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/capsicum.h>

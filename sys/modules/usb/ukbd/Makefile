@@ -30,7 +30,7 @@ S=     ${SRCTOP}/sys
 .PATH: $S/dev/usb/input
 
 KMOD=	ukbd
-SRCS=	opt_bus.h opt_compat.h opt_evdev.h opt_kbd.h opt_ukbd.h opt_usb.h \
+SRCS=	opt_bus.h opt_evdev.h opt_kbd.h opt_ukbd.h opt_usb.h \
 	device_if.h bus_if.h usb_if.h usbdevs.h \
 	ukbd.c
 

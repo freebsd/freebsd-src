@@ -3,16 +3,9 @@
 SYSDIR?=	${SRCTOP}/sys
 
 KMOD=		dtraceall
-SRCS=		dtraceall.c opt_compat.h opt_nfs.h
+SRCS=		dtraceall.c opt_nfs.h
 
 CFLAGS+=	-I${SYSDIR}
-
-.if !defined(KERNBUILDDIR)
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "mips64"
-opt_compat.h:
-	echo "#define COMPAT_FREEBSD32 1" >> ${.TARGET}
-.endif
-.endif
 
 .include <bsd.kmod.mk>
 

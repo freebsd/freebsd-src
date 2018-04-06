@@ -30,7 +30,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
-#include "opt_compat.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_ktrace.h"
 #include "opt_vm.h"

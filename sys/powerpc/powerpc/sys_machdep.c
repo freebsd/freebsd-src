@@ -33,8 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/sysproto.h>
 
-#include "opt_compat.h"
-
 #ifdef COMPAT_FREEBSD32
 #include <compat/freebsd32/freebsd32_proto.h>
 

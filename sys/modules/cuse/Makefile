@@ -27,6 +27,6 @@
 .PATH: ${SRCTOP}/sys/fs/cuse
 
 KMOD=	cuse
-SRCS=	cuse.c device_if.h bus_if.h vnode_if.h opt_compat.h
+SRCS=	cuse.c device_if.h bus_if.h vnode_if.h
 
 .include <bsd.kmod.mk>

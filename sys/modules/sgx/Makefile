@@ -4,7 +4,7 @@
 
 KMOD=	sgx
 SRCS=	sgx.c sgxvar.h sgx_support.S
-SRCS+=	opt_compat.h opt_hwpmc_hooks.h opt_kstack_pages.h
+SRCS+=	opt_hwpmc_hooks.h opt_kstack_pages.h
 DPSRCS=	assym.inc
 
 sgx_support.o:  assym.inc
