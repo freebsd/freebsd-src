@@ -6,22 +6,22 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
@@ -150,7 +150,7 @@ efi_append_variable(efi_guid_t guid, const char *name,
 {
 
 	return efi_set_variable(guid, name, data, data_size,
-	    attributes | EFI_VARIABLE_APPEND_WRITE, 0);
+	    attributes | EFI_VARIABLE_APPEND_WRITE);
 }
 
 int
@@ -158,7 +158,7 @@ efi_del_variable(efi_guid_t guid, const char *name)
 {
 
 	/* data_size of 0 deletes the variable */
-	return efi_set_variable(guid, name, NULL, 0, 0, 0);
+	return efi_set_variable(guid, name, NULL, 0, 0);
 }
 
 int
@@ -225,8 +225,13 @@ efi_get_next_variable_name(efi_guid_t **guid, char **name)
 	if (efi_open_dev() == -1)
 		return -1;
 
+	/*
+	 * Always allocate enough for an extra NUL on the end, but don't tell
+	 * the IOCTL about it so we can NUL terminate the name before converting
+	 * it to UTF8.
+	 */
 	if (buf == NULL)
-		buf = malloc(buflen);
+		buf = malloc(buflen + sizeof(efi_char));
 
 again:
 	efi_var_reset(&var);
@@ -244,21 +249,23 @@ again:
 	rv = ioctl(efi_fd, EFIIOC_VAR_NEXT, &var);
 	if (rv == 0 && var.name == NULL) {
 		/*
-		 * oops, too little space. Try again.
+		 * Variable name not long enough, so allocate more space for the
+		 * name and try again. As above, mind the NUL we add.
 		 */
-		void *new = realloc(buf, buflen);
-		buflen = var.namesize;
+		void *new = realloc(buf, var.namesize + sizeof(efi_char));
 		if (new == NULL) {
 			rv = -1;
 			errno = ENOMEM;
 			goto done;
 		}
+		buflen = var.namesize;
 		buf = new;
 		goto again;
 	}
 
 	if (rv == 0) {
-		*name = NULL; /* XXX */
+		free(*name);			/* Free last name, to avoid leaking */
+		*name = NULL;			/* Force ucs2_to_utf8 to malloc new space */
 		var.name[var.namesize / sizeof(efi_char)] = 0;	/* EFI doesn't NUL terminate */
 		rv = ucs2_to_utf8(var.name, name);
 		if (rv != 0)
@@ -269,9 +276,11 @@ again:
 errout:
 
 	/* XXX The linux interface expects name to be a static buffer -- fix or leak memory? */
+	/* XXX for the moment, we free just before we'd leak, but still leak last one */
 done:
-	if (errno == ENOENT) {
+	if (rv != 0 && errno == ENOENT) {
 		errno = 0;
+		free(*name);			/* Free last name, to avoid leaking */
 		return 0;
 	}
 
@@ -349,7 +358,7 @@ efi_name_to_guid(const char *name, efi_guid_t *guid)
 
 int
 efi_set_variable(efi_guid_t guid, const char *name,
-    uint8_t *data, size_t data_size, uint32_t attributes, mode_t mode __unused)
+    uint8_t *data, size_t data_size, uint32_t attributes)
 {
 	struct efi_var_ioc var;
 	int rv;
