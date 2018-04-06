@@ -26,47 +26,13 @@
  * $FreeBSD$
  */
 
-#ifndef	_EFIVAR_DP_H_
-#define	_EFIVAR_DP_H_
-
 /*
- * "Linux compatible" efivar-dp.h header. At the moment, it's really a
- * very thin, minimal interface.
+ * differnt routines to dump data.
  */
 
-/*
- * Generic EFI_DEVICE_PATH, spelled the Linux way. We use this
- * interface to the outside world and type-pun to the EFI EDK2 code
- * we use to implement it.
- */
-typedef struct {
-	uint8_t type;
-	uint8_t subtype;
-	uint16_t length;
-} __packed efidp_header;
+void asciidump(uint8_t *data, size_t datalen);
+void bindump(uint8_t *data, size_t datalen);
+void efi_print_load_option(uint8_t *, size_t, int, int, int);
+void hexdump(uint8_t *data, size_t datalen);
+void utf8dump(uint8_t *data, size_t datalen);
 
-/* NB: Linux has shadow types for all dp type */
-
-typedef union {
-        efidp_header header;
-} efidp_data;
-typedef efidp_data *efidp;
-typedef const efidp_data *const_efidp;
-
-/** format a device path into UEFI standard conforming output.
- *
- * NB: FreeBSD's implementation is taken from EDK2, while Linux's
- * was hand-rolled. There may be differences as a result.
- */
-ssize_t efidp_format_device_path(char *buf, size_t len, const_efidp dp,
-    ssize_t max);
-ssize_t efidp_format_device_path_node(char *buf, size_t len, const_efidp dp);
-ssize_t efidp_parse_device_path(char *path, efidp out, size_t max);
-char * efidp_extract_file_path(const_efidp dp);
-
-size_t efidp_size(const_efidp);
-
-int efivar_device_path_to_unix_path(const_efidp dp, char **dev, char **relpath, char **abspath);
-int efivar_unix_path_to_device_path(const char *path, efidp *dp);
-
-#endif /* _EFIVAR_DP_H_ */

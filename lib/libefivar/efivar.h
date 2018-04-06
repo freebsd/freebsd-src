@@ -6,22 +6,22 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
  * $FreeBSD$
  */
@@ -83,7 +83,7 @@ int efi_guid_to_symbol(efi_guid_t *guid, char **symbol);
 int efi_guid_to_str(const efi_guid_t *guid, char **sp);
 int efi_name_to_guid(const char *name, efi_guid_t *guid);
 int efi_set_variable(efi_guid_t guid, const char *name,
-    uint8_t *data, size_t data_size, uint32_t attributes, mode_t mode);
+    uint8_t *data, size_t data_size, uint32_t attributes);
 int efi_str_to_guid(const char *s, efi_guid_t *guid);
 int efi_variables_supported(void);
 
@@ -98,38 +98,5 @@ struct uuid_table
 int efi_known_guid(struct uuid_table **);
 
 extern const efi_guid_t efi_guid_empty;
-
-/* Stubs that are expected, but aren't really used */
-static inline int
-efi_error_get(unsigned int n __unused, char ** const fn __unused,
-    char ** const func __unused, int *line __unused,
-    char ** const msg __unused, int *err __unused)
-{
-	return 0;
-}
-
-static inline int
-efi_error_set(const char *fn __unused, const char *func __unused,
-    int line __unused, int err __unused, const char *fmt __unused, ...)
-{
-	return 0;
-}
-
-static inline void
-efi_error_clear(void)
-{
-}
-
-static inline int
-efi_error(const char *fmt __unused, ...)
-{
-	return 0;
-}
-
-static inline int
-efi_error_val(int val __unused, const char *fmt __unused, ...)
-{
-	return 0;
-}
 
 #endif /* _EFIVAR_H_ */
