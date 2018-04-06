@@ -30,8 +30,6 @@
  *      $FreeBSD$
  */
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>

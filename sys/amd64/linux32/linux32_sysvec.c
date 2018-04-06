@@ -34,7 +34,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#include "opt_compat.h"
 
 #ifndef COMPAT_FREEBSD32
 #error "Unable to compile Linux-emulator due to missing COMPAT_FREEBSD32 option!"

@@ -80,18 +80,18 @@ BOOTVERBOSE	opt_global.h
 CALLOUT_PROFILING
 CAPABILITIES	opt_capsicum.h
 CAPABILITY_MODE	opt_capsicum.h
-COMPAT_43	opt_compat.h
-COMPAT_43TTY	opt_compat.h
-COMPAT_FREEBSD4	opt_compat.h
-COMPAT_FREEBSD5	opt_compat.h
-COMPAT_FREEBSD6	opt_compat.h
-COMPAT_FREEBSD7	opt_compat.h
-COMPAT_FREEBSD9	opt_compat.h
-COMPAT_FREEBSD10	opt_compat.h
-COMPAT_FREEBSD11	opt_compat.h
+COMPAT_43	opt_global.h
+COMPAT_43TTY	opt_global.h
+COMPAT_FREEBSD4	opt_global.h
+COMPAT_FREEBSD5	opt_global.h
+COMPAT_FREEBSD6	opt_global.h
+COMPAT_FREEBSD7	opt_global.h
+COMPAT_FREEBSD9	opt_global.h
+COMPAT_FREEBSD10	opt_global.h
+COMPAT_FREEBSD11	opt_global.h
 COMPAT_CLOUDABI32	opt_dontuse.h
 COMPAT_CLOUDABI64	opt_dontuse.h
-COMPAT_LINUXKPI	opt_compat.h
+COMPAT_LINUXKPI	opt_dontuse.h
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h

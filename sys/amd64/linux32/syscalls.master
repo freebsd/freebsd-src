@@ -26,7 +26,6 @@
 ;		function prototype in sys/sysproto.h.  Does add a
 ;		definition to syscall.h besides adding a sysent.
 
-#include "opt_compat.h"
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>

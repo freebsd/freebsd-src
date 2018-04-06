@@ -39,7 +39,6 @@
  */
 
 #include "opt_atpic.h"
-#include "opt_compat.h"
 #include "opt_hwpmc_hooks.h"
 
 #include "assym.inc"

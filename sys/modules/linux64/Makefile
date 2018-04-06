@@ -10,7 +10,7 @@ SRCS=	linux_fork.c linux_dummy.c linux_file.c linux_event.c \
 	linux_machdep.c linux_misc.c linux_ptrace.c linux_signal.c \
 	linux_socket.c linux_stats.c linux_sysctl.c linux_sysent.c \
 	linux_sysvec.c linux_time.c linux_vdso.c linux_timer.c \
-	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h \
+	opt_compat.h opt_inet6.h opt_posix.h opt_usb.h \
 	vnode_if.h device_if.h bus_if.h \
 	linux_support.s
 DPSRCS=	assym.inc linux_genassym.c

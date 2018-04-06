@@ -34,8 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 #define	__ELF_WORD_SIZE	64
 
 #include <sys/param.h>

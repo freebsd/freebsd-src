@@ -44,7 +44,6 @@
  * Updated	: 18/04/01 updated for new wscons
  */
 
-#include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
 #include "opt_platform.h"

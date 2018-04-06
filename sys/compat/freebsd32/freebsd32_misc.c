@@ -29,7 +29,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ktrace.h"

@@ -86,7 +86,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 #include <vm/swap_pager.h>
-#include "opt_compat.h"
 #include "opt_swap.h"
 
 static MALLOC_DEFINE(M_BIOBUF, "biobuf", "BIO buffer");

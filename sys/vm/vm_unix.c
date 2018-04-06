@@ -38,8 +38,6 @@
  *	@(#)vm_unix.c	8.1 (Berkeley) 6/11/93
  */
 
-#include "opt_compat.h"
-
 /*
  * Traditional sbrk/grow interface to VM
  */
