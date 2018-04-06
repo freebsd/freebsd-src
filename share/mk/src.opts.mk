@@ -131,6 +131,8 @@ __DEFAULT_YES_OPTIONS = \
     LPR \
     LS_COLORS \
     LZMA_SUPPORT \
+    LOADER_OFW \
+    LOADER_UBOOT \
     MAIL \
     MAILWRAPPER \
     MAKE \
@@ -276,9 +278,23 @@ BROKEN_OPTIONS+=LLDB
 .if ${__T} != "armv6"
 BROKEN_OPTIONS+=LIBSOFT
 .endif
+# EFI doesn't exist on mips, powerpc, sparc or riscv.
 .if ${__T:Mmips*} || ${__T:Mpowerpc*} || ${__T:Msparc64} || ${__T:Mriscv*}
 BROKEN_OPTIONS+=EFI
 .endif
+# GELI isn't supported on !x86
+.if ${__T} != "i386" && ${__T} != "amd64"
+BROKEN_OPTIONS+=LOADER_GELI
+.endif
+# OFW is only for powerpc and sparc64, exclude others
+.if ${__T:Mpowerpc*} == "" && ${__T:Msparc64} == ""
+BROKEN_OPTIONS+=LOADER_OFW
+.endif
+# UBOOT is only for arm, mips and powerpc, exclude others
+.if ${__T:Marm*} == "" && ${__T:Mmips*} == "" && ${__T:Mpowerpc*} == ""
+BROKEN_OPTIONS+=LOADER_UBOOT
+.endif
+
 .if ${__T:Mmips64*}
 # profiling won't work on MIPS64 because there is only assembly for o32
 BROKEN_OPTIONS+=PROFILE

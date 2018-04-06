@@ -1,18 +1,4 @@
 # $FreeBSD$
 
-SUBDIR+=		libsa32
-.if ${MK_ZFS} != "no"
-SUBDIR+=		zfs zfs32
-.endif
-.if ${MK_FORTH} != "no"
-SUBDIR+=		ficl32
-.endif
-
-SUBDIR+=		efi
-SUBDIR+=		userboot
-
-.if ${MK_LOADER_GELI} == "yes"
-SUBDIR+=		geli
-.endif
-
-SUBDIR+=		i386
+S.yes+=		userboot
+S.yes+=		i386
