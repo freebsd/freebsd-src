@@ -742,6 +742,8 @@
         ..
         netpfil
             pf
+                ioctl
+                ..
             ..
         ..
         opencrypto
