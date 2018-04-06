@@ -30,7 +30,7 @@ SRCS+=		bus_if.h device_if.h vnode_if.h
 DPSRCS+=	assym.inc
 
 # These are needed for assym.inc
-SRCS+=		opt_compat.h opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
+SRCS+=		opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
 
 #This is needed for dtrace.c
 SRCS += 	opensolaris_taskq.c

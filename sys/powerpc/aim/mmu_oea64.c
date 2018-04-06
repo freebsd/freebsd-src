@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
  * correct.
  */
 
-#include "opt_compat.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>

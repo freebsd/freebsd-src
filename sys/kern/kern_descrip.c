@@ -40,7 +40,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
-#include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
 

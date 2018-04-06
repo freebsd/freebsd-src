@@ -5,8 +5,6 @@
  * $FreeBSD$
  */
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>

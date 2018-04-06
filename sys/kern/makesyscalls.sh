@@ -656,9 +656,6 @@ sed -e '
 	END {
 		printf "\n#define AS(name) (sizeof(struct name) / sizeof(register_t))\n" > sysinc
 
-		if (ncompat != 0 || ncompat4 != 0 || ncompat6 != 0 || ncompat7 != 0 || ncompat10 != 0 || ncompat11 != 0)
-			printf "#include \"opt_compat.h\"\n\n" > syssw
-
 		if (ncompat != 0) {
 			printf "\n#ifdef %s\n", compat > sysinc
 			printf "#define compat(n, name) n, (sy_call_t *)__CONCAT(o,name)\n" > sysinc

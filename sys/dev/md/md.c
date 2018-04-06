@@ -60,7 +60,6 @@
  * From: src/sys/dev/vn/vn.c,v 1.122 2000/12/16 16:06:03
  */
 
-#include "opt_compat.h"
 #include "opt_rootdevname.h"
 #include "opt_geom.h"
 #include "opt_md.h"

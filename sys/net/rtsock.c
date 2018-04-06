@@ -31,7 +31,6 @@
  *	@(#)rtsock.c	8.7 (Berkeley) 10/12/95
  * $FreeBSD$
  */
-#include "opt_compat.h"
 #include "opt_mpath.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"

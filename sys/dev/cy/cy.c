@@ -33,8 +33,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 /*
  * TODO:
  * Atomic COR change.

@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_clock.h"
-#include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_isa.h"
 
