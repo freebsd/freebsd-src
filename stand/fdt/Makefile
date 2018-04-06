@@ -17,5 +17,4 @@ CFLAGS+=	-I${SYSDIR}/contrib/libfdt/ -I${LDRSRC}
 
 CFLAGS+=	-Wformat -Wall
 
-.include <bsd.stand.mk>
 .include <bsd.lib.mk>
