@@ -92,6 +92,7 @@ COMPAT_FREEBSD11	opt_global.h
 COMPAT_CLOUDABI32	opt_dontuse.h
 COMPAT_CLOUDABI64	opt_dontuse.h
 COMPAT_LINUXKPI	opt_dontuse.h
+_COMPAT_LINUX32	opt_compat.h	# XXX: make sure opt_compat.h exists
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
