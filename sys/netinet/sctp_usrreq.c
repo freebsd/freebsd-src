@@ -2412,7 +2412,7 @@ flags_out:
 #endif
 #ifdef INET6
 					case AF_INET6:
-						paddrp->spp_pathmtu -= SCTP_MIN_V4_OVERHEAD;
+						paddrp->spp_pathmtu -= SCTP_MIN_OVERHEAD;
 						break;
 #endif
 					default:
