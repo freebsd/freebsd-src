@@ -1156,3 +1156,10 @@ sysdecode_cap_rights(FILE *fp, cap_rights_t *rightsp)
 		}
 	}
 }
+
+const char *
+sysdecode_sctp_pr_policy(int policy)
+{
+
+	return (lookup_value(sctpprpolicy, policy));
+}

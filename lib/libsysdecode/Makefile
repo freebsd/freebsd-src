@@ -50,6 +50,7 @@ MLINKS+=sysdecode_enum.3 sysdecode_acltype.3 \
 	sysdecode_enum.3 sysdecode_rlimit.3 \
 	sysdecode_enum.3 sysdecode_rtprio_function.3 \
 	sysdecode_enum.3 sysdecode_scheduler_policy.3 \
+	sysdecode_enum.3 sysdecode_sctp_pr_policy.3 \
 	sysdecode_enum.3 sysdecode_semctl_cmd.3 \
 	sysdecode_enum.3 sysdecode_shmctl_cmd.3 \
 	sysdecode_enum.3 sysdecode_shutdown_how.3 \
