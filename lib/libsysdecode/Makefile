@@ -15,6 +15,7 @@ CFLAGS+= -I${SRCTOP}/libexec/rtld-elf
 MAN=	sysdecode.3 \
 	sysdecode_abi_to_freebsd_errno.3 \
 	sysdecode_cap_rights.3 \
+	sysdecode_cmsg_type.3 \
 	sysdecode_enum.3 \
 	sysdecode_fcntl_arg.3 \
 	sysdecode_kevent.3 \
