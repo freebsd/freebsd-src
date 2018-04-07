@@ -4599,21 +4599,21 @@ void
 sctp_clean_up_stream(struct sctp_tcb *stcb, struct sctp_readhead *rh)
 {
 	struct sctp_tmit_chunk *chk, *nchk;
-	struct sctp_queued_to_read *ctl, *nctl;
+	struct sctp_queued_to_read *control, *ncontrol;
 
-	TAILQ_FOREACH_SAFE(ctl, rh, next_instrm, nctl) {
-		TAILQ_REMOVE(rh, ctl, next_instrm);
-		ctl->on_strm_q = 0;
-		if (ctl->on_read_q == 0) {
-			sctp_free_remote_addr(ctl->whoFrom);
-			if (ctl->data) {
-				sctp_m_freem(ctl->data);
-				ctl->data = NULL;
+	TAILQ_FOREACH_SAFE(control, rh, next_instrm, ncontrol) {
+		TAILQ_REMOVE(rh, control, next_instrm);
+		control->on_strm_q = 0;
+		if (control->on_read_q == 0) {
+			sctp_free_remote_addr(control->whoFrom);
+			if (control->data) {
+				sctp_m_freem(control->data);
+				control->data = NULL;
 			}
 		}
 		/* Reassembly free? */
-		TAILQ_FOREACH_SAFE(chk, &ctl->reasm, sctp_next, nchk) {
-			TAILQ_REMOVE(&ctl->reasm, chk, sctp_next);
+		TAILQ_FOREACH_SAFE(chk, &control->reasm, sctp_next, nchk) {
+			TAILQ_REMOVE(&control->reasm, chk, sctp_next);
 			if (chk->data) {
 				sctp_m_freem(chk->data);
 				chk->data = NULL;
@@ -4629,8 +4629,8 @@ sctp_clean_up_stream(struct sctp_tcb *stcb, struct sctp_readhead *rh)
 		 * We don't free the address here since all the net's were
 		 * freed above.
 		 */
-		if (ctl->on_read_q == 0) {
-			sctp_free_a_readq(stcb, ctl);
+		if (control->on_read_q == 0) {
+			sctp_free_a_readq(stcb, control);
 		}
 	}
 }
@@ -6801,7 +6801,7 @@ sctp_drain_mbufs(struct sctp_tcb *stcb)
 	struct sctp_association *asoc;
 	struct sctp_tmit_chunk *chk, *nchk;
 	uint32_t cumulative_tsn_p1;
-	struct sctp_queued_to_read *ctl, *nctl;
+	struct sctp_queued_to_read *control, *ncontrol;
 	int cnt, strmat;
 	uint32_t gap, i;
 	int fnd = 0;
@@ -6818,88 +6818,124 @@ sctp_drain_mbufs(struct sctp_tcb *stcb)
 	cnt = 0;
 	/* Ok that was fun, now we will drain all the inbound streams? */
 	for (strmat = 0; strmat < asoc->streamincnt; strmat++) {
-		TAILQ_FOREACH_SAFE(ctl, &asoc->strmin[strmat].inqueue, next_instrm, nctl) {
+		TAILQ_FOREACH_SAFE(control, &asoc->strmin[strmat].inqueue, next_instrm, ncontrol) {
 #ifdef INVARIANTS
-			if (ctl->on_strm_q != SCTP_ON_ORDERED) {
+			if (control->on_strm_q != SCTP_ON_ORDERED) {
 				panic("Huh control: %p on_q: %d -- not ordered?",
-				    ctl, ctl->on_strm_q);
+				    control, control->on_strm_q);
 			}
 #endif
-			if (SCTP_TSN_GT(ctl->sinfo_tsn, cumulative_tsn_p1)) {
+			if (SCTP_TSN_GT(control->sinfo_tsn, cumulative_tsn_p1)) {
 				/* Yep it is above cum-ack */
 				cnt++;
-				SCTP_CALC_TSN_TO_GAP(gap, ctl->sinfo_tsn, asoc->mapping_array_base_tsn);
-				asoc->size_on_all_streams = sctp_sbspace_sub(asoc->size_on_all_streams, ctl->length);
+				SCTP_CALC_TSN_TO_GAP(gap, control->sinfo_tsn, asoc->mapping_array_base_tsn);
+				KASSERT(control->length > 0, ("control has zero length"));
+				if (asoc->size_on_all_streams >= control->length) {
+					asoc->size_on_all_streams -= control->length;
+				} else {
+#ifdef INVARIANTS
+					panic("size_on_all_streams = %u smaller than control length %u", asoc->size_on_all_streams, control->length);
+#else
+					asoc->size_on_all_streams = 0;
+#endif
+				}
 				sctp_ucount_decr(asoc->cnt_on_all_streams);
 				SCTP_UNSET_TSN_PRESENT(asoc->mapping_array, gap);
-				if (ctl->on_read_q) {
-					TAILQ_REMOVE(&stcb->sctp_ep->read_queue, ctl, next);
-					ctl->on_read_q = 0;
+				if (control->on_read_q) {
+					TAILQ_REMOVE(&stcb->sctp_ep->read_queue, control, next);
+					control->on_read_q = 0;
 				}
-				TAILQ_REMOVE(&asoc->strmin[strmat].inqueue, ctl, next_instrm);
-				ctl->on_strm_q = 0;
-				if (ctl->data) {
-					sctp_m_freem(ctl->data);
-					ctl->data = NULL;
+				TAILQ_REMOVE(&asoc->strmin[strmat].inqueue, control, next_instrm);
+				control->on_strm_q = 0;
+				if (control->data) {
+					sctp_m_freem(control->data);
+					control->data = NULL;
 				}
-				sctp_free_remote_addr(ctl->whoFrom);
+				sctp_free_remote_addr(control->whoFrom);
 				/* Now its reasm? */
-				TAILQ_FOREACH_SAFE(chk, &ctl->reasm, sctp_next, nchk) {
+				TAILQ_FOREACH_SAFE(chk, &control->reasm, sctp_next, nchk) {
 					cnt++;
 					SCTP_CALC_TSN_TO_GAP(gap, chk->rec.data.tsn, asoc->mapping_array_base_tsn);
-					asoc->size_on_reasm_queue = sctp_sbspace_sub(asoc->size_on_reasm_queue, chk->send_size);
+					KASSERT(chk->send_size > 0, ("chunk has zero length"));
+					if (asoc->size_on_reasm_queue >= chk->send_size) {
+						asoc->size_on_reasm_queue -= chk->send_size;
+					} else {
+#ifdef INVARIANTS
+						panic("size_on_reasm_queue = %u smaller than chunk length %u", asoc->size_on_reasm_queue, chk->send_size);
+#else
+						asoc->size_on_reasm_queue = 0;
+#endif
+					}
 					sctp_ucount_decr(asoc->cnt_on_reasm_queue);
 					SCTP_UNSET_TSN_PRESENT(asoc->mapping_array, gap);
-					TAILQ_REMOVE(&ctl->reasm, chk, sctp_next);
+					TAILQ_REMOVE(&control->reasm, chk, sctp_next);
 					if (chk->data) {
 						sctp_m_freem(chk->data);
 						chk->data = NULL;
 					}
 					sctp_free_a_chunk(stcb, chk, SCTP_SO_NOT_LOCKED);
 				}
-				sctp_free_a_readq(stcb, ctl);
+				sctp_free_a_readq(stcb, control);
 			}
 		}
-		TAILQ_FOREACH_SAFE(ctl, &asoc->strmin[strmat].uno_inqueue, next_instrm, nctl) {
+		TAILQ_FOREACH_SAFE(control, &asoc->strmin[strmat].uno_inqueue, next_instrm, ncontrol) {
 #ifdef INVARIANTS
-			if (ctl->on_strm_q != SCTP_ON_UNORDERED) {
+			if (control->on_strm_q != SCTP_ON_UNORDERED) {
 				panic("Huh control: %p on_q: %d -- not unordered?",
-				    ctl, ctl->on_strm_q);
+				    control, control->on_strm_q);
 			}
 #endif
-			if (SCTP_TSN_GT(ctl->sinfo_tsn, cumulative_tsn_p1)) {
+			if (SCTP_TSN_GT(control->sinfo_tsn, cumulative_tsn_p1)) {
 				/* Yep it is above cum-ack */
 				cnt++;
-				SCTP_CALC_TSN_TO_GAP(gap, ctl->sinfo_tsn, asoc->mapping_array_base_tsn);
-				asoc->size_on_all_streams = sctp_sbspace_sub(asoc->size_on_all_streams, ctl->length);
+				SCTP_CALC_TSN_TO_GAP(gap, control->sinfo_tsn, asoc->mapping_array_base_tsn);
+				KASSERT(control->length > 0, ("control has zero length"));
+				if (asoc->size_on_all_streams >= control->length) {
+					asoc->size_on_all_streams -= control->length;
+				} else {
+#ifdef INVARIANTS
+					panic("size_on_all_streams = %u smaller than control length %u", asoc->size_on_all_streams, control->length);
+#else
+					asoc->size_on_all_streams = 0;
+#endif
+				}
 				sctp_ucount_decr(asoc->cnt_on_all_streams);
 				SCTP_UNSET_TSN_PRESENT(asoc->mapping_array, gap);
-				if (ctl->on_read_q) {
-					TAILQ_REMOVE(&stcb->sctp_ep->read_queue, ctl, next);
-					ctl->on_read_q = 0;
+				if (control->on_read_q) {
+					TAILQ_REMOVE(&stcb->sctp_ep->read_queue, control, next);
+					control->on_read_q = 0;
 				}
-				TAILQ_REMOVE(&asoc->strmin[strmat].uno_inqueue, ctl, next_instrm);
-				ctl->on_strm_q = 0;
-				if (ctl->data) {
-					sctp_m_freem(ctl->data);
-					ctl->data = NULL;
+				TAILQ_REMOVE(&asoc->strmin[strmat].uno_inqueue, control, next_instrm);
+				control->on_strm_q = 0;
+				if (control->data) {
+					sctp_m_freem(control->data);
+					control->data = NULL;
 				}
-				sctp_free_remote_addr(ctl->whoFrom);
+				sctp_free_remote_addr(control->whoFrom);
 				/* Now its reasm? */
-				TAILQ_FOREACH_SAFE(chk, &ctl->reasm, sctp_next, nchk) {
+				TAILQ_FOREACH_SAFE(chk, &control->reasm, sctp_next, nchk) {
 					cnt++;
 					SCTP_CALC_TSN_TO_GAP(gap, chk->rec.data.tsn, asoc->mapping_array_base_tsn);
-					asoc->size_on_reasm_queue = sctp_sbspace_sub(asoc->size_on_reasm_queue, chk->send_size);
+					KASSERT(chk->send_size > 0, ("chunk has zero length"));
+					if (asoc->size_on_reasm_queue >= chk->send_size) {
+						asoc->size_on_reasm_queue -= chk->send_size;
+					} else {
+#ifdef INVARIANTS
+						panic("size_on_reasm_queue = %u smaller than chunk length %u", asoc->size_on_reasm_queue, chk->send_size);
+#else
+						asoc->size_on_reasm_queue = 0;
+#endif
+					}
 					sctp_ucount_decr(asoc->cnt_on_reasm_queue);
 					SCTP_UNSET_TSN_PRESENT(asoc->mapping_array, gap);
-					TAILQ_REMOVE(&ctl->reasm, chk, sctp_next);
+					TAILQ_REMOVE(&control->reasm, chk, sctp_next);
 					if (chk->data) {
 						sctp_m_freem(chk->data);
 						chk->data = NULL;
 					}
 					sctp_free_a_chunk(stcb, chk, SCTP_SO_NOT_LOCKED);
 				}
-				sctp_free_a_readq(stcb, ctl);
+				sctp_free_a_readq(stcb, control);
 			}
 		}
 	}
