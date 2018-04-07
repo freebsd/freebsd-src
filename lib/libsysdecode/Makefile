@@ -21,6 +21,7 @@ MAN=	sysdecode.3 \
 	sysdecode_ioctlname.3 \
 	sysdecode_mask.3 \
 	sysdecode_quotactl_cmd.3 \
+	sysdecode_sctp_sinfo_flags.3 \
 	sysdecode_sigcode.3 \
 	sysdecode_sockopt_name.3 \
 	sysdecode_socket_protocol.3 \
