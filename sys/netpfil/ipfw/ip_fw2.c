@@ -1847,7 +1847,8 @@ do {								\
 				 */
 				if ((proto == IPPROTO_UDP ||
 				    proto == IPPROTO_UDPLITE ||
-				    proto == IPPROTO_TCP) && offset == 0) {
+				    proto == IPPROTO_TCP ||
+				    proto==IPPROTO_SCTP) && offset == 0) {
 					u_int16_t x =
 					    (cmd->opcode == O_IP_SRCPORT) ?
 						src_port : dst_port ;
