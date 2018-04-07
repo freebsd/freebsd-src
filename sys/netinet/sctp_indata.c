@@ -2696,7 +2696,8 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 	}
 	/* get pointer to the first chunk header */
 	ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
-	    sizeof(struct sctp_chunkhdr), (uint8_t *)&chunk_buf);
+	    sizeof(struct sctp_chunkhdr),
+	    (uint8_t *)&chunk_buf);
 	if (ch == NULL) {
 		return (1);
 	}
@@ -2753,7 +2754,8 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				struct mbuf *op_err;
 				char msg[SCTP_DIAG_INFO_LEN];
 
-				snprintf(msg, sizeof(msg), "DATA chunk of length %d",
+				snprintf(msg, sizeof(msg), "%s chunk of length %d",
+				    ch->chunk_type == SCTP_DATA ? "DATA" : "I-DATA",
 				    chk_length);
 				op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_20;
@@ -2830,7 +2832,25 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 					return (2);
 				}
 			default:
-				/* unknown chunk type, use bit rules */
+				/*
+				 * Unknown chunk type: use bit rules after
+				 * checking length
+				 */
+				if (chk_length < sizeof(struct sctp_chunkhdr)) {
+					/*
+					 * Need to send an abort since we
+					 * had a invalid chunk.
+					 */
+					struct mbuf *op_err;
+					char msg[SCTP_DIAG_INFO_LEN];
+
+					snprintf(msg, sizeof(msg), "Chunk of length %d",
+					    chk_length);
+					op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_20;
+					sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
+					return (2);
+				}
 				if (ch->chunk_type & 0x40) {
 					/* Add a error report to the queue */
 					struct mbuf *op_err;
@@ -2866,7 +2886,8 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 			continue;
 		}
 		ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
-		    sizeof(struct sctp_chunkhdr), (uint8_t *)&chunk_buf);
+		    sizeof(struct sctp_chunkhdr),
+		    (uint8_t *)&chunk_buf);
 		if (ch == NULL) {
 			*offset = length;
 			stop_proc = 1;
