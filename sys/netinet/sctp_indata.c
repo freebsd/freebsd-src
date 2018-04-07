@@ -1617,7 +1617,6 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 						    control,
 						    &stcb->sctp_socket->so_rcv, control->end_added,
 						    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
-						do_wakeup = 1;
 					}
 					break;
 				}
