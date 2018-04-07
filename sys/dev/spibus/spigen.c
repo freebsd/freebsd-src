@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 
 #include <dev/spibus/spi.h>
+#include <dev/spibus/spibusvar.h>
 
 #ifdef FDT
 #include <dev/ofw/ofw_bus_subr.h>
@@ -64,7 +65,6 @@ struct spigen_softc {
 	device_t sc_dev;
 	struct cdev *sc_cdev;
 	struct mtx sc_mtx;
-	uint32_t sc_clock_speed;
 	uint32_t sc_command_length_max; /* cannot change while mmapped */
 	uint32_t sc_data_length_max;    /* cannot change while mmapped */
 	vm_object_t sc_mmap_buffer;     /* command, then data */
@@ -320,7 +320,6 @@ spigen_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
 	device_t dev = cdev->si_drv1;
-	struct spigen_softc *sc = device_get_softc(dev);
 	int error;
 
 	switch (cmd) {
@@ -331,20 +330,20 @@ spigen_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = spigen_transfer_mmapped(cdev, (struct spigen_transfer_mmapped *)data);
 		break;
 	case SPIGENIOC_GET_CLOCK_SPEED:
-		mtx_lock(&sc->sc_mtx);
-		*(uint32_t *)data = sc->sc_clock_speed;
-		/* XXX TODO: implement spibus ivar call */
-		mtx_unlock(&sc->sc_mtx);
-		error = 0;
+		error = spibus_get_clock(dev, (uintptr_t *)data);
 		break;
 	case SPIGENIOC_SET_CLOCK_SPEED:
-		mtx_lock(&sc->sc_mtx);
-		sc->sc_clock_speed = *(uint32_t *)data;
-		mtx_unlock(&sc->sc_mtx);
-		error = 0;
+		error = spibus_set_clock(dev, *(uint32_t *)data);
+		break;
+	case SPIGENIOC_GET_SPI_MODE:
+		error = spibus_get_mode(dev, (uintptr_t *)data);
+		break;
+	case SPIGENIOC_SET_SPI_MODE:
+		error = spibus_set_mode(dev, *(uint32_t *)data);
 		break;
 	default:
-		error = EOPNOTSUPP;
+		error = ENOTTY;
+		break;
 	}
 	return (error);
 }
