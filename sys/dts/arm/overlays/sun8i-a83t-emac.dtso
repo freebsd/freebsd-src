@@ -1,0 +1,44 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "allwinner,sun8i-a83t";
+
+	fragment@0 {
+		target = <&pio>;
+		__overlay__ {
+			emac_rgmii_pins: emac-rgmii-pins {
+				pins = "PD2", "PD3", "PD4", "PD5", "PD6", "PD7",
+				    "PD11", "PD12", "PD13", "PD14", "PD18",
+				    "PD19", "PD20", "PD21", "PD22", "PD23";
+				function = "emac";
+				drive-strength = <0x28>;
+			};
+		};
+	};
+
+	fragment@1 {
+		target-path = "/soc";
+		__overlay__ {
+			emac: ethernet@1c30000 {
+				compatible = "allwinner,sun8i-a83t-emac";
+				syscon = <&syscon>;
+				reg = <0x1c30000 0x104>;
+				interrupts = <0x0 0x52 0x4>;
+				interrupt-names = "macirq";
+				resets = <&ccu 0xd>;
+				reset-names = "ahb";
+				clocks = <&ccu 0x1b>;
+				clock-names = "ahb";
+				#address-cells = <0x1>;
+				#size-cells = <0x0>;
+				status = "disabled";
+				mdio: mdio {
+					compatible = "snps,dwmac-mdio";
+					#address-cells = <0x1>;
+					#size-cells = <0x0>;
+				};
+			};
+		};
+	};
+};
