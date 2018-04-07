@@ -418,6 +418,8 @@ __FBSDID("$FreeBSD$");
 #define SCTP_RANDOM			0x8002
 #define SCTP_CHUNK_LIST			0x8003
 #define SCTP_HMAC_LIST			0x8004
+/* RFC 4820 */
+#define SCTP_PAD			0x8005
 /* RFC 5061 */
 #define SCTP_SUPPORTED_CHUNK_EXT	0x8008
 
