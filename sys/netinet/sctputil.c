@@ -1042,6 +1042,7 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	asoc->initial_init_rto_max = inp->sctp_ep.initial_init_rto_max;
 	asoc->initial_rto = inp->sctp_ep.initial_rto;
 
+	asoc->default_mtu = inp->sctp_ep.default_mtu;
 	asoc->max_init_times = inp->sctp_ep.max_init_times;
 	asoc->max_send_times = inp->sctp_ep.max_send_times;
 	asoc->def_net_failure = inp->sctp_ep.def_net_failure;

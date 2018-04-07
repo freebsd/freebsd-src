@@ -1098,6 +1098,7 @@ struct sctp_association {
 	uint32_t chunks_on_out_queue;	/* total chunks floating around,
 					 * locked by send socket buffer */
 	uint32_t peers_adaptation;
+	uint32_t default_mtu;
 	uint16_t peer_hmac_id;	/* peer HMAC id to send */
 
 	/*
