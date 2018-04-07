@@ -41,9 +41,7 @@ void
 sctp_common_input_processing(struct mbuf **, int, int, int,
     struct sockaddr *, struct sockaddr *,
     struct sctphdr *, struct sctp_chunkhdr *,
-#if !defined(SCTP_WITH_NO_CSUM)
     uint8_t,
-#endif
     uint8_t,
     uint8_t, uint32_t, uint16_t,
     uint32_t, uint16_t);

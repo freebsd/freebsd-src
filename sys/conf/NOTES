@@ -664,21 +664,6 @@ options 	SCTP
 # faster.. if you are not debugging don't use.
 options 	SCTP_DEBUG
 #
-# This option turns off the CRC32c checksum. Basically,
-# you will not be able to talk to anyone else who
-# has not done this. Its more for experimentation to
-# see how much CPU the CRC32c really takes. Most new
-# cards for TCP support checksum offload.. so this 
-# option gives you a "view" into what SCTP would be
-# like with such an offload (which only exists in
-# high in iSCSI boards so far). With the new
-# splitting 8's algorithm its not as bad as it used
-# to be.. but it does speed things up try only
-# for in a captured lab environment :-)
-options 	SCTP_WITH_NO_CSUM
-#
-
-#
 # All that options after that turn on specific types of
 # logging. You can monitor CWND growth, flight size
 # and all sorts of things. Go look at the code and
