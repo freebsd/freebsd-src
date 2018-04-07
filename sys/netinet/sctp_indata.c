@@ -4213,8 +4213,6 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 again:
 	j = 0;
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
-		int to_ticks;
-
 		if (win_probe_recovery && (net->window_probe)) {
 			win_probe_recovered = 1;
 			/*
@@ -4229,11 +4227,6 @@ again:
 					break;
 				}
 			}
-		}
-		if (net->RTO == 0) {
-			to_ticks = MSEC_TO_TICKS(stcb->asoc.initial_rto);
-		} else {
-			to_ticks = MSEC_TO_TICKS(net->RTO);
 		}
 		if (net->flight_size) {
 			j++;
