@@ -50,5 +50,7 @@ struct spigen_transfer_mmapped {
 	    struct spigen_transfer_mmapped)
 #define SPIGENIOC_GET_CLOCK_SPEED  _IOR(SPIGENIOC_BASE, 2, uint32_t)
 #define SPIGENIOC_SET_CLOCK_SPEED  _IOW(SPIGENIOC_BASE, 3, uint32_t)
+#define SPIGENIOC_GET_SPI_MODE     _IOR(SPIGENIOC_BASE, 4, uint32_t)
+#define SPIGENIOC_SET_SPI_MODE     _IOW(SPIGENIOC_BASE, 5, uint32_t)
 
 #endif /* !_SYS_SPIGENIO_H_ */
