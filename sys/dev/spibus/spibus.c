@@ -49,8 +49,9 @@ __FBSDID("$FreeBSD$");
 static int
 spibus_probe(device_t dev)
 {
-	device_set_desc(dev, "spibus bus");
-	return (BUS_PROBE_GENERIC);
+
+	device_set_desc(dev, "SPI bus");
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -70,16 +71,11 @@ spibus_attach(device_t dev)
 static int
 spibus_detach(device_t dev)
 {
-	int err, ndevs, i;
-	device_t *devlist;
+	int err;
 
 	if ((err = bus_generic_detach(dev)) != 0)
 		return (err);
-	if ((err = device_get_children(dev, &devlist, &ndevs)) != 0)
-		return (err);
-	for (i = 0; i < ndevs; i++)
-		device_delete_child(dev, devlist[i]);
-	free(devlist, M_TEMP);
+	device_delete_children(dev);
 
 	return (0);
 }
