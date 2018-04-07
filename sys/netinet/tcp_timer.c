@@ -687,18 +687,20 @@ tcp_timer_rexmt(void * xtp)
 		 */
 		if (((tp->t_flags2 & (TF2_PLPMTU_PMTUD|TF2_PLPMTU_MAXSEGSNT)) ==
 		    (TF2_PLPMTU_PMTUD|TF2_PLPMTU_MAXSEGSNT)) &&
-		    (tp->t_rxtshift >= 2 && tp->t_rxtshift % 2 == 0)) {
+		    (tp->t_rxtshift >= 2 && tp->t_rxtshift < 6 &&
+		    tp->t_rxtshift % 2 == 0)) {
 			/*
 			 * Enter Path MTU Black-hole Detection mechanism:
 			 * - Disable Path MTU Discovery (IP "DF" bit).
 			 * - Reduce MTU to lower value than what we
 			 *   negotiated with peer.
 			 */
-			/* Record that we may have found a black hole. */
-			tp->t_flags2 |= TF2_PLPMTU_BLACKHOLE;
-
-			/* Keep track of previous MSS. */
-			tp->t_pmtud_saved_maxseg = tp->t_maxseg;
+			if ((tp->t_flags2 & TF2_PLPMTU_BLACKHOLE) == 0) {
+				/* Record that we may have found a black hole. */
+				tp->t_flags2 |= TF2_PLPMTU_BLACKHOLE;
+				/* Keep track of previous MSS. */
+				tp->t_pmtud_saved_maxseg = tp->t_maxseg;
+			}
 
 			/* 
 			 * Reduce the MSS to blackhole value or to the default
@@ -757,7 +759,7 @@ tcp_timer_rexmt(void * xtp)
 			 * stage (1448, 1188, 524) 2 chances to recover.
 			 */
 			if ((tp->t_flags2 & TF2_PLPMTU_BLACKHOLE) &&
-			    (tp->t_rxtshift > 6)) {
+			    (tp->t_rxtshift >= 6)) {
 				tp->t_flags2 |= TF2_PLPMTU_PMTUD;
 				tp->t_flags2 &= ~TF2_PLPMTU_BLACKHOLE;
 				tp->t_maxseg = tp->t_pmtud_saved_maxseg;
