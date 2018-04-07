@@ -581,7 +581,7 @@ main(int argc, char *argv[])
 			else if (ch == 'p') {
 				mode = DEFFILEMODE;
 				pflag = 1;
-			} else if (ch == 'S') {
+			} else {
 				mode = S_IRUSR | S_IWUSR;
 				Sflag = 1;
 			}
@@ -931,7 +931,7 @@ static void
 parsemsg_rfc5424(const char *from, int pri, char *msg)
 {
 	const struct logtime *timestamp;
-	struct logtime timestamp_remote = { 0 };
+	struct logtime timestamp_remote;
 	const char *omsg, *hostname, *app_name, *procid, *msgid,
 	    *structured_data;
 	char line[MAXLINE + 1];
@@ -971,6 +971,7 @@ parsemsg_rfc5424(const char *from, int pri, char *msg)
 	dest = v;							\
 } while (0)
 		/* Date and time. */
+		memset(&timestamp_remote, 0, sizeof(timestamp_remote));
 		PARSE_NUMBER(timestamp_remote.tm.tm_year, 4, 0, 9999);
 		timestamp_remote.tm.tm_year -= 1900;
 		PARSE_CHAR("TIMESTAMP", '-');
@@ -1151,7 +1152,7 @@ parsemsg_rfc3164(const char *from, int pri, char *msg)
 {
 	struct tm tm_parsed;
 	const struct logtime *timestamp;
-	struct logtime timestamp_remote = { 0 };
+	struct logtime timestamp_remote;
 	const char *app_name, *procid;
 	size_t i, msglen;
 	char line[MAXLINE + 1];
@@ -1187,6 +1188,7 @@ parsemsg_rfc3164(const char *from, int pri, char *msg)
 			timestamp_remote.tm = tm_parsed;
 			timestamp_remote.tm.tm_year = year;
 			timestamp_remote.tm.tm_isdst = -1;
+			timestamp_remote.usec = 0;
 			if (mktime(&timestamp_remote.tm) <
 			    t_now + 7 * 24 * 60 * 60)
 				break;

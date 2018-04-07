@@ -11,8 +11,6 @@ SRCS=	syslogd.c ttymsg.c
 
 LIBADD=	util
 
-WARNS?= 3
-
 .if ${MK_INET_SUPPORT} != "no"
 CFLAGS+= -DINET
 .endif
