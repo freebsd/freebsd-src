@@ -3058,7 +3058,6 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 									    &stcb->asoc,
 									    tp1->whoTo,
 									    &tp1->sent_rcv_time,
-									    sctp_align_safe_nocopy,
 									    SCTP_RTT_FROM_DATA);
 									*rto_ok = 0;
 								}
@@ -4030,7 +4029,6 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 								    sctp_calculate_rto(stcb,
 								    asoc, tp1->whoTo,
 								    &tp1->sent_rcv_time,
-								    sctp_align_safe_nocopy,
 								    SCTP_RTT_FROM_DATA);
 								rto_ok = 0;
 							}
@@ -4636,7 +4634,6 @@ hopeless_peer:
 								    sctp_calculate_rto(stcb,
 								    asoc, tp1->whoTo,
 								    &tp1->sent_rcv_time,
-								    sctp_align_safe_nocopy,
 								    SCTP_RTT_FROM_DATA);
 								rto_ok = 0;
 							}
