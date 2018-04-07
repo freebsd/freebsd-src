@@ -2,7 +2,7 @@
 
 S=	${SRCTOP}/sys
 
-.PATH: $S/cam $S/cam/scsi $S/cam/ata $S/cam/nvme $S/${MACHINE}/${MACHINE}
+.PATH: $S/cam $S/cam/scsi $S/cam/ata $S/cam/nvme $S/dev/nvme $S/${MACHINE}/${MACHINE}
 
 KMOD=	cam
 
@@ -46,6 +46,7 @@ SRCS+=	ata_pmp.c
 SRCS+=	nvme_all.c
 SRCS+=	nvme_xpt.c
 SRCS+=	nvme_da.c
+SRCS+=	nvme_util.c
 
 EXPORT_SYMS=	YES	# XXX evaluate
 
