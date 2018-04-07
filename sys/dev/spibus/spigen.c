@@ -324,13 +324,13 @@ spigen_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = spigen_transfer_mmapped(cdev, (struct spigen_transfer_mmapped *)data);
 		break;
 	case SPIGENIOC_GET_CLOCK_SPEED:
-		error = spibus_get_clock(dev, (uintptr_t *)data);
+		error = spibus_get_clock(dev, (uint32_t *)data);
 		break;
 	case SPIGENIOC_SET_CLOCK_SPEED:
 		error = spibus_set_clock(dev, *(uint32_t *)data);
 		break;
 	case SPIGENIOC_GET_SPI_MODE:
-		error = spibus_get_mode(dev, (uintptr_t *)data);
+		error = spibus_get_mode(dev, (uint32_t *)data);
 		break;
 	case SPIGENIOC_SET_SPI_MODE:
 		error = spibus_set_mode(dev, *(uint32_t *)data);
