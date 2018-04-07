@@ -2074,7 +2074,6 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			struct mbuf *mm;
 
 			control->data = dmbuf;
-			mm = control->data;
 			for (mm = control->data; mm; mm = mm->m_next) {
 				control->length += SCTP_BUF_LEN(mm);
 			}
