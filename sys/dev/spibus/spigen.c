@@ -51,6 +51,10 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/spibus/spi.h>
 
+#ifdef FDT
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
+
 #include "spibus_if.h"
 
 #define	SPIGEN_OPEN		(1 << 0)
@@ -70,24 +74,24 @@ struct spigen_softc {
 	int sc_flags;
 };
 
-#ifdef FDT
-static void
-spigen_identify(driver_t *driver, device_t parent)
-{
-	if (device_find_child(parent, "spigen", -1) != NULL)
-		return;
-	if (BUS_ADD_CHILD(parent, 0, "spigen", -1) == NULL)
-		device_printf(parent, "add child failed\n");
-}
-#endif
-
 static int
 spigen_probe(device_t dev)
 {
+	int rv;
 
+#ifdef FDT
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (!ofw_bus_is_compatible(dev, "freebsd,spigen"))
+		return (ENXIO);
+	rv = BUS_PROBE_DEFAULT;
+#else
+	rv = BUS_PROBE_NOWILDCARD;
+#endif
 	device_set_desc(dev, "SPI Generic IO");
 
-	return (BUS_PROBE_NOWILDCARD);
+	return (rv);
 }
 
 static int spigen_open(struct cdev *, int, int, struct thread *);
@@ -439,9 +443,6 @@ static devclass_t spigen_devclass;
 
 static device_method_t spigen_methods[] = {
 	/* Device interface */
-#ifdef FDT
-	DEVMETHOD(device_identify,	spigen_identify),
-#endif
 	DEVMETHOD(device_probe,		spigen_probe),
 	DEVMETHOD(device_attach,	spigen_attach),
 	DEVMETHOD(device_detach,	spigen_detach),
