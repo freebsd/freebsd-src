@@ -2305,39 +2305,6 @@ sctp_set_primary_ip_address_sa(struct sctp_tcb *stcb, struct sockaddr *sa)
 	return (0);
 }
 
-void
-sctp_set_primary_ip_address(struct sctp_ifa *ifa)
-{
-	struct sctp_inpcb *inp;
-
-	/* go through all our PCB's */
-	LIST_FOREACH(inp, &SCTP_BASE_INFO(listhead), sctp_list) {
-		struct sctp_tcb *stcb;
-
-		/* process for all associations for this endpoint */
-		LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
-			/* queue an ASCONF:SET_PRIM_ADDR to be sent */
-			if (!sctp_asconf_queue_add(stcb, ifa,
-			    SCTP_SET_PRIM_ADDR)) {
-				/* set primary queuing succeeded */
-				SCTPDBG(SCTP_DEBUG_ASCONF1, "set_primary_ip_address: queued on stcb=%p, ",
-				    (void *)stcb);
-				SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, &ifa->address.sa);
-				if ((SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) ||
-				    (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
-#ifdef SCTP_TIMER_BASED_ASCONF
-					sctp_timer_start(SCTP_TIMER_TYPE_ASCONF,
-					    stcb->sctp_ep, stcb,
-					    stcb->asoc.primary_destination);
-#else
-					sctp_send_asconf(stcb, NULL, SCTP_ADDR_NOT_LOCKED);
-#endif
-				}
-			}
-		}		/* for each stcb */
-	}			/* for each inp */
-}
-
 int
 sctp_is_addr_pending(struct sctp_tcb *stcb, struct sctp_ifa *sctp_ifa)
 {
