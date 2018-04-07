@@ -108,16 +108,38 @@ DIV_CLK(apb0_clk,
     0, 2,			/* shift, width */
     0, NULL);			/* flags, div table */
 
-static const char *ir_parents[] = {"osc32k", "osc24M"};
-NM_CLK(ir_clk,
+static const char *r_ccu_ir_parents[] = {"osc32k", "osc24M"};
+NM_CLK(r_ccu_ir_clk,
     CLK_IR,				/* id */
-    "ir", ir_parents,			/* names, parents */
+    "ir", r_ccu_ir_parents,		/* names, parents */
     0x54,				/* offset */
     0, 4, 0, 0,				/* N factor */
     16, 2, 0, 0,			/* M flags */
     24, 2,				/* mux */
     31,					/* gate */
     AW_CLK_HAS_MUX | AW_CLK_REPARENT);	/* flags */
+
+static const char *a83t_ir_parents[] = {"osc16M", "osc24M"};
+static struct aw_clk_nm_def a83t_ir_clk = {
+	.clkdef = {
+		.id = CLK_IR,
+		.name = "ir",
+		.parent_names = a83t_ir_parents,
+		.parent_cnt = nitems(a83t_ir_parents),
+	},
+	.offset = 0x54,
+	.n = {.shift = 0, .width = 4, .flags = AW_CLK_FACTOR_POWER_OF_TWO, },
+	.m = {.shift = 16, .width = 2},
+	.prediv = {
+		.cond_shift = 24,
+		.cond_width = 2,
+		.cond_value = 0,
+		.value = 16
+	},
+	.mux_shift = 24,
+	.mux_width = 2,
+	.flags = AW_CLK_HAS_MUX | AW_CLK_HAS_PREDIV,
+};
 
 static struct aw_clk_prediv_mux_def *r_ccu_prediv_mux_clks[] = {
 	&ar100_clk,
@@ -135,8 +157,12 @@ static struct clk_fixed_def *fixed_factor_clks[] = {
 	&ahb0_clk,
 };
 
-static struct aw_clk_nm_def *nm_clks[] = {
-	&ir_clk,
+static struct aw_clk_nm_def *r_ccu_nm_clks[] = {
+	&r_ccu_ir_clk,
+};
+
+static struct aw_clk_nm_def *a83t_nm_clks[] = {
+	&a83t_ir_clk,
 };
 
 void
@@ -144,6 +170,7 @@ ccu_sun8i_r_register_clocks(struct aw_ccung_softc *sc)
 {
 	int i;
 	struct aw_clk_prediv_mux_def **prediv_mux_clks;
+	struct aw_clk_nm_def **nm_clks;
 
 	sc->resets = ccu_sun8i_r_resets;
 	sc->nresets = nitems(ccu_sun8i_r_resets);
@@ -151,10 +178,13 @@ ccu_sun8i_r_register_clocks(struct aw_ccung_softc *sc)
 	sc->ngates = nitems(ccu_sun8i_r_gates);
 
 	/* a83t names the parents differently than the others */
-	if (sc->type == A83T_R_CCU)
+	if (sc->type == A83T_R_CCU) {
 		prediv_mux_clks = a83t_r_ccu_prediv_mux_clks;
-	else
+		nm_clks = a83t_nm_clks;
+	} else {
 		prediv_mux_clks = r_ccu_prediv_mux_clks;
+		nm_clks = r_ccu_nm_clks;
+	}
 
 	for (i = 0; i < nitems(prediv_mux_clks); i++)
 		aw_clk_prediv_mux_register(sc->clkdom, prediv_mux_clks[i]);
