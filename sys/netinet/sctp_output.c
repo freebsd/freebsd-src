@@ -4277,11 +4277,13 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 					uint32_t mtu;
 
 					mtu = SCTP_GATHER_MTU_FROM_ROUTE(net->ro._s_addr, &net->ro._l_addr.sa, ro->ro_rt);
-					if (net->port) {
-						mtu -= sizeof(struct udphdr);
-					}
-					if (mtu && (stcb->asoc.smallest_mtu > mtu)) {
-						sctp_mtu_size_reset(inp, &stcb->asoc, mtu);
+					if (mtu > 0) {
+						if (net->port) {
+							mtu -= sizeof(struct udphdr);
+						}
+						if ((stcb != NULL) && (stcb->asoc.smallest_mtu > mtu)) {
+							sctp_mtu_size_reset(inp, &stcb->asoc, mtu);
+						}
 						net->mtu = mtu;
 					}
 				} else if (ro->ro_rt == NULL) {
@@ -4633,13 +4635,14 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 					uint32_t mtu;
 
 					mtu = SCTP_GATHER_MTU_FROM_ROUTE(net->ro._s_addr, &net->ro._l_addr.sa, ro->ro_rt);
-					if (mtu &&
-					    (stcb->asoc.smallest_mtu > mtu)) {
-						sctp_mtu_size_reset(inp, &stcb->asoc, mtu);
-						net->mtu = mtu;
+					if (mtu > 0) {
 						if (net->port) {
-							net->mtu -= sizeof(struct udphdr);
+							mtu -= sizeof(struct udphdr);
 						}
+						if ((stcb != NULL) && (stcb->asoc.smallest_mtu > mtu)) {
+							sctp_mtu_size_reset(inp, &stcb->asoc, mtu);
+						}
+						net->mtu = mtu;
 					}
 				} else if (ifp) {
 					if (ND_IFINFO(ifp)->linkmtu &&
@@ -12421,7 +12424,6 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
 	resv_in_first = SCTP_DATA_CHUNK_OVERHEAD(stcb);
 	sp->data = sp->tail_mbuf = NULL;
 	if (sp->length == 0) {
-		*error = 0;
 		goto skip_copy;
 	}
 	if (srcv->sinfo_keynumber_valid) {
@@ -13152,7 +13154,7 @@ skip_preblock:
 		if (strm->last_msg_incomplete == 0) {
 	do_a_copy_in:
 			sp = sctp_copy_it_in(stcb, asoc, srcv, uio, net, max_len, user_marks_eor, &error);
-			if ((sp == NULL) || (error)) {
+			if (error) {
 				goto out;
 			}
 			SCTP_TCB_SEND_LOCK(stcb);
