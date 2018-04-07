@@ -969,9 +969,6 @@ __FBSDID("$FreeBSD$");
 #define SCTP_SO_NOT_LOCKED	0
 
 
-#define SCTP_HOLDS_LOCK 1
-#define SCTP_NOT_LOCKED 0
-
 /*-
  * For address locks, do we hold the lock?
  */
