@@ -242,15 +242,9 @@ spigen_transfer(struct cdev *cdev, struct spigen_transfer *st)
 #endif
 	transfer.tx_cmd = transfer.rx_cmd = malloc(st->st_command.iov_len,
 	    M_DEVBUF, M_WAITOK);
-	if (transfer.tx_cmd == NULL)
-		return (ENOMEM);
 	if (st->st_data.iov_len > 0) {
 		transfer.tx_data = transfer.rx_data = malloc(st->st_data.iov_len,
 		    M_DEVBUF, M_WAITOK);
-		if (transfer.tx_data == NULL) {
-			free(transfer.tx_cmd, M_DEVBUF);
-			return (ENOMEM);
-		}
 	}
 	else
 		transfer.tx_data = transfer.rx_data = NULL;
