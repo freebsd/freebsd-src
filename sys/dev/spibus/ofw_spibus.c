@@ -71,7 +71,7 @@ ofw_spibus_probe(device_t dev)
 		return (ENXIO);
 	device_set_desc(dev, "OFW SPI bus");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -126,6 +126,10 @@ ofw_spibus_attach(device_t dev)
 		/*
 		 * Get the maximum clock frequency for device, zero means
 		 * use the default bus speed.
+		 *
+		 * XXX Note that the current (2018-04-07) dts bindings say that
+		 * spi-max-frequency is a required property (but says nothing of
+		 * how to interpret a value of zero).
 		 */
 		if (OF_getencprop(child, "spi-max-frequency", &clock,
 		    sizeof(clock)) == -1)
