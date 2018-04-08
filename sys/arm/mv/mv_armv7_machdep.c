@@ -397,7 +397,8 @@ mv_a38x_platform_devmap_init(platform_t plat)
 	 * PCI range(s) and localbus.
 	 */
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
-		if (fdt_is_type(child, "pci") || fdt_is_type(child, "pciep")) {
+		if (mv_fdt_is_type(child, "pci") ||
+		    mv_fdt_is_type(child, "pciep")) {
 			/*
 			 * Check space: each PCI node will consume 2 devmap
 			 * entries.

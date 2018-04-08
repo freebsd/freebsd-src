@@ -420,7 +420,7 @@ mv_pcib_probe(device_t self)
 	phandle_t node;
 
 	node = ofw_bus_get_node(self);
-	if (!fdt_is_type(node, "pci"))
+	if (!mv_fdt_is_type(node, "pci"))
 		return (ENXIO);
 
 	if (!(ofw_bus_is_compatible(self, "mrvl,pcie") ||
