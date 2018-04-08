@@ -387,7 +387,7 @@ patm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		/* return vcc table */
 		vtab = atm_getvccs((struct atmio_vcc **)sc->vccs,
 		    sc->mmap->max_conn, sc->vccs_open, &sc->mtx, 1);
-		error = copyout(vtab, ifr->ifr_data, sizeof(*vtab) +
+		error = copyout(vtab, ifr_data_get_ptr(ifr), sizeof(*vtab) +
 		    vtab->count * sizeof(vtab->vccs[0]));
 		free(vtab, M_DEVBUF);
 		break;

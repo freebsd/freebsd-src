@@ -2497,7 +2497,7 @@ fatm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t arg)
 		/* return vcc table */
 		vtab = atm_getvccs((struct atmio_vcc **)sc->vccs,
 		    FORE_MAX_VCC + 1, sc->open_vccs, &sc->mtx, 1);
-		error = copyout(vtab, ifr->ifr_data, sizeof(*vtab) +
+		error = copyout(vtab, ifr_data_get_ptr(ifr), sizeof(*vtab) +
 		    vtab->count * sizeof(vtab->vccs[0]));
 		free(vtab, M_DEVBUF);
 		break;

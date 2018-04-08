@@ -2400,6 +2400,20 @@ ifr_buffer_set_length(void *data, size_t len)
 		ifrup->ifr.ifr_ifru.ifru_buffer.length = len;
 }
 
+void *
+ifr_data_get_ptr(void *ifrp)
+{
+	union ifreq_union *ifrup;
+
+	ifrup = ifrp;
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		return ((void *)(uintptr_t)
+		    ifrup->ifr32.ifr_ifru.ifru_data);
+#endif
+		return (ifrup->ifr.ifr_ifru.ifru_data);
+}
+
 /*
  * Hardware specific interface ioctls.
  */
@@ -2581,7 +2595,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		error = priv_check(td, PRIV_NET_SETIFNAME);
 		if (error)
 			return (error);
-		error = copyinstr(ifr->ifr_data, new_name, IFNAMSIZ, NULL);
+		error = copyinstr(ifr_data_get_ptr(ifr), new_name, IFNAMSIZ,
+		    NULL);
 		if (error != 0)
 			return (error);
 		if (new_name[0] == '\0')
@@ -2896,8 +2911,8 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		error = priv_check(td, PRIV_NET_IFCREATE);
 		if (error == 0)
 			error = if_clone_create(ifr->ifr_name,
-			    sizeof(ifr->ifr_name),
-			    cmd == SIOCIFCREATE2 ? ifr->ifr_data : NULL);
+			    sizeof(ifr->ifr_name), cmd == SIOCIFCREATE2 ?
+			    ifr_data_get_ptr(ifr) : NULL);
 		CURVNET_RESTORE();
 		return (error);
 	case SIOCIFDESTROY:

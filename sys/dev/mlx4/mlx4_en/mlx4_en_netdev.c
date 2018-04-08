@@ -2058,7 +2058,7 @@ out:
 	case SIOCGI2C: {
 		struct ifi2creq i2c;
 
-		error = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
+		error = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
 		if (error)
 			break;
 		if (i2c.len > sizeof(i2c.data)) {
@@ -2075,7 +2075,7 @@ out:
 			error = -error;
 			break;
 		}
-		error = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
+		error = copyout(&i2c, ifr_data_get_ptr(ifr), sizeof(i2c));
 		break;
 	}
 #endif

@@ -2973,11 +2973,12 @@ ndis_80211ioctl(struct ieee80211com *ic, u_long cmd, void *data)
 	switch (cmd) {
 	case SIOCGDRVSPEC:
 	case SIOCSDRVSPEC:
-		error = copyin(ifr->ifr_data, &oid, sizeof(oid));
+		error = copyin(ifr_data_get_ptr(ifr), &oid, sizeof(oid));
 		if (error)
 			break;
 		oidbuf = malloc(oid.len, M_TEMP, M_WAITOK | M_ZERO);
-		error = copyin(ifr->ifr_data + sizeof(oid), oidbuf, oid.len);
+		error = copyin((caddr_t)ifr_data_get_ptr(ifr) + sizeof(oid),
+		    oidbuf, oid.len);
 	}
 
 	if (error) {
@@ -2999,7 +3000,7 @@ ndis_80211ioctl(struct ieee80211com *ic, u_long cmd, void *data)
 			NDIS_UNLOCK(sc);
 			break;
 		}
-		error = copyin(ifr->ifr_data, &evt, sizeof(evt));
+		error = copyin(ifr_data_get_ptr(ifr), &evt, sizeof(evt));
 		if (error) {
 			NDIS_UNLOCK(sc);
 			break;
@@ -3010,14 +3011,15 @@ ndis_80211ioctl(struct ieee80211com *ic, u_long cmd, void *data)
 			break;
 		}
 		error = copyout(&sc->ndis_evt[sc->ndis_evtcidx],
-		    ifr->ifr_data, sizeof(uint32_t) * 2);
+		    ifr_data_get_ptr(ifr), sizeof(uint32_t) * 2);
 		if (error) {
 			NDIS_UNLOCK(sc);
 			break;
 		}
 		if (sc->ndis_evt[sc->ndis_evtcidx].ne_len) {
 			error = copyout(sc->ndis_evt[sc->ndis_evtcidx].ne_buf,
-			    ifr->ifr_data + (sizeof(uint32_t) * 2),
+			    (caddr_t)ifr_data_get_ptr(ifr) +
+			    (sizeof(uint32_t) * 2),
 			    sc->ndis_evt[sc->ndis_evtcidx].ne_len);
 			if (error) {
 				NDIS_UNLOCK(sc);
@@ -3039,10 +3041,11 @@ ndis_80211ioctl(struct ieee80211com *ic, u_long cmd, void *data)
 	switch (cmd) {
 	case SIOCGDRVSPEC:
 	case SIOCSDRVSPEC:
-		error = copyout(&oid, ifr->ifr_data, sizeof(oid));
+		error = copyout(&oid, ifr_data_get_ptr(ifr), sizeof(oid));
 		if (error)
 			break;
-		error = copyout(oidbuf, ifr->ifr_data + sizeof(oid), oid.len);
+		error = copyout(oidbuf,
+		    (caddr_t)ifr_data_get_ptr(ifr) + sizeof(oid), oid.len);
 	}
 
 	free(oidbuf, M_TEMP);
