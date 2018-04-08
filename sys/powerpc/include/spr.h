@@ -128,7 +128,7 @@
 #define FSCR_IC_PM		  0x0300000000000000ULL	/* Read or write access of a Performance Monitor SPR in group A */
 #define FSCR_IC_BHRB		  0x0400000000000000ULL	/* Execution of a BHRB Instruction */
 #define FSCR_IC_HTM		  0x0500000000000000ULL	/* Access to a Transactional Memory */
-/* Reserved 0x0500000000000000ULL */
+/* Reserved 0x0600000000000000ULL */
 #define FSCR_IC_EBB		  0x0700000000000000ULL	/* Access to Event-Based Branch */
 #define FSCR_IC_TAR		  0x0800000000000000ULL	/* Access to Target Address Register */
 #define FSCR_IC_STOP		  0x0900000000000000ULL	/* Access to the 'stop' instruction in privileged non-hypervisor state */
