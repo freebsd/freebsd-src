@@ -67,7 +67,7 @@ fdt_pinctrl_configure_by_name(device_t client, const char * name)
 	int i, offset, nameslen;
 
 	nameslen = OF_getprop_alloc(ofw_bus_get_node(client), "pinctrl-names",
-	    sizeof(*names), (void **)&names);
+	    (void **)&names);
 	if (nameslen <= 0)
 		return (ENOENT);
 	for (i = 0, offset = 0; offset < nameslen; i++) {

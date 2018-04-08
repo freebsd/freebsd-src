@@ -559,10 +559,10 @@ aw_gpio_parse_function(phandle_t node)
 {
 	char *function;
 
-	if (OF_getprop_alloc(node, "function", sizeof(*function),
+	if (OF_getprop_alloc(node, "function",
 	    (void **)&function) != -1)
 		return (function);
-	if (OF_getprop_alloc(node, "allwinner,function", sizeof(*function),
+	if (OF_getprop_alloc(node, "allwinner,function",
 	    (void **)&function) != -1)
 		return (function);
 

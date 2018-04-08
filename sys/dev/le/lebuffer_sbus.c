@@ -183,7 +183,7 @@ lebuffer_setup_dinfo(device_t dev, phandle_t node)
 	}
 	resource_list_init(&ldi->ldi_rl);
 	slot = -1;
-	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
+	nreg = OF_getprop_alloc_multi(node, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1) {
 		device_printf(dev, "<%s>: incomplete\n",
 		    ldi->ldi_obdinfo.obd_name);
@@ -217,7 +217,7 @@ lebuffer_setup_dinfo(device_t dev, phandle_t node)
 	/*
 	 * The `interrupts' property contains the SBus interrupt level.
 	 */
-	nintr = OF_getprop_alloc(node, "interrupts", sizeof(*intr),
+	nintr = OF_getprop_alloc_multi(node, "interrupts", sizeof(*intr),
 	    (void **)&intr);
 	if (nintr != -1) {
 		for (i = 0; i < nintr; i++) {

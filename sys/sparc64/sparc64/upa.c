@@ -285,7 +285,7 @@ upa_attach(device_t dev)
 		goto fail;
 	}
 
-	sc->sc_nrange = OF_getprop_alloc(node, "ranges", sizeof(*sc->sc_ranges),
+	sc->sc_nrange = OF_getprop_alloc_multi(node, "ranges", sizeof(*sc->sc_ranges),
 	    (void **)&sc->sc_ranges);
 	if (sc->sc_nrange == -1) {
 		device_printf(dev, "could not determine ranges\n");
@@ -553,7 +553,7 @@ upa_setup_dinfo(device_t dev, struct upa_softc *sc, phandle_t node,
 	}
 	resource_list_init(&udi->udi_rl);
 
-	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
+	nreg = OF_getprop_alloc_multi(node, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1) {
 		device_printf(dev, "<%s>: incomplete\n",
 		    udi->udi_obdinfo.obd_name);

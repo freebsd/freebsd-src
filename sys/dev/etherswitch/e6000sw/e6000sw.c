@@ -276,7 +276,7 @@ e6000sw_parse_child_fdt(e6000sw_softc_t *sc, phandle_t child, int *pport)
 		return (ENXIO);
 	*pport = port;
 
-	if (OF_getprop_alloc(child, "label", 1, (void **)&portlabel) > 0) {
+	if (OF_getprop_alloc(child, "label", (void **)&portlabel) > 0) {
 		if (strncmp(portlabel, "cpu", 3) == 0) {
 			device_printf(sc->dev, "CPU port at %d\n", port);
 			sc->cpuports_mask |= (1 << port);
@@ -287,7 +287,7 @@ e6000sw_parse_child_fdt(e6000sw_softc_t *sc, phandle_t child, int *pport)
 
 	fixed_link = OF_child(child);
 	if (fixed_link != 0 &&
-	    OF_getprop_alloc(fixed_link, "name", 1, (void **)&name) > 0) {
+	    OF_getprop_alloc(fixed_link, "name", (void **)&name) > 0) {
 		if (strncmp(name, "fixed-link", 10) == 0) {
 			/* Assume defaults: 1g - full-duplex. */
 			sc->fixed_mask |= (1 << port);

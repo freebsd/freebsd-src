@@ -154,7 +154,7 @@ aml8726_usb_phy_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 
 	len = OF_getprop_alloc(node, "force-aca",
-	    sizeof(char), (void **)&force_aca);
+	    (void **)&force_aca);
 
 	sc->force_aca = FALSE;
 

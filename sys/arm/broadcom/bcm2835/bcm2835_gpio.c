@@ -677,7 +677,7 @@ bcm_gpio_get_reserved_pins(struct bcm_gpio_softc *sc)
 	reserved = 0;
 	node = OF_child(gpio);
 	while ((node != 0) && (reserved == 0)) {
-		len = OF_getprop_alloc(node, "name", 1, (void **)&name);
+		len = OF_getprop_alloc(node, "name", (void **)&name);
 		if (len == -1)
 			return (-1);
 		if (strcmp(name, "reserved") == 0)

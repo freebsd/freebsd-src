@@ -136,7 +136,7 @@ mtk_pinctrl_process_node(device_t dev, struct mtk_pin_group *table,
 	if (num_groups <= 0)
 		return (ENOENT);
 
-	if (OF_getprop_alloc(node, "ralink,function", sizeof(*pin_function),
+	if (OF_getprop_alloc_multi(node, "ralink,function", sizeof(*pin_function),
 			     (void **)&pin_function) == -1) {
 		ret = ENOENT;
 		goto out;

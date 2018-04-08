@@ -440,11 +440,35 @@ OF_searchencprop(phandle_t node, const char *propname, void *buf, size_t len)
 
 /*
  * Store the value of a property of a package into newly allocated memory
+ * (using the M_OFWPROP malloc pool and M_WAITOK).
+ */
+ssize_t
+OF_getprop_alloc(phandle_t package, const char *propname, void **buf)
+{
+	int len;
+
+	*buf = NULL;
+	if ((len = OF_getproplen(package, propname)) == -1)
+		return (-1);
+
+	if (len > 0) {
+		*buf = malloc(len, M_OFWPROP, M_WAITOK);
+		if (OF_getprop(package, propname, *buf, len) == -1) {
+			free(*buf, M_OFWPROP);
+			*buf = NULL;
+			return (-1);
+		}
+	}
+	return (len);
+}
+
+/*
+ * Store the value of a property of a package into newly allocated memory
  * (using the M_OFWPROP malloc pool and M_WAITOK).  elsz is the size of a
  * single element, the number of elements is return in number.
  */
 ssize_t
-OF_getprop_alloc(phandle_t package, const char *propname, int elsz, void **buf)
+OF_getprop_alloc_multi(phandle_t package, const char *propname, int elsz, void **buf)
 {
 	int len;
 
@@ -453,14 +477,17 @@ OF_getprop_alloc(phandle_t package, const char *propname, int elsz, void **buf)
 	    len % elsz != 0)
 		return (-1);
 
-	*buf = malloc(len, M_OFWPROP, M_WAITOK);
-	if (OF_getprop(package, propname, *buf, len) == -1) {
-		free(*buf, M_OFWPROP);
-		*buf = NULL;
-		return (-1);
+	if (len > 0) {
+		*buf = malloc(len, M_OFWPROP, M_WAITOK);
+		if (OF_getprop(package, propname, *buf, len) == -1) {
+			free(*buf, M_OFWPROP);
+			*buf = NULL;
+			return (-1);
+		}
 	}
 	return (len / elsz);
 }
+
 
 ssize_t
 OF_getencprop_alloc(phandle_t package, const char *name, int elsz, void **buf)
@@ -469,7 +496,7 @@ OF_getencprop_alloc(phandle_t package, const char *name, int elsz, void **buf)
 	pcell_t *cell;
 	int i;
 
-	retval = OF_getprop_alloc(package, name, elsz, buf);
+	retval = OF_getprop_alloc_multi(package, name, elsz, buf);
 	if (retval == -1)
 		return (-1);
  	if (retval * elsz % 4 != 0) {
