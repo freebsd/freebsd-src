@@ -79,16 +79,19 @@ spigen_probe(device_t dev)
 {
 	int rv;
 
-#ifdef FDT
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (!ofw_bus_is_compatible(dev, "freebsd,spigen"))
-		return (ENXIO);
-	rv = BUS_PROBE_DEFAULT;
-#else
+	/*
+	 * By default we only bid to attach if specifically added by our parent
+	 * (usually via hint.spigen.#.at=busname).  On FDT systems we bid as the
+	 * default driver based on being configured in the FDT data.
+	 */
 	rv = BUS_PROBE_NOWILDCARD;
+
+#ifdef FDT
+	if (ofw_bus_status_okay(dev) &&
+	    ofw_bus_is_compatible(dev, "freebsd,spigen"))
+                rv = BUS_PROBE_DEFAULT;
 #endif
+
 	device_set_desc(dev, "SPI Generic IO");
 
 	return (rv);
