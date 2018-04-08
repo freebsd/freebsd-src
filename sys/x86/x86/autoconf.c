@@ -90,8 +90,7 @@ SYSINIT(configure3, SI_SUB_CONFIGURE, SI_ORDER_ANY, configure_final, NULL);
  * Determine i/o configuration for a machine.
  */
 static void
-configure_first(dummy)
-	void *dummy;
+configure_first(void *dummy)
 {
 
 	/* nexus0 is the top of the x86 device tree */
@@ -99,8 +98,7 @@ configure_first(dummy)
 }
 
 static void
-configure(dummy)
-	void *dummy;
+configure(void *dummy)
 {
 
 	/* initialize new bus architecture */
@@ -117,8 +115,7 @@ configure(dummy)
 }
 
 static void
-configure_final(dummy)
-	void *dummy;
+configure_final(void *dummy)
 {
 
 	cninit_finish(); 
