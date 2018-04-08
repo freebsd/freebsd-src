@@ -484,6 +484,26 @@ pm_disable_device(int mask)
 }
 
 int
+mv_fdt_is_type(phandle_t node, const char *typestr)
+{
+#define FDT_TYPE_LEN	64
+	char type[FDT_TYPE_LEN];
+
+	if (OF_getproplen(node, "device_type") <= 0)
+		return (0);
+
+	if (OF_getprop(node, "device_type", type, FDT_TYPE_LEN) < 0)
+		return (0);
+
+	if (strncasecmp(type, typestr, FDT_TYPE_LEN) == 0)
+		/* This fits. */
+		return (1);
+
+	return (0);
+#undef FDT_TYPE_LEN
+}
+
+int
 mv_fdt_pm(phandle_t node)
 {
 	uint32_t cpu_pm_ctrl;
