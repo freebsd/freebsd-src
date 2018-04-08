@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define FDT_COMPAT_LEN	255
-#define FDT_TYPE_LEN	64
 
 #define FDT_REG_CELLS	4
 #define FDT_RANGES_SIZE 48
@@ -331,24 +330,6 @@ fdt_depth_search_compatible(phandle_t start, const char *compat, int strict)
 		if (child != 0)
 			return (child);
 	}
-	return (0);
-}
-
-int
-fdt_is_type(phandle_t node, const char *typestr)
-{
-	char type[FDT_TYPE_LEN];
-
-	if (OF_getproplen(node, "device_type") <= 0)
-		return (0);
-
-	if (OF_getprop(node, "device_type", type, FDT_TYPE_LEN) < 0)
-		return (0);
-
-	if (strncasecmp(type, typestr, FDT_TYPE_LEN) == 0)
-		/* This fits. */
-		return (1);
-
 	return (0);
 }
 
