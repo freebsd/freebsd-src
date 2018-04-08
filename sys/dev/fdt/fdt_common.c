@@ -71,8 +71,6 @@ vm_offset_t fdt_immr_size;
 
 struct fdt_ic_list fdt_ic_list_head = SLIST_HEAD_INITIALIZER(fdt_ic_list_head);
 
-static int fdt_is_compatible(phandle_t, const char *);
-
 static int
 fdt_get_range_by_busaddr(phandle_t node, u_long addr, u_long *base,
     u_long *size)
@@ -205,77 +203,6 @@ fdt_get_range(phandle_t node, int range_id, u_long *base, u_long *size)
 }
 
 int
-fdt_immr_addr(vm_offset_t immr_va)
-{
-	phandle_t node;
-	u_long base, size;
-	int r;
-
-	/*
-	 * Try to access the SOC node directly i.e. through /aliases/.
-	 */
-	if ((node = OF_finddevice("soc")) != -1)
-		if (fdt_is_compatible(node, "simple-bus"))
-			goto moveon;
-	/*
-	 * Find the node the long way.
-	 */
-	if ((node = OF_finddevice("/")) == -1)
-		return (ENXIO);
-
-	if ((node = fdt_find_compatible(node, "simple-bus", 0)) == 0)
-		return (ENXIO);
-
-moveon:
-	if ((r = fdt_get_range(node, 0, &base, &size)) == 0) {
-		fdt_immr_pa = base;
-		fdt_immr_va = immr_va;
-		fdt_immr_size = size;
-	}
-
-	return (r);
-}
-
-/*
- * This routine is an early-usage version of the ofw_bus_is_compatible() when
- * the ofw_bus I/F is not available (like early console routines and similar).
- * Note the buffer has to be on the stack since malloc() is usually not
- * available in such cases either.
- */
-static int
-fdt_is_compatible(phandle_t node, const char *compatstr)
-{
-	char buf[FDT_COMPAT_LEN];
-	char *compat;
-	int len, onelen, l, rv;
-
-	if ((len = OF_getproplen(node, "compatible")) <= 0)
-		return (0);
-
-	compat = (char *)&buf;
-	bzero(compat, FDT_COMPAT_LEN);
-
-	if (OF_getprop(node, "compatible", compat, FDT_COMPAT_LEN) < 0)
-		return (0);
-
-	onelen = strlen(compatstr);
-	rv = 0;
-	while (len > 0) {
-		if (strncasecmp(compat, compatstr, onelen) == 0) {
-			/* Found it. */
-			rv = 1;
-			break;
-		}
-		/* Slide to the next sub-string. */
-		l = strlen(compat) + 1;
-		compat += l;
-		len -= l;
-	}
-
-	return (rv);
-}
-
-int
 fdt_is_compatible_strict(phandle_t node, const char *compatible)
 {
 	char compat[FDT_COMPAT_LEN];
@@ -303,7 +230,7 @@ fdt_find_compatible(phandle_t start, const char *compat, int strict)
 	 * matching 'compatible' property.
 	 */
 	for (child = OF_child(start); child != 0; child = OF_peer(child))
-		if (fdt_is_compatible(child, compat)) {
+		if (ofw_bus_node_is_compatible(child, compat)) {
 			if (strict)
 				if (!fdt_is_compatible_strict(child, compat))
 					continue;
@@ -322,7 +249,7 @@ fdt_depth_search_compatible(phandle_t start, const char *compat, int strict)
 	 * matching 'compatible' property.
 	 */
 	for (node = OF_child(start); node != 0; node = OF_peer(node)) {
-		if (fdt_is_compatible(node, compat) && 
+		if (ofw_bus_node_is_compatible(node, compat) &&
 		    (strict == 0 || fdt_is_compatible_strict(node, compat))) {
 			return (node);
 		}
