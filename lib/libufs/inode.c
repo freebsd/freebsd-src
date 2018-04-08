@@ -60,6 +60,10 @@ getino(struct uufsd *disk, void **dino, ino_t inode, int *mode)
 	ERROR(disk, NULL);
 
 	fs = &disk->d_fs;
+	if (inode >= fs->fs_ipg * fs->fs_ncg) {
+		ERROR(disk, "inode number out of range");
+		return (-1);
+	}
 	inoblock = disk->d_inoblock;
 	min = disk->d_inomin;
 	max = disk->d_inomax;
@@ -81,13 +85,17 @@ getino(struct uufsd *disk, void **dino, ino_t inode, int *mode)
 gotit:	switch (disk->d_ufs) {
 	case 1:
 		dp1 = &((struct ufs1_dinode *)inoblock)[inode - min];
-		*mode = dp1->di_mode & IFMT;
-		*dino = dp1;
+		if (mode != NULL)
+			*mode = dp1->di_mode & IFMT;
+		if (dino != NULL)
+			*dino = dp1;
 		return (0);
 	case 2:
 		dp2 = &((struct ufs2_dinode *)inoblock)[inode - min];
-		*mode = dp2->di_mode & IFMT;
-		*dino = dp2;
+		if (mode != NULL)
+			*mode = dp2->di_mode & IFMT;
+		if (dino != NULL)
+			*dino = dp2;
 		return (0);
 	default:
 		break;
