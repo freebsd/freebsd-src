@@ -26,16 +26,5 @@
 
 only forth definitions
 
-: efiboot? ( -- flag )
-	s" efi-version" getenv -1 <> dup if
-		swap drop ( c-addr flag -- flag )
-	then
-;
-
-: maybe-efi-resizecons
-	efiboot? if
-		s" efi-autoresizecons" evaluate
-	then
-;
-
+s" efi-autoresizecons" evaluate
 .( EFI boot environment) cr
