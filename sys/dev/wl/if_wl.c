@@ -1313,7 +1313,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 	WL_UNLOCK(sc);
 
-	error = copyout(psa_buf, ifr->ifr_data, sizeof(psa_buf));
+	error = copyout(psa_buf, ifr_data_get_ptr(ifr), sizeof(psa_buf));
 	break;
 
 
@@ -1323,7 +1323,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	if ((error = priv_check(td, PRIV_DRIVER)))
 	    break;
 
-	error = copyin(ifr->ifr_data, psa_buf, sizeof(psa_buf));
+	error = copyin(ifr_data_get_ptr(ifr), psa_buf, sizeof(psa_buf));
 	if (error)
 	    break;
 	
@@ -1357,7 +1357,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	/* get the current NWID out of the sc since we stored it there */
     case SIOCGWLCNWID:
 	WL_LOCK(sc);
-	ifr->ifr_data = (caddr_t) (sc->nwid[0] << 8 | sc->nwid[1]);
+	ifr_data_get_ptr(ifr) = (caddr_t) (sc->nwid[0] << 8 | sc->nwid[1]);
 	WL_UNLOCK(sc);
 	break;
 
@@ -1382,8 +1382,8 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	    /* 
 	     * soft c nwid shadows radio modem setting
 	     */
-	    sc->nwid[0] = (int)ifr->ifr_data >> 8;
-	    sc->nwid[1] = (int)ifr->ifr_data & 0xff;
+	    sc->nwid[0] = (int)ifr_data_get_ptr(ifr) >> 8;
+	    sc->nwid[1] = (int)ifr_data_get_ptr(ifr) & 0xff;
 	    MMC_WRITE(MMC_NETW_ID_L,sc->nwid[1]);
 	    MMC_WRITE(MMC_NETW_ID_H,sc->nwid[0]);
 	}
@@ -1409,7 +1409,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		wlmmcread(sc, MMC_EEDATALrv);	/* 2.4 Gz: EEPROM word      */
 	}
 	WL_UNLOCK(sc);
-	error = copyout(ifr->ifr_data, eeprom_buf, sizeof(eeprom_buf));
+	error = copyout(ifr_data_get_ptr(ifr), eeprom_buf, sizeof(eeprom_buf));
 	break;
 
 #ifdef WLCACHE
@@ -1426,7 +1426,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	/* read out the number of used cache elements */
     case SIOCGWLCITEM:
 	WL_LOCK(sc);
-	ifr->ifr_data = (caddr_t) sc->w_sigitems;
+	ifr_data_get_ptr(ifr) = (caddr_t) sc->w_sigitems;
 	WL_UNLOCK(sc);
 	break;
 
@@ -1443,7 +1443,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	bcopy(sc->w_sigcache, cpt, size);
 	WL_UNLOCK(sc);
 
-	error = copyout(cpt, ifr->ifr_data, size);
+	error = copyout(cpt, ifr_data_get_ptr(ifr), size);
 	free(cpt, M_DEVBUF);
 	break;
 #endif

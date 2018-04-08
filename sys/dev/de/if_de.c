@@ -4266,7 +4266,7 @@ tulip_ifioctl(struct ifnet * ifp, u_long cmd, caddr_t data)
 
 #ifdef SIOCGADDRROM
 	case SIOCGADDRROM: {
-	    error = copyout(sc->tulip_rombuf, ifr->ifr_data, sizeof(sc->tulip_rombuf));
+	    error = copyout(sc->tulip_rombuf, ifr_data_get_ptr(ifr), sizeof(sc->tulip_rombuf));
 	    break;
 	}
 #endif

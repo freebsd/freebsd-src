@@ -5058,17 +5058,17 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 	if ((spr = malloc(sizeof(struct spppreq), M_TEMP, M_NOWAIT)) == NULL)
 		return (EAGAIN);
 	/*
-	 * ifr->ifr_data is supposed to point to a struct spppreq.
+	 * ifr_data_get_ptr(ifr) is supposed to point to a struct spppreq.
 	 * Check the cmd word first before attempting to fetch all the
 	 * data.
 	 */
-	rv = fueword(ifr->ifr_data, &subcmd);
+	rv = fueword(ifr_data_get_ptr(ifr), &subcmd);
 	if (rv == -1) {
 		rv = EFAULT;
 		goto quit;
 	}
 
-	if (copyin((caddr_t)ifr->ifr_data, spr, sizeof(struct spppreq)) != 0) {
+	if (copyin(ifr_data_get_ptr(ifr), spr, sizeof(struct spppreq)) != 0) {
 		rv = EFAULT;
 		goto quit;
 	}
@@ -5105,8 +5105,8 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 		 * setting it.
 		 */
 		spr->defs.lcp.timeout = sp->lcp.timeout * 1000 / hz;
-		rv = copyout(spr, (caddr_t)ifr->ifr_data,
-			     sizeof(struct spppreq));
+		rv = copyout(spr, ifr_data_get_ptr(ifr),
+		    sizeof(struct spppreq));
 		break;
 
 	case (u_long)SPPPIOSDEFS:

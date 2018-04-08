@@ -4826,7 +4826,7 @@ ixgbe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		int i;
 
 		IOCTL_DEBUGOUT("ioctl: SIOCGI2C (Get I2C Data)");
-		error = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
+		error = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
 		if (error != 0)
 			break;
 		if (i2c.dev_addr != 0xA0 && i2c.dev_addr != 0xA2) {
@@ -4841,7 +4841,7 @@ ixgbe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		for (i = 0; i < i2c.len; i++)
 			hw->phy.ops.read_i2c_byte(hw, i2c.offset + i,
 			    i2c.dev_addr, &i2c.data[i]);
-		error = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
+		error = copyout(&i2c, ifr_data_get_ptr(ifr), sizeof(i2c));
 		break;
 	}
 #endif
