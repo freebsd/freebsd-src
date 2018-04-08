@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 2, 2017
+.Dd April 6, 2018
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -33,7 +33,16 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl abehuwxACHPSWY
-.Op Fl c Ar numcpus
+.Oo
+.Fl c\~ Ns
+.Oo
+.Op Ar cpus= Ns
+.Ar numcpus Ns
+.Oc Ns
+.Op Ar ,sockets=n Ns
+.Op Ar ,cores=n Ns
+.Op Ar ,threads=n
+.Oc
 .Op Fl g Ar gdbport
 .Op Fl l Ar lpcdev Ns Op , Ns Ar conf
 .Op Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
@@ -77,9 +86,30 @@ Enable a low-level console device supported by
 kernels compiled with
 .Cd "device bvmconsole" .
 This option will be deprecated in a future version.
-.It Fl c Ar numcpus
-Number of guest virtual CPUs.
-The default is 1 and the maximum is 16.
+.It Fl c Op Ar setting ...
+Number of guest virtual CPUs
+and/or the CPU topology.
+The default value for each of
+.Ar numcpus ,
+.Ar sockets ,
+.Ar cores ,
+and
+.Ar threads
+is 1.
+The current maximum number of guest virtual CPUs is 16.
+If
+.Ar numcpus
+is not specified then it will be calculated from the other arguments.
+The topology must be consistent in that the
+.Ar numcpus
+must equal the product of
+.Ar sockets ,
+.Ar cores ,
+and
+.Ar threads .
+If a
+.Ar setting
+is specified more than once the last one has precedence.
 .It Fl C
 Include guest memory in core file.
 .It Fl e
