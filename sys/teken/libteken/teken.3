@@ -43,25 +43,25 @@
 .Ft void
 .Fn teken_set_winsize "teken_t *t" "const teken_pos_t *size"
 .Ft const teken_pos_t *
-.Fn teken_get_cursor "teken_t *t"
+.Fn teken_get_cursor "const teken_t *t"
 .Ft void
 .Fn teken_set_cursor "teken_t *t" "const teken_pos_t *pos"
 .Ft const teken_attr_t *
-.Fn teken_get_curattr "teken_t *t"
+.Fn teken_get_curattr "const teken_t *t"
 .Ft void
 .Fn teken_set_curattr "teken_t *t" "const teken_attr_t *attr"
 .Ft const teken_attr_t *
-.Fn teken_get_defattr "teken_t *t"
+.Fn teken_get_defattr "const teken_t *t"
 .Ft void
 .Fn teken_set_defattr "teken_t *t" "const teken_attr_t *attr"
 .Ft const char *
-.Fn teken_get_sequence "teken_t *t" "unsigned int id"
+.Fn teken_get_sequence "const teken_t *t" "unsigned int id"
 .Ft teken_color_t
 .Fn teken_256to16 "teken_color_t color"
 .Ft teken_color_t
 .Fn teken_256to8 "teken_color_t color"
 .Ft void
-.Fn teken_get_defattr_cons25 "teken_t *t" "int *fg" "int *bg"
+.Fn teken_get_defattr_cons25 "const teken_t *t" "int *fg" "int *bg"
 .Ft void
 .Fn teken_set_8bit "teken_t *t"
 .Ft void
