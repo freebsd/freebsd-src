@@ -48,6 +48,7 @@ __DEFAULT_YES_OPTIONS = \
 __DEFAULT_NO_OPTIONS = \
     EISA \
     EXTRA_TCP_STACKS \
+    KERNEL_RETPOLINE \
     NAND \
     OFED \
     REPRODUCIBLE_BUILD
@@ -83,6 +84,11 @@ BROKEN_OPTIONS+= EISA
 
 .if ${MACHINE} != "i386" && ${MACHINE} != "amd64"
 BROKEN_OPTIONS+= OFED
+.endif
+
+# Things that don't work based on toolchain support.
+.if ${MACHINE} != "i386" && ${MACHINE} != "amd64"
+BROKEN_OPTIONS+= KERNEL_RETPOLINE
 .endif
 
 # expanded inline from bsd.mkopt.mk to avoid share/mk dependency
