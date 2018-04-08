@@ -208,6 +208,8 @@ MAN=	accept_filter.9 \
 	namei.9 \
 	netisr.9 \
 	nv.9 \
+	ofw_bus_is_compatible.9 \
+	ofw_bus_status_okay.9 \
 	osd.9 \
 	owll.9 \
 	own.9 \
@@ -1525,6 +1527,11 @@ MLINKS+=nv.9 libnv.9 \
 	nv.9 nvlist_take_string_array.9 \
 	nv.9 nvlist_unpack.9 \
 	nv.9 nvlist_xfer.9
+MLINKS+=ofw_bus_is_compatible.9 ofw_bus_is_compatible_strict.9 \
+	ofw_bus_is_compatible.9 ofw_bus_node_is_compatible.9 \
+	ofw_bus_is_compatible.9 ofw_bus_search_compatible.9
+MLINKS+= ofw_bus_status_okay.9 ofw_bus_get_status.9 \
+	ofw_bus_status_okay.9 ofw_bus_node_status_okay.9
 MLINKS+=osd.9 osd_call.9 \
 	osd.9 osd_del.9 \
 	osd.9 osd_deregister.9 \
