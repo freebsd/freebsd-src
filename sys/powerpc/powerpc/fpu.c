@@ -87,7 +87,6 @@ enable_fpu(struct thread *td)
 		mtmsr(msr | PSL_FP | PSL_VSX);
 	else
 		mtmsr(msr | PSL_FP);
-	isync();
 
 	/*
 	 * Load the floating point registers and FPSCR from the PCB.
@@ -143,7 +142,6 @@ save_fpu(struct thread *td)
 		mtmsr(msr | PSL_FP | PSL_VSX);
 	else
 		mtmsr(msr | PSL_FP);
-	isync();
 
 	/*
 	 * Save the floating-point registers and FPSCR to the PCB
