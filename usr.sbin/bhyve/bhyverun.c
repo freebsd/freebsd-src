@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <pthread_np.h>
 #include <sysexits.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #include <machine/vmm.h>
 #ifndef WITHOUT_CAPSICUM
@@ -93,6 +94,8 @@ extern int vmexit_task_switch(struct vmctx *, struct vm_exit *, int *vcpu);
 char *vmname;
 
 int guest_ncpus;
+uint16_t cores, maxcpus, sockets, threads;
+
 char *guest_uuid_str;
 
 static int guest_vmexit_on_hlt, guest_vmexit_on_pause;
@@ -137,11 +140,13 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-abehuwxACHPSWY] [-c vcpus] [-g <gdb port>] [-l <lpc>]\n"
+		"Usage: %s [-abehuwxACHPSWY]\n"
+		"       %*s [-c [[cpus=]numcpus][,sockets=n][,cores=n][,threads=n]]\n"
+		"       %*s [-g <gdb port>] [-l <lpc>]\n"
 		"       %*s [-m mem] [-p vcpu:hostcpu] [-s <pci>] [-U uuid] <vm>\n"
 		"       -a: local apic is in xAPIC mode (deprecated)\n"
 		"       -A: create ACPI tables\n"
-		"       -c: # cpus (default 1)\n"
+		"       -c: number of cpus and/or topology specification"
 		"       -C: include guest memory in core file\n"
 		"       -e: exit on unhandled I/O access\n"
 		"       -g: gdb port\n"
@@ -159,9 +164,89 @@ usage(int code)
 		"       -W: force virtio to use single-vector MSI\n"
 		"       -x: local apic is in x2APIC mode\n"
 		"       -Y: disable MPtable generation\n",
-		progname, (int)strlen(progname), "");
+		progname, (int)strlen(progname), "", (int)strlen(progname), "",
+		(int)strlen(progname), "");
 
 	exit(code);
+}
+
+/*
+ * XXX This parser is known to have the following issues:
+ * 1.  It accepts null key=value tokens ",,".
+ * 2.  It accepts whitespace after = and before value.
+ * 3.  Values out of range of INT are silently wrapped.
+ * 4.  It doesn't check non-final values.
+ * 5.  The apparently bogus limits of UINT16_MAX are for future expansion.
+ *
+ * The acceptance of a null specification ('-c ""') is by design to match the
+ * manual page syntax specification, this results in a topology of 1 vCPU.
+ */
+static int
+topology_parse(const char *opt)
+{
+	uint64_t ncpus;
+	int c, chk, n, s, t, tmp;
+	char *cp, *str;
+	bool ns, scts;
+
+	c = 1, n = 1, s = 1, t = 1;
+	ns = false, scts = false;
+	str = strdup(opt);
+
+	while ((cp = strsep(&str, ",")) != NULL) {
+		if (sscanf(cp, "%i%n", &tmp, &chk) == 1) {
+			n = tmp;
+			ns = true;
+		} else if (sscanf(cp, "cpus=%i%n", &tmp, &chk) == 1) {
+			n = tmp;
+			ns = true;
+		} else if (sscanf(cp, "sockets=%i%n", &tmp, &chk) == 1) {
+			s = tmp;
+			scts = true;
+		} else if (sscanf(cp, "cores=%i%n", &tmp, &chk) == 1) {
+			c = tmp;
+			scts = true;
+		} else if (sscanf(cp, "threads=%i%n", &tmp, &chk) == 1) {
+			t = tmp;
+			scts = true;
+#ifdef notyet  /* Do not expose this until vmm.ko implements it */
+		} else if (sscanf(cp, "maxcpus=%i%n", &tmp, &chk) == 1) {
+			m = tmp;
+#endif
+		/* Skip the empty argument case from -c "" */
+		} else if (cp[0] == '\0')
+			continue;
+		else
+			return (-1);
+		/* Any trailing garbage causes an error */
+		if (cp[chk] != '\0')
+			return (-1);
+	}
+	/*
+	 * Range check 1 <= n <= UINT16_MAX all values
+	 */
+	if (n < 1 || s < 1 || c < 1 || t < 1 ||
+	    n > UINT16_MAX || s > UINT16_MAX || c > UINT16_MAX  ||
+	    t > UINT16_MAX)
+		return (-1);
+
+	/* If only the cpus was specified, use that as sockets */
+	if (!scts)
+		s = n;
+	/*
+	 * Compute sockets * cores * threads avoiding overflow
+	 * The range check above insures these are 16 bit values
+	 * If n was specified check it against computed ncpus
+	 */
+	ncpus = (uint64_t)s * c * t;
+	if (ncpus > UINT16_MAX || (ns && n != ncpus))
+		return (-1);
+
+	guest_ncpus = ncpus;
+	sockets = s;
+	cores = c;
+	threads = t;
+	return(0);
 }
 
 static int
@@ -783,6 +868,9 @@ do_open(const char *vmname)
 			exit(1);
 		}
 	}
+	error = vm_set_topology(ctx, sockets, cores, threads, maxcpus);
+	if (error)
+		errx(EX_OSERR, "vm_set_topology");
 	return (ctx);
 }
 
@@ -801,6 +889,8 @@ main(int argc, char *argv[])
 	progname = basename(argv[0]);
 	gdb_port = 0;
 	guest_ncpus = 1;
+	sockets = cores = threads = 1;
+	maxcpus = 0;
 	memsize = 256 * MB;
 	mptgen = 1;
 	rtc_localtime = 1;
@@ -825,7 +915,10 @@ main(int argc, char *argv[])
                         }
 			break;
                 case 'c':
-			guest_ncpus = atoi(optarg);
+			if (topology_parse(optarg) != 0) {
+			    errx(EX_USAGE, "invalid cpu topology "
+				"'%s'", optarg);
+			}
 			break;
 		case 'C':
 			memflags |= VM_MEM_F_INCORE;
@@ -902,11 +995,6 @@ main(int argc, char *argv[])
 
 	vmname = argv[0];
 	ctx = do_open(vmname);
-
-	if (guest_ncpus < 1) {
-		fprintf(stderr, "Invalid guest vCPUs (%d)\n", guest_ncpus);
-		exit(1);
-	}
 
 	max_vcpus = num_vcpus_allowed(ctx);
 	if (guest_ncpus > max_vcpus) {
