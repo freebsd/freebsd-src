@@ -29,13 +29,13 @@
  */
 
 static void teken_subr_cursor_up(teken_t *, unsigned int);
-static void teken_subr_erase_line(teken_t *, unsigned int);
+static void teken_subr_erase_line(const teken_t *, unsigned int);
 static void teken_subr_regular_character(teken_t *, teken_char_t);
 static void teken_subr_reset_to_initial_state(teken_t *);
 static void teken_subr_save_cursor(teken_t *);
 
 static inline int
-teken_tab_isset(teken_t *t, unsigned int col)
+teken_tab_isset(const teken_t *t, unsigned int col)
 {
 	unsigned int b, o;
 
@@ -45,7 +45,7 @@ teken_tab_isset(teken_t *t, unsigned int col)
 	b = col / (sizeof(unsigned int) * 8);
 	o = col % (sizeof(unsigned int) * 8);
 
-	return (t->t_tabstops[b] & (1 << o));
+	return (t->t_tabstops[b] & (1U << o));
 }
 
 static inline void
@@ -59,7 +59,7 @@ teken_tab_clear(teken_t *t, unsigned int col)
 	b = col / (sizeof(unsigned int) * 8);
 	o = col % (sizeof(unsigned int) * 8);
 
-	t->t_tabstops[b] &= ~(1 << o);
+	t->t_tabstops[b] &= ~(1U << o);
 }
 
 static inline void
@@ -73,7 +73,7 @@ teken_tab_set(teken_t *t, unsigned int col)
 	b = col / (sizeof(unsigned int) * 8);
 	o = col % (sizeof(unsigned int) * 8);
 
-	t->t_tabstops[b] |= 1 << o;
+	t->t_tabstops[b] |= 1U << o;
 }
 
 static void
@@ -81,14 +81,14 @@ teken_tab_default(teken_t *t)
 {
 	unsigned int i;
 
-	memset(&t->t_tabstops, 0, T_NUMCOL / 8);
+	memset(t->t_tabstops, 0, T_NUMCOL / 8);
 
 	for (i = 8; i < T_NUMCOL; i += 8)
 		teken_tab_set(t, i);
 }
 
 static void
-teken_subr_do_scroll(teken_t *t, int amount)
+teken_subr_do_scroll(const teken_t *t, int amount)
 {
 	teken_rect_t tr;
 	teken_pos_t tp;
@@ -149,7 +149,7 @@ teken_subr_do_scroll(teken_t *t, int amount)
 }
 
 static ssize_t
-teken_subr_do_cpr(teken_t *t, unsigned int cmd, char response[16])
+teken_subr_do_cpr(const teken_t *t, unsigned int cmd, char response[16])
 {
 
 	switch (cmd) {
@@ -225,7 +225,7 @@ teken_subr_backspace(teken_t *t)
 }
 
 static void
-teken_subr_bell(teken_t *t)
+teken_subr_bell(const teken_t *t)
 {
 
 	teken_funcs_bell(t);
@@ -326,7 +326,7 @@ static void
 teken_subr_cursor_position(teken_t *t, unsigned int row, unsigned int col)
 {
 
-	row = row - 1 + t->t_originreg.ts_begin;
+	row = (row - 1) + t->t_originreg.ts_begin;
 	t->t_cursor.tp_row = row < t->t_originreg.ts_end ?
 	    row : t->t_originreg.ts_end - 1;
 
@@ -339,7 +339,7 @@ teken_subr_cursor_position(teken_t *t, unsigned int row, unsigned int col)
 }
 
 static void
-teken_subr_cursor_position_report(teken_t *t, unsigned int cmd)
+teken_subr_cursor_position_report(const teken_t *t, unsigned int cmd)
 {
 	char response[18] = "\x1B[";
 	ssize_t len;
@@ -372,7 +372,7 @@ teken_subr_cursor_up(teken_t *t, unsigned int nrows)
 }
 
 static void
-teken_subr_delete_character(teken_t *t, unsigned int ncols)
+teken_subr_delete_character(const teken_t *t, unsigned int ncols)
 {
 	teken_rect_t tr;
 
@@ -395,7 +395,7 @@ teken_subr_delete_character(teken_t *t, unsigned int ncols)
 }
 
 static void
-teken_subr_delete_line(teken_t *t, unsigned int nrows)
+teken_subr_delete_line(const teken_t *t, unsigned int nrows)
 {
 	teken_rect_t tr;
 
@@ -435,7 +435,7 @@ teken_subr_device_control_string(teken_t *t)
 }
 
 static void
-teken_subr_device_status_report(teken_t *t, unsigned int cmd)
+teken_subr_device_status_report(const teken_t *t, unsigned int cmd)
 {
 	char response[19] = "\x1B[?";
 	ssize_t len;
@@ -448,21 +448,23 @@ teken_subr_device_status_report(teken_t *t, unsigned int cmd)
 }
 
 static void
-teken_subr_double_height_double_width_line_top(teken_t *t __unused)
+teken_subr_double_height_double_width_line_top(const teken_t *t)
 {
 
+	(void)t;
 	teken_printf("double height double width top\n");
 }
 
 static void
-teken_subr_double_height_double_width_line_bottom(teken_t *t __unused)
+teken_subr_double_height_double_width_line_bottom(const teken_t *t)
 {
 
+	(void)t;
 	teken_printf("double height double width bottom\n");
 }
 
 static void
-teken_subr_erase_character(teken_t *t, unsigned int ncols)
+teken_subr_erase_character(const teken_t *t, unsigned int ncols)
 {
 	teken_rect_t tr;
 
@@ -478,7 +480,7 @@ teken_subr_erase_character(teken_t *t, unsigned int ncols)
 }
 
 static void
-teken_subr_erase_display(teken_t *t, unsigned int mode)
+teken_subr_erase_display(const teken_t *t, unsigned int mode)
 {
 	teken_rect_t r;
 
@@ -514,7 +516,7 @@ teken_subr_erase_display(teken_t *t, unsigned int mode)
 }
 
 static void
-teken_subr_erase_line(teken_t *t, unsigned int mode)
+teken_subr_erase_line(const teken_t *t, unsigned int mode)
 {
 	teken_rect_t r;
 
@@ -540,42 +542,42 @@ teken_subr_erase_line(teken_t *t, unsigned int mode)
 }
 
 static void
-teken_subr_g0_scs_special_graphics(teken_t *t __unused)
+teken_subr_g0_scs_special_graphics(teken_t *t)
 {
 
 	t->t_scs[0] = teken_scs_special_graphics;
 }
 
 static void
-teken_subr_g0_scs_uk_national(teken_t *t __unused)
+teken_subr_g0_scs_uk_national(teken_t *t)
 {
 
 	t->t_scs[0] = teken_scs_uk_national;
 }
 
 static void
-teken_subr_g0_scs_us_ascii(teken_t *t __unused)
+teken_subr_g0_scs_us_ascii(teken_t *t)
 {
 
 	t->t_scs[0] = teken_scs_us_ascii;
 }
 
 static void
-teken_subr_g1_scs_special_graphics(teken_t *t __unused)
+teken_subr_g1_scs_special_graphics(teken_t *t)
 {
 
 	t->t_scs[1] = teken_scs_special_graphics;
 }
 
 static void
-teken_subr_g1_scs_uk_national(teken_t *t __unused)
+teken_subr_g1_scs_uk_national(teken_t *t)
 {
 
 	t->t_scs[1] = teken_scs_uk_national;
 }
 
 static void
-teken_subr_g1_scs_us_ascii(teken_t *t __unused)
+teken_subr_g1_scs_us_ascii(teken_t *t)
 {
 
 	t->t_scs[1] = teken_scs_us_ascii;
@@ -621,7 +623,7 @@ teken_subr_index(teken_t *t)
 }
 
 static void
-teken_subr_insert_character(teken_t *t, unsigned int ncols)
+teken_subr_insert_character(const teken_t *t, unsigned int ncols)
 {
 	teken_rect_t tr;
 
@@ -647,7 +649,7 @@ teken_subr_insert_character(teken_t *t, unsigned int ncols)
 }
 
 static void
-teken_subr_insert_line(teken_t *t, unsigned int nrows)
+teken_subr_insert_line(const teken_t *t, unsigned int nrows)
 {
 	teken_rect_t tr;
 
@@ -679,14 +681,14 @@ teken_subr_insert_line(teken_t *t, unsigned int nrows)
 }
 
 static void
-teken_subr_keypad_application_mode(teken_t *t)
+teken_subr_keypad_application_mode(const teken_t *t)
 {
 
 	teken_funcs_param(t, TP_KEYPADAPP, 1);
 }
 
 static void
-teken_subr_keypad_numeric_mode(teken_t *t)
+teken_subr_keypad_numeric_mode(const teken_t *t)
 {
 
 	teken_funcs_param(t, TP_KEYPADAPP, 0);
@@ -748,21 +750,21 @@ teken_subr_operating_system_command(teken_t *t)
 }
 
 static void
-teken_subr_pan_down(teken_t *t, unsigned int nrows)
+teken_subr_pan_down(const teken_t *t, unsigned int nrows)
 {
 
 	teken_subr_do_scroll(t, (int)nrows);
 }
 
 static void
-teken_subr_pan_up(teken_t *t, unsigned int nrows)
+teken_subr_pan_up(const teken_t *t, unsigned int nrows)
 {
 
 	teken_subr_do_scroll(t, -(int)nrows);
 }
 
 static void
-teken_subr_primary_device_attributes(teken_t *t, unsigned int request)
+teken_subr_primary_device_attributes(const teken_t *t, unsigned int request)
 {
 
 	if (request == 0) {
@@ -775,7 +777,7 @@ teken_subr_primary_device_attributes(teken_t *t, unsigned int request)
 }
 
 static void
-teken_subr_do_putchar(teken_t *t, const teken_pos_t *tp, teken_char_t c,
+teken_subr_do_putchar(const teken_t *t, const teken_pos_t *tp, teken_char_t c,
     int width)
 {
 
@@ -1042,7 +1044,7 @@ teken_subr_save_cursor(teken_t *t)
 }
 
 static void
-teken_subr_secondary_device_attributes(teken_t *t, unsigned int request)
+teken_subr_secondary_device_attributes(const teken_t *t, unsigned int request)
 {
 
 	if (request == 0) {
@@ -1121,7 +1123,7 @@ teken_subr_set_mode(teken_t *t, unsigned int cmd)
 
 static void
 teken_subr_set_graphic_rendition(teken_t *t, unsigned int ncmds,
-    unsigned int cmds[])
+    const unsigned int cmds[])
 {
 	unsigned int i, n;
 
@@ -1208,7 +1210,7 @@ teken_subr_set_graphic_rendition(teken_t *t, unsigned int ncmds,
 		case 95: /* Set bright foreground color: magenta */
 		case 96: /* Set bright foreground color: cyan */
 		case 97: /* Set bright foreground color: white */
-			t->t_curattr.ta_fgcolor = n - 90 + 8;
+			t->t_curattr.ta_fgcolor = (n - 90) + 8;
 			break;
 		case 100: /* Set bright background color: black */
 		case 101: /* Set bright background color: red */
@@ -1218,7 +1220,7 @@ teken_subr_set_graphic_rendition(teken_t *t, unsigned int ncmds,
 		case 105: /* Set bright background color: magenta */
 		case 106: /* Set bright background color: cyan */
 		case 107: /* Set bright background color: white */
-			t->t_curattr.ta_bgcolor = n - 100 + 8;
+			t->t_curattr.ta_bgcolor = (n - 100) + 8;
 			break;
 		default:
 			teken_printf("unsupported attribute %u\n", n);
@@ -1258,23 +1260,26 @@ teken_subr_set_top_and_bottom_margins(teken_t *t, unsigned int top,
 }
 
 static void
-teken_subr_single_height_double_width_line(teken_t *t __unused)
+teken_subr_single_height_double_width_line(const teken_t *t)
 {
 
+	(void)t;
 	teken_printf("single height double width???\n");
 }
 
 static void
-teken_subr_single_height_single_width_line(teken_t *t __unused)
+teken_subr_single_height_single_width_line(const teken_t *t)
 {
 
+	(void)t;
 	teken_printf("single height single width???\n");
 }
 
 static void
-teken_subr_string_terminator(teken_t *t __unused)
+teken_subr_string_terminator(const teken_t *t)
 {
 
+	(void)t;
 	/*
 	 * Strings are already terminated in teken_input_char() when ^[
 	 * is inserted.
@@ -1290,7 +1295,9 @@ teken_subr_tab_clear(teken_t *t, unsigned int cmd)
 		teken_tab_clear(t, t->t_cursor.tp_col);
 		break;
 	case 3:
-		memset(&t->t_tabstops, 0, T_NUMCOL / 8);
+		memset(t->t_tabstops, 0, T_NUMCOL / 8);
+		break;
+	default:
 		break;
 	}
 }
@@ -1299,7 +1306,7 @@ static void
 teken_subr_vertical_position_absolute(teken_t *t, unsigned int row)
 {
 
-	row = row - 1 + t->t_originreg.ts_begin;
+	row = (row - 1) + t->t_originreg.ts_begin;
 	t->t_cursor.tp_row = row < t->t_originreg.ts_end ?
 	    row : t->t_originreg.ts_end - 1;
 
