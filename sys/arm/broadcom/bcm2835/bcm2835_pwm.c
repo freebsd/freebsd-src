@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/broadcom/bcm2835/bcm2835_gpio.h>
 #include <arm/broadcom/bcm2835/bcm2835_clkman.h>
 
 static struct ofw_compat_data compat_data[] = {
@@ -93,7 +92,6 @@ static int
 bcm_pwm_reconf(struct bcm_pwm_softc *sc)
 {
 	uint32_t u;
-	device_t gpio;
 
 	/* Disable PWM */
 	W_CTL(sc, 0);
@@ -103,14 +101,6 @@ bcm_pwm_reconf(struct bcm_pwm_softc *sc)
 
 	if (sc->mode == 0)
 		return (0);
-
-	/* Ask GPIO0 to set ALT0 for pin 12 */
-	gpio = devclass_get_device(devclass_find("gpio"), 0);
-	if (!gpio) {
-		device_printf(sc->sc_dev, "cannot find gpio0\n");
-		return (ENXIO);
-	}
-	bcm_gpio_set_alternate(gpio, 12, BCM_GPIO_ALT0);
 
 	u = bcm2835_clkman_set_frequency(sc->clkman, BCM_PWM_CLKSRC, sc->freq);
 	if (u == 0)

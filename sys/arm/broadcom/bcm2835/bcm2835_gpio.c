@@ -48,10 +48,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/intr.h>
 
+#include <dev/fdt/fdt_pinctrl.h>
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
-
-#include <arm/broadcom/bcm2835/bcm2835_gpio.h>
 
 #include "gpio_if.h"
 
@@ -72,6 +71,19 @@ __FBSDID("$FreeBSD$");
     GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN | GPIO_INTR_LEVEL_LOW |		\
     GPIO_INTR_LEVEL_HIGH | GPIO_INTR_EDGE_RISING |			\
     GPIO_INTR_EDGE_FALLING | GPIO_INTR_EDGE_BOTH)
+
+#define	BCM2835_FSEL_GPIO_IN	0
+#define	BCM2835_FSEL_GPIO_OUT	1
+#define	BCM2835_FSEL_ALT5	2
+#define	BCM2835_FSEL_ALT4	3
+#define	BCM2835_FSEL_ALT0	4
+#define	BCM2835_FSEL_ALT1	5
+#define	BCM2835_FSEL_ALT2	6
+#define	BCM2835_FSEL_ALT3	7
+
+#define	BCM2835_PUD_OFF		0
+#define	BCM2835_PUD_DOWN	1
+#define	BCM2835_PUD_UP		2
 
 static struct resource_spec bcm_gpio_res_spec[] = {
 	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
@@ -187,28 +199,28 @@ bcm_gpio_func_str(uint32_t nfunc, char *buf, int bufsize)
 {
 
 	switch (nfunc) {
-	case BCM_GPIO_INPUT:
+	case BCM2835_FSEL_GPIO_IN:
 		strncpy(buf, "input", bufsize);
 		break;
-	case BCM_GPIO_OUTPUT:
+	case BCM2835_FSEL_GPIO_OUT:
 		strncpy(buf, "output", bufsize);
 		break;
-	case BCM_GPIO_ALT0:
+	case BCM2835_FSEL_ALT0:
 		strncpy(buf, "alt0", bufsize);
 		break;
-	case BCM_GPIO_ALT1:
+	case BCM2835_FSEL_ALT1:
 		strncpy(buf, "alt1", bufsize);
 		break;
-	case BCM_GPIO_ALT2:
+	case BCM2835_FSEL_ALT2:
 		strncpy(buf, "alt2", bufsize);
 		break;
-	case BCM_GPIO_ALT3:
+	case BCM2835_FSEL_ALT3:
 		strncpy(buf, "alt3", bufsize);
 		break;
-	case BCM_GPIO_ALT4:
+	case BCM2835_FSEL_ALT4:
 		strncpy(buf, "alt4", bufsize);
 		break;
-	case BCM_GPIO_ALT5:
+	case BCM2835_FSEL_ALT5:
 		strncpy(buf, "alt5", bufsize);
 		break;
 	default:
@@ -221,21 +233,21 @@ bcm_gpio_str_func(char *func, uint32_t *nfunc)
 {
 
 	if (strcasecmp(func, "input") == 0)
-		*nfunc = BCM_GPIO_INPUT;
+		*nfunc = BCM2835_FSEL_GPIO_IN;
 	else if (strcasecmp(func, "output") == 0)
-		*nfunc = BCM_GPIO_OUTPUT;
+		*nfunc = BCM2835_FSEL_GPIO_OUT;
 	else if (strcasecmp(func, "alt0") == 0)
-		*nfunc = BCM_GPIO_ALT0;
+		*nfunc = BCM2835_FSEL_ALT0;
 	else if (strcasecmp(func, "alt1") == 0)
-		*nfunc = BCM_GPIO_ALT1;
+		*nfunc = BCM2835_FSEL_ALT1;
 	else if (strcasecmp(func, "alt2") == 0)
-		*nfunc = BCM_GPIO_ALT2;
+		*nfunc = BCM2835_FSEL_ALT2;
 	else if (strcasecmp(func, "alt3") == 0)
-		*nfunc = BCM_GPIO_ALT3;
+		*nfunc = BCM2835_FSEL_ALT3;
 	else if (strcasecmp(func, "alt4") == 0)
-		*nfunc = BCM_GPIO_ALT4;
+		*nfunc = BCM2835_FSEL_ALT4;
 	else if (strcasecmp(func, "alt5") == 0)
-		*nfunc = BCM_GPIO_ALT5;
+		*nfunc = BCM2835_FSEL_ALT5;
 	else
 		return (-1);
 
@@ -247,9 +259,9 @@ bcm_gpio_func_flag(uint32_t nfunc)
 {
 
 	switch (nfunc) {
-	case BCM_GPIO_INPUT:
+	case BCM2835_FSEL_GPIO_IN:
 		return (GPIO_PIN_INPUT);
-	case BCM_GPIO_OUTPUT:
+	case BCM2835_FSEL_GPIO_OUT:
 		return (GPIO_PIN_OUTPUT);
 	}
 	return (0);
@@ -288,7 +300,7 @@ bcm_gpio_set_pud(struct bcm_gpio_softc *sc, uint32_t pin, uint32_t state)
 	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUDCLK(bank), 0);
 }
 
-void
+static void
 bcm_gpio_set_alternate(device_t dev, uint32_t pin, uint32_t nfunc)
 {
 	struct bcm_gpio_softc *sc;
@@ -297,10 +309,7 @@ bcm_gpio_set_alternate(device_t dev, uint32_t pin, uint32_t nfunc)
 	sc = device_get_softc(dev);
 	BCM_GPIO_LOCK(sc);
 
-	/* Disable pull-up or pull-down on pin. */
-	bcm_gpio_set_pud(sc, pin, BCM_GPIO_NONE);
-
-	/* And now set the pin function. */
+	/* Set the pin function. */
 	bcm_gpio_set_function(sc, pin, nfunc);
 
 	/* Update the pin flags. */
@@ -329,11 +338,11 @@ bcm_gpio_pin_configure(struct bcm_gpio_softc *sc, struct gpio_pin *pin,
 		if (flags & GPIO_PIN_OUTPUT) {
 			pin->gp_flags |= GPIO_PIN_OUTPUT;
 			bcm_gpio_set_function(sc, pin->gp_pin,
-			    BCM_GPIO_OUTPUT);
+			    BCM2835_FSEL_GPIO_OUT);
 		} else {
 			pin->gp_flags |= GPIO_PIN_INPUT;
 			bcm_gpio_set_function(sc, pin->gp_pin,
-			    BCM_GPIO_INPUT);
+			    BCM2835_FSEL_GPIO_IN);
 		}
 	}
 
@@ -793,6 +802,9 @@ bcm_gpio_attach(device_t dev)
 	if (sc->sc_busdev == NULL)
 		goto fail;
 
+	fdt_pinctrl_register(dev, "brcm,pins");
+	fdt_pinctrl_configure_tree(dev);
+
 	return (0);
 
 fail:
@@ -1187,6 +1199,84 @@ bcm_gpio_get_node(device_t bus, device_t dev)
 	return (ofw_bus_get_node(bus));
 }
 
+static int
+bcm_gpio_configure_pins(device_t dev, phandle_t cfgxref)
+{
+	phandle_t cfgnode;
+	int i, pintuples, pulltuples;
+	uint32_t pin;
+	uint32_t *pins;
+	uint32_t *pulls;
+	uint32_t function;
+	static struct bcm_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+	cfgnode = OF_node_from_xref(cfgxref);
+
+	pins = NULL;
+	pintuples = OF_getencprop_alloc(cfgnode, "brcm,pins", sizeof(*pins),
+	    (void **)&pins);
+
+	char name[32];
+	OF_getprop(cfgnode, "name", &name, sizeof(name));
+
+	if (pintuples < 0)
+		return (ENOENT);
+
+	if (pintuples == 0)
+		return (0); /* Empty property is not an error. */
+
+	if (OF_getencprop(cfgnode, "brcm,function", &function,
+	    sizeof(function)) <= 0) {
+		OF_prop_free(pins);
+		return (EINVAL);
+	}
+
+	pulls = NULL;
+	pulltuples = OF_getencprop_alloc(cfgnode, "brcm,pull", sizeof(*pulls),
+	    (void **)&pulls);
+
+	if ((pulls != NULL) && (pulltuples != pintuples)) {
+		OF_prop_free(pins);
+		OF_prop_free(pulls);
+		return (EINVAL);
+	}
+
+	for (i = 0; i < pintuples; i++) {
+		pin = pins[i];
+		bcm_gpio_set_alternate(dev, pin, function);
+		if (bootverbose)
+			device_printf(dev, "set pin %d to func %d", pin, function);
+		if (pulls) {
+			if (bootverbose)
+				printf(", pull %d", pulls[i]);
+			switch (pulls[i]) {
+			/* Convert to gpio(4) flags */
+			case BCM2835_PUD_OFF:
+				bcm_gpio_pin_setflags(dev, pin, 0);
+				break;
+			case BCM2835_PUD_UP:
+				bcm_gpio_pin_setflags(dev, pin, GPIO_PIN_PULLUP);
+				break;
+			case BCM2835_PUD_DOWN:
+				bcm_gpio_pin_setflags(dev, pin, GPIO_PIN_PULLDOWN);
+				break;
+			default:
+				printf("%s: invalid pull value for pin %d: %d\n",
+				    name, pin, pulls[i]);
+			}
+		}
+		if (bootverbose)
+			printf("\n");
+	}
+
+	OF_prop_free(pins);
+	if (pulls)
+		OF_prop_free(pulls);
+
+	return (0);
+}
+
 static device_method_t bcm_gpio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		bcm_gpio_probe),
@@ -1217,6 +1307,9 @@ static device_method_t bcm_gpio_methods[] = {
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	bcm_gpio_get_node),
 
+        /* fdt_pinctrl interface */
+	DEVMETHOD(fdt_pinctrl_configure, bcm_gpio_configure_pins),
+
 	DEVMETHOD_END
 };
 
@@ -1228,4 +1321,4 @@ static driver_t bcm_gpio_driver = {
 	sizeof(struct bcm_gpio_softc),
 };
 
-DRIVER_MODULE(bcm_gpio, simplebus, bcm_gpio_driver, bcm_gpio_devclass, 0, 0);
+EARLY_DRIVER_MODULE(bcm_gpio, simplebus, bcm_gpio_driver, bcm_gpio_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
