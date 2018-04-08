@@ -419,7 +419,7 @@ ccm_fdt_set(struct ccm_softc *sc)
 
 		if ((len = OF_getproplen(child, "clock_names")) > 0) {
 			len = OF_getproplen(child, "clock_names");
-			OF_getprop_alloc(child, "clock_names", 1,
+			OF_getprop_alloc(child, "clock_names",
 			    (void **)&fdt_config);
 
 			while (len > 0) {

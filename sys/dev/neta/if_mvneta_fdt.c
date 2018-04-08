@@ -159,7 +159,7 @@ mvneta_fdt_phy_acquire(device_t dev)
 		/* Test for fixed-link (present i.e. in 388-gp) */
 		for (child = OF_child(node); child != 0; child = OF_peer(child)) {
 			if (OF_getprop_alloc(child,
-			    "name", 1, (void **)&name) <= 0) {
+			    "name", (void **)&name) <= 0) {
 				continue;
 			}
 			if (strncmp(name, "fixed-link", 10) == 0) {

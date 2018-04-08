@@ -209,7 +209,7 @@ dma_attach(device_t dev)
 		 * the user can change it via a "media" option to ifconfig.
 		 */
 		csr = L64854_GCSR(lsc);
-		if ((OF_getprop_alloc(node, "cable-selection", 1,
+		if ((OF_getprop_alloc(node, "cable-selection",
 		    (void **)&cabletype)) == -1) {
 			/* assume TP if nothing there */
 			csr |= E_TP_AUI;
@@ -295,7 +295,7 @@ dma_setup_dinfo(device_t dev, struct dma_softc *dsc, phandle_t node)
 	}
 	resource_list_init(&ddi->ddi_rl);
 	slot = -1;
-	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
+	nreg = OF_getprop_alloc_multi(node, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1) {
 		device_printf(dev, "<%s>: incomplete\n",
 		    ddi->ddi_obdinfo.obd_name);
@@ -329,7 +329,7 @@ dma_setup_dinfo(device_t dev, struct dma_softc *dsc, phandle_t node)
 	/*
 	 * The `interrupts' property contains the SBus interrupt level.
 	 */
-	nintr = OF_getprop_alloc(node, "interrupts", sizeof(*intr),
+	nintr = OF_getprop_alloc_multi(node, "interrupts", sizeof(*intr),
 	    (void **)&intr);
 	if (nintr != -1) {
 		for (i = 0; i < nintr; i++) {

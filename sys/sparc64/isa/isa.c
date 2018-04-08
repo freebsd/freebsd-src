@@ -92,7 +92,7 @@ isa_init(device_t dev)
 	/* The parent of the bus must be a PCI-ISA bridge. */
 	bridge = device_get_parent(dev);
 	isab_node = ofw_bus_get_node(bridge);
-	isab_nrange = OF_getprop_alloc(isab_node, "ranges",
+	isab_nrange = OF_getprop_alloc_multi(isab_node, "ranges",
 	    sizeof(*isab_ranges), (void **)&isab_ranges);
 	if (isab_nrange <= 0)
 		panic("isa_init: cannot get bridge range property");
@@ -162,7 +162,7 @@ isa_setup_children(device_t dev, phandle_t parent)
 	 * allow for an isa_activate_resource().
 	 */
 	for (node = OF_child(parent); node != 0; node = OF_peer(node)) {
-		if ((OF_getprop_alloc(node, "name", 1, (void **)&name)) == -1)
+		if ((OF_getprop_alloc(node, "name", (void **)&name)) == -1)
 			continue;
 
 		/*
@@ -192,7 +192,7 @@ isa_setup_children(device_t dev, phandle_t parent)
 		isa_set_vendorid(cdev, ofw_isa_pnp_map[i].id);
 
 		rl = BUS_GET_RESOURCE_LIST(dev, cdev);
-		nreg = OF_getprop_alloc(node, "reg", sizeof(*regs),
+		nreg = OF_getprop_alloc_multi(node, "reg", sizeof(*regs),
 		    (void **)&regs);
 		for (i = 0; i < nreg; i++) {
 			start = ISA_REG_PHYS(&regs[i]);
@@ -211,12 +211,12 @@ isa_setup_children(device_t dev, phandle_t parent)
 			 * the set of registers of the parent device like
 			 * with the nodes hanging off of the `8042' node.
 			 */
-			nregidx = OF_getprop_alloc(node, "reg", sizeof(*regidx),
+			nregidx = OF_getprop_alloc_multi(node, "reg", sizeof(*regidx),
 			    (void **)&regidx);
 			if (nregidx > 2)
 				panic("isa_setup_children: impossible number "
 				    "of register indices");
-			if (nregidx != -1 && (nreg = OF_getprop_alloc(parent,
+			if (nregidx != -1 && (nreg = OF_getprop_alloc_multi(parent,
 			    "reg", sizeof(*regs), (void **)&regs)) >= nregidx) {
 				for (i = 0; i < nregidx; i++) {
 					start = ISA_REG_PHYS(&regs[regidx[i]]);
@@ -237,7 +237,7 @@ isa_setup_children(device_t dev, phandle_t parent)
 		if (regs != NULL)
 			OF_prop_free(regs);
 
-		nintr = OF_getprop_alloc(node, "interrupts", sizeof(*intrs),
+		nintr = OF_getprop_alloc_multi(node, "interrupts", sizeof(*intrs),
 		    (void **)&intrs);
 		for (i = 0; i < nintr; i++) {
 			if (intrs[i] > 7)
@@ -255,7 +255,7 @@ isa_setup_children(device_t dev, phandle_t parent)
 		if (intrs != NULL)
 			OF_prop_free(intrs);
 
-		ndrq = OF_getprop_alloc(node, "dma-channel", sizeof(*drqs),
+		ndrq = OF_getprop_alloc_multi(node, "dma-channel", sizeof(*drqs),
 		    (void **)&drqs);
 		for (i = 0; i < ndrq; i++)
 			bus_set_resource(cdev, SYS_RES_DRQ, i, drqs[i], 1);

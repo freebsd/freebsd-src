@@ -1007,7 +1007,7 @@ regulator_parse_ofw_stdparam(device_t pdev, phandle_t node,
 	int rv;
 
 	par = &def->std_param;
-	rv = OF_getprop_alloc(node, "regulator-name", 1,
+	rv = OF_getprop_alloc(node, "regulator-name",
 	    (void **)&def->name);
 	if (rv <= 0) {
 		device_printf(pdev, "%s: Missing regulator name\n",
@@ -1057,7 +1057,7 @@ regulator_parse_ofw_stdparam(device_t pdev, phandle_t node,
 	rv = OF_getencprop(node, "vin-supply", &supply_xref,
 	    sizeof(supply_xref));
 	if (rv >=  0) {
-		rv = OF_getprop_alloc(supply_xref, "regulator-name", 1,
+		rv = OF_getprop_alloc(supply_xref, "regulator-name",
 		    (void **)&def->parent_name);
 		if (rv <= 0)
 			def->parent_name = NULL;
