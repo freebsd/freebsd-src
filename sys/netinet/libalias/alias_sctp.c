@@ -420,9 +420,9 @@ int sysctl_chg_loglevel(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &level, 0, req);
 	if (error) return (error);
 
-	sysctl_log_level = (level > SN_LOG_DEBUG_MAX)?(SN_LOG_DEBUG_MAX):(level);
-	sysctl_log_level = (level < SN_LOG_LOW)?(SN_LOG_LOW):(level);
-
+	level = (level > SN_LOG_DEBUG_MAX)?(SN_LOG_DEBUG_MAX):(level);
+	level = (level < SN_LOG_LOW)?(SN_LOG_LOW):(level);
+	sysctl_log_level = level;
 	return (0);
 }
 
