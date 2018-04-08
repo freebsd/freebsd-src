@@ -736,4 +736,4 @@ static driver_t bcm_lintc_driver = {
 static devclass_t bcm_lintc_devclass;
 
 EARLY_DRIVER_MODULE(local_intc, simplebus, bcm_lintc_driver, bcm_lintc_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+    0, 0, BUS_PASS_INTERRUPT);

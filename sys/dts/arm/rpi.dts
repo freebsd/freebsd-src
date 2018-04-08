@@ -53,6 +53,10 @@
 
 		spi@7e204000 {
 			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi0_pins &spi0_cs_pins>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi0_pins &spi0_cs_pins>;
 		};
 
 		gpio@7e200000 {
@@ -66,6 +70,16 @@
 			pins_reserved: reserved {
 				broadcom,pins = <48>, <49>, <50>, <51>, <52>,
 				                <53>;
+			};
+
+			spi0_pins: spi0_pins {
+				brcm,pins = <9 10 11>;
+				brcm,function = <4>; /* alt0 */
+			};
+
+			spi0_cs_pins: spi0_cs_pins {
+				brcm,pins = <8 7>;
+				brcm,function = <1>; /* output */
 			};
 		}
 		
@@ -89,4 +103,3 @@
 
 	};
 };
-

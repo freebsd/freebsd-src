@@ -100,7 +100,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/broadcom/bcm2835/bcm2835_gpio.h>
 #include <arm/broadcom/bcm2835/bcm2835_bscreg.h>
 #include <arm/broadcom/bcm2835/bcm2835_bscvar.h>
 
@@ -298,9 +297,7 @@ static int
 bcm_bsc_attach(device_t dev)
 {
 	struct bcm_bsc_softc *sc;
-	unsigned long start;
-	device_t gpio;
-	int i, rid;
+	int rid;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -315,31 +312,6 @@ bcm_bsc_attach(device_t dev)
 
 	sc->sc_bst = rman_get_bustag(sc->sc_mem_res);
 	sc->sc_bsh = rman_get_bushandle(sc->sc_mem_res);
-
-	/* Check the unit we are attaching by its base address. */
-	start = rman_get_start(sc->sc_mem_res);
-	for (i = 0; i < nitems(bcm_bsc_pins); i++) {
-		if (bcm_bsc_pins[i].start == (start & BCM_BSC_BASE_MASK))
-			break;
-	}
-	if (i == nitems(bcm_bsc_pins)) {
-		device_printf(dev, "only bsc0 and bsc1 are supported\n");
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
-		return (ENXIO);
-	}
-
-	/*
-	 * Configure the GPIO pins to ALT0 function to enable BSC control
-	 * over the pins.
-	 */
-	gpio = devclass_get_device(devclass_find("gpio"), 0);
-	if (!gpio) {
-		device_printf(dev, "cannot find gpio0\n");
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
-		return (ENXIO);
-	}
-	bcm_gpio_set_alternate(gpio, bcm_bsc_pins[i].sda, BCM_GPIO_ALT0);
-	bcm_gpio_set_alternate(gpio, bcm_bsc_pins[i].scl, BCM_GPIO_ALT0);
 
 	rid = 0;
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
