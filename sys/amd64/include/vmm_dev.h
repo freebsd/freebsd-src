@@ -226,6 +226,13 @@ struct vm_rtc_data {
 	uint8_t		value;
 };
 
+struct vm_cpu_topology {
+	uint16_t	sockets;
+	uint16_t	cores;
+	uint16_t	threads;
+	uint16_t	maxcpus;
+};
+
 enum {
 	/* general routines */
 	IOCNUM_ABIVERS = 0,
@@ -283,6 +290,10 @@ enum {
 	IOCNUM_SET_X2APIC_STATE = 60,
 	IOCNUM_GET_X2APIC_STATE = 61,
 	IOCNUM_GET_HPET_CAPABILITIES = 62,
+
+	/* CPU Topology */
+	IOCNUM_SET_TOPOLOGY = 63,
+	IOCNUM_GET_TOPOLOGY = 64,
 
 	/* legacy interrupt injection */
 	IOCNUM_ISA_ASSERT_IRQ = 80,
@@ -379,6 +390,10 @@ enum {
 	_IOWR('v', IOCNUM_GET_X2APIC_STATE, struct vm_x2apic)
 #define	VM_GET_HPET_CAPABILITIES \
 	_IOR('v', IOCNUM_GET_HPET_CAPABILITIES, struct vm_hpet_cap)
+#define VM_SET_TOPOLOGY \
+	_IOW('v', IOCNUM_SET_TOPOLOGY, struct vm_cpu_topology)
+#define VM_GET_TOPOLOGY \
+	_IOR('v', IOCNUM_GET_TOPOLOGY, struct vm_cpu_topology)
 #define	VM_GET_GPA_PMAP \
 	_IOWR('v', IOCNUM_GET_GPA_PMAP, struct vm_gpa_pte)
 #define	VM_GLA2GPA	\

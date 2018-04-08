@@ -221,6 +221,12 @@ int	vm_activate_cpu(struct vmctx *ctx, int vcpu);
 int	vm_suspend_cpu(struct vmctx *ctx, int vcpu);
 int	vm_resume_cpu(struct vmctx *ctx, int vcpu);
 
+/* CPU topology */
+int	vm_set_topology(struct vmctx *ctx, uint16_t sockets, uint16_t cores,
+	    uint16_t threads, uint16_t maxcpus);
+int	vm_get_topology(struct vmctx *ctx, uint16_t *sockets, uint16_t *cores,
+	    uint16_t *threads, uint16_t *maxcpus);
+
 /*
  * FreeBSD specific APIs
  */
