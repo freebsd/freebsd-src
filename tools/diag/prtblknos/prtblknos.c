@@ -156,7 +156,8 @@ distance(fs, lastblk, firstblk)
 		return (&buf[0]);
 	}
 	snprintf(buf, 100, " cg %d blk %jd to cg %d blk %jd",
-	    lastcg, dtogd(fs, lastblk), firstcg, dtogd(fs, firstblk));
+	    lastcg, (intmax_t)dtogd(fs, lastblk), firstcg,
+	    (intmax_t)dtogd(fs, firstblk));
 	return (&buf[0]);
 }
 	
