@@ -1,8 +1,3 @@
-#
-# Copyright (c) 2018 VMware, Inc. All Rights Reserved.
-#
-# SPDX-License-Identifier: (BSD-2-Clause OR GPL-2.0)
-#
 # $FreeBSD$
 
 .PATH: ${SRCTOP}/sys/dev/vmware/vmci
