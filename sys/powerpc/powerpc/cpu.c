@@ -710,7 +710,6 @@ cpu_idle_60x(sbintime_t sbt)
 	default:
 		powerpc_sync();
 		mtmsr(msr | PSL_POW);
-		isync();
 		break;
 	}
 #endif
@@ -739,7 +738,6 @@ cpu_idle_booke(sbintime_t sbt)
 	default:
 		powerpc_sync();
 		mtmsr(msr | PSL_WE);
-		isync();
 		break;
 	}
 #endif
