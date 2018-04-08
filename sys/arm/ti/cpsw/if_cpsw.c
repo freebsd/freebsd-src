@@ -746,7 +746,7 @@ cpsw_get_fdt_data(struct cpsw_softc *sc, int port)
 	phy = -1;
 	vlan = -1;
 	for (child = OF_child(sc->node); child != 0; child = OF_peer(child)) {
-		if (OF_getprop_alloc(child, "name", 1, (void **)&name) < 0)
+		if (OF_getprop_alloc(child, "name", (void **)&name) < 0)
 			continue;
 		if (sscanf(name, "slave@%lx", &mdio_child_addr) != 1) {
 			OF_prop_free(name);

@@ -175,7 +175,7 @@ fdt_localbus_reg_decode(phandle_t node, struct localbus_softc *sc,
 		return (ENXIO);
 
 	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
-	tuples = OF_getprop_alloc(node, "reg", tuple_size, (void **)&reg);
+	tuples = OF_getprop_alloc_multi(node, "reg", tuple_size, (void **)&reg);
 	debugf("addr_cells = %d, size_cells = %d\n", addr_cells, size_cells);
 	debugf("tuples = %d, tuple size = %d\n", tuples, tuple_size);
 	if (tuples <= 0)

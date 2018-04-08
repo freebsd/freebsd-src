@@ -1233,7 +1233,7 @@ awg_setup_phy(device_t dev)
 	node = ofw_bus_get_node(dev);
 	use_syscon = false;
 
-	if (OF_getprop_alloc(node, "phy-mode", 1, (void **)&phy_type) == 0)
+	if (OF_getprop_alloc(node, "phy-mode", (void **)&phy_type) == 0)
 		return (0);
 
 	if (sc->syscon != NULL || sc->res[_RES_SYSCON] != NULL)

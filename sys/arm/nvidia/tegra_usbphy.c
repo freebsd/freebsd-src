@@ -593,7 +593,7 @@ usb_get_ifc_mode(device_t dev, phandle_t node, char *name)
 	int rv;
 	enum usb_ifc_type ret;
 
-	rv = OF_getprop_alloc(node, name, 1, (void **)&tmpstr);
+	rv = OF_getprop_alloc(node, name, (void **)&tmpstr);
 	if (rv <= 0)
 		return (USB_IFC_TYPE_UNKNOWN);
 
@@ -615,7 +615,7 @@ usb_get_dr_mode(device_t dev, phandle_t node, char *name)
 	int rv;
 	enum usb_dr_mode ret;
 
-	rv = OF_getprop_alloc(node, name, 1, (void **)&tmpstr);
+	rv = OF_getprop_alloc(node, name, (void **)&tmpstr);
 	if (rv <= 0)
 		return (USB_DR_MODE_UNKNOWN);
 

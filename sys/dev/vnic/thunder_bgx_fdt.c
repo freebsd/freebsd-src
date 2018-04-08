@@ -396,7 +396,7 @@ bgx_fdt_init_phy(struct bgx *bgx)
 				continue;
 			}
 		} else {
-			len = OF_getprop_alloc(child, "name", 1,
+			len = OF_getprop_alloc(child, "name",
 			    (void **)&node_name);
 			if (len <= 0) {
 				continue;
