@@ -68,7 +68,7 @@ coresight_get_ports(phandle_t dev_node,
 		node = dev_node;
 
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		ret = OF_getprop_alloc(child, "name", sizeof(*name), (void **)&name);
+		ret = OF_getprop_alloc(child, "name", (void **)&name);
 		if (ret == -1)
 			continue;
 
