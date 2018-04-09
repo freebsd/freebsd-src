@@ -16,6 +16,14 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20180409:
+	The use of RSS hash from the network card aka flowid has been
+	disabled by default for lagg(4) as it's currently incompatible with
+	the lacp and loadbalance protocols.
+
+	This can be re-enabled by setting the following in loader.conf:
+	net.link.lagg.default_use_flowid="1"
+
 20180331:
 	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
 	6.0.0.  Please see the 20141231 entry below for information about
