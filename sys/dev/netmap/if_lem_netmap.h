@@ -216,8 +216,6 @@ lem_netmap_rxsync(struct netmap_kring *kring, int flags)
 	 * First part: import newly received packets.
 	 */
 	if (netmap_no_pendintr || force_update) {
-		uint16_t slot_flags = kring->nkr_slot_flags;
-
 		nic_i = adapter->next_rx_desc_to_check;
 		nm_i = netmap_idx_n2k(kring, nic_i);
 
@@ -234,7 +232,7 @@ lem_netmap_rxsync(struct netmap_kring *kring, int flags)
 				len = 0;
 			}
 			ring->slot[nm_i].len = len;
-			ring->slot[nm_i].flags = slot_flags;
+			ring->slot[nm_i].flags = 0;
 			bus_dmamap_sync(adapter->rxtag,
 				adapter->rx_buffer_area[nic_i].map,
 				BUS_DMASYNC_POSTREAD);
