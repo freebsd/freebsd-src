@@ -319,10 +319,10 @@ ofw_bus_setup_iinfo(phandle_t node, struct ofw_bus_iinfo *ii, int intrsz)
 		addrc = 2;
 	ii->opi_addrc = addrc * sizeof(pcell_t);
 
-	ii->opi_imapsz = OF_getencprop_alloc(node, "interrupt-map", 1,
+	ii->opi_imapsz = OF_getencprop_alloc(node, "interrupt-map",
 	    (void **)&ii->opi_imap);
 	if (ii->opi_imapsz > 0) {
-		msksz = OF_getencprop_alloc(node, "interrupt-map-mask", 1,
+		msksz = OF_getencprop_alloc(node, "interrupt-map-mask",
 		    (void **)&ii->opi_imapmsk);
 		/*
 		 * Failure to get the mask is ignored; a full mask is used
@@ -449,7 +449,8 @@ ofw_bus_msimap(phandle_t node, uint16_t pci_rid, phandle_t *msi_parent,
 	int err, i;
 
 	/* TODO: This should be OF_searchprop_alloc if we had it */
-	len = OF_getencprop_alloc(node, "msi-map", sizeof(*map), (void **)&map);
+	len = OF_getencprop_alloc_multi(node, "msi-map", sizeof(*map),
+	    (void **)&map);
 	if (len < 0) {
 		if (msi_parent != NULL) {
 			*msi_parent = 0;
@@ -506,7 +507,8 @@ ofw_bus_reg_to_rl_helper(device_t dev, phandle_t node, pcell_t acells, pcell_t s
 	if (ret == -1)
 		name = NULL;
 
-	ret = OF_getencprop_alloc(node, reg_source, sizeof(*reg), (void **)&reg);
+	ret = OF_getencprop_alloc_multi(node, reg_source, sizeof(*reg),
+	    (void **)&reg);
 	nreg = (ret == -1) ? 0 : ret;
 
 	if (nreg % (acells + scells) != 0) {
@@ -584,7 +586,7 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node,
 	int err, i, irqnum, nintr, rid;
 	boolean_t extended;
 
-	nintr = OF_getencprop_alloc(node, "interrupts",  sizeof(*intr),
+	nintr = OF_getencprop_alloc_multi(node, "interrupts",  sizeof(*intr),
 	    (void **)&intr);
 	if (nintr > 0) {
 		iparent = ofw_bus_find_iparent(node);
@@ -607,7 +609,7 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node,
 		}
 		extended = false;
 	} else {
-		nintr = OF_getencprop_alloc(node, "interrupts-extended",
+		nintr = OF_getencprop_alloc_multi(node, "interrupts-extended",
 		    sizeof(*intr), (void **)&intr);
 		if (nintr <= 0)
 			return (0);
@@ -650,7 +652,7 @@ ofw_bus_intr_by_rid(device_t dev, phandle_t node, int wanted_rid,
 	int err, i, nintr, rid;
 	boolean_t extended;
 
-	nintr = OF_getencprop_alloc(node, "interrupts",  sizeof(*intr),
+	nintr = OF_getencprop_alloc_multi(node, "interrupts",  sizeof(*intr),
 	    (void **)&intr);
 	if (nintr > 0) {
 		iparent = ofw_bus_find_iparent(node);
@@ -673,7 +675,7 @@ ofw_bus_intr_by_rid(device_t dev, phandle_t node, int wanted_rid,
 		}
 		extended = false;
 	} else {
-		nintr = OF_getencprop_alloc(node, "interrupts-extended",
+		nintr = OF_getencprop_alloc_multi(node, "interrupts-extended",
 		    sizeof(*intr), (void **)&intr);
 		if (nintr <= 0)
 			return (ESRCH);
@@ -821,7 +823,7 @@ ofw_bus_parse_xref_list_internal(phandle_t node, const char *list_name,
 	int rv, i, j, nelems, cnt;
 
 	elems = NULL;
-	nelems = OF_getencprop_alloc(node, list_name,  sizeof(*elems),
+	nelems = OF_getencprop_alloc_multi(node, list_name,  sizeof(*elems),
 	    (void **)&elems);
 	if (nelems <= 0)
 		return (ENOENT);

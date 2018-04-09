@@ -59,7 +59,7 @@ assert_deassert_all(device_t consumer, boolean_t assert)
 	boolean_t anyerrors;
 
 	rnode = ofw_bus_get_node(consumer);
-	ncells = OF_getencprop_alloc(rnode, "resets", sizeof(*resets),
+	ncells = OF_getencprop_alloc_multi(rnode, "resets", sizeof(*resets),
 	    (void **)&resets);
 	if (!assert && ncells < 2) {
 		device_printf(consumer, "Warning: No resets specified in fdt "

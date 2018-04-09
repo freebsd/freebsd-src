@@ -488,9 +488,22 @@ OF_getprop_alloc_multi(phandle_t package, const char *propname, int elsz, void *
 	return (len / elsz);
 }
 
+ssize_t
+OF_getencprop_alloc(phandle_t package, const char *name, void **buf)
+{
+	ssize_t ret;
+
+	ret = OF_getencprop_alloc_multi(package, name, sizeof(pcell_t),
+	    buf);
+	if (ret < 0)
+		return (ret);
+	else
+		return (ret * sizeof(pcell_t));
+}
 
 ssize_t
-OF_getencprop_alloc(phandle_t package, const char *name, int elsz, void **buf)
+OF_getencprop_alloc_multi(phandle_t package, const char *name, int elsz,
+    void **buf)
 {
 	ssize_t retval;
 	pcell_t *cell;
@@ -499,11 +512,6 @@ OF_getencprop_alloc(phandle_t package, const char *name, int elsz, void **buf)
 	retval = OF_getprop_alloc_multi(package, name, elsz, buf);
 	if (retval == -1)
 		return (-1);
- 	if (retval * elsz % 4 != 0) {
-		free(*buf, M_OFWPROP);
-		*buf = NULL;
-		return (-1);
-	}
 
 	cell = *buf;
 	for (i = 0; i < retval * elsz / 4; i++)

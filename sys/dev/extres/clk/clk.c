@@ -1409,7 +1409,7 @@ clk_parse_ofw_out_names(device_t dev, phandle_t node, const char ***out_names,
 
 	if (!OF_hasprop(node, "clock-indices"))
 		return (name_items);
-	rv = OF_getencprop_alloc(node, "clock-indices", sizeof (uint32_t),
+	rv = OF_getencprop_alloc_multi(node, "clock-indices", sizeof (uint32_t),
 	    (void **)indices);
 	if (rv != name_items) {
 		device_printf(dev, " Size of 'clock-output-names' and "
