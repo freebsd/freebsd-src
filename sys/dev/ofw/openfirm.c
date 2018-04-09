@@ -428,7 +428,7 @@ OF_searchprop(phandle_t node, const char *propname, void *buf, size_t len)
 }
 
 ssize_t
-OF_searchencprop(phandle_t node, const char *propname, void *buf, size_t len)
+OF_searchencprop(phandle_t node, const char *propname, pcell_t *buf, size_t len)
 {
 	ssize_t rv;
 
