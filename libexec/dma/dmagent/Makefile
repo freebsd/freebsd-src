@@ -20,6 +20,7 @@ SRCS=	aliases_parse.y \
 MAN8=	dma.8
 CONFS=	dma.conf
 CONFSDIR=	${CONFDIR}/dma
+CFLAGS+=	-D_WITH_GETLINE
 YFLAGS+=	-i
 CLEANFILES=	aliases_parse.i
 FILES=	mailer.conf
