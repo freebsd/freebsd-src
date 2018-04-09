@@ -208,6 +208,12 @@ MAN=	accept_filter.9 \
 	namei.9 \
 	netisr.9 \
 	nv.9 \
+	OF_child.9 \
+	OF_device_from_xref.9 \
+	OF_finddevice.9 \
+	OF_getprop.9 \
+	OF_node_from_xref.9 \
+	OF_package_to_path.9 \
 	ofw_bus_is_compatible.9 \
 	ofw_bus_status_okay.9 \
 	osd.9 \
@@ -1527,6 +1533,21 @@ MLINKS+=nv.9 libnv.9 \
 	nv.9 nvlist_take_string_array.9 \
 	nv.9 nvlist_unpack.9 \
 	nv.9 nvlist_xfer.9
+MLINKS+=OF_child.9 OF_parent.9 \
+	OF_child.9 OF_peer.9
+MLINKS+=OF_device_from_xref.9 OF_device_register_xref.9 \
+	OF_device_from_xref.9 OF_xref_from_device.9
+MLINKS+=OF_getprop.9 OF_getencprop.9 \
+	OF_getprop.9 OF_getencprop_alloc.9 \
+	OF_getprop.9 OF_getprop_alloc.9 \
+	OF_getprop.9 OF_getproplen.9 \
+	OF_getprop.9 OF_hasprop.9 \
+	OF_getprop.9 OF_nextprop.9 \
+	OF_getprop.9 OF_prop_free.9 \
+	OF_getprop.9 OF_searchencprop.9 \
+	OF_getprop.9 OF_searchprop.9 \
+	OF_getprop.9 OF_setprop.9
+MLINKS+=OF_node_from_xref.9 OF_xref_from_node.9
 MLINKS+=ofw_bus_is_compatible.9 ofw_bus_is_compatible_strict.9 \
 	ofw_bus_is_compatible.9 ofw_bus_node_is_compatible.9 \
 	ofw_bus_is_compatible.9 ofw_bus_search_compatible.9
