@@ -108,6 +108,7 @@ static int decode_win_xor_valid(void);
 static void decode_win_cpu_setup(void);
 static int decode_win_sdram_fixup(void);
 static void decode_win_cesa_setup(u_long);
+static void decode_win_a38x_cesa_setup(u_long);
 static void decode_win_usb_setup(u_long);
 static void decode_win_usb3_setup(u_long);
 static void decode_win_eth_setup(u_long);
@@ -120,6 +121,7 @@ static void decode_win_idma_setup(u_long);
 static void decode_win_xor_setup(u_long);
 
 static void decode_win_cesa_dump(u_long);
+static void decode_win_a38x_cesa_dump(u_long);
 static void decode_win_usb_dump(u_long);
 static void decode_win_usb3_dump(u_long);
 static void decode_win_eth_dump(u_long base);
@@ -226,6 +228,8 @@ static struct soc_node_spec soc_nodes[] = {
 	{ "mrvl,idma", &decode_win_idma_setup, &decode_win_idma_dump, &decode_win_idma_valid},
 	{ "mrvl,cesa", &decode_win_cesa_setup, &decode_win_cesa_dump, &decode_win_cesa_valid},
 	{ "mrvl,pcie", &decode_win_pcie_setup, &decode_win_pcie_dump, &decode_win_pcie_valid},
+	{ "marvell,armada-38x-crypto", &decode_win_a38x_cesa_setup,
+	    &decode_win_a38x_cesa_dump, &decode_win_cesa_valid},
 	{ NULL, NULL, NULL, NULL },
 };
 
@@ -1558,6 +1562,20 @@ decode_win_cesa_setup(u_long base)
 			}
 		}
 	}
+}
+
+static void
+decode_win_a38x_cesa_setup(u_long base)
+{
+	decode_win_cesa_setup(base);
+	decode_win_cesa_setup(base + MV_WIN_CESA_OFFSET);
+}
+
+static void
+decode_win_a38x_cesa_dump(u_long base)
+{
+	decode_win_cesa_dump(base);
+	decode_win_cesa_dump(base + MV_WIN_CESA_OFFSET);
 }
 
 /**************************************************************************
