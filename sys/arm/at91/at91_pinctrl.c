@@ -101,7 +101,8 @@ at91_pinctrl_setup_dinfo(device_t dev, phandle_t node)
 	}
 
 	resource_list_init(&ndi->rl);
-	nreg = OF_getencprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
+	nreg = OF_getencprop_alloc_multi(node, "reg", sizeof(*reg),
+	    (void **)&reg);
 	if (nreg == -1)
 		nreg = 0;
 	if (nreg % (sc->acells + sc->scells) != 0) {
@@ -127,7 +128,7 @@ at91_pinctrl_setup_dinfo(device_t dev, phandle_t node)
 	}
 	OF_prop_free(reg);
 
-	nintr = OF_getencprop_alloc(node, "interrupts",  sizeof(*intr),
+	nintr = OF_getencprop_alloc_multi(node, "interrupts",  sizeof(*intr),
 	    (void **)&intr);
 	if (nintr > 0) {
 		if (OF_searchencprop(node, "interrupt-parent", &iparent,
@@ -393,7 +394,7 @@ pinctrl_configure_pins(device_t bus, phandle_t cfgxref)
 	node = OF_node_from_xref(cfgxref);
 	memset(name, 0, sizeof(name));
 	OF_getprop(node, "name", name, sizeof(name));
-	npins = OF_getencprop_alloc(node, "atmel,pins", sizeof(*cfgdata),
+	npins = OF_getencprop_alloc_multi(node, "atmel,pins", sizeof(*cfgdata),
 	    (void **)&cfgdata);
 	if (npins < 0) {
 		printf("We're doing it wrong %s\n", name);

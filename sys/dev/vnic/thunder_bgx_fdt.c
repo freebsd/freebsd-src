@@ -258,7 +258,7 @@ bgx_fdt_traverse_nodes(uint8_t unit, phandle_t start, char *name,
 		    BGX_NODE_NAME, sizeof(BGX_NODE_NAME) - 1) != 0)
 			continue;
 		/* Get reg */
-		err = OF_getencprop_alloc(node, "reg", sizeof(*reg),
+		err = OF_getencprop_alloc_multi(node, "reg", sizeof(*reg),
 		    (void **)&reg);
 		if (err == -1) {
 			free(reg, M_OFWPROP);

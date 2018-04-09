@@ -623,7 +623,7 @@ bcm_gpio_get_ro_pins(struct bcm_gpio_softc *sc, phandle_t node,
 	pcell_t *pins;
 
 	/* Get the property data. */
-	npins = OF_getencprop_alloc(node, propname, sizeof(*pins),
+	npins = OF_getencprop_alloc_multi(node, propname, sizeof(*pins),
 	    (void **)&pins);
 	if (npins < 0)
 		return (-1);
@@ -1214,8 +1214,8 @@ bcm_gpio_configure_pins(device_t dev, phandle_t cfgxref)
 	cfgnode = OF_node_from_xref(cfgxref);
 
 	pins = NULL;
-	pintuples = OF_getencprop_alloc(cfgnode, "brcm,pins", sizeof(*pins),
-	    (void **)&pins);
+	pintuples = OF_getencprop_alloc_multi(cfgnode, "brcm,pins",
+	    sizeof(*pins), (void **)&pins);
 
 	char name[32];
 	OF_getprop(cfgnode, "name", &name, sizeof(name));
@@ -1233,8 +1233,8 @@ bcm_gpio_configure_pins(device_t dev, phandle_t cfgxref)
 	}
 
 	pulls = NULL;
-	pulltuples = OF_getencprop_alloc(cfgnode, "brcm,pull", sizeof(*pulls),
-	    (void **)&pulls);
+	pulltuples = OF_getencprop_alloc_multi(cfgnode, "brcm,pull",
+	    sizeof(*pulls), (void **)&pulls);
 
 	if ((pulls != NULL) && (pulltuples != pintuples)) {
 		OF_prop_free(pins);
