@@ -195,7 +195,7 @@ aml8726_usb_phy_attach(device_t dev)
 
 	err = 0;
 
-	len = OF_getencprop_alloc(node, "usb-pwr-en",
+	len = OF_getencprop_alloc_multi(node, "usb-pwr-en",
 	    3 * sizeof(pcell_t), (void **)&prop);
 	npwr_en = (len > 0) ? len : 0;
 

@@ -167,7 +167,7 @@ aml8726_usb_phy_attach(device_t dev)
 
 	err = 0;
 
-	len = OF_getencprop_alloc(node, "usb-pwr-en",
+	len = OF_getencprop_alloc_multi(node, "usb-pwr-en",
 	    3 * sizeof(pcell_t), (void **)&prop);
 	npwr_en = (len > 0) ? len : 0;
 
@@ -188,7 +188,7 @@ aml8726_usb_phy_attach(device_t dev)
 
 	OF_prop_free(prop);
 
-	len = OF_getencprop_alloc(node, "usb-hub-rst",
+	len = OF_getencprop_alloc_multi(node, "usb-hub-rst",
 	    3 * sizeof(pcell_t), (void **)&prop);
 	if (len > 0) {
 		sc->hub_rst.dev = OF_device_from_xref(prop[0]);

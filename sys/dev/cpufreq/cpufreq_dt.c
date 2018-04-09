@@ -289,7 +289,7 @@ cpufreq_dt_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->nopp = OF_getencprop_alloc(node, "operating-points",
+	sc->nopp = OF_getencprop_alloc_multi(node, "operating-points",
 	    sizeof(*sc->opp), (void **)&opp);
 	if (sc->nopp == -1)
 		return (ENXIO);

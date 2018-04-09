@@ -216,7 +216,7 @@ gpioregulator_parse_fdt(struct gpioregulator_softc *sc)
 		return (error);
 
 	/* "states" property (required) */
-	len = OF_getencprop_alloc(node, "states", sizeof(*pstates),
+	len = OF_getencprop_alloc_multi(node, "states", sizeof(*pstates),
 	    (void **)&pstates);
 	if (len < 2) {
 		device_printf(sc->dev, "invalid 'states' property\n");

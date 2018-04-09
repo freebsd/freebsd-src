@@ -1085,7 +1085,7 @@ regulator_get_by_ofw_property(device_t cdev, phandle_t cnode, char *name,
 	}
 
 	cells = NULL;
-	ncells = OF_getencprop_alloc(cnode, name,  sizeof(*cells),
+	ncells = OF_getencprop_alloc_multi(cnode, name, sizeof(*cells),
 	    (void **)&cells);
 	if (ncells <= 0)
 		return (ENXIO);
