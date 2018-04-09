@@ -805,13 +805,14 @@ linux_copyout_strings(struct image_params *imgp)
 		    imgp->args->envc + 2 + imgp->auxarg_size) *
 		    sizeof(u_int32_t));
 
-	} else
+	} else {
 		/*
 		 * The '+ 2' is for the null pointers at the end of each of
 		 * the arg and env vector sets
 		 */
 		vectp = (u_int32_t *)(destp - (imgp->args->argc +
 		    imgp->args->envc + 2) * sizeof(u_int32_t));
+	}
 
 	/* vectp also becomes our initial stack base. */
 	stack_base = vectp;
