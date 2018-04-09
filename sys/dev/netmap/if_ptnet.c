@@ -216,6 +216,7 @@ static void	ptnet_update_vnet_hdr(struct ptnet_softc *sc);
 static int	ptnet_nm_register(struct netmap_adapter *na, int onoff);
 static int	ptnet_nm_txsync(struct netmap_kring *kring, int flags);
 static int	ptnet_nm_rxsync(struct netmap_kring *kring, int flags);
+static void	ptnet_nm_intr(struct netmap_adapter *na, int onoff);
 
 static void	ptnet_tx_intr(void *opaque);
 static void	ptnet_rx_intr(void *opaque);
@@ -477,6 +478,7 @@ ptnet_attach(device_t dev)
 	na_arg.nm_krings_create = ptnet_nm_krings_create;
 	na_arg.nm_krings_delete = ptnet_nm_krings_delete;
 	na_arg.nm_dtor = ptnet_nm_dtor;
+	na_arg.nm_intr = ptnet_nm_intr;
 	na_arg.nm_register = ptnet_nm_register;
 	na_arg.nm_txsync = ptnet_nm_txsync;
 	na_arg.nm_rxsync = ptnet_nm_rxsync;
@@ -1296,6 +1298,18 @@ ptnet_nm_rxsync(struct netmap_kring *kring, int flags)
 	}
 
 	return 0;
+}
+
+static void
+ptnet_nm_intr(struct netmap_adapter *na, int onoff)
+{
+	struct ptnet_softc *sc = if_getsoftc(na->ifp);
+	int i;
+
+	for (i = 0; i < sc->num_rings; i++) {
+		struct ptnet_queue *pq = sc->queues + i;
+		pq->ptgh->guest_need_kick = onoff;
+	}
 }
 
 static void

@@ -139,6 +139,13 @@ nmreq_pointer_put(struct nmreq *nmr, void *userptr)
 	*pp = (uintptr_t)userptr;
 }
 
+static inline void *
+nmreq_pointer_get(const struct nmreq *nmr)
+{
+	const uintptr_t * pp = (const uintptr_t *)&nmr->nr_arg1;
+	return (void *)*pp;
+}
+
 /* ptnetmap features */
 #define PTNETMAP_F_VNET_HDR        1
 

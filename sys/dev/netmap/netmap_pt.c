@@ -169,19 +169,19 @@ rate_batch_stats_update(struct rate_batch_stats *bf, uint32_t pre_tail,
 #endif /* RATE */
 
 struct ptnetmap_state {
-    /* Kthreads. */
-    struct nm_kctx **kctxs;
+	/* Kthreads. */
+	struct nm_kctx **kctxs;
 
 	/* Shared memory with the guest (TX/RX) */
 	struct ptnet_csb_gh __user *csb_gh;
 	struct ptnet_csb_hg __user *csb_hg;
 
-    bool stopped;
+	bool stopped;
 
-    /* Netmap adapter wrapping the backend. */
-    struct netmap_pt_host_adapter *pth_na;
+	/* Netmap adapter wrapping the backend. */
+	struct netmap_pt_host_adapter *pth_na;
 
-    IFRATE(struct rate_context rate_ctx;)
+	IFRATE(struct rate_context rate_ctx;)
 };
 
 static inline void
@@ -1268,13 +1268,11 @@ netmap_get_pt_host_na(struct nmreq *nmr, struct netmap_adapter **na,
     }
 
     *na = &pth_na->up;
-    netmap_adapter_get(*na);
-
     /* set parent busy, because attached for ptnetmap */
     parent->na_flags |= NAF_BUSY;
-
     strncpy(pth_na->up.name, parent->name, sizeof(pth_na->up.name));
     strcat(pth_na->up.name, "-PTN");
+    netmap_adapter_get(*na);
 
     DBG(D("%s ptnetmap request DONE", pth_na->up.name));
 
@@ -1350,7 +1348,7 @@ netmap_pt_guest_txsync(struct ptnet_csb_gh *ptgh, struct ptnet_csb_hg *pthg,
 	 * go to sleep and we need to be notified by the host when more free
 	 * space is available.
          */
-	if (nm_kr_txempty(kring)) {
+	if (nm_kr_txempty(kring) && !(kring->nr_kflags & NKR_NOINTR)) {
 		/* Reenable notifications. */
 		ptgh->guest_need_kick = 1;
                 /* Double check */
@@ -1415,7 +1413,7 @@ netmap_pt_guest_rxsync(struct ptnet_csb_gh *ptgh, struct ptnet_csb_hg *pthg,
 	 * we need to be notified by the host when more RX slots have been
 	 * completed.
          */
-	if (nm_kr_rxempty(kring)) {
+	if (nm_kr_rxempty(kring) && !(kring->nr_kflags & NKR_NOINTR)) {
 		/* Reenable notifications. */
                 ptgh->guest_need_kick = 1;
                 /* Double check */
@@ -1504,7 +1502,7 @@ netmap_pt_guest_attach(struct netmap_adapter *arg,
 	if (arg->nm_mem == NULL)
 		return ENOMEM;
 	arg->na_flags |= NAF_MEM_OWNER;
-	error = netmap_attach_ext(arg, sizeof(struct netmap_pt_guest_adapter));
+	error = netmap_attach_ext(arg, sizeof(struct netmap_pt_guest_adapter), 1);
 	if (error)
 		return error;
 
@@ -1517,7 +1515,7 @@ netmap_pt_guest_attach(struct netmap_adapter *arg,
 	memset(&ptna->dr, 0, sizeof(ptna->dr));
 	ptna->dr.up.ifp = ifp;
 	ptna->dr.up.nm_mem = netmap_mem_get(ptna->hwup.up.nm_mem);
-	ptna->dr.up.nm_config = ptna->hwup.up.nm_config;
+        ptna->dr.up.nm_config = ptna->hwup.up.nm_config;
 
 	ptna->backend_regifs = 0;
 
