@@ -86,12 +86,6 @@ __FBSDID("$FreeBSD$");
 
 MODULE_VERSION(linux64, 1);
 
-#if BYTE_ORDER == LITTLE_ENDIAN
-#define SHELLMAGIC      0x2123 /* #! */
-#else
-#define SHELLMAGIC      0x2321
-#endif
-
 #if defined(DEBUG)
 SYSCTL_PROC(_compat_linux, OID_AUTO, debug,
 	    CTLTYPE_STRING | CTLFLAG_RW,
@@ -125,7 +119,6 @@ static void	linux_vdso_install(void *param);
 static void	linux_vdso_deinstall(void *param);
 static void	linux_set_syscall_retval(struct thread *td, int error);
 static int	linux_fetch_syscall_args(struct thread *td);
-static int	linux_exec_imgact_try(struct image_params *iparams);
 static void	linux_exec_setregs(struct thread *td, struct image_params *imgp,
 		    u_long stack);
 static int	linux_vsyscall(struct thread *td);
@@ -661,42 +654,6 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
-}
-
-/*
- * If a Linux binary is exec'ing something, try this image activator
- * first.  We override standard shell script execution in order to
- * be able to modify the interpreter path.  We only do this if a Linux
- * binary is doing the exec, so we do not create an EXEC module for it.
- */
-static int
-linux_exec_imgact_try(struct image_params *imgp)
-{
-	const char *head = (const char *)imgp->image_header;
-	char *rpath;
-	int error = -1;
-
-	/*
-	 * The interpreter for shell scripts run from a Linux binary needs
-	 * to be located in /compat/linux if possible in order to recursively
-	 * maintain Linux path emulation.
-	 */
-	if (((const short *)head)[0] == SHELLMAGIC) {
-		/*
-		 * Run our normal shell image activator.  If it succeeds then
-		 * attempt to use the alternate path for the interpreter.  If
-		 * an alternate path is found, use our stringspace to store it.
-		 */
-		if ((error = exec_shell_imgact(imgp)) == 0) {
-			linux_emul_convpath(FIRST_THREAD_IN_PROC(imgp->proc),
-			    imgp->interpreter_name, UIO_SYSSPACE, &rpath, 0,
-			    AT_FDCWD);
-			if (rpath != NULL)
-				imgp->args->fname_buf =
-				    imgp->interpreter_name = rpath;
-		}
-	}
-	return (error);
 }
 
 #define	LINUX_VSYSCALL_START		(-10UL << 20)
