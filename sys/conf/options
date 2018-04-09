@@ -104,7 +104,6 @@ FULL_PREEMPTION	opt_sched.h
 GZIO		opt_gzio.h
 IMAGACT_BINMISC		opt_dontuse.h
 IPI_PREEMPTION	opt_sched.h
-GEOM_AES	opt_geom.h
 GEOM_BDE	opt_geom.h
 GEOM_BSD	opt_geom.h
 GEOM_CACHE	opt_geom.h
