@@ -221,6 +221,8 @@ static struct resource_spec awg_spec[] = {
 
 static void awg_txeof(struct awg_softc *sc);
 
+static int awg_parse_delay(device_t dev, uint32_t *tx_delay,
+    uint32_t *rx_delay);
 static uint32_t syscon_read_emac_clk_reg(device_t dev);
 static void syscon_write_emac_clk_reg(device_t dev, uint32_t val);
 static phandle_t awg_get_phy_node(device_t dev);
@@ -1218,6 +1220,50 @@ awg_has_internal_phy(device_t dev)
 }
 
 static int
+awg_parse_delay(device_t dev, uint32_t *tx_delay, uint32_t *rx_delay)
+{
+	phandle_t node;
+	uint32_t delay;
+
+	if (tx_delay == NULL || rx_delay == NULL)
+		return (EINVAL);
+	*tx_delay = *rx_delay = 0;
+	node = ofw_bus_get_node(dev);
+
+	if (OF_getencprop(node, "tx-delay", &delay, sizeof(delay)) >= 0)
+		*tx_delay = delay;
+	else if (OF_getencprop(node, "allwinner,tx-delay-ps", &delay,
+	    sizeof(delay)) >= 0) {
+		if ((delay % 100) != 0) {
+			device_printf(dev, "tx-delay-ps is not a multiple of 100\n");
+			return (EDOM);
+		}
+		*tx_delay = delay / 100;
+	}
+	if (*tx_delay > 7) {
+		device_printf(dev, "tx-delay out of range\n");
+		return (ERANGE);
+	}
+
+	if (OF_getencprop(node, "rx-delay", &delay, sizeof(delay)) >= 0)
+		*rx_delay = delay;
+	else if (OF_getencprop(node, "allwinner,rx-delay-ps", &delay,
+	    sizeof(delay)) >= 0) {
+		if ((delay % 100) != 0) {
+			device_printf(dev, "rx-delay-ps is not within documented domain\n");
+			return (EDOM);
+		}
+		*rx_delay = delay / 100;
+	}
+	if (*rx_delay > 31) {
+		device_printf(dev, "rx-delay out of range\n");
+		return (ERANGE);
+	}
+
+	return (0);
+}
+
+static int
 awg_setup_phy(device_t dev)
 {
 	struct awg_softc *sc;
@@ -1260,16 +1306,22 @@ awg_setup_phy(device_t dev)
 		else
 			reg |= EMAC_CLK_PIT_MII | EMAC_CLK_SRC_MII;
 
-		if (OF_getencprop(node, "tx-delay", &tx_delay,
-		    sizeof(tx_delay)) > 0) {
-			reg &= ~EMAC_CLK_ETXDC;
+		/*
+		 * Fail attach if we fail to parse either of the delay
+		 * parameters. If we don't have the proper delay to write to
+		 * syscon, then awg likely won't function properly anyways.
+		 * Lack of delay is not an error!
+		 */
+		error = awg_parse_delay(dev, &tx_delay, &rx_delay);
+		if (error != 0)
+			goto fail;
+
+		/* Default to 0 and we'll increase it if we need to. */
+		reg &= ~(EMAC_CLK_ETXDC | EMAC_CLK_ERXDC);
+		if (tx_delay > 0)
 			reg |= (tx_delay << EMAC_CLK_ETXDC_SHIFT);
-		}
-		if (OF_getencprop(node, "rx-delay", &rx_delay,
-		    sizeof(rx_delay)) > 0) {
-			reg &= ~EMAC_CLK_ERXDC;
+		if (rx_delay > 0)
 			reg |= (rx_delay << EMAC_CLK_ERXDC_SHIFT);
-		}
 
 		if (sc->type == EMAC_H3) {
 			if (awg_has_internal_phy(dev)) {
