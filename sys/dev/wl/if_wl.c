@@ -1357,7 +1357,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	/* get the current NWID out of the sc since we stored it there */
     case SIOCGWLCNWID:
 	WL_LOCK(sc);
-	ifr_data_get_ptr(ifr) = (caddr_t) (sc->nwid[0] << 8 | sc->nwid[1]);
+	ifr->ifr_ifru.ifru_data = (caddr_t) (sc->nwid[0] << 8 | sc->nwid[1]);
 	WL_UNLOCK(sc);
 	break;
 
