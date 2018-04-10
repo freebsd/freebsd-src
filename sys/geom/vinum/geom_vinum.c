@@ -1048,3 +1048,4 @@ static struct g_class g_vinum_class	= {
 };
 
 DECLARE_GEOM_CLASS(g_vinum_class, g_vinum);
+MODULE_VERSION(geom_vinum, 0);

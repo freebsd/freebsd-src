@@ -1333,3 +1333,4 @@ g_eli_fini(struct g_class *mp)
 
 DECLARE_GEOM_CLASS(g_eli_class, g_eli);
 MODULE_DEPEND(g_eli, crypto, 1, 1, 1);
+MODULE_VERSION(geom_eli, 0);

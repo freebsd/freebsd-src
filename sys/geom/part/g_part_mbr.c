@@ -121,6 +121,7 @@ static struct g_part_scheme g_part_mbr_scheme = {
 	.gps_bootcodesz = MBRSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_mbr);
+MODULE_VERSION(geom_part_mbr, 0);
 
 static struct g_part_mbr_alias {
 	u_char		typ;

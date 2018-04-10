@@ -936,3 +936,4 @@ static struct g_class g_ccd_class = {
 };
 
 DECLARE_GEOM_CLASS(g_ccd_class, g_ccd);
+MODULE_VERSION(geom_ccd, 0);
