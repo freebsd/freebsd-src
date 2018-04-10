@@ -47,6 +47,7 @@ void   remove_ext(acl_t *prev_acl, const char *filename);
 int    set_acl_mask(acl_t *prev_acl, const char *filename);
 /* util.c */
 void  *zmalloc(size_t size);
+void  *zrealloc(void *ptr, size_t size);
 const char *brand_name(int brand);
 int    branding_mismatch(int brand1, int brand2);
 
