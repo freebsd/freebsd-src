@@ -141,6 +141,7 @@ device		adw			# Advansys wide SCSI adapters
 device		aic			# Adaptec 15[012]x SCSI adapters, AIC-6[23]60.
 device		bt			# Buslogic/Mylex MultiMaster SCSI adapters
 device		isci			# Intel C600 SAS controller
+device		ocs_fc			# Emulex FC adapters
 
 # ATA/SCSI peripherals
 device		scbus			# SCSI bus (required for ATA/SCSI)

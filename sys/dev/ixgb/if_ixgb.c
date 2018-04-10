@@ -525,11 +525,6 @@ ixgb_ioctl(struct ifnet * ifp, IOCTL_CMD_TYPE command, caddr_t data)
 		goto out;
 
 	switch (command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCxIFADDR (Get/Set Interface Addr)");
-		ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFMTU:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFMTU (Set Interface MTU)");
 		if (ifr->ifr_mtu > IXGB_MAX_JUMBO_FRAME_SIZE - ETHER_HDR_LEN) {
@@ -610,8 +605,8 @@ ixgb_ioctl(struct ifnet * ifp, IOCTL_CMD_TYPE command, caddr_t data)
 		}
 		break;
 	default:
-		IOCTL_DEBUGOUT1("ioctl received: UNKNOWN (0x%X)\n", (int)command);
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
+		break;
 	}
 
 out:

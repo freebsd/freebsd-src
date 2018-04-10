@@ -132,7 +132,7 @@ gso_fix_segment(uint8_t *pkt, size_t len, u_int ipv4, u_int iphlen, u_int tcp,
 	ND("TCP/UDP csum %x", be16toh(*check));
 }
 
-static int
+static inline int
 vnet_hdr_is_bad(struct nm_vnet_hdr *vh)
 {
 	uint8_t gso_type = vh->gso_type & ~VIRTIO_NET_HDR_GSO_ECN;
@@ -170,7 +170,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 	u_int dst_slots = 0;
 
 	if (unlikely(ft_p == ft_end)) {
-		RD(3, "No source slots to process");
+		RD(1, "No source slots to process");
 		return;
 	}
 
@@ -189,11 +189,11 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 		/* Initial sanity check on the source virtio-net header. If
 		 * something seems wrong, just drop the packet. */
 		if (src_len < na->up.virt_hdr_len) {
-			RD(3, "Short src vnet header, dropping");
+			RD(1, "Short src vnet header, dropping");
 			return;
 		}
-		if (vnet_hdr_is_bad(vh)) {
-			RD(3, "Bad src vnet header, dropping");
+		if (unlikely(vnet_hdr_is_bad(vh))) {
+			RD(1, "Bad src vnet header, dropping");
 			return;
 		}
 	}
@@ -266,7 +266,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 			if (dst_slots >= *howmany) {
 				/* We still have work to do, but we've run out of
 				 * dst slots, so we have to drop the packet. */
-				RD(3, "Not enough slots, dropping GSO packet");
+				ND(1, "Not enough slots, dropping GSO packet");
 				return;
 			}
 
@@ -281,7 +281,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 				 * encapsulation. */
 				for (;;) {
 					if (src_len < ethhlen) {
-						RD(3, "Short GSO fragment [eth], dropping");
+						RD(1, "Short GSO fragment [eth], dropping");
 						return;
 					}
 					ethertype = be16toh(*((uint16_t *)
@@ -297,7 +297,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 									(gso_hdr + ethhlen);
 
 						if (src_len < ethhlen + 20) {
-							RD(3, "Short GSO fragment "
+							RD(1, "Short GSO fragment "
 							      "[IPv4], dropping");
 							return;
 						}
@@ -310,14 +310,14 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 						iphlen = 40;
 						break;
 					default:
-						RD(3, "Unsupported ethertype, "
+						RD(1, "Unsupported ethertype, "
 						      "dropping GSO packet");
 						return;
 				}
 				ND(3, "type=%04x", ethertype);
 
 				if (src_len < ethhlen + iphlen) {
-					RD(3, "Short GSO fragment [IP], dropping");
+					RD(1, "Short GSO fragment [IP], dropping");
 					return;
 				}
 
@@ -329,7 +329,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 								(gso_hdr + ethhlen + iphlen);
 
 					if (src_len < ethhlen + iphlen + 20) {
-						RD(3, "Short GSO fragment "
+						RD(1, "Short GSO fragment "
 								"[TCP], dropping");
 						return;
 					}
@@ -340,7 +340,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 				}
 
 				if (src_len < gso_hdr_len) {
-					RD(3, "Short GSO fragment [TCP/UDP], dropping");
+					RD(1, "Short GSO fragment [TCP/UDP], dropping");
 					return;
 				}
 

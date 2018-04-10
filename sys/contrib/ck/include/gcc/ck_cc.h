@@ -103,28 +103,26 @@
 #define CK_CC_TYPEOF(X, DEFAULT) __typeof__(X)
 
 /*
- * Portability wrappers for bitwise ops.
+ * Portability wrappers for bitwise operations.
  */
-
+#ifndef CK_MD_CC_BUILTIN_DISABLE
 #define CK_F_CC_FFS
-#define CK_F_CC_CLZ
-#define CK_F_CC_CTZ
-#define CK_F_CC_POPCOUNT
-
 CK_CC_INLINE static int
 ck_cc_ffs(unsigned int x)
 {
 
-	return __builtin_ffs(x);
+	return __builtin_ffsl(x);
 }
 
+#define CK_F_CC_FFSL
 CK_CC_INLINE static int
-ck_cc_clz(unsigned int x)
+ck_cc_ffsl(unsigned long x)
 {
 
-	return __builtin_clz(x);
+	return __builtin_ffsll(x);
 }
 
+#define CK_F_CC_CTZ
 CK_CC_INLINE static int
 ck_cc_ctz(unsigned int x)
 {
@@ -132,11 +130,12 @@ ck_cc_ctz(unsigned int x)
 	return __builtin_ctz(x);
 }
 
+#define CK_F_CC_POPCOUNT
 CK_CC_INLINE static int
 ck_cc_popcount(unsigned int x)
 {
 
 	return __builtin_popcount(x);
 }
-
+#endif /* CK_MD_CC_BUILTIN_DISABLE */
 #endif /* CK_GCC_CC_H */

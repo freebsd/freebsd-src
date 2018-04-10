@@ -106,6 +106,9 @@ device		al_iofic		# I/O Fabric Interrupt Controller
 device		al_serdes		# Serializer/Deserializer
 device		al_udma			# Universal DMA
 
+# Qualcomm Snapdragon drivers
+device		qcom_gcc		# Global Clock Controller
+
 # VirtIO support
 device		virtio
 device		virtio_pci

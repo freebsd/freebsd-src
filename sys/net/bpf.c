@@ -40,7 +40,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bpf.h"
-#include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_netgraph.h"
 

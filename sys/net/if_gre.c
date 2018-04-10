@@ -455,7 +455,8 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case GRESKEY:
 		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
 			break;
-		if ((error = copyin(ifr->ifr_data, &opt, sizeof(opt))) != 0)
+		if ((error = copyin(ifr_data_get_ptr(ifr), &opt,
+		    sizeof(opt))) != 0)
 			break;
 		if (sc->gre_key != opt) {
 			GRE_WLOCK(sc);
@@ -465,13 +466,14 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		break;
 	case GREGKEY:
-		error = copyout(&sc->gre_key, ifr->ifr_data,
+		error = copyout(&sc->gre_key, ifr_data_get_ptr(ifr),
 		    sizeof(sc->gre_key));
 		break;
 	case GRESOPTS:
 		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
 			break;
-		if ((error = copyin(ifr->ifr_data, &opt, sizeof(opt))) != 0)
+		if ((error = copyin(ifr_data_get_ptr(ifr), &opt,
+		    sizeof(opt))) != 0)
 			break;
 		if (opt & ~GRE_OPTMASK)
 			error = EINVAL;
@@ -486,7 +488,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case GREGOPTS:
-		error = copyout(&sc->gre_options, ifr->ifr_data,
+		error = copyout(&sc->gre_options, ifr_data_get_ptr(ifr),
 		    sizeof(sc->gre_options));
 		break;
 	default:

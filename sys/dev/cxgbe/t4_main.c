@@ -511,11 +511,6 @@ struct filter_entry {
 
 static void setup_memwin(struct adapter *);
 static void position_memwin(struct adapter *, int, uint32_t);
-static int rw_via_memwin(struct adapter *, int, uint32_t, uint32_t *, int, int);
-static inline int read_via_memwin(struct adapter *, int, uint32_t, uint32_t *,
-    int);
-static inline int write_via_memwin(struct adapter *, int, uint32_t,
-    const uint32_t *, int);
 static int validate_mem_range(struct adapter *, uint32_t, int);
 static int fwmtype_to_hwmtype(int);
 static int validate_mt_off_len(struct adapter *, int, uint32_t, int,
@@ -1641,8 +1636,13 @@ cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 redo_sifflags:
 		rc = begin_synchronized_op(sc, vi,
 		    can_sleep ? (SLEEP_OK | INTR_OK) : HOLD_LOCK, "t4flg");
-		if (rc)
+		if (rc) {
+			if_printf(ifp, "%ssleepable synch operation failed: %d."
+			    "  if_flags 0x%08x, if_drv_flags 0x%08x\n",
+			    can_sleep ? "" : "non-", rc, ifp->if_flags,
+			    ifp->if_drv_flags);
 			return (rc);
+		}
 
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
@@ -1800,7 +1800,7 @@ fail:
 	case SIOCGI2C: {
 		struct ifi2creq i2c;
 
-		rc = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
+		rc = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
 		if (rc != 0)
 			break;
 		if (i2c.dev_addr != 0xA0 && i2c.dev_addr != 0xA2) {
@@ -1818,7 +1818,7 @@ fail:
 		    i2c.offset, i2c.len, &i2c.data[0]);
 		end_synchronized_op(sc, 0);
 		if (rc == 0)
-			rc = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
+			rc = copyout(&i2c, ifr_data_get_ptr(ifr), sizeof(i2c));
 		break;
 	}
 
@@ -2391,7 +2391,7 @@ position_memwin(struct adapter *sc, int idx, uint32_t addr)
 	t4_read_reg(sc, reg);	/* flush */
 }
 
-static int
+int
 rw_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
     int len, int rw)
 {
@@ -2437,22 +2437,6 @@ rw_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
 	}
 
 	return (0);
-}
-
-static inline int
-read_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
-    int len)
-{
-
-	return (rw_via_memwin(sc, idx, addr, val, len, 0));
-}
-
-static inline int
-write_via_memwin(struct adapter *sc, int idx, uint32_t addr,
-    const uint32_t *val, int len)
-{
-
-	return (rw_via_memwin(sc, idx, addr, (void *)(uintptr_t)val, len, 1));
 }
 
 static int
@@ -4327,8 +4311,13 @@ cxgbe_uninit_synchronized(struct vi_info *vi)
 	ASSERT_SYNCHRONIZED_OP(sc);
 
 	if (!(vi->flags & VI_INIT_DONE)) {
-		KASSERT(!(ifp->if_drv_flags & IFF_DRV_RUNNING),
-		    ("uninited VI is running"));
+		if (__predict_false(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+			KASSERT(0, ("uninited VI is running"));
+			if_printf(ifp, "uninited VI with running ifnet.  "
+			    "vi->flags 0x%016lx, if_flags 0x%08x, "
+			    "if_drv_flags 0x%08x\n", vi->flags, ifp->if_flags,
+			    ifp->if_drv_flags);
+		}
 		return (0);
 	}
 

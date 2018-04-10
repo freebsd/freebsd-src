@@ -46,7 +46,7 @@ fdt_pinctrl_configure(device_t client, u_int index)
 	char name[16];
 
 	snprintf(name, sizeof(name), "pinctrl-%u", index);
-	nconfigs = OF_getencprop_alloc(ofw_bus_get_node(client), name,
+	nconfigs = OF_getencprop_alloc_multi(ofw_bus_get_node(client), name,
 	    sizeof(*configs), (void **)&configs);
 	if (nconfigs < 0)
 		return (ENOENT);
@@ -67,7 +67,7 @@ fdt_pinctrl_configure_by_name(device_t client, const char * name)
 	int i, offset, nameslen;
 
 	nameslen = OF_getprop_alloc(ofw_bus_get_node(client), "pinctrl-names",
-	    sizeof(*names), (void **)&names);
+	    (void **)&names);
 	if (nameslen <= 0)
 		return (ENOENT);
 	for (i = 0, offset = 0; offset < nameslen; i++) {
@@ -119,10 +119,10 @@ pinctrl_configure_children(device_t pinctrl, phandle_t parent)
 	int i, nconfigs;
 
 	for (node = OF_child(parent); node != 0; node = OF_peer(node)) {
-		if (!fdt_is_enabled(node))
+		if (!ofw_bus_node_status_okay(node))
 			continue;
 		pinctrl_configure_children(pinctrl, node);
-		nconfigs = OF_getencprop_alloc(node, "pinctrl-0",
+		nconfigs = OF_getencprop_alloc_multi(node, "pinctrl-0",
 		    sizeof(*configs), (void **)&configs);
 		if (nconfigs <= 0)
 			continue;

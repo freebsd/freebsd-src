@@ -1160,6 +1160,7 @@ int vi_full_init(struct vi_info *);
 int vi_full_uninit(struct vi_info *);
 void vi_sysctls(struct vi_info *);
 void vi_tick(void *);
+int rw_via_memwin(struct adapter *, int, uint32_t, uint32_t *, int, int);
 
 #ifdef DEV_NETMAP
 /* t4_netmap.c */
@@ -1252,4 +1253,19 @@ t4_wrq_tx(struct adapter *sc, struct wrqe *wr)
 	TXQ_UNLOCK(wrq);
 }
 
+static inline int
+read_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
+    int len)
+{
+
+	return (rw_via_memwin(sc, idx, addr, val, len, 0));
+}
+
+static inline int
+write_via_memwin(struct adapter *sc, int idx, uint32_t addr,
+    const uint32_t *val, int len)
+{
+
+	return (rw_via_memwin(sc, idx, addr, (void *)(uintptr_t)val, len, 1));
+}
 #endif

@@ -66,9 +66,7 @@
  *    has released them. In most cases, the consumer is a userspace
  *    application which may have modified the frame contents.
  *
- * Several copy monitors may be active on any ring.  Zero-copy monitors,
- * instead, need exclusive access to each of the monitored rings.  This may
- * change in the future, if we implement zero-copy monitor chaining.
+ * Several copy or zero-copy monitors may be active on any ring.
  *
  */
 
@@ -263,7 +261,7 @@ netmap_monitor_add(struct netmap_kring *mkring, struct netmap_kring *kring, int 
 	if (zmon && z->prev != NULL)
 		kring = z->prev;
 
-	/* sinchronize with concurrently running nm_sync()s */
+	/* synchronize with concurrently running nm_sync()s */
 	nm_kr_stop(kring, NM_KR_LOCKED);
 
 	if (nm_monitor_none(kring)) {
@@ -329,7 +327,7 @@ netmap_monitor_del(struct netmap_kring *mkring, struct netmap_kring *kring)
 	if (zmon && mz->prev != NULL)
 		kring = mz->prev;
 
-	/* sinchronize with concurrently running nm_sync()s */
+	/* synchronize with concurrently running nm_sync()s */
 	nm_kr_stop(kring, NM_KR_LOCKED);
 
 	if (zmon) {

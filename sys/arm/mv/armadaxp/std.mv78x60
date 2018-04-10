@@ -2,4 +2,3 @@
 
 include	"../mv/std-pj4b.mv"
 include "../mv/armadaxp/std.armadaxp"
-files	"../mv/armadaxp/files.armadaxp"

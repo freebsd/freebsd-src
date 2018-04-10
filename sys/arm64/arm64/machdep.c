@@ -26,7 +26,6 @@
  */
 
 #include "opt_acpi.h"
-#include "opt_compat.h"
 #include "opt_platform.h"
 #include "opt_ddb.h"
 

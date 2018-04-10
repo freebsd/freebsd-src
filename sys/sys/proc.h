@@ -382,7 +382,8 @@ do {									\
 
 #define	TD_LOCKS_INC(td)	((td)->td_locks++)
 #define	TD_LOCKS_DEC(td) do {						\
-	KASSERT((td)->td_locks > 0, ("thread %p owns no locks", (td)));	\
+	KASSERT(SCHEDULER_STOPPED_TD(td) || (td)->td_locks > 0,		\
+	    ("thread %p owns no locks", (td)));				\
 	(td)->td_locks--;						\
 } while (0)
 #else

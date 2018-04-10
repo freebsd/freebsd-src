@@ -52,6 +52,7 @@ struct aw_clk_nm_sc {
 
 	struct aw_clk_factor	m;
 	struct aw_clk_factor	n;
+	struct aw_clk_factor	prediv;
 	struct aw_clk_frac	frac;
 
 	uint32_t	mux_shift;
@@ -278,7 +279,7 @@ static int
 aw_clk_nm_recalc(struct clknode *clk, uint64_t *freq)
 {
 	struct aw_clk_nm_sc *sc;
-	uint32_t val, m, n;
+	uint32_t val, m, n, prediv;
 
 	sc = clknode_get_softc(clk);
 
@@ -294,8 +295,12 @@ aw_clk_nm_recalc(struct clknode *clk, uint64_t *freq)
 	} else {
 		m = aw_clk_get_factor(val, &sc->m);
 		n = aw_clk_get_factor(val, &sc->n);
+		if (sc->flags & AW_CLK_HAS_PREDIV)
+			prediv = aw_clk_get_factor(val, &sc->prediv);
+		else
+			prediv = 1;
 
-		*freq = *freq / n / m;
+		*freq = *freq / prediv / n / m;
 	}
 
 	return (0);
@@ -339,6 +344,18 @@ aw_clk_nm_register(struct clkdom *clkdom, struct aw_clk_nm_def *clkdef)
 	sc->n.mask = ((1 << sc->n.width) - 1) << sc->n.shift;
 	sc->n.value = clkdef->n.value;
 	sc->n.flags = clkdef->n.flags;
+
+	sc->prediv.shift = clkdef->prediv.shift;
+	sc->prediv.width = clkdef->prediv.width;
+	sc->prediv.mask = ((1 << sc->prediv.width) - 1) << sc->prediv.shift;
+	sc->prediv.value = clkdef->prediv.value;
+	sc->prediv.flags = clkdef->prediv.flags;
+	sc->prediv.cond_shift = clkdef->prediv.cond_shift;
+	if (clkdef->prediv.cond_width != 0)
+		sc->prediv.cond_mask = ((1 << clkdef->prediv.cond_width) - 1) << sc->prediv.shift;
+	else
+		sc->prediv.cond_mask = clkdef->prediv.cond_mask;
+	sc->prediv.cond_value = clkdef->prediv.cond_value;
 
 	sc->frac.freq0 = clkdef->frac.freq0;
 	sc->frac.freq1 = clkdef->frac.freq1;

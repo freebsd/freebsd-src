@@ -563,7 +563,7 @@ phy_get_by_ofw_property(device_t consumer_dev, phandle_t cnode, char *name,
 		    "%s called on not ofw based device\n", __func__);
 		return (ENXIO);
 	}
-	ncells = OF_getencprop_alloc(cnode, name, sizeof(pcell_t),
+	ncells = OF_getencprop_alloc_multi(cnode, name, sizeof(pcell_t),
 	    (void **)&cells);
 	if (ncells < 1)
 		return (ENXIO);

@@ -234,7 +234,7 @@ static vm_size_t tlb1_mapin_region(vm_offset_t, vm_paddr_t, vm_size_t);
 
 static vm_size_t tsize2size(unsigned int);
 static unsigned int size2tsize(vm_size_t);
-static unsigned int ilog2(unsigned int);
+static unsigned int ilog2(unsigned long);
 
 static void set_mas4_defaults(void);
 
@@ -1724,7 +1724,11 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	debugf("mmu_booke_bootstrap: entered\n");
 
 	/* Set interesting system properties */
+#ifdef __powerpc64__
+	hw_direct_map = 1;
+#else
 	hw_direct_map = 0;
+#endif
 #if defined(COMPAT_FREEBSD32) || !defined(__powerpc64__)
 	elf32_nxstack = 1;
 #endif
@@ -1970,6 +1974,15 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	debugf("phys_avail_count = %d\n", phys_avail_count);
 	debugf("physsz = 0x%09jx physmem = %jd (0x%09jx)\n",
 	    (uintmax_t)physsz, (uintmax_t)physmem, (uintmax_t)physmem);
+
+#ifdef __powerpc64__
+	/*
+	 * Map the physical memory contiguously in TLB1.
+	 * Round so it fits into a single mapping.
+	 */
+	tlb1_mapin_region(DMAP_BASE_ADDRESS, 0,
+	    phys_avail[i + 1]);
+#endif
 
 	/*******************************************************/
 	/* Initialize (statically allocated) kernel pmap. */
@@ -4007,12 +4020,17 @@ tlb1_write_entry(tlb_entry_t *e, unsigned int idx)
  * Return the largest uint value log such that 2^log <= num.
  */
 static unsigned int
-ilog2(unsigned int num)
+ilog2(unsigned long num)
 {
-	int lz;
+	long lz;
 
+#ifdef __powerpc64__
+	__asm ("cntlzd %0, %1" : "=r" (lz) : "r" (num));
+	return (63 - lz);
+#else
 	__asm ("cntlzw %0, %1" : "=r" (lz) : "r" (num));
 	return (31 - lz);
+#endif
 }
 
 /*
@@ -4150,7 +4168,8 @@ tlb1_mapin_region(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 
 	for (idx = 0; idx < nents; idx++) {
 		pgsz = pgs[idx];
-		debugf("%u: %llx -> %x, size=%x\n", idx, pa, va, pgsz);
+		debugf("%u: %llx -> %jx, size=%jx\n", idx, pa,
+		    (uintmax_t)va, (uintmax_t)pgsz);
 		tlb1_set_entry(va, pa, pgsz,
 		    _TLB_ENTRY_SHARED | _TLB_ENTRY_MEM);
 		pa += pgsz;

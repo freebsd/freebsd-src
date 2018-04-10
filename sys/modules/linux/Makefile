@@ -22,7 +22,7 @@ SRCS=	linux_fork.c linux${SFX}_dummy.c linux_file.c linux_event.c \
 DPSRCS=	assym.inc linux${SFX}_genassym.c
 
 # XXX: for assym.inc
-SRCS+=  opt_kstack_pages.h opt_nfs.h opt_compat.h opt_hwpmc_hooks.h
+SRCS+=  opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
 .if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	opt_apic.h
 .endif

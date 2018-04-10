@@ -1290,7 +1290,15 @@ keg_small_init(uma_keg_t keg)
 	else 
 		shsize = sizeof(struct uma_slab);
 
-	keg->uk_ipers = (slabsize - shsize) / rsize;
+	if (rsize <= slabsize - shsize)
+		keg->uk_ipers = (slabsize - shsize) / rsize;
+	else {
+		/* Handle special case when we have 1 item per slab, so
+		 * alignment requirement can be relaxed. */
+		KASSERT(keg->uk_size <= slabsize - shsize,
+		    ("%s: size %u greater than slab", __func__, keg->uk_size));
+		keg->uk_ipers = 1;
+	}
 	KASSERT(keg->uk_ipers > 0 && keg->uk_ipers <= SLAB_SETSIZE,
 	    ("%s: keg->uk_ipers %u", __func__, keg->uk_ipers));
 
@@ -1473,7 +1481,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	if (keg->uk_flags & UMA_ZONE_CACHESPREAD) {
 		keg_cachespread_init(keg);
 	} else {
-		if (keg->uk_size > (UMA_SLAB_SIZE - sizeof(struct uma_slab)))
+		if (keg->uk_size > UMA_SLAB_SPACE)
 			keg_large_init(keg);
 		else
 			keg_small_init(keg);
@@ -1820,9 +1828,11 @@ uma_startup_count(int vm_zones)
 #endif
 
 	/* Memory for the rest of startup zones, UMA and VM, ... */
-	if (zsize > UMA_SLAB_SIZE)
+	if (zsize > UMA_SLAB_SPACE)
 		pages += (zones + vm_zones) *
 		    howmany(roundup2(zsize, UMA_BOOT_ALIGN), UMA_SLAB_SIZE);
+	else if (roundup2(zsize, UMA_BOOT_ALIGN) > UMA_SLAB_SPACE)
+		pages += zones;
 	else
 		pages += howmany(zones,
 		    UMA_SLAB_SPACE / roundup2(zsize, UMA_BOOT_ALIGN));

@@ -204,6 +204,7 @@ trap(struct trapframe *frame)
 	int		sig, type, user;
 	u_int		ucode;
 	ksiginfo_t	ksi;
+	register_t 	fscr;
 
 	VM_CNT_INC(v_trap);
 
@@ -294,6 +295,13 @@ trap(struct trapframe *frame)
 			break;
 
 		case EXC_FAC:
+			fscr = mfspr(SPR_FSCR);
+			if ((fscr & FSCR_IC_MASK) == FSCR_IC_HTM) {
+				CTR0(KTR_TRAP, "Hardware Transactional Memory subsystem disabled");
+			}
+			sig = SIGILL;
+			ucode =	ILL_ILLOPC;
+			break;
 		case EXC_HEA:
 			sig = SIGILL;
 			ucode =	ILL_ILLOPC;
@@ -507,6 +515,7 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	printf("   srr0            = 0x%" PRIxPTR " (0x%" PRIxPTR ")\n",
 	    frame->srr0, frame->srr0 - (register_t)(__startkernel - KERNBASE));
 	printf("   srr1            = 0x%lx\n", (u_long)frame->srr1);
+	printf("   current msr     = 0x%" PRIxPTR "\n", mfmsr());
 	printf("   lr              = 0x%" PRIxPTR " (0x%" PRIxPTR ")\n",
 	    frame->lr, frame->lr - (register_t)(__startkernel - KERNBASE));
 	printf("   curthread       = %p\n", curthread);

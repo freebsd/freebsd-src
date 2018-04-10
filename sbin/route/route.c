@@ -523,6 +523,7 @@ retry:
 			printf("done\n");
 		}
 	}
+	free(buf);
 	return (error);
 }
 
@@ -1439,6 +1440,7 @@ retry2:
 		rtm = (struct rt_msghdr *)(void *)next;
 		print_rtmsg(rtm, rtm->rtm_msglen);
 	}
+	free(buf);
 }
 
 static void

@@ -4408,6 +4408,27 @@ out:
 	return (error);
 }
 
+vm_offset_t
+vm_map_max_KBI(const struct vm_map *map)
+{
+
+	return (map->max_offset);
+}
+
+vm_offset_t
+vm_map_min_KBI(const struct vm_map *map)
+{
+
+	return (map->min_offset);
+}
+
+pmap_t
+vm_map_pmap_KBI(vm_map_t map)
+{
+
+	return (map->pmap);
+}
+
 #include "opt_ddb.h"
 #ifdef DDB
 #include <sys/kernel.h>

@@ -33,7 +33,6 @@
  * $FreeBSD$
  */
 
-#include "opt_compat.h"
 #include "opt_evdev.h"
 #include "opt_kbd.h"
 #include "opt_kbdmux.h"

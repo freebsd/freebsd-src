@@ -44,7 +44,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_atpic.h"
-#include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_inet.h"
@@ -1246,14 +1245,10 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	 * Make hole for "AP -> long mode" bootstrap code.  The
 	 * mp_bootaddress vector is only available when the kernel
 	 * is configured to support APs and APs for the system start
-	 * in 32bit mode (e.g. SMP bare metal).
+	 * in real mode mode (e.g. SMP bare metal).
 	 */
-	if (init_ops.mp_bootaddress) {
-		if (physmap[1] >= 0x100000000)
-			panic(
-	"Basemem segment is not suitable for AP bootstrap code!");
-		physmap[1] = init_ops.mp_bootaddress(physmap[1] / 1024);
-	}
+	if (init_ops.mp_bootaddress)
+		init_ops.mp_bootaddress(physmap, &physmap_idx);
 
 	/*
 	 * Maxmem isn't the "maximum memory", it's one larger than the
@@ -1636,7 +1631,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	setidt(IDT_BP, pti ? &IDTVEC(bpt_pti) : &IDTVEC(bpt), SDT_SYSIGT,
 	    SEL_UPL, 0);
 	setidt(IDT_OF, pti ? &IDTVEC(ofl_pti) : &IDTVEC(ofl), SDT_SYSIGT,
-	    SEL_KPL, 0);
+	    SEL_UPL, 0);
 	setidt(IDT_BR, pti ? &IDTVEC(bnd_pti) : &IDTVEC(bnd), SDT_SYSIGT,
 	    SEL_KPL, 0);
 	setidt(IDT_UD, pti ? &IDTVEC(ill_pti) : &IDTVEC(ill), SDT_SYSIGT,

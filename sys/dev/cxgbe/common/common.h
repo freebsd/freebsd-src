@@ -519,6 +519,12 @@ static inline u_int us_to_tcp_ticks(const struct adapter *adap, u_long us)
 	return (us * adap->params.vpd.cclk / 1000 >> adap->params.tp.tre);
 }
 
+static inline u_int tcp_ticks_to_us(const struct adapter *adap, u_int ticks)
+{
+	return ((uint64_t)ticks << adap->params.tp.tre) /
+	    core_ticks_per_usec(adap);
+}
+
 void t4_set_reg_field(struct adapter *adap, unsigned int addr, u32 mask, u32 val);
 
 int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,

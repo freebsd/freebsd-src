@@ -171,8 +171,8 @@ fwohci_pci_probe(device_t dev)
 		device_set_desc(dev, "Apple Pangea");
 		return BUS_PROBE_DEFAULT;
 	}
-	if (id == (FW_VENDORID_APPLE | FW_DEVICE_UNINORTH)) {
-		device_set_desc(dev, "Apple UniNorth");
+	if (id == (FW_VENDORID_APPLE | FW_DEVICE_UNINORTH2)) {
+		device_set_desc(dev, "Apple UniNorth 2");
 		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_LUCENT | FW_DEVICE_FW322)) {

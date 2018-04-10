@@ -401,6 +401,84 @@ t4_ctloutput(struct toedev *tod, struct tcpcb *tp, int dir, int name)
 	}
 }
 
+static inline int
+get_tcb_bit(u_char *tcb, int bit)
+{
+	int ix, shift;
+
+	ix = 127 - (bit >> 3);
+	shift = bit & 0x7;
+
+	return ((tcb[ix] >> shift) & 1);
+}
+
+static inline uint64_t
+get_tcb_bits(u_char *tcb, int hi, int lo)
+{
+	uint64_t rc = 0;
+
+	while (hi >= lo) {
+		rc = (rc << 1) | get_tcb_bit(tcb, hi);
+		--hi;
+	}
+
+	return (rc);
+}
+
+/*
+ * Called by the kernel to allow the TOE driver to "refine" values filled up in
+ * the tcp_info for an offloaded connection.
+ */
+static void
+t4_tcp_info(struct toedev *tod, struct tcpcb *tp, struct tcp_info *ti)
+{
+	int i, j, k, rc;
+	struct adapter *sc = tod->tod_softc;
+	struct toepcb *toep = tp->t_toe;
+	uint32_t addr, v;
+	uint32_t buf[TCB_SIZE / sizeof(uint32_t)];
+	u_char *tcb, tmp;
+
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+	MPASS(ti != NULL);
+
+	addr = t4_read_reg(sc, A_TP_CMM_TCB_BASE) + toep->tid * TCB_SIZE;
+	rc = read_via_memwin(sc, 2, addr, &buf[0], TCB_SIZE);
+	if (rc != 0)
+		return;
+
+	tcb = (u_char *)&buf[0];
+	for (i = 0, j = TCB_SIZE - 16; i < j; i += 16, j -= 16) {
+		for (k = 0; k < 16; k++) {
+			tmp = tcb[i + k];
+			tcb[i + k] = tcb[j + k];
+			tcb[j + k] = tmp;
+		}
+	}
+
+	ti->tcpi_state = get_tcb_bits(tcb, 115, 112);
+
+	v = get_tcb_bits(tcb, 271, 256);
+	ti->tcpi_rtt = tcp_ticks_to_us(sc, v);
+
+	v = get_tcb_bits(tcb, 287, 272);
+	ti->tcpi_rttvar = tcp_ticks_to_us(sc, v);
+
+	ti->tcpi_snd_ssthresh = get_tcb_bits(tcb, 487, 460);
+	ti->tcpi_snd_cwnd = get_tcb_bits(tcb, 459, 432);
+	ti->tcpi_rcv_nxt = get_tcb_bits(tcb, 553, 522);
+
+	ti->tcpi_snd_nxt = get_tcb_bits(tcb, 319, 288) -
+	    get_tcb_bits(tcb, 375, 348);
+
+	/* Receive window being advertised by us. */
+	ti->tcpi_rcv_space = get_tcb_bits(tcb, 581, 554);
+
+	/* Send window ceiling. */
+	v = get_tcb_bits(tcb, 159, 144) << get_tcb_bits(tcb, 131, 128);
+	ti->tcpi_snd_wnd = min(v, ti->tcpi_snd_cwnd);
+}
+
 /*
  * The TOE driver will not receive any more CPLs for the tid associated with the
  * toepcb; release the hold on the inpcb.
@@ -1126,6 +1204,7 @@ t4_tom_activate(struct adapter *sc)
 	tod->tod_syncache_respond = t4_syncache_respond;
 	tod->tod_offload_socket = t4_offload_socket;
 	tod->tod_ctloutput = t4_ctloutput;
+	tod->tod_tcp_info = t4_tcp_info;
 
 	for_each_port(sc, i) {
 		for_each_vi(sc->port[i], v, vi) {

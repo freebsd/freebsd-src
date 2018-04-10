@@ -126,7 +126,7 @@ aml8726_usb_phy_mode(const char *dwcotg_path, uint32_t *mode)
 	*mode = 0;
 
 	len = OF_getprop_alloc(node, "dr_mode",
-	    sizeof(char), (void **)&usb_mode);
+	    (void **)&usb_mode);
 
 	if (len <= 0)
 		return (0);
@@ -195,7 +195,7 @@ aml8726_usb_phy_attach(device_t dev)
 
 	err = 0;
 
-	len = OF_getencprop_alloc(node, "usb-pwr-en",
+	len = OF_getencprop_alloc_multi(node, "usb-pwr-en",
 	    3 * sizeof(pcell_t), (void **)&prop);
 	npwr_en = (len > 0) ? len : 0;
 

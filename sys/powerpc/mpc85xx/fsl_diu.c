@@ -362,7 +362,7 @@ diu_attach(device_t dev)
 	}
 
 	/* TODO: Eventually, allow EDID to be dynamically provided. */
-	if (OF_getprop_alloc(node, "edid", 1, &edid_cells) <= 0) {
+	if (OF_getprop_alloc(node, "edid", &edid_cells) <= 0) {
 		/*
 		 * u-boot uses the environment variable name 'video-mode', so
 		 * just use the same name here.  Should allow another variable

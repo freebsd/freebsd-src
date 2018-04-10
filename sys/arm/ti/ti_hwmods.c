@@ -110,7 +110,7 @@ ti_hwmods_get_clock(device_t dev)
 	if ((node = ofw_bus_get_node(dev)) == 0)
 		return (INVALID_CLK_IDENT);
 
-	if ((len = OF_getprop_alloc(node, "ti,hwmods", 1, (void**)&name)) <= 0)
+	if ((len = OF_getprop_alloc(node, "ti,hwmods", (void**)&name)) <= 0)
 		return (INVALID_CLK_IDENT);
 
 	buf = name;
@@ -148,7 +148,7 @@ int ti_hwmods_contains(device_t dev, const char *hwmod)
 	if ((node = ofw_bus_get_node(dev)) == 0)
 		return (0);
 
-	if ((len = OF_getprop_alloc(node, "ti,hwmods", 1, (void**)&name)) <= 0)
+	if ((len = OF_getprop_alloc(node, "ti,hwmods", (void**)&name)) <= 0)
 		return (0);
 
 	buf = name;
@@ -182,7 +182,7 @@ ti_hwmods_get_unit(device_t dev, const char *hwmod)
 	if ((node = ofw_bus_get_node(dev)) == 0)
 		return (0);
 
-	if ((len = OF_getprop_alloc(node, "ti,hwmods", 1, (void**)&name)) <= 0)
+	if ((len = OF_getprop_alloc(node, "ti,hwmods", (void**)&name)) <= 0)
 		return (0);
 
 	buf = name;

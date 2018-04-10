@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
+#include <machine/platformvar.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -43,9 +44,11 @@ __FBSDID("$FreeBSD$");
 
 #include "pmsu.h"
 
-int cpu_reset_deassert(void);
+static int cpu_reset_deassert(void);
+void mv_a38x_platform_mp_setmaxid(platform_t plate);
+void mv_a38x_platform_mp_start_ap(platform_t plate);
 
-int
+static int
 cpu_reset_deassert(void)
 {
 	bus_space_handle_t vaddr;
@@ -122,7 +125,7 @@ platform_cnt_cpus(void)
 }
 
 void
-platform_mp_setmaxid(void)
+mv_a38x_platform_mp_setmaxid(platform_t plate)
 {
 
 	/* Armada38x family supports maximum 2 cores */
@@ -131,7 +134,7 @@ platform_mp_setmaxid(void)
 }
 
 void
-platform_mp_start_ap(void)
+mv_a38x_platform_mp_start_ap(platform_t plate)
 {
 	int rv;
 

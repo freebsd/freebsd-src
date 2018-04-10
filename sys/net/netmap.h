@@ -217,7 +217,8 @@ struct netmap_slot {
 
 #define	NS_MOREFRAG	0x0020	/* packet has more fragments */
  	/*
-	 * (VALE ports only)
+	 * (VALE ports, ptnetmap ports and some NIC ports, e.g.
+         * ixgbe and i40e on Linux)
 	 * Set on all but the last slot of a multi-segment packet.
 	 * The 'len' field refers to the individual fragment.
 	 */
@@ -528,6 +529,7 @@ struct nmreq {
 #define NETMAP_BDG_POLLING_OFF	11	/* delete polling kthread */
 #define NETMAP_VNET_HDR_GET	12      /* get the port virtio-net-hdr length */
 #define NETMAP_POOLS_INFO_GET	13	/* get memory allocator pools info */
+#define NETMAP_POOLS_CREATE	14	/* create a new memory allocator */
 	uint16_t	nr_arg1;	/* reserve extra rings in NIOCREGIF */
 #define NETMAP_BDG_HOST		1	/* attach the host stack on ATTACH */
 
@@ -567,13 +569,13 @@ enum {	NR_REG_DEFAULT	= 0,	/* backward compat, should not be used. */
 
 #define	NM_BDG_NAME		"vale"	/* prefix for bridge port name */
 
+#ifdef _WIN32
 /*
  * Windows does not have _IOWR(). _IO(), _IOW() and _IOR() are defined
  * in ws2def.h but not sure if they are in the form we need.
- * XXX so we redefine them
- * in a convenient way to use for DeviceIoControl signatures
+ * We therefore redefine them in a convenient way to use for DeviceIoControl
+ * signatures.
  */
-#ifdef _WIN32
 #undef _IO	// ws2def.h
 #define _WIN_NM_IOCTL_TYPE 40000
 #define _IO(_c, _n)	CTL_CODE(_WIN_NM_IOCTL_TYPE, ((_n) + 0x800) , \

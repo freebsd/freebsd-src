@@ -340,8 +340,8 @@ ti_pinmux_configure_pins(device_t dev, phandle_t cfgxref)
 
 	sc = device_get_softc(dev);
 	cfgnode = OF_node_from_xref(cfgxref);
-	ntuples = OF_getencprop_alloc(cfgnode, "pinctrl-single,pins", sizeof(*cfgtuples),
-	    (void **)&cfgtuples);
+	ntuples = OF_getencprop_alloc_multi(cfgnode, "pinctrl-single,pins",
+	    sizeof(*cfgtuples), (void **)&cfgtuples);
 
 	if (ntuples < 0)
 		return (ENOENT);

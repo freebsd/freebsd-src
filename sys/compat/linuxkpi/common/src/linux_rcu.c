@@ -297,13 +297,13 @@ linux_synchronize_rcu(void)
 
 	td = curthread;
 
-	DROP_GIANT();
-
 	/*
 	 * Synchronizing RCU might change the CPU core this function
 	 * is running on. Save current values:
 	 */
 	thread_lock(td);
+
+	DROP_GIANT();
 
 	old_cpu = PCPU_GET(cpuid);
 	old_pinned = td->td_pinned;

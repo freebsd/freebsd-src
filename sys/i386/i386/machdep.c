@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_apic.h"
 #include "opt_atpic.h"
-#include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_inet.h"
@@ -1903,7 +1902,7 @@ physmap_done:
 
 #ifdef SMP
 	/* make hole for AP bootstrap code */
-	physmap[1] = mp_bootaddress(physmap[1]);
+	alloc_ap_trampoline(physmap, &physmap_idx);
 #endif
 
 	/*

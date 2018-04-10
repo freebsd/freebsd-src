@@ -371,7 +371,6 @@ struct mlx5_cmd {
 	struct cmd_msg_cache cache;
 	int checksum_disabled;
 	struct mlx5_cmd_stats stats[MLX5_CMD_OP_MAX];
-	int moving_to_polling;
 };
 
 struct mlx5_port_caps {

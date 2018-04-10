@@ -235,7 +235,7 @@ struct {								\
  * Singly-linked Tail queue functions.
  */
 #define	CK_STAILQ_CONCAT(head1, head2) do {					\
-	if ((head2)->stqh_first == NULL) {					\
+	if ((head2)->stqh_first != NULL) {					\
 		ck_pr_store_ptr((head1)->stqh_last, (head2)->stqh_first);	\
 		ck_pr_fence_store();						\
 		(head1)->stqh_last = (head2)->stqh_last;			\

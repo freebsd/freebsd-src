@@ -51,6 +51,45 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20180406:
+	In addition to supporting RFC 3164 formatted messages, the
+	syslogd(8) service is now capable of parsing RFC 5424 formatted
+	log messages. The main benefit of using RFC 5424 is that clients
+	may now send log messages with timestamps containing year numbers,
+	microseconds and time zone offsets.
+
+	Similarly, the syslog(3) C library function has been altered to
+	send RFC 5424 formatted messages to the local system logging
+	daemon. On systems using syslogd(8), this change should have no
+	negative impact, as long as syslogd(8) and the C library are
+	updated at the same time. On systems using a different system
+	logging daemon, it may be necessary to make configuration
+	adjustments, depending on the software used.
+
+	When using syslog-ng, add the 'syslog-protocol' flag to local
+	input sources to enable parsing of RFC 5424 formatted messages:
+
+		source src {
+			unix-dgram("/var/run/log" flags(syslog-protocol));
+		}
+
+	When using rsyslog, disable the 'SysSock.UseSpecialParser' option
+	of the 'imuxsock' module to let messages be processed by the
+	regular RFC 3164/5424 parsing pipeline:
+
+		module(load="imuxsock" SysSock.UseSpecialParser="off")
+
+	Do note that these changes only affect communication between local
+	applications and syslogd(8). The format that syslogd(8) uses to
+	store messages on disk or forward messages to other systems
+	remains unchanged. syslogd(8) still uses RFC 3164 for these
+	purposes. Options to customize this behaviour will be added in the
+	future. Utilities that process log files stored in /var/log are
+	thus expected to continue to function as before.
+
+	__FreeBSD_version has been incremented to 1200061 to denote this
+	change.
+
 20180328:
 	Support for token ring networks has been removed. If you
 	have "device token" in your kernel config you should remove

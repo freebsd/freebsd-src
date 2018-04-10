@@ -542,7 +542,7 @@ struct as3722_regnode_init_def *init_def)
 	if (rv <= 0)
 		return;
 	supply_node = OF_node_from_xref(supply_node);
-	rv = OF_getprop_alloc(supply_node, "regulator-name", 1,
+	rv = OF_getprop_alloc(supply_node, "regulator-name",
 	    (void **)&init_def->reg_init_def.parent_name);
 	if (rv <= 0)
 		init_def->reg_init_def.parent_name = NULL;

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/clock.h>
+#include <sys/disk.h>
 #include <geom/geom.h>
 #include "geom/raid/g_raid.h"
 #include "geom/raid/md_ddf.h"
@@ -572,7 +573,7 @@ ddf_meta_create(struct g_raid_disk *disk, struct ddf_meta *sample)
 	off_t anchorlba;
 	u_int ss, pos, size;
 	int len, error;
-	char serial_buffer[24];
+	char serial_buffer[DISK_IDENT_SIZE];
 
 	if (sample->hdr == NULL)
 		sample = NULL;

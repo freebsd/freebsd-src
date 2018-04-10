@@ -898,12 +898,14 @@ gif_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case GIFGOPTS:
 		options = sc->gif_options;
-		error = copyout(&options, ifr->ifr_data, sizeof(options));
+		error = copyout(&options, ifr_data_get_ptr(ifr),
+		    sizeof(options));
 		break;
 	case GIFSOPTS:
 		if ((error = priv_check(curthread, PRIV_NET_GIF)) != 0)
 			break;
-		error = copyin(ifr->ifr_data, &options, sizeof(options));
+		error = copyin(ifr_data_get_ptr(ifr), &options,
+		    sizeof(options));
 		if (error)
 			break;
 		if (options & ~GIF_OPTMASK)

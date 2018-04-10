@@ -141,7 +141,7 @@ struct mod_pnp_match_info
 
 #define	DECLARE_MODULE_WITH_MAXVER(name, data, sub, order, maxver)	\
 	MODULE_DEPEND(name, kernel, __FreeBSD_version,			\
-	    __FreeBSD_version, maxver);			\
+	    __FreeBSD_version, maxver);					\
 	MODULE_METADATA(_md_##name, MDT_MODULE, &data, __XSTRING(name));\
 	SYSINIT(name##module, sub, order, module_register_init, &data);	\
 	struct __hack
@@ -156,7 +156,7 @@ struct mod_pnp_match_info
  * Use it for modules that use kernel interfaces that are not stable
  * even on STABLE/X branches.
  */
-#define	DECLARE_MODULE_TIED(name, data, sub, order)				\
+#define	DECLARE_MODULE_TIED(name, data, sub, order)			\
 	DECLARE_MODULE_WITH_MAXVER(name, data, sub, order, __FreeBSD_version)
 
 #define	MODULE_VERSION_CONCAT(module, version)	_##module##_version

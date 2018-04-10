@@ -59,7 +59,7 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 	struct g_provider *pp;
 	const char *name;
 	u_char *key, mkey[G_ELI_DATAIVKEYLEN];
-	int *nargs, *detach, *readonly;
+	int *nargs, *detach, *readonly, *dryrun;
 	int keysize, error;
 	u_int nkey;
 
@@ -84,6 +84,12 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 	readonly = gctl_get_paraml(req, "readonly", sizeof(*readonly));
 	if (readonly == NULL) {
 		gctl_error(req, "No '%s' argument.", "readonly");
+		return;
+	}
+
+	dryrun = gctl_get_paraml(req, "dryrun", sizeof(*dryrun));
+	if (dryrun == NULL) {
+		gctl_error(req, "No '%s' argument.", "dryrun");
 		return;
 	}
 
@@ -141,7 +147,8 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 		md.md_flags |= G_ELI_FLAG_WO_DETACH;
 	if (*readonly)
 		md.md_flags |= G_ELI_FLAG_RO;
-	g_eli_create(req, mp, pp, &md, mkey, nkey);
+	if (!*dryrun)
+		g_eli_create(req, mp, pp, &md, mkey, nkey);
 	explicit_bzero(mkey, sizeof(mkey));
 	explicit_bzero(&md, sizeof(md));
 }

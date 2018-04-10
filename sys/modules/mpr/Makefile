@@ -5,7 +5,7 @@
 KMOD=	mpr
 SRCS=	mpr_pci.c mpr.c mpr_sas.c mpr_table.c mpr_user.c
 SRCS+=	mpr_config.c mpr_mapping.c mpr_sas_lsi.c
-SRCS+=	opt_cam.h opt_compat.h
+SRCS+=	opt_cam.h
 SRCS+=	device_if.h bus_if.h pci_if.h
 
 #CFLAGS += -DMPR_DEBUG

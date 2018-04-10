@@ -389,7 +389,7 @@ static void
 arc_free_target_init(void *unused __unused)
 {
 
-	zfs_arc_free_target = (vm_cnt.v_free_min / 10) * 11;
+	zfs_arc_free_target = vm_cnt.v_free_target;
 }
 SYSINIT(arc_free_target_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_ANY,
     arc_free_target_init, NULL);

@@ -777,8 +777,9 @@ ti_adc_attach(device_t dev)
 		if ((OF_getencprop(child, "ti,charge-delay", &cell,
 		    sizeof(cell))) > 0)
 			sc->sc_charge_delay = cell;
-		nwire_configs = OF_getencprop_alloc(child, "ti,wire-config",
-		    sizeof(*wire_configs), (void **)&wire_configs);
+		nwire_configs = OF_getencprop_alloc_multi(child,
+		    "ti,wire-config", sizeof(*wire_configs),
+		    (void **)&wire_configs);
 		if (nwire_configs != sc->sc_tsc_wires) {
 			device_printf(sc->sc_dev,
 			    "invalid number of ti,wire-config: %d (should be %d)\n",
@@ -795,8 +796,8 @@ ti_adc_attach(device_t dev)
 	/* Read "adc" node properties */
 	child = ofw_bus_find_child(node, "adc");
 	if (child != 0) {
-		sc->sc_adc_nchannels = OF_getencprop_alloc(child, "ti,adc-channels",
-		    sizeof(*channels), (void **)&channels);
+		sc->sc_adc_nchannels = OF_getencprop_alloc_multi(child,
+		    "ti,adc-channels", sizeof(*channels), (void **)&channels);
 		if (sc->sc_adc_nchannels > 0) {
 			for (i = 0; i < sc->sc_adc_nchannels; i++)
 				sc->sc_adc_channels[i] = channels[i];

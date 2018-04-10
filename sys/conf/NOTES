@@ -145,7 +145,6 @@ options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 options 	BOOTVERBOSE=1
 options 	BOOTHOWTO=RB_MULTIPLE
 
-options 	GEOM_AES		# Don't use, use GEOM_BDE
 options 	GEOM_BDE		# Disk encryption.
 options 	GEOM_BSD		# BSD disklabels (obsolete, gone in 12)
 options 	GEOM_CACHE		# Disk cache.

@@ -32,7 +32,6 @@
  * $FreeBSD$
  */
 
-#include "opt_compat.h"
 #include "opt_inet6.h"
 #include "opt_inet.h"
 
@@ -97,6 +96,13 @@
 
 #include <security/mac/mac_framework.h>
 
+/*
+ * Consumers of struct ifreq such as tcpdump assume no pad between ifr_name
+ * and ifr_ifru when it is used in SIOCGIFCONF.
+ */
+_Static_assert(sizeof(((struct ifreq *)0)->ifr_name) ==
+    offsetof(struct ifreq, ifr_ifru), "gap between ifr_name and ifr_ifru");
+
 #ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>
 #include <compat/freebsd32/freebsd32.h>
@@ -135,12 +141,36 @@ struct ifreq32 {
 CTASSERT(sizeof(struct ifreq) == sizeof(struct ifreq32));
 CTASSERT(__offsetof(struct ifreq, ifr_ifru) ==
     __offsetof(struct ifreq32, ifr_ifru));
-#endif
+
+struct ifgroupreq32 {
+	char	ifgr_name[IFNAMSIZ];
+	u_int	ifgr_len;
+	union {
+		char		ifgru_group[IFNAMSIZ];
+		uint32_t	ifgru_groups;
+	} ifgr_ifgru;
+};
+#define	_CASE_IOC_IFGROUPREQ_32(cmd)				\
+    case _IOC_NEWTYPE((cmd), struct ifgroupreq32):
+#else
+#define _CASE_IOC_IFGROUPREQ_32(cmd)
+#endif /* COMPAT_FREEBSD32 */
+
+#define CASE_IOC_IFGROUPREQ(cmd)	\
+    _CASE_IOC_IFGROUPREQ_32(cmd)	\
+    case (cmd)
 
 union ifreq_union {
 	struct ifreq	ifr;
 #ifdef COMPAT_FREEBSD32
 	struct ifreq32	ifr32;
+#endif
+};
+
+union ifgroupreq_union {
+	struct ifgroupreq ifgr;
+#ifdef COMPAT_FREEBSD32
+	struct ifgroupreq32 ifgr32;
 #endif
 };
 
@@ -1493,17 +1523,42 @@ if_delgroups(struct ifnet *ifp)
 	IFNET_WUNLOCK();
 }
 
+static char *
+ifgr_group_get(void *ifgrp)
+{
+	union ifgroupreq_union *ifgrup;
+
+	ifgrup = ifgrp;
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		return (&ifgrup->ifgr32.ifgr_ifgru.ifgru_group[0]);
+#endif
+	return (&ifgrup->ifgr.ifgr_ifgru.ifgru_group[0]);
+}
+
+static struct ifg_req *
+ifgr_groups_get(void *ifgrp)
+{
+	union ifgroupreq_union *ifgrup;
+
+	ifgrup = ifgrp;
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		return ((struct ifg_req *)(uintptr_t)
+		    ifgrup->ifgr32.ifgr_ifgru.ifgru_groups);
+#endif
+	return (ifgrup->ifgr.ifgr_ifgru.ifgru_groups);
+}
+
 /*
- * Stores all groups from an interface in memory pointed
- * to by data
+ * Stores all groups from an interface in memory pointed to by ifgr.
  */
 static int
-if_getgroup(struct ifgroupreq *data, struct ifnet *ifp)
+if_getgroup(struct ifgroupreq *ifgr, struct ifnet *ifp)
 {
 	int			 len, error;
 	struct ifg_list		*ifgl;
 	struct ifg_req		 ifgrq, *ifgp;
-	struct ifgroupreq	*ifgr = data;
 
 	if (ifgr->ifgr_len == 0) {
 		IF_ADDR_RLOCK(ifp);
@@ -1514,7 +1569,7 @@ if_getgroup(struct ifgroupreq *data, struct ifnet *ifp)
 	}
 
 	len = ifgr->ifgr_len;
-	ifgp = ifgr->ifgr_groups;
+	ifgp = ifgr_groups_get(ifgr);
 	/* XXX: wire */
 	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifgl, &ifp->if_groups, ifgl_next) {
@@ -1538,12 +1593,11 @@ if_getgroup(struct ifgroupreq *data, struct ifnet *ifp)
 }
 
 /*
- * Stores all members of a group in memory pointed to by data
+ * Stores all members of a group in memory pointed to by igfr
  */
 static int
-if_getgroupmembers(struct ifgroupreq *data)
+if_getgroupmembers(struct ifgroupreq *ifgr)
 {
-	struct ifgroupreq	*ifgr = data;
 	struct ifg_group	*ifg;
 	struct ifg_member	*ifgm;
 	struct ifg_req		 ifgrq, *ifgp;
@@ -1566,7 +1620,7 @@ if_getgroupmembers(struct ifgroupreq *data)
 	}
 
 	len = ifgr->ifgr_len;
-	ifgp = ifgr->ifgr_groups;
+	ifgp = ifgr_groups_get(ifgr);
 	TAILQ_FOREACH(ifgm, &ifg->ifg_members, ifgm_next) {
 		if (len < sizeof(ifgrq)) {
 			IFNET_RUNLOCK();
@@ -2349,13 +2403,13 @@ ifunit(const char *name)
 }
 
 static void *
-ifr_buffer_get_buffer(struct thread *td, void *data)
+ifr_buffer_get_buffer(void *data)
 {
 	union ifreq_union *ifrup;
 
 	ifrup = data;
 #ifdef COMPAT_FREEBSD32
-	if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
+	if (SV_CURPROC_FLAG(SV_ILP32))
 		return ((void *)(uintptr_t)
 		    ifrup->ifr32.ifr_ifru.ifru_buffer.buffer);
 #endif
@@ -2363,13 +2417,13 @@ ifr_buffer_get_buffer(struct thread *td, void *data)
 }
 
 static void
-ifr_buffer_set_buffer_null(struct thread *td, void *data)
+ifr_buffer_set_buffer_null(void *data)
 {
 	union ifreq_union *ifrup;
 
 	ifrup = data;
 #ifdef COMPAT_FREEBSD32
-	if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
+	if (SV_CURPROC_FLAG(SV_ILP32))
 		ifrup->ifr32.ifr_ifru.ifru_buffer.buffer = 0;
 	else
 #endif
@@ -2377,30 +2431,44 @@ ifr_buffer_set_buffer_null(struct thread *td, void *data)
 }
 
 static size_t
-ifr_buffer_get_length(struct thread *td, void *data)
+ifr_buffer_get_length(void *data)
 {
 	union ifreq_union *ifrup;
 
 	ifrup = data;
 #ifdef COMPAT_FREEBSD32
-	if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
+	if (SV_CURPROC_FLAG(SV_ILP32))
 		return (ifrup->ifr32.ifr_ifru.ifru_buffer.length);
 #endif
 	return (ifrup->ifr.ifr_ifru.ifru_buffer.length);
 }
 
 static void
-ifr_buffer_set_length(struct thread *td, void *data, size_t len)
+ifr_buffer_set_length(void *data, size_t len)
 {
 	union ifreq_union *ifrup;
 
 	ifrup = data;
 #ifdef COMPAT_FREEBSD32
-	if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
+	if (SV_CURPROC_FLAG(SV_ILP32))
 		ifrup->ifr32.ifr_ifru.ifru_buffer.length = len;
 	else
 #endif
 		ifrup->ifr.ifr_ifru.ifru_buffer.length = len;
+}
+
+void *
+ifr_data_get_ptr(void *ifrp)
+{
+	union ifreq_union *ifrup;
+
+	ifrup = ifrp;
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		return ((void *)(uintptr_t)
+		    ifrup->ifr32.ifr_ifru.ifru_data);
+#endif
+		return (ifrup->ifr.ifr_ifru.ifru_data);
 }
 
 /*
@@ -2463,12 +2531,12 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		else {
 			/* space for terminating nul */
 			descrlen = strlen(ifp->if_description) + 1;
-			if (ifr_buffer_get_length(td, ifr) < descrlen)
-				ifr_buffer_set_buffer_null(td, ifr);
+			if (ifr_buffer_get_length(ifr) < descrlen)
+				ifr_buffer_set_buffer_null(ifr);
 			else
 				error = copyout(ifp->if_description,
-				    ifr_buffer_get_buffer(td, ifr), descrlen);
-			ifr_buffer_set_length(td, ifr, descrlen);
+				    ifr_buffer_get_buffer(ifr), descrlen);
+			ifr_buffer_set_length(ifr, descrlen);
 		}
 		sx_sunlock(&ifdescr_sx);
 		break;
@@ -2484,15 +2552,15 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		 * length parameter is supposed to count the
 		 * terminating nul in.
 		 */
-		if (ifr_buffer_get_length(td, ifr) > ifdescr_maxlen)
+		if (ifr_buffer_get_length(ifr) > ifdescr_maxlen)
 			return (ENAMETOOLONG);
-		else if (ifr_buffer_get_length(td, ifr) == 0)
+		else if (ifr_buffer_get_length(ifr) == 0)
 			descrbuf = NULL;
 		else {
-			descrbuf = malloc(ifr_buffer_get_length(td, ifr),
+			descrbuf = malloc(ifr_buffer_get_length(ifr),
 			    M_IFDESCR, M_WAITOK | M_ZERO);
-			error = copyin(ifr_buffer_get_buffer(td, ifr), descrbuf,
-			    ifr_buffer_get_length(td, ifr) - 1);
+			error = copyin(ifr_buffer_get_buffer(ifr), descrbuf,
+			    ifr_buffer_get_length(ifr) - 1);
 			if (error) {
 				free(descrbuf, M_IFDESCR);
 				break;
@@ -2584,7 +2652,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		error = priv_check(td, PRIV_NET_SETIFNAME);
 		if (error)
 			return (error);
-		error = copyinstr(ifr->ifr_data, new_name, IFNAMSIZ, NULL);
+		error = copyinstr(ifr_data_get_ptr(ifr), new_name, IFNAMSIZ,
+		    NULL);
 		if (error != 0)
 			return (error);
 		if (new_name[0] == '\0')
@@ -2781,34 +2850,28 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		error = if_gethwaddr(ifp, ifr);
 		break;
 
-	case SIOCAIFGROUP:
-	{
-		struct ifgroupreq *ifgr = (struct ifgroupreq *)ifr;
-
+	CASE_IOC_IFGROUPREQ(SIOCAIFGROUP):
 		error = priv_check(td, PRIV_NET_ADDIFGROUP);
 		if (error)
 			return (error);
-		if ((error = if_addgroup(ifp, ifgr->ifgr_group)))
-			return (error);
-		break;
-	}
-
-	case SIOCGIFGROUP:
-		if ((error = if_getgroup((struct ifgroupreq *)ifr, ifp)))
+		if ((error = if_addgroup(ifp,
+		    ifgr_group_get((struct ifgroupreq *)data))))
 			return (error);
 		break;
 
-	case SIOCDIFGROUP:
-	{
-		struct ifgroupreq *ifgr = (struct ifgroupreq *)ifr;
+	CASE_IOC_IFGROUPREQ(SIOCGIFGROUP):
+		if ((error = if_getgroup((struct ifgroupreq *)data, ifp)))
+			return (error);
+		break;
 
+	CASE_IOC_IFGROUPREQ(SIOCDIFGROUP):
 		error = priv_check(td, PRIV_NET_DELIFGROUP);
 		if (error)
 			return (error);
-		if ((error = if_delgroup(ifp, ifgr->ifgr_group)))
+		if ((error = if_delgroup(ifp,
+		    ifgr_group_get((struct ifgroupreq *)data))))
 			return (error);
 		break;
-	}
 
 	default:
 		error = ENOIOCTL;
@@ -2895,8 +2958,8 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		error = priv_check(td, PRIV_NET_IFCREATE);
 		if (error == 0)
 			error = if_clone_create(ifr->ifr_name,
-			    sizeof(ifr->ifr_name),
-			    cmd == SIOCIFCREATE2 ? ifr->ifr_data : NULL);
+			    sizeof(ifr->ifr_name), cmd == SIOCIFCREATE2 ?
+			    ifr_data_get_ptr(ifr) : NULL);
 		CURVNET_RESTORE();
 		return (error);
 	case SIOCIFDESTROY:
@@ -2910,7 +2973,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		error = if_clone_list((struct if_clonereq *)data);
 		CURVNET_RESTORE();
 		return (error);
-	case SIOCGIFGMEMB:
+	CASE_IOC_IFGROUPREQ(SIOCGIFGMEMB):
 		error = if_getgroupmembers((struct ifgroupreq *)data);
 		CURVNET_RESTORE();
 		return (error);
@@ -3107,10 +3170,10 @@ again:
 		int addrs;
 
 		/*
-		 * Zero the ifr_name buffer to make sure we don't
-		 * disclose the contents of the stack.
+		 * Zero the ifr to make sure we don't disclose the contents
+		 * of the stack.
 		 */
-		memset(ifr.ifr_name, 0, sizeof(ifr.ifr_name));
+		memset(&ifr, 0, sizeof(ifr));
 
 		if (strlcpy(ifr.ifr_name, ifp->if_xname, sizeof(ifr.ifr_name))
 		    >= sizeof(ifr.ifr_name)) {
@@ -3128,7 +3191,13 @@ again:
 				continue;
 			addrs++;
 			if (sa->sa_len <= sizeof(*sa)) {
-				ifr.ifr_addr = *sa;
+				if (sa->sa_len < sizeof(*sa)) {
+					memset(&ifr.ifr_ifru.ifru_addr, 0,
+					    sizeof(ifr.ifr_ifru.ifru_addr));
+					memcpy(&ifr.ifr_ifru.ifru_addr, sa,
+					    sa->sa_len);
+				} else
+					ifr.ifr_ifru.ifru_addr = *sa;
 				sbuf_bcat(sb, &ifr, sizeof(ifr));
 				max_len += sizeof(ifr);
 			} else {
@@ -3144,7 +3213,6 @@ again:
 		}
 		IF_ADDR_RUNLOCK(ifp);
 		if (addrs == 0) {
-			bzero((caddr_t)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
 			sbuf_bcat(sb, &ifr, sizeof(ifr));
 			max_len += sizeof(ifr);
 

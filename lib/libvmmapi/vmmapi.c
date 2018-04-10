@@ -1374,6 +1374,13 @@ vm_suspended_cpus(struct vmctx *ctx, cpuset_t *cpus)
 }
 
 int
+vm_debug_cpus(struct vmctx *ctx, cpuset_t *cpus)
+{
+
+	return (vm_get_cpus(ctx, VM_DEBUG_CPUS, cpus));
+}
+
+int
 vm_activate_cpu(struct vmctx *ctx, int vcpu)
 {
 	struct vm_activate_cpu ac;
@@ -1382,6 +1389,30 @@ vm_activate_cpu(struct vmctx *ctx, int vcpu)
 	bzero(&ac, sizeof(struct vm_activate_cpu));
 	ac.vcpuid = vcpu;
 	error = ioctl(ctx->fd, VM_ACTIVATE_CPU, &ac);
+	return (error);
+}
+
+int
+vm_suspend_cpu(struct vmctx *ctx, int vcpu)
+{
+	struct vm_activate_cpu ac;
+	int error;
+
+	bzero(&ac, sizeof(struct vm_activate_cpu));
+	ac.vcpuid = vcpu;
+	error = ioctl(ctx->fd, VM_SUSPEND_CPU, &ac);
+	return (error);
+}
+
+int
+vm_resume_cpu(struct vmctx *ctx, int vcpu)
+{
+	struct vm_activate_cpu ac;
+	int error;
+
+	bzero(&ac, sizeof(struct vm_activate_cpu));
+	ac.vcpuid = vcpu;
+	error = ioctl(ctx->fd, VM_RESUME_CPU, &ac);
 	return (error);
 }
 
@@ -1475,6 +1506,38 @@ vm_restart_instruction(void *arg, int vcpu)
 }
 
 int
+vm_set_topology(struct vmctx *ctx,
+    uint16_t sockets, uint16_t cores, uint16_t threads, uint16_t maxcpus)
+{
+	struct vm_cpu_topology topology;
+
+	bzero(&topology, sizeof (struct vm_cpu_topology));
+	topology.sockets = sockets;
+	topology.cores = cores;
+	topology.threads = threads;
+	topology.maxcpus = maxcpus;
+	return (ioctl(ctx->fd, VM_SET_TOPOLOGY, &topology));
+}
+
+int
+vm_get_topology(struct vmctx *ctx,
+    uint16_t *sockets, uint16_t *cores, uint16_t *threads, uint16_t *maxcpus)
+{
+	struct vm_cpu_topology topology;
+	int error;
+
+	bzero(&topology, sizeof (struct vm_cpu_topology));
+	error = ioctl(ctx->fd, VM_GET_TOPOLOGY, &topology);
+	if (error == 0) {
+		*sockets = topology.sockets;
+		*cores = topology.cores;
+		*threads = topology.threads;
+		*maxcpus = topology.maxcpus;
+	}
+	return (error);
+}
+
+int
 vm_get_device_fd(struct vmctx *ctx)
 {
 
@@ -1501,9 +1564,10 @@ vm_get_ioctls(size_t *len)
 	    VM_SET_X2APIC_STATE, VM_GET_X2APIC_STATE,
 	    VM_GET_HPET_CAPABILITIES, VM_GET_GPA_PMAP, VM_GLA2GPA,
 	    VM_GLA2GPA_NOFAULT,
-	    VM_ACTIVATE_CPU, VM_GET_CPUS, VM_SET_INTINFO, VM_GET_INTINFO,
+	    VM_ACTIVATE_CPU, VM_GET_CPUS, VM_SUSPEND_CPU, VM_RESUME_CPU,
+	    VM_SET_INTINFO, VM_GET_INTINFO,
 	    VM_RTC_WRITE, VM_RTC_READ, VM_RTC_SETTIME, VM_RTC_GETTIME,
-	    VM_RESTART_INSTRUCTION };
+	    VM_RESTART_INSTRUCTION, VM_SET_TOPOLOGY, VM_GET_TOPOLOGY };
 
 	if (len == NULL) {
 		cmds = malloc(sizeof(vm_ioctl_cmds));

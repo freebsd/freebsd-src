@@ -84,6 +84,7 @@ struct vm_batchqueue {
 
 #include <vm/uma.h>
 #include <sys/pidctrl.h>
+#include <vm/uma.h>
 struct sysctl_oid;
 
 /*

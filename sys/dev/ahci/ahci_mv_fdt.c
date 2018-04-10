@@ -151,5 +151,5 @@ static driver_t ahci_driver = {
 	sizeof(struct ahci_controller)
 };
 
-DRIVER_MODULE(ahci, simplebus, ahci_driver, ahci_devclass, NULL, NULL);
-DRIVER_MODULE(ahci, ofwbus, ahci_driver, ahci_devclass, NULL, NULL);
+DRIVER_MODULE(ahci_mv, simplebus, ahci_driver, ahci_devclass, NULL, NULL);
+DRIVER_MODULE(ahci_mv, ofwbus, ahci_driver, ahci_devclass, NULL, NULL);

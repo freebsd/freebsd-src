@@ -115,8 +115,8 @@ __FBSDID("$FreeBSD$");
 /*
  * Various file system defaults (cribbed from newfs(8)).
  */
-#define	DFL_FRAGSIZE		1024		/* fragment size */
-#define	DFL_BLKSIZE		8192		/* block size */
+#define	DFL_FRAGSIZE		4096		/* fragment size */
+#define	DFL_BLKSIZE		32768		/* block size */
 #define	DFL_SECSIZE		512		/* sector size */
 #define	DFL_CYLSPERGROUP	65536		/* cylinders per group */
 #define	DFL_FRAGSPERINODE	4		/* fragments per inode */

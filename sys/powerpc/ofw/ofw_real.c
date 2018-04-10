@@ -197,6 +197,8 @@ ofw_real_stop(void)
 static void
 ofw_real_bounce_alloc(void *junk)
 {
+	caddr_t temp;
+
 	/*
 	 * Check that ofw_real is actually in use before allocating wads 
 	 * of memory. Do this by checking if our mutex has been set up.
@@ -208,12 +210,15 @@ ofw_real_bounce_alloc(void *junk)
 	 * Allocate a page of contiguous, wired physical memory that can
 	 * fit into a 32-bit address space and accessed from real mode.
 	 */
+	temp = contigmalloc(4 * PAGE_SIZE, M_OFWREAL, 0, 0,
+	    ulmin(platform_real_maxaddr(), BUS_SPACE_MAXADDR_32BIT), PAGE_SIZE,
+	    4 * PAGE_SIZE);
+	if (temp == NULL)
+		panic("%s: Not able to allocated contiguous memory\n", __func__);
 
 	mtx_lock(&of_bounce_mtx);
 
-	of_bounce_virt = contigmalloc(4 * PAGE_SIZE, M_OFWREAL, 0, 0,
-	    ulmin(platform_real_maxaddr(), BUS_SPACE_MAXADDR_32BIT), PAGE_SIZE,
-	    4 * PAGE_SIZE);
+	of_bounce_virt = temp;
 
 	of_bounce_phys = vtophys(of_bounce_virt);
 	of_bounce_size = 4 * PAGE_SIZE;

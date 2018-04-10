@@ -26,8 +26,6 @@
  * $FreeBSD$
  */
 
-#include "opt_compat.h"
-
 #include <machine/asmacros.h>
 #include <sys/syscall.h>
 
