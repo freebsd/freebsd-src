@@ -1204,7 +1204,7 @@ __rw_wunlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 int
 __rw_try_upgrade_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 {
-	uintptr_t v, x, tid;
+	uintptr_t v, setv, tid;
 	struct turnstile *ts;
 	int success;
 
@@ -1224,12 +1224,12 @@ __rw_try_upgrade_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 	 */
 	tid = (uintptr_t)curthread;
 	success = 0;
+	v = RW_READ_VALUE(rw);
 	for (;;) {
-		v = rw->rw_lock;
 		if (RW_READERS(v) > 1)
 			break;
 		if (!(v & RW_LOCK_WAITERS)) {
-			success = atomic_cmpset_acq_ptr(&rw->rw_lock, v, tid);
+			success = atomic_fcmpset_acq_ptr(&rw->rw_lock, &v, tid);
 			if (!success)
 				continue;
 			break;
@@ -1239,7 +1239,8 @@ __rw_try_upgrade_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 		 * Ok, we think we have waiters, so lock the turnstile.
 		 */
 		ts = turnstile_trywait(&rw->lock_object);
-		v = rw->rw_lock;
+		v = RW_READ_VALUE(rw);
+retry_ts:
 		if (RW_READERS(v) > 1) {
 			turnstile_cancel(ts);
 			break;
@@ -1250,16 +1251,16 @@ __rw_try_upgrade_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 		 * If we obtain the lock with the flags set, then claim
 		 * ownership of the turnstile.
 		 */
-		x = rw->rw_lock & RW_LOCK_WAITERS;
-		success = atomic_cmpset_ptr(&rw->rw_lock, v, tid | x);
+		setv = tid | (v & RW_LOCK_WAITERS);
+		success = atomic_fcmpset_ptr(&rw->rw_lock, &v, setv);
 		if (success) {
-			if (x)
+			if (v & RW_LOCK_WAITERS)
 				turnstile_claim(ts);
 			else
 				turnstile_cancel(ts);
 			break;
 		}
-		turnstile_cancel(ts);
+		goto retry_ts;
 	}
 	LOCK_LOG_TRY("WUPGRADE", &rw->lock_object, 0, success, file, line);
 	if (success) {
