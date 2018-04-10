@@ -2173,20 +2173,7 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 					    scsi_op_desc(cmd->opcode, NULL));
 				}
 			}
-
-			/*
-			 * XXX For a selection timeout, all of the LUNs
-			 * on the target will be gone.  It works for SCSI
-			 * disks, but does not work for IDE disks.
-			 *
-			 * For CAM_DEV_NOT_THERE, CAM will only get
-			 * rid of the device(s) specified by the path.
-			 */
-			if (storvsc_get_storage_type(sc->hs_dev) ==
-			    DRIVER_STORVSC)
-				ccb->ccb_h.status |= CAM_SEL_TIMEOUT;
-			else
-				ccb->ccb_h.status |= CAM_DEV_NOT_THERE;
+			ccb->ccb_h.status |= CAM_DEV_NOT_THERE;
 		} else {
 			ccb->ccb_h.status |= CAM_REQ_CMP;
 		}
