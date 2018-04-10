@@ -1311,10 +1311,6 @@ send:
 	}
 #endif
 
-	/* We're getting ready to send; log now. */
-	TCP_LOG_EVENT(tp, th, &so->so_rcv, &so->so_snd, TCP_LOG_OUT, ERRNO_UNK,
-	    len, NULL, false);
-
 	/*
 	 * Enable TSO and specify the size of the segments.
 	 * The TCP pseudo header checksum is always provided.
@@ -1362,6 +1358,10 @@ send:
 	}
 #endif /* TCPDEBUG */
 	TCP_PROBE3(debug__output, tp, th, m);
+
+	/* We're getting ready to send; log now. */
+	TCP_LOG_EVENT(tp, th, &so->so_rcv, &so->so_snd, TCP_LOG_OUT, ERRNO_UNK,
+	    len, NULL, false);
 
 	/*
 	 * Fill in IP length and desired time to live and
