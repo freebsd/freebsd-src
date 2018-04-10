@@ -1667,52 +1667,7 @@ tcp_log_logs_to_buf(struct sockopt *sopt, struct tcp_log_stailq *log_tailqp,
 #ifdef TCPLOG_DEBUG_COUNTERS
 		counter_u64_add(tcp_log_que_copyout, 1);
 #endif
-#if 0
-		struct tcp_log_buffer *lb = &log_entry->tlm_buf;
-		int i;
 
-		printf("lb = %p:\n", lb);
-#define	PRINT(f)	printf(#f " = %u\n", (unsigned int)lb->f)
-		printf("tlb_tv = {%lu, %lu}\n", lb->tlb_tv.tv_sec, lb->tlb_tv.tv_usec);
-		PRINT(tlb_ticks);
-		PRINT(tlb_sn);
-		PRINT(tlb_stackid);
-		PRINT(tlb_eventid);
-		PRINT(tlb_eventflags);
-		PRINT(tlb_errno);
-		PRINT(tlb_rxbuf.tls_sb_acc);
-		PRINT(tlb_rxbuf.tls_sb_ccc);
-		PRINT(tlb_rxbuf.tls_sb_spare);
-		PRINT(tlb_txbuf.tls_sb_acc);
-		PRINT(tlb_txbuf.tls_sb_ccc);
-		PRINT(tlb_txbuf.tls_sb_spare);
-		PRINT(tlb_state);
-		PRINT(tlb_flags);
-		PRINT(tlb_snd_una);
-		PRINT(tlb_snd_max);
-		PRINT(tlb_snd_cwnd);
-		PRINT(tlb_snd_nxt);
-		PRINT(tlb_snd_recover);
-		PRINT(tlb_snd_wnd);
-		PRINT(tlb_snd_ssthresh);
-		PRINT(tlb_srtt);
-		PRINT(tlb_rttvar);
-		PRINT(tlb_rcv_up);
-		PRINT(tlb_rcv_adv);
-		PRINT(tlb_rcv_nxt);
-		PRINT(tlb_sack_newdata);
-		PRINT(tlb_rcv_wnd);
-		PRINT(tlb_dupacks);
-		PRINT(tlb_segqlen);
-		PRINT(tlb_snd_numholes);
-		PRINT(tlb_snd_scale);
-		PRINT(tlb_rcv_scale);
-		PRINT(tlb_len);
-		printf("hex dump: ");
-		for (i = 0; i < sizeof(struct tcp_log_buffer); i++)
-			printf("%02x", *(((uint8_t *)lb) + i));
-#undef PRINT
-#endif
 		/*
 		 * Skip copying out the header if it isn't present.
 		 * Instead, copy out zeros (to ensure we don't leak info).
