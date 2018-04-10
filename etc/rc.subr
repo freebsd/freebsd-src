@@ -38,7 +38,9 @@
 #	Operating System dependent/independent variables
 #
 
-if [ -z "${_rc_subr_loaded}" ]; then
+if [ -n "${_rc_subr_loaded}" ]; then
+	return
+fi
 
 _rc_subr_loaded="YES"
 
@@ -928,9 +930,7 @@ run_rc_command()
 		else
 			_pidcmd='rc_pid=$(check_process '"$_procname $command_interpreter"')'
 		fi
-		if [ -n "$_pidcmd" ]; then
-			_keywords="${_keywords} status poll"
-		fi
+		_keywords="${_keywords} status poll"
 	fi
 
 	if [ -z "$rc_arg" ]; then
@@ -2172,7 +2172,3 @@ _echoonce()
 if kenv -q rc.debug > /dev/null ; then
 	rc_debug=YES
 fi
-
-fi # [ -z "${_rc_subr_loaded}" ]
-
-_rc_subr_loaded=:
