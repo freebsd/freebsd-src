@@ -148,11 +148,12 @@ struct g_command class_commands[] = {
 		{ 'd', "detach", NULL, G_TYPE_BOOL },
 		{ 'j', "passfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
 		{ 'k', "keyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'n', "dryrun", NULL, G_TYPE_BOOL },
 		{ 'p', "nopassphrase", NULL, G_TYPE_BOOL },
 		{ 'r', "readonly", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-dprv] [-j passfile] [-k keyfile] prov"
+	    "[-dnprv] [-j passfile] [-k keyfile] prov"
 	},
 	{ "detach", 0, NULL,
 	    {

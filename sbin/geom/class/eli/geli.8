@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2017
+.Dd April 10, 2018
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -67,7 +67,7 @@ utility:
 .Cm init
 .Nm
 .Cm attach
-.Op Fl dprv
+.Op Fl dnprv
 .Op Fl j Ar passfile
 .Op Fl k Ar keyfile
 .Ar prov
@@ -420,6 +420,9 @@ For more information see the description of the
 option for the
 .Cm init
 subcommand.
+.It Fl n
+Do a dry-run decryption.
+This is useful to verify passphrase and keyfile without decrypting the device.
 .It Fl p
 Do not use a passphrase as a component of the User Key.
 Cannot be combined with the
