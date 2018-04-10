@@ -28,7 +28,7 @@
 .\"	@(#)head.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd March 16, 2013
+.Dd April 10, 2018
 .Dt HEAD 1
 .Os
 .Sh NAME
@@ -48,6 +48,18 @@ files are specified.
 If
 .Ar count
 is omitted it defaults to 10.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl c Ar bytes , Fl -bytes Ns = Ns Ar bytes
+Print
+.Ar bytes
+of each of the specified files.
+.It Fl n Ar count , Fl -lines Ns = Ns Ar count
+Print
+.Ar count
+lines of each of the specified files.
+.El
 .Pp
 If more than a single file is specified, each file is preceded by a
 header consisting of the string
