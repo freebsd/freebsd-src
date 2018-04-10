@@ -1270,3 +1270,4 @@ g_stripe_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 }
 
 DECLARE_GEOM_CLASS(g_stripe_class, g_stripe);
+MODULE_VERSION(geom_stripe, 0);

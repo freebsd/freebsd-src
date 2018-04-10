@@ -836,3 +836,4 @@ g_shsec_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 }
 
 DECLARE_GEOM_CLASS(g_shsec_class, g_shsec);
+MODULE_VERSION(geom_shsec, 0);

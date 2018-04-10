@@ -528,3 +528,4 @@ static struct g_class g_mbrext_class	= {
 };
 
 DECLARE_GEOM_CLASS(g_mbrext_class, g_mbrext);
+MODULE_VERSION(geom_mbr, 0);

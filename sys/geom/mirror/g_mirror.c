@@ -3492,3 +3492,4 @@ g_mirror_fini(struct g_class *mp)
 }
 
 DECLARE_GEOM_CLASS(g_mirror_class, g_mirror);
+MODULE_VERSION(geom_mirror, 0);

@@ -128,6 +128,7 @@ static struct g_part_scheme g_part_ebr_scheme = {
 	.gps_maxent = INT_MAX,
 };
 G_PART_SCHEME_DECLARE(g_part_ebr);
+MODULE_VERSION(geom_part_ebr, 0);
 
 static struct g_part_ebr_alias {
 	u_char		typ;
