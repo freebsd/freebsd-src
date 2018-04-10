@@ -1291,20 +1291,20 @@ print_sctp_initmsg(FILE *fp, struct sctp_initmsg *init)
 }
 
 static void
-print_sctp_sndrcvinfo(FILE *fp, bool recv, struct sctp_sndrcvinfo *info)
+print_sctp_sndrcvinfo(FILE *fp, bool receive, struct sctp_sndrcvinfo *info)
 {
 	fprintf(fp, "{sid=%u,", info->sinfo_stream);
-	if (recv) {
+	if (receive) {
 		fprintf(fp, "ssn=%u,", info->sinfo_ssn);
 	}
 	fputs("flgs=", fp);
 	sysdecode_sctp_sinfo_flags(fp, info->sinfo_flags);
 	fprintf(fp, ",ppid=%u,", ntohl(info->sinfo_ppid));
-	if (!recv) {
+	if (!receive) {
 		fprintf(fp, "ctx=%u,", info->sinfo_context);
 		fprintf(fp, "ttl=%u,", info->sinfo_timetolive);
 	}
-	if (recv) {
+	if (receive) {
 		fprintf(fp, "tsn=%u,", info->sinfo_tsn);
 		fprintf(fp, "cumtsn=%u,", info->sinfo_cumtsn);
 	}
@@ -1388,7 +1388,7 @@ print_sctp_ipv6_addr(FILE *fp, struct in6_addr *addr)
 }
 
 static void
-print_sctp_cmsg(FILE *fp, bool recv, struct cmsghdr *cmsghdr)
+print_sctp_cmsg(FILE *fp, bool receive, struct cmsghdr *cmsghdr)
 {
 	void *data;
 	socklen_t len;
@@ -1404,7 +1404,7 @@ print_sctp_cmsg(FILE *fp, bool recv, struct cmsghdr *cmsghdr)
 		break;
 	case SCTP_SNDRCV:
 		if (len == CMSG_LEN(sizeof(struct sctp_sndrcvinfo)))
-			print_sctp_sndrcvinfo(fp, recv,
+			print_sctp_sndrcvinfo(fp, receive,
 			    (struct sctp_sndrcvinfo *)data);
 		else
 			print_gen_cmsg(fp, cmsghdr);
@@ -1466,7 +1466,7 @@ print_sctp_cmsg(FILE *fp, bool recv, struct cmsghdr *cmsghdr)
 }
 
 static void
-print_cmsgs(FILE *fp, pid_t pid, bool recv, struct msghdr *msghdr)
+print_cmsgs(FILE *fp, pid_t pid, bool receive, struct msghdr *msghdr)
 {
 	struct cmsghdr *cmsghdr;
 	char *cmsgbuf;
@@ -1507,7 +1507,7 @@ print_cmsgs(FILE *fp, pid_t pid, bool recv, struct msghdr *msghdr)
 		fputs(",data=", fp);
 		switch (level) {
 		case IPPROTO_SCTP:
-			print_sctp_cmsg(fp, recv, cmsghdr);
+			print_sctp_cmsg(fp, receive, cmsghdr);
 			break;
 		default:
 			print_gen_cmsg(fp, cmsghdr);
