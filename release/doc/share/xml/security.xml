@@ -83,6 +83,21 @@
 	<entry>07&nbsp;March&nbsp;2018</entry>
 	<entry><para>Multiple vulnerabilities</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-18:04.vt.asc">FreeBSD-SA-18:04.vt</link></entry>
+	<entry>04&nbsp;April&nbsp;2018</entry>
+	<entry><para>Fix &man.vt.4; console memory
+	    disclosure</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-18:05.ipsec.asc">FreeBSD-SA-18:05.ipsec</link></entry>
+	<entry>04&nbsp;April&nbsp;2018</entry>
+	<entry><para>Fix denial of service</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
