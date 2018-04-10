@@ -208,6 +208,13 @@ trap(struct trapframe *frame)
 
 	VM_CNT_INC(v_trap);
 
+#ifdef KDB
+	if (kdb_active) {
+		kdb_reenter();
+		return;
+	}
+#endif
+
 	td = curthread;
 	p = td->td_proc;
 
