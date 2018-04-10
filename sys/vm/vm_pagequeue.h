@@ -82,14 +82,8 @@ struct vm_batchqueue {
 	int		bq_cnt;
 } __aligned(CACHE_LINE_SIZE);
 
-#define	VM_BATCHQ_FOREACH(batchqp, page)				\
-	for (vm_page_t *__mp = &(batchqp)->bq_pa[0];			\
-	    (page) = *__mp, __mp != &(batchqp)->bq_pa[(batchqp)->bq_cnt]; \
-	    __mp++)
-
 #include <vm/uma.h>
 #include <sys/pidctrl.h>
-
 struct sysctl_oid;
 
 /*
@@ -97,12 +91,12 @@ struct sysctl_oid;
  * and accounting.
  *
  * Lock Key:
- * f   vmd_free_mtx
- * p   vmd_pageout_mtx
- * d   vm_domainset_lock
- * a   atomic
- * c   const after boot
- * q   page queue lock
+ * f	vmd_free_mtx
+ * p	vmd_pageout_mtx
+ * d	vm_domainset_lock
+ * a	atomic
+ * c	const after boot
+ * q	page queue lock
 */
 struct vm_domain {
 	struct vm_pagequeue vmd_pagequeues[PQ_COUNT];
@@ -122,9 +116,9 @@ struct vm_domain {
 	boolean_t vmd_oom;
 	int vmd_oom_seq;
 	int vmd_last_active_scan;
-	struct vm_page vmd_laundry_marker;
-	struct vm_page vmd_marker; /* marker for pagedaemon private use */
+	struct vm_page vmd_markers[PQ_COUNT]; /* (q) for page daemon use */
 	struct vm_page vmd_inacthead; /* marker for LRU-defeating insertions */
+	struct vm_page vmd_clock[2]; /* markers for active queue scan */
 
 	int vmd_pageout_wanted;		/* (a, p) pageout daemon wait channel */
 	int vmd_pageout_pages_needed;	/* (d) page daemon waiting for pages? */
@@ -213,6 +207,15 @@ vm_batchqueue_insert(struct vm_batchqueue *bq, vm_page_t m)
 		return (true);
 	}
 	return (false);
+}
+
+static inline vm_page_t
+vm_batchqueue_pop(struct vm_batchqueue *bq)
+{
+
+	if (bq->bq_cnt == 0)
+		return (NULL);
+	return (bq->bq_pa[--bq->bq_cnt]);
 }
 
 void vm_domain_set(struct vm_domain *vmd);

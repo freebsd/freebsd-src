@@ -352,9 +352,13 @@ extern struct mtx_padalign pa_lock[];
  * actually inserted into the page queue.  The page lock must be held to set
  * this flag, and the queue lock for the page must be held to clear it.
  *
- * PGA_REQUEUE is set when the page is scheduled to be requeued in its page
- * queue.  The page lock must be held to set this flag, and the queue lock
- * for the page must be held to clear it.
+ * PGA_REQUEUE is set when the page is scheduled to be enqueued or requeued
+ * in its page queue.  The page lock must be held to set this flag, and the
+ * queue lock for the page must be held to clear it.
+ *
+ * PGA_REQUEUE_HEAD is a special flag for enqueuing pages near the head of
+ * the inactive queue, thus bypassing LRU.  The page lock must be held to
+ * set this flag, and the queue lock for the page must be held to clear it.
  */
 #define	PGA_WRITEABLE	0x01		/* page may be mapped writeable */
 #define	PGA_REFERENCED	0x02		/* page has been referenced */
@@ -362,8 +366,10 @@ extern struct mtx_padalign pa_lock[];
 #define	PGA_ENQUEUED	0x08		/* page is enqueued in a page queue */
 #define	PGA_DEQUEUE	0x10		/* page is due to be dequeued */
 #define	PGA_REQUEUE	0x20		/* page is due to be requeued */
+#define	PGA_REQUEUE_HEAD 0x40		/* page requeue should bypass LRU */
 
-#define	PGA_QUEUE_STATE_MASK	(PGA_ENQUEUED | PGA_DEQUEUE | PGA_REQUEUE)
+#define	PGA_QUEUE_STATE_MASK	(PGA_ENQUEUED | PGA_DEQUEUE | PGA_REQUEUE | \
+				PGA_REQUEUE_HEAD)
 
 /*
  * Page flags.  If changed at any other time than page allocation or
@@ -529,7 +535,7 @@ int vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
 void vm_page_deactivate(vm_page_t);
 void vm_page_deactivate_noreuse(vm_page_t);
 void vm_page_dequeue(vm_page_t m);
-void vm_page_dequeue_lazy(vm_page_t m);
+void vm_page_dequeue_deferred(vm_page_t m);
 void vm_page_dequeue_locked(vm_page_t m);
 vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
 bool vm_page_free_prep(vm_page_t m);
@@ -794,6 +800,24 @@ vm_page_in_laundry(vm_page_t m)
 {
 
 	return (m->queue == PQ_LAUNDRY || m->queue == PQ_UNSWAPPABLE);
+}
+
+/*
+ *	vm_page_enqueued:
+ *
+ *	Return true if the page is logically enqueued and no deferred
+ *	dequeue is pending.
+ */
+static inline bool
+vm_page_enqueued(vm_page_t m)
+{
+
+	vm_page_assert_locked(m);
+
+	if ((m->aflags & PGA_DEQUEUE) != 0)
+		return (false);
+	atomic_thread_fence_acq();
+	return (m->queue != PQ_NONE);
 }
 
 /*

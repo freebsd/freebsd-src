@@ -745,8 +745,6 @@ vm_object_terminate_pages(vm_object_t object)
 		if (p->wire_count != 0)
 			continue;
 		VM_CNT_INC(v_pfree);
-		p->flags &= ~PG_ZERO;
-
 		vm_page_free(p);
 	}
 	if (mtx != NULL)
@@ -1994,7 +1992,6 @@ again:
 		}
 		if ((options & OBJPR_NOTMAPPED) == 0 && object->ref_count != 0)
 			pmap_remove_all(p);
-		p->flags &= ~PG_ZERO;
 		vm_page_free(p);
 	}
 	if (mtx != NULL)
