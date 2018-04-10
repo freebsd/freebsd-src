@@ -165,6 +165,7 @@ static struct g_part_scheme g_part_bsd64_scheme = {
 	.gps_maxent = MAXPARTITIONS64
 };
 G_PART_SCHEME_DECLARE(g_part_bsd64);
+MODULE_VERSION(geom_part_bsd64, 0);
 
 #define	EQUUID(a, b)	(memcmp(a, b, sizeof(struct uuid)) == 0)
 static struct uuid bsd64_uuid_unused = GPT_ENT_TYPE_UNUSED;

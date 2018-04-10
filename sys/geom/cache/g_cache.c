@@ -1016,3 +1016,4 @@ g_cache_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 }
 
 DECLARE_GEOM_CLASS(g_cache_class, g_cache);
+MODULE_VERSION(geom_cache, 0);

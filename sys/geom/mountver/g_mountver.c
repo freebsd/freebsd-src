@@ -660,3 +660,4 @@ g_mountver_fini(struct g_class *mp)
 }
 
 DECLARE_GEOM_CLASS(g_mountver_class, g_mountver);
+MODULE_VERSION(geom_mountver, 0);

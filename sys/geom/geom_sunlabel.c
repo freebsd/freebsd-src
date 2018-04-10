@@ -334,3 +334,4 @@ static struct g_class g_sunlabel_class = {
 };
 
 DECLARE_GEOM_CLASS(g_sunlabel_class, g_sunlabel);
+MODULE_VERSION(geom_sunlabel, 0);

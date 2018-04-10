@@ -614,3 +614,4 @@ static struct g_class g_bsd_class = {
 };
 
 DECLARE_GEOM_CLASS(g_bsd_class, g_bsd);
+MODULE_VERSION(geom_bsd, 0);

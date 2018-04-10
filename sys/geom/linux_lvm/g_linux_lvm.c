@@ -1190,3 +1190,4 @@ static struct g_class g_llvm_class = {
 };
 
 DECLARE_GEOM_CLASS(g_llvm_class, g_linux_lvm);
+MODULE_VERSION(geom_linux_lvm, 0);

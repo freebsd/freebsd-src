@@ -964,3 +964,4 @@ static moduledata_t g_gate_module = {
 };
 DECLARE_MODULE(geom_gate, g_gate_module, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 DECLARE_GEOM_CLASS(g_gate_class, g_gate);
+MODULE_VERSION(geom_gate, 0);

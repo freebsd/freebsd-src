@@ -363,6 +363,7 @@ static struct g_part_scheme g_part_ldm_scheme = {
 	.gps_entrysz = sizeof(struct g_part_ldm_entry)
 };
 G_PART_SCHEME_DECLARE(g_part_ldm);
+MODULE_VERSION(geom_part_ldm, 0);
 
 static struct g_part_ldm_alias {
 	u_char		typ;

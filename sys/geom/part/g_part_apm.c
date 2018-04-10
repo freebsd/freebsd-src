@@ -107,6 +107,7 @@ static struct g_part_scheme g_part_apm_scheme = {
 	.gps_maxent = 4096,
 };
 G_PART_SCHEME_DECLARE(g_part_apm);
+MODULE_VERSION(geom_part_apm, 0);
 
 static void
 swab(char *buf, size_t bufsz)
