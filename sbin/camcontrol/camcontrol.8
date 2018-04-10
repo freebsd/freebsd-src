@@ -561,7 +561,7 @@ the blocksize.
 Note that this command only displays the information, it does not update
 the kernel data structures.
 Use the
-.Nm 
+.Nm
 reprobe subcommand to do that.
 .It Ic start
 Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
@@ -1593,7 +1593,7 @@ If the device is a
 .Tn SCSI
 device and it provides a recommended timeout for the WRITE BUFFER command
 (see the
-.Nm 
+.Nm
 opcodes subcommand), that timeout will be used for the firmware download.
 The drive-recommended timeout value may be overridden on the command line
 with the
@@ -1644,12 +1644,12 @@ will currently attempt a firmware download to any
 .Tn ATA
 or
 .Tn SATA
-device, since the standard 
+device, since the standard
 .Tn ATA
 DOWNLOAD MICROCODE command may work.
 Firmware downloads to
 .Tn ATA
-and 
+and
 .Tn SATA
 devices are supported for devices connected
 to standard
@@ -1658,7 +1658,7 @@ and
 .Tn SATA
 controllers, and devices connected to SAS controllers
 with
-.Tn SCSI 
+.Tn SCSI
 to
 .Tn ATA
 translation capability.
@@ -1667,7 +1667,7 @@ In the latter case,
 uses the
 .Tn SCSI
 .Tn ATA
-PASS-THROUGH command to send the 
+PASS-THROUGH command to send the
 .Tn ATA
 DOWNLOAD MICROCODE command to the drive.
 Some
@@ -1991,9 +1991,9 @@ For instance,
 .Tn LTO
 tapes have MAM.
 Either the
-.Fl r 
+.Fl r
 option or the
-.Fl w 
+.Fl w
 option must be specified.
 .Bl -tag -width 14n
 .It Fl r Ar action
@@ -2022,7 +2022,7 @@ This option is not yet implemented.
 .It Fl a Ar num
 Specify the attribute number to display.
 This option only works with the attr_values, attr_list and supp_attr
-arguments to 
+arguments to
 .Fl r .
 .It Fl c
 Display cached attributes.
@@ -2038,7 +2038,7 @@ Specify the output format for the attribute values (attr_val) display as a
 comma separated list of options.
 The default output is currently set to field_all,nonascii_trim,text_raw.
 Once this code is ported to FreeBSD 10, any text fields will be converted
-from their codeset to the user's native codeset with 
+from their codeset to the user's native codeset with
 .Xr iconv 3 .
 .Pp
 The text options are mutually exclusive; if you specify more than one, you
@@ -2146,7 +2146,7 @@ action.
 This requests that the device report Nominal and Recommended timeout values
 for the given command or commands.
 The timeout values are in seconds.
-The timeout descriptor also includes a command-specific 
+The timeout descriptor also includes a command-specific
 .El
 .It Ic zone
 Manage
@@ -2287,8 +2287,8 @@ The summary and column headings are printed, fields are separated by spaces
 and the fields themselves may contain spaces.
 .It summary
 Just print the summary:  the number of zones, the maximum LBA (LBA of the
-last logical block on the drive), and the value of the 
-.Dq same 
+last logical block on the drive), and the value of the
+.Dq same
 field.
 The
 .Dq same
@@ -2319,7 +2319,7 @@ to
 translation layer (SAT).
 It may be helpful to read the ATA Command Set - 4 (ACS-4) description of
 the Extended Power Conditions feature set, available at t13.org, to
-understand the details of this particular 
+understand the details of this particular
 .Nm
 subcommand.
 .Bl -tag -width 6n
@@ -2365,7 +2365,7 @@ Idle and Standby mode supported by the drive.
 .Bl -tag -width 8n
 .It Fl e
 Enable the power condition.
-One of 
+One of
 .Fl e
 or
 .Fl d
@@ -2395,7 +2395,7 @@ Enable or disable a particular power condition.
 .Bl -tag -width 7n
 .It Fl e
 Enable the power condition.
-One of 
+One of
 .Fl e
 or
 .Fl d
@@ -2485,7 +2485,7 @@ time, but override the system time zone and use UTC instead.
 .It Fl s
 Set the device's timestamp. Either the
 .Fl f
-and 
+and
 .Fl T
 options or the
 .Fl U
@@ -2494,7 +2494,7 @@ option must be specified.
 .It Fl f Ar format
 Specify the strptime format string, as documented in strptime(3).
 The time must also be specified with the
-.Fl T 
+.Fl T
 option.
 .It Fl T Ar time
 Provide the time in the format specified with the
@@ -2790,7 +2790,7 @@ camcontrol epc da4 -c goto -p Standby_z -H
 Tell drive
 .Pa da4
 to go to the Standby_z power state (which is
-the drive's lowest power state) and hold in that state until it is 
+the drive's lowest power state) and hold in that state until it is
 explicitly released by another
 .Cm goto
 command.
@@ -2802,14 +2802,14 @@ camcontrol epc da2 -c status -P
 Report only the power state of
 drive
 .Pa da2 .
-Some drives will power up in response to the commands sent by the 
+Some drives will power up in response to the commands sent by the
 .Pa status
 subcommand, and the
 .Fl P
 option causes
 .Nm
 to only send the
-.Tn ATA 
+.Tn ATA
 CHECK POWER MODE command, which should not trigger a change in the drive's
 power state.
 .Pp
@@ -2829,7 +2829,7 @@ camcontrol timestamp sa0 -s -f "%a, %d %b %Y %T %z" \e
 Set the timestamp of drive
 .Pa sa0
 using a
-.Xr strptime 3 
+.Xr strptime 3
 format string followed by a time string
 that was created using this format string.
 .Sh SEE ALSO
