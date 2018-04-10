@@ -45,15 +45,9 @@
 /* Minimum requirements for the CK_PR interface are met. */
 #define CK_F_PR
 
-#ifdef CK_MD_UMP
-#define CK_PR_LOCK_PREFIX
-#else
-#define CK_PR_LOCK_PREFIX "lock "
-#endif
-
 /*
- * Prevent speculative execution in busy-wait loops (P4 <=)
- * or "predefined delay".
+ * Prevent speculative execution in busy-wait loops (P4 <=) or "predefined
+ * delay".
  */
 CK_CC_INLINE static void
 ck_pr_stall(void)
@@ -62,28 +56,52 @@ ck_pr_stall(void)
 	return;
 }
 
+#ifdef CK_MD_UMP
+#define CK_PR_LOCK_PREFIX
+#define CK_PR_FENCE(T, I)				\
+	CK_CC_INLINE static void			\
+	ck_pr_fence_strict_##T(void)			\
+	{						\
+		__asm__ __volatile__("" ::: "memory");	\
+		return;					\
+	}
+#else
+#define CK_PR_LOCK_PREFIX "lock "
 #define CK_PR_FENCE(T, I)				\
 	CK_CC_INLINE static void			\
 	ck_pr_fence_strict_##T(void)			\
 	{						\
 		__asm__ __volatile__(I ::: "memory");	\
+		return;					\
 	}
+#endif /* CK_MD_UMP */
 
-CK_PR_FENCE(atomic, "sfence")
-CK_PR_FENCE(atomic_store, "sfence")
-CK_PR_FENCE(atomic_load, "mfence")
-CK_PR_FENCE(store_atomic, "sfence")
-CK_PR_FENCE(load_atomic, "mfence")
-CK_PR_FENCE(load, "lfence")
-CK_PR_FENCE(load_store, "mfence")
-CK_PR_FENCE(store, "sfence")
-CK_PR_FENCE(store_load, "mfence")
-CK_PR_FENCE(memory, "mfence")
-CK_PR_FENCE(release, "mfence")
-CK_PR_FENCE(acquire, "mfence")
-CK_PR_FENCE(acqrel, "mfence")
-CK_PR_FENCE(lock, "mfence")
-CK_PR_FENCE(unlock, "mfence")
+#if defined(CK_MD_SSE_DISABLE)
+/* If SSE is disabled, then use atomic operations for serialization. */
+#define CK_MD_X86_MFENCE "lock addl $0, (%%esp)"
+#define CK_MD_X86_SFENCE CK_MD_X86_MFENCE
+#define CK_MD_X86_LFENCE CK_MD_X86_MFENCE
+#else
+#define CK_MD_X86_SFENCE "sfence"
+#define CK_MD_X86_LFENCE "lfence"
+#define CK_MD_X86_MFENCE "mfence"
+#endif /* !CK_MD_SSE_DISABLE */
+
+CK_PR_FENCE(atomic, "")
+CK_PR_FENCE(atomic_store, "")
+CK_PR_FENCE(atomic_load, "")
+CK_PR_FENCE(store_atomic, "")
+CK_PR_FENCE(load_atomic, "")
+CK_PR_FENCE(load, CK_MD_X86_LFENCE)
+CK_PR_FENCE(load_store, CK_MD_X86_MFENCE)
+CK_PR_FENCE(store, CK_MD_X86_SFENCE)
+CK_PR_FENCE(store_load, CK_MD_X86_MFENCE)
+CK_PR_FENCE(memory, CK_MD_X86_MFENCE)
+CK_PR_FENCE(release, CK_MD_X86_MFENCE)
+CK_PR_FENCE(acquire, CK_MD_X86_MFENCE)
+CK_PR_FENCE(acqrel, CK_MD_X86_MFENCE)
+CK_PR_FENCE(lock, CK_MD_X86_MFENCE)
+CK_PR_FENCE(unlock, CK_MD_X86_MFENCE)
 
 #undef CK_PR_FENCE
 

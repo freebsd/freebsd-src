@@ -88,7 +88,15 @@ static inline uint64_t rotl64 ( uint64_t x, int8_t r )
 
 FORCE_INLINE static uint32_t getblock ( const uint32_t * p, int i )
 {
+#ifdef __s390x__
+  uint32_t res;
+
+  __asm__ ("	lrv	%0,%1\n"
+	   : "=r" (res) : "Q" (p[i]) : "cc", "mem");
+  return res;
+#else
   return p[i];
+#endif /* !__s390x__ */
 }
 
 //-----------------------------------------------------------------------------
@@ -147,7 +155,9 @@ static inline void MurmurHash3_x86_32 ( const void * key, int len,
   switch(len & 3)
   {
   case 3: k1 ^= tail[2] << 16;
+  /* fall through */
   case 2: k1 ^= tail[1] << 8;
+  /* fall through */
   case 1: k1 ^= tail[0];
           k1 *= c1; k1 = ROTL32(k1,15); k1 *= c2; h1 ^= k1;
   };
@@ -196,11 +206,17 @@ static inline uint64_t MurmurHash64A ( const void * key, int len, uint64_t seed 
   switch(len & 7)
   {
   case 7: h ^= (uint64_t)(data2[6]) << 48;
+  /* fall through */
   case 6: h ^= (uint64_t)(data2[5]) << 40;
+  /* fall through */
   case 5: h ^= (uint64_t)(data2[4]) << 32;
+  /* fall through */
   case 4: h ^= (uint64_t)(data2[3]) << 24;
+  /* fall through */
   case 3: h ^= (uint64_t)(data2[2]) << 16;
+  /* fall through */
   case 2: h ^= (uint64_t)(data2[1]) << 8;
+  /* fall through */
   case 1: h ^= (uint64_t)(data2[0]);
           h *= m;
   };
@@ -249,7 +265,9 @@ static inline uint64_t MurmurHash64B ( const void * key, int len, uint64_t seed 
   switch(len)
   {
   case 3: h2 ^= ((const unsigned char*)data)[2] << 16;
+  /* fall through */
   case 2: h2 ^= ((const unsigned char*)data)[1] << 8;
+  /* fall through */
   case 1: h2 ^= ((const unsigned char*)data)[0];
       h2 *= m;
   };
