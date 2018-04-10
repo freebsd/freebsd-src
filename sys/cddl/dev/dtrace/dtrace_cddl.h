@@ -46,6 +46,7 @@ typedef struct kdtrace_proc {
 typedef struct kdtrace_thread {
 	u_int8_t	td_dtrace_stop;	/* Indicates a DTrace-desired stop */
 	u_int8_t	td_dtrace_sig;	/* Signal sent via DTrace's raise() */
+	u_int8_t	td_dtrace_inprobe; /* Are we in a probe? */
 	u_int		td_predcache;	/* DTrace predicate cache */
 	u_int64_t	td_dtrace_vtime; /* DTrace virtual time */
 	u_int64_t	td_dtrace_start; /* DTrace slice start time */
@@ -97,6 +98,7 @@ typedef struct kdtrace_thread {
 #define	t_dtrace_start	td_dtrace->td_dtrace_start
 #define	t_dtrace_stop	td_dtrace->td_dtrace_stop
 #define	t_dtrace_sig	td_dtrace->td_dtrace_sig
+#define	t_dtrace_inprobe	td_dtrace->td_dtrace_inprobe
 #define	t_predcache	td_dtrace->td_predcache
 #define	t_dtrace_ft	td_dtrace->td_dtrace_ft
 #define	t_dtrace_on	td_dtrace->td_dtrace_on
