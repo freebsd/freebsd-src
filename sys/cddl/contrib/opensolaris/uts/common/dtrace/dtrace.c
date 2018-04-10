@@ -7284,7 +7284,7 @@ dtrace_probe_enter(dtrace_id_t id)
 }
 
 /*
- * Disables interrupts and clears the per-thread inprobe flag.
+ * Clears the per-thread inprobe flag and enables interrupts.
  */
 static void
 dtrace_probe_exit(dtrace_icookie_t cookie)
