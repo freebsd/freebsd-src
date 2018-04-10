@@ -105,21 +105,10 @@ ck_hs_map_signal(struct ck_hs_map *map, unsigned long h)
 	return;
 }
 
-void
-ck_hs_iterator_init(struct ck_hs_iterator *iterator)
+static bool 
+_ck_hs_next(struct ck_hs *hs, struct ck_hs_map *map, struct ck_hs_iterator *i, void **key)
 {
-
-	iterator->cursor = NULL;
-	iterator->offset = 0;
-	return;
-}
-
-bool
-ck_hs_next(struct ck_hs *hs, struct ck_hs_iterator *i, void **key)
-{
-	struct ck_hs_map *map = hs->map;
 	void *value;
-
 	if (i->offset >= map->capacity)
 		return false;
 
@@ -129,6 +118,8 @@ ck_hs_next(struct ck_hs *hs, struct ck_hs_iterator *i, void **key)
 #ifdef CK_HS_PP
 			if (hs->mode & CK_HS_MODE_OBJECT)
 				value = CK_HS_VMA(value);
+#else
+			(void)hs; /* Avoid unused parameter warning. */
 #endif
 			i->offset++;
 			*key = value;
@@ -137,6 +128,32 @@ ck_hs_next(struct ck_hs *hs, struct ck_hs_iterator *i, void **key)
 	} while (++i->offset < map->capacity);
 
 	return false;
+}
+
+void
+ck_hs_iterator_init(struct ck_hs_iterator *iterator)
+{
+
+	iterator->cursor = NULL;
+	iterator->offset = 0;
+	iterator->map = NULL;
+	return;
+}
+
+bool
+ck_hs_next(struct ck_hs *hs, struct ck_hs_iterator *i, void **key)
+{
+	return _ck_hs_next(hs, hs->map, i, key);
+}
+
+bool
+ck_hs_next_spmc(struct ck_hs *hs, struct ck_hs_iterator *i, void **key)
+{
+	struct ck_hs_map *m = i->map;
+	if (m == NULL) {
+		m = i->map = ck_pr_load_ptr(&hs->map);
+	}
+	return _ck_hs_next(hs, m, i, key);
 }
 
 void
@@ -206,7 +223,7 @@ ck_hs_map_create(struct ck_hs *hs, unsigned long entries)
 	map->probe_limit = (unsigned int)limit;
 	map->probe_maximum = 0;
 	map->capacity = n_entries;
-	map->step = ck_internal_bsf(n_entries);
+	map->step = ck_cc_ffsl(n_entries);
 	map->mask = n_entries - 1;
 	map->n_entries = 0;
 

@@ -58,8 +58,8 @@
 #endif
 
 /*
- * Prevent speculative execution in busy-wait loops (P4 <=)
- * or "predefined delay".
+ * Prevent speculative execution in busy-wait loops (P4 <=) or "predefined
+ * delay".
  */
 CK_CC_INLINE static void
 ck_pr_stall(void)
@@ -75,18 +75,39 @@ ck_pr_stall(void)
 		__asm__ __volatile__(I ::: "memory");	\
 	}
 
-CK_PR_FENCE(atomic, "sfence")
-CK_PR_FENCE(atomic_store, "sfence")
-CK_PR_FENCE(atomic_load, "mfence")
-CK_PR_FENCE(store_atomic, "sfence")
-CK_PR_FENCE(load_atomic, "mfence")
+/* Atomic operations are always serializing. */
+CK_PR_FENCE(atomic, "")
+CK_PR_FENCE(atomic_store, "")
+CK_PR_FENCE(atomic_load, "")
+CK_PR_FENCE(store_atomic, "")
+CK_PR_FENCE(load_atomic, "")
+
+/* Traditional fence interface. */
 CK_PR_FENCE(load, "lfence")
 CK_PR_FENCE(load_store, "mfence")
 CK_PR_FENCE(store, "sfence")
 CK_PR_FENCE(store_load, "mfence")
 CK_PR_FENCE(memory, "mfence")
+
+/* Below are stdatomic-style fences. */
+
+/*
+ * Provides load-store and store-store ordering. However, Intel specifies that
+ * the WC memory model is relaxed. It is likely an sfence *is* sufficient (in
+ * particular, stores are not re-ordered with respect to prior loads and it is
+ * really just the stores that are subject to re-ordering). However, we take
+ * the conservative route as the manuals are too ambiguous for my taste.
+ */
 CK_PR_FENCE(release, "mfence")
+
+/*
+ * Provides load-load and load-store ordering. The lfence instruction ensures
+ * all prior load operations are complete before any subsequent instructions
+ * actually begin execution. However, the manual also ends up going to describe
+ * WC memory as a relaxed model.
+ */
 CK_PR_FENCE(acquire, "mfence")
+
 CK_PR_FENCE(acqrel, "mfence")
 CK_PR_FENCE(lock, "mfence")
 CK_PR_FENCE(unlock, "mfence")

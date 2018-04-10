@@ -111,7 +111,8 @@ ck_spinlock_dec_lock_eb(struct ck_spinlock_dec *lock)
 		if (r == true)
 			break;
 
-		ck_backoff_eb(&backoff);
+		while (ck_pr_load_uint(&lock->value) != 1)
+			ck_backoff_eb(&backoff);
 	}
 
 	ck_pr_fence_lock();
