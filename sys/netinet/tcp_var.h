@@ -688,11 +688,14 @@ void	tcp_inptoxtp(const struct inpcb *, struct xtcpcb *);
 #endif
 
 /*
- * TCP function name-to-id mapping exported to user-land via sysctl(3).
+ * TCP function information (name-to-id mapping, aliases, and refcnt)
+ * exported to user-land via sysctl(3).
  */
-struct tcp_function_id {
+struct tcp_function_info {
+	uint32_t	tfi_refcnt;
 	uint8_t		tfi_id;
 	char		tfi_name[TCP_FUNCTION_NAME_LEN_MAX];
+	char		tfi_alias[TCP_FUNCTION_NAME_LEN_MAX];
 };
 
 /*
