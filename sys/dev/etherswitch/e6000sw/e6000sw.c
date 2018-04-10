@@ -213,7 +213,9 @@ e6000sw_probe(device_t dev)
 	if (OF_getencprop(sc->node, "reg", &sc->sw_addr,
 	    sizeof(sc->sw_addr)) < 0)
 		return (ENXIO);
-	if (sc->sw_addr != 0 && (sc->sw_addr % 2) == 0)
+
+	if (!OF_hasprop(sc->node, "single-chip-addressing") &&
+	    (sc->sw_addr != 0 && (sc->sw_addr % 2) == 0))
 		sc->multi_chip = true;
 
 	/*
