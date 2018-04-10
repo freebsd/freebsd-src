@@ -49,7 +49,7 @@ PROTECT="/usr/bin/protect"
 ID="/usr/bin/id"
 IDCMD="if [ -x $ID ]; then $ID -un; fi"
 PS="/bin/ps -ww"
-JID=`$PS -p $$ -o jid=`
+JID=0
 
 #
 #	functions
