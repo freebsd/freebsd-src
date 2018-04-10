@@ -38,7 +38,7 @@ if [ "$1" = "-b" ]; then
 	umount efi
 	rmdir efi
 	mdconfig -d -u $device
-	bootable="-o bootimage=efi;efiboot.img -o no-emul-boot $bootable"
+	bootable="-o bootimage=i386;efiboot.img -o no-emul-boot $bootable -o platformid=efi"
 	
 	shift
 else
