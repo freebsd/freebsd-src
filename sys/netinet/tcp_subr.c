@@ -255,6 +255,7 @@ static struct tcp_function_block tcp_def_funcblk = {
 };
 
 int t_functions_inited = 0;
+static int tcp_fb_cnt = 0;
 struct tcp_funchead t_functions;
 static struct tcp_function_block *tcp_func_set_ptr = &tcp_def_funcblk;
 
@@ -426,14 +427,14 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, functions_available,
 	    "list available TCP Function sets");
 
 /*
- * Exports one (struct tcp_function_id) for each non-alias.
+ * Exports one (struct tcp_function_info) for each alias/name.
  */
 static int
-sysctl_net_inet_list_func_ids(SYSCTL_HANDLER_ARGS)
+sysctl_net_inet_list_func_info(SYSCTL_HANDLER_ARGS)
 {
-	int error, cnt;
+	int cnt, error;
 	struct tcp_function *f;
-	struct tcp_function_id tfi;
+	struct tcp_function_info tfi;
 
 	/*
 	 * We don't allow writes.
@@ -452,20 +453,31 @@ sysctl_net_inet_list_func_ids(SYSCTL_HANDLER_ARGS)
 	}
 
 	/*
-	 * Walk the list, comparing the name of the function entry and
-	 * function block to determine which is an alias.
-	 * If exporting the list, copy out matching entries. Otherwise,
-	 * just record the total length.
+	 * Walk the list and copy out matching entries. If INVARIANTS
+	 * is compiled in, also walk the list to verify the length of
+	 * the list matches what we have recorded.
 	 */
-	cnt = 0;
 	rw_rlock(&tcp_function_lock);
+#ifdef INVARIANTS
+	cnt = 0;
+#else
+	if (req->oldptr == NULL) {
+		cnt = tcp_fb_cnt;
+		goto skip_loop;
+	}
+#endif
 	TAILQ_FOREACH(f, &t_functions, tf_next) {
-		if (strncmp(f->tf_name, f->tf_fb->tfb_tcp_block_name,
-		    TCP_FUNCTION_NAME_LEN_MAX))
-			continue;
+#ifdef INVARIANTS
+		cnt++;
+#endif
 		if (req->oldptr != NULL) {
+			tfi.tfi_refcnt = f->tf_fb->tfb_refcnt;
 			tfi.tfi_id = f->tf_fb->tfb_id;
-			(void)strncpy(tfi.tfi_name, f->tf_name,
+			(void)strncpy(tfi.tfi_alias, f->tf_name,
+			    TCP_FUNCTION_NAME_LEN_MAX);
+			tfi.tfi_alias[TCP_FUNCTION_NAME_LEN_MAX - 1] = '\0';
+			(void)strncpy(tfi.tfi_name,
+			    f->tf_fb->tfb_tcp_block_name,
 			    TCP_FUNCTION_NAME_LEN_MAX);
 			tfi.tfi_name[TCP_FUNCTION_NAME_LEN_MAX - 1] = '\0';
 			error = SYSCTL_OUT(req, &tfi, sizeof(tfi));
@@ -474,20 +486,24 @@ sysctl_net_inet_list_func_ids(SYSCTL_HANDLER_ARGS)
 			 * mechanism we use to accumulate length
 			 * information if the buffer was too short.
 			 */
-		} else
-			cnt++;
+		}
 	}
+	KASSERT(cnt == tcp_fb_cnt,
+	    ("%s: cnt (%d) != tcp_fb_cnt (%d)", __func__, cnt, tcp_fb_cnt));
+#ifndef INVARIANTS
+skip_loop:
+#endif
 	rw_runlock(&tcp_function_lock);
 	if (req->oldptr == NULL)
 		error = SYSCTL_OUT(req, NULL,
-		    (cnt + 1) * sizeof(struct tcp_function_id));
+		    (cnt + 1) * sizeof(struct tcp_function_info));
 
 	return (error);
 }
 
-SYSCTL_PROC(_net_inet_tcp, OID_AUTO, function_ids,
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, function_info,
 	    CTLTYPE_OPAQUE | CTLFLAG_SKIP | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    NULL, 0, sysctl_net_inet_list_func_ids, "S,tcp_function_id",
+	    NULL, 0, sysctl_net_inet_list_func_info, "S,tcp_function_info",
 	    "List TCP function block name-to-ID mappings");
 
 /*
@@ -653,6 +669,7 @@ register_tcp_functions_as_names(struct tcp_function_block *blk, int wait,
 		(void)strncpy(n->tf_name, names[i], TCP_FUNCTION_NAME_LEN_MAX);
 		n->tf_name[TCP_FUNCTION_NAME_LEN_MAX - 1] = '\0';
 		TAILQ_INSERT_TAIL(&t_functions, n, tf_next);
+		tcp_fb_cnt++;
 		rw_wunlock(&tcp_function_lock);
 	}
 	return(0);
@@ -669,6 +686,7 @@ cleanup:
 			if (!strncmp(n->tf_name, names[i],
 			    TCP_FUNCTION_NAME_LEN_MAX)) {
 				TAILQ_REMOVE(&t_functions, n, tf_next);
+				tcp_fb_cnt--;
 				n->tf_fb = NULL;
 				free(n, M_TCPFUNCTIONS);
 				break;
@@ -739,6 +757,7 @@ deregister_tcp_functions(struct tcp_function_block *blk)
 	while (find_tcp_fb_locked(blk, &f) != NULL) {
 		/* Found */
 		TAILQ_REMOVE(&t_functions, f, tf_next);
+		tcp_fb_cnt--;
 		f->tf_fb = NULL;
 		free(f, M_TCPFUNCTIONS);
 		error = 0;
