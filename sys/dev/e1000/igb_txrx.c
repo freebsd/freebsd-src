@@ -62,14 +62,14 @@ extern void igb_if_enable_intr(if_ctx_t ctx);
 extern int em_intr(void *arg);
 
 struct if_txrx igb_txrx = {
-	igb_isc_txd_encap,
-	igb_isc_txd_flush,
-	igb_isc_txd_credits_update,
-	igb_isc_rxd_available,
-	igb_isc_rxd_pkt_get,
-	igb_isc_rxd_refill,
-	igb_isc_rxd_flush,
-	em_intr
+	.ift_txd_encap = igb_isc_txd_encap,
+	.ift_txd_flush = igb_isc_txd_flush,
+	.ift_txd_credits_update = igb_isc_txd_credits_update,
+	.ift_rxd_available = igb_isc_rxd_available,
+	.ift_rxd_pkt_get = igb_isc_rxd_pkt_get,
+	.ift_rxd_refill = igb_isc_rxd_refill,
+	.ift_rxd_flush = igb_isc_rxd_flush,
+	.ift_legacy_intr = em_intr
 };
 
 extern if_shared_ctx_t em_sctx;
