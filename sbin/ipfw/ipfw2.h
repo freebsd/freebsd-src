@@ -56,6 +56,12 @@ struct cmdline_opts {
 
 };
 
+enum {
+	TIMESTAMP_NONE = 0,
+	TIMESTAMP_STRING,
+	TIMESTAMP_NUMERIC,
+};
+
 extern struct cmdline_opts co;
 
 /*

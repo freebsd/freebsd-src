@@ -324,11 +324,11 @@ ipfw_main(int oldac, char **oldav)
 			break;
 
 		case 't':
-			co.do_time = 1;
+			co.do_time = TIMESTAMP_STRING;
 			break;
 
 		case 'T':
-			co.do_time = 2;	/* numeric timestamp */
+			co.do_time = TIMESTAMP_NUMERIC;
 			break;
 
 		case 'v': /* verbose */
