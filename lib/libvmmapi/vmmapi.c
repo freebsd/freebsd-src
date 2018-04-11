@@ -1631,10 +1631,9 @@ vm_snapshot_req(struct vmctx *ctx, enum snapshot_req req, char *buffer, size_t m
 }
 
 static int
-vm_mem_read_from_file(int fd, void *dest, size_t dest_offset,
-				size_t file_offset, size_t len)
+vm_mem_read_from_file(int fd, void *dest, size_t file_offset, size_t len)
 {
-	int cnt_read = 0;
+	ssize_t cnt_read = 0;
 	size_t read_total = 0;
 	size_t to_read = len;
 
@@ -1647,7 +1646,7 @@ vm_mem_read_from_file(int fd, void *dest, size_t dest_offset,
 
 	while (read_total < len) {
 		cnt_read = read(fd, dest + read_total, to_read);
-		printf("%s: cnt_read  = %d\r\n", __func__, cnt_read);
+		printf("%s: cnt_read  = %zd\r\n", __func__, cnt_read);
 		// TODO - fix for when read returns 0
 		if (cnt_read <= 0) {
 			fprintf(stderr,"%s: read error: %d\r\n",
@@ -1665,6 +1664,8 @@ int
 vm_restore_mem(struct vmctx *ctx, int vmmem_fd, size_t size)
 {
 
+	printf("%s: Lowmem = %zd\n", __func__, ctx->lowmem);
+	printf("%s: Highmem = %zd\n", __func__, ctx->highmem);
 	if (ctx->lowmem + ctx->highmem != size) {
 		fprintf(stderr, "%s: mem size mismatch: %ld vs %ld\n",
 			__func__, ctx->lowmem + ctx->highmem, size);
@@ -1672,15 +1673,15 @@ vm_restore_mem(struct vmctx *ctx, int vmmem_fd, size_t size)
 	}
 
 	if (vm_mem_read_from_file(vmmem_fd, ctx->baseaddr,
-				0, 0, ctx->lowmem) != 0) {
+				0, ctx->lowmem) != 0) {
 		fprintf(stderr,
 			"%s: Could not read lowmem from file\r\n", __func__);
 		return (-1);
 	}
 
 	if (ctx->highmem > 0) {
-		if (vm_mem_read_from_file(vmmem_fd, ctx->baseaddr,
-				4*GB, ctx->lowmem, ctx->highmem) != 0) {
+		if (vm_mem_read_from_file(vmmem_fd, ctx->baseaddr + 4*GB,
+				ctx->lowmem, ctx->highmem) != 0) {
 
 			fprintf(stderr,
 				"%s: Could not read highmem from file\r\n",
