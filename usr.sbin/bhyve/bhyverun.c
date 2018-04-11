@@ -1659,12 +1659,11 @@ err_pci:
 }
 
 static int
-vm_mem_write_to_file(int fd, const void *src, size_t src_offset,
-			size_t dst_offset, size_t len)
+vm_mem_write_to_file(int fd, const void *src, size_t dst_offset, size_t len)
 {
-	int write_total;
-	int cnt_write;
-	int to_write;
+	size_t write_total;
+	ssize_t cnt_write;
+	size_t to_write;
 
 	write_total = 0;
 	to_write = len;
@@ -1782,7 +1781,7 @@ vm_checkpoint(struct vmctx *ctx, char *checkpoint_file, bool stop_vm)
 	 * mmap checkpoint file in memory so we can easily copy VMs
 	 * system address space (lowmem + highmem) from kernel space
 	 */
-	if (vm_mem_write_to_file(fd_checkpoint, mmap_vm_lowmem, 0,
+	if (vm_mem_write_to_file(fd_checkpoint, mmap_vm_lowmem,
 				0, guest_lowmem) != 0) {
 		perror("Could not write lowmem");
 		error = -1;
@@ -1790,7 +1789,7 @@ vm_checkpoint(struct vmctx *ctx, char *checkpoint_file, bool stop_vm)
 	}
 
 	if (guest_highmem > 0) {
-		if (vm_mem_write_to_file(fd_checkpoint, mmap_vm_highmem, 0,
+		if (vm_mem_write_to_file(fd_checkpoint, mmap_vm_highmem,
 				guest_lowmem, guest_highmem) != 0) {
 			perror("Could not write highmem");
 			error = -1;
