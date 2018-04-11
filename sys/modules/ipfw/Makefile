@@ -9,7 +9,7 @@ SRCS+=	ip_fw_sockopt.c ip_fw_table.c ip_fw_table_algo.c ip_fw_iface.c
 SRCS+=	ip_fw_table_value.c
 SRCS+=	opt_inet.h opt_inet6.h opt_ipdivert.h opt_ipfw.h
 
-CFLAGS+= -DIPFIREWALL
+CFLAGS+= -DIPFIREWALL -I${SRCTOP}/sys/contrib/ck/include
 #
 #If you want it verbose
 #CFLAGS+= -DIPFIREWALL_VERBOSE
