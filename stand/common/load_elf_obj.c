@@ -224,6 +224,8 @@ __elfN(obj_loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 #if defined(__i386__) || defined(__amd64__)
 		case SHT_X86_64_UNWIND:
 #endif
+			if ((shdr[i].sh_flags & SHF_ALLOC) == 0)
+				break;
 			lastaddr = roundup(lastaddr, shdr[i].sh_addralign);
 			shdr[i].sh_addr = (Elf_Addr)lastaddr;
 			lastaddr += shdr[i].sh_size;
@@ -280,6 +282,8 @@ __elfN(obj_loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 		switch (shdr[i].sh_type) {
 		case SHT_REL:
 		case SHT_RELA:
+			if ((shdr[shdr[i].sh_info].sh_flags & SHF_ALLOC) == 0)
+				break;
 			lastaddr = roundup(lastaddr, shdr[i].sh_addralign);
 			shdr[i].sh_addr = (Elf_Addr)lastaddr;
 			lastaddr += shdr[i].sh_size;
