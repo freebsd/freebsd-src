@@ -72,8 +72,8 @@
  *
  *	- Currently only supports Ethernet-like interfaces (Ethernet,
  *	  802.11, VLANs on Ethernet, etc.)  Figure out a nice way
- *	  to bridge other types of interfaces (FDDI-FDDI, and maybe
- *	  consider heterogeneous bridges).
+ *	  to bridge other types of interfaces (maybe consider
+ *	  heterogeneous bridges).
  */
 
 #include <sys/cdefs.h>
