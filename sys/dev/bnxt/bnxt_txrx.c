@@ -66,14 +66,14 @@ static int bnxt_isc_rxd_pkt_get(void *sc, if_rxd_info_t ri);
 static int bnxt_intr(void *sc);
 
 struct if_txrx bnxt_txrx  = {
-	bnxt_isc_txd_encap,
-	bnxt_isc_txd_flush,
-	bnxt_isc_txd_credits_update,
-	bnxt_isc_rxd_available,
-	bnxt_isc_rxd_pkt_get,
-	bnxt_isc_rxd_refill,
-	bnxt_isc_rxd_flush,
-	bnxt_intr
+	.ift_txd_encap = bnxt_isc_txd_encap,
+	.ift_txd_flush = bnxt_isc_txd_flush,
+	.ift_txd_credits_update = bnxt_isc_txd_credits_update,
+	.ift_rxd_available = bnxt_isc_rxd_available,
+	.ift_rxd_pkt_get = bnxt_isc_rxd_pkt_get,
+	.ift_rxd_refill = bnxt_isc_rxd_refill,
+	.ift_rxd_flush = bnxt_isc_rxd_flush,
+	.ift_legacy_intr = bnxt_intr
 };
 
 /*
