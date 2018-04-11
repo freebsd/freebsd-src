@@ -95,8 +95,8 @@ struct lock_class lock_class_rw = {
 };
 
 #ifdef ADAPTIVE_RWLOCKS
-static int __read_frequently rowner_retries = 10;
-static int __read_frequently rowner_loops = 10000;
+static int __read_frequently rowner_retries;
+static int __read_frequently rowner_loops;
 static SYSCTL_NODE(_debug, OID_AUTO, rwlock, CTLFLAG_RD, NULL,
     "rwlock debugging");
 SYSCTL_INT(_debug_rwlock, OID_AUTO, retry, CTLFLAG_RW, &rowner_retries, 0, "");
@@ -109,7 +109,15 @@ SYSCTL_INT(_debug_rwlock, OID_AUTO, delay_base, CTLFLAG_RW, &rw_delay.base,
 SYSCTL_INT(_debug_rwlock, OID_AUTO, delay_max, CTLFLAG_RW, &rw_delay.max,
     0, "");
 
-LOCK_DELAY_SYSINIT_DEFAULT(rw_delay);
+static void
+rw_lock_delay_init(void *arg __unused)
+{
+
+	lock_delay_default_init(&rw_delay);
+	rowner_retries = 10;
+	rowner_loops = max(10000, rw_delay.max);
+}
+LOCK_DELAY_SYSINIT(rw_lock_delay_init);
 #endif
 
 /*
