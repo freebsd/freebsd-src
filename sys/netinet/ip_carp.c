@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/counter.h>
 
 #include <net/ethernet.h>
-#include <net/fddi.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
@@ -1526,18 +1525,6 @@ carp_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *sa)
 			eh->ether_shost[5] = sc->sc_vhid;
 		}
 		break;
-	case IFT_FDDI: {
-			struct fddi_header *fh;
-
-			fh = mtod(m, struct fddi_header *);
-			fh->fddi_shost[0] = 0;
-			fh->fddi_shost[1] = 0;
-			fh->fddi_shost[2] = 0x5e;
-			fh->fddi_shost[3] = 0;
-			fh->fddi_shost[4] = 1;
-			fh->fddi_shost[5] = sc->sc_vhid;
-		}
-		break;
 	default:
 		printf("%s: carp is not supported for the %d interface type\n",
 		    ifp->if_xname, ifp->if_type);
@@ -1719,7 +1706,6 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 	case IFT_ETHER:
 	case IFT_L2VLAN:
 	case IFT_BRIDGE:
-	case IFT_FDDI:
 		break;
 	default:
 		error = EOPNOTSUPP;
