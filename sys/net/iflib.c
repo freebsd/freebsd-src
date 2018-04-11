@@ -166,7 +166,6 @@ struct iflib_ctx {
 	struct mtx ifc_mtx;
 
 	uint16_t ifc_nhwtxqs;
-	uint16_t ifc_nhwrxqs;
 
 	iflib_txq_t ifc_txqs;
 	iflib_rxq_t ifc_rxqs;
@@ -2289,7 +2288,7 @@ iflib_stop(if_ctx_t ctx)
 	for (i = 0; i < scctx->isc_nrxqsets; i++, rxq++) {
 		/* make sure all transmitters have completed before proceeding XXX */
 
-		for (j = 0, di = txq->ift_ifdi; j < ctx->ifc_nhwrxqs; j++, di++)
+		for (j = 0, di = txq->ift_ifdi; j < rxq->ifr_nfl; j++, di++)
 			bzero((void *)di->idi_vaddr, di->idi_size);
 		/* also resets the free lists pidx/cidx */
 		for (j = 0, fl = rxq->ifr_fl; j < rxq->ifr_nfl; j++, fl++)
@@ -4198,6 +4197,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 
 	scctx = &ctx->ifc_softc_ctx;
 	ifp = ctx->ifc_ifp;
+	ctx->ifc_nhwtxqs = sctx->isc_ntxqs;
 
 	/*
 	 * XXX sanity check that ntxd & nrxd are a power of 2
