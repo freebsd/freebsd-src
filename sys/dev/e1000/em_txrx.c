@@ -68,25 +68,25 @@ static int em_determine_rsstype(u32 pkt_info);
 extern int em_intr(void *arg);
 
 struct if_txrx em_txrx = {
-	em_isc_txd_encap,
-	em_isc_txd_flush,
-	em_isc_txd_credits_update,
-	em_isc_rxd_available,
-	em_isc_rxd_pkt_get,
-	em_isc_rxd_refill,
-	em_isc_rxd_flush,
-	em_intr
+	.ift_txd_encap = em_isc_txd_encap,
+	.ift_txd_flush = em_isc_txd_flush,
+	.ift_txd_credits_update = em_isc_txd_credits_update,
+	.ift_rxd_available = em_isc_rxd_available,
+	.ift_rxd_pkt_get = em_isc_rxd_pkt_get,
+	.ift_rxd_refill = em_isc_rxd_refill,
+	.ift_rxd_flush = em_isc_rxd_flush,
+	.ift_legacy_intr = em_intr
 };
 
 struct if_txrx lem_txrx = {
-	em_isc_txd_encap,
-	em_isc_txd_flush,
-	em_isc_txd_credits_update,
-	lem_isc_rxd_available,
-	lem_isc_rxd_pkt_get,
-	lem_isc_rxd_refill,
-	em_isc_rxd_flush,
-	em_intr
+	.ift_txd_encap = em_isc_txd_encap,
+	.ift_txd_flush = em_isc_txd_flush,
+	.ift_txd_credits_update = em_isc_txd_credits_update,
+	.ift_rxd_available = lem_isc_rxd_available,
+	.ift_rxd_pkt_get = lem_isc_rxd_pkt_get,
+	.ift_rxd_refill = lem_isc_rxd_refill,
+	.ift_rxd_flush = em_isc_rxd_flush,
+	.ift_legacy_intr = em_intr
 };
 
 extern if_shared_ctx_t em_sctx;

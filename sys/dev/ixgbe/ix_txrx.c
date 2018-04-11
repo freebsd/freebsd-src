@@ -62,14 +62,14 @@ extern void ixgbe_if_enable_intr(if_ctx_t ctx);
 static int ixgbe_determine_rsstype(u16 pkt_info);
 
 struct if_txrx ixgbe_txrx  = {
-	ixgbe_isc_txd_encap,
-	ixgbe_isc_txd_flush,
-	ixgbe_isc_txd_credits_update,
-	ixgbe_isc_rxd_available,
-	ixgbe_isc_rxd_pkt_get,
-	ixgbe_isc_rxd_refill,
-	ixgbe_isc_rxd_flush,
-	NULL
+	.ift_txd_encap = ixgbe_isc_txd_encap,
+	.ift_txd_flush = ixgbe_isc_txd_flush,
+	.ift_txd_credits_update = ixgbe_isc_txd_credits_update,
+	.ift_rxd_available = ixgbe_isc_rxd_available,
+	.ift_rxd_pkt_get = ixgbe_isc_rxd_pkt_get,
+	.ift_rxd_refill = ixgbe_isc_rxd_refill,
+	.ift_rxd_flush = ixgbe_isc_rxd_flush,
+	.ift_legacy_intr = NULL
 };
 
 extern if_shared_ctx_t ixgbe_sctx;
