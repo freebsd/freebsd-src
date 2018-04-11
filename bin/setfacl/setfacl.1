@@ -80,7 +80,8 @@ entries of the current ACL.
 The operations apply to the default ACL entries instead of
 access ACL entries.
 Currently only directories may have
-default ACL's.  This option is not applicable to NFSv4 ACLs.
+default ACL's.
+This option is not applicable to NFSv4 ACLs.
 .It Fl h
 If the target of the operation is a symbolic link, perform the operation
 on the symbolic link itself, rather than following the link.
@@ -96,8 +97,9 @@ It
 is not considered an error if the specified files do not have
 any default ACL entries.
 An error will be reported if any of
-the specified files cannot have a default entry (i.e.\&
-non-directories).  This option is not applicable to NFSv4 ACLs.
+the specified files cannot have a default entry (i.e.,
+non-directories).
+This option is not applicable to NFSv4 ACLs.
 .It Fl L
 If the
 .Fl R
