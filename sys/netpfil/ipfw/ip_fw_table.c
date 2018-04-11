@@ -3171,7 +3171,7 @@ alloc_table_config(struct ip_fw_chain *ch, struct tid_info *ti,
 		if (ntlv == NULL)
 			return (NULL);
 		name = ntlv->name;
-		set = ntlv->set;
+		set = (V_fw_tables_sets == 0) ? 0 : ntlv->set;
 	} else {
 		/* Compat part: convert number to string representation */
 		snprintf(bname, sizeof(bname), "%d", ti->uidx);
