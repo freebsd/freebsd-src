@@ -170,7 +170,6 @@ MAN=	aac.4 \
 	ffclock.4 \
 	filemon.4 \
 	firewire.4 \
-	fpa.4 \
 	full.4 \
 	fwe.4 \
 	fwip.4 \

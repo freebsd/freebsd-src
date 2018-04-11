@@ -845,9 +845,6 @@ device		wlan_xauth
 device		wlan_acl
 device		wlan_amrr
 
-#  The `fddi' device provides generic code to support FDDI.
-device		fddi
-
 #  The `arcnet' device provides generic code to support Arcnet.
 device		arcnet
 
@@ -1972,7 +1969,6 @@ device		xmphy		# XaQti XMAC II
 # ex:   Intel EtherExpress Pro/10 and other i82595-based adapters,
 #       Olicom Ethernet PC Card devices.
 # fe:   Fujitsu MB86960A/MB86965A Ethernet
-# fpa:  Support for the Digital DEFPA PCI FDDI. `device fddi' is also needed.
 # fxp:  Intel EtherExpress Pro/100B
 #	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
 # gem:  Apple GMAC/Sun ERI/Sun GEM
@@ -2149,9 +2145,6 @@ device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
 device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 device		vxge		# Exar/Neterion XFrame 3100 10GbE
-
-# PCI FDDI NICs.
-device		fpa
 
 # PCI WAN adapters.
 device		lmc

@@ -694,10 +694,6 @@ arpintr(struct mbuf *m)
 		hlen = ETHER_ADDR_LEN; /* RFC 826 */
 		layer = "ethernet";
 		break;
-	case ARPHRD_IEEE802:
-		hlen = 6; /* RFC 1390, FDDI_ADDR_LEN */
-		layer = "fddi";
-		break;
 	case ARPHRD_ARCNET:
 		hlen = 1; /* RFC 1201, ARC_ADDR_LEN */
 		layer = "arcnet";
