@@ -30,16 +30,6 @@
 #ifndef	_IP_FW_NAT64_TRANSLATE_H_
 #define	_IP_FW_NAT64_TRANSLATE_H_
 
-#ifdef RTALLOC_NOLOCK
-#define	IN_LOOKUP_ROUTE(ro, fib)	rtalloc_fib_nolock((ro), 0, (fib))
-#define	IN6_LOOKUP_ROUTE(ro, fib)	in6_rtalloc_nolock((ro), (fib))
-#define	FREE_ROUTE(ro)
-#else
-#define	IN_LOOKUP_ROUTE(ro, fib)	rtalloc_ign_fib((ro), 0, (fib))
-#define	IN6_LOOKUP_ROUTE(ro, fib)	in6_rtalloc((ro), (fib))
-#define	FREE_ROUTE(ro)			RO_RTFREE((ro))
-#endif
-
 static inline int
 nat64_check_ip6(struct in6_addr *addr)
 {
