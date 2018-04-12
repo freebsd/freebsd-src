@@ -547,7 +547,7 @@ ixl_init_tx_ring(struct ixl_queue *que)
 		 * netmap slot index, si
 		 */
 		if (slot) {
-			int si = netmap_idx_n2k(&na->tx_rings[que->me], i);
+			int si = netmap_idx_n2k(na->tx_rings[que->me], i);
 			netmap_load_map(na, buf->tag, buf->map, NMB(na, slot + si));
 		}
 #endif /* DEV_NETMAP */
@@ -1214,7 +1214,7 @@ ixl_init_rx_ring(struct ixl_queue *que)
 		 * an mbuf, so end the block with a continue;
 		 */
 		if (slot) {
-			int sj = netmap_idx_n2k(&na->rx_rings[que->me], j);
+			int sj = netmap_idx_n2k(na->rx_rings[que->me], j);
 			uint64_t paddr;
 			void *addr;
 

@@ -304,7 +304,7 @@ re_netmap_tx_init(struct rl_softc *sc)
 	/* l points in the netmap ring, i points in the NIC ring */
 	for (i = 0; i < n; i++) {
 		uint64_t paddr;
-		int l = netmap_idx_n2k(&na->tx_rings[0], i);
+		int l = netmap_idx_n2k(na->tx_rings[0], i);
 		void *addr = PNMB(na, slot + l, &paddr);
 
 		desc[i].rl_bufaddr_lo = htole32(RL_ADDR_LO(paddr));
@@ -330,11 +330,11 @@ re_netmap_rx_init(struct rl_softc *sc)
 	 * Do not release the slots owned by userspace,
 	 * and also keep one empty.
 	 */
-	max_avail = n - 1 - nm_kr_rxspace(&na->rx_rings[0]);
+	max_avail = n - 1 - nm_kr_rxspace(na->rx_rings[0]);
 	for (nic_i = 0; nic_i < n; nic_i++) {
 		void *addr;
 		uint64_t paddr;
-		uint32_t nm_i = netmap_idx_n2k(&na->rx_rings[0], nic_i);
+		uint32_t nm_i = netmap_idx_n2k(na->rx_rings[0], nic_i);
 
 		addr = PNMB(na, slot + nm_i, &paddr);
 

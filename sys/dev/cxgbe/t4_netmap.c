@@ -344,7 +344,7 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	for_each_nm_rxq(vi, i, nm_rxq) {
 		struct irq *irq = &sc->irq[vi->first_intr + i];
 
-		kring = &na->rx_rings[nm_rxq->nid];
+		kring = na->rx_rings[nm_rxq->nid];
 		if (!nm_kring_pending_on(kring) ||
 		    nm_rxq->iq_cntxt_id != INVALID_NM_RXQ_CNTXT_ID)
 			continue;
@@ -375,7 +375,7 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	}
 
 	for_each_nm_txq(vi, i, nm_txq) {
-		kring = &na->tx_rings[nm_txq->nid];
+		kring = na->tx_rings[nm_txq->nid];
 		if (!nm_kring_pending_on(kring) ||
 		    nm_txq->cntxt_id != INVALID_NM_TXQ_CNTXT_ID)
 			continue;
@@ -427,7 +427,7 @@ cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	for_each_nm_txq(vi, i, nm_txq) {
 		struct sge_qstat *spg = (void *)&nm_txq->desc[nm_txq->sidx];
 
-		kring = &na->tx_rings[nm_txq->nid];
+		kring = na->tx_rings[nm_txq->nid];
 		if (!nm_kring_pending_off(kring) ||
 		    nm_txq->cntxt_id == INVALID_NM_TXQ_CNTXT_ID)
 			continue;
@@ -445,7 +445,7 @@ cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	for_each_nm_rxq(vi, i, nm_rxq) {
 		struct irq *irq = &sc->irq[vi->first_intr + i];
 
-		kring = &na->rx_rings[nm_rxq->nid];
+		kring = na->rx_rings[nm_rxq->nid];
 		if (!nm_kring_pending_off(kring) ||
 		    nm_rxq->iq_cntxt_id == INVALID_NM_RXQ_CNTXT_ID)
 			continue;
@@ -933,7 +933,7 @@ t4_nm_intr(void *arg)
 	struct adapter *sc = vi->pi->adapter;
 	struct ifnet *ifp = vi->ifp;
 	struct netmap_adapter *na = NA(ifp);
-	struct netmap_kring *kring = &na->rx_rings[nm_rxq->nid];
+	struct netmap_kring *kring = na->rx_rings[nm_rxq->nid];
 	struct netmap_ring *ring = kring->ring;
 	struct iq_desc *d = &nm_rxq->iq_desc[nm_rxq->iq_cidx];
 	const void *cpl;

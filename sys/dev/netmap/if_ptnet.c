@@ -210,8 +210,8 @@ static int	ptnet_irqs_init(struct ptnet_softc *sc);
 static void	ptnet_irqs_fini(struct ptnet_softc *sc);
 
 static uint32_t ptnet_nm_ptctl(if_t ifp, uint32_t cmd);
-static int	ptnet_nm_config(struct netmap_adapter *na, unsigned *txr,
-				unsigned *txd, unsigned *rxr, unsigned *rxd);
+static int	ptnet_nm_config(struct netmap_adapter *na,
+				struct nm_config_info *info);
 static void	ptnet_update_vnet_hdr(struct ptnet_softc *sc);
 static int	ptnet_nm_register(struct netmap_adapter *na, int onoff);
 static int	ptnet_nm_txsync(struct netmap_kring *kring, int flags);
@@ -1104,18 +1104,20 @@ ptnet_nm_ptctl(if_t ifp, uint32_t cmd)
 }
 
 static int
-ptnet_nm_config(struct netmap_adapter *na, unsigned *txr, unsigned *txd,
-		unsigned *rxr, unsigned *rxd)
+ptnet_nm_config(struct netmap_adapter *na, struct nm_config_info *info)
 {
 	struct ptnet_softc *sc = if_getsoftc(na->ifp);
 
-	*txr = bus_read_4(sc->iomem, PTNET_IO_NUM_TX_RINGS);
-	*rxr = bus_read_4(sc->iomem, PTNET_IO_NUM_RX_RINGS);
-	*txd = bus_read_4(sc->iomem, PTNET_IO_NUM_TX_SLOTS);
-	*rxd = bus_read_4(sc->iomem, PTNET_IO_NUM_RX_SLOTS);
+	info->num_tx_rings = bus_read_4(sc->iomem, PTNET_IO_NUM_TX_RINGS);
+	info->num_rx_rings = bus_read_4(sc->iomem, PTNET_IO_NUM_RX_RINGS);
+	info->num_tx_descs = bus_read_4(sc->iomem, PTNET_IO_NUM_TX_SLOTS);
+	info->num_rx_descs = bus_read_4(sc->iomem, PTNET_IO_NUM_RX_SLOTS);
+	info->rx_buf_maxsize = NETMAP_BUF_SIZE(na);
 
-	device_printf(sc->dev, "txr %u, rxr %u, txd %u, rxd %u\n",
-		      *txr, *rxr, *txd, *rxd);
+	device_printf(sc->dev, "txr %u, rxr %u, txd %u, rxd %u, rxbufsz %u\n",
+			info->num_tx_rings, info->num_rx_rings,
+			info->num_tx_descs, info->num_rx_descs,
+			info->rx_buf_maxsize);
 
 	return 0;
 }
@@ -1133,9 +1135,9 @@ ptnet_sync_from_csb(struct ptnet_softc *sc, struct netmap_adapter *na)
 		struct netmap_kring *kring;
 
 		if (i < na->num_tx_rings) {
-			kring = na->tx_rings + i;
+			kring = na->tx_rings[i];
 		} else {
-			kring = na->rx_rings + i - na->num_tx_rings;
+			kring = na->rx_rings[i - na->num_tx_rings];
 		}
 		kring->rhead = kring->ring->head = ptgh->head;
 		kring->rcur = kring->ring->cur = ptgh->cur;
@@ -1228,7 +1230,7 @@ ptnet_nm_register(struct netmap_adapter *na, int onoff)
 		if (native) {
 			for_rx_tx(t) {
 				for (i = 0; i <= nma_get_nrings(na, t); i++) {
-					struct netmap_kring *kring = &NMR(na, t)[i];
+					struct netmap_kring *kring = NMR(na, t)[i];
 
 					if (nm_kring_pending_on(kring)) {
 						kring->nr_mode = NKR_NETMAP_ON;
@@ -1243,7 +1245,7 @@ ptnet_nm_register(struct netmap_adapter *na, int onoff)
 			nm_clear_native_flags(na);
 			for_rx_tx(t) {
 				for (i = 0; i <= nma_get_nrings(na, t); i++) {
-					struct netmap_kring *kring = &NMR(na, t)[i];
+					struct netmap_kring *kring = NMR(na, t)[i];
 
 					if (nm_kring_pending_off(kring)) {
 						kring->nr_mode = NKR_NETMAP_OFF;
@@ -1758,7 +1760,7 @@ ptnet_drain_transmit_queue(struct ptnet_queue *pq, unsigned int budget,
 
 	ptgh = pq->ptgh;
 	pthg = pq->pthg;
-	kring = na->tx_rings + pq->kring_id;
+	kring = na->tx_rings[pq->kring_id];
 	ring = kring->ring;
 	lim = kring->nkr_num_slots - 1;
 	head = ring->head;
@@ -2021,7 +2023,7 @@ ptnet_rx_eof(struct ptnet_queue *pq, unsigned int budget, bool may_resched)
 	struct ptnet_csb_gh *ptgh = pq->ptgh;
 	struct ptnet_csb_hg *pthg = pq->pthg;
 	struct netmap_adapter *na = &sc->ptna->dr.up;
-	struct netmap_kring *kring = na->rx_rings + pq->kring_id;
+	struct netmap_kring *kring = na->rx_rings[pq->kring_id];
 	struct netmap_ring *ring = kring->ring;
 	unsigned int const lim = kring->nkr_num_slots - 1;
 	unsigned int batch_count = 0;

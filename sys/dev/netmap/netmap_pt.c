@@ -639,9 +639,9 @@ static struct netmap_kring *
 ptnetmap_kring(struct netmap_pt_host_adapter *pth_na, int k)
 {
 	if (k < pth_na->up.num_tx_rings) {
-		return pth_na->up.tx_rings + k;
+		return pth_na->up.tx_rings[k];
 	}
-	return pth_na->up.rx_rings + k - pth_na->up.num_tx_rings;
+	return pth_na->up.rx_rings[k - pth_na->up.num_tx_rings];
 }
 
 static int
@@ -676,7 +676,18 @@ ptnetmap_create_kctxs(struct netmap_pt_host_adapter *pth_na,
 	struct nm_kctx_cfg nmk_cfg;
 	unsigned int num_rings;
 	uint8_t *cfg_entries = (uint8_t *)(cfg + 1);
+	unsigned int expected_cfgtype = 0;
 	int k;
+
+#if defined(__FreeBSD__)
+	expected_cfgtype = PTNETMAP_CFGTYPE_BHYVE;
+#elif defined(linux)
+	expected_cfgtype = PTNETMAP_CFGTYPE_QEMU;
+#endif
+	if (cfg->cfgtype != expected_cfgtype) {
+		D("Unsupported cfgtype %u", cfg->cfgtype);
+		return EINVAL;
+	}
 
 	num_rings = pth_na->up.num_tx_rings +
 		    pth_na->up.num_rx_rings;
@@ -695,7 +706,7 @@ ptnetmap_create_kctxs(struct netmap_pt_host_adapter *pth_na,
 		}
 
 		ptns->kctxs[k] = nm_os_kctx_create(&nmk_cfg,
-			cfg->cfgtype, cfg_entries + k * cfg->entry_size);
+				cfg_entries + k * cfg->entry_size);
 		if (ptns->kctxs[k] == NULL) {
 			goto err;
 		}
@@ -759,34 +770,6 @@ ptnetmap_stop_kctx_workers(struct netmap_pt_host_adapter *pth_na)
 	for (k = 0; k < num_rings; k++) {
 		nm_os_kctx_worker_stop(ptns->kctxs[k]);
 	}
-}
-
-static struct ptnetmap_cfg *
-ptnetmap_read_cfg(struct nmreq *nmr)
-{
-	uintptr_t *nmr_ptncfg = (uintptr_t *)&nmr->nr_arg1;
-	struct ptnetmap_cfg *cfg;
-	struct ptnetmap_cfg tmp;
-	size_t cfglen;
-
-	if (copyin((const void *)*nmr_ptncfg, &tmp, sizeof(tmp))) {
-		D("Partial copyin() failed");
-		return NULL;
-	}
-
-	cfglen = sizeof(tmp) + tmp.num_rings * tmp.entry_size;
-	cfg = nm_os_malloc(cfglen);
-	if (!cfg) {
-		return NULL;
-	}
-
-	if (copyin((const void *)*nmr_ptncfg, cfg, cfglen)) {
-		D("Full copyin() failed");
-		nm_os_free(cfg);
-		return NULL;
-	}
-
-	return cfg;
 }
 
 static int nm_unused_notify(struct netmap_kring *, int);
@@ -864,14 +847,14 @@ ptnetmap_create(struct netmap_pt_host_adapter *pth_na,
     }
 
     for (i = 0; i < pth_na->parent->num_rx_rings; i++) {
-        pth_na->up.rx_rings[i].save_notify =
-        	pth_na->up.rx_rings[i].nm_notify;
-        pth_na->up.rx_rings[i].nm_notify = nm_pt_host_notify;
+        pth_na->up.rx_rings[i]->save_notify =
+        	pth_na->up.rx_rings[i]->nm_notify;
+        pth_na->up.rx_rings[i]->nm_notify = nm_pt_host_notify;
     }
     for (i = 0; i < pth_na->parent->num_tx_rings; i++) {
-        pth_na->up.tx_rings[i].save_notify =
-        	pth_na->up.tx_rings[i].nm_notify;
-        pth_na->up.tx_rings[i].nm_notify = nm_pt_host_notify;
+        pth_na->up.tx_rings[i]->save_notify =
+        	pth_na->up.tx_rings[i]->nm_notify;
+        pth_na->up.tx_rings[i]->nm_notify = nm_pt_host_notify;
     }
 
 #ifdef RATE
@@ -912,14 +895,14 @@ ptnetmap_delete(struct netmap_pt_host_adapter *pth_na)
     pth_na->parent->na_flags = pth_na->parent_na_flags;
 
     for (i = 0; i < pth_na->parent->num_rx_rings; i++) {
-        pth_na->up.rx_rings[i].nm_notify =
-        	pth_na->up.rx_rings[i].save_notify;
-        pth_na->up.rx_rings[i].save_notify = NULL;
+        pth_na->up.rx_rings[i]->nm_notify =
+        	pth_na->up.rx_rings[i]->save_notify;
+        pth_na->up.rx_rings[i]->save_notify = NULL;
     }
     for (i = 0; i < pth_na->parent->num_tx_rings; i++) {
-        pth_na->up.tx_rings[i].nm_notify =
-        	pth_na->up.tx_rings[i].save_notify;
-        pth_na->up.tx_rings[i].save_notify = NULL;
+        pth_na->up.tx_rings[i]->nm_notify =
+        	pth_na->up.tx_rings[i]->save_notify;
+        pth_na->up.tx_rings[i]->save_notify = NULL;
     }
 
     /* Destroy kernel contexts. */
@@ -941,66 +924,55 @@ ptnetmap_delete(struct netmap_pt_host_adapter *pth_na)
 
 /*
  * Called by netmap_ioctl().
- * Operation is indicated in nmr->nr_cmd.
+ * Operation is indicated in nr_name.
  *
  * Called without NMG_LOCK.
  */
 int
-ptnetmap_ctl(struct nmreq *nmr, struct netmap_adapter *na)
+ptnetmap_ctl(const char *nr_name, int create, struct netmap_adapter *na)
 {
-    struct netmap_pt_host_adapter *pth_na;
-    struct ptnetmap_cfg *cfg;
-    char *name;
-    int cmd, error = 0;
+	struct netmap_pt_host_adapter *pth_na;
+	struct ptnetmap_cfg *cfg = NULL;
+	int error = 0;
 
-    name = nmr->nr_name;
-    cmd = nmr->nr_cmd;
+	DBG(D("name: %s", nr_name));
 
-    DBG(D("name: %s", name));
+	if (!nm_ptnetmap_host_on(na)) {
+		D("ERROR Netmap adapter %p is not a ptnetmap host adapter",
+			na);
+		return ENXIO;
+	}
+	pth_na = (struct netmap_pt_host_adapter *)na;
 
-    if (!nm_ptnetmap_host_on(na)) {
-        D("ERROR Netmap adapter %p is not a ptnetmap host adapter", na);
-        error = ENXIO;
-        goto done;
-    }
-    pth_na = (struct netmap_pt_host_adapter *)na;
+	NMG_LOCK();
+	if (create) {
+		/* Read hypervisor configuration from userspace. */
+		/* TODO */
+		if (!cfg) {
+			goto out;
+		}
+		/* Create ptnetmap state (kctxs, ...) and switch parent
+		 * adapter to ptnetmap mode. */
+		error = ptnetmap_create(pth_na, cfg);
+		nm_os_free(cfg);
+		if (error) {
+			goto out;
+		}
+		/* Start kthreads. */
+		error = ptnetmap_start_kctx_workers(pth_na);
+		if (error)
+			ptnetmap_delete(pth_na);
+	} else {
+		/* Stop kthreads. */
+		ptnetmap_stop_kctx_workers(pth_na);
+		/* Switch parent adapter back to normal mode and destroy
+		 * ptnetmap state (kthreads, ...). */
+		ptnetmap_delete(pth_na);
+	}
+out:
+	NMG_UNLOCK();
 
-    NMG_LOCK();
-    switch (cmd) {
-    case NETMAP_PT_HOST_CREATE:
-	/* Read hypervisor configuration from userspace. */
-        cfg = ptnetmap_read_cfg(nmr);
-        if (!cfg)
-            break;
-        /* Create ptnetmap state (kctxs, ...) and switch parent
-	 * adapter to ptnetmap mode. */
-        error = ptnetmap_create(pth_na, cfg);
-	nm_os_free(cfg);
-        if (error)
-            break;
-        /* Start kthreads. */
-        error = ptnetmap_start_kctx_workers(pth_na);
-        if (error)
-            ptnetmap_delete(pth_na);
-        break;
-
-    case NETMAP_PT_HOST_DELETE:
-        /* Stop kthreads. */
-        ptnetmap_stop_kctx_workers(pth_na);
-        /* Switch parent adapter back to normal mode and destroy
-	 * ptnetmap state (kthreads, ...). */
-        ptnetmap_delete(pth_na);
-        break;
-
-    default:
-        D("ERROR invalid cmd (nmr->nr_cmd) (0x%x)", cmd);
-        error = EINVAL;
-        break;
-    }
-    NMG_UNLOCK();
-
-done:
-    return error;
+	return error;
 }
 
 /* nm_notify callbacks for ptnetmap */
@@ -1048,8 +1020,7 @@ nm_unused_notify(struct netmap_kring *kring, int flags)
 
 /* nm_config callback for bwrap */
 static int
-nm_pt_host_config(struct netmap_adapter *na, u_int *txr, u_int *txd,
-        u_int *rxr, u_int *rxd)
+nm_pt_host_config(struct netmap_adapter *na, struct nm_config_info *info)
 {
     struct netmap_pt_host_adapter *pth_na =
         (struct netmap_pt_host_adapter *)na;
@@ -1061,12 +1032,11 @@ nm_pt_host_config(struct netmap_adapter *na, u_int *txr, u_int *txd,
     /* forward the request */
     error = netmap_update_config(parent);
 
-    *rxr = na->num_rx_rings = parent->num_rx_rings;
-    *txr = na->num_tx_rings = parent->num_tx_rings;
-    *txd = na->num_tx_desc = parent->num_tx_desc;
-    *rxd = na->num_rx_desc = parent->num_rx_desc;
-
-    DBG(D("rxr: %d txr: %d txd: %d rxd: %d", *rxr, *txr, *txd, *rxd));
+    info->num_rx_rings = na->num_rx_rings = parent->num_rx_rings;
+    info->num_tx_rings = na->num_tx_rings = parent->num_tx_rings;
+    info->num_tx_descs = na->num_tx_desc = parent->num_tx_desc;
+    info->num_rx_descs = na->num_rx_desc = parent->num_rx_desc;
+    info->rx_buf_maxsize = na->rx_buf_maxsize = parent->rx_buf_maxsize;
 
     return error;
 }
@@ -1107,7 +1077,7 @@ nm_pt_host_krings_create(struct netmap_adapter *na)
 	 * host rings independently on what the regif asked for:
 	 * these rings are needed by the guest ptnetmap adapter
 	 * anyway. */
-	kring = &NMR(na, t)[nma_get_nrings(na, t)];
+	kring = NMR(na, t)[nma_get_nrings(na, t)];
 	kring->nr_kflags |= NKR_NEEDRING;
     }
 
@@ -1187,17 +1157,18 @@ nm_pt_host_dtor(struct netmap_adapter *na)
 
 /* check if nmr is a request for a ptnetmap adapter that we can satisfy */
 int
-netmap_get_pt_host_na(struct nmreq *nmr, struct netmap_adapter **na,
+netmap_get_pt_host_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 		struct netmap_mem_d *nmd, int create)
 {
-    struct nmreq parent_nmr;
+    struct nmreq_register *req = (struct nmreq_register *)hdr->nr_body;
+    struct nmreq_register preq;
     struct netmap_adapter *parent; /* target adapter */
     struct netmap_pt_host_adapter *pth_na;
     struct ifnet *ifp = NULL;
     int error;
 
     /* Check if it is a request for a ptnetmap adapter */
-    if ((nmr->nr_flags & (NR_PTNETMAP_HOST)) == 0) {
+    if ((req->nr_flags & (NR_PTNETMAP_HOST)) == 0) {
         return 0;
     }
 
@@ -1210,12 +1181,14 @@ netmap_get_pt_host_na(struct nmreq *nmr, struct netmap_adapter **na,
     }
 
     /* first, try to find the adapter that we want to passthrough
-     * We use the same nmr, after we have turned off the ptnetmap flag.
+     * We use the same req, after we have turned off the ptnetmap flag.
      * In this way we can potentially passthrough everything netmap understands.
      */
-    memcpy(&parent_nmr, nmr, sizeof(parent_nmr));
-    parent_nmr.nr_flags &= ~(NR_PTNETMAP_HOST);
-    error = netmap_get_na(&parent_nmr, &parent, &ifp, nmd, create);
+    memcpy(&preq, req, sizeof(preq));
+    preq.nr_flags &= ~(NR_PTNETMAP_HOST);
+    hdr->nr_body = (uint64_t)&preq;
+    error = netmap_get_na(hdr, &parent, &ifp, nmd, create);
+    hdr->nr_body = (uint64_t)req;
     if (error) {
         D("parent lookup failed: %d", error);
         goto put_out_noputparent;
