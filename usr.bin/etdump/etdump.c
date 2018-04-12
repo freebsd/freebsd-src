@@ -80,7 +80,9 @@ static int
 read_sector(FILE *iso, daddr_t sector, char *buffer)
 {
 
-	fseek(iso, sector * ISO_DEFAULT_BLOCK_SIZE, SEEK_SET);
+	if (fseek(iso, sector * ISO_DEFAULT_BLOCK_SIZE, SEEK_SET) != 0) {
+		return (errno);
+	}
 	if (fread(buffer, ISO_DEFAULT_BLOCK_SIZE, 1, iso) != 1) {
 		return (errno);
 	}
