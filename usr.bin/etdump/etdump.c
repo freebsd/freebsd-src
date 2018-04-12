@@ -257,7 +257,6 @@ main(int argc, char **argv)
 	argv += optind;
 
 	for (i = 0; i < argc; i++) {
-		printf("%d %s\n", optind, argv[i]);
 		if (strcmp(argv[i], "-") == 0) {
 			iso = stdin;
 		} else {
