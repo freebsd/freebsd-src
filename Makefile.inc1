@@ -808,7 +808,8 @@ _cleanobj_fast_depend_hack: .PHONY
 # 20180404  r332048  sigreturn
 # 20180405  r332080  shmat
 # 20180406  r332119  setlogin
-.for f in fstat fstatat fstatfs getdirentries getfsstat setlogin shmat sigreturn statfs
+# 20170411  r332443  exect
+.for f in exect fstat fstatat fstatfs getdirentries getfsstat setlogin shmat sigreturn statfs
 .if exists(${OBJTOP}/lib/libc/.depend.${f}.o)
 	@if egrep -qw '${f}\.[sS]' \
 	    ${OBJTOP}/lib/libc/.depend.${f}.o; then \
