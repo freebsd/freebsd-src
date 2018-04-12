@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2016-2018 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/kobj.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/sysctl.h>
@@ -58,40 +57,28 @@ __FBSDID("$FreeBSD$");
 
 #include <xdma_if.h>
 
-MALLOC_DEFINE(M_XDMA, "xdma", "xDMA framework");
-
 /*
  * Multiple xDMA controllers may work with single DMA device,
  * so we have global lock for physical channel management.
  */
-static struct mtx xdma_mtx;
-#define	XDMA_LOCK()		mtx_lock(&xdma_mtx)
-#define	XDMA_UNLOCK()		mtx_unlock(&xdma_mtx)
-#define	XDMA_ASSERT_LOCKED()	mtx_assert(&xdma_mtx, MA_OWNED)
+static struct sx xdma_sx;
 
-/*
- * Per channel locks.
- */
-#define	XCHAN_LOCK(xchan)		mtx_lock(&(xchan)->mtx_lock)
-#define	XCHAN_UNLOCK(xchan)		mtx_unlock(&(xchan)->mtx_lock)
-#define	XCHAN_ASSERT_LOCKED(xchan)	mtx_assert(&(xchan)->mtx_lock, MA_OWNED)
+#define	XDMA_LOCK()			sx_xlock(&xdma_sx)
+#define	XDMA_UNLOCK()			sx_xunlock(&xdma_sx)
+#define	XDMA_ASSERT_LOCKED()		sx_xassert(&xdma_sx, MA_OWNED)
 
 /*
  * Allocate virtual xDMA channel.
  */
 xdma_channel_t *
-xdma_channel_alloc(xdma_controller_t *xdma)
+xdma_channel_alloc(xdma_controller_t *xdma, uint32_t caps)
 {
 	xdma_channel_t *xchan;
 	int ret;
 
 	xchan = malloc(sizeof(xdma_channel_t), M_XDMA, M_WAITOK | M_ZERO);
-	if (xchan == NULL) {
-		device_printf(xdma->dev,
-		    "%s: Can't allocate memory for channel.\n", __func__);
-		return (NULL);
-	}
 	xchan->xdma = xdma;
+	xchan->caps = caps;
 
 	XDMA_LOCK();
 
@@ -107,7 +94,17 @@ xdma_channel_alloc(xdma_controller_t *xdma)
 	}
 
 	TAILQ_INIT(&xchan->ie_handlers);
-	mtx_init(&xchan->mtx_lock, "xDMA", NULL, MTX_DEF);
+
+	sx_init(&xchan->sx_lock, "xDMA chan");
+	sx_init(&xchan->sx_qin_lock, "xDMA qin");
+	sx_init(&xchan->sx_qout_lock, "xDMA qout");
+	sx_init(&xchan->sx_bank_lock, "xDMA bank");
+	sx_init(&xchan->sx_proc_lock, "xDMA proc");
+
+	TAILQ_INIT(&xchan->bank);
+	TAILQ_INIT(&xchan->queue_in);
+	TAILQ_INIT(&xchan->queue_out);
+	TAILQ_INIT(&xchan->processing);
 
 	TAILQ_INSERT_TAIL(&xdma->channels, xchan, xchan_next);
 
@@ -123,6 +120,7 @@ xdma_channel_free(xdma_channel_t *xchan)
 	int err;
 
 	xdma = xchan->xdma;
+	KASSERT(xdma != NULL, ("xdma is NULL"));
 
 	XDMA_LOCK();
 
@@ -135,12 +133,16 @@ xdma_channel_free(xdma_channel_t *xchan)
 		return (-1);
 	}
 
+	if (xchan->flags & XCHAN_TYPE_SG)
+		xdma_channel_free_sg(xchan);
+
 	xdma_teardown_all_intr(xchan);
 
-	/* Deallocate descriptors, if any. */
-	xdma_desc_free(xchan);
-
-	mtx_destroy(&xchan->mtx_lock);
+	sx_destroy(&xchan->sx_lock);
+	sx_destroy(&xchan->sx_qin_lock);
+	sx_destroy(&xchan->sx_qout_lock);
+	sx_destroy(&xchan->sx_bank_lock);
+	sx_destroy(&xchan->sx_proc_lock);
 
 	TAILQ_REMOVE(&xdma->channels, xchan, xchan_next);
 
@@ -152,8 +154,9 @@ xdma_channel_free(xdma_channel_t *xchan)
 }
 
 int
-xdma_setup_intr(xdma_channel_t *xchan, int (*cb)(void *), void *arg,
-    void **ihandler)
+xdma_setup_intr(xdma_channel_t *xchan,
+    int (*cb)(void *, xdma_transfer_status_t *),
+    void *arg, void **ihandler)
 {
 	struct xdma_intr_handler *ih;
 	xdma_controller_t *xdma;
@@ -172,22 +175,15 @@ xdma_setup_intr(xdma_channel_t *xchan, int (*cb)(void *), void *arg,
 
 	ih = malloc(sizeof(struct xdma_intr_handler),
 	    M_XDMA, M_WAITOK | M_ZERO);
-	if (ih == NULL) {
-		device_printf(xdma->dev,
-		    "%s: Can't allocate memory for interrupt handler.\n",
-		    __func__);
-
-		return (-1);
-	}
-
 	ih->cb = cb;
 	ih->cb_user = arg;
 
+	XCHAN_LOCK(xchan);
 	TAILQ_INSERT_TAIL(&xchan->ie_handlers, ih, ih_next);
+	XCHAN_UNLOCK(xchan);
 
-	if (ihandler != NULL) {
+	if (ihandler != NULL)
 		*ihandler = ih;
-	}
 
 	return (0);
 }
@@ -231,324 +227,65 @@ xdma_teardown_all_intr(xdma_channel_t *xchan)
 	return (0);
 }
 
-static void
-xdma_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
-{
-	xdma_channel_t *xchan;
-	int i;
-
-	xchan = (xdma_channel_t *)arg;
-	KASSERT(xchan != NULL, ("xchan is NULL"));
-
-	if (err) {
-		xchan->map_err = 1;
-		return;
-	}
-
-	for (i = 0; i < nseg; i++) {
-		xchan->descs_phys[i].ds_addr = segs[i].ds_addr;
-		xchan->descs_phys[i].ds_len = segs[i].ds_len;
-	}
-}
-
-static int
-xdma_desc_alloc_bus_dma(xdma_channel_t *xchan, uint32_t desc_size,
-    uint32_t align)
-{
-	xdma_controller_t *xdma;
-	bus_size_t all_desc_sz;
-	xdma_config_t *conf;
-	int nsegments;
-	int err;
-
-	xdma = xchan->xdma;
-	conf = &xchan->conf;
-
-	nsegments = conf->block_num;
-	all_desc_sz = (nsegments * desc_size);
-
-	err = bus_dma_tag_create(
-	    bus_get_dma_tag(xdma->dev),
-	    align, desc_size,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    all_desc_sz, nsegments,	/* maxsize, nsegments*/
-	    desc_size, 0,		/* maxsegsize, flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
-	    &xchan->dma_tag);
-	if (err) {
-		device_printf(xdma->dev,
-		    "%s: Can't create bus_dma tag.\n", __func__);
-		return (-1);
-	}
-
-	err = bus_dmamem_alloc(xchan->dma_tag, (void **)&xchan->descs,
-	    BUS_DMA_WAITOK | BUS_DMA_COHERENT, &xchan->dma_map);
-	if (err) {
-		device_printf(xdma->dev,
-		    "%s: Can't allocate memory for descriptors.\n", __func__);
-		return (-1);
-	}
-
-	xchan->descs_phys = malloc(nsegments * sizeof(xdma_descriptor_t), M_XDMA,
-	    (M_WAITOK | M_ZERO));
-
-	xchan->map_err = 0;
-	err = bus_dmamap_load(xchan->dma_tag, xchan->dma_map, xchan->descs,
-	    all_desc_sz, xdma_dmamap_cb, xchan, BUS_DMA_WAITOK);
-	if (err) {
-		device_printf(xdma->dev,
-		    "%s: Can't load DMA map.\n", __func__);
-		return (-1);
-	}
-
-	if (xchan->map_err != 0) {
-		device_printf(xdma->dev,
-		    "%s: Can't load DMA map.\n", __func__);
-		return (-1);
-	}
-
-	return (0);
-}
-
-/*
- * This function called by DMA controller driver.
- */
 int
-xdma_desc_alloc(xdma_channel_t *xchan, uint32_t desc_size, uint32_t align)
+xdma_request(xdma_channel_t *xchan, struct xdma_request *req)
 {
 	xdma_controller_t *xdma;
-	xdma_config_t *conf;
 	int ret;
 
-	XCHAN_ASSERT_LOCKED(xchan);
-
 	xdma = xchan->xdma;
-	if (xdma == NULL) {
-		device_printf(xdma->dev,
-		    "%s: Channel was not allocated properly.\n", __func__);
-		return (-1);
-	}
 
-	if (xchan->flags & XCHAN_DESC_ALLOCATED) {
-		device_printf(xdma->dev,
-		    "%s: Descriptors already allocated.\n", __func__);
-		return (-1);
-	}
+	KASSERT(xdma != NULL, ("xdma is NULL"));
 
-	if ((xchan->flags & XCHAN_CONFIGURED) == 0) {
-		device_printf(xdma->dev,
-		    "%s: Channel has no configuration.\n", __func__);
-		return (-1);
-	}
-
-	conf = &xchan->conf;
-
-	XCHAN_UNLOCK(xchan);
-	ret = xdma_desc_alloc_bus_dma(xchan, desc_size, align);
 	XCHAN_LOCK(xchan);
+	ret = XDMA_CHANNEL_REQUEST(xdma->dma_dev, xchan, req);
 	if (ret != 0) {
 		device_printf(xdma->dev,
-		    "%s: Can't allocate memory for descriptors.\n",
-		    __func__);
+		    "%s: Can't request a transfer.\n", __func__);
+		XCHAN_UNLOCK(xchan);
+
 		return (-1);
 	}
-
-	xchan->flags |= XCHAN_DESC_ALLOCATED;
-
-	/* We are going to write to descriptors. */
-	bus_dmamap_sync(xchan->dma_tag, xchan->dma_map, BUS_DMASYNC_PREWRITE);
+	XCHAN_UNLOCK(xchan);
 
 	return (0);
 }
 
 int
-xdma_desc_free(xdma_channel_t *xchan)
-{
-
-	if ((xchan->flags & XCHAN_DESC_ALLOCATED) == 0) {
-		/* No descriptors allocated. */
-		return (-1);
-	}
-
-	bus_dmamap_unload(xchan->dma_tag, xchan->dma_map);
-	bus_dmamem_free(xchan->dma_tag, xchan->descs, xchan->dma_map);
-	bus_dma_tag_destroy(xchan->dma_tag);
-	free(xchan->descs_phys, M_XDMA);
-
-	xchan->flags &= ~(XCHAN_DESC_ALLOCATED);
-
-	return (0);
-}
-
-int
-xdma_prep_memcpy(xdma_channel_t *xchan, uintptr_t src_addr,
-    uintptr_t dst_addr, size_t len)
+xdma_control(xdma_channel_t *xchan, enum xdma_command cmd)
 {
 	xdma_controller_t *xdma;
-	xdma_config_t *conf;
 	int ret;
 
 	xdma = xchan->xdma;
 	KASSERT(xdma != NULL, ("xdma is NULL"));
 
-	conf = &xchan->conf;
-	conf->direction = XDMA_MEM_TO_MEM;
-	conf->src_addr = src_addr;
-	conf->dst_addr = dst_addr;
-	conf->block_len = len;
-	conf->block_num = 1;
-
-	xchan->flags |= (XCHAN_CONFIGURED | XCHAN_TYPE_MEMCPY);
-
-	XCHAN_LOCK(xchan);
-
-	/* Deallocate old descriptors, if any. */
-	xdma_desc_free(xchan);
-
-	ret = XDMA_CHANNEL_PREP_MEMCPY(xdma->dma_dev, xchan);
+	ret = XDMA_CHANNEL_CONTROL(xdma->dma_dev, xchan, cmd);
 	if (ret != 0) {
 		device_printf(xdma->dev,
-		    "%s: Can't prepare memcpy transfer.\n", __func__);
-		XCHAN_UNLOCK(xchan);
-
+		    "%s: Can't process command.\n", __func__);
 		return (-1);
-	}
-
-	if (xchan->flags & XCHAN_DESC_ALLOCATED) {
-		/* Driver created xDMA descriptors. */
-		bus_dmamap_sync(xchan->dma_tag, xchan->dma_map,
-		    BUS_DMASYNC_POSTWRITE);
-	}
-
-	XCHAN_UNLOCK(xchan);
-
-	return (0);
-}
-
-int
-xdma_prep_cyclic(xdma_channel_t *xchan, enum xdma_direction dir,
-    uintptr_t src_addr, uintptr_t dst_addr, int block_len,
-    int block_num, int src_width, int dst_width)
-{
-	xdma_controller_t *xdma;
-	xdma_config_t *conf;
-	int ret;
-
-	xdma = xchan->xdma;
-	KASSERT(xdma != NULL, ("xdma is NULL"));
-
-	conf = &xchan->conf;
-	conf->direction = dir;
-	conf->src_addr = src_addr;
-	conf->dst_addr = dst_addr;
-	conf->block_len = block_len;
-	conf->block_num = block_num;
-	conf->src_width = src_width;
-	conf->dst_width = dst_width;
-
-	xchan->flags |= (XCHAN_CONFIGURED | XCHAN_TYPE_CYCLIC);
-
-	XCHAN_LOCK(xchan);
-
-	/* Deallocate old descriptors, if any. */
-	xdma_desc_free(xchan);
-
-	ret = XDMA_CHANNEL_PREP_CYCLIC(xdma->dma_dev, xchan);
-	if (ret != 0) {
-		device_printf(xdma->dev,
-		    "%s: Can't prepare cyclic transfer.\n", __func__);
-		XCHAN_UNLOCK(xchan);
-
-		return (-1);
-	}
-
-	if (xchan->flags & XCHAN_DESC_ALLOCATED) {
-		/* Driver has created xDMA descriptors. */
-		bus_dmamap_sync(xchan->dma_tag, xchan->dma_map,
-		    BUS_DMASYNC_POSTWRITE);
-	}
-
-	XCHAN_UNLOCK(xchan);
-
-	return (0);
-}
-
-int
-xdma_begin(xdma_channel_t *xchan)
-{
-	xdma_controller_t *xdma;
-	int ret;
-
-	xdma = xchan->xdma;
-
-	ret = XDMA_CHANNEL_CONTROL(xdma->dma_dev, xchan, XDMA_CMD_BEGIN);
-	if (ret != 0) {
-		device_printf(xdma->dev,
-		    "%s: Can't begin the channel operation.\n", __func__);
-		return (-1);
-	}
-
-	return (0);
-}
-
-int
-xdma_terminate(xdma_channel_t *xchan)
-{
-	xdma_controller_t *xdma;
-	int ret;
-
-	xdma = xchan->xdma;
-
-	ret = XDMA_CHANNEL_CONTROL(xdma->dma_dev, xchan, XDMA_CMD_TERMINATE);
-	if (ret != 0) {
-		device_printf(xdma->dev,
-		    "%s: Can't terminate the channel operation.\n", __func__);
-		return (-1);
-	}
-
-	return (0);
-}
-
-int
-xdma_pause(xdma_channel_t *xchan)
-{
-	xdma_controller_t *xdma;
-	int ret;
-
-	xdma = xchan->xdma;
-
-	ret = XDMA_CHANNEL_CONTROL(xdma->dma_dev, xchan, XDMA_CMD_PAUSE);
-	if (ret != 0) {
-		device_printf(xdma->dev,
-		    "%s: Can't pause the channel operation.\n", __func__);
-		return (-1);
-	}
-
-	return (ret);
-}
-
-int
-xdma_callback(xdma_channel_t *xchan)
-{
-	struct xdma_intr_handler *ih_tmp;
-	struct xdma_intr_handler *ih;
-
-	TAILQ_FOREACH_SAFE(ih, &xchan->ie_handlers, ih_next, ih_tmp) {
-		if (ih->cb != NULL) {
-			ih->cb(ih->cb_user);
-		}
 	}
 
 	return (0);
 }
 
 void
-xdma_assert_locked(void)
+xdma_callback(xdma_channel_t *xchan, xdma_transfer_status_t *status)
 {
+	struct xdma_intr_handler *ih_tmp;
+	struct xdma_intr_handler *ih;
+	xdma_controller_t *xdma;
 
-	XDMA_ASSERT_LOCKED();
+	xdma = xchan->xdma;
+	KASSERT(xdma != NULL, ("xdma is NULL"));
+
+	TAILQ_FOREACH_SAFE(ih, &xchan->ie_handlers, ih_next, ih_tmp)
+		if (ih->cb != NULL)
+			ih->cb(ih->cb_user, status);
+
+	if (xchan->flags & XCHAN_TYPE_SG)
+		xdma_queue_submit(xchan);
 }
 
 #ifdef FDT
@@ -560,7 +297,8 @@ xdma_ofw_md_data(xdma_controller_t *xdma, pcell_t *cells, int ncells)
 {
 	uint32_t ret;
 
-	ret = XDMA_OFW_MD_DATA(xdma->dma_dev, cells, ncells, (void **)&xdma->data);
+	ret = XDMA_OFW_MD_DATA(xdma->dma_dev,
+	    cells, ncells, (void **)&xdma->data);
 
 	return (ret);
 }
@@ -581,10 +319,9 @@ xdma_ofw_get(device_t dev, const char *prop)
 	int idx;
 
 	node = ofw_bus_get_node(dev);
-	if (node <= 0) {
+	if (node <= 0)
 		device_printf(dev,
 		    "%s called on not ofw based device.\n", __func__);
-	}
 
 	error = ofw_bus_parse_xref_list_get_length(node,
 	    "dmas", "#dma-cells", &ndmas);
@@ -622,12 +359,8 @@ xdma_ofw_get(device_t dev, const char *prop)
 		return (NULL);
 	}
 
-	xdma = malloc(sizeof(struct xdma_controller), M_XDMA, M_WAITOK | M_ZERO);
-	if (xdma == NULL) {
-		device_printf(dev,
-		    "%s can't allocate memory for xdma.\n", __func__);
-		return (NULL);
-	}
+	xdma = malloc(sizeof(struct xdma_controller),
+	    M_XDMA, M_WAITOK | M_ZERO);
 	xdma->dev = dev;
 	xdma->dma_dev = dma_dev;
 
@@ -667,7 +400,7 @@ static void
 xdma_init(void)
 {
 
-	mtx_init(&xdma_mtx, "xDMA", NULL, MTX_DEF);
+	sx_init(&xdma_sx, "xDMA");
 }
 
 SYSINIT(xdma, SI_SUB_DRIVERS, SI_ORDER_FIRST, xdma_init, NULL);
