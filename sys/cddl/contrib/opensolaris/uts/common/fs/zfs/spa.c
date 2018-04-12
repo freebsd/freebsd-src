@@ -4666,12 +4666,18 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	uint_t nspares, nl2cache;
 	uint64_t version, obj;
 	boolean_t has_features;
+	char *poolname;
+	nvlist_t *nvl;
+
+	if (nvlist_lookup_string(props,
+	    zpool_prop_to_name(ZPOOL_PROP_TNAME), &poolname) != 0)
+		poolname = (char *)pool;
 
 	/*
 	 * If this pool already exists, return failure.
 	 */
 	mutex_enter(&spa_namespace_lock);
-	if (spa_lookup(pool) != NULL) {
+	if (spa_lookup(poolname) != NULL) {
 		mutex_exit(&spa_namespace_lock);
 		return (SET_ERROR(EEXIST));
 	}
@@ -4679,9 +4685,12 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	/*
 	 * Allocate a new spa_t structure.
 	 */
+	nvl = fnvlist_alloc();
+	fnvlist_add_string(nvl, ZPOOL_CONFIG_POOL_NAME, pool);
 	(void) nvlist_lookup_string(props,
 	    zpool_prop_to_name(ZPOOL_PROP_ALTROOT), &altroot);
-	spa = spa_add(pool, NULL, altroot);
+	spa = spa_add(poolname, nvl, altroot);
+	fnvlist_free(nvl);
 	spa_activate(spa, spa_mode_global);
 
 	if (props && (error = spa_prop_validate(spa, props))) {
@@ -4690,6 +4699,12 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 		mutex_exit(&spa_namespace_lock);
 		return (error);
 	}
+
+	/*
+	 * Temporary pool names should never be written to disk.
+	 */
+	if (poolname != pool)
+		spa->spa_import_flags |= ZFS_IMPORT_TEMP_NAME;
 
 	has_features = B_FALSE;
 	for (nvpair_t *elem = nvlist_next_nvpair(props, NULL);
