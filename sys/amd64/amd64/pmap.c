@@ -7330,8 +7330,9 @@ pmap_pcid_alloc(pmap_t pmap, u_int cpuid)
 
 	CRITICAL_ASSERT(curthread);
 	gen = PCPU_GET(pcid_gen);
-	if (!pti && (pmap->pm_pcids[cpuid].pm_pcid == PMAP_PCID_KERN ||
-	    pmap->pm_pcids[cpuid].pm_gen == gen))
+	if (pmap->pm_pcids[cpuid].pm_pcid == PMAP_PCID_KERN)
+		return (pti ? 0 : CR3_PCID_SAVE);
+	if (pmap->pm_pcids[cpuid].pm_gen == gen)
 		return (CR3_PCID_SAVE);
 	pcid_next = PCPU_GET(pcid_next);
 	KASSERT((!pti && pcid_next <= PMAP_PCID_OVERMAX) ||
@@ -7358,7 +7359,7 @@ pmap_activate_sw(struct thread *td)
 {
 	pmap_t oldpmap, pmap;
 	struct invpcid_descr d;
-	uint64_t cached, cr3, kcr3, ucr3;
+	uint64_t cached, cr3, kcr3, kern_pti_cached, ucr3;
 	register_t rflags;
 	u_int cpuid;
 
@@ -7407,11 +7408,10 @@ pmap_activate_sw(struct thread *td)
 		if (!invpcid_works)
 			rflags = intr_disable();
 
-		if (!cached || (cr3 & ~CR3_PCID_MASK) != pmap->pm_cr3) {
+		kern_pti_cached = pti ? 0 : cached;
+		if (!kern_pti_cached || (cr3 & ~CR3_PCID_MASK) != pmap->pm_cr3) {
 			load_cr3(pmap->pm_cr3 | pmap->pm_pcids[cpuid].pm_pcid |
-			    cached);
-			if (cached)
-				PCPU_INC(pm_save_cnt);
+			    kern_pti_cached);
 		}
 		PCPU_SET(curpmap, pmap);
 		if (pti) {
@@ -7419,13 +7419,13 @@ pmap_activate_sw(struct thread *td)
 			ucr3 = pmap->pm_ucr3 | pmap->pm_pcids[cpuid].pm_pcid |
 			    PMAP_PCID_USER_PT;
 
-			/*
-			 * Manually invalidate translations cached
-			 * from the user page table, which are not
-			 * flushed by reload of cr3 with the kernel
-			 * page table pointer above.
-			 */
-			if (pmap->pm_ucr3 != PMAP_NO_CR3) {
+			if (!cached && pmap->pm_ucr3 != PMAP_NO_CR3) {
+				/*
+				 * Manually invalidate translations cached
+				 * from the user page table.  They are not
+				 * flushed by reload of cr3 with the kernel
+				 * page table pointer above.
+				 */
 				if (invpcid_works) {
 					d.pcid = PMAP_PCID_USER_PT |
 					    pmap->pm_pcids[cpuid].pm_pcid;
@@ -7442,6 +7442,8 @@ pmap_activate_sw(struct thread *td)
 		}
 		if (!invpcid_works)
 			intr_restore(rflags);
+		if (cached)
+			PCPU_INC(pm_save_cnt);
 	} else if (cr3 != pmap->pm_cr3) {
 		load_cr3(pmap->pm_cr3);
 		PCPU_SET(curpmap, pmap);
