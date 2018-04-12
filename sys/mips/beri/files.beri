@@ -21,5 +21,6 @@ dev/terasic/mtl/terasic_mtl_syscons.c	optional terasic_mtl sc
 dev/terasic/mtl/terasic_mtl_text.c	optional terasic_mtl
 dev/terasic/mtl/terasic_mtl_vt.c	optional terasic_mtl vt
 mips/beri/beri_machdep.c		standard
+mips/beri/beri_mp.c			optional smp
 mips/beri/beri_pic.c			optional fdt
 mips/mips/tick.c			standard
