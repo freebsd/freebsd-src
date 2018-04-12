@@ -226,6 +226,7 @@ spa_write_cachefile(spa_t *target, boolean_t removing, boolean_t postsysevent)
 	nvlist_t *nvl;
 	boolean_t ccw_failure;
 	int error;
+	char *pool_name;
 
 	ASSERT(MUTEX_HELD(&spa_namespace_lock));
 
@@ -274,11 +275,18 @@ spa_write_cachefile(spa_t *target, boolean_t removing, boolean_t postsysevent)
 			if (nvl == NULL)
 				nvl = fnvlist_alloc();
 
-			fnvlist_add_nvlist(nvl, spa->spa_name,
+			if (spa->spa_import_flags & ZFS_IMPORT_TEMP_NAME) {
+				pool_name = fnvlist_lookup_string(spa->spa_config,
+					ZPOOL_CONFIG_POOL_NAME);
+			} else {
+				pool_name = spa_name(spa);
+			}
+
+			fnvlist_add_nvlist(nvl, pool_name,
 			    spa->spa_config);
 			mutex_exit(&spa->spa_props_lock);
 
-			if (nvlist_lookup_nvlist(nvl, spa->spa_name, &nvroot) == 0)
+			if (nvlist_lookup_nvlist(nvl, pool_name, &nvroot) == 0)
 				spa_config_clean(nvroot);
 		}
 
@@ -382,6 +390,7 @@ spa_config_generate(spa_t *spa, vdev_t *vd, uint64_t txg, int getstats)
 	unsigned long hostid = 0;
 	boolean_t locked = B_FALSE;
 	uint64_t split_guid;
+	char *pool_name;
 
 	if (vd == NULL) {
 		vd = rvd;
@@ -398,10 +407,27 @@ spa_config_generate(spa_t *spa, vdev_t *vd, uint64_t txg, int getstats)
 	if (txg == -1ULL)
 		txg = spa->spa_config_txg;
 
+	/*
+	 * Originally, users had to handle spa namespace collisions by either
+	 * exporting the already imported pool or by specifying a new name for
+	 * the pool with a conflicting name. In the case of root pools from
+	 * virtual guests, neither approach to collision resolution is
+	 * reasonable. This is addressed by extending the new name syntax with
+	 * an option to specify that the new name is temporary. When specified,
+	 * ZFS_IMPORT_TEMP_NAME will be set in spa->spa_import_flags to tell us
+	 * to use the previous name, which we do below.
+	 */
+	if (spa->spa_import_flags & ZFS_IMPORT_TEMP_NAME) {
+		pool_name = fnvlist_lookup_string(spa->spa_config,
+			ZPOOL_CONFIG_POOL_NAME);
+	} else {
+		pool_name = spa_name(spa);
+	}
+
 	config = fnvlist_alloc();
 
 	fnvlist_add_uint64(config, ZPOOL_CONFIG_VERSION, spa_version(spa));
-	fnvlist_add_string(config, ZPOOL_CONFIG_POOL_NAME, spa_name(spa));
+	fnvlist_add_string(config, ZPOOL_CONFIG_POOL_NAME, pool_name);
 	fnvlist_add_uint64(config, ZPOOL_CONFIG_POOL_STATE, spa_state(spa));
 	fnvlist_add_uint64(config, ZPOOL_CONFIG_POOL_TXG, txg);
 	fnvlist_add_uint64(config, ZPOOL_CONFIG_POOL_GUID, spa_guid(spa));
