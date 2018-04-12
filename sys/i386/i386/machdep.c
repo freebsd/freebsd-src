@@ -1104,8 +1104,12 @@ sys_sigreturn(td, uap)
 void
 exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
-	struct trapframe *regs = td->td_frame;
-	struct pcb *pcb = td->td_pcb;
+	struct trapframe *regs;
+	struct pcb *pcb;
+	register_t saved_eflags;
+
+	regs = td->td_frame;
+	pcb = td->td_pcb;
 
 	/* Reset pc->pcb_gs and %gs before possibly invalidating it. */
 	pcb->pcb_gs = _udatasel;
@@ -1127,10 +1131,11 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	set_gsbase(td, 0);
 
 	/* Make sure edx is 0x0 on entry. Linux binaries depend on it. */
+	saved_eflags = regs->tf_eflags & PSL_T;
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_eip = imgp->entry_addr;
 	regs->tf_esp = stack;
-	regs->tf_eflags = PSL_USER | (regs->tf_eflags & PSL_T);
+	regs->tf_eflags = PSL_USER | saved_eflags;
 	regs->tf_ss = _udatasel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
