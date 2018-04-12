@@ -3,7 +3,8 @@
 # Search for kernel source tree in standard places.
 .if empty(KERNBUILDDIR)
 .if !defined(SYSDIR)
-.for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. ${.CURDIR}/../../../.. \
+.for _dir in ${SRCTOP:D${SRCTOP}/sys} \
+    ${.CURDIR}/../.. ${.CURDIR}/../../.. ${.CURDIR}/../../../.. \
     ${.CURDIR}/../../../../.. /sys /usr/src/sys
 .if !defined(SYSDIR) && exists(${_dir}/kern/) && exists(${_dir}/conf/kmod.mk)
 SYSDIR=	${_dir}
