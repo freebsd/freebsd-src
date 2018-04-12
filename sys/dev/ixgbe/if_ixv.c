@@ -1450,7 +1450,7 @@ ixv_initialize_receive_units(if_ctx_t ctx)
 		 */
 		if (ifp->if_capenable & IFCAP_NETMAP) {
 			struct netmap_adapter *na = NA(ifp);
-			struct netmap_kring *kring = &na->rx_rings[j];
+			struct netmap_kring *kring = na->rx_rings[j];
 			int t = na->num_rx_desc - 1 - nm_kr_rxspace(kring);
 
 			IXGBE_WRITE_REG(hw, IXGBE_VFRDT(rxr->me), t);

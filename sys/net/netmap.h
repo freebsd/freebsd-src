@@ -41,7 +41,7 @@
 #ifndef _NET_NETMAP_H_
 #define _NET_NETMAP_H_
 
-#define	NETMAP_API	11		/* current API version */
+#define	NETMAP_API	12		/* current API version */
 
 #define	NETMAP_MIN_API	11		/* min and max versions accepted */
 #define	NETMAP_MAX_API	15
@@ -326,6 +326,18 @@ struct netmap_ring {
 	 * Enables the NS_FORWARD slot flag for the ring.
 	 */
 
+/*
+ * Helper functions for kernel and userspace
+ */
+
+/*
+ * check if space is available in the ring.
+ */
+static inline int
+nm_ring_empty(struct netmap_ring *ring)
+{
+	return (ring->cur == ring->tail);
+}
 
 /*
  * Netmap representation of an interface and its queue(s).
@@ -368,86 +380,75 @@ struct netmap_if {
 	const ssize_t	ring_ofs[0];
 };
 
+/* Legacy interface to interact with a netmap control device.
+ * Included for backward compatibility. The user should not include this
+ * file directly. */
+#include "netmap_legacy.h"
 
-#ifndef NIOCREGIF
 /*
- * ioctl names and related fields
+ * New API to control netmap control devices. New applications should only use
+ * nmreq_xyz structs with the NIOCCTRL ioctl() command.
  *
- * NIOCTXSYNC, NIOCRXSYNC synchronize tx or rx queues,
- *	whose identity is set in NIOCREGIF through nr_ringid.
- *	These are non blocking and take no argument.
+ * NIOCCTRL takes a nmreq_header struct, which contains the required
+ * API version, the name of a netmap port, a command type, and pointers
+ * to request body and options.
  *
- * NIOCGINFO takes a struct ifreq, the interface name is the input,
- *	the outputs are number of queues and number of descriptor
- *	for each queue (useful to set number of threads etc.).
- *	The info returned is only advisory and may change before
- *	the interface is bound to a file descriptor.
+ *	nr_name	(in)
+ *		The name of the port (em0, valeXXX:YYY, eth0{pn1 etc.)
  *
- * NIOCREGIF takes an interface name within a struct nmre,
- *	and activates netmap mode on the interface (if possible).
+ *	nr_version (in/out)
+ *		Must match NETMAP_API as used in the kernel, error otherwise.
+ *		Always returns the desired value on output.
  *
- * The argument to NIOCGINFO/NIOCREGIF overlays struct ifreq so we
- * can pass it down to other NIC-related ioctls.
+ *	nr_reqtype (in)
+ *		One of the NETMAP_REQ_* command types below
  *
- * The actual argument (struct nmreq) has a number of options to request
- * different functions.
- * The following are used in NIOCREGIF when nr_cmd == 0:
+ *	nr_body (in)
+ *		Pointer to a command-specific struct, described by one
+ *		of the struct nmreq_xyz below.
  *
- * nr_name	(in)
- *	The name of the port (em0, valeXXX:YYY, etc.)
- *	limited to IFNAMSIZ for backward compatibility.
+ *	nr_options (in)
+ *		Command specific options, if any.
  *
- * nr_version	(in/out)
- *	Must match NETMAP_API as used in the kernel, error otherwise.
- *	Always returns the desired value on output.
+ * A NETMAP_REQ_REGISTER command activates netmap mode on the netmap
+ * port (e.g. physical interface) specified by nmreq_header.nr_name.
+ * The request body (struct nmreq_register) has several arguments to
+ * specify how the port is to be registered.
  *
- * nr_tx_slots, nr_tx_slots, nr_tx_rings, nr_rx_rings (in/out)
- *	On input, non-zero values may be used to reconfigure the port
- *	according to the requested values, but this is not guaranteed.
- *	On output the actual values in use are reported.
+ *	nr_tx_slots, nr_tx_slots, nr_tx_rings, nr_rx_rings (in/out)
+ *		On input, non-zero values may be used to reconfigure the port
+ *		according to the requested values, but this is not guaranteed.
+ *		On output the actual values in use are reported.
  *
- * nr_ringid (in)
- *	Indicates how rings should be bound to the file descriptors.
- *	If nr_flags != 0, then the low bits (in NETMAP_RING_MASK)
- *	are used to indicate the ring number, and nr_flags specifies
- *	the actual rings to bind. NETMAP_NO_TX_POLL is unaffected.
+ *	nr_mode (in)
+ *		Indicate what set of rings must be bound to the netmap
+ *		device (e.g. all NIC rings, host rings only, NIC and
+ *		host rings, ...). Values are in NR_REG_*.
  *
- *	NOTE: THE FOLLOWING (nr_flags == 0) IS DEPRECATED:
- *	If nr_flags == 0, NETMAP_HW_RING and NETMAP_SW_RING control
- *	the binding as follows:
- *	0 (default)			binds all physical rings
- *	NETMAP_HW_RING | ring number	binds a single ring pair
- *	NETMAP_SW_RING			binds only the host tx/rx rings
+ *	nr_ringid (in)
+ *		If nr_mode == NR_REG_ONE_NIC (only a single couple of TX/RX
+ *		rings), indicate which NIC TX and/or RX ring is to be bound
+ *		(0..nr_*x_rings-1).
  *
- *	NETMAP_NO_TX_POLL can be OR-ed to make select()/poll() push
- *		packets on tx rings only if POLLOUT is set.
- *		The default is to push any pending packet.
+ *	nr_flags (in)
+ *		Indicate special options for how to open the port.
  *
- *	NETMAP_DO_RX_POLL can be OR-ed to make select()/poll() release
- *		packets on rx rings also when POLLIN is NOT set.
- *		The default is to touch the rx ring only with POLLIN.
- *		Note that this is the opposite of TX because it
- *		reflects the common usage.
+ *		NR_NO_TX_POLL can be OR-ed to make select()/poll() push
+ *			packets on tx rings only if POLLOUT is set.
+ *			The default is to push any pending packet.
  *
- *	NOTE: NETMAP_PRIV_MEM IS DEPRECATED, use nr_arg2 instead.
- *	NETMAP_PRIV_MEM is set on return for ports that do not use
- *		the global memory allocator.
- *		This information is not significant and applications
- *		should look at the region id in nr_arg2
+ *		NR_DO_RX_POLL can be OR-ed to make select()/poll() release
+ *			packets on rx rings also when POLLIN is NOT set.
+ *			The default is to touch the rx ring only with POLLIN.
+ *			Note that this is the opposite of TX because it
+ *			reflects the common usage.
  *
- * nr_flags	is the recommended mode to indicate which rings should
- *		be bound to a file descriptor. Values are NR_REG_*
+ *		Other options are NR_MONITOR_TX, NR_MONITOR_RX, NR_ZCOPY_MON,
+ *		NR_EXCLUSIVE, NR_RX_RINGS_ONLY, NR_TX_RINGS_ONLY and
+ *		NR_ACCEPT_VNET_HDR.
  *
- * nr_arg1 (in)	The number of extra rings to be reserved.
- *		Especially when allocating a VALE port the system only
- *		allocates the amount of memory needed for the port.
- *		If more shared memory rings are desired (e.g. for pipes),
- *		the first invocation for the same basename/allocator
- *		should specify a suitable number. Memory cannot be
- *		extended after the first allocation without closing
- *		all ports on the same region.
- *
- * nr_arg2 (in/out) The identity of the memory region used.
+ *	nr_mem_id (in/out)
+ *		The identity of the memory region used.
  *		On input, 0 means the system decides autonomously,
  *		other values may try to select a specific region.
  *		On return the actual value is reported.
@@ -455,101 +456,92 @@ struct netmap_if {
  *		by all interfaces. Other values are private regions.
  *		If two ports the same region zero-copy is possible.
  *
- * nr_arg3 (in/out)	number of extra buffers to be allocated.
+ *	nr_extra_bufs (in/out)
+ *		Number of extra buffers to be allocated.
  *
- *
- *
- * nr_cmd (in)	if non-zero indicates a special command:
- *	NETMAP_BDG_ATTACH	 and nr_name = vale*:ifname
- *		attaches the NIC to the switch; nr_ringid specifies
- *		which rings to use. Used by vale-ctl -a ...
- *	    nr_arg1 = NETMAP_BDG_HOST also attaches the host port
- *		as in vale-ctl -h ...
- *
- *	NETMAP_BDG_DETACH	and nr_name = vale*:ifname
- *		disconnects a previously attached NIC.
- *		Used by vale-ctl -d ...
- *
- *	NETMAP_BDG_LIST
- *		list the configuration of VALE switches.
- *
- *	NETMAP_BDG_VNET_HDR
- *		Set the virtio-net header length used by the client
- *		of a VALE switch port.
- *
- *	NETMAP_BDG_NEWIF
- *		create a persistent VALE port with name nr_name.
- *		Used by vale-ctl -n ...
- *
- *	NETMAP_BDG_DELIF
- *		delete a persistent VALE port. Used by vale-ctl -d ...
- *
- * nr_arg1, nr_arg2, nr_arg3  (in/out)		command specific
- *
- *
+ * The other NETMAP_REQ_* commands are described below.
  *
  */
 
+/* maximum size of a request, including all options */
+#define NETMAP_REQ_MAXSIZE	4096
+
+/* Header common to all request options. */
+struct nmreq_option {
+	/* Pointer ot the next option. */
+	uint64_t		nro_next;
+	/* Option type. */
+	uint32_t		nro_reqtype;
+	/* (out) status of the option:
+	 * 0: recognized and processed
+	 * !=0: errno value
+	 */
+	uint32_t		nro_status;
+};
+
+/* Header common to all requests. Do not reorder these fields, as we need
+ * the second one (nr_reqtype) to know how much to copy from/to userspace. */
+struct nmreq_header {
+	uint16_t		nr_version;	/* API version */
+	uint16_t		nr_reqtype;	/* nmreq type (NETMAP_REQ_*) */
+	uint32_t		nr_reserved;	/* must be zero */
+#define NETMAP_REQ_IFNAMSIZ	64
+	char			nr_name[NETMAP_REQ_IFNAMSIZ]; /* port name */
+	uint64_t		nr_options;	/* command-specific options */
+	uint64_t		nr_body;	/* ptr to nmreq_xyz struct */
+};
+
+enum {
+	/* Register a netmap port with the device. */
+	NETMAP_REQ_REGISTER = 1,
+	/* Get information from a netmap port. */
+	NETMAP_REQ_PORT_INFO_GET,
+	/* Attach a netmap port to a VALE switch. */
+	NETMAP_REQ_VALE_ATTACH,
+	/* Detach a netmap port from a VALE switch. */
+	NETMAP_REQ_VALE_DETACH,
+	/* List the ports attached to a VALE switch. */
+	NETMAP_REQ_VALE_LIST,
+	/* Set the port header length (was virtio-net header length). */
+	NETMAP_REQ_PORT_HDR_SET,
+	/* Get the port header length (was virtio-net header length). */
+	NETMAP_REQ_PORT_HDR_GET,
+	/* Create a new persistent VALE port. */
+	NETMAP_REQ_VALE_NEWIF,
+	/* Delete a persistent VALE port. */
+	NETMAP_REQ_VALE_DELIF,
+	/* Enable polling kernel thread(s) on an attached VALE port. */
+	NETMAP_REQ_VALE_POLLING_ENABLE,
+	/* Disable polling kernel thread(s) on an attached VALE port. */
+	NETMAP_REQ_VALE_POLLING_DISABLE,
+	/* Get info about the pools of a memory allocator. */
+	NETMAP_REQ_POOLS_INFO_GET,
+};
+
+enum {
+	/* On NETMAP_REQ_REGISTER, ask netmap to use memory allocated
+	 * from user-space allocated memory pools (e.g. hugepages). */
+	NETMAP_REQ_OPT_EXTMEM = 1,
+};
 
 /*
- * struct nmreq overlays a struct ifreq (just the name)
+ * nr_reqtype: NETMAP_REQ_REGISTER
+ * Bind (register) a netmap port to this control device.
  */
-struct nmreq {
-	char		nr_name[IFNAMSIZ];
-	uint32_t	nr_version;	/* API version */
-	uint32_t	nr_offset;	/* nifp offset in the shared region */
-	uint32_t	nr_memsize;	/* size of the shared region */
+struct nmreq_register {
+	uint64_t	nr_offset;	/* nifp offset in the shared region */
+	uint64_t	nr_memsize;	/* size of the shared region */
 	uint32_t	nr_tx_slots;	/* slots in tx rings */
 	uint32_t	nr_rx_slots;	/* slots in rx rings */
 	uint16_t	nr_tx_rings;	/* number of tx rings */
 	uint16_t	nr_rx_rings;	/* number of rx rings */
 
+	uint16_t	nr_mem_id;	/* id of the memory allocator */
 	uint16_t	nr_ringid;	/* ring(s) we care about */
-#define NETMAP_HW_RING		0x4000	/* single NIC ring pair */
-#define NETMAP_SW_RING		0x2000	/* only host ring pair */
+	uint32_t	nr_mode;	/* specify NR_REG_* modes */
 
-#define NETMAP_RING_MASK	0x0fff	/* the ring number */
-
-#define NETMAP_NO_TX_POLL	0x1000	/* no automatic txsync on poll */
-
-#define NETMAP_DO_RX_POLL	0x8000	/* DO automatic rxsync on poll */
-
-	uint16_t	nr_cmd;
-#define NETMAP_BDG_ATTACH	1	/* attach the NIC */
-#define NETMAP_BDG_DETACH	2	/* detach the NIC */
-#define NETMAP_BDG_REGOPS	3	/* register bridge callbacks */
-#define NETMAP_BDG_LIST		4	/* get bridge's info */
-#define NETMAP_BDG_VNET_HDR     5       /* set the port virtio-net-hdr length */
-#define NETMAP_BDG_OFFSET	NETMAP_BDG_VNET_HDR	/* deprecated alias */
-#define NETMAP_BDG_NEWIF	6	/* create a virtual port */
-#define NETMAP_BDG_DELIF	7	/* destroy a virtual port */
-#define NETMAP_PT_HOST_CREATE	8	/* create ptnetmap kthreads */
-#define NETMAP_PT_HOST_DELETE	9	/* delete ptnetmap kthreads */
-#define NETMAP_BDG_POLLING_ON	10	/* delete polling kthread */
-#define NETMAP_BDG_POLLING_OFF	11	/* delete polling kthread */
-#define NETMAP_VNET_HDR_GET	12      /* get the port virtio-net-hdr length */
-#define NETMAP_POOLS_INFO_GET	13	/* get memory allocator pools info */
-#define NETMAP_POOLS_CREATE	14	/* create a new memory allocator */
-	uint16_t	nr_arg1;	/* reserve extra rings in NIOCREGIF */
-#define NETMAP_BDG_HOST		1	/* attach the host stack on ATTACH */
-
-	uint16_t	nr_arg2;
-	uint32_t	nr_arg3;	/* req. extra buffers in NIOCREGIF */
-	uint32_t	nr_flags;
-	/* various modes, extends nr_ringid */
-	uint32_t	spare2[1];
-};
-
-#define NR_REG_MASK		0xf /* values for nr_flags */
-enum {	NR_REG_DEFAULT	= 0,	/* backward compat, should not be used. */
-	NR_REG_ALL_NIC	= 1,
-	NR_REG_SW	= 2,
-	NR_REG_NIC_SW	= 3,
-	NR_REG_ONE_NIC	= 4,
-	NR_REG_PIPE_MASTER = 5,
-	NR_REG_PIPE_SLAVE = 6,
-};
-/* monitor uses the NR_REG to select the rings to monitor */
+	uint64_t	nr_flags;	/* additional flags (see below) */
+/* monitors use nr_ringid and nr_mode to select the rings to monitor */
 #define NR_MONITOR_TX	0x100
 #define NR_MONITOR_RX	0x200
 #define NR_ZCOPY_MON	0x400
@@ -566,87 +558,148 @@ enum {	NR_REG_DEFAULT	= 0,	/* backward compat, should not be used. */
  * to use those headers. If the flag is set, the application can use the
  * NETMAP_VNET_HDR_GET command to figure out the header length. */
 #define NR_ACCEPT_VNET_HDR	0x8000
+/* The following two have the same meaning of NETMAP_NO_TX_POLL and
+ * NETMAP_DO_RX_POLL. */
+#define NR_DO_RX_POLL		0x10000
+#define NR_NO_TX_POLL		0x20000
+
+	uint32_t	nr_extra_bufs;	/* number of requested extra buffers */
+};
+
+/* Valid values for nmreq_register.nr_mode (see above). */
+enum {	NR_REG_DEFAULT	= 0,	/* backward compat, should not be used. */
+	NR_REG_ALL_NIC	= 1,
+	NR_REG_SW	= 2,
+	NR_REG_NIC_SW	= 3,
+	NR_REG_ONE_NIC	= 4,
+	NR_REG_PIPE_MASTER = 5, /* deprecated, use "x{y" port name syntax */
+	NR_REG_PIPE_SLAVE = 6,  /* deprecated, use "x}y" port name syntax */
+};
+
+/* A single ioctl number is shared by all the new API command.
+ * Demultiplexing is done using the nr_hdr.nr_reqtype field.
+ * FreeBSD uses the size value embedded in the _IOWR to determine
+ * how much to copy in/out, so we define the ioctl() command
+ * specifying only nmreq_header, and copyin/copyout the rest. */
+#define NIOCCTRL	_IOWR('i', 151, struct nmreq_header)
+
+/* The ioctl commands to sync TX/RX netmap rings.
+ * NIOCTXSYNC, NIOCRXSYNC synchronize tx or rx queues,
+ *	whose identity is set in NIOCREGIF through nr_ringid.
+ *	These are non blocking and take no argument. */
+#define NIOCTXSYNC	_IO('i', 148) /* sync tx queues */
+#define NIOCRXSYNC	_IO('i', 149) /* sync rx queues */
+
+/*
+ * nr_reqtype: NETMAP_REQ_PORT_INFO_GET
+ * Get information about a netmap port, including number of rings.
+ * slots per ring, id of the memory allocator, etc.
+ */
+struct nmreq_port_info_get {
+	uint64_t	nr_offset;	/* nifp offset in the shared region */
+	uint64_t	nr_memsize;	/* size of the shared region */
+	uint32_t	nr_tx_slots;	/* slots in tx rings */
+	uint32_t	nr_rx_slots;	/* slots in rx rings */
+	uint16_t	nr_tx_rings;	/* number of tx rings */
+	uint16_t	nr_rx_rings;	/* number of rx rings */
+	uint16_t	nr_mem_id;	/* id of the memory allocator */
+};
 
 #define	NM_BDG_NAME		"vale"	/* prefix for bridge port name */
 
-#ifdef _WIN32
 /*
- * Windows does not have _IOWR(). _IO(), _IOW() and _IOR() are defined
- * in ws2def.h but not sure if they are in the form we need.
- * We therefore redefine them in a convenient way to use for DeviceIoControl
- * signatures.
+ * nr_reqtype: NETMAP_REQ_VALE_ATTACH
+ * Attach a netmap port to a VALE switch. Both the name of the netmap
+ * port and the VALE switch are specified through the nr_name argument.
+ * The attach operation could need to register a port, so at least
+ * the same arguments are available.
+ * port_index will contain the index where the port has been attached.
  */
-#undef _IO	// ws2def.h
-#define _WIN_NM_IOCTL_TYPE 40000
-#define _IO(_c, _n)	CTL_CODE(_WIN_NM_IOCTL_TYPE, ((_n) + 0x800) , \
-		METHOD_BUFFERED, FILE_ANY_ACCESS  )
-#define _IO_direct(_c, _n)	CTL_CODE(_WIN_NM_IOCTL_TYPE, ((_n) + 0x800) , \
-		METHOD_OUT_DIRECT, FILE_ANY_ACCESS  )
-
-#define _IOWR(_c, _n, _s)	_IO(_c, _n)
-
-/* We havesome internal sysctl in addition to the externally visible ones */
-#define NETMAP_MMAP _IO_direct('i', 160)	// note METHOD_OUT_DIRECT
-#define NETMAP_POLL _IO('i', 162)
-
-/* and also two setsockopt for sysctl emulation */
-#define NETMAP_SETSOCKOPT _IO('i', 140)
-#define NETMAP_GETSOCKOPT _IO('i', 141)
-
-
-//These linknames are for the Netmap Core Driver
-#define NETMAP_NT_DEVICE_NAME			L"\\Device\\NETMAP"
-#define NETMAP_DOS_DEVICE_NAME			L"\\DosDevices\\netmap"
-
-//Definition of a structure used to pass a virtual address within an IOCTL
-typedef struct _MEMORY_ENTRY {
-	PVOID       pUsermodeVirtualAddress;
-} MEMORY_ENTRY, *PMEMORY_ENTRY;
-
-typedef struct _POLL_REQUEST_DATA {
-	int events;
-	int timeout;
-	int revents;
-} POLL_REQUEST_DATA;
-
-#endif /* _WIN32 */
+struct nmreq_vale_attach {
+	struct nmreq_register reg;
+	uint32_t port_index;
+};
 
 /*
- * FreeBSD uses the size value embedded in the _IOWR to determine
- * how much to copy in/out. So we need it to match the actual
- * data structure we pass. We put some spares in the structure
- * to ease compatibility with other versions
+ * nr_reqtype: NETMAP_REQ_VALE_DETACH
+ * Detach a netmap port from a VALE switch. Both the name of the netmap
+ * port and the VALE switch are specified through the nr_name argument.
+ * port_index will contain the index where the port was attached.
  */
-#define NIOCGINFO	_IOWR('i', 145, struct nmreq) /* return IF info */
-#define NIOCREGIF	_IOWR('i', 146, struct nmreq) /* interface register */
-#define NIOCTXSYNC	_IO('i', 148) /* sync tx queues */
-#define NIOCRXSYNC	_IO('i', 149) /* sync rx queues */
-#define NIOCCONFIG	_IOWR('i',150, struct nm_ifreq) /* for ext. modules */
-#endif /* !NIOCREGIF */
-
+struct nmreq_vale_detach {
+	uint32_t port_index;
+};
 
 /*
- * Helper functions for kernel and userspace
+ * nr_reqtype: NETMAP_REQ_VALE_LIST
+ * List the ports of a VALE switch.
  */
+struct nmreq_vale_list {
+	/* Name of the VALE port (valeXXX:YYY) or empty. */
+	uint16_t	nr_bridge_idx;
+	uint32_t	nr_port_idx;
+};
 
 /*
- * check if space is available in the ring.
+ * nr_reqtype: NETMAP_REQ_PORT_HDR_SET or NETMAP_REQ_PORT_HDR_GET
+ * Set the port header length.
  */
-static inline int
-nm_ring_empty(struct netmap_ring *ring)
-{
-	return (ring->cur == ring->tail);
-}
+struct nmreq_port_hdr {
+	uint32_t	nr_hdr_len;
+};
 
 /*
- * Opaque structure that is passed to an external kernel
- * module via ioctl(fd, NIOCCONFIG, req) for a user-owned
- * bridge port (at this point ephemeral VALE interface).
+ * nr_reqtype: NETMAP_REQ_VALE_NEWIF
+ * Create a new persistent VALE port.
  */
-#define NM_IFRDATA_LEN 256
-struct nm_ifreq {
-	char nifr_name[IFNAMSIZ];
-	char data[NM_IFRDATA_LEN];
+struct nmreq_vale_newif {
+	uint32_t	nr_tx_slots;	/* slots in tx rings */
+	uint32_t	nr_rx_slots;	/* slots in rx rings */
+	uint16_t	nr_tx_rings;	/* number of tx rings */
+	uint16_t	nr_rx_rings;	/* number of rx rings */
+	uint16_t	nr_mem_id;	/* id of the memory allocator */
+};
+
+/*
+ * nr_reqtype: NETMAP_REQ_VALE_POLLING_ENABLE or NETMAP_REQ_VALE_POLLING_DISABLE
+ * Enable or disable polling kthreads on a VALE port.
+ */
+struct nmreq_vale_polling {
+	uint32_t	nr_mode;
+#define NETMAP_POLLING_MODE_SINGLE_CPU 1
+#define NETMAP_POLLING_MODE_MULTI_CPU 2
+	uint32_t	nr_first_cpu_id;
+	uint32_t	nr_num_polling_cpus;
+};
+
+/*
+ * nr_reqtype: NETMAP_REQ_POOLS_INFO_GET
+ * Get info about the pools of the memory allocator of the port bound
+ * to a given netmap control device (used i.e. by a ptnetmap-enabled
+ * hypervisor). The nr_hdr.nr_name field is ignored.
+ */
+struct nmreq_pools_info {
+	uint64_t	nr_memsize;
+	uint16_t	nr_mem_id;
+	uint64_t	nr_if_pool_offset;
+	uint32_t	nr_if_pool_objtotal;
+	uint32_t	nr_if_pool_objsize;
+	uint64_t	nr_ring_pool_offset;
+	uint32_t	nr_ring_pool_objtotal;
+	uint32_t	nr_ring_pool_objsize;
+	uint64_t	nr_buf_pool_offset;
+	uint32_t	nr_buf_pool_objtotal;
+	uint32_t	nr_buf_pool_objsize;
+};
+
+/*
+ * data for NETMAP_REQ_OPT_* options
+ */
+
+struct nmreq_opt_extmem {
+	struct nmreq_option	nro_opt;	/* common header */
+	uint64_t		nro_usrptr;	/* (in) ptr to usr memory */
+	struct nmreq_pools_info	nro_info;	/* (in/out) */
 };
 
 #endif /* _NET_NETMAP_H_ */

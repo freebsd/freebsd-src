@@ -2240,7 +2240,7 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 		/* preserve queue */
 		if (vsi->ifp->if_capenable & IFCAP_NETMAP) {
 			struct netmap_adapter *na = NA(vsi->ifp);
-			struct netmap_kring *kring = &na->rx_rings[i];
+			struct netmap_kring *kring = na->rx_rings[i];
 			int t = na->num_rx_desc - 1 - nm_kr_rxspace(kring);
 			wr32(vsi->hw, I40E_QRX_TAIL(que->me), t);
 		} else

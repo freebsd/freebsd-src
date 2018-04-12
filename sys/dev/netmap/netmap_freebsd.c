@@ -619,6 +619,116 @@ nm_os_vi_detach(struct ifnet *ifp)
 	if_free(ifp);
 }
 
+#ifdef WITH_EXTMEM
+#include <vm/vm_map.h>
+#include <vm/vm_kern.h>
+struct nm_os_extmem {
+	vm_object_t obj;
+	vm_offset_t kva;
+        vm_offset_t size;
+	vm_pindex_t scan;
+};
+
+void
+nm_os_extmem_delete(struct nm_os_extmem *e)
+{
+	D("freeing %lx bytes", e->size);
+	vm_map_remove(kernel_map, e->kva, e->kva + e->size);
+	nm_os_free(e);
+}
+
+char *
+nm_os_extmem_nextpage(struct nm_os_extmem *e)
+{
+	char *rv = NULL;
+	if (e->scan < e->kva + e->size) {
+		rv = (char *)e->scan;
+		e->scan += PAGE_SIZE;
+	}
+	return rv;
+}
+
+int
+nm_os_extmem_isequal(struct nm_os_extmem *e1, struct nm_os_extmem *e2)
+{
+	return (e1->obj == e1->obj);
+}
+
+int
+nm_os_extmem_nr_pages(struct nm_os_extmem *e)
+{
+	return e->size >> PAGE_SHIFT;
+}
+
+struct nm_os_extmem *
+nm_os_extmem_create(unsigned long p, struct nmreq_pools_info *pi, int *perror)
+{
+	vm_map_t map;
+	vm_map_entry_t entry;
+	vm_object_t obj;
+	vm_prot_t prot;
+	vm_pindex_t index;
+	boolean_t wired;
+	struct nm_os_extmem *e = NULL;
+	int rv, error = 0;
+
+	e = nm_os_malloc(sizeof(*e));
+	if (e == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+
+	map = &curthread->td_proc->p_vmspace->vm_map;
+	rv = vm_map_lookup(&map, p, VM_PROT_RW, &entry,
+			&obj, &index, &prot, &wired);
+	if (rv != KERN_SUCCESS) {
+		D("address %lx not found", p);
+		goto out_free;
+	}
+	/* check that we are given the whole vm_object ? */
+	vm_map_lookup_done(map, entry);
+
+	// XXX can we really use obj after releasing the map lock?
+	e->obj = obj;
+	vm_object_reference(obj);
+	/* wire the memory and add the vm_object to the kernel map,
+	 * to make sure that it is not fred even if the processes that
+	 * are mmap()ing it all exit
+	 */
+	e->kva = vm_map_min(kernel_map);
+	e->size = obj->size << PAGE_SHIFT;
+	rv = vm_map_find(kernel_map, obj, 0, &e->kva, e->size, 0,
+			VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
+			VM_PROT_READ | VM_PROT_WRITE, 0);
+	if (rv != KERN_SUCCESS) {
+		D("vm_map_find(%lx) failed", e->size);
+		goto out_rel;
+	}
+	rv = vm_map_wire(kernel_map, e->kva, e->kva + e->size,
+			VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
+	if (rv != KERN_SUCCESS) {
+		D("vm_map_wire failed");
+		goto out_rem;
+	}
+
+	e->scan = e->kva;
+
+	return e;
+
+out_rem:
+	vm_map_remove(kernel_map, e->kva, e->kva + e->size);
+	e->obj = NULL;
+out_rel:
+	vm_object_deallocate(e->obj);
+out_free:
+	nm_os_free(e);
+out:
+	if (perror)
+		*perror = error;
+	return NULL;
+}
+#endif /* WITH_EXTMEM */
+
 /* ======================== PTNETMAP SUPPORT ========================== */
 
 #ifdef WITH_PTNETMAP_GUEST
@@ -1151,15 +1261,9 @@ nm_os_kctx_worker_setaff(struct nm_kctx *nmk, int affinity)
 }
 
 struct nm_kctx *
-nm_os_kctx_create(struct nm_kctx_cfg *cfg, unsigned int cfgtype,
-		     void *opaque)
+nm_os_kctx_create(struct nm_kctx_cfg *cfg, void *opaque)
 {
 	struct nm_kctx *nmk = NULL;
-
-	if (cfgtype != PTNETMAP_CFGTYPE_BHYVE) {
-		D("Unsupported cfgtype %u", cfgtype);
-		return NULL;
-	}
 
 	nmk = malloc(sizeof(*nmk),  M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!nmk)
@@ -1429,7 +1533,7 @@ freebsd_netmap_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 			error = ENXIO;
 		goto out;
 	}
-	error = netmap_ioctl(priv, cmd, data, td);
+	error = netmap_ioctl(priv, cmd, data, td, /*nr_body_is_user=*/1);
 out:
 	CURVNET_RESTORE();
 

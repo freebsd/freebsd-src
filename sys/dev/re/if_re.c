@@ -2933,7 +2933,7 @@ re_start_locked(struct ifnet *ifp)
 #ifdef DEV_NETMAP
 	/* XXX is this necessary ? */
 	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_kring *kring = &NA(ifp)->tx_rings[0];
+		struct netmap_kring *kring = NA(ifp)->tx_rings[0];
 		if (sc->rl_ldata.rl_tx_prodidx != kring->nr_hwcur) {
 			/* kick the tx unit */
 			CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);

@@ -232,7 +232,7 @@ nm_os_get_mbuf(struct ifnet *ifp, int len)
 
 
 #define for_each_kring_n(_i, _k, _karr, _n) \
-	for (_k=_karr, _i = 0; _i < _n; (_k)++, (_i)++)
+	for ((_k)=*(_karr), (_i) = 0; (_i) < (_n); (_i)++, (_k) = (_karr)[(_i)])
 
 #define for_each_tx_kring(_i, _k, _na) \
             for_each_kring_n(_i, _k, (_na)->tx_rings, (_na)->num_tx_rings)
@@ -589,7 +589,7 @@ generic_mbuf_destructor(struct mbuf *m)
         for (;;) {
 		bool match = false;
 
-		kring = &na->tx_rings[r];
+		kring = na->tx_rings[r];
 		mtx_lock_spin(&kring->tx_event_lock);
 		if (kring->tx_event == m) {
 			kring->tx_event = NULL;
@@ -953,7 +953,7 @@ generic_rx_handler(struct ifnet *ifp, struct mbuf *m)
 		r = r % na->num_rx_rings;
 	}
 
-	kring = &na->rx_rings[r];
+	kring = na->rx_rings[r];
 
 	if (kring->nr_mode == NKR_NETMAP_OFF) {
 		/* We must not intercept this mbuf. */
