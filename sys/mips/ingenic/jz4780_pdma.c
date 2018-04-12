@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2016-2018 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -61,6 +61,17 @@ __FBSDID("$FreeBSD$");
 
 #include "xdma_if.h"
 
+#define	PDMA_DEBUG
+#undef	PDMA_DEBUG
+
+#ifdef	PDMA_DEBUG
+#define	dprintf(fmt, ...)	printf(fmt, ##__VA_ARGS__)
+#else
+#define	dprintf(fmt, ...)
+#endif
+
+#define	PDMA_DESC_RING_ALIGN	2048
+
 struct pdma_softc {
 	device_t		dev;
 	struct resource		*res[2];
@@ -76,13 +87,22 @@ struct pdma_fdt_data {
 };
 
 struct pdma_channel {
-	xdma_channel_t		*xchan;
 	struct pdma_fdt_data	data;
 	int			cur_desc;
 	int			used;
 	int			index;
 	int			flags;
 #define	CHAN_DESCR_RELINK	(1 << 0)
+
+	/* Descriptors */
+	bus_dma_tag_t		desc_tag;
+	bus_dmamap_t		desc_map;
+	struct pdma_hwdesc	*desc_ring;
+	bus_addr_t		desc_ring_paddr;
+
+	/* xDMA */
+	xdma_channel_t		*xchan;
+	struct xdma_request	*req;
 };
 
 #define	PDMA_NCHANNELS	32
@@ -102,10 +122,11 @@ static int chan_start(struct pdma_softc *sc, struct pdma_channel *chan);
 static void
 pdma_intr(void *arg)
 {
+	struct xdma_request *req;
+	xdma_transfer_status_t status;
 	struct pdma_channel *chan;
 	struct pdma_softc *sc;
 	xdma_channel_t *xchan;
-	xdma_config_t *conf;
 	int pending;
 	int i;
 
@@ -120,7 +141,7 @@ pdma_intr(void *arg)
 		if (pending & (1 << i)) {
 			chan = &pdma_channels[i];
 			xchan = chan->xchan;
-			conf = &xchan->conf;
+			req = chan->req;
 
 			/* TODO: check for AR, HLT error bits here. */
 
@@ -130,11 +151,12 @@ pdma_intr(void *arg)
 			if (chan->flags & CHAN_DESCR_RELINK) {
 				/* Enable again */
 				chan->cur_desc = (chan->cur_desc + 1) % \
-				    conf->block_num;
+				    req->block_num;
 				chan_start(sc, chan);
 			}
 
-			xdma_callback(chan->xchan);
+			status.error = 0;
+			xdma_callback(chan->xchan, &status);
 		}
 	}
 }
@@ -217,7 +239,9 @@ chan_start(struct pdma_softc *sc, struct pdma_channel *chan)
 
 	/* 8 byte descriptor. */
 	WRITE4(sc, PDMA_DCS(chan->index), DCS_DES8);
-	WRITE4(sc, PDMA_DDA(chan->index), xchan->descs_phys[chan->cur_desc].ds_addr);
+	WRITE4(sc, PDMA_DDA(chan->index),
+	    chan->desc_ring_paddr + 8 * 4 * chan->cur_desc);
+
 	WRITE4(sc, PDMA_DDS, (1 << chan->index));
 
 	/* Channel transfer enable. */
@@ -249,6 +273,64 @@ chan_stop(struct pdma_softc *sc, struct pdma_channel *chan)
 	return (0);
 }
 
+static void
+dwc_get1paddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+{
+
+	if (error != 0)
+		return;
+	*(bus_addr_t *)arg = segs[0].ds_addr;
+}
+
+static int
+pdma_channel_setup_descriptors(device_t dev, struct pdma_channel *chan)
+{
+	struct pdma_softc *sc;
+	int error;
+
+	sc = device_get_softc(dev);
+
+	/*
+	 * Set up TX descriptor ring, descriptors, and dma maps.
+	 */
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->dev),	/* Parent tag. */
+	    PDMA_DESC_RING_ALIGN, 0,	/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    CHAN_DESC_SIZE, 1, 		/* maxsize, nsegments */
+	    CHAN_DESC_SIZE,		/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &chan->desc_tag);
+	if (error != 0) {
+		device_printf(sc->dev,
+		    "could not create TX ring DMA tag.\n");
+		return (-1);
+	}
+
+	error = bus_dmamem_alloc(chan->desc_tag, (void**)&chan->desc_ring,
+	    BUS_DMA_COHERENT | BUS_DMA_WAITOK | BUS_DMA_ZERO,
+	    &chan->desc_map);
+	if (error != 0) {
+		device_printf(sc->dev,
+		    "could not allocate TX descriptor ring.\n");
+		return (-1);
+	}
+
+	error = bus_dmamap_load(chan->desc_tag, chan->desc_map,
+	    chan->desc_ring, CHAN_DESC_SIZE, dwc_get1paddr,
+	    &chan->desc_ring_paddr, 0);
+	if (error != 0) {
+		device_printf(sc->dev,
+		    "could not load TX descriptor ring map.\n");
+		return (-1);
+	}
+
+	return (0);
+}
+
 static int
 pdma_channel_alloc(device_t dev, struct xdma_channel *xchan)
 {
@@ -258,8 +340,6 @@ pdma_channel_alloc(device_t dev, struct xdma_channel *xchan)
 
 	sc = device_get_softc(dev);
 
-	xdma_assert_locked();
-
 	for (i = 0; i < PDMA_NCHANNELS; i++) {
 		chan = &pdma_channels[i];
 		if (chan->used == 0) {
@@ -267,6 +347,8 @@ pdma_channel_alloc(device_t dev, struct xdma_channel *xchan)
 			xchan->chan = (void *)chan;
 			chan->used = 1;
 			chan->index = i;
+
+			pdma_channel_setup_descriptors(dev, chan);
 
 			return (0);
 		}
@@ -283,8 +365,6 @@ pdma_channel_free(device_t dev, struct xdma_channel *xchan)
 
 	sc = device_get_softc(dev);
 
-	xdma_assert_locked();
-
 	chan = (struct pdma_channel *)xchan->chan;
 	chan->used = 0;
 
@@ -292,50 +372,13 @@ pdma_channel_free(device_t dev, struct xdma_channel *xchan)
 }
 
 static int
-pdma_channel_prep_memcpy(device_t dev, struct xdma_channel *xchan)
-{
-	struct pdma_channel *chan;
-	struct pdma_hwdesc *desc;
-	struct pdma_softc *sc;
-	xdma_config_t *conf;
-	int ret;
-
-	sc = device_get_softc(dev);
-
-	chan = (struct pdma_channel *)xchan->chan;
-	/* Ensure we are not in operation */
-	chan_stop(sc, chan);
-
-	ret = xdma_desc_alloc(xchan, sizeof(struct pdma_hwdesc), 8);
-	if (ret != 0) {
-		device_printf(sc->dev,
-		    "%s: Can't allocate descriptors.\n", __func__);
-		return (-1);
-	}
-
-	conf = &xchan->conf;
-	desc = (struct pdma_hwdesc *)xchan->descs;
-	desc[0].dsa = conf->src_addr;
-	desc[0].dta = conf->dst_addr;
-	desc[0].drt = DRT_AUTO;
-	desc[0].dcm = DCM_SAI | DCM_DAI;
-
-	/* 4 byte copy for now. */
-	desc[0].dtc = (conf->block_len / 4);
-	desc[0].dcm |= DCM_SP_4 | DCM_DP_4 | DCM_TSZ_4;
-	desc[0].dcm |= DCM_TIE;
-
-	return (0);
-}
-
-static int
-access_width(xdma_config_t *conf, uint32_t *dcm, uint32_t *max_width)
+access_width(struct xdma_request *req, uint32_t *dcm, uint32_t *max_width)
 {
 
 	*dcm = 0;
-	*max_width = max(conf->src_width, conf->dst_width);
+	*max_width = max(req->src_width, req->dst_width);
 
-	switch (conf->src_width) {
+	switch (req->src_width) {
 	case 1:
 		*dcm |= DCM_SP_1;
 		break;
@@ -349,7 +392,7 @@ access_width(xdma_config_t *conf, uint32_t *dcm, uint32_t *max_width)
 		return (-1);
 	}
 
-	switch (conf->dst_width) {
+	switch (req->dst_width) {
 	case 1:
 		*dcm |= DCM_DP_1;
 		break;
@@ -381,67 +424,66 @@ access_width(xdma_config_t *conf, uint32_t *dcm, uint32_t *max_width)
 }
 
 static int
-pdma_channel_prep_cyclic(device_t dev, struct xdma_channel *xchan)
+pdma_channel_request(device_t dev, struct xdma_channel *xchan, struct xdma_request *req)
 {
 	struct pdma_fdt_data *data;
 	struct pdma_channel *chan;
 	struct pdma_hwdesc *desc;
 	xdma_controller_t *xdma;
 	struct pdma_softc *sc;
-	xdma_config_t *conf;
 	int max_width;
 	uint32_t reg;
 	uint32_t dcm;
-	int ret;
 	int i;
 
 	sc = device_get_softc(dev);
 
-	conf = &xchan->conf;
+	dprintf("%s: block_len %d block_num %d\n",
+	    __func__, req->block_len, req->block_num);
+
 	xdma = xchan->xdma;
 	data = (struct pdma_fdt_data *)xdma->data;
-
-	ret = xdma_desc_alloc(xchan, sizeof(struct pdma_hwdesc), 8);
-	if (ret != 0) {
-		device_printf(sc->dev,
-		    "%s: Can't allocate descriptors.\n", __func__);
-		return (-1);
-	}
 
 	chan = (struct pdma_channel *)xchan->chan;
 	/* Ensure we are not in operation */
 	chan_stop(sc, chan);
-	chan->flags = CHAN_DESCR_RELINK;
+	if (req->operation == XDMA_CYCLIC)
+		chan->flags = CHAN_DESCR_RELINK;
 	chan->cur_desc = 0;
+	chan->req = req;
+	
+	for (i = 0; i < req->block_num; i++) {
+		desc = &chan->desc_ring[i];
 
-	desc = (struct pdma_hwdesc *)xchan->descs;
-
-	for (i = 0; i < conf->block_num; i++) {
-		if (conf->direction == XDMA_MEM_TO_DEV) {
-			desc[i].dsa = conf->src_addr + (i * conf->block_len);
-			desc[i].dta = conf->dst_addr;
-			desc[i].drt = data->tx;
-			desc[i].dcm = DCM_SAI;
-		} else if (conf->direction == XDMA_DEV_TO_MEM) {
-			desc[i].dsa = conf->src_addr;
-			desc[i].dta = conf->dst_addr + (i * conf->block_len);
-			desc[i].drt = data->rx;
-			desc[i].dcm = DCM_DAI;
-		} else if (conf->direction == XDMA_MEM_TO_MEM) {
-			desc[i].dsa = conf->src_addr + (i * conf->block_len);
-			desc[i].dta = conf->dst_addr + (i * conf->block_len);
-			desc[i].drt = DRT_AUTO;
-			desc[i].dcm = DCM_SAI | DCM_DAI;
+		if (req->direction == XDMA_MEM_TO_DEV) {
+			desc->dsa = req->src_addr + (i * req->block_len);
+			desc->dta = req->dst_addr;
+			desc->drt = data->tx;
+			desc->dcm = DCM_SAI;
+		} else if (req->direction == XDMA_DEV_TO_MEM) {
+			desc->dsa = req->src_addr;
+			desc->dta = req->dst_addr + (i * req->block_len);
+			desc->drt = data->rx;
+			desc->dcm = DCM_DAI;
+		} else if (req->direction == XDMA_MEM_TO_MEM) {
+			desc->dsa = req->src_addr + (i * req->block_len);
+			desc->dta = req->dst_addr + (i * req->block_len);
+			desc->drt = DRT_AUTO;
+			desc->dcm = DCM_SAI | DCM_DAI;
 		}
 
-		if (access_width(conf, &dcm, &max_width) != 0) {
+		if (access_width(req, &dcm, &max_width) != 0) {
 			device_printf(dev,
 			    "%s: can't configure access width\n", __func__);
 			return (-1);
 		}
 
-		desc[i].dcm |= dcm | DCM_TIE;
-		desc[i].dtc = (conf->block_len / max_width);
+		desc->dcm |= dcm | DCM_TIE;
+		desc->dtc = (req->block_len / max_width);
+
+		/*
+		 * TODO: bus dma pre read/write sync here
+		 */
 
 		/*
 		 * PDMA does not provide interrupt after processing each descriptor,
@@ -451,10 +493,10 @@ pdma_channel_prep_cyclic(device_t dev, struct xdma_channel *xchan)
 		 * on each interrupt again.
 		 */
 		if ((chan->flags & CHAN_DESCR_RELINK) == 0) {
-			if (i != (conf->block_num - 1)) {
-				desc[i].dcm |= DCM_LINK;
+			if (i != (req->block_num - 1)) {
+				desc->dcm |= DCM_LINK;
 				reg = ((i + 1) * sizeof(struct pdma_hwdesc));
-				desc[i].dtc |= (reg >> 4) << 24;
+				desc->dtc |= (reg >> 4) << 24;
 			}
 		}
 	}
@@ -522,8 +564,7 @@ static device_method_t pdma_methods[] = {
 	/* xDMA Interface */
 	DEVMETHOD(xdma_channel_alloc,		pdma_channel_alloc),
 	DEVMETHOD(xdma_channel_free,		pdma_channel_free),
-	DEVMETHOD(xdma_channel_prep_cyclic,	pdma_channel_prep_cyclic),
-	DEVMETHOD(xdma_channel_prep_memcpy,	pdma_channel_prep_memcpy),
+	DEVMETHOD(xdma_channel_request,		pdma_channel_request),
 	DEVMETHOD(xdma_channel_control,		pdma_channel_control),
 #ifdef FDT
 	DEVMETHOD(xdma_ofw_md_data,		pdma_ofw_md_data),

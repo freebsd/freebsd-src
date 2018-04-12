@@ -82,6 +82,7 @@ struct xdmatest_softc {
 	struct mtx		mtx;
 	int			done;
 	struct proc		*newp;
+	struct xdma_request	req;
 };
 
 static int xdmatest_probe(device_t dev);
@@ -232,8 +233,16 @@ xdmatest_test(struct xdmatest_softc *sc)
 		sc->dst[i] = 0;
 	}
 
-	/* Configure channel for memcpy transfer. */
-	err = xdma_prep_memcpy(sc->xchan, sc->src_phys, sc->dst_phys, sc->len);
+	sc->req.type = XR_TYPE_PHYS_ADDR;
+	sc->req.direction = XDMA_MEM_TO_MEM;
+	sc->req.src_addr = sc->src_phys;
+	sc->req.dst_addr = sc->dst_phys;
+	sc->req.src_width = 4;
+	sc->req.dst_width = 4;
+	sc->req.block_len = sc->len;
+	sc->req.block_num = 1;
+
+	err = xdma_request(sc->xchan, sc->src_phys, sc->dst_phys, sc->len);
 	if (err != 0) {
 		device_printf(sc->dev, "Can't configure virtual channel.\n");
 		return (-1);
@@ -297,7 +306,12 @@ xdmatest_worker(void *arg)
 
 		mtx_lock(&sc->mtx);
 
-		xdmatest_test(sc);
+		if (xdmatest_test(sc) != 0) {
+			mtx_unlock(&sc->mtx);
+			device_printf(sc->dev,
+			    "%s: Test failed.\n", __func__);
+			break;
+		}
 
 		timeout = 100;
 
