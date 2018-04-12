@@ -62,6 +62,7 @@
 .Ar ...
 .Op Fl m Ar mountpoint
 .Op Fl R Ar root
+.Op Fl t Ar tempname
 .Ar pool vdev ...
 .Nm
 .Cm destroy
@@ -115,6 +116,7 @@
 .Op Fl m
 .Op Fl N
 .Op Fl R Ar root
+.Op Fl t
 .Op Fl F Op Fl n
 .Ar pool | id
 .Op Ar newpool
@@ -961,6 +963,7 @@ do not actually discard any transactions.
 .Ar ...
 .Op Fl m Ar mountpoint
 .Op Fl R Ar root
+.Op Fl t Ar tempname
 .Ar pool vdev ...
 .Xc
 .Pp
@@ -1062,6 +1065,18 @@ or
 .Qq Cm none .
 For more information on dataset mount points, see
 .Xr zfs 8 .
+.It Fl t Ar tempname
+Sets the in-core pool name to
+.Pa tempname
+while the on-disk name will be the name specified as the pool name
+.Pa pool .
+This will set the default
+.Sy cachefile
+property to
+.Sy none .
+This is intended to handle name space collisions when creating pools
+for other systems, such as virtual machines or physical machines
+whose pools live on network block devices.
 .El
 .It Xo
 .Nm
@@ -1316,6 +1331,7 @@ Searches for and imports all pools found.
 .Op Fl m
 .Op Fl N
 .Op Fl R Ar root
+.Op Fl t
 .Op Fl F Op Fl n
 .Ar pool | id
 .Op Ar newpool
@@ -1375,6 +1391,20 @@ Import the pool without mounting any file systems.
 .It Fl R Ar root
 Equivalent to
 .Qq Fl o Cm cachefile=none,altroot= Ns Pa root
+.It Fl t
+Used with
+.Ar newpool .
+Specifies that
+.Ar newpool
+is temporary.
+Temporary pool names last until export.
+Ensures that the original pool name will be used in all label updates and
+therefore is retained upon export.
+Will also set
+.Sy cachefile
+property to
+.Sy none
+when not explicitly specified.
 .It Fl F
 Recovery mode for a non-importable pool. Attempt to return the pool to an
 importable state by discarding the last few transactions. Not all damaged pools
