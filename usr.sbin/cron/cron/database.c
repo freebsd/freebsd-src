@@ -56,7 +56,7 @@ load_database(old_db)
 		{ SYSCRONTABS },
 		{ LOCALSYSCRONTABS }
 	};
-	int i;
+	int i, ret;
 
 	Debug(DLOAD, ("[%d] load_database()\n", getpid()))
 
@@ -79,6 +79,18 @@ load_database(old_db)
 	for (i = 0; i < nitems(syscrontabs); i++) {
 		if (stat(syscrontabs[i].name, &syscrontabs[i].st) != -1) {
 			maxmtime = TMAX(syscrontabs[i].st.st_mtime, maxmtime);
+			/* Traverse into directory */
+			if (!(dir = opendir(syscrontabs[i].name)))
+				continue;
+			while (NULL != (dp = readdir(dir))) {
+				if (dp->d_name[0] == '.')
+					continue;
+				ret = fstatat(dirfd(dir), dp->d_name, &st, 0);
+				if (ret == 0 && !S_ISREG(st.st_mode))
+					continue;
+				maxmtime = TMAX(st.st_mtime, maxmtime);
+			}
+			closedir(dir);
 		} else {
 			syscrontabs[i].st.st_mtime = 0;
 		}
