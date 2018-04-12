@@ -86,7 +86,7 @@ load_database(old_db)
 				if (dp->d_name[0] == '.')
 					continue;
 				ret = fstatat(dirfd(dir), dp->d_name, &st, 0);
-				if (ret == 0 && !S_ISREG(st.st_mode))
+				if (ret != 0 || !S_ISREG(st.st_mode))
 					continue;
 				maxmtime = TMAX(st.st_mtime, maxmtime);
 			}
