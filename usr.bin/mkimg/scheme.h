@@ -65,10 +65,11 @@ struct mkimg_scheme {
 	const char	*description;
 	struct mkimg_alias *aliases;
 	lba_t		(*metadata)(u_int, lba_t);
-#define	SCHEME_META_IMG_START	1
-#define	SCHEME_META_IMG_END	2
-#define	SCHEME_META_PART_BEFORE	3
-#define	SCHEME_META_PART_AFTER	4
+#define	SCHEME_META_IMG_START		1
+#define	SCHEME_META_IMG_END		2
+#define	SCHEME_META_PART_BEFORE		3
+#define	SCHEME_META_PART_AFTER		4
+#define	SCHEME_META_PART_ABSOLUTE	5
 	int		(*write)(lba_t, void *);
 	u_int		nparts;
 	u_int		labellen;
