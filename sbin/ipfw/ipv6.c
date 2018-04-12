@@ -85,17 +85,15 @@ print_unreach6_code(struct buf_pr *bp, uint16_t code)
  * Print the ip address contained in a command.
  */
 void
-print_ip6(struct buf_pr *bp, ipfw_insn_ip6 *cmd, char const *s)
+print_ip6(struct buf_pr *bp, ipfw_insn_ip6 *cmd)
 {
        struct hostent *he = NULL;
        int len = F_LEN((ipfw_insn *) cmd) - 1;
        struct in6_addr *a = &(cmd->addr6);
        char trad[255];
 
-       bprintf(bp, "%s%s ", cmd->o.len & F_NOT ? " not": "", s);
-
        if (cmd->o.opcode == O_IP6_SRC_ME || cmd->o.opcode == O_IP6_DST_ME) {
-	       bprintf(bp, "me6");
+	       bprintf(bp, " me6");
 	       return;
        }
        if (cmd->o.opcode == O_IP6) {
@@ -108,7 +106,7 @@ print_ip6(struct buf_pr *bp, ipfw_insn_ip6 *cmd, char const *s)
 	* addr/mask pairs have len = (2n+1). We convert len to n so we
 	* use that to count the number of entries.
 	*/
-
+	bprintf(bp, " ");
        for (len = len / 4; len > 0; len -= 2, a += 2) {
 	   int mb =	/* mask length */
 	       (cmd->o.opcode == O_IP6_SRC || cmd->o.opcode == O_IP6_DST) ?
