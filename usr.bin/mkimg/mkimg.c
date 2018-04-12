@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <getopt.h>
 #include <libutil.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -170,13 +171,14 @@ usage(const char *why)
 	print_schemes(1);
 	fputc('\n', stderr);
 	fprintf(stderr, "    partition specification:\n");
-	fprintf(stderr, "\t<t>[/<l>]::<size>\t-  empty partition of given "
-	    "size\n");
-	fprintf(stderr, "\t<t>[/<l>]:=<file>\t-  partition content and size "
-	    "are determined\n\t\t\t\t   by the named file\n");
-	fprintf(stderr, "\t<t>[/<l>]:-<cmd>\t-  partition content and size "
-	    "are taken from\n\t\t\t\t   the output of the command to run\n");
-	fprintf(stderr, "\t-\t\t\t-  unused partition entry\n");
+	fprintf(stderr, "\t<t>[/<l>]::<size>[:[+]<offset>]\t-  "
+	    "empty partition of given size and\n\t\t\t\t\t"
+	    "   optional relative or absolute offset\n");
+	fprintf(stderr, "\t<t>[/<l>]:=<file>\t\t-  partition content and size "
+	    "are\n\t\t\t\t\t   determined by the named file\n");
+	fprintf(stderr, "\t<t>[/<l>]:-<cmd>\t\t-  partition content and size "
+	    "are taken\n\t\t\t\t\t   from the output of the command to run\n");
+	fprintf(stderr, "\t-\t\t\t\t-  unused partition entry\n");
 	fprintf(stderr, "\t    where:\n");
 	fprintf(stderr, "\t\t<t>\t-  scheme neutral partition type\n");
 	fprintf(stderr, "\t\t<l>\t-  optional scheme-dependent partition "
@@ -397,12 +399,48 @@ capacity_resize(lba_t end)
 }
 
 static void
+mkimg_validate(void)
+{
+	struct part *part, *part2;
+	lba_t start, end, start2, end2;
+	int i, j;
+
+	i = 0;
+
+	TAILQ_FOREACH(part, &partlist, link) {
+		start = part->block;
+		end = part->block + part->size;
+		j = i + 1;
+		part2 = TAILQ_NEXT(part, link);
+		if (part2 == NULL)
+			break;
+
+		TAILQ_FOREACH_FROM(part2, &partlist, link) {
+			start2 = part2->block;
+			end2 = part2->block + part2->size;
+
+			if ((start >= start2 && start < end2) ||
+			    (end > start2 && end <= end2)) {
+				errx(1, "partition %d overlaps partition %d",
+				    i, j);
+			}
+
+			j++;
+		}
+
+		i++;
+	}
+}
+
+static void
 mkimg(void)
 {
 	FILE *fp;
 	struct part *part;
-	lba_t block;
-	off_t bytesize;
+	lba_t block, blkoffset;
+	off_t bytesize, byteoffset;
+	char *size, *offset;
+	bool abs_offset;
 	int error, fd;
 
 	/* First check partition information */
@@ -413,17 +451,46 @@ mkimg(void)
 	}
 
 	block = scheme_metadata(SCHEME_META_IMG_START, 0);
+	abs_offset = false;
 	TAILQ_FOREACH(part, &partlist, link) {
-		block = scheme_metadata(SCHEME_META_PART_BEFORE, block);
-		if (verbose)
-			fprintf(stderr, "partition %d: starting block %llu "
-			    "... ", part->index + 1, (long long)block);
-		part->block = block;
+		byteoffset = blkoffset = 0;
+		abs_offset = false;
+
+		/* Look for an offset. Set size too if we can. */
 		switch (part->kind) {
 		case PART_KIND_SIZE:
-			if (expand_number(part->contents, &bytesize) == -1)
+			offset = part->contents;
+			size = strsep(&offset, ":");
+			if (expand_number(size, &bytesize) == -1)
 				error = errno;
+			if (offset != NULL) {
+				if (*offset != '+') {
+					abs_offset = true;
+					offset++;
+				}
+				if (expand_number(offset, &byteoffset) == -1)
+					error = errno;
+			}
 			break;
+		}
+
+		/* Work out exactly where the partition starts. */
+		blkoffset = (byteoffset + secsz - 1) / secsz;
+		if (abs_offset) {
+			part->block = scheme_metadata(SCHEME_META_PART_ABSOLUTE,
+			    blkoffset);
+		} else {
+			block = scheme_metadata(SCHEME_META_PART_BEFORE,
+			    block + blkoffset);
+			part->block = block;
+		}
+
+		if (verbose)
+			fprintf(stderr, "partition %d: starting block %llu "
+			    "... ", part->index + 1, (long long)part->block);
+
+		/* Pull in partition contents, set size if we haven't yet. */
+		switch (part->kind) {
 		case PART_KIND_FILE:
 			fd = open(part->contents, O_RDONLY, 0);
 			if (fd != -1) {
@@ -449,10 +516,25 @@ mkimg(void)
 			bytesize = part->size * secsz;
 			fprintf(stderr, "size %llu bytes (%llu blocks)\n",
 			     (long long)bytesize, (long long)part->size);
+			if (abs_offset) {
+				fprintf(stderr,
+				    "    location %llu bytes (%llu blocks)\n",
+				    (long long)byteoffset,
+				    (long long)blkoffset);
+			} else if (blkoffset > 0) {
+				fprintf(stderr,
+				    "    offset %llu bytes (%llu blocks)\n",
+				    (long long)byteoffset,
+				    (long long)blkoffset);
+			}
 		}
-		block = scheme_metadata(SCHEME_META_PART_AFTER,
-		    part->block + part->size);
+		if (!abs_offset) {
+			block = scheme_metadata(SCHEME_META_PART_AFTER,
+			    part->block + part->size);
+		}
 	}
+
+	mkimg_validate();
 
 	block = scheme_metadata(SCHEME_META_IMG_END, block);
 	error = image_set_size(block);
