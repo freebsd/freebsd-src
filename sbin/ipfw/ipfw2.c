@@ -1192,11 +1192,10 @@ print_ip(struct buf_pr *bp, const struct format_opts *fo, ipfw_insn_ip *cmd,
 		if (d < sizeof(lookup_key)/sizeof(lookup_key[0]))
 			arg = match_value(rule_options, lookup_key[d]);
 		t = table_search_ctlv(fo->tstate, ((ipfw_insn *)cmd)->arg1);
-		bprintf(bp, "%s lookup %s %s", cmd->o.len & F_NOT ? " not": "",
-			arg, t);
+		bprintf(bp, " lookup %s %s", arg, t);
 		return;
 	}
-	bprintf(bp, "%s%s ", cmd->o.len & F_NOT ? " not": "", s);
+	bprintf(bp, "%s ", s);
 
 	if (cmd->o.opcode == O_IP_SRC_ME || cmd->o.opcode == O_IP_DST_ME) {
 		bprintf(bp, "me");
