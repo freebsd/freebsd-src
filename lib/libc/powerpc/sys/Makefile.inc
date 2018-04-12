@@ -1,3 +1,3 @@
 # $FreeBSD$
 
-MDASM+=	brk.S cerror.S exect.S sbrk.S
+MDASM+=	brk.S cerror.S sbrk.S

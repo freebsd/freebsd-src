@@ -105,6 +105,7 @@ FBSD_1.0 {
 	sys_errlist;
 	sys_nerr;
 	errno;
+	exect;
 	execl;
 	execle;
 	execlp;
