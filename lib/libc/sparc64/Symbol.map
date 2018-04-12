@@ -33,7 +33,6 @@ FBSD_1.0 {
 	ntohl;
 	ntohs;
 	brk;
-	exect;
 	sbrk;
 	vfork;
 
@@ -82,8 +81,6 @@ FBSDprivate_1.0 {
 	__siglongjmp;
 	__sys_brk;
 	_brk;
-	__sys_exect;
-	_exect;
 	_end;
 	__sys_sbrk;
 	_sbrk;
