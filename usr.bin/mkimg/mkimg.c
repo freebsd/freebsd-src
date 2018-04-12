@@ -464,10 +464,10 @@ mkimg(void)
 			if (expand_number(size, &bytesize) == -1)
 				error = errno;
 			if (offset != NULL) {
-				if (*offset != '+') {
+				if (*offset != '+')
 					abs_offset = true;
+				else
 					offset++;
-				}
 				if (expand_number(offset, &byteoffset) == -1)
 					error = errno;
 			}
