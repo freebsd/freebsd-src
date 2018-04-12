@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 
 #include <netinet/in.h>
+#include <netinet/in_fib.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
@@ -60,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <netinet6/in6_var.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/ip6_var.h>
 
 #include <netpfil/pf/pf.h>
@@ -76,11 +78,12 @@ nat64_log(struct pfloghdr *logdata, struct mbuf *m, sa_family_t family)
 	logdata->af = family;
 	ipfw_bpf_mtap2(logdata, PFLOG_HDRLEN, m);
 }
+
 #ifdef IPFIREWALL_NAT64_DIRECT_OUTPUT
-static NAT64NOINLINE struct sockaddr* nat64_find_route4(struct route *ro,
-    in_addr_t dest, struct mbuf *m);
-static NAT64NOINLINE struct sockaddr* nat64_find_route6(struct route_in6 *ro,
-    struct in6_addr *dest, struct mbuf *m);
+static NAT64NOINLINE int nat64_find_route4(struct nhop4_basic *,
+    struct sockaddr_in *, struct mbuf *);
+static NAT64NOINLINE int nat64_find_route6(struct nhop6_basic *,
+    struct sockaddr_in6 *, struct mbuf *);
 
 static NAT64NOINLINE int
 nat64_output(struct ifnet *ifp, struct mbuf *m,
@@ -100,28 +103,38 @@ nat64_output(struct ifnet *ifp, struct mbuf *m,
 static NAT64NOINLINE int
 nat64_output_one(struct mbuf *m, nat64_stats_block *stats, void *logdata)
 {
-	struct route_in6 ro6;
-	struct route ro4, *ro;
+	struct nhop6_basic nh6;
+	struct nhop4_basic nh4;
+	struct sockaddr_in6 dst6;
+	struct sockaddr_in dst4;
 	struct sockaddr *dst;
-	struct ifnet *ifp;
 	struct ip6_hdr *ip6;
 	struct ip *ip4;
+	struct ifnet *ifp;
 	int error;
 
 	ip4 = mtod(m, struct ip *);
 	switch (ip4->ip_v) {
 	case IPVERSION:
-		ro = &ro4;
-		dst = nat64_find_route4(&ro4, ip4->ip_dst.s_addr, m);
-		if (dst == NULL)
+		dst4.sin_addr = ip4->ip_dst;
+		error = nat64_find_route4(&nh4, &dst4, m);
+		if (error != 0)
 			NAT64STAT_INC(stats, noroute4);
+		else {
+			ifp = nh4.nh_ifp;
+			dst = (struct sockaddr *)&dst4;
+		}
 		break;
 	case (IPV6_VERSION >> 4):
-		ip6 = (struct ip6_hdr *)ip4;
-		ro = (struct route *)&ro6;
-		dst = nat64_find_route6(&ro6, &ip6->ip6_dst, m);
-		if (dst == NULL)
+		ip6 = mtod(m, struct ip6_hdr *);
+		dst6.sin6_addr = ip6->ip6_dst;
+		error = nat64_find_route6(&nh6, &dst6, m);
+		if (error != 0)
 			NAT64STAT_INC(stats, noroute6);
+		else {
+			ifp = nh6.nh_ifp;
+			dst = (struct sockaddr *)&dst6;
+		}
 		break;
 	default:
 		m_freem(m);
@@ -129,18 +142,15 @@ nat64_output_one(struct mbuf *m, nat64_stats_block *stats, void *logdata)
 		DPRINTF(DP_DROPS, "dropped due to unknown IP version");
 		return (EAFNOSUPPORT);
 	}
-	if (dst == NULL) {
-		FREE_ROUTE(ro);
+	if (error != 0) {
 		m_freem(m);
 		return (EHOSTUNREACH);
 	}
 	if (logdata != NULL)
 		nat64_log(logdata, m, dst->sa_family);
-	ifp = ro->ro_rt->rt_ifp;
-	error = (*ifp->if_output)(ifp, m, dst, ro);
+	error = (*ifp->if_output)(ifp, m, dst, NULL);
 	if (error != 0)
 		NAT64STAT_INC(stats, oerrors);
-	FREE_ROUTE(ro);
 	return (error);
 }
 #else /* !IPFIREWALL_NAT64_DIRECT_OUTPUT */
@@ -470,36 +480,31 @@ fail:
 	return (ENOMEM);
 }
 
-#if __FreeBSD_version < 1100000
-#define	rt_expire	rt_rmx.rmx_expire
-#define	rt_mtu		rt_rmx.rmx_mtu
-#endif
-static NAT64NOINLINE struct sockaddr*
-nat64_find_route6(struct route_in6 *ro, struct in6_addr *dest, struct mbuf *m)
+static NAT64NOINLINE int
+nat64_find_route6(struct nhop6_basic *pnh, struct sockaddr_in6 *dst,
+    struct mbuf *m)
 {
-	struct sockaddr_in6 *dst;
-	struct rtentry *rt;
 
-	bzero(ro, sizeof(*ro));
-	dst = (struct sockaddr_in6 *)&ro->ro_dst;
+	if (fib6_lookup_nh_basic(M_GETFIB(m), &dst->sin6_addr, 0, 0, 0,
+	    pnh) != 0)
+		return (EHOSTUNREACH);
+	if (pnh->nh_flags & (NHF_BLACKHOLE | NHF_REJECT))
+		return (EHOSTUNREACH);
+	/*
+	 * XXX: we need to use destination address with embedded scope
+	 * zone id, because LLTABLE uses such form of addresses for lookup.
+	 */
 	dst->sin6_family = AF_INET6;
 	dst->sin6_len = sizeof(*dst);
-	dst->sin6_addr = *dest;
-	IN6_LOOKUP_ROUTE(ro, M_GETFIB(m));
-	rt = ro->ro_rt;
-	if (rt && (rt->rt_flags & RTF_UP) &&
-	    (rt->rt_ifp->if_flags & IFF_UP) &&
-	    (rt->rt_ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-		if (rt->rt_flags & RTF_GATEWAY)
-			dst = (struct sockaddr_in6 *)rt->rt_gateway;
-	} else
-		return (NULL);
-	if (((rt->rt_flags & RTF_REJECT) &&
-	    (rt->rt_expire == 0 ||
-	    time_uptime < rt->rt_expire)) ||
-	    rt->rt_ifp->if_link_state == LINK_STATE_DOWN)
-		return (NULL);
-	return ((struct sockaddr *)dst);
+	dst->sin6_addr = pnh->nh_addr;
+	if (IN6_IS_SCOPE_LINKLOCAL(&dst->sin6_addr))
+		dst->sin6_addr.s6_addr16[1] =
+		    htons(pnh->nh_ifp->if_index & 0xffff);
+	dst->sin6_port = 0;
+	dst->sin6_scope_id = 0;
+	dst->sin6_flowinfo = 0;
+
+	return (0);
 }
 
 #define	NAT64_ICMP6_PLEN	64
@@ -600,32 +605,21 @@ freeit:
 	m_freem(m);
 }
 
-static NAT64NOINLINE struct sockaddr*
-nat64_find_route4(struct route *ro, in_addr_t dest, struct mbuf *m)
+static NAT64NOINLINE int
+nat64_find_route4(struct nhop4_basic *pnh, struct sockaddr_in *dst,
+    struct mbuf *m)
 {
-	struct sockaddr_in *dst;
-	struct rtentry *rt;
 
-	bzero(ro, sizeof(*ro));
-	dst = (struct sockaddr_in *)&ro->ro_dst;
+	if (fib4_lookup_nh_basic(M_GETFIB(m), dst->sin_addr, 0, 0, pnh) != 0)
+		return (EHOSTUNREACH);
+	if (pnh->nh_flags & (NHF_BLACKHOLE | NHF_BROADCAST | NHF_REJECT))
+		return (EHOSTUNREACH);
+
 	dst->sin_family = AF_INET;
 	dst->sin_len = sizeof(*dst);
-	dst->sin_addr.s_addr = dest;
-	IN_LOOKUP_ROUTE(ro, M_GETFIB(m));
-	rt = ro->ro_rt;
-	if (rt && (rt->rt_flags & RTF_UP) &&
-	    (rt->rt_ifp->if_flags & IFF_UP) &&
-	    (rt->rt_ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-		if (rt->rt_flags & RTF_GATEWAY)
-			dst = (struct sockaddr_in *)rt->rt_gateway;
-	} else
-		return (NULL);
-	if (((rt->rt_flags & RTF_REJECT) &&
-	    (rt->rt_expire == 0 ||
-	    time_uptime < rt->rt_expire)) ||
-	    rt->rt_ifp->if_link_state == LINK_STATE_DOWN)
-		return (NULL);
-	return ((struct sockaddr *)dst);
+	dst->sin_addr = pnh->nh_addr;
+	dst->sin_port = 0;
+	return (0);
 }
 
 #define	NAT64_ICMP_PLEN	64
@@ -1066,13 +1060,11 @@ nat64_do_handle_ip4(struct mbuf *m, struct in6_addr *saddr,
     struct in6_addr *daddr, uint16_t lport, nat64_stats_block *stats,
     void *logdata)
 {
-	struct route_in6 ro;
+	struct nhop6_basic nh;
 	struct ip6_hdr ip6;
-	struct ifnet *ifp;
+	struct sockaddr_in6 dst;
 	struct ip *ip;
 	struct mbufq mq;
-	struct sockaddr *dst;
-	uint32_t mtu;
 	uint16_t ip_id, ip_off;
 	uint16_t *csum;
 	int plen, hlen;
@@ -1110,23 +1102,17 @@ nat64_do_handle_ip4(struct mbuf *m, struct in6_addr *saddr,
 		return (NAT64MFREE);
 	}
 
-	dst = nat64_find_route6(&ro, &ip6.ip6_dst, m);
-	if (dst == NULL) {
-		FREE_ROUTE(&ro);
+	dst.sin6_addr = ip6.ip6_dst;
+	if (nat64_find_route6(&nh, &dst, m) != 0) {
 		NAT64STAT_INC(stats, noroute6);
 		nat64_icmp_reflect(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0,
 		    stats, logdata);
 		return (NAT64RETURN);
 	}
-	ifp = ro.ro_rt->rt_ifp;
-	if (ro.ro_rt->rt_mtu != 0)
-		mtu = min(ro.ro_rt->rt_mtu, ifp->if_mtu);
-	else
-		mtu = ifp->if_mtu;
-	if (mtu < plen + sizeof(ip6) && (ip->ip_off & htons(IP_DF)) != 0) {
-		FREE_ROUTE(&ro);
+	if (nh.nh_mtu < plen + sizeof(ip6) &&
+	    (ip->ip_off & htons(IP_DF)) != 0) {
 		nat64_icmp_reflect(m, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG,
-		    FRAGSZ(mtu) + sizeof(struct ip), stats, logdata);
+		    FRAGSZ(nh.nh_mtu) + sizeof(struct ip), stats, logdata);
 		return (NAT64RETURN);
 	}
 
@@ -1162,24 +1148,20 @@ nat64_do_handle_ip4(struct mbuf *m, struct in6_addr *saddr,
 		break;
 	case IPPROTO_ICMP:
 		m = nat64_icmp_translate(m, &ip6, lport, hlen, stats);
-		if (m == NULL) {
-			FREE_ROUTE(&ro);
-			/* stats already accounted */
+		if (m == NULL)	/* stats already accounted */
 			return (NAT64RETURN);
-		}
 	}
 
 	m_adj(m, hlen);
 	mbufq_init(&mq, 255);
-	nat64_fragment6(stats, &ip6, &mq, m, mtu, ip_id, ip_off);
+	nat64_fragment6(stats, &ip6, &mq, m, nh.nh_mtu, ip_id, ip_off);
 	while ((m = mbufq_dequeue(&mq)) != NULL) {
-		if (nat64_output(ifp, m, dst, (struct route *)&ro, stats,
-		    logdata) != 0)
+		if (nat64_output(nh.nh_ifp, m, (struct sockaddr *)&dst,
+		    NULL, stats, logdata) != 0)
 			break;
 		NAT64STAT_INC(stats, opcnt46);
 	}
 	mbufq_drain(&mq);
-	FREE_ROUTE(&ro);
 	return (NAT64RETURN);
 }
 
@@ -1406,15 +1388,13 @@ int
 nat64_do_handle_ip6(struct mbuf *m, uint32_t aaddr, uint16_t aport,
     nat64_stats_block *stats, void *logdata)
 {
-	struct route ro;
 	struct ip ip;
-	struct ifnet *ifp;
+	struct nhop4_basic nh;
+	struct sockaddr_in dst;
 	struct ip6_frag *frag;
 	struct ip6_hdr *ip6;
 	struct icmp6_hdr *icmp6;
-	struct sockaddr *dst;
 	uint16_t *csum;
-	uint32_t mtu;
 	int plen, hlen, proto;
 
 	/*
@@ -1501,24 +1481,16 @@ nat64_do_handle_ip6(struct mbuf *m, uint32_t aaddr, uint16_t aport,
 			return (nat64_handle_icmp6(m, hlen, aaddr, aport,
 			    stats, logdata));
 	}
-	dst = nat64_find_route4(&ro, ip.ip_dst.s_addr, m);
-	if (dst == NULL) {
-		FREE_ROUTE(&ro);
+	dst.sin_addr.s_addr = ip.ip_dst.s_addr;
+	if (nat64_find_route4(&nh, &dst, m) != 0) {
 		NAT64STAT_INC(stats, noroute4);
 		nat64_icmp6_reflect(m, ICMP6_DST_UNREACH,
 		    ICMP6_DST_UNREACH_NOROUTE, 0, stats, logdata);
 		return (NAT64RETURN);
 	}
-
-	ifp = ro.ro_rt->rt_ifp;
-	if (ro.ro_rt->rt_mtu != 0)
-		mtu = min(ro.ro_rt->rt_mtu, ifp->if_mtu);
-	else
-		mtu = ifp->if_mtu;
-	if (mtu < plen + sizeof(ip)) {
-		FREE_ROUTE(&ro);
-		nat64_icmp6_reflect(m, ICMP6_PACKET_TOO_BIG, 0, mtu, stats,
-		    logdata);
+	if (nh.nh_mtu < plen + sizeof(ip)) {
+		nat64_icmp6_reflect(m, ICMP6_PACKET_TOO_BIG, 0, nh.nh_mtu,
+		    stats, logdata);
 		return (NAT64RETURN);
 	}
 	nat64_init_ip4hdr(ip6, frag, plen, proto, &ip);
@@ -1548,12 +1520,13 @@ nat64_do_handle_ip6(struct mbuf *m, uint32_t aaddr, uint16_t aport,
 		*csum = cksum_add(*csum, in6_cksum_pseudo(ip6, plen,
 		    IPPROTO_ICMPV6, 0));
 		/* Convert ICMPv6 types to ICMP */
-		mtu = *(uint16_t *)icmp6; /* save old word for cksum_adjust */
+		proto = *(uint16_t *)icmp6; /* save old word for cksum_adjust */
 		if (icmp6->icmp6_type == ICMP6_ECHO_REQUEST)
 			icmp6->icmp6_type = ICMP_ECHO;
 		else /* ICMP6_ECHO_REPLY */
 			icmp6->icmp6_type = ICMP_ECHOREPLY;
-		*csum = cksum_adjust(*csum, (uint16_t)mtu, *(uint16_t *)icmp6);
+		*csum = cksum_adjust(*csum, (uint16_t)proto,
+		    *(uint16_t *)icmp6);
 		if (aport != 0) {
 			uint16_t old_id = icmp6->icmp6_id;
 			icmp6->icmp6_id = aport;
@@ -1564,9 +1537,9 @@ nat64_do_handle_ip6(struct mbuf *m, uint32_t aaddr, uint16_t aport,
 
 	m_adj(m, hlen - sizeof(ip));
 	bcopy(&ip, mtod(m, void *), sizeof(ip));
-	if (nat64_output(ifp, m, dst, &ro, stats, logdata) == 0)
+	if (nat64_output(nh.nh_ifp, m, (struct sockaddr *)&dst, NULL,
+	    stats, logdata) == 0)
 		NAT64STAT_INC(stats, opcnt64);
-	FREE_ROUTE(&ro);
 	return (NAT64RETURN);
 }
 
