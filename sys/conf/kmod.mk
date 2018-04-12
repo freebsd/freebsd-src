@@ -83,7 +83,8 @@ OBJCOPY?=	objcopy
 # Search for kernel source tree in standard places.
 .if empty(KERNBUILDDIR)
 .if !defined(SYSDIR)
-.for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
+.for _dir in ${SRCTOP:D${SRCTOP}/sys} \
+    ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
 .if !defined(SYSDIR) && exists(${_dir}/kern/)
 SYSDIR=	${_dir:tA}
 .endif
