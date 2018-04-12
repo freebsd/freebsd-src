@@ -668,7 +668,7 @@ struct proc {
 	struct racct	*p_racct;	/* (b) Resource accounting. */
 	int		p_throttled;	/* (c) Flag for racct pcpu throttling */
 	/*
-	 * An orphan is the child that has beed re-parented to the
+	 * An orphan is the child that has been re-parented to the
 	 * debugger as a result of attaching to it.  Need to keep
 	 * track of them for parent to be able to collect the exit
 	 * status of what used to be children.
