@@ -38,7 +38,7 @@ struct nat64stl_cfg {
 
 	struct in6_addr		prefix6;/* IPv6 prefix */
 	uint8_t			plen6;	/* prefix length */
-	uint8_t			flags;	/* flags for internal use */
+	uint32_t		flags;	/* flags for internal use */
 #define	NAT64STL_KIDX		0x0100
 #define	NAT64STL_46T		0x0200
 #define	NAT64STL_64T		0x0400
