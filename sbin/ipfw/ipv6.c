@@ -48,11 +48,11 @@
 	} while (0)
 
 static struct _s_x icmp6codes[] = {
-      { "no-route",		ICMP6_DST_UNREACH_NOROUTE },
-      { "admin-prohib",		ICMP6_DST_UNREACH_ADMIN },
-      { "address",		ICMP6_DST_UNREACH_ADDR },
-      { "port",			ICMP6_DST_UNREACH_NOPORT },
-      { NULL, 0 }
+	{ "no-route",		ICMP6_DST_UNREACH_NOROUTE },
+	{ "admin-prohib",		ICMP6_DST_UNREACH_ADMIN },
+	{ "address",		ICMP6_DST_UNREACH_ADDR },
+	{ "port",			ICMP6_DST_UNREACH_NOPORT },
+	{ NULL, 0 }
 };
 
 void
@@ -87,50 +87,54 @@ print_unreach6_code(struct buf_pr *bp, uint16_t code)
 void
 print_ip6(struct buf_pr *bp, ipfw_insn_ip6 *cmd)
 {
-       struct hostent *he = NULL;
-       int len = F_LEN((ipfw_insn *) cmd) - 1;
-       struct in6_addr *a = &(cmd->addr6);
-       char trad[255];
+	char trad[255];
+	struct hostent *he = NULL;
+	struct in6_addr *a = &(cmd->addr6);
+	int len, mb;
 
-       if (cmd->o.opcode == O_IP6_SRC_ME || cmd->o.opcode == O_IP6_DST_ME) {
-	       bprintf(bp, " me6");
-	       return;
-       }
-       if (cmd->o.opcode == O_IP6) {
-	       bprintf(bp, " ip6");
-	       return;
-       }
+	len = F_LEN((ipfw_insn *) cmd) - 1;
+	if (cmd->o.opcode == O_IP6_SRC_ME || cmd->o.opcode == O_IP6_DST_ME) {
+		bprintf(bp, " me6");
+		return;
+	}
+	if (cmd->o.opcode == O_IP6) {
+		bprintf(bp, " ip6");
+		return;
+	}
 
-       /*
-	* len == 4 indicates a single IP, whereas lists of 1 or more
-	* addr/mask pairs have len = (2n+1). We convert len to n so we
-	* use that to count the number of entries.
-	*/
+	/*
+	 * len == 4 indicates a single IP, whereas lists of 1 or more
+	 * addr/mask pairs have len = (2n+1). We convert len to n so we
+	 * use that to count the number of entries.
+	 */
 	bprintf(bp, " ");
-       for (len = len / 4; len > 0; len -= 2, a += 2) {
-	   int mb =	/* mask length */
-	       (cmd->o.opcode == O_IP6_SRC || cmd->o.opcode == O_IP6_DST) ?
-	       128 : contigmask((uint8_t *)&(a[1]), 128);
+	for (len = len / 4; len > 0; len -= 2, a += 2) {
+		/* mask length */
+		mb = (cmd->o.opcode == O_IP6_SRC ||
+		    cmd->o.opcode == O_IP6_DST) ?  128:
+		    contigmask((uint8_t *)&(a[1]), 128);
 
-	   if (mb == 128 && co.do_resolv)
-	       he = gethostbyaddr((char *)a, sizeof(*a), AF_INET6);
-	   if (he != NULL)	     /* resolved to name */
-	       bprintf(bp, "%s", he->h_name);
-	   else if (mb == 0)	   /* any */
-	       bprintf(bp, "any");
-	   else {	  /* numeric IP followed by some kind of mask */
-	       if (inet_ntop(AF_INET6,  a, trad, sizeof( trad ) ) == NULL)
-		   bprintf(bp, "Error ntop in print_ip6\n");
-	       bprintf(bp, "%s",  trad );
-	       if (mb < 0) /* mask not contiguous */
-		   bprintf(bp, "/%s",
-		       inet_ntop(AF_INET6, &a[1], trad, sizeof(trad)));
-	       else if (mb < 128)
-		   bprintf(bp, "/%d", mb);
-	   }
-	   if (len > 2)
-	       bprintf(bp, ",");
-       }
+		if (mb == 128 && co.do_resolv)
+			he = gethostbyaddr((char *)a, sizeof(*a), AF_INET6);
+
+		if (he != NULL)	     /* resolved to name */
+			bprintf(bp, "%s", he->h_name);
+		else if (mb == 0)	   /* any */
+			bprintf(bp, "any");
+		else {	  /* numeric IP followed by some kind of mask */
+			if (inet_ntop(AF_INET6,  a, trad,
+			    sizeof(trad)) == NULL)
+				bprintf(bp, "Error ntop in print_ip6\n");
+			bprintf(bp, "%s",  trad );
+			if (mb < 0) /* mask not contiguous */
+				bprintf(bp, "/%s", inet_ntop(AF_INET6, &a[1],
+				    trad, sizeof(trad)));
+			else if (mb < 128)
+				bprintf(bp, "/%d", mb);
+		}
+		if (len > 2)
+			bprintf(bp, ",");
+	}
 }
 
 void
@@ -142,163 +146,154 @@ fill_icmp6types(ipfw_insn_icmp6 *cmd, char *av, int cblen)
 
        bzero(cmd, sizeof(*cmd));
        while (*av) {
-	   if (*av == ',')
-	       av++;
-	   type = strtoul(av, &av, 0);
-	   if (*av != ',' && *av != '\0')
-	       errx(EX_DATAERR, "invalid ICMP6 type");
-	   /*
-	    * XXX: shouldn't this be 0xFF?  I can't see any reason why
-	    * we shouldn't be able to filter all possiable values
-	    * regardless of the ability of the rest of the kernel to do
-	    * anything useful with them.
-	    */
-	   if (type > ICMP6_MAXTYPE)
-	       errx(EX_DATAERR, "ICMP6 type out of range");
-	   cmd->d[type / 32] |= ( 1 << (type % 32));
+	       if (*av == ',')
+		       av++;
+	       type = strtoul(av, &av, 0);
+	       if (*av != ',' && *av != '\0')
+		       errx(EX_DATAERR, "invalid ICMP6 type");
+	       /*
+		* XXX: shouldn't this be 0xFF?  I can't see any reason why
+		* we shouldn't be able to filter all possiable values
+		* regardless of the ability of the rest of the kernel to do
+		* anything useful with them.
+		*/
+	       if (type > ICMP6_MAXTYPE)
+		       errx(EX_DATAERR, "ICMP6 type out of range");
+	       cmd->d[type / 32] |= ( 1 << (type % 32));
        }
        cmd->o.opcode = O_ICMP6TYPE;
        cmd->o.len |= F_INSN_SIZE(ipfw_insn_icmp6);
 }
 
-
 void
 print_icmp6types(struct buf_pr *bp, ipfw_insn_u32 *cmd)
 {
-       int i, j;
-       char sep= ' ';
+	int i, j;
+	char sep= ' ';
 
-       bprintf(bp, " ip6 icmp6types");
-       for (i = 0; i < 7; i++)
-	       for (j=0; j < 32; ++j) {
-		       if ( (cmd->d[i] & (1 << (j))) == 0)
-			       continue;
-		       bprintf(bp, "%c%d", sep, (i*32 + j));
-		       sep = ',';
-	       }
+	bprintf(bp, " ip6 icmp6types");
+	for (i = 0; i < 7; i++)
+		for (j=0; j < 32; ++j) {
+			if ( (cmd->d[i] & (1 << (j))) == 0)
+				continue;
+			bprintf(bp, "%c%d", sep, (i*32 + j));
+			sep = ',';
+		}
 }
 
 void
 print_flow6id(struct buf_pr *bp, ipfw_insn_u32 *cmd)
 {
-       uint16_t i, limit = cmd->o.arg1;
-       char sep = ',';
+	uint16_t i, limit = cmd->o.arg1;
+	char sep = ',';
 
-       bprintf(bp, " flow-id ");
-       for( i=0; i < limit; ++i) {
-	       if (i == limit - 1)
-		       sep = ' ';
-	       bprintf(bp, "%d%c", cmd->d[i], sep);
-       }
+	bprintf(bp, " flow-id ");
+	for( i=0; i < limit; ++i) {
+		if (i == limit - 1)
+			sep = ' ';
+		bprintf(bp, "%d%c", cmd->d[i], sep);
+	}
 }
 
 /* structure and define for the extension header in ipv6 */
 static struct _s_x ext6hdrcodes[] = {
-       { "frag",       EXT_FRAGMENT },
-       { "hopopt",     EXT_HOPOPTS },
-       { "route",      EXT_ROUTING },
-       { "dstopt",     EXT_DSTOPTS },
-       { "ah",	 EXT_AH },
-       { "esp",	EXT_ESP },
-       { "rthdr0",     EXT_RTHDR0 },
-       { "rthdr2",     EXT_RTHDR2 },
-       { NULL,	 0 }
+	{ "frag",       EXT_FRAGMENT },
+	{ "hopopt",     EXT_HOPOPTS },
+	{ "route",      EXT_ROUTING },
+	{ "dstopt",     EXT_DSTOPTS },
+	{ "ah",	 EXT_AH },
+	{ "esp",	EXT_ESP },
+	{ "rthdr0",     EXT_RTHDR0 },
+	{ "rthdr2",     EXT_RTHDR2 },
+	{ NULL,	 0 }
 };
 
 /* fills command for the extension header filtering */
 int
 fill_ext6hdr( ipfw_insn *cmd, char *av)
 {
-       int tok;
-       char *s = av;
+	int tok;
+	char *s = av;
 
-       cmd->arg1 = 0;
-
-       while(s) {
-	   av = strsep( &s, ",") ;
-	   tok = match_token(ext6hdrcodes, av);
-	   switch (tok) {
-	   case EXT_FRAGMENT:
-	       cmd->arg1 |= EXT_FRAGMENT;
-	       break;
-
-	   case EXT_HOPOPTS:
-	       cmd->arg1 |= EXT_HOPOPTS;
-	       break;
-
-	   case EXT_ROUTING:
-	       cmd->arg1 |= EXT_ROUTING;
-	       break;
-
-	   case EXT_DSTOPTS:
-	       cmd->arg1 |= EXT_DSTOPTS;
-	       break;
-
-	   case EXT_AH:
-	       cmd->arg1 |= EXT_AH;
-	       break;
-
-	   case EXT_ESP:
-	       cmd->arg1 |= EXT_ESP;
-	       break;
-
-	   case EXT_RTHDR0:
-	       cmd->arg1 |= EXT_RTHDR0;
-	       break;
-
-	   case EXT_RTHDR2:
-	       cmd->arg1 |= EXT_RTHDR2;
-	       break;
-
-	   default:
-	       errx( EX_DATAERR, "invalid option for ipv6 exten header" );
-	       break;
-	   }
-       }
-       if (cmd->arg1 == 0 )
-	   return 0;
-       cmd->opcode = O_EXT_HDR;
-       cmd->len |= F_INSN_SIZE( ipfw_insn );
-       return 1;
+	cmd->arg1 = 0;
+	while(s) {
+		av = strsep( &s, ",") ;
+		tok = match_token(ext6hdrcodes, av);
+		switch (tok) {
+		case EXT_FRAGMENT:
+			cmd->arg1 |= EXT_FRAGMENT;
+			break;
+		case EXT_HOPOPTS:
+			cmd->arg1 |= EXT_HOPOPTS;
+			break;
+		case EXT_ROUTING:
+			cmd->arg1 |= EXT_ROUTING;
+			break;
+		case EXT_DSTOPTS:
+			cmd->arg1 |= EXT_DSTOPTS;
+			break;
+		case EXT_AH:
+			cmd->arg1 |= EXT_AH;
+			break;
+		case EXT_ESP:
+			cmd->arg1 |= EXT_ESP;
+			break;
+		case EXT_RTHDR0:
+			cmd->arg1 |= EXT_RTHDR0;
+			break;
+		case EXT_RTHDR2:
+			cmd->arg1 |= EXT_RTHDR2;
+			break;
+		default:
+			errx(EX_DATAERR,
+			    "invalid option for ipv6 exten header");
+			break;
+		}
+	}
+	if (cmd->arg1 == 0)
+		return (0);
+	cmd->opcode = O_EXT_HDR;
+	cmd->len |= F_INSN_SIZE(ipfw_insn);
+	return (1);
 }
 
 void
 print_ext6hdr(struct buf_pr *bp, ipfw_insn *cmd )
 {
-       char sep = ' ';
+	char sep = ' ';
 
-       bprintf(bp, " extension header:");
-       if (cmd->arg1 & EXT_FRAGMENT ) {
-	   bprintf(bp, "%cfragmentation", sep);
-	   sep = ',';
-       }
-       if (cmd->arg1 & EXT_HOPOPTS ) {
-	   bprintf(bp, "%chop options", sep);
-	   sep = ',';
-       }
-       if (cmd->arg1 & EXT_ROUTING ) {
-	   bprintf(bp, "%crouting options", sep);
-	   sep = ',';
-       }
-       if (cmd->arg1 & EXT_RTHDR0 ) {
-	   bprintf(bp, "%crthdr0", sep);
-	   sep = ',';
-       }
-       if (cmd->arg1 & EXT_RTHDR2 ) {
-	   bprintf(bp, "%crthdr2", sep);
-	   sep = ',';
-       }
-       if (cmd->arg1 & EXT_DSTOPTS ) {
-	   bprintf(bp, "%cdestination options", sep);
-	   sep = ',';
-       }
-       if (cmd->arg1 & EXT_AH ) {
-	   bprintf(bp, "%cauthentication header", sep);
-	   sep = ',';
-       }
-       if (cmd->arg1 & EXT_ESP ) {
-	   bprintf(bp, "%cencapsulated security payload", sep);
-       }
+	bprintf(bp, " extension header:");
+	if (cmd->arg1 & EXT_FRAGMENT) {
+		bprintf(bp, "%cfragmentation", sep);
+		sep = ',';
+	}
+	if (cmd->arg1 & EXT_HOPOPTS) {
+		bprintf(bp, "%chop options", sep);
+		sep = ',';
+	}
+	if (cmd->arg1 & EXT_ROUTING) {
+		bprintf(bp, "%crouting options", sep);
+		sep = ',';
+	}
+	if (cmd->arg1 & EXT_RTHDR0) {
+		bprintf(bp, "%crthdr0", sep);
+		sep = ',';
+	}
+	if (cmd->arg1 & EXT_RTHDR2) {
+		bprintf(bp, "%crthdr2", sep);
+		sep = ',';
+	}
+	if (cmd->arg1 & EXT_DSTOPTS) {
+		bprintf(bp, "%cdestination options", sep);
+		sep = ',';
+	}
+	if (cmd->arg1 & EXT_AH) {
+		bprintf(bp, "%cauthentication header", sep);
+		sep = ',';
+	}
+	if (cmd->arg1 & EXT_ESP) {
+		bprintf(bp, "%cencapsulated security payload", sep);
+	}
 }
 
 /* Try to find ipv6 address by hostname */
@@ -312,7 +307,7 @@ lookup_host6 (char *host, struct in6_addr *ip6addr)
 			return(-1);
 		memcpy(ip6addr, he->h_addr_list[0], sizeof( struct in6_addr));
 	}
-	return(0);
+	return (0);
 }
 
 
