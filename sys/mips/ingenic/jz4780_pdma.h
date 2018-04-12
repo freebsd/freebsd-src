@@ -37,6 +37,7 @@
 #define	PDMA_DRT(n)	(0x0C + 0x20 * n)	/* Channel n Request Source */
 #define	 DRT_AUTO	(1 << 3)		/* Auto-request. */
 #define	PDMA_DCS(n)	(0x10 + 0x20 * n)	/* Channel n Control/Status */
+#define	 DCS_NDES	(1 << 31)		/* Non-descriptor mode. */
 #define	 DCS_DES8	(1 << 30)		/* Descriptor 8 Word. */
 #define	 DCS_AR		(1 << 4)		/* Address Error. */
 #define	 DCS_TT		(1 << 3)		/* Transfer Terminate. */
@@ -45,21 +46,19 @@
 #define	PDMA_DCM(n)	(0x14 + 0x20 * n)	/* Channel n Command */
 #define	 DCM_SAI	(1 << 23) /* Source Address Increment. */
 #define	 DCM_DAI	(1 << 22) /* Destination Address Increment. */
-
 #define	 DCM_SP_S	14 /* Source port width. */
 #define	 DCM_SP_M	(0x3 << DCM_SP_S)
 #define	 DCM_SP_1	(0x1 << DCM_SP_S) /* 1 byte */
 #define	 DCM_SP_2	(0x2 << DCM_SP_S) /* 2 bytes */
 #define	 DCM_SP_4	(0x0 << DCM_SP_S) /* 4 bytes */
-
 #define	 DCM_DP_S	12 /* Destination port width. */
 #define	 DCM_DP_M	(0x3 << DCM_DP_S)
 #define	 DCM_DP_1	(0x1 << DCM_DP_S) /* 1 byte */
 #define	 DCM_DP_2	(0x2 << DCM_DP_S) /* 2 bytes */
 #define	 DCM_DP_4	(0x0 << DCM_DP_S) /* 4 bytes */
-
 #define	 DCM_TSZ_S	8 /* Transfer Data Size of a data unit. */
 #define	 DCM_TSZ_M	(0x7 << DCM_TSZ_S)
+#define	 DCM_TSZ_A	(0x7 << DCM_TSZ_S) /* Autonomy */
 #define	 DCM_TSZ_1	(0x1 << DCM_TSZ_S)
 #define	 DCM_TSZ_2	(0x2 << DCM_TSZ_S)
 #define	 DCM_TSZ_4	(0x0 << DCM_TSZ_S)
@@ -105,3 +104,6 @@ struct pdma_hwdesc {
 	uint32_t drt;		/* DMA Request Type */
 	uint32_t reserved[2];
 };
+
+#define	CHAN_DESC_COUNT	4096
+#define	CHAN_DESC_SIZE	(sizeof(struct pdma_hwdesc) * CHAN_DESC_COUNT)
