@@ -289,8 +289,8 @@ nat64stl_config(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 	 * For now allow to change only following values:
 	 *  flags.
 	 */
-
-	cfg->flags = uc->flags & NAT64STL_FLAGSMASK;
+	cfg->flags &= ~NAT64STL_FLAGSMASK;
+	cfg->flags |= uc->flags & NAT64STL_FLAGSMASK;
 	IPFW_UH_WUNLOCK(ch);
 	return (0);
 }
