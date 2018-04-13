@@ -3695,7 +3695,6 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	case IFT_XETHER:
 	case IFT_L2VLAN:
 	case IFT_BRIDGE:
-	case IFT_ARCNET:
 	case IFT_IEEE8023ADLAG:
 		bcopy(lladdr, LLADDR(sdl), len);
 		ifa_free(ifa);

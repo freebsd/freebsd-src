@@ -845,9 +845,6 @@ device		wlan_xauth
 device		wlan_acl
 device		wlan_amrr
 
-#  The `arcnet' device provides generic code to support Arcnet.
-device		arcnet
-
 #  The `sppp' device serves a similar role for certain types
 #  of synchronous PPP links (like `cx', `ar').
 device		sppp
