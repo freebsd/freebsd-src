@@ -632,7 +632,7 @@ struct nm_os_extmem {
 void
 nm_os_extmem_delete(struct nm_os_extmem *e)
 {
-	D("freeing %lx bytes", e->size);
+	D("freeing %zx bytes", (size_t)e->size);
 	vm_map_remove(kernel_map, e->kva, e->kva + e->size);
 	nm_os_free(e);
 }
@@ -701,7 +701,7 @@ nm_os_extmem_create(unsigned long p, struct nmreq_pools_info *pi, int *perror)
 			VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
 			VM_PROT_READ | VM_PROT_WRITE, 0);
 	if (rv != KERN_SUCCESS) {
-		D("vm_map_find(%lx) failed", e->size);
+		D("vm_map_find(%zx) failed", (size_t)e->size);
 		goto out_rel;
 	}
 	rv = vm_map_wire(kernel_map, e->kva, e->kva + e->size,
