@@ -265,30 +265,31 @@
 			#dma-cells = <3>;
 		};
 
+		ethernet@80007000 {
+			compatible = "altera,atse";
+			reg = <0x80007000 0x400>;		/* mac */
+			dmas = <&msgdma0 0 0 0xffffffff>,
+			       <&msgdma1 1 1 0xffffffff>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
 		ethernet@7f007000 {
 			compatible = "altera,atse";
-			// MAC, RX+RXC, TX+TXC.
-			reg = <0x7f007000 0x400
-			       0x7f007500 0x8
-			       0x7f007520 0x20
-			       0x7f007400 0x8
-			       0x7f007420 0x20>;
-			// RX, TX
-			interrupts = <1 2>;
-			interrupt-parent = <&beripic0>;
+			reg = <0x7f007000 0x400>;		/* mac */
+			dmas = <&softdma0 0 0 0xffffffff>,
+			       <&softdma1 1 1 0xffffffff>;
+			dma-names = "tx", "rx";
+			status = "okay";
 		};
 
 		ethernet@7f005000 {
 			compatible = "altera,atse";
-			// MAC, RX+RXC, TX+TXC.
-			reg = <0x7f005000 0x400
-			       0x7f005500 0x8
-			       0x7f005520 0x20
-			       0x7f005400 0x8
-			       0x7f005420 0x20>;
-			// RX, TX
-			interrupts = <11 12>;
-			interrupt-parent = <&beripic0>;
+			reg = <0x7f005000 0x400>;
+			dmas = <&softdma2 0 0 0xffffffff>,
+			       <&softdma3 1 1 0xffffffff>;
+			dma-names = "tx", "rx";
+			status = "disabled";
 		};
 
 		touchscreen@70400000 {
