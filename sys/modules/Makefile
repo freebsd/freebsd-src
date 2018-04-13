@@ -42,7 +42,6 @@ SUBDIR=	\
 	${_aout} \
 	${_apm} \
 	${_arcmsr} \
-	${_arcnet} \
 	${_armv8crypto} \
 	${_asmc} \
 	ata \
@@ -92,7 +91,6 @@ SUBDIR=	\
 	cloudabi \
 	${_cloudabi32} \
 	${_cloudabi64} \
-	${_cm} \
 	${_cmx} \
 	${_coff} \
 	${_coretemp} \
@@ -744,7 +742,6 @@ _3dfx=		3dfx
 _3dfx_linux=	3dfx_linux
 _aic=		aic
 _apm=		apm
-_arcnet=	arcnet
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ce=		ce
 .endif
@@ -763,7 +760,6 @@ _pcfclock=	pcfclock
 _pst=		pst
 _sbni=		sbni
 _stg=		stg
-_cm=		cm
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ctau=		ctau
 .endif

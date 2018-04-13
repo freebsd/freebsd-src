@@ -49,7 +49,6 @@ struct	arphdr {
 	u_short	ar_hrd;		/* format of hardware address */
 #define ARPHRD_ETHER 	1	/* ethernet hardware format */
 #define ARPHRD_IEEE802	6	/* token-ring hardware format */
-#define ARPHRD_ARCNET	7	/* arcnet hardware format */
 #define ARPHRD_FRELAY 	15	/* frame relay hardware format */
 #define ARPHRD_IEEE1394	24	/* firewire hardware format */
 #define ARPHRD_INFINIBAND 32	/* infiniband hardware format */

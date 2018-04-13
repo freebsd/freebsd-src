@@ -51,6 +51,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20180413:
+	Support for Arcnet networks has been removed.  If you have device
+	arcnet or device cm in your kernel config file they must be
+	removed.
+
 20180411:
 	Support for FDDI networks has been removed.  If you have device
 	fddi or device fpa in your kernel config file they must be

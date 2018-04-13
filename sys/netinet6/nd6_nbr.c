@@ -1090,7 +1090,6 @@ caddr_t
 nd6_ifptomac(struct ifnet *ifp)
 {
 	switch (ifp->if_type) {
-	case IFT_ARCNET:
 	case IFT_ETHER:
 	case IFT_IEEE1394:
 	case IFT_L2VLAN:
