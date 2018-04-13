@@ -84,11 +84,10 @@ struct region_descriptor {
 
 #ifdef _KERNEL
 extern int	_default_ldt;
-extern union descriptor gdt[];
-extern union descriptor ldt[NLDT];
+extern union descriptor *gdt;
+extern union descriptor *ldt;
 extern struct soft_segment_descriptor gdt_segs[];
 extern struct gate_descriptor *idt;
-extern struct region_descriptor r_gdt, r_idt;
 
 void	lgdt(struct region_descriptor *rdp);
 void	sdtossd(struct segment_descriptor *sdp,

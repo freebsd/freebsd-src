@@ -1686,8 +1686,10 @@ invltlb_handler(void)
 	generation = smp_tlb_generation;
 	if (smp_tlb_pmap == kernel_pmap)
 		invltlb_glob();
+#ifdef __amd64__
 	else
 		invltlb();
+#endif
 	PCPU_SET(smp_tlb_done, generation);
 }
 
@@ -1704,7 +1706,10 @@ invlpg_handler(void)
 #endif /* COUNT_IPIS */
 
 	generation = smp_tlb_generation;	/* Overlap with serialization */
-	invlpg(smp_tlb_addr1);
+#ifdef __i386__
+	if (smp_tlb_pmap == kernel_pmap)
+#endif
+		invlpg(smp_tlb_addr1);
 	PCPU_SET(smp_tlb_done, generation);
 }
 
@@ -1724,10 +1729,13 @@ invlrng_handler(void)
 	addr = smp_tlb_addr1;
 	addr2 = smp_tlb_addr2;
 	generation = smp_tlb_generation;	/* Overlap with serialization */
-	do {
-		invlpg(addr);
-		addr += PAGE_SIZE;
-	} while (addr < addr2);
+#ifdef __i386__
+	if (smp_tlb_pmap == kernel_pmap)
+#endif
+		do {
+			invlpg(addr);
+			addr += PAGE_SIZE;
+		} while (addr < addr2);
 
 	PCPU_SET(smp_tlb_done, generation);
 }

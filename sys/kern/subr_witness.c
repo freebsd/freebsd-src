@@ -480,7 +480,9 @@ static int w_max_used_index = 0;
 static unsigned int w_generation = 0;
 static const char w_notrunning[] = "Witness not running\n";
 static const char w_stillcold[] = "Witness is still cold\n";
-
+#ifdef __i386__
+static const char w_notallowed[] = "The sysctl is disabled on the arch\n";
+#endif
 
 static struct witness_order_list_entry order_lists[] = {
 	/*
@@ -2778,6 +2780,11 @@ sysctl_debug_witness_fullgraph(SYSCTL_HANDLER_ARGS)
 	struct witness *w;
 	struct sbuf *sb;
 	int error;
+
+#ifdef __i386__
+	error = SYSCTL_OUT(req, w_notallowed, sizeof(w_notallowed));
+	return (error);
+#endif
 
 	if (witness_watch < 1) {
 		error = SYSCTL_OUT(req, w_notrunning, sizeof(w_notrunning));

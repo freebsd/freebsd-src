@@ -115,4 +115,7 @@ db_show_mdpcpu(struct pcpu *pc)
 
 	db_printf("APIC ID      = %d\n", pc->pc_apic_id);
 	db_printf("currentldt   = 0x%x\n", pc->pc_currentldt);
+	db_printf("trampstk     = 0x%x\n", pc->pc_trampstk);
+	db_printf("kesp0        = 0x%x\n", pc->pc_kesp0);
+	db_printf("common_tssp  = 0x%x\n", (u_int)pc->pc_common_tssp);
 }

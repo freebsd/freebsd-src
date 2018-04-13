@@ -42,21 +42,23 @@
 #include <sys/_mutex.h>
 
 /*
- * The SMP parts are setup in pmap.c and locore.s for the BSP, and
- * mp_machdep.c sets up the data for the AP's to "see" when they awake.
- * The reason for doing it via a struct is so that an array of pointers
- * to each CPU's data can be set up for things like "check curproc on all
- * other processors"
+ * The SMP parts are setup in pmap.c and machdep.c for the BSP, and
+ * pmap.c and mp_machdep.c sets up the data for the AP's to "see" when
+ * they awake.  The reason for doing it via a struct is so that an
+ * array of pointers to each CPU's data can be set up for things like
+ * "check curproc on all other processors"
  */
 
 #define	PCPU_MD_FIELDS							\
 	char	pc_monitorbuf[128] __aligned(128); /* cache line */	\
 	struct	pcpu *pc_prvspace;	/* Self-reference */		\
 	struct	pmap *pc_curpmap;					\
-	struct	i386tss pc_common_tss;					\
 	struct	segment_descriptor pc_common_tssd;			\
 	struct	segment_descriptor *pc_tss_gdt;				\
 	struct	segment_descriptor *pc_fsgs_gdt;			\
+	struct	i386tss *pc_common_tssp;				\
+	u_int	pc_kesp0;						\
+	u_int	pc_trampstk;						\
 	int	pc_currentldt;						\
 	u_int   pc_acpi_id;		/* ACPI CPU id */		\
 	u_int	pc_apic_id;						\
@@ -69,8 +71,13 @@
 	caddr_t	pc_cmap_addr1;						\
 	caddr_t	pc_cmap_addr2;						\
 	vm_offset_t pc_qmap_addr;	/* KVA for temporary mappings */\
+	vm_offset_t pc_copyout_maddr;					\
+	vm_offset_t pc_copyout_saddr;					\
+	struct	mtx pc_copyout_mlock;					\
+	struct	sx pc_copyout_slock;					\
+	char	*pc_copyout_buf;					\
 	uint32_t pc_smp_tlb_done;	/* TLB op acknowledgement */	\
-	char	__pad[445]
+	char	__pad[550]
 
 #ifdef _KERNEL
 

@@ -136,7 +136,7 @@
  * Kernel physical load address.
  */
 #ifndef KERNLOAD
-#define	KERNLOAD		(1 << PDRSHIFT)
+#define	KERNLOAD		(KERNPTDI << PDRSHIFT)
 #endif /* !defined(KERNLOAD) */
 
 /*
@@ -146,22 +146,46 @@
  * messy at times, but hey, we'll do anything to save a page :-)
  */
 
-#define VM_MAX_KERNEL_ADDRESS	VADDR(KPTDI+NKPDE-1, NPTEPG-1)
+#define VM_MAX_KERNEL_ADDRESS	VADDR(PTDPTDI, 0)
 
-#define VM_MIN_KERNEL_ADDRESS	VADDR(PTDPTDI, PTDPTDI)
+#define VM_MIN_KERNEL_ADDRESS	0
 
-#define	KERNBASE		VADDR(KPTDI, 0)
+#define	KERNBASE		KERNLOAD
 
 #define UPT_MAX_ADDRESS		VADDR(PTDPTDI, PTDPTDI)
 #define UPT_MIN_ADDRESS		VADDR(PTDPTDI, 0)
 
-#define VM_MAXUSER_ADDRESS	VADDR(PTDPTDI, 0)
+#define VM_MAXUSER_ADDRESS	VADDR(TRPTDI, 0)
 
 #define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
 #define	USRSTACK		SHAREDPAGE
 
-#define VM_MAX_ADDRESS		VADDR(PTDPTDI, PTDPTDI)
+#define VM_MAX_ADDRESS		VADDR(PTDPTDI, 0)
 #define VM_MIN_ADDRESS		((vm_offset_t)0)
+
+#define	PMAP_TRM_MIN_ADDRESS	VM_MAXUSER_ADDRESS
+#define	PMAP_TRM_MAX_ADDRESS	0xffffffff
+
+#define	PMAP_MAP_LOW		VADDR(LOWPTDI, 0)
+
+/*
+ * KVA layout.  The unit of the system allocation is single PDE, which
+ * represents NBPDR bytes, aligned to NBPDR.  NBPDR is 4M for non-PAE
+ * page tables, and 2M for PAE.  Addresses below are shown for non-PAE.
+ *
+ * 0x00000000 - 0x003fffff	Transient identity map of low memory (0-4M),
+ *				normally disabled to catch NULL derefs.
+ * 0x00400000 - 0x007fffff	Fixed mapping of the low memory (0-4M).
+ * 0x00800000 - 0xffbfffff	KERNBASE (VA) == KERNLOAD (PA), kernel
+ *				text + data and all kernel maps.  Managed
+ *				by MI VM.
+ * 0xffc00000 - 0xffdfffff	Recursive kernel page table mapping, pointed
+ *				to by PTmap.  PTD[] recusively points
+ *				into PTmap.
+ * 0xffe00000 - 0xffffffff	Kernel/User mode shared PDE, contains GDT,
+ *				IDT, TSS, LDT, trampoline code and stacks.
+ *				Managed by pmap_trm_alloc().
+ */
 
 /*
  * How many physical pages per kmem arena virtual page.

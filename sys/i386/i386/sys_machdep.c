@@ -294,10 +294,8 @@ i386_extend_pcb(struct thread *td)
 		0			/* granularity */
 	};
 
-	ext = (struct pcb_ext *)kmem_malloc(kernel_arena, ctob(IOPAGES+1),
-	    M_WAITOK | M_ZERO);
+	ext = pmap_trm_alloc(ctob(IOPAGES + 1), M_WAITOK | M_ZERO);
 	/* -16 is so we can convert a trapframe into vm86trapframe inplace */
-	ext->ext_tss.tss_esp0 = (vm_offset_t)td->td_pcb - 16;
 	ext->ext_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
 	/*
 	 * The last byte of the i/o map must be followed by an 0xff byte.
@@ -323,6 +321,7 @@ i386_extend_pcb(struct thread *td)
 
 	/* Switch to the new TSS. */
 	critical_enter();
+	ext->ext_tss.tss_esp0 = PCPU_GET(trampstk);
 	td->td_pcb->pcb_ext = ext;
 	PCPU_SET(private_tss, 1);
 	*PCPU_GET(tss_gdt) = ext->ext_tssd;
@@ -457,8 +456,8 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 	new_ldt = malloc(sizeof(struct proc_ldt), M_SUBPROC, M_WAITOK);
 
 	new_ldt->ldt_len = len = NEW_MAX_LD(len);
-	new_ldt->ldt_base = (caddr_t)kmem_malloc(kernel_arena,
-	    len * sizeof(union descriptor), M_WAITOK | M_ZERO);
+	new_ldt->ldt_base = pmap_trm_alloc(len * sizeof(union descriptor),
+	    M_WAITOK | M_ZERO);
 	new_ldt->ldt_refcnt = 1;
 	new_ldt->ldt_active = 0;
 
@@ -473,7 +472,7 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 		bcopy(pldt->ldt_base, new_ldt->ldt_base,
 		    len * sizeof(union descriptor));
 	} else
-		bcopy(ldt, new_ldt->ldt_base, sizeof(ldt));
+		bcopy(ldt, new_ldt->ldt_base, sizeof(union descriptor) * NLDT);
 	
 	return (new_ldt);
 }
@@ -510,8 +509,8 @@ user_ldt_deref(struct proc_ldt *pldt)
 	mtx_assert(&dt_lock, MA_OWNED);
 	if (--pldt->ldt_refcnt == 0) {
 		mtx_unlock_spin(&dt_lock);
-		kmem_free(kernel_arena, (vm_offset_t)pldt->ldt_base,
-			pldt->ldt_len * sizeof(union descriptor));
+		pmap_trm_free(pldt->ldt_base, pldt->ldt_len *
+		    sizeof(union descriptor));
 		free(pldt, M_SUBPROC);
 	} else
 		mtx_unlock_spin(&dt_lock);
@@ -767,8 +766,7 @@ i386_ldt_grow(struct thread *td, int len)
 				 * free the new object and return.
 				 */
 				mtx_unlock_spin(&dt_lock);
-				kmem_free(kernel_arena,
-				   (vm_offset_t)new_ldt->ldt_base,
+				pmap_trm_free(new_ldt->ldt_base,
 				   new_ldt->ldt_len * sizeof(union descriptor));
 				free(new_ldt, M_SUBPROC);
 				mtx_lock_spin(&dt_lock);
@@ -801,8 +799,8 @@ i386_ldt_grow(struct thread *td, int len)
 		mtx_unlock_spin(&dt_lock);
 #endif
 		if (old_ldt_base != NULL_LDT_BASE) {
-			kmem_free(kernel_arena, (vm_offset_t)old_ldt_base,
-			    old_ldt_len * sizeof(union descriptor));
+			pmap_trm_free(old_ldt_base, old_ldt_len *
+			    sizeof(union descriptor));
 			free(new_ldt, M_SUBPROC);
 		}
 		mtx_lock_spin(&dt_lock);

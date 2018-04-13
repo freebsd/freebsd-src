@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/apicreg.h>
 #endif
 #include <machine/cpu.h>
+#include <machine/pcb_ext.h>
 #include <machine/pcb.h>
 #include <machine/sigframe.h>
 #include <machine/vm86.h>
@@ -141,6 +142,8 @@ ASSYM(PCB_DR7, offsetof(struct pcb, pcb_dr7));
 ASSYM(PCB_DBREGS, PCB_DBREGS);
 ASSYM(PCB_EXT, offsetof(struct pcb, pcb_ext));
 
+ASSYM(PCB_EXT_TSS, offsetof(struct pcb_ext, ext_tss));
+
 ASSYM(PCB_FSD, offsetof(struct pcb, pcb_fsd));
 ASSYM(PCB_GSD, offsetof(struct pcb, pcb_gsd));
 ASSYM(PCB_VM86, offsetof(struct pcb, pcb_vm86));
@@ -164,6 +167,7 @@ ASSYM(TF_ERR, offsetof(struct trapframe, tf_err));
 ASSYM(TF_EIP, offsetof(struct trapframe, tf_eip));
 ASSYM(TF_CS, offsetof(struct trapframe, tf_cs));
 ASSYM(TF_EFLAGS, offsetof(struct trapframe, tf_eflags));
+ASSYM(TF_SZ, sizeof(struct trapframe));
 
 ASSYM(SIGF_HANDLER, offsetof(struct sigframe, sf_ahu.sf_handler));
 #ifdef COMPAT_43
@@ -206,7 +210,7 @@ ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_FPCURTHREAD, offsetof(struct pcpu, pc_fpcurthread));
 ASSYM(PC_IDLETHREAD, offsetof(struct pcpu, pc_idlethread));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
-ASSYM(PC_COMMON_TSS, offsetof(struct pcpu, pc_common_tss));
+ASSYM(PC_COMMON_TSSP, offsetof(struct pcpu, pc_common_tssp));
 ASSYM(PC_COMMON_TSSD, offsetof(struct pcpu, pc_common_tssd));
 ASSYM(PC_TSS_GDT, offsetof(struct pcpu, pc_tss_gdt));
 ASSYM(PC_FSGS_GDT, offsetof(struct pcpu, pc_fsgs_gdt));
@@ -214,6 +218,9 @@ ASSYM(PC_CURRENTLDT, offsetof(struct pcpu, pc_currentldt));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 ASSYM(PC_PRIVATE_TSS, offsetof(struct pcpu, pc_private_tss));
+ASSYM(PC_KESP0, offsetof(struct pcpu, pc_kesp0));
+ASSYM(PC_TRAMPSTK, offsetof(struct pcpu, pc_trampstk));
+ASSYM(PC_COPYOUT_BUF, offsetof(struct pcpu, pc_copyout_buf));
 
 #ifdef DEV_APIC
 ASSYM(LA_EOI, LAPIC_EOI * LAPIC_MEM_MUL);
@@ -227,6 +234,10 @@ ASSYM(KPSEL, GSEL(GPRIV_SEL, SEL_KPL));
 ASSYM(BC32SEL, GSEL(GBIOSCODE32_SEL, SEL_KPL));
 ASSYM(GPROC0_SEL, GPROC0_SEL);
 ASSYM(VM86_FRAMESIZE, sizeof(struct vm86frame));
+ASSYM(VM86_STACK_SPACE, VM86_STACK_SPACE);
+
+ASSYM(PMAP_TRM_MIN_ADDRESS, PMAP_TRM_MIN_ADDRESS);
+ASSYM(TRAMP_COPYOUT_SZ, TRAMP_COPYOUT_SZ);
 
 #ifdef	HWPMC_HOOKS
 ASSYM(PMC_FN_USER_CALLCHAIN, PMC_FN_USER_CALLCHAIN);
