@@ -22,8 +22,6 @@ SUBDIR.${MK_GPL_DTC}+=	dtc
 SUBDIR.${MK_RCS}+=	rcs
 SUBDIR.${MK_TESTS}+=	tests
 
-.info MK_GNU_DIFF=${MK_GNU_DIFF}
-
 SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>
