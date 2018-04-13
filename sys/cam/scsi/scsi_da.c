@@ -4468,7 +4468,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				    (((csio->ccb_h.status & CAM_STATUS_MASK) ==
 					CAM_REQ_INVALID) ||
 				     ((have_sense) &&
-				      (error_code == SSD_CURRENT_ERROR) &&
+				      (error_code == SSD_CURRENT_ERROR ||
+				       error_code == SSD_DESC_CURRENT_ERROR) &&
 				      (sense_key == SSD_KEY_ILLEGAL_REQUEST)))) {
 					softc->flags &= ~DA_FLAG_CAN_RC16;
 					free(rdcap, M_SCSIDA);
@@ -4485,7 +4486,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				 * unit not supported" (0x25) error.
 				 */
 				if ((have_sense) && (asc != 0x25)
-				 && (error_code == SSD_CURRENT_ERROR)) {
+				 && (error_code == SSD_CURRENT_ERROR
+				  || error_code == SSD_DESC_CURRENT_ERROR)) {
 					const char *sense_key_desc;
 					const char *asc_desc;
 
