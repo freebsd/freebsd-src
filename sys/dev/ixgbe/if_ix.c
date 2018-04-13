@@ -3567,8 +3567,6 @@ ixgbe_stop(void *arg)
 
 	mtx_assert(&adapter->core_mtx, MA_OWNED);
 
-	msec_delay(1000);
-
 	INIT_DEBUGOUT("ixgbe_stop: begin\n");
 	ixgbe_disable_intr(adapter);
 	callout_stop(&adapter->timer);
