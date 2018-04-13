@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/miivar.h>
 
 #include <dev/altera/atse/if_atsereg.h>
-#include <dev/altera/atse/a_api.h>
+#include <dev/altera/softdma/a_api.h>
 
 MODULE_DEPEND(atse, ether, 1, 1, 1);
 MODULE_DEPEND(atse, miibus, 1, 1, 1);
