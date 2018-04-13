@@ -83,6 +83,8 @@ __FBSDID("$FreeBSD$");
 #include <altq/altq.h>
 #endif
 
+#define PF_TABLES_MAX_REQUEST   65535 /* Maximum tables per request. */
+
 static int		 pfattach(void);
 static struct pf_pool	*pf_get_pool(char *, u_int32_t, u_int8_t, u_int32_t,
 			    u_int8_t, u_int8_t, u_int8_t);
@@ -2513,13 +2515,15 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			break;
 		}
-		totlen = io->pfrio_size * sizeof(struct pfr_table);
-		pfrts = mallocarray(io->pfrio_size, sizeof(struct pfr_table),
-		    M_TEMP, M_WAITOK);
-		if (! pfrts) {
+
+		if (io->pfrio_size < 0 || io->pfrio_size > PF_TABLES_MAX_REQUEST) {
 			error = ENOMEM;
 			break;
 		}
+
+		totlen = io->pfrio_size * sizeof(struct pfr_table);
+		pfrts = mallocarray(io->pfrio_size, sizeof(struct pfr_table),
+		    M_TEMP, M_WAITOK);
 		error = copyin(io->pfrio_buffer, pfrts, totlen);
 		if (error) {
 			free(pfrts, M_TEMP);
@@ -2542,13 +2546,15 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			break;
 		}
-		totlen = io->pfrio_size * sizeof(struct pfr_table);
-		pfrts = mallocarray(io->pfrio_size, sizeof(struct pfr_table),
-		    M_TEMP, M_WAITOK);
-		if (! pfrts) {
+
+		if (io->pfrio_size < 0 || io->pfrio_size > PF_TABLES_MAX_REQUEST) {
 			error = ENOMEM;
 			break;
 		}
+
+		totlen = io->pfrio_size * sizeof(struct pfr_table);
+		pfrts = mallocarray(io->pfrio_size, sizeof(struct pfr_table),
+		    M_TEMP, M_WAITOK);
 		error = copyin(io->pfrio_buffer, pfrts, totlen);
 		if (error) {
 			free(pfrts, M_TEMP);
