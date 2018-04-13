@@ -107,6 +107,23 @@
 		interrupt-parent = <&cpuintc>;
 	};
 
+/*
+	beripic1: beripic@7f808000 {
+		compatible = "sri-cambridge,beri-pic";
+		interrupt-controller;
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x7f808000 0x400
+		       0x7f80a000 0x10
+		       0x7f80a080 0x10
+		       0x7f80a100 0x10>;
+		interrupts = < 2 3 4 5 6 >;
+		hard-interrupt-sources = <64>;
+		soft-interrupt-sources = <64>;
+		interrupt-parent = <&cpuintc>;
+	};
+*/
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -190,6 +207,62 @@
 				reg = <0x3fe0000 0x20000>;
 				label = "boot";
 			};
+		};
+
+		msgdma0: msgdma@80004080 { 
+			compatible = "altr,msgdma-16.0", "altr,msgdma-1.0"; 
+			reg = <0x80004080 0x00000020>,
+			      <0x800040a0 0x00000020>; 
+			reg-names = "csr", "descriptor_slave"; 
+			interrupts = <14>;
+			interrupt-parent = <&beripic0>;
+			#dma-cells = <3>;
+		}; 
+
+		msgdma1: msgdma@80004000 { 
+			compatible = "altr,msgdma-16.0", "altr,msgdma-1.0"; 
+			reg = <0x80004000 0x00000020>,
+			      <0x80004020 0x00000020>; 
+			reg-names = "csr", "descriptor_slave"; 
+			interrupts = <13>;
+			interrupt-parent = <&beripic0>;
+			#dma-cells = <3>;
+		}; 
+
+		softdma0: softdma@7f007400 {
+			compatible = "altr,softdma";
+			reg = < 0x7f007400 0x8		/* tx */
+				0x7f007420 0x20 >;	/* txc */
+			interrupts = <2>;
+			interrupt-parent = <&beripic0>;
+			#dma-cells = <3>;
+		};
+
+		softdma1: softdma@7f007500 {
+			compatible = "altr,softdma";
+			reg = < 0x7f007500 0x8		/* rx */
+				0x7f007520 0x20 >;	/* rxc */
+			interrupts = <1>;
+			interrupt-parent = <&beripic0>;
+			#dma-cells = <3>;
+		};
+
+		softdma2: softdma@7f005400 {
+			compatible = "altr,softdma";
+			reg = < 0x7f005400 0x8		/* tx */
+				0x7f005420 0x20 >;	/* txc */
+			interrupts = <12>;
+			interrupt-parent = <&beripic0>;
+			#dma-cells = <3>;
+		};
+
+		softdma3: softdma@7f005500 {
+			compatible = "altr,softdma";
+			reg = < 0x7f005500 0x8		/* rx */
+				0x7f005520 0x20 >;	/* rxc */
+			interrupts = <11>;
+			interrupt-parent = <&beripic0>;
+			#dma-cells = <3>;
 		};
 
 		ethernet@7f007000 {
