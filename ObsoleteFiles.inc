@@ -1070,7 +1070,6 @@ OLD_FILES+=usr/share/man/man7/mm.7.gz
 OLD_FILES+=usr/share/man/man7/mmse.7.gz
 OLD_FILES+=usr/share/man/man7/ms.7.gz
 OLD_FILES+=usr/share/man/man7/orig_me.7.gz
-OLD_FILES+=usr/share/man/man7/roff.7.gz
 OLD_FILES+=usr/share/me/acm.me
 OLD_FILES+=usr/share/me/chars.me
 OLD_FILES+=usr/share/me/deltext.me
