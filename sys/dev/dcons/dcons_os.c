@@ -309,11 +309,16 @@ dcons_drv_init(int stage)
 		 * Allow read/write access to dcons buffer.
 		 */
 		for (pa = trunc_page(addr); pa < addr + size; pa += PAGE_SIZE)
-			*vtopte(KERNBASE + pa) |= PG_RW;
+			*vtopte(PMAP_MAP_LOW + pa) |= PG_RW;
 		invltlb();
 #endif
 		/* XXX P to V */
+#ifdef __amd64__
 		dg.buf = (struct dcons_buf *)(vm_offset_t)(KERNBASE + addr);
+#else /* __i386__ */
+		dg.buf = (struct dcons_buf *)((vm_offset_t)PMAP_MAP_LOW +
+		    addr);
+#endif
 		dg.size = size;
 		if (dcons_load_buffer(dg.buf, dg.size, sc) < 0)
 			dg.buf = NULL;

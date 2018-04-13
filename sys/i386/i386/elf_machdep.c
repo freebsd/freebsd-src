@@ -137,7 +137,6 @@ SYSINIT(kelf32, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf32_insert_brand_entry,
 	&kfreebsd_brand_info);
 
-
 void
 elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 {

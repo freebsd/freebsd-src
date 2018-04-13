@@ -78,6 +78,55 @@ struct system_map {
 #define PUSH_MASK	~(PSL_VM | PSL_RF | PSL_I)
 #define POP_MASK	~(PSL_VIP | PSL_VIF | PSL_VM | PSL_RF | PSL_IOPL)
 
+static int
+vm86_suword16(volatile void *base, int word)
+{
+
+	if (curthread->td_critnest != 0) {
+		*(volatile uint16_t *)base = word;
+		return (0);
+	}
+	return (suword16(base, word));
+}
+
+static int
+vm86_suword(volatile void *base, long word)
+{
+
+	if (curthread->td_critnest != 0) {
+		*(volatile long *)base = word;
+		return (0);
+	}
+	return (suword(base, word));
+}
+
+static int
+vm86_fubyte(volatile const void *base)
+{
+
+	if (curthread->td_critnest != 0)
+		return (*(volatile const u_char *)base);
+	return (fubyte(base));
+}
+
+static int
+vm86_fuword16(volatile const void *base)
+{
+
+	if (curthread->td_critnest != 0)
+		return (*(volatile const uint16_t *)base);
+	return (fuword16(base));
+}
+
+static long
+vm86_fuword(volatile const void *base)
+{
+
+	if (curthread->td_critnest != 0)
+		return (*(volatile const long *)base);
+	return (fuword(base));
+}
+
 static __inline caddr_t
 MAKE_ADDR(u_short sel, u_short off)
 {
@@ -101,20 +150,20 @@ static __inline void
 PUSH(u_short x, struct vm86frame *vmf)
 {
 	vmf->vmf_sp -= 2;
-	suword16(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp), x);
+	vm86_suword16(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp), x);
 }
 
 static __inline void
 PUSHL(u_int x, struct vm86frame *vmf)
 {
 	vmf->vmf_sp -= 4;
-	suword(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp), x);
+	vm86_suword(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp), x);
 }
 
 static __inline u_short
 POP(struct vm86frame *vmf)
 {
-	u_short x = fuword16(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp));
+	u_short x = vm86_fuword16(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp));
 
 	vmf->vmf_sp += 2;
 	return (x);
@@ -123,7 +172,7 @@ POP(struct vm86frame *vmf)
 static __inline u_int
 POPL(struct vm86frame *vmf)
 {
-	u_int x = fuword(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp));
+	u_int x = vm86_fuword(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp));
 
 	vmf->vmf_sp += 4;
 	return (x);
@@ -152,16 +201,16 @@ vm86_emulate(struct vm86frame *vmf)
 		retcode = SIGTRAP;
 
 	addr = MAKE_ADDR(vmf->vmf_cs, vmf->vmf_ip);
-	i_byte = fubyte(addr);
+	i_byte = vm86_fubyte(addr);
 	if (i_byte == ADDRESS_SIZE_PREFIX) {
-		i_byte = fubyte(++addr);
+		i_byte = vm86_fubyte(++addr);
 		inc_ip++;
 	}
 
 	if (vm86->vm86_has_vme) {
 		switch (i_byte) {
 		case OPERAND_SIZE_PREFIX:
-			i_byte = fubyte(++addr);
+			i_byte = vm86_fubyte(++addr);
 			inc_ip++;
 			switch (i_byte) {
 			case PUSHF:
@@ -241,7 +290,7 @@ vm86_emulate(struct vm86frame *vmf)
 
 	switch (i_byte) {
 	case OPERAND_SIZE_PREFIX:
-		i_byte = fubyte(++addr);
+		i_byte = vm86_fubyte(++addr);
 		inc_ip++;
 		switch (i_byte) {
 		case PUSHF:
@@ -293,7 +342,7 @@ vm86_emulate(struct vm86frame *vmf)
 		return (retcode);
 
 	case INTn:
-		i_byte = fubyte(addr + 1);
+		i_byte = vm86_fubyte(addr + 1);
 		if ((vm86->vm86_intmap[i_byte >> 3] & (1 << (i_byte & 7))) != 0)
 			break;
 		if (vm86->vm86_eflags & PSL_VIF)
@@ -303,7 +352,7 @@ vm86_emulate(struct vm86frame *vmf)
 			PUSH((vmf->vmf_flags & PUSH_MASK) | PSL_IOPL, vmf);
 		PUSH(vmf->vmf_cs, vmf);
 		PUSH(vmf->vmf_ip + inc_ip + 1, vmf);	/* increment IP */
-		GET_VEC(fuword((caddr_t)(i_byte * 4)),
+		GET_VEC(vm86_fuword((caddr_t)(i_byte * 4)),
 		     &vmf->vmf_cs, &vmf->vmf_ip);
 		vmf->vmf_flags &= ~PSL_T;
 		vm86->vm86_eflags &= ~PSL_VIF;
@@ -548,6 +597,7 @@ vm86_prepcall(struct vm86frame *vmf)
 void
 vm86_trap(struct vm86frame *vmf)
 {
+	void (*p)(struct vm86frame *);
 	caddr_t addr;
 
 	/* "should not happen" */
@@ -560,21 +610,26 @@ vm86_trap(struct vm86frame *vmf)
 	else
 		vmf->vmf_trapno = vmf->vmf_trapno << 16;
 
-	vm86_biosret(vmf);
+	p = (void (*)(struct vm86frame *))((uintptr_t)vm86_biosret +
+	    setidt_disp);
+	p(vmf);
 }
 
 int
 vm86_intcall(int intnum, struct vm86frame *vmf)
 {
+	int (*p)(struct vm86frame *);
 	int retval;
 
 	if (intnum < 0 || intnum > 0xff)
 		return (EINVAL);
 
 	vmf->vmf_trapno = intnum;
+	p = (int (*)(struct vm86frame *))((uintptr_t)vm86_bioscall +
+	    setidt_disp);
 	mtx_lock(&vm86_lock);
 	critical_enter();
-	retval = vm86_bioscall(vmf);
+	retval = p(vmf);
 	critical_exit();
 	mtx_unlock(&vm86_lock);
 	return (retval);
@@ -589,10 +644,12 @@ vm86_intcall(int intnum, struct vm86frame *vmf)
 int
 vm86_datacall(int intnum, struct vm86frame *vmf, struct vm86context *vmc)
 {
-	pt_entry_t *pte = (pt_entry_t *)vm86paddr;
+	pt_entry_t *pte;
+	int (*p)(struct vm86frame *);
 	vm_paddr_t page;
 	int i, entry, retval;
 
+	pte = (pt_entry_t *)vm86paddr;
 	mtx_lock(&vm86_lock);
 	for (i = 0; i < vmc->npages; i++) {
 		page = vtophys(vmc->pmap[i].kva & PG_FRAME);
@@ -603,8 +660,10 @@ vm86_datacall(int intnum, struct vm86frame *vmf, struct vm86context *vmc)
 	}
 
 	vmf->vmf_trapno = intnum;
+	p = (int (*)(struct vm86frame *))((uintptr_t)vm86_bioscall +
+	    setidt_disp);
 	critical_enter();
-	retval = vm86_bioscall(vmf);
+	retval = p(vmf);
 	critical_exit();
 
 	for (i = 0; i < vmc->npages; i++) {

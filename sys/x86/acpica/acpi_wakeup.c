@@ -141,8 +141,13 @@ acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 }
 
 #define	WARMBOOT_TARGET		0
+#ifdef __amd64__
 #define	WARMBOOT_OFF		(KERNBASE + 0x0467)
 #define	WARMBOOT_SEG		(KERNBASE + 0x0469)
+#else /* __i386__ */
+#define	WARMBOOT_OFF		(PMAP_MAP_LOW + 0x0467)
+#define	WARMBOOT_SEG		(PMAP_MAP_LOW + 0x0469)
+#endif
 
 #define	CMOS_REG		(0x70)
 #define	CMOS_DATA		(0x71)
@@ -186,7 +191,7 @@ acpi_wakeup_cpus(struct acpi_softc *sc)
 	 * cpususpend_handler() and we will release them soon.  Then each
 	 * will invalidate its TLB.
 	 */
-	kernel_pmap->pm_pdir[0] = 0;
+	PTD[KPTDI] = 0;
 	invltlb_glob();
 #endif
 
@@ -256,7 +261,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		 * be careful to use the kernel map (PTD[0] is for curthread
 		 * which may be a user thread in deprecated APIs).
 		 */
-		kernel_pmap->pm_pdir[0] = PTD[KPTDI];
+		PTD[KPTDI] = PTD[LOWPTDI];
 #endif
 
 		/* Call ACPICA to enter the desired sleep state */

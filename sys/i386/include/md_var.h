@@ -45,14 +45,18 @@ extern	int	szfreebsd4_sigcode;
 #endif
 #ifdef COMPAT_43
 extern	int	szosigcode;
+extern	int	sz_lcall_tramp;
 #endif
 extern	uint32_t *vm_page_dump;
+extern  vm_offset_t proc0kstack;
+extern	uintptr_t setidt_disp;
 
 struct	segment_descriptor;
 union savefpu;
 
 void	bcopyb(const void *from, void *to, size_t len);
 void	cpu_switch_load_gs(void) __asm(__STRING(cpu_switch_load_gs));
+void	copyout_init_tramp(void);
 void	doreti_iret(void) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault(void) __asm(__STRING(doreti_iret_fault));
 void	doreti_popl_ds(void) __asm(__STRING(doreti_popl_ds));
@@ -71,6 +75,7 @@ void	ppro_reenable_apic(void);
 void	set_fsbase(struct thread *td, uint32_t base);
 void	set_gsbase(struct thread *td, uint32_t base);
 void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int selec);
+void	setidt_nodisp(int idx, uintptr_t func, int typ, int dpl, int selec);
 union savefpu *get_pcb_user_save_td(struct thread *td);
 union savefpu *get_pcb_user_save_pcb(struct pcb *pcb);
 
