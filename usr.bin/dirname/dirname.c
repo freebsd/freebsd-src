@@ -39,6 +39,7 @@ static const char sccsid[] = "@(#)dirname.c	8.4 (Berkeley) 5/4/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <libgen.h>
 #include <stdio.h>
@@ -52,6 +53,9 @@ main(int argc, char **argv)
 {
 	char *p;
 	int ch;
+
+	if (caph_limit_stdio() < 0 || (cap_enter() < 0 && errno != ENOSYS))
+		err(1, "capsicum");
 
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
