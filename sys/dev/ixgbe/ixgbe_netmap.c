@@ -151,6 +151,7 @@ ixgbe_netmap_reg(struct netmap_adapter *na, int onoff)
 	struct adapter *adapter = ifp->if_softc;
 
 	IXGBE_CORE_LOCK(adapter);
+	msec_delay(1000);
 	adapter->stop_locked(adapter);
 
 	set_crcstrip(&adapter->hw, onoff);
