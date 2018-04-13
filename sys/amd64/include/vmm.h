@@ -31,7 +31,12 @@
 #ifndef _VMM_H_
 #define	_VMM_H_
 
+#include <sys/sdt.h>
 #include <x86/segments.h>
+
+#ifdef _KERNEL
+SDT_PROVIDER_DECLARE(vmm);
+#endif
 
 enum vm_suspend_how {
 	VM_SUSPEND_NONE,
