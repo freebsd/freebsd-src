@@ -208,6 +208,8 @@ static struct vmm_ops *ops;
 #define	fpu_start_emulating()	load_cr0(rcr0() | CR0_TS)
 #define	fpu_stop_emulating()	clts()
 
+SDT_PROVIDER_DEFINE(vmm);
+
 static MALLOC_DEFINE(M_VM, "vm", "vm");
 
 /* statistics */
