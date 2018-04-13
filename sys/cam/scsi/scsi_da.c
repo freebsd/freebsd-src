@@ -4652,9 +4652,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				      (error_code == SSD_CURRENT_ERROR ||
 				       error_code == SSD_DESC_CURRENT_ERROR) &&
 				      (sense_key == SSD_KEY_ILLEGAL_REQUEST)))) {
-					cam_periph_lock(periph);
+					cam_periph_assert(periph, MA_OWNED);
 					softc->flags &= ~DA_FLAG_CAN_RC16;
-					cam_periph_unlock(periph);
 					free(rdcap, M_SCSIDA);
 					xpt_release_ccb(done_ccb);
 					softc->state = DA_STATE_PROBE_RC;
