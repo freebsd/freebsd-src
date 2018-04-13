@@ -97,7 +97,8 @@ ip6_tryforward(struct mbuf *m)
 	 * Fallback conditions to ip6_input for slow path processing.
 	 */
 	ip6 = mtod(m, struct ip6_hdr *);
-	if (ip6->ip6_nxt == IPPROTO_HOPOPTS ||
+	if ((m->m_flags & (M_BCAST | M_MCAST)) != 0 ||
+	    ip6->ip6_nxt == IPPROTO_HOPOPTS ||
 	    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
 	    IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_dst) ||
 	    IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_src) ||
