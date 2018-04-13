@@ -317,7 +317,12 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	 * actually made the call.
 	 */
 	frame_type = NORMAL;
-	sym = db_search_symbol(eip - 1, DB_STGY_ANY, &offset);
+	if (eip >= PMAP_TRM_MIN_ADDRESS) {
+		sym = db_search_symbol(eip - 1 - setidt_disp, DB_STGY_ANY,
+		    &offset);
+	} else {
+		sym = db_search_symbol(eip - 1, DB_STGY_ANY, &offset);
+	}
 	db_symbol_values(sym, &name, NULL);
 	if (name != NULL) {
 		if (strcmp(name, "calltrap") == 0 ||
@@ -357,9 +362,9 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	 * switch to a known good state.
 	 */
 	if (frame_type == DOUBLE_FAULT) {
-		esp = PCPU_GET(common_tss.tss_esp);
-		eip = PCPU_GET(common_tss.tss_eip);
-		ebp = PCPU_GET(common_tss.tss_ebp);
+		esp = PCPU_GET(common_tssp)->tss_esp;
+		eip = PCPU_GET(common_tssp)->tss_eip;
+		ebp = PCPU_GET(common_tssp)->tss_ebp;
 		db_printf(
 		    "--- trap 0x17, eip = %#r, esp = %#r, ebp = %#r ---\n",
 		    eip, esp, ebp);
@@ -379,30 +384,41 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	else
 		tf = (struct trapframe *)((int)*fp + 12);
 
-	if (INKERNEL((int) tf)) {
-		esp = get_esp(tf);
-		eip = tf->tf_eip;
-		ebp = tf->tf_ebp;
-		switch (frame_type) {
-		case TRAP:
-			db_printf("--- trap %#r", tf->tf_trapno);
-			break;
-		case SYSCALL:
-			db_printf("--- syscall");
-			decode_syscall(tf->tf_eax, td);
-			break;
-		case TRAP_TIMERINT:
-		case TRAP_INTERRUPT:
-		case INTERRUPT:
-			db_printf("--- interrupt");
-			break;
-		default:
-			panic("The moon has moved again.");
-		}
-		db_printf(", eip = %#r, esp = %#r, ebp = %#r ---\n", eip,
-		    esp, ebp);
+	esp = get_esp(tf);
+	eip = tf->tf_eip;
+	ebp = tf->tf_ebp;
+	switch (frame_type) {
+	case TRAP:
+		db_printf("--- trap %#r", tf->tf_trapno);
+		break;
+	case SYSCALL:
+		db_printf("--- syscall");
+		decode_syscall(tf->tf_eax, td);
+		break;
+	case TRAP_TIMERINT:
+	case TRAP_INTERRUPT:
+	case INTERRUPT:
+		db_printf("--- interrupt");
+		break;
+	default:
+		panic("The moon has moved again.");
 	}
+	db_printf(", eip = %#r, esp = %#r, ebp = %#r ---\n", eip, esp, ebp);
 
+	switch (frame_type) {
+	case TRAP:
+	case TRAP_TIMERINT:
+	case TRAP_INTERRUPT:
+	case INTERRUPT:
+		if ((tf->tf_eflags & PSL_VM) != 0 ||
+		    (tf->tf_cs & SEL_RPL_MASK) != 0)
+			ebp = 0;
+		break;
+	case SYSCALL:
+		ebp = 0;
+		break;
+	}
+	
 	*ip = (db_addr_t) eip;
 	*fp = (struct i386_frame *) ebp;
 }
@@ -431,6 +447,10 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 		    tf->tf_ebp, tf);
 		return (0);
 	}
+
+	/* 'frame' can be null initially.  Just print the pc then. */
+	if (frame == NULL)
+		goto out;
 
 	/*
 	 * If an indirect call via an invalid pointer caused a trap,
@@ -540,13 +560,18 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 
 		db_nextframe(&frame, &pc, td);
 
-		if (INKERNEL((int)pc) && !INKERNEL((int) frame)) {
+out:
+		/*
+		 * 'frame' can be null here, either because it was initially
+		 * null or because db_nextframe() found no frame.
+		 * db_nextframe() may also have found a non-kernel frame.
+		 * !INKERNEL() classifies both.  Stop tracing if either,
+		 * after printing the pc if it is the kernel.
+		 */
+		if (frame == NULL || frame <= actframe) {
 			sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
 			db_symbol_values(sym, &name, NULL);
 			db_print_stack_entry(name, 0, 0, 0, pc, frame);
-			break;
-		}
-		if (!INKERNEL((int) frame)) {
 			break;
 		}
 	}

@@ -190,7 +190,7 @@ minidumpsys(struct dumperinfo *di)
 		 * page written corresponds to 2MB of space
 		 */
 		ptesize += PAGE_SIZE;
-		pd = (pd_entry_t *)((uintptr_t)IdlePTD + KERNBASE);	/* always mapped! */
+		pd = IdlePTD;	/* always mapped! */
 		j = va >> PDRSHIFT;
 		if ((pd[j] & (PG_PS | PG_V)) == (PG_PS | PG_V))  {
 			/* This is an entire 2M page. */
@@ -281,7 +281,7 @@ minidumpsys(struct dumperinfo *di)
 	/* Dump kernel page table pages */
 	for (va = KERNBASE; va < kernel_vm_end; va += NBPDR) {
 		/* We always write a page, even if it is zero */
-		pd = (pd_entry_t *)((uintptr_t)IdlePTD + KERNBASE);	/* always mapped! */
+		pd = IdlePTD;	/* always mapped! */
 		j = va >> PDRSHIFT;
 		if ((pd[j] & (PG_PS | PG_V)) == (PG_PS | PG_V))  {
 			/* This is a single 2M block. Generate a fake PTP */
