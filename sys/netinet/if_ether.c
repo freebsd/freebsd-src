@@ -694,10 +694,6 @@ arpintr(struct mbuf *m)
 		hlen = ETHER_ADDR_LEN; /* RFC 826 */
 		layer = "ethernet";
 		break;
-	case ARPHRD_ARCNET:
-		hlen = 1; /* RFC 1201, ARC_ADDR_LEN */
-		layer = "arcnet";
-		break;
 	case ARPHRD_INFINIBAND:
 		hlen = 20;	/* RFC 4391, INFINIBAND_ALEN */ 
 		layer = "infiniband";
