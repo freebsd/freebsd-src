@@ -32,6 +32,7 @@ https://bugzilla.am-utils.org for inclusion in the next vendor release.
 Local changes:
 
 	amd/amd.8
+	  - corrected formatting of SEE ALSO
 	  r1.17 Uniformly refer to a file system as "file system"
 	  r1.16 Add the am-utils homepage to SEE ALSO
 	  r1.15 s/BSD/.Bx/ where appropriate
