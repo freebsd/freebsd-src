@@ -156,6 +156,7 @@ struct tom_tunables {
 	int num_tls_rx_ports;
 	int tx_align;
 	int tx_zcopy;
+	int cop_managed_offloading;
 };
 /* iWARP driver tunables */
 struct iw_tunables {
