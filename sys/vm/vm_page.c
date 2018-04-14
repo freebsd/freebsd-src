@@ -292,6 +292,27 @@ vm_page_blacklist_next(char **list, char *end)
 	return (0);
 }
 
+bool
+vm_page_blacklist_add(vm_paddr_t pa, bool verbose)
+{
+	vm_page_t m;
+	int ret;
+
+	m = vm_phys_paddr_to_vm_page(pa);
+	if (m == NULL)
+		return (true); /* page does not exist, no failure */
+
+	mtx_lock(&vm_page_queue_free_mtx);
+	ret = vm_phys_unfree_page(m);
+	mtx_unlock(&vm_page_queue_free_mtx);
+	if (ret) {
+		TAILQ_INSERT_TAIL(&blacklist_head, m, listq);
+		if (verbose)
+			printf("Skipping page with pa 0x%jx\n", (uintmax_t)pa);
+	}
+	return (ret);
+}
+
 /*
  *	vm_page_blacklist_check:
  *
@@ -303,26 +324,13 @@ static void
 vm_page_blacklist_check(char *list, char *end)
 {
 	vm_paddr_t pa;
-	vm_page_t m;
 	char *next;
-	int ret;
 
 	next = list;
 	while (next != NULL) {
 		if ((pa = vm_page_blacklist_next(&next, end)) == 0)
 			continue;
-		m = vm_phys_paddr_to_vm_page(pa);
-		if (m == NULL)
-			continue;
-		mtx_lock(&vm_page_queue_free_mtx);
-		ret = vm_phys_unfree_page(m);
-		mtx_unlock(&vm_page_queue_free_mtx);
-		if (ret == TRUE) {
-			TAILQ_INSERT_TAIL(&blacklist_head, m, listq);
-			if (bootverbose)
-				printf("Skipping page with pa 0x%jx\n",
-				    (uintmax_t)pa);
-		}
+		vm_page_blacklist_add(pa, bootverbose);
 	}
 }
 
