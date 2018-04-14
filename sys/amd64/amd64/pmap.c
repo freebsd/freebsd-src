@@ -8000,7 +8000,7 @@ pmap_pti_add_kva_locked(vm_offset_t sva, vm_offset_t eva, bool exec)
 	for (; sva < eva; sva += PAGE_SIZE) {
 		pte = pmap_pti_pte(sva, &unwire_pde);
 		pa = pmap_kextract(sva);
-		ptev = pa | X86_PG_RW | X86_PG_V | X86_PG_A |
+		ptev = pa | X86_PG_RW | X86_PG_V | X86_PG_A | X86_PG_G |
 		    (exec ? 0 : pg_nx) | pmap_cache_bits(kernel_pmap,
 		    VM_MEMATTR_DEFAULT, FALSE);
 		if (*pte == 0) {
