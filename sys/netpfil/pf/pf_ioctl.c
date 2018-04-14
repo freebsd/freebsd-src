@@ -2723,9 +2723,14 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			break;
 		}
+		if (io->pfrio_size < 0 ||
+		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_addr))) {
+			error = EINVAL;
+			break;
+		}
 		totlen = io->pfrio_size * sizeof(struct pfr_addr);
 		pfras = mallocarray(io->pfrio_size, sizeof(struct pfr_addr),
-		    M_TEMP, M_WAITOK);
+		    M_TEMP, M_NOWAIT);
 		if (! pfras) {
 			error = ENOMEM;
 			break;
@@ -2755,9 +2760,14 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			break;
 		}
+		if (io->pfrio_size < 0 ||
+		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_addr))) {
+			error = EINVAL;
+			break;
+		}
 		totlen = io->pfrio_size * sizeof(struct pfr_addr);
 		pfras = mallocarray(io->pfrio_size, sizeof(struct pfr_addr),
-		    M_TEMP, M_WAITOK);
+		    M_TEMP, M_NOWAIT);
 		if (! pfras) {
 			error = ENOMEM;
 			break;
@@ -2787,10 +2797,18 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			break;
 		}
+		if (io->pfrio_size < 0 || io->pfrio_size2 < 0) {
+			error = EINVAL;
+			break;
+		}
 		count = max(io->pfrio_size, io->pfrio_size2);
+		if (WOULD_OVERFLOW(count, sizeof(struct pfr_addr))) {
+			error = EINVAL;
+			break;
+		}
 		totlen = count * sizeof(struct pfr_addr);
 		pfras = mallocarray(count, sizeof(struct pfr_addr), M_TEMP,
-		    M_WAITOK);
+		    M_NOWAIT);
 		if (! pfras) {
 			error = ENOMEM;
 			break;
@@ -2821,9 +2839,14 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			break;
 		}
+		if (io->pfrio_size < 0 ||
+		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_addr))) {
+			error = EINVAL;
+			break;
+		}
 		totlen = io->pfrio_size * sizeof(struct pfr_addr);
 		pfras = mallocarray(io->pfrio_size, sizeof(struct pfr_addr),
-		    M_TEMP, M_WAITOK);
+		    M_TEMP, M_NOWAIT);
 		if (! pfras) {
 			error = ENOMEM;
 			break;
@@ -2847,9 +2870,14 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			break;
 		}
+		if (io->pfrio_size < 0 ||
+		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_astats))) {
+			error = EINVAL;
+			break;
+		}
 		totlen = io->pfrio_size * sizeof(struct pfr_astats);
 		pfrastats = mallocarray(io->pfrio_size,
-		    sizeof(struct pfr_astats), M_TEMP, M_WAITOK);
+		    sizeof(struct pfr_astats), M_TEMP, M_NOWAIT);
 		if (! pfrastats) {
 			error = ENOMEM;
 			break;
@@ -2873,9 +2901,14 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			break;
 		}
+		if (io->pfrio_size < 0 ||
+		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_addr))) {
+			error = EINVAL;
+			break;
+		}
 		totlen = io->pfrio_size * sizeof(struct pfr_addr);
 		pfras = mallocarray(io->pfrio_size, sizeof(struct pfr_addr),
-		    M_TEMP, M_WAITOK);
+		    M_TEMP, M_NOWAIT);
 		if (! pfras) {
 			error = ENOMEM;
 			break;
@@ -2905,9 +2938,14 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			break;
 		}
+		if (io->pfrio_size < 0 ||
+		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_addr))) {
+			error = EINVAL;
+			break;
+		}
 		totlen = io->pfrio_size * sizeof(struct pfr_addr);
 		pfras = mallocarray(io->pfrio_size, sizeof(struct pfr_addr),
-		    M_TEMP, M_WAITOK);
+		    M_TEMP, M_NOWAIT);
 		if (! pfras) {
 			error = ENOMEM;
 			break;
@@ -2937,9 +2975,14 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			break;
 		}
+		if (io->pfrio_size < 0 ||
+		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_addr))) {
+			error = EINVAL;
+			break;
+		}
 		totlen = io->pfrio_size * sizeof(struct pfr_addr);
 		pfras = mallocarray(io->pfrio_size, sizeof(struct pfr_addr),
-		    M_TEMP, M_WAITOK);
+		    M_TEMP, M_NOWAIT);
 		if (! pfras) {
 			error = ENOMEM;
 			break;
@@ -2984,9 +3027,14 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			break;
 		}
+		if (io->size < 0 ||
+		    WOULD_OVERFLOW(io->size, sizeof(struct pfioc_trans_e))) {
+			error = EINVAL;
+			break;
+		}
 		totlen = sizeof(struct pfioc_trans_e) * io->size;
 		ioes = mallocarray(io->size, sizeof(struct pfioc_trans_e),
-		    M_TEMP, M_WAITOK);
+		    M_TEMP, M_NOWAIT);
 		if (! ioes) {
 			error = ENOMEM;
 			break;
@@ -3055,9 +3103,14 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			break;
 		}
+		if (io->size < 0 ||
+		    WOULD_OVERFLOW(io->size, sizeof(struct pfioc_trans_e))) {
+			error = EINVAL;
+			break;
+		}
 		totlen = sizeof(struct pfioc_trans_e) * io->size;
 		ioes = mallocarray(io->size, sizeof(struct pfioc_trans_e),
-		    M_TEMP, M_WAITOK);
+		    M_TEMP, M_NOWAIT);
 		if (! ioes) {
 			error = ENOMEM;
 			break;
