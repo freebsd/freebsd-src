@@ -121,6 +121,11 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 		nparams++;
 	if (toep->tls.fcplenmax != 0)
 		nparams++;
+	if (toep->tc_idx != -1) {
+		MPASS(toep->tc_idx >= 0 &&
+		    toep->tc_idx < sc->chip_params->nsched_cls);
+		nparams++;
+	}
 
 	flowclen = sizeof(*flowc) + nparams * sizeof(struct fw_flowc_mnemval);
 
@@ -172,6 +177,8 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 		FLOWC_PARAM(ULP_MODE, toep->ulp_mode);
 	if (toep->tls.fcplenmax != 0)
 		FLOWC_PARAM(TXDATAPLEN_MAX, toep->tls.fcplenmax);
+	if (toep->tc_idx != -1)
+		FLOWC_PARAM(SCHEDCLASS, toep->tc_idx);
 #undef FLOWC_PARAM
 
 	KASSERT(paramidx == nparams, ("nparams mismatch"));
@@ -333,18 +340,18 @@ assign_rxopt(struct tcpcb *tp, unsigned int opt)
 		n = sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
 	else
 		n = sizeof(struct ip) + sizeof(struct tcphdr);
-	if (V_tcp_do_rfc1323)
-		n += TCPOLEN_TSTAMP_APPA;
 	tp->t_maxseg = sc->params.mtus[G_TCPOPT_MSS(opt)] - n;
-
-	CTR4(KTR_CXGBE, "%s: tid %d, mtu_idx %u (%u)", __func__, toep->tid,
-	    G_TCPOPT_MSS(opt), sc->params.mtus[G_TCPOPT_MSS(opt)]);
 
 	if (G_TCPOPT_TSTAMP(opt)) {
 		tp->t_flags |= TF_RCVD_TSTMP;	/* timestamps ok */
 		tp->ts_recent = 0;		/* hmmm */
 		tp->ts_recent_age = tcp_ts_getticks();
+		tp->t_maxseg -= TCPOLEN_TSTAMP_APPA;
 	}
+
+	CTR5(KTR_CXGBE, "%s: tid %d, mtu_idx %u (%u), mss %u", __func__,
+	    toep->tid, G_TCPOPT_MSS(opt), sc->params.mtus[G_TCPOPT_MSS(opt)],
+	    tp->t_maxseg);
 
 	if (G_TCPOPT_SACK(opt))
 		tp->t_flags |= TF_SACK_PERMIT;	/* should already be set */
