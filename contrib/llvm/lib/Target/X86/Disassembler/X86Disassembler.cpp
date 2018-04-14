@@ -265,10 +265,13 @@ MCDisassembler::DecodeStatus X86GenericDisassembler::getInstruction(
 /// @param reg        - The Reg to append.
 static void translateRegister(MCInst &mcInst, Reg reg) {
 #define ENTRY(x) X86::x,
-  static constexpr MCPhysReg llvmRegnums[] = {ALL_REGS};
+  uint8_t llvmRegnums[] = {
+    ALL_REGS
+    0
+  };
 #undef ENTRY
 
-  MCPhysReg llvmRegnum = llvmRegnums[reg];
+  uint8_t llvmRegnum = llvmRegnums[reg];
   mcInst.addOperand(MCOperand::createReg(llvmRegnum));
 }
 

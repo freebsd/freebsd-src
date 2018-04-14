@@ -1100,6 +1100,8 @@ namespace llvm {
                                unsigned Factor) const override;
 
 
+    void finalizeLowering(MachineFunction &MF) const override;
+
   protected:
     std::pair<const TargetRegisterClass *, uint8_t>
     findRepresentativeClass(const TargetRegisterInfo *TRI,
