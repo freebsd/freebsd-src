@@ -1166,7 +1166,7 @@ db_disasm(db_addr_t loc, bool altfmt)
 	int	i_size;
 	int	i_mode;
 	int	regmodrm = 0;
-	boolean_t	first;
+	bool	first;
 	int	displ;
 	int	prefix;
 	int	rep;
@@ -1338,9 +1338,9 @@ db_disasm(db_addr_t loc, bool altfmt)
 	    }
 	}
 	db_printf("\t");
-	for (first = TRUE;
+	for (first = true;
 	     i_mode != 0;
-	     i_mode >>= 8, first = FALSE)
+	     i_mode >>= 8, first = false)
 	{
 	    if (!first)
 		db_printf(",");
