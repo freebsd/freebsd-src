@@ -422,11 +422,9 @@ op_plus(struct val *a, struct val *b)
 void
 assert_minus(intmax_t a, intmax_t b, intmax_t r)
 {
-	/* special case subtraction of INTMAX_MIN */
-	if (b == INTMAX_MIN && a < 0)
+	if ((a >= 0 && b < 0 && r <= 0) ||
+	    (a < 0 && b > 0 && r >= 0))
 		errx(ERR_EXIT, "overflow");
-	/* check addition of negative subtrahend */
-	assert_plus(a, -b, r);
 }
 
 struct val *
