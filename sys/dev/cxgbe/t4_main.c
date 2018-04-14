@@ -470,6 +470,14 @@ static int pcie_relaxed_ordering = -1;
 TUNABLE_INT("hw.cxgbe.pcie_relaxed_ordering", &pcie_relaxed_ordering);
 
 
+#ifdef TCP_OFFLOAD
+/*
+ * TOE tunables.
+ */
+static int t4_cop_managed_offloading = 0;
+TUNABLE_INT("hw.cxgbe.cop_managed_offloading", &t4_cop_managed_offloading);
+#endif
+
 /* Functions used by VIs to obtain unique MAC addresses for each VI. */
 static int vi_mac_funcs[] = {
 	FW_VI_FUNC_ETH,
@@ -617,6 +625,8 @@ static int load_cfg(struct adapter *, struct t4_data *);
 static int load_boot(struct adapter *, struct t4_bootrom *);
 static int load_bootcfg(struct adapter *, struct t4_data *);
 static int cudbg_dump(struct adapter *, struct t4_cudbg_dump *);
+static void free_offload_policy(struct t4_offload_policy *);
+static int set_offload_policy(struct adapter *, struct t4_offload_policy *);
 static int read_card_mem(struct adapter *, int, struct t4_mem_range *);
 static int read_i2c(struct adapter *, struct t4_i2c_data *);
 #ifdef TCP_OFFLOAD
@@ -896,6 +906,9 @@ t4_attach(device_t dev)
 	callout_init_mtx(&sc->sfl_callout, &sc->sfl_lock, 0);
 
 	mtx_init(&sc->reg_lock, "indirect register access", 0, MTX_DEF);
+
+	sc->policy = NULL;
+	rw_init(&sc->policy_lock, "connection offload policy");
 
 	rc = t4_map_bars_0_and_4(sc);
 	if (rc != 0)
@@ -1404,6 +1417,14 @@ t4_detach_common(device_t dev)
 		mtx_destroy(&sc->ifp_lock);
 	if (mtx_initialized(&sc->reg_lock))
 		mtx_destroy(&sc->reg_lock);
+
+	if (rw_initialized(&sc->policy_lock)) {
+		rw_destroy(&sc->policy_lock);
+#ifdef TCP_OFFLOAD
+		if (sc->policy != NULL)
+			free_offload_policy(sc->policy);
+#endif
+	}
 
 	for (i = 0; i < NUM_MEMWIN; i++) {
 		struct memwin *mw = &sc->memwin[i];
@@ -5440,6 +5461,12 @@ t4_sysctls(struct adapter *sc)
 		    CTLFLAG_RW, &sc->tt.tx_zcopy, 0,
 		    "Enable zero-copy aio_write(2)");
 
+		sc->tt.cop_managed_offloading = !!t4_cop_managed_offloading;
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		    "cop_managed_offloading", CTLFLAG_RW,
+		    &sc->tt.cop_managed_offloading, 0,
+		    "COP (Connection Offload Policy) controls all TOE offload");
+
 		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "timer_tick",
 		    CTLTYPE_STRING | CTLFLAG_RD, sc, 0, sysctl_tp_tick, "A",
 		    "TP timer tick (us)");
@@ -9385,6 +9412,113 @@ done:
 	return (rc);
 }
 
+static void
+free_offload_policy(struct t4_offload_policy *op)
+{
+	struct offload_rule *r;
+	int i;
+
+	if (op == NULL)
+		return;
+
+	r = &op->rule[0];
+	for (i = 0; i < op->nrules; i++, r++) {
+		free(r->bpf_prog.bf_insns, M_CXGBE);
+	}
+	free(op->rule, M_CXGBE);
+	free(op, M_CXGBE);
+}
+
+static int
+set_offload_policy(struct adapter *sc, struct t4_offload_policy *uop)
+{
+	int i, rc, len;
+	struct t4_offload_policy *op, *old;
+	struct bpf_program *bf;
+	const struct offload_settings *s;
+	struct offload_rule *r;
+	void *u;
+
+	if (!is_offload(sc))
+		return (ENODEV);
+
+	if (uop->nrules == 0) {
+		/* Delete installed policies. */
+		op = NULL;
+		goto set_policy;
+	} if (uop->nrules > 256) { /* arbitrary */
+		return (E2BIG);
+	}
+
+	/* Copy userspace offload policy to kernel */
+	op = malloc(sizeof(*op), M_CXGBE, M_ZERO | M_WAITOK);
+	op->nrules = uop->nrules;
+	len = op->nrules * sizeof(struct offload_rule);
+	op->rule = malloc(len, M_CXGBE, M_ZERO | M_WAITOK);
+	rc = copyin(uop->rule, op->rule, len);
+	if (rc) {
+		free(op->rule, M_CXGBE);
+		free(op, M_CXGBE);
+		return (rc);
+	}
+
+	r = &op->rule[0];
+	for (i = 0; i < op->nrules; i++, r++) {
+
+		/* Validate open_type */
+		if (r->open_type != OPEN_TYPE_LISTEN &&
+		    r->open_type != OPEN_TYPE_ACTIVE &&
+		    r->open_type != OPEN_TYPE_PASSIVE &&
+		    r->open_type != OPEN_TYPE_DONTCARE) {
+error:
+			/*
+			 * Rules 0 to i have malloc'd filters that need to be
+			 * freed.  Rules i+1 to nrules have userspace pointers
+			 * and should be left alone.
+			 */
+			op->nrules = i;
+			free_offload_policy(op);
+			return (rc);
+		}
+
+		/* Validate settings */
+		s = &r->settings;
+		if ((s->offload != 0 && s->offload != 1) ||
+		    s->cong_algo < -1 || s->cong_algo > CONG_ALG_HIGHSPEED ||
+		    s->sched_class < -1 ||
+		    s->sched_class >= sc->chip_params->nsched_cls) {
+			rc = EINVAL;
+			goto error;
+		}
+
+		bf = &r->bpf_prog;
+		u = bf->bf_insns;	/* userspace ptr */
+		bf->bf_insns = NULL;
+		if (bf->bf_len == 0) {
+			/* legal, matches everything */
+			continue;
+		}
+		len = bf->bf_len * sizeof(*bf->bf_insns);
+		bf->bf_insns = malloc(len, M_CXGBE, M_ZERO | M_WAITOK);
+		rc = copyin(u, bf->bf_insns, len);
+		if (rc != 0)
+			goto error;
+
+		if (!bpf_validate(bf->bf_insns, bf->bf_len)) {
+			rc = EINVAL;
+			goto error;
+		}
+	}
+set_policy:
+	rw_wlock(&sc->policy_lock);
+	old = sc->policy;
+	sc->policy = op;
+	rw_wunlock(&sc->policy_lock);
+	free_offload_policy(old);
+
+	return (0);
+}
+
 #define MAX_READ_BUF_SIZE (128 * 1024)
 static int
 read_card_mem(struct adapter *sc, int win, struct t4_mem_range *mr)
@@ -9742,6 +9876,9 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		break;
 	case CHELSIO_T4_CUDBG_DUMP:
 		rc = cudbg_dump(sc, (struct t4_cudbg_dump *)data);
+		break;
+	case CHELSIO_T4_SET_OFLD_POLICY:
+		rc = set_offload_policy(sc, (struct t4_offload_policy *)data);
 		break;
 	default:
 		rc = ENOTTY;
