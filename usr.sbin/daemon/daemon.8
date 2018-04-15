@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2016
+.Dd April 14, 2018
 .Dt DAEMON 8
 .Os
 .Sh NAME
@@ -44,6 +44,7 @@
 .Op Fl s Ar syslog_priority
 .Op Fl T Ar syslog_tag
 .Op Fl l Ar syslog_facility
+.Op Fl T Ar restart_delay_seconds
 .Ar command arguments ...
 .Sh DESCRIPTION
 The
@@ -114,7 +115,11 @@ regardless of whether the
 .Fl u
 option is used or not.
 .It Fl r
-Supervise and restart the program if it has been terminated.
+Supervise and restart the program after a one-second delay if it has
+been terminated.
+.It Fl R restart_delay_seconds
+Supervise and restart the program after the specified delay
+if it has been terminated.
 .It Fl t Ar title
 Set the title for the daemon process.
 The default is the daemonized invocation.
