@@ -28,7 +28,7 @@
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2017
+.Dd April 9, 2018
 .Dt SYSLOGD 8
 .Os
 .Sh NAME
@@ -42,6 +42,7 @@
 .Op Fl f Ar config_file
 .Op Fl l Oo Ar mode Ns \&: Oc Ns Ar path
 .Op Fl m Ar mark_interval
+.Op Fl O Ar format
 .Op Fl P Ar pid_file
 .Op Fl p Ar log_socket
 .Op Fl S Ar logpriv_socket
@@ -242,6 +243,20 @@ Usually the
 .Dq kern
 facility is reserved for messages read directly from
 .Pa /dev/klog .
+.It Fl O Ar format
+Select the output format of generated log messages.
+The values
+.Ar bsd
+and
+.Ar rfc3164
+are used to generate RFC 3164 log messages.
+The values
+.Ar syslog
+and
+.Ar rfc5424
+are used to generate RFC 5424 log messages,
+having RFC 3339 timestamps with microsecond precision.
+The default is to generate RFC 3164 log messages.
 .It Fl m Ar mark_interval
 Select the number of minutes between
 .Dq mark
