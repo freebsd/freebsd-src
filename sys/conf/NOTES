@@ -2066,11 +2066,6 @@ device		xmphy		# XaQti XMAC II
 
 # Order for ISA devices is important here
 
-device		cm
-hint.cm.0.at="isa"
-hint.cm.0.port="0x2e0"
-hint.cm.0.irq="9"
-hint.cm.0.maddr="0xdc000"
 device		ep
 device		ex
 device		fe
