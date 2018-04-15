@@ -61,7 +61,7 @@ static const char sccsid[] = "@(#)ttymsg.c	8.2 (Berkeley) 11/16/93";
 const char *
 ttymsg(struct iovec *iov, int iovcnt, const char *line, int tmout)
 {
-	struct iovec localiov[7];
+	struct iovec localiov[TTYMSG_IOV_MAX];
 	ssize_t left, wret;
 	int cnt, fd;
 	char device[MAXNAMLEN] = _PATH_DEV;
