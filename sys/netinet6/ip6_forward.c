@@ -324,8 +324,9 @@ again2:
 		goto pass;
 
 	odst = ip6->ip6_dst;
-	/* Run through list of hooks for output packets. */
-	error = pfil_run_hooks(&V_inet6_pfil_hook, &m, rt->rt_ifp, PFIL_OUT, NULL);
+	/* Run through list of hooks for forwarded packets. */
+	error = pfil_run_hooks(&V_inet6_pfil_hook, &m, rt->rt_ifp, PFIL_OUT,
+	    PFIL_FWD, NULL);
 	if (error != 0 || m == NULL)
 		goto freecopy;		/* consumed by filter */
 	ip6 = mtod(m, struct ip6_hdr *);
