@@ -40,7 +40,7 @@
 
 # 20180413: remove Arcnet support
 OLD_FILES+=usr/include/net/if_arc.h
-OLD_FILES+=usr/share/man/man4/cm.4
+OLD_FILES+=usr/share/man/man4/cm.4.gz
 # 20180409: remove FDDI support
 OLD_FILES+=usr/include/net/fddi.h
 OLD_FILES+=usr/share/man/man4/fpa.4.gz
