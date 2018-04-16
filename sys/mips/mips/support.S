@@ -105,38 +105,6 @@
 	.text
 
 /*
- * See if access to addr with a len type instruction causes a machine check.
- * len is length of access (1=byte, 2=short, 4=int)
- *
- * badaddr(addr, len)
- *	char *addr;
- *	int len;
- */
-LEAF(badaddr)
-	PTR_LA	v0, baderr
-	GET_CPU_PCPU(v1)
-	PTR_L	v1, PC_CURPCB(v1)
-	bne	a1, 1, 2f
-	PTR_S	v0, U_PCB_ONFAULT(v1)
-	b	5f
-	lbu	v0, (a0)
-2:
-	bne	a1, 2, 4f
-	nop
-	b	5f
-	lhu	v0, (a0)
-4:
-	lw	v0, (a0)
-5:
-	PTR_S	zero, U_PCB_ONFAULT(v1)
-	j	ra
-	move	v0, zero		# made it w/o errors
-baderr:
-	j	ra
-	li	v0, 1			# trap sends us here
-END(badaddr)
-
-/*
  * int copystr(void *kfaddr, void *kdaddr, size_t maxlen, size_t *lencopied)
  * Copy a NIL-terminated string, at most maxlen characters long.  Return the
  * number of characters copied (including the NIL) in *lencopied.  If the
