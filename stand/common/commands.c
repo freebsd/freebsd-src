@@ -74,7 +74,6 @@ help_getnext(int fd, char **topic, char **subtopic, char **desc)
 	if ((strlen(line) < 3) || (line[0] != '#') || (line[1] != ' '))
 	    continue;
 
-	*topic = *subtopic = *desc = NULL;
 	cp = line + 2;
 	while((cp != NULL) && (*cp != 0)) {
 	    ep = strchr(cp, ' ');
@@ -95,6 +94,7 @@ help_getnext(int fd, char **topic, char **subtopic, char **desc)
 	if (*topic == NULL) {
 	    free(*subtopic);
 	    free(*desc);
+	    *subtopic = *desc = NULL;
 	    continue;
 	}
 	return(1);
