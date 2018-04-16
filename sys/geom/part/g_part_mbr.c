@@ -77,7 +77,7 @@ static int g_part_mbr_destroy(struct g_part_table *, struct g_part_parms *);
 static void g_part_mbr_dumpconf(struct g_part_table *, struct g_part_entry *,
     struct sbuf *, const char *);
 static int g_part_mbr_dumpto(struct g_part_table *, struct g_part_entry *);
-static int g_part_mbr_modify(struct g_part_table *, struct g_part_entry *,  
+static int g_part_mbr_modify(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
 static const char *g_part_mbr_name(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
@@ -303,11 +303,14 @@ g_part_mbr_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 }
 
 static void
-g_part_mbr_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry, 
+g_part_mbr_dumpconf(struct g_part_table *basetable, struct g_part_entry *baseentry,
     struct sbuf *sb, const char *indent)
 {
 	struct g_part_mbr_entry *entry;
- 
+	struct g_part_mbr_table *table;
+	uint32_t dsn;
+
+	table = (struct g_part_mbr_table *)basetable;
 	entry = (struct g_part_mbr_entry *)baseentry;
 	if (indent == NULL) {
 		/* conftxt: libdisk compatibility */
@@ -318,13 +321,18 @@ g_part_mbr_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 		    entry->ent.dp_typ);
 		if (entry->ent.dp_flag & 0x80)
 			sbuf_printf(sb, "%s<attrib>active</attrib>\n", indent);
+		dsn = le32dec(table->mbr + DOSDSNOFF);
+		sbuf_printf(sb, "%s<efimedia>HD(%d,MBR,%#08x,%#jx,%#jx)", indent,
+		    entry->base.gpe_index, dsn, (intmax_t)entry->base.gpe_start,
+		    (intmax_t)(entry->base.gpe_end - entry->base.gpe_start + 1));
+		sbuf_printf(sb, "</efimedia>\n");
 	} else {
 		/* confxml: scheme information */
 	}
 }
 
 static int
-g_part_mbr_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)  
+g_part_mbr_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 {
 	struct g_part_mbr_entry *entry;
 
@@ -552,7 +560,7 @@ g_part_mbr_setunset(struct g_part_table *table, struct g_part_entry *baseentry,
 }
 
 static const char *
-g_part_mbr_type(struct g_part_table *basetable, struct g_part_entry *baseentry, 
+g_part_mbr_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
 {
 	struct g_part_mbr_entry *entry;
