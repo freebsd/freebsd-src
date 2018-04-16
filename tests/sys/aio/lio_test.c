@@ -30,10 +30,13 @@
 #include <sys/event.h>
 
 #include <aio.h>
+#include <fcntl.h>
 #include <semaphore.h>
+#include <stdlib.h>
 
 #include <atf-c.h>
 
+#include "local.h"
 #include "freebsd_test_suite/macros.h"
 
 static sem_t completions; 
@@ -50,6 +53,73 @@ thr_handler(union sigval sv __unused)
 {
 	ATF_REQUIRE_EQ(0, sem_post(&completions));
 }
+
+/* 
+ * If lio_listio is unable to enqueue any requests at all, it should return
+ * EAGAIN.
+ */
+ATF_TC_WITHOUT_HEAD(lio_listio_eagain_kevent);
+ATF_TC_BODY(lio_listio_eagain_kevent, tc)
+{
+	int fd, i, j, kq, max_queue_per_proc, ios_per_call;
+	size_t max_queue_per_proc_size;
+	struct aiocb *aiocbs[2];
+	struct aiocb **list[2];
+	struct sigevent sev[2];
+	char *buffer;
+	const char *path="tempfile";
+	void *udata[2];
+
+	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
+
+	max_queue_per_proc_size = sizeof(max_queue_per_proc);
+	ATF_REQUIRE_EQ(sysctlbyname("vfs.aio.max_aio_queue_per_proc",
+	    &max_queue_per_proc, &max_queue_per_proc_size, NULL, 0), 0);
+	ios_per_call = max_queue_per_proc;
+
+	fd = open(path, O_RDWR|O_CREAT, 0666);
+	ATF_REQUIRE(fd >= 0);
+
+	kq = kqueue();
+	ATF_REQUIRE(kq > 0);
+
+	buffer = calloc(1, 4096);
+	ATF_REQUIRE(buffer != NULL);
+
+	/*
+	 * Call lio_listio twice, each with the maximum number of operations.
+	 * The first call should succeed and the second should fail.
+	 */
+	for (i = 0; i < 2; i++) {
+		aiocbs[i] = calloc(ios_per_call, sizeof(struct aiocb));
+		ATF_REQUIRE(aiocbs[i] != NULL);
+		list[i] = calloc(ios_per_call, sizeof(struct aiocb*));
+		ATF_REQUIRE(list[i] != NULL);
+		udata[i] = (void*)((caddr_t)0xdead0000 + i);
+		sev[i].sigev_notify = SIGEV_KEVENT;
+		sev[i].sigev_notify_kqueue = kq;
+		sev[i].sigev_value.sival_ptr = udata[i];
+		for (j = 0; j < ios_per_call; j++) {
+			aiocbs[i][j].aio_fildes = fd;
+			aiocbs[i][j].aio_offset = (i * ios_per_call + j) * 4096;
+			aiocbs[i][j].aio_buf = buffer;
+			aiocbs[i][j].aio_nbytes = 4096;
+			aiocbs[i][j].aio_lio_opcode = LIO_WRITE;
+			list[i][j] = &aiocbs[i][j];
+		}
+	}
+
+	ATF_REQUIRE_EQ(0, lio_listio(LIO_NOWAIT, list[0], ios_per_call, &sev[0]));
+	ATF_REQUIRE_EQ(-1, lio_listio(LIO_NOWAIT, list[1], ios_per_call, &sev[1]));
+	/*
+	 * The second lio_listio call should fail with EAGAIN.  Bad timing may
+	 * mean that some requests did get enqueued, but the result should
+	 * still be EAGAIN.
+	 */
+	ATF_REQUIRE_EQ(errno, EAGAIN);
+}
+
 
 /* With LIO_WAIT, an empty lio_listio should return immediately */
 ATF_TC_WITHOUT_HEAD(lio_listio_empty_wait);
@@ -136,6 +206,7 @@ ATF_TC_BODY(lio_listio_empty_nowait_thread, tc)
 ATF_TP_ADD_TCS(tp)
 {
 
+	ATF_TP_ADD_TC(tp, lio_listio_eagain_kevent);
 	ATF_TP_ADD_TC(tp, lio_listio_empty_nowait_kevent);
 	ATF_TP_ADD_TC(tp, lio_listio_empty_nowait_signal);
 	ATF_TP_ADD_TC(tp, lio_listio_empty_nowait_thread);
