@@ -44,9 +44,9 @@ SYSCTL_NODE(_vfs_zfs, OID_AUTO, metaslab, CTLFLAG_RW, 0, "ZFS metaslab");
 	((flags) & (METASLAB_GANG_CHILD | METASLAB_GANG_HEADER))
 
 uint64_t metaslab_aliquot = 512ULL << 10;
-uint64_t metaslab_gang_bang = SPA_MAXBLOCKSIZE + 1;	/* force gang blocks */
-SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, gang_bang, CTLFLAG_RWTUN,
-    &metaslab_gang_bang, 0,
+uint64_t metaslab_force_ganging = SPA_MAXBLOCKSIZE + 1;	/* force gang blocks */
+SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, force_ganging, CTLFLAG_RWTUN,
+    &metaslab_force_ganging, 0,
     "Force gang block allocation for blocks larger than or equal to this value");
 
 /*
@@ -3172,7 +3172,7 @@ metaslab_alloc_dva(spa_t *spa, metaslab_class_t *mc, uint64_t psize,
 	/*
 	 * For testing, make some blocks above a certain size be gang blocks.
 	 */
-	if (psize >= metaslab_gang_bang && (ddi_get_lbolt() & 3) == 0) {
+	if (psize >= metaslab_force_ganging && (ddi_get_lbolt() & 3) == 0) {
 		metaslab_trace_add(zal, NULL, NULL, psize, d, TRACE_FORCE_GANG);
 		return (SET_ERROR(ENOSPC));
 	}
