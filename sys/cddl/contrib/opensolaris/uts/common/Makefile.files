@@ -148,7 +148,8 @@ ZFS_COMMON_OBJS +=		\
 	zio_compress.o		\
 	zio_inject.o		\
 	zle.o			\
-	zrlock.o
+	zrlock.o		\
+	zthr.o
 
 ZFS_SHARED_OBJS +=		\
 	zfeature_common.o	\
