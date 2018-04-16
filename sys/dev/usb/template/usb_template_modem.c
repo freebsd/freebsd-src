@@ -156,17 +156,17 @@ static const void *modem_iface_0_desc[] = {
 static const struct usb_temp_interface_desc modem_iface_0 = {
 	.ppRawDesc = modem_iface_0_desc,
 	.ppEndpoints = modem_iface_0_ep,
-	.bInterfaceClass = 2,
-	.bInterfaceSubClass = 2,
-	.bInterfaceProtocol = 1,
+	.bInterfaceClass = UICLASS_CDC,
+	.bInterfaceSubClass = UISUBCLASS_ABSTRACT_CONTROL_MODEL,
+	.bInterfaceProtocol = UIPROTO_CDC_AT,
 	.iInterface = INDEX_MODEM,
 };
 
 static const struct usb_temp_interface_desc modem_iface_1 = {
 	.ppEndpoints = modem_iface_1_ep,
-	.bInterfaceClass = 10,
-	.bInterfaceSubClass = 0,
-	.bInterfaceProtocol = 0,
+	.bInterfaceClass = UICLASS_CDC_DATA,
+	.bInterfaceSubClass = UISUBCLASS_DATA,
+	.bInterfaceProtocol = UIPROTO_CDC_NONE,
 	.iInterface = INDEX_MODEM,
 };
 
