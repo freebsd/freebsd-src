@@ -67,6 +67,7 @@ static const u_char *aes_magic = "<<FreeBSD-GEOM-AES>>";
 static const u_char *aes_magic_random = "<<FreeBSD-GEOM-AES-RANDOM>>";
 static const u_char *aes_magic_test = "<<FreeBSD-GEOM-AES-TEST>>";
 
+static int g_aes_once;
 
 struct g_aes_softc {
 	enum {
@@ -352,8 +353,14 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	if (buf)
 		g_free(buf);
 	g_access(cp, -1, 0, 0);
-	if (gp->softc != NULL) 
+	if (gp->softc != NULL) {
+		if (!g_aes_once) {
+			g_aes_once = 1;
+			printf("WARNING: geom_aes (geom %s) is deprecated.",
+			    gp->name);
+		}
 		return (gp);
+	}
 	g_detach(cp);
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
