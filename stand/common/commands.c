@@ -61,155 +61,160 @@ here
 COMMAND_SET(help, "help", "detailed help", command_help);
 
 static int
-help_getnext(int fd, char **topic, char **subtopic, char **desc) 
+help_getnext(int fd, char **topic, char **subtopic, char **desc)
 {
-    char	line[81], *cp, *ep;
+	char	line[81], *cp, *ep;
 
-    /* Make sure we provide sane values. */
-    *topic = *subtopic = *desc = NULL;
-    for (;;) {
-	if (fgetstr(line, 80, fd) < 0)
-	    return(0);
-	
-	if ((strlen(line) < 3) || (line[0] != '#') || (line[1] != ' '))
-	    continue;
+	/* Make sure we provide sane values. */
+	*topic = *subtopic = *desc = NULL;
+	for (;;) {
+		if (fgetstr(line, 80, fd) < 0)
+			return (0);
 
-	cp = line + 2;
-	while((cp != NULL) && (*cp != 0)) {
-	    ep = strchr(cp, ' ');
-	    if ((*cp == 'T') && (*topic == NULL)) {
-		if (ep != NULL)
-		    *ep++ = 0;
-		*topic = strdup(cp + 1);
-	    } else if ((*cp == 'S') && (*subtopic == NULL)) {
-		if (ep != NULL)
-		    *ep++ = 0;
-		*subtopic = strdup(cp + 1);
-	    } else if (*cp == 'D') {
-		*desc = strdup(cp + 1);
-		ep = NULL;
-	    }
-	    cp = ep;
+		if (strlen(line) < 3 || line[0] != '#' || line[1] != ' ')
+			continue;
+
+		cp = line + 2;
+		while (cp != NULL && *cp != 0) {
+			ep = strchr(cp, ' ');
+			if (*cp == 'T' && *topic == NULL) {
+				if (ep != NULL)
+					*ep++ = 0;
+				*topic = strdup(cp + 1);
+			} else if (*cp == 'S' && *subtopic == NULL) {
+				if (ep != NULL)
+					*ep++ = 0;
+				*subtopic = strdup(cp + 1);
+			} else if (*cp == 'D') {
+				*desc = strdup(cp + 1);
+				ep = NULL;
+			}
+			cp = ep;
+		}
+		if (*topic == NULL) {
+			free(*subtopic);
+			free(*desc);
+			*subtopic = *desc = NULL;
+			continue;
+		}
+		return (1);
 	}
-	if (*topic == NULL) {
-	    free(*subtopic);
-	    free(*desc);
-	    *subtopic = *desc = NULL;
-	    continue;
-	}
-	return(1);
-    }
 }
 
 static int
 help_emitsummary(char *topic, char *subtopic, char *desc)
 {
-    int		i;
-    
-    pager_output("    ");
-    pager_output(topic);
-    i = strlen(topic);
-    if (subtopic != NULL) {
-	pager_output(" ");
-	pager_output(subtopic);
-	i += strlen(subtopic) + 1;
-    }
-    if (desc != NULL) {
-	do {
-	    pager_output(" ");
-	} while (i++ < 30);
-	pager_output(desc);
-    }
-    return (pager_output("\n"));
+	int	i;
+
+	pager_output("    ");
+	pager_output(topic);
+	i = strlen(topic);
+	if (subtopic != NULL) {
+		pager_output(" ");
+		pager_output(subtopic);
+		i += strlen(subtopic) + 1;
+	}
+	if (desc != NULL) {
+		do {
+			pager_output(" ");
+		} while (i++ < 30);
+		pager_output(desc);
+	}
+	return (pager_output("\n"));
 }
 
-	    
+
 static int
-command_help(int argc, char *argv[]) 
+command_help(int argc, char *argv[])
 {
-    char	buf[81];	/* XXX buffer size? */
-    int		hfd, matched, doindex;
-    char	*topic, *subtopic, *t, *s, *d;
+	char	buf[81];	/* XXX buffer size? */
+	int	hfd, matched, doindex;
+	char	*topic, *subtopic, *t, *s, *d;
 
-    /* page the help text from our load path */
-    snprintf(buf, sizeof(buf), "%s/boot/loader.help", getenv("loaddev"));
-    if ((hfd = open(buf, O_RDONLY)) < 0) {
-	printf("Verbose help not available, use '?' to list commands\n");
-	return(CMD_OK);
-    }
+	/* page the help text from our load path */
+	snprintf(buf, sizeof(buf), "%s/boot/loader.help", getenv("loaddev"));
+	if ((hfd = open(buf, O_RDONLY)) < 0) {
+		printf("Verbose help not available, "
+		    "use '?' to list commands\n");
+		return (CMD_OK);
+	}
 
-    /* pick up request from arguments */
-    topic = subtopic = NULL;
-    switch(argc) {
-    case 3:
-	subtopic = strdup(argv[2]);
-    case 2:
-	topic = strdup(argv[1]);
-	break;
-    case 1:
-	topic = strdup("help");
-	break;
-    default:
-	command_errmsg = "usage is 'help <topic> [<subtopic>]";
-	close(hfd);
-	return(CMD_ERROR);
-    }
-
-    /* magic "index" keyword */
-    doindex = !strcmp(topic, "index");
-    matched = doindex;
-    
-    /* Scan the helpfile looking for help matching the request */
-    pager_open();
-    while(help_getnext(hfd, &t, &s, &d)) {
-
-	if (doindex) {		/* dink around formatting */
-	    if (help_emitsummary(t, s, d))
+	/* pick up request from arguments */
+	topic = subtopic = NULL;
+	switch (argc) {
+	case 3:
+		subtopic = strdup(argv[2]);
+		/* FALLTHROUGH */
+	case 2:
+		topic = strdup(argv[1]);
 		break;
-
-	} else if (strcmp(topic, t)) {
-	    /* topic mismatch */
-	    if (matched)	/* nothing more on this topic, stop scanning */
+	case 1:
+		topic = strdup("help");
 		break;
+	default:
+		command_errmsg = "usage is 'help <topic> [<subtopic>]";
+		close(hfd);
+		return(CMD_ERROR);
+	}
 
-	} else {
-	    /* topic matched */
-	    matched = 1;
-	    if (((subtopic == NULL) && (s == NULL)) ||
-		((subtopic != NULL) && (s != NULL) && !strcmp(subtopic, s))) {
-		/* exact match, print text */
-		while ((fgetstr(buf, 80, hfd) >= 0) && (buf[0] != '#')) {
-		    if (pager_output(buf))
-			break;
-		    if (pager_output("\n"))
-			break;
+	/* magic "index" keyword */
+	doindex = strcmp(topic, "index") == 0? 1 : 0;
+	matched = doindex;
+
+	/* Scan the helpfile looking for help matching the request */
+	pager_open();
+	while (help_getnext(hfd, &t, &s, &d)) {
+
+		if (doindex) {		/* dink around formatting */
+			if (help_emitsummary(t, s, d))
+				break;
+
+		} else if (strcmp(topic, t)) {
+			/* topic mismatch */
+			if (matched) {
+				/* nothing more on this topic, stop scanning */
+				break;
+			}
+		} else {
+			/* topic matched */
+			matched = 1;
+			if ((subtopic == NULL && s == NULL) ||
+			    (subtopic != NULL && s != NULL &&
+			    strcmp(subtopic, s) == 0)) {
+				/* exact match, print text */
+				while (fgetstr(buf, 80, hfd) >= 0 &&
+				    buf[0] != '#') {
+					if (pager_output(buf))
+						break;
+					if (pager_output("\n"))
+						break;
+				}
+			} else if (subtopic == NULL && s != NULL) {
+				/* topic match, list subtopics */
+				if (help_emitsummary(t, s, d))
+					break;
+			}
 		}
-	    } else if ((subtopic == NULL) && (s != NULL)) {
-		/* topic match, list subtopics */
-		if (help_emitsummary(t, s, d))
-		    break;
-	    }
+		free(t);
+		free(s);
+		free(d);
+		t = s = d = NULL;
 	}
 	free(t);
 	free(s);
 	free(d);
-	t = s = d = NULL;
-    }
-    free(t);
-    free(s);
-    free(d);
-    pager_close();
-    close(hfd);
-    if (!matched) {
-	snprintf(command_errbuf, sizeof(command_errbuf),
-	    "no help available for '%s'", topic);
+	pager_close();
+	close(hfd);
+	if (!matched) {
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "no help available for '%s'", topic);
+		free(topic);
+		free(subtopic);
+		return (CMD_ERROR);
+	}
 	free(topic);
 	free(subtopic);
-	return(CMD_ERROR);
-    }
-    free(topic);
-    free(subtopic);
-    return(CMD_OK);
+	return (CMD_OK);
 }
 
 COMMAND_SET(commandlist, "?", "list commands", command_commandlist);
@@ -223,27 +228,28 @@ COMMAND_SET(commandlist, "?", "list commands", command_commandlist);
  * fixing it.
  */
 static int
-command_commandlist(int argc, char *argv[])
+command_commandlist(int argc __unused, char *argv[] __unused)
 {
-    struct bootblk_command	**cmdp;
-    int		res;
-    char	name[20];
+	struct bootblk_command	**cmdp;
+	int	res;
+	char	name[20];
 
-    res = 0;
-    pager_open();
-    res = pager_output("Available commands:\n");
-    SET_FOREACH(cmdp, Xcommand_set) {
-	if (res)
-	    break;
-	if (((*cmdp)->c_name != NULL) && ((*cmdp)->c_desc != NULL)) {
-	    snprintf(name, sizeof(name), "  %-15s  ", (*cmdp)->c_name);
-	    pager_output(name);
-	    pager_output((*cmdp)->c_desc);
-	    res = pager_output("\n");
+	res = 0;
+	pager_open();
+	res = pager_output("Available commands:\n");
+	SET_FOREACH(cmdp, Xcommand_set) {
+		if (res)
+			break;
+		if ((*cmdp)->c_name != NULL && (*cmdp)->c_desc != NULL) {
+			snprintf(name, sizeof(name), "  %-15s  ",
+			    (*cmdp)->c_name);
+			pager_output(name);
+			pager_output((*cmdp)->c_desc);
+			res = pager_output("\n");
+		}
 	}
-    }
-    pager_close();
-    return(CMD_OK);
+	pager_close();
+	return (CMD_OK);
 }
 
 /*
@@ -256,35 +262,35 @@ COMMAND_SET(show, "show", "show variable(s)", command_show);
 static int
 command_show(int argc, char *argv[])
 {
-    struct env_var	*ev;
-    char		*cp;
+	struct env_var	*ev;
+	char		*cp;
 
-    if (argc < 2) {
-	/* 
-	 * With no arguments, print everything.
-	 */
-	pager_open();
-	for (ev = environ; ev != NULL; ev = ev->ev_next) {
-	    pager_output(ev->ev_name);
-	    cp = getenv(ev->ev_name);
-	    if (cp != NULL) {
-		pager_output("=");
-		pager_output(cp);
-	    }
-	    if (pager_output("\n"))
-		break;
-	}
-	pager_close();
-    } else {
-	if ((cp = getenv(argv[1])) != NULL) {
-	    printf("%s\n", cp);
+	if (argc < 2) {
+		/*
+		 * With no arguments, print everything.
+		 */
+		pager_open();
+		for (ev = environ; ev != NULL; ev = ev->ev_next) {
+			pager_output(ev->ev_name);
+			cp = getenv(ev->ev_name);
+			if (cp != NULL) {
+				pager_output("=");
+				pager_output(cp);
+			}
+			if (pager_output("\n"))
+				break;
+		}
+		pager_close();
 	} else {
-	    snprintf(command_errbuf, sizeof(command_errbuf),
-		"variable '%s' not found", argv[1]);
-	    return(CMD_ERROR);
+		if ((cp = getenv(argv[1])) != NULL) {
+			printf("%s\n", cp);
+		} else {
+			snprintf(command_errbuf, sizeof(command_errbuf),
+			    "variable '%s' not found", argv[1]);
+			return (CMD_ERROR);
+		}
 	}
-    }
-    return(CMD_OK);
+	return (CMD_OK);
 }
 
 COMMAND_SET(set, "set", "set a variable", command_set);
@@ -292,37 +298,37 @@ COMMAND_SET(set, "set", "set a variable", command_set);
 static int
 command_set(int argc, char *argv[])
 {
-    int		err;
-    
-    if (argc != 2) {
-	command_errmsg = "wrong number of arguments";
-	return(CMD_ERROR);
-    } else {
-	if ((err = putenv(argv[1])) != 0) {
-	    command_errmsg = strerror(err);
-	    return(CMD_ERROR);
+	int	err;
+
+	if (argc != 2) {
+		command_errmsg = "wrong number of arguments";
+		return (CMD_ERROR);
+	} else {
+		if ((err = putenv(argv[1])) != 0) {
+			command_errmsg = strerror(err);
+			return (CMD_ERROR);
+		}
 	}
-    }
-    return(CMD_OK);
+	return (CMD_OK);
 }
 
 COMMAND_SET(unset, "unset", "unset a variable", command_unset);
 
 static int
-command_unset(int argc, char *argv[]) 
+command_unset(int argc, char *argv[])
 {
-    int		err;
-    
-    if (argc != 2) {
-	command_errmsg = "wrong number of arguments";
-	return(CMD_ERROR);
-    } else {
-	if ((err = unsetenv(argv[1])) != 0) {
-	    command_errmsg = strerror(err);
-	    return(CMD_ERROR);
+	int	err;
+
+	if (argc != 2) {
+		command_errmsg = "wrong number of arguments";
+		return (CMD_ERROR);
+	} else {
+		if ((err = unsetenv(argv[1])) != 0) {
+			command_errmsg = strerror(err);
+			return (CMD_ERROR);
+		}
 	}
-    }
-    return(CMD_OK);
+	return (CMD_OK);
 }
 
 COMMAND_SET(echo, "echo", "echo arguments", command_echo);
@@ -330,34 +336,34 @@ COMMAND_SET(echo, "echo", "echo arguments", command_echo);
 static int
 command_echo(int argc, char *argv[])
 {
-    char	*s;
-    int		nl, ch;
-    
-    nl = 0;
-    optind = 1;
-    optreset = 1;
-    while ((ch = getopt(argc, argv, "n")) != -1) {
-	switch(ch) {
-	case 'n':
-	    nl = 1;
-	    break;
-	case '?':
-	default:
-	    /* getopt has already reported an error */
-	    return(CMD_OK);
-	}
-    }
-    argv += (optind);
-    argc -= (optind);
+	char	*s;
+	int	nl, ch;
 
-    s = unargv(argc, argv);
-    if (s != NULL) {
-	printf("%s", s);
-	free(s);
-    }
-    if (!nl)
-	printf("\n");
-    return(CMD_OK);
+	nl = 0;
+	optind = 1;
+	optreset = 1;
+	while ((ch = getopt(argc, argv, "n")) != -1) {
+		switch (ch) {
+		case 'n':
+			nl = 1;
+			break;
+		case '?':
+		default:
+			/* getopt has already reported an error */
+			return (CMD_OK);
+		}
+	}
+	argv += (optind);
+	argc -= (optind);
+
+	s = unargv(argc, argv);
+	if (s != NULL) {
+		printf("%s", s);
+		free(s);
+	}
+	if (!nl)
+		printf("\n");
+	return (CMD_OK);
 }
 
 /*
@@ -369,55 +375,55 @@ COMMAND_SET(read, "read", "read input from the terminal", command_read);
 static int
 command_read(int argc, char *argv[])
 {
-    char	*prompt;
-    int		timeout;
-    time_t	when;
-    char	*cp;
-    char	*name;
-    char	buf[256];		/* XXX size? */
-    int		c;
+	char	*prompt;
+	int	timeout;
+	time_t	when;
+	char	*cp;
+	char	*name;
+	char	buf[256];		/* XXX size? */
+	int	c;
     
-    timeout = -1;
-    prompt = NULL;
-    optind = 1;
-    optreset = 1;
-    while ((c = getopt(argc, argv, "p:t:")) != -1) {
-	switch(c) {
-	    
-	case 'p':
-	    prompt = optarg;
-	    break;
-	case 't':
-	    timeout = strtol(optarg, &cp, 0);
-	    if (cp == optarg) {
-		snprintf(command_errbuf, sizeof(command_errbuf),
-		    "bad timeout '%s'", optarg);
-		return(CMD_ERROR);
-	    }
-	    break;
-	default:
-	    return(CMD_OK);
+	timeout = -1;
+	prompt = NULL;
+	optind = 1;
+	optreset = 1;
+	while ((c = getopt(argc, argv, "p:t:")) != -1) {
+		switch (c) {
+		case 'p':
+			prompt = optarg;
+			break;
+		case 't':
+			timeout = strtol(optarg, &cp, 0);
+			if (cp == optarg) {
+				snprintf(command_errbuf,
+				    sizeof(command_errbuf),
+				    "bad timeout '%s'", optarg);
+				return (CMD_ERROR);
+			}
+			break;
+		default:
+			return (CMD_OK);
+		}
 	}
-    }
 
-    argv += (optind);
-    argc -= (optind);
-    name = (argc > 0) ? argv[0]: NULL;
-	
-    if (prompt != NULL)
-	printf("%s", prompt);
-    if (timeout >= 0) {
-	when = time(NULL) + timeout;
-	while (!ischar())
-	    if (time(NULL) >= when)
-		return(CMD_OK);		/* is timeout an error? */
-    }
+	argv += (optind);
+	argc -= (optind);
+	name = (argc > 0) ? argv[0]: NULL;
 
-    ngets(buf, sizeof(buf));
+	if (prompt != NULL)
+		printf("%s", prompt);
+	if (timeout >= 0) {
+		when = time(NULL) + timeout;
+		while (!ischar())
+			if (time(NULL) >= when)
+				return (CMD_OK); /* is timeout an error? */
+	}
 
-    if (name != NULL)
-	setenv(name, buf, 1);
-    return(CMD_OK);
+	ngets(buf, sizeof(buf));
+
+	if (name != NULL)
+		setenv(name, buf, 1);
+	return (CMD_OK);
 }
 
 /*
@@ -428,44 +434,46 @@ COMMAND_SET(more, "more", "show contents of a file", command_more);
 static int
 command_more(int argc, char *argv[])
 {
-    int         i;
-    int         res;
-    char	line[80];
+	int	i;
+	int	res;
+	char	line[80];
 
-    res=0;
-    pager_open();
-    for (i = 1; (i < argc) && (res == 0); i++) {
-	snprintf(line, sizeof(line), "*** FILE %s BEGIN ***\n", argv[i]);
-	if (pager_output(line))
-		break;
-        res = page_file(argv[i]);
-	if (!res) {
-	    snprintf(line, sizeof(line), "*** FILE %s END ***\n", argv[i]);
-	    res = pager_output(line);
+	res = 0;
+	pager_open();
+	for (i = 1; (i < argc) && (res == 0); i++) {
+		snprintf(line, sizeof(line), "*** FILE %s BEGIN ***\n",
+		    argv[i]);
+		if (pager_output(line))
+			break;
+		res = page_file(argv[i]);
+		if (!res) {
+			snprintf(line, sizeof(line), "*** FILE %s END ***\n",
+			    argv[i]);
+			res = pager_output(line);
+		}
 	}
-    }
-    pager_close();
+	pager_close();
 
-    if (res == 0)
-	return CMD_OK;
-    else
-	return CMD_ERROR;
+	if (res == 0)
+		return (CMD_OK);
+	else
+		return (CMD_ERROR);
 }
 
 static int
 page_file(char *filename)
 {
-    int result;
+	int result;
 
-    result = pager_file(filename);
+	result = pager_file(filename);
 
-    if (result == -1) {
-	snprintf(command_errbuf, sizeof(command_errbuf),
-	    "error showing %s", filename);
-    }
+	if (result == -1) {
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "error showing %s", filename);
+	}
 
-    return result;
-}   
+	return (result);
+}
 
 /*
  * List all disk-like devices
@@ -475,38 +483,38 @@ COMMAND_SET(lsdev, "lsdev", "list all devices", command_lsdev);
 static int
 command_lsdev(int argc, char *argv[])
 {
-    int		verbose, ch, i;
-    char	line[80];
-    
-    verbose = 0;
-    optind = 1;
-    optreset = 1;
-    while ((ch = getopt(argc, argv, "v")) != -1) {
-	switch(ch) {
-	case 'v':
-	    verbose = 1;
-	    break;
-	case '?':
-	default:
-	    /* getopt has already reported an error */
-	    return(CMD_OK);
-	}
-    }
-    argv += (optind);
-    argc -= (optind);
+	int	verbose, ch, i;
+	char	line[80];
 
-    pager_open();
-    for (i = 0; devsw[i] != NULL; i++) {
-	if (devsw[i]->dv_print != NULL){
-	    if (devsw[i]->dv_print(verbose))
-		break;
-	} else {
-	    snprintf(line, sizeof(line), "%s: (unknown)\n", devsw[i]->dv_name);
-	    if (pager_output(line))
-		    break;
+	verbose = 0;
+	optind = 1;
+	optreset = 1;
+	while ((ch = getopt(argc, argv, "v")) != -1) {
+		switch (ch) {
+		case 'v':
+			verbose = 1;
+			break;
+		case '?':
+		default:
+			/* getopt has already reported an error */
+			return (CMD_OK);
+		}
 	}
-    }
-    pager_close();
-    return(CMD_OK);
+	argv += (optind);
+	argc -= (optind);
+
+	pager_open();
+	for (i = 0; devsw[i] != NULL; i++) {
+		if (devsw[i]->dv_print != NULL) {
+			if (devsw[i]->dv_print(verbose))
+				break;
+		} else {
+			snprintf(line, sizeof(line), "%s: (unknown)\n",
+			    devsw[i]->dv_name);
+			if (pager_output(line))
+				break;
+		}
+	}
+	pager_close();
+	return (CMD_OK);
 }
-
