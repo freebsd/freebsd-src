@@ -83,6 +83,7 @@ struct cfiscsi_session {
 	int				cs_timeout;
 	struct cv			cs_maintenance_cv;
 	bool				cs_terminating;
+	bool				cs_handoff_in_progress;
 	bool				cs_tasks_aborted;
 	size_t				cs_max_data_segment_length;
 	size_t				cs_max_burst_length;
