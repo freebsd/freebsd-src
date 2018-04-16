@@ -159,14 +159,6 @@ media_status(int s)
 				printf("no carrier");
 			break;
 
-		case IFM_FDDI:
-		case IFM_TOKEN:
-			if (ifmr.ifm_status & IFM_ACTIVE)
-				printf("inserted");
-			else
-				printf("no ring");
-			break;
-
 		case IFM_IEEE80211:
 			if (ifmr.ifm_status & IFM_ACTIVE) {
 				/* NB: only sta mode associates */

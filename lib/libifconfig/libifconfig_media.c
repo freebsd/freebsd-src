@@ -373,15 +373,6 @@ ifconfig_media_get_status(const struct ifmediareq *ifmr)
 		}
 		break;
 
-	case IFM_FDDI:
-	case IFM_TOKEN:
-		if (ifmr->ifm_status & IFM_ACTIVE) {
-			return ("inserted");
-		} else {
-			return ("no ring");
-		}
-		break;
-
 	case IFM_IEEE80211:
 		if (ifmr->ifm_status & IFM_ACTIVE) {
 			/* NB: only sta mode associates */
