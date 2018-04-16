@@ -3786,6 +3786,9 @@ zfs_promote(zfs_handle_t *zhp)
 		return (zfs_error(hdl, EZFS_BADTYPE, errbuf));
 	}
 
+	if (!zfs_validate_name(hdl, zhp->zfs_name, zhp->zfs_type, B_TRUE))
+		return (zfs_error(hdl, EZFS_INVALIDNAME, errbuf));
+
 	ret = lzc_promote(zhp->zfs_name, snapname, sizeof (snapname));
 
 	if (ret != 0) {
@@ -4155,6 +4158,10 @@ zfs_rename(zfs_handle_t *zhp, const char *source, const char *target,
 		(void) strlcat(zhp->zfs_name, source, sizeof(zhp->zfs_name));
 		zhp->zfs_type = ZFS_TYPE_SNAPSHOT;
 	}
+
+	/* make sure source name is valid */
+	if (!zfs_validate_name(hdl, zhp->zfs_name, zhp->zfs_type, B_TRUE))
+		return (zfs_error(hdl, EZFS_INVALIDNAME, errbuf));
 
 	/*
 	 * Make sure the target name is valid
