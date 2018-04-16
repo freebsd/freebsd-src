@@ -98,11 +98,14 @@ volume_name(int ac, char **av)
 	if (vnames == NULL) {
 		error = errno;
 		warn("Failed to fetch volume names");
+		close(fd);
 		return (error);
 	}
 
 	if (vnames->Header.PageType != MPI_CONFIG_PAGEATTR_CHANGEABLE) {
 		warnx("Volume name is read only");
+		free(vnames);
+		close(fd);
 		return (EOPNOTSUPP);
 	}
 	printf("mpt%u changing volume %s name from \"%s\" to \"%s\"\n",
@@ -114,6 +117,8 @@ volume_name(int ac, char **av)
 	if (mpt_write_config_page(fd, vnames, NULL) < 0) {
 		error = errno;
 		warn("Failed to set volume name");
+		free(vnames);
+		close(fd);
 		return (error);
 	}
 
@@ -150,6 +155,7 @@ volume_status(int ac, char **av)
 	error = mpt_lookup_volume(fd, av[1], &VolumeBus, &VolumeID);
 	if (error) {
 		warnc(error, "Invalid volume: %s", av[1]);
+		close(fd);
 		return (error);
 	}
 
@@ -158,6 +164,7 @@ volume_status(int ac, char **av)
 	    NULL, NULL, 0);
 	if (error) {
 		warnc(error, "Fetching volume status failed");
+		close(fd);
 		return (error);
 	}
 
@@ -224,12 +231,15 @@ volume_cache(int ac, char **av)
 	error = mpt_lookup_volume(fd, av[1], &VolumeBus, &VolumeID);
 	if (error) {
 		warnc(error, "Invalid volume: %s", av[1]);
+		close(fd);
 		return (error);
 	}
 
 	volume = mpt_vol_info(fd, VolumeBus, VolumeID, NULL);
-	if (volume == NULL)
+	if (volume == NULL) {
+		close(fd);
 		return (errno);
+	}
 
 	Settings = volume->VolumeSettings.Settings;
 
@@ -241,6 +251,7 @@ volume_cache(int ac, char **av)
 
 	if (NewSettings == Settings) {
 		warnx("volume cache unchanged");
+		free(volume);
 		close(fd);
 		return (0);
 	}
