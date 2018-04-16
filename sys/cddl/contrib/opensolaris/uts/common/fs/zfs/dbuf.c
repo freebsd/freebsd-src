@@ -2579,8 +2579,10 @@ top:
 		return (SET_ERROR(ENOENT));
 	}
 
-	if (db->db_buf != NULL)
+	if (db->db_buf != NULL) {
+		arc_buf_access(db->db_buf);
 		ASSERT3P(db->db.db_data, ==, db->db_buf->b_data);
+	}
 
 	ASSERT(db->db_buf == NULL || arc_referenced(db->db_buf));
 
