@@ -61,11 +61,12 @@ descriptors.
 .
 USB templates are selected using the
 .Va hw.usb.template
-sysctl and tunable.
-.
-The
-.Va hw.usb.template
-value can be changed at any time, but will not
+sysctl and tunable,
+or by using the
+.Xr usbconfig 8
+.Cm set_template
+subcommand.
+The sysctl values can be changed at any time, but will not
 have any effect until the USB device has been re-enumerated.
 .
 Available templates are:
@@ -83,10 +84,32 @@ Available templates are:
 .It Dv 9 Ta USB MIDI
 .El
 .
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.template
+Currently selected template.
+.It Va hw.usb.templates.N
+Configuration for template number
+.Va N .
+.It Va hw.usb.templates.N.vendor_id
+16-bit vendor identifier (VID), usually assigned by USB-IF.
+.It Va hw.usb.templates.N.product_id
+16-bit product identifier (PID).
+.It Va hw.usb.templates.N.manufacturer
+String containing human-readable manufacturer name.
+.It Va hw.usb.templates.N.product
+String containing human-readable product name.
+.El
 .Sh SEE ALSO
 .Xr cfumass 4 ,
 .Xr usb 4 ,
-.Xr usfs 4
+.Xr usfs 4 ,
+.Xr usbconfig 8
 .Sh STANDARDS
 The
 .Nm
