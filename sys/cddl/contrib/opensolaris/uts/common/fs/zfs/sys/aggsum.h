@@ -29,7 +29,7 @@ typedef struct aggsum_bucket {
 	kmutex_t asc_lock;
 	int64_t asc_delta;
 	uint64_t asc_borrowed;
-	uint64_t asc_pad[4]; /* pad out to cache line (64 bytes) */
+	uint64_t asc_pad[2]; /* pad out to cache line (64 bytes) */
 } aggsum_bucket_t __aligned(CACHE_LINE_SIZE);
 
 /*
