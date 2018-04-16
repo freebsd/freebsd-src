@@ -313,6 +313,7 @@ int dnode_next_offset(dnode_t *dn, int flags, uint64_t *off,
     int minlvl, uint64_t blkfill, uint64_t txg);
 void dnode_evict_dbufs(dnode_t *dn);
 void dnode_evict_bonus(dnode_t *dn);
+boolean_t dnode_needs_remap(const dnode_t *dn);
 
 #define	DNODE_IS_CACHEABLE(_dn)						\
 	((_dn)->dn_objset->os_primary_cache == ZFS_CACHE_ALL ||		\
