@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include "bootstrap.h"
 
-char		*command_errmsg;
+const char	*command_errmsg;
 /* XXX should have procedural interface for setting, size limit? */
 char		command_errbuf[COMMAND_ERRBUFSZ];
 
