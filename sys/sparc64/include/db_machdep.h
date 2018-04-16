@@ -33,8 +33,6 @@
 #include <machine/frame.h>
 #include <machine/trap.h>
 
-#define	BYTE_MSF	(1)
-
 typedef vm_offset_t	db_addr_t;
 typedef long		db_expr_t;
 
