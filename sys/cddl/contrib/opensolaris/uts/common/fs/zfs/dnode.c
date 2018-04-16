@@ -1094,6 +1094,8 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag,
 	    (spa_is_root(os->os_spa) &&
 	    spa_config_held(os->os_spa, SCL_STATE, RW_WRITER)));
 
+	ASSERT((flag & DNODE_MUST_BE_ALLOCATED) || (flag & DNODE_MUST_BE_FREE));
+
 	if (object == DMU_USERUSED_OBJECT || object == DMU_GROUPUSED_OBJECT) {
 		dn = (object == DMU_USERUSED_OBJECT) ?
 		    DMU_USERUSED_DNODE(os) : DMU_GROUPUSED_DNODE(os);
@@ -1187,7 +1189,7 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag,
 		mutex_exit(&dn->dn_mtx);
 		zrl_remove(&dnh->dnh_zrlock);
 		dbuf_rele(db, FTAG);
-		return (type == DMU_OT_NONE ? ENOENT : EEXIST);
+		return ((flag & DNODE_MUST_BE_ALLOCATED) ? ENOENT : EEXIST);
 	}
 	if (refcount_add(&dn->dn_holds, tag) == 1)
 		dbuf_add_ref(db, dnh);

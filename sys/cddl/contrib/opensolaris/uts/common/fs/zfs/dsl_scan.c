@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright 2016 Gary Mills
  * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright 2017 Joyent, Inc.
@@ -352,13 +353,23 @@ dsl_scan_done(dsl_scan_t *scn, boolean_t complete, dmu_tx_t *tx)
 		 * If the scrub/resilver completed, update all DTLs to
 		 * reflect this.  Whether it succeeded or not, vacate
 		 * all temporary scrub DTLs.
+		 *
+		 * As the scrub does not currently support traversing
+		 * data that have been freed but are part of a checkpoint,
+		 * we don't mark the scrub as done in the DTLs as faults
+		 * may still exist in those vdevs.
 		 */
-		vdev_dtl_reassess(spa->spa_root_vdev, tx->tx_txg,
-		    complete ? scn->scn_phys.scn_max_txg : 0, B_TRUE);
-		if (complete) {
+		if (complete &&
+		    !spa_feature_is_active(spa, SPA_FEATURE_POOL_CHECKPOINT)) {
+			vdev_dtl_reassess(spa->spa_root_vdev, tx->tx_txg,
+			    scn->scn_phys.scn_max_txg, B_TRUE);
+
 			spa_event_notify(spa, NULL, NULL,
 			    scn->scn_phys.scn_min_txg ?
 			    ESC_ZFS_RESILVER_FINISH : ESC_ZFS_SCRUB_FINISH);
+		} else {
+			vdev_dtl_reassess(spa->spa_root_vdev, tx->tx_txg,
+			    0, B_TRUE);
 		}
 		spa_errlog_rotate(spa);
 
@@ -611,7 +622,7 @@ dsl_scan_zil_block(zilog_t *zilog, blkptr_t *bp, void *arg, uint64_t claim_txg)
 	 * (on-disk) even if it hasn't been claimed (even though for
 	 * scrub there's nothing to do to it).
 	 */
-	if (claim_txg == 0 && bp->blk_birth >= spa_first_txg(dp->dp_spa))
+	if (claim_txg == 0 && bp->blk_birth >= spa_min_claim_txg(dp->dp_spa))
 		return (0);
 
 	SET_BOOKMARK(&zb, zh->zh_log.blk_cksum.zc_word[ZIL_ZC_OBJSET],
@@ -662,11 +673,13 @@ dsl_scan_zil(dsl_pool_t *dp, zil_header_t *zh)
 	zil_scan_arg_t zsa = { dp, zh };
 	zilog_t *zilog;
 
+	ASSERT(spa_writeable(dp->dp_spa));
+
 	/*
-	 * We only want to visit blocks that have been claimed but not yet
-	 * replayed (or, in read-only mode, blocks that *would* be claimed).
+	 * We only want to visit blocks that have been claimed
+	 * but not yet replayed.
 	 */
-	if (claim_txg == 0 && spa_writeable(dp->dp_spa))
+	if (claim_txg == 0)
 		return;
 
 	zilog = zil_alloc(dp->dp_meta_objset, zh);
@@ -1590,61 +1603,16 @@ dsl_scan_active(dsl_scan_t *scn)
 	return (used != 0);
 }
 
-/* Called whenever a txg syncs. */
-void
-dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
+static int
+dsl_process_async_destroys(dsl_pool_t *dp, dmu_tx_t *tx)
 {
 	dsl_scan_t *scn = dp->dp_scan;
 	spa_t *spa = dp->dp_spa;
 	int err = 0;
 
-	/*
-	 * Check for scn_restart_txg before checking spa_load_state, so
-	 * that we can restart an old-style scan while the pool is being
-	 * imported (see dsl_scan_init).
-	 */
-	if (dsl_scan_restarting(scn, tx)) {
-		pool_scan_func_t func = POOL_SCAN_SCRUB;
-		dsl_scan_done(scn, B_FALSE, tx);
-		if (vdev_resilver_needed(spa->spa_root_vdev, NULL, NULL))
-			func = POOL_SCAN_RESILVER;
-		zfs_dbgmsg("restarting scan func=%u txg=%llu",
-		    func, tx->tx_txg);
-		dsl_scan_setup_sync(&func, tx);
-	}
+	if (spa_suspend_async_destroy(spa))
+		return (0);
 
-	/*
-	 * Only process scans in sync pass 1.
-	 */
-	if (spa_sync_pass(dp->dp_spa) > 1)
-		return;
-
-	/*
-	 * If the spa is shutting down, then stop scanning. This will
-	 * ensure that the scan does not dirty any new data during the
-	 * shutdown phase.
-	 */
-	if (spa_shutting_down(spa))
-		return;
-
-	/*
-	 * If the scan is inactive due to a stalled async destroy, try again.
-	 */
-	if (!scn->scn_async_stalled && !dsl_scan_active(scn))
-		return;
-
-	scn->scn_visited_this_txg = 0;
-	scn->scn_suspending = B_FALSE;
-	scn->scn_sync_start_time = gethrtime();
-	spa->spa_scrub_active = B_TRUE;
-
-	/*
-	 * First process the async destroys.  If we suspend, don't do
-	 * any scrubbing or resilvering.  This ensures that there are no
-	 * async destroys while we are scanning, so the scan code doesn't
-	 * have to worry about traversing it.  It is also faster to free the
-	 * blocks than to scrub them.
-	 */
 	if (zfs_free_bpobj_enabled &&
 	    spa_version(dp->dp_spa) >= SPA_VERSION_DEADLISTS) {
 		scn->scn_is_bptree = B_FALSE;
@@ -1718,7 +1686,7 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 		ddt_sync(spa, tx->tx_txg);
 	}
 	if (err != 0)
-		return;
+		return (err);
 	if (dp->dp_free_dir != NULL && !scn->scn_async_destroying &&
 	    zfs_free_leak_on_eio &&
 	    (dsl_dir_phys(dp->dp_free_dir)->dd_used_bytes != 0 ||
@@ -1771,6 +1739,67 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 		if (bpobj_is_empty(&dp->dp_obsolete_bpobj))
 			dsl_pool_destroy_obsolete_bpobj(dp, tx);
 	}
+
+	return (0);
+}
+
+void
+dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
+{
+	dsl_scan_t *scn = dp->dp_scan;
+	spa_t *spa = dp->dp_spa;
+	int err = 0;
+
+	/*
+	 * Check for scn_restart_txg before checking spa_load_state, so
+	 * that we can restart an old-style scan while the pool is being
+	 * imported (see dsl_scan_init).
+	 */
+	if (dsl_scan_restarting(scn, tx)) {
+		pool_scan_func_t func = POOL_SCAN_SCRUB;
+		dsl_scan_done(scn, B_FALSE, tx);
+		if (vdev_resilver_needed(spa->spa_root_vdev, NULL, NULL))
+			func = POOL_SCAN_RESILVER;
+		zfs_dbgmsg("restarting scan func=%u txg=%llu",
+		    func, tx->tx_txg);
+		dsl_scan_setup_sync(&func, tx);
+	}
+
+	/*
+	 * Only process scans in sync pass 1.
+	 */
+	if (spa_sync_pass(dp->dp_spa) > 1)
+		return;
+
+	/*
+	 * If the spa is shutting down, then stop scanning. This will
+	 * ensure that the scan does not dirty any new data during the
+	 * shutdown phase.
+	 */
+	if (spa_shutting_down(spa))
+		return;
+
+	/*
+	 * If the scan is inactive due to a stalled async destroy, try again.
+	 */
+	if (!scn->scn_async_stalled && !dsl_scan_active(scn))
+		return;
+
+	scn->scn_visited_this_txg = 0;
+	scn->scn_suspending = B_FALSE;
+	scn->scn_sync_start_time = gethrtime();
+	spa->spa_scrub_active = B_TRUE;
+
+	/*
+	 * First process the async destroys.  If we pause, don't do
+	 * any scrubbing or resilvering.  This ensures that there are no
+	 * async destroys while we are scanning, so the scan code doesn't
+	 * have to worry about traversing it.  It is also faster to free the
+	 * blocks than to scrub them.
+	 */
+	err = dsl_process_async_destroys(dp, tx);
+	if (err != 0)
+		return;
 
 	if (scn->scn_phys.scn_state != DSS_SCANNING)
 		return;
@@ -2067,7 +2096,7 @@ dsl_scan(dsl_pool_t *dp, pool_scan_func_t func)
 	}
 
 	return (dsl_sync_task(spa_name(spa), dsl_scan_setup_check,
-	    dsl_scan_setup_sync, &func, 0, ZFS_SPACE_CHECK_NONE));
+	    dsl_scan_setup_sync, &func, 0, ZFS_SPACE_CHECK_EXTRA_RESERVED));
 }
 
 static boolean_t

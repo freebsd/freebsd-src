@@ -23,7 +23,7 @@
  * Use is subject to license terms.
  */
 /*
- * Copyright (c) 2013, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2017 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -391,7 +391,6 @@ range_tree_walk(range_tree_t *rt, range_tree_func_t *func, void *arg)
 {
 	range_seg_t *rs;
 
-
 	for (rs = avl_first(&rt->rt_root); rs; rs = AVL_NEXT(&rt->rt_root, rs))
 		func(arg, rs->rs_start, rs->rs_end - rs->rs_start);
 }
@@ -400,4 +399,11 @@ uint64_t
 range_tree_space(range_tree_t *rt)
 {
 	return (rt->rt_space);
+}
+
+boolean_t
+range_tree_is_empty(range_tree_t *rt)
+{
+	ASSERT(rt != NULL);
+	return (range_tree_space(rt) == 0);
 }
