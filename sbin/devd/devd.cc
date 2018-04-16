@@ -333,8 +333,6 @@ media::media(config &, const char *var, const char *type)
 {
 	static struct ifmedia_description media_types[] = {
 		{ IFM_ETHER,		"Ethernet" },
-		{ IFM_TOKEN,		"Tokenring" },
-		{ IFM_FDDI,		"FDDI" },
 		{ IFM_IEEE80211,	"802.11" },
 		{ IFM_ATM,		"ATM" },
 		{ -1,			"unknown" },
