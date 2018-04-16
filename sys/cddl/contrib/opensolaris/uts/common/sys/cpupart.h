@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 1996, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2017 RackTop Systems.
  */
 
 #ifndef	_SYS_CPUPART_H
@@ -40,7 +41,7 @@
 extern "C" {
 #endif
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
 
 typedef int	cpupartid_t;
 
@@ -148,7 +149,7 @@ extern uint_t	cpupart_list(psetid_t *, uint_t, int);
 extern int	cpupart_setattr(psetid_t, uint_t);
 extern int	cpupart_getattr(psetid_t, uint_t *);
 
-#endif	/* _KERNEL */
+#endif	/* _KERNEL || _FAKE_KERNEL */
 
 #ifdef	__cplusplus
 }

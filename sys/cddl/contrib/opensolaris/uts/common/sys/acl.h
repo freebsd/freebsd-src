@@ -23,6 +23,7 @@
  *
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright 2017 RackTop Systems.
  */
 
 #ifndef _SYS_ACL_H
@@ -130,7 +131,7 @@ typedef struct acl_info acl_t;
 #define	ACL_FLAGS_ALL			(ACL_AUTO_INHERIT|ACL_PROTECTED| \
     ACL_DEFAULTED)
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
 
 /*
  * These are only applicable in a CIFS context.
