@@ -363,12 +363,9 @@ diu_attach(device_t dev)
 
 	/* TODO: Eventually, allow EDID to be dynamically provided. */
 	if (OF_getprop_alloc(node, "edid", &edid_cells) <= 0) {
-		/*
-		 * u-boot uses the environment variable name 'video-mode', so
-		 * just use the same name here.  Should allow another variable
-		 * that better fits our design model, but this is fine.
-		 */
-		if ((vm_name = kern_getenv("video-mode")) == NULL) {
+		/* Get a resource hint: hint.fb.N.mode */
+		if (resource_string_value(device_get_name(dev),
+		    device_get_unit(dev), "mode", &vm_name) != 0) {
 			device_printf(dev,
 			    "No EDID data and no video-mode env set\n");
 			return (ENXIO);
@@ -383,7 +380,7 @@ diu_attach(device_t dev)
 		videomode = edid.edid_preferred_mode;
 	} else {
 		/* Parse video-mode kenv variable. */
-		if ((err = sscanf(vm_name, "fslfb:%dx%d@%d", &w, &h, &r)) != 3) {
+		if ((err = sscanf(vm_name, "%dx%d@%d", &w, &h, &r)) != 3) {
 			device_printf(dev,
 			    "Cannot parse video mode: %s\n", vm_name);
 			return (ENXIO);
