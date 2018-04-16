@@ -89,8 +89,8 @@ static const void *midi_descs_0[] = {
 static const struct usb_temp_interface_desc midi_iface_0 = {
 	.ppEndpoints = NULL,		/* no endpoints */
 	.ppRawDesc = midi_descs_0,
-	.bInterfaceClass = 1,
-	.bInterfaceSubClass = 1,
+	.bInterfaceClass = UICLASS_AUDIO,
+	.bInterfaceSubClass = UISUBCLASS_AUDIOCONTROL,
 	.bInterfaceProtocol = 0,
 	.iInterface = INDEX_MIDI_IF,
 };
@@ -171,8 +171,8 @@ static const void *midi_descs_1[] = {
 static const struct usb_temp_interface_desc midi_iface_1 = {
 	.ppRawDesc = midi_descs_1,
 	.ppEndpoints = midi_iface_1_ep,
-	.bInterfaceClass = 0x01,	/* MIDI */
-	.bInterfaceSubClass = 3,	/* MIDI streaming */
+	.bInterfaceClass = UICLASS_AUDIO,
+	.bInterfaceSubClass = UISUBCLASS_MIDISTREAM,
 	.bInterfaceProtocol = 0,
 	.iInterface = INDEX_MIDI_IF,
 };
