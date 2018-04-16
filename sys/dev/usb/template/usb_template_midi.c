@@ -1,6 +1,11 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2015 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2015 Hans Petter Selasky
+ * Copyright (c) 2018 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Portions of this software were developed by Edward Tomasz Napierala
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -53,27 +58,26 @@
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usb_core.h>
+#include <dev/usb/usb_ioctl.h>
+#include <dev/usb/usb_util.h>
 
 #include <dev/usb/template/usb_template.h>
 #endif					/* USB_GLOBAL_INCLUDE_FILE */
 
 enum {
-	INDEX_MIDI_LANG,
-	INDEX_MIDI_IF,
-	INDEX_MIDI_PRODUCT,
-	INDEX_MIDI_MAX,
+	MIDI_LANG_INDEX,
+	MIDI_INTERFACE_INDEX,
+	MIDI_PRODUCT_INDEX,
+	MIDI_MAX_INDEX,
 };
 
-#define	STRING_MIDI_PRODUCT \
-  "M\0I\0D\0I\0 \0T\0e\0s\0t\0 \0D\0e\0v\0i\0c\0e"
+#define	MIDI_DEFAULT_INTERFACE		"MIDI interface"
+#define	MIDI_DEFAULT_PRODUCT		"MIDI Test Device"
 
-#define	STRING_MIDI_IF \
-  "M\0I\0D\0I\0 \0i\0n\0t\0e\0r\0f\0a\0c\0e"
+static struct usb_string_descriptor	midi_interface;
+static struct usb_string_descriptor	midi_product;
 
-/* make the real string descriptors */
-
-USB_MAKE_STRING_DESC(STRING_MIDI_IF, string_midi_if);
-USB_MAKE_STRING_DESC(STRING_MIDI_PRODUCT, string_midi_product);
+static struct sysctl_ctx_list		midi_ctx_list;
 
 /* prototypes */
 
@@ -92,7 +96,7 @@ static const struct usb_temp_interface_desc midi_iface_0 = {
 	.bInterfaceClass = UICLASS_AUDIO,
 	.bInterfaceSubClass = UISUBCLASS_AUDIOCONTROL,
 	.bInterfaceProtocol = 0,
-	.iInterface = INDEX_MIDI_IF,
+	.iInterface = MIDI_INTERFACE_INDEX,
 };
 
 static const struct usb_temp_packet_size midi_mps = {
@@ -174,7 +178,7 @@ static const struct usb_temp_interface_desc midi_iface_1 = {
 	.bInterfaceClass = UICLASS_AUDIO,
 	.bInterfaceSubClass = UISUBCLASS_MIDISTREAM,
 	.bInterfaceProtocol = 0,
-	.iInterface = INDEX_MIDI_IF,
+	.iInterface = MIDI_INTERFACE_INDEX,
 };
 
 static const struct usb_temp_interface_desc *midi_interfaces[] = {
@@ -187,7 +191,7 @@ static const struct usb_temp_config_desc midi_config_desc = {
 	.ppIfaceDesc = midi_interfaces,
 	.bmAttributes = UC_BUS_POWERED,
 	.bMaxPower = 25,		/* 50 mA */
-	.iConfiguration = INDEX_MIDI_PRODUCT,
+	.iConfiguration = MIDI_PRODUCT_INDEX,
 };
 
 static const struct usb_temp_config_desc *midi_configs[] = {
@@ -197,7 +201,7 @@ static const struct usb_temp_config_desc *midi_configs[] = {
 
 static usb_temp_get_string_desc_t midi_get_string_desc;
 
-const struct usb_temp_device_desc usb_template_midi = {
+struct usb_temp_device_desc usb_template_midi = {
 	.getStringDesc = &midi_get_string_desc,
 	.ppConfigDesc = midi_configs,
 	.idVendor = USB_TEMPLATE_VENDOR,
@@ -207,7 +211,7 @@ const struct usb_temp_device_desc usb_template_midi = {
 	.bDeviceSubClass = 0,
 	.bDeviceProtocol = 0,
 	.iManufacturer = 0,
-	.iProduct = INDEX_MIDI_PRODUCT,
+	.iProduct = MIDI_PRODUCT_INDEX,
 	.iSerialNumber = 0,
 };
 
@@ -221,10 +225,10 @@ const struct usb_temp_device_desc usb_template_midi = {
 static const void *
 midi_get_string_desc(uint16_t lang_id, uint8_t string_index)
 {
-	static const void *ptr[INDEX_MIDI_MAX] = {
-		[INDEX_MIDI_LANG] = &usb_string_lang_en,
-		[INDEX_MIDI_IF] = &string_midi_if,
-		[INDEX_MIDI_PRODUCT] = &string_midi_product,
+	static const void *ptr[MIDI_MAX_INDEX] = {
+		[MIDI_LANG_INDEX] = &usb_string_lang_en,
+		[MIDI_INTERFACE_INDEX] = &midi_interface,
+		[MIDI_PRODUCT_INDEX] = &midi_product,
 	};
 
 	if (string_index == 0) {
@@ -233,8 +237,54 @@ midi_get_string_desc(uint16_t lang_id, uint8_t string_index)
 	if (lang_id != 0x0409) {
 		return (NULL);
 	}
-	if (string_index < INDEX_MIDI_MAX) {
+	if (string_index < MIDI_MAX_INDEX) {
 		return (ptr[string_index]);
 	}
 	return (NULL);
 }
+
+static void
+midi_init(void *arg __unused)
+{
+	struct sysctl_oid *parent;
+	char parent_name[3];
+
+	usb_make_str_desc(&midi_interface, sizeof(midi_interface),
+	    MIDI_DEFAULT_INTERFACE);
+	usb_make_str_desc(&midi_product, sizeof(midi_product),
+	    MIDI_DEFAULT_PRODUCT);
+
+	snprintf(parent_name, sizeof(parent_name), "%d", USB_TEMP_MIDI);
+	sysctl_ctx_init(&midi_ctx_list);
+
+	parent = SYSCTL_ADD_NODE(&midi_ctx_list,
+	    SYSCTL_STATIC_CHILDREN(_hw_usb_templates), OID_AUTO,
+	    parent_name, CTLFLAG_RW,
+	    0, "USB MIDI device side template");
+	SYSCTL_ADD_U16(&midi_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "vendor_id", CTLFLAG_RWTUN,
+	    &usb_template_midi.idVendor, 1, "Vendor identifier");
+	SYSCTL_ADD_U16(&midi_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "product_id", CTLFLAG_RWTUN,
+	    &usb_template_midi.idProduct, 1, "Product identifier");
+#if 0
+	SYSCTL_ADD_PROC(&midi_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "interface", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &midi_interface, sizeof(midi_interface), usb_temp_sysctl,
+	    "A", "Interface string");
+#endif
+	SYSCTL_ADD_PROC(&midi_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "product", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &midi_product, sizeof(midi_product), usb_temp_sysctl,
+	    "A", "Product string");
+}
+
+static void
+midi_uninit(void *arg __unused)
+{
+
+	sysctl_ctx_free(&midi_ctx_list);
+}
+
+SYSINIT(midi_init, SI_SUB_LOCK, SI_ORDER_FIRST, midi_init, NULL);
+SYSUNINIT(midi_init, SI_SUB_LOCK, SI_ORDER_FIRST, midi_uninit, NULL);
