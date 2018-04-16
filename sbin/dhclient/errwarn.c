@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include "dhcpd.h"
 
-static void do_percentm(char *obuf, size_t size, char *ibuf);
+static void do_percentm(char *obuf, size_t size, const char *ibuf);
 
 static char mbuf[1024];
 static char fbuf[1024];
@@ -58,7 +58,7 @@ int warnings_occurred;
  * Log an error message, then exit.
  */
 void
-error(char *fmt, ...)
+error(const char *fmt, ...)
 {
 	va_list list;
 
@@ -92,7 +92,7 @@ error(char *fmt, ...)
  * Log a warning message...
  */
 int
-warning(char *fmt, ...)
+warning(const char *fmt, ...)
 {
 	va_list list;
 
@@ -118,7 +118,7 @@ warning(char *fmt, ...)
  * Log a note...
  */
 int
-note(char *fmt, ...)
+note(const char *fmt, ...)
 {
 	va_list list;
 
@@ -144,7 +144,7 @@ note(char *fmt, ...)
  * Log a debug message...
  */
 int
-debug(char *fmt, ...)
+debug(const char *fmt, ...)
 {
 	va_list list;
 
@@ -170,10 +170,10 @@ debug(char *fmt, ...)
  * Find %m in the input string and substitute an error message string.
  */
 static void
-do_percentm(char *obuf, size_t size, char *ibuf)
+do_percentm(char *obuf, size_t size, const char *ibuf)
 {
 	char ch;
-	char *s = ibuf;
+	const char *s = ibuf;
 	char *t = obuf;
 	size_t prlen;
 	size_t fmt_left;
@@ -203,7 +203,7 @@ do_percentm(char *obuf, size_t size, char *ibuf)
 }
 
 int
-parse_warn(char *fmt, ...)
+parse_warn(const char *fmt, ...)
 {
 	va_list list;
 	static char spaces[] =
