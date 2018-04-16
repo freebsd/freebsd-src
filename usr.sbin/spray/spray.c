@@ -145,7 +145,7 @@ main(int argc, char *argv[])
 
 
 	/* Spray server with packets */
-	printf ("sending %u packets of lnth %d to %s ...", count, length,
+	printf ("sending %u packets of length %d to %s ...", count, length,
 	    *argv);
 	fflush (stdout);
 
