@@ -47,6 +47,7 @@ struct dsl_dataset;
 
 #define	DD_FIELD_FILESYSTEM_COUNT	"com.joyent:filesystem_count"
 #define	DD_FIELD_SNAPSHOT_COUNT		"com.joyent:snapshot_count"
+#define	DD_FIELD_LAST_REMAP_TXG		"com.delphix:last_remap_txg"
 
 typedef enum dd_used {
 	DD_USED_HEAD,
@@ -144,6 +145,7 @@ uint64_t dsl_dir_get_usedchild(dsl_dir_t *dd);
 void dsl_dir_get_origin(dsl_dir_t *dd, char *buf);
 int dsl_dir_get_filesystem_count(dsl_dir_t *dd, uint64_t *count);
 int dsl_dir_get_snapshot_count(dsl_dir_t *dd, uint64_t *count);
+int dsl_dir_get_remaptxg(dsl_dir_t *dd, uint64_t *count);
 
 void dsl_dir_stats(dsl_dir_t *dd, nvlist_t *nv);
 uint64_t dsl_dir_space_available(dsl_dir_t *dd,
@@ -166,6 +168,7 @@ int dsl_dir_activate_fs_ss_limit(const char *);
 int dsl_fs_ss_limit_check(dsl_dir_t *, uint64_t, zfs_prop_t, dsl_dir_t *,
     cred_t *);
 void dsl_fs_ss_count_adjust(dsl_dir_t *, int64_t, const char *, dmu_tx_t *);
+int dsl_dir_update_last_remap_txg(dsl_dir_t *, uint64_t);
 int dsl_dir_rename(const char *oldname, const char *newname);
 int dsl_dir_transfer_possible(dsl_dir_t *sdd, dsl_dir_t *tdd,
     uint64_t fs_cnt, uint64_t ss_cnt, uint64_t space, cred_t *);
@@ -182,7 +185,6 @@ boolean_t dsl_dir_is_zapified(dsl_dir_t *dd);
 /* internal reserved dir name */
 #define	MOS_DIR_NAME "$MOS"
 #define	ORIGIN_DIR_NAME "$ORIGIN"
-#define	XLATION_DIR_NAME "$XLATION"
 #define	FREE_DIR_NAME "$FREE"
 #define	LEAK_DIR_NAME "$LEAK"
 

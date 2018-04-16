@@ -677,6 +677,7 @@ vdev_ops_t vdev_mirror_ops = {
 	vdev_mirror_state_change,
 	NULL,
 	NULL,
+	NULL,
 	VDEV_TYPE_MIRROR,	/* name of this vdev type */
 	B_FALSE			/* not a leaf vdev */
 };
@@ -690,6 +691,7 @@ vdev_ops_t vdev_replacing_ops = {
 	vdev_mirror_state_change,
 	NULL,
 	NULL,
+	NULL,
 	VDEV_TYPE_REPLACING,	/* name of this vdev type */
 	B_FALSE			/* not a leaf vdev */
 };
@@ -701,6 +703,7 @@ vdev_ops_t vdev_spare_ops = {
 	vdev_mirror_io_start,
 	vdev_mirror_io_done,
 	vdev_mirror_state_change,
+	NULL,
 	NULL,
 	NULL,
 	VDEV_TYPE_SPARE,	/* name of this vdev type */
