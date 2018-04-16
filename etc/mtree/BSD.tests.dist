@@ -474,6 +474,8 @@
         ..
         mqueue
         ..
+        net
+        ..
         netinet
         ..
         opencrypto
