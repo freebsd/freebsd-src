@@ -44,7 +44,8 @@ MAN=	dhclient.8 dhclient.conf.5 dhclient.leases.5 dhcp-options.5 \
 	dhclient-script.8
 LIBADD=	util
 
-WARNS?=	3
+WARNS?=	4
+NO_WCAST_ALIGN=	yes
 
 .if ${MK_TESTS} != "no"
 SUBDIR+=    tests
