@@ -1852,7 +1852,7 @@ show_import(nvlist_t *config)
 
 	case ZPOOL_STATUS_UNSUP_FEAT_READ:
 		(void) printf(gettext("status: The pool uses the following "
-		    "feature(s) not supported on this sytem:\n"));
+		    "feature(s) not supported on this system:\n"));
 		zpool_print_unsup_feat(config);
 		break;
 

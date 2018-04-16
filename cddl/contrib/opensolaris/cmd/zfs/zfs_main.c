@@ -2215,7 +2215,7 @@ zfs_do_upgrade(int argc, char **argv)
 		if (cb.cb_numfailed != 0)
 			ret = 1;
 	} else {
-		/* List old-version filesytems */
+		/* List old-version filesystems */
 		boolean_t found;
 		(void) printf(gettext("This system is currently running "
 		    "ZFS filesystem version %llu.\n\n"), ZPL_VERSION);

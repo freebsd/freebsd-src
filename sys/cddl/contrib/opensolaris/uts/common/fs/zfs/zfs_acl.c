@@ -2369,7 +2369,7 @@ slow:
 /*
  * Determine whether Access should be granted/denied.
  *
- * The least priv subsytem is always consulted as a basic privilege
+ * The least priv subsystem is always consulted as a basic privilege
  * can define any form of access.
  */
 int
