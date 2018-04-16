@@ -37,8 +37,6 @@
 #include <machine/cpuregs.h>
 #include <machine/regnum.h>
 
-#include "assym.s"
-
         .set    noreorder               # Noreorder is default style!
 
 /*
