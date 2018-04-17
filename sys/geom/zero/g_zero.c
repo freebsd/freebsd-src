@@ -141,3 +141,4 @@ static struct g_class g_zero_class = {
 };
 
 DECLARE_GEOM_CLASS(g_zero_class, g_zero);
+MODULE_VERSION(geom_zero, 0);

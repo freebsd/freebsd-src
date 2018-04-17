@@ -483,3 +483,4 @@ static struct g_class g_fox_class	= {
 };
 
 DECLARE_GEOM_CLASS(g_fox_class, g_fox);
+MODULE_VERSION(geom_fox, 0);

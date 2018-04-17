@@ -370,3 +370,4 @@ static struct g_class g_pc98_class = {
 };
 
 DECLARE_GEOM_CLASS(g_pc98_class, g_pc98);
+MODULE_VERSION(geom_pc98, 0);

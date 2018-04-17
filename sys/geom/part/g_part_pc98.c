@@ -115,6 +115,7 @@ static struct g_part_scheme g_part_pc98_scheme = {
 	.gps_bootcodesz = BOOTSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_pc98);
+MODULE_VERSION(geom_part_pc98, 0);
 
 static int
 pc98_parse_type(const char *type, u_char *dp_mid, u_char *dp_sid)

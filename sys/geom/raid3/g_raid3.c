@@ -3581,3 +3581,4 @@ g_raid3_fini(struct g_class *mp)
 }
 
 DECLARE_GEOM_CLASS(g_raid3_class, g_raid3);
+MODULE_VERSION(geom_raid3, 0);

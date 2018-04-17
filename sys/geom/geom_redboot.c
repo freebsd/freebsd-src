@@ -343,3 +343,4 @@ static struct g_class g_redboot_class	= {
 	.ioctl		= g_redboot_ioctl,
 };
 DECLARE_GEOM_CLASS(g_redboot_class, g_redboot);
+MODULE_VERSION(geom_redboot, 0);
