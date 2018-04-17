@@ -162,3 +162,4 @@ static struct g_class g_vol_ffs_class	= {
 };
 
 DECLARE_GEOM_CLASS(g_vol_ffs_class, g_vol_ffs);
+MODULE_VERSION(geom_vol_ffs, 0);
