@@ -186,16 +186,6 @@ data_abort(struct trapframe *frame, int lower)
 
 	td = curthread;
 	pcb = td->td_pcb;
-
-	/*
-	 * Special case for fuswintr and suswintr. These can't sleep so
-	 * handle them early on in the trap handler.
-	 */
-	if (__predict_false(pcb->pcb_onfault == (vm_offset_t)&fsu_intr_fault)) {
-		frame->tf_sepc = pcb->pcb_onfault;
-		return;
-	}
-
 	sbadaddr = frame->tf_sbadaddr;
 
 	p = td->td_proc;

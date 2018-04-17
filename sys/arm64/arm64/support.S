@@ -218,51 +218,6 @@ EENTRY(suword64)
 EEND(suword64)
 END(suword)
 
-/*
- * fuswintr and suswintr are just like fusword and susword except that if
- * the page is not in memory or would cause a trap, then we return an error.
- * The important thing is to prevent sleep() and switch().
- */
-
-/*
- * Special handler so the trap code knows not to sleep.
- */
-ENTRY(fsu_intr_fault)
-	SET_FAULT_HANDLER(xzr, x1)	/* Reset the handler function */
-	EXIT_USER_ACCESS_CHECK(w0, x1)
-	mov	x0, #-1
-	ret
-END(fsu_fault)
-
-/*
- * int fuswintr(void *)
- */
-ENTRY(fuswintr)
-	ldr	x1, =(VM_MAXUSER_ADDRESS-3)
-	cmp	x0, x1
-	b.cs	fsu_fault_nopcb
-	adr	x6, fsu_intr_fault	/* Load the fault handler */
-	SET_FAULT_HANDLER(x6, x1)	/* And set it */
-	ldtr	w0, [x0]		/* Try loading the data */
-	SET_FAULT_HANDLER(xzr, x1)	/* Reset the fault handler */
-	ret				/* Return */
-END(fuswintr)
-
-/*
- * int suswintr(void *base, int word)
- */
-ENTRY(suswintr)
-	ldr	x2, =(VM_MAXUSER_ADDRESS-3)
-	cmp	x0, x2
-	b.cs	fsu_fault_nopcb
-	adr	x6, fsu_intr_fault	/* Load the fault handler */
-	SET_FAULT_HANDLER(x6, x2)	/* And set it */
-	sttr	w1, [x0]		/* Try storing the data */
-	SET_FAULT_HANDLER(xzr, x2)	/* Reset the fault handler */
-	mov	x0, #0			/* Success */
-	ret				/* Return */
-END(suswintr)
-
 ENTRY(setjmp)
 	/* Store the stack pointer */
 	mov	x8, sp
