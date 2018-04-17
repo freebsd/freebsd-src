@@ -41,9 +41,17 @@ setlaggport(const char *val, int d, int s, const struct afswtch *afp)
 	strlcpy(rp.rp_ifname, name, sizeof(rp.rp_ifname));
 	strlcpy(rp.rp_portname, val, sizeof(rp.rp_portname));
 
-	/* Don't choke if the port is already in this lagg. */
-	if (ioctl(s, SIOCSLAGGPORT, &rp) && errno != EEXIST)
-		err(1, "SIOCSLAGGPORT");
+	/*
+	 * Do not exit with an error here.  Doing so permits a
+	 * failed NIC to take down an entire lagg.
+	 *
+	 * Don't error at all if the port is already in the lagg.
+	 */
+	if (ioctl(s, SIOCSLAGGPORT, &rp) && errno != EEXIST) {
+		warnx("%s %s: SIOCSLAGGPORT: %s",
+		    name, val, strerror(errno));
+		exit_code = 1;
+	}
 }
 
 static void

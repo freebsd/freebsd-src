@@ -181,7 +181,7 @@ static void
 clone_Copt_cb(const char *optarg __unused)
 {
 	list_cloners();
-	exit(0);
+	exit(exit_code);
 }
 static struct option clone_Copt = { .opt = "C", .opt_usage = "[-C]", .cb = clone_Copt_cb };
 
