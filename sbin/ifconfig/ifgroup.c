@@ -140,7 +140,7 @@ printgroup(const char *groupname)
 	if (ioctl(s, SIOCGIFGMEMB, (caddr_t)&ifgr) == -1) {
 		if (errno == EINVAL || errno == ENOTTY ||
 		    errno == ENOENT)
-			exit(0);
+			exit(exit_code);
 		else
 			err(1, "SIOCGIFGMEMB");
 	}
@@ -159,7 +159,7 @@ printgroup(const char *groupname)
 	}
 	free(ifgr.ifgr_groups);
 
-	exit(0);
+	exit(exit_code);
 }
 
 static struct cmd group_cmds[] = {
