@@ -176,17 +176,6 @@ ENTRY(fusword)
 END(fusword)
 
 /*
- * fuswintr(caddr_t uaddr);
- * Fetch a short from the user's address space.  Can be called during an
- * interrupt.
- */
-
-ENTRY(fuswintr)
-	mov	r0, #-1
-	RET
-END(fuswintr)
-
-/*
  * fubyte(caddr_t uaddr);
  * Fetch a byte from the user's address space.
  */
@@ -271,17 +260,6 @@ EENTRY_NP(suword32)
 	RET
 EEND(suword32)
 END(suword)
-
-/*
- * suswintr(caddr_t uaddr, short x);
- * Store a short in the user's address space.  Can be called during an
- * interrupt.
- */
-
-ENTRY(suswintr)
-	mov	r0, #-1
-	RET
-END(suswintr)
 
 /*
  * susword(caddr_t uaddr, short x);
