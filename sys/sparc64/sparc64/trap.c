@@ -100,8 +100,6 @@ extern char copy_nofault_end[];
 extern char fs_fault[];
 extern char fs_nofault_begin[];
 extern char fs_nofault_end[];
-extern char fs_nofault_intr_begin[];
-extern char fs_nofault_intr_end[];
 
 extern char fas_fault[];
 extern char fas_nofault_begin[];
@@ -478,14 +476,6 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 	}
 
 	if (ctx != TLB_CTX_KERNEL) {
-		if ((tf->tf_tstate & TSTATE_PRIV) != 0 &&
-		    (tf->tf_tpc >= (u_long)fs_nofault_intr_begin &&
-		    tf->tf_tpc <= (u_long)fs_nofault_intr_end)) {
-			tf->tf_tpc = (u_long)fs_fault;
-			tf->tf_tnpc = tf->tf_tpc + 4;
-			return (0);
-		}
-
 		/* This is a fault on non-kernel virtual memory. */
 		map = &p->p_vmspace->vm_map;
 	} else {
