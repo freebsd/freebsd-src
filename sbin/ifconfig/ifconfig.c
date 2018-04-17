@@ -99,6 +99,7 @@ int	printifname = 0;
 
 int	supmedia = 0;
 int	printkeys = 0;		/* Print keying material for interfaces. */
+int	exit_code = 0;
 
 /* Formatter Strings */
 char	*f_inet, *f_inet6, *f_ether, *f_addr;
@@ -485,7 +486,7 @@ main(int argc, char *argv[])
 					errx(1, "%s: cloning name too long",
 					    ifname);
 				ifconfig(argc, argv, 1, NULL);
-				exit(0);
+				exit(exit_code);
 			}
 #ifdef JAIL
 			/*
@@ -499,7 +500,7 @@ main(int argc, char *argv[])
 					errx(1, "%s: interface name too long",
 					    ifname);
 				ifconfig(argc, argv, 0, NULL);
-				exit(0);
+				exit(exit_code);
 			}
 #endif
 			errx(1, "interface %s does not exist", ifname);
@@ -597,7 +598,7 @@ main(int argc, char *argv[])
 	freeifaddrs(ifap);
 
 	freeformat();
-	exit(0);
+	exit(exit_code);
 }
 
 static struct afswtch *afs = NULL;

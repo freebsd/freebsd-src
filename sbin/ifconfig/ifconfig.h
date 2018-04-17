@@ -136,6 +136,7 @@ extern	int printkeys;
 extern	int newaddr;
 extern	int verbose;
 extern	int printifname;
+extern	int exit_code;
 
 void	setifcap(const char *, int value, int s, const struct afswtch *);
 
