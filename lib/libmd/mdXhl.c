@@ -79,11 +79,11 @@ MDXFdChunk(int fd, char *buf, off_t ofs, off_t len)
 			readrv = read(fd, buffer, sizeof(buffer));
 		else
 			readrv = read(fd, buffer, remain);
-		if (readrv <= 0) 
+		if (readrv <= 0)
 			break;
 		MDXUpdate(&ctx, buffer, readrv);
 		remain -= readrv;
-	} 
+	}
 error:
 	if (readrv < 0)
 		return NULL;
