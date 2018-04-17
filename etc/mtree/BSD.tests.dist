@@ -430,6 +430,8 @@
         ..
         aio
         ..
+        capsicum
+        ..
         cddl
             zfs
                 bin
