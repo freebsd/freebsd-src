@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/puc/puc_cfg.h>
 #include <dev/puc/puc_bfe.h>
+#include <dev/puc/pucdata.c>
 
 static int puc_msi_disable;
 SYSCTL_INT(_hw_puc, OID_AUTO, msi_disable, CTLFLAG_RDTUN,
@@ -198,3 +199,5 @@ static driver_t puc_pci_driver = {
 };
 
 DRIVER_MODULE(puc, pci, puc_pci_driver, puc_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device;U16:#;U16:#;D:#", pci, puc,
+    puc_pci_devices, sizeof(puc_pci_devices[0]), nitems(puc_pci_devices) - 1);
