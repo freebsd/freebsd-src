@@ -4140,6 +4140,8 @@ vm_page_ps_test(vm_page_t m, int flags, vm_page_t skip_m)
 	int i, npages;
 
 	object = m->object;
+	if (skip_m != NULL && skip_m->object != object)
+		return (false);
 	VM_OBJECT_ASSERT_LOCKED(object);
 	npages = atop(pagesizes[m->psind]);
 
