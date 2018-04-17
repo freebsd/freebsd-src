@@ -128,7 +128,6 @@ int	 chgsbsize(struct uidinfo *uip, u_int *hiwat, u_int to,
 	    rlim_t maxval);
 int	 chgptscnt(struct uidinfo *uip, int diff, rlim_t maxval);
 int	 chgumtxcnt(struct uidinfo *uip, int diff, rlim_t maxval);
-int	 fuswintr(void *base);
 int	 kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 	    struct rlimit *limp);
 struct plimit
@@ -152,7 +151,6 @@ void	 rufetchcalc(struct proc *p, struct rusage *ru, struct timeval *up,
 	    struct timeval *sp);
 void	 rufetchtd(struct thread *td, struct rusage *ru);
 void	 ruxagg(struct proc *p, struct thread *td);
-int	 suswintr(void *base, int word);
 struct uidinfo
 	*uifind(uid_t uid);
 void	 uifree(struct uidinfo *uip);

@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180417: remove fuswintr and suswintr
+OLD_FILES+=usr/share/man/man9/fuswintr.9.gz
+OLD_FILES+=usr/share/man/man9/suswintr.9.gz
 # 20180413: remove Arcnet support
 OLD_FILES+=usr/include/net/if_arc.h
 OLD_FILES+=usr/share/man/man4/cm.4.gz

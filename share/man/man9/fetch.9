@@ -34,13 +34,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 29, 2014
+.Dd April 17, 2018
 .Dt FETCH 9
 .Os
 .Sh NAME
 .Nm fetch ,
 .Nm fubyte ,
-.Nm fuswintr ,
 .Nm fuword ,
 .Nm fuword16 ,
 .Nm fuword32 ,
@@ -69,8 +68,6 @@
 .Ft int64_t
 .Fn fueword64 "volatile const void *base" "int64_t *val"
 .In sys/resourcevar.h
-.Ft int
-.Fn fuswintr "void *base"
 .Sh DESCRIPTION
 The
 .Nm
@@ -100,10 +97,6 @@ Fetches 32 bits of data from the user-space address
 .It Fn fuword64
 Fetches 64 bits of data from the user-space address
 .Pa base .
-.It Fn fuswintr
-Fetches a short word of data from the user-space address
-.Pa base .
-This function is safe to call during an interrupt context.
 .It Fn fueword
 Fetches a word of data (long) from the user-space address
 .Pa base
@@ -134,9 +127,8 @@ The
 .Fn fuword ,
 .Fn fuword16 ,
 .Fn fuword32 ,
-.Fn fuword64 ,
 and
-.Fn fuswintr
+.Fn fuword64
 functions return the data fetched or -1 on failure.
 The
 .Fn fueword ,
