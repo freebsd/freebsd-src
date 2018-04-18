@@ -406,7 +406,10 @@
     <sect2 xml:id="boot-loader">
       <title>Boot Loader Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="329114">The length of <acronym>GELI</acronym>
+	passphrases entered when booting a system with encrypted disks
+	is now hidden by default.  See the configuration options in
+	&man.geli.8; to restore the previous behavior.</para>
     </sect2>
 
     <sect2 xml:id="boot-menu">
