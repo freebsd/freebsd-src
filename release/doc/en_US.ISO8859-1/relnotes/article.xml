@@ -250,6 +250,15 @@
 	The argument to <literal>-j</literal> can be either the name
 	or numeric jail <acronym>ID</acronym>.</para>
 
+      <para revision="330692" contrib="sponsor"
+	sponsor="&dellemc;">The &man.dhclient.8; utility has been
+	updated to be more compliant with <acronym>RFC</acronym>2131
+	by setting the source address field in the
+	<acronym>IP</acronym> header to <literal>0</literal> when
+	sending a <literal>DHCPREQUEST</literal> message to attempt to
+	obtain a previously-assigned <literal>IP</literal>
+	address.</para>
+
       <para revision="330694" contrib="sponsor"
 	sponsor="&dellemc;">The &man.pw.8; utility has been updated to
 	allow the <literal>@</literal> and <literal>!</literal>
