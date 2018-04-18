@@ -232,6 +232,9 @@
       <para revision="326848">The &man.pw.8; utility has been updated
 	to correct handling of account expiration periods.</para>
 
+      <para revision="327592">The &man.mdmfs.8; utility has been
+	updated to support &man.tmpfs.5;.</para>
+
       <para revision="327871">The &man.cpucontrol.8; utility has been
 	updated to include a new flag, <literal>-e</literal>, which is
 	used to re-evaluate reported <acronym>CPU</acronym> features
