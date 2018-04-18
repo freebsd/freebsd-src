@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 26, 2017
+.Dd April 18, 2018
 .Dt CNV 9
 .Os
 .Sh NAME
@@ -66,27 +66,27 @@
 .Fn cnvlist_get_descriptor_array "void *cookiep" "size_t *nitemsp"
 .\"
 .Ft bool
-.Fn cnvlist_take_bool "void *cookiep"
+.Fn cnvlist_take_bool "nvlist_t *nvl" "void *cookiep"
 .Ft uint64_t
-.Fn cnvlist_take_number "void *cookiep"
+.Fn cnvlist_take_number "nvlist_t *nvl" "void *cookiep"
 .Ft "const char *"
-.Fn cnvlist_take_string "void *cookiep"
+.Fn cnvlist_take_string "nvlist_t *nvl" "void *cookiep"
 .Ft "const nvlist_t *"
-.Fn cnvlist_take_nvlist "void *cookiep"
+.Fn cnvlist_take_nvlist "nvlist_t *nvl" "void *cookiep"
 .Ft "const void *"
-.Fn cnvlist_take_binary "void *cookiep" "size_t *sizep"
+.Fn cnvlist_take_binary "nvlist_t *nvl" "void *cookiep" "size_t *sizep"
 .Ft "const bool *"
-.Fn cnvlist_take_bool_array "void *cookiep" "size_t *nitemsp"
+.Fn cnvlist_take_bool_array "nvlist_t *nvl" "void *cookiep" "size_t *nitemsp"
 .Ft "const uint64_t *"
-.Fn cnvlist_take_number_array "void *cookiep" "size_t *nitemsp"
+.Fn cnvlist_take_number_array "nvlist_t *nvl" "void *cookiep" "size_t *nitemsp"
 .Ft "const char * const *"
-.Fn cnvlist_take_string_array "void *cookiep" "size_t *nitemsp"
+.Fn cnvlist_take_string_array "nvlist_t *nvl" "void *cookiep" "size_t *nitemsp"
 .Ft "const nvlist_t * const *"
-.Fn cnvlist_take_nvlist_array "void *cookiep" "size_t *nitemsp"
+.Fn cnvlist_take_nvlist_array "nvlist_t *nvl" "void *cookiep" "size_t *nitemsp"
 .Ft int
-.Fn cnvlist_take_descriptor "void *cookiep"
+.Fn cnvlist_take_descriptor "nvlist_t *nvl" "void *cookiep"
 .Ft "const int *"
-.Fn cnvlist_take_descriptor_array "void *cookiep" "size_t *nitemsp"
+.Fn cnvlist_take_descriptor_array "nvlist_t *nvl" "void *cookiep" "size_t *nitemsp"
 .\"
 .Ft void
 .Fn cnvlist_free_null "nvlist_t *nvl" "void *cookiep"
