@@ -802,11 +802,15 @@ devstats(int perf_select, long double etime, int havelast)
 	char *devicename;
 
 	if (xflag > 0) {
+		if (Cflag > 0) {
+			printf("      cpu\n");
+			printf(" us ni sy in id\n");
+			cpustats();
+			printf("\n");
+		}
 		printf("                        extended device statistics  ");
 		if (Tflag > 0)
 			printf("      tty ");
-		if (Cflag > 0)
-			printf("           cpu ");
 		printf("\n");
 		if (Iflag == 0) {
 			printf("device       r/s     w/s     kr/s     kw/s "
@@ -817,8 +821,6 @@ devstats(int perf_select, long double etime, int havelast)
 		}
 		if (Tflag > 0)
 			printf("tin  tout ");
-		if (Cflag > 0)
-			printf("us ni sy in id ");
 		printf("\n");
 	}
 
@@ -922,8 +924,6 @@ devstats(int perf_select, long double etime, int havelast)
 						printf("%4.0Lf%5.0Lf",
 						    cur.tk_nin / etime,
 						    cur.tk_nout / etime);
-					if (Cflag > 0)
-						cpustats();
 				}
 				printf("\n");
 			}
