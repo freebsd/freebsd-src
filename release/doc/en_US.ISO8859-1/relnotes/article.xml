@@ -196,6 +196,9 @@
       <para revision="331246">The <application>bmake</application>
 	utility has been updated to upstream version 20180222.</para>
 
+      <para revision="331638"><application>OpenSSL</application> has
+	been updated to version 1.0.2o.</para>
+
       <para revision="331838">The <application>clang</application>,
 	<application>llvm</application>,
 	<application>lld</application>,
