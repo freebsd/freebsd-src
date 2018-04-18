@@ -204,6 +204,11 @@
 	list the name of a &man.jail.8; instead of the numeric
 	ID.</para>
 
+      <para revision="331586" contrib="sponsor"
+	sponsor="&mellanox;">The &man.mlx5tool.8; utility has been
+	added, which is used to manage Connect-X&nbsp;4 and
+	Connect-X&nbsp;5 devices supported by &man.mlx5io.4;.</para>
+
       <para revision="332126" contrib="sponsor"
 	sponsor="&netflix;">The &man.efibootmgr.8; utility has been
 	added, which is used to manipulate the <acronym>EFI</acronym>
@@ -344,7 +349,10 @@
     <sect2 xml:id="drivers-device">
       <title>Device Drivers</title>
 
-      <para>&nbsp;</para>
+      <para revision="331586" contrib="sponsor"
+	sponsor="&mellanox;">The &man.mlx5io.4; driver has been added,
+	providing an interface to manage supported Connect-X&nbsp;4
+	and Connect-X&nbsp;5 network adapters.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
