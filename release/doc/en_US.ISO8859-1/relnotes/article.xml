@@ -193,6 +193,9 @@
       <para revision="323136"><application>OpenSSH</application> has
 	been updated to version 7.5p1.</para>
 
+      <para revision="327234">The &man.tcpdump.1; utility has been
+	updated to version 4.9.2.</para>
+
       <para revision="330570">The &man.less.1; utility has been
 	updated to upstream version v530.</para>
 
