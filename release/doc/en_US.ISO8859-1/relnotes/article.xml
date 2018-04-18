@@ -165,6 +165,10 @@
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
 
+      <para revision="328140">The &man.df.1; utility has been updated
+	to include the <literal>--si</literal> long option, which is
+	an alias to <literal>-H</literal>.</para>
+
       <para revision="331471">The &man.ps.1; utility has been updated
 	to include a <literal>jail</literal>, which when used will
 	list the name of a &man.jail.8; instead of the numeric
