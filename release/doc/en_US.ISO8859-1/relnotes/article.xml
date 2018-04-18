@@ -304,8 +304,8 @@
 	characters in the <acronym>GECOS</acronym> field.</para>
 
       <para revision="331471">The &man.ps.1; utility has been updated
-	to include a <literal>jail</literal>, which when used will
-	list the name of a &man.jail.8; instead of the numeric
+	to include a <literal>jail</literal> keyword, which when used
+	will list the name of a &man.jail.8; instead of the numeric
 	ID.</para>
 
       <para revision="331586" contrib="sponsor"
