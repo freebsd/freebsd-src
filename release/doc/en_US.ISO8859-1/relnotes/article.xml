@@ -297,6 +297,12 @@
 	added, which is used to manage Connect-X&nbsp;4 and
 	Connect-X&nbsp;5 devices supported by &man.mlx5io.4;.</para>
 
+      <para revision="331603" contrib="sponsor"
+	sponsor="&chelsio;">The &man.sysctl.8; utility has been
+	updated to support setting an array of values to nodes.  Prior
+	to this change, &man.sysctl.8; could only set one value to
+	a node that may return multiple values when queried.</para>
+
       <para revision="331729">The &man.ifconfig.8; utility has been
 	updated to include a <literal>random</literal> option, which
 	when used with the <literal>ether</literal> option, generates
