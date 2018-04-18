@@ -400,6 +400,11 @@
 	sponsor="&mellanox;">The &man.mlx5io.4; driver has been added,
 	providing an interface to manage supported Connect-X&nbsp;4
 	and Connect-X&nbsp;5 network adapters.</para>
+
+      <para revision="330307" contrib="sponsor"
+	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
+	to firmware version 1.16.63.0 for T4, T5, and T6 network
+	adapters.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
