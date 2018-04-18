@@ -186,6 +186,11 @@
 	been updated to include device model when the
 	<literal>-s</literal> flag is used.</para>
 
+      <para revision="322919">The &man.pw.8; utility has been updated
+	to properly handle empty secondary group lists as an argument
+	to the <literal>-G</literal> flag when using the
+	<literal>usermod</literal> subcommand.</para>
+
       <para revision="324270">The &man.ps.1; utility has been updated
 	to reflect realtime and idle priorities in state flags.</para>
 
