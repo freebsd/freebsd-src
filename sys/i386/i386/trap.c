@@ -937,7 +937,7 @@ trap_fatal(frame, eva)
 	    curproc->p_pid, curthread->td_name);
 
 #ifdef KDB
-	if (debugger_on_panic || kdb_active) {
+	if (debugger_on_panic) {
 		frame->tf_err = eva;	/* smuggle fault address to ddb */
 		if (kdb_trap(type, 0, frame)) {
 			frame->tf_err = code;	/* restore error code */
