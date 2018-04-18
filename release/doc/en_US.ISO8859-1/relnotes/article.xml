@@ -413,7 +413,8 @@
     <sect2 xml:id="hardware-virtualization">
       <title>Virtualization Support</title>
 
-      <para>&nbsp;</para>
+      <para revision="321413">Support for &man.virtio.console.4; has
+	been added to &man.bhyve.4;.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
