@@ -238,6 +238,12 @@
 	to include the <literal>--si</literal> long option, which is
 	an alias to <literal>-H</literal>.</para>
 
+      <para revision="328599">The &man.service.8; utility has been
+	updated to include a new flag, <literal>-j</literal>, which is
+	used to interact with services running within a &man.jail.8;.
+	The argument to <literal>-j</literal> can be either the name
+	or numeric jail <acronym>ID</acronym>.</para>
+
       <para revision="330694" contrib="sponsor"
 	sponsor="&dellemc;">The &man.pw.8; utility has been updated to
 	allow the <literal>@</literal> and <literal>!</literal>
