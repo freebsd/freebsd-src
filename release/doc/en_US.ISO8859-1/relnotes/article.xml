@@ -324,7 +324,9 @@
     <sect2 xml:id="hardware-support">
       <title>Hardware Support</title>
 
-      <para>&nbsp;</para>
+      <para revision="331500">Support for the TAIO
+	<acronym>USB</acronym> multi-protocol adapter
+	(<acronym>TUMPA</acronym>) has been added.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
