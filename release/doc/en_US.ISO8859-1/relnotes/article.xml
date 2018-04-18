@@ -195,6 +195,11 @@
 	been updated to include device model when the
 	<literal>-s</literal> flag is used.</para>
 
+      <para revision="322910">The &man.umount.8; utility has been
+	updated to include a new flag, <literal>-N</literal>, which
+	is used to forcefully unmount an <acronym>NFS</acronym>
+	mounted filesystem.</para>
+
       <para revision="322919">The &man.pw.8; utility has been updated
 	to properly handle empty secondary group lists as an argument
 	to the <literal>-G</literal> flag when using the
