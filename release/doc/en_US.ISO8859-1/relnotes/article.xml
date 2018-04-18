@@ -278,6 +278,13 @@
 	<acronym>SMART</acronym> data, instead of the hexidecimal
 	value.</para>
 
+      <para revision="328716">The &man.nvmecontrol.8; utility has been
+	updated to include control options for Western Digital&reg;
+	HGST drives.  The new options are <literal>cap-diag</literal>,
+	<literal>get-crash-dump</literal>,
+	<literal>drive-log</literal>, <literal>purge</literal>, and
+	<literal>purge-monitor</literal>.</para>
+
       <para revision="330692" contrib="sponsor"
 	sponsor="&dellemc;">The &man.dhclient.8; utility has been
 	updated to be more compliant with <acronym>RFC</acronym>2131
