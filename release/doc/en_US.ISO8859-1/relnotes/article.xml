@@ -177,6 +177,12 @@
 	to display if a process is running with &man.capsicum.4;
 	capability mode, indicated by <literal>C</literal>.</para>
 
+      <para revision="325003" contrib="sponsor"
+	sponsor="&spectralogic;">The &man.diskinfo.8; utility has been
+	updated to display disk rotation rate and if
+	<acronym>TRIM</acronym>/<acronym>UNMAP</acronym> is supported
+	by the disk.</para>
+
       <para revision="328140">The &man.df.1; utility has been updated
 	to include the <literal>--si</literal> long option, which is
 	an alias to <literal>-H</literal>.</para>
