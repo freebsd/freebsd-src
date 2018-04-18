@@ -161,8 +161,13 @@ indirprt(disk, level, blksperindir, lbn, blkno, lastlbn)
 	}
 	printblk(fs, lbn, blkno, fs->fs_frag, -level);
 	/* read in the indirect block. */
-	if (bread(disk, fsbtodb(fs, blkno), indir, fs->fs_bsize) == -1)
-		err(1, "Read of indirect block %jd failed", (intmax_t)blkno);
+	if (bread(disk, fsbtodb(fs, blkno), indir, fs->fs_bsize) == -1) {
+		warn("Read of indirect block %jd failed", (intmax_t)blkno);
+		/* List the unreadable part as a hole */
+		printblk(fs, lbn, 0,
+		    blksperindir * NINDIR(fs) * fs->fs_frag, lastlbn);
+		return;
+	}
 	last = howmany(lastlbn - lbn, blksperindir) < NINDIR(fs) ?
 	    howmany(lastlbn - lbn, blksperindir) : NINDIR(fs);
 	if (blksperindir == 1) {
