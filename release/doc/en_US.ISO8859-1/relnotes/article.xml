@@ -273,6 +273,11 @@
 	updated to exit with a non-zero status when the filesystem is
 	not repaired.</para>
 
+      <para revision="328668">The &man.nvmecontrol.8; utility has been
+	updated to print the full 128 bit value for
+	<acronym>SMART</acronym> data, instead of the hexidecimal
+	value.</para>
+
       <para revision="330692" contrib="sponsor"
 	sponsor="&dellemc;">The &man.dhclient.8; utility has been
 	updated to be more compliant with <acronym>RFC</acronym>2131
