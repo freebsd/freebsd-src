@@ -7,6 +7,7 @@ ATF_TESTS_C+=		fmemopen2_test
 ATF_TESTS_C+=		fopen2_test
 ATF_TESTS_C+=		freopen_test
 ATF_TESTS_C+=		getdelim_test
+ATF_TESTS_C+=		gets_s_test
 ATF_TESTS_C+=		mkostemp_test
 ATF_TESTS_C+=		open_memstream2_test
 ATF_TESTS_C+=		open_wmemstream_test
