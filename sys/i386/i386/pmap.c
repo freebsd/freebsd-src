@@ -5630,6 +5630,8 @@ pmap_trm_alloc(size_t size, int flags)
 	    0, 0, VMEM_ADDR_MIN, VMEM_ADDR_MAX, flags | M_FIRSTFIT, &res);
 	if (error != 0)
 		return (NULL);
+	if ((flags & M_ZERO) != 0)
+		bzero((void *)res, size);
 	return ((void *)res);
 }
 
