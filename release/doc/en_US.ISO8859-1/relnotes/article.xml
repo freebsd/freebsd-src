@@ -174,6 +174,10 @@
 	updated to support <acronym>RFC</acronym>5424-compliant
 	messages when rotating system logs.</para>
 
+      <para revision="321287" contrib="sponsor" sponsor="&gandi;">The
+	&man.sesutil.8; utility has been updated to include
+	&man.libxo.3; support in output.</para>
+
       <para revision="321927">The &man.diskinfo.8; utility has been
 	updated to include two new flags, <literal>-s</literal> which
 	displays the disk identity (usually the serial number), and
