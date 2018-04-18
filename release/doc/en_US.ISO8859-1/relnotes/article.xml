@@ -171,6 +171,9 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
+      <para revision="330570">The &man.less.1; utility has been
+	updated to upstream version v530.</para>
+
       <para revision="331246">The <application>bmake</application>
 	utility has been updated to upstream version 20180222.</para>
 
