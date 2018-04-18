@@ -165,7 +165,10 @@
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="331471">The &man.ps.1; utility has been updated
+	to include a <literal>jail</literal>, which when used will
+	list the name of a &man.jail.8; instead of the numeric
+	ID.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
