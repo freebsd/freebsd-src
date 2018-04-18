@@ -221,6 +221,19 @@
       <para revision="326848">The &man.pw.8; utility has been updated
 	to correct handling of account expiration periods.</para>
 
+      <para revision="327871">The &man.cpucontrol.8; utility has been
+	updated to include a new flag, <literal>-e</literal>, which is
+	used to re-evaluate reported <acronym>CPU</acronym> features
+	after applying firmware updates.</para>
+
+      <note>
+	<para>The &man.cpucontrol.8; <literal>-e</literal> flag should
+	  only be used after microcode update have been applied to all
+	  <acronym>CPU</acronym>s in the system, otherwise system
+	  instability may be experienced if processor features are not
+	  identical across the system.</para>
+      </note>
+
       <para revision="328140">The &man.df.1; utility has been updated
 	to include the <literal>--si</literal> long option, which is
 	an alias to <literal>-H</literal>.</para>
