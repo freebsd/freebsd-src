@@ -165,6 +165,11 @@
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
 
+      <para revision="321092">The &man.ln.1; utility has been updated
+	to correct the behavior of the <literal>-F</literal> flag by
+	unlinking an existing directory before creating a symbolic
+	link.</para>
+
       <para revision="324270">The &man.ps.1; utility has been updated
 	to reflect realtime and idle priorities in state flags.</para>
 
