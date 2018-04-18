@@ -223,6 +223,11 @@
 	<acronym>TRIM</acronym>/<acronym>UNMAP</acronym> is supported
 	by the disk.</para>
 
+      <para revision="326413">The &man.pfctl.8; utility has been
+	updated to allow <literal>route-to</literal> to properly
+	handle network interfaces with multiple <acronym>IP</acronym>
+	addresses.</para>
+
       <para revision="326778" contrib="sponsor"
 	sponsor="&spectralogic;">The &man.camcontrol.8; utility has
 	been updated to include <acronym>ZAC</acronym> (Zoned-device
