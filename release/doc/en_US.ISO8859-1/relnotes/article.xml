@@ -190,6 +190,9 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
+      <para revision="321303">The &man.libarchive.3; library has been
+	updated to version 3.3.2.</para>
+
       <para revision="322442"><application>Subversion</application>
 	has been updated to version 1.9.7.</para>
 
