@@ -170,6 +170,11 @@
 	unlinking an existing directory before creating a symbolic
 	link.</para>
 
+      <para revision="321241">The &man.crontab.1; utility has been
+	updated to include a new flag, <literal>-f</literal>, which
+	forces &man.crontab.5; removal when <literal>-r</literal> is
+	used non-interactively.</para>
+
       <para revision="321262">The &man.newsyslog.8; utility has been
 	updated to support <acronym>RFC</acronym>5424-compliant
 	messages when rotating system logs.</para>
