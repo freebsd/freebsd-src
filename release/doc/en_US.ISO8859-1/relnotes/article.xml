@@ -457,7 +457,10 @@
     <sect2 xml:id="releng-changes">
       <title>Integration Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="326892">Amazon&reg; EC2&trade; instances now
+	keep their clocks synchronized using the Amazon Time Sync
+	Service, the <acronym>NTP</acronym> service internal to the
+	EC2&trade; infrastructure.</para>
     </sect2>
   </sect1>
 </article>
