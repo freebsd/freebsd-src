@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 21, 2017
+.Dd April 18, 2018
 .Dt PROCCTL 2
 .Os
 .Sh NAME
@@ -391,6 +391,37 @@ otherwise.
 See the note about sysctl
 .Dv kern.trap_enotcap
 above, which gives independent global control of signal delivery.
+.It Dv PROC_PDEATHSIG_SET
+Request the delivery of a signal when the parent of the calling
+process exits.
+.Fa idtype
+must be
+.Dv P_PID
+and
+.Fa id
+must be the either caller's pid or zero, with no difference in effect.
+The value is cleared for child processes
+and when executing set-user-ID or set-group-ID binaries.
+.Fa arg
+must point to a value of type
+.Vt int
+indicating the signal
+that should be delivered to the caller.
+Use zero to cancel a previously requested signal delivery.
+.It Dv PROC_PDEATHSIG_GET
+Query the current signal number that will be delivered when the parent
+of the calling process exits.
+.Fa idtype
+must be
+.Dv P_PID
+and
+.Fa id
+must be the either caller's pid or zero, with no difference in effect.
+.Fa arg
+must point to a memory location that can hold a value of type
+.Vt int .
+If signal delivery has not been requested, it will contain zero
+on return.
 .El
 .Sh NOTES
 Disabling tracing on a process should not be considered a security
@@ -487,6 +518,15 @@ parameter for the
 or
 .Dv PROC_TRAPCAP_CTL
 request is invalid.
+.It Bq Er EINVAL
+The
+.Dv PROC_PDEATHSIG_SET
+or
+.Dv PROC_PDEATHSIG_GET
+request referenced an unsupported
+.Fa id ,
+.Fa idtype
+or invalid signal number.
 .El
 .Sh SEE ALSO
 .Xr dtrace 1 ,
@@ -506,3 +546,8 @@ function appeared in
 The reaper facility is based on a similar feature of Linux and
 DragonflyBSD, and first appeared in
 .Fx 10.2 .
+The
+.Dv PROC_PDEATHSIG_SET
+facility is based on the prctl(PR_SET_PDEATHSIG, ...) feature of Linux,
+and first appeared in
+.Fx 12.0 .
