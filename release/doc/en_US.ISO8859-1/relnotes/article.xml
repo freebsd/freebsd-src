@@ -255,6 +255,11 @@
 	The argument to <literal>-j</literal> can be either the name
 	or numeric jail <acronym>ID</acronym>.</para>
 
+      <para revision="328604" contrib="sponsor"
+	sponsor="&dellemc;">The &man.fsck.ffs.8; utility has been
+	updated to exit with a non-zero status when the filesystem is
+	not repaired.</para>
+
       <para revision="330692" contrib="sponsor"
 	sponsor="&dellemc;">The &man.dhclient.8; utility has been
 	updated to be more compliant with <acronym>RFC</acronym>2131
