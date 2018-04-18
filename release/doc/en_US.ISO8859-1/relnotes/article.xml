@@ -211,6 +211,11 @@
 	to include the <literal>--si</literal> long option, which is
 	an alias to <literal>-H</literal>.</para>
 
+      <para revision="330694" contrib="sponsor"
+	sponsor="&dellemc;">The &man.pw.8; utility has been updated to
+	allow the <literal>@</literal> and <literal>!</literal>
+	characters in the <acronym>GECOS</acronym> field.</para>
+
       <para revision="331471">The &man.ps.1; utility has been updated
 	to include a <literal>jail</literal>, which when used will
 	list the name of a &man.jail.8; instead of the numeric
