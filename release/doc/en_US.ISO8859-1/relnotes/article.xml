@@ -202,6 +202,9 @@
       <para revision="331638"><application>OpenSSL</application> has
 	been updated to version 1.0.2o.</para>
 
+      <para revision="331662">Timezone data files have been updated to
+	version 2018d.</para>
+
       <para revision="331838">The <application>clang</application>,
 	<application>llvm</application>,
 	<application>lld</application>,
