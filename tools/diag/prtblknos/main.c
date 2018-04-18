@@ -31,6 +31,7 @@
 #include <err.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/stat.h>
 #include <libufs.h>
 
 union dinode {
@@ -48,11 +49,30 @@ main(argc, argv)
 	struct uufsd disk;
 	union dinode *dp;
 	struct fs *fs;
+	struct stat sb;
+	struct statfs sfb;
+	char *xargv[4];
+	char ibuf[64];
 	char *fsname;
 	int inonum, error;
 
+	if (argc == 2) {
+		if (stat(argv[1], &sb) != 0)
+			err(1, "stat(%s)", argv[1]);
+		if (statfs(argv[1], &sfb) != 0)
+			err(1, "statfs(%s)", argv[1]);
+		xargv[0] = argv[0];
+		xargv[1] = sfb.f_mntfromname;
+		sprintf(ibuf, "%jd", (intmax_t)sb.st_ino);
+		xargv[2] = ibuf;
+		xargv[3] = NULL;
+		argv = xargv;
+		argc = 3;
+	}
 	if (argc < 3) {
-		(void)fprintf(stderr,"usage: prtblknos filesystem inode ...\n");
+		(void)fprintf(stderr, "%s\n%s\n",
+		    "usage: prtblknos filename",
+		    "       prtblknos filesystem inode ...");
 		exit(1);
 	}
 
@@ -60,7 +80,7 @@ main(argc, argv)
 
 	/* get the superblock. */
 	if ((error = ufs_disk_fillout(&disk, fsname)) < 0)
-		errx(1, "Cannot find file system superblock on %s\n", fsname);
+		err(1, "Cannot access file system superblock on %s", fsname);
 	fs = (struct fs *)&disk.d_sb;
 
 	/* remaining arguments are inode numbers. */
@@ -68,11 +88,11 @@ main(argc, argv)
 		/* get the inode number. */
 		if ((inonum = atoi(*argv)) <= 0 ||
 		     inonum >= fs->fs_ipg * fs->fs_ncg)
-			errx(1, "%s is not a valid inode number", *argv);
-		(void)printf("%d:", inonum);
+			warnx("%s is not a valid inode number", *argv);
+		(void)printf("%d: ", inonum);
 
 		if ((error = getino(&disk, (void **)&dp, inonum, NULL)) < 0)
-			err(1, "Read of inode %d on %s failed", inonum, fsname);
+			warn("Read of inode %d on %s failed", inonum, fsname);
 
 		prtblknos(&disk, dp);
 	}
