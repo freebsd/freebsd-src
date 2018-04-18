@@ -284,6 +284,12 @@
 	added, which is used to manage Connect-X&nbsp;4 and
 	Connect-X&nbsp;5 devices supported by &man.mlx5io.4;.</para>
 
+      <para revision="331729">The &man.ifconfig.8; utility has been
+	updated to include a <literal>random</literal> option, which
+	when used with the <literal>ether</literal> option, generates
+	a random <acronym>MAC</acronym> address for an
+	interface.</para>
+
       <para revision="332126" contrib="sponsor"
 	sponsor="&netflix;">The &man.efibootmgr.8; utility has been
 	added, which is used to manipulate the <acronym>EFI</acronym>
