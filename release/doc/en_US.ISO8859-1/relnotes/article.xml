@@ -218,6 +218,12 @@
 	<acronym>TRIM</acronym>/<acronym>UNMAP</acronym> is supported
 	by the disk.</para>
 
+      <para revision="326778" contrib="sponsor"
+	sponsor="&spectralogic;">The &man.camcontrol.8; utility has
+	been updated to include <acronym>ZAC</acronym> (Zoned-device
+	<acronym>ATA</acronym> command set) information when the
+	<literal>identify</literal> subcommand is used.</para>
+
       <para revision="326848">The &man.pw.8; utility has been updated
 	to correct handling of account expiration periods.</para>
 
