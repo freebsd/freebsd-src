@@ -292,7 +292,10 @@
     <sect2 xml:id="userland-installer">
       <title>Installation and Configuration Tools</title>
 
-      <para>&nbsp;</para>
+      <para revision="322254" contrib="sponsor" sponsor="&ff;"
+	arch="&arch.arm64;">The &man.bsdinstall.8; installer has been
+	updated to default to <acronym>UEFI</acronym>-only
+	boot.</para>
     </sect2>
 
     <sect2 xml:id="userland-rc">
