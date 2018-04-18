@@ -202,6 +202,9 @@
       <para revision="323136"><application>OpenSSH</application> has
 	been updated to version 7.5p1.</para>
 
+      <para revision="324581">The &man.mandoc.1; utility has been
+	updated to version 1.14.3.</para>
+
       <para revision="327234">The &man.tcpdump.1; utility has been
 	updated to version 4.9.2.</para>
 
