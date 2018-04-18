@@ -5117,13 +5117,18 @@ find_child_with_core(int cpu, struct cpu_group *grp)
 }
 
 /*
- * Find the nth thread on the specified core
+ * Find the nth "close" core to the specified core
+ * "close" is defined as the deepest level that shares
+ * at least an L2 cache.  With threads, this will be
+ * threads on the same core.  If the sahred cache is L3
+ * or higher, simply returns the same core.
  */
 static int
-find_thread(int cpu, int thread_num)
+find_close_core(int cpu, int core_offset)
 {
 	struct cpu_group *grp;
 	int i;
+	int fcpu;
 	cpuset_t cs;
 
 	grp = cpu_top;
@@ -5143,7 +5148,19 @@ find_thread(int cpu, int thread_num)
 
 	/* Now pick one */
 	CPU_COPY(&grp->cg_mask, &cs);
-	for (i = thread_num % grp->cg_count; i > 0; i--) {
+
+	/* Add the selected CPU offset to core offset. */
+	for (i = 0; (fcpu = CPU_FFS(&cs)) != 0; i++) {
+		if (fcpu - 1 == cpu)
+			break;
+		CPU_CLR(fcpu - 1, &cs);
+	}
+	MPASS(fcpu);
+
+	core_offset += i;
+
+	CPU_COPY(&grp->cg_mask, &cs);
+	for (i = core_offset % grp->cg_count; i > 0; i--) {
 		MPASS(CPU_FFS(&cs));
 		CPU_CLR(CPU_FFS(&cs) - 1, &cs);
 	}
@@ -5152,31 +5169,31 @@ find_thread(int cpu, int thread_num)
 }
 #else
 static int
-find_thread(int cpu, int thread_num __unused)
+find_close_core(int cpu, int core_offset __unused)
 {
 	return cpu;
 }
 #endif
 
 static int
-get_thread_num(if_ctx_t ctx, iflib_intr_type_t type, int qid)
+get_core_offset(if_ctx_t ctx, iflib_intr_type_t type, int qid)
 {
 	switch (type) {
 	case IFLIB_INTR_TX:
-		/* TX queues get threads on the same core as the corresponding RX queue */
-		/* XXX handle multiple RX threads per core and more than two threads per core */
+		/* TX queues get cores which share at least an L2 cache with the corresponding RX queue */
+		/* XXX handle multiple RX threads per core and more than two core per L2 group */
 		return qid / CPU_COUNT(&ctx->ifc_cpus) + 1;
 	case IFLIB_INTR_RX:
 	case IFLIB_INTR_RXTX:
-		/* RX queues get the first thread on their core */
+		/* RX queues get the specified core */
 		return qid / CPU_COUNT(&ctx->ifc_cpus);
 	default:
 		return -1;
 	}
 }
 #else
-#define get_thread_num(ctx, type, qid)	CPU_FIRST()
-#define find_thread(cpuid, tid)		CPU_FIRST()
+#define get_core_offset(ctx, type, qid)	CPU_FIRST()
+#define find_close_core(cpuid, tid)	CPU_FIRST()
 #define find_nth(ctx, gid)		CPU_FIRST()
 #endif
 
@@ -5189,9 +5206,9 @@ iflib_irq_set_affinity(if_ctx_t ctx, int irq, iflib_intr_type_t type, int qid,
 	int err, tid;
 
 	cpuid = find_nth(ctx, qid);
-	tid = get_thread_num(ctx, type, qid);
+	tid = get_core_offset(ctx, type, qid);
 	MPASS(tid >= 0);
-	cpuid = find_thread(cpuid, tid);
+	cpuid = find_close_core(cpuid, tid);
 	err = taskqgroup_attach_cpu(tqg, gtask, uniq, cpuid, irq, name);
 	if (err) {
 		device_printf(ctx->ifc_dev, "taskqgroup_attach_cpu failed %d\n", err);
