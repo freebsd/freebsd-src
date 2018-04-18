@@ -171,7 +171,13 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
-      <para>&nbsp;</para>
+      <para revision="331838">The <application>clang</application>,
+	<application>llvm</application>,
+	<application>lld</application>,
+	<application>lldb</application>, and
+	<application>complier-rt</application> utilities as well as
+	<literal>libc++</literal> have been updated to upstream
+	version 6.0.0.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
