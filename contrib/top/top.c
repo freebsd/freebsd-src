@@ -39,6 +39,7 @@ char *copyright =
 #include <sys/time.h>
 
 #include <ctype.h>
+#include <curses.h>
 #include <errno.h>
 #include <jail.h>
 #include <setjmp.h>
@@ -79,7 +80,7 @@ int pcpu_stats = No;
 sigret_t leave();
 sigret_t tstop();
 #ifdef SIGWINCH
-sigret_t winch();
+sigret_t top_winch(int);
 #endif
 
 volatile sig_atomic_t leaveflag;
@@ -682,7 +683,7 @@ char *argv[];
     (void) signal(SIGQUIT, leave);
     (void) signal(SIGTSTP, tstop);
 #ifdef SIGWINCH
-    (void) signal(SIGWINCH, winch);
+    (void) signal(SIGWINCH, top_winch);
 #endif
 #ifdef SIGRELSE
     sigrelse(SIGINT);
@@ -897,7 +898,7 @@ restart:
 		    max_topn = display_resize();
 
 		    /* reset the signal handler */
-		    (void) signal(SIGWINCH, winch);
+		    (void) signal(SIGWINCH, top_winch);
 
 		    reset_display();
 		    winchflag = 0;
@@ -971,9 +972,9 @@ restart:
 			    case CMD_help1:	/* help */
 			    case CMD_help2:
 				reset_display();
-				clear();
+				top_clear();
 				show_help();
-				standout("Hit any key to continue: ");
+				top_standout("Hit any key to continue: ");
 				fflush(stdout);
 				(void) read(0, &ch, 1);
 				break;
@@ -989,9 +990,9 @@ restart:
 				else
 				{
 				    reset_display();
-				    clear();
+				    top_clear();
 				    show_errors();
-				    standout("Hit any key to continue: ");
+				    top_standout("Hit any key to continue: ");
 				    fflush(stdout);
 				    (void) read(0, &ch, 1);
 				}
@@ -1300,10 +1301,7 @@ int i;
 }
 
 #ifdef SIGWINCH
-sigret_t winch(i)		/* SIGWINCH handler */
-
-int i;
-
+sigret_t top_winch(int i)		/* SIGWINCH handler */
 {
     winchflag = 1;
 }
