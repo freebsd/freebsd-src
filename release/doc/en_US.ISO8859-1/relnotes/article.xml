@@ -170,6 +170,10 @@
 	unlinking an existing directory before creating a symbolic
 	link.</para>
 
+      <para revision="321262">The &man.newsyslog.8; utility has been
+	updated to support <acronym>RFC</acronym>5424-compliant
+	messages when rotating system logs.</para>
+
       <para revision="321927">The &man.diskinfo.8; utility has been
 	updated to include two new flags, <literal>-s</literal> which
 	displays the disk identity (usually the serial number), and
