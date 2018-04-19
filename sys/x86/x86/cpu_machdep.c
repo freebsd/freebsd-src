@@ -104,7 +104,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 
+#ifndef PC98
 #include <isa/isareg.h>
+#endif
 
 #define	STATE_RUNNING	0x0
 #define	STATE_MWAIT	0x1
