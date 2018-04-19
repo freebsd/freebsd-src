@@ -374,7 +374,7 @@
 	<application>llvm</application>,
 	<application>lld</application>,
 	<application>lldb</application>, and
-	<application>compiler-rt</application> utilities as well as
+	<literal>compiler-rt</literal> utilities as well as
 	<literal>libc++</literal> have been updated to upstream
 	version 6.0.0.</para>
     </sect2>
