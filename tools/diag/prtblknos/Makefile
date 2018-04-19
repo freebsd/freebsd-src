@@ -9,6 +9,8 @@ SRCS=	main.c prtblknos.c
 
 LIBADD+=ufs
 
+WARNS?=	3
+
 test:	${PROG}
 	./${PROG} > a
 
