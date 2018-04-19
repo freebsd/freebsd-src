@@ -1234,7 +1234,7 @@ lookup_offload_policy(struct adapter *sc, int open_type, struct mbuf *m,
 	switch (open_type) {
 	case OPEN_TYPE_ACTIVE:
 	case OPEN_TYPE_LISTEN:
-		pkt = prepare_pkt(open_type, 0xffff, inp, &pktlen, &buflen);
+		pkt = prepare_pkt(open_type, vtag, inp, &pktlen, &buflen);
 		break;
 	case OPEN_TYPE_PASSIVE:
 		MPASS(m != NULL);
