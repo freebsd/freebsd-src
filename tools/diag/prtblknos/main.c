@@ -53,14 +53,17 @@ main(argc, argv)
 	struct statfs sfb;
 	char *xargv[4];
 	char ibuf[64];
-	char *fsname;
-	int inonum, error;
+	char *fsname, *filename;
+	ino_t inonum;
+	int error;
 
+	filename = NULL;
 	if (argc == 2) {
-		if (stat(argv[1], &sb) != 0)
-			err(1, "stat(%s)", argv[1]);
-		if (statfs(argv[1], &sfb) != 0)
-			err(1, "statfs(%s)", argv[1]);
+		filename = argv[1];
+		if (lstat(filename, &sb) != 0)
+			err(1, "stat(%s)", filename);
+		if (statfs(filename, &sfb) != 0)
+			err(1, "statfs(%s)", filename);
 		xargv[0] = argv[0];
 		xargv[1] = sfb.f_mntfromname;
 		sprintf(ibuf, "%jd", (intmax_t)sb.st_ino);
@@ -87,12 +90,17 @@ main(argc, argv)
 	while (*++argv) {
 		/* get the inode number. */
 		if ((inonum = atoi(*argv)) <= 0 ||
-		     inonum >= fs->fs_ipg * fs->fs_ncg)
+		     inonum >= (ino_t)fs->fs_ipg * fs->fs_ncg)
 			warnx("%s is not a valid inode number", *argv);
-		(void)printf("%d: ", inonum);
+		if (filename == NULL)
+			(void)printf("inode #%jd: ", (intmax_t)inonum);
+		else
+			(void)printf("%s (inode #%jd): ", filename,
+			    (intmax_t)inonum);
 
 		if ((error = getino(&disk, (void **)&dp, inonum, NULL)) < 0)
-			warn("Read of inode %d on %s failed", inonum, fsname);
+			warn("Read of inode %jd on %s failed",
+			    (intmax_t)inonum, fsname);
 
 		prtblknos(&disk, dp);
 	}
