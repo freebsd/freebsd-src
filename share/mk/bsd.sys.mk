@@ -226,6 +226,8 @@ ACFLAGS+=	${ACFLAGS.${.IMPSRC:T}}
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
 CXXFLAGS+=	${CXXFLAGS.${.IMPSRC:T}}
 
+LDFLAGS+=	${LDFLAGS.${LINKER_TYPE}}
+
 .if defined(SRCTOP)
 # Prevent rebuilding during install to support read-only objdirs.
 .if ${.TARGETS:M*install*} == ${.TARGETS} && empty(.MAKE.MODE:Mmeta)
