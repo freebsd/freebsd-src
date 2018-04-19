@@ -1176,8 +1176,7 @@ print_flags(struct buf_pr *bp, char const *name, ipfw_insn *cmd,
  * Print the ip address contained in a command.
  */
 static void
-print_ip(struct buf_pr *bp, const struct format_opts *fo, ipfw_insn_ip *cmd,
-    char const *s)
+print_ip(struct buf_pr *bp, const struct format_opts *fo, ipfw_insn_ip *cmd)
 {
 	struct hostent *he = NULL;
 	struct in_addr *ia;
@@ -1185,6 +1184,7 @@ print_ip(struct buf_pr *bp, const struct format_opts *fo, ipfw_insn_ip *cmd,
 	uint32_t *a = ((ipfw_insn_u32 *)cmd)->d;
 	char *t;
 
+	bprintf(bp, " ");
 	if (cmd->o.opcode == O_IP_DST_LOOKUP && len > F_INSN_SIZE(ipfw_insn_u32)) {
 		uint32_t d = a[1];
 		const char *arg = "<invalid>";
@@ -1192,11 +1192,9 @@ print_ip(struct buf_pr *bp, const struct format_opts *fo, ipfw_insn_ip *cmd,
 		if (d < sizeof(lookup_key)/sizeof(lookup_key[0]))
 			arg = match_value(rule_options, lookup_key[d]);
 		t = table_search_ctlv(fo->tstate, ((ipfw_insn *)cmd)->arg1);
-		bprintf(bp, " lookup %s %s", arg, t);
+		bprintf(bp, "lookup %s %s", arg, t);
 		return;
 	}
-	bprintf(bp, "%s ", s);
-
 	if (cmd->o.opcode == O_IP_SRC_ME || cmd->o.opcode == O_IP_DST_ME) {
 		bprintf(bp, "me");
 		return;
@@ -1467,7 +1465,7 @@ print_instruction(struct buf_pr *bp, const struct format_opts *fo,
 	case O_IP_DST_MASK:
 	case O_IP_DST_ME:
 	case O_IP_DST_SET:
-		print_ip(bp, fo, insntod(cmd, ip), "");
+		print_ip(bp, fo, insntod(cmd, ip));
 		break;
 	case O_IP6_SRC:
 	case O_IP6_SRC_MASK:
@@ -1475,7 +1473,7 @@ print_instruction(struct buf_pr *bp, const struct format_opts *fo,
 	case O_IP6_DST:
 	case O_IP6_DST_MASK:
 	case O_IP6_DST_ME:
-		print_ip6(bp, insntod(cmd, ip6), "");
+		print_ip6(bp, insntod(cmd, ip6));
 		break;
 	case O_FLOW6ID:
 		print_flow6id(bp, insntod(cmd, u32));
