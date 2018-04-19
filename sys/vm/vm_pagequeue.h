@@ -107,8 +107,7 @@ struct vm_domain {
 	boolean_t vmd_oom;
 	int vmd_oom_seq;
 	int vmd_last_active_scan;
-	struct vm_page vmd_laundry_marker;
-	struct vm_page vmd_marker; /* marker for pagedaemon private use */
+	struct vm_page vmd_markers[PQ_COUNT]; /* markers for queue scans */
 	struct vm_page vmd_inacthead; /* marker for LRU-defeating insertions */
 
 	int vmd_pageout_wanted;		/* (a, p) pageout daemon wait channel */

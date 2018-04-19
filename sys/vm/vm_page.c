@@ -437,6 +437,23 @@ sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+/*
+ * Initialize a dummy page for use in scans of the specified paging queue.
+ * In principle, this function only needs to set the flag PG_MARKER.
+ * Nonetheless, it write busies and initializes the hold count to one as
+ * safety precautions.
+ */
+void
+vm_page_init_marker(vm_page_t marker, int queue)
+{
+
+	bzero(marker, sizeof(*marker));
+	marker->flags = PG_MARKER;
+	marker->busy_lock = VPB_SINGLE_EXCLUSIVER;
+	marker->queue = queue;
+	marker->hold_count = 1;
+}
+
 static void
 vm_page_domain_init(int domain)
 {
@@ -464,9 +481,13 @@ vm_page_domain_init(int domain)
 		TAILQ_INIT(&pq->pq_pl);
 		mtx_init(&pq->pq_mutex, pq->pq_name, "vm pagequeue",
 		    MTX_DEF | MTX_DUPOK);
+		vm_page_init_marker(&vmd->vmd_markers[i], i);
 	}
 	mtx_init(&vmd->vmd_free_mtx, "vm page free queue", NULL, MTX_DEF);
 	mtx_init(&vmd->vmd_pageout_mtx, "vm pageout lock", NULL, MTX_DEF);
+	vm_page_init_marker(&vmd->vmd_inacthead, PQ_INACTIVE);
+	TAILQ_INSERT_HEAD(&vmd->vmd_pagequeues[PQ_INACTIVE].pq_pl,
+	    &vmd->vmd_inacthead, plinks.q);
 	snprintf(vmd->vmd_name, sizeof(vmd->vmd_name), "%d", domain);
 }
 
