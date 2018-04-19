@@ -190,7 +190,7 @@
 	movl	$TF_SZ, %ecx
 	testl	$PSL_VM, TF_EFLAGS(%esp)
 	jz	1001f
-	addl	$(4*4), %ecx
+	addl	$VM86_STACK_SPACE, %ecx
 1001:	subl	%ecx, %edx
 	movl	%edx, %edi
 	movl	%esp, %esi
