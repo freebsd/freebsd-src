@@ -351,10 +351,11 @@ nat64lsn_translate4(struct nat64lsn_cfg *cfg, const struct ipfw_flow_id *f_id,
 	if (nat_proto == NAT_PROTO_ICMP) {
 		ret = inspect_icmp_mbuf(pm, &nat_proto, &addr, &port);
 		if (ret != 0) {
-			if (ret == ENOMEM)
+			if (ret == ENOMEM) {
 				NAT64STAT_INC(&cfg->stats, nomem);
-			else
-				NAT64STAT_INC(&cfg->stats, noproto);
+				return (IP_FW_DENY);
+			}
+			NAT64STAT_INC(&cfg->stats, noproto);
 			return (cfg->nomatch_verdict);
 		}
 		/* XXX: Check addr for validity */
@@ -416,7 +417,7 @@ nat64lsn_translate4(struct nat64lsn_cfg *cfg, const struct ipfw_flow_id *f_id,
 	    &cfg->stats, logdata);
 
 	if (ret == NAT64SKIP)
-		return (IP_FW_PASS);
+		return (cfg->nomatch_verdict);
 	if (ret == NAT64MFREE)
 		m_freem(*pm);
 	*pm = NULL;
@@ -1362,7 +1363,7 @@ nat64lsn_request_host(struct nat64lsn_cfg *cfg,
 		NAT64STAT_INC(&cfg->stats, jhostsreq);
 	}
 
-	return (IP_FW_PASS);
+	return (IP_FW_DENY);
 }
 
 static NAT64NOINLINE int
@@ -1391,7 +1392,7 @@ nat64lsn_request_portgroup(struct nat64lsn_cfg *cfg,
 		NAT64STAT_INC(&cfg->stats, jportreq);
 	}
 
-	return (IP_FW_PASS);
+	return (IP_FW_DENY);
 }
 
 static NAT64NOINLINE struct nat64lsn_state * 
@@ -1595,7 +1596,7 @@ nat64lsn_translate6(struct nat64lsn_cfg *cfg, struct ipfw_flow_id *f_id,
 
 	action = nat64_do_handle_ip6(*pm, aaddr, aport, &cfg->stats, logdata);
 	if (action == NAT64SKIP)
-		return (IP_FW_PASS);
+		return (cfg->nomatch_verdict);
 	if (action == NAT64MFREE)
 		m_freem(*pm);
 	*pm = NULL;	/* mark mbuf as consumed */
@@ -1631,7 +1632,7 @@ ipfw_nat64lsn(struct ip_fw_chain *ch, struct ip_fw_args *args,
 		ret = nat64lsn_translate6(cfg, &args->f_id, &args->m);
 		break;
 	default:
-		return (0);
+		return (cfg->nomatch_verdict);
 	}
 	return (ret);
 }

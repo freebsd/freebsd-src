@@ -199,7 +199,6 @@ struct nat64lsn_cfg {
 	uint8_t		plen4;
 	uint8_t		plen6;
 	uint8_t		nomatch_verdict;/* What to return to ipfw on no-match */
-	uint8_t		nomatch_final;	/* Exit outer loop? */
 	struct in6_addr	prefix6;	/* IPv6 prefix to embed IPv4 hosts */
 
 	uint32_t	ihcount;	/* Number of items in host hash */
