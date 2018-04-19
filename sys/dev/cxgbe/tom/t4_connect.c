@@ -405,7 +405,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		struct ifnet *ifp = VLAN_COOKIE(rt_ifp);
 
 		vi = ifp->if_softc;
-		VLAN_TAG(ifp, &vid);
+		VLAN_TAG(rt_ifp, &vid);
 	} else if (rt_ifp->if_type == IFT_IEEE8023ADLAG)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOSYS); /* XXX: implement lagg+TOE */
 	else
