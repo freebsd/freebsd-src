@@ -1521,17 +1521,34 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			 */
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
 		}
+#ifdef TCPHPTS 
+		/* Assure that we are not on any hpts */
+		tcp_hpts_remove(tp->t_inpcb, HPTS_REMOVE_ALL);
+#endif
+		if (blk->tfb_tcp_fb_init) {
+			error = (*blk->tfb_tcp_fb_init)(tp);
+			if (error) {
+				refcount_release(&blk->tfb_refcnt);
+				if (tp->t_fb->tfb_tcp_fb_init) {
+					if((*tp->t_fb->tfb_tcp_fb_init)(tp) != 0)  {
+						/* Fall back failed, drop the connection */
+						INP_WUNLOCK(inp);
+						soabort(so);
+						return(error);
+					}
+				}
+				goto err_out;
+			}
+		}
 		refcount_release(&tp->t_fb->tfb_refcnt);
 		tp->t_fb = blk;
-		if (tp->t_fb->tfb_tcp_fb_init) {
-			(*tp->t_fb->tfb_tcp_fb_init)(tp);
-		}
 #ifdef TCP_OFFLOAD
 		if (tp->t_flags & TF_TOE) {
 			tcp_offload_ctloutput(tp, sopt->sopt_dir,
 			     sopt->sopt_name);
 		}
 #endif
+err_out:
 		INP_WUNLOCK(inp);
 		return (error);
 	} else if ((sopt->sopt_dir == SOPT_GET) && 

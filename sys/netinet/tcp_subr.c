@@ -232,6 +232,9 @@ VNET_DEFINE(uma_zone_t, sack_hole_zone);
 VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
 #endif
 
+static int	tcp_default_fb_init(struct tcpcb *tp);
+static void	tcp_default_fb_fini(struct tcpcb *tp, int tcb_is_purged);
+static int	tcp_default_handoff_ok(struct tcpcb *tp);
 static struct inpcb *tcp_notify(struct inpcb *, int);
 static struct inpcb *tcp_mtudisc_notify(struct inpcb *, int);
 static void tcp_mtudisc(struct inpcb *, int);
@@ -240,18 +243,13 @@ static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
 
 
 static struct tcp_function_block tcp_def_funcblk = {
-	"default",
-	tcp_output,
-	tcp_do_segment,
-	tcp_default_ctloutput,
-	NULL,
-	NULL,	
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	0,
-	0
+	.tfb_tcp_block_name = "freebsd",
+	.tfb_tcp_output = tcp_output,
+	.tfb_tcp_do_segment = tcp_do_segment,
+	.tfb_tcp_ctloutput = tcp_default_ctloutput,
+	.tfb_tcp_handoff_ok = tcp_default_handoff_ok,
+	.tfb_tcp_fb_init = tcp_default_fb_init,
+	.tfb_tcp_fb_fini = tcp_default_fb_fini,
 };
 
 int t_functions_inited = 0;
@@ -328,6 +326,88 @@ find_and_ref_tcp_fb(struct tcp_function_block *blk)
 	return(rblk);
 }
 
+static struct tcp_function_block *
+find_and_ref_tcp_default_fb(void)
+{
+	struct tcp_function_block *rblk;
+
+	rw_rlock(&tcp_function_lock);
+	rblk = tcp_func_set_ptr;
+	refcount_acquire(&rblk->tfb_refcnt);
+	rw_runlock(&tcp_function_lock);
+	return (rblk);
+}
+
+void
+tcp_switch_back_to_default(struct tcpcb *tp)
+{
+	struct tcp_function_block *tfb;
+
+	KASSERT(tp->t_fb != &tcp_def_funcblk,
+	    ("%s: called by the built-in default stack", __func__));
+
+	/*
+	 * Release the old stack. This function will either find a new one
+	 * or panic.
+	 */
+	if (tp->t_fb->tfb_tcp_fb_fini != NULL)
+		(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
+	refcount_release(&tp->t_fb->tfb_refcnt);
+
+	/*
+	 * Now, we'll find a new function block to use.
+	 * Start by trying the current user-selected
+	 * default, unless this stack is the user-selected
+	 * default.
+	 */
+	tfb = find_and_ref_tcp_default_fb();
+	if (tfb == tp->t_fb) {
+		refcount_release(&tfb->tfb_refcnt);
+		tfb = NULL;
+	}
+	/* Does the stack accept this connection? */
+	if (tfb != NULL && tfb->tfb_tcp_handoff_ok != NULL &&
+	    (*tfb->tfb_tcp_handoff_ok)(tp)) {
+		refcount_release(&tfb->tfb_refcnt);
+		tfb = NULL;
+	}
+	/* Try to use that stack. */
+	if (tfb != NULL) {
+		/* Initialize the new stack. If it succeeds, we are done. */
+		tp->t_fb = tfb;
+		if (tp->t_fb->tfb_tcp_fb_init == NULL ||
+		    (*tp->t_fb->tfb_tcp_fb_init)(tp) == 0)
+			return;
+
+		/*
+		 * Initialization failed. Release the reference count on
+		 * the stack.
+		 */
+		refcount_release(&tfb->tfb_refcnt);
+	}
+
+	/*
+	 * If that wasn't feasible, use the built-in default
+	 * stack which is not allowed to reject anyone.
+	 */
+	tfb = find_and_ref_tcp_fb(&tcp_def_funcblk);
+	if (tfb == NULL) {
+		/* there always should be a default */
+		panic("Can't refer to tcp_def_funcblk");
+	}
+	if (tfb->tfb_tcp_handoff_ok != NULL) {
+		if ((*tfb->tfb_tcp_handoff_ok) (tp)) {
+			/* The default stack cannot say no */
+			panic("Default stack rejects a new session?");
+		}
+	}
+	tp->t_fb = tfb;
+	if (tp->t_fb->tfb_tcp_fb_init != NULL &&
+	    (*tp->t_fb->tfb_tcp_fb_init)(tp)) {
+		/* The default stack cannot fail */
+		panic("Default stack initialization failed");
+	}
+}
 
 static int
 sysctl_net_inet_default_tcp_functions(SYSCTL_HANDLER_ARGS)
@@ -505,6 +585,89 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, function_info,
 	    CTLTYPE_OPAQUE | CTLFLAG_SKIP | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    NULL, 0, sysctl_net_inet_list_func_info, "S,tcp_function_info",
 	    "List TCP function block name-to-ID mappings");
+
+/*
+ * tfb_tcp_handoff_ok() function for the default stack.
+ * Note that we'll basically try to take all comers.
+ */
+static int
+tcp_default_handoff_ok(struct tcpcb *tp)
+{
+
+	return (0);
+}
+
+/*
+ * tfb_tcp_fb_init() function for the default stack.
+ *
+ * This handles making sure we have appropriate timers set if you are
+ * transitioning a socket that has some amount of setup done.
+ *
+ * The init() fuction from the default can *never* return non-zero i.e.
+ * it is required to always succeed since it is the stack of last resort!
+ */
+static int
+tcp_default_fb_init(struct tcpcb *tp)
+{
+
+	struct socket *so;
+
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	KASSERT(tp->t_state >= 0 && tp->t_state < TCPS_TIME_WAIT,
+	    ("%s: connection %p in unexpected state %d", __func__, tp,
+	    tp->t_state));
+
+	/*
+	 * Nothing to do for ESTABLISHED or LISTEN states. And, we don't
+	 * know what to do for unexpected states (which includes TIME_WAIT).
+	 */
+	if (tp->t_state <= TCPS_LISTEN || tp->t_state >= TCPS_TIME_WAIT)
+		return (0);
+
+	/*
+	 * Make sure some kind of transmission timer is set if there is
+	 * outstanding data.
+	 */
+	so = tp->t_inpcb->inp_socket;
+	if ((!TCPS_HAVEESTABLISHED(tp->t_state) || sbavail(&so->so_snd) ||
+	    tp->snd_una != tp->snd_max) && !(tcp_timer_active(tp, TT_REXMT) ||
+	    tcp_timer_active(tp, TT_PERSIST))) {
+		/*
+		 * If the session has established and it looks like it should
+		 * be in the persist state, set the persist timer. Otherwise,
+		 * set the retransmit timer.
+		 */
+		if (TCPS_HAVEESTABLISHED(tp->t_state) && tp->snd_wnd == 0 &&
+		    (int32_t)(tp->snd_nxt - tp->snd_una) <
+		    (int32_t)sbavail(&so->so_snd))
+			tcp_setpersist(tp);
+		else
+			tcp_timer_activate(tp, TT_REXMT, tp->t_rxtcur);
+	}
+
+	/* All non-embryonic sessions get a keepalive timer. */
+	if (!tcp_timer_active(tp, TT_KEEP))
+		tcp_timer_activate(tp, TT_KEEP,
+		    TCPS_HAVEESTABLISHED(tp->t_state) ? TP_KEEPIDLE(tp) :
+		    TP_KEEPINIT(tp));
+
+	return (0);
+}
+
+/*
+ * tfb_tcp_fb_fini() function for the default stack.
+ *
+ * This changes state as necessary (or prudent) to prepare for another stack
+ * to assume responsibility for the connection.
+ */
+static void
+tcp_default_fb_fini(struct tcpcb *tp, int tcb_is_purged)
+{
+
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+	return;
+}
 
 /*
  * Target size of TCP PCB hash tables. Must be a power of two.
@@ -732,11 +895,28 @@ register_tcp_functions(struct tcp_function_block *blk, int wait)
 	return (register_tcp_functions_as_name(blk, NULL, wait));
 }
 
+/*
+ * Deregister all names associated with a function block. This
+ * functionally removes the function block from use within the system.
+ *
+ * When called with a true quiesce argument, mark the function block
+ * as being removed so no more stacks will use it and determine
+ * whether the removal would succeed.
+ *
+ * When called with a false quiesce argument, actually attempt the
+ * removal.
+ *
+ * When called with a force argument, attempt to switch all TCBs to
+ * use the default stack instead of returning EBUSY.
+ *
+ * Returns 0 on success (or if the removal would succeed, or an error
+ * code on failure.
+ */
 int
-deregister_tcp_functions(struct tcp_function_block *blk)
+deregister_tcp_functions(struct tcp_function_block *blk, bool quiesce,
+    bool force)
 {
 	struct tcp_function *f;
-	int error=ENOENT;
 	
 	if (strcmp(blk->tfb_tcp_block_name, "default") == 0) {
 		/* You can't un-register the default */
@@ -748,22 +928,63 @@ deregister_tcp_functions(struct tcp_function_block *blk)
 		rw_wunlock(&tcp_function_lock);
 		return (EBUSY);
 	}
+	/* Mark the block so no more stacks can use it. */
+	blk->tfb_flags |= TCP_FUNC_BEING_REMOVED;
+	/*
+	 * If TCBs are still attached to the stack, attempt to switch them
+	 * to the default stack.
+	 */
+	if (force && blk->tfb_refcnt) {
+		struct inpcb *inp;
+		struct tcpcb *tp;
+		VNET_ITERATOR_DECL(vnet_iter);
+
+		rw_wunlock(&tcp_function_lock);
+
+		VNET_LIST_RLOCK();
+		VNET_FOREACH(vnet_iter) {
+			CURVNET_SET(vnet_iter);
+			INP_INFO_WLOCK(&V_tcbinfo);
+			LIST_FOREACH(inp, V_tcbinfo.ipi_listhead, inp_list) {
+				INP_WLOCK(inp);
+				if (inp->inp_flags & INP_TIMEWAIT) {
+					INP_WUNLOCK(inp);
+					continue;
+				}
+				tp = intotcpcb(inp);
+				if (tp == NULL || tp->t_fb != blk) {
+					INP_WUNLOCK(inp);
+					continue;
+				}
+				tcp_switch_back_to_default(tp);
+				INP_WUNLOCK(inp);
+			}
+			INP_INFO_WUNLOCK(&V_tcbinfo);
+			CURVNET_RESTORE();
+		}
+		VNET_LIST_RUNLOCK();
+
+		rw_wlock(&tcp_function_lock);
+	}
 	if (blk->tfb_refcnt) {
-		/* Still tcb attached, mark it. */
-		blk->tfb_flags |= TCP_FUNC_BEING_REMOVED;
-		rw_wunlock(&tcp_function_lock);		
+		/* TCBs still attached. */
+		rw_wunlock(&tcp_function_lock);
 		return (EBUSY);
 	}
+	if (quiesce) {
+		/* Skip removal. */
+		rw_wunlock(&tcp_function_lock);
+		return (0);
+	}
+	/* Remove any function names that map to this function block. */
 	while (find_tcp_fb_locked(blk, &f) != NULL) {
-		/* Found */
 		TAILQ_REMOVE(&t_functions, f, tf_next);
 		tcp_fb_cnt--;
 		f->tf_fb = NULL;
 		free(f, M_TCPFUNCTIONS);
-		error = 0;
 	}
 	rw_wunlock(&tcp_function_lock);
-	return (error);
+	return (0);
 }
 
 void
