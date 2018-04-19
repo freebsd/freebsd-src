@@ -577,12 +577,14 @@ gop_autoresize(EFI_GRAPHICS_OUTPUT *gop)
 		}
 	}
 
-	status = gop->SetMode(gop, best_mode);
-	if (EFI_ERROR(status)) {
-		snprintf(command_errbuf, sizeof(command_errbuf),
-		    "gop_autoresize: Unable to set mode to %u (error=%lu)",
-		    mode, EFI_ERROR_CODE(status));
-		return (CMD_ERROR);
+	if (maxdim != 0) {
+		status = gop->SetMode(gop, best_mode);
+		if (EFI_ERROR(status)) {
+			snprintf(command_errbuf, sizeof(command_errbuf),
+			    "gop_autoresize: Unable to set mode to %u (error=%lu)",
+			    mode, EFI_ERROR_CODE(status));
+			return (CMD_ERROR);
+		}
 	}
 	return (CMD_OK);
 }
