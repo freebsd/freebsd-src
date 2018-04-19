@@ -35,7 +35,7 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef SOFTFLOAT
+#ifdef __riscv_float_abi_double
 ENTRY(fabs)
 	fabs.d	fa0, fa0
 	ret
