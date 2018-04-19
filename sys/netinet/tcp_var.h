@@ -90,6 +90,8 @@ struct tcpcb {
 	int	t_segqlen;		/* segment reassembly queue length */
 	int	t_dupacks;		/* consecutive dup acks recd */
 
+	struct mbuf      *t_in_pkt;	/* head of the input packet queue for the tcp_hpts system */
+	struct mbuf	 *t_tail_pkt;	/* tail of the input packet queue for the tcp_hpts system */
 	struct tcp_timer *t_timers;	/* All the TCP timers in one struct */
 
 	struct	inpcb *t_inpcb;		/* back pointer to internet pcb */
@@ -257,14 +259,19 @@ struct tcptemp {
 struct tcp_function_block {
 	char tfb_tcp_block_name[TCP_FUNCTION_NAME_LEN_MAX];
 	int	(*tfb_tcp_output)(struct tcpcb *);
+	int	(*tfb_tcp_output_wtime)(struct tcpcb *, const struct timeval *);
 	void	(*tfb_tcp_do_segment)(struct mbuf *, struct tcphdr *,
 			    struct socket *, struct tcpcb *,
 			    int, int, uint8_t,
 			    int);
+	void	(*tfb_tcp_hpts_do_segment)(struct mbuf *, struct tcphdr *,
+			    struct socket *, struct tcpcb *,
+			    int, int, uint8_t,
+			    int, int, struct timeval *);
 	int     (*tfb_tcp_ctloutput)(struct socket *so, struct sockopt *sopt,
 			    struct inpcb *inp, struct tcpcb *tp);
 	/* Optional memory allocation/free routine */
-	void	(*tfb_tcp_fb_init)(struct tcpcb *);
+	int	(*tfb_tcp_fb_init)(struct tcpcb *);
 	void	(*tfb_tcp_fb_fini)(struct tcpcb *, int);
 	/* Optional timers, must define all if you define one */
 	int	(*tfb_tcp_timer_stop_all)(struct tcpcb *);
@@ -274,6 +281,7 @@ struct tcp_function_block {
 	void	(*tfb_tcp_timer_stop)(struct tcpcb *, uint32_t);
 	void	(*tfb_tcp_rexmit_tmr)(struct tcpcb *);
 	int	(*tfb_tcp_handoff_ok)(struct tcpcb *);
+	void	(*tfb_tcp_mtu_chg)(struct tcpcb *);
 	volatile uint32_t tfb_refcnt;
 	uint32_t  tfb_flags;
 	uint8_t	tfb_id;
@@ -851,9 +859,12 @@ int register_tcp_functions_as_names(struct tcp_function_block *blk,
     int wait, const char *names[], int *num_names);
 int register_tcp_functions_as_name(struct tcp_function_block *blk,
     const char *name, int wait);
-int deregister_tcp_functions(struct tcp_function_block *blk);
+int deregister_tcp_functions(struct tcp_function_block *blk, bool quiesce,
+    bool force);
 struct tcp_function_block *find_and_ref_tcp_functions(struct tcp_function_set *fs);
-struct tcp_function_block *find_and_ref_tcp_fb(struct tcp_function_block *blk);
+void tcp_switch_back_to_default(struct tcpcb *tp);
+struct tcp_function_block *
+find_and_ref_tcp_fb(struct tcp_function_block *fs);
 int tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp, struct tcpcb *tp);
 
 uint32_t tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);

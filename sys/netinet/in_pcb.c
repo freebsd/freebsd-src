@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/rmlock.h>
+#include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sockio.h>
@@ -87,6 +88,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp_var.h>
+#ifdef TCPHPTS
+#include <netinet/tcp_hpts.h>
+#endif
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #endif
@@ -1224,9 +1228,28 @@ in_pcbrele_rlocked(struct inpcb *inp)
 		}
 		return (0);
 	}
-
+	
 	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
-
+#ifdef TCPHPTS
+	if (inp->inp_in_hpts || inp->inp_in_input) {
+		struct tcp_hpts_entry *hpts;
+		/*
+		 * We should not be on the hpts at 
+		 * this point in any form. we must
+		 * get the lock to be sure.
+		 */
+		hpts = tcp_hpts_lock(inp);
+		if (inp->inp_in_hpts)
+			panic("Hpts:%p inp:%p at free still on hpts",
+			      hpts, inp);
+		mtx_unlock(&hpts->p_mtx);
+		hpts = tcp_input_lock(inp);
+		if (inp->inp_in_input) 
+			panic("Hpts:%p inp:%p at free still on input hpts",
+			      hpts, inp);
+		mtx_unlock(&hpts->p_mtx);
+	}
+#endif
 	INP_RUNLOCK(inp);
 	pcbinfo = inp->inp_pcbinfo;
 	uma_zfree(pcbinfo->ipi_zone, inp);
@@ -1255,7 +1278,26 @@ in_pcbrele_wlocked(struct inpcb *inp)
 	}
 
 	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
-
+#ifdef TCPHPTS
+	if (inp->inp_in_hpts || inp->inp_in_input) {
+		struct tcp_hpts_entry *hpts;
+		/*
+		 * We should not be on the hpts at 
+		 * this point in any form. we must
+		 * get the lock to be sure.
+		 */
+		hpts = tcp_hpts_lock(inp);
+		if (inp->inp_in_hpts)
+			panic("Hpts:%p inp:%p at free still on hpts",
+			      hpts, inp);
+		mtx_unlock(&hpts->p_mtx);
+		hpts = tcp_input_lock(inp);
+		if (inp->inp_in_input) 
+			panic("Hpts:%p inp:%p at free still on input hpts",
+			      hpts, inp);
+		mtx_unlock(&hpts->p_mtx);
+	}
+#endif
 	INP_WUNLOCK(inp);
 	pcbinfo = inp->inp_pcbinfo;
 	uma_zfree(pcbinfo->ipi_zone, inp);
