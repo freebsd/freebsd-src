@@ -505,9 +505,23 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	ns->id = id;
 	ns->stripesize = 0;
 
-	if (pci_get_devid(ctrlr->dev) == 0x09538086 && ctrlr->cdata.vs[3] != 0)
-		ns->stripesize =
-		    (1 << ctrlr->cdata.vs[3]) * ctrlr->min_page_size;
+	/*
+	 * Some Intel devices advertise an alignment that improves performance,
+	 * but is in it's vendor specific space in the cdata. Use it for these
+	 * drives, if present, to suggest a stripe size.  Future versions of
+	 * Intel hardware will use fields standardized in NVMe 1.3 for this.
+	 */
+	switch (pci_get_devid(ctrlr->dev)) {
+	case 0x09538086:		/* Intel DC PC3500 */
+	case 0x0a538086:		/* Intel DC PC3520 */
+	case 0x0a548086:		/* Intel DC PC4500 */
+		if (ctrlr->cdata.vs[3] != 0)
+			ns->stripesize =
+			    (1 << ctrlr->cdata.vs[3]) * ctrlr->min_page_size;
+		break;
+	default:
+		break;
+	}
 
 	/*
 	 * Namespaces are reconstructed after a controller reset, so check
