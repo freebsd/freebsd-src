@@ -59,10 +59,13 @@ typedef struct pdinfo
 	uint32_t		pd_unit;	/* unit number */
 	uint32_t		pd_open;	/* reference counter */
 	void			*pd_bcache;	/* buffer cache data */
+	struct pdinfo		*pd_parent;	/* Linked items (eg partitions) */
+	struct devsw		*pd_devsw;	/* Back pointer to devsw */
 } pdinfo_t;
 
 pdinfo_list_t *efiblk_get_pdinfo_list(struct devsw *dev);
 pdinfo_t *efiblk_get_pdinfo(struct devdesc *dev);
+pdinfo_t *efiblk_get_pdinfo_by_handle(EFI_HANDLE h);
 
 void *efi_get_table(EFI_GUID *tbl);
 

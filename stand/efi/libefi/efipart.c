@@ -119,6 +119,7 @@ efiblk_get_pdinfo_list(struct devsw *dev)
 	return (NULL);
 }
 
+/* XXX this gets called way way too often, investigate */
 pdinfo_t *
 efiblk_get_pdinfo(struct devdesc *dev)
 {
@@ -134,6 +135,40 @@ efiblk_get_pdinfo(struct devdesc *dev)
 			return (pd);
 	}
 	return (pd);
+}
+
+static bool
+same_handle(pdinfo_t *pd, EFI_HANDLE h)
+{
+
+	return (pd->pd_handle == h || pd->pd_alias == h);
+}
+
+pdinfo_t *
+efiblk_get_pdinfo_by_handle(EFI_HANDLE h)
+{
+	pdinfo_t *dp, *pp;
+
+	/*
+	 * Check hard disks, then cd, then floppy
+	 */
+	STAILQ_FOREACH(dp, &hdinfo, pd_link) {
+		if (same_handle(dp, h))
+			return (dp);
+		STAILQ_FOREACH(pp, &dp->pd_part, pd_link) {
+			if (same_handle(pp, h))
+				return (pp);
+		}
+	}
+	STAILQ_FOREACH(dp, &cdinfo, pd_link) {
+		if (same_handle(dp, h))
+			return (dp);
+	}
+	STAILQ_FOREACH(dp, &fdinfo, pd_link) {
+		if (same_handle(dp, h))
+			return (dp);
+	}
+	return (NULL);
 }
 
 static int
@@ -294,6 +329,8 @@ efipart_fdinfo_add(EFI_HANDLE handle, uint32_t uid, EFI_DEVICE_PATH *devpath)
 	fd->pd_unit = uid;
 	fd->pd_handle = handle;
 	fd->pd_devpath = devpath;
+	fd->pd_parent = NULL;
+	fd->pd_devsw = &efipart_fddev;
 	STAILQ_INSERT_TAIL(&fdinfo, fd, pd_link);
 	return (0);
 }
@@ -364,6 +401,8 @@ efipart_cdinfo_add(EFI_HANDLE handle, EFI_HANDLE alias,
 	cd->pd_unit = unit;
 	cd->pd_alias = alias;
 	cd->pd_devpath = devpath;
+	cd->pd_parent = NULL;
+	cd->pd_devsw = &efipart_cddev;
 	STAILQ_INSERT_TAIL(&cdinfo, cd, pd_link);
 	return (0);
 }
@@ -489,6 +528,8 @@ efipart_hdinfo_add(EFI_HANDLE disk_handle, EFI_HANDLE part_handle)
 			pd->pd_handle = part_handle;
 			pd->pd_unit = node->PartitionNumber;
 			pd->pd_devpath = part_devpath;
+			pd->pd_parent = hd;
+			pd->pd_devsw = &efipart_hddev;
 			STAILQ_INSERT_TAIL(&hd->pd_part, pd, pd_link);
 			return (0);
 		}
@@ -505,6 +546,8 @@ efipart_hdinfo_add(EFI_HANDLE disk_handle, EFI_HANDLE part_handle)
 	hd->pd_handle = disk_handle;
 	hd->pd_unit = unit;
 	hd->pd_devpath = disk_devpath;
+	hd->pd_parent = NULL;
+	hd->pd_devsw = &efipart_hddev;
 	STAILQ_INSERT_TAIL(&hdinfo, hd, pd_link);
 
 	if (part_devpath == NULL)
@@ -521,6 +564,8 @@ efipart_hdinfo_add(EFI_HANDLE disk_handle, EFI_HANDLE part_handle)
 	pd->pd_handle = part_handle;
 	pd->pd_unit = node->PartitionNumber;
 	pd->pd_devpath = part_devpath;
+	pd->pd_parent = hd;
+	pd->pd_devsw = &efipart_hddev;
 	STAILQ_INSERT_TAIL(&hd->pd_part, pd, pd_link);
 
 	return (0);
@@ -579,6 +624,8 @@ efipart_hdinfo_add_filepath(EFI_HANDLE disk_handle)
 		pd->pd_handle = disk_handle;
 		pd->pd_unit = unit;
 		pd->pd_devpath = devpath;
+		pd->pd_parent = NULL;
+		pd->pd_devsw = &efipart_hddev;
 		STAILQ_INSERT_TAIL(&hdinfo, pd, pd_link);
 		free(pathname);
 		return (0);
@@ -609,6 +656,8 @@ efipart_hdinfo_add_filepath(EFI_HANDLE disk_handle)
 	pd->pd_handle = disk_handle;
 	pd->pd_unit = unit;
 	pd->pd_devpath = devpath;
+	pd->pd_parent = last;
+	pd->pd_devsw = &efipart_hddev;
 	STAILQ_INSERT_TAIL(&last->pd_part, pd, pd_link);
 	free(pathname);
 	return (0);
