@@ -208,23 +208,6 @@ static void vm_pageout_laundry_worker(void *arg);
 static boolean_t vm_pageout_page_lock(vm_page_t, vm_page_t *);
 
 /*
- * Initialize a dummy page for marking the caller's place in the specified
- * paging queue.  In principle, this function only needs to set the flag
- * PG_MARKER.  Nonetheless, it write busies and initializes the hold count
- * to one as safety precautions.
- */ 
-static void
-vm_pageout_init_marker(vm_page_t marker, u_short queue)
-{
-
-	bzero(marker, sizeof(*marker));
-	marker->flags = PG_MARKER;
-	marker->busy_lock = VPB_SINGLE_EXCLUSIVER;
-	marker->queue = queue;
-	marker->hold_count = 1;
-}
-
-/*
  * vm_pageout_fallback_object_lock:
  * 
  * Lock vm object currently associated with `m'. VM_OBJECT_TRYWLOCK is
@@ -244,11 +227,11 @@ vm_pageout_fallback_object_lock(vm_page_t m, vm_page_t *next)
 	struct vm_page marker;
 	struct vm_pagequeue *pq;
 	boolean_t unchanged;
-	u_short queue;
 	vm_object_t object;
+	int queue;
 
 	queue = m->queue;
-	vm_pageout_init_marker(&marker, queue);
+	vm_page_init_marker(&marker, queue);
 	pq = vm_page_pagequeue(m);
 	object = m->object;
 	
@@ -293,14 +276,14 @@ vm_pageout_page_lock(vm_page_t m, vm_page_t *next)
 	struct vm_page marker;
 	struct vm_pagequeue *pq;
 	boolean_t unchanged;
-	u_short queue;
+	int queue;
 
 	vm_page_lock_assert(m, MA_NOTOWNED);
 	if (vm_page_trylock(m))
 		return (TRUE);
 
 	queue = m->queue;
-	vm_pageout_init_marker(&marker, queue);
+	vm_page_init_marker(&marker, queue);
 	pq = vm_page_pagequeue(m);
 
 	TAILQ_INSERT_AFTER(&pq->pq_pl, m, &marker, plinks.q);
@@ -694,8 +677,8 @@ vm_pageout_launder(struct vm_domain *vmd, int launder, bool in_shortfall)
 {
 	struct vm_pagequeue *pq;
 	vm_object_t object;
-	vm_page_t m, next;
-	int act_delta, error, maxscan, numpagedout, starting_target;
+	vm_page_t m, marker, next;
+	int act_delta, error, maxscan, numpagedout, queue, starting_target;
 	int vnodes_skipped;
 	bool pageout_ok, queue_locked;
 
@@ -716,11 +699,14 @@ vm_pageout_launder(struct vm_domain *vmd, int launder, bool in_shortfall)
 	 * swap devices are configured.
 	 */
 	if (atomic_load_acq_int(&swapdev_enabled))
-		pq = &vmd->vmd_pagequeues[PQ_UNSWAPPABLE];
+		queue = PQ_UNSWAPPABLE;
 	else
-		pq = &vmd->vmd_pagequeues[PQ_LAUNDRY];
+		queue = PQ_LAUNDRY;
 
 scan:
+	pq = &vmd->vmd_pagequeues[queue];
+	marker = &vmd->vmd_markers[queue];
+
 	vm_pagequeue_lock(pq);
 	maxscan = pq->pq_cnt;
 	queue_locked = true;
@@ -762,8 +748,7 @@ scan:
 		 * Unlock the laundry queue, invalidating the 'next' pointer.
 		 * Use a marker to remember our place in the laundry queue.
 		 */
-		TAILQ_INSERT_AFTER(&pq->pq_pl, m, &vmd->vmd_laundry_marker,
-		    plinks.q);
+		TAILQ_INSERT_AFTER(&pq->pq_pl, m, marker, plinks.q);
 		vm_pagequeue_unlock(pq);
 		queue_locked = false;
 
@@ -889,13 +874,13 @@ relock_queue:
 			vm_pagequeue_lock(pq);
 			queue_locked = true;
 		}
-		next = TAILQ_NEXT(&vmd->vmd_laundry_marker, plinks.q);
-		TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_laundry_marker, plinks.q);
+		next = TAILQ_NEXT(marker, plinks.q);
+		TAILQ_REMOVE(&pq->pq_pl, marker, plinks.q);
 	}
 	vm_pagequeue_unlock(pq);
 
-	if (launder > 0 && pq == &vmd->vmd_pagequeues[PQ_UNSWAPPABLE]) {
-		pq = &vmd->vmd_pagequeues[PQ_LAUNDRY];
+	if (launder > 0 && queue == PQ_UNSWAPPABLE) {
+		queue = PQ_LAUNDRY;
 		goto scan;
 	}
 
@@ -951,7 +936,6 @@ vm_pageout_laundry_worker(void *arg)
 	vmd = VM_DOMAIN(domain);
 	pq = &vmd->vmd_pagequeues[PQ_LAUNDRY];
 	KASSERT(vmd->vmd_segs != 0, ("domain without segments"));
-	vm_pageout_init_marker(&vmd->vmd_laundry_marker, PQ_LAUNDRY);
 
 	shortfall = 0;
 	in_shortfall = false;
@@ -1105,7 +1089,7 @@ dolaundry:
 static bool
 vm_pageout_scan(struct vm_domain *vmd, int pass, int shortage)
 {
-	vm_page_t m, next;
+	vm_page_t m, marker, next;
 	struct vm_pagequeue *pq;
 	vm_object_t object;
 	long min_scan;
@@ -1159,6 +1143,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass, int shortage)
 	 * decisions for the inactive queue, only for the active queue.)
 	 */
 	pq = &vmd->vmd_pagequeues[PQ_INACTIVE];
+	marker = &vmd->vmd_markers[PQ_INACTIVE];
 	maxscan = pq->pq_cnt;
 	vm_pagequeue_lock(pq);
 	queue_locked = TRUE;
@@ -1250,7 +1235,7 @@ unlock_page:
 		 * vm_page_free(), or vm_page_launder() is called.  Use a
 		 * marker to remember our place in the inactive queue.
 		 */
-		TAILQ_INSERT_AFTER(&pq->pq_pl, m, &vmd->vmd_marker, plinks.q);
+		TAILQ_INSERT_AFTER(&pq->pq_pl, m, marker, plinks.q);
 		vm_page_dequeue_locked(m);
 		vm_pagequeue_unlock(pq);
 		queue_locked = FALSE;
@@ -1336,8 +1321,8 @@ drop_page:
 			vm_pagequeue_lock(pq);
 			queue_locked = TRUE;
 		}
-		next = TAILQ_NEXT(&vmd->vmd_marker, plinks.q);
-		TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_marker, plinks.q);
+		next = TAILQ_NEXT(marker, plinks.q);
+		TAILQ_REMOVE(&pq->pq_pl, marker, plinks.q);
 	}
 	vm_pagequeue_unlock(pq);
 
@@ -1781,10 +1766,6 @@ vm_pageout_worker(void *arg)
 
 	KASSERT(vmd->vmd_segs != 0, ("domain without segments"));
 	vmd->vmd_last_active_scan = ticks;
-	vm_pageout_init_marker(&vmd->vmd_marker, PQ_INACTIVE);
-	vm_pageout_init_marker(&vmd->vmd_inacthead, PQ_INACTIVE);
-	TAILQ_INSERT_HEAD(&vmd->vmd_pagequeues[PQ_INACTIVE].pq_pl,
-	    &vmd->vmd_inacthead, plinks.q);
 
 	/*
 	 * The pageout daemon worker is never done, so loop forever.
