@@ -449,11 +449,19 @@ trap(struct trapframe *frame)
 static void
 trap_fatal(struct trapframe *frame)
 {
+#ifdef KDB
+	bool handled;
+#endif
 
 	printtrap(frame->exc, frame, 1, (frame->srr1 & PSL_PR));
 #ifdef KDB
-	if (debugger_on_panic && kdb_trap(frame->exc, 0, frame))
-		return;
+	if (debugger_on_panic) {
+		kdb_why = KDB_WHY_TRAP;
+		handled = kdb_trap(frame->exc, 0, frame);
+		kdb_why = KDB_WHY_UNSET;
+		if (handled)
+			return;
+	}
 #endif
 	panic("%s trap", trapname(frame->exc));
 }
