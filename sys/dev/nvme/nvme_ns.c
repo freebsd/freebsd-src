@@ -506,10 +506,9 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	ns->stripesize = 0;
 
 	/*
-	 * Some Intel devices advertise an alignment that improves performance,
-	 * but is in it's vendor specific space in the cdata. Use it for these
-	 * drives, if present, to suggest a stripe size.  Future versions of
-	 * Intel hardware will use fields standardized in NVMe 1.3 for this.
+	 * Older Intel devices advertise in vendor specific space an alignment
+	 * that improves performance.  If present use for the stripe size.  NVMe
+	 * 1.3 standardized this as NOIOB, and newer Intel drives use that.
 	 */
 	switch (pci_get_devid(ctrlr->dev)) {
 	case 0x09538086:		/* Intel DC PC3500 */
