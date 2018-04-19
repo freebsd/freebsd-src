@@ -75,7 +75,8 @@ nat64stl_log(struct pfloghdr *plog, struct mbuf *m, sa_family_t family,
 	plog->action = PF_NAT;
 	plog->dir = PF_IN;
 	plog->rulenr = htonl(kidx);
-	plog->subrulenr = htonl(++pktid);
+	pktid++;
+	plog->subrulenr = htonl(pktid);
 	plog->ruleset[0] = '\0';
 	strlcpy(plog->ifname, "NAT64STL", sizeof(plog->ifname));
 	ipfw_bpf_mtap2(plog, PFLOG_HDRLEN, m);
