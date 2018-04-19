@@ -78,22 +78,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/vm86.h>
 
-#ifdef CPU_ELAN
-#include <machine/elan_mmcr.h>
-#endif
-
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
-
-#ifdef PC98
-#include <pc98/cbus/cbus.h>
-#else
-#include <isa/isareg.h>
-#endif
 
 #ifdef XBOX
 #include <machine/xbox.h>
@@ -109,13 +99,6 @@ _Static_assert(OFFSETOF_CURPCB == offsetof(struct pcpu, pc_curpcb),
     "OFFSETOF_CURPCB does not correspond with offset of pc_curpcb.");
 _Static_assert(__OFFSETOF_MONITORBUF == offsetof(struct pcpu, pc_monitorbuf),
     "__OFFSETOF_MONINORBUF does not correspond with offset of pc_monitorbuf.");
-
-static void	cpu_reset_real(void);
-#ifdef SMP
-static void	cpu_reset_proxy(void);
-static u_int	cpu_reset_proxyid;
-static volatile u_int	cpu_reset_proxy_active;
-#endif
 
 union savefpu *
 get_pcb_user_save_td(struct thread *td)
@@ -584,162 +567,6 @@ kvtop(void *addr)
 	if (pa == 0)
 		panic("kvtop: zero page frame");
 	return (pa);
-}
-
-#ifdef SMP
-static void
-cpu_reset_proxy()
-{
-
-	cpu_reset_proxy_active = 1;
-	while (cpu_reset_proxy_active == 1)
-		ia32_pause(); /* Wait for other cpu to see that we've started */
-
-	printf("cpu_reset_proxy: Stopped CPU %d\n", cpu_reset_proxyid);
-	DELAY(1000000);
-	cpu_reset_real();
-}
-#endif
-
-void
-cpu_reset()
-{
-#ifdef XBOX
-	if (arch_i386_is_xbox) {
-		/* Kick the PIC16L, it can reboot the box */
-		pic16l_reboot();
-		for (;;);
-	}
-#endif
-
-#ifdef SMP
-	cpuset_t map;
-	u_int cnt;
-
-	if (smp_started) {
-		map = all_cpus;
-		CPU_CLR(PCPU_GET(cpuid), &map);
-		CPU_NAND(&map, &stopped_cpus);
-		if (!CPU_EMPTY(&map)) {
-			printf("cpu_reset: Stopping other CPUs\n");
-			stop_cpus(map);
-		}
-
-		if (PCPU_GET(cpuid) != 0) {
-			cpu_reset_proxyid = PCPU_GET(cpuid);
-			cpustop_restartfunc = cpu_reset_proxy;
-			cpu_reset_proxy_active = 0;
-			printf("cpu_reset: Restarting BSP\n");
-
-			/* Restart CPU #0. */
-			CPU_SETOF(0, &started_cpus);
-			wmb();
-
-			cnt = 0;
-			while (cpu_reset_proxy_active == 0 && cnt < 10000000) {
-				ia32_pause();
-				cnt++;	/* Wait for BSP to announce restart */
-			}
-			if (cpu_reset_proxy_active == 0) {
-				printf("cpu_reset: Failed to restart BSP\n");
-			} else {
-				cpu_reset_proxy_active = 2;
-				while (1)
-					ia32_pause();
-				/* NOTREACHED */
-			}
-		}
-
-		DELAY(1000000);
-	}
-#endif
-	cpu_reset_real();
-	/* NOTREACHED */
-}
-
-static void
-cpu_reset_real()
-{
-	struct region_descriptor null_idt;
-#ifndef PC98
-	int b;
-#endif
-
-	disable_intr();
-#ifdef CPU_ELAN
-	if (elan_mmcr != NULL)
-		elan_mmcr->RESCFG = 1;
-#endif
-
-	if (cpu == CPU_GEODE1100) {
-		/* Attempt Geode's own reset */
-		outl(0xcf8, 0x80009044ul);
-		outl(0xcfc, 0xf);
-	}
-
-#ifdef PC98
-	/*
-	 * Attempt to do a CPU reset via CPU reset port.
-	 */
-	if ((inb(0x35) & 0xa0) != 0xa0) {
-		outb(0x37, 0x0f);		/* SHUT0 = 0. */
-		outb(0x37, 0x0b);		/* SHUT1 = 0. */
-	}
-	outb(0xf0, 0x00);		/* Reset. */
-#else
-#if !defined(BROKEN_KEYBOARD_RESET)
-	/*
-	 * Attempt to do a CPU reset via the keyboard controller,
-	 * do not turn off GateA20, as any machine that fails
-	 * to do the reset here would then end up in no man's land.
-	 */
-	outb(IO_KBD + 4, 0xFE);
-	DELAY(500000);	/* wait 0.5 sec to see if that did it */
-#endif
-
-	/*
-	 * Attempt to force a reset via the Reset Control register at
-	 * I/O port 0xcf9.  Bit 2 forces a system reset when it
-	 * transitions from 0 to 1.  Bit 1 selects the type of reset
-	 * to attempt: 0 selects a "soft" reset, and 1 selects a
-	 * "hard" reset.  We try a "hard" reset.  The first write sets
-	 * bit 1 to select a "hard" reset and clears bit 2.  The
-	 * second write forces a 0 -> 1 transition in bit 2 to trigger
-	 * a reset.
-	 */
-	outb(0xcf9, 0x2);
-	outb(0xcf9, 0x6);
-	DELAY(500000);  /* wait 0.5 sec to see if that did it */
-
-	/*
-	 * Attempt to force a reset via the Fast A20 and Init register
-	 * at I/O port 0x92.  Bit 1 serves as an alternate A20 gate.
-	 * Bit 0 asserts INIT# when set to 1.  We are careful to only
-	 * preserve bit 1 while setting bit 0.  We also must clear bit
-	 * 0 before setting it if it isn't already clear.
-	 */
-	b = inb(0x92);
-	if (b != 0xff) {
-		if ((b & 0x1) != 0)
-			outb(0x92, b & 0xfe);
-		outb(0x92, b | 0x1);
-		DELAY(500000);  /* wait 0.5 sec to see if that did it */
-	}
-#endif /* PC98 */
-
-	printf("No known reset method worked, attempting CPU shutdown\n");
-	DELAY(1000000); /* wait 1 sec for printf to complete */
-
-	/* Wipe the IDT. */
-	null_idt.rd_limit = 0;
-	null_idt.rd_base = 0;
-	lidt(&null_idt);
-
-	/* "good night, sweet prince .... <THUNK!>" */
-	breakpoint();
-
-	/* NOTREACHED */
-	while(1);
 }
 
 /*
