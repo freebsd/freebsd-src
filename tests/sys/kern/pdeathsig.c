@@ -53,42 +53,42 @@ ATF_TC_BODY(arg_validation, tc)
 
 	/* bad signal */
 	signum = 8888;
-	rc = procctl(P_PID, 0, PROC_PDEATHSIG_SET, &signum);
+	rc = procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &signum);
 	ATF_CHECK_EQ(-1, rc);
 	ATF_CHECK_EQ(EINVAL, errno);
 
 	/* bad id type */
 	signum = SIGINFO;
-	rc = procctl(8888, 0, PROC_PDEATHSIG_SET, &signum);
+	rc = procctl(8888, 0, PROC_PDEATHSIG_CTL, &signum);
 	ATF_CHECK_EQ(-1, rc);
 	ATF_CHECK_EQ(EINVAL, errno);
 
 	/* bad id (pid that doesn't match mine or zero) */
 	signum = SIGINFO;
 	rc = procctl(P_PID, (((getpid() + 1) % 10) + 100),
-		     PROC_PDEATHSIG_SET, &signum);
+	    PROC_PDEATHSIG_CTL, &signum);
 	ATF_CHECK_EQ(-1, rc);
 	ATF_CHECK_EQ(EINVAL, errno);
 
 	/* null pointer */
 	signum = SIGINFO;
-	rc = procctl(P_PID, 0, PROC_PDEATHSIG_SET, NULL);
+	rc = procctl(P_PID, 0, PROC_PDEATHSIG_CTL, NULL);
 	ATF_CHECK_EQ(-1, rc);
 	ATF_CHECK_EQ(EFAULT, errno);
 
 	/* good (pid == 0) */
 	signum = SIGINFO;
-	rc = procctl(P_PID, 0, PROC_PDEATHSIG_SET, &signum);
+	rc = procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &signum);
 	ATF_CHECK_EQ(0, rc);
 
 	/* good (pid == my pid) */
 	signum = SIGINFO;
-	rc = procctl(P_PID, getpid(), PROC_PDEATHSIG_SET, &signum);
+	rc = procctl(P_PID, getpid(), PROC_PDEATHSIG_CTL, &signum);
 	ATF_CHECK_EQ(0, rc);
 
 	/* check that we can read the signal number back */
 	signum = 0xdeadbeef;
-	rc = procctl(P_PID, 0, PROC_PDEATHSIG_GET, &signum);
+	rc = procctl(P_PID, 0, PROC_PDEATHSIG_STATUS, &signum);
 	ATF_CHECK_EQ(0, rc);
 	ATF_CHECK_EQ(SIGINFO, signum);
 }
@@ -102,14 +102,14 @@ ATF_TC_BODY(fork_no_inherit, tc)
 
 	/* request a signal on parent death in the parent */
 	signum = SIGINFO;
-	rc = procctl(P_PID, 0, PROC_PDEATHSIG_SET, &signum);
+	rc = procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &signum);
 
 	rc = fork();
 	ATF_REQUIRE(rc != -1);
 	if (rc == 0) {
 		/* check that we didn't inherit the setting */
 		signum = 0xdeadbeef;
-		rc = procctl(P_PID, 0, PROC_PDEATHSIG_GET, &signum);
+		rc = procctl(P_PID, 0, PROC_PDEATHSIG_STATUS, &signum);
 		assert(rc == 0);
 		assert(signum == 0);
 		_exit(0);
@@ -138,7 +138,7 @@ ATF_TC_BODY(exec_inherit, tc)
 
 		/* request a signal on parent death and register a handler */
 		signum = SIGINFO;
-		rc = procctl(P_PID, 0, PROC_PDEATHSIG_SET, &signum);
+		rc = procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &signum);
 		assert(rc == 0);
 
 		/* execute helper program: it asserts that it has the setting */
@@ -186,7 +186,7 @@ ATF_TC_BODY(signal_delivered, tc)
 			signal(signum, dummy_signal_handler);
 
 			/* request a signal on death of our parent B */
-			rc = procctl(P_PID, 0, PROC_PDEATHSIG_SET, &signum);
+			rc = procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &signum);
 			assert(rc == 0);
 
 			/* tell B that we're ready for it to exit now */
@@ -263,7 +263,7 @@ ATF_TC_BODY(signal_delivered_ptrace, tc)
 			signal(signum, dummy_signal_handler);
 
 			/* request a signal on parent death and register a handler */
-			rc = procctl(P_PID, 0, PROC_PDEATHSIG_SET, &signum);
+			rc = procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &signum);
 			assert(rc == 0);
 
 			/* tell D we are ready for it to attach */

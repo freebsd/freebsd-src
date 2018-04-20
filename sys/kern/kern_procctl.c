@@ -467,13 +467,13 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 	case PROC_TRAPCAP_STATUS:
 		data = &flags;
 		break;
-	case PROC_PDEATHSIG_SET:
+	case PROC_PDEATHSIG_CTL:
 		error = copyin(uap->data, &signum, sizeof(signum));
 		if (error != 0)
 			return (error);
 		data = &signum;
 		break;
-	case PROC_PDEATHSIG_GET:
+	case PROC_PDEATHSIG_STATUS:
 		data = &signum;
 		break;
 	default:
@@ -495,7 +495,7 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 		if (error == 0)
 			error = copyout(&flags, uap->data, sizeof(flags));
 		break;
-	case PROC_PDEATHSIG_GET:
+	case PROC_PDEATHSIG_STATUS:
 		if (error == 0)
 			error = copyout(&signum, uap->data, sizeof(signum));
 		break;
@@ -551,14 +551,14 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 	case PROC_REAP_KILL:
 	case PROC_TRACE_STATUS:
 	case PROC_TRAPCAP_STATUS:
-	case PROC_PDEATHSIG_SET:
-	case PROC_PDEATHSIG_GET:
+	case PROC_PDEATHSIG_CTL:
+	case PROC_PDEATHSIG_STATUS:
 		if (idtype != P_PID)
 			return (EINVAL);
 	}
 
 	switch (com) {
-	case PROC_PDEATHSIG_SET:
+	case PROC_PDEATHSIG_CTL:
 		signum = *(int *)data;
 		p = td->td_proc;
 		if ((id != 0 && id != p->p_pid) ||
@@ -568,7 +568,7 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 		p->p_pdeathsig = signum;
 		PROC_UNLOCK(p);
 		return (0);
-	case PROC_PDEATHSIG_GET:
+	case PROC_PDEATHSIG_STATUS:
 		p = td->td_proc;
 		if (id != 0 && id != p->p_pid)
 			return (EINVAL);
