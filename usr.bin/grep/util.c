@@ -84,6 +84,8 @@ struct mprintc {
 	bool		same_file;	/* Same file as previously printed? */
 };
 
+static void procmatch_match(struct mprintc *mc, struct parsec *pc);
+static void procmatch_nomatch(struct mprintc *mc, struct parsec *pc);
 static bool procmatches(struct mprintc *mc, struct parsec *pc, bool matched);
 #ifdef WITH_INTERNAL_NOSPEC
 static int litexec(const struct pat *pat, const char *string,
@@ -209,6 +211,55 @@ grep_tree(char **argv)
 	return (c);
 }
 
+static void
+procmatch_match(struct mprintc *mc, struct parsec *pc)
+{
+
+	if (mc->doctx) {
+		if (!first_match && (!mc->same_file || mc->last_outed > 0))
+			printf("--\n");
+		if (Bflag > 0)
+			printqueue();
+		mc->tail = Aflag;
+	}
+
+	/* Print the matching line, but only if not quiet/binary */
+	if (mc->printmatch) {
+		printline(pc, ':');
+		while (pc->matchidx >= MAX_MATCHES) {
+			/* Reset matchidx and try again */
+			pc->matchidx = 0;
+			if (procline(pc) == 0)
+				printline(pc, ':');
+			else
+				break;
+		}
+		first_match = false;
+		mc->same_file = true;
+		mc->last_outed = 0;
+	}
+}
+
+static void
+procmatch_nomatch(struct mprintc *mc, struct parsec *pc)
+{
+
+	/* Deal with any -A context as needed */
+	if (mc->tail > 0) {
+		grep_printline(&pc->ln, '-');
+		mc->tail--;
+		if (Bflag > 0)
+			clearqueue();
+	} else if (Bflag == 0 || (Bflag > 0 && enqueue(&pc->ln)))
+		/*
+		 * Enqueue non-matching lines for -B context. If we're not
+		 * actually doing -B context or if the enqueue resulted in a
+		 * line being rotated out, then go ahead and increment
+		 * last_outed to signify a gap between context/match.
+		 */
+		++mc->last_outed;
+}
+
 /*
  * Process any matches in the current parsing context, return a boolean
  * indicating whether we should halt any further processing or not. 'true' to
@@ -224,30 +275,7 @@ procmatches(struct mprintc *mc, struct parsec *pc, bool matched)
 	 */
 	/* Deal with any -B context or context separators */
 	if (matched) {
-		if (mc->doctx) {
-			if (!first_match &&
-			    (!mc->same_file || mc->last_outed > 0))
-				printf("--\n");
-			if (Bflag > 0)
-				printqueue();
-			mc->tail = Aflag;
-		}
-
-		/* Print the matching line, but only if not quiet/binary */
-		if (mc->printmatch) {
-			printline(pc, ':');
-			while (pc->matchidx >= MAX_MATCHES) {
-				/* Reset matchidx and try again */
-				pc->matchidx = 0;
-				if (procline(pc) == 0)
-					printline(pc, ':');
-				else
-					break;
-			}
-			first_match = false;
-			mc->same_file = true;
-			mc->last_outed = 0;
-		}
+		procmatch_match(mc, pc);
 
 		/* Count the matches if we have a match limit */
 		if (mflag) {
@@ -256,25 +284,8 @@ procmatches(struct mprintc *mc, struct parsec *pc, bool matched)
 			if (mflag && mcount <= 0)
 				return (false);
 		}
-	} else if (mc->doctx) {
-		/* Not matching, deal with any -A context as needed */
-		if (mc->tail > 0) {
-			grep_printline(&pc->ln, '-');
-			mc->tail--;
-			if (Bflag > 0)
-				clearqueue();
-		} else {
-			/*
-			 * Enqueue non-matching lines for -B context.
-			 * If we're not actually doing -B context or if
-			 * the enqueue resulted in a line being rotated
-			 * out, then go ahead and increment last_outed
-			 * to signify a gap between context/match.
-			 */
-			if (Bflag == 0 || (Bflag > 0 && enqueue(&pc->ln)))
-				++mc->last_outed;
-		}
-	}
+	} else if (mc->doctx)
+		procmatch_nomatch(mc, pc);
 
 	return (true);
 }
