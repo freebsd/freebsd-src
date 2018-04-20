@@ -596,9 +596,9 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			    sizeof(*nicmp6));
 			noff = off;
 		}
-		nicmp6->icmp6_type = ICMP6_ECHO_REPLY;
-		nicmp6->icmp6_code = 0;
 		if (n) {
+			nicmp6->icmp6_type = ICMP6_ECHO_REPLY;
+			nicmp6->icmp6_code = 0;
 			ICMP6STAT_INC(icp6s_reflect);
 			ICMP6STAT_INC(icp6s_outhist[ICMP6_ECHO_REPLY]);
 			icmp6_reflect(n, noff);
@@ -688,6 +688,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 				 */
 				m_free(n);
 				n = NULL;
+				break;
 			}
 			maxhlen = M_TRAILINGSPACE(n) -
 			    (sizeof(*nip6) + sizeof(*nicmp6) + 4);
