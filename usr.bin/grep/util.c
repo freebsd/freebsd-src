@@ -65,6 +65,7 @@ static bool	 first_match = true;
  */
 struct parsec {
 	regmatch_t	matches[MAX_MATCHES];		/* Matches made */
+	/* XXX TODO: This should be a chunk, not a line */
 	struct str	ln;				/* Current line */
 	size_t		lnstart;			/* Position in line */
 	size_t		matchidx;			/* Latest match index */
@@ -217,6 +218,10 @@ static bool
 procmatches(struct mprintc *mc, struct parsec *pc, bool matched)
 {
 
+	/*
+	 * XXX TODO: This should loop over pc->matches and handle things on a
+	 * line-by-line basis, setting up a `struct str` as needed.
+	 */
 	/* Deal with any -B context or context separators */
 	if (matched) {
 		if (mc->doctx) {
@@ -327,12 +332,18 @@ procfile(const char *fn)
 	mcount = mlimit;
 
 	for (c = 0;  c == 0 || !(lflag || qflag); ) {
+		/*
+		 * XXX TODO: We need to revisit this in a chunking world. We're
+		 * not going to be doing per-line statistics because of the
+		 * overhead involved. procmatches can figure that stuff out as
+		 * needed. */
 		/* Reset per-line statistics */
 		pc.printed = 0;
 		pc.matchidx = 0;
 		pc.lnstart = 0;
 		pc.ln.boff = 0;
 		pc.ln.off += pc.ln.len + 1;
+		/* XXX TODO: Grab a chunk */
 		if ((pc.ln.dat = grep_fgetln(f, &pc.ln.len)) == NULL ||
 		    pc.ln.len == 0)
 			break;
@@ -587,6 +598,7 @@ procline(struct parsec *pc)
 			continue;
 		}
 
+		/* XXX TODO: We will need to keep going, since we're chunky */
 		/* One pass if we are not recording matches */
 		if (!wflag && ((color == NULL && !oflag) || qflag || lflag || Lflag))
 			break;
