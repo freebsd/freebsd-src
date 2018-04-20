@@ -1272,7 +1272,9 @@ pmap_init(void)
 		    ("pmap_init: page table page is out of range"));
 		mpte->pindex = pmap_pde_pindex(KERNBASE) + i;
 		mpte->phys_addr = KPTphys + (i << PAGE_SHIFT);
+		mpte->wire_count = 1;
 	}
+	atomic_add_int(&vm_cnt.v_wire_count, nkpt);
 
 	/*
 	 * If the kernel is running on a virtual machine, then it must assume
