@@ -1755,10 +1755,7 @@ nat64lsn_destroy_instance(struct nat64lsn_cfg *cfg)
 {
 	struct nat64lsn_host *nh, *tmp;
 
-	JQUEUE_LOCK();
 	callout_drain(&cfg->jcallout);
-	JQUEUE_UNLOCK();
-
 	callout_drain(&cfg->periodic);
 	I6HASH_FOREACH_SAFE(cfg, nh, tmp, nat64lsn_destroy_host, cfg);
 	DPRINTF(DP_OBJ, "instance %s: hosts %d", cfg->name, cfg->ihcount);
