@@ -1151,6 +1151,9 @@ acpi_cpu_idle(sbintime_t sbt)
 	end_time = ((cpu_ticks() - cputicks) << 20) / cpu_tickrate();
 	if (curthread->td_critnest == 0)
 		end_time = min(end_time, 500000 / hz);
+	/* acpi_cpu_c1() returns with interrupts enabled. */
+	if (cx_next->do_mwait)
+	    ACPI_ENABLE_IRQS();
 	sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 + end_time) / 4;
 	return;
     }
