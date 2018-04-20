@@ -1308,6 +1308,10 @@ lacp_select(struct lacp_port *lp)
 		return;
 	}
 
+	/* If we haven't heard from our peer, skip this step. */
+	if (lp->lp_state & LACP_STATE_DEFAULTED)
+		return;
+
 	KASSERT(!LACP_TIMER_ISARMED(lp, LACP_TIMER_WAIT_WHILE),
 	    ("timer_wait_while still active"));
 
@@ -1663,7 +1667,15 @@ lacp_sm_rx_record_pdu(struct lacp_port *lp, const struct lacpdu *du)
 	    LACP_STATE_AGGREGATION) &&
 	    !lacp_compare_peerinfo(&lp->lp_actor, &du->ldu_partner))
 	    || (du->ldu_partner.lip_state & LACP_STATE_AGGREGATION) == 0)) {
-		/* XXX nothing? */
+		/*
+		 * XXX Maintain legacy behavior of leaving the
+		 * LACP_STATE_SYNC bit unchanged from the partner's
+		 * advertisement if lsc_strict_mode is false.
+		 * TODO: We should re-examine the concept of the "strict mode"
+		 * to ensure it makes sense to maintain a non-strict mode.
+		 */
+		if (lp->lp_lsc->lsc_strict_mode)
+			lp->lp_partner.lip_state |= LACP_STATE_SYNC;
 	} else {
 		lp->lp_partner.lip_state &= ~LACP_STATE_SYNC;
 	}
@@ -1677,10 +1689,6 @@ lacp_sm_rx_record_pdu(struct lacp_port *lp, const struct lacpdu *du)
 		    lacp_format_state(lp->lp_partner.lip_state, buf,
 		    sizeof(buf))));
 	}
-
-	/* XXX Hack, still need to implement 5.4.9 para 2,3,4 */
-	if (lp->lp_lsc->lsc_strict_mode)
-		lp->lp_partner.lip_state |= LACP_STATE_SYNC;
 
 	lacp_sm_ptx_update_timeout(lp, oldpstate);
 }
