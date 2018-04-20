@@ -146,6 +146,14 @@ acpi_cpu_c1(void)
 	__asm __volatile("sti; hlt");
 }
 
+/*
+ * Use mwait to pause execution while waiting for an interrupt or
+ * another thread to signal that there is more work.
+ *
+ * NOTE: Interrupts will cause a wakeup; however, this function does
+ * not enable interrupt handling. The caller is responsible to enable
+ * interrupts.
+ */
 void
 acpi_cpu_idle_mwait(uint32_t mwait_hint)
 {
