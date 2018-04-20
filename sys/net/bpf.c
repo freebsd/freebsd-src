@@ -98,6 +98,10 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
 
+static struct bpf_if_ext dead_bpf_if = {
+	.bif_dlist = LIST_HEAD_INITIALIZER()
+};
+
 struct bpf_if {
 #define	bif_next	bif_ext.bif_next
 #define	bif_dlist	bif_ext.bif_dlist
@@ -2659,7 +2663,7 @@ bpfdetach(struct ifnet *ifp)
 		 */
 		BPFIF_WLOCK(bp);
 		bp->bif_flags |= BPFIF_FLAG_DYING;
-		*bp->bif_bpf = NULL;
+		*bp->bif_bpf = (struct bpf_if *)&dead_bpf_if;;
 		BPFIF_WUNLOCK(bp);
 
 		CTR4(KTR_NET, "%s: sheduling free for encap %d (%p) for if %p",
