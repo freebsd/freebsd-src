@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2018
+.Dd April 20, 2018
 .Dt PROCCTL 2
 .Os
 .Sh NAME
@@ -391,7 +391,7 @@ otherwise.
 See the note about sysctl
 .Dv kern.trap_enotcap
 above, which gives independent global control of signal delivery.
-.It Dv PROC_PDEATHSIG_SET
+.It Dv PROC_PDEATHSIG_CTL
 Request the delivery of a signal when the parent of the calling
 process exits.
 .Fa idtype
@@ -408,7 +408,7 @@ must point to a value of type
 indicating the signal
 that should be delivered to the caller.
 Use zero to cancel a previously requested signal delivery.
-.It Dv PROC_PDEATHSIG_GET
+.It Dv PROC_PDEATHSIG_STATUS
 Query the current signal number that will be delivered when the parent
 of the calling process exits.
 .Fa idtype
@@ -520,9 +520,9 @@ or
 request is invalid.
 .It Bq Er EINVAL
 The
-.Dv PROC_PDEATHSIG_SET
+.Dv PROC_PDEATHSIG_CTL
 or
-.Dv PROC_PDEATHSIG_GET
+.Dv PROC_PDEATHSIG_STATUS
 request referenced an unsupported
 .Fa id ,
 .Fa idtype
@@ -547,7 +547,7 @@ The reaper facility is based on a similar feature of Linux and
 DragonflyBSD, and first appeared in
 .Fx 10.2 .
 The
-.Dv PROC_PDEATHSIG_SET
+.Dv PROC_PDEATHSIG_CTL
 facility is based on the prctl(PR_SET_PDEATHSIG, ...) feature of Linux,
 and first appeared in
 .Fx 12.0 .

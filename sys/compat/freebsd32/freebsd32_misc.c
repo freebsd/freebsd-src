@@ -3378,13 +3378,13 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 	case PROC_TRAPCAP_STATUS:
 		data = &flags;
 		break;
-	case PROC_PDEATHSIG_SET:
+	case PROC_PDEATHSIG_CTL:
 		error = copyin(uap->data, &signum, sizeof(signum));
 		if (error != 0)
 			return (error);
 		data = &signum;
 		break;
-	case PROC_PDEATHSIG_GET:
+	case PROC_PDEATHSIG_STATUS:
 		data = &signum;
 		break;
 	default:
@@ -3407,7 +3407,7 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 		if (error == 0)
 			error = copyout(&flags, uap->data, sizeof(flags));
 		break;
-	case PROC_PDEATHSIG_GET:
+	case PROC_PDEATHSIG_STATUS:
 		if (error == 0)
 			error = copyout(&signum, uap->data, sizeof(signum));
 		break;

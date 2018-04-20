@@ -522,7 +522,7 @@ interpret:
 	credential_changing |= will_transition;
 #endif
 
-	/* Don't inherit PROC_PDEATHSIG_SET value if setuid/setgid. */
+	/* Don't inherit PROC_PDEATHSIG_CTL value if setuid/setgid. */
 	if (credential_changing)
 		imgp->proc->p_pdeathsig = 0;
 
