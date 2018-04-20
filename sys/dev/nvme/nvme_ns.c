@@ -486,9 +486,22 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	ns->id = id;
 	ns->stripesize = 0;
 
-	if (pci_get_devid(ctrlr->dev) == 0x09538086 && ctrlr->cdata.vs[3] != 0)
-		ns->stripesize =
-		    (1 << ctrlr->cdata.vs[3]) * ctrlr->min_page_size;
+	/*
+	 * Older Intel devices advertise in vendor specific space an alignment
+	 * that improves performance.  If present use for the stripe size.  NVMe
+	 * 1.3 standardized this as NOIOB, and newer Intel drives use that.
+	 */
+	switch (pci_get_devid(ctrlr->dev)) {
+	case 0x09538086:		/* Intel DC PC3500 */
+	case 0x0a538086:		/* Intel DC PC3520 */
+	case 0x0a548086:		/* Intel DC PC4500 */
+		if (ctrlr->cdata.vs[3] != 0)
+			ns->stripesize =
+			    (1 << ctrlr->cdata.vs[3]) * ctrlr->min_page_size;
+		break;
+	default:
+		break;
+	}
 
 	/*
 	 * Namespaces are reconstructed after a controller reset, so check
