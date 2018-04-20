@@ -31,7 +31,7 @@ TARGET_ABI=	-gnueabi
 TARGET_ABI=
 .endif
 VENDOR=		unknown
-OS_VERSION=	freebsd11.1
+OS_VERSION=	freebsd11.2
 
 TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/:C/arm64/aarch64/}-${VENDOR}-${OS_VERSION}${TARGET_ABI}
 BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/:C/arm64/aarch64/}-${VENDOR}-${OS_VERSION}
