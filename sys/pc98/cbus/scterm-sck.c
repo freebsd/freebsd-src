@@ -22,9 +22,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_syscons.h"
 
@@ -909,24 +910,18 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 }
 
 static void
-scterm_puts(scr_stat *scp, u_char *buf, int len, int kernel)
+scterm_puts(scr_stat *scp, u_char *buf, int len)
 {
 	term_stat *tcp;
 	u_char *ptr;
 #ifdef KANJI
 	u_short kanji_code;
 #endif
-	color_t backup;
 
 	tcp = scp->ts;
 	ptr = buf;
 outloop:
 	scp->sc->write_in_progress++;
-	backup = tcp->cur_color;
-	if (kernel) {
-		tcp->cur_color.fg = SC_KERNEL_CONS_ATTR & 0x0f;
-		tcp->cur_color.bg = (SC_KERNEL_CONS_ATTR >> 4) & 0x0f;
-	}
 
 	if (tcp->esc) {
 		scterm_scan_esc(scp, tcp, *ptr++);
@@ -1109,8 +1104,6 @@ ascii_end:
 
 	sc_term_gen_scroll(scp, scp->sc->scr_map[0x20], tcp->cur_attr);
 
-	if (kernel)
-		tcp->cur_color = backup;
 	scp->sc->write_in_progress--;
 	if (len)
 		goto outloop;
