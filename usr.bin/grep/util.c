@@ -218,32 +218,41 @@ procmatches(struct mprintc *mc, struct parsec *pc, bool matched)
 {
 
 	/* Deal with any -B context or context separators */
-	if (matched && mc->doctx) {
-		if (!first_match && (!mc->same_file || mc->last_outed > 0))
-			printf("--\n");
-		if (Bflag > 0)
-			printqueue();
-		mc->tail = Aflag;
-	}
-
-	/* Print the matching line, but only if not quiet/binary */
-	if (matched && mc->printmatch) {
-		printline(pc, ':');
-		while (pc->matchidx >= MAX_MATCHES) {
-			/* Reset matchidx and try again */
-			pc->matchidx = 0;
-			if (procline(pc) == 0)
-				printline(pc, ':');
-			else
-				break;
+	if (matched) {
+		if (mc->doctx) {
+			if (!first_match &&
+			    (!mc->same_file || mc->last_outed > 0))
+				printf("--\n");
+			if (Bflag > 0)
+				printqueue();
+			mc->tail = Aflag;
 		}
-		first_match = false;
-		mc->same_file = true;
-		mc->last_outed = 0;
-	}
 
-	if (!matched && mc->doctx) {
-		/* Deal with any -A context */
+		/* Print the matching line, but only if not quiet/binary */
+		if (mc->printmatch) {
+			printline(pc, ':');
+			while (pc->matchidx >= MAX_MATCHES) {
+				/* Reset matchidx and try again */
+				pc->matchidx = 0;
+				if (procline(pc) == 0)
+					printline(pc, ':');
+				else
+					break;
+			}
+			first_match = false;
+			mc->same_file = true;
+			mc->last_outed = 0;
+		}
+
+		/* Count the matches if we have a match limit */
+		if (mflag) {
+			/* XXX TODO: Decrement by number of matched lines */
+			mcount -= 1;
+			if (mflag && mcount <= 0)
+				return (false);
+		}
+	} else if (mc->doctx) {
+		/* Not matching, deal with any -A context as needed */
 		if (mc->tail > 0) {
 			grep_printline(&pc->ln, '-');
 			mc->tail--;
@@ -260,14 +269,6 @@ procmatches(struct mprintc *mc, struct parsec *pc, bool matched)
 			if (Bflag == 0 || (Bflag > 0 && enqueue(&pc->ln)))
 				++mc->last_outed;
 		}
-	}
-
-	/* Count the matches if we have a match limit */
-	if (matched && mflag) {
-		/* XXX TODO: Decrement by number of matched lines */
-		mcount -= 1;
-		if (mflag && mcount <= 0)
-			return (false);
 	}
 
 	return (true);
