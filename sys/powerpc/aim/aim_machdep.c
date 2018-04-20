@@ -212,6 +212,7 @@ aim_early_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 		case IBMPOWER7PLUS:
 		case IBMPOWER8:
 		case IBMPOWER8E:
+		case IBMPOWER9:
 			/* XXX: get from ibm,slb-size in device tree */
 			n_slbs = 32;
 			break;
