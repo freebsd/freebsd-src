@@ -400,7 +400,10 @@ termtty_outwakeup(struct tty *tp)
 		TERMINAL_UNLOCK_TTY(tm);
 	}
 
-	tm->tm_class->tc_done(tm);
+	TERMINAL_LOCK_TTY(tm);
+	if (!(tm->tm_flags & TF_MUTE))
+		tm->tm_class->tc_done(tm);
+	TERMINAL_UNLOCK_TTY(tm);
 	if (flags & TF_BELL)
 		tm->tm_class->tc_bell(tm);
 }
@@ -570,10 +573,9 @@ termcn_cnputc(struct consdev *cp, int c)
 		teken_set_curattr(&tm->tm_emulator, &kernel_message);
 		teken_input(&tm->tm_emulator, &cv, 1);
 		teken_set_curattr(&tm->tm_emulator, &backup);
+		tm->tm_class->tc_done(tm);
 	}
 	TERMINAL_UNLOCK_CONS(tm);
-
-	tm->tm_class->tc_done(tm);
 }
 
 /*
