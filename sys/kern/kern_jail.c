@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/racct.h>
+#include <sys/rctl.h>
 #include <sys/refcount.h>
 #include <sys/sx.h>
 #include <sys/sysent.h>
@@ -2401,9 +2402,14 @@ do_jail_attach(struct thread *td, struct prison *pr)
 	newcred->cr_prison = pr;
 	proc_set_cred(p, newcred);
 	setsugid(p);
-	PROC_UNLOCK(p);
 #ifdef RACCT
 	racct_proc_ucred_changed(p, oldcred, newcred);
+	crhold(newcred);
+#endif
+	PROC_UNLOCK(p);
+#ifdef RCTL
+	rctl_proc_ucred_changed(p, newcred);
+	crfree(newcred);
 #endif
 	prison_deref(oldcred->cr_prison, PD_DEREF | PD_DEUREF);
 	crfree(oldcred);
@@ -3960,6 +3966,7 @@ prison_racct_modify(struct prison *pr)
 	 */
 	racct_move(pr->pr_prison_racct->prr_racct, oldprr->prr_racct);
 
+#ifdef RCTL
 	/*
 	 * Force rctl to reattach rules to processes.
 	 */
@@ -3967,9 +3974,10 @@ prison_racct_modify(struct prison *pr)
 		PROC_LOCK(p);
 		cred = crhold(p->p_ucred);
 		PROC_UNLOCK(p);
-		racct_proc_ucred_changed(p, cred, cred);
+		rctl_proc_ucred_changed(p, cred);
 		crfree(cred);
 	}
+#endif
 
 	sx_sunlock(&allproc_lock);
 	prison_racct_free_locked(oldprr);
