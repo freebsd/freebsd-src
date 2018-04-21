@@ -110,11 +110,8 @@ file_matching(const char *fname)
 	for (unsigned int i = 0; i < fpatterns; ++i) {
 		if (fnmatch(fpattern[i].pat, fname, 0) == 0 ||
 		    fnmatch(fpattern[i].pat, fname_base, 0) == 0) {
-			if (fpattern[i].mode == EXCL_PAT) {
-				ret = false;
-				break;
-			} else
-				ret = true;
+			ret = (fpattern[i].mode != EXCL_PAT);
+			break;
 		}
 	}
 	free(fname_buf);
@@ -129,13 +126,8 @@ dir_matching(const char *dname)
 	ret = dinclude ? false : true;
 
 	for (unsigned int i = 0; i < dpatterns; ++i) {
-		if (dname != NULL &&
-		    fnmatch(dpattern[i].pat, dname, 0) == 0) {
-			if (dpattern[i].mode == EXCL_PAT)
-				return (false);
-			else
-				ret = true;
-		}
+		if (dname != NULL && fnmatch(dpattern[i].pat, dname, 0) == 0)
+			return (dpattern[i].mode != EXCL_PAT);
 	}
 	return (ret);
 }
@@ -164,7 +156,6 @@ grep_tree(char **argv)
 		break;
 	default:
 		fts_flags = FTS_LOGICAL;
-			
 	}
 
 	fts_flags |= FTS_NOSTAT | FTS_NOCHDIR;
@@ -193,7 +184,7 @@ grep_tree(char **argv)
 		case FTS_DC:
 			/* Print a warning for recursive directory loop */
 			warnx("warning: %s: recursive directory loop",
-				p->fts_path);
+			    p->fts_path);
 			break;
 		default:
 			/* Check for file exclusion/inclusion */
