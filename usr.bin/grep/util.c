@@ -109,10 +109,12 @@ file_matching(const char *fname)
 
 	for (unsigned int i = 0; i < fpatterns; ++i) {
 		if (fnmatch(fpattern[i].pat, fname, 0) == 0 ||
-		    fnmatch(fpattern[i].pat, fname_base, 0) == 0) {
+		    fnmatch(fpattern[i].pat, fname_base, 0) == 0)
+			/*
+			 * The last pattern matched wins exclusion/inclusion
+			 * rights, so we can't reasonably bail out early here.
+			 */
 			ret = (fpattern[i].mode != EXCL_PAT);
-			break;
-		}
 	}
 	free(fname_buf);
 	return (ret);
@@ -127,7 +129,11 @@ dir_matching(const char *dname)
 
 	for (unsigned int i = 0; i < dpatterns; ++i) {
 		if (dname != NULL && fnmatch(dpattern[i].pat, dname, 0) == 0)
-			return (dpattern[i].mode != EXCL_PAT);
+			/*
+			 * The last pattern matched wins exclusion/inclusion
+			 * rights, so we can't reasonably bail out early here.
+			 */
+			ret = (dpattern[i].mode != EXCL_PAT);
 	}
 	return (ret);
 }
