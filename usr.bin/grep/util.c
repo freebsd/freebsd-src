@@ -308,14 +308,14 @@ procfile(const char *fn)
 		fn = label != NULL ? label : getstr(1);
 		f = grep_open(NULL);
 	} else {
-		if (!stat(fn, &sb)) {
+		if (stat(fn, &sb) == 0) {
 			/* Check if we need to process the file */
 			s = sb.st_mode & S_IFMT;
-			if (s == S_IFDIR && dirbehave == DIR_SKIP)
+			if (dirbehave == DIR_SKIP && s == S_IFDIR)
 				return (0);
-			if ((s == S_IFIFO || s == S_IFCHR || s == S_IFBLK
-				|| s == S_IFSOCK) && devbehave == DEV_SKIP)
-					return (0);
+			if (devbehave == DEV_SKIP && (s == S_IFIFO ||
+			    s == S_IFCHR || s == S_IFBLK || s == S_IFSOCK))
+				return (0);
 		}
 		f = grep_open(fn);
 	}
