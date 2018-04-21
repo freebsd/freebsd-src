@@ -323,8 +323,7 @@ procfile(const char *fn)
 		return (0);
 	}
 
-	pc.ln.file = grep_malloc(strlen(fn) + 1);
-	strcpy(pc.ln.file, fn);
+	pc.ln.file = grep_strdup(fn);
 	pc.ln.line_no = 0;
 	pc.ln.len = 0;
 	pc.ln.boff = 0;
