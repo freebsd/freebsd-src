@@ -642,6 +642,7 @@ static int kassert_do_log = 1;
 static int kassert_log_pps_limit = 4;
 static int kassert_log_mute_at = 0;
 static int kassert_log_panic_at = 0;
+static int kassert_suppress_in_panic = 1;
 static int kassert_warnings = 0;
 
 SYSCTL_NODE(_debug, OID_AUTO, kassert, CTLFLAG_RW, NULL, "kassert options");
@@ -676,6 +677,10 @@ SYSCTL_INT(_debug_kassert, OID_AUTO, log_pps_limit, CTLFLAG_RWTUN,
 SYSCTL_INT(_debug_kassert, OID_AUTO, log_mute_at, CTLFLAG_RWTUN,
     &kassert_log_mute_at, 0, "max number of KASSERTS to log");
 
+SYSCTL_INT(_debug_kassert, OID_AUTO, suppress_in_panic, CTLFLAG_RWTUN,
+    &kassert_suppress_in_panic, 0,
+    "KASSERTs will be suppressed while handling a panic");
+
 static int kassert_sysctl_kassert(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_PROC(_debug_kassert, OID_AUTO, kassert,
@@ -707,6 +712,10 @@ kassert_panic(const char *fmt, ...)
 {
 	static char buf[256];
 	va_list ap;
+
+	/* If we already panic'd, don't create a double-fault. */
+	if (panicstr != NULL && kassert_suppress_in_panic)
+		return;
 
 	va_start(ap, fmt);
 	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
