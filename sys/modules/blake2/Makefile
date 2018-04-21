@@ -61,7 +61,7 @@ CFLAGS.blake2s-xop.c	+= -DSUFFIX=_xop -msse2 -mssse3 -msse4.1 -mavx -mxop
 .for src in ${SRCS_IN}
 ${src:S/.c/.o/}: ${src}
 	${CC} -c ${CFLAGS:N-nostdinc} ${CFLAGS.${src}} ${WERROR} ${PROF} \
-	    -D_MM_MALLOC_H_INCLUDED ${.IMPSRC}
+	    -D_MM_MALLOC_H_INCLUDED -Wno-unused-function ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
 ${src:S/.c/.o/}: intrin.h emmintrin.h tmmintrin.h smmintrin.h immintrin.h \
@@ -86,5 +86,5 @@ WARNS	?= 6
 
 .include <bsd.kmod.mk>
 
-CWARNFLAGS.blake2-dispatch.c	+=	-Wno-error=unused-const-variable
-CWARNFLAGS			+=	${NO_WCAST_QUAL}
+CWARNFLAGS.blake2-dispatch.c	+=	-Wno-unused-const-variable
+CWARNFLAGS			+=	-Wno-cast-qual

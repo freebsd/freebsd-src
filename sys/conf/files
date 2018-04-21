@@ -653,11 +653,11 @@ contrib/zstd/lib/decompress/zstd_decompress.c	standard compile-with ${ZSTD_C}
 contrib/zstd/lib/decompress/huf_decompress.c	standard compile-with ${ZSTD_C}
 # Blake 2
 contrib/libb2/blake2b-ref.c	optional crypto | ipsec | ipsec_support \
-	compile-with "${NORMAL_C} -I$S/crypto/blake2 ${NO_WCAST_QUAL} -DSUFFIX=_ref"
+	compile-with "${NORMAL_C} -I$S/crypto/blake2 -Wno-cast-qual -DSUFFIX=_ref -Wno-unused-function"
 contrib/libb2/blake2s-ref.c	optional crypto | ipsec | ipsec_support \
-	compile-with "${NORMAL_C} -I$S/crypto/blake2 ${NO_WCAST_QUAL} -DSUFFIX=_ref"
+	compile-with "${NORMAL_C} -I$S/crypto/blake2 -Wno-cast-qual -DSUFFIX=_ref -Wno-unused-function"
 crypto/blake2/blake2-sw.c	optional crypto | ipsec | ipsec_support \
-	compile-with "${NORMAL_C} -I$S/crypto/blake2 ${NO_WCAST_QUAL}"
+	compile-with "${NORMAL_C} -I$S/crypto/blake2 -Wno-cast-qual"
 crypto/blowfish/bf_ecb.c	optional ipsec | ipsec_support
 crypto/blowfish/bf_skey.c	optional crypto | ipsec | ipsec_support
 crypto/camellia/camellia.c	optional crypto | ipsec | ipsec_support
