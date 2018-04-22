@@ -479,15 +479,15 @@ retry_setlock:
 	/*
 	 * Avoid the common case of unlocking when inode has no locks.
 	 */
-	VI_LOCK(vp);
-	if ((*statep) == NULL) {
-		if (ap->a_op != F_SETLK) {
+	if (ap->a_op != F_SETLK && (*statep) == NULL) {
+		VI_LOCK(vp);
+		if ((*statep) == NULL) {
 			fl->l_type = F_UNLCK;
 			VI_UNLOCK(vp);
 			return (0);
 		}
+		VI_UNLOCK(vp);
 	}
-	VI_UNLOCK(vp);
 
 	/*
 	 * Map our arguments to an existing lock owner or create one
