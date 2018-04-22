@@ -49,8 +49,8 @@
  * sysctl.
  */
 
-extern int cpu_features;
-extern int cpu_features2;
+extern u_long cpu_features;
+extern u_long cpu_features2;
 
 #define	PPC_FEATURE_32		0x80000000	/* Always true */
 #define	PPC_FEATURE_64		0x40000000	/* Defined on a 64-bit CPU */
