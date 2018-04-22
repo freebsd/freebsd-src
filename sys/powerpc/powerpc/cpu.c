@@ -231,12 +231,12 @@ static int	cpu_feature_bit(SYSCTL_HANDLER_ARGS);
 static char model[64];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, model, 0, "");
 
-int cpu_features = PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU;
-int cpu_features2 = 0;
+u_long cpu_features = PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU;
+u_long cpu_features2 = 0;
 SYSCTL_OPAQUE(_hw, OID_AUTO, cpu_features, CTLFLAG_RD,
-    &cpu_features, sizeof(cpu_features), "IX", "PowerPC CPU features");
+    &cpu_features, sizeof(cpu_features), "LX", "PowerPC CPU features");
 SYSCTL_OPAQUE(_hw, OID_AUTO, cpu_features2, CTLFLAG_RD,
-    &cpu_features2, sizeof(cpu_features2), "IX", "PowerPC CPU features 2");
+    &cpu_features2, sizeof(cpu_features2), "LX", "PowerPC CPU features 2");
 
 /* Provide some user-friendly aliases for bits in cpu_features */
 SYSCTL_PROC(_hw, OID_AUTO, floatingpoint, CTLTYPE_INT | CTLFLAG_RD,
@@ -307,10 +307,10 @@ cpu_setup(u_int cpuid)
 
 	cpu_features |= cp->features;
 	cpu_features2 |= cp->features2;
-	printf("cpu%d: Features %b\n", cpuid, cpu_features,
+	printf("cpu%d: Features %b\n", cpuid, (int)cpu_features,
 	    PPC_FEATURE_BITMASK);
 	if (cpu_features2 != 0)
-		printf("cpu%d: Features2 %b\n", cpuid, cpu_features2,
+		printf("cpu%d: Features2 %b\n", cpuid, (int)cpu_features2,
 		    PPC_FEATURE2_BITMASK);
 
 	/*
