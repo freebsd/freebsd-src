@@ -154,7 +154,6 @@ syscall::recvfrom:entry /* probe ID $(( $ID + 1 )) */
 		(struct sockaddr *)alloca(sizeof(struct sockaddr)) :
 		(struct sockaddr *)copyin(arg4, sizeof(struct sockaddr));
 	this->sainfo = xlate <sainfo_t> ((struct sockaddr *)this->sa);
-	printf("missing closing paren\n";
 }
 
 syscall::recvfrom:return /* probe ID $(( $ID + 2 )) */
