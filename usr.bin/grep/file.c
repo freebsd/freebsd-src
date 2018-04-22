@@ -337,8 +337,8 @@ grep_open(const char *path)
 		lstrm.avail_out = MAXBUFSIZ;
 		laction = LZMA_RUN;
 		break;
-	}
 #endif
+	}
 
 	/* Fill read buffer, also catches errors early */
 	if (bufrem == 0 && grep_refill(f) != 0)
