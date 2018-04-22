@@ -648,9 +648,11 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 				error = EBADF;
 				break;
 			}
-			PROC_LOCK(p->p_leader);
-			p->p_leader->p_flag |= P_ADVLOCK;
-			PROC_UNLOCK(p->p_leader);
+			if ((p->p_leader->p_flag & P_ADVLOCK) == 0) {
+				PROC_LOCK(p->p_leader);
+				p->p_leader->p_flag |= P_ADVLOCK;
+				PROC_UNLOCK(p->p_leader);
+			}
 			error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_SETLK,
 			    flp, flg);
 			break;
@@ -659,9 +661,11 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 				error = EBADF;
 				break;
 			}
-			PROC_LOCK(p->p_leader);
-			p->p_leader->p_flag |= P_ADVLOCK;
-			PROC_UNLOCK(p->p_leader);
+			if ((p->p_leader->p_flag & P_ADVLOCK) == 0) {
+				PROC_LOCK(p->p_leader);
+				p->p_leader->p_flag |= P_ADVLOCK;
+				PROC_UNLOCK(p->p_leader);
+			}
 			error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_SETLK,
 			    flp, flg);
 			break;
