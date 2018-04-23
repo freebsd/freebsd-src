@@ -410,6 +410,15 @@ hdac_pin_patch(struct hdaa_widget *w)
 			patch = "as=1 seq=15";
 			break;
 		}
+	} else if (id == HDA_CODEC_ALC298 && subid == DELL_XPS9560_SUBVENDOR) {
+		switch (nid) {
+		case 24:
+			config  = 0x01a1913c;
+			break;
+		case 26:
+			config  = 0x01a1913d;
+			break;
+		}
 	}
 
 	if (patch != NULL)
