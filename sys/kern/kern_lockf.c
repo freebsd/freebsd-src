@@ -1053,6 +1053,12 @@ lf_add_incoming(struct lockf *state, struct lockf_entry *lock)
 	struct lockf_entry *overlap;
 	int error;
 
+	sx_assert(&state->ls_lock, SX_XLOCKED);
+	if (LIST_EMPTY(&state->ls_pending))
+		return (0);
+
+	error = 0;
+	sx_xlock(&lf_owner_graph_lock);
 	LIST_FOREACH(overlap, &state->ls_pending, lf_link) {
 		if (!lf_blocks(lock, overlap))
 			continue;
@@ -1070,10 +1076,11 @@ lf_add_incoming(struct lockf *state, struct lockf_entry *lock)
 		 */
 		if (error) {
 			lf_remove_incoming(lock);
-			return (error);
+			break;
 		}
 	}
-	return (0);
+	sx_xunlock(&lf_owner_graph_lock);
+	return (error);
 }
 
 /*
@@ -1509,9 +1516,7 @@ lf_setlock(struct lockf *state, struct lockf_entry *lock, struct vnode *vp,
 	 * edges from any currently pending lock that the new lock
 	 * would block.
 	 */
-	sx_xlock(&lf_owner_graph_lock);
 	error = lf_add_incoming(state, lock);
-	sx_xunlock(&lf_owner_graph_lock);
 	if (error) {
 #ifdef LOCKF_DEBUG
 		if (lockf_debug & 1)
@@ -1840,9 +1845,7 @@ lf_split(struct lockf *state, struct lockf_entry *lock1,
 	splitlock->lf_start = lock2->lf_end + 1;
 	LIST_INIT(&splitlock->lf_outedges);
 	LIST_INIT(&splitlock->lf_inedges);
-	sx_xlock(&lf_owner_graph_lock);
 	lf_add_incoming(state, splitlock);
-	sx_xunlock(&lf_owner_graph_lock);
 
 	lf_set_end(state, lock1, lock2->lf_start - 1, granted);
 
