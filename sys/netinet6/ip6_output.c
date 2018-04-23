@@ -1454,6 +1454,15 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 				INP_WUNLOCK(in6p);
 				error = 0;
 				break;
+			case SO_REUSEPORT_LB:
+				INP_WLOCK(in6p);
+				if ((so->so_options & SO_REUSEPORT_LB) != 0)
+					in6p->inp_flags2 |= INP_REUSEPORT_LB;
+				else
+					in6p->inp_flags2 &= ~INP_REUSEPORT_LB;
+				INP_WUNLOCK(in6p);
+				error = 0;
+				break;
 			case SO_SETFIB:
 				INP_WLOCK(in6p);
 				in6p->inp_inc.inc_fibnum = so->so_fibnum;

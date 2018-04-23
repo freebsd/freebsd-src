@@ -77,7 +77,7 @@ db_print_sotype(short so_type)
 }
 
 static void
-db_print_sooptions(short so_options)
+db_print_sooptions(int so_options)
 {
 	int comma;
 
@@ -120,6 +120,10 @@ db_print_sooptions(short so_options)
 	}
 	if (so_options & SO_REUSEPORT) {
 		db_printf("%sSO_REUSEPORT", comma ? ", " : "");
+		comma = 1;
+	}
+	if (so_options & SO_REUSEPORT_LB) {
+		db_printf("%sSO_REUSEPORT_LB", comma ? ", " : "");
 		comma = 1;
 	}
 	if (so_options & SO_TIMESTAMP) {
