@@ -383,15 +383,6 @@ icmp6_error(struct mbuf *m, int type, int code, int param)
 	icmp6->icmp6_code = code;
 	icmp6->icmp6_pptr = htonl((u_int32_t)param);
 
-	/*
-	 * icmp6_reflect() is designed to be in the input path.
-	 * icmp6_error() can be called from both input and output path,
-	 * and if we are in output path rcvif could contain bogus value.
-	 * clear m->m_pkthdr.rcvif for safety, we should have enough scope
-	 * information in ip header (nip6).
-	 */
-	m->m_pkthdr.rcvif = NULL;
-
 	ICMP6STAT_INC(icp6s_outhist[type]);
 	icmp6_reflect(m, sizeof(struct ip6_hdr)); /* header order: IPv6 - ICMPv6 */
 
@@ -2183,7 +2174,7 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	 */
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
-
+	m->m_pkthdr.rcvif = NULL;
 	ip6_output(m, NULL, NULL, 0, NULL, &outif, NULL);
 	if (outif)
 		icmp6_ifoutstat_inc(outif, type, code);
