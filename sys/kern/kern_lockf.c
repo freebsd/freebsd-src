@@ -412,7 +412,7 @@ int
 lf_advlockasync(struct vop_advlockasync_args *ap, struct lockf **statep,
     u_quad_t size)
 {
-	struct lockf *state, *freestate = NULL;
+	struct lockf *state;
 	struct flock *fl = ap->a_fl;
 	struct lockf_entry *lock;
 	struct vnode *vp = ap->a_vp;
@@ -721,37 +721,16 @@ retry_setlock:
 #endif
 	sx_xunlock(&state->ls_lock);
 
-	/*
-	 * If we have removed the last active lock on the vnode and
-	 * this is the last thread that was in-progress, we can free
-	 * the state structure. We update the caller's pointer inside
-	 * the vnode interlock but call free outside.
-	 *
-	 * XXX alternatively, keep the state structure around until
-	 * the filesystem recycles - requires a callback from the
-	 * filesystem.
-	 */
 	VI_LOCK(vp);
 
 	state->ls_threads--;
 	wakeup(state);
 	if (LIST_EMPTY(&state->ls_active) && state->ls_threads == 0) {
 		KASSERT(LIST_EMPTY(&state->ls_pending),
-		    ("freeing state with pending locks"));
-		freestate = state;
-		*statep = NULL;
+		    ("freeable state with pending locks"));
 	}
 
 	VI_UNLOCK(vp);
-
-	if (freestate != NULL) {
-		sx_xlock(&lf_lock_states_lock);
-		LIST_REMOVE(freestate, ls_link);
-		sx_xunlock(&lf_lock_states_lock);
-		sx_destroy(&freestate->ls_lock);
-		free(freestate, M_LOCKF);
-		freestate = NULL;
-	}
 
 	if (error == EDOOFUS) {
 		KASSERT(ap->a_op == F_SETLK, ("EDOOFUS"));
@@ -793,62 +772,62 @@ lf_purgelocks(struct vnode *vp, struct lockf **statep)
 	KASSERT(vp->v_iflag & VI_DOOMED,
 	    ("lf_purgelocks: vp %p has not vgone yet", vp));
 	state = *statep;
-	if (state) {
-		*statep = NULL;
-		state->ls_threads++;
+	if (state == NULL) {
 		VI_UNLOCK(vp);
-
-		sx_xlock(&state->ls_lock);
-		sx_xlock(&lf_owner_graph_lock);
-		LIST_FOREACH_SAFE(lock, &state->ls_pending, lf_link, nlock) {
-			LIST_REMOVE(lock, lf_link);
-			lf_remove_outgoing(lock);
-			lf_remove_incoming(lock);
-
-			/*
-			 * If its an async lock, we can just free it
-			 * here, otherwise we let the sleeping thread
-			 * free it.
-			 */
-			if (lock->lf_async_task) {
-				lf_free_lock(lock);
-			} else {
-				lock->lf_flags |= F_INTR;
-				wakeup(lock);
-			}
-		}
-		sx_xunlock(&lf_owner_graph_lock);
-		sx_xunlock(&state->ls_lock);
-
-		/*
-		 * Wait for all other threads, sleeping and otherwise
-		 * to leave.
-		 */
-		VI_LOCK(vp);
-		while (state->ls_threads > 1)
-			msleep(state, VI_MTX(vp), 0, "purgelocks", 0);
-		VI_UNLOCK(vp);
-
-		/*
-		 * We can just free all the active locks since they
-		 * will have no dependencies (we removed them all
-		 * above). We don't need to bother locking since we
-		 * are the last thread using this state structure.
-		 */
-		KASSERT(LIST_EMPTY(&state->ls_pending),
-		    ("lock pending for %p", state));
-		LIST_FOREACH_SAFE(lock, &state->ls_active, lf_link, nlock) {
-			LIST_REMOVE(lock, lf_link);
-			lf_free_lock(lock);
-		}
-		sx_xlock(&lf_lock_states_lock);
-		LIST_REMOVE(state, ls_link);
-		sx_xunlock(&lf_lock_states_lock);
-		sx_destroy(&state->ls_lock);
-		free(state, M_LOCKF);
-	} else {
-		VI_UNLOCK(vp);
+		return;
 	}
+	*statep = NULL;
+	state->ls_threads++;
+	VI_UNLOCK(vp);
+
+	sx_xlock(&state->ls_lock);
+	sx_xlock(&lf_owner_graph_lock);
+	LIST_FOREACH_SAFE(lock, &state->ls_pending, lf_link, nlock) {
+		LIST_REMOVE(lock, lf_link);
+		lf_remove_outgoing(lock);
+		lf_remove_incoming(lock);
+
+		/*
+		 * If its an async lock, we can just free it
+		 * here, otherwise we let the sleeping thread
+		 * free it.
+		 */
+		if (lock->lf_async_task) {
+			lf_free_lock(lock);
+		} else {
+			lock->lf_flags |= F_INTR;
+			wakeup(lock);
+		}
+	}
+	sx_xunlock(&lf_owner_graph_lock);
+	sx_xunlock(&state->ls_lock);
+
+	/*
+	 * Wait for all other threads, sleeping and otherwise
+	 * to leave.
+	 */
+	VI_LOCK(vp);
+	while (state->ls_threads > 1)
+		msleep(state, VI_MTX(vp), 0, "purgelocks", 0);
+	VI_UNLOCK(vp);
+
+	/*
+	 * We can just free all the active locks since they
+	 * will have no dependencies (we removed them all
+	 * above). We don't need to bother locking since we
+	 * are the last thread using this state structure.
+	 */
+	KASSERT(LIST_EMPTY(&state->ls_pending),
+	    ("lock pending for %p", state));
+	LIST_FOREACH_SAFE(lock, &state->ls_active, lf_link, nlock) {
+		LIST_REMOVE(lock, lf_link);
+		lf_free_lock(lock);
+	}
+	sx_xlock(&lf_lock_states_lock);
+	LIST_REMOVE(state, ls_link);
+	sx_xunlock(&lf_lock_states_lock);
+	sx_destroy(&state->ls_lock);
+	free(state, M_LOCKF);
 }
 
 /*
