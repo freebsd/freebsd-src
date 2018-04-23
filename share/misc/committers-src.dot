@@ -282,6 +282,7 @@ pkelsey [label="Patrick Kelsey\pkelsey@FreeBSD.org\n2014/05/29"]
 pluknet [label="Sergey Kandaurov\npluknet@FreeBSD.org\n2010/10/05"]
 ps [label="Paul Saab\nps@FreeBSD.org\n2000/02/23"]
 qingli [label="Qing Li\nqingli@FreeBSD.org\n2005/04/13"]
+ram [label="Ram Kishore Vegesna\nram@FreeBSD.org\n2018/04/04"]
 ray [label="Aleksandr Rybalko\nray@FreeBSD.org\n2011/05/25"]
 rdivacky [label="Roman Divacky\nrdivacky@FreeBSD.org\n2008/03/13"]
 remko [label="Remko Lodder\nremko@FreeBSD.org\n2007/02/23"]
@@ -629,6 +630,7 @@ kan -> kib
 
 ken -> asomers
 ken -> chuck
+ken -> ram
 ken -> slm
 
 kib -> ae
@@ -671,6 +673,7 @@ markm -> sheldonh
 
 mav -> ae
 mav -> eugen
+mav -> ram
 
 mdf -> gleb
 
