@@ -47,6 +47,10 @@ options 	INTRNG
 # ARM MPCore timer
 device		mpcore_timer
 
+# DMA support
+device		xdma
+device		pl330
+
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
@@ -80,6 +84,8 @@ device		iicbus
 
 # SPI
 device		spibus
+device		cqspi
+device		n25q
 
 # Ethernet
 device		ether
