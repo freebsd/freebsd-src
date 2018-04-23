@@ -744,7 +744,7 @@ main(int argc, char *argv[])
 			fdsrmax = sl->sl_socket;
 	}
 	fdsr = (fd_set *)calloc(howmany(fdsrmax+1, NFDBITS),
-	    sizeof(fd_mask));
+	    sizeof(*fdsr));
 	if (fdsr == NULL)
 		errx(1, "calloc fd_set");
 
@@ -763,7 +763,7 @@ main(int argc, char *argv[])
 		}
 
 		bzero(fdsr, howmany(fdsrmax+1, NFDBITS) *
-		    sizeof(fd_mask));
+		    sizeof(*fdsr));
 
 		STAILQ_FOREACH(sl, &shead, next) {
 			if (sl->sl_socket != -1 && sl->sl_recv != NULL)
