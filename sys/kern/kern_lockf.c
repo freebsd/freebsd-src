@@ -777,6 +777,12 @@ lf_purgelocks(struct vnode *vp, struct lockf **statep)
 		return;
 	}
 	*statep = NULL;
+	if (LIST_EMPTY(&state->ls_active) && state->ls_threads == 0) {
+		KASSERT(LIST_EMPTY(&state->ls_pending),
+		    ("freeing state with pending locks"));
+		VI_UNLOCK(vp);
+		goto out_free;
+	}
 	state->ls_threads++;
 	VI_UNLOCK(vp);
 
@@ -823,6 +829,7 @@ lf_purgelocks(struct vnode *vp, struct lockf **statep)
 		LIST_REMOVE(lock, lf_link);
 		lf_free_lock(lock);
 	}
+out_free:
 	sx_xlock(&lf_lock_states_lock);
 	LIST_REMOVE(state, ls_link);
 	sx_xunlock(&lf_lock_states_lock);
