@@ -115,7 +115,7 @@ atomic_clear_64(volatile uint64_t *address, uint64_t clearmask)
 static __inline int
 atomic_fcmpset_32(volatile u_int32_t *p, volatile u_int32_t *cmpval, volatile u_int32_t newval)
 {
-	u_int32_t ret;
+	int ret;
 
 	__with_interrupts_disabled(
 	 {
@@ -134,7 +134,7 @@ atomic_fcmpset_32(volatile u_int32_t *p, volatile u_int32_t *cmpval, volatile u_
 static __inline int
 atomic_fcmpset_64(volatile u_int64_t *p, volatile u_int64_t *cmpval, volatile u_int64_t newval)
 {
-	u_int64_t ret;
+	int ret;
 
 	__with_interrupts_disabled(
 	 {
@@ -149,7 +149,7 @@ atomic_fcmpset_64(volatile u_int64_t *p, volatile u_int64_t *cmpval, volatile u_
 	return (ret);
 }
 
-static __inline u_int32_t
+static __inline int
 atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_int32_t newval)
 {
 	int ret;
@@ -166,7 +166,7 @@ atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_in
 	return (ret);
 }
 
-static __inline u_int64_t
+static __inline int
 atomic_cmpset_64(volatile u_int64_t *p, volatile u_int64_t cmpval, volatile u_int64_t newval)
 {
 	int ret;
@@ -296,7 +296,7 @@ atomic_clear_32(volatile uint32_t *address, uint32_t clearmask)
 
 }
 
-static __inline u_int32_t
+static __inline int
 atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_int32_t newval)
 {
 	int done, ras_start = ARM_RAS_START;
