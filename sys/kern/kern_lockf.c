@@ -188,7 +188,6 @@ static void	 lf_print_owner(struct lock_owner *);
  * Locks:
  * (s)		locked by state->ls_lock
  * (S)		locked by lf_lock_states_lock
- * (l)		locked by lf_lock_owners_lock
  * (g)		locked by lf_owner_graph_lock
  * (c)		const until freeing
  */
@@ -201,15 +200,20 @@ struct lock_owner {
 	caddr_t	lo_id;		    /* (c) Id value passed to lf_advlock */
 	pid_t	lo_pid;		    /* (c) Process Id of the lock owner */
 	int	lo_sysid;	    /* (c) System Id of the lock owner */
+	int	lo_hash;	    /* (c) Used to lock the appropriate chain */
 	struct owner_vertex *lo_vertex; /* (g) entry in deadlock graph */
 };
 
 LIST_HEAD(lock_owner_list, lock_owner);
 
+struct lock_owner_chain {
+	struct sx		lock;
+	struct lock_owner_list	list;
+};
+
 static struct sx		lf_lock_states_lock;
 static struct lockf_list	lf_lock_states; /* (S) */
-static struct sx		lf_lock_owners_lock;
-static struct lock_owner_list	lf_lock_owners[LOCK_OWNER_HASH_SIZE]; /* (l) */
+static struct lock_owner_chain	lf_lock_owners[LOCK_OWNER_HASH_SIZE];
 
 /*
  * Structures for deadlock detection.
@@ -283,9 +287,10 @@ lf_init(void *dummy)
 	sx_init(&lf_lock_states_lock, "lock states lock");
 	LIST_INIT(&lf_lock_states);
 
-	sx_init(&lf_lock_owners_lock, "lock owners lock");
-	for (i = 0; i < LOCK_OWNER_HASH_SIZE; i++)
-		LIST_INIT(&lf_lock_owners[i]);
+	for (i = 0; i < LOCK_OWNER_HASH_SIZE; i++) {
+		sx_init(&lf_lock_owners[i].lock, "lock owners lock");
+		LIST_INIT(&lf_lock_owners[i].list);
+	}
 
 	sx_init(&lf_owner_graph_lock, "owner graph lock");
 	graph_init(&lf_owner_graph);
@@ -342,9 +347,9 @@ lf_alloc_lock(struct lock_owner *lo)
 		printf("Allocated lock %p\n", lf);
 #endif
 	if (lo) {
-		sx_xlock(&lf_lock_owners_lock);
+		sx_xlock(&lf_lock_owners[lo->lo_hash].lock);
 		lo->lo_refs++;
-		sx_xunlock(&lf_lock_owners_lock);
+		sx_xunlock(&lf_lock_owners[lo->lo_hash].lock);
 		lf->lf_owner = lo;
 	}
 
@@ -354,6 +359,7 @@ lf_alloc_lock(struct lock_owner *lo)
 static int
 lf_free_lock(struct lockf_entry *lock)
 {
+	struct sx *chainlock;
 
 	KASSERT(lock->lf_refs > 0, ("lockf_entry negative ref count %p", lock));
 	if (--lock->lf_refs > 0)
@@ -369,7 +375,8 @@ lf_free_lock(struct lockf_entry *lock)
 		    ("freeing lock with dependencies"));
 		KASSERT(LIST_EMPTY(&lock->lf_inedges),
 		    ("freeing lock with dependants"));
-		sx_xlock(&lf_lock_owners_lock);
+		chainlock = &lf_lock_owners[lo->lo_hash].lock;
+		sx_xlock(chainlock);
 		KASSERT(lo->lo_refs > 0, ("lock owner refcount"));
 		lo->lo_refs--;
 		if (lo->lo_refs == 0) {
@@ -391,7 +398,7 @@ lf_free_lock(struct lockf_entry *lock)
 				printf("Freed lock owner %p\n", lo);
 #endif
 		}
-		sx_unlock(&lf_lock_owners_lock);
+		sx_unlock(chainlock);
 	}
 	if ((lock->lf_flags & F_REMOTE) && lock->lf_vnode) {
 		vrele(lock->lf_vnode);
@@ -494,8 +501,8 @@ retry_setlock:
 	 * if this is the first time we have seen this owner.
 	 */
 	hash = lf_hash_owner(id, fl, flags);
-	sx_xlock(&lf_lock_owners_lock);
-	LIST_FOREACH(lo, &lf_lock_owners[hash], lo_link)
+	sx_xlock(&lf_lock_owners[hash].lock);
+	LIST_FOREACH(lo, &lf_lock_owners[hash].list, lo_link)
 		if (lf_owner_matches(lo, id, fl, flags))
 			break;
 	if (!lo) {
@@ -514,6 +521,7 @@ retry_setlock:
 		lo->lo_refs = 1;
 		lo->lo_flags = flags;
 		lo->lo_id = id;
+		lo->lo_hash = hash;
 		if (flags & F_REMOTE) {
 			lo->lo_pid = fl->l_pid;
 			lo->lo_sysid = fl->l_sysid;
@@ -535,7 +543,7 @@ retry_setlock:
 		}
 #endif
 
-		LIST_INSERT_HEAD(&lf_lock_owners[hash], lo, lo_link);
+		LIST_INSERT_HEAD(&lf_lock_owners[hash].list, lo, lo_link);
 	} else {
 		/*
 		 * We have seen this lock owner before, increase its
@@ -544,7 +552,7 @@ retry_setlock:
 		 */
 		lo->lo_refs++;
 	}
-	sx_xunlock(&lf_lock_owners_lock);
+	sx_xunlock(&lf_lock_owners[hash].lock);
 
 	/*
 	 * Create the lockf structure. We initialise the lf_owner
@@ -2016,12 +2024,13 @@ lf_countlocks(int sysid)
 	int count;
 
 	count = 0;
-	sx_xlock(&lf_lock_owners_lock);
-	for (i = 0; i < LOCK_OWNER_HASH_SIZE; i++)
-		LIST_FOREACH(lo, &lf_lock_owners[i], lo_link)
+	for (i = 0; i < LOCK_OWNER_HASH_SIZE; i++) {
+		sx_xlock(&lf_lock_owners[i].lock);
+		LIST_FOREACH(lo, &lf_lock_owners[i].list, lo_link)
 			if (lo->lo_sysid == sysid)
 				count += lo->lo_refs;
-	sx_xunlock(&lf_lock_owners_lock);
+		sx_xunlock(&lf_lock_owners[i].lock);
+	}
 
 	return (count);
 }
