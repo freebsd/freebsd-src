@@ -296,22 +296,49 @@ SYSCTL_UINT(_debug_malloc, OID_AUTO, zone_offset, CTLFLAG_RDTUN,
     &zone_offset, 0, "Separate malloc types by examining the "
     "Nth character in the malloc type short description.");
 
-static u_int
-mtp_get_subzone(const char *desc)
+static void
+mtp_set_subzone(struct malloc_type *mtp)
 {
+	struct malloc_type_internal *mtip;
+	const char *desc;
 	size_t len;
 	u_int val;
 
+	mtip = mtp->ks_handle;
+	desc = mtp->ks_shortdesc;
 	if (desc == NULL || (len = strlen(desc)) == 0)
-		return (0);
-	val = desc[zone_offset % len];
-	return (val % numzones);
+		val = 0;
+	else
+		val = desc[zone_offset % len];
+	mtip->mti_zone = (val % numzones);
+}
+
+static inline u_int
+mtp_get_subzone(struct malloc_type *mtp)
+{
+	struct malloc_type_internal *mtip;
+
+	mtip = mtp->ks_handle;
+
+	KASSERT(mtip->mti_zone < numzones,
+	    ("mti_zone %u out of range %d",
+	    mtip->mti_zone, numzones));
+	return (mtip->mti_zone);
 }
 #elif MALLOC_DEBUG_MAXZONES == 0
 #error "MALLOC_DEBUG_MAXZONES must be positive."
 #else
+static void
+mtp_set_subzone(struct malloc_type *mtp)
+{
+	struct malloc_type_internal *mtip;
+
+	mtip = mtp->ks_handle;
+	mtip->mti_zone = 0;
+}
+
 static inline u_int
-mtp_get_subzone(const char *desc)
+mtp_get_subzone(struct malloc_type *mtp)
 {
 
 	return (0);
@@ -521,7 +548,6 @@ void *
 malloc(size_t size, struct malloc_type *mtp, int flags)
 {
 	int indx;
-	struct malloc_type_internal *mtip;
 	caddr_t va;
 	uma_zone_t zone;
 #if defined(DEBUG_REDZONE)
@@ -534,14 +560,10 @@ malloc(size_t size, struct malloc_type *mtp, int flags)
 #endif
 
 	if (size <= kmem_zmax) {
-		mtip = mtp->ks_handle;
 		if (size & KMEM_ZMASK)
 			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
 		indx = kmemsize[size >> KMEM_ZSHIFT];
-		KASSERT(mtip->mti_zone < numzones,
-		    ("mti_zone %u out of range %d",
-		    mtip->mti_zone, numzones));
-		zone = kmemzones[indx].kz_zone[mtip->mti_zone];
+		zone = kmemzones[indx].kz_zone[mtp_get_subzone(mtp)];
 #ifdef MALLOC_PROFILE
 		krequests[size >> KMEM_ZSHIFT]++;
 #endif
@@ -571,7 +593,6 @@ malloc_domain(size_t size, struct malloc_type *mtp, int domain,
     int flags)
 {
 	int indx;
-	struct malloc_type_internal *mtip;
 	caddr_t va;
 	uma_zone_t zone;
 #if defined(DEBUG_REDZONE)
@@ -583,14 +604,10 @@ malloc_domain(size_t size, struct malloc_type *mtp, int domain,
 		return (va);
 #endif
 	if (size <= kmem_zmax) {
-		mtip = mtp->ks_handle;
 		if (size & KMEM_ZMASK)
 			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
 		indx = kmemsize[size >> KMEM_ZSHIFT];
-		KASSERT(mtip->mti_zone < numzones,
-		    ("mti_zone %u out of range %d",
-		    mtip->mti_zone, numzones));
-		zone = kmemzones[indx].kz_zone[mtip->mti_zone];
+		zone = kmemzones[indx].kz_zone[mtp_get_subzone(mtp)];
 #ifdef MALLOC_PROFILE
 		krequests[size >> KMEM_ZSHIFT]++;
 #endif
@@ -973,7 +990,7 @@ malloc_init(void *data)
 
 	mtip = uma_zalloc(mt_zone, M_WAITOK | M_ZERO);
 	mtp->ks_handle = mtip;
-	mtip->mti_zone = mtp_get_subzone(mtp->ks_shortdesc);
+	mtp_set_subzone(mtp);
 
 	mtx_lock(&malloc_mtx);
 	mtp->ks_next = kmemstatistics;
