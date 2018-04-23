@@ -39,11 +39,11 @@
 #ifndef _OCS_OS_H
 #define _OCS_OS_H
 
-typedef struct ocs_softc ocs_t;
-
 /***************************************************************************
  * OS specific includes
  */
+#include "opt_stack.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -77,6 +77,8 @@ typedef struct ocs_softc ocs_t;
 #include <sys/sysctl.h>
 #include <sys/ioccom.h>
 #include <sys/ctype.h>
+
+#include <sys/linker.h>		/* for debug of memory allocations */
 
 /* OCS_OS_MAX_ISR_TIME_MSEC -  maximum time driver code should spend in an interrupt
  * or kernel thread context without yielding
@@ -151,6 +153,8 @@ typedef struct ocs_softc ocs_t;
 /***************************************************************************
  * Platform specific operations
  */
+
+typedef struct ocs_softc ocs_t;
 
 /**
  * @ingroup os

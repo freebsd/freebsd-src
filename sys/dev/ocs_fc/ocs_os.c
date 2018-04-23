@@ -37,9 +37,6 @@
  */
 
 #include "ocs.h"
-#include <sys/sysctl.h>
-#include <sys/malloc.h>
-#include <sys/linker.h>		/* for debug of memory allocations */
 
 static MALLOC_DEFINE(M_OCS, "OCS", "OneCore Storage data");
 
@@ -855,11 +852,13 @@ void ocs_intr_enable(ocs_os_handle_t os)
 
 void ocs_print_stack(void)
 {
+#if defined(STACK)
 	struct stack st;
 
 	stack_zero(&st);
 	stack_save(&st);
 	stack_print(&st);
+#endif
 }
 
 void ocs_abort(void)
