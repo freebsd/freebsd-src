@@ -724,10 +724,11 @@ retry_setlock:
 	VI_LOCK(vp);
 
 	state->ls_threads--;
-	wakeup(state);
 	if (LIST_EMPTY(&state->ls_active) && state->ls_threads == 0) {
 		KASSERT(LIST_EMPTY(&state->ls_pending),
 		    ("freeable state with pending locks"));
+	} else {
+		wakeup(state);
 	}
 
 	VI_UNLOCK(vp);
