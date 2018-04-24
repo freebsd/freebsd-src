@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2017
+.Dd April 24, 2018
 .Dt OHCI 4
 .Os
 .Sh NAME
@@ -59,16 +59,14 @@ NVIDIA nForce3
 .It
 Sun PCIO-2 (RIO USB)
 .El
-.Sh MIB Variables
-The
-.Nm
-driver exposes the following variables in the
-.Va hw.usb.ohci
-branch of the
-.Xr sysctl 3
-MIB:
-.Bl -tag -width ".Va debug"
-.It Va debug
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.ohci.debug
 Debug output level, where 0 is debugging disabled and larger values increase
 debug message verbosity.
 Default is 0.
