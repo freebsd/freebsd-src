@@ -97,7 +97,7 @@ copyout_init_tramp(void)
 	    (uintptr_t)suword_fast + setidt_disp);
 }
 
-static int
+int
 cp_slow0(vm_offset_t uva, size_t len, bool write,
     void (*f)(vm_offset_t, void *), void *arg)
 {
