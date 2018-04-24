@@ -73,8 +73,17 @@ struct vm_pagequeue {
 	const char	* const pq_name;
 } __aligned(CACHE_LINE_SIZE);
 
-#include <sys/pidctrl.h>
+#ifndef VM_BATCHQUEUE_SIZE
+#define	VM_BATCHQUEUE_SIZE	7
+#endif
+
+struct vm_batchqueue {
+	vm_page_t	bq_pa[VM_BATCHQUEUE_SIZE];
+	int		bq_cnt;
+} __aligned(CACHE_LINE_SIZE);
+
 #include <vm/uma.h>
+#include <sys/pidctrl.h>
 struct sysctl_oid;
 
 /*
@@ -82,12 +91,12 @@ struct sysctl_oid;
  * and accounting.
  *
  * Lock Key:
- * f   vmd_free_mtx
- * p   vmd_pageout_mtx
- * d   vm_domainset_lock
- * a   atomic
- * c   const after boot
- * q   page queue lock
+ * f	vmd_free_mtx
+ * p	vmd_pageout_mtx
+ * d	vm_domainset_lock
+ * a	atomic
+ * c	const after boot
+ * q	page queue lock
 */
 struct vm_domain {
 	struct vm_pagequeue vmd_pagequeues[PQ_COUNT];
@@ -107,8 +116,9 @@ struct vm_domain {
 	boolean_t vmd_oom;
 	int vmd_oom_seq;
 	int vmd_last_active_scan;
-	struct vm_page vmd_markers[PQ_COUNT]; /* markers for queue scans */
+	struct vm_page vmd_markers[PQ_COUNT]; /* (q) markers for queue scans */
 	struct vm_page vmd_inacthead; /* marker for LRU-defeating insertions */
+	struct vm_page vmd_clock[2]; /* markers for active queue scan */
 
 	int vmd_pageout_wanted;		/* (a, p) pageout daemon wait channel */
 	int vmd_pageout_pages_needed;	/* (d) page daemon waiting for pages? */
@@ -144,6 +154,7 @@ extern struct vm_domain vm_dom[MAXMEMDOM];
 #define	vm_pagequeue_assert_locked(pq)	mtx_assert(&(pq)->pq_mutex, MA_OWNED)
 #define	vm_pagequeue_lock(pq)		mtx_lock(&(pq)->pq_mutex)
 #define	vm_pagequeue_lockptr(pq)	(&(pq)->pq_mutex)
+#define	vm_pagequeue_trylock(pq)	mtx_trylock(&(pq)->pq_mutex)
 #define	vm_pagequeue_unlock(pq)		mtx_unlock(&(pq)->pq_mutex)
 
 #define	vm_domain_free_assert_locked(n)					\
@@ -154,6 +165,8 @@ extern struct vm_domain vm_dom[MAXMEMDOM];
 	    mtx_lock(vm_domain_free_lockptr((d)))
 #define	vm_domain_free_lockptr(d)					\
 	    (&(d)->vmd_free_mtx)
+#define	vm_domain_free_trylock(d)					\
+	    mtx_trylock(vm_domain_free_lockptr((d)))
 #define	vm_domain_free_unlock(d)					\
 	    mtx_unlock(vm_domain_free_lockptr((d)))
 
@@ -172,13 +185,38 @@ static __inline void
 vm_pagequeue_cnt_add(struct vm_pagequeue *pq, int addend)
 {
 
-#ifdef notyet
 	vm_pagequeue_assert_locked(pq);
-#endif
 	pq->pq_cnt += addend;
 }
 #define	vm_pagequeue_cnt_inc(pq)	vm_pagequeue_cnt_add((pq), 1)
 #define	vm_pagequeue_cnt_dec(pq)	vm_pagequeue_cnt_add((pq), -1)
+
+static inline void
+vm_batchqueue_init(struct vm_batchqueue *bq)
+{
+
+	bq->bq_cnt = 0;
+}
+
+static inline bool
+vm_batchqueue_insert(struct vm_batchqueue *bq, vm_page_t m)
+{
+
+	if (bq->bq_cnt < nitems(bq->bq_pa)) {
+		bq->bq_pa[bq->bq_cnt++] = m;
+		return (true);
+	}
+	return (false);
+}
+
+static inline vm_page_t
+vm_batchqueue_pop(struct vm_batchqueue *bq)
+{
+
+	if (bq->bq_cnt == 0)
+		return (NULL);
+	return (bq->bq_pa[--bq->bq_cnt]);
+}
 
 void vm_domain_set(struct vm_domain *vmd);
 void vm_domain_clear(struct vm_domain *vmd);

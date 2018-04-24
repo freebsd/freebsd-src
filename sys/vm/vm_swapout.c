@@ -399,8 +399,15 @@ vm_daemon(void)
 		swapout_flags = vm_pageout_req_swapout;
 		vm_pageout_req_swapout = 0;
 		mtx_unlock(&vm_daemon_mtx);
-		if (swapout_flags)
+		if (swapout_flags != 0) {
+			/*
+			 * Drain the per-CPU page queue batches as a deadlock
+			 * avoidance measure.
+			 */
+			if ((swapout_flags & VM_SWAP_NORMAL) != 0)
+				vm_page_drain_pqbatch();
 			swapout_procs(swapout_flags);
+		}
 
 		/*
 		 * scan the processes for exceeding their rlimits or if
