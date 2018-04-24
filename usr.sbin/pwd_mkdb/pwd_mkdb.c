@@ -164,6 +164,8 @@ main(int argc, char *argv[])
 
 	if (argc != 1 || (username && (*username == '+' || *username == '-')))
 		usage();
+	if (lflag)
+		warnx("legacy (v3) database format support is deprecated");
 
 	/*
 	 * This could be changed to allow the user to interrupt.
