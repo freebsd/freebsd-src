@@ -1057,100 +1057,6 @@ sofree(struct socket *so)
 }
 
 /*
- * Let socket in same load balance group (same port and address)
- * inherit pending sockets of the closing socket.
- *
- * "so_inh" will inherit sockets from "so"
- */
-void
-soinherit(struct socket *so, struct socket *so_inh)
-{
-	TAILQ_HEAD(, socket) comp, incomp;
-	struct socket *sp, *head, *head_inh;
-	int qlen, incqlen;
-
-	KASSERT(so->so_options & SO_ACCEPTCONN,
-	    ("so does not accept connection"));
-	KASSERT(so_inh->so_options & SO_ACCEPTCONN,
-	    ("so_inh does not accept connection"));
-
-
-restart:
-	SOCK_LOCK(so);
-	if ((head = so->so_listen) != NULL &&
-	    __predict_false(SOLISTEN_TRYLOCK(head) == 0)) {
-		SOCK_UNLOCK(so);
-		goto restart;
-	}
-
-restart_inh:
-	SOCK_LOCK(so_inh);
-	if ((head_inh = so_inh->so_listen) != NULL &&
-	    __predict_false(SOLISTEN_TRYLOCK(head_inh) == 0)) {
-		SOCK_UNLOCK(so_inh);
-		goto restart_inh;
-	}
-
-	TAILQ_INIT(&comp);
-	TAILQ_INIT(&incomp);
-
-	/*
-	 * Save completed queue and incompleted queue
-	 */
-	TAILQ_CONCAT(&comp, &so->sol_comp, so_list);
-	qlen = so->sol_qlen;
-	so->sol_qlen = 0;
-
-	TAILQ_CONCAT(&incomp, &so->sol_incomp, so_list);
-	incqlen = so->sol_incqlen;
-	so->sol_incqlen = 0;
-
-	/*
-	 * Append the saved completed queue and incompleted
-	 * queue to the socket inherits them.
-	 *
-	 * XXX
-	 * This may temporarily break the inheriting socket's
-	 * so_qlimit.
-	 */
-	TAILQ_FOREACH(sp, &comp, so_list) {
-		refcount_acquire(&so_inh->so_count);
-		sp->so_listen = so_inh;
-		crfree(sp->so_cred);
-		sp->so_cred = crhold(so_inh->so_cred);
-	}
-
-	TAILQ_FOREACH(sp, &incomp, so_list) {
-		refcount_acquire(&so_inh->so_count);
-		sp->so_listen = so_inh;
-		crfree(sp->so_cred);
-		sp->so_cred = crhold(so_inh->so_cred);
-	}
-
-	TAILQ_CONCAT(&so_inh->sol_comp, &comp, so_list);
-	so_inh->sol_qlen += qlen;
-
-	TAILQ_CONCAT(&so_inh->sol_incomp, &incomp, so_list);
-	so_inh->sol_incqlen += incqlen;
-
-	SOCK_UNLOCK(so);
-	if(head != NULL)
-		SOLISTEN_UNLOCK(head);
-
-	SOCK_UNLOCK(so_inh);
-	if(head_inh != NULL) {
-		if(qlen > 0) {
-			/*
-			 * "New" connections have arrived
-			 */
-			solisten_wakeup(head_inh);
-		} else {
-			SOLISTEN_UNLOCK(head_inh);
-		}
-	}
-}
-
-/*
  * Close a socket on last file table reference removal.  Initiate disconnect
  * if connected.  Free socket when disconnect complete.
  *
@@ -2870,7 +2776,6 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 		case SO_BROADCAST:
 		case SO_REUSEADDR:
 		case SO_REUSEPORT:
-		case SO_REUSEPORT_LB:
 		case SO_OOBINLINE:
 		case SO_TIMESTAMP:
 		case SO_BINTIME:
@@ -3089,7 +2994,6 @@ sogetopt(struct socket *so, struct sockopt *sopt)
 		case SO_KEEPALIVE:
 		case SO_REUSEADDR:
 		case SO_REUSEPORT:
-		case SO_REUSEPORT_LB:
 		case SO_BROADCAST:
 		case SO_OOBINLINE:
 		case SO_ACCEPTCONN:

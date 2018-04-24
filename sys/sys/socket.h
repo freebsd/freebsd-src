@@ -147,9 +147,6 @@ typedef	__uintptr_t	uintptr_t;
 #define	SO_NO_OFFLOAD	0x4000		/* socket cannot be offloaded */
 #define	SO_NO_DDP	0x8000		/* disable direct data placement */
 
-// XXX: so_options was only 16 bit, now globally increased to 32 bit
-#define	SO_REUSEPORT_LB	0x00010000 /* reuse with load balancing */
-
 /*
  * Additional options, not kept in so_options.
  */

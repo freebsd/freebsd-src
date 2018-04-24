@@ -84,7 +84,7 @@ struct socket {
 	struct selinfo	so_rdsel;	/* (b/cr) for so_rcv/so_comp */
 	struct selinfo	so_wrsel;	/* (b/cs) for so_snd */
 	short	so_type;		/* (a) generic type, see socket.h */
-    int		so_options;		/* (b) from socket call, see socket.h */
+	short	so_options;		/* (b) from socket call, see socket.h */
 	short	so_linger;		/* time to linger close(2) */
 	short	so_state;		/* (b) internal state flags SS_* */
 	void	*so_pcb;		/* protocol control block */
@@ -399,7 +399,6 @@ int	socreate(int dom, struct socket **aso, int type, int proto,
 int	sodisconnect(struct socket *so);
 struct	sockaddr *sodupsockaddr(const struct sockaddr *sa, int mflags);
 void	sofree(struct socket *so);
-void	soinherit(struct socket *so, struct socket *so_inh);
 void	sohasoutofband(struct socket *so);
 int	solisten(struct socket *so, int backlog, struct thread *td);
 void	solisten_proto(struct socket *so, int backlog);
