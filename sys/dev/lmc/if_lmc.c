@@ -4547,6 +4547,7 @@ fbsd_attach(device_t dev)
 
   /* Start the card and attach a kernel interface and line protocol. */
   if ((error = attach_card(sc, ""))) detach_card(sc);
+  gone_in_dev(dev, 12, "lmc(4) driver");
   return error;
   }
 
