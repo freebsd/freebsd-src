@@ -718,13 +718,24 @@ kassert_panic(const char *fmt, ...)
 	static char buf[256];
 	va_list ap;
 
-	/* If we already panic'd, don't create a double-fault. */
-	if (panicstr != NULL && kassert_suppress_in_panic)
-		return;
-
 	va_start(ap, fmt);
 	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
+
+	/*
+	 * If we are suppressing secondary panics, log the warning but do not
+	 * re-enter panic/kdb.
+	 */
+	if (panicstr != NULL && kassert_suppress_in_panic) {
+		if (kassert_do_log) {
+			printf("KASSERT failed: %s\n", buf);
+#ifdef KDB
+			if (trace_all_panics && trace_on_panic)
+				kdb_backtrace();
+#endif
+		}
+		return;
+	}
 
 	/*
 	 * panic if we're not just warning, or if we've exceeded
