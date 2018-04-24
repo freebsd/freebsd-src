@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Architectures with a user-visible breakpoint().
  */
-#if defined(__amd64__) || defined(__i386__) || defined(__mips__) ||		\
+#if defined(__amd64__) || defined(__i386__) || defined(__mips__) ||	\
     defined(__sparc64__)
 #define	HAVE_BREAKPOINT
 #endif
@@ -68,9 +68,9 @@ __FBSDID("$FreeBSD$");
 #elif defined(__mips__)
 #define	SKIP_BREAK(reg)	((reg)->r_regs[PC] += 4)
 #elif defined(__sparc64__)
-#define	SKIP_BREAK(reg)	do {							\
-	(reg)->r_tpc = (reg)->r_tnpc + 4;					\
-	(reg)->r_tnpc += 8;							\
+#define	SKIP_BREAK(reg)	do {						\
+	(reg)->r_tpc = (reg)->r_tnpc + 4;				\
+	(reg)->r_tnpc += 8;						\
 } while (0)
 #endif
 #endif
