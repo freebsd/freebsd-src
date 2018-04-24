@@ -105,7 +105,7 @@ struct owner_graph;
 #define SELF	0x1
 #define OTHERS	0x2
 static void	 lf_init(void *);
-static int	 lf_hash_owner(caddr_t, struct flock *, int);
+static int	 lf_hash_owner(caddr_t, struct vnode *, struct flock *, int);
 static int	 lf_owner_matches(struct lock_owner *, caddr_t, struct flock *,
     int);
 static struct lockf_entry *
@@ -301,7 +301,7 @@ SYSINIT(lf_init, SI_SUB_LOCK, SI_ORDER_FIRST, lf_init, NULL);
  * Generate a hash value for a lock owner.
  */
 static int
-lf_hash_owner(caddr_t id, struct flock *fl, int flags)
+lf_hash_owner(caddr_t id, struct vnode *vp, struct flock *fl, int flags)
 {
 	uint32_t h;
 
@@ -311,9 +311,7 @@ lf_hash_owner(caddr_t id, struct flock *fl, int flags)
 	} else if (flags & F_FLOCK) {
 		h = ((uintptr_t) id) >> 7;
 	} else {
-		struct proc *p = (struct proc *) id;
-		h = HASHSTEP(0, p->p_pid);
-		h = HASHSTEP(h, 0);
+		h = ((uintptr_t) vp) >> 7;
 	}
 
 	return (h % LOCK_OWNER_HASH_SIZE);
@@ -500,7 +498,7 @@ retry_setlock:
 	 * Map our arguments to an existing lock owner or create one
 	 * if this is the first time we have seen this owner.
 	 */
-	hash = lf_hash_owner(id, fl, flags);
+	hash = lf_hash_owner(id, vp, fl, flags);
 	sx_xlock(&lf_lock_owners[hash].lock);
 	LIST_FOREACH(lo, &lf_lock_owners[hash].list, lo_link)
 		if (lf_owner_matches(lo, id, fl, flags))
