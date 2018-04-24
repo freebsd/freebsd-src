@@ -216,29 +216,29 @@ ptrace_set_pc(struct thread *td, unsigned long addr)
 }
 
 static int
-ptrace_read_int(struct thread *td, off_t addr, int *v)
+ptrace_read_int(struct thread *td, uintptr_t addr, int *v)
 {
 
 	if (proc_readmem(td, td->td_proc, addr, v, sizeof(*v)) != sizeof(*v))
-		return (ENOMEM);
+		return (EFAULT);
 	return (0);
 }
 
 static int
-ptrace_write_int(struct thread *td, off_t addr, int v)
+ptrace_write_int(struct thread *td, uintptr_t addr, int v)
 {
 
 	if (proc_writemem(td, td->td_proc, addr, &v, sizeof(v)) != sizeof(v))
-		return (ENOMEM);
+		return (EFAULT);
 	return (0);
 }
 
 int
 ptrace_single_step(struct thread *td)
 {
-	unsigned va;
+	uintptr_t va;
 	struct trapframe *locr0 = td->td_frame;
-	int i;
+	int error;
 	int bpinstr = MIPS_BREAK_SSTEP;
 	int curinstr;
 	struct proc *p;
@@ -248,46 +248,52 @@ ptrace_single_step(struct thread *td)
 	/*
 	 * Fetch what's at the current location.
 	 */
-	ptrace_read_int(td,  (off_t)locr0->pc, &curinstr);
+	error = ptrace_read_int(td, locr0->pc, &curinstr);
+	if (error)
+		goto out;
+
+	CTR3(KTR_PTRACE,
+	    "ptrace_single_step: tid %d, current instr at %#lx: %#08x",
+	    td->td_tid, locr0->pc, curinstr);
 
 	/* compute next address after current location */
-	if(curinstr != 0) {
+	if (locr0->cause & MIPS_CR_BR_DELAY) {
 		va = MipsEmulateBranch(locr0, locr0->pc, locr0->fsr,
 		    (uintptr_t)&curinstr);
 	} else {
 		va = locr0->pc + 4;
 	}
 	if (td->td_md.md_ss_addr) {
-		printf("SS %s (%d): breakpoint already set at %x (va %x)\n",
+		printf("SS %s (%d): breakpoint already set at %lx (va %lx)\n",
 		    p->p_comm, p->p_pid, td->td_md.md_ss_addr, va); /* XXX */
-		PROC_LOCK(p);
-		return (EFAULT);
+		error = EFAULT;
+		goto out;
 	}
 	td->td_md.md_ss_addr = va;
 	/*
 	 * Fetch what's at the current location.
 	 */
-	ptrace_read_int(td, (off_t)va, &td->td_md.md_ss_instr);
+	error = ptrace_read_int(td, (off_t)va, &td->td_md.md_ss_instr);
+	if (error)
+		goto out;
 
 	/*
 	 * Store breakpoint instruction at the "next" location now.
 	 */
-	i = ptrace_write_int (td, va, bpinstr);
+	error = ptrace_write_int(td, va, bpinstr);
 
 	/*
-	 * The sync'ing of I & D caches is done by procfs_domem()
-	 * through procfs_rwmem().
+	 * The sync'ing of I & D caches is done by proc_rwmem()
+	 * through proc_writemem().
 	 */
 
+out:
 	PROC_LOCK(p);
-	if (i < 0)
-		return (EFAULT);
-#if 0
-	printf("SS %s (%d): breakpoint set at %x: %x (pc %x) br %x\n",
-	    p->p_comm, p->p_pid, p->p_md.md_ss_addr,
-	    p->p_md.md_ss_instr, locr0->pc, curinstr); /* XXX */
-#endif
-	return (0);
+	if (error == 0)
+		CTR3(KTR_PTRACE,
+		    "ptrace_single_step: tid %d, break set at %#lx: (%#08x)",
+		    td->td_tid, va, td->td_md.md_ss_instr); 
+	return (error);
 }
 
 
@@ -471,8 +477,8 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 int
 ptrace_clear_single_step(struct thread *td)
 {
-	int i;
 	struct proc *p;
+	int error;
 
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -482,12 +488,19 @@ ptrace_clear_single_step(struct thread *td)
 	/*
 	 * Restore original instruction and clear BP
 	 */
-	i = ptrace_write_int (td, td->td_md.md_ss_addr, td->td_md.md_ss_instr);
+	PROC_UNLOCK(p);
+	CTR3(KTR_PTRACE,
+	    "ptrace_clear_single_step: tid %d, restore instr at %#lx: %#08x",
+	    td->td_tid, td->td_md.md_ss_addr, td->td_md.md_ss_instr);
+	error = ptrace_write_int(td, td->td_md.md_ss_addr,
+	    td->td_md.md_ss_instr);
+	PROC_LOCK(p);
 
-	/* The sync'ing of I & D caches is done by procfs_domem(). */
+	/* The sync'ing of I & D caches is done by proc_rwmem(). */
 
-	if (i < 0) {
-		log(LOG_ERR, "SS %s %d: can't restore instruction at %x: %x\n",
+	if (error != 0) {
+		log(LOG_ERR,
+		    "SS %s %d: can't restore instruction at %lx: %x\n",
 		    p->p_comm, p->p_pid, td->td_md.md_ss_addr,
 		    td->td_md.md_ss_instr);
 	}
