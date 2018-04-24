@@ -612,7 +612,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			 * will never clear these options after setting them.
 			 */
 			if ((last->inp_socket->so_options &
-			    (SO_REUSEPORT|SO_REUSEPORT_LB|SO_REUSEADDR)) == 0)
+			    (SO_REUSEPORT|SO_REUSEADDR)) == 0)
 				break;
 		}
 
