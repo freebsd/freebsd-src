@@ -41,6 +41,7 @@ SUBDIR=	alias \
 	elfdump \
 	enigma \
 	env \
+	etdump \
 	expand \
 	false \
 	fetch \
