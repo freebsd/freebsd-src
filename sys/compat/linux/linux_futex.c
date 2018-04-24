@@ -273,14 +273,6 @@ static int handle_futex_death(struct linux_emuldata *, uint32_t *,
 static int fetch_robust_entry(struct linux_robust_list **,
     struct linux_robust_list **, unsigned int *);
 
-/* support.s */
-int futex_xchgl(int oparg, uint32_t *uaddr, int *oldval);
-int futex_addl(int oparg, uint32_t *uaddr, int *oldval);
-int futex_orl(int oparg, uint32_t *uaddr, int *oldval);
-int futex_andl(int oparg, uint32_t *uaddr, int *oldval);
-int futex_xorl(int oparg, uint32_t *uaddr, int *oldval);
-
-
 static int
 futex_copyin_timeout(int op, struct l_timespec *luts, int clockrt,
     struct timespec *ts)
