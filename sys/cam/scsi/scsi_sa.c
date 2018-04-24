@@ -3453,12 +3453,13 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			break;
 		}
 		/*
-		 * If this was just EOM/EOP, Filemark, Setmark or ILI detected
-		 * on a non read/write command, we assume it's not an error
-		 * and propagate the residule and return.
+		 * If this was just EOM/EOP, Filemark, Setmark, ILI or
+		 * PEW detected on a non read/write command, we assume
+		 * it's not an error and propagate the residual and return.
 		 */
-		if ((aqvalid && asc == 0 && ascq > 0 && ascq <= 5) ||
-		    (aqvalid == 0 && sense_key == SSD_KEY_NO_SENSE)) {
+		if ((aqvalid && asc == 0 && ((ascq > 0 && ascq <= 5)
+		  || (ascq == 0x07)))
+		 || (aqvalid == 0 && sense_key == SSD_KEY_NO_SENSE)) {
 			csio->resid = resid;
 			QFRLS(ccb);
 			return (0);
