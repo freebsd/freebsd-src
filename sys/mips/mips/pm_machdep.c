@@ -260,6 +260,7 @@ ptrace_single_step(struct thread *td)
 	if (td->td_md.md_ss_addr) {
 		printf("SS %s (%d): breakpoint already set at %x (va %x)\n",
 		    p->p_comm, p->p_pid, td->td_md.md_ss_addr, va); /* XXX */
+		PROC_LOCK(p);
 		return (EFAULT);
 	}
 	td->td_md.md_ss_addr = va;
