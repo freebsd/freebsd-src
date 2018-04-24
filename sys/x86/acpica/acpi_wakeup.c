@@ -79,6 +79,7 @@ CTASSERT(sizeof(wakecode) < PAGE_SIZE - 1024);
 
 extern int		acpi_resume_beep;
 extern int		acpi_reset_video;
+extern int		acpi_susp_deep_bounce;
 
 #ifdef SMP
 extern struct susppcb	**susppcbs;
@@ -263,6 +264,9 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		 */
 		PTD[KPTDI] = PTD[LOWPTDI];
 #endif
+
+		if (acpi_susp_deep_bounce)
+			resumectx(pcb);
 
 		/* Call ACPICA to enter the desired sleep state */
 		if (state == ACPI_STATE_S4 && sc->acpi_s4bios)
