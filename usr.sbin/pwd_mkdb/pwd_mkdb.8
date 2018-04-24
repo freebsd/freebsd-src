@@ -28,7 +28,7 @@
 .\"	@(#)pwd_mkdb.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd February 5, 2014
+.Dd April 24, 2018
 .Dt PWD_MKDB 8
 .Os
 .Sh NAME
@@ -129,6 +129,11 @@ which enables generation of legacy format
 .Pq v3
 entries.
 The legacy format entries are endianness dependent.
+The
+.Fl l
+option is deprecated and is not present in
+.Fx 12.0
+and later.
 .Pp
 The following options may be specified and will affect the
 generation of legacy entries.
