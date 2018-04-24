@@ -1426,7 +1426,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	/* read out the number of used cache elements */
     case SIOCGWLCITEM:
 	WL_LOCK(sc);
-	ifr_data_get_ptr(ifr) = (caddr_t) sc->w_sigitems;
+	ifr->ifr_ifru.ifru_data = (caddr_t) sc->w_sigitems;
 	WL_UNLOCK(sc);
 	break;
 
