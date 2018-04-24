@@ -49,8 +49,9 @@ __FBSDID("$FreeBSD$");
 static int
 spibus_probe(device_t dev)
 {
-	device_set_desc(dev, "spibus bus");
-	return (BUS_PROBE_GENERIC);
+
+	device_set_desc(dev, "SPI bus");
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -70,16 +71,11 @@ spibus_attach(device_t dev)
 static int
 spibus_detach(device_t dev)
 {
-	int err, ndevs, i;
-	device_t *devlist;
+	int err;
 
 	if ((err = bus_generic_detach(dev)) != 0)
 		return (err);
-	if ((err = device_get_children(dev, &devlist, &ndevs)) != 0)
-		return (err);
-	for (i = 0; i < ndevs; i++)
-		device_delete_child(dev, devlist[i]);
-	free(devlist, M_TEMP);
+	device_delete_children(dev);
 
 	return (0);
 }
@@ -160,6 +156,37 @@ spibus_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 	return (0);
 }
 
+static int
+spibus_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
+{
+	struct spibus_ivar *devi = SPIBUS_IVAR(child);
+
+	if (devi == NULL || device_get_parent(child) != bus)
+		return (EDOOFUS);
+
+	switch (which) {
+	case SPIBUS_IVAR_CLOCK:
+		/* Any non-zero value is allowed for max clock frequency. */
+		if (value == 0)
+			return (EINVAL);
+		devi->clock = (uint32_t)value;
+		break;
+	case SPIBUS_IVAR_CS:
+		 /* Chip select cannot be changed. */
+		return (EINVAL);
+	case SPIBUS_IVAR_MODE:
+		/* Valid SPI modes are 0-3. */
+		if (value > 3)
+			return (EINVAL);
+		devi->mode = (uint32_t)value;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
 static device_t
 spibus_add_child(device_t dev, u_int order, const char *name, int unit)
 {
@@ -211,6 +238,7 @@ static device_method_t spibus_methods[] = {
 	DEVMETHOD(bus_print_child,	spibus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	spibus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	spibus_read_ivar),
+	DEVMETHOD(bus_write_ivar,	spibus_write_ivar),
 	DEVMETHOD(bus_child_pnpinfo_str, spibus_child_pnpinfo_str),
 	DEVMETHOD(bus_child_location_str, spibus_child_location_str),
 	DEVMETHOD(bus_hinted_child,	spibus_hinted_child),
