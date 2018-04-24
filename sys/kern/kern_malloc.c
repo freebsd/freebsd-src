@@ -93,7 +93,8 @@ __FBSDID("$FreeBSD$");
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
 
-dtrace_malloc_probe_func_t	dtrace_malloc_probe;
+bool	__read_frequently			dtrace_malloc_enabled;
+dtrace_malloc_probe_func_t __read_mostly	dtrace_malloc_probe;
 #endif
 
 #if defined(INVARIANTS) || defined(MALLOC_MAKE_FAILURES) ||		\
@@ -376,7 +377,7 @@ malloc_type_zone_allocated(struct malloc_type *mtp, unsigned long size,
 		mtsp->mts_size |= 1 << zindx;
 
 #ifdef KDTRACE_HOOKS
-	if (dtrace_malloc_probe != NULL) {
+	if (__predict_false(dtrace_malloc_enabled)) {
 		uint32_t probe_id = mtip->mti_probes[DTMALLOC_PROBE_MALLOC];
 		if (probe_id != 0)
 			(dtrace_malloc_probe)(probe_id,
@@ -415,7 +416,7 @@ malloc_type_freed(struct malloc_type *mtp, unsigned long size)
 	mtsp->mts_numfrees++;
 
 #ifdef KDTRACE_HOOKS
-	if (dtrace_malloc_probe != NULL) {
+	if (__predict_false(dtrace_malloc_enabled)) {
 		uint32_t probe_id = mtip->mti_probes[DTMALLOC_PROBE_FREE];
 		if (probe_id != 0)
 			(dtrace_malloc_probe)(probe_id,
