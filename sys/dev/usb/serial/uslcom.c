@@ -612,7 +612,22 @@ uslcom_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 static int
 uslcom_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
-	if (t->c_ospeed <= 0 || t->c_ospeed > 921600)
+	struct uslcom_softc *sc = ucom->sc_parent;
+	uint32_t maxspeed;
+
+	switch (sc->sc_partnum) {
+	case USLCOM_PARTNUM_CP2104:
+	case USLCOM_PARTNUM_CP2105:
+		maxspeed = 2000000;
+		break;
+	case USLCOM_PARTNUM_CP2101:
+	case USLCOM_PARTNUM_CP2102:
+	case USLCOM_PARTNUM_CP2103:
+	default:
+		maxspeed = 921600;
+		break;
+	}
+	if (t->c_ospeed <= 0 || t->c_ospeed > maxspeed)
 		return (EINVAL);
 	return (0);
 }
