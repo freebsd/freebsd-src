@@ -1119,6 +1119,14 @@ _mca_init(int boot)
 			if ((mask & (1UL << 5)) == 0)
 				wrmsr(MSR_MC0_CTL_MASK, mask | (1UL << 5));
 		}
+
+		/*
+		 * The cmci_monitor() must not be executed
+		 * simultaneously by several CPUs.
+		 */
+		if (boot)
+			mtx_lock_spin(&mca_lock);
+
 		for (i = 0; i < (mcg_cap & MCG_CAP_COUNT); i++) {
 			/* By default enable logging of all errors. */
 			ctl = 0xffffffffffffffffUL;
@@ -1158,6 +1166,8 @@ _mca_init(int boot)
 			/* Clear all errors. */
 			wrmsr(MSR_MC_STATUS(i), 0);
 		}
+		if (boot)
+			mtx_unlock_spin(&mca_lock);
 
 #ifdef DEV_APIC
 		if (!amd_thresholding_supported() &&
