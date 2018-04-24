@@ -1103,7 +1103,7 @@ _mca_init(int boot)
 		if (mcg_cap & MCG_CAP_CTL_P)
 			/* Enable MCA features. */
 			wrmsr(MSR_MCG_CTL, MCG_CTL_ENABLE);
-		if (PCPU_GET(cpuid) == 0 && boot)
+		if (IS_BSP() && boot)
 			mca_setup(mcg_cap);
 
 		/*
