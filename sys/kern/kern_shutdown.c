@@ -667,7 +667,8 @@ SYSCTL_UINT(_debug_kassert, OID_AUTO, do_ktr, CTLFLAG_RWTUN,
 #endif
 
 SYSCTL_INT(_debug_kassert, OID_AUTO, do_log, CTLFLAG_RWTUN,
-    &kassert_do_log, 0, "KASSERT triggers a panic (1) or just a warning (0)");
+    &kassert_do_log, 0,
+    "If warn_only is enabled, log (1) or do not log (0) assertion violations");
 
 SYSCTL_INT(_debug_kassert, OID_AUTO, warnings, CTLFLAG_RWTUN,
     &kassert_warnings, 0, "number of KASSERTs that have been triggered");
