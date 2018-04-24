@@ -124,12 +124,16 @@ SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic,
 
 #ifdef KDB_TRACE
 static int trace_on_panic = 1;
+static bool trace_all_panics = true;
 #else
 static int trace_on_panic = 0;
+static bool trace_all_panics = false;
 #endif
 SYSCTL_INT(_debug, OID_AUTO, trace_on_panic,
     CTLFLAG_RWTUN | CTLFLAG_SECURE,
     &trace_on_panic, 0, "Print stack trace on kernel panic");
+SYSCTL_BOOL(_debug, OID_AUTO, trace_all_panics, CTLFLAG_RWTUN,
+    &trace_all_panics, 0, "Print stack traces on secondary kernel panics");
 #endif /* KDB */
 
 static int sync_on_panic = 0;
@@ -829,7 +833,7 @@ vpanic(const char *fmt, va_list ap)
 #endif
 	printf("time = %jd\n", (intmax_t )time_second);
 #ifdef KDB
-	if (newpanic && trace_on_panic)
+	if ((newpanic || trace_all_panics) && trace_on_panic)
 		kdb_backtrace();
 	if (debugger_on_panic)
 		kdb_enter(KDB_WHY_PANIC, "panic");
