@@ -636,13 +636,33 @@ idle_sysctl_available(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_machdep, OID_AUTO, idle_available, CTLTYPE_STRING | CTLFLAG_RD,
     0, 0, idle_sysctl_available, "A", "list of available idle functions");
 
+static bool
+idle_selector(const char *new_idle_name)
+{
+	int i;
+
+	for (i = 0; idle_tbl[i].id_name != NULL; i++) {
+		if (strstr(idle_tbl[i].id_name, "mwait") &&
+		    (cpu_feature2 & CPUID2_MON) == 0)
+			continue;
+		if (strcmp(idle_tbl[i].id_name, "acpi") == 0 &&
+		    cpu_idle_hook == NULL)
+			continue;
+		if (strcmp(idle_tbl[i].id_name, new_idle_name))
+			continue;
+		cpu_idle_fn = idle_tbl[i].id_fn;
+		if (bootverbose)
+			printf("CPU idle set to %s\n", idle_tbl[i].id_name);
+		return (true);
+	}
+	return (false);
+}
+
 static int
 idle_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	char buf[16];
-	int error;
-	char *p;
-	int i;
+	char buf[16], *p;
+	int error, i;
 
 	p = "unknown";
 	for (i = 0; idle_tbl[i].id_name != NULL; i++) {
@@ -655,23 +675,21 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	for (i = 0; idle_tbl[i].id_name != NULL; i++) {
-		if (strstr(idle_tbl[i].id_name, "mwait") &&
-		    (cpu_feature2 & CPUID2_MON) == 0)
-			continue;
-		if (strcmp(idle_tbl[i].id_name, "acpi") == 0 &&
-		    cpu_idle_hook == NULL)
-			continue;
-		if (strcmp(idle_tbl[i].id_name, buf))
-			continue;
-		cpu_idle_fn = idle_tbl[i].id_fn;
-		return (0);
-	}
-	return (EINVAL);
+	return (idle_selector(buf) ? 0 : EINVAL);
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
     idle_sysctl, "A", "currently selected idle function");
+
+static void
+idle_tun(void *unused __unused)
+{
+	char tunvar[16];
+
+	if (TUNABLE_STR_FETCH("machdep.idle", tunvar, sizeof(tunvar)))
+		idle_selector(tunvar);
+}
+SYSINIT(idle_tun, SI_SUB_CPU, SI_ORDER_MIDDLE, idle_tun, NULL);
 
 static int panic_on_nmi = 1;
 SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RWTUN,
