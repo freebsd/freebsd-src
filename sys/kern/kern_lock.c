@@ -918,6 +918,9 @@ lockmgr_lock_fast_path(struct lock *lk, u_int flags, struct lock_object *ilk,
 	u_int op;
 	bool locked;
 
+	if (__predict_false(panicstr != NULL))
+		return (0);
+
 	op = flags & LK_TYPE_MASK;
 	locked = false;
 	switch (op) {
@@ -1100,6 +1103,9 @@ lockmgr_unlock_fast_path(struct lock *lk, u_int flags, struct lock_object *ilk)
 	const char *file;
 	int line;
 
+	if (__predict_false(panicstr != NULL))
+		return (0);
+
 	file = __FILE__;
 	line = __LINE__;
 
@@ -1146,6 +1152,9 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	int contested = 0;
 #endif
 
+	if (panicstr != NULL)
+		return (0);
+
 	error = 0;
 	tid = (uintptr_t)curthread;
 	op = (flags & LK_TYPE_MASK);
@@ -1172,11 +1181,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	    lk->lock_object.lo_name, file, line));
 
 	class = (flags & LK_INTERLOCK) ? LOCK_CLASS(ilk) : NULL;
-	if (panicstr != NULL) {
-		if (flags & LK_INTERLOCK)
-			class->lc_unlock(ilk);
-		return (0);
-	}
 
 	if (lk->lock_object.lo_flags & LK_NOSHARE) {
 		switch (op) {
