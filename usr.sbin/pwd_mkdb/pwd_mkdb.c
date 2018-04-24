@@ -77,7 +77,7 @@ static HASHINFO openinfo = {
 	256,		/* nelem */
 	2048 * 1024,	/* cachesize */
 	NULL,		/* hash() */
-	BYTE_ORDER	/* lorder */
+	BIG_ENDIAN	/* lorder */
 };
 
 static enum state { FILE_INSECURE, FILE_SECURE, FILE_ORIG } clean;
