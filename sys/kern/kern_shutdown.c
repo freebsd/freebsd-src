@@ -642,7 +642,7 @@ static int kassert_do_log = 1;
 static int kassert_log_pps_limit = 4;
 static int kassert_log_mute_at = 0;
 static int kassert_log_panic_at = 0;
-static int kassert_suppress_in_panic = 1;
+static int kassert_suppress_in_panic = 0;
 static int kassert_warnings = 0;
 
 SYSCTL_NODE(_debug, OID_AUTO, kassert, CTLFLAG_RW, NULL, "kassert options");
