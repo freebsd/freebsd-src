@@ -102,6 +102,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/sbuf.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
@@ -131,12 +132,9 @@ extern int	uma_startup_count(int);
 extern void	uma_startup(void *, int);
 extern int	vmem_startup_count(void);
 
-/*
- *	Associated with page of user-allocatable memory is a
- *	page structure.
- */
-
 struct vm_domain vm_dom[MAXMEMDOM];
+
+static DPCPU_DEFINE(struct vm_batchqueue, pqbatch[MAXMEMDOM][PQ_COUNT]);
 
 struct mtx_padalign __exclusive_cache_line pa_lock[PA_LOCK_COUNT];
 
@@ -176,7 +174,8 @@ static uma_zone_t fakepg_zone;
 
 static void vm_page_alloc_check(vm_page_t m);
 static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
-static void vm_page_enqueue(uint8_t queue, vm_page_t m);
+static void vm_page_dequeue_complete(vm_page_t m);
+static void vm_page_enqueue(vm_page_t m, uint8_t queue);
 static void vm_page_init(void *dummy);
 static int vm_page_insert_after(vm_page_t m, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mpred);
@@ -443,12 +442,13 @@ sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS)
  * Nonetheless, it write busies and initializes the hold count to one as
  * safety precautions.
  */
-void
-vm_page_init_marker(vm_page_t marker, int queue)
+static void
+vm_page_init_marker(vm_page_t marker, int queue, uint8_t aflags)
 {
 
 	bzero(marker, sizeof(*marker));
 	marker->flags = PG_MARKER;
+	marker->aflags = aflags;
 	marker->busy_lock = VPB_SINGLE_EXCLUSIVER;
 	marker->queue = queue;
 	marker->hold_count = 1;
@@ -481,14 +481,32 @@ vm_page_domain_init(int domain)
 		TAILQ_INIT(&pq->pq_pl);
 		mtx_init(&pq->pq_mutex, pq->pq_name, "vm pagequeue",
 		    MTX_DEF | MTX_DUPOK);
-		vm_page_init_marker(&vmd->vmd_markers[i], i);
+		vm_page_init_marker(&vmd->vmd_markers[i], i, 0);
 	}
 	mtx_init(&vmd->vmd_free_mtx, "vm page free queue", NULL, MTX_DEF);
 	mtx_init(&vmd->vmd_pageout_mtx, "vm pageout lock", NULL, MTX_DEF);
-	vm_page_init_marker(&vmd->vmd_inacthead, PQ_INACTIVE);
+	snprintf(vmd->vmd_name, sizeof(vmd->vmd_name), "%d", domain);
+
+	/*
+	 * inacthead is used to provide FIFO ordering for LRU-bypassing
+	 * insertions.
+	 */
+	vm_page_init_marker(&vmd->vmd_inacthead, PQ_INACTIVE, PGA_ENQUEUED);
 	TAILQ_INSERT_HEAD(&vmd->vmd_pagequeues[PQ_INACTIVE].pq_pl,
 	    &vmd->vmd_inacthead, plinks.q);
-	snprintf(vmd->vmd_name, sizeof(vmd->vmd_name), "%d", domain);
+
+	/*
+	 * The clock pages are used to implement active queue scanning without
+	 * requeues.  Scans start at clock[0], which is advanced after the scan
+	 * ends.  When the two clock hands meet, they are reset and scanning
+	 * resumes from the head of the queue.
+	 */
+	vm_page_init_marker(&vmd->vmd_clock[0], PQ_ACTIVE, PGA_ENQUEUED);
+	vm_page_init_marker(&vmd->vmd_clock[1], PQ_ACTIVE, PGA_ENQUEUED);
+	TAILQ_INSERT_HEAD(&vmd->vmd_pagequeues[PQ_ACTIVE].pq_pl,
+	    &vmd->vmd_clock[0], plinks.q);
+	TAILQ_INSERT_TAIL(&vmd->vmd_pagequeues[PQ_ACTIVE].pq_pl,
+	    &vmd->vmd_clock[1], plinks.q);
 }
 
 /*
@@ -1847,6 +1865,7 @@ again:
 	KASSERT(m != NULL, ("missing page"));
 
 found:
+	vm_page_dequeue(m);
 	vm_page_alloc_check(m);
 
 	/*
@@ -2043,8 +2062,10 @@ again:
 #if VM_NRESERVLEVEL > 0
 found:
 #endif
-	for (m = m_ret; m < &m_ret[npages]; m++)
+	for (m = m_ret; m < &m_ret[npages]; m++) {
+		vm_page_dequeue(m);
 		vm_page_alloc_check(m);
+	}
 
 	/*
 	 * Initialize the pages.  Only the PG_ZERO flag is inherited.
@@ -2188,6 +2209,7 @@ again:
 			goto again;
 		return (NULL);
 	}
+	vm_page_dequeue(m);
 	vm_page_alloc_check(m);
 
 	/*
@@ -2381,7 +2403,7 @@ retry:
 				    vm_reserv_size(level)) - pa);
 #endif
 			} else if (object->memattr == VM_MEMATTR_DEFAULT &&
-			    m->queue != PQ_NONE && !vm_page_busied(m)) {
+			    vm_page_enqueued(m) && !vm_page_busied(m)) {
 				/*
 				 * The page is allocated but eligible for
 				 * relocation.  Extend the current run by one
@@ -2532,7 +2554,7 @@ retry:
 				error = EINVAL;
 			else if (object->memattr != VM_MEMATTR_DEFAULT)
 				error = EINVAL;
-			else if (m->queue != PQ_NONE && !vm_page_busied(m)) {
+			else if (vm_page_enqueued(m) && !vm_page_busied(m)) {
 				KASSERT(pmap_page_get_memattr(m) ==
 				    VM_MEMATTR_DEFAULT,
 				    ("page %p has an unexpected memattr", m));
@@ -2592,7 +2614,8 @@ retry:
 					 */
 					if (object->ref_count != 0)
 						pmap_remove_all(m);
-					m_new->aflags = m->aflags;
+					m_new->aflags = m->aflags &
+					    ~PGA_QUEUE_STATE_MASK;
 					KASSERT(m_new->oflags == VPO_UNMANAGED,
 					    ("page %p is managed", m_new));
 					m_new->oflags = m->oflags & VPO_NOSYNC;
@@ -2604,7 +2627,7 @@ retry:
 					vm_page_remque(m);
 					vm_page_replace_checked(m_new, object,
 					    m->pindex, m);
-					if (vm_page_free_prep(m, false))
+					if (vm_page_free_prep(m))
 						SLIST_INSERT_HEAD(&free, m,
 						    plinks.s.ss);
 
@@ -2618,7 +2641,7 @@ retry:
 					m->flags &= ~PG_ZERO;
 					vm_page_remque(m);
 					vm_page_remove(m);
-					if (vm_page_free_prep(m, false))
+					if (vm_page_free_prep(m))
 						SLIST_INSERT_HEAD(&free, m,
 						    plinks.s.ss);
 					KASSERT(m->dirty == 0,
@@ -3061,113 +3084,297 @@ vm_page_pagequeue(vm_page_t m)
 	return (&vm_pagequeue_domain(m)->vmd_pagequeues[m->queue]);
 }
 
+static struct mtx *
+vm_page_pagequeue_lockptr(vm_page_t m)
+{
+
+	if (m->queue == PQ_NONE)
+		return (NULL);
+	return (&vm_page_pagequeue(m)->pq_mutex);
+}
+
+static inline void
+vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m)
+{
+	struct vm_domain *vmd;
+	uint8_t aflags;
+
+	vm_pagequeue_assert_locked(pq);
+	KASSERT(pq == vm_page_pagequeue(m),
+	    ("page %p doesn't belong to %p", m, pq));
+
+	aflags = m->aflags;
+	if ((aflags & PGA_DEQUEUE) != 0) {
+		if (__predict_true((aflags & PGA_ENQUEUED) != 0)) {
+			TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
+			vm_pagequeue_cnt_dec(pq);
+		}
+		vm_page_dequeue_complete(m);
+	} else if ((aflags & (PGA_REQUEUE | PGA_REQUEUE_HEAD)) != 0) {
+		if ((aflags & PGA_ENQUEUED) != 0)
+			TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
+		else {
+			vm_pagequeue_cnt_inc(pq);
+			vm_page_aflag_set(m, PGA_ENQUEUED);
+		}
+		if ((aflags & PGA_REQUEUE_HEAD) != 0) {
+			KASSERT(m->queue == PQ_INACTIVE,
+			    ("head enqueue not supported for page %p", m));
+			vmd = vm_pagequeue_domain(m);
+			TAILQ_INSERT_BEFORE(&vmd->vmd_inacthead, m, plinks.q);
+		} else
+			TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
+
+		/*
+		 * PGA_REQUEUE and PGA_REQUEUE_HEAD must be cleared after
+		 * setting PGA_ENQUEUED in order to synchronize with the
+		 * page daemon.
+		 */
+		vm_page_aflag_clear(m, PGA_REQUEUE | PGA_REQUEUE_HEAD);
+	}
+}
+
+static void
+vm_pqbatch_process(struct vm_pagequeue *pq, struct vm_batchqueue *bq,
+    uint8_t queue)
+{
+	vm_page_t m;
+	int i;
+
+	for (i = 0; i < bq->bq_cnt; i++) {
+		m = bq->bq_pa[i];
+		if (__predict_false(m->queue != queue))
+			continue;
+		vm_pqbatch_process_page(pq, m);
+	}
+	vm_batchqueue_init(bq);
+}
+
+static void
+vm_pqbatch_submit_page(vm_page_t m, uint8_t queue)
+{
+	struct vm_batchqueue *bq;
+	struct vm_pagequeue *pq;
+	int domain;
+
+	vm_page_assert_locked(m);
+	KASSERT(queue < PQ_COUNT, ("invalid queue %d", queue));
+
+	domain = vm_phys_domain(m);
+	pq = &vm_pagequeue_domain(m)->vmd_pagequeues[queue];
+
+	critical_enter();
+	bq = DPCPU_PTR(pqbatch[domain][queue]);
+	if (vm_batchqueue_insert(bq, m)) {
+		critical_exit();
+		return;
+	}
+	if (!vm_pagequeue_trylock(pq)) {
+		critical_exit();
+		vm_pagequeue_lock(pq);
+		critical_enter();
+		bq = DPCPU_PTR(pqbatch[domain][queue]);
+	}
+	vm_pqbatch_process(pq, bq, queue);
+
+	/*
+	 * The page may have been logically dequeued before we acquired the
+	 * page queue lock.  In this case, the page lock prevents the page
+	 * from being logically enqueued elsewhere.
+	 */
+	if (__predict_true(m->queue == queue))
+		vm_pqbatch_process_page(pq, m);
+	else {
+		KASSERT(m->queue == PQ_NONE,
+		    ("invalid queue transition for page %p", m));
+		KASSERT((m->aflags & PGA_ENQUEUED) == 0,
+		    ("page %p is enqueued with invalid queue index", m));
+		vm_page_aflag_clear(m, PGA_QUEUE_STATE_MASK);
+	}
+	vm_pagequeue_unlock(pq);
+	critical_exit();
+}
+
 /*
- *	vm_page_dequeue:
+ *	vm_page_drain_pqbatch:		[ internal use only ]
  *
- *	Remove the given page from its current page queue.
+ *	Force all per-CPU page queue batch queues to be drained.  This is
+ *	intended for use in severe memory shortages, to ensure that pages
+ *	do not remain stuck in the batch queues.
+ */
+void
+vm_page_drain_pqbatch(void)
+{
+	struct thread *td;
+	struct vm_domain *vmd;
+	struct vm_pagequeue *pq;
+	int cpu, domain, queue;
+
+	td = curthread;
+	CPU_FOREACH(cpu) {
+		thread_lock(td);
+		sched_bind(td, cpu);
+		thread_unlock(td);
+
+		for (domain = 0; domain < vm_ndomains; domain++) {
+			vmd = VM_DOMAIN(domain);
+			for (queue = 0; queue < PQ_COUNT; queue++) {
+				pq = &vmd->vmd_pagequeues[queue];
+				vm_pagequeue_lock(pq);
+				critical_enter();
+				vm_pqbatch_process(pq,
+				    DPCPU_PTR(pqbatch[domain][queue]), queue);
+				critical_exit();
+				vm_pagequeue_unlock(pq);
+			}
+		}
+	}
+	thread_lock(td);
+	sched_unbind(td);
+	thread_unlock(td);
+}
+
+/*
+ * Complete the logical removal of a page from a page queue.  We must be
+ * careful to synchronize with the page daemon, which may be concurrently
+ * examining the page with only the page lock held.  The page must not be
+ * in a state where it appears to be logically enqueued.
+ */
+static void
+vm_page_dequeue_complete(vm_page_t m)
+{
+
+	m->queue = PQ_NONE;
+	atomic_thread_fence_rel();
+	vm_page_aflag_clear(m, PGA_QUEUE_STATE_MASK);
+}
+
+/*
+ *	vm_page_dequeue_deferred:	[ internal use only ]
+ *
+ *	Request removal of the given page from its current page
+ *	queue.  Physical removal from the queue may be deferred
+ *	indefinitely.
  *
  *	The page must be locked.
  */
 void
-vm_page_dequeue(vm_page_t m)
+vm_page_dequeue_deferred(vm_page_t m)
 {
-	struct vm_pagequeue *pq;
+	int queue;
 
 	vm_page_assert_locked(m);
-	KASSERT(m->queue < PQ_COUNT, ("vm_page_dequeue: page %p is not queued",
-	    m));
-	pq = vm_page_pagequeue(m);
-	vm_pagequeue_lock(pq);
-	m->queue = PQ_NONE;
-	TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
-	vm_pagequeue_cnt_dec(pq);
-	vm_pagequeue_unlock(pq);
+
+	queue = m->queue;
+	if (queue == PQ_NONE) {
+		KASSERT((m->aflags & PGA_QUEUE_STATE_MASK) == 0,
+		    ("page %p has queue state", m));
+		return;
+	}
+	if ((m->aflags & PGA_DEQUEUE) == 0)
+		vm_page_aflag_set(m, PGA_DEQUEUE);
+	vm_pqbatch_submit_page(m, queue);
 }
 
 /*
  *	vm_page_dequeue_locked:
  *
- *	Remove the given page from its current page queue.
+ *	Remove the page from its page queue, which must be locked.
+ *	If the page lock is not held, there is no guarantee that the
+ *	page will not be enqueued by another thread before this function
+ *	returns.  In this case, it is up to the caller to ensure that
+ *	no other threads hold a reference to the page.
  *
- *	The page and page queue must be locked.
+ *	The page queue lock must be held.  If the page is not already
+ *	logically dequeued, the page lock must be held as well.
  */
 void
 vm_page_dequeue_locked(vm_page_t m)
 {
 	struct vm_pagequeue *pq;
 
-	vm_page_lock_assert(m, MA_OWNED);
 	pq = vm_page_pagequeue(m);
+
+	KASSERT(m->queue != PQ_NONE,
+	    ("%s: page %p queue field is PQ_NONE", __func__, m));
 	vm_pagequeue_assert_locked(pq);
-	m->queue = PQ_NONE;
-	TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
-	vm_pagequeue_cnt_dec(pq);
+	KASSERT((m->aflags & PGA_DEQUEUE) != 0 ||
+	    mtx_owned(vm_page_lockptr(m)),
+	    ("%s: queued unlocked page %p", __func__, m));
+
+	if ((m->aflags & PGA_ENQUEUED) != 0) {
+		TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
+		vm_pagequeue_cnt_dec(pq);
+	}
+	vm_page_dequeue_complete(m);
 }
 
 /*
- *	vm_page_enqueue:
+ *	vm_page_dequeue:
  *
- *	Add the given page to the specified page queue.
- *
- *	The page must be locked.
+ *	Remove the page from whichever page queue it's in, if any.
+ *	If the page lock is not held, there is no guarantee that the
+ *	page will not be enqueued by another thread before this function
+ *	returns.  In this case, it is up to the caller to ensure that
+ *	no other threads hold a reference to the page.
+ */
+void
+vm_page_dequeue(vm_page_t m)
+{
+	struct mtx *lock, *lock1;
+
+	lock = vm_page_pagequeue_lockptr(m);
+	for (;;) {
+		if (lock == NULL)
+			return;
+		mtx_lock(lock);
+		if ((lock1 = vm_page_pagequeue_lockptr(m)) == lock)
+			break;
+		mtx_unlock(lock);
+		lock = lock1;
+	}
+	KASSERT(lock == vm_page_pagequeue_lockptr(m),
+	    ("%s: page %p migrated directly between queues", __func__, m));
+	vm_page_dequeue_locked(m);
+	mtx_unlock(lock);
+}
+
+/*
+ * Schedule the given page for insertion into the specified page queue.
+ * Physical insertion of the page may be deferred indefinitely.
  */
 static void
-vm_page_enqueue(uint8_t queue, vm_page_t m)
+vm_page_enqueue(vm_page_t m, uint8_t queue)
 {
-	struct vm_pagequeue *pq;
 
-	vm_page_lock_assert(m, MA_OWNED);
-	KASSERT(queue < PQ_COUNT,
-	    ("vm_page_enqueue: invalid queue %u request for page %p",
-	    queue, m));
-	pq = &vm_pagequeue_domain(m)->vmd_pagequeues[queue];
-	vm_pagequeue_lock(pq);
+	vm_page_assert_locked(m);
+	KASSERT(m->queue == PQ_NONE && (m->aflags & PGA_QUEUE_STATE_MASK) == 0,
+	    ("%s: page %p is already enqueued", __func__, m));
+
 	m->queue = queue;
-	TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
-	vm_pagequeue_cnt_inc(pq);
-	vm_pagequeue_unlock(pq);
+	if ((m->aflags & PGA_REQUEUE) == 0)
+		vm_page_aflag_set(m, PGA_REQUEUE);
+	vm_pqbatch_submit_page(m, queue);
 }
 
 /*
- *	vm_page_requeue:
+ *	vm_page_requeue:		[ internal use only ]
  *
- *	Move the given page to the tail of its current page queue.
+ *	Schedule a requeue of the given page.
  *
  *	The page must be locked.
  */
 void
 vm_page_requeue(vm_page_t m)
 {
-	struct vm_pagequeue *pq;
 
-	vm_page_lock_assert(m, MA_OWNED);
+	vm_page_assert_locked(m);
 	KASSERT(m->queue != PQ_NONE,
-	    ("vm_page_requeue: page %p is not queued", m));
-	pq = vm_page_pagequeue(m);
-	vm_pagequeue_lock(pq);
-	TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
-	TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
-	vm_pagequeue_unlock(pq);
-}
+	    ("%s: page %p is not logically enqueued", __func__, m));
 
-/*
- *	vm_page_requeue_locked:
- *
- *	Move the given page to the tail of its current page queue.
- *
- *	The page queue must be locked.
- */
-void
-vm_page_requeue_locked(vm_page_t m)
-{
-	struct vm_pagequeue *pq;
-
-	KASSERT(m->queue != PQ_NONE,
-	    ("vm_page_requeue_locked: page %p is not queued", m));
-	pq = vm_page_pagequeue(m);
-	vm_pagequeue_assert_locked(pq);
-	TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
-	TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
+	if ((m->aflags & PGA_REQUEUE) == 0)
+		vm_page_aflag_set(m, PGA_REQUEUE);
+	vm_pqbatch_submit_page(m, m->queue);
 }
 
 /*
@@ -3185,18 +3392,18 @@ vm_page_activate(vm_page_t m)
 	int queue;
 
 	vm_page_lock_assert(m, MA_OWNED);
-	if ((queue = m->queue) != PQ_ACTIVE) {
-		if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
-			if (m->act_count < ACT_INIT)
-				m->act_count = ACT_INIT;
-			if (queue != PQ_NONE)
-				vm_page_dequeue(m);
-			vm_page_enqueue(PQ_ACTIVE, m);
-		}
-	} else {
-		if (m->act_count < ACT_INIT)
+
+	if ((queue = m->queue) == PQ_ACTIVE || m->wire_count > 0 ||
+	    (m->oflags & VPO_UNMANAGED) != 0) {
+		if (queue == PQ_ACTIVE && m->act_count < ACT_INIT)
 			m->act_count = ACT_INIT;
+		return;
 	}
+
+	vm_page_remque(m);
+	if (m->act_count < ACT_INIT)
+		m->act_count = ACT_INIT;
+	vm_page_enqueue(m, PQ_ACTIVE);
 }
 
 /*
@@ -3207,11 +3414,10 @@ vm_page_activate(vm_page_t m)
  *	the page to the free list only if this function returns true.
  *
  *	The object must be locked.  The page must be locked if it is
- *	managed.  For a queued managed page, the pagequeue_locked
- *	argument specifies whether the page queue is already locked.
+ *	managed.
  */
 bool
-vm_page_free_prep(vm_page_t m, bool pagequeue_locked)
+vm_page_free_prep(vm_page_t m)
 {
 
 #if defined(DIAGNOSTIC) && defined(PHYS_TO_DMAP)
@@ -3227,14 +3433,14 @@ vm_page_free_prep(vm_page_t m, bool pagequeue_locked)
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		vm_page_lock_assert(m, MA_OWNED);
 		KASSERT(!pmap_page_is_mapped(m),
-		    ("vm_page_free_toq: freeing mapped page %p", m));
+		    ("vm_page_free_prep: freeing mapped page %p", m));
 	} else
 		KASSERT(m->queue == PQ_NONE,
-		    ("vm_page_free_toq: unmanaged page %p is queued", m));
+		    ("vm_page_free_prep: unmanaged page %p is queued", m));
 	VM_CNT_INC(v_tfree);
 
 	if (vm_page_sbusied(m))
-		panic("vm_page_free: freeing busy page %p", m);
+		panic("vm_page_free_prep: freeing busy page %p", m);
 
 	vm_page_remove(m);
 
@@ -3250,21 +3456,23 @@ vm_page_free_prep(vm_page_t m, bool pagequeue_locked)
 		return (false);
 	}
 
-	if (m->queue != PQ_NONE) {
-		if (pagequeue_locked)
-			vm_page_dequeue_locked(m);
-		else
-			vm_page_dequeue(m);
-	}
+	/*
+	 * Pages need not be dequeued before they are returned to the physical
+	 * memory allocator, but they must at least be marked for a deferred
+	 * dequeue.
+	 */
+	if ((m->oflags & VPO_UNMANAGED) == 0)
+		vm_page_dequeue_deferred(m);
+
 	m->valid = 0;
 	vm_page_undirty(m);
 
 	if (m->wire_count != 0)
-		panic("vm_page_free: freeing wired page %p", m);
+		panic("vm_page_free_prep: freeing wired page %p", m);
 	if (m->hold_count != 0) {
 		m->flags &= ~PG_ZERO;
 		KASSERT((m->flags & PG_UNHOLDFREE) == 0,
-		    ("vm_page_free: freeing PG_UNHOLDFREE page %p", m));
+		    ("vm_page_free_prep: freeing PG_UNHOLDFREE page %p", m));
 		m->flags |= PG_UNHOLDFREE;
 		return (false);
 	}
@@ -3283,36 +3491,6 @@ vm_page_free_prep(vm_page_t m, bool pagequeue_locked)
 	return (true);
 }
 
-void
-vm_page_free_phys_pglist(struct pglist *tq)
-{
-	struct vm_domain *vmd;
-	vm_page_t m;
-	int cnt;
-
-	if (TAILQ_EMPTY(tq))
-		return;
-	vmd = NULL;
-	cnt = 0;
-	TAILQ_FOREACH(m, tq, listq) {
-		if (vmd != vm_pagequeue_domain(m)) {
-			if (vmd != NULL) {
-				vm_domain_free_unlock(vmd);
-				vm_domain_freecnt_inc(vmd, cnt);
-				cnt = 0;
-			}
-			vmd = vm_pagequeue_domain(m);
-			vm_domain_free_lock(vmd);
-		}
-		vm_phys_free_pages(m, 0);
-		cnt++;
-	}
-	if (vmd != NULL) {
-		vm_domain_free_unlock(vmd);
-		vm_domain_freecnt_inc(vmd, cnt);
-	}
-}
-
 /*
  *	vm_page_free_toq:
  *
@@ -3327,7 +3505,7 @@ vm_page_free_toq(vm_page_t m)
 {
 	struct vm_domain *vmd;
 
-	if (!vm_page_free_prep(m, false))
+	if (!vm_page_free_prep(m))
 		return;
 
 	vmd = vm_pagequeue_domain(m);
@@ -3425,22 +3603,25 @@ vm_page_unwire(vm_page_t m, uint8_t queue)
 	KASSERT(queue < PQ_COUNT || queue == PQ_NONE,
 	    ("vm_page_unwire: invalid queue %u request for page %p",
 	    queue, m));
+	if ((m->oflags & VPO_UNMANAGED) == 0)
+		vm_page_assert_locked(m);
 
 	unwired = vm_page_unwire_noq(m);
-	if (unwired && (m->oflags & VPO_UNMANAGED) == 0 && m->object != NULL) {
-		if (m->queue == queue) {
+	if (!unwired || (m->oflags & VPO_UNMANAGED) != 0 || m->object == NULL)
+		return (unwired);
+
+	if (m->queue == queue) {
+		if (queue == PQ_ACTIVE)
+			vm_page_reference(m);
+		else if (queue != PQ_NONE)
+			vm_page_requeue(m);
+	} else {
+		vm_page_dequeue(m);
+		if (queue != PQ_NONE) {
+			vm_page_enqueue(m, queue);
 			if (queue == PQ_ACTIVE)
-				vm_page_reference(m);
-			else if (queue != PQ_NONE)
-				vm_page_requeue(m);
-		} else {
-			vm_page_remque(m);
-			if (queue != PQ_NONE) {
-				vm_page_enqueue(queue, m);
-				if (queue == PQ_ACTIVE)
-					/* Initialize act_count. */
-					vm_page_activate(m);
-			}
+				/* Initialize act_count. */
+				vm_page_activate(m);
 		}
 	}
 	return (unwired);
@@ -3476,52 +3657,8 @@ vm_page_unwire_noq(vm_page_t m)
 }
 
 /*
- * Move the specified page to the inactive queue, or requeue the page if it is
- * already in the inactive queue.
- *
- * Normally, "noreuse" is FALSE, resulting in LRU ordering of the inactive
- * queue.  However, setting "noreuse" to TRUE will accelerate the specified
- * page's reclamation, but it will not unmap the page from any address space.
- * This is implemented by inserting the page near the head of the inactive
- * queue, using a marker page to guide FIFO insertion ordering.
- *
- * The page must be locked.
- */
-static inline void
-_vm_page_deactivate(vm_page_t m, boolean_t noreuse)
-{
-	struct vm_pagequeue *pq;
-	int queue;
-
-	vm_page_assert_locked(m);
-
-	if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
-		pq = &vm_pagequeue_domain(m)->vmd_pagequeues[PQ_INACTIVE];
-		/* Avoid multiple acquisitions of the inactive queue lock. */
-		queue = m->queue;
-		if (queue == PQ_INACTIVE) {
-			vm_pagequeue_lock(pq);
-			vm_page_dequeue_locked(m);
-		} else {
-			if (queue != PQ_NONE)
-				vm_page_dequeue(m);
-			vm_pagequeue_lock(pq);
-		}
-		m->queue = PQ_INACTIVE;
-		if (noreuse)
-			TAILQ_INSERT_BEFORE(
-			    &vm_pagequeue_domain(m)->vmd_inacthead, m,
-			    plinks.q);
-		else
-			TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
-		vm_pagequeue_cnt_inc(pq);
-		vm_pagequeue_unlock(pq);
-	}
-}
-
-/*
- * Move the specified page to the inactive queue, or requeue the page if it is
- * already in the inactive queue.
+ * Move the specified page to the tail of the inactive queue, or requeue
+ * the page if it is already in the inactive queue.
  *
  * The page must be locked.
  */
@@ -3529,12 +3666,23 @@ void
 vm_page_deactivate(vm_page_t m)
 {
 
-	_vm_page_deactivate(m, FALSE);
+	vm_page_assert_locked(m);
+
+	if (m->wire_count > 0 || (m->oflags & VPO_UNMANAGED) != 0)
+		return;
+
+	if (!vm_page_inactive(m)) {
+		vm_page_remque(m);
+		vm_page_enqueue(m, PQ_INACTIVE);
+	} else
+		vm_page_requeue(m);
 }
 
 /*
- * Move the specified page to the inactive queue with the expectation
- * that it is unlikely to be reused.
+ * Move the specified page close to the head of the inactive queue,
+ * bypassing LRU.  A marker page is used to maintain FIFO ordering.
+ * As with regular enqueues, we use a per-CPU batch queue to reduce
+ * contention on the page queue lock.
  *
  * The page must be locked.
  */
@@ -3542,7 +3690,17 @@ void
 vm_page_deactivate_noreuse(vm_page_t m)
 {
 
-	_vm_page_deactivate(m, TRUE);
+	vm_page_assert_locked(m);
+
+	if (m->wire_count > 0 || (m->oflags & VPO_UNMANAGED) != 0)
+		return;
+
+	if (!vm_page_inactive(m))
+		vm_page_remque(m);
+	m->queue = PQ_INACTIVE;
+	if ((m->aflags & PGA_REQUEUE_HEAD) == 0)
+		vm_page_aflag_set(m, PGA_REQUEUE_HEAD);
+	vm_pqbatch_submit_page(m, PQ_INACTIVE);
 }
 
 /*
@@ -3555,13 +3713,14 @@ vm_page_launder(vm_page_t m)
 {
 
 	vm_page_assert_locked(m);
-	if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
-		if (m->queue == PQ_LAUNDRY)
-			vm_page_requeue(m);
-		else {
-			vm_page_remque(m);
-			vm_page_enqueue(PQ_LAUNDRY, m);
-		}
+	if (m->wire_count > 0 || (m->oflags & VPO_UNMANAGED) != 0)
+		return;
+
+	if (m->queue == PQ_LAUNDRY)
+		vm_page_requeue(m);
+	else {
+		vm_page_remque(m);
+		vm_page_enqueue(m, PQ_LAUNDRY);
 	}
 }
 
@@ -3577,9 +3736,9 @@ vm_page_unswappable(vm_page_t m)
 	vm_page_assert_locked(m);
 	KASSERT(m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0,
 	    ("page %p already unswappable", m));
-	if (m->queue != PQ_NONE)
-		vm_page_dequeue(m);
-	vm_page_enqueue(PQ_UNSWAPPABLE, m);
+
+	vm_page_remque(m);
+	vm_page_enqueue(m, PQ_UNSWAPPABLE);
 }
 
 /*
