@@ -98,24 +98,10 @@ procfs_docurproc(PFS_FILL_ARGS)
 	return (0);
 }
 
-/*
- * Adjust mode for some nodes that need it
- */
-int
-procfs_attr(PFS_ATTR_ARGS)
-{
+static int
+procfs_attr(PFS_ATTR_ARGS, int mode) {
 
-	/* XXX inefficient, split into separate functions */
-	if (strcmp(pn->pn_name, "note") == 0 ||
-	    strcmp(pn->pn_name, "notepg") == 0)
-		vap->va_mode = 0200;
-	else if (strcmp(pn->pn_name, "mem") == 0 ||
-	    strcmp(pn->pn_name, "regs") == 0 ||
-	    strcmp(pn->pn_name, "dbregs") == 0 ||
-	    strcmp(pn->pn_name, "fpregs") == 0 ||
-	    strcmp(pn->pn_name, "osrel") == 0)
-		vap->va_mode = 0600;
-
+	vap->va_mode = mode;
 	if (p != NULL) {
 		PROC_LOCK_ASSERT(p, MA_OWNED);
 
@@ -124,6 +110,27 @@ procfs_attr(PFS_ATTR_ARGS)
 	}
 
 	return (0);
+}
+
+int
+procfs_attr_all_rx(PFS_ATTR_ARGS)
+{
+
+	return (procfs_attr(td, p, pn, vap, 0555));
+}
+
+int
+procfs_attr_rw(PFS_ATTR_ARGS)
+{
+
+	return (procfs_attr(td, p, pn, vap, 0600));
+}
+
+int
+procfs_attr_w(PFS_ATTR_ARGS)
+{
+
+	return (procfs_attr(td, p, pn, vap, 0200));
 }
 
 /*
@@ -164,33 +171,33 @@ procfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, NULL, 0);
 
 	dir = pfs_create_dir(root, "pid",
-	    procfs_attr, NULL, NULL, PFS_PROCDEP);
+	    procfs_attr_all_rx, NULL, NULL, PFS_PROCDEP);
 	pfs_create_file(dir, "cmdline", procfs_doproccmdline,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "dbregs", procfs_doprocdbregs,
-	    procfs_attr, procfs_candebug, NULL, PFS_RDWR|PFS_RAW);
+	    procfs_attr_rw, procfs_candebug, NULL, PFS_RDWR | PFS_RAW);
 	pfs_create_file(dir, "etype", procfs_doproctype,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "fpregs", procfs_doprocfpregs,
-	    procfs_attr, procfs_candebug, NULL, PFS_RDWR|PFS_RAW);
+	    procfs_attr_rw, procfs_candebug, NULL, PFS_RDWR | PFS_RAW);
 	pfs_create_file(dir, "map", procfs_doprocmap,
 	    NULL, procfs_notsystem, NULL, PFS_RD);
 	node = pfs_create_file(dir, "mem", procfs_doprocmem,
-	    procfs_attr, procfs_candebug, NULL, PFS_RDWR|PFS_RAW);
+	    procfs_attr_rw, procfs_candebug, NULL, PFS_RDWR | PFS_RAW);
 	node->pn_ioctl = procfs_ioctl;
 	node->pn_close = procfs_close;
 	pfs_create_file(dir, "note", procfs_doprocnote,
-	    procfs_attr, procfs_candebug, NULL, PFS_WR);
+	    procfs_attr_w, procfs_candebug, NULL, PFS_WR);
 	pfs_create_file(dir, "notepg", procfs_doprocnote,
-	    procfs_attr, procfs_candebug, NULL, PFS_WR);
+	    procfs_attr_w, procfs_candebug, NULL, PFS_WR);
 	pfs_create_file(dir, "regs", procfs_doprocregs,
-	    procfs_attr, procfs_candebug, NULL, PFS_RDWR|PFS_RAW);
+	    procfs_attr_rw, procfs_candebug, NULL, PFS_RDWR | PFS_RAW);
 	pfs_create_file(dir, "rlimit", procfs_doprocrlimit,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "status", procfs_doprocstatus,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "osrel", procfs_doosrel,
-	    procfs_attr, procfs_candebug, NULL, PFS_RDWR);
+	    procfs_attr_rw, procfs_candebug, NULL, PFS_RDWR);
 
 	pfs_create_link(dir, "file", procfs_doprocfile,
 	    NULL, procfs_notsystem, NULL, 0);
