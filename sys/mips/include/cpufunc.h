@@ -108,6 +108,12 @@ mips_wbflush(void)
 #endif
 }
 
+static __inline void
+breakpoint(void)
+{
+	__asm __volatile ("break");
+}
+
 #ifdef _KERNEL
 /*
  * XXX
@@ -363,12 +369,6 @@ get_intr_mask(void)
 {
 
 	return (mips_rd_status() & MIPS_SR_INT_MASK);
-}
-
-static __inline void
-breakpoint(void)
-{
-	__asm __volatile ("break");
 }
 
 #if defined(__GNUC__) && !defined(__mips_o32)
