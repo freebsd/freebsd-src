@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 24, 2018
+.Dd April 25, 2018
 .Dt UCOM 4
 .Os
 .Sh NAME
@@ -74,6 +74,11 @@ tunables:
 Debug output level, where 0 is debugging disabled and larger values increase
 debug message verbosity.
 Default is 0.
+.It Va hw.usb.ucom.device_mode_console
+When set to 1, the
+.Nm
+driver will mark terminals as console devices when operating in device mode.
+Default is 1.
 .It Va hw.usb.ucom.pps_mode
 Enables and configure PPS capture mode as described below.
 .Sh Pulse Per Second (PPS) Timing Interface
