@@ -106,6 +106,10 @@ do
 	    silent=1
 	    shift
 	    ;;
+	-V)
+	    ${grep} -V
+	    exit $?
+	    ;;
 	-*)
 	    grep_args="${grep_args} $1"
 	    shift
