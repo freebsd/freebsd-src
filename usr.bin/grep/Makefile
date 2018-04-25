@@ -69,20 +69,6 @@ MLINKS+= grep.1 egrep.1 \
 	grep.1 rgrep.1
 .endif
 
-LIBADD=	z
-
-.if ${MK_LZMA_SUPPORT} != "no"
-LIBADD+=	lzma
-.else
-CFLAGS+= -DWITHOUT_LZMA
-.endif
-
-.if ${MK_BZIP2_SUPPORT} != "no"
-LIBADD+=	bz2
-.else
-CFLAGS+= -DWITHOUT_BZIP2
-.endif
-
 .if ${MK_GNU_GREP_COMPAT} != "no"
 CFLAGS+= -I${SYSROOT:U${DESTDIR}}/usr/include/gnu -DWITH_GNU
 LIBADD+=	gnuregex
