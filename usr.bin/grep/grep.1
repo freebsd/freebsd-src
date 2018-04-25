@@ -175,9 +175,11 @@ If specified, it excludes files matching the given
 filename pattern from the search.
 Note that
 .Fl Fl exclude
-patterns take priority over
+and
 .Fl Fl include
-patterns, and if no
+patterns are processed in the order given.
+If a name patches multiple patterns, the latest matching rule wins.
+If no
 .Fl Fl include
 pattern is specified, all files are searched that are
 not excluded.
@@ -190,9 +192,11 @@ is specified, it excludes directories matching the
 given filename pattern from the search.
 Note that
 .Fl Fl exclude-dir
-patterns take priority over
+and
 .Fl Fl include-dir
-patterns, and if no
+patterns are processed in the order given.
+If a name patches multiple patterns, the latest matching rule wins.
+If no
 .Fl Fl include-dir
 pattern is specified, all directories are searched that are
 not excluded.
@@ -242,10 +246,11 @@ is case sensitive.
 If specified, only files matching the
 given filename pattern are searched.
 Note that
-.Fl Fl exclude
-patterns take priority over
 .Fl Fl include
-patterns.
+and
+.Fl Fl exclude
+patterns are processed in the order given.
+If a name patches multiple patterns, the latest matching rule wins.
 Patterns are matched to the full path specified,
 not only to the filename component.
 .It Fl Fl include-dir
@@ -254,17 +259,20 @@ If
 is specified, only directories matching the
 given filename pattern are searched.
 Note that
-.Fl Fl exclude-dir
-patterns take priority over
 .Fl Fl include-dir
-patterns.
+and
+.Fl Fl exclude-dir
+patterns are processed in the order given.
+If a name patches multiple patterns, the latest matching rule wins.
 .It Fl L , Fl Fl files-without-match
 Only the names of files not containing selected lines are written to
 standard output.
 Pathnames are listed once per file searched.
 If the standard input is searched, the string
 .Dq (standard input)
-is written.
+is written unless a
+.Fl Fl label
+is specified.
 .It Fl l , Fl Fl files-with-matches
 Only the names of files containing selected lines are written to
 standard output.
@@ -274,7 +282,18 @@ making searches potentially less expensive.
 Pathnames are listed once per file searched.
 If the standard input is searched, the string
 .Dq (standard input)
-is written.
+is written unless a
+.Fl Fl label
+is specified.
+.It Fl Fl label
+Label to use in place of
+.Dq (standard input)
+for a file name where a file name would normally be printed.
+This option applies to
+.Fl H ,
+.Fl L ,
+and
+.Fl l .
 .It Fl Fl mmap
 Use
 .Xr mmap 2
@@ -450,7 +469,7 @@ utility is compliant with the
 specification.
 .Pp
 The flags
-.Op Fl AaBbCDdGHhIJLmoPRSUVwZ
+.Op Fl AaBbCDdGHhILmoPRSUVw
 are extensions to that specification, and the behaviour of the
 .Fl f
 flag when used with an empty pattern file is left undefined.
