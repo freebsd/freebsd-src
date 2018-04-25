@@ -85,7 +85,7 @@ debug_print_susp_attrs(cd9660node *n, int indent)
 }
 
 void
-debug_print_tree(cd9660node *node, int level)
+debug_print_tree(iso9660_disk *diskStructure, cd9660node *node, int level)
 {
 #if !HAVE_NBTOOL_CONFIG_H
 	cd9660node *cn;
@@ -113,10 +113,10 @@ debug_print_tree(cd9660node *node, int level)
 			node->fileDataSector
 			    + node->fileSectorsUsed - 1);
 	}
-	if (diskStructure.rock_ridge_enabled)
+	if (diskStructure->rock_ridge_enabled)
 		debug_print_susp_attrs(node, level + 1);
 	TAILQ_FOREACH(cn, &node->cn_children, cn_next_child)
-		debug_print_tree(cn, level + 1);
+		debug_print_tree(diskStructure, cn, level + 1);
 #else
 	printf("Sorry, debugging is not supported in host-tools mode.\n");
 #endif
@@ -143,9 +143,9 @@ debug_print_path_tree(cd9660node *n)
 }
 
 void
-debug_print_volume_descriptor_information(void)
+debug_print_volume_descriptor_information(iso9660_disk *diskStructure)
 {
-	volume_descriptor *tmp = diskStructure.firstVolumeDescriptor;
+	volume_descriptor *tmp = diskStructure->firstVolumeDescriptor;
 	char temp[CD9660_SECTOR_SIZE];
 
 	printf("==Listing Volume Descriptors==\n");
