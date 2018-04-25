@@ -146,7 +146,6 @@ else
     fi
     for file do
 	${cattool} ${catargs} -- "${file}" | ${grep} --label="${file}" ${grep_args} -- "${pattern}" -
-	shift
     done
 fi
 
