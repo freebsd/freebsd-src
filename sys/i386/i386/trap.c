@@ -909,6 +909,8 @@ trap_fatal(frame, eva)
 			"",
 			code & PGEX_RSV ? "reserved bits in PTE" :
 			code & PGEX_P ? "protection violation" : "page not present");
+	} else {
+		printf("error code		= %#x\n", code);
 	}
 	printf("instruction pointer	= 0x%x:0x%x\n",
 	       frame->tf_cs & 0xffff, frame->tf_eip);
