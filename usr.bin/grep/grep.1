@@ -30,17 +30,16 @@
 .\"
 .\"	@(#)grep.1	8.3 (Berkeley) 4/18/94
 .\"
-.Dd April 17, 2017
+.Dd April 25, 2018
 .Dt GREP 1
 .Os
 .Sh NAME
 .Nm grep , egrep , fgrep , rgrep ,
-.Nm zgrep , zegrep , zfgrep
 .Nd file pattern searcher
 .Sh SYNOPSIS
 .Nm grep
 .Bk -words
-.Op Fl abcdDEFGHhIiJLlmnOopqRSsUVvwxZz
+.Op Fl abcdDEFGHhIiLlmnOopqRSsUVvwxz
 .Op Fl A Ar num
 .Op Fl B Ar num
 .Op Fl C Ns Op Ar num
@@ -87,21 +86,6 @@ but can only handle fixed patterns
 (i.e. it does not interpret regular expressions).
 Patterns may consist of one or more lines,
 allowing any of the pattern lines to match a portion of the input.
-.Pp
-.Nm zgrep ,
-.Nm zegrep ,
-and
-.Nm zfgrep
-act like
-.Nm grep ,
-.Nm egrep ,
-and
-.Nm fgrep ,
-respectively, but accept input files compressed with the
-.Xr compress 1
-or
-.Xr gzip 1
-compression utilities.
 .Pp
 The following options are available:
 .Bl -tag -width indent
@@ -274,10 +258,6 @@ Note that
 patterns take priority over
 .Fl Fl include-dir
 patterns.
-.It Fl J, Fl Fl bz2decompress
-Decompress the
-.Xr bzip2 1
-compressed file before looking for the text.
 .It Fl L , Fl Fl files-without-match
 Only the names of files not containing selected lines are written to
 standard output.
@@ -381,11 +361,6 @@ Obsoleted.
 .It Fl z , Fl Fl null-data
 Treat input and output data as sequences of lines terminated by a
 zero-byte instead of a newline.
-.It Fl Z , Fl Fl decompress
-Force
-.Nm grep
-to behave as
-.Nm zgrep .
 .It Fl Fl binary-files Ns = Ns Ar value
 Controls searching and printing of binary files.
 Options are
@@ -465,7 +440,6 @@ looking for either 19, 20, or 25.
 .Sh SEE ALSO
 .Xr ed 1 ,
 .Xr ex 1 ,
-.Xr gzip 1 ,
 .Xr sed 1 ,
 .Xr re_format 7
 .Sh STANDARDS
