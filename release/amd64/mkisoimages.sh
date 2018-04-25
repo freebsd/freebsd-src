@@ -23,6 +23,18 @@
 # extra-bits-dir, if provided, contains additional files to be merged
 # into base-bits-dir as part of making the image.
 
+if [ -z $ETDUMP ]; then
+	ETDUMP=etdump
+fi
+
+if [ -z $MAKEFS ]; then
+	MAKEFS=makefs
+fi
+
+if [ -z $MKIMG ]; then
+	MKIMG=mkimg
+fi
+
 if [ "$1" = "-b" ]; then
 	# This is highly x86-centric and will be used directly below.
 	bootable="-o bootimage=i386;$4/boot/cdboot -o no-emul-boot"
@@ -55,13 +67,13 @@ NAME="$1"; shift
 
 publisher="The FreeBSD Project.  https://www.FreeBSD.org/"
 echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$1/etc/fstab"
-makefs -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@"
+$MAKEFS -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@"
 rm -f "$1/etc/fstab"
 rm -f efiboot.img
 
 if [ "$bootable" != "" ]; then
 	# Look for the EFI System Partition image we dropped in the ISO image.
-	for entry in `etdump --format shell $NAME`; do
+	for entry in `$ETDUMP --format shell $NAME`; do
 		eval $entry
 		if [ "$et_platform" = "efi" ]; then
 			espstart=`expr $et_lba \* 2048`
@@ -73,7 +85,7 @@ if [ "$bootable" != "" ]; then
 
 	# Create a GPT image containing the partitions we need for hybrid boot.
 	imgsize=`stat -f %z $NAME`
-	mkimg -s gpt \
+	$MKIMG -s gpt \
 	    --capacity $imgsize \
 	    -b $4/boot/pmbr \
 	    $espparam \
