@@ -73,22 +73,8 @@ struct	vlanreq {
 #define	SIOCSETVLAN	SIOCSIFGENERIC
 #define	SIOCGETVLAN	SIOCGIFGENERIC
 
-#define	SIOCGVLANPCP	_IOWR('i', 152, struct ifreq)	/* Get VLAN PCP */
-#define	SIOCSVLANPCP	 _IOW('i', 153, struct ifreq)	/* Set VLAN PCP */
-
-/*
- * Names for 802.1q priorities ("802.1p").  Notice that in this scheme,
- * (0 < 1), allowing default 0-tagged traffic to take priority over background
- * tagged traffic.
- */
-#define	IEEE8021Q_PCP_BK	1	/* Background (lowest) */
-#define	IEEE8021Q_PCP_BE	0	/* Best effort (default) */
-#define	IEEE8021Q_PCP_EE	2	/* Excellent effort */
-#define	IEEE8021Q_PCP_CA	3	/* Critical applications */
-#define	IEEE8021Q_PCP_VI	4	/* Video, < 100ms latency */
-#define	IEEE8021Q_PCP_VO	5	/* Video, < 10ms latency */
-#define	IEEE8021Q_PCP_IC	6	/* Internetwork control */
-#define	IEEE8021Q_PCP_NC	7	/* Network control (highest) */
+#define	SIOCGVLANPCP	SIOCGLANPCP	/* Get VLAN PCP */
+#define	SIOCSVLANPCP	SIOCSLANPCP	/* Set VLAN PCP */
 
 #ifdef _KERNEL
 /*

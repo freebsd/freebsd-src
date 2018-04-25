@@ -313,7 +313,12 @@ struct ifnet {
 	 */
 	void	*if_pspare[3];		/* packet pacing / general use */
 	void	*if_hw_addr;		/* hardware link-level address */
-	int	if_ispare[4];		/* packet pacing / general use */
+
+	/* Ethernet PCP */
+	uint8_t if_pcp;
+
+	uint8_t if_bspare[3];
+	int	if_ispare[3];		/* packet pacing / general use */
 };
 
 /* for compatibility with other BSDs */
