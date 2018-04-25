@@ -34,7 +34,7 @@ grep_args=""
 hyphen=0
 silent=0
 
-prg=$(basename $0)
+prg=${0##*/}
 
 # handle being called 'zegrep' or 'zfgrep'
 case ${prg} in
@@ -106,9 +106,8 @@ do
 	    silent=1
 	    shift
 	    ;;
-	-V)
-	    ${grep} -V
-	    exit $?
+	-V|--version)
+	    exec ${grep} -V
 	    ;;
 	-*)
 	    grep_args="${grep_args} $1"
@@ -145,9 +144,8 @@ else
     if [ ${silent} -lt 1 -a $# -gt 1 ]; then
 	grep_args="-H ${grep_args}"
     fi
-    while [ $# -gt 0 ]
-    do
-	${cattool} ${catargs} -- "$1" | ${grep} --label="${1}" ${grep_args} -- "${pattern}" -
+    for file do
+	${cattool} ${catargs} -- "${file}" | ${grep} --label="${file}" ${grep_args} -- "${pattern}" -
 	shift
     done
 fi
