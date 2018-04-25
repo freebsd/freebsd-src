@@ -264,7 +264,7 @@ ptrace_single_step(struct thread *td)
 		va = locr0->pc + 4;
 	}
 	if (td->td_md.md_ss_addr) {
-		printf("SS %s (%d): breakpoint already set at %lx (va %lx)\n",
+		printf("SS %s (%d): breakpoint already set at %zx (va %zx)\n",
 		    p->p_comm, p->p_pid, td->td_md.md_ss_addr, va); /* XXX */
 		error = EFAULT;
 		goto out;
@@ -500,7 +500,7 @@ ptrace_clear_single_step(struct thread *td)
 
 	if (error != 0) {
 		log(LOG_ERR,
-		    "SS %s %d: can't restore instruction at %lx: %x\n",
+		    "SS %s %d: can't restore instruction at %zx: %x\n",
 		    p->p_comm, p->p_pid, td->td_md.md_ss_addr,
 		    td->td_md.md_ss_instr);
 	}
