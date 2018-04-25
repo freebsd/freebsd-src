@@ -341,6 +341,9 @@ page_cr2:
 	 * On the stack, we have the hardware interrupt frame to return
 	 * to usermode (faulted) and another frame with error code, for
 	 * fault.  For PTI, copy both frames to the main thread stack.
+	 * Handle the potential 16-byte alignment adjustment incurred
+	 * during the second fault by copying both frames independently
+	 * while unwinding the stack in between.
 	 */
 	.macro PROTF_ENTRY name,trapno
 \name\()_pti_doreti:
@@ -351,7 +354,11 @@ page_cr2:
 	movq	%rax,%cr3
 	movq	PCPU(RSP0),%rax
 	subq	$2*PTI_SIZE-3*8,%rax /* no err, %rax, %rdx in faulted frame */
-	MOVE_STACKS	(PTI_SIZE / 4 - 3)
+	MOVE_STACKS	(PTI_SIZE / 8)
+	addq	$PTI_SIZE,%rax
+	movq	PTI_RSP(%rsp),%rsp
+	MOVE_STACKS	(PTI_SIZE / 8 - 3)
+	subq	$PTI_SIZE,%rax
 	movq	%rax,%rsp
 	popq	%rdx
 	popq	%rax
