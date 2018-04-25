@@ -36,6 +36,19 @@
 #include <sys/types.h>
 #include <libutil.h>
 
+void	(*esetfunc(void (*)(int, const char *, ...)))(int, const char *, ...);
+size_t	 estrlcpy(char *, const char *, size_t);
+size_t	 estrlcat(char *, const char *, size_t);
+char	*estrdup(const char *);
+char	*estrndup(const char *, size_t);
+void	*emalloc(size_t);
+void	*ecalloc(size_t, size_t);
+void	*erealloc(void *, size_t);
+struct __sFILE	*efopen(const char *, const char *);
+int	 easprintf(char ** __restrict, const char * __restrict, ...)
+	    __printflike(2, 3);
+int	 evasprintf(char ** __restrict, const char * __restrict, __va_list)
+	    __printflike(2, 0);
 char	*flags_to_string(u_long flags, const char *def);
 int	 sockaddr_snprintf(char *, size_t, const char *,
 			   const struct sockaddr *);
