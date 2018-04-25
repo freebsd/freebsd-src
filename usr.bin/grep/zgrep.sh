@@ -24,7 +24,7 @@
 #
 # $FreeBSD$
 
-set -eu
+set -u
 grep=grep
 zcat=zstdcat
 
@@ -144,7 +144,7 @@ else
     if [ ${silent} -lt 1 -a $# -gt 1 ]; then
 	grep_args="-H ${grep_args}"
     fi
-    for file do
+    for file; do
 	${cattool} ${catargs} -- "${file}" | ${grep} --label="${file}" ${grep_args} -- "${pattern}" -
     done
 fi
