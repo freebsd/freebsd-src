@@ -28,13 +28,6 @@
  */
 #define __kern_prefetch_h__
 #ifdef _KERNEL
-#if defined(__amd64__)
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_page.h>
-#include <vm/vm_map.h>
-#include <vm/pmap.h>
-#endif 
 
 static __inline void
 kern_prefetch(const volatile void *addr, void* before)
