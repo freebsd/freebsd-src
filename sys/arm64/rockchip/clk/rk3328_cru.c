@@ -175,7 +175,7 @@ static struct rk_clk_composite_def aclk_bus_pre = {
 	.div_shift = 8,
 	.div_width = 5,
 
-	.gate_offset = 0x232,
+	.gate_offset = 0x220,
 	.gate_shift = 0,
 
 	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
@@ -199,7 +199,7 @@ static struct rk_clk_composite_def hclk_bus_pre = {
 	.div_shift = 8,
 	.div_width = 2,
 
-	.gate_offset = 0x232,
+	.gate_offset = 0x220,
 	.gate_shift = 1,
 
 	.flags = RK_CLK_COMPOSITE_HAVE_GATE,
@@ -218,7 +218,7 @@ static struct rk_clk_composite_def pclk_bus_pre = {
 	.div_shift = 12,
 	.div_width = 3,
 
-	.gate_offset = 0x232,
+	.gate_offset = 0x220,
 	.gate_shift = 2,
 
 	.flags = RK_CLK_COMPOSITE_HAVE_GATE,
