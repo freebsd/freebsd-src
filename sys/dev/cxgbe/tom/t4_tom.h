@@ -333,7 +333,6 @@ void insert_tid(struct adapter *, int, void *, int);
 void *lookup_tid(struct adapter *, int);
 void update_tid(struct adapter *, int, void *);
 void remove_tid(struct adapter *, int, int);
-void release_tid(struct adapter *, int, struct sge_wrq *);
 int find_best_mtu_idx(struct adapter *, struct in_conninfo *,
     struct offload_settings *);
 u_long select_rcv_wnd(struct socket *);

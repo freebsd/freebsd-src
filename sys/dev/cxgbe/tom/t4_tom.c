@@ -96,7 +96,6 @@ static struct uld_info tom_uld_info = {
 	.deactivate = t4_tom_deactivate,
 };
 
-static void queue_tid_release(struct adapter *, int);
 static void release_offload_resources(struct toepcb *);
 static int alloc_tid_tabs(struct tid_info *);
 static void free_tid_tabs(struct tid_info *);
@@ -539,31 +538,6 @@ remove_tid(struct adapter *sc, int tid, int ntids)
 
 	t->tid_tab[tid] = NULL;
 	atomic_subtract_int(&t->tids_in_use, ntids);
-}
-
-void
-release_tid(struct adapter *sc, int tid, struct sge_wrq *ctrlq)
-{
-	struct wrqe *wr;
-	struct cpl_tid_release *req;
-
-	wr = alloc_wrqe(sizeof(*req), ctrlq);
-	if (wr == NULL) {
-		queue_tid_release(sc, tid);	/* defer */
-		return;
-	}
-	req = wrtod(wr);
-
-	INIT_TP_WR_MIT_CPL(req, CPL_TID_RELEASE, tid);
-
-	t4_wrq_tx(sc, wr);
-}
-
-static void
-queue_tid_release(struct adapter *sc, int tid)
-{
-
-	CXGBE_UNIMPLEMENTED("deferred tid release");
 }
 
 /*

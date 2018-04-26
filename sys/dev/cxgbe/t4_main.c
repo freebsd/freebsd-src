@@ -2535,6 +2535,31 @@ free_atid(struct adapter *sc, int atid)
 	mtx_unlock(&t->atid_lock);
 }
 
+static void
+queue_tid_release(struct adapter *sc, int tid)
+{
+
+	CXGBE_UNIMPLEMENTED("deferred tid release");
+}
+
+void
+release_tid(struct adapter *sc, int tid, struct sge_wrq *ctrlq)
+{
+	struct wrqe *wr;
+	struct cpl_tid_release *req;
+
+	wr = alloc_wrqe(sizeof(*req), ctrlq);
+	if (wr == NULL) {
+		queue_tid_release(sc, tid);	/* defer */
+		return;
+	}
+	req = wrtod(wr);
+
+	INIT_TP_WR_MIT_CPL(req, CPL_TID_RELEASE, tid);
+
+	t4_wrq_tx(sc, wr);
+}
+
 static int
 t4_range_cmp(const void *a, const void *b)
 {
