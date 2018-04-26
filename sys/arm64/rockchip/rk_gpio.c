@@ -352,8 +352,11 @@ static int
 rk_gpio_pin_config_32(device_t dev, uint32_t first_pin, uint32_t num_pins,
     uint32_t *pin_flags)
 {
-	uint32_t reg, set, mask, flask;
+	struct rk_gpio_softc *sc;
+	uint32_t reg, set, mask, flags;
 	int i;
+
+	sc = device_get_softc(dev);
 
 	if (first_pin != 0 || num_pins > 32)
 		return (EINVAL);
@@ -374,7 +377,7 @@ rk_gpio_pin_config_32(device_t dev, uint32_t first_pin, uint32_t num_pins,
 	reg = RK_GPIO_READ(sc, RK_GPIO_SWPORTA_DDR);
 	reg &= ~mask;
 	reg |= set;
-	RK_GPIO_WRITE(sc, RK_GPIO_SWPORTA_DDR);
+	RK_GPIO_WRITE(sc, RK_GPIO_SWPORTA_DDR, reg);
 	RK_GPIO_UNLOCK(sc);
 
 	return (0);
