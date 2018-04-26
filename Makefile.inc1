@@ -1851,9 +1851,9 @@ legacy: .PHONY
 # the version bump in r296219 (from July 29, 2015 -> Feb 29, 2016).
 .if ${BOOTSTRAPPING} != 0 && \
 	${WANT_COMPILER_TYPE} == "clang" && ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 30601
-.if   ${BOOTSTRAPPING} > 10000000 && ${BOOTSTRAPPING} < 1002501
+.if   ${BOOTSTRAPPING} > 1000000 && ${BOOTSTRAPPING} < 1002501
 	@echo "ERROR: Source upgrades from stable/10 prior to r286033 are not supported."; false
-.elif ${BOOTSTRAPPING} >  9000000 && ${BOOTSTRAPPING} <  903509
+.elif ${BOOTSTRAPPING} >  900000 && ${BOOTSTRAPPING} <  903509
 	@echo "ERROR: Source upgrades from stable/9 prior to r286035 are not supported."; false
 .endif
 .endif
