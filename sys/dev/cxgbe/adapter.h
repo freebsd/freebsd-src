@@ -1169,6 +1169,7 @@ void free_atid_tab(struct tid_info *);
 int alloc_atid(struct adapter *, void *);
 void *lookup_atid(struct adapter *, int);
 void free_atid(struct adapter *, int);
+void release_tid(struct adapter *, int, struct sge_wrq *);
 
 #ifdef DEV_NETMAP
 /* t4_netmap.c */
