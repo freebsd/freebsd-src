@@ -1794,7 +1794,7 @@ send_start_migrate(struct vmctx *ctx, const char *migrate_vm)
 {
 	struct migrate_req req;
 	char *hostname;
-	int rc, error = 0;
+	int rc;
 
 	hostname = malloc(MAX_HOSTNAME_LEN * sizeof(char));
 	if (hostname == NULL) {
@@ -1807,14 +1807,15 @@ send_start_migrate(struct vmctx *ctx, const char *migrate_vm)
 	/* If neither hostname nor port could be read */
 	if (rc == 0) {
 		fprintf(stderr, "Unknown format for <host:port> parameter\r\n");
-		error = -1;
 		free(hostname);
+		return (-1);
 	} else if (rc == 1) {
 		/* If only one variable could be read, it should be the host */
-		strncpy(req.host, hostname, MAX_HOSTNAME_LEN);
 		req.port = DEFAULT_MIGRATION_PORT;
-		free(hostname);
 	}
+
+	strncpy(req.host, hostname, MAX_HOSTNAME_LEN);
+	free(hostname);
 
 	// TODO2: check if port is valid
 	// TODO2: check if hostname is valid and if is an IP
@@ -1822,8 +1823,8 @@ send_start_migrate(struct vmctx *ctx, const char *migrate_vm)
 
 	req.type = MIGRATE_REQ_IP;
 
-	error = send_start_migrate_req(ctx, req);
-	return (error);
+	rc = send_start_migrate_req(ctx, req);
+	return (rc);
 }
 
 int

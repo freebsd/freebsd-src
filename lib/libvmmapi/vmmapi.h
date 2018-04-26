@@ -307,5 +307,6 @@ struct __attribute__((packed)) migrate_req {
 };
 
 int send_start_migrate_req(struct vmctx *ctx, struct migrate_req req);
+int recv_migrate_req(struct vmctx *ctx, struct migrate_req req);
 
 #endif	/* _VMMAPI_H_ */

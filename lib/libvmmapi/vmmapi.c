@@ -1638,6 +1638,13 @@ send_start_migrate_req(struct vmctx *ctx, struct migrate_req req)
 	return (0);
 }
 
+int
+recv_migrate_req(struct vmctx *ctx, struct migrate_req req)
+{
+
+	return (0);
+}
+
 static int
 vm_mem_read_from_file(int fd, void *dest, size_t file_offset, size_t len)
 {
