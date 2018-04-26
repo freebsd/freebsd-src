@@ -855,5 +855,6 @@ driver_t gpiobus_driver = {
 
 devclass_t	gpiobus_devclass;
 
-DRIVER_MODULE(gpiobus, gpio, gpiobus_driver, gpiobus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(gpiobus, gpio, gpiobus_driver, gpiobus_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(gpiobus, 1);
