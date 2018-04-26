@@ -65,51 +65,6 @@ __FBSDID("$FreeBSD$");
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
-/* atid services */
-static int alloc_atid(struct adapter *, void *);
-static void *lookup_atid(struct adapter *, int);
-static void free_atid(struct adapter *, int);
-
-static int
-alloc_atid(struct adapter *sc, void *ctx)
-{
-	struct tid_info *t = &sc->tids;
-	int atid = -1;
-
-	mtx_lock(&t->atid_lock);
-	if (t->afree) {
-		union aopen_entry *p = t->afree;
-
-		atid = p - t->atid_tab;
-		t->afree = p->next;
-		p->data = ctx;
-		t->atids_in_use++;
-	}
-	mtx_unlock(&t->atid_lock);
-	return (atid);
-}
-
-static void *
-lookup_atid(struct adapter *sc, int atid)
-{
-	struct tid_info *t = &sc->tids;
-
-	return (t->atid_tab[atid].data);
-}
-
-static void
-free_atid(struct adapter *sc, int atid)
-{
-	struct tid_info *t = &sc->tids;
-	union aopen_entry *p = &t->atid_tab[atid];
-
-	mtx_lock(&t->atid_lock);
-	p->next = t->afree;
-	t->afree = p;
-	t->atids_in_use--;
-	mtx_unlock(&t->atid_lock);
-}
-
 /*
  * Active open succeeded.
  */
