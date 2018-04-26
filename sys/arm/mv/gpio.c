@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 
 #include <dev/gpio/gpiobusvar.h>
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -104,7 +103,6 @@ struct mv_gpio_pindev {
 static int	mv_gpio_probe(device_t);
 static int	mv_gpio_attach(device_t);
 static int	mv_gpio_intr(device_t, void *);
-static int	mv_gpio_init(device_t);
 
 static void	mv_gpio_double_edge_init(device_t, int);
 
@@ -155,6 +153,8 @@ static int mv_gpio_pin_setflags(device_t, uint32_t, uint32_t);
 static int mv_gpio_pin_set(device_t, uint32_t, unsigned int);
 static int mv_gpio_pin_get(device_t, uint32_t, unsigned int *);
 static int mv_gpio_pin_toggle(device_t, uint32_t);
+static int mv_gpio_map_gpios(device_t, phandle_t, phandle_t,
+    int, pcell_t *, uint32_t *, uint32_t *);
 
 #define MV_GPIO_LOCK()		mtx_lock_spin(&sc->mutex)
 #define MV_GPIO_UNLOCK()	mtx_unlock_spin(&sc->mutex)
@@ -174,6 +174,7 @@ static device_method_t mv_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_get,		mv_gpio_pin_get),
 	DEVMETHOD(gpio_pin_set,		mv_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle,	mv_gpio_pin_toggle),
+	DEVMETHOD(gpio_map_gpios,	mv_gpio_map_gpios),
 
 	DEVMETHOD_END
 };
@@ -188,11 +189,9 @@ static devclass_t mv_gpio_devclass;
 
 DRIVER_MODULE(mv_gpio, simplebus, mv_gpio_driver, mv_gpio_devclass, 0, 0);
 
-static int mv_handle_gpios_prop(device_t, phandle_t, pcell_t *, int);
-
 struct ofw_compat_data gpio_controllers[] = {
-	{ "mrvl,gpio", (uintptr_t)&mv_handle_gpios_prop },
-	{ "marvell,orion-gpio", (uintptr_t)&mv_handle_gpios_prop },
+	{ "mrvl,gpio", (uintptr_t)true },
+	{ "marvell,orion-gpio", (uintptr_t)true },
 	{ NULL, 0 }
 };
 
@@ -212,7 +211,7 @@ mv_gpio_probe(device_t dev)
 static int
 mv_gpio_attach(device_t dev)
 {
-	int error, i, size;
+	int i, size;
 	struct mv_gpio_softc *sc;
 	pcell_t pincnt = 0;
 	pcell_t irq_cells = 0;
@@ -317,12 +316,6 @@ mv_gpio_attach(device_t dev)
 			device_printf(dev, "could not set up intr %d\n", i);
 			return (ENXIO);
 		}
-	}
-
-	error = mv_gpio_init(dev);
-	if (error) {
-		device_printf(dev, "WARNING: failed to initialize GPIO pins, "
-		    "error = %d\n", error);
 	}
 
 	/* Clear interrupt status. */
@@ -1037,114 +1030,9 @@ mv_gpio_value_set(device_t dev, uint32_t pin, uint8_t val)
 		mv_gpio_reg_clear(dev, reg, pin);
 }
 
-static int
-mv_handle_gpios_prop(device_t dev, phandle_t ctrl, pcell_t *gpios, int len)
-{
-	pcell_t gpio_cells, pincnt;
-	int inc, t, tuples, tuple_size;
-	int flags, pin;
-	u_long gpio_ctrl, size;
-
-	pincnt = 0;
-	if (!OF_hasprop(ctrl, "gpio-controller"))
-		/* Node is not a GPIO controller. */
-		return (ENXIO);
-
-	if (OF_getencprop(ctrl, "#gpio-cells", &gpio_cells, sizeof(pcell_t)) < 0)
-		return (ENXIO);
-	if (gpio_cells != 2)
-		return (ENXIO);
-
-	tuple_size = gpio_cells * sizeof(pcell_t) + sizeof(phandle_t);
-	tuples = len / tuple_size;
-
-	if (fdt_regsize(ctrl, &gpio_ctrl, &size))
-		return (ENXIO);
-
-	/*
-	 * Skip controller reference, since controller's phandle is given
-	 * explicitly (in a function argument).
-	 */
-	inc = sizeof(ihandle_t) / sizeof(pcell_t);
-	gpios += inc;
-
-	for (t = 0; t < tuples; t++) {
-		pin = gpios[0];
-		flags = gpios[1];
-
-		mv_gpio_configure(dev, pin, flags, ~0);
-		gpios += gpio_cells + inc;
-	}
-
-	return (0);
-}
-
-#define MAX_PINS_PER_NODE	5
-#define GPIOS_PROP_CELLS	4
-static int
-mv_gpio_init(device_t dev)
-{
-	phandle_t child, parent, root, ctrl;
-	pcell_t gpios[MAX_PINS_PER_NODE * GPIOS_PROP_CELLS];
-	struct ofw_compat_data *e;
-	int len, rv;
-
-	root = OF_finddevice("/");
-	len = 0;
-	parent = root;
-	rv = 0;
-
-	/* Traverse through entire tree to find nodes with 'gpios' prop */
-	for (child = OF_child(parent); child != 0; child = OF_peer(child)) {
-
-		/* Find a 'leaf'. Start the search from this node. */
-		while (OF_child(child)) {
-			parent = child;
-			child = OF_child(child);
-		}
-		if ((len = OF_getproplen(child, "gpios")) > 0) {
-
-			if (len > sizeof(gpios))
-				return (ENXIO);
-
-			/* Get 'gpios' property. */
-			OF_getencprop(child, "gpios", gpios, len);
-
-			/*
-			 * First cell of 'gpios' property should
-			 * contain a ref. to a node defining GPIO
-			 * controller.
-			 */
-			ctrl = OF_node_from_xref(gpios[0]);
-
-			if(ctrl != ofw_bus_get_node(dev)) {
-				/* Not this gpio controller */
-				device_printf(dev, "Not this gpio controller ctrl: %x, dev: %x\n",
-					 ctrl, ofw_bus_get_node(dev));
-				continue;
-			}
-
-			e = gpio_controllers;
-
-			/* Find and call a handler. */
-			for (; e->ocd_str; e++) {
-
-				if (ofw_bus_node_is_compatible(ctrl,e->ocd_str)) {
-					/* Call a handler. */
-					rv |= mv_handle_gpios_prop(dev, ctrl,
-					    (pcell_t *)&gpios, len);
-				}
-			}
-		}
-
-		while (OF_peer(child) == 0 && parent != root) {
-			/* No more siblings. */
-			child = parent;
-			parent = OF_parent(child);
-		}
-	}
-	return (rv);
-}
+/*
+ * GPIO interface methods
+ */
 
 static int
 mv_gpio_pin_max(device_t dev, int *maxpin)
@@ -1281,4 +1169,20 @@ mv_gpio_get_bus(device_t dev)
 	struct mv_gpio_softc *sc = device_get_softc(dev);
 
 	return (sc->sc_busdev);
+}
+
+static int
+mv_gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
+    pcell_t *gpios, uint32_t *pin, uint32_t *flags)
+{
+	struct mv_gpio_softc *sc = device_get_softc(bus);
+
+	if (gpios[0] >= sc->pin_num)
+		return (EINVAL);
+
+	*pin = gpios[0];
+	*flags = gpios[1];
+	mv_gpio_configure(bus, *pin, *flags, ~0);
+
+	return (0);
 }
