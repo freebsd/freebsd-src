@@ -463,6 +463,22 @@ dev/sio/sio_isa.c		optional	sio isa
 dev/sio/sio_pccard.c		optional	sio pccard
 dev/sio/sio_pci.c		optional	sio pci
 dev/sio/sio_puc.c		optional	sio puc
+dev/smartpqi/smartpqi_cam.c     optional 	smartpqi
+dev/smartpqi/smartpqi_cmd.c     optional 	smartpqi
+dev/smartpqi/smartpqi_discovery.c	optional	smartpqi
+dev/smartpqi/smartpqi_event.c   optional 	smartpqi
+dev/smartpqi/smartpqi_helper.c  optional 	smartpqi
+dev/smartpqi/smartpqi_init.c    optional 	smartpqi
+dev/smartpqi/smartpqi_intr.c    optional 	smartpqi
+dev/smartpqi/smartpqi_ioctl.c   optional 	smartpqi
+dev/smartpqi/smartpqi_main.c    optional 	smartpqi
+dev/smartpqi/smartpqi_mem.c     optional 	smartpqi
+dev/smartpqi/smartpqi_misc.c    optional 	smartpqi
+dev/smartpqi/smartpqi_queue.c   optional 	smartpqi
+dev/smartpqi/smartpqi_request.c optional 	smartpqi
+dev/smartpqi/smartpqi_response.c	optional 	smartpqi
+dev/smartpqi/smartpqi_sis.c     optional 	smartpqi
+dev/smartpqi/smartpqi_tag.c     optional 	smartpqi
 dev/speaker/spkr.c		optional	speaker
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
 dev/syscons/scterm-teken.c	optional	sc

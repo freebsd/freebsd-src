@@ -1717,6 +1717,13 @@ options 	MFI_DEBUG
 device		mrsas		# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 
 #
+# Microsemi smartpqi controllers.
+# These controllers have a SCSI-like interface, and require the
+# CAM infrastructure.
+#
+device          smartpqi
+
+#
 # 3ware ATA RAID
 #
 device		twe		# 3ware ATA RAID
