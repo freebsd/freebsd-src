@@ -1630,6 +1630,14 @@ vm_snapshot_req(struct vmctx *ctx, enum snapshot_req req, char *buffer, size_t m
 	return (error);
 }
 
+
+int
+send_start_migrate_req(struct vmctx *ctx, struct migrate_req req)
+{
+
+	return (0);
+}
+
 static int
 vm_mem_read_from_file(int fd, void *dest, size_t file_offset, size_t len)
 {

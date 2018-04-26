@@ -86,6 +86,7 @@ usage(bool cpu_intel)
 	"       [--destroy]\n"
 	"       [--checkpoint=<filename>]\n"
 	"       [--suspend=<filename>]\n"
+	"       [--migrate=<host:port>]\n"
 	"       [--get-all]\n"
 	"       [--get-stats]\n"
 	"       [--set-desc-ds]\n"
@@ -298,6 +299,7 @@ static int get_cpu_topology;
 static int show_vmem_stat;
 static int vm_checkpoint_opt;
 static int vm_suspend_opt;
+static int vm_migrate;
 static int vcpu_lock_all_opt;
 static int vcpu_unlock_all_opt;
 
@@ -559,7 +561,7 @@ static int
 vm_set_vmcb_field(struct vmctx *ctx, int vcpu, int off, int bytes,
 	uint64_t val)
 {
-	
+
 	return (vm_set_register(ctx, vcpu, VMCB_ACCESS(off, bytes), val));
 }
 
@@ -606,6 +608,7 @@ enum {
 	RTC_NVRAM_OFFSET,
 	SET_CHECKPOINT_FILE,
 	SET_SUSPEND_FILE,
+	MIGRATE_VM,
 };
 
 static void
@@ -1477,6 +1480,7 @@ setup_options(bool cpu_intel)
 		{ "get-vmem-stat", 	NO_ARG,	&show_vmem_stat,	1 },
 		{ "checkpoint", 	REQ_ARG, 0,	SET_CHECKPOINT_FILE},
 		{ "suspend", 		REQ_ARG, 0,	SET_SUSPEND_FILE},
+		{ "migrate", 		REQ_ARG, 0,	MIGRATE_VM},
 		{ "vcpu_lock_all", 	NO_ARG,&vcpu_lock_all_opt,		1 },
 		{ "vcpu_unlock_all", 	NO_ARG,&vcpu_unlock_all_opt,	1 },
 	};
@@ -1785,6 +1789,43 @@ send_start_suspend(struct vmctx *ctx, const char *suspend_file)
 	return send_checkpoint_op_req(ctx, &op);
 }
 
+static int
+send_start_migrate(struct vmctx *ctx, const char *migrate_vm)
+{
+	struct migrate_req req;
+	char *hostname;
+	int rc, error = 0;
+
+	hostname = malloc(MAX_HOSTNAME_LEN * sizeof(char));
+	if (hostname == NULL) {
+		perror("Could not allocate buffer\r\n");
+		return -1;
+	}
+
+	rc = sscanf(migrate_vm, "%s:%d", hostname, &(req.port));
+
+	/* If neither hostname nor port could be read */
+	if (rc == 0) {
+		fprintf(stderr, "Unknown format for <host:port> parameter\r\n");
+		error = -1;
+		free(hostname);
+	} else if (rc == 1) {
+		/* If only one variable could be read, it should be the host */
+		strncpy(req.host, hostname, MAX_HOSTNAME_LEN);
+		req.port = DEFAULT_MIGRATION_PORT;
+		free(hostname);
+	}
+
+	// TODO2: check if port is valid
+	// TODO2: check if hostname is valid and if is an IP
+	// or a hostname
+
+	req.type = MIGRATE_REQ_IP;
+
+	error = send_start_migrate_req(ctx, req);
+	return (error);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -1801,7 +1842,7 @@ main(int argc, char *argv[])
 	uint64_t cs, ds, es, fs, gs, ss, tr, ldtr;
 	struct tm tm;
 	struct option *opts;
-	char *checkpoint_file, *suspend_file;
+	char *checkpoint_file, *suspend_file, *migrate_host;
 
 	cpu_intel = cpu_vendor_intel();
 	opts = setup_options(cpu_intel);
@@ -1975,6 +2016,10 @@ main(int argc, char *argv[])
 		case SET_SUSPEND_FILE:
 			vm_suspend_opt = 1;
 			suspend_file = optarg;
+			break;
+		case MIGRATE_VM:
+			vm_migrate = 1;
+			migrate_host = optarg;
 			break;
 		default:
 			usage(cpu_intel);
@@ -2469,6 +2514,9 @@ main(int argc, char *argv[])
 
 	if (!error && vm_suspend_opt)
 		error = send_start_suspend(ctx, suspend_file);
+
+	if (!error && vm_migrate)
+		error = send_start_migrate(ctx, migrate_host);
 
 	if (!error && vcpu_lock_all_opt)
 		error = vm_vcpu_lock_all(ctx);

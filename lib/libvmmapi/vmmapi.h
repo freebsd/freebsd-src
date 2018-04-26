@@ -279,4 +279,33 @@ int	vm_restore_req(struct vmctx *ctx, enum snapshot_req req, char *buffer,
 
 int	vm_restore_mem(struct vmctx *ctx, int vmmem_fd, size_t size);
 
+#define MAX_HOSTNAME_LEN	255
+#define DEFAULT_MIGRATION_PORT	24983
+
+enum message_types {
+    MESSAGE_TYPE_SPECS	    = 0,
+    MESSAGE_TYPE_METADATA   = 1,
+    MESSAGE_TYPE_RAM	    = 2,
+    MESSAGE_TYPE_CPU	    = 3,
+    MESSAGE_TYPE_DEVICES    = 4,
+};
+
+struct __attribute__((packed)) migration_message_type {
+    size_t len;
+    unsigned int type;
+};
+
+enum migrate_req_types {
+	MIGRATE_REQ_HOSTNAME	= 0,
+	MIGRATE_REQ_IP		= 1,
+};
+
+struct __attribute__((packed)) migrate_req {
+	unsigned int type;
+	char host[MAX_HOSTNAME_LEN];
+	unsigned int port;
+};
+
+int send_start_migrate_req(struct vmctx *ctx, struct migrate_req req);
+
 #endif	/* _VMMAPI_H_ */
