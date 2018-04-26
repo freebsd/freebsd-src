@@ -578,7 +578,7 @@ out:
 static int cpu_idle_apl31_workaround;
 SYSCTL_INT(_machdep, OID_AUTO, idle_apl31, CTLFLAG_RW,
     &cpu_idle_apl31_workaround, 0,
-    "Appolo Lake APL31 MWAIT bug workaround");
+    "Apollo Lake APL31 MWAIT bug workaround");
 
 int
 cpu_idle_wakeup(int cpu)
@@ -696,7 +696,11 @@ cpu_idle_tun(void *unused __unused)
 		cpu_idle_selector(tunvar);
 	if (cpu_vendor_id == CPU_VENDOR_INTEL && cpu_id == 0x506c9) {
 		/*
-		 * Appolo Lake errata APL31.
+		 * Apollo Lake errata APL31 (public errata APL30).
+		 * Stores to the armed address range may not trigger
+		 * MWAIT to resume execution.  OS needs to use
+		 * interrupts to wake processors from MWAIT-induced
+		 * sleep states.
 		 */
 		cpu_idle_apl31_workaround = 1;
 	}
