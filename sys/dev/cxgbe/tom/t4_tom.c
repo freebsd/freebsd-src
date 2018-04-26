@@ -754,55 +754,94 @@ negative_advice(int status)
 }
 
 static int
-alloc_tid_tabs(struct tid_info *t)
+alloc_tid_tab(struct tid_info *t, int flags)
 {
-	size_t size;
-	unsigned int i;
 
-	size = t->ntids * sizeof(*t->tid_tab) +
-	    t->natids * sizeof(*t->atid_tab) +
-	    t->nstids * sizeof(*t->stid_tab);
+	MPASS(t->ntids > 0);
+	MPASS(t->tid_tab == NULL);
 
-	t->tid_tab = malloc(size, M_CXGBE, M_ZERO | M_NOWAIT);
+	t->tid_tab = malloc(t->ntids * sizeof(*t->tid_tab), M_CXGBE,
+	    M_ZERO | flags);
 	if (t->tid_tab == NULL)
 		return (ENOMEM);
-
-	mtx_init(&t->atid_lock, "atid lock", NULL, MTX_DEF);
-	t->atid_tab = (union aopen_entry *)&t->tid_tab[t->ntids];
-	t->afree = t->atid_tab;
-	t->atids_in_use = 0;
-	for (i = 1; i < t->natids; i++)
-		t->atid_tab[i - 1].next = &t->atid_tab[i];
-	t->atid_tab[t->natids - 1].next = NULL;
-
-	mtx_init(&t->stid_lock, "stid lock", NULL, MTX_DEF);
-	t->stid_tab = (struct listen_ctx **)&t->atid_tab[t->natids];
-	t->stids_in_use = 0;
-	TAILQ_INIT(&t->stids);
-	t->nstids_free_head = t->nstids;
-
 	atomic_store_rel_int(&t->tids_in_use, 0);
 
 	return (0);
 }
 
 static void
-free_tid_tabs(struct tid_info *t)
+free_tid_tab(struct tid_info *t)
 {
+
 	KASSERT(t->tids_in_use == 0,
 	    ("%s: %d tids still in use.", __func__, t->tids_in_use));
-	KASSERT(t->atids_in_use == 0,
-	    ("%s: %d atids still in use.", __func__, t->atids_in_use));
-	KASSERT(t->stids_in_use == 0,
-	    ("%s: %d tids still in use.", __func__, t->stids_in_use));
 
 	free(t->tid_tab, M_CXGBE);
 	t->tid_tab = NULL;
+}
 
-	if (mtx_initialized(&t->atid_lock))
-		mtx_destroy(&t->atid_lock);
+static int
+alloc_stid_tab(struct tid_info *t, int flags)
+{
+
+	MPASS(t->nstids > 0);
+	MPASS(t->stid_tab == NULL);
+
+	t->stid_tab = malloc(t->nstids * sizeof(*t->stid_tab), M_CXGBE,
+	    M_ZERO | flags);
+	if (t->stid_tab == NULL)
+		return (ENOMEM);
+	mtx_init(&t->stid_lock, "stid lock", NULL, MTX_DEF);
+	t->stids_in_use = 0;
+	TAILQ_INIT(&t->stids);
+	t->nstids_free_head = t->nstids;
+
+	return (0);
+}
+
+static void
+free_stid_tab(struct tid_info *t)
+{
+
+	KASSERT(t->stids_in_use == 0,
+	    ("%s: %d tids still in use.", __func__, t->stids_in_use));
+
 	if (mtx_initialized(&t->stid_lock))
 		mtx_destroy(&t->stid_lock);
+	free(t->stid_tab, M_CXGBE);
+	t->stid_tab = NULL;
+}
+
+static void
+free_tid_tabs(struct tid_info *t)
+{
+
+	free_tid_tab(t);
+	free_atid_tab(t);
+	free_stid_tab(t);
+}
+
+static int
+alloc_tid_tabs(struct tid_info *t)
+{
+	int rc;
+
+	rc = alloc_tid_tab(t, M_NOWAIT);
+	if (rc != 0)
+		goto failed;
+
+	rc = alloc_atid_tab(t, M_NOWAIT);
+	if (rc != 0)
+		goto failed;
+
+	rc = alloc_stid_tab(t, M_NOWAIT);
+	if (rc != 0)
+		goto failed;
+
+	return (0);
+failed:
+	free_tid_tabs(t);
+	return (rc);
 }
 
 static int
