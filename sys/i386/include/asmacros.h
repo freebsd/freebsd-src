@@ -208,7 +208,7 @@
 
 	.macro	KENTER
 	testl	$PSL_VM, TF_EFLAGS(%esp)
-	jnz	2f
+	jnz	1f
 	testb	$SEL_RPL_MASK, TF_CS(%esp)
 	jz	2f
 1:	MOVE_STACKS
