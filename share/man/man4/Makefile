@@ -444,6 +444,7 @@ MAN=	aac.4 \
 	re.4 \
 	rgephy.4 \
 	rights.4 \
+	${_rk_gpio.4} \
 	${_rk_grf.4} \
 	${_rk_pinctrl.4} \
 	rl.4 \
@@ -767,6 +768,7 @@ MLINKS+=xl.4 if_xl.4
 
 .if ${MACHINE_CPUARCH} == "aarch64"
 _armv8crypto.4=	armv8crypto.4
+_rk_gpio.4=	rk_gpio.4
 _rk_grf.4=	rk_grf.4
 _rk_pinctrl.4=	rk_pinctrl.4
 .endif
