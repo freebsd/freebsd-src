@@ -83,125 +83,123 @@ STAILQ_HEAD(tcp_log_stailq, tcp_log_mem);
 
 /*
  * Tcp control block, one per tcp; fields:
- * Organized for 16 byte cacheline efficiency.
+ * Organized for 64 byte cacheline efficiency based
+ * on common tcp_input/tcp_output processing.
  */
 struct tcpcb {
-	struct	tsegqe_head t_segq;	/* segment reassembly queue */
-	int	t_segqlen;		/* segment reassembly queue length */
-	int	t_dupacks;		/* consecutive dup acks recd */
-
-	struct mbuf      *t_in_pkt;	/* head of the input packet queue for the tcp_hpts system */
-	struct mbuf	 *t_tail_pkt;	/* tail of the input packet queue for the tcp_hpts system */
-	struct tcp_timer *t_timers;	/* All the TCP timers in one struct */
-
+	/* Cache line 1 */
 	struct	inpcb *t_inpcb;		/* back pointer to internet pcb */
-	int	t_state;		/* state of this connection */
+	struct tcp_function_block *t_fb;/* TCP function call block */
+	void	*t_fb_ptr;		/* Pointer to t_fb specific data */
+	uint32_t t_maxseg:24,		/* maximum segment size */
+		t_logstate:8;		/* State of "black box" logging */
+	uint32_t t_state:4,		/* state of this connection */
+		bits_spare : 24;
 	u_int	t_flags;
-
-	struct	vnet *t_vnet;		/* back pointer to parent vnet */
-
 	tcp_seq	snd_una;		/* sent but unacknowledged */
 	tcp_seq	snd_max;		/* highest sequence number sent;
 					 * used to recognize retransmits
 					 */
 	tcp_seq	snd_nxt;		/* send next */
 	tcp_seq	snd_up;			/* send urgent pointer */
-
-	tcp_seq	snd_wl1;		/* window update seg seq number */
-	tcp_seq	snd_wl2;		/* window update seg ack number */
-	tcp_seq	iss;			/* initial send sequence number */
-	tcp_seq	irs;			/* initial receive sequence number */
-
+	uint32_t  snd_wnd;		/* send window */
+	uint32_t  snd_cwnd;		/* congestion-controlled window */
+	uint32_t cl1_spare; 		/* Spare to round out CL 1 */
+	/* Cache line 2 */
+	u_int32_t  ts_offset;		/* our timestamp offset */
+	u_int32_t	rfbuf_ts;	/* recv buffer autoscaling timestamp */
+	int	rcv_numsacks;		/* # distinct sack blks present */
+	u_int	t_tsomax;		/* TSO total burst length limit in bytes */
+	u_int	t_tsomaxsegcount;	/* TSO maximum segment count */
+	u_int	t_tsomaxsegsize;	/* TSO maximum segment size in bytes */
 	tcp_seq	rcv_nxt;		/* receive next */
 	tcp_seq	rcv_adv;		/* advertised window */
 	uint32_t  rcv_wnd;		/* receive window */
+	u_int	t_flags2;		/* More tcpcb flags storage */
+	int	t_srtt;			/* smoothed round-trip time */
+	int	t_rttvar;		/* variance in round-trip time */
+	u_int32_t  ts_recent;		/* timestamp echo data */
+	u_char	snd_scale;		/* window scaling for send window */
+	u_char	rcv_scale;		/* window scaling for recv window */
+	u_char	snd_limited;		/* segments limited transmitted */
+	u_char	request_r_scale;	/* pending window scaling */
+	tcp_seq	last_ack_sent;
+	u_int	t_rcvtime;		/* inactivity time */
+	/* Cache line 3 */
 	tcp_seq	rcv_up;			/* receive urgent pointer */
-
-	uint32_t  snd_wnd;		/* send window */
-	uint32_t  snd_cwnd;		/* congestion-controlled window */
+	int	t_segqlen;		/* segment reassembly queue length */
+	struct	tsegqe_head t_segq;	/* segment reassembly queue */
+	struct mbuf      *t_in_pkt;
+	struct mbuf	 *t_tail_pkt;
+	struct tcp_timer *t_timers;	/* All the TCP timers in one struct */
+	struct	vnet *t_vnet;		/* back pointer to parent vnet */
 	uint32_t  snd_ssthresh;		/* snd_cwnd size threshold for
 					 * for slow start exponential to
 					 * linear switch
 					 */
+	tcp_seq	snd_wl1;		/* window update seg seq number */
+	/* Cache line 4 */
+	tcp_seq	snd_wl2;		/* window update seg ack number */
+
+	tcp_seq	irs;			/* initial receive sequence number */
+	tcp_seq	iss;		        /* initial send sequence number */
+	u_int   t_acktime;
+	u_int	ts_recent_age;		/* when last updated */
 	tcp_seq	snd_recover;		/* for use in NewReno Fast Recovery */
-
-	u_int	t_rcvtime;		/* inactivity time */
-	u_int	t_starttime;		/* time connection was established */
-	u_int	t_rtttime;		/* RTT measurement start time */
-	tcp_seq	t_rtseq;		/* sequence number being timed */
-
-	int	t_rxtcur;		/* current retransmit value (ticks) */
-	u_int	t_maxseg;		/* maximum segment size */
-	u_int	t_pmtud_saved_maxseg;	/* pre-blackhole MSS */
-	int	t_srtt;			/* smoothed round-trip time */
-	int	t_rttvar;		/* variance in round-trip time */
-
-	int	t_rxtshift;		/* log(2) of rexmt exp. backoff */
-	u_int	t_rttmin;		/* minimum rtt allowed */
-	u_int	t_rttbest;		/* best rtt we've seen */
-	u_long	t_rttupdated;		/* number of times rtt sampled */
-	uint32_t  max_sndwnd;		/* largest window peer has offered */
-
-	int	t_softerror;		/* possible error not yet reported */
-/* out-of-band data */
+	uint16_t cl4_spare;		/* Spare to adjust CL 4 */
 	char	t_oobflags;		/* have some */
 	char	t_iobc;			/* input character */
-/* RFC 1323 variables */
-	u_char	snd_scale;		/* window scaling for send window */
-	u_char	rcv_scale;		/* window scaling for recv window */
-	u_char	request_r_scale;	/* pending window scaling */
-	u_int32_t  ts_recent;		/* timestamp echo data */
-	u_int	ts_recent_age;		/* when last updated */
-	u_int32_t  ts_offset;		/* our timestamp offset */
+	int	t_rxtcur;		/* current retransmit value (ticks) */
 
-	tcp_seq	last_ack_sent;
-/* experimental */
+	int	t_rxtshift;		/* log(2) of rexmt exp. backoff */
+	u_int	t_rtttime;		/* RTT measurement start time */
+
+	tcp_seq	t_rtseq;		/* sequence number being timed */
+	u_int	t_starttime;		/* time connection was established */
+
+	u_int	t_pmtud_saved_maxseg;	/* pre-blackhole MSS */
+	u_int	t_rttmin;		/* minimum rtt allowed */
+
+	u_int	t_rttbest;		/* best rtt we've seen */
+
+	int	t_softerror;		/* possible error not yet reported */
+	uint32_t  max_sndwnd;		/* largest window peer has offered */
+	/* Cache line 5 */
 	uint32_t  snd_cwnd_prev;	/* cwnd prior to retransmit */
 	uint32_t  snd_ssthresh_prev;	/* ssthresh prior to retransmit */
 	tcp_seq	snd_recover_prev;	/* snd_recover prior to retransmit */
 	int	t_sndzerowin;		/* zero-window updates sent */
-	u_int	t_badrxtwin;		/* window for retransmit recovery */
-	u_char	snd_limited;		/* segments limited transmitted */
-/* SACK related state */
+	u_long	t_rttupdated;		/* number of times rtt sampled */
 	int	snd_numholes;		/* number of holes seen by sender */
+	u_int	t_badrxtwin;		/* window for retransmit recovery */
 	TAILQ_HEAD(sackhole_head, sackhole) snd_holes;
 					/* SACK scoreboard (sorted) */
 	tcp_seq	snd_fack;		/* last seq number(+1) sack'd by rcv'r*/
-	int	rcv_numsacks;		/* # distinct sack blks present */
-	struct sackblk sackblks[MAX_SACK_BLKS]; /* seq nos. of sack blocks */
 	tcp_seq sack_newdata;		/* New data xmitted in this recovery
 					   episode starts at this seq number */
+	struct sackblk sackblks[MAX_SACK_BLKS]; /* seq nos. of sack blocks */
 	struct sackhint	sackhint;	/* SACK scoreboard hint */
 	int	t_rttlow;		/* smallest observerved RTT */
-	u_int32_t	rfbuf_ts;	/* recv buffer autoscaling timestamp */
 	int	rfbuf_cnt;		/* recv buffer autoscaling byte count */
 	struct toedev	*tod;		/* toedev handling this connection */
 	int	t_sndrexmitpack;	/* retransmit packets sent */
 	int	t_rcvoopack;		/* out-of-order packets received */
 	void	*t_toe;			/* TOE pcb pointer */
-	int	t_bytes_acked;		/* # bytes acked during current RTT */
 	struct cc_algo	*cc_algo;	/* congestion control algorithm */
 	struct cc_var	*ccv;		/* congestion control specific vars */
 	struct osd	*osd;		/* storage for Khelp module data */
-
+	int	t_bytes_acked;		/* # bytes acked during current RTT */
 	u_int	t_keepinit;		/* time to establish connection */
 	u_int	t_keepidle;		/* time before keepalive probes begin */
 	u_int	t_keepintvl;		/* interval between keepalives */
 	u_int	t_keepcnt;		/* number of keepalives before close */
-
-	u_int	t_tsomax;		/* TSO total burst length limit in bytes */
-	u_int	t_tsomaxsegcount;	/* TSO maximum segment count */
-	u_int	t_tsomaxsegsize;	/* TSO maximum segment size in bytes */
-	u_int	t_flags2;		/* More tcpcb flags storage */
-	int	t_logstate;		/* State of "black box" logging */
-	struct tcp_log_stailq t_logs;	/* Log buffer */
+	int	t_dupacks;		/* consecutive dup acks recd */
 	int	t_lognum;		/* Number of log entries */
-	uint32_t t_logsn;		/* Log "serial number" */
+	struct tcp_log_stailq t_logs;	/* Log buffer */
 	struct tcp_log_id_node *t_lin;
 	struct tcp_log_id_bucket *t_lib;
 	const char *t_output_caller;	/* Function that called tcp_output */
-	struct tcp_function_block *t_fb;/* TCP function call block */
-	void	*t_fb_ptr;		/* Pointer to t_fb specific data */
+	uint32_t t_logsn;		/* Log "serial number" */
 	uint8_t t_tfo_client_cookie_len; /* TCP Fast Open client cookie length */
 	unsigned int *t_tfo_pending;	/* TCP Fast Open server pending counter */
 	union {
