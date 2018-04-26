@@ -65,37 +65,42 @@ Description:	The gpios property of a device node defines the GPIO or GPIOs
 		information like pin number, direction and various flags.
 
 Example:
-		gpios = <&GPIO 0 1 0		/* GPIO[0]:  IN,  NONE */
-			 &GPIO 1 2 0>;		/* GPIO[1]:  OUT, NONE */
+		gpios = <&GPIO 0 1		/* GPIO[0]:  FLAGS */
+			 &GPIO 1 2>;		/* GPIO[1]:  FLAGS */
 
 
-3. "mrvl,gpio" controller GPIO specifier
+3. GPIO controller specifier
 
 	<phandle pin dir flags>
 
 
 pin:	0-MAX				GPIO pin number.
 
-dir:
-	1		IN		Input direction.
-	2		OUT		Output direction.
-
 flags:
-	0x0000----	IN_NONE
-	0x0001----	IN_POL_LOW	Polarity low (active-low).
-	0x0002----	IN_IRQ_EDGE	Interrupt, edge triggered.
-	0x0004----	IN_IRQ_LEVEL	Interrupt, level triggered.
-	
-	0x----0000	OUT_NONE
-	0x----0001	OUT_BLINK	Blink on the pin.
-	0x----0002	OUT_OPEN_DRAIN	Open drain output line.
-	0x----0004	OUT_OPEN_SRC	Open source output line.
+	Available flags are listed in sys/conf.h. Following combination
+	can be supported by the controller. For details please refer
+	to controller's GPIO reference manual.
 
+	GPIO_PIN_INPUT		0x0001	Input direction
+	GPIO_PIN_OUTPUT		0x0002	Output direction
+	GPIO_PIN_OPENDRAIN	0x0004	Open-drain output
+	GPIO_PIN_OPENSOURCE	0x0008	Open-source output
+	GPIO_PIN_PUSHPULL	0x0010	Push-pull output
+	GPIO_PIN_TRISTATE	0x0020	Output disabled
+	GPIO_PIN_PULLUP		0x0040	Internal pull-up enabled
+	GPIO_PIN_PULLDOWN	0x0080	Internal pull-down enabled
+	GPIO_PIN_INVIN		0x0100	Invert input
+	GPIO_PIN_INVOUT		0x0200	Invert output
+	GPIO_PIN_PULSATE	0x0400	Pulsate in hardware
+	GPIO_PIN_IRQ_POL_EDG	0x0800	IRQ active single edge
+	GPIO_PIN_IRQ_POL_DBL	0x1000	IRQ active double edge
+	GPIO_PIN_IRQ_POL_LVL	0x2000	IRQ active level
+	GPIO_PIN_IRQ_DEBOUNCE	0x4000	Debounce on IRQ pin
 
 Example:
-	gpios = <&GPIO 0  1 0x00000000		/* GPIO[0]:   IN */
-		 &GPIO 1  2 0x00000000		/* GPIO[1]:   OUT */
-		 &GPIO 2  1 0x00020000		/* GPIO[2]:   IN, IRQ (edge) */
-		 &GPIO 3  1 0x00040000		/* GPIO[3]:   IN, IRQ (level) */
+	gpios = <&GPIO 0  0x00000001	/* GPIO[0]:   IN */
+		 &GPIO 1  0x00000002	/* GPIO[1]:   OUT */
+		 &GPIO 2  0x00000801	/* GPIO[2]:   IN, IRQ (edge) */
+		 &GPIO 3  0x00004001	/* GPIO[3]:   IN, IRQ (level) */
 		 ...
-		 &GPIO 10 2 0x00000001>;	/* GPIO[10]:  OUT, blink */
+		 &GPIO 10 0x00000401>;	/* GPIO[10]:  OUT, blink */
