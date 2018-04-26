@@ -1128,10 +1128,13 @@ ether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (error != 0)
 			break;
 		if (ifr->ifr_lan_pcp > 7 &&
-		    ifr->ifr_lan_pcp != IFNET_PCP_NONE)
+		    ifr->ifr_lan_pcp != IFNET_PCP_NONE) {
 			error = EINVAL;
-		else
+		} else {
 			ifp->if_pcp = ifr->ifr_lan_pcp;
+			/* broadcast event about PCP change */
+			EVENTHANDLER_INVOKE(ifnet_event, ifp, IFNET_EVENT_PCP);
+		}
 		break;
 
 	case SIOCGLANPCP:
