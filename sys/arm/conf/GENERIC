@@ -21,7 +21,6 @@
 ident		GENERIC
 
 cpu		CPU_CORTEXA
-cpu		CPU_MV_PJ4B
 options 	SMP_ON_UP
 machine 	arm armv7
 makeoptions	CONF_CFLAGS="-march=armv7a"
@@ -39,7 +38,6 @@ files		"../allwinner/h3/files.h3"
 files		"../broadcom/bcm2835/files.bcm2836"
 files		"../broadcom/bcm2835/files.bcm283x"
 files		"../freescale/imx/files.imx6"
-files           "../mv/files.arm7"
 files		"../nvidia/tegra124/files.tegra124"
 files		"../qemu/files.qemu"
 files		"../ti/files.ti"
@@ -59,8 +57,6 @@ options 	SOC_ALLWINNER_H3
 options 	SOC_BCM2836
 options		SOC_TI_AM335X
 options		SOC_OMAP4
-options         SOC_MV_ARMADA38X
-options         SOC_MV_ARMADAXP
 
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
@@ -189,10 +185,9 @@ device		pass			# Passthrough device (direct ATA/SCSI access)
 # USB support
 options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
 device		usb
-device		uhci
+#device		uhci
 device		ohci
 device		ehci
-device		xhci
 device		dwcotg			# DWC OTG controller
 device		musb
 
@@ -200,8 +195,6 @@ device		axe			# USB-Ethernet
 device		umass			# Disks/Mass storage - Requires scbus and da
 device		uhid			# "Human Interface Devices"
 device		ukbd			# Allow keyboard like HIDs to control console
-
-device 		firmware
 
 # Device mode support
 device		usb_template    	# Control of the gadget
@@ -211,11 +204,6 @@ device		loop
 device		ether
 device		vlan			# 802.1Q VLAN support
 device		bpf
-device		mii
-device		mdio
-device		etherswitch
-device		e6000sw
-device		neta			# Marvell Network controller
 
 # Ethernet NICs that use the common MII bus controller code.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
@@ -255,11 +243,6 @@ device		ti_sdma
 
 # Extensible Firmware Interface
 options 	EFI
-
-# Marvell Cryptographic Engine and Security Accelerator
-device		cesa
-device		crypto
-device		cryptodev
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
