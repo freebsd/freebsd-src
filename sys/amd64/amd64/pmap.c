@@ -2607,8 +2607,10 @@ pmap_pinit0(pmap_t pmap)
 	CPU_FOREACH(i) {
 		pmap->pm_pcids[i].pm_pcid = PMAP_PCID_NONE;
 		pmap->pm_pcids[i].pm_gen = 0;
-		if (!pti)
+		if (!pti) {
 			__pcpu[i].pc_kcr3 = PMAP_NO_CR3;
+			__pcpu[i].pc_ucr3 = PMAP_NO_CR3;
+		}
 	}
 	PCPU_SET(curpmap, kernel_pmap);
 	pmap_activate(curthread);
@@ -2783,7 +2785,8 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 			 * the kernel-mode page table active on return
 			 * to user space.
 			 */
-			*pml4 |= pg_nx;
+			if (pmap->pm_ucr3 != PMAP_NO_CR3)
+				*pml4 |= pg_nx;
 
 			pml4u = &pmap->pm_pml4u[pml4index];
 			*pml4u = VM_PAGE_TO_PHYS(m) | PG_U | PG_RW | PG_V |
@@ -7359,9 +7362,10 @@ pmap_activate_sw(struct thread *td)
 {
 	pmap_t oldpmap, pmap;
 	struct invpcid_descr d;
-	uint64_t cached, cr3, kcr3, kern_pti_cached, ucr3;
+	uint64_t cached, cr3, kcr3, kern_pti_cached, rsp0, ucr3;
 	register_t rflags;
 	u_int cpuid;
+	struct amd64tss *tssp;
 
 	oldpmap = PCPU_GET(curpmap);
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
@@ -7451,6 +7455,12 @@ pmap_activate_sw(struct thread *td)
 			PCPU_SET(kcr3, pmap->pm_cr3);
 			PCPU_SET(ucr3, pmap->pm_ucr3);
 		}
+	}
+	if (pmap->pm_ucr3 != PMAP_NO_CR3) {
+		rsp0 = ((vm_offset_t)PCPU_PTR(pti_stack) +
+		    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful;
+		tssp = PCPU_GET(tssp);
+		tssp->tss_rsp0 = rsp0;
 	}
 #ifdef SMP
 	CPU_CLR_ATOMIC(cpuid, &oldpmap->pm_active);
