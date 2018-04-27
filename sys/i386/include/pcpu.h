@@ -242,6 +242,8 @@ __curpcb(void)
 }
 #define	curpcb		(__curpcb())
 
+#define	IS_BSP()	(PCPU_GET(cpuid) == 0)
+
 #else /* !lint || defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF) */
 
 #error "this file needs to be ported to your compiler"
