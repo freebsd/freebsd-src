@@ -353,4 +353,4 @@ static driver_t ahci_ata_driver = {
 	sizeof(struct ahci_controller)
 };
 
-DRIVER_MODULE(ahci, simplebus, ahci_ata_driver, ahci_devclass, 0, 0);
+DRIVER_MODULE(imx6_ahci, simplebus, ahci_ata_driver, ahci_devclass, 0, 0);
