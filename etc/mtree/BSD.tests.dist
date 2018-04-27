@@ -420,6 +420,8 @@
         ..
         aio
         ..
+        capsicum
+        ..
         fifo
         ..
         file
