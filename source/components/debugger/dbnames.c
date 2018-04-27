@@ -372,8 +372,17 @@ AcpiDbDumpNamespace (
     }
 
     AcpiDbSetOutputDestination (ACPI_DB_DUPLICATE_OUTPUT);
-    AcpiOsPrintf ("ACPI Namespace (from %4.4s (%p) subtree):\n",
-        ((ACPI_NAMESPACE_NODE *) SubtreeEntry)->Name.Ascii, SubtreeEntry);
+
+    if (((ACPI_NAMESPACE_NODE *) SubtreeEntry)->Parent)
+    {
+        AcpiOsPrintf ("ACPI Namespace (from %4.4s (%p) subtree):\n",
+            ((ACPI_NAMESPACE_NODE *) SubtreeEntry)->Name.Ascii, SubtreeEntry);
+    }
+    else
+    {
+        AcpiOsPrintf ("ACPI Namespace (from %s):\n",
+            ACPI_NAMESPACE_ROOT);
+    }
 
     /* Display the subtree */
 

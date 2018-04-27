@@ -199,9 +199,16 @@ AeExceptionHandler (
 
     if (Name)
     {
-        AcpiOsPrintf (AE_PREFIX
-            "Evaluating Method or Node: [%4.4s]\n",
-            (char *) &Name);
+        if (ACPI_COMPARE_NAME (&Name, ACPI_ROOT_PATHNAME))
+        {
+            AcpiOsPrintf (AE_PREFIX
+                "Evaluating executable code at [%s]\n", ACPI_NAMESPACE_ROOT);
+        }
+        else
+        {
+            AcpiOsPrintf (AE_PREFIX
+                "Evaluating Method or Node: [%4.4s]\n", (char *) &Name);
+        }
     }
 
     /* Be terse about loop timeouts */
