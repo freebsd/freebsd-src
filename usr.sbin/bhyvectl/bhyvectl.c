@@ -1817,12 +1817,6 @@ send_start_migrate(struct vmctx *ctx, const char *migrate_vm)
 	strncpy(req.host, hostname, MAX_HOSTNAME_LEN);
 	free(hostname);
 
-	// TODO2: check if port is valid
-	// TODO2: check if hostname is valid and if is an IP
-	// or a hostname
-
-	req.type = MIGRATE_REQ_IP;
-
 	rc = send_start_migrate_req(ctx, req);
 	return (rc);
 }

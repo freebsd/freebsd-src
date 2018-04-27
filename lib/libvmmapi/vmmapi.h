@@ -295,13 +295,7 @@ struct __attribute__((packed)) migration_message_type {
     unsigned int type;
 };
 
-enum migrate_req_types {
-	MIGRATE_REQ_HOSTNAME	= 0,
-	MIGRATE_REQ_IP		= 1,
-};
-
 struct __attribute__((packed)) migrate_req {
-	unsigned int type;
 	char host[MAX_HOSTNAME_LEN];
 	unsigned int port;
 };

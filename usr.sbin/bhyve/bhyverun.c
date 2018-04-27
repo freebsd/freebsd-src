@@ -1501,11 +1501,6 @@ receive_vm_migration(struct vmctx *ctx, char *migration_data)
 
 	strncpy(req.host, hostname, MAX_HOSTNAME_LEN);
 	free(hostname);
-	// TODO2: check if port is valid
-	// TODO2: check if hostname is valid and if is an IP
-	// or a hostname
-
-	req.type = MIGRATE_REQ_IP;
 
 	rc = recv_migrate_req(ctx, req);
 
