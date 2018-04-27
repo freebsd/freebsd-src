@@ -1,6 +1,6 @@
-# $Id: Makefile 3097 2014-09-02 22:10:18Z kaiwang27 $
+# $Id: Makefile 3594 2018-04-11 18:26:50Z jkoshy $
 
-TOP=	${.CURDIR}/..
+TOP=	..
 
 LIB=	dwarf
 

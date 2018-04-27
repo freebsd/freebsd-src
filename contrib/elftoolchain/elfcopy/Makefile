@@ -1,4 +1,4 @@
-# $Id: Makefile 3381 2016-01-30 19:39:47Z jkoshy $
+# $Id: Makefile 3608 2018-04-14 21:23:04Z jkoshy $
 
 TOP=	..
 
@@ -18,7 +18,7 @@ LDADD=	-lelf -lelftc
 LDADD+= -larchive
 .endif
 
-.if defined(WITH_PE) && ${WITH_PE:tl} == "yes"
+.if defined(WITH_PE) && ${WITH_PE} == "yes"
 SRCS+=	pe.c
 CFLAGS+= -DWITH_PE=1
 
@@ -51,4 +51,6 @@ ${EXTRA_TARGETS}:	${PROG}
 .if ${OS_HOST} == "OpenBSD"
 CFLAGS+=	-I/usr/local/include
 LDFLAGS+=	-L/usr/local/lib
+.elif ${OS_HOST} == "DragonFly"
+LDADD+=		-lbz2
 .endif
