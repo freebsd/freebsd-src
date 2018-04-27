@@ -86,7 +86,7 @@ usage(bool cpu_intel)
 	"       [--destroy]\n"
 	"       [--checkpoint=<filename>]\n"
 	"       [--suspend=<filename>]\n"
-	"       [--migrate=<host:port>]\n"
+	"       [--migrate=<host,port>]\n"
 	"       [--get-all]\n"
 	"       [--get-stats]\n"
 	"       [--set-desc-ds]\n"
@@ -1802,11 +1802,11 @@ send_start_migrate(struct vmctx *ctx, const char *migrate_vm)
 		return -1;
 	}
 
-	rc = sscanf(migrate_vm, "%s:%d", hostname, &(req.port));
+	rc = sscanf(migrate_vm, "%s,%d", hostname, &(req.port));
 
 	/* If neither hostname nor port could be read */
 	if (rc == 0) {
-		fprintf(stderr, "Unknown format for <host:port> parameter\r\n");
+		fprintf(stderr, "Unknown format for <host,port> parameter\r\n");
 		free(hostname);
 		return (-1);
 	} else if (rc == 1) {

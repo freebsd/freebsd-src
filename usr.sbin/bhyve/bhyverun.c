@@ -262,7 +262,7 @@ usage(int code)
 		"       -l: LPC device configuration\n"
 		"       -m: memory size in MB\n"
 		"       -r: path to checkpoint file\n"
-		"       -R: <host:port> the source vm host and port for migration\n"
+		"       -R: <host,port> the source vm host and port for migration\n"
 		"       -p: pin 'vcpu' to 'hostcpu'\n"
 		"       -P: vmexit from the guest on pause\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
@@ -1488,10 +1488,10 @@ receive_vm_migration(struct vmctx *ctx, char *migration_data)
 		return (-1);
 	}
 
-	rc = sscanf(migration_data, "%s:%d", hostname, &(req.port));
+	rc = sscanf(migration_data, "%s,%d", hostname, &(req.port));
 
 	if (rc == 0) {
-		fprintf(stderr, "Unknown format for <host:port> parameter\r\n");
+		fprintf(stderr, "Unknown format for <host,port> parameter\r\n");
 		free(hostname);
 		return (-1);
 	} else if (rc == 1) {
