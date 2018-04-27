@@ -135,6 +135,8 @@ extern const char *freebsd32_syscallnames[];
 #error 1 << SYSTRACE_SHIFT must exceed number of system calls
 #endif
 
+static int systrace_enabled_count;
+
 static void	systrace_load(void *);
 static void	systrace_unload(void *);
 
@@ -315,6 +317,9 @@ systrace_enable(void *arg, dtrace_id_t id, void *parg)
 		SYSENT[sysnum].sy_entry = id;
 	else
 		SYSENT[sysnum].sy_return = id;
+	systrace_enabled_count++;
+	if (systrace_enabled_count == 1)
+		systrace_enabled = true;
 }
 
 static void
@@ -324,6 +329,9 @@ systrace_disable(void *arg, dtrace_id_t id, void *parg)
 
 	SYSENT[sysnum].sy_entry = 0;
 	SYSENT[sysnum].sy_return = 0;
+	systrace_enabled_count--;
+	if (systrace_enabled_count == 0)
+		systrace_enabled = false;
 }
 
 static void

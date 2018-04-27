@@ -126,7 +126,8 @@ syscallenter(struct thread *td)
 
 #ifdef KDTRACE_HOOKS
 		/* Give the syscall:::entry DTrace probe a chance to fire. */
-		if (systrace_probe_func != NULL && sa->callp->sy_entry != 0)
+		if (__predict_false(systrace_enabled &&
+		    sa->callp->sy_entry != 0))
 			(*systrace_probe_func)(sa, SYSTRACE_ENTRY, 0);
 #endif
 
@@ -140,7 +141,8 @@ syscallenter(struct thread *td)
 
 #ifdef KDTRACE_HOOKS
 		/* Give the syscall:::return DTrace probe a chance to fire. */
-		if (systrace_probe_func != NULL && sa->callp->sy_return != 0)
+		if (__predict_false(systrace_enabled &&
+		    sa->callp->sy_return != 0))
 			(*systrace_probe_func)(sa, SYSTRACE_RETURN,
 			    error ? -1 : td->td_retval[0]);
 #endif
