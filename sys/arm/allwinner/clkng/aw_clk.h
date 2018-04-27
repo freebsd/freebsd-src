@@ -331,6 +331,7 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.m.value = _mvalue,			\
 		.m.flags = _mflags,			\
 		.mux_width = _mux_width,		\
+		.gate_shift = _gate_shift,		\
 		.flags = _flags,			\
 	}
 
