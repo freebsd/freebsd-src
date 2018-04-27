@@ -1187,6 +1187,15 @@ UtDumpBasicOp (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  Level);
 
+void *
+UtGetParentMethod (
+    ACPI_NAMESPACE_NODE     *Node);
+
+BOOLEAN
+UtNodeIsDescendantOf (
+    ACPI_NAMESPACE_NODE     *Node1,
+    ACPI_NAMESPACE_NODE     *Node2);
+
 void
 UtDisplaySupportedTables (
     void);
