@@ -1,4 +1,4 @@
-# $Id: Makefile 3407 2016-02-14 17:47:23Z jkoshy $
+# $Id: Makefile 3594 2018-04-11 18:26:50Z jkoshy $
 
 TOP=	..
 
@@ -47,6 +47,6 @@ YFLAGS=	-d
 
 .SUFFIXES:	.ld .c
 .ld.c:
-	awk -f ld_script.awk ${.ALLSRC} > ${.TARGET}
+	awk -f ${.CURDIR}/ld_script.awk ${.ALLSRC} > ${.TARGET}
 
 .include "${TOP}/mk/elftoolchain.prog.mk"

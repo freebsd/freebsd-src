@@ -13,12 +13,12 @@ operating systems.
   =================   ========   =======================
   Operating System    Version    Supported Architectures
   -----------------   --------   -----------------------
-  `DragonFly BSD`_    2.10.1     i386
-  FreeBSD_            10.2       amd64 & i386
+  `DragonFly BSD`_    5.2        amd64
+  FreeBSD_            11.1       amd64 & i386
   Minix_              3.0.2      i386
-  NetBSD_             7.0        i386
-  OpenBSD_            v5.0       i386
-  Ubuntu_ GNU/Linux   14.04LTS   x86_64
+  NetBSD_             7.1.2      i386
+  OpenBSD_            6.3        amd64
+  Ubuntu_ GNU/Linux   17.10      x86_64
   =================   ========   =======================
 
 .. _DragonFly BSD: http://www.dragonflybsd.org/
@@ -40,7 +40,7 @@ directories are present.
 Prerequisites
 -------------
 
-:DragonFly BSD 2.10.1:
+:DragonFly BSD 5.2:
     - The core libraries and utilities should build out of the box on
       a stock install of DragonFly BSD.
 
@@ -49,14 +49,14 @@ Prerequisites
       #. The current release of the `Test Execution Toolkit`_ needs to
          be downloaded and unpacked into the ``test/tet/`` directory.
 
-      #. The ``py26-yaml`` package needs to be installed::
+      #. The ``py27-yaml`` package needs to be installed::
 
-            % sudo pkgin install py26-yaml
+            % sudo pkg install py27-yaml
 
     - Building additional documentation is not currently supported
       under DragonFly BSD.
 
-:FreeBSD 10.2:
+:FreeBSD 11.1:
     - The core libraries and utilities should build out of the box on
       a stock install of FreeBSD.
 
@@ -73,7 +73,7 @@ Prerequisites
             % sudo pkg install python py27-yaml
 
     - Building additional documentation is not currently supported under
-      FreeBSD 10.2.
+      FreeBSD 11.1.
 
 :Minix 3.2.0:
     - The following packages are pre-requisites for building the
@@ -95,29 +95,9 @@ Prerequisites
     - Building additional documentation is not currently supported
       under Minix.
 
-:OpenBSD 5.0:
+:OpenBSD 6.3:
     - The following packages are pre-requisites for building the
-      sources on OpenBSD 5.0:
-
-      ===================     =====================================
-      **Package**             **Description**
-      ===================     =====================================
-      ``libarchive``          An archive access library.
-      ===================     =====================================
-
-      The following command line may be used to install the necessary
-      pre-requisites::
-
-          # pkg_add libarchive-2.8.4p0
-
-    - The test suites cannot currently be built under OpenBSD.
-
-    - Building additional documentation is not currently supported
-      under OpenBSD.
-
-:OpenBSD 5.4:
-    - The following packages are pre-requisites for building the
-      sources on OpenBSD 5.4:
+      sources on OpenBSD 6.3:
 
       ===================     =====================================
       **Package**             **Description**
@@ -135,20 +115,9 @@ Prerequisites
     - Building additional documentation is not currently supported
       under OpenBSD.
 
-:NetBSD 7.0:
-    - The following packages are pre-requisites for building the
-      sources on NetBSD 7.0:
-
-      ===================     =====================================
-      **Package**             **Description**
-      ===================     =====================================
-      ``libarchive``          An archive access library.
-      ===================     =====================================
-
-      The following command line may be used to install the necessary
-      pre-requisites::
-
-          # pkg_add libarchive
+:NetBSD 7.1.2:
+    - The core libraries and utilities should build out of the box on
+      a stock install of NetBSD 7.1.2.
 
     - To build and run the test suite:
 
@@ -159,14 +128,14 @@ Prerequisites
       #. The following additional package needs to be installed, as
          listed in the example command line below ::
 
-            % sudo pkg_add py27-yaml
+            % sudo pkgin install py27-yaml
 
     - Building additional documentation is not currently supported
       under NetBSD.
 
-:Ubuntu GNU/Linux 10.04:
+:Ubuntu GNU/Linux 17.10:
     - The following packages are pre-requisites for building the
-      sources on Ubuntu GNU/Linux 10.04:
+      sources on Ubuntu GNU/Linux 17.10:
 
       ===================     =====================================
       **Package**             **Description**
@@ -176,48 +145,8 @@ Prerequisites
       ``flex``                Lexical analyser.
       ``gcc``                 C compiler.
       ``libarchive-dev``      Archive access library.
+      ``libbsd-dev``          BSD headers and libraries.
       ``libc6-dev``           Files for C language development.
-      ``libexpat1-dev``       An XML processing library.
-      ``m4``                  Macro processor.
-      ``pmake``               A ``make`` that uses BSD-make syntax.
-      ``python-yaml``         A YAML library for Python.
-      ``sharutils``           For ``uudecode``.
-      ``zlib1g-dev``          Compression library.
-      ===================     =====================================
-
-      The following command line may be used to install the necessary
-      pre-requisites::
-
-	  % sudo apt-get install binutils bison flex gcc libarchive-dev \
-	    libc6-dev m4 pmake zlib1g-dev
-
-    - To build and run the test suite:
-
-      #. The current release of the `Test Execution Toolkit`_, needs
-         to be downloaded and unpacked into the ``test/tet/``
-         directory.
-
-      #. The following additional packages need to be installed, as
-         listed in the example command line below::
-
-            % sudo apt-get install libexpat1-dev python-yaml sharutils
-
-    - To build additional documentation, the ``pgf`` package is
-      needed::
-
-          % sudo apt-get install pgf
-
-:Ubuntu GNU/Linux 14.04:
-    - The following packages are pre-requisites for building the
-      sources on Ubuntu GNU/Linux 14.04:
-
-      ===================     =====================================
-      **Package**             **Description**
-      ===================     =====================================
-      ``bison``               Parser generator.
-      ``build-essential``     Basic build tools.
-      ``flex``                Lexical analyser.
-      ``libarchive-dev``      Archive access library.
       ``libexpat1-dev``       An XML processing library.
       ``m4``                  Macro processor.
       ``bmake``               NetBSD ``make``.
@@ -229,8 +158,8 @@ Prerequisites
       The following command line may be used to install the necessary
       pre-requisites::
 
-          % sudo apt-get install bison build-essential flex libarchive-dev \
-            m4 bmake zlib1g-dev
+	  % sudo apt-get install binutils bison flex gcc libarchive-dev \
+	    libc6-dev m4 bmake zlib1g-dev
 
     - To build and run the test suite:
 
@@ -243,8 +172,11 @@ Prerequisites
 
             % sudo apt-get install libexpat1-dev python-yaml sharutils
 
-    - Builds of additional documentation are not currently supported
-      under Ubuntu GNU/Linux 14.04.
+    - To build additional documentation, the packages listed in the
+      example command line below are needed::
+
+          % sudo apt-get install texlive-latex-recommended texlive-pictures \
+            libbsd-dev
 
 .. _Test Execution Toolkit: http://tetworks.opengroup.org/
 .. _OpenGroup: http://www.opengroup.org/
@@ -259,9 +191,9 @@ On `DragonFly BSD`_,  FreeBSD_, Minix_, NetBSD_ and OpenBSD_, use::
 
   % make
 
-On Ubuntu GNU/Linux with the **pmake** package installed, use::
+On Ubuntu GNU/Linux with the **bmake** package installed, use::
 
-  % pmake
+  % bmake
 
 
 Testing the software
@@ -274,9 +206,9 @@ On `DragonFly BSD`_, FreeBSD_ and NetBSD_, use::
 
     % make run-tests
 
-On Ubuntu GNU/Linux with the **pmake** package installed, use::
+On Ubuntu GNU/Linux with the **bmake** package installed, use::
 
-    % pmake run-tests
+    % bmake run-tests
 
 Installing the Software
 =======================
@@ -287,9 +219,9 @@ On `DragonFly BSD`_, FreeBSD_, Minix_, NetBSD_ and OpenBSD_ use::
 
     % make install
 
-On Ubuntu GNU/Linux with the **pmake** package installed, use::
+On Ubuntu GNU/Linux with the **bmake** package installed, use::
 
-    % pmake install
+    % bmake install
 
 
 By default the ``install`` target will install utilities into
@@ -299,7 +231,7 @@ By default the ``install`` target will install utilities into
 The installation directory may be changed using the ``DESTDIR``
 variable.  For example::
 
-    % pmake DESTDIR=$HOME/local install
+    % bmake DESTDIR=$HOME/local install
 
 
 Additional Information
@@ -310,7 +242,7 @@ website`_.
 
 .. _project website:  http://elftoolchain.sourceforge.net/
 
-.. $Id: INSTALL 3353 2016-01-18 21:50:13Z jkoshy $
+.. $Id: INSTALL 3613 2018-04-21 19:34:37Z jkoshy $
 
 .. Local Variables:
 .. mode: rst

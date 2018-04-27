@@ -1,7 +1,7 @@
 #
 # Rules to build LateX documentation.
 #
-# $Id: elftoolchain.tex.mk 2552 2012-08-28 03:39:09Z jkoshy $
+# $Id: elftoolchain.tex.mk 3595 2018-04-11 19:43:46Z jkoshy $
 #
 
 .include "${TOP}/mk/elftoolchain.os.mk"
@@ -87,7 +87,7 @@ install:	all
 
 .else
 
-all clean clobber depend install obj:	.PHONY .SILENT
+all clean cleandepend clobber depend install obj: .PHONY .SILENT
 	echo -n WARNING: make \"${.TARGET}\" in \"${.CURDIR:T}\" skipped:
 .if	defined(MKTEX) && ${MKTEX} == "yes"
 	echo " missing tools."

@@ -1,5 +1,5 @@
 #
-# $Id: elftoolchain.lib.mk 3026 2014-04-18 16:20:30Z jkoshy $
+# $Id: elftoolchain.lib.mk 3594 2018-04-11 18:26:50Z jkoshy $
 #
 
 .if !defined(TOP)
@@ -19,13 +19,20 @@ CLEANFILES+=	.depend
 # Adjust CFLAGS
 CFLAGS+=	-I.			# OBJDIR
 CFLAGS+=	-I${.CURDIR}		# Sources
-CFLAGS+=	-I${TOP}/common		# common code
+CFLAGS+=	-I${.CURDIR}/${TOP}/common	# Common code
+.if defined(MAKEOBJDIRPREFIX)
+CFLAGS+=	-I${.OBJDIR}/${TOP}/common	# Generated common code.
+.else
+.if ${.CURDIR} != ${.OBJDIR}
+CFLAGS+=	-I${.CURDIR}/${TOP}/common/${.OBJDIR:S/${.CURDIR}//}
+.endif
+.endif
 
 .if defined(LDADD)
 _LDADD_LIBELF=${LDADD:M-lelf}
 .if !empty(_LDADD_LIBELF)
-CFLAGS+=	-I${TOP}/libelf
-LDFLAGS+=	-L${TOP}/libelf
+CFLAGS+=	-I${.CURDIR}/${TOP}/libelf
+LDFLAGS+=	-L${.OBJDIR}/${TOP}/libelf
 .endif
 .endif
 

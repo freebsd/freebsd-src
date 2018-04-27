@@ -1,6 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 #
-# $Id: elf-hash 2054 2011-10-26 12:12:06Z jkoshy $
+# $Id: elf-hash 3614 2018-04-21 19:48:04Z jkoshy $
 
 import sys, os
 

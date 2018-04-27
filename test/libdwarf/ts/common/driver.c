@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: driver.c 2121 2011-11-09 08:43:56Z jkoshy $
+ * $Id: driver.c 3585 2017-11-06 08:04:16Z jkoshy $
  */
 
 #include <sys/types.h>
@@ -31,6 +31,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -441,7 +442,7 @@ _xml_data_cb(void *data, const char *s, int len)
 	}
 }
 
-#define	_CMD_SIZE	256
+#define	_CMD_SIZE	(2*PATH_MAX + 32) /* Two paths and a command */
 
 static void
 driver_parse_ic_desc(const char *fname)

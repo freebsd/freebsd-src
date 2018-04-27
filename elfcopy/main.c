@@ -39,7 +39,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: main.c 3520 2017-04-17 01:47:52Z kaiwang27 $");
+ELFTC_VCSID("$Id: main.c 3577 2017-09-14 02:19:42Z emaste $");
 
 enum options
 {
@@ -679,6 +679,8 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 		if ((ifd = open(elftemp, O_RDONLY)) == -1)
 			err(EXIT_FAILURE, "open %s failed", src);
 		close(efd);
+		if (unlink(elftemp) < 0)
+			err(EXIT_FAILURE, "unlink %s failed", elftemp);
 		free(elftemp);
 	}
 
@@ -1283,8 +1285,9 @@ parse_symlist_file(struct elfcopy *ecp, const char *fn, unsigned int op)
 		err(EXIT_FAILURE, "can not open %s", fn);
 	if ((data = malloc(sb.st_size + 1)) == NULL)
 		err(EXIT_FAILURE, "malloc failed");
-	if (fread(data, 1, sb.st_size, fp) == 0 || ferror(fp))
-		err(EXIT_FAILURE, "fread failed");
+	if (sb.st_size > 0)
+		if (fread(data, sb.st_size, 1, fp) != 1)
+			err(EXIT_FAILURE, "fread failed");
 	fclose(fp);
 	data[sb.st_size] = '\0';
 
@@ -1534,6 +1537,22 @@ print_version(void)
 	exit(EXIT_SUCCESS);
 }
 
+/*
+ * Compare the ending of s with end.
+ */
+static int
+strrcmp(const char *s, const char *end)
+{
+	size_t endlen, slen;
+
+	slen = strlen(s);
+	endlen = strlen(end);
+
+	if (slen >= endlen)
+		s += slen - endlen;
+	return (strcmp(s, end));
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1567,12 +1586,16 @@ main(int argc, char **argv)
 	if ((ecp->progname = ELFTC_GETPROGNAME()) == NULL)
 		ecp->progname = "elfcopy";
 
-	if (strcmp(ecp->progname, "strip") == 0)
+	if (strrcmp(ecp->progname, "strip") == 0)
 		strip_main(ecp, argc, argv);
-	else if (strcmp(ecp->progname, "mcs") == 0)
+	else if (strrcmp(ecp->progname, "mcs") == 0)
 		mcs_main(ecp, argc, argv);
-	else
+	else {
+		if (strrcmp(ecp->progname, "elfcopy") != 0 &&
+		    strrcmp(ecp->progname, "objcopy") != 0)
+			warnx("program mode not known, defaulting to elfcopy");
 		elfcopy_main(ecp, argc, argv);
+	}
 
 	free_sec_add(ecp);
 	free_sec_act(ecp);

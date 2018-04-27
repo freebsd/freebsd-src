@@ -24,6 +24,7 @@
  * SUCH DAMAGE.
  */
 
+#include <err.h>
 #include <getopt.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -34,7 +35,7 @@
 
 #include <libelftc.h>
 
-ELFTC_VCSID("$Id: as.c 2799 2012-12-22 09:03:29Z jkoshy $");
+ELFTC_VCSID("$Id: as.c 3581 2017-10-13 23:27:45Z emaste $");
 
 enum as_long_option_index {
 	AS_OPT_DEFSYM,
@@ -204,7 +205,7 @@ main(int argc, char **argv)
 			if (option_index >= 0)
 				errx(1,
 				    "ERROR: option \"--%s\" is unimplemented.",
-				    as_option_long_options[option_index]);
+				    as_option_long_options[option_index].name);
 			else
 				errx(1,
 				    "ERROR: option '-%c' is unimplemented.",
