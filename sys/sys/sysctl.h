@@ -1009,9 +1009,6 @@ SYSCTL_DECL(_compat);
 SYSCTL_DECL(_regression);
 SYSCTL_DECL(_security);
 SYSCTL_DECL(_security_bsd);
-#ifdef EXT_RESOURCES
-SYSCTL_DECL(_clock);
-#endif
 
 extern char	machine[];
 extern char	osrelease[];
