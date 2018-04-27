@@ -229,15 +229,12 @@ ATF_TC_BODY(signal_delivered_ptrace, tc)
 	int rc;
 	int pipe_ca[2];
 	int pipe_db[2];
-	int pipe_cd[2];
 	char buffer;
 	int status;
 
 	rc = pipe(pipe_ca);
 	ATF_REQUIRE(rc == 0);
 	rc = pipe(pipe_db);
-	ATF_REQUIRE(rc == 0);
-	rc = pipe(pipe_cd);
 	ATF_REQUIRE(rc == 0);
 
 	rc = fork();
@@ -265,10 +262,6 @@ ATF_TC_BODY(signal_delivered_ptrace, tc)
 			/* request a signal on parent death and register a handler */
 			rc = procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &signum);
 			assert(rc == 0);
-
-			/* tell D we are ready for it to attach */
-			rc = write(pipe_cd[1], ".", 1);
-			assert(rc == 1);
 
 			/* wait for B to die and signal us... */
 			signum = 0xdeadbeef;
