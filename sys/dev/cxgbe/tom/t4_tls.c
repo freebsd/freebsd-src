@@ -488,7 +488,7 @@ static int
 get_keyid(struct tls_ofld_info *tls_ofld, unsigned int ops)
 {
 	return (ops & KEY_WRITE_RX ? tls_ofld->rx_key_addr :
-		((ops & KEY_WRITE_TX) ? tls_ofld->rx_key_addr : -1));
+		((ops & KEY_WRITE_TX) ? tls_ofld->tx_key_addr : -1));
 }
 
 static int
