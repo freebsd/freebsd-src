@@ -92,49 +92,48 @@ struct open_disk {
  */
 static struct bdinfo
 {
-    int		bd_unit;		/* BIOS unit number */
-    int		bd_flags;
-    int		bd_type;		/* BIOS 'drive type' (floppy only) */
-    int		bd_da_unit;		/* kernel unit number for da */
-    int		bd_open;		/* reference counter */
-    void	*bd_bcache;		/* buffer cache data */
+	int		bd_unit;	/* BIOS unit number */
+	int		bd_flags;
+	int		bd_type;	/* BIOS 'drive type' (floppy only) */
+	int		bd_da_unit;	/* kernel unit number for da */
+	int		bd_open;	/* reference counter */
+	void		*bd_bcache;	/* buffer cache data */
 } bdinfo [MAXBDDEV];
 static int nbdinfo = 0;
 
 #define	BD(dev)	(bdinfo[(dev)->dd.d_unit])
 
-static int	bd_getgeom(struct open_disk *od);
-static int	bd_read(struct open_disk *od, daddr_t dblk, int blks,
-		    caddr_t dest);
-static int	bd_write(struct open_disk *od, daddr_t dblk, int blks,
-		    caddr_t dest);
+static int bd_getgeom(struct open_disk *od);
+static int bd_read(struct open_disk *od, daddr_t dblk, int blks,
+    caddr_t dest);
+static int bd_write(struct open_disk *od, daddr_t dblk, int blks,
+    caddr_t dest);
+static int bd_int13probe(struct bdinfo *bd);
 
-static int	bd_int13probe(struct bdinfo *bd);
+static int bd_printslice(struct open_disk *od, struct pc98_partition *dp,
+    char *prefix, int verbose);
+static int bd_printbsdslice(struct open_disk *od, daddr_t offset,
+    char *prefix, int verbose);
 
-static int	bd_printslice(struct open_disk *od, struct pc98_partition *dp,
-		    char *prefix, int verbose);
-static int	bd_printbsdslice(struct open_disk *od, daddr_t offset,
-		    char *prefix, int verbose);
-
-static int	bd_init(void);
-static int	bd_strategy(void *devdata, int flag, daddr_t dblk,
-		    size_t size, char *buf, size_t *rsize);
-static int	bd_realstrategy(void *devdata, int flag, daddr_t dblk,
-		    size_t size, char *buf, size_t *rsize);
-static int	bd_open(struct open_file *f, ...);
-static int	bd_close(struct open_file *f);
-static int	bd_print(int verbose);
+static int bd_init(void);
+static int bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
+    char *buf, size_t *rsize);
+static int bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size,
+    char *buf, size_t *rsize);
+static int bd_open(struct open_file *f, ...);
+static int bd_close(struct open_file *f);
+static int bd_print(int verbose);
 
 struct devsw biosdisk = {
-    "disk", 
-    DEVT_DISK, 
-    bd_init,
-    bd_strategy, 
-    bd_open, 
-    bd_close, 
-    noioctl,
-    bd_print,
-    NULL
+	"disk", 
+	DEVT_DISK, 
+	bd_init,
+	bd_strategy, 
+	bd_open, 
+	bd_close, 
+	noioctl,
+	bd_print,
+	NULL
 };
 
 static int	bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev);
@@ -149,70 +148,78 @@ static void	bd_checkextended(struct open_disk *od, int slicenum);
 int
 bd_bios2unit(int biosdev)
 {
-    int		i;
-    
-    DEBUG("looking for bios device 0x%x", biosdev);
-    for (i = 0; i < nbdinfo; i++) {
-	DEBUG("bd unit %d is BIOS device 0x%x", i, bdinfo[i].bd_unit);
-	if (bdinfo[i].bd_unit == biosdev)
-	    return(i);
-    }
-    return(-1);
+	int i;
+
+	DEBUG("looking for bios device 0x%x", biosdev);
+	for (i = 0; i < nbdinfo; i++) {
+		DEBUG("bd unit %d is BIOS device 0x%x", i, bdinfo[i].bd_unit);
+		if (bdinfo[i].bd_unit == biosdev)
+			return (i);
+	}
+	return (-1);
 }
 
 int
 bd_unit2bios(int unit)
 {
-    if ((unit >= 0) && (unit < nbdinfo))
-	return(bdinfo[unit].bd_unit);
-    return(-1);
+
+	if ((unit >= 0) && (unit < nbdinfo))
+		return (bdinfo[unit].bd_unit);
+	return (-1);
 }
 
-/*    
+/*
  * Quiz the BIOS for disk devices, save a little info about them.
  */
 static int
-bd_init(void) 
+bd_init(void)
 {
-    int		base, unit;
-    int		da_drive=0, n=-0x10;
+	int base, unit;
+	int da_drive=0, n=-0x10;
 
-    /* sequence 0x90, 0x80, 0xa0 */
-    for (base = 0x90; base <= 0xa0; base += n, n += 0x30) {
-	for (unit = base; (nbdinfo < MAXBDDEV) || ((unit & 0x0f) < 4); unit++) {
-	    bdinfo[nbdinfo].bd_open = 0;
-	    bdinfo[nbdinfo].bd_bcache = NULL;
-	    bdinfo[nbdinfo].bd_unit = unit;
-	    bdinfo[nbdinfo].bd_flags = (unit & 0xf0) == 0x90 ? BD_FLOPPY : 0;
+	/* sequence 0x90, 0x80, 0xa0 */
+	for (base = 0x90; base <= 0xa0; base += n, n += 0x30) {
+		for (unit = base; (nbdinfo < MAXBDDEV) || ((unit & 0x0f) < 4);
+		     unit++) {
+			bdinfo[nbdinfo].bd_open = 0;
+			bdinfo[nbdinfo].bd_bcache = NULL;
+			bdinfo[nbdinfo].bd_unit = unit;
+			bdinfo[nbdinfo].bd_flags =
+				(unit & 0xf0) == 0x90 ? BD_FLOPPY : 0;
+			if (!bd_int13probe(&bdinfo[nbdinfo])) {
+				if (((unit & 0xf0) == 0x90 &&
+					(unit & 0x0f) < 4) ||
+				    ((unit & 0xf0) == 0xa0 &&
+					(unit & 0x0f) < 6))
+					/* Target IDs are not contiguous. */
+					continue;
+				else
+					break;
+			}
 
-	    if (!bd_int13probe(&bdinfo[nbdinfo])){
-		if (((unit & 0xf0) == 0x90 && (unit & 0x0f) < 4) ||
-		    ((unit & 0xf0) == 0xa0 && (unit & 0x0f) < 6))
-		    continue;	/* Target IDs are not contiguous. */
-		else
-		    break;
-	    }
-
-	    if (bdinfo[nbdinfo].bd_flags & BD_FLOPPY){
-		/* available 1.44MB access? */
-		if (*(u_char *)PTOV(0xA15AE) & (1<<(unit & 0xf))) {
-		    /* boot media 1.2MB FD? */
-		    if ((*(u_char *)PTOV(0xA1584) & 0xf0) != 0x90)
-		        bdinfo[nbdinfo].bd_unit = 0x30 + (unit & 0xf);
+			if (bdinfo[nbdinfo].bd_flags & BD_FLOPPY) {
+				/* available 1.44MB access? */
+				if (*(u_char *)PTOV(0xA15AE) &
+				    (1<<(unit & 0xf))) {
+					/* boot media 1.2MB FD? */
+					if ((*(u_char *)PTOV(0xA1584) &
+						0xf0) != 0x90)
+						bdinfo[nbdinfo].bd_unit =
+							0x30 + (unit & 0xf);
+				}
+			} else {
+				if ((unit & 0xF0) == 0xA0) /* SCSI HD or MO */
+					bdinfo[nbdinfo].bd_da_unit =
+						da_drive++;
+			}
+			/* XXX we need "disk aliases" to make this simpler */
+			printf("BIOS drive %c: is disk%d\n",
+			    'A' + nbdinfo, nbdinfo);
+			nbdinfo++;
 		}
-	    }
-	    else {
-		if ((unit & 0xF0) == 0xA0)	/* SCSI HD or MO */
-		    bdinfo[nbdinfo].bd_da_unit = da_drive++;
-	    }
-	    /* XXX we need "disk aliases" to make this simpler */
-	    printf("BIOS drive %c: is disk%d\n", 
-		   'A' + nbdinfo, nbdinfo);
-	    nbdinfo++;
 	}
-    }
-    bcache_add_dev(nbdinfo);
-    return(0);
+	bcache_add_dev(nbdinfo);
+	return(0);
 }
 
 /*
@@ -221,29 +228,30 @@ bd_init(void)
 static int
 bd_int13probe(struct bdinfo *bd)
 {
-    int addr;
+	int addr;
 
-    if (bd->bd_flags & BD_FLOPPY) {
-	addr = 0xa155c;
-    } else {
-	if ((bd->bd_unit & 0xf0) == 0x80)
-	    addr = 0xa155d;
-	else
-	    addr = 0xa1482;
-    }
-    if ( *(u_char *)PTOV(addr) & (1<<(bd->bd_unit & 0x0f))) {
-	bd->bd_flags |= BD_MODEINT13;
-	return(1);
-    }
-    if ((bd->bd_unit & 0xF0) == 0xA0) {
-	int media = ((unsigned *)PTOV(0xA1460))[bd->bd_unit & 0x0F] & 0x1F;
-
-	if (media == 7) { /* MO */
-	    bd->bd_flags |= BD_MODEINT13 | BD_OPTICAL;
-	    return(1);
+	if (bd->bd_flags & BD_FLOPPY) {
+		addr = 0xa155c;
+	} else {
+		if ((bd->bd_unit & 0xf0) == 0x80)
+			addr = 0xa155d;
+		else
+			addr = 0xa1482;
 	}
-    }
-    return(0);
+	if ( *(u_char *)PTOV(addr) & (1<<(bd->bd_unit & 0x0f))) {
+		bd->bd_flags |= BD_MODEINT13;
+		return (1);
+	}
+	if ((bd->bd_unit & 0xF0) == 0xA0) {
+		int media =
+			((unsigned *)PTOV(0xA1460))[bd->bd_unit & 0x0F] & 0x1F;
+
+		if (media == 7) { /* MO */
+			bd->bd_flags |= BD_MODEINT13 | BD_OPTICAL;
+			return(1);
+		}
+	}
+	return (0);
 }
 
 /*
@@ -252,72 +260,74 @@ bd_int13probe(struct bdinfo *bd)
 static int
 bd_print(int verbose)
 {
-    int				i, j, ret = 0;
-    char			line[80];
-    struct i386_devdesc		dev;
-    struct open_disk		*od;
-    struct pc98_partition	*dptr;
+	int i, j, ret = 0;
+	char line[80];
+	struct i386_devdesc dev;
+	struct open_disk *od;
+	struct pc98_partition *dptr;
     
-    if (nbdinfo == 0)
-	return (0);
+	if (nbdinfo == 0)
+		return (0);
 
-    printf("%s devices:", biosdisk.dv_name);
-    if ((ret = pager_output("\n")) != 0)
-	return (ret);
+	printf("%s devices:", biosdisk.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
 
-    for (i = 0; i < nbdinfo; i++) {
-	snprintf(line, sizeof(line), "    disk%d:   BIOS drive %c:\n",
-	    i, 'A' + i);
-	if ((ret = pager_output(line)) != 0)
-	    break;
-
-	/* try to open the whole disk */
-	dev.dd.d_unit = i;
-	dev.d_kind.biosdisk.slice = -1;
-	dev.d_kind.biosdisk.partition = -1;
-	
-	if (!bd_opendisk(&od, &dev)) {
-
-	    /* Do we have a partition table? */
-	    if (od->od_flags & BD_PARTTABOK) {
-		dptr = &od->od_slicetab[0];
-
-		/* Check for a "dedicated" disk */
-		for (j = 0; j < od->od_nslices; j++) {
-		    snprintf(line, sizeof(line), "      disk%ds%d", i, j + 1);
-		    if ((ret = bd_printslice(od, &dptr[j], line, verbose)) != 0)
+	for (i = 0; i < nbdinfo; i++) {
+		snprintf(line, sizeof(line), "    disk%d:   BIOS drive %c:\n",
+		    i, 'A' + i);
+		if ((ret = pager_output(line)) != 0)
 			break;
+
+		/* try to open the whole disk */
+		dev.dd.d_unit = i;
+		dev.d_kind.biosdisk.slice = -1;
+		dev.d_kind.biosdisk.partition = -1;
+
+		if (!bd_opendisk(&od, &dev)) {
+
+			/* Do we have a partition table? */
+			if (od->od_flags & BD_PARTTABOK) {
+				dptr = &od->od_slicetab[0];
+
+				/* Check for a "dedicated" disk */
+				for (j = 0; j < od->od_nslices; j++) {
+					snprintf(line, sizeof(line),
+					    "      disk%ds%d", i, j + 1);
+					if ((ret = bd_printslice(od, &dptr[j],
+						    line, verbose)) != 0)
+						break;
+				}
+			}
+			bd_closedisk(od);
+			if (ret != 0)
+				break;
 		}
-	    }
-	    bd_closedisk(od);
-	    if (ret != 0)
-		break;
 	}
-    }
-    return (ret);
+	return (ret);
 }
 
 /* Given a size in 512 byte sectors, convert it to a human-readable number. */
 static char *
 display_size(uint64_t size)
 {
-    static char buf[80];
-    char unit;
+	static char buf[80];
+	char unit;
 
-    size /= 2;
-    unit = 'K';
-    if (size >= 10485760000LL) {
-	size /= 1073741824;
-	unit = 'T';
-    } else if (size >= 10240000) {
-	size /= 1048576;
-	unit = 'G';
-    } else if (size >= 10000) {
-	size /= 1024;
-	unit = 'M';
-    }
-    sprintf(buf, "%6ld%cB", (long)size, unit);
-    return (buf);
+	size /= 2;
+	unit = 'K';
+	if (size >= 10485760000LL) {
+		size /= 1073741824;
+		unit = 'T';
+	} else if (size >= 10240000) {
+		size /= 1048576;
+		unit = 'G';
+	} else if (size >= 10000) {
+		size /= 1024;
+		unit = 'M';
+	}
+	sprintf(buf, "%6ld%cB", (long)size, unit);
+	return (buf);
 }
 
 /*
@@ -760,8 +770,8 @@ bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size,
 }
 
 static int 
-bd_realstrategy(void *devdata, int rw, daddr_t dblk,
-    size_t size, char *buf, size_t *rsize)
+bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
+    char *buf, size_t *rsize)
 {
     struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)devdata)->d_kind.biosdisk.data);
     int			blks;
