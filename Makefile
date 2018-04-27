@@ -1,4 +1,4 @@
-# $Id: Makefile 3382 2016-01-31 12:31:08Z jkoshy $
+# $Id: Makefile 3605 2018-04-13 18:15:09Z jkoshy $
 
 TOP=	.
 
@@ -14,12 +14,12 @@ SUBDIR += libdwarf
 
 # Build additional APIs.
 SUBDIR += libelftc
-.if defined(WITH_PE) && ${WITH_PE:tl} == "yes"
+.if defined(WITH_PE) && ${WITH_PE} == "yes"
 SUBDIR += libpe
 .endif
 
 # The instruction set analyser.
-.if defined(WITH_ISA) && ${WITH_ISA:tl} == "yes"
+.if defined(WITH_ISA) && ${WITH_ISA} == "yes"
 SUBDIR += isa  # ('isa' does not build on all platforms yet).
 .endif
 
@@ -39,18 +39,19 @@ SUBDIR += strings
 SUBDIR += tools
 
 # Build the test suites.
-.if exists(${.CURDIR}/test) && defined(WITH_TESTS) && ${WITH_TESTS:tl} == "yes"
+.if exists(${.CURDIR}/test) && defined(WITH_TESTS) && ${WITH_TESTS} == "yes"
 SUBDIR += test
 .endif
 
 # Build additional build tooling.
-.if defined(WITH_BUILD_TOOLS) && ${WITH_BUILD_TOOLS:tl} == "yes"
+.if defined(WITH_BUILD_TOOLS) && ${WITH_BUILD_TOOLS} == "yes"
 SUBDIR += tools
 .endif
 
 # Build documentation at the end.
-.if exists(${.CURDIR}/documentation) && defined(WITH_DOCUMENTATION) && \
-	${WITH_DOCUMENTATION:tl} == "yes"
+.if exists(${.CURDIR}/documentation) && \
+    defined(WITH_ADDITIONAL_DOCUMENTATION) && \
+    ${WITH_ADDITIONAL_DOCUMENTATION} == "yes"
 SUBDIR += documentation
 .endif
 
@@ -61,7 +62,7 @@ SUBDIR += documentation
 #
 
 # Run the test suites.
-.if exists(${.CURDIR}/test) && defined(WITH_TESTS) && ${WITH_TESTS:tl} == "yes"
+.if exists(${.CURDIR}/test) && defined(WITH_TESTS) && ${WITH_TESTS} == "yes"
 run-tests:	all .PHONY
 	(cd ${.CURDIR}/test; ${MAKE} test)
 .endif

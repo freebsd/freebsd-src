@@ -1,7 +1,7 @@
 #
 # Rules for handling include files.
 #
-# $Id: elftoolchain.inc.mk 3245 2015-08-31 19:54:13Z emaste $
+# $Id: elftoolchain.inc.mk 3602 2018-04-12 20:52:01Z jkoshy $
 
 .if !defined(TOP)
 .error	Make variable \"TOP\" has not been defined.
@@ -9,7 +9,7 @@
 
 .include "${TOP}/mk/elftoolchain.os.mk"
 
-.include <bsd.own.mk>
+.include <bsd.obj.mk>
 
 .if ${OS_HOST} == "Darwin" || ${OS_HOST} == "DragonFly" || \
 	${OS_HOST} == "FreeBSD" || ${OS_HOST} == "OpenBSD"
@@ -20,7 +20,7 @@ NOBINMODE?=	444		# Missing in OpenBSD's rule set.
 .PHONY:		incinstall
 includes:	${INCS}	incinstall
 .for inc in ${INCS}
-install incinstall::	${DESTDIR}${INCSDIR}/${inc}
+install incinstall:	${DESTDIR}${INCSDIR}/${inc}
 .PRECIOUS:	${DESTDIR}${INCSDIR}/${inc}
 ${DESTDIR}${INCSDIR}/${inc}: ${inc}
 	cmp -s $> $@ > /dev/null 2>&1 || \

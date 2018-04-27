@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 #
 # This script converts a textual (YAML) description of an ELF file to
 # an equivalent 'binary' file.
@@ -74,7 +74,7 @@
 # sections, a section index may be manually specified using a
 # 'sh_index' pseudo field.
 #
-# $Id: elfc 1718 2011-08-12 07:30:43Z jkoshy $
+# $Id: elfc 3614 2018-04-21 19:48:04Z jkoshy $
 
 version     = "%prog 1.0"
 usage       = "usage: %prog [options] [input-file]"

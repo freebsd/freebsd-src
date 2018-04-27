@@ -46,7 +46,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: strings.c 3498 2016-10-26 19:25:13Z emaste $");
+ELFTC_VCSID("$Id: strings.c 3571 2017-09-14 02:04:50Z emaste $");
 
 enum radix_style {
 	RADIX_DECIMAL,
@@ -189,7 +189,7 @@ main(int argc, char **argv)
 	if (!min_len)
 		min_len = 4;
 	if (!*argv)
-		rc = handle_file("{standard input}");
+		rc = find_strings("{standard input}", 0, 0);
 	else while (*argv) {
 		if (handle_file(*argv) != 0)
 			rc = 1;
@@ -205,13 +205,9 @@ handle_file(const char *name)
 
 	if (name == NULL)
 		return (1);
-	if (strcmp("{standard input}", name) != 0) {
-		if (freopen(name, "rb", stdin) == NULL) {
-			warnx("'%s': %s", name, strerror(errno));
-			return (1);
-		}
-	} else {
-		return (find_strings(name, (off_t)0, (off_t)0));
+	if (freopen(name, "rb", stdin) == NULL) {
+		warnx("'%s': %s", name, strerror(errno));
+		return (1);
 	}
 
 	fd = fileno(stdin);

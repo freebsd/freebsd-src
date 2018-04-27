@@ -1,7 +1,7 @@
 #
 # Rules for building programs.
 #
-# $Id: elftoolchain.prog.mk 3352 2016-01-18 21:50:10Z jkoshy $
+# $Id: elftoolchain.prog.mk 3607 2018-04-13 19:41:17Z jkoshy $
 
 .if !defined(TOP)
 .error	Make variable \"TOP\" has not been defined.
@@ -15,32 +15,58 @@ LIBELFTC?=	${TOP}/libelftc
 
 BINDIR?=	/usr/bin
 
-CFLAGS+=	-I. -I${.CURDIR} -I${TOP}/common
+CFLAGS+=	-I. -I${.CURDIR} -I${.CURDIR}/${TOP}/common
 CLEANFILES+=	.depend
+
+# TODO[#271]: Reduce the code duplication below.
 
 .if defined(LDADD)
 _LDADD_LIBDWARF=${LDADD:M-ldwarf}
 .if !empty(_LDADD_LIBDWARF)
-CFLAGS+= -I${TOP}/libdwarf
-LDFLAGS+= -L${TOP}/libdwarf
+CFLAGS+= -I${.CURDIR}/${TOP}/libdwarf
+.if exists(${.OBJDIR}/${TOP}/libdwarf)
+LDFLAGS+= -L${.OBJDIR}/${TOP}/libdwarf
+.elif exists(${TOP}/libdwarf/${.OBJDIR:S,${.CURDIR}/,,})
+LDFLAGS+= -L${.CURDIR}/${TOP}/libdwarf/${.OBJDIR:S,${.CURDIR}/,,}
+.else
+.error Cannot determine LDFLAGS for -ldwarf.
+.endif
 .endif
 
 _LDADD_LIBELF=${LDADD:M-lelf}
 .if !empty(_LDADD_LIBELF)
-CFLAGS+= -I${TOP}/libelf
-LDFLAGS+= -L${TOP}/libelf
+CFLAGS+= -I${.CURDIR}/${TOP}/libelf
+.if exists(${.OBJDIR}/${TOP}/libelf)
+LDFLAGS+= -L${.OBJDIR}/${TOP}/libelf
+.elif exists(${TOP}/libelf/${.OBJDIR:S,${.CURDIR}/,,})
+LDFLAGS+= -L${.CURDIR}/${TOP}/libelf/${.OBJDIR:S,${.CURDIR}/,,}
+.else
+.error Cannot determine LDFLAGS for -lelf.
+.endif
 .endif
 
 _LDADD_LIBELFTC=${LDADD:M-lelftc}
 .if !empty(_LDADD_LIBELFTC)
-CFLAGS+= -I${TOP}/libelftc
-LDFLAGS+= -L${TOP}/libelftc
+CFLAGS+= -I${.CURDIR}/${TOP}/libelftc
+.if exists(${.OBJDIR}/${TOP}/libelftc)
+LDFLAGS+= -L${.OBJDIR}/${TOP}/libelftc
+.elif exists(${TOP}/libelftc/${.OBJDIR:S,${.CURDIR}/,,})
+LDFLAGS+= -L${.CURDIR}/${TOP}/libelftc/${.OBJDIR:S,${.CURDIR}/,,}
+.else
+.error Cannot determine LDFLAGS for -lelftc.
+.endif
 .endif
 
 _LDADD_LIBPE=${LDADD:M-lpe}
 .if !empty(_LDADD_LIBPE)
-CFLAGS+= -I${TOP}/libpe
-LDFLAGS+= -L${TOP}/libpe
+CFLAGS+= -I${.CURDIR}/${TOP}/libpe
+.if exists(${.OBJDIR}/${TOP}/libpe)
+LDFLAGS+= -L${.OBJDIR}/${TOP}/libpe
+.elif exists(${TOP}/libpe/${.OBJDIR:S,${.CURDIR}/,,})
+LDFLAGS+= -L${.CURDIR}/${TOP}/libpe/${.OBJDIR:S,${.CURDIR}/,,}
+.else
+.error Cannot determine LDFLAGS for -lpe.
+.endif
 .endif
 .endif
 

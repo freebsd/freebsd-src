@@ -1,7 +1,7 @@
 #
 # Build TET from source.
 #
-# $Id: Makefile 3024 2014-04-18 16:20:11Z jkoshy $
+# $Id: Makefile 3595 2018-04-11 19:43:46Z jkoshy $
 #
 
 TOP=	../..
@@ -13,7 +13,7 @@ TET_PATCH_MARKER=	.tet-patch-done
 
 .MAIN:	all
 
-.PHONY:	all clean clobber depend test
+.PHONY:	all clean cleandepend clobber depend test
 
 .if exists(${TET_ROOT}/configure)
 
@@ -61,4 +61,6 @@ all depend test:	.SILENT
 
 clean clobber:
 	rm -f ${TET_BUILD_MARKER} ${TET_PATCH_MARKER}
+
+cleandepend:	# Nothing to do.
 .endif
