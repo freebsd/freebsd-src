@@ -1391,8 +1391,8 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 						    NFSMNTP_CANCELRPCS);
 						mtx_unlock(&nmp->nm_mtx);
 					} else {
-						nmp = NULL;
 						mtx_unlock(&nmp->nm_mtx);
+						nmp = NULL;
 					}
 					break;
 				}
