@@ -94,9 +94,9 @@ static int nbcinfo = 0;
 static int	bc_read(int unit, daddr_t dblk, int blks, caddr_t dest);
 static int	bc_init(void);
 static int	bc_strategy(void *devdata, int flag, daddr_t dblk,
-		    size_t size, char *buf, size_t *rsize);
+    size_t size, char *buf, size_t *rsize);
 static int	bc_realstrategy(void *devdata, int flag, daddr_t dblk,
-		    size_t size, char *buf, size_t *rsize);
+    size_t size, char *buf, size_t *rsize);
 static int	bc_open(struct open_file *f, ...);
 static int	bc_close(struct open_file *f);
 static int	bc_print(int verbose);
