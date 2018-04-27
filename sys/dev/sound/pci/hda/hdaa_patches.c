@@ -411,7 +411,7 @@ hdac_pin_patch(struct hdaa_widget *w)
 			break;
 		}
 	} else if ((   id == HDA_CODEC_ALC288 &&
-                    subid == DELL_LATITUDE_E7240) ||
+                    subid == DELL_E7240_SUBVENDOR) ||
                    (   id == HDA_CODEC_ALC298 &&
                     subid == DELL_XPS9560_SUBVENDOR)) {
 		switch (nid) {
