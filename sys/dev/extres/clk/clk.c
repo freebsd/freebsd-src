@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <dev/extres/clk/clk.h>
 
+SYSCTL_NODE(_hw, OID_AUTO, clock, CTLFLAG_RD, NULL, "Clocks");
+
 MALLOC_DEFINE(M_CLOCK, "clocks", "Clock framework");
 
 /* Forward declarations. */
@@ -570,7 +572,7 @@ clknode_create(struct clkdom * clkdom, clknode_class_t clknode_class,
 
 	sysctl_ctx_init(&clknode->sysctl_ctx);
 	clknode_oid = SYSCTL_ADD_NODE(&clknode->sysctl_ctx,
-	    SYSCTL_STATIC_CHILDREN(_clock),
+	    SYSCTL_STATIC_CHILDREN(_hw_clock),
 	    OID_AUTO, clknode->name,
 	    CTLFLAG_RD, 0, "A clock node");
 
