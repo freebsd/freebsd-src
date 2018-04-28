@@ -131,9 +131,6 @@ int pqisrc_process_event_intr_src(pqisrc_softstate_t *,int);
 void pqisrc_ack_all_events(void *arg);
 
 
-void pqisrc_event_worker(void *, int);
-int pqisrc_scsi_setup(struct pqisrc_softstate *);
-void pqisrc_scsi_cleanup(struct pqisrc_softstate *);
 boolean_t pqisrc_update_scsi_sense(const uint8_t *, int,
                               struct sense_header_scsi *);
 int pqisrc_build_send_raid_request(pqisrc_softstate_t *,  pqisrc_raid_req_t *,
@@ -179,7 +176,6 @@ int pqisrc_create_op_ibq(pqisrc_softstate_t *,
 int pqisrc_create_op_aio_ibq(pqisrc_softstate_t *, ib_queue_t *);
 int pqisrc_create_op_raid_ibq(pqisrc_softstate_t *, ib_queue_t *);
 int pqisrc_alloc_and_create_event_queue(pqisrc_softstate_t *);
-int pqisrc_alloc_and_create_ib_queues(pqisrc_softstate_t *);
 int pqisrc_alloc_and_create_ib_queues(pqisrc_softstate_t *);
 int pqisrc_alloc_and_create_ob_queues(pqisrc_softstate_t *);
 int pqisrc_process_task_management_response(pqisrc_softstate_t *,
@@ -231,10 +227,7 @@ void os_stop_heartbeat_timer(pqisrc_softstate_t *);
 void os_start_heartbeat_timer(void *);
 
 /* FreeBSD_cam.c */
-int pqisrc_scsi_setup(struct pqisrc_softstate *);
-void pqisrc_scsi_cleanup(struct pqisrc_softstate *);
 uint8_t os_get_task_attr(rcb_t *);
-void os_wellness_periodic(void *);
 void smartpqi_target_rescan(struct pqisrc_softstate *);
 
 /* FreeBSD_intr.c FreeBSD_main.c */
