@@ -166,10 +166,6 @@ static int smartpqi_ioctl(struct cdev *cdev, u_long cmd, caddr_t udata,
 	return error;
 }
 
-static d_open_t         smartpqi_open;
-static d_ioctl_t        smartpqi_ioctl;
-static d_close_t        smartpqi_close;
-
 static struct cdevsw smartpqi_cdevsw =
 {
 	.d_version = D_VERSION,
