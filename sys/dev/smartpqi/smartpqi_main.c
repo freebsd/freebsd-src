@@ -467,13 +467,6 @@ smartpqi_shutdown(void *arg)
 	return rval;
 }
 
-
-static int      smartpqi_probe(device_t dev);
-static int      smartpqi_attach(device_t dev);
-static int      smartpqi_detach(device_t dev);
-static int      smartpqi_suspend(device_t dev);
-static int      smartpqi_resume(device_t dev);
-
 /*
  * PCI bus interface.
  */
@@ -496,5 +489,3 @@ static driver_t smartpqi_pci_driver = {
 
 DRIVER_MODULE(smartpqi, pci, smartpqi_pci_driver, pqi_devclass, 0, 0);
 MODULE_DEPEND(smartpqi, pci, 1, 1, 1);
-
-
