@@ -308,9 +308,14 @@ union opcode_tid {
 
 /* partitioning of TID fields that also carry a queue id */
 #define S_TID_TID    0
-#define M_TID_TID    0x3fff
+#define M_TID_TID    0x7ff
 #define V_TID_TID(x) ((x) << S_TID_TID)
 #define G_TID_TID(x) (((x) >> S_TID_TID) & M_TID_TID)
+
+#define S_TID_COOKIE    11
+#define M_TID_COOKIE    0x7
+#define V_TID_COOKIE(x) ((x) << S_TID_COOKIE)
+#define G_TID_COOKIE(x) (((x) >> S_TID_COOKIE) & M_TID_COOKIE)
 
 #define S_TID_QID    14
 #define M_TID_QID    0x3ff
