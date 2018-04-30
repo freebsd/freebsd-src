@@ -390,7 +390,6 @@ void t4_set_tcb_field(struct adapter *, struct sge_wrq *, struct toepcb *,
     uint16_t, uint64_t, uint64_t, int, int);
 void t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop);
 void t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop);
-int do_set_tcb_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
 
 /* t4_ddp.c */
 int t4_init_ppod_region(struct ppod_region *, struct t4_range *, u_int,
@@ -416,7 +415,6 @@ void ddp_queue_toep(struct toepcb *);
 void release_ddp_resources(struct toepcb *toep);
 void handle_ddp_close(struct toepcb *, struct tcpcb *, uint32_t);
 void handle_ddp_indicate(struct toepcb *);
-void handle_ddp_tcb_rpl(struct toepcb *, const struct cpl_set_tcb_rpl *);
 void insert_ddp_data(struct toepcb *, uint32_t);
 const struct offload_settings *lookup_offload_policy(struct adapter *, int,
     struct mbuf *, uint16_t, struct inpcb *);
