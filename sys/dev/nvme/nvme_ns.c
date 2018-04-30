@@ -596,6 +596,7 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	md_args.mda_devsw = &nvme_ns_cdevsw;
 	md_args.mda_unit = unit;
 	md_args.mda_mode = 0600;
+	md_args.mda_si_drv1 = ns;
 	res = make_dev_s(&md_args, &ns->cdev, "nvme%dns%d",
 	    device_get_unit(ctrlr->dev), ns->id);
 	if (res != 0)
@@ -604,8 +605,6 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 #ifdef NVME_UNMAPPED_BIO_SUPPORT
 	ns->cdev->si_flags |= SI_UNMAPPED;
 #endif
-
-	ns->cdev->si_drv1 = ns;
 
 	return (0);
 }
