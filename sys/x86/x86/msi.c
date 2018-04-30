@@ -399,7 +399,7 @@ again:
 	/* Do we need to create some new sources? */
 	if (cnt < count) {
 		/* If we would exceed the max, give up. */
-		if (i + (count - cnt) > FIRST_MSI_INT + NUM_MSI_INTS) {
+		if (i + (count - cnt) >= FIRST_MSI_INT + NUM_MSI_INTS) {
 			mtx_unlock(&msi_lock);
 			free(mirqs, M_MSI);
 			return (ENXIO);
@@ -637,7 +637,7 @@ again:
 	/* Do we need to create a new source? */
 	if (msi == NULL) {
 		/* If we would exceed the max, give up. */
-		if (i + 1 > FIRST_MSI_INT + NUM_MSI_INTS) {
+		if (i + 1 >= FIRST_MSI_INT + NUM_MSI_INTS) {
 			mtx_unlock(&msi_lock);
 			return (ENXIO);
 		}
