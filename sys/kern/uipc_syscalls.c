@@ -187,6 +187,11 @@ kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 	cap_rights_t rights;
 	int error;
 
+#ifdef CAPABILITY_MODE
+	if (IN_CAPABILITY_MODE(td) && (dirfd == AT_FDCWD))
+		return (ECAPMODE);
+#endif
+
 	AUDIT_ARG_FD(fd);
 	AUDIT_ARG_SOCKADDR(td, dirfd, sa);
 	error = getsock_cap(td, fd, cap_rights_init(&rights, CAP_BIND),
@@ -482,6 +487,11 @@ kern_connectat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 	struct file *fp;
 	cap_rights_t rights;
 	int error, interrupted = 0;
+
+#ifdef CAPABILITY_MODE
+	if (IN_CAPABILITY_MODE(td) && (dirfd == AT_FDCWD))
+		return (ECAPMODE);
+#endif
 
 	AUDIT_ARG_FD(fd);
 	AUDIT_ARG_SOCKADDR(td, dirfd, sa);
