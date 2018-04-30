@@ -452,7 +452,7 @@ smsc_miibus_readreg(device_t dev, int phy, int reg)
 		goto done;
 	}
 
-	addr = (phy << 11) | (reg << 6) | SMSC_MII_READ;
+	addr = (phy << 11) | (reg << 6) | SMSC_MII_READ | SMSC_MII_BUSY;
 	smsc_write_reg(sc, SMSC_MII_ADDR, addr);
 
 	if (smsc_wait_for_bits(sc, SMSC_MII_ADDR, SMSC_MII_BUSY) != 0)
@@ -505,7 +505,7 @@ smsc_miibus_writereg(device_t dev, int phy, int reg, int val)
 	val = htole32(val);
 	smsc_write_reg(sc, SMSC_MII_DATA, val);
 
-	addr = (phy << 11) | (reg << 6) | SMSC_MII_WRITE;
+	addr = (phy << 11) | (reg << 6) | SMSC_MII_WRITE | SMSC_MII_BUSY;
 	smsc_write_reg(sc, SMSC_MII_ADDR, addr);
 
 	if (smsc_wait_for_bits(sc, SMSC_MII_ADDR, SMSC_MII_BUSY) != 0)
