@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <getopt.h>
 #include <math.h>
 #include <locale.h>
 #include <stdio.h>
@@ -66,6 +67,15 @@ static int valid_format(const char *);
 
 static char *generate_format(double, double, double, int, char);
 static char *unescape(char *);
+
+static const struct option long_opts[] =
+{
+	{"format",	required_argument,	NULL, 'f'},
+	{"separator",	required_argument,	NULL, 's'},
+	{"terminator",	required_argument,	NULL, 't'},
+	{"equal-width",	no_argument,		NULL, 'w'},
+	{NULL,		no_argument,		NULL, 0}
+};
 
 /*
  * The seq command will print out a numeric sequence from 1, the default,
@@ -100,7 +110,7 @@ main(int argc, char *argv[])
          * least they trip up getopt(3).
          */
 	while ((optind < argc) && !numeric(argv[optind]) &&
-	    (c = getopt(argc, argv, "f:hs:t:w")) != -1) {
+	    (c = getopt_long(argc, argv, "+f:hs:t:w", long_opts, NULL)) != -1) {
 
 		switch (c) {
 		case 'f':	/* format (plan9) */
