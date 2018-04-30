@@ -983,6 +983,12 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 #endif
 	if_purgemaddrs(ifp);
 
+	/* Announce that the interface is gone. */
+	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
+	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
+	if (IS_DEFAULT_VNET(curvnet))
+		devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
+
 	if (!vmove) {
 		/*
 		 * Prevent further calls into the device driver via ifnet.
@@ -1022,11 +1028,6 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 		}
 	}
 
-	/* Announce that the interface is gone. */
-	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
-	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
-	if (IS_DEFAULT_VNET(curvnet))
-		devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
 	if_delgroups(ifp);
 
 	/*
