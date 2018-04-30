@@ -53,7 +53,11 @@ struct hid_device
 	unsigned		battery_power        : 1;
 	unsigned		normally_connectable : 1;
 	unsigned		keyboard             : 1;
-	unsigned		reserved             : 11;
+	unsigned		mouse                : 1;
+	unsigned		has_wheel            : 1;
+	unsigned		has_hwheel           : 1;
+	unsigned		has_cons             : 1;
+	unsigned		reserved             : 7;
 	report_desc_t		desc;		/* HID report descriptor */
 	LIST_ENTRY(hid_device)	next;		/* link to the next */
 };
