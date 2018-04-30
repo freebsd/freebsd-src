@@ -287,6 +287,7 @@ fw_msg_handler_t t4_fw_msg_handler[NUM_FW6_TYPES];
 cpl_handler_t t4_cpl_handler[NUM_CPL_CMDS];
 cpl_handler_t set_tcb_rpl_handlers[NUM_CPL_COOKIES];
 cpl_handler_t l2t_write_rpl_handlers[NUM_CPL_COOKIES];
+cpl_handler_t act_open_rpl_handlers[NUM_CPL_COOKIES];
 
 void
 t4_register_an_handler(an_handler_t h)
@@ -370,12 +371,26 @@ l2t_write_rpl_handler(struct sge_iq *iq, const struct rss_header *rss,
 	return (l2t_write_rpl_handlers[cookie](iq, rss, m));
 }
 
+static int
+act_open_rpl_handler(struct sge_iq *iq, const struct rss_header *rss,
+    struct mbuf *m)
+{
+	const struct cpl_act_open_rpl *cpl = (const void *)(rss + 1);
+	u_int cookie = G_TID_COOKIE(G_AOPEN_ATID(be32toh(cpl->atid_status)));
+
+	MPASS(m == NULL);
+	MPASS(cookie != CPL_COOKIE_RESERVED);
+
+	return (act_open_rpl_handlers[cookie](iq, rss, m));
+}
+
 static void
 t4_init_shared_cpl_handlers(void)
 {
 
 	t4_register_cpl_handler(CPL_SET_TCB_RPL, set_tcb_rpl_handler);
 	t4_register_cpl_handler(CPL_L2T_WRITE_RPL, l2t_write_rpl_handler);
+	t4_register_cpl_handler(CPL_ACT_OPEN_RPL, act_open_rpl_handler);
 }
 
 void
@@ -394,6 +409,9 @@ t4_register_shared_cpl_handler(int opcode, cpl_handler_t h, int cookie)
 		break;
 	case CPL_L2T_WRITE_RPL:
 		loc = (uintptr_t *)&l2t_write_rpl_handlers[cookie];
+		break;
+	case CPL_ACT_OPEN_RPL:
+		loc = (uintptr_t *)&act_open_rpl_handlers[cookie];
 		break;
 	default:
 		MPASS(0);

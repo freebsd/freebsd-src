@@ -2504,6 +2504,7 @@ alloc_atid(struct adapter *sc, void *ctx)
 		union aopen_entry *p = t->afree;
 
 		atid = p - t->atid_tab;
+		MPASS(atid <= M_TID_TID);
 		t->afree = p->next;
 		p->data = ctx;
 		t->atids_in_use++;
