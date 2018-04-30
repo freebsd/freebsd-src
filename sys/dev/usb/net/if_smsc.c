@@ -1306,7 +1306,7 @@ smsc_phy_init(struct smsc_softc *sc)
 	do {
 		uether_pause(&sc->sc_ue, hz / 100);
 		bmcr = smsc_miibus_readreg(sc->sc_ue.ue_dev, sc->sc_phyno, MII_BMCR);
-	} while ((bmcr & MII_BMCR) && ((ticks - start_ticks) < max_ticks));
+	} while ((bmcr & BMCR_RESET) && ((ticks - start_ticks) < max_ticks));
 
 	if (((usb_ticks_t)(ticks - start_ticks)) >= max_ticks) {
 		smsc_err_printf(sc, "PHY reset timed-out");
