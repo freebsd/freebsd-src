@@ -418,7 +418,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	else
 		rscale = 0;
 	mtu_idx = find_best_mtu_idx(sc, &inp->inp_inc, &settings);
-	qid_atid = (toep->ofld_rxq->iq.abs_id << 14) | toep->tid;
+	qid_atid = V_TID_QID(toep->ofld_rxq->iq.abs_id) | V_TID_TID(toep->tid);
 
 	if (isipv6) {
 		struct cpl_act_open_req6 *cpl = wrtod(wr);
