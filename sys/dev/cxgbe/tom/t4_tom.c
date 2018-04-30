@@ -1330,8 +1330,7 @@ t4_tom_activate(struct adapter *sc)
 	struct tom_data *td;
 	struct toedev *tod;
 	struct vi_info *vi;
-	struct sge_ofld_rxq *ofld_rxq;
-	int i, j, rc, v;
+	int i, rc, v;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
@@ -1398,10 +1397,6 @@ t4_tom_activate(struct adapter *sc)
 	for_each_port(sc, i) {
 		for_each_vi(sc->port[i], v, vi) {
 			TOEDEV(vi->ifp) = &td->tod;
-			for_each_ofld_rxq(vi, j, ofld_rxq) {
-				ofld_rxq->iq.set_tcb_rpl = do_set_tcb_rpl;
-				ofld_rxq->iq.l2t_write_rpl = do_l2t_write_rpl2;
-			}
 		}
 	}
 
@@ -1504,6 +1499,8 @@ t4_tom_mod_load(void)
 	struct protosw *tcp_protosw, *tcp6_protosw;
 
 	/* CPL handlers */
+	t4_register_shared_cpl_handler(CPL_L2T_WRITE_RPL, do_l2t_write_rpl2,
+	    CPL_COOKIE_TOM);
 	t4_init_connect_cpl_handlers();
 	t4_init_listen_cpl_handlers();
 	t4_init_cpl_io_handlers();
@@ -1568,6 +1565,7 @@ t4_tom_mod_unload(void)
 	t4_uninit_connect_cpl_handlers();
 	t4_uninit_listen_cpl_handlers();
 	t4_uninit_cpl_io_handlers();
+	t4_register_shared_cpl_handler(CPL_L2T_WRITE_RPL, NULL, CPL_COOKIE_TOM);
 
 	return (0);
 }
