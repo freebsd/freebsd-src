@@ -393,7 +393,7 @@ check_hid_device(hid_device_p d)
 {
 	hid_data_t	hd;
 	hid_item_t	hi;
-	int32_t		page;
+	int32_t		page, mdepth;
 
 	if (get_hid_device(&d->bdaddr) != NULL) {
 		SYSLOG(LOGERR, "Ignoring duplicated entry for bdaddr %s" EOL,
@@ -416,11 +416,23 @@ check_hid_device(hid_device_p d)
 		return (0);
 	}
 
+	mdepth = 0;
+
 	/* XXX somehow need to make sure descriptor is valid */
 	for (hd = hid_start_parse(d->desc, ~0, -1); hid_get_item(hd, &hi) > 0; ) {
 		switch (hi.kind) {
 		case hid_collection:
+			if (mdepth != 0)
+				mdepth++;
+			else if (hi.collection == 1 &&
+			     hi.usage ==
+			      HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE))
+				mdepth++;
+			break;
 		case hid_endcollection:
+			if (mdepth != 0)
+				mdepth--;
+			break;
 		case hid_output:
 		case hid_feature:
 			break;
@@ -430,6 +442,28 @@ check_hid_device(hid_device_p d)
 			page = HID_PAGE(hi.usage);
 			if (page == HUP_KEYBOARD)
 				d->keyboard = 1;
+			if (page == HUP_CONSUMER &&
+			    (hi.flags & (HIO_CONST|HIO_RELATIVE)) == 0)
+				d->has_cons = 1;
+			/* Check if the device may send relative motion events */
+			if (mdepth == 0)
+				break;
+			if (hi.usage ==
+			     HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X) &&
+			    (hi.flags & (HIO_CONST|HIO_RELATIVE)) == HIO_RELATIVE)
+				d->mouse = 1;
+			if (hi.usage ==
+			     HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y) &&
+			    (hi.flags & (HIO_CONST|HIO_RELATIVE)) == HIO_RELATIVE)
+				d->mouse = 1;
+			if (hi.usage ==
+			     HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_WHEEL) &&
+			    (hi.flags & (HIO_CONST|HIO_RELATIVE)) == HIO_RELATIVE)
+				d->has_wheel = 1;
+			if (hi.usage ==
+			    HID_USAGE2(HUP_CONSUMER, HUC_AC_PAN) &&
+			    (hi.flags & (HIO_CONST|HIO_RELATIVE)) == HIO_RELATIVE)
+				d->has_hwheel = 1;
 			break;
 		}
 	}
