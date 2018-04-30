@@ -42,6 +42,7 @@
 struct hid_device
 {
 	bdaddr_t		bdaddr;		/* HID device BDADDR */
+	char *			name;		/* HID device name */
 	uint16_t		control_psm;	/* control PSM */
 	uint16_t		interrupt_psm;	/* interrupt PSM */
 	uint16_t		vendor_id;	/* primary vendor id */
