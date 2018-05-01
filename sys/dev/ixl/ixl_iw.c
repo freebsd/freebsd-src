@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2015, Intel Corporation 
+  Copyright (c) 2013-2017, Intel Corporation
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -374,9 +374,16 @@ ixl_iw_register(struct ixl_iw_ops *ops)
 {
 	struct ixl_iw_pf_entry *pf_entry;
 	int err = 0;
+	int iwarp_cap_on_pfs = 0;
 
 	INIT_DEBUGOUT("begin");
-
+	LIST_FOREACH(pf_entry, &ixl_iw.pfs, node)
+		iwarp_cap_on_pfs += pf_entry->pf->hw.func_caps.iwarp;
+	if (!iwarp_cap_on_pfs && ixl_enable_iwarp) {
+		printf("%s: the device is not iwarp-capable, registering dropped\n",
+		    __func__);
+		return (ENODEV);
+	}
 	if (ixl_enable_iwarp == 0) {
 		printf("%s: enable_iwarp is off, registering dropped\n",
 		    __func__);
@@ -389,19 +396,20 @@ ixl_iw_register(struct ixl_iw_ops *ops)
 	}
 
 	mtx_lock(&ixl_iw.mtx);
-
 	if (ixl_iw.registered) {
 		printf("%s: iwarp driver already registered\n", __func__);
-		err = EBUSY;
+		err = (EBUSY);
 		goto out;
 	}
+	ixl_iw.registered = true;
+	mtx_unlock(&ixl_iw.mtx);
 
 	ixl_iw.tq = taskqueue_create("ixl_iw", M_NOWAIT,
 		taskqueue_thread_enqueue, &ixl_iw.tq);
 	if (ixl_iw.tq == NULL) {
 		printf("%s: failed to create queue\n", __func__);
-		err = ENOMEM;
-		goto out;
+		ixl_iw.registered = false;
+		return (ENOMEM);
 	}
 	taskqueue_start_threads(&ixl_iw.tq, 1, PI_NET, "ixl iw");
 
@@ -410,20 +418,19 @@ ixl_iw_register(struct ixl_iw_ops *ops)
 	if (ixl_iw.ops == NULL) {
 		printf("%s: failed to allocate memory\n", __func__);
 		taskqueue_free(ixl_iw.tq);
-		err = ENOMEM;
-		goto out;
+		ixl_iw.registered = false;
+		return (ENOMEM);
 	}
 
 	ixl_iw.ops->init = ops->init;
 	ixl_iw.ops->stop = ops->stop;
-	ixl_iw.registered = true;
 
+	mtx_lock(&ixl_iw.mtx);
 	LIST_FOREACH(pf_entry, &ixl_iw.pfs, node)
 		if (pf_entry->state.pf == IXL_IW_PF_STATE_ON) {
 			pf_entry->state.iw_scheduled = IXL_IW_PF_STATE_ON;
 			taskqueue_enqueue(ixl_iw.tq, &pf_entry->iw_task);
 		}
-
 out:
 	mtx_unlock(&ixl_iw.mtx);
 
@@ -434,9 +441,23 @@ int
 ixl_iw_unregister(void)
 {
 	struct ixl_iw_pf_entry *pf_entry;
+	int iwarp_cap_on_pfs = 0;
 
 	INIT_DEBUGOUT("begin");
 
+	LIST_FOREACH(pf_entry, &ixl_iw.pfs, node)
+		iwarp_cap_on_pfs += pf_entry->pf->hw.func_caps.iwarp;
+	if (!iwarp_cap_on_pfs && ixl_enable_iwarp) {
+		printf("%s: attempt to unregister driver when no iwarp-capable device present\n",
+		    __func__);
+		return (ENODEV);
+	}
+
+	if (ixl_enable_iwarp == 0) {
+		printf("%s: attempt to unregister driver when enable_iwarp is off\n",
+		    __func__);
+		return (ENODEV);
+	}
 	mtx_lock(&ixl_iw.mtx);
 
 	if (!ixl_iw.registered) {
