@@ -2221,10 +2221,6 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	}
 
 	/*
-	 */
-	ccb->ccb_h.cbfcnp = passdone;
-
-	/*
 	 * Let cam_periph_mapmem do a sanity check on the data pointer format.
 	 * Even if no data transfer is needed, it's a cheap check and it
 	 * simplifies the code.
