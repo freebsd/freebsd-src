@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2012 NetApp, Inc.
+ * Copyright (c) 2017 John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -13,10 +13,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY NETAPP, INC ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL NETAPP, INC OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -28,38 +28,12 @@
  * $FreeBSD$
  */
 
-#ifndef _MEM_H_
-#define	_MEM_H_
+#ifndef __GDB_H__
+#define	__GDB_H__
 
-#include <sys/linker_set.h>
+void	gdb_cpu_add(int vcpu);
+void	gdb_cpu_mtrap(int vcpu);
+void	gdb_cpu_suspend(int vcpu);
+void	init_gdb(struct vmctx *ctx, int sport, bool wait);
 
-struct vmctx;
-
-typedef int (*mem_func_t)(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
-			  int size, uint64_t *val, void *arg1, long arg2);
-
-struct mem_range {
-	const char 	*name;
-	int		flags;
-	mem_func_t	handler;
-	void		*arg1;
-	long		arg2;
-	uint64_t  	base;
-	uint64_t  	size;
-};
-#define	MEM_F_READ		0x1
-#define	MEM_F_WRITE		0x2
-#define	MEM_F_RW		0x3
-#define	MEM_F_IMMUTABLE		0x4	/* mem_range cannot be unregistered */
-
-void	init_mem(void);
-int     emulate_mem(struct vmctx *, int vcpu, uint64_t paddr, struct vie *vie,
-		    struct vm_guest_paging *paging);
-		    
-int	read_mem(struct vmctx *ctx, int vcpu, uint64_t gpa, uint64_t *rval,
-		 int size);
-int	register_mem(struct mem_range *memp);
-int	register_mem_fallback(struct mem_range *memp);
-int	unregister_mem(struct mem_range *memp);
-
-#endif	/* _MEM_H_ */
+#endif /* !__GDB_H__ */
