@@ -469,6 +469,8 @@ TUNABLE_INT("hw.cxgbe.num_vis", &t4_num_vis);
 static int pcie_relaxed_ordering = -1;
 TUNABLE_INT("hw.cxgbe.pcie_relaxed_ordering", &pcie_relaxed_ordering);
 
+static int t4_panic_on_fatal_err = 0;
+TUNABLE_INT("hw.cxgbe.panic_on_fatal_err", &t4_panic_on_fatal_err);
 
 #ifdef TCP_OFFLOAD
 /*
@@ -2222,6 +2224,8 @@ t4_fatal_err(struct adapter *sc)
 	t4_intr_disable(sc);
 	log(LOG_EMERG, "%s: encountered fatal error, adapter stopped.\n",
 	    device_get_nameunit(sc->dev));
+	if (t4_panic_on_fatal_err)
+		panic("panic requested on fatal error");
 }
 
 void
