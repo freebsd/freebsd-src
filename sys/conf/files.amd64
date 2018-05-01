@@ -290,6 +290,8 @@ dev/ixl/i40e_nvm.c		optional	ixl pci | ixlv pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/ixl/i40e_adminq.c		optional	ixl pci | ixlv pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_dcb.c		optional	ixl pci \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/fdc/fdc.c			optional	fdc
 dev/fdc/fdc_acpi.c		optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa
