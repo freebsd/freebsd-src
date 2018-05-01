@@ -350,6 +350,7 @@ ixgb_attach(device_t dev)
 	ixgb_clear_hw_cntrs(&adapter->hw);
 	ixgb_update_stats_counters(adapter);
 
+	gone_in_dev(dev, 12, "ixgb(4) driver");
 	INIT_DEBUGOUT("ixgb_attach: end");
 	return (0);
 
