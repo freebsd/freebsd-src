@@ -479,7 +479,7 @@ MAN=	aac.4 \
 	sio.4 \
 	sis.4 \
 	sk.4 \
-	smartpqi.4 \
+	${_smartpqi.4} \
 	smb.4 \
 	smbus.4 \
 	smp.4 \
@@ -879,6 +879,7 @@ _qlxgb.4=	qlxgb.4
 _qlxgbe.4=	qlxgbe.4
 _qlnxe.4=	qlnxe.4
 _sfxge.4=	sfxge.4
+_smartpqi.4=	smartpqi.4
 
 MLINKS+=qlxge.4 if_qlxge.4
 MLINKS+=qlxgb.4 if_qlxgb.4
