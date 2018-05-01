@@ -136,6 +136,9 @@ mmio_rb_dump(struct mmio_rb_tree *rbt)
 
 RB_GENERATE(mmio_rb_tree, mmio_rb_range, mr_link, mmio_rb_range_compare);
 
+typedef int (mem_cb_t)(struct vmctx *ctx, int vcpu, uint64_t gpa,
+    struct mem_range *mr, void *arg);
+
 static int
 mem_read(void *ctx, int vcpu, uint64_t gpa, uint64_t *rval, int size, void *arg)
 {
@@ -158,10 +161,9 @@ mem_write(void *ctx, int vcpu, uint64_t gpa, uint64_t wval, int size, void *arg)
 	return (error);
 }
 
-int
-emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie,
-    struct vm_guest_paging *paging)
-
+static int
+access_memory(struct vmctx *ctx, int vcpu, uint64_t paddr, mem_cb_t *cb,
+    void *arg)
 {
 	struct mmio_rb_range *entry;
 	int err, immutable;
@@ -204,13 +206,66 @@ emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie,
 	if (immutable)
 		pthread_rwlock_unlock(&mmio_rwlock);
 
-	err = vmm_emulate_instruction(ctx, vcpu, paddr, vie, paging,
-				      mem_read, mem_write, &entry->mr_param);
+	err = cb(ctx, vcpu, paddr, &entry->mr_param, arg);
 
 	if (!immutable)
 		pthread_rwlock_unlock(&mmio_rwlock);
 
 	return (err);
+}
+
+struct emulate_mem_args {
+	struct vie *vie;
+	struct vm_guest_paging *paging;
+};
+
+static int
+emulate_mem_cb(struct vmctx *ctx, int vcpu, uint64_t paddr, struct mem_range *mr,
+    void *arg)
+{
+	struct emulate_mem_args *ema;
+
+	ema = arg;
+	return (vmm_emulate_instruction(ctx, vcpu, paddr, ema->vie, ema->paging,
+	    mem_read, mem_write, mr));
+}
+
+int
+emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie,
+    struct vm_guest_paging *paging)
+
+{
+	struct emulate_mem_args ema;
+
+	ema.vie = vie;
+	ema.paging = paging;
+	return (access_memory(ctx, vcpu, paddr, emulate_mem_cb, &ema));
+}
+
+struct read_mem_args {
+	uint64_t *rval;
+	int size;
+};
+
+static int
+read_mem_cb(struct vmctx *ctx, int vcpu, uint64_t paddr, struct mem_range *mr,
+    void *arg)
+{
+	struct read_mem_args *rma;
+
+	rma = arg;
+	return (mr->handler(ctx, vcpu, MEM_F_READ, paddr, rma->size,
+	    rma->rval, mr->arg1, mr->arg2));
+}
+
+int
+read_mem(struct vmctx *ctx, int vcpu, uint64_t gpa, uint64_t *rval, int size)
+{
+	struct read_mem_args rma;
+
+	rma.rval = rval;
+	rma.size = size;
+	return (access_memory(ctx, vcpu, gpa, read_mem_cb, &rma));
 }
 
 static int
