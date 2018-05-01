@@ -266,7 +266,6 @@ MAN=	aac.4 \
 	${_linux.4} \
 	liquidio.4 \
 	lm75.4 \
-	lmc.4 \
 	lo.4 \
 	lp.4 \
 	lpbb.4 \
@@ -688,7 +687,6 @@ MLINKS+=lagg.4 trunk.4
 MLINKS+=lagg.4 if_lagg.4
 MLINKS+=le.4 if_le.4
 MLINKS+=lge.4 if_lge.4
-MLINKS+=lmc.4 if_lmc.4
 MLINKS+=lo.4 loop.4
 MLINKS+=lp.4 plip.4
 MLINKS+=malo.4 if_malo.4

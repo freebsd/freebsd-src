@@ -51,6 +51,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20180501:
+	The lmc(4) driver has been removed.  This was a WAN interface
+	card that was already reportedly rare in 2003, and had an ambiguous
+	license.  If you have device lmc in your kernel config file it must
+	be removed.
+
 20180413:
 	Support for Arcnet networks has been removed.  If you have device
 	arcnet or device cm in your kernel config file they must be
