@@ -38,6 +38,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180501: retire lmc
+OLD_FILES+=usr/include/dev/lmc/if_lmc.h
+OLD_DIRS+=usr/include/dev/lmc
+OLD_FILES+=usr/sbin/lmcconfig
+OLD_FILES+=usr/share/man/man4/lmc.4.gz
+OLD_FILES+=usr/share/man/man4/if_lmc.4.gz
+OLD_FILES+=usr/share/man/man8/lmcconfig.8.gz
 # 20180417: remove fuswintr and suswintr
 OLD_FILES+=usr/share/man/man9/fuswintr.9.gz
 OLD_FILES+=usr/share/man/man9/suswintr.9.gz

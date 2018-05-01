@@ -1982,7 +1982,6 @@ device		xmphy		# XaQti XMAC II
 #	Yukon II Gigabit controllers, including 88E8021, 88E8022, 88E8061,
 #	88E8062, 88E8035, 88E8036, 88E8038, 88E8050, 88E8052, 88E8053,
 #	88E8055, 88E8056 and D-Link 560T/550SX.
-# lmc:	Support for the LMC/SBE wide-area network interface cards.
 # mlx5:	Mellanox ConnectX-4 and ConnectX-4 LX IB and Eth shared code module.
 # mlx5en:Mellanox ConnectX-4 and ConnectX-4 LX PCIe Ethernet adapters.
 # my:	Myson Fast Ethernet (MTD80X, MTD89X)
@@ -2135,9 +2134,6 @@ device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
 device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 device		vxge		# Exar/Neterion XFrame 3100 10GbE
-
-# PCI WAN adapters.
-device		lmc
 
 # PCI IEEE 802.11 Wireless NICs
 device		ath		# Atheros pci/cardbus NIC's
