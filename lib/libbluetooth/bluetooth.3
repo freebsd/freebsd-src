@@ -25,7 +25,7 @@
 .\" $Id: bluetooth.3,v 1.5 2003/05/20 23:04:30 max Exp $
 .\" $FreeBSD$
 .\"
-.Dd April 30, 2018
+.Dd May 1, 2018
 .Dt BLUETOOTH 3
 .Os
 .Sh NAME
@@ -132,7 +132,7 @@
 .Fn bt_devremote_name "char const *devname" "const bdaddr_t *remote" \
 "time_t to" "uint16_t clk_off" "uint8_t ps_rep_mode" "uint8_t ps_mode"
 .Ft char *
-.Fn bt_devremote_name_gen "char const *devname" "const bdaddr_t *remote"
+.Fn bt_devremote_name_gen "char const *btooth_devname" "const bdaddr_t *remote"
 .Ft int
 .Fn bdaddr_same "const bdaddr_t *a" "const bdaddr_t *b"
 .Ft int

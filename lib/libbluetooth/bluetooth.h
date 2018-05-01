@@ -189,9 +189,9 @@ int		bt_devinfo (struct bt_devinfo *di);
 int		bt_devenum (bt_devenum_cb_t cb, void *arg);
 
 static __inline char *
-bt_devremote_name_gen(char const *devname, const bdaddr_t *remote)
+bt_devremote_name_gen(char const *btooth_devname, const bdaddr_t *remote)
 {
-	return (bt_devremote_name(devname, remote, 0, 0x0000,
+	return (bt_devremote_name(btooth_devname, remote, 0, 0x0000,
 		NG_HCI_SCAN_REP_MODE0, NG_HCI_MANDATORY_PAGE_SCAN_MODE));
 }
 
