@@ -580,7 +580,7 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 
 		cam_fill_csio(csio,
 			      /*retries*/1,
-			      sgdone,
+			      /*cbfcnp*/NULL,
 			      dir|CAM_DEV_QFRZDIS,
 			      MSG_SIMPLE_Q_TAG,
 			      req->dxferp,

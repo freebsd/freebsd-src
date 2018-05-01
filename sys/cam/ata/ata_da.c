@@ -957,7 +957,7 @@ adaclose(struct disk *dp)
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 		cam_fill_ataio(&ccb->ataio,
 				    1,
-				    adadone,
+				    NULL,
 				    CAM_DIR_NONE,
 				    0,
 				    NULL,
@@ -1075,7 +1075,7 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		ataio.ccb_h.ccb_state = ADA_CCB_DUMP;
 		cam_fill_ataio(&ataio,
 		    0,
-		    adadone,
+		    NULL,
 		    CAM_DIR_OUT,
 		    0,
 		    (u_int8_t *) virtual,
@@ -1109,7 +1109,7 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		ataio.ccb_h.ccb_state = ADA_CCB_DUMP;
 		cam_fill_ataio(&ataio,
 				    0,
-				    adadone,
+				    NULL,
 				    CAM_DIR_NONE,
 				    0,
 				    NULL,
@@ -3439,7 +3439,7 @@ adaflush(void)
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 		cam_fill_ataio(&ccb->ataio,
 				    0,
-				    adadone,
+				    NULL,
 				    CAM_DIR_NONE,
 				    0,
 				    NULL,
@@ -3491,7 +3491,7 @@ adaspindown(uint8_t cmd, int flags)
 
 		cam_fill_ataio(&local_ccb,
 				    0,
-				    adadone,
+				    NULL,
 				    CAM_DIR_NONE | flags,
 				    0,
 				    NULL,

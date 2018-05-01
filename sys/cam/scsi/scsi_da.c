@@ -1694,7 +1694,7 @@ daclose(struct disk *dp)
 		    (softc->flags & DA_FLAG_PACK_INVALID) == 0) {
 			ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 			scsi_synchronize_cache(&ccb->csio, /*retries*/1,
-			    /*cbfcnp*/dadone, MSG_SIMPLE_Q_TAG,
+			    /*cbfcnp*/NULL, MSG_SIMPLE_Q_TAG,
 			    /*begin_lba*/0, /*lb_count*/0, SSD_FULL_SIZE,
 			    5 * 60 * 1000);
 			cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
@@ -1812,7 +1812,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 		csio.ccb_h.ccb_state = DA_CCB_DUMP;
 		scsi_read_write(&csio,
 				/*retries*/0,
-				dadone,
+				/*cbfcnp*/NULL,
 				MSG_ORDERED_Q_TAG,
 				/*read*/SCSI_RW_WRITE,
 				/*byte2*/0,
@@ -1839,7 +1839,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 		csio.ccb_h.ccb_state = DA_CCB_DUMP;
 		scsi_synchronize_cache(&csio,
 				       /*retries*/0,
-				       /*cbfcnp*/dadone,
+				       /*cbfcnp*/NULL,
 				       MSG_SIMPLE_Q_TAG,
 				       /*begin_lba*/0,/* Cover the whole disk */
 				       /*lb_count*/0,
@@ -5738,7 +5738,7 @@ daprevent(struct cam_periph *periph, int action)
 
 	scsi_prevent(&ccb->csio,
 		     /*retries*/1,
-		     /*cbcfp*/dadone,
+		     /*cbcfp*/NULL,
 		     MSG_SIMPLE_Q_TAG,
 		     action,
 		     SSD_FULL_SIZE,
@@ -5935,7 +5935,7 @@ dashutdown(void * arg, int howto)
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 		scsi_synchronize_cache(&ccb->csio,
 				       /*retries*/0,
-				       /*cbfcnp*/dadone,
+				       /*cbfcnp*/NULL,
 				       MSG_SIMPLE_Q_TAG,
 				       /*begin_lba*/0, /* whole disk */
 				       /*lb_count*/0,
