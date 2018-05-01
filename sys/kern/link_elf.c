@@ -383,7 +383,7 @@ link_elf_link_common_finish(linker_file_t lf)
 	return (0);
 }
 
-extern vm_offset_t __startkernel;
+extern vm_offset_t __startkernel, __endkernel;
 
 static void
 link_elf_init(void* arg)
@@ -424,8 +424,13 @@ link_elf_init(void* arg)
 
 	if (dp != NULL)
 		parse_dynamic(ef);
+#ifdef __powerpc__
+	linker_kernel_file->address = (caddr_t)__startkernel;
+	linker_kernel_file->size = (intptr_t)(__endkernel - __startkernel);
+#else
 	linker_kernel_file->address += KERNBASE;
 	linker_kernel_file->size = -(intptr_t)linker_kernel_file->address;
+#endif
 
 	if (modptr != NULL) {
 		ef->modptr = modptr;
