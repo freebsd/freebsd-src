@@ -150,11 +150,24 @@ struct ifgroupreq32 {
 		uint32_t	ifgru_groups;
 	} ifgr_ifgru;
 };
+
+struct ifmediareq32 {
+	char		ifm_name[IFNAMSIZ];
+	int		ifm_current;
+	int		ifm_mask;
+	int		ifm_status;
+	int		ifm_active;
+	int		ifm_count;
+	uint32_t	ifm_ulist;	/* (int *) */
+};
+#define	SIOCGIFMEDIA32	_IOC_NEWTYPE(SIOCGIFMEDIA, struct ifmediareq32)
+#define	SIOCGIFXMEDIA32	_IOC_NEWTYPE(SIOCGIFXMEDIA, struct ifmediareq32)
+
 #define	_CASE_IOC_IFGROUPREQ_32(cmd)				\
     case _IOC_NEWTYPE((cmd), struct ifgroupreq32):
-#else
+#else /* !COMPAT_FREEBSD32 */
 #define _CASE_IOC_IFGROUPREQ_32(cmd)
-#endif /* COMPAT_FREEBSD32 */
+#endif /* !COMPAT_FREEBSD32 */
 
 #define CASE_IOC_IFGROUPREQ(cmd)	\
     _CASE_IOC_IFGROUPREQ_32(cmd)	\
@@ -2891,12 +2904,48 @@ struct ifconf32 {
 #define	SIOCGIFCONF32	_IOWR('i', 36, struct ifconf32)
 #endif
 
+#ifdef COMPAT_FREEBSD32
+static void
+ifmr_init(struct ifmediareq *ifmr, caddr_t data)
+{
+	struct ifmediareq32 *ifmr32;
+
+	ifmr32 = (struct ifmediareq32 *)data;
+	memcpy(ifmr->ifm_name, ifmr32->ifm_name,
+	    sizeof(ifmr->ifm_name));
+	ifmr->ifm_current = ifmr32->ifm_current;
+	ifmr->ifm_mask = ifmr32->ifm_mask;
+	ifmr->ifm_status = ifmr32->ifm_status;
+	ifmr->ifm_active = ifmr32->ifm_active;
+	ifmr->ifm_count = ifmr32->ifm_count;
+	ifmr->ifm_ulist = (int *)(uintptr_t)ifmr32->ifm_ulist;
+}
+
+static void
+ifmr_update(const struct ifmediareq *ifmr, caddr_t data)
+{
+	struct ifmediareq32 *ifmr32;
+
+	ifmr32 = (struct ifmediareq32 *)data;
+	ifmr32->ifm_current = ifmr->ifm_current;
+	ifmr32->ifm_mask = ifmr->ifm_mask;
+	ifmr32->ifm_status = ifmr->ifm_status;
+	ifmr32->ifm_active = ifmr->ifm_active;
+	ifmr32->ifm_count = ifmr->ifm_count;
+}
+#endif
+
 /*
  * Interface ioctls.
  */
 int
 ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 {
+#ifdef COMPAT_FREEBSD32
+	caddr_t saved_data;
+	struct ifmediareq ifmr;
+#endif
+	struct ifmediareq *ifmrp;
 	struct ifnet *ifp;
 	struct ifreq *ifr;
 	int error;
@@ -2941,8 +2990,21 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		}
 #endif
 	}
-	ifr = (struct ifreq *)data;
 
+	ifmrp = NULL;
+#ifdef COMPAT_FREEBSD32
+	switch (cmd) {
+	case SIOCGIFMEDIA32:
+	case SIOCGIFXMEDIA32:
+		ifmrp = &ifmr;
+		ifmr_init(ifmrp, data);
+		cmd = _IOC_NEWTYPE(cmd, struct ifmediareq);
+		saved_data = data;
+		data = (caddr_t)ifmrp;
+	}
+#endif
+
+	ifr = (struct ifreq *)data;
 	switch (cmd) {
 #ifdef VIMAGE
 	case SIOCSIFRVNET:
@@ -2950,8 +3012,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		if (error == 0)
 			error = if_vmove_reclaim(td, ifr->ifr_name,
 			    ifr->ifr_jid);
-		CURVNET_RESTORE();
-		return (error);
+		goto out_noref;
 #endif
 	case SIOCIFCREATE:
 	case SIOCIFCREATE2:
@@ -2960,23 +3021,21 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 			error = if_clone_create(ifr->ifr_name,
 			    sizeof(ifr->ifr_name), cmd == SIOCIFCREATE2 ?
 			    ifr_data_get_ptr(ifr) : NULL);
-		CURVNET_RESTORE();
-		return (error);
+		goto out_noref;
 	case SIOCIFDESTROY:
 		error = priv_check(td, PRIV_NET_IFDESTROY);
 		if (error == 0)
 			error = if_clone_destroy(ifr->ifr_name);
-		CURVNET_RESTORE();
-		return (error);
+		goto out_noref;
 
 	case SIOCIFGCLONERS:
 		error = if_clone_list((struct if_clonereq *)data);
-		CURVNET_RESTORE();
-		return (error);
+		goto out_noref;
+
 	CASE_IOC_IFGROUPREQ(SIOCGIFGMEMB):
 		error = if_getgroupmembers((struct ifgroupreq *)data);
-		CURVNET_RESTORE();
-		return (error);
+		goto out_noref;
+
 #if defined(INET) || defined(INET6)
 	case SIOCSVH:
 	case SIOCGVH:
@@ -2984,29 +3043,24 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 			error = EPROTONOSUPPORT;
 		else
 			error = (*carp_ioctl_p)(ifr, cmd, td);
-		CURVNET_RESTORE();
-		return (error);
+		goto out_noref;
 #endif
 	}
 
 	ifp = ifunit_ref(ifr->ifr_name);
 	if (ifp == NULL) {
-		CURVNET_RESTORE();
-		return (ENXIO);
+		error = ENXIO;
+		goto out_noref;
 	}
 
 	error = ifhwioctl(cmd, ifp, data, td);
-	if (error != ENOIOCTL) {
-		if_rele(ifp);
-		CURVNET_RESTORE();
-		return (error);
-	}
+	if (error != ENOIOCTL)
+		goto out_ref;
 
 	oif_flags = ifp->if_flags;
 	if (so->so_proto == NULL) {
-		if_rele(ifp);
-		CURVNET_RESTORE();
-		return (EOPNOTSUPP);
+		error = EOPNOTSUPP;
+		goto out_ref;
 	}
 
 	/*
@@ -3031,7 +3085,19 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 			in6_if_up(ifp);
 #endif
 	}
+
+out_ref:
 	if_rele(ifp);
+out_noref:
+#ifdef COMPAT_FREEBSD32
+	if (ifmrp != NULL) {
+		KASSERT((cmd == SIOCGIFMEDIA || cmd == SIOCGIFXMEDIA),
+		    ("ifmrp non-NULL, but cmd is not an ifmedia req 0x%lx",
+		     cmd));
+		data = saved_data;
+		ifmr_update(ifmrp, data);
+	}
+#endif
 	CURVNET_RESTORE();
 	return (error);
 }

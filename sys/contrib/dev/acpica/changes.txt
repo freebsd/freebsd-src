@@ -1,4 +1,47 @@
 ----------------------------------------
+27 April 2018. Summary of changes for version 20180427: 
+
+
+1) ACPICA kernel-resident subsystem:
+
+Debugger: Added support for Package objects in the "Test Objects" 
+command. This command walks the entire namespace and evaluates all named 
+data objects (Integers, Strings, Buffers, and now Packages).
+
+Improved error messages for the namespace root node. Originally, the root 
+was referred to by the confusing string "\___". This has been replaced by 
+"Namespace Root" for clarification.
+
+Fixed a potential infinite loop in the AcpiRsDumpByteList function. Colin 
+Ian King <colin.king@canonical.com>.
+
+
+2) iASL Compiler/Disassembler and Tools: 
+
+iASL: Implemented support to detect and flag illegal forward references. 
+For compatibility with other ACPI implementations, these references are 
+now illegal at the root level of the DSDT or SSDTs. Forward references 
+have always been illegal within control methods. This change should not 
+affect existing ASL/AML code because of the fact that these references 
+have always been illegal in the other ACPI implementation.
+
+iASL: Added error messages for the case where a table OEM ID and OEM 
+TABLE ID strings are longer than the ACPI-defined length. Previously, 
+these strings were simply silently truncated.
+
+iASL: Enhanced the -tc option (which creates an AML hex file in C, 
+suitable for import into a firmware project):
+  1) Create a unique name for the table, to simplify use of multiple 
+SSDTs.
+  2) Add a protection #ifdef in the file, similar to a .h header file.
+With assistance from Sami Mujawar, sami.mujawar@arm.com and Evan Lloyd, 
+evan.lloyd@arm.com
+
+AcpiExec: Added a new option, -df, to disable the local fault handler. 
+This is useful during debugging, where it may be desired to drop into a 
+debugger on a fault.
+
+----------------------------------------
 13 March 2018. Summary of changes for version 20180313:
 
 

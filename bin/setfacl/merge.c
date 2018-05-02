@@ -123,7 +123,7 @@ merge_acl(acl_t acl, acl_t *prev_acl, const char *filename)
 			err(1, "%s: acl_get_tag_type() failed - "
 			    "invalid ACL entry", filename);
 		if (tag == ACL_MASK)
-			have_mask = 1;
+			have_mask = true;
 
 		/* check against the existing ACL entries */
 		entry_id_new = ACL_FIRST_ENTRY;

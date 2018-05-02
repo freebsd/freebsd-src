@@ -203,7 +203,6 @@ SUBDIR=	\
 	${_iwnfw} \
 	${_ix} \
 	${_ixv} \
-	${_ixgb} \
 	${_ixl} \
 	${_ixlv} \
 	jme \
@@ -226,7 +225,6 @@ SUBDIR=	\
 	${_linux64} \
 	linuxkpi \
 	${_lio} \
-	lmc \
 	lpt \
 	mac_biba \
 	mac_bsdextended \
@@ -355,6 +353,7 @@ SUBDIR=	\
 	siis \
 	sis \
 	sk \
+	${_smartpqi} \
 	smbfs \
 	sn \
 	snp \
@@ -666,7 +665,6 @@ _ipw=		ipw
 _iwi=		iwi
 _iwm=		iwm
 _iwn=		iwn
-_ixgb=		ixgb
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ipwfw=		ipwfw
 _iwifw=		iwifw
@@ -729,6 +727,7 @@ _qlnx=		qlnx
 _sfxge=		sfxge
 _sgx=		sgx
 _sgx_linux=	sgx_linux
+_smartpqi=	smartpqi
 
 .if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 _vmm=		vmm

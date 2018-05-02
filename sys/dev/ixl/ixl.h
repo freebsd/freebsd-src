@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2015, Intel Corporation 
+  Copyright (c) 2013-2017, Intel Corporation
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -188,8 +188,8 @@ enum ixl_dbg_mask {
  * The driver currently always uses 32 byte Rx descriptors.
  */
 #define IXL_DEFAULT_RING	1024
-#define IXL_MAX_RING		8160
-#define IXL_MIN_RING		32
+#define IXL_MAX_RING		4096
+#define IXL_MIN_RING		64
 #define IXL_RING_INCREMENT	32
 
 #define IXL_AQ_LEN		256
@@ -207,6 +207,9 @@ enum ixl_dbg_mask {
  * This is the max watchdog interval, ie. the time that can
  * pass between any two TX clean operations, such only happening
  * when the TX hardware is functioning.
+ *
+ * XXX: Watchdog currently counts down in units of (hz)
+ * Set this to just (hz) if you want queues to hang under a little bit of stress
  */
 #define IXL_WATCHDOG		(10 * hz)
 
@@ -214,8 +217,8 @@ enum ixl_dbg_mask {
  * This parameters control when the driver calls the routine to reclaim
  * transmit descriptors.
  */
-#define IXL_TX_CLEANUP_THRESHOLD	(que->num_desc / 8)
-#define IXL_TX_OP_THRESHOLD		(que->num_desc / 32)
+#define IXL_TX_CLEANUP_THRESHOLD	(que->num_tx_desc / 8)
+#define IXL_TX_OP_THRESHOLD		(que->num_tx_desc / 32)
 
 #define MAX_MULTICAST_ADDR	128
 
@@ -232,9 +235,10 @@ enum ixl_dbg_mask {
 #define IXL_MAX_FRAME		9728
 #define IXL_MAX_TX_SEGS		8
 #define IXL_MAX_TSO_SEGS	128
-#define IXL_SPARSE_CHAIN	6
+#define IXL_SPARSE_CHAIN	7
 #define IXL_QUEUE_HUNG		0x80000000
 #define IXL_MIN_TSO_MSS		64
+#define IXL_MAX_DMA_SEG_SIZE	((16 * 1024) - 1)
 
 #define IXL_RSS_KEY_SIZE_REG		13
 #define IXL_RSS_KEY_SIZE		(IXL_RSS_KEY_SIZE_REG * 4)
@@ -287,6 +291,8 @@ enum ixl_dbg_mask {
 /* Misc flags for ixl_vsi.flags */
 #define IXL_FLAGS_KEEP_TSO4	(1 << 0)
 #define IXL_FLAGS_KEEP_TSO6	(1 << 1)
+#define IXL_FLAGS_USES_MSIX	(1 << 2)
+#define IXL_FLAGS_IS_VF		(1 << 3)
 
 #define IXL_VF_RESET_TIMEOUT	100
 
@@ -505,7 +511,11 @@ struct ixl_queue {
 	u32			eims;           /* This queue's EIMS bit */
 	struct resource		*res;
 	void			*tag;
-	int			num_desc;	/* both tx and rx */
+	int			num_tx_desc;	/* both tx and rx */
+	int			num_rx_desc;	/* both tx and rx */
+#ifdef DEV_NETMAP
+	int			num_desc;	/* for compatibility with current netmap code in kernel */
+#endif
 	struct tx_ring		txr;
 	struct rx_ring		rxr;
 	struct task		task;
@@ -536,9 +546,12 @@ struct ixl_vsi {
 	enum i40e_vsi_type	type;
 	int			id;
 	u16			num_queues;
+	int			num_tx_desc;
+	int			num_rx_desc;
 	u32			rx_itr_setting;
 	u32			tx_itr_setting;
 	u16			max_frame_size;
+	bool			enable_head_writeback;
 
 	struct ixl_queue	*queues;	/* head of queues */
 
@@ -596,7 +609,7 @@ ixl_rx_unrefreshed(struct ixl_queue *que)
 	if (rxr->next_check > rxr->next_refresh)
 		return (rxr->next_check - rxr->next_refresh - 1);
 	else
-		return ((que->num_desc + rxr->next_check) -
+		return ((que->num_rx_desc + rxr->next_check) -
 		    rxr->next_refresh - 1);
 }
 
@@ -681,6 +694,9 @@ void	ixl_free_que_rx(struct ixl_queue *);
 int	ixl_mq_start(struct ifnet *, struct mbuf *);
 int	ixl_mq_start_locked(struct ifnet *, struct tx_ring *);
 void	ixl_deferred_mq_start(void *, int);
+
+void	ixl_vsi_setup_rings_size(struct ixl_vsi *, int, int);
+int	ixl_queue_hang_check(struct ixl_vsi *);
 void	ixl_free_vsi(struct ixl_vsi *);
 void	ixl_qflush(struct ifnet *);
 
@@ -689,4 +705,8 @@ void	ixl_qflush(struct ifnet *);
 uint64_t ixl_get_counter(if_t ifp, ift_counter cnt);
 #endif
 void	ixl_get_default_rss_key(u32 *);
+const char *	i40e_vc_stat_str(struct i40e_hw *hw,
+    enum virtchnl_status_code stat_err);
+void	ixl_set_busmaster(device_t);
+void	ixl_set_msix_enable(device_t);
 #endif /* _IXL_H_ */

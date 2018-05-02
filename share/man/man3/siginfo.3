@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2016
+.Dd April 24, 2018
 .Dt SIGINFO 3
 .Os
 .Sh NAME
@@ -156,6 +156,8 @@ process breakpoint
 process trace trap
 .It Ta Dv TRAP_DTRACE Ta
 DTrace induced trap
+.It Ta Dv TRAP_CAP Ta
+capabilities protective trap
 .It Dv SIGCHLD Ta Dv CLD_EXITED Ta
 child has exited
 .It Ta Dv CLD_KILLED Ta

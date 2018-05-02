@@ -132,7 +132,7 @@ struct faultstate {
 static void vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr,
 	    int ahead);
 static void vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
-	    int backward, int forward);
+	    int backward, int forward, bool obj_locked);
 
 static inline void
 release_page(struct faultstate *fs)
@@ -320,9 +320,9 @@ vm_fault_soft_fast(struct faultstate *fs, vm_offset_t vaddr, vm_prot_t prot,
 		return (rv);
 	vm_fault_fill_hold(m_hold, m);
 	vm_fault_dirty(fs->entry, m, prot, fault_type, fault_flags, false);
-	VM_OBJECT_RUNLOCK(fs->first_object);
 	if (psind == 0 && !wired)
-		vm_fault_prefault(fs, vaddr, PFBAK, PFFOR);
+		vm_fault_prefault(fs, vaddr, PFBAK, PFFOR, true);
+	VM_OBJECT_RUNLOCK(fs->first_object);
 	vm_map_lookup_done(fs->map, fs->entry);
 	curthread->td_ru.ru_minflt++;
 	return (KERN_SUCCESS);
@@ -1262,7 +1262,7 @@ readrest:
 	    wired == 0)
 		vm_fault_prefault(&fs, vaddr,
 		    faultcount > 0 ? behind : PFBAK,
-		    faultcount > 0 ? ahead : PFFOR);
+		    faultcount > 0 ? ahead : PFFOR, false);
 	VM_OBJECT_WLOCK(fs.object);
 	vm_page_lock(fs.m);
 
@@ -1395,7 +1395,7 @@ vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr, int ahead)
  */
 static void
 vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
-    int backward, int forward)
+    int backward, int forward, bool obj_locked)
 {
 	pmap_t pmap;
 	vm_map_entry_t entry;
@@ -1441,7 +1441,8 @@ vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
 
 		pindex = ((addr - entry->start) + entry->offset) >> PAGE_SHIFT;
 		lobject = entry->object.vm_object;
-		VM_OBJECT_RLOCK(lobject);
+		if (!obj_locked)
+			VM_OBJECT_RLOCK(lobject);
 		while ((m = vm_page_lookup(lobject, pindex)) == NULL &&
 		    lobject->type == OBJT_DEFAULT &&
 		    (backing_object = lobject->backing_object) != NULL) {
@@ -1449,17 +1450,20 @@ vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
 			    0, ("vm_fault_prefault: unaligned object offset"));
 			pindex += lobject->backing_object_offset >> PAGE_SHIFT;
 			VM_OBJECT_RLOCK(backing_object);
-			VM_OBJECT_RUNLOCK(lobject);
+			if (!obj_locked || lobject != entry->object.vm_object)
+				VM_OBJECT_RUNLOCK(lobject);
 			lobject = backing_object;
 		}
 		if (m == NULL) {
-			VM_OBJECT_RUNLOCK(lobject);
+			if (!obj_locked || lobject != entry->object.vm_object)
+				VM_OBJECT_RUNLOCK(lobject);
 			break;
 		}
 		if (m->valid == VM_PAGE_BITS_ALL &&
 		    (m->flags & PG_FICTITIOUS) == 0)
 			pmap_enter_quick(pmap, addr, m, entry->protection);
-		VM_OBJECT_RUNLOCK(lobject);
+		if (!obj_locked || lobject != entry->object.vm_object)
+			VM_OBJECT_RUNLOCK(lobject);
 	}
 }
 

@@ -421,6 +421,8 @@ EVENTHANDLER_DECLARE(ifnet_link_event, ifnet_link_event_handler_t);
 /* Interface up/down event */
 #define IFNET_EVENT_UP		0
 #define IFNET_EVENT_DOWN	1
+#define IFNET_EVENT_PCP		2	/* priority code point, PCP */
+
 typedef void (*ifnet_event_fn)(void *, struct ifnet *ifp, int event);
 EVENTHANDLER_DECLARE(ifnet_event, ifnet_event_fn);
 #endif /* _SYS_EVENTHANDLER_H_ */

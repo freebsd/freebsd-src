@@ -47,7 +47,7 @@ DTRACE_PRAGMA="
 
 ############################################################ GLOBALS
 
-VERSION='$Version: 1.0 $' # -V
+VERSION='$Version: 1.1 $' # -V
 
 pgm="${0##*/}" # Program basename
 
@@ -67,6 +67,7 @@ CUSTOM_DETAILS=		# -E code
 CUSTOM_TEST=		# -t test
 DEBUG=			# -d
 DESTRUCTIVE_ACTIONS=	# -w
+DEVELOPER=		# -dev
 EXECNAME=		# -k name
 EXECREGEX=		# -z regex
 EXIT_AFTER_COMPILE=	# -e
@@ -835,6 +836,11 @@ if [ "$PROBE_ARG" ]; then
 fi
 
 #
+# Developer switch
+#
+[ "$DEBUG" -a "$EXIT_AFTER_COMPILE" -a "$VERBOSE" ] && DEVELOPER=1 DEBUG=
+
+#
 # Set default event details if `-E code' was not given
 #
 [ "$CUSTOM_DETAILS" ] || EVENT_DETAILS=$( pproc_dump 0 )
@@ -965,6 +971,61 @@ PSARGS_ACTION=$( cat <&9 )
 
 	exec 3>&1
 	console_stdout=3
+
+	#
+	# Developer debugging aide
+	#
+	if [ "$DEVELOPER" ]; then
+		#
+		# Run, capture the error line, and focus it
+		#
+		# Example error text to capture line number from:
+		# 	dtrace: failed to compile script /dev/stdin: line 669: ...
+		#
+		errline=
+		stdin_buf=$( cat )
+		stderr_buf=$( echo "$stdin_buf" |
+			dtrace_cmd -t -es /dev/stdin "$@" 2>&1 > /dev/null )
+		status=$?
+		if [ "$stderr_buf" ]; then
+			errline=$( echo "$stderr_buf" | awk '
+				BEGIN {
+					ti = "\033[31m"
+					te = "\033[39m"
+				}
+				{ line = $0 }
+				sub(/.*: line /, "") && sub(/:.*/, "") {
+					print # to errline
+					sub("line " $0, ti "&" te, line)
+				}
+				{ print line > "/dev/stderr" }
+			' 2>&3 )
+		fi
+		if  [ "$errline" ]; then
+			echo "$stdin_buf" | awk -v line="${errline%%[^0-9]*}" '
+				BEGIN {
+					start = line < 10 ? 1 : line - 10
+					end = line + 10
+					slen = length(sprintf("%u", start))
+					elen = length(sprintf("%u", end))
+					N = elen > slen ? elen : slen
+					for (i = start; i <= end; i++) {
+						ti[i] = "\033[2m"
+						te[i] = "\033[22m"
+					}
+					ti[line] = "\033[31m"
+					te[line] = "\033[39m"
+					fmt = "%s%*u %s%s\n"
+				}
+				NR < start { next }
+				NR == start, NR == end {
+					printf(fmt, ti[NR], N, NR, $0, te[NR])
+				}
+				NR > end { exit }
+			' # END-QUOTE
+		fi
+		exit $status
+	fi
 
 	if [ $COUNT -eq 0 -a ! "$EXECREGEX$FILTER$GROUP$OUTPUT_CMD$PID$USER" ]
 	then
@@ -1285,6 +1346,7 @@ $(	pproc_dump -v 3
 )}
 }
 EOF
+# NOTREACHED
 
 ################################################################################
 # END

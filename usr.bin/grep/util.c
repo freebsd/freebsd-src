@@ -109,13 +109,12 @@ file_matching(const char *fname)
 
 	for (unsigned int i = 0; i < fpatterns; ++i) {
 		if (fnmatch(fpattern[i].pat, fname, 0) == 0 ||
-		    fnmatch(fpattern[i].pat, fname_base, 0) == 0) {
-			if (fpattern[i].mode == EXCL_PAT) {
-				ret = false;
-				break;
-			} else
-				ret = true;
-		}
+		    fnmatch(fpattern[i].pat, fname_base, 0) == 0)
+			/*
+			 * The last pattern matched wins exclusion/inclusion
+			 * rights, so we can't reasonably bail out early here.
+			 */
+			ret = (fpattern[i].mode != EXCL_PAT);
 	}
 	free(fname_buf);
 	return (ret);
@@ -129,13 +128,12 @@ dir_matching(const char *dname)
 	ret = dinclude ? false : true;
 
 	for (unsigned int i = 0; i < dpatterns; ++i) {
-		if (dname != NULL &&
-		    fnmatch(dpattern[i].pat, dname, 0) == 0) {
-			if (dpattern[i].mode == EXCL_PAT)
-				return (false);
-			else
-				ret = true;
-		}
+		if (dname != NULL && fnmatch(dpattern[i].pat, dname, 0) == 0)
+			/*
+			 * The last pattern matched wins exclusion/inclusion
+			 * rights, so we can't reasonably bail out early here.
+			 */
+			ret = (dpattern[i].mode != EXCL_PAT);
 	}
 	return (ret);
 }
@@ -164,7 +162,6 @@ grep_tree(char **argv)
 		break;
 	default:
 		fts_flags = FTS_LOGICAL;
-			
 	}
 
 	fts_flags |= FTS_NOSTAT | FTS_NOCHDIR;
@@ -193,7 +190,7 @@ grep_tree(char **argv)
 		case FTS_DC:
 			/* Print a warning for recursive directory loop */
 			warnx("warning: %s: recursive directory loop",
-				p->fts_path);
+			    p->fts_path);
 			break;
 		default:
 			/* Check for file exclusion/inclusion */
@@ -308,14 +305,14 @@ procfile(const char *fn)
 		fn = label != NULL ? label : getstr(1);
 		f = grep_open(NULL);
 	} else {
-		if (!stat(fn, &sb)) {
+		if (stat(fn, &sb) == 0) {
 			/* Check if we need to process the file */
 			s = sb.st_mode & S_IFMT;
-			if (s == S_IFDIR && dirbehave == DIR_SKIP)
+			if (dirbehave == DIR_SKIP && s == S_IFDIR)
 				return (0);
-			if ((s == S_IFIFO || s == S_IFCHR || s == S_IFBLK
-				|| s == S_IFSOCK) && devbehave == DEV_SKIP)
-					return (0);
+			if (devbehave == DEV_SKIP && (s == S_IFIFO ||
+			    s == S_IFCHR || s == S_IFBLK || s == S_IFSOCK))
+				return (0);
 		}
 		f = grep_open(fn);
 	}
@@ -326,8 +323,7 @@ procfile(const char *fn)
 		return (0);
 	}
 
-	pc.ln.file = grep_malloc(strlen(fn) + 1);
-	strcpy(pc.ln.file, fn);
+	pc.ln.file = grep_strdup(fn);
 	pc.ln.line_no = 0;
 	pc.ln.len = 0;
 	pc.ln.boff = 0;
@@ -393,7 +389,7 @@ procfile(const char *fn)
 		printf("%s%c", fn, nullflag ? 0 : '\n');
 	if (c && !cflag && !lflag && !Lflag &&
 	    binbehave == BINFILE_BIN && f->binary && !qflag)
-		printf(getstr(8), fn);
+		printf(getstr(7), fn);
 
 	free(pc.ln.file);
 	free(f);

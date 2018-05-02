@@ -47,7 +47,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: readelf.c 3519 2017-04-09 23:15:58Z kaiwang27 $");
+ELFTC_VCSID("$Id: readelf.c 3580 2017-09-15 23:29:59Z emaste $");
 
 /* Backwards compatability for older FreeBSD releases. */
 #ifndef	STB_GNU_UNIQUE
@@ -822,6 +822,7 @@ dt_type(unsigned int mach, unsigned int dtype)
 	case DT_SUNW_RTLDINF: return "SUNW_RTLDINF";
 	case DT_SUNW_FILTER: return "SUNW_FILTER";
 	case DT_SUNW_CAP: return "SUNW_CAP";
+	case DT_SUNW_ASLR: return "SUNW_ASLR";
 	case DT_CHECKSUM: return "CHECKSUM";
 	case DT_PLTPADSZ: return "PLTPADSZ";
 	case DT_MOVEENT: return "MOVEENT";

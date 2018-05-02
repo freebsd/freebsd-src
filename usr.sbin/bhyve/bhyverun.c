@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include "inout.h"
 #include "dbgport.h"
 #include "fwctl.h"
+#include "gdb.h"
 #include "ioapic.h"
 #include "mem.h"
 #include "mevent.h"
@@ -338,6 +339,8 @@ fbsdrun_start_thread(void *param)
 	snprintf(tname, sizeof(tname), "vcpu %d", vcpu);
 	pthread_set_name_np(mtp->mt_thr, tname);
 
+	gdb_cpu_add(vcpu);
+
 	vm_loop(mtp->mt_ctx, vcpu, vmexit[vcpu].rip);
 
 	/* not reached */
@@ -601,6 +604,8 @@ vmexit_mtrap(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 
 	stats.vmexit_mtrap++;
 
+	gdb_cpu_mtrap(*pvcpu);
+
 	return (VMEXIT_CONTINUE);
 }
 
@@ -675,6 +680,14 @@ vmexit_suspend(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	return (0);	/* NOTREACHED */
 }
 
+static int
+vmexit_debug(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
+{
+
+	gdb_cpu_suspend(*pvcpu);
+	return (VMEXIT_CONTINUE);
+}
+
 static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_INOUT]  = vmexit_inout,
 	[VM_EXITCODE_INOUT_STR]  = vmexit_inout,
@@ -689,6 +702,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_SPINUP_AP] = vmexit_spinup_ap,
 	[VM_EXITCODE_SUSPENDED] = vmexit_suspend,
 	[VM_EXITCODE_TASK_SWITCH] = vmexit_task_switch,
+	[VM_EXITCODE_DEBUG] = vmexit_debug,
 };
 
 static void
@@ -877,9 +891,10 @@ do_open(const char *vmname)
 int
 main(int argc, char *argv[])
 {
-	int c, error, gdb_port, err, bvmcons;
+	int c, error, dbg_port, gdb_port, err, bvmcons;
 	int max_vcpus, mptgen, memflags;
 	int rtc_localtime;
+	bool gdb_stop;
 	struct vmctx *ctx;
 	uint64_t rip;
 	size_t memsize;
@@ -887,7 +902,9 @@ main(int argc, char *argv[])
 
 	bvmcons = 0;
 	progname = basename(argv[0]);
+	dbg_port = 0;
 	gdb_port = 0;
+	gdb_stop = false;
 	guest_ncpus = 1;
 	sockets = cores = threads = 1;
 	maxcpus = 0;
@@ -896,7 +913,7 @@ main(int argc, char *argv[])
 	rtc_localtime = 1;
 	memflags = 0;
 
-	optstr = "abehuwxACHIPSWYp:g:c:s:m:l:U:";
+	optstr = "abehuwxACHIPSWYp:g:G:c:s:m:l:U:";
 	while ((c = getopt(argc, argv, optstr)) != -1) {
 		switch (c) {
 		case 'a':
@@ -924,6 +941,13 @@ main(int argc, char *argv[])
 			memflags |= VM_MEM_F_INCORE;
 			break;
 		case 'g':
+			dbg_port = atoi(optarg);
+			break;
+		case 'G':
+			if (optarg[0] == 'w') {
+				gdb_stop = true;
+				optarg++;
+			}
 			gdb_port = atoi(optarg);
 			break;
 		case 'l':
@@ -1033,8 +1057,11 @@ main(int argc, char *argv[])
 	if (init_pci(ctx) != 0)
 		exit(1);
 
+	if (dbg_port != 0)
+		init_dbgport(dbg_port);
+
 	if (gdb_port != 0)
-		init_dbgport(gdb_port);
+		init_gdb(ctx, gdb_port, gdb_stop);
 
 	if (bvmcons)
 		init_bvmcons();

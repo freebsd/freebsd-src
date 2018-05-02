@@ -166,17 +166,19 @@ static void
 regulator_shutdown(void *dummy)
 {
 	struct regnode *entry;
+	int status, ret;
 	int disable = 1;
 
 	REG_TOPO_SLOCK();
 	TUNABLE_INT_FETCH("hw.regulator.disable_unused", &disable);
 	TAILQ_FOREACH(entry, &regnode_list, reglist_link) {
-		if (entry->enable_cnt == 0 &&
-		    entry->std_param.always_on == 0 && disable) {
+		if (entry->std_param.always_on == 0 && disable) {
 			if (bootverbose)
 				printf("regulator: shuting down %s\n",
 				    entry->name);
-			regnode_stop(entry, 0);
+			ret = regnode_status(entry, &status);
+			if (ret == 0 && status == REGULATOR_STATUS_ENABLED)
+				regnode_stop(entry, 0);
 		}
 	}
 	REG_TOPO_UNLOCK();

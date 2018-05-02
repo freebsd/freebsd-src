@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2015, Intel Corporation 
+  Copyright (c) 2013-2017, Intel Corporation
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -36,7 +36,7 @@
 #define _IXL_IW_H_
 
 #define IXL_IW_MAX_USER_PRIORITY 8
-
+#define IXL_IW_MAX_MSIX	64
 
 struct ixl_iw_msix_mapping {
 	u8	itr_indx;

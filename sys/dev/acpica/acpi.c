@@ -291,6 +291,11 @@ static int acpi_susp_bounce;
 SYSCTL_INT(_debug_acpi, OID_AUTO, suspend_bounce, CTLFLAG_RW,
     &acpi_susp_bounce, 0, "Don't actually suspend, just test devices.");
 
+int acpi_susp_deep_bounce;
+SYSCTL_INT(_debug_acpi, OID_AUTO, suspend_deep_bounce, CTLFLAG_RW,
+    &acpi_susp_deep_bounce, 0, "Don't actually suspend, "
+    "bail out just before entering the sleep state.");
+
 /*
  * ACPI can only be loaded as a module by the loader; activating it after
  * system bootstrap time is not useful, and can be fatal to the system.

@@ -1,6 +1,6 @@
-# $Id: Makefile 3349 2016-01-18 21:09:16Z jkoshy $
+# $Id: Makefile 3594 2018-04-11 18:26:50Z jkoshy $
 
-TOP=	${.CURDIR}/..
+TOP=	..
 
 LIB=	pe
 

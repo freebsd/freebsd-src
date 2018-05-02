@@ -79,6 +79,7 @@ CTASSERT(sizeof(wakecode) < PAGE_SIZE - 1024);
 
 extern int		acpi_resume_beep;
 extern int		acpi_reset_video;
+extern int		acpi_susp_deep_bounce;
 
 #ifdef SMP
 extern struct susppcb	**susppcbs;
@@ -208,6 +209,10 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
 	ACPI_STATUS	status;
 	struct pcb	*pcb;
+#ifdef __amd64__
+	struct pcpu *pc;
+	int i;
+#endif
 
 	if (sc->acpi_wakeaddr == 0ul)
 		return (-1);	/* couldn't alloc wake memory */
@@ -237,6 +242,14 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 			return (0);	/* couldn't sleep */
 		}
 #endif
+#ifdef __amd64__
+		hw_ibrs_active = 0;
+		cpu_stdext_feature3 = 0;
+		CPU_FOREACH(i) {
+			pc = pcpu_find(i);
+			pc->pc_ibpb_set = 0;
+		}
+#endif
 
 		WAKECODE_FIXUP(resume_beep, uint8_t, (acpi_resume_beep != 0));
 		WAKECODE_FIXUP(reset_video, uint8_t, (acpi_reset_video != 0));
@@ -263,6 +276,9 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		 */
 		PTD[KPTDI] = PTD[LOWPTDI];
 #endif
+
+		if (acpi_susp_deep_bounce)
+			resumectx(pcb);
 
 		/* Call ACPICA to enter the desired sleep state */
 		if (state == ACPI_STATE_S4 && sc->acpi_s4bios)
