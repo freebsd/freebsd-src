@@ -632,12 +632,10 @@ in_difaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 		struct in_ifinfo *ii;
 
 		ii = ((struct in_ifinfo *)ifp->if_afdata[AF_INET]);
-		IN_MULTI_LOCK();
 		if (ii->ii_allhosts) {
-			(void)in_leavegroup_locked(ii->ii_allhosts, NULL);
+			(void)in_leavegroup(ii->ii_allhosts, NULL);
 			ii->ii_allhosts = NULL;
 		}
-		IN_MULTI_UNLOCK();
 	}
 
 	IF_ADDR_WLOCK(ifp);
@@ -994,11 +992,12 @@ in_broadcast(struct in_addr in, struct ifnet *ifp)
 void
 in_ifdetach(struct ifnet *ifp)
 {
-
+	IN_MULTI_LOCK();
 	in_pcbpurgeif0(&V_ripcbinfo, ifp);
 	in_pcbpurgeif0(&V_udbinfo, ifp);
 	in_pcbpurgeif0(&V_ulitecbinfo, ifp);
 	in_purgemaddrs(ifp);
+	IN_MULTI_UNLOCK();
 }
 
 /*
@@ -1011,12 +1010,12 @@ in_ifdetach(struct ifnet *ifp)
 static void
 in_purgemaddrs(struct ifnet *ifp)
 {
-	LIST_HEAD(,in_multi) purgeinms;
-	struct in_multi		*inm, *tinm;
+	struct in_multi_head purgeinms;
+	struct in_multi		*inm;
 	struct ifmultiaddr	*ifma;
 
-	LIST_INIT(&purgeinms);
-	IN_MULTI_LOCK();
+	SLIST_INIT(&purgeinms);
+	IN_MULTI_LIST_LOCK();
 
 	/*
 	 * Extract list of in_multi associated with the detaching ifp
@@ -1034,17 +1033,13 @@ in_purgemaddrs(struct ifnet *ifp)
 		    ("%s: ifma_protospec is NULL", __func__));
 #endif
 		inm = (struct in_multi *)ifma->ifma_protospec;
-		LIST_INSERT_HEAD(&purgeinms, inm, inm_link);
+		inm_rele_locked(&purgeinms, inm);
 	}
 	IF_ADDR_RUNLOCK(ifp);
 
-	LIST_FOREACH_SAFE(inm, &purgeinms, inm_link, tinm) {
-		LIST_REMOVE(inm, inm_link);
-		inm_release_locked(inm);
-	}
+	inm_release_list_deferred(&purgeinms);
 	igmp_ifdetach(ifp);
-
-	IN_MULTI_UNLOCK();
+	IN_MULTI_LIST_UNLOCK();
 }
 
 struct in_llentry {

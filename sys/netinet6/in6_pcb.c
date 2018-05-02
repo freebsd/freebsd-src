@@ -805,8 +805,7 @@ in6_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 			for (i = 0; i < im6o->im6o_num_memberships; i++) {
 				if (im6o->im6o_membership[i]->in6m_ifp ==
 				    ifp) {
-					in6_mc_leave(im6o->im6o_membership[i],
-					    NULL);
+					in6_leavegroup(im6o->im6o_membership[i], NULL);
 					gap++;
 				} else if (gap != 0) {
 					im6o->im6o_membership[i - gap] =

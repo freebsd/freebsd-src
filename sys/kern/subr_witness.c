@@ -532,18 +532,22 @@ static struct witness_order_list_entry order_lists[] = {
 	 * IPv4 multicast:
 	 * protocol locks before interface locks, after UDP locks.
 	 */
+	{ "in_multi_sx", &lock_class_sx },
 	{ "udpinp", &lock_class_rw },
-	{ "in_multi_mtx", &lock_class_mtx_sleep },
+	{ "in_multi_list_mtx", &lock_class_mtx_sleep },
 	{ "igmp_mtx", &lock_class_mtx_sleep },
+	{ "ifnet_rw", &lock_class_rw },
 	{ "if_addr_lock", &lock_class_rw },
 	{ NULL, NULL },
 	/*
 	 * IPv6 multicast:
 	 * protocol locks before interface locks, after UDP locks.
 	 */
+	{ "in6_multi_sx", &lock_class_sx },
 	{ "udpinp", &lock_class_rw },
-	{ "in6_multi_mtx", &lock_class_mtx_sleep },
+	{ "in6_multi_list_mtx", &lock_class_mtx_sleep },
 	{ "mld_mtx", &lock_class_mtx_sleep },
+	{ "ifnet_rw", &lock_class_rw },
 	{ "if_addr_lock", &lock_class_rw },
 	{ NULL, NULL },
 	/*

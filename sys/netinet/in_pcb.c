@@ -1328,6 +1328,12 @@ in_pcbfree(struct inpcb *inp)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 
+#ifdef INET6
+	struct ip6_moptions *im6o = NULL;
+#endif
+#ifdef INET
+	struct ip_moptions *imo = NULL;
+#endif
 	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
 
 	KASSERT((inp->inp_flags2 & INP_FREED) == 0,
@@ -1346,6 +1352,10 @@ in_pcbfree(struct inpcb *inp)
 #endif
 	INP_WLOCK_ASSERT(inp);
 
+#ifdef INET
+	imo = inp->inp_moptions;
+	inp->inp_moptions = NULL;
+#endif
 	/* XXXRW: Do as much as possible here. */
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	if (inp->inp_sp != NULL)
@@ -1358,16 +1368,12 @@ in_pcbfree(struct inpcb *inp)
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6PROTO) {
 		ip6_freepcbopts(inp->in6p_outputopts);
-		if (inp->in6p_moptions != NULL)
-			ip6_freemoptions(inp->in6p_moptions);
+		im6o = inp->in6p_moptions;
+		inp->in6p_moptions = NULL;
 	}
 #endif
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
-#ifdef INET
-	if (inp->inp_moptions != NULL)
-		inp_freemoptions(inp->inp_moptions);
-#endif
 	RO_INVALIDATE_CACHE(&inp->inp_route);
 
 	inp->inp_vflag = 0;
@@ -1378,6 +1384,18 @@ in_pcbfree(struct inpcb *inp)
 #endif
 	if (!in_pcbrele_wlocked(inp))
 		INP_WUNLOCK(inp);
+#if defined(INET) && defined(INET6)
+	if (imo == NULL && im6o == NULL)
+		return;
+#endif
+	INP_INFO_WUNLOCK(pcbinfo);
+#ifdef INET6
+	ip6_freemoptions(im6o);
+#endif
+#ifdef INET
+	inp_freemoptions(imo);
+#endif
+	INP_INFO_WLOCK(pcbinfo);
 }
 
 /*
@@ -1533,7 +1551,8 @@ in_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 			for (i = 0, gap = 0; i < imo->imo_num_memberships;
 			    i++) {
 				if (imo->imo_membership[i]->inm_ifp == ifp) {
-					in_delmulti(imo->imo_membership[i]);
+					IN_MULTI_LOCK_ASSERT();
+					in_leavegroup_locked(imo->imo_membership[i], NULL);
 					gap++;
 				} else if (gap != 0)
 					imo->imo_membership[i - gap] =

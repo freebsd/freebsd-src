@@ -55,6 +55,7 @@ struct	in_aliasreq {
 struct igmp_ifsoftc;
 struct in_multi;
 struct lltable;
+SLIST_HEAD(in_multi_head, in_multi);
 
 /*
  * IPv4 per-interface state.
@@ -329,19 +330,47 @@ SYSCTL_DECL(_net_inet_raw);
  * consumers of IN_*_MULTI() macros should acquire the locks before
  * calling them; users of the in_{add,del}multi() functions should not.
  */
-extern struct mtx in_multi_mtx;
-#define	IN_MULTI_LOCK()		mtx_lock(&in_multi_mtx)
-#define	IN_MULTI_UNLOCK()	mtx_unlock(&in_multi_mtx)
-#define	IN_MULTI_LOCK_ASSERT()	mtx_assert(&in_multi_mtx, MA_OWNED)
-#define	IN_MULTI_UNLOCK_ASSERT() mtx_assert(&in_multi_mtx, MA_NOTOWNED)
+extern struct mtx in_multi_list_mtx;
+extern struct sx in_multi_sx;
+
+#define	IN_MULTI_LIST_LOCK()		mtx_lock(&in_multi_list_mtx)
+#define	IN_MULTI_LIST_UNLOCK()	mtx_unlock(&in_multi_list_mtx)
+#define	IN_MULTI_LIST_LOCK_ASSERT()	mtx_assert(&in_multi_list_mtx, MA_OWNED)
+#define	IN_MULTI_LIST_UNLOCK_ASSERT() mtx_assert(&in_multi_list_mtx, MA_NOTOWNED)
+
+#define	IN_MULTI_LOCK()		sx_xlock(&in_multi_sx)
+#define	IN_MULTI_UNLOCK()	sx_xunlock(&in_multi_sx)
+#define	IN_MULTI_LOCK_ASSERT()	sx_assert(&in_multi_sx, SA_XLOCKED)
+#define	IN_MULTI_UNLOCK_ASSERT() sx_assert(&in_multi_sx, SA_XUNLOCKED)
 
 /* Acquire an in_multi record. */
 static __inline void
 inm_acquire_locked(struct in_multi *inm)
 {
 
-	IN_MULTI_LOCK_ASSERT();
+	IN_MULTI_LIST_LOCK_ASSERT();
 	++inm->inm_refcount;
+}
+
+static __inline void
+inm_acquire(struct in_multi *inm)
+{
+	IN_MULTI_LIST_LOCK();
+	inm_acquire_locked(inm);
+	IN_MULTI_LIST_UNLOCK();
+}
+
+static __inline void
+inm_rele_locked(struct in_multi_head *inmh, struct in_multi *inm)
+{
+	MPASS(inm->inm_refcount > 0);
+	IN_MULTI_LIST_LOCK_ASSERT();
+
+	if (--inm->inm_refcount == 0) {
+		MPASS(inmh != NULL);
+		inm->inm_ifma->ifma_protospec = NULL;
+		SLIST_INSERT_HEAD(inmh, inm, inm_nrele);
+	}
 }
 
 /*
@@ -364,11 +393,10 @@ void	inm_commit(struct in_multi *);
 void	inm_clear_recorded(struct in_multi *);
 void	inm_print(const struct in_multi *);
 int	inm_record_source(struct in_multi *inm, const in_addr_t);
-void	inm_release(struct in_multi *);
-void	inm_release_locked(struct in_multi *);
+void	inm_release_deferred(struct in_multi *);
+void	inm_release_list_deferred(struct in_multi_head *);
 struct	in_multi *
-	in_addmulti(struct in_addr *, struct ifnet *);
-void	in_delmulti(struct in_multi *);
+in_addmulti(struct in_addr *, struct ifnet *);
 int	in_joingroup(struct ifnet *, const struct in_addr *,
 	    /*const*/ struct in_mfilter *, struct in_multi **);
 int	in_joingroup_locked(struct ifnet *, const struct in_addr *,
