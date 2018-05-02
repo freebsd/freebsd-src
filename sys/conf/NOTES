@@ -2123,7 +2123,6 @@ device		cxgbe		# Chelsio T4-T6 1/10/25/40/100 Gigabit Ethernet
 device		cxgbev		# Chelsio T4-T6 Virtual Functions
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel Pro/1000 Gigabit Ethernet
-device		ixgb		# Intel Pro/10Gbe PCI-X Ethernet
 device		ix		# Intel Pro/10Gbe PCIE Ethernet
 device		ixv		# Intel Pro/10Gbe PCIE Ethernet VF
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet

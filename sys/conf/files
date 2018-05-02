@@ -2264,9 +2264,6 @@ iwn6050.fw			optional iwn6050fw | iwnfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn6050.fw"
-dev/ixgb/if_ixgb.c		optional ixgb
-dev/ixgb/ixgb_ee.c		optional ixgb
-dev/ixgb/ixgb_hw.c		optional ixgb
 dev/ixgbe/if_ix.c		optional ix inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
 dev/ixgbe/if_ixv.c		optional ixv inet \
