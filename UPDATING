@@ -51,6 +51,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20180502:
+	The ixgb(4) driver has been removed.  This driver was for an early and
+	uncommon legacy PCI 10GbE for a single ASIC, Intel 82597EX. Intel
+	quickly shifted to the long lived ixgbe family.  If you have device
+	ixgb in your kernel config file it must be removed.
+
 20180501:
 	The lmc(4) driver has been removed.  This was a WAN interface
 	card that was already reportedly rare in 2003, and had an ambiguous
