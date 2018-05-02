@@ -2385,6 +2385,8 @@ fail:
 		 * sc->mapping_table volumes tooi
 		 */
 	}
+	for (enc_idx = 0; enc_idx < sc->num_enc_table_entries; enc_idx++)
+		_mapping_clear_enc_entry(sc->enclosure_table + enc_idx);
 	sc->num_enc_table_entries = 0;
 	return (false);
 }
