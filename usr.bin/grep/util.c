@@ -389,7 +389,7 @@ procfile(const char *fn)
 		printf("%s%c", fn, nullflag ? 0 : '\n');
 	if (c && !cflag && !lflag && !Lflag &&
 	    binbehave == BINFILE_BIN && f->binary && !qflag)
-		printf(getstr(8), fn);
+		printf(getstr(7), fn);
 
 	free(pc.ln.file);
 	free(f);
