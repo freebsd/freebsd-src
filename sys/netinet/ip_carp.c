@@ -1405,7 +1405,7 @@ carp_multicast_setup(struct carp_if *cif, sa_family_t sa)
 			break;
 		}
 		in6m = NULL;
-		if ((error = in6_mc_join(ifp, &in6, NULL, &in6m, 0)) != 0) {
+		if ((error = in6_joingroup(ifp, &in6, NULL, &in6m, 0)) != 0) {
 			free(im6o->im6o_membership, M_CARP);
 			break;
 		}
@@ -1420,13 +1420,13 @@ carp_multicast_setup(struct carp_if *cif, sa_family_t sa)
 		in6.s6_addr32[3] = 0;
 		in6.s6_addr8[12] = 0xff;
 		if ((error = in6_setscope(&in6, ifp, NULL)) != 0) {
-			in6_mc_leave(im6o->im6o_membership[0], NULL);
+			in6_leavegroup(im6o->im6o_membership[0], NULL);
 			free(im6o->im6o_membership, M_CARP);
 			break;
 		}
 		in6m = NULL;
-		if ((error = in6_mc_join(ifp, &in6, NULL, &in6m, 0)) != 0) {
-			in6_mc_leave(im6o->im6o_membership[0], NULL);
+		if ((error = in6_joingroup(ifp, &in6, NULL, &in6m, 0)) != 0) {
+			in6_leavegroup(im6o->im6o_membership[0], NULL);
 			free(im6o->im6o_membership, M_CARP);
 			break;
 		}
@@ -1469,8 +1469,8 @@ carp_multicast_cleanup(struct carp_if *cif, sa_family_t sa)
 		if (cif->cif_naddrs6 == 0) {
 			struct ip6_moptions *im6o = &cif->cif_im6o;
 
-			in6_mc_leave(im6o->im6o_membership[0], NULL);
-			in6_mc_leave(im6o->im6o_membership[1], NULL);
+			in6_leavegroup(im6o->im6o_membership[0], NULL);
+			in6_leavegroup(im6o->im6o_membership[1], NULL);
 			KASSERT(im6o->im6o_mfilters == NULL,
 			    ("%s: im6o_mfilters != NULL", __func__));
 			free(im6o->im6o_membership, M_CARP);

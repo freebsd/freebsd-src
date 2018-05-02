@@ -100,6 +100,7 @@ struct nd_ifinfo;
 struct scope6_id;
 struct lltable;
 struct mld_ifsoftc;
+struct in6_multi;
 
 struct in6_ifextra {
 	counter_u64_t *in6_ifstat;
@@ -113,6 +114,10 @@ struct in6_ifextra {
 #define	LLTABLE6(ifp)	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->lltable)
 
 #ifdef _KERNEL
+
+SLIST_HEAD(in6_multi_head, in6_multi);
+MALLOC_DECLARE(M_IP6MADDR);
+
 struct	in6_ifaddr {
 	struct	ifaddr ia_ifa;		/* protocol-independent info */
 #define	ia_ifp		ia_ifa.ifa_ifp
@@ -630,7 +635,6 @@ struct in6_multi_mship {
  * w/o breaking the ABI for ifmcstat.
  */
 struct in6_multi {
-	LIST_ENTRY(in6_multi) in6m_entry; /* list glue */
 	struct	in6_addr in6m_addr;	/* IPv6 multicast address */
 	struct	ifnet *in6m_ifp;	/* back pointer to ifnet */
 	struct	ifmultiaddr *in6m_ifma;	/* back pointer to ifmultiaddr */
@@ -694,11 +698,18 @@ im6s_get_mode(const struct in6_multi *inm, const struct ip6_msource *ims,
  * consumers of IN_*_MULTI() macros should acquire the locks before
  * calling them; users of the in_{add,del}multi() functions should not.
  */
-extern struct mtx in6_multi_mtx;
-#define	IN6_MULTI_LOCK()		mtx_lock(&in6_multi_mtx)
-#define	IN6_MULTI_UNLOCK()		mtx_unlock(&in6_multi_mtx)
-#define	IN6_MULTI_LOCK_ASSERT()		mtx_assert(&in6_multi_mtx, MA_OWNED)
-#define	IN6_MULTI_UNLOCK_ASSERT()	mtx_assert(&in6_multi_mtx, MA_NOTOWNED)
+extern struct mtx in6_multi_list_mtx;
+extern struct sx in6_multi_sx;
+
+#define	IN6_MULTI_LIST_LOCK()		mtx_lock(&in6_multi_list_mtx)
+#define	IN6_MULTI_LIST_UNLOCK()	mtx_unlock(&in6_multi_list_mtx)
+#define	IN6_MULTI_LIST_LOCK_ASSERT()	mtx_assert(&in6_multi_list_mtx, MA_OWNED)
+#define	IN6_MULTI_LIST_UNLOCK_ASSERT() mtx_assert(&in6_multi_list_mtx, MA_NOTOWNED)
+
+#define	IN6_MULTI_LOCK()		sx_xlock(&in6_multi_sx)
+#define	IN6_MULTI_UNLOCK()	sx_xunlock(&in6_multi_sx)
+#define	IN6_MULTI_LOCK_ASSERT()	sx_assert(&in6_multi_sx, SA_XLOCKED)
+#define	IN6_MULTI_UNLOCK_ASSERT() sx_assert(&in6_multi_sx, SA_XUNLOCKED)
 
 /*
  * Look up an in6_multi record for an IPv6 multicast address
@@ -713,13 +724,14 @@ in6m_lookup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr)
 	struct ifmultiaddr *ifma;
 	struct in6_multi *inm;
 
-	IN6_MULTI_LOCK_ASSERT();
 	IF_ADDR_LOCK_ASSERT(ifp);
 
 	inm = NULL;
 	TAILQ_FOREACH(ifma, &((ifp)->if_multiaddrs), ifma_link) {
 		if (ifma->ifma_addr->sa_family == AF_INET6) {
 			inm = (struct in6_multi *)ifma->ifma_protospec;
+			if (inm == NULL)
+				continue;
 			if (IN6_ARE_ADDR_EQUAL(&inm->in6m_addr, mcaddr))
 				break;
 			inm = NULL;
@@ -738,11 +750,11 @@ in6m_lookup(struct ifnet *ifp, const struct in6_addr *mcaddr)
 {
 	struct in6_multi *inm;
 
-	IN6_MULTI_LOCK();
+	IN6_MULTI_LIST_LOCK();
 	IF_ADDR_RLOCK(ifp);
 	inm = in6m_lookup_locked(ifp, mcaddr);
 	IF_ADDR_RUNLOCK(ifp);
-	IN6_MULTI_UNLOCK();
+	IN6_MULTI_LIST_UNLOCK();
 
 	return (inm);
 }
@@ -752,8 +764,45 @@ static __inline void
 in6m_acquire_locked(struct in6_multi *inm)
 {
 
-	IN6_MULTI_LOCK_ASSERT();
+	IN6_MULTI_LIST_LOCK_ASSERT();
 	++inm->in6m_refcount;
+}
+
+static __inline void
+in6m_acquire(struct in6_multi *inm)
+{
+	IN6_MULTI_LIST_LOCK();
+	in6m_acquire_locked(inm);
+	IN6_MULTI_LIST_UNLOCK();
+}
+
+static __inline void
+in6m_rele_locked(struct in6_multi_head *inmh, struct in6_multi *inm)
+{
+	struct ifnet *ifp;
+	struct ifaddr *ifa;
+	struct in6_ifaddr *ifa6;
+	struct in6_multi_mship *imm;
+
+	KASSERT(inm->in6m_refcount > 0, ("refcount == %d inm: %p", inm->in6m_refcount, inm));
+	IN6_MULTI_LIST_LOCK_ASSERT();
+
+	if (--inm->in6m_refcount == 0) {
+		ifp = inm->in6m_ifp;
+		IF_ADDR_LOCK_ASSERT(ifp);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr->sa_family != AF_INET6)
+				continue;
+
+			ifa6 = (void *)ifa;
+			LIST_FOREACH(imm, &ifa6->ia6_memberships, i6mm_chain) {
+				if (inm == imm->i6mm_maddr)
+					imm->i6mm_maddr = NULL;
+			}
+		}
+		inm->in6m_ifma->ifma_protospec = NULL;
+		SLIST_INSERT_HEAD(inmh, inm, in6m_nrele);
+	}
 }
 
 struct ip6_moptions;
@@ -762,25 +811,21 @@ struct sockopt;
 /* Multicast KPIs. */
 int	im6o_mc_filter(const struct ip6_moptions *, const struct ifnet *,
 	    const struct sockaddr *, const struct sockaddr *);
-int	in6_mc_join(struct ifnet *, const struct in6_addr *,
+int in6_joingroup(struct ifnet *, const struct in6_addr *,
 	    struct in6_mfilter *, struct in6_multi **, int);
-int	in6_mc_join_locked(struct ifnet *, const struct in6_addr *,
+int	in6_joingroup_locked(struct ifnet *, const struct in6_addr *,
 	    struct in6_mfilter *, struct in6_multi **, int);
-int	in6_mc_leave(struct in6_multi *, struct in6_mfilter *);
-int	in6_mc_leave_locked(struct in6_multi *, struct in6_mfilter *);
+int	in6_leavegroup(struct in6_multi *, struct in6_mfilter *);
+int	in6_leavegroup_locked(struct in6_multi *, struct in6_mfilter *);
 void	in6m_clear_recorded(struct in6_multi *);
 void	in6m_commit(struct in6_multi *);
 void	in6m_print(const struct in6_multi *);
 int	in6m_record_source(struct in6_multi *, const struct in6_addr *);
-void	in6m_release_locked(struct in6_multi *);
+void	in6m_release_deferred(struct in6_multi *);
+void	in6m_release_list_deferred(struct in6_multi_head *);
 void	ip6_freemoptions(struct ip6_moptions *);
 int	ip6_getmoptions(struct inpcb *, struct sockopt *);
 int	ip6_setmoptions(struct inpcb *, struct sockopt *);
-
-/* Legacy KAME multicast KPIs. */
-struct in6_multi_mship *
-	in6_joingroup(struct ifnet *, struct in6_addr *, int *, int);
-int	in6_leavegroup(struct in6_multi_mship *);
 
 /* flags to in6_update_ifa */
 #define IN6_IFAUPDATE_DADDELAY	0x1 /* first time to configure an address */

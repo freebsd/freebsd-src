@@ -985,11 +985,13 @@ static void
 if_purgemaddrs(struct ifnet *ifp)
 {
 	struct ifmultiaddr *ifma;
-	struct ifmultiaddr *next;
 
 	IF_ADDR_WLOCK(ifp);
-	TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next)
+	while (!TAILQ_EMPTY(&ifp->if_multiaddrs)) {
+		ifma = TAILQ_FIRST(&ifp->if_multiaddrs);
+		TAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifma_link);
 		if_delmulti_locked(ifp, ifma, 1);
+	}
 	IF_ADDR_WUNLOCK(ifp);
 }
 
@@ -3429,6 +3431,12 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa,
 	struct sockaddr_dl sdl;
 	int error;
 
+#ifdef INET
+	IN_MULTI_LIST_UNLOCK_ASSERT();
+#endif
+#ifdef INET6
+	IN6_MULTI_LIST_UNLOCK_ASSERT();
+#endif
 	/*
 	 * If the address is already present, return a new reference to it;
 	 * otherwise, allocate storage and set up a new address.
@@ -3610,6 +3618,9 @@ if_delmulti_ifma(struct ifmultiaddr *ifma)
 	struct ifnet *ifp;
 	int lastref;
 
+#ifdef INET
+	IN_MULTI_LIST_UNLOCK_ASSERT();
+#endif
 	ifp = ifma->ifma_ifp;
 #ifdef DIAGNOSTIC
 	if (ifp == NULL) {
@@ -3711,8 +3722,7 @@ if_delmulti_locked(struct ifnet *ifp, struct ifmultiaddr *ifma, int detaching)
 			if_freemulti(ll_ifma);
 		}
 	}
-
-	if (ifp != NULL)
+	if (ifp != NULL && detaching == 0)
 		TAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifma_link);
 
 	if_freemulti(ifma);

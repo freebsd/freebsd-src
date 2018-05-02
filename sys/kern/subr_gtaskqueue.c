@@ -53,6 +53,7 @@ static void	gtaskqueue_thread_enqueue(void *);
 static void	gtaskqueue_thread_loop(void *arg);
 
 TASKQGROUP_DEFINE(softirq, mp_ncpus, 1);
+TASKQGROUP_DEFINE(config, 1, 1);
 
 struct gtaskqueue_busy {
 	struct gtask	*tb_running;
@@ -662,7 +663,7 @@ SYSINIT(tqg_record_smp_started, SI_SUB_SMP, SI_ORDER_FOURTH,
 
 void
 taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *gtask,
-    void *uniq, int irq, char *name)
+    void *uniq, int irq, const char *name)
 {
 	cpuset_t mask;
 	int qid, error;
@@ -976,4 +977,13 @@ void
 taskqgroup_destroy(struct taskqgroup *qgroup)
 {
 
+}
+
+void
+taskqgroup_config_gtask_init(void *ctx, struct grouptask *gtask, gtask_fn_t *fn,
+	const char *name)
+{
+
+	GROUPTASK_INIT(gtask, 0, fn, ctx);
+	taskqgroup_attach(qgroup_config, gtask, gtask, -1, name);
 }
