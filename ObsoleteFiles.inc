@@ -39,6 +39,7 @@
 # done
 
 # 20180502: retire ixgb
+OLD_FILES+=usr/share/man/man4/if_ixgb.4.gz
 OLD_FILES+=usr/share/man/man4/ixgb.4.gz
 # 20180501: retire lmc
 OLD_FILES+=usr/include/dev/lmc/if_lmc.h
