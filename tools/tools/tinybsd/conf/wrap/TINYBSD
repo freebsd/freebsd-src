@@ -48,7 +48,6 @@ device		sio		# 8250, 16[45]50 based serial ports
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel PRO/1000 adapter Gigabit Ethernet Card
-device		ixgb		# Intel PRO/10GbE Ethernet Card
 device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
