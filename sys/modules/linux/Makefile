@@ -17,8 +17,12 @@ SRCS=	linux_fork.c linux${SFX}_dummy.c linux_file.c linux_event.c \
 	linux${SFX}_sysvec.c linux_uid16.c linux_time.c \
 	linux_timer.c linux_vdso.c \
 	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h vnode_if.h \
-	device_if.h bus_if.h \
-	linux${SFX}_support.s
+	device_if.h bus_if.h
+.if ${MACHINE_CPUARCH} == "amd64"
+SRCS+=	linux${SFX}_support.s
+.else
+SRCS+=	linux_copyout.c
+.endif
 DPSRCS=	assym.inc linux${SFX}_genassym.c
 
 # XXX: for assym.inc
@@ -56,11 +60,11 @@ linux${SFX}_locore.o: linux${SFX}_assym.h assym.inc
 	-Wl,-soname=${VDSO}.so.1,--eh-frame-hdr,-warn-common		\
 	    ${.IMPSRC} -o ${.TARGET}
 
+.if ${MACHINE_CPUARCH} == "amd64"
 linux${SFX}_support.o: linux${SFX}_assym.h assym.inc
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 	    ${.IMPSRC} -o ${.TARGET}
 
-.if ${MACHINE_CPUARCH} == "amd64"
 ${VDSO}.so: linux${SFX}_locore.o
 	${OBJCOPY} --input-target binary --output-target elf64-x86-64-freebsd			\
 	    --binary-architecture i386 linux${SFX}_locore.o ${.TARGET}

@@ -1007,9 +1007,9 @@ init_secondary_tail(void)
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	PCPU_SET(curthread, PCPU_GET(idlethread));
 
-	mca_init();
-
 	mtx_lock_spin(&ap_boot_mtx);
+
+	mca_init();
 
 	/* Init local apic for irq's */
 	lapic_setup(1);

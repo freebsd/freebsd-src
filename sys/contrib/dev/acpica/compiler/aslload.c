@@ -153,8 +153,9 @@
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acdispat.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
-
+#include <contrib/dev/acpica/include/acparser.h>
 #include "aslcompiler.y.h"
+
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslload")
@@ -470,9 +471,13 @@ LdNamespace1Begin (
     UINT32                  i;
     BOOLEAN                 ForceNewScope = FALSE;
     ACPI_OWNER_ID           OwnerId = 0;
+    const ACPI_OPCODE_INFO  *OpInfo;
+    ACPI_PARSE_OBJECT       *ParentOp;
 
 
     ACPI_FUNCTION_NAME (LdNamespace1Begin);
+
+
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Op %p [%s]\n",
         Op, Op->Asl.ParseOpName));
 
@@ -548,6 +553,69 @@ LdNamespace1Begin (
         return (AE_OK);
     }
 
+    /* Check for a possible illegal forward reference */
+
+    if ((Op->Asl.ParseOpcode == PARSEOP_NAMESEG) ||
+        (Op->Asl.ParseOpcode == PARSEOP_NAMESTRING))
+    {
+        /*
+         * Op->Asl.Namepath will be NULL for these opcodes.
+         * These opcodes are guaranteed to have a parent.
+         * Examine the parent opcode.
+         */
+        Status = AE_OK;
+        ParentOp = Op->Asl.Parent;
+        OpInfo = AcpiPsGetOpcodeInfo (ParentOp->Asl.AmlOpcode);
+
+        /*
+         * Exclude all operators that actually declare a new name:
+         *      Name (ABCD, 1) -> Ignore (AML_CLASS_NAMED_OBJECT)
+         * We only want references to named objects:
+         *      Store (2, WXYZ) -> Attempt to resolve the name
+         */
+        if (OpInfo->Class == AML_CLASS_NAMED_OBJECT)
+        {
+            return (AE_OK);
+        }
+
+        /*
+         * Check if the referenced object exists at this point during
+         * the load:
+         * 1) If it exists, then this cannot be a forward reference.
+         * 2) If it does not exist, it could be a forward reference or
+         * it truly does not exist (and no external declaration).
+         */
+        Status = AcpiNsLookup (WalkState->ScopeInfo,
+            Op->Asl.Value.Name, ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
+            ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
+            WalkState, &Node);
+        if (Status == AE_NOT_FOUND)
+        {
+            /*
+             * This is either a foward reference or the object truly
+             * does not exist. The two cases can only be differentiated
+             * during the cross-reference stage later. Mark the Op/Name
+             * as not-found for now to indicate the need for further
+             * processing.
+             *
+             * Special case: Allow forward references from elements of
+             * Package objects. This provides compatibility with other
+             * ACPI implementations. To correctly implement this, the
+             * ACPICA table load defers package resolution until the entire
+             * namespace has been loaded.
+             */
+            if ((ParentOp->Asl.ParseOpcode != PARSEOP_PACKAGE) &&
+                (ParentOp->Asl.ParseOpcode != PARSEOP_VAR_PACKAGE))
+            {
+                Op->Asl.CompileFlags |= OP_NOT_FOUND_DURING_LOAD;
+            }
+
+            return (AE_OK);
+        }
+
+        return (Status);
+    }
+
     Path = Op->Asl.Namepath;
     if (!Path)
     {
@@ -583,7 +651,6 @@ LdNamespace1Begin (
             ObjectType++;
         }
         break;
-
 
     case PARSEOP_EXTERNAL:
         /*
@@ -765,7 +832,6 @@ LdNamespace1Begin (
 
         Status = AE_OK;
         goto FinishNode;
-
 
     default:
 

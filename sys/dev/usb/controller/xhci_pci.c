@@ -256,6 +256,7 @@ xhci_pci_attach(device_t self)
 		 */
 		sc->sc_port_route = &xhci_pci_port_route;
 		sc->sc_imod_default = XHCI_IMOD_DEFAULT_LP;
+		sc->sc_ctlstep = 1;
 		break;
 	}
 

@@ -399,7 +399,8 @@ macio_attach(device_t dev)
 			continue;
 
 		if (strcmp(ofw_bus_get_name(cdev), "bmac") == 0 ||
-		    strcmp(ofw_bus_get_compat(cdev), "bmac+") == 0) {
+		    (ofw_bus_get_compat(cdev) != NULL &&
+		    strcmp(ofw_bus_get_compat(cdev), "bmac+") == 0)) {
 			uint32_t fcr;
 
 			fcr = bus_read_4(sc->sc_memr, HEATHROW_FCR);

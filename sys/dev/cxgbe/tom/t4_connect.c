@@ -65,51 +65,6 @@ __FBSDID("$FreeBSD$");
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
-/* atid services */
-static int alloc_atid(struct adapter *, void *);
-static void *lookup_atid(struct adapter *, int);
-static void free_atid(struct adapter *, int);
-
-static int
-alloc_atid(struct adapter *sc, void *ctx)
-{
-	struct tid_info *t = &sc->tids;
-	int atid = -1;
-
-	mtx_lock(&t->atid_lock);
-	if (t->afree) {
-		union aopen_entry *p = t->afree;
-
-		atid = p - t->atid_tab;
-		t->afree = p->next;
-		p->data = ctx;
-		t->atids_in_use++;
-	}
-	mtx_unlock(&t->atid_lock);
-	return (atid);
-}
-
-static void *
-lookup_atid(struct adapter *sc, int atid)
-{
-	struct tid_info *t = &sc->tids;
-
-	return (t->atid_tab[atid].data);
-}
-
-static void
-free_atid(struct adapter *sc, int atid)
-{
-	struct tid_info *t = &sc->tids;
-	union aopen_entry *p = &t->atid_tab[atid];
-
-	mtx_lock(&t->atid_lock);
-	p->next = t->afree;
-	t->afree = p;
-	t->atids_in_use--;
-	mtx_unlock(&t->atid_lock);
-}
-
 /*
  * Active open succeeded.
  */
@@ -326,7 +281,8 @@ t4_init_connect_cpl_handlers(void)
 {
 
 	t4_register_cpl_handler(CPL_ACT_ESTABLISH, do_act_establish);
-	t4_register_cpl_handler(CPL_ACT_OPEN_RPL, do_act_open_rpl);
+	t4_register_shared_cpl_handler(CPL_ACT_OPEN_RPL, do_act_open_rpl,
+	    CPL_COOKIE_TOM);
 }
 
 void
@@ -334,7 +290,7 @@ t4_uninit_connect_cpl_handlers(void)
 {
 
 	t4_register_cpl_handler(CPL_ACT_ESTABLISH, NULL);
-	t4_register_cpl_handler(CPL_ACT_OPEN_RPL, NULL);
+	t4_register_shared_cpl_handler(CPL_ACT_OPEN_RPL, NULL, CPL_COOKIE_TOM);
 }
 
 #define DONT_OFFLOAD_ACTIVE_OPEN(x)	do { \
@@ -463,7 +419,8 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	else
 		rscale = 0;
 	mtu_idx = find_best_mtu_idx(sc, &inp->inp_inc, &settings);
-	qid_atid = (toep->ofld_rxq->iq.abs_id << 14) | toep->tid;
+	qid_atid = V_TID_QID(toep->ofld_rxq->iq.abs_id) | V_TID_TID(toep->tid) |
+	    V_TID_COOKIE(CPL_COOKIE_TOM);
 
 	if (isipv6) {
 		struct cpl_act_open_req6 *cpl = wrtod(wr);

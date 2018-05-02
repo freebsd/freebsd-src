@@ -80,85 +80,6 @@ static struct ibv_driver *head_driver, *tail_driver;
 
 static int find_sysfs_devs(void)
 {
-#ifdef __linux__
-	char class_path[IBV_SYSFS_PATH_MAX];
-	DIR *class_dir;
-	struct dirent *dent;
-	struct ibv_sysfs_dev *sysfs_dev = NULL;
-	char value[8];
-	int ret = 0;
-
-	if (!check_snprintf(class_path, sizeof(class_path),
-			    "%s/class/infiniband_verbs", ibv_get_sysfs_path()))
-		return ENOMEM;
-
-	class_dir = opendir(class_path);
-	if (!class_dir)
-		return ENOSYS;
-
-	while ((dent = readdir(class_dir))) {
-		struct stat buf;
-
-		if (dent->d_name[0] == '.')
-			continue;
-
-		if (!sysfs_dev)
-			sysfs_dev = malloc(sizeof *sysfs_dev);
-		if (!sysfs_dev) {
-			ret = ENOMEM;
-			goto out;
-		}
-
-		if (!check_snprintf(sysfs_dev->sysfs_path, sizeof sysfs_dev->sysfs_path,
-				    "%s/%s", class_path, dent->d_name))
-			continue;
-
-		if (stat(sysfs_dev->sysfs_path, &buf)) {
-			fprintf(stderr, PFX "Warning: couldn't stat '%s'.\n",
-				sysfs_dev->sysfs_path);
-			continue;
-		}
-
-		if (!S_ISDIR(buf.st_mode))
-			continue;
-
-		if (!check_snprintf(sysfs_dev->sysfs_name, sizeof sysfs_dev->sysfs_name,
-				    "%s", dent->d_name))
-			continue;
-
-		if (ibv_read_sysfs_file(sysfs_dev->sysfs_path, "ibdev",
-					sysfs_dev->ibdev_name,
-					sizeof sysfs_dev->ibdev_name) < 0) {
-			fprintf(stderr, PFX "Warning: no ibdev class attr for '%s'.\n",
-				dent->d_name);
-			continue;
-		}
-
-		if (!check_snprintf(
-			sysfs_dev->ibdev_path, sizeof(sysfs_dev->ibdev_path),
-			"%s/class/infiniband/%s", ibv_get_sysfs_path(),
-			sysfs_dev->ibdev_name))
-			continue;
-
-		sysfs_dev->next        = sysfs_dev_list;
-		sysfs_dev->have_driver = 0;
-		if (ibv_read_sysfs_file(sysfs_dev->sysfs_path, "abi_version",
-					value, sizeof value) > 0)
-			sysfs_dev->abi_ver = strtol(value, NULL, 10);
-		else
-			sysfs_dev->abi_ver = 0;
-
-		sysfs_dev_list = sysfs_dev;
-		sysfs_dev      = NULL;
-	}
-
- out:
-	if (sysfs_dev)
-		free(sysfs_dev);
-
-	closedir(class_dir);
-	return ret;
-#else
 	char class_path[IBV_SYSFS_PATH_MAX];
 	struct ibv_sysfs_dev *sysfs_dev = NULL;
 	char value[8];
@@ -208,7 +129,6 @@ static int find_sysfs_devs(void)
 		free(sysfs_dev);
 
 	return ret;
-#endif
 }
 
 void verbs_register_driver(const char *name,
@@ -231,185 +151,6 @@ void verbs_register_driver(const char *name,
 	else
 		head_driver = driver;
 	tail_driver = driver;
-}
-
-#define __IBV_QUOTE(x)	#x
-#define IBV_QUOTE(x)	__IBV_QUOTE(x)
-#define DLOPEN_TRAILER "-" IBV_QUOTE(IBV_DEVICE_LIBRARY_EXTENSION) ".so"
-
-static void load_driver(const char *name)
-{
-	char *so_name;
-	void *dlhandle;
-
-	/* If the name is an absolute path then open that path after appending
-	   the trailer suffix */
-	if (name[0] == '/') {
-		if (asprintf(&so_name, "%s" DLOPEN_TRAILER, name) < 0)
-			goto out_asprintf;
-		dlhandle = dlopen(so_name, RTLD_NOW);
-		if (!dlhandle)
-			goto out_dlopen;
-		free(so_name);
-		return;
-	}
-
-	/* If configured with a provider plugin path then try that next */
-	if (sizeof(VERBS_PROVIDER_DIR) > 1) {
-		if (asprintf(&so_name, VERBS_PROVIDER_DIR "/lib%s" DLOPEN_TRAILER, name) <
-		    0)
-			goto out_asprintf;
-		dlhandle = dlopen(so_name, RTLD_NOW);
-		free(so_name);
-		if (dlhandle)
-			return;
-	}
-
-	/* Otherwise use the system libary search path. This is the historical
-	   behavior of libibverbs */
-	if (asprintf(&so_name, "lib%s" DLOPEN_TRAILER, name) < 0)
-		goto out_asprintf;
-	dlhandle = dlopen(so_name, RTLD_NOW);
-	if (!dlhandle)
-		goto out_dlopen;
-	free(so_name);
-	return;
-
-out_asprintf:
-	fprintf(stderr, PFX "Warning: couldn't load driver '%s'.\n", name);
-	return;
-out_dlopen:
-	fprintf(stderr, PFX "Warning: couldn't load driver '%s': %s\n", so_name,
-		dlerror());
-	free(so_name);
-	return;
-}
-
-static void load_drivers(void)
-{
-	struct ibv_driver_name *name, *next_name;
-	const char *env;
-	char *list, *env_name;
-
-	/*
-	 * Only use drivers passed in through the calling user's
-	 * environment if we're not running setuid.
-	 */
-	if (getuid() == geteuid()) {
-		if ((env = getenv("RDMAV_DRIVERS"))) {
-			list = strdupa(env);
-			while ((env_name = strsep(&list, ":;")))
-				load_driver(env_name);
-		} else if ((env = getenv("IBV_DRIVERS"))) {
-			list = strdupa(env);
-			while ((env_name = strsep(&list, ":;")))
-				load_driver(env_name);
-		}
-	}
-
-	for (name = driver_name_list, next_name = name ? name->next : NULL;
-	     name;
-	     name = next_name, next_name = name ? name->next : NULL) {
-		load_driver(name->name);
-		free(name->name);
-		free(name);
-	}
-}
-
-static void read_config_file(const char *path)
-{
-	FILE *conf;
-	char *line = NULL;
-	char *config;
-	char *field;
-	size_t buflen = 0;
-	ssize_t len;
-
-	conf = fopen(path, "r" STREAM_CLOEXEC);
-	if (!conf) {
-		fprintf(stderr, PFX "Warning: couldn't read config file %s.\n",
-			path);
-		return;
-	}
-
-	while ((len = getline(&line, &buflen, conf)) != -1) {
-		config = line + strspn(line, "\t ");
-		if (config[0] == '\n' || config[0] == '#')
-			continue;
-
-		field = strsep(&config, "\n\t ");
-
-		if (strcmp(field, "driver") == 0 && config != NULL) {
-			struct ibv_driver_name *driver_name;
-
-			config += strspn(config, "\t ");
-			field = strsep(&config, "\n\t ");
-
-			driver_name = malloc(sizeof *driver_name);
-			if (!driver_name) {
-				fprintf(stderr, PFX "Warning: couldn't allocate "
-					"driver name '%s'.\n", field);
-				continue;
-			}
-
-			driver_name->name = strdup(field);
-			if (!driver_name->name) {
-				fprintf(stderr, PFX "Warning: couldn't allocate "
-					"driver name '%s'.\n", field);
-				free(driver_name);
-				continue;
-			}
-
-			driver_name->next = driver_name_list;
-			driver_name_list  = driver_name;
-		} else
-			fprintf(stderr, PFX "Warning: ignoring bad config directive "
-				"'%s' in file '%s'.\n", field, path);
-	}
-
-	if (line)
-		free(line);
-	fclose(conf);
-}
-
-static void read_config(void)
-{
-	DIR *conf_dir;
-	struct dirent *dent;
-	char *path;
-
-	conf_dir = opendir(IBV_CONFIG_DIR);
-	if (!conf_dir) {
-		fprintf(stderr, PFX "Warning: couldn't open config directory '%s'.\n",
-			IBV_CONFIG_DIR);
-		return;
-	}
-
-	while ((dent = readdir(conf_dir))) {
-		struct stat buf;
-
-		if (asprintf(&path, "%s/%s", IBV_CONFIG_DIR, dent->d_name) < 0) {
-			fprintf(stderr, PFX "Warning: couldn't read config file %s/%s.\n",
-				IBV_CONFIG_DIR, dent->d_name);
-			goto out;
-		}
-
-		if (stat(path, &buf)) {
-			fprintf(stderr, PFX "Warning: couldn't stat config file '%s'.\n",
-				path);
-			goto next;
-		}
-
-		if (!S_ISREG(buf.st_mode))
-			goto next;
-
-		read_config_file(path);
-next:
-		free(path);
-	}
-
-out:
-	closedir(conf_dir);
 }
 
 static struct ibv_device *try_driver(struct ibv_driver *driver,
@@ -565,8 +306,6 @@ int ibverbs_init(struct ibv_device ***list)
 
 	check_memlock_limit();
 
-	read_config();
-
 	ret = find_sysfs_devs();
 	if (ret)
 		return -ret;
@@ -602,8 +341,6 @@ int ibverbs_init(struct ibv_device ***list)
 		}
 		dlclose(hand);
 	}
-
-	load_drivers();
 
 	for (sysfs_dev = sysfs_dev_list; sysfs_dev; sysfs_dev = sysfs_dev->next) {
 		if (sysfs_dev->have_driver)

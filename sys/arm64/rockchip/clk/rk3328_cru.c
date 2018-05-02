@@ -52,11 +52,15 @@ __FBSDID("$FreeBSD$");
 
 /* GATES */
 
-#define ACLK_PERI		153
-#define HCLK_SDMMC		317
-#define HCLK_SDIO		318
-#define HCLK_EMMC		319
-#define HCLK_SDMMC_EXT		320
+#define	ACLK_PERI		153
+#define	PCLK_GPIO0		200
+#define	PCLK_GPIO1		201
+#define	PCLK_GPIO2		202
+#define	PCLK_GPIO3		203
+#define	HCLK_SDMMC		317
+#define	HCLK_SDIO		318
+#define	HCLK_EMMC		319
+#define	HCLK_SDMMC_EXT		320
 
 static struct rk_cru_gate rk3328_gates[] = {
 	/* CRU_CLKGATE_CON0 */
@@ -75,6 +79,12 @@ static struct rk_cru_gate rk3328_gates[] = {
 
 	/* CRU_CLKGATE_CON10 */
 	CRU_GATE(ACLK_PERI, "aclk_peri", "aclk_peri_pre", 0x228, 0)
+
+	/* CRU_CLKGATE_CON16 */
+	CRU_GATE(PCLK_GPIO0, "pclk_gpio0", "pclk_bus", 0x240, 7)
+	CRU_GATE(PCLK_GPIO1, "pclk_gpio1", "pclk_bus", 0x240, 8)
+	CRU_GATE(PCLK_GPIO2, "pclk_gpio2", "pclk_bus", 0x240, 9)
+	CRU_GATE(PCLK_GPIO3, "pclk_gpio3", "pclk_bus", 0x240, 10)
 
 	/* CRU_CLKGATE_CON19 */
 	CRU_GATE(HCLK_SDMMC, "hclk_sdmmc", "hclk_peri", 0x24C, 0)
@@ -175,7 +185,7 @@ static struct rk_clk_composite_def aclk_bus_pre = {
 	.div_shift = 8,
 	.div_width = 5,
 
-	.gate_offset = 0x232,
+	.gate_offset = 0x220,
 	.gate_shift = 0,
 
 	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
@@ -199,7 +209,7 @@ static struct rk_clk_composite_def hclk_bus_pre = {
 	.div_shift = 8,
 	.div_width = 2,
 
-	.gate_offset = 0x232,
+	.gate_offset = 0x220,
 	.gate_shift = 1,
 
 	.flags = RK_CLK_COMPOSITE_HAVE_GATE,
@@ -218,7 +228,7 @@ static struct rk_clk_composite_def pclk_bus_pre = {
 	.div_shift = 12,
 	.div_width = 3,
 
-	.gate_offset = 0x232,
+	.gate_offset = 0x220,
 	.gate_shift = 2,
 
 	.flags = RK_CLK_COMPOSITE_HAVE_GATE,

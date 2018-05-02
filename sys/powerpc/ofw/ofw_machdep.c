@@ -230,7 +230,7 @@ excise_fdt_reserved(struct mem_region *avail, int asz)
 	struct {
 		uint64_t address;
 		uint64_t size;
-	} fdtmap[16];
+	} fdtmap[32];
 	ssize_t fdtmapsize;
 	phandle_t chosen;
 	int i, j, k;

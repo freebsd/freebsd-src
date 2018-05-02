@@ -21,6 +21,7 @@ FILES=	DAEMON \
 	${_bluetooth} \
 	bridge \
 	${_bthidd} \
+	cfumass \
 	cleanvar \
 	cleartmp \
 	cron \

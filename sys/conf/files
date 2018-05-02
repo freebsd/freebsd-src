@@ -653,11 +653,11 @@ contrib/zstd/lib/decompress/zstd_decompress.c	standard compile-with ${ZSTD_C}
 contrib/zstd/lib/decompress/huf_decompress.c	standard compile-with ${ZSTD_C}
 # Blake 2
 contrib/libb2/blake2b-ref.c	optional crypto | ipsec | ipsec_support \
-	compile-with "${NORMAL_C} -I$S/crypto/blake2 ${NO_WCAST_QUAL} -DSUFFIX=_ref"
+	compile-with "${NORMAL_C} -I$S/crypto/blake2 -Wno-cast-qual -DSUFFIX=_ref -Wno-unused-function"
 contrib/libb2/blake2s-ref.c	optional crypto | ipsec | ipsec_support \
-	compile-with "${NORMAL_C} -I$S/crypto/blake2 ${NO_WCAST_QUAL} -DSUFFIX=_ref"
+	compile-with "${NORMAL_C} -I$S/crypto/blake2 -Wno-cast-qual -DSUFFIX=_ref -Wno-unused-function"
 crypto/blake2/blake2-sw.c	optional crypto | ipsec | ipsec_support \
-	compile-with "${NORMAL_C} -I$S/crypto/blake2 ${NO_WCAST_QUAL}"
+	compile-with "${NORMAL_C} -I$S/crypto/blake2 -Wno-cast-qual"
 crypto/blowfish/bf_ecb.c	optional ipsec | ipsec_support
 crypto/blowfish/bf_skey.c	optional crypto | ipsec | ipsec_support
 crypto/camellia/camellia.c	optional crypto | ipsec | ipsec_support
@@ -1394,6 +1394,8 @@ dev/cxgb/sys/uipc_mvec.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/cxgb_t3fw.c		optional cxgb cxgb_t3fw \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgbe/t4_filter.c		optional cxgbe pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_if.m		optional cxgbe pci
 dev/cxgbe/t4_iov.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
@@ -1762,7 +1764,7 @@ dev/fdt/fdt_clock_if.m		optional fdt fdt_clock
 dev/fdt/fdt_common.c		optional fdt
 dev/fdt/fdt_pinctrl.c		optional fdt fdt_pinctrl
 dev/fdt/fdt_pinctrl_if.m	optional fdt fdt_pinctrl
-dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand | fdt mx25l
+dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand | fdt mx25l | fdt n25q
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
 	dependency	"fdt_dtb_file"
 dev/fdt/simplebus.c		optional fdt
@@ -1781,7 +1783,10 @@ dev/firewire/if_fwip.c		optional fwip
 dev/firewire/sbp.c		optional sbp
 dev/firewire/sbp_targ.c		optional sbp_targ
 dev/flash/at45d.c		optional at45d
+dev/flash/cqspi.c		optional cqspi
 dev/flash/mx25l.c		optional mx25l
+dev/flash/n25q.c		optional n25q
+dev/flash/qspi_if.m		optional cqspi | n25q
 dev/fxp/if_fxp.c		optional fxp
 dev/fxp/inphy.c			optional fxp
 dev/gem/if_gem.c		optional gem
@@ -2259,9 +2264,6 @@ iwn6050.fw			optional iwn6050fw | iwnfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn6050.fw"
-dev/ixgb/if_ixgb.c		optional ixgb
-dev/ixgb/ixgb_ee.c		optional ixgb
-dev/ixgb/ixgb_hw.c		optional ixgb
 dev/ixgbe/if_ix.c		optional ix inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
 dev/ixgbe/if_ixv.c		optional ixv inet \
@@ -2370,7 +2372,6 @@ lio_23xx_nic.bin.fw	optional lio					\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"lio_23xx_nic.bin.fw"
-dev/lmc/if_lmc.c		optional lmc
 dev/malo/if_malo.c		optional malo
 dev/malo/if_malohal.c		optional malo
 dev/malo/if_malo_pci.c		optional malo pci
@@ -3672,7 +3673,7 @@ geom/geom_disk.c		standard
 geom/geom_dump.c		standard
 geom/geom_event.c		standard
 geom/geom_fox.c			optional geom_fox
-geom/geom_flashmap.c		optional fdt cfi | fdt nand | fdt mx25l | mmcsd
+geom/geom_flashmap.c		optional fdt cfi | fdt nand | fdt mx25l | mmcsd | fdt n25q
 geom/geom_io.c			standard
 geom/geom_kern.c		standard
 geom/geom_map.c			optional geom_map

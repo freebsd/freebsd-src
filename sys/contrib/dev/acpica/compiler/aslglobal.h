@@ -220,7 +220,8 @@ const char                          *Gbl_OpFlagNames[ACPI_NUM_OP_FLAGS] =
     "OP_COMPILER_EMITTED",
     "OP_IS_DUPLICATE",
     "OP_IS_RESOURCE_DATA",
-    "OP_IS_NULL_RETURN"
+    "OP_IS_NULL_RETURN",
+    "OP_NOT_FOUND_DURING_LOAD"
 };
 
 #else
