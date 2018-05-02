@@ -57,6 +57,15 @@ __FBSDID("$FreeBSD$");
 static const char *decimal_point = ".";	/* default */
 static char default_format[] = { "%g" };	/* default */
 
+static const struct option long_opts[] =
+{
+	{"format",	required_argument,	NULL, 'f'},
+	{"separator",	required_argument,	NULL, 's'},
+	{"terminator",	required_argument,	NULL, 't'},
+	{"equal-width",	no_argument,		NULL, 'w'},
+	{NULL,		no_argument,		NULL, 0}
+};
+
 /* Prototypes */
 
 static double e_atof(const char *);
@@ -67,15 +76,6 @@ static int valid_format(const char *);
 
 static char *generate_format(double, double, double, int, char);
 static char *unescape(char *);
-
-static const struct option long_opts[] =
-{
-	{"format",	required_argument,	NULL, 'f'},
-	{"separator",	required_argument,	NULL, 's'},
-	{"terminator",	required_argument,	NULL, 't'},
-	{"equal-width",	no_argument,		NULL, 'w'},
-	{NULL,		no_argument,		NULL, 0}
-};
 
 /*
  * The seq command will print out a numeric sequence from 1, the default,
