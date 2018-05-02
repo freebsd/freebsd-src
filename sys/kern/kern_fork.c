@@ -425,6 +425,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	bzero(&p2->p_startzero,
 	    __rangeof(struct proc, p_startzero, p_endzero));
 	p2->p_ptevents = 0;
+	p2->p_pdeathsig = 0;
 
 	/* Tell the prison that we exist. */
 	prison_proc_hold(p2->p_ucred->cr_prison);

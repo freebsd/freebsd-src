@@ -674,6 +674,7 @@ struct proc {
 	uint64_t	p_elf_flags;	/* (x) ELF flags */
 	sigqueue_t	p_sigqueue;	/* (c) Sigs not delivered to a td. */
 #define p_siglist	p_sigqueue.sq_signals
+	int		p_pdeathsig;	/* (c) Signal from parent on exit. */
 };
 
 #define	p_session	p_pgrp->pg_session
