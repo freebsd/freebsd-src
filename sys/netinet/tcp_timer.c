@@ -662,8 +662,7 @@ tcp_timer_rexmt(void * xtp)
 			tcp_inpinfo_lock_del(inp, tp);
 			goto out;
 		}
-		tp = tcp_drop(tp, tp->t_softerror ?
-			      tp->t_softerror : ETIMEDOUT);
+		tp = tcp_drop(tp, ETIMEDOUT);
 		tcp_inpinfo_lock_del(inp, tp);
 		goto out;
 	}
