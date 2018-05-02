@@ -696,6 +696,7 @@ mlx5e_add_all_vlan_rules(struct mlx5e_priv *priv)
 	int err;
 	int i;
 
+	set_bit(0, priv->vlan.active_vlans);
 	for_each_set_bit(i, priv->vlan.active_vlans, VLAN_N_VID) {
 		err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID,
 					  i);
@@ -727,6 +728,7 @@ mlx5e_del_all_vlan_rules(struct mlx5e_priv *priv)
 
 	for_each_set_bit(i, priv->vlan.active_vlans, VLAN_N_VID)
 		mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, i);
+	clear_bit(0, priv->vlan.active_vlans);
 }
 
 #define	mlx5e_for_each_hash_node(hn, tmp, hash, i) \
