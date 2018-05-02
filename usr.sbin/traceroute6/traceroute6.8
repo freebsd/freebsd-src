@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 27, 2018
+.Dd May 2, 2018
 .Dt TRACEROUTE6 8
 .Os
 .\"
@@ -112,7 +112,10 @@ is not specified, and only numeric addresses if
 is specified.
 .It Fl m Ar hoplimit
 Specify maximum hoplimit, up to 255.
-The default is 30 hops.
+The default is the value of the
+.Va net.inet6.ip6.hlim
+.Xr sysctl 8
+(the same default used for TCP connections).
 .It Fl n
 Do not resolve numeric address to hostname.
 .It Fl N
