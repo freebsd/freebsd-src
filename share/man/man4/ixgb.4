@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2006
+.Dd April 30, 2018
 .Dt IXGB 4
 .Os
 .Sh NAME
@@ -51,6 +51,12 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 if_ixgb_load="YES"
 .Ed
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 12.0
+and later.
 .Sh DESCRIPTION
 The
 .Nm
