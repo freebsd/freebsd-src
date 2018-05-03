@@ -527,6 +527,12 @@ us.iso.acc.kbd:fr:États Unis d'Amérique ISO-8859-1 (avec accents)
 us.iso.acc.kbd:pt:Estados Unidos da América ISO-8859-1 (com acentos)
 us.iso.acc.kbd:es:Estadounidense ISO-8859-1 (con acentos)
 
+us.iso.macbook.kbd:en:United States of America Macbook/Macbook Pro ISO-8859-1
+us.iso.macbook.kbd:de:US-amerikanisch Macbook/Macbook Pro ISO-8859-1
+us.iso.macbook.kbd:fr:ï¾‰tats Unis d'Amé§»ique Macbook/Macbook Pro ISO-8859-1
+us.iso.macbook.kbd:pt:Estados Unidos da Amé§»ica Macbook/Macbook Pro ISO-8859-1
+us.iso.macbook.kbd:es:Estadounidense Macbook/Macbook Pro ISO-8859-1
+
 us.dvorak.kbd:en:United States of America dvorak
 us.dvorak.kbd:de:US-amerikanisch dvorak
 us.dvorak.kbd:fr:États Unis d'Amérique dvorak
