@@ -205,6 +205,18 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_LM5,
 						PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_PCH_SPT_I219_V5, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_CNP_I219_LM6,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_CNP_I219_V6, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_CNP_I219_LM7,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_CNP_I219_V7, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_ICP_I219_LM8,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_ICP_I219_V8, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_ICP_I219_LM9,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_ICP_I219_V9, PCI_ANY_ID, PCI_ANY_ID, 0},
 	/* required last entry */
 	{ 0, 0, 0, 0, 0}
 };
@@ -593,7 +605,7 @@ em_attach(device_t dev)
 	** so use the same tag and an offset handle for the
 	** FLASH read/write macros in the shared code.
 	*/
-	else if (hw->mac.type == e1000_pch_spt) {
+	else if (hw->mac.type >= e1000_pch_spt) {
 		adapter->osdep.flash_bus_space_tag =
 		    adapter->osdep.mem_bus_space_tag;
 		adapter->osdep.flash_bus_space_handle =
@@ -1196,6 +1208,7 @@ em_ioctl(if_t ifp, u_long command, caddr_t data)
 		case e1000_pch2lan:
 		case e1000_pch_lpt:
 		case e1000_pch_spt:
+		case e1000_pch_cnp:
 		case e1000_82574:
 		case e1000_82583:
 		case e1000_80003es2lan:	/* 9K Jumbo Frame size */
@@ -3079,6 +3092,7 @@ em_reset(struct adapter *adapter)
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
+	case e1000_pch_cnp:
 		pba = E1000_PBA_26K;
 		break;
 	default:
@@ -3138,6 +3152,7 @@ em_reset(struct adapter *adapter)
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
+	case e1000_pch_cnp:
 		hw->fc.high_water = 0x5C20;
 		hw->fc.low_water = 0x5048;
 		hw->fc.pause_time = 0x0650;
@@ -3779,13 +3794,16 @@ em_initialize_transmit_unit(struct adapter *adapter)
 	/* This write will effectively turn on the transmit unit. */
 	E1000_WRITE_REG(&adapter->hw, E1000_TCTL, tctl);
 
+	/* SPT and KBL errata workarounds */
 	if (hw->mac.type == e1000_pch_spt) {
 		u32 reg;
 		reg = E1000_READ_REG(hw, E1000_IOSFPC);
 		reg |= E1000_RCTL_RDMTS_HEX;
 		E1000_WRITE_REG(hw, E1000_IOSFPC, reg);
+		/* i218-i219 Specification Update 1.5.4.5 */
 		reg = E1000_READ_REG(hw, E1000_TARC(0));
-		reg |= E1000_TARC0_CB_MULTIQ_3_REQ;
+		reg &= ~E1000_TARC0_CB_MULTIQ_3_REQ;
+		reg |= E1000_TARC0_CB_MULTIQ_2_REQ;
 		E1000_WRITE_REG(hw, E1000_TARC(0), reg);
 	}
 }
@@ -5297,6 +5315,7 @@ em_get_wakeup(device_t dev)
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
+	case e1000_pch_cnp:
 		apme_mask = E1000_WUC_APME;
 		adapter->has_amt = TRUE;
 		eeprom_data = E1000_READ_REG(&adapter->hw, E1000_WUC);
