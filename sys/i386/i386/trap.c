@@ -956,6 +956,9 @@ trap_fatal(frame, eva)
 	u_int type;
 	struct soft_segment_descriptor softseg;
 	char *msg;
+#ifdef KDB
+	bool handled;
+#endif
 
 	code = frame->tf_err;
 	type = frame->tf_trapno;
@@ -1019,12 +1022,13 @@ trap_fatal(frame, eva)
 
 #ifdef KDB
 	if (debugger_on_panic) {
+		kdb_why = KDB_WHY_TRAP;
 		frame->tf_err = eva;	/* smuggle fault address to ddb */
-		if (kdb_trap(type, 0, frame)) {
-			frame->tf_err = code;	/* restore error code */
+		handled = kdb_trap(type, 0, frame);
+		frame->tf_err = code;	/* restore error code */
+		kdb_why = KDB_WHY_UNSET;
+		if (handled)
 			return;
-		}
-		frame->tf_err = code;		/* restore error code */
 	}
 #endif
 	printf("trap number		= %d\n", type);
