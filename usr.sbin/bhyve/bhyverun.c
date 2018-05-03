@@ -1479,31 +1479,34 @@ static int
 receive_vm_migration(struct vmctx *ctx, char *migration_data)
 {
 	struct migrate_req req;
-	char *hostname;
+	char *hostname, *pos;
 	int rc;
 
-	hostname = malloc(MAX_HOSTNAME_LEN * sizeof(char));
-	if (hostname == NULL) {
-		perror("Could not allocate buffer\r\n");
-		return (-1);
-	}
+	memset(req.host, 0, MAX_HOSTNAME_LEN);
+	hostname = strdup(migration_data);
 
-	rc = sscanf(migration_data, "%s,%d", hostname, &(req.port));
+	if ((pos = strchr(hostname, ',')) != NULL ) {
+		*pos = '\0';
+		strncpy(req.host, hostname, MAX_HOSTNAME_LEN);
+		pos = pos + 1;
 
-	if (rc == 0) {
-		fprintf(stderr, "Unknown format for <host,port> parameter\r\n");
-		free(hostname);
-		return (-1);
-	} else if (rc == 1) {
+		rc = sscanf(pos, "%d", &(req.port));
+
+		if (rc == 0) {
+			fprintf(stderr, "Could not parse the port\r\n");
+			free(hostname);
+			return -1;
+		}
+	} else {
+		strncpy(req.host, hostname, MAX_HOSTNAME_LEN);
+
 		/* If only one variable could be read, it should be the host */
 		req.port = DEFAULT_MIGRATION_PORT;
 	}
 
-	strncpy(req.host, hostname, MAX_HOSTNAME_LEN);
-	free(hostname);
-
 	rc = recv_migrate_req(ctx, req);
 
+	free(hostname);
 	return (rc);
 }
 
