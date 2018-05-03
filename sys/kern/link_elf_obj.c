@@ -1201,12 +1201,19 @@ static int
 link_elf_symbol_values(linker_file_t lf, c_linker_sym_t sym,
     linker_symval_t *symval)
 {
-	elf_file_t ef = (elf_file_t) lf;
-	const Elf_Sym *es = (const Elf_Sym*) sym;
+	elf_file_t ef;
+	const Elf_Sym *es;
+	caddr_t val;
 
+	ef = (elf_file_t) lf;
+	es = (const Elf_Sym*) sym;
+	val = (caddr_t)es->st_value;
 	if (es >= ef->ddbsymtab && es < (ef->ddbsymtab + ef->ddbsymcnt)) {
 		symval->name = ef->ddbstrtab + es->st_name;
-		symval->value = (caddr_t)es->st_value;
+		val = (caddr_t)es->st_value;
+		if (ELF_ST_TYPE(es->st_info) == STT_GNU_IFUNC)
+			val = ((caddr_t (*)(void))val)();
+		symval->value = val;
 		symval->size = es->st_size;
 		return 0;
 	}
@@ -1291,7 +1298,8 @@ link_elf_each_function_name(linker_file_t file,
 	/* Exhaustive search */
 	for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
 		if (symp->st_value != 0 &&
-		    ELF_ST_TYPE(symp->st_info) == STT_FUNC) {
+		    (ELF_ST_TYPE(symp->st_info) == STT_FUNC ||
+		    ELF_ST_TYPE(symp->st_info) == STT_GNU_IFUNC)) {
 			error = callback(ef->ddbstrtab + symp->st_name, opaque);
 			if (error)
 				return (error);
@@ -1312,8 +1320,10 @@ link_elf_each_function_nameval(linker_file_t file,
 	/* Exhaustive search */
 	for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
 		if (symp->st_value != 0 &&
-		    ELF_ST_TYPE(symp->st_info) == STT_FUNC) {
-			error = link_elf_symbol_values(file, (c_linker_sym_t) symp, &symval);
+		    (ELF_ST_TYPE(symp->st_info) == STT_FUNC ||
+		    ELF_ST_TYPE(symp->st_info) == STT_GNU_IFUNC)) {
+			error = link_elf_symbol_values(file,
+			    (c_linker_sym_t)symp, &symval);
 			if (error)
 				return (error);
 			error = callback(file, i, &symval, opaque);
