@@ -48,7 +48,8 @@ FILES=	INDEX.keymaps \
 	uk.iso.kbd uk.iso-ctrl.kbd uk.cp850.kbd uk.cp850-ctrl.kbd \
 	uk.dvorak.kbd \
 	us.iso.kbd us.dvorak.kbd us.dvorakl.kbd us.dvorakr.kbd us.dvorakp.kbd \
-	us.dvorakx.kbd us.emacs.kbd us.pc-ctrl.kbd us.unix.kbd us.iso.acc.kbd
+	us.dvorakx.kbd us.emacs.kbd us.pc-ctrl.kbd us.unix.kbd us.iso.acc.kbd \
+	us.iso.macbook.kbd
 
 FILESDIR= ${SHAREDIR}/syscons/keymaps
 
