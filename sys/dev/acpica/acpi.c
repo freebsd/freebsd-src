@@ -287,14 +287,9 @@ SYSCTL_INT(_debug_acpi, OID_AUTO, default_register_width, CTLFLAG_RDTUN,
 /* Allow users to override quirks. */
 TUNABLE_INT("debug.acpi.quirks", &acpi_quirks);
 
-static int acpi_susp_bounce;
+int acpi_susp_bounce;
 SYSCTL_INT(_debug_acpi, OID_AUTO, suspend_bounce, CTLFLAG_RW,
     &acpi_susp_bounce, 0, "Don't actually suspend, just test devices.");
-
-int acpi_susp_deep_bounce;
-SYSCTL_INT(_debug_acpi, OID_AUTO, suspend_deep_bounce, CTLFLAG_RW,
-    &acpi_susp_deep_bounce, 0, "Don't actually suspend, "
-    "bail out just before entering the sleep state.");
 
 /*
  * ACPI can only be loaded as a module by the loader; activating it after
@@ -2951,10 +2946,6 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	goto backout;
     }
     slp_state = ACPI_SS_DEV_SUSPEND;
-
-    /* If testing device suspend only, back out of everything here. */
-    if (acpi_susp_bounce)
-	goto backout;
 
     status = AcpiEnterSleepStatePrep(state);
     if (ACPI_FAILURE(status)) {
