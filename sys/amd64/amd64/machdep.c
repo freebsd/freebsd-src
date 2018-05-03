@@ -1566,6 +1566,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	identify_cpu1();
 	identify_hypervisor();
 
+	/* link_elf_ireloc(kmdp); */
+
 	/* Init basic tunables, hz etc */
 	init_param1();
 
@@ -1744,6 +1746,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		cninit();
 		amd64_kdb_init();
 	}
+	link_elf_ireloc(kmdp);
 
 	getmemsize(kmdp, physfree);
 	init_param2(physmem);
