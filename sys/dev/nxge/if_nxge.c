@@ -1006,6 +1006,7 @@ xge_attach(device_t dev)
 attach_out:
 	xge_os_free(NULL, device_config, sizeof(xge_hal_device_config_t));
 attach_out_config:
+	gone_in_dev(dev, 12, "nxge(4) driver");
 	return status;
 }
 
