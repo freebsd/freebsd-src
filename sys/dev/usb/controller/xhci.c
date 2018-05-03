@@ -99,6 +99,7 @@ static int xhcidebug;
 static int xhciroute;
 static int xhcipolling;
 static int xhcidma32;
+static int xhcictlstep;
 
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &xhcidebug, 0, "Debug level");
@@ -112,9 +113,13 @@ TUNABLE_INT("hw.usb.xhci.use_polling", &xhcipolling);
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, dma32, CTLFLAG_RWTUN,
     &xhcidma32, 0, "Set to only use 32-bit DMA for the XHCI controller");
 TUNABLE_INT("hw.usb.xhci.dma32", &xhcidma32);
+SYSCTL_INT(_hw_usb_xhci, OID_AUTO, ctlstep, CTLFLAG_RWTUN,
+    &xhcictlstep, 0, "Set to enable control endpoint status stage stepping");
+TUNABLE_INT("hw.usb.xhci.ctlstep", &xhcictlstep);
 #else
 #define	xhciroute 0
 #define	xhcidma32 0
+#define	xhcictlstep 0
 #endif
 
 #define	XHCI_INTR_ENDPT 1
@@ -2244,11 +2249,17 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 		 * Send a DATA1 message and invert the current
 		 * endpoint direction.
 		 */
-#ifdef XHCI_STEP_STATUS_STAGE
-		temp.step_td = (xfer->nframes != 0);
-#else
-		temp.step_td = 0;
-#endif
+		if (xhcictlstep || temp.sc->sc_ctlstep) {
+			/*
+			 * Some XHCI controllers will not delay the
+			 * status stage until the next SOF. Force this
+			 * behaviour to avoid failed control
+			 * transfers.
+			 */
+			temp.step_td = (xfer->nframes != 0);
+		} else {
+			temp.step_td = 0;
+		}
 		temp.direction = UE_GET_DIR(xfer->endpointno) ^ UE_DIR_IN;
 		temp.len = 0;
 		temp.pc = NULL;
