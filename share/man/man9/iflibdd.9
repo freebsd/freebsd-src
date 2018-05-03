@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd March 23, 2017
+.Dd May 3, 2018
 .Dt IFLIBDD 9
 .Os
 .Sh NAME
@@ -10,11 +10,20 @@
 .Ss "Soft Queue Setup and Teardown Functions"
 .Ss "Mandatory Functions"
 .Ft int
-.Fo ifdi_queues_alloc
+.Fo ifdi_tx_queues_alloc
 .Fa "if_ctx_t ctx"
 .Fa "caddr_t *vaddrs"
 .Fa "uint64_t *paddrs"
-.Fa "int nqs"
+.Fa "int ntxqs"
+.Fa "int ntxqsets"
+.Fc
+.Ft int
+.Fo ifdi_rx_queues_alloc
+.Fa "if_ctx_t ctx"
+.Fa "caddr_t *vaddrs"
+.Fa "uint64_t *paddrs"
+.Fa "int nrxqs"
+.Fa "int nrxqsets"
 .Fc
 .Ft int
 .Fo ifdi_queues_free
@@ -185,14 +194,20 @@ registers.
 .Ss Device Dependent Functions
 .Ss Soft Queue Setup and Teardown
 .Bl -ohang -offset indent
-.It Fn ifdi_queues_alloc
-Mandatory queues allocation function that is called during iflib_attach.
+.It Fn ifdi_tx_queues_alloc
+Mandatory function that is called during iflib_attach to allocate transmit
+queues.
 vaddrs and paddrs are arrays of virtual and physical addresses respectively of
-the hardware transmit and receive queues, and if relevany, any command
-completion queues.
-nqs is the number of queues per qset.
-For example, a driver with a single receive and transmit queue would have a nqs
-equal to 2.
+the hardware transmit queues.
+ntxqs is the number of queues per qset.
+ntxqsets is the number of qsets.
+.It Fn ifdi_rx_queues_alloc
+Mandatory function that is called during iflib_attach to allocate receive
+queues.
+vaddrs and paddrs are arrays of virtual and physical addresses respectively of
+the hardware receive queues.
+nrxqs is the number of queues per qset.
+nrxqsets is the number of qsets.
 .It Fn ifdi_queues_free
 Mandatory function that frees the allocated queues and associated transmit
 buffers.
