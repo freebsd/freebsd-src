@@ -1342,8 +1342,10 @@ patmatch(const char *pattern, const char *string)
 				}
 				if (c == '[' && *p == ':') {
 					found |= match_charclass(p, chr, &end);
-					if (end != NULL)
+					if (end != NULL) {
 						p = end;
+						continue;
+					}
 				}
 				if (c == CTLESC)
 					c = *p++;
