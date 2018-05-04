@@ -308,13 +308,13 @@ hdac_pin_patch(struct hdaa_widget *w)
 		for (struct pin_patch_t *patch = pin_patches; patch->type; patch++) {
 			if (nid == patch->nid) {
 				switch (patch->type) {
-				case PIN_PATCH_STRING:
+				case PIN_PATCH_TYPE_STRING:
 					patch_str = patch->patch.string;
-				case PIN_PATCH_MASK:
+				case PIN_PATCH_TYPE_MASK:
 					config &= ~patch->patch.mask[0];
 					config |= patch->patch.mask[1];
 					break;
-				case PIN_PATCH_OVERRIDE:
+				case PIN_PATCH_TYPE_OVERRIDE:
 					config = patch->patch.override;
 					break;
 				default:
