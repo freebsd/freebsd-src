@@ -259,6 +259,12 @@ void	hexdump(const void *ptr, int length, const char *hdr, int flags);
 
 #define ovbcopy(f, t, l) bcopy((f), (t), (l))
 void	bcopy(const void * _Nonnull from, void * _Nonnull to, size_t len);
+#define bcopy(from, to, len) ({				\
+	if (__builtin_constant_p(len) && (len) <= 64)	\
+		__builtin_memmove((to), (from), (len));	\
+	else						\
+		bcopy((from), (to), (len));		\
+})
 void	bzero(void * _Nonnull buf, size_t len);
 #define bzero(buf, len) ({				\
 	if (__builtin_constant_p(len) && (len) <= 64)	\
