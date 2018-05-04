@@ -829,6 +829,7 @@ netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, uint32_t nm_i, boo
 	 * so move head back by one unit
 	 */
 	head = nm_prev(head, lim);
+	nic_i = UINT_MAX;
 	while (nm_i != head) {
 		for (int tmp_pidx = 0; tmp_pidx < IFLIB_MAX_RX_REFRESH && nm_i != head; tmp_pidx++) {
 			struct netmap_slot *slot = &ring->slot[nm_i];
@@ -876,7 +877,8 @@ netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, uint32_t nm_i, boo
 	if (map)
 		bus_dmamap_sync(fl->ifl_ifdi->idi_tag, fl->ifl_ifdi->idi_map,
 				BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-	ctx->isc_rxd_flush(ctx->ifc_softc, rxq->ifr_id, fl->ifl_id, nic_i);
+	if (__predict_true(nic_i != UINT_MAX))
+		ctx->isc_rxd_flush(ctx->ifc_softc, rxq->ifr_id, fl->ifl_id, nic_i);
 	return (0);
 }
 
@@ -1409,7 +1411,7 @@ iflib_fast_intr_rxtx(void *arg)
 	iflib_filter_info_t info = arg;
 	struct grouptask *gtask = info->ifi_task;
 	iflib_rxq_t rxq = (iflib_rxq_t)info->ifi_ctx;
-	if_ctx_t ctx;
+	if_ctx_t ctx = NULL;;
 	int i, cidx;
 
 	if (!iflib_started)
@@ -1419,6 +1421,7 @@ iflib_fast_intr_rxtx(void *arg)
 	if (info->ifi_filter != NULL && info->ifi_filter(info->ifi_filter_arg) == FILTER_HANDLED)
 		return (FILTER_HANDLED);
 
+	MPASS(rxq->ifr_ntxqirq);
 	for (i = 0; i < rxq->ifr_ntxqirq; i++) {
 		qidx_t txqid = rxq->ifr_txqid[i];
 
@@ -1889,10 +1892,8 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 #endif
 		{
 			struct rxq_refill_cb_arg cb_arg;
-			iflib_rxq_t q;
 
 			cb_arg.error = 0;
-			q = fl->ifl_rxq;
 			MPASS(sd_map != NULL);
 			MPASS(sd_map[frag_idx] != NULL);
 			err = bus_dmamap_load(fl->ifl_desc_tag, sd_map[frag_idx],
@@ -3541,8 +3542,9 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 #endif
 	do_prefetch = (ctx->ifc_flags & IFC_PREFETCH);
 	avail = TXQ_AVAIL(txq);
+	err = 0;
 	for (desc_used = i = 0; i < count && avail > MAX_TX_DESC(ctx) + 2; i++) {
-		int pidx_prev, rem = do_prefetch ? count - i : 0;
+		int rem = do_prefetch ? count - i : 0;
 
 		mp = _ring_peek_one(r, cidx, i, rem);
 		MPASS(mp != NULL && *mp != NULL);
@@ -3552,7 +3554,6 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 			continue;
 		}
 		in_use_prev = txq->ift_in_use;
-		pidx_prev = txq->ift_pidx;
 		err = iflib_encap(txq, mp);
 		if (__predict_false(err)) {
 			DBG_COUNTER_INC(txq_drain_encapfail);
@@ -3646,7 +3647,6 @@ _task_fn_tx(void *context)
 	iflib_txq_t txq = context;
 	if_ctx_t ctx = txq->ift_ctx;
 	struct ifnet *ifp = ctx->ifc_ifp;
-	int rc;
 
 #ifdef IFLIB_DIAGNOSTICS
 	txq->ift_cpu_exec_count[curcpu]++;
@@ -3665,8 +3665,11 @@ _task_fn_tx(void *context)
 	if (ctx->ifc_flags & IFC_LEGACY)
 		IFDI_INTR_ENABLE(ctx);
 	else {
-		rc = IFDI_TX_QUEUE_INTR_ENABLE(ctx, txq->ift_id);
-		KASSERT(rc != ENOTSUP, ("MSI-X support requires queue_intr_enable, but not implemented in driver"));
+#ifdef INVARIANTS
+		int rc =
+#endif
+			IFDI_TX_QUEUE_INTR_ENABLE(ctx, txq->ift_id);
+			KASSERT(rc != ENOTSUP, ("MSI-X support requires queue_intr_enable, but not implemented in driver"));
 	}
 }
 
@@ -3676,7 +3679,6 @@ _task_fn_rx(void *context)
 	iflib_rxq_t rxq = context;
 	if_ctx_t ctx = rxq->ifr_ctx;
 	bool more;
-	int rc;
 	uint16_t budget;
 
 #ifdef IFLIB_DIAGNOSTICS
@@ -3701,9 +3703,12 @@ _task_fn_rx(void *context)
 		if (ctx->ifc_flags & IFC_LEGACY)
 			IFDI_INTR_ENABLE(ctx);
 		else {
-			DBG_COUNTER_INC(rx_intr_enables);
-			rc = IFDI_RX_QUEUE_INTR_ENABLE(ctx, rxq->ifr_id);
+#ifdef INVARIANTS
+			int rc =
+#endif
+				IFDI_RX_QUEUE_INTR_ENABLE(ctx, rxq->ifr_id);
 			KASSERT(rc != ENOTSUP, ("MSI-X support requires queue_intr_enable, but not implemented in driver"));
+			DBG_COUNTER_INC(rx_intr_enables);
 		}
 	}
 	if (__predict_false(!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING)))
@@ -4198,7 +4203,7 @@ iflib_device_probe(device_t dev)
 int
 iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ctxp)
 {
-	int err, rid, msix, msix_bar;
+	int err, rid, msix;
 	if_ctx_t ctx;
 	if_t ifp;
 	if_softc_ctx_t scctx;
@@ -4308,7 +4313,6 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	ctx->ifc_flags |= IFC_DMAR;
 #endif
 
-	msix_bar = scctx->isc_msix_bar;
 	main_txq = (sctx->isc_flags & IFLIB_HAS_TXCQ) ? 1 : 0;
 	main_rxq = (sctx->isc_flags & IFLIB_HAS_RXCQ) ? 1 : 0;
 
@@ -5757,6 +5761,8 @@ mp_ndesc_handler(SYSCTL_HANDLER_ARGS)
 		if (ctx->ifc_sctx)
 			nqs = ctx->ifc_sctx->isc_nrxqs;
 		break;
+	default:
+			panic("unhandled type");
 	}
 	if (nqs == 0)
 		nqs = 8;
