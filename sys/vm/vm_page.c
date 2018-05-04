@@ -2403,7 +2403,7 @@ retry:
 				    vm_reserv_size(level)) - pa);
 #endif
 			} else if (object->memattr == VM_MEMATTR_DEFAULT &&
-			    vm_page_enqueued(m) && !vm_page_busied(m)) {
+			    vm_page_queue(m) != PQ_NONE && !vm_page_busied(m)) {
 				/*
 				 * The page is allocated but eligible for
 				 * relocation.  Extend the current run by one
@@ -2554,7 +2554,8 @@ retry:
 				error = EINVAL;
 			else if (object->memattr != VM_MEMATTR_DEFAULT)
 				error = EINVAL;
-			else if (vm_page_enqueued(m) && !vm_page_busied(m)) {
+			else if (vm_page_queue(m) != PQ_NONE &&
+			    !vm_page_busied(m)) {
 				KASSERT(pmap_page_get_memattr(m) ==
 				    VM_MEMATTR_DEFAULT,
 				    ("page %p has an unexpected memattr", m));
@@ -3391,9 +3392,9 @@ vm_page_activate(vm_page_t m)
 {
 	int queue;
 
-	vm_page_lock_assert(m, MA_OWNED);
+	vm_page_assert_locked(m);
 
-	if ((queue = m->queue) == PQ_ACTIVE || m->wire_count > 0 ||
+	if ((queue = vm_page_queue(m)) == PQ_ACTIVE || m->wire_count > 0 ||
 	    (m->oflags & VPO_UNMANAGED) != 0) {
 		if (queue == PQ_ACTIVE && m->act_count < ACT_INIT)
 			m->act_count = ACT_INIT;
@@ -3610,7 +3611,7 @@ vm_page_unwire(vm_page_t m, uint8_t queue)
 	if (!unwired || (m->oflags & VPO_UNMANAGED) != 0 || m->object == NULL)
 		return (unwired);
 
-	if (m->queue == queue) {
+	if (vm_page_queue(m) == queue) {
 		if (queue == PQ_ACTIVE)
 			vm_page_reference(m);
 		else if (queue != PQ_NONE)
@@ -3716,7 +3717,7 @@ vm_page_launder(vm_page_t m)
 	if (m->wire_count > 0 || (m->oflags & VPO_UNMANAGED) != 0)
 		return;
 
-	if (m->queue == PQ_LAUNDRY)
+	if (vm_page_in_laundry(m))
 		vm_page_requeue(m);
 	else {
 		vm_page_remque(m);
