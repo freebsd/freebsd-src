@@ -262,13 +262,24 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 			{
 				.models = (struct pin_machine_model_t[]){
 					PIN_SUBVENDOR(LENOVO_X1CRBN_SUBVENDOR),
-					PIN_SUBVENDOR(LENOVO_T430_SUBVENDOR),
-					PIN_SUBVENDOR(LENOVO_T430S_SUBVENDOR),
-					PIN_SUBVENDOR(LENOVO_T530_SUBVENDOR),
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(21, "as=1 seq=15"),
+        				{ }
+				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(LENOVO_T430_SUBVENDOR),
+					PIN_SUBVENDOR(LENOVO_T430S_SUBVENDOR),
+					PIN_SUBVENDOR(LENOVO_X230_SUBVENDOR),
+					PIN_SUBVENDOR(LENOVO_X230T_SUBVENDOR),
+					PIN_SUBVENDOR(LENOVO_T431S_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_PATCH_DOCK_MIC_IN(0x19),
+					PIN_PATCH_DOCK_HP(0x1b),
         				{ }
 				}
 			}, {
@@ -287,6 +298,104 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_SUBWOOFER(0x17),
+        				{ }
+				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(FL_1475ID_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_PATCH_DOCK_LINE_OUT(0x1a),
+					PIN_PATCH_DOCK_MIC_IN(0x1b),
+        				{ }
+				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(FL_LB_U904_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_PATCH_HPMIC_WITH_DETECT(0x19),
+        				{ }
+				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(FL_LB_T731_SUBVENDOR),
+					PIN_SUBVENDOR(FL_LB_E725_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_OVERRIDE(0x21, 0x0221102f), /* hp out */
+        				{ }
+				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(DELL_05F4ID_SUBVENDOR),
+					PIN_SUBVENDOR(DELL_05F5ID_SUBVENDOR),
+					PIN_SUBVENDOR(DELL_05F6ID_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_PATCH_JACK_WO_DETECT(0x19),
+					PIN_PATCH_HPMIC_WO_DETECT(0x1a),
+        				{ }
+				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(ACER_V5_571G_SUBVENDOR),
+					PIN_SUBVENDOR(ACER_V5_122P_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_PATCH_JACK_WO_DETECT(0x19),
+        				{ }
+				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(SONY_VAIO_P11_SUBVENDOR),
+					PIN_SUBVENDOR(SONY_VAIO_P13_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_PATCH_JACK_WO_DETECT(0x19),
+        				{ }
+				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(ASUS_X101CH_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_OVERRIDE(0x18, 0x04a1182c), /* hp mic */
+        				{ }
+				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(ACER_AO725_SUBVENDOR),
+					PIN_SUBVENDOR(ACER_AO756_SUBVENDOR),
+					PIN_SUBVENDOR(ACER_E1_472_SUBVENDOR),
+					PIN_SUBVENDOR(ACER_E1_572_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_OVERRIDE(0x14, 0x99130110), /* speaker */
+					PIN_OVERRIDE(0x19, 0x01a19c20), /* mic */
+					PIN_OVERRIDE(0x1b, 0x99a7012f), /* int mic */
+					PIN_PATCH_HP_OUT(0x21),
+        				{ }
+				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(ACER_AC700_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_OVERRIDE(0x12, 0x99a3092f), /* int mic */
+					PIN_OVERRIDE(0x14, 0x99130110), /* speaker */
+					PIN_OVERRIDE(0x18, 0x99130110), /* mic */
+					PIN_OVERRIDE(0x1e, 0x0346101e), /* spdif1 */
+					PIN_OVERRIDE(0x21, 0x0321101f), /* hp out */
         				{ }
 				}
 			}, { }
