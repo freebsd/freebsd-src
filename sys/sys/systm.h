@@ -275,6 +275,7 @@ void	bzero(void * _Nonnull buf, size_t len);
 void	explicit_bzero(void * _Nonnull, size_t);
 
 void	*memcpy(void * _Nonnull to, const void * _Nonnull from, size_t len);
+#define memcpy(to, from, len) __builtin_memcpy(to, from, len)
 void	*memmove(void * _Nonnull dest, const void * _Nonnull src, size_t n);
 
 int	copystr(const void * _Nonnull __restrict kfaddr,
