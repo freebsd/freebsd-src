@@ -48,7 +48,8 @@ system_taskq_init(void *arg)
 
 	taskq_zone = uma_zcreate("taskq_zone", sizeof(taskq_ent_t),
 	    NULL, NULL, NULL, NULL, 0, 0);
-	system_taskq = taskq_create("system_taskq", mp_ncpus, 0, 0, 0, 0);
+	system_taskq = taskq_create("system_taskq", mp_ncpus, minclsyspri,
+	    0, 0, 0);
 }
 SYSINIT(system_taskq_init, SI_SUB_CONFIGURE, SI_ORDER_ANY, system_taskq_init, NULL);
 
