@@ -52,9 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include <wctype.h>
 
-#ifndef WITHOUT_FASTMATCH
-#include "fastmatch.h"
-#endif
 #include "grep.h"
 
 static bool	 first_match = true;
@@ -512,14 +509,8 @@ procline(struct parsec *pc)
 				r = litexec(&pattern[i], pc->ln.dat, 1, &pmatch);
 			else
 #endif
-#ifndef WITHOUT_FASTMATCH
-			if (fg_pattern[i].pattern)
-				r = fastexec(&fg_pattern[i],
-				    pc->ln.dat, 1, &pmatch, leflags);
-			else
-#endif
-				r = regexec(&r_pattern[i], pc->ln.dat, 1,
-				    &pmatch, leflags);
+			r = regexec(&r_pattern[i], pc->ln.dat, 1, &pmatch,
+			    leflags);
 			if (r != 0)
 				continue;
 			/* Check for full match */
@@ -527,11 +518,7 @@ procline(struct parsec *pc)
 			    (size_t)pmatch.rm_eo != pc->ln.len))
 				continue;
 			/* Check for whole word match */
-#ifndef WITHOUT_FASTMATCH
-			if (wflag || fg_pattern[i].word) {
-#else
 			if (wflag) {
-#endif
 				wbegin = wend = L' ';
 				if (pmatch.rm_so != 0 &&
 				    sscanf(&pc->ln.dat[pmatch.rm_so - 1],
