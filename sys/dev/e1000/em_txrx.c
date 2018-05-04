@@ -401,7 +401,7 @@ em_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	 * needs End Of Packet (EOP)
 	 * and Report Status (RS)
 	 */
-	if (txd_flags) {
+	if (txd_flags && nsegs) {
 		txr->tx_rsq[txr->tx_rs_pidx] = pidx_last;
 		DPRINTF(iflib_get_dev(sc->ctx), "setting to RS on %d rs_pidx %d first: %d\n", pidx_last, txr->tx_rs_pidx, first);
 		txr->tx_rs_pidx = (txr->tx_rs_pidx+1) & (ntxd-1);
