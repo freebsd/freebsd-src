@@ -644,7 +644,20 @@ imx51_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	*val = (READ4(sc, IMX_GPIO_PSR_REG) >> pin) & 1;
+	/*
+	 * Normally a pin set for output can be read by reading the DR reg which
+	 * indicates what value is being driven to that pin.  The exception is
+	 * pins configured for open-drain mode, in which case we have to read
+	 * the pad status register in case the pin is being driven externally.
+	 * Doing so requires that the SION bit be configured in pinmux, which
+	 * isn't the case for most normal gpio pins, so only try to read via PSR
+	 * if the OPENDRAIN flag is set, and it's the user's job to correctly
+	 * configure SION along with open-drain output mode for those pins.
+	 */
+	if (sc->gpio_pins[pin].gp_flags & GPIO_PIN_OPENDRAIN)
+		*val = (READ4(sc, IMX_GPIO_PSR_REG) >> pin) & 1;
+	else
+		*val = (READ4(sc, IMX_GPIO_DR_REG) >> pin) & 1;
 
 	return (0);
 }
