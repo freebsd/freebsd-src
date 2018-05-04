@@ -194,6 +194,43 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					PIN_PATCH_STRING(16, "seq=15 device=Headphones"),
         				{ }
 				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(HP_DC5750_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_OVERRIDE(0x11, 0x90130110), /* speaker */
+        				{ }
+				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(SONY_VAIO_TX_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_OVERRIDE(0x0f, 0x01214000), /* hp */
+        				{ }
+				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(SONY_VAIO_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_OVERRIDE(0x0f, 0x01211020),
+					PIN_OVERRIDE(0x10, 0x0001003f),
+					PIN_PATCH_NOT_APPLICABLE(0x11),
+					PIN_OVERRIDE(0x12, 0x01a15930),
+					PIN_PATCH_NOT_APPLICABLE(0x13),
+					PIN_PATCH_NOT_APPLICABLE(0x14),
+					PIN_PATCH_NOT_APPLICABLE(0x15),
+					PIN_PATCH_NOT_APPLICABLE(0x16),
+					PIN_PATCH_NOT_APPLICABLE(0x17),
+					PIN_PATCH_NOT_APPLICABLE(0x18),
+					PIN_PATCH_NOT_APPLICABLE(0x19),
+        				{ }
+				}
 			}, { }
 		}
 	}, { /**** CODEC: HDA_CODEC_ALC268 ****/
@@ -206,6 +243,15 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(20, "as=1 seq=15"),
+        				{ }
+				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(ACER_TM_6293_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_OVERRIDE(0x1e, 0x014b1180),
         				{ }
 				}
 			}, { }
