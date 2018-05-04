@@ -4777,11 +4777,8 @@ iflib_queues_alloc(if_ctx_t ctx)
 	KASSERT(ntxqs > 0, ("number of queues per qset must be at least 1"));
 	KASSERT(nrxqs > 0, ("number of queues per qset must be at least 1"));
 
-	txq = NULL;
-	rxq = NULL;
-
 /* Allocate the TX ring struct memory */
-	if (!(txq =
+	if (!(ctx->ifc_txqs =
 	    (iflib_txq_t) malloc(sizeof(struct iflib_txq) *
 	    ntxqsets, M_IFLIB, M_NOWAIT | M_ZERO))) {
 		device_printf(dev, "Unable to allocate TX ring memory\n");
@@ -4790,7 +4787,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 	}
 
 	/* Now allocate the RX */
-	if (!(rxq =
+	if (!(ctx->ifc_rxqs =
 	    (iflib_rxq_t) malloc(sizeof(struct iflib_rxq) *
 	    nrxqsets, M_IFLIB, M_NOWAIT | M_ZERO))) {
 		device_printf(dev, "Unable to allocate RX ring memory\n");
@@ -4798,8 +4795,8 @@ iflib_queues_alloc(if_ctx_t ctx)
 		goto rx_fail;
 	}
 
-	ctx->ifc_txqs = txq;
-	ctx->ifc_rxqs = rxq;
+	txq = ctx->ifc_txqs;
+	rxq = ctx->ifc_rxqs;
 
 	/*
 	 * XXX handle allocation failure
@@ -4957,17 +4954,13 @@ iflib_queues_alloc(if_ctx_t ctx)
 /* XXX handle allocation failure changes */
 err_rx_desc:
 err_tx_desc:
+rx_fail:
 	if (ctx->ifc_rxqs != NULL)
 		free(ctx->ifc_rxqs, M_IFLIB);
 	ctx->ifc_rxqs = NULL;
 	if (ctx->ifc_txqs != NULL)
 		free(ctx->ifc_txqs, M_IFLIB);
 	ctx->ifc_txqs = NULL;
-rx_fail:
-	if (rxq != NULL)
-		free(rxq, M_IFLIB);
-	if (txq != NULL)
-		free(txq, M_IFLIB);
 fail:
 	return (err);
 }
