@@ -1503,7 +1503,7 @@ filecaps_copy(const struct filecaps *src, struct filecaps *dst, bool locked)
 
 	if (src->fc_ioctls != NULL && !locked)
 		return (false);
-	*dst = *src;
+	memcpy(dst, src, sizeof(*src));
 	if (src->fc_ioctls == NULL)
 		return (true);
 
@@ -1512,7 +1512,7 @@ filecaps_copy(const struct filecaps *src, struct filecaps *dst, bool locked)
 
 	size = sizeof(src->fc_ioctls[0]) * src->fc_nioctls;
 	dst->fc_ioctls = malloc(size, M_FILECAPS, M_WAITOK);
-	bcopy(src->fc_ioctls, dst->fc_ioctls, size);
+	memcpy(dst->fc_ioctls, src->fc_ioctls, size);
 	return (true);
 }
 
