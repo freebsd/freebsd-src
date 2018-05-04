@@ -163,7 +163,7 @@ sendfile_free_page(vm_page_t pg, bool nocache)
 				 */
 				if (nocache)
 					vm_page_deactivate_noreuse(pg);
-				else if (pg->queue == PQ_ACTIVE)
+				else if (vm_page_active(pg))
 					vm_page_reference(pg);
 				else
 					vm_page_deactivate(pg);
