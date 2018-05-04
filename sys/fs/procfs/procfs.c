@@ -215,4 +215,4 @@ procfs_uninit(PFS_INIT_ARGS)
 	return (0);
 }
 
-PSEUDOFS(procfs, 1, PR_ALLOW_MOUNT_PROCFS);
+PSEUDOFS(procfs, 1, VFCF_JAIL);

@@ -272,7 +272,7 @@ int		 pfs_destroy	(struct pfs_node *pn);
 /*
  * Now for some initialization magic...
  */
-#define PSEUDOFS(name, version, jflag)					\
+#define PSEUDOFS(name, version, flags)					\
 									\
 static struct pfs_info name##_info = {					\
 	#name,								\
@@ -282,8 +282,6 @@ static struct pfs_info name##_info = {					\
 									\
 static int								\
 _##name##_mount(struct mount *mp) {					\
-        if (jflag && !prison_allow(curthread->td_ucred, jflag))		\
-                return (EPERM);						\
 	return (pfs_mount(&name##_info, mp));				\
 }									\
 									\
@@ -306,7 +304,7 @@ static struct vfsops name##_vfsops = {					\
 	.vfs_uninit =		_##name##_uninit,			\
 	.vfs_unmount =		pfs_unmount,				\
 };									\
-VFS_SET(name##_vfsops, name, VFCF_SYNTHETIC | (jflag ? VFCF_JAIL : 0));	\
+VFS_SET(name##_vfsops, name, VFCF_SYNTHETIC | flags);			\
 MODULE_VERSION(name, version);						\
 MODULE_DEPEND(name, pseudofs, 1, 1, 1);
 
