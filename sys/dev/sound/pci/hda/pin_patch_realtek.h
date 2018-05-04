@@ -40,12 +40,12 @@
 static struct pin_patch_t pin_patches_lg_lw20[] = {
 	{
 		.nid = 26,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {	HDA_CONFIG_DEFAULTCONF_DEVICE_MASK,
 					HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_IN }
 	}, {
 		.nid = 27,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {	HDA_CONFIG_DEFAULTCONF_DEVICE_MASK,
 					HDA_CONFIG_DEFAULTCONF_DEVICE_HP_OUT }
 	}, { }
@@ -54,27 +54,27 @@ static struct pin_patch_t pin_patches_lg_lw20[] = {
 static struct pin_patch_t pin_patches_clevo_d900t_asus_m5200[] = {
 	{
 		.nid = 24,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {	HDA_CONFIG_DEFAULTCONF_DEVICE_MASK,
 					HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_IN }
 	}, {
 		.nid = 25,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {	HDA_CONFIG_DEFAULTCONF_DEVICE_MASK,
 					HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN }
 	}, {
 		.nid = 26,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {	HDA_CONFIG_DEFAULTCONF_DEVICE_MASK,
 					HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_IN }
 	}, {
 		.nid = 27,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {	HDA_CONFIG_DEFAULTCONF_DEVICE_MASK,
 					HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_IN }
 	}, {
 		.nid = 28,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {	HDA_CONFIG_DEFAULTCONF_DEVICE_MASK,
 					HDA_CONFIG_DEFAULTCONF_DEVICE_CD }
 	}, { }
@@ -83,7 +83,7 @@ static struct pin_patch_t pin_patches_clevo_d900t_asus_m5200[] = {
 static struct pin_patch_t pin_patches_msi_ms034a[] = {
 	{
 		.nid = 25,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {
 			HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK,
@@ -91,7 +91,7 @@ static struct pin_patch_t pin_patches_msi_ms034a[] = {
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED }
 	}, {
 		.nid = 28,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {
 			HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK,
@@ -103,7 +103,7 @@ static struct pin_patch_t pin_patches_msi_ms034a[] = {
 static struct pin_patch_t pin_patches_asus_w6f[] = {
 	{
 		.nid = 11,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {
 			HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK,
@@ -111,7 +111,7 @@ static struct pin_patch_t pin_patches_asus_w6f[] = {
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED }
 	}, {
 		.nid = 12,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {
 			HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK,
@@ -119,7 +119,7 @@ static struct pin_patch_t pin_patches_asus_w6f[] = {
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED }
 	}, {
 		.nid = 14,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {
 			HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK,
@@ -127,7 +127,7 @@ static struct pin_patch_t pin_patches_asus_w6f[] = {
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED }
 	}, {
 		.nid = 15,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {
 			HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK,
@@ -135,7 +135,7 @@ static struct pin_patch_t pin_patches_asus_w6f[] = {
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_JACK }
 	}, {
 		.nid = 16,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {
 			HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK,
@@ -143,7 +143,7 @@ static struct pin_patch_t pin_patches_asus_w6f[] = {
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED }
 	}, {
 		.nid = 31,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {
 			HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK,
@@ -151,7 +151,7 @@ static struct pin_patch_t pin_patches_asus_w6f[] = {
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED }
 	}, {
 		.nid = 32,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {
 			HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK,
@@ -163,7 +163,7 @@ static struct pin_patch_t pin_patches_asus_w6f[] = {
 static struct pin_patch_t pin_patches_uniwill_9075[] = {
 	{
 		.nid = 15,
-		.type = PIN_PATCH_MASK,
+		.type = PIN_PATCH_TYPE_MASK,
 		.patch.mask = {
 			HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
                         HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK,
@@ -191,11 +191,8 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-        				{
-                				.nid = 16,
-                				.type = PIN_PATCH_STRING,
-                				.patch.string = "seq=15 device=Headphones"
-        				}, { }
+					PIN_PATCH_STRING(16, "seq=15 device=Headphones"),
+        				{ }
 				}
 			}, { }
 		}
@@ -208,11 +205,8 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-        				{
-                				.nid = 20,
-                				.type = PIN_PATCH_STRING,
-                				.patch.string = "as=1 seq=15"
-        				}, { }
+					PIN_PATCH_STRING(20, "as=1 seq=15"),
+        				{ }
 				}
 			}, { }
 		}
@@ -228,11 +222,8 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					{
-                				.nid = 21,
-                				.type = PIN_PATCH_STRING,
-                				.patch.string = "as=1 seq=15"
-        				}, { }
+					PIN_PATCH_STRING(21, "as=1 seq=15"),
+        				{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -240,11 +231,8 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					{
-                				.nid = 33,
-                				.type = PIN_PATCH_STRING,
-                				.patch.string = "as=1 seq=15"
-        				}, { }
+					PIN_PATCH_STRING(33, "as=1 seq=15"),
+        				{ }
 				}
 			}, { }
 		}
@@ -268,11 +256,8 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-        				{
-                				.nid = 21,
-                				.type = PIN_PATCH_STRING,
-                				.patch.string = "as=1 seq=15"
-        				}, { }
+					PIN_PATCH_STRING(21, "as=1 seq=15"),
+        				{ }
 				}
 			}, { }
 		}
@@ -621,11 +606,8 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
-					{
-                				.nid = 27,
-                				.type = PIN_PATCH_STRING,
-                				.patch.string = "as=1 seq=15"
-        				}, { }
+					PIN_PATCH_STRING(27, "as=1 seq=15"),
+        				{ }
 				}
 			}, { }
 		}
