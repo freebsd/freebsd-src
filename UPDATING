@@ -51,6 +51,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20180504:
+	The tz database (tzdb) has been updated to 2018e.  This version more
+	correctly models time stamps in time zones with negative DST such as
+	Europe/Dublin (from 1971 on), Europe/Prague (1946/7), and
+	Africa/Windhoek (1994/2017).  This does not affect the UT offsets, only
+	time zone abbreviations and the tm_isdst flag.
+
 20180502:
 	The ixgb(4) driver has been removed.  This driver was for an early and
 	uncommon legacy PCI 10GbE for a single ASIC, Intel 82597EX. Intel
