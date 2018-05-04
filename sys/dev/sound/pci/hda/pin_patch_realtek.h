@@ -214,7 +214,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
-					PIN_SUBVENDOR(SONY_VAIO_SUBVENDOR),
+					PIN_SUBVENDOR(SONY_81BBID_SUBVENDOR),
 					{ }
 				},
 				.pin_patches = (struct pin_patch_t[]){
