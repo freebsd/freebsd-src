@@ -34,9 +34,14 @@
 
 #define PIN_SUBVENDOR(sv)		{ .id = sv }
 
-#define PIN_OVERRIDE(n, newvalue) {	.nid = n,                       \
-					.type = PIN_PATCH_OVERRIDE,     \
-					.patch.override = newvalue      \
+
+#define PIN_PATCH_STRING(n, patchstr) {	.nid = n,			\
+					.type = PIN_PATCH_TYPE_STRING,\
+					.patch.string = patchstr	\
+					}
+#define PIN_OVERRIDE(n, newvalue) {	.nid = n,			\
+					.type = PIN_PATCH_TYPE_OVERRIDE,\
+					.patch.override = newvalue	\
 					}
 #define PIN_PATCH_NOT_APPLICABLE(n)	PIN_OVERRIDE(n, 0x411111f0)
 #define PIN_PATCH_HP_OUT(n)		PIN_OVERRIDE(n, 0x0121401f)
@@ -55,10 +60,10 @@
 #define PIN_PATCH_SURROUND(n)		PIN_OVERRIDE(n, 0x01016412)
 
 enum {
-	PIN_PATCH_NONE,				/* termination type */
-	PIN_PATCH_STRING,
-	PIN_PATCH_MASK,
-	PIN_PATCH_OVERRIDE
+	PIN_PATCH_TYPE_EOL,			/* end-of-list */
+	PIN_PATCH_TYPE_STRING,
+	PIN_PATCH_TYPE_MASK,
+	PIN_PATCH_TYPE_OVERRIDE
 };
 
 struct pin_patch_t {
