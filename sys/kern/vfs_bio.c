@@ -2933,7 +2933,7 @@ vfs_vmio_unwire(struct buf *bp, vm_page_t m)
 			 */
 			if (m->valid == 0 || (bp->b_flags & B_NOREUSE) != 0)
 				vm_page_deactivate_noreuse(m);
-			else if (m->queue == PQ_ACTIVE)
+			else if (vm_page_active(m))
 				vm_page_reference(m);
 			else
 				vm_page_deactivate(m);
