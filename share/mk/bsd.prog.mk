@@ -271,6 +271,7 @@ SCRIPTSGRP_${script:T}?=	${SCRIPTSGRP}
 SCRIPTSMODE_${script:T}?=	${SCRIPTSMODE}
 STAGE_AS_${script:T}=		${SCRIPTSDIR_${script:T}}/${SCRIPTSNAME_${script:T}}
 _scriptsinstall: _SCRIPTSINS_${script:T}
+	echo ">SFD>F>DF YES"
 _SCRIPTSINS_${script:T}: ${script}
 	${INSTALL} ${TAG_ARGS} -o ${SCRIPTSOWN_${.ALLSRC:T}} \
 	    -g ${SCRIPTSGRP_${.ALLSRC:T}} -m ${SCRIPTSMODE_${.ALLSRC:T}} \
