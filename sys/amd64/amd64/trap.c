@@ -908,7 +908,7 @@ cpu_fetch_syscall_args(struct thread *td)
 	error = 0;
 	argp = &frame->tf_rdi;
 	argp += reg;
-	bcopy(argp, sa->args, sizeof(sa->args[0]) * regcnt);
+	bcopy(argp, sa->args, sizeof(sa->args[0]) * 6);
 	if (sa->narg > regcnt) {
 		KASSERT(params != NULL, ("copyin args with no params!"));
 		error = copyin(params, &sa->args[regcnt],
