@@ -1640,9 +1640,6 @@ zfs_mount(vfs_t *vfsp)
 
 	osname = spn.pn_path;
 #else	/* !illumos */
-	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_ZFS))
-		return (SET_ERROR(EPERM));
-
 	if (vfs_getopt(vfsp->mnt_optnew, "from", (void **)&osname, NULL))
 		return (SET_ERROR(EINVAL));
 

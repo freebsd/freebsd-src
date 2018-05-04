@@ -516,6 +516,7 @@ struct vfsconf {
 	int	vfc_typenum;		/* historic filesystem type number */
 	int	vfc_refcount;		/* number mounted of this type */
 	int	vfc_flags;		/* permanent flags */
+	int	vfc_prison_flag;	/* prison allow.mount.* flag */
 	struct	vfsoptdecl *vfc_opts;	/* mount options */
 	TAILQ_ENTRY(vfsconf) vfc_list;	/* list of vfscons */
 };
@@ -851,7 +852,8 @@ vfs_statfs_t	__vfs_statfs;
  */
 #define VFS_VERSION_00	0x19660120
 #define VFS_VERSION_01	0x20121030
-#define VFS_VERSION	VFS_VERSION_01
+#define VFS_VERSION_02	0x20180504
+#define VFS_VERSION	VFS_VERSION_02
 
 #define VFS_SET(vfsops, fsname, flags) \
 	static struct vfsconf fsname ## _vfsconf = {		\

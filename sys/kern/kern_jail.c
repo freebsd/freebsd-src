@@ -111,7 +111,7 @@ struct prison prison0 = {
 #else
 	.pr_flags	= PR_HOST|_PR_IP_SADDRSEL,
 #endif
-	.pr_allow	= PR_ALLOW_ALL,
+	.pr_allow	= PR_ALLOW_ALL_STATIC,
 };
 MTX_SYSINIT(prison0, &prison0.pr_mtx, "jail mutex", MTX_DEF);
 
@@ -181,7 +181,8 @@ static struct jailsys_flags pr_flag_jailsys[] = {
 };
 const size_t pr_flag_jailsys_size = sizeof(pr_flag_jailsys);
 
-static struct bool_flags pr_flag_allow[] = {
+/* Make this array full-size so dynamic parameters can be added. */
+static struct bool_flags pr_flag_allow[NBBY * NBPW] = {
 	{"allow.set_hostname", "allow.noset_hostname", PR_ALLOW_SET_HOSTNAME},
 	{"allow.sysvipc", "allow.nosysvipc", PR_ALLOW_SYSVIPC},
 	{"allow.raw_sockets", "allow.noraw_sockets", PR_ALLOW_RAW_SOCKETS},
@@ -189,17 +190,6 @@ static struct bool_flags pr_flag_allow[] = {
 	{"allow.mount", "allow.nomount", PR_ALLOW_MOUNT},
 	{"allow.quotas", "allow.noquotas", PR_ALLOW_QUOTAS},
 	{"allow.socket_af", "allow.nosocket_af", PR_ALLOW_SOCKET_AF},
-	{"allow.mount.devfs", "allow.mount.nodevfs", PR_ALLOW_MOUNT_DEVFS},
-	{"allow.mount.nullfs", "allow.mount.nonullfs", PR_ALLOW_MOUNT_NULLFS},
-	{"allow.mount.zfs", "allow.mount.nozfs", PR_ALLOW_MOUNT_ZFS},
-	{"allow.mount.procfs", "allow.mount.noprocfs", PR_ALLOW_MOUNT_PROCFS},
-	{"allow.mount.tmpfs", "allow.mount.notmpfs", PR_ALLOW_MOUNT_TMPFS},
-	{"allow.mount.fdescfs", "allow.mount.nofdescfs",
-	 PR_ALLOW_MOUNT_FDESCFS},
-	{"allow.mount.linprocfs", "allow.mount.nolinprocfs",
-	 PR_ALLOW_MOUNT_LINPROCFS},
-	{"allow.mount.linsysfs", "allow.mount.nolinsysfs",
-	 PR_ALLOW_MOUNT_LINSYSFS},
 	{"allow.reserved_ports", "allow.noreserved_ports",
 	 PR_ALLOW_RESERVED_PORTS},
 };
@@ -318,7 +308,8 @@ kern_jail(struct thread *td, struct jail *j)
 	/* Set permissions for top-level jails from sysctls. */
 	if (!jailed(td->td_ucred)) {
 		for (bf = pr_flag_allow;
-		     bf < pr_flag_allow + nitems(pr_flag_allow);
+		     bf < pr_flag_allow + nitems(pr_flag_allow) &&
+			bf->flag != 0;
 		     bf++) {
 			optiov[opt.uio_iovcnt].iov_base = __DECONST(char *,
 			    (jail_default_allow & bf->flag)
@@ -654,7 +645,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 
 	pr_allow = ch_allow = 0;
 	for (bf = pr_flag_allow;
-	     bf < pr_flag_allow + nitems(pr_flag_allow);
+	     bf < pr_flag_allow + nitems(pr_flag_allow) && bf->flag != 0;
 	     bf++) {
 		vfs_flagopt(opts, bf->name, &pr_allow, bf->flag);
 		vfs_flagopt(opts, bf->noname, &ch_allow, bf->flag);
@@ -2115,7 +2106,7 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 			goto done_deref;
 	}
 	for (bf = pr_flag_allow;
-	     bf < pr_flag_allow + nitems(pr_flag_allow);
+	     bf < pr_flag_allow + nitems(pr_flag_allow) && bf->flag != 0;
 	     bf++) {
 		i = (pr->pr_allow & bf->flag) ? 1 : 0;
 		error = vfs_setopt(opts, bf->name, &i, sizeof(i));
@@ -3615,38 +3606,6 @@ SYSCTL_PROC(_security_jail, OID_AUTO, mount_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT, sysctl_jail_default_allow, "I",
     "Processes in jail can mount/unmount jail-friendly file systems (deprecated)");
-SYSCTL_PROC(_security_jail, OID_AUTO, mount_devfs_allowed,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    NULL, PR_ALLOW_MOUNT_DEVFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount the devfs file system (deprecated)");
-SYSCTL_PROC(_security_jail, OID_AUTO, mount_fdescfs_allowed,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    NULL, PR_ALLOW_MOUNT_FDESCFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount the fdescfs file system (deprecated)");
-SYSCTL_PROC(_security_jail, OID_AUTO, mount_nullfs_allowed,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    NULL, PR_ALLOW_MOUNT_NULLFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount the nullfs file system (deprecated)");
-SYSCTL_PROC(_security_jail, OID_AUTO, mount_procfs_allowed,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    NULL, PR_ALLOW_MOUNT_PROCFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount the procfs file system (deprecated)");
-SYSCTL_PROC(_security_jail, OID_AUTO, mount_linprocfs_allowed,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    NULL, PR_ALLOW_MOUNT_LINPROCFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount the linprocfs file system (deprecated)");
-SYSCTL_PROC(_security_jail, OID_AUTO, mount_linsysfs_allowed,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    NULL, PR_ALLOW_MOUNT_LINSYSFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount the linsysfs file system (deprecated)");
-SYSCTL_PROC(_security_jail, OID_AUTO, mount_tmpfs_allowed,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    NULL, PR_ALLOW_MOUNT_TMPFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount the tmpfs file system (deprecated)");
-SYSCTL_PROC(_security_jail, OID_AUTO, mount_zfs_allowed,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    NULL, PR_ALLOW_MOUNT_ZFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount the zfs file system (deprecated)");
 
 static int
 sysctl_jail_default_level(SYSCTL_HANDLER_ARGS)
@@ -3799,22 +3758,110 @@ SYSCTL_JAIL_PARAM(_allow, reserved_ports, CTLTYPE_INT | CTLFLAG_RW,
 SYSCTL_JAIL_PARAM_SUBNODE(allow, mount, "Jail mount/unmount permission flags");
 SYSCTL_JAIL_PARAM(_allow_mount, , CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount/unmount jail-friendly file systems in general");
-SYSCTL_JAIL_PARAM(_allow_mount, devfs, CTLTYPE_INT | CTLFLAG_RW,
-    "B", "Jail may mount the devfs file system");
-SYSCTL_JAIL_PARAM(_allow_mount, fdescfs, CTLTYPE_INT | CTLFLAG_RW,
-    "B", "Jail may mount the fdescfs file system");
-SYSCTL_JAIL_PARAM(_allow_mount, nullfs, CTLTYPE_INT | CTLFLAG_RW,
-    "B", "Jail may mount the nullfs file system");
-SYSCTL_JAIL_PARAM(_allow_mount, procfs, CTLTYPE_INT | CTLFLAG_RW,
-    "B", "Jail may mount the procfs file system");
-SYSCTL_JAIL_PARAM(_allow_mount, linprocfs, CTLTYPE_INT | CTLFLAG_RW,
-    "B", "Jail may mount the linprocfs file system");
-SYSCTL_JAIL_PARAM(_allow_mount, linsysfs, CTLTYPE_INT | CTLFLAG_RW,
-    "B", "Jail may mount the linsysfs file system");
-SYSCTL_JAIL_PARAM(_allow_mount, tmpfs, CTLTYPE_INT | CTLFLAG_RW,
-    "B", "Jail may mount the tmpfs file system");
-SYSCTL_JAIL_PARAM(_allow_mount, zfs, CTLTYPE_INT | CTLFLAG_RW,
-    "B", "Jail may mount the zfs file system");
+
+/*
+ * The VFS system will register jail-aware filesystems here.  They each get
+ * a parameter allow.mount.xxxfs and a flag to check when a jailed user
+ * attempts to mount.
+ */
+void
+prison_add_vfs(struct vfsconf *vfsp)
+{
+	char *allow_name, *allow_noname, *mount_allowed;
+	struct bool_flags *bf;
+#ifndef NO_SYSCTL_DESCR
+	char *descr;
+#endif
+	unsigned allow_flag;
+
+	if (asprintf(&allow_name, M_PRISON, "allow.mount.%s", vfsp->vfc_name) <
+	    0 || asprintf(&allow_noname, M_PRISON, "allow.mount.no%s",
+	    vfsp->vfc_name) < 0) {
+		free(allow_name, M_PRISON);
+		return;
+	}
+
+	/*
+	 * See if this parameter has already beed added, i.e. if the filesystem
+	 * was previously loaded/unloaded.
+	 */
+	mtx_lock(&prison0.pr_mtx);
+	for (bf = pr_flag_allow;
+	     bf < pr_flag_allow + nitems(pr_flag_allow) && bf->flag != 0;
+	     bf++) {
+		if (strcmp(bf->name, allow_name) == 0) {
+			vfsp->vfc_prison_flag = bf->flag;
+			goto no_add;
+		}
+	}
+
+	/*
+	 * Find a free bit in prison0's pr_allow, failing if there are none
+	 * (which shouldn't happen as long as we keep track of how many
+	 * filesystems are jail-aware).
+	 */
+	for (allow_flag = 1;; allow_flag <<= 1) {
+		if (allow_flag == 0)
+			goto no_add;
+		if ((prison0.pr_allow & allow_flag) == 0)
+			break;
+	}
+
+	/*
+	 * Note the parameter in the next open slot in pr_flag_allow.
+	 * Set the flag last so code that checks pr_flag_allow can do so
+	 * without locking.
+	 */
+	for (bf = pr_flag_allow; bf->flag != 0; bf++)
+		if (bf == pr_flag_allow + nitems(pr_flag_allow)) {
+			/* This should never happen, but is not fatal. */
+			goto no_add;
+		}
+	prison0.pr_allow |= allow_flag;
+	bf->name = allow_name;
+	bf->noname = allow_noname;
+	bf->flag = allow_flag;
+	vfsp->vfc_prison_flag = allow_flag;
+	mtx_unlock(&prison0.pr_mtx);
+
+	/*
+	 * Create sysctls for the paramter, and the back-compat global
+	 * permission.
+	 */
+#ifndef NO_SYSCTL_DESCR
+	(void)asprintf(&descr, M_TEMP, "Jail may mount the %s file system",
+	    vfsp->vfc_name);
+#endif
+	(void)SYSCTL_ADD_PROC(NULL,
+	    SYSCTL_CHILDREN(&sysctl___security_jail_param_allow_mount),
+	    OID_AUTO, vfsp->vfc_name, CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    NULL, 0, sysctl_jail_param, "B", descr);
+#ifndef NO_SYSCTL_DESCR
+	free(descr, M_TEMP);
+#endif
+	if (asprintf(&mount_allowed, M_TEMP, "mount_%s_allowed",
+		vfsp->vfc_name) >= 0) {
+#ifndef NO_SYSCTL_DESCR
+		(void)asprintf(&descr, M_TEMP,
+		  "Processes in jail can mount the %s file system (deprecated)",
+		  vfsp->vfc_name);
+#endif
+		(void)SYSCTL_ADD_PROC(NULL,
+		    SYSCTL_CHILDREN(&sysctl___security_jail), OID_AUTO,
+		    mount_allowed, CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+		    NULL, allow_flag, sysctl_jail_default_allow, "I", descr);
+#ifndef NO_SYSCTL_DESCR
+		free(descr, M_TEMP);
+#endif
+		free(mount_allowed, M_TEMP);
+	}
+	return;
+
+ no_add:
+	mtx_unlock(&prison0.pr_mtx);
+	free(allow_name, M_PRISON);
+	free(allow_noname, M_PRISON);
+}
 
 #ifdef RACCT
 void
@@ -4050,7 +4097,7 @@ db_show_prison(struct prison *pr)
 	}
 	db_printf(" allow           = 0x%x", pr->pr_allow);
 	for (bf = pr_flag_allow;
-	     bf < pr_flag_allow + nitems(pr_flag_allow);
+	     bf < pr_flag_allow + nitems(pr_flag_allow) && bf->flag != 0;
 	     bf++)
 		if (pr->pr_allow & bf->flag)
 			db_printf(" %s", bf->name);

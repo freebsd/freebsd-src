@@ -1652,7 +1652,7 @@ linprocfs_uninit(PFS_INIT_ARGS)
 	return (0);
 }
 
-PSEUDOFS(linprocfs, 1, PR_ALLOW_MOUNT_LINPROCFS);
+PSEUDOFS(linprocfs, 1, VFCF_JAIL);
 #if defined(__amd64__)
 MODULE_DEPEND(linprocfs, linux_common, 1, 1, 1);
 #else
