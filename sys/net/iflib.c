@@ -4773,12 +4773,10 @@ iflib_queues_alloc(if_ctx_t ctx)
 	int nfree_lists = sctx->isc_nfl ? sctx->isc_nfl : 1;
 	caddr_t *vaddrs;
 	uint64_t *paddrs;
-	struct ifmp_ring **brscp;
 
 	KASSERT(ntxqs > 0, ("number of queues per qset must be at least 1"));
 	KASSERT(nrxqs > 0, ("number of queues per qset must be at least 1"));
 
-	brscp = NULL;
 	txq = NULL;
 	rxq = NULL;
 
@@ -4966,8 +4964,6 @@ err_tx_desc:
 		free(ctx->ifc_txqs, M_IFLIB);
 	ctx->ifc_txqs = NULL;
 rx_fail:
-	if (brscp != NULL)
-		free(brscp, M_IFLIB);
 	if (rxq != NULL)
 		free(rxq, M_IFLIB);
 	if (txq != NULL)
