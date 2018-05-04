@@ -51,9 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#ifndef WITHOUT_FASTMATCH
-#include "fastmatch.h"
-#endif
 #include "grep.h"
 
 #ifndef WITHOUT_NLS
@@ -96,9 +93,6 @@ unsigned int	 patterns;
 static unsigned int pattern_sz;
 struct pat	*pattern;
 regex_t		*r_pattern;
-#ifndef WITHOUT_FASTMATCH
-fastmatch_t	*fg_pattern;
-#endif
 
 /* Filename exclusion/inclusion patterns */
 unsigned int	fpatterns, dpatterns;
@@ -712,9 +706,6 @@ main(int argc, char *argv[])
 		usage();
 	}
 
-#ifndef WITHOUT_FASTMATCH
-	fg_pattern = grep_calloc(patterns, sizeof(*fg_pattern));
-#endif
 	r_pattern = grep_calloc(patterns, sizeof(*r_pattern));
 
 	/* Don't process any patterns if we have a blank one */
@@ -725,15 +716,6 @@ main(int argc, char *argv[])
 #endif
 		/* Check if cheating is allowed (always is for fgrep). */
 		for (i = 0; i < patterns; ++i) {
-#ifndef WITHOUT_FASTMATCH
-			/*
-			 * Attempt compilation with fastmatch regex and
-			 * fallback to regex(3) if it fails.
-			 */
-			if (fastncomp(&fg_pattern[i], pattern[i].pat,
-			    pattern[i].len, cflags) == 0)
-				continue;
-#endif
 			c = regcomp(&r_pattern[i], pattern[i].pat, cflags);
 			if (c != 0) {
 				regerror(c, &r_pattern[i], re_error,
