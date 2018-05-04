@@ -1,5 +1,69 @@
 News for the tz database
 
+Release 2018e - 2018-05-01 23:42:51 -0700
+
+  Briefly:
+
+    North Korea switches back to +09 on 2018-05-05.
+    The main format uses negative DST again, for Ireland etc.
+    'make tarballs' now also builds a rearguard tarball.
+    New 's' and 'd' suffixes in SAVE columns of Rule and Zone lines.
+
+  Changes to past and future time stamps
+
+    North Korea switches back from +0830 to +09 on 2018-05-05.
+    (Thanks to Kang Seonghoon, Arthur David Olson, Seo Sanghyeon,
+    and Tim Parenti.)
+
+    Bring back the negative-DST changes of 2018a, except be more
+    compatible with data parsers that do not support negative DST.
+    Also, this now affects historical time stamps in Namibia and the
+    former Czechoslovakia, not just Ireland.  The main format now uses
+    negative DST to model time stamps in Europe/Dublin (from 1971 on),
+    Europe/Prague (1946/7), and Africa/Windhoek (1994/2017).  This
+    does not affect UT offsets, only time zone abbreviations and the
+    tm_isdst flag.  Also, this does not affect rearguard or vanguard
+    formats; effectively the main format now uses vanguard instead of
+    rearguard format.  Data parsers that do not support negative DST
+    can still use data from the rearguard tarball described below.
+
+  Changes to build procedure
+
+    The command 'make tarballs' now also builds the tarball
+    tzdataVERSION-rearguard.tar.gz, which is like tzdataVERSION.tar.gz
+    except that it uses rearguard format intended for trailing-edge
+    data parsers.
+
+  Changes to data format and to code
+
+    The SAVE column of Rule and Zone lines can now have an 's' or 'd'
+    suffix, which specifies whether the adjusted time is standard time
+    or daylight saving time.  If no suffix is given, daylight saving
+    time is used if and only if the SAVE column is nonzero; this is
+    the longstanding behavior.  Although this new feature is not used
+    in tzdata, it could be used to specify the legal time in Namibia
+    1994-2017, as opposed to the popular time (see below).
+
+  Changes to past time stamps
+
+    From 1994 through 2017 Namibia observed DST in winter, not summer.
+    That is, it used negative DST, as Ireland still does.  This change
+    does not affect UTC offsets; it affects only the tm_isdst flag and
+    the abbreviation used during summer, which is now CAT, not WAST.
+    Although (as noted by Michael Deckers) summer and winter time were
+    both simply called "standard time" in Namibian law, in common
+    practice winter time was considered to be DST (as noted by Stephen
+    Colebourne).  The full effect of this change is only in vanguard
+    format; in rearguard and main format, the tm_isdst flag is still
+    zero in winter and nonzero in summer.
+
+    In 1946/7 Czechoslovakia also observed negative DST in winter.
+    The full effect of this change is only in vanguard format; in
+    rearguard and main formats, it is modeled as plain GMT without
+    daylight saving.  Also, the dates of some 1944/5 DST transitions
+    in Czechoslovakia have been changed.
+
+
 Release 2018d - 2018-03-22 07:05:46 -0700
 
   Briefly:
@@ -39,7 +103,7 @@ Release 2018d - 2018-03-22 07:05:46 -0700
     Enderbury and Kiritimati skipped New Year's Eve 1994, not
     New Year's Day 1995.  (Thanks to Kerry Shetline.)
 
-    Fix the 1912-01-01 transition for Portugual and its colonies.
+    Fix the 1912-01-01 transition for Portugal and its colonies.
     This transition was at 00:00 according to the new UT offset, not
     according to the old one.  Also assume that Cape Verde switched on
     the same date as the rest, not in 1907.  This affects
