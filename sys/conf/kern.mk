@@ -65,6 +65,9 @@ CWARNEXTRA+=	-Wno-error=misleading-indentation		\
 		-Wno-error=shift-overflow			\
 		-Wno-error=tautological-compare
 .endif
+.if ${COMPILER_VERSION} >= 80000
+CWARNEXTRA+=	-Wno-error=packed-not-aligned
+.endif
 .else
 # For gcc 4.2, eliminate the too-often-wrong warnings about uninitialized vars.
 CWARNEXTRA?=	-Wno-uninitialized
