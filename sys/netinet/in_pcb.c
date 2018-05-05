@@ -1388,14 +1388,12 @@ in_pcbfree(struct inpcb *inp)
 	if (imo == NULL && im6o == NULL)
 		return;
 #endif
-	INP_INFO_WUNLOCK(pcbinfo);
 #ifdef INET6
-	ip6_freemoptions(im6o);
+	ip6_freemoptions(im6o, pcbinfo);
 #endif
 #ifdef INET
-	inp_freemoptions(imo);
+	inp_freemoptions(imo, pcbinfo);
 #endif
-	INP_INFO_WLOCK(pcbinfo);
 }
 
 /*

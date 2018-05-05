@@ -175,6 +175,7 @@ struct ip;
 struct inpcb;
 struct route;
 struct sockopt;
+struct inpcbinfo;
 
 VNET_DECLARE(int, ip_defttl);			/* default IP ttl */
 VNET_DECLARE(int, ipforwarding);		/* ip forwarding */
@@ -201,7 +202,7 @@ extern struct	pr_usrreqs rip_usrreqs;
 #define	V_rsvp_on		VNET(rsvp_on)
 #define	V_drop_redirect		VNET(drop_redirect)
 
-void	inp_freemoptions(struct ip_moptions *);
+void	inp_freemoptions(struct ip_moptions *, struct inpcbinfo *);
 int	inp_getmoptions(struct inpcb *, struct sockopt *);
 int	inp_setmoptions(struct inpcb *, struct sockopt *);
 
