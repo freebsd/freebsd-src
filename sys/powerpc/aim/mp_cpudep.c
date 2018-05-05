@@ -85,6 +85,7 @@ cpudep_ap_early_bootstrap(void)
 		break;
 	case IBMPOWER8:
 	case IBMPOWER8E:
+	case IBMPOWER9:
 #ifdef __powerpc64__
 		if (mfmsr() & PSL_HV) {
 			isync();
@@ -397,6 +398,7 @@ cpudep_ap_setup()
 	case IBMPOWER7PLUS:
 	case IBMPOWER8:
 	case IBMPOWER8E:
+	case IBMPOWER9:
 #ifdef __powerpc64__
 		if (mfmsr() & PSL_HV) {
 			mtspr(SPR_LPCR, mfspr(SPR_LPCR) | LPCR_LPES |
