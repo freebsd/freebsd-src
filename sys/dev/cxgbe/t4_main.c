@@ -4083,8 +4083,6 @@ init_l1cfg(struct port_info *pi)
 			lc->requested_fec = FEC_RS;
 		else if (lc->advertising & FW_PORT_CAP_FEC_BASER_RS)
 			lc->requested_fec = FEC_BASER_RS;
-		else if (lc->advertising & FW_PORT_CAP_FEC_RESERVED)
-			lc->requested_fec = FEC_RESERVED;
 		else
 			lc->requested_fec = 0;
 	}
