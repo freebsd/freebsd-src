@@ -107,6 +107,8 @@ devlist(int argc, char *argv[])
 			sprintf(name, "%s%d%s%d", NVME_CTRLR_PREFIX, ctrlr,
 			    NVME_NS_PREFIX, i+1);
 			read_namespace_data(fd, i+1, &nsdata);
+			if (nsdata.nsze == 0)
+				continue;
 			printf("  %10s (%lldMB)\n",
 				name,
 				nsdata.nsze *

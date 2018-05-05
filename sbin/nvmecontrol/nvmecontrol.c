@@ -58,6 +58,7 @@ static struct nvme_function funcs[] = {
 	{"format",	format,		FORMAT_USAGE},
 	{"power",	power,		POWER_USAGE},
 	{"wdc",		wdc,		WDC_USAGE},
+	{"ns",		ns,		NS_USAGE},
 	{NULL,		NULL,		NULL},
 };
 
