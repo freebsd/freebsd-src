@@ -64,6 +64,12 @@ struct lpteg {
 	struct lpte pt[8];
 };
 
+/* Partition table entry */
+struct pate {
+	u_int64_t pagetab;
+	u_int64_t proctab;
+};
+
 #endif	/* LOCORE */
 
 /* 32-bit PTE definitions */

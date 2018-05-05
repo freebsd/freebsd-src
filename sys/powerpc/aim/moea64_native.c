@@ -115,6 +115,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
 
+#include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/mmuvar.h>
 
@@ -128,6 +129,9 @@ __FBSDID("$FreeBSD$");
 #define	EIEIO()		__asm __volatile("eieio");
 
 #define	VSID_HASH_MASK	0x0000007fffffffffULL
+
+/* POWER9 only permits a 64k partition table size. */
+#define	PART_SIZE	0x10000
 
 static __inline void
 TLBIE(uint64_t vpn) {
@@ -183,6 +187,7 @@ TLBIE(uint64_t vpn) {
 /*
  * PTEG data.
  */
+static volatile struct pate *moea64_part_table;
 static volatile struct lpte *moea64_pteg_table;
 static struct rwlock moea64_eviction_lock;
 
@@ -400,9 +405,15 @@ moea64_cpu_bootstrap_native(mmu_t mmup, int ap)
 	 * Install page table
 	 */
 
-	__asm __volatile ("ptesync; mtsdr1 %0; isync"
-	    :: "r"(((uintptr_t)moea64_pteg_table & ~DMAP_BASE_ADDRESS)
-		     | (uintptr_t)(flsl(moea64_pteg_mask >> 11))));
+	if (cpu_features2 & PPC_FEATURE2_ARCH_3_00) {
+		mtspr(SPR_PTCR,
+		    ((uintptr_t)moea64_part_table & ~DMAP_BASE_ADDRESS) |
+		     flsl((PART_SIZE >> 12) - 1));
+	} else {
+		__asm __volatile ("ptesync; mtsdr1 %0; isync"
+		    :: "r"(((uintptr_t)moea64_pteg_table & ~DMAP_BASE_ADDRESS)
+			     | (uintptr_t)(flsl(moea64_pteg_mask >> 11))));
+	}
 	tlbia();
 }
 
@@ -433,11 +444,28 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 	 * as a measure of last resort. We do this a couple times.
 	 */
 
-	moea64_pteg_table = (struct lpte *)moea64_bootstrap_alloc(size, size);
+	if (cpu_features2 & PPC_FEATURE2_ARCH_3_00) {
+		moea64_part_table =
+		    (struct pate *)moea64_bootstrap_alloc(PART_SIZE, PART_SIZE);
+		if (hw_direct_map)
+			moea64_part_table =
+			    (struct pate *)PHYS_TO_DMAP((vm_offset_t)moea64_part_table);
+	}
+	/*
+	 * PTEG table must be aligned on a 256k boundary, but can be placed
+	 * anywhere with that alignment.
+	 */
+	moea64_pteg_table = (struct lpte *)moea64_bootstrap_alloc(size, 256*1024);
 	if (hw_direct_map)
 		moea64_pteg_table =
 		    (struct lpte *)PHYS_TO_DMAP((vm_offset_t)moea64_pteg_table);
 	DISABLE_TRANS(msr);
+	if (cpu_features2 & PPC_FEATURE2_ARCH_3_00) {
+		bzero(__DEVOLATILE(void *, moea64_part_table), PART_SIZE);
+		moea64_part_table[0].pagetab =
+		    ((uintptr_t)moea64_pteg_table & ~DMAP_BASE_ADDRESS) |
+		    (uintptr_t)(flsl((moea64_pteg_count - 1) >> 11));
+	}
 	bzero(__DEVOLATILE(void *, moea64_pteg_table), moea64_pteg_count *
 	    sizeof(struct lpteg));
 	ENABLE_TRANS(msr);
