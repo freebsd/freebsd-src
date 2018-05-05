@@ -807,6 +807,7 @@ in6m_rele_locked(struct in6_multi_head *inmh, struct in6_multi *inm)
 
 struct ip6_moptions;
 struct sockopt;
+struct inpcbinfo;
 
 /* Multicast KPIs. */
 int	im6o_mc_filter(const struct ip6_moptions *, const struct ifnet *,
@@ -823,7 +824,7 @@ void	in6m_print(const struct in6_multi *);
 int	in6m_record_source(struct in6_multi *, const struct in6_addr *);
 void	in6m_release_deferred(struct in6_multi *);
 void	in6m_release_list_deferred(struct in6_multi_head *);
-void	ip6_freemoptions(struct ip6_moptions *);
+void	ip6_freemoptions(struct ip6_moptions *, struct inpcbinfo *);
 int	ip6_getmoptions(struct inpcb *, struct sockopt *);
 int	ip6_setmoptions(struct inpcb *, struct sockopt *);
 

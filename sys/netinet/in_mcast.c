@@ -1639,16 +1639,29 @@ inp_findmoptions(struct inpcb *inp)
  * SMPng: NOTE: assumes INP write lock is held.
  */
 void
-inp_freemoptions(struct ip_moptions *imo)
+inp_freemoptions(struct ip_moptions *imo, struct inpcbinfo *pcbinfo)
 {
+	int wlock;
 
 	if (imo == NULL)
 		return;
+
+	INP_INFO_LOCK_ASSERT(pcbinfo);
+	wlock = INP_INFO_WLOCKED(pcbinfo);
+	if (wlock)
+		INP_INFO_WUNLOCK(pcbinfo);
+	else
+		INP_INFO_RUNLOCK(pcbinfo);
+
 	KASSERT(imo != NULL, ("%s: ip_moptions is NULL", __func__));
 	IN_MULTI_LIST_LOCK();
 	STAILQ_INSERT_TAIL(&imo_gc_list, imo, imo_link);
 	IN_MULTI_LIST_UNLOCK();
 	taskqueue_enqueue(taskqueue_thread, &imo_gc_task);
+	if (wlock)
+		INP_INFO_WLOCK(pcbinfo);
+	else
+		INP_INFO_RLOCK(pcbinfo);
 }
 
 static void
