@@ -1585,13 +1585,20 @@ in6p_findmoptions(struct inpcb *inp)
  * SMPng: NOTE: assumes INP write lock is held.
  */
 void
-ip6_freemoptions(struct ip6_moptions *imo)
+ip6_freemoptions(struct ip6_moptions *imo, struct inpcbinfo *pcbinfo)
 {
 	struct in6_mfilter	*imf;
 	size_t			 idx, nmships;
+	int wlock;
 
 	if (imo == NULL)
 		return;
+	INP_INFO_LOCK_ASSERT(pcbinfo);
+	wlock = INP_INFO_WLOCKED(pcbinfo);
+	if (wlock)
+		INP_INFO_WUNLOCK(pcbinfo);
+	else
+		INP_INFO_RUNLOCK(pcbinfo);
 
 	nmships = imo->im6o_num_memberships;
 	for (idx = 0; idx < nmships; ++idx) {
@@ -1608,6 +1615,10 @@ ip6_freemoptions(struct ip6_moptions *imo)
 		free(imo->im6o_mfilters, M_IN6MFILTER);
 	free(imo->im6o_membership, M_IP6MOPTS);
 	free(imo, M_IP6MOPTS);
+	if (wlock)
+		INP_INFO_WLOCK(pcbinfo);
+	else
+		INP_INFO_RLOCK(pcbinfo);
 }
 
 /*
