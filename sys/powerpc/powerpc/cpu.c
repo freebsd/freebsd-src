@@ -638,6 +638,7 @@ cpu_powerx_setup(int cpuid, uint16_t vers)
 	switch (vers) {
 	case IBMPOWER8:
 	case IBMPOWER8E:
+	case IBMPOWER9:
 		mtspr(SPR_LPCR, mfspr(SPR_LPCR) | LPCR_PECE_WAKESET);
 		isync();
 		break;
