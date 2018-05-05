@@ -3722,8 +3722,6 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		fec = FW_PORT_CAP_FEC_RS;
 	else if (lc->requested_fec & FEC_BASER_RS)
 		fec = FW_PORT_CAP_FEC_BASER_RS;
-	else if (lc->requested_fec & FEC_RESERVED)
-		fec = FW_PORT_CAP_FEC_RESERVED;
 
 	if (!(lc->supported & FW_PORT_CAP_ANEG) ||
 	    lc->requested_aneg == AUTONEG_DISABLE) {
@@ -7720,8 +7718,6 @@ static void handle_port_info(struct port_info *pi, const struct fw_port_info *p)
 		fec |= FEC_RS;
 	if (lc->advertising & FW_PORT_CAP_FEC_BASER_RS)
 		fec |= FEC_BASER_RS;
-	if (lc->advertising & FW_PORT_CAP_FEC_RESERVED)
-		fec |= FEC_RESERVED;
 	lc->fec = fec;
 }
 
