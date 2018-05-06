@@ -56,6 +56,7 @@ LSUBDIRS=	cam/ata cam/mmc cam/nvme cam/scsi \
 	net/altq \
 	netgraph/atm netgraph/netflow \
 	netinet/cc \
+	netinet/netdump \
 	security/audit \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
 	security/mac_mls security/mac_partition \
