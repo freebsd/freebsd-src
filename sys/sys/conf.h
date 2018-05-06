@@ -101,6 +101,8 @@ struct cdev {
 
 struct bio;
 struct buf;
+struct dumperinfo;
+struct kerneldumpheader;
 struct thread;
 struct uio;
 struct knote;
@@ -131,6 +133,9 @@ typedef int dumper_t(
 	vm_offset_t _physical,	/* Physical address of virtual. */
 	off_t _offset,		/* Byte-offset to write at. */
 	size_t _length);	/* Number of bytes to dump. */
+typedef int dumper_start_t(struct dumperinfo *di);
+typedef int dumper_hdr_t(struct dumperinfo *di, struct kerneldumpheader *kdh,
+    void *key, uint32_t keylen);
 
 #endif /* _KERNEL */
 
@@ -332,13 +337,18 @@ struct kerneldumpheader;
 
 struct dumperinfo {
 	dumper_t *dumper;	/* Dumping function. */
+	dumper_start_t *dumper_start; /* Dumper callback for dump_start(). */
+	dumper_hdr_t *dumper_hdr; /* Dumper callback for writing headers. */
 	void	*priv;		/* Private parts. */
 	u_int	blocksize;	/* Size of block in bytes. */
 	u_int	maxiosize;	/* Max size allowed for an individual I/O */
 	off_t	mediaoffset;	/* Initial offset in bytes. */
 	off_t	mediasize;	/* Space available in bytes. */
+
+	/* MI kernel dump state. */
 	void	*blockbuf;	/* Buffer for padding shorter dump blocks */
 	off_t	dumpoff;	/* Offset of ongoing kernel dump. */
+	off_t	origdumpoff;	/* Starting dump offset. */
 	struct kerneldumpcrypto	*kdcrypto; /* Kernel dump crypto. */
 	struct kerneldumpcomp *kdcomp; /* Kernel dump compression. */
 };
@@ -349,6 +359,7 @@ int doadump(boolean_t);
 int set_dumper(struct dumperinfo *di, const char *devname, struct thread *td,
     uint8_t compression, uint8_t encryption, const uint8_t *key,
     uint32_t encryptedkeysize, const uint8_t *encryptedkey);
+int clear_dumper(struct thread *td);
 
 int dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh);
 int dump_append(struct dumperinfo *, void *, vm_offset_t, size_t);
