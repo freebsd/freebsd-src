@@ -610,7 +610,7 @@ void
 igmp_ifdetach(struct ifnet *ifp)
 {
 	struct igmp_ifsoftc	*igi;
-	struct ifmultiaddr	*ifma;
+	struct ifmultiaddr	*ifma, *next;
 	struct in_multi		*inm;
 	struct in_multi_head inm_free_tmp;
 	CTR3(KTR_IGMPV3, "%s: called for ifp %p(%s)", __func__, ifp,
@@ -621,21 +621,22 @@ igmp_ifdetach(struct ifnet *ifp)
 
 	igi = ((struct in_ifinfo *)ifp->if_afdata[AF_INET])->ii_igmp;
 	if (igi->igi_version == IGMP_VERSION_3) {
-		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		IF_ADDR_WLOCK(ifp);
+	restart:
+		TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
 			if (ifma->ifma_addr->sa_family != AF_INET ||
 			    ifma->ifma_protospec == NULL)
 				continue;
-#if 0
-			KASSERT(ifma->ifma_protospec != NULL,
-			    ("%s: ifma_protospec is NULL", __func__));
-#endif
 			inm = (struct in_multi *)ifma->ifma_protospec;
 			if (inm->inm_state == IGMP_LEAVING_MEMBER)
 				inm_rele_locked(&inm_free_tmp, inm);
 			inm_clear_recorded(inm);
+			if (__predict_false(ifma_restart)) {
+				ifma_restart = false;
+				goto restart;
+			}
 		}
-		IF_ADDR_RUNLOCK(ifp);
+		IF_ADDR_WUNLOCK(ifp);
 		inm_release_list_deferred(&inm_free_tmp);
 	}
 	IGMP_UNLOCK();
@@ -1631,7 +1632,7 @@ igmp_fasttimo_vnet(void)
 	struct mbufq		 qrq;	/* Query response packets */
 	struct ifnet		*ifp;
 	struct igmp_ifsoftc	*igi;
-	struct ifmultiaddr	*ifma;
+	struct ifmultiaddr	*ifma, *next;
 	struct in_multi		*inm;
 	struct in_multi_head inm_free_tmp;
 	int			 loop, uri_fasthz;
@@ -1695,8 +1696,9 @@ igmp_fasttimo_vnet(void)
 			mbufq_init(&scq, IGMP_MAX_STATE_CHANGE_PACKETS);
 		}
 
-		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		IF_ADDR_WLOCK(ifp);
+	restart:
+		TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
 			if (ifma->ifma_addr->sa_family != AF_INET ||
 			    ifma->ifma_protospec == NULL)
 				continue;
@@ -1712,8 +1714,12 @@ igmp_fasttimo_vnet(void)
 				    &scq, inm, uri_fasthz);
 				break;
 			}
+			if (__predict_false(ifma_restart)) {
+				ifma_restart = false;
+				goto restart;
+			}
 		}
-		IF_ADDR_RUNLOCK(ifp);
+		IF_ADDR_WUNLOCK(ifp);
 
 		if (igi->igi_version == IGMP_VERSION_3) {
 			igmp_dispatch_queue(&qrq, 0, loop);

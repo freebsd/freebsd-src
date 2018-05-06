@@ -536,7 +536,7 @@ void
 mld_ifdetach(struct ifnet *ifp)
 {
 	struct mld_ifsoftc	*mli;
-	struct ifmultiaddr	*ifma;
+	struct ifmultiaddr	*ifma, *next;
 	struct in6_multi	*inm;
 	struct in6_multi_head inmh;
 
@@ -549,8 +549,9 @@ mld_ifdetach(struct ifnet *ifp)
 
 	mli = MLD_IFINFO(ifp);
 	if (mli->mli_version == MLD_VERSION_2) {
-		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		IF_ADDR_WLOCK(ifp);
+	restart:
+		TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
 			if (ifma->ifma_addr->sa_family != AF_INET6 ||
 			    ifma->ifma_protospec == NULL)
 				continue;
@@ -560,8 +561,12 @@ mld_ifdetach(struct ifnet *ifp)
 				ifma->ifma_protospec = NULL;
 			}
 			in6m_clear_recorded(inm);
+			if (__predict_false(ifma6_restart)) {
+				ifma6_restart = false;
+				goto restart;
+			}
 		}
-		IF_ADDR_RUNLOCK(ifp);
+		IF_ADDR_WUNLOCK(ifp);
 	}
 
 	MLD_UNLOCK();
@@ -696,7 +701,7 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		 * interface, kick the report timer.
 		 */
 		CTR2(KTR_MLD, "process v1 general query on ifp %p(%s)",
-		    ifp, if_name(ifp));
+			 ifp, if_name(ifp));
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_INET6 ||
 			    ifma->ifma_protospec == NULL)
@@ -1326,7 +1331,7 @@ mld_fasttimo_vnet(void)
 	struct mbufq		 qrq;	/* Query response packets */
 	struct ifnet		*ifp;
 	struct mld_ifsoftc	*mli;
-	struct ifmultiaddr	*ifma;
+	struct ifmultiaddr	*ifma, *next;
 	struct in6_multi	*inm, *tinm;
 	struct in6_multi_head inmh;
 	int			 uri_fasthz;
@@ -1388,8 +1393,9 @@ mld_fasttimo_vnet(void)
 			mbufq_init(&scq, MLD_MAX_STATE_CHANGE_PACKETS);
 		}
 
-		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		IF_ADDR_WLOCK(ifp);
+	restart:
+		TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
 			if (ifma->ifma_addr->sa_family != AF_INET6 ||
 			    ifma->ifma_protospec == NULL)
 				continue;
@@ -1403,8 +1409,12 @@ mld_fasttimo_vnet(void)
 				    &scq, inm, uri_fasthz);
 				break;
 			}
+			if (__predict_false(ifma6_restart)) {
+				ifma6_restart = false;
+				goto restart;
+			}
 		}
-		IF_ADDR_RUNLOCK(ifp);
+		IF_ADDR_WUNLOCK(ifp);
 
 		switch (mli->mli_version) {
 		case MLD_VERSION_1:
@@ -1641,7 +1651,7 @@ mld_set_version(struct mld_ifsoftc *mli, const int version)
 static void
 mld_v2_cancel_link_timers(struct mld_ifsoftc *mli)
 {
-	struct ifmultiaddr	*ifma;
+	struct ifmultiaddr	*ifma, *next;
 	struct ifnet		*ifp;
 	struct in6_multi	*inm;
 	struct in6_multi_head inmh;
@@ -1666,8 +1676,9 @@ mld_v2_cancel_link_timers(struct mld_ifsoftc *mli)
 
 	ifp = mli->mli_ifp;
 
-	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	IF_ADDR_WLOCK(ifp);
+ restart:
+	TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
 		if (ifma->ifma_addr->sa_family != AF_INET6)
 			continue;
 		inm = (struct in6_multi *)ifma->ifma_protospec;
@@ -1702,8 +1713,12 @@ mld_v2_cancel_link_timers(struct mld_ifsoftc *mli)
 			mbufq_drain(&inm->in6m_scq);
 			break;
 		}
+		if (__predict_false(ifma6_restart)) {
+			ifma6_restart = false;
+			goto restart;
+		}
 	}
-	IF_ADDR_RUNLOCK(ifp);
+	IF_ADDR_WUNLOCK(ifp);
 	in6m_release_list_deferred(&inmh);
 }
 
