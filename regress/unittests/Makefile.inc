@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile.inc,v 1.9 2016/11/01 13:43:27 tb Exp $
+#	$OpenBSD: Makefile.inc,v 1.11 2017/04/30 23:33:48 djm Exp $
 
 .include <bsd.own.mk>
 .include <bsd.obj.mk>
@@ -30,7 +30,7 @@ CDIAGFLAGS+=	-Wswitch
 CDIAGFLAGS+=	-Wtrigraphs
 CDIAGFLAGS+=	-Wuninitialized
 CDIAGFLAGS+=	-Wunused
-.if ${COMPILER_VERSION} == "gcc4"
+.if ${COMPILER_VERSION:L} != "gcc3"
 CDIAGFLAGS+=	-Wpointer-sign
 CDIAGFLAGS+=	-Wold-style-definition
 .endif

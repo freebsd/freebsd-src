@@ -1,4 +1,4 @@
-#	$OpenBSD: key-options.sh,v 1.3 2015/03/03 22:35:19 markus Exp $
+#	$OpenBSD: key-options.sh,v 1.4 2017/04/30 23:34:55 djm Exp $
 #	Placed in the Public Domain.
 
 tid="key options"
@@ -8,64 +8,56 @@ authkeys="$OBJ/authorized_keys_${USER}"
 cp $authkeys $origkeys
 
 # Test command= forced command
-for p in ${SSH_PROTOCOLS}; do
-    for c in 'command="echo bar"' 'no-pty,command="echo bar"'; do
+for c in 'command="echo bar"' 'no-pty,command="echo bar"'; do
 	sed "s/.*/$c &/" $origkeys >$authkeys
-	verbose "key option proto $p $c"
-	r=`${SSH} -$p -q -F $OBJ/ssh_proxy somehost echo foo`
+	verbose "key option $c"
+	r=`${SSH} -q -F $OBJ/ssh_proxy somehost echo foo`
 	if [ "$r" = "foo" ]; then
 		fail "key option forced command not restricted"
 	fi
 	if [ "$r" != "bar" ]; then
 		fail "key option forced command not executed"
 	fi
-    done
 done
 
 # Test no-pty
 sed 's/.*/no-pty &/' $origkeys >$authkeys
-for p in ${SSH_PROTOCOLS}; do
-	verbose "key option proto $p no-pty"
-	r=`${SSH} -$p -q -F $OBJ/ssh_proxy somehost tty`
-	if [ -f "$r" ]; then
-		fail "key option failed proto $p no-pty (pty $r)"
-	fi
-done
+verbose "key option proto no-pty"
+r=`${SSH} -q -F $OBJ/ssh_proxy somehost tty`
+if [ -f "$r" ]; then
+	fail "key option failed no-pty (pty $r)"
+fi
 
 # Test environment=
 echo 'PermitUserEnvironment yes' >> $OBJ/sshd_proxy
 sed 's/.*/environment="FOO=bar" &/' $origkeys >$authkeys
-for p in ${SSH_PROTOCOLS}; do
-	verbose "key option proto $p environment"
-	r=`${SSH} -$p -q -F $OBJ/ssh_proxy somehost 'echo $FOO'`
-	if [ "$r" != "bar" ]; then
-		fail "key option environment not set"
-	fi
-done
+verbose "key option environment"
+r=`${SSH} -q -F $OBJ/ssh_proxy somehost 'echo $FOO'`
+if [ "$r" != "bar" ]; then
+	fail "key option environment not set"
+fi
 
 # Test from= restriction
 start_sshd
-for p in ${SSH_PROTOCOLS}; do
-    for f in 127.0.0.1 '127.0.0.0\/8'; do
+for f in 127.0.0.1 '127.0.0.0\/8'; do
 	cat  $origkeys >$authkeys
-	${SSH} -$p -q -F $OBJ/ssh_proxy somehost true
+	${SSH} -q -F $OBJ/ssh_proxy somehost true
 	if [ $? -ne 0 ]; then
-		fail "key option proto $p failed without restriction"
+		fail "key option failed without restriction"
 	fi
 
 	sed 's/.*/from="'"$f"'" &/' $origkeys >$authkeys
 	from=`head -1 $authkeys | cut -f1 -d ' '`
-	verbose "key option proto $p $from"
-	r=`${SSH} -$p -q -F $OBJ/ssh_proxy somehost 'echo true'`
+	verbose "key option $from"
+	r=`${SSH} -q -F $OBJ/ssh_proxy somehost 'echo true'`
 	if [ "$r" = "true" ]; then
-		fail "key option proto $p $from not restricted"
+		fail "key option $from not restricted"
 	fi
 
-	r=`${SSH} -$p -q -F $OBJ/ssh_config somehost 'echo true'`
+	r=`${SSH} -q -F $OBJ/ssh_config somehost 'echo true'`
 	if [ "$r" != "true" ]; then
-		fail "key option proto $p $from not allowed but should be"
+		fail "key option $from not allowed but should be"
 	fi
-    done
 done
 
 rm -f "$origkeys"

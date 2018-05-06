@@ -3,9 +3,6 @@ SSHD_CONFIG(5)                File Formats Manual               SSHD_CONFIG(5)
 NAME
      sshd_config M-bM-^@M-^S OpenSSH SSH daemon configuration file
 
-SYNOPSIS
-     /etc/ssh/sshd_config
-
 DESCRIPTION
      sshd(8) reads configuration data from /etc/ssh/sshd_config (or the file
      specified with -f on the command line).  The file contains keyword-
@@ -119,6 +116,11 @@ DESCRIPTION
 
              Note that each authentication method listed should also be
              explicitly enabled in the configuration.
+
+             The available authentication methods are: "gssapi-with-mic",
+             "hostbased", "keyboard-interactive", "none" (used for access to
+             password-less accounts when PermitEmptyPassword is enabled),
+             "password" and "publickey".
 
      AuthorizedKeysCommand
              Specifies a program to be used to look up the user's public keys.
@@ -253,11 +255,6 @@ DESCRIPTION
                    aes256-ctr
                    aes128-gcm@openssh.com
                    aes256-gcm@openssh.com
-                   arcfour
-                   arcfour128
-                   arcfour256
-                   blowfish-cbc
-                   cast128-cbc
                    chacha20-poly1305@openssh.com
 
              The default is:
@@ -328,6 +325,13 @@ DESCRIPTION
              Disables all forwarding features, including X11, ssh-agent(1),
              TCP and StreamLocal.  This option overrides all other forwarding-
              related options and may simplify restricted configurations.
+
+     ExposeAuthInfo
+             Writes a temporary file containing a list of authentication
+             methods and public credentials (e.g. keys) used to authenticate
+             the user.  The location of the file is exposed to the user
+             session through the SSH_USER_AUTH environment variable.  The
+             default is no.
 
      FingerprintHash
              Specifies the hash algorithm used when logging key fingerprints.
@@ -467,14 +471,14 @@ DESCRIPTION
      IPQoS   Specifies the IPv4 type-of-service or DSCP class for the
              connection.  Accepted values are af11, af12, af13, af21, af22,
              af23, af31, af32, af33, af41, af42, af43, cs0, cs1, cs2, cs3,
-             cs4, cs5, cs6, cs7, ef, lowdelay, throughput, reliability, or a
-             numeric value.  This option may take one or two arguments,
-             separated by whitespace.  If one argument is specified, it is
-             used as the packet class unconditionally.  If two values are
-             specified, the first is automatically selected for interactive
-             sessions and the second for non-interactive sessions.  The
-             default is lowdelay for interactive sessions and throughput for
-             non-interactive sessions.
+             cs4, cs5, cs6, cs7, ef, lowdelay, throughput, reliability, a
+             numeric value, or none to use the operating system default.  This
+             option may take one or two arguments, separated by whitespace.
+             If one argument is specified, it is used as the packet class
+             unconditionally.  If two values are specified, the first is
+             automatically selected for interactive sessions and the second
+             for non-interactive sessions.  The default is lowdelay for
+             interactive sessions and throughput for non-interactive sessions.
 
      KbdInteractiveAuthentication
              Specifies whether to allow keyboard-interactive authentication.
@@ -573,7 +577,6 @@ DESCRIPTION
 
                    hmac-md5
                    hmac-md5-96
-                   hmac-ripemd160
                    hmac-sha1
                    hmac-sha1-96
                    hmac-sha2-256
@@ -582,7 +585,6 @@ DESCRIPTION
                    umac-128@openssh.com
                    hmac-md5-etm@openssh.com
                    hmac-md5-96-etm@openssh.com
-                   hmac-ripemd160-etm@openssh.com
                    hmac-sha1-etm@openssh.com
                    hmac-sha1-96-etm@openssh.com
                    hmac-sha2-256-etm@openssh.com
@@ -634,7 +636,7 @@ DESCRIPTION
              ClientAliveInterval, DenyGroups, DenyUsers, ForceCommand,
              GatewayPorts, GSSAPIAuthentication, HostbasedAcceptedKeyTypes,
              HostbasedAuthentication, HostbasedUsesNameFromPacketOnly, IPQoS,
-             KbdInteractiveAuthentication, KerberosAuthentication,
+             KbdInteractiveAuthentication, KerberosAuthentication, LogLevel,
              MaxAuthTries, MaxSessions, PasswordAuthentication,
              PermitEmptyPasswords, PermitOpen, PermitRootLogin, PermitTTY,
              PermitTunnel, PermitUserRC, PubkeyAcceptedKeyTypes,
@@ -1017,4 +1019,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.0                     March 14, 2017                     OpenBSD 6.0
+OpenBSD 6.2                   September 27, 2017                   OpenBSD 6.2

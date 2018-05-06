@@ -3,10 +3,6 @@ SSH_CONFIG(5)                 File Formats Manual                SSH_CONFIG(5)
 NAME
      ssh_config M-bM-^@M-^S OpenSSH SSH client configuration files
 
-SYNOPSIS
-     ~/.ssh/config
-     /etc/ssh/ssh_config
-
 DESCRIPTION
      ssh(1) obtains configuration data from the following sources in the
      following order:
@@ -189,21 +185,14 @@ DESCRIPTION
              process, regardless of the setting of StrictHostKeyChecking.  If
              the option is set to no, the check will not be executed.
 
-     Cipher  Specifies the cipher to use for encrypting the session in
-             protocol version 1.  Currently, blowfish, 3des (the default), and
-             des are supported, though des is only supported in the ssh(1)
-             client for interoperability with legacy protocol 1
-             implementations; its use is strongly discouraged due to
-             cryptographic weaknesses.
-
      Ciphers
-             Specifies the ciphers allowed for protocol version 2 in order of
-             preference.  Multiple ciphers must be comma-separated.  If the
-             specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified
-             ciphers will be appended to the default set instead of replacing
-             them.  If the specified value begins with a M-bM-^@M-^X-M-bM-^@M-^Y character, then
-             the specified ciphers (including wildcards) will be removed from
-             the default set instead of replacing them.
+             Specifies the ciphers allowed and their order of preference.
+             Multiple ciphers must be comma-separated.  If the specified value
+             begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified ciphers will be
+             appended to the default set instead of replacing them.  If the
+             specified value begins with a M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified
+             ciphers (including wildcards) will be removed from the default
+             set instead of replacing them.
 
              The supported ciphers are:
 
@@ -216,11 +205,6 @@ DESCRIPTION
                    aes256-ctr
                    aes128-gcm@openssh.com
                    aes256-gcm@openssh.com
-                   arcfour
-                   arcfour128
-                   arcfour256
-                   blowfish-cbc
-                   cast128-cbc
                    chacha20-poly1305@openssh.com
 
              The default is:
@@ -244,13 +228,6 @@ DESCRIPTION
      Compression
              Specifies whether to use compression.  The argument must be yes
              or no (the default).
-
-     CompressionLevel
-             Specifies the compression level to use if compression is enabled.
-             The argument must be an integer from 1 (fast) to 9 (slow, best).
-             The default level is 6, which is good for most applications.  The
-             meaning of the values is the same as in gzip(1).  Note that this
-             option applies to protocol version 1 only.
 
      ConnectionAttempts
              Specifies the number of tries (one per second) to make before
@@ -491,8 +468,9 @@ DESCRIPTION
      HostKeyAlias
              Specifies an alias that should be used instead of the real host
              name when looking up or saving the host key in the host key
-             database files.  This option is useful for tunneling SSH
-             connections or for multiple servers running on a single host.
+             database files and when validating host certificates.  This
+             option is useful for tunneling SSH connections or for multiple
+             servers running on a single host.
 
      HostName
              Specifies the real host name to log into.  This can be used to
@@ -526,9 +504,8 @@ DESCRIPTION
 
      IdentityFile
              Specifies a file from which the user's DSA, ECDSA, Ed25519 or RSA
-             authentication identity is read.  The default is ~/.ssh/identity
-             for protocol version 1, and ~/.ssh/id_dsa, ~/.ssh/id_ecdsa,
-             ~/.ssh/id_ed25519 and ~/.ssh/id_rsa for protocol version 2.
+             authentication identity is read.  The default is ~/.ssh/id_dsa,
+             ~/.ssh/id_ecdsa, ~/.ssh/id_ed25519 and ~/.ssh/id_rsa.
              Additionally, any identities represented by the authentication
              agent will be used for authentication unless IdentitiesOnly is
              set.  If no certificates have been explicitly specified by
@@ -573,13 +550,14 @@ DESCRIPTION
      IPQoS   Specifies the IPv4 type-of-service or DSCP class for connections.
              Accepted values are af11, af12, af13, af21, af22, af23, af31,
              af32, af33, af41, af42, af43, cs0, cs1, cs2, cs3, cs4, cs5, cs6,
-             cs7, ef, lowdelay, throughput, reliability, or a numeric value.
-             This option may take one or two arguments, separated by
-             whitespace.  If one argument is specified, it is used as the
-             packet class unconditionally.  If two values are specified, the
-             first is automatically selected for interactive sessions and the
-             second for non-interactive sessions.  The default is lowdelay for
-             interactive sessions and throughput for non-interactive sessions.
+             cs7, ef, lowdelay, throughput, reliability, a numeric value, or
+             none to use the operating system default.  This option may take
+             one or two arguments, separated by whitespace.  If one argument
+             is specified, it is used as the packet class unconditionally.  If
+             two values are specified, the first is automatically selected for
+             interactive sessions and the second for non-interactive sessions.
+             The default is lowdelay for interactive sessions and throughput
+             for non-interactive sessions.
 
      KbdInteractiveAuthentication
              Specifies whether to use keyboard-interactive authentication.
@@ -712,15 +690,6 @@ DESCRIPTION
                    gssapi-with-mic,hostbased,publickey,
                    keyboard-interactive,password
 
-     Protocol
-             Specifies the protocol versions ssh(1) should support in order of
-             preference.  The possible values are 1 and 2.  Multiple versions
-             must be comma-separated.  When this option is set to 2,1 ssh will
-             try version 2 and fall back to version 1 if version 2 is not
-             available.  The default is version 2.  Protocol 1 suffers from a
-             number of cryptographic weaknesses and should not be used.  It is
-             only offered to support legacy devices.
-
      ProxyCommand
              Specifies the command to use to connect to the server.  The
              command string extends to the end of the line, and is executed
@@ -799,15 +768,29 @@ DESCRIPTION
              rekeying is performed after the cipher's default amount of data
              has been sent or received and no time based rekeying is done.
 
+     RemoteCommand
+             Specifies a command to execute on the remote machine after
+             successfully connecting to the server.  The command string
+             extends to the end of the line, and is executed with the user's
+             shell.  Arguments to RemoteCommand accept the tokens described in
+             the TOKENS section.
+
      RemoteForward
              Specifies that a TCP port on the remote machine be forwarded over
-             the secure channel to the specified host and port from the local
-             machine.  The first argument must be [bind_address:]port and the
-             second argument must be host:hostport.  IPv6 addresses can be
-             specified by enclosing addresses in square brackets.  Multiple
-             forwardings may be specified, and additional forwardings can be
-             given on the command line.  Privileged ports can be forwarded
-             only when logging in as root on the remote machine.
+             the secure channel.  The remote port may either be fowarded to a
+             specified host and port from the local machine, or may act as a
+             SOCKS 4/5 proxy that allows a remote client to connect to
+             arbitrary destinations from the local machine.  The first
+             argument must be [bind_address:]port If forwarding to a specific
+             destination then the second argument must be host:hostport,
+             otherwise if no destination argument is specified then the remote
+             forwarding will be established as a SOCKS proxy.
+
+             IPv6 addresses can be specified by enclosing addresses in square
+             brackets.  Multiple forwardings may be specified, and additional
+             forwardings can be given on the command line.  Privileged ports
+             can be forwarded only when logging in as root on the remote
+             machine.
 
              If the port argument is 0, the listen port will be dynamically
              allocated on the server and reported to the client at run time.
@@ -834,19 +817,6 @@ DESCRIPTION
              listing one public key per line, or as an OpenSSH Key Revocation
              List (KRL) as generated by ssh-keygen(1).  For more information
              on KRLs, see the KEY REVOCATION LISTS section in ssh-keygen(1).
-
-     RhostsRSAAuthentication
-             Specifies whether to try rhosts based authentication with RSA
-             host authentication.  The argument must be yes or no (the
-             default).  This option applies to protocol version 1 only and
-             requires ssh(1) to be setuid root.
-
-     RSAAuthentication
-             Specifies whether to try RSA authentication.  The argument to
-             this keyword must be yes (the default) or no.  RSA authentication
-             will only be attempted if the identity file exists, or an
-             authentication agent is running.  Note that this option applies
-             to protocol version 1 only.
 
      SendEnv
              Specifies what variables from the local environ(7) should be sent
@@ -916,14 +886,25 @@ DESCRIPTION
              protection against trojan horse attacks, though it can be
              annoying when the /etc/ssh/ssh_known_hosts file is poorly
              maintained or when connections to new hosts are frequently made.
-             This option forces the user to manually add all new hosts.  If
-             this flag is set to no, ssh will automatically add new host keys
-             to the user known hosts files.  If this flag is set to ask (the
-             default), new host keys will be added to the user known host
-             files only after the user has confirmed that is what they really
-             want to do, and ssh will refuse to connect to hosts whose host
-             key has changed.  The host keys of known hosts will be verified
-             automatically in all cases.
+             This option forces the user to manually add all new hosts.
+
+             If this flag is set to M-bM-^@M-^\accept-newM-bM-^@M-^] then ssh will automatically
+             add new host keys to the user known hosts files, but will not
+             permit connections to hosts with changed host keys.  If this flag
+             is set to M-bM-^@M-^\noM-bM-^@M-^] or M-bM-^@M-^\offM-bM-^@M-^], ssh will automatically add new host keys
+             to the user known hosts files and allow connections to hosts with
+             changed hostkeys to proceed, subject to some restrictions.  If
+             this flag is set to ask (the default), new host keys will be
+             added to the user known host files only after the user has
+             confirmed that is what they really want to do, and ssh will
+             refuse to connect to hosts whose host key has changed.  The host
+             keys of known hosts will be verified automatically in all cases.
+
+     SyslogFacility
+             Gives the facility code that is used when logging messages from
+             ssh(1).  The possible values are: DAEMON, USER, AUTH, LOCAL0,
+             LOCAL1, LOCAL2, LOCAL3, LOCAL4, LOCAL5, LOCAL6, LOCAL7.  The
+             default is USER.
 
      TCPKeepAlive
              Specifies whether the system should send TCP keepalive messages
@@ -973,9 +954,7 @@ DESCRIPTION
      UsePrivilegedPort
              Specifies whether to use a privileged port for outgoing
              connections.  The argument must be yes or no (the default).  If
-             set to yes, ssh(1) must be setuid root.  Note that this option
-             must be set to yes for RhostsRSAAuthentication with older
-             servers.
+             set to yes, ssh(1) must be setuid root.
 
      User    Specifies the user to log in as.  This can be useful when a
              different user name is used on different machines.  This saves
@@ -1065,6 +1044,8 @@ TOKENS
 
      ProxyCommand accepts the tokens %%, %h, %p, and %r.
 
+     RemoteCommand accepts the tokens %%, %C, %d, %h, %l, %n, %p, %r, and %u.
+
 FILES
      ~/.ssh/config
              This is the per-user configuration file.  The format of this file
@@ -1089,4 +1070,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.0                    February 27, 2017                   OpenBSD 6.0
+OpenBSD 6.2                   September 21, 2017                   OpenBSD 6.2

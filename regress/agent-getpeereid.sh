@@ -1,4 +1,4 @@
-#	$OpenBSD: agent-getpeereid.sh,v 1.8 2017/01/06 02:51:16 djm Exp $
+#	$OpenBSD: agent-getpeereid.sh,v 1.9 2017/09/13 14:58:26 bluhm Exp $
 #	Placed in the Public Domain.
 
 tid="disallow agent attach from other uid"

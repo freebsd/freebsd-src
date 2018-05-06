@@ -1,4 +1,4 @@
-See https://www.openssh.com/releasenotes.html#7.5p1 for the release notes.
+See https://www.openssh.com/releasenotes.html#7.6p1 for the release notes.
 
 Please read https://www.openssh.com/report.html for bug reporting
 instructions and note that we do not use Github for bug reporting or
@@ -30,7 +30,8 @@ The PAM support is now more functional than the popular packages of
 commercial ssh-1.2.x. It checks "account" and "session" modules for
 all logins, not just when using password authentication.
 
-OpenSSH depends on Zlib[3], OpenSSL[4] and optionally PAM[5].
+OpenSSH depends on Zlib[3], OpenSSL[4], and optionally PAM[5] and
+libedit[6]
 
 There is now several mailing lists for this port of OpenSSH. Please
 refer to https://www.openssh.com/list.html for details on how to join.
@@ -38,7 +39,7 @@ refer to https://www.openssh.com/list.html for details on how to join.
 Please send bug reports and patches to the mailing list
 openssh-unix-dev@mindrot.org. The list is open to posting by unsubscribed
 users.  Code contribution are welcomed, but please follow the OpenBSD
-style guidelines[6].
+style guidelines[7].
 
 Please refer to the INSTALL document for information on how to install
 OpenSSH on your system.
@@ -61,4 +62,5 @@ References -
 [5] http://www.openpam.org
     http://www.kernel.org/pub/linux/libs/pam/
     (PAM also is standard on Solaris and HP-UX 11)
-[6] http://man.openbsd.org/style.9
+[6] http://thrysoee.dk/editline/ (portable version)
+[7] http://man.openbsd.org/style.9

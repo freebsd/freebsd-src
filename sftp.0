@@ -4,7 +4,7 @@ NAME
      sftp M-bM-^@M-^S secure file transfer program
 
 SYNOPSIS
-     sftp [-1246aCfpqrv] [-B buffer_size] [-b batchfile] [-c cipher]
+     sftp [-46aCfpqrv] [-B buffer_size] [-b batchfile] [-c cipher]
           [-D sftp_server_path] [-F ssh_config] [-i identity_file] [-l limit]
           [-o ssh_option] [-P port] [-R num_requests] [-S program]
           [-s subsystem | sftp_server] host
@@ -35,10 +35,6 @@ DESCRIPTION
      ambiguity.
 
      The options are as follows:
-
-     -1      Specify the use of protocol version 1.
-
-     -2      Specify the use of protocol version 2.
 
      -4      Forces sftp to use IPv4 addresses only.
 
@@ -111,10 +107,8 @@ DESCRIPTION
                    CertificateFile
                    ChallengeResponseAuthentication
                    CheckHostIP
-                   Cipher
                    Ciphers
                    Compression
-                   CompressionLevel
                    ConnectionAttempts
                    ConnectTimeout
                    ControlMaster
@@ -145,13 +139,11 @@ DESCRIPTION
                    PKCS11Provider
                    Port
                    PreferredAuthentications
-                   Protocol
                    ProxyCommand
                    ProxyJump
+                   PubkeyAcceptedKeyTypes
                    PubkeyAuthentication
                    RekeyLimit
-                   RhostsRSAAuthentication
-                   RSAAuthentication
                    SendEnv
                    ServerAliveInterval
                    ServerAliveCountMax
@@ -187,9 +179,8 @@ DESCRIPTION
 
      -s subsystem | sftp_server
              Specifies the SSH2 subsystem or the path for an sftp server on
-             the remote host.  A path is useful for using sftp over protocol
-             version 1, or when the remote sshd(8) does not have an sftp
-             subsystem configured.
+             the remote host.  A path is useful when the remote sshd(8) does
+             not have an sftp subsystem configured.
 
      -v      Raise logging level.  This option is also passed to ssh.
 
@@ -383,4 +374,4 @@ SEE ALSO
      T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
      filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 6.0                      July 16, 2016                     OpenBSD 6.0
+OpenBSD 6.2                       May 3, 2017                      OpenBSD 6.2
