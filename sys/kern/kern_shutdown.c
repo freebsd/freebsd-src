@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/ktr.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/mount.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
@@ -1090,10 +1091,6 @@ set_dumper(struct dumperinfo *di, const char *devname, struct thread *td,
 	if (error != 0)
 		return (error);
 
-	if (di == NULL) {
-		error = 0;
-		goto cleanup;
-	}
 	if (dumper.dumper != NULL)
 		return (EBUSY);
 	dumper = *di;
@@ -1139,7 +1136,25 @@ set_dumper(struct dumperinfo *di, const char *devname, struct thread *td,
 
 	dumper.blockbuf = malloc(di->blocksize, M_DUMPER, M_WAITOK | M_ZERO);
 	return (0);
+
 cleanup:
+	(void)clear_dumper(td);
+	return (error);
+}
+
+int
+clear_dumper(struct thread *td)
+{
+	int error;
+
+	error = priv_check(td, PRIV_SETDUMPER);
+	if (error != 0)
+		return (error);
+
+#ifdef NETDUMP
+	netdump_mbuf_drain();
+#endif
+
 #ifdef EKCD
 	if (dumper.kdcrypto != NULL) {
 		explicit_bzero(dumper.kdcrypto, sizeof(*dumper.kdcrypto) +
@@ -1156,14 +1171,14 @@ cleanup:
 	}
 	explicit_bzero(&dumper, sizeof(dumper));
 	dumpdevname[0] = '\0';
-	return (error);
+	return (0);
 }
 
 static int
 dump_check_bounds(struct dumperinfo *di, off_t offset, size_t length)
 {
 
-	if (length != 0 && (offset < di->mediaoffset ||
+	if (di->mediasize > 0 && length != 0 && (offset < di->mediaoffset ||
 	    offset - di->mediaoffset + length > di->mediasize)) {
 		if (di->kdcomp != NULL && offset >= di->mediaoffset) {
 			printf(
@@ -1244,18 +1259,6 @@ dump_encrypted_write(struct dumperinfo *di, void *virtual,
 
 	return (0);
 }
-
-static int
-dump_write_key(struct dumperinfo *di, off_t offset)
-{
-	struct kerneldumpcrypto *kdc;
-
-	kdc = di->kdcrypto;
-	if (kdc == NULL)
-		return (0);
-	return (dump_write(di, kdc->kdc_dumpkey, 0, offset,
-	    kdc->kdc_dumpkeysize));
-}
 #endif /* EKCD */
 
 static int
@@ -1289,19 +1292,41 @@ kerneldumpcomp_write_cb(void *base, size_t length, off_t offset, void *arg)
 }
 
 /*
- * Write a kerneldumpheader at the specified offset. The header structure is 512
- * bytes in size, but we must pad to the device sector size.
+ * Write kernel dump headers at the beginning and end of the dump extent.
+ * Write the kernel dump encryption key after the leading header if we were
+ * configured to do so.
  */
 static int
-dump_write_header(struct dumperinfo *di, struct kerneldumpheader *kdh,
-    off_t offset)
+dump_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh)
 {
-	void *buf;
+#ifdef EKCD
+	struct kerneldumpcrypto *kdc;
+#endif
+	void *buf, *key;
 	size_t hdrsz;
+	uint64_t extent;
+	uint32_t keysize;
+	int error;
 
 	hdrsz = sizeof(*kdh);
 	if (hdrsz > di->blocksize)
 		return (ENOMEM);
+
+#ifdef EKCD
+	kdc = di->kdcrypto;
+	key = kdc->kdc_dumpkey;
+	keysize = kerneldumpcrypto_dumpkeysize(kdc);
+#else
+	key = NULL;
+	keysize = 0;
+#endif
+
+	/*
+	 * If the dump device has special handling for headers, let it take care
+	 * of writing them out.
+	 */
+	if (di->dumper_hdr != NULL)
+		return (di->dumper_hdr(di, kdh, key, keysize));
 
 	if (hdrsz == di->blocksize)
 		buf = kdh;
@@ -1311,7 +1336,24 @@ dump_write_header(struct dumperinfo *di, struct kerneldumpheader *kdh,
 		memcpy(buf, kdh, hdrsz);
 	}
 
-	return (dump_write(di, buf, 0, offset, di->blocksize));
+	extent = dtoh64(kdh->dumpextent);
+#ifdef EKCD
+	if (kdc != NULL) {
+		error = dump_write(di, kdc->kdc_dumpkey, 0,
+		    di->mediaoffset + di->mediasize - di->blocksize - extent -
+		    keysize, keysize);
+		if (error != 0)
+			return (error);
+	}
+#endif
+
+	error = dump_write(di, buf, 0,
+	    di->mediaoffset + di->mediasize - 2 * di->blocksize - extent -
+	    keysize, di->blocksize);
+	if (error == 0)
+		error = dump_write(di, buf, 0, di->mediaoffset + di->mediasize -
+		    di->blocksize, di->blocksize);
+	return (error);
 }
 
 /*
@@ -1336,26 +1378,37 @@ dump_write_header(struct dumperinfo *di, struct kerneldumpheader *kdh,
  * Uncompressed dumps will use the entire extent, but compressed dumps typically
  * will not. The true length of the dump is recorded in the leading and trailing
  * headers once the dump has been completed.
+ *
+ * The dump device may provide a callback, in which case it will initialize
+ * dumpoff and take care of laying out the headers.
  */
 int
 dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh)
 {
-	uint64_t dumpextent;
+	uint64_t dumpextent, span;
 	uint32_t keysize;
+	int error;
 
 #ifdef EKCD
-	int error = kerneldumpcrypto_init(di->kdcrypto);
+	error = kerneldumpcrypto_init(di->kdcrypto);
 	if (error != 0)
 		return (error);
 	keysize = kerneldumpcrypto_dumpkeysize(di->kdcrypto);
 #else
+	error = 0;
 	keysize = 0;
 #endif
 
-	dumpextent = dtoh64(kdh->dumpextent);
-	if (di->mediasize < SIZEOF_METADATA + dumpextent + 2 * di->blocksize +
-	    keysize) {
-		if (di->kdcomp != NULL) {
+	if (di->dumper_start != NULL) {
+		error = di->dumper_start(di);
+	} else {
+		dumpextent = dtoh64(kdh->dumpextent);
+		span = SIZEOF_METADATA + dumpextent + 2 * di->blocksize +
+		    keysize;
+		if (di->mediasize < span) {
+			if (di->kdcomp == NULL)
+				return (E2BIG);
+
 			/*
 			 * We don't yet know how much space the compressed dump
 			 * will occupy, so try to use the whole swap partition
@@ -1364,18 +1417,18 @@ dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh)
 			 * be enough, the bounds checking in dump_write()
 			 * will catch us and cause the dump to fail.
 			 */
-			dumpextent = di->mediasize - SIZEOF_METADATA -
-			    2 * di->blocksize - keysize;
+			dumpextent = di->mediasize - span + dumpextent;
 			kdh->dumpextent = htod64(dumpextent);
-		} else
-			return (E2BIG);
+		}
+
+		/*
+		 * The offset at which to begin writing the dump.
+		 */
+		di->dumpoff = di->mediaoffset + di->mediasize - di->blocksize -
+		    dumpextent;
 	}
-
-	/* The offset at which to begin writing the dump. */
-	di->dumpoff = di->mediaoffset + di->mediasize - di->blocksize -
-	    dumpextent;
-
-	return (0);
+	di->origdumpoff = di->dumpoff;
+	return (error);
 }
 
 static int
@@ -1443,16 +1496,9 @@ int
 dump_finish(struct dumperinfo *di, struct kerneldumpheader *kdh)
 {
 	uint64_t extent;
-	uint32_t keysize;
 	int error;
 
 	extent = dtoh64(kdh->dumpextent);
-
-#ifdef EKCD
-	keysize = kerneldumpcrypto_dumpkeysize(di->kdcrypto);
-#else
-	keysize = 0;
-#endif
 
 	if (di->kdcomp != NULL) {
 		error = compressor_flush(di->kdcomp->kdc_stream);
@@ -1470,33 +1516,14 @@ dump_finish(struct dumperinfo *di, struct kerneldumpheader *kdh)
 		 * We now know the size of the compressed dump, so update the
 		 * header accordingly and recompute parity.
 		 */
-		kdh->dumplength = htod64(di->dumpoff -
-		    (di->mediaoffset + di->mediasize - di->blocksize - extent));
+		kdh->dumplength = htod64(di->dumpoff - di->origdumpoff);
 		kdh->parity = 0;
 		kdh->parity = kerneldump_parity(kdh);
 
 		compressor_reset(di->kdcomp->kdc_stream);
 	}
 
-	/*
-	 * Write kerneldump headers at the beginning and end of the dump extent.
-	 * Write the key after the leading header.
-	 */
-	error = dump_write_header(di, kdh,
-	    di->mediaoffset + di->mediasize - 2 * di->blocksize - extent -
-	    keysize);
-	if (error != 0)
-		return (error);
-
-#ifdef EKCD
-	error = dump_write_key(di,
-	    di->mediaoffset + di->mediasize - di->blocksize - extent - keysize);
-	if (error != 0)
-		return (error);
-#endif
-
-	error = dump_write_header(di, kdh,
-	    di->mediaoffset + di->mediasize - di->blocksize);
+	error = dump_write_headers(di, kdh);
 	if (error != 0)
 		return (error);
 
