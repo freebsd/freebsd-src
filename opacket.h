@@ -1,3 +1,4 @@
+/* $OpenBSD: opacket.h,v 1.12 2017/10/20 01:56:39 djm Exp $ */
 #ifndef _OPACKET_H
 /* Written by Markus Friedl. Placed in the public domain.  */
 

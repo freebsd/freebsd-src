@@ -32,6 +32,7 @@
 #include "hostfile.h"
 #include "auth.h"
 #include "ssh.h"
+#include "ssh_api.h"
 #include "log.h"
 
 #ifdef _AIX
@@ -171,8 +172,9 @@ aix_valid_authentications(const char *user)
  * returns 0.
  */
 int
-sys_auth_passwd(Authctxt *ctxt, const char *password)
+sys_auth_passwd(struct ssh *ssh, const char *password)
 {
+	Authctxt *ctxt = ssh->authctxt;
 	char *authmsg = NULL, *msg = NULL, *name = ctxt->pw->pw_name;
 	int authsuccess = 0, expired, reenter, result;
 

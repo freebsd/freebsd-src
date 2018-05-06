@@ -226,8 +226,10 @@ DESCRIPTION
      -O option
              Specify a certificate option when signing a key.  This option may
              be specified multiple times.  See also the CERTIFICATES section
-             for further details.  The options that are valid for user
-             certificates are:
+             for further details.
+
+             At present, no standard options are valid for host keys.  The
+             options that are valid for user certificates are:
 
              clear   Clear all enabled permissions.  This is useful for
                      clearing the default set of permissions so permissions
@@ -245,8 +247,6 @@ DESCRIPTION
                      client or server that does not recognise them, whereas
                      unknown critical options will cause the certificate to be
                      refused.
-
-                     At present, no standard options are valid for host keys.
 
              force-command=command
                      Forces the execution of command instead of any shell or
@@ -280,7 +280,7 @@ DESCRIPTION
              permit-user-rc
                      Allows execution of ~/.ssh/rc by sshd(8).
 
-             permit-x11-forwarding
+             permit-X11-forwarding
                      Allows X11 forwarding.
 
              source-address=address_list
@@ -349,19 +349,26 @@ DESCRIPTION
              validity interval may consist of a single time, indicating that
              the certificate is valid beginning now and expiring at that time,
              or may consist of two times separated by a colon to indicate an
-             explicit time interval.  The start time may be specified as a
-             date in YYYYMMDD format, a time in YYYYMMDDHHMMSS format or a
-             relative time (to the current time) consisting of a minus sign
-             followed by a relative time in the format described in the TIME
-             FORMATS section of sshd_config(5).  The end time may be specified
-             as a YYYYMMDD date, a YYYYMMDDHHMMSS time or a relative time
-             starting with a plus character.
+             explicit time interval.
+
+             The start time may be specified as the string M-bM-^@M-^\alwaysM-bM-^@M-^] to
+             indicate the certificate has no specified start time, a date in
+             YYYYMMDD format, a time in YYYYMMDDHHMM[SS] format, a relative
+             time (to the current time) consisting of a minus sign followed by
+             an interval in the format described in the TIME FORMATS section
+             of sshd_config(5).
+
+             The end time may be specified as a YYYYMMDD date, a
+             YYYYMMDDHHMM[SS] time, a relative time starting with a plus
+             character or the string M-bM-^@M-^\foreverM-bM-^@M-^] to indicate that the
+             certificate has no expirty date.
 
              For example: M-bM-^@M-^\+52w1dM-bM-^@M-^] (valid from now to 52 weeks and one day
              from now), M-bM-^@M-^\-4w:+4wM-bM-^@M-^] (valid from four weeks ago to four weeks
              from now), M-bM-^@M-^\20100101123000:20110101123000M-bM-^@M-^] (valid from 12:30 PM,
              January 1st, 2010 to 12:30 PM, January 1st, 2011), M-bM-^@M-^\-1d:20110101M-bM-^@M-^]
              (valid from yesterday to midnight, January 1st, 2011).
+             M-bM-^@M-^\-1m:foreverM-bM-^@M-^] (valid from one minute ago and never expiring).
 
      -v      Verbose mode.  Causes ssh-keygen to print debugging messages
              about its progress.  This is helpful for debugging moduli
@@ -570,4 +577,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.2                      July 8, 2017                      OpenBSD 6.2
+OpenBSD 6.2                     March 12, 2018                     OpenBSD 6.2

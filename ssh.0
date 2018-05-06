@@ -4,13 +4,13 @@ NAME
      ssh M-bM-^@M-^S OpenSSH SSH client (remote login program)
 
 SYNOPSIS
-     ssh [-46AaCfGgKkMNnqsTtVvXxYy] [-b bind_address] [-c cipher_spec]
-         [-D [bind_address:]port] [-E log_file] [-e escape_char]
-         [-F configfile] [-I pkcs11] [-i identity_file]
-         [-J [user@]host[:port]] [-L address] [-l login_name] [-m mac_spec]
+     ssh [-46AaCfGgKkMNnqsTtVvXxYy] [-B bind_interface] [-b bind_address]
+         [-c cipher_spec] [-D [bind_address:]port] [-E log_file]
+         [-e escape_char] [-F configfile] [-I pkcs11] [-i identity_file]
+         [-J destination] [-L address] [-l login_name] [-m mac_spec]
          [-O ctl_cmd] [-o option] [-p port] [-Q query_option] [-R address]
-         [-S ctl_path] [-W host:port] [-w local_tun[:remote_tun]]
-         [user@]hostname [command]
+         [-S ctl_path] [-W host:port] [-w local_tun[:remote_tun]] destination
+         [command]
 
 DESCRIPTION
      ssh (SSH client) is a program for logging into a remote machine and for
@@ -19,11 +19,12 @@ DESCRIPTION
      network.  X11 connections, arbitrary TCP ports and UNIX-domain sockets
      can also be forwarded over the secure channel.
 
-     ssh connects and logs into the specified hostname (with optional user
-     name).  The user must prove his/her identity to the remote machine using
-     one of several methods (see below).
+     ssh connects and logs into the specified destination, which may be
+     specified as either [user@]hostname or a URI of the form
+     ssh://[user@]hostname[:port].  The user must prove his/her identity to
+     the remote machine using one of several methods (see below).
 
-     If command is specified, it is executed on the remote host instead of a
+     If a command is specified, it is executed on the remote host instead of a
      login shell.
 
      The options are as follows:
@@ -45,6 +46,11 @@ DESCRIPTION
              the agent.
 
      -a      Disables forwarding of the authentication agent connection.
+
+     -B bind_interface
+             Bind to the address of bind_interface before attempting to
+             connect to the destination host.  This is only useful on systems
+             with more than one address.
 
      -b bind_address
              Use bind_address on the local machine as the source address of
@@ -138,12 +144,12 @@ DESCRIPTION
              information from the filename obtained by appending -cert.pub to
              identity filenames.
 
-     -J [user@]host[:port]
+     -J destination
              Connect to the target host by first making a ssh connection to
-             the jump host and then establishing a TCP forwarding to the
-             ultimate destination from there.  Multiple jump hops may be
-             specified separated by comma characters.  This is a shortcut to
-             specify a ProxyJump configuration directive.
+             the jump host described by destination and then establishing a
+             TCP forwarding to the ultimate destination from there.  Multiple
+             jump hops may be specified separated by comma characters.  This
+             is a shortcut to specify a ProxyJump configuration directive.
 
      -K      Enables GSSAPI-based authentication and forwarding (delegation)
              of GSSAPI credentials to the server.
@@ -785,6 +791,16 @@ ENVIRONMENT
                            command.  If the current session has no tty, this
                            variable is not set.
 
+     SSH_TUNNEL            Optionally set by sshd(8) to contain the interface
+                           names assigned if tunnel forwarding was requested
+                           by the client.
+
+     SSH_USER_AUTH         Optionally set by sshd(8), this variable may
+                           contain a pathname to a file that lists the
+                           authentication methods successfully used when the
+                           session was established, including any public keys
+                           that were used.
+
      TZ                    This variable is set to indicate the present time
                            zone if it was set when the daemon was started
                            (i.e. the daemon passes the value on to new
@@ -846,7 +862,7 @@ FILES
              ignore a private key file if it is accessible by others.  It is
              possible to specify a passphrase when generating the key which
              will be used to encrypt the sensitive part of this file using
-             3DES.
+             AES-128.
 
      ~/.ssh/id_dsa.pub
      ~/.ssh/id_ecdsa.pub
@@ -957,4 +973,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.2                   September 21, 2017                   OpenBSD 6.2
+OpenBSD 6.2                    February 23, 2018                   OpenBSD 6.2

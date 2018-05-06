@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshkey.c,v 1.12 2017/05/08 06:08:42 djm Exp $ */
+/* 	$OpenBSD: test_sshkey.c,v 1.13 2017/12/21 00:41:22 djm Exp $ */
 /*
  * Regress test for sshkey.h key management API
  *
@@ -121,11 +121,11 @@ signature_test(struct sshkey *k, struct sshkey *bad, const char *sig_alg,
 	ASSERT_INT_EQ(sshkey_sign(k, &sig, &len, d, l, sig_alg, 0), 0);
 	ASSERT_SIZE_T_GT(len, 8);
 	ASSERT_PTR_NE(sig, NULL);
-	ASSERT_INT_EQ(sshkey_verify(k, sig, len, d, l, 0), 0);
-	ASSERT_INT_NE(sshkey_verify(bad, sig, len, d, l, 0), 0);
+	ASSERT_INT_EQ(sshkey_verify(k, sig, len, d, l, NULL, 0), 0);
+	ASSERT_INT_NE(sshkey_verify(bad, sig, len, d, l, NULL, 0), 0);
 	/* Fuzz test is more comprehensive, this is just a smoke test */
 	sig[len - 5] ^= 0x10;
-	ASSERT_INT_NE(sshkey_verify(k, sig, len, d, l, 0), 0);
+	ASSERT_INT_NE(sshkey_verify(k, sig, len, d, l, NULL, 0), 0);
 	free(sig);
 }
 

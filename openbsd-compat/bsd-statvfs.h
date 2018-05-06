@@ -26,6 +26,9 @@
 #ifdef HAVE_SYS_STATFS_H
 #include <sys/statfs.h>
 #endif
+#ifdef HAVE_SYS_VFS_H
+#include <sys/vfs.h>
+#endif
 
 #ifndef HAVE_FSBLKCNT_T
 typedef unsigned long fsblkcnt_t;

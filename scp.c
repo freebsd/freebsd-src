@@ -1,4 +1,4 @@
-/* $OpenBSD: scp.c,v 1.192 2017/05/31 09:15:42 deraadt Exp $ */
+/* $OpenBSD: scp.c,v 1.195 2018/02/10 06:15:12 djm Exp $ */
 /*
  * scp - secure remote copy.  This is basically patched BSD rcp which
  * uses ssh to do the data transfer (instead of using rcmd).
@@ -112,6 +112,7 @@
 #endif
 
 #include "xmalloc.h"
+#include "ssh.h"
 #include "atomicio.h"
 #include "pathnames.h"
 #include "log.h"
@@ -123,8 +124,8 @@ extern char *__progname;
 
 #define COPY_BUFLEN	16384
 
-int do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout);
-int do_cmd2(char *host, char *remuser, char *cmd, int fdin, int fdout);
+int do_cmd(char *host, char *remuser, int port, char *cmd, int *fdin, int *fdout);
+int do_cmd2(char *host, char *remuser, int port, char *cmd, int fdin, int fdout);
 
 /* Struct for addargs */
 arglist args;
@@ -148,6 +149,9 @@ int showprogress = 1;
  * through this process.
  */
 int throughlocal = 0;
+
+/* Non-standard port to use for the ssh connection or -1. */
+int sshport = -1;
 
 /* This is the program to execute for the secured connection. ("ssh" or -S) */
 char *ssh_program = _PATH_SSH_PROGRAM;
@@ -231,7 +235,7 @@ do_local_cmd(arglist *a)
  */
 
 int
-do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout)
+do_cmd(char *host, char *remuser, int port, char *cmd, int *fdin, int *fdout)
 {
 	int pin[2], pout[2], reserved[2];
 
@@ -240,6 +244,9 @@ do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout)
 		    "Executing: program %s host %s, user %s, command %s\n",
 		    ssh_program, host,
 		    remuser ? remuser : "(unspecified)", cmd);
+
+	if (port == -1)
+		port = sshport;
 
 	/*
 	 * Reserve two descriptors so that the real pipes won't get
@@ -274,6 +281,10 @@ do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout)
 		close(pout[1]);
 
 		replacearg(&args, 0, "%s", ssh_program);
+		if (port != -1) {
+			addargs(&args, "-p");
+			addargs(&args, "%d", port);
+		}
 		if (remuser != NULL) {
 			addargs(&args, "-l");
 			addargs(&args, "%s", remuser);
@@ -305,7 +316,7 @@ do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout)
  * This way the input and output of two commands can be connected.
  */
 int
-do_cmd2(char *host, char *remuser, char *cmd, int fdin, int fdout)
+do_cmd2(char *host, char *remuser, int port, char *cmd, int fdin, int fdout)
 {
 	pid_t pid;
 	int status;
@@ -316,6 +327,9 @@ do_cmd2(char *host, char *remuser, char *cmd, int fdin, int fdout)
 		    ssh_program, host,
 		    remuser ? remuser : "(unspecified)", cmd);
 
+	if (port == -1)
+		port = sshport;
+
 	/* Fork a child to execute the command on the remote host using ssh. */
 	pid = fork();
 	if (pid == 0) {
@@ -323,6 +337,10 @@ do_cmd2(char *host, char *remuser, char *cmd, int fdin, int fdout)
 		dup2(fdout, 1);
 
 		replacearg(&args, 0, "%s", ssh_program);
+		if (port != -1) {
+			addargs(&args, "-p");
+			addargs(&args, "%d", port);
+		}
 		if (remuser != NULL) {
 			addargs(&args, "-l");
 			addargs(&args, "%s", remuser);
@@ -367,14 +385,14 @@ void rsource(char *, struct stat *);
 void sink(int, char *[]);
 void source(int, char *[]);
 void tolocal(int, char *[]);
-void toremote(char *, int, char *[]);
+void toremote(int, char *[]);
 void usage(void);
 
 int
 main(int argc, char **argv)
 {
 	int ch, fflag, tflag, status, n;
-	char *targ, **newargv;
+	char **newargv;
 	const char *errstr;
 	extern char *optarg;
 	extern int optind;
@@ -400,6 +418,8 @@ main(int argc, char **argv)
 	addargs(&args, "-oForwardAgent=no");
 	addargs(&args, "-oPermitLocalCommand=no");
 	addargs(&args, "-oClearAllForwardings=yes");
+	addargs(&args, "-oRemoteCommand=none");
+	addargs(&args, "-oRequestTTY=no");
 
 	fflag = tflag = 0;
 	while ((ch = getopt(argc, argv, "dfl:prtvBCc:i:P:q12346S:o:F:")) != -1)
@@ -430,10 +450,9 @@ main(int argc, char **argv)
 			addargs(&args, "%s", optarg);
 			break;
 		case 'P':
-			addargs(&remote_remote_args, "-p");
-			addargs(&remote_remote_args, "%s", optarg);
-			addargs(&args, "-p");
-			addargs(&args, "%s", optarg);
+			sshport = a2port(optarg);
+			if (sshport <= 0)
+				fatal("bad port \"%s\"\n", optarg);
 			break;
 		case 'B':
 			addargs(&remote_remote_args, "-oBatchmode=yes");
@@ -533,8 +552,8 @@ main(int argc, char **argv)
 
 	(void) signal(SIGPIPE, lostconn);
 
-	if ((targ = colon(argv[argc - 1])))	/* Dest is remote host. */
-		toremote(targ, argc, argv);
+	if (colon(argv[argc - 1]))	/* Dest is remote host. */
+		toremote(argc, argv);
 	else {
 		if (targetshouldbedirectory)
 			verifydir(argv[argc - 1]);
@@ -589,72 +608,90 @@ do_times(int fd, int verb, const struct stat *sb)
 	return (response());
 }
 
-void
-toremote(char *targ, int argc, char **argv)
+static int
+parse_scp_uri(const char *uri, char **userp, char **hostp, int *portp,
+     char **pathp)
 {
-	char *bp, *host, *src, *suser, *thost, *tuser, *arg;
+	int r;
+
+	r = parse_uri("scp", uri, userp, hostp, portp, pathp);
+	if (r == 0 && *pathp == NULL)
+		*pathp = xstrdup(".");
+	return r;
+}
+
+void
+toremote(int argc, char **argv)
+{
+	char *suser = NULL, *host = NULL, *src = NULL;
+	char *bp, *tuser, *thost, *targ;
+	int sport = -1, tport = -1;
 	arglist alist;
-	int i;
+	int i, r;
 	u_int j;
 
 	memset(&alist, '\0', sizeof(alist));
 	alist.list = NULL;
 
-	*targ++ = 0;
-	if (*targ == 0)
-		targ = ".";
-
-	arg = xstrdup(argv[argc - 1]);
-	if ((thost = strrchr(arg, '@'))) {
-		/* user@host */
-		*thost++ = 0;
-		tuser = arg;
-		if (*tuser == '\0')
-			tuser = NULL;
-	} else {
-		thost = arg;
-		tuser = NULL;
+	/* Parse target */
+	r = parse_scp_uri(argv[argc - 1], &tuser, &thost, &tport, &targ);
+	if (r == -1) {
+		fmprintf(stderr, "%s: invalid uri\n", argv[argc - 1]);
+		++errs;
+		goto out;
 	}
-
+	if (r != 0) {
+		if (parse_user_host_path(argv[argc - 1], &tuser, &thost,
+		    &targ) == -1) {
+			fmprintf(stderr, "%s: invalid target\n", argv[argc - 1]);
+			++errs;
+			goto out;
+		}
+	}
 	if (tuser != NULL && !okname(tuser)) {
-		free(arg);
-		return;
+		++errs;
+		goto out;
 	}
 
+	/* Parse source files */
 	for (i = 0; i < argc - 1; i++) {
-		src = colon(argv[i]);
-		if (src && throughlocal) {	/* extended remote to remote */
-			*src++ = 0;
-			if (*src == 0)
-				src = ".";
-			host = strrchr(argv[i], '@');
-			if (host) {
-				*host++ = 0;
-				host = cleanhostname(host);
-				suser = argv[i];
-				if (*suser == '\0')
-					suser = pwd->pw_name;
-				else if (!okname(suser))
-					continue;
-			} else {
-				host = cleanhostname(argv[i]);
-				suser = NULL;
-			}
+		free(suser);
+		free(host);
+		free(src);
+		r = parse_scp_uri(argv[i], &suser, &host, &sport, &src);
+		if (r == -1) {
+			fmprintf(stderr, "%s: invalid uri\n", argv[i]);
+			++errs;
+			continue;
+		}
+		if (r != 0) {
+			parse_user_host_path(argv[i], &suser, &host, &src);
+		}
+		if (suser != NULL && !okname(suser)) {
+			++errs;
+			continue;
+		}
+		if (host && throughlocal) {	/* extended remote to remote */
 			xasprintf(&bp, "%s -f %s%s", cmd,
 			    *src == '-' ? "-- " : "", src);
-			if (do_cmd(host, suser, bp, &remin, &remout) < 0)
+			if (do_cmd(host, suser, sport, bp, &remin, &remout) < 0)
 				exit(1);
 			free(bp);
-			host = cleanhostname(thost);
 			xasprintf(&bp, "%s -t %s%s", cmd,
 			    *targ == '-' ? "-- " : "", targ);
-			if (do_cmd2(host, tuser, bp, remin, remout) < 0)
+			if (do_cmd2(thost, tuser, tport, bp, remin, remout) < 0)
 				exit(1);
 			free(bp);
 			(void) close(remin);
 			(void) close(remout);
 			remin = remout = -1;
-		} else if (src) {	/* standard remote to remote */
+		} else if (host) {	/* standard remote to remote */
+			if (tport != -1 && tport != SSH_DEFAULT_PORT) {
+				/* This would require the remote support URIs */
+				fatal("target port not supported with two "
+				    "remote hosts without the -3 option");
+			}
+
 			freeargs(&alist);
 			addargs(&alist, "%s", ssh_program);
 			addargs(&alist, "-x");
@@ -664,23 +701,14 @@ toremote(char *targ, int argc, char **argv)
 				addargs(&alist, "%s",
 				    remote_remote_args.list[j]);
 			}
-			*src++ = 0;
-			if (*src == 0)
-				src = ".";
-			host = strrchr(argv[i], '@');
 
-			if (host) {
-				*host++ = 0;
-				host = cleanhostname(host);
-				suser = argv[i];
-				if (*suser == '\0')
-					suser = pwd->pw_name;
-				else if (!okname(suser))
-					continue;
+			if (sport != -1) {
+				addargs(&alist, "-p");
+				addargs(&alist, "%d", sport);
+			}
+			if (suser) {
 				addargs(&alist, "-l");
 				addargs(&alist, "%s", suser);
-			} else {
-				host = cleanhostname(argv[i]);
 			}
 			addargs(&alist, "--");
 			addargs(&alist, "%s", host);
@@ -695,8 +723,7 @@ toremote(char *targ, int argc, char **argv)
 			if (remin == -1) {
 				xasprintf(&bp, "%s -t %s%s", cmd,
 				    *targ == '-' ? "-- " : "", targ);
-				host = cleanhostname(thost);
-				if (do_cmd(host, tuser, bp, &remin,
+				if (do_cmd(thost, tuser, tport, bp, &remin,
 				    &remout) < 0)
 					exit(1);
 				if (response() < 0)
@@ -706,21 +733,42 @@ toremote(char *targ, int argc, char **argv)
 			source(1, argv + i);
 		}
 	}
-	free(arg);
+out:
+	free(tuser);
+	free(thost);
+	free(targ);
+	free(suser);
+	free(host);
+	free(src);
 }
 
 void
 tolocal(int argc, char **argv)
 {
-	char *bp, *host, *src, *suser;
+	char *bp, *host = NULL, *src = NULL, *suser = NULL;
 	arglist alist;
-	int i;
+	int i, r, sport = -1;
 
 	memset(&alist, '\0', sizeof(alist));
 	alist.list = NULL;
 
 	for (i = 0; i < argc - 1; i++) {
-		if (!(src = colon(argv[i]))) {	/* Local to local. */
+		free(suser);
+		free(host);
+		free(src);
+		r = parse_scp_uri(argv[i], &suser, &host, &sport, &src);
+		if (r == -1) {
+			fmprintf(stderr, "%s: invalid uri\n", argv[i]);
+			++errs;
+			continue;
+		}
+		if (r != 0)
+			parse_user_host_path(argv[i], &suser, &host, &src);
+		if (suser != NULL && !okname(suser)) {
+			++errs;
+			continue;
+		}
+		if (!host) {	/* Local to local. */
 			freeargs(&alist);
 			addargs(&alist, "%s", _PATH_CP);
 			if (iamrecursive)
@@ -734,22 +782,10 @@ tolocal(int argc, char **argv)
 				++errs;
 			continue;
 		}
-		*src++ = 0;
-		if (*src == 0)
-			src = ".";
-		if ((host = strrchr(argv[i], '@')) == NULL) {
-			host = argv[i];
-			suser = NULL;
-		} else {
-			*host++ = 0;
-			suser = argv[i];
-			if (*suser == '\0')
-				suser = pwd->pw_name;
-		}
-		host = cleanhostname(host);
+		/* Remote to local. */
 		xasprintf(&bp, "%s -f %s%s",
 		    cmd, *src == '-' ? "-- " : "", src);
-		if (do_cmd(host, suser, bp, &remin, &remout) < 0) {
+		if (do_cmd(host, suser, sport, bp, &remin, &remout) < 0) {
 			free(bp);
 			++errs;
 			continue;
@@ -759,6 +795,9 @@ tolocal(int argc, char **argv)
 		(void) close(remin);
 		remin = remout = -1;
 	}
+	free(suser);
+	free(host);
+	free(src);
 }
 
 void
@@ -1275,8 +1314,7 @@ usage(void)
 {
 	(void) fprintf(stderr,
 	    "usage: scp [-346BCpqrv] [-c cipher] [-F ssh_config] [-i identity_file]\n"
-	    "           [-l limit] [-o ssh_option] [-P port] [-S program]\n"
-	    "           [[user@]host1:]file1 ... [[user@]host2:]file2\n");
+	    "           [-l limit] [-o ssh_option] [-P port] [-S program] source ... target\n");
 	exit(1);
 }
 
