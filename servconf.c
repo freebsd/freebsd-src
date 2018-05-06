@@ -1,5 +1,5 @@
 
-/* $OpenBSD: servconf.c,v 1.306 2017/03/14 07:19:07 djm Exp $ */
+/* $OpenBSD: servconf.c,v 1.312 2017/10/02 19:33:20 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -149,7 +149,7 @@ initialize_server_options(ServerOptions *options)
 	options->num_authkeys_files = 0;
 	options->num_accept_env = 0;
 	options->permit_tun = -1;
-	options->num_permitted_opens = -1;
+	options->permitted_opens = NULL;
 	options->adm_forced_command = NULL;
 	options->chroot_directory = NULL;
 	options->authorized_keys_command = NULL;
@@ -164,6 +164,7 @@ initialize_server_options(ServerOptions *options)
 	options->version_addendum = NULL;
 	options->fingerprint_hash = -1;
 	options->disable_forwarding = -1;
+	options->expose_userauth_info = -1;
 }
 
 /* Returns 1 if a string option is unset or set to "none" or 0 otherwise. */
@@ -333,6 +334,8 @@ fill_default_server_options(ServerOptions *options)
 		options->fingerprint_hash = SSH_FP_HASH_DEFAULT;
 	if (options->disable_forwarding == -1)
 		options->disable_forwarding = 0;
+	if (options->expose_userauth_info == -1)
+		options->expose_userauth_info = 0;
 
 	assemble_algorithms(options);
 
@@ -418,6 +421,7 @@ typedef enum {
 	sAuthenticationMethods, sHostKeyAgent, sPermitUserRC,
 	sStreamLocalBindMask, sStreamLocalBindUnlink,
 	sAllowStreamLocalForwarding, sFingerprintHash, sDisableForwarding,
+	sExposeAuthInfo,
 	sDeprecated, sIgnore, sUnsupported
 } ServerOpCodes;
 
@@ -449,7 +453,7 @@ static struct {
 	{ "keyregenerationinterval", sDeprecated, SSHCFG_GLOBAL },
 	{ "permitrootlogin", sPermitRootLogin, SSHCFG_ALL },
 	{ "syslogfacility", sLogFacility, SSHCFG_GLOBAL },
-	{ "loglevel", sLogLevel, SSHCFG_GLOBAL },
+	{ "loglevel", sLogLevel, SSHCFG_ALL },
 	{ "rhostsauthentication", sDeprecated, SSHCFG_GLOBAL },
 	{ "rhostsrsaauthentication", sDeprecated, SSHCFG_ALL },
 	{ "hostbasedauthentication", sHostbasedAuthentication, SSHCFG_ALL },
@@ -561,6 +565,7 @@ static struct {
 	{ "allowstreamlocalforwarding", sAllowStreamLocalForwarding, SSHCFG_ALL },
 	{ "fingerprinthash", sFingerprintHash, SSHCFG_GLOBAL },
 	{ "disableforwarding", sDisableForwarding, SSHCFG_ALL },
+	{ "exposeauthinfo", sExposeAuthInfo, SSHCFG_ALL },
 	{ NULL, sBadOption, 0 }
 };
 
@@ -690,6 +695,44 @@ process_queued_listen_addrs(ServerOptions *options)
 	free(options->queued_listen_ports);
 	options->queued_listen_ports = NULL;
 	options->num_queued_listens = 0;
+}
+
+/*
+ * Inform channels layer of permitopen options from configuration.
+ */
+void
+process_permitopen(struct ssh *ssh, ServerOptions *options)
+{
+	u_int i;
+	int port;
+	char *host, *arg, *oarg;
+
+	channel_clear_adm_permitted_opens(ssh);
+	if (options->num_permitted_opens == 0)
+		return; /* permit any */
+
+	/* handle keywords: "any" / "none" */
+	if (options->num_permitted_opens == 1 &&
+	    strcmp(options->permitted_opens[0], "any") == 0)
+		return;
+	if (options->num_permitted_opens == 1 &&
+	    strcmp(options->permitted_opens[0], "none") == 0) {
+		channel_disable_adm_local_opens(ssh);
+		return;
+	}
+	/* Otherwise treat it as a list of permitted host:port */
+	for (i = 0; i < options->num_permitted_opens; i++) {
+		oarg = arg = xstrdup(options->permitted_opens[i]);
+		host = hpdelim(&arg);
+		if (host == NULL)
+			fatal("%s: missing host in PermitOpen", __func__);
+		host = cleanhostname(host);
+		if (arg == NULL || ((port = permitopen_port(arg)) < 0))
+			fatal("%s: bad port number in PermitOpen", __func__);
+		/* Send it to channels layer */
+		channel_add_adm_permitted_opens(ssh, host, port);
+		free(oarg);
+	}
 }
 
 struct connection_info *
@@ -935,13 +978,6 @@ static const struct multistate multistate_gatewayports[] = {
 	{ "no",				0 },
 	{ NULL, -1 }
 };
-static const struct multistate multistate_privsep[] = {
-	{ "yes",			PRIVSEP_NOSANDBOX },
-	{ "sandbox",			PRIVSEP_ON },
-	{ "nosandbox",			PRIVSEP_NOSANDBOX },
-	{ "no",				PRIVSEP_OFF },
-	{ NULL, -1 }
-};
 static const struct multistate multistate_tcpfwd[] = {
 	{ "yes",			FORWARD_ALLOW },
 	{ "all",			FORWARD_ALLOW },
@@ -956,7 +992,7 @@ process_server_config_line(ServerOptions *options, char *line,
     const char *filename, int linenum, int *activep,
     struct connection_info *connectinfo)
 {
-	char *cp, **charptr, *arg, *p;
+	char *cp, **charptr, *arg, *arg2, *p;
 	int cmdline = 0, *intptr, value, value2, n, port;
 	SyslogFacility *log_facility_ptr;
 	LogLevel *log_level_ptr;
@@ -1352,7 +1388,7 @@ process_server_config_line(ServerOptions *options, char *line,
 		if (value == SYSLOG_LEVEL_NOT_SET)
 			fatal("%.200s line %d: unsupported log level '%s'",
 			    filename, linenum, arg ? arg : "<NONE>");
-		if (*log_level_ptr == -1)
+		if (*activep && *log_level_ptr == -1)
 			*log_level_ptr = (LogLevel) value;
 		break;
 
@@ -1627,24 +1663,18 @@ process_server_config_line(ServerOptions *options, char *line,
 		if (!arg || *arg == '\0')
 			fatal("%s line %d: missing PermitOpen specification",
 			    filename, linenum);
-		n = options->num_permitted_opens;	/* modified later */
-		if (strcmp(arg, "any") == 0) {
-			if (*activep && n == -1) {
-				channel_clear_adm_permitted_opens();
-				options->num_permitted_opens = 0;
-			}
-			break;
-		}
-		if (strcmp(arg, "none") == 0) {
-			if (*activep && n == -1) {
+		i = options->num_permitted_opens;	/* modified later */
+		if (strcmp(arg, "any") == 0 || strcmp(arg, "none") == 0) {
+			if (*activep && i == 0) {
 				options->num_permitted_opens = 1;
-				channel_disable_adm_local_opens();
+				options->permitted_opens = xcalloc(1,
+				    sizeof(*options->permitted_opens));
+				options->permitted_opens[0] = xstrdup(arg);
 			}
 			break;
 		}
-		if (*activep && n == -1)
-			channel_clear_adm_permitted_opens();
 		for (; arg != NULL && *arg != '\0'; arg = strdelim(&cp)) {
+			arg2 = xstrdup(arg);
 			p = hpdelim(&arg);
 			if (p == NULL)
 				fatal("%s line %d: missing host in PermitOpen",
@@ -1653,9 +1683,16 @@ process_server_config_line(ServerOptions *options, char *line,
 			if (arg == NULL || ((port = permitopen_port(arg)) < 0))
 				fatal("%s line %d: bad port number in "
 				    "PermitOpen", filename, linenum);
-			if (*activep && n == -1)
-				options->num_permitted_opens =
-				    channel_add_adm_permitted_opens(p, port);
+			if (*activep && i == 0) {
+				options->permitted_opens = xrecallocarray(
+				    options->permitted_opens,
+				    options->num_permitted_opens,
+				    options->num_permitted_opens + 1,
+				    sizeof(*options->permitted_opens));
+				i = options->num_permitted_opens++;
+				options->permitted_opens[i] = arg2;
+			} else
+				free(arg2);
 		}
 		break;
 
@@ -1842,6 +1879,10 @@ process_server_config_line(ServerOptions *options, char *line,
 			options->fingerprint_hash = value;
 		break;
 
+	case sExposeAuthInfo:
+		intptr = &options->expose_userauth_info;
+		goto parse_flag;
+
 	case sDeprecated:
 	case sIgnore:
 	case sUnsupported:
@@ -1980,6 +2021,7 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 	M_CP_INTOPT(allow_streamlocal_forwarding);
 	M_CP_INTOPT(allow_agent_forwarding);
 	M_CP_INTOPT(disable_forwarding);
+	M_CP_INTOPT(expose_userauth_info);
 	M_CP_INTOPT(permit_tun);
 	M_CP_INTOPT(fwd_opts.gateway_ports);
 	M_CP_INTOPT(fwd_opts.streamlocal_bind_unlink);
@@ -1996,6 +2038,7 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 	M_CP_INTOPT(ip_qos_bulk);
 	M_CP_INTOPT(rekey_limit);
 	M_CP_INTOPT(rekey_interval);
+	M_CP_INTOPT(log_level);
 
 	/*
 	 * The bind_mask is a mode_t that may be unsigned, so we can't use
@@ -2018,6 +2061,13 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 	if (src->num_n != 0) { \
 		for (dst->num_n = 0; dst->num_n < src->num_n; dst->num_n++) \
 			dst->n[dst->num_n] = xstrdup(src->n[dst->num_n]); \
+	} \
+} while(0)
+#define M_CP_STRARRAYOPT_ALLOC(n, num_n) do { \
+	if (src->num_n != 0) { \
+		dst->n = xcalloc(src->num_n, sizeof(*dst->n)); \
+		M_CP_STRARRAYOPT(n, num_n); \
+		dst->num_n = src->num_n; \
 	} \
 } while(0)
 
@@ -2050,6 +2100,7 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 #undef M_CP_INTOPT
 #undef M_CP_STROPT
 #undef M_CP_STRARRAYOPT
+#undef M_CP_STRARRAYOPT_ALLOC
 
 void
 parse_server_config(ServerOptions *options, const char *filename, Buffer *conf,
@@ -2278,6 +2329,7 @@ dump_config(ServerOptions *o)
 	dump_cfg_fmtint(sAllowStreamLocalForwarding, o->allow_streamlocal_forwarding);
 	dump_cfg_fmtint(sStreamLocalBindUnlink, o->fwd_opts.streamlocal_bind_unlink);
 	dump_cfg_fmtint(sFingerprintHash, o->fingerprint_hash);
+	dump_cfg_fmtint(sExposeAuthInfo, o->expose_userauth_info);
 
 	/* string arguments */
 	dump_cfg_string(sPidFile, o->pid_file);
@@ -2347,5 +2399,12 @@ dump_config(ServerOptions *o)
 	printf("rekeylimit %llu %d\n", (unsigned long long)o->rekey_limit,
 	    o->rekey_interval);
 
-	channel_print_adm_permitted_opens();
+	printf("permitopen");
+	if (o->num_permitted_opens == 0)
+		printf(" any");
+	else {
+		for (i = 0; i < o->num_permitted_opens; i++)
+			printf(" %s", o->permitted_opens[i]);
+	}
+	printf("\n");
 }

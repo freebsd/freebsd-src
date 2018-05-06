@@ -134,7 +134,7 @@ AUTHENTICATION
      client selects the encryption algorithm to use from those offered by the
      server.  Additionally, session integrity is provided through a
      cryptographic message authentication code (hmac-md5, hmac-sha1, umac-64,
-     umac-128, hmac-ripemd160, hmac-sha2-256 or hmac-sha2-512).
+     umac-128, hmac-sha2-256 or hmac-sha2-512).
 
      Finally, the server and the client enter an authentication dialog.  The
      client tries to authenticate itself using host-based authentication,
@@ -412,13 +412,19 @@ SSH_KNOWN_HOSTS FILE FORMAT
      should be used on a key line.
 
      Hostnames is a comma-separated list of patterns (M-bM-^@M-^X*M-bM-^@M-^Y and M-bM-^@M-^X?M-bM-^@M-^Y act as
-     wildcards); each pattern in turn is matched against the canonical host
-     name (when authenticating a client) or against the user-supplied name
-     (when authenticating a server).  A pattern may also be preceded by M-bM-^@M-^X!M-bM-^@M-^Y to
-     indicate negation: if the host name matches a negated pattern, it is not
-     accepted (by that line) even if it matched another pattern on the line.
-     A hostname or address may optionally be enclosed within M-bM-^@M-^X[M-bM-^@M-^Y and M-bM-^@M-^X]M-bM-^@M-^Y
-     brackets then followed by M-bM-^@M-^X:M-bM-^@M-^Y and a non-standard port number.
+     wildcards); each pattern in turn is matched against the host name.  When
+     sshd is authenticating a client, such as when using
+     HostbasedAuthentication, this will be the canonical client host name.
+     When ssh(1) is authenticating a server, this will be the host name given
+     by the user, the value of the ssh(1) HostkeyAlias if it was specified, or
+     the canonical server hostname if the ssh(1) CanonicalizeHostname option
+     was used.
+
+     A pattern may also be preceded by M-bM-^@M-^X!M-bM-^@M-^Y to indicate negation: if the host
+     name matches a negated pattern, it is not accepted (by that line) even if
+     it matched another pattern on the line.  A hostname or address may
+     optionally be enclosed within M-bM-^@M-^X[M-bM-^@M-^Y and M-bM-^@M-^X]M-bM-^@M-^Y brackets then followed by M-bM-^@M-^X:M-bM-^@M-^Y
+     and a non-standard port number.
 
      Alternately, hostnames may be stored in a hashed form which hides host
      names and addresses should the file's contents be disclosed.  Hashed
@@ -623,4 +629,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.0                    January 30, 2017                    OpenBSD 6.0
+OpenBSD 6.2                      June 24, 2017                     OpenBSD 6.2

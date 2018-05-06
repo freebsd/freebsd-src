@@ -1,4 +1,4 @@
-/* $OpenBSD: authfd.h,v 1.39 2015/12/04 16:41:28 markus Exp $ */
+/* $OpenBSD: authfd.h,v 1.41 2017/06/28 01:09:22 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -27,8 +27,7 @@ int	ssh_get_authentication_socket(int *fdp);
 void	ssh_close_authentication_socket(int sock);
 
 int	ssh_lock_agent(int sock, int lock, const char *password);
-int	ssh_fetch_identitylist(int sock, int version,
-	    struct ssh_identitylist **idlp);
+int	ssh_fetch_identitylist(int sock, struct ssh_identitylist **idlp);
 void	ssh_free_identitylist(struct ssh_identitylist *idl);
 int	ssh_add_identity_constrained(int sock, struct sshkey *key,
 	    const char *comment, u_int life, u_int confirm);
@@ -39,7 +38,7 @@ int	ssh_remove_all_identities(int sock, int version);
 
 int	ssh_decrypt_challenge(int sock, struct sshkey* key, BIGNUM *challenge,
 	    u_char session_id[16], u_char response[16]);
-int	ssh_agent_sign(int sock, struct sshkey *key,
+int	ssh_agent_sign(int sock, const struct sshkey *key,
 	    u_char **sigp, size_t *lenp,
 	    const u_char *data, size_t datalen, const char *alg, u_int compat);
 

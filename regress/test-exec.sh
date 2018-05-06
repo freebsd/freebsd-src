@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.59 2017/02/07 23:03:11 dtucker Exp $
+#	$OpenBSD: test-exec.sh,v 1.61 2017/07/28 10:32:08 dtucker Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -128,12 +128,6 @@ if [ "x$TEST_SSH_CONCH" != "x" ]; then
 	/*) CONCH="${TEST_SSH_CONCH}" ;;
 	*) CONCH=`which ${TEST_SSH_CONCH} 2>/dev/null` ;;
 	esac
-fi
-
-SSH_PROTOCOLS=2
-#SSH_PROTOCOLS=`$SSH -Q protocol-version`
-if [ "x$TEST_SSH_PROTOCOLS" != "x" ]; then
-	SSH_PROTOCOLS="${TEST_SSH_PROTOCOLS}"
 fi
 
 # Path to sshd must be absolute for rexec
@@ -310,8 +304,15 @@ stop_sshd ()
 					i=`expr $i + 1`
 					sleep $i
 				done
-				test -f $PIDFILE && \
-				    fatal "sshd didn't exit port $PORT pid $pid"
+				if test -f $PIDFILE; then
+					if $SUDO kill -0 $pid; then
+						echo "sshd didn't exit " \
+						    "port $PORT pid $pid"
+					else
+						echo "sshd died without cleanup"
+					fi
+					exit 1
+				fi
 			fi
 		fi
 	fi
@@ -386,21 +387,10 @@ fatal ()
 	exit $RESULT
 }
 
-ssh_version ()
-{
-	echo ${SSH_PROTOCOLS} | grep "$1" >/dev/null
-}
-
 RESULT=0
 PIDFILE=$OBJ/pidfile
 
 trap fatal 3 2
-
-if ssh_version 1; then
-	PROTO="2,1"
-else
-	PROTO="2"
-fi
 
 # create server config
 cat << EOF > $OBJ/sshd_config
@@ -460,11 +450,8 @@ fi
 
 rm -f $OBJ/known_hosts $OBJ/authorized_keys_$USER
 
-if ssh_version 1; then
-	SSH_KEYTYPES="rsa rsa1"
-else
-	SSH_KEYTYPES="rsa ed25519"
-fi
+SSH_KEYTYPES="rsa ed25519"
+
 trace "generate keys"
 for t in ${SSH_KEYTYPES}; do
 	# generate user key

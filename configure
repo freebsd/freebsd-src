@@ -624,7 +624,6 @@ ac_includes_default="\
 #endif"
 
 ac_subst_vars='LTLIBOBJS
-LIBOBJS
 UNSUPPORTED_ALGORITHMS
 TEST_MALLOC_OPTIONS
 TEST_SSH_UTF8
@@ -648,7 +647,7 @@ TEST_SSH_ECC
 LIBEDIT
 PKGCONFIG
 LDNSCONFIG
-COMMENT_OUT_RSA1
+LIBOBJS
 LD
 PATH_PASSWD_PROG
 STARTUP_SCRIPT_SHELL
@@ -735,13 +734,14 @@ ac_user_opts='
 enable_option_checking
 enable_largefile
 with_openssl
-with_ssh1
 with_stackprotect
 with_hardening
 with_rpath
 with_cflags
+with_cflags_after
 with_cppflags
 with_ldflags
+with_ldflags_after
 with_libs
 with_Werror
 with_solaris_contracts
@@ -1430,13 +1430,14 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --without-openssl       Disable use of OpenSSL; use only limited internal crypto **EXPERIMENTAL**
-  --with-ssh1             Enable support for SSH protocol 1
   --without-stackprotect  Don't use compiler's stack protection
   --without-hardening     Don't use toolchain hardening flags
   --without-rpath         Disable auto-added -R linker paths
   --with-cflags           Specify additional flags to pass to compiler
+  --with-cflags-after     Specify additional flags to pass to compiler after configure
   --with-cppflags         Specify additional flags to pass to preprocessor
   --with-ldflags          Specify additional flags to pass to linker
+  --with-ldflags-after    Specify additional flags to pass to linker after configure
   --with-libs             Specify additional libraries to link with
   --with-Werror           Build main code with -Werror
   --with-solaris-contracts Enable Solaris process contracts (experimental)
@@ -5634,14 +5635,11 @@ fi
 
 
 openssl=yes
-ssh1=no
-COMMENT_OUT_RSA1="#no ssh1#"
 
 # Check whether --with-openssl was given.
 if test "${with_openssl+set}" = set; then :
   withval=$with_openssl;   if test "x$withval" = "xno" ; then
 		openssl=no
-		ssh1=no
 	   fi
 
 
@@ -5656,41 +5654,6 @@ $as_echo "yes" >&6; }
 cat >>confdefs.h <<_ACEOF
 #define WITH_OPENSSL 1
 _ACEOF
-
-else
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-# Check whether --with-ssh1 was given.
-if test "${with_ssh1+set}" = set; then :
-  withval=$with_ssh1;
-		if test "x$withval" = "xyes" ; then
-			if test "x$openssl" = "xno" ; then
-				as_fn_error $? "Cannot enable SSH protocol 1 with OpenSSL disabled" "$LINENO" 5
-			fi
-			ssh1=yes
-			COMMENT_OUT_RSA1=""
-		elif test "x$withval" = "xno" ; then
-			ssh1=no
-		else
-			as_fn_error $? "unknown --with-ssh1 argument" "$LINENO" 5
-		fi
-
-
-fi
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether SSH protocol 1 support is enabled" >&5
-$as_echo_n "checking whether SSH protocol 1 support is enabled... " >&6; }
-if test "x$ssh1" = "xyes" ; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-
-cat >>confdefs.h <<_ACEOF
-#define WITH_SSH1 1
-_ACEOF
-
 
 else
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -5742,6 +5705,49 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 CFLAGS="$saved_CFLAGS"
 
 if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
+	{
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -pipe" >&5
+$as_echo_n "checking if $CC supports compile flag -pipe... " >&6; }
+	saved_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $WERROR -pipe"
+	_define_flag=""
+	test "x$_define_flag" = "x" && _define_flag="-pipe"
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdio.h>
+int main(int argc, char **argv) {
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	exit(0);
+}
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+if `grep -i "unrecognized option" conftest.err >/dev/null`
+then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		CFLAGS="$saved_CFLAGS"
+else
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		 CFLAGS="$saved_CFLAGS $_define_flag"
+fi
+else
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		  CFLAGS="$saved_CFLAGS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+}
 	{
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -Qunused-arguments" >&5
 $as_echo_n "checking if $CC supports compile flag -Qunused-arguments... " >&6; }
@@ -6215,6 +6221,7 @@ $as_echo "no" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 }
+    if test "x$use_toolchain_hardening" = "x1"; then
 	{
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -D_FORTIFY_SOURCE=2" >&5
 $as_echo_n "checking if $CC supports compile flag -D_FORTIFY_SOURCE=2... " >&6; }
@@ -6258,7 +6265,6 @@ $as_echo "no" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 }
-    if test "x$use_toolchain_hardening" = "x1"; then
 	{
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $LD supports link flag -Wl,-z,relro" >&5
 $as_echo_n "checking if $LD supports link flag -Wl,-z,relro... " >&6; }
@@ -6620,6 +6626,19 @@ if test "${with_cflags+set}" = set; then :
 fi
 
 
+
+# Check whether --with-cflags-after was given.
+if test "${with_cflags_after+set}" = set; then :
+  withval=$with_cflags_after;
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
+			CFLAGS_AFTER="$withval"
+		fi
+
+
+fi
+
+
 # Check whether --with-cppflags was given.
 if test "${with_cppflags+set}" = set; then :
   withval=$with_cppflags;
@@ -6638,6 +6657,18 @@ if test "${with_ldflags+set}" = set; then :
 		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
 		    test "x${withval}" != "xyes"; then
 			LDFLAGS="$LDFLAGS $withval"
+		fi
+
+
+fi
+
+
+# Check whether --with-ldflags-after was given.
+if test "${with_ldflags_after+set}" = set; then :
+  withval=$with_ldflags_after;
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
+			LDFLAGS_AFTER="$withval"
 		fi
 
 
@@ -6712,7 +6743,6 @@ for ac_header in  \
 	sys/audit.h \
 	sys/bitypes.h \
 	sys/bsdtty.h \
-	sys/capability.h \
 	sys/cdefs.h \
 	sys/dir.h \
 	sys/mman.h \
@@ -6749,6 +6779,25 @@ ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_include
 if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
   cat >>confdefs.h <<_ACEOF
 #define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+
+done
+
+
+# sys/capsicum.h requires sys/types.h
+for ac_header in sys/capsicum.h
+do :
+  ac_fn_c_check_header_compile "$LINENO" "sys/capsicum.h" "ac_cv_header_sys_capsicum_h" "
+#ifdef HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+
+"
+if test "x$ac_cv_header_sys_capsicum_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_SYS_CAPSICUM_H 1
 _ACEOF
 
 fi
@@ -8208,6 +8257,8 @@ $as_echo "#define UNIXWARE_LONG_PASSWORDS 1" >>confdefs.h
 
 	$as_echo "#define PASSWD_NEEDS_USERNAME 1" >>confdefs.h
 
+	$as_echo "#define BROKEN_TCGETATTR_ICANON 1" >>confdefs.h
+
 	TEST_SHELL=$SHELL	# let configure find us a capable shell
 	case "$host" in
 	*-*-sysv5SCO_SV*)	# SCO OpenServer 6.x
@@ -9631,6 +9682,8 @@ if test "$ac_res" != no; then :
 fi
 
 
+# "Particular Function Checks"
+# see https://www.gnu.org/software/autoconf/manual/autoconf-2.69/html_node/Particular-Functions.html
 for ac_func in strftime
 do :
   ac_fn_c_check_func "$LINENO" "strftime" "ac_cv_func_strftime"
@@ -9686,6 +9739,149 @@ fi
 fi
 done
 
+for ac_header in stdlib.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "stdlib.h" "ac_cv_header_stdlib_h" "$ac_includes_default"
+if test "x$ac_cv_header_stdlib_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_STDLIB_H 1
+_ACEOF
+
+fi
+
+done
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for GNU libc compatible malloc" >&5
+$as_echo_n "checking for GNU libc compatible malloc... " >&6; }
+if ${ac_cv_func_malloc_0_nonnull+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test "$cross_compiling" = yes; then :
+  ac_cv_func_malloc_0_nonnull=no
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#if defined STDC_HEADERS || defined HAVE_STDLIB_H
+# include <stdlib.h>
+#else
+char *malloc ();
+#endif
+
+int
+main ()
+{
+return ! malloc (0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_run "$LINENO"; then :
+  ac_cv_func_malloc_0_nonnull=yes
+else
+  ac_cv_func_malloc_0_nonnull=no
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_func_malloc_0_nonnull" >&5
+$as_echo "$ac_cv_func_malloc_0_nonnull" >&6; }
+if test $ac_cv_func_malloc_0_nonnull = yes; then :
+
+$as_echo "#define HAVE_MALLOC 1" >>confdefs.h
+
+else
+  $as_echo "#define HAVE_MALLOC 0" >>confdefs.h
+
+   case " $LIBOBJS " in
+  *" malloc.$ac_objext "* ) ;;
+  *) LIBOBJS="$LIBOBJS malloc.$ac_objext"
+ ;;
+esac
+
+
+$as_echo "#define malloc rpl_malloc" >>confdefs.h
+
+fi
+
+
+for ac_header in stdlib.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "stdlib.h" "ac_cv_header_stdlib_h" "$ac_includes_default"
+if test "x$ac_cv_header_stdlib_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_STDLIB_H 1
+_ACEOF
+
+fi
+
+done
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for GNU libc compatible realloc" >&5
+$as_echo_n "checking for GNU libc compatible realloc... " >&6; }
+if ${ac_cv_func_realloc_0_nonnull+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test "$cross_compiling" = yes; then :
+  ac_cv_func_realloc_0_nonnull=no
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#if defined STDC_HEADERS || defined HAVE_STDLIB_H
+# include <stdlib.h>
+#else
+char *realloc ();
+#endif
+
+int
+main ()
+{
+return ! realloc (0, 0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_run "$LINENO"; then :
+  ac_cv_func_realloc_0_nonnull=yes
+else
+  ac_cv_func_realloc_0_nonnull=no
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_func_realloc_0_nonnull" >&5
+$as_echo "$ac_cv_func_realloc_0_nonnull" >&6; }
+if test $ac_cv_func_realloc_0_nonnull = yes; then :
+
+$as_echo "#define HAVE_REALLOC 1" >>confdefs.h
+
+else
+  $as_echo "#define HAVE_REALLOC 0" >>confdefs.h
+
+   case " $LIBOBJS " in
+  *" realloc.$ac_objext "* ) ;;
+  *) LIBOBJS="$LIBOBJS realloc.$ac_objext"
+ ;;
+esac
+
+
+$as_echo "#define realloc rpl_realloc" >>confdefs.h
+
+fi
+
+
+# autoconf doesn't have AC_FUNC_CALLOC so fake it if malloc returns NULL;
+if test "x$ac_cv_func_malloc_0_nonnull" != "xyes"; then
+
+$as_echo "#define HAVE_CALLOC 0" >>confdefs.h
+
+
+$as_echo "#define calloc rpl_calloc" >>confdefs.h
+
+fi
 
 # Check for ALTDIRFUNC glob() extension
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for GLOB_ALTDIRFUNC support" >&5
@@ -10068,6 +10264,7 @@ fi
 		else
 			LIBS="$LIBS `$LDNSCONFIG --libs`"
 			CPPFLAGS="$CPPFLAGS `$LDNSCONFIG --cflags`"
+			ldns=yes
 		fi
 	elif test "x$withval" != "xno" ; then
 			CPPFLAGS="$CPPFLAGS -I${withval}/include"
@@ -10647,6 +10844,7 @@ for ac_func in  \
 	fchmod \
 	fchown \
 	freeaddrinfo \
+	freezero \
 	fstatfs \
 	fstatvfs \
 	futimes \
@@ -10655,6 +10853,7 @@ for ac_func in  \
 	getgrouplist \
 	getnameinfo \
 	getopt \
+	getpagesize \
 	getpeereid \
 	getpeerucred \
 	getpgid \
@@ -10685,6 +10884,7 @@ for ac_func in  \
 	readpassphrase \
 	reallocarray \
 	recvmsg \
+	recallocarray \
 	rresvport_af \
 	sendmsg \
 	setdtablesize \
@@ -10718,6 +10918,7 @@ for ac_func in  \
 	strnlen \
 	strnvis \
 	strptime \
+	strsignal \
 	strtonum \
 	strtoll \
 	strtoul \
@@ -12484,7 +12685,11 @@ if ac_fn_c_try_run "$LINENO"; then :
 				10000*|0*)
 					as_fn_error $? "OpenSSL >= 1.0.1 required (have \"$ssl_library_ver\")" "$LINENO" 5
 			                ;;
-			        *) ;;
+				100*)   ;; # 1.0.x
+				200*)   ;; # LibreSSL
+			        *)
+					as_fn_error $? "OpenSSL >= 1.1.0 is not yet supported (have \"$ssl_library_ver\")" "$LINENO" 5
+			                ;;
 			esac
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ssl_library_ver" >&5
 $as_echo "$ssl_library_ver" >&6; }
@@ -13053,9 +13258,6 @@ $as_echo_n "checking whether OpenSSL has NID_X9_62_prime256v1... " >&6; }
 	#include <openssl/evp.h>
 	#include <openssl/objects.h>
 	#include <openssl/opensslv.h>
-	#if OPENSSL_VERSION_NUMBER < 0x0090807f /* 0.9.8g */
-	# error "OpenSSL < 0.9.8g has unreliable ECC code"
-	#endif
 
 int
 main ()
@@ -13091,9 +13293,6 @@ $as_echo_n "checking whether OpenSSL has NID_secp384r1... " >&6; }
 	#include <openssl/evp.h>
 	#include <openssl/objects.h>
 	#include <openssl/opensslv.h>
-	#if OPENSSL_VERSION_NUMBER < 0x0090807f /* 0.9.8g */
-	# error "OpenSSL < 0.9.8g has unreliable ECC code"
-	#endif
 
 int
 main ()
@@ -13129,9 +13328,6 @@ $as_echo_n "checking whether OpenSSL has NID_secp521r1... " >&6; }
 	#include <openssl/evp.h>
 	#include <openssl/objects.h>
 	#include <openssl/opensslv.h>
-	#if OPENSSL_VERSION_NUMBER < 0x0090807f /* 0.9.8g */
-	# error "OpenSSL < 0.9.8g has unreliable ECC code"
-	#endif
 
 int
 main ()
@@ -13858,6 +14054,7 @@ $as_echo_n "checking if select works with descriptor rlimit... " >&6; }
 if test "$cross_compiling" = yes; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: cross compiling: assuming yes" >&5
 $as_echo "$as_me: WARNING: cross compiling: assuming yes" >&2;}
+	 select_works_with_rlimit=yes
 
 else
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -13918,6 +14115,7 @@ $as_echo_n "checking if setrlimit(RLIMIT_NOFILE,{0,0}) works... " >&6; }
 if test "$cross_compiling" = yes; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: cross compiling: assuming yes" >&5
 $as_echo "$as_me: WARNING: cross compiling: assuming yes" >&2;}
+	 rlimit_nofile_zero_works=yes
 
 else
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -14052,10 +14250,10 @@ $as_echo "#define SANDBOX_SECCOMP_FILTER 1" >>confdefs.h
 
 elif test "x$sandbox_arg" = "xcapsicum" || \
      ( test -z "$sandbox_arg" && \
-       test "x$ac_cv_header_sys_capability_h" = "xyes" && \
+       test "x$ac_cv_header_sys_capsicum_h" = "xyes" && \
        test "x$ac_cv_func_cap_rights_limit" = "xyes") ; then
-       test "x$ac_cv_header_sys_capability_h" != "xyes" && \
-		as_fn_error $? "capsicum sandbox requires sys/capability.h header" "$LINENO" 5
+       test "x$ac_cv_header_sys_capsicum_h" != "xyes" && \
+		as_fn_error $? "capsicum sandbox requires sys/capsicum.h header" "$LINENO" 5
        test "x$ac_cv_func_cap_rights_limit" != "xyes" && \
 		as_fn_error $? "capsicum sandbox requires cap_rights_limit function" "$LINENO" 5
        SANDBOX_STYLE="capsicum"
@@ -16182,6 +16380,26 @@ if test "x$ac_cv_member_struct_stat_st_blksize" = xyes; then :
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_STRUCT_STAT_ST_BLKSIZE 1
+_ACEOF
+
+
+fi
+
+ac_fn_c_check_member "$LINENO" "struct stat" "st_mtim" "ac_cv_member_struct_stat_st_mtim" "$ac_includes_default"
+if test "x$ac_cv_member_struct_stat_st_mtim" = xyes; then :
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_STRUCT_STAT_ST_MTIM 1
+_ACEOF
+
+
+fi
+
+ac_fn_c_check_member "$LINENO" "struct stat" "st_mtime" "ac_cv_member_struct_stat_st_mtime" "$ac_includes_default"
+if test "x$ac_cv_member_struct_stat_st_mtime" = xyes; then :
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_STRUCT_STAT_ST_MTIME 1
 _ACEOF
 
 
@@ -19054,6 +19272,9 @@ TEST_MALLOC_OPTIONS=$TEST_MALLOC_OPTIONS
 
 UNSUPPORTED_ALGORITHMS=$unsupported_algorithms
 
+
+CFLAGS="${CFLAGS} ${CFLAGS_AFTER}"
+LDFLAGS="${LDFLAGS} ${LDFLAGS_AFTER}"
 
 
 ac_config_files="$ac_config_files Makefile buildpkg.sh opensshd.init openssh.xml openbsd-compat/Makefile openbsd-compat/regress/Makefile survey.sh"

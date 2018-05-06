@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keyscan.1,v 1.38 2015/11/08 23:24:03 jmc Exp $
+.\"	$OpenBSD: ssh-keyscan.1,v 1.40 2017/05/02 17:04:09 jmc Exp $
 .\"
 .\" Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
 .\"
@@ -6,7 +6,7 @@
 .\" permitted provided that due credit is given to the author and the
 .\" OpenBSD project by leaving this copyright notice intact.
 .\"
-.Dd $Mdocdate: November 8 2015 $
+.Dd $Mdocdate: May 2 2017 $
 .Dt SSH-KEYSCAN 1
 .Os
 .Sh NAME
@@ -90,14 +90,11 @@ Default is 5 seconds.
 .It Fl t Ar type
 Specifies the type of the key to fetch from the scanned hosts.
 The possible values are
-.Dq rsa1
-for protocol version 1 and
 .Dq dsa ,
 .Dq ecdsa ,
 .Dq ed25519 ,
 or
-.Dq rsa
-for protocol version 2.
+.Dq rsa .
 Multiple values may be specified by separating them with commas.
 The default is to fetch
 .Dq rsa ,
@@ -125,11 +122,6 @@ attacks which have begun after the ssh_known_hosts file was created.
 Input format:
 .Bd -literal
 1.2.3.4,1.2.4.4 name.my.domain,name,n.my.domain,n,1.2.3.4,1.2.4.4
-.Ed
-.Pp
-Output format for RSA1 keys:
-.Bd -literal
-host-or-namelist bits exponent modulus
 .Ed
 .Pp
 Output format for RSA, DSA, ECDSA, and Ed25519 keys:
