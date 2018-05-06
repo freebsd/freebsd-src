@@ -254,7 +254,6 @@ struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int) = NULL;
 static void	if_attachdomain(void *);
 static void	if_attachdomain1(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
-static void	if_freemulti(struct ifmultiaddr *);
 static void	if_grow(void);
 static void	if_input_default(struct ifnet *, struct mbuf *);
 static int	if_requestencap_default(struct ifnet *, struct if_encap_req *);
@@ -3395,7 +3394,10 @@ if_allocmulti(struct ifnet *ifp, struct sockaddr *sa, struct sockaddr *llsa,
  * counting, notifying the driver, handling routing messages, and releasing
  * any dependent link layer state.
  */
-static void
+#ifdef MCAST_VERBOSE
+extern void kdb_backtrace(void);
+#endif
+void
 if_freemulti(struct ifmultiaddr *ifma)
 {
 
@@ -3404,6 +3406,10 @@ if_freemulti(struct ifmultiaddr *ifma)
 
 	if (ifma->ifma_lladdr != NULL)
 		free(ifma->ifma_lladdr, M_IFMADDR);
+#ifdef MCAST_VERBOSE
+	kdb_backtrace();
+	printf("%s freeing ifma: %p\n", __func__, ifma);
+#endif
 	free(ifma->ifma_addr, M_IFMADDR);
 	free(ifma, M_IFMADDR);
 }
@@ -3610,6 +3616,12 @@ if_delallmulti(struct ifnet *ifp)
 	IF_ADDR_WUNLOCK(ifp);
 }
 
+void
+if_delmulti_ifma(struct ifmultiaddr *ifma)
+{
+	if_delmulti_ifma_flags(ifma, 0);
+}
+
 /*
  * Delete a multicast group membership by group membership pointer.
  * Network-layer protocol domains must use this routine.
@@ -3617,11 +3629,11 @@ if_delallmulti(struct ifnet *ifp)
  * It is safe to call this routine if the ifp disappeared.
  */
 void
-if_delmulti_ifma(struct ifmultiaddr *ifma)
+if_delmulti_ifma_flags(struct ifmultiaddr *ifma, int flags)
 {
 	struct ifnet *ifp;
 	int lastref;
-
+	MCDPRINTF("%s freeing ifma: %p\n", __func__, ifma);
 #ifdef INET
 	IN_MULTI_LIST_UNLOCK_ASSERT();
 #endif
@@ -3649,7 +3661,7 @@ if_delmulti_ifma(struct ifmultiaddr *ifma)
 	if (ifp != NULL)
 		IF_ADDR_WLOCK(ifp);
 
-	lastref = if_delmulti_locked(ifp, ifma, 0);
+	lastref = if_delmulti_locked(ifp, ifma, flags);
 
 	if (ifp != NULL) {
 		/*
@@ -3683,6 +3695,7 @@ if_delmulti_locked(struct ifnet *ifp, struct ifmultiaddr *ifma, int detaching)
 	}
 
 	ifp = ifma->ifma_ifp;
+	MCDPRINTF("%s freeing %p from %s \n", __func__, ifma, ifp ? ifp->if_xname : "");
 
 	/*
 	 * If the ifnet is detaching, null out references to ifnet,
@@ -3708,6 +3721,9 @@ if_delmulti_locked(struct ifnet *ifp, struct ifmultiaddr *ifma, int detaching)
 	if (--ifma->ifma_refcount > 0)
 		return 0;
 
+	if (ifp != NULL && detaching == 0)
+		TAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifma_link);
+
 	/*
 	 * If this ifma is a network-layer ifma, a link-layer ifma may
 	 * have been associated with it. Release it first if so.
@@ -3726,11 +3742,15 @@ if_delmulti_locked(struct ifnet *ifp, struct ifmultiaddr *ifma, int detaching)
 			if_freemulti(ll_ifma);
 		}
 	}
-	if (ifp != NULL && detaching == 0)
-		TAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifma_link);
+#ifdef INVARIANTS
+	if (ifp) {
+		struct ifmultiaddr *ifmatmp;
 
+		TAILQ_FOREACH(ifmatmp, &ifp->if_multiaddrs, ifma_link)
+			MPASS(ifma != ifmatmp);
+	}
+#endif
 	if_freemulti(ifma);
-
 	/*
 	 * The last reference to this instance of struct ifmultiaddr
 	 * was released; the hardware should be notified of this change.

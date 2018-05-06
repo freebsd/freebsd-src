@@ -190,6 +190,7 @@ static SYSCTL_NODE(_net_inet6_ip6_mcast, OID_AUTO, filters,
     CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_ip6_mcast_filters,
     "Per-interface stack-wide source filters");
 
+int ifma6_restart = 0;
 #ifdef KTR
 /*
  * Inline function which wraps assertions for a valid ifp.
@@ -531,6 +532,7 @@ in6m_release(struct in6_multi *inm)
 
 	ifma = inm->in6m_ifma;
 	ifp = inm->in6m_ifp;
+	MPASS(ifma->ifma_llifma == NULL);
 
 	/* XXX this access is not covered by IF_ADDR_LOCK */
 	CTR2(KTR_MLD, "%s: purging ifma %p", __func__, ifma);
@@ -542,9 +544,11 @@ in6m_release(struct in6_multi *inm)
 	in6m_purge(inm);
 	free(inm, M_IP6MADDR);
 
-	if_delmulti_ifma(ifma);
-	if (ifp)
+	if_delmulti_ifma_flags(ifma, 1);
+	if (ifp) {
 		CURVNET_RESTORE();
+		if_rele(ifp);
+	}
 }
 
 static struct grouptask free_gtask;
@@ -572,30 +576,58 @@ in6m_release_list_deferred(struct in6_multi_head *inmh)
 }
 
 void
-in6m_release_deferred(struct in6_multi *inm)
+in6m_disconnect(struct in6_multi *inm)
 {
-	struct in6_multi_head tmp;
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 	struct in6_ifaddr *ifa6;
 	struct in6_multi_mship *imm;
+	struct ifmultiaddr *ifma, *ll_ifma;
+
+	ifp = inm->in6m_ifp;
+	IF_ADDR_WLOCK_ASSERT(ifp);
+	ifma = inm->in6m_ifma;
+
+	if_ref(ifp);
+	TAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifma_link);
+	MCDPRINTF("removed ifma: %p from %s\n", ifma, ifp->if_xname);
+	if ((ll_ifma = ifma->ifma_llifma) != NULL) {
+		MPASS(ifma != ll_ifma);
+		ifma->ifma_llifma = NULL;
+		MPASS(ll_ifma->ifma_llifma == NULL);
+		MPASS(ll_ifma->ifma_ifp == ifp);
+		if (--ll_ifma->ifma_refcount == 0) {
+			ifma6_restart = true;
+			TAILQ_REMOVE(&ifp->if_multiaddrs, ll_ifma, ifma_link);
+			MCDPRINTF("removed ll_ifma: %p from %s\n", ll_ifma, ifp->if_xname);
+			if_freemulti(ll_ifma);
+		}
+	}
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_INET6)
+			continue;
+		ifa6 = (void *)ifa;
+		LIST_FOREACH(imm, &ifa6->ia6_memberships, i6mm_chain) {
+			if (inm == imm->i6mm_maddr) {
+				LIST_REMOVE(imm, i6mm_chain);
+				free(imm, M_IP6MADDR);
+			}
+		}
+	}
+}
+
+void
+in6m_release_deferred(struct in6_multi *inm)
+{
+	struct in6_multi_head tmp;
 
 	IN6_MULTI_LIST_LOCK_ASSERT();
 	KASSERT(inm->in6m_refcount > 0, ("refcount == %d inm: %p", inm->in6m_refcount, inm));
 	if (--inm->in6m_refcount == 0) {
-		ifp = inm->in6m_ifp;
-		IF_ADDR_LOCK_ASSERT(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			if (ifa->ifa_addr->sa_family != AF_INET6)
-				continue;
-			ifa6 = (void *)ifa;
-			LIST_FOREACH(imm, &ifa6->ia6_memberships, i6mm_chain) {
-				if (inm == imm->i6mm_maddr)
-					imm->i6mm_maddr = NULL;
-			}
-		}
+		in6m_disconnect(inm);
 		SLIST_INIT(&tmp);
 		inm->in6m_ifma->ifma_protospec = NULL;
+		MPASS(inm->in6m_ifma->ifma_llifma == NULL);
 		SLIST_INSERT_HEAD(&tmp, inm, in6m_nrele);
 		in6m_release_list_deferred(&tmp);
 	}
@@ -1355,10 +1387,10 @@ in6_leavegroup_locked(struct in6_multi *inm, /*const*/ struct in6_mfilter *imf)
 
 	CTR2(KTR_MLD, "%s: dropping ref on %p", __func__, inm);
 	if (ifp)
-		IF_ADDR_RLOCK(ifp);
+		IF_ADDR_WLOCK(ifp);
 	in6m_release_deferred(inm);
 	if (ifp)
-		IF_ADDR_RUNLOCK(ifp);
+		IF_ADDR_WUNLOCK(ifp);
 	IN6_MULTI_LIST_UNLOCK();
 
 	return (error);
