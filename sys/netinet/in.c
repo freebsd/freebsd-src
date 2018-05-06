@@ -1012,7 +1012,7 @@ in_purgemaddrs(struct ifnet *ifp)
 {
 	struct in_multi_head purgeinms;
 	struct in_multi		*inm;
-	struct ifmultiaddr	*ifma;
+	struct ifmultiaddr	*ifma, *next;
 
 	SLIST_INIT(&purgeinms);
 	IN_MULTI_LIST_LOCK();
@@ -1023,19 +1023,20 @@ in_purgemaddrs(struct ifnet *ifp)
 	 * We need to do this as IF_ADDR_LOCK() may be re-acquired
 	 * by code further down.
 	 */
-	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	IF_ADDR_WLOCK(ifp);
+ restart:
+	TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
 		if (ifma->ifma_addr->sa_family != AF_INET ||
 		    ifma->ifma_protospec == NULL)
 			continue;
-#if 0
-		KASSERT(ifma->ifma_protospec != NULL,
-		    ("%s: ifma_protospec is NULL", __func__));
-#endif
 		inm = (struct in_multi *)ifma->ifma_protospec;
 		inm_rele_locked(&purgeinms, inm);
+		if (__predict_false(ifma_restart)) {
+			ifma_restart = true;
+			goto restart;
+		}
 	}
-	IF_ADDR_RUNLOCK(ifp);
+	IF_ADDR_WUNLOCK(ifp);
 
 	inm_release_list_deferred(&purgeinms);
 	igmp_ifdetach(ifp);

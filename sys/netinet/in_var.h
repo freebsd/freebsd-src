@@ -343,6 +343,9 @@ extern struct sx in_multi_sx;
 #define	IN_MULTI_LOCK_ASSERT()	sx_assert(&in_multi_sx, SA_XLOCKED)
 #define	IN_MULTI_UNLOCK_ASSERT() sx_assert(&in_multi_sx, SA_XUNLOCKED)
 
+void inm_disconnect(struct in_multi *inm);
+extern int ifma_restart;
+
 /* Acquire an in_multi record. */
 static __inline void
 inm_acquire_locked(struct in_multi *inm)
@@ -368,6 +371,7 @@ inm_rele_locked(struct in_multi_head *inmh, struct in_multi *inm)
 
 	if (--inm->inm_refcount == 0) {
 		MPASS(inmh != NULL);
+		inm_disconnect(inm);
 		inm->inm_ifma->ifma_protospec = NULL;
 		SLIST_INSERT_HEAD(inmh, inm, inm_nrele);
 	}

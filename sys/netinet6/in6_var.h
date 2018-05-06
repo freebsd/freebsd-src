@@ -670,6 +670,8 @@ struct in6_multi {
 	}			in6m_st[2];	/* state at t0, t1 */
 };
 
+void in6m_disconnect(struct in6_multi *inm);
+extern int ifma6_restart;
 /*
  * Helper function to derive the filter mode on a source entry
  * from its internal counters. Predicates are:
@@ -710,6 +712,7 @@ extern struct sx in6_multi_sx;
 #define	IN6_MULTI_UNLOCK()	sx_xunlock(&in6_multi_sx)
 #define	IN6_MULTI_LOCK_ASSERT()	sx_assert(&in6_multi_sx, SA_XLOCKED)
 #define	IN6_MULTI_UNLOCK_ASSERT() sx_assert(&in6_multi_sx, SA_XUNLOCKED)
+
 
 /*
  * Look up an in6_multi record for an IPv6 multicast address
@@ -779,28 +782,13 @@ in6m_acquire(struct in6_multi *inm)
 static __inline void
 in6m_rele_locked(struct in6_multi_head *inmh, struct in6_multi *inm)
 {
-	struct ifnet *ifp;
-	struct ifaddr *ifa;
-	struct in6_ifaddr *ifa6;
-	struct in6_multi_mship *imm;
-
 	KASSERT(inm->in6m_refcount > 0, ("refcount == %d inm: %p", inm->in6m_refcount, inm));
 	IN6_MULTI_LIST_LOCK_ASSERT();
 
 	if (--inm->in6m_refcount == 0) {
-		ifp = inm->in6m_ifp;
-		IF_ADDR_LOCK_ASSERT(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			if (ifa->ifa_addr->sa_family != AF_INET6)
-				continue;
-
-			ifa6 = (void *)ifa;
-			LIST_FOREACH(imm, &ifa6->ia6_memberships, i6mm_chain) {
-				if (inm == imm->i6mm_maddr)
-					imm->i6mm_maddr = NULL;
-			}
-		}
+		in6m_disconnect(inm);
 		inm->in6m_ifma->ifma_protospec = NULL;
+		MPASS(inm->in6m_ifma->ifma_llifma == NULL);
 		SLIST_INSERT_HEAD(inmh, inm, in6m_nrele);
 	}
 }
