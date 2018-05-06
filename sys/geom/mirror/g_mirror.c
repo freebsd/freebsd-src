@@ -207,7 +207,6 @@ g_mirror_event_send(void *arg, int state, int flags)
 	mtx_unlock(&sc->sc_queue_mtx);
 	if ((flags & G_MIRROR_EVENT_DONTWAIT) != 0)
 		return (0);
-	sx_assert(&sc->sc_lock, SX_XLOCKED);
 	G_MIRROR_DEBUG(4, "%s: Sleeping %p.", __func__, ep);
 	sx_xunlock(&sc->sc_lock);
 	while ((ep->e_flags & G_MIRROR_EVENT_DONE) == 0) {
