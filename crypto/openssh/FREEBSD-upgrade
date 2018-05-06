@@ -17,7 +17,7 @@
 
 04) Copy to the vendor directory:
 
-    $ svn co svn+ssh://svn.freebsd.org/base/vendor-crypto/openssh/dist
+    $ svn co svn+ssh://repo.freebsd.org/base/vendor-crypto/openssh/dist
     $ rsync --archive --delete openssh-X.YpZ/ dist/
 
 05) Take care of added / deleted files:
@@ -32,13 +32,13 @@
 07) Tag:
 
     $ svn copy -m "Tag OpenSSH X.YpZ." \
-	svn+ssh://svn.freebsd.org/base/vendor-crypto/openssh/dist \
-	svn+ssh://svn.freebsd.org/base/vendor-crypto/openssh/X.YpZ
+	svn+ssh://repo.freebsd.org/base/vendor-crypto/openssh/dist \
+	svn+ssh://repo.freebsd.org/base/vendor-crypto/openssh/X.YpZ
 
 08) Check out head and run the pre-merge script, which strips our RCS
     tags from files that have them:
 
-    $ svn co svn+ssh://svn.freebsd.org/base/head
+    $ svn co svn+ssh://repo.freebsd.org/base/head
     $ cd head/crypto/openssh
     $ sh freebsd-pre-merge.sh
 
