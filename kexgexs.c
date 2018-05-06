@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgexs.c,v 1.31 2017/05/30 14:23:52 markus Exp $ */
+/* $OpenBSD: kexgexs.c,v 1.32 2018/02/07 02:06:51 jsing Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -237,14 +237,12 @@ input_kex_dh_gex_init(int type, u_int32_t seq, struct ssh *ssh)
  out:
 	DH_free(kex->dh);
 	kex->dh = NULL;
-	if (dh_client_pub)
-		BN_clear_free(dh_client_pub);
+	BN_clear_free(dh_client_pub);
 	if (kbuf) {
 		explicit_bzero(kbuf, klen);
 		free(kbuf);
 	}
-	if (shared_secret)
-		BN_clear_free(shared_secret);
+	BN_clear_free(shared_secret);
 	free(server_host_key_blob);
 	free(signature);
 	return r;

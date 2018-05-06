@@ -33,12 +33,14 @@ DESCRIPTION
      -C connection_spec
              Specify the connection parameters to use for the -T extended test
              mode.  If provided, any Match directives in the configuration
-             file that would apply to the specified user, host, and address
-             will be set before the configuration is written to standard
-             output.  The connection parameters are supplied as keyword=value
-             pairs.  The keywords are M-bM-^@M-^\userM-bM-^@M-^], M-bM-^@M-^\hostM-bM-^@M-^], M-bM-^@M-^\laddrM-bM-^@M-^], M-bM-^@M-^\lportM-bM-^@M-^], and
-             M-bM-^@M-^\addrM-bM-^@M-^].  All are required and may be supplied in any order,
+             file that would apply are applied before the configuration is
+             written to standard output.  The connection parameters are
+             supplied as keyword=value pairs and may be supplied in any order,
              either with multiple -C options or as a comma-separated list.
+             The keywords are M-bM-^@M-^\addr,M-bM-^@M-^] M-bM-^@M-^\userM-bM-^@M-^], M-bM-^@M-^\hostM-bM-^@M-^], M-bM-^@M-^\laddrM-bM-^@M-^], M-bM-^@M-^\lportM-bM-^@M-^], and
+             M-bM-^@M-^\rdomainM-bM-^@M-^] and correspond to source address, user, resolved source
+             host name, local address, local port number and routing domain
+             respectively.
 
      -c host_certificate_file
              Specifies a path to a certificate file to identify sshd during
@@ -75,10 +77,9 @@ DESCRIPTION
              Specifies a file from which a host key is read.  This option must
              be given if sshd is not run as root (as the normal host key files
              are normally not readable by anyone but root).  The default is
-             /etc/ssh/ssh_host_dsa_key, /etc/ssh/ssh_host_ecdsa_key,
-             /etc/ssh/ssh_host_ed25519_key and /etc/ssh/ssh_host_rsa_key.  It
-             is possible to have multiple host key files for the different
-             host key algorithms.
+             /etc/ssh/ssh_host_ecdsa_key, /etc/ssh/ssh_host_ed25519_key and
+             /etc/ssh/ssh_host_rsa_key.  It is possible to have multiple host
+             key files for the different host key algorithms.
 
      -i      Specifies that sshd is being run from inetd(8).
 
@@ -247,7 +248,7 @@ AUTHORIZED_KEYS FILE FORMAT
      You don't want to type them in; instead, copy the id_dsa.pub,
      id_ecdsa.pub, id_ed25519.pub, or the id_rsa.pub file and edit it.
 
-     sshd enforces a minimum RSA key modulus size of 768 bits.
+     sshd enforces a minimum RSA key modulus size of 1024 bits.
 
      The options (if present) consist of comma-separated option
      specifications.  No spaces are permitted, except within double quotes.
@@ -299,6 +300,11 @@ AUTHORIZED_KEYS FILE FORMAT
              this type are permitted.  Environment processing is disabled by
              default and is controlled via the PermitUserEnvironment option.
 
+     expiry-time="timespec"
+             Specifies a time after which the key will not be accepted.  The
+             time may be specified as a YYYYMMDD date or a YYYYMMDDHHMM[SS]
+             time in the system time-zone.
+
      from="pattern-list"
              Specifies that in addition to public key authentication, either
              the canonical name of the remote host or its IP address must be
@@ -346,6 +352,7 @@ AUTHORIZED_KEYS FILE FORMAT
 
      port-forwarding
              Enable port forwarding previously disabled by the restrict
+             option.
 
      principals="principals"
              On a cert-authority line, specifies allowed principals for
@@ -567,7 +574,6 @@ FILES
              allows host-based authentication without permitting login with
              rlogin/rsh.
 
-     /etc/ssh/ssh_host_dsa_key
      /etc/ssh/ssh_host_ecdsa_key
      /etc/ssh/ssh_host_ed25519_key
      /etc/ssh/ssh_host_rsa_key
@@ -576,7 +582,6 @@ FILES
              not accessible to others.  Note that sshd does not start if these
              files are group/world-accessible.
 
-     /etc/ssh/ssh_host_dsa_key.pub
      /etc/ssh/ssh_host_ecdsa_key.pub
      /etc/ssh/ssh_host_ed25519_key.pub
      /etc/ssh/ssh_host_rsa_key.pub
@@ -629,4 +634,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.2                      June 24, 2017                     OpenBSD 6.2
+OpenBSD 6.2                     March 14, 2018                     OpenBSD 6.2

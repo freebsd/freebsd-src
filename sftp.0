@@ -7,32 +7,29 @@ SYNOPSIS
      sftp [-46aCfpqrv] [-B buffer_size] [-b batchfile] [-c cipher]
           [-D sftp_server_path] [-F ssh_config] [-i identity_file] [-l limit]
           [-o ssh_option] [-P port] [-R num_requests] [-S program]
-          [-s subsystem | sftp_server] host
-     sftp [user@]host[:file ...]
-     sftp [user@]host[:dir[/]]
-     sftp -b batchfile [user@]host
+          [-s subsystem | sftp_server] destination
 
 DESCRIPTION
-     sftp is an interactive file transfer program, similar to ftp(1), which
-     performs all operations over an encrypted ssh(1) transport.  It may also
-     use many features of ssh, such as public key authentication and
-     compression.  sftp connects and logs into the specified host, then enters
-     an interactive command mode.
+     sftp is a file transfer program, similar to ftp(1), which performs all
+     operations over an encrypted ssh(1) transport.  It may also use many
+     features of ssh, such as public key authentication and compression.
 
-     The second usage format will retrieve files automatically if a non-
-     interactive authentication method is used; otherwise it will do so after
-     successful interactive authentication.
+     The destination may be specified either as [user@]host[:path] or as a URI
+     in the form sftp://[user@]host[:port][/path].
 
-     The third usage format allows sftp to start in a remote directory.
+     If the destination includes a path and it is not a directory, sftp will
+     retrieve files automatically if a non-interactive authentication method
+     is used; otherwise it will do so after successful interactive
+     authentication.
 
-     The final usage format allows for automated sessions using the -b option.
-     In such cases, it is necessary to configure non-interactive
-     authentication to obviate the need to enter a password at connection time
-     (see sshd(8) and ssh-keygen(1) for details).
+     If no path is specified, or if the path is a directory, sftp will log in
+     to the specified host and enter interactive command mode, changing to the
+     remote directory if one was specified.  An optional trailing slash can be
+     used to force the path to be interpreted as a directory.
 
-     Since some usage formats use colon characters to delimit host names from
-     path names, IPv6 addresses must be enclosed in square brackets to avoid
-     ambiguity.
+     Since the destination formats use colon characters to delimit host names
+     from path names or port numbers, IPv6 addresses must be enclosed in
+     square brackets to avoid ambiguity.
 
      The options are as follows:
 
@@ -53,14 +50,15 @@ DESCRIPTION
      -b batchfile
              Batch mode reads a series of commands from an input batchfile
              instead of stdin.  Since it lacks user interaction it should be
-             used in conjunction with non-interactive authentication.  A
-             batchfile of M-bM-^@M-^X-M-bM-^@M-^Y may be used to indicate standard input.  sftp
-             will abort if any of the following commands fail: get, put,
-             reget, reput, rename, ln, rm, mkdir, chdir, ls, lchdir, chmod,
-             chown, chgrp, lpwd, df, symlink, and lmkdir.  Termination on
-             error can be suppressed on a command by command basis by
-             prefixing the command with a M-bM-^@M-^X-M-bM-^@M-^Y character (for example, -rm
-             /tmp/blah*).
+             used in conjunction with non-interactive authentication to
+             obviate the need to enter a password at connection time (see
+             sshd(8) and ssh-keygen(1) for details).  A batchfile of M-bM-^@M-^X-M-bM-^@M-^Y may
+             be used to indicate standard input.  sftp will abort if any of
+             the following commands fail: get, put, reget, reput, rename, ln,
+             rm, mkdir, chdir, ls, lchdir, chmod, chown, chgrp, lpwd, df,
+             symlink, and lmkdir.  Termination on error can be suppressed on a
+             command by command basis by prefixing the command with a M-bM-^@M-^X-M-bM-^@M-^Y
+             character (for example, -rm /tmp/blah*).
 
      -C      Enables compression (via ssh's -C flag).
 
@@ -99,6 +97,7 @@ DESCRIPTION
                    AddressFamily
                    BatchMode
                    BindAddress
+                   BindInterface
                    CanonicalDomains
                    CanonicalizeFallbackLocal
                    CanonicalizeHostname
@@ -193,8 +192,9 @@ INTERACTIVE COMMANDS
 
      bye     Quit sftp.
 
-     cd path
-             Change remote directory to path.
+     cd [path]
+             Change remote directory to path.  If path is not specified, then
+             change directory to the one the session started in.
 
      chgrp grp path
              Change group of file path to grp.  path may contain glob(3)
@@ -246,8 +246,9 @@ INTERACTIVE COMMANDS
 
      help    Display help text.
 
-     lcd path
-             Change local directory to path.
+     lcd [path]
+             Change local directory to path.  If path is not specified, then
+             change directory to the local user's home directory.
 
      lls [ls-options [path]]
              Display local directory listing of either path or current
@@ -374,4 +375,4 @@ SEE ALSO
      T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
      filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 6.2                       May 3, 2017                      OpenBSD 6.2
+OpenBSD 6.2                    February 23, 2018                   OpenBSD 6.2

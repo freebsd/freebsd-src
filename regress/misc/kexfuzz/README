@@ -30,3 +30,5 @@ Limitations: kexfuzz can't change the ordering of packets at
 present. It is limited to replacing individual packets with
 fuzzed variants with the same type. It really should allow
 insertion, deletion on replacement of packets too.
+
+$OpenBSD: README,v 1.3 2017/10/20 02:13:41 djm Exp $

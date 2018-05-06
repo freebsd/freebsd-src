@@ -1,5 +1,7 @@
 /* Placed in the public domain */
 
+#include "includes.h"
+
 #ifndef HAVE_GETPAGESIZE
 
 #include <unistd.h>

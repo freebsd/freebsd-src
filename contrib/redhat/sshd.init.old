@@ -24,7 +24,6 @@ prog="sshd"
 # Some functions to make the below more readable
 KEYGEN=/usr/bin/ssh-keygen
 SSHD=/usr/sbin/sshd
-RSA1_KEY=/etc/ssh/ssh_host_key
 RSA_KEY=/etc/ssh/ssh_host_rsa_key
 DSA_KEY=/etc/ssh/ssh_host_dsa_key
 PID_FILE=/var/run/sshd.pid
@@ -60,21 +59,6 @@ my_failure() {
       echo -n "${msg}"
     ;;
   esac
-}
-do_rsa1_keygen() {
-	if [ ! -s $RSA1_KEY ]; then
-		echo -n "Generating SSH1 RSA host key: "
-		if $KEYGEN -q -t rsa1 -f $RSA1_KEY -C '' -N '' >&/dev/null; then
-			chmod 600 $RSA1_KEY
-			chmod 644 $RSA1_KEY.pub
-			my_success "RSA1 key generation"
-			echo
-		else
-			my_failure "RSA1 key generation"
-			echo
-			exit 1
-		fi
-	fi
 }
 do_rsa_keygen() {
 	if [ ! -s $RSA_KEY ]; then
@@ -119,7 +103,6 @@ do_restart_sanity_check() {
 case "$1" in
 	start)
 		# Create keys if necessary
-		do_rsa1_keygen;
 		do_rsa_keygen;
 		do_dsa_keygen;
 		

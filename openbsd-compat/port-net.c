@@ -37,6 +37,90 @@
 #include "ssherr.h"
 
 /*
+ * This file contains various portability code for network support,
+ * including tun/tap forwarding and routing domains.
+ */
+
+#if defined(SYS_RDOMAIN_LINUX) || defined(SSH_TUN_LINUX)
+#include <linux/if.h>
+#endif
+
+#if defined(SYS_RDOMAIN_LINUX)
+char *
+sys_get_rdomain(int fd)
+{
+	char dev[IFNAMSIZ + 1];
+	socklen_t len = sizeof(dev) - 1;
+
+	if (getsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, dev, &len) == -1) {
+		error("%s: cannot determine VRF for fd=%d : %s",
+		    __func__, fd, strerror(errno));
+		return NULL;
+	}
+	dev[len] = '\0';
+	return strdup(dev);
+}
+
+int
+sys_set_rdomain(int fd, const char *name)
+{
+	if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE,
+	    name, strlen(name)) == -1) {
+		error("%s: setsockopt(%d, SO_BINDTODEVICE, %s): %s",
+		      __func__, fd, name, strerror(errno));
+		return -1;
+	}
+	return 0;
+}
+
+int
+sys_valid_rdomain(const char *name)
+{
+	int fd;
+
+	/*
+	 * This is a pretty crappy way to test. It would be better to
+	 * check whether "name" represents a VRF device, but apparently
+	 * that requires an rtnetlink transaction.
+	 */
+	if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+		return 0;
+	if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE,
+	    name, strlen(name)) == -1) {
+		close(fd);
+		return 0;
+	}
+	close(fd);
+	return 1;
+}
+#elif defined(SYS_RDOMAIN_XXX)
+/* XXX examples */
+char *
+sys_get_rdomain(int fd)
+{
+	return NULL;
+}
+
+int
+sys_set_rdomain(int fd, const char *name)
+{
+	return -1;
+}
+
+int
+valid_rdomain(const char *name)
+{
+	return 0;
+}
+
+void
+sys_set_process_rdomain(const char *name)
+{
+	fatal("%s: not supported", __func__);
+}
+#endif /* defined(SYS_RDOMAIN_XXX) */
+
+/*
  * This is the portable version of the SSH tunnel forwarding, it
  * uses some preprocessor definitions for various platform-specific
  * settings.
@@ -52,15 +136,17 @@
  */
 
 #if defined(SSH_TUN_LINUX)
-#include <linux/if.h>
 #include <linux/if_tun.h>
 
 int
-sys_tun_open(int tun, int mode)
+sys_tun_open(int tun, int mode, char **ifname)
 {
 	struct ifreq ifr;
 	int fd = -1;
 	const char *name = NULL;
+
+	if (ifname != NULL)
+		*ifname = NULL;
 
 	if ((fd = open("/dev/net/tun", O_RDWR)) == -1) {
 		debug("%s: failed to open tunnel control interface: %s",
@@ -99,6 +185,9 @@ sys_tun_open(int tun, int mode)
 	else
 		debug("%s: %s mode %d fd %d", __func__, ifr.ifr_name, mode, fd);
 
+	if (ifname != NULL && (*ifname = strdup(ifr.ifr_name)))
+		goto failed;
+
 	return (fd);
 
  failed:
@@ -116,12 +205,15 @@ sys_tun_open(int tun, int mode)
 #endif
 
 int
-sys_tun_open(int tun, int mode)
+sys_tun_open(int tun, int mode, char **ifname)
 {
 	struct ifreq ifr;
 	char name[100];
 	int fd = -1, sock, flag;
 	const char *tunbase = "tun";
+
+	if (ifname != NULL)
+		*ifname = NULL;
 
 	if (mode == SSH_TUNMODE_ETHERNET) {
 #ifdef SSH_TUN_NO_L2
@@ -179,6 +271,9 @@ sys_tun_open(int tun, int mode)
 		if (ioctl(sock, SIOCSIFFLAGS, &ifr) == -1)
 			goto failed;
 	}
+
+	if (ifname != NULL && (*ifname = strdup(ifr.ifr_name)))
+		goto failed;
 
 	close(sock);
 	return (fd);

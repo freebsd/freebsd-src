@@ -1,4 +1,4 @@
-#	$OpenBSD: putty-transfer.sh,v 1.5 2017/04/30 23:34:55 djm Exp $
+#	$OpenBSD: putty-transfer.sh,v 1.6 2018/02/23 03:03:00 djm Exp $
 #	Placed in the Public Domain.
 
 tid="putty transfer data"
@@ -15,7 +15,7 @@ for c in 0 1 ; do
 	    ${OBJ}/.putty/sessions/compression_$c
 	echo "Compression=$c" >> ${OBJ}/.putty/sessions/kex_$k
 	env HOME=$PWD ${PLINK} -load compression_$c -batch \
-	    -i putty.rsa cat ${DATA} > ${COPY}
+	    -i ${OBJ}/putty.rsa2 cat ${DATA} > ${COPY}
 	if [ $? -ne 0 ]; then
 		fail "ssh cat $DATA failed"
 	fi
@@ -26,7 +26,7 @@ for c in 0 1 ; do
 		rm -f ${COPY}
 		dd if=$DATA obs=${s} 2> /dev/null | \
 			env HOME=$PWD ${PLINK} -load compression_$c \
-			    -batch -i putty.rsa \
+			    -batch -i ${OBJ}/putty.rsa2 \
 			    "cat > ${COPY}"
 		if [ $? -ne 0 ]; then
 			fail "ssh cat $DATA failed"

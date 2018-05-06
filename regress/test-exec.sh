@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.61 2017/07/28 10:32:08 dtucker Exp $
+#	$OpenBSD: test-exec.sh,v 1.62 2018/03/16 09:06:31 dtucker Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -503,6 +503,7 @@ if test "$REGRESS_INTEROP_PUTTY" = "yes" ; then
 	# Add a PuTTY key to authorized_keys
 	rm -f ${OBJ}/putty.rsa2
 	if ! puttygen -t rsa -o ${OBJ}/putty.rsa2 \
+	    --random-device=/dev/urandom \
 	    --new-passphrase /dev/null < /dev/null > /dev/null; then
 		echo "Your installed version of PuTTY is too old to support --new-passphrase; trying without (may require manual interaction) ..." >&2
 		puttygen -t rsa -o ${OBJ}/putty.rsa2 < /dev/null > /dev/null
@@ -525,6 +526,9 @@ if test "$REGRESS_INTEROP_PUTTY" = "yes" ; then
 	echo "ProxyMethod=5" >> ${OBJ}/.putty/sessions/localhost_proxy
 	echo "ProxyTelnetCommand=sh ${SRC}/sshd-log-wrapper.sh ${TEST_SSHD_LOGFILE} ${SSHD} -i -f $OBJ/sshd_proxy" >> ${OBJ}/.putty/sessions/localhost_proxy
 	echo "ProxyLocalhost=1" >> ${OBJ}/.putty/sessions/localhost_proxy
+
+	PUTTYDIR=${OBJ}/.putty
+	export PUTTYDIR
 
 	REGRESS_INTEROP_PUTTY=yes
 fi

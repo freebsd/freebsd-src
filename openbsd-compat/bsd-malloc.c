@@ -50,6 +50,8 @@ rpl_realloc(void *ptr, size_t size)
 {
 	if (size == 0)
 		size = 1;
+	if (ptr == 0)
+		return malloc(size);
 	return realloc(ptr, size);
 }
 #endif

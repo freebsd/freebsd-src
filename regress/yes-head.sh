@@ -1,4 +1,4 @@
-#	$OpenBSD: yes-head.sh,v 1.5 2015/03/03 22:35:19 markus Exp $
+#	$OpenBSD: yes-head.sh,v 1.6 2017/04/30 23:34:55 djm Exp $
 #	Placed in the Public Domain.
 
 tid="yes pipe head"
