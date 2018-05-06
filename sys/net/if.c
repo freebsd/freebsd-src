@@ -87,6 +87,7 @@
 #include <netinet/ip_carp.h>
 #ifdef INET
 #include <netinet/if_ether.h>
+#include <netinet/netdump/netdump.h>
 #endif /* INET */
 #ifdef INET6
 #include <netinet6/in6_var.h>
@@ -2769,6 +2770,9 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		if (error == 0) {
 			getmicrotime(&ifp->if_lastchange);
 			rt_ifmsg(ifp);
+#ifdef INET
+			NETDUMP_REINIT(ifp);
+#endif
 		}
 		/*
 		 * If the link MTU changed, do network layer specific procedure.

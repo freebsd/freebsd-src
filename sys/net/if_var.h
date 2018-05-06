@@ -70,6 +70,7 @@ struct	route;			/* if_output */
 struct	vnet;
 struct	ifmedia;
 struct	netmap_adapter;
+struct	netdump_methods;
 
 #ifdef _KERNEL
 #include <sys/mbuf.h>		/* ifqueue only? */
@@ -367,6 +368,11 @@ struct ifnet {
 
 	/* Ethernet PCP */
 	uint8_t if_pcp;
+
+	/*
+	 * Netdump hooks to be called while dumping.
+	 */
+	struct netdump_methods *if_netdump_methods;
 
 	/*
 	 * Spare fields to be added before branching a stable branch, so

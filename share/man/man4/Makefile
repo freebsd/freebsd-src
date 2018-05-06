@@ -319,6 +319,7 @@ MAN=	aac.4 \
 	ncv.4 \
 	${_ndis.4} \
 	net80211.4 \
+	netdump.4 \
 	netfpga10g_nf10bmac.4 \
 	netgraph.4 \
 	netintro.4 \
