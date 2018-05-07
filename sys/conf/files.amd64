@@ -620,8 +620,6 @@ isa/vga_isa.c			optional	vga
 kern/kern_clocksource.c		standard
 kern/link_elf_obj.c		standard
 libkern/x86/crc32_sse42.c	standard
-libkern/memmove.c		standard
-libkern/memset.c		standard
 #
 # IA32 binary support
 #
