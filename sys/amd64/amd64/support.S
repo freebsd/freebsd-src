@@ -239,7 +239,8 @@ ENTRY(memset)
 	PUSH_FRAME_POINTER
 	movq	%rdi,%r9
 	movq	%rdx,%rcx
-	movq	%rsi,%rax
+	movabs	$0x0101010101010101,%rax
+	imulq	%rsi,%rax
 	shrq	$3,%rcx
 	rep
 	stosq
