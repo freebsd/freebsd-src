@@ -191,6 +191,25 @@ static struct rk_clk_composite_def aclk_bus_pre = {
 	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
 };
 
+#define	ARMCLK	6
+static const char *armclk_parents[] = {"apll", "gpll", "dpll", "npll" };
+static struct rk_clk_composite_def armclk = {
+	.clkdef = {
+		.id = ARMCLK,
+		.name = "armclk",
+		.parent_names = armclk_parents,
+		.parent_cnt = nitems(armclk_parents),
+	},
+	.muxdiv_offset = 0x100,
+	.mux_shift = 6,
+	.mux_width = 2,
+
+	.div_shift = 0,
+	.div_width = 5,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX,
+};
+
 /* CRU_CLKSEL_CON1 */
 
 #define PCLK_BUS_PRE		216
@@ -377,61 +396,65 @@ static struct rk_clk_composite_def emmc = {
 };
 
 static struct rk_clk rk3328_clks[] = {
-	[PLL_APLL] = {
+	{
 		.type = RK_CLK_PLL,
 		.clk.pll = &apll
 	},
-	[PLL_DPLL] = {
+	{
 		.type = RK_CLK_PLL,
 		.clk.pll = &dpll
 	},
-	[PLL_CPLL] = {
+	{
 		.type = RK_CLK_PLL,
 		.clk.pll = &cpll
 	},
-	[PLL_GPLL] = {
+	{
 		.type = RK_CLK_PLL,
 		.clk.pll = &gpll
 	},
-	[PLL_NPLL] = {
+	{
 		.type = RK_CLK_PLL,
 		.clk.pll = &npll
 	},
 
-	[ACLK_BUS_PRE] = {
+	{
 		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &aclk_bus_pre
 	},
-	[HCLK_BUS_PRE] = {
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &armclk
+	},
+	{
 		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &hclk_bus_pre
 	},
-	[PCLK_BUS_PRE] = {
+	{
 		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &pclk_bus_pre
 	},
 
-	[ACLK_PERI_PRE] = {
+	{
 		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &aclk_peri_pre,
 	},
-	[PCLK_PERI] = {
+	{
 		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &pclk_peri,
 	},
-	[HCLK_PERI] = {
+	{
 		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &hclk_peri,
 	},
-	[SCLK_SDMMC] = {
+	{
 		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &sdmmc
 	},
-	[SCLK_SDIO] = {
+	{
 		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &sdio
 	},
-	[SCLK_EMMC] = {
+	{
 		.type = RK_CLK_COMPOSITE,
 		.clk.composite = &emmc
 	},
