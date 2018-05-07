@@ -197,10 +197,13 @@ int
 rk_cru_attach(device_t dev)
 {
 	struct rk_cru_softc *sc;
+	phandle_t node;
 	int	i;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+
+	node = ofw_bus_get_node(dev);
 
 	if (bus_alloc_resources(dev, rk_cru_spec, &sc->res) != 0) {
 		device_printf(dev, "cannot allocate resources for device\n");
@@ -241,6 +244,8 @@ rk_cru_attach(device_t dev)
 
 	if (bootverbose)
 		clkdom_dump(sc->clkdom);
+
+	clk_set_assigned(dev, node);
 
 	/* If we have resets, register our self as a reset provider */
 	if (sc->resets)
