@@ -1114,22 +1114,6 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 	return (netmap_fl_refill(rxq, kring, nm_i, false));
 }
 
-static void
-iflib_netmap_intr(struct netmap_adapter *na, int onoff)
-{
-	struct ifnet *ifp = na->ifp;
-	if_ctx_t ctx = ifp->if_softc;
-
-	CTX_LOCK(ctx);
-	if (onoff) {
-		IFDI_INTR_ENABLE(ctx);
-	} else {
-		IFDI_INTR_DISABLE(ctx);
-	}
-	CTX_UNLOCK(ctx);
-}
-
-
 static int
 iflib_netmap_attach(if_ctx_t ctx)
 {
@@ -1148,7 +1132,6 @@ iflib_netmap_attach(if_ctx_t ctx)
 	na.nm_txsync = iflib_netmap_txsync;
 	na.nm_rxsync = iflib_netmap_rxsync;
 	na.nm_register = iflib_netmap_register;
-	na.nm_intr = iflib_netmap_intr;
 	na.num_tx_rings = ctx->ifc_softc_ctx.isc_ntxqsets;
 	na.num_rx_rings = ctx->ifc_softc_ctx.isc_nrxqsets;
 	return (netmap_attach(&na));
