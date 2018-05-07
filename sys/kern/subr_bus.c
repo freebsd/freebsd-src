@@ -1828,6 +1828,8 @@ make_device(device_t parent, const char *name, int unit)
 			return (NULL);
 		}
 	}
+	if (parent != NULL && device_has_quiet_children(parent))
+		dev->flags |= DF_QUIET | DF_QUIET_CHILDREN;
 	dev->ivars = NULL;
 	dev->softc = NULL;
 
@@ -2649,12 +2651,30 @@ device_quiet(device_t dev)
 }
 
 /**
+ * @brief Set the DF_QUIET_CHILDREN flag for the device
+ */
+void
+device_quiet_children(device_t dev)
+{
+	dev->flags |= DF_QUIET_CHILDREN;
+}
+
+/**
  * @brief Clear the DF_QUIET flag for the device
  */
 void
 device_verbose(device_t dev)
 {
 	dev->flags &= ~DF_QUIET;
+}
+
+/**
+ * @brief Return non-zero if the DF_QUIET_CHIDLREN flag is set on the device
+ */
+int
+device_has_quiet_children(device_t dev)
+{
+	return ((dev->flags & DF_QUIET_CHILDREN) != 0);
 }
 
 /**
