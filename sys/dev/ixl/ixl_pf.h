@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2015, Intel Corporation 
+  Copyright (c) 2013-2017, Intel Corporation
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -46,6 +46,7 @@
 #define	VF_FLAG_MAC_ANTI_SPOOF		0x10
 
 #define IXL_PF_STATE_EMPR_RESETTING	(1 << 0)
+#define IXL_PF_STATE_FW_LLDP_DISABLED	(1 << 1)
 
 struct ixl_vf {
 	struct ixl_vsi		vsi;
@@ -94,7 +95,6 @@ struct ixl_pf {
 	/* Tunable values */
 	bool			enable_msix;
 	int			max_queues;
-	int			ringsz;
 	bool			enable_tx_fc_filter;
 	int			dynamic_rx_itr;
 	int			dynamic_tx_itr;
@@ -157,6 +157,17 @@ struct ixl_pf {
 "Set to 0 to disable link.\n"		\
 "Use \"sysctl -x\" to view flags properly."
 
+#define IXL_SYSCTL_HELP_SUPPORTED_SPEED	\
+"\nSupported link speeds.\n"		\
+"Flags:\n"				\
+"\t 0x1 - 100M\n"			\
+"\t 0x2 - 1G\n"				\
+"\t 0x4 - 10G\n"			\
+"\t 0x8 - 20G\n"			\
+"\t0x10 - 25G\n"			\
+"\t0x20 - 40G\n\n"			\
+"Use \"sysctl -x\" to view flags properly."
+
 #define IXL_SYSCTL_HELP_FC				\
 "\nSet flow control mode using the values below.\n" 	\
 "\t0 - off\n" 						\
@@ -167,6 +178,11 @@ struct ixl_pf {
 #define IXL_SYSCTL_HELP_LINK_STATUS					\
 "\nExecutes a \"Get Link Status\" command on the Admin Queue, and displays" \
 " the response."			\
+
+#define IXL_SYSCTL_HELP_FW_LLDP		\
+"\nFW LLDP engine:\n"			\
+"\t0 - disable\n"			\
+"\t1 - enable\n"
 
 extern const char * const ixl_fc_string[6];
 
@@ -204,8 +220,6 @@ void	ixl_debug_core(struct ixl_pf *, enum ixl_dbg_mask, char *, ...);
  * PF-only function declarations
  */
 
-void	ixl_set_busmaster(device_t);
-void	ixl_set_msix_enable(device_t);
 int	ixl_setup_interface(device_t, struct ixl_vsi *);
 void	ixl_print_nvm_cmd(device_t, struct i40e_nvm_access *);
 char *	ixl_aq_speed_to_str(enum i40e_aq_link_speed);
@@ -273,8 +287,8 @@ void	ixl_configure_legacy(struct ixl_pf *);
 void	ixl_free_pci_resources(struct ixl_pf *);
 void	ixl_link_event(struct ixl_pf *, struct i40e_arq_event_info *);
 void	ixl_config_rss(struct ixl_pf *);
-int	ixl_set_advertised_speeds(struct ixl_pf *, int);
-void	ixl_get_initial_advertised_speeds(struct ixl_pf *);
+int	ixl_set_advertised_speeds(struct ixl_pf *, int, bool);
+void	ixl_set_initial_advertised_speeds(struct ixl_pf *);
 void	ixl_print_nvm_version(struct ixl_pf *pf);
 void	ixl_add_device_sysctls(struct ixl_pf *);
 void	ixl_handle_mdd_event(struct ixl_pf *);
@@ -287,7 +301,8 @@ int	ixl_aq_get_link_status(struct ixl_pf *,
 
 int	ixl_handle_nvmupd_cmd(struct ixl_pf *, struct ifdrv *);
 void	ixl_handle_empr_reset(struct ixl_pf *);
-int	ixl_rebuild_hw_structs_after_reset(struct ixl_pf *);
+int	ixl_prepare_for_reset(struct ixl_pf *pf, bool is_up);
+int	ixl_rebuild_hw_structs_after_reset(struct ixl_pf *, bool is_up);
 
 void	ixl_set_queue_rx_itr(struct ixl_queue *);
 void	ixl_set_queue_tx_itr(struct ixl_queue *);
@@ -330,6 +345,9 @@ void	ixl_free_mac_filters(struct ixl_vsi *vsi);
 void	ixl_update_vsi_stats(struct ixl_vsi *);
 void	ixl_vsi_reset_stats(struct ixl_vsi *);
 
+int	ixl_vsi_setup_queues(struct ixl_vsi *vsi);
+void	ixl_vsi_free_queues(struct ixl_vsi *vsi);
+
 /*
  * I2C Function prototypes
  */
@@ -338,5 +356,8 @@ s32	ixl_read_i2c_byte(struct ixl_pf *pf, u8 byte_offset,
 	    u8 dev_addr, u8 *data);
 s32	ixl_write_i2c_byte(struct ixl_pf *pf, u8 byte_offset,
 	    u8 dev_addr, u8 data);
+
+int	ixl_get_fw_lldp_status(struct ixl_pf *pf);
+int	ixl_attach_get_link_status(struct ixl_pf *);
 
 #endif /* _IXL_PF_H_ */
