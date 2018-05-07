@@ -85,8 +85,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/vm.h>
 
-int trap_enotcap;
-SYSCTL_INT(_kern, OID_AUTO, trap_enotcap, CTLFLAG_RW, &trap_enotcap, 0,
+bool __read_frequently trap_enotcap;
+SYSCTL_BOOL(_kern, OID_AUTO, trap_enotcap, CTLFLAG_RW, &trap_enotcap, 0,
     "Deliver SIGTRAP on ENOTCAPABLE");
 
 #ifdef CAPABILITY_MODE

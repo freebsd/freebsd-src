@@ -370,7 +370,7 @@ int	cap_ioctl_check(struct filedesc *fdp, int fd, u_long cmd);
 int	cap_fcntl_check_fde(struct filedescent *fde, int cmd);
 int	cap_fcntl_check(struct filedesc *fdp, int fd, int cmd);
 
-extern int trap_enotcap;
+extern bool trap_enotcap;
 
 #else /* !_KERNEL */
 
