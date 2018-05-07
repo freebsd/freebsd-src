@@ -1350,7 +1350,7 @@ clk_set_assigned(device_t dev, phandle_t node)
 			clk_set_assigned_parent(dev, clk, i);
 
 		/* Then set a new frequency */
-		if (i <= nrates)
+		if (i <= nrates && rates[i] != 0)
 			clk_set_assigned_rates(dev, clk, rates[i]);
 
 		clk_release(clk);
