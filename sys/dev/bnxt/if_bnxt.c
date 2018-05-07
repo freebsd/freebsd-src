@@ -235,6 +235,8 @@ MODULE_DEPEND(bnxt, pci, 1, 1, 1);
 MODULE_DEPEND(bnxt, ether, 1, 1, 1);
 MODULE_DEPEND(bnxt, iflib, 1, 1, 1);
 
+IFLIB_PNP_INFO(pci, bnxt, bnxt_vendor_info_array);
+
 static device_method_t bnxt_iflib_methods[] = {
 	DEVMETHOD(ifdi_tx_queues_alloc, bnxt_tx_queues_alloc),
 	DEVMETHOD(ifdi_rx_queues_alloc, bnxt_rx_queues_alloc),
@@ -255,7 +257,8 @@ static device_method_t bnxt_iflib_methods[] = {
 	DEVMETHOD(ifdi_update_admin_status, bnxt_update_admin_status),
 
 	DEVMETHOD(ifdi_intr_enable, bnxt_intr_enable),
-	DEVMETHOD(ifdi_queue_intr_enable, bnxt_queue_intr_enable),
+	DEVMETHOD(ifdi_tx_queue_intr_enable, bnxt_queue_intr_enable),
+	DEVMETHOD(ifdi_rx_queue_intr_enable, bnxt_queue_intr_enable),
 	DEVMETHOD(ifdi_intr_disable, bnxt_disable_intr),
 	DEVMETHOD(ifdi_msix_intr_assign, bnxt_msix_intr_assign),
 
@@ -279,10 +282,9 @@ char bnxt_driver_version[] = "FreeBSD base";
 extern struct if_txrx bnxt_txrx;
 static struct if_shared_ctx bnxt_sctx_init = {
 	.isc_magic = IFLIB_MAGIC,
-	.isc_txrx = &bnxt_txrx,
 	.isc_driver = &bnxt_iflib_driver,
 	.isc_nfl = 2,				// Number of Free Lists
-	.isc_flags = IFLIB_HAS_RXCQ | IFLIB_HAS_TXCQ,
+	.isc_flags = IFLIB_HAS_RXCQ | IFLIB_HAS_TXCQ | IFLIB_NEED_ETHER_PAD,
 	.isc_q_align = PAGE_SIZE,
 	.isc_tx_maxsize = BNXT_TSO_SIZE,
 	.isc_tx_maxsegsize = BNXT_TSO_SIZE,
@@ -494,6 +496,17 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		softc->rx_rings[i].vaddr = vaddrs[i * nrxqs + 1];
 		softc->rx_rings[i].paddr = paddrs[i * nrxqs + 1];
 
+		/* Allocate the TPA start buffer */
+		softc->rx_rings[i].tpa_start = malloc(sizeof(struct bnxt_full_tpa_start) *
+	    		(RX_TPA_START_CMPL_AGG_ID_MASK >> RX_TPA_START_CMPL_AGG_ID_SFT),
+	    		M_DEVBUF, M_NOWAIT | M_ZERO);
+		if (softc->rx_rings[i].tpa_start == NULL) {
+			rc = -ENOMEM;
+			device_printf(softc->dev,
+					"Unable to allocate space for TPA\n");
+			goto tpa_alloc_fail;
+		}
+
 		/* Allocate the AG ring */
 		softc->ag_rings[i].phys_id = (uint16_t)HWRM_NA_SIGNATURE;
 		softc->ag_rings[i].softc = softc;
@@ -559,7 +572,10 @@ rss_grp_alloc_fail:
 	iflib_dma_free(&softc->vnic_info.rss_hash_key_tbl);
 rss_hash_alloc_fail:
 	iflib_dma_free(&softc->vnic_info.mc_list);
+tpa_alloc_fail:
 mc_list_alloc_fail:
+	for (i = i - 1; i >= 0; i--)
+		free(softc->rx_rings[i].tpa_start, M_DEVBUF);
 	iflib_dma_free(&softc->rx_stats);
 hw_stats_alloc_fail:
 	free(softc->grp_info, M_DEVBUF);
@@ -623,16 +639,6 @@ bnxt_attach_pre(if_ctx_t ctx)
 	if (rc)
 		goto dma_fail;
 
-	/* Allocate the TPA start buffer */
-	softc->tpa_start = malloc(sizeof(struct bnxt_full_tpa_start) *
-	    (RX_TPA_START_CMPL_AGG_ID_MASK >> RX_TPA_START_CMPL_AGG_ID_SFT),
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (softc->tpa_start == NULL) {
-		rc = ENOMEM;
-		device_printf(softc->dev,
-		    "Unable to allocate space for TPA\n");
-		goto tpa_failed;
-	}
 
 	/* Get firmware version and compare with driver */
 	softc->ver_info = malloc(sizeof(struct bnxt_ver_info),
@@ -681,6 +687,20 @@ bnxt_attach_pre(if_ctx_t ctx)
 		goto failed;
 	iflib_set_mac(ctx, softc->func.mac_addr);
 
+	scctx->isc_txrx = &bnxt_txrx;
+	scctx->isc_tx_csum_flags = (CSUM_IP | CSUM_TCP | CSUM_UDP |
+	    CSUM_TCP_IPV6 | CSUM_UDP_IPV6 | CSUM_TSO);
+	scctx->isc_capenable =
+	    /* These are translated to hwassit bits */
+	    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6 | IFCAP_TSO4 | IFCAP_TSO6 |
+	    /* These are checked by iflib */
+	    IFCAP_LRO | IFCAP_VLAN_HWFILTER |
+	    /* These are part of the iflib mask */
+	    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_VLAN_MTU |
+	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWTSO |
+	    /* These likely get lost... */
+	    IFCAP_VLAN_HWCSUM | IFCAP_JUMBO_MTU;
+
 	/* Get the queue config */
 	rc = bnxt_hwrm_queue_qportcfg(softc);
 	if (rc) {
@@ -700,6 +720,9 @@ bnxt_attach_pre(if_ctx_t ctx)
 	scctx->isc_tx_tso_size_max = BNXT_TSO_SIZE;
 	scctx->isc_tx_tso_segsize_max = BNXT_TSO_SIZE;
 	scctx->isc_vectors = softc->func.max_cp_rings;
+	scctx->isc_min_frame_size = BNXT_MIN_FRAME_SIZE;
+	scctx->isc_txrx = &bnxt_txrx;
+
 	if (scctx->isc_nrxd[0] <
 	    ((scctx->isc_nrxd[1] * 4) + scctx->isc_nrxd[2]))
 		device_printf(softc->dev,
@@ -717,12 +740,12 @@ bnxt_attach_pre(if_ctx_t ctx)
 	    scctx->isc_nrxd[1];
 	scctx->isc_rxqsizes[2] = sizeof(struct rx_prod_pkt_bd) *
 	    scctx->isc_nrxd[2];
-	scctx->isc_max_rxqsets = min(pci_msix_count(softc->dev)-1,
+	scctx->isc_nrxqsets_max = min(pci_msix_count(softc->dev)-1,
 	    softc->func.max_cp_rings - 1);
-	scctx->isc_max_rxqsets = min(scctx->isc_max_rxqsets,
+	scctx->isc_nrxqsets_max = min(scctx->isc_nrxqsets_max,
 	    softc->func.max_rx_rings);
-	scctx->isc_max_txqsets = min(softc->func.max_rx_rings,
-	    softc->func.max_cp_rings - scctx->isc_max_rxqsets - 1);
+	scctx->isc_ntxqsets_max = min(softc->func.max_rx_rings,
+	    softc->func.max_cp_rings - scctx->isc_nrxqsets_max - 1);
 	scctx->isc_rss_table_size = HW_HASH_INDEX_SIZE;
 	scctx->isc_rss_table_mask = scctx->isc_rss_table_size - 1;
 
@@ -780,8 +803,6 @@ nvm_alloc_fail:
 ver_fail:
 	free(softc->ver_info, M_DEVBUF);
 ver_alloc_fail:
-	free(softc->tpa_start, M_DEVBUF);
-tpa_failed:
 	bnxt_free_hwrm_dma_mem(softc);
 dma_fail:
 	BNXT_HWRM_LOCK_DESTROY(softc);
@@ -795,7 +816,6 @@ bnxt_attach_post(if_ctx_t ctx)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
-	int capabilities, enabling;
 	int rc;
 
 	bnxt_create_config_sysctls_post(softc);
@@ -809,26 +829,6 @@ bnxt_attach_post(if_ctx_t ctx)
 	bnxt_create_ver_sysctls(softc);
 	bnxt_add_media_types(softc);
 	ifmedia_set(softc->media, IFM_ETHER | IFM_AUTO);
-
-	if_sethwassist(ifp, (CSUM_TCP | CSUM_UDP | CSUM_TCP_IPV6 |
-	    CSUM_UDP_IPV6 | CSUM_TSO));
-
-	capabilities =
-	    /* These are translated to hwassit bits */
-	    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6 | IFCAP_TSO4 | IFCAP_TSO6 |
-	    /* These are checked by iflib */
-	    IFCAP_LRO | IFCAP_VLAN_HWFILTER |
-	    /* These are part of the iflib mask */
-	    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_VLAN_MTU |
-	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWTSO |
-	    /* These likely get lost... */
-	    IFCAP_VLAN_HWCSUM | IFCAP_JUMBO_MTU;
-
-	if_setcapabilities(ifp, capabilities);
-
-	enabling = capabilities;
-
-	if_setcapenable(ifp, enabling);
 
 	softc->scctx->isc_max_frame_size = ifp->if_mtu + ETHER_HDR_LEN +
 	    ETHER_CRC_LEN;
@@ -863,7 +863,8 @@ bnxt_detach(if_ctx_t ctx)
 	SLIST_FOREACH_SAFE(tag, &softc->vnic_info.vlan_tags, next, tmp)
 		free(tag, M_DEVBUF);
 	iflib_dma_free(&softc->def_cp_ring_mem);
-	free(softc->tpa_start, M_DEVBUF);
+	for (i = 0; i < softc->nrxqsets; i++)
+		free(softc->rx_rings[i].tpa_start, M_DEVBUF);
 	free(softc->ver_info, M_DEVBUF);
 	free(softc->nvm_info, M_DEVBUF);
 
@@ -995,14 +996,17 @@ bnxt_init(if_ctx_t ctx)
 	if (rc)
 		goto fail;
 
-#ifdef notyet
-	/* Enable LRO/TPA/GRO */
+	/* 
+         * Enable LRO/TPA/GRO 
+         * TBD: 
+         *      Enable / Disable HW_LRO based on
+         *      ifconfig lro / ifconfig -lro setting
+         */
 	rc = bnxt_hwrm_vnic_tpa_cfg(softc, &softc->vnic_info,
 	    (if_getcapenable(iflib_get_ifp(ctx)) & IFCAP_LRO) ?
 	    HWRM_VNIC_TPA_CFG_INPUT_FLAGS_TPA : 0);
 	if (rc)
 		goto fail;
-#endif
 
 	for (i = 0; i < softc->ntxqsets; i++) {
 		/* Allocate the statistics context */
@@ -1489,7 +1493,7 @@ bnxt_msix_intr_assign(if_ctx_t ctx, int msix)
 
 	for (i=0; i<softc->scctx->isc_nrxqsets; i++) {
 		rc = iflib_irq_alloc_generic(ctx, &softc->rx_cp_rings[i].irq,
-		    softc->rx_cp_rings[i].ring.id + 1, IFLIB_INTR_RX,
+		    softc->rx_cp_rings[i].ring.id + 1, IFLIB_INTR_RXTX,
 		    bnxt_handle_rx_cp, &softc->rx_cp_rings[i], i, "rx_cp");
 		if (rc) {
 			device_printf(iflib_get_dev(ctx),
@@ -1500,8 +1504,7 @@ bnxt_msix_intr_assign(if_ctx_t ctx, int msix)
 	}
 
 	for (i=0; i<softc->scctx->isc_ntxqsets; i++)
-		iflib_softirq_alloc_generic(ctx, i + 1, IFLIB_INTR_TX, NULL, i,
-		    "tx_cp");
+		iflib_softirq_alloc_generic(ctx, NULL, IFLIB_INTR_TX, NULL, i, "tx_cp");
 
 	return rc;
 
