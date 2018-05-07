@@ -162,6 +162,58 @@ ENTRY(bcopy)
 END(bcopy)
 
 /*
+ * memmove(dst, src, cnt)
+ *         rdi, rsi, rdx
+ * Original by:
+ *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
+ */
+ENTRY(memmove)
+	PUSH_FRAME_POINTER
+	movq	%rdi,%r9
+	movq	%rdx,%rcx
+
+	movq	%rdi,%rax
+	subq	%rsi,%rax
+	cmpq	%rcx,%rax			/* overlapping && src < dst? */
+	jb	1f
+
+	shrq	$3,%rcx				/* copy by 64-bit words */
+	rep
+	movsq
+	movq	%rdx,%rcx
+	andq	$7,%rcx				/* any bytes left? */
+	rep
+	movsb
+	movq	%r9,%rax
+	POP_FRAME_POINTER
+	ret
+
+	/* ALIGN_TEXT */
+1:
+	addq	%rcx,%rdi			/* copy backwards */
+	addq	%rcx,%rsi
+	decq	%rdi
+	decq	%rsi
+	andq	$7,%rcx				/* any fractional bytes? */
+	std
+	rep
+	movsb
+	movq	%rdx,%rcx			/* copy remainder by 32-bit words */
+	shrq	$3,%rcx
+	subq	$7,%rsi
+	subq	$7,%rdi
+	rep
+	movsq
+	cld
+	movq	%r9,%rax
+	POP_FRAME_POINTER
+	ret
+END(memmove)
+
+/*
+ * memcpy(dst, src, len)
+ *        rdi, rsi, rdx
+ *
  * Note: memcpy does not support overlapping copies
  */
 ENTRY(memcpy)
@@ -178,6 +230,27 @@ ENTRY(memcpy)
 	POP_FRAME_POINTER
 	ret
 END(memcpy)
+
+/*
+ * memset(dst, c,   len)
+ *        rdi, rsi, rdx
+ */
+ENTRY(memset)
+	PUSH_FRAME_POINTER
+	movq	%rdi,%r9
+	movq	%rdx,%rcx
+	movq	%rsi,%rax
+	shrq	$3,%rcx
+	rep
+	stosq
+	movq	%rdx,%rcx
+	andq	$7,%rcx
+	rep
+	stosb
+	movq	%r9,%rax
+	POP_FRAME_POINTER
+	ret
+END(memset)
 
 /*
  * pagecopy(%rdi=from, %rsi=to)
