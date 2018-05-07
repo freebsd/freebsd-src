@@ -3299,7 +3299,7 @@ defrag:
 	 */
 	txq->ift_rs_pending += nsegs + 1;
 	if (txq->ift_rs_pending > TXQ_MAX_RS_DEFERRED(txq) ||
-	     iflib_no_tx_batch || (TXQ_AVAIL(txq) - nsegs - 1) <= MAX_TX_DESC(ctx)) {
+	     iflib_no_tx_batch || (TXQ_AVAIL(txq) - nsegs) <= MAX_TX_DESC(ctx) + 2) {
 		pi.ipi_flags |= IPI_TX_INTR;
 		txq->ift_rs_pending = 0;
 	}
