@@ -886,7 +886,6 @@ cpu_fetch_syscall_args(struct thread *td)
 	reg = 0;
 	regcnt = 6;
 
-	params = (caddr_t)frame->tf_rsp + sizeof(register_t);
 	sa->code = frame->tf_rax;
 
 	if (sa->code == SYS_syscall || sa->code == SYS___syscall) {
@@ -910,7 +909,7 @@ cpu_fetch_syscall_args(struct thread *td)
 	argp += reg;
 	memcpy(sa->args, argp, sizeof(sa->args[0]) * 6);
 	if (sa->narg > regcnt) {
-		KASSERT(params != NULL, ("copyin args with no params!"));
+		params = (caddr_t)frame->tf_rsp + sizeof(register_t);
 		error = copyin(params, &sa->args[regcnt],
 	    	    (sa->narg - regcnt) * sizeof(sa->args[0]));
 	}
