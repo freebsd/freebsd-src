@@ -9,7 +9,7 @@ SRCS    += if_ixl.c ixl_pf_main.c ixl_pf_qmgr.c ixl_txrx.c ixl_pf_i2c.c i40e_osd
 SRCS	+= ixl_pf_iov.c ixl_iw.c
 
 # Shared source
-SRCS    += i40e_common.c i40e_nvm.c i40e_adminq.c i40e_lan_hmc.c i40e_hmc.c
+SRCS    += i40e_common.c i40e_nvm.c i40e_adminq.c i40e_lan_hmc.c i40e_hmc.c i40e_dcb.c
 
 # Debug messages / sysctls
 # CFLAGS += -DIXL_DEBUG
