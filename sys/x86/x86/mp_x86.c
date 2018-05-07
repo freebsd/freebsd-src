@@ -1020,7 +1020,11 @@ init_secondary_tail(void)
 	smp_cpus++;
 
 	CTR1(KTR_SMP, "SMP: AP CPU #%d Launched", cpuid);
-	printf("SMP: AP CPU #%d Launched!\n", cpuid);
+	if (bootverbose)
+		printf("SMP: AP CPU #%d Launched!\n", cpuid);
+	else
+		printf("%s%d%s", smp_cpus == 2 ? "Launching APs: " : "",
+		    cpuid, smp_cpus == mp_ncpus ? "\n" : " ");
 
 	/* Determine if we are a logical CPU. */
 	if (cpu_info[PCPU_GET(apic_id)].cpu_hyperthread)
