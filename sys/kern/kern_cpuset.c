@@ -1127,6 +1127,8 @@ kern_cpuset_getaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		case CPU_WHICH_JAIL:
 			break;
 		case CPU_WHICH_IRQ:
+		case CPU_WHICH_INTRHANDLER:
+		case CPU_WHICH_ITHREAD:
 		case CPU_WHICH_DOMAIN:
 			error = EINVAL;
 			goto out;
@@ -1157,7 +1159,9 @@ kern_cpuset_getaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 			CPU_COPY(&set->cs_mask, mask);
 			break;
 		case CPU_WHICH_IRQ:
-			error = intr_getaffinity(id, mask);
+		case CPU_WHICH_INTRHANDLER:
+		case CPU_WHICH_ITHREAD:
+			error = intr_getaffinity(id, which, mask);
 			break;
 		case CPU_WHICH_DOMAIN:
 			if (id < 0 || id >= MAXMEMDOM)
@@ -1260,6 +1264,8 @@ kern_cpuset_setaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		case CPU_WHICH_JAIL:
 			break;
 		case CPU_WHICH_IRQ:
+		case CPU_WHICH_INTRHANDLER:
+		case CPU_WHICH_ITHREAD:
 		case CPU_WHICH_DOMAIN:
 			error = EINVAL;
 			goto out;
@@ -1289,7 +1295,9 @@ kern_cpuset_setaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 			}
 			break;
 		case CPU_WHICH_IRQ:
-			error = intr_setaffinity(id, mask);
+		case CPU_WHICH_INTRHANDLER:
+		case CPU_WHICH_ITHREAD:
+			error = intr_setaffinity(id, which, mask);
 			break;
 		default:
 			error = EINVAL;
