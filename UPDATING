@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20180504:
+	The tz database (tzdb) has been updated to 2018e.  This version more
+	correctly models time stamps in time zones with negative DST such as
+	Europe/Dublin (from 1971 on), Europe/Prague (1946/7), and
+	Africa/Windhoek (1994/2017).  This does not affect the UT offsets, only
+	time zone abbreviations and the tm_isdst flag.
+
 20171003:
 	When building multiple kernels using KERNCONF, non-existent KERNCONF
 	files will produce an error and buildkernel will fail. Previously
