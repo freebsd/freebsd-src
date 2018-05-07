@@ -210,11 +210,13 @@ static VNET_DEFINE(int, carp_senderr_adj) = CARP_MAXSKEW;
 static VNET_DEFINE(int, carp_ifdown_adj) = CARP_MAXSKEW;
 #define	V_carp_ifdown_adj	VNET(carp_ifdown_adj)
 
+static int carp_allow_sysctl(SYSCTL_HANDLER_ARGS);
 static int carp_demote_adj_sysctl(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_NODE(_net_inet, IPPROTO_CARP,	carp,	CTLFLAG_RW, 0,	"CARP");
-SYSCTL_INT(_net_inet_carp, OID_AUTO, allow, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(carp_allow), 0, "Accept incoming CARP packets");
+SYSCTL_PROC(_net_inet_carp, OID_AUTO, allow,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW, 0, 0, carp_allow_sysctl, "I",
+    "Accept incoming CARP packets");
 SYSCTL_INT(_net_inet_carp, OID_AUTO, preempt, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(carp_preempt), 0, "High-priority backup preemption mode");
 SYSCTL_INT(_net_inet_carp, OID_AUTO, log, CTLFLAG_VNET | CTLFLAG_RW,
@@ -1291,7 +1293,8 @@ carp_setrun(struct carp_softc *sc, sa_family_t af)
 
 	if ((sc->sc_carpdev->if_flags & IFF_UP) == 0 ||
 	    sc->sc_carpdev->if_link_state != LINK_STATE_UP ||
-	    (sc->sc_naddrs == 0 && sc->sc_naddrs6 == 0))
+	    (sc->sc_naddrs == 0 && sc->sc_naddrs6 == 0) ||
+	    !V_carp_allow)
 		return;
 
 	switch (sc->sc_state) {
@@ -2041,7 +2044,8 @@ carp_sc_state(struct carp_softc *sc)
 	CARP_LOCK_ASSERT(sc);
 
 	if (sc->sc_carpdev->if_link_state != LINK_STATE_UP ||
-	    !(sc->sc_carpdev->if_flags & IFF_UP)) {
+	    !(sc->sc_carpdev->if_flags & IFF_UP) ||
+	    !V_carp_allow) {
 		callout_stop(&sc->sc_ad_tmo);
 #ifdef INET
 		callout_stop(&sc->sc_md_tmo);
@@ -2069,6 +2073,33 @@ carp_demote_adj(int adj, char *reason)
 	atomic_add_int(&V_carp_demotion, adj);
 	CARP_LOG("demoted by %d to %d (%s)\n", adj, V_carp_demotion, reason);
 	taskqueue_enqueue(taskqueue_swi, &carp_sendall_task);
+}
+
+static int
+carp_allow_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	int new, error;
+	struct carp_softc *sc;
+
+	new = V_carp_allow;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	if (V_carp_allow != new) {
+		V_carp_allow = new;
+
+		mtx_lock(&carp_mtx);
+		LIST_FOREACH(sc, &carp_list, sc_next) {
+			CARP_LOCK(sc);
+			if (curvnet == sc->sc_carpdev->if_vnet)
+				carp_sc_state(sc);
+			CARP_UNLOCK(sc);
+		}
+		mtx_unlock(&carp_mtx);
+	}
+
+	return (0);
 }
 
 static int
