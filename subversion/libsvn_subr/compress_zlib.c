@@ -1,5 +1,5 @@
 /*
- * compress.c:  various data compression routines
+ * compress_zlib.c:  zlib data compression routines
  *
  * ====================================================================
  *    Licensed to the Apache Software Foundation (ASF) under one
@@ -22,8 +22,6 @@
  */
 
 
-#include <string.h>
-#include <assert.h>
 #include <zlib.h>
 
 #include "private/svn_subr_private.h"
@@ -56,60 +54,6 @@ svn_zlib__runtime_version(void)
 /* For svndiff1, address/instruction/new data under this size will not
    be compressed using zlib as a secondary compressor.  */
 #define MIN_COMPRESS_SIZE 512
-
-unsigned char *
-svn__encode_uint(unsigned char *p, apr_uint64_t val)
-{
-  int n;
-  apr_uint64_t v;
-
-  /* Figure out how many bytes we'll need.  */
-  v = val >> 7;
-  n = 1;
-  while (v > 0)
-    {
-      v = v >> 7;
-      n++;
-    }
-
-  /* Encode the remaining bytes; n is always the number of bytes
-     coming after the one we're encoding.  */
-  while (--n >= 1)
-    *p++ = (unsigned char)(((val >> (n * 7)) | 0x80) & 0xff);
-
-  *p++ = (unsigned char)(val & 0x7f);
-
-  return p;
-}
-
-const unsigned char *
-svn__decode_uint(apr_uint64_t *val,
-                 const unsigned char *p,
-                 const unsigned char *end)
-{
-  apr_uint64_t temp = 0;
-
-  if (p + SVN__MAX_ENCODED_UINT_LEN < end)
-    end = p + SVN__MAX_ENCODED_UINT_LEN;
-
-  /* Decode bytes until we're done. */
-  while (SVN__PREDICT_TRUE(p < end))
-    {
-      unsigned int c = *p++;
-
-      if (c < 0x80)
-        {
-          *val = (temp << 7) | c;
-          return p;
-        }
-      else
-        {
-          temp = (temp << 7) | (c & 0x7f);
-        }
-    }
-
-  return NULL;
-}
 
 /* If IN is a string that is >= MIN_COMPRESS_SIZE and the COMPRESSION_LEVEL
    is not SVN_DELTA_COMPRESSION_LEVEL_NONE, zlib compress it and places the
@@ -235,9 +179,9 @@ zlib_decode(const unsigned char *in, apr_size_t inLen, svn_stringbuf_t *out,
 }
 
 svn_error_t *
-svn__compress(svn_stringbuf_t *in,
-              svn_stringbuf_t *out,
-              int compression_method)
+svn__compress_zlib(const void *data, apr_size_t len,
+                   svn_stringbuf_t *out,
+                   int compression_method)
 {
   if (   compression_method < SVN__COMPRESSION_NONE
       || compression_method > SVN__COMPRESSION_ZLIB_MAX)
@@ -245,13 +189,13 @@ svn__compress(svn_stringbuf_t *in,
                              _("Unsupported compression method %d"),
                              compression_method);
 
-  return zlib_encode(in->data, in->len, out, compression_method);
+  return zlib_encode(data, len, out, compression_method);
 }
 
 svn_error_t *
-svn__decompress(svn_stringbuf_t *in,
-                svn_stringbuf_t *out,
-                apr_size_t limit)
+svn__decompress_zlib(const void *data, apr_size_t len,
+                     svn_stringbuf_t *out,
+                     apr_size_t limit)
 {
-  return zlib_decode((const unsigned char*)in->data, in->len, out, limit);
+  return zlib_decode(data, len, out, limit);
 }

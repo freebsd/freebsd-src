@@ -120,7 +120,7 @@ relegate_dir_external(svn_wc_context_t *wc_ctx,
 
           /* And if it is no longer a working copy, we should just rename
              it */
-          err = svn_io_file_rename(local_abspath, new_path, scratch_pool);
+          err = svn_io_file_rename2(local_abspath, new_path, FALSE, scratch_pool);
         }
 
       /* ### TODO: We should notify the user about the rename */
@@ -534,7 +534,7 @@ switch_file_external(const char *local_abspath,
 
       SVN_ERR(svn_io_check_path(local_abspath, &disk_kind, scratch_pool));
 
-      if (kind == svn_node_file || kind == svn_node_dir)
+      if (disk_kind == svn_node_file || disk_kind == svn_node_dir)
         return svn_error_createf(SVN_ERR_WC_PATH_FOUND, NULL,
                                  _("The file external '%s' can not be "
                                    "created because the node exists."),
@@ -574,6 +574,8 @@ switch_file_external(const char *local_abspath,
                                              record_url,
                                              record_peg_revision,
                                              record_revision,
+                                             ctx->conflict_func2,
+                                             ctx->conflict_baton2,
                                              ctx->cancel_func,
                                              ctx->cancel_baton,
                                              ctx->notify_func2,

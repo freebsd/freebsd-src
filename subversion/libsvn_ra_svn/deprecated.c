@@ -110,7 +110,12 @@ svn_ra_svn_read_item(svn_ra_svn_conn_t *conn,
                      apr_pool_t *pool,
                      svn_ra_svn_item_t **item)
 {
-  return svn_error_trace(svn_ra_svn__read_item(conn, pool, item));
+  svn_ra_svn__item_t *temp;
+  SVN_ERR(svn_ra_svn__read_item(conn, pool, &temp));
+  *item  = apr_pcalloc(pool, sizeof(**item));
+  svn_ra_svn__to_public_item(*item, temp, pool);
+
+  return SVN_NO_ERROR;
 }
 
 svn_error_t *
@@ -127,9 +132,10 @@ svn_ra_svn_parse_tuple(const apr_array_header_t *list,
 {
   va_list va;
   svn_error_t *err;
+  svn_ra_svn__list_t *internal = svn_ra_svn__to_private_array(list, pool);
 
   va_start(va, fmt);
-  err = svn_ra_svn__parse_tuple(list, pool, fmt, va);
+  err = svn_ra_svn__parse_tuple(internal, fmt, va);
   va_end(va);
 
   return svn_error_trace(err);
@@ -155,7 +161,9 @@ svn_ra_svn_parse_proplist(const apr_array_header_t *list,
                           apr_pool_t *pool,
                           apr_hash_t **props)
 {
-  return svn_error_trace(svn_ra_svn__parse_proplist(list, pool, props));
+  svn_ra_svn__list_t *internal
+    = svn_ra_svn__to_private_array(list, pool);
+  return svn_error_trace(svn_ra_svn__parse_proplist(internal, pool, props));
 }
 
 svn_error_t *
@@ -180,8 +188,23 @@ svn_ra_svn_handle_commands2(svn_ra_svn_conn_t *conn,
                             void *baton,
                             svn_boolean_t error_on_disconnect)
 {
+  apr_size_t i, count = 0;
+  svn_ra_svn__cmd_entry_t *internal;
+
+  while (commands[count].cmdname)
+    count++;
+
+  internal = apr_pcalloc(pool, count * sizeof(*internal));
+  for (i = 0; i < count; ++i)
+    {
+      internal[i].cmdname = commands[i].cmdname;
+      internal[i].handler = NULL;
+      internal[i].deprecated_handler = commands[i].handler;
+      internal[i].terminate = commands[i].terminate;
+    }
+
   return svn_error_trace(svn_ra_svn__handle_commands2(conn, pool,
-                                                      commands, baton,
+                                                      internal, baton,
                                                       error_on_disconnect));
 }
 
@@ -191,9 +214,9 @@ svn_ra_svn_handle_commands(svn_ra_svn_conn_t *conn,
                            const svn_ra_svn_cmd_entry_t *commands,
                            void *baton)
 {
-  return svn_error_trace(svn_ra_svn__handle_commands2(conn, pool,
-                                                      commands, baton,
-                                                      FALSE));
+  return svn_error_trace(svn_ra_svn_handle_commands2(conn, pool,
+                                                     commands, baton,
+                                                     FALSE));
 }
 
 svn_error_t *
@@ -238,6 +261,20 @@ svn_ra_svn_write_cmd_failure(svn_ra_svn_conn_t *conn,
 }
 
 /* From marshal.c */
+svn_ra_svn_conn_t *
+svn_ra_svn_create_conn4(apr_socket_t *sock,
+                        svn_stream_t *in_stream,
+                        svn_stream_t *out_stream,
+                        int compression_level,
+                        apr_size_t zero_copy_limit,
+                        apr_size_t error_check_interval,
+                        apr_pool_t *pool)
+{
+  return svn_ra_svn_create_conn5(sock, in_stream, out_stream,
+                                 compression_level, zero_copy_limit,
+                                 error_check_interval, 0, 0, pool);
+}
+
 svn_ra_svn_conn_t *
 svn_ra_svn_create_conn3(apr_socket_t *sock,
                         apr_file_t *in_file,

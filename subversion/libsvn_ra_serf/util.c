@@ -65,7 +65,9 @@ ssl_convert_serf_failures(int failures)
   apr_uint32_t svn_failures = 0;
   apr_size_t i;
 
-  for (i = 0; i < sizeof(serf_failure_map) / (2 * sizeof(apr_uint32_t)); ++i)
+  for (i = 0;
+       i < sizeof(serf_failure_map) / (sizeof(serf_failure_map[0]));
+       ++i)
     {
       if (failures & serf_failure_map[i][0])
         {
@@ -478,6 +480,38 @@ load_authorities(svn_ra_serf__connection_t *conn, const char *authorities,
   return SVN_NO_ERROR;
 }
 
+#if SERF_VERSION_AT_LEAST(1, 4, 0) && defined(SVN__SERF_TEST_HTTP2)
+/* Implements serf_ssl_protocol_result_cb_t */
+static apr_status_t
+conn_negotiate_protocol(void *data,
+                        const char *protocol)
+{
+  svn_ra_serf__connection_t *conn = data;
+
+  if (!strcmp(protocol, "h2"))
+    {
+      serf_connection_set_framing_type(
+            conn->conn,
+            SERF_CONNECTION_FRAMING_TYPE_HTTP2);
+
+      /* Disable generating content-length headers. */
+      conn->session->http10 = FALSE;
+      conn->session->http20 = TRUE;
+      conn->session->using_chunked_requests = TRUE;
+      conn->session->detect_chunking = FALSE;
+    }
+  else
+    {
+      /* protocol should be "" or "http/1.1" */
+      serf_connection_set_framing_type(
+            conn->conn,
+            SERF_CONNECTION_FRAMING_TYPE_HTTP1);
+    }
+
+  return APR_SUCCESS;
+}
+#endif
+
 static svn_error_t *
 conn_setup(apr_socket_t *sock,
            serf_bucket_t **read_bkt,
@@ -523,6 +557,16 @@ conn_setup(apr_socket_t *sock,
               SVN_ERR(load_authorities(conn, conn->session->ssl_authorities,
                                        conn->session->pool));
             }
+#if SERF_VERSION_AT_LEAST(1, 4, 0) && defined(SVN__SERF_TEST_HTTP2)
+          if (APR_SUCCESS ==
+                serf_ssl_negotiate_protocol(conn->ssl_context, "h2,http/1.1",
+                                            conn_negotiate_protocol, conn))
+            {
+                serf_connection_set_framing_type(
+                            conn->conn,
+                            SERF_CONNECTION_FRAMING_TYPE_NONE);
+            }
+#endif
         }
 
       if (write_bkt)
@@ -957,7 +1001,7 @@ svn_ra_serf__context_run_wait(svn_boolean_t *done,
    will cancel all outstanding requests and prepare the connection
    for re-use.
 */
-static void
+void
 svn_ra_serf__unschedule_handler(svn_ra_serf__handler_t *handler)
 {
   serf_connection_reset(handler->conn->conn);
@@ -1293,6 +1337,10 @@ handle_response(serf_request_t *request,
       /* HTTP/1.1? (or later)  */
       if (sl.version != SERF_HTTP_10)
         handler->session->http10 = FALSE;
+
+      if (sl.version >= SERF_HTTP_VERSION(2, 0)) {
+        handler->session->http20 = TRUE;
+      }
     }
 
   /* Keep reading from the network until we've read all the headers.  */
@@ -1523,7 +1571,7 @@ setup_request(serf_request_t *request,
     {
       accept_encoding = NULL;
     }
-  else if (handler->session->using_compression)
+  else if (handler->session->using_compression != svn_tristate_false)
     {
       /* Accept gzip compression if enabled. */
       accept_encoding = "gzip";
@@ -1975,3 +2023,114 @@ svn_ra_serf__uri_parse(apr_uri_t *uri,
 
   return SVN_NO_ERROR;
 }
+
+void
+svn_ra_serf__setup_svndiff_accept_encoding(serf_bucket_t *headers,
+                                           svn_ra_serf__session_t *session)
+{
+  if (session->using_compression == svn_tristate_false)
+    {
+      /* Don't advertise support for compressed svndiff formats if
+         compression is disabled. */
+      serf_bucket_headers_setn(
+        headers, "Accept-Encoding", "svndiff");
+    }
+  else if (session->using_compression == svn_tristate_unknown &&
+           svn_ra_serf__is_low_latency_connection(session))
+    {
+      /* With http-compression=auto, advertise that we prefer svndiff2
+         to svndiff1 with a low latency connection (assuming the underlying
+         network has high bandwidth), as it is faster and in this case, we
+         don't care about worse compression ratio. */
+      serf_bucket_headers_setn(
+        headers, "Accept-Encoding",
+        "gzip,svndiff2;q=0.9,svndiff1;q=0.8,svndiff;q=0.7");
+    }
+  else
+    {
+      /* Otherwise, advertise that we prefer svndiff1 over svndiff2.
+         svndiff2 is not a reasonable substitute for svndiff1 with default
+         compression level, because, while it is faster, it also gives worse
+         compression ratio.  While we can use svndiff2 in some cases (see
+         above), we can't do this generally. */
+      serf_bucket_headers_setn(
+        headers, "Accept-Encoding",
+        "gzip,svndiff1;q=0.9,svndiff2;q=0.8,svndiff;q=0.7");
+    }
+}
+
+svn_boolean_t
+svn_ra_serf__is_low_latency_connection(svn_ra_serf__session_t *session)
+{
+  return session->conn_latency >= 0 &&
+         session->conn_latency < apr_time_from_msec(5);
+}
+
+apr_array_header_t *
+svn_ra_serf__get_dirent_props(apr_uint32_t dirent_fields,
+                              svn_ra_serf__session_t *session,
+                              apr_pool_t *result_pool)
+{
+  svn_ra_serf__dav_props_t *prop;
+  apr_array_header_t *props = apr_array_make
+    (result_pool, 7, sizeof(svn_ra_serf__dav_props_t));
+
+  if (session->supports_deadprop_count != svn_tristate_false
+      || ! (dirent_fields & SVN_DIRENT_HAS_PROPS))
+    {
+      if (dirent_fields & SVN_DIRENT_KIND)
+        {
+          prop = apr_array_push(props);
+          prop->xmlns = "DAV:";
+          prop->name = "resourcetype";
+        }
+
+      if (dirent_fields & SVN_DIRENT_SIZE)
+        {
+          prop = apr_array_push(props);
+          prop->xmlns = "DAV:";
+          prop->name = "getcontentlength";
+        }
+
+      if (dirent_fields & SVN_DIRENT_HAS_PROPS)
+        {
+          prop = apr_array_push(props);
+          prop->xmlns = SVN_DAV_PROP_NS_DAV;
+          prop->name = "deadprop-count";
+        }
+
+      if (dirent_fields & SVN_DIRENT_CREATED_REV)
+        {
+          svn_ra_serf__dav_props_t *p = apr_array_push(props);
+          p->xmlns = "DAV:";
+          p->name = SVN_DAV__VERSION_NAME;
+        }
+
+      if (dirent_fields & SVN_DIRENT_TIME)
+        {
+          prop = apr_array_push(props);
+          prop->xmlns = "DAV:";
+          prop->name = SVN_DAV__CREATIONDATE;
+        }
+
+      if (dirent_fields & SVN_DIRENT_LAST_AUTHOR)
+        {
+          prop = apr_array_push(props);
+          prop->xmlns = "DAV:";
+          prop->name = "creator-displayname";
+        }
+    }
+  else
+    {
+      /* We found an old subversion server that can't handle
+         the deadprop-count property in the way we expect.
+
+         The neon behavior is to retrieve all properties in this case */
+      prop = apr_array_push(props);
+      prop->xmlns = "DAV:";
+      prop->name = "allprop";
+    }
+
+  return props;
+}
+

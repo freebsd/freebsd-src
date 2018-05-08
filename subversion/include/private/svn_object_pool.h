@@ -65,80 +65,46 @@
 /* The opaque object container type. */
 typedef struct svn_object_pool__t svn_object_pool__t;
 
-/* Extract the actual object from the WRAPPER using optional information
- * from BATON (provided through #svn_object_pool__lookup) and return it.
- * The result will be used with POOL and must remain valid throughout
- * POOL's lifetime.
- *
- * It is legal to return a copy, allocated in POOL, of the wrapped object.
- */
-typedef void * (* svn_object_pool__getter_t)(void *wrapper,
-                                             void *baton,
-                                             apr_pool_t *pool);
-
-/* Copy the information from the SOURCE object wrapper into the already
- * existing *TARGET object wrapper using POOL for allocations and BATON
- * for optional context (provided through #svn_object_pool__insert).
- */
-typedef svn_error_t * (* svn_object_pool__setter_t)(void **target,
-                                                    void *source,
-                                                    void *baton,
-                                                    apr_pool_t *pool);
-
 /* Create a new object pool in POOL and return it in *OBJECT_POOL.
- * Objects will be extracted using GETTER and updated using SETTER.  Either
- * one (or both) may be NULL and the default implementation assumes that
- * wrapper == object and updating is a no-op.
+ * Objects are reference-counted and stored as opaque pointers.  Each
+ * must be allocated in a separate pool ceated by
+ * svn_object_pool__new_item_pool.  Unused objects get destroyed at
+ * the object pool's discretion.
  *
  * If THREAD_SAFE is not set, neither the object pool nor the object
  * references returned from it may be accessed from multiple threads.
  *
  * It is not legal to call any API on the object pool after POOL got
- * cleared or destroyed.  However, existing object references handed out
- * from the object pool remain valid and will keep the internal pool data
- * structures alive for as long as such object references exist.
+ * cleared or destroyed nor to use any objects from this object pool.
  */
 svn_error_t *
 svn_object_pool__create(svn_object_pool__t **object_pool,
-                        svn_object_pool__getter_t getter,
-                        svn_object_pool__setter_t setter,
                         svn_boolean_t thread_safe,
                         apr_pool_t *pool);
 
-/* Return the root pool containing the OBJECT_POOL and all sub-structures.
+/* Return a pool to allocate the new object.
  */
 apr_pool_t *
-svn_object_pool__new_wrapper_pool(svn_object_pool__t *object_pool);
-
-/* Return the mutex used to serialize all OBJECT_POOL access.
- */
-svn_mutex__t *
-svn_object_pool__mutex(svn_object_pool__t *object_pool);
-
-/* Return the number of object instances (used or unused) in OBJECT_POOL.
- */
-unsigned
-svn_object_pool__count(svn_object_pool__t *object_pool);
+svn_object_pool__new_item_pool(svn_object_pool__t *object_pool);
 
 /* In OBJECT_POOL, look for an available object by KEY and return a
  * reference to it in *OBJECT.  If none can be found, *OBJECT will be NULL.
- * BATON will be passed to OBJECT_POOL's getter function.  The reference
- * will be returned when *RESULT_POOL gets cleaned up or destroyed.
+ *
+ * The reference will be returned when *RESULT_POOL and may be destroyed
+ * or recycled by OBJECT_POOL.
  */
 svn_error_t *
 svn_object_pool__lookup(void **object,
                         svn_object_pool__t *object_pool,
                         svn_membuf_t *key,
-                        void *baton,
                         apr_pool_t *result_pool);
 
-/* Store the wrapped object WRAPPER under KEY in OBJECT_POOL and return
- * a reference to the object in *OBJECT (just like lookup).
+/* Store the object ITEM under KEY in OBJECT_POOL and return a reference
+ * to the object in *OBJECT (just like lookup).
  *
- * The object must have been created in WRAPPER_POOL and the latter must
- * be a sub-pool of OBJECT_POOL's root POOL (see #svn_object_pool__pool).
+ * The object must have been created in ITEM_POOL and the latter must
+ * have been created by svn_object_pool__new_item_pool.
  *
- * BATON will be passed to OBJECT_POOL's setter and getter functions.
  * The reference will be returned when *RESULT_POOL gets cleaned up or
  * destroyed.
  */
@@ -146,9 +112,8 @@ svn_error_t *
 svn_object_pool__insert(void **object,
                         svn_object_pool__t *object_pool,
                         const svn_membuf_t *key,
-                        void *wrapper,
-                        void *baton,
-                        apr_pool_t *wrapper_pool,
+                        void *item,
+                        apr_pool_t *item_pool,
                         apr_pool_t *result_pool);
 
 #endif /* SVN_OBJECT_POOL_H */

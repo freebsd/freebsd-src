@@ -29,12 +29,16 @@
 #include "private/svn_utf_private.h"
 #include "svn_private_config.h"
 
+#if SVN_INTERNAL_UTF8PROC
 #define UTF8PROC_INLINE
 /* Somehow utf8proc thinks it is nice to use strlen as an argument name,
    while this function is already defined via apr.h */
 #define strlen svn__strlen_var
 #include "utf8proc/utf8proc.c"
 #undef strlen
+#else
+#include <utf8proc.h>
+#endif
 
 
 
@@ -52,6 +56,14 @@ const char *
 svn_utf__utf8proc_runtime_version(void)
 {
   /* Unused static function warning removal hack. */
+  SVN_UNUSED(utf8proc_grapheme_break);
+  SVN_UNUSED(utf8proc_tolower);
+  SVN_UNUSED(utf8proc_toupper);
+#if UTF8PROC_VERSION_MAJOR >= 2
+  SVN_UNUSED(utf8proc_totitle);
+#endif
+  SVN_UNUSED(utf8proc_charwidth);
+  SVN_UNUSED(utf8proc_category_string);
   SVN_UNUSED(utf8proc_NFD);
   SVN_UNUSED(utf8proc_NFC);
   SVN_UNUSED(utf8proc_NFKD);
@@ -73,7 +85,7 @@ svn_utf__utf8proc_runtime_version(void)
  * that STRING contains invalid UTF-8 or was so long that an overflow
  * occurred.
  */
-static ssize_t
+static apr_ssize_t
 unicode_decomposition(int transform_flags,
                       const char *string, apr_size_t length,
                       svn_membuf_t *buffer)
@@ -84,8 +96,8 @@ unicode_decomposition(int transform_flags,
   for (;;)
     {
       apr_int32_t *const ucs4buf = buffer->data;
-      const ssize_t ucs4len = buffer->size / sizeof(*ucs4buf);
-      const ssize_t result =
+      const apr_ssize_t ucs4len = buffer->size / sizeof(*ucs4buf);
+      const apr_ssize_t result =
         utf8proc_decompose((const void*) string, length, ucs4buf, ucs4len,
                            UTF8PROC_DECOMPOSE | UTF8PROC_STABLE
                            | transform_flags | nullterm);
@@ -112,7 +124,7 @@ decompose_normalized(apr_size_t *result_length,
                      const char *string, apr_size_t length,
                      svn_membuf_t *buffer)
 {
-  ssize_t result = unicode_decomposition(0, string, length, buffer);
+  apr_ssize_t result = unicode_decomposition(0, string, length, buffer);
   if (result < 0)
     return svn_error_create(SVN_ERR_UTF8PROC_ERROR, NULL,
                             gettext(utf8proc_errmsg(result)));
@@ -126,15 +138,30 @@ decompose_normalized(apr_size_t *result_length,
  * STRING. Upon return, BUFFER->data points at a NUL-terminated string
  * of UTF-8 characters.
  *
+ * If CASEFOLD is non-zero, perform Unicode case folding, e.g., for
+ * case-insensitive string comparison. If STRIPMARK is non-zero, strip
+ * all diacritical marks (e.g., accents) from the string.
+ *
  * A returned error may indicate that STRING contains invalid UTF-8 or
  * invalid Unicode codepoints. Any error message comes from utf8proc.
  */
 static svn_error_t *
 normalize_cstring(apr_size_t *result_length,
                   const char *string, apr_size_t length,
+                  svn_boolean_t casefold,
+                  svn_boolean_t stripmark,
                   svn_membuf_t *buffer)
 {
-  ssize_t result = unicode_decomposition(0, string, length, buffer);
+  int flags = 0;
+  apr_ssize_t result;
+
+  if (casefold)
+    flags |= UTF8PROC_CASEFOLD;
+
+  if (stripmark)
+    flags |= UTF8PROC_STRIPMARK;
+
+  result = unicode_decomposition(flags, string, length, buffer);
   if (result >= 0)
     {
       svn_membuf__resize(buffer, result * sizeof(apr_int32_t) + 1);
@@ -202,9 +229,53 @@ svn_utf__normalize(const char **result,
                    svn_membuf_t *buf)
 {
   apr_size_t result_length;
-  SVN_ERR(normalize_cstring(&result_length, str, len, buf));
+  SVN_ERR(normalize_cstring(&result_length, str, len, FALSE, FALSE, buf));
   *result = (const char*)(buf->data);
   return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_utf__xfrm(const char **result,
+              const char *str, apr_size_t len,
+              svn_boolean_t case_insensitive,
+              svn_boolean_t accent_insensitive,
+              svn_membuf_t *buf)
+{
+  apr_size_t result_length;
+  SVN_ERR(normalize_cstring(&result_length, str, len,
+                            case_insensitive, accent_insensitive, buf));
+  *result = (const char*)(buf->data);
+  return SVN_NO_ERROR;
+}
+
+svn_boolean_t
+svn_utf__fuzzy_glob_match(const char *str,
+                          const apr_array_header_t *patterns,
+                          svn_membuf_t *buf)
+{
+  const char *normalized;
+  svn_error_t *err;
+  int i;
+
+  /* Try to normalize case and accents in STR.
+   *
+   * If that should fail for some reason, consider STR a mismatch. */
+  err = svn_utf__xfrm(&normalized, str, strlen(str), TRUE, TRUE, buf);
+  if (err)
+    {
+      svn_error_clear(err);
+      return FALSE;
+    }
+
+  /* Now see whether it matches any/all of the patterns. */
+  for (i = 0; i < patterns->nelts; ++i)
+    {
+      const char *pattern = APR_ARRAY_IDX(patterns, i, const char *);
+      if (apr_fnmatch(pattern, normalized, 0) == APR_SUCCESS)
+        return TRUE;
+    }
+
+  return FALSE;
 }
 
 /* Decode a single UCS-4 code point to UTF-8, appending the result to BUFFER.
@@ -221,7 +292,7 @@ encode_ucs4(svn_membuf_t *buffer, apr_int32_t ucs4chr, apr_size_t *length)
   if (buffer->size - *length < 4)
     svn_membuf__resize(buffer, buffer->size + 4);
 
-  utf8len = utf8proc_encode_char(ucs4chr, ((uint8_t*)buffer->data + *length));
+  utf8len = utf8proc_encode_char(ucs4chr, ((apr_byte_t*)buffer->data + *length));
   if (!utf8len)
     return svn_error_createf(SVN_ERR_UTF8PROC_ERROR, NULL,
                              _("Invalid Unicode character U+%04lX"),
@@ -284,7 +355,7 @@ svn_utf__glob(svn_boolean_t *match,
         {
           const int nullterm = (escape_len == SVN_UTF__UNKNOWN_LENGTH
                                 ? UTF8PROC_NULLTERM : 0);
-          ssize_t result =
+          apr_ssize_t result =
             utf8proc_decompose((const void*) escape, escape_len, &ucs4esc, 1,
                                UTF8PROC_DECOMPOSE | UTF8PROC_STABLE | nullterm);
           if (result < 0)
@@ -359,7 +430,8 @@ svn_utf__is_normalized(const char *string, apr_pool_t *scratch_pool)
   apr_size_t result_length;
   const apr_size_t length = strlen(string);
   svn_membuf__create(&buffer, length * sizeof(apr_int32_t), scratch_pool);
-  err = normalize_cstring(&result_length, string, length, &buffer);
+  err = normalize_cstring(&result_length, string, length,
+                          FALSE, FALSE, &buffer);
   if (err)
     {
       svn_error_clear(err);
@@ -381,8 +453,8 @@ svn_utf__fuzzy_escape(const char *src, apr_size_t length, apr_pool_t *pool)
 
   svn_stringbuf_t *result;
   svn_membuf_t buffer;
-  ssize_t decomp_length;
-  ssize_t len;
+  apr_ssize_t decomp_length;
+  apr_ssize_t len;
 
   /* Decompose to a non-reversible compatibility format. */
   svn_membuf__create(&buffer, length * sizeof(apr_int32_t), pool);
@@ -411,7 +483,7 @@ svn_utf__fuzzy_escape(const char *src, apr_size_t length, apr_pool_t *pool)
 
           while (done < length)
             {
-              len = utf8proc_iterate((uint8_t*)src + done, length - done, &uc);
+              len = utf8proc_iterate((apr_byte_t*)src + done, length - done, &uc);
               if (len < 0)
                 break;
               done += len;
@@ -439,7 +511,7 @@ svn_utf__fuzzy_escape(const char *src, apr_size_t length, apr_pool_t *pool)
 
               /* Determine the length of the UTF-8 sequence */
               const char *const p = src + done;
-              len = utf8proc_utf8class[(uint8_t)*p];
+              len = utf8proc_utf8class[(apr_byte_t)*p];
 
               /* Check if the multi-byte sequence is valid UTF-8. */
               if (len > 1 && len <= (apr_ssize_t)(length - done))

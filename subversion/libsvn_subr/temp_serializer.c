@@ -366,7 +366,7 @@ svn_temp_serializer__get(svn_temp_serializer__context_t *context)
  * proper pointer value.
  */
 void
-svn_temp_deserializer__resolve(void *buffer, void **ptr)
+svn_temp_deserializer__resolve(const void *buffer, void **ptr)
 {
   /* All pointers are stored as offsets to the buffer start
    * (of the respective serialized sub-struct). */
