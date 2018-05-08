@@ -1,4 +1,4 @@
-#	$OpenBSD: brokenkeys.sh,v 1.1 2004/10/29 23:59:22 djm Exp $
+#	$OpenBSD: brokenkeys.sh,v 1.2 2017/04/30 23:34:55 djm Exp $
 #	Placed in the Public Domain.
 
 tid="broken keys"
@@ -14,9 +14,9 @@ echo "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAIEABTM= bad key" > $KEYS
 cat ${KEYS}.bak >> ${KEYS}
 cat $OBJ/$t.pub >> $OBJ/authorized_keys_$USER
 
-${SSH} -2 -F $OBJ/ssh_config somehost true
+${SSH} -F $OBJ/ssh_config somehost true
 if [ $? -ne 0 ]; then
-	fail "ssh connect with protocol $p failed"
+	fail "ssh connect with failed"
 fi
 
 mv ${KEYS}.bak ${KEYS}

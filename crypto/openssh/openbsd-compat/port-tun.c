@@ -199,84 +199,81 @@ sys_tun_open(int tun, int mode)
  */
 
 #if defined(SSH_TUN_FILTER)
+/*
+ * The tunnel forwarding protocol prepends the address family of forwarded
+ * IP packets using OpenBSD's numbers.
+ */
 #define OPENBSD_AF_INET		2
 #define OPENBSD_AF_INET6	24
 
 int
-sys_tun_infilter(struct Channel *c, char *buf, int len)
+sys_tun_infilter(struct ssh *ssh, struct Channel *c, char *buf, int _len)
 {
+	int r;
+	size_t len;
+	char *ptr = buf;
 #if defined(SSH_TUN_PREPEND_AF)
 	char rbuf[CHAN_RBUF];
-	struct ip *iph;
+	struct ip iph;
 #endif
-	u_int32_t *af;
-	char *ptr = buf;
-	int r;
+#if defined(SSH_TUN_PREPEND_AF) || defined(SSH_TUN_COMPAT_AF)
+	u_int32_t af;
+#endif
+
+	/* XXX update channel input filter API to use unsigned length */
+	if (_len < 0)
+		return -1;
+	len = _len;
 
 #if defined(SSH_TUN_PREPEND_AF)
-	if (len <= 0 || len > (int)(sizeof(rbuf) - sizeof(*af)))
-		return (-1);
-	ptr = (char *)&rbuf[0];
-	bcopy(buf, ptr + sizeof(u_int32_t), len);
-	len += sizeof(u_int32_t);
-	af = (u_int32_t *)ptr;
-
-	iph = (struct ip *)(ptr + sizeof(u_int32_t));
-	switch (iph->ip_v) {
-	case 6:
-		*af = AF_INET6;
-		break;
-	case 4:
-	default:
-		*af = AF_INET;
-		break;
-	}
+	if (len <= sizeof(iph) || len > sizeof(rbuf) - 4)
+		return -1;
+	/* Determine address family from packet IP header. */
+	memcpy(&iph, buf, sizeof(iph));
+	af = iph.ip_v == 6 ? OPENBSD_AF_INET6 : OPENBSD_AF_INET;
+	/* Prepend address family to packet using OpenBSD constants */
+	memcpy(rbuf + 4, buf, len);
+	len += 4;
+	POKE_U32(rbuf, af);
+	ptr = rbuf;
+#elif defined(SSH_TUN_COMPAT_AF)
+	/* Convert existing address family header to OpenBSD value */
+	if (len <= 4)
+		return -1;
+	af = PEEK_U32(buf);
+	/* Put it back */
+	POKE_U32(buf, af == AF_INET6 ? OPENBSD_AF_INET6 : OPENBSD_AF_INET);
 #endif
 
-#if defined(SSH_TUN_COMPAT_AF)
-	if (len < (int)sizeof(u_int32_t))
-		return (-1);
-
-	af = (u_int32_t *)ptr;
-	if (*af == htonl(AF_INET6))
-		*af = htonl(OPENBSD_AF_INET6);
-	else
-		*af = htonl(OPENBSD_AF_INET);
-#endif
-
-	if ((r = sshbuf_put_string(&c->input, ptr, len)) != 0)
+	if ((r = sshbuf_put_string(c->input, ptr, len)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	return (0);
 }
 
 u_char *
-sys_tun_outfilter(struct Channel *c, u_char **data, u_int *dlen)
+sys_tun_outfilter(struct ssh *ssh, struct Channel *c,
+    u_char **data, size_t *dlen)
 {
 	u_char *buf;
-	u_int32_t *af;
+	u_int32_t af;
 	int r;
-	size_t xxx_dlen;
 
 	/* XXX new API is incompatible with this signature. */
-	if ((r = sshbuf_get_string(&c->output, data, &xxx_dlen)) != 0)
+	if ((r = sshbuf_get_string(c->output, data, dlen)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
-	if (dlen != NULL)
-		*dlen = xxx_dlen;
-	if (*dlen < sizeof(*af))
+	if (*dlen < sizeof(af))
 		return (NULL);
 	buf = *data;
 
 #if defined(SSH_TUN_PREPEND_AF)
-	*dlen -= sizeof(u_int32_t);
-	buf = *data + sizeof(u_int32_t);
+	/* skip address family */
+	*dlen -= sizeof(af);
+	buf = *data + sizeof(af);
 #elif defined(SSH_TUN_COMPAT_AF)
-	af = ntohl(*(u_int32_t *)buf);
-	if (*af == OPENBSD_AF_INET6)
-		*af = htonl(AF_INET6);
-	else
-		*af = htonl(AF_INET);
+	/* translate address family */
+	af = (PEEK_U32(buf) == OPENBSD_AF_INET6) ? AF_INET6 : AF_INET;
+	POKE_U32(buf, af);
 #endif
-
 	return (buf);
 }
 #endif /* SSH_TUN_FILTER */

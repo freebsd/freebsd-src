@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.h,v 1.48 2015/05/26 23:23:40 dtucker Exp $ */
+/* $OpenBSD: compat.h,v 1.49 2017/04/30 23:13:25 djm Exp $ */
 
 /*
  * Copyright (c) 1999, 2000, 2001 Markus Friedl.  All rights reserved.
@@ -63,15 +63,11 @@
 #define SSH_BUG_HOSTKEYS	0x20000000
 #define SSH_BUG_DHGEX_LARGE	0x40000000
 
-void     enable_compat13(void);
-void     enable_compat20(void);
 u_int    compat_datafellows(const char *);
 int	 proto_spec(const char *);
 char	*compat_cipher_proposal(char *);
 char	*compat_pkalg_proposal(char *);
 char	*compat_kex_proposal(char *);
 
-extern int compat13;
-extern int compat20;
 extern int datafellows;
 #endif

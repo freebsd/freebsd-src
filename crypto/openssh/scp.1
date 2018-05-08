@@ -8,9 +8,9 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.71 2016/07/16 06:57:55 jmc Exp $
+.\" $OpenBSD: scp.1,v 1.74 2017/05/03 21:49:18 naddy Exp $
 .\"
-.Dd $Mdocdate: July 16 2016 $
+.Dd $Mdocdate: May 3 2017 $
 .Dt SCP 1
 .Os
 .Sh NAME
@@ -19,7 +19,7 @@
 .Sh SYNOPSIS
 .Nm scp
 .Bk -words
-.Op Fl 12346BCpqrv
+.Op Fl 346BCpqrv
 .Op Fl c Ar cipher
 .Op Fl F Ar ssh_config
 .Op Fl i Ar identity_file
@@ -65,14 +65,6 @@ Copies between two remote hosts are also permitted.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl 1
-Forces
-.Nm
-to use protocol 1.
-.It Fl 2
-Forces
-.Nm
-to use protocol 2.
 .It Fl 3
 Copies between two remote hosts are transferred through the local host.
 Without this option the data is copied directly between the two remote
@@ -136,10 +128,8 @@ For full details of the options listed below, and their possible values, see
 .It CertificateFile
 .It ChallengeResponseAuthentication
 .It CheckHostIP
-.It Cipher
 .It Ciphers
 .It Compression
-.It CompressionLevel
 .It ConnectionAttempts
 .It ConnectTimeout
 .It ControlMaster
@@ -170,14 +160,11 @@ For full details of the options listed below, and their possible values, see
 .It PKCS11Provider
 .It Port
 .It PreferredAuthentications
-.It Protocol
 .It ProxyCommand
 .It ProxyJump
 .It PubkeyAcceptedKeyTypes
 .It PubkeyAuthentication
 .It RekeyLimit
-.It RhostsRSAAuthentication
-.It RSAAuthentication
 .It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax

@@ -33,16 +33,14 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.243 2017/03/14 07:19:07 djm Exp $
+.\" $OpenBSD: sshd_config.5,v 1.253 2017/09/27 06:45:53 jmc Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: March 14 2017 $
+.Dd $Mdocdate: September 27 2017 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
 .Nm sshd_config
 .Nd OpenSSH SSH daemon configuration file
-.Sh SYNOPSIS
-.Nm /etc/ssh/sshd_config
 .Sh DESCRIPTION
 .Xr sshd 8
 reads configuration data from
@@ -226,6 +224,18 @@ requires successful authentication using two different public keys.
 .Pp
 Note that each authentication method listed should also be explicitly enabled
 in the configuration.
+.Pp
+The available authentication methods are:
+.Qq gssapi-with-mic ,
+.Qq hostbased ,
+.Qq keyboard-interactive ,
+.Qq none
+(used for access to password-less accounts when
+.Cm PermitEmptyPassword
+is enabled),
+.Qq password
+and
+.Qq publickey .
 .It Cm AuthorizedKeysCommand
 Specifies a program to be used to look up the user's public keys.
 The program must be owned by root, not writable by group or others and
@@ -465,16 +475,6 @@ aes128-gcm@openssh.com
 .It
 aes256-gcm@openssh.com
 .It
-arcfour
-.It
-arcfour128
-.It
-arcfour256
-.It
-blowfish-cbc
-.It
-cast128-cbc
-.It
 chacha20-poly1305@openssh.com
 .El
 .Pp
@@ -576,6 +576,14 @@ Disables all forwarding features, including X11,
 TCP and StreamLocal.
 This option overrides all other forwarding-related options and may
 simplify restricted configurations.
+.It Cm ExposeAuthInfo
+Writes a temporary file containing a list of authentication methods and
+public credentials (e.g. keys) used to authenticate the user.
+The location of the file is exposed to the user session through the
+.Ev SSH_USER_AUTH
+environment variable.
+The default is
+.Cm no .
 .It Cm FingerprintHash
 Specifies the hash algorithm used when logging key fingerprints.
 Valid options are:
@@ -800,7 +808,9 @@ Accepted values are
 .Cm lowdelay ,
 .Cm throughput ,
 .Cm reliability ,
-or a numeric value.
+a numeric value, or
+.Cm none
+to use the operating system default.
 This option may take one or two arguments, separated by whitespace.
 If one argument is specified, it is used as the packet class unconditionally.
 If two values are specified, the first is automatically selected for
@@ -964,8 +974,6 @@ hmac-md5
 .It
 hmac-md5-96
 .It
-hmac-ripemd160
-.It
 hmac-sha1
 .It
 hmac-sha1-96
@@ -981,8 +989,6 @@ umac-128@openssh.com
 hmac-md5-etm@openssh.com
 .It
 hmac-md5-96-etm@openssh.com
-.It
-hmac-ripemd160-etm@openssh.com
 .It
 hmac-sha1-etm@openssh.com
 .It
@@ -1082,6 +1088,7 @@ Available keywords are
 .Cm IPQoS ,
 .Cm KbdInteractiveAuthentication ,
 .Cm KerberosAuthentication ,
+.Cm LogLevel ,
 .Cm MaxAuthTries ,
 .Cm MaxSessions ,
 .Cm PasswordAuthentication ,
@@ -1520,7 +1527,7 @@ The default is
 Optionally specifies additional text to append to the SSH protocol banner
 sent by the server upon connection.
 The default is
-.Qq FreeBSD-20170804 .
+.Qq FreeBSD-20180507 .
 The value
 .Cm none
 may be used to disable this.

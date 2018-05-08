@@ -104,6 +104,16 @@ const char *strerror(int e)
 }
 #endif
 
+#if !defined(HAVE_STRSIGNAL)
+char *strsignal(int sig)
+{
+	static char buf[16];
+
+	(void)snprintf(buf, sizeof(buf), "%d", sig);
+	return buf;
+}
+#endif
+
 #ifndef HAVE_UTIMES
 int utimes(char *filename, struct timeval *tvp)
 {

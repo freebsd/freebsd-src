@@ -1,12 +1,7 @@
-#	$OpenBSD: keytype.sh,v 1.4 2015/07/10 06:23:25 markus Exp $
+#	$OpenBSD: keytype.sh,v 1.5 2017/03/20 22:08:06 djm Exp $
 #	Placed in the Public Domain.
 
 tid="login with different key types"
-
-TIME=`which time 2>/dev/null`
-if test ! -x "$TIME"; then
-	TIME=""
-fi
 
 cp $OBJ/sshd_proxy $OBJ/sshd_proxy_bak
 cp $OBJ/ssh_proxy $OBJ/ssh_proxy_bak
@@ -26,8 +21,8 @@ for kt in $ktypes; do
 	rm -f $OBJ/key.$kt
 	bits=`echo ${kt} | awk -F- '{print $2}'`
 	type=`echo ${kt}  | awk -F- '{print $1}'`
-	printf "keygen $type, $bits bits:\t"
-	${TIME} ${SSHKEYGEN} -b $bits -q -N '' -t $type  -f $OBJ/key.$kt ||\
+	verbose "keygen $type, $bits bits"
+	${SSHKEYGEN} -b $bits -q -N '' -t $type  -f $OBJ/key.$kt ||\
 		fail "ssh-keygen for type $type, $bits bits failed"
 done
 
@@ -63,8 +58,8 @@ for ut in $ktypes; do
 		) > $OBJ/known_hosts
 		cat $OBJ/key.$ut.pub > $OBJ/authorized_keys_$USER
 		for i in $tries; do
-			printf "userkey $ut, hostkey ${ht}:\t"
-			${TIME} ${SSH} -F $OBJ/ssh_proxy 999.999.999.999 true
+			verbose "userkey $ut, hostkey ${ht}"
+			${SSH} -F $OBJ/ssh_proxy 999.999.999.999 true
 			if [ $? -ne 0 ]; then
 				fail "ssh userkey $ut, hostkey $ht failed"
 			fi

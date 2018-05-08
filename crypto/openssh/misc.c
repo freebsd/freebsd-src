@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.109 2017/03/14 00:55:37 dtucker Exp $ */
+/* $OpenBSD: misc.c,v 1.113 2017/08/18 05:48:04 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
@@ -29,11 +29,17 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 #include <sys/un.h>
 
 #include <limits.h>
+#ifdef HAVE_LIBGEN_H
+# include <libgen.h>
+#endif
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,6 +68,10 @@
 #include "misc.h"
 #include "log.h"
 #include "ssh.h"
+#include "sshbuf.h"
+#include "ssherr.h"
+#include "uidswap.h"
+#include "platform.h"
 
 /* remove newline at end of string */
 char *
@@ -540,7 +550,7 @@ addargs(arglist *args, char *fmt, ...)
 	} else if (args->num+2 >= nalloc)
 		nalloc *= 2;
 
-	args->list = xreallocarray(args->list, nalloc, sizeof(char *));
+	args->list = xrecallocarray(args->list, args->nalloc, nalloc, sizeof(char *));
 	args->nalloc = nalloc;
 	args->list[args->num++] = cp;
 	args->list[args->num] = NULL;
@@ -1086,6 +1096,7 @@ static const struct {
 	const char *name;
 	int value;
 } ipqos[] = {
+	{ "none", INT_MAX },		/* can't use 0 here; that's CS0 */
 	{ "af11", IPTOS_DSCP_AF11 },
 	{ "af12", IPTOS_DSCP_AF12 },
 	{ "af13", IPTOS_DSCP_AF13 },
@@ -1291,3 +1302,461 @@ daemonized(void)
 	debug3("already daemonized");
 	return 1;
 }
+
+
+/*
+ * Splits 's' into an argument vector. Handles quoted string and basic
+ * escape characters (\\, \", \'). Caller must free the argument vector
+ * and its members.
+ */
+int
+argv_split(const char *s, int *argcp, char ***argvp)
+{
+	int r = SSH_ERR_INTERNAL_ERROR;
+	int argc = 0, quote, i, j;
+	char *arg, **argv = xcalloc(1, sizeof(*argv));
+
+	*argvp = NULL;
+	*argcp = 0;
+
+	for (i = 0; s[i] != '\0'; i++) {
+		/* Skip leading whitespace */
+		if (s[i] == ' ' || s[i] == '\t')
+			continue;
+
+		/* Start of a token */
+		quote = 0;
+		if (s[i] == '\\' &&
+		    (s[i + 1] == '\'' || s[i + 1] == '\"' || s[i + 1] == '\\'))
+			i++;
+		else if (s[i] == '\'' || s[i] == '"')
+			quote = s[i++];
+
+		argv = xreallocarray(argv, (argc + 2), sizeof(*argv));
+		arg = argv[argc++] = xcalloc(1, strlen(s + i) + 1);
+		argv[argc] = NULL;
+
+		/* Copy the token in, removing escapes */
+		for (j = 0; s[i] != '\0'; i++) {
+			if (s[i] == '\\') {
+				if (s[i + 1] == '\'' ||
+				    s[i + 1] == '\"' ||
+				    s[i + 1] == '\\') {
+					i++; /* Skip '\' */
+					arg[j++] = s[i];
+				} else {
+					/* Unrecognised escape */
+					arg[j++] = s[i];
+				}
+			} else if (quote == 0 && (s[i] == ' ' || s[i] == '\t'))
+				break; /* done */
+			else if (quote != 0 && s[i] == quote)
+				break; /* done */
+			else
+				arg[j++] = s[i];
+		}
+		if (s[i] == '\0') {
+			if (quote != 0) {
+				/* Ran out of string looking for close quote */
+				r = SSH_ERR_INVALID_FORMAT;
+				goto out;
+			}
+			break;
+		}
+	}
+	/* Success */
+	*argcp = argc;
+	*argvp = argv;
+	argc = 0;
+	argv = NULL;
+	r = 0;
+ out:
+	if (argc != 0 && argv != NULL) {
+		for (i = 0; i < argc; i++)
+			free(argv[i]);
+		free(argv);
+	}
+	return r;
+}
+
+/*
+ * Reassemble an argument vector into a string, quoting and escaping as
+ * necessary. Caller must free returned string.
+ */
+char *
+argv_assemble(int argc, char **argv)
+{
+	int i, j, ws, r;
+	char c, *ret;
+	struct sshbuf *buf, *arg;
+
+	if ((buf = sshbuf_new()) == NULL || (arg = sshbuf_new()) == NULL)
+		fatal("%s: sshbuf_new failed", __func__);
+
+	for (i = 0; i < argc; i++) {
+		ws = 0;
+		sshbuf_reset(arg);
+		for (j = 0; argv[i][j] != '\0'; j++) {
+			r = 0;
+			c = argv[i][j];
+			switch (c) {
+			case ' ':
+			case '\t':
+				ws = 1;
+				r = sshbuf_put_u8(arg, c);
+				break;
+			case '\\':
+			case '\'':
+			case '"':
+				if ((r = sshbuf_put_u8(arg, '\\')) != 0)
+					break;
+				/* FALLTHROUGH */
+			default:
+				r = sshbuf_put_u8(arg, c);
+				break;
+			}
+			if (r != 0)
+				fatal("%s: sshbuf_put_u8: %s",
+				    __func__, ssh_err(r));
+		}
+		if ((i != 0 && (r = sshbuf_put_u8(buf, ' ')) != 0) ||
+		    (ws != 0 && (r = sshbuf_put_u8(buf, '"')) != 0) ||
+		    (r = sshbuf_putb(buf, arg)) != 0 ||
+		    (ws != 0 && (r = sshbuf_put_u8(buf, '"')) != 0))
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	}
+	if ((ret = malloc(sshbuf_len(buf) + 1)) == NULL)
+		fatal("%s: malloc failed", __func__);
+	memcpy(ret, sshbuf_ptr(buf), sshbuf_len(buf));
+	ret[sshbuf_len(buf)] = '\0';
+	sshbuf_free(buf);
+	sshbuf_free(arg);
+	return ret;
+}
+
+/*
+ * Runs command in a subprocess wuth a minimal environment.
+ * Returns pid on success, 0 on failure.
+ * The child stdout and stderr maybe captured, left attached or sent to
+ * /dev/null depending on the contents of flags.
+ * "tag" is prepended to log messages.
+ * NB. "command" is only used for logging; the actual command executed is
+ * av[0].
+ */
+pid_t
+subprocess(const char *tag, struct passwd *pw, const char *command,
+    int ac, char **av, FILE **child, u_int flags)
+{
+	FILE *f = NULL;
+	struct stat st;
+	int fd, devnull, p[2], i;
+	pid_t pid;
+	char *cp, errmsg[512];
+	u_int envsize;
+	char **child_env;
+
+	if (child != NULL)
+		*child = NULL;
+
+	debug3("%s: %s command \"%s\" running as %s (flags 0x%x)", __func__,
+	    tag, command, pw->pw_name, flags);
+
+	/* Check consistency */
+	if ((flags & SSH_SUBPROCESS_STDOUT_DISCARD) != 0 &&
+	    (flags & SSH_SUBPROCESS_STDOUT_CAPTURE) != 0) {
+		error("%s: inconsistent flags", __func__);
+		return 0;
+	}
+	if (((flags & SSH_SUBPROCESS_STDOUT_CAPTURE) == 0) != (child == NULL)) {
+		error("%s: inconsistent flags/output", __func__);
+		return 0;
+	}
+
+	/*
+	 * If executing an explicit binary, then verify the it exists
+	 * and appears safe-ish to execute
+	 */
+	if (*av[0] != '/') {
+		error("%s path is not absolute", tag);
+		return 0;
+	}
+	temporarily_use_uid(pw);
+	if (stat(av[0], &st) < 0) {
+		error("Could not stat %s \"%s\": %s", tag,
+		    av[0], strerror(errno));
+		restore_uid();
+		return 0;
+	}
+	if (safe_path(av[0], &st, NULL, 0, errmsg, sizeof(errmsg)) != 0) {
+		error("Unsafe %s \"%s\": %s", tag, av[0], errmsg);
+		restore_uid();
+		return 0;
+	}
+	/* Prepare to keep the child's stdout if requested */
+	if (pipe(p) != 0) {
+		error("%s: pipe: %s", tag, strerror(errno));
+		restore_uid();
+		return 0;
+	}
+	restore_uid();
+
+	switch ((pid = fork())) {
+	case -1: /* error */
+		error("%s: fork: %s", tag, strerror(errno));
+		close(p[0]);
+		close(p[1]);
+		return 0;
+	case 0: /* child */
+		/* Prepare a minimal environment for the child. */
+		envsize = 5;
+		child_env = xcalloc(sizeof(*child_env), envsize);
+		child_set_env(&child_env, &envsize, "PATH", _PATH_STDPATH);
+		child_set_env(&child_env, &envsize, "USER", pw->pw_name);
+		child_set_env(&child_env, &envsize, "LOGNAME", pw->pw_name);
+		child_set_env(&child_env, &envsize, "HOME", pw->pw_dir);
+		if ((cp = getenv("LANG")) != NULL)
+			child_set_env(&child_env, &envsize, "LANG", cp);
+
+		for (i = 0; i < NSIG; i++)
+			signal(i, SIG_DFL);
+
+		if ((devnull = open(_PATH_DEVNULL, O_RDWR)) == -1) {
+			error("%s: open %s: %s", tag, _PATH_DEVNULL,
+			    strerror(errno));
+			_exit(1);
+		}
+		if (dup2(devnull, STDIN_FILENO) == -1) {
+			error("%s: dup2: %s", tag, strerror(errno));
+			_exit(1);
+		}
+
+		/* Set up stdout as requested; leave stderr in place for now. */
+		fd = -1;
+		if ((flags & SSH_SUBPROCESS_STDOUT_CAPTURE) != 0)
+			fd = p[1];
+		else if ((flags & SSH_SUBPROCESS_STDOUT_DISCARD) != 0)
+			fd = devnull;
+		if (fd != -1 && dup2(fd, STDOUT_FILENO) == -1) {
+			error("%s: dup2: %s", tag, strerror(errno));
+			_exit(1);
+		}
+		closefrom(STDERR_FILENO + 1);
+
+		/* Don't use permanently_set_uid() here to avoid fatal() */
+		if (setresgid(pw->pw_gid, pw->pw_gid, pw->pw_gid) != 0) {
+			error("%s: setresgid %u: %s", tag, (u_int)pw->pw_gid,
+			    strerror(errno));
+			_exit(1);
+		}
+		if (setresuid(pw->pw_uid, pw->pw_uid, pw->pw_uid) != 0) {
+			error("%s: setresuid %u: %s", tag, (u_int)pw->pw_uid,
+			    strerror(errno));
+			_exit(1);
+		}
+		/* stdin is pointed to /dev/null at this point */
+		if ((flags & SSH_SUBPROCESS_STDOUT_DISCARD) != 0 &&
+		    dup2(STDIN_FILENO, STDERR_FILENO) == -1) {
+			error("%s: dup2: %s", tag, strerror(errno));
+			_exit(1);
+		}
+
+		execve(av[0], av, child_env);
+		error("%s exec \"%s\": %s", tag, command, strerror(errno));
+		_exit(127);
+	default: /* parent */
+		break;
+	}
+
+	close(p[1]);
+	if ((flags & SSH_SUBPROCESS_STDOUT_CAPTURE) == 0)
+		close(p[0]);
+	else if ((f = fdopen(p[0], "r")) == NULL) {
+		error("%s: fdopen: %s", tag, strerror(errno));
+		close(p[0]);
+		/* Don't leave zombie child */
+		kill(pid, SIGTERM);
+		while (waitpid(pid, NULL, 0) == -1 && errno == EINTR)
+			;
+		return 0;
+	}
+	/* Success */
+	debug3("%s: %s pid %ld", __func__, tag, (long)pid);
+	if (child != NULL)
+		*child = f;
+	return pid;
+}
+
+/* Returns 0 if pid exited cleanly, non-zero otherwise */
+int
+exited_cleanly(pid_t pid, const char *tag, const char *cmd, int quiet)
+{
+	int status;
+
+	while (waitpid(pid, &status, 0) == -1) {
+		if (errno != EINTR) {
+			error("%s: waitpid: %s", tag, strerror(errno));
+			return -1;
+		}
+	}
+	if (WIFSIGNALED(status)) {
+		error("%s %s exited on signal %d", tag, cmd, WTERMSIG(status));
+		return -1;
+	} else if (WEXITSTATUS(status) != 0) {
+		do_log2(quiet ? SYSLOG_LEVEL_DEBUG1 : SYSLOG_LEVEL_INFO,
+		    "%s %s failed, status %d", tag, cmd, WEXITSTATUS(status));
+		return -1;
+	}
+	return 0;
+}
+
+/*
+ * Check a given path for security. This is defined as all components
+ * of the path to the file must be owned by either the owner of
+ * of the file or root and no directories must be group or world writable.
+ *
+ * XXX Should any specific check be done for sym links ?
+ *
+ * Takes a file name, its stat information (preferably from fstat() to
+ * avoid races), the uid of the expected owner, their home directory and an
+ * error buffer plus max size as arguments.
+ *
+ * Returns 0 on success and -1 on failure
+ */
+int
+safe_path(const char *name, struct stat *stp, const char *pw_dir,
+    uid_t uid, char *err, size_t errlen)
+{
+	char buf[PATH_MAX], homedir[PATH_MAX];
+	char *cp;
+	int comparehome = 0;
+	struct stat st;
+
+	if (realpath(name, buf) == NULL) {
+		snprintf(err, errlen, "realpath %s failed: %s", name,
+		    strerror(errno));
+		return -1;
+	}
+	if (pw_dir != NULL && realpath(pw_dir, homedir) != NULL)
+		comparehome = 1;
+
+	if (!S_ISREG(stp->st_mode)) {
+		snprintf(err, errlen, "%s is not a regular file", buf);
+		return -1;
+	}
+	if ((!platform_sys_dir_uid(stp->st_uid) && stp->st_uid != uid) ||
+	    (stp->st_mode & 022) != 0) {
+		snprintf(err, errlen, "bad ownership or modes for file %s",
+		    buf);
+		return -1;
+	}
+
+	/* for each component of the canonical path, walking upwards */
+	for (;;) {
+		if ((cp = dirname(buf)) == NULL) {
+			snprintf(err, errlen, "dirname() failed");
+			return -1;
+		}
+		strlcpy(buf, cp, sizeof(buf));
+
+		if (stat(buf, &st) < 0 ||
+		    (!platform_sys_dir_uid(st.st_uid) && st.st_uid != uid) ||
+		    (st.st_mode & 022) != 0) {
+			snprintf(err, errlen,
+			    "bad ownership or modes for directory %s", buf);
+			return -1;
+		}
+
+		/* If are past the homedir then we can stop */
+		if (comparehome && strcmp(homedir, buf) == 0)
+			break;
+
+		/*
+		 * dirname should always complete with a "/" path,
+		 * but we can be paranoid and check for "." too
+		 */
+		if ((strcmp("/", buf) == 0) || (strcmp(".", buf) == 0))
+			break;
+	}
+	return 0;
+}
+
+/*
+ * Version of safe_path() that accepts an open file descriptor to
+ * avoid races.
+ *
+ * Returns 0 on success and -1 on failure
+ */
+int
+safe_path_fd(int fd, const char *file, struct passwd *pw,
+    char *err, size_t errlen)
+{
+	struct stat st;
+
+	/* check the open file to avoid races */
+	if (fstat(fd, &st) < 0) {
+		snprintf(err, errlen, "cannot stat file %s: %s",
+		    file, strerror(errno));
+		return -1;
+	}
+	return safe_path(file, &st, pw->pw_dir, pw->pw_uid, err, errlen);
+}
+
+/*
+ * Sets the value of the given variable in the environment.  If the variable
+ * already exists, its value is overridden.
+ */
+void
+child_set_env(char ***envp, u_int *envsizep, const char *name,
+	const char *value)
+{
+	char **env;
+	u_int envsize;
+	u_int i, namelen;
+
+	if (strchr(name, '=') != NULL) {
+		error("Invalid environment variable \"%.100s\"", name);
+		return;
+	}
+
+	/*
+	 * If we're passed an uninitialized list, allocate a single null
+	 * entry before continuing.
+	 */
+	if (*envp == NULL && *envsizep == 0) {
+		*envp = xmalloc(sizeof(char *));
+		*envp[0] = NULL;
+		*envsizep = 1;
+	}
+
+	/*
+	 * Find the slot where the value should be stored.  If the variable
+	 * already exists, we reuse the slot; otherwise we append a new slot
+	 * at the end of the array, expanding if necessary.
+	 */
+	env = *envp;
+	namelen = strlen(name);
+	for (i = 0; env[i]; i++)
+		if (strncmp(env[i], name, namelen) == 0 && env[i][namelen] == '=')
+			break;
+	if (env[i]) {
+		/* Reuse the slot. */
+		free(env[i]);
+	} else {
+		/* New variable.  Expand if necessary. */
+		envsize = *envsizep;
+		if (i >= envsize - 1) {
+			if (envsize >= 1000)
+				fatal("child_set_env: too many env vars");
+			envsize += 50;
+			env = (*envp) = xreallocarray(env, envsize, sizeof(char *));
+			*envsizep = envsize;
+		}
+		/* Need to set the NULL pointer at end of array beyond the new slot. */
+		env[i + 1] = NULL;
+	}
+
+	/* Allocate space and format the variable in the appropriate slot. */
+	env[i] = xmalloc(strlen(name) + 1 + strlen(value) + 1);
+	snprintf(env[i], strlen(name) + 1 + strlen(value) + 1, "%s=%s", name, value);
+}
+

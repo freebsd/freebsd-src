@@ -1,4 +1,4 @@
-/* $OpenBSD: buffer.h,v 1.25 2014/04/30 05:29:56 djm Exp $ */
+/* $OpenBSD: buffer.h,v 1.26 2017/04/30 23:23:54 djm Exp $ */
 
 /*
  * Copyright (c) 2012 Damien Miller <djm@mindrot.org>
@@ -49,9 +49,7 @@ int	 buffer_consume_end_ret(Buffer *, u_int);
 
 #include <openssl/objects.h>
 #include <openssl/bn.h>
-void    buffer_put_bignum(Buffer *, const BIGNUM *);
 void    buffer_put_bignum2(Buffer *, const BIGNUM *);
-void	buffer_get_bignum(Buffer *, BIGNUM *);
 void	buffer_get_bignum2(Buffer *, BIGNUM *);
 void	buffer_put_bignum2_from_string(Buffer *, const u_char *, u_int);
 
@@ -75,8 +73,6 @@ void	buffer_put_cstring(Buffer *, const char *);
 
 #define buffer_skip_string(b) (void)buffer_get_string_ptr(b, NULL);
 
-int	buffer_put_bignum_ret(Buffer *, const BIGNUM *);
-int	buffer_get_bignum_ret(Buffer *, BIGNUM *);
 int	buffer_put_bignum2_ret(Buffer *, const BIGNUM *);
 int	buffer_get_bignum2_ret(Buffer *, BIGNUM *);
 int	buffer_get_short_ret(u_short *, Buffer *);

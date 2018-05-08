@@ -1,4 +1,4 @@
-/* 	$OpenBSD: kexfuzz.c,v 1.3 2016/10/11 21:49:54 djm Exp $ */
+/* 	$OpenBSD: kexfuzz.c,v 1.4 2017/04/30 23:34:55 djm Exp $ */
 /*
  * Fuzz harness for KEX code
  *
@@ -418,7 +418,7 @@ main(int argc, char **argv)
 	close(fd);
 	/* XXX check that it is a private key */
 	/* XXX support certificates */
-	if (key == NULL || key->type == KEY_UNSPEC || key->type == KEY_RSA1)
+	if (key == NULL || key->type == KEY_UNSPEC)
 		badusage("Invalid key file (-k flag)");
 
 	/* Replace (fuzz) mode */

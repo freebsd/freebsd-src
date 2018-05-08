@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-hostkey.sh,v 1.14 2016/05/02 09:52:00 djm Exp $
+#	$OpenBSD: cert-hostkey.sh,v 1.15 2017/04/30 23:34:55 djm Exp $
 #	Placed in the Public Domain.
 
 tid="certified host keys"
@@ -104,7 +104,7 @@ attempt_connect() {
 	shift; shift
 	verbose "$tid: $_ident expect success $_expect_success"
 	cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
-	${SSH} -2 -oUserKnownHostsFile=$OBJ/known_hosts-cert \
+	${SSH} -oUserKnownHostsFile=$OBJ/known_hosts-cert \
 	    -oGlobalKnownHostsFile=$OBJ/known_hosts-cert \
 	    "$@" -F $OBJ/ssh_proxy somehost true
 	_r=$?
@@ -169,7 +169,7 @@ for privsep in yes no ; do
 		) > $OBJ/sshd_proxy
 
 		cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
-		${SSH} -2 -oUserKnownHostsFile=$OBJ/known_hosts-cert \
+		${SSH} -oUserKnownHostsFile=$OBJ/known_hosts-cert \
 		    -oGlobalKnownHostsFile=$OBJ/known_hosts-cert \
 			-F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
 		if [ $? -eq 0 ]; then
@@ -190,7 +190,7 @@ for ktype in $PLAIN_TYPES ; do
 		echo HostCertificate $OBJ/cert_host_key_${ktype}-cert.pub
 	) > $OBJ/sshd_proxy
 	cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
-	${SSH} -2 -oUserKnownHostsFile=$OBJ/known_hosts-cert \
+	${SSH} -oUserKnownHostsFile=$OBJ/known_hosts-cert \
 	    -oGlobalKnownHostsFile=$OBJ/known_hosts-cert \
 		-F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
@@ -222,7 +222,7 @@ test_one() {
 		) > $OBJ/sshd_proxy
 
 		cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
-		${SSH} -2 -oUserKnownHostsFile=$OBJ/known_hosts-cert \
+		${SSH} -oUserKnownHostsFile=$OBJ/known_hosts-cert \
 		    -oGlobalKnownHostsFile=$OBJ/known_hosts-cert \
 		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
 		rc=$?
@@ -271,7 +271,7 @@ for ktype in $PLAIN_TYPES ; do
 		echo HostCertificate $OBJ/cert_host_key_${ktype}-cert.pub
 	) > $OBJ/sshd_proxy
 
-	${SSH} -2 -oUserKnownHostsFile=$OBJ/known_hosts-cert \
+	${SSH} -oUserKnownHostsFile=$OBJ/known_hosts-cert \
 	    -oGlobalKnownHostsFile=$OBJ/known_hosts-cert \
 		-F $OBJ/ssh_proxy somehost true
 	if [ $? -ne 0 ]; then
@@ -303,7 +303,7 @@ for kt in $PLAIN_TYPES ; do
 	) > $OBJ/sshd_proxy
 
 	cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
-	${SSH} -2 -oUserKnownHostsFile=$OBJ/known_hosts-cert \
+	${SSH} -oUserKnownHostsFile=$OBJ/known_hosts-cert \
 	    -oGlobalKnownHostsFile=$OBJ/known_hosts-cert \
 		-F $OBJ/ssh_proxy -q somehost true >/dev/null 2>&1
 	if [ $? -eq 0 ]; then

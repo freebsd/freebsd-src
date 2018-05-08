@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.123 2016/11/30 03:00:05 djm Exp $ */
+/* $OpenBSD: servconf.h,v 1.126 2017/10/02 19:33:20 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -48,11 +48,18 @@
 #define FORWARD_LOCAL		(1<<1)
 #define FORWARD_ALLOW		(FORWARD_REMOTE|FORWARD_LOCAL)
 
+/* PermitOpen */
+#define PERMITOPEN_ANY		0
+#define PERMITOPEN_NONE		-2
+
 #define DEFAULT_AUTH_FAIL_MAX	6	/* Default for MaxAuthTries */
 #define DEFAULT_SESSIONS_MAX	10	/* Default for MaxSessions */
 
 /* Magic name for internal sftp-server */
 #define INTERNAL_SFTP_NAME	"internal-sftp"
+
+struct ssh;
+struct fwd_perm_list;
 
 typedef struct {
 	u_int	num_ports;
@@ -169,7 +176,8 @@ typedef struct {
 
 	int	permit_tun;
 
-	int	num_permitted_opens;
+	char   **permitted_opens;
+	u_int   num_permitted_opens; /* May also be one of PERMITOPEN_* */
 
 	char   *chroot_directory;
 	char   *revoked_keys_file;
@@ -189,6 +197,7 @@ typedef struct {
 	char   *auth_methods[MAX_AUTH_METHODS];
 
 	int	fingerprint_hash;
+	int	expose_userauth_info;
 	int	use_blacklist;
 }       ServerOptions;
 
@@ -229,6 +238,7 @@ struct connection_info {
 		M_CP_STRARRAYOPT(deny_groups, num_deny_groups); \
 		M_CP_STRARRAYOPT(accept_env, num_accept_env); \
 		M_CP_STRARRAYOPT(auth_methods, num_auth_methods); \
+		M_CP_STRARRAYOPT_ALLOC(permitted_opens, num_permitted_opens); \
 	} while (0)
 
 struct connection_info *get_connection_info(int, int);
@@ -236,6 +246,7 @@ void	 initialize_server_options(ServerOptions *);
 void	 fill_default_server_options(ServerOptions *);
 int	 process_server_config_line(ServerOptions *, char *, const char *, int,
 	     int *, struct connection_info *);
+void	 process_permitopen(struct ssh *ssh, ServerOptions *options);
 void	 load_server_config(const char *, Buffer *);
 void	 parse_server_config(ServerOptions *, const char *, Buffer *,
 	     struct connection_info *);

@@ -1,4 +1,4 @@
-/* $OpenBSD: umac.c,v 1.11 2014/07/22 07:13:42 guenther Exp $ */
+/* $OpenBSD: umac.c,v 1.12 2017/05/31 08:09:45 markus Exp $ */
 /* -----------------------------------------------------------------------
  * 
  * umac.c -- C Implementation UMAC Message Authentication
@@ -203,6 +203,8 @@ static void kdf(void *bufp, aes_int_key key, UINT8 ndx, int nbytes)
         aes_encryption(in_buf, out_buf, key);
         memcpy(dst_buf,out_buf,nbytes);
     }
+    explicit_bzero(in_buf, sizeof(in_buf));
+    explicit_bzero(out_buf, sizeof(out_buf));
 }
 
 /* The final UHASH result is XOR'd with the output of a pseudorandom
@@ -227,6 +229,7 @@ static void pdf_init(pdf_ctx *pc, aes_int_key prf_key)
     /* Initialize pdf and cache */
     memset(pc->nonce, 0, sizeof(pc->nonce));
     aes_encryption(pc->nonce, pc->cache, pc->prf_key);
+    explicit_bzero(buf, sizeof(buf));
 }
 
 static void pdf_gen_xor(pdf_ctx *pc, const UINT8 nonce[8], UINT8 buf[8])
@@ -991,6 +994,7 @@ static void uhash_init(uhash_ctx_t ahc, aes_int_key prf_key)
     kdf(ahc->ip_trans, prf_key, 4, STREAMS * sizeof(UINT32));
     endian_convert_if_le(ahc->ip_trans, sizeof(UINT32),
                          STREAMS * sizeof(UINT32));
+    explicit_bzero(buf, sizeof(buf));
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1200,6 +1204,7 @@ int umac_delete(struct umac_ctx *ctx)
     if (ctx) {
         if (ALLOC_BOUNDARY)
             ctx = (struct umac_ctx *)ctx->free_ptr;
+        explicit_bzero(ctx, sizeof(*ctx) + ALLOC_BOUNDARY);
         free(ctx);
     }
     return (1);
@@ -1227,6 +1232,7 @@ struct umac_ctx *umac_new(const u_char key[])
         aes_key_setup(key, prf_key);
         pdf_init(&ctx->pdf, prf_key);
         uhash_init(&ctx->hash, prf_key);
+        explicit_bzero(prf_key, sizeof(prf_key));
     }
         
     return (ctx);

@@ -18,6 +18,7 @@
 #define _PORT_TUN_H
 
 struct Channel;
+struct ssh;
 
 #if defined(SSH_TUN_LINUX) || defined(SSH_TUN_FREEBSD)
 # define CUSTOM_SYS_TUN_OPEN
@@ -26,8 +27,8 @@ int	  sys_tun_open(int, int);
 
 #if defined(SSH_TUN_COMPAT_AF) || defined(SSH_TUN_PREPEND_AF)
 # define SSH_TUN_FILTER
-int	 sys_tun_infilter(struct Channel *, char *, int);
-u_char	*sys_tun_outfilter(struct Channel *, u_char **, u_int *);
+int	 sys_tun_infilter(struct ssh *, struct Channel *, char *, int);
+u_char	*sys_tun_outfilter(struct ssh *, struct Channel *, u_char **, size_t *);
 #endif
 
 #endif

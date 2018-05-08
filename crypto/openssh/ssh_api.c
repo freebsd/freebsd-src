@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh_api.c,v 1.7 2016/05/04 14:22:33 markus Exp $ */
+/* $OpenBSD: ssh_api.c,v 1.8 2017/04/30 23:13:25 djm Exp $ */
 /*
  * Copyright (c) 2012 Markus Friedl.  All rights reserved.
  *
@@ -371,7 +371,6 @@ _ssh_read_banner(struct ssh *ssh, char **bannerp)
 	}
 	if (remote_major != 2)
 		return SSH_ERR_PROTOCOL_MISMATCH;
-	enable_compat20();
 	chop(buf);
 	debug("Remote version string %.100s", buf);
 	if ((*bannerp = strdup(buf)) == NULL)

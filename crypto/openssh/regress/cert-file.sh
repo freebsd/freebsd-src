@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-file.sh,v 1.5 2017/03/11 23:44:16 djm Exp $
+#	$OpenBSD: cert-file.sh,v 1.6 2017/04/30 23:34:55 djm Exp $
 #	Placed in the Public Domain.
 
 tid="ssh with certificates"
@@ -54,66 +54,64 @@ cat $OBJ/ssh_proxy | grep -v IdentityFile > $OBJ/no_identity_config
 # XXX: verify that certificate used was what we expect. Needs exposure of
 # keys via enviornment variable or similar.
 
-for p in ${SSH_PROTOCOLS}; do
 	# Key with no .pub should work - finding the equivalent *-cert.pub.
-	verbose "protocol $p: identity cert with no plain public file"
-	${SSH} -F $OBJ/no_identity_config -oIdentitiesOnly=yes \
-	    -i $OBJ/user_key3 somehost exit 5$p
-	[ $? -ne 5$p ] && fail "ssh failed"
+verbose "identity cert with no plain public file"
+${SSH} -F $OBJ/no_identity_config -oIdentitiesOnly=yes \
+    -i $OBJ/user_key3 somehost exit 52
+[ $? -ne 52 ] && fail "ssh failed"
 
-	# CertificateFile matching private key with no .pub file should work.
-	verbose "protocol $p: CertificateFile with no plain public file"
-	${SSH} -F $OBJ/no_identity_config -oIdentitiesOnly=yes \
-	    -oCertificateFile=$OBJ/user_key3-cert.pub \
-	    -i $OBJ/user_key3 somehost exit 5$p
-	[ $? -ne 5$p ] && fail "ssh failed"
+# CertificateFile matching private key with no .pub file should work.
+verbose "CertificateFile with no plain public file"
+${SSH} -F $OBJ/no_identity_config -oIdentitiesOnly=yes \
+    -oCertificateFile=$OBJ/user_key3-cert.pub \
+    -i $OBJ/user_key3 somehost exit 52
+[ $? -ne 52 ] && fail "ssh failed"
 
-	# Just keys should fail
-	verbose "protocol $p: plain keys"
-	${SSH} $opts2 somehost exit 5$p
-	r=$?
-	if [ $r -eq 5$p ]; then
-		fail "ssh succeeded with no certs in protocol $p"
-	fi
+# Just keys should fail
+verbose "plain keys"
+${SSH} $opts2 somehost exit 52
+r=$?
+if [ $r -eq 52 ]; then
+	fail "ssh succeeded with no certs"
+fi
 
-	# Keys with untrusted cert should fail.
-	verbose "protocol $p: untrusted cert"
-	opts3="$opts2 -oCertificateFile=$OBJ/cert_user_key1_2.pub"
-	${SSH} $opts3 somehost exit 5$p
-	r=$?
-	if [ $r -eq 5$p ]; then
-		fail "ssh succeeded with bad cert in protocol $p"
-	fi
+# Keys with untrusted cert should fail.
+verbose "untrusted cert"
+opts3="$opts2 -oCertificateFile=$OBJ/cert_user_key1_2.pub"
+${SSH} $opts3 somehost exit 52
+r=$?
+if [ $r -eq 52 ]; then
+	fail "ssh succeeded with bad cert"
+fi
 
-	# Good cert with bad key should fail.
-	verbose "protocol $p: good cert, bad key"
-	opts3="$opts -i $OBJ/user_key2"
-	opts3="$opts3 -oCertificateFile=$OBJ/cert_user_key1_1.pub"
-	${SSH} $opts3 somehost exit 5$p
-	r=$?
-	if [ $r -eq 5$p ]; then
-		fail "ssh succeeded with no matching key in protocol $p"
-	fi
+# Good cert with bad key should fail.
+verbose "good cert, bad key"
+opts3="$opts -i $OBJ/user_key2"
+opts3="$opts3 -oCertificateFile=$OBJ/cert_user_key1_1.pub"
+${SSH} $opts3 somehost exit 52
+r=$?
+if [ $r -eq 52 ]; then
+	fail "ssh succeeded with no matching key"
+fi
 
-	# Keys with one trusted cert, should succeed.
-	verbose "protocol $p: single trusted"
-	opts3="$opts2 -oCertificateFile=$OBJ/cert_user_key1_1.pub"
-	${SSH} $opts3 somehost exit 5$p
-	r=$?
-	if [ $r -ne 5$p ]; then
-		fail "ssh failed with trusted cert and key in protocol $p"
-	fi
+# Keys with one trusted cert, should succeed.
+verbose "single trusted"
+opts3="$opts2 -oCertificateFile=$OBJ/cert_user_key1_1.pub"
+${SSH} $opts3 somehost exit 52
+r=$?
+if [ $r -ne 52 ]; then
+	fail "ssh failed with trusted cert and key"
+fi
 
-	# Multiple certs and keys, with one trusted cert, should succeed.
-	verbose "protocol $p: multiple trusted"
-	opts3="$opts2 -oCertificateFile=$OBJ/cert_user_key1_2.pub"
-	opts3="$opts3 -oCertificateFile=$OBJ/cert_user_key1_1.pub"
-	${SSH} $opts3 somehost exit 5$p
-	r=$?
-	if [ $r -ne 5$p ]; then
-		fail "ssh failed with multiple certs in protocol $p"
-	fi
-done
+# Multiple certs and keys, with one trusted cert, should succeed.
+verbose "multiple trusted"
+opts3="$opts2 -oCertificateFile=$OBJ/cert_user_key1_2.pub"
+opts3="$opts3 -oCertificateFile=$OBJ/cert_user_key1_1.pub"
+${SSH} $opts3 somehost exit 52
+r=$?
+if [ $r -ne 52 ]; then
+	fail "ssh failed with multiple certs"
+fi
 
 #next, using an agent in combination with the keys
 SSH_AUTH_SOCK=/nonexistent ${SSHADD} -l > /dev/null 2>&1
@@ -139,26 +137,25 @@ if [ $? -ne 0 ]; then
 fi
 
 # try ssh with the agent and certificates
-# note: ssh agent only uses certificates in protocol 2
 opts="-F $OBJ/ssh_proxy"
 # with no certificates, shoud fail
-${SSH} -2 $opts somehost exit 52
+${SSH} $opts somehost exit 52
 if [ $? -eq 52 ]; then
-	fail "ssh connect with agent in protocol 2 succeeded with no cert"
+	fail "ssh connect with agent in succeeded with no cert"
 fi
 
 #with an untrusted certificate, should fail
 opts="$opts -oCertificateFile=$OBJ/cert_user_key1_2.pub"
-${SSH} -2 $opts somehost exit 52
+${SSH} $opts somehost exit 52
 if [ $? -eq 52 ]; then
-	fail "ssh connect with agent in protocol 2 succeeded with bad cert"
+	fail "ssh connect with agent in succeeded with bad cert"
 fi
 
 #with an additional trusted certificate, should succeed
 opts="$opts -oCertificateFile=$OBJ/cert_user_key1_1.pub"
-${SSH} -2 $opts somehost exit 52
+${SSH} $opts somehost exit 52
 if [ $? -ne 52 ]; then
-	fail "ssh connect with agent in protocol 2 failed with good cert"
+	fail "ssh connect with agent in failed with good cert"
 fi
 
 trace "kill agent"

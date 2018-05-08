@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.c,v 1.119 2016/12/15 21:29:05 dtucker Exp $ */
+/* $OpenBSD: auth.c,v 1.124 2017/09/12 06:32:07 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -43,9 +43,6 @@ __RCSID("$FreeBSD$");
 #endif
 #ifdef USE_SHADOW
 #include <shadow.h>
-#endif
-#ifdef HAVE_LIBGEN_H
-#include <libgen.h>
 #endif
 #include <stdarg.h>
 #include <stdio.h>
@@ -269,21 +266,41 @@ allowed_user(struct passwd * pw)
 	return 1;
 }
 
-void
-auth_info(Authctxt *authctxt, const char *fmt, ...)
+/*
+ * Formats any key left in authctxt->auth_method_key for inclusion in
+ * auth_log()'s message. Also includes authxtct->auth_method_info if present.
+ */
+static char *
+format_method_key(Authctxt *authctxt)
 {
-	va_list ap;
-        int i;
+	const struct sshkey *key = authctxt->auth_method_key;
+	const char *methinfo = authctxt->auth_method_info;
+	char *fp, *ret = NULL;
 
-	free(authctxt->info);
-	authctxt->info = NULL;
+	if (key == NULL)
+		return NULL;
 
-	va_start(ap, fmt);
-	i = vasprintf(&authctxt->info, fmt, ap);
-	va_end(ap);
-
-	if (i < 0 || authctxt->info == NULL)
-		fatal("vasprintf failed");
+	if (key_is_cert(key)) {
+		fp = sshkey_fingerprint(key->cert->signature_key,
+		    options.fingerprint_hash, SSH_FP_DEFAULT);
+		xasprintf(&ret, "%s ID %s (serial %llu) CA %s %s%s%s",
+		    sshkey_type(key), key->cert->key_id,
+		    (unsigned long long)key->cert->serial,
+		    sshkey_type(key->cert->signature_key),
+		    fp == NULL ? "(null)" : fp,
+		    methinfo == NULL ? "" : ", ",
+		    methinfo == NULL ? "" : methinfo);
+		free(fp);
+	} else {
+		fp = sshkey_fingerprint(key, options.fingerprint_hash,
+		    SSH_FP_DEFAULT);
+		xasprintf(&ret, "%s %s%s%s", sshkey_type(key),
+		    fp == NULL ? "(null)" : fp,
+		    methinfo == NULL ? "" : ", ",
+		    methinfo == NULL ? "" : methinfo);
+		free(fp);
+	}
+	return ret;
 }
 
 void
@@ -292,7 +309,8 @@ auth_log(Authctxt *authctxt, int authenticated, int partial,
 {
 	struct ssh *ssh = active_state; /* XXX */
 	void (*authlog) (const char *fmt,...) = verbose;
-	char *authmsg;
+	const char *authmsg;
+	char *extra = NULL;
 
 	if (use_privsep && !mm_is_monitor() && !authctxt->postponed)
 		return;
@@ -314,6 +332,11 @@ auth_log(Authctxt *authctxt, int authenticated, int partial,
 			BLACKLIST_NOTIFY(BLACKLIST_AUTH_OK, "ssh");
 	}
 
+	if ((extra = format_method_key(authctxt)) == NULL) {
+		if (authctxt->auth_method_info != NULL)
+			extra = xstrdup(authctxt->auth_method_info);
+	}
+
 	authlog("%s %s%s%s for %s%.100s from %.200s port %d ssh2%s%s",
 	    authmsg,
 	    method,
@@ -322,10 +345,10 @@ auth_log(Authctxt *authctxt, int authenticated, int partial,
 	    authctxt->user,
 	    ssh_remote_ipaddr(ssh),
 	    ssh_remote_port(ssh),
-	    authctxt->info != NULL ? ": " : "",
-	    authctxt->info != NULL ? authctxt->info : "");
-	free(authctxt->info);
-	authctxt->info = NULL;
+	    extra != NULL ? ": " : "",
+	    extra != NULL ? extra : "");
+
+	free(extra);
 
 #ifdef CUSTOM_FAILED_LOGIN
 	if (authenticated == 0 && !authctxt->postponed &&
@@ -433,7 +456,7 @@ authorized_principals_file(struct passwd *pw)
 
 /* return ok if key exists in sysfile or userfile */
 HostStatus
-check_key_in_hostfiles(struct passwd *pw, Key *key, const char *host,
+check_key_in_hostfiles(struct passwd *pw, struct sshkey *key, const char *host,
     const char *sysfile, const char *userfile)
 {
 	char *user_hostfile;
@@ -477,98 +500,6 @@ check_key_in_hostfiles(struct passwd *pw, Key *key, const char *host,
 	return host_status;
 }
 
-/*
- * Check a given path for security. This is defined as all components
- * of the path to the file must be owned by either the owner of
- * of the file or root and no directories must be group or world writable.
- *
- * XXX Should any specific check be done for sym links ?
- *
- * Takes a file name, its stat information (preferably from fstat() to
- * avoid races), the uid of the expected owner, their home directory and an
- * error buffer plus max size as arguments.
- *
- * Returns 0 on success and -1 on failure
- */
-int
-auth_secure_path(const char *name, struct stat *stp, const char *pw_dir,
-    uid_t uid, char *err, size_t errlen)
-{
-	char buf[PATH_MAX], homedir[PATH_MAX];
-	char *cp;
-	int comparehome = 0;
-	struct stat st;
-
-	if (realpath(name, buf) == NULL) {
-		snprintf(err, errlen, "realpath %s failed: %s", name,
-		    strerror(errno));
-		return -1;
-	}
-	if (pw_dir != NULL && realpath(pw_dir, homedir) != NULL)
-		comparehome = 1;
-
-	if (!S_ISREG(stp->st_mode)) {
-		snprintf(err, errlen, "%s is not a regular file", buf);
-		return -1;
-	}
-	if ((!platform_sys_dir_uid(stp->st_uid) && stp->st_uid != uid) ||
-	    (stp->st_mode & 022) != 0) {
-		snprintf(err, errlen, "bad ownership or modes for file %s",
-		    buf);
-		return -1;
-	}
-
-	/* for each component of the canonical path, walking upwards */
-	for (;;) {
-		if ((cp = dirname(buf)) == NULL) {
-			snprintf(err, errlen, "dirname() failed");
-			return -1;
-		}
-		strlcpy(buf, cp, sizeof(buf));
-
-		if (stat(buf, &st) < 0 ||
-		    (!platform_sys_dir_uid(st.st_uid) && st.st_uid != uid) ||
-		    (st.st_mode & 022) != 0) {
-			snprintf(err, errlen,
-			    "bad ownership or modes for directory %s", buf);
-			return -1;
-		}
-
-		/* If are past the homedir then we can stop */
-		if (comparehome && strcmp(homedir, buf) == 0)
-			break;
-
-		/*
-		 * dirname should always complete with a "/" path,
-		 * but we can be paranoid and check for "." too
-		 */
-		if ((strcmp("/", buf) == 0) || (strcmp(".", buf) == 0))
-			break;
-	}
-	return 0;
-}
-
-/*
- * Version of secure_path() that accepts an open file descriptor to
- * avoid races.
- *
- * Returns 0 on success and -1 on failure
- */
-static int
-secure_filename(FILE *f, const char *file, struct passwd *pw,
-    char *err, size_t errlen)
-{
-	struct stat st;
-
-	/* check the open file to avoid races */
-	if (fstat(fileno(f), &st) < 0) {
-		snprintf(err, errlen, "cannot stat file %s: %s",
-		    file, strerror(errno));
-		return -1;
-	}
-	return auth_secure_path(file, &st, pw->pw_dir, pw->pw_uid, err, errlen);
-}
-
 static FILE *
 auth_openfile(const char *file, struct passwd *pw, int strict_modes,
     int log_missing, char *file_type)
@@ -601,7 +532,7 @@ auth_openfile(const char *file, struct passwd *pw, int strict_modes,
 		return NULL;
 	}
 	if (strict_modes &&
-	    secure_filename(f, file, pw, line, sizeof(line)) != 0) {
+	    safe_path_fd(fileno(f), file, pw, line, sizeof(line)) != 0) {
 		fclose(f);
 		logit("Authentication refused: %s", line);
 		auth_debug_add("Ignored %s: %s", file_type, line);
@@ -640,6 +571,8 @@ getpwnamallow(const char *user)
 
 	ci->user = user;
 	parse_server_match_config(&options, ci);
+	log_change_level(options.log_level);
+	process_permitopen(ssh, &options);
 
 #if defined(_AIX) && defined(HAVE_SETAUTHDB)
 	aix_setauthdb(user);
@@ -700,7 +633,7 @@ getpwnamallow(const char *user)
 
 /* Returns 1 if key is revoked by revoked_keys_file, 0 otherwise */
 int
-auth_key_is_revoked(Key *key)
+auth_key_is_revoked(struct sshkey *key)
 {
 	char *fp = NULL;
 	int r;

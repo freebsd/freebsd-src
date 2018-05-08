@@ -253,6 +253,9 @@
 /* Define to 1 if you have the <bstring.h> header file. */
 /* #undef HAVE_BSTRING_H */
 
+/* calloc(x, 0) returns NULL */
+/* #undef HAVE_CALLOC */
+
 /* Define to 1 if you have the `cap_rights_limit' function. */
 #define HAVE_CAP_RIGHTS_LIMIT 1
 
@@ -469,6 +472,9 @@
 
 /* Define to 1 if you have the `freeaddrinfo' function. */
 #define HAVE_FREEADDRINFO 1
+
+/* Define to 1 if you have the `freezero' function. */
+/* #undef HAVE_FREEZERO */
 
 /* Define to 1 if the system has the type `fsblkcnt_t'. */
 #define HAVE_FSBLKCNT_T 1
@@ -770,6 +776,10 @@
 /* Define to 1 if you have the <maillock.h> header file. */
 /* #undef HAVE_MAILLOCK_H */
 
+/* Define to 1 if your system has a GNU libc compatible `malloc' function, and
+   to 0 otherwise. */
+#define HAVE_MALLOC 1
+
 /* Define to 1 if you have the `mblen' function. */
 #define HAVE_MBLEN 1
 
@@ -900,11 +910,18 @@
 /* Define to 1 if you have the <readpassphrase.h> header file. */
 #define HAVE_READPASSPHRASE_H 1
 
+/* Define to 1 if your system has a GNU libc compatible `realloc' function,
+   and to 0 otherwise. */
+#define HAVE_REALLOC 1
+
 /* Define to 1 if you have the `reallocarray' function. */
 #define HAVE_REALLOCARRAY 1
 
 /* Define to 1 if you have the `realpath' function. */
 #define HAVE_REALPATH 1
+
+/* Define to 1 if you have the `recallocarray' function. */
+/* #undef HAVE_RECALLOCARRAY */
 
 /* Define to 1 if you have the `recvmsg' function. */
 #define HAVE_RECVMSG 1
@@ -1116,6 +1133,9 @@
 /* Define to 1 if you have the `strsep' function. */
 #define HAVE_STRSEP 1
 
+/* Define to 1 if you have the `strsignal' function. */
+#define HAVE_STRSIGNAL 1
+
 /* Define to 1 if you have the `strtoll' function. */
 #define HAVE_STRTOLL 1
 
@@ -1157,6 +1177,12 @@
 
 /* Define to 1 if `st_blksize' is a member of `struct stat'. */
 #define HAVE_STRUCT_STAT_ST_BLKSIZE 1
+
+/* Define to 1 if `st_mtim' is a member of `struct stat'. */
+#define HAVE_STRUCT_STAT_ST_MTIM 1
+
+/* Define to 1 if `st_mtime' is a member of `struct stat'. */
+#define HAVE_STRUCT_STAT_ST_MTIME 1
 
 /* Define to 1 if the system has the type `struct timespec'. */
 #define HAVE_STRUCT_TIMESPEC 1
@@ -1723,9 +1749,6 @@
 /* Define if you want SELinux support. */
 /* #undef WITH_SELINUX */
 
-/* include SSH protocol version 1 support */
-/* #undef WITH_SSH1 */
-
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
 #if defined AC_APPLE_UNIVERSAL_BUILD
@@ -1764,11 +1787,20 @@
 /* Define if we don't have struct __res_state in resolv.h */
 /* #undef __res_state */
 
+/* Define to rpl_calloc if the replacement function should be used. */
+/* #undef calloc */
+
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
 #ifndef __cplusplus
 /* #undef inline */
 #endif
+
+/* Define to rpl_malloc if the replacement function should be used. */
+/* #undef malloc */
+
+/* Define to rpl_realloc if the replacement function should be used. */
+/* #undef realloc */
 
 /* type to use in place of socklen_t if not defined */
 /* #undef socklen_t */
