@@ -41,7 +41,7 @@
 #include "sshbuf.h"
 #include "ssherr.h"
 
-static int input_kex_c25519_init(int, u_int32_t, void *);
+static int input_kex_c25519_init(int, u_int32_t, struct ssh *);
 
 int
 kexc25519_server(struct ssh *ssh)
@@ -52,9 +52,8 @@ kexc25519_server(struct ssh *ssh)
 }
 
 static int
-input_kex_c25519_init(int type, u_int32_t seq, void *ctxt)
+input_kex_c25519_init(int type, u_int32_t seq, struct ssh *ssh)
 {
-	struct ssh *ssh = ctxt;
 	struct kex *kex = ssh->kex;
 	struct sshkey *server_host_private, *server_host_public;
 	struct sshbuf *shared_secret = NULL;

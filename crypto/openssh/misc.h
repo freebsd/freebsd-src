@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.h,v 1.61 2016/11/30 00:28:31 dtucker Exp $ */
+/* $OpenBSD: misc.h,v 1.63 2017/08/18 05:48:04 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -16,6 +16,7 @@
 #define _MISC_H
 
 #include <sys/time.h>
+#include <sys/types.h>
 
 /* Data structure for representing a forwarding request. */
 struct Forward {
@@ -131,6 +132,25 @@ void bandwidth_limit(struct bwlimit *, size_t);
 int parse_ipqos(const char *);
 const char *iptos2str(int);
 void mktemp_proto(char *, size_t);
+
+void	 child_set_env(char ***envp, u_int *envsizep, const char *name,
+	     const char *value);
+
+int	 argv_split(const char *, int *, char ***);
+char	*argv_assemble(int, char **argv);
+int	 exited_cleanly(pid_t, const char *, const char *, int);
+
+#define SSH_SUBPROCESS_STDOUT_DISCARD	(1)	/* Discard stdout */
+#define SSH_SUBPROCESS_STDOUT_CAPTURE	(1<<1)	/* Redirect stdout */
+#define SSH_SUBPROCESS_STDERR_DISCARD	(1<<2)	/* Discard stderr */
+pid_t	 subprocess(const char *, struct passwd *,
+    const char *, int, char **, FILE **, u_int flags);
+
+struct stat;
+int	 safe_path(const char *, struct stat *, const char *, uid_t,
+	     char *, size_t);
+int	 safe_path_fd(int, const char *, struct passwd *,
+	     char *err, size_t errlen);
 
 /* readpass.c */
 

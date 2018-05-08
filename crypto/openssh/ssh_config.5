@@ -33,17 +33,14 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.242 2017/02/27 14:30:33 jmc Exp $
+.\" $OpenBSD: ssh_config.5,v 1.256 2017/09/21 19:16:53 markus Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: February 27 2017 $
+.Dd $Mdocdate: September 21 2017 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
 .Nm ssh_config
 .Nd OpenSSH SSH client configuration files
-.Sh SYNOPSIS
-.Nm ~/.ssh/config
-.Nm /etc/ssh/ssh_config
 .Sh DESCRIPTION
 .Xr ssh 1
 obtains configuration data from the following sources in
@@ -393,25 +390,8 @@ If the option is set to
 the check will not be executed.
 The default is
 .Cm no .
-.It Cm Cipher
-Specifies the cipher to use for encrypting the session
-in protocol version 1.
-Currently,
-.Cm blowfish ,
-.Cm 3des
-(the default),
-and
-.Cm des
-are supported,
-though
-.Cm des
-is only supported in the
-.Xr ssh 1
-client for interoperability with legacy protocol 1 implementations;
-its use is strongly discouraged due to cryptographic weaknesses.
 .It Cm Ciphers
-Specifies the ciphers allowed for protocol version 2
-in order of preference.
+Specifies the ciphers allowed and their order of preference.
 Multiple ciphers must be comma-separated.
 If the specified value begins with a
 .Sq +
@@ -433,11 +413,6 @@ aes192-ctr
 aes256-ctr
 aes128-gcm@openssh.com
 aes256-gcm@openssh.com
-arcfour
-arcfour128
-arcfour256
-blowfish-cbc
-cast128-cbc
 chacha20-poly1305@openssh.com
 .Ed
 .Pp
@@ -474,13 +449,6 @@ The argument must be
 or
 .Cm no
 (the default).
-.It Cm CompressionLevel
-Specifies the compression level to use if compression is enabled.
-The argument must be an integer from 1 (fast) to 9 (slow, best).
-The default level is 6, which is good for most applications.
-The meaning of the values is the same as in
-.Xr gzip 1 .
-Note that this option applies to protocol version 1 only.
 .It Cm ConnectionAttempts
 Specifies the number of tries (one per second) to make before exiting.
 The argument must be an integer.
@@ -840,7 +808,7 @@ The list of available key types may also be obtained using
 .It Cm HostKeyAlias
 Specifies an alias that should be used instead of the
 real host name when looking up or saving the host key
-in the host key database files.
+in the host key database files and when validating host certificates.
 This option is useful for tunneling SSH connections
 or for multiple servers running on a single host.
 .It Cm HostName
@@ -904,14 +872,11 @@ section.
 Specifies a file from which the user's DSA, ECDSA, Ed25519 or RSA authentication
 identity is read.
 The default is
-.Pa ~/.ssh/identity
-for protocol version 1, and
 .Pa ~/.ssh/id_dsa ,
 .Pa ~/.ssh/id_ecdsa ,
 .Pa ~/.ssh/id_ed25519
 and
-.Pa ~/.ssh/id_rsa
-for protocol version 2.
+.Pa ~/.ssh/id_rsa .
 Additionally, any identities represented by the authentication agent
 will be used for authentication unless
 .Cm IdentitiesOnly
@@ -1006,7 +971,9 @@ Accepted values are
 .Cm lowdelay ,
 .Cm throughput ,
 .Cm reliability ,
-or a numeric value.
+a numeric value, or
+.Cm none
+to use the operating system default.
 This option may take one or two arguments, separated by whitespace.
 If one argument is specified, it is used as the packet class unconditionally.
 If two values are specified, the first is automatically selected for
@@ -1194,21 +1161,6 @@ The default is:
 gssapi-with-mic,hostbased,publickey,
 keyboard-interactive,password
 .Ed
-.It Cm Protocol
-Specifies the protocol versions
-.Xr ssh 1
-should support in order of preference.
-The possible values are 1 and 2.
-Multiple versions must be comma-separated.
-When this option is set to
-.Cm 2,1
-.Nm ssh
-will try version 2 and fall back to version 1
-if version 2 is not available.
-The default is version 2.
-Protocol 1 suffers from a number of cryptographic weaknesses and should
-not be used.
-It is only offered to support legacy devices.
 .It Cm ProxyCommand
 Specifies the command to use to connect to the server.
 The command
@@ -1336,15 +1288,31 @@ is
 .Cm default none ,
 which means that rekeying is performed after the cipher's default amount
 of data has been sent or received and no time based rekeying is done.
+.It Cm RemoteCommand
+Specifies a command to execute on the remote machine after successfully
+connecting to the server.
+The command string extends to the end of the line, and is executed with
+the user's shell.
+Arguments to
+.Cm RemoteCommand
+accept the tokens described in the
+.Sx TOKENS
+section.
 .It Cm RemoteForward
 Specifies that a TCP port on the remote machine be forwarded over
-the secure channel to the specified host and port from the local machine.
+the secure channel.
+The remote port may either be fowarded to a specified host and port
+from the local machine, or may act as a SOCKS 4/5 proxy that allows a remote
+client to connect to arbitrary destinations from the local machine.
 The first argument must be
 .Sm off
 .Oo Ar bind_address : Oc Ar port
 .Sm on
-and the second argument must be
-.Ar host : Ns Ar hostport .
+If forwarding to a specific destination then the second argument must be
+.Ar host : Ns Ar hostport ,
+otherwise if no destination argument is specified then the remote forwarding
+will be established as a SOCKS proxy.
+.Pp
 IPv6 addresses can be specified by enclosing addresses in square brackets.
 Multiple forwardings may be specified, and additional
 forwardings can be given on the command line.
@@ -1399,28 +1367,6 @@ an OpenSSH Key Revocation List (KRL) as generated by
 .Xr ssh-keygen 1 .
 For more information on KRLs, see the KEY REVOCATION LISTS section in
 .Xr ssh-keygen 1 .
-.It Cm RhostsRSAAuthentication
-Specifies whether to try rhosts based authentication with RSA host
-authentication.
-The argument must be
-.Cm yes
-or
-.Cm no
-(the default).
-This option applies to protocol version 1 only and requires
-.Xr ssh 1
-to be setuid root.
-.It Cm RSAAuthentication
-Specifies whether to try RSA authentication.
-The argument to this keyword must be
-.Cm yes
-(the default)
-or
-.Cm no .
-RSA authentication will only be
-attempted if the identity file exists, or an authentication agent is
-running.
-Note that this option applies to protocol version 1 only.
 .It Cm SendEnv
 Specifies what variables from the local
 .Xr environ 7
@@ -1520,10 +1466,19 @@ file is poorly maintained or when connections to new hosts are
 frequently made.
 This option forces the user to manually
 add all new hosts.
+.Pp
 If this flag is set to
-.Cm no ,
-ssh will automatically add new host keys to the
-user known hosts files.
+.Dq accept-new
+then ssh will automatically add new host keys to the user
+known hosts files, but will not permit connections to hosts with
+changed host keys.
+If this flag is set to
+.Dq no
+or
+.Dq off ,
+ssh will automatically add new host keys to the user known hosts files
+and allow connections to hosts with changed hostkeys to proceed,
+subject to some restrictions.
 If this flag is set to
 .Cm ask
 (the default),
@@ -1533,6 +1488,12 @@ has confirmed that is what they really want to do, and
 ssh will refuse to connect to hosts whose host key has changed.
 The host keys of
 known hosts will be verified automatically in all cases.
+.It Cm SyslogFacility
+Gives the facility code that is used when logging messages from
+.Xr ssh 1 .
+The possible values are: DAEMON, USER, AUTH, LOCAL0, LOCAL1, LOCAL2,
+LOCAL3, LOCAL4, LOCAL5, LOCAL6, LOCAL7.
+The default is USER.
 .It Cm TCPKeepAlive
 Specifies whether the system should send TCP keepalive messages to the
 other side.
@@ -1629,11 +1590,6 @@ If set to
 .Cm yes ,
 .Xr ssh 1
 must be setuid root.
-Note that this option must be set to
-.Cm yes
-for
-.Cm RhostsRSAAuthentication
-with older servers.
 .It Cm User
 Specifies the user to log in as.
 This can be useful when a different user name is used on different machines.
@@ -1674,7 +1630,7 @@ in
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20170804 .
+.Dq FreeBSD-20180507 .
 The value
 .Cm none
 may be used to disable this.
@@ -1783,6 +1739,9 @@ accepts the tokens %%, %C, %d, %h, %l, %n, %p, %r, and %u.
 .Pp
 .Cm ProxyCommand
 accepts the tokens %%, %h, %p, and %r.
+.Pp
+.Cm RemoteCommand
+accepts the tokens %%, %C, %d, %h, %l, %n, %p, %r, and %u.
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa ~/.ssh/config

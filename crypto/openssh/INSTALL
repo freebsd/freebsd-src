@@ -108,7 +108,7 @@ http://www.gnu.org/software/autoconf/
 
 Basic Security Module (BSM):
 
-Native BSM support is know to exist in Solaris from at least 2.5.1,
+Native BSM support is known to exist in Solaris from at least 2.5.1,
 FreeBSD 6.1 and OS X.  Alternatively, you may use the OpenBSM
 implementation (http://www.openbsm.org).
 

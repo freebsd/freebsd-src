@@ -49,6 +49,10 @@ int setegid(uid_t);
 const char *strerror(int);
 #endif
 
+#if !defined(HAVE_STRSIGNAL)
+char *strsignal(int);
+#endif
+
 #if !defined(HAVE_SETLINEBUF)
 #define setlinebuf(a)	(setvbuf((a), NULL, _IOLBF, 0))
 #endif
