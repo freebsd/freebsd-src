@@ -72,6 +72,22 @@
 	<entry><para>Multiple small kernel memory
 	    disclosures</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-18:05.mem.asc">FreeBSD-EN-18:05.mem</link></entry>
+	<entry>08&nbsp;May&nbsp;2018</entry>
+	<entry><para>Multiple small kernel memory
+	    disclosures</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-18:06.tzdata.asc">FreeBSD-EN-18:06.tzdata</link></entry>
+	<entry>08&nbsp;May&nbsp;2018</entry>
+	<entry><para>Update timezone database
+	    information</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
