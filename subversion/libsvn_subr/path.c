@@ -506,7 +506,7 @@ get_path_ancestor_length(const char *path1,
   else
     if (last_dirsep == 0 && path1[0] == '/' && path2[0] == '/')
       return 1;
-    return last_dirsep;
+  return last_dirsep;
 }
 
 
@@ -910,9 +910,24 @@ uri_escape(const char *path, const char table[], apr_pool_t *pool)
   svn_stringbuf_t *retstr;
   apr_size_t i, copied = 0;
   int c;
+  apr_size_t len;
+  const char *p;
 
-  retstr = svn_stringbuf_create_ensure(strlen(path), pool);
-  for (i = 0; path[i]; i++)
+  /* To terminate our scanning loop, table[NUL] must report "invalid". */
+  assert(table[0] == 0);
+
+  /* Quick check: Does any character need escaping? */
+  for (p = path; table[(unsigned char)*p]; ++p)
+    {}
+
+  /* No char to escape before EOS? */
+  if (*p == '\0')
+    return path;
+
+  /* We need to escape at least one character. */
+  len = strlen(p) + (p - path);
+  retstr = svn_stringbuf_create_ensure(len, pool);
+  for (i = p - path; i < len; i++)
     {
       c = (unsigned char)path[i];
       if (table[c])
@@ -941,10 +956,6 @@ uri_escape(const char *path, const char table[], apr_pool_t *pool)
       copied = i + 1;
     }
 
-  /* If we didn't encode anything, we don't need to duplicate the string. */
-  if (retstr->len == 0)
-    return path;
-
   /* Anything left to copy? */
   if (i - copied)
     svn_stringbuf_appendbytes(retstr, path + copied, i - copied);
@@ -971,7 +982,7 @@ svn_path_uri_encode(const char *path, apr_pool_t *pool)
 }
 
 static const char iri_escape_chars[256] = {
-  1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1,
+  0, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1,
@@ -998,7 +1009,7 @@ svn_path_uri_from_iri(const char *iri, apr_pool_t *pool)
 }
 
 static const char uri_autoescape_chars[256] = {
-  1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1,
+  0, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1,
   0, 1, 0, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 0, 1, 0, 1,

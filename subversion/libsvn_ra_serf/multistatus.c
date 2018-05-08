@@ -707,7 +707,16 @@ svn_ra_serf__handle_server_error(svn_ra_serf__server_error_t *server_error,
      clear the error and return - allowing serf to wait for more data.
      */
   if (!err || SERF_BUCKET_READ_ERROR(err->apr_err))
-    return svn_error_trace(err);
+    {
+      /* Perhaps we already parsed some server generated message. Let's pass
+         all information we can get.*/
+      if (err)
+        err = svn_error_compose_create(
+          svn_ra_serf__server_error_create(handler, scratch_pool),
+          err);
+
+      return svn_error_trace(err);
+    }
 
   if (!APR_STATUS_IS_EOF(err->apr_err))
     {

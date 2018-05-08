@@ -879,7 +879,7 @@ close_file(void *file_baton,
 {
   struct file_baton *fb = file_baton;
   struct dump_edit_baton *eb = fb->eb;
-  apr_finfo_t *info = apr_pcalloc(pool, sizeof(apr_finfo_t));
+  svn_filesize_t text_content_length = 0;
   svn_stringbuf_t *propstring = NULL;
   svn_repos__dumpfile_headers_t *headers;
 
@@ -903,15 +903,12 @@ close_file(void *file_baton,
   /* Dump the text headers */
   if (fb->dump_text)
     {
-      apr_status_t err;
-
       /* Text-delta: true */
       svn_repos__dumpfile_header_push(
         headers, SVN_REPOS_DUMPFILE_TEXT_DELTA, "true");
 
-      err = apr_file_info_get(info, APR_FINFO_SIZE, eb->delta_file);
-      if (err)
-        SVN_ERR(svn_error_wrap_apr(err, NULL));
+      SVN_ERR(svn_io_file_size_get(&text_content_length, eb->delta_file,
+                                   pool));
 
       if (fb->base_checksum)
         /* Text-delta-base-md5: */
@@ -925,7 +922,7 @@ close_file(void *file_baton,
 
   /* Dump the headers and props now */
   SVN_ERR(svn_repos__dump_node_record(eb->stream, headers, propstring,
-                                      fb->dump_text, info->size,
+                                      fb->dump_text, text_content_length,
                                       FALSE /*content_length_always*/,
                                       pool));
 

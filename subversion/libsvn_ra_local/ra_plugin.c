@@ -909,6 +909,28 @@ svn_ra_local__get_commit_editor(svn_ra_session_t *session,
 }
 
 
+/* Implements svn_repos_mergeinfo_receiver_t.
+ * It add MERGEINFO for PATH to the svn_mergeinfo_catalog_t BATON.
+ */
+static svn_error_t *
+mergeinfo_receiver(const char *path,
+                   svn_mergeinfo_t mergeinfo,
+                   void *baton,
+                   apr_pool_t *scratch_pool)
+{
+  svn_mergeinfo_catalog_t catalog = baton;
+  apr_pool_t *result_pool = apr_hash_pool_get(catalog);
+  apr_size_t len = strlen(path);
+
+  apr_hash_set(catalog,
+               apr_pstrmemdup(result_pool, path, len),
+               len,
+               svn_mergeinfo_dup(mergeinfo, result_pool));
+
+  return SVN_NO_ERROR;
+}
+
+
 static svn_error_t *
 svn_ra_local__get_mergeinfo(svn_ra_session_t *session,
                             svn_mergeinfo_catalog_t *catalog,
@@ -919,7 +941,7 @@ svn_ra_local__get_mergeinfo(svn_ra_session_t *session,
                             apr_pool_t *pool)
 {
   svn_ra_local__session_baton_t *sess = session->priv;
-  svn_mergeinfo_catalog_t tmp_catalog;
+  svn_mergeinfo_catalog_t tmp_catalog = svn_hash__make(pool);
   int i;
   apr_array_header_t *abs_paths =
     apr_array_make(pool, 0, sizeof(const char *));
@@ -931,9 +953,11 @@ svn_ra_local__get_mergeinfo(svn_ra_session_t *session,
         svn_fspath__join(sess->fs_path->data, relative_path, pool);
     }
 
-  SVN_ERR(svn_repos_fs_get_mergeinfo(&tmp_catalog, sess->repos, abs_paths,
-                                     revision, inherit, include_descendants,
-                                     NULL, NULL, pool));
+  SVN_ERR(svn_repos_fs_get_mergeinfo2(sess->repos, abs_paths, revision,
+                                      inherit, include_descendants,
+                                      NULL, NULL,
+                                      mergeinfo_receiver, tmp_catalog,
+                                      pool));
   if (apr_hash_count(tmp_catalog) > 0)
     SVN_ERR(svn_mergeinfo__remove_prefix_from_catalog(catalog,
                                                       tmp_catalog,
@@ -1134,19 +1158,19 @@ svn_ra_local__get_log(svn_ra_session_t *session,
   receiver = log_receiver_wrapper;
   receiver_baton = &lb;
 
-  return svn_repos_get_logs4(sess->repos,
-                             abs_paths,
-                             start,
-                             end,
-                             limit,
-                             discover_changed_paths,
-                             strict_node_history,
-                             include_merged_revisions,
-                             revprops,
-                             NULL, NULL,
-                             receiver,
-                             receiver_baton,
-                             pool);
+  return svn_repos__get_logs_compat(sess->repos,
+                                    abs_paths,
+                                    start,
+                                    end,
+                                    limit,
+                                    discover_changed_paths,
+                                    strict_node_history,
+                                    include_merged_revisions,
+                                    revprops,
+                                    NULL, NULL,
+                                    receiver,
+                                    receiver_baton,
+                                    pool);
 }
 
 
@@ -1362,8 +1386,8 @@ svn_ra_local__get_dir(svn_ra_session_t *session,
           if (dirent_fields & SVN_DIRENT_SIZE)
             {
               /* size  */
-              if (entry->kind == svn_node_dir)
-                entry->size = 0;
+              if (fs_entry->kind == svn_node_dir)
+                entry->size = SVN_INVALID_FILESIZE;
               else
                 SVN_ERR(svn_fs_file_length(&(entry->size), root,
                                            fullpath, iterpool));
@@ -1648,6 +1672,7 @@ svn_ra_local__has_capability(svn_ra_session_t *session,
       || strcmp(capability, SVN_RA_CAPABILITY_INHERITED_PROPS) == 0
       || strcmp(capability, SVN_RA_CAPABILITY_EPHEMERAL_TXNPROPS) == 0
       || strcmp(capability, SVN_RA_CAPABILITY_GET_FILE_REVS_REVERSE) == 0
+      || strcmp(capability, SVN_RA_CAPABILITY_LIST) == 0
       )
     {
       *has = TRUE;
@@ -1700,23 +1725,13 @@ svn_ra_local__get_inherited_props(svn_ra_session_t *session,
                                   apr_pool_t *scratch_pool)
 {
   svn_fs_root_t *root;
-  svn_revnum_t youngest_rev;
   svn_ra_local__session_baton_t *sess = session->priv;
   const char *abs_path = svn_fspath__join(sess->fs_path->data, path,
                                           scratch_pool);
   svn_node_kind_t node_kind;
 
   /* Open the revision's root. */
-  if (! SVN_IS_VALID_REVNUM(revision))
-    {
-      SVN_ERR(svn_fs_youngest_rev(&youngest_rev, sess->fs, scratch_pool));
-      SVN_ERR(svn_fs_revision_root(&root, sess->fs, youngest_rev,
-                                   scratch_pool));
-    }
-  else
-    {
-      SVN_ERR(svn_fs_revision_root(&root, sess->fs, revision, scratch_pool));
-    }
+  SVN_ERR(svn_fs_revision_root(&root, sess->fs, revision, scratch_pool));
 
   SVN_ERR(svn_fs_check_path(&node_kind, root, abs_path, scratch_pool));
   if (node_kind == svn_node_none)
@@ -1800,6 +1815,54 @@ svn_ra_local__get_commit_ev2(svn_editor_t **editor,
                            result_pool, scratch_pool));
 }
 
+/* Trivially forward repos-layer callbacks to RA-layer callbacks.
+ * Their signatures are the same. */
+typedef struct dirent_receiver_baton_t
+{
+  svn_ra_dirent_receiver_t receiver;
+  void *receiver_baton;
+} dirent_receiver_baton_t;
+
+static svn_error_t *
+dirent_receiver(const char *rel_path,
+                svn_dirent_t *dirent,
+                void *baton,
+                apr_pool_t *pool)
+{
+  dirent_receiver_baton_t *b = baton;
+  return b->receiver(rel_path, dirent, b->receiver_baton, pool);
+}
+
+static svn_error_t *
+svn_ra_local__list(svn_ra_session_t *session,
+                   const char *path,
+                   svn_revnum_t revision,
+                   const apr_array_header_t *patterns,
+                   svn_depth_t depth,
+                   apr_uint32_t dirent_fields,
+                   svn_ra_dirent_receiver_t receiver,
+                   void *receiver_baton,
+                   apr_pool_t *pool)
+{
+  svn_ra_local__session_baton_t *sess = session->priv;
+  svn_fs_root_t *root;
+  svn_boolean_t path_info_only = (dirent_fields & ~SVN_DIRENT_KIND) == 0;
+
+  dirent_receiver_baton_t baton;
+  baton.receiver = receiver;
+  baton.receiver_baton = receiver_baton;
+
+  SVN_ERR(svn_fs_revision_root(&root, sess->fs, revision, pool));
+  path = svn_dirent_join(sess->fs_path->data, path, pool);
+  return svn_error_trace(svn_repos_list(root, path, patterns, depth,
+                                        path_info_only, NULL, NULL,
+                                        dirent_receiver, &baton,
+                                        sess->callbacks
+                                          ? sess->callbacks->cancel_func
+                                          : NULL,
+                                        sess->callback_baton, pool));
+}
+
 /*----------------------------------------------------------------*/
 
 static const svn_version_t *
@@ -1848,9 +1911,12 @@ static const svn_ra__vtable_t ra_local_vtable =
   svn_ra_local__has_capability,
   svn_ra_local__replay_range,
   svn_ra_local__get_deleted_rev,
-  svn_ra_local__register_editor_shim_callbacks,
   svn_ra_local__get_inherited_props,
-  svn_ra_local__get_commit_ev2
+  NULL /* set_svn_ra_open */,
+  svn_ra_local__list ,
+  svn_ra_local__register_editor_shim_callbacks,
+  svn_ra_local__get_commit_ev2,
+  NULL /* replay_range_ev2 */
 };
 
 
@@ -1883,7 +1949,7 @@ svn_ra_local__init(const svn_version_t *loader_version,
 
   SVN_ERR(svn_ver_check_list2(ra_local_version(), checklist, svn_ver_equal));
 
-#ifndef SVN_LIBSVN_CLIENT_LINKS_RA_LOCAL
+#ifndef SVN_LIBSVN_RA_LINKS_RA_LOCAL
   /* This means the library was loaded as a DSO, so use the DSO pool. */
   SVN_ERR(svn_fs_initialize(svn_dso__pool()));
 #endif

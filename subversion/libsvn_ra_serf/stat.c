@@ -193,6 +193,9 @@ fill_dirent_propfunc(void *baton,
         {
           if (*val->data)
             {
+              /* Note: 1.8.x and earlier servers send the count proper; 1.9.0
+               * and newer send "1" if there are properties and "0" otherwise.
+               */
               apr_int64_t deadprop_count;
               SVN_ERR(svn_cstring_atoi64(&deadprop_count, val->data));
               fdb->entry->has_props = deadprop_count > 0;
@@ -213,64 +216,8 @@ get_dirent_props(apr_uint32_t dirent_fields,
                  apr_pool_t *pool)
 {
   svn_ra_serf__dav_props_t *prop;
-  apr_array_header_t *props = apr_array_make
-    (pool, 7, sizeof(svn_ra_serf__dav_props_t));
-
-  if (session->supports_deadprop_count != svn_tristate_false
-      || ! (dirent_fields & SVN_DIRENT_HAS_PROPS))
-    {
-      if (dirent_fields & SVN_DIRENT_KIND)
-        {
-          prop = apr_array_push(props);
-          prop->xmlns = "DAV:";
-          prop->name = "resourcetype";
-        }
-
-      if (dirent_fields & SVN_DIRENT_SIZE)
-        {
-          prop = apr_array_push(props);
-          prop->xmlns = "DAV:";
-          prop->name = "getcontentlength";
-        }
-
-      if (dirent_fields & SVN_DIRENT_HAS_PROPS)
-        {
-          prop = apr_array_push(props);
-          prop->xmlns = SVN_DAV_PROP_NS_DAV;
-          prop->name = "deadprop-count";
-        }
-
-      if (dirent_fields & SVN_DIRENT_CREATED_REV)
-        {
-          svn_ra_serf__dav_props_t *p = apr_array_push(props);
-          p->xmlns = "DAV:";
-          p->name = SVN_DAV__VERSION_NAME;
-        }
-
-      if (dirent_fields & SVN_DIRENT_TIME)
-        {
-          prop = apr_array_push(props);
-          prop->xmlns = "DAV:";
-          prop->name = SVN_DAV__CREATIONDATE;
-        }
-
-      if (dirent_fields & SVN_DIRENT_LAST_AUTHOR)
-        {
-          prop = apr_array_push(props);
-          prop->xmlns = "DAV:";
-          prop->name = "creator-displayname";
-        }
-    }
-  else
-    {
-      /* We found an old subversion server that can't handle
-         the deadprop-count property in the way we expect.
-
-         The neon behavior is to retrieve all properties in this case */
-      prop = apr_array_push(props);
-      prop->xmlns = "DAV:";
-      prop->name = "allprop";
-    }
+  apr_array_header_t *props = svn_ra_serf__get_dirent_props(dirent_fields,
+                                                            session, pool);
 
   prop = apr_array_push(props);
   prop->xmlns = NULL;
