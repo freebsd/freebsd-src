@@ -686,7 +686,6 @@ aifaddr_out:
 			 * The failure means address duplication was detected.
 			 */
 		}
-		EVENTHANDLER_INVOKE(ifaddr_event, ifp);
 		break;
 	}
 
@@ -1399,7 +1398,7 @@ in6_notify_ifa(struct ifnet *ifp, struct in6_ifaddr *ia,
 	if (ifacount <= 1 && ifp->if_ioctl) {
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
 		if (error)
-			return (error);
+			goto done;
 	}
 
 	/*
@@ -1439,7 +1438,7 @@ in6_notify_ifa(struct ifnet *ifp, struct in6_ifaddr *ia,
 			ia->ia_flags |= IFA_RTSELF;
 		error = rtinit(&ia->ia_ifa, RTM_ADD, ia->ia_flags | rtflags);
 		if (error)
-			return (error);
+			goto done;
 		ia->ia_flags |= IFA_ROUTE;
 	}
 
@@ -1452,6 +1451,11 @@ in6_notify_ifa(struct ifnet *ifp, struct in6_ifaddr *ia,
 		if (error == 0)
 			ia->ia_flags |= IFA_RTSELF;
 	}
+done:
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+	    "Invoking IPv6 network device address event may sleep");
+
+	EVENTHANDLER_INVOKE(ifaddr_event, ifp);
 
 	return (error);
 }
