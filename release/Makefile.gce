@@ -23,7 +23,8 @@ GCE_FAMILY=		${TYPE:tl}-${REVISION:S,.,-,}
 .endif
 
 .if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
-SNAPSHOT_DATE!=		date +-%Y-%m-%d
+_SNAPSHOT_DATE!=	date +%Y%m%d
+SNAPSHOT_DATE=		-v${_SNAPSHOT_DATE}
 GCE_FAMILY_SUFX=	-snap
 .endif
 
