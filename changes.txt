@@ -1,4 +1,25 @@
 ----------------------------------------
+8 May 2018. Summary of changes for version 20180508:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Completed the new (recently deployed) package resolution mechanism for 
+the Load and LoadTable ASL/AML operators. This fixes a regression that 
+was introduced in version 20180209 that could result in an 
+AE_AML_INTERNAL exception during the loading of a dynamic ACPI/AML table 
+(SSDT) that contains package objects.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+AcpiDump and AcpiXtract: Implemented support for ACPI tables larger than 
+1 MB. This change allows for table offsets within the acpidump file to be 
+up to 8 characters. These changes are backwards compatible with existing 
+acpidump files.
+
+
+----------------------------------------
 27 April 2018. Summary of changes for version 20180427: 
 
 
