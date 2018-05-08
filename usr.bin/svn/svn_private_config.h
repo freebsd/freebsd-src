@@ -52,6 +52,12 @@
 /* Define to 1 if you have the <serf.h> header file. */
 #define HAVE_SERF_H 1
 
+/* Define to use internal LZ4 code */
+#define SVN_INTERNAL_LZ4 1
+ 
+/* Define to use internal UTF8PROC code */
+#define SVN_INTERNAL_UTF8PROC 1
+
 /* Define to 1 if you have the <stdbool.h> header file. */
 #define HAVE_STDBOOL_H 1
 
@@ -110,7 +116,7 @@
 #define PACKAGE_NAME "subversion"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "subversion 1.9.4"
+#define PACKAGE_STRING "subversion 1.10.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "subversion"
@@ -119,7 +125,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.9.4"
+#define PACKAGE_VERSION "1.10.0"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
