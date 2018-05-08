@@ -198,10 +198,14 @@ svn_cl__null_log(apr_getopt_t *os,
   lb.quiet = opt_state->quiet;
 
   revprops = apr_array_make(pool, 3, sizeof(char *));
-  APR_ARRAY_PUSH(revprops, const char *) = SVN_PROP_REVISION_AUTHOR;
-  APR_ARRAY_PUSH(revprops, const char *) = SVN_PROP_REVISION_DATE;
-  if (!opt_state->quiet)
-    APR_ARRAY_PUSH(revprops, const char *) = SVN_PROP_REVISION_LOG;
+  if (!opt_state->no_revprops)
+    {
+      APR_ARRAY_PUSH(revprops, const char *) = SVN_PROP_REVISION_AUTHOR;
+      APR_ARRAY_PUSH(revprops, const char *) = SVN_PROP_REVISION_DATE;
+      if (!opt_state->quiet)
+        APR_ARRAY_PUSH(revprops, const char *) = SVN_PROP_REVISION_LOG;
+    }
+
   SVN_ERR(svn_client_log5(targets,
                           &target_peg_revision,
                           opt_state->revision_ranges,

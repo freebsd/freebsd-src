@@ -206,7 +206,7 @@ svn_temp_serializer__get(svn_temp_serializer__context_t *context);
  * the pointer to resolve in @a ptr.
  */
 void
-svn_temp_deserializer__resolve(void *buffer, void **ptr);
+svn_temp_deserializer__resolve(const void *buffer, void **ptr);
 
 /**
  * Similar to svn_temp_deserializer__resolve() but instead of modifying

@@ -568,10 +568,44 @@ svn_client__mtcc_add_copy(const char *src_relpath,
   return SVN_NO_ERROR;
 }
 
-svn_error_t *
-svn_client__mtcc_add_delete(const char *relpath,
-                            svn_client__mtcc_t *mtcc,
-                            apr_pool_t *scratch_pool)
+/* Check if this operation contains at least one change that is not a
+   plain delete */
+static svn_boolean_t
+mtcc_op_contains_non_delete(const mtcc_op_t *op)
+{
+  if (op->kind != OP_OPEN_DIR && op->kind != OP_OPEN_FILE
+      && op->kind != OP_DELETE)
+    {
+      return TRUE;
+    }
+
+  if (op->prop_mods && op->prop_mods->nelts)
+    return TRUE;
+
+  if (op->src_stream)
+    return TRUE;
+
+  if (op->children)
+    {
+      int i;
+
+      for (i = 0; i < op->children->nelts; i++)
+        {
+          const mtcc_op_t *c_op = APR_ARRAY_IDX(op->children, i,
+                                                const mtcc_op_t *);
+
+          if (mtcc_op_contains_non_delete(c_op))
+            return TRUE;
+        }
+    }
+  return FALSE;
+}
+
+static svn_error_t *
+mtcc_add_delete(const char *relpath,
+                svn_boolean_t for_move,
+                svn_client__mtcc_t *mtcc,                
+                apr_pool_t *scratch_pool)
 {
   mtcc_op_t *op;
   svn_boolean_t created;
@@ -598,6 +632,20 @@ svn_client__mtcc_add_delete(const char *relpath,
       SVN_ERR(mtcc_op_find(&op, &created, relpath, mtcc->root_op, FALSE, TRUE,
                            TRUE, mtcc->pool, scratch_pool));
 
+      if (!for_move && !op && !created)
+        {
+          /* Allow deleting directories, that are unmodified except for
+              one or more deleted descendants */
+          
+          SVN_ERR(mtcc_op_find(&op, &created, relpath, mtcc->root_op, TRUE,
+                  FALSE, FALSE, mtcc->pool, scratch_pool));
+
+          if (op && mtcc_op_contains_non_delete(op))
+            op = NULL;
+          else
+            created = TRUE;
+        }
+
       if (!op || !created)
         {
           return svn_error_createf(SVN_ERR_ILLEGAL_TARGET, NULL,
@@ -611,6 +659,14 @@ svn_client__mtcc_add_delete(const char *relpath,
   op->prop_mods = NULL;
 
   return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_client__mtcc_add_delete(const char *relpath,
+                            svn_client__mtcc_t *mtcc,
+                            apr_pool_t *scratch_pool)
+{
+  return svn_error_trace(mtcc_add_delete(relpath, FALSE, mtcc, scratch_pool));
 }
 
 svn_error_t *
@@ -662,7 +718,7 @@ svn_client__mtcc_add_move(const char *src_relpath,
 
   SVN_ERR(svn_client__mtcc_add_copy(src_relpath, mtcc->base_revision,
                                     dst_relpath, mtcc, scratch_pool));
-  SVN_ERR(svn_client__mtcc_add_delete(src_relpath, mtcc, scratch_pool));
+  SVN_ERR(mtcc_add_delete(src_relpath, TRUE, mtcc, scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -712,6 +768,7 @@ mtcc_prop_getter(const svn_string_t **mime_type,
                 {
                   *mime_type = svn_string_dup(mod->value, pool);
                   mime_type = NULL;
+                  break;
                 }
             }
         }

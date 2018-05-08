@@ -242,7 +242,7 @@ svn_spillbuf__write(svn_spillbuf_t *buf,
      will grow too large. Create the file and place the pending data into
      the temporary file.  */
   if (buf->spill == NULL
-      && (buf->memory_size + len) > buf->maxsize)
+      && ((buf->maxsize - buf->memory_size) < len))
     {
       SVN_ERR(svn_io_open_unique_file3(&buf->spill,
                                        &buf->filename,
@@ -265,10 +265,10 @@ svn_spillbuf__write(svn_spillbuf_t *buf,
 
           /* Adjust the start offset for reading from the spill file.
 
-             ### FIXME: Instead, we should simply discard the memory
-             buffers; but currently some tests expect to read data in
-             the same chunk sizes as were written, so we'll leave this
-             change for later.*/
+             This way, the first `buf->memory_size` bytes of data will
+             be read from the existing in-memory buffers, which makes
+             more sense than discarding the buffers and re-reading
+             data from the file. */
           buf->spill_start = buf->memory_size;
         }
     }

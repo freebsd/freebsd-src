@@ -476,11 +476,8 @@ svn_repos__hooks_start_commit(svn_repos_t *repos,
 
       if (capabilities)
         {
-          capabilities_string = svn_cstring_join(capabilities, ":", pool);
-
-          /* Get rid of that annoying final colon. */
-          if (capabilities_string[0])
-            capabilities_string[strlen(capabilities_string) - 1] = '\0';
+          capabilities_string = svn_cstring_join2(capabilities, ":",
+                                                  FALSE, pool);
         }
       else
         {
@@ -799,8 +796,8 @@ svn_repos__hooks_post_lock(svn_repos_t *repos,
     {
       const char *args[5];
       apr_file_t *stdin_handle = NULL;
-      svn_string_t *paths_str = svn_string_create(svn_cstring_join
-                                                  (paths, "\n", pool),
+      svn_string_t *paths_str = svn_string_create(svn_cstring_join2
+                                                  (paths, "\n", TRUE, pool),
                                                   pool);
 
       SVN_ERR(create_temp_file(&stdin_handle, paths_str, pool));
@@ -875,8 +872,8 @@ svn_repos__hooks_post_unlock(svn_repos_t *repos,
     {
       const char *args[5];
       apr_file_t *stdin_handle = NULL;
-      svn_string_t *paths_str = svn_string_create(svn_cstring_join
-                                                  (paths, "\n", pool),
+      svn_string_t *paths_str = svn_string_create(svn_cstring_join2
+                                                  (paths, "\n", TRUE, pool),
                                                   pool);
 
       SVN_ERR(create_temp_file(&stdin_handle, paths_str, pool));

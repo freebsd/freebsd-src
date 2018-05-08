@@ -23,7 +23,7 @@
 
 #include "svn_io.h"
 
-#include "debug_editor.h"
+#include "private/svn_delta_private.h"
 
 struct edit_baton
 {

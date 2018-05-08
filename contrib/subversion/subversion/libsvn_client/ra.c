@@ -727,7 +727,7 @@ repos_locations(const char **start_url,
   /* We'd better have all the paths we were looking for! */
   if (start_url)
     {
-      start_path = apr_hash_get(rev_locs, &start_revnum, sizeof(svn_revnum_t));
+      start_path = apr_hash_get(rev_locs, &start_revnum, sizeof(start_revnum));
       if (! start_path)
         return svn_error_createf
           (SVN_ERR_CLIENT_UNRELATED_RESOURCES, NULL,
@@ -739,7 +739,7 @@ repos_locations(const char **start_url,
 
   if (end_url)
     {
-      end_path = apr_hash_get(rev_locs, &end_revnum, sizeof(svn_revnum_t));
+      end_path = apr_hash_get(rev_locs, &end_revnum, sizeof(end_revnum));
       if (! end_path)
         return svn_error_createf
           (SVN_ERR_CLIENT_UNRELATED_RESOURCES, NULL,
