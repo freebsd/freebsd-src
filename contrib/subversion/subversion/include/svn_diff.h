@@ -1212,7 +1212,43 @@ typedef struct svn_prop_patch_t {
 } svn_prop_patch_t;
 
 /**
+ * A binary patch representation. This basically describes replacing one
+ * exact binary representation with another one.
+ *
+ * @since New in 1.10. */
+typedef struct svn_diff_binary_patch_t svn_diff_binary_patch_t;
+
+/**
+ * Creates a stream allocated in @a result_pool from which the original
+ * (pre-patch-application) version of the binary patched file can be read.
+ *
+ * @note Like many svn_diff_get functions over patches, this is implemented
+ * as reading from the backing patch file. Therefore it is recommended to
+ * read the whole stream before using other functions on the same patch file.
+ *
+ * @since New in 1.10 */
+svn_stream_t *
+svn_diff_get_binary_diff_original_stream(const svn_diff_binary_patch_t *bpatch,
+                                         apr_pool_t *result_pool);
+
+/**
+ * Creates a stream allocated in @a result_pool from which the resulting
+ * (post-patch-application) version of the binary patched file can be read.
+ *
+ * @note Like many svn_diff_get functions over patches, this is implemented
+ * as reading from the backing patch file. Therefore it is recommended to
+ * read the whole stream before using other functions on the same patch file.
+ *
+ * @since New in 1.10 */
+svn_stream_t *
+svn_diff_get_binary_diff_result_stream(const svn_diff_binary_patch_t *bpatch,
+                                       apr_pool_t *result_pool);
+
+/**
  * Data type to manage parsing of patches.
+ *
+ * Represents a patch to one target file.
+ *
  * API users should not allocate structures of this type directly.
  *
  * @since New in 1.7. */
@@ -1239,7 +1275,9 @@ typedef struct svn_patch_t {
   svn_diff_operation_kind_t operation;
 
   /**
-   * Indicates whether the patch is being interpreted in reverse. */
+   * Indicates whether the patch is being interpreted in reverse.
+   * ### If so, how does this affect the interpretation of other fields?
+   */
   svn_boolean_t reverse;
 
   /**
@@ -1249,6 +1287,45 @@ typedef struct svn_patch_t {
    * @since New in 1.9. */
   svn_mergeinfo_t mergeinfo;
   svn_mergeinfo_t reverse_mergeinfo;
+
+  /**
+   * Declares that there is a binary conflict and contains the information
+   * to apply it as parsed from the file.
+   * @since New in 1.10. */
+  svn_diff_binary_patch_t *binary_patch;
+
+  /** The old and new executability bits, as retrieved from the patch file, from
+   * the git-like mode headers.
+   *
+   * A patch may specify an executability change via @a old_executable_bit and
+   * @a new_executable_bit, via a #SVN_PROP_EXECUTABLE propchange hunk, or both
+   * ways. It is upto caller how to decide how conflicting information is
+   * handled.
+   *
+   * #svn_tristate_unknown indicates the patch does not specify the
+   * corresponding bit.
+   *
+   * @since New in 1.10.
+   */
+  svn_tristate_t old_executable_bit;
+  svn_tristate_t new_executable_bit;
+
+  /** The old and new symlink bits, as retrieved from the patch file, from
+  * the git-like mode headers.
+  *
+  * A patch may specify a symlink change via @a old_symlink_bit and
+  * @a new_symlink_bit, via a #SVN_PROP_SPECIAL propchange hunk, or both
+  * ways. It is upto caller how to decide how conflicting information is
+  * handled. Most implementations will currently just describe a replacement
+  * of the file though.
+  *
+  * #svn_tristate_unknown indicates the patch does not specify the
+  * corresponding bit.
+  *
+  * @since New in 1.10.
+  */
+  svn_tristate_t old_symlink_bit;
+  svn_tristate_t new_symlink_bit;
 } svn_patch_t;
 
 /** An opaque type representing an open patch file.

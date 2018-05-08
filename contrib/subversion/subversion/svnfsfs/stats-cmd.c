@@ -74,7 +74,8 @@ print_rep_stats(svn_fs_fs__representation_stats_t *stats,
            "%20s bytes expanded size\n"
            "%20s bytes expanded shared size\n"
            "%20s bytes with rep-sharing off\n"
-           "%20s shared references\n"),
+           "%20s shared references\n"
+           "%20.3f average delta chain length\n"),
          svn__ui64toa_sep(stats->total.packed_size, ',', pool),
          svn__ui64toa_sep(stats->total.count, ',', pool),
          svn__ui64toa_sep(stats->shared.packed_size, ',', pool),
@@ -82,7 +83,8 @@ print_rep_stats(svn_fs_fs__representation_stats_t *stats,
          svn__ui64toa_sep(stats->total.expanded_size, ',', pool),
          svn__ui64toa_sep(stats->shared.expanded_size, ',', pool),
          svn__ui64toa_sep(stats->expanded_size, ',', pool),
-         svn__ui64toa_sep(stats->references - stats->total.count, ',', pool));
+         svn__ui64toa_sep(stats->references - stats->total.count, ',', pool),
+         stats->chain_len / MAX(1.0, (double)stats->total.count));
 }
 
 /* Print the (used) contents of CHANGES.  Use POOL for allocations.
@@ -375,7 +377,7 @@ print_stats(svn_fs_fs__stats_t *stats,
             apr_pool_t *pool)
 {
   /* print results */
-  printf("\nGlobal statistics:\n");
+  printf("\n\nGlobal statistics:\n");
   printf(_("%20s bytes in %12s revisions\n"
            "%20s bytes in %12s changes\n"
            "%20s bytes in %12s node revision records\n"
@@ -413,6 +415,7 @@ print_stats(svn_fs_fs__stats_t *stats,
            "%20s bytes in %12s representations of added file nodes\n"
            "%20s bytes in %12s directory property representations\n"
            "%20s bytes in %12s file property representations\n"
+           "                         with %12.3f average delta chain length\n"
            "%20s bytes in header & footer overhead\n"),
          svn__ui64toa_sep(stats->total_rep_stats.total.packed_size, ',',
                          pool),
@@ -433,8 +436,10 @@ print_stats(svn_fs_fs__stats_t *stats,
          svn__ui64toa_sep(stats->file_prop_rep_stats.total.packed_size, ',',
                          pool),
          svn__ui64toa_sep(stats->file_prop_rep_stats.total.count, ',', pool),
+         stats->total_rep_stats.chain_len
+            / (double)stats->total_rep_stats.total.count,
          svn__ui64toa_sep(stats->total_rep_stats.total.overhead_size, ',',
-                        pool));
+                         pool));
 
   printf("\nDirectory representation statistics:\n");
   print_rep_stats(&stats->dir_rep_stats, pool);

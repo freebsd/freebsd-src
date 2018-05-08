@@ -150,12 +150,14 @@ The formats are:
   Format 5, understood by Subversion 1.7-dev, never released
   Format 6, understood by Subversion 1.8
   Format 7, understood by Subversion 1.9
+  Format 8, understood by Subversion 1.10
 
 The differences between the formats are:
 
 Delta representation in revision files
-  Format 1: svndiff0 only
-  Formats 2+: svndiff0 or svndiff1
+  Format 1:    svndiff0 only
+  Formats 2-7: svndiff0 or svndiff1
+  Formats 8:   svndiff0, svndiff1 or svndiff2
 
 Format options
   Formats 1-2: none permitted
@@ -198,9 +200,9 @@ Shard packing:
     (i.e. same min packed revision)
 
 Addressing:
-  Format 1-6: Physical addressing; uses fixed positions within a rev file
+  Format 1+: Physical addressing; uses fixed positions within a rev file
   Format 7+:  Logical addressing; uses item index that will be translated
-    on-the-fly to the actual rev / pack file location
+    on-the-fly to the actual rev / pack file location (default for 7+ created)
 
 Repository IDs:
   Format 1+:  The first line of db/uuid contains the repository UUID
@@ -525,6 +527,7 @@ A revision file contains a concatenation of various kinds of data:
   * Text and property representations
   * Node-revisions
   * The changed-path data
+  * Two offsets at the very end (physical addressing only)
   * Index data (logical addressing only)
   * Revision / pack file footer (logical addressing only)
 
@@ -565,6 +568,9 @@ defined:
             ### in formats >=4, also present:
             <sha1-digest> gives hex SHA1 digest of expanded rep
             <uniquifier> see representation_t->uniquifier in fs.h
+            ### Starting from format 8, a special notation "-"
+            can be used for optional values that are not present
+            (<sha1-digest> and <uniquifier>).
   cpath     FS pathname node was created at
   copyfrom  "<rev> <path>" of copyfrom data
   copyroot  "<rev> <created-path>" of the root of this copy
@@ -756,6 +762,9 @@ Index Data
 Format 7 introduces logical addressing that requires item indexes
 to be translated / mapped to physical rev / pack file offsets.
 These indexes are appended to the respective rev / pack file.
+
+The indexes map (revision number, item-index) pairs to absolute file offsets
+and absolute file offsets to (revision number, item-index, item metadata).
 
 Details of the binary format used by these index files can be
 found in structure-indexes.

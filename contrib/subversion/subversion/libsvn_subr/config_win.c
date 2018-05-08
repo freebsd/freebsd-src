@@ -201,10 +201,14 @@ svn_config__parse_registry(svn_config_t *cfg, const char *file,
       svn_boolean_t is_enoent = APR_STATUS_IS_ENOENT(apr_err)
                                 || (err == ERROR_INVALID_HANDLE);
 
-      if (must_exist || !is_enoent)
+      if (!is_enoent)
         return svn_error_createf(SVN_ERR_BAD_FILENAME,
-                                 is_enoent ? NULL
-                                           : svn_error_wrap_apr(apr_err, NULL),
+                                 svn_error_wrap_apr(apr_err, NULL),
+                                 _("Can't open registry key '%s'"),
+                                 svn_dirent_local_style(file, pool));
+      else if (must_exist)
+        return svn_error_createf(SVN_ERR_BAD_FILENAME,
+                                 NULL,
                                  _("Can't open registry key '%s'"),
                                  svn_dirent_local_style(file, pool));
       else
@@ -268,5 +272,12 @@ svn_config__parse_registry(svn_config_t *cfg, const char *file,
   svn_pool_destroy(subpool);
   return svn_err;
 }
+
+#else  /* !WIN32 */
+
+/* Silence OSX ranlib warnings about object files with no symbols. */
+#include <apr.h>
+extern const apr_uint32_t svn__fake__config_win;
+const apr_uint32_t svn__fake__config_win = 0xdeadbeef;
 
 #endif /* WIN32 */

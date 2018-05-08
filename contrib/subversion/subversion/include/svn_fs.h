@@ -113,7 +113,7 @@ typedef struct svn_fs_t svn_fs_t;
  *
  * "2" is allowed, too and means "enable if efficient",
  * i.e. this will not create warning at runtime if there
- * if no efficient support for revprop caching.
+ * is no efficient support for revprop caching.
  *
  * @since New in 1.8.
  */
@@ -133,6 +133,12 @@ typedef struct svn_fs_t svn_fs_t;
  * @since New in 1.8.
  */
 #define SVN_FS_CONFIG_FSFS_CACHE_NS             "fsfs-cache-namespace"
+
+/** Enable / disable caching of node properties for a FSFS repository.
+ *
+ * @since New in 1.10.
+ */
+#define SVN_FS_CONFIG_FSFS_CACHE_NODEPROPS      "fsfs-cache-nodeprops"
 
 /** Enable / disable the FSFS format 7 "block read" feature.
  *
@@ -207,6 +213,20 @@ typedef struct svn_fs_t svn_fs_t;
  * @since New in 1.9.
  */
 #define SVN_FS_CONFIG_COMPATIBLE_VERSION        "compatible-version"
+
+/** Specifies whether the filesystem should be forcing a physical write of
+ * the data to disk.  Enabling the option allows the filesystem to return
+ * from the API calls without forcing the write to disk.  If this option
+ * is disabled, the changes are always written to disk.
+ *
+ * @note Avoiding the forced write to disk usually is more efficient, but
+ * doesn't guarantee data integrity after a system crash or power failure
+ * and should be used with caution.
+ *
+ * @since New in 1.10.
+ */
+#define SVN_FS_CONFIG_NO_FLUSH_TO_DISK          "no-flush-to-disk"
+
 /** @} */
 
 
@@ -269,11 +289,13 @@ svn_fs_set_warning_func(svn_fs_t *fs,
  * @c NULL, the options it contains modify the behavior of the
  * filesystem.  The interpretation of @a fs_config is specific to the
  * filesystem back-end.  The new filesystem may be closed by
- * destroying @a pool.
+ * destroying @a result_pool.
+ *
+ * Use @a scratch_pool for temporary allocations.
  *
  * @note The lifetime of @a fs_config must not be shorter than @a
- * pool's. It's a good idea to allocate @a fs_config from @a pool or
- * one of its ancestors.
+ * result_pool's. It's a good idea to allocate @a fs_config from
+ * @a result_pool or one of its ancestors.
  *
  * If @a fs_config contains a value for #SVN_FS_CONFIG_FS_TYPE, that
  * value determines the filesystem type for the new filesystem.
@@ -289,8 +311,22 @@ svn_fs_set_warning_func(svn_fs_t *fs,
  * though the caller should not rely upon any particular default if they
  * wish to ensure that a filesystem of a specific type is created.
  *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_fs_create2(svn_fs_t **fs_p,
+               const char *path,
+               apr_hash_t *fs_config,
+               apr_pool_t *result_pool,
+               apr_pool_t *scratch_pool);
+
+/**
+ * Like svn_fs_create2(), but without @a scratch_pool.
+ *
+ * @deprecated Provided for backward compatibility with the 1.9 API.
  * @since New in 1.1.
  */
+SVN_DEPRECATED
 svn_error_t *
 svn_fs_create(svn_fs_t **fs_p,
               const char *path,
@@ -1060,15 +1096,12 @@ svn_fs_unparse_id(const svn_fs_id_t *id,
  * set.
  *
  * The Subversion filesystem will make a best effort to not reuse
- * transaction names.  The Berkeley DB backend generates transaction
- * names using a sequence, or a counter, which is stored in the BDB
+ * transaction names.  The BDB and FSFS backends generate transaction
+ * names using a sequence, or a counter, which is stored in the
  * database.  Each new transaction increments the counter.  The
  * current value of the counter is not serialized into a filesystem
  * dump file, so dumping and restoring the repository will reset the
- * sequence and reuse transaction names.  The FSFS backend generates a
- * transaction name using the hostname, process ID and current time in
- * microseconds since 00:00:00 January 1, 1970 UTC.  So it is
- * extremely unlikely that a transaction name will be reused.
+ * sequence and so may reuse transaction names.
  *
  * @defgroup svn_fs_txns Filesystem transactions
  * @{
@@ -1425,7 +1458,7 @@ svn_fs_revision_root_revision(svn_fs_root_t *root);
  * Unicode canonical decomposition and ordering.  No directory entry
  * may be named '.', '..', or the empty string.  Given a directory
  * entry name which fails to meet these requirements, a filesystem
- * function returns an SVN_ERR_FS_PATH_SYNTAX error.
+ * function returns an #SVN_ERR_FS_PATH_SYNTAX error.
  *
  * A directory path is a sequence of zero or more directory entry
  * names, separated by slash characters (U+002f), and possibly ending
@@ -1433,7 +1466,7 @@ svn_fs_revision_root_revision(svn_fs_root_t *root);
  * characters are treated as if they were a single slash.  If a path
  * ends with a slash, it refers to the same node it would without the
  * slash, but that node must be a directory, or else the function
- * returns an SVN_ERR_FS_NOT_DIRECTORY error.
+ * may return an #SVN_ERR_FS_NOT_DIRECTORY error.
  *
  * A path consisting of the empty string, or a string containing only
  * slashes, refers to the root directory.
@@ -1474,7 +1507,75 @@ typedef enum svn_fs_path_change_kind_t
  * by the commit API; this does not mean the new value is different from
  * the old value.
  *
- * @since New in 1.6. */
+ * @since New in 1.10. */
+typedef struct svn_fs_path_change3_t
+{
+  /** path of the node that got changed. */
+  svn_string_t path;
+
+  /** kind of change */
+  svn_fs_path_change_kind_t change_kind;
+
+  /** what node kind is the path?
+      (Note: it is legal for this to be #svn_node_unknown.) */
+  svn_node_kind_t node_kind;
+
+  /** was the text touched?
+   * For node_kind=dir: always false. For node_kind=file:
+   *   modify:      true iff text touched.
+   *   add (copy):  true iff text touched.
+   *   add (plain): always true.
+   *   delete:      always false.
+   *   replace:     as for the add/copy part of the replacement.
+   */
+  svn_boolean_t text_mod;
+
+  /** were the properties touched?
+   *   modify:      true iff props touched.
+   *   add (copy):  true iff props touched.
+   *   add (plain): true iff props touched.
+   *   delete:      always false.
+   *   replace:     as for the add/copy part of the replacement.
+   */
+  svn_boolean_t prop_mod;
+
+  /** was the mergeinfo property touched?
+   *   modify:      } true iff svn:mergeinfo property add/del/mod
+   *   add (copy):  }          and fs format supports this flag.
+   *   add (plain): }
+   *   delete:      always false.
+   *   replace:     as for the add/copy part of the replacement.
+   * (Note: Pre-1.9 repositories will report #svn_tristate_unknown.)
+   */
+  svn_tristate_t mergeinfo_mod;
+
+  /** Copyfrom revision and path; this is only valid if copyfrom_known
+   * is true. */
+  svn_boolean_t copyfrom_known;
+  svn_revnum_t copyfrom_rev;
+  const char *copyfrom_path;
+
+  /* NOTE! Please update svn_fs_path_change3_create() when adding new
+     fields here. */
+} svn_fs_path_change3_t;
+
+
+/** Similar to #svn_fs_path_change3_t, but with @a node_rev_id and without
+ * path information.
+ *
+ * @note Fields may be added to the end of this structure in future
+ * versions.  Therefore, to preserve binary compatibility, users
+ * should not directly allocate structures of this type.
+ *
+ * @note The @c text_mod, @c prop_mod and @c mergeinfo_mod flags mean the
+ * text, properties and mergeinfo property (respectively) were "touched"
+ * by the commit API; this does not mean the new value is different from
+ * the old value.
+ *
+ * @since New in 1.6.
+ *
+ * @deprecated Provided for backwards compatibility with the 1.9 API.
+ */
 typedef struct svn_fs_path_change2_t
 {
   /** node revision id of changed path */
@@ -1563,22 +1664,94 @@ svn_fs_path_change2_create(const svn_fs_id_t *node_rev_id,
                            svn_fs_path_change_kind_t change_kind,
                            apr_pool_t *pool);
 
+/**
+ * Allocate an #svn_fs_path_change3_t structure in @a result_pool,
+ * initialize and return it.
+ *
+ * Set the @c change_kind field to @a change_kind.  Set all other fields
+ * to their @c _unknown, @c NULL or invalid value, respectively.
+ *
+ * @since New in 1.10.
+ */
+svn_fs_path_change3_t *
+svn_fs_path_change3_create(svn_fs_path_change_kind_t change_kind,
+                           apr_pool_t *result_pool);
+
+/**
+ * Return a deep copy of @a *change, allocated in @a result_pool.
+ *
+ * @since New in 1.10.
+ */
+svn_fs_path_change3_t *
+svn_fs_path_change3_dup(svn_fs_path_change3_t *change,
+                        apr_pool_t *result_pool);
+
+/**
+ * Opaque iterator object type for a changed paths list.
+ *
+ * @since New in 1.10.
+ */
+typedef struct svn_fs_path_change_iterator_t svn_fs_path_change_iterator_t;
+
+/**
+ * Set @a *change to the path change that @a iterator currently points to
+ * and advance the @a iterator.  If the change list has been exhausted,
+ * @a change will be set to @c NULL.
+ *
+ * You may modify @a **change but its content becomes invalid as soon as
+ * either @a iterator becomes invalid or you call this function again.
+ *
+ * @note The @c node_kind field in @a change may be #svn_node_unknown and
+ *       the @c copyfrom_known fields may be FALSE.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_fs_path_change_get(svn_fs_path_change3_t **change,
+                       svn_fs_path_change_iterator_t *iterator);
+
+
 /** Determine what has changed under a @a root.
+ *
+ * Set @a *iterator to an iterator object, allocated in @a result_pool,
+ * which will give access to the full list of changed paths under @a root.
+ * Each call to @a svn_fs_path_change_get will return a new unique path
+ * change and has amortized O(1) runtime.  The iteration order is undefined
+ * and may change even for the same @a root.
+ *
+ * If @a root becomes invalid, @a *iterator becomes invalid, too.
+ *
+ * Use @a scratch_pool for temporary allocations.
+ *
+ * @note The @a *iterator may be a large object and bind limited system
+ *       resources such as file handles.  Be sure to clear the owning
+ *       pool once you don't need that iterator anymore.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_fs_paths_changed3(svn_fs_path_change_iterator_t **iterator,
+                      svn_fs_root_t *root,
+                      apr_pool_t *result_pool,
+                      apr_pool_t *scratch_pool);
+
+/** Same as svn_fs_paths_changed3() but returning all changes in a single,
+ * large data structure and using a single pool for all allocations.
  *
  * Allocate and return a hash @a *changed_paths2_p containing descriptions
  * of the paths changed under @a root.  The hash is keyed with
  * <tt>const char *</tt> paths, and has #svn_fs_path_change2_t * values.
  *
- * Callers can assume that this function takes time proportional to
- * the amount of data output, and does not need to do tree crawls;
- * however, it is possible that some of the @c node_kind fields in the
- * #svn_fs_path_change2_t * values will be #svn_node_unknown or
- * that and some of the @c copyfrom_known fields will be FALSE.
- *
  * Use @a pool for all allocations, including the hash and its values.
  *
+ * @note Retrieving the #node_rev_id element of #svn_fs_path_change2_t may
+ *       be expensive in some FS backends.
+ *
  * @since New in 1.6.
+ *
+ * @deprecated Provided for backward compatibility with the 1.9 API.
  */
+SVN_DEPRECATED
 svn_error_t *
 svn_fs_paths_changed2(apr_hash_t **changed_paths2_p,
                       svn_fs_root_t *root,
@@ -1989,11 +2162,23 @@ svn_fs_closest_copy(svn_fs_root_t **root_p,
                     const char *path,
                     apr_pool_t *pool);
 
+/** Receives parsed @a mergeinfo for the file system path @a path.
+ *
+ * The user-provided @a baton is being passed through by the retrieval
+ * function and @a scratch_pool will be cleared between invocations.
+ *
+ * @since New in 1.10.
+ */
+typedef svn_error_t *
+(*svn_fs_mergeinfo_receiver_t)(const char *path,
+                               svn_mergeinfo_t mergeinfo,
+                               void *baton,
+                               apr_pool_t *scratch_pool);
 
 /** Retrieve mergeinfo for multiple nodes.
  *
- * @a *catalog is a catalog for @a paths.  It will never be @c NULL,
- * but may be empty.
+ * For each node found with mergeinfo on it, invoke @a receiver with
+ * the provided @a baton.
  *
  * @a root is revision root to use when looking up paths.
  *
@@ -2003,7 +2188,7 @@ svn_fs_closest_copy(svn_fs_root_t **root_p,
  * explicit-or-inherited, or only inherited mergeinfo.
  *
  * If @a adjust_inherited_mergeinfo is @c TRUE, then any inherited
- * mergeinfo returned in @a *catalog is normalized to represent the
+ * mergeinfo reported to @a *receiver is normalized to represent the
  * inherited mergeinfo on the path which inherits it.  This adjusted
  * mergeinfo is keyed by the path which inherits it.  If
  * @a adjust_inherited_mergeinfo is @c FALSE, then any inherited
@@ -2018,13 +2203,31 @@ svn_fs_closest_copy(svn_fs_root_t **root_p,
  * the #SVN_PROP_MERGEINFO property explicitly set on it.  (Note
  * that inheritance is only taken into account for the elements in @a
  * paths; descendants of the elements in @a paths which get their
- * mergeinfo via inheritance are not included in @a *catalog.)
+ * mergeinfo via inheritance are not reported to @a receiver.)
  *
- * Allocate @a *catalog in result_pool.  Do any necessary temporary
- * allocations in @a scratch_pool.
+ * Do any necessary temporary allocations in @a scratch_pool.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_fs_get_mergeinfo3(svn_fs_root_t *root,
+                      const apr_array_header_t *paths,
+                      svn_mergeinfo_inheritance_t inherit,
+                      svn_boolean_t include_descendants,
+                      svn_boolean_t adjust_inherited_mergeinfo,
+                      svn_fs_mergeinfo_receiver_t receiver,
+                      void *baton,
+                      apr_pool_t *scratch_pool);
+
+/**
+ * Same as svn_fs_get_mergeinfo3(), but all mergeinfo is being collected
+ * and returned in @a *catalog.  It will never be @c NULL, but may be empty.
  *
  * @since New in 1.8.
+ *
+ * @deprecated Provided for backward compatibility with the 1.9 API.
  */
+SVN_DEPRECATED
 svn_error_t *
 svn_fs_get_mergeinfo2(svn_mergeinfo_catalog_t *catalog,
                       svn_fs_root_t *root,
@@ -2545,11 +2748,70 @@ svn_fs_deltify_revision(svn_fs_t *fs,
                         svn_revnum_t revision,
                         apr_pool_t *pool);
 
+/** Make sure that all completed revision property changes to the filesystem
+ * underlying @a fs are actually visible through @a fs.  Use @a scratch_pool
+ * for temporary allocations.
+ *
+ * This is an explicit synchronization barrier for revprop changes made
+ * through different #svn_fs_t for the same underlying filesystem. Any
+ * revprop change through @a fs acts as an implicit barrier, i.e. that
+ * object will see all completed revprop changes up to an including its own.
+ * Only #svn_fs_revision_prop2 and #svn_fs_revision_proplist2 have an option
+ * to not synchronize with on-disk data and potentially return outdated data
+ * as old as the last barrier.
+ *
+ * The intended use of this is implementing efficient queries in upper layers
+ * where the result only needs to include all changes up to the start of
+ * that query but does not need to pick up on changes while the query is
+ * running:
+ *
+ * @code
+     SVN_ERR(svn_fs_deltify_revision(fs, pool);
+     for (i = 0; i < n; i++)
+       SVN_ERR(svn_fs_revision_prop2(&authors[i], fs, revs[i], "svn:author",
+                                     FALSE, pool, pool)); @endcode
+ *
+ * @see svn_fs_revision_prop2, svn_fs_revision_proplist2
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_fs_refresh_revision_props(svn_fs_t *fs,
+                              apr_pool_t *scratch_pool);
 
 /** Set @a *value_p to the value of the property named @a propname on
  * revision @a rev in the filesystem @a fs.  If @a rev has no property by
- * that name, set @a *value_p to zero.  Allocate the result in @a pool.
+ * that name, set @a *value_p to zero.
+ *
+ * If @a refresh is set, this call acts as a read barrier and is guaranteed
+ * to return the latest value.  Otherwise, it may return data as old as the
+ * last synchronization point but can be much faster to access - in
+ * particular for packed repositories.
+ *
+ * Allocate the result in @a result_pool and use @a scratch_pool for
+ * temporary allocations.
+ *
+ * @see svn_fs_refresh_revision_props
+ *
+ * @since New in 1.10.
  */
+svn_error_t *
+svn_fs_revision_prop2(svn_string_t **value_p,
+                      svn_fs_t *fs,
+                      svn_revnum_t rev,
+                      const char *propname,
+                      svn_boolean_t refresh,
+                      apr_pool_t *result_pool,
+                      apr_pool_t *scratch_pool);
+
+/** Like #svn_fs_revision_prop2 but using @a pool for @a scratch_pool as
+ * well as @a result_pool and setting @a refresh to #TRUE.
+ *
+ * @see svn_fs_refresh_revision_props
+ *
+ * @deprecated For backward compatibility with 1.9.
+ */
+SVN_DEPRECATED
 svn_error_t *
 svn_fs_revision_prop(svn_string_t **value_p,
                      svn_fs_t *fs,
@@ -2561,14 +2823,40 @@ svn_fs_revision_prop(svn_string_t **value_p,
 /** Set @a *table_p to the entire property list of revision @a rev in
  * filesystem @a fs, as an APR hash table allocated in @a pool.  The table
  * maps <tt>char *</tt> property names to #svn_string_t * values; the names
- * and values are allocated in @a pool.
+ * and values are allocated in @a result_pool.  Use @a scratch_pool for
+ * temporary allocations.
+ *
+ * If @a refresh is set, this call acts as a read barrier and is guaranteed
+ * to return the latest value.  Otherwise, it may return data as old as the
+ * last synchronization point but can be much faster to access - in
+ * particular for packed repositories.
+ *
+ * @see svn_fs_refresh_revision_props
+ *
+ * @since New in 1.10.
+ *
  */
+svn_error_t *
+svn_fs_revision_proplist2(apr_hash_t **table_p,
+                          svn_fs_t *fs,
+                          svn_revnum_t rev,
+                          svn_boolean_t refresh,
+                          apr_pool_t *result_pool,
+                          apr_pool_t *scratch_pool);
+
+/** Like svn_fs_revision_proplist2 but using @a pool for @a scratch_pool as
+ * well as @a result_pool and setting @a refresh to #TRUE.
+ *
+ * @see svn_fs_refresh_revision_props
+ *
+ * @deprecated For backward compatibility with 1.9.
+ */
+SVN_DEPRECATED
 svn_error_t *
 svn_fs_revision_proplist(apr_hash_t **table_p,
                          svn_fs_t *fs,
                          svn_revnum_t rev,
                          apr_pool_t *pool);
-
 
 /** Change a revision's property's value, or add/delete a property.
  *
@@ -2992,7 +3280,13 @@ typedef enum svn_fs_pack_notify_action_t
 
   /** packing of the shard revprops has completed
       @since New in 1.7. */
-  svn_fs_pack_notify_end_revprop
+  svn_fs_pack_notify_end_revprop,
+
+  /** pack has been a no-op for this repository.  The next / future packable
+      shard will be given.  If the shard is -1, then the repository does not
+      support packing at all.
+      @since New in 1.10. */
+  svn_fs_pack_notify_noop
 
 } svn_fs_pack_notify_action_t;
 

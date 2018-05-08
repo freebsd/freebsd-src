@@ -65,8 +65,10 @@ typedef struct repository_t {
   enum username_case_type username_case; /* Case-normalize the username? */
   svn_boolean_t use_sasl;  /* Use Cyrus SASL for authentication;
                               always false if SVN_HAVE_SASL not defined */
+#ifdef SVN_HAVE_SASL
   unsigned min_ssf;        /* min-encryption SASL parameter */
   unsigned max_ssf;        /* max-encryption SASL parameter */
+#endif
 
   enum access_type auth_access; /* access granted to authenticated users */
   enum access_type anon_access; /* access granted to annonymous users */
@@ -125,9 +127,6 @@ typedef struct serve_params_t {
   /* all configurations should be opened through this factory */
   svn_repos__config_pool_t *config_pool;
 
-  /* all authz data should be opened through this factory */
-  svn_repos__authz_pool_t *authz_pool;
-
   /* The FS configuration to be applied to all repositories.
      It mainly contains things like cache settings. */
   apr_hash_t *fs_config;
@@ -151,6 +150,12 @@ typedef struct serve_params_t {
   /* Amount of data to send between checks for cancellation requests
      coming in from the client. */
   apr_size_t error_check_interval;
+
+  /* If not 0, error out on requests exceeding this value. */
+  apr_uint64_t max_request_size;
+
+  /* If not 0, stop sending a response once it exceeds this value. */
+  apr_uint64_t max_response_size;
 
   /* Use virtual-host-based path to repo. */
   svn_boolean_t vhost;

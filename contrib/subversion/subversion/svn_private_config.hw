@@ -61,10 +61,10 @@
 #define SVN_LIBSVN_FS_LINKS_FS_X
 
 /* Link local repos access library to client */
-#define SVN_LIBSVN_CLIENT_LINKS_RA_LOCAL
+#define SVN_LIBSVN_RA_LINKS_RA_LOCAL
 
 /* Link pipe repos access library to client */
-#define SVN_LIBSVN_CLIENT_LINKS_RA_SVN
+#define SVN_LIBSVN_RA_LINKS_RA_SVN
 
 /* Defined to be the path to the installed binaries */
 #define SVN_BINDIR "/usr/local/bin"
@@ -121,6 +121,14 @@
 /* Macro used to specify that a variable is intentionally left unused.
    Supresses compiler warnings about the variable being unused.  */
 #define SVN_UNUSED(v) ( (void)(v) )
+
+#if defined(_MSC_VER) && _MSC_VER >= 1600
+#define HAVE_STDINT_H
+#endif
+
+#if defined(_MSC_VER) && _MSC_VER >= 1800
+#define HAVE_STDBOOL_H
+#endif
 
 #endif /* SVN_PRIVATE_CONFIG_HW */
 

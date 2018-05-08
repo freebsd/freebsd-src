@@ -27,8 +27,6 @@
 #ifndef SVN_MUTEX_H
 #define SVN_MUTEX_H
 
-#include <apr_thread_mutex.h>
-
 #include "svn_error.h"
 
 #ifdef __cplusplus
@@ -105,6 +103,17 @@ do {                                                    \
   SVN_ERR(svn_mutex__lock(svn_mutex__m));               \
   SVN_ERR(svn_mutex__unlock(svn_mutex__m, (expr)));     \
 } while (0)
+
+#if APR_HAS_THREADS
+
+/** Return the APR mutex encapsulated in @a mutex.
+ *
+ * @note This function should only be called by APR wrapper code.
+ */
+apr_thread_mutex_t *
+svn_mutex__get(svn_mutex__t *mutex);
+
+#endif
 
 #ifdef __cplusplus
 }

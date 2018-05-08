@@ -53,12 +53,12 @@ struct svn_sort__item_t {
 /** Sort @a ht according to its keys, return an @c apr_array_header_t
  * containing @c svn_sort__item_t structures holding those keys and values
  * (i.e. for each @c svn_sort__item_t @a item in the returned array,
- * @a item->key and @a item->size are the hash key, and @a item->value points to
+ * @a item.key and @a item.size are the hash key, and @a item.value points to
  * the hash value).
  *
  * Storage is shared with the original hash, not copied.
  *
- * @a comparison_func should take two @c svn_sort__item_t's and return an
+ * @a comparison_func should take pointers to two items and return an
  * integer greater than, equal to, or less than 0, according as the first item
  * is greater than, equal to, or less than the second.
  *

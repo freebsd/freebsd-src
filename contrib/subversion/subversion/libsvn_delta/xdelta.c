@@ -111,7 +111,7 @@ struct block
   apr_uint32_t adlersum;
 
 /* Even in 64 bit systems, store only 32 bit offsets in our hash table
-   (our delta window size much much smaller then 4GB).
+   (our delta window size much much smaller than 4GB).
    That reduces the hash table size by 50% from 32to 16KB
    and makes it easier to fit into the CPU's L1 cache. */
   apr_uint32_t pos;    /* NO_POSITION -> block is not used */
