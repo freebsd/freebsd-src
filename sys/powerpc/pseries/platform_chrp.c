@@ -350,14 +350,26 @@ chrp_smp_get_bsp(platform_t plat, struct cpuref *cpuref)
 	return (0);
 }
 
+static void
+get_cpu_reg(phandle_t cpu, cell_t *reg)
+{
+	int res;
+
+	res = OF_getproplen(cpu, "reg");
+	if (res != sizeof(cell_t))
+		panic("Unexpected length for CPU property reg on Open Firmware\n");
+	OF_getencprop(cpu, "reg", reg, res);
+}
+
 static int
 chrp_cpuref_init(void)
 {
-	phandle_t cpu, dev;
+	phandle_t cpu, dev, chosen, pbsp;
+	ihandle_t ibsp;
 	char buf[32];
-	int a, res;
-	cell_t interrupt_servers[32];
-	uint64_t bsp;
+	int a, bsp, res, res2, tmp_cpuref_cnt;
+	static struct cpuref tmp_cpuref[MAXCPU];
+	cell_t interrupt_servers[32], addr_cells, size_cells, reg, bsp_reg;
 
 	if (platform_cpuref_valid)
 		return (0);
@@ -371,25 +383,77 @@ chrp_cpuref_init(void)
 		dev = OF_peer(dev);
 	}
 
-	bsp = 0;
+	/* Make sure that cpus reg property have 1 address cell and 0 size cells */
+	res = OF_getproplen(dev, "#address-cells");
+	res2 = OF_getproplen(dev, "#size-cells");
+	if (res != res2 || res != sizeof(cell_t))
+		panic("CPU properties #address-cells and #size-cells not found on Open Firmware\n");
+	OF_getencprop(dev, "#address-cells", &addr_cells, sizeof(addr_cells));
+	OF_getencprop(dev, "#size-cells", &size_cells, sizeof(size_cells));
+	if (addr_cells != 1 || size_cells != 0)
+		panic("Unexpected values for CPU properties #address-cells and #size-cells on Open Firmware\n");
+
+	/* Look for boot CPU in /chosen/cpu and /chosen/fdtbootcpu */
+
+	chosen = OF_finddevice("/chosen");
+	if (chosen == -1)
+		panic("Device /chosen not found on Open Firmware\n");
+
+	bsp_reg = -1;
+
+	/* /chosen/cpu */
+	if (OF_getproplen(chosen, "cpu") == sizeof(ihandle_t)) {
+		OF_getprop(chosen, "cpu", &ibsp, sizeof(ibsp));
+		pbsp = OF_instance_to_package(ibsp);
+		if (pbsp != -1)
+			get_cpu_reg(pbsp, &bsp_reg);
+	}
+
+	/* /chosen/fdtbootcpu */
+	if (bsp_reg == -1) {
+		if (OF_getproplen(chosen, "fdtbootcpu") == sizeof(cell_t))
+			OF_getprop(chosen, "fdtbootcpu", &bsp_reg, sizeof(bsp_reg));
+	}
+
+	if (bsp_reg == -1)
+		panic("Boot CPU not found on Open Firmware\n");
+
+	bsp = -1;
+	tmp_cpuref_cnt = 0;
 	for (cpu = OF_child(dev); cpu != 0; cpu = OF_peer(cpu)) {
 		res = OF_getprop(cpu, "device_type", buf, sizeof(buf));
 		if (res > 0 && strcmp(buf, "cpu") == 0) {
 			res = OF_getproplen(cpu, "ibm,ppc-interrupt-server#s");
 			if (res > 0) {
-
-
 				OF_getencprop(cpu, "ibm,ppc-interrupt-server#s",
 				    interrupt_servers, res);
 
-				for (a = 0; a < res/sizeof(cell_t); a++) {
-					platform_cpuref[platform_cpuref_cnt].cr_hwref = interrupt_servers[a];
-					platform_cpuref[platform_cpuref_cnt].cr_cpuid = platform_cpuref_cnt;
+				get_cpu_reg(cpu, &reg);
+				if (reg == bsp_reg)
+					bsp = tmp_cpuref_cnt;
 
-					platform_cpuref_cnt++;
+				for (a = 0; a < res/sizeof(cell_t); a++) {
+					tmp_cpuref[tmp_cpuref_cnt].cr_hwref = interrupt_servers[a];
+					tmp_cpuref[tmp_cpuref_cnt].cr_cpuid = tmp_cpuref_cnt;
+					tmp_cpuref_cnt++;
 				}
 			}
 		}
+	}
+
+	if (bsp == -1)
+		panic("Boot CPU not found\n");
+
+	/* Map IDs, so BSP has CPUID 0 regardless of hwref */
+	for (a = bsp; a < tmp_cpuref_cnt; a++) {
+		platform_cpuref[platform_cpuref_cnt].cr_hwref = tmp_cpuref[a].cr_hwref;
+		platform_cpuref[platform_cpuref_cnt].cr_cpuid = platform_cpuref_cnt;
+		platform_cpuref_cnt++;
+	}
+	for (a = 0; a < bsp; a++) {
+		platform_cpuref[platform_cpuref_cnt].cr_hwref = tmp_cpuref[a].cr_hwref;
+		platform_cpuref[platform_cpuref_cnt].cr_cpuid = platform_cpuref_cnt;
+		platform_cpuref_cnt++;
 	}
 
 	platform_cpuref_valid = 1;
