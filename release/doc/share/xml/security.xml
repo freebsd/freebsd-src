@@ -106,6 +106,14 @@
 	<entry>04&nbsp;April&nbsp;2018</entry>
 	<entry><para>Fix denial of service</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-18:06.debugreg.asc">FreeBSD-SA-18:06.debugreg</link></entry>
+	<entry>08&nbsp;May&nbsp;2018</entry>
+	<entry><para>Mishandling of x86 debug
+	    exceptions</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
