@@ -307,7 +307,9 @@ read_patterns(const char *fn)
 	size_t len;
 	ssize_t rlen;
 
-	if ((f = fopen(fn, "r")) == NULL)
+	if (strcmp(fn, "-") == 0)
+		f = stdin;
+	else if ((f = fopen(fn, "r")) == NULL)
 		err(2, "%s", fn);
 	if ((fstat(fileno(f), &st) == -1) || (S_ISDIR(st.st_mode))) {
 		fclose(f);
@@ -324,7 +326,8 @@ read_patterns(const char *fn)
 	free(line);
 	if (ferror(f))
 		err(2, "%s", fn);
-	fclose(f);
+	if (strcmp(fn, "-") != 0)
+		fclose(f);
 }
 
 static inline const char *
