@@ -51,6 +51,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20180508:
+	The nxge(4) driver has been removed.  This driver was for PCI-X 10g
+	cards made by s2io/Neterion.  The company was aquired by Exar and
+	no longer sells or supports Ethernet products.  If you have device
+	nxge in your kernel config file it must be removed.
+
 20180504:
 	The tz database (tzdb) has been updated to 2018e.  This version more
 	correctly models time stamps in time zones with negative DST such as
