@@ -643,7 +643,7 @@ main(int argc, char *argv[])
 			fdsrmax = fx->s;
 
 	fdsr = (fd_set *)calloc(howmany(fdsrmax+1, NFDBITS),
-	    sizeof(fd_mask));
+	    sizeof(*fdsr));
 	if (fdsr == NULL)
 		errx(1, "calloc fd_set");
 
@@ -654,7 +654,7 @@ main(int argc, char *argv[])
 			die(WantDie);
 
 		bzero(fdsr, howmany(fdsrmax+1, NFDBITS) *
-		    sizeof(fd_mask));
+		    sizeof(*fdsr));
 
 		if (fklog != -1)
 			FD_SET(fklog, fdsr);
