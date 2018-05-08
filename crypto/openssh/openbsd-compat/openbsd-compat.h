@@ -60,12 +60,20 @@ int bindresvport_sa(int sd, struct sockaddr *sa);
 void closefrom(int);
 #endif
 
+#ifndef HAVE_GETPAGESIZE
+int getpagesize(void);
+#endif
+
 #ifndef HAVE_GETCWD
 char *getcwd(char *pt, size_t size);
 #endif
 
 #ifndef HAVE_REALLOCARRAY
 void *reallocarray(void *, size_t, size_t);
+#endif
+
+#ifndef HAVE_RECALLOCARRAY
+void *recallocarray(void *, size_t, size_t, size_t);
 #endif
 
 #if !defined(HAVE_REALPATH) || defined(BROKEN_REALPATH)
@@ -294,6 +302,10 @@ int	bcrypt_pbkdf(const char *, size_t, const u_int8_t *, size_t,
 
 #ifndef HAVE_EXPLICIT_BZERO
 void explicit_bzero(void *p, size_t n);
+#endif
+
+#ifndef HAVE_FREEZERO
+void freezero(void *, size_t);
 #endif
 
 char *xcrypt(const char *password, const char *salt);

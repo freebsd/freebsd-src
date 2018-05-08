@@ -74,19 +74,16 @@
 0F) If source files have been added or removed, update the appropriate
     makefiles to reflect changes in the vendor's Makefile.in.
 
-10) Build libssh:
+10) Update ssh_namespace.h:
 
-    $ cd ../../secure/lib/libssh && make obj && make depend && make
+    $ sh freebsd-namespace.sh
 
-11) Follow the instructions in ssh_namespace.h to get a list of new
-    symbols, and them to ssh_namespace.h.  Keep it sorted!
-
-12) Build and install world, reboot, test.  Pay particular attention
+11) Build and install world, reboot, test.  Pay particular attention
     to pam_ssh(8), which gropes inside libssh and will break if
     something significant changes or if ssh_namespace.h is out of
     whack.
 
-13) Commit, and hunker down for the inevitable storm of complaints.
+12) Commit, and hunker down for the inevitable storm of complaints.
 
 
 

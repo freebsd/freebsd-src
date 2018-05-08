@@ -1,4 +1,4 @@
-#	$OpenBSD: agent.sh,v 1.11 2015/03/03 22:35:19 markus Exp $
+#	$OpenBSD: agent.sh,v 1.12 2017/04/30 23:34:55 djm Exp $
 #	Placed in the Public Domain.
 
 tid="simple agent test"
@@ -46,28 +46,24 @@ else
 	fi
 
 	trace "simple connect via agent"
-	for p in ${SSH_PROTOCOLS}; do
-		${SSH} -$p -F $OBJ/ssh_proxy somehost exit 5$p
-		r=$?
-		if [ $r -ne 5$p ]; then
-			fail "ssh connect with protocol $p failed (exit code $r)"
-		fi
-	done
+	${SSH} -F $OBJ/ssh_proxy somehost exit 52
+	r=$?
+	if [ $r -ne 52 ]; then
+		fail "ssh connect with failed (exit code $r)"
+	fi
 
 	trace "agent forwarding"
-	for p in ${SSH_PROTOCOLS}; do
-		${SSH} -A -$p -F $OBJ/ssh_proxy somehost ${SSHADD} -l > /dev/null 2>&1
-		r=$?
-		if [ $r -ne 0 ]; then
-			fail "ssh-add -l via agent fwd proto $p failed (exit code $r)"
-		fi
-		${SSH} -A -$p -F $OBJ/ssh_proxy somehost \
-			"${SSH} -$p -F $OBJ/ssh_proxy somehost exit 5$p"
-		r=$?
-		if [ $r -ne 5$p ]; then
-			fail "agent fwd proto $p failed (exit code $r)"
-		fi
-	done
+	${SSH} -A -F $OBJ/ssh_proxy somehost ${SSHADD} -l > /dev/null 2>&1
+	r=$?
+	if [ $r -ne 0 ]; then
+		fail "ssh-add -l via agent fwd failed (exit code $r)"
+	fi
+	${SSH} -A -F $OBJ/ssh_proxy somehost \
+		"${SSH} -F $OBJ/ssh_proxy somehost exit 52"
+	r=$?
+	if [ $r -ne 52 ]; then
+		fail "agent fwd failed (exit code $r)"
+	fi
 
 	trace "delete all agent keys"
 	${SSHADD} -D > /dev/null 2>&1

@@ -1,4 +1,4 @@
-/* $OpenBSD: kexdhc.c,v 1.19 2016/05/02 10:26:04 djm Exp $ */
+/* $OpenBSD: kexdhc.c,v 1.20 2017/05/30 14:23:52 markus Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -49,7 +49,7 @@
 #include "ssherr.h"
 #include "sshbuf.h"
 
-static int input_kex_dh(int, u_int32_t, void *);
+static int input_kex_dh(int, u_int32_t, struct ssh *);
 
 int
 kexdh_client(struct ssh *ssh)
@@ -100,9 +100,8 @@ kexdh_client(struct ssh *ssh)
 }
 
 static int
-input_kex_dh(int type, u_int32_t seq, void *ctxt)
+input_kex_dh(int type, u_int32_t seq, struct ssh *ssh)
 {
-	struct ssh *ssh = ctxt;
 	struct kex *kex = ssh->kex;
 	BIGNUM *dh_server_pub = NULL, *shared_secret = NULL;
 	struct sshkey *server_host_key = NULL;

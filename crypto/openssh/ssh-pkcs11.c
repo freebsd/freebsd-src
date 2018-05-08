@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.c,v 1.23 2016/10/28 03:33:52 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11.c,v 1.25 2017/05/31 09:15:42 deraadt Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -537,7 +537,8 @@ pkcs11_fetch_keys_filter(struct pkcs11_provider *p, CK_ULONG slotidx,
 		}
 		if (rsa && rsa->n && rsa->e &&
 		    pkcs11_rsa_wrap(p, slotidx, &attribs[0], rsa) == 0) {
-			key = sshkey_new(KEY_UNSPEC);
+			if ((key = sshkey_new(KEY_UNSPEC)) == NULL)
+				fatal("sshkey_new failed");
 			key->rsa = rsa;
 			key->type = KEY_RSA;
 			key->flags |= SSHKEY_FLAG_EXT;
@@ -545,8 +546,8 @@ pkcs11_fetch_keys_filter(struct pkcs11_provider *p, CK_ULONG slotidx,
 				sshkey_free(key);
 			} else {
 				/* expand key array and add key */
-				*keysp = xreallocarray(*keysp, *nkeys + 1,
-				    sizeof(struct sshkey *));
+				*keysp = xrecallocarray(*keysp, *nkeys,
+				    *nkeys + 1, sizeof(struct sshkey *));
 				(*keysp)[*nkeys] = key;
 				*nkeys = *nkeys + 1;
 				debug("have %d keys", *nkeys);

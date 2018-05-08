@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.376 2016/07/16 06:57:55 jmc Exp $
+.\" $OpenBSD: ssh.1,v 1.384 2017/09/21 19:16:53 markus Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: July 16 2016 $
+.Dd $Mdocdate: September 21 2017 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@
 .Sh SYNOPSIS
 .Nm ssh
 .Bk -words
-.Op Fl 1246AaCfGgKkMNnqsTtVvXxYy
+.Op Fl 46AaCfGgKkMNnqsTtVvXxYy
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
 .Op Fl D Oo Ar bind_address : Oc Ns Ar port
@@ -96,16 +96,6 @@ it is executed on the remote host instead of a login shell.
 The options are as follows:
 .Pp
 .Bl -tag -width Ds -compact
-.It Fl 1
-Forces
-.Nm
-to try protocol version 1 only.
-.Pp
-.It Fl 2
-Forces
-.Nm
-to try protocol version 2 only.
-.Pp
 .It Fl 4
 Forces
 .Nm
@@ -145,12 +135,7 @@ data for forwarded X11, TCP and
 .Ux Ns -domain
 connections).
 The compression algorithm is the same used by
-.Xr gzip 1 ,
-and the
-.Dq level
-can be controlled by the
-.Cm CompressionLevel
-option for protocol version 1.
+.Xr gzip 1 .
 Compression is desirable on modem lines and other
 slow connections, but will only slow down things on fast networks.
 The default value can be set on a host-by-host basis in the
@@ -160,14 +145,6 @@ option.
 .Pp
 .It Fl c Ar cipher_spec
 Selects the cipher specification for encrypting the session.
-.Pp
-Protocol version 1 allows specification of a single cipher.
-The supported values are
-.Dq 3des ,
-.Dq blowfish ,
-and
-.Dq des .
-For protocol version 2,
 .Ar cipher_spec
 is a comma-separated list of ciphers
 listed in order of preference.
@@ -291,14 +268,11 @@ private RSA key.
 Selects a file from which the identity (private key) for
 public key authentication is read.
 The default is
-.Pa ~/.ssh/identity
-for protocol version 1, and
 .Pa ~/.ssh/id_dsa ,
 .Pa ~/.ssh/id_ecdsa ,
 .Pa ~/.ssh/id_ed25519
 and
-.Pa ~/.ssh/id_rsa
-for protocol version 2.
+.Pa ~/.ssh/id_rsa .
 Identity files may also be specified on
 a per-host basis in the configuration file.
 It is possible to have multiple
@@ -492,11 +466,9 @@ For full details of the options listed below, and their possible values, see
 .It CertificateFile
 .It ChallengeResponseAuthentication
 .It CheckHostIP
-.It Cipher
 .It Ciphers
 .It ClearAllForwardings
 .It Compression
-.It CompressionLevel
 .It ConnectionAttempts
 .It ConnectTimeout
 .It ControlMaster
@@ -541,17 +513,15 @@ For full details of the options listed below, and their possible values, see
 .It PKCS11Provider
 .It Port
 .It PreferredAuthentications
-.It Protocol
 .It ProxyCommand
 .It ProxyJump
 .It ProxyUseFdpass
 .It PubkeyAcceptedKeyTypes
 .It PubkeyAuthentication
 .It RekeyLimit
+.It RemoteCommand
 .It RemoteForward
 .It RequestTTY
-.It RhostsRSAAuthentication
-.It RSAAuthentication
 .It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax
@@ -624,21 +594,30 @@ Causes most warning and diagnostic messages to be suppressed.
 .Ar remote_socket : local_socket
 .Sm on
 .Xc
+.It Fl R Xo
+.Sm off
+.Oo Ar bind_address : Oc
+.Ar port
+.Sm on
+.Xc
 Specifies that connections to the given TCP port or Unix socket on the remote
-(server) host are to be forwarded to the given host and port, or Unix socket,
-on the local side.
+(server) host are to be forwarded to the local side.
+.Pp
 This works by allocating a socket to listen to either a TCP
 .Ar port
 or to a Unix socket on the remote side.
 Whenever a connection is made to this port or Unix socket, the
 connection is forwarded over the secure channel, and a connection
-is made to either
+is made from the local machine to either an explicit destination specified by
 .Ar host
 port
 .Ar hostport ,
 or
 .Ar local_socket ,
-from the local machine.
+or, if no explicit destination was specified,
+.Nm
+will act as a SOCKS 4/5 proxy and forward connections to the destinations
+requested by the remote SOCKS client.
 .Pp
 Port forwardings can also be specified in the configuration file.
 Privileged ports can be forwarded only when
@@ -808,21 +787,7 @@ a per-user configuration file and a system-wide configuration file.
 The file format and configuration options are described in
 .Xr ssh_config 5 .
 .Sh AUTHENTICATION
-The OpenSSH SSH client supports SSH protocols 1 and 2.
-The default is to use protocol 2 only,
-though this can be changed via the
-.Cm Protocol
-option in
-.Xr ssh_config 5
-or the
-.Fl 1
-and
-.Fl 2
-options (see above).
-Protocol 1 should not be used
-and is only offered to support legacy devices.
-It suffers from a number of cryptographic weaknesses
-and doesn't support many of the advanced features available for protocol 2.
+The OpenSSH SSH client supports SSH protocol 2.
 .Pp
 The methods available for authentication are:
 GSSAPI-based authentication,
@@ -892,11 +857,20 @@ The client proves that it has access to the private key
 and the server checks that the corresponding public key
 is authorized to accept the account.
 .Pp
+The server may inform the client of errors that prevented public key
+authentication from succeeding after authentication completes using a
+different method.
+These may be viewed by increasing the
+.Cm LogLevel
+to
+.Cm DEBUG
+or higher (e.g. by using the
+.Fl v
+flag).
+.Pp
 The user creates his/her key pair by running
 .Xr ssh-keygen 1 .
 This stores the private key in
-.Pa ~/.ssh/identity
-(protocol 1),
 .Pa ~/.ssh/id_dsa
 (DSA),
 .Pa ~/.ssh/id_ecdsa
@@ -907,8 +881,6 @@ or
 .Pa ~/.ssh/id_rsa
 (RSA)
 and stores the public key in
-.Pa ~/.ssh/identity.pub
-(protocol 1),
 .Pa ~/.ssh/id_dsa.pub
 (DSA),
 .Pa ~/.ssh/id_ecdsa.pub
@@ -1492,7 +1464,6 @@ Contains additional definitions for environment variables; see
 .Sx ENVIRONMENT ,
 above.
 .Pp
-.It Pa ~/.ssh/identity
 .It Pa ~/.ssh/id_dsa
 .It Pa ~/.ssh/id_ecdsa
 .It Pa ~/.ssh/id_ed25519
@@ -1507,7 +1478,6 @@ It is possible to specify a passphrase when
 generating the key which will be used to encrypt the
 sensitive part of this file using 3DES.
 .Pp
-.It Pa ~/.ssh/identity.pub
 .It Pa ~/.ssh/id_dsa.pub
 .It Pa ~/.ssh/id_ecdsa.pub
 .It Pa ~/.ssh/id_ed25519.pub
