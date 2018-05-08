@@ -1640,6 +1640,254 @@ vm_snapshot_req(struct vmctx *ctx, enum snapshot_req req, char *buffer, size_t m
 }
 
 static int
+get_system_specs_for_migration(struct migration_system_specs *specs)
+{
+	int mib[2];
+	size_t len_machine, len_model, len_pagesize;
+	char interm[MAX_SPEC_LEN];
+	int rc;
+	int num;
+
+	mib[0] = CTL_HW;
+
+#if 1
+	mib[1] = HW_MACHINE;
+	rc = sysctl(mib, 2, interm, &len_machine, NULL, 0);
+	if (rc != 0) {
+		perror("Could not retrieve HW_MACHINE specs");
+		return (rc);
+	}
+	strncpy(specs->hw_model, interm, MAX_SPEC_LEN);
+#else
+	strcpy(specs->hw_machine, "amd64");
+#endif
+
+	memset(interm, 0, MAX_SPEC_LEN);
+	mib[0] = CTL_HW;
+	mib[1] = HW_MODEL;
+	rc = sysctl(mib, 2, interm, &len_model, NULL, 0);
+	if (rc != 0) {
+		perror("Could not retrieve HW_MODEL specs");
+		return (rc);
+	}
+	strncpy(specs->hw_model, interm, MAX_SPEC_LEN);
+
+#if 1
+	mib[0] = CTL_HW;
+	mib[1] = HW_PAGESIZE;
+	rc = sysctl(mib, 2, &num, &len_pagesize, NULL, 0);
+	if (rc != 0) {
+		perror("Could not retrieve HW_PAGESIZE specs");
+		return (rc);
+	}
+	specs->hw_pagesize = num;
+#else
+	specs->hw_pagesize=4098;
+#endif
+
+	return (0);
+}
+
+static int
+migration_send_data_remote(int socket, const void *msg, ssize_t len)
+{
+	size_t to_send, total_sent;
+	ssize_t sent;
+
+	to_send = len;
+	total_sent = 0;
+
+	while (to_send > 0) {
+		sent  = send(socket, msg + total_sent, to_send, 0);
+		if (sent < 0) {
+			perror("Error while sending data");
+			return (sent);
+		}
+
+		to_send -= sent;
+		total_sent += sent;
+	}
+
+	return (0);
+}
+
+static int
+migration_recv_data_from_remote(int socket, void *msg, ssize_t len)
+{
+	size_t to_recv, total_recv;
+	ssize_t recvt;
+
+	to_recv = len;
+	total_recv = 0;
+
+	while (to_recv > 0) {
+		recvt = recv(socket, msg + total_recv, to_recv, 0);
+		if (recvt <= 0) {
+			perror("Error while receiving data");
+			return (recvt);
+		}
+
+		to_recv -= recvt;
+		total_recv += recvt;
+	}
+
+	return (0);
+}
+
+static int
+migration_send_specs(int socket)
+{
+	struct migration_system_specs local_specs;
+	struct migration_message_type mesg;
+	size_t response;
+	int rc;
+
+	rc = get_system_specs_for_migration(&local_specs);
+	if (rc != 0) {
+		fprintf(stderr, "%s: Could not retrieve local specs\r\n",
+			__func__);
+		return (rc);
+	}
+
+	// TODO1: Send message type to server: specs & len
+	mesg.type = MESSAGE_TYPE_SPECS;
+	mesg.len = sizeof(local_specs);
+	rc = migration_send_data_remote(socket, &mesg, sizeof(mesg));
+	if (rc < 0) {
+		fprintf(stderr, "%s: Could not send message type\r\n", __func__);
+		return (-1);
+	}
+
+	// TODO2: Send specs to server
+	rc = migration_send_data_remote(socket, &local_specs, sizeof(local_specs));
+	if (rc < 0) {
+		fprintf(stderr, "%s: Could not send system specs\r\n", __func__);
+		return (-1);
+	}
+
+	// TODO3: Recv OK/NOT_OK from server
+	rc = migration_recv_data_from_remote(socket, &response, sizeof(response));
+	if (rc < 0) {
+		fprintf(stderr,
+			"%s: Could not receive response from server\r\n",
+			__func__);
+		return (-1);
+	}
+	// TODO4: Return OK/NOT_OK
+
+	if (response == MIGRATION_SPECS_NOT_OK) {
+		fprintf(stderr,
+			"%s: System specification mismatch\r\n",
+			__func__);
+		return (-1);
+	}
+
+	fprintf(stdout,
+		"%s: System specification accepted\r\n",
+		__func__);
+
+	return (0);
+}
+
+static int
+migration_recv_and_check_specs(int socket)
+{
+	struct migration_system_specs local_specs;
+	struct migration_system_specs remote_specs;
+	struct migration_message_type msg;
+	size_t response;
+	int rc;
+
+	// TODO1: Get specs size from remote (from client)
+	rc = migration_recv_data_from_remote(socket, &msg, sizeof(msg));
+	if (rc < 0) {
+		fprintf(stderr,
+			"%s: Could not receive message type for specs from remote\r\n",
+			__func__);
+		return (rc);
+	}
+
+	if (msg.type != MESSAGE_TYPE_SPECS) {
+		fprintf(stderr,
+			"%s: Wrong message type received from remote\r\n",
+			__func__);
+		return (-1);
+	}
+
+	// TODO2: Get specs from remote (from client)
+	rc = migration_recv_data_from_remote(socket, &remote_specs, msg.len);
+	if (rc < 0) {
+		fprintf(stderr,
+			"%s: Could not receive specs from remote\r\n",
+			__func__);
+		return (rc);
+	}
+
+	rc = get_system_specs_for_migration(&local_specs);
+
+	if (rc != 0) {
+		fprintf(stderr, "%s: Could not get local specs\r\n",
+			__func__);
+		return (rc);
+	}
+
+	// TODO3: Check specs
+	response = MIGRATION_SPECS_OK;
+	if ((strncmp(local_specs.hw_model, remote_specs.hw_model, MAX_SPEC_LEN) != 0)
+		|| (strncmp(local_specs.hw_machine, remote_specs.hw_machine, MAX_SPEC_LEN) != 0)
+		|| (local_specs.hw_pagesize  != remote_specs.hw_pagesize)
+	   ) {
+		fprintf(stderr,
+			"%s: System specification mismatch\r\n",
+			__func__);
+
+		fprintf(stderr,
+			"%s: Local specs vs Remote Specs: \r\n"
+			"\tmachine: %s vs %s\r\n"
+			"\tmodel: %s vs %s\r\n"
+			"\tpagesize: %zu vs %zu\r\n",
+			__func__,
+			local_specs.hw_machine,
+			remote_specs.hw_machine,
+			local_specs.hw_model,
+			remote_specs.hw_model,
+			local_specs.hw_pagesize,
+			remote_specs.hw_pagesize
+			);
+		response = MIGRATION_SPECS_NOT_OK;
+	}
+
+	fprintf(stdout,
+		"%s: Local specs vs Remote Specs: \r\n"
+		"\tmachine: %s vs %s\r\n"
+		"\tmodel: %s vs %s\r\n"
+		"\tpagesize: %zu vs %zu\r\n",
+		__func__,
+		local_specs.hw_machine,
+		remote_specs.hw_machine,
+		local_specs.hw_model,
+		remote_specs.hw_model,
+		local_specs.hw_pagesize,
+		remote_specs.hw_pagesize
+		);
+
+	// TODO4: Send OK/NOT_OK to client
+	rc = migration_send_data_remote(socket, &response, sizeof(response));
+	if (rc < 0) {
+		fprintf(stderr,
+			"%s: Could not send response to remote\r\n",
+			__func__);
+		return (-1);
+	}
+	// TODO5: If NOT_OK, return NOT_OK
+
+	if (response == MIGRATION_SPECS_NOT_OK)
+		return (-1);
+
+	return (0);
+}
+
+static int
 get_migration_host_and_type(const char *hostname, unsigned char *ipv4_addr,
 				unsigned char *ipv6_addr, int *type)
 {
@@ -1749,8 +1997,14 @@ send_start_migrate_req(struct vmctx *ctx, struct migrate_req req)
 	}
 
 	/* TODO */
-	// 5. get system requirements
+	// 5. send system requirements
+	rc = migration_send_specs(s);
 
+	if (rc < 0) {
+		fprintf(stderr, "%s: Error while checking system requirements\r\n",
+			__func__);
+		return (rc);
+	}
 
 	close(s);
 	return (0);
@@ -1810,14 +2064,6 @@ recv_migrate_req(struct vmctx *ctx, struct migrate_req req)
 	sa.sin_port = htons(req.port);
 	sa.sin_addr.s_addr = htonl(INADDR_ANY);
 
-#if 0
-	rc = inet_pton(AF_INET, ipv4_addr, &sa.sin_addr);
-	if (rc <= 0) {
-		fprintf(stderr, "%s: Could not retrive the IPV4 address", __func__);
-		close(s);
-		return (-1);
-	}
-#endif
 	rc = bind(s , (struct sockaddr *)&sa, sizeof(sa));
 
 	if (rc < 0) {
@@ -1836,6 +2082,15 @@ recv_migrate_req(struct vmctx *ctx, struct migrate_req req)
 		return (-1);
 	}
 
+	rc = migration_recv_and_check_specs(con_socket);
+	if (rc < 0) {
+		fprintf(stderr, "%s: Error while checking specs\r\n", __func__);
+		close(con_socket);
+		close(s);
+		return (rc);
+	}
+
+	close(con_socket);
 	close(s);
 	return (0);
 }

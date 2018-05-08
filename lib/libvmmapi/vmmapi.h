@@ -281,6 +281,10 @@ int	vm_restore_mem(struct vmctx *ctx, int vmmem_fd, size_t size);
 
 #define MAX_HOSTNAME_LEN	255
 #define DEFAULT_MIGRATION_PORT	24983
+#define MAX_SPEC_LEN		256
+
+#define MIGRATION_SPECS_OK	0
+#define MIGRATION_SPECS_NOT_OK	1
 
 enum message_types {
     MESSAGE_TYPE_SPECS	    = 0,
@@ -298,6 +302,12 @@ struct __attribute__((packed)) migration_message_type {
 struct __attribute__((packed)) migrate_req {
 	char host[MAX_HOSTNAME_LEN];
 	unsigned int port;
+};
+
+struct __attribute__((packed)) migration_system_specs {
+	char hw_machine[MAX_SPEC_LEN];
+	char hw_model[MAX_SPEC_LEN];
+	size_t hw_pagesize;
 };
 
 int send_start_migrate_req(struct vmctx *ctx, struct migrate_req req);
