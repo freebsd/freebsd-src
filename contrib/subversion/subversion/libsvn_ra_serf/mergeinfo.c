@@ -228,8 +228,8 @@ svn_ra_serf__get_mergeinfo(svn_ra_session_t *ra_session,
 
   SVN_ERR(svn_ra_serf__context_run_one(handler, pool));
 
-  SVN_ERR(svn_ra_serf__error_on_status(handler->sline, handler->path,
-                                       handler->location));
+  if (handler->sline.code != 200)
+    SVN_ERR(svn_ra_serf__unexpected_status(handler));
 
   if (apr_hash_count(mergeinfo_ctx->result_catalog))
     *catalog = mergeinfo_ctx->result_catalog;

@@ -27,12 +27,12 @@
 #include <apr_general.h>
 #include <apr_pools.h>
 #include <apr_file_io.h>
-#include <apr_thread_mutex.h>
 
 #include "svn_fs.h"
 #include "svn_delta.h"
 #include "svn_version.h"
 #include "svn_pools.h"
+#include "batch_fsync.h"
 #include "fs.h"
 #include "fs_x.h"
 #include "pack.h"
@@ -137,6 +137,18 @@ x_serialized_init(svn_fs_t *fs,
   return SVN_NO_ERROR;
 }
 
+svn_error_t *
+svn_fs_x__initialize_shared_data(svn_fs_t *fs,
+                                 svn_mutex__t *common_pool_lock,
+                                 apr_pool_t *scratch_pool,
+                                 apr_pool_t *common_pool)
+{
+  SVN_MUTEX__WITH_LOCK(common_pool_lock,
+                       x_serialized_init(fs, common_pool, scratch_pool));
+
+  return SVN_NO_ERROR;
+}
+
 
 
 /* This function is provided for Subversion 1.0.x compatibility.  It
@@ -218,20 +230,11 @@ x_info(const void **fsx_info,
   return SVN_NO_ERROR;
 }
 
-/* Wrapper around svn_fs_x__revision_prop() adapting between function
-   signatures. */
 static svn_error_t *
-x_revision_prop(svn_string_t **value_p,
-                svn_fs_t *fs,
-                svn_revnum_t rev,
-                const char *propname,
-                apr_pool_t *pool)
+x_refresh_revprops(svn_fs_t *fs,
+                   apr_pool_t *scratch_pool)
 {
-  apr_pool_t *scratch_pool = svn_pool_create(pool);
-  SVN_ERR(svn_fs_x__revision_prop(value_p, fs, rev, propname, pool,
-                                  scratch_pool));
-  svn_pool_destroy(scratch_pool);
-
+  svn_fs_x__invalidate_revprop_generation(fs);
   return SVN_NO_ERROR;
 }
 
@@ -241,14 +244,14 @@ static svn_error_t *
 x_revision_proplist(apr_hash_t **proplist_p,
                     svn_fs_t *fs,
                     svn_revnum_t rev,
-                    apr_pool_t *pool)
+                    svn_boolean_t refresh,
+                    apr_pool_t *result_pool,
+                    apr_pool_t *scratch_pool)
 {
-  apr_pool_t *scratch_pool = svn_pool_create(pool);
-
   /* No need to bypass the caches for r/o access to revprops. */
   SVN_ERR(svn_fs_x__get_revision_proplist(proplist_p, fs, rev, FALSE,
-                                          pool, scratch_pool));
-  svn_pool_destroy(scratch_pool);
+                                          refresh, result_pool,
+                                          scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -262,7 +265,8 @@ x_set_uuid(svn_fs_t *fs,
 {
   /* Whenever we set a new UUID, imply that FS will also be a different
    * instance (on formats that support this). */
-  return svn_error_trace(svn_fs_x__set_uuid(fs, uuid, NULL, scratch_pool));
+  return svn_error_trace(svn_fs_x__set_uuid(fs, uuid, NULL, TRUE,
+                                            scratch_pool));
 }
 
 /* Wrapper around svn_fs_x__begin_txn() providing the scratch pool. */
@@ -285,7 +289,8 @@ x_begin_txn(svn_fs_txn_t **txn_p,
 /* The vtable associated with a specific open filesystem. */
 static fs_vtable_t fs_vtable = {
   svn_fs_x__youngest_rev,
-  x_revision_prop,
+  x_refresh_revprops,
+  svn_fs_x__revision_prop,
   x_revision_proplist,
   svn_fs_x__change_rev_prop,
   x_set_uuid,
@@ -316,6 +321,9 @@ static svn_error_t *
 initialize_fs_struct(svn_fs_t *fs)
 {
   svn_fs_x__data_t *ffd = apr_pcalloc(fs->pool, sizeof(*ffd));
+  ffd->revprop_generation = -1;
+  ffd->flush_to_disk = TRUE;
+
   fs->vtable = &fs_vtable;
   fs->fsap_data = ffd;
   return SVN_NO_ERROR;
@@ -500,7 +508,7 @@ x_pack(svn_fs_t *fs,
        apr_pool_t *common_pool)
 {
   SVN_ERR(x_open(fs, path, common_pool_lock, scratch_pool, common_pool));
-  return svn_fs_x__pack(fs, notify_func, notify_baton,
+  return svn_fs_x__pack(fs, 0, notify_func, notify_baton,
                         cancel_func, cancel_baton, scratch_pool);
 }
 
@@ -536,24 +544,17 @@ x_hotcopy(svn_fs_t *src_fs,
   if (cancel_func)
     SVN_ERR(cancel_func(cancel_baton));
 
-  /* Test target repo when in INCREMENTAL mode, initialize it when not.
-   * For this, we need our FS internal data structures to be temporarily
-   * available. */
+  SVN_ERR(svn_fs__check_fs(dst_fs, FALSE));
   SVN_ERR(initialize_fs_struct(dst_fs));
-  SVN_ERR(svn_fs_x__hotcopy_prepare_target(src_fs, dst_fs, dst_path,
-                                           incremental, scratch_pool));
-  uninitialize_fs_struct(dst_fs);
 
-  /* Now, the destination repo should open just fine. */
-  SVN_ERR(x_open(dst_fs, dst_path, common_pool_lock, scratch_pool,
-                 common_pool));
-  if (cancel_func)
-    SVN_ERR(cancel_func(cancel_baton));
-
-  /* Now, we may copy data as needed ... */
-  return svn_fs_x__hotcopy(src_fs, dst_fs, incremental,
-                           notify_func, notify_baton,
-                           cancel_func, cancel_baton, scratch_pool);
+  /* In INCREMENTAL mode, svn_fs_x__hotcopy() will open DST_FS.
+     Otherwise, it's not an FS yet --- possibly just an empty dir --- so
+     can't be opened.
+   */
+  return svn_fs_x__hotcopy(src_fs, dst_fs, src_path, dst_path,
+                            incremental, notify_func, notify_baton,
+                            cancel_func, cancel_baton, common_pool_lock,
+                            scratch_pool, common_pool);
 }
 
 
@@ -663,6 +664,8 @@ svn_fs_x__init(const svn_version_t *loader_version,
                              _("Unsupported FS loader version (%d) for fsx"),
                              loader_version->major);
   SVN_ERR(svn_ver_check_list2(x_version(), checklist, svn_ver_equal));
+
+  SVN_ERR(svn_fs_x__batch_fsync_init(common_pool));
 
   *vtable = &library_vtable;
   return SVN_NO_ERROR;

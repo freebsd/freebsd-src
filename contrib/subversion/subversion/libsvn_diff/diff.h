@@ -214,4 +214,14 @@ svn_diff__unified_write_hunk_header(svn_stream_t *output_stream,
                                     apr_pool_t *scratch_pool);
 
 
+/* Decodes a single line of base85 data in BASE85_DATA of length BASE85_LEN,
+   to OUTPUT_DATA of length OUTPUT_LEN.
+ */
+svn_error_t *
+svn_diff__base85_decode_line(char *output_data,
+                             apr_ssize_t output_len,
+                             const char *base85_data,
+                             apr_ssize_t base85_len,
+                             apr_pool_t *scratch_pool);
+
 #endif /* DIFF_H */

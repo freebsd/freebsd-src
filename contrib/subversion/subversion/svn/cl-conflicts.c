@@ -58,14 +58,6 @@ static const svn_token_map_t map_conflict_reason_xml[] =
   { NULL,               0 }
 };
 
-static const svn_token_map_t map_conflict_kind_xml[] =
-{
-  { "text",             svn_wc_conflict_kind_text },
-  { "property",         svn_wc_conflict_kind_property },
-  { "tree",             svn_wc_conflict_kind_tree },
-  { NULL,               0 }
-};
-
 /* Return a localised string representation of the local part of a conflict;
    NULL for non-localised odd cases. */
 static const char *
@@ -229,14 +221,14 @@ operation_str(svn_wc_operation_t operation)
 svn_error_t *
 svn_cl__get_human_readable_prop_conflict_description(
   const char **desc,
-  const svn_wc_conflict_description2_t *conflict,
+  svn_client_conflict_t *conflict,
   apr_pool_t *pool)
 {
   const char *reason_str, *action_str;
 
   /* We provide separately translatable strings for the values that we
    * know about, and a fall-back in case any other values occur. */
-  switch (conflict->reason)
+  switch (svn_client_conflict_get_local_change(conflict))
     {
       case svn_wc_conflict_reason_edited:
         reason_str = _("local edit");
@@ -251,12 +243,14 @@ svn_cl__get_human_readable_prop_conflict_description(
         reason_str = _("local obstruction");
         break;
       default:
-        reason_str = apr_psprintf(pool, _("local %s"),
-                                  svn_token__to_word(map_conflict_reason_xml,
-                                                     conflict->reason));
+        reason_str = apr_psprintf(
+                       pool, _("local %s"),
+                       svn_token__to_word(
+                         map_conflict_reason_xml,
+                         svn_client_conflict_get_local_change(conflict)));
         break;
     }
-  switch (conflict->action)
+  switch (svn_client_conflict_get_incoming_change(conflict))
     {
       case svn_wc_conflict_action_edit:
         action_str = _("incoming edit");
@@ -268,51 +262,63 @@ svn_cl__get_human_readable_prop_conflict_description(
         action_str = _("incoming delete");
         break;
       default:
-        action_str = apr_psprintf(pool, _("incoming %s"),
-                                  svn_token__to_word(map_conflict_action_xml,
-                                                     conflict->action));
+        action_str = apr_psprintf(
+                       pool, _("incoming %s"),
+                       svn_token__to_word(
+                         map_conflict_action_xml,
+                         svn_client_conflict_get_incoming_change(conflict)));
         break;
     }
   SVN_ERR_ASSERT(reason_str && action_str);
   *desc = apr_psprintf(pool, _("%s, %s %s"),
                        reason_str, action_str,
-                       operation_str(conflict->operation));
+                       operation_str(
+                         svn_client_conflict_get_operation(conflict)));
   return SVN_NO_ERROR;
 }
 
 svn_error_t *
 svn_cl__get_human_readable_tree_conflict_description(
   const char **desc,
-  const svn_wc_conflict_description2_t *conflict,
+  svn_client_conflict_t *conflict,
   apr_pool_t *pool)
 {
   const char *action, *reason, *operation;
   svn_node_kind_t incoming_kind;
+  svn_wc_conflict_action_t conflict_action;
+  svn_wc_conflict_reason_t conflict_reason;
+  svn_wc_operation_t conflict_operation;
+  svn_node_kind_t conflict_node_kind;
+
+  conflict_action = svn_client_conflict_get_incoming_change(conflict);
+  conflict_reason = svn_client_conflict_get_local_change(conflict);
+  conflict_operation = svn_client_conflict_get_operation(conflict);
+  conflict_node_kind = svn_client_conflict_tree_get_victim_node_kind(conflict);
 
   /* Determine the node kind of the incoming change. */
   incoming_kind = svn_node_unknown;
-  if (conflict->action == svn_wc_conflict_action_edit ||
-      conflict->action == svn_wc_conflict_action_delete)
+  if (conflict_action == svn_wc_conflict_action_edit ||
+      conflict_action == svn_wc_conflict_action_delete)
     {
       /* Change is acting on 'src_left' version of the node. */
-      if (conflict->src_left_version)
-        incoming_kind = conflict->src_left_version->node_kind;
+      SVN_ERR(svn_client_conflict_get_incoming_old_repos_location(
+                NULL, NULL, &incoming_kind, conflict, pool, pool));
     }
-  else if (conflict->action == svn_wc_conflict_action_add ||
-           conflict->action == svn_wc_conflict_action_replace)
+  else if (conflict_action == svn_wc_conflict_action_add ||
+           conflict_action == svn_wc_conflict_action_replace)
     {
       /* Change is acting on 'src_right' version of the node.
        *
        * ### For 'replace', the node kind is ambiguous. However, src_left
        * ### is NULL for replace, so we must use src_right. */
-      if (conflict->src_right_version)
-        incoming_kind = conflict->src_right_version->node_kind;
+      SVN_ERR(svn_client_conflict_get_incoming_new_repos_location(
+                NULL, NULL, &incoming_kind, conflict, pool, pool));
     }
 
-  reason = local_reason_str(conflict->node_kind, conflict->reason,
-                            conflict->operation);
-  action = incoming_action_str(incoming_kind, conflict->action);
-  operation = operation_str(conflict->operation);
+  reason = local_reason_str(conflict_node_kind, conflict_reason,
+                            conflict_operation);
+  action = incoming_action_str(incoming_kind, conflict_action);
+  operation = operation_str(conflict_operation);
   SVN_ERR_ASSERT(operation);
 
   if (action && reason)
@@ -326,12 +332,12 @@ svn_cl__get_human_readable_tree_conflict_description(
          It will not be pretty, but is closer to an internal error than
          an ordinary user-facing string. */
       *desc = apr_psprintf(pool, _("local: %s %s incoming: %s %s %s"),
-                           svn_node_kind_to_word(conflict->node_kind),
+                           svn_node_kind_to_word(conflict_node_kind),
                            svn_token__to_word(map_conflict_reason_xml,
-                                              conflict->reason),
+                                              conflict_reason),
                            svn_node_kind_to_word(incoming_kind),
                            svn_token__to_word(map_conflict_action_xml,
-                                              conflict->action),
+                                              conflict_action),
                            operation);
     }
   return SVN_NO_ERROR;
@@ -360,13 +366,16 @@ svn_cl__get_human_readable_action_description(
 
 
 /* Helper for svn_cl__append_tree_conflict_info_xml().
- * Appends the attributes of the given VERSION to ATT_HASH.
+ * Appends the repository location of a conflicted node to ATT_HASH.
  * SIDE is the content of the version tag's side="..." attribute,
  * currently one of "source-left" or "source-right".*/
 static svn_error_t *
 add_conflict_version_xml(svn_stringbuf_t **pstr,
                          const char *side,
-                         const svn_wc_conflict_version_t *version,
+                         const char *repos_root_url,
+                         const char *repos_relpath,
+                         svn_revnum_t peg_rev,
+                         svn_node_kind_t node_kind,
                          apr_pool_t *pool)
 {
   apr_hash_t *att_hash = apr_hash_make(pool);
@@ -374,18 +383,17 @@ add_conflict_version_xml(svn_stringbuf_t **pstr,
 
   svn_hash_sets(att_hash, "side", side);
 
-  if (version->repos_url)
-    svn_hash_sets(att_hash, "repos-url", version->repos_url);
+  if (repos_root_url)
+    svn_hash_sets(att_hash, "repos-url", repos_root_url);
 
-  if (version->path_in_repos)
-    svn_hash_sets(att_hash, "path-in-repos", version->path_in_repos);
+  if (repos_relpath)
+    svn_hash_sets(att_hash, "path-in-repos", repos_relpath);
 
-  if (SVN_IS_VALID_REVNUM(version->peg_rev))
-    svn_hash_sets(att_hash, "revision", apr_ltoa(pool, version->peg_rev));
+  if (SVN_IS_VALID_REVNUM(peg_rev))
+    svn_hash_sets(att_hash, "revision", apr_ltoa(pool, peg_rev));
 
-  if (version->node_kind != svn_node_unknown)
-    svn_hash_sets(att_hash, "kind",
-                  svn_cl__node_kind_str_xml(version->node_kind));
+  if (node_kind != svn_node_unknown)
+    svn_hash_sets(att_hash, "kind", svn_cl__node_kind_str_xml(node_kind));
 
   svn_xml_make_open_tag_hash(pstr, pool, svn_xml_self_closing,
                              "version", att_hash);
@@ -395,25 +403,34 @@ add_conflict_version_xml(svn_stringbuf_t **pstr,
 
 static svn_error_t *
 append_tree_conflict_info_xml(svn_stringbuf_t *str,
-                              const svn_wc_conflict_description2_t *conflict,
+                              svn_client_conflict_t *conflict,
                               apr_pool_t *pool)
 {
   apr_hash_t *att_hash = apr_hash_make(pool);
   const char *tmp;
+  const char *repos_root_url;
+  const char *repos_relpath;
+  svn_revnum_t peg_rev;
+  svn_node_kind_t node_kind;
 
   svn_hash_sets(att_hash, "victim",
-                svn_dirent_basename(conflict->local_abspath, pool));
+                svn_dirent_basename(
+                  svn_client_conflict_get_local_abspath(conflict), pool));
 
   svn_hash_sets(att_hash, "kind",
-                svn_cl__node_kind_str_xml(conflict->node_kind));
+                svn_cl__node_kind_str_xml(
+                  svn_client_conflict_tree_get_victim_node_kind(conflict)));
 
   svn_hash_sets(att_hash, "operation",
-                svn_cl__operation_str_xml(conflict->operation, pool));
+                svn_cl__operation_str_xml(
+                  svn_client_conflict_get_operation(conflict), pool));
 
-  tmp = svn_token__to_word(map_conflict_action_xml, conflict->action);
+  tmp = svn_token__to_word(map_conflict_action_xml,
+                           svn_client_conflict_get_incoming_change(conflict));
   svn_hash_sets(att_hash, "action", tmp);
 
-  tmp = svn_token__to_word(map_conflict_reason_xml, conflict->reason);
+  tmp = svn_token__to_word(map_conflict_reason_xml,
+                           svn_client_conflict_get_local_change(conflict));
   svn_hash_sets(att_hash, "reason", tmp);
 
   /* Open the tree-conflict tag. */
@@ -422,17 +439,30 @@ append_tree_conflict_info_xml(svn_stringbuf_t *str,
 
   /* Add child tags for OLDER_VERSION and THEIR_VERSION. */
 
-  if (conflict->src_left_version)
-    SVN_ERR(add_conflict_version_xml(&str,
-                                     "source-left",
-                                     conflict->src_left_version,
-                                     pool));
+  SVN_ERR(svn_client_conflict_get_repos_info(&repos_root_url, NULL, conflict,
+                                             pool, pool));
+  SVN_ERR(svn_client_conflict_get_incoming_old_repos_location(&repos_relpath,
+                                                              &peg_rev,
+                                                              &node_kind,
+                                                              conflict,
+                                                              pool,
+                                                              pool));
+  if (repos_root_url && repos_relpath)
+    SVN_ERR(add_conflict_version_xml(&str, "source-left",
+                                     repos_root_url, repos_relpath, peg_rev,
+                                     node_kind, pool));
 
-  if (conflict->src_right_version)
+  SVN_ERR(svn_client_conflict_get_incoming_old_repos_location(&repos_relpath,
+                                                              &peg_rev,
+                                                              &node_kind,
+                                                              conflict,
+                                                              pool,
+                                                              pool));
+  if (repos_root_url && repos_relpath)
     SVN_ERR(add_conflict_version_xml(&str,
                                      "source-right",
-                                     conflict->src_right_version,
-                                     pool));
+                                     repos_root_url, repos_relpath, peg_rev,
+                                     node_kind, pool));
 
   svn_xml_make_close_tag(&str, pool, "tree-conflict");
 
@@ -441,78 +471,128 @@ append_tree_conflict_info_xml(svn_stringbuf_t *str,
 
 svn_error_t *
 svn_cl__append_conflict_info_xml(svn_stringbuf_t *str,
-                                 const svn_wc_conflict_description2_t *conflict,
+                                 svn_client_conflict_t *conflict,
                                  apr_pool_t *scratch_pool)
 {
   apr_hash_t *att_hash;
-  const char *kind;
-  if (conflict->kind == svn_wc_conflict_kind_tree)
+  svn_boolean_t text_conflicted;
+  apr_array_header_t *props_conflicted;
+  svn_boolean_t tree_conflicted;
+  svn_wc_operation_t conflict_operation;
+  const char *repos_root_url;
+  const char *repos_relpath;
+  svn_revnum_t peg_rev;
+  svn_node_kind_t node_kind;
+
+  conflict_operation = svn_client_conflict_get_operation(conflict);
+
+  SVN_ERR(svn_client_conflict_get_conflicted(&text_conflicted,
+                                             &props_conflicted,
+                                             &tree_conflicted,
+                                             conflict,
+                                             scratch_pool, scratch_pool));
+  if (tree_conflicted)
     {
       /* Uses other element type */
       return svn_error_trace(
                 append_tree_conflict_info_xml(str, conflict, scratch_pool));
     }
 
+  SVN_ERR(svn_client_conflict_get_repos_info(&repos_root_url, NULL,
+                                             conflict,
+                                             scratch_pool, scratch_pool));
   att_hash = apr_hash_make(scratch_pool);
 
   svn_hash_sets(att_hash, "operation",
-                svn_cl__operation_str_xml(conflict->operation, scratch_pool));
-
-
-  kind = svn_token__to_word(map_conflict_kind_xml, conflict->kind);
-  svn_hash_sets(att_hash, "type", kind);
+                svn_cl__operation_str_xml(conflict_operation, scratch_pool));
 
   svn_hash_sets(att_hash, "operation",
-                svn_cl__operation_str_xml(conflict->operation, scratch_pool));
+                svn_cl__operation_str_xml(conflict_operation, scratch_pool));
 
-
-  /* "<conflict>" */
-  svn_xml_make_open_tag_hash(&str, scratch_pool,
-                             svn_xml_normal, "conflict", att_hash);
-
-  if (conflict->src_left_version)
-    SVN_ERR(add_conflict_version_xml(&str,
-                                     "source-left",
-                                     conflict->src_left_version,
-                                     scratch_pool));
-
-  if (conflict->src_right_version)
-    SVN_ERR(add_conflict_version_xml(&str,
-                                     "source-right",
-                                     conflict->src_right_version,
-                                     scratch_pool));
-
-  switch (conflict->kind)
+  if (text_conflicted)
     {
-      case svn_wc_conflict_kind_text:
-        /* "<prev-base-file> xx </prev-base-file>" */
-        svn_cl__xml_tagged_cdata(&str, scratch_pool, "prev-base-file",
-                                 conflict->base_abspath);
+      const char *base_abspath;
+      const char *my_abspath;
+      const char *their_abspath;
 
-        /* "<prev-wc-file> xx </prev-wc-file>" */
-        svn_cl__xml_tagged_cdata(&str, scratch_pool, "prev-wc-file",
-                                 conflict->my_abspath);
+      svn_hash_sets(att_hash, "type", "text");
 
-        /* "<cur-base-file> xx </cur-base-file>" */
-        svn_cl__xml_tagged_cdata(&str, scratch_pool, "cur-base-file",
-                                 conflict->their_abspath);
+      /* "<conflict>" */
+      svn_xml_make_open_tag_hash(&str, scratch_pool,
+                                 svn_xml_normal, "conflict", att_hash);
 
-        break;
+      SVN_ERR(svn_client_conflict_get_incoming_old_repos_location(
+                &repos_relpath, &peg_rev, &node_kind, conflict,
+                scratch_pool, scratch_pool));
+      if (repos_root_url && repos_relpath)
+        SVN_ERR(add_conflict_version_xml(&str, "source-left",
+                                         repos_root_url, repos_relpath, peg_rev,
+                                         node_kind, scratch_pool));
 
-      case svn_wc_conflict_kind_property:
-        /* "<prop-file> xx </prop-file>" */
-        svn_cl__xml_tagged_cdata(&str, scratch_pool, "prop-file",
-                                 conflict->their_abspath);
-        break;
+      SVN_ERR(svn_client_conflict_get_incoming_old_repos_location(
+                &repos_relpath, &peg_rev, &node_kind, conflict,
+                scratch_pool, scratch_pool));
+      if (repos_root_url && repos_relpath)
+        SVN_ERR(add_conflict_version_xml(&str, "source-right",
+                                         repos_root_url, repos_relpath, peg_rev,
+                                         node_kind, scratch_pool));
 
-      default:
-      case svn_wc_conflict_kind_tree:
-        SVN_ERR_MALFUNCTION(); /* Handled separately */
-        break;
+      SVN_ERR(svn_client_conflict_text_get_contents(NULL, &my_abspath,
+                                                    &base_abspath,
+                                                    &their_abspath,
+                                                    conflict, scratch_pool,
+                                                    scratch_pool));
+      /* "<prev-base-file> xx </prev-base-file>" */
+      svn_cl__xml_tagged_cdata(
+        &str, scratch_pool, "prev-base-file", base_abspath);
+
+      /* "<prev-wc-file> xx </prev-wc-file>" */
+      svn_cl__xml_tagged_cdata(
+        &str, scratch_pool, "prev-wc-file", my_abspath);
+
+      /* "<cur-base-file> xx </cur-base-file>" */
+      svn_cl__xml_tagged_cdata(
+        &str, scratch_pool, "cur-base-file", their_abspath);
+
+      /* "</conflict>" */
+      svn_xml_make_close_tag(&str, scratch_pool, "conflict");
     }
 
-  /* "</conflict>" */
-  svn_xml_make_close_tag(&str, scratch_pool, "conflict");
+  if (props_conflicted->nelts > 0)
+    {
+      const char *reject_abspath;
+
+      svn_hash_sets(att_hash, "type", "property");
+
+      /* "<conflict>" */
+      svn_xml_make_open_tag_hash(&str, scratch_pool,
+                                 svn_xml_normal, "conflict", att_hash);
+
+      SVN_ERR(svn_client_conflict_get_incoming_old_repos_location(
+                &repos_relpath, &peg_rev, &node_kind, conflict,
+                scratch_pool, scratch_pool));
+      if (repos_root_url && repos_relpath)
+        SVN_ERR(add_conflict_version_xml(&str, "source-left",
+                                         repos_root_url, repos_relpath, peg_rev,
+                                         node_kind, scratch_pool));
+
+      SVN_ERR(svn_client_conflict_get_incoming_old_repos_location(
+                &repos_relpath, &peg_rev, &node_kind, conflict,
+                scratch_pool, scratch_pool));
+      if (repos_root_url && repos_relpath)
+        SVN_ERR(add_conflict_version_xml(&str, "source-right",
+                                         repos_root_url, repos_relpath, peg_rev,
+                                         node_kind, scratch_pool));
+
+      /* "<prop-file> xx </prop-file>" */
+      reject_abspath =
+        svn_client_conflict_prop_get_reject_abspath(conflict);
+      svn_cl__xml_tagged_cdata(
+        &str, scratch_pool, "prop-file", reject_abspath);
+
+      /* "</conflict>" */
+      svn_xml_make_close_tag(&str, scratch_pool, "conflict");
+    }
 
   return SVN_NO_ERROR;
 }

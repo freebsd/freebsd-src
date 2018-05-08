@@ -281,7 +281,8 @@ diff_status_callback(void *baton,
       {
         local_only = TRUE; /* Only report additions */
       }
-    else if (db_status == svn_wc__db_status_normal)
+    else if (db_status == svn_wc__db_status_normal
+             || db_status == svn_wc__db_status_incomplete)
       {
         /* Simple diff */
         base_kind = db_kind;
@@ -297,7 +298,8 @@ diff_status_callback(void *baton,
                                          eb->db, local_abspath,
                                          scratch_pool, scratch_pool));
 
-        if (base_status != svn_wc__db_status_normal)
+        if (base_status != svn_wc__db_status_normal
+            && base_status != svn_wc__db_status_incomplete)
           return SVN_NO_ERROR;
       }
     else
@@ -312,7 +314,8 @@ diff_status_callback(void *baton,
                                          eb->db, local_abspath,
                                          scratch_pool, scratch_pool));
 
-        if (base_status != svn_wc__db_status_normal)
+        if (base_status != svn_wc__db_status_normal
+            && base_status != svn_wc__db_status_incomplete)
           local_only = TRUE;
         else if (base_kind != db_kind || !eb->ignore_ancestry)
           {
@@ -388,9 +391,20 @@ diff_status_callback(void *baton,
 
     if (local_only && (db_status != svn_wc__db_status_deleted))
       {
+        /* Moved from. Relative from diff anchor*/
+        const char *moved_from_relpath = NULL;
+
+        if (status->moved_from_abspath)
+          {
+            moved_from_relpath = svn_dirent_skip_ancestor(
+                                          eb->anchor_abspath,
+                                          status->moved_from_abspath);
+          }
+
         if (db_kind == svn_node_file)
           SVN_ERR(svn_wc__diff_local_only_file(db, child_abspath,
                                                child_relpath,
+                                               moved_from_relpath,
                                                eb->processor,
                                                eb->cur ? eb->cur->baton : NULL,
                                                FALSE,
@@ -400,6 +414,7 @@ diff_status_callback(void *baton,
         else if (db_kind == svn_node_dir)
           SVN_ERR(svn_wc__diff_local_only_dir(db, child_abspath,
                                               child_relpath, depth_below_here,
+                                              moved_from_relpath,
                                               eb->processor,
                                               eb->cur ? eb->cur->baton : NULL,
                                               FALSE,

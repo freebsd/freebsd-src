@@ -1975,7 +1975,7 @@ typedef svn_error_t *(*svn_client_import_filter_func_t)(
  * on @a url if @a url is already under versioned control, or the nearest parents
  * of @a path which are already under version control if not.
  *
- * If @a ignore_unknown_node_types is @c FALSE, ignore files of which the
+ * If @a ignore_unknown_node_types is @c TRUE, ignore files of which the
  * node type is unknown, such as device files and pipes.
  *
  * If @a filter_callback is non-NULL, call it for each node that isn't ignored
@@ -4356,6 +4356,760 @@ svn_client_revert(const apr_array_header_t *paths,
 /** @} */
 
 /**
+ * @defgroup Conflicts Dealing with conflicted paths.
+ *
+ * @{
+ */
+
+/**
+ * An opaque type which represents a conflicted node in the working copy.
+ *
+ * @since New in 1.10.
+ */
+typedef struct svn_client_conflict_t svn_client_conflict_t;
+
+/**
+ * An opaque type which represents a resolution option for a conflict.
+ *
+ * @since New in 1.10.
+ */
+typedef struct svn_client_conflict_option_t svn_client_conflict_option_t;
+
+/**
+ * A public enumeration of conflict option IDs.
+ *
+ * @since New in 1.10, unless noted otherwise.
+ */
+typedef enum svn_client_conflict_option_id_t {
+
+  /* Options for text and property conflicts.
+   * These values intentionally mirror svn_wc_conflict_choice_t. */
+  svn_client_conflict_option_undefined = -1, /* for private use only */
+  svn_client_conflict_option_postpone = 0,
+  svn_client_conflict_option_base_text,
+  svn_client_conflict_option_incoming_text, /* "theirs-full" */
+  svn_client_conflict_option_working_text,  /* "mine-full" */
+  svn_client_conflict_option_incoming_text_where_conflicted,
+  svn_client_conflict_option_working_text_where_conflicted,
+  svn_client_conflict_option_merged_text,
+  svn_client_conflict_option_unspecified,
+  /* Values derived from svn_wc_conflict_choice_t end here. */
+
+  /* Tree conflict resolution options start here. */
+
+  /* Accept current working copy state. */
+  svn_client_conflict_option_accept_current_wc_state,
+
+  /* Options for local move vs incoming edit on update. */
+  svn_client_conflict_option_update_move_destination,
+
+  /* Options for local delete/replace vs incoming edit on update. */
+  svn_client_conflict_option_update_any_moved_away_children,
+
+  /* Options for incoming add vs local add or obstruction. */
+  svn_client_conflict_option_incoming_add_ignore,
+
+  /* Options for incoming file add vs local file add or obstruction. */
+  svn_client_conflict_option_incoming_added_file_text_merge,
+  svn_client_conflict_option_incoming_added_file_replace_and_merge,
+
+  /* Options for incoming dir add vs local dir add or obstruction. */
+  svn_client_conflict_option_incoming_added_dir_merge,
+  svn_client_conflict_option_incoming_added_dir_replace,
+  svn_client_conflict_option_incoming_added_dir_replace_and_merge,
+
+  /* Options for incoming delete vs any */
+  svn_client_conflict_option_incoming_delete_ignore,
+  svn_client_conflict_option_incoming_delete_accept,
+
+  /* Options for incoming move vs local edit */
+  svn_client_conflict_option_incoming_move_file_text_merge,
+  svn_client_conflict_option_incoming_move_dir_merge,
+
+  /* Options for local move vs incoming edit on merge. */
+  svn_client_conflict_option_local_move_file_text_merge
+} svn_client_conflict_option_id_t;
+
+/**
+ * Set a merged property value on @a option to @a merged_propval.
+ * 
+ * Setting the merged value is required before resolving the property
+ * conflict using an option with ID svn_client_conflict_option_merged_text.
+ *
+ * The contents of @a merged_propval are not copied, so the storage it
+ * points to needs to remain valid until svn_client_conflict_prop_resolve()
+ * has been called with @a option.
+ *
+ * @since New in 1.10.
+ */
+void
+svn_client_conflict_option_set_merged_propval(
+  svn_client_conflict_option_t *option,
+  const svn_string_t *merged_propval);
+
+/**
+ * Get a list of possible repository paths which can be applied to the
+ * svn_client_conflict_option_incoming_move_file_text_merge or
+ * svn_client_conflict_option_incoming_move_dir_merge resolution
+ * @a option. (If a different option is passed in, this function will
+ * raise an assertion failure.)
+ *
+ * In some situations, there can be multiple possible destinations for an
+ * incoming move. One such situation is where a file was copied and moved
+ * in the same revision: svn cp a b; svn mv a c; svn commit
+ * When this move is merged elsewhere, both b and c will appear as valid move
+ * destinations to the conflict resolver. To resolve such ambiguity, the client
+ * may call this function to obtain a list of possible destinations the user
+ * may choose from.
+ *
+ * The array is allocated in @a result_pool and will have "const char *"
+ * elements pointing to strings also allocated in @a result_pool.
+ * All paths are relpaths, and relative to the repository root.
+ *
+ * @see svn_client_conflict_option_set_moved_to_repos_relpath()
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_option_get_moved_to_repos_relpath_candidates(
+  apr_array_header_t **possible_moved_to_repos_relpaths,
+  svn_client_conflict_option_t *option,
+  apr_pool_t *result_pool,
+  apr_pool_t *scratch_pool);
+
+/**
+ * Set the preferred moved target repository path for the
+ * svn_client_conflict_option_incoming_move_file_text_merge or
+ * svn_client_conflict_option_incoming_move_dir_merge resolution option.
+ * 
+ * @a preferred_move_target_idx must be a valid index into the list returned
+ * by svn_client_conflict_option_get_moved_to_repos_relpath_candidates().
+ * 
+ * This function can be called multiple times.
+ * It affects the output of svn_client_conflict_tree_get_description() and
+ * svn_client_conflict_option_get_description(). Call these functions again
+ * to get updated descriptions containing the newly selected move target.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_option_set_moved_to_repos_relpath(
+  svn_client_conflict_option_t *option,
+  int preferred_move_target_idx,
+  svn_client_ctx_t *ctx,
+  apr_pool_t *scratch_pool);
+
+/**
+ * Get a list of possible moved-to abspaths in the working copy which can be
+ * applied to the svn_client_conflict_option_incoming_move_file_text_merge
+ * or svn_client_conflict_option_incoming_move_dir_merge resolution @a option.
+ * (If a different option is passed in, this function will raise an assertion
+ * failure.)
+ *
+ * All paths in the returned list correspond to the repository path which
+ * is assumed to be the destination of the incoming move operation.
+ * To support cases where this destination path is ambiguous, the client may
+ * call svn_client_conflict_option_get_moved_to_repos_relpath_candidates()
+ * before calling this function to let the user select a repository path first.
+ * 
+ * If no possible moved-to paths can be found, return an empty array.
+ * This doesn't mean that no move happened in the repository. It is possible
+ * that the move destination is outside the scope of the current working copy,
+ * for example, in which case the conflict must be resolved in some other way.
+ *
+ * @see svn_client_conflict_option_set_moved_to_abspath()
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_option_get_moved_to_abspath_candidates(
+  apr_array_header_t **possible_moved_to_abspaths,
+  svn_client_conflict_option_t *option,
+  apr_pool_t *result_pool,
+  apr_pool_t *scratch_pool);
+
+/**
+ * Set the preferred moved target abspath for the
+ * svn_client_conflict_option_incoming_move_file_text_merge or
+ * svn_client_conflict_option_incoming_move_dir_merge resolution option.
+ * 
+ * @a preferred_move_target_idx must be a valid index into the list
+ * returned by svn_client_conflict_option_get_moved_to_abspath_candidates().
+ * 
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_option_set_moved_to_abspath(
+  svn_client_conflict_option_t *option,
+  int preferred_move_target_idx,
+  svn_client_ctx_t *ctx,
+  apr_pool_t *scratch_pool);
+
+/**
+ * Given an @a option_id, try to find the corresponding option in @a options,
+ * which is an array of svn_client_conflict_option_t * elements.
+ *
+ * Return NULL if no corresponding option can be be found.
+ *
+ * @since New in 1.10.
+ */
+svn_client_conflict_option_t *
+svn_client_conflict_option_find_by_id(
+  apr_array_header_t *options,
+  svn_client_conflict_option_id_t option_id);
+
+/**
+ * Return a conflict for the conflicted path @a local_abspath.
+ * 
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_get(svn_client_conflict_t **conflict,
+                        const char *local_abspath,
+                        svn_client_ctx_t *ctx,
+                        apr_pool_t *result_pool,
+                        apr_pool_t *scratch_pool);
+
+/**
+ * Callback for svn_client_conflict_conflict_walk();
+ *
+ * The lifetime of @a conflict is limited. Its allocation in
+ * memory will not persist beyond this callback's execution.
+ * 
+ * @since New in 1.10.
+ */
+typedef svn_error_t *(*svn_client_conflict_walk_func_t)(
+  void *baton,
+  svn_client_conflict_t *conflict,
+  apr_pool_t *scratch_pool);
+
+/**
+ * Walk all conflicts within the specified @a depth of @a local_abspath.
+ * Pass each conflict found during the walk to the @conflict_walk_func
+ * callback, along with @a conflict_walk_func_baton.
+ * Use cancellation and notification support provided by client context @a ctx.
+ * 
+ * This callback may choose to resolve the conflict. If the act of resolving
+ * a conflict creates new conflicts within the walked working copy (as might
+ * be the case for some tree conflicts), the callback will be invoked for each
+ * such new conflict as well.
+ * 
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_walk(const char *local_abspath,
+                         svn_depth_t depth,
+                         svn_client_conflict_walk_func_t conflict_walk_func,
+                         void *conflict_walk_func_baton,
+                         svn_client_ctx_t *ctx,
+                         apr_pool_t *scratch_pool);
+
+/**
+* Indicate the types of conflicts present on the working copy node
+* described by @a conflict. Any output argument may be @c NULL if
+* the caller is not interested in the status of a particular type.
+*
+* The returned @a *props_conflicted array is allocated in @a result_pool.
+* It contains the names of conflicted properties. If no property conflict
+* exists, the array will contain no elements.
+*
+* @since New in 1.10. 
+*/
+svn_error_t *
+svn_client_conflict_get_conflicted(svn_boolean_t *text_conflicted,
+                                   apr_array_header_t **props_conflicted,
+                                   svn_boolean_t *tree_conflicted,
+                                   svn_client_conflict_t *conflict,
+                                   apr_pool_t *result_pool,
+                                   apr_pool_t *scratch_pool);
+
+/**
+ * Return a textual human-readable description of the property conflict
+ * described by @a conflict, allocated in @a result_pool. The description
+ * is encoded in UTF-8 and may contain multiple lines separated by
+ * @c APR_EOL_STR. The last line is not terminated by a newline.
+ *
+ * Additionally, the description may be localized to the language used
+ * by the current locale.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_prop_get_description(const char **description,
+                                         svn_client_conflict_t *conflict,
+                                         apr_pool_t *result_pool,
+                                         apr_pool_t *scratch_pool);
+
+/**
+ * Return a textual human-readable description of the tree conflict
+ * described by @a conflict, allocated in @a result_pool. The description
+ * is encoded in UTF-8 and may contain multiple lines separated by
+ * @c APR_EOL_STR. The last line is not terminated by a newline.
+ *
+ * Additionally, the description may be localized to the language used
+ * by the current locale.
+ *
+ * While client implementors are free to enhance descriptions by adding
+ * additional information to the text, or break up very long lines for
+ * formatting purposes, there is no syntax defined for descriptions, and
+ * implementors should not rely on any particular parts of descriptions
+ * to remain stable over time, apart from what is stated below.
+ * Descriptions may or may not form complete sentences. They may contain
+ * paths relative to the repository root; such paths always start with "^/",
+ * and end with either a peg revision (e.g. "@100") or a colon followed by
+ * a range of revisions (as in svn:mergeinfo, e.g. ":100-200").
+ * Paths may appear on a line of their own to avoid overlong lines.
+ * Any revision numbers mentioned elsewhere in the description are
+ * prefixed with the letter 'r' (e.g. "r99").
+ *
+ * The description has two parts: One part describes the "incoming change"
+ * applied by an update, merge, or switch operation. The other part
+ * describes the "local change" which occurred in the working copy or
+ * perhaps in the history of a merge target branch.
+ * Both parts are provided independently to allow for some flexibility
+ * when displaying the description. As a convention, displaying the
+ * "incoming change" first and the "local change" second is recommended.
+ *
+ * By default, the description is based only on information available in
+ * the working copy. If svn_client_conflict_tree_get_details() was already
+ * called for @a conflict, the description might also contain useful
+ * information obtained from the repository and provide for a much better
+ * user experience.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_tree_get_description(
+  const char **incoming_change_description,
+  const char **local_change_description,
+  svn_client_conflict_t *conflict,
+  svn_client_ctx_t *ctx,
+  apr_pool_t *result_pool,
+  apr_pool_t *scratch_pool);
+
+/**
+ * Set @a *options to an array of pointers to svn_client_conflict_option_t
+ * objects applicable to text conflicts described by @a conflict.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_text_get_resolution_options(apr_array_header_t **options,
+                                                svn_client_conflict_t *conflict,
+                                                svn_client_ctx_t *ctx,
+                                                apr_pool_t *result_pool,
+                                                apr_pool_t *scratch_pool);
+
+/**
+ * Set @a *options to an array of pointers to svn_client_conflict_option_t
+ * objects applicable to property conflicts described by @a conflict.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_prop_get_resolution_options(apr_array_header_t **options,
+                                                svn_client_conflict_t *conflict,
+                                                svn_client_ctx_t *ctx,
+                                                apr_pool_t *result_pool,
+                                                apr_pool_t *scratch_pool);
+
+/**
+ * Set @a *options to an array of pointers to svn_client_conflict_option_t
+ * objects applicable to the tree conflict described by @a conflict.
+ *
+ * By default, the list of options is based only on information available in
+ * the working copy. If svn_client_conflict_tree_get_details() was already
+ * called for @a conflict, a more useful list of options might be returned.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_tree_get_resolution_options(apr_array_header_t **options,
+                                                svn_client_conflict_t *conflict,
+                                                svn_client_ctx_t *ctx,
+                                                apr_pool_t *result_pool,
+                                                apr_pool_t *scratch_pool);
+
+/**
+ * Find more information about the tree conflict represented by @a conflict.
+ *
+ * A call to svn_client_conflict_tree_get_description() may yield much better
+ * results after this function has been called.
+ *
+ * A call to svn_client_conflict_tree_get_resolution_options() may provide
+ * more useful resolution options if this function has been called.
+ *
+ * This function may contact the repository. Use the authentication baton
+ * cached in @a ctx for authentication if contacting the repository.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_tree_get_details(svn_client_conflict_t *conflict,
+                                     svn_client_ctx_t *ctx,
+                                     apr_pool_t *scratch_pool);
+
+/**
+ * Return an ID for @a option. This ID can be used by callers to associate
+ * arbitrary data with a particular conflict resolution option.
+ *
+ * The ID of a particular resolution option will never change in future
+ * revisions of this API.
+ *
+ * @since New in 1.10.
+ */
+svn_client_conflict_option_id_t
+svn_client_conflict_option_get_id(svn_client_conflict_option_t *option);
+
+/**
+ * Return a textual human-readable label of @a option, allocated in
+ * @a result_pool. The label is encoded in UTF-8 and usually
+ * contains up to three words.
+ *
+ * Additionally, the label may be localized to the language used
+ * by the current locale.
+ *
+ * @since New in 1.10.
+ */
+const char *
+svn_client_conflict_option_get_label(svn_client_conflict_option_t *option,
+                                     apr_pool_t *result_pool);
+
+/**
+ * Return a textual human-readable description of @a option, allocated in
+ * @a result_pool. The description is encoded in UTF-8 and may contain
+ * multiple lines separated by @c APR_EOL_STR.
+ *
+ * Additionally, the description may be localized to the language used
+ * by the current locale.
+ *
+ * @since New in 1.10.
+ */
+const char *
+svn_client_conflict_option_get_description(svn_client_conflict_option_t *option,
+                                           apr_pool_t *result_pool);
+
+/**
+ * Return the ID of the recommended resolution option. If no specific option
+ * is recommended, return @c svn_client_conflict_option_unspecified;
+ *
+ * Client implementations which aim to avoid excessive interactive prompting
+ * may wish to try a recommended resolution option before falling back to
+ * asking the user which option to use.
+ * 
+ * Conflict resolution with a recommended option is not guaranteed to succeed.
+ * Clients should check for errors when trying to resolve a conflict and fall
+ * back to other options and/or interactive prompting when the recommended
+ * option fails to resolve a conflict.
+ *
+ * If @a conflict is a tree conflict, svn_client_conflict_tree_get_details()
+ * should be called before this function to allow for useful recommendations.
+ *
+ * @since New in 1.10.
+ */
+svn_client_conflict_option_id_t
+svn_client_conflict_get_recommended_option_id(svn_client_conflict_t *conflict);
+
+/**
+ * Return the absolute path to the conflicted working copy node described
+ * by @a conflict.
+ *
+ * @since New in 1.10. 
+ */
+const char *
+svn_client_conflict_get_local_abspath(svn_client_conflict_t *conflict);
+
+/**
+ * Return the operation during which the conflict described by @a
+ * conflict was recorded.
+ *
+ * @since New in 1.10. 
+ */
+svn_wc_operation_t
+svn_client_conflict_get_operation(svn_client_conflict_t *conflict);
+
+/**
+ * Return the action an update, switch, or merge operation attempted to
+ * perform on the working copy node described by @a conflict.
+ * 
+ * @since New in 1.10. 
+ */
+svn_wc_conflict_action_t
+svn_client_conflict_get_incoming_change(svn_client_conflict_t *conflict);
+
+/**
+ * Return the reason why the attempted action performed by an update, switch,
+ * or merge operation conflicted with the state of the node in the working copy.
+ *
+ * During update and switch operations this local change is part of uncommitted
+ * modifications in the working copy. During merge operations it may
+ * additionally be part of the history of the merge target branch, anywhere
+ * between the common ancestor revision and the working copy revision.
+ * 
+ * @since New in 1.10. 
+ */
+svn_wc_conflict_reason_t
+svn_client_conflict_get_local_change(svn_client_conflict_t *conflict);
+
+/**
+ * Return information about the repository associated with @a conflict. 
+ * In case of a foreign-repository merge this will differ from the
+ * repository information associated with the merge target working copy.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_get_repos_info(const char **repos_root_url,
+                                   const char **repos_uuid,
+                                   svn_client_conflict_t *conflict,
+                                   apr_pool_t *result_pool,
+                                   apr_pool_t *scratch_pool);
+
+/**
+ * Return the repository-relative location and the node kind of the incoming
+ * old version of the conflicted node described by @a conflict.
+ *
+ * If the repository-relative path is not available, the @a
+ * *incoming_old_repos_relpath will be set to @c NULL, 
+ *
+ * If the peg revision is not available, @a *incoming_old_regrev will be
+ * set to SVN_INVALID_REVNUM.
+ * 
+ * If the node kind is not available or if the node does not exist at the
+ * specified path and revision, @a *incoming_old_node_kind will be set to
+ * svn_node_none.
+ * ### Should return svn_node_unkown if not available?
+ *
+ * Any output parameter may be set to @c NULL by the caller to indicate that
+ * a particular piece of information should not be returned.
+ *
+ * In case of tree conflicts, this path@revision does not necessarily exist
+ * in the repository, and it does not necessarily represent the incoming
+ * change which is responsible for the occurance of the tree conflict.
+ * The responsible incoming change is generally located somewhere between
+ * the old and new incoming versions.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_get_incoming_old_repos_location(
+  const char **incoming_old_repos_relpath,
+  svn_revnum_t *incoming_old_regrev,
+  svn_node_kind_t *incoming_old_node_kind,
+  svn_client_conflict_t *conflict,
+  apr_pool_t *result_pool,
+  apr_pool_t *scratch_pool);
+
+/**
+ * Like svn_client_conflict_get_incoming_old_repos_location(), expect this
+ * function returns the same data for the incoming new version.
+ *
+ * The same note about tree conflicts applies.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_get_incoming_new_repos_location(
+  const char **incoming_new_repos_relpath,
+  svn_revnum_t *incoming_new_regrev,
+  svn_node_kind_t *incoming_new_node_kind,
+  svn_client_conflict_t *conflict,
+  apr_pool_t *result_pool,
+  apr_pool_t *scratch_pool);
+
+/**
+ * Return the node kind of the tree conflict victim described by @a conflict.
+ * The victim is the local node in the working copy which was affected by the
+ * tree conflict at the time the conflict was raised.
+ *
+ * @since New in 1.10.
+ */
+svn_node_kind_t
+svn_client_conflict_tree_get_victim_node_kind(svn_client_conflict_t *conflict);
+
+/**
+ * Resolve a tree @a conflict using resolution option @a option.
+ *
+ * May raise an error in case the tree conflict cannot be resolved yet, for
+ * instance @c SVN_ERR_WC_OBSTRUCTED_UPDATE, @c SVN_ERR_WC_FOUND_CONFLICT,
+ * or @c SVN_ERR_WC_CONFLICT_RESOLVER_FAILUE.
+ * This may happen when other tree conflicts, or unversioned obstructions,
+ * block the resolution of this tree conflict. In such a case the other
+ * conflicts should be resolved first and resolution of this conflict should
+ * be attempted again later.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_tree_resolve(svn_client_conflict_t *conflict,
+                                 svn_client_conflict_option_t *option,
+                                 svn_client_ctx_t *ctx,
+                                 apr_pool_t *scratch_pool);
+
+/**
+ * Like svn_client_conflict_tree_resolve(), except that it identifies
+ * the desired resolution option by ID @a option_id.
+ *
+ * If the provided @a option_id is the ID of an option which resolves
+ * @a conflict, try to resolve the tree conflict using that option.
+ * Else, return @c SVN_ERR_CLIENT_CONFLICT_OPTION_NOT_APPLICABLE.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_tree_resolve_by_id(
+  svn_client_conflict_t *conflict,
+  svn_client_conflict_option_id_t option_id,
+  svn_client_ctx_t *ctx,
+  apr_pool_t *scratch_pool);
+
+/**
+ * Return the ID of the option this tree @a conflict has been resolved to.
+ * If the conflict has not been resolved yet, then return
+ * @c svn_client_conflict_option_unspecified.
+ *
+ * @since New in 1.10.
+ */
+svn_client_conflict_option_id_t
+svn_client_conflict_tree_get_resolution(svn_client_conflict_t *conflict);
+
+/**
+ * Return the path to the legacy property conflicts reject file
+ * for the property conflicts represented by @a conflict.
+ *
+ * This function exists for backwards compatibility only and should not be
+ * used in new code.
+ *
+ * @since New in 1.10.
+ */
+const char *
+svn_client_conflict_prop_get_reject_abspath(svn_client_conflict_t *conflict);
+
+/**
+ * Return the set of property values involved in the conflict of property
+ * PROPNAME described by @a conflict. If a property value is unavailable the
+ * corresponding output argument is set to @c NULL.
+ *  
+ * A 3-way diff of these property values can be generated with
+ * svn_diff_mem_string_diff3(). A merged version with conflict
+ * markers can be generated with svn_diff_mem_string_output_merge3().
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_prop_get_propvals(const svn_string_t **base_propval,
+                                      const svn_string_t **working_propval,
+                                      const svn_string_t **incoming_old_propval,
+                                      const svn_string_t **incoming_new_propval,
+                                      svn_client_conflict_t *conflict,
+                                      const char *propname,
+                                      apr_pool_t *result_pool);
+
+/**
+ * Resolve a property @a conflict in property @a propname using resolution
+ * option @a option. To resolve all properties to the same option at once,
+ * set @a propname to the empty string "".
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_prop_resolve(svn_client_conflict_t *conflict,
+                                 const char *propname,
+                                 svn_client_conflict_option_t *option,
+                                 svn_client_ctx_t *ctx,
+                                 apr_pool_t *scratch_pool);
+/**
+ * If the provided @a option_id is the ID of an option which resolves
+ * @a conflict, resolve the property conflict in property @a propname
+ * using that option.
+ * Else, return @c SVN_ERR_CLIENT_CONFLICT_OPTION_NOT_APPLICABLE.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_prop_resolve_by_id(
+  svn_client_conflict_t *conflict,
+  const char *propname,
+  svn_client_conflict_option_id_t option_id,
+  svn_client_ctx_t *ctx,
+  apr_pool_t *scratch_pool);
+
+/**
+ * Return the ID of the option this property @a conflict in property
+ * @a propname has been resolved to.
+ * If the conflict has not been resolved yet, then return
+ * @c svn_client_conflict_option_unspecified.
+ *
+ * @since New in 1.10.
+ */
+svn_client_conflict_option_id_t
+svn_client_conflict_prop_get_resolution(svn_client_conflict_t *conflict,
+                                        const char *propname);
+
+/**
+ * Return the MIME-type of the working version of the text-conflicted file
+ * described by @a conflict.
+ *
+ * ### Really needed? What about base/incoming_old/incoming_new values?
+ * @since: New in 1.10.
+ */
+const char *
+svn_client_conflict_text_get_mime_type(svn_client_conflict_t *conflict);
+
+/**
+ * Return absolute paths to the versions of the text-conflicted file 
+ * described by @a conflict.
+ *
+ * If a particular content is not available, it is set to @c NULL.
+ * 
+ * ### Should this be returning svn_stream_t instead of paths?
+ * @since: New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_text_get_contents(const char **base_abspath,
+                                      const char **working_abspath,
+                                      const char **incoming_old_abspath,
+                                      const char **incoming_new_abspath,
+                                      svn_client_conflict_t *conflict,
+                                      apr_pool_t *result_pool,
+                                      apr_pool_t *scratch_pool);
+
+/**
+ * Resolve a text @a conflict using resolution option @a option.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_text_resolve(svn_client_conflict_t *conflict,
+                                 svn_client_conflict_option_t *option,
+                                 svn_client_ctx_t *ctx,
+                                 apr_pool_t *scratch_pool);
+
+/**
+ * If the provided @a option_id is the ID of an option which resolves
+ * @a conflict, resolve the text conflict using that option.
+ * Else, return @c SVN_ERR_CLIENT_CONFLICT_OPTION_NOT_APPLICABLE.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_client_conflict_text_resolve_by_id(
+  svn_client_conflict_t *conflict,
+  svn_client_conflict_option_id_t option_id,
+  svn_client_ctx_t *ctx,
+  apr_pool_t *scratch_pool);
+
+/**
+ * Return the ID of the option this text @a conflict has been resolved to.
+ * If the conflict has not been resolved yet, then return
+ * @c svn_client_conflict_option_unspecified.
+ *
+ * @since New in 1.10.
+ */
+svn_client_conflict_option_id_t
+svn_client_conflict_text_get_resolution(svn_client_conflict_t *conflict);
+
+/** @} */
+
+/**
  * @defgroup Resolved Mark conflicted paths as resolved.
  *
  * @{
@@ -4402,7 +5156,11 @@ svn_client_resolved(const char *path,
  *   - svn_wc_conflict_choose_unspecified
  *     invoke @a ctx->conflict_func2 with @a ctx->conflict_baton2 to obtain
  *     a resolution decision for each conflict.  This can be used to
- *     implement interactive conflict resolution.
+ *     implement interactive conflict resolution but is NOT RECOMMENDED for
+ *     new code. To perform conflict resolution based on interactive user
+ *     input on a per-conflict basis, use svn_client_conflict_text_resolve(),
+ *     svn_client_conflict_prop_resolve(), and
+ *     svn_client_conflict_tree_resolve() instead of svn_client_resolve().
  *
  * #svn_wc_conflict_choose_theirs_conflict and
  * #svn_wc_conflict_choose_mine_conflict are not legal for binary
@@ -5493,8 +6251,7 @@ svn_client_revprop_list(apr_hash_t **props,
  * #svn_opt_revision_unspecified, then it defaults to #svn_opt_revision_head
  * for URLs or #svn_opt_revision_working for WC targets.
  *
- * @a revision is the revision that should be exported, which is only used
- * when exporting from a repository.
+ * @a revision is the revision that should be exported.
  *
  * @a peg_revision and @a revision must not be @c NULL.
  *
@@ -5706,13 +6463,18 @@ typedef svn_error_t *(*svn_client_list_func_t)(void *baton,
  * its children.  If @a path_or_url is non-existent, return
  * #SVN_ERR_FS_NOT_FOUND.
  *
+ * If the @a patterns array of <tt>const char *</tt> is not @c NULL, only
+ * report paths whose last segment matches one of the specified glob
+ * patterns.  This does not affect the size of the tree nor the number of
+ * externals being covered.
+ *
  * If @a fetch_locks is TRUE, include locks when reporting directory entries.
  *
  * If @a include_externals is TRUE, also list all external items
  * reached by recursion. @a depth value passed to the original list target
  * applies for the externals also.
  *
- * Use @a pool for temporary allocations.
+ * Use @a scratch_pool for temporary allocations.
  *
  * Use authentication baton cached in @a ctx to authenticate against the
  * repository.
@@ -5728,8 +6490,29 @@ typedef svn_error_t *(*svn_client_list_func_t)(void *baton,
  * otherwise simply bitwise OR together the combination of @c SVN_DIRENT_
  * fields you care about.
  *
- * @since New in 1.8.
+ * @since New in 1.10.
  */
+svn_error_t *
+svn_client_list4(const char *path_or_url,
+                 const svn_opt_revision_t *peg_revision,
+                 const svn_opt_revision_t *revision,
+                 const apr_array_header_t *patterns,
+                 svn_depth_t depth,
+                 apr_uint32_t dirent_fields,
+                 svn_boolean_t fetch_locks,
+                 svn_boolean_t include_externals,
+                 svn_client_list_func2_t list_func,
+                 void *baton,
+                 svn_client_ctx_t *ctx,
+                 apr_pool_t *scratch_pool);
+
+/** Similar to svn_client_list4(), but with @a patterns set to @c NULL.
+ *
+ * @since New in 1.8.
+ *
+ * @deprecated Provided for backwards compatibility with the 1.9 API.
+ */
+SVN_DEPRECATED
 svn_error_t *
 svn_client_list3(const char *path_or_url,
                  const svn_opt_revision_t *peg_revision,
@@ -5747,9 +6530,9 @@ svn_client_list3(const char *path_or_url,
 /** Similar to svn_client_list3(), but with @a include_externals set
  * to FALSE, and using a #svn_client_list_func_t as callback.
  *
- * @deprecated Provided for backwards compatibility with the 1.7 API.
- *
  * @since New in 1.5.
+ *
+ * @deprecated Provided for backwards compatibility with the 1.7 API.
  */
 SVN_DEPRECATED
 svn_error_t *
@@ -5932,6 +6715,153 @@ svn_client_cat(svn_stream_t *out,
 
 
 
+/** Shelving commands
+ *
+ * @defgroup svn_client_shelve_funcs Client Shelving Functions
+ * @{
+ */
+
+/** Shelve a change.
+ *
+ * Shelve as @a name the local modifications found by @a paths, @a depth,
+ * @a changelists. Revert the shelved change from the WC unless @a keep_local
+ * is true.
+ *
+ * If @a dry_run is true, don't actually do it.
+ *
+ * @since New in 1.10.
+ * @warning EXPERIMENTAL.
+ */
+SVN_EXPERIMENTAL
+svn_error_t *
+svn_client_shelve(const char *name,
+                  const apr_array_header_t *paths,
+                  svn_depth_t depth,
+                  const apr_array_header_t *changelists,
+                  svn_boolean_t keep_local,
+                  svn_boolean_t dry_run,
+                  svn_client_ctx_t *ctx,
+                  apr_pool_t *pool);
+
+/** Unshelve the shelved change @a name.
+ *
+ * @a local_abspath is any path in the WC and is used to find the WC root.
+ * Rename the shelved patch to add a '.bak' extension unless @a keep is true.
+ *
+ * If @a dry_run is true, don't actually do it.
+ *
+ * @since New in 1.10.
+ * @warning EXPERIMENTAL.
+ */
+SVN_EXPERIMENTAL
+svn_error_t *
+svn_client_unshelve(const char *name,
+                    const char *local_abspath,
+                    svn_boolean_t keep,
+                    svn_boolean_t dry_run,
+                    svn_client_ctx_t *ctx,
+                    apr_pool_t *pool);
+
+/** Delete the shelved patch @a name.
+ *
+ * @a local_abspath is any path in the WC and is used to find the WC root.
+ *
+ * If @a dry_run is true, don't actually do it.
+ *
+ * @since New in 1.10.
+ * @warning EXPERIMENTAL.
+ */
+SVN_EXPERIMENTAL
+svn_error_t *
+svn_client_shelves_delete(const char *name,
+                          const char *local_abspath,
+                          svn_boolean_t dry_run,
+                          svn_client_ctx_t *ctx,
+                          apr_pool_t *pool);
+
+/** Information about a shelved patch.
+ *
+ * @since New in 1.10.
+ * @warning EXPERIMENTAL.
+ */
+typedef struct svn_client_shelved_patch_info_t
+{
+  const char *message;  /* first line of log message */
+  const char *patch_path;  /* abspath of the patch file */
+  svn_io_dirent2_t *dirent;  /* info about the patch file */
+  apr_time_t mtime;  /* a copy of dirent->mtime */
+} svn_client_shelved_patch_info_t;
+
+/** Set @a *shelved_patch_infos to a hash, keyed by patch name, of pointers to
+ * @c svn_client_shelved_patch_info_t structures.
+ *
+ * @a local_abspath is any path in the WC and is used to find the WC root.
+ *
+ * @since New in 1.10.
+ * @warning EXPERIMENTAL.
+ */
+SVN_EXPERIMENTAL
+svn_error_t *
+svn_client_shelves_list(apr_hash_t **shelved_patch_infos,
+                        const char *local_abspath,
+                        svn_client_ctx_t *ctx,
+                        apr_pool_t *result_pool,
+                        apr_pool_t *scratch_pool);
+
+/** Set @a *any_shelved to indicate if there are any shelved changes in this WC.
+ *
+ * This shall provide the answer fast, regardless of how many changes
+ * are stored, unlike svn_client_shelves_list().
+ *
+ * ### Initial implementation isn't O(1) fast -- it just calls
+ *     svn_client_shelves_list().
+ *
+ * @a local_abspath is any path in the WC and is used to find the WC root.
+ *
+ * @since New in 1.10.
+ * @warning EXPERIMENTAL.
+ */
+SVN_EXPERIMENTAL
+svn_error_t *
+svn_client_shelves_any(svn_boolean_t *any_shelved,
+                       const char *local_abspath,
+                       svn_client_ctx_t *ctx,
+                       apr_pool_t *scratch_pool);
+
+/** Set @a *affected_paths to a hash with one entry for each path affected
+ * by the shelf @a name. The hash key is the old path and value is
+ * the new path, both relative to the WC root. The key and value are the
+ * same except when a path is moved or copied.
+ *
+ * @since New in 1.10.
+ * @warning EXPERIMENTAL.
+ */
+SVN_EXPERIMENTAL
+svn_error_t *
+svn_client_shelf_get_paths(apr_hash_t **affected_paths,
+                           const char *name,
+                           const char *local_abspath,
+                           svn_client_ctx_t *ctx,
+                           apr_pool_t *result_pool,
+                           apr_pool_t *scratch_pool);
+
+/** Set @a *has_changes to indicate whether the shelf @a name
+ * contains any modifications, in other words if svn_client_shelf_get_paths()
+ * would return a non-empty set of paths.
+ *
+ * @since New in 1.10.
+ * @warning EXPERIMENTAL.
+ */
+SVN_EXPERIMENTAL
+svn_error_t *
+svn_client_shelf_has_changes(svn_boolean_t *has_changes,
+                             const char *name,
+                             const char *local_abspath,
+                             svn_client_ctx_t *ctx,
+                             apr_pool_t *scratch_pool);
+
+/** @} */
+
 /** Changelist commands
  *
  * @defgroup svn_client_changelist_funcs Client Changelist Functions

@@ -386,6 +386,41 @@ extern "C" {
 #define SVN_DAV_NS_DAV_SVN_REVERSE_FILE_REVS\
             SVN_DAV_PROP_NS_DAV "svn/reverse-file-revs"
 
+/** Presence of this in a DAV header in an OPTIONS response indicates
+ * that the transmitter (in this case, the server) knows how to handle
+ * svndiff1 format encoding.
+ *
+ * @since New in 1.10.
+ */
+#define SVN_DAV_NS_DAV_SVN_SVNDIFF1\
+            SVN_DAV_PROP_NS_DAV "svn/svndiff1"
+
+/** Presence of this in a DAV header in an OPTIONS response indicates
+ * that the transmitter (in this case, the server) knows how to handle
+ * 'list' requests.
+ *
+ * @since New in 1.10.
+ */
+#define SVN_DAV_NS_DAV_SVN_LIST\
+            SVN_DAV_PROP_NS_DAV "svn/list"
+
+/** Presence of this in a DAV header in an OPTIONS response indicates
+ * that the transmitter (in this case, the server) knows how to handle
+ * svndiff2 format encoding.
+ *
+ * @since New in 1.10.
+ */
+#define SVN_DAV_NS_DAV_SVN_SVNDIFF2\
+            SVN_DAV_PROP_NS_DAV "svn/svndiff2"
+
+/** Presence of this in a DAV header in an OPTIONS response indicates
+ * that the transmitter (in this case, the server) sends the result
+ * checksum in the response to a successful PUT request.
+ *
+ * @since New in 1.10.
+ */
+#define SVN_DAV_NS_DAV_SVN_PUT_RESULT_CHECKSUM\
+            SVN_DAV_PROP_NS_DAV "svn/put-result-checksum"
 
 /** @} */
 

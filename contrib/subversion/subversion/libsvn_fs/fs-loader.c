@@ -26,8 +26,6 @@
 #include <apr.h>
 #include <apr_atomic.h>
 #include <apr_hash.h>
-#include <apr_md5.h>
-#include <apr_thread_mutex.h>
 #include <apr_uuid.h>
 #include <apr_strings.h>
 
@@ -47,6 +45,7 @@
 #include "private/svn_atomic.h"
 #include "private/svn_fs_private.h"
 #include "private/svn_fs_util.h"
+#include "private/svn_fspath.h"
 #include "private/svn_utf_private.h"
 #include "private/svn_mutex.h"
 #include "private/svn_subr_private.h"
@@ -61,6 +60,22 @@
 
 #define FS_TYPE_FILENAME "fs-type"
 
+/* If a FS backend does not implement the PATHS_CHANGED vtable function,
+   it will get emulated.  However, if this macro is defined to non-null
+   then the API will always be emulated when feasible, i.e. the calls
+   get "re-directed" to the new API implementation. */
+#ifndef SVN_FS_EMULATE_PATHS_CHANGED
+#define SVN_FS_EMULATE_PATHS_CHANGED FALSE
+#endif
+
+/* If a FS backend does not implement the REPORT_CHANGES vtable function,
+   it will get emulated.  However, if this macro is defined to non-null
+   then the API will always be emulated when feasible, i.e. the calls
+   get "re-directed" to the old API implementation. */
+#ifndef SVN_FS_EMULATE_REPORT_CHANGES
+#define SVN_FS_EMULATE_REPORT_CHANGES FALSE
+#endif
+
 /* A pool common to all FS objects.  See the documentation on the
    open/create functions in fs-loader.h and for svn_fs_initialize(). */
 static apr_pool_t *common_pool = NULL;
@@ -74,7 +89,7 @@ struct fs_type_defn {
   const char *fs_type;
   const char *fsap_name;
   fs_init_func_t initfunc;
-  fs_library_vtable_t *vtable;
+  void * volatile vtable; /* fs_library_vtable_t */
   struct fs_type_defn *next;
 };
 
@@ -140,7 +155,7 @@ load_module(fs_init_func_t *initfunc, const char *name, apr_pool_t *pool)
                                  _("Invalid name for FS type '%s'"),
                                  name);
 
-    libname = apr_psprintf(pool, "libsvn_fs_%s-%d.so.%d",
+    libname = apr_psprintf(pool, "libsvn_fs_%s-" SVN_DSO_SUFFIX_FMT,
                            name, SVN_VER_MAJOR, SVN_SOVERSION);
     funcname = apr_psprintf(pool, "svn_fs_%s__init", name);
 
@@ -175,7 +190,7 @@ get_library_vtable_direct(fs_library_vtable_t **vtable,
   const svn_version_t *fs_version;
 
   /* most times, we get lucky */
-  *vtable = apr_atomic_casptr((volatile void **)&fst->vtable, NULL, NULL);
+  *vtable = svn_atomic_casptr(&fst->vtable, NULL, NULL);
   if (*vtable)
     return SVN_NO_ERROR;
 
@@ -218,7 +233,7 @@ get_library_vtable_direct(fs_library_vtable_t **vtable,
                              fs_version->patch, fs_version->tag);
 
   /* the vtable will not change.  Remember it */
-  apr_atomic_casptr((volatile void **)&fst->vtable, *vtable, NULL);
+  svn_atomic_casptr(&fst->vtable, *vtable, NULL);
 
   return SVN_NO_ERROR;
 }
@@ -507,24 +522,28 @@ svn_fs_set_warning_func(svn_fs_t *fs, svn_fs_warning_callback_t warning,
 }
 
 svn_error_t *
-svn_fs_create(svn_fs_t **fs_p, const char *path, apr_hash_t *fs_config,
-              apr_pool_t *pool)
+svn_fs_create2(svn_fs_t **fs_p,
+               const char *path,
+               apr_hash_t *fs_config,
+               apr_pool_t *result_pool,
+               apr_pool_t *scratch_pool)
 {
   fs_library_vtable_t *vtable;
 
   const char *fs_type = svn_hash__get_cstring(fs_config,
                                               SVN_FS_CONFIG_FS_TYPE,
                                               DEFAULT_FS_TYPE);
-  SVN_ERR(get_library_vtable(&vtable, fs_type, pool));
+  SVN_ERR(get_library_vtable(&vtable, fs_type, scratch_pool));
 
   /* Create the FS directory and write out the fsap-name file. */
-  SVN_ERR(svn_io_dir_make_sgid(path, APR_OS_DEFAULT, pool));
-  SVN_ERR(write_fs_type(path, fs_type, pool));
+  SVN_ERR(svn_io_dir_make_sgid(path, APR_OS_DEFAULT, scratch_pool));
+  SVN_ERR(write_fs_type(path, fs_type, scratch_pool));
 
   /* Perform the actual creation. */
-  *fs_p = fs_new(fs_config, pool);
+  *fs_p = fs_new(fs_config, result_pool);
 
-  SVN_ERR(vtable->create(*fs_p, path, common_pool_lock, pool, common_pool));
+  SVN_ERR(vtable->create(*fs_p, path, common_pool_lock, scratch_pool,
+                         common_pool));
   SVN_ERR(vtable->set_svn_fs_open(*fs_p, svn_fs_open2));
 
   return SVN_NO_ERROR;
@@ -544,15 +563,6 @@ svn_fs_open2(svn_fs_t **fs_p, const char *path, apr_hash_t *fs_config,
   SVN_ERR(vtable->set_svn_fs_open(*fs_p, svn_fs_open2));
 
   return SVN_NO_ERROR;
-}
-
-svn_error_t *
-svn_fs_open(svn_fs_t **fs_p,
-            const char *path,
-            apr_hash_t *fs_config,
-            apr_pool_t *pool)
-{
-  return svn_fs_open2(fs_p, path, fs_config, pool, pool);
 }
 
 svn_error_t *
@@ -1046,40 +1056,163 @@ svn_fs_revision_root_revision(svn_fs_root_t *root)
 }
 
 svn_error_t *
+svn_fs_path_change_get(svn_fs_path_change3_t **change,
+                       svn_fs_path_change_iterator_t *iterator)
+{
+  return iterator->vtable->get(change, iterator);
+}
+
+svn_error_t *
 svn_fs_paths_changed2(apr_hash_t **changed_paths_p,
                       svn_fs_root_t *root,
                       apr_pool_t *pool)
 {
-  return root->vtable->paths_changed(changed_paths_p, root, pool);
+  svn_boolean_t emulate =    !root->vtable->paths_changed
+                          || SVN_FS_EMULATE_PATHS_CHANGED;
+
+  if (emulate)
+    {
+      apr_pool_t *scratch_pool = svn_pool_create(pool);
+      apr_hash_t *changes = svn_hash__make(pool);
+
+      svn_fs_path_change_iterator_t *iterator;
+      svn_fs_path_change3_t *change;
+
+      SVN_ERR(svn_fs_paths_changed3(&iterator, root, scratch_pool,
+                                    scratch_pool));
+
+      SVN_ERR(svn_fs_path_change_get(&change, iterator));
+      while (change)
+        {
+          svn_fs_path_change2_t *copy;
+          const svn_fs_id_t *id_copy;
+          const char *change_path = change->path.data;
+          svn_fs_root_t *change_root = root;
+
+          /* Copy CHANGE to old API struct. */
+          if (change->change_kind == svn_fs_path_change_delete)
+            SVN_ERR(svn_fs__get_deleted_node(&change_root, &change_path,
+                                             change_root, change_path,
+                                             scratch_pool, scratch_pool));
+
+          SVN_ERR(svn_fs_node_id(&id_copy, change_root, change_path, pool));
+
+          copy = svn_fs_path_change2_create(id_copy, change->change_kind,
+                                            pool);
+          copy->copyfrom_known = change->copyfrom_known;
+          if (   copy->copyfrom_known
+              && SVN_IS_VALID_REVNUM(change->copyfrom_rev))
+            {
+              copy->copyfrom_rev = change->copyfrom_rev;
+              copy->copyfrom_path = apr_pstrdup(pool, change->copyfrom_path);
+            }
+          copy->mergeinfo_mod = change->mergeinfo_mod;
+          copy->node_kind = change->node_kind;
+          copy->prop_mod = change->prop_mod;
+          copy->text_mod = change->text_mod;
+
+          svn_hash_sets(changes, apr_pstrmemdup(pool, change->path.data,
+                                                change->path.len), copy);
+
+          /* Next change. */
+          SVN_ERR(svn_fs_path_change_get(&change, iterator));
+        }
+      svn_pool_destroy(scratch_pool);
+
+      *changed_paths_p = changes;
+    }
+  else
+    {
+      SVN_ERR(root->vtable->paths_changed(changed_paths_p, root, pool));
+    }
+
+  return SVN_NO_ERROR;
 }
 
-svn_error_t *
-svn_fs_paths_changed(apr_hash_t **changed_paths_p, svn_fs_root_t *root,
-                     apr_pool_t *pool)
+/* Implement svn_fs_path_change_iterator_t on top of svn_fs_paths_changed2. */
+
+/* The iterator builds upon a hash iterator, which in turn operates on the
+   full prefetched changes list. */
+typedef struct fsap_iterator_data_t
 {
-  apr_hash_t *changed_paths_new_structs;
   apr_hash_index_t *hi;
 
-  SVN_ERR(svn_fs_paths_changed2(&changed_paths_new_structs, root, pool));
-  *changed_paths_p = apr_hash_make(pool);
-  for (hi = apr_hash_first(pool, changed_paths_new_structs);
-       hi;
-       hi = apr_hash_next(hi))
+  /* For efficicency such that we don't need to dynamically allocate
+     yet another copy of that data. */
+  svn_fs_path_change3_t change;
+} fsap_iterator_data_t;
+
+static svn_error_t *
+changes_iterator_get(svn_fs_path_change3_t **change,
+                     svn_fs_path_change_iterator_t *iterator)
+{
+  fsap_iterator_data_t *data = iterator->fsap_data;
+
+  if (data->hi)
     {
-      const void *vkey;
-      apr_ssize_t klen;
-      void *vval;
-      svn_fs_path_change2_t *val;
-      svn_fs_path_change_t *change;
-      apr_hash_this(hi, &vkey, &klen, &vval);
-      val = vval;
-      change = apr_palloc(pool, sizeof(*change));
-      change->node_rev_id = val->node_rev_id;
-      change->change_kind = val->change_kind;
-      change->text_mod = val->text_mod;
-      change->prop_mod = val->prop_mod;
-      apr_hash_set(*changed_paths_p, vkey, klen, change);
+      const char *path = apr_hash_this_key(data->hi);
+      svn_fs_path_change2_t *entry = apr_hash_this_val(data->hi);
+
+      data->change.path.data = path;
+      data->change.path.len = apr_hash_this_key_len(data->hi);
+      data->change.change_kind = entry->change_kind;
+      data->change.node_kind = entry->node_kind;
+      data->change.text_mod = entry->text_mod;
+      data->change.prop_mod = entry->prop_mod;
+      data->change.mergeinfo_mod = entry->mergeinfo_mod;
+      data->change.copyfrom_known = entry->copyfrom_known;
+      data->change.copyfrom_rev = entry->copyfrom_rev;
+      data->change.copyfrom_path = entry->copyfrom_path;
+
+      *change = &data->change;
+      data->hi = apr_hash_next(data->hi);
     }
+  else
+    {
+      *change = NULL;
+    }
+
+  return SVN_NO_ERROR;
+}
+
+static changes_iterator_vtable_t iterator_vtable =
+{
+  changes_iterator_get
+};
+
+svn_error_t *
+svn_fs_paths_changed3(svn_fs_path_change_iterator_t **iterator,
+                      svn_fs_root_t *root,
+                      apr_pool_t *result_pool,
+                      apr_pool_t *scratch_pool)
+{
+  svn_boolean_t emulate =    !root->vtable->report_changes
+                          || (   SVN_FS_EMULATE_REPORT_CHANGES
+                              && root->vtable->paths_changed);
+
+  if (emulate)
+    {
+      svn_fs_path_change_iterator_t *result;
+      fsap_iterator_data_t *data;
+
+      apr_hash_t *changes;
+      SVN_ERR(root->vtable->paths_changed(&changes, root, result_pool));
+
+      data = apr_pcalloc(result_pool, sizeof(*data));
+      data->hi = apr_hash_first(result_pool, changes);
+
+      result = apr_pcalloc(result_pool, sizeof(*result));
+      result->fsap_data = data;
+      result->vtable = &iterator_vtable;
+
+      *iterator = result;
+    }
+  else
+    {
+      SVN_ERR(root->vtable->report_changes(iterator, root, result_pool,
+                                           scratch_pool));
+    }
+
   return SVN_NO_ERROR;
 }
 
@@ -1098,14 +1231,6 @@ svn_fs_node_history2(svn_fs_history_t **history_p, svn_fs_root_t *root,
   return svn_error_trace(root->vtable->node_history(history_p, root, path,
                                                     result_pool,
                                                     scratch_pool));
-}
-
-svn_error_t *
-svn_fs_node_history(svn_fs_history_t **history_p, svn_fs_root_t *root,
-                    const char *path, apr_pool_t *pool)
-{
-  return svn_error_trace(root->vtable->node_history(history_p, root, path,
-                                                    pool, pool));
 }
 
 svn_error_t *
@@ -1254,32 +1379,38 @@ svn_fs_closest_copy(svn_fs_root_t **root_p, const char **path_p,
 }
 
 svn_error_t *
-svn_fs_get_mergeinfo2(svn_mergeinfo_catalog_t *catalog,
-                      svn_fs_root_t *root,
+svn_fs_get_mergeinfo3(svn_fs_root_t *root,
                       const apr_array_header_t *paths,
                       svn_mergeinfo_inheritance_t inherit,
                       svn_boolean_t include_descendants,
                       svn_boolean_t adjust_inherited_mergeinfo,
-                      apr_pool_t *result_pool,
+                      svn_fs_mergeinfo_receiver_t receiver,
+                      void *baton,
                       apr_pool_t *scratch_pool)
 {
   return svn_error_trace(root->vtable->get_mergeinfo(
-    catalog, root, paths, inherit, include_descendants,
-    adjust_inherited_mergeinfo, result_pool, scratch_pool));
+    root, paths, inherit, include_descendants, adjust_inherited_mergeinfo,
+    receiver, baton, scratch_pool));
 }
 
-svn_error_t *
-svn_fs_get_mergeinfo(svn_mergeinfo_catalog_t *catalog,
-                     svn_fs_root_t *root,
-                     const apr_array_header_t *paths,
-                     svn_mergeinfo_inheritance_t inherit,
-                     svn_boolean_t include_descendants,
-                     apr_pool_t *pool)
+/* Baton type to be used with mergeinfo_receiver().  It provides some of
+ * the parameters passed to svn_fs__get_mergeinfo_for_path. */
+typedef struct mergeinfo_receiver_baton_t
 {
-  return svn_error_trace(root->vtable->get_mergeinfo(catalog, root, paths,
-                                                     inherit,
-                                                     include_descendants,
-                                                     TRUE, pool, pool));
+  svn_mergeinfo_t *mergeinfo;
+  apr_pool_t *result_pool;
+} mergeinfo_receiver_baton_t;
+
+static svn_error_t *
+mergeinfo_receiver(const char *path,
+                   svn_mergeinfo_t mergeinfo,
+                   void *baton,
+                   apr_pool_t *scratch_pool)
+{
+  mergeinfo_receiver_baton_t *b = baton;
+  *b->mergeinfo = svn_mergeinfo_dup(mergeinfo, b->result_pool);
+
+  return SVN_NO_ERROR;
 }
 
 svn_error_t *
@@ -1293,15 +1424,19 @@ svn_fs__get_mergeinfo_for_path(svn_mergeinfo_t *mergeinfo,
 {
   apr_array_header_t *paths
     = apr_array_make(scratch_pool, 1, sizeof(const char *));
-  svn_mergeinfo_catalog_t catalog;
+
+  mergeinfo_receiver_baton_t baton;
+  baton.mergeinfo = mergeinfo;
+  baton.result_pool = result_pool;
 
   APR_ARRAY_PUSH(paths, const char *) = path;
 
-  SVN_ERR(svn_fs_get_mergeinfo2(&catalog, root, paths,
+  *mergeinfo = NULL;
+  SVN_ERR(svn_fs_get_mergeinfo3(root, paths,
                                 inherit, FALSE /*include_descendants*/,
                                 adjust_inherited_mergeinfo,
-                                result_pool, scratch_pool));
-  *mergeinfo = svn_hash_gets(catalog, path);
+                                mergeinfo_receiver, &baton,
+                                scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -1390,31 +1525,12 @@ svn_fs_file_checksum(svn_checksum_t **checksum,
 
   if (force && (*checksum == NULL || (*checksum)->kind != kind))
     {
-      svn_stream_t *contents, *checksum_contents;
+      svn_stream_t *contents;
 
       SVN_ERR(svn_fs_file_contents(&contents, root, path, pool));
-      checksum_contents = svn_stream_checksummed2(contents, checksum, NULL,
-                                                  kind, TRUE, pool);
-
-      /* This will force a read of any remaining data (which is all of it in
-         this case) and dump the checksum into checksum->digest. */
-      SVN_ERR(svn_stream_close(checksum_contents));
+      SVN_ERR(svn_stream_contents_checksum(checksum, contents, kind,
+                                           pool, pool));
     }
-
-  return SVN_NO_ERROR;
-}
-
-svn_error_t *
-svn_fs_file_md5_checksum(unsigned char digest[],
-                         svn_fs_root_t *root,
-                         const char *path,
-                         apr_pool_t *pool)
-{
-  svn_checksum_t *md5sum;
-
-  SVN_ERR(svn_fs_file_checksum(&md5sum, svn_checksum_md5, root, path, TRUE,
-                               pool));
-  memcpy(digest, md5sum->digest, APR_MD5_DIGESTSIZE);
 
   return SVN_NO_ERROR;
 }
@@ -1554,19 +1670,39 @@ svn_fs_deltify_revision(svn_fs_t *fs, svn_revnum_t revision, apr_pool_t *pool)
 }
 
 svn_error_t *
-svn_fs_revision_prop(svn_string_t **value_p, svn_fs_t *fs, svn_revnum_t rev,
-                     const char *propname, apr_pool_t *pool)
+svn_fs_refresh_revision_props(svn_fs_t *fs,
+                              apr_pool_t *scratch_pool)
 {
-  return svn_error_trace(fs->vtable->revision_prop(value_p, fs, rev,
-                                                   propname, pool));
+  return svn_error_trace(fs->vtable->refresh_revprops(fs, scratch_pool));
 }
 
 svn_error_t *
-svn_fs_revision_proplist(apr_hash_t **table_p, svn_fs_t *fs, svn_revnum_t rev,
-                         apr_pool_t *pool)
+svn_fs_revision_prop2(svn_string_t **value_p,
+                      svn_fs_t *fs,
+                      svn_revnum_t rev,
+                      const char *propname,
+                      svn_boolean_t refresh,
+                      apr_pool_t *result_pool,
+                      apr_pool_t *scratch_pool)
+{
+  return svn_error_trace(fs->vtable->revision_prop(value_p, fs, rev,
+                                                   propname, refresh,
+                                                   result_pool,
+                                                   scratch_pool));
+}
+
+svn_error_t *
+svn_fs_revision_proplist2(apr_hash_t **table_p,
+                          svn_fs_t *fs,
+                          svn_revnum_t rev,
+                          svn_boolean_t refresh,
+                          apr_pool_t *result_pool,
+                          apr_pool_t *scratch_pool)
 {
   return svn_error_trace(fs->vtable->revision_proplist(table_p, fs, rev,
-                                                       pool));
+                                                       refresh,
+                                                       result_pool,
+                                                       scratch_pool));
 }
 
 svn_error_t *
@@ -1590,6 +1726,64 @@ svn_fs_get_file_delta_stream(svn_txdelta_stream_t **stream_p,
                            stream_p,
                            source_root, source_path,
                            target_root, target_path, pool));
+}
+
+svn_error_t *
+svn_fs__get_deleted_node(svn_fs_root_t **node_root,
+                         const char **node_path,
+                         svn_fs_root_t *root,
+                         const char *path,
+                         apr_pool_t *result_pool,
+                         apr_pool_t *scratch_pool)
+{
+  const char *parent_path, *name;
+  svn_fs_root_t *copy_root;
+  const char *copy_path;
+
+  /* History traversal does not work with transaction roots.
+   * Therefore, do it "by hand". */
+
+  /* If the parent got copied in ROOT, PATH got copied with it.
+   * Otherwise, we will find the node at PATH in the revision prior to ROOT.
+   */
+  svn_fspath__split(&parent_path, &name, path, scratch_pool);
+  SVN_ERR(svn_fs_closest_copy(&copy_root, &copy_path, root, parent_path,
+                              scratch_pool));
+
+  /* Copied in ROOT? */
+  if (   copy_root
+      && (   svn_fs_revision_root_revision(copy_root)
+          == svn_fs_revision_root_revision(root)))
+    {
+      svn_revnum_t copyfrom_rev;
+      const char *copyfrom_path;
+      const char *rel_path;
+      SVN_ERR(svn_fs_copied_from(&copyfrom_rev, &copyfrom_path,
+                                 copy_root, copy_path, scratch_pool));
+
+      SVN_ERR(svn_fs_revision_root(node_root, svn_fs_root_fs(root),
+                                   copyfrom_rev, result_pool));
+      rel_path = svn_fspath__skip_ancestor(copy_path, path);
+      *node_path = svn_fspath__join(copyfrom_path, rel_path, result_pool);
+    }
+  else
+    {
+      svn_revnum_t revision;
+      svn_revnum_t previous_rev;
+
+      /* Determine the latest revision before ROOT. */
+      revision = svn_fs_revision_root_revision(root);
+      if (SVN_IS_VALID_REVNUM(revision))
+        previous_rev = revision - 1;
+      else
+        previous_rev = svn_fs_txn_root_base_revision(root);
+
+      SVN_ERR(svn_fs_revision_root(node_root, svn_fs_root_fs(root),
+                                   previous_rev, result_pool));
+      *node_path = apr_pstrdup(result_pool, path);
+    }
+
+  return SVN_NO_ERROR;
 }
 
 svn_error_t *
@@ -1662,20 +1856,24 @@ svn_fs_lock_many(svn_fs_t *fs,
                                     target->token, "opaquelocktoken");
 
           if (!err)
-            for (c = target->token; *c && !err; c++)
-              if (! svn_ctype_isascii(*c) || svn_ctype_iscntrl(*c))
-                err = svn_error_createf(
-                        SVN_ERR_FS_BAD_LOCK_TOKEN, NULL,
-                        _("Lock token '%s' is not ASCII or is a "
-                          "control character at byte %u"),
-                        target->token,
-                        (unsigned)(c - target->token));
+            {
+              for (c = target->token; *c && !err; c++)
+                if (! svn_ctype_isascii(*c) || svn_ctype_iscntrl(*c))
+                  err = svn_error_createf(
+                          SVN_ERR_FS_BAD_LOCK_TOKEN, NULL,
+                          _("Lock token '%s' is not ASCII or is a "
+                            "control character at byte %u"),
+                          target->token,
+                          (unsigned)(c - target->token));
 
-          /* strlen(token) == c - token. */
-          if (!err && !svn_xml_is_xml_safe(target->token, c - target->token))
-            err = svn_error_createf(SVN_ERR_FS_BAD_LOCK_TOKEN, NULL,
-                                    _("Lock token URI '%s' is not XML-safe"),
-                                    target->token);
+              /* strlen(token) == c - token. */
+              if (!err && !svn_xml_is_xml_safe(target->token,
+                                               c - target->token))
+                err = svn_error_createf(
+                            SVN_ERR_FS_BAD_LOCK_TOKEN, NULL,
+                            _("Lock token URI '%s' is not XML-safe"),
+                            target->token);
+            }
         }
 
       if (err)
@@ -1770,8 +1968,7 @@ svn_fs_lock_target_create(const char *token,
                           svn_revnum_t current_rev,
                           apr_pool_t *result_pool)
 {
-  svn_fs_lock_target_t *target = apr_palloc(result_pool,
-                                            sizeof(svn_fs_lock_target_t));
+  svn_fs_lock_target_t *target = apr_palloc(result_pool, sizeof(*target));
 
   target->token = token;
   target->current_rev = current_rev;
@@ -1855,15 +2052,6 @@ svn_fs_history_prev2(svn_fs_history_t **prev_history_p,
   return svn_error_trace(history->vtable->prev(prev_history_p, history,
                                                cross_copies, result_pool,
                                                scratch_pool));
-}
-
-svn_error_t *
-svn_fs_history_prev(svn_fs_history_t **prev_history_p,
-                    svn_fs_history_t *history, svn_boolean_t cross_copies,
-                    apr_pool_t *pool)
-{
-  return svn_error_trace(history->vtable->prev(prev_history_p, history,
-                                               cross_copies, pool, pool));
 }
 
 svn_error_t *
@@ -1963,6 +2151,28 @@ svn_fs_path_change2_create(const svn_fs_id_t *node_rev_id,
                            apr_pool_t *pool)
 {
   return svn_fs__path_change_create_internal(node_rev_id, change_kind, pool);
+}
+
+svn_fs_path_change3_t *
+svn_fs_path_change3_create(svn_fs_path_change_kind_t change_kind,
+                           apr_pool_t *result_pool)
+{
+  return svn_fs__path_change_create_internal2(change_kind, result_pool);
+}
+
+svn_fs_path_change3_t *
+svn_fs_path_change3_dup(svn_fs_path_change3_t *change,
+                        apr_pool_t *result_pool)
+{
+  svn_fs_path_change3_t *copy = apr_pmemdup(result_pool, change,
+                                            sizeof(*copy));
+
+  copy->path.data = apr_pstrmemdup(result_pool, copy->path.data,
+                                   copy->path.len);
+  if (copy->copyfrom_path)
+    copy->copyfrom_path = apr_pstrdup(result_pool, change->copyfrom_path);
+
+  return copy;
 }
 
 /* Return the library version number. */

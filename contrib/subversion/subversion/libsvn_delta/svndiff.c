@@ -36,6 +36,23 @@
 #include "private/svn_string_private.h"
 #include "private/svn_dep_compat.h"
 
+static const char SVNDIFF_V0[] = { 'S', 'V', 'N', 0 };
+static const char SVNDIFF_V1[] = { 'S', 'V', 'N', 1 };
+static const char SVNDIFF_V2[] = { 'S', 'V', 'N', 2 };
+
+#define SVNDIFF_HEADER_SIZE (sizeof(SVNDIFF_V0))
+
+static const char *
+get_svndiff_header(int version)
+{
+  if (version == 2)
+    return SVNDIFF_V2;
+  else if (version == 1)
+    return SVNDIFF_V1;
+  else
+    return SVNDIFF_V0;
+}
+
 /* ----- Text delta to svndiff ----- */
 
 /* We make one of these and get it passed back to us in calls to the
@@ -46,7 +63,8 @@ struct encoder_baton {
   svn_boolean_t header_done;
   int version;
   int compression_level;
-  apr_pool_t *pool;
+  /* Pool for temporary allocations, will be cleared periodically. */
+  apr_pool_t *scratch_pool;
 };
 
 /* This is at least as big as the largest size for a single instruction. */
@@ -72,7 +90,7 @@ static svn_error_t *
 send_simple_insertion_window(svn_txdelta_window_t *window,
                              struct encoder_baton *eb)
 {
-  unsigned char headers[4 + 5 * SVN__MAX_ENCODED_UINT_LEN
+  unsigned char headers[SVNDIFF_HEADER_SIZE + 5 * SVN__MAX_ENCODED_UINT_LEN
                           + MAX_INSTRUCTION_LEN];
   unsigned char ibuf[MAX_INSTRUCTION_LEN];
   unsigned char *header_current;
@@ -89,11 +107,8 @@ send_simple_insertion_window(svn_txdelta_window_t *window,
   if (!eb->header_done)
     {
       eb->header_done = TRUE;
-      headers[0] = 'S';
-      headers[1] = 'V';
-      headers[2] = 'N';
-      headers[3] = (unsigned char)eb->version;
-      header_current = headers + 4;
+      memcpy(headers, get_svndiff_header(eb->version), SVNDIFF_HEADER_SIZE);
+      header_current = headers + SVNDIFF_HEADER_SIZE;
     }
   else
     {
@@ -135,58 +150,28 @@ send_simple_insertion_window(svn_txdelta_window_t *window,
   return SVN_NO_ERROR;
 }
 
+/* Encodes delta window WINDOW to svndiff-format.
+   The svndiff version is VERSION. COMPRESSION_LEVEL is the
+   compression level to use.
+   Returned values will be allocated in POOL or refer to *WINDOW
+   fields. */
 static svn_error_t *
-window_handler(svn_txdelta_window_t *window, void *baton)
+encode_window(svn_stringbuf_t **instructions_p,
+              svn_stringbuf_t **header_p,
+              const svn_string_t **newdata_p,
+              svn_txdelta_window_t *window,
+              int version,
+              int compression_level,
+              apr_pool_t *pool)
 {
-  struct encoder_baton *eb = baton;
-  apr_pool_t *pool;
   svn_stringbuf_t *instructions;
-  svn_stringbuf_t *i1;
   svn_stringbuf_t *header;
   const svn_string_t *newdata;
   unsigned char ibuf[MAX_INSTRUCTION_LEN], *ip;
   const svn_txdelta_op_t *op;
-  apr_size_t len;
-
-  /* use specialized code if there is no source */
-  if (window && !window->src_ops && window->num_ops == 1 && !eb->version)
-    return svn_error_trace(send_simple_insertion_window(window, eb));
-
-  /* Make sure we write the header.  */
-  if (!eb->header_done)
-    {
-      char svnver[4] = {'S','V','N','\0'};
-      len = 4;
-      svnver[3] = (char)eb->version;
-      SVN_ERR(svn_stream_write(eb->output, svnver, &len));
-      eb->header_done = TRUE;
-    }
-
-  if (window == NULL)
-    {
-      svn_stream_t *output = eb->output;
-
-      /* We're done; clean up.
-
-         We clean our pool first. Given that the output stream was passed
-         TO us, we'll assume it has a longer lifetime, and that it will not
-         be affected by our pool destruction.
-
-         The contrary point of view (close the stream first): that could
-         tell our user that everything related to the output stream is done,
-         and a cleanup of the user pool should occur. However, that user
-         pool could include the subpool we created for our work (eb->pool),
-         which would then make our call to svn_pool_destroy() puke.
-       */
-      svn_pool_destroy(eb->pool);
-
-      return svn_stream_close(output);
-    }
 
   /* create the necessary data buffers */
-  pool = svn_pool_create(eb->pool);
   instructions = svn_stringbuf_create_empty(pool);
-  i1 = svn_stringbuf_create_empty(pool);
   header = svn_stringbuf_create_empty(pool);
 
   /* Encode the instructions.  */
@@ -213,27 +198,92 @@ window_handler(svn_txdelta_window_t *window, void *baton)
   append_encoded_int(header, window->sview_offset);
   append_encoded_int(header, window->sview_len);
   append_encoded_int(header, window->tview_len);
-  if (eb->version == 1)
+  if (version == 2)
     {
-      SVN_ERR(svn__compress(instructions, i1, eb->compression_level));
-      instructions = i1;
+      svn_stringbuf_t *compressed_instructions;
+      compressed_instructions = svn_stringbuf_create_empty(pool);
+      SVN_ERR(svn__compress_lz4(instructions->data, instructions->len,
+                                compressed_instructions));
+      instructions = compressed_instructions;
+    }
+  else if (version == 1)
+    {
+      svn_stringbuf_t *compressed_instructions;
+      compressed_instructions = svn_stringbuf_create_empty(pool);
+      SVN_ERR(svn__compress_zlib(instructions->data, instructions->len,
+                                 compressed_instructions, compression_level));
+      instructions = compressed_instructions;
     }
   append_encoded_int(header, instructions->len);
-  if (eb->version == 1)
+
+  /* Encode the data. */
+  if (version == 2)
     {
       svn_stringbuf_t *compressed = svn_stringbuf_create_empty(pool);
-      svn_stringbuf_t *original = svn_stringbuf_create_empty(pool);
-      original->data = (char *)window->new_data->data; /* won't be modified */
-      original->len = window->new_data->len;
-      original->blocksize = window->new_data->len + 1;
 
-      SVN_ERR(svn__compress(original, compressed, eb->compression_level));
+      SVN_ERR(svn__compress_lz4(window->new_data->data, window->new_data->len,
+                                compressed));
+      newdata = svn_stringbuf__morph_into_string(compressed);
+    }
+  else if (version == 1)
+    {
+      svn_stringbuf_t *compressed = svn_stringbuf_create_empty(pool);
+
+      SVN_ERR(svn__compress_zlib(window->new_data->data, window->new_data->len,
+                                 compressed, compression_level));
       newdata = svn_stringbuf__morph_into_string(compressed);
     }
   else
     newdata = window->new_data;
 
   append_encoded_int(header, newdata->len);
+
+  *instructions_p = instructions;
+  *header_p = header;
+  *newdata_p = newdata;
+
+  return SVN_NO_ERROR;
+}
+
+/* Note: When changing things here, check the related comment in
+   the svn_txdelta_to_svndiff_stream() function.  */
+static svn_error_t *
+window_handler(svn_txdelta_window_t *window, void *baton)
+{
+  struct encoder_baton *eb = baton;
+  apr_size_t len;
+  svn_stringbuf_t *instructions;
+  svn_stringbuf_t *header;
+  const svn_string_t *newdata;
+
+  /* use specialized code if there is no source */
+  if (window && !window->src_ops && window->num_ops == 1 && !eb->version)
+    return svn_error_trace(send_simple_insertion_window(window, eb));
+
+  /* Make sure we write the header.  */
+  if (!eb->header_done)
+    {
+      len = SVNDIFF_HEADER_SIZE;
+      SVN_ERR(svn_stream_write(eb->output, get_svndiff_header(eb->version),
+                               &len));
+      eb->header_done = TRUE;
+    }
+
+  if (window == NULL)
+    {
+      /* We're done; clean up. */
+      SVN_ERR(svn_stream_close(eb->output));
+
+      svn_pool_destroy(eb->scratch_pool);
+
+      return SVN_NO_ERROR;
+    }
+
+  svn_pool_clear(eb->scratch_pool);
+
+  SVN_ERR(encode_window(&instructions, &header, &newdata, window,
+                        eb->version, eb->compression_level,
+                        eb->scratch_pool));
 
   /* Write out the window.  */
   len = header->len;
@@ -249,7 +299,6 @@ window_handler(svn_txdelta_window_t *window, void *baton)
       SVN_ERR(svn_stream_write(eb->output, newdata->data, &len));
     }
 
-  svn_pool_destroy(pool);
   return SVN_NO_ERROR;
 }
 
@@ -261,13 +310,12 @@ svn_txdelta_to_svndiff3(svn_txdelta_window_handler_t *handler,
                         int compression_level,
                         apr_pool_t *pool)
 {
-  apr_pool_t *subpool = svn_pool_create(pool);
   struct encoder_baton *eb;
 
-  eb = apr_palloc(subpool, sizeof(*eb));
+  eb = apr_palloc(pool, sizeof(*eb));
   eb->output = output;
   eb->header_done = FALSE;
-  eb->pool = subpool;
+  eb->scratch_pool = svn_pool_create(pool);
   eb->version = svndiff_version;
   eb->compression_level = compression_level;
 
@@ -334,6 +382,17 @@ struct decode_baton
 
   /* svndiff version in use by delta.  */
   unsigned char version;
+
+  /* Length of parsed delta window header. 0 if window is not parsed yet. */
+  apr_size_t window_header_len;
+
+  /* Five integer fields of parsed delta window header. Valid only if
+     WINDOW_HEADER_LEN > 0 */
+  svn_filesize_t  sview_offset;
+  apr_size_t sview_len;
+  apr_size_t tview_len;
+  apr_size_t inslen;
+  apr_size_t newlen;
 };
 
 
@@ -483,21 +542,6 @@ count_and_verify_instructions(int *ninst,
   return SVN_NO_ERROR;
 }
 
-static svn_error_t *
-zlib_decode(const unsigned char *in, apr_size_t inLen, svn_stringbuf_t *out,
-            apr_size_t limit)
-{
-  /* construct a fake string buffer as parameter to svn__decompress.
-     This is fine as that function never writes to it. */
-  svn_stringbuf_t compressed;
-  compressed.pool = NULL;
-  compressed.data = (char *)in;
-  compressed.len = inLen;
-  compressed.blocksize = inLen + 1;
-
-  return svn__decompress(&compressed, out, limit);
-}
-
 /* Given the five integer fields of a window header and a pointer to
    the remainder of the window contents, fill in a delta window
    structure *WINDOW.  New allocations will be performed in POOL;
@@ -513,7 +557,7 @@ decode_window(svn_txdelta_window_t *window, svn_filesize_t sview_offset,
   int ninst;
   apr_size_t npos;
   svn_txdelta_op_t *ops, *op;
-  svn_string_t *new_data = apr_palloc(pool, sizeof(*new_data));
+  svn_string_t *new_data;
 
   window->sview_offset = sview_offset;
   window->sview_len = sview_len;
@@ -521,33 +565,43 @@ decode_window(svn_txdelta_window_t *window, svn_filesize_t sview_offset,
 
   insend = data + inslen;
 
-  if (version == 1)
+  if (version == 2)
     {
       svn_stringbuf_t *instout = svn_stringbuf_create_empty(pool);
       svn_stringbuf_t *ndout = svn_stringbuf_create_empty(pool);
 
-      SVN_ERR(zlib_decode(insend, newlen, ndout,
-                          SVN_DELTA_WINDOW_SIZE));
-      SVN_ERR(zlib_decode(data, insend - data, instout,
-                          MAX_INSTRUCTION_SECTION_LEN));
+      SVN_ERR(svn__decompress_lz4(insend, newlen, ndout,
+                                  SVN_DELTA_WINDOW_SIZE));
+      SVN_ERR(svn__decompress_lz4(data, insend - data, instout,
+                                  MAX_INSTRUCTION_SECTION_LEN));
 
       newlen = ndout->len;
       data = (unsigned char *)instout->data;
       insend = (unsigned char *)instout->data + instout->len;
 
-      new_data->data = (const char *) ndout->data;
-      new_data->len = newlen;
+      new_data = svn_stringbuf__morph_into_string(ndout);
+    }
+  else if (version == 1)
+    {
+      svn_stringbuf_t *instout = svn_stringbuf_create_empty(pool);
+      svn_stringbuf_t *ndout = svn_stringbuf_create_empty(pool);
+
+      SVN_ERR(svn__decompress_zlib(insend, newlen, ndout,
+                                   SVN_DELTA_WINDOW_SIZE));
+      SVN_ERR(svn__decompress_zlib(data, insend - data, instout,
+                                   MAX_INSTRUCTION_SECTION_LEN));
+
+      newlen = ndout->len;
+      data = (unsigned char *)instout->data;
+      insend = (unsigned char *)instout->data + instout->len;
+
+      new_data = svn_stringbuf__morph_into_string(ndout);
     }
   else
     {
       /* Copy the data because an svn_string_t must have the invariant
          data[len]=='\0'. */
-      char *buf = apr_palloc(pool, newlen + 1);
-
-      memcpy(buf, insend, newlen);
-      buf[newlen] = '\0';
-      new_data->data = buf;
-      new_data->len = newlen;
+      new_data = svn_string_ncreate((const char*)insend, newlen, pool);
     }
 
   /* Count the instructions and make sure they are all valid.  */
@@ -578,10 +632,6 @@ decode_window(svn_txdelta_window_t *window, svn_filesize_t sview_offset,
   return SVN_NO_ERROR;
 }
 
-static const char SVNDIFF_V0[] = { 'S', 'V', 'N', 0 };
-static const char SVNDIFF_V1[] = { 'S', 'V', 'N', 1 };
-#define SVNDIFF_HEADER_SIZE (sizeof(SVNDIFF_V0))
-
 static svn_error_t *
 write_handler(void *baton,
               const char *buffer,
@@ -589,8 +639,6 @@ write_handler(void *baton,
 {
   struct decode_baton *db = (struct decode_baton *) baton;
   const unsigned char *p, *end;
-  svn_filesize_t sview_offset;
-  apr_size_t sview_len, tview_len, inslen, newlen, remaining;
   apr_size_t buflen = *len;
 
   /* Chew up four bytes at the beginning for the header.  */
@@ -603,6 +651,8 @@ write_handler(void *baton,
         db->version = 0;
       else if (memcmp(buffer, SVNDIFF_V1 + db->header_bytes, nheader) == 0)
         db->version = 1;
+      else if (memcmp(buffer, SVNDIFF_V2 + db->header_bytes, nheader) == 0)
+        db->version = 2;
       else
         return svn_error_create(SVN_ERR_SVNDIFF_INVALID_HEADER, NULL,
                                 _("Svndiff has invalid header"));
@@ -628,92 +678,108 @@ write_handler(void *baton,
 
   while (1)
     {
-      apr_pool_t *newpool;
       svn_txdelta_window_t window;
 
       /* Read the header, if we have enough bytes for that.  */
       p = (const unsigned char *) db->buffer->data;
       end = (const unsigned char *) db->buffer->data + db->buffer->len;
 
-      p = decode_file_offset(&sview_offset, p, end);
-      if (p == NULL)
-        break;
+      if (db->window_header_len == 0)
+        {
+          svn_filesize_t sview_offset;
+          apr_size_t sview_len, tview_len, inslen, newlen;
+          const unsigned char *hdr_start = p;
 
-      p = decode_size(&sview_len, p, end);
-      if (p == NULL)
-        break;
+          p = decode_file_offset(&sview_offset, p, end);
+          if (p == NULL)
+              break;
 
-      p = decode_size(&tview_len, p, end);
-      if (p == NULL)
-        break;
+          p = decode_size(&sview_len, p, end);
+          if (p == NULL)
+              break;
 
-      p = decode_size(&inslen, p, end);
-      if (p == NULL)
-        break;
+          p = decode_size(&tview_len, p, end);
+          if (p == NULL)
+              break;
 
-      p = decode_size(&newlen, p, end);
-      if (p == NULL)
-        break;
+          p = decode_size(&inslen, p, end);
+          if (p == NULL)
+              break;
 
-      if (tview_len > SVN_DELTA_WINDOW_SIZE ||
-          sview_len > SVN_DELTA_WINDOW_SIZE ||
-          /* for svndiff1, newlen includes the original length */
-          newlen > SVN_DELTA_WINDOW_SIZE + SVN__MAX_ENCODED_UINT_LEN ||
-          inslen > MAX_INSTRUCTION_SECTION_LEN)
-        return svn_error_create(SVN_ERR_SVNDIFF_CORRUPT_WINDOW, NULL,
-                                _("Svndiff contains a too-large window"));
+          p = decode_size(&newlen, p, end);
+          if (p == NULL)
+              break;
 
-      /* Check for integer overflow.  */
-      if (sview_offset < 0 || inslen + newlen < inslen
-          || sview_len + tview_len < sview_len
-          || (apr_size_t)sview_offset + sview_len < (apr_size_t)sview_offset)
-        return svn_error_create(SVN_ERR_SVNDIFF_CORRUPT_WINDOW, NULL,
-                                _("Svndiff contains corrupt window header"));
+          if (tview_len > SVN_DELTA_WINDOW_SIZE ||
+              sview_len > SVN_DELTA_WINDOW_SIZE ||
+              /* for svndiff1, newlen includes the original length */
+              newlen > SVN_DELTA_WINDOW_SIZE + SVN__MAX_ENCODED_UINT_LEN ||
+              inslen > MAX_INSTRUCTION_SECTION_LEN)
+            return svn_error_create(
+                     SVN_ERR_SVNDIFF_CORRUPT_WINDOW, NULL,
+                     _("Svndiff contains a too-large window"));
 
-      /* Check for source windows which slide backwards.  */
-      if (sview_len > 0
-          && (sview_offset < db->last_sview_offset
-              || (sview_offset + sview_len
-                  < db->last_sview_offset + db->last_sview_len)))
-        return svn_error_create
-          (SVN_ERR_SVNDIFF_BACKWARD_VIEW, NULL,
-           _("Svndiff has backwards-sliding source views"));
+          /* Check for integer overflow.  */
+          if (sview_offset < 0 || inslen + newlen < inslen
+              || sview_len + tview_len < sview_len
+              || (apr_size_t)sview_offset + sview_len < (apr_size_t)sview_offset)
+            return svn_error_create(
+                      SVN_ERR_SVNDIFF_CORRUPT_WINDOW, NULL,
+                      _("Svndiff contains corrupt window header"));
+
+          /* Check for source windows which slide backwards.  */
+          if (sview_len > 0
+              && (sview_offset < db->last_sview_offset
+                  || (sview_offset + sview_len
+                      < db->last_sview_offset + db->last_sview_len)))
+            return svn_error_create(
+                     SVN_ERR_SVNDIFF_BACKWARD_VIEW, NULL,
+                     _("Svndiff has backwards-sliding source views"));
+
+          /* Remember parsed window header. */
+          db->window_header_len = p - hdr_start;
+          db->sview_offset = sview_offset;
+          db->sview_len = sview_len;
+          db->tview_len = tview_len;
+          db->inslen = inslen;
+          db->newlen = newlen;
+        }
+      else
+        {
+          /* Skip already parsed window header. */
+          p += db->window_header_len;
+        }
 
       /* Wait for more data if we don't have enough bytes for the
-         whole window.  */
-      if ((apr_size_t) (end - p) < inslen + newlen)
+         whole window. */
+      if ((apr_size_t) (end - p) < db->inslen + db->newlen)
         return SVN_NO_ERROR;
 
       /* Decode the window and send it off. */
-      SVN_ERR(decode_window(&window, sview_offset, sview_len, tview_len,
-                            inslen, newlen, p, db->subpool,
-                            db->version));
+      SVN_ERR(decode_window(&window, db->sview_offset, db->sview_len,
+                            db->tview_len, db->inslen, db->newlen, p,
+                            db->subpool, db->version));
       SVN_ERR(db->consumer_func(&window, db->consumer_baton));
 
-      /* Make a new subpool and buffer, saving aside the remaining
-         data in the old buffer.  */
-      newpool = svn_pool_create(db->pool);
-      p += inslen + newlen;
-      remaining = db->buffer->data + db->buffer->len - (const char *) p;
-      db->buffer =
-        svn_stringbuf_ncreate((const char *) p, remaining, newpool);
+      p += db->inslen + db->newlen;
+
+      /* Remove processed data from the buffer.  */
+      svn_stringbuf_remove(db->buffer, 0, db->buffer->len - (end - p));
+
+      /* Reset window header length. */
+      db->window_header_len = 0;
 
       /* Remember the offset and length of the source view for next time.  */
-      db->last_sview_offset = sview_offset;
-      db->last_sview_len = sview_len;
+      db->last_sview_offset = db->sview_offset;
+      db->last_sview_len = db->sview_len;
 
-      /* We've copied stuff out of the old pool. Toss that pool and use
-         our new pool.
-         ### might be nice to avoid the copy and just use svn_pool_clear
-         ### to get rid of whatever the "other stuff" is. future project...
-      */
-      svn_pool_destroy(db->subpool);
-      db->subpool = newpool;
+      /* Clear subpool. */
+      svn_pool_clear(db->subpool);
     }
 
   /* At this point we processed all integral windows and DB->BUFFER is empty
      or contains partially read window header.
-     Check that unprocessed data is not larger that theoretical maximum
+     Check that unprocessed data is not larger than theoretical maximum
      window header size. */
   if (db->buffer->len > 5 * SVN__MAX_ENCODED_UINT_LEN)
     return svn_error_create(SVN_ERR_SVNDIFF_CORRUPT_WINDOW, NULL,
@@ -757,23 +823,25 @@ svn_txdelta_parse_svndiff(svn_txdelta_window_handler_t handler,
                           svn_boolean_t error_on_early_close,
                           apr_pool_t *pool)
 {
-  apr_pool_t *subpool = svn_pool_create(pool);
-  struct decode_baton *db = apr_palloc(pool, sizeof(*db));
   svn_stream_t *stream;
-
-  db->consumer_func = handler;
-  db->consumer_baton = handler_baton;
-  db->pool = subpool;
-  db->subpool = svn_pool_create(subpool);
-  db->buffer = svn_stringbuf_create_empty(db->subpool);
-  db->last_sview_offset = 0;
-  db->last_sview_len = 0;
-  db->header_bytes = 0;
-  db->error_on_early_close = error_on_early_close;
-  stream = svn_stream_create(db, pool);
 
   if (handler != svn_delta_noop_window_handler)
     {
+      apr_pool_t *subpool = svn_pool_create(pool);
+      struct decode_baton *db = apr_palloc(pool, sizeof(*db));
+
+      db->consumer_func = handler;
+      db->consumer_baton = handler_baton;
+      db->pool = subpool;
+      db->subpool = svn_pool_create(subpool);
+      db->buffer = svn_stringbuf_create_empty(db->pool);
+      db->last_sview_offset = 0;
+      db->last_sview_len = 0;
+      db->header_bytes = 0;
+      db->error_on_early_close = error_on_early_close;
+      db->window_header_len = 0;
+      stream = svn_stream_create(db, pool);
+
       svn_stream_set_write(stream, write_handler);
       svn_stream_set_close(stream, close_handler);
     }
@@ -781,6 +849,7 @@ svn_txdelta_parse_svndiff(svn_txdelta_window_handler_t handler,
     {
       /* And else we just ignore everything as efficiently as we can.
          by only hooking a no-op handler */
+      stream = svn_stream_create(NULL, pool);
       svn_stream_set_write(stream, noop_write_handler);
     }
   return stream;
@@ -926,3 +995,107 @@ svn_txdelta__read_raw_window_len(apr_size_t *window_len,
   return SVN_NO_ERROR;
 }
 
+typedef struct svndiff_stream_baton_t
+{
+  apr_pool_t *scratch_pool;
+  svn_txdelta_stream_t *txstream;
+  svn_txdelta_window_handler_t handler;
+  void *handler_baton;
+  svn_stringbuf_t *window_buffer;
+  apr_size_t read_pos;
+  svn_boolean_t hit_eof;
+} svndiff_stream_baton_t;
+
+static svn_error_t *
+svndiff_stream_write_fn(void *baton, const char *data, apr_size_t *len)
+{
+  svndiff_stream_baton_t *b = baton;
+
+  /* The memory usage here is limited, as this buffer doesn't grow
+     beyond the (header size + max window size in svndiff format).
+     See the comment in svn_txdelta_to_svndiff_stream().  */
+  svn_stringbuf_appendbytes(b->window_buffer, data, *len);
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+svndiff_stream_read_fn(void *baton, char *buffer, apr_size_t *len)
+{
+  svndiff_stream_baton_t *b = baton;
+  apr_size_t left = *len;
+  apr_size_t read = 0;
+
+  while (left)
+    {
+      apr_size_t chunk_size;
+
+      if (b->read_pos == b->window_buffer->len && !b->hit_eof)
+        {
+          svn_txdelta_window_t *window;
+
+          svn_pool_clear(b->scratch_pool);
+          svn_stringbuf_setempty(b->window_buffer);
+          SVN_ERR(svn_txdelta_next_window(&window, b->txstream,
+                                          b->scratch_pool));
+          SVN_ERR(b->handler(window, b->handler_baton));
+          b->read_pos = 0;
+
+          if (!window)
+            b->hit_eof = TRUE;
+        }
+
+      if (left > b->window_buffer->len - b->read_pos)
+        chunk_size = b->window_buffer->len - b->read_pos;
+      else
+        chunk_size = left;
+
+      if (!chunk_size)
+          break;
+
+      memcpy(buffer, b->window_buffer->data + b->read_pos, chunk_size);
+      b->read_pos += chunk_size;
+      buffer += chunk_size;
+      read += chunk_size;
+      left -= chunk_size;
+    }
+
+  *len = read;
+  return SVN_NO_ERROR;
+}
+
+svn_stream_t *
+svn_txdelta_to_svndiff_stream(svn_txdelta_stream_t *txstream,
+                              int svndiff_version,
+                              int compression_level,
+                              apr_pool_t *pool)
+{
+  svndiff_stream_baton_t *baton;
+  svn_stream_t *push_stream;
+  svn_stream_t *pull_stream;
+
+  baton = apr_pcalloc(pool, sizeof(*baton));
+  baton->scratch_pool = svn_pool_create(pool);
+  baton->txstream = txstream;
+  baton->window_buffer = svn_stringbuf_create_empty(pool);
+  baton->hit_eof = FALSE;
+  baton->read_pos = 0;
+
+  push_stream = svn_stream_create(baton, pool);
+  svn_stream_set_write(push_stream, svndiff_stream_write_fn);
+
+  /* We rely on the implementation detail of the svn_txdelta_to_svndiff3()
+     function, namely, on how the window_handler() function behaves.
+     As long as it writes one svndiff window at a time to the target
+     stream, the memory usage of this function (in other words, how
+     much data can be accumulated in the internal 'window_buffer')
+     is limited.  */
+  svn_txdelta_to_svndiff3(&baton->handler, &baton->handler_baton,
+                          push_stream, svndiff_version,
+                          compression_level, pool);
+
+  pull_stream = svn_stream_create(baton, pool);
+  svn_stream_set_read2(pull_stream, NULL, svndiff_stream_read_fn);
+
+  return pull_stream;
+}

@@ -1072,9 +1072,13 @@ svn_client__ensure_revprop_table(apr_hash_t **revprop_table_out,
    EXPAND_KEYWORDS operates as per the EXPAND argument to
    svn_subst_stream_translated, which see.  If NORMALIZE_EOLS is TRUE and
    LOCAL_ABSPATH requires translation, then normalize the line endings in
-   *NORMAL_STREAM.
+   *NORMAL_STREAM to "\n" if the stream has svn:eol-style set.
 
-   Uses SCRATCH_POOL for temporary allocations. */
+   Note that this IS NOT the repository normal form of the stream as that
+   would use "\r\n" if set to CRLF and "\r" if set to CR.
+
+   The stream is allocated in RESULT_POOL and temporary SCRATCH_POOL is
+   used for temporary allocations. */
 svn_error_t *
 svn_client__get_normalized_stream(svn_stream_t **normal_stream,
                                   svn_wc_context_t *wc_ctx,
@@ -1180,6 +1184,88 @@ svn_client__remote_propget(apr_hash_t *props,
                            svn_depth_t depth,
                            apr_pool_t *result_pool,
                            apr_pool_t *scratch_pool);
+
+/* */
+typedef struct merge_source_t
+{
+  /* "left" side URL and revision (inclusive iff youngest) */
+  const svn_client__pathrev_t *loc1;
+
+  /* "right" side URL and revision (inclusive iff youngest) */
+  const svn_client__pathrev_t *loc2;
+
+  /* True iff LOC1 is an ancestor of LOC2 or vice-versa (history-wise). */
+  svn_boolean_t ancestral;
+} merge_source_t;
+
+/* Description of the merge target root node (a WC working node) */
+typedef struct merge_target_t
+{
+  /* Absolute path to the WC node */
+  const char *abspath;
+
+  /* The repository location of the base node of the target WC.  If the node
+   * is locally added, then URL & REV are NULL & SVN_INVALID_REVNUM.
+   * REPOS_ROOT_URL and REPOS_UUID are always valid. */
+  svn_client__pathrev_t loc;
+
+} merge_target_t;
+
+/*
+ * Similar API to svn_client_merge_peg5().
+ */
+svn_error_t *
+svn_client__merge_elements(svn_boolean_t *use_sleep,
+                           apr_array_header_t *merge_sources,
+                           merge_target_t *target,
+                           svn_ra_session_t *ra_session,
+                           svn_boolean_t diff_ignore_ancestry,
+                           svn_boolean_t force_delete,
+                           svn_boolean_t dry_run,
+                           const apr_array_header_t *merge_options,
+                           svn_client_ctx_t *ctx,
+                           apr_pool_t *result_pool,
+                           apr_pool_t *scratch_pool);
+
+/* Data for reporting when a merge aborted because of raising conflicts.
+ *
+ * ### TODO: More info, including the ranges (or other parameters) the user
+ *     needs to complete the merge.
+ */
+typedef struct svn_client__conflict_report_t
+{
+  const char *target_abspath;
+  /* The revision range during which conflicts were raised */
+  const merge_source_t *conflicted_range;
+  /* Was the conflicted range the last range in the whole requested merge? */
+  svn_boolean_t was_last_range;
+} svn_client__conflict_report_t;
+
+/* Create and return an error structure appropriate for the unmerged
+   revisions range(s). */
+svn_error_t *
+svn_client__make_merge_conflict_error(svn_client__conflict_report_t *report,
+                                      apr_pool_t *scratch_pool);
+
+/* The body of svn_client_merge5(), which see for details. */
+svn_error_t *
+svn_client__merge_locked(svn_client__conflict_report_t **conflict_report,
+                         const char *source1,
+                         const svn_opt_revision_t *revision1,
+                         const char *source2,
+                         const svn_opt_revision_t *revision2,
+                         const char *target_abspath,
+                         svn_depth_t depth,
+                         svn_boolean_t ignore_mergeinfo,
+                         svn_boolean_t diff_ignore_ancestry,
+                         svn_boolean_t force_delete,
+                         svn_boolean_t record_only,
+                         svn_boolean_t dry_run,
+                         svn_boolean_t allow_mixed_rev,
+                         const apr_array_header_t *merge_options,
+                         svn_client_ctx_t *ctx,
+                         apr_pool_t *result_pool,
+                         apr_pool_t *scratch_pool);
 
 #ifdef __cplusplus
 }

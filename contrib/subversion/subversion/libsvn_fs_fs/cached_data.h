@@ -30,6 +30,18 @@
 
 
 
+/* Resolve a FSFS quirk: if REP in FS is a "PLAIN" representation, its
+ * EXPANDED_SIZE element may be 0, in which case its value has to be taken
+ * from SIZE.
+ *
+ * This function ensures that EXPANDED_SIZE in REP always contains the
+ * actual value. No-op if REP is NULL.  Uses SCRATCH_POOL for temporaries.
+ */
+svn_error_t *
+svn_fs_fs__fixup_expanded_size(svn_fs_t *fs,
+                               representation_t *rep,
+                               apr_pool_t *scratch_pool);
+
 /* Set *NODEREV_P to the node-revision for the node ID in FS.  Do any
    allocations in POOL. */
 svn_error_t *
@@ -69,7 +81,7 @@ svn_fs_fs__rep_chain_length(int *chain_length,
                             svn_fs_t *fs,
                             apr_pool_t *scratch_pool);
 
-/* Set *CONTENTS to be a readable svn_stream_t that receives the text
+/* Set *CONTENTS_P to be a readable svn_stream_t that receives the text
    representation REP as seen in filesystem FS.  If CACHE_FULLTEXT is
    not set, bypass fulltext cache lookup for this rep and don't put the
    reconstructed fulltext into cache.
@@ -158,21 +170,22 @@ svn_fs_fs__get_proplist(apr_hash_t **proplist,
                         node_revision_t *noderev,
                         apr_pool_t *pool);
 
-/* Set *HAS_PROPS to TRUE if NODEREV has properties in FS, otherwise
-   to FALSE. Use SCRATCH_POOL for temporary allocations. */
+/* Create a changes retrieval context object in *RESULT_POOL and return it
+ * in *CONTEXT.  It will allow svn_fs_x__get_changes to fetch consecutive
+ * blocks (one per invocation) from REV's changed paths list in FS. */
 svn_error_t *
-svn_fs_fs__has_props(svn_boolean_t *has_props,
-                     svn_fs_t *fs,
-                     node_revision_t *noderev,
-                     apr_pool_t *scratch_pool);
+svn_fs_fs__create_changes_context(svn_fs_fs__changes_context_t **context,
+                                  svn_fs_t *fs,
+                                  svn_revnum_t rev,
+                                  apr_pool_t *result_pool);
 
-/* Fetch the list of change in revision REV in FS and return it in *CHANGES.
- * Allocate the result in POOL.
+/* Fetch the block of changes from the CONTEXT and return it in *CHANGES.
+ * Allocate the result in RESULT_POOL and use SCRATCH_POOL for temporaries.
  */
 svn_error_t *
 svn_fs_fs__get_changes(apr_array_header_t **changes,
-                       svn_fs_t *fs,
-                       svn_revnum_t rev,
-                       apr_pool_t *pool);
+                       svn_fs_fs__changes_context_t *context,
+                       apr_pool_t *result_pool,
+                       apr_pool_t *scratch_pool);
 
 #endif
