@@ -154,6 +154,9 @@
 /* Defined if plaintext password/passphrase storage is disabled */
 /* #undef SVN_DISABLE_PLAINTEXT_PASSWORD_STORAGE */
 
+/* Shared library file name suffix format */
+#undef SVN_DSO_SUFFIX_FMT
+
 /* The desired major version for the Berkeley DB */
 #define SVN_FS_WANT_DB_MAJOR 4
 
@@ -175,11 +178,17 @@
 /* Is Mac OS KeyChain support enabled? */
 /* #undef SVN_HAVE_KEYCHAIN_SERVICES */
 
+/* Defined if KF5 available */
+#undef SVN_HAVE_KF5
+
 /* Defined if KWallet support is enabled */
 /* #undef SVN_HAVE_KWALLET */
 
 /* Defined if libmagic support is enabled */
 #define SVN_HAVE_LIBMAGIC 1
+
+/* Is libsecret support enabled? */
+#undef SVN_HAVE_LIBSECRET
 
 /* Is Mach-O low-level _dyld API available? */
 /* #undef SVN_HAVE_MACHO_ITERATE */
@@ -199,15 +208,6 @@
 /* Defined if support for Serf is enabled */
 #define SVN_HAVE_SERF 1
 
-/* Defined if libsvn_client should link against libsvn_ra_local */
-#define SVN_LIBSVN_CLIENT_LINKS_RA_LOCAL 1
-
-/* Defined if libsvn_client should link against libsvn_ra_serf */
-#define SVN_LIBSVN_CLIENT_LINKS_RA_SERF 1
-
-/* Defined if libsvn_client should link against libsvn_ra_svn */
-#define SVN_LIBSVN_CLIENT_LINKS_RA_SVN 1
-
 /* Defined if libsvn_fs should link against libsvn_fs_base */
 /* #undef SVN_LIBSVN_FS_LINKS_FS_BASE */
 
@@ -216,6 +216,15 @@
 
 /* Defined if libsvn_fs should link against libsvn_fs_x */
 #define SVN_LIBSVN_FS_LINKS_FS_X 1
+
+/* Defined if libsvn_ra should link against libsvn_ra_local */
+#define SVN_LIBSVN_RA_LINKS_RA_LOCAL 1
+
+/* Defined if libsvn_ra should link against libsvn_ra_serf */
+#define SVN_LIBSVN_RA_LINKS_RA_SERF 1
+
+/* Defined if libsvn_ra should link against libsvn_ra_svn */
+#define SVN_LIBSVN_RA_LINKS_RA_SVN 1
 
 /* Defined to be the path to the installed locale dirs */
 #define SVN_LOCALE_DIR "NONE/share/locale"
