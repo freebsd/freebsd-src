@@ -190,7 +190,6 @@ net_open(struct open_file *f, ...)
 
 	}
 	netdev_opens++;
-	f->f_devdata = &netdev_sock;
 	return (error);
 }
 
@@ -202,9 +201,6 @@ net_close(struct open_file *f)
 	if (debug)
 		printf("net_close: opens=%d\n", netdev_opens);
 #endif
-
-	f->f_devdata = NULL;
-
 	return (0);
 }
 
