@@ -279,27 +279,6 @@ parse_args(int argc, char *argv[])
 
 
 static void
-print_order(void)
-{
-	uint32_t attrs;
-	uint8_t *data;
-	size_t size, i;
-
-	if (efi_get_variable(EFI_GLOBAL_GUID, "BootOrder", &data, &size, &attrs) < 0) {
-		printf("BootOrder : Couldn't get value for BootOrder\n");
-		return;
-	}
-
-	if (size % 2 == 1)
-		errx(1, "Bad BootOrder variable: odd length");
-
-	printf("BootOrder : ");
-	for (i = 0; i < size; i += 2)
-		printf("%04x%s", le16dec(data + i), i == size - 2 ? "\n" : ", ");
-}
-
-
-static void
 read_vars(void)
 {
 
@@ -808,7 +787,14 @@ print_boot_vars(bool verbose)
 	if (ret > 0) {
 		printf("Timeout : %d seconds\n", le16dec(data));
 	}
-	print_order();
+
+	if (efi_get_variable(EFI_GLOBAL_GUID, "BootOrder", &data, &size, &attrs) > 0) {
+		if (size % 2 == 1)
+			warn("Bad BootOrder variable: odd length %d", (int)size);
+		printf("BootOrder : ");
+		for (size_t i = 0; i < size; i += 2)
+			printf("%04x%s", le16dec(data + i), i == size - 2 ? "\n" : ", ");
+	}
 
 	/* now we want to fetch 'em all fresh again
 	 * which possibly includes a newly created bootvar
