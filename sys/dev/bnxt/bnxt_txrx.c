@@ -419,6 +419,37 @@ cmpl_invalid:
 	return avail;
 }
 
+static void
+bnxt_set_rsstype(if_rxd_info_t ri, uint8_t rss_hash_type)
+{
+	uint8_t rss_profile_id;
+
+	rss_profile_id = BNXT_GET_RSS_PROFILE_ID(rss_hash_type);
+	switch (rss_profile_id) {
+	case BNXT_RSS_HASH_TYPE_TCPV4:
+		ri->iri_rsstype = M_HASHTYPE_RSS_TCP_IPV4;
+		break;
+	case BNXT_RSS_HASH_TYPE_UDPV4:
+		ri->iri_rsstype = M_HASHTYPE_RSS_UDP_IPV4;
+		break;
+	case BNXT_RSS_HASH_TYPE_IPV4:
+		ri->iri_rsstype = M_HASHTYPE_RSS_IPV4;
+		break;
+	case BNXT_RSS_HASH_TYPE_TCPV6:
+		ri->iri_rsstype = M_HASHTYPE_RSS_TCP_IPV6;
+		break;
+	case BNXT_RSS_HASH_TYPE_UDPV6:
+		ri->iri_rsstype = M_HASHTYPE_RSS_UDP_IPV6;
+		break;
+	case BNXT_RSS_HASH_TYPE_IPV6:
+		ri->iri_rsstype = M_HASHTYPE_RSS_IPV6;
+		break;
+	default:
+		ri->iri_rsstype = M_HASHTYPE_OPAQUE_HASH;
+		break;
+	}
+}
+
 static int
 bnxt_pkt_get_l2(struct bnxt_softc *softc, if_rxd_info_t ri,
     struct bnxt_cp_ring *cpr, uint16_t flags_type)
@@ -436,13 +467,7 @@ bnxt_pkt_get_l2(struct bnxt_softc *softc, if_rxd_info_t ri,
 	/* Extract from the first 16-byte BD */
 	if (flags_type & RX_PKT_CMPL_FLAGS_RSS_VALID) {
 		ri->iri_flowid = le32toh(rcp->rss_hash);
-		/*
-		 * TODO: Extract something useful from rcp->rss_hash_type
-		 * (undocumented)
-		 * May be documented in the "LSI ES"
-		 * also check the firmware code.
-		 */
-		ri->iri_rsstype = M_HASHTYPE_OPAQUE;
+		bnxt_set_rsstype(ri, rcp->rss_hash_type);
 	}
 	else {
 		ri->iri_rsstype = M_HASHTYPE_NONE;
@@ -476,9 +501,11 @@ bnxt_pkt_get_l2(struct bnxt_softc *softc, if_rxd_info_t ri,
 		if (!(errors & RX_PKT_CMPL_ERRORS_IP_CS_ERROR))
 			ri->iri_csum_flags |= CSUM_IP_VALID;
 	}
-	if (flags2 & RX_PKT_CMPL_FLAGS2_L4_CS_CALC) {
+	if (flags2 & (RX_PKT_CMPL_FLAGS2_L4_CS_CALC |
+		      RX_PKT_CMPL_FLAGS2_T_L4_CS_CALC)) {
 		ri->iri_csum_flags |= CSUM_L4_CALC;
-		if (!(errors & RX_PKT_CMPL_ERRORS_L4_CS_ERROR)) {
+		if (!(errors & (RX_PKT_CMPL_ERRORS_L4_CS_ERROR |
+				RX_PKT_CMPL_ERRORS_T_L4_CS_ERROR))) {
 			ri->iri_csum_flags |= CSUM_L4_VALID;
 			ri->iri_csum_data = 0xffff;
 		}
@@ -522,13 +549,7 @@ bnxt_pkt_get_tpa(struct bnxt_softc *softc, if_rxd_info_t ri,
 	/* Extract from the first 16-byte BD */
 	if (le16toh(tpas->low.flags_type) & RX_TPA_START_CMPL_FLAGS_RSS_VALID) {
 		ri->iri_flowid = le32toh(tpas->low.rss_hash);
-		/*
-		 * TODO: Extract something useful from tpas->low.rss_hash_type
-		 * (undocumented)
-		 * May be documented in the "LSI ES"
-		 * also check the firmware code.
-		 */
-		ri->iri_rsstype = M_HASHTYPE_OPAQUE;
+		bnxt_set_rsstype(ri, tpas->low.rss_hash_type);
 	}
 	else {
 		ri->iri_rsstype = M_HASHTYPE_NONE;
