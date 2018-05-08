@@ -13,19 +13,30 @@
 # rearguard format.
 
 BEGIN {
-  dst_type["vanguard.zi"] = 1
-  dst_type["main.zi"] = 1
-  dst_type["rearguard.zi"] = 1
+  dataform_type["vanguard"] = 1
+  dataform_type["main"] = 1
+  dataform_type["rearguard"] = 1
 
-  # The command line should set OUTFILE to the name of the output file.
-  if (!dst_type[outfile]) exit 1
-  vanguard = outfile == "vanguard.zi"
+  # The command line should set DATAFORM.
+  if (!dataform_type[DATAFORM]) exit 1
+  vanguard = DATAFORM == "vanguard"
 }
 
 /^Zone/ { zone = $2 }
 
-outfile != "main.zi" {
+DATAFORM != "main" {
   in_comment = /^#/
+  uncomment = comment_out = 0
+
+  # If the line should differ due to Czechoslovakia using negative SAVE values,
+  # uncomment the desired version and comment out the undesired one.
+  if (zone == "Europe/Prague" && /1947 Feb 23/) {
+    if (($(in_comment + 2) != "-") == vanguard) {
+      uncomment = in_comment
+    } else {
+      comment_out = !in_comment
+    }
+  }
 
   # If this line should differ due to Ireland using negative SAVE values,
   # uncomment the desired version and comment out the undesired one.
@@ -37,10 +48,37 @@ outfile != "main.zi" {
     if ((Rule_Eire \
 	 || (Zone_Dublin_post_1968 && $(in_comment + 3) == "IST/GMT"))	\
 	== vanguard) {
-      sub(/^#/, "")
-    } else if (/^[^#]/) {
-      sub(/^/, "#")
+      uncomment = in_comment
+    } else {
+      comment_out = !in_comment
     }
+  }
+
+  # If this line should differ due to Namibia using Rule SAVE suffixes,
+  # uncomment the desired version and comment out the undesired one.
+  Rule_Namibia = /^#?Rule[\t ]+Namibia[\t ]/
+  Zone_using_Namibia_rule \
+    = (zone == "Africa/Windhoek" \
+       && ($(in_comment + 2) == "Namibia" \
+	   || (1994 <= $(in_comment + 4) && $(in_comment + 4) <= 2017) \
+	   || in_comment + 3 == NF))
+  if (Rule_Namibia || Zone_using_Namibia_rule) {
+      if ((Rule_Namibia \
+	   ? ($(in_comment + 9) ~ /^-/ \
+	      || ($(in_comment + 9) == 0 && $(in_comment + 10) == "CAT")) \
+	   : $(in_comment + 1) == "2:00" && $(in_comment + 2) == "Namibia") \
+	  == vanguard) {
+      uncomment = in_comment
+    } else {
+      comment_out = !in_comment
+    }
+  }
+
+  if (uncomment) {
+    sub(/^#/, "")
+  }
+  if (comment_out) {
+    sub(/^/, "#")
   }
 }
 
