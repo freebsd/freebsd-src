@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 8, 2017
+.Dd May 8, 2018
 .Dt EFIBOOTMGR 8
 .Os
 .Sh NAME
@@ -111,10 +111,10 @@ variable.
 The
 .Nm
 program can be used to create new EFI boot variables. To create a new
-boot var pointing to an installation on partition 1 of device ada0 using
-the given loader with a description FreeBSD-11: 
+boot var pointing to an installation with its EFI partition mounted
+under /mnt, the given loader and a label "FreeBSD-11":
 .Pp
-.Dl efibootmgr -c -d ada0 -p 1 -l/EFI/BOOT/BOOTX64.EFI -L FreeBSD-11
+.Dl efibootmgr -c -l /mnt/EFI/BOOT/BOOTX64.EFI -L FreeBSD-11
 .Pp
 This will result in the next available BootVarNum being assigned to a
 new UEFI load variable, and given the label "FreeBSD-11" such as:
