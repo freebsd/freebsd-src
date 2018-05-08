@@ -102,7 +102,6 @@ static struct option lopts[] = {
 	{"del-timout", no_argument, NULL, 'T'},
 	{"delete", required_argument, NULL, 'B'},
 	{"delete-bootnext", required_argument, NULL, 'N'},
-	{"device", required_argument, NULL, 'd'},
 	{"dry-run", no_argument, NULL, 'D'},
 	{"env", required_argument, NULL, 'e'},
 	{"help", no_argument, NULL, 'h'},
@@ -110,7 +109,6 @@ static struct option lopts[] = {
 	{"label", required_argument, NULL, 'L'},
 	{"loader", required_argument, NULL, 'l'},
 	{"once", no_argument, NULL, 'O'},
-	{"partition", required_argument, NULL, 'p'},
 	{"set-timeout", required_argument, NULL, 't'},
 	{"verbose", no_argument, NULL, 'v'},
 	{ NULL, 0, NULL, 0}
