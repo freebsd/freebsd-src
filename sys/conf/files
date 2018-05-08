@@ -2541,25 +2541,6 @@ dev/netmap/netmap_legacy.c	optional netmap
 # compile-with "${NORMAL_C} -Wconversion -Wextra"
 dev/nfsmb/nfsmb.c		optional nfsmb pci
 dev/nge/if_nge.c		optional nge
-dev/nxge/if_nxge.c		optional nxge \
-	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
-dev/nxge/xgehal/xgehal-device.c	optional nxge \
-	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
-dev/nxge/xgehal/xgehal-mm.c	optional nxge
-dev/nxge/xgehal/xge-queue.c	optional nxge
-dev/nxge/xgehal/xgehal-driver.c	optional nxge \
-	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
-dev/nxge/xgehal/xgehal-ring.c	optional nxge \
-	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
-dev/nxge/xgehal/xgehal-channel.c	optional nxge \
-	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
-dev/nxge/xgehal/xgehal-fifo.c	optional nxge \
-	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
-dev/nxge/xgehal/xgehal-stats.c	optional nxge \
-	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
-dev/nxge/xgehal/xgehal-config.c	optional nxge
-dev/nxge/xgehal/xgehal-mgmt.c	optional nxge \
-	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
 dev/nmdm/nmdm.c			optional nmdm
 dev/nsp/nsp.c			optional nsp
 dev/nsp/nsp_pccard.c		optional nsp pccard
