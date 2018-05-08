@@ -216,7 +216,6 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	}
 
 	switch (rtype) {
-
 		case R_X86_64_NONE:	/* none */
 			break;
 
@@ -255,7 +254,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			 * objects.
 			 */
 			printf("kldload: unexpected R_COPY relocation\n");
-			return -1;
+			return (-1);
 			break;
 
 		case R_X86_64_GLOB_DAT:	/* S */
@@ -277,9 +276,9 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		default:
 			printf("kldload: unexpected relocation type %ld\n",
 			       rtype);
-			return -1;
+			return (-1);
 	}
-	return(0);
+	return (0);
 }
 
 int
