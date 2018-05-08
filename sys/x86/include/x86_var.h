@@ -81,7 +81,8 @@ extern	int	_ufssel;
 extern	int	_ugssel;
 extern	int	use_xsave;
 extern	uint64_t xsave_mask;
-extern int	pti;
+extern	int	pti;
+extern	int	hw_ibrs_active;
 
 struct	pcb;
 struct	thread;
