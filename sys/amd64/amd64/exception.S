@@ -108,8 +108,6 @@ MCOUNT_LABEL(btrap)
 	movq $0,TF_ADDR(%rsp) ; \
 	movq $0,TF_ERR(%rsp) ; \
 	jmp alltraps_noen
-IDTVEC(dbg)
-	TRAP_NOEN(T_TRCTRAP)
 IDTVEC(bpt)
 	TRAP_NOEN(T_BPTFLT)
 #ifdef KDTRACE_HOOKS
@@ -434,6 +432,101 @@ IDTVEC(fast_syscall)
  */
 IDTVEC(fast_syscall32)
 	sysret
+
+/*
+ * DB# handler is very similar to NM#, because 'mov/pop %ss' delay
+ * generation of exception until the next instruction is executed,
+ * which might be a kernel entry.  So we must execute the handler
+ * on IST stack and be ready for non-kernel GSBASE.
+ */
+IDTVEC(dbg)
+	subq	$TF_RIP,%rsp
+	movl	$(T_TRCTRAP),TF_TRAPNO(%rsp)
+	movq	$0,TF_ADDR(%rsp)
+	movq	$0,TF_ERR(%rsp)
+	movq	%rdi,TF_RDI(%rsp)
+	movq	%rsi,TF_RSI(%rsp)
+	movq	%rdx,TF_RDX(%rsp)
+	movq	%rcx,TF_RCX(%rsp)
+	movq	%r8,TF_R8(%rsp)
+	movq	%r9,TF_R9(%rsp)
+	movq	%rax,TF_RAX(%rsp)
+	movq	%rbx,TF_RBX(%rsp)
+	movq	%rbp,TF_RBP(%rsp)
+	movq	%r10,TF_R10(%rsp)
+	movq	%r11,TF_R11(%rsp)
+	movq	%r12,TF_R12(%rsp)
+	movq	%r13,TF_R13(%rsp)
+	movq	%r14,TF_R14(%rsp)
+	movq	%r15,TF_R15(%rsp)
+	movw	%fs,TF_FS(%rsp)
+	movw	%gs,TF_GS(%rsp)
+	movw	%es,TF_ES(%rsp)
+	movw	%ds,TF_DS(%rsp)
+	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
+	cld
+	testb	$SEL_RPL_MASK,TF_CS(%rsp)
+	jnz	dbg_fromuserspace
+	/*
+	 * We've interrupted the kernel.  Preserve GS.base in %r12.
+	 */
+	movl	$MSR_GSBASE,%ecx
+	rdmsr
+	movq	%rax,%r12
+	shlq	$32,%rdx
+	orq	%rdx,%r12
+	/* Retrieve and load the canonical value for GS.base. */
+	movq	TF_SIZE(%rsp),%rdx
+	movl	%edx,%eax
+	shrq	$32,%rdx
+	wrmsr
+	FAKE_MCOUNT(TF_RIP(%rsp))
+	movq	%rsp,%rdi
+	call	trap
+	MEXITCOUNT
+	/*
+	 * Put back the preserved MSR_GSBASE value.
+	 */
+	movl	$MSR_GSBASE,%ecx
+	movq	%r12,%rdx
+	movl	%edx,%eax
+	shrq	$32,%rdx
+	wrmsr
+	movq	TF_RDI(%rsp),%rdi
+	movq	TF_RSI(%rsp),%rsi
+	movq	TF_RDX(%rsp),%rdx
+	movq	TF_RCX(%rsp),%rcx
+	movq	TF_R8(%rsp),%r8
+	movq	TF_R9(%rsp),%r9
+	movq	TF_RAX(%rsp),%rax
+	movq	TF_RBX(%rsp),%rbx
+	movq	TF_RBP(%rsp),%rbp
+	movq	TF_R10(%rsp),%r10
+	movq	TF_R11(%rsp),%r11
+	movq	TF_R12(%rsp),%r12
+	movq	TF_R13(%rsp),%r13
+	movq	TF_R14(%rsp),%r14
+	movq	TF_R15(%rsp),%r15
+	addq	$TF_RIP,%rsp
+	jmp	doreti_iret
+dbg_fromuserspace:
+	/*
+	 * Switch to kernel GSBASE and kernel page table, and copy frame
+	 * from the IST stack to the normal kernel stack, since trap()
+	 * re-enables interrupts, and since we might trap on DB# while
+	 * in trap().
+	 */
+	swapgs
+	movq	PCPU(RSP0),%rax
+	movl	$TF_SIZE,%ecx
+	subq	%rcx,%rax
+	movq	%rax,%rdi
+	movq	%rsp,%rsi
+	rep;movsb
+	movq	%rax,%rsp
+	movq	PCPU(CURPCB),%rdi
+	orl	$PCB_FULL_IRET,PCB_FLAGS(%rdi)
+	jmp	calltrap
 
 /*
  * NMI handling is special.
