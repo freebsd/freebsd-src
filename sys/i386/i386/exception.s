@@ -103,8 +103,6 @@ MCOUNT_LABEL(btrap)
 
 IDTVEC(div)
 	pushl $0; TRAP(T_DIVIDE)
-IDTVEC(dbg)
-	pushl $0; TRAP(T_TRCTRAP)
 IDTVEC(bpt)
 	pushl $0; TRAP(T_BPTFLT)
 IDTVEC(dtrace_ret)
@@ -287,6 +285,39 @@ norm_ill:
 	jmp	alltraps
 #endif
 
+/*
+ * See comment in the handler for the kernel case T_TRCTRAP in trap.c.
+ * The exception handler must be ready to execute with wrong %cr3.
+ * We save original %cr3 in frame->tf_err, similarly to NMI and MCE
+ * handlers.
+ */
+IDTVEC(dbg)
+	pushl	$0
+	pushl	$T_TRCTRAP
+	PUSH_FRAME2
+	SET_KERNEL_SREGS
+	cld
+	movl	%cr3, %eax
+	movl	%eax, TF_ERR(%esp)
+	call	1f
+1:	popl	%eax
+	movl	(tramp_idleptd - 1b)(%eax), %eax
+	movl	%eax, %cr3
+	FAKE_MCOUNT(TF_EIP(%esp))
+	testl	$PSL_VM, TF_EFLAGS(%esp)
+	jnz	dbg_user
+	testb	$SEL_RPL_MASK,TF_CS(%esp)
+	jz	calltrap
+dbg_user:
+	NMOVE_STACKS
+	pushl	%esp
+	movl	$trap,%eax
+	call	*%eax
+	add	$4, %esp
+	movl	$T_RESERVED, TF_TRAPNO(%esp)
+	MEXITCOUNT
+	jmp	doreti
+
 IDTVEC(mchk)
 	pushl	$0
 	pushl	$T_MCHK
@@ -468,6 +499,8 @@ doreti_exit:
 	cmpl	$T_NMI, TF_TRAPNO(%esp)
 	je	doreti_iret_nmi
 	cmpl	$T_MCHK, TF_TRAPNO(%esp)
+	je	doreti_iret_nmi
+	cmpl	$T_TRCTRAP, TF_TRAPNO(%esp)
 	je	doreti_iret_nmi
 	testl	$SEL_RPL_MASK, TF_CS(%esp)
 	jz	doreti_popl_fs
