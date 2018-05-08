@@ -74,13 +74,35 @@ bnxt_init_sysctl_ctx(struct bnxt_softc *softc)
 		return ENOMEM;
 	}
 
-	sysctl_ctx_init(&softc->nvm_info->nvm_ctx);
+	if (BNXT_PF(softc)) {
+		sysctl_ctx_init(&softc->nvm_info->nvm_ctx);
+		ctx = device_get_sysctl_ctx(softc->dev);
+		softc->nvm_info->nvm_oid = SYSCTL_ADD_NODE(ctx,
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
+		    "nvram", CTLFLAG_RD, 0, "nvram information");
+		if (!softc->nvm_info->nvm_oid) {
+			sysctl_ctx_free(&softc->nvm_info->nvm_ctx);
+			return ENOMEM;
+		}
+	}
+
+	sysctl_ctx_init(&softc->hw_lro_ctx);
 	ctx = device_get_sysctl_ctx(softc->dev);
-	softc->nvm_info->nvm_oid = SYSCTL_ADD_NODE(ctx,
+	softc->hw_lro_oid = SYSCTL_ADD_NODE(ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
-	    "nvram", CTLFLAG_RD, 0, "nvram information");
-	if (!softc->nvm_info->nvm_oid) {
-		sysctl_ctx_free(&softc->nvm_info->nvm_ctx);
+	    "hw_lro", CTLFLAG_RD, 0, "hardware lro");
+	if (!softc->hw_lro_oid) {
+		sysctl_ctx_free(&softc->hw_lro_ctx);
+		return ENOMEM;
+	}
+
+	sysctl_ctx_init(&softc->flow_ctrl_ctx);
+	ctx = device_get_sysctl_ctx(softc->dev);
+	softc->flow_ctrl_oid = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
+	    "fc", CTLFLAG_RD, 0, "flow ctrl");
+	if (!softc->flow_ctrl_oid) {
+		sysctl_ctx_free(&softc->flow_ctrl_ctx);
 		return ENOMEM;
 	}
 
@@ -107,12 +129,27 @@ bnxt_free_sysctl_ctx(struct bnxt_softc *softc)
 		else
 			softc->ver_info->ver_oid = NULL;
 	}
-	if (softc->nvm_info->nvm_oid != NULL) {
+	if (BNXT_PF(softc) && softc->nvm_info->nvm_oid != NULL) {
 		orc = sysctl_ctx_free(&softc->nvm_info->nvm_ctx);
 		if (orc)
 			rc = orc;
 		else
 			softc->nvm_info->nvm_oid = NULL;
+	}
+	if (softc->hw_lro_oid != NULL) {
+		orc = sysctl_ctx_free(&softc->hw_lro_ctx);
+		if (orc)
+			rc = orc;
+		else
+			softc->hw_lro_oid = NULL;
+	}
+
+	if (softc->flow_ctrl_oid != NULL) {
+		orc = sysctl_ctx_free(&softc->flow_ctrl_ctx);
+		if (orc)
+			rc = orc;
+		else
+			softc->flow_ctrl_oid = NULL;
 	}
 
 	return rc;
@@ -162,6 +199,456 @@ bnxt_create_tx_sysctls(struct bnxt_softc *softc, int txr)
 
 	return 0;
 }
+
+int
+bnxt_create_port_stats_sysctls(struct bnxt_softc *softc)
+{
+	struct sysctl_oid *oid;
+	char	name[32];
+	char	desc[64];
+
+	sprintf(name, "port_stats");
+	sprintf(desc, "Port Stats");
+	oid = SYSCTL_ADD_NODE(&softc->hw_stats,
+			SYSCTL_CHILDREN(softc->hw_stats_oid), OID_AUTO, name, CTLFLAG_RD, 0,
+			desc);
+	if (!oid)
+		return ENOMEM;
+
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_64b_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_64b_frames, "Transmitted 64b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_65b_127b_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_65b_127b_frames, 
+	    "Transmitted 65b 127b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_128b_255b_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_128b_255b_frames, 
+	    "Transmitted 128b 255b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_256b_511b_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_256b_511b_frames, 
+	    "Transmitted 256b 511b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_512b_1023b_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_512b_1023b_frames, 
+	    "Transmitted 512b 1023b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_1024b_1518_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_1024b_1518_frames, 
+	    "Transmitted 1024b 1518 frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_good_vlan_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_good_vlan_frames, 
+	    "Transmitted good vlan frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_1519b_2047_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_1519b_2047_frames, 
+	    "Transmitted 1519b 2047 frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_2048b_4095b_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_2048b_4095b_frames, 
+	    "Transmitted 2048b 4095b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_4096b_9216b_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_4096b_9216b_frames, 
+	    "Transmitted 4096b 9216b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_9217b_16383b_frames", CTLFLAG_RD, 
+	    &softc->tx_port_stats->tx_9217b_16383b_frames, 
+	    "Transmitted 9217b 16383b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_good_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_good_frames, "Transmitted good frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_total_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_total_frames, "Transmitted total frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_ucast_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_ucast_frames, "Transmitted ucast frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_mcast_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_mcast_frames, "Transmitted mcast frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_bcast_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_bcast_frames, "Transmitted bcast frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_pause_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_pause_frames, "Transmitted pause frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_pfc_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_pfc_frames, "Transmitted pfc frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_jabber_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_jabber_frames, "Transmitted jabber frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_fcs_err_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_fcs_err_frames, 
+	    "Transmitted fcs err frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_control_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_control_frames, 
+	    "Transmitted control frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_oversz_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_oversz_frames, "Transmitted oversz frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_single_dfrl_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_single_dfrl_frames, 
+	    "Transmitted single dfrl frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_multi_dfrl_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_multi_dfrl_frames, 
+	    "Transmitted multi dfrl frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_single_coll_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_single_coll_frames, 
+	    "Transmitted single coll frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_multi_coll_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_multi_coll_frames, 
+	    "Transmitted multi coll frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_late_coll_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_late_coll_frames, 
+	    "Transmitted late coll frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_excessive_coll_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_excessive_coll_frames, 
+	    "Transmitted excessive coll frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_frag_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_frag_frames, "Transmitted frag frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_err", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_err, "Transmitted err");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_tagged_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_tagged_frames, "Transmitted tagged frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_dbl_tagged_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_dbl_tagged_frames, 
+	    "Transmitted dbl tagged frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_runt_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_runt_frames, "Transmitted runt frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_fifo_underruns", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_fifo_underruns, 
+	    "Transmitted fifo underruns");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_pfc_ena_frames_pri0", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_pfc_ena_frames_pri0, 
+	    "Transmitted pfc ena frames pri0");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_pfc_ena_frames_pri1", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_pfc_ena_frames_pri1, 
+	    "Transmitted pfc ena frames pri1");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_pfc_ena_frames_pri2", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_pfc_ena_frames_pri2, 
+	    "Transmitted pfc ena frames pri2");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_pfc_ena_frames_pri3", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_pfc_ena_frames_pri3, 
+	    "Transmitted pfc ena frames pri3");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_pfc_ena_frames_pri4", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_pfc_ena_frames_pri4, 
+	    "Transmitted pfc ena frames pri4");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_pfc_ena_frames_pri5", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_pfc_ena_frames_pri5, 
+	    "Transmitted pfc ena frames pri5");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_pfc_ena_frames_pri6", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_pfc_ena_frames_pri6, 
+	    "Transmitted pfc ena frames pri6");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_pfc_ena_frames_pri7", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_pfc_ena_frames_pri7, 
+	    "Transmitted pfc ena frames pri7");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_eee_lpi_events", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_eee_lpi_events, 
+	    "Transmitted eee lpi events");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_eee_lpi_duration", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_eee_lpi_duration, 
+	    "Transmitted eee lpi duration");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_llfc_logical_msgs", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_llfc_logical_msgs, 
+	    "Transmitted llfc logical msgs");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_hcfc_msgs", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_hcfc_msgs, "Transmitted hcfc msgs");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_total_collisions", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_total_collisions, 
+	    "Transmitted total collisions");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_bytes", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_bytes, "Transmitted bytes");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_xthol_frames", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_xthol_frames, "Transmitted xthol frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_stat_discard", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_stat_discard, "Transmitted stat discard");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_stat_error", CTLFLAG_RD,
+ 	    &softc->tx_port_stats->tx_stat_error, "Transmitted stat error");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_64b_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_64b_frames, "Received 64b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_65b_127b_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_65b_127b_frames, "Received 65b 127b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_128b_255b_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_128b_255b_frames, 
+	    "Received 128b 255b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_256b_511b_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_256b_511b_frames, 
+	    "Received 256b 511b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_512b_1023b_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_512b_1023b_frames, 
+	    "Received 512b 1023b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_1024b_1518_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_1024b_1518_frames, 
+	    "Received 1024b 1518 frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_good_vlan_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_good_vlan_frames, 
+	    "Received good vlan frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_1519b_2047b_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_1519b_2047b_frames, 
+	    "Received 1519b 2047b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_2048b_4095b_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_2048b_4095b_frames, 
+	    "Received 2048b 4095b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_4096b_9216b_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_4096b_9216b_frames, 
+	    "Received 4096b 9216b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_9217b_16383b_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_9217b_16383b_frames, 
+	    "Received 9217b 16383b frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_total_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_total_frames, "Received total frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_ucast_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_ucast_frames, "Received ucast frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_mcast_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_mcast_frames, "Received mcast frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_bcast_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_bcast_frames, "Received bcast frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_fcs_err_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_fcs_err_frames, "Received fcs err frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_ctrl_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_ctrl_frames, "Received ctrl frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pause_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pause_frames, "Received pause frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_frames, "Received pfc frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_unsupported_opcode_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_unsupported_opcode_frames, 
+	    "Received unsupported opcode frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_unsupported_da_pausepfc_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_unsupported_da_pausepfc_frames, 
+	    "Received unsupported da pausepfc frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_wrong_sa_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_wrong_sa_frames, 
+	    "Received wrong sa frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_align_err_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_align_err_frames, 
+	    "Received align err frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_oor_len_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_oor_len_frames, 
+	    "Received oor len frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_code_err_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_code_err_frames, 
+	    "Received code err frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_false_carrier_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_false_carrier_frames, 
+	    "Received false carrier frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_ovrsz_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_ovrsz_frames, 
+	    "Received ovrsz frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_jbr_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_jbr_frames, 
+	    "Received jbr frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_mtu_err_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_mtu_err_frames, 
+	    "Received mtu err frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_match_crc_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_match_crc_frames, 
+	    "Received match crc frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_promiscuous_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_promiscuous_frames, 
+	    "Received promiscuous frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_tagged_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_tagged_frames, 
+	    "Received tagged frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_double_tagged_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_double_tagged_frames, 
+	    "Received double tagged frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_trunc_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_trunc_frames, 
+	    "Received trunc frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_good_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_good_frames, 
+	    "Received good frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_xon2xoff_frames_pri0", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_xon2xoff_frames_pri0, 
+	    "Received pfc xon2xoff frames pri0");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_xon2xoff_frames_pri1", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_xon2xoff_frames_pri1, 
+	    "Received pfc xon2xoff frames pri1");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_xon2xoff_frames_pri2", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_xon2xoff_frames_pri2, 
+	    "Received pfc xon2xoff frames pri2");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_xon2xoff_frames_pri3", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_xon2xoff_frames_pri3, 
+	    "Received pfc xon2xoff frames pri3");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_xon2xoff_frames_pri4", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_xon2xoff_frames_pri4, 
+	    "Received pfc xon2xoff frames pri4");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_xon2xoff_frames_pri5", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_xon2xoff_frames_pri5, 
+	    "Received pfc xon2xoff frames pri5");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_xon2xoff_frames_pri6", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_xon2xoff_frames_pri6, 
+	    "Received pfc xon2xoff frames pri6");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_xon2xoff_frames_pri7", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_xon2xoff_frames_pri7, 
+	    "Received pfc xon2xoff frames pri7");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_ena_frames_pri0", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_ena_frames_pri0, 
+	    "Received pfc ena frames pri0");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_ena_frames_pri1", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_ena_frames_pri1, 
+	    "Received pfc ena frames pri1");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_ena_frames_pri2", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_ena_frames_pri2, 
+	    "Received pfc ena frames pri2");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_ena_frames_pri3", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_ena_frames_pri3, 
+	    "Received pfc ena frames pri3");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_ena_frames_pri4", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_ena_frames_pri4, 
+	    "Received pfc ena frames pri4");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_ena_frames_pri5", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_ena_frames_pri5, 
+	    "Received pfc ena frames pri5");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_ena_frames_pri6", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_ena_frames_pri6, 
+	    "Received pfc ena frames pri6");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_pfc_ena_frames_pri7", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_pfc_ena_frames_pri7, 
+	    "Received pfc ena frames pri7");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_sch_crc_err_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_sch_crc_err_frames, 
+	    "Received sch crc err frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_undrsz_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_undrsz_frames, "Received undrsz frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_frag_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_frag_frames, "Received frag frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_eee_lpi_events", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_eee_lpi_events, "Received eee lpi events");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_eee_lpi_duration", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_eee_lpi_duration, 
+	    "Received eee lpi duration");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_llfc_physical_msgs", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_llfc_physical_msgs, 
+	    "Received llfc physical msgs");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_llfc_logical_msgs", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_llfc_logical_msgs, 
+	    "Received llfc logical msgs");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_llfc_msgs_with_crc_err", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_llfc_msgs_with_crc_err, 
+	    "Received llfc msgs with crc err");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_hcfc_msgs", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_hcfc_msgs, "Received hcfc msgs");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_hcfc_msgs_with_crc_err", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_hcfc_msgs_with_crc_err, 
+	    "Received hcfc msgs with crc err");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_bytes", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_bytes, "Received bytes");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_runt_bytes", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_runt_bytes, "Received runt bytes");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_runt_frames", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_runt_frames, "Received runt frames");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_stat_discard", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_stat_discard, "Received stat discard");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_stat_err", CTLFLAG_RD,
+ 	    &softc->rx_port_stats->rx_stat_err, "Received stat err");
+
+	return 0;
+}
+
 
 int
 bnxt_create_rx_sysctls(struct bnxt_softc *softc, int rxr)
@@ -549,6 +1036,166 @@ bnxt_vlan_strip_sysctl(SYSCTL_HANDLER_ARGS) {
 	return rc;
 }
 
+static int
+bnxt_set_coal_rx_usecs(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->rx_coal_usecs;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->rx_coal_usecs = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
+static int
+bnxt_set_coal_rx_frames(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->rx_coal_frames;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->rx_coal_frames = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
+static int
+bnxt_set_coal_rx_usecs_irq(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->rx_coal_usecs_irq;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->rx_coal_usecs_irq = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
+static int
+bnxt_set_coal_rx_frames_irq(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->rx_coal_frames_irq;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->rx_coal_frames_irq = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
+static int
+bnxt_set_coal_tx_usecs(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->tx_coal_usecs;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->tx_coal_usecs = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
+static int
+bnxt_set_coal_tx_frames(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->tx_coal_frames;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->tx_coal_frames = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
+static int
+bnxt_set_coal_tx_usecs_irq(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->tx_coal_usecs_irq;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->tx_coal_usecs_irq = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
+static int
+bnxt_set_coal_tx_frames_irq(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->tx_coal_frames_irq;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->tx_coal_frames_irq = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
 int
 bnxt_create_config_sysctls_pre(struct bnxt_softc *softc)
 {
@@ -572,9 +1219,158 @@ bnxt_create_config_sysctls_pre(struct bnxt_softc *softc)
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "if_name", CTLFLAG_RD,
 		iflib_get_ifp(softc->ctx)->if_xname, 0, "interface name");
 
+        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_usecs",
+                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_rx_usecs,
+			"I", "interrupt coalescing Rx Usecs");
+        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_frames",
+                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_rx_frames,
+			"I", "interrupt coalescing Rx Frames");
+        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_usecs_irq",
+                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_rx_usecs_irq,
+			"I", "interrupt coalescing Rx Usecs IRQ");
+        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_frames_irq",
+                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_rx_frames_irq,
+			"I", "interrupt coalescing Rx Frames IRQ");
+        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_usecs",
+                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_tx_usecs,
+			"I", "interrupt coalescing Tx Usces");
+        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_frames",
+                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_tx_frames,
+			"I", "interrupt coalescing Tx Frames"); 
+        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_usecs_irq",
+                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_tx_usecs_irq,
+			"I", "interrupt coalescing Tx Usecs IRQ"); 
+        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_frames_irq",
+                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_tx_frames_irq,
+			"I", "interrupt coalescing Tx Frames IRQ");
+
 	return 0;
 }
 
+#define BNXT_HW_LRO_FN(fn_name, arg)			                   \
+static int						                   \
+fn_name(SYSCTL_HANDLER_ARGS) {				                   \
+	struct bnxt_softc *softc = arg1;		                   \
+	int rc;						                   \
+	int val;					                   \
+							                   \
+	if (softc == NULL)				                   \
+		return EBUSY;				                   \
+							                   \
+	val = softc->hw_lro.arg;			                   \
+	rc = sysctl_handle_int(oidp, &val, 0, req);	                   \
+	if (rc || !req->newptr)				                   \
+		return rc;				                   \
+							                   \
+	if ((if_getdrvflags(iflib_get_ifp(softc->ctx)) & IFF_DRV_RUNNING)) \
+		return EBUSY;				                   \
+							                   \
+	softc->hw_lro.arg = val;			                   \
+	bnxt_validate_hw_lro_settings(softc);		                   \
+	rc = bnxt_hwrm_vnic_tpa_cfg(softc);		                   \
+							                   \
+	return rc;					                   \
+}
+
+BNXT_HW_LRO_FN(bnxt_hw_lro_enable_disable, enable)
+BNXT_HW_LRO_FN(bnxt_hw_lro_set_mode, is_mode_gro)
+BNXT_HW_LRO_FN(bnxt_hw_lro_set_max_agg_segs, max_agg_segs)
+BNXT_HW_LRO_FN(bnxt_hw_lro_set_max_aggs, max_aggs)
+BNXT_HW_LRO_FN(bnxt_hw_lro_set_min_agg_len, min_agg_len)
+
+#define BNXT_FLOW_CTRL_FN(fn_name, arg)			                   \
+static int						                   \
+fn_name(SYSCTL_HANDLER_ARGS) {				                   \
+	struct bnxt_softc *softc = arg1;		                   \
+	int rc;						                   \
+	int val;					                   \
+							                   \
+	if (softc == NULL)				                   \
+		return EBUSY;				                   \
+							                   \
+	val = softc->link_info.flow_ctrl.arg;			           \
+	rc = sysctl_handle_int(oidp, &val, 0, req);	                   \
+	if (rc || !req->newptr)				                   \
+		return rc;				                   \
+							                   \
+	if (val)					                   \
+	   	val = 1; 				                   \
+	        					                   \
+	if (softc->link_info.flow_ctrl.arg != val) {		           \
+		softc->link_info.flow_ctrl.arg = val;		           \
+		rc = bnxt_hwrm_set_link_setting(softc, true, false, false);\
+		rc = bnxt_hwrm_port_phy_qcfg(softc);			   \
+	}						                   \
+							                   \
+	return rc;					                   \
+}
+
+BNXT_FLOW_CTRL_FN(bnxt_flow_ctrl_tx, tx)
+BNXT_FLOW_CTRL_FN(bnxt_flow_ctrl_rx, rx)
+BNXT_FLOW_CTRL_FN(bnxt_flow_ctrl_autoneg, autoneg)
+int
+bnxt_create_pause_fc_sysctls(struct bnxt_softc *softc)
+{
+	struct sysctl_oid *oid = softc->flow_ctrl_oid;
+
+	if (!oid)
+		return ENOMEM;
+
+	SYSCTL_ADD_PROC(&softc->flow_ctrl_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"tx", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
+			bnxt_flow_ctrl_tx, "A",
+			"Enable or Disable Tx Flow Ctrl: 0 / 1");
+
+	SYSCTL_ADD_PROC(&softc->flow_ctrl_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"rx", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
+			bnxt_flow_ctrl_rx, "A",
+			"Enable or Disable Tx Flow Ctrl: 0 / 1");
+
+	SYSCTL_ADD_PROC(&softc->flow_ctrl_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"autoneg", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
+			bnxt_flow_ctrl_autoneg, "A",
+			"Enable or Disable Autoneg Flow Ctrl: 0 / 1");
+
+	return 0;
+}
+
+int
+bnxt_create_hw_lro_sysctls(struct bnxt_softc *softc)
+{
+	struct sysctl_oid *oid = softc->hw_lro_oid;
+
+	if (!oid)
+		return ENOMEM;
+
+	SYSCTL_ADD_PROC(&softc->hw_lro_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"enable", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
+			bnxt_hw_lro_enable_disable, "A",
+			"Enable or Disable HW LRO: 0 / 1");
+
+	SYSCTL_ADD_PROC(&softc->hw_lro_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"gro_mode", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
+			bnxt_hw_lro_set_mode, "A",
+			"Set mode: 1 = GRO mode, 0 = RSC mode");
+
+	SYSCTL_ADD_PROC(&softc->hw_lro_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"max_agg_segs", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
+			bnxt_hw_lro_set_max_agg_segs, "A",
+			"Set Max Agg Seg Value (unit is Log2): "
+			"0 (= 1 seg) / 1 (= 2 segs) /  ... / 31 (= 2^31 segs)");
+	
+        SYSCTL_ADD_PROC(&softc->hw_lro_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"max_aggs", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
+			bnxt_hw_lro_set_max_aggs, "A",
+			"Set Max Aggs Value (unit is Log2): "
+			"0 (= 1 agg) / 1 (= 2 aggs) /  ... / 7 (= 2^7 segs)"); 
+
+	SYSCTL_ADD_PROC(&softc->hw_lro_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"min_agg_len", CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0,
+			bnxt_hw_lro_set_min_agg_len, "A",
+			"Min Agg Len: 1 to 9000");
+
+	return 0;
+}
 static int
 bnxt_vlan_only_sysctl(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;

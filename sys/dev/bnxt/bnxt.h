@@ -93,6 +93,18 @@ __FBSDID("$FreeBSD$");
 
 #define BNXT_MAX_MTU	9000
 
+#define BNXT_RSS_HASH_TYPE_TCPV4	0
+#define BNXT_RSS_HASH_TYPE_UDPV4	1
+#define BNXT_RSS_HASH_TYPE_IPV4		2
+#define BNXT_RSS_HASH_TYPE_TCPV6	3
+#define BNXT_RSS_HASH_TYPE_UDPV6	4
+#define BNXT_RSS_HASH_TYPE_IPV6		5
+#define BNXT_GET_RSS_PROFILE_ID(rss_hash_type) ((rss_hash_type >> 1) & 0x1F)
+
+#define BNXT_NO_MORE_WOL_FILTERS	0xFFFF
+#define bnxt_wol_supported(softc)	(!((softc)->flags & BNXT_FLAG_VF) && \
+					  ((softc)->flags & BNXT_FLAG_WOL_CAP ))
+
 /* Completion related defines */
 #define CMP_VALID(cmp, v_bit) \
 	((!!(((struct cmpl_base *)(cmp))->info3_v & htole32(CMPL_BASE_V))) == !!(v_bit) )
@@ -199,9 +211,30 @@ __FBSDID("$FreeBSD$");
 #define BNXT_HWRM_LOCK_DESTROY(_softc)	mtx_destroy(&(_softc)->hwrm_lock)
 #define BNXT_HWRM_LOCK_ASSERT(_softc)	mtx_assert(&(_softc)->hwrm_lock,    \
     MA_OWNED)
+#define BNXT_IS_FLOW_CTRL_CHANGED(link_info)				    \
+	((link_info->last_flow_ctrl.tx != link_info->flow_ctrl.tx) ||       \
+         (link_info->last_flow_ctrl.rx != link_info->flow_ctrl.rx) ||       \
+	 (link_info->last_flow_ctrl.autoneg != link_info->flow_ctrl.autoneg))
 
 /* Chip info */
 #define BNXT_TSO_SIZE	UINT16_MAX
+
+#define min_t(type, x, y) ({                    \
+        type __min1 = (x);                      \
+        type __min2 = (y);                      \
+        __min1 < __min2 ? __min1 : __min2; })
+
+#define max_t(type, x, y) ({                    \
+        type __max1 = (x);                      \
+        type __max2 = (y);                      \
+        __max1 > __max2 ? __max1 : __max2; })
+
+#define clamp_t(type, _x, min, max)     min_t(type, max_t(type, _x, min), max)
+
+#define BNXT_IFMEDIA_ADD(supported, fw_speed, ifm_speed) do {			\
+	if ((supported) & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_ ## fw_speed)	\
+		ifmedia_add(softc->media, IFM_ETHER | (ifm_speed), 0, NULL);	\
+} while(0)
 
 #define BNXT_MIN_FRAME_SIZE	52	/* Frames must be padded to this size for some A0 chips */
 
@@ -266,6 +299,12 @@ struct bnxt_bar_info {
 	int			rid;
 };
 
+struct bnxt_flow_ctrl {
+	bool rx;
+	bool tx;
+	bool autoneg;
+};
+
 struct bnxt_link_info {
 	uint8_t		media_type;
 	uint8_t		transceiver;
@@ -277,10 +316,8 @@ struct bnxt_link_info {
 	uint8_t		last_link_up;
 	uint8_t		duplex;
 	uint8_t		last_duplex;
-	uint8_t		pause;
-	uint8_t		last_pause;
-	uint8_t		auto_pause;
-	uint8_t		force_pause;
+	struct bnxt_flow_ctrl   flow_ctrl;
+	struct bnxt_flow_ctrl   last_flow_ctrl;
 	uint8_t		duplex_setting;
 	uint8_t		auto_mode;
 #define PHY_VER_LEN		3
@@ -298,7 +335,6 @@ struct bnxt_link_info {
 #define BNXT_AUTONEG_SPEED	1
 #define BNXT_AUTONEG_FLOW_CTRL	2
 	uint8_t		req_duplex;
-	uint8_t		req_flow_ctrl;
 	uint16_t	req_link_speed;
 };
 
@@ -372,7 +408,6 @@ struct bnxt_vf_info {
 	bus_addr_t	hwrm_cmd_req_dma_addr;
 };
 
-#define BNXT_FLAG_VF		(1<<1)
 
 #define BNXT_PF(softc)		(!((softc)->flags & BNXT_FLAG_VF))
 #define BNXT_VF(softc)		((softc)->flags & BNXT_FLAG_VF)
@@ -498,6 +533,21 @@ struct bnxt_nvram_info {
 	struct sysctl_oid	*nvm_oid;
 };
 
+struct bnxt_func_qcfg {
+	uint16_t alloc_completion_rings;
+	uint16_t alloc_tx_rings;
+	uint16_t alloc_rx_rings;
+	uint16_t alloc_vnics;
+};
+
+struct bnxt_hw_lro {
+	uint16_t enable;
+	uint16_t is_mode_gro;
+	uint16_t max_agg_segs;
+	uint16_t max_aggs;
+	uint32_t min_agg_len;
+};
+
 struct bnxt_softc {
 	device_t	dev;
 	if_ctx_t	ctx;
@@ -508,17 +558,22 @@ struct bnxt_softc {
 	struct bnxt_bar_info	hwrm_bar;
 	struct bnxt_bar_info	doorbell_bar;
 	struct bnxt_link_info	link_info;
-#define BNXT_FLAG_NPAR		1
+#define BNXT_FLAG_VF		0x0001
+#define BNXT_FLAG_NPAR		0x0002
+#define BNXT_FLAG_WOL_CAP	0x0004
+#define BNXT_FLAG_SHORT_CMD	0x0008 
 	uint32_t		flags;
 	uint32_t		total_msix;
 
 	struct bnxt_func_info	func;
+	struct bnxt_func_qcfg	fn_qcfg;
 	struct bnxt_pf_info	pf;
 	struct bnxt_vf_info	vf;
 
 	uint16_t		hwrm_cmd_seq;
 	uint32_t		hwrm_cmd_timeo;	/* milliseconds */
 	struct iflib_dma_info	hwrm_cmd_resp;
+	struct iflib_dma_info	hwrm_short_cmd_req_addr;
 	/* Interrupt info for HWRM */
 	struct if_irq		irq;
 	struct mtx		hwrm_lock;
@@ -528,6 +583,7 @@ struct bnxt_softc {
 	uint8_t			max_tc;
 	struct bnxt_cos_queue	q_info[BNXT_MAX_QUEUE];
 
+	uint64_t		admin_ticks;
 	struct iflib_dma_info	hw_rx_port_stats;
 	struct iflib_dma_info	hw_tx_port_stats;
 	struct rx_port_stats	*rx_port_stats;
@@ -554,9 +610,30 @@ struct bnxt_softc {
 
 	struct sysctl_ctx_list	hw_stats;
 	struct sysctl_oid	*hw_stats_oid;
+	struct sysctl_ctx_list	hw_lro_ctx;
+	struct sysctl_oid	*hw_lro_oid;
+	struct sysctl_ctx_list	flow_ctrl_ctx;
+	struct sysctl_oid	*flow_ctrl_oid;
 
 	struct bnxt_ver_info	*ver_info;
 	struct bnxt_nvram_info	*nvm_info;
+	bool wol;
+	struct bnxt_hw_lro	hw_lro;
+	uint8_t wol_filter_id;
+	uint16_t		rx_coal_usecs;
+	uint16_t		rx_coal_usecs_irq;
+	uint16_t               	rx_coal_frames;
+	uint16_t               	rx_coal_frames_irq;
+	uint16_t               	tx_coal_usecs;
+	uint16_t               	tx_coal_usecs_irq;
+	uint16_t               	tx_coal_frames;
+	uint16_t               	tx_coal_frames_irq;
+
+#define BNXT_USEC_TO_COAL_TIMER(x)      ((x) * 25 / 2)
+#define BNXT_DEF_STATS_COAL_TICKS        1000000
+#define BNXT_MIN_STATS_COAL_TICKS         250000
+#define BNXT_MAX_STATS_COAL_TICKS        1000000
+
 };
 
 struct bnxt_filter_info {
