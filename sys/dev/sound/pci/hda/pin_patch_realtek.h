@@ -372,6 +372,34 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(ACER_AC700_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_OVERRIDE(0x12, 0x99a3092f), /* int mic */
+					PIN_OVERRIDE(0x14, 0x99130110), /* speaker */
+					PIN_OVERRIDE(0x18, 0x99130110), /* mic */
+					PIN_OVERRIDE(0x1e, 0x0346101e), /* spdif1 */
+					PIN_OVERRIDE(0x21, 0x0321101f), /* hp out */
+        				{ }
+				}
+			}, {
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(HP_225AID_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_OVERRIDE(0x18, 0x2181103f), /* line in */
+					PIN_OVERRIDE(0x1b, 0x21011020), /* line out */
+        				{ }
+				}
+			}, { }
+		}
+	}, { /**** CODEC: HDA_CODEC_ALC271 ****/
+		.id = HDA_CODEC_ALC271,
+		.patches = (struct model_pin_patch_t[]){
+			{
+				.models = (struct pin_machine_model_t[]){
 					PIN_SUBVENDOR(ACER_AO725_SUBVENDOR),
 					PIN_SUBVENDOR(ACER_AO756_SUBVENDOR),
 					PIN_SUBVENDOR(ACER_E1_472_SUBVENDOR),
@@ -383,19 +411,6 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					PIN_OVERRIDE(0x19, 0x01a19c20), /* mic */
 					PIN_OVERRIDE(0x1b, 0x99a7012f), /* int mic */
 					PIN_PATCH_HP_OUT(0x21),
-        				{ }
-				}
-			}, {
-				.models = (struct pin_machine_model_t[]){
-					PIN_SUBVENDOR(ACER_AC700_SUBVENDOR),
-					{ }
-				},
-				.pin_patches = (struct pin_patch_t[]){
-					PIN_OVERRIDE(0x12, 0x99a3092f), /* int mic */
-					PIN_OVERRIDE(0x14, 0x99130110), /* speaker */
-					PIN_OVERRIDE(0x18, 0x99130110), /* mic */
-					PIN_OVERRIDE(0x1e, 0x0346101e), /* spdif1 */
-					PIN_OVERRIDE(0x21, 0x0321101f), /* hp out */
         				{ }
 				}
 			}, { }
