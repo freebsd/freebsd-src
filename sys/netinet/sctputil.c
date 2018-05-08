@@ -2662,7 +2662,7 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 			abort_len = ntohs(abort->ch.chunk_length);
 			/*
 			 * Only SCTP_CHUNK_BUFFER_SIZE are guaranteed to be
-			 * contiguos.
+			 * contiguous.
 			 */
 			if (abort_len > SCTP_CHUNK_BUFFER_SIZE) {
 				abort_len = SCTP_CHUNK_BUFFER_SIZE;
@@ -3574,7 +3574,7 @@ sctp_notify_remote_error(struct sctp_tcb *stcb, uint16_t error, struct sctp_erro
 		chunk_len = ntohs(chunk->ch.chunk_length);
 		/*
 		 * Only SCTP_CHUNK_BUFFER_SIZE are guaranteed to be
-		 * contiguos.
+		 * contiguous.
 		 */
 		if (chunk_len > SCTP_CHUNK_BUFFER_SIZE) {
 			chunk_len = SCTP_CHUNK_BUFFER_SIZE;
