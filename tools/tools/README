@@ -50,7 +50,6 @@ ncpus		Count the number of processors
 netmap		Test applications for netmap(4)
 notescheck	Check for missing devices and options in NOTES files.
 npe		Tools specific to the Intel IXP4XXX NPE device
-nxge		A diagnostic tool for the nxge(4) driver
 pciid		Generate src/share/misc/pci_vendors.
 pciroms		A tool for dumping PCI ROM images. WARNING: alpha quality.
 pirtool		A tool for dumping the $PIR table on i386 machines at runtime.
