@@ -432,6 +432,7 @@ AxConvertToBinary (
     char                    *InputLine,
     unsigned char           *OutputData)
 {
+    char                    *ColonDelimiter;
     int                     BytesConverted;
     int                     Converted[16];
     int                     i;
@@ -441,10 +442,17 @@ AxConvertToBinary (
      * Terminate input line immediately after the data. Otherwise, the
      * second line below will not scan correctly.
      *
+     * This handles varying lengths for the offset: line prefix. This support
+     * for tables larger than 1mb was added 05/2018.
+     *
      *    00b0: 03 00 00 00 43 48 41 36 0c 00 00 00 03 00 00 00  ....CHA6........
      *    00c0: 43 48 41 37                                      CHA7
+     *
+     *    012340b0: 03 00 00 00 43 48 41 36 0c 00 00 00 03 00 00 00  ....CHA6........
+     *    012340c0: 43 48 41 37                                      CHA7
      */
-    InputLine [AX_END_OF_HEX_DATA] = 0;
+    ColonDelimiter = strchr (InputLine, ':');
+    ColonDelimiter [AX_HEX_DATA_LENGTH] = 0;
 
     /*
      * Convert one line of table data, of the form:

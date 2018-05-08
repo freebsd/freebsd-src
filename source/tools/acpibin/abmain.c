@@ -186,7 +186,6 @@ AbDisplayUsage (
     ACPI_OPTION ("-a <File1> <File2>",      "Compare two binary AML files, dump all mismatches");
     ACPI_OPTION ("-c <File1> <File2>",      "Compare two binary AML files, dump first 100 mismatches");
     ACPI_OPTION ("-d <In> <Out>",           "Dump AML binary to text file");
-    ACPI_OPTION ("-e <Sig> <In> <Out>",     "Extract binary AML table from acpidump file");
     ACPI_OPTION ("-o <Value>",              "Start comparison at this offset into second file");
     ACPI_OPTION ("-h <File>",               "Display table header for binary AML file");
     ACPI_OPTION ("-s <File>",               "Update checksum for binary AML file");
