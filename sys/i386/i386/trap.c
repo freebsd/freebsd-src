@@ -118,6 +118,8 @@ static int trap_pfault(struct trapframe *, int, vm_offset_t);
 static void trap_fatal(struct trapframe *, vm_offset_t);
 void dblfault_handler(void);
 
+extern inthand_t IDTVEC(bpt), IDTVEC(dbg), IDTVEC(int0x80_syscall);
+
 #define MAX_TRAP_MSG		32
 
 struct trap_data {
@@ -662,6 +664,36 @@ kernel_trctrap:
 				load_dr6(rdr6() & ~0xf);
 				return;
 			}
+
+			/*
+			 * Malicious user code can configure a debug
+			 * register watchpoint to trap on data access
+			 * to the top of stack and then execute 'pop
+			 * %ss; int 3'.  Due to exception deferral for
+			 * 'pop %ss', the CPU will not interrupt 'int
+			 * 3' to raise the DB# exception for the debug
+			 * register but will postpone the DB# until
+			 * execution of the first instruction of the
+			 * BP# handler (in kernel mode).  Normally the
+			 * previous check would ignore DB# exceptions
+			 * for watchpoints on user addresses raised in
+			 * kernel mode.  However, some CPU errata
+			 * include cases where DB# exceptions do not
+			 * properly set bits in %dr6, e.g. Haswell
+			 * HSD23 and Skylake-X SKZ24.
+			 *
+			 * A deferred DB# can also be raised on the
+			 * first instructions of system call entry
+			 * points or single-step traps via similar use
+			 * of 'pop %ss' or 'mov xxx, %ss'.
+			 */
+			if (frame->tf_eip ==
+			    (uintptr_t)IDTVEC(int0x80_syscall) + setidt_disp ||
+			    frame->tf_eip == (uintptr_t)IDTVEC(bpt) +
+			    setidt_disp ||
+			    frame->tf_eip == (uintptr_t)IDTVEC(dbg) +
+			    setidt_disp)
+				return;
 			/*
 			 * FALLTHROUGH (TRCTRAP kernel mode, kernel address)
 			 */
