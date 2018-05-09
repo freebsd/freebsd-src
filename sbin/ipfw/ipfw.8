@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2018
+.Dd May 9, 2018
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -3048,13 +3048,6 @@ After translation NAT64 translator sends packets through corresponding netisr
 queue.
 Thus translator host should be configured as IPv4 and IPv6 router.
 .Pp
-Currently both stateful and stateless NAT64 translators use Well-Known IPv6
-Prefix
-.Ar 64:ff9b::/96
-to represent IPv4 addresses in the IPv6 address.
-Thus DNS64 service and routing should be configured to use Well-Known IPv6
-Prefix.
-.Pp
 The stateful NAT64 configuration command is the following:
 .Bd -ragged -offset indent
 .Bk -words
@@ -3067,7 +3060,7 @@ The stateful NAT64 configuration command is the following:
 .Pp
 The following parameters can be configured:
 .Bl -tag -width indent
-.It Cm prefix4 Ar ipv4_prefix/mask
+.It Cm prefix4 Ar ipv4_prefix/plen
 The IPv4 prefix with mask defines the pool of IPv4 addresses used as
 source address after translation.
 Stateful NAT64 module translates IPv6 source address of client to one
@@ -3075,6 +3068,12 @@ IPv4 address from this pool.
 Note that incoming IPv4 packets that don't have corresponding state entry
 in the states table will be dropped by translator.
 Make sure that translation rules handle packets, destined to configured prefix.
+.It Cm prefix6 Ar ipv6_prefix/length
+The IPv6 prefix defines IPv4-embedded IPv6 addresses used by translator
+to represent IPv4 addresses. This IPv6 prefix should be configured in DNS64.
+The translator implementation follows RFC6052, that restricts the length of
+prefixes to one of following: 32, 40, 48, 56, 64, or 96.
+The Well-Known IPv6 Prefix 64:ff9b:: must be 96 bits long.
 .It Cm max_ports Ar number
 Maximum number of ports reserved for upper level protocols to one IPv6 client.
 All reserved ports are divided into chunks between supported protocols.
@@ -3174,6 +3173,9 @@ The stateless NAT64 configuration command is the following:
 .Pp
 The following parameters can be configured:
 .Bl -tag -width indent
+.It Cm prefix6 Ar ipv6_prefix/length
+The IPv6 prefix defines IPv4-embedded IPv6 addresses used by translator
+to represent IPv4 addresses. This IPv6 prefix should be configured in DNS64.
 .It Cm table4 Ar table46
 The lookup table
 .Ar table46
