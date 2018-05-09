@@ -1556,18 +1556,23 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	TSRAW(&thread0, TS_ENTER, __func__, NULL);
 
-	/*
- 	 * This may be done better later if it gets more high level
- 	 * components in it. If so just link td->td_proc here.
-	 */
-	proc_linkup0(&proc0, &thread0);
-
 	kmdp = init_ops.parse_preload_data(modulep);
 
 	identify_cpu1();
 	identify_hypervisor();
+	/*
+	 * hw.cpu_stdext_disable is ignored by the call, it will be
+	 * re-evaluted by the below call to finishidentcpu().
+	 */
+	identify_cpu2();
 
-	/* link_elf_ireloc(kmdp); */
+	link_elf_ireloc(kmdp);
+
+	/*
+	 * This may be done better later if it gets more high level
+	 * components in it. If so just link td->td_proc here.
+	 */
+	proc_linkup0(&proc0, &thread0);
 
 	/* Init basic tunables, hz etc */
 	init_param1();
@@ -1753,7 +1758,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		cninit();
 		amd64_kdb_init();
 	}
-	link_elf_ireloc(kmdp);
 
 	getmemsize(kmdp, physfree);
 	init_param2(physmem);
