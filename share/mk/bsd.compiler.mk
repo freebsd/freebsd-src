@@ -157,7 +157,7 @@ ${X_}COMPILER_TYPE:=	gcc
 ${X_}COMPILER_TYPE:=	clang
 . elif ${_v:Mgcc}
 ${X_}COMPILER_TYPE:=	gcc
-. elif ${_v:M\(GCC\)}
+. elif ${_v:M\(GCC\)} || ${_v:M*GNU}
 ${X_}COMPILER_TYPE:=	gcc
 . elif ${_v:Mclang} || ${_v:M(clang-*.*.*)}
 ${X_}COMPILER_TYPE:=	clang
