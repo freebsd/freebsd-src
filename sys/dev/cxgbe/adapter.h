@@ -371,7 +371,7 @@ enum {
 	CPL_COOKIE_DDP0,
 	CPL_COOKIE_DDP1,
 	CPL_COOKIE_TOM,
-	CPL_COOKIE_AVAILABLE1,
+	CPL_COOKIE_HASHFILTER,
 	CPL_COOKIE_AVAILABLE2,
 	CPL_COOKIE_AVAILABLE3,
 
@@ -1244,6 +1244,9 @@ int get_filter(struct adapter *, struct t4_filter *);
 int set_filter(struct adapter *, struct t4_filter *);
 int del_filter(struct adapter *, struct t4_filter *);
 int t4_filter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
+int t4_hashfilter_ao_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
+int t4_hashfilter_tcb_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
+int t4_del_hashfilter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
 
 static inline struct wrqe *
 alloc_wrqe(int wr_len, struct sge_wrq *wrq)
