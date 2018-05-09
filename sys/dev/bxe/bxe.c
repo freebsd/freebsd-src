@@ -19240,7 +19240,7 @@ bxe_netdump_poll(struct ifnet *ifp, int count)
 		return (ENOENT);
 
 	for (i = 0; i < sc->num_queues; i++)
-		(void)bxe_rxeof(sc, &sc->fp[0]);
+		(void)bxe_rxeof(sc, &sc->fp[i]);
 	(void)bxe_txeof(sc, &sc->fp[0]);
 	return (0);
 }
