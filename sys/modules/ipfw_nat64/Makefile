@@ -8,4 +8,6 @@ SRCS+=	nat64lsn.c nat64lsn_control.c
 SRCS+=	nat64stl.c nat64stl_control.c
 SRCS+=	opt_ipfw.h
 
+#CFLAGS+=	-DIPFIREWALL_NAT64_DIRECT_OUTPUT
+
 .include <bsd.kmod.mk>
