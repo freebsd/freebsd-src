@@ -27,7 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define BXE_DRIVER_VERSION "1.78.90"
+#define BXE_DRIVER_VERSION "1.78.91"
 
 #include "bxe.h"
 #include "ecore_sp.h"
@@ -12039,11 +12039,10 @@ bxe_init_mcast_macs_list(struct bxe_softc                 *sc,
         ECORE_LIST_PUSH_TAIL(&mc_mac->link, &p->mcast_list);
 
         BLOGD(sc, DBG_LOAD,
-              "Setting MCAST %02X:%02X:%02X:%02X:%02X:%02X\n",
+              "Setting MCAST %02X:%02X:%02X:%02X:%02X:%02X and mc_count %d\n",
               mc_mac->mac[0], mc_mac->mac[1], mc_mac->mac[2],
-              mc_mac->mac[3], mc_mac->mac[4], mc_mac->mac[5]);
-
-        mc_mac++;
+              mc_mac->mac[3], mc_mac->mac[4], mc_mac->mac[5], mc_count);
+       mc_mac++;
     }
 
     p->mcast_list_len = mc_count;
@@ -12079,6 +12078,7 @@ bxe_set_mc_list(struct bxe_softc *sc)
     rc = ecore_config_mcast(sc, &rparam, ECORE_MCAST_CMD_DEL);
     if (rc < 0) {
         BLOGE(sc, "Failed to clear multicast configuration: %d\n", rc);
+        /* Manual backport parts of FreeBSD upstream r284470. */
         BXE_MCAST_UNLOCK(sc);
         return (rc);
     }
