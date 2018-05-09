@@ -63,6 +63,7 @@ void	taskqgroup_destroy(struct taskqgroup *qgroup);
 int	taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride);
 void	taskqgroup_config_gtask_init(void *ctx, struct grouptask *gtask, gtask_fn_t *fn,
 		const char *name);
+void	taskqgroup_config_gtask_deinit(struct grouptask *gtask);
 
 #define TASK_ENQUEUED			0x1
 #define TASK_SKIP_WAKEUP		0x2
