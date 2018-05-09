@@ -1190,14 +1190,13 @@ linux_timerfd_curval(struct timerfd *tfd, struct itimerspec *ots)
 int
 linux_timerfd_gettime(struct thread *td, struct linux_timerfd_gettime_args *args)
 {
-	cap_rights_t rights;
 	struct l_itimerspec lots;
 	struct itimerspec ots;
 	struct timerfd *tfd;
 	struct file *fp;
 	int error;
 
-	error = fget(td, args->fd, cap_rights_init(&rights, CAP_READ), &fp);
+	error = fget(td, args->fd, &cap_read_rights, &fp);
 	if (error != 0)
 		return (error);
 	tfd = fp->f_data;
@@ -1225,7 +1224,6 @@ linux_timerfd_settime(struct thread *td, struct linux_timerfd_settime_args *args
 	struct l_itimerspec lots;
 	struct itimerspec nts, ots;
 	struct timespec cts, ts;
-	cap_rights_t rights;
 	struct timerfd *tfd;
 	struct timeval tv;
 	struct file *fp;
@@ -1241,7 +1239,7 @@ linux_timerfd_settime(struct thread *td, struct linux_timerfd_settime_args *args
 	if (error != 0)
 		return (error);
 
-	error = fget(td, args->fd, cap_rights_init(&rights, CAP_WRITE), &fp);
+	error = fget(td, args->fd, &cap_write_rights, &fp);
 	if (error != 0)
 		return (error);
 	tfd = fp->f_data;

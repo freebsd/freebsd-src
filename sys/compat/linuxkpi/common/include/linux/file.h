@@ -50,12 +50,11 @@ extern struct fileops linuxfileops;
 static inline struct linux_file *
 linux_fget(unsigned int fd)
 {
-	cap_rights_t rights;
 	struct file *file;
 
 	/* lookup file pointer by file descriptor index */
 	if (fget_unlocked(curthread->td_proc->p_fd, fd,
-	    cap_rights_init(&rights), &file, NULL) != 0)
+	    &cap_no_rights, &file, NULL) != 0)
 		return (NULL);
 
 	/* check if file handle really belongs to us */
@@ -88,11 +87,10 @@ file_count(struct linux_file *filp)
 static inline void
 put_unused_fd(unsigned int fd)
 {
-	cap_rights_t rights;
 	struct file *file;
 
 	if (fget_unlocked(curthread->td_proc->p_fd, fd,
-	    cap_rights_init(&rights), &file, NULL) != 0) {
+	    &cap_no_rights, &file, NULL) != 0) {
 		return;
 	}
 	/*
@@ -109,11 +107,10 @@ put_unused_fd(unsigned int fd)
 static inline void
 fd_install(unsigned int fd, struct linux_file *filp)
 {
-	cap_rights_t rights;
 	struct file *file;
 
 	if (fget_unlocked(curthread->td_proc->p_fd, fd,
-	    cap_rights_init(&rights), &file, NULL) != 0) {
+	    &cap_no_rights, &file, NULL) != 0) {
 		filp->_file = NULL;
 	} else {
 		filp->_file = file;

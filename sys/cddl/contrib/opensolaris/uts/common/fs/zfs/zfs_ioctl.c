@@ -4446,7 +4446,6 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 	char *origin = NULL;
 	char *tosnap;
 	char tofs[ZFS_MAX_DATASET_NAME_LEN];
-	cap_rights_t rights;
 	boolean_t first_recvd_props = B_FALSE;
 
 	if (dataset_namecheck(zc->zc_value, NULL, NULL) != 0 ||
@@ -4467,7 +4466,7 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 #ifdef illumos
 	fp = getf(fd);
 #else
-	fget_read(curthread, fd, cap_rights_init(&rights, CAP_PREAD), &fp);
+	fget_read(curthread, fd, &cap_pread_rights, &fp);
 #endif
 	if (fp == NULL) {
 		nvlist_free(props);
@@ -4744,13 +4743,11 @@ zfs_ioc_send(zfs_cmd_t *zc)
 		dsl_pool_rele(dp, FTAG);
 	} else {
 		file_t *fp;
-		cap_rights_t rights;
 
 #ifdef illumos
 		fp = getf(zc->zc_cookie);
 #else
-		fget_write(curthread, zc->zc_cookie,
-		    cap_rights_init(&rights, CAP_WRITE), &fp);
+		fget_write(curthread, zc->zc_cookie, &cap_write_rights, &fp);
 #endif
 		if (fp == NULL)
 			return (SET_ERROR(EBADF));
@@ -5387,15 +5384,13 @@ static int
 zfs_ioc_diff(zfs_cmd_t *zc)
 {
 	file_t *fp;
-	cap_rights_t rights;
 	offset_t off;
 	int error;
 
 #ifdef illumos
 	fp = getf(zc->zc_cookie);
 #else
-	fget_write(curthread, zc->zc_cookie,
-		    cap_rights_init(&rights, CAP_WRITE), &fp);
+	fget_write(curthread, zc->zc_cookie, &cap_write_rights, &fp);
 #endif
 	if (fp == NULL)
 		return (SET_ERROR(EBADF));
@@ -5787,7 +5782,6 @@ zfs_ioc_unjail(zfs_cmd_t *zc)
 static int
 zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 {
-	cap_rights_t rights;
 	file_t *fp;
 	int error;
 	offset_t off;
@@ -5815,7 +5809,7 @@ zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 #ifdef illumos
 	file_t *fp = getf(fd);
 #else
-	fget_write(curthread, fd, cap_rights_init(&rights, CAP_WRITE), &fp);
+	fget_write(curthread, fd, &cap_write_rights, &fp);
 #endif
 	if (fp == NULL)
 		return (SET_ERROR(EBADF));

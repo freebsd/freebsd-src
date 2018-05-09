@@ -828,11 +828,10 @@ sys_fchdir(struct thread *td, struct fchdir_args *uap)
 	struct vnode *vp, *tdp;
 	struct mount *mp;
 	struct file *fp;
-	cap_rights_t rights;
 	int error;
 
 	AUDIT_ARG_FD(uap->fd);
-	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_FCHDIR),
+	error = getvnode(td, uap->fd, &cap_fchdir_rights,
 	    &fp);
 	if (error != 0)
 		return (error);
@@ -2260,7 +2259,6 @@ kern_statat(struct thread *td, int flag, int fd, char *path,
 {
 	struct nameidata nd;
 	struct stat sb;
-	cap_rights_t rights;
 	int error;
 
 	if (flag & ~AT_SYMLINK_NOFOLLOW)
@@ -2268,7 +2266,7 @@ kern_statat(struct thread *td, int flag, int fd, char *path,
 
 	NDINIT_ATRIGHTS(&nd, LOOKUP, ((flag & AT_SYMLINK_NOFOLLOW) ? NOFOLLOW :
 	    FOLLOW) | LOCKSHARED | LOCKLEAF | AUDITVNODE1, pathseg, path, fd,
-	    cap_rights_init(&rights, CAP_FSTAT), td);
+	    &cap_fstat_rights, td);
 
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -3942,7 +3940,6 @@ kern_getdirentries(struct thread *td, int fd, char *buf, size_t count,
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
-	cap_rights_t rights;
 	off_t loff;
 	int error, eofflag;
 	off_t foffset;
@@ -3951,7 +3948,7 @@ kern_getdirentries(struct thread *td, int fd, char *buf, size_t count,
 	if (count > IOSIZE_MAX)
 		return (EINVAL);
 	auio.uio_resid = count;
-	error = getvnode(td, fd, cap_rights_init(&rights, CAP_READ), &fp);
+	error = getvnode(td, fd, &cap_read_rights, &fp);
 	if (error != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
@@ -4392,7 +4389,6 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 	struct file *fp;
 	struct mount *mp;
 	struct vnode *vp;
-	cap_rights_t rights;
 	off_t olen, ooffset;
 	int error;
 #ifdef AUDIT
@@ -4406,7 +4402,7 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 	if (offset > OFF_MAX - len)
 		return (EFBIG);
 	AUDIT_ARG_FD(fd);
-	error = fget(td, fd, cap_rights_init(&rights, CAP_PWRITE), &fp);
+	error = fget(td, fd, &cap_pwrite_rights, &fp);
 	if (error != 0)
 		return (error);
 	AUDIT_ARG_FILE(td->td_proc, fp);
@@ -4493,7 +4489,6 @@ kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 	struct fadvise_info *fa, *new;
 	struct file *fp;
 	struct vnode *vp;
-	cap_rights_t rights;
 	off_t end;
 	int error;
 
@@ -4516,7 +4511,7 @@ kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 	}
 	/* XXX: CAP_POSIX_FADVISE? */
 	AUDIT_ARG_FD(fd);
-	error = fget(td, fd, cap_rights_init(&rights), &fp);
+	error = fget(td, fd, &cap_no_rights, &fp);
 	if (error != 0)
 		goto out;
 	AUDIT_ARG_FILE(td->td_proc, fp);
