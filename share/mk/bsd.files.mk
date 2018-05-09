@@ -67,7 +67,7 @@ STAGE_AS_${file:T}= ${${group}NAME_${file:T}}
 STAGE_DIR.${file:T}= ${STAGE_OBJTOP}${${group}DIR_${file:T}}
 stage_as.${file:T}: ${file}
 
-installfiles-${group}: _${group}INS_${file:T}
+installfiles-${group}: installdirs-${group} _${group}INS_${file:T}
 _${group}INS_${file:T}: ${file}
 	${INSTALL} ${${group}TAG_ARGS} -o ${${group}OWN_${.ALLSRC:T}} \
 	    -g ${${group}GRP_${.ALLSRC:T}} -m ${${group}MODE_${.ALLSRC:T}} \
@@ -77,10 +77,24 @@ _${group}INS_${file:T}: ${file}
 _${group}FILES+= ${file}
 .endif
 .endfor
+
+
+installdirs-${group}:
+	@echo installing dirs ${group}DIR ${${group}DIR}
+.for dir in ${${group}DIR}
+.if defined(NO_ROOT)
+	${INSTALL} ${${group}TAG_ARGS} -d ${DESTDIR}${dir}
+.else
+	${INSTALL} ${${group}TAG_ARGS} -d -o ${DIROWN} -g ${DIRGRP} \
+		-m ${DIRMODE} ${DESTDIR}${dir}
+.endif
+.endfor
+
+
 .if !empty(_${group}FILES)
 stage_files.${group}: ${_${group}FILES}
 
-installfiles-${group}: _${group}INS
+installfiles-${group}: installdirs-${group} _${group}INS
 _${group}INS: ${_${group}FILES}
 .if defined(${group}NAME)
 	${INSTALL} ${${group}TAG_ARGS} -o ${${group}OWN} -g ${${group}GRP} \
