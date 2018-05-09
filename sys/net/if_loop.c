@@ -136,7 +136,7 @@ lo_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_output = looutput;
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_capabilities = ifp->if_capenable =
-	    IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6;
+	    IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 | IFCAP_LINKSTATE;
 	ifp->if_hwassist = LO_CSUM_FEATURES | LO_CSUM_FEATURES6;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
@@ -413,6 +413,8 @@ loioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCSIFFLAGS:
+		if_link_state_change(ifp, (ifp->if_flags & IFF_UP) ?
+		    LINK_STATE_UP: LINK_STATE_DOWN);
 		break;
 
 	case SIOCSIFCAP:
