@@ -1000,7 +1000,7 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 			e1000_put_hw_semaphore_82574(hw);
 		break;
 	default:
-		panic("unknown mac type %x\n", hw->mac.type);
+		/* we didn't get the semaphore no need to put it */
 		break;
 	}
 
