@@ -436,7 +436,8 @@ static int t4_switchcaps_allowed = FW_CAPS_CONFIG_SWITCH_INGRESS |
     FW_CAPS_CONFIG_SWITCH_EGRESS;
 TUNABLE_INT("hw.cxgbe.switchcaps_allowed", &t4_switchcaps_allowed);
 
-static int t4_niccaps_allowed = FW_CAPS_CONFIG_NIC;
+static int t4_niccaps_allowed = FW_CAPS_CONFIG_NIC |
+	FW_CAPS_CONFIG_NIC_HASHFILTER;
 TUNABLE_INT("hw.cxgbe.niccaps_allowed", &t4_niccaps_allowed);
 
 static int t4_toecaps_allowed = -1;
@@ -1375,6 +1376,9 @@ t4_detach_common(device_t dev)
 	free(sc->sge.iqmap, M_CXGBE);
 	free(sc->sge.eqmap, M_CXGBE);
 	free(sc->tids.ftid_tab, M_CXGBE);
+	free(sc->tids.hftid_tab, M_CXGBE);
+	free(sc->tids.atid_tab, M_CXGBE);
+	free(sc->tids.tid_tab, M_CXGBE);
 	free(sc->tt.tls_rx_ports, M_CXGBE);
 	t4_destroy_dma_tag(sc);
 	if (mtx_initialized(&sc->sc_lock)) {
@@ -1385,8 +1389,16 @@ t4_detach_common(device_t dev)
 	}
 
 	callout_drain(&sc->sfl_callout);
-	if (mtx_initialized(&sc->tids.ftid_lock))
+	if (mtx_initialized(&sc->tids.ftid_lock)) {
 		mtx_destroy(&sc->tids.ftid_lock);
+		cv_destroy(&sc->tids.ftid_cv);
+	}
+	if (mtx_initialized(&sc->tids.hftid_lock)) {
+		mtx_destroy(&sc->tids.hftid_lock);
+		cv_destroy(&sc->tids.hftid_cv);
+	}
+	if (mtx_initialized(&sc->tids.atid_lock))
+		mtx_destroy(&sc->tids.atid_lock);
 	if (mtx_initialized(&sc->sfl_lock))
 		mtx_destroy(&sc->sfl_lock);
 	if (mtx_initialized(&sc->ifp_lock))
@@ -3477,6 +3489,20 @@ use_config_on_flash:
 	LIMIT_CAPS(fcoecaps);
 #undef LIMIT_CAPS
 
+	if (caps.niccaps & htobe16(FW_CAPS_CONFIG_NIC_HASHFILTER)) {
+		/*
+		 * TOE and hashfilters are mutually exclusive.  It is a config
+		 * file or firmware bug if both are reported as available.  Try
+		 * to cope with the situation in non-debug builds by disabling
+		 * TOE.
+		 */
+		MPASS(caps.toecaps == 0);
+
+		caps.toecaps = 0;
+		caps.rdmacaps = 0;
+		caps.iscsicaps = 0;
+	}
+
 	caps.op_to_write = htobe32(V_FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
 	    F_FW_CMD_REQUEST | F_FW_CMD_WRITE);
 	caps.cfvalid_to_len16 = htobe32(FW_LEN16(caps));
@@ -3630,18 +3656,22 @@ get_params__post_init(struct adapter *sc)
 	READ_CAPS(iscsicaps);
 	READ_CAPS(fcoecaps);
 
-	/*
-	 * The firmware attempts memfree TOE configuration for -SO cards and
-	 * will report toecaps=0 if it runs out of resources (this depends on
-	 * the config file).  It may not report 0 for other capabilities
-	 * dependent on the TOE in this case.  Set them to 0 here so that the
-	 * driver doesn't bother tracking resources that will never be used.
-	 */
-	if (sc->toecaps == 0) {
-		sc->iscsicaps = 0;
-		sc->rdmacaps = 0;
-	}
+	if (sc->niccaps & FW_CAPS_CONFIG_NIC_HASHFILTER) {
+		MPASS(chip_id(sc) > CHELSIO_T4);
+		MPASS(sc->toecaps == 0);
+		sc->toecaps = 0;
 
+		param[0] = FW_PARAM_DEV(NTID);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 6, param, val);
+		if (rc != 0) {
+			device_printf(sc->dev,
+			    "failed to query HASHFILTER parameters: %d.\n", rc);
+			return (rc);
+		}
+		sc->tids.ntids = val[0];
+		sc->tids.natids = min(sc->tids.ntids / 2, MAX_ATIDS);
+		sc->params.hash_filter = 1;
+	}
 	if (sc->niccaps & FW_CAPS_CONFIG_NIC_ETHOFLD) {
 		param[0] = FW_PARAM_PFVF(ETHOFLD_START);
 		param[1] = FW_PARAM_PFVF(ETHOFLD_END);
@@ -3659,7 +3689,6 @@ get_params__post_init(struct adapter *sc)
 		sc->params.eo_wr_cred = val[2];
 		sc->params.ethoffload = 1;
 	}
-
 	if (sc->toecaps) {
 		/* query offload-related parameters */
 		param[0] = FW_PARAM_DEV(NTID);
@@ -3682,6 +3711,17 @@ get_params__post_init(struct adapter *sc)
 		sc->vres.ddp.size = val[4] - val[3] + 1;
 		sc->params.ofldq_wr_cred = val[5];
 		sc->params.offload = 1;
+	} else {
+		/*
+		 * The firmware attempts memfree TOE configuration for -SO cards
+		 * and will report toecaps=0 if it runs out of resources (this
+		 * depends on the config file).  It may not report 0 for other
+		 * capabilities dependent on the TOE in this case.  Set them to
+		 * 0 here so that the driver doesn't bother tracking resources
+		 * that will never be used.
+		 */
+		sc->iscsicaps = 0;
+		sc->rdmacaps = 0;
 	}
 	if (sc->rdmacaps) {
 		param[0] = FW_PARAM_PFVF(STAG_START);
@@ -9895,6 +9935,12 @@ mod_event(module_t mod, int cmd, void *arg)
 			    t4_filter_rpl, CPL_COOKIE_FILTER);
 			t4_register_shared_cpl_handler(CPL_L2T_WRITE_RPL,
 			    do_l2t_write_rpl, CPL_COOKIE_FILTER);
+			t4_register_shared_cpl_handler(CPL_ACT_OPEN_RPL,
+			    t4_hashfilter_ao_rpl, CPL_COOKIE_HASHFILTER);
+			t4_register_shared_cpl_handler(CPL_SET_TCB_RPL,
+			    t4_hashfilter_tcb_rpl, CPL_COOKIE_HASHFILTER);
+			t4_register_shared_cpl_handler(CPL_ABORT_RPL_RSS,
+			    t4_del_hashfilter_rpl, CPL_COOKIE_HASHFILTER);
 			t4_register_cpl_handler(CPL_TRACE_PKT, t4_trace_pkt);
 			t4_register_cpl_handler(CPL_T5_TRACE_PKT, t5_trace_pkt);
 			sx_init(&t4_list_lock, "T4/T5 adapters");

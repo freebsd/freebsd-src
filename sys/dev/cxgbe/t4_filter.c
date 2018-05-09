@@ -47,17 +47,53 @@ __FBSDID("$FreeBSD$");
 #include "common/common.h"
 #include "common/t4_msg.h"
 #include "common/t4_regs.h"
+#include "common/t4_regs_values.h"
+#include "common/t4_tcb.h"
 #include "t4_l2t.h"
 
 struct filter_entry {
-        uint32_t valid:1;	/* filter allocated and valid */
-        uint32_t locked:1;	/* filter is administratively locked */
-        uint32_t pending:1;	/* filter action is pending firmware reply */
+	uint32_t valid:1;	/* filter allocated and valid */
+	uint32_t locked:1;	/* filter is administratively locked or busy */
+	uint32_t pending:1;	/* filter action is pending firmware reply */
 	uint32_t smtidx:8;	/* Source MAC Table index for smac */
-	struct l2t_entry *l2t;	/* Layer Two Table entry for dmac */
+	int tid;		/* tid of the filter TCB */
+	struct l2t_entry *l2te;	/* L2 table entry for DMAC rewrite */
 
-        struct t4_filter_specification fs;
+	struct t4_filter_specification fs;
 };
+
+static void free_filter_resources(struct filter_entry *);
+static int get_hashfilter(struct adapter *, struct t4_filter *);
+static int set_hashfilter(struct adapter *, struct t4_filter *,
+    struct l2t_entry *);
+static int del_hashfilter(struct adapter *, struct t4_filter *);
+static int configure_hashfilter_tcb(struct adapter *, struct filter_entry *);
+
+static void
+insert_hftid(struct adapter *sc, int tid, void *ctx, int ntids)
+{
+	struct tid_info *t = &sc->tids;
+
+	t->hftid_tab[tid] = ctx;
+	atomic_add_int(&t->tids_in_use, ntids);
+}
+
+static void *
+lookup_hftid(struct adapter *sc, int tid)
+{
+	struct tid_info *t = &sc->tids;
+
+	return (t->hftid_tab[tid]);
+}
+
+static void
+remove_hftid(struct adapter *sc, int tid, int ntids)
+{
+	struct tid_info *t = &sc->tids;
+
+	t->hftid_tab[tid] = NULL;
+	atomic_subtract_int(&t->tids_in_use, ntids);
+}
 
 static uint32_t
 fconf_iconf_to_mode(uint32_t fconf, uint32_t iconf)
@@ -209,7 +245,7 @@ get_filter_mode(struct adapter *sc, uint32_t *mode)
 	/*
 	 * We trust the cached values of the relevant TP registers.  This means
 	 * things work reliably only if writes to those registers are always via
-	 * t4_set_filter_mode_.
+	 * t4_set_filter_mode.
 	 */
 	*mode = fconf_iconf_to_mode(tpp->vlan_pri_map, tpp->ingress_config);
 
@@ -230,6 +266,10 @@ set_filter_mode(struct adapter *sc, uint32_t mode)
 		 * already set to the correct value for the requested filter
 		 * mode.  It's not clear if it's safe to write to this register
 		 * on the fly.  (And we trust the cached value of the register).
+		 *
+		 * check_fspec_against_fconf_iconf and other code that looks at
+		 * tp->vlan_pri_map and tp->ingress_config needs to be reviewed
+		 * thorougly before allowing dynamic filter mode changes.
 		 */
 		return (EBUSY);
 	}
@@ -260,12 +300,11 @@ done:
 }
 
 static inline uint64_t
-get_filter_hits(struct adapter *sc, uint32_t fid)
+get_filter_hits(struct adapter *sc, uint32_t tid)
 {
 	uint32_t tcb_addr;
 
-	tcb_addr = t4_read_reg(sc, A_TP_CMM_TCB_BASE) +
-	    (fid + sc->tids.ftid_base) * TCB_SIZE;
+	tcb_addr = t4_read_reg(sc, A_TP_CMM_TCB_BASE) + tid * TCB_SIZE;
 
 	if (is_t4(sc)) {
 		uint64_t hits;
@@ -283,28 +322,28 @@ get_filter_hits(struct adapter *sc, uint32_t fid)
 int
 get_filter(struct adapter *sc, struct t4_filter *t)
 {
-	int i, rc, nfilters = sc->tids.nftids;
+	int i, nfilters = sc->tids.nftids;
 	struct filter_entry *f;
 
-	rc = begin_synchronized_op(sc, NULL, HOLD_LOCK | SLEEP_OK | INTR_OK,
-	    "t4getf");
-	if (rc)
-		return (rc);
+	if (t->fs.hash)
+		return (get_hashfilter(sc, t));
 
 	if (sc->tids.ftids_in_use == 0 || sc->tids.ftid_tab == NULL ||
 	    t->idx >= nfilters) {
 		t->idx = 0xffffffff;
-		goto done;
+		return (0);
 	}
 
+	mtx_lock(&sc->tids.ftid_lock);
 	f = &sc->tids.ftid_tab[t->idx];
+	MPASS(f->tid == sc->tids.ftid_base + t->idx);
 	for (i = t->idx; i < nfilters; i++, f++) {
 		if (f->valid) {
 			t->idx = i;
-			t->l2tidx = f->l2t ? f->l2t->idx : 0;
+			t->l2tidx = f->l2te ? f->l2te->idx : 0;
 			t->smtidx = f->smtidx;
 			if (f->fs.hitcnts)
-				t->hits = get_filter_hits(sc, t->idx);
+				t->hits = get_filter_hits(sc, f->tid);
 			else
 				t->hits = UINT64_MAX;
 			t->fs = f->fs;
@@ -312,59 +351,78 @@ get_filter(struct adapter *sc, struct t4_filter *t)
 			goto done;
 		}
 	}
-
 	t->idx = 0xffffffff;
 done:
-	end_synchronized_op(sc, LOCK_HELD);
+	mtx_unlock(&sc->tids.ftid_lock);
 	return (0);
 }
 
 static int
-set_filter_wr(struct adapter *sc, int fidx)
+set_tcamfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te)
 {
-	struct filter_entry *f = &sc->tids.ftid_tab[fidx];
+	struct filter_entry *f;
 	struct fw_filter_wr *fwr;
-	unsigned int ftid, vnic_vld, vnic_vld_mask;
+	u_int vnic_vld, vnic_vld_mask;
 	struct wrq_cookie cookie;
+	int i, rc, busy, locked;
+	const int ntids = t->fs.type ? 4 : 1;
 
-	ASSERT_SYNCHRONIZED_OP(sc);
+	MPASS(!t->fs.hash);
+	MPASS(t->idx < sc->tids.nftids);
+	/* Already validated against fconf, iconf */
+	MPASS((t->fs.val.pfvf_vld & t->fs.val.ovlan_vld) == 0);
+	MPASS((t->fs.mask.pfvf_vld & t->fs.mask.ovlan_vld) == 0);
 
-	if (f->fs.newdmac || f->fs.newvlan) {
-		/* This filter needs an L2T entry; allocate one. */
-		f->l2t = t4_l2t_alloc_switching(sc->l2t);
-		if (f->l2t == NULL)
-			return (EAGAIN);
-		if (t4_l2t_set_switching(sc, f->l2t, f->fs.vlan, f->fs.eport,
-		    f->fs.dmac)) {
-			t4_l2t_release(f->l2t);
-			f->l2t = NULL;
-			return (ENOMEM);
+	f = &sc->tids.ftid_tab[t->idx];
+	rc = busy = locked = 0;
+	mtx_lock(&sc->tids.ftid_lock);
+	for (i = 0; i < ntids; i++) {
+		busy += f[i].pending + f[i].valid;
+		locked += f[i].locked;
+	}
+	if (locked > 0)
+		rc = EPERM;
+	else if (busy > 0)
+		rc = EBUSY;
+	else {
+		fwr = start_wrq_wr(&sc->sge.mgmtq, howmany(sizeof(*fwr), 16),
+		    &cookie);
+		if (__predict_false(fwr == NULL))
+			rc = ENOMEM;
+		else {
+			f->pending = 1;
+			sc->tids.ftids_in_use++;
 		}
 	}
+	mtx_unlock(&sc->tids.ftid_lock);
+	if (rc != 0) {
+		if (l2te)
+			t4_l2t_release(l2te);
+		return (rc);
+	}
 
-	/* Already validated against fconf, iconf */
-	MPASS((f->fs.val.pfvf_vld & f->fs.val.ovlan_vld) == 0);
-	MPASS((f->fs.mask.pfvf_vld & f->fs.mask.ovlan_vld) == 0);
-	if (f->fs.val.pfvf_vld || f->fs.val.ovlan_vld)
+	/*
+	 * Can't fail now.  A set-filter WR will definitely be sent.
+	 */
+
+	f->tid = sc->tids.ftid_base + t->idx;
+	f->fs = t->fs;
+	f->l2te = l2te;
+
+	if (t->fs.val.pfvf_vld || t->fs.val.ovlan_vld)
 		vnic_vld = 1;
 	else
 		vnic_vld = 0;
-	if (f->fs.mask.pfvf_vld || f->fs.mask.ovlan_vld)
+	if (t->fs.mask.pfvf_vld || t->fs.mask.ovlan_vld)
 		vnic_vld_mask = 1;
 	else
 		vnic_vld_mask = 0;
 
-	ftid = sc->tids.ftid_base + fidx;
-
-	fwr = start_wrq_wr(&sc->sge.mgmtq, howmany(sizeof(*fwr), 16), &cookie);
-	if (fwr == NULL)
-		return (ENOMEM);
 	bzero(fwr, sizeof(*fwr));
-
 	fwr->op_pkd = htobe32(V_FW_WR_OP(FW_FILTER_WR));
 	fwr->len16_pkd = htobe32(FW_LEN16(*fwr));
 	fwr->tid_to_iq =
-	    htobe32(V_FW_FILTER_WR_TID(ftid) |
+	    htobe32(V_FW_FILTER_WR_TID(f->tid) |
 		V_FW_FILTER_WR_RQTYPE(f->fs.type) |
 		V_FW_FILTER_WR_NOREPLY(0) |
 		V_FW_FILTER_WR_IQ(f->fs.iq));
@@ -384,7 +442,7 @@ set_filter_wr(struct adapter *sc, int fidx)
 		V_FW_FILTER_WR_HITCNTS(f->fs.hitcnts) |
 		V_FW_FILTER_WR_TXCHAN(f->fs.eport) |
 		V_FW_FILTER_WR_PRIO(f->fs.prio) |
-		V_FW_FILTER_WR_L2TIX(f->l2t ? f->l2t->idx : 0));
+		V_FW_FILTER_WR_L2TIX(f->l2te ? f->l2te->idx : 0));
 	fwr->ethtype = htobe16(f->fs.val.ethtype);
 	fwr->ethtypem = htobe16(f->fs.mask.ethtype);
 	fwr->frag_to_ovlan_vldm =
@@ -422,225 +480,238 @@ set_filter_wr(struct adapter *sc, int fidx)
 	fwr->lpm = htobe16(f->fs.mask.dport);
 	fwr->fp = htobe16(f->fs.val.sport);
 	fwr->fpm = htobe16(f->fs.mask.sport);
-	if (f->fs.newsmac)
+	if (f->fs.newsmac) {
+		/* XXX: need to use SMT idx instead */
 		bcopy(f->fs.smac, fwr->sma, sizeof (fwr->sma));
-
-	f->pending = 1;
-	sc->tids.ftids_in_use++;
-
+	}
 	commit_wrq_wr(&sc->sge.mgmtq, fwr, &cookie);
-	return (0);
+
+	/* Wait for response. */
+	mtx_lock(&sc->tids.ftid_lock);
+	for (;;) {
+		if (f->pending == 0) {
+			rc = f->valid ? 0 : EIO;
+			break;
+		}
+		if (cv_wait_sig(&sc->tids.ftid_cv, &sc->tids.ftid_lock) != 0) {
+			rc = EINPROGRESS;
+			break;
+		}
+	}
+	mtx_unlock(&sc->tids.ftid_lock);
+	return (rc);
 }
 
 int
 set_filter(struct adapter *sc, struct t4_filter *t)
 {
-	unsigned int nfilters, nports;
-	struct filter_entry *f;
-	int i, rc;
+	struct tid_info *ti = &sc->tids;
+	struct l2t_entry *l2te;
+	int rc;
 
-	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4setf");
-	if (rc)
-		return (rc);
+	/*
+	 * Basic filter checks first.
+	 */
 
-	nfilters = sc->tids.nftids;
-	nports = sc->params.nports;
-
-	if (nfilters == 0) {
-		rc = ENOTSUP;
-		goto done;
+	if (t->fs.hash) {
+		if (!is_hashfilter(sc) || ti->ntids == 0)
+			return (ENOTSUP);
+		if (t->idx != (uint32_t)-1)
+			return (EINVAL);	/* hw, not user picks the idx */
+	} else {
+		if (ti->nftids == 0)
+			return (ENOTSUP);
+		if (t->idx >= ti->nftids)
+			return (EINVAL);
+		/* IPv6 filter idx must be 4 aligned */
+		if (t->fs.type == 1 &&
+		    ((t->idx & 0x3) || t->idx + 4 >= ti->nftids))
+			return (EINVAL);
 	}
 
-	if (t->idx >= nfilters) {
-		rc = EINVAL;
-		goto done;
-	}
+	/* T4 doesn't support removing VLAN Tags for loop back filters. */
+	if (is_t4(sc) && t->fs.action == FILTER_SWITCH &&
+	    (t->fs.newvlan == VLAN_REMOVE || t->fs.newvlan == VLAN_REWRITE))
+		return (ENOTSUP);
+
+	if (t->fs.action == FILTER_SWITCH && t->fs.eport >= sc->params.nports)
+		return (EINVAL);
+	if (t->fs.val.iport >= sc->params.nports)
+		return (EINVAL);
+
+	/* Can't specify an iq if not steering to it */
+	if (!t->fs.dirsteer && t->fs.iq)
+		return (EINVAL);
 
 	/* Validate against the global filter mode and ingress config */
 	rc = check_fspec_against_fconf_iconf(sc, &t->fs);
 	if (rc != 0)
-		goto done;
+		return (rc);
 
-	if (t->fs.action == FILTER_SWITCH && t->fs.eport >= nports) {
-		rc = EINVAL;
-		goto done;
-	}
+	/*
+	 * Basic checks passed.  Make sure the queues and tid tables are setup.
+	 */
 
-	if (t->fs.val.iport >= nports) {
-		rc = EINVAL;
-		goto done;
-	}
-
-	/* Can't specify an iq if not steering to it */
-	if (!t->fs.dirsteer && t->fs.iq) {
-		rc = EINVAL;
-		goto done;
-	}
-
-	/* IPv6 filter idx must be 4 aligned */
-	if (t->fs.type == 1 &&
-	    ((t->idx & 0x3) || t->idx + 4 >= nfilters)) {
-		rc = EINVAL;
-		goto done;
-	}
-
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4setf");
+	if (rc)
+		return (rc);
 	if (!(sc->flags & FULL_INIT_DONE) &&
-	    ((rc = adapter_full_init(sc)) != 0))
-		goto done;
-
-	if (sc->tids.ftid_tab == NULL) {
-		KASSERT(sc->tids.ftids_in_use == 0,
-		    ("%s: no memory allocated but filters_in_use > 0",
-		    __func__));
-
-		sc->tids.ftid_tab = malloc(sizeof (struct filter_entry) *
-		    nfilters, M_CXGBE, M_NOWAIT | M_ZERO);
-		if (sc->tids.ftid_tab == NULL) {
+	    ((rc = adapter_full_init(sc)) != 0)) {
+		end_synchronized_op(sc, 0);
+		return (rc);
+	}
+	if (t->fs.hash) {
+		if (__predict_false(ti->hftid_tab == NULL)) {
+			ti->hftid_tab = malloc(sizeof(*ti->hftid_tab) * ti->ntids,
+			    M_CXGBE, M_NOWAIT | M_ZERO);
+			if (ti->hftid_tab == NULL) {
+				rc = ENOMEM;
+				goto done;
+			}
+			mtx_init(&ti->hftid_lock, "T4 hashfilters", 0, MTX_DEF);
+			cv_init(&ti->hftid_cv, "t4hfcv");
+		}
+		if (__predict_false(sc->tids.atid_tab == NULL)) {
+			rc = alloc_atid_tab(&sc->tids, M_NOWAIT);
+			if (rc != 0)
+				goto done;
+		}
+	} else if (__predict_false(ti->ftid_tab == NULL)) {
+		KASSERT(ti->ftids_in_use == 0,
+		    ("%s: no memory allocated but ftids_in_use > 0", __func__));
+		ti->ftid_tab = malloc(sizeof(struct filter_entry) * ti->nftids,
+		    M_CXGBE, M_NOWAIT | M_ZERO);
+		if (ti->ftid_tab == NULL) {
 			rc = ENOMEM;
 			goto done;
 		}
-		mtx_init(&sc->tids.ftid_lock, "T4 filters", 0, MTX_DEF);
+		mtx_init(&ti->ftid_lock, "T4 filters", 0, MTX_DEF);
+		cv_init(&ti->ftid_cv, "t4fcv");
 	}
-
-	for (i = 0; i < 4; i++) {
-		f = &sc->tids.ftid_tab[t->idx + i];
-
-		if (f->pending || f->valid) {
-			rc = EBUSY;
-			goto done;
-		}
-		if (f->locked) {
-			rc = EPERM;
-			goto done;
-		}
-
-		if (t->fs.type == 0)
-			break;
-	}
-
-	f = &sc->tids.ftid_tab[t->idx];
-	f->fs = t->fs;
-
-	rc = set_filter_wr(sc, t->idx);
 done:
 	end_synchronized_op(sc, 0);
+	if (rc != 0)
+		return (rc);
 
-	if (rc == 0) {
-		mtx_lock(&sc->tids.ftid_lock);
-		for (;;) {
-			if (f->pending == 0) {
-				rc = f->valid ? 0 : EIO;
-				break;
-			}
+	/*
+	 * Allocate L2T entry, SMT entry, etc.
+	 */
 
-			if (mtx_sleep(&sc->tids.ftid_tab, &sc->tids.ftid_lock,
-			    PCATCH, "t4setfw", 0)) {
-				rc = EINPROGRESS;
-				break;
-			}
+	l2te = NULL;
+	if (t->fs.newdmac || t->fs.newvlan) {
+		/* This filter needs an L2T entry; allocate one. */
+		l2te = t4_l2t_alloc_switching(sc->l2t);
+		if (__predict_false(l2te == NULL))
+			return (EAGAIN);
+		if (t4_l2t_set_switching(sc, l2te, t->fs.vlan, t->fs.eport,
+		    t->fs.dmac)) {
+			t4_l2t_release(l2te);
+			return (ENOMEM);
 		}
-		mtx_unlock(&sc->tids.ftid_lock);
 	}
-	return (rc);
+
+	if (t->fs.newsmac) {
+		/* XXX: alloc SMT */
+		return (ENOTSUP);
+	}
+
+	if (t->fs.hash)
+		return (set_hashfilter(sc, t, l2te));
+	else
+		return (set_tcamfilter(sc, t, l2te));
+
 }
 
 static int
-del_filter_wr(struct adapter *sc, int fidx)
+del_tcamfilter(struct adapter *sc, struct t4_filter *t)
 {
-	struct filter_entry *f = &sc->tids.ftid_tab[fidx];
+	struct filter_entry *f;
 	struct fw_filter_wr *fwr;
-	unsigned int ftid;
 	struct wrq_cookie cookie;
+	int rc;
 
-	ftid = sc->tids.ftid_base + fidx;
+	MPASS(sc->tids.ftid_tab != NULL);
+	MPASS(sc->tids.nftids > 0);
 
+	if (t->idx >= sc->tids.nftids)
+		return (EINVAL);
+
+	mtx_lock(&sc->tids.ftid_lock);
+	f = &sc->tids.ftid_tab[t->idx];
+	if (f->locked) {
+		rc = EPERM;
+		goto done;
+	}
+	if (f->pending) {
+		rc = EBUSY;
+		goto done;
+	}
+	if (f->valid == 0) {
+		rc = EINVAL;
+		goto done;
+	}
+	MPASS(f->tid == sc->tids.ftid_base + t->idx);
 	fwr = start_wrq_wr(&sc->sge.mgmtq, howmany(sizeof(*fwr), 16), &cookie);
-	if (fwr == NULL)
-		return (ENOMEM);
+	if (fwr == NULL) {
+		rc = ENOMEM;
+		goto done;
+	}
+
 	bzero(fwr, sizeof (*fwr));
-
-	t4_mk_filtdelwr(ftid, fwr, sc->sge.fwq.abs_id);
-
+	t4_mk_filtdelwr(f->tid, fwr, sc->sge.fwq.abs_id);
 	f->pending = 1;
 	commit_wrq_wr(&sc->sge.mgmtq, fwr, &cookie);
-	return (0);
+	t->fs = f->fs;	/* extra info for the caller */
+
+	for (;;) {
+		if (f->pending == 0) {
+			rc = f->valid ? EIO : 0;
+			break;
+		}
+		if (cv_wait_sig(&sc->tids.ftid_cv, &sc->tids.ftid_lock) != 0) {
+			rc = EINPROGRESS;
+			break;
+		}
+	}
+done:
+	mtx_unlock(&sc->tids.ftid_lock);
+	return (rc);
 }
 
 int
 del_filter(struct adapter *sc, struct t4_filter *t)
 {
-	unsigned int nfilters;
-	struct filter_entry *f;
-	int rc;
 
-	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4delf");
-	if (rc)
-		return (rc);
+	/* No filters possible if not initialized yet. */
+	if (!(sc->flags & FULL_INIT_DONE))
+		return (EINVAL);
 
-	nfilters = sc->tids.nftids;
-
-	if (nfilters == 0) {
-		rc = ENOTSUP;
-		goto done;
+	/*
+	 * The checks for tid tables ensure that the locks that del_* will reach
+	 * for are initialized.
+	 */
+	if (t->fs.hash) {
+		if (sc->tids.hftid_tab != NULL)
+			return (del_hashfilter(sc, t));
+	} else {
+		if (sc->tids.ftid_tab != NULL)
+			return (del_tcamfilter(sc, t));
 	}
 
-	if (sc->tids.ftid_tab == NULL || sc->tids.ftids_in_use == 0 ||
-	    t->idx >= nfilters) {
-		rc = EINVAL;
-		goto done;
-	}
-
-	if (!(sc->flags & FULL_INIT_DONE)) {
-		rc = EAGAIN;
-		goto done;
-	}
-
-	f = &sc->tids.ftid_tab[t->idx];
-
-	if (f->pending) {
-		rc = EBUSY;
-		goto done;
-	}
-	if (f->locked) {
-		rc = EPERM;
-		goto done;
-	}
-
-	if (f->valid) {
-		t->fs = f->fs;	/* extra info for the caller */
-		rc = del_filter_wr(sc, t->idx);
-	}
-
-done:
-	end_synchronized_op(sc, 0);
-
-	if (rc == 0) {
-		mtx_lock(&sc->tids.ftid_lock);
-		for (;;) {
-			if (f->pending == 0) {
-				rc = f->valid ? EIO : 0;
-				break;
-			}
-
-			if (mtx_sleep(&sc->tids.ftid_tab, &sc->tids.ftid_lock,
-			    PCATCH, "t4delfw", 0)) {
-				rc = EINPROGRESS;
-				break;
-			}
-		}
-		mtx_unlock(&sc->tids.ftid_lock);
-	}
-
-	return (rc);
+	return (EINVAL);
 }
 
+/*
+ * Release secondary resources associated with the filter.
+ */
 static void
-clear_filter(struct filter_entry *f)
+free_filter_resources(struct filter_entry *f)
 {
-	if (f->l2t)
-		t4_l2t_release(f->l2t);
 
-	bzero(f, sizeof (*f));
+	if (f->l2te) {
+		t4_l2t_release(f->l2te);
+		f->l2te = NULL;
+	}
 }
 
 int
@@ -648,39 +719,709 @@ t4_filter_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
 	struct adapter *sc = iq->adapter;
 	const struct cpl_set_tcb_rpl *rpl = (const void *)(rss + 1);
-	unsigned int idx = GET_TID(rpl);
-	unsigned int rc;
+	u_int tid = GET_TID(rpl);
+	u_int rc, cleanup, idx;
 	struct filter_entry *f;
 
 	KASSERT(m == NULL, ("%s: payload with opcode %02x", __func__,
 	    rss->opcode));
-	MPASS(iq == &sc->sge.fwq);
-	MPASS(is_ftid(sc, idx));
+	MPASS(is_ftid(sc, tid));
 
-	idx -= sc->tids.ftid_base;
+	cleanup = 0;
+	idx = tid - sc->tids.ftid_base;
 	f = &sc->tids.ftid_tab[idx];
 	rc = G_COOKIE(rpl->cookie);
 
 	mtx_lock(&sc->tids.ftid_lock);
-	if (rc == FW_FILTER_WR_FLT_ADDED) {
-		KASSERT(f->pending, ("%s: filter[%u] isn't pending.",
-		    __func__, idx));
+	KASSERT(f->pending, ("%s: reply %d for filter[%u] that isn't pending.",
+	    __func__, rc, idx));
+	switch(rc) {
+	case FW_FILTER_WR_FLT_ADDED:
+		/* set-filter succeeded */
+		f->valid = 1;
 		f->smtidx = (be64toh(rpl->oldval) >> 24) & 0xff;
-		f->pending = 0;  /* asynchronous setup completed */
+		break;
+	case FW_FILTER_WR_FLT_DELETED:
+		/* del-filter succeeded */
+		MPASS(f->valid == 1);
+		f->valid = 0;
+		/* Fall through */
+	case FW_FILTER_WR_SMT_TBL_FULL:
+		/* set-filter failed due to lack of SMT space. */
+		MPASS(f->valid == 0);
+		free_filter_resources(f);
+		sc->tids.ftids_in_use--;
+		break;
+	case FW_FILTER_WR_SUCCESS:
+	case FW_FILTER_WR_EINVAL:
+	default:
+		panic("%s: unexpected reply %d for filter[%d].", __func__, rc,
+		    idx);
+	}
+	f->pending = 0;
+	cv_broadcast(&sc->tids.ftid_cv);
+	mtx_unlock(&sc->tids.ftid_lock);
+
+	return (0);
+}
+
+/*
+ * This is the reply to the Active Open that created the filter.  Additional TCB
+ * updates may be required to complete the filter configuration.
+ */
+int
+t4_hashfilter_ao_rpl(struct sge_iq *iq, const struct rss_header *rss,
+    struct mbuf *m)
+{
+	struct adapter *sc = iq->adapter;
+	const struct cpl_act_open_rpl *cpl = (const void *)(rss + 1);
+	u_int atid = G_TID_TID(G_AOPEN_ATID(be32toh(cpl->atid_status)));
+	u_int status = G_AOPEN_STATUS(be32toh(cpl->atid_status));
+	struct filter_entry *f = lookup_atid(sc, atid);
+
+	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
+
+	mtx_lock(&sc->tids.hftid_lock);
+	KASSERT(f->pending, ("%s: hashfilter[%p] isn't pending.", __func__, f));
+	KASSERT(f->tid == -1, ("%s: hashfilter[%p] has tid %d already.",
+	    __func__, f, f->tid));
+	if (status == CPL_ERR_NONE) {
+		struct filter_entry *f2;
+
+		f->tid = GET_TID(cpl);
+		MPASS(f->tid < sc->tids.ntids);
+		if (__predict_false((f2 = lookup_hftid(sc, f->tid)) != NULL)) {
+			/* XXX: avoid hash collisions in the first place. */
+			MPASS(f2->tid == f->tid);
+			remove_hftid(sc, f2->tid, f2->fs.type ? 2 : 1);
+			free_filter_resources(f2);
+			free(f2, M_CXGBE);
+		}
+		insert_hftid(sc, f->tid, f, f->fs.type ? 2 : 1);
+		/*
+		 * Leave the filter pending until it is fully set up, which will
+		 * be indicated by the reply to the last TCB update.  No need to
+		 * unblock the ioctl thread either.
+		 */
+		if (configure_hashfilter_tcb(sc, f) == EINPROGRESS)
+			goto done;
+		f->valid = 1;
+		f->pending = 0;
+	} else {
+		/* provide errno instead of tid to ioctl */
+		f->tid = act_open_rpl_status_to_errno(status);
+		f->valid = 0;
+		if (act_open_has_tid(status))
+			release_tid(sc, GET_TID(cpl), &sc->sge.mgmtq);
+		free_filter_resources(f);
+		if (f->locked == 0)
+			free(f, M_CXGBE);
+	}
+	cv_broadcast(&sc->tids.hftid_cv);
+done:
+	mtx_unlock(&sc->tids.hftid_lock);
+
+	free_atid(sc, atid);
+	return (0);
+}
+
+int
+t4_hashfilter_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss,
+    struct mbuf *m)
+{
+	struct adapter *sc = iq->adapter;
+	const struct cpl_set_tcb_rpl *rpl = (const void *)(rss + 1);
+	u_int tid = GET_TID(rpl);
+	struct filter_entry *f;
+
+	mtx_lock(&sc->tids.hftid_lock);
+	f = lookup_hftid(sc, tid);
+	KASSERT(f->tid == tid, ("%s: filter tid mismatch", __func__));
+	KASSERT(f->pending, ("%s: hashfilter %p [%u] isn't pending.", __func__,
+	    f, tid));
+	KASSERT(f->valid == 0, ("%s: hashfilter %p [%u] is valid already.",
+	    __func__, f, tid));
+	f->pending = 0;
+	if (rpl->status == 0) {
 		f->valid = 1;
 	} else {
-		if (rc != FW_FILTER_WR_FLT_DELETED) {
-			/* Add or delete failed, display an error */
-			log(LOG_ERR,
-			    "filter %u setup failed with error %u\n",
-			    idx, rc);
-		}
-
-		clear_filter(f);
-		sc->tids.ftids_in_use--;
+		f->tid = EIO;
+		f->valid = 0;
+		free_filter_resources(f);
+		remove_hftid(sc, tid, f->fs.type ? 2 : 1);
+		release_tid(sc, tid, &sc->sge.mgmtq);
+		if (f->locked == 0)
+			free(f, M_CXGBE);
 	}
-	wakeup(&sc->tids.ftid_tab);
-	mtx_unlock(&sc->tids.ftid_lock);
+	cv_broadcast(&sc->tids.hftid_cv);
+	mtx_unlock(&sc->tids.hftid_lock);
+
+	return (0);
+}
+
+int
+t4_del_hashfilter_rpl(struct sge_iq *iq, const struct rss_header *rss,
+    struct mbuf *m)
+{
+	struct adapter *sc = iq->adapter;
+	const struct cpl_abort_rpl_rss *cpl = (const void *)(rss + 1);
+	unsigned int tid = GET_TID(cpl);
+	struct filter_entry *f;
+
+	mtx_lock(&sc->tids.hftid_lock);
+	f = lookup_hftid(sc, tid);
+	KASSERT(f->tid == tid, ("%s: filter tid mismatch", __func__));
+	KASSERT(f->pending, ("%s: hashfilter %p [%u] isn't pending.", __func__,
+	    f, tid));
+	KASSERT(f->valid, ("%s: hashfilter %p [%u] isn't valid.", __func__, f,
+	    tid));
+	f->pending = 0;
+	if (cpl->status == 0) {
+		f->valid = 0;
+		free_filter_resources(f);
+		remove_hftid(sc, tid, f->fs.type ? 2 : 1);
+		release_tid(sc, tid, &sc->sge.mgmtq);
+		if (f->locked == 0)
+			free(f, M_CXGBE);
+	}
+	cv_broadcast(&sc->tids.hftid_cv);
+	mtx_unlock(&sc->tids.hftid_lock);
+
+	return (0);
+}
+
+static int
+get_hashfilter(struct adapter *sc, struct t4_filter *t)
+{
+	int i, nfilters = sc->tids.ntids;
+	struct filter_entry *f;
+
+	if (sc->tids.tids_in_use == 0 || sc->tids.hftid_tab == NULL ||
+	    t->idx >= nfilters) {
+		t->idx = 0xffffffff;
+		return (0);
+	}
+
+	mtx_lock(&sc->tids.hftid_lock);
+	for (i = t->idx; i < nfilters; i++) {
+		f = lookup_hftid(sc, i);
+		if (f != NULL && f->valid) {
+			t->idx = i;
+			t->l2tidx = f->l2te ? f->l2te->idx : 0;
+			t->smtidx = f->smtidx;
+			if (f->fs.hitcnts)
+				t->hits = get_filter_hits(sc, t->idx);
+			else
+				t->hits = UINT64_MAX;
+			t->fs = f->fs;
+
+			goto done;
+		}
+	}
+	t->idx = 0xffffffff;
+done:
+	mtx_unlock(&sc->tids.hftid_lock);
+	return (0);
+}
+
+static uint64_t
+hashfilter_ntuple(struct adapter *sc, const struct t4_filter_specification *fs)
+{
+	struct tp_params *tp = &sc->params.tp;
+	uint64_t ntuple = 0;
+
+	/*
+	 * Initialize each of the fields which we care about which are present
+	 * in the Compressed Filter Tuple.
+	 */
+	if (tp->vlan_shift >= 0 && fs->mask.vlan)
+		ntuple |= (F_FT_VLAN_VLD | fs->val.vlan) << tp->vlan_shift;
+
+	if (tp->port_shift >= 0 && fs->mask.iport)
+		ntuple |= (uint64_t)fs->val.iport << tp->port_shift;
+
+	if (tp->protocol_shift >= 0) {
+		if (!fs->val.proto)
+			ntuple |= (uint64_t)IPPROTO_TCP << tp->protocol_shift;
+		else
+			ntuple |= (uint64_t)fs->val.proto << tp->protocol_shift;
+	}
+
+	if (tp->tos_shift >= 0 && fs->mask.tos)
+		ntuple |= (uint64_t)(fs->val.tos) << tp->tos_shift;
+
+	if (tp->vnic_shift >= 0) {
+#ifdef notyet
+		if (tp->ingress_config & F_VNIC && fs->mask.pfvf_vld)
+			ntuple |= (uint64_t)((fs->val.pfvf_vld << 16) |
+					(fs->val.pf << 13) |
+					(fs->val.vf)) << tp->vnic_shift;
+		else
+#endif
+			ntuple |= (uint64_t)((fs->val.ovlan_vld << 16) |
+					(fs->val.vnic)) << tp->vnic_shift;
+	}
+
+	if (tp->macmatch_shift >= 0 && fs->mask.macidx)
+		ntuple |= (uint64_t)(fs->val.macidx) << tp->macmatch_shift;
+
+	if (tp->ethertype_shift >= 0 && fs->mask.ethtype)
+		ntuple |= (uint64_t)(fs->val.ethtype) << tp->ethertype_shift;
+
+	if (tp->matchtype_shift >= 0 && fs->mask.matchtype)
+		ntuple |= (uint64_t)(fs->val.matchtype) << tp->matchtype_shift;
+
+	if (tp->frag_shift >= 0 && fs->mask.frag)
+		ntuple |= (uint64_t)(fs->val.frag) << tp->frag_shift;
+
+	if (tp->fcoe_shift >= 0 && fs->mask.fcoe)
+		ntuple |= (uint64_t)(fs->val.fcoe) << tp->fcoe_shift;
+
+	return (ntuple);
+}
+
+static void
+mk_act_open_req6(struct adapter *sc, struct filter_entry *f, int atid,
+    struct cpl_act_open_req6 *cpl)
+{
+	struct cpl_t5_act_open_req6 *cpl5 = (void *)cpl;
+	struct cpl_t6_act_open_req6 *cpl6 = (void *)cpl;
+
+	/* Review changes to CPL after cpl_t6_act_open_req if this goes off. */
+	MPASS(chip_id(sc) >= CHELSIO_T5 && chip_id(sc) <= CHELSIO_T6);
+	MPASS(atid >= 0);
+
+	if (chip_id(sc) == CHELSIO_T5) {
+		INIT_TP_WR(cpl5, 0);
+	} else {
+		INIT_TP_WR(cpl6, 0);
+		cpl6->rsvd2 = 0;
+		cpl6->opt3 = 0;
+	}
+
+	OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ6,
+	    V_TID_QID(sc->sge.fwq.abs_id) | V_TID_TID(atid) |
+	    V_TID_COOKIE(CPL_COOKIE_HASHFILTER)));
+	cpl->local_port = htobe16(f->fs.val.dport);
+	cpl->peer_port = htobe16(f->fs.val.sport);
+	cpl->local_ip_hi = *(uint64_t *)(&f->fs.val.dip);
+	cpl->local_ip_lo = *(((uint64_t *)&f->fs.val.dip) + 1);
+	cpl->peer_ip_hi = *(uint64_t *)(&f->fs.val.sip);
+	cpl->peer_ip_lo = *(((uint64_t *)&f->fs.val.sip) + 1);
+	cpl->opt0 = htobe64(V_NAGLE(f->fs.newvlan == VLAN_REMOVE ||
+	    f->fs.newvlan == VLAN_REWRITE) | V_DELACK(f->fs.hitcnts) |
+	    V_L2T_IDX(f->l2te ? f->l2te->idx : 0) | V_TX_CHAN(f->fs.eport) |
+	    V_NO_CONG(f->fs.rpttid) | F_TCAM_BYPASS | F_NON_OFFLOAD);
+
+	cpl6->params = htobe64(V_FILTER_TUPLE(hashfilter_ntuple(sc, &f->fs)));
+	cpl6->opt2 = htobe32(F_RSS_QUEUE_VALID | V_RSS_QUEUE(f->fs.iq) |
+	    F_T5_OPT_2_VALID | F_RX_CHANNEL |
+	    V_CONG_CNTRL((f->fs.action == FILTER_DROP) | (f->fs.dirsteer << 1)) |
+	    V_PACE(f->fs.maskhash | (f->fs.dirsteerhash << 1)));
+}
+
+static void
+mk_act_open_req(struct adapter *sc, struct filter_entry *f, int atid,
+    struct cpl_act_open_req *cpl)
+{
+	struct cpl_t5_act_open_req *cpl5 = (void *)cpl;
+	struct cpl_t6_act_open_req *cpl6 = (void *)cpl;
+
+	/* Review changes to CPL after cpl_t6_act_open_req if this goes off. */
+	MPASS(chip_id(sc) >= CHELSIO_T5 && chip_id(sc) <= CHELSIO_T6);
+	MPASS(atid >= 0);
+
+	if (chip_id(sc) == CHELSIO_T5) {
+		INIT_TP_WR(cpl5, 0);
+	} else {
+		INIT_TP_WR(cpl6, 0);
+		cpl6->rsvd2 = 0;
+		cpl6->opt3 = 0;
+	}
+
+	OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ,
+	    V_TID_QID(sc->sge.fwq.abs_id) | V_TID_TID(atid) |
+	    V_TID_COOKIE(CPL_COOKIE_HASHFILTER)));
+	cpl->local_port = htobe16(f->fs.val.dport);
+	cpl->peer_port = htobe16(f->fs.val.sport);
+	cpl->local_ip = f->fs.val.dip[0] | f->fs.val.dip[1] << 8 |
+	    f->fs.val.dip[2] << 16 | f->fs.val.dip[3] << 24;
+	cpl->peer_ip = f->fs.val.sip[0] | f->fs.val.sip[1] << 8 |
+		f->fs.val.sip[2] << 16 | f->fs.val.sip[3] << 24;
+	cpl->opt0 = htobe64(V_NAGLE(f->fs.newvlan == VLAN_REMOVE ||
+	    f->fs.newvlan == VLAN_REWRITE) | V_DELACK(f->fs.hitcnts) |
+	    V_L2T_IDX(f->l2te ? f->l2te->idx : 0) | V_TX_CHAN(f->fs.eport) |
+	    V_NO_CONG(f->fs.rpttid) | F_TCAM_BYPASS | F_NON_OFFLOAD);
+
+	cpl6->params = htobe64(V_FILTER_TUPLE(hashfilter_ntuple(sc, &f->fs)));
+	cpl6->opt2 = htobe32(F_RSS_QUEUE_VALID | V_RSS_QUEUE(f->fs.iq) |
+	    F_T5_OPT_2_VALID | F_RX_CHANNEL |
+	    V_CONG_CNTRL((f->fs.action == FILTER_DROP) | (f->fs.dirsteer << 1)) |
+	    V_PACE(f->fs.maskhash | (f->fs.dirsteerhash << 1)));
+}
+
+static int
+act_open_cpl_len16(struct adapter *sc, int isipv6)
+{
+	int idx;
+	static const int sz_table[3][2] = {
+		{
+			howmany(sizeof (struct cpl_act_open_req), 16),
+			howmany(sizeof (struct cpl_act_open_req6), 16)
+		},
+		{
+			howmany(sizeof (struct cpl_t5_act_open_req), 16),
+			howmany(sizeof (struct cpl_t5_act_open_req6), 16)
+		},
+		{
+			howmany(sizeof (struct cpl_t6_act_open_req), 16),
+			howmany(sizeof (struct cpl_t6_act_open_req6), 16)
+		},
+	};
+
+	MPASS(chip_id(sc) >= CHELSIO_T4);
+	idx = min(chip_id(sc) - CHELSIO_T4, 2);
+
+	return (sz_table[idx][!!isipv6]);
+}
+
+static int
+set_hashfilter(struct adapter *sc, struct t4_filter *t, struct l2t_entry *l2te)
+{
+	void *wr;
+	struct wrq_cookie cookie;
+	struct filter_entry *f;
+	int rc, atid = -1;
+
+	MPASS(t->fs.hash);
+	/* Already validated against fconf, iconf */
+	MPASS((t->fs.val.pfvf_vld & t->fs.val.ovlan_vld) == 0);
+	MPASS((t->fs.mask.pfvf_vld & t->fs.mask.ovlan_vld) == 0);
+
+	mtx_lock(&sc->tids.hftid_lock);
+
+	/*
+	 * XXX: Check for hash collisions and insert in the hash based lookup
+	 * table so that in-flight hashfilters are also considered when checking
+	 * for collisions.
+	 */
+
+	f = malloc(sizeof(*f), M_CXGBE, M_ZERO | M_NOWAIT);
+	if (__predict_false(f == NULL)) {
+		if (l2te)
+			t4_l2t_release(l2te);
+		rc = ENOMEM;
+		goto done;
+	}
+	f->fs = t->fs;
+	f->l2te = l2te;
+
+	atid = alloc_atid(sc, f);
+	if (__predict_false(atid) == -1) {
+		if (l2te)
+			t4_l2t_release(l2te);
+		free(f, M_CXGBE);
+		rc = EAGAIN;
+		goto done;
+	}
+	MPASS(atid >= 0);
+
+	wr = start_wrq_wr(&sc->sge.mgmtq, act_open_cpl_len16(sc, f->fs.type),
+	    &cookie);
+	if (wr == NULL) {
+		free_atid(sc, atid);
+		if (l2te)
+			t4_l2t_release(l2te);
+		free(f, M_CXGBE);
+		rc = ENOMEM;
+		goto done;
+	}
+	if (f->fs.type)
+		mk_act_open_req6(sc, f, atid, wr);
+	else
+		mk_act_open_req(sc, f, atid, wr);
+
+	f->locked = 1; /* ithread mustn't free f if ioctl is still around. */
+	f->pending = 1;
+	f->tid = -1;
+	commit_wrq_wr(&sc->sge.mgmtq, wr, &cookie);
+
+	for (;;) {
+		MPASS(f->locked);
+		if (f->pending == 0) {
+			if (f->valid) {
+				rc = 0;
+				f->locked = 0;
+				t->idx = f->tid;
+			} else {
+				rc = f->tid;
+				free(f, M_CXGBE);
+			}
+			break;
+		}
+		if (cv_wait_sig(&sc->tids.hftid_cv, &sc->tids.hftid_lock) != 0) {
+			f->locked = 0;
+			rc = EINPROGRESS;
+			break;
+		}
+	}
+done:
+	mtx_unlock(&sc->tids.hftid_lock);
+	return (rc);
+}
+
+/* SET_TCB_FIELD sent as a ULP command looks like this */
+#define LEN__SET_TCB_FIELD_ULP (sizeof(struct ulp_txpkt) + \
+    sizeof(struct ulptx_idata) + sizeof(struct cpl_set_tcb_field_core))
+
+static void *
+mk_set_tcb_field_ulp(struct ulp_txpkt *ulpmc, uint64_t word, uint64_t mask,
+		uint64_t val, uint32_t tid, uint32_t qid)
+{
+	struct ulptx_idata *ulpsc;
+	struct cpl_set_tcb_field_core *req;
+
+	ulpmc->cmd_dest = htonl(V_ULPTX_CMD(ULP_TX_PKT) | V_ULP_TXPKT_DEST(0));
+	ulpmc->len = htobe32(howmany(LEN__SET_TCB_FIELD_ULP, 16));
+
+	ulpsc = (struct ulptx_idata *)(ulpmc + 1);
+	ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
+	ulpsc->len = htobe32(sizeof(*req));
+
+	req = (struct cpl_set_tcb_field_core *)(ulpsc + 1);
+	OPCODE_TID(req) = htobe32(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
+	req->reply_ctrl = htobe16(V_NO_REPLY(1) | V_QUEUENO(qid));
+	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(0));
+	req->mask = htobe64(mask);
+	req->val = htobe64(val);
+
+	ulpsc = (struct ulptx_idata *)(req + 1);
+	if (LEN__SET_TCB_FIELD_ULP % 16) {
+		ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_NOOP));
+		ulpsc->len = htobe32(0);
+		return (ulpsc + 1);
+	}
+	return (ulpsc);
+}
+
+/* ABORT_REQ sent as a ULP command looks like this */
+#define LEN__ABORT_REQ_ULP (sizeof(struct ulp_txpkt) + \
+	sizeof(struct ulptx_idata) + sizeof(struct cpl_abort_req_core))
+
+static void *
+mk_abort_req_ulp(struct ulp_txpkt *ulpmc, uint32_t tid)
+{
+	struct ulptx_idata *ulpsc;
+	struct cpl_abort_req_core *req;
+
+	ulpmc->cmd_dest = htonl(V_ULPTX_CMD(ULP_TX_PKT) | V_ULP_TXPKT_DEST(0));
+	ulpmc->len = htobe32(howmany(LEN__ABORT_REQ_ULP, 16));
+
+	ulpsc = (struct ulptx_idata *)(ulpmc + 1);
+	ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
+	ulpsc->len = htobe32(sizeof(*req));
+
+	req = (struct cpl_abort_req_core *)(ulpsc + 1);
+	OPCODE_TID(req) = htobe32(MK_OPCODE_TID(CPL_ABORT_REQ, tid));
+	req->rsvd0 = htonl(0);
+	req->rsvd1 = 0;
+	req->cmd = CPL_ABORT_NO_RST;
+
+	ulpsc = (struct ulptx_idata *)(req + 1);
+	if (LEN__ABORT_REQ_ULP % 16) {
+		ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_NOOP));
+		ulpsc->len = htobe32(0);
+		return (ulpsc + 1);
+	}
+	return (ulpsc);
+}
+
+/* ABORT_RPL sent as a ULP command looks like this */
+#define LEN__ABORT_RPL_ULP (sizeof(struct ulp_txpkt) + \
+	sizeof(struct ulptx_idata) + sizeof(struct cpl_abort_rpl_core))
+
+static void *
+mk_abort_rpl_ulp(struct ulp_txpkt *ulpmc, uint32_t tid)
+{
+	struct ulptx_idata *ulpsc;
+	struct cpl_abort_rpl_core *rpl;
+
+	ulpmc->cmd_dest = htonl(V_ULPTX_CMD(ULP_TX_PKT) | V_ULP_TXPKT_DEST(0));
+	ulpmc->len = htobe32(howmany(LEN__ABORT_RPL_ULP, 16));
+
+	ulpsc = (struct ulptx_idata *)(ulpmc + 1);
+	ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
+	ulpsc->len = htobe32(sizeof(*rpl));
+
+	rpl = (struct cpl_abort_rpl_core *)(ulpsc + 1);
+	OPCODE_TID(rpl) = htobe32(MK_OPCODE_TID(CPL_ABORT_RPL, tid));
+	rpl->rsvd0 = htonl(0);
+	rpl->rsvd1 = 0;
+	rpl->cmd = CPL_ABORT_NO_RST;
+
+	ulpsc = (struct ulptx_idata *)(rpl + 1);
+	if (LEN__ABORT_RPL_ULP % 16) {
+		ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_NOOP));
+		ulpsc->len = htobe32(0);
+		return (ulpsc + 1);
+	}
+	return (ulpsc);
+}
+
+static inline int
+del_hashfilter_wrlen(void)
+{
+
+	return (sizeof(struct work_request_hdr) +
+	    roundup2(LEN__SET_TCB_FIELD_ULP, 16) +
+	    roundup2(LEN__ABORT_REQ_ULP, 16) +
+	    roundup2(LEN__ABORT_RPL_ULP, 16));
+}
+
+static void
+mk_del_hashfilter_wr(int tid, struct work_request_hdr *wrh, int wrlen, int qid)
+{
+	struct ulp_txpkt *ulpmc;
+
+	INIT_ULPTX_WRH(wrh, wrlen, 0, 0);
+	ulpmc = (struct ulp_txpkt *)(wrh + 1);
+	ulpmc = mk_set_tcb_field_ulp(ulpmc, W_TCB_RSS_INFO,
+	    V_TCB_RSS_INFO(M_TCB_RSS_INFO), V_TCB_RSS_INFO(qid), tid, 0);
+	ulpmc = mk_abort_req_ulp(ulpmc, tid);
+	ulpmc = mk_abort_rpl_ulp(ulpmc, tid);
+}
+
+static int
+del_hashfilter(struct adapter *sc, struct t4_filter *t)
+{
+	void *wr;
+	struct filter_entry *f;
+	struct wrq_cookie cookie;
+	int rc;
+	const int wrlen = del_hashfilter_wrlen();
+
+	MPASS(sc->tids.hftid_tab != NULL);
+	MPASS(sc->tids.ntids > 0);
+
+	if (t->idx >= sc->tids.ntids)
+		return (EINVAL);
+
+	mtx_lock(&sc->tids.hftid_lock);
+	f = lookup_hftid(sc, t->idx);
+	if (f == NULL || f->valid == 0) {
+		rc = EINVAL;
+		goto done;
+	}
+	MPASS(f->tid == t->idx);
+	if (f->locked) {
+		rc = EPERM;
+		goto done;
+	}
+	if (f->pending) {
+		rc = EBUSY;
+		goto done;
+	}
+	wr = start_wrq_wr(&sc->sge.mgmtq, howmany(wrlen, 16), &cookie);
+	if (wr == NULL) {
+		rc = ENOMEM;
+		goto done;
+	}
+
+	mk_del_hashfilter_wr(t->idx, wr, wrlen, sc->sge.fwq.abs_id);
+	f->locked = 1;
+	f->pending = 1;
+	commit_wrq_wr(&sc->sge.mgmtq, wr, &cookie);
+	t->fs = f->fs;	/* extra info for the caller */
+
+	for (;;) {
+		MPASS(f->locked);
+		if (f->pending == 0) {
+			if (f->valid) {
+				f->locked = 0;
+				rc = EIO;
+			} else {
+				rc = 0;
+				free(f, M_CXGBE);
+			}
+			break;
+		}
+		if (cv_wait_sig(&sc->tids.hftid_cv, &sc->tids.hftid_lock) != 0) {
+			f->locked = 0;
+			rc = EINPROGRESS;
+			break;
+		}
+	}
+done:
+	mtx_unlock(&sc->tids.hftid_lock);
+	return (rc);
+}
+
+static int
+set_tcb_field(struct adapter *sc, u_int tid, uint16_t word, uint64_t mask,
+    uint64_t val, int no_reply)
+{
+	struct wrq_cookie cookie;
+	struct cpl_set_tcb_field *req;
+
+	req = start_wrq_wr(&sc->sge.mgmtq, howmany(sizeof(*req), 16), &cookie);
+	if (req == NULL)
+		return (ENOMEM);
+	bzero(req, sizeof(*req));
+	INIT_TP_WR_MIT_CPL(req, CPL_SET_TCB_FIELD, tid);
+	if (no_reply == 0) {
+		req->reply_ctrl = htobe16(V_QUEUENO(sc->sge.fwq.abs_id) |
+		    V_NO_REPLY(0));
+	} else
+		req->reply_ctrl = htobe16(V_NO_REPLY(1));
+	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(CPL_COOKIE_HASHFILTER));
+	req->mask = htobe64(mask);
+	req->val = htobe64(val);
+	commit_wrq_wr(&sc->sge.mgmtq, req, &cookie);
+
+	return (0);
+}
+
+/* Set one of the t_flags bits in the TCB. */
+static inline int
+set_tcb_tflag(struct adapter *sc, int tid, u_int bit_pos, u_int val)
+{
+
+	return (set_tcb_field(sc, tid,  W_TCB_T_FLAGS, 1ULL << bit_pos,
+	    (uint64_t)val << bit_pos, 1));
+}
+
+/*
+ * Returns EINPROGRESS to indicate that at least one TCB update was sent and the
+ * last of the series of updates requested a reply.  The reply informs the
+ * driver that the filter is fully setup.
+ */
+static int
+configure_hashfilter_tcb(struct adapter *sc, struct filter_entry *f)
+{
+	int updated = 0;
+
+	MPASS(f->tid < sc->tids.ntids);
+	MPASS(f->fs.hash);
+	MPASS(f->pending);
+	MPASS(f->valid == 0);
+
+	if (f->fs.newdmac) {
+		set_tcb_tflag(sc, f->tid, S_TF_CCTRL_ECE, 1);
+		updated++;
+	}
+
+	if (f->fs.newvlan == VLAN_INSERT || f->fs.newvlan == VLAN_REWRITE) {
+		set_tcb_tflag(sc, f->tid, S_TF_CCTRL_RFR, 1);
+		updated++;
+	}
+
+	if (f->fs.hitcnts || updated > 0) {
+		set_tcb_field(sc, f->tid, W_TCB_TIMESTAMP,
+		    V_TCB_TIMESTAMP(M_TCB_TIMESTAMP) |
+		    V_TCB_T_RTT_TS_RECENT_AGE(M_TCB_T_RTT_TS_RECENT_AGE),
+		    V_TCB_TIMESTAMP(0ULL) | V_TCB_T_RTT_TS_RECENT_AGE(0ULL), 0);
+		return (EINPROGRESS);
+	}
 
 	return (0);
 }
