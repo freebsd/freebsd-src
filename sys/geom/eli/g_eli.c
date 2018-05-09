@@ -1086,7 +1086,7 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
                                  memcpy(key, keybuf->kb_ents[i].ke_data,
                                      sizeof(key));
 
-                                 if (g_eli_mkey_decrypt(&md, key,
+                                 if (g_eli_mkey_decrypt_any(&md, key,
                                      mkey, &nkey) == 0 ) {
                                          explicit_bzero(key, sizeof(key));
                                          goto have_key;
@@ -1161,7 +1161,7 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
                 /*
                  * Decrypt Master-Key.
                  */
-                error = g_eli_mkey_decrypt(&md, key, mkey, &nkey);
+                error = g_eli_mkey_decrypt_any(&md, key, mkey, &nkey);
                 bzero(key, sizeof(key));
                 if (error == -1) {
                         if (i == tries) {

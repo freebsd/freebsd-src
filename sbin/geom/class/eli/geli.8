@@ -68,6 +68,7 @@ utility:
 .Nm
 .Cm attach
 .Op Fl Cdprv
+.Op Fl n Ar keyno
 .Op Fl j Ar passfile
 .Op Fl k Ar keyfile
 .Ar prov
@@ -407,6 +408,9 @@ Probably a better choice is the
 option for the
 .Cm detach
 subcommand.
+.It Fl n Ar keyno
+Specifies the index number of the Master Key copy to use (could be 0 or 1).
+If the index number is not provided all keys will be tested.
 .It Fl j Ar passfile
 Specifies a file which contains the passphrase component of the User Key
 (or part of it).
