@@ -98,17 +98,40 @@ END(sse2_pagezero)
 
 ENTRY(bcmp)
 	PUSH_FRAME_POINTER
+	test	%rdx,%rdx
+	je	1f
+	cmpq	$64,%rdx
+	jg	4f
+
+	xor	%ecx,%ecx
+2:
+	movzbl	(%rdi,%rcx,1),%eax
+	movzbl	(%rsi,%rcx,1),%r8d
+	cmp	%r8b,%al
+	jne	3f
+	add	$0x1,%rcx
+	cmp	%rcx,%rdx
+	jne	2b
+1:
+	xor	%eax,%eax
+	POP_FRAME_POINTER
+	retq
+3:
+	mov	$1,%eax
+	POP_FRAME_POINTER
+	retq
+4:
 	movq	%rdx,%rcx
 	shrq	$3,%rcx
 	repe
 	cmpsq
-	jne	1f
+	jne	5f
 
 	movq	%rdx,%rcx
 	andq	$7,%rcx
 	repe
 	cmpsb
-1:
+5:
 	setne	%al
 	movsbl	%al,%eax
 	POP_FRAME_POINTER
