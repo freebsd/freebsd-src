@@ -987,3 +987,9 @@ taskqgroup_config_gtask_init(void *ctx, struct grouptask *gtask, gtask_fn_t *fn,
 	GROUPTASK_INIT(gtask, 0, fn, ctx);
 	taskqgroup_attach(qgroup_config, gtask, gtask, -1, name);
 }
+
+void
+taskqgroup_config_gtask_deinit(struct grouptask *gtask)
+{
+	taskqgroup_detach(qgroup_config, gtask);
+}
