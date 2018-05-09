@@ -193,6 +193,7 @@ struct t4_filter_specification {
 	uint32_t hitcnts:1;	/* count filter hits in TCB */
 	uint32_t prio:1;	/* filter has priority over active/server */
 	uint32_t type:1;	/* 0 => IPv4, 1 => IPv6 */
+	uint32_t hash:1;	/* 0 => LE TCAM, 1 => Hash */
 	uint32_t action:2;	/* drop, pass, switch */
 	uint32_t rpttid:1;	/* report TID in RSS hash field */
 	uint32_t dirsteer:1;	/* 0 => RSS, 1 => steer to iq */
@@ -389,7 +390,7 @@ struct t4_offload_policy {
 #define CHELSIO_T4_GET_FILTER_MODE _IOWR('f', T4_GET_FILTER_MODE, uint32_t)
 #define CHELSIO_T4_SET_FILTER_MODE _IOW('f', T4_SET_FILTER_MODE, uint32_t)
 #define CHELSIO_T4_GET_FILTER	_IOWR('f', T4_GET_FILTER, struct t4_filter)
-#define CHELSIO_T4_SET_FILTER	_IOW('f', T4_SET_FILTER, struct t4_filter)
+#define CHELSIO_T4_SET_FILTER	_IOWR('f', T4_SET_FILTER, struct t4_filter)
 #define CHELSIO_T4_DEL_FILTER	_IOW('f', T4_DEL_FILTER, struct t4_filter)
 #define CHELSIO_T4_GET_SGE_CONTEXT _IOWR('f', T4_GET_SGE_CONTEXT, \
     struct t4_sge_context)

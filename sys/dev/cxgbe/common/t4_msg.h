@@ -197,6 +197,30 @@ static inline int act_open_has_tid(int status)
 		status != CPL_ERR_CONN_EXIST);
 }
 
+/*
+ * Convert an ACT_OPEN_RPL status to an errno.
+ */
+static inline int
+act_open_rpl_status_to_errno(int status)
+{
+
+	switch (status) {
+	case CPL_ERR_CONN_RESET:
+		return (ECONNREFUSED);
+	case CPL_ERR_ARP_MISS:
+		return (EHOSTUNREACH);
+	case CPL_ERR_CONN_TIMEDOUT:
+		return (ETIMEDOUT);
+	case CPL_ERR_TCAM_FULL:
+		return (EAGAIN);
+	case CPL_ERR_CONN_EXIST:
+		return (EAGAIN);
+	default:
+		return (EIO);
+	}
+}
+
+
 enum {
 	CPL_CONN_POLICY_AUTO = 0,
 	CPL_CONN_POLICY_ASK  = 1,
@@ -1040,6 +1064,14 @@ struct cpl_abort_req {
 	__u8  rsvd2[6];
 };
 
+struct cpl_abort_req_core {
+	union opcode_tid ot;
+	__be32 rsvd0;
+	__u8  rsvd1;
+	__u8  cmd;
+	__u8  rsvd2[6];
+};
+
 struct cpl_abort_rpl_rss {
 	RSS_HDR
 	union opcode_tid ot;
@@ -1055,6 +1087,14 @@ struct cpl_abort_rpl_rss6 {
 
 struct cpl_abort_rpl {
 	WR_HDR;
+	union opcode_tid ot;
+	__be32 rsvd0;
+	__u8  rsvd1;
+	__u8  cmd;
+	__u8  rsvd2[6];
+};
+
+struct cpl_abort_rpl_core {
 	union opcode_tid ot;
 	__be32 rsvd0;
 	__u8  rsvd1;

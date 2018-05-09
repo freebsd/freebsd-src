@@ -109,30 +109,6 @@ done:
 	return (0);
 }
 
-/*
- * Convert an ACT_OPEN_RPL status to an errno.
- */
-static inline int
-act_open_rpl_status_to_errno(int status)
-{
-
-	switch (status) {
-	case CPL_ERR_CONN_RESET:
-		return (ECONNREFUSED);
-	case CPL_ERR_ARP_MISS:
-		return (EHOSTUNREACH);
-	case CPL_ERR_CONN_TIMEDOUT:
-		return (ETIMEDOUT);
-	case CPL_ERR_TCAM_FULL:
-		return (EAGAIN);
-	case CPL_ERR_CONN_EXIST:
-		log(LOG_ERR, "ACTIVE_OPEN_RPL: 4-tuple in use\n");
-		return (EAGAIN);
-	default:
-		return (EIO);
-	}
-}
-
 void
 act_open_failure_cleanup(struct adapter *sc, u_int atid, u_int status)
 {
