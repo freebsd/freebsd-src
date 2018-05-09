@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2018
+.Dd May 9, 2018
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -67,7 +67,7 @@ utility:
 .Cm init
 .Nm
 .Cm attach
-.Op Fl dnprv
+.Op Fl Cdprv
 .Op Fl j Ar passfile
 .Op Fl k Ar keyfile
 .Ar prov
@@ -393,6 +393,9 @@ suffix.
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl j Ar passfile"
+.It Fl C
+Do a dry-run decryption.
+This is useful to verify passphrase and keyfile without decrypting the device.
 .It Fl d
 If specified, a decrypted provider will be detached automatically on last close.
 This can help with scarce memory so the user does not have to remember to detach the
@@ -420,9 +423,6 @@ For more information see the description of the
 option for the
 .Cm init
 subcommand.
-.It Fl n
-Do a dry-run decryption.
-This is useful to verify passphrase and keyfile without decrypting the device.
 .It Fl p
 Do not use a passphrase as a component of the User Key.
 Cannot be combined with the
