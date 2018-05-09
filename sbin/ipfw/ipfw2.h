@@ -384,6 +384,7 @@ void ipfw_nat64lsn_handler(int ac, char *av[]);
 void ipfw_nat64stl_handler(int ac, char *av[]);
 void ipfw_nptv6_handler(int ac, char *av[]);
 int ipfw_check_object_name(const char *name);
+int ipfw_check_nat64prefix(const struct in6_addr *prefix, int length);
 
 #ifdef PF
 /* altq.c */
