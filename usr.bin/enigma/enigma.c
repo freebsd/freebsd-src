@@ -22,7 +22,6 @@ __FBSDID("$FreeBSD$");
 
 #define MINUSKVAR "CrYpTkEy"
 
-#define ECHO 010
 #define ROTORSZ 256
 #define MASK 0377
 static char	t1[ROTORSZ];
