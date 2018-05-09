@@ -72,7 +72,6 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 	int bsd_flags, error;
 	struct file *fp;
 
-	cap_rights_t rights;
 	LINUX_CTR6(mmap2, "0x%lx, %ld, %ld, 0x%08lx, %ld, 0x%lx",
 	    addr, len, prot, flags, fd, pos);
 
@@ -126,7 +125,7 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 		 * protection options specified.
 		 */
 
-		error = fget(td, fd, cap_rights_init(&rights, CAP_MMAP), &fp);
+		error = fget(td, fd, &cap_mmap_rights, &fp);
 		if (error != 0)
 			return (error);
 		if (fp->f_type != DTYPE_VNODE && fp->f_type != DTYPE_DEV) {

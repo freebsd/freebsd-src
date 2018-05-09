@@ -490,7 +490,6 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	struct filedescent *fde;
 	struct proc *p;
 	struct vnode *vp;
-	cap_rights_t rights;
 	int error, flg, tmp;
 	uint64_t bsize;
 	off_t foffset;
@@ -548,8 +547,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETFL:
-		error = fget_fcntl(td, fd,
-		    cap_rights_init(&rights, CAP_FCNTL), F_GETFL, &fp);
+		error = fget_fcntl(td, fd, &cap_fcntl_rights, F_GETFL, &fp);
 		if (error != 0)
 			break;
 		td->td_retval[0] = OFLAGS(fp->f_flag);
@@ -557,8 +555,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_SETFL:
-		error = fget_fcntl(td, fd,
-		    cap_rights_init(&rights, CAP_FCNTL), F_SETFL, &fp);
+		error = fget_fcntl(td, fd, &cap_fcntl_rights, F_SETFL, &fp);
 		if (error != 0)
 			break;
 		do {
@@ -585,8 +582,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETOWN:
-		error = fget_fcntl(td, fd,
-		    cap_rights_init(&rights, CAP_FCNTL), F_GETOWN, &fp);
+		error = fget_fcntl(td, fd, &cap_fcntl_rights, F_GETOWN, &fp);
 		if (error != 0)
 			break;
 		error = fo_ioctl(fp, FIOGETOWN, &tmp, td->td_ucred, td);
@@ -596,8 +592,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_SETOWN:
-		error = fget_fcntl(td, fd,
-		    cap_rights_init(&rights, CAP_FCNTL), F_SETOWN, &fp);
+		error = fget_fcntl(td, fd, &cap_fcntl_rights, F_SETOWN, &fp);
 		if (error != 0)
 			break;
 		tmp = arg;
@@ -618,8 +613,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_SETLK:
 	do_setlk:
-		cap_rights_init(&rights, CAP_FLOCK);
-		error = fget_unlocked(fdp, fd, &rights, &fp, NULL);
+		error = fget_unlocked(fdp, fd, &cap_flock_rights, &fp, NULL);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -711,7 +705,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		 * that the closing thread was a bit slower and that the
 		 * advisory lock succeeded before the close.
 		 */
-		error = fget_unlocked(fdp, fd, &rights, &fp2, NULL);
+		error = fget_unlocked(fdp, fd, &cap_no_rights, &fp2, NULL);
 		if (error != 0) {
 			fdrop(fp, td);
 			break;
@@ -729,8 +723,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETLK:
-		error = fget_unlocked(fdp, fd,
-		    cap_rights_init(&rights, CAP_FLOCK), &fp, NULL);
+		error = fget_unlocked(fdp, fd, &cap_flock_rights, &fp, NULL);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -767,8 +760,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		arg = arg ? 128 * 1024: 0;
 		/* FALLTHROUGH */
 	case F_READAHEAD:
-		error = fget_unlocked(fdp, fd,
-		    cap_rights_init(&rights), &fp, NULL);
+		error = fget_unlocked(fdp, fd, &cap_no_rights, &fp, NULL);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -1363,12 +1355,11 @@ int
 kern_fstat(struct thread *td, int fd, struct stat *sbp)
 {
 	struct file *fp;
-	cap_rights_t rights;
 	int error;
 
 	AUDIT_ARG_FD(fd);
 
-	error = fget(td, fd, cap_rights_init(&rights, CAP_FSTAT), &fp);
+	error = fget(td, fd, &cap_fstat_rights, &fp);
 	if (error != 0)
 		return (error);
 
@@ -1445,10 +1436,9 @@ kern_fpathconf(struct thread *td, int fd, int name, long *valuep)
 {
 	struct file *fp;
 	struct vnode *vp;
-	cap_rights_t rights;
 	int error;
 
-	error = fget(td, fd, cap_rights_init(&rights, CAP_FPATHCONF), &fp);
+	error = fget(td, fd, &cap_fpathconf_rights, &fp);
 	if (error != 0)
 		return (error);
 
@@ -2982,10 +2972,9 @@ sys_flock(struct thread *td, struct flock_args *uap)
 	struct file *fp;
 	struct vnode *vp;
 	struct flock lf;
-	cap_rights_t rights;
 	int error;
 
-	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_FLOCK), &fp);
+	error = fget(td, uap->fd, &cap_flock_rights, &fp);
 	if (error != 0)
 		return (error);
 	if (fp->f_type != DTYPE_VNODE) {
@@ -3633,7 +3622,7 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 #ifdef CAPABILITIES
 		rights = *cap_rights(fdp, i);
 #else /* !CAPABILITIES */
-		cap_rights_init(&rights);
+		rights = cap_no_rights;
 #endif
 		/*
 		 * Create sysctl entry.  It is OK to drop the filedesc

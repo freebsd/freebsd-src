@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 #include <sys/systm.h>
-
+#include <sys/kernel.h>
 #include <machine/stdarg.h>
 #else	/* !_KERNEL */
 #include <assert.h>
@@ -53,6 +53,38 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 #define	assert(exp)	KASSERT((exp), ("%s:%u", __func__, __LINE__))
+
+CAP_RIGHTS_DEFINE1(cap_accept_rights, CAP_ACCEPT);
+CAP_RIGHTS_DEFINE1(cap_bind_rights, CAP_BIND);
+CAP_RIGHTS_DEFINE1(cap_connect_rights, CAP_CONNECT);
+CAP_RIGHTS_DEFINE1(cap_event_rights, CAP_EVENT);
+CAP_RIGHTS_DEFINE1(cap_fchdir_rights, CAP_FCHDIR);
+CAP_RIGHTS_DEFINE1(cap_fcntl_rights, CAP_FCNTL);
+CAP_RIGHTS_DEFINE1(cap_fexecve_rights, CAP_FEXECVE);
+CAP_RIGHTS_DEFINE1(cap_flock_rights, CAP_FLOCK);
+CAP_RIGHTS_DEFINE1(cap_fpathconf_rights, CAP_FPATHCONF);
+CAP_RIGHTS_DEFINE1(cap_fstat_rights, CAP_FSTAT);
+CAP_RIGHTS_DEFINE1(cap_fsync_rights, CAP_FSYNC);
+CAP_RIGHTS_DEFINE1(cap_ftruncate_rights, CAP_FTRUNCATE);
+CAP_RIGHTS_DEFINE1(cap_getpeername_rights, CAP_GETPEERNAME);
+CAP_RIGHTS_DEFINE1(cap_getsockname_rights, CAP_GETSOCKNAME);
+CAP_RIGHTS_DEFINE1(cap_getsockopt_rights, CAP_GETSOCKOPT);
+CAP_RIGHTS_DEFINE1(cap_ioctl_rights, CAP_IOCTL);
+CAP_RIGHTS_DEFINE1(cap_listen_rights, CAP_LISTEN);
+CAP_RIGHTS_DEFINE1(cap_mmap_rights, CAP_MMAP);
+CAP_RIGHTS_DEFINE1(cap_pdgetpid_rights, CAP_PDGETPID);
+CAP_RIGHTS_DEFINE1(cap_pdkill_rights, CAP_PDKILL);
+CAP_RIGHTS_DEFINE1(cap_pread_rights, CAP_PREAD);
+CAP_RIGHTS_DEFINE1(cap_pwrite_rights, CAP_PWRITE);
+CAP_RIGHTS_DEFINE1(cap_read_rights, CAP_READ);
+CAP_RIGHTS_DEFINE1(cap_recv_rights, CAP_RECV);
+CAP_RIGHTS_DEFINE1(cap_send_rights, CAP_SEND);
+CAP_RIGHTS_DEFINE1(cap_setsockopt_rights, CAP_SETSOCKOPT);
+CAP_RIGHTS_DEFINE1(cap_shutdown_rights, CAP_SHUTDOWN);
+CAP_RIGHTS_DEFINE1(cap_write_rights, CAP_WRITE);
+
+__read_mostly cap_rights_t cap_no_rights;
+CAP_RIGHTS_SYSINIT0(cap_no_rights, cap_no_rights);
 #endif
 
 #define	CAPARSIZE_MIN	(CAP_RIGHTS_VERSION_00 + 2)
@@ -147,6 +179,16 @@ cap_rights_is_vset(const cap_rights_t *rights, va_list ap)
 	}
 
 	return (true);
+}
+
+void
+__cap_rights_sysinit(void *arg)
+{
+	struct cap_rights_init_args *cria = arg;
+	cap_rights_t *rights = cria->cria_rights;
+
+	__cap_rights_init(CAP_RIGHTS_VERSION, rights, cria->cria_value1,
+       cria->cria_value2, cria->cria_value3, cria->cria_value4, 0ULL);
 }
 
 cap_rights_t *
