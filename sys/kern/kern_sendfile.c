@@ -511,7 +511,6 @@ static int
 sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
     struct socket **so)
 {
-	cap_rights_t rights;
 	int error;
 
 	*sock_fp = NULL;
@@ -520,7 +519,7 @@ sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 	/*
 	 * The socket must be a stream socket and connected.
 	 */
-	error = getsock_cap(td, s, cap_rights_init(&rights, CAP_SEND),
+	error = getsock_cap(td, s, &cap_send_rights,
 	    sock_fp, NULL, NULL);
 	if (error != 0)
 		return (error);
@@ -949,7 +948,6 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	struct sf_hdtr hdtr;
 	struct uio *hdr_uio, *trl_uio;
 	struct file *fp;
-	cap_rights_t rights;
 	off_t sbytes;
 	int error;
 
@@ -1000,10 +998,8 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	 * sendfile(2) can start at any offset within a file so we require
 	 * CAP_READ+CAP_SEEK = CAP_PREAD.
 	 */
-	if ((error = fget_read(td, uap->fd,
-	    cap_rights_init(&rights, CAP_PREAD), &fp)) != 0) {
+	if ((error = fget_read(td, uap->fd, &cap_pread_rights, &fp)) != 0)
 		goto out;
-	}
 
 	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, uap->offset,
 	    uap->nbytes, &sbytes, uap->flags, td);

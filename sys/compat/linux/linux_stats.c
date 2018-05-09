@@ -103,14 +103,13 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 {
 	struct file *fp;
 	struct vnode *vp;
-	cap_rights_t rights;
 	int major, minor;
 
 	/*
 	 * No capability rights required here.
 	 */
 	if ((!S_ISCHR(buf->st_mode) && !S_ISBLK(buf->st_mode)) ||
-	    fget(td, fd, cap_rights_init(&rights), &fp) != 0)
+	    fget(td, fd, &cap_no_rights, &fp) != 0)
 		return;
 	vp = fp->f_vnode;
 	if (vp != NULL && vp->v_rdev != NULL &&
@@ -680,12 +679,11 @@ linux_newfstatat(struct thread *td, struct linux_newfstatat_args *args)
 int
 linux_syncfs(struct thread *td, struct linux_syncfs_args *args)
 {
-	cap_rights_t rights;
 	struct mount *mp;
 	struct vnode *vp;
 	int error, save;
 
-	error = fgetvp(td, args->fd, cap_rights_init(&rights, CAP_FSYNC), &vp);
+	error = fgetvp(td, args->fd, &cap_fsync_rights, &vp);
 	if (error != 0)
 		/*
 		 * Linux syncfs() returns only EBADF, however fgetvp()
