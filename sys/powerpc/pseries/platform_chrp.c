@@ -146,7 +146,7 @@ chrp_attach(platform_t plat)
 
 		/* Set up important VPA fields */
 		for (i = 0; i < MAXCPU; i++) {
-			bzero(splpar_vpa[i], sizeof(splpar_vpa));
+			bzero(splpar_vpa[i], sizeof(splpar_vpa[i]));
 			/* First two: VPA size */
 			splpar_vpa[i][4] =
 			    (uint8_t)((sizeof(splpar_vpa[i]) >> 8) & 0xff);
