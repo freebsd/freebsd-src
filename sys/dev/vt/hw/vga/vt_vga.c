@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <dev/vt/vt.h>
+#include <dev/vt/colors/vt_termcolors.h>
 #include <dev/vt/hw/vga/vt_vga_reg.h>
 #include <dev/pci/pcivar.h>
 
@@ -152,7 +153,7 @@ vga_setfg(struct vt_device *vd, term_color_t color)
 		return;
 
 	REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_SET_RESET);
-	REG_WRITE1(sc, VGA_GC_DATA, color);
+	REG_WRITE1(sc, VGA_GC_DATA, cons_to_vga_colors[color]);
 	sc->vga_curfg = color;
 }
 
@@ -167,7 +168,7 @@ vga_setbg(struct vt_device *vd, term_color_t color)
 		return;
 
 	REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_SET_RESET);
-	REG_WRITE1(sc, VGA_GC_DATA, color);
+	REG_WRITE1(sc, VGA_GC_DATA, cons_to_vga_colors[color]);
 
 	/*
 	 * Write 8 pixels using the background color to an off-screen
@@ -888,7 +889,9 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
 			ch = vga_get_cp437(TCHAR_CHARACTER(c));
 
 			/* Convert colors to VGA attributes. */
-			attr = bg << 4 | fg;
+			attr =
+			    cons_to_vga_colors[bg] << 4 |
+			    cons_to_vga_colors[fg];
 
 			MEM_WRITE1(sc, (row * 80 + col) * 2 + 0,
 			    ch);
@@ -1114,43 +1117,45 @@ vga_initialize(struct vt_device *vd, int textmode)
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(0));
 	REG_WRITE1(sc, VGA_AC_WRITE, 0);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(1));
-	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_R);
+	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(2));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_G);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(3));
-	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SG | VGA_AC_PAL_R);
+	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_G | VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(4));
-	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_B);
+	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_R);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(5));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_R | VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(6));
-	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_G | VGA_AC_PAL_B);
+	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SG | VGA_AC_PAL_R);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(7));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_R | VGA_AC_PAL_G | VGA_AC_PAL_B);
+
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(8));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
 	    VGA_AC_PAL_SB);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(9));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
-	    VGA_AC_PAL_SB | VGA_AC_PAL_R);
+	    VGA_AC_PAL_SB | VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(10));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
 	    VGA_AC_PAL_SB | VGA_AC_PAL_G);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(11));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
-	    VGA_AC_PAL_SB | VGA_AC_PAL_R | VGA_AC_PAL_G);
+	    VGA_AC_PAL_SB | VGA_AC_PAL_G | VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(12));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
-	    VGA_AC_PAL_SB | VGA_AC_PAL_B);
+	    VGA_AC_PAL_SB | VGA_AC_PAL_R);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(13));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
 	    VGA_AC_PAL_SB | VGA_AC_PAL_R | VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(14));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
-	    VGA_AC_PAL_SB | VGA_AC_PAL_G | VGA_AC_PAL_B);
+	    VGA_AC_PAL_SB | VGA_AC_PAL_R | VGA_AC_PAL_G);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(15));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
 	    VGA_AC_PAL_SB | VGA_AC_PAL_R | VGA_AC_PAL_G | VGA_AC_PAL_B);
+
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_OVERSCAN_COLOR);
 	REG_WRITE1(sc, VGA_AC_WRITE, 0);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_COLOR_PLANE_ENABLE);

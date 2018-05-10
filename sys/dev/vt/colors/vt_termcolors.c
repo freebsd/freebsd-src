@@ -38,8 +38,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/vt/colors/vt_termcolors.h>
 
-#define NCOLORS	16
-
 static struct {
 	unsigned char r;	/* Red percentage value. */
 	unsigned char g;	/* Green percentage value. */
@@ -62,16 +60,6 @@ static struct {
 	{100,	0,	100},	/* light magenta */
 	{0,	100,	100},	/* light cyan */
 	{100,	100,	100},	/* white */
-};
-
-/*
- * Between console's palette and VGA's one:
- *   - blue and red are swapped (1 <-> 4)
- *   - yellow ad cyan are swapped (3 <-> 6)
- */
-static const int cons_to_vga_colors[NCOLORS] = {
-	0, 4, 2, 6, 1, 5, 3, 7,
-	0, 4, 2, 6, 1, 5, 3, 7
 };
 
 static int
