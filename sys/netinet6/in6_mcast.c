@@ -581,7 +581,7 @@ in6m_disconnect(struct in6_multi *inm)
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 	struct in6_ifaddr *ifa6;
-	struct in6_multi_mship *imm;
+	struct in6_multi_mship *imm, *imm_tmp;
 	struct ifmultiaddr *ifma, *ll_ifma;
 
 	ifp = inm->in6m_ifp;
@@ -607,7 +607,8 @@ in6m_disconnect(struct in6_multi *inm)
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		ifa6 = (void *)ifa;
-		LIST_FOREACH(imm, &ifa6->ia6_memberships, i6mm_chain) {
+		LIST_FOREACH_SAFE(imm, &ifa6->ia6_memberships,
+		    i6mm_chain, imm_tmp) {
 			if (inm == imm->i6mm_maddr) {
 				LIST_REMOVE(imm, i6mm_chain);
 				free(imm, M_IP6MADDR);
