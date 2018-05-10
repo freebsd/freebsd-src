@@ -2121,13 +2121,15 @@ Job_CatchOutput(void)
 {
     int nready;
     Job *job;
-    int i;
+    int i, pollToken;
 
     (void)fflush(stdout);
 
+	pollToken = 0;
+
     /* The first fd in the list is the job token pipe */
     do {
-	nready = poll(fds + 1 - wantToken, nfds - 1 + wantToken, POLL_MSEC);
+	nready = poll(fds + 1 - pollToken, nfds - 1 + pollToken, POLL_MSEC);
     } while (nready < 0 && errno == EINTR);
 
     if (nready < 0)
