@@ -56,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/uio.h>
 #include <sys/unistd.h>
+#include <sys/nv.h>
+#include <sys/dnv.h>
 #include <vm/uma.h>
 
 #include <cam/scsi/scsi_all.h>
@@ -2105,30 +2107,30 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 {
 	struct cfiscsi_target *ct;
 	struct ctl_port *port;
-	const char *target, *alias, *tags;
+	const char *target, *alias, *val;
 	struct scsi_vpd_id_descriptor *desc;
-	ctl_options_t opts;
 	int retval, len, idlen;
 	uint16_t tag;
 
-	ctl_init_opts(&opts, req->num_args, req->kern_args);
-	target = ctl_get_opt(&opts, "cfiscsi_target");
-	alias = ctl_get_opt(&opts, "cfiscsi_target_alias");
-	tags = ctl_get_opt(&opts, "cfiscsi_portal_group_tag");
-	if (target == NULL || tags == NULL) {
+	target = dnvlist_get_string(req->args_nvl, "cfiscsi_target", NULL);
+	alias = dnvlist_get_string(req->args_nvl, "cfiscsi_target_alias", NULL);
+	val = dnvlist_get_string(req->args_nvl, "cfiscsi_portal_group_tag",
+	    NULL);
+
+
+	if (target == NULL || val == NULL) {
 		req->status = CTL_LUN_ERROR;
 		snprintf(req->error_str, sizeof(req->error_str),
 		    "Missing required argument");
-		ctl_free_opts(&opts);
 		return;
 	}
-	tag = strtol(tags, (char **)NULL, 10);
+
+	tag = strtoul(val, NULL, 0);
 	ct = cfiscsi_target_find_or_create(&cfiscsi_softc, target, alias, tag);
 	if (ct == NULL) {
 		req->status = CTL_LUN_ERROR;
 		snprintf(req->error_str, sizeof(req->error_str),
 		    "failed to create target \"%s\"", target);
-		ctl_free_opts(&opts);
 		return;
 	}
 	if (ct->ct_state == CFISCSI_TARGET_STATE_ACTIVE) {
@@ -2137,7 +2139,6 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 		    "target \"%s\" for portal group tag %u already exists",
 		    target, tag);
 		cfiscsi_target_release(ct);
-		ctl_free_opts(&opts);
 		return;
 	}
 	port = &ct->ct_port;
@@ -2150,7 +2151,7 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	/* XXX KDM what should the real number be here? */
 	port->num_requested_ctl_io = 4096;
 	port->port_name = "iscsi";
-	port->physical_port = tag;
+	port->physical_port = (int)tag;
 	port->virtual_port = ct->ct_target_id;
 	port->port_online = cfiscsi_online;
 	port->port_offline = cfiscsi_offline;
@@ -2159,9 +2160,7 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	port->fe_datamove = cfiscsi_datamove;
 	port->fe_done = cfiscsi_done;
 	port->targ_port = -1;
-
-	port->options = opts;
-	STAILQ_INIT(&opts);
+	port->options = nvlist_clone(req->args_nvl);
 
 	/* Generate Port ID. */
 	idlen = strlen(target) + strlen(",t,0x0001") + 1;
@@ -2193,7 +2192,6 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 
 	retval = ctl_port_register(port);
 	if (retval != 0) {
-		ctl_free_opts(&port->options);
 		free(port->port_devid, M_CFISCSI);
 		free(port->target_devid, M_CFISCSI);
 		cfiscsi_target_release(ct);
@@ -2205,45 +2203,42 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 done:
 	ct->ct_state = CFISCSI_TARGET_STATE_ACTIVE;
 	req->status = CTL_LUN_OK;
-	memcpy(req->kern_args[0].kvalue, &port->targ_port,
-	    sizeof(port->targ_port)); //XXX
+	req->result_nvl = nvlist_create(0);
+	nvlist_add_number(req->result_nvl, "port_id", port->targ_port);
 }
 
 static void
 cfiscsi_ioctl_port_remove(struct ctl_req *req)
 {
 	struct cfiscsi_target *ct;
-	const char *target, *tags;
-	ctl_options_t opts;
+	const char *target, *val;
 	uint16_t tag;
 
-	ctl_init_opts(&opts, req->num_args, req->kern_args);
-	target = ctl_get_opt(&opts, "cfiscsi_target");
-	tags = ctl_get_opt(&opts, "cfiscsi_portal_group_tag");
-	if (target == NULL || tags == NULL) {
-		ctl_free_opts(&opts);
+	target = dnvlist_get_string(req->args_nvl, "cfiscsi_target", NULL);
+	val = dnvlist_get_string(req->args_nvl, "cfiscsi_portal_group_tag",
+	    NULL);
+
+	if (target == NULL || val == NULL) {
 		req->status = CTL_LUN_ERROR;
 		snprintf(req->error_str, sizeof(req->error_str),
 		    "Missing required argument");
 		return;
 	}
-	tag = strtol(tags, (char **)NULL, 10);
+
+	tag = strtoul(val, NULL, 0);
 	ct = cfiscsi_target_find(&cfiscsi_softc, target, tag);
 	if (ct == NULL) {
-		ctl_free_opts(&opts);
 		req->status = CTL_LUN_ERROR;
 		snprintf(req->error_str, sizeof(req->error_str),
 		    "can't find target \"%s\"", target);
 		return;
 	}
 	if (ct->ct_state != CFISCSI_TARGET_STATE_ACTIVE) {
-		ctl_free_opts(&opts);
 		req->status = CTL_LUN_ERROR;
 		snprintf(req->error_str, sizeof(req->error_str),
 		    "target \"%s\" is already dying", target);
 		return;
 	}
-	ctl_free_opts(&opts);
 
 	ct->ct_state = CFISCSI_TARGET_STATE_DYING;
 	ctl_port_offline(&ct->ct_port);

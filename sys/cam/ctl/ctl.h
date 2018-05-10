@@ -196,24 +196,6 @@ void ctl_isc_announce_iid(struct ctl_port *port, int iid);
 void ctl_isc_announce_mode(struct ctl_lun *lun, uint32_t initidx,
     uint8_t page, uint8_t subpage);
 
-/*
- * KPI to manipulate LUN/port options
- */
-
-struct ctl_option {
-	STAILQ_ENTRY(ctl_option)	links;
-	char			*name;
-	char			*value;
-};
-typedef STAILQ_HEAD(ctl_options, ctl_option) ctl_options_t;
-
-struct ctl_be_arg;
-void ctl_init_opts(ctl_options_t *opts, int num_args, struct ctl_be_arg *args);
-void ctl_update_opts(ctl_options_t *opts, int num_args,
-    struct ctl_be_arg *args);
-void ctl_free_opts(ctl_options_t *opts);
-char * ctl_get_opt(ctl_options_t *opts, const char *name);
-int ctl_get_opt_number(ctl_options_t *opts, const char *name, uint64_t *num);
 int ctl_expand_number(const char *buf, uint64_t *num);
 
 #endif	/* _KERNEL */
