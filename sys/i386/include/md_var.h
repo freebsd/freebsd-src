@@ -54,7 +54,6 @@ extern	uintptr_t setidt_disp;
 struct	segment_descriptor;
 union savefpu;
 
-void	bcopyb(const void *from, void *to, size_t len);
 int	cp_slow0(vm_offset_t uva, size_t len, bool write,
 	    void (*f)(vm_offset_t, void *), void *arg);
 void	cpu_switch_load_gs(void) __asm(__STRING(cpu_switch_load_gs));
