@@ -1650,17 +1650,14 @@ get_system_specs_for_migration(struct migration_system_specs *specs)
 
 	mib[0] = CTL_HW;
 
-#if 1
 	mib[1] = HW_MACHINE;
+	memset(interm, 0, MAX_SPEC_LEN);
 	rc = sysctl(mib, 2, interm, &len_machine, NULL, 0);
 	if (rc != 0) {
 		perror("Could not retrieve HW_MACHINE specs");
 		return (rc);
 	}
-	strncpy(specs->hw_model, interm, MAX_SPEC_LEN);
-#else
-	strcpy(specs->hw_machine, "amd64");
-#endif
+	strncpy(specs->hw_machine, interm, MAX_SPEC_LEN);
 
 	memset(interm, 0, MAX_SPEC_LEN);
 	mib[0] = CTL_HW;
@@ -1672,7 +1669,6 @@ get_system_specs_for_migration(struct migration_system_specs *specs)
 	}
 	strncpy(specs->hw_model, interm, MAX_SPEC_LEN);
 
-#if 1
 	mib[0] = CTL_HW;
 	mib[1] = HW_PAGESIZE;
 	rc = sysctl(mib, 2, &num, &len_pagesize, NULL, 0);
@@ -1681,9 +1677,7 @@ get_system_specs_for_migration(struct migration_system_specs *specs)
 		return (rc);
 	}
 	specs->hw_pagesize = num;
-#else
-	specs->hw_pagesize=4098;
-#endif
+
 
 	return (0);
 }
@@ -1891,35 +1885,36 @@ static int
 get_migration_host_and_type(const char *hostname, unsigned char *ipv4_addr,
 				unsigned char *ipv6_addr, int *type)
 {
-	struct hostent *he;
+	struct addrinfo hints, *res;
+	void *addr;
+	int rc;
 
-	he = gethostbyname(hostname);
+	memset(&hints, 0, sizeof(hints));
 
-	if (he == NULL) {
-		/*
-		 * IPv6 check
-		 * Migration is not implemented yet for IPv6 hosts
-		 * The code below is a snippet for checking the IPv6 host
-		 */
+	hints.ai_family = AF_UNSPEC;
 
-		he = gethostbyname2(hostname, AF_INET6);
+	rc = getaddrinfo(hostname, NULL, &hints, &res);
 
-		if (he == NULL) {
+	if (rc != 0) {
+		fprintf(stderr, "%s: Could not get address info\r\n", __func__);
+		return (-1);
+	}
+
+	*type = res->ai_family;
+	switch(res->ai_family) {
+		case AF_INET:
+			addr = &((struct sockaddr_in *) res->ai_addr)->sin_addr;
+			inet_ntop(res->ai_family, addr, ipv4_addr, MAX_IP_LEN);
+			printf("hostname %s\r\n", ipv4_addr);
+			break;
+		case AF_INET6:
+			addr = &((struct sockaddr_in6 *) res->ai_addr)->sin6_addr;
+			inet_ntop(res->ai_family, addr, ipv6_addr, MAX_IP_LEN);
+			printf("hostname %s\r\n", ipv6_addr);
+			break;
+		default:
+			fprintf(stderr, "%s: Unknown ai_family.\r\n", __func__);
 			return (-1);
-		} else {
-			*type = AF_INET6;
-			inet_ntop(AF_INET6, he->h_addr_list[0],
-				  ipv6_addr, INET6_ADDRSTRLEN);
-
-		}
-	} else {
-		/*
-		 * IPv4 address
-		 */
-
-		*type = AF_INET;
-		inet_ntop(AF_INET, he->h_addr_list[0],
-			  ipv4_addr, INET_ADDRSTRLEN);
 	}
 
 	return (0);
@@ -1928,8 +1923,8 @@ get_migration_host_and_type(const char *hostname, unsigned char *ipv4_addr,
 int
 send_start_migrate_req(struct vmctx *ctx, struct migrate_req req)
 {
-	unsigned char ipv4_addr[16];
-	unsigned char ipv6_addr[32];
+	unsigned char ipv4_addr[MAX_IP_LEN];
+	unsigned char ipv6_addr[MAX_IP_LEN];
 	int addr_type;
 	struct sockaddr_in sa;
 	int s;
@@ -2013,8 +2008,8 @@ send_start_migrate_req(struct vmctx *ctx, struct migrate_req req)
 int
 recv_migrate_req(struct vmctx *ctx, struct migrate_req req)
 {
-	unsigned char ipv4_addr[16];
-	unsigned char ipv6_addr[32];
+	unsigned char ipv4_addr[MAX_IP_LEN];
+	unsigned char ipv6_addr[MAX_IP_LEN];
 	int addr_type;
 	int s, con_socket;
 	struct sockaddr_in sa, client_sa;

@@ -280,6 +280,7 @@ int	vm_restore_req(struct vmctx *ctx, enum snapshot_req req, char *buffer,
 int	vm_restore_mem(struct vmctx *ctx, int vmmem_fd, size_t size);
 
 #define MAX_HOSTNAME_LEN	255
+#define MAX_IP_LEN		64
 #define DEFAULT_MIGRATION_PORT	24983
 #define MAX_SPEC_LEN		256
 
