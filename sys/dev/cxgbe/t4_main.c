@@ -3631,6 +3631,18 @@ get_params__post_init(struct adapter *sc)
 	else
 		sc->params.mps_bg_map = 0;
 
+	/*
+	 * Determine whether the firmware supports the filter2 work request.
+	 * This is queried separately for the same reason as MPSBGMAP above.
+	 */
+	param[0] = FW_PARAM_DEV(FILTER2_WR);
+	val[0] = 0;
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
+	if (rc == 0)
+		sc->params.filter2_wr_support = val[0] != 0;
+	else
+		sc->params.filter2_wr_support = 0;
+
 	/* get capabilites */
 	bzero(&caps, sizeof(caps));
 	caps.op_to_write = htobe32(V_FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
