@@ -100,6 +100,7 @@ X_db_search_symbol(db_symtab_t *symtab, db_addr_t off, db_strategy_t strat,
 	c_linker_sym_t lsym;
 	Elf_Sym *sym, *match;
 	unsigned long diff;
+	db_addr_t stoffs;
 
 	if (symtab->private == NULL) {
 		if (!linker_ddb_search_symbol((caddr_t)off, &lsym, &diff)) {
@@ -111,19 +112,20 @@ X_db_search_symbol(db_symtab_t *symtab, db_addr_t off, db_strategy_t strat,
 
 	diff = ~0UL;
 	match = NULL;
+	stoffs = DB_STOFFS(off);
 	for (sym = (Elf_Sym*)symtab->start; (char*)sym < symtab->end; sym++) {
 		if (sym->st_name == 0 || sym->st_shndx == SHN_UNDEF)
 			continue;
-		if (off < sym->st_value)
+		if (stoffs < sym->st_value)
 			continue;
 		if (ELF_ST_TYPE(sym->st_info) != STT_OBJECT &&
 		    ELF_ST_TYPE(sym->st_info) != STT_FUNC &&
 		    ELF_ST_TYPE(sym->st_info) != STT_NOTYPE)
 			continue;
-		if ((off - sym->st_value) > diff)
+		if ((stoffs - sym->st_value) > diff)
 			continue;
-		if ((off - sym->st_value) < diff) {
-			diff = off - sym->st_value;
+		if ((stoffs - sym->st_value) < diff) {
+			diff = stoffs - sym->st_value;
 			match = sym;
 		} else {
 			if (match == NULL)
