@@ -85,6 +85,7 @@ kern/subr_sfbuf.c		standard
 libkern/ashldi3.c		optional	powerpc | powerpcspe
 libkern/ashrdi3.c		optional	powerpc | powerpcspe
 libkern/bcmp.c			standard
+libkern/bcopy.c			standard
 libkern/cmpdi2.c		optional	powerpc | powerpcspe
 libkern/divdi3.c		optional	powerpc | powerpcspe
 libkern/ffs.c			standard
@@ -195,7 +196,6 @@ powerpc/powernv/powernv_centaur.c	optional	powernv
 powerpc/powernv/powernv_xscom.c	optional	powernv
 powerpc/powerpc/altivec.c	optional	powerpc | powerpc64
 powerpc/powerpc/autoconf.c	standard
-powerpc/powerpc/bcopy.c		standard
 powerpc/powerpc/bus_machdep.c	standard
 powerpc/powerpc/busdma_machdep.c standard
 powerpc/powerpc/clock.c		standard
