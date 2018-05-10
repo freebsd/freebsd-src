@@ -371,6 +371,7 @@ struct adapter_params {
 	unsigned int bypass:1;	/* this is a bypass card */
 	unsigned int ethoffload:1;
 	unsigned int hash_filter:1;
+	unsigned int filter2_wr_support:1;
 
 	unsigned int ofldq_wr_cred;
 	unsigned int eo_wr_cred;
