@@ -519,7 +519,7 @@ sys_pwritev(struct thread *td, struct pwritev_args *uap)
 }
 
 int
-kern_pwritev(struct thread *td, struct uio *auio, int fd, off_t offset)
+kern_pwritev(struct thread *td, int fd, struct uio *auio, off_t offset)
 {
 	struct file *fp;
 	int error;
