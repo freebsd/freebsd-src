@@ -17,6 +17,7 @@ GCE_UPLOAD_TGTS=	gce-do-login
 CLEANFILES+=		${GCE_UPLOAD_TGTS}
 
 GCE_BUCKET?=
+GCE_LICENSE?=
 
 .if !defined(GCE_FAMILY) || empty(GCE_FAMILY)
 GCE_FAMILY=		${TYPE:tl}-${REVISION:S,.,-,}
@@ -70,7 +71,7 @@ gce-do-upload:
 	/usr/local/bin/gsutil cp ${.OBJDIR}/${GCE_TARGET}.tar.gz \
 		gs://${GCE_BUCKET}/
 	/usr/local/bin/gcloud compute images create ${GCE_TARGET} \
-		--family=${GCE_FAMILY}${GCE_FAMILY_SUFX} \
+		--family=${GCE_FAMILY}${GCE_FAMILY_SUFX} ${GCE_LICENSE} \
 		--source-uri gs://${GCE_BUCKET}/${GCE_TARGET}.tar.gz
 	touch ${.OBJDIR}/${.TARGET}
 
