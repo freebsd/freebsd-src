@@ -104,6 +104,7 @@
 _Static_assert(sizeof(((struct ifreq *)0)->ifr_name) ==
     offsetof(struct ifreq, ifr_ifru), "gap between ifr_name and ifr_ifru");
 
+epoch_t net_epoch;
 #ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>
 #include <compat/freebsd32/freebsd32.h>
@@ -903,6 +904,7 @@ if_attachdomain(void *dummy)
 {
 	struct ifnet *ifp;
 
+	net_epoch = epoch_alloc();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link)
 		if_attachdomain1(ifp);
 }
