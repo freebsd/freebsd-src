@@ -165,7 +165,7 @@ static inline long PTR_ERR(const void *ptr)
 
 #define GENMASK(h, l)		(((1U << ((h) - (l) + 1)) - 1) << (l))
 #define GENMASK_ULL(h, l)	(((~0ULL) << (l)) & (~0ULL >> (64 - 1 - (h))))
-#define BIT(x)			(1 << (x))
+#define BIT(x)			(1UL << (x))
 
 #define ENA_ABORT() 		BUG()
 #define BUG() 			panic("ENA BUG")
@@ -244,7 +244,12 @@ static inline long PTR_ERR(const void *ptr)
 		    timeout_us * hz / 1000 / 1000 );			\
 		mtx_unlock(&((waitqueue).mtx));				\
 	} while (0)
-#define ENA_WAIT_EVENT_SIGNAL(waitqueue) cv_broadcast(&((waitqueue).wq))
+#define ENA_WAIT_EVENT_SIGNAL(waitqueue)		\
+	do {						\
+		mtx_lock(&((waitqueue).mtx));		\
+		cv_broadcast(&((waitqueue).wq));	\
+		mtx_unlock(&((waitqueue).mtx));		\
+	} while (0)
 
 #define dma_addr_t 	bus_addr_t
 #define u8 		uint8_t
