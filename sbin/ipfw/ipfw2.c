@@ -1708,7 +1708,7 @@ print_instruction(struct buf_pr *bp, const struct format_opts *fo,
 
 static ipfw_insn *
 print_opcode(struct buf_pr *bp, struct format_opts *fo,
-    struct show_state *state, uint8_t opcode)
+    struct show_state *state, int opcode)
 {
 	ipfw_insn *cmd;
 	int l;
@@ -1716,7 +1716,7 @@ print_opcode(struct buf_pr *bp, struct format_opts *fo,
 	for (l = state->rule->act_ofs, cmd = state->rule->cmd;
 	    l > 0; l -= F_LEN(cmd), cmd += F_LEN(cmd)) {
 		/* We use zero opcode to print the rest of options */
-		if (opcode != 0 && cmd->opcode != opcode)
+		if (opcode >= 0 && cmd->opcode != opcode)
 			continue;
 		/*
 		 * Skip O_NOP, when we printing the rest
@@ -2192,7 +2192,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	    O_IP_DSTPORT, HAVE_DSTIP);
 
 	/* Print the rest of options */
-	while (print_opcode(bp, fo, &state, 0))
+	while (print_opcode(bp, fo, &state, -1))
 		;
 end:
 	/* Print comment at the end */
