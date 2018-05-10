@@ -2454,25 +2454,6 @@ ctl_ioctl_fill_ooa(struct ctl_lun *lun, uint32_t *cur_fill_num,
 	mtx_unlock(&lun->lun_lock);
 }
 
-static void *
-ctl_copyin_alloc(void *user_addr, unsigned int len, char *error_str,
-		 size_t error_str_len)
-{
-	void *kptr;
-
-	kptr = malloc(len, M_CTL, M_WAITOK | M_ZERO);
-
-	if (copyin(user_addr, kptr, len) != 0) {
-		snprintf(error_str, error_str_len, "Error copying %d bytes "
-			 "from user address %p to kernel address %p", len,
-			 user_addr, kptr);
-		free(kptr, M_CTL);
-		return (NULL);
-	}
-
-	return (kptr);
-}
-
 /*
  * Escape characters that are illegal or not recommended in XML.
  */
@@ -5070,11 +5051,9 @@ ctl_lun_secondary(struct ctl_be_lun *be_lun)
 int
 ctl_invalidate_lun(struct ctl_be_lun *be_lun)
 {
-	struct ctl_softc *softc;
 	struct ctl_lun *lun;
 
 	lun = (struct ctl_lun *)be_lun->ctl_lun;
-	softc = lun->ctl_softc;
 
 	mtx_lock(&lun->lun_lock);
 
@@ -6270,7 +6249,7 @@ ctl_mode_select(struct ctl_scsiio *ctsio)
 {
 	struct ctl_lun *lun = CTL_LUN(ctsio);
 	union ctl_modepage_info *modepage_info;
-	int bd_len, i, header_size, param_len, pf, rtd, sp;
+	int bd_len, i, header_size, param_len, rtd;
 	uint32_t initidx;
 
 	initidx = ctl_get_initindex(&ctsio->io_hdr.nexus);
@@ -6280,9 +6259,7 @@ ctl_mode_select(struct ctl_scsiio *ctsio)
 
 		cdb = (struct scsi_mode_select_6 *)ctsio->cdb;
 
-		pf = (cdb->byte2 & SMS_PF) ? 1 : 0;
 		rtd = (cdb->byte2 & SMS_RTD) ? 1 : 0;
-		sp = (cdb->byte2 & SMS_SP) ? 1 : 0;
 		param_len = cdb->length;
 		header_size = sizeof(struct scsi_mode_header_6);
 		break;
@@ -6292,9 +6269,7 @@ ctl_mode_select(struct ctl_scsiio *ctsio)
 
 		cdb = (struct scsi_mode_select_10 *)ctsio->cdb;
 
-		pf = (cdb->byte2 & SMS_PF) ? 1 : 0;
 		rtd = (cdb->byte2 & SMS_RTD) ? 1 : 0;
-		sp = (cdb->byte2 & SMS_SP) ? 1 : 0;
 		param_len = scsi_2btoul(cdb->length);
 		header_size = sizeof(struct scsi_mode_header_10);
 		break;
@@ -6417,13 +6392,12 @@ int
 ctl_mode_sense(struct ctl_scsiio *ctsio)
 {
 	struct ctl_lun *lun = CTL_LUN(ctsio);
-	int pc, page_code, dbd, llba, subpage;
+	int pc, page_code, dbd, subpage;
 	int alloc_len, page_len, header_len, total_len;
 	struct scsi_mode_block_descr *block_desc;
 	struct ctl_page_index *page_index;
 
 	dbd = 0;
-	llba = 0;
 	block_desc = NULL;
 
 	CTL_DEBUG_PRINT(("ctl_mode_sense\n"));
@@ -6457,8 +6431,6 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 			dbd = 1;
 		else
 			header_len += sizeof(struct scsi_mode_block_descr);
-		if (cdb->byte2 & SMS10_LLBAA)
-			llba = 1;
 		pc = (cdb->page & SMS_PAGE_CTRL_MASK) >> 6;
 		page_code = cdb->page & SMS_PAGE_CODE;
 		subpage = cdb->subpage;
@@ -8631,10 +8603,11 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_io *io)
 		if (lun->pr_res_type != SPR_TYPE_EX_AC &&
 		    lun->pr_res_type != SPR_TYPE_WR_EX &&
 		    (lun->MODE_CTRL.queue_flags & SCP_NUAR) == 0) {
-			for (i = softc->init_min; i < softc->init_max; i++)
+			for (i = softc->init_min; i < softc->init_max; i++) {
 				if (i == residx || ctl_get_prkey(lun, i) == 0)
 					continue;
 				ctl_est_ua(lun, i, CTL_UA_RES_RELEASE);
+			}
 		}
 
 		lun->flags &= ~CTL_LUN_PR_RESERVED;
@@ -10452,7 +10425,6 @@ ctl_get_event_status(struct ctl_scsiio *ctsio)
 	struct scsi_get_event_status_header *hdr;
 	struct scsi_get_event_status *cdb;
 	uint32_t alloc_len, data_len;
-	int notif_class;
 
 	cdb = (struct scsi_get_event_status *)ctsio->cdb;
 	if ((cdb->byte2 & SGESN_POLLED) == 0) {
@@ -10461,7 +10433,6 @@ ctl_get_event_status(struct ctl_scsiio *ctsio)
 		ctl_done((union ctl_io *)ctsio);
 		return (CTL_RETVAL_COMPLETE);
 	}
-	notif_class = cdb->notif_class;
 	alloc_len = scsi_2btoul(cdb->length);
 
 	data_len = sizeof(struct scsi_get_event_status_header);
