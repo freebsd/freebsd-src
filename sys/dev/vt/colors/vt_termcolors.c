@@ -171,21 +171,21 @@ vt_generate_cons_palette(uint32_t *palette, int format, uint32_t rmax,
 {
 	int i;
 
-	vt_palette_init();
-
-#define	CF(_f, _i) ((_f ## max * color_def[(_i)]._f / 100) << _f ## offset)
-	for (i = 0; i < NCOLORS; i++) {
-		switch (format) {
-		case COLOR_FORMAT_VGA:
+	switch (format) {
+	case COLOR_FORMAT_VGA:
+		for (i = 0; i < NCOLORS; i++)
 			palette[i] = cons_to_vga_colors[i];
-			break;
-		case COLOR_FORMAT_RGB:
+		break;
+	case COLOR_FORMAT_RGB:
+		vt_palette_init();
+#define	CF(_f, _i) ((_f ## max * color_def[(_i)]._f / 100) << _f ## offset)
+		for (i = 0; i < NCOLORS; i++)
 			palette[i] = CF(r, i) | CF(g, i) | CF(b, i);
-			break;
-		default:
-			return (ENODEV);
-		}
-	}
 #undef	CF
+		break;
+	default:
+		return (ENODEV);
+	}
+
 	return (0);
 }
