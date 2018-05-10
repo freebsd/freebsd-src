@@ -145,37 +145,6 @@ ENTRY(fillw)
 	ret
 END(fillw)
 
-ENTRY(bcopyb)
-	pushl	%esi
-	pushl	%edi
-	movl	12(%esp),%esi
-	movl	16(%esp),%edi
-	movl	20(%esp),%ecx
-	movl	%edi,%eax
-	subl	%esi,%eax
-	cmpl	%ecx,%eax			/* overlapping && src < dst? */
-	jb	1f
-	rep
-	movsb
-	popl	%edi
-	popl	%esi
-	ret
-
-	ALIGN_TEXT
-1:
-	addl	%ecx,%edi			/* copy backwards. */
-	addl	%ecx,%esi
-	decl	%edi
-	decl	%esi
-	std
-	rep
-	movsb
-	popl	%edi
-	popl	%esi
-	cld
-	ret
-END(bcopyb)
-
 /*
  * bcopy(src, dst, cnt)
  *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
