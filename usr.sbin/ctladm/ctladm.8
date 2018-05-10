@@ -1,6 +1,7 @@
 .\"
 .\" Copyright (c) 2003 Silicon Graphics International Corp.
 .\" Copyright (c) 2015 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2018 Marcelo Araujo <araujo@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -35,7 +36,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2017
+.Dd May 10, 2018
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -161,10 +162,13 @@
 .Op Fl x
 .Nm
 .Ic port
+.Op Fl c
 .Op Fl o Ar on|off
 .Op Fl w Ar wwpn
 .Op Fl W Ar wwnn
+.Op Fl O Ar pp|vp
 .Op Fl p Ar targ_port
+.Op Fl r Ar targ_port
 .Op Fl t Ar fe_type
 .Nm
 .Ic portlist
@@ -593,13 +597,21 @@ must be specified.
 The WWNN and WWPN may both be specified at the same time, but cannot be
 combined with enabling/disabling or listing ports.
 .Bl -tag -width 12n
+.It Fl c
+Create new frontend port using free pp and vp=0.
 .It Fl o Ar on|off
-Turn the specified CTL frontend ports off or on.
+Turn the specified CTL frontend ports on or off.
 If no port number or port type is specified, all ports are turned on or
 off.
+.It Fl O Ar pp|vp
+Specify generic options on the ioctl frontend port.
+At present, only pp and vp port numbers can be set.
 .It Fl p Ar targ_port
 Specify the frontend port number.
 The port numbers can be found in the frontend port list.
+.It Fl r
+Remove port specified with
+.Pq Fl p Ar targ_port .
 .It Fl t Ar fe_type
 Specify the frontend type.
 Currently defined port types are
@@ -950,29 +962,26 @@ The default value is zero, that disables backing store completely,
 making all writes go to nowhere, while all reads return zeroes.
 .El
 .Sh EXAMPLES
-.Dl ctladm tur 1
 .Pp
 Send a
 .Tn SCSI
 TEST UNIT READY command to LUN 1.
 .Pp
-.Dl ctladm modesense 1 -l
+.Dl ctladm tur 1
 .Pp
 Display the list of mode pages supported by LUN 1.
 .Pp
-.Dl ctladm modesense 0 -m 10 -P 3 -d -c 10
+.Dl ctladm modesense 1 -l
 .Pp
 Display the saved version of the Control mode page (page 10) on LUN 0.
 Disable fetching block descriptors, and use a 10 byte MODE SENSE command
 instead of the default 6 byte command.
-.Bd -literal
-ctladm read 2 -l 0 -d 1 -b 512 -f - > foo
-.Ed
+.Pp
+.Dl ctladm modesense 0 -m 10 -P 3 -d -c 10
 .Pp
 Read the first 512 byte block from LUN 2 and dump it to the file
-.Pa foo .
 .Bd -literal
-ctladm write 3 -l 0xff432140 -d 20 -b 512 -f /tmp/bar
+.Dl ctladm read 2 -l 0 -d 1 -b 512 -f - > foo
 .Ed
 .Pp
 Read 10240 bytes from the file
@@ -980,7 +989,9 @@ Read 10240 bytes from the file
 and write it to LUN 3.
 starting at LBA 0xff432140.
 .Pp
-.Dl ctladm create -b ramdisk -s 10485760000000000
+.Bd -literal
+.Dl ctladm write 3 -l 0xff432140 -d 20 -b 512 -f /tmp/bar
+.Ed
 .Pp
 Create a LUN with the
 .Dq fake
@@ -988,20 +999,20 @@ ramdisk as a backing store.
 The LUN will claim to have a size of approximately 10 terabytes,
 while having no real data store (all written data are lost).
 .Pp
-.Dl ctladm create -b ramdisk -s 10T -o capacity=10G
+.Dl ctladm create -b ramdisk -s 10485760000000000
 .Pp
 Create a thin provisioned LUN with a ramdisk as a backing store.
 The LUN will have maximal backing store capacity of 10 gigabytes,
 while reporting size of 10 terabytes,
 .Pp
-.Dl ctladm create -b block -o file=src/usr.sbin/ctladm/ctladm.8
+.Dl ctladm create -b ramdisk -s 10T -o capacity=10G
 .Pp
 Create a LUN using the block backend, and specify the file
 .Pa src/usr.sbin/ctladm/ctladm.8
 as the backing store.
 The size of the LUN will be derived from the size of the file.
 .Pp
-.Dl ctladm create -b block -o file=src/usr.sbin/ctladm/ctladm.8 -S MYSERIAL321 -d MYDEVID123
+.Dl ctladm create -b block -o file=src/usr.sbin/ctladm/ctladm.8
 .Pp
 Create a LUN using the block backend, specify the file
 .Pa src/usr.sbin/ctladm/ctladm.8
@@ -1012,33 +1023,46 @@ VPD page 0x80 and 0x83 serial number
 and device ID
 .Fl ( d ) .
 .Pp
-.Dl ctladm remove -b block -l 12
+.Dl ctladm create -b block -o file=src/usr.sbin/ctladm/ctladm.8 -S MYSERIAL321 -d MYDEVID123
+.Pp
+Use to specify generic options on ioctl frontend port, now it is
+only possible to set pp and/or vp port number.
+.Pp
+.Dl ctladm port -c -O pp=11 -O vp=12
+.Pp
+Remove specified targ_port.
+.Pp
+.Dl ctladm port -r -p 4
+.Pp
 .Pp
 Remove LUN 12, which is handled by the block backend, from the system.
 .Pp
-.Dl ctladm devlist
+.Dl ctladm remove -b block -l 12
 .Pp
 List configured LUNs in the system, along with their backend and serial
 number.
 This works when the Front End Target Drivers are enabled or disabled.
 .Pp
-.Dl ctladm lunlist
+.Dl ctladm devlist
 .Pp
 List all LUNs in the system, along with their inquiry data and device type.
 This only works when the FETDs are enabled, since the commands go through the
 ioctl port.
 .Pp
-.Dl ctladm inject 6 -i mediumerr -p read -r 0,512 -c
+.Dl ctladm lunlist
 .Pp
 Inject a medium error on LUN 6 for every read that covers the first 512
 blocks of the LUN.
-.Bd -literal -offset indent
-ctladm inject 6 -i custom -p tur -s 18 "f0 0 02 s12 04 02"
-.Ed
+.Pp
+.Dl ctladm inject 6 -i mediumerr -p read -r 0,512 -c
 .Pp
 Inject a custom error on LUN 6 for the next TEST UNIT READY command only.
 This will result in a sense key of NOT READY (0x02), and an ASC/ASCQ of
 0x04,0x02 ("Logical unit not ready, initializing command required").
+.Pp
+.Bd -literal -offset indent
+ctladm inject 6 -i custom -p tur -s 18 "f0 0 02 s12 04 02"
+.Ed
 .Sh SEE ALSO
 .Xr cam 3 ,
 .Xr cam_cdbparse 3 ,
