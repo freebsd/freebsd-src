@@ -3891,6 +3891,7 @@ kern/subr_compressor.c		standard \
 kern/subr_counter.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
+kern/subr_epoch.c		standard
 kern/subr_eventhandler.c	standard
 kern/subr_fattime.c		standard
 kern/subr_firmware.c		optional firmware

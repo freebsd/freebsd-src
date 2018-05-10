@@ -243,6 +243,7 @@ struct thread {
 
 /* Cleared during fork1() */
 #define	td_startzero td_flags
+	u_char	td_epochnest; /* (k) Private thread epoch nest counter */
 	int		td_flags;	/* (t) TDF_* flags. */
 	int		td_inhibitors;	/* (t) Why can not run. */
 	int		td_pflags;	/* (k) Private thread (TDP_*) flags. */
@@ -355,6 +356,7 @@ struct thread {
 	int		td_lastcpu;	/* (t) Last cpu we were on. */
 	int		td_oncpu;	/* (t) Which cpu we are on. */
 	void		*td_lkpi_task;	/* LinuxKPI task struct pointer */
+	TAILQ_ENTRY(thread) td_epochq;	/* (t) Epoch queue. */
 };
 
 struct thread0_storage {

@@ -514,9 +514,12 @@ malloc_dbg(caddr_t *vap, size_t *sizep, struct malloc_type *mtp,
 		}
 	}
 #endif
-	if (flags & M_WAITOK)
+	if (flags & M_WAITOK) {
 		KASSERT(curthread->td_intr_nesting_level == 0,
 		   ("malloc(M_WAITOK) in interrupt context"));
+		KASSERT(curthread->td_epochnest == 0,
+			("malloc(M_WAITOK) in epoch context"));		
+	}
 	KASSERT(curthread->td_critnest == 0 || SCHEDULER_STOPPED(),
 	    ("malloc: called with spinlock or critical section held"));
 
