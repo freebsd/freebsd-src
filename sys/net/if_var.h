@@ -76,6 +76,8 @@ struct	netdump_methods;
 #include <sys/mbuf.h>		/* ifqueue only? */
 #include <sys/buf_ring.h>
 #include <net/vnet.h>
+#include <ck_queue.h>
+#include <sys/epoch.h>
 #endif /* _KERNEL */
 #include <sys/counter.h>
 #include <sys/lock.h>		/* XXX */
@@ -104,6 +106,7 @@ VNET_DECLARE(struct hhook_head *, ipsec_hhh_in[HHOOK_IPSEC_COUNT]);
 VNET_DECLARE(struct hhook_head *, ipsec_hhh_out[HHOOK_IPSEC_COUNT]);
 #define	V_ipsec_hhh_in	VNET(ipsec_hhh_in)
 #define	V_ipsec_hhh_out	VNET(ipsec_hhh_out)
+extern epoch_t net_epoch;
 #endif /* _KERNEL */
 
 typedef enum {
