@@ -236,6 +236,7 @@ _exit0:
 		err = ENXIO;
 	}
 
+	gone_in_dev(ndev, 12, "vxge(4) driver");
 	return (err);
 }
 
