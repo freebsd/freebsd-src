@@ -103,7 +103,7 @@ vendor CREATIVE		0x041e	Creative Labs
 vendor NOKIA		0x0421	Nokia
 vendor ADI		0x0422	ADI Systems
 vendor CATC		0x0423	Computer Access Technology
-vendor SMC2		0x0424	Standard Microsystems
+vendor SMC2		0x0424	Microchip (Standard Microsystems)
 vendor MOTOROLA_HK	0x0425	Motorola HK
 vendor GRAVIS		0x0428	Advanced Gravis Computer
 vendor CIRRUSLOGIC	0x0429	Cirrus Logic
@@ -4320,6 +4320,8 @@ product SMC 2862WG		0xee13	EZ Connect Wireless Adapter
 product SMC2 2020HUB		0x2020	USB Hub
 product SMC2 2514HUB		0x2514	USB Hub
 product SMC3 2662WUSB		0xa002	2662W-AR Wireless
+product SMC2 LAN7800_ETH	0x7800	USB/Ethernet
+product SMC2 LAN7801_ETH	0x7801	USB/Ethernet
 product SMC2 LAN9500_ETH	0x9500	USB/Ethernet
 product SMC2 LAN9505_ETH	0x9505	USB/Ethernet
 product SMC2 LAN9530_ETH	0x9530	USB/Ethernet
