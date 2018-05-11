@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11-client.c,v 1.7 2017/05/30 08:52:19 markus Exp $ */
+/* $OpenBSD: ssh-pkcs11-client.c,v 1.8 2018/02/05 05:37:46 tb Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -99,7 +99,8 @@ pkcs11_init(int interactive)
 void
 pkcs11_terminate(void)
 {
-	close(fd);
+	if (fd >= 0)
+		close(fd);
 }
 
 static int

@@ -1,4 +1,4 @@
-#	$OpenBSD: cfgmatch.sh,v 1.10 2017/04/30 23:34:55 djm Exp $
+#	$OpenBSD: cfgmatch.sh,v 1.11 2017/10/04 18:50:23 djm Exp $
 #	Placed in the Public Domain.
 
 tid="sshd_config match"
@@ -41,7 +41,7 @@ stop_client()
 cp $OBJ/sshd_proxy $OBJ/sshd_proxy_bak
 echo "PermitOpen 127.0.0.1:1" >>$OBJ/sshd_config
 echo "Match Address 127.0.0.1" >>$OBJ/sshd_config
-echo "PermitOpen 127.0.0.1:$PORT" >>$OBJ/sshd_config
+echo "PermitOpen 127.0.0.1:2 127.0.0.1:3 127.0.0.1:$PORT" >>$OBJ/sshd_config
 
 grep -v AuthorizedKeysFile $OBJ/sshd_proxy_bak > $OBJ/sshd_proxy
 echo "AuthorizedKeysFile /dev/null" >>$OBJ/sshd_proxy
@@ -49,7 +49,7 @@ echo "PermitOpen 127.0.0.1:1" >>$OBJ/sshd_proxy
 echo "Match user $USER" >>$OBJ/sshd_proxy
 echo "AuthorizedKeysFile /dev/null $OBJ/authorized_keys_%u" >>$OBJ/sshd_proxy
 echo "Match Address 127.0.0.1" >>$OBJ/sshd_proxy
-echo "PermitOpen 127.0.0.1:$PORT" >>$OBJ/sshd_proxy
+echo "PermitOpen 127.0.0.1:2 127.0.0.1:3 127.0.0.1:$PORT" >>$OBJ/sshd_proxy
 
 start_sshd
 

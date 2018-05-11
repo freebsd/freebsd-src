@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-add.c,v 1.134 2017/08/29 09:42:29 dlg Exp $ */
+/* $OpenBSD: ssh-add.c,v 1.135 2018/02/23 15:58:37 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -78,6 +78,7 @@ static char *default_files[] = {
 #endif
 #endif /* WITH_OPENSSL */
 	_PATH_SSH_CLIENT_ID_ED25519,
+	_PATH_SSH_CLIENT_ID_XMSS,
 	NULL
 };
 
@@ -88,6 +89,10 @@ static int lifetime = 0;
 
 /* User has to confirm key use */
 static int confirm = 0;
+
+/* Maximum number of signatures (XMSS) */
+static u_int maxsign = 0;
+static u_int minleft = 0;
 
 /* we keep a cache of one passphrase */
 static char *pass = NULL;
@@ -190,7 +195,10 @@ add_file(int agent_fd, const char *filename, int key_only, int qflag)
 	char *comment = NULL;
 	char msg[1024], *certpath = NULL;
 	int r, fd, ret = -1;
+	size_t i;
+	u_int32_t left;
 	struct sshbuf *keyblob;
+	struct ssh_identitylist *idlist;
 
 	if (strcmp(filename, "-") == 0) {
 		fd = STDIN_FILENO;
@@ -268,8 +276,40 @@ add_file(int agent_fd, const char *filename, int key_only, int qflag)
 		comment = xstrdup(filename);
 	sshbuf_free(keyblob);
 
+	/* For XMSS */
+	if ((r = sshkey_set_filename(private, filename)) != 0) {
+		fprintf(stderr, "Could not add filename to private key: %s (%s)\n",
+		    filename, comment);
+		goto out;
+	}
+	if (maxsign && minleft &&
+	    (r = ssh_fetch_identitylist(agent_fd, &idlist)) == 0) {
+		for (i = 0; i < idlist->nkeys; i++) {
+			if (!sshkey_equal_public(idlist->keys[i], private))
+				continue;
+			left = sshkey_signatures_left(idlist->keys[i]);
+			if (left < minleft) {
+				fprintf(stderr,
+				    "Only %d signatures left.\n", left);
+				break;
+			}
+			fprintf(stderr, "Skipping update: ");
+			if (left == minleft) {
+				fprintf(stderr,
+				   "required signatures left (%d).\n", left);
+			} else {
+				fprintf(stderr,
+				   "more signatures left (%d) than"
+				    " required (%d).\n", left, minleft);
+			}
+			ssh_free_identitylist(idlist);
+			goto out;
+		}
+		ssh_free_identitylist(idlist);
+	}
+
 	if ((r = ssh_add_identity_constrained(agent_fd, private, comment,
-	    lifetime, confirm)) == 0) {
+	    lifetime, confirm, maxsign)) == 0) {
 		fprintf(stderr, "Identity added: %s (%s)\n", filename, comment);
 		ret = 0;
 		if (lifetime != 0)
@@ -317,7 +357,7 @@ add_file(int agent_fd, const char *filename, int key_only, int qflag)
 	sshkey_free(cert);
 
 	if ((r = ssh_add_identity_constrained(agent_fd, private, comment,
-	    lifetime, confirm)) != 0) {
+	    lifetime, confirm, maxsign)) != 0) {
 		error("Certificate %s (%s) add failed: %s", certpath,
 		    private->cert->key_id, ssh_err(r));
 		goto out;
@@ -368,6 +408,7 @@ list_identities(int agent_fd, int do_fp)
 	char *fp;
 	int r;
 	struct ssh_identitylist *idlist;
+	u_int32_t left;
 	size_t i;
 
 	if ((r = ssh_fetch_identitylist(agent_fd, &idlist)) != 0) {
@@ -392,7 +433,12 @@ list_identities(int agent_fd, int do_fp)
 				    ssh_err(r));
 				continue;
 			}
-			fprintf(stdout, " %s\n", idlist->comments[i]);
+			fprintf(stdout, " %s", idlist->comments[i]);
+			left = sshkey_signatures_left(idlist->keys[i]);
+			if (left > 0)
+				fprintf(stdout,
+				    " [signatures left %d]", left);
+			fprintf(stdout, "\n");
 		}
 	}
 	ssh_free_identitylist(idlist);
@@ -454,6 +500,8 @@ usage(void)
 	fprintf(stderr, "  -L          List public key parameters of all identities.\n");
 	fprintf(stderr, "  -k          Load only keys and not certificates.\n");
 	fprintf(stderr, "  -c          Require confirmation to sign using identities\n");
+	fprintf(stderr, "  -m minleft  Maxsign is only changed if less than minleft are left (for XMSS)\n");
+	fprintf(stderr, "  -M maxsign  Maximum number of signatures allowed (for XMSS)\n");
 	fprintf(stderr, "  -t life     Set lifetime (in seconds) when adding identities.\n");
 	fprintf(stderr, "  -d          Delete identity.\n");
 	fprintf(stderr, "  -D          Delete all identities.\n");
@@ -500,7 +548,7 @@ main(int argc, char **argv)
 		exit(2);
 	}
 
-	while ((ch = getopt(argc, argv, "klLcdDxXE:e:qs:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "klLcdDxXE:e:M:m:qs:t:")) != -1) {
 		switch (ch) {
 		case 'E':
 			fingerprint_hash = ssh_digest_alg_by_name(optarg);
@@ -524,6 +572,22 @@ main(int argc, char **argv)
 			break;
 		case 'c':
 			confirm = 1;
+			break;
+		case 'm':
+			minleft = (int)strtonum(optarg, 1, UINT_MAX, NULL);
+			if (minleft == 0) {
+				usage();
+				ret = 1;
+				goto done;
+			}
+			break;
+		case 'M':
+			maxsign = (int)strtonum(optarg, 1, UINT_MAX, NULL);
+			if (maxsign == 0) {
+				usage();
+				ret = 1;
+				goto done;
+			}
 			break;
 		case 'd':
 			deleting = 1;

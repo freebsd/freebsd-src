@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.384 2017/09/21 19:16:53 markus Exp $
+.\" $OpenBSD: ssh.1,v 1.391 2018/02/23 07:38:09 jmc Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: September 21 2017 $
+.Dd $Mdocdate: February 23 2018 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -43,8 +43,8 @@
 .Nd OpenSSH SSH client (remote login program)
 .Sh SYNOPSIS
 .Nm ssh
-.Bk -words
 .Op Fl 46AaCfGgKkMNnqsTtVvXxYy
+.Op Fl B Ar bind_interface
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
 .Op Fl D Oo Ar bind_address : Oc Ns Ar port
@@ -53,7 +53,7 @@
 .Op Fl F Ar configfile
 .Op Fl I Ar pkcs11
 .Op Fl i Ar identity_file
-.Op Fl J Oo Ar user Ns @ Oc Ns Ar host Ns Op : Ns Ar port
+.Op Fl J Ar destination
 .Op Fl L Ar address
 .Op Fl l Ar login_name
 .Op Fl m Ar mac_spec
@@ -65,9 +65,8 @@
 .Op Fl S Ar ctl_path
 .Op Fl W Ar host : Ns Ar port
 .Op Fl w Ar local_tun Ns Op : Ns Ar remote_tun
-.Oo Ar user Ns @ Oc Ns Ar hostname
+.Ar destination
 .Op Ar command
-.Ek
 .Sh DESCRIPTION
 .Nm
 (SSH client) is a program for logging into a remote machine and for
@@ -80,15 +79,20 @@ sockets can also be forwarded over the secure channel.
 .Pp
 .Nm
 connects and logs into the specified
-.Ar hostname
-(with optional
-.Ar user
-name).
+.Ar destination ,
+which may be specified as either
+.Sm off
+.Oo user @ Oc hostname
+.Sm on
+or a URI of the form
+.Sm off
+.No ssh:// Oo user @ Oc hostname Op : port .
+.Sm on
 The user must prove
 his/her identity to the remote machine using one of several methods
 (see below).
 .Pp
-If
+If a
 .Ar command
 is specified,
 it is executed on the remote host instead of a login shell.
@@ -121,6 +125,12 @@ authenticate using the identities loaded into the agent.
 .Pp
 .It Fl a
 Disables forwarding of the authentication agent connection.
+.Pp
+.It Fl B Ar bind_interface
+Bind to the address of
+.Ar bind_interface
+before attempting to connect to the destination host.
+This is only useful on systems with more than one address.
 .Pp
 .It Fl b Ar bind_address
 Use
@@ -288,17 +298,11 @@ by appending
 .Pa -cert.pub
 to identity filenames.
 .Pp
-.It Fl J Xo
-.Sm off
-.Op Ar user No @
-.Ar host
-.Op : Ar port
-.Sm on
-.Xc
+.It Fl J Ar destination
 Connect to the target host by first making a
 .Nm
-connection to the jump
-.Ar host
+connection to the jump host described by
+.Ar destination
 and then establishing a TCP forwarding to the ultimate destination from
 there.
 Multiple jump hops may be specified separated by comma characters.
@@ -1395,6 +1399,17 @@ This is set to the name of the tty (path to the device) associated
 with the current shell or command.
 If the current session has no tty,
 this variable is not set.
+.It Ev SSH_TUNNEL
+Optionally set by
+.Xr sshd 8
+to contain the interface names assigned if tunnel forwarding was
+requested by the client.
+.It Ev SSH_USER_AUTH
+Optionally set by
+.Xr sshd 8 ,
+this variable may contain a pathname to a file that lists the authentication
+methods successfully used when the session was established, including any
+public keys that were used.
 .It Ev TZ
 This variable is set to indicate the present time zone if it
 was set when the daemon was started (i.e. the daemon passes the value
@@ -1476,7 +1491,7 @@ accessible by others (read/write/execute).
 will simply ignore a private key file if it is accessible by others.
 It is possible to specify a passphrase when
 generating the key which will be used to encrypt the
-sensitive part of this file using 3DES.
+sensitive part of this file using AES-128.
 .Pp
 .It Pa ~/.ssh/id_dsa.pub
 .It Pa ~/.ssh/id_ecdsa.pub

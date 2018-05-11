@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-agent.c,v 1.224 2017/07/24 04:34:28 djm Exp $ */
+/* $OpenBSD: ssh-agent.c,v 1.228 2018/02/23 15:58:37 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -265,7 +265,8 @@ process_request_identities(SocketEntry *e)
 	    (r = sshbuf_put_u32(msg, idtab->nentries)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	TAILQ_FOREACH(id, &idtab->idlist, next) {
-		if ((r = sshkey_puts(id->key, msg)) != 0 ||
+		if ((r = sshkey_puts_opts(id->key, msg, SSHKEY_SERIALIZE_INFO))
+		     != 0 ||
 		    (r = sshbuf_put_cstring(msg, id->comment)) != 0) {
 			error("%s: put key/comment: %s", __func__,
 			    ssh_err(r));
@@ -307,10 +308,11 @@ process_sign_request2(SocketEntry *e)
 		fatal("%s: sshbuf_new failed", __func__);
 	if ((r = sshkey_froms(e->request, &key)) != 0 ||
 	    (r = sshbuf_get_string_direct(e->request, &data, &dlen)) != 0 ||
-	    (r = sshbuf_get_u32(e->request, &flags)) != 0)
-		fatal("%s: buffer error: %s", __func__, ssh_err(r));
-	if (flags & SSH_AGENT_OLD_SIGNATURE)
-		compat = SSH_BUG_SIGBLOB;
+	    (r = sshbuf_get_u32(e->request, &flags)) != 0) {
+		error("%s: couldn't parse request: %s", __func__, ssh_err(r));
+		goto send;
+	}
+
 	if ((id = lookup_identity(key)) == NULL) {
 		verbose("%s: %s key not found", __func__, sshkey_type(key));
 		goto send;
@@ -421,7 +423,7 @@ process_add_identity(SocketEntry *e)
 {
 	Identity *id;
 	int success = 0, confirm = 0;
-	u_int seconds;
+	u_int seconds, maxsign;
 	char *comment = NULL;
 	time_t death = 0;
 	struct sshkey *k = NULL;
@@ -452,6 +454,18 @@ process_add_identity(SocketEntry *e)
 		case SSH_AGENT_CONSTRAIN_CONFIRM:
 			confirm = 1;
 			break;
+		case SSH_AGENT_CONSTRAIN_MAXSIGN:
+			if ((r = sshbuf_get_u32(e->request, &maxsign)) != 0) {
+				error("%s: bad maxsign constraint: %s",
+				    __func__, ssh_err(r));
+				goto err;
+			}
+			if ((r = sshkey_enable_maxsign(k, maxsign)) != 0) {
+				error("%s: cannot enable maxsign: %s",
+				    __func__, ssh_err(r));
+				goto err;
+			}
+			break;
 		default:
 			error("%s: Unknown constraint %d", __func__, ctype);
  err:
@@ -467,14 +481,15 @@ process_add_identity(SocketEntry *e)
 		death = monotime() + lifetime;
 	if ((id = lookup_identity(k)) == NULL) {
 		id = xcalloc(1, sizeof(Identity));
-		id->key = k;
 		TAILQ_INSERT_TAIL(&idtab->idlist, id, next);
 		/* Increment the number of identities. */
 		idtab->nentries++;
 	} else {
-		sshkey_free(k);
+		/* key state might have been updated */
+		sshkey_free(id->key);
 		free(id->comment);
 	}
+	id->key = k;
 	id->comment = comment;
 	id->death = death;
 	id->confirm = confirm;
@@ -492,6 +507,11 @@ process_lock_agent(SocketEntry *e, int lock)
 	static u_int fail_count = 0;
 	size_t pwlen;
 
+	/*
+	 * This is deliberately fatal: the user has requested that we lock,
+	 * but we can't parse their request properly. The only safe thing to
+	 * do is abort.
+	 */
 	if ((r = sshbuf_get_cstring(e->request, &passwd, &pwlen)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	if (pwlen == 0) {
@@ -549,7 +569,7 @@ no_identities(SocketEntry *e)
 static void
 process_add_smartcard_key(SocketEntry *e)
 {
-	char *provider = NULL, *pin, canonical_provider[PATH_MAX];
+	char *provider = NULL, *pin = NULL, canonical_provider[PATH_MAX];
 	int r, i, count = 0, success = 0, confirm = 0;
 	u_int seconds;
 	time_t death = 0;
@@ -558,17 +578,23 @@ process_add_smartcard_key(SocketEntry *e)
 	Identity *id;
 
 	if ((r = sshbuf_get_cstring(e->request, &provider, NULL)) != 0 ||
-	    (r = sshbuf_get_cstring(e->request, &pin, NULL)) != 0)
-		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	    (r = sshbuf_get_cstring(e->request, &pin, NULL)) != 0) {
+		error("%s: buffer error: %s", __func__, ssh_err(r));
+		goto send;
+	}
 
 	while (sshbuf_len(e->request)) {
-		if ((r = sshbuf_get_u8(e->request, &type)) != 0)
-			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+		if ((r = sshbuf_get_u8(e->request, &type)) != 0) {
+			error("%s: buffer error: %s", __func__, ssh_err(r));
+			goto send;
+		}
 		switch (type) {
 		case SSH_AGENT_CONSTRAIN_LIFETIME:
-			if ((r = sshbuf_get_u32(e->request, &seconds)) != 0)
-				fatal("%s: buffer error: %s",
+			if ((r = sshbuf_get_u32(e->request, &seconds)) != 0) {
+				error("%s: buffer error: %s",
 				    __func__, ssh_err(r));
+				goto send;
+			}
 			death = monotime() + seconds;
 			break;
 		case SSH_AGENT_CONSTRAIN_CONFIRM:
@@ -626,8 +652,10 @@ process_remove_smartcard_key(SocketEntry *e)
 	Identity *id, *nxt;
 
 	if ((r = sshbuf_get_cstring(e->request, &provider, NULL)) != 0 ||
-	    (r = sshbuf_get_cstring(e->request, &pin, NULL)) != 0)
-		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	    (r = sshbuf_get_cstring(e->request, &pin, NULL)) != 0) {
+		error("%s: buffer error: %s", __func__, ssh_err(r));
+		goto send;
+	}
 	free(pin);
 
 	if (realpath(provider, canonical_provider) == NULL) {

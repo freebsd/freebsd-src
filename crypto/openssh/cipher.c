@@ -1,4 +1,4 @@
-/* $OpenBSD: cipher.c,v 1.107 2017/05/07 23:12:57 djm Exp $ */
+/* $OpenBSD: cipher.c,v 1.111 2018/02/23 15:58:37 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -310,8 +310,7 @@ cipher_init(struct sshcipher_ctx **ccp, const struct sshcipher *cipher,
 	} else {
 		if (cc != NULL) {
 #ifdef WITH_OPENSSL
-			if (cc->evp != NULL)
-				EVP_CIPHER_CTX_free(cc->evp);
+			EVP_CIPHER_CTX_free(cc->evp);
 #endif /* WITH_OPENSSL */
 			explicit_bzero(cc, sizeof(*cc));
 			free(cc);
@@ -402,7 +401,7 @@ cipher_get_length(struct sshcipher_ctx *cc, u_int *plenp, u_int seqnr,
 		    cp, len);
 	if (len < 4)
 		return SSH_ERR_MESSAGE_INCOMPLETE;
-	*plenp = get_u32(cp);
+	*plenp = PEEK_U32(cp);
 	return 0;
 }
 
@@ -416,10 +415,8 @@ cipher_free(struct sshcipher_ctx *cc)
 	else if ((cc->cipher->flags & CFLAG_AESCTR) != 0)
 		explicit_bzero(&cc->ac_ctx, sizeof(cc->ac_ctx));
 #ifdef WITH_OPENSSL
-	if (cc->evp != NULL) {
-		EVP_CIPHER_CTX_free(cc->evp);
-		cc->evp = NULL;
-	}
+	EVP_CIPHER_CTX_free(cc->evp);
+	cc->evp = NULL;
 #endif
 	explicit_bzero(cc, sizeof(*cc));
 	free(cc);
@@ -449,9 +446,9 @@ cipher_get_keyiv_len(const struct sshcipher_ctx *cc)
 int
 cipher_get_keyiv(struct sshcipher_ctx *cc, u_char *iv, u_int len)
 {
-	const struct sshcipher *c = cc->cipher;
 #ifdef WITH_OPENSSL
- 	int evplen;
+	const struct sshcipher *c = cc->cipher;
+	int evplen;
 #endif
 
 	if ((cc->cipher->flags & CFLAG_CHACHAPOLY) != 0) {
@@ -494,9 +491,9 @@ cipher_get_keyiv(struct sshcipher_ctx *cc, u_char *iv, u_int len)
 int
 cipher_set_keyiv(struct sshcipher_ctx *cc, const u_char *iv)
 {
-	const struct sshcipher *c = cc->cipher;
 #ifdef WITH_OPENSSL
- 	int evplen = 0;
+	const struct sshcipher *c = cc->cipher;
+	int evplen = 0;
 #endif
 
 	if ((cc->cipher->flags & CFLAG_CHACHAPOLY) != 0)
