@@ -54,9 +54,19 @@ MALLOC_DEFINE(M_EPOCH, "epoch", "epoch based reclamation");
 /* arbitrary --- needs benchmarking */
 #define MAX_ADAPTIVE_SPIN 5000
 
+#define EPOCH_EXITING 0x1
+#ifdef __amd64__
+#define EPOCH_ALIGN CACHE_LINE_SIZE*2
+#else
+#define EPOCH_ALIGN CACHE_LINE_SIZE
+#endif
+
 SYSCTL_NODE(_kern, OID_AUTO, epoch, CTLFLAG_RW, 0, "epoch information");
 SYSCTL_NODE(_kern_epoch, OID_AUTO, stats, CTLFLAG_RW, 0, "epoch stats");
 
+static int poll_intvl;
+SYSCTL_INT(_kern_epoch, OID_AUTO, poll_intvl, CTLFLAG_RWTUN,
+		   &poll_intvl, 0, "# of ticks to wait between garbage collecting deferred frees");
 /* Stats. */
 static counter_u64_t block_count;
 SYSCTL_COUNTER_U64(_kern_epoch_stats, OID_AUTO, nblocked, CTLFLAG_RW,
@@ -81,20 +91,23 @@ TAILQ_HEAD(threadlist, thread);
 typedef struct epoch_record {
 	ck_epoch_record_t er_record;
 	volatile struct threadlist er_tdlist;
+	volatile uint32_t er_gen;
 	uint32_t er_cpuid;
 } *epoch_record_t;
 
 struct epoch_pcpu_state {
 	struct epoch_record eps_record;
-	volatile int eps_waiters;
-} __aligned(CACHE_LINE_SIZE);
+	STAILQ_HEAD(, epoch_cb) eps_cblist;
+} __aligned(EPOCH_ALIGN);
 
 struct epoch {
-	struct ck_epoch e_epoch;
-	struct mtx e_lock;
+	struct ck_epoch e_epoch __aligned(EPOCH_ALIGN);
 	struct grouptask e_gtask;
-	STAILQ_HEAD(, epoch_cb) e_cblist;
-	struct epoch_pcpu_state *e_pcpu_dom[MAXMEMDOM];
+	struct callout e_timer;
+	struct mtx e_lock;
+	int e_flags;
+	/* make sure that immutable data doesn't overlap with the gtask, callout, and mutex*/
+	struct epoch_pcpu_state *e_pcpu_dom[MAXMEMDOM] __aligned(EPOCH_ALIGN);
 	struct epoch_pcpu_state *e_pcpu[0];
 };
 
@@ -103,13 +116,26 @@ static __read_mostly int domoffsets[MAXMEMDOM];
 static __read_mostly int inited;
 
 static void epoch_call_task(void *context);
-static bool usedomains = true;
 
+#if defined(__powerpc64__) || defined(__powerpc__)
+static bool usedomains = false;
+#else
+static bool usedomains = true;
+#endif
 static void
 epoch_init(void *arg __unused)
 {
 	int domain, count;
 
+	if (poll_intvl == 0)
+		poll_intvl = hz;
+
+	block_count = counter_u64_alloc(M_WAITOK);
+	migrate_count = counter_u64_alloc(M_WAITOK);
+	turnstile_count = counter_u64_alloc(M_WAITOK);
+	switch_count = counter_u64_alloc(M_WAITOK);
+	if (usedomains == false)
+		return;
 	count = domain = 0;
 	domoffsets[0] = 0;
 	for (domain = 0; domain < vm_ndomains; domain++) {
@@ -127,10 +153,6 @@ epoch_init(void *arg __unused)
 		}
 	}
 
-	block_count = counter_u64_alloc(M_WAITOK);
-	migrate_count = counter_u64_alloc(M_WAITOK);
-	turnstile_count = counter_u64_alloc(M_WAITOK);
-	switch_count = counter_u64_alloc(M_WAITOK);
 	inited = 1;
 }
 SYSINIT(epoch, SI_SUB_CPU + 1, SI_ORDER_FIRST, epoch_init, NULL);
@@ -170,8 +192,20 @@ epoch_init_legacy(epoch_t epoch)
 		er = &eps->eps_record;
 		ck_epoch_register(&epoch->e_epoch, &er->er_record, NULL);
 		TAILQ_INIT((struct threadlist *)(uintptr_t)&er->er_tdlist);
+		STAILQ_INIT(&eps->eps_cblist);
 		er->er_cpuid = i;
 	}
+}
+
+static void
+epoch_callout(void *arg)
+{
+	epoch_t epoch;
+
+	epoch = arg;
+	GROUPTASK_ENQUEUE(&epoch->e_gtask);
+	if ((epoch->e_flags & EPOCH_EXITING) == 0)
+		callout_reset(&epoch->e_timer, poll_intvl, epoch_callout, epoch);
 }
 
 epoch_t
@@ -184,13 +218,14 @@ epoch_alloc(void)
 	epoch = malloc(sizeof(struct epoch) + mp_ncpus*sizeof(void*),
 				   M_EPOCH, M_ZERO|M_WAITOK);
 	ck_epoch_init(&epoch->e_epoch);
-	mtx_init(&epoch->e_lock, "epoch cblist", NULL, MTX_DEF);
-	STAILQ_INIT(&epoch->e_cblist);
+	mtx_init(&epoch->e_lock, "epoch callout", NULL, MTX_DEF);
+	callout_init_mtx(&epoch->e_timer, &epoch->e_lock, 0);
 	taskqgroup_config_gtask_init(epoch, &epoch->e_gtask, epoch_call_task, "epoch call task");
 	if (usedomains)
 		epoch_init_numa(epoch);
 	else
 		epoch_init_legacy(epoch);
+	callout_reset(&epoch->e_timer, poll_intvl, epoch_callout, epoch);
 	return (epoch);
 }
 
@@ -207,6 +242,15 @@ epoch_free(epoch_t epoch)
 		MPASS(TAILQ_EMPTY(&eps->eps_record.er_tdlist));
 	}
 #endif
+	mtx_lock(&epoch->e_lock);
+	epoch->e_flags |= EPOCH_EXITING;
+	mtx_unlock(&epoch->e_lock);
+	/*
+	 * Execute any lingering callbacks
+	 */
+	GROUPTASK_ENQUEUE(&epoch->e_gtask);
+	gtaskqueue_drain(epoch->e_gtask.gt_taskqueue, &epoch->e_gtask.gt_task);
+	callout_drain(&epoch->e_timer);
 	mtx_destroy(&epoch->e_lock);
 	taskqgroup_config_gtask_deinit(&epoch->e_gtask);
 	if (usedomains)
@@ -282,6 +326,7 @@ epoch_exit(epoch_t epoch)
 	td->td_epochnest--;
 	if (td->td_epochnest == 0)
 		TAILQ_REMOVE(&eps->eps_record.er_tdlist, td, td_epochq);
+	eps->eps_record.er_gen++;
 	critical_exit();
 }
 
@@ -311,8 +356,7 @@ epoch_block_handler(struct ck_epoch *global __unused, ck_epoch_record_t *cr,
 	struct thread *td, *tdwait, *owner;
 	struct turnstile *ts;
 	struct lock_object *lock;
-	u_char prio;
-	int spincount;
+	int spincount, gen;
 
 	eps = arg;
 	record = __containerof(cr, struct epoch_record, er_record);
@@ -327,10 +371,14 @@ epoch_block_handler(struct ck_epoch *global __unused, ck_epoch_record_t *cr,
 		 */
 		if ((tdwait = TAILQ_FIRST(&record->er_tdlist)) != NULL &&
 			TD_IS_RUNNING(tdwait)) {
-			while (tdwait == TAILQ_FIRST(&record->er_tdlist) &&
-				   TD_IS_RUNNING(tdwait) && spincount++ < MAX_ADAPTIVE_SPIN) {
+			gen = record->er_gen;
+			thread_unlock(td);
+			do {
 				cpu_spinwait();
-			}
+			} while (tdwait == TAILQ_FIRST(&record->er_tdlist) &&
+					 gen == record->er_gen && TD_IS_RUNNING(tdwait) &&
+					 spincount++ < MAX_ADAPTIVE_SPIN);
+			thread_lock(td);
 			return;
 		}
 
@@ -360,10 +408,17 @@ epoch_block_handler(struct ck_epoch *global __unused, ck_epoch_record_t *cr,
 	 * priority thread (highest prio value) and drop our priority
 	 * to match to allow it to run.
 	 */
-	prio = 0;
 	TAILQ_FOREACH(tdwait, &record->er_tdlist, td_epochq) {
-		if (td->td_priority > prio)
-			prio = td->td_priority;
+		/*
+		 * Propagate our priority to any other waiters to prevent us
+		 * from starving them. They will have their original priority
+		 * restore on exit from epoch_wait().
+		 */
+		if (!TD_IS_INHIBITED(tdwait) && tdwait->td_priority > td->td_priority) {
+			thread_lock(tdwait);
+			sched_prio(tdwait, td->td_priority);
+			thread_unlock(tdwait);
+		}
 		if (TD_IS_INHIBITED(tdwait) && TD_ON_LOCK(tdwait) &&
 			((ts = tdwait->td_blocked) != NULL)) {
 			/*
@@ -401,12 +456,9 @@ epoch_block_handler(struct ck_epoch *global __unused, ck_epoch_record_t *cr,
 	}
 	/*
 	 * We didn't find any threads actually blocked on a lock
-	 * we have nothing to do except set our priority to match
-	 * that of the lowest value on the queue and context switch
-	 * away.
+	 * so we have nothing to do except context switch away.
 	 */
 	counter_u64_add(switch_count, 1);
-	sched_prio(td, prio);
 	mi_switch(SW_VOL | SWT_RELINQUISH, NULL);
 
 	/*
@@ -464,41 +516,58 @@ epoch_wait(epoch_t epoch)
 	/* restore thread priority */
 	sched_prio(td, old_prio);
 	thread_unlock(td);
-
+	KASSERT(td->td_locks == 0,
+			("%d locks held", td->td_locks));
 	PICKUP_GIANT();
 }
 
 void
 epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t))
 {
+	struct epoch_pcpu_state *eps;
 	epoch_cb_t cb;
 
 	cb = (void *)ctx;
+
+	MPASS(cb->ec_callback == NULL);
+	MPASS(cb->ec_link.stqe_next == NULL);
+	MPASS(epoch);
+	MPASS(callback);
 	cb->ec_callback = callback;
-	mtx_lock(&epoch->e_lock);
-	STAILQ_INSERT_TAIL(&epoch->e_cblist, cb, ec_link);
-	GROUPTASK_ENQUEUE(&epoch->e_gtask);
-	mtx_unlock(&epoch->e_lock);
+	critical_enter();
+	eps = epoch->e_pcpu[curcpu];
+	STAILQ_INSERT_HEAD(&eps->eps_cblist, cb, ec_link);
+	critical_exit();
 }
 
 static void
 epoch_call_task(void *context)
 {
+	struct epoch_pcpu_state *eps;
 	epoch_t epoch;
 	epoch_cb_t cb;
+	struct thread *td;
+	int cpu;
 	STAILQ_HEAD(, epoch_cb) tmp_head;
 
 	epoch = context;
 	STAILQ_INIT(&tmp_head);
-
-	mtx_lock(&epoch->e_lock);
-	STAILQ_CONCAT(&tmp_head, &epoch->e_cblist);
-	mtx_unlock(&epoch->e_lock);
-
+	td = curthread;
+	thread_lock(td);
+	CPU_FOREACH(cpu) {
+		sched_bind(td, cpu);
+		eps = epoch->e_pcpu[cpu];
+		if (!STAILQ_EMPTY(&eps->eps_cblist))
+			STAILQ_CONCAT(&tmp_head, &eps->eps_cblist);
+	}
+	sched_unbind(td);
+	thread_unlock(td);
 	epoch_wait(epoch);
 
-	while ((cb = STAILQ_FIRST(&tmp_head)) != NULL)
+	while ((cb = STAILQ_FIRST(&tmp_head)) != NULL) {
+		STAILQ_REMOVE_HEAD(&tmp_head, ec_link);
 		cb->ec_callback((void*)cb);
+	}
 }
 
 int
