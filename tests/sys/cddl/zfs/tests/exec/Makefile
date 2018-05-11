@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 PACKAGE=tests
-TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/exec/
+TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/exec
 FILESDIR=${TESTSDIR}
 BINDIR=${TESTSDIR}
 
