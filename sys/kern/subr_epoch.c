@@ -108,6 +108,8 @@ struct epoch {
 	int e_flags;
 	/* make sure that immutable data doesn't overlap with the gtask, callout, and mutex*/
 	struct epoch_pcpu_state *e_pcpu_dom[MAXMEMDOM] __aligned(EPOCH_ALIGN);
+	counter_u64_t e_frees;
+	uint64_t e_free_last;
 	struct epoch_pcpu_state *e_pcpu[0];
 };
 
@@ -172,6 +174,7 @@ epoch_init_numa(epoch_t epoch)
 		for (int i = 0; i < domcount[domain]; i++, eps++) {
 			epoch->e_pcpu[cpu_offset + i] = eps;
 			er = &eps->eps_record;
+			STAILQ_INIT(&eps->eps_cblist);
 			ck_epoch_register(&epoch->e_epoch, &er->er_record, NULL);
 			TAILQ_INIT((struct threadlist *)(uintptr_t)&er->er_tdlist);
 			er->er_cpuid = cpu_offset + i;
@@ -201,9 +204,15 @@ static void
 epoch_callout(void *arg)
 {
 	epoch_t epoch;
+	uint64_t frees;
 
 	epoch = arg;
-	GROUPTASK_ENQUEUE(&epoch->e_gtask);
+	frees = counter_u64_fetch(epoch->e_frees);
+	/* pick some better value */
+	if (frees - epoch->e_free_last > 10) {
+		GROUPTASK_ENQUEUE(&epoch->e_gtask);
+		epoch->e_free_last = frees;
+	}
 	if ((epoch->e_flags & EPOCH_EXITING) == 0)
 		callout_reset(&epoch->e_timer, poll_intvl, epoch_callout, epoch);
 }
@@ -218,6 +227,7 @@ epoch_alloc(void)
 	epoch = malloc(sizeof(struct epoch) + mp_ncpus*sizeof(void*),
 				   M_EPOCH, M_ZERO|M_WAITOK);
 	ck_epoch_init(&epoch->e_epoch);
+	epoch->e_frees = counter_u64_alloc(M_WAITOK);
 	mtx_init(&epoch->e_lock, "epoch callout", NULL, MTX_DEF);
 	callout_init_mtx(&epoch->e_timer, &epoch->e_lock, 0);
 	taskqgroup_config_gtask_init(epoch, &epoch->e_gtask, epoch_call_task, "epoch call task");
@@ -252,6 +262,7 @@ epoch_free(epoch_t epoch)
 	gtaskqueue_drain(epoch->e_gtask.gt_taskqueue, &epoch->e_gtask.gt_task);
 	callout_drain(&epoch->e_timer);
 	mtx_destroy(&epoch->e_lock);
+	counter_u64_free(epoch->e_frees);
 	taskqgroup_config_gtask_deinit(&epoch->e_gtask);
 	if (usedomains)
 		for (domain = 0; domain < vm_ndomains; domain++)
@@ -534,6 +545,7 @@ epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t
 	MPASS(epoch);
 	MPASS(callback);
 	cb->ec_callback = callback;
+	counter_u64_add(epoch->e_frees, 1);
 	critical_enter();
 	eps = epoch->e_pcpu[curcpu];
 	STAILQ_INSERT_HEAD(&eps->eps_cblist, cb, ec_link);
