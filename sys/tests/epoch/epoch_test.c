@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -132,16 +134,24 @@ static struct epoch_test_instance etilist[MAXCPU];
 static int
 test_modinit(void)
 {
-	int i, error;
+	struct thread *td;
+	int i, error, pri_range, pri_off;
 
+	pri_range = PRI_MIN_TIMESHARE - PRI_MIN_REALTIME;
 	test_epoch = epoch_alloc();
-	for (i = 0; i < mp_ncpus; i++) {
+	for (i = 0; i < mp_ncpus*2; i++) {
 		etilist[i].threadid = i;
 		error = kthread_add(testloop, &etilist[i], NULL, &testthreads[i],
 							0, 0, "epoch_test_%d", i);
 		if (error) {
 			printf("%s: kthread_add(epoch_test): error %d", __func__,
 				   error);
+		} else {
+			pri_off = (i*4)%pri_range;
+			td = testthreads[i];
+			thread_lock(td);
+			sched_prio(td, PRI_MIN_REALTIME + pri_off);
+			thread_unlock(td);
 		}
 	}
 	inited = 1;
