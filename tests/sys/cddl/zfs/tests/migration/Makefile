@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 PACKAGE=tests
-TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/migration/
+TESTSDIR=${TESTSBASE}/sys/cddl/zfs/tests/migration
 FILESDIR=${TESTSDIR}
 
 ATF_TESTS_KSH93+=	migration_test
