@@ -1832,9 +1832,10 @@ ifa_maintain_loopback_route(int cmd, const char *otype, struct ifaddr *ifa,
 
 	error = rtrequest1_fib(cmd, &info, NULL, ifp->if_fib);
 
-	if (error != 0)
-		log(LOG_DEBUG, "%s: %s failed for interface %s: %u\n",
-		    __func__, otype, if_name(ifp), error);
+	if (error != 0 &&
+	    !(cmd == RTM_ADD && error == EEXIST) &&
+	    !(cmd == RTM_DELETE && error == ENOENT))
+		if_printf(ifp, "%s failed: %d\n", otype, error);
 
 	return (error);
 }
@@ -2328,7 +2329,7 @@ do_link_state_change(void *arg, int pending)
 	if (pending > 1)
 		if_printf(ifp, "%d link states coalesced\n", pending);
 	if (log_link_state_change)
-		log(LOG_NOTICE, "%s: link state changed to %s\n", ifp->if_xname,
+		if_printf(ifp, "link state changed to %s\n",
 		    (link_state == LINK_STATE_UP) ? "UP" : "DOWN" );
 	EVENTHANDLER_INVOKE(ifnet_link_event, ifp, link_state);
 	CURVNET_RESTORE();
@@ -2631,8 +2632,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			else if (ifp->if_pcount == 0)
 				ifp->if_flags &= ~IFF_PROMISC;
 			if (log_promisc_mode_change)
-                                log(LOG_INFO, "%s: permanently promiscuous mode %s\n",
-                                    ifp->if_xname,
+                                if_printf(ifp, "permanently promiscuous mode %s\n",
                                     ((new_flags & IFF_PPROMISC) ?
                                      "enabled" : "disabled"));
 		}
@@ -2695,8 +2695,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
 		EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
 
-		log(LOG_INFO, "%s: changing name to '%s'\n",
-		    ifp->if_xname, new_name);
+		if_printf(ifp, "changing name to '%s'\n", new_name);
 
 		IF_ADDR_WLOCK(ifp);
 		strlcpy(ifp->if_xname, new_name, sizeof(ifp->if_xname));
@@ -3199,8 +3198,7 @@ ifpromisc(struct ifnet *ifp, int pswitch)
 	/* If promiscuous mode status has changed, log a message */
 	if (error == 0 && ((ifp->if_flags ^ oldflags) & IFF_PROMISC) &&
             log_promisc_mode_change)
-		log(LOG_INFO, "%s: promiscuous mode %s\n",
-		    ifp->if_xname,
+		if_printf(ifp, "promiscuous mode %s\n",
 		    (ifp->if_flags & IFF_PROMISC) ? "enabled" : "disabled");
 	return (error);
 }
@@ -3905,16 +3903,16 @@ if_initname(struct ifnet *ifp, const char *name, int unit)
 }
 
 int
-if_printf(struct ifnet *ifp, const char * fmt, ...)
+if_printf(struct ifnet *ifp, const char *fmt, ...)
 {
+	char if_fmt[256];
 	va_list ap;
-	int retval;
 
-	retval = printf("%s: ", ifp->if_xname);
+	snprintf(if_fmt, sizeof(if_fmt), "%s: %s", ifp->if_xname, fmt);
 	va_start(ap, fmt);
-	retval += vprintf(fmt, ap);
+	vlog(LOG_INFO, if_fmt, ap);
 	va_end(ap);
-	return (retval);
+	return (0);
 }
 
 void
