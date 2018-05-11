@@ -38,7 +38,9 @@
 #ifndef _SYS_SYSCTL_H_
 #define	_SYS_SYSCTL_H_
 
+#ifdef _KERNEL
 #include <sys/queue.h>
+#endif
 
 struct thread;
 /*
