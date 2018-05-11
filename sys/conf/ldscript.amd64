@@ -155,12 +155,12 @@ SECTIONS
   {
     *(.data.read_mostly)
   }
-  . = ALIGN(64);
+  . = ALIGN(128);
   .data.exclusive_cache_line :
   {
     *(.data.exclusive_cache_line)
   }
-  . = ALIGN(64);
+  . = ALIGN(128);
   .data           :
   {
     *(.data .data.* .gnu.linkonce.d.*)
