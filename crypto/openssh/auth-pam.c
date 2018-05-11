@@ -288,18 +288,27 @@ sshpam_chauthtok_ruid(pam_handle_t *pamh, int flags)
 void
 sshpam_password_change_required(int reqd)
 {
+	extern struct sshauthopt *auth_opts;
+	static int saved_port, saved_agent, saved_x11;
+
 	debug3("%s %d", __func__, reqd);
 	if (sshpam_authctxt == NULL)
 		fatal("%s: PAM authctxt not initialized", __func__);
 	sshpam_authctxt->force_pwchange = reqd;
 	if (reqd) {
-		no_port_forwarding_flag |= 2;
-		no_agent_forwarding_flag |= 2;
-		no_x11_forwarding_flag |= 2;
+		saved_port = auth_opts->permit_port_forwarding_flag;
+		saved_agent = auth_opts->permit_agent_forwarding_flag;
+		saved_x11 = auth_opts->permit_x11_forwarding_flag;
+		auth_opts->permit_port_forwarding_flag = 0;
+		auth_opts->permit_agent_forwarding_flag = 0;
+		auth_opts->permit_x11_forwarding_flag = 0;
 	} else {
-		no_port_forwarding_flag &= ~2;
-		no_agent_forwarding_flag &= ~2;
-		no_x11_forwarding_flag &= ~2;
+		if (saved_port)
+			auth_opts->permit_port_forwarding_flag = saved_port;
+		if (saved_agent)
+			auth_opts->permit_agent_forwarding_flag = saved_agent;
+		if (saved_x11)
+			auth_opts->permit_x11_forwarding_flag = saved_x11;
 	}
 }
 
@@ -1080,7 +1089,7 @@ do_pam_chauthtok(void)
 }
 
 void
-do_pam_session(void)
+do_pam_session(struct ssh *ssh)
 {
 	debug3("PAM: opening session");
 
@@ -1096,7 +1105,7 @@ do_pam_session(void)
 		sshpam_session_open = 1;
 	else {
 		sshpam_session_open = 0;
-		disable_forwarding();
+		auth_restrict_session(ssh);
 		error("PAM: pam_open_session(): %s",
 		    pam_strerror(sshpam_handle, sshpam_err));
 	}

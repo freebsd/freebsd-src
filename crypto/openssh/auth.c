@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.c,v 1.124 2017/09/12 06:32:07 djm Exp $ */
+/* $OpenBSD: auth.c,v 1.127 2018/03/12 00:52:01 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -29,6 +29,7 @@ __RCSID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 
 #include <netinet/in.h>
 
@@ -74,6 +75,7 @@ __RCSID("$FreeBSD$");
 #include "authfile.h"
 #include "ssherr.h"
 #include "compat.h"
+#include "channels.h"
 #include "blacklist_client.h"
 
 /* import */
@@ -81,6 +83,7 @@ extern ServerOptions options;
 extern int use_privsep;
 extern Buffer loginmsg;
 extern struct passwd *privsep_pw;
+extern struct sshauthopt *auth_opts;
 
 /* Debugging messages */
 Buffer auth_debug;
@@ -390,10 +393,8 @@ auth_maxtries_exceeded(Authctxt *authctxt)
  * Check whether root logins are disallowed.
  */
 int
-auth_root_allowed(const char *method)
+auth_root_allowed(struct ssh *ssh, const char *method)
 {
-	struct ssh *ssh = active_state; /* XXX */
-
 	switch (options.permit_root_login) {
 	case PERMIT_YES:
 		return 1;
@@ -404,7 +405,7 @@ auth_root_allowed(const char *method)
 			return 1;
 		break;
 	case PERMIT_FORCED_ONLY:
-		if (forced_command) {
+		if (auth_opts->force_command != NULL) {
 			logit("Root login accepted for forced command.");
 			return 1;
 		}
@@ -845,4 +846,344 @@ auth_get_canonical_hostname(struct ssh *ssh, int use_dns)
 		dnsname = remote_hostname(ssh);
 		return dnsname;
 	}
+}
+
+/*
+ * Runs command in a subprocess wuth a minimal environment.
+ * Returns pid on success, 0 on failure.
+ * The child stdout and stderr maybe captured, left attached or sent to
+ * /dev/null depending on the contents of flags.
+ * "tag" is prepended to log messages.
+ * NB. "command" is only used for logging; the actual command executed is
+ * av[0].
+ */
+pid_t
+subprocess(const char *tag, struct passwd *pw, const char *command,
+    int ac, char **av, FILE **child, u_int flags)
+{
+	FILE *f = NULL;
+	struct stat st;
+	int fd, devnull, p[2], i;
+	pid_t pid;
+	char *cp, errmsg[512];
+	u_int envsize;
+	char **child_env;
+
+	if (child != NULL)
+		*child = NULL;
+
+	debug3("%s: %s command \"%s\" running as %s (flags 0x%x)", __func__,
+	    tag, command, pw->pw_name, flags);
+
+	/* Check consistency */
+	if ((flags & SSH_SUBPROCESS_STDOUT_DISCARD) != 0 &&
+	    (flags & SSH_SUBPROCESS_STDOUT_CAPTURE) != 0) {
+		error("%s: inconsistent flags", __func__);
+		return 0;
+	}
+	if (((flags & SSH_SUBPROCESS_STDOUT_CAPTURE) == 0) != (child == NULL)) {
+		error("%s: inconsistent flags/output", __func__);
+		return 0;
+	}
+
+	/*
+	 * If executing an explicit binary, then verify the it exists
+	 * and appears safe-ish to execute
+	 */
+	if (*av[0] != '/') {
+		error("%s path is not absolute", tag);
+		return 0;
+	}
+	temporarily_use_uid(pw);
+	if (stat(av[0], &st) < 0) {
+		error("Could not stat %s \"%s\": %s", tag,
+		    av[0], strerror(errno));
+		restore_uid();
+		return 0;
+	}
+	if (safe_path(av[0], &st, NULL, 0, errmsg, sizeof(errmsg)) != 0) {
+		error("Unsafe %s \"%s\": %s", tag, av[0], errmsg);
+		restore_uid();
+		return 0;
+	}
+	/* Prepare to keep the child's stdout if requested */
+	if (pipe(p) != 0) {
+		error("%s: pipe: %s", tag, strerror(errno));
+		restore_uid();
+		return 0;
+	}
+	restore_uid();
+
+	switch ((pid = fork())) {
+	case -1: /* error */
+		error("%s: fork: %s", tag, strerror(errno));
+		close(p[0]);
+		close(p[1]);
+		return 0;
+	case 0: /* child */
+		/* Prepare a minimal environment for the child. */
+		envsize = 5;
+		child_env = xcalloc(sizeof(*child_env), envsize);
+		child_set_env(&child_env, &envsize, "PATH", _PATH_STDPATH);
+		child_set_env(&child_env, &envsize, "USER", pw->pw_name);
+		child_set_env(&child_env, &envsize, "LOGNAME", pw->pw_name);
+		child_set_env(&child_env, &envsize, "HOME", pw->pw_dir);
+		if ((cp = getenv("LANG")) != NULL)
+			child_set_env(&child_env, &envsize, "LANG", cp);
+
+		for (i = 0; i < NSIG; i++)
+			signal(i, SIG_DFL);
+
+		if ((devnull = open(_PATH_DEVNULL, O_RDWR)) == -1) {
+			error("%s: open %s: %s", tag, _PATH_DEVNULL,
+			    strerror(errno));
+			_exit(1);
+		}
+		if (dup2(devnull, STDIN_FILENO) == -1) {
+			error("%s: dup2: %s", tag, strerror(errno));
+			_exit(1);
+		}
+
+		/* Set up stdout as requested; leave stderr in place for now. */
+		fd = -1;
+		if ((flags & SSH_SUBPROCESS_STDOUT_CAPTURE) != 0)
+			fd = p[1];
+		else if ((flags & SSH_SUBPROCESS_STDOUT_DISCARD) != 0)
+			fd = devnull;
+		if (fd != -1 && dup2(fd, STDOUT_FILENO) == -1) {
+			error("%s: dup2: %s", tag, strerror(errno));
+			_exit(1);
+		}
+		closefrom(STDERR_FILENO + 1);
+
+		/* Don't use permanently_set_uid() here to avoid fatal() */
+		if (setresgid(pw->pw_gid, pw->pw_gid, pw->pw_gid) != 0) {
+			error("%s: setresgid %u: %s", tag, (u_int)pw->pw_gid,
+			    strerror(errno));
+			_exit(1);
+		}
+		if (setresuid(pw->pw_uid, pw->pw_uid, pw->pw_uid) != 0) {
+			error("%s: setresuid %u: %s", tag, (u_int)pw->pw_uid,
+			    strerror(errno));
+			_exit(1);
+		}
+		/* stdin is pointed to /dev/null at this point */
+		if ((flags & SSH_SUBPROCESS_STDOUT_DISCARD) != 0 &&
+		    dup2(STDIN_FILENO, STDERR_FILENO) == -1) {
+			error("%s: dup2: %s", tag, strerror(errno));
+			_exit(1);
+		}
+
+		execve(av[0], av, child_env);
+		error("%s exec \"%s\": %s", tag, command, strerror(errno));
+		_exit(127);
+	default: /* parent */
+		break;
+	}
+
+	close(p[1]);
+	if ((flags & SSH_SUBPROCESS_STDOUT_CAPTURE) == 0)
+		close(p[0]);
+	else if ((f = fdopen(p[0], "r")) == NULL) {
+		error("%s: fdopen: %s", tag, strerror(errno));
+		close(p[0]);
+		/* Don't leave zombie child */
+		kill(pid, SIGTERM);
+		while (waitpid(pid, NULL, 0) == -1 && errno == EINTR)
+			;
+		return 0;
+	}
+	/* Success */
+	debug3("%s: %s pid %ld", __func__, tag, (long)pid);
+	if (child != NULL)
+		*child = f;
+	return pid;
+}
+
+/* These functions link key/cert options to the auth framework */
+
+/* Log sshauthopt options locally and (optionally) for remote transmission */
+void
+auth_log_authopts(const char *loc, const struct sshauthopt *opts, int do_remote)
+{
+	int do_env = options.permit_user_env && opts->nenv > 0;
+	int do_permitopen = opts->npermitopen > 0 &&
+	    (options.allow_tcp_forwarding & FORWARD_LOCAL) != 0;
+	size_t i;
+	char msg[1024], buf[64];
+
+	snprintf(buf, sizeof(buf), "%d", opts->force_tun_device);
+	/* Try to keep this alphabetically sorted */
+	snprintf(msg, sizeof(msg), "key options:%s%s%s%s%s%s%s%s%s%s%s%s",
+	    opts->permit_agent_forwarding_flag ? " agent-forwarding" : "",
+	    opts->force_command == NULL ? "" : " command",
+	    do_env ?  " environment" : "",
+	    opts->valid_before == 0 ? "" : "expires",
+	    do_permitopen ?  " permitopen" : "",
+	    opts->permit_port_forwarding_flag ? " port-forwarding" : "",
+	    opts->cert_principals == NULL ? "" : " principals",
+	    opts->permit_pty_flag ? " pty" : "",
+	    opts->force_tun_device == -1 ? "" : " tun=",
+	    opts->force_tun_device == -1 ? "" : buf,
+	    opts->permit_user_rc ? " user-rc" : "",
+	    opts->permit_x11_forwarding_flag ? " x11-forwarding" : "");
+
+	debug("%s: %s", loc, msg);
+	if (do_remote)
+		auth_debug_add("%s: %s", loc, msg);
+
+	if (options.permit_user_env) {
+		for (i = 0; i < opts->nenv; i++) {
+			debug("%s: environment: %s", loc, opts->env[i]);
+			if (do_remote) {
+				auth_debug_add("%s: environment: %s",
+				    loc, opts->env[i]);
+			}
+		}
+	}
+
+	/* Go into a little more details for the local logs. */
+	if (opts->valid_before != 0) {
+		format_absolute_time(opts->valid_before, buf, sizeof(buf));
+		debug("%s: expires at %s", loc, buf);
+	}
+	if (opts->cert_principals != NULL) {
+		debug("%s: authorized principals: \"%s\"",
+		    loc, opts->cert_principals);
+	}
+	if (opts->force_command != NULL)
+		debug("%s: forced command: \"%s\"", loc, opts->force_command);
+	if ((options.allow_tcp_forwarding & FORWARD_LOCAL) != 0) {
+		for (i = 0; i < opts->npermitopen; i++) {
+			debug("%s: permitted open: %s",
+			    loc, opts->permitopen[i]);
+		}
+	}
+}
+
+/* Activate a new set of key/cert options; merging with what is there. */
+int
+auth_activate_options(struct ssh *ssh, struct sshauthopt *opts)
+{
+	struct sshauthopt *old = auth_opts;
+	const char *emsg = NULL;
+
+	debug("%s: setting new authentication options", __func__);
+	if ((auth_opts = sshauthopt_merge(old, opts, &emsg)) == NULL) {
+		error("Inconsistent authentication options: %s", emsg);
+		return -1;
+	}
+	return 0;
+}
+
+/* Disable forwarding, etc for the session */
+void
+auth_restrict_session(struct ssh *ssh)
+{
+	struct sshauthopt *restricted;
+
+	debug("%s: restricting session", __func__);
+
+	/* A blank sshauthopt defaults to permitting nothing */
+	restricted = sshauthopt_new();
+	restricted->restricted = 1;
+
+	if (auth_activate_options(ssh, restricted) != 0)
+		fatal("%s: failed to restrict session", __func__);
+	sshauthopt_free(restricted);
+}
+
+int
+auth_authorise_keyopts(struct ssh *ssh, struct passwd *pw,
+    struct sshauthopt *opts, int allow_cert_authority, const char *loc)
+{
+	const char *remote_ip = ssh_remote_ipaddr(ssh);
+	const char *remote_host = auth_get_canonical_hostname(ssh,
+	    options.use_dns);
+	time_t now = time(NULL);
+	char buf[64];
+
+	/*
+	 * Check keys/principals file expiry time.
+	 * NB. validity interval in certificate is handled elsewhere.
+	 */
+	if (opts->valid_before && now > 0 &&
+	    opts->valid_before < (uint64_t)now) {
+		format_absolute_time(opts->valid_before, buf, sizeof(buf));
+		debug("%s: entry expired at %s", loc, buf);
+		auth_debug_add("%s: entry expired at %s", loc, buf);
+		return -1;
+	}
+	/* Consistency checks */
+	if (opts->cert_principals != NULL && !opts->cert_authority) {
+		debug("%s: principals on non-CA key", loc);
+		auth_debug_add("%s: principals on non-CA key", loc);
+		/* deny access */
+		return -1;
+	}
+	/* cert-authority flag isn't valid in authorized_principals files */
+	if (!allow_cert_authority && opts->cert_authority) {
+		debug("%s: cert-authority flag invalid here", loc);
+		auth_debug_add("%s: cert-authority flag invalid here", loc);
+		/* deny access */
+		return -1;
+	}
+
+	/* Perform from= checks */
+	if (opts->required_from_host_keys != NULL) {
+		switch (match_host_and_ip(remote_host, remote_ip,
+		    opts->required_from_host_keys )) {
+		case 1:
+			/* Host name matches. */
+			break;
+		case -1:
+		default:
+			debug("%s: invalid from criteria", loc);
+			auth_debug_add("%s: invalid from criteria", loc);
+			/* FALLTHROUGH */
+		case 0:
+			logit("%s: Authentication tried for %.100s with "
+			    "correct key but not from a permitted "
+			    "host (host=%.200s, ip=%.200s, required=%.200s).",
+			    loc, pw->pw_name, remote_host, remote_ip,
+			    opts->required_from_host_keys);
+			auth_debug_add("%s: Your host '%.200s' is not "
+			    "permitted to use this key for login.",
+			    loc, remote_host);
+			/* deny access */
+			return -1;
+		}
+	}
+	/* Check source-address restriction from certificate */
+	if (opts->required_from_host_cert != NULL) {
+		switch (addr_match_cidr_list(remote_ip,
+		    opts->required_from_host_cert)) {
+		case 1:
+			/* accepted */
+			break;
+		case -1:
+		default:
+			/* invalid */
+			error("%s: Certificate source-address invalid",
+			    loc);
+			/* FALLTHROUGH */
+		case 0:
+			logit("%s: Authentication tried for %.100s with valid "
+			    "certificate but not from a permitted source "
+			    "address (%.200s).", loc, pw->pw_name, remote_ip);
+			auth_debug_add("%s: Your address '%.200s' is not "
+			    "permitted to use this certificate for login.",
+			    loc, remote_ip);
+			return -1;
+		}
+	}
+	/*
+	 *
+	 * XXX this is spammy. We should report remotely only for keys
+	 *     that are successful in actual auth attempts, and not PK_OK
+	 *     tests.
+	 */
+	auth_log_authopts(loc, opts, 1);
+
+	return 0;
 }

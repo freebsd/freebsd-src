@@ -34,8 +34,8 @@ privsep user and chroot directory:
 PAM-enabled OpenSSH is known to function with privsep on AIX, FreeBSD, 
 HP-UX (including Trusted Mode), Linux, NetBSD and Solaris.
 
-On Cygwin, Tru64 Unix, OpenServer, and Unicos only the pre-authentication
-part of privsep is supported.  Post-authentication privsep is disabled
+On Cygwin, Tru64 Unix and OpenServer only the pre-authentication part
+of privsep is supported.  Post-authentication privsep is disabled
 automatically (so you won't see the additional process mentioned below).
 
 Note that for a normal interactive login with a shell, enabling privsep

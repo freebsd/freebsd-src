@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.c,v 1.25 2017/05/31 09:15:42 deraadt Exp $ */
+/* $OpenBSD: ssh-pkcs11.c,v 1.26 2018/02/07 02:06:51 jsing Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -532,8 +532,7 @@ pkcs11_fetch_keys_filter(struct pkcs11_provider *p, CK_ULONG slotidx,
 			    == NULL) {
 				error("RSAPublicKey_dup");
 			}
-			if (x509)
-				X509_free(x509);
+			X509_free(x509);
 		}
 		if (rsa && rsa->n && rsa->e &&
 		    pkcs11_rsa_wrap(p, slotidx, &attribs[0], rsa) == 0) {

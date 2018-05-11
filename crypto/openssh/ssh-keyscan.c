@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keyscan.c,v 1.115 2017/06/30 04:17:23 dtucker Exp $ */
+/* $OpenBSD: ssh-keyscan.c,v 1.119 2018/03/02 21:40:15 jmc Exp $ */
 /*
  * Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
  *
@@ -46,6 +46,7 @@
 #include "hostfile.h"
 #include "ssherr.h"
 #include "ssh_api.h"
+#include "dns.h"
 
 /* Flag indicating whether IPv4 or IPv6.  This can be set on the command line.
    Default value is AF_UNSPEC means both IPv4 and IPv6. */
@@ -57,14 +58,17 @@ int ssh_port = SSH_DEFAULT_PORT;
 #define KT_RSA		(1<<1)
 #define KT_ECDSA	(1<<2)
 #define KT_ED25519	(1<<3)
+#define KT_XMSS		(1<<4)
 
 #define KT_MIN		KT_DSA
-#define KT_MAX		KT_ED25519
+#define KT_MAX		KT_XMSS
 
 int get_cert = 0;
 int get_keytypes = KT_RSA|KT_ECDSA|KT_ED25519;
 
 int hash_hosts = 0;		/* Hash hostname on output */
+
+int print_sshfp = 0;		/* Print SSHFP records instead of known_hosts */
 
 #define MAXMAXFD 256
 
@@ -235,6 +239,10 @@ keygrab_ssh2(con *c)
 		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = get_cert ?
 		    "ssh-ed25519-cert-v01@openssh.com" : "ssh-ed25519";
 		break;
+	case KT_XMSS:
+		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = get_cert ?
+		    "ssh-xmss-cert-v01@openssh.com" : "ssh-xmss@openssh.com";
+		break;
 	case KT_ECDSA:
 		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = get_cert ?
 		    "ecdsa-sha2-nistp256-cert-v01@openssh.com,"
@@ -279,6 +287,11 @@ keyprint_one(const char *host, struct sshkey *key)
 {
 	char *hostport;
 	const char *known_host, *hashed;
+
+	if (print_sshfp) {
+		export_dns_rr(host, key, stdout, 0);
+		return;
+	}
 
 	hostport = put_host_port(host, ssh_port);
 	lowercase(hostport);
@@ -377,7 +390,7 @@ conalloc(char *iname, char *oname, int keytype)
 	fdcon[s].c_len = 4;
 	fdcon[s].c_off = 0;
 	fdcon[s].c_keytype = keytype;
-	gettimeofday(&fdcon[s].c_tv, NULL);
+	monotime_tv(&fdcon[s].c_tv);
 	fdcon[s].c_tv.tv_sec += timeout;
 	TAILQ_INSERT_TAIL(&tq, &fdcon[s], c_link);
 	FD_SET(s, read_wait);
@@ -411,7 +424,7 @@ static void
 contouch(int s)
 {
 	TAILQ_REMOVE(&tq, &fdcon[s], c_link);
-	gettimeofday(&fdcon[s].c_tv, NULL);
+	monotime_tv(&fdcon[s].c_tv);
 	fdcon[s].c_tv.tv_sec += timeout;
 	TAILQ_INSERT_TAIL(&tq, &fdcon[s], c_link);
 }
@@ -497,7 +510,8 @@ congreet(int s)
 		confree(s);
 		return;
 	}
-	fprintf(stderr, "# %s:%d %s\n", c->c_name, ssh_port, chop(buf));
+	fprintf(stderr, "%c %s:%d %s\n", print_sshfp ? ';' : '#',
+	    c->c_name, ssh_port, chop(buf));
 	keygrab_ssh2(c);
 	confree(s);
 }
@@ -545,7 +559,7 @@ conloop(void)
 	con *c;
 	int i;
 
-	gettimeofday(&now, NULL);
+	monotime_tv(&now);
 	c = TAILQ_FIRST(&tq);
 
 	if (c && (c->c_tv.tv_sec > now.tv_sec ||
@@ -621,8 +635,8 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: %s [-46cHv] [-f file] [-p port] [-T timeout] [-t type]\n"
-	    "\t\t   [host | addrlist namelist] ...\n",
+	    "usage: %s [-46cDHv] [-f file] [-p port] [-T timeout] [-t type]\n"
+	    "\t\t   [host | addrlist namelist]\n",
 	    __progname);
 	exit(1);
 }
@@ -650,13 +664,16 @@ main(int argc, char **argv)
 	if (argc <= 1)
 		usage();
 
-	while ((opt = getopt(argc, argv, "cHv46p:T:t:f:")) != -1) {
+	while ((opt = getopt(argc, argv, "cDHv46p:T:t:f:")) != -1) {
 		switch (opt) {
 		case 'H':
 			hash_hosts = 1;
 			break;
 		case 'c':
 			get_cert = 1;
+			break;
+		case 'D':
+			print_sshfp = 1;
 			break;
 		case 'p':
 			ssh_port = a2port(optarg);
@@ -705,6 +722,9 @@ main(int argc, char **argv)
 					break;
 				case KEY_ED25519:
 					get_keytypes |= KT_ED25519;
+					break;
+				case KEY_XMSS:
+					get_keytypes |= KT_XMSS;
 					break;
 				case KEY_UNSPEC:
 				default:

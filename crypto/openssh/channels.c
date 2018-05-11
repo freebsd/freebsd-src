@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.375 2017/09/24 13:45:34 djm Exp $ */
+/* $OpenBSD: channels.c,v 1.379 2018/02/05 05:36:49 tb Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -436,10 +436,15 @@ channel_close_fd(struct ssh *ssh, int *fdp)
 static void
 channel_close_fds(struct ssh *ssh, Channel *c)
 {
+	int sock = c->sock, rfd = c->rfd, wfd = c->wfd, efd = c->efd;
+
 	channel_close_fd(ssh, &c->sock);
-	channel_close_fd(ssh, &c->rfd);
-	channel_close_fd(ssh, &c->wfd);
-	channel_close_fd(ssh, &c->efd);
+	if (rfd != sock)
+		channel_close_fd(ssh, &c->rfd);
+	if (wfd != sock && wfd != rfd)
+		channel_close_fd(ssh, &c->wfd);
+	if (efd != sock && efd != rfd && efd != wfd)
+		channel_close_fd(ssh, &c->efd);
 }
 
 static void
@@ -1582,13 +1587,8 @@ channel_post_x11_listener(struct ssh *ssh, Channel *c,
 	    SSH_CHANNEL_OPENING, newsock, newsock, -1,
 	    c->local_window_max, c->local_maxpacket, 0, buf, 1);
 	open_preamble(ssh, __func__, nc, "x11");
-	if ((r = sshpkt_put_cstring(ssh, remote_ipaddr)) != 0) {
-		fatal("%s: channel %i: reply %s", __func__,
-		    c->self, ssh_err(r));
-	}
-	if ((datafellows & SSH_BUG_X11FWD) != 0)
-		debug2("channel %d: ssh2 x11 bug compat mode", nc->self);
-	else if ((r = sshpkt_put_u32(ssh, remote_port)) != 0) {
+	if ((r = sshpkt_put_cstring(ssh, remote_ipaddr)) != 0 ||
+	    (r = sshpkt_put_u32(ssh, remote_port)) != 0) {
 		fatal("%s: channel %i: reply %s", __func__,
 		    c->self, ssh_err(r));
 	}
@@ -1666,19 +1666,6 @@ port_open_helper(struct ssh *ssh, Channel *c, char *rtype)
 		fatal("%s: channel %i: send %s", __func__, c->self, ssh_err(r));
 	free(remote_ipaddr);
 	free(local_ipaddr);
-}
-
-static void
-channel_set_reuseaddr(int fd)
-{
-	int on = 1;
-
-	/*
-	 * Set socket options.
-	 * Allow local port reuse in TIME_WAIT.
-	 */
-	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1)
-		error("setsockopt SO_REUSEADDR fd %d: %s", fd, strerror(errno));
 }
 
 void
@@ -1837,15 +1824,13 @@ channel_post_connecting(struct ssh *ssh, Channel *c,
 			if ((r = sshpkt_start(ssh,
 			    SSH2_MSG_CHANNEL_OPEN_FAILURE)) != 0 ||
 			    (r = sshpkt_put_u32(ssh, c->remote_id)) != 0 ||
-			    (r = sshpkt_put_u32(ssh, SSH2_OPEN_CONNECT_FAILED))
-			    != 0)
+			    (r = sshpkt_put_u32(ssh,
+			    SSH2_OPEN_CONNECT_FAILED)) != 0 ||
+			    (r = sshpkt_put_cstring(ssh, strerror(err))) != 0 ||
+			    (r = sshpkt_put_cstring(ssh, "")) != 0) {
 				fatal("%s: channel %i: failure: %s", __func__,
 				    c->self, ssh_err(r));
-			if ((datafellows & SSH_BUG_OPENFAILURE) == 0 &&
-			    ((r = sshpkt_put_cstring(ssh, strerror(err))) != 0 ||
-			    (r = sshpkt_put_cstring(ssh, "")) != 0))
-				fatal("%s: channel %i: failure: %s", __func__,
-				    c->self, ssh_err(r));
+			}
 			if ((r = sshpkt_send(ssh)) != 0)
 				fatal("%s: channel %i: %s", __func__, c->self,
 				    ssh_err(r));
@@ -3123,13 +3108,11 @@ channel_input_open_failure(int type, u_int32_t seq, struct ssh *ssh)
 		error("%s: reason: %s", __func__, ssh_err(r));
 		packet_disconnect("Invalid open failure message");
 	}
-	if ((datafellows & SSH_BUG_OPENFAILURE) == 0) {
-		/* skip language */
-		if ((r = sshpkt_get_cstring(ssh, &msg, NULL)) != 0 ||
-		    (r = sshpkt_get_string_direct(ssh, NULL, NULL)) != 0) {
-			error("%s: message/lang: %s", __func__, ssh_err(r));
-			packet_disconnect("Invalid open failure message");
-		}
+	/* skip language */
+	if ((r = sshpkt_get_cstring(ssh, &msg, NULL)) != 0 ||
+	    (r = sshpkt_get_string_direct(ssh, NULL, NULL)) != 0) {
+		error("%s: message/lang: %s", __func__, ssh_err(r));
+		packet_disconnect("Invalid open failure message");
 	}
 	ssh_packet_check_eom(ssh);
 	logit("channel %d: open failed: %s%s%s", c->self,
@@ -3364,11 +3347,12 @@ channel_setup_fwd_listener_tcpip(struct ssh *ssh, int type,
 		sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 		if (sock < 0) {
 			/* this is no error since kernel may not support ipv6 */
-			verbose("socket: %.100s", strerror(errno));
+			verbose("socket [%s]:%s: %.100s", ntop, strport,
+			    strerror(errno));
 			continue;
 		}
 
-		channel_set_reuseaddr(sock);
+		set_reuseaddr(sock);
 		if (ai->ai_family == AF_INET6)
 			sock_set_v6only(sock);
 
@@ -3382,9 +3366,11 @@ channel_setup_fwd_listener_tcpip(struct ssh *ssh, int type,
 			 * already bound
 			 */
 			if (!ai->ai_next)
-				error("bind: %.100s", strerror(errno));
+				error("bind [%s]:%s: %.100s",
+				    ntop, strport, strerror(errno));
 			else
-				verbose("bind: %.100s", strerror(errno));
+				verbose("bind [%s]:%s: %.100s",
+				    ntop, strport, strerror(errno));
 
 			close(sock);
 			continue;
@@ -3392,6 +3378,8 @@ channel_setup_fwd_listener_tcpip(struct ssh *ssh, int type,
 		/* Start listening for connections on the socket. */
 		if (listen(sock, SSH_LISTEN_BACKLOG) < 0) {
 			error("listen: %.100s", strerror(errno));
+			error("listen [%s]:%s: %.100s", ntop, strport,
+			    strerror(errno));
 			close(sock);
 			continue;
 		}
@@ -3672,15 +3660,9 @@ static const char *
 channel_rfwd_bind_host(const char *listen_host)
 {
 	if (listen_host == NULL) {
-		if (datafellows & SSH_BUG_RFWD_ADDR)
-			return "127.0.0.1";
-		else
-			return "localhost";
+		return "localhost";
 	} else if (*listen_host == '\0' || strcmp(listen_host, "*") == 0) {
-		if (datafellows & SSH_BUG_RFWD_ADDR)
-			return "0.0.0.0";
-		else
-			return "";
+		return "";
 	} else
 		return listen_host;
 }
@@ -4439,7 +4421,7 @@ x11_create_display_inet(struct ssh *ssh, int x11_display_offset,
 			if (ai->ai_family == AF_INET6)
 				sock_set_v6only(sock);
 			if (x11_use_localhost)
-				channel_set_reuseaddr(sock);
+				set_reuseaddr(sock);
 			if (bind(sock, ai->ai_addr, ai->ai_addrlen) < 0) {
 				debug2("%s: bind port %d: %.100s", __func__,
 				    port, strerror(errno));

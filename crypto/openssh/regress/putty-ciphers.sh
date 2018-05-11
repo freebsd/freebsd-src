@@ -15,7 +15,7 @@ for c in aes 3des aes128-ctr aes192-ctr aes256-ctr ; do
 	echo "Cipher=$c" >> ${OBJ}/.putty/sessions/cipher_$c
 
 	rm -f ${COPY}
-	env HOME=$PWD ${PLINK} -load cipher_$c -batch -i putty.rsa2 \
+	env HOME=$PWD ${PLINK} -load cipher_$c -batch -i ${OBJ}/putty.rsa2 \
 	    cat ${DATA} > ${COPY}
 	if [ $? -ne 0 ]; then
 		fail "ssh cat $DATA failed"

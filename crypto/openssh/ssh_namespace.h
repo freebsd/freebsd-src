@@ -31,6 +31,7 @@
 #define argv_assemble				Fssh_argv_assemble
 #define argv_split				Fssh_argv_split
 #define ask_permission				Fssh_ask_permission
+#define atoi_err				Fssh_atoi_err
 #define atomicio				Fssh_atomicio
 #define atomicio6				Fssh_atomicio6
 #define atomiciov				Fssh_atomiciov
@@ -128,7 +129,6 @@
 #define channel_clear_permitted_opens		Fssh_channel_clear_permitted_opens
 #define channel_close_all			Fssh_channel_close_all
 #define channel_close_fd			Fssh_channel_close_fd
-#define channel_close_fds			Fssh_channel_close_fds
 #define channel_connect_by_listen_address	Fssh_channel_connect_by_listen_address
 #define channel_connect_by_listen_path		Fssh_channel_connect_by_listen_path
 #define channel_connect_stdio_fwd		Fssh_channel_connect_stdio_fwd
@@ -233,7 +233,6 @@
 #define connect_to_helper			Fssh_connect_to_helper
 #define convtime				Fssh_convtime
 #define crypto_hash_sha512			Fssh_crypto_hash_sha512
-#define crypto_hashblocks_sha512		Fssh_crypto_hashblocks_sha512
 #define crypto_scalarmult_curve25519		Fssh_crypto_scalarmult_curve25519
 #define crypto_sign_ed25519			Fssh_crypto_sign_ed25519
 #define crypto_sign_ed25519_keypair		Fssh_crypto_sign_ed25519_keypair
@@ -297,6 +296,7 @@
 #define do_log					Fssh_do_log
 #define do_log2					Fssh_do_log2
 #define dump_base64				Fssh_dump_base64
+#define encode_constraints			Fssh_encode_constraints
 #define error					Fssh_error
 #define exited_cleanly				Fssh_exited_cleanly
 #define export_dns_rr				Fssh_export_dns_rr
@@ -305,10 +305,12 @@
 #define fingerprint_hex				Fssh_fingerprint_hex
 #define fmprintf				Fssh_fmprintf
 #define fmt_scaled				Fssh_fmt_scaled
+#define format_absolute_time			Fssh_format_absolute_time
 #define forward_equals				Fssh_forward_equals
 #define free_hostkeys				Fssh_free_hostkeys
 #define freeargs				Fssh_freeargs
 #define freerrset				Fssh_freerrset
+#define freezero				Fssh_freezero
 #define fwd_perm_list_add			Fssh_fwd_perm_list_add
 #define gen_candidates				Fssh_gen_candidates
 #define get_hram				Fssh_get_hram
@@ -317,6 +319,7 @@
 #define get_local_port				Fssh_get_local_port
 #define get_peer_ipaddr				Fssh_get_peer_ipaddr
 #define get_peer_port				Fssh_get_peer_port
+#define get_rdomain				Fssh_get_rdomain
 #define get_sock_port				Fssh_get_sock_port
 #define get_socket_address			Fssh_get_socket_address
 #define get_u16					Fssh_get_u16
@@ -395,7 +398,6 @@
 #define key_load_public				Fssh_key_load_public
 #define key_sign				Fssh_key_sign
 #define key_to_blob				Fssh_key_to_blob
-#define key_verify				Fssh_key_verify
 #define load_hostkeys				Fssh_load_hostkeys
 #define log_change_level			Fssh_log_change_level
 #define log_facility_name			Fssh_log_facility_name
@@ -431,6 +433,8 @@
 #define mm_sshkey_sign				Fssh_mm_sshkey_sign
 #define monotime				Fssh_monotime
 #define monotime_double				Fssh_monotime_double
+#define monotime_ts				Fssh_monotime_ts
+#define monotime_tv				Fssh_monotime_tv
 #define mprintf					Fssh_mprintf
 #define ms_subtract_diff			Fssh_ms_subtract_diff
 #define ms_to_timeval				Fssh_ms_to_timeval
@@ -453,8 +457,11 @@
 #define packet_set_connection			Fssh_packet_set_connection
 #define packet_write_poll			Fssh_packet_write_poll
 #define packet_write_wait			Fssh_packet_write_wait
+#define parse_absolute_time			Fssh_parse_absolute_time
 #define parse_ipqos				Fssh_parse_ipqos
 #define parse_prime				Fssh_parse_prime
+#define parse_uri				Fssh_parse_uri
+#define parse_user_host_path			Fssh_parse_user_host_path
 #define parse_user_host_port			Fssh_parse_user_host_port
 #define percent_expand				Fssh_percent_expand
 #define permanently_drop_suid			Fssh_permanently_drop_suid
@@ -512,6 +519,8 @@
 #define set_log_handler				Fssh_set_log_handler
 #define set_nodelay				Fssh_set_nodelay
 #define set_nonblock				Fssh_set_nonblock
+#define set_rdomain				Fssh_set_rdomain
+#define set_reuseaddr				Fssh_set_reuseaddr
 #define shadow_pw				Fssh_shadow_pw
 #define sieve_large				Fssh_sieve_large
 #define sig_winch				Fssh_sig_winch
@@ -636,6 +645,7 @@
 #define ssh_packet_put_int64			Fssh_ssh_packet_put_int64
 #define ssh_packet_put_raw			Fssh_ssh_packet_put_raw
 #define ssh_packet_put_string			Fssh_ssh_packet_put_string
+#define ssh_packet_rdomain_in			Fssh_ssh_packet_rdomain_in
 #define ssh_packet_read				Fssh_ssh_packet_read
 #define ssh_packet_read_expect			Fssh_ssh_packet_read_expect
 #define ssh_packet_read_poll2			Fssh_ssh_packet_read_poll2
@@ -759,6 +769,7 @@
 #define sshkey_ecdsa_bits_to_nid		Fssh_sshkey_ecdsa_bits_to_nid
 #define sshkey_ecdsa_key_to_nid			Fssh_sshkey_ecdsa_key_to_nid
 #define sshkey_ecdsa_nid_from_name		Fssh_sshkey_ecdsa_nid_from_name
+#define sshkey_enable_maxsign			Fssh_sshkey_enable_maxsign
 #define sshkey_equal				Fssh_sshkey_equal
 #define sshkey_equal_public			Fssh_sshkey_equal_public
 #define sshkey_fingerprint			Fssh_sshkey_fingerprint
@@ -792,14 +803,20 @@
 #define sshkey_plain_to_blob			Fssh_sshkey_plain_to_blob
 #define sshkey_private_deserialize		Fssh_sshkey_private_deserialize
 #define sshkey_private_serialize		Fssh_sshkey_private_serialize
+#define sshkey_private_serialize_maxsign	Fssh_sshkey_private_serialize_maxsign
+#define sshkey_private_serialize_opt		Fssh_sshkey_private_serialize_opt
 #define sshkey_private_to_blob2			Fssh_sshkey_private_to_blob2
 #define sshkey_private_to_fileblob		Fssh_sshkey_private_to_fileblob
 #define sshkey_putb				Fssh_sshkey_putb
 #define sshkey_putb_plain			Fssh_sshkey_putb_plain
 #define sshkey_puts				Fssh_sshkey_puts
+#define sshkey_puts_opts			Fssh_sshkey_puts_opts
 #define sshkey_read				Fssh_sshkey_read
 #define sshkey_save_private			Fssh_sshkey_save_private
+#define sshkey_set_filename			Fssh_sshkey_set_filename
 #define sshkey_sign				Fssh_sshkey_sign
+#define sshkey_signatures_left			Fssh_sshkey_signatures_left
+#define sshkey_sigtype				Fssh_sshkey_sigtype
 #define sshkey_size				Fssh_sshkey_size
 #define sshkey_ssh_name				Fssh_sshkey_ssh_name
 #define sshkey_ssh_name_plain			Fssh_sshkey_ssh_name_plain
@@ -816,6 +833,7 @@
 #define sshpkt_add_padding			Fssh_sshpkt_add_padding
 #define sshpkt_disconnect			Fssh_sshpkt_disconnect
 #define sshpkt_fatal				Fssh_sshpkt_fatal
+#define sshpkt_fmt_connection_id		Fssh_sshpkt_fmt_connection_id
 #define sshpkt_get				Fssh_sshpkt_get
 #define sshpkt_get_bignum2			Fssh_sshpkt_get_bignum2
 #define sshpkt_get_cstring			Fssh_sshpkt_get_cstring
@@ -848,7 +866,6 @@
 #define strnvis					Fssh_strnvis
 #define strvis					Fssh_strvis
 #define strvisx					Fssh_strvisx
-#define subprocess				Fssh_subprocess
 #define sys_tun_open				Fssh_sys_tun_open
 #define temporarily_use_uid			Fssh_temporarily_use_uid
 #define tilde_expand_filename			Fssh_tilde_expand_filename
@@ -869,8 +886,10 @@
 #define unix_listener				Fssh_unix_listener
 #define unset_nonblock				Fssh_unset_nonblock
 #define update_progress_meter			Fssh_update_progress_meter
+#define urldecode				Fssh_urldecode
 #define uudecode				Fssh_uudecode
 #define uuencode				Fssh_uuencode
+#define valid_domain				Fssh_valid_domain
 #define vasnmprintf				Fssh_vasnmprintf
 #define verbose					Fssh_verbose
 #define verify_host_key_dns			Fssh_verify_host_key_dns

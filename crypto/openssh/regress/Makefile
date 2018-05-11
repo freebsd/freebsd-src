@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.95 2017/06/24 06:35:24 djm Exp $
+#	$OpenBSD: Makefile,v 1.96 2017/10/24 19:33:32 millert Exp $
 
 REGRESS_TARGETS=	unit t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12 t-exec
 tests:		prep $(REGRESS_TARGETS)
@@ -19,6 +19,7 @@ distclean:	clean
 LTESTS= 	connect \
 		proxy-connect \
 		connect-privsep \
+		connect-uri \
 		proto-version \
 		proto-mismatch \
 		exit-status \
@@ -42,6 +43,7 @@ LTESTS= 	connect \
 		keygen-moduli \
 		key-options \
 		scp \
+		scp-uri \
 		sftp \
 		sftp-chroot \
 		sftp-cmds \
@@ -49,6 +51,7 @@ LTESTS= 	connect \
 		sftp-batch \
 		sftp-glob \
 		sftp-perm \
+		sftp-uri \
 		reconfigure \
 		dynamic-forward \
 		forwarding \

@@ -1,4 +1,4 @@
-#	$OpenBSD: forward-control.sh,v 1.4 2017/04/30 23:34:55 djm Exp $
+#	$OpenBSD: forward-control.sh,v 1.5 2018/03/02 02:51:55 djm Exp $
 #	Placed in the Public Domain.
 
 tid="sshd control of local and remote forwarding"
@@ -151,6 +151,33 @@ all_tests() {
 	    > ${OBJ}/sshd_proxy
 	check_lfwd $_permit_lfwd "$_prefix, permitopen"
 	check_rfwd $_permit_rfwd "$_prefix, permitopen"
+	# Check port-forwarding flags in authorized_keys.
+	# These two should refuse all.
+	sed "s/^/no-port-forwarding /" \
+	    < ${OBJ}/authorized_keys_${USER}.bak \
+	    > ${OBJ}/authorized_keys_${USER} || fatal "sed 3 fail"
+	( cat ${OBJ}/sshd_proxy.bak ;
+	  echo "AllowTcpForwarding $_tcpfwd" ) \
+	    > ${OBJ}/sshd_proxy
+	check_lfwd N "$_prefix, no-port-forwarding"
+	check_rfwd N "$_prefix, no-port-forwarding"
+	sed "s/^/restrict /" \
+	    < ${OBJ}/authorized_keys_${USER}.bak \
+	    > ${OBJ}/authorized_keys_${USER} || fatal "sed 4 fail"
+	( cat ${OBJ}/sshd_proxy.bak ;
+	  echo "AllowTcpForwarding $_tcpfwd" ) \
+	    > ${OBJ}/sshd_proxy
+	check_lfwd N "$_prefix, restrict"
+	check_rfwd N "$_prefix, restrict"
+	# This should pass the same cases as _nopermit*
+	sed "s/^/restrict,port-forwarding /" \
+	    < ${OBJ}/authorized_keys_${USER}.bak \
+	    > ${OBJ}/authorized_keys_${USER} || fatal "sed 5 fail"
+	( cat ${OBJ}/sshd_proxy.bak ;
+	  echo "AllowTcpForwarding $_tcpfwd" ) \
+	    > ${OBJ}/sshd_proxy
+	check_lfwd $_plain_lfwd "$_prefix, restrict,port-forwarding"
+	check_rfwd $_plain_rfwd "$_prefix, restrict,port-forwarding"
 }
 
 #                      no-permitopen mismatch-permitopen match-permitopen

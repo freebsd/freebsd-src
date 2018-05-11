@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.174 2017/10/02 19:33:20 djm Exp $ */
+/* $OpenBSD: monitor.c,v 1.180 2018/03/03 03:15:51 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -116,6 +116,7 @@ extern u_char session_id[];
 extern Buffer auth_debug;
 extern int auth_debug_init;
 extern Buffer loginmsg;
+extern struct sshauthopt *auth_opts; /* XXX move to permanent ssh->authctxt? */
 
 /* State exported from the child */
 static struct sshbuf *child_state;
@@ -172,6 +173,7 @@ static Authctxt *authctxt;
 static u_char *key_blob = NULL;
 static u_int key_bloblen = 0;
 static int key_blobtype = MM_NOKEY;
+static struct sshauthopt *key_opts = NULL;
 static char *hostbased_cuser = NULL;
 static char *hostbased_chost = NULL;
 static char *auth_method = "unknown";
@@ -252,7 +254,6 @@ struct mon_table mon_dispatch_postauth20[] = {
 struct mon_table *mon_dispatch;
 
 /* Specifies if a certain message is allowed at the moment */
-
 static void
 monitor_permit(struct mon_table *ent, enum monitor_reqtype type, int permit)
 {
@@ -289,12 +290,15 @@ monitor_child_preauth(Authctxt *_authctxt, struct monitor *pmonitor)
 
 	debug3("preauth child monitor started");
 
-	close(pmonitor->m_recvfd);
-	close(pmonitor->m_log_sendfd);
+	if (pmonitor->m_recvfd >= 0)
+		close(pmonitor->m_recvfd);
+	if (pmonitor->m_log_sendfd >= 0)
+		close(pmonitor->m_log_sendfd);
 	pmonitor->m_log_sendfd = pmonitor->m_recvfd = -1;
 
 	authctxt = _authctxt;
 	memset(authctxt, 0, sizeof(*authctxt));
+	ssh->authctxt = authctxt;
 
 	authctxt->loginmsg = &loginmsg;
 
@@ -329,7 +333,7 @@ monitor_child_preauth(Authctxt *_authctxt, struct monitor *pmonitor)
 				fatal("%s: unexpected authentication from %d",
 				    __func__, ent->type);
 			if (authctxt->pw->pw_uid == 0 &&
-			    !auth_root_allowed(auth_method))
+			    !auth_root_allowed(ssh, auth_method))
 				authenticated = 0;
 #ifdef USE_PAM
 			/* PAM needs to perform account checks after auth */
@@ -363,6 +367,7 @@ monitor_child_preauth(Authctxt *_authctxt, struct monitor *pmonitor)
 
 	debug("%s: %s has been authenticated by privileged process",
 	    __func__, authctxt->user);
+	ssh->authctxt = NULL;
 	ssh_packet_set_log_preamble(ssh, "user %s", authctxt->user);
 
 	mm_get_keystate(pmonitor);
@@ -371,8 +376,10 @@ monitor_child_preauth(Authctxt *_authctxt, struct monitor *pmonitor)
 	while (pmonitor->m_log_recvfd != -1 && monitor_read_log(pmonitor) == 0)
 		;
 
-	close(pmonitor->m_sendfd);
-	close(pmonitor->m_log_recvfd);
+	if (pmonitor->m_recvfd >= 0)
+		close(pmonitor->m_recvfd);
+	if (pmonitor->m_log_sendfd >= 0)
+		close(pmonitor->m_log_sendfd);
 	pmonitor->m_sendfd = pmonitor->m_log_recvfd = -1;
 }
 
@@ -409,7 +416,7 @@ monitor_child_postauth(struct monitor *pmonitor)
 	monitor_permit(mon_dispatch, MONITOR_REQ_SIGN, 1);
 	monitor_permit(mon_dispatch, MONITOR_REQ_TERM, 1);
 
-	if (!no_pty_flag) {
+	if (auth_opts->permit_pty_flag) {
 		monitor_permit(mon_dispatch, MONITOR_REQ_PTY, 1);
 		monitor_permit(mon_dispatch, MONITOR_REQ_PTYCLEANUP, 1);
 	}
@@ -554,9 +561,11 @@ monitor_reset_key_state(void)
 	free(key_blob);
 	free(hostbased_cuser);
 	free(hostbased_chost);
+	sshauthopt_free(key_opts);
 	key_blob = NULL;
 	key_bloblen = 0;
 	key_blobtype = MM_NOKEY;
+	key_opts = NULL;
 	hostbased_cuser = NULL;
 	hostbased_chost = NULL;
 }
@@ -760,12 +769,10 @@ mm_answer_pwnamallow(int sock, Buffer *m)
 		for (i = 0; i < options.nx; i++) \
 			buffer_put_cstring(m, options.x[i]); \
 	} while (0)
-#define M_CP_STRARRAYOPT_ALLOC(x, nx) M_CP_STRARRAYOPT(x, nx)
 	/* See comment in servconf.h */
 	COPY_MATCH_STRING_OPTS();
 #undef M_CP_STROPT
 #undef M_CP_STRARRAYOPT
-#undef M_CP_STRARRAYOPT_ALLOC
 
 	/* Create valid auth method lists */
 	if (auth2_setup_methods_lists(authctxt) != 0) {
@@ -826,6 +833,7 @@ mm_answer_authserv(int sock, Buffer *m)
 int
 mm_answer_authpassword(int sock, Buffer *m)
 {
+	struct ssh *ssh = active_state;	/* XXX */
 	static int call_count;
 	char *passwd;
 	int authenticated;
@@ -836,7 +844,7 @@ mm_answer_authpassword(int sock, Buffer *m)
 	passwd = buffer_get_string(m, &plen);
 	/* Only authenticate if the context is valid */
 	authenticated = options.password_authentication &&
-	    auth_password(authctxt, passwd);
+	    auth_password(ssh, passwd);
 	explicit_bzero(passwd, strlen(passwd));
 	free(passwd);
 
@@ -1127,15 +1135,16 @@ mm_answer_pam_free_ctx(int sock, Buffer *m)
 int
 mm_answer_keyallowed(int sock, Buffer *m)
 {
+	struct ssh *ssh = active_state;	/* XXX */
 	struct sshkey *key;
 	char *cuser, *chost;
 	u_char *blob;
 	u_int bloblen, pubkey_auth_attempt;
 	enum mm_keytype type = 0;
-	int allowed = 0;
+	int r, allowed = 0;
+	struct sshauthopt *opts = NULL;
 
 	debug3("%s entering", __func__);
-
 	type = buffer_get_int(m);
 	cuser = buffer_get_string(m, NULL);
 	chost = buffer_get_string(m, NULL);
@@ -1154,28 +1163,31 @@ mm_answer_keyallowed(int sock, Buffer *m)
 
 		switch (type) {
 		case MM_USERKEY:
-			allowed = options.pubkey_authentication &&
-			    !auth2_key_already_used(authctxt, key) &&
-			    match_pattern_list(sshkey_ssh_name(key),
-			    options.pubkey_key_types, 0) == 1 &&
-			    user_key_allowed(authctxt->pw, key,
-			    pubkey_auth_attempt);
 			auth_method = "publickey";
-			if (options.pubkey_authentication &&
-			    (!pubkey_auth_attempt || allowed != 1))
-				auth_clear_options();
+			if (!options.pubkey_authentication)
+				break;
+			if (auth2_key_already_used(authctxt, key))
+				break;
+			if (match_pattern_list(sshkey_ssh_name(key),
+			    options.pubkey_key_types, 0) != 1)
+				break;
+			allowed = user_key_allowed(ssh, authctxt->pw, key,
+			    pubkey_auth_attempt, &opts);
 			break;
 		case MM_HOSTKEY:
-			allowed = options.hostbased_authentication &&
-			    !auth2_key_already_used(authctxt, key) &&
-			    match_pattern_list(sshkey_ssh_name(key),
-			    options.hostbased_key_types, 0) == 1 &&
-			    hostbased_key_allowed(authctxt->pw,
+			auth_method = "hostbased";
+			if (!options.hostbased_authentication)
+				break;
+			if (auth2_key_already_used(authctxt, key))
+				break;
+			if (match_pattern_list(sshkey_ssh_name(key),
+			    options.hostbased_key_types, 0) != 1)
+				break;
+			allowed = hostbased_key_allowed(authctxt->pw,
 			    cuser, chost, key);
 			auth2_record_info(authctxt,
 			    "client user \"%.100s\", client host \"%.100s\"",
 			    cuser, chost);
-			auth_method = "hostbased";
 			break;
 		default:
 			fatal("%s: unknown key type %d", __func__, type);
@@ -1183,7 +1195,10 @@ mm_answer_keyallowed(int sock, Buffer *m)
 		}
 	}
 
-	debug3("%s: key is %s", __func__, allowed ? "allowed" : "not allowed");
+	debug3("%s: %s authentication%s: %s key is %s", __func__,
+	    auth_method, pubkey_auth_attempt ? "" : " test",
+	    (key == NULL || !authctxt->valid) ? "invalid" : sshkey_type(key),
+	    allowed ? "allowed" : "not allowed");
 
 	auth2_record_key(authctxt, 0, key);
 	sshkey_free(key);
@@ -1196,6 +1211,7 @@ mm_answer_keyallowed(int sock, Buffer *m)
 		key_blob = blob;
 		key_bloblen = bloblen;
 		key_blobtype = type;
+		key_opts = opts;
 		hostbased_cuser = cuser;
 		hostbased_chost = chost;
 	} else {
@@ -1208,9 +1224,12 @@ mm_answer_keyallowed(int sock, Buffer *m)
 
 	buffer_clear(m);
 	buffer_put_int(m, allowed);
-	buffer_put_int(m, forced_command != NULL);
-
+	if (opts != NULL && (r = sshauthopt_serialise(opts, m, 1)) != 0)
+		fatal("%s: sshauthopt_serialise: %s", __func__, ssh_err(r));
 	mm_request_send(sock, MONITOR_ANS_KEYALLOWED, m);
+
+	if (!allowed)
+		sshauthopt_free(opts);
 
 	return (0);
 }
@@ -1257,18 +1276,13 @@ monitor_valid_userblob(u_char *data, u_int datalen)
 	free(userstyle);
 	free(cp);
 	buffer_skip_string(&b);
-	if (datafellows & SSH_BUG_PKAUTH) {
-		if (!buffer_get_char(&b))
-			fail++;
-	} else {
-		cp = buffer_get_cstring(&b, NULL);
-		if (strcmp("publickey", cp) != 0)
-			fail++;
-		free(cp);
-		if (!buffer_get_char(&b))
-			fail++;
-		buffer_skip_string(&b);
-	}
+	cp = buffer_get_cstring(&b, NULL);
+	if (strcmp("publickey", cp) != 0)
+		fail++;
+	free(cp);
+	if (!buffer_get_char(&b))
+		fail++;
+	buffer_skip_string(&b);
 	buffer_skip_string(&b);
 	if (buffer_len(&b) != 0)
 		fail++;
@@ -1339,19 +1353,28 @@ monitor_valid_hostbasedblob(u_char *data, u_int datalen, char *cuser,
 int
 mm_answer_keyverify(int sock, struct sshbuf *m)
 {
+	struct ssh *ssh = active_state;	/* XXX */
 	struct sshkey *key;
 	u_char *signature, *data, *blob;
+	char *sigalg;
 	size_t signaturelen, datalen, bloblen;
 	int r, ret, valid_data = 0, encoded_ret;
 
 	if ((r = sshbuf_get_string(m, &blob, &bloblen)) != 0 ||
 	    (r = sshbuf_get_string(m, &signature, &signaturelen)) != 0 ||
-	    (r = sshbuf_get_string(m, &data, &datalen)) != 0)
+	    (r = sshbuf_get_string(m, &data, &datalen)) != 0 ||
+	    (r = sshbuf_get_cstring(m, &sigalg, NULL)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 
 	if (hostbased_cuser == NULL || hostbased_chost == NULL ||
 	  !monitor_allowed_key(blob, bloblen))
 		fatal("%s: bad key, not previously allowed", __func__);
+
+	/* Empty signature algorithm means NULL. */
+	if (*sigalg == '\0') {
+		free(sigalg);
+		sigalg = NULL;
+	}
 
 	/* XXX use sshkey_froms here; need to change key_blob, etc. */
 	if ((r = sshkey_from_blob(blob, bloblen, &key)) != 0)
@@ -1375,7 +1398,7 @@ mm_answer_keyverify(int sock, struct sshbuf *m)
 		fatal("%s: bad signature data blob", __func__);
 
 	ret = sshkey_verify(key, signature, signaturelen, data, datalen,
-	    active_state->compat);
+	    sigalg, active_state->compat);
 	debug3("%s: %s %p signature %s", __func__, auth_method, key,
 	    (ret == 0) ? "verified" : "unverified");
 	auth2_record_key(authctxt, ret == 0, key);
@@ -1383,7 +1406,10 @@ mm_answer_keyverify(int sock, struct sshbuf *m)
 	free(blob);
 	free(signature);
 	free(data);
+	free(sigalg);
 
+	if (key_blobtype == MM_USERKEY)
+		auth_activate_options(ssh, key_opts);
 	monitor_reset_key_state();
 
 	sshkey_free(key);

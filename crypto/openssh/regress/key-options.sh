@@ -1,4 +1,4 @@
-#	$OpenBSD: key-options.sh,v 1.4 2017/04/30 23:34:55 djm Exp $
+#	$OpenBSD: key-options.sh,v 1.8 2018/03/14 05:35:40 djm Exp $
 #	Placed in the Public Domain.
 
 tid="key options"
@@ -21,12 +21,46 @@ for c in 'command="echo bar"' 'no-pty,command="echo bar"'; do
 done
 
 # Test no-pty
-sed 's/.*/no-pty &/' $origkeys >$authkeys
-verbose "key option proto no-pty"
-r=`${SSH} -q -F $OBJ/ssh_proxy somehost tty`
-if [ -f "$r" ]; then
-	fail "key option failed no-pty (pty $r)"
-fi
+expect_pty_succeed() {
+	which=$1
+	opts=$2
+	rm -f $OBJ/data
+	sed "s/.*/$opts &/" $origkeys >$authkeys
+	verbose "key option pty $which"
+	${SSH} -ttq -F $OBJ/ssh_proxy somehost "tty > $OBJ/data; exit 0"
+	if [ $? -ne 0 ] ; then
+		fail "key option failed $which"
+	else
+		r=`cat $OBJ/data`
+		case "$r" in
+		/dev/*) ;;
+		*)	fail "key option failed $which (pty $r)" ;;
+		esac
+	fi
+}
+expect_pty_fail() {
+	which=$1
+	opts=$2
+	rm -f $OBJ/data
+	sed "s/.*/$opts &/" $origkeys >$authkeys
+	verbose "key option pty $which"
+	${SSH} -ttq -F $OBJ/ssh_proxy somehost "tty > $OBJ/data; exit 0"
+	if [ $? -eq 0 ]; then
+		r=`cat $OBJ/data`
+		if [ -e "$r" ]; then
+			fail "key option failed $which (pty $r)"
+		fi
+		case "$r" in
+		/dev/*)	fail "key option failed $which (pty $r)" ;;
+		*)	;;
+		esac
+	fi
+}
+# First ensure that we can allocate a pty by default.
+expect_pty_succeed "default" ""
+expect_pty_fail "no-pty" "no-pty"
+expect_pty_fail "restrict" "restrict"
+expect_pty_succeed "restrict,pty" "restrict,pty"
 
 # Test environment=
 echo 'PermitUserEnvironment yes' >> $OBJ/sshd_proxy
@@ -60,4 +94,22 @@ for f in 127.0.0.1 '127.0.0.0\/8'; do
 	fi
 done
 
-rm -f "$origkeys"
+check_valid_before() {
+	which=$1
+	opts=$2
+	expect=$3
+	sed "s/.*/$opts &/" $origkeys >$authkeys
+	verbose "key option expiry-time $which"
+	${SSH} -q -F $OBJ/ssh_proxy somehost true
+	r=$?
+	case "$expect" in
+	fail)	test $r -eq 0 && fail "key option succeeded $which" ;;
+	pass)	test $r -ne 0 && fail "key option failed $which" ;;
+	*)	fatal "unknown expectation $expect" ;;
+	esac
+}
+check_valid_before "default"	""				"pass"
+check_valid_before "invalid"	'expiry-time="INVALID"'		"fail"
+check_valid_before "expired"	'expiry-time="19990101"'	"fail"
+check_valid_before "valid"	'expiry-time="20380101"'	"pass"
+

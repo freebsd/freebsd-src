@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgexc.c,v 1.25 2017/05/30 14:23:52 markus Exp $ */
+/* $OpenBSD: kexgexc.c,v 1.27 2018/02/07 02:06:51 jsing Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -134,10 +134,8 @@ input_kex_dh_gex_group(int type, u_int32_t seq, struct ssh *ssh)
 	ssh_dispatch_set(ssh, SSH2_MSG_KEX_DH_GEX_REPLY, &input_kex_dh_gex_reply);
 	r = 0;
 out:
-	if (p)
-		BN_clear_free(p);
-	if (g)
-		BN_clear_free(g);
+	BN_clear_free(p);
+	BN_clear_free(g);
 	return r;
 }
 
@@ -230,7 +228,7 @@ input_kex_dh_gex_reply(int type, u_int32_t seq, struct ssh *ssh)
 		goto out;
 
 	if ((r = sshkey_verify(server_host_key, signature, slen, hash,
-	    hashlen, ssh->compat)) != 0)
+	    hashlen, kex->hostkey_alg, ssh->compat)) != 0)
 		goto out;
 
 	/* save session id */
@@ -250,14 +248,12 @@ input_kex_dh_gex_reply(int type, u_int32_t seq, struct ssh *ssh)
 	explicit_bzero(hash, sizeof(hash));
 	DH_free(kex->dh);
 	kex->dh = NULL;
-	if (dh_server_pub)
-		BN_clear_free(dh_server_pub);
+	BN_clear_free(dh_server_pub);
 	if (kbuf) {
 		explicit_bzero(kbuf, klen);
 		free(kbuf);
 	}
-	if (shared_secret)
-		BN_clear_free(shared_secret);
+	BN_clear_free(shared_secret);
 	sshkey_free(server_host_key);
 	free(server_host_key_blob);
 	free(signature);
