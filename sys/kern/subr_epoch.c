@@ -136,8 +136,10 @@ epoch_init(void *arg __unused)
 	migrate_count = counter_u64_alloc(M_WAITOK);
 	turnstile_count = counter_u64_alloc(M_WAITOK);
 	switch_count = counter_u64_alloc(M_WAITOK);
-	if (usedomains == false)
+	if (usedomains == false) {
+		inited = 1;
 		return;
+	}
 	count = domain = 0;
 	domoffsets[0] = 0;
 	for (domain = 0; domain < vm_ndomains; domain++) {
@@ -154,7 +156,6 @@ epoch_init(void *arg __unused)
 			break;
 		}
 	}
-
 	inited = 1;
 }
 SYSINIT(epoch, SI_SUB_CPU + 1, SI_ORDER_FIRST, epoch_init, NULL);
