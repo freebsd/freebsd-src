@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.113 2017/08/18 05:48:04 djm Exp $ */
+/* $OpenBSD: misc.c,v 1.127 2018/03/12 00:52:01 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
@@ -166,6 +166,73 @@ set_nodelay(int fd)
 	debug2("fd %d setting TCP_NODELAY", fd);
 	if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof opt) == -1)
 		error("setsockopt TCP_NODELAY: %.100s", strerror(errno));
+}
+
+/* Allow local port reuse in TIME_WAIT */
+int
+set_reuseaddr(int fd)
+{
+	int on = 1;
+
+	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
+		error("setsockopt SO_REUSEADDR fd %d: %s", fd, strerror(errno));
+		return -1;
+	}
+	return 0;
+}
+
+/* Get/set routing domain */
+char *
+get_rdomain(int fd)
+{
+#if defined(HAVE_SYS_GET_RDOMAIN)
+	return sys_get_rdomain(fd);
+#elif defined(__OpenBSD__)
+	int rtable;
+	char *ret;
+	socklen_t len = sizeof(rtable);
+
+	if (getsockopt(fd, SOL_SOCKET, SO_RTABLE, &rtable, &len) == -1) {
+		error("Failed to get routing domain for fd %d: %s",
+		    fd, strerror(errno));
+		return NULL;
+	}
+	xasprintf(&ret, "%d", rtable);
+	return ret;
+#else /* defined(__OpenBSD__) */
+	return NULL;
+#endif
+}
+
+int
+set_rdomain(int fd, const char *name)
+{
+#if defined(HAVE_SYS_SET_RDOMAIN)
+	return sys_set_rdomain(fd, name);
+#elif defined(__OpenBSD__)
+	int rtable;
+	const char *errstr;
+
+	if (name == NULL)
+		return 0; /* default table */
+
+	rtable = (int)strtonum(name, 0, 255, &errstr);
+	if (errstr != NULL) {
+		/* Shouldn't happen */
+		error("Invalid routing domain \"%s\": %s", name, errstr);
+		return -1;
+	}
+	if (setsockopt(fd, SOL_SOCKET, SO_RTABLE,
+	    &rtable, sizeof(rtable)) == -1) {
+		error("Failed to set routing domain %d on fd %d: %s",
+		    rtable, fd, strerror(errno));
+		return -1;
+	}
+	return 0;
+#else /* defined(__OpenBSD__) */
+	error("Setting routing domain is not supported on this platform");
+	return -1;
+#endif
 }
 
 /* Characters considered whitespace in strsep calls. */
@@ -396,11 +463,12 @@ put_host_port(const char *host, u_short port)
  * Search for next delimiter between hostnames/addresses and ports.
  * Argument may be modified (for termination).
  * Returns *cp if parsing succeeds.
- * *cp is set to the start of the next delimiter, if one was found.
+ * *cp is set to the start of the next field, if one was found.
+ * The delimiter char, if present, is stored in delim.
  * If this is the last field, *cp is set to NULL.
  */
-char *
-hpdelim(char **cp)
+static char *
+hpdelim2(char **cp, char *delim)
 {
 	char *s, *old;
 
@@ -423,6 +491,8 @@ hpdelim(char **cp)
 
 	case ':':
 	case '/':
+		if (delim != NULL)
+			*delim = *s;
 		*s = '\0';	/* terminate */
 		*cp = s + 1;
 		break;
@@ -432,6 +502,12 @@ hpdelim(char **cp)
 	}
 
 	return old;
+}
+
+char *
+hpdelim(char **cp)
+{
+	return hpdelim2(cp, NULL);
 }
 
 char *
@@ -468,6 +544,75 @@ colon(char *cp)
 }
 
 /*
+ * Parse a [user@]host:[path] string.
+ * Caller must free returned user, host and path.
+ * Any of the pointer return arguments may be NULL (useful for syntax checking).
+ * If user was not specified then *userp will be set to NULL.
+ * If host was not specified then *hostp will be set to NULL.
+ * If path was not specified then *pathp will be set to ".".
+ * Returns 0 on success, -1 on failure.
+ */
+int
+parse_user_host_path(const char *s, char **userp, char **hostp, char **pathp)
+{
+	char *user = NULL, *host = NULL, *path = NULL;
+	char *sdup, *tmp;
+	int ret = -1;
+
+	if (userp != NULL)
+		*userp = NULL;
+	if (hostp != NULL)
+		*hostp = NULL;
+	if (pathp != NULL)
+		*pathp = NULL;
+
+	sdup = xstrdup(s);
+
+	/* Check for remote syntax: [user@]host:[path] */
+	if ((tmp = colon(sdup)) == NULL)
+		goto out;
+
+	/* Extract optional path */
+	*tmp++ = '\0';
+	if (*tmp == '\0')
+		tmp = ".";
+	path = xstrdup(tmp);
+
+	/* Extract optional user and mandatory host */
+	tmp = strrchr(sdup, '@');
+	if (tmp != NULL) {
+		*tmp++ = '\0';
+		host = xstrdup(cleanhostname(tmp));
+		if (*sdup != '\0')
+			user = xstrdup(sdup);
+	} else {
+		host = xstrdup(cleanhostname(sdup));
+		user = NULL;
+	}
+
+	/* Success */
+	if (userp != NULL) {
+		*userp = user;
+		user = NULL;
+	}
+	if (hostp != NULL) {
+		*hostp = host;
+		host = NULL;
+	}
+	if (pathp != NULL) {
+		*pathp = path;
+		path = NULL;
+	}
+	ret = 0;
+out:
+	free(sdup);
+	free(user);
+	free(host);
+	free(path);
+	return ret;
+}
+
+/*
  * Parse a [user@]host[:port] string.
  * Caller must free returned user and host.
  * Any of the pointer return arguments may be NULL (useful for syntax checking).
@@ -492,7 +637,7 @@ parse_user_host_port(const char *s, char **userp, char **hostp, int *portp)
 	if ((sdup = tmp = strdup(s)) == NULL)
 		return -1;
 	/* Extract optional username */
-	if ((cp = strchr(tmp, '@')) != NULL) {
+	if ((cp = strrchr(tmp, '@')) != NULL) {
 		*cp = '\0';
 		if (*tmp == '\0')
 			goto out;
@@ -525,6 +670,168 @@ parse_user_host_port(const char *s, char **userp, char **hostp, int *portp)
 	free(sdup);
 	free(user);
 	free(host);
+	return ret;
+}
+
+/*
+ * Converts a two-byte hex string to decimal.
+ * Returns the decimal value or -1 for invalid input.
+ */
+static int
+hexchar(const char *s)
+{
+	unsigned char result[2];
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		if (s[i] >= '0' && s[i] <= '9')
+			result[i] = (unsigned char)(s[i] - '0');
+		else if (s[i] >= 'a' && s[i] <= 'f')
+			result[i] = (unsigned char)(s[i] - 'a') + 10;
+		else if (s[i] >= 'A' && s[i] <= 'F')
+			result[i] = (unsigned char)(s[i] - 'A') + 10;
+		else
+			return -1;
+	}
+	return (result[0] << 4) | result[1];
+}
+
+/*
+ * Decode an url-encoded string.
+ * Returns a newly allocated string on success or NULL on failure.
+ */
+static char *
+urldecode(const char *src)
+{
+	char *ret, *dst;
+	int ch;
+
+	ret = xmalloc(strlen(src) + 1);
+	for (dst = ret; *src != '\0'; src++) {
+		switch (*src) {
+		case '+':
+			*dst++ = ' ';
+			break;
+		case '%':
+			if (!isxdigit((unsigned char)src[1]) ||
+			    !isxdigit((unsigned char)src[2]) ||
+			    (ch = hexchar(src + 1)) == -1) {
+				free(ret);
+				return NULL;
+			}
+			*dst++ = ch;
+			src += 2;
+			break;
+		default:
+			*dst++ = *src;
+			break;
+		}
+	}
+	*dst = '\0';
+
+	return ret;
+}
+
+/*
+ * Parse an (scp|ssh|sftp)://[user@]host[:port][/path] URI.
+ * See https://tools.ietf.org/html/draft-ietf-secsh-scp-sftp-ssh-uri-04
+ * Either user or path may be url-encoded (but not host or port).
+ * Caller must free returned user, host and path.
+ * Any of the pointer return arguments may be NULL (useful for syntax checking)
+ * but the scheme must always be specified.
+ * If user was not specified then *userp will be set to NULL.
+ * If port was not specified then *portp will be -1.
+ * If path was not specified then *pathp will be set to NULL.
+ * Returns 0 on success, 1 if non-uri/wrong scheme, -1 on error/invalid uri.
+ */
+int
+parse_uri(const char *scheme, const char *uri, char **userp, char **hostp,
+    int *portp, char **pathp)
+{
+	char *uridup, *cp, *tmp, ch;
+	char *user = NULL, *host = NULL, *path = NULL;
+	int port = -1, ret = -1;
+	size_t len;
+
+	len = strlen(scheme);
+	if (strncmp(uri, scheme, len) != 0 || strncmp(uri + len, "://", 3) != 0)
+		return 1;
+	uri += len + 3;
+
+	if (userp != NULL)
+		*userp = NULL;
+	if (hostp != NULL)
+		*hostp = NULL;
+	if (portp != NULL)
+		*portp = -1;
+	if (pathp != NULL)
+		*pathp = NULL;
+
+	uridup = tmp = xstrdup(uri);
+
+	/* Extract optional ssh-info (username + connection params) */
+	if ((cp = strchr(tmp, '@')) != NULL) {
+		char *delim;
+
+		*cp = '\0';
+		/* Extract username and connection params */
+		if ((delim = strchr(tmp, ';')) != NULL) {
+			/* Just ignore connection params for now */
+			*delim = '\0';
+		}
+		if (*tmp == '\0') {
+			/* Empty username */
+			goto out;
+		}
+		if ((user = urldecode(tmp)) == NULL)
+			goto out;
+		tmp = cp + 1;
+	}
+
+	/* Extract mandatory hostname */
+	if ((cp = hpdelim2(&tmp, &ch)) == NULL || *cp == '\0')
+		goto out;
+	host = xstrdup(cleanhostname(cp));
+	if (!valid_domain(host, 0, NULL))
+		goto out;
+
+	if (tmp != NULL && *tmp != '\0') {
+		if (ch == ':') {
+			/* Convert and verify port. */
+			if ((cp = strchr(tmp, '/')) != NULL)
+				*cp = '\0';
+			if ((port = a2port(tmp)) <= 0)
+				goto out;
+			tmp = cp ? cp + 1 : NULL;
+		}
+		if (tmp != NULL && *tmp != '\0') {
+			/* Extract optional path */
+			if ((path = urldecode(tmp)) == NULL)
+				goto out;
+		}
+	}
+
+	/* Success */
+	if (userp != NULL) {
+		*userp = user;
+		user = NULL;
+	}
+	if (hostp != NULL) {
+		*hostp = host;
+		host = NULL;
+	}
+	if (portp != NULL)
+		*portp = port;
+	if (pathp != NULL) {
+		*pathp = path;
+		path = NULL;
+	}
+	ret = 0;
+ out:
+	free(uridup);
+	free(user);
+	free(host);
+	free(path);
 	return ret;
 }
 
@@ -725,15 +1032,18 @@ read_keyfile_line(FILE *f, const char *filename, char *buf, size_t bufsz,
 }
 
 int
-tun_open(int tun, int mode)
+tun_open(int tun, int mode, char **ifname)
 {
 #if defined(CUSTOM_SYS_TUN_OPEN)
-	return (sys_tun_open(tun, mode));
+	return (sys_tun_open(tun, mode, ifname));
 #elif defined(SSH_TUN_OPENBSD)
 	struct ifreq ifr;
 	char name[100];
 	int fd = -1, sock;
 	const char *tunbase = "tun";
+
+	if (ifname != NULL)
+		*ifname = NULL;
 
 	if (mode == SSH_TUNMODE_ETHERNET)
 		tunbase = "tap";
@@ -780,6 +1090,9 @@ tun_open(int tun, int mode)
 			goto failed;
 		}
 	}
+
+	if (ifname != NULL)
+		*ifname = xstrdup(ifr.ifr_name);
 
 	close(sock);
 	return fd;
@@ -947,8 +1260,8 @@ ms_subtract_diff(struct timeval *start, int *ms)
 {
 	struct timeval diff, finish;
 
-	gettimeofday(&finish, NULL);
-	timersub(&finish, start, &diff);	
+	monotime_tv(&finish);
+	timersub(&finish, start, &diff);
 	*ms -= (diff.tv_sec * 1000) + (diff.tv_usec / 1000);
 }
 
@@ -961,54 +1274,63 @@ ms_to_timeval(struct timeval *tv, int ms)
 	tv->tv_usec = (ms % 1000) * 1000;
 }
 
-time_t
-monotime(void)
+void
+monotime_ts(struct timespec *ts)
 {
-#if defined(HAVE_CLOCK_GETTIME) && \
-    (defined(CLOCK_MONOTONIC) || defined(CLOCK_BOOTTIME))
-	struct timespec ts;
+	struct timeval tv;
+#if defined(HAVE_CLOCK_GETTIME) && (defined(CLOCK_BOOTTIME) || \
+    defined(CLOCK_MONOTONIC) || defined(CLOCK_REALTIME))
 	static int gettime_failed = 0;
 
 	if (!gettime_failed) {
-#if defined(CLOCK_BOOTTIME)
-		if (clock_gettime(CLOCK_BOOTTIME, &ts) == 0)
-			return (ts.tv_sec);
-#endif
-#if defined(CLOCK_MONOTONIC)
-		if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
-			return (ts.tv_sec);
-#endif
+# ifdef CLOCK_BOOTTIME
+		if (clock_gettime(CLOCK_BOOTTIME, ts) == 0)
+			return;
+# endif /* CLOCK_BOOTTIME */
+# ifdef CLOCK_MONOTONIC
+		if (clock_gettime(CLOCK_MONOTONIC, ts) == 0)
+			return;
+# endif /* CLOCK_MONOTONIC */
+# ifdef CLOCK_REALTIME
+		/* Not monotonic, but we're almost out of options here. */
+		if (clock_gettime(CLOCK_REALTIME, ts) == 0)
+			return;
+# endif /* CLOCK_REALTIME */
 		debug3("clock_gettime: %s", strerror(errno));
 		gettime_failed = 1;
 	}
-#endif /* HAVE_CLOCK_GETTIME && (CLOCK_MONOTONIC || CLOCK_BOOTTIME */
+#endif /* HAVE_CLOCK_GETTIME && (BOOTTIME || MONOTONIC || REALTIME) */
+	gettimeofday(&tv, NULL);
+	ts->tv_sec = tv.tv_sec;
+	ts->tv_nsec = (long)tv.tv_usec * 1000;
+}
 
-	return time(NULL);
+void
+monotime_tv(struct timeval *tv)
+{
+	struct timespec ts;
+
+	monotime_ts(&ts);
+	tv->tv_sec = ts.tv_sec;
+	tv->tv_usec = ts.tv_nsec / 1000;
+}
+
+time_t
+monotime(void)
+{
+	struct timespec ts;
+
+	monotime_ts(&ts);
+	return ts.tv_sec;
 }
 
 double
 monotime_double(void)
 {
-#if defined(HAVE_CLOCK_GETTIME) && \
-    (defined(CLOCK_MONOTONIC) || defined(CLOCK_BOOTTIME))
 	struct timespec ts;
-	static int gettime_failed = 0;
 
-	if (!gettime_failed) {
-#if defined(CLOCK_BOOTTIME)
-		if (clock_gettime(CLOCK_BOOTTIME, &ts) == 0)
-			return (ts.tv_sec + (double)ts.tv_nsec / 1000000000);
-#endif
-#if defined(CLOCK_MONOTONIC)
-		if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
-			return (ts.tv_sec + (double)ts.tv_nsec / 1000000000);
-#endif
-		debug3("clock_gettime: %s", strerror(errno));
-		gettime_failed = 1;
-	}
-#endif /* HAVE_CLOCK_GETTIME && (CLOCK_MONOTONIC || CLOCK_BOOTTIME */
-
-	return (double)time(NULL);
+	monotime_ts(&ts);
+	return ts.tv_sec + ((double)ts.tv_nsec / 1000000000);
 }
 
 void
@@ -1030,7 +1352,7 @@ bandwidth_limit(struct bwlimit *bw, size_t read_len)
 	struct timespec ts, rm;
 
 	if (!timerisset(&bw->bwstart)) {
-		gettimeofday(&bw->bwstart, NULL);
+		monotime_tv(&bw->bwstart);
 		return;
 	}
 
@@ -1038,7 +1360,7 @@ bandwidth_limit(struct bwlimit *bw, size_t read_len)
 	if (bw->lamt < bw->thresh)
 		return;
 
-	gettimeofday(&bw->bwend, NULL);
+	monotime_tv(&bw->bwend);
 	timersub(&bw->bwend, &bw->bwstart, &bw->bwend);
 	if (!timerisset(&bw->bwend))
 		return;
@@ -1072,7 +1394,7 @@ bandwidth_limit(struct bwlimit *bw, size_t read_len)
 	}
 
 	bw->lamt = 0;
-	gettimeofday(&bw->bwstart, NULL);
+	monotime_tv(&bw->bwstart);
 }
 
 /* Make a template filename for mk[sd]temp() */
@@ -1173,9 +1495,10 @@ unix_listener(const char *path, int backlog, int unlink_first)
 
 	memset(&sunaddr, 0, sizeof(sunaddr));
 	sunaddr.sun_family = AF_UNIX;
-	if (strlcpy(sunaddr.sun_path, path, sizeof(sunaddr.sun_path)) >= sizeof(sunaddr.sun_path)) {
-		error("%s: \"%s\" too long for Unix domain socket", __func__,
-		    path);
+	if (strlcpy(sunaddr.sun_path, path,
+	    sizeof(sunaddr.sun_path)) >= sizeof(sunaddr.sun_path)) {
+		error("%s: path \"%s\" too long for Unix domain socket",
+		    __func__, path);
 		errno = ENAMETOOLONG;
 		return -1;
 	}
@@ -1183,7 +1506,7 @@ unix_listener(const char *path, int backlog, int unlink_first)
 	sock = socket(PF_UNIX, SOCK_STREAM, 0);
 	if (sock < 0) {
 		saved_errno = errno;
-		error("socket: %.100s", strerror(errno));
+		error("%s: socket: %.100s", __func__, strerror(errno));
 		errno = saved_errno;
 		return -1;
 	}
@@ -1193,18 +1516,18 @@ unix_listener(const char *path, int backlog, int unlink_first)
 	}
 	if (bind(sock, (struct sockaddr *)&sunaddr, sizeof(sunaddr)) < 0) {
 		saved_errno = errno;
-		error("bind: %.100s", strerror(errno));
+		error("%s: cannot bind to path %s: %s",
+		    __func__, path, strerror(errno));
 		close(sock);
-		error("%s: cannot bind to path: %s", __func__, path);
 		errno = saved_errno;
 		return -1;
 	}
 	if (listen(sock, backlog) < 0) {
 		saved_errno = errno;
-		error("listen: %.100s", strerror(errno));
+		error("%s: cannot listen on path %s: %s",
+		    __func__, path, strerror(errno));
 		close(sock);
 		unlink(path);
-		error("%s: cannot listen on path: %s", __func__, path);
 		errno = saved_errno;
 		return -1;
 	}
@@ -1434,158 +1757,6 @@ argv_assemble(int argc, char **argv)
 	return ret;
 }
 
-/*
- * Runs command in a subprocess wuth a minimal environment.
- * Returns pid on success, 0 on failure.
- * The child stdout and stderr maybe captured, left attached or sent to
- * /dev/null depending on the contents of flags.
- * "tag" is prepended to log messages.
- * NB. "command" is only used for logging; the actual command executed is
- * av[0].
- */
-pid_t
-subprocess(const char *tag, struct passwd *pw, const char *command,
-    int ac, char **av, FILE **child, u_int flags)
-{
-	FILE *f = NULL;
-	struct stat st;
-	int fd, devnull, p[2], i;
-	pid_t pid;
-	char *cp, errmsg[512];
-	u_int envsize;
-	char **child_env;
-
-	if (child != NULL)
-		*child = NULL;
-
-	debug3("%s: %s command \"%s\" running as %s (flags 0x%x)", __func__,
-	    tag, command, pw->pw_name, flags);
-
-	/* Check consistency */
-	if ((flags & SSH_SUBPROCESS_STDOUT_DISCARD) != 0 &&
-	    (flags & SSH_SUBPROCESS_STDOUT_CAPTURE) != 0) {
-		error("%s: inconsistent flags", __func__);
-		return 0;
-	}
-	if (((flags & SSH_SUBPROCESS_STDOUT_CAPTURE) == 0) != (child == NULL)) {
-		error("%s: inconsistent flags/output", __func__);
-		return 0;
-	}
-
-	/*
-	 * If executing an explicit binary, then verify the it exists
-	 * and appears safe-ish to execute
-	 */
-	if (*av[0] != '/') {
-		error("%s path is not absolute", tag);
-		return 0;
-	}
-	temporarily_use_uid(pw);
-	if (stat(av[0], &st) < 0) {
-		error("Could not stat %s \"%s\": %s", tag,
-		    av[0], strerror(errno));
-		restore_uid();
-		return 0;
-	}
-	if (safe_path(av[0], &st, NULL, 0, errmsg, sizeof(errmsg)) != 0) {
-		error("Unsafe %s \"%s\": %s", tag, av[0], errmsg);
-		restore_uid();
-		return 0;
-	}
-	/* Prepare to keep the child's stdout if requested */
-	if (pipe(p) != 0) {
-		error("%s: pipe: %s", tag, strerror(errno));
-		restore_uid();
-		return 0;
-	}
-	restore_uid();
-
-	switch ((pid = fork())) {
-	case -1: /* error */
-		error("%s: fork: %s", tag, strerror(errno));
-		close(p[0]);
-		close(p[1]);
-		return 0;
-	case 0: /* child */
-		/* Prepare a minimal environment for the child. */
-		envsize = 5;
-		child_env = xcalloc(sizeof(*child_env), envsize);
-		child_set_env(&child_env, &envsize, "PATH", _PATH_STDPATH);
-		child_set_env(&child_env, &envsize, "USER", pw->pw_name);
-		child_set_env(&child_env, &envsize, "LOGNAME", pw->pw_name);
-		child_set_env(&child_env, &envsize, "HOME", pw->pw_dir);
-		if ((cp = getenv("LANG")) != NULL)
-			child_set_env(&child_env, &envsize, "LANG", cp);
-
-		for (i = 0; i < NSIG; i++)
-			signal(i, SIG_DFL);
-
-		if ((devnull = open(_PATH_DEVNULL, O_RDWR)) == -1) {
-			error("%s: open %s: %s", tag, _PATH_DEVNULL,
-			    strerror(errno));
-			_exit(1);
-		}
-		if (dup2(devnull, STDIN_FILENO) == -1) {
-			error("%s: dup2: %s", tag, strerror(errno));
-			_exit(1);
-		}
-
-		/* Set up stdout as requested; leave stderr in place for now. */
-		fd = -1;
-		if ((flags & SSH_SUBPROCESS_STDOUT_CAPTURE) != 0)
-			fd = p[1];
-		else if ((flags & SSH_SUBPROCESS_STDOUT_DISCARD) != 0)
-			fd = devnull;
-		if (fd != -1 && dup2(fd, STDOUT_FILENO) == -1) {
-			error("%s: dup2: %s", tag, strerror(errno));
-			_exit(1);
-		}
-		closefrom(STDERR_FILENO + 1);
-
-		/* Don't use permanently_set_uid() here to avoid fatal() */
-		if (setresgid(pw->pw_gid, pw->pw_gid, pw->pw_gid) != 0) {
-			error("%s: setresgid %u: %s", tag, (u_int)pw->pw_gid,
-			    strerror(errno));
-			_exit(1);
-		}
-		if (setresuid(pw->pw_uid, pw->pw_uid, pw->pw_uid) != 0) {
-			error("%s: setresuid %u: %s", tag, (u_int)pw->pw_uid,
-			    strerror(errno));
-			_exit(1);
-		}
-		/* stdin is pointed to /dev/null at this point */
-		if ((flags & SSH_SUBPROCESS_STDOUT_DISCARD) != 0 &&
-		    dup2(STDIN_FILENO, STDERR_FILENO) == -1) {
-			error("%s: dup2: %s", tag, strerror(errno));
-			_exit(1);
-		}
-
-		execve(av[0], av, child_env);
-		error("%s exec \"%s\": %s", tag, command, strerror(errno));
-		_exit(127);
-	default: /* parent */
-		break;
-	}
-
-	close(p[1]);
-	if ((flags & SSH_SUBPROCESS_STDOUT_CAPTURE) == 0)
-		close(p[0]);
-	else if ((f = fdopen(p[0], "r")) == NULL) {
-		error("%s: fdopen: %s", tag, strerror(errno));
-		close(p[0]);
-		/* Don't leave zombie child */
-		kill(pid, SIGTERM);
-		while (waitpid(pid, NULL, 0) == -1 && errno == EINTR)
-			;
-		return 0;
-	}
-	/* Success */
-	debug3("%s: %s pid %ld", __func__, tag, (long)pid);
-	if (child != NULL)
-		*child = f;
-	return pid;
-}
-
 /* Returns 0 if pid exited cleanly, non-zero otherwise */
 int
 exited_cleanly(pid_t pid, const char *tag, const char *cmd, int quiet)
@@ -1756,7 +1927,122 @@ child_set_env(char ***envp, u_int *envsizep, const char *name,
 	}
 
 	/* Allocate space and format the variable in the appropriate slot. */
+	/* XXX xasprintf */
 	env[i] = xmalloc(strlen(name) + 1 + strlen(value) + 1);
 	snprintf(env[i], strlen(name) + 1 + strlen(value) + 1, "%s=%s", name, value);
 }
 
+/*
+ * Check and optionally lowercase a domain name, also removes trailing '.'
+ * Returns 1 on success and 0 on failure, storing an error message in errstr.
+ */
+int
+valid_domain(char *name, int makelower, const char **errstr)
+{
+	size_t i, l = strlen(name);
+	u_char c, last = '\0';
+	static char errbuf[256];
+
+	if (l == 0) {
+		strlcpy(errbuf, "empty domain name", sizeof(errbuf));
+		goto bad;
+	}
+	if (!isalpha((u_char)name[0]) && !isdigit((u_char)name[0])) {
+		snprintf(errbuf, sizeof(errbuf), "domain name \"%.100s\" "
+		    "starts with invalid character", name);
+		goto bad;
+	}
+	for (i = 0; i < l; i++) {
+		c = tolower((u_char)name[i]);
+		if (makelower)
+			name[i] = (char)c;
+		if (last == '.' && c == '.') {
+			snprintf(errbuf, sizeof(errbuf), "domain name "
+			    "\"%.100s\" contains consecutive separators", name);
+			goto bad;
+		}
+		if (c != '.' && c != '-' && !isalnum(c) &&
+		    c != '_') /* technically invalid, but common */ {
+			snprintf(errbuf, sizeof(errbuf), "domain name "
+			    "\"%.100s\" contains invalid characters", name);
+			goto bad;
+		}
+		last = c;
+	}
+	if (name[l - 1] == '.')
+		name[l - 1] = '\0';
+	if (errstr != NULL)
+		*errstr = NULL;
+	return 1;
+bad:
+	if (errstr != NULL)
+		*errstr = errbuf;
+	return 0;
+}
+
+const char *
+atoi_err(const char *nptr, int *val)
+{
+	const char *errstr = NULL;
+	long long num;
+
+	if (nptr == NULL || *nptr == '\0')
+		return "missing";
+	num = strtonum(nptr, 0, INT_MAX, &errstr);
+	if (errstr == NULL)
+		*val = (int)num;
+	return errstr;
+}
+
+int
+parse_absolute_time(const char *s, uint64_t *tp)
+{
+	struct tm tm;
+	time_t tt;
+	char buf[32], *fmt;
+
+	*tp = 0;
+
+	/*
+	 * POSIX strptime says "The application shall ensure that there
+	 * is white-space or other non-alphanumeric characters between
+	 * any two conversion specifications" so arrange things this way.
+	 */
+	switch (strlen(s)) {
+	case 8: /* YYYYMMDD */
+		fmt = "%Y-%m-%d";
+		snprintf(buf, sizeof(buf), "%.4s-%.2s-%.2s", s, s + 4, s + 6);
+		break;
+	case 12: /* YYYYMMDDHHMM */
+		fmt = "%Y-%m-%dT%H:%M";
+		snprintf(buf, sizeof(buf), "%.4s-%.2s-%.2sT%.2s:%.2s",
+		    s, s + 4, s + 6, s + 8, s + 10);
+		break;
+	case 14: /* YYYYMMDDHHMMSS */
+		fmt = "%Y-%m-%dT%H:%M:%S";
+		snprintf(buf, sizeof(buf), "%.4s-%.2s-%.2sT%.2s:%.2s:%.2s",
+		    s, s + 4, s + 6, s + 8, s + 10, s + 12);
+		break;
+	default:
+		return SSH_ERR_INVALID_FORMAT;
+	}
+
+	memset(&tm, 0, sizeof(tm));
+	if (strptime(buf, fmt, &tm) == NULL)
+		return SSH_ERR_INVALID_FORMAT;
+	if ((tt = mktime(&tm)) < 0)
+		return SSH_ERR_INVALID_FORMAT;
+	/* success */
+	*tp = (uint64_t)tt;
+	return 0;
+}
+
+void
+format_absolute_time(uint64_t t, char *buf, size_t len)
+{
+	time_t tt = t > INT_MAX ? INT_MAX : t; /* XXX revisit in 2038 :P */
+	struct tm tm;
+
+	localtime_r(&tt, &tm);
+	strftime(buf, len, "%Y-%m-%dT%H:%M:%S", &tm);
+}

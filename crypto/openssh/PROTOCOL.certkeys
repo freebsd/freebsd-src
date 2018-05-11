@@ -100,9 +100,9 @@ DSA certificate
 
 ECDSA certificate
 
-    string    "ecdsa-sha2-nistp256-v01@openssh.com" |
-              "ecdsa-sha2-nistp384-v01@openssh.com" |
-              "ecdsa-sha2-nistp521-v01@openssh.com"
+    string    "ecdsa-sha2-nistp256-cert-v01@openssh.com" |
+              "ecdsa-sha2-nistp384-cert-v01@openssh.com" |
+              "ecdsa-sha2-nistp521-cert-v01@openssh.com"
     string    nonce
     string    curve
     string    public_key
@@ -291,4 +291,4 @@ permit-user-rc          empty         Flag indicating that execution of
                                       of this script will not be permitted if
                                       this option is not present.
 
-$OpenBSD: PROTOCOL.certkeys,v 1.12 2017/05/31 04:29:44 djm Exp $
+$OpenBSD: PROTOCOL.certkeys,v 1.13 2017/11/03 02:32:19 djm Exp $

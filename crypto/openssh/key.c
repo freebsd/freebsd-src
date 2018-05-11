@@ -1,4 +1,4 @@
-/* $OpenBSD: key.c,v 1.131 2017/05/30 14:16:41 markus Exp $ */
+/* $OpenBSD: key.c,v 1.132 2017/12/18 02:25:15 djm Exp $ */
 /*
  * placed in the public domain
  */
@@ -93,21 +93,6 @@ key_sign(const Key *key, u_char **sigp, u_int *lenp,
 	if (lenp != NULL)
 		*lenp = siglen;
 	return 0;
-}
-
-int
-key_verify(const Key *key, const u_char *signature, u_int signaturelen,
-    const u_char *data, u_int datalen)
-{
-	int r;
-
-	if ((r = sshkey_verify(key, signature, signaturelen,
-	    data, datalen, datafellows)) != 0) {
-		fatal_on_fatal_errors(r, __func__, 0);
-		error("%s: %s", __func__, ssh_err(r));
-		return r == SSH_ERR_SIGNATURE_INVALID ? 0 : -1;
-	}
-	return 1;
 }
 
 Key *

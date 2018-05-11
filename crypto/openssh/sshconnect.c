@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.287 2017/09/14 04:32:21 djm Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.297 2018/02/23 15:58:38 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -24,6 +24,7 @@ __RCSID("$FreeBSD$");
 # include <sys/time.h>
 #endif
 
+#include <net/if.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <rpc/rpc.h>
@@ -45,6 +46,9 @@ __RCSID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifdef HAVE_IFADDRS_H
+# include <ifaddrs.h>
+#endif
 
 #include "xmalloc.h"
 #include "key.h"
@@ -272,14 +276,83 @@ ssh_kill_proxy_command(void)
 		kill(proxy_command_pid, SIGHUP);
 }
 
+#ifdef HAVE_IFADDRS_H
+/*
+ * Search a interface address list (returned from getifaddrs(3)) for an
+ * address that matches the desired address family on the specifed interface.
+ * Returns 0 and fills in *resultp and *rlenp on success. Returns -1 on failure.
+ */
+static int
+check_ifaddrs(const char *ifname, int af, const struct ifaddrs *ifaddrs,
+    struct sockaddr_storage *resultp, socklen_t *rlenp)
+{
+	struct sockaddr_in6 *sa6;
+	struct sockaddr_in *sa;
+	struct in6_addr *v6addr;
+	const struct ifaddrs *ifa;
+	int allow_local;
+
+	/*
+	 * Prefer addresses that are not loopback or linklocal, but use them
+	 * if nothing else matches.
+	 */
+	for (allow_local = 0; allow_local < 2; allow_local++) {
+		for (ifa = ifaddrs; ifa != NULL; ifa = ifa->ifa_next) {
+			if (ifa->ifa_addr == NULL || ifa->ifa_name == NULL ||
+			    (ifa->ifa_flags & IFF_UP) == 0 ||
+			    ifa->ifa_addr->sa_family != af ||
+			    strcmp(ifa->ifa_name, options.bind_interface) != 0)
+				continue;
+			switch (ifa->ifa_addr->sa_family) {
+			case AF_INET:
+				sa = (struct sockaddr_in *)ifa->ifa_addr;
+				if (!allow_local && sa->sin_addr.s_addr ==
+				    htonl(INADDR_LOOPBACK))
+					continue;
+				if (*rlenp < sizeof(struct sockaddr_in)) {
+					error("%s: v4 addr doesn't fit",
+					    __func__);
+					return -1;
+				}
+				*rlenp = sizeof(struct sockaddr_in);
+				memcpy(resultp, sa, *rlenp);
+				return 0;
+			case AF_INET6:
+				sa6 = (struct sockaddr_in6 *)ifa->ifa_addr;
+				v6addr = &sa6->sin6_addr;
+				if (!allow_local &&
+				    (IN6_IS_ADDR_LINKLOCAL(v6addr) ||
+				    IN6_IS_ADDR_LOOPBACK(v6addr)))
+					continue;
+				if (*rlenp < sizeof(struct sockaddr_in6)) {
+					error("%s: v6 addr doesn't fit",
+					    __func__);
+					return -1;
+				}
+				*rlenp = sizeof(struct sockaddr_in6);
+				memcpy(resultp, sa6, *rlenp);
+				return 0;
+			}
+		}
+	}
+	return -1;
+}
+#endif
+
 /*
  * Creates a (possibly privileged) socket for use as the ssh connection.
  */
 static int
 ssh_create_socket(int privileged, struct addrinfo *ai)
 {
-	int sock, r, gaierr;
+	int sock, r, oerrno;
+	struct sockaddr_storage bindaddr;
+	socklen_t bindaddrlen = 0;
 	struct addrinfo hints, *res = NULL;
+#ifdef HAVE_IFADDRS_H
+	struct ifaddrs *ifaddrs = NULL;
+#endif
+	char ntop[NI_MAXHOST];
 
 	sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 	if (sock < 0) {
@@ -289,22 +362,55 @@ ssh_create_socket(int privileged, struct addrinfo *ai)
 	fcntl(sock, F_SETFD, FD_CLOEXEC);
 
 	/* Bind the socket to an alternative local IP address */
-	if (options.bind_address == NULL && !privileged)
+	if (options.bind_address == NULL && options.bind_interface == NULL &&
+	    !privileged)
 		return sock;
 
-	if (options.bind_address) {
+	if (options.bind_address != NULL) {
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = ai->ai_family;
 		hints.ai_socktype = ai->ai_socktype;
 		hints.ai_protocol = ai->ai_protocol;
 		hints.ai_flags = AI_PASSIVE;
-		gaierr = getaddrinfo(options.bind_address, NULL, &hints, &res);
-		if (gaierr) {
+		if ((r = getaddrinfo(options.bind_address, NULL,
+		    &hints, &res)) != 0) {
 			error("getaddrinfo: %s: %s", options.bind_address,
-			    ssh_gai_strerror(gaierr));
-			close(sock);
-			return -1;
+			    ssh_gai_strerror(r));
+			goto fail;
 		}
+		if (res == NULL) {
+			error("getaddrinfo: no addrs");
+			goto fail;
+		}
+		if (res->ai_addrlen > sizeof(bindaddr)) {
+			error("%s: addr doesn't fit", __func__);
+			goto fail;
+		}
+		memcpy(&bindaddr, res->ai_addr, res->ai_addrlen);
+		bindaddrlen = res->ai_addrlen;
+	} else if (options.bind_interface != NULL) {
+#ifdef HAVE_IFADDRS_H
+		if ((r = getifaddrs(&ifaddrs)) != 0) {
+			error("getifaddrs: %s: %s", options.bind_interface,
+			      strerror(errno));
+			goto fail;
+		}
+		bindaddrlen = sizeof(bindaddr);
+		if (check_ifaddrs(options.bind_interface, ai->ai_family,
+		    ifaddrs, &bindaddr, &bindaddrlen) != 0) {
+			logit("getifaddrs: %s: no suitable addresses",
+			      options.bind_interface);
+			goto fail;
+		}
+#else
+		error("BindInterface not supported on this platform.");
+#endif
+	}
+	if ((r = getnameinfo((struct sockaddr *)&bindaddr, bindaddrlen,
+	    ntop, sizeof(ntop), NULL, 0, NI_NUMERICHOST)) != 0) {
+		error("%s: getnameinfo failed: %s", __func__,
+		    ssh_gai_strerror(r));
+		goto fail;
 	}
 	/*
 	 * If we are running as root and want to connect to a privileged
@@ -312,25 +418,32 @@ ssh_create_socket(int privileged, struct addrinfo *ai)
 	 */
 	if (privileged) {
 		PRIV_START;
-		r = bindresvport_sa(sock, res ? res->ai_addr : NULL);
+		r = bindresvport_sa(sock,
+		        bindaddrlen == 0 ? NULL : (struct sockaddr *)&bindaddr);
+		oerrno = errno;
 		PRIV_END;
 		if (r < 0) {
-			error("bindresvport_sa: af=%d %s", ai->ai_family,
-			    strerror(errno));
+			error("bindresvport_sa %s: %s", ntop,
+			    strerror(oerrno));
 			goto fail;
 		}
-	} else {
-		if (bind(sock, res->ai_addr, res->ai_addrlen) < 0) {
-			error("bind: %s: %s", options.bind_address,
-			    strerror(errno));
- fail:
-			close(sock);
-			freeaddrinfo(res);
-			return -1;
-		}
+	} else if (bind(sock, (struct sockaddr *)&bindaddr, bindaddrlen) != 0) {
+		error("bind %s: %s", ntop, strerror(errno));
+		goto fail;
 	}
+	debug("%s: bound to %s", __func__, ntop);
+	/* success */
+	goto out;
+fail:
+	close(sock);
+	sock = -1;
+ out:
 	if (res != NULL)
 		freeaddrinfo(res);
+#ifdef HAVE_IFADDRS_H
+	if (ifaddrs != NULL)
+		freeifaddrs(ifaddrs);
+#endif
 	return sock;
 }
 
@@ -346,7 +459,7 @@ waitrfd(int fd, int *timeoutp)
 	struct timeval t_start;
 	int oerrno, r;
 
-	gettimeofday(&t_start, NULL);
+	monotime_tv(&t_start);
 	pfd.fd = fd;
 	pfd.events = POLLIN;
 	for (; *timeoutp >= 0;) {
@@ -418,7 +531,7 @@ ssh_connect_direct(struct ssh *ssh, const char *host, struct addrinfo *aitop,
     int connection_attempts, int *timeout_ms, int want_keepalive, int needpriv)
 {
 	int on = 1;
-	int sock = -1, attempt;
+	int oerrno, sock = -1, attempt;
 	char ntop[NI_MAXHOST], strport[NI_MAXSERV];
 	struct addrinfo *ai;
 
@@ -438,12 +551,16 @@ ssh_connect_direct(struct ssh *ssh, const char *host, struct addrinfo *aitop,
 		 */
 		for (ai = aitop; ai; ai = ai->ai_next) {
 			if (ai->ai_family != AF_INET &&
-			    ai->ai_family != AF_INET6)
+			    ai->ai_family != AF_INET6) {
+				errno = EAFNOSUPPORT;
 				continue;
+			}
 			if (getnameinfo(ai->ai_addr, ai->ai_addrlen,
 			    ntop, sizeof(ntop), strport, sizeof(strport),
 			    NI_NUMERICHOST|NI_NUMERICSERV) != 0) {
+				oerrno = errno;
 				error("%s: getnameinfo failed", __func__);
+				errno = oerrno;
 				continue;
 			}
 			debug("Connecting to %.200s [%.100s] port %s.",
@@ -451,9 +568,11 @@ ssh_connect_direct(struct ssh *ssh, const char *host, struct addrinfo *aitop,
 
 			/* Create a socket for connecting. */
 			sock = ssh_create_socket(needpriv, ai);
-			if (sock < 0)
+			if (sock < 0) {
 				/* Any error is already output */
+				errno = 0;
 				continue;
+			}
 
 			if (timeout_connect(sock, ai->ai_addr, ai->ai_addrlen,
 			    timeout_ms) >= 0) {
@@ -461,10 +580,12 @@ ssh_connect_direct(struct ssh *ssh, const char *host, struct addrinfo *aitop,
 				memcpy(hostaddr, ai->ai_addr, ai->ai_addrlen);
 				break;
 			} else {
+				oerrno = errno;
 				debug("connect to address %s port %s: %s",
 				    ntop, strport, strerror(errno));
 				close(sock);
 				sock = -1;
+				errno = oerrno;
 			}
 		}
 		if (sock != -1)
@@ -474,8 +595,8 @@ ssh_connect_direct(struct ssh *ssh, const char *host, struct addrinfo *aitop,
 	/* Return failure if we didn't get a successful connection. */
 	if (sock == -1) {
 		error("ssh: connect to host %s port %s: %s",
-		    host, strport, strerror(errno));
-		return (-1);
+		    host, strport, errno == 0 ? "failure" : strerror(errno));
+		return -1;
 	}
 
 	debug("Connection established.");
@@ -614,9 +735,6 @@ ssh_exchange_identification(int timeout_ms)
 	if (mismatch)
 		fatal("Protocol major versions differ: %d vs. %d",
 		    PROTOCOL_MAJOR_2, remote_major);
-	if ((datafellows & SSH_BUG_DERIVEKEY) != 0)
-		fatal("Server version \"%.100s\" uses unsafe key agreement; "
-		    "refusing connection", remote_version);
 	if ((datafellows & SSH_BUG_RSASIGMD5) != 0)
 		logit("Server version \"%.100s\" uses unsafe RSA signature "
 		    "scheme; disabling use of RSA keys", remote_version);
@@ -635,11 +753,12 @@ confirm(const char *prompt)
 		return 0;
 	for (msg = prompt;;msg = again) {
 		p = read_passphrase(msg, RP_ECHO);
-		if (p == NULL ||
-		    (p[0] == '\0') || (p[0] == '\n') ||
-		    strncasecmp(p, "no", 2) == 0)
+		if (p == NULL)
+			return 0;
+		p[strcspn(p, "\n")] = '\0';
+		if (p[0] == '\0' || strcasecmp(p, "no") == 0)
 			ret = 0;
-		if (p && strncasecmp(p, "yes", 3) == 0)
+		else if (strcasecmp(p, "yes") == 0)
 			ret = 1;
 		free(p);
 		if (ret != -1)
@@ -1175,8 +1294,7 @@ fail:
 		host_key = raw_key;
 		goto retry;
 	}
-	if (raw_key != NULL)
-		sshkey_free(raw_key);
+	sshkey_free(raw_key);
 	free(ip);
 	free(host);
 	if (host_hostkeys != NULL)
@@ -1361,6 +1479,7 @@ show_other_keys(struct hostkeys *hostkeys, struct sshkey *key)
 		KEY_DSA,
 		KEY_ECDSA,
 		KEY_ED25519,
+		KEY_XMSS,
 		-1
 	};
 	int i, ret = 0;
@@ -1457,8 +1576,8 @@ ssh_local_cmd(const char *args)
 }
 
 void
-maybe_add_key_to_agent(char *authfile, struct sshkey *private, char *comment,
-    char *passphrase)
+maybe_add_key_to_agent(char *authfile, const struct sshkey *private,
+    char *comment, char *passphrase)
 {
 	int auth_sock = -1, r;
 
@@ -1478,7 +1597,7 @@ maybe_add_key_to_agent(char *authfile, struct sshkey *private, char *comment,
 	}
 
 	if ((r = ssh_add_identity_constrained(auth_sock, private, comment, 0,
-	    (options.add_keys_to_agent == 3))) == 0)
+	    (options.add_keys_to_agent == 3), 0)) == 0)
 		debug("identity added to agent: %s", authfile);
 	else
 		debug("could not add identity to agent: %s (%d)", authfile, r);

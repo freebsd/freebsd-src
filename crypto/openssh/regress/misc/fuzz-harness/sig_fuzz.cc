@@ -37,13 +37,13 @@ int LLVMFuzzerTestOneInput(const uint8_t* sig, size_t slen)
   static const size_t dlen = strlen(data);
 
 #ifdef WITH_OPENSSL
-  sshkey_verify(rsa, sig, slen, (const u_char *)data, dlen, 0);
-  sshkey_verify(dsa, sig, slen, (const u_char *)data, dlen, 0);
-  sshkey_verify(ecdsa256, sig, slen, (const u_char *)data, dlen, 0);
-  sshkey_verify(ecdsa384, sig, slen, (const u_char *)data, dlen, 0);
-  sshkey_verify(ecdsa521, sig, slen, (const u_char *)data, dlen, 0);
+  sshkey_verify(rsa, sig, slen, (const u_char *)data, dlen, NULL, 0);
+  sshkey_verify(dsa, sig, slen, (const u_char *)data, dlen, NULL, 0);
+  sshkey_verify(ecdsa256, sig, slen, (const u_char *)data, dlen, NULL, 0);
+  sshkey_verify(ecdsa384, sig, slen, (const u_char *)data, dlen, NULL, 0);
+  sshkey_verify(ecdsa521, sig, slen, (const u_char *)data, dlen, NULL, 0);
 #endif
-  sshkey_verify(ed25519, sig, slen, (const u_char *)data, dlen, 0);
+  sshkey_verify(ed25519, sig, slen, (const u_char *)data, dlen, NULL, 0);
   return 0;
 }
 
