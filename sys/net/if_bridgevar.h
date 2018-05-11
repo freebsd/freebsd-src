@@ -309,23 +309,20 @@ struct ifbpstpconf {
 	(_sc)->sc_iflist_xcnt--;		\
 } while (0)
 
-#define BRIDGE_INPUT(_ifp, _m)		do {    	\
-	KASSERT(bridge_input_p != NULL,			\
+#define BRIDGE_INPUT(_ifp, _m)		do {			\
+		KASSERT((_ifp)->if_bridge_input != NULL,		\
 	    ("%s: if_bridge not loaded!", __func__));	\
-	_m = (*bridge_input_p)(_ifp, _m);		\
+	_m = (*(_ifp)->if_bridge_input)(_ifp, _m);			\
 	if (_m != NULL)					\
 		_ifp = _m->m_pkthdr.rcvif;		\
 } while (0)
 
 #define BRIDGE_OUTPUT(_ifp, _m, _err)	do {    		\
-	KASSERT(bridge_output_p != NULL,			\
+	KASSERT((_ifp)->if_bridge_output != NULL,		\
 	    ("%s: if_bridge not loaded!", __func__));		\
-	_err = (*bridge_output_p)(_ifp, _m, NULL, NULL);	\
+	_err = (*(_ifp)->if_bridge_output)(_ifp, _m, NULL, NULL);	\
 } while (0)
 
-extern	struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *);
-extern	int (*bridge_output_p)(struct ifnet *, struct mbuf *,
-		struct sockaddr *, struct rtentry *);
 extern	void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
 
 #endif /* _KERNEL */

@@ -102,9 +102,6 @@ void	(*ng_ether_detach_p)(struct ifnet *ifp);
 void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
 
 /* if_bridge(4) support */
-struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *); 
-int	(*bridge_output_p)(struct ifnet *, struct mbuf *, 
-		struct sockaddr *, struct rtentry *);
 void	(*bridge_dn_p)(struct mbuf *, struct ifnet *);
 
 /* if_lagg(4) support */
