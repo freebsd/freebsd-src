@@ -38,25 +38,6 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20180511: old orphaned libs
-OLD_LIBS+=libarchive.so.5
-OLD_LIBS+=libasn1.so.10
-OLD_LIBS+=libdialog.so.7
-OLD_LIBS+=libdwarf.so.2
-OLD_LIBS+=libftpio.so.8
-OLD_LIBS+=libhdb.so.10
-OLD_LIBS+=libheimntlm.so.10
-OLD_LIBS+=libkadm5clnt.so.10
-OLD_LIBS+=libkadm5srv.so.10
-OLD_LIBS+=libkafs5.so.10
-OLD_LIBS+=liblwres.so.80
-OLD_LIBS+=libobjc.so.4
-OLD_LIBS+=libopie.so.6
-OLD_LIBS+=libroken.so.10
-OLD_LIBS+=librtld_db.so.1
-OLD_LIBS+=libstdc++.so.6
-OLD_LIBS+=libtacplus.so.4
-OLD_LIBS+=libusb.so.2
 # 20180508: retire nxge
 OLD_FILES+=usr/share/man/man4/if_nxge.4.gz
 OLD_FILES+=usr/share/man/man4/nxge.4.gz
