@@ -178,6 +178,12 @@ offset and partition
 to be multiple of
 .Ar alignment
 value.
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
 .It Fl i Ar index
 The index in the partition table at which the new partition is to be
 placed.
@@ -187,12 +193,6 @@ to represent the partition.
 The label attached to the partition.
 This option is only valid when used on partitioning schemes that support
 partition labels.
-.It Fl f Ar flags
-Additional operational flags.
-See the section entitled
-.Sx "OPERATIONAL FLAGS"
-below for a discussion
-about its use.
 .El
 .\" ==== BACKUP ====
 .It Cm backup
@@ -264,6 +264,12 @@ that scheme can be used to partition a disk.
 .Pp
 Additional options include:
 .Bl -tag -width 10n
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
 .It Fl n Ar entries
 The number of entries in the partition table.
 Every partitioning scheme has a minimum and maximum number of entries.
@@ -273,12 +279,6 @@ Some schemes have a maximum equal to the minimum and some schemes have
 a maximum large enough to be considered unlimited.
 By default, partition tables are created with the minimum number of
 entries.
-.It Fl f Ar flags
-Additional operational flags.
-See the section entitled
-.Sx "OPERATIONAL FLAGS"
-below for a discussion
-about its use.
 .El
 .\" ==== DELETE ====
 .It Cm delete
@@ -407,14 +407,14 @@ Additional options include:
 Destroy partition table on the given
 .Ar provider
 before doing restore.
-.It Fl l
-Restore partition labels for partitioning schemes that support them.
 .It Fl f Ar flags
 Additional operational flags.
 See the section entitled
 .Sx "OPERATIONAL FLAGS"
 below for a discussion
 about its use.
+.It Fl l
+Restore partition labels for partitioning schemes that support them.
 .El
 .\" ==== SET ====
 .It Cm set
