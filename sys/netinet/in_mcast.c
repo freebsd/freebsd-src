@@ -2501,6 +2501,8 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Begin state merge transaction at IGMP layer.
 	 */
+	in_pcbref(inp);
+	INP_WUNLOCK(inp);
 	IN_MULTI_LOCK();
 
 	if (is_final) {
@@ -2531,6 +2533,9 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 out_in_multi_locked:
 
 	IN_MULTI_UNLOCK();
+	INP_WLOCK(inp);
+	if (in_pcbrele_wlocked(inp))
+		return (ENXIO);
 
 	if (error)
 		imf_rollback(imf);

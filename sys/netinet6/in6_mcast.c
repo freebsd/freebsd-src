@@ -2381,6 +2381,8 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Begin state merge transaction at MLD layer.
 	 */
+	in_pcbref(inp);
+	INP_WUNLOCK(inp);
 	IN6_MULTI_LOCK();
 
 	if (is_final) {
@@ -2407,6 +2409,9 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	}
 
 	IN6_MULTI_UNLOCK();
+	INP_WLOCK(inp);
+	if (in_pcbrele_wlocked(inp))
+		return (ENXIO);
 
 	if (error)
 		im6f_rollback(imf);
