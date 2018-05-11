@@ -1,5 +1,5 @@
 diff --git a/doc/jemalloc.xml.in b/doc/jemalloc.xml.in
-index 21e401ac..c26f9f4a 100644
+index 1e12fd3a..c42a7e10 100644
 --- a/doc/jemalloc.xml.in
 +++ b/doc/jemalloc.xml.in
 @@ -53,11 +53,22 @@
@@ -26,7 +26,7 @@ index 21e401ac..c26f9f4a 100644
        <refsect2>
          <title>Standard API</title>
          <funcprototype>
-@@ -3252,4 +3263,18 @@ malloc_conf = "narenas:1";]]></programlisting></para>
+@@ -3376,4 +3387,18 @@ malloc_conf = "narenas:1";]]></programlisting></para>
      <para>The <function>posix_memalign()</function> function conforms
      to IEEE Std 1003.1-2001 (<quote>POSIX.1</quote>).</para>
    </refsect1>
@@ -64,7 +64,7 @@ index cd49afcb..85e2a991 100644
  #define _Unwind_Backtrace JEMALLOC_HOOK(_Unwind_Backtrace, hooks_libc_hook)
  
 diff --git a/include/jemalloc/internal/jemalloc_internal_decls.h b/include/jemalloc/internal/jemalloc_internal_decls.h
-index 1efdb56b..12a7e5a8 100644
+index be70df51..84cd70da 100644
 --- a/include/jemalloc/internal/jemalloc_internal_decls.h
 +++ b/include/jemalloc/internal/jemalloc_internal_decls.h
 @@ -1,6 +1,9 @@
@@ -78,7 +78,7 @@ index 1efdb56b..12a7e5a8 100644
  #ifdef _WIN32
  #  include <windows.h>
 diff --git a/include/jemalloc/internal/jemalloc_preamble.h.in b/include/jemalloc/internal/jemalloc_preamble.h.in
-index 18539a09..c8af8683 100644
+index e621fbc8..dbdd5d6b 100644
 --- a/include/jemalloc/internal/jemalloc_preamble.h.in
 +++ b/include/jemalloc/internal/jemalloc_preamble.h.in
 @@ -8,6 +8,9 @@
@@ -91,7 +91,7 @@ index 18539a09..c8af8683 100644
  #define JEMALLOC_NO_DEMANGLE
  #ifdef JEMALLOC_JET
  #  undef JEMALLOC_IS_MALLOC
-@@ -68,13 +71,7 @@ static const bool config_fill =
+@@ -79,13 +82,7 @@ static const bool config_fill =
      false
  #endif
      ;
@@ -128,9 +128,23 @@ index 6520c251..0013cbe9 100644
  bool malloc_mutex_boot(void);
  void malloc_mutex_prof_data_reset(tsdn_t *tsdn, malloc_mutex_t *mutex);
  
+diff --git a/include/jemalloc/internal/tsd.h b/include/jemalloc/internal/tsd.h
+index 0b9841aa..f03eee61 100644
+--- a/include/jemalloc/internal/tsd.h
++++ b/include/jemalloc/internal/tsd.h
+@@ -122,7 +122,8 @@ struct tsd_s {
+ 	t use_a_getter_or_setter_instead_##n;
+ MALLOC_TSD
+ #undef O
+-};
++/* AddressSanitizer requires TLS data to be aligned to at least 8 bytes. */
++} JEMALLOC_ALIGNED(16);
+ 
+ /*
+  * Wrapper around tsd_t that makes it possible to avoid implicit conversion
 diff --git a/include/jemalloc/jemalloc_FreeBSD.h b/include/jemalloc/jemalloc_FreeBSD.h
 new file mode 100644
-index 00000000..355b565c
+index 00000000..b752b0e7
 --- /dev/null
 +++ b/include/jemalloc/jemalloc_FreeBSD.h
 @@ -0,0 +1,185 @@
@@ -203,7 +217,7 @@ index 00000000..355b565c
 +#  define LG_VADDR		32
 +#  define LG_SIZEOF_PTR		2
 +#endif
-+#ifdef __riscv__
++#ifdef __riscv
 +#  define LG_VADDR		64
 +#  define LG_SIZEOF_PTR		3
 +#endif
@@ -331,10 +345,10 @@ index f9438912..47d032c1 100755
 +#include "jemalloc_FreeBSD.h"
  EOF
 diff --git a/src/jemalloc.c b/src/jemalloc.c
-index 52c86aa6..868c9e86 100644
+index f93c16fa..e0ad297b 100644
 --- a/src/jemalloc.c
 +++ b/src/jemalloc.c
-@@ -20,6 +20,10 @@
+@@ -21,6 +21,10 @@
  /******************************************************************************/
  /* Data. */
  
@@ -345,7 +359,7 @@ index 52c86aa6..868c9e86 100644
  /* Runtime configuration options. */
  const char	*je_malloc_conf
  #ifndef _WIN32
-@@ -2981,6 +2985,103 @@ je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr) {
+@@ -3160,6 +3164,103 @@ je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr) {
   */
  /******************************************************************************/
  /*
@@ -449,7 +463,7 @@ index 52c86aa6..868c9e86 100644
   * The following functions are used by threading libraries for protection of
   * malloc during fork().
   */
-@@ -3141,4 +3242,11 @@ jemalloc_postfork_child(void) {
+@@ -3323,4 +3424,11 @@ jemalloc_postfork_child(void) {
  	ctl_postfork_child(tsd_tsdn(tsd));
  }
  
@@ -462,10 +476,10 @@ index 52c86aa6..868c9e86 100644
 +
  /******************************************************************************/
 diff --git a/src/malloc_io.c b/src/malloc_io.c
-index 6b99afcd..4363cb83 100644
+index 7bdc13f9..c8802c70 100644
 --- a/src/malloc_io.c
 +++ b/src/malloc_io.c
-@@ -88,6 +88,20 @@ wrtmessage(void *cbopaque, const char *s) {
+@@ -75,6 +75,20 @@ wrtmessage(void *cbopaque, const char *s) {
  
  JEMALLOC_EXPORT void	(*je_malloc_message)(void *, const char *s);
  
@@ -487,10 +501,10 @@ index 6b99afcd..4363cb83 100644
   * Wrapper around malloc_message() that avoids the need for
   * je_malloc_message(...) throughout the code.
 diff --git a/src/mutex.c b/src/mutex.c
-index a528ef0c..820af613 100644
+index 30222b3e..b2c36283 100644
 --- a/src/mutex.c
 +++ b/src/mutex.c
-@@ -40,6 +40,17 @@ pthread_create(pthread_t *__restrict thread,
+@@ -41,6 +41,17 @@ pthread_create(pthread_t *__restrict thread,
  #ifdef JEMALLOC_MUTEX_INIT_CB
  JEMALLOC_EXPORT int	_pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
      void *(calloc_cb)(size_t, size_t));
@@ -508,7 +522,7 @@ index a528ef0c..820af613 100644
  #endif
  
  void
-@@ -130,6 +141,16 @@ mutex_addr_comp(const witness_t *witness1, void *mutex1,
+@@ -131,6 +142,16 @@ mutex_addr_comp(const witness_t *witness1, void *mutex1,
  }
  
  bool
