@@ -37,16 +37,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
-#include <sys/sockio.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/md5.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/kobj.h>
 #include <sys/rman.h>
+#include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/taskqueue.h>
@@ -85,6 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pci_private.h>
 
 #include <net/iflib.h>
+#include <net/iflib_private.h>
 
 #include "ifdi_if.h"
 
@@ -130,7 +134,7 @@ __FBSDID("$FreeBSD$");
  *
  *
  */
-static MALLOC_DEFINE(M_IFLIB, "iflib", "ifnet library");
+MALLOC_DEFINE(M_IFLIB, "iflib", "ifnet library");
 
 struct iflib_txq;
 typedef struct iflib_txq *iflib_txq_t;
@@ -241,6 +245,18 @@ iflib_get_media(if_ctx_t ctx)
 	return (&ctx->ifc_media);
 }
 
+uint32_t
+iflib_get_flags(if_ctx_t ctx)
+{
+	return (ctx->ifc_flags);
+}
+
+void
+iflib_set_detach(if_ctx_t ctx)
+{
+	ctx->ifc_in_detach = 1;
+}
+
 void
 iflib_set_mac(if_ctx_t ctx, uint8_t mac[ETHER_ADDR_LEN])
 {
@@ -309,17 +325,6 @@ typedef struct iflib_sw_tx_desc_array {
 #define TX_BATCH_SIZE			32
 
 #define IFLIB_RESTART_BUDGET		8
-
-#define	IFC_LEGACY		0x001
-#define	IFC_QFLUSH		0x002
-#define	IFC_MULTISEG		0x004
-#define	IFC_DMAR		0x008
-#define	IFC_SC_ALLOCATED	0x010
-#define	IFC_INIT_DONE		0x020
-#define	IFC_PREFETCH		0x040
-#define	IFC_DO_RESET		0x080
-#define	IFC_DO_WATCHDOG		0x100
-#define	IFC_CHECK_HUNG		0x200
 
 
 #define CSUM_OFFLOAD		(CSUM_IP_TSO|CSUM_IP6_TSO|CSUM_IP| \
@@ -510,6 +515,16 @@ pkt_info_zero(if_pkt_info_t pi)
 	pi_pad->pkt_val[9] = 0; pi_pad->pkt_val[10] = 0;
 #endif	
 }
+
+static device_method_t iflib_pseudo_methods[] = {
+	DEVMETHOD(device_attach, noop_attach),
+	DEVMETHOD(device_detach, iflib_pseudo_detach),
+	DEVMETHOD_END
+};
+
+driver_t iflib_pseudodriver = {
+	"iflib_pseudo", iflib_pseudo_methods, sizeof(struct iflib_ctx),
+};
 
 static inline void
 rxd_info_zero(if_rxd_info_t ri)
@@ -709,8 +724,6 @@ iflib_debug_reset(void)
 static void iflib_debug_reset(void) {}
 #endif
 
-
-
 #define IFLIB_DEBUG 0
 
 static void iflib_tx_structures_free(if_ctx_t ctx);
@@ -729,7 +742,6 @@ static void iflib_add_device_sysctl_pre(if_ctx_t ctx);
 static void iflib_add_device_sysctl_post(if_ctx_t ctx);
 static void iflib_ifmp_purge(iflib_txq_t txq);
 static void _iflib_pre_assert(if_softc_ctx_t scctx);
-static void iflib_stop(if_ctx_t ctx);
 static void iflib_if_init_locked(if_ctx_t ctx);
 #ifndef __NO_STRICT_ALIGNMENT
 static struct mbuf * iflib_fixup_rx(struct mbuf *m);
@@ -1240,6 +1252,40 @@ prefetch2cachelines(void *x)
 #define prefetch(x)
 #define prefetch2cachelines(x)
 #endif
+
+static void
+iflib_gen_mac(if_ctx_t ctx)
+{
+	struct thread *td;
+	struct ifnet *ifp;
+	MD5_CTX mdctx;
+	char uuid[HOSTUUIDLEN+1];
+	char buf[HOSTUUIDLEN+16];
+	uint8_t *mac;
+	unsigned char digest[16];
+
+	td = curthread;
+	ifp = ctx->ifc_ifp;
+	mac = ctx->ifc_mac;
+	uuid[HOSTUUIDLEN] = 0;
+	bcopy(td->td_ucred->cr_prison->pr_hostuuid, uuid, HOSTUUIDLEN);
+	snprintf(buf, HOSTUUIDLEN+16, "%s-%s", uuid, device_get_nameunit(ctx->ifc_dev));
+	/*
+	 * Generate a pseudo-random, deterministic MAC
+	 * address based on the UUID and unit number.
+	 * The FreeBSD Foundation OUI of 58-9C-FC is used.
+	 */
+	MD5Init(&mdctx);
+	MD5Update(&mdctx, buf, strlen(buf));
+	MD5Final(digest, &mdctx);
+
+	mac[0] = 0x58;
+	mac[1] = 0x9C;
+	mac[2] = 0xFC;
+	mac[3] = digest[0];
+	mac[4] = digest[1];
+	mac[5] = digest[2];
+}
 
 static void
 iru_init(if_rxd_update_t iru, iflib_rxq_t rxq, uint8_t flid)
@@ -2251,7 +2297,7 @@ iflib_media_status(if_t ifp, struct ifmediareq *ifmr)
 	CTX_UNLOCK(ctx);
 }
 
-static void
+void
 iflib_stop(if_ctx_t ctx)
 {
 	iflib_txq_t txq = ctx->ifc_txqs;
@@ -4202,40 +4248,19 @@ iflib_device_probe(device_t dev)
 	return (ENXIO);
 }
 
-int
-iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ctxp)
+static void
+iflib_reset_qvalues(if_ctx_t ctx)
 {
-	int err, rid, msix;
-	if_ctx_t ctx;
-	if_t ifp;
-	if_softc_ctx_t scctx;
-	int i;
-	uint16_t main_txq;
-	uint16_t main_rxq;
+	if_softc_ctx_t scctx = &ctx->ifc_softc_ctx;
+	if_shared_ctx_t sctx = ctx->ifc_sctx;
+	device_t dev = ctx->ifc_dev;
+	int i, main_txq, main_rxq;
 
+	main_txq = (sctx->isc_flags & IFLIB_HAS_TXCQ) ? 1 : 0;
+	main_rxq = (sctx->isc_flags & IFLIB_HAS_RXCQ) ? 1 : 0;
 
-	ctx = malloc(sizeof(* ctx), M_IFLIB, M_WAITOK|M_ZERO);
-
-	if (sc == NULL) {
-		sc = malloc(sctx->isc_driver->size, M_IFLIB, M_WAITOK|M_ZERO);
-		device_set_softc(dev, ctx);
-		ctx->ifc_flags |= IFC_SC_ALLOCATED;
-	}
-
-	ctx->ifc_sctx = sctx;
-	ctx->ifc_dev = dev;
-	ctx->ifc_softc = sc;
-
-	if ((err = iflib_register(ctx)) != 0) {
-		device_printf(dev, "iflib_register failed %d\n", err);
-		return (err);
-	}
-	iflib_add_device_sysctl_pre(ctx);
-
-	scctx = &ctx->ifc_softc_ctx;
-	ifp = ctx->ifc_ifp;
-	ctx->ifc_nhwtxqs = sctx->isc_ntxqs;
-
+	scctx->isc_txrx_budget_bytes_max = IFLIB_MAX_TX_BYTES;
+	scctx->isc_tx_qdepth = IFLIB_DEFAULT_TX_QDEPTH;
 	/*
 	 * XXX sanity check that ntxd & nrxd are a power of 2
 	 */
@@ -4283,7 +4308,45 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 			scctx->isc_ntxd[i] = sctx->isc_ntxd_max[i];
 		}
 	}
+}
 
+int
+iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ctxp)
+{
+	int err, rid, msix;
+	if_ctx_t ctx;
+	if_t ifp;
+	if_softc_ctx_t scctx;
+	int i;
+	uint16_t main_txq;
+	uint16_t main_rxq;
+
+
+	ctx = malloc(sizeof(* ctx), M_IFLIB, M_WAITOK|M_ZERO);
+
+	if (sc == NULL) {
+		sc = malloc(sctx->isc_driver->size, M_IFLIB, M_WAITOK|M_ZERO);
+		device_set_softc(dev, ctx);
+		ctx->ifc_flags |= IFC_SC_ALLOCATED;
+	}
+
+	ctx->ifc_sctx = sctx;
+	ctx->ifc_dev = dev;
+	ctx->ifc_softc = sc;
+
+	if ((err = iflib_register(ctx)) != 0) {
+		if (ctx->ifc_flags & IFC_SC_ALLOCATED)
+			free(sc, M_IFLIB);
+		free(ctx, M_IFLIB);
+		device_printf(dev, "iflib_register failed %d\n", err);
+		return (err);
+	}
+	iflib_add_device_sysctl_pre(ctx);
+
+	scctx = &ctx->ifc_softc_ctx;
+	ifp = ctx->ifc_ifp;
+
+	iflib_reset_qvalues(ctx);
 	CTX_LOCK(ctx);
 	if ((err = IFDI_ATTACH_PRE(ctx)) != 0) {
 		CTX_UNLOCK(ctx);
@@ -4457,6 +4520,232 @@ fail:
 	IFDI_DETACH(ctx);
 	CTX_UNLOCK(ctx);
 	return (err);
+}
+
+int
+iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
+					  struct iflib_cloneattach_ctx *clctx)
+{
+	int err;
+	if_ctx_t ctx;
+	if_t ifp;
+	if_softc_ctx_t scctx;
+	int i;
+	void *sc;
+	uint16_t main_txq;
+	uint16_t main_rxq;
+
+	ctx = malloc(sizeof(*ctx), M_IFLIB, M_WAITOK|M_ZERO);
+	sc = malloc(sctx->isc_driver->size, M_IFLIB, M_WAITOK|M_ZERO);
+	ctx->ifc_flags |= IFC_SC_ALLOCATED;
+	if (sctx->isc_flags & (IFLIB_PSEUDO|IFLIB_VIRTUAL))
+		ctx->ifc_flags |= IFC_PSEUDO;
+
+	ctx->ifc_sctx = sctx;
+	ctx->ifc_softc = sc;
+	ctx->ifc_dev = dev;
+
+	if ((err = iflib_register(ctx)) != 0) {
+		device_printf(dev, "%s: iflib_register failed %d\n", __func__, err);
+		free(sc, M_IFLIB);
+		free(ctx, M_IFLIB);
+		return (err);
+	}
+	iflib_add_device_sysctl_pre(ctx);
+
+	scctx = &ctx->ifc_softc_ctx;
+	ifp = ctx->ifc_ifp;
+
+	/*
+	 * XXX sanity check that ntxd & nrxd are a power of 2
+	 */
+	iflib_reset_qvalues(ctx);
+
+	if ((err = IFDI_ATTACH_PRE(ctx)) != 0) {
+		device_printf(dev, "IFDI_ATTACH_PRE failed %d\n", err);
+		return (err);
+	}
+	if (sctx->isc_flags & IFLIB_GEN_MAC)
+		iflib_gen_mac(ctx);
+	if ((err = IFDI_CLONEATTACH(ctx, clctx->cc_ifc, clctx->cc_name,
+								clctx->cc_params)) != 0) {
+		device_printf(dev, "IFDI_CLONEATTACH failed %d\n", err);
+		return (err);
+	}
+	ifmedia_add(&ctx->ifc_media, IFM_ETHER | IFM_1000_T | IFM_FDX, 0, NULL);
+	ifmedia_add(&ctx->ifc_media, IFM_ETHER | IFM_AUTO, 0, NULL);
+	ifmedia_set(&ctx->ifc_media, IFM_ETHER | IFM_AUTO);
+
+#ifdef INVARIANTS
+	MPASS(scctx->isc_capenable);
+	if (scctx->isc_capenable & IFCAP_TXCSUM)
+		MPASS(scctx->isc_tx_csum_flags);
+#endif
+
+	if_setcapabilities(ifp, scctx->isc_capenable | IFCAP_HWSTATS | IFCAP_LINKSTATE);
+	if_setcapenable(ifp, scctx->isc_capenable | IFCAP_HWSTATS | IFCAP_LINKSTATE);
+
+	ifp->if_flags |= IFF_NOGROUP;
+	if (sctx->isc_flags & IFLIB_PSEUDO) {
+		ether_ifattach(ctx->ifc_ifp, ctx->ifc_mac);
+
+		if ((err = IFDI_ATTACH_POST(ctx)) != 0) {
+			device_printf(dev, "IFDI_ATTACH_POST failed %d\n", err);
+			goto fail_detach;
+		}
+		*ctxp = ctx;
+
+		if_setgetcounterfn(ctx->ifc_ifp, iflib_if_get_counter);
+		iflib_add_device_sysctl_post(ctx);
+		ctx->ifc_flags |= IFC_INIT_DONE;
+		return (0);
+	}
+	_iflib_pre_assert(scctx);
+	ctx->ifc_txrx = *scctx->isc_txrx;
+
+	if (scctx->isc_ntxqsets == 0 || (scctx->isc_ntxqsets_max && scctx->isc_ntxqsets_max < scctx->isc_ntxqsets))
+		scctx->isc_ntxqsets = scctx->isc_ntxqsets_max;
+	if (scctx->isc_nrxqsets == 0 || (scctx->isc_nrxqsets_max && scctx->isc_nrxqsets_max < scctx->isc_nrxqsets))
+		scctx->isc_nrxqsets = scctx->isc_nrxqsets_max;
+
+	main_txq = (sctx->isc_flags & IFLIB_HAS_TXCQ) ? 1 : 0;
+	main_rxq = (sctx->isc_flags & IFLIB_HAS_RXCQ) ? 1 : 0;
+
+	/* XXX change for per-queue sizes */
+	device_printf(dev, "using %d tx descriptors and %d rx descriptors\n",
+		      scctx->isc_ntxd[main_txq], scctx->isc_nrxd[main_rxq]);
+	for (i = 0; i < sctx->isc_nrxqs; i++) {
+		if (!powerof2(scctx->isc_nrxd[i])) {
+			/* round down instead? */
+			device_printf(dev, "# rx descriptors must be a power of 2\n");
+			err = EINVAL;
+			goto fail;
+		}
+	}
+	for (i = 0; i < sctx->isc_ntxqs; i++) {
+		if (!powerof2(scctx->isc_ntxd[i])) {
+			device_printf(dev,
+			    "# tx descriptors must be a power of 2");
+			err = EINVAL;
+			goto fail;
+		}
+	}
+
+	if (scctx->isc_tx_nsegments > scctx->isc_ntxd[main_txq] /
+	    MAX_SINGLE_PACKET_FRACTION)
+		scctx->isc_tx_nsegments = max(1, scctx->isc_ntxd[main_txq] /
+		    MAX_SINGLE_PACKET_FRACTION);
+	if (scctx->isc_tx_tso_segments_max > scctx->isc_ntxd[main_txq] /
+	    MAX_SINGLE_PACKET_FRACTION)
+		scctx->isc_tx_tso_segments_max = max(1,
+		    scctx->isc_ntxd[main_txq] / MAX_SINGLE_PACKET_FRACTION);
+
+	/*
+	 * Protect the stack against modern hardware
+	 */
+	if (scctx->isc_tx_tso_size_max > FREEBSD_TSO_SIZE_MAX)
+		scctx->isc_tx_tso_size_max = FREEBSD_TSO_SIZE_MAX;
+
+	/* TSO parameters - dig these out of the data sheet - simply correspond to tag setup */
+	ifp->if_hw_tsomaxsegcount = scctx->isc_tx_tso_segments_max;
+	ifp->if_hw_tsomax = scctx->isc_tx_tso_size_max;
+	ifp->if_hw_tsomaxsegsize = scctx->isc_tx_tso_segsize_max;
+	if (scctx->isc_rss_table_size == 0)
+		scctx->isc_rss_table_size = 64;
+	scctx->isc_rss_table_mask = scctx->isc_rss_table_size-1;
+
+	GROUPTASK_INIT(&ctx->ifc_admin_task, 0, _task_fn_admin, ctx);
+	/* XXX format name */
+	taskqgroup_attach(qgroup_if_config_tqg, &ctx->ifc_admin_task, ctx, -1, "admin");
+
+	/* XXX --- can support > 1 -- but keep it simple for now */
+	scctx->isc_intr = IFLIB_INTR_LEGACY;
+
+	/* Get memory for the station queues */
+	if ((err = iflib_queues_alloc(ctx))) {
+		device_printf(dev, "Unable to allocate queue memory\n");
+		goto fail;
+	}
+
+	if ((err = iflib_qset_structures_setup(ctx))) {
+		device_printf(dev, "qset structure setup failed %d\n", err);
+		goto fail_queues;
+	}
+	/*
+	 * XXX What if anything do we want to do about interrupts?
+	 */
+	ether_ifattach(ctx->ifc_ifp, ctx->ifc_mac);
+	if ((err = IFDI_ATTACH_POST(ctx)) != 0) {
+		device_printf(dev, "IFDI_ATTACH_POST failed %d\n", err);
+		goto fail_detach;
+	}
+	/* XXX handle more than one queue */
+	for (i = 0; i < scctx->isc_nrxqsets; i++)
+		IFDI_RX_CLSET(ctx, 0, i, ctx->ifc_rxqs[i].ifr_fl[0].ifl_sds.ifsd_cl);
+
+	*ctxp = ctx;
+
+	if_setgetcounterfn(ctx->ifc_ifp, iflib_if_get_counter);
+	iflib_add_device_sysctl_post(ctx);
+	ctx->ifc_flags |= IFC_INIT_DONE;
+	return (0);
+fail_detach:
+	ether_ifdetach(ctx->ifc_ifp);
+fail_queues:
+	iflib_tx_structures_free(ctx);
+	iflib_rx_structures_free(ctx);
+fail:
+	IFDI_DETACH(ctx);
+	return (err);
+}
+
+int
+iflib_pseudo_deregister(if_ctx_t ctx)
+{
+	if_t ifp = ctx->ifc_ifp;
+	iflib_txq_t txq;
+	iflib_rxq_t rxq;
+	int i, j;
+	struct taskqgroup *tqg;
+	iflib_fl_t fl;
+
+	/* Unregister VLAN events */
+	if (ctx->ifc_vlan_attach_event != NULL)
+		EVENTHANDLER_DEREGISTER(vlan_config, ctx->ifc_vlan_attach_event);
+	if (ctx->ifc_vlan_detach_event != NULL)
+		EVENTHANDLER_DEREGISTER(vlan_unconfig, ctx->ifc_vlan_detach_event);
+
+	ether_ifdetach(ifp);
+	/* ether_ifdetach calls if_qflush - lock must be destroy afterwards*/
+	CTX_LOCK_DESTROY(ctx);
+	/* XXX drain any dependent tasks */
+	tqg = qgroup_if_io_tqg;
+	for (txq = ctx->ifc_txqs, i = 0; i < NTXQSETS(ctx); i++, txq++) {
+		callout_drain(&txq->ift_timer);
+		if (txq->ift_task.gt_uniq != NULL)
+			taskqgroup_detach(tqg, &txq->ift_task);
+	}
+	for (i = 0, rxq = ctx->ifc_rxqs; i < NRXQSETS(ctx); i++, rxq++) {
+		if (rxq->ifr_task.gt_uniq != NULL)
+			taskqgroup_detach(tqg, &rxq->ifr_task);
+
+		for (j = 0, fl = rxq->ifr_fl; j < rxq->ifr_nfl; j++, fl++)
+			free(fl->ifl_rx_bitmap, M_IFLIB);
+	}
+	tqg = qgroup_if_config_tqg;
+	if (ctx->ifc_admin_task.gt_uniq != NULL)
+		taskqgroup_detach(tqg, &ctx->ifc_admin_task);
+	if (ctx->ifc_vflr_task.gt_uniq != NULL)
+		taskqgroup_detach(tqg, &ctx->ifc_vflr_task);
+
+	if_free(ifp);
+
+	iflib_tx_structures_free(ctx);
+	iflib_rx_structures_free(ctx);
+	if (ctx->ifc_flags & IFC_SC_ALLOCATED)
+		free(ctx->ifc_softc, M_IFLIB);
+	free(ctx, M_IFLIB);
+	return (0);
 }
 
 int
