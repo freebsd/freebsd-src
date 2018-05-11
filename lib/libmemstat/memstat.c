@@ -29,6 +29,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
 
 #include <err.h>
