@@ -57,6 +57,12 @@ pgm="${0##*/}" # Program basename
 PROBE_ARG=
 
 #
+# Command-line defaults
+#
+_MAX_ARGS=64		# -B num
+_MAX_DEPTH=64		# -K num
+
+#
 # Command-line options
 #
 CONSOLE=		# -y
@@ -77,8 +83,8 @@ GROUP=			# -g group
 JID=			# -j jail
 LIST=			# -l
 LIST_PROFILES=		# -Q
-MAX_ARGS=64		# -B num
-MAX_DEPTH=64		# -K num
+MAX_ARGS=$_MAX_ARGS	# -B num
+MAX_DEPTH=$_MAX_DEPTH	# -K num
 ONELINE=		# -1
 OUTPUT=			# -o file
 OUTPUT_CMD=		# -O cmd
@@ -144,7 +150,7 @@ usage()
 	printf "$optfmt" "-1" \
 		"Print one line per process/profile (Default; disables \`-R')."
 	printf "$optfmt" "-B num" \
-		"Maximum process arguments to display (Default $MAX_ARGS)."
+		"Maximum process arguments to display (Default $_MAX_ARGS)."
 	printf "$optfmt" "-d" \
 		"Debug. Send dtrace(1) script to stdout instead of executing."
 	printf "$optfmt" "-e" \
@@ -162,7 +168,7 @@ usage()
 	printf "$optfmt" "-k name" \
 		"Only show processes matching name."
 	printf "$optfmt" "-K num" \
-		"Maximum directory depth to display (Default $MAX_DEPTH)."
+		"Maximum directory depth to display (Default $_MAX_DEPTH)."
 	printf "$optfmt" "-l" \
 		"List available probes on standard output and exit."
 	printf "$optfmt" "-m" \
