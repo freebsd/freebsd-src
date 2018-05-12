@@ -345,6 +345,19 @@ void sock_list_merge(struct sock_list** list, struct regional* region,
  */
 void log_crypto_err(const char* str);
 
+/**
+ * Set SSL_OP_NOxxx options on SSL context to disable bad crypto
+ * @param ctxt: SSL_CTX*
+ * @return false on failure.
+ */
+int listen_sslctx_setup(void* ctxt);
+
+/**
+ * Further setup of listening SSL context, after keys loaded.
+ * @param ctxt: SSL_CTX*
+ */
+void listen_sslctx_setup_2(void* ctxt);
+
 /** 
  * create SSL listen context
  * @param key: private key file.

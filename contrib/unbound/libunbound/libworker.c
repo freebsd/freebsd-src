@@ -294,6 +294,7 @@ libworker_do_cmd(struct libworker* w, uint8_t* msg, uint32_t len)
 			log_err("unknown command for bg worker %d", 
 				(int)context_serial_getcmd(msg, len));
 			/* and fall through to quit */
+			/* fallthrough */
 		case UB_LIBCMD_QUIT:
 			free(msg);
 			comm_base_exit(w->base);
@@ -749,7 +750,7 @@ libworker_bg_done_cb(void* arg, int rcode, sldns_buffer* buf, enum sec_status s,
 {
 	struct ctx_query* q = (struct ctx_query*)arg;
 
-	if(q->cancelled) {
+	if(q->cancelled || q->w->back->want_to_quit) {
 		if(q->w->is_bg_thread) {
 			/* delete it now */
 			struct ub_ctx* ctx = q->w->ctx;

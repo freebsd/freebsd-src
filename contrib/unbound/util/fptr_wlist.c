@@ -231,6 +231,9 @@ fptr_whitelist_hash_sizefunc(lruhash_sizefunc_type fptr)
 #ifdef CLIENT_SUBNET
 	else if(fptr == &msg_cache_sizefunc) return 1;
 #endif
+#ifdef USE_DNSCRYPT
+	else if(fptr == &dnsc_shared_secrets_sizefunc) return 1;
+#endif
 	return 0;
 }
 
@@ -244,6 +247,9 @@ fptr_whitelist_hash_compfunc(lruhash_compfunc_type fptr)
 	else if(fptr == &rate_compfunc) return 1;
 	else if(fptr == &ip_rate_compfunc) return 1;
 	else if(fptr == &test_slabhash_compfunc) return 1;
+#ifdef USE_DNSCRYPT
+	else if(fptr == &dnsc_shared_secrets_compfunc) return 1;
+#endif
 	return 0;
 }
 
@@ -257,6 +263,9 @@ fptr_whitelist_hash_delkeyfunc(lruhash_delkeyfunc_type fptr)
 	else if(fptr == &rate_delkeyfunc) return 1;
 	else if(fptr == &ip_rate_delkeyfunc) return 1;
 	else if(fptr == &test_slabhash_delkey) return 1;
+#ifdef USE_DNSCRYPT
+	else if(fptr == &dnsc_shared_secrets_delkeyfunc) return 1;
+#endif
 	return 0;
 }
 
@@ -271,6 +280,9 @@ fptr_whitelist_hash_deldatafunc(lruhash_deldatafunc_type fptr)
 	else if(fptr == &test_slabhash_deldata) return 1;
 #ifdef CLIENT_SUBNET
 	else if(fptr == &subnet_data_delete) return 1;
+#endif
+#ifdef USE_DNSCRYPT
+	else if(fptr == &dnsc_shared_secrets_deldatafunc) return 1;
 #endif
 	return 0;
 }

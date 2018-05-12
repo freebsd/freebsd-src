@@ -296,6 +296,9 @@
 /* Define to 1 if you have the <nettle/dsa-compat.h> header file. */
 #undef HAVE_NETTLE_DSA_COMPAT_H
 
+/* Define to 1 if you have the <nettle/eddsa.h> header file. */
+#undef HAVE_NETTLE_EDDSA_H
+
 /* Use libnss for crypto */
 #undef HAVE_NSS
 

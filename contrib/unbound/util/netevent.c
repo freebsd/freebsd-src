@@ -1551,6 +1551,13 @@ comm_point_tcp_handle_callback(int fd, short event, void* arg)
 		c->dnscrypt_buffer = sldns_buffer_new(sldns_buffer_capacity(c->buffer));
 		if(!c->dnscrypt_buffer) {
 			log_err("Could not allocate dnscrypt buffer");
+			reclaim_tcp_handler(c);
+			if(!c->tcp_do_close) {
+				fptr_ok(fptr_whitelist_comm_point(
+					c->callback));
+				(void)(*c->callback)(c, c->cb_arg, 
+					NETEVENT_CLOSED, NULL);
+			}
 			return;
 		}
 	}

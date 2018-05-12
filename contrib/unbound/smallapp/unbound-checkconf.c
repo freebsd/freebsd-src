@@ -71,6 +71,9 @@
 #ifdef WITH_PYTHONMODULE
 #include "pythonmod/pythonmod.h"
 #endif
+#ifdef CLIENT_SUBNET
+#include "edns-subnet/subnet-whitelist.h"
+#endif
 
 /** Give checkconf usage, and exit (1). */
 static void
@@ -345,6 +348,20 @@ check_chroot_filelist_wild(const char* desc, struct config_strlist* list,
 	}
 }
 
+#ifdef CLIENT_SUBNET
+/** check ECS configuration */
+static void
+ecs_conf_checks(struct config_file* cfg)
+{
+	struct ecs_whitelist* whitelist = NULL;
+	if(!(whitelist = ecs_whitelist_create()))
+		fatal_exit("Could not create ednssubnet whitelist: out of memory");
+        if(!ecs_whitelist_apply_cfg(whitelist, cfg))
+		fatal_exit("Could not setup ednssubnet whitelist");
+	ecs_whitelist_delete(whitelist);
+}
+#endif /* CLIENT_SUBNET */
+
 /** check configuration for errors */
 static void
 morechecks(struct config_file* cfg, const char* fname)
@@ -427,8 +444,11 @@ morechecks(struct config_file* cfg, const char* fname)
 	check_chroot_string("dlv-anchor-file", &cfg->dlv_anchor_file,
 		cfg->chrootdir, cfg);
 #ifdef USE_IPSECMOD
-	check_chroot_string("ipsecmod-hook", &cfg->ipsecmod_hook, cfg->chrootdir,
-		cfg);
+	if(cfg->ipsecmod_enabled && strstr(cfg->module_conf, "ipsecmod")) {
+		/* only check hook if enabled */
+		check_chroot_string("ipsecmod-hook", &cfg->ipsecmod_hook,
+			cfg->chrootdir, cfg);
+	}
 #endif
 	/* remove chroot setting so that modules are not stripping pathnames*/
 	free(cfg->chrootdir);
@@ -474,6 +494,8 @@ morechecks(struct config_file* cfg, const char* fname)
 #ifdef CLIENT_SUBNET
 		&& strcmp(cfg->module_conf, "subnetcache iterator") != 0
 		&& strcmp(cfg->module_conf, "subnetcache validator iterator") != 0
+		&& strcmp(cfg->module_conf, "dns64 subnetcache iterator") != 0
+		&& strcmp(cfg->module_conf, "dns64 subnetcache validator iterator") != 0
 #endif
 #if defined(WITH_PYTHONMODULE) && defined(CLIENT_SUBNET)
 		&& strcmp(cfg->module_conf, "python subnetcache iterator") != 0
@@ -524,6 +546,9 @@ morechecks(struct config_file* cfg, const char* fname)
 
 	localzonechecks(cfg);
 	view_and_respipchecks(cfg);
+#ifdef CLIENT_SUBNET
+	ecs_conf_checks(cfg);
+#endif
 }
 
 /** check forwards */
