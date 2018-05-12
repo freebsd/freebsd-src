@@ -94,6 +94,7 @@ ID=$(( $ID + 6 ))
 
 ############################################################ EVENT DETAILS
 
+if [ ! "$CUSTOM_DETAILS" ]; then
 exec 9<<EOF
 	/*
 	 * Print scheduling details
@@ -101,6 +102,7 @@ exec 9<<EOF
 	printf("%s %s", probename, this->details);
 EOF
 EVENT_DETAILS=$( cat <&9 )
+fi
 
 ################################################################################
 # END
