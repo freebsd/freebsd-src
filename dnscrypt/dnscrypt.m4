@@ -28,6 +28,14 @@ AC_DEFUN([dnsc_DNSCRYPT],
         [
             AC_SUBST([ENABLE_DNSCRYPT_XCHACHA20], [0])
         ])
+    AC_SEARCH_LIBS([sodium_set_misuse_handler], [sodium],
+        [
+            AC_DEFINE(
+                [SODIUM_MISUSE_HANDLER], [1],
+                [Define to 1 if libsodium supports sodium_set_misuse_handler])
+        ],
+        [
+        ])
     $1
   else
     AC_SUBST([ENABLE_DNSCRYPT_XCHACHA20], [0])

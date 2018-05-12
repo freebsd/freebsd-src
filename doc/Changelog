@@ -1,9 +1,244 @@
-19 January 2018: Wouter 
+12 March 2018: Wouter
+	- Added documentation for aggressive-nsec: yes.
+	- tag 1.7.0rc3.
+
+9 March 2018: Wouter
+	- Fix #3598: Fix swig build issue on rhel6 based system.
+	  configure --disable-swig-version-check stops the swig version check.
+
+8 March 2018: Wouter
+	- tag 1.7.0rc2.
+
+7 March 2018: Wouter
+	- Fixed contrib/fastrpz.patch, even though this already applied
+	  cleanly for me, now also for others.
+	- patch to log creates keytag queries, from A. Schulze.
+	- patch suggested by Debian lintian: allow to -> allow one to, from 
+	  A. Schulze.
+	- Attempt to remove warning about trailing whitespace.
+
+6 March 2018: Wouter
+	- Reverted fix for #3512, this may not be the best way forward;
+	  although it could be changed at a later time, to stay similar to
+	  other implementations.
+	- svn trunk contains 1.7.0, this is the number for the next release.
+	- Fix for windows compile.
+	- tag 1.7.0rc1.
+
+5 March 2018: Wouter
+	- Fix to check define of DSA for when openssl is without deprecated.
+	- iana port update.
+	- Fix #3582: Squelch address already in use log when reuseaddr option
+	  causes same port to be used twice for tcp connections.
+
+27 February 2018: Wouter
+	- Fixup contrib/fastrpz.patch so that it applies.
+	- Fix compile without threads, and remove unused variable.
+	- Fix compile with staticexe and python module.
+	- Fix nettle compile.
+
+22 February 2018: Ralph
+	- Save wildcard RRset from answer with original owner for use in
+ 	  aggressive NSEC.
+
+21 February 2018: Wouter
+	- Fix #3512: unbound incorrectly reports SERVFAIL for CAA query
+	  when there is a CNAME loop.
+	- Fix validation for CNAME loops.  When it detects a cname loop,
+	  by finding the cname, cname in the existing list, it returns
+	  the partial result with the validation result up to then.
+	- more robust cachedump rrset routine.
+
+19 February 2018: Wouter
+	- Fix #3505: Documentation for default local zones references
+	  wrong RFC.
+	- Fix #3494: local-zone noview can be used to break out of the view
+	  to the global local zone contents, for queries for that zone.
+	- Fix for more maintainable code in localzone.
+
+16 February 2018: Wouter
+	- Fixes for clang static analyzer, the missing ; in
+	  edns-subnet/addrtree.c after the assert made clang analyzer
+	  produce a failure to analyze it.
+
+13 February 2018: Ralph
+	- Aggressive NSEC tests
+
+13 February 2018: Wouter
+	- tls-cert-bundle option in unbound.conf enables TLS authentication.
+	- iana port update.
+
+12 February 2018: Wouter
+	- Unit test for auth zone https url download.
+
+12 February 2018: Ralph
+	- Added tests with wildcard expanded NSEC records (CVE-2017-15105 test)
+	- Processed aggressive NSEC code review remarks Wouter
+
+8 February 2018: Ralph
+	- Aggressive use of NSEC implementation. Use cached NSEC records to
+	  generate NXDOMAIN, NODATA and positive wildcard answers.
+
+8 February 2018: Wouter
+	- iana port update.
+	- auth zone url config.
+
+5 February 2018: Wouter
+	- Fix #3451: dnstap not building when you have a separate build dir.
+	  And removed protoc warning, set dnstap.proto syntax to proto2.
+	- auth-zone provides a way to configure RFC7706 from unbound.conf,
+	  eg. with auth-zone: name: "." for-downstream: no for-upstream: yes
+	  fallback-enabled: yes and masters or a zonefile with data.
+
+2 February 2018: Wouter
+	- Fix unfreed locks in log and arc4random at exit of unbound.
+	- unit test with valgrind
+	- Fix lock race condition in dns cache dname synthesis.
+	- lock subnet new item before insertion to please checklocks,
+	  no modification of critical regions outside of lock region.
+
+1 February 2018: Wouter
+	- fix unaligned structure making a false positive in checklock
+	  unitialised memory.
+
+29 January 2018: Ralph
+	- Use NSEC with longest ce to prove wildcard absence.
+	- Only use *.ce to prove wildcard absence, no longer names.
+
+25 January 2018: Wouter
+	- ltrace.conf file for libunbound in contrib.
+
+23 January 2018: Wouter
+	- Fix that unbound-checkconf -f flag works with auto-trust-anchor-file
+	  for startup scripts to get the full pathname(s) of anchor file(s).
+	- Print fatal errors about remote control setup before log init,
+	  so that it is printed to console.
+
+22 January 2018: Wouter
+	- Accept tls-upstream in unbound.conf, the ssl-upstream keyword is
+	  also recognized and means the same.  Also for tls-port,
+	  tls-service-key, tls-service-pem, stub-tls-upstream and
+	  forward-tls-upstream.
+	- Fix #3397: Fix that cachedb could return a partial CNAME chain.
+	- Fix #3397: Fix that when the cache contains an unsigned DNAME in
+	  the middle of a cname chain, a result without the DNAME could
+	  be returned.
+
+19 January 2018: Wouter
+	- tag 1.6.8 for release with CVE fix.
+	- trunk has 1.6.9 with fix and previous commits.
 	- patch for CVE-2017-15105: vulnerability in the processing of
 	  wildcard synthesized NSEC records.
+	- iana port update.
+	- make depend: code dependencies updated in Makefile.
+
+4 January 2018: Ralph
+	- Copy query and correctly set flags on REFUSED answers when cache
+	  snooping is not allowed.
+
+3 January 2018: Ralph
+	- Fix queries being leaked above stub when refetching glue.
+
+2 January 2017: Wouter
+	- Fix that DS queries with referral replies are answered straight
+	  away, without a repeat query picking the DS from cache.
+	  The correct reply should have been an answer, the reply is fixed
+	  by the scrubber to have the answer in the answer section.
+	- Remove clang optimizer disable,
+	  Fix that expiration date checks don't fail with clang -O2.
+
+15 December 2017: Wouter
+	- Fix timestamp failure because of clang optimizer failure, by
+	  disabling -O2 when the compiler --version is clang.
+	- iana port update.
+	- Also disable -flto for clang, to make incep-expi signature check
+	  work.
+
+12 December 2017: Ralph
+	- Fix qname-minimisation documentation (A QTYPE, not NS)
+
+12 December 2017: Wouter
+	- authzone work, transfer connect.
+
+7 December 2017: Ralph
+	- Check whether --with-libunbound-only is set when using --with-nettle
+	  or --with-nss.
+
+4 December 2017: Wouter 
+	- Fix link failure on OmniOS.
+
+1 December 2017: Wouter 
+	- auth zone work.
+
+30 November 2017: Wouter 
+	- Fix #3299 - forward CNAME daisy chain is not working
+
+14 November 2017: Wouter 
+	- Fix #2882: Unbound behaviour changes (wrong) when domain-insecure is
+	  set for stub zone.  It no longer searches for DNSSEC information.
+	- auth xfer work on probe timer and lookup.
+
+13 November 2017: Wouter 
+	- Fix #2801: Install libunbound.pc.
+	- Fix qname minimisation to send AAAA queries at zonecut like type A.
+	- reverted AAAA change.
+
+7 November 2017: Wouter 
+	- Fix #2492: Documentation libunbound.
+
+3 November 2017: Wouter 
+	- Fix #2362: TLS1.3/openssl-1.1.1 not working.
+	- Fix #2034 - Autoconf and -flto.
+	- Fix #2141 - for libsodium detect lack of entropy in chroot, print
+	  a message and exit.
+
+2 November 2017: Wouter 
+	- Fix #1913: ub_ctx_config is under circumstances thread-safe.
+	- make ip-transparent option work on OpenBSD.
+
+31 October 2017: Wouter 
+	- Document that errno is left informative on libunbound config read
+	  fail.
+	- lexer output.
+	- iana port update.
+
+25 October 2017: Ralph
+	- Fixed libunbound manual typo.
+	- Fix #1949: [dnscrypt] make provider name mismatch more obvious.
+	- Fix #2031: Double included headers
+
+24 October 2017: Ralph
+	- Update B root ipv4 address.
+
+19 October 2017: Wouter 
+	- authzone work, probe timer setup.
+
+18 October 2017: Wouter 
+	- lint for recent authzone commit.
+
+17 October 2017: Wouter 
+	- Fix #1749: With harden-referral-path: performance drops, due to
+	  circular dependency in NS and DS lookups.
+	- [dnscrypt] prevent dnscrypt-secret-key, dnscrypt-provider-cert
+	  duplicates
+	- [dnscrypt] introduce dnscrypt-provider-cert-rotated option,
+	  from Manu Bretelle.
+	This option allows handling multiple cert/key pairs while only
+	distributing some of them.
+	In order to reliably match a client magic with a given key without
+	strong assumption as to how those were generated, we need both key and
+	cert. Likewise, in order to know which ES version should be used.
+	On the other hand, when rotating a cert, it can be desirable to only
+	serve the new cert but still be able to handle clients that are still
+	using the old certs's public key.
+	The `dnscrypt-provider-cert-rotated` allow to instruct unbound to not
+	publish the cert as part of the DNS's provider_name's TXT answer.
+	- Better documentation for cache-max-negative-ttl.
+	- Work on local root zone code.
 
 10 October 2017: Wouter 
 	- tag 1.6.7
+	- trunk has version 1.6.8.
 
 6 October 2017: Wouter 
 	- Fix spelling in unbound-control man page.

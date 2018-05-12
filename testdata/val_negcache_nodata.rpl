@@ -1,0 +1,166 @@
+; config options
+; The island of trust is at example.com
+server:
+	trust-anchor: "testzone.nlnetlabs.nl.	IN	DS	2926 8 2 6f8512d1e82eecbd684fc4a76f39f8c5b411af385494873bdead663ddb78a88b"
+	val-override-date: "20180213111425"
+	target-fetch-policy: "0 0 0 0 0"
+	trust-anchor-signaling: no
+	aggressive-nsec: yes
+
+stub-zone:
+	name: "testzone.nlnetlabs.nl"
+	stub-addr: 185.49.140.60
+CONFIG_END
+
+SCENARIO_BEGIN Test validator with negative cache NXDOMAIN response (aggressive NSEC)
+
+; testzone.nlnetlabs.nl nameserver
+RANGE_BEGIN 0 100
+	ADDRESS 185.49.140.60
+
+; response to DNSKEY priming query
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+testzone.nlnetlabs.nl. IN DNSKEY
+SECTION ANSWER
+testzone.nlnetlabs.nl.  3600    IN      DNSKEY  256 3 8 AwEAAbrNEg01ByEpUUiip+GNAkNVjUfeX7sl9kPUssR3JQvhCJWVs7aBY0Ae1cNtQWgzCmidGorlXvEY2nNBiMM4l7IXqopJsgyj+Cb3nQPVLi/7yVwUb+AIwSJw1gRFElMYonsMOL9qUrJi8BBCnCR0EqkL+X4slmtkXSJbzQAwvHI7
+testzone.nlnetlabs.nl.  3600    IN      DNSKEY  257 3 8 AwEAAbn0eGV0wqMBQNSVTY//BoiOD7bexC7FcVv0fH9bwjKOA8I+ob377E14vZN2xRLC2b1GG5iBckjeI+N2dB9eC2KRnScU3Gbmtw75BBYfm/y4Hu72zEjEZ0ZGv6gjSZRv/1o87ODAwQaxN8/dQD+5U/5xu12XM39bCJZx2GWTbf5L
+testzone.nlnetlabs.nl.  3600    IN      RRSIG   DNSKEY 8 3 3600 20180313101254 20180213101254 2926 testzone.nlnetlabs.nl. gSLZb/dSKutRlAKSo8ZCC1R+SkvABMYBRQsms77WPfYCDbt5GbXeuGqwGdadjEN8gGSU+qrYNxBZRhlYY6d2vtl+DGh67qwteHSwOCw0VvU64eVh38maJA1U673U4JtlBALzBOA/UHmXPlCgPPoW3BG0U3T2Qir/mqOmegmpBcw=
+SECTION AUTHORITY
+testzone.nlnetlabs.nl.  3600    IN      NS      ns.nlnetlabs.nl.
+testzone.nlnetlabs.nl.  3600    IN      RRSIG   NS 8 3 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. Ox0iKc+z3i1qR1wMr8TBPYzuYO5UTaLrBsDagJAd25fvCkGN+h3HPmWlCIW0cBHsS+IaHXr1JhWutjSCc4UBcY+sT7Y7Fw3V1qdZW2KzbSgWUyPkTXoYcIIVLacSUTXEyltW6jj61WEI/RaUGUCJortvwH5iv1Hzee343isxObI=
+SECTION ADDITIONAL
+ENTRY_END
+
+; NODATA response for alligator.testzone.nlnetlabs.nl A type
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+alligator.testzone.nlnetlabs.nl. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+alligator.testzone.nlnetlabs.nl.        3600    IN      NSEC    cheetah.testzone.nlnetlabs.nl. TXT RRSIG NSEC 
+alligator.testzone.nlnetlabs.nl.        3600    IN      RRSIG   NSEC 8 4 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. QAgQ0AsMoYG02+VPfoOctSPlTHdQOkQt5fFkSkzIbVhUzNOqa+dB/Qkc81AwFeJosA+PvYjt6utcVkIWmK2Djy9eXC49gILtVF79vUe4G7ZrybO5NXjqNa5ANoUGM+yew4wkjeNOMVAsvs+1kvFY7S8RAa/0AIYlZHQ8vNBPNaI=
+testzone.nlnetlabs.nl.  3600    IN      SOA     ns.nlnetlabs.nl. ralph.nlnetlabs.nl. 1 14400 3600 604800 3600
+testzone.nlnetlabs.nl.  3600    IN      RRSIG   SOA 8 3 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. GhmXNFQktZIgaBpGKwj9Q2mfq5+jcbRPK+PPgtRVicUPZga/d/iGEL8PV/8DzGwkaZbM14pamSUMgdJibW4zNhLz/ukjPilbjoj6giH1jtbdZLAQ6iK9pZ/4jKUEq4txviTczZNnDeolgPEEl4xo4NclQmi7zj1XBlQRbjvG0/0=
+SECTION ADDITIONAL
+ENTRY_END
+
+; NXDOMAIN response for emu.testzone.nlnetlabs.nl
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NXDOMAIN
+SECTION QUESTION
+emu.testzone.nlnetlabs.nl. IN TXT
+SECTION ANSWER
+SECTION AUTHORITY
+*.elephant.testzone.nlnetlabs.nl.       3600    IN      NSEC    duck.ent.testzone.nlnetlabs.nl. TXT RRSIG NSEC 
+*.elephant.testzone.nlnetlabs.nl.       3600    IN      RRSIG   NSEC 8 4 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. GC4dtR5zYvfuIgMpr6gF8jV69wsi2GwGlftTl532H2sZP7nWa5cJmJ59+q4evBZ+P3fLxaZeGBpsp3fn1e7yadLW5PGiA25qrjG0TGVQgOPdIV+lo45sxn7Yn8apiXcJf/vtXZMR7FcHYK/BieTo2hafa2zaftfQVRA7hpJ/HDc=
+testzone.nlnetlabs.nl.  3600    IN      NSEC    alligator.testzone.nlnetlabs.nl. NS SOA RRSIG NSEC DNSKEY 
+testzone.nlnetlabs.nl.  3600    IN      RRSIG   NSEC 8 3 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. gTKn6U1nal9oA79IRxLa/7zexl6A0yJZzeEGBbZ5rh5feyAr2X4LTR9bPCgcHeMVggf4FP+kD1L/sxzj/YLwB1ZKGKlwnzsHtPFTlmvDClaqQ76DRZq5Vejr2ZfnclBUb2vtxaXywTRW8oueaaq9flcShEQ/cQ+KRU8sc344qd0=
+testzone.nlnetlabs.nl.  3600    IN      SOA     ns.nlnetlabs.nl. ralph.nlnetlabs.nl. 1 14400 3600 604800 3600
+testzone.nlnetlabs.nl.  3600    IN      RRSIG   SOA 8 3 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. GhmXNFQktZIgaBpGKwj9Q2mfq5+jcbRPK+PPgtRVicUPZga/d/iGEL8PV/8DzGwkaZbM14pamSUMgdJibW4zNhLz/ukjPilbjoj6giH1jtbdZLAQ6iK9pZ/4jKUEq4txviTczZNnDeolgPEEl4xo4NclQmi7zj1XBlQRbjvG0/0=
+SECTION ADDITIONAL
+ENTRY_END
+
+; No answer for ant.testzone.nlnetlabs.nl
+
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+alligator.testzone.nlnetlabs.nl. IN A
+ENTRY_END
+
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA DO AD NOERROR
+SECTION QUESTION
+alligator.testzone.nlnetlabs.nl. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+alligator.testzone.nlnetlabs.nl.        3600    IN      NSEC    cheetah.testzone.nlnetlabs.nl. TXT RRSIG NSEC 
+alligator.testzone.nlnetlabs.nl.        3600    IN      RRSIG   NSEC 8 4 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. QAgQ0AsMoYG02+VPfoOctSPlTHdQOkQt5fFkSkzIbVhUzNOqa+dB/Qkc81AwFeJosA+PvYjt6utcVkIWmK2Djy9eXC49gILtVF79vUe4G7ZrybO5NXjqNa5ANoUGM+yew4wkjeNOMVAsvs+1kvFY7S8RAa/0AIYlZHQ8vNBPNaI=
+testzone.nlnetlabs.nl.  3600    IN      SOA     ns.nlnetlabs.nl. ralph.nlnetlabs.nl. 1 14400 3600 604800 3600
+testzone.nlnetlabs.nl.  3600    IN      RRSIG   SOA 8 3 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. GhmXNFQktZIgaBpGKwj9Q2mfq5+jcbRPK+PPgtRVicUPZga/d/iGEL8PV/8DzGwkaZbM14pamSUMgdJibW4zNhLz/ukjPilbjoj6giH1jtbdZLAQ6iK9pZ/4jKUEq4txviTczZNnDeolgPEEl4xo4NclQmi7zj1XBlQRbjvG0/0=
+SECTION ADDITIONAL
+ENTRY_END
+
+; AAAA query for alligator.testzone.nlnetlabs.nl, which isn't on the testzone nameserver
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+alligator.testzone.nlnetlabs.nl. IN AAAA
+ENTRY_END
+
+STEP 30 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AD DO NOERROR
+SECTION QUESTION
+alligator.testzone.nlnetlabs.nl. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+alligator.testzone.nlnetlabs.nl.        3600    IN      NSEC    cheetah.testzone.nlnetlabs.nl. TXT RRSIG NSEC 
+alligator.testzone.nlnetlabs.nl.        3600    IN      RRSIG   NSEC 8 4 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. QAgQ0AsMoYG02+VPfoOctSPlTHdQOkQt5fFkSkzIbVhUzNOqa+dB/Qkc81AwFeJosA+PvYjt6utcVkIWmK2Djy9eXC49gILtVF79vUe4G7ZrybO5NXjqNa5ANoUGM+yew4wkjeNOMVAsvs+1kvFY7S8RAa/0AIYlZHQ8vNBPNaI=
+testzone.nlnetlabs.nl.  3600    IN      SOA     ns.nlnetlabs.nl. ralph.nlnetlabs.nl. 1 14400 3600 604800 3600
+testzone.nlnetlabs.nl.  3600    IN      RRSIG   SOA 8 3 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. GhmXNFQktZIgaBpGKwj9Q2mfq5+jcbRPK+PPgtRVicUPZga/d/iGEL8PV/8DzGwkaZbM14pamSUMgdJibW4zNhLz/ukjPilbjoj6giH1jtbdZLAQ6iK9pZ/4jKUEq4txviTczZNnDeolgPEEl4xo4NclQmi7zj1XBlQRbjvG0/0=
+ENTRY_END
+
+STEP 40 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+emu.testzone.nlnetlabs.nl. IN TXT
+ENTRY_END
+
+STEP 50 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AD DO NXDOMAIN
+SECTION QUESTION
+emu.testzone.nlnetlabs.nl. IN TXT
+SECTION ANSWER
+SECTION AUTHORITY
+*.elephant.testzone.nlnetlabs.nl.       3600    IN      NSEC    duck.ent.testzone.nlnetlabs.nl. TXT RRSIG NSEC 
+*.elephant.testzone.nlnetlabs.nl.       3600    IN      RRSIG   NSEC 8 4 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. GC4dtR5zYvfuIgMpr6gF8jV69wsi2GwGlftTl532H2sZP7nWa5cJmJ59+q4evBZ+P3fLxaZeGBpsp3fn1e7yadLW5PGiA25qrjG0TGVQgOPdIV+lo45sxn7Yn8apiXcJf/vtXZMR7FcHYK/BieTo2hafa2zaftfQVRA7hpJ/HDc=
+testzone.nlnetlabs.nl.  3600    IN      NSEC    alligator.testzone.nlnetlabs.nl. NS SOA RRSIG NSEC DNSKEY 
+testzone.nlnetlabs.nl.  3600    IN      RRSIG   NSEC 8 3 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. gTKn6U1nal9oA79IRxLa/7zexl6A0yJZzeEGBbZ5rh5feyAr2X4LTR9bPCgcHeMVggf4FP+kD1L/sxzj/YLwB1ZKGKlwnzsHtPFTlmvDClaqQ76DRZq5Vejr2ZfnclBUb2vtxaXywTRW8oueaaq9flcShEQ/cQ+KRU8sc344qd0=
+testzone.nlnetlabs.nl.  3600    IN      SOA     ns.nlnetlabs.nl. ralph.nlnetlabs.nl. 1 14400 3600 604800 3600
+testzone.nlnetlabs.nl.  3600    IN      RRSIG   SOA 8 3 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. GhmXNFQktZIgaBpGKwj9Q2mfq5+jcbRPK+PPgtRVicUPZga/d/iGEL8PV/8DzGwkaZbM14pamSUMgdJibW4zNhLz/ukjPilbjoj6giH1jtbdZLAQ6iK9pZ/4jKUEq4txviTczZNnDeolgPEEl4xo4NclQmi7zj1XBlQRbjvG0/0=
+ENTRY_END
+
+STEP 60 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+ent.testzone.nlnetlabs.nl. IN TXT
+ENTRY_END
+
+; query for ENT, must result in NOERROR answer
+STEP 70 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AD DO NOERROR
+SECTION QUESTION
+ent.testzone.nlnetlabs.nl. IN TXT
+SECTION ANSWER
+SECTION AUTHORITY
+*.elephant.testzone.nlnetlabs.nl.       3600    IN      NSEC    duck.ent.testzone.nlnetlabs.nl. TXT RRSIG NSEC 
+*.elephant.testzone.nlnetlabs.nl.       3600    IN      RRSIG   NSEC 8 4 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. GC4dtR5zYvfuIgMpr6gF8jV69wsi2GwGlftTl532H2sZP7nWa5cJmJ59+q4evBZ+P3fLxaZeGBpsp3fn1e7yadLW5PGiA25qrjG0TGVQgOPdIV+lo45sxn7Yn8apiXcJf/vtXZMR7FcHYK/BieTo2hafa2zaftfQVRA7hpJ/HDc=
+testzone.nlnetlabs.nl.  3600    IN      SOA     ns.nlnetlabs.nl. ralph.nlnetlabs.nl. 1 14400 3600 604800 3600
+testzone.nlnetlabs.nl.  3600    IN      RRSIG   SOA 8 3 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. GhmXNFQktZIgaBpGKwj9Q2mfq5+jcbRPK+PPgtRVicUPZga/d/iGEL8PV/8DzGwkaZbM14pamSUMgdJibW4zNhLz/ukjPilbjoj6giH1jtbdZLAQ6iK9pZ/4jKUEq4txviTczZNnDeolgPEEl4xo4NclQmi7zj1XBlQRbjvG0/0=
+ENTRY_END
+
+SCENARIO_END

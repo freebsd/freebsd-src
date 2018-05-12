@@ -656,6 +656,11 @@ iter_indicates_dnssec(struct module_env* env, struct delegpt* dp,
 	/* a trust anchor exists with this name, RRSIGs expected */
 	if((a=anchor_find(env->anchors, dp->name, dp->namelabs, dp->namelen,
 		dclass))) {
+		if(a->numDS == 0 && a->numDNSKEY == 0) {
+			/* insecure trust point */
+			lock_basic_unlock(&a->lock);
+			return 0;
+		}
 		lock_basic_unlock(&a->lock);
 		return 1;
 	}

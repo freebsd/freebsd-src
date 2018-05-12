@@ -533,6 +533,70 @@ size_t outnet_get_mem(struct outside_network* outnet);
  */
 size_t serviced_get_mem(struct serviced_query* sq);
 
+/** get TCP file descriptor for address, returns -1 on failure,
+ * tcp_mss is 0 or maxseg size to set for TCP packets. */
+int outnet_get_tcp_fd(struct sockaddr_storage* addr, socklen_t addrlen, int tcp_mss);
+
+/**
+ * Create udp commpoint suitable for sending packets to the destination.
+ * @param outnet: outside_network with the comm_base it is attached to,
+ * 	with the outgoing interfaces chosen from, and rnd gen for random.
+ * @param cb: callback function for the commpoint.
+ * @param cb_arg: callback argument for cb.
+ * @param to_addr: intended destination.
+ * @param to_addrlen: length of to_addr.
+ * @return commpoint that you can comm_point_send_udp_msg with, or NULL.
+ */
+struct comm_point* outnet_comm_point_for_udp(struct outside_network* outnet,
+	comm_point_callback_type* cb, void* cb_arg,
+	struct sockaddr_storage* to_addr, socklen_t to_addrlen);
+
+/**
+ * Create tcp commpoint suitable for communication to the destination.
+ * It also performs connect() to the to_addr.
+ * @param outnet: outside_network with the comm_base it is attached to,
+ * 	and the tcp_mss.
+ * @param cb: callback function for the commpoint.
+ * @param cb_arg: callback argument for cb.
+ * @param to_addr: intended destination.
+ * @param to_addrlen: length of to_addr.
+ * @param query: initial packet to send writing, in buffer.  It is copied
+ * 	to the commpoint buffer that is created.
+ * @param timeout: timeout for the TCP connection.
+ * 	timeout in milliseconds, or -1 for no (change to the) timeout.
+ *	So seconds*1000.
+ * @return tcp_out commpoint, or NULL.
+ */
+struct comm_point* outnet_comm_point_for_tcp(struct outside_network* outnet,
+	comm_point_callback_type* cb, void* cb_arg,
+	struct sockaddr_storage* to_addr, socklen_t to_addrlen,
+	struct sldns_buffer* query, int timeout);
+
+/**
+ * Create http commpoint suitable for communication to the destination.
+ * Creates the http request buffer. It also performs connect() to the to_addr.
+ * @param outnet: outside_network with the comm_base it is attached to,
+ * 	and the tcp_mss.
+ * @param cb: callback function for the commpoint.
+ * @param cb_arg: callback argument for cb.
+ * @param to_addr: intended destination.
+ * @param to_addrlen: length of to_addr.
+ * @param timeout: timeout for the TCP connection.
+ * 	timeout in milliseconds, or -1 for no (change to the) timeout.
+ *	So seconds*1000.
+ * @param ssl: set to true for https.
+ * @param host: hostname to use for the destination. part of http request.
+ * @param path: pathname to lookup, eg. name of the file on the destination.
+ * @return http_out commpoint, or NULL.
+ */
+struct comm_point* outnet_comm_point_for_http(struct outside_network* outnet,
+	comm_point_callback_type* cb, void* cb_arg,
+	struct sockaddr_storage* to_addr, socklen_t to_addrlen, int timeout,
+	int ssl, char* host, char* path);
+
+/** connect tcp connection to addr, 0 on failure */
+int outnet_tcp_connect(int s, struct sockaddr_storage* addr, socklen_t addrlen);
+
 /** callback for incoming udp answers from the network */
 int outnet_udp_cb(struct comm_point* c, void* arg, int error,
 	struct comm_reply *reply_info);

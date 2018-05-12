@@ -271,6 +271,19 @@ int netblockstrtoaddr(const char* str, int port, struct sockaddr_storage* addr,
 	return 1;
 }
 
+/** store port number into sockaddr structure */
+void
+sockaddr_store_port(struct sockaddr_storage* addr, socklen_t addrlen, int port)
+{
+	if(addr_is_ip6(addr, addrlen)) {
+		struct sockaddr_in6* sa = (struct sockaddr_in6*)addr;
+		sa->sin6_port = (in_port_t)htons((uint16_t)port);
+	} else {
+		struct sockaddr_in* sa = (struct sockaddr_in*)addr;
+		sa->sin_port = (in_port_t)htons((uint16_t)port);
+	}
+}
+
 void
 log_nametypeclass(enum verbosity_value v, const char* str, uint8_t* name, 
 	uint16_t type, uint16_t dclass)
@@ -645,7 +658,7 @@ listen_sslctx_setup(void* ctxt)
 #endif
 #if defined(SHA256_DIGEST_LENGTH) && defined(USE_ECDSA)
 	/* if we have sha256, set the cipher list to have no known vulns */
-	if(!SSL_CTX_set_cipher_list(ctx, "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256"))
+	if(!SSL_CTX_set_cipher_list(ctx, "TLS13-CHACHA20-POLY1305-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-AES-128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256"))
 		log_crypto_err("could not set cipher list with SSL_CTX_set_cipher_list");
 #endif
 

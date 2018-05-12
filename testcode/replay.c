@@ -323,6 +323,15 @@ replay_moment_read(char* remain, FILE* in, const char* name,
 		mom->autotrust_id = strdup(remain);
 		if(!mom->autotrust_id) fatal_exit("out of memory");
 		read_file_content(in, &pstate->lineno, mom);
+	} else if(parse_keyword(&remain, "CHECK_TEMPFILE")) {
+		mom->evt_type = repevt_tempfile_check;
+		while(isspace((unsigned char)*remain))
+			remain++;
+		if(strlen(remain)>0 && remain[strlen(remain)-1]=='\n')
+			remain[strlen(remain)-1] = 0;
+		mom->autotrust_id = strdup(remain);
+		if(!mom->autotrust_id) fatal_exit("out of memory");
+		read_file_content(in, &pstate->lineno, mom);
 	} else if(parse_keyword(&remain, "ERROR")) {
 		mom->evt_type = repevt_error;
 	} else if(parse_keyword(&remain, "TRAFFIC")) {

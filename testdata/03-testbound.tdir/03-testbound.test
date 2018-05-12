@@ -11,7 +11,12 @@ get_make
 exitval=0
 # quiet="" to make verbose
 
-do_valgrind=no
+if test -f $PRE/unbound_do_valgrind_in_test; then
+	do_valgrind=yes
+else
+	do_valgrind=no
+fi
+VALGRIND_FLAGS="--leak-check=full --show-leak-kinds=all"
 # valgrind mode for debug
 #if grep "staticexe=-static" $PRE/Makefile >/dev/null 2>&1; then
 #	if test -x "`which valgrind`"; then
@@ -21,17 +26,26 @@ do_valgrind=no
 
 # self-test (unit test of testbound)
 if test $do_valgrind = "yes"; then
-	if (valgrind $PRE/testbound -s >tmpout 2>&1;); then
+	if (valgrind $VALGRIND_FLAGS $PRE/testbound -s >tmpout 2>&1;); then
 		echo "selftest   OK  "
 	else
 		echo "selftest FAILED"
 		exit 1
 	fi
-	if grep "All heap blocks were freed -- no leaks are possible." tmpout >/dev/null 2>&1; then
+	if grep "All heap blocks were freed -- no leaks are possible" tmpout >/dev/null 2>&1; then
 		:  # clean
 	else
+		cat tmpout
 		echo "Memory leaked in selftest"
 		grep "in use at exit" tmpout
+		exit 1
+	fi
+	if grep "ERROR SUMMARY: 0 errors from 0 contexts" tmpout >/dev/null 2>&1; then
+		:  # clean
+	else
+		cat tmpout
+		echo "Errors in selftest"
+		grep "ERROR SUMMARY" tmpout
 		exit 1
 	fi
 else
@@ -88,17 +102,26 @@ for input in $PRE/testdata/*.rpl $PRE/testdata/*.crpl; do
 	fi
 
 	if test $do_valgrind = "yes"; then
-		if (valgrind $PRE/testbound -p $input >tmpout 2>&1;); then
+		if (valgrind $VALGRIND_FLAGS $PRE/testbound -p $input >tmpout 2>&1;); then
 			echo "  OK   $cleaninput: $header"
 		else
 			echo "FAILED $cleaninput: $header"
 			exitval=1
 		fi
-		if grep "All heap blocks were freed -- no leaks are possible." tmpout >/dev/null 2>&1; then
+		if grep "All heap blocks were freed -- no leaks are possible" tmpout >/dev/null 2>&1; then
 			:  # clean
 		else
+			grep "^==" tmpout
 			echo "Memory leaked in $cleaninput"
 			grep "in use at exit" tmpout
+			exitval=1
+		fi
+		if grep "ERROR SUMMARY: 0 errors from 0 contexts" tmpout >/dev/null 2>&1; then
+			:  # clean
+		else
+			grep "^==" tmpout
+			echo "Errors in $cleaninput"
+			grep "ERROR SUMMARY" tmpout
 			exitval=1
 		fi
 	else

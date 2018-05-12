@@ -767,7 +767,8 @@ rrsig_get_labcount(struct packed_rrset_data* d, size_t sig)
 }
 
 int 
-val_rrset_wildcard(struct ub_packed_rrset_key* rrset, uint8_t** wc)
+val_rrset_wildcard(struct ub_packed_rrset_key* rrset, uint8_t** wc,
+	size_t* wc_len)
 {
 	struct packed_rrset_data* d = (struct packed_rrset_data*)rrset->
 		entry.data;
@@ -800,6 +801,7 @@ val_rrset_wildcard(struct ub_packed_rrset_key* rrset, uint8_t** wc)
 	if(labdiff > 0) {
 		*wc = wn;
 		dname_remove_labels(wc, &wl, labdiff);
+		*wc_len = wl;
 		return 1;
 	}
 	return 1;
@@ -1161,6 +1163,6 @@ val_find_DS(struct module_env* env, uint8_t* nm, size_t nmlen, uint16_t c,
 	qinfo.local_alias = NULL;
 	/* do not add SOA to reply message, it is going to be used internal */
 	msg = val_neg_getmsg(env->neg_cache, &qinfo, region, env->rrset_cache,
-		env->scratch_buffer, *env->now, 0, topname);
+		env->scratch_buffer, *env->now, 0, topname, env->cfg);
 	return msg;
 }

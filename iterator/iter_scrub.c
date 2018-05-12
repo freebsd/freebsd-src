@@ -503,6 +503,24 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 				continue;
 			}
 		}
+		/* if this is type DS and we query for type DS we just got
+		 * a referral answer for our type DS query, fix packet */
+		if(rrset->type==LDNS_RR_TYPE_DS &&
+			qinfo->qtype == LDNS_RR_TYPE_DS &&
+			dname_pkt_compare(pkt, qinfo->qname, rrset->dname) == 0) {
+			rrset->section = LDNS_SECTION_ANSWER;
+			msg->ancount = rrset->rr_count + rrset->rrsig_count;
+			msg->nscount = 0;
+			msg->arcount = 0;
+			msg->an_rrsets = 1;
+			msg->ns_rrsets = 0;
+			msg->ar_rrsets = 0;
+			msg->rrset_count = 1;
+			msg->rrset_first = rrset;
+			msg->rrset_last = rrset;
+			rrset->rrset_all_next = NULL;
+			return 1;
+		}
 		mark_additional_rrset(pkt, msg, rrset);
 		prev = rrset;
 		rrset = rrset->rrset_all_next;

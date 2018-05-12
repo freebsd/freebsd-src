@@ -836,7 +836,7 @@ const char* sldns_get_errorstr_parse(int e)
 }
 
 /* Strip whitespace from the start and the end of <line>.  */
-static char *
+char *
 sldns_strip_ws(char *line)
 {
         char *s = line, *e;
@@ -906,7 +906,7 @@ int sldns_fp2wire_rr_buf(FILE* in, uint8_t* rr, size_t* len, size_t* dname_len,
 		*dname_len = 0;
 		return LDNS_WIREPARSE_ERR_INCLUDE;
 	} else {
-		return sldns_str2wire_rr_buf(line, rr, len, dname_len,
+		int r = sldns_str2wire_rr_buf(line, rr, len, dname_len,
 			parse_state?parse_state->default_ttl:0,
 			(parse_state&&parse_state->origin_len)?
 				parse_state->origin:NULL,
@@ -914,6 +914,13 @@ int sldns_fp2wire_rr_buf(FILE* in, uint8_t* rr, size_t* len, size_t* dname_len,
 			(parse_state&&parse_state->prev_rr_len)?
 				parse_state->prev_rr:NULL,
 			parse_state?parse_state->prev_rr_len:0);
+		if(r == LDNS_WIREPARSE_ERR_OK && (*dname_len) != 0 &&
+			parse_state &&
+			(*dname_len) <= sizeof(parse_state->prev_rr)) {
+			memmove(parse_state->prev_rr, rr, *dname_len);
+			parse_state->prev_rr_len = (*dname_len);
+		}
+		return r;
 	}
 	return LDNS_WIREPARSE_ERR_OK;
 }

@@ -7,7 +7,7 @@ stub-zone:
 	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
 CONFIG_END
 
-SCENARIO_BEGIN Test iterator with delagation with bad IP address
+SCENARIO_BEGIN Test iterator with delegation with bad IP address
 
 ; K.ROOT-SERVERS.NET.
 RANGE_BEGIN 0 100

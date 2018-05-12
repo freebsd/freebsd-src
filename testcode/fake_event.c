@@ -67,6 +67,29 @@
 struct worker;
 struct daemon_remote;
 
+/** unique code to check that fake_commpoint is that structure */
+#define FAKE_COMMPOINT_TYPECODE 97347923
+/** fake commpoint, stores information */
+struct fake_commpoint {
+	/** typecode */
+	int typecode;
+	/** if this is a udp outgoing type of commpoint */
+	int type_udp_out;
+	/** if this is a tcp outgoing type of commpoint */
+	int type_tcp_out;
+	/** if this is a http outgoing type of commpoint. */
+	int type_http_out;
+
+	/** the callback, stored for usage */
+	comm_point_callback_type* cb;
+	/** the callback userarg, stored for usage */
+	void* cb_arg;
+	/** runtime ptr */
+	struct replay_runtime* runtime;
+	/** the pending entry for this commpoint (if any) */
+	struct fake_pending* pending;
+};
+
 /** Global variable: the scenario. Saved here for when event_init is done. */
 static struct replay_scenario* saved_scenario = NULL;
 
@@ -137,6 +160,7 @@ repevt_string(enum replay_event_type t)
 	case repevt_back_reply:  return "REPLY";
 	case repevt_back_query:  return "CHECK_OUT_QUERY";
 	case repevt_autotrust_check: return "CHECK_AUTOTRUST";
+	case repevt_tempfile_check: return "CHECK_TEMPFILE";
 	case repevt_error:	 return "ERROR";
 	case repevt_assign:	 return "ASSIGN";
 	case repevt_traffic:	 return "TRAFFIC";
@@ -247,7 +271,11 @@ pending_matches_range(struct replay_runtime* runtime,
 	struct fake_pending* p = runtime->pending_list;
 	/* slow, O(N*N), but it works as advertised with weird matching */
 	while(p) {
-		log_info("check of pending");
+		if(p->tcp_pkt_counter != 0) {
+			/* continue tcp transfer */
+			*pend = p;
+			return 1;
+		}
 		if(pending_find_match(runtime, entry, p)) {
 			*pend = p;
 			return 1;
@@ -278,24 +306,46 @@ pending_list_delete(struct replay_runtime* runtime, struct fake_pending* pend)
 	}
 }
 
+/** number of replies in entry */
+static int
+count_reply_packets(struct entry* entry)
+{
+	int count = 0;
+	struct reply_packet* reppkt = entry->reply_list;
+	while(reppkt) {
+		count++;
+		reppkt = reppkt->next;
+	}
+	return count;
+}
+
 /**
  * Fill buffer with reply from the entry.
  */
 static void
 fill_buffer_with_reply(sldns_buffer* buffer, struct entry* entry, uint8_t* q,
-	size_t qlen)
+	size_t qlen, int tcp_pkt_counter)
 {
+	struct reply_packet* reppkt;
 	uint8_t* c;
 	size_t clen;
 	log_assert(entry && entry->reply_list);
 	sldns_buffer_clear(buffer);
-	if(entry->reply_list->reply_from_hex) {
-		c = sldns_buffer_begin(entry->reply_list->reply_from_hex);
-		clen = sldns_buffer_limit(entry->reply_list->reply_from_hex);
+	reppkt = entry->reply_list;
+	if(tcp_pkt_counter > 0) {
+		int i = tcp_pkt_counter;
+		while(reppkt && i--)
+			reppkt = reppkt->next;
+		if(!reppkt) fatal_exit("extra packet read from TCP stream but none is available");
+		log_pkt("extra_packet ", reppkt->reply_pkt, reppkt->reply_len);
+	}
+	if(reppkt->reply_from_hex) {
+		c = sldns_buffer_begin(reppkt->reply_from_hex);
+		clen = sldns_buffer_limit(reppkt->reply_from_hex);
 		if(!c) fatal_exit("out of memory");
 	} else {
-		c = entry->reply_list->reply_pkt;
-		clen = entry->reply_list->reply_len;
+		c = reppkt->reply_pkt;
+		clen = reppkt->reply_len;
 	}
 	if(c) {
 		if(q) adjust_packet(entry, &c, &clen, q, qlen);
@@ -326,12 +376,20 @@ answer_callback_from_entry(struct replay_runtime* runtime,
 	c.type = comm_udp;
 	if(pend->transport == transport_tcp)
 		c.type = comm_tcp;
-	fill_buffer_with_reply(c.buffer, entry, pend->pkt, pend->pkt_len);
+	fill_buffer_with_reply(c.buffer, entry, pend->pkt, pend->pkt_len,
+		pend->tcp_pkt_counter);
 	repinfo.c = &c;
 	repinfo.addrlen = pend->addrlen;
 	memcpy(&repinfo.addr, &pend->addr, pend->addrlen);
-	if(!pend->serviced)
-		pending_list_delete(runtime, pend);
+	if(!pend->serviced) {
+		if(entry->reply_list->next &&
+			pend->tcp_pkt_counter < count_reply_packets(entry)) {
+			/* go to next packet next time */
+			pend->tcp_pkt_counter++;
+		} else {
+			pending_list_delete(runtime, pend);
+		}
+	}
 	if((*cb)(&c, cb_arg, NETEVENT_NOERROR, &repinfo)) {
 		fatal_exit("testbound: unexpected: callback returned 1");
 	}
@@ -397,7 +455,7 @@ fake_front_query(struct replay_runtime* runtime, struct replay_moment *todo)
 	if(todo->match->match_transport == transport_tcp)
 		repinfo.c->type = comm_tcp;
 	else	repinfo.c->type = comm_udp;
-	fill_buffer_with_reply(repinfo.c->buffer, todo->match, NULL, 0);
+	fill_buffer_with_reply(repinfo.c->buffer, todo->match, NULL, 0, 0);
 	log_info("testbound: incoming QUERY");
 	log_pkt("query pkt", todo->match->reply_list->reply_pkt,
 		todo->match->reply_list->reply_len);
@@ -434,13 +492,20 @@ fake_pending_callback(struct replay_runtime* runtime,
 		c.type = comm_tcp;
 	if(todo->evt_type == repevt_back_reply && todo->match) {
 		fill_buffer_with_reply(c.buffer, todo->match, p->pkt,
-			p->pkt_len);
+			p->pkt_len, p->tcp_pkt_counter);
 	}
 	repinfo.c = &c;
 	repinfo.addrlen = p->addrlen;
 	memcpy(&repinfo.addr, &p->addr, p->addrlen);
-	if(!p->serviced)
-		pending_list_delete(runtime, p);
+	if(!p->serviced) {
+		if(todo->match->reply_list->next && !error &&
+			p->tcp_pkt_counter < count_reply_packets(todo->match)) {
+			/* go to next packet next time */
+			p->tcp_pkt_counter++;
+		} else {
+			pending_list_delete(runtime, p);
+		}
+	}
 	if((*cb)(&c, cb_arg, error, &repinfo)) {
 		fatal_exit("unexpected: pending callback returned 1");
 	}
@@ -550,6 +615,59 @@ autotrust_check(struct replay_runtime* runtime, struct replay_moment* mom)
 	log_info("autotrust %s is OK", mom->autotrust_id);
 }
 
+/** check tempfile file contents */
+static void
+tempfile_check(struct replay_runtime* runtime, struct replay_moment* mom)
+{
+	char name[1024], line[1024];
+	FILE *in;
+	int lineno = 0, oke=1;
+	char* expanded;
+	struct config_strlist* p;
+	line[sizeof(line)-1] = 0;
+	log_assert(mom->autotrust_id);
+	fake_temp_file("_temp_", mom->autotrust_id, name, sizeof(name));
+	in = fopen(name, "r");
+	if(!in) fatal_exit("could not open %s: %s", name, strerror(errno));
+	for(p=mom->file_content; p; p=p->next) {
+		lineno++;
+		if(!fgets(line, (int)sizeof(line)-1, in)) {
+			log_err("tempfile check failed, could not read line");
+			log_err("file %s, line %d", name, lineno);
+			log_err("should be: %s", p->str);
+			fatal_exit("tempfile_check failed");
+		}
+		if(line[0]) line[strlen(line)-1] = 0; /* remove newline */
+		expanded = macro_process(runtime->vars, runtime, p->str);
+		if(!expanded) 
+			fatal_exit("could not expand macro line %d", lineno);
+		if(verbosity >= 7 && strcmp(p->str, expanded) != 0)
+			log_info("expanded '%s' to '%s'", p->str, expanded);
+		if(strcmp(expanded, line) != 0) {
+			log_err("mismatch in file %s, line %d", name, lineno);
+			log_err("file has : %s", line);
+			log_err("should be: %s", expanded);
+			free(expanded);
+			oke = 0;
+			continue;
+		}
+		free(expanded);
+		fprintf(stderr, "%s:%2d ok : %s\n", name, lineno, line);
+	}
+	if(fgets(line, (int)sizeof(line)-1, in)) {
+		log_err("tempfile check failed, extra lines in %s after %d",
+			name, lineno);
+		do {
+			fprintf(stderr, "file has: %s", line);
+		} while(fgets(line, (int)sizeof(line)-1, in));
+		oke = 0;
+	}
+	fclose(in);
+	if(!oke)
+		fatal_exit("tempfile_check STEP %d failed", mom->time_step);
+	log_info("tempfile %s is OK", mom->autotrust_id);
+}
+
 /** Store RTT in infra cache */
 static void
 do_infra_rtt(struct replay_runtime* runtime)
@@ -657,6 +775,10 @@ do_moment_and_advance(struct replay_runtime* runtime)
 		break;
 	case repevt_autotrust_check:
 		autotrust_check(runtime, runtime->now);
+		advance_moment(runtime);
+		break;
+	case repevt_tempfile_check:
+		tempfile_check(runtime, runtime->now);
 		advance_moment(runtime);
 		break;
 	case repevt_assign:
@@ -1168,7 +1290,11 @@ struct comm_point* comm_point_create_local(struct comm_base* ATTR_UNUSED(base),
         comm_point_callback_type* ATTR_UNUSED(callback), 
 	void* ATTR_UNUSED(callback_arg))
 {
-	return calloc(1, 1);
+	struct fake_commpoint* fc = (struct fake_commpoint*)calloc(1,
+		sizeof(*fc));
+	if(!fc) return NULL;
+	fc->typecode = FAKE_COMMPOINT_TYPECODE;
+	return (struct comm_point*)fc;
 }
 
 struct comm_point* comm_point_create_raw(struct comm_base* ATTR_UNUSED(base),
@@ -1177,7 +1303,11 @@ struct comm_point* comm_point_create_raw(struct comm_base* ATTR_UNUSED(base),
 	void* ATTR_UNUSED(callback_arg))
 {
 	/* no pipe comm possible */
-	return calloc(1, 1);
+	struct fake_commpoint* fc = (struct fake_commpoint*)calloc(1,
+		sizeof(*fc));
+	if(!fc) return NULL;
+	fc->typecode = FAKE_COMMPOINT_TYPECODE;
+	return (struct comm_point*)fc;
 }
 
 void comm_point_start_listening(struct comm_point* ATTR_UNUSED(c), 
@@ -1194,6 +1324,13 @@ void comm_point_stop_listening(struct comm_point* ATTR_UNUSED(c))
 /* only cmd com _local gets deleted */
 void comm_point_delete(struct comm_point* c)
 {
+	struct fake_commpoint* fc = (struct fake_commpoint*)c;
+	if(c == NULL) return;
+	log_assert(fc->typecode == FAKE_COMMPOINT_TYPECODE);
+	if(fc->type_tcp_out) {
+		/* remove tcp pending, so no more callbacks to it */
+		pending_list_delete(fc->runtime, fc->pending);
+	}
 	free(c);
 }
 
@@ -1280,6 +1417,12 @@ void comm_timer_callback(int ATTR_UNUSED(fd),
 }
 
 void comm_signal_callback(int ATTR_UNUSED(fd), 
+	short ATTR_UNUSED(event), void* ATTR_UNUSED(arg))
+{
+	log_assert(0);
+}
+
+void comm_point_http_handle_callback(int ATTR_UNUSED(fd), 
 	short ATTR_UNUSED(event), void* ATTR_UNUSED(arg))
 {
 	log_assert(0);
@@ -1418,6 +1561,231 @@ void daemon_remote_start_accept(struct daemon_remote* ATTR_UNUSED(rc))
 
 void daemon_remote_stop_accept(struct daemon_remote* ATTR_UNUSED(rc))
 {
+}
+
+int create_udp_sock(int ATTR_UNUSED(family), int ATTR_UNUSED(socktype),
+	struct sockaddr* ATTR_UNUSED(addr), socklen_t ATTR_UNUSED(addrlen),
+	int ATTR_UNUSED(v6only), int* ATTR_UNUSED(inuse),
+	int* ATTR_UNUSED(noproto), int ATTR_UNUSED(rcv), int ATTR_UNUSED(snd),
+	int ATTR_UNUSED(listen), int* ATTR_UNUSED(reuseport),
+	int ATTR_UNUSED(transparent), int ATTR_UNUSED(freebind),
+	int ATTR_UNUSED(use_systemd))
+{
+	/* if you actually print to this, it'll be stdout during test */
+	return 1;
+}
+
+struct comm_point* comm_point_create_udp(struct comm_base *ATTR_UNUSED(base),
+	int ATTR_UNUSED(fd), sldns_buffer* ATTR_UNUSED(buffer),
+	comm_point_callback_type* ATTR_UNUSED(callback),
+	void* ATTR_UNUSED(callback_arg))
+{
+	log_assert(0);
+	return NULL;
+}
+
+struct comm_point* comm_point_create_tcp_out(struct comm_base*
+	ATTR_UNUSED(base), size_t ATTR_UNUSED(bufsize),
+	comm_point_callback_type* ATTR_UNUSED(callback),
+	void* ATTR_UNUSED(callback_arg))
+{
+	log_assert(0);
+	return NULL;
+}
+
+struct comm_point* outnet_comm_point_for_udp(struct outside_network* outnet,
+	comm_point_callback_type* cb, void* cb_arg,
+	struct sockaddr_storage* ATTR_UNUSED(to_addr),
+	socklen_t ATTR_UNUSED(to_addrlen))
+{
+	struct replay_runtime* runtime = (struct replay_runtime*)
+		outnet->base;
+	struct fake_commpoint* fc = (struct fake_commpoint*)calloc(1,
+		sizeof(*fc));
+	if(!fc) return NULL;
+	fc->typecode = FAKE_COMMPOINT_TYPECODE;
+	fc->type_udp_out = 1;
+	fc->cb = cb;
+	fc->cb_arg = cb_arg;
+	fc->runtime = runtime;
+	/* used by authzone transfers */
+	return (struct comm_point*)fc;
+}
+
+struct comm_point* outnet_comm_point_for_tcp(struct outside_network* outnet,
+	comm_point_callback_type* cb, void* cb_arg,
+	struct sockaddr_storage* to_addr, socklen_t to_addrlen,
+	struct sldns_buffer* query, int timeout)
+{
+	struct replay_runtime* runtime = (struct replay_runtime*)
+		outnet->base;
+	struct fake_commpoint* fc = (struct fake_commpoint*)calloc(1,
+		sizeof(*fc));
+	struct fake_pending* pend = (struct fake_pending*)calloc(1,
+		sizeof(struct fake_pending));
+	if(!fc || !pend) {
+		free(fc);
+		free(pend);
+		return NULL;
+	}
+	fc->typecode = FAKE_COMMPOINT_TYPECODE;
+	fc->type_tcp_out = 1;
+	fc->cb = cb;
+	fc->cb_arg = cb_arg;
+	fc->runtime = runtime;
+	fc->pending = pend;
+
+	/* used by authzone transfers */
+	/* create pending item */
+	pend->buffer = sldns_buffer_new(sldns_buffer_limit(query)+10);
+	if(!pend->buffer) {
+		free(fc);
+		free(pend);
+		return NULL;
+	}
+	sldns_buffer_copy(pend->buffer, query);
+	memcpy(&pend->addr, to_addr, to_addrlen);
+	pend->addrlen = to_addrlen;
+	pend->zone = NULL;
+	pend->zonelen = 0;
+	if(LDNS_QDCOUNT(sldns_buffer_begin(query)) > 0) {
+		char buf[512];
+		char addrbuf[128];
+		(void)sldns_wire2str_rrquestion_buf(sldns_buffer_at(query, LDNS_HEADER_SIZE), sldns_buffer_limit(query)-LDNS_HEADER_SIZE, buf, sizeof(buf));
+		addr_to_str((struct sockaddr_storage*)to_addr, to_addrlen,
+			addrbuf, sizeof(addrbuf));
+		if(verbosity >= VERB_ALGO) {
+			if(buf[0] != 0) buf[strlen(buf)-1] = 0; /* del newline*/
+			log_info("tcp to %s: %s", addrbuf, buf);
+		}
+		log_assert(sldns_buffer_limit(query)-LDNS_HEADER_SIZE >= 2);
+		pend->qtype = (int)sldns_buffer_read_u16_at(query,
+			LDNS_HEADER_SIZE+
+			dname_valid(sldns_buffer_at(query, LDNS_HEADER_SIZE),
+				sldns_buffer_limit(query)-LDNS_HEADER_SIZE));
+	}
+	pend->callback = cb;
+	pend->cb_arg = cb_arg;
+	pend->timeout = timeout;
+	pend->transport = transport_tcp;
+	pend->pkt = NULL;
+	pend->runtime = runtime;
+	pend->serviced = 0;
+	pend->pkt_len = sldns_buffer_limit(pend->buffer);
+	pend->pkt = memdup(sldns_buffer_begin(pend->buffer), pend->pkt_len);
+	if(!pend->pkt) fatal_exit("out of memory");
+
+	log_info("testbound: created fake pending for tcp_out");
+
+	/* add to list */
+	pend->next = runtime->pending_list;
+	runtime->pending_list = pend;
+
+	return (struct comm_point*)fc;
+}
+
+struct comm_point* outnet_comm_point_for_http(struct outside_network* outnet,
+	comm_point_callback_type* cb, void* cb_arg,
+	struct sockaddr_storage* to_addr, socklen_t to_addrlen, int timeout,
+	int ssl, char* host, char* path)
+{
+	struct replay_runtime* runtime = (struct replay_runtime*)
+		outnet->base;
+	struct fake_commpoint* fc = (struct fake_commpoint*)calloc(1,
+		sizeof(*fc));
+	if(!fc) {
+		return NULL;
+	}
+	fc->typecode = FAKE_COMMPOINT_TYPECODE;
+	fc->type_http_out = 1;
+	fc->cb = cb;
+	fc->cb_arg = cb_arg;
+	fc->runtime = runtime;
+
+	(void)to_addr;
+	(void)to_addrlen;
+	(void)timeout;
+
+	(void)ssl;
+	(void)host;
+	(void)path;
+
+	/* handle http comm point and return contents from test script */
+	return (struct comm_point*)fc;
+}
+
+int comm_point_send_udp_msg(struct comm_point *c, sldns_buffer* packet,
+	struct sockaddr* addr, socklen_t addrlen) 
+{
+	struct fake_commpoint* fc = (struct fake_commpoint*)c;
+	struct replay_runtime* runtime = fc->runtime;
+	struct fake_pending* pend = (struct fake_pending*)calloc(1,
+		sizeof(struct fake_pending));
+	if(!pend) {
+		log_err("malloc failure");
+		return 0;
+	}
+	fc->pending = pend;
+	/* used by authzone transfers */
+	/* create pending item */
+	pend->buffer = sldns_buffer_new(sldns_buffer_limit(packet) + 10);
+	if(!pend->buffer) {
+		free(pend);
+		return 0;
+	}
+	sldns_buffer_copy(pend->buffer, packet);
+	memcpy(&pend->addr, addr, addrlen);
+	pend->addrlen = addrlen;
+	pend->zone = NULL;
+	pend->zonelen = 0;
+	if(LDNS_QDCOUNT(sldns_buffer_begin(packet)) > 0) {
+		char buf[512];
+		char addrbuf[128];
+		(void)sldns_wire2str_rrquestion_buf(sldns_buffer_at(packet, LDNS_HEADER_SIZE), sldns_buffer_limit(packet)-LDNS_HEADER_SIZE, buf, sizeof(buf));
+		addr_to_str((struct sockaddr_storage*)addr, addrlen,
+			addrbuf, sizeof(addrbuf));
+		if(verbosity >= VERB_ALGO) {
+			if(buf[0] != 0) buf[strlen(buf)-1] = 0; /* del newline*/
+			log_info("udp to %s: %s", addrbuf, buf);
+		}
+		log_assert(sldns_buffer_limit(packet)-LDNS_HEADER_SIZE >= 2);
+		pend->qtype = (int)sldns_buffer_read_u16_at(packet,
+			LDNS_HEADER_SIZE+
+			dname_valid(sldns_buffer_at(packet, LDNS_HEADER_SIZE),
+				sldns_buffer_limit(packet)-LDNS_HEADER_SIZE));
+	}
+	pend->callback = fc->cb;
+	pend->cb_arg = fc->cb_arg;
+	pend->timeout = UDP_AUTH_QUERY_TIMEOUT;
+	pend->transport = transport_udp;
+	pend->pkt = NULL;
+	pend->runtime = runtime;
+	pend->serviced = 0;
+	pend->pkt_len = sldns_buffer_limit(pend->buffer);
+	pend->pkt = memdup(sldns_buffer_begin(pend->buffer), pend->pkt_len);
+	if(!pend->pkt) fatal_exit("out of memory");
+
+	log_info("testbound: created fake pending for send_udp_msg");
+
+	/* add to list */
+	pend->next = runtime->pending_list;
+	runtime->pending_list = pend;
+
+	return 1;
+}
+
+int outnet_get_tcp_fd(struct sockaddr_storage* ATTR_UNUSED(addr),
+	socklen_t ATTR_UNUSED(addrlen), int ATTR_UNUSED(tcp_mss))
+{
+	log_assert(0);
+	return -1;
+}
+
+int outnet_tcp_connect(int ATTR_UNUSED(s), struct sockaddr_storage* ATTR_UNUSED(addr),
+	socklen_t ATTR_UNUSED(addrlen))
+{
+	log_assert(0);
+	return 0;
 }
 
 /*********** End of Dummy routines ***********/

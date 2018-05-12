@@ -49,6 +49,14 @@
  * AUTOTRUST_FILE id
  * ; contents of that file
  * AUTOTRUST_END
+ * ; temp file names are echoed as "tmp/xxx.fname"
+ * TEMPFILE_NAME fname
+ * ; temp file contents, inline, deleted at end of run
+ * TEMPFILE_CONTENTS fname
+ * ; contents of that file
+ * ; this creates $INCLUDE /tmp/xxx.fname
+ * $INCLUDE_TEMPFILE fname
+ * TEMPFILE_END
  * CONFIG_END
  * ; comment line.
  * SCENARIO_BEGIN name_of_scenario
@@ -75,6 +83,7 @@
  *		the step waits for traffic to stop.
  *      o CHECK_AUTOTRUST [id] - followed by FILE_BEGIN [to match] FILE_END.
  *      	The file contents is macro expanded before match.
+ *      o CHECK_TEMPFILE [fname] - followed by FILE_BEGIN [to match] FILE_END
  *      o INFRA_RTT [ip] [dp] [rtt] - update infra cache entry with rtt.
  *      o ERROR
  * ; following entry starts on the next line, ENTRY_BEGIN.
@@ -195,6 +204,8 @@ struct replay_moment {
 		repevt_back_query,
 		/** check autotrust key file */
 		repevt_autotrust_check,
+		/** check a temp file */
+		repevt_tempfile_check,
 		/** an error happens to outbound query */
 		repevt_error,
 		/** assignment to a variable */
@@ -340,6 +351,8 @@ struct fake_pending {
 	enum transport_type transport;
 	/** if this is a serviced query */
 	int serviced;
+	/** if we are handling a multi pkt tcp stream, non 0 and the pkt nr*/
+	int tcp_pkt_counter;
 	/** the runtime structure this is part of */
 	struct replay_runtime* runtime;
 };
