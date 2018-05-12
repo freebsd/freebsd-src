@@ -426,7 +426,7 @@ int tube_read_fd(struct tube* tube)
 }
 
 int tube_setup_bg_listen(struct tube* tube, struct comm_base* base,
-        tube_callback_t* cb, void* arg)
+        tube_callback_type* cb, void* arg)
 {
 	tube->listen_cb = cb;
 	tube->listen_arg = arg;
@@ -667,7 +667,7 @@ tube_handle_write(struct comm_point* ATTR_UNUSED(c), void* ATTR_UNUSED(arg),
 }
 
 int tube_setup_bg_listen(struct tube* tube, struct comm_base* base,
-        tube_callback_t* cb, void* arg)
+        tube_callback_type* cb, void* arg)
 {
 	tube->listen_cb = cb;
 	tube->listen_arg = arg;

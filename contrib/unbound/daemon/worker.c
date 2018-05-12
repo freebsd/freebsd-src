@@ -566,7 +566,7 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 		edns->bits &= EDNS_DO;
 		if(!inplace_cb_reply_servfail_call(&worker->env, qinfo, NULL, rep,
 			LDNS_RCODE_SERVFAIL, edns, worker->scratchpad))
-				return 0;
+			goto bail_out;
 		error_encode(repinfo->c->buffer, LDNS_RCODE_SERVFAIL, 
 			qinfo, id, flags, edns);
 		rrset_array_unlock_touch(worker->env.rrset_cache, 
@@ -599,7 +599,7 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 	edns->bits &= EDNS_DO;
 	if(!inplace_cb_reply_cache_call(&worker->env, qinfo, NULL, rep,
 		(int)(flags&LDNS_RCODE_MASK), edns, worker->scratchpad))
-			return 0;
+		goto bail_out;
 	if(!reply_info_answer_encode(qinfo, rep, id, flags, 
 		repinfo->c->buffer, timenow, 1, worker->scratchpad,
 		udpsize, edns, (int)(edns->bits & EDNS_DO), secure)) {
@@ -787,7 +787,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 {
 	struct worker* worker = (struct worker*)arg;
 	int ret;
-	hashvalue_t h;
+	hashvalue_type h;
 	struct lruhash_entry* e;
 	struct query_info qinfo;
 	struct edns_data edns;
@@ -825,7 +825,29 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		comm_point_drop_reply(repinfo);
 		return 0;
 	}
+
 	worker->stats.num_queries++;
+
+	/* check if this query should be dropped based on source ip rate limiting */
+	if(!infra_ip_ratelimit_inc(worker->env.infra_cache, repinfo,
+			*worker->env.now)) {
+		/* See if we are passed through with slip factor */
+		if(worker->env.cfg->ip_ratelimit_factor != 0 &&
+			ub_random_max(worker->env.rnd,
+						  worker->env.cfg->ip_ratelimit_factor) == 1) {
+
+			char addrbuf[128];
+			addr_to_str(&repinfo->addr, repinfo->addrlen,
+						addrbuf, sizeof(addrbuf));
+		  verbose(VERB_OPS, "ip_ratelimit allowed through for ip address %s ",
+				  addrbuf);
+		} else {
+			worker->stats.num_queries_ip_ratelimited++;
+			comm_point_drop_reply(repinfo);
+			return 0;
+		}
+	}
+
 	/* see if query is in the cache */
 	if(!query_info_parse(&qinfo, c->buffer)) {
 		verbose(VERB_ALGO, "worker parse request: formerror.");
@@ -854,6 +876,28 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		LDNS_QR_SET(sldns_buffer_begin(c->buffer));
 		LDNS_RCODE_SET(sldns_buffer_begin(c->buffer), 
 			LDNS_RCODE_REFUSED);
+		if(worker->stats.extended) {
+			worker->stats.qtype[qinfo.qtype]++;
+			server_stats_insrcode(&worker->stats, c->buffer);
+		}
+		goto send_reply;
+	}
+	if(qinfo.qtype == LDNS_RR_TYPE_OPT || 
+		qinfo.qtype == LDNS_RR_TYPE_TSIG ||
+		qinfo.qtype == LDNS_RR_TYPE_TKEY ||
+		qinfo.qtype == LDNS_RR_TYPE_MAILA ||
+		qinfo.qtype == LDNS_RR_TYPE_MAILB ||
+		(qinfo.qtype >= 128 && qinfo.qtype <= 248)) {
+		verbose(VERB_ALGO, "worker request: formerror for meta-type.");
+		log_addr(VERB_CLIENT,"from",&repinfo->addr, repinfo->addrlen);
+		if(worker_err_ratelimit(worker, LDNS_RCODE_FORMERR) == -1) {
+			comm_point_drop_reply(repinfo);
+			return 0;
+		}
+		sldns_buffer_rewind(c->buffer);
+		LDNS_QR_SET(sldns_buffer_begin(c->buffer));
+		LDNS_RCODE_SET(sldns_buffer_begin(c->buffer), 
+			LDNS_RCODE_FORMERR);
 		if(worker->stats.extended) {
 			worker->stats.qtype[qinfo.qtype]++;
 			server_stats_insrcode(&worker->stats, c->buffer);
@@ -1064,6 +1108,12 @@ send_reply_rc:
 		dt_msg_send_client_response(&worker->dtenv, &repinfo->addr,
 			c->type, c->buffer);
 #endif
+	if(worker->env.cfg->log_replies)
+	{
+		struct timeval tv = {0, 0};
+		log_reply_info(0, &qinfo, &repinfo->addr, repinfo->addrlen,
+			tv, 1, c->buffer);
+	}
 	return rc;
 }
 

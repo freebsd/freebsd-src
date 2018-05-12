@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Sep 27, 2016" "NLnet Labs" "unbound 1.5.10"
+.TH "unbound.conf" "5" "Feb 21, 2017" "NLnet Labs" "unbound 1.6.1"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -151,8 +151,8 @@ netblock, or the randomisation will be compromised.  Consider combining with
 to increase the likelihood of IPv6 nameservers being selected for queries.
 On Linux you need these two commands to be able to use the freebind socket
 option to receive traffic for the ip6 netblock:
-ip -6 addr add mynetblock/64 dev lo &&
-ip -6 route add local mynetblock/64 dev lo
+ip \-6 addr add mynetblock/64 dev lo &&
+ip \-6 route add local mynetblock/64 dev lo
 .TP
 .B outgoing\-range: \fI<number>
 Number of ports to open. This number of file descriptors can be opened per 
@@ -413,9 +413,14 @@ turned off.
 The port number on which to provide TCP SSL service, default 853, only
 interfaces configured with that port number as @number get the SSL service.
 .TP
+.B use\-systemd: \fI<yes or no>
+Enable or disable systemd socket activation.
+Default is no.
+.TP
 .B do\-daemonize: \fI<yes or no>
 Enable or disable whether the unbound server forks into the background as
-a daemon. Default is yes.
+a daemon.  Set the value to \fIno\fR when unbound runs as systemd service.
+Default is yes.
 .TP
 .B access\-control: \fI<IP netblock> <action>
 The netblock is given as an IP4 or IP6 address with /size appended for a 
@@ -474,6 +479,9 @@ order of the define-tag values.
 .B access\-control\-tag\-data: \fI<IP netblock> <tag> <"resource record string">
 Set redirect data for particular tag for given access control element.
 .TP
+.B access\-control\-view: \fI<IP netblock> <view name>
+Set view for given access control element.
+.TP
 .B chroot: \fI<directory>
 If chroot is enabled, you should pass the configfile (from the
 commandline) as a full path from the original root. After the
@@ -531,6 +539,13 @@ The log facility LOG_DAEMON is used, with identity "unbound".
 The logfile setting is overridden when use\-syslog is turned on.
 The default is to log to syslog.
 .TP
+.B log\-identity: \fI<string>
+If "" is given (default), then the name of the executable, usually "unbound"
+is used to report to the log.  Enter a string to override it
+with that, which is useful on systems that run more than one instance of
+unbound, with different configurations, so that the logs can be easily
+distinguished against.
+.TP
 .B log\-time\-ascii: \fI<yes or no>
 Sets logfile lines to use a timestamp in UTC ascii. Default is no, which
 prints the seconds since 1970 in brackets. No effect if using syslog, in
@@ -539,6 +554,13 @@ that case syslog formats the timestamp printed into the log files.
 .B log\-queries: \fI<yes or no>
 Prints one line per query to the log, with the log timestamp and IP address,
 name, type and class.  Default is no.  Note that it takes time to print these
+lines which makes the server (significantly) slower.  Odd (nonprintable)
+characters in names are printed as '?'.
+.TP
+.B log\-replies: \fI<yes or no>
+Prints one line per reply to the log, with the log timestamp and IP address,
+name, type, class, return code, time to resolve, from cache and response size.
+Default is no.  Note that it takes time to print these
 lines which makes the server (significantly) slower.  Odd (nonprintable)
 characters in names are printed as '?'.
 .TP
@@ -614,14 +636,15 @@ unsigned to badly signed often. If turned off you run the risk of a
 downgrade attack that disables security for a zone. Default is on.
 .TP
 .B harden\-below\-nxdomain: \fI<yes or no>
-From draft\-vixie\-dnsext\-resimprove, returns nxdomain to queries for a name
+From RFC 8020 (with title "NXDOMAIN: There Really Is Nothing Underneath"),
+returns nxdomain to queries for a name
 below another name that is already known to be nxdomain.  DNSSEC mandates
 noerror for empty nonterminals, hence this is possible.  Very old software
 might return nxdomain for empty nonterminals (that usually happen for reverse
 IP address lookups), and thus may be incompatible with this.  To try to avoid
 this only DNSSEC-secure nxdomains are used, because the old software does not
 have DNSSEC.  Default is off.
-Currently, draft\-ietf\-dnsop\-nxdomain\-cut promotes this technique.
+The nxdomain must be secure, this means nsec3 with optout is insufficient.
 .TP
 .B harden\-referral\-path: \fI<yes or no>
 Harden the referral path by performing additional queries for
@@ -658,8 +681,15 @@ Can be given multiple times, for different domains.
 .B qname\-minimisation: \fI<yes or no>
 Send minimum amount of information to upstream servers to enhance privacy.
 Only sent minimum required labels of the QNAME and set QTYPE to NS when 
-possible. Best effort approach, full QNAME and original QTYPE will be sent when
-upstream replies with a RCODE other than NOERROR. Default is off.
+possible. Best effort approach; full QNAME and original QTYPE will be sent when
+upstream replies with a RCODE other than NOERROR, except when receiving
+NXDOMAIN from a DNSSEC signed zone. Default is off.
+.TP
+.B qname\-minimisation\-strict: \fI<yes or no>
+QNAME minimisation in strict mode. Do not fall-back to sending full QNAME to
+potentially broken nameservers. A lot of domains will not be resolvable when
+this option in enabled. Only use if you know what you are doing.
+This option only has effect when qname-minimisation is enabled. Default is off.
 .TP
 .B private\-address: \fI<IP address or subnet>
 Give IPv4 of IPv6 addresses or classless subnets. These are addresses
@@ -859,6 +889,11 @@ servers that set the CD flag but cannot validate DNSSEC themselves are
 the clients, and then unbound provides them with DNSSEC protection.
 The default value is "no".
 .TP
+.B serve\-expired: \fI<yes or no>
+If enabled, unbound attempts to serve old responses from cache with a
+TTL of 0 in the response without waiting for the actual resolution to finish.
+The actual resolution answer ends up in the cache later on.  Default is "no".
+.TP
 .B val\-nsec3\-keysize\-iterations: \fI<"list of values">
 List of keysize and iteration count values, separated by spaces, surrounded
 by quotes. Default is "1024 150 2048 500 4096 2500". This determines the
@@ -978,11 +1013,11 @@ queries for www.example.com and www.foo.example.com are redirected, so
 that users with web browsers cannot access sites with suffix example.com.
 .TP 10
 \h'5'\fIinform\fR 
-The query is answered normally.  The client IP address (@portnumber)
-is printed to the logfile.  The log message is: timestamp, unbound-pid,
-info: zonename inform IP@port queryname type class.  This option can be
-used for normal resolution, but machines looking up infected names are
-logged, eg. to run antivirus on them.
+The query is answered normally, same as transparent.  The client IP
+address (@portnumber) is printed to the logfile.  The log message is:
+timestamp, unbound-pid, info: zonename inform IP@port queryname type
+class.  This option can be used for normal resolution, but machines
+looking up infected names are logged, eg. to run antivirus on them.
 .TP 10
 \h'5'\fIinform_deny\fR 
 The query is dropped, like 'deny', and logged, like 'inform'.  Ie. find
@@ -1170,6 +1205,34 @@ in different parts of the namespace.  The closest matching suffix is used
 to determine the qps limit.  The rate for the exact matching domain name
 is not changed, use ratelimit\-for\-domain to set that, you might want
 to use different settings for a top\-level\-domain and subdomains.
+.TP 5
+.B ip\-ratelimit: \fI<number or 0>
+Enable global ratelimiting of queries accepted per ip address.
+If 0, the default, it is disabled.  This option is experimental at this time.
+The ratelimit is in queries per second that are allowed.  More queries are
+completely dropped and will not receive a reply, SERVFAIL or otherwise.
+IP ratelimiting happens before looking in the cache. This may be useful for
+mitigating amplification attacks.
+.TP 5
+.B ip\-ratelimit\-size: \fI<memory size>
+Give the size of the data structure in which the current ongoing rates are
+kept track in.  Default 4m.  In bytes or use m(mega), k(kilo), g(giga).
+The ip ratelimit structure is small, so this data structure likely does
+not need to be large.
+.TP 5
+.B ip\-ratelimit\-slabs: \fI<number>
+Give power of 2 number of slabs, this is used to reduce lock contention
+in the ip ratelimit tracking data structure.  Close to the number of cpus is
+a fairly good setting.
+.TP 5
+.B ip\-ratelimit\-factor: \fI<number>
+Set the amount of queries to rate limit when the limit is exceeded.
+If set to 0, all queries are dropped for addresses where the limit is
+exceeded.  If set to another value, 1 in that number is allowed through
+to complete.  Default is 10, allowing 1/10 traffic to flow normally.
+This can make ordinary queries complete (if repeatedly queried for),
+and enter the cache, whilst also mitigating the traffic flow by the
+factor given.
 .SS "Remote Control Options"
 In the
 .B remote\-control:
@@ -1280,6 +1343,10 @@ If enabled, a query is attempted without the stub clause if it fails.
 The data could not be retrieved and would have caused SERVFAIL because
 the servers are unreachable, instead it is tried without this clause.
 The default is no.
+.TP
+.B stub\-ssl\-upstream: \fI<yes or no>
+Enabled or disable whether the queries to this stub use SSL for transport.
+Default is no.
 .SS "Forward Zone Options"
 .LP
 There may be multiple
@@ -1310,6 +1377,36 @@ If enabled, a query is attempted without the forward clause if it fails.
 The data could not be retrieved and would have caused SERVFAIL because
 the servers are unreachable, instead it is tried without this clause.
 The default is no.
+.TP
+.B forward\-ssl\-upstream: \fI<yes or no>
+Enabled or disable whether the queries to this forwarder use SSL for transport.
+Default is no.
+.SS "View Options"
+.LP
+There may be multiple
+.B view:
+clauses. Each with a \fBname:\fR and zero or more \fBlocal\-zone\fR and
+\fBlocal\-data\fR elements. View can be mapped to requests by specifying the view
+name in an \fBaccess\-control\-view\fR element. Options from matching views will
+override global options. Global options will be used if no matching view
+is found.
+.TP
+.B name: \fI<view name>
+Name of the view. Must be unique. This name is used in access\-control\-view
+elements.
+.TP
+.B local\-zone: \fI<zone> <type>
+View specific local\-zone elements. Has the same types and behaviour as the
+global local\-zone elements.
+.TP
+.B local\-data: \fI"<resource record string>"
+View specific local\-data elements. Has the same behaviour as the global
+local\-data elements.
+.TP
+.B view\-first: \fI<yes or no>
+If enabled, it attempts to use the global local\-zone and local\-data if there
+is no match in the view specific options.
+The default is no.
 .SS "Python Module Options"
 .LP
 The
@@ -1319,9 +1416,15 @@ acts like the iterator and validator modules do, on queries and answers.
 To enable the script module it has to be compiled into the daemon,
 and the word "python" has to be put in the \fBmodule\-config:\fR option
 (usually first, or between the validator and iterator).
+.LP
+If the \fBchroot:\fR option is enabled, you should make sure Python's
+library directory structure is bind mounted in the new root environment, see
+\fImount\fR(8).  Also the \fBpython\-script:\fR path should be specified as an
+absolute path relative to the new root, or as a relative path to the working
+directory.
 .TP
 .B python\-script: \fI<python file>\fR
-The script file to load. 
+The script file to load.
 .SS "DNS64 Module Options"
 .LP
 The dns64 module must be configured in the \fBmodule\-config:\fR "dns64

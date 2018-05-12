@@ -1,0 +1,8 @@
+[Service]
+Type=notify
+NotifyAccess=main
+ExecStart=/home/vagrant/unbound_systemd/unbound
+ExecReload=/bin/kill -HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target

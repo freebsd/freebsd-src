@@ -223,7 +223,7 @@ struct ub_result {
  *		This structure is allocated on the heap and needs to be
  *		freed with ub_resolve_free(result);
  */
-typedef void (*ub_callback_t)(void*, int, struct ub_result*);
+typedef void (*ub_callback_type)(void*, int, struct ub_result*);
 
 /**
  * Create a resolving and validation context.
@@ -519,7 +519,7 @@ int ub_resolve(struct ub_ctx* ctx, const char* name, int rrtype,
  * @return 0 if OK, else error.
  */
 int ub_resolve_async(struct ub_ctx* ctx, const char* name, int rrtype, 
-	int rrclass, void* mydata, ub_callback_t callback, int* async_id);
+	int rrclass, void* mydata, ub_callback_type callback, int* async_id);
 
 /**
  * Cancel an async query in progress.

@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Dec 15, 2016" "NLnet Labs" "unbound 1.6.0"
+.TH "unbound.conf" "5" "Feb 21, 2017" "NLnet Labs" "unbound 1.6.1"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -413,9 +413,14 @@ turned off.
 The port number on which to provide TCP SSL service, default 853, only
 interfaces configured with that port number as @number get the SSL service.
 .TP
+.B use\-systemd: \fI<yes or no>
+Enable or disable systemd socket activation.
+Default is no.
+.TP
 .B do\-daemonize: \fI<yes or no>
 Enable or disable whether the unbound server forks into the background as
-a daemon. Default is yes.
+a daemon.  Set the value to \fIno\fR when unbound runs as systemd service.
+Default is yes.
 .TP
 .B access\-control: \fI<IP netblock> <action>
 The netblock is given as an IP4 or IP6 address with /size appended for a 
@@ -549,6 +554,13 @@ that case syslog formats the timestamp printed into the log files.
 .B log\-queries: \fI<yes or no>
 Prints one line per query to the log, with the log timestamp and IP address,
 name, type and class.  Default is no.  Note that it takes time to print these
+lines which makes the server (significantly) slower.  Odd (nonprintable)
+characters in names are printed as '?'.
+.TP
+.B log\-replies: \fI<yes or no>
+Prints one line per reply to the log, with the log timestamp and IP address,
+name, type, class, return code, time to resolve, from cache and response size.
+Default is no.  Note that it takes time to print these
 lines which makes the server (significantly) slower.  Odd (nonprintable)
 characters in names are printed as '?'.
 .TP
@@ -1193,6 +1205,34 @@ in different parts of the namespace.  The closest matching suffix is used
 to determine the qps limit.  The rate for the exact matching domain name
 is not changed, use ratelimit\-for\-domain to set that, you might want
 to use different settings for a top\-level\-domain and subdomains.
+.TP 5
+.B ip\-ratelimit: \fI<number or 0>
+Enable global ratelimiting of queries accepted per ip address.
+If 0, the default, it is disabled.  This option is experimental at this time.
+The ratelimit is in queries per second that are allowed.  More queries are
+completely dropped and will not receive a reply, SERVFAIL or otherwise.
+IP ratelimiting happens before looking in the cache. This may be useful for
+mitigating amplification attacks.
+.TP 5
+.B ip\-ratelimit\-size: \fI<memory size>
+Give the size of the data structure in which the current ongoing rates are
+kept track in.  Default 4m.  In bytes or use m(mega), k(kilo), g(giga).
+The ip ratelimit structure is small, so this data structure likely does
+not need to be large.
+.TP 5
+.B ip\-ratelimit\-slabs: \fI<number>
+Give power of 2 number of slabs, this is used to reduce lock contention
+in the ip ratelimit tracking data structure.  Close to the number of cpus is
+a fairly good setting.
+.TP 5
+.B ip\-ratelimit\-factor: \fI<number>
+Set the amount of queries to rate limit when the limit is exceeded.
+If set to 0, all queries are dropped for addresses where the limit is
+exceeded.  If set to another value, 1 in that number is allowed through
+to complete.  Default is 10, allowing 1/10 traffic to flow normally.
+This can make ordinary queries complete (if repeatedly queried for),
+and enter the cache, whilst also mitigating the traffic flow by the
+factor given.
 .SS "Remote Control Options"
 In the
 .B remote\-control:
@@ -1376,9 +1416,15 @@ acts like the iterator and validator modules do, on queries and answers.
 To enable the script module it has to be compiled into the daemon,
 and the word "python" has to be put in the \fBmodule\-config:\fR option
 (usually first, or between the validator and iterator).
+.LP
+If the \fBchroot:\fR option is enabled, you should make sure Python's
+library directory structure is bind mounted in the new root environment, see
+\fImount\fR(8).  Also the \fBpython\-script:\fR path should be specified as an
+absolute path relative to the new root, or as a relative path to the working
+directory.
 .TP
 .B python\-script: \fI<python file>\fR
-The script file to load. 
+The script file to load.
 .SS "DNS64 Module Options"
 .LP
 The dns64 module must be configured in the \fBmodule\-config:\fR "dns64

@@ -270,8 +270,8 @@ dname_pkt_compare(sldns_buffer* pkt, uint8_t* d1, uint8_t* d2)
 	return 0;
 }
 
-hashvalue_t 
-dname_query_hash(uint8_t* dname, hashvalue_t h)
+hashvalue_type
+dname_query_hash(uint8_t* dname, hashvalue_type h)
 {
 	uint8_t labuf[LDNS_MAX_LABELLEN+1];
 	uint8_t lablen;
@@ -294,8 +294,8 @@ dname_query_hash(uint8_t* dname, hashvalue_t h)
 	return h;
 }
 
-hashvalue_t 
-dname_pkt_hash(sldns_buffer* pkt, uint8_t* dname, hashvalue_t h)
+hashvalue_type
+dname_pkt_hash(sldns_buffer* pkt, uint8_t* dname, hashvalue_type h)
 {
 	uint8_t labuf[LDNS_MAX_LABELLEN+1];
 	uint8_t lablen;

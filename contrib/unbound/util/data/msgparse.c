@@ -71,7 +71,7 @@ smart_compare(sldns_buffer* pkt, uint8_t* dnow,
  */
 static struct rrset_parse* 
 new_rrset(struct msg_parse* msg, uint8_t* dname, size_t dnamelen, 
-	uint16_t type, uint16_t dclass, hashvalue_t hash, 
+	uint16_t type, uint16_t dclass, hashvalue_type hash, 
 	uint32_t rrset_flags, sldns_pkt_section section, 
 	struct regional* region)
 {
@@ -159,13 +159,13 @@ pkt_rrset_flags(sldns_buffer* pkt, uint16_t type, sldns_pkt_section sec)
 	return f;
 }
 
-hashvalue_t
+hashvalue_type
 pkt_hash_rrset(sldns_buffer* pkt, uint8_t* dname, uint16_t type, 
 	uint16_t dclass, uint32_t rrset_flags)
 {
 	/* note this MUST be identical to rrset_key_hash in packed_rrset.c */
 	/* this routine handles compressed names */
-	hashvalue_t h = 0xab;
+	hashvalue_type h = 0xab;
 	h = dname_pkt_hash(pkt, dname, h);
 	h = hashlittle(&type, sizeof(type), h);		/* host order */
 	h = hashlittle(&dclass, sizeof(dclass), h);	/* netw order */
@@ -174,25 +174,25 @@ pkt_hash_rrset(sldns_buffer* pkt, uint8_t* dname, uint16_t type,
 }
 
 /** create partial dname hash for rrset hash */
-static hashvalue_t
+static hashvalue_type
 pkt_hash_rrset_first(sldns_buffer* pkt, uint8_t* dname)
 {
 	/* works together with pkt_hash_rrset_rest */
 	/* note this MUST be identical to rrset_key_hash in packed_rrset.c */
 	/* this routine handles compressed names */
-	hashvalue_t h = 0xab;
+	hashvalue_type h = 0xab;
 	h = dname_pkt_hash(pkt, dname, h);
 	return h;
 }
 
 /** create a rrset hash from a partial dname hash */
-static hashvalue_t
-pkt_hash_rrset_rest(hashvalue_t dname_h, uint16_t type, uint16_t dclass, 
+static hashvalue_type
+pkt_hash_rrset_rest(hashvalue_type dname_h, uint16_t type, uint16_t dclass, 
 	uint32_t rrset_flags)
 {
 	/* works together with pkt_hash_rrset_first */
 	/* note this MUST be identical to rrset_key_hash in packed_rrset.c */
-	hashvalue_t h;
+	hashvalue_type h;
 	h = hashlittle(&type, sizeof(type), dname_h);	/* host order */
 	h = hashlittle(&dclass, sizeof(dclass), h);	/* netw order */
 	h = hashlittle(&rrset_flags, sizeof(uint32_t), h);
@@ -201,7 +201,7 @@ pkt_hash_rrset_rest(hashvalue_t dname_h, uint16_t type, uint16_t dclass,
 
 /** compare rrset_parse with data */
 static int
-rrset_parse_equals(struct rrset_parse* p, sldns_buffer* pkt, hashvalue_t h, 
+rrset_parse_equals(struct rrset_parse* p, sldns_buffer* pkt, hashvalue_type h, 
 	uint32_t rrset_flags, uint8_t* dname, size_t dnamelen, 
 	uint16_t type, uint16_t dclass)
 {
@@ -215,8 +215,8 @@ rrset_parse_equals(struct rrset_parse* p, sldns_buffer* pkt, hashvalue_t h,
 
 struct rrset_parse*
 msgparse_hashtable_lookup(struct msg_parse* msg, sldns_buffer* pkt, 
-	hashvalue_t h, uint32_t rrset_flags, uint8_t* dname, size_t dnamelen, 
-	uint16_t type, uint16_t dclass)
+	hashvalue_type h, uint32_t rrset_flags, uint8_t* dname,
+	size_t dnamelen, uint16_t type, uint16_t dclass)
 {
 	struct rrset_parse* p = msg->hashtable[h & (PARSE_TABLE_SIZE-1)];
 	while(p) {
@@ -388,7 +388,7 @@ change_rrsig_rrset(struct rrset_parse* sigset, struct msg_parse* msg,
 	int hasother, sldns_pkt_section section, struct regional* region)
 {
 	struct rrset_parse* dataset = sigset;
-	hashvalue_t hash = pkt_hash_rrset(pkt, sigset->dname, datatype, 
+	hashvalue_type hash = pkt_hash_rrset(pkt, sigset->dname, datatype, 
 		sigset->rrset_class, rrset_flags);
 	log_assert( sigset->type == LDNS_RR_TYPE_RRSIG );
 	log_assert( datatype != LDNS_RR_TYPE_RRSIG );
@@ -455,14 +455,14 @@ change_rrsig_rrset(struct rrset_parse* sigset, struct msg_parse* msg,
  */
 static int
 find_rrset(struct msg_parse* msg, sldns_buffer* pkt, uint8_t* dname, 
-	size_t dnamelen, uint16_t type, uint16_t dclass, hashvalue_t* hash, 
+	size_t dnamelen, uint16_t type, uint16_t dclass, hashvalue_type* hash, 
 	uint32_t* rrset_flags,
 	uint8_t** prev_dname_first, uint8_t** prev_dname_last,
 	size_t* prev_dnamelen, uint16_t* prev_type,
 	uint16_t* prev_dclass, struct rrset_parse** rrset_prev,
 	sldns_pkt_section section, struct regional* region)
 {
-	hashvalue_t dname_h = pkt_hash_rrset_first(pkt, dname);
+	hashvalue_type dname_h = pkt_hash_rrset_first(pkt, dname);
 	uint16_t covtype;
 	if(*rrset_prev) {
 		/* check if equal to previous item */
@@ -824,7 +824,7 @@ parse_section(sldns_buffer* pkt, struct msg_parse* msg,
 	uint16_t type, prev_type = 0;
 	uint16_t dclass, prev_dclass = 0;
 	uint32_t rrset_flags = 0;
-	hashvalue_t hash = 0;
+	hashvalue_type hash = 0;
 	struct rrset_parse* rrset = NULL;
 	int r;
 

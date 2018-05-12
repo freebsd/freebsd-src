@@ -88,7 +88,7 @@ iter_init(struct module_env* env, int id)
 
 /** delete caps_whitelist element */
 static void
-caps_free(struct rbnode_t* n, void* ATTR_UNUSED(d))
+caps_free(struct rbnode_type* n, void* ATTR_UNUSED(d))
 {
 	if(n) {
 		free(((struct name_tree_node*)n)->name);

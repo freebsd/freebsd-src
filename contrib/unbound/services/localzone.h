@@ -95,9 +95,9 @@ enum localzone_type {
  */
 struct local_zones {
 	/** lock on the localzone tree */
-	lock_rw_t lock;
+	lock_rw_type lock;
 	/** rbtree of struct local_zone */
-	rbtree_t ztree;
+	rbtree_type ztree;
 };
 
 /**
@@ -105,7 +105,7 @@ struct local_zones {
  */
 struct local_zone {
 	/** rbtree node, key is name and class */
-	rbnode_t node;
+	rbnode_type node;
 	/** parent zone, if any. */
 	struct local_zone* parent;
 
@@ -123,7 +123,7 @@ struct local_zone {
 	 * For the node, parent, name, namelen, namelabs, dclass, you
 	 * need to also hold the zones_tree lock to change them (or to
 	 * delete this zone) */
-	lock_rw_t lock;
+	lock_rw_type lock;
 
 	/** how to process zone */
 	enum localzone_type type;
@@ -133,14 +133,14 @@ struct local_zone {
 	size_t taglen;
 	/** netblock addr_tree with struct local_zone_override information
 	 * or NULL if there are no override elements */
-	struct rbtree_t* override_tree;
+	struct rbtree_type* override_tree;
 
 	/** in this region the zone's data is allocated.
 	 * the struct local_zone itself is malloced. */
 	struct regional* region;
 	/** local data for this zone
 	 * rbtree of struct local_data */
-	rbtree_t data;
+	rbtree_type data;
 	/** if data contains zone apex SOA data, this is a ptr to it. */
 	struct ub_packed_rrset_key* soa;
 };
@@ -150,7 +150,7 @@ struct local_zone {
  */
 struct local_data {
 	/** rbtree node, key is name only */
-	rbnode_t node;
+	rbnode_type node;
 	/** domain name */
 	uint8_t* name;
 	/** length of name */

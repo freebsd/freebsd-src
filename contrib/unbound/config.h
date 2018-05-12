@@ -69,6 +69,14 @@
    if you don't. */
 /* #undef HAVE_DECL_ARC4RANDOM_UNIFORM */
 
+/* Define to 1 if you have the declaration of `inet_ntop', and to 0 if you
+   don't. */
+#define HAVE_DECL_INET_NTOP 1
+
+/* Define to 1 if you have the declaration of `inet_pton', and to 0 if you
+   don't. */
+#define HAVE_DECL_INET_PTON 1
+
 /* Define to 1 if you have the declaration of `NID_secp384r1', and to 0 if you
    don't. */
 #define HAVE_DECL_NID_SECP384R1 1
@@ -108,6 +116,9 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
+/* Define to 1 if you have the `DSA_SIG_set0' function. */
+/* #undef HAVE_DSA_SIG_SET0 */
+
 /* Define to 1 if you have the <endian.h> header file. */
 /* #undef HAVE_ENDIAN_H */
 
@@ -143,6 +154,9 @@
 
 /* Define to 1 if you have the `EVP_cleanup' function. */
 #define HAVE_EVP_CLEANUP 1
+
+/* Define to 1 if you have the `EVP_dss1' function. */
+#define HAVE_EVP_DSS1 1
 
 /* Define to 1 if you have the `EVP_MD_CTX_new' function. */
 /* #undef HAVE_EVP_MD_CTX_NEW */
@@ -345,9 +359,6 @@
 /* Define to 1 if you have the `recvmsg' function. */
 #define HAVE_RECVMSG 1
 
-/* define if you have the sbrk() call */
-/* #undef HAVE_SBRK */
-
 /* Define to 1 if you have the `sendmsg' function. */
 #define HAVE_SENDMSG 1
 
@@ -396,6 +407,9 @@
 /* Define if you have the SSL libraries installed. */
 #define HAVE_SSL /**/
 
+/* Define to 1 if you have the `SSL_CTX_set_security_level' function. */
+/* #undef HAVE_SSL_CTX_SET_SECURITY_LEVEL */
+
 /* Define to 1 if you have the <stdarg.h> header file. */
 #define HAVE_STDARG_H 1
 
@@ -440,6 +454,9 @@
 
 /* Define to 1 if you have the <syslog.h> header file. */
 #define HAVE_SYSLOG_H 1
+
+/* Define to 1 if systemd should be used */
+/* #undef HAVE_SYSTEMD */
 
 /* Define to 1 if you have the <sys/param.h> header file. */
 #define HAVE_SYS_PARAM_H 1
@@ -566,7 +583,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.5.10"
+#define PACKAGE_STRING "unbound 1.6.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -575,7 +592,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.5.10"
+#define PACKAGE_VERSION "1.6.1"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -594,7 +611,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,5,10,0
+#define RSRC_PACKAGE_VERSION 1,6,1,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
@@ -1054,6 +1071,14 @@ char *strsep(char **stringp, const char *delim);
 #ifndef HAVE_ISBLANK
 #define isblank unbound_isblank
 int isblank(int c);
+#endif
+
+#if defined(HAVE_INET_NTOP) && !HAVE_DECL_INET_NTOP
+const char *inet_ntop(int af, const void *src, char *dst, size_t size);
+#endif
+
+#if defined(HAVE_INET_PTON) && !HAVE_DECL_INET_PTON
+int inet_pton(int af, const char* src, void* dst);
 #endif
 
 #if !defined(HAVE_STRPTIME) || !defined(STRPTIME_WORKS)
