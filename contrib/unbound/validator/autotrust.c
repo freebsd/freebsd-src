@@ -1571,6 +1571,11 @@ key_matches_a_ds(struct module_env* env, struct val_env* ve,
 			verbose(VERB_ALGO, "DS match attempt failed");
 			continue;
 		}
+		/* match of hash is sufficient for bootstrap of trust point */
+		(void)reason;
+		(void)ve;
+		return 1;
+		/* no need to check RRSIG, DS hash already matched with source
 		if(dnskey_verify_rrset(env, ve, dnskey_rrset, 
 			dnskey_rrset, key_idx, &reason) == sec_status_secure) {
 			return 1;
@@ -1578,6 +1583,7 @@ key_matches_a_ds(struct module_env* env, struct val_env* ve,
 			verbose(VERB_ALGO, "DS match failed because the key "
 				"does not verify the keyset: %s", reason);
 		}
+		*/
 	}
 	return 0;
 }

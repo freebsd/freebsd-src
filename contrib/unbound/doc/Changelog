@@ -1,3 +1,9 @@
+21 Aug 2017: Wouter
+	- Fix install of trust anchor when two anchors are present, makes both
+	  valid.  Checks hash of DS but not signature of new key.  This fixes
+	  installs between sep11 and oct11 2017.
+	- Tag 1.6.5
+
 22 June 2017: Wouter
 	- Tag 1.6.4rc2
 
