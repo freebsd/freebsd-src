@@ -174,7 +174,7 @@ struct ip_list {
 static void
 usage(void)
 {
-	printf("Usage:	unbound-anchor [opts]\n");
+	printf("Usage:	local-unbound-anchor [opts]\n");
 	printf("	Setup or update root anchor. "
 		"Most options have defaults.\n");
 	printf("	Run this program before you start the validator.\n");
