@@ -66,8 +66,7 @@ int __read_mostly (*pmc_hook)(struct thread *td, int function, void *arg) = NULL
 /* Interrupt handler */
 int __read_mostly (*pmc_intr)(int cpu, struct trapframe *tf) = NULL;
 
-/* Bitmask of CPUs requiring servicing at hardclock time */
-volatile cpuset_t pmc_cpumask;
+DPCPU_DEFINE(uint8_t, pmc_sampled);
 
 /*
  * A global count of SS mode PMCs.  When non-zero, this means that

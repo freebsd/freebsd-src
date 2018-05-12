@@ -725,8 +725,10 @@ p6_intr(int cpu, struct trapframe *tf)
 	if (retval)
 		lapic_reenable_pmc();
 
-	atomic_add_int(retval ? &pmc_stats.pm_intr_processed :
-	    &pmc_stats.pm_intr_ignored, 1);
+	if (retval)
+		counter_u64_add(pmc_stats.pm_intr_processed, 1);
+	else
+		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
 
 	/* restart counters that can be restarted */
 	P6_SYNC_CTR_STATE(pc);

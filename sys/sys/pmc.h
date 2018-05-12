@@ -36,7 +36,8 @@
 #define	_SYS_PMC_H_
 
 #include <dev/hwpmc/pmc_events.h>
-
+#include <sys/proc.h>
+#include <sys/counter.h>
 #include <machine/pmc_mdep.h>
 #include <machine/profile.h>
 
@@ -552,6 +553,19 @@ struct pmc_op_configurelog {
  *
  * Retrieve pmc(4) driver-wide statistics.
  */
+#ifdef _KERNEL
+struct pmc_driverstats {
+	counter_u64_t	pm_intr_ignored;	/* #interrupts ignored */
+	counter_u64_t	pm_intr_processed;	/* #interrupts processed */
+	counter_u64_t	pm_intr_bufferfull;	/* #interrupts with ENOSPC */
+	counter_u64_t	pm_syscalls;		/* #syscalls */
+	counter_u64_t	pm_syscall_errors;	/* #syscalls with errors */
+	counter_u64_t	pm_buffer_requests;	/* #buffer requests */
+	counter_u64_t	pm_buffer_requests_failed; /* #failed buffer requests */
+	counter_u64_t	pm_log_sweeps;		/* #sample buffer processing
+						   passes */
+};
+#endif
 
 struct pmc_op_getdriverstats {
 	unsigned int	pm_intr_ignored;	/* #interrupts ignored */
@@ -625,9 +639,9 @@ struct pmc_op_getdyneventinfo {
 
 #define	PMC_HASH_SIZE				1024
 #define	PMC_MTXPOOL_SIZE			2048
-#define	PMC_LOG_BUFFER_SIZE			4
-#define	PMC_NLOGBUFFERS				1024
-#define	PMC_NSAMPLES				1024
+#define	PMC_LOG_BUFFER_SIZE			128
+#define	PMC_NLOGBUFFERS_PCPU		8
+#define	PMC_NSAMPLES				64
 #define	PMC_CALLCHAIN_DEPTH			32
 
 #define PMC_SYSCTL_NAME_PREFIX "kern." PMC_MODULE_NAME "."
@@ -701,7 +715,10 @@ struct pmc_target {
  * field is '0'.
  *
  */
-
+struct pmc_pcpu_state {
+	uint8_t pps_stalled;
+	uint8_t pps_cpustate;
+} __aligned(CACHE_LINE_SIZE);
 struct pmc {
 	LIST_HEAD(,pmc_target)	pm_targets;	/* list of target processes */
 	LIST_ENTRY(pmc)		pm_next;	/* owner's list */
@@ -735,13 +752,13 @@ struct pmc {
 		pmc_value_t	pm_initial;	/* counting PMC modes */
 	} pm_sc;
 
-	volatile cpuset_t pm_stalled;	/* marks stalled sampling PMCs */
+	struct pmc_pcpu_state *pm_pcpu_state;
 	volatile cpuset_t pm_cpustate;	/* CPUs where PMC should be active */
 	uint32_t	pm_caps;	/* PMC capabilities */
 	enum pmc_event	pm_event;	/* event being measured */
 	uint32_t	pm_flags;	/* additional flags PMC_F_... */
 	struct pmc_owner *pm_owner;	/* owner thread state */
-	int		pm_runcount;	/* #cpus currently on */
+	counter_u64_t		pm_runcount;	/* #cpus currently on */
 	enum pmc_state	pm_state;	/* current PMC state */
 	uint32_t	pm_overflowcnt;	/* count overflow interrupts */
 
@@ -816,11 +833,11 @@ struct pmc_owner  {
 	struct proc		*po_owner;	/* owner proc */
 	uint32_t		po_flags;	/* (k) flags PMC_PO_* */
 	struct proc		*po_kthread;	/* (k) helper kthread */
-	struct pmclog_buffer	*po_curbuf;	/* current log buffer */
 	struct file		*po_file;	/* file reference */
 	int			po_error;	/* recorded error */
 	short			po_sscount;	/* # SS PMCs owned */
 	short			po_logprocmaps;	/* global mappings done */
+	struct pmclog_buffer	*po_curbuf[MAXCPU];	/* current log buffer */
 };
 
 #define	PMC_PO_OWNS_LOGFILE		0x00000001 /* has a log file */
@@ -1012,7 +1029,10 @@ struct pmc_mdep  {
 extern struct pmc_cpu **pmc_pcpu;
 
 /* driver statistics */
-extern struct pmc_op_getdriverstats pmc_stats;
+extern struct pmc_driverstats pmc_stats;
+
+/* cpu model name for pmu lookup */
+extern char pmc_cpuid[64];
 
 #if	defined(HWPMC_DEBUG)
 #include <sys/ktr.h>
