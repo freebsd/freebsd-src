@@ -459,6 +459,10 @@ packed_rrset_encode(struct ub_packed_rrset_key* key, sldns_buffer* pkt,
 	owner_labs = dname_count_labels(key->rk.dname);
 	owner_pos = sldns_buffer_position(pkt);
 
+	/* For an rrset with a fixed TTL, use the rrset's TTL as given */
+	if((key->rk.flags & PACKED_RRSET_FIXEDTTL) != 0)
+		timenow = 0;
+
 	if(do_data) {
 		const sldns_rr_descriptor* c = type_rdata_compressable(key);
 		for(i=0; i<data->count; i++) {

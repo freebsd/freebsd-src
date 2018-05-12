@@ -73,9 +73,11 @@ testbound_usage(void)
 	printf("\ttest the unbound daemon.\n");
 	printf("-h      this help\n");
 	printf("-p file	playback text file\n");
+	printf("-1 	detect SHA1 support (exit code 0 or 1)\n");
 	printf("-2 	detect SHA256 support (exit code 0 or 1)\n");
 	printf("-g 	detect GOST support (exit code 0 or 1)\n");
 	printf("-e 	detect ECDSA support (exit code 0 or 1)\n");
+	printf("-c 	detect CLIENT_SUBNET support (exit code 0 or 1)\n");
 	printf("-s 	testbound self-test - unit test of testbound parts.\n");
 	printf("-o str  unbound commandline options separated by spaces.\n");
 	printf("Version %s\n", PACKAGE_VERSION);
@@ -279,12 +281,21 @@ main(int argc, char* argv[])
 	pass_argc = 1;
 	pass_argv[0] = "unbound";
 	add_opts("-d", &pass_argc, pass_argv);
-	while( (c=getopt(argc, argv, "2egho:p:s")) != -1) {
+	while( (c=getopt(argc, argv, "12egho:p:s")) != -1) {
 		switch(c) {
 		case 's':
 			free(pass_argv[1]);
 			testbound_selftest();
 			exit(0);
+		case '1':
+#ifdef USE_SHA1
+			printf("SHA1 supported\n");
+			exit(0);
+#else
+			printf("SHA1 not supported\n");
+			exit(1);
+#endif
+			break;
 		case '2':
 #if (defined(HAVE_EVP_SHA256) || defined(HAVE_NSS) || defined(HAVE_NETTLE)) && defined(USE_SHA2)
 			printf("SHA256 supported\n");
@@ -314,6 +325,15 @@ main(int argc, char* argv[])
 			}
 #else
 			printf("GOST not supported\n");
+			exit(1);
+#endif
+			break;
+		case 'c':
+#ifdef CLIENT_SUBNET
+			printf("CLIENT_SUBNET supported\n");
+			exit(0);
+#else
+			printf("CLIENT_SUBNET not supported\n");
 			exit(1);
 #endif
 			break;

@@ -2,6 +2,7 @@
 server:
 	trust-anchor: "GOV. DS 26079 7 2 4ED5FFBC8A40262B56E1232135B929192804ACC006930D087AAB38A611C89041"
 	val-override-date: "20091113091234"
+	fake-sha1: yes
 
 forward-zone:
 	name: "."

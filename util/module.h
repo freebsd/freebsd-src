@@ -174,6 +174,9 @@ struct val_anchors;
 struct val_neg_cache;
 struct iter_forwards;
 struct iter_hints;
+struct respip_set;
+struct respip_client_info;
+struct respip_addr_info;
 
 /** Maximum number of modules in operation */
 #define MAX_MODULE 16
@@ -194,6 +197,11 @@ enum inplace_cb_list_type {
 	inplace_cb_reply_servfail,
 	/* Inplace callbacks for when a query is ready to be sent to the back.*/
 	inplace_cb_query,
+	/* Inplace callback for when a reply is received from the back. */
+	inplace_cb_query_response,
+	/* Inplace callback for when EDNS is parsed on a reply received from the
+	 * back. */
+	inplace_cb_edns_back_parsed,
 	/* Total number of types. Used for array initialization.
 	 * Should always be last. */
 	inplace_cb_types_total
@@ -208,6 +216,19 @@ struct edns_known_option {
 	int bypass_cache_stage;
 	/** whether the option needs mesh aggregation */
 	int no_aggregation;
+};
+
+/**
+ * Inplace callback list of registered routines to be called.
+ */
+struct inplace_cb {
+	/** next in list */
+	struct inplace_cb* next;
+	/** Inplace callback routine */
+	void* cb;
+	void* cb_arg;
+	/** module id */
+	int id;
 };
 
 /**
@@ -229,24 +250,7 @@ struct edns_known_option {
 typedef int inplace_cb_reply_func_type(struct query_info* qinfo,
 	struct module_qstate* qstate, struct reply_info* rep, int rcode,
 	struct edns_data* edns, struct edns_option** opt_list_out, 
-	struct regional* region, void* python_callback);
-
-/**
- * Inplace callback list of registered routines to be called before replying 
- * with a resolved query.
- */
-struct inplace_cb_reply {
-	/** next in list */
-	struct inplace_cb_reply* next;
-	/**
-	 * Inplace callback routine for cache stage response.
-	 * called as cb(qinfo, qstate, qinfo, reply_info, rcode, edns,
-	 *              opt_list_out, region, python_callback);
-	 * python_callback is only used for registering a python callback function.
-	 */
-	inplace_cb_reply_func_type* cb;
-	void* cb_arg;
-};
+	struct regional* region, int id, void* callback);
 
 /**
  * Inplace callback function called before sending the query to a nameserver.
@@ -268,24 +272,30 @@ struct inplace_cb_reply {
 typedef int inplace_cb_query_func_type(struct query_info* qinfo, uint16_t flags,
 	struct module_qstate* qstate, struct sockaddr_storage* addr,
 	socklen_t addrlen, uint8_t* zone, size_t zonelen, struct regional* region,
-	void* python_callback);
+	int id, void* callback);
 
 /**
- * Inplace callback list of registered routines to be called before quering a
- * nameserver.
+ * Inplace callback function called after parsing edns on query reply.
+ * Called as func(qstate, cb_args)
+ * Where:
+ *	qstate: the query state
+ *	id: module id
+ *	cb_args: argument passed when registering callback.
  */
-struct inplace_cb_query {
-	/** next in list */
-	struct inplace_cb_query* next;
-	/**
-	 * Inplace callback routine for cache stage response.
-	 * called as cb(qinfo, flags, qstate, addr, addrlen, zone, zonelen,
-	 *              region, python_callback);
-	 * python_callback is only used for registering a python callback function.
-	 */
-	inplace_cb_query_func_type* cb;
-	void* cb_arg;
-};
+typedef int inplace_cb_edns_back_parsed_func_type(struct module_qstate* qstate, 
+	int id, void* cb_args);
+
+/**
+ * Inplace callback function called after parsing query response.
+ * Called as func(qstate, id, cb_args)
+ * Where:
+ *	qstate: the query state
+ *	response: query response
+ *	id: module id
+ *	cb_args: argument passed when registering callback.
+ */
+typedef int inplace_cb_query_response_func_type(struct module_qstate* qstate,
+	struct dns_msg* response, int id, void* cb_args);
 
 /**
  * Module environment.
@@ -442,7 +452,7 @@ struct module_env {
 	void* modinfo[MAX_MODULE];
 
 	/* Shared linked list of inplace callback functions */
-	void* inplace_cb_lists[inplace_cb_types_total];
+	struct inplace_cb* inplace_cb_lists[inplace_cb_types_total];
 
 	/**
 	 * Shared array of known edns options (size MAX_KNOWN_EDNS_OPTS).
@@ -451,6 +461,9 @@ struct module_env {
 	struct edns_known_option* edns_known_options;
 	/* Number of known edns options */
 	size_t edns_known_options_num;
+
+	/* Make every mesh state unique, do not aggregate mesh states. */
+	int unique_mesh;
 };
 
 /**
@@ -508,6 +521,8 @@ struct sock_list {
 	struct sockaddr_storage addr;
 };
 
+struct respip_action_info;
+
 /**
  * Module state, per query.
  */
@@ -562,6 +577,19 @@ struct module_qstate {
 	int no_cache_lookup;
 	/** whether modules should store answer in the cache */
 	int no_cache_store;
+
+	/**
+	 * Attributes of clients that share the qstate that may affect IP-based
+	 * actions.
+	 */
+	struct respip_client_info* client_info;
+
+	/** Extended result of response-ip action processing, mainly
+	 *  for logging purposes. */
+	struct respip_action_info* respip_action_info;
+
+	/** whether the reply should be dropped */
+	int is_drop;
 };
 
 /** 
@@ -680,85 +708,28 @@ int edns_register_option(uint16_t opt_code, int bypass_cache_stage,
 	int no_aggregation, struct module_env* env);
 
 /**
- * Register an inplace callback function called before replying with a resolved
- * query.
+ * Register an inplace callback function.
  * @param cb: pointer to the callback function.
- * @param cb_arg: optional argument for the callback function.
+ * @param type: inplace callback type.
+ * @param cbarg: argument for the callback function, or NULL.
  * @param env: the module environment.
+ * @param id: module id.
  * @return true on success, false on failure (out of memory or trying to
  *	register after the environment is copied to the threads.)
  */
-int inplace_cb_reply_register(inplace_cb_reply_func_type* cb, void* cb_arg,
-	struct module_env* env);
+int
+inplace_cb_register(void* cb, enum inplace_cb_list_type type, void* cbarg,
+	struct module_env* env, int id);
 
 /**
- * Register an inplace callback function called before replying from the cache.
- * @param cb: pointer to the callback function.
- * @param cb_arg: optional argument for the callback function.
+ * Delete callback for specified type and module id.
  * @param env: the module environment.
- * @return true on success, false on failure (out of memory or trying to
- *	register after the environment is copied to the threads.)
+ * @param type: inplace callback type.
+ * @param id: module id.
  */
-int inplace_cb_reply_cache_register(inplace_cb_reply_func_type* cb, void* cb_arg,
-	struct module_env* env);
-
-/**
- * Register an inplace callback function called before replying with local
- * data or Chaos reply.
- * @param cb: pointer to the callback function.
- * @param cb_arg: optional argument for the callback function.
- * @param env: the module environment.
- * @return true on success, false on failure (out of memory or trying to
- *	register after the environment is copied to the threads.)
- */
-int inplace_cb_reply_local_register(inplace_cb_reply_func_type* cb, void* cb_arg,
-	struct module_env* env);
-
-/**
- * Register an inplace callback function called before replying with servfail.
- * @param cb: pointer to the callback function.
- * @param cb_arg: optional argument for the callback function.
- * @param env: the module environment.
- * @return true on success, false on failure (out of memory or trying to
- *	register after the environment is copied to the threads.)
- */
-int inplace_cb_reply_servfail_register(inplace_cb_reply_func_type* cb,
-	void* cb_arg, struct module_env* env);
-
-/**
- * Delete the inplace_cb_reply callback linked list.
- * @param env: the module environment.
- */
-void inplace_cb_reply_delete(struct module_env* env);
-
-/**
- * Delete the inplace_cb_reply_cache callback linked list.
- * @param env: the module environment.
- */
-void inplace_cb_reply_cache_delete(struct module_env* env);
-
-/**
- * Delete the inplace_cb_reply_servfail callback linked list.
- * @param env: the module environment.
- */
-void inplace_cb_reply_servfail_delete(struct module_env* env);
-
-/**
- * Register an inplace callback function called before quering a nameserver.
- * @param cb: pointer to the callback function.
- * @param cb_arg: optional argument for the callback function.
- * @param env: the module environment.
- * @return true on success, false on failure (out of memory or trying to
- *	register after the environment is copied to the threads.)
- */
-int inplace_cb_query_register(inplace_cb_query_func_type* cb, void* cb_arg,
-	struct module_env* env);
-
-/**
- * Delete the inplace_cb_query callback linked list.
- * @param env: the module environment.
- */
-void inplace_cb_query_delete(struct module_env* env);
+void
+inplace_cb_delete(struct module_env* env, enum inplace_cb_list_type type,
+	int id);
 
 /**
  * Delete all the inplace callback linked lists.
@@ -787,13 +758,14 @@ int edns_bypass_cache_stage(struct edns_option* list,
 	struct module_env* env);
 
 /**
- * Check if an edns option needs a unique mesh state.
+ * Check if an unique mesh state is required. Might be triggered by EDNS option
+ * or set for the complete env.
  * @param list: the edns options.
  * @param env: the module environment.
  * @return true if an edns option needs a unique mesh state,
  *	false otherwise.
  */
-int edns_unique_mesh_state(struct edns_option* list, struct module_env* env);
+int unique_mesh_state(struct edns_option* list, struct module_env* env);
 
 /**
  * Log the known edns options.

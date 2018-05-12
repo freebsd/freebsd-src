@@ -232,6 +232,14 @@ void server_stats_add(struct stats_info* total, struct stats_info* a)
 	total->svr.num_queries_missed_cache += a->svr.num_queries_missed_cache;
 	total->svr.num_queries_prefetch += a->svr.num_queries_prefetch;
 	total->svr.sum_query_list_size += a->svr.sum_query_list_size;
+#ifdef USE_DNSCRYPT
+    total->svr.num_query_dnscrypt_crypted += a->svr.num_query_dnscrypt_crypted;
+    total->svr.num_query_dnscrypt_cert += a->svr.num_query_dnscrypt_cert;
+    total->svr.num_query_dnscrypt_cleartext += \
+        a->svr.num_query_dnscrypt_cleartext;
+    total->svr.num_query_dnscrypt_crypted_malformed += \
+        a->svr.num_query_dnscrypt_crypted_malformed;
+#endif
 	/* the max size reached is upped to higher of both */
 	if(a->svr.max_query_list_size > total->svr.max_query_list_size)
 		total->svr.max_query_list_size = a->svr.max_query_list_size;

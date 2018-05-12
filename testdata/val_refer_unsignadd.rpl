@@ -6,6 +6,7 @@ server:
 	val-override-date: "20070916134226"
 	access-control: 127.0.0.1 allow_snoop
 	target-fetch-policy: "0 0 0 0 0"
+	fake-sha1: yes
 
 stub-zone:
 	name: "."

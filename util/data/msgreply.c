@@ -133,9 +133,8 @@ parse_create_repinfo(struct msg_parse* msg, struct reply_info** rep,
 	return 1;
 }
 
-/** allocate (special) rrset keys, return 0 on error */
-static int
-repinfo_alloc_rrset_keys(struct reply_info* rep, struct alloc_cache* alloc, 
+int
+reply_info_alloc_rrset_keys(struct reply_info* rep, struct alloc_cache* alloc,
 	struct regional* region)
 {
 	size_t i;
@@ -438,7 +437,7 @@ parse_create_msg(sldns_buffer* pkt, struct msg_parse* msg,
 		return 0;
 	if(!parse_create_repinfo(msg, rep, region))
 		return 0;
-	if(!repinfo_alloc_rrset_keys(*rep, alloc, region))
+	if(!reply_info_alloc_rrset_keys(*rep, alloc, region))
 		return 0;
 	if(!parse_copy_decompress(pkt, msg, *rep, region))
 		return 0;
@@ -688,7 +687,7 @@ reply_info_copy(struct reply_info* rep, struct alloc_cache* alloc,
 	if(!cp)
 		return NULL;
 	/* allocate ub_key structures special or not */
-	if(!repinfo_alloc_rrset_keys(cp, alloc, region)) {
+	if(!reply_info_alloc_rrset_keys(cp, alloc, region)) {
 		if(!region)
 			reply_info_parsedelete(cp, alloc);
 		return NULL;
@@ -984,19 +983,20 @@ int edns_opt_list_remove(struct edns_option** list, uint16_t code)
 }
 
 static int inplace_cb_reply_call_generic(
-    struct inplace_cb_reply* callback_list, enum inplace_cb_list_type type,
+    struct inplace_cb* callback_list, enum inplace_cb_list_type type,
 	struct query_info* qinfo, struct module_qstate* qstate,
 	struct reply_info* rep, int rcode, struct edns_data* edns,
 	struct regional* region)
 {
-	struct inplace_cb_reply* cb;
+	struct inplace_cb* cb;
 	struct edns_option* opt_list_out = NULL;
 	if(qstate)
 		opt_list_out = qstate->edns_opts_front_out;
 	for(cb=callback_list; cb; cb=cb->next) {
-		fptr_ok(fptr_whitelist_inplace_cb_reply_generic(cb->cb, type));
-		(void)(*cb->cb)(qinfo, qstate, rep, rcode, edns, &opt_list_out, region,
-			cb->cb_arg);
+		fptr_ok(fptr_whitelist_inplace_cb_reply_generic(
+			(inplace_cb_reply_func_type*)cb->cb, type));
+		(void)(*(inplace_cb_reply_func_type*)cb->cb)(qinfo, qstate, rep,
+			rcode, edns, &opt_list_out, region, cb->id, cb->cb_arg);
 	}
 	edns->opt_list = opt_list_out;
 	return 1;
@@ -1049,11 +1049,40 @@ int inplace_cb_query_call(struct module_env* env, struct query_info* qinfo,
 	uint8_t* zone, size_t zonelen, struct module_qstate* qstate,
 	struct regional* region)
 {
-	struct inplace_cb_query* cb = env->inplace_cb_lists[inplace_cb_query];
+	struct inplace_cb* cb = env->inplace_cb_lists[inplace_cb_query];
 	for(; cb; cb=cb->next) {
-		fptr_ok(fptr_whitelist_inplace_cb_query(cb->cb));
-		(void)(*cb->cb)(qinfo, flags, qstate, addr, addrlen, zone, zonelen,
-			region, cb->cb_arg);
+		fptr_ok(fptr_whitelist_inplace_cb_query(
+			(inplace_cb_query_func_type*)cb->cb));
+		(void)(*(inplace_cb_query_func_type*)cb->cb)(qinfo, flags,
+			qstate, addr, addrlen, zone, zonelen, region,
+			cb->id, cb->cb_arg);
+	}
+	return 1;
+}
+
+int inplace_cb_edns_back_parsed_call(struct module_env* env, 
+	struct module_qstate* qstate)
+{
+	struct inplace_cb* cb =
+		env->inplace_cb_lists[inplace_cb_edns_back_parsed];
+	for(; cb; cb=cb->next) {
+		fptr_ok(fptr_whitelist_inplace_cb_edns_back_parsed(
+			(inplace_cb_edns_back_parsed_func_type*)cb->cb));
+		(void)(*(inplace_cb_edns_back_parsed_func_type*)cb->cb)(qstate,
+			cb->id, cb->cb_arg);
+	}
+	return 1;
+}
+
+int inplace_cb_query_response_call(struct module_env* env,
+	struct module_qstate* qstate, struct dns_msg* response) {
+	struct inplace_cb* cb =
+		env->inplace_cb_lists[inplace_cb_query_response];
+	for(; cb; cb=cb->next) {
+		fptr_ok(fptr_whitelist_inplace_cb_query_response(
+			(inplace_cb_query_response_func_type*)cb->cb));
+		(void)(*(inplace_cb_query_response_func_type*)cb->cb)(qstate,
+			response, cb->id, cb->cb_arg);
 	}
 	return 1;
 }
@@ -1148,6 +1177,7 @@ struct edns_option* edns_opt_copy_alloc(struct edns_option* list)
 		if(s->opt_data) {
 			s->opt_data = memdup(s->opt_data, s->opt_len);
 			if(!s->opt_data) {
+				free(s);
 				edns_opt_list_free(result);
 				return NULL;
 			}

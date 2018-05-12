@@ -1,0 +1,160 @@
+server:
+	send-client-subnet: 5.0.15.10
+	max-client-subnet-ipv4: 21
+	verbosity: 3
+	module-config: "subnetcache iterator"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Works without validator module
+
+RANGE_BEGIN 0 100
+
+	ADDRESS 193.0.14.129 
+
+	ENTRY_BEGIN
+		MATCH opcode qtype qname ednsdata
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			. IN NS
+		SECTION ANSWER
+			. IN NS	K.ROOT-SERVERS.NET.
+		SECTION ADDITIONAL
+			HEX_EDNSDATA_BEGIN
+				;; we expect to receive empty
+			HEX_EDNSDATA_END
+			K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode qtype qname ednsdata
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			a.gtld-servers.net. IN AAAA
+		SECTION AUTHORITY
+		SECTION ADDITIONAL
+			HEX_EDNSDATA_BEGIN
+				;; we expect to receive empty
+			HEX_EDNSDATA_END
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode qtype qname ednsdata
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			www.example.com. IN A
+		SECTION AUTHORITY
+			com.	IN NS	a.gtld-servers.net.
+		SECTION ADDITIONAL
+			HEX_EDNSDATA_BEGIN
+				;; we expect to receive empty
+			HEX_EDNSDATA_END
+			a.gtld-servers.net.	IN 	A	192.5.6.30
+	ENTRY_END
+	
+RANGE_END
+
+RANGE_BEGIN 0 100
+
+	ADDRESS 192.5.6.30
+
+	ENTRY_BEGIN
+		MATCH opcode subdomain ednsdata
+		ADJUST copy_id copy_query
+		REPLY QR NOERROR
+		SECTION QUESTION
+			example.com. IN A
+		SECTION AUTHORITY
+			example.com.	IN NS	ns.example.com.
+		SECTION ADDITIONAL
+			HEX_EDNSDATA_BEGIN
+				;; we expect to receive empty
+			HEX_EDNSDATA_END
+			ns.example.com.		IN 	A	5.0.15.10
+	ENTRY_END
+	
+RANGE_END
+
+RANGE_BEGIN 0 100
+
+	ADDRESS 5.0.15.10
+
+	ENTRY_BEGIN
+		MATCH opcode qtype qname ednsdata
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			example.com. IN NS
+		SECTION ANSWER
+			example.com.    IN NS   ns.example.com.
+		SECTION ADDITIONAL
+			HEX_EDNSDATA_BEGIN
+				;; we expect to receive empty
+			HEX_EDNSDATA_END
+			ns.example.com.     IN      A       5.0.15.10
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode qtype qname ednsdata
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			ns.example.com. IN AAAA
+		SECTION ANSWER
+		SECTION ADDITIONAL
+			HEX_EDNSDATA_BEGIN
+				;; we expect to receive empty
+			HEX_EDNSDATA_END
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode subdomain ednsdata
+		ADJUST copy_id copy_query
+		REPLY QR NOERROR
+		SECTION QUESTION
+			www.example.com. IN A
+		SECTION ANSWER
+			www.example.com.	IN A	4.3.2.1
+		SECTION ADDITIONAL
+			HEX_EDNSDATA_BEGIN
+							; client is 127.0.0.1
+				00 08 		; OPC
+				00 07 		; option length
+				00 01 		; Family
+				15 00 		; source mask, scopemask
+				7f 00 00 	; address
+			HEX_EDNSDATA_END
+	ENTRY_END
+	
+RANGE_END
+
+;; ----------------------------------------
+
+STEP 1 QUERY
+
+	ENTRY_BEGIN
+		REPLY RD
+		SECTION QUESTION
+		www.example.com. IN A
+	ENTRY_END
+
+STEP 10 CHECK_ANSWER
+
+	ENTRY_BEGIN
+		MATCH all
+		REPLY QR RD RA NOERROR
+		SECTION QUESTION
+			www.example.com. IN A
+		SECTION ANSWER
+			www.example.com.	IN A	4.3.2.1
+		SECTION AUTHORITY
+		SECTION ADDITIONAL
+	ENTRY_END
+
+SCENARIO_END

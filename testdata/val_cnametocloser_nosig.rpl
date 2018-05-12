@@ -3,6 +3,7 @@ server:
 	trust-anchor: "example.com.	3600	IN	DS	30899 5 1 d4bf9d2e10f6d76840d42ef5913022abcd0bf512"
 	trust-anchor: "a.b.example.com.	3600	IN	DNSKEY	257 3 5 AwEAAas/cAhCFXvBUgTSNZCvQp0pLx1dY+7rXR0hH4/3EUgWmsmbYUpI1qD0xhwKD/oYGEwAm291fyWJ9c0oVxXDEK8="
 	val-override-date: "20091113091234"
+	fake-sha1: yes
 
 forward-zone:
 	name: "."

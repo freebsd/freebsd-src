@@ -69,9 +69,13 @@
 #include "iterator/iter_hints.h"
 #include "validator/autotrust.h"
 #include "validator/val_anchor.h"
+#include "respip/respip.h"
 #include "libunbound/context.h"
 #include "libunbound/libworker.h"
 #include "sldns/sbuffer.h"
+#include "sldns/wire2str.h"
+#include "util/shm_side/shm_main.h"
+#include "dnscrypt/dnscrypt.h"
 
 #ifdef HAVE_SYS_TYPES_H
 #  include <sys/types.h>
@@ -113,6 +117,9 @@ worker_mem_report(struct worker* ATTR_UNUSED(worker),
 	size_t total, front, back, mesh, msg, rrset, infra, ac, superac;
 	size_t me, iter, val, anch;
 	int i;
+#ifdef CLIENT_SUBNET
+	size_t subnet = 0;
+#endif /* CLIENT_SUBNET */
 	if(verbosity < VERB_ALGO) 
 		return;
 	front = listen_get_mem(worker->front);
@@ -132,6 +139,12 @@ worker_mem_report(struct worker* ATTR_UNUSED(worker),
 		if(strcmp(worker->env.mesh->mods.mod[i]->name, "validator")==0)
 			val += (*worker->env.mesh->mods.mod[i]->get_mem)
 				(&worker->env, i);
+#ifdef CLIENT_SUBNET
+		else if(strcmp(worker->env.mesh->mods.mod[i]->name,
+			"subnet")==0)
+			subnet += (*worker->env.mesh->mods.mod[i]->get_mem)
+				(&worker->env, i);
+#endif /* CLIENT_SUBNET */
 		else	iter += (*worker->env.mesh->mods.mod[i]->get_mem)
 				(&worker->env, i);
 	}
@@ -149,6 +162,17 @@ worker_mem_report(struct worker* ATTR_UNUSED(worker),
 		me += serviced_get_mem(cur_serv);
 	}
 	total = front+back+mesh+msg+rrset+infra+iter+val+ac+superac+me;
+#ifdef CLIENT_SUBNET
+	total += subnet;
+	log_info("Memory conditions: %u front=%u back=%u mesh=%u msg=%u "
+		"rrset=%u infra=%u iter=%u val=%u subnet=%u anchors=%u "
+		"alloccache=%u globalalloccache=%u me=%u",
+		(unsigned)total, (unsigned)front, (unsigned)back, 
+		(unsigned)mesh, (unsigned)msg, (unsigned)rrset, (unsigned)infra,
+		(unsigned)iter, (unsigned)val,
+		(unsigned)subnet, (unsigned)anch, (unsigned)ac,
+		(unsigned)superac, (unsigned)me);
+#else /* no CLIENT_SUBNET */
 	log_info("Memory conditions: %u front=%u back=%u mesh=%u msg=%u "
 		"rrset=%u infra=%u iter=%u val=%u anchors=%u "
 		"alloccache=%u globalalloccache=%u me=%u",
@@ -156,11 +180,15 @@ worker_mem_report(struct worker* ATTR_UNUSED(worker),
 		(unsigned)mesh, (unsigned)msg, (unsigned)rrset, 
 		(unsigned)infra, (unsigned)iter, (unsigned)val, (unsigned)anch,
 		(unsigned)ac, (unsigned)superac, (unsigned)me);
+#endif /* CLIENT_SUBNET */
 	log_info("Total heap memory estimate: %u  total-alloc: %u  "
 		"total-free: %u", (unsigned)total, 
 		(unsigned)unbound_mem_alloc, (unsigned)unbound_mem_freed);
 #else /* no UNBOUND_ALLOC_STATS */
 	size_t val = 0;
+#ifdef CLIENT_SUBNET
+	size_t subnet = 0;
+#endif /* CLIENT_SUBNET */
 	int i;
 	if(verbosity < VERB_QUERY)
 		return;
@@ -170,12 +198,27 @@ worker_mem_report(struct worker* ATTR_UNUSED(worker),
 		if(strcmp(worker->env.mesh->mods.mod[i]->name, "validator")==0)
 			val += (*worker->env.mesh->mods.mod[i]->get_mem)
 				(&worker->env, i);
+#ifdef CLIENT_SUBNET
+		else if(strcmp(worker->env.mesh->mods.mod[i]->name,
+			"subnet")==0)
+			subnet += (*worker->env.mesh->mods.mod[i]->get_mem)
+				(&worker->env, i);
+#endif /* CLIENT_SUBNET */
 	}
+#ifdef CLIENT_SUBNET
+	verbose(VERB_QUERY, "cache memory msg=%u rrset=%u infra=%u val=%u "
+		"subnet=%u",
+		(unsigned)slabhash_get_mem(worker->env.msg_cache),
+		(unsigned)slabhash_get_mem(&worker->env.rrset_cache->table),
+		(unsigned)infra_get_mem(worker->env.infra_cache),
+		(unsigned)val, (unsigned)subnet);
+#else /* no CLIENT_SUBNET */
 	verbose(VERB_QUERY, "cache memory msg=%u rrset=%u infra=%u val=%u",
 		(unsigned)slabhash_get_mem(worker->env.msg_cache),
 		(unsigned)slabhash_get_mem(&worker->env.rrset_cache->table),
 		(unsigned)infra_get_mem(worker->env.infra_cache),
 		(unsigned)val);
+#endif /* CLIENT_SUBNET */
 #endif /* UNBOUND_ALLOC_STATS */
 }
 
@@ -510,17 +553,70 @@ answer_norec_from_cache(struct worker* worker, struct query_info* qinfo,
 	return 1;
 }
 
-/** answer query from the cache */
+/** Apply, if applicable, a response IP action to a cached answer.
+ * If the answer is rewritten as a result of an action, '*encode_repp' will
+ * point to the reply info containing the modified answer.  '*encode_repp' will
+ * be intact otherwise.
+ * It returns 1 on success, 0 otherwise. */
+static int
+apply_respip_action(struct worker* worker, const struct query_info* qinfo,
+	struct respip_client_info* cinfo, struct reply_info* rep,
+	struct comm_reply* repinfo, struct ub_packed_rrset_key** alias_rrset,
+	struct reply_info** encode_repp)
+{
+	struct respip_action_info actinfo = {respip_none, NULL};
+
+	if(qinfo->qtype != LDNS_RR_TYPE_A &&
+		qinfo->qtype != LDNS_RR_TYPE_AAAA &&
+		qinfo->qtype != LDNS_RR_TYPE_ANY)
+		return 1;
+
+	if(!respip_rewrite_reply(qinfo, cinfo, rep, encode_repp, &actinfo,
+		alias_rrset, 0, worker->scratchpad))
+		return 0;
+
+	/* xxx_deny actions mean dropping the reply, unless the original reply
+	 * was redirected to response-ip data. */
+	if((actinfo.action == respip_deny ||
+		actinfo.action == respip_inform_deny) &&
+		*encode_repp == rep)
+		*encode_repp = NULL;
+
+	/* If address info is returned, it means the action should be an
+	 * 'inform' variant and the information should be logged. */
+	if(actinfo.addrinfo) {
+		respip_inform_print(actinfo.addrinfo, qinfo->qname,
+			qinfo->qtype, qinfo->qclass, qinfo->local_alias,
+			repinfo);
+	}
+
+	return 1;
+}
+
+/** answer query from the cache.
+ * Normally, the answer message will be built in repinfo->c->buffer; if the
+ * answer is supposed to be suppressed or the answer is supposed to be an
+ * incomplete CNAME chain, the buffer is explicitly cleared to signal the
+ * caller as such.  In the latter case *partial_rep will point to the incomplete
+ * reply, and this function is (possibly) supposed to be called again with that
+ * *partial_rep value to complete the chain.  In addition, if the query should
+ * be completely dropped, '*need_drop' will be set to 1. */
 static int
 answer_from_cache(struct worker* worker, struct query_info* qinfo,
+	struct respip_client_info* cinfo, int* need_drop,
+	struct ub_packed_rrset_key** alias_rrset,
+	struct reply_info** partial_repp,
 	struct reply_info* rep, uint16_t id, uint16_t flags, 
 	struct comm_reply* repinfo, struct edns_data* edns)
 {
 	time_t timenow = *worker->env.now;
 	uint16_t udpsize = edns->udp_size;
+	struct reply_info* encode_rep = rep;
+	struct reply_info* partial_rep = *partial_repp;
 	int secure;
 	int must_validate = (!(flags&BIT_CD) || worker->env.cfg->ignore_cd)
 		&& worker->env.need_to_validate;
+	*partial_repp = NULL;	/* avoid accidental further pass */
 	if(worker->env.cfg->serve_expired) {
 		/* always lock rrsets, rep->ttl is ignored */
 		if(!rrset_array_lock(rep->ref, rep->rrset_count, 0))
@@ -600,7 +696,33 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 	if(!inplace_cb_reply_cache_call(&worker->env, qinfo, NULL, rep,
 		(int)(flags&LDNS_RCODE_MASK), edns, worker->scratchpad))
 		goto bail_out;
-	if(!reply_info_answer_encode(qinfo, rep, id, flags, 
+	*alias_rrset = NULL; /* avoid confusion if caller set it to non-NULL */
+	if(worker->daemon->use_response_ip && !partial_rep &&
+	   !apply_respip_action(worker, qinfo, cinfo, rep, repinfo, alias_rrset,
+			&encode_rep)) {
+		goto bail_out;
+	} else if(partial_rep &&
+		!respip_merge_cname(partial_rep, qinfo, rep, cinfo,
+		must_validate, &encode_rep, worker->scratchpad)) {
+		goto bail_out;
+	}
+	if(encode_rep != rep)
+		secure = 0; /* if rewritten, it can't be considered "secure" */
+	if(!encode_rep || *alias_rrset) {
+		sldns_buffer_clear(repinfo->c->buffer);
+		sldns_buffer_flip(repinfo->c->buffer);
+		if(!encode_rep)
+			*need_drop = 1;
+		else {
+			/* If a partial CNAME chain is found, we first need to
+			 * make a copy of the reply in the scratchpad so we
+			 * can release the locks and lookup the cache again. */
+			*partial_repp = reply_info_copy(encode_rep, NULL,
+				worker->scratchpad);
+			if(!*partial_repp)
+				goto bail_out;
+		}
+	} else if(!reply_info_answer_encode(qinfo, encode_rep, id, flags,
 		repinfo->c->buffer, timenow, 1, worker->scratchpad,
 		udpsize, edns, (int)(edns->bits & EDNS_DO), secure)) {
 		if(!inplace_cb_reply_servfail_call(&worker->env, qinfo, NULL, NULL,
@@ -621,14 +743,18 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 	return 1;
 }
 
-/** Reply to client and perform prefetch to keep cache up to date */
+/** Reply to client and perform prefetch to keep cache up to date.
+ * If the buffer for the reply is empty, it indicates that only prefetch is
+ * necessary and the reply should be suppressed (because it's dropped or
+ * being deferred). */
 static void
 reply_and_prefetch(struct worker* worker, struct query_info* qinfo, 
 	uint16_t flags, struct comm_reply* repinfo, time_t leeway)
 {
 	/* first send answer to client to keep its latency 
 	 * as small as a cachereply */
-	comm_point_send_reply(repinfo);
+	if(sldns_buffer_limit(repinfo->c->buffer) != 0)
+		comm_point_send_reply(repinfo);
 	server_stats_prefetch(&worker->stats, worker);
 	
 	/* create the prefetch in the mesh as a normal lookup without
@@ -643,36 +769,41 @@ reply_and_prefetch(struct worker* worker, struct query_info* qinfo,
  * Fill CH class answer into buffer. Keeps query.
  * @param pkt: buffer
  * @param str: string to put into text record (<255).
+ * 	array of strings, every string becomes a text record.
+ * @param num: number of strings in array.
  * @param edns: edns reply information.
  * @param worker: worker with scratch region.
  */
 static void
-chaos_replystr(sldns_buffer* pkt, const char* str, struct edns_data* edns,
+chaos_replystr(sldns_buffer* pkt, char** str, int num, struct edns_data* edns,
 	struct worker* worker)
 {
-	size_t len = strlen(str);
+	int i;
 	unsigned int rd = LDNS_RD_WIRE(sldns_buffer_begin(pkt));
 	unsigned int cd = LDNS_CD_WIRE(sldns_buffer_begin(pkt));
-	if(len>255) len=255; /* cap size of TXT record */
 	sldns_buffer_clear(pkt);
 	sldns_buffer_skip(pkt, (ssize_t)sizeof(uint16_t)); /* skip id */
 	sldns_buffer_write_u16(pkt, (uint16_t)(BIT_QR|BIT_RA));
 	if(rd) LDNS_RD_SET(sldns_buffer_begin(pkt));
 	if(cd) LDNS_CD_SET(sldns_buffer_begin(pkt));
 	sldns_buffer_write_u16(pkt, 1); /* qdcount */
-	sldns_buffer_write_u16(pkt, 1); /* ancount */
+	sldns_buffer_write_u16(pkt, (uint16_t)num); /* ancount */
 	sldns_buffer_write_u16(pkt, 0); /* nscount */
 	sldns_buffer_write_u16(pkt, 0); /* arcount */
 	(void)query_dname_len(pkt); /* skip qname */
 	sldns_buffer_skip(pkt, (ssize_t)sizeof(uint16_t)); /* skip qtype */
 	sldns_buffer_skip(pkt, (ssize_t)sizeof(uint16_t)); /* skip qclass */
-	sldns_buffer_write_u16(pkt, 0xc00c); /* compr ptr to query */
-	sldns_buffer_write_u16(pkt, LDNS_RR_TYPE_TXT);
-	sldns_buffer_write_u16(pkt, LDNS_RR_CLASS_CH);
-	sldns_buffer_write_u32(pkt, 0); /* TTL */
-	sldns_buffer_write_u16(pkt, sizeof(uint8_t) + len);
-	sldns_buffer_write_u8(pkt, len);
-	sldns_buffer_write(pkt, str, len);
+	for(i=0; i<num; i++) {
+		size_t len = strlen(str[i]);
+		if(len>255) len=255; /* cap size of TXT record */
+		sldns_buffer_write_u16(pkt, 0xc00c); /* compr ptr to query */
+		sldns_buffer_write_u16(pkt, LDNS_RR_TYPE_TXT);
+		sldns_buffer_write_u16(pkt, LDNS_RR_CLASS_CH);
+		sldns_buffer_write_u32(pkt, 0); /* TTL */
+		sldns_buffer_write_u16(pkt, sizeof(uint8_t) + len);
+		sldns_buffer_write_u8(pkt, len);
+		sldns_buffer_write(pkt, str[i], len);
+	}
 	sldns_buffer_flip(pkt);
 	edns->edns_version = EDNS_ADVERTISED_VERSION;
 	edns->udp_size = EDNS_ADVERTISED_SIZE;
@@ -681,6 +812,70 @@ chaos_replystr(sldns_buffer* pkt, const char* str, struct edns_data* edns,
 		LDNS_RCODE_NOERROR, edns, worker->scratchpad))
 			edns->opt_list = NULL;
 	attach_edns_record(pkt, edns);
+}
+
+/** Reply with one string */
+static void
+chaos_replyonestr(sldns_buffer* pkt, const char* str, struct edns_data* edns,
+	struct worker* worker)
+{
+	chaos_replystr(pkt, (char**)&str, 1, edns, worker);
+}
+
+/**
+ * Create CH class trustanchor answer.
+ * @param pkt: buffer
+ * @param edns: edns reply information.
+ * @param w: worker with scratch region.
+ */
+static void
+chaos_trustanchor(sldns_buffer* pkt, struct edns_data* edns, struct worker* w)
+{
+#define TA_RESPONSE_MAX_TXT 16 /* max number of TXT records */
+#define TA_RESPONSE_MAX_TAGS 32 /* max number of tags printed per zone */
+	char* str_array[TA_RESPONSE_MAX_TXT];
+	uint16_t tags[TA_RESPONSE_MAX_TAGS];
+	int num = 0;
+	struct trust_anchor* ta;
+
+	if(!w->env.need_to_validate) {
+		/* no validator module, reply no trustanchors */
+		chaos_replystr(pkt, NULL, 0, edns, w);
+		return;
+	}
+
+	/* fill the string with contents */
+	lock_basic_lock(&w->env.anchors->lock);
+	RBTREE_FOR(ta, struct trust_anchor*, w->env.anchors->tree) {
+		char* str;
+		size_t i, numtag, str_len = 255;
+		if(num == TA_RESPONSE_MAX_TXT) continue;
+		str = (char*)regional_alloc(w->scratchpad, str_len);
+		if(!str) continue;
+		lock_basic_lock(&ta->lock);
+		numtag = anchor_list_keytags(ta, tags, TA_RESPONSE_MAX_TAGS);
+		if(numtag == 0) {
+			/* empty, insecure point */
+			lock_basic_unlock(&ta->lock);
+			continue;
+		}
+		str_array[num] = str;
+		num++;
+
+		/* spool name of anchor */
+		(void)sldns_wire2str_dname_buf(ta->name, ta->namelen, str, str_len);
+		str_len -= strlen(str); str += strlen(str);
+		/* spool tags */
+		for(i=0; i<numtag; i++) {
+			snprintf(str, str_len, " %u", (unsigned)tags[i]);
+			str_len -= strlen(str); str += strlen(str);
+		}
+		lock_basic_unlock(&ta->lock);
+	}
+	lock_basic_unlock(&w->env.anchors->lock);
+
+	chaos_replystr(pkt, str_array, num, edns, w);
+	regional_free_all(w->scratchpad);
 }
 
 /**
@@ -709,13 +904,13 @@ answer_chaos(struct worker* w, struct query_info* qinfo,
 			char buf[MAXHOSTNAMELEN+1];
 			if (gethostname(buf, MAXHOSTNAMELEN) == 0) {
 				buf[MAXHOSTNAMELEN] = 0;
-				chaos_replystr(pkt, buf, edns, w);
+				chaos_replyonestr(pkt, buf, edns, w);
 			} else 	{
 				log_err("gethostname: %s", strerror(errno));
-				chaos_replystr(pkt, "no hostname", edns, w);
+				chaos_replyonestr(pkt, "no hostname", edns, w);
 			}
 		}
-		else 	chaos_replystr(pkt, cfg->identity, edns, w);
+		else 	chaos_replyonestr(pkt, cfg->identity, edns, w);
 		return 1;
 	}
 	if(query_dname_compare(qinfo->qname, 
@@ -726,10 +921,19 @@ answer_chaos(struct worker* w, struct query_info* qinfo,
 		if(cfg->hide_version) 
 			return 0;
 		if(cfg->version==NULL || cfg->version[0]==0)
-			chaos_replystr(pkt, PACKAGE_STRING, edns, w);
-		else 	chaos_replystr(pkt, cfg->version, edns, w);
+			chaos_replyonestr(pkt, PACKAGE_STRING, edns, w);
+		else 	chaos_replyonestr(pkt, cfg->version, edns, w);
 		return 1;
 	}
+	if(query_dname_compare(qinfo->qname,
+		(uint8_t*)"\013trustanchor\007unbound") == 0)
+	{
+		if(cfg->hide_trustanchor)
+			return 0;
+		chaos_trustanchor(pkt, edns, w);
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -794,12 +998,60 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	enum acl_access acl;
 	struct acl_addr* acladdr;
 	int rc = 0;
+	int need_drop = 0;
+	/* We might have to chase a CNAME chain internally, in which case
+	 * we'll have up to two replies and combine them to build a complete
+	 * answer.  These variables control this case. */
+	struct ub_packed_rrset_key* alias_rrset = NULL;
+	struct reply_info* partial_rep = NULL;
+	struct query_info* lookup_qinfo = &qinfo;
+	struct query_info qinfo_tmp; /* placeholdoer for lookup_qinfo */
+	struct respip_client_info* cinfo = NULL, cinfo_tmp;
 
 	if(error != NETEVENT_NOERROR) {
 		/* some bad tcp query DNS formats give these error calls */
 		verbose(VERB_ALGO, "handle request called with err=%d", error);
 		return 0;
 	}
+#ifdef USE_DNSCRYPT
+    repinfo->max_udp_size = worker->daemon->cfg->max_udp_size;
+    if(!dnsc_handle_curved_request(worker->daemon->dnscenv, repinfo)) {
+        worker->stats.num_query_dnscrypt_crypted_malformed++;
+        return 0;
+    }
+    if(c->dnscrypt && !repinfo->is_dnscrypted) {
+        char buf[LDNS_MAX_DOMAINLEN+1];
+        // Check if this is unencrypted and asking for certs
+        if(worker_check_request(c->buffer, worker) != 0) {
+            verbose(VERB_ALGO, "dnscrypt: worker check request: bad query.");
+            log_addr(VERB_CLIENT,"from",&repinfo->addr, repinfo->addrlen);
+            comm_point_drop_reply(repinfo);
+            return 0;
+        }
+        if(!query_info_parse(&qinfo, c->buffer)) {
+            verbose(VERB_ALGO, "dnscrypt: worker parse request: formerror.");
+            log_addr(VERB_CLIENT,"from",&repinfo->addr, repinfo->addrlen);
+            comm_point_drop_reply(repinfo);
+            return 0;
+        }
+        dname_str(qinfo.qname, buf);
+        if(!(qinfo.qtype == LDNS_RR_TYPE_TXT &&
+             strcasecmp(buf, worker->daemon->dnscenv->provider_name) == 0)) {
+            verbose(VERB_ALGO,
+                    "dnscrypt: not TXT %s. Receive: %s %s",
+                    worker->daemon->dnscenv->provider_name,
+                    sldns_rr_descript(qinfo.qtype)->_name,
+                    buf);
+            comm_point_drop_reply(repinfo);
+            worker->stats.num_query_dnscrypt_cleartext++;
+            return 0;
+        }
+        worker->stats.num_query_dnscrypt_cert++;
+        sldns_buffer_rewind(c->buffer);
+    } else if(c->dnscrypt && repinfo->is_dnscrypted) {
+        worker->stats.num_query_dnscrypt_crypted++;
+    }
+#endif
 #ifdef USE_DNSTAP
 	if(worker->dtenv.log_client_query_messages)
 		dt_msg_send_client_query(&worker->dtenv, &repinfo->addr, c->type,
@@ -1036,16 +1288,43 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		qinfo.qname_len = d->rr_len[0] - 2;
 	}
 
+	/* If we may apply IP-based actions to the answer, build the client
+	 * information.  As this can be expensive, skip it if there is
+	 * absolutely no possibility of it. */
+	if(worker->daemon->use_response_ip &&
+		(qinfo.qtype == LDNS_RR_TYPE_A ||
+		qinfo.qtype == LDNS_RR_TYPE_AAAA ||
+		qinfo.qtype == LDNS_RR_TYPE_ANY)) {
+		cinfo_tmp.taglist = acladdr->taglist;
+		cinfo_tmp.taglen = acladdr->taglen;
+		cinfo_tmp.tag_actions = acladdr->tag_actions;
+		cinfo_tmp.tag_actions_size = acladdr->tag_actions_size;
+		cinfo_tmp.tag_datas = acladdr->tag_datas;
+		cinfo_tmp.tag_datas_size = acladdr->tag_datas_size;
+		cinfo_tmp.view = acladdr->view;
+		cinfo_tmp.respip_set = worker->daemon->respip_set;
+		cinfo = &cinfo_tmp;
+	}
+
+lookup_cache:
+	/* Lookup the cache.  In case we chase an intermediate CNAME chain
+	 * this is a two-pass operation, and lookup_qinfo is different for
+	 * each pass.  We should still pass the original qinfo to
+	 * answer_from_cache(), however, since it's used to build the reply. */
 	if(!edns_bypass_cache_stage(edns.opt_list, &worker->env)) {
-		h = query_info_hash(&qinfo, sldns_buffer_read_u16_at(c->buffer, 2));
-		if((e=slabhash_lookup(worker->env.msg_cache, h, &qinfo, 0))) {
+		h = query_info_hash(lookup_qinfo, sldns_buffer_read_u16_at(c->buffer, 2));
+		if((e=slabhash_lookup(worker->env.msg_cache, h, lookup_qinfo, 0))) {
 			/* answer from cache - we have acquired a readlock on it */
 			if(answer_from_cache(worker, &qinfo, 
+				cinfo, &need_drop, &alias_rrset, &partial_rep,
 				(struct reply_info*)e->data, 
 				*(uint16_t*)(void *)sldns_buffer_begin(c->buffer), 
 				sldns_buffer_read_u16_at(c->buffer, 2), repinfo, 
 				&edns)) {
-				/* prefetch it if the prefetch TTL expired */
+				/* prefetch it if the prefetch TTL expired.
+				 * Note that if there is more than one pass
+				 * its qname must be that used for cache
+				 * lookup. */
 				if((worker->env.cfg->prefetch || worker->env.cfg->serve_expired)
 					&& *worker->env.now >=
 					((struct reply_info*)e->data)->prefetch_ttl) {
@@ -1055,16 +1334,38 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 						< *worker->env.now)
 						leeway = 0;
 					lock_rw_unlock(&e->lock);
-					reply_and_prefetch(worker, &qinfo, 
+					reply_and_prefetch(worker, lookup_qinfo,
 						sldns_buffer_read_u16_at(c->buffer, 2),
 						repinfo, leeway);
-					rc = 0;
+					if(!partial_rep) {
+						rc = 0;
+						regional_free_all(worker->scratchpad);
+						goto send_reply_rc;
+					}
+				} else if(!partial_rep) {
+					lock_rw_unlock(&e->lock);
 					regional_free_all(worker->scratchpad);
-					goto send_reply_rc;
+					goto send_reply;
 				}
+				/* We've found a partial reply ending with an
+				 * alias.  Replace the lookup qinfo for the
+				 * alias target and lookup the cache again to
+				 * (possibly) complete the reply.  As we're
+				 * passing the "base" reply, there will be no
+				 * more alias chasing. */
 				lock_rw_unlock(&e->lock);
-				regional_free_all(worker->scratchpad);
-				goto send_reply;
+				memset(&qinfo_tmp, 0, sizeof(qinfo_tmp));
+				get_cname_target(alias_rrset, &qinfo_tmp.qname,
+					&qinfo_tmp.qname_len);
+				if(!qinfo_tmp.qname) {
+					log_err("unexpected: invalid answer alias");
+					regional_free_all(worker->scratchpad);
+					return 0; /* drop query */
+				}
+				qinfo_tmp.qtype = qinfo.qtype;
+				qinfo_tmp.qclass = qinfo.qclass;
+				lookup_qinfo = &qinfo_tmp;
+				goto lookup_cache;
 			}
 			verbose(VERB_ALGO, "answer from the cache failed");
 			lock_rw_unlock(&e->lock);
@@ -1093,7 +1394,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	}
 
 	/* grab a work request structure for this new request */
-	mesh_new_client(worker->env.mesh, &qinfo, 
+	mesh_new_client(worker->env.mesh, &qinfo, cinfo,
 		sldns_buffer_read_u16_at(c->buffer, 2),
 		&edns, repinfo, *(uint16_t*)(void *)sldns_buffer_begin(c->buffer));
 	regional_free_all(worker->scratchpad);
@@ -1103,6 +1404,10 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 send_reply:
 	rc = 1;
 send_reply_rc:
+	if(need_drop) {
+		comm_point_drop_reply(repinfo);
+		return 0;
+	}
 #ifdef USE_DNSTAP
 	if(worker->dtenv.log_client_response_messages)
 		dt_msg_send_client_response(&worker->dtenv, &repinfo->addr,
@@ -1114,6 +1419,11 @@ send_reply_rc:
 		log_reply_info(0, &qinfo, &repinfo->addr, repinfo->addrlen,
 			tv, 1, c->buffer);
 	}
+#ifdef USE_DNSCRYPT
+    if(!dnsc_handle_uncurved_request(repinfo)) {
+        return 0;
+    }
+#endif
 	return rc;
 }
 
@@ -1169,6 +1479,10 @@ void worker_stat_timer_cb(void* arg)
 	server_stats_log(&worker->stats, worker, worker->thread_num);
 	mesh_stats(worker->env.mesh, "mesh has");
 	worker_mem_report(worker, NULL);
+	/* SHM is enabled, process data to SHM */
+	if (worker->daemon->cfg->shm_enable) {
+		shm_main_run(worker);
+	}
 	if(!worker->daemon->cfg->stat_cumulative) {
 		worker_stats_clear(worker);
 	}

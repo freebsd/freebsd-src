@@ -5,6 +5,7 @@ server:
 	val-override-date: "20070916134226"
 	harden-dnssec-stripped: no
 	target-fetch-policy: "0 0 0 0 0"
+	fake-sha1: yes
 
 stub-zone:
 	name: "."

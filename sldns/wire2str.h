@@ -442,6 +442,17 @@ int sldns_wire2str_class_buf(uint16_t rrclass, char* str, size_t len);
 int sldns_wire2str_rcode_buf(int rcode, char* str, size_t len);
 
 /**
+ * Convert host format opcode to a string. 'QUERY', 'NOTIFY', 'UPDATE'.
+ * With user buffer.
+ * @param opcode: opcode as integer in host order
+ * @param str: the string to write to.
+ * @param len: length of str.
+ * @return the number of characters for this element, excluding zerobyte.
+ * 	Is larger or equal than str_len if output was truncated.
+ */
+int sldns_wire2str_opcode_buf(int opcode, char* str, size_t len);
+
+/**
  * Convert wire dname to a string, "example.com.".  With user buffer.
  * @param dname: the dname in uncompressed wireformat.
  * @param dname_len: length of the dname.

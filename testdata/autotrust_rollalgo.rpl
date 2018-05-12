@@ -2,6 +2,7 @@
 server:
 	target-fetch-policy: "0 0 0 0 0"
 	log-time-ascii: yes
+	fake-sha1: yes
 stub-zone:
 	name: "."
 	stub-addr: 193.0.14.129         # K.ROOT-SERVERS.NET.

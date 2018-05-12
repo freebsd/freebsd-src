@@ -1070,8 +1070,13 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 	sldns_buffer_write_u16(pend->buffer, qinfo->qclass);
 	sldns_buffer_flip(pend->buffer);
 	if(1) {
-		/* add edns */
 		struct edns_data edns;
+		if(!inplace_cb_query_call(env, qinfo, flags, addr, addrlen,
+			zone, zonelen, qstate, qstate->region)) {
+			free(pend);
+			return NULL;
+		}
+		/* add edns */
 		edns.edns_present = 1;
 		edns.ext_rcode = 0;
 		edns.edns_version = EDNS_ADVERTISED_VERSION;
