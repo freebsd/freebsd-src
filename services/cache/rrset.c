@@ -255,9 +255,11 @@ void rrset_cache_update_wildcard(struct rrset_cache* rrset_cache,
 	wc_dname[1] = (uint8_t)'*';
 	memmove(wc_dname+2, ce, ce_len);
 
+	free(rrset->rk.dname);
 	rrset->rk.dname_len = ce_len + 2;
 	rrset->rk.dname = (uint8_t*)memdup(wc_dname, rrset->rk.dname_len);
 	if(!rrset->rk.dname) {
+		alloc_special_release(alloc, rrset);
 		log_err("memdup failure in rrset_cache_update_wildcard");
 		return;
 	}

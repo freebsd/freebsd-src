@@ -187,6 +187,10 @@ enum sec_status {
 	 * insecure. Generally this means that this RRset is below a trust 
 	 * anchor, but also below a verified, insecure delegation. */
 	sec_status_insecure,
+	/** SECURE_SENTINEL_FAIL means that the object (RRset or message)
+	 * validated according to local policy but did not succeed in the root
+	 * KSK sentinel test (draft-ietf-dnsop-kskroll-sentinel). */
+	sec_status_secure_sentinel_fail,
 	/** SECURE means that the object (RRset or message) validated 
 	 * according to local policy. */
 	sec_status_secure

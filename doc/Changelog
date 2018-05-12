@@ -1,6 +1,143 @@
+26 April 2018: Wouter
+	- Fix for crash in daemon_cleanup with dnstap during reload,
+	  from Saksham Manchanda.
+	- Also that for dnscrypt.
+	- tag for 1.7.1rc1 release.
+
+25 April 2018: Ralph
+	- Fix memory leak when caching wildcard records for aggressive NSEC use
+
+24 April 2018: Wouter
+	- Fix contrib/fastrpz.patch for this release.
+	- Fix auth https for libev.
+
+24 April 2018: Ralph
+	- Added root-key-sentinel support
+
+23 April 2018: Wouter
+	- makedist uses bz2 for expat code, instead of tar.gz.
+	- Fix #4092: libunbound: use-caps-for-id lacks colon in
+	  config_set_option.
+	- auth zone http download stores exact copy of downloaded file,
+	  including comments in the file.
+	- Fix sldns parse failure for CDS alternate delete syntax empty hex.
+	- Attempt for auth zone fix; add of callback in mesh gets from
+	  callback does not skip callback of result.
+	- Fix cname classification with qname minimisation enabled.
+	- list_auth_zones unbound-control command.
+
+20 April 2018: Wouter
+	- man page documentation for dns-over-tls forward-addr '#' notation.
+	- removed free from failed parse case.
+	- Fix #4091: Fix that reload of auth-zone does not merge the zonefile
+	  with the previous contents.
+	- Delete auth zone when removed from config.
+
+19 April 2018: Wouter
+	- Can set tls authentication with forward-addr: IP#tls.auth.name
+	  And put the public cert bundle in tls-cert-bundle: "ca-bundle.pem".
+	  such as forward-addr: 9.9.9.9@853#dns.quad9.net or
+	  1.1.1.1@853#cloudflare-dns.com
+	- Fix #658: unbound using TLS in a forwarding configuration does not
+	  verify the server's certificate (RFC 8310 support).
+	- For addr with #authname and no @port notation, the default is 853.
+
+18 April 2018: Wouter
+	- Fix auth-zone retry timer to be on schedule with retry timeout,
+	  with backoff.  Also time a refresh at the zone expiry.
+
+17 April 2018: Wouter
+	- auth zone notify work.
+	- allow-notify: config statement for auth-zones.
+	- unit test for allow-notify
+
+16 April 2018: Wouter
+	- Fix auth zone target lookup iterator.
+	- auth zone notify with prefix
+	- auth zone notify work.
+
+13 April 2018: Wouter
+	- Fix for max include depth for authzones.
+	- Fix memory free on fail for $INCLUDE in authzone.
+	- Fix that an internal error to look up the wrong rr type for
+	  auth zone gets stopped, before trying to send there.
+	- auth zone notify work.
+
+10 April 2018: Ralph
+	- num.query.aggressive.NOERROR and num.query.aggressive.NXDOMAIN
+	  statistics counters.
+
+10 April 2018: Wouter
+	- documentation for low-rtt and low-rtt-pct.
+	- auth zone notify work.
+
+9 April 2018: Wouter
+	- Fix that flush_zone sets prefetch ttl expired, so that with
+	  serve-expired enabled it'll start prefetching those entries.
+	- num.query.authzone.up and num.query.authzone.down statistics counters.
+	- Fix downstream auth zone, only fallback when auth zone fails to
+	  answer and fallback is enabled.
+	- Accept both option names with and without colon for get_option
+	  and set_option.
+	- low-rtt and low-rtt-pct in unbound.conf enable the server selection
+	  of fast servers for some percentage of the time.
+
+5 April 2018: Wouter
+	- Combine write of tcp length and tcp query for dns over tls.
+	- nitpick fixes in example.conf.
+	- Fix above stub queries for type NS and useless delegation point.
+	- Fix unbound-control over pipe with openssl 1.1.1, the TLSv1.3
+	  tls_choose_sigalg routine does not allow the ciphers for the pipe,
+	  so use TLSv1.2.
+	- ED448 support.
+
+3 April 2018: Wouter
+	- Fix #4043: make test fails due to v6 presentation issue in macOS.
+	- Fix unable to resolve after new WLAN connection, due to auth-zone
+	  failing with a forwarder set.  Now, auth-zone is only used for
+	  answers (not referrals) when a forwarder is set.
+
+29 March 2018: Ralph
+	- Check "result" in dup_all(), by Florian Obser.
+
+23 March 2018: Ralph
+	- Fix unbound-control get_option aggressive-nsec
+
+21 March 2018: Ralph
+	- Do not use cached NSEC records to generate negative answers for
+	  domains under DNSSEC Negative Trust Anchors.
+
+19 March 2018: Wouter
+	- iana port update.
+
+16 March 2018: Wouter
+	- corrected a minor typo in the changelog.
+	- move htobe64/be64toh portability code to cachedb.c.
+
+15 March 2018: Wouter
+	- Add --with-libhiredis, unbound support for a new cachedb backend
+	  that uses a Redis server as the storage.  This implementation
+	  depends on the hiredis client library (https://redislabs.com/lp/hiredis/).
+	  And unbound should be built with both --enable-cachedb and
+	  --with-libhiredis[=PATH] (where $PATH/include/hiredis/hiredis.h
+	  should exist).  Patch from Jinmei Tatuya (Infoblox).
+	- Fix #3817: core dump happens in libunbound delete, when queued
+	  servfail hits deleted message queue.
+	- Create additional tls service interfaces by opening them on other
+	  portnumbers and listing the portnumbers as additional-tls-port: nr.
+
+13 March 2018: Wouter
+	- Fix typo in documentation.
+	- Fix #3736: Fix 0 TTL domains stuck on SERVFAIL unless manually
+	  flushed with serve-expired on.
+
 12 March 2018: Wouter
 	- Added documentation for aggressive-nsec: yes.
-	- tag 1.7.0rc3.
+	- tag 1.7.0rc3.  That became the 1.7.0 release on 15 Mar, trunk
+	  now has 1.7.1 in development.
+	- Fix #3727: Protocol name is TLS, options have been renamed but
+	  documentation is not consistent.
+	- Check IXFR start serial.
 
 9 March 2018: Wouter
 	- Fix #3598: Fix swig build issue on rhel6 based system.

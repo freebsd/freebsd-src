@@ -747,6 +747,16 @@ struct ub_server_stats {
 	long long num_query_dnscrypt_replay;
 	/** number of dnscrypt nonces cache entries */
 	long long nonce_cache_count;
+	/** number of queries for unbound's auth_zones, upstream query */
+	long long num_query_authzone_up;
+	/** number of queries for unbound's auth_zones, downstream answers */
+	long long num_query_authzone_down;
+	/** number of times neg cache records were used to generate NOERROR
+	 * responses. */
+	long long num_neg_cache_noerror;
+	/** number of times neg cache records were used to generate NXDOMAIN
+	 * responses. */
+	long long num_neg_cache_nxdomain;
 };
 
 /** 

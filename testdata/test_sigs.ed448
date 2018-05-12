@@ -1,0 +1,21 @@
+; Signature test file
+
+; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification. 
+; later entries are verified with it.
+
+ENTRY_BEGIN
+SECTION QUESTION
+example.com.	IN DNSKEY
+SECTION ANSWER
+example.com.	IN	DNSKEY	256 3 16 zqUQUbOlkWR1cEGLAr/50aOgpFIwyT3juetr4fT9TRIOdEaXK3Pzv6AvA4iNViZ6RAMD2xctd1EA ;{id = 39998 (zsk), size = 456b}
+ENTRY_END
+
+; entry to test
+ENTRY_BEGIN
+SECTION QUESTION
+www.example.com.    IN      A 
+SECTION ANSWER
+mail.example.com.       3600    IN      A       1.2.3.5
+mail.example.com.       3600    IN      RRSIG   A 16 3 3600 20180503143630 20180405143630 39998 example.com. 5T6sjxQ2sB9Crcx8hNKDCteUVc0vNpz8slOa58acb4yLP7dBysp/6dVZwl9/gUN+CWUl6QpkcEMAFx2AcgjPhncYzRpeKCNuJBgBBQrb4Fz2Kvqf7r7H4Day6JrWQDvWcMXf8U9r0Eq06hoJ48M52CkA
+ENTRY_END
+

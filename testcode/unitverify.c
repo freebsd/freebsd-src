@@ -548,6 +548,11 @@ verify_test(void)
 		verifytest_file("testdata/test_sigs.ed25519", "20170530140439");
 	}
 #endif
+#ifdef USE_ED448
+	if(dnskey_algo_id_is_supported(LDNS_ED448)) {
+		verifytest_file("testdata/test_sigs.ed448", "20180408143630");
+	}
+#endif
 #ifdef USE_SHA1
 	dstest_file("testdata/test_ds.sha1");
 #endif
