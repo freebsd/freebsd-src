@@ -27,8 +27,10 @@ recv)
 	: ${PROBE:=$( echo \
 		syscall::recvfrom:return, \
 		syscall::recvmsg:return )} ;;
+recv*)
+	: ${PROBE:=syscall::$PROFILE:return} ;;
 *)
-	: ${PROBE:=syscall::$PROFILE}
+	: ${PROBE:=syscall::$PROFILE:entry}
 esac
 
 ############################################################ EVENT ACTION
@@ -98,6 +100,8 @@ inline string address_family_string[sa_family_t af] =
 
 #pragma D binding "1.13" sa_data_size
 inline int sa_data_size = 14;
+#pragma D binding "1.13" sa_dummy_data
+inline char *sa_dummy_data = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
 #pragma D binding "1.13" sa_data_addr
 inline string sa_data_addr[sa_family_t af, char data[sa_data_size]] =
@@ -117,10 +121,14 @@ inline uint16_t sa_data_port[sa_family_t af, char data[sa_data_size]] =
 
 #pragma D binding "1.13" translator
 translator sainfo_t < struct sockaddr *SA > {
-	sa_family = SA->sa_family;
-	family = address_family_string[SA->sa_family];
-	addr = sa_data_addr[SA->sa_family, SA->sa_data];
-	port = sa_data_port[SA->sa_family, SA->sa_data];
+	sa_family =	SA == NULL ? 0 : SA->sa_family;
+	family =	address_family_string[SA == NULL ? 0 : SA->sa_family];
+	addr =		SA == NULL ?
+	    sa_data_addr[0, sa_dummy_data] :
+	    sa_data_addr[SA->sa_family, SA->sa_data];
+	port =		SA == NULL ?
+	    sa_data_port[0, sa_dummy_data] :
+	    sa_data_port[SA->sa_family, SA->sa_data];
 };
 
 this sainfo_t		sainfo;
@@ -150,10 +158,8 @@ $PROBE /* probe ID $ID */
 syscall::recvfrom:entry /* probe ID $(( $ID + 1 )) */
 {${TRACE:+
 	printf("<$(( $ID + 1 ))>");}
-	this->sa = args[4] == NULL ?
-		(struct sockaddr *)alloca(sizeof(struct sockaddr)) :
-		(struct sockaddr *)copyin(arg4, sizeof(struct sockaddr));
-	this->sainfo = xlate <sainfo_t> ((struct sockaddr *)this->sa);
+	this->sainfo = xlate <sainfo_t> ((struct sockaddr *)(args[4] == NULL ?
+		NULL : copyin(arg4, sizeof(struct sockaddr))));
 }
 
 syscall::recvfrom:return /* probe ID $(( $ID + 2 )) */
@@ -166,10 +172,18 @@ syscall::recvfrom:return /* probe ID $(( $ID + 2 )) */
 			this->sainfo.addr, this->sainfo.port]));
 }
 
-syscall::recvmsg:return /* probe ID $(( $ID + 3 )) */
+syscall::recvmsg:entry /* probe ID $(( $ID + 3 )) */
 {${TRACE:+
 	printf("<$(( $ID + 3 ))>");}
+	this->sockaddr = (struct sockaddr *)arg1;
+}
+
+syscall::recvmsg:return /this->sockaddr != NULL/ /* probe ID $(( $ID + 4 )) */
+{${TRACE:+
+	printf("<$(( $ID + 4 ))>");}
 	this->nbytes = arg0;
+	this->sainfo = xlate <sainfo_t> ((struct sockaddr *)this->sockaddr);
+	this->details = strjoin("sainfo=[", "]");
 }
 
 syscall::sendmsg:entry /* probe ID $(( $ID + 5 )) */
@@ -178,14 +192,12 @@ syscall::sendmsg:entry /* probe ID $(( $ID + 5 )) */
 	this->nbytes = arg2;
 }
 
-syscall::sendto:entry /* probe ID $(( $ID + 4 )) */
+syscall::sendto:entry /* probe ID $(( $ID + 6 )) */
 {${TRACE:+
-	printf("<$(( $ID + 4 ))>");}
+	printf("<$(( $ID + 6 ))>");}
 	this->nbytes = arg2;
-	this->sa = arg4 == NULL ?
-		(struct sockaddr *)alloca(sizeof(struct sockaddr)) :
-		(struct sockaddr *)copyin(arg4, sizeof(struct sockaddr));
-	this->sainfo = xlate <sainfo_t> ((struct sockaddr *)this->sa);
+	this->sainfo = xlate <sainfo_t> ((struct sockaddr *)(arg4 == NULL ?
+		NULL : copyin(arg4, sizeof(struct sockaddr))));
 	this->details = strjoin("to ", strjoin(
 		strjoin(this->sainfo.family, " "),
 		af_details[this->sainfo.sa_family,
@@ -193,7 +205,7 @@ syscall::sendto:entry /* probe ID $(( $ID + 4 )) */
 }
 EOF
 ACTIONS=$( cat <&9 )
-ID=$(( $ID + 5 ))
+ID=$(( $ID + 7 ))
 
 ############################################################ EVENT DETAILS
 
