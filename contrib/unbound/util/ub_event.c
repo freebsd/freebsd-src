@@ -427,7 +427,7 @@ ub_winsock_tcp_wouldblock(struct ub_event* ev, int eventbits)
 
 void ub_comm_base_now(struct comm_base* cb)
 {
-	#ifdef USE_MINI_EVENT
+#ifdef USE_MINI_EVENT
 /** minievent updates the time when it blocks. */
 	(void)cb; /* nothing to do */
 #else /* !USE_MINI_EVENT */

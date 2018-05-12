@@ -485,7 +485,7 @@ addrtree_find(struct addrtree *tree, const addrkey_t *addr,
 		/* does this node have data? if yes, see if we have a match */
 		if (node->elem && node->ttl >= now) {
 			/* saved at wrong depth */;
-			log_assert(node->scope >= depth) 
+			log_assert(node->scope >= depth);
 			if (depth == node->scope ||
 				(node->scope > sourcemask &&
 				 depth == sourcemask)) {

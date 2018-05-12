@@ -285,6 +285,10 @@ int parse_create_msg(struct sldns_buffer* pkt, struct msg_parse* msg,
         struct alloc_cache* alloc, struct query_info* qinf,
 	struct reply_info** rep, struct regional* region);
 
+/** get msg reply struct (in temp region) */
+struct reply_info* parse_reply_in_temp_region(struct sldns_buffer* pkt,
+	struct regional* region, struct query_info* qi);
+
 /**
  * Sorts the ref array.
  * @param rep: reply info. rrsets must be filled in.

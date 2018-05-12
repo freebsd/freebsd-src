@@ -55,6 +55,7 @@
 #include "services/localzone.h"
 #include "services/cache/rrset.h"
 #include "services/outbound_list.h"
+#include "services/authzone.h"
 #include "util/fptr_wlist.h"
 #include "util/module.h"
 #include "util/regional.h"
@@ -158,7 +159,8 @@ libworker_setup(struct ub_ctx* ctx, int is_bg, struct ub_event_base* eb)
 		w->env->hints = NULL;
 	}
 	if(cfg->ssl_upstream) {
-		w->sslctx = connect_sslctx_create(NULL, NULL, NULL);
+		w->sslctx = connect_sslctx_create(NULL, NULL,
+			cfg->tls_cert_bundle);
 		if(!w->sslctx) {
 			/* to make the setup fail after unlock */
 			hints_delete(w->env->hints);
@@ -214,6 +216,7 @@ libworker_setup(struct ub_ctx* ctx, int is_bg, struct ub_event_base* eb)
 		libworker_delete(w);
 		return NULL;
 	}
+	w->env->worker_base = w->base;
 	if(!w->is_bg || w->is_bg_thread) {
 		lock_basic_lock(&ctx->cfglock);
 	}
@@ -235,6 +238,7 @@ libworker_setup(struct ub_ctx* ctx, int is_bg, struct ub_event_base* eb)
 		cfg->outgoing_tcp_mss, &libworker_alloc_cleanup, w,
 		cfg->do_udp || cfg->udp_upstream_without_downstream, w->sslctx,
 		cfg->delay_close, NULL);
+	w->env->outnet = w->back;
 	if(!w->is_bg || w->is_bg_thread) {
 		lock_basic_unlock(&ctx->cfglock);
 	}
@@ -419,25 +423,6 @@ int libworker_bg(struct ub_ctx* ctx)
 	return UB_NOERROR;
 }
 
-/** get msg reply struct (in temp region) */
-static struct reply_info*
-parse_reply(sldns_buffer* pkt, struct regional* region, struct query_info* qi)
-{
-	struct reply_info* rep;
-	struct msg_parse* msg;
-	if(!(msg = regional_alloc(region, sizeof(*msg)))) {
-		return NULL;
-	}
-	memset(msg, 0, sizeof(*msg));
-	sldns_buffer_set_position(pkt, 0);
-	if(parse_packet(pkt, msg, region) != 0)
-		return 0;
-	if(!parse_create_msg(pkt, msg, NULL, qi, &rep, region)) {
-		return 0;
-	}
-	return rep;
-}
-
 /** insert canonname */
 static int
 fill_canon(struct ub_result* res, uint8_t* s)
@@ -511,7 +496,7 @@ libworker_enter_result(struct ub_result* res, sldns_buffer* buf,
 	struct query_info rq;
 	struct reply_info* rep;
 	res->rcode = LDNS_RCODE_SERVFAIL;
-	rep = parse_reply(buf, temp, &rq);
+	rep = parse_reply_in_temp_region(buf, temp, &rq);
 	if(!rep) {
 		log_err("cannot parse buf");
 		return; /* error parsing buf, or out of memory */
@@ -621,6 +606,15 @@ int libworker_fg(struct ub_ctx* ctx, struct ctx_query* q)
 		free(qinfo.qname);
 		return UB_NOERROR;
 	}
+	if(ctx->env->auth_zones && auth_zones_answer(ctx->env->auth_zones,
+		w->env, &qinfo, &edns, w->back->udp_buff, w->env->scratch)) {
+		regional_free_all(w->env->scratch);
+		libworker_fillup_fg(q, LDNS_RCODE_NOERROR, 
+			w->back->udp_buff, sec_status_insecure, NULL);
+		libworker_delete(w);
+		free(qinfo.qname);
+		return UB_NOERROR;
+	}
 	/* process new query */
 	if(!mesh_new_callback(w->env->mesh, &qinfo, qflags, &edns, 
 		w->back->udp_buff, qid, libworker_fg_done_cb, q)) {
@@ -685,6 +679,14 @@ int libworker_attach_mesh(struct ub_ctx* ctx, struct ctx_query* q,
 	if(local_zones_answer(ctx->local_zones, w->env, &qinfo, &edns, 
 		w->back->udp_buff, w->env->scratch, NULL, NULL, 0, NULL, 0,
 		NULL, 0, NULL, 0, NULL)) {
+		regional_free_all(w->env->scratch);
+		free(qinfo.qname);
+		libworker_event_done_cb(q, LDNS_RCODE_NOERROR,
+			w->back->udp_buff, sec_status_insecure, NULL);
+		return UB_NOERROR;
+	}
+	if(ctx->env->auth_zones && auth_zones_answer(ctx->env->auth_zones,
+		w->env, &qinfo, &edns, w->back->udp_buff, w->env->scratch)) {
 		regional_free_all(w->env->scratch);
 		free(qinfo.qname);
 		libworker_event_done_cb(q, LDNS_RCODE_NOERROR,
@@ -806,6 +808,14 @@ handle_newq(struct libworker* w, uint8_t* buf, uint32_t len)
 	if(local_zones_answer(w->ctx->local_zones, w->env, &qinfo, &edns, 
 		w->back->udp_buff, w->env->scratch, NULL, NULL, 0, NULL, 0,
 		NULL, 0, NULL, 0, NULL)) {
+		regional_free_all(w->env->scratch);
+		q->msg_security = sec_status_insecure;
+		add_bg_result(w, q, w->back->udp_buff, UB_NOERROR, NULL);
+		free(qinfo.qname);
+		return;
+	}
+	if(w->ctx->env->auth_zones && auth_zones_answer(w->ctx->env->auth_zones,
+		w->env, &qinfo, &edns, w->back->udp_buff, w->env->scratch)) {
 		regional_free_all(w->env->scratch);
 		q->msg_security = sec_status_insecure;
 		add_bg_result(w, q, w->back->udp_buff, UB_NOERROR, NULL);

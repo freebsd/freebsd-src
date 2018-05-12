@@ -88,7 +88,9 @@ enum localzone_type {
 	/** answer with error, even when there is local data */	
 	local_zone_always_refuse,
 	/** answer with nxdomain, even when there is local data */
-	local_zone_always_nxdomain
+	local_zone_always_nxdomain,
+	/** answer not from the view, but global or no-answer */
+	local_zone_noview
 };
 
 /**
