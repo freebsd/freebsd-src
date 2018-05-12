@@ -6,10 +6,10 @@ UNBOUNDDIR= ${SRCTOP}/contrib/unbound
 
 .PATH: ${UNBOUNDDIR} ${UNBOUNDDIR}/smallapp ${UNBOUNDDIR}/util ${UNBOUNDDIR}/doc
 
-PROG=	unbound-checkconf
+PROG=	local-unbound-checkconf
 SRCS=	ub_event.c unbound-checkconf.c worker_cb.c
 CFLAGS+=	-I${UNBOUNDDIR} -I${LDNSDIR}
 LIBADD=	unbound pthread
-MAN=	unbound-checkconf.8
+MAN=	local-unbound-checkconf.8
 
 .include <bsd.prog.mk>

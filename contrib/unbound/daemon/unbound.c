@@ -95,7 +95,7 @@ static void usage(void)
 	time_t t;
 	struct timeval now;
 	struct ub_event_base* base;
-	printf("usage:  unbound [options]\n");
+	printf("usage:  local-unbound [options]\n");
 	printf("	start unbound daemon DNS resolver.\n");
 	printf("-h	this help\n");
 	printf("-c file	config file to read instead of %s\n", CONFIGFILE);

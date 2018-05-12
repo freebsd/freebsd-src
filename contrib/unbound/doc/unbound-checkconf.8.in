@@ -8,7 +8,7 @@
 .\"
 .\"
 .SH "NAME"
-unbound\-checkconf
+.B unbound\-checkconf
 \- Check unbound configuration file for errors.
 .SH "SYNOPSIS"
 .B unbound\-checkconf
