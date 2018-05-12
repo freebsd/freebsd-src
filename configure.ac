@@ -11,14 +11,14 @@ sinclude(dnscrypt/dnscrypt.m4)
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[6])
-m4_define([VERSION_MICRO],[3])
+m4_define([VERSION_MICRO],[4])
 AC_INIT(unbound, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), unbound-bugs@nlnetlabs.nl, unbound)
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=7
-LIBUNBOUND_REVISION=2
+LIBUNBOUND_REVISION=3
 LIBUNBOUND_AGE=5
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -72,6 +72,7 @@ LIBUNBOUND_AGE=5
 # 1.6.1 had 7:0:5 # ub_callback_t typedef renamed to ub_callback_type
 # 1.6.2 had 7:1:5
 # 1.6.3 had 7:2:5
+# 1.6.4 had 7:3:5
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -109,6 +110,11 @@ case "$prefix" in
 		prefix="/usr/local"
         ;;
 esac
+case "$exec_prefix" in
+        NONE)
+		exec_prefix="$prefix"
+        ;;
+esac
 
 # are we on MinGW?
 if uname -s 2>&1 | grep MINGW32 >/dev/null; then on_mingw="yes"
@@ -120,6 +126,12 @@ fi
 #
 # Determine configuration file
 # the eval is to evaluate shell expansion twice
+UNBOUND_SBIN_DIR=`eval echo "${sbindir}"`
+AC_SUBST(UNBOUND_SBIN_DIR)
+UNBOUND_SYSCONF_DIR=`eval echo "${sysconfdir}"`
+AC_SUBST(UNBOUND_SYSCONF_DIR)
+UNBOUND_LOCALSTATE_DIR=`eval echo "${localstatedir}"`
+AC_SUBST(UNBOUND_LOCALSTATE_DIR)
 if test $on_mingw = "no"; then
   ub_conf_file=`eval echo "${sysconfdir}/unbound/unbound.conf"`
 else
@@ -680,7 +692,7 @@ else
 	AC_MSG_RESULT([no])
 fi
 AC_CHECK_HEADERS([openssl/conf.h openssl/engine.h openssl/bn.h openssl/dh.h openssl/dsa.h openssl/rsa.h],,, [AC_INCLUDES_DEFAULT])
-AC_CHECK_FUNCS([OPENSSL_config EVP_sha1 EVP_sha256 EVP_sha512 FIPS_mode EVP_MD_CTX_new OpenSSL_add_all_digests OPENSSL_init_crypto EVP_cleanup ERR_load_crypto_strings CRYPTO_cleanup_all_ex_data ERR_free_strings RAND_cleanup DSA_SIG_set0 EVP_dss1])
+AC_CHECK_FUNCS([OPENSSL_config EVP_sha1 EVP_sha256 EVP_sha512 FIPS_mode EVP_MD_CTX_new OpenSSL_add_all_digests OPENSSL_init_crypto EVP_cleanup ERR_load_crypto_strings CRYPTO_cleanup_all_ex_data ERR_free_strings RAND_cleanup DSA_SIG_set0 EVP_dss1 EVP_DigestVerify])
 
 # these check_funcs need -lssl
 BAKLIBS="$LIBS"
@@ -906,6 +918,23 @@ case "$enable_dsa" in
       ;;
 esac
 
+AC_ARG_ENABLE(ed25519, AC_HELP_STRING([--disable-ed25519], [Disable ED25519 support]))
+use_ed25519="no"
+case "$enable_ed25519" in
+    no)
+      ;;
+    *)
+      if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
+	      AC_CHECK_DECLS([NID_ED25519], [
+      		AC_DEFINE_UNQUOTED([USE_ED25519], [1], [Define this to enable ED25519 support.])
+      		use_ed25519="yes"
+	      ], [ if test "x$enable_ed25519" = "xyes"; then AC_MSG_ERROR([OpenSSL does not support ED25519 and you used --enable-ed25519.])
+	      	fi ], [AC_INCLUDES_DEFAULT
+#include <openssl/evp.h>
+	      ])
+      fi
+      ;;
+esac
 
 AC_ARG_ENABLE(event-api, AC_HELP_STRING([--enable-event-api], [Enable (experimental) pluggable event base libunbound API installed to unbound-event.h]))
 case "$enable_event_api" in
@@ -1351,6 +1380,21 @@ case "$enable_cachedb" in
     no|*)
     	# nothing
     	;;
+esac
+
+# check for ipsecmod if requested
+AC_ARG_ENABLE(ipsecmod, AC_HELP_STRING([--enable-ipsecmod], [Enable ipsecmod module that facilitates opportunistic IPsec]))
+case "$enable_ipsecmod" in
+	yes)
+		AC_DEFINE([USE_IPSECMOD], [1], [Define to 1 to use ipsecmod support.])
+		IPSECMOD_OBJ="ipsecmod.lo ipsecmod-whitelist.lo"
+		AC_SUBST(IPSECMOD_OBJ)
+		IPSECMOD_HEADER='$(srcdir)/ipsecmod/ipsecmod.h $(srcdir)/ipsecmod/ipsecmod-whitelist.h'
+		AC_SUBST(IPSECMOD_HEADER)
+		;;
+	no|*)
+		# nothing
+		;;
 esac
 
 AC_MSG_CHECKING([if ${MAKE:-make} supports $< with implicit rule in scope])

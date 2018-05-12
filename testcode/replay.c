@@ -488,6 +488,7 @@ replay_scenario_read(FILE* in, const char* name, int* lineno)
 			return scen;
 		}
 	}
+	log_err("scenario read failed at line %d (no SCENARIO_END?)", *lineno);
 	replay_scenario_delete(scen);
 	return NULL;
 }

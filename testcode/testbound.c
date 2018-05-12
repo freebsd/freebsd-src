@@ -78,6 +78,7 @@ testbound_usage(void)
 	printf("-g 	detect GOST support (exit code 0 or 1)\n");
 	printf("-e 	detect ECDSA support (exit code 0 or 1)\n");
 	printf("-c 	detect CLIENT_SUBNET support (exit code 0 or 1)\n");
+	printf("-i 	detect IPSECMOD support (exit code 0 or 1)\n");
 	printf("-s 	testbound self-test - unit test of testbound parts.\n");
 	printf("-o str  unbound commandline options separated by spaces.\n");
 	printf("Version %s\n", PACKAGE_VERSION);
@@ -281,7 +282,7 @@ main(int argc, char* argv[])
 	pass_argc = 1;
 	pass_argv[0] = "unbound";
 	add_opts("-d", &pass_argc, pass_argv);
-	while( (c=getopt(argc, argv, "12egho:p:s")) != -1) {
+	while( (c=getopt(argc, argv, "12egciho:p:s")) != -1) {
 		switch(c) {
 		case 's':
 			free(pass_argv[1]);
@@ -334,6 +335,15 @@ main(int argc, char* argv[])
 			exit(0);
 #else
 			printf("CLIENT_SUBNET not supported\n");
+			exit(1);
+#endif
+			break;
+		case 'i':
+#ifdef USE_IPSECMOD
+			printf("IPSECMOD supported\n");
+			exit(0);
+#else
+			printf("IPSECMOD not supported\n");
 			exit(1);
 #endif
 			break;

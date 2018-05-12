@@ -120,6 +120,10 @@ sldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *l
 			if (line_nr) {
 				*line_nr = *line_nr + 1;
 			}
+			if (limit > 0 && (i >= limit || (size_t)(t-token) >= limit)) {
+				*t = '\0';
+				return -1;
+			}
 			*t++ = ' ';
 			prev_c = c;
 			continue;

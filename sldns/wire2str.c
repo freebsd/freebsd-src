@@ -173,6 +173,28 @@ static sldns_lookup_table sldns_edns_options_data[] = {
 };
 sldns_lookup_table* sldns_edns_options = sldns_edns_options_data;
 
+static sldns_lookup_table sldns_tsig_errors_data[] = {
+	{ LDNS_TSIG_ERROR_NOERROR, "NOERROR" },
+	{ LDNS_RCODE_FORMERR, "FORMERR" },
+	{ LDNS_RCODE_SERVFAIL, "SERVFAIL" },
+	{ LDNS_RCODE_NXDOMAIN, "NXDOMAIN" },
+	{ LDNS_RCODE_NOTIMPL, "NOTIMPL" },
+	{ LDNS_RCODE_REFUSED, "REFUSED" },
+	{ LDNS_RCODE_YXDOMAIN, "YXDOMAIN" },
+	{ LDNS_RCODE_YXRRSET, "YXRRSET" },
+	{ LDNS_RCODE_NXRRSET, "NXRRSET" },
+	{ LDNS_RCODE_NOTAUTH, "NOTAUTH" },
+	{ LDNS_RCODE_NOTZONE, "NOTZONE" },
+	{ LDNS_TSIG_ERROR_BADSIG, "BADSIG" },
+	{ LDNS_TSIG_ERROR_BADKEY, "BADKEY" },
+	{ LDNS_TSIG_ERROR_BADTIME, "BADTIME" },
+	{ LDNS_TSIG_ERROR_BADMODE, "BADMODE" },
+	{ LDNS_TSIG_ERROR_BADNAME, "BADNAME" },
+	{ LDNS_TSIG_ERROR_BADALG, "BADALG" },
+	{ 0, NULL }
+};
+sldns_lookup_table* sldns_tsig_errors = sldns_tsig_errors_data;
+
 char* sldns_wire2str_pkt(uint8_t* data, size_t len)
 {
 	size_t slen = (size_t)sldns_wire2str_pkt_buf(data, len, NULL, 0);
@@ -976,6 +998,8 @@ int sldns_wire2str_rdf_scan(uint8_t** d, size_t* dlen, char** s, size_t* slen,
 		return sldns_wire2str_tag_scan(d, dlen, s, slen);
 	case LDNS_RDF_TYPE_LONG_STR:
 		return sldns_wire2str_long_str_scan(d, dlen, s, slen);
+	case LDNS_RDF_TYPE_TSIGERROR:
+		return sldns_wire2str_tsigerror_scan(d, dlen, s, slen);
 	}
 	/* unknown rdf type */
 	return -1;
@@ -1574,6 +1598,7 @@ int sldns_wire2str_hip_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 
 int sldns_wire2str_int16_data_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 {
+	int w;
 	uint16_t n;
 	if(*dl < 2)
 		return -1;
@@ -1582,7 +1607,12 @@ int sldns_wire2str_int16_data_scan(uint8_t** d, size_t* dl, char** s, size_t* sl
 		return -1;
 	(*d)+=2;
 	(*dl)-=2;
-	return sldns_wire2str_b64_scan_num(d, dl, s, sl, n);
+	if(n == 0) {
+		return sldns_str_print(s, sl, "0");
+	}
+	w = sldns_str_print(s, sl, "%u ", (unsigned)n);
+	w += sldns_wire2str_b64_scan_num(d, dl, s, sl, n);
+	return w;
 }
 
 int sldns_wire2str_nsec3_next_owner_scan(uint8_t** d, size_t* dl, char** s,
@@ -1639,10 +1669,10 @@ int sldns_wire2str_tag_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 	if(*dl < 1+n)
 		return -1;
 	for(i=0; i<n; i++)
-		if(!isalnum((unsigned char)(*d)[i]))
+		if(!isalnum((unsigned char)(*d)[i+1]))
 			return -1;
 	for(i=0; i<n; i++)
-		w += sldns_str_print(s, sl, "%c", (char)(*d)[i]);
+		w += sldns_str_print(s, sl, "%c", (char)(*d)[i+1]);
 	(*d)+=n+1;
 	(*dl)-=(n+1);
 	return w;
@@ -1658,6 +1688,21 @@ int sldns_wire2str_long_str_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 	w += sldns_str_print(s, sl, "\"");
 	(*d)+=*dl;
 	(*dl)=0;
+	return w;
+}
+
+int sldns_wire2str_tsigerror_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
+{
+	sldns_lookup_table *lt;
+	int data, w;
+	if(*dl < 2) return -1;
+	data = (int)sldns_read_uint16(*d);
+	lt = sldns_lookup_by_id(sldns_tsig_errors, data);
+	if(lt && lt->name)
+		w = sldns_str_print(s, sl, "%s", lt->name);
+	else 	w = sldns_str_print(s, sl, "%d", data);
+	(*dl)-=2;
+	(*d)+=2;
 	return w;
 }
 

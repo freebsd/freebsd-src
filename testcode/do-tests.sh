@@ -9,7 +9,7 @@ NEED_CURL='06-ianaports.tpkg root_anchor.tpkg'
 NEED_WHOAMI='07-confroot.tpkg'
 NEED_IPV6='fwd_ancil.tpkg fwd_tcp_tc6.tpkg stub_udp6.tpkg edns_cache.tpkg'
 NEED_NOMINGW='tcp_sigpipe.tpkg 07-confroot.tpkg 08-host-lib.tpkg fwd_ancil.tpkg'
-NEED_DNSCRYPT_PROXY='dnscrypt_queries.tpkg'
+NEED_DNSCRYPT_PROXY='dnscrypt_queries.tpkg dnscrypt_queries_chacha.tpkg'
 
 # test if dig and ldns-testns are available.
 test_tool_avail "dig"

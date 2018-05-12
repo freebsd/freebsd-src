@@ -15,6 +15,7 @@
 
 #include "dnscrypt/cert.h"
 #include "dnscrypt/dnscrypt.h"
+#include "dnscrypt/dnscrypt_config.h"
 
 #include <ctype.h>
 
@@ -35,18 +36,18 @@
     (DNSCRYPT_MAGIC_HEADER_LEN + crypto_box_HALF_NONCEBYTES + crypto_box_HALF_NONCEBYTES)
 
 /**
- * Decrypt a query using the keypair that was found using dnsc_find_keypair.
+ * Decrypt a query using the dnsccert that was found using dnsc_find_cert.
  * The client nonce will be extracted from the encrypted query and stored in
  * client_nonce, a shared secret will be computed and stored in nmkey and the
  * buffer will be decrypted inplace.
- * \param[in] keypair the keypair that matches this encrypted query.
+ * \param[in] cert the cert that matches this encrypted query.
  * \param[in] client_nonce where the client nonce will be stored.
  * \param[in] nmkey where the shared secret key will be written.
  * \param[in] buffer the encrypted buffer.
  * \return 0 on success.
  */
 static int
-dnscrypt_server_uncurve(const KeyPair *keypair,
+dnscrypt_server_uncurve(const dnsccert *cert,
                         uint8_t client_nonce[crypto_box_HALF_NONCEBYTES],
                         uint8_t nmkey[crypto_box_BEFORENMBYTES],
                         struct sldns_buffer* buffer)
@@ -62,24 +63,47 @@ dnscrypt_server_uncurve(const KeyPair *keypair,
 
     query_header = (struct dnscrypt_query_header *)buf;
     memcpy(nmkey, query_header->publickey, crypto_box_PUBLICKEYBYTES);
-    if (crypto_box_beforenm(nmkey, nmkey, keypair->crypt_secretkey) != 0) {
+    if(cert->es_version[1] == 2) {
+#ifdef USE_DNSCRYPT_XCHACHA20
+        if (crypto_box_curve25519xchacha20poly1305_beforenm(
+                nmkey, nmkey, cert->keypair->crypt_secretkey) != 0) {
+            return -1;
+        }
+#else
         return -1;
+#endif
+    } else {
+        if (crypto_box_beforenm(nmkey, nmkey, cert->keypair->crypt_secretkey) != 0) {
+            return -1;
+        }
     }
 
     memcpy(nonce, query_header->nonce, crypto_box_HALF_NONCEBYTES);
     memset(nonce + crypto_box_HALF_NONCEBYTES, 0, crypto_box_HALF_NONCEBYTES);
 
-    sldns_buffer_set_at(buffer,
-                        DNSCRYPT_QUERY_BOX_OFFSET - crypto_box_BOXZEROBYTES,
-                        0, crypto_box_BOXZEROBYTES);
-
-    if (crypto_box_open_afternm
-        (buf + DNSCRYPT_QUERY_BOX_OFFSET - crypto_box_BOXZEROBYTES,
-         buf + DNSCRYPT_QUERY_BOX_OFFSET - crypto_box_BOXZEROBYTES,
-         len - DNSCRYPT_QUERY_BOX_OFFSET + crypto_box_BOXZEROBYTES, nonce,
-         nmkey) != 0) {
+    if(cert->es_version[1] == 2) {
+#ifdef USE_DNSCRYPT_XCHACHA20
+        if (crypto_box_curve25519xchacha20poly1305_open_easy_afternm
+                (buf,
+                buf + DNSCRYPT_QUERY_BOX_OFFSET,
+                len - DNSCRYPT_QUERY_BOX_OFFSET, nonce,
+                nmkey) != 0) {
+            return -1;
+        }
+#else
         return -1;
+#endif
+    } else {
+        if (crypto_box_open_easy_afternm
+            (buf,
+             buf + DNSCRYPT_QUERY_BOX_OFFSET,
+             len - DNSCRYPT_QUERY_BOX_OFFSET, nonce,
+             nmkey) != 0) {
+            return -1;
+        }
     }
+
+    len -= DNSCRYPT_QUERY_HEADER_SIZE;
 
     while (*sldns_buffer_at(buffer, --len) == 0)
 	    ;
@@ -89,12 +113,9 @@ dnscrypt_server_uncurve(const KeyPair *keypair,
     }
 
     memcpy(client_nonce, nonce, crypto_box_HALF_NONCEBYTES);
-    memmove(sldns_buffer_begin(buffer),
-            sldns_buffer_at(buffer, DNSCRYPT_QUERY_HEADER_SIZE),
-            len - DNSCRYPT_QUERY_HEADER_SIZE);
 
     sldns_buffer_set_position(buffer, 0);
-    sldns_buffer_set_limit(buffer, len - DNSCRYPT_QUERY_HEADER_SIZE);
+    sldns_buffer_set_limit(buffer, len);
 
     return 0;
 }
@@ -182,10 +203,10 @@ add_server_nonce(uint8_t *nonce)
 }
 
 /**
- * Encrypt a reply using the keypair that was used with the query.
+ * Encrypt a reply using the dnsccert that was used with the query.
  * The client nonce will be extracted from the encrypted query and stored in
  * The buffer will be encrypted inplace.
- * \param[in] keypair the keypair that matches this encrypted query.
+ * \param[in] cert the dnsccert that matches this encrypted query.
  * \param[in] client_nonce client nonce used during the query
  * \param[in] nmkey shared secret key used during the query.
  * \param[in] buffer the buffer where to encrypt the reply.
@@ -194,7 +215,7 @@ add_server_nonce(uint8_t *nonce)
  * \return 0 on success.
  */
 static int
-dnscrypt_server_curve(const KeyPair *keypair,
+dnscrypt_server_curve(const dnsccert *cert,
                       uint8_t client_nonce[crypto_box_HALF_NONCEBYTES],
                       uint8_t nmkey[crypto_box_BEFORENMBYTES],
                       struct sldns_buffer* buffer,
@@ -223,7 +244,7 @@ dnscrypt_server_curve(const KeyPair *keypair,
     memmove(boxed + crypto_box_MACBYTES, buf, len);
     len = dnscrypt_pad(boxed + crypto_box_MACBYTES, len,
                        max_len - DNSCRYPT_REPLY_HEADER_SIZE, nonce,
-                       keypair->crypt_secretkey);
+                       cert->keypair->crypt_secretkey);
     sldns_buffer_set_at(buffer,
                         DNSCRYPT_REPLY_BOX_OFFSET - crypto_box_BOXZEROBYTES,
                         0, crypto_box_ZEROBYTES);
@@ -231,10 +252,20 @@ dnscrypt_server_curve(const KeyPair *keypair,
     // add server nonce extension
     add_server_nonce(nonce);
 
-    if (crypto_box_afternm
-        (boxed - crypto_box_BOXZEROBYTES, boxed - crypto_box_BOXZEROBYTES,
-         len + crypto_box_ZEROBYTES, nonce, nmkey) != 0) {
+    if(cert->es_version[1] == 2) {
+#ifdef USE_DNSCRYPT_XCHACHA20
+        if (crypto_box_curve25519xchacha20poly1305_easy_afternm
+            (boxed, boxed + crypto_box_MACBYTES, len, nonce, nmkey) != 0) {
+            return -1;
+        }
+#else
         return -1;
+#endif
+    } else {
+        if (crypto_box_easy_afternm
+            (boxed, boxed + crypto_box_MACBYTES, len, nonce, nmkey) != 0) {
+            return -1;
+        }
     }
 
     sldns_buffer_write_at(buffer, 0, DNSCRYPT_MAGIC_RESPONSE, DNSCRYPT_MAGIC_HEADER_LEN);
@@ -267,6 +298,25 @@ dnsc_read_from_file(char *fname, char *buf, size_t count)
 }
 
 /**
+ * Given an absolute path on the original root, returns the absolute path
+ * within the chroot. If chroot is disabled, the path is not modified.
+ * No char * is malloced so there is no need to free this.
+ * \param[in] cfg the configuration.
+ * \param[in] path the path from the original root.
+ * \return the path from inside the chroot.
+ */
+static char *
+dnsc_chroot_path(struct config_file *cfg, char *path)
+{
+	char *nm;
+	nm = path;
+	if(cfg->chrootdir && cfg->chrootdir[0] && strncmp(nm,
+		cfg->chrootdir, strlen(cfg->chrootdir)) == 0)
+		nm += strlen(cfg->chrootdir);
+	return nm;
+}
+
+/**
  * Parse certificates files provided by the configuration and load them into
  * dnsc_env.
  * \param[in] env the dnsc_env structure to load the certs into.
@@ -278,6 +328,7 @@ dnsc_parse_certs(struct dnsc_env *env, struct config_file *cfg)
 {
 	struct config_strlist *head;
 	size_t signed_cert_id;
+	char *nm;
 
 	env->signed_certs_count = 0U;
 	for (head = cfg->dnscrypt_provider_cert; head; head = head->next) {
@@ -288,8 +339,9 @@ dnsc_parse_certs(struct dnsc_env *env, struct config_file *cfg)
 
 	signed_cert_id = 0U;
 	for(head = cfg->dnscrypt_provider_cert; head; head = head->next, signed_cert_id++) {
+		nm = dnsc_chroot_path(cfg, head->str);
 		if(dnsc_read_from_file(
-				head->str,
+				nm,
 				(char *)(env->signed_certs + signed_cert_id),
 				sizeof(struct SignedCert)) != 0) {
 			fatal_exit("dnsc_parse_certs: failed to load %s: %s", head->str, strerror(errno));
@@ -326,16 +378,17 @@ dnsc_key_to_fingerprint(char fingerprint[80U], const uint8_t * const key)
 }
 
 /**
- * Find the keypair matching a DNSCrypt query.
- * \param[in] dnscenv The DNSCrypt enviroment, which contains the list of keys
+ * Find the cert matching a DNSCrypt query.
+ * \param[in] dnscenv The DNSCrypt enviroment, which contains the list of certs
  * supported by the server.
  * \param[in] buffer The encrypted DNS query.
- * \return a KeyPair * if we found a key pair matching the query, NULL otherwise.
+ * \return a dnsccert * if we found a cert matching the magic_number of the
+ * query, NULL otherwise.
  */
-static const KeyPair *
-dnsc_find_keypair(struct dnsc_env* dnscenv, struct sldns_buffer* buffer)
+static const dnsccert *
+dnsc_find_cert(struct dnsc_env* dnscenv, struct sldns_buffer* buffer)
 {
-	const KeyPair *keypairs = dnscenv->keypairs;
+	const dnsccert *certs = dnscenv->certs;
 	struct dnscrypt_query_header *dnscrypt_header;
 	size_t i;
 
@@ -343,10 +396,10 @@ dnsc_find_keypair(struct dnsc_env* dnscenv, struct sldns_buffer* buffer)
 		return NULL;
 	}
 	dnscrypt_header = (struct dnscrypt_query_header *)sldns_buffer_begin(buffer);
-	for (i = 0U; i < dnscenv->keypairs_count; i++) {
-		if (memcmp(keypairs[i].crypt_publickey, dnscrypt_header->magic_query,
+	for (i = 0U; i < dnscenv->signed_certs_count; i++) {
+		if (memcmp(certs[i].magic_query, dnscrypt_header->magic_query,
                    DNSCRYPT_MAGIC_HEADER_LEN) == 0) {
-			return &keypairs[i];
+			return &certs[i];
 		}
 	}
 	return NULL;
@@ -404,9 +457,33 @@ dnsc_load_local_data(struct dnsc_env* dnscenv, struct config_file *cfg)
     return dnscenv->signed_certs_count;
 }
 
+static const char *
+key_get_es_version(uint8_t version[2])
+{
+    struct es_version {
+        uint8_t es_version[2];
+        const char *name;
+    };
+
+    struct es_version es_versions[] = {
+        {{0x00, 0x01}, "X25519-XSalsa20Poly1305"},
+        {{0x00, 0x02}, "X25519-XChacha20Poly1305"},
+    };
+    int i;
+    for(i=0; i < (int)sizeof(es_versions); i++){
+        if(es_versions[i].es_version[0] == version[0] &&
+           es_versions[i].es_version[1] == version[1]){
+            return es_versions[i].name;
+        }
+    }
+    return NULL;
+}
+
+
 /**
  * Parse the secret key files from `dnscrypt-secret-key` config and populates
- * a list of secret/public keys supported by dnscrypt listener.
+ * a list of dnsccert with es_version, magic number and secret/public keys
+ * supported by dnscrypt listener.
  * \param[in] env The dnsc_env structure which will hold the keypairs.
  * \param[in] cfg The config with the secret key file paths.
  */
@@ -414,33 +491,76 @@ static int
 dnsc_parse_keys(struct dnsc_env *env, struct config_file *cfg)
 {
 	struct config_strlist *head;
-	size_t keypair_id;
+	size_t cert_id, keypair_id;
+	size_t c;
+	char *nm;
 
 	env->keypairs_count = 0U;
 	for (head = cfg->dnscrypt_secret_key; head; head = head->next) {
 		env->keypairs_count++;
 	}
-	env->keypairs = sodium_allocarray(env->keypairs_count,
-										  sizeof *env->keypairs);
 
+	env->keypairs = sodium_allocarray(env->keypairs_count,
+		sizeof *env->keypairs);
+	env->certs = sodium_allocarray(env->signed_certs_count, 
+		sizeof *env->certs);
+
+	cert_id = 0U;
 	keypair_id = 0U;
 	for(head = cfg->dnscrypt_secret_key; head; head = head->next, keypair_id++) {
 		char fingerprint[80];
+		int found_cert = 0;
+		KeyPair *current_keypair = &env->keypairs[keypair_id];
+		nm = dnsc_chroot_path(cfg, head->str);
 		if(dnsc_read_from_file(
-				head->str,
-				(char *)(env->keypairs[keypair_id].crypt_secretkey),
+				nm,
+				(char *)(current_keypair->crypt_secretkey),
 				crypto_box_SECRETKEYBYTES) != 0) {
 			fatal_exit("dnsc_parse_keys: failed to load %s: %s", head->str, strerror(errno));
 		}
 		verbose(VERB_OPS, "Loaded key %s", head->str);
-		if (crypto_scalarmult_base(env->keypairs[keypair_id].crypt_publickey,
-								   env->keypairs[keypair_id].crypt_secretkey) != 0) {
+		if (crypto_scalarmult_base(current_keypair->crypt_publickey,
+			current_keypair->crypt_secretkey) != 0) {
 			fatal_exit("dnsc_parse_keys: could not generate public key from %s", head->str);
 		}
-		dnsc_key_to_fingerprint(fingerprint, env->keypairs[keypair_id].crypt_publickey);
+		dnsc_key_to_fingerprint(fingerprint, current_keypair->crypt_publickey);
 		verbose(VERB_OPS, "Crypt public key fingerprint for %s: %s", head->str, fingerprint);
+		// find the cert matching this key
+		for(c = 0; c < env->signed_certs_count; c++) {
+			if(memcmp(current_keypair->crypt_publickey,
+				env->signed_certs[c].server_publickey,
+				crypto_box_PUBLICKEYBYTES) == 0) {
+				dnsccert *current_cert = &env->certs[cert_id++];
+				found_cert = 1;
+				current_cert->keypair = current_keypair;
+				memcpy(current_cert->magic_query,
+				       env->signed_certs[c].magic_query,
+					sizeof env->signed_certs[c].magic_query);
+				memcpy(current_cert->es_version,
+				       env->signed_certs[c].version_major,
+				       sizeof env->signed_certs[c].version_major
+				);
+				dnsc_key_to_fingerprint(fingerprint,
+							current_cert->keypair->crypt_publickey);
+				verbose(VERB_OPS, "Crypt public key fingerprint for %s: %s",
+					head->str, fingerprint);
+				verbose(VERB_OPS, "Using %s",
+					key_get_es_version(current_cert->es_version));
+#ifndef USE_DNSCRYPT_XCHACHA20
+				if (current_cert->es_version[1] == 0x02) {
+				    fatal_exit("Certificate for XChacha20 but libsodium does not support it.");
+				}
+#endif
+
+            		}
+        	}
+		if (!found_cert) {
+		    fatal_exit("dnsc_parse_keys: could not match certificate for key "
+			       "%s. Unable to determine ES version.",
+			       head->str);
+		}
 	}
-	return keypair_id;
+	return cert_id;
 }
 
 
@@ -463,8 +583,8 @@ dnsc_handle_curved_request(struct dnsc_env* dnscenv,
     // Attempt to decrypt the query. If it is not crypted, we may still need
     // to serve the certificate.
     verbose(VERB_ALGO, "handle request called on DNSCrypt socket");
-    if ((repinfo->keypair = dnsc_find_keypair(dnscenv, c->buffer)) != NULL) {
-        if(dnscrypt_server_uncurve(repinfo->keypair,
+    if ((repinfo->dnsc_cert = dnsc_find_cert(dnscenv, c->buffer)) != NULL) {
+        if(dnscrypt_server_uncurve(repinfo->dnsc_cert,
                                    repinfo->client_nonce,
                                    repinfo->nmkey,
                                    c->buffer) != 0){
@@ -488,7 +608,7 @@ dnsc_handle_uncurved_request(struct comm_reply *repinfo)
     if(!repinfo->is_dnscrypted) {
         return 1;
     }
-	if(dnscrypt_server_curve(repinfo->keypair,
+	if(dnscrypt_server_curve(repinfo->dnsc_cert,
                              repinfo->client_nonce,
                              repinfo->nmkey,
                              repinfo->c->dnscrypt_buffer,

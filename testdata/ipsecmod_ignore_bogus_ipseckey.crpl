@@ -1,0 +1,257 @@
+; Test ipsecmod-ignore-bogus option
+
+; config options
+; The island of trust is at example.com
+server:
+	trust-anchor: "example.com.    IN      DS      48069 8 2 fce2bcb0d88b828064faad58e935ca2e32ff0bbd8bd8407a8f344d8f8e8c438a"
+	val-override-date: "-1"
+	target-fetch-policy: "0 0 0 0 0"
+	# test that default value of harden-dnssec-stripped is still yes.
+	fake-sha1: yes
+	access-control: 127.0.0.1 allow_snoop
+	module-config: "ipsecmod validator iterator"
+	; ../../ is there because the test runs from testdata/03-testbound.dir
+	ipsecmod-hook: "../../testdata/ipsecmod_hook.sh"
+	ipsecmod-strict: no
+	ipsecmod-max-ttl: 200
+	ipsecmod-ignore-bogus: yes
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test ipsecmod-ignore-bogus option
+; Scenario overview:
+; - query for example.com. IN A
+; - check that query for example.com. IN IPSECKEY is generated
+; - check that we get an answer for example.com. IN A with the correct TTL
+; - check that the get the same answer from cache
+; - check that we don't get the IPSECKEY answer from cache (bogus)
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			. IN NS
+		SECTION ANSWER
+			. IN NS	K.ROOT-SERVERS.NET.
+		SECTION ADDITIONAL
+			K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR AA NOERROR
+		SECTION QUESTION
+			a.gtld-servers.net.	IN AAAA
+		SECTION AUTHORITY
+			. 86400 IN SOA . . 20070304 28800 7200 604800 86400
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR AA NOERROR
+		SECTION QUESTION
+			K.ROOT-SERVERS.NET.	IN	AAAA
+		SECTION AUTHORITY
+			. 86400 IN SOA . . 20070304 28800 7200 604800 86400
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode subdomain
+		ADJUST copy_id copy_query
+		REPLY QR NOERROR
+		SECTION QUESTION
+			com. IN A
+		SECTION AUTHORITY
+			com. IN NS	a.gtld-servers.net.
+		SECTION ADDITIONAL
+			a.gtld-servers.net.	IN 	A	192.5.6.30
+	ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			com. IN NS
+		SECTION ANSWER
+			com.    IN NS   a.gtld-servers.net.
+		SECTION ADDITIONAL
+			a.gtld-servers.net.     IN      A       192.5.6.30
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode subdomain
+		ADJUST copy_id copy_query
+		REPLY QR NOERROR
+		SECTION QUESTION
+			example.com. IN A
+		SECTION AUTHORITY
+			example.com.	IN NS	ns.example.com.
+		SECTION ADDITIONAL
+			ns.example.com.		IN 	A	1.2.3.4
+	ENTRY_END
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			example.com. IN NS
+		SECTION ANSWER
+			example.com.    IN NS   ns.example.com.
+			example.com.    3600    IN      RRSIG   NS 8 2 3600 20170609142855 20170512142855 48069 example.com. SYFM1dsPEly0PjdShX8EsRnpq6XTysrvUBWB+LjGaC0wn3RFd0A2TG3WhVkUxhjTzRjt9jn3rz+JUJyybrhBkYXjBeBBjLep6Le7PQSct+FFDTIuX8duixfOzEN5LSYRMUnSuAq/z0LJHUB6nqTw8XWRm6EIImdEBc6D0u1KSes=
+		SECTION ADDITIONAL
+			ns.example.com.         IN      A       1.2.3.4
+			ns.example.com. 3600    IN      RRSIG   A 8 3 3600 20170609142855 20170512142855 48069 example.com. kK5LZnGi2VmVmKUXkVenYCQMHGqwhGaEOwjwVG9ScOVzvqNA+n7KWwxdLDsIVLgr/BjR9Cj9+HYB9hYMhk+LnsbHqf5ovY3+n7CV4v3MDWJBLYt7NHvXwoywbaD71w7koo0SUiBXMB/FyuxRj6BXEk4dlGh7mgHZXE+X/gCYxsM=
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR AA NOERROR
+		SECTION QUESTION
+			ns.example.com. IN AAAA
+		SECTION AUTHORITY
+			example.com.    86400   IN      SOA     ns.example.com. example.com. 2002022401 10800 15 604800 10800
+			example.com.    86400   IN      RRSIG   SOA 8 2 86400 20170609142855 20170512142855 48069 example.com. fr6oVOsRMnm3D8N01LxzPvT9lWdNDhTlmwR1co42c3H2ra1EjbbKqkLcrXQAsq7E/ddzqgL3RnYS+3USojXycI1xhjXC8YT2xsW3uH8uTY1Qvk1K75lu1OXmDiU6wvHplFowl0OX7sx76lB1itbvsau4bMPMt03sf4u8po7V35s=
+	ENTRY_END
+
+	; response to A query
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			example.com. IN A
+		SECTION ANSWER
+			example.com.    3600	IN      A       5.6.7.8
+			example.com.    3600    IN      RRSIG   A 8 2 3600 20170609142855 20170512142855 48069 example.com. Qviw6w8ReMG2WZxenvzj/YwoeM3Ln59Fnw6s1MRWGsD2yA3+y0loFdUEHZdRhrEiV0kvtQGC+kBhMuSMq/cyjprbKLw5pkS9+MMDDnVPP1PQb17LY4NIxPtq710AN1sjhBK6PVa6XN+3ciUmCcLs1ESviQkVKpgAY/QlV0TaarQ=
+		SECTION AUTHORITY
+			example.com.    IN NS   ns.example.com.
+			example.com.    3600    IN      RRSIG   NS 8 2 3600 20170609142855 20170512142855 48069 example.com. SYFM1dsPEly0PjdShX8EsRnpq6XTysrvUBWB+LjGaC0wn3RFd0A2TG3WhVkUxhjTzRjt9jn3rz+JUJyybrhBkYXjBeBBjLep6Le7PQSct+FFDTIuX8duixfOzEN5LSYRMUnSuAq/z0LJHUB6nqTw8XWRm6EIImdEBc6D0u1KSes=
+		SECTION ADDITIONAL
+			ns.example.com.         IN      A       1.2.3.4
+			ns.example.com. 3600    IN      RRSIG   A 8 3 3600 20170609142855 20170512142855 48069 example.com. kK5LZnGi2VmVmKUXkVenYCQMHGqwhGaEOwjwVG9ScOVzvqNA+n7KWwxdLDsIVLgr/BjR9Cj9+HYB9hYMhk+LnsbHqf5ovY3+n7CV4v3MDWJBLYt7NHvXwoywbaD71w7koo0SUiBXMB/FyuxRj6BXEk4dlGh7mgHZXE+X/gCYxsM=
+	ENTRY_END
+
+	; response to IPSECKEY query
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			example.com. IN IPSECKEY
+		SECTION ANSWER
+			example.com.    3600    IN      IPSECKEY        10 0 2 . AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+			;(correct answer) example.com.    3600    IN      RRSIG   IPSECKEY 8 2 3600 20170609144114 20170512144114 48069 example.com. UqRbG6P8mWQEVt16j86cS6fqEN8c+5t8qtePr9ghRqIxeuPOCkLiSqmXQYcQbOeOK4YoWQ3gD2az2JMWQMxEKeBLpxXZbgZN+2uIZ9LLEkyYjGRulr9kameKTM1feSe31A9mR9IgMNrY/ZeUkfxC+8Q7s8avOqYH2jVMFUg9raE=
+			; (bogus answer)
+			example.com.    3600    IN      RRSIG   IPSECKEY 8 2 3600 20170609144114 20170512144114 48069 example.com. Bogus6P8mWQEVt16j86cS6fqEN8c+5t8qtePr9ghRqIxeuPOCkLiSqmXQYcQbOeOK4YoWQ3gD2az2JMWQMxEKeBLpxXZbgZN+2uIZ9LLEkyYjGRulr9kameKTM1feSe31A9mR9IgMNrY/ZeUkfxC+8Q7s8avOqYH2jVMFUg9raE=
+		SECTION AUTHORITY
+			example.com.    IN NS   ns.example.com.
+			example.com.    3600    IN      RRSIG   NS 8 2 3600 20170609142855 20170512142855 48069 example.com. SYFM1dsPEly0PjdShX8EsRnpq6XTysrvUBWB+LjGaC0wn3RFd0A2TG3WhVkUxhjTzRjt9jn3rz+JUJyybrhBkYXjBeBBjLep6Le7PQSct+FFDTIuX8duixfOzEN5LSYRMUnSuAq/z0LJHUB6nqTw8XWRm6EIImdEBc6D0u1KSes=
+		SECTION ADDITIONAL
+			ns.example.com.         IN      A       1.2.3.4
+			ns.example.com. 3600    IN      RRSIG   A 8 3 3600 20170609142855 20170512142855 48069 example.com. kK5LZnGi2VmVmKUXkVenYCQMHGqwhGaEOwjwVG9ScOVzvqNA+n7KWwxdLDsIVLgr/BjR9Cj9+HYB9hYMhk+LnsbHqf5ovY3+n7CV4v3MDWJBLYt7NHvXwoywbaD71w7koo0SUiBXMB/FyuxRj6BXEk4dlGh7mgHZXE+X/gCYxsM=
+	ENTRY_END
+
+; response to DNSKEY priming query
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR AA NOERROR
+		SECTION QUESTION
+			example.com. IN DNSKEY
+		SECTION ANSWER
+			example.com.    86400   IN      DNSKEY  256 3 8 AwEAAddE7q1HL4Id+gpQ7imk+RyNEhCWgtew5tstsqIR/fXq0RBn0rF4SI1H6ysbb3nfqAV1xRDJ01ddpgfGyz9zXXHQ/H/9qEpeWapqfNTQ5GHHdxBL2iST7XusThfXEyX/pouKIpvtknvtLs8tmH64dajxoJkaejU2EKXKaBaRKcYx ;{id = 48069 (zsk), size = 1024b}
+			example.com.    86400   IN      RRSIG   DNSKEY 8 2 86400 20170609144114 20170512144114 48069 example.com. mJU3LnubfYW7vhksiC1STWbrSjCe6TG1kEpnk4jRrYovues6bzOTIFSXEMjPW1mikulapnx3nMtTWdrW2InjfP9wLV/u2Wx1Vu3s9uzli/27y//3DOkZSeBa5RZdKpC1h8UB5GAxq4MRiSidgEBB1qaDIaE29sWmn9kPHEgNcgI=
+		SECTION AUTHORITY
+			example.com.    IN NS   ns.example.com.
+			example.com.    3600    IN      RRSIG   NS 8 2 3600 20170609142855 20170512142855 48069 example.com. SYFM1dsPEly0PjdShX8EsRnpq6XTysrvUBWB+LjGaC0wn3RFd0A2TG3WhVkUxhjTzRjt9jn3rz+JUJyybrhBkYXjBeBBjLep6Le7PQSct+FFDTIuX8duixfOzEN5LSYRMUnSuAq/z0LJHUB6nqTw8XWRm6EIImdEBc6D0u1KSes=
+		SECTION ADDITIONAL
+			ns.example.com.         IN      A       1.2.3.4
+			ns.example.com. 3600    IN      RRSIG   A 8 3 3600 20170609142855 20170512142855 48069 example.com. kK5LZnGi2VmVmKUXkVenYCQMHGqwhGaEOwjwVG9ScOVzvqNA+n7KWwxdLDsIVLgr/BjR9Cj9+HYB9hYMhk+LnsbHqf5ovY3+n7CV4v3MDWJBLYt7NHvXwoywbaD71w7koo0SUiBXMB/FyuxRj6BXEk4dlGh7mgHZXE+X/gCYxsM=
+	ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+	REPLY RD
+	SECTION QUESTION
+		example.com. IN A
+ENTRY_END
+
+STEP 2 CHECK_OUT_QUERY
+ENTRY_BEGIN
+	MATCH qname qtype opcode
+	SECTION QUESTION
+		example.com. IN IPSECKEY
+ENTRY_END
+
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all ttl
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+		example.com. IN A
+	SECTION ANSWER
+		example.com.  200 IN A 5.6.7.8
+	SECTION AUTHORITY
+		example.com.	IN NS	ns.example.com.
+	SECTION ADDITIONAL
+		ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+; Query without RD, check if cached and with correct TTL
+STEP 11 QUERY
+ENTRY_BEGIN
+	SECTION QUESTION
+		example.com. IN A
+ENTRY_END
+
+STEP 20 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all ttl
+	REPLY QR RA NOERROR
+	SECTION QUESTION
+		example.com. IN A
+	SECTION ANSWER
+		example.com.  200 IN A 5.6.7.8
+	SECTION AUTHORITY
+		example.com.	IN NS	ns.example.com.
+	SECTION ADDITIONAL
+		ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+; Query without RD, check if IPSECKEY is not cached
+STEP 21 QUERY
+ENTRY_BEGIN
+	SECTION QUESTION
+		example.com. IN IPSECKEY
+ENTRY_END
+
+STEP 30 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all
+	REPLY QR RA SERVFAIL
+	SECTION QUESTION
+		example.com. IN IPSECKEY
+ENTRY_END
+
+SCENARIO_END
