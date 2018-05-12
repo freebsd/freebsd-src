@@ -502,11 +502,15 @@ doreti_exit:
 	je	doreti_iret_nmi
 	cmpl	$T_TRCTRAP, TF_TRAPNO(%esp)
 	je	doreti_iret_nmi
-	testl	$SEL_RPL_MASK, TF_CS(%esp)
-	jz	doreti_popl_fs
-	movl	%esp, %esi
-	movl	PCPU(TRAMPSTK), %edx
 	movl	$TF_SZ, %ecx
+	testl	$PSL_VM,TF_EFLAGS(%esp)
+	jz	1f			/* PCB_VM86CALL is not set */
+	addl	$VM86_STACK_SPACE, %ecx
+	jmp	2f
+1:	testl	$SEL_RPL_MASK, TF_CS(%esp)
+	jz	doreti_popl_fs
+2:	movl	%esp, %esi
+	movl	PCPU(TRAMPSTK), %edx
 	subl	%ecx, %edx
 	movl	%edx, %edi
 	rep; movsb
