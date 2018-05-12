@@ -321,6 +321,14 @@ ldns_rr_dnskey_key_size_raw(const unsigned char* keydata,
         case LDNS_SIGN_ECDSAP384SHA384:
                 return 384;
 #endif
+#ifdef USE_ED25519
+	case LDNS_SIGN_ED25519:
+		return 256;
+#endif
+#ifdef USE_ED448
+	case LDNS_SIGN_ED448:
+		return 456;
+#endif
 	case LDNS_SIGN_HMACMD5:
 		return len;
 	default:

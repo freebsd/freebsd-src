@@ -248,11 +248,11 @@ ldns_str2rdf_int8(ldns_rdf **rd, const char *bytestr)
 
 
 /*
- * Checks whether the escaped value at **s is an octal value or
+ * Checks whether the escaped value at **s is an decimal value or
  * a 'normally' escaped character (and not eos)
  *
  * The string pointer at *s is increased by either 0 (on error), 1 (on
- * normal escapes), or 3 (on octals)
+ * normal escapes), or 3 (on decimals)
  *
  * Returns the number of bytes read from the escaped string, or
  * 0 on error
@@ -262,9 +262,9 @@ parse_escape(uint8_t *ch_p, const char** str_p)
 {
 	uint16_t val;
 
-	if ((*str_p)[0] && isdigit((*str_p)[0])  &&
-	    (*str_p)[1] && isdigit((*str_p)[1])  &&
-	    (*str_p)[2] && isdigit((*str_p)[2]))  {
+	if ((*str_p)[0] && isdigit((unsigned char)(*str_p)[0])  &&
+	    (*str_p)[1] && isdigit((unsigned char)(*str_p)[1])  &&
+	    (*str_p)[2] && isdigit((unsigned char)(*str_p)[2]))  {
 
 		val = (uint16_t)(((*str_p)[0] - '0') * 100 +
 				 ((*str_p)[1] - '0') *  10 +
@@ -277,7 +277,7 @@ parse_escape(uint8_t *ch_p, const char** str_p)
 		*str_p += 3;
 		return true;
 
-	} else if ((*str_p)[0] && !isdigit((*str_p)[0])) {
+	} else if ((*str_p)[0] && !isdigit((unsigned char)(*str_p)[0])) {
 
 		*ch_p = (uint8_t)*(*str_p)++;
 		return true;
@@ -777,29 +777,71 @@ ldns_str2rdf_cert_alg(ldns_rdf **rd, const char *str)
 	return st;
 }
 
+static ldns_lookup_table ldns_tlsa_certificate_usages[] = {
+	{ LDNS_TLSA_USAGE_PKIX_TA		, "PKIX-TA"  },
+	{ LDNS_TLSA_USAGE_PKIX_EE		, "PKIX-EE"  },
+	{ LDNS_TLSA_USAGE_DANE_TA		, "DANE-TA"  },
+	{ LDNS_TLSA_USAGE_DANE_EE		, "DANE-EE"  },
+	{ LDNS_TLSA_USAGE_PRIVCERT		, "PrivCert" },
+        { 0, NULL }
+};
+
+static ldns_lookup_table ldns_tlsa_selectors[] = {
+	{ LDNS_TLSA_SELECTOR_CERT		, "Cert" },
+	{ LDNS_TLSA_SELECTOR_SPKI		, "SPKI" },
+	{ LDNS_TLSA_SELECTOR_PRIVSEL		, "PrivSel" },
+        { 0, NULL }
+};
+
+static ldns_lookup_table ldns_tlsa_matching_types[] = {
+	{ LDNS_TLSA_MATCHING_TYPE_FULL		, "Full"      },
+	{ LDNS_TLSA_MATCHING_TYPE_SHA2_256	, "SHA2-256"  },
+	{ LDNS_TLSA_MATCHING_TYPE_SHA2_512	, "SHA2-512"  },
+	{ LDNS_TLSA_MATCHING_TYPE_PRIVMATCH	, "PrivMatch" },
+        { 0, NULL }
+};
+
+static ldns_status
+ldns_str2rdf_mnemonic4int8(ldns_lookup_table *lt,
+		ldns_rdf **rd, const char *str)
+{
+	if ((lt = ldns_lookup_by_name(lt, str))) {
+		/* it was given as a integer */
+		*rd = ldns_native2rdf_int8(LDNS_RDF_TYPE_INT8, (uint8_t) lt->id);
+		if (!*rd)
+			return LDNS_STATUS_ERR;
+		else
+			return LDNS_STATUS_OK;
+	}
+	return ldns_str2rdf_int8(rd, str);
+}
+
 /* An alg field can either be specified as a 8 bits number
  * or by its symbolic name. Handle both
  */
 ldns_status
 ldns_str2rdf_alg(ldns_rdf **rd, const char *str)
 {
-	ldns_lookup_table *lt;
-	ldns_status st;
+	return ldns_str2rdf_mnemonic4int8(ldns_algorithms, rd, str);
+}
 
-	lt = ldns_lookup_by_name(ldns_algorithms, str);
-	st = LDNS_STATUS_OK;
+ldns_status
+ldns_str2rdf_certificate_usage(ldns_rdf **rd, const char *str)
+{
+	return ldns_str2rdf_mnemonic4int8(
+			ldns_tlsa_certificate_usages, rd, str);
+}
 
-	if (lt) {
-		/* it was given as a integer */
-		*rd = ldns_native2rdf_int8(LDNS_RDF_TYPE_INT8, (uint8_t) lt->id);
-		if (!*rd) {
-			st = LDNS_STATUS_ERR;
-		}
-	} else {
-		/* try as-is (a number) */
-		st = ldns_str2rdf_int8(rd, str);
-	}
-	return st;
+ldns_status
+ldns_str2rdf_selector(ldns_rdf **rd, const char *str)
+{
+	return ldns_str2rdf_mnemonic4int8(ldns_tlsa_selectors, rd, str);
+}
+
+ldns_status
+ldns_str2rdf_matching_type(ldns_rdf **rd, const char *str)
+{
+	return ldns_str2rdf_mnemonic4int8(ldns_tlsa_matching_types, rd, str);
 }
 
 ldns_status
@@ -827,7 +869,7 @@ loc_parse_cm(char* my_str, char** endstr, uint8_t* m, uint8_t* e)
 	/* read <digits>[.<digits>][mM] */
 	/* into mantissa exponent format for LOC type */
 	uint32_t meters = 0, cm = 0, val;
-	while (isblank(*my_str)) {
+	while (isblank((unsigned char)*my_str)) {
 		my_str++;
 	}
 	meters = (uint32_t)strtol(my_str, &my_str, 10);
@@ -932,7 +974,7 @@ north:
 	} else {
 		latitude = equator - latitude;
 	}
-	while (isblank(*my_str)) {
+	while (isblank((unsigned char)*my_str)) {
 		my_str++;
 	}
 
@@ -954,7 +996,7 @@ north:
 		return LDNS_STATUS_INVALID_STR;
 	}
 
-	while (isblank(*my_str)) {
+	while (isblank((unsigned char)*my_str)) {
 		my_str++;
 	}
 
@@ -963,7 +1005,7 @@ north:
 	}
 
 east:
-	while (isblank(*my_str)) {
+	while (isblank((unsigned char)*my_str)) {
 		my_str++;
 	}
 
@@ -1363,9 +1405,7 @@ ldns_str2rdf_eui48(ldns_rdf **rd, const char *str)
 
 	if (sscanf(str, "%2x-%2x-%2x-%2x-%2x-%2x%n",
 			&a, &b, &c, &d, &e, &f, &l) != 6 ||
-			l != (int)strlen(str) || /* more data to read */
-			strpbrk(str, "+-")       /* signed hexes */
-			) {
+			l != (int)strlen(str)) {
 		return LDNS_STATUS_INVALID_EUI48;
 	} else {
 		bytes[0] = a;
@@ -1388,9 +1428,7 @@ ldns_str2rdf_eui64(ldns_rdf **rd, const char *str)
 
 	if (sscanf(str, "%2x-%2x-%2x-%2x-%2x-%2x-%2x-%2x%n",
 			&a, &b, &c, &d, &e, &f, &g, &h, &l) != 8 ||
-			l != (int)strlen(str) || /* more data to read */
-			strpbrk(str, "+-")       /* signed hexes */
-			) {
+			l != (int)strlen(str)) {
 		return LDNS_STATUS_INVALID_EUI64;
 	} else {
 		bytes[0] = a;
@@ -1416,7 +1454,7 @@ ldns_str2rdf_tag(ldns_rdf **rd, const char *str)
 		return LDNS_STATUS_INVALID_TAG;
 	}
 	for (ptr = str; *ptr; ptr++) {
-		if (! isalnum(*ptr)) {
+		if (! isalnum((unsigned char)*ptr)) {
 			return LDNS_STATUS_INVALID_TAG;
 		}
 	}

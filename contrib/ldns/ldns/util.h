@@ -27,8 +27,8 @@ extern "C" {
 #define dprintf(X,Y) fprintf(stderr, (X), (Y))
 /* #define	dprintf(X, Y)  */
 
-#define LDNS_VERSION "1.6.17"
-#define LDNS_REVISION ((1<<16)|(6<<8)|(17))
+#define LDNS_VERSION "1.7.0"
+#define LDNS_REVISION ((1<<16)|(7<<8)|(0))
 
 /**
  * splint static inline workaround
@@ -276,7 +276,7 @@ time_t mktime_from_utc(const struct tm *tm);
  * The function interprets time as the number of seconds since epoch
  * with respect to now using serial arithmitics (rfc1982).
  * That number of seconds is then converted to broken-out time information.
- * This is especially usefull when converting the inception and expiration
+ * This is especially useful when converting the inception and expiration
  * fields of RRSIG records.
  *
  * \param[in] time number of seconds since epoch (midnight, January 1st, 1970)
