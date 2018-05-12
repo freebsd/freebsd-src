@@ -47,6 +47,7 @@
 #define	AW_MMC_STAR		0x3C	/* Status Register */
 #define	AW_MMC_FWLR		0x40	/* FIFO Threshold Watermark Register */
 #define	AW_MMC_FUNS		0x44	/* Function Select Register */
+#define	AW_MMC_DBGC		0x50	/* Debug register */
 #define	AW_MMC_CSDC		0x54	/* CRC status detect controler register (A64 smhc2 only) */
 #define	AW_MMC_A12A		0x58	/* Auto command 12 argument register */
 #define	AW_MMC_NTSR		0x5C	/* SD new timing register (H3, A64 smhc0/1 only) */
