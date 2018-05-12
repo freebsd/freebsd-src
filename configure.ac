@@ -10,14 +10,14 @@ sinclude(dnstap/dnstap.m4)
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[6])
-m4_define([VERSION_MICRO],[0])
+m4_define([VERSION_MICRO],[1])
 AC_INIT(unbound, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), unbound-bugs@nlnetlabs.nl, unbound)
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=6
-LIBUNBOUND_REVISION=3
+LIBUNBOUND_REVISION=4
 LIBUNBOUND_AGE=4
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -68,6 +68,7 @@ LIBUNBOUND_AGE=4
 # 1.5.9 had 6:1:4
 # 1.5.10 had 6:2:4
 # 1.6.0 had 6:3:4
+# 1.6.1 had 7:0:5 # ub_callback_t typedef renamed to ub_callback_type
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -1053,6 +1054,10 @@ if test x_$enable_static_exe = x_yes; then
 	fi
 fi
 
+# Include systemd.m4 - begin
+sinclude(systemd.m4)
+# Include systemd.m4 - end
+
 # set lock checking if requested
 AC_ARG_ENABLE(lock_checks, AC_HELP_STRING([--enable-lock-checks],
 	[ enable to check lock and unlock calls, for debug purposes ]), 
@@ -1151,6 +1156,28 @@ AC_CHECK_FUNCS([setresgid],,[AC_CHECK_FUNCS([setregid])])
 if echo $build_os | grep darwin8 > /dev/null; then
 	AC_DEFINE(DARWIN_BROKEN_SETREUID, 1, [Define this if on macOSX10.4-darwin8 and setreuid and setregid do not work])
 fi
+AC_CHECK_DECLS([inet_pton,inet_ntop], [], [], [
+AC_INCLUDES_DEFAULT
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+
+#ifdef HAVE_NETINET_TCP_H
+#include <netinet/tcp.h>
+#endif
+
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+
+#ifdef HAVE_WINSOCK2_H
+#include <winsock2.h>
+#endif
+
+#ifdef HAVE_WS2TCPIP_H
+#include <ws2tcpip.h>
+#endif
+])
 AC_REPLACE_FUNCS(inet_aton)
 AC_REPLACE_FUNCS(inet_pton)
 AC_REPLACE_FUNCS(inet_ntop)
@@ -1188,11 +1215,11 @@ if test "$USE_NSS" = "no"; then
 		    if test "$USE_WINSOCK" = 1; then
 			AC_LIBOBJ(getentropy_win)
 		    else
-			case `uname` in
-			Darwin)
+			case "$host" in
+			Darwin|*darwin*)
 				AC_LIBOBJ(getentropy_osx)
 			;;
-			SunOS)
+			*solaris*|*sunos*|SunOS)
 				AC_LIBOBJ(getentropy_solaris)
 				AC_CHECK_HEADERS([sys/sha2.h],, [
 					AC_CHECK_FUNCS([SHA512_Update],,[
@@ -1205,7 +1232,7 @@ if test "$USE_NSS" = "no"; then
 				fi
 				AC_SEARCH_LIBS([clock_gettime], [rt])
 			;;
-			Linux|*)
+			*linux*|Linux|*)
 				AC_LIBOBJ(getentropy_linux)
 				AC_CHECK_FUNCS([SHA512_Update],,[
 					AC_DEFINE([COMPAT_SHA512], [1], [Do sha512 definitions in config.h])
@@ -1463,6 +1490,14 @@ char *strsep(char **stringp, const char *delim);
 int isblank(int c);
 #endif
 
+#if defined(HAVE_INET_NTOP) && !HAVE_DECL_INET_NTOP
+const char *inet_ntop(int af, const void *src, char *dst, size_t size);
+#endif
+
+#if defined(HAVE_INET_PTON) && !HAVE_DECL_INET_PTON
+int inet_pton(int af, const char* src, void* dst);
+#endif
+
 #if !defined(HAVE_STRPTIME) || !defined(STRPTIME_WORKS)
 #define strptime unbound_strptime
 struct tm;
@@ -1571,6 +1606,6 @@ dnl if this is a distro tarball, that was already done by makedist.sh
 AC_SUBST(version, [VERSION_MAJOR.VERSION_MINOR.VERSION_MICRO])
 AC_SUBST(date, [`date +'%b %e, %Y'`])
 
-AC_CONFIG_FILES([Makefile doc/example.conf doc/libunbound.3 doc/unbound.8 doc/unbound-anchor.8 doc/unbound-checkconf.8 doc/unbound.conf.5 doc/unbound-control.8 doc/unbound-host.1 smallapp/unbound-control-setup.sh dnstap/dnstap_config.h contrib/libunbound.pc])
+AC_CONFIG_FILES([Makefile doc/example.conf doc/libunbound.3 doc/unbound.8 doc/unbound-anchor.8 doc/unbound-checkconf.8 doc/unbound.conf.5 doc/unbound-control.8 doc/unbound-host.1 smallapp/unbound-control-setup.sh dnstap/dnstap_config.h contrib/libunbound.pc contrib/unbound.socket contrib/unbound.service])
 AC_CONFIG_HEADER([config.h])
 AC_OUTPUT

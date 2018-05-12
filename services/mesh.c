@@ -203,7 +203,7 @@ mesh_create(struct module_stack* stack, struct module_env* env)
 
 /** help mesh delete delete mesh states */
 static void
-mesh_delete_helper(rbnode_t* n)
+mesh_delete_helper(rbnode_type* n)
 {
 	struct mesh_state* mstate = (struct mesh_state*)n->key;
 	/* perform a full delete, not only 'cleanup' routine,
@@ -321,7 +321,7 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 	/* see if it already exists, if not, create one */
 	if(!s) {
 #ifdef UNBOUND_DEBUG
-		struct rbnode_t* n;
+		struct rbnode_type* n;
 #endif
 		s = mesh_state_create(mesh->env, qinfo, qflags&(BIT_RD|BIT_CD), 0, 0);
 		if(!s) {
@@ -409,7 +409,7 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 int 
 mesh_new_callback(struct mesh_area* mesh, struct query_info* qinfo,
 	uint16_t qflags, struct edns_data* edns, sldns_buffer* buf, 
-	uint16_t qid, mesh_cb_func_t cb, void* cb_arg)
+	uint16_t qid, mesh_cb_func_type cb, void* cb_arg)
 {
 	struct mesh_state* s = NULL;
 	int unique = edns_unique_mesh_state(edns->opt_list, mesh->env);
@@ -423,7 +423,7 @@ mesh_new_callback(struct mesh_area* mesh, struct query_info* qinfo,
 	/* see if it already exists, if not, create one */
 	if(!s) {
 #ifdef UNBOUND_DEBUG
-		struct rbnode_t* n;
+		struct rbnode_type* n;
 #endif
 		s = mesh_state_create(mesh->env, qinfo, qflags&(BIT_RD|BIT_CD), 0, 0);
 		if(!s) {
@@ -479,7 +479,7 @@ void mesh_new_prefetch(struct mesh_area* mesh, struct query_info* qinfo,
 	struct mesh_state* s = mesh_area_find(mesh, qinfo, qflags&(BIT_RD|BIT_CD),
 		0, 0);
 #ifdef UNBOUND_DEBUG
-	struct rbnode_t* n;
+	struct rbnode_type* n;
 #endif
 	/* already exists, and for a different purpose perhaps.
 	 * if mesh_no_list, keep it that way. */
@@ -729,7 +729,7 @@ void mesh_detach_subs(struct module_qstate* qstate)
 	struct mesh_area* mesh = qstate->env->mesh;
 	struct mesh_state_ref* ref, lookup;
 #ifdef UNBOUND_DEBUG
-	struct rbnode_t* n;
+	struct rbnode_type* n;
 #endif
 	lookup.node.key = &lookup;
 	lookup.s = qstate->mesh_info;
@@ -764,7 +764,7 @@ int mesh_attach_sub(struct module_qstate* qstate, struct query_info* qinfo,
 	}
 	if(!sub) {
 #ifdef UNBOUND_DEBUG
-		struct rbnode_t* n;
+		struct rbnode_type* n;
 #endif
 		/* create a new one */
 		sub = mesh_state_create(qstate->env, qinfo, qflags, prime, valrec);
@@ -809,7 +809,7 @@ int mesh_attach_sub(struct module_qstate* qstate, struct query_info* qinfo,
 int mesh_state_attachment(struct mesh_state* super, struct mesh_state* sub)
 {
 #ifdef UNBOUND_DEBUG
-	struct rbnode_t* n;
+	struct rbnode_type* n;
 #endif
 	struct mesh_state_ref* subref; /* points to sub, inserted in super */
 	struct mesh_state_ref* superref; /* points to super, inserted in sub */
@@ -1019,6 +1019,12 @@ mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
 			query_reply.c->buffer)) == 0)
 			m->s.env->mesh->ans_nodata++;
 	}
+	/* Log reply sent */
+	if(m->s.env->cfg->log_replies) {
+		log_reply_info(0, &m->s.qinfo, &r->query_reply.addr,
+			r->query_reply.addrlen, duration, 0,
+			r->query_reply.c->buffer);
+	}
 }
 
 void mesh_query_done(struct mesh_state* mstate)
@@ -1074,7 +1080,7 @@ struct mesh_state* mesh_area_find(struct mesh_area* mesh,
 }
 
 int mesh_state_add_cb(struct mesh_state* s, struct edns_data* edns,
-        sldns_buffer* buf, mesh_cb_func_t cb, void* cb_arg,
+        sldns_buffer* buf, mesh_cb_func_type cb, void* cb_arg,
 	uint16_t qid, uint16_t qflags)
 {
 	struct mesh_cb* r = regional_alloc(s->s.region, 

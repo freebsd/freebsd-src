@@ -47,7 +47,7 @@ struct regional;
 
 /** type used to uniquely identify rrsets. Cannot be reused without
  * clearing the cache. */
-typedef uint64_t rrset_id_t;
+typedef uint64_t rrset_id_type;
 
 /** this rrset is NSEC and is at zone apex (at child side of zonecut) */
 #define PACKED_RRSET_NSEC_AT_APEX 0x1
@@ -114,7 +114,7 @@ struct ub_packed_rrset_key {
 	 * The other values in this struct may only be altered after changing
 	 * the id (which needs a writelock on entry.lock).
 	 */
-	rrset_id_t id;
+	rrset_id_type id;
 	/** key data: dname, type and class */
 	struct packed_rrset_key rk;
 };
@@ -191,6 +191,12 @@ enum sec_status {
  * RRset data.
  *
  * The data is packed, stored contiguously in memory.
+ *
+ * It is not always stored contiguously, in that case, an unpacked-packed
+ * rrset has the arrays separate.  A bunch of routines work on that, but
+ * the packed rrset that is contiguous is for the rrset-cache and the
+ * cache-response routines in daemon/worker.c.
+ *
  * memory layout:
  *	o base struct
  *	o rr_len size_t array
@@ -334,7 +340,7 @@ void rrset_data_delete(void* data, void* userdata);
  * @param key: the rrset key with name, type, class, flags.
  * @return hash value.
  */
-hashvalue_t rrset_key_hash(struct packed_rrset_key* key);
+hashvalue_type rrset_key_hash(struct packed_rrset_key* key);
 
 /**
  * Fixup pointers in fixed data packed_rrset_data blob.

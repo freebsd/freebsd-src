@@ -59,14 +59,14 @@ struct sldns_buffer;
  */
 struct val_anchors {
 	/** lock on trees */
-	lock_basic_t lock;
+	lock_basic_type lock;
 	/**
 	 * Anchors are store in this tree. Sort order is chosen, so that
 	 * dnames are in nsec-like order. A lookup on class, name will return
 	 * an exact match of the closest match, with the ancestor needed.
 	 * contents of type trust_anchor.
 	 */
-	rbtree_t* tree;
+	rbtree_type* tree;
 	/** The DLV trust anchor (if one is configured, else NULL) */
 	struct trust_anchor* dlv_anchor;
 	/** Autotrust global data, anchors sorted by next probe time */
@@ -93,9 +93,9 @@ struct ta_key {
  */
 struct trust_anchor {
 	/** rbtree node, key is this structure */
-	rbnode_t node;
+	rbnode_type node;
 	/** lock on the entire anchor and its keys; for autotrust changes */
-	lock_basic_t lock;
+	lock_basic_type lock;
 	/** name of this trust anchor */
 	uint8_t* name;
 	/** length of name */

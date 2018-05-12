@@ -1387,7 +1387,7 @@ _verify_nettle_dsa(sldns_buffer* buf, unsigned char* sigblock,
 	unsigned int sigblock_len, unsigned char* key, unsigned int keylen)
 {
 	uint8_t digest[SHA1_DIGEST_SIZE];
-	uint8_t key_t;
+	uint8_t key_t_value;
 	int res = 0;
 	size_t offset;
 	struct dsa_public_key pubkey;
@@ -1426,8 +1426,8 @@ _verify_nettle_dsa(sldns_buffer* buf, unsigned char* sigblock,
 	}
 
 	/* Validate T values constraints - RFC 2536 sec. 2 & sec. 3 */
-	key_t = key[0];
-	if (key_t > 8) {
+	key_t_value = key[0];
+	if (key_t_value > 8) {
 		return "invalid T value in DSA pubkey";
 	}
 
@@ -1438,9 +1438,9 @@ _verify_nettle_dsa(sldns_buffer* buf, unsigned char* sigblock,
 
 	expected_len =   1 +		/* T */
 		        20 +		/* Q */
-		       (64 + key_t*8) +	/* P */
-		       (64 + key_t*8) +	/* G */
-		       (64 + key_t*8);	/* Y */
+		       (64 + key_t_value*8) +	/* P */
+		       (64 + key_t_value*8) +	/* G */
+		       (64 + key_t_value*8);	/* Y */
 	if (keylen != expected_len ) {
 		return "invalid DSA pubkey length";
 	}
@@ -1450,11 +1450,11 @@ _verify_nettle_dsa(sldns_buffer* buf, unsigned char* sigblock,
 	offset = 1;
 	nettle_mpz_set_str_256_u(pubkey.q, 20, key+offset);
 	offset += 20;
-	nettle_mpz_set_str_256_u(pubkey.p, (64 + key_t*8), key+offset);
-	offset += (64 + key_t*8);
-	nettle_mpz_set_str_256_u(pubkey.g, (64 + key_t*8), key+offset);
-	offset += (64 + key_t*8);
-	nettle_mpz_set_str_256_u(pubkey.y, (64 + key_t*8), key+offset);
+	nettle_mpz_set_str_256_u(pubkey.p, (64 + key_t_value*8), key+offset);
+	offset += (64 + key_t_value*8);
+	nettle_mpz_set_str_256_u(pubkey.g, (64 + key_t_value*8), key+offset);
+	offset += (64 + key_t_value*8);
+	nettle_mpz_set_str_256_u(pubkey.y, (64 + key_t_value*8), key+offset);
 
 	/* Digest content of "buf" and verify its DSA signature in "sigblock"*/
 	res = _digest_nettle(SHA1_DIGEST_SIZE, (unsigned char*)sldns_buffer_begin(buf),

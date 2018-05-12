@@ -83,9 +83,9 @@ struct mesh_area {
 	struct module_env* env;
 
 	/** set of runnable queries (mesh_state.run_node) */
-	rbtree_t run;
+	rbtree_type run;
 	/** rbtree of all current queries (mesh_state.node)*/
-	rbtree_t all;
+	rbtree_type all;
 
 	/** count of the total number of mesh_reply entries */
 	size_t num_reply_addrs;
@@ -154,9 +154,9 @@ struct mesh_area {
  */
 struct mesh_state {
 	/** node in mesh_area all tree, key is this struct. Must be first. */
-	rbnode_t node;
+	rbnode_type node;
 	/** node in mesh_area runnable tree, key is this struct */
-	rbnode_t run_node;
+	rbnode_type run_node;
 	/** the query state. Note that the qinfo and query_flags 
 	 * may not change. */
 	struct module_qstate s;
@@ -166,10 +166,10 @@ struct mesh_state {
 	struct mesh_cb* cb_list;
 	/** set of superstates (that want this state's result) 
 	 * contains struct mesh_state_ref* */
-	rbtree_t super_set;
+	rbtree_type super_set;
 	/** set of substates (that this state needs to continue)
 	 * contains struct mesh_state_ref* */
-	rbtree_t sub_set;
+	rbtree_type sub_set;
 	/** number of activations for the mesh state */
 	size_t num_activated;
 
@@ -193,7 +193,7 @@ struct mesh_state {
  */
 struct mesh_state_ref {
 	/** node in rbtree for set, key is this structure */
-	rbnode_t node;
+	rbnode_type node;
 	/** the mesh state */
 	struct mesh_state* s;
 };
@@ -224,7 +224,7 @@ struct mesh_reply {
  * Mesh result callback func.
  * called as func(cb_arg, rcode, buffer_with_reply, security, why_bogus);
  */
-typedef void (*mesh_cb_func_t)(void*, int, struct sldns_buffer*, enum sec_status, 
+typedef void (*mesh_cb_func_type)(void*, int, struct sldns_buffer*, enum sec_status, 
 	char*);
 
 /**
@@ -245,7 +245,7 @@ struct mesh_cb {
 	/** callback routine for results. if rcode != 0 buf has message.
 	 * called as cb(cb_arg, rcode, buf, sec_state);
 	 */
-	mesh_cb_func_t cb;
+	mesh_cb_func_type cb;
 	/** user arg for callback */
 	void* cb_arg;
 };
@@ -300,7 +300,7 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
  */
 int mesh_new_callback(struct mesh_area* mesh, struct query_info* qinfo,
 	uint16_t qflags, struct edns_data* edns, struct sldns_buffer* buf, 
-	uint16_t qid, mesh_cb_func_t cb, void* cb_arg);
+	uint16_t qid, mesh_cb_func_type cb, void* cb_arg);
 
 /**
  * New prefetch message. Create new query state if needed.
@@ -498,8 +498,8 @@ int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
  * @return: 0 on alloc error.
  */
 int mesh_state_add_cb(struct mesh_state* s, struct edns_data* edns,
-        struct sldns_buffer* buf, mesh_cb_func_t cb, void* cb_arg, uint16_t qid, 
-	uint16_t qflags);
+        struct sldns_buffer* buf, mesh_cb_func_type cb, void* cb_arg,
+	uint16_t qid, uint16_t qflags);
 
 /**
  * Run the mesh. Run all runnable mesh states. Which can create new

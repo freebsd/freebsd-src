@@ -73,7 +73,7 @@ int testcount = 0;
 /** test alloc code */
 static void
 alloc_test(void) {
-	alloc_special_t *t1, *t2;
+	alloc_special_type *t1, *t2;
 	struct alloc_cache major, minor1, minor2;
 	int i;
 

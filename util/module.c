@@ -124,7 +124,7 @@ edns_register_option(uint16_t opt_code, int bypass_cache_stage,
 }
 
 static int
-inplace_cb_reply_register_generic(inplace_cb_reply_func_t* cb,
+inplace_cb_reply_register_generic(inplace_cb_reply_func_type* cb,
 	enum inplace_cb_list_type type, void* cb_arg, struct module_env* env)
 {
 	struct inplace_cb_reply* callback;
@@ -153,7 +153,7 @@ inplace_cb_reply_register_generic(inplace_cb_reply_func_t* cb,
 }
 
 int
-inplace_cb_reply_register(inplace_cb_reply_func_t* cb, void* cb_arg,
+inplace_cb_reply_register(inplace_cb_reply_func_type* cb, void* cb_arg,
 	struct module_env* env)
 {
 	return inplace_cb_reply_register_generic(cb, inplace_cb_reply, cb_arg,
@@ -161,7 +161,7 @@ inplace_cb_reply_register(inplace_cb_reply_func_t* cb, void* cb_arg,
 }
 
 int
-inplace_cb_reply_cache_register(inplace_cb_reply_func_t* cb, void* cb_arg,
+inplace_cb_reply_cache_register(inplace_cb_reply_func_type* cb, void* cb_arg,
 	struct module_env* env)
 {
 	return inplace_cb_reply_register_generic(cb, inplace_cb_reply_cache,
@@ -169,7 +169,7 @@ inplace_cb_reply_cache_register(inplace_cb_reply_func_t* cb, void* cb_arg,
 }
 
 int
-inplace_cb_reply_local_register(inplace_cb_reply_func_t* cb, void* cb_arg,
+inplace_cb_reply_local_register(inplace_cb_reply_func_type* cb, void* cb_arg,
 	struct module_env* env)
 {
 	return inplace_cb_reply_register_generic(cb, inplace_cb_reply_local,
@@ -177,7 +177,7 @@ inplace_cb_reply_local_register(inplace_cb_reply_func_t* cb, void* cb_arg,
 }
 
 int
-inplace_cb_reply_servfail_register(inplace_cb_reply_func_t* cb, void* cb_arg,
+inplace_cb_reply_servfail_register(inplace_cb_reply_func_type* cb, void* cb_arg,
 	struct module_env* env)
 {
 	return inplace_cb_reply_register_generic(cb, inplace_cb_reply_servfail,
@@ -216,7 +216,7 @@ void inplace_cb_reply_servfail_delete(struct module_env* env)
 }
 
 int
-inplace_cb_query_register(inplace_cb_query_func_t* cb, void* cb_arg,
+inplace_cb_query_register(inplace_cb_query_func_type* cb, void* cb_arg,
 	struct module_env* env)
 {
 	struct inplace_cb_query* callback;

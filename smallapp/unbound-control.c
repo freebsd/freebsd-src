@@ -124,7 +124,14 @@ usage(void)
 	printf("				or off to turn off root forwarding\n");
 	printf("				or give list of ip addresses\n");
 	printf("  ratelimit_list [+a]		list ratelimited domains\n");
+	printf("  ip_ratelimit_list [+a]	list ratelimited ip addresses\n");
 	printf("		+a		list all, also not ratelimited\n");
+	printf("  view_list_local_zones	view	list local-zones in view\n");
+	printf("  view_list_local_data	view	list local-data RRs in view\n");
+	printf("  view_local_zone view name type  	add local-zone in view\n");
+	printf("  view_local_zone_remove view name  	remove local-zone in view\n");
+	printf("  view_local_data view RR...		add local-data in view\n");
+	printf("  view_local_data_remove view name  	remove local-data in view\n");
 	printf("Version %s\n", PACKAGE_VERSION);
 	printf("BSD licensed, see LICENSE in source package for details.\n");
 	printf("Report bugs to %s\n", PACKAGE_BUGREPORT);
@@ -195,9 +202,13 @@ contact_server(const char* svr, struct config_file* cfg, int statuscmd)
 	int fd;
 	/* use svr or the first config entry */
 	if(!svr) {
-		if(cfg->control_ifs)
+		if(cfg->control_ifs) {
 			svr = cfg->control_ifs->str;
-		else	svr = "127.0.0.1";
+		} else if(cfg->do_ip4) {
+			svr = "127.0.0.1";
+		} else {
+			svr = "::1";
+		}
 		/* config 0 addr (everything), means ask localhost */
 		if(strcmp(svr, "0.0.0.0") == 0)
 			svr = "127.0.0.1";

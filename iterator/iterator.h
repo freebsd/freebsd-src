@@ -51,7 +51,7 @@ struct iter_forwards;
 struct iter_donotq;
 struct iter_prep_list;
 struct iter_priv;
-struct rbtree_t;
+struct rbtree_type;
 
 /** max number of targets spawned for a query and its subqueries */
 #define MAX_TARGET_COUNT	64
@@ -115,7 +115,7 @@ struct iter_env {
 	struct iter_priv* priv;
 
 	/** whitelist for capsforid names */
-	struct rbtree_t* caps_white;
+	struct rbtree_type* caps_white;
 
 	/** The maximum dependency depth that this resolver will pursue. */
 	int max_dependency_depth;

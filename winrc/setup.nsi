@@ -148,8 +148,10 @@ section "-hidden.postinstall"
 
 	# install service entry
 	nsExec::ExecToLog '"$INSTDIR\unbound-service-install.exe"'
+	Pop $0 # return value/error/timeout
 	# start unbound service
 	nsExec::ExecToLog '"$INSTDIR\unbound-service-install.exe" start'
+	Pop $0 # return value/error/timeout
 sectionEnd
 
 # set section descriptions
@@ -171,8 +173,10 @@ LangString DESC_rootkey ${LANG_ENGLISH} "Set up to use the DNSSEC root trust anc
 section "un.Unbound"
 	# stop unbound service
 	nsExec::ExecToLog '"$INSTDIR\unbound-service-remove.exe" stop'
+	Pop $0 # return value/error/timeout
 	# uninstall service entry
 	nsExec::ExecToLog '"$INSTDIR\unbound-service-remove.exe"'
+	Pop $0 # return value/error/timeout
 	# deregister uninstall
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Unbound"
 	Delete "$INSTDIR\uninst.exe"   # delete self

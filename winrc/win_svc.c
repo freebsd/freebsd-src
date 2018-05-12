@@ -70,7 +70,7 @@ static int service_cmdline_verbose = 0;
 /** the cron callback */
 static struct comm_timer* service_cron = NULL;
 /** the cron thread */
-static ub_thread_t cron_thread = NULL;
+static ub_thread_type cron_thread = NULL;
 /** if cron has already done its quick check */
 static int cron_was_quick = 0;
 

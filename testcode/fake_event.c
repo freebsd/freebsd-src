@@ -318,7 +318,7 @@ answer_callback_from_entry(struct replay_runtime* runtime,
 	struct comm_point c;
 	struct comm_reply repinfo;
 	void* cb_arg = pend->cb_arg;
-	comm_point_callback_t* cb = pend->callback;
+	comm_point_callback_type* cb = pend->callback;
 
 	memset(&c, 0, sizeof(c));
 	c.fd = -1;
@@ -422,7 +422,7 @@ fake_pending_callback(struct replay_runtime* runtime,
 	struct comm_reply repinfo;
 	struct comm_point c;
 	void* cb_arg;
-	comm_point_callback_t* cb;
+	comm_point_callback_type* cb;
 
 	memset(&c, 0, sizeof(c));
 	if(!p) fatal_exit("No pending queries.");
@@ -735,7 +735,7 @@ struct listen_dnsport*
 listen_create(struct comm_base* base, struct listen_port* ATTR_UNUSED(ports),
 	size_t bufsize, int ATTR_UNUSED(tcp_accept_count),
 	void* ATTR_UNUSED(sslctx), struct dt_env* ATTR_UNUSED(dtenv),
-	comm_point_callback_t* cb, void* cb_arg)
+	comm_point_callback_type* cb, void* cb_arg)
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)base;
 	struct listen_dnsport* l= calloc(1, sizeof(struct listen_dnsport));
@@ -937,7 +937,7 @@ outside_network_quit_prepare(struct outside_network* ATTR_UNUSED(outnet))
 
 struct pending* 
 pending_udp_query(struct serviced_query* sq, sldns_buffer* packet,
-	int timeout, comm_point_callback_t* callback, void* callback_arg)
+	int timeout, comm_point_callback_type* callback, void* callback_arg)
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)
 		sq->outnet->base;
@@ -987,7 +987,7 @@ pending_udp_query(struct serviced_query* sq, sldns_buffer* packet,
 
 struct waiting_tcp*
 pending_tcp_query(struct serviced_query* sq, sldns_buffer* packet,
-	int timeout, comm_point_callback_t* callback, void* callback_arg)
+	int timeout, comm_point_callback_type* callback, void* callback_arg)
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)
 		sq->outnet->base;
@@ -1041,7 +1041,7 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 	int ATTR_UNUSED(tcp_upstream), int ATTR_UNUSED(ssl_upstream),
 	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
 	size_t zonelen, struct module_qstate* qstate,
-	comm_point_callback_t* callback, void* callback_arg,
+	comm_point_callback_type* callback, void* callback_arg,
 	sldns_buffer* ATTR_UNUSED(buff), struct module_env* ATTR_UNUSED(env))
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)outnet->base;
@@ -1160,7 +1160,7 @@ void listening_ports_free(struct listen_port* list)
 
 struct comm_point* comm_point_create_local(struct comm_base* ATTR_UNUSED(base),
         int ATTR_UNUSED(fd), size_t ATTR_UNUSED(bufsize),
-        comm_point_callback_t* ATTR_UNUSED(callback), 
+        comm_point_callback_type* ATTR_UNUSED(callback), 
 	void* ATTR_UNUSED(callback_arg))
 {
 	return calloc(1, 1);
@@ -1168,7 +1168,7 @@ struct comm_point* comm_point_create_local(struct comm_base* ATTR_UNUSED(base),
 
 struct comm_point* comm_point_create_raw(struct comm_base* ATTR_UNUSED(base),
         int ATTR_UNUSED(fd), int ATTR_UNUSED(writing),
-        comm_point_callback_t* ATTR_UNUSED(callback), 
+        comm_point_callback_type* ATTR_UNUSED(callback), 
 	void* ATTR_UNUSED(callback_arg))
 {
 	/* no pipe comm possible */

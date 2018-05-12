@@ -381,7 +381,7 @@ add_open(const char* ip, int nr, struct listen_port** list, int noproto_is_err,
 
 	if(ip[0] == '/') {
 		/* This looks like a local socket */
-		fd = create_local_accept_sock(ip, &noproto);
+		fd = create_local_accept_sock(ip, &noproto, cfg->use_systemd);
 		/*
 		 * Change socket ownership and permissions so users other
 		 * than root can access it provided they are in the same
@@ -424,7 +424,7 @@ add_open(const char* ip, int nr, struct listen_port** list, int noproto_is_err,
 
 		/* open fd */
 		fd = create_tcp_accept_sock(res, 1, &noproto, 0,
-			cfg->ip_transparent, 0, cfg->ip_freebind);
+			cfg->ip_transparent, 0, cfg->ip_freebind, cfg->use_systemd);
 		freeaddrinfo(res);
 	}
 
@@ -762,6 +762,8 @@ print_stats(SSL* ssl, const char* nm, struct stats_info* s)
 	struct timeval avg;
 	if(!ssl_printf(ssl, "%s.num.queries"SQ"%lu\n", nm, 
 		(unsigned long)s->svr.num_queries)) return 0;
+	if(!ssl_printf(ssl, "%s.num.queries_ip_ratelimited"SQ"%lu\n", nm,
+		(unsigned long)s->svr.num_queries_ip_ratelimited)) return 0;
 	if(!ssl_printf(ssl, "%s.num.cachehits"SQ"%lu\n", nm, 
 		(unsigned long)(s->svr.num_queries 
 			- s->svr.num_queries_missed_cache))) return 0;
@@ -1416,7 +1418,7 @@ static void
 do_cache_remove(struct worker* worker, uint8_t* nm, size_t nmlen,
 	uint16_t t, uint16_t c)
 {
-	hashvalue_t h;
+	hashvalue_type h;
 	struct query_info k;
 	rrset_cache_remove(worker->env.rrset_cache, nm, nmlen, t, c, 0);
 	if(t == LDNS_RR_TYPE_SOA)
@@ -2559,6 +2561,8 @@ struct ratelimit_list_arg {
 	time_t now;
 };
 
+#define ip_ratelimit_list_arg ratelimit_list_arg
+
 /** list items in the ratelimit table */
 static void
 rate_list(struct lruhash_entry* e, void* arg)
@@ -2577,6 +2581,24 @@ rate_list(struct lruhash_entry* e, void* arg)
 	ssl_printf(a->ssl, "%s %d limit %d\n", buf, max, lim);
 }
 
+/** list items in the ip_ratelimit table */
+static void
+ip_rate_list(struct lruhash_entry* e, void* arg)
+{
+	char ip[128];
+	struct ip_ratelimit_list_arg* a = (struct ip_ratelimit_list_arg*)arg;
+	struct ip_rate_key* k = (struct ip_rate_key*)e->key;
+	struct ip_rate_data* d = (struct ip_rate_data*)e->data;
+	int lim = infra_ip_ratelimit;
+	int max = infra_rate_max(d, a->now);
+	if(a->all == 0) {
+		if(max < lim)
+			return;
+	}
+	addr_to_str(&k->addr, k->addrlen, ip, sizeof(ip));
+	ssl_printf(a->ssl, "%s %d limit %d\n", ip, max, lim);
+}
+
 /** do the ratelimit_list command */
 static void
 do_ratelimit_list(SSL* ssl, struct worker* worker, char* arg)
@@ -2593,6 +2615,24 @@ do_ratelimit_list(SSL* ssl, struct worker* worker, char* arg)
 		(a.all == 0 && infra_dp_ratelimit == 0))
 		return;
 	slabhash_traverse(a.infra->domain_rates, 0, rate_list, &a);
+}
+
+/** do the ip_ratelimit_list command */
+static void
+do_ip_ratelimit_list(SSL* ssl, struct worker* worker, char* arg)
+{
+	struct ip_ratelimit_list_arg a;
+	a.all = 0;
+	a.infra = worker->env.infra_cache;
+	a.now = *worker->env.now;
+	a.ssl = ssl;
+	arg = skipwhite(arg);
+	if(strcmp(arg, "+a") == 0)
+		a.all = 1;
+	if(a.infra->client_ip_rates==NULL ||
+		(a.all == 0 && infra_ip_ratelimit == 0))
+		return;
+	slabhash_traverse(a.infra->client_ip_rates, 0, ip_rate_list, &a);
 }
 
 /** tell other processes to execute the command */
@@ -2672,6 +2712,9 @@ execute_cmd(struct daemon_remote* rc, SSL* ssl, char* cmd,
 		return;
 	} else if(cmdcmp(p, "ratelimit_list", 14)) {
 		do_ratelimit_list(ssl, worker, p+14);
+		return;
+	} else if(cmdcmp(p, "ip_ratelimit_list", 17)) {
+		do_ip_ratelimit_list(ssl, worker, p+17);
 		return;
 	} else if(cmdcmp(p, "stub_add", 8)) {
 		/* must always distribute this cmd */
