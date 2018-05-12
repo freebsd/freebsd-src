@@ -287,6 +287,7 @@ EVENT_TEST="this->ffi_mount != 0 && this->tfi_mount != 0"
 
 ############################################################ EVENT DETAILS
 
+if [ ! "$CUSTOM_DETAILS" ]; then
 exec 9<<EOF
 	/*
 	 * Print 'from' and 'to' full paths
@@ -294,6 +295,7 @@ exec 9<<EOF
 	printf("%s -> %s", this->fpath, this->tpath);
 EOF
 EVENT_DETAILS=$( cat <&9 )
+fi
 
 ################################################################################
 # END

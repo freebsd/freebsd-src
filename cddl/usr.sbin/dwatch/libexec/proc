@@ -149,6 +149,7 @@ ID=$(( $ID + 10 ))
 
 ############################################################ EVENT DETAILS
 
+if [ ! "$CUSTOM_DETAILS" ]; then
 exec 9<<EOF
 	/*
 	 * Print details
@@ -156,6 +157,7 @@ exec 9<<EOF
 	printf("%s %s", probealias[probename], this->details);
 EOF
 EVENT_DETAILS=$( cat <&9 )
+fi
 
 ################################################################################
 # END
