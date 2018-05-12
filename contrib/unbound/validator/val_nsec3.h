@@ -71,6 +71,7 @@
 struct val_env;
 struct regional;
 struct module_env;
+struct module_qstate;
 struct ub_packed_rrset_key;
 struct reply_info;
 struct query_info;
@@ -185,6 +186,7 @@ nsec3_prove_wildcard(struct module_env* env, struct val_env* ve,
  * @param qinfo: query that is verified for.
  * @param kkey: key entry that signed the NSEC3s.
  * @param reason: string for bogus result.
+ * @param qstate: qstate with region.
  * @return:
  * 	sec_status SECURE of the proposition is proven by the NSEC3 RRs, 
  * 	BOGUS if not, INSECURE if all of the NSEC3s could be validly ignored.
@@ -194,7 +196,8 @@ nsec3_prove_wildcard(struct module_env* env, struct val_env* ve,
 enum sec_status
 nsec3_prove_nods(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key** list, size_t num, 
-	struct query_info* qinfo, struct key_entry_key* kkey, char** reason);
+	struct query_info* qinfo, struct key_entry_key* kkey, char** reason,
+	struct module_qstate* qstate);
 
 /**
  * Prove NXDOMAIN or NODATA.
