@@ -174,7 +174,7 @@ client_info_compare(const struct respip_client_info* ci_a,
 	 * but we check that just in case. */
 	if(ci_a->respip_set != ci_b->respip_set)
 		return ci_a->respip_set < ci_b->respip_set ? -1 : 1;
-        return 0;
+	return 0;
 }
 
 int
@@ -821,26 +821,26 @@ void mesh_detach_subs(struct module_qstate* qstate)
 	rbtree_init(&qstate->mesh_info->sub_set, &mesh_state_ref_compare);
 }
 
-int mesh_attach_sub(struct module_qstate* qstate, struct query_info* qinfo,
-        uint16_t qflags, int prime, int valrec, struct module_qstate** newq)
+int mesh_add_sub(struct module_qstate* qstate, struct query_info* qinfo,
+        uint16_t qflags, int prime, int valrec, struct module_qstate** newq,
+	struct mesh_state** sub)
 {
 	/* find it, if not, create it */
 	struct mesh_area* mesh = qstate->env->mesh;
-	struct mesh_state* sub = mesh_area_find(mesh, NULL, qinfo, qflags,
+	*sub = mesh_area_find(mesh, NULL, qinfo, qflags,
 		prime, valrec);
-	int was_detached;
-	if(mesh_detect_cycle_found(qstate, sub)) {
+	if(mesh_detect_cycle_found(qstate, *sub)) {
 		verbose(VERB_ALGO, "attach failed, cycle detected");
 		return 0;
 	}
-	if(!sub) {
+	if(!*sub) {
 #ifdef UNBOUND_DEBUG
 		struct rbnode_type* n;
 #endif
 		/* create a new one */
-		sub = mesh_state_create(qstate->env, qinfo, NULL, qflags, prime,
+		*sub = mesh_state_create(qstate->env, qinfo, NULL, qflags, prime,
 			valrec);
-		if(!sub) {
+		if(!*sub) {
 			log_err("mesh_attach_sub: out of memory");
 			return 0;
 		}
@@ -849,7 +849,7 @@ int mesh_attach_sub(struct module_qstate* qstate, struct query_info* qinfo,
 #else
 		(void)
 #endif
-		rbtree_insert(&mesh->all, &sub->node);
+		rbtree_insert(&mesh->all, &(*sub)->node);
 		log_assert(n != NULL);
 		/* set detached (it is now) */
 		mesh->num_detached_states++;
@@ -859,11 +859,22 @@ int mesh_attach_sub(struct module_qstate* qstate, struct query_info* qinfo,
 #else
 		(void)
 #endif
-		rbtree_insert(&mesh->run, &sub->run_node);
+		rbtree_insert(&mesh->run, &(*sub)->run_node);
 		log_assert(n != NULL);
-		*newq = &sub->s;
+		*newq = &(*sub)->s;
 	} else
 		*newq = NULL;
+	return 1;
+}
+
+int mesh_attach_sub(struct module_qstate* qstate, struct query_info* qinfo,
+        uint16_t qflags, int prime, int valrec, struct module_qstate** newq)
+{
+	struct mesh_area* mesh = qstate->env->mesh;
+	struct mesh_state* sub = NULL;
+	int was_detached;
+	if(!mesh_add_sub(qstate, qinfo, qflags, prime, valrec, newq, &sub))
+		return 0;
 	was_detached = (sub->super_set.count == 0);
 	if(!mesh_state_attachment(qstate->mesh_info, sub))
 		return 0;

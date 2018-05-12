@@ -893,6 +893,8 @@ int infra_ratelimit_inc(struct infra_cache* infra, uint8_t* name,
 
 	/* find ratelimit */
 	lim = infra_find_ratelimit(infra, name, namelen);
+	if(!lim)
+		return 1; /* disabled for this domain */
 	
 	/* find or insert ratedata */
 	entry = infra_find_ratedata(infra, name, namelen, 1);
@@ -941,6 +943,8 @@ int infra_ratelimit_exceeded(struct infra_cache* infra, uint8_t* name,
 
 	/* find ratelimit */
 	lim = infra_find_ratelimit(infra, name, namelen);
+	if(!lim)
+		return 0; /* disabled for this domain */
 
 	/* find current rate */
 	entry = infra_find_ratedata(infra, name, namelen, 0);

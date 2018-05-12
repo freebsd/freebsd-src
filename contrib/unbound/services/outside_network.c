@@ -204,6 +204,9 @@ outnet_tcp_take_into_use(struct waiting_tcp* w, uint8_t* pkt, size_t pkt_len)
 {
 	struct pending_tcp* pend = w->outnet->tcp_free;
 	int s;
+#ifdef SO_REUSEADDR
+	int on = 1;
+#endif
 	log_assert(pend);
 	log_assert(pkt);
 	log_assert(w->addrlen > 0);
@@ -225,13 +228,20 @@ outnet_tcp_take_into_use(struct waiting_tcp* w, uint8_t* pkt, size_t pkt_len)
 		return 0;
 	}
 
+#ifdef SO_REUSEADDR
+	if(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void*)&on,
+		(socklen_t)sizeof(on)) < 0) {
+		verbose(VERB_ALGO, "outgoing tcp:"
+			" setsockopt(.. SO_REUSEADDR ..) failed");
+	}
+#endif
 	if (w->outnet->tcp_mss > 0) {
 #if defined(IPPROTO_TCP) && defined(TCP_MAXSEG)
 		if(setsockopt(s, IPPROTO_TCP, TCP_MAXSEG,
 			(void*)&w->outnet->tcp_mss,
 			(socklen_t)sizeof(w->outnet->tcp_mss)) < 0) {
 			verbose(VERB_ALGO, "outgoing tcp:"
-				" setsockopt(.. SO_REUSEADDR ..) failed");
+				" setsockopt(.. TCP_MAXSEG ..) failed");
 		}
 #else
 		verbose(VERB_ALGO, "outgoing tcp:"
@@ -1538,18 +1548,22 @@ serviced_udp_send(struct serviced_query* sq, sldns_buffer* buff)
 static int
 serviced_check_qname(sldns_buffer* pkt, uint8_t* qbuf, size_t qbuflen)
 {
-	uint8_t* d1 = sldns_buffer_at(pkt, 12);
+	uint8_t* d1 = sldns_buffer_begin(pkt)+12;
 	uint8_t* d2 = qbuf+10;
 	uint8_t len1, len2;
 	int count = 0;
+	if(sldns_buffer_limit(pkt) < 12+1+4) /* packet too small for qname */
+		return 0;
 	log_assert(qbuflen >= 15 /* 10 header, root, type, class */);
 	len1 = *d1++;
 	len2 = *d2++;
-	if(sldns_buffer_limit(pkt) < 12+1+4) /* packet too small for qname */
-		return 0;
 	while(len1 != 0 || len2 != 0) {
 		if(LABEL_IS_PTR(len1)) {
+			/* check if we can read *d1 with compression ptr rest */
+			if(d1 >= sldns_buffer_at(pkt, sldns_buffer_limit(pkt)))
+				return 0;
 			d1 = sldns_buffer_begin(pkt)+PTR_OFFSET(len1, *d1);
+			/* check if we can read the destination *d1 */
 			if(d1 >= sldns_buffer_at(pkt, sldns_buffer_limit(pkt)))
 				return 0;
 			len1 = *d1++;
@@ -1562,6 +1576,9 @@ serviced_check_qname(sldns_buffer* pkt, uint8_t* qbuf, size_t qbuflen)
 		if(len1 != len2)
 			return 0;
 		if(len1 > LDNS_MAX_LABELLEN)
+			return 0;
+		/* check len1 + 1(next length) are okay to read */
+		if(d1+len1 >= sldns_buffer_at(pkt, sldns_buffer_limit(pkt)))
 			return 0;
 		log_assert(len1 <= LDNS_MAX_LABELLEN);
 		log_assert(len2 <= LDNS_MAX_LABELLEN);

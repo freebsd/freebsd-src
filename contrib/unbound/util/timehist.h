@@ -121,7 +121,7 @@ void timehist_log(struct timehist* hist, const char* name);
  * @param array: the array to export to.
  * @param sz: number of items in array.
  */
-void timehist_export(struct timehist* hist, size_t* array, size_t sz);
+void timehist_export(struct timehist* hist, long long* array, size_t sz);
 
 /**
  * Import histogram from an array.
@@ -129,6 +129,6 @@ void timehist_export(struct timehist* hist, size_t* array, size_t sz);
  * @param array: the array to import from.
  * @param sz: number of items in array.
  */
-void timehist_import(struct timehist* hist, size_t* array, size_t sz);
+void timehist_import(struct timehist* hist, long long* array, size_t sz);
 
 #endif /* UTIL_TIMEHIST_H */
