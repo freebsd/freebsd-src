@@ -1,0 +1,29 @@
+# #-- stream_ssl.pre--#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+. ../common.sh
+get_random_port 2
+SERV_PORT=$RND_PORT
+CLIE_PORT=$(($RND_PORT + 1))
+echo "SERV_PORT=$SERV_PORT" >> .tpkg.var.test
+echo "CLIE_PORT=$CLIE_PORT" >> .tpkg.var.test
+
+# make config files
+sed -e 's/@SERVPORT\@/'$SERV_PORT'/' -e 's/@CLIEPORT\@/'$CLIE_PORT'/' < stream_ssl.serv.conf > ubserv.conf
+sed -e 's/@SERVPORT\@/'$SERV_PORT'/' -e 's/@CLIEPORT\@/'$CLIE_PORT'/' < stream_ssl.clie.conf > ubclie.conf
+
+# start unbound in the background
+PRE="../.."
+$PRE/unbound -d -v -v -v -v -c ubserv.conf >unboundserv.log 2>&1 &
+UNBOUNDSERV_PID=$!
+echo "UNBOUNDSERV_PID=$UNBOUNDSERV_PID" >> .tpkg.var.test
+$PRE/unbound -d -v -v -v -v -c ubclie.conf >unboundclie.log 2>&1 &
+UNBOUNDCLIE_PID=$!
+echo "UNBOUNDCLIE_PID=$UNBOUNDCLIE_PID" >> .tpkg.var.test
+
+cat .tpkg.var.test
+wait_unbound_up unboundserv.log
+wait_unbound_up unboundclie.log

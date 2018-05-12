@@ -1,0 +1,40 @@
+# #-- pylib.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+if grep "define WITH_PYUNBOUND 1" $PRE/config.h; then
+	echo "have python module"
+else
+	echo "no python module"
+	exit 0
+fi
+
+if test "`uname 2>&1`" = "Darwin"; then
+	echo export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:../../.libs"
+	export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:../../.libs"
+fi
+#echo export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:../../.libs:."
+#export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:../../.libs:."
+
+cp $PRE/libunbound/python/unbound.py .
+cp $PRE/.libs/_unbound* .
+cp $PRE/.libs/libunbound* .
+
+# do the test
+echo "> pylib.lookup.py www.example.com."
+./pylib.lookup.py www.example.com. | tee outfile
+
+echo "> cat logfiles"
+cat fwd.log 
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+exit 0

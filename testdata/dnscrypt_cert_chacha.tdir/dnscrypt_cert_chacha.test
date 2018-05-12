@@ -1,0 +1,130 @@
+# #-- dnscrypt_cert_chacha.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+# Check if we can run the test.
+. ./precheck.sh
+
+# do the test
+
+if [ $xchacha20 -eq 0 ]; then
+    # Unbound would exit before we can attempt any tests.
+    echo "OK"
+    exit 0
+fi
+
+# Query plain request over DNSCrypt channel get closed
+# We use TCP to avoid hanging on waiting for UDP.
+# We expect `outfile` to contain no DNS payload
+echo "> dig TCP www.example.com. DNSCrypt port"
+dig +tcp @127.0.0.1 -p $DNSCRYPT_PORT www.example.com. A | tee outfile
+echo "> cat logfiles"
+cat fwd.log
+cat unbound.log
+echo "> check answer"
+if grep "QUESTION SECTION" outfile; then
+	echo "NOK"
+	exit 1
+else
+	echo "OK"
+fi
+
+
+# Plaintext query on unbound port works correctly.
+echo "> dig www.example.com."
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. A | tee outfile
+echo "> cat logfiles"
+cat fwd.log
+cat unbound.log
+echo "> check answer"
+if grep "10.20.30.42" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+# Plaintext query on unbound port works correctly with TCP.
+echo "> dig TCP www.example.com."
+dig +tcp @127.0.0.1 -p $UNBOUND_PORT www.example.com. A | tee outfile
+echo "> cat logfiles"
+cat fwd.log
+cat unbound.log
+echo "> check answer"
+if grep "10.20.30.42" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+for opt in '' '+tcp'
+do
+    # Plaintext query on dnscrypt port returns cert when asking for providername/TXT.
+    # Check that it returns 1.cert.
+    echo "> dig TXT 2.dnscrypt-cert.example.com. 1_salsa.CERT. DNSCrypt plaintext ${opt}"
+    dig ${opt} @127.0.0.1 -p $DNSCRYPT_PORT 2.dnscrypt-cert.example.com. TXT | tee outfile
+    echo "> cat logfiles"
+    cat fwd.log
+    cat unbound.log
+    echo "> check answer"
+    if grep -F 'DNSC\000\001\000\000i\230\177hg\210 \172>\1438\247\174\154U\216\188\152\145y\000U\254\208\183qBQ\158\019S\189\180\150\013K\160\220\248\236\028`\131\174\214!\017Xk\202\152\189\026T\224\180)'"'"'9u\026\143\004\002\195\027\1912\203\176D\016\180e\198h\136{\216s;Sd2^\154\225\005<\016C\205+S\219A\195\027\1912\203\176D\016Y\160\203\009Y\160\203\009u\210\207\137' outfile; then
+        echo "OK"
+    else
+        echo "Not OK"
+        exit 1
+    fi
+
+    # Plaintext query on dnscrypt port returns cert when asking for providername/TXT.
+    # Check that it returns 2.cert.
+    echo "> dig TXT 2.dnscrypt-cert.example.com. 2_salsa.CERT. DNSCrypt plaintext ${opt}"
+    dig ${opt} @127.0.0.1 -p $DNSCRYPT_PORT 2.dnscrypt-cert.example.com. TXT | tee outfile
+    echo "> cat logfiles"
+    cat fwd.log
+    cat unbound.log
+    echo "> check answer"
+    if grep -F 'DNSC\000\001\000\000AX\031\201\243\201LI<-\146]LU\247LY\2376\014K\194$D\151&\008\236\008\220\143We\029\227\030\233\015[4\\\146\174\166`{}\161W\209\228\215\002\205|\207*\011\162$\175\210[\006\245\243W\191\189Z\216\210x\025\204\247\173\227t\138\018\162~\152\253\211\031z\\\002m5\008\254\2244\245\243W\191\189Z\216\210Y\160\203\009Y\160\203\009u\210\207\137' outfile; then
+        echo "OK"
+    else
+        echo "NOK"
+        exit 1
+    fi
+
+    # Plaintext query on dnscrypt port returns cert when asking for providername/TXT.
+    # Check that it returns 2_chacha.cert
+    echo "> dig TXT 2.dnscrypt-cert.example.com. 2_CHACHA.CERT. DNSCrypt plaintext ${opt}"
+    dig ${opt} @127.0.0.1 -p $DNSCRYPT_PORT 2.dnscrypt-cert.example.com. TXT | tee outfile
+    echo "> cat logfiles"
+    cat fwd.log
+    cat unbound.log
+    echo "> check answer"
+    grep -F 'DNSC\000\002\000\000\1716\226\255*\244\002L\177g\025_\127tR\151\246R\203\178\153\248\006\137\"\138\173|G/,\160\152\015\010\172\184\220`\175\217\255,\162\018\178-d\007\246k0\003I[\205w\026)\204B\002\161\010\245\243W\191\189Z\216\210x\025\204\247\173\227t\138\018\162~\152\253\211\031z\\\002m5\008\254\2244\246\243W\191\189Z\216\210Y\160\2158Y\160\2158u\210\219\184' outfile
+    cert_found=$?
+    if [ \( $cert_found -eq 0 -a $xchacha20 -eq 1 \)  -o \( $cert_found -ne 0 -a $xchacha20 -eq 0 \) ]; then
+        echo "OK"
+    else
+        echo "Not OK"
+        exit 1
+    fi
+
+    # Certificates are local-data for unbound. We can also retrieve them from unbound
+    # port.
+    echo "> dig TXT 2.dnscrypt-cert.example.com. 1_salsa.CERT. Unbound ${opt}"
+    dig ${opt} @127.0.0.1 -p $UNBOUND_PORT 2.dnscrypt-cert.example.com. TXT | tee outfile
+    echo "> cat logfiles"
+    cat fwd.log
+    cat unbound.log
+    echo "> check answer"
+    if grep -F 'DNSC\000\001\000\000i\230\177hg\210 \172>\1438\247\174\154U\216\188\152\145y\000U\254\208\183qBQ\158\019S\189\180\150\013K\160\220\248\236\028`\131\174\214!\017Xk\202\152\189\026T\224\180)'"'"'9u\026\143\004\002\195\027\1912\203\176D\016\180e\198h\136{\216s;Sd2^\154\225\005<\016C\205+S\219A\195\027\1912\203\176D\016Y\160\203\009Y\160\203\009u\210\207\137' outfile; then
+        echo "OK"
+    else
+        echo "Not OK"
+        exit 1
+    fi
+done
+
+exit 0

@@ -1,0 +1,47 @@
+# #-- 01-doc.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+. ../common.sh
+
+set_doxygen_path
+
+PRE="../.."
+get_make
+(cd $PRE ; $MAKE doc) > mylog 2>&1
+
+bad=0
+if grep -e "Warning" -e "warning" -e "Error" -e "error" mylog >/dev/null 2>&1;
+then
+	cat mylog
+	bad=1
+else
+	# "doxygen ok"
+	cat mylog
+fi
+
+(cd $PRE; find . -name "*.h" -print) >hlist
+(cd $PRE; find . -name "*.c" -print) >>hlist
+# filter out config.h
+fgrep -v -e "config.h" hlist > ilist; mv ilist hlist
+fgrep -v -e "util/configparser" hlist > ilist; mv ilist hlist
+fgrep -v -e "util/configlexer" hlist > ilist; mv ilist hlist
+fgrep -v -e "util/configyyrename" hlist > ilist; mv ilist hlist
+fgrep -v -e "util/locks.h" hlist > ilist; mv ilist hlist
+fgrep -v -e "util/storage/lookup3.c" hlist > ilist; mv ilist hlist
+fgrep -v -e "ldns-src/" hlist > ilist; mv ilist hlist
+fgrep -v -e "libunbound/python/libunbound_wrap.c" hlist > ilist; mv ilist hlist
+fgrep -v -e "pythonmod/interface.h" hlist > ilist; mv ilist hlist
+fgrep -v -e "dnstap" hlist > ilist; mv ilist hlist
+# filter out compat
+fgrep -v -e "compat/" hlist > ilist; mv ilist hlist
+for h in `cat hlist`; do
+	if fgrep "`basename $h`" $PRE/doc/html/files.html >/dev/null; then
+		: # ok
+	else
+		echo "Warning: $h has no documentation."
+		bad=1
+	fi
+done
+exit $bad

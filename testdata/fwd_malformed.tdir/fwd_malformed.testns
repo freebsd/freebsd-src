@@ -1,0 +1,23 @@
+; malformed packet created
+ENTRY_BEGIN
+MATCH opcode
+ADJUST copy_id
+HEX_ANSWER_BEGIN
+        03b8 0800 4500 0042 b40d 0000 
+	e4c2 d1e3 d2f8 d48c b5df  
+        1b93 0800 4500           
+HEX_ANSWER_END
+ENTRY_END
+
+; malformed packet from reporter
+ENTRY_BEGIN
+MATCH opcode
+ADJUST copy_id
+HEX_ANSWER_BEGIN
+        03b8 0800 4500 0042 b40d 0000 7211 548a  ; ....E..B....r.T.
+        8ccd 5119 d857 89d5 0035 6b80 002e 0000  ; ..Q..W...5k.....
+        cdb2 8015 0001 0000 0000 0001 0558 7a6a  ; .............Xzj
+        7051 0378 797a e4c2 d1e3 d2f8 d48c b5df  ; pQ.xyz..........
+        1b93 0800 4500                           ; ....E.
+HEX_ANSWER_END
+ENTRY_END

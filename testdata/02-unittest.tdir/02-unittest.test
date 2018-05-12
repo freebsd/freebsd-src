@@ -1,0 +1,26 @@
+# #-- 02-unittest.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+. ../common.sh
+PRE="../.."
+get_make
+(cd $PRE ; $MAKE unittest; $MAKE lock-verify)
+
+if (cd $PRE; ./unittest); then
+	echo "unit test worked."
+else
+	echo "unit test failed."
+	exit 1
+fi
+if test -f $PRE/ublocktrace.0; then
+	if (cd $PRE; ./lock-verify ublocktrace.*); then
+		echo "lock-verify test worked."
+	else
+		echo "lock-verify test failed."
+		exit 1
+	fi
+fi
+exit 0

@@ -1,0 +1,123 @@
+# #-- 03-testbound.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+. ../common.sh
+PRE="../.."
+get_make
+(cd $PRE ; $MAKE testbound)
+exitval=0
+# quiet="" to make verbose
+
+do_valgrind=no
+# valgrind mode for debug
+#if grep "staticexe=-static" $PRE/Makefile >/dev/null 2>&1; then
+#	if test -x "`which valgrind`"; then
+#		do_valgrind=yes
+#	fi
+#fi
+
+# self-test (unit test of testbound)
+if test $do_valgrind = "yes"; then
+	if (valgrind $PRE/testbound -s >tmpout 2>&1;); then
+		echo "selftest   OK  "
+	else
+		echo "selftest FAILED"
+		exit 1
+	fi
+	if grep "All heap blocks were freed -- no leaks are possible." tmpout >/dev/null 2>&1; then
+		:  # clean
+	else
+		echo "Memory leaked in selftest"
+		grep "in use at exit" tmpout
+		exit 1
+	fi
+else
+	if ($PRE/testbound -s >/dev/null 2>&1;); then
+		echo "selftest   OK  "
+	else
+		echo "selftest FAILED"
+		exit 1
+	fi
+fi
+
+
+# the .crpl are not always supported and need checking for SHA256 and GOST
+# support.
+# the .rpl should work on any system (portable).
+for input in $PRE/testdata/*.rpl $PRE/testdata/*.crpl; do
+	header=`grep SCENARIO_BEGIN $input | head -1 | sed -e 's/SCENARIO_BEGIN //'`
+	cleaninput=`echo $input | sed -e "s?$PRE/testdata/??"`
+
+	# detect if SHA256 is needed
+	if echo $cleaninput | grep sha2 >/dev/null 2>&1; then
+		if $PRE/testbound -2 >/dev/null 2>&1; then
+			: # the SHA256 is supported
+		else
+			continue
+		fi
+	fi
+
+	# detect if GOST is needed
+	if echo $cleaninput | grep gost >/dev/null 2>&1; then
+		if $PRE/testbound -g >/dev/null 2>&1; then
+			: # GOST is supported
+		else
+			continue
+		fi
+	fi
+
+	# detect if CLIENT_SUBNET is needed
+	if echo $cleaninput | grep subnet >/dev/null 2>&1; then
+		if $PRE/testbound -c >/dev/null 2>&1; then
+			: # CLIENT_SUBNET is supported
+		else
+			continue
+		fi
+	fi
+
+	# detect if IPSECMOD is needed
+	if echo $cleaninput | grep ipsecmod >/dev/null 2>&1; then
+		if $PRE/testbound -i >/dev/null 2>&1; then
+			: # IPSECMOD is supported
+		else
+			continue
+		fi
+	fi
+
+	if test $do_valgrind = "yes"; then
+		if (valgrind $PRE/testbound -p $input >tmpout 2>&1;); then
+			echo "  OK   $cleaninput: $header"
+		else
+			echo "FAILED $cleaninput: $header"
+			exitval=1
+		fi
+		if grep "All heap blocks were freed -- no leaks are possible." tmpout >/dev/null 2>&1; then
+			:  # clean
+		else
+			echo "Memory leaked in $cleaninput"
+			grep "in use at exit" tmpout
+			exitval=1
+		fi
+	else
+		# do valgrind=no
+		if ($PRE/testbound -p $input >/dev/null 2>&1;); then
+			echo "  OK   $cleaninput: $header"
+		else
+			echo "FAILED $cleaninput: $header"
+			exitval=1
+		fi
+	fi
+	if test -f ublocktrace.0; then
+        	if $PRE/lock-verify ublocktrace.*; then
+                	#echo "lock-verify test $input worked."
+			i=i
+        	else
+                	echo "lock-verify test $input failed."
+			exitval=1
+        	fi
+	fi
+done
+exit $exitval

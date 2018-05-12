@@ -30,7 +30,7 @@ MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR AA NXDOMAIN
 SECTION QUESTION
-40.30.20.10.in-addr-arpa. IN PTR
+40.30.20.10.in-addr.arpa. IN PTR
 SECTION ANSWER
 SECTION AUTHORITY
 . IN SOA invalid. invalid. 1 2 3 4 5
@@ -41,7 +41,7 @@ STEP 1 QUERY
 ENTRY_BEGIN
 REPLY RD DO
 SECTION QUESTION
-40.30.20.10.in-addr-arpa. IN PTR
+40.30.20.10.in-addr.arpa. IN PTR
 ENTRY_END
 ; not blocked!
 
@@ -51,7 +51,7 @@ ENTRY_BEGIN
 MATCH all
 REPLY QR RD RA DO NXDOMAIN
 SECTION QUESTION
-40.30.20.10.in-addr-arpa. IN PTR
+40.30.20.10.in-addr.arpa. IN PTR
 SECTION ANSWER
 SECTION AUTHORITY
 . IN SOA invalid. invalid. 1 2 3 4 5

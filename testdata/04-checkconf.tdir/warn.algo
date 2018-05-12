@@ -1,0 +1,9 @@
+server:
+	chroot: ""
+	directory: ""
+	pidfile: ""
+	username: ""
+	logfile: ""
+
+	trust-anchor: "jelte.nlnetlabs.nl. DS 42860 2000 1 14D739EB566D2B1A5E216A0BA4D17FA9B038BE4A" 
+

@@ -1,0 +1,18 @@
+; nameserver test file
+$ORIGIN overeinder.net.
+$TTL 3600
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR AA NOERROR
+ADJUST copy_id
+SECTION QUESTION
+overeinder.net.      IN      A
+SECTION ANSWER
+overeinder.net. 900     IN      A       80.56.223.205
+SECTION AUTHORITY
+overeinder.net. 86400   IN      NS      a.ns.joker.com.
+overeinder.net. 86400   IN      NS      b.ns.joker.com.
+overeinder.net. 86400   IN      NS      c.ns.joker.com.
+ENTRY_END
+

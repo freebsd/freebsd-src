@@ -1,0 +1,101 @@
+# #-- fwd_ancil.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+
+if test `hostname`"" = "dicht.nlnetlabs.nl"; then
+	echo "In jail, no ::1, skip test"
+	exit 0
+fi
+
+if fgrep "disable interface-automatic" unbound.log; then
+	echo "skip test"
+	exit 0
+fi
+
+get_make
+(cd $PRE; $MAKE streamtcp)
+
+# detect platform support first
+echo "> streamtcp -n -u -f 127.0.0.1 www.example.com. A IN"
+$PRE/streamtcp -n -u -f 127.0.0.1@$UNBOUND_PORT www.example.com. A IN | tee outfile
+sleep 2
+echo "> check answer"
+if ! grep "Please disable interface-automatic" unbound.log; then
+	echo "OK"
+else
+	echo "No platform support for ancillary data"
+	echo "> cat logfiles"
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK - but ignore test"
+	exit 0
+fi
+rm outfile
+
+
+# do the test
+echo "> streamtcp -f 127.0.0.1 www.example.com. A IN"
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www.example.com. A IN | tee outfile
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+rm outfile
+
+echo "> streamtcp -f ::1 www.example.com. A IN"
+$PRE/streamtcp -f ::1@$UNBOUND_PORT www.example.com. A IN | tee outfile
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+rm outfile
+
+echo "> streamtcp -u -f ::1 www.example.com. A IN"
+$PRE/streamtcp -u -f ::1@$UNBOUND_PORT www.example.com. A IN | tee outfile
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+rm outfile
+
+echo "> streamtcp -u -f 127.0.0.1 www.example.com. A IN"
+$PRE/streamtcp -u -f 127.0.0.1@$UNBOUND_PORT www.example.com. A IN | tee outfile
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+rm outfile
+
+echo "> cat logfiles"
+cat fwd.log 
+cat unbound.log
+exit 0

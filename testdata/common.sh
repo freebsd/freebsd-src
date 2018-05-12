@@ -6,7 +6,7 @@
 # 2011-02-18: ports check on BSD,Solaris. wait_nsd_up.
 # 2011-02-11: first version.
 #
-# include this file from a tpkg script with
+# include this file from a tdir script with
 #   . ../common.sh
 #
 # overview of functions available:

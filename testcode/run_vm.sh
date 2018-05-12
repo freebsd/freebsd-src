@@ -1,7 +1,7 @@
 #!/usr/local/bin/bash
-# run tpkg tests from within a VM.  Looks for loopback addr.
+# run tdir tests from within a VM.  Looks for loopback addr.
 # if run not from within a VM, runs the tests as usual.
-# with one argument: run that tpkg, otherwise, run all tpkgs.
+# with one argument: run that tdir, otherwise, run all tdirs.
 
 get_lo0_ip4() {
         if test -x /sbin/ifconfig
@@ -23,12 +23,12 @@ else
         ALT_LOOPBACK=true
 fi
 cd testdata
-TPKG=../testcode/mini_tpkg.sh
-#RUNLIST=`(ls -1 *.tpkg|grep -v '^0[016]')`
-RUNLIST=`(ls -1 *.tpkg)`
+TPKG=../testcode/mini_tdir.sh
+#RUNLIST=`(ls -1d *.tdir|grep -v '^0[016]')`
+RUNLIST=`(ls -1d *.tdir)`
 if test "$#" = "1"; then RUNLIST="$1"; fi
 
-# fix up tpkg that was edited on keyboard interrupt.
+# fix up tdir that was edited on keyboard interrupt.
 cleanup() {
 	echo cleanup
 	if test -f "$t.bak"; then mv "$t.bak" "$t"; fi
@@ -44,16 +44,15 @@ do
 		continue
 	fi
 	# We have alternative 127.0.0.1 number
-	if ( echo $t | grep '6\.tpkg$' ) # skip IPv6 tests
+	if ( echo $t | grep '6\.tdir$' ) # skip IPv6 tests
 	then
 		continue
-       	elif test "$t" = "edns_cache.tpkg" # This one is IPv6 too!
+       	elif test "$t" = "edns_cache.tdir" # This one is IPv6 too!
 	then
 		continue
 	fi
-	cp -p "$t" "$t.bak"
-	tar xzf $t
-	find "${t%.tpkg}.dir" -type f \
+	cp -ap "$t" "$t.bak"
+	find "${t}" -type f \
 		-exec grep -q -e '127\.0\.0\.1' -e '@localhost' {} \; -print | {
 		while read f
 		do
@@ -63,15 +62,14 @@ do
 			mv "$f._" "$f"
 		done
 	}
-	find "${t%.tpkg}.dir" -type d -name "127.0.0.1" -print | {
+	find "${t}" -type d -name "127.0.0.1" -print | {
 		while read d
 		do
 			mv -v "$d" "${d%127.0.0.1}${LO0_IP4}"
 		done
 	}
-	tar czf $t "${t%.tpkg}.dir"
-	rm -fr "${t%.tpkg}.dir"
 	$TPKG exe $t
+	rm -fr "${t}"
 	mv "$t.bak" "$t"
 done
 # get out of testdata/

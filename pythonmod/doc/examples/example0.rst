@@ -109,7 +109,7 @@ Script file must contain four compulsory functions:
          return True
 
       if event == MODULE_EVENT_PASS:
-         qstate.ext_state[id] = MODULE_ERROR 
+         qstate.ext_state[id] = MODULE_WAIT_MODULE 
          return True
 
       log_err("pythonmod: BAD event")

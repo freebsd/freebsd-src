@@ -1,0 +1,38 @@
+# #-- nss_compile.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+if test "`hostname`" = "open.nlnetlabs.nl"; then
+	echo "on open, continue test"
+else
+	echo "not on open, no test, do this explicitly"
+	exit 0
+fi
+
+. ../common.sh
+get_make
+PRE="../.."
+
+opts=`$PRE/unbound -h | grep configured | sed -e 's/^.*options: //' | sed -e "s/'//g" `
+
+function error_exit ()
+{
+	cat config.log
+	echo "$1"
+	exit 1
+}
+
+mkdir testdata
+cp $PRE/testdata/*.rpl testdata/.
+cp $PRE/testdata/test* testdata/.
+
+echo ">>> $PRE/configure $opts --without-ssl --with-nss --with-libunbound-only LDFLAGS=-L/usr/local/lib/nss" 'CPPFLAGS="-I/usr/local/include/nss/nss -I/usr/local/include/nspr"'
+$PRE/configure $opts --without-ssl --with-nss --with-libunbound-only LDFLAGS=-L/usr/local/lib/nss CPPFLAGS="-I/usr/local/include/nss/nss -I/usr/local/include/nspr" || error_exit "could not configure"
+echo ">>> $MAKE"
+$MAKE || error_exit "could not make"
+echo ">>> $MAKE test"
+$MAKE test || error_exit "could not make test"
+
+exit 0

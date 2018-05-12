@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 . testdata/common.sh
 
-NEED_SPLINT='00-lint.tpkg'
-NEED_DOXYGEN='01-doc.tpkg'
-NEED_XXD='fwd_compress_c00c.tpkg fwd_zero.tpkg'
-NEED_NC='fwd_compress_c00c.tpkg fwd_zero.tpkg'
-NEED_CURL='06-ianaports.tpkg root_anchor.tpkg'
-NEED_WHOAMI='07-confroot.tpkg'
-NEED_IPV6='fwd_ancil.tpkg fwd_tcp_tc6.tpkg stub_udp6.tpkg edns_cache.tpkg'
-NEED_NOMINGW='tcp_sigpipe.tpkg 07-confroot.tpkg 08-host-lib.tpkg fwd_ancil.tpkg'
-NEED_DNSCRYPT_PROXY='dnscrypt_queries.tpkg dnscrypt_queries_chacha.tpkg'
+NEED_SPLINT='00-lint.tdir'
+NEED_DOXYGEN='01-doc.tdir'
+NEED_XXD='fwd_compress_c00c.tdir fwd_zero.tdir'
+NEED_NC='fwd_compress_c00c.tdir fwd_zero.tdir'
+NEED_CURL='06-ianaports.tdir root_anchor.tdir'
+NEED_WHOAMI='07-confroot.tdir'
+NEED_IPV6='fwd_ancil.tdir fwd_tcp_tc6.tdir stub_udp6.tdir edns_cache.tdir'
+NEED_NOMINGW='tcp_sigpipe.tdir 07-confroot.tdir 08-host-lib.tdir fwd_ancil.tdir'
+NEED_DNSCRYPT_PROXY='dnscrypt_queries.tdir dnscrypt_queries_chacha.tdir'
 
 # test if dig and ldns-testns are available.
 test_tool_avail "dig"
@@ -30,9 +30,9 @@ else
 fi
 
 cd testdata;
-sh ../testcode/mini_tpkg.sh clean
+sh ../testcode/mini_tdir.sh clean
 rm -f .perfstats.txt
-for test in `ls *.tpkg`; do
+for test in `ls -d *.tdir`; do
 	SKIP=0
 	skip_if_in_list $test "$NEED_SPLINT" "splint"
 	skip_if_in_list $test "$NEED_DOXYGEN" "doxygen"
@@ -54,10 +54,10 @@ for test in `ls *.tpkg`; do
 	fi
 	if test $SKIP -eq 0; then
 		echo $test
-		sh ../testcode/mini_tpkg.sh -a ../.. exe $test
+		sh ../testcode/mini_tdir.sh -a ../.. exe $test
 	else
 		echo "skip $test"
 	fi
 done
-sh ../testcode/mini_tpkg.sh report
+sh ../testcode/mini_tdir.sh report
 cat .perfstats.txt

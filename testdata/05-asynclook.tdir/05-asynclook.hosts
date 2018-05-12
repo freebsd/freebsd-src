@@ -1,0 +1,12 @@
+# Host Database
+#
+# This file should contain the addresses and aliases for local hosts that
+# share this file.  Replace 'my.domain' below with the domainname of your
+# machine.
+#
+::1                     localhost localhost.my.domain
+127.0.0.1               localhost localhost.my.domain
+# Imaginary network.
+10.0.0.2               myname.my.domain myname
+10.0.0.3               myfriend.my.domain myfriend
+10.20.30.40		virtual.virtual.virtual.local

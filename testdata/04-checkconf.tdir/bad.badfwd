@@ -1,0 +1,8 @@
+server:
+	# to make sure the check doesn't fail on username or chrootdir.
+	username: ""	
+	chroot: ""
+
+forward-zone:
+	name: "example.com"
+	forward-addr: 123.123.AAAA.123

@@ -1,0 +1,79 @@
+# #-- speed_cache.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+
+# make tool
+get_make
+(cd $PRE; $MAKE perf)
+
+get_gcc
+$CC -o makeqs makeqs.c
+if test $? -ne 0; then
+	echo "could not compile makeqs"
+	exit 1
+fi
+
+./makeqs 10 > q10.txt
+cat q10.txt
+./makeqs 100 > q100.txt
+./makeqs 1000 > q1000.txt
+./makeqs 10000 > q10000.txt
+#./makeqs 100000 > q100000.txt
+#./makeqs 1000000 > q1000000.txt
+#./makeqs 10000000 > q10000000.txt
+
+# seconds per test
+dur=1
+
+# do the test
+echo "> perf test ldns-testns"
+$PRE/perf -d $dur -a "www.example.com IN A" 127.0.0.1@$FWD_PORT 2>&1 | tee outfile
+
+echo "> perf test cache-1"
+$PRE/perf -d $dur -a "www.example.com IN A" 127.0.0.1@$UNBOUND_PORT 2>&1 | tee outfile
+echo -n "cache-size-1  	" >> ../.perfstats.txt
+grep "average qps" outfile >> ../.perfstats.txt
+
+# with $1=number $2=pretty-str $3=queryfile
+function perfnum() {
+	echo ""
+	echo "> perf test $1 $2"
+	$PRE/perf -d $dur -f $3 127.0.0.1@$UNBOUND_PORT 2>&1 | tee outfile
+	if test -n "$2"; then
+		echo -n "$2	" >> ../.perfstats.txt
+		grep "average qps" outfile >> ../.perfstats.txt
+	fi
+}
+
+function perftns() {
+	echo ""
+	echo "> perf testns $1 $2"
+	$PRE/perf -d $dur -f $3 127.0.0.1@$FWD_PORT 2>&1 | tee outfile
+}
+
+#perfnum 10 "" q10.txt
+perfnum 100 "cache-suffices" q100.txt
+#perfnum 1000 "" q1000.txt
+perfnum 10000 "cache-toosmall" q10000.txt
+#perfnum 100000 "100k" q100000.txt
+#perfnum 1000000 "1m" q1000000.txt
+#perfnum 1000000 "10m" q10000000.txt
+
+#perftns 10 "10" q10.txt
+#perftns 100 "100" q100.txt
+perftns 1000 "1k" q1000.txt
+#perftns 10000 "10k" q10000.txt
+#perftns 100000 "100k" q100000.txt
+#perftns 1000000 "1m" q1000000.txt
+#perftns 1000000 "10m" q10000000.txt
+
+echo "> cat logfiles"
+cat fwd.log 
+cat unbound.log
+rm -f q*.txt
+exit 0

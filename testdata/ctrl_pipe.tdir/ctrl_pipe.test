@@ -1,0 +1,61 @@
+# #-- ctrl_pipe.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+
+# exit value is 1 on usage
+$PRE/unbound-control -c ub.conf status
+if test $? -ne 0; then
+	echo "wrong exit value."
+	cat fwd.log 
+	cat unbound.log
+	exit 1
+else
+	echo "exit value: OK"
+fi
+$PRE/unbound-control -c ub.conf local_data froob.example.net A 192.0.2.1
+if test $? -ne 0; then
+	echo "wrong exit value."
+	cat fwd.log 
+	cat unbound.log
+	exit 1
+else
+	echo "exit value: OK"
+fi
+
+
+# test if the server is up.
+echo "> dig www.example.com."
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> dig froob.example.net."
+dig @127.0.0.1 -p $UNBOUND_PORT froob.example.net. | tee outfile
+echo "> check answer"
+if grep "192.0.2.1" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> cat logfiles"
+cat fwd.log 
+cat unbound.log
+echo "> OK"
+exit 0

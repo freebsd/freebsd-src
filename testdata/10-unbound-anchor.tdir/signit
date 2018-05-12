@@ -1,0 +1,10 @@
+# PKCS7 sign it
+#infile=127.0.0.1/no_more_keys.xml
+#outfile=127.0.0.1/no_more_keys.p7s
+infile=127.0.0.1/root.xml
+outfile=127.0.0.1/root.p7s
+set -v
+
+openssl smime -sign -in $infile -out $outfile -inkey test_cert.key -signer test_cert.pem -outform DER -binary || echo "could not sign"
+openssl smime -verify -content $infile -in $outfile -inform DER -CAfile test_cert.pem || echo "could not verify"
+openssl pkcs7 -print_certs -inform der -in $outfile -text

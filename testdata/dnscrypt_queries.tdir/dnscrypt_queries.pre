@@ -1,0 +1,53 @@
+# #-- dnscrypt_queries.pre--#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+# if no dnscrypt; exit
+if grep "define USE_DNSCRYPT 1" $PRE/config.h; then
+        echo "have dnscrypt"
+else
+        echo "no dnscrypt"
+        exit 0
+fi
+
+get_random_port 4
+UNBOUND_PORT=$RND_PORT
+FWD_PORT=$(($RND_PORT + 1))
+DNSCRYPT_PORT=$(($RND_PORT + 2))
+PROXY_PORT=$(($RND_PORT + 3))
+echo "UNBOUND_PORT=$UNBOUND_PORT" >> .tpkg.var.test
+echo "FWD_PORT=$FWD_PORT" >> .tpkg.var.test
+echo "DNSCRYPT_PORT=$DNSCRYPT_PORT" >> .tpkg.var.test
+echo "PROXY_PORT=$PROXY_PORT" >> .tpkg.var.test
+
+# start forwarder
+get_ldns_testns
+$LDNS_TESTNS -p $FWD_PORT dnscrypt_queries.testns >fwd.log 2>&1 &
+FWD_PID=$!
+echo "FWD_PID=$FWD_PID" >> .tpkg.var.test
+
+dnscrypt-proxy --local-address=127.0.0.1:${PROXY_PORT} \
+    --resolver-address=127.0.0.1:${DNSCRYPT_PORT} \
+    --provider-name=2.dnscrypt-cert.example.com \
+    --provider-key=B85F:41A1:4F23:F7DB:C866:F397:CC6F:44B6:5F9D:65C5:B629:7C27:5403:A6E9:DCF2:4F9D \
+    -m 32 \
+    >dnscryptproxy.log 2>&1 &
+PROXY_PID=$!
+echo "PROXY_PID=$PROXY_PID" >> .tpkg.var.test
+
+# make config file
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/' -e 's/@TOPORT\@/'$FWD_PORT'/' \
+    -e 's/@DNSCRYPT_PORT\@/'$DNSCRYPT_PORT'/' < dnscrypt_queries.conf > ub.conf
+# start unbound in the background
+$PRE/unbound -d -c ub.conf >unbound.log 2>&1 &
+UNBOUND_PID=$!
+echo "UNBOUND_PID=$UNBOUND_PID" >> .tpkg.var.test
+
+cat .tpkg.var.test
+wait_ldns_testns_up fwd.log
+wait_unbound_up unbound.log
+wait_server_up dnscryptproxy.log "Proxying from"

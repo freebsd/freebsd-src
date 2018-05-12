@@ -1,0 +1,79 @@
+# #-- stream_tcp.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+get_make
+(cd $PRE; $MAKE streamtcp)
+
+# first test a single TCP query.
+echo "> query www.example.com."
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www.example.com. A IN >outfile 2>&1
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+else
+	echo "exit status OK"
+fi
+echo "> cat logfiles"
+cat outfile
+cat fwd.log 
+cat unbound.log
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+# test more 
+echo ""
+echo ""
+echo "> query www.example.com www2.example.com www3.example.com"
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www.example.com. A IN www2.example.com. A IN www3.example.com A IN >outfile 2>&1
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+else
+	echo "exit status OK"
+fi
+echo "> cat logfiles"
+cat outfile
+cat fwd.log 
+cat unbound.log
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+if grep "10.20.30.42" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+if grep "10.20.30.43" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+exit 0

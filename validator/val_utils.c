@@ -932,17 +932,24 @@ val_check_nonsecure(struct module_env* env, struct reply_info* rep)
 			 * Therefore the message is bogus.
 			 */
 
-			/* check if authority consists of only an NS record
+			/* check if authority has an NS record
 			 * which is bad, and there is an answer section with
 			 * data.  In that case, delete NS and additional to 
 			 * be lenient and make a minimal response */
-			if(rep->an_numrrsets != 0 && rep->ns_numrrsets == 1 &&
+			if(rep->an_numrrsets != 0 &&
 				ntohs(rep->rrsets[i]->rk.type) 
 				== LDNS_RR_TYPE_NS) {
 				verbose(VERB_ALGO, "truncate to minimal");
-				rep->ns_numrrsets = 0;
 				rep->ar_numrrsets = 0;
-				rep->rrset_count = rep->an_numrrsets;
+				rep->rrset_count = rep->an_numrrsets +
+					rep->ns_numrrsets;
+				/* remove this unneeded authority rrset */
+				memmove(rep->rrsets+i, rep->rrsets+i+1, 
+					sizeof(struct ub_packed_rrset_key*)*
+					(rep->rrset_count - i - 1));
+				rep->ns_numrrsets--;
+				rep->rrset_count--;
+				i--;
 				return;
 			}
 

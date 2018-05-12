@@ -1,0 +1,74 @@
+# #-- stream_ssl.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+get_make
+(cd $PRE; $MAKE streamtcp)
+
+# first test streamtcp against the server unbound.
+echo "> streamtcp -s www.example.com A IN"
+$PRE/streamtcp -s -f 127.0.0.1@$SERV_PORT www.example.com. A IN >outfile 2>&1
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	echo "SSLSERVICE"
+	cat unboundserv.log
+	echo "SSLCLIENT"
+	cat unboundclie.log
+	echo "Not OK"
+	exit 1
+else
+	echo "exit status OK"
+fi
+echo "> cat logfiles"
+cat outfile
+echo "SSLSERVICE"
+cat unboundserv.log
+echo "SSLCLIENT"
+cat unboundclie.log
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+rm -f outfile
+
+# test client unbound (no SSL towards it, but it does SSL to the SSL service)
+echo "> dig www.example.com A IN"
+dig @127.0.0.1 -p $CLIE_PORT www.example.com. >outfile 2>&1
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	echo "SSLSERVICE"
+	cat unboundserv.log
+	echo "SSLCLIENT"
+	cat unboundclie.log
+	echo "Not OK"
+	exit 1
+else
+	echo "exit status OK"
+fi
+echo "> cat logfiles"
+cat outfile
+echo "SSLSERVICE"
+cat unboundserv.log
+echo "SSLCLIENT"
+cat unboundclie.log
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+exit 0

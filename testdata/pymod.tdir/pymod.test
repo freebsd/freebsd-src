@@ -1,0 +1,56 @@
+# #-- pymod.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+if grep "define WITH_PYTHONMODULE 1" $PRE/config.h; then
+	echo "have python module"
+else
+	echo "no python module"
+	exit 0
+fi
+
+if test "`uname 2>&1`" = "Darwin"; then
+        ldnsdir=`grep ldnsdir= ../../Makefile | sed -e 's/ldnsdir=//'`
+        echo export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:$ldnsdir/lib:../../.libs"
+        export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:$ldnsdir/lib:../../.libs"
+fi
+
+# see if config file verifies
+if $PRE/unbound-checkconf ub.conf; then
+	echo "checkconf OK"
+else
+	echo "checkconf failed"
+	exit 1
+fi
+
+# do the test
+echo "> dig www.example.com."
+dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
+echo "> cat logfiles"
+cat fwd.log 
+cat unbound.log
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> dig www2.example.com."
+dig @localhost -p $UNBOUND_PORT www2.example.com. | tee outfile
+echo "> cat logfiles"
+cat fwd.log 
+cat unbound.log
+echo "> check answer"
+if grep "192.168.1.1" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+exit 0

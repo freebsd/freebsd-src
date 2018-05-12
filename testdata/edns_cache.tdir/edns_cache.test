@@ -1,0 +1,30 @@
+# #-- edns_cache.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+# notice that we use one stub server on IPv6 ::1 that supports EDNS that
+# gives referrals to the other server on IPv4 127.0.0.1 that is nonEDNS.
+
+PRE="../.."
+# do the test
+echo "> dig netdns.example.net."
+dig @::1 -p $UNBOUND_PORT netdns.example.net. | tee outfile
+echo "> dig www.example.com."
+dig @::1 -p $UNBOUND_PORT www.example.com. | tee outfile
+echo "> cat stub1.log"
+cat stub1.log 
+echo "> cat stub2.log"
+cat stub2.log 
+echo "> cat unbound.log"
+cat unbound.log
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+exit 0

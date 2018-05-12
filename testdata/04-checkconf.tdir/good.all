@@ -1,0 +1,246 @@
+# To test, all options are used.
+#
+# Example configuration file.
+#
+# See unbound.conf(5) man page.
+#
+# this is a comment.
+
+#Use this to include other text into the file.
+#include: "otherfile.conf"
+
+# The server clause sets the main parameters. 
+server:
+	# whitespace is not necessary, but looks cleaner.
+
+	# verbosity number, 0 is least verbose. 1 is default.
+	verbosity: 2
+	
+	# number of threads to create. 1 disables threading.
+	num-threads: 1
+
+	# specify the interfaces to answer queries from by ip-address.
+	# If you give none the default (all) interface is used.
+	# specify every interface on a new 'interface:' labelled line.
+	interface: 192.0.2.153
+	interface: 192.0.2.154
+	interface: 2001:DB8::5
+
+	# port to answer queries from
+	port: 53
+
+	# number of port to allocate per thread, determines the size of the
+	# port range. A larger port range gives more resistance to certain
+	# spoof attacks, as it gets harder to guess which port is used. 
+	# But also takes more system resources (for open sockets).
+	outgoing-range: 16
+
+	outgoing-port-permit: 1000-1020
+	outgoing-port-avoid: 2000-2048
+	outgoing-port-avoid: 3000
+
+	# number of outgoing simultaneous tcp buffers to hold per thread.
+	outgoing-num-tcp: 10
+
+	# number of incoming simultaneous tcp buffers to hold per thread.
+	incoming-num-tcp: 10
+	
+	# buffer size for handling DNS data. No messages larger than this
+	# size can be sent or received, by UDP or TCP. In bytes.
+	msg-buffer-size: 65552
+
+	# the amount of memory to use for the message cache.
+	# in bytes. default is 4 Mb
+	msg-cache-size: 4194304
+
+	# the number of slabs to use for the message cache.
+	# the number of slabs must be a power of 2.
+	# more slabs reduce lock contention, but fragment memory usage.
+	msg-cache-slabs: 4
+
+	# the number of queries that a thread gets to service.
+	num-queries-per-thread: 1024
+
+	# the amount of memory to use for the RRset cache.
+	# in bytes. default is 4 Mb
+	rrset-cache-size: 4194304
+
+	# the number of slabs to use for the RRset cache.
+	# the number of slabs must be a power of 2.
+	# more slabs reduce lock contention, but fragment memory usage.
+	rrset-cache-slabs: 4
+
+	# the time to live (TTL) value for cached roundtrip times and
+	# EDNS version information for hosts. In seconds.
+	infra-host-ttl: 900
+
+	# the time to live (TTL) value for cached lame delegations. In sec.
+	infra-lame-ttl: 900
+
+	# the number of slabs to use for the Infrastructure cache.
+	# the number of slabs must be a power of 2.
+	# more slabs reduce lock contention, but fragment memory usage.
+	infra-cache-slabs: 4
+
+	# the maximum number of hosts that are cached (roundtrip times, EDNS).
+	infra-cache-numhosts: 10000
+
+	# the maximum size of the lame zones cached per host. in bytes.
+	infra-cache-lame-size: 10240
+
+	# Enable IPv4, "yes" or "no".
+	do-ip4: yes
+
+	# Enable IPv6, "yes" or "no".
+	do-ip6: yes
+
+	# Enable UDP, "yes" or "no".
+	do-udp: yes
+
+	# Enable TCP, "yes" or "no".
+	do-tcp: yes
+
+	# if given, a chroot(2) is done to the given directory.
+	# i.e. you can chroot to the working directory, for example,
+	# for extra security, but make sure all files are in that directory.
+	chroot: ""
+
+	# if given, user privileges are dropped (after binding port),
+	# and the given username is assumed. Default is nothing "".
+	username: "nobody"
+
+	# the working directory.
+	directory: "."
+
+	# the log file, "" means log to stderr. 
+	# Use of this option sets use-syslog to "no".
+	logfile: ""
+	
+	# Log to syslog(3) if yes. The log facility LOG_DAEMON is used to 
+	# log to, with identity "unbound". If yes, it overrides the logfile.
+	use-syslog: no 
+
+	# the pid file.
+	pidfile: "unbound.pid"
+	
+	# enable to not answer id.server and hostname.bind queries.
+	hide-identity: no
+	
+	# enable to not answer version.server and version.bind queries.
+	hide-version: no
+	
+	# the identity to report. Leave "" or default to return hostname.
+	identity: ""
+	
+	# the version to report. Leave "" or default to return package version.
+	version: ""
+	
+	# the target fetch policy.
+	# series of integers describing the policy per dependency depth. 
+	# The number of values in the list determines the maximum dependency 
+	# depth the recursor will pursue before giving up. Each integer means:
+	# 	-1 : fetch all targets opportunistically,
+	# 	0: fetch on demand,
+	#	positive value: fetch that many targets opportunistically.
+	# Enclose the list of numbers between quotes ("").
+	target-fetch-policy: "3 2 1 0 0"
+	
+	# Harden against very small EDNS buffer sizes. 
+	harden-short-bufsize: yes
+	
+	# Harden against unseemly large queries.
+	harden-large-queries: yes
+	
+	# Harden against out of zone rrsets, to avoid spoofing attempts. 
+	harden-glue: yes
+	
+	# Do not query the following addresses. No DNS queries are sent there.
+	# List one address per entry. To block other ports than the default
+	# DNS port, use "1.2.3.4@123" to block port 123 for 1.2.3.4.
+	do-not-query-address: 127.0.0.1
+	do-not-query-address: 127.0.0.2
+	do-not-query-address: 127.255.255.255
+	do-not-query-address: ::1
+	
+	# module configuration of the server. A string with identifiers
+	# separated by spaces. "iterator" or "validator iterator"
+	module-config: "validator iterator"
+	
+	# File with trusted keys for validation. Specify more than one file
+	# with several entries, one file per entry.
+	# Zone file format, with DS and DNSKEY entries.
+	trust-anchor-file: ""
+	
+	# Trusted key for validation. DS or DNSKEY. specify the RR on a
+	# single line, surrounded by "". TTL is ignored. class is IN default.
+	# (These examples are from August 2007 and may not be valid anymore).
+	trust-anchor: "nlnetlabs.nl. DNSKEY 257 3 5 AQPzzTWMz8qSWIQlfRnPckx2BiVmkVN6LPupO3mbz7FhLSnm26n6iG9N Lby97Ji453aWZY3M5/xJBSOS2vWtco2t8C0+xeO1bc/d6ZTy32DHchpW 6rDH1vp86Ll+ha0tmwyy9QP7y2bVw5zSbFCrefk8qCUBgfHm9bHzMG1U BYtEIQ=="
+	trust-anchor: "jelte.nlnetlabs.nl. DS 42860 5 1 14D739EB566D2B1A5E216A0BA4D17FA9B038BE4A"
+
+	# File with trusted keys for validation. Specify more than one file
+	# with several entries, one file per entry. Like trust-anchor-file
+	# but has a different file format. Format is BIND-9 style format, 
+	# the trusted-keys { name flag proto algo "key"; }; clauses are read.
+	trusted-keys-file: ""
+
+	# Override the date for validation with a specific fixed date.
+	# Do not set this unless you are debugging signature inception
+	# and expiration. "" or "0" turns the feature off. 
+	val-override-date: ""
+	
+	# The time to live for bogus data, rrsets and messages. This avoids
+	# some of the revalidation, until the time interval expires. in secs.
+	val-bogus-ttl: 900
+	
+	# Should additional section of secure message also be kept clean of
+	# unsecure data. Useful to shield the users of this validator from
+	# potential bogus data in the additional section. All unsigned data 
+	# in the additional section is removed from secure messages.
+	val-clean-additional: yes
+	
+	# Turn permissive mode on to permit bogus messages. Thus, messages
+	# for which security checks failed will be returned to clients,
+	# instead of SERVFAIL. It still performs the security checks, which
+	# result in interesting log files and possibly the AD bit in
+	# replies if the message is found secure. The default is off.
+	val-permissive-mode: no
+	
+	# It is possible to configure NSEC3 maximum iteration counts per
+	# keysize. Keep this table very short, as linear search is done.
+	# A message with an NSEC3 with larger count is marked insecure.
+	# List in ascending order the keysize and count values.
+	val-nsec3-keysize-iterations: "1024 150 2048 500 4096 2500"
+
+	# the amount of memory to use for the key cache.
+	# in bytes. default is 4 Mb
+	key-cache-size: 4194304
+
+	# the number of slabs to use for the key cache.
+	# the number of slabs must be a power of 2.
+	# more slabs reduce lock contention, but fragment memory usage.
+	key-cache-slabs: 4
+
+
+# Stub zones.
+# Create entries like below, to make all queries for 'example.com' and 
+# 'example.org' go to the given list of nameservers. list zero or more 
+# nameservers by hostname or by ipaddress.
+stub-zone:
+	name: "example.com"
+	stub-addr: 192.0.2.68
+stub-zone:
+	name: "example.org"
+	stub-host: ns.example.com.
+
+# Forward zones
+# Create entries like below, to make all queries for 'example.com' and
+# 'example.org' go to the given list of servers. These servers have to handle
+# recursion to other nameservers. List zero or more nameservers by hostname
+# or by ipaddress. Use an entry with name "." to forward all queries.
+forward-zone:
+ 	name: "example.com"
+ 	forward-addr: 192.0.2.68
+ 	forward-addr: 192.0.2.73@5355  # forward to port 5355.
+forward-zone:
+ 	name: "example.org"
+ 	forward-host: fwd.example.com

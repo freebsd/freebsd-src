@@ -1,0 +1,18 @@
+# #-- fwd_ancil.post --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# source the test var file when it's there
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+#
+# do your teardown here
+. ../common.sh
+if test `hostname`"" = "dicht.nlnetlabs.nl"; then
+	echo "In jail, no ::1, skip test"
+	exit 0
+fi
+
+kill_pid $FWD_PID
+if fgrep "service stopped" unbound.log; then
+	exit 0
+fi      
+kill_pid $UNBOUND_PID

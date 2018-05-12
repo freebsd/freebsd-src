@@ -1,0 +1,21 @@
+# #-- fwd_three.post --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# source the test var file when it's there
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+#
+# do your teardown here
+
+. ../common.sh
+# kill fwder
+kill_pid $FWD_PID
+
+# find all extra forked testns and kill them.
+pidlist=`fgrep "forked pid:" fwd.log | sed -e 's/forked pid: //'`
+for p in $pidlist; do
+	kill_pid $p
+done
+
+# kill unbound
+kill_pid $UNBOUND_PID
+exit 0

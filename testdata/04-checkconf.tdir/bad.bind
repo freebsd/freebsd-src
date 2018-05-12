@@ -1,0 +1,35 @@
+# test daemon
+options {
+	directory "/home/wouter/bla";
+	version "test BIND 24";
+	pid-file "/home/wouter/named_24.pid";
+	dnssec-enable yes;
+	listen-on-v6 { any; };
+};
+
+// logging clause
+logging {
+	channel mainlog {
+		file "named_24.log" size 10m;
+		severity info;
+	};
+	category default {
+		mainlog;
+	};
+};
+
+zone "." IN {
+	type hint;
+	file "root.servers";
+};
+
+zone "localhost" IN {
+	type master;
+	file "localhost.zone";
+	allow-update { none; };
+};
+zone "0.0.127.in-addr.arpa" IN {
+	type master;
+	file "localhost.rev";
+	allow-update { none; };
+};

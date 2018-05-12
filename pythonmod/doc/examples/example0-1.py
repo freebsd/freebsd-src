@@ -24,7 +24,7 @@ def operate(id, event, qstate, qdata):
 
    if event == MODULE_EVENT_PASS:
       log_info("pythonmod: event_pass")
-      qstate.ext_state[id] = MODULE_ERROR 
+      qstate.ext_state[id] = MODULE_WAIT_MODULE 
       return True
 
    log_err("pythonmod: BAD event")

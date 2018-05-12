@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.6.5.
+# See unbound.conf(5) man page, version 1.6.6.
 #
 # this is a comment.
 
@@ -116,7 +116,7 @@ server:
 	# ip-freebind: no
 
 	# EDNS reassembly buffer to advertise to UDP peers (the actual buffer
-	# is set with msg-buffer-size). 1480 can solve fragmentation (timeouts).
+	# is set with msg-buffer-size). 1472 can solve fragmentation (timeouts)
 	# edns-buffer-size: 4096
 
 	# Maximum UDP response size (not applied to TCP response).
@@ -563,6 +563,8 @@ server:
 	# local-zone: "127.in-addr.arpa." nodefault
 	# local-zone: "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa." nodefault
 	# local-zone: "onion." nodefault
+	# local-zone: "test." nodefault
+	# local-zone: "invalid." nodefault
 	# local-zone: "10.in-addr.arpa." nodefault
 	# local-zone: "16.172.in-addr.arpa." nodefault
 	# local-zone: "17.172.in-addr.arpa." nodefault
@@ -838,3 +840,13 @@ remote-control:
 #     dnscrypt-secret-key: /path/unbound-conf/keys2/1.key
 #     dnscrypt-provider-cert: /path/unbound-conf/keys1/1.cert
 #     dnscrypt-provider-cert: /path/unbound-conf/keys2/1.cert
+
+# CacheDB
+# Enable external backend DB as auxiliary cache.  Specify the backend name
+# (default is "testframe", which has no use other than for debugging and
+# testing) and backend-specific options.  The 'cachedb' module must be
+# included in module-config.
+# cachedb:
+#     backend: "testframe"
+#     # secret seed string to calculate hashed keys
+#     secret-seed: "default"
