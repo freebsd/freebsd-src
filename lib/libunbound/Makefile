@@ -29,6 +29,7 @@ SRCS=	alloc.c as112.c autotrust.c cachedb.c config_file.c configlexer.l \
 	val_utils.c validator.c view.c winsock_event.c wire2str.c
 
 WARNS?=	3
+NO_WTHREAD_SAFETY= true
 
 LIBADD=	ssl crypto pthread
 
