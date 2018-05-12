@@ -38,7 +38,7 @@ mail.example.com.	3600	IN	A	1.2.3.6
 mail.example.com.	3600	IN	A	1.2.3.7
 zup.example.com.	3600	IN	A	1.2.3.4
 yyy.example.com.	3600	IN	A	1.2.3.4
-yyy.example.com.	3600	IN	AAAA	::5
+yyy.example.com.	3600	IN	AAAA	2001:db8::5
 r1.example.com.	3600	IN	A	1.2.3.4
 r1.example.com.	3600	IN	RRSIG	A 8 3 10200 20170612005010 20170515005010 42393 nlnetlabs.nl. NhEDrHkuIgHkjWhDRVsGOIJWZpSs+QdduilWFe5d+/ZhOheLJbaTYD5w6+ZZ3yPh1tNud+jlg+GyiOSVapLEO31swDCIarL1UfRjRSpxxDCHGag5Zu+S4hF+KURxO3cJk8jLBELMQyRuMRHoKrw/wsiLGVu1YpAyAPPMcjFBNbk=
 r2.example.com.	3600	IN	A	1.2.3.4
@@ -195,7 +195,7 @@ example.com. IN SOA ns.example.com. hostmaster.example.com. 1 3600 900 86400 360
 www.example.com. IN A	1.2.3.4
 mail.example.com.	3600	IN	A	1.2.3.6
 zup.example.com.	3600	IN	A	1.2.3.4
-yyy.example.com.	3600	IN	AAAA	::5
+yyy.example.com.	3600	IN	AAAA	2001:db8::5
 r1.example.com.	3600	IN	A	1.2.3.4
 r2.example.com.	3600	IN	A	1.2.3.4
 r3.example.com.	3600	IN	RRSIG A 8 3 10200 20170612005010 20170515005010 12345 nlnetlabs.nl. NhEDrHkuIgHkjWhDRVsGOIJWZpSs+QdduilWFe5d+/ZhOheLJbaTYD5w6+ZZ3yPh1tNud+jlg+GyiOSVapLEO31swDCIarL1UfRjRSpxxDCHGag5Zu+S4hF+KURxO3cJk8jLBELMQyRuMRHoKrw/wsiLGVu1YpAyAPPMcjFBNbk=
@@ -207,7 +207,7 @@ example.com. IN IXFR
 SECTION ANSWER
 www.example.com. IN A	1.2.3.5
 mail.example.com.	3600	IN	A	1.2.3.8
-mail.example.com. IN AAAA	::5
+mail.example.com. IN AAAA	2001:db8::5
 add2.example.com.	3600	IN	A	1.2.3.4
 example.com. IN SOA ns.example.com. hostmaster.example.com. 2 3600 900 86400 3600
 ENTRY_END
@@ -219,6 +219,7 @@ REPLY RD
 SECTION QUESTION
 www.example.com. IN A
 ENTRY_END
+STEP 2 TIME_PASSES ELAPSE 1
 
 ; recursion happens here.
 STEP 20 CHECK_ANSWER
@@ -263,7 +264,7 @@ mail.example.com.	3600	IN	A	1.2.3.4
 mail.example.com.	3600	IN	A	1.2.3.5
 mail.example.com.	3600	IN	A	1.2.3.7
 mail.example.com.	3600	IN	A	1.2.3.8
-mail.example.com.	3600	IN	AAAA	::5
+mail.example.com.	3600	IN	AAAA	2001:db8::5
 r1.example.com.	3600	IN	RRSIG	A 8 3 10200 20170612005010 20170515005010 42393 nlnetlabs.nl. NhEDrHkuIgHkjWhDRVsGOIJWZpSs+QdduilWFe5d+/ZhOheLJbaTYD5w6+ZZ3yPh1tNud+jlg+GyiOSVapLEO31swDCIarL1UfRjRSpxxDCHGag5Zu+S4hF+KURxO3cJk8jLBELMQyRuMRHoKrw/wsiLGVu1YpAyAPPMcjFBNbk=
 r2.example.com.	3600	IN	RRSIG	AAAA 8 3 10200 20170612005010 20170515005010 42393 nlnetlabs.nl. NhEDrHkuIgHkjWhDRVsGOIJWZpSs+QdduilWFe5d+/ZhOheLJbaTYD5w6+ZZ3yPh1tNud+jlg+GyiOSVapLEO31swDCIarL1UfRjRSpxxDCHGag5Zu+S4hF+KURxO3cJk8jLBELMQyRuMRHoKrw/wsiLGVu1YpAyAPPMcjFBNbk=
 r2.example.com.	3600	IN	RRSIG	A 8 3 10200 20170612005010 20170515005010 42393 nlnetlabs.nl. NhEDrHkuIgHkjWhDRVsGOIJWZpSs+QdduilWFe5d+/ZhOheLJbaTYD5w6+ZZ3yPh1tNud+jlg+GyiOSVapLEO31swDCIarL1UfRjRSpxxDCHGag5Zu+S4hF+KURxO3cJk8jLBELMQyRuMRHoKrw/wsiLGVu1YpAyAPPMcjFBNbk=

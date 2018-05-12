@@ -231,7 +231,10 @@ dnskey_algo_id_is_supported(int id)
 #ifdef USE_ED25519
 	case LDNS_ED25519:
 #endif
-#if (defined(HAVE_EVP_SHA256) && defined(USE_SHA2)) || (defined(HAVE_EVP_SHA512) && defined(USE_SHA2)) || defined(USE_ECDSA)
+#ifdef USE_ED448
+	case LDNS_ED448:
+#endif
+#if (defined(HAVE_EVP_SHA256) && defined(USE_SHA2)) || (defined(HAVE_EVP_SHA512) && defined(USE_SHA2)) || defined(USE_ECDSA) || defined(USE_ED25519) || defined(USE_ED448)
 		return 1;
 #endif
 
@@ -569,6 +572,17 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 			*digest_type = NULL;
 			break;
 #endif /* USE_ED25519 */
+#ifdef USE_ED448
+		case LDNS_ED448:
+			*evp_key = sldns_ed4482pkey_raw(key, keylen);
+			if(!*evp_key) {
+				verbose(VERB_QUERY, "verify: "
+					"sldns_ed4482pkey_raw failed");
+				return 0;
+			}
+			*digest_type = NULL;
+			break;
+#endif /* USE_ED448 */
 		default:
 			verbose(VERB_QUERY, "verify: unknown algorithm %d", 
 				algo);

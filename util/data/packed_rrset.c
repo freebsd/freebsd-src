@@ -253,6 +253,7 @@ sec_status_to_string(enum sec_status s)
 	case sec_status_bogus: 		return "sec_status_bogus";
 	case sec_status_indeterminate: 	return "sec_status_indeterminate";
 	case sec_status_insecure: 	return "sec_status_insecure";
+	case sec_status_secure_sentinel_fail: 	return "sec_status_secure_sentinel_fail";
 	case sec_status_secure: 	return "sec_status_secure";
 	}
 	return "unknown_sec_status_value";

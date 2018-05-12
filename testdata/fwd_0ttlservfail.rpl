@@ -1,0 +1,85 @@
+; This is a comment.
+; config options go here.
+server:
+	serve-expired: yes
+forward-zone: name: "." forward-addr: 216.0.0.1
+CONFIG_END
+
+SCENARIO_BEGIN Zero ttl answer needs to override servfail in cache.
+RANGE_BEGIN 0 100
+	ENTRY_BEGIN
+	MATCH opcode qtype qname
+	ADJUST copy_id
+	REPLY QR RD RA SERVFAIL
+	SECTION QUESTION
+www.example.com. IN A
+	SECTION ANSWER
+	ENTRY_END
+RANGE_END
+RANGE_BEGIN 200 300
+	ENTRY_BEGIN
+	MATCH opcode qtype qname
+	ADJUST copy_id
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+www.example.com. IN A
+	SECTION ANSWER
+www.example.com. 0 IN A 10.20.30.40
+	ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+ENTRY_END
+
+; enough to pass by the TTL of the servfail answer in cache
+STEP 50 TIME_PASSES ELAPSE 40
+
+; this query triggers a prefetch
+STEP 210 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+STEP 220 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+ENTRY_END
+
+; this query gets the 0ttl answer
+STEP 230 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+STEP 240 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. 0 IN A 10.20.30.40
+ENTRY_END
+
+SCENARIO_END

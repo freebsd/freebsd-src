@@ -454,8 +454,9 @@ int tube_setup_bg_write(struct tube* tube, struct comm_base* base)
 
 int tube_queue_item(struct tube* tube, uint8_t* msg, size_t len)
 {
-	struct tube_res_list* item = 
-		(struct tube_res_list*)malloc(sizeof(*item));
+	struct tube_res_list* item;
+	if(!tube || !tube->res_com) return 0;
+	item = (struct tube_res_list*)malloc(sizeof(*item));
 	if(!item) {
 		free(msg);
 		log_err("out of memory for async answer");
@@ -687,8 +688,9 @@ int tube_setup_bg_write(struct tube* ATTR_UNUSED(tube),
 
 int tube_queue_item(struct tube* tube, uint8_t* msg, size_t len)
 {
-	struct tube_res_list* item = 
-		(struct tube_res_list*)malloc(sizeof(*item));
+	struct tube_res_list* item;
+	if(!tube) return 0;
+	item = (struct tube_res_list*)malloc(sizeof(*item));
 	verbose(VERB_ALGO, "tube queue_item len %d", (int)len);
 	if(!item) {
 		free(msg);

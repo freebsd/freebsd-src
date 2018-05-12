@@ -106,7 +106,7 @@ config_create(void)
 	cfg->outgoing_tcp_mss = 0;
 	cfg->ssl_service_key = NULL;
 	cfg->ssl_service_pem = NULL;
-	cfg->ssl_port = 853;
+	cfg->ssl_port = UNBOUND_DNS_OVER_TLS_PORT;
 	cfg->ssl_upstream = 0;
 	cfg->tls_cert_bundle = NULL;
 	cfg->use_syslog = 1;
@@ -161,6 +161,8 @@ config_create(void)
 	if(!(cfg->logfile = strdup(""))) goto error_exit;
 	if(!(cfg->pidfile = strdup(PIDFILE))) goto error_exit;
 	if(!(cfg->target_fetch_policy = strdup("3 2 1 0 0"))) goto error_exit;
+	cfg->low_rtt_pct = 0;
+	cfg->low_rtt = 45;
 	cfg->donotqueryaddrs = NULL;
 	cfg->donotquery_localhost = 1;
 	cfg->root_hints = NULL;
@@ -211,6 +213,7 @@ config_create(void)
 	cfg->trust_anchor_list = NULL;
 	cfg->trusted_keys_file_list = NULL;
 	cfg->trust_anchor_signaling = 1;
+	cfg->root_key_sentinel = 1;
 	cfg->dlv_anchor_file = NULL;
 	cfg->dlv_anchor_list = NULL;
 	cfg->domain_insecure = NULL;
@@ -386,6 +389,12 @@ struct config_file* config_create_forlib(void)
 int config_set_option(struct config_file* cfg, const char* opt,
 	const char* val)
 {
+	char buf[64];
+	if(!opt) return 0;
+	if(opt[strlen(opt)-1] != ':' && strlen(opt)+2<sizeof(buf)) {
+		snprintf(buf, sizeof(buf), "%s:", opt);
+		opt = buf;
+	}
 	S_NUMBER_OR_ZERO("verbosity:", verbosity)
 	else if(strcmp(opt, "statistics-interval:") == 0) {
 		if(strcmp(val, "0") == 0 || strcmp(val, "") == 0)
@@ -446,6 +455,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_STR("ssl-service-pem:", ssl_service_pem)
 	else S_NUMBER_NONZERO("ssl-port:", ssl_port)
 	else S_STR("tls-cert-bundle:", tls_cert_bundle)
+	else S_STRLIST("additional-tls-port:", additional_tls_port)
 	else S_YNO("interface-automatic:", if_automatic)
 	else S_YNO("use-systemd:", use_systemd)
 	else S_YNO("do-daemonize:", do_daemonize)
@@ -500,7 +510,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_YNO("harden-below-nxdomain:", harden_below_nxdomain)
 	else S_YNO("harden-referral-path:", harden_referral_path)
 	else S_YNO("harden-algo-downgrade:", harden_algo_downgrade)
-	else S_YNO("use-caps-for-id", use_caps_bits_for_id)
+	else S_YNO("use-caps-for-id:", use_caps_bits_for_id)
 	else S_STRLIST("caps-whitelist:", caps_whitelist)
 	else S_SIZET_OR_ZERO("unwanted-reply-threshold:", unwanted_threshold)
 	else S_STRLIST("private-address:", private_address)
@@ -512,6 +522,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_STRLIST("trust-anchor:", trust_anchor_list)
 	else S_STRLIST("trusted-keys-file:", trusted_keys_file_list)
 	else S_YNO("trust-anchor-signaling:", trust_anchor_signaling)
+	else S_YNO("root-key-sentinel:", root_key_sentinel)
 	else S_STR("dlv-anchor-file:", dlv_anchor_file)
 	else S_STRLIST("dlv-anchor:", dlv_anchor_list)
 	else S_STRLIST("domain-insecure:", domain_insecure)
@@ -606,6 +617,8 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_POW2("ratelimit-slabs:", ratelimit_slabs)
 	else S_NUMBER_OR_ZERO("ip-ratelimit-factor:", ip_ratelimit_factor)
 	else S_NUMBER_OR_ZERO("ratelimit-factor:", ratelimit_factor)
+	else S_NUMBER_OR_ZERO("low-rtt:", low_rtt)
+	else S_NUMBER_OR_ZERO("low-rtt-pct:", low_rtt_pct)
 	else S_YNO("qname-minimisation:", qname_minimisation)
 	else S_YNO("qname-minimisation-strict:", qname_minimisation_strict)
 #ifdef USE_IPSECMOD
@@ -800,8 +813,13 @@ int
 config_get_option(struct config_file* cfg, const char* opt, 
 	void (*func)(char*,void*), void* arg)
 {
-	char buf[1024];
+	char buf[1024], nopt[64];
 	size_t len = sizeof(buf);
+	if(opt && opt[strlen(opt)-1] == ':' && strlen(opt)<sizeof(nopt)) {
+		memmove(nopt, opt, strlen(opt));
+		nopt[strlen(opt)-1] = 0;
+		opt = nopt;
+	}
 	fptr_ok(fptr_whitelist_print_func(func));
 	O_DEC(opt, "verbosity", verbosity)
 	else O_DEC(opt, "statistics-interval", stat_interval)
@@ -856,6 +874,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_STR(opt, "ssl-service-pem", ssl_service_pem)
 	else O_DEC(opt, "ssl-port", ssl_port)
 	else O_STR(opt, "tls-cert-bundle", tls_cert_bundle)
+	else O_LST(opt, "additional-tls-port", additional_tls_port)
 	else O_YNO(opt, "use-systemd", use_systemd)
 	else O_YNO(opt, "do-daemonize", do_daemonize)
 	else O_STR(opt, "chroot", chrootdir)
@@ -888,7 +907,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "val-clean-additional", val_clean_additional)
 	else O_DEC(opt, "val-log-level", val_log_level)
 	else O_YNO(opt, "val-permissive-mode", val_permissive_mode)
-	else O_YNO(opt, "aggressive-nsec:", aggressive_nsec)
+	else O_YNO(opt, "aggressive-nsec", aggressive_nsec)
 	else O_YNO(opt, "ignore-cd-flag", ignore_cd)
 	else O_YNO(opt, "serve-expired", serve_expired)
 	else O_STR(opt, "val-nsec3-keysize-iterations",val_nsec3_key_iterations)
@@ -915,6 +934,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_LST(opt, "trust-anchor", trust_anchor_list)
 	else O_LST(opt, "trusted-keys-file", trusted_keys_file_list)
 	else O_YNO(opt, "trust-anchor-signaling", trust_anchor_signaling)
+	else O_YNO(opt, "root-key-sentinel", root_key_sentinel)
 	else O_LST(opt, "dlv-anchor", dlv_anchor_list)
 	else O_LST(opt, "control-interface", control_ifs)
 	else O_LST(opt, "domain-insecure", domain_insecure)
@@ -980,6 +1000,8 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_LS2(opt, "ratelimit-below-domain", ratelimit_below_domain)
 	else O_DEC(opt, "ip-ratelimit-factor", ip_ratelimit_factor)
 	else O_DEC(opt, "ratelimit-factor", ratelimit_factor)
+	else O_DEC(opt, "low-rtt", low_rtt)
+	else O_DEC(opt, "low-rtt-pct", low_rtt_pct)
 	else O_DEC(opt, "val-sig-skew-min", val_sig_skew_min)
 	else O_DEC(opt, "val-sig-skew-max", val_sig_skew_max)
 	else O_YNO(opt, "qname-minimisation", qname_minimisation)
@@ -1178,6 +1200,7 @@ config_delauth(struct config_auth* p)
 	free(p->name);
 	config_delstrlist(p->masters);
 	config_delstrlist(p->urls);
+	config_delstrlist(p->allow_notify);
 	free(p->zonefile);
 	free(p);
 }
@@ -1274,6 +1297,7 @@ config_delete(struct config_file* cfg)
 	free(cfg->ssl_service_key);
 	free(cfg->ssl_service_pem);
 	free(cfg->tls_cert_bundle);
+	config_delstrlist(cfg->additional_tls_port);
 	free(cfg->log_identity);
 	config_del_strarray(cfg->ifs, cfg->num_ifs);
 	config_del_strarray(cfg->out_ifs, cfg->num_out_ifs);

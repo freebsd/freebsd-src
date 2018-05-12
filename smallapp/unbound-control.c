@@ -142,6 +142,7 @@ usage(void)
 	printf("  ratelimit_list [+a]		list ratelimited domains\n");
 	printf("  ip_ratelimit_list [+a]	list ratelimited ip addresses\n");
 	printf("		+a		list all, also not ratelimited\n");
+	printf("  list_auth_zones		list auth zones\n");
 	printf("  view_list_local_zones	view	list local-zones in view\n");
 	printf("  view_list_local_data	view	list local-data RRs in view\n");
 	printf("  view_local_zone view name type  	add local-zone in view\n");
@@ -349,6 +350,8 @@ static void print_extended(struct ub_stats_info* s)
 	PR_UL("num.answer.secure", s->svr.ans_secure);
 	PR_UL("num.answer.bogus", s->svr.ans_bogus);
 	PR_UL("num.rrset.bogus", s->svr.rrset_bogus);
+	PR_UL("num.query.aggressive.NOERROR", s->svr.num_neg_cache_noerror);
+	PR_UL("num.query.aggressive.NXDOMAIN", s->svr.num_neg_cache_nxdomain);
 	/* threat detection */
 	PR_UL("unwanted.queries", s->svr.unwanted_queries);
 	PR_UL("unwanted.replies", s->svr.unwanted_replies);
@@ -366,6 +369,8 @@ static void print_extended(struct ub_stats_info* s)
 	PR_UL("num.query.dnscrypt.replay",
 			 s->svr.num_query_dnscrypt_replay);
 #endif /* USE_DNSCRYPT */
+	PR_UL("num.query.authzone.up", s->svr.num_query_authzone_up);
+	PR_UL("num.query.authzone.down", s->svr.num_query_authzone_down);
 }
 
 /** print statistics out of memory structures */
@@ -476,10 +481,15 @@ setup_ctx(struct config_file* cfg)
 		free(c_cert);
 	} else {
 		/* Use ciphers that don't require authentication  */
+#if defined(SSL_OP_NO_TLSv1_3)
+		/* in openssl 1.1.1, negotiation code for tls 1.3 does
+		 * not allow the unauthenticated aNULL and eNULL ciphers */
+		SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_3);
+#endif
 #ifdef HAVE_SSL_CTX_SET_SECURITY_LEVEL
 		SSL_CTX_set_security_level(ctx, 0);
 #endif
-		if(!SSL_CTX_set_cipher_list(ctx, "aNULL, eNULL"))
+		if(!SSL_CTX_set_cipher_list(ctx, "aNULL:eNULL"))
 			ssl_err("Error setting NULL cipher!");
 	}
 	return ctx;

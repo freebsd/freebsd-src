@@ -63,6 +63,8 @@ struct query_info;
  * @param zone: delegation point name.
  * @param zonelen: length of zone name wireformat dname.
  * @param ssl_upstream: use SSL for upstream queries.
+ * @param tls_auth_name: if ssl_upstream, use this name with TLS
+ * 	authentication.
  * @param q: wich query state to reactivate upon return.
  * @return: false on failure (memory or socket related). no query was
  *      sent.
@@ -70,7 +72,8 @@ struct query_info;
 struct outbound_entry* libworker_send_query(struct query_info* qinfo,
 	uint16_t flags, int dnssec, int want_dnssec, int nocaps,
 	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
-	size_t zonelen, int ssl_upstream, struct module_qstate* q);
+	size_t zonelen, int ssl_upstream, char* tls_auth_name,
+	struct module_qstate* q);
 
 /** process incoming replies from the network */
 int libworker_handle_reply(struct comm_point* c, void* arg, int error,
@@ -115,6 +118,8 @@ void worker_sighandler(int sig, void* arg);
  * @param zone: wireformat dname of the zone.
  * @param zonelen: length of zone name.
  * @param ssl_upstream: use SSL for upstream queries.
+ * @param tls_auth_name: if ssl_upstream, use this name with TLS
+ * 	authentication.
  * @param q: wich query state to reactivate upon return.
  * @return: false on failure (memory or socket related). no query was
  *      sent.
@@ -122,7 +127,8 @@ void worker_sighandler(int sig, void* arg);
 struct outbound_entry* worker_send_query(struct query_info* qinfo,
 	uint16_t flags, int dnssec, int want_dnssec, int nocaps,
 	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
-	size_t zonelen, int ssl_upstream, struct module_qstate* q);
+	size_t zonelen, int ssl_upstream, char* tls_auth_name,
+	struct module_qstate* q);
 
 /** 
  * process control messages from the main thread. Frees the control 

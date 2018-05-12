@@ -1161,10 +1161,11 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 	struct query_info* qinfo, uint16_t flags, int dnssec,
 	int ATTR_UNUSED(want_dnssec), int ATTR_UNUSED(nocaps),
 	int ATTR_UNUSED(tcp_upstream), int ATTR_UNUSED(ssl_upstream),
-	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
-	size_t zonelen, struct module_qstate* qstate,
-	comm_point_callback_type* callback, void* callback_arg,
-	sldns_buffer* ATTR_UNUSED(buff), struct module_env* ATTR_UNUSED(env))
+	char* ATTR_UNUSED(tls_auth_name), struct sockaddr_storage* addr,
+	socklen_t addrlen, uint8_t* zone, size_t zonelen,
+	struct module_qstate* qstate, comm_point_callback_type* callback,
+	void* callback_arg, sldns_buffer* ATTR_UNUSED(buff),
+	struct module_env* ATTR_UNUSED(env))
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)outnet->base;
 	struct fake_pending* pend = (struct fake_pending*)calloc(1,
