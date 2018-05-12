@@ -859,7 +859,7 @@ fi
 #
 # Show the user what's being watched
 #
-[ "$DEBUG$QUIET$EXIT_AFTER_COMPILE" ] || info "Watching '$PROBE' ..."
+[ "$DEBUG$EXIT_AFTER_COMPILE" ] || info "Watching '$PROBE' ..."
 
 #
 # Header for watched probe entry
