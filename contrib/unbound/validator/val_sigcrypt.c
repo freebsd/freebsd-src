@@ -1225,13 +1225,51 @@ sigdate_error(const char* str, int32_t expi, int32_t incep, int32_t now)
 			(unsigned)incep, (unsigned)now);
 }
 
+/** RFC 1918 comparison, uses unsigned integers, and tries to avoid
+ * compiler optimization (eg. by avoiding a-b<0 comparisons),
+ * this routine matches compare_serial(), for SOA serial number checks */
+static int
+compare_1918(uint32_t a, uint32_t b)
+{
+	/* for 32 bit values */
+        const uint32_t cutoff = ((uint32_t) 1 << (32 - 1));
+
+        if (a == b) {
+                return 0;
+        } else if ((a < b && b - a < cutoff) || (a > b && a - b > cutoff)) {
+                return -1;
+        } else {
+                return 1;
+        }
+}
+
+/** if we know that b is larger than a, return the difference between them,
+ * that is the distance between them. in RFC1918 arith */
+static uint32_t
+subtract_1918(uint32_t a, uint32_t b)
+{
+	/* for 32 bit values */
+        const uint32_t cutoff = ((uint32_t) 1 << (32 - 1));
+
+	if(a == b)
+		return 0;
+	if(a < b && b - a < cutoff) {
+		return b-a;
+	}
+	if(a > b && a - b > cutoff) {
+		return ((uint32_t)0xffffffff) - (a-b-1);
+	}
+	/* wrong case, b smaller than a */
+	return 0;
+}
+
 /** check rrsig dates */
 static int
 check_dates(struct val_env* ve, uint32_t unow,
 	uint8_t* expi_p, uint8_t* incep_p, char** reason)
 {
 	/* read out the dates */
-	int32_t expi, incep, now;
+	uint32_t expi, incep, now;
 	memmove(&expi, expi_p, sizeof(expi));
 	memmove(&incep, incep_p, sizeof(incep));
 	expi = ntohl(expi);
@@ -1245,21 +1283,21 @@ check_dates(struct val_env* ve, uint32_t unow,
 		}
 		now = ve->date_override;
 		verbose(VERB_ALGO, "date override option %d", (int)now); 
-	} else	now = (int32_t)unow;
+	} else	now = unow;
 
 	/* check them */
-	if(incep - expi > 0) {
+	if(compare_1918(incep, expi) > 0) {
 		sigdate_error("verify: inception after expiration, "
 			"signature bad", expi, incep, now);
 		*reason = "signature inception after expiration";
 		return 0;
 	}
-	if(incep - now > 0) {
+	if(compare_1918(incep, now) > 0) {
 		/* within skew ? (calc here to avoid calculation normally) */
-		int32_t skew = (expi-incep)/10;
-		if(skew < ve->skew_min) skew = ve->skew_min;
-		if(skew > ve->skew_max) skew = ve->skew_max;
-		if(incep - now > skew) {
+		uint32_t skew = subtract_1918(incep, expi)/10;
+		if(skew < (uint32_t)ve->skew_min) skew = ve->skew_min;
+		if(skew > (uint32_t)ve->skew_max) skew = ve->skew_max;
+		if(subtract_1918(now, incep) > skew) {
 			sigdate_error("verify: signature bad, current time is"
 				" before inception date", expi, incep, now);
 			*reason = "signature before inception date";
@@ -1268,11 +1306,11 @@ check_dates(struct val_env* ve, uint32_t unow,
 		sigdate_error("verify warning suspicious signature inception "
 			" or bad local clock", expi, incep, now);
 	}
-	if(now - expi > 0) {
-		int32_t skew = (expi-incep)/10;
-		if(skew < ve->skew_min) skew = ve->skew_min;
-		if(skew > ve->skew_max) skew = ve->skew_max;
-		if(now - expi > skew) {
+	if(compare_1918(now, expi) > 0) {
+		uint32_t skew = subtract_1918(incep, expi)/10;
+		if(skew < (uint32_t)ve->skew_min) skew = ve->skew_min;
+		if(skew > (uint32_t)ve->skew_max) skew = ve->skew_max;
+		if(subtract_1918(expi, now) > skew) {
 			sigdate_error("verify: signature expired", expi, 
 				incep, now);
 			*reason = "signature expired";

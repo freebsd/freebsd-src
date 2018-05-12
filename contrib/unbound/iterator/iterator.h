@@ -387,6 +387,11 @@ struct iter_qstate {
 	 * Count number of time-outs. Used to prevent resolving failures when
 	 * the QNAME minimisation QTYPE is blocked. */
 	int minimise_timeout_count;
+
+	/** True if the current response is from auth_zone */
+	int auth_zone_response;
+	/** True if the auth_zones should not be consulted for the query */
+	int auth_zone_avoid;
 };
 
 /**

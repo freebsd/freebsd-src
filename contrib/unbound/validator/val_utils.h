@@ -271,6 +271,7 @@ int val_dsset_isusable(struct ub_packed_rrset_key* ds_rrset);
  * @param wc: the wildcard name, if the rrset was synthesized from a wildcard.
  *         unchanged if not.  The wildcard name, without "*." in front, is 
  *         returned. This is a pointer into the rrset owner name.
+ * @param wc_len: the length of the returned wildcard name.
  * @return false if the signatures are inconsistent in indicating the 
  * 	wildcard status; possible spoofing of wildcard response for other
  * 	responses is being tried. We lost the status which rrsig was verified
@@ -279,7 +280,8 @@ int val_dsset_isusable(struct ub_packed_rrset_key* ds_rrset);
  * 	of service; but in that you could also have removed the real 
  * 	signature anyway.
  */
-int val_rrset_wildcard(struct ub_packed_rrset_key* rrset, uint8_t** wc);
+int val_rrset_wildcard(struct ub_packed_rrset_key* rrset, uint8_t** wc,
+	size_t* wc_len);
 
 /**
  * Chase the cname to the next query name.

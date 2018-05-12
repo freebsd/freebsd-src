@@ -554,6 +554,12 @@ int sldns_str2wire_hip_buf(const char* str, uint8_t* rd, size_t* len);
  */
 int sldns_str2wire_int16_data_buf(const char* str, uint8_t* rd, size_t* len);
 
+/**
+ * Strip whitespace from the start and the end of line.
+ * @param line: modified with 0 to shorten it.
+ * @return new start with spaces skipped.
+ */
+char * sldns_strip_ws(char *line);
 #ifdef __cplusplus
 }
 #endif

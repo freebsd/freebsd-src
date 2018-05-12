@@ -47,6 +47,7 @@
 #include "services/localzone.h"
 #include "services/cache/rrset.h"
 #include "services/cache/infra.h"
+#include "services/authzone.h"
 #include "util/data/msgreply.h"
 #include "util/storage/slabhash.h"
 #include "sldns/sbuffer.h"
@@ -67,6 +68,8 @@ context_finalize(struct ub_ctx* ctx)
 	if(!ctx->local_zones)
 		return UB_NOMEM;
 	if(!local_zones_apply_cfg(ctx->local_zones, cfg))
+		return UB_INITFAIL;
+	if(!auth_zones_apply_cfg(ctx->env->auth_zones, cfg, 1))
 		return UB_INITFAIL;
 	if(!ctx->env->msg_cache ||
 	   cfg->msg_cache_size != slabhash_get_size(ctx->env->msg_cache) || 

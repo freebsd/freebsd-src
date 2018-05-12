@@ -47,6 +47,7 @@
 #include "util/data/msgreply.h"
 #include "util/regional.h"
 #include "util/alloc.h"
+#include "util/net_help.h"
 
 void
 rrset_markdel(void* key)
@@ -235,6 +236,37 @@ rrset_cache_update(struct rrset_cache* r, struct rrset_ref* ref,
 		return 1;
 	}
 	return 0;
+}
+
+void rrset_cache_update_wildcard(struct rrset_cache* rrset_cache, 
+	struct ub_packed_rrset_key* rrset, uint8_t* ce, size_t ce_len,
+	struct alloc_cache* alloc, time_t timenow)
+{
+	struct rrset_ref ref;
+	uint8_t wc_dname[LDNS_MAX_DOMAINLEN+3];
+	rrset = packed_rrset_copy_alloc(rrset, alloc, timenow);
+	if(!rrset) {
+		log_err("malloc failure in rrset_cache_update_wildcard");
+		return;
+	}
+	/* ce has at least one label less then qname, we can therefore safely
+	 * add the wildcard label. */
+	wc_dname[0] = 1;
+	wc_dname[1] = (uint8_t)'*';
+	memmove(wc_dname+2, ce, ce_len);
+
+	rrset->rk.dname_len = ce_len + 2;
+	rrset->rk.dname = (uint8_t*)memdup(wc_dname, rrset->rk.dname_len);
+	if(!rrset->rk.dname) {
+		log_err("memdup failure in rrset_cache_update_wildcard");
+		return;
+	}
+
+	rrset->entry.hash = rrset_key_hash(&rrset->rk);
+	ref.key = rrset;
+	ref.id = rrset->id;
+	/* ignore ret: if it was in the cache, ref updated */
+	(void)rrset_cache_update(rrset_cache, &ref, alloc, timenow);
 }
 
 struct ub_packed_rrset_key* 

@@ -15,7 +15,6 @@
 #endif
 
 #include <ctype.h>
-#include <string.h>
 #include <strings.h>
 #ifdef HAVE_GLOB_H
 # include <glob.h>
@@ -231,9 +230,15 @@ tcp-upstream{COLON}		{ YDVAR(1, VAR_TCP_UPSTREAM) }
 tcp-mss{COLON}			{ YDVAR(1, VAR_TCP_MSS) }
 outgoing-tcp-mss{COLON}		{ YDVAR(1, VAR_OUTGOING_TCP_MSS) }
 ssl-upstream{COLON}		{ YDVAR(1, VAR_SSL_UPSTREAM) }
+tls-upstream{COLON}		{ YDVAR(1, VAR_SSL_UPSTREAM) }
 ssl-service-key{COLON}		{ YDVAR(1, VAR_SSL_SERVICE_KEY) }
+tls-service-key{COLON}		{ YDVAR(1, VAR_SSL_SERVICE_KEY) }
 ssl-service-pem{COLON}		{ YDVAR(1, VAR_SSL_SERVICE_PEM) }
+tls-service-pem{COLON}		{ YDVAR(1, VAR_SSL_SERVICE_PEM) }
 ssl-port{COLON}			{ YDVAR(1, VAR_SSL_PORT) }
+tls-port{COLON}			{ YDVAR(1, VAR_SSL_PORT) }
+ssl-cert-bundle{COLON}		{ YDVAR(1, VAR_TLS_CERT_BUNDLE) }
+tls-cert-bundle{COLON}		{ YDVAR(1, VAR_TLS_CERT_BUNDLE) }
 use-systemd{COLON}		{ YDVAR(1, VAR_USE_SYSTEMD) }
 do-daemonize{COLON}		{ YDVAR(1, VAR_DO_DAEMONIZE) }
 interface{COLON}		{ YDVAR(1, VAR_INTERFACE) }
@@ -291,11 +296,20 @@ stub-host{COLON}		{ YDVAR(1, VAR_STUB_HOST) }
 stub-prime{COLON}		{ YDVAR(1, VAR_STUB_PRIME) }
 stub-first{COLON}		{ YDVAR(1, VAR_STUB_FIRST) }
 stub-ssl-upstream{COLON}	{ YDVAR(1, VAR_STUB_SSL_UPSTREAM) }
+stub-tls-upstream{COLON}	{ YDVAR(1, VAR_STUB_SSL_UPSTREAM) }
 forward-zone{COLON}		{ YDVAR(0, VAR_FORWARD_ZONE) }
 forward-addr{COLON}		{ YDVAR(1, VAR_FORWARD_ADDR) }
 forward-host{COLON}		{ YDVAR(1, VAR_FORWARD_HOST) }
 forward-first{COLON}		{ YDVAR(1, VAR_FORWARD_FIRST) }
 forward-ssl-upstream{COLON}	{ YDVAR(1, VAR_FORWARD_SSL_UPSTREAM) }
+forward-tls-upstream{COLON}	{ YDVAR(1, VAR_FORWARD_SSL_UPSTREAM) }
+auth-zone{COLON}		{ YDVAR(0, VAR_AUTH_ZONE) }
+zonefile{COLON}			{ YDVAR(1, VAR_ZONEFILE) }
+master{COLON}			{ YDVAR(1, VAR_MASTER) }
+url{COLON}			{ YDVAR(1, VAR_URL) }
+for-downstream{COLON}		{ YDVAR(1, VAR_FOR_DOWNSTREAM) }
+for-upstream{COLON}		{ YDVAR(1, VAR_FOR_UPSTREAM) }
+fallback-enabled{COLON}		{ YDVAR(1, VAR_FALLBACK_ENABLED) }
 view{COLON}			{ YDVAR(0, VAR_VIEW) }
 view-first{COLON}		{ YDVAR(1, VAR_VIEW_FIRST) }
 do-not-query-address{COLON}	{ YDVAR(1, VAR_DO_NOT_QUERY_ADDRESS) }
@@ -326,6 +340,7 @@ val-sig-skew-max{COLON}		{ YDVAR(1, VAR_VAL_SIG_SKEW_MAX) }
 val-bogus-ttl{COLON}		{ YDVAR(1, VAR_BOGUS_TTL) }
 val-clean-additional{COLON}	{ YDVAR(1, VAR_VAL_CLEAN_ADDITIONAL) }
 val-permissive-mode{COLON}	{ YDVAR(1, VAR_VAL_PERMISSIVE_MODE) }
+aggressive-nsec{COLON}		{ YDVAR(1, VAR_AGGRESSIVE_NSEC) }
 ignore-cd-flag{COLON}		{ YDVAR(1, VAR_IGNORE_CD_FLAG) }
 serve-expired{COLON}		{ YDVAR(1, VAR_SERVE_EXPIRED) }
 fake-dsa{COLON}			{ YDVAR(1, VAR_FAKE_DSA) }
@@ -418,6 +433,7 @@ dnscrypt-port{COLON}		{ YDVAR(1, VAR_DNSCRYPT_PORT) }
 dnscrypt-provider{COLON}	{ YDVAR(1, VAR_DNSCRYPT_PROVIDER) }
 dnscrypt-secret-key{COLON}	{ YDVAR(1, VAR_DNSCRYPT_SECRET_KEY) }
 dnscrypt-provider-cert{COLON}	{ YDVAR(1, VAR_DNSCRYPT_PROVIDER_CERT) }
+dnscrypt-provider-cert-rotated{COLON}	{ YDVAR(1, VAR_DNSCRYPT_PROVIDER_CERT_ROTATED) }
 dnscrypt-shared-secret-cache-size{COLON}	{
 		YDVAR(1, VAR_DNSCRYPT_SHARED_SECRET_CACHE_SIZE) }
 dnscrypt-shared-secret-cache-slabs{COLON}	{

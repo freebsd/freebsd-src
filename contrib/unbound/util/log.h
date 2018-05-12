@@ -127,6 +127,9 @@ void log_set_time(time_t* t);
  */
 void log_set_time_asc(int use_asc);
 
+/** get log lock */
+void* log_get_lock(void);
+
 /**
  * Log informational message.
  * Pass printf formatted arguments. No trailing newline is needed.
@@ -186,11 +189,17 @@ void log_vmsg(int pri, const char* type, const char* format, va_list args);
  * an assertion that is thrown to the logfile.
  */
 #ifdef UNBOUND_DEBUG
+#ifdef __clang_analyzer__
+/* clang analyzer needs to know that log_assert is an assertion, otherwise
+ * it could complain about the nullptr the assert is guarding against. */
+#define log_assert(x) assert(x)
+#else
 #  define log_assert(x) \
 	do { if(!(x)) \
 		fatal_exit("%s:%d: %s: assertion %s failed", \
 			__FILE__, __LINE__, __func__, #x); \
 	} while(0);
+#endif
 #else
 #  define log_assert(x) /*nothing*/
 #endif

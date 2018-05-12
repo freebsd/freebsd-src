@@ -134,6 +134,24 @@ int rrset_cache_update(struct rrset_cache* r, struct rrset_ref* ref,
 	struct alloc_cache* alloc, time_t timenow);
 
 /**
+ * Update or add an rrset in the rrset cache using a wildcard dname.
+ * Generates wildcard dname by prepending the wildcard label to the closest
+ * encloser. Will lookup if the rrset is in the cache and perform an update if
+ * necessary.
+ *
+ * @param rrset_cache: the rrset cache.
+ * @param rrset: which rrset to cache as wildcard. This rrset is left 
+ * 	untouched.
+ * @param ce: the closest encloser, will be uses to generate the wildcard dname.
+ * @param ce_len: the closest encloser lenght.
+ * @param alloc: how to allocate (and deallocate) the special rrset key.
+ * @param timenow: current time (to see if ttl in cache is expired).
+ */
+void rrset_cache_update_wildcard(struct rrset_cache* rrset_cache, 
+	struct ub_packed_rrset_key* rrset, uint8_t* ce, size_t ce_len,
+	struct alloc_cache* alloc, time_t timenow);
+
+/**
  * Lookup rrset. You obtain read/write lock. You must unlock before lookup
  * anything of else.
  * @param r: the rrset cache.

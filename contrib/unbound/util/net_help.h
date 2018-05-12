@@ -202,6 +202,15 @@ int netblockstrtoaddr(const char* ip, int port, struct sockaddr_storage* addr,
 	socklen_t* addrlen, int* net);
 
 /**
+ * Store port number into sockaddr structure
+ * @param addr: sockaddr structure, ip4 or ip6.
+ * @param addrlen: length of addr.
+ * @param port: port number to put into the addr.
+ */
+void sockaddr_store_port(struct sockaddr_storage* addr, socklen_t addrlen,
+	int port);
+
+/**
  * Print string with neat domain name, type and class.
  * @param v: at what verbosity level to print this.
  * @param str: string of message.
