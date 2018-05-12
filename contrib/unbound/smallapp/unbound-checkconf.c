@@ -80,7 +80,7 @@
 static void
 usage(void)
 {
-	printf("Usage:	unbound-checkconf [file]\n");
+	printf("Usage:	local-unbound-checkconf [file]\n");
 	printf("	Checks unbound configuration file for errors.\n");
 	printf("file	if omitted %s is used.\n", CONFIGFILE);
 	printf("-o option	print value of option to stdout.\n");
