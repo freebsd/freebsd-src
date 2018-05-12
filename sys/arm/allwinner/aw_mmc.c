@@ -115,6 +115,7 @@ struct aw_mmc_softc {
 	uint32_t		aw_intr_wait;
 	void *			aw_intrhand;
 	int32_t			aw_vdd;
+	int32_t			aw_vccq;
 	regulator_t		aw_reg_vmmc;
 	regulator_t		aw_reg_vqmmc;
 	unsigned int		aw_clock;
@@ -265,13 +266,11 @@ aw_mmc_attach(device_t dev)
 	    &sc->aw_reg_vmmc) == 0) {
 		if (bootverbose)
 			device_printf(dev, "vmmc-supply regulator found\n");
-		regulator_enable(sc->aw_reg_vmmc);
 	}
 	if (regulator_get_by_ofw_property(dev, 0, "vqmmc-supply",
 	    &sc->aw_reg_vqmmc) == 0 && bootverbose) {
 		if (bootverbose)
 			device_printf(dev, "vqmmc-supply regulator found\n");
-		regulator_enable(sc->aw_reg_vqmmc);
 	}
 
 	sc->aw_host.f_min = 400000;
@@ -281,7 +280,7 @@ aw_mmc_attach(device_t dev)
 			   MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50 |
 			   MMC_CAP_UHS_DDR50 | MMC_CAP_MMC_DDR52;
 
-	sc->aw_host.caps |= MMC_CAP_SIGNALING_330 /* | MMC_CAP_SIGNALING_180 */;
+	sc->aw_host.caps |= MMC_CAP_SIGNALING_330 | MMC_CAP_SIGNALING_180;
 
 	if (bus_width >= 4)
 		sc->aw_host.caps |= MMC_CAP_4_BIT_DATA;
@@ -800,6 +799,9 @@ aw_mmc_read_ivar(device_t bus, device_t child, int which,
 	case MMCBR_IVAR_VDD:
 		*(int *)result = sc->aw_host.ios.vdd;
 		break;
+	case MMCBR_IVAR_VCCQ:
+		*(int *)result = sc->aw_host.ios.vccq;
+		break;
 	case MMCBR_IVAR_CAPS:
 		*(int *)result = sc->aw_host.caps;
 		break;
@@ -847,6 +849,9 @@ aw_mmc_write_ivar(device_t bus, device_t child, int which,
 		break;
 	case MMCBR_IVAR_VDD:
 		sc->aw_host.ios.vdd = value;
+		break;
+	case MMCBR_IVAR_VCCQ:
+		sc->aw_host.ios.vccq = value;
 		break;
 	case MMCBR_IVAR_TIMING:
 		sc->aw_host.ios.timing = value;
@@ -906,36 +911,30 @@ aw_mmc_update_clock(struct aw_mmc_softc *sc, uint32_t clkon)
 }
 
 static void
-aw_mmc_set_power(struct aw_mmc_softc *sc, int32_t vdd)
+aw_mmc_set_vccq(struct aw_mmc_softc *sc, int32_t vccq)
 {
-	int min_uvolt, max_uvolt;
-
-	sc->aw_vdd = vdd;
+	int uvolt;
 
 	if (sc->aw_reg_vqmmc == NULL)
 		return;
 
-	switch (1 << vdd) {
-	case MMC_OCR_LOW_VOLTAGE:
-		min_uvolt = max_uvolt = 1800000;
+	switch (vccq) {
+	case vccq_180:
+		uvolt = 1800000;
 		break;
-	case MMC_OCR_320_330:
-		min_uvolt = 3200000;
-		max_uvolt = 3300000;
+	case vccq_330:
+		uvolt = 3300000;
 		break;
-	case MMC_OCR_330_340:
-		min_uvolt = 3300000;
-		max_uvolt = 3400000;
-		break;
+	default:
+		return;
 	}
 
-	if (sc->aw_reg_vqmmc)
-		if (regulator_set_voltage(sc->aw_reg_vqmmc,
-		    min_uvolt, max_uvolt) != 0)
-			device_printf(sc->aw_dev,
-			    "Cannot set vqmmc to %d<->%d\n",
-			    min_uvolt,
-			    max_uvolt);
+	if (regulator_set_voltage(sc->aw_reg_vqmmc,
+	    uvolt, uvolt) != 0)
+		device_printf(sc->aw_dev,
+		    "Cannot set vqmmc to %d<->%d\n",
+		    uvolt,
+		    uvolt);
 }
 
 static int
@@ -970,14 +969,30 @@ aw_mmc_update_ios(device_t bus, device_t child)
 	case power_off:
 		if (bootverbose)
 			device_printf(sc->aw_dev, "Powering down sd/mmc\n");
+
+		if (sc->aw_reg_vmmc)
+			regulator_disable(sc->aw_reg_vmmc);
+		if (sc->aw_reg_vqmmc)
+			regulator_disable(sc->aw_reg_vqmmc);
+
 		aw_mmc_reset(sc);
 		break;
 	case power_up:
 		if (bootverbose)
 			device_printf(sc->aw_dev, "Powering up sd/mmc\n");
+
+		if (sc->aw_reg_vmmc)
+			regulator_enable(sc->aw_reg_vmmc);
+		if (sc->aw_reg_vqmmc)
+			regulator_enable(sc->aw_reg_vqmmc);
 		aw_mmc_init(sc);
 		break;
 	};
+
+	if (ios->vccq != sc->aw_vccq) {
+		aw_mmc_set_vccq(sc, ios->vccq);
+		sc->aw_vccq = ios->vccq;
+	}
 
 	/* Enable ddr mode if needed */
 	reg = AW_MMC_READ_4(sc, AW_MMC_GCTL);
