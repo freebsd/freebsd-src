@@ -123,121 +123,29 @@ edns_register_option(uint16_t opt_code, int bypass_cache_stage,
 	return 1;
 }
 
-static int
-inplace_cb_reply_register_generic(inplace_cb_reply_func_type* cb,
-	enum inplace_cb_list_type type, void* cb_arg, struct module_env* env)
+int
+inplace_cb_register(void* cb, enum inplace_cb_list_type type, void* cbarg,
+	struct module_env* env, int id)
 {
-	struct inplace_cb_reply* callback;
-	struct inplace_cb_reply** prevp;
+	struct inplace_cb* callback;
+	struct inplace_cb** prevp;
 	if(env->worker) {
 		log_err("invalid edns callback registration: "
 			"trying to register callback after module init phase");
 		return 0;
 	}
 
-	callback = (struct inplace_cb_reply*)calloc(1, sizeof(*callback));
+	callback = (struct inplace_cb*)calloc(1, sizeof(*callback));
 	if(callback == NULL) {
 		log_err("out of memory during edns callback registration.");
 		return 0;
 	}
+	callback->id = id;
 	callback->next = NULL;
 	callback->cb = cb;
-    callback->cb_arg = cb_arg;
+	callback->cb_arg = cbarg;
 	
-	prevp = (struct inplace_cb_reply**) &env->inplace_cb_lists[type];
-	/* append at end of list */
-	while(*prevp != NULL)
-		prevp = &((*prevp)->next);
-	*prevp = callback;
-	return 1;
-}
-
-int
-inplace_cb_reply_register(inplace_cb_reply_func_type* cb, void* cb_arg,
-	struct module_env* env)
-{
-	return inplace_cb_reply_register_generic(cb, inplace_cb_reply, cb_arg,
-		env);
-}
-
-int
-inplace_cb_reply_cache_register(inplace_cb_reply_func_type* cb, void* cb_arg,
-	struct module_env* env)
-{
-	return inplace_cb_reply_register_generic(cb, inplace_cb_reply_cache,
-		cb_arg, env);
-}
-
-int
-inplace_cb_reply_local_register(inplace_cb_reply_func_type* cb, void* cb_arg,
-	struct module_env* env)
-{
-	return inplace_cb_reply_register_generic(cb, inplace_cb_reply_local,
-		cb_arg, env);
-}
-
-int
-inplace_cb_reply_servfail_register(inplace_cb_reply_func_type* cb, void* cb_arg,
-	struct module_env* env)
-{
-	return inplace_cb_reply_register_generic(cb, inplace_cb_reply_servfail,
-		cb_arg, env);
-}
-
-static void
-inplace_cb_reply_delete_generic(struct module_env* env,
-	enum inplace_cb_list_type type)
-{
-	struct inplace_cb_reply* curr = env->inplace_cb_lists[type];
-	struct inplace_cb_reply* tmp;
-	/* delete list */
-	while(curr) {
-		tmp = curr->next;
-		free(curr);
-		curr = tmp;
-	}
-	/* update head pointer */
-	env->inplace_cb_lists[type] = NULL;
-}
-
-void inplace_cb_reply_delete(struct module_env* env)
-{
-	inplace_cb_reply_delete_generic(env, inplace_cb_reply);
-}
-
-void inplace_cb_reply_cache_delete(struct module_env* env)
-{
-	inplace_cb_reply_delete_generic(env, inplace_cb_reply_cache);
-}
-
-void inplace_cb_reply_servfail_delete(struct module_env* env)
-{
-	inplace_cb_reply_delete_generic(env, inplace_cb_reply_servfail);
-}
-
-int
-inplace_cb_query_register(inplace_cb_query_func_type* cb, void* cb_arg,
-	struct module_env* env)
-{
-	struct inplace_cb_query* callback;
-	struct inplace_cb_query** prevp;
-	if(env->worker) {
-		log_err("invalid edns callback registration: "
-			"trying to register callback after module init phase");
-		return 0;
-	}
-
-	callback = (struct inplace_cb_query*)calloc(1, sizeof(*callback));
-	if(callback == NULL) {
-		log_err("out of memory during edns callback registration.");
-		return 0;
-	}
-	callback->next = NULL;
-	callback->cb = cb;
-    callback->cb_arg = cb_arg;
-	
-	prevp = (struct inplace_cb_query**)
-		&env->inplace_cb_lists[inplace_cb_query];
+	prevp = (struct inplace_cb**) &env->inplace_cb_lists[type];
 	/* append at end of list */
 	while(*prevp != NULL)
 		prevp = &((*prevp)->next);
@@ -246,27 +154,30 @@ inplace_cb_query_register(inplace_cb_query_func_type* cb, void* cb_arg,
 }
 
 void
-inplace_cb_query_delete(struct module_env* env)
+inplace_cb_delete(struct module_env* env, enum inplace_cb_list_type type,
+	int id)
 {
-	struct inplace_cb_query* curr = env->inplace_cb_lists[inplace_cb_query];
-	struct inplace_cb_query* tmp;
-	/* delete list */
-	while(curr) {
-		tmp = curr->next;
-		free(curr);
-		curr = tmp;
-	}
-	/* update head pointer */
-	env->inplace_cb_lists[inplace_cb_query] = NULL;
-}
+	struct inplace_cb* temp = env->inplace_cb_lists[type];
+	struct inplace_cb* prev = NULL;
 
-void
-inplace_cb_lists_delete(struct module_env* env)
-{
-    inplace_cb_reply_delete(env);
-    inplace_cb_reply_cache_delete(env);
-    inplace_cb_reply_servfail_delete(env);
-    inplace_cb_query_delete(env);
+	while(temp) {
+		if(temp->id == id) {
+			if(!prev) {
+				env->inplace_cb_lists[type] = temp->next;
+				free(temp);
+				temp = env->inplace_cb_lists[type];
+			}
+			else {
+				prev->next = temp->next;
+				free(temp);
+				temp = prev->next;
+			}
+		}
+		else {
+			prev = temp;
+			temp = temp->next;
+		}
+	}
 }
 
 struct edns_known_option*
@@ -292,9 +203,11 @@ edns_bypass_cache_stage(struct edns_option* list, struct module_env* env)
 }
 
 int
-edns_unique_mesh_state(struct edns_option* list, struct module_env* env)
+unique_mesh_state(struct edns_option* list, struct module_env* env)
 {
 	size_t i;
+	if(env->unique_mesh)
+		return 1;
 	for(; list; list=list->next)
 		for(i=0; i<env->edns_known_options_num; i++)
 			if(env->edns_known_options[i].opt_code == list->opt_code &&

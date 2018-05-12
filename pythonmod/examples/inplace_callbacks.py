@@ -46,22 +46,22 @@
 #       (unbound needs to be validating for this example to work)
 
 # Useful functions:
-#   register_inplace_cb_reply(inplace_reply_callback, env):
+#   register_inplace_cb_reply(inplace_reply_callback, env, id):
 #       Register the reply_callback function as an inplace callback function
 #       when answering with a resolved query.
 #       Return True on success, False on failure.
 #
-#   register_inplace_cb_reply_cache(inplace_reply_cache_callback, env):
+#   register_inplace_cb_reply_cache(inplace_reply_cache_callback, env, id):
 #       Register the reply_cache_callback function as an inplace callback
 #       function when answering from cache.
 #       Return True on success, False on failure.
 #
-#   register_inplace_cb_reply_local(inplace_reply_local_callback, env):
+#   register_inplace_cb_reply_local(inplace_reply_local_callback, env, id):
 #       Register the reply_local_callback function as an inplace callback
 #       function when answering from local data or chaos reply.
 #       Return True on success, False on failure.
 #
-#   register_inplace_cb_reply_servfail(inplace_reply_servfail_callback, env):
+#   register_inplace_cb_reply_servfail(inplace_reply_servfail_callback, env, id):
 #       Register the reply_servfail_callback function as an inplace callback
 #       function when answering with servfail.
 #       Return True on success, False on failure.
@@ -193,22 +193,22 @@ def init_standard(id, env):
 
     # Register the inplace_reply_callback function as an inplace callback
     # function when answering a resolved query.
-    if not register_inplace_cb_reply(inplace_reply_callback, env):
+    if not register_inplace_cb_reply(inplace_reply_callback, env, id):
         return False
 
     # Register the inplace_cache_callback function as an inplace callback
     # function when answering from cache.
-    if not register_inplace_cb_reply_cache(inplace_cache_callback, env):
+    if not register_inplace_cb_reply_cache(inplace_cache_callback, env, id):
         return False
 
     # Register the inplace_local_callback function as an inplace callback
     # function when answering from local data.
-    if not register_inplace_cb_reply_local(inplace_local_callback, env):
+    if not register_inplace_cb_reply_local(inplace_local_callback, env, id):
         return False
 
     # Register the inplace_servfail_callback function as an inplace callback
     # function when answering with SERVFAIL.
-    if not register_inplace_cb_reply_servfail(inplace_servfail_callback, env):
+    if not register_inplace_cb_reply_servfail(inplace_servfail_callback, env, id):
         return False
 
     return True

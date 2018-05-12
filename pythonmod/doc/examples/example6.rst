@@ -63,7 +63,7 @@ We can register such function as:
 
 .. code-block:: python
 
-    if not register_inplace_cb_reply(inplace_reply_callback, env):
+    if not register_inplace_cb_reply(inplace_reply_callback, env, id):
         log_info("python: Could not register inplace callback function.")
 
 
@@ -99,7 +99,7 @@ We can register such function as:
 
 .. code-block:: python
 
-    if not register_inplace_cb_reply_cache(inplace_cache_callback, env):
+    if not register_inplace_cb_reply_cache(inplace_cache_callback, env, id):
         log_info("python: Could not register inplace callback function.")
 
 
@@ -135,7 +135,7 @@ We can register such function as:
 
 .. code-block:: python
 
-    if not register_inplace_cb_reply_local(inplace_local_callback, env):
+    if not register_inplace_cb_reply_local(inplace_local_callback, env, id):
         log_info("python: Could not register inplace callback function.")
 
 
@@ -172,7 +172,7 @@ We can register such function as:
 
 .. code-block:: python
 
-    if not register_inplace_cb_reply_servfail(inplace_servfail_callback, env):
+    if not register_inplace_cb_reply_servfail(inplace_servfail_callback, env, id):
         log_info("python: Could not register inplace callback function.")
 
 

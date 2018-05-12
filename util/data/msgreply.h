@@ -50,13 +50,13 @@ struct iovec;
 struct regional;
 struct edns_data;
 struct edns_option;
-struct inplace_cb_reply;
-struct inplace_cb_query;
+struct inplace_cb;
 struct module_qstate;
 struct module_env;
 struct msg_parse;
 struct rrset_parse;
 struct local_rrset;
+struct dns_msg;
 
 /** calculate the prefetch TTL as 90% of original. Calculation
  * without numerical overflow (uin32_t) */
@@ -357,6 +357,21 @@ struct reply_info* reply_info_copy(struct reply_info* rep,
 	struct alloc_cache* alloc, struct regional* region);
 
 /**
+ * Allocate (special) rrset keys.
+ * @param rep: reply info in which the rrset keys to be allocated, rrset[]
+ *	array should have bee allocated with NULL pointers.
+ * @param alloc: how to allocate rrset keys.
+ *	Not used if region!=NULL, it can be NULL in that case.
+ * @param region: if this parameter is NULL then the alloc is used.
+ *	otherwise, rrset keys are allocated in this region.
+ *	In a region, no special rrset key structures are needed (not shared).
+ *	and no rrset_ref array in the reply needs to be built up.
+ * @return 1 on success, 0 on error
+ */
+int reply_info_alloc_rrset_keys(struct reply_info* rep,
+	struct alloc_cache* alloc, struct regional* region);
+
+/**
  * Copy a parsed rrset into given key, decompressing and allocating rdata.
  * @param pkt: packet for decompression
  * @param msg: the parser message (for flags for trust).
@@ -606,6 +621,29 @@ int inplace_cb_query_call(struct module_env* env, struct query_info* qinfo,
 	uint16_t flags, struct sockaddr_storage* addr, socklen_t addrlen,
 	uint8_t* zone, size_t zonelen, struct module_qstate* qstate,
 	struct regional* region);
+
+/**
+ * Call the registered functions in the inplace_cb_edns_back_parsed linked list.
+ * This function is going to get called after parsing the EDNS data on the
+ * reply from a nameserver.
+ * @param env: module environment.
+ * @param qstate: module qstate.
+ * @return false on failure (a callback function returned an error).
+ */
+int inplace_cb_edns_back_parsed_call(struct module_env* env, 
+	struct module_qstate* qstate);
+
+/**
+ * Call the registered functions in the inplace_cb_query_reponse linked list.
+ * This function is going to get called after receiving a reply from a
+ * nameserver.
+ * @param env: module environment.
+ * @param qstate: module qstate.
+ * @param response: received response
+ * @return false on failure (a callback function returned an error).
+ */
+int inplace_cb_query_response_call(struct module_env* env,
+	struct module_qstate* qstate, struct dns_msg* response);
 
 /**
  * Copy edns option list allocated to the new region

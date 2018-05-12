@@ -1,0 +1,1041 @@
+; config options
+server:
+	harden-referral-path: no
+	target-fetch-policy: "0 0 0 0 0"
+
+stub-zone:
+        name: "."
+	stub-addr: 193.0.14.129         # K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test scrub of insecure DNAME in answer section
+
+; root infrastucture
+RANGE_BEGIN 0 10000000
+	ADDRESS 193.0.14.129
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET. IN A 193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+shortloop. IN TXT
+SECTION ANSWER
+shortloop. IN TXT "shortloop end"
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+K.ROOT-SERVERS.NET. IN A
+SECTION ANSWER
+K.ROOT-SERVERS.NET. IN A 193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+K.ROOT-SERVERS.NET. IN AAAA
+SECTION ANSWER
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH subdomain opcode
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN A
+SECTION AUTHORITY
+com. IN NS a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH subdomain opcode
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+net. IN A
+SECTION AUTHORITY
+net. IN NS a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH subdomain opcode
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+x. IN A
+SECTION AUTHORITY
+x. IN NS a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+long. IN NS
+SECTION AUTHORITY
+long. IN NS a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+60o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx. IN NS
+SECTION AUTHORITY
+60o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx. IN NS a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+a.gtld-servers.net. IN A
+SECTION ANSWER
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+a.gtld-servers.net. IN AAAA
+SECTION ANSWER
+ENTRY_END
+RANGE_END
+; end of root infrastucture
+
+; a.gtld-servers.net. (com. net. x.)
+RANGE_BEGIN 0 10000000
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+a.gtld-servers.net. IN A
+SECTION ANSWER
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+a.gtld-servers.net. IN AAAA
+SECTION ANSWER
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION AUTHORITY
+com. IN NS a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+net. IN NS
+SECTION AUTHORITY
+net. IN NS a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN A
+SECTION AUTHORITY
+example.com. IN NS ns1.example.com.
+SECTION ADDITIONAL
+ns1.example.com. IN A 168.192.2.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.net. IN A
+SECTION AUTHORITY
+example.net. IN NS ns1.example.net.
+SECTION ADDITIONAL
+ns1.example.net. IN A 168.192.3.3
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+x. IN NS
+SECTION AUTHORITY
+x. IN NS a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+x. IN DNAME
+SECTION AUTHORITY
+x. IN DNAME .
+SECTION ADDITIONAL
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname opcode
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+shortloop.x.x. IN CNAME
+SECTION ANSWER
+x. DNAME .
+shortloop.x.x. IN CNAME shortloop.x.
+shortloop.x. IN CNAME shortloop.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname opcode
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+shortloop.x. IN CNAME
+SECTION ANSWER
+x. DNAME .
+shortloop.x. IN CNAME shortloop.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+60o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx. IN NS
+SECTION AUTHORITY
+60o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx. IN NS a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+long. IN NS
+SECTION AUTHORITY
+long. IN NS a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net. IN A 192.5.6.30
+ENTRY_END
+
+; DNAME at zone apex, allowed by RFC 6672 section 2.3
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+long. IN DNAME
+SECTION ANSWER
+long.			3600	IN	DNAME	63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.60o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+x.long. IN A
+SECTION ANSWER
+long.			3600	IN	DNAME	63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.60o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.
+x.long.			3600	IN	CNAME	x.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.60o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.
+x.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.60o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.	3600	IN	A	192.0.2.1
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname qtype opcode
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+x.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.60o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx. IN A
+SECTION ANSWER
+x.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.60o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.	3600	IN	A	192.0.2.1
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH qname opcode
+ADJUST copy_id copy_query
+REPLY QR AA YXDOMAIN
+SECTION QUESTION
+too.long. IN A
+SECTION ANSWER
+long.			3600	IN	DNAME	63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.60o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.
+ENTRY_END
+RANGE_END
+; end of a.gtld-servers.net.
+
+; RFC 6672 section 2.2. The DNAME Substitution table tests
+;#  QNAME            owner  DNAME   target         result
+;-- ---------------- -------------- -------------- -----------------
+;1  com.             example.com.   example.net.   <no match>
+;2  example.com.     example.com.   example.net.   [0]
+;3  a.example.com.   example.com.   example.net.   a.example.net.
+;4  a.b.example.com. example.com.   example.net.   a.b.example.net.
+;5  ab.example.com.  b.example.com. example.net.   <no match>
+;6  foo.example.com. example.com.   example.net.   foo.example.net.
+;7  a.x.example.com. x.example.com. example.net.   a.example.net.
+;8  a.example.com.   example.com.   y.example.net. a.y.example.net.
+;9  cyc.example.com. example.com.   example.com.   cyc.example.com.
+;10 cyc.example.com. example.com.   c.example.com. cyc.c.example.com.
+;11 shortloop.x.x.   x.             .              shortloop.x.
+;12 shortloop.x.     x.             .              shortloop.
+;
+;  [0] The result depends on the QTYPE.  If the QTYPE = DNAME, then
+;      the result is "example.com.", else "<no match>".
+;
+;                  Table 1. DNAME Substitution Examples
+
+;        ; line no. 1 is mostly for authoritative server
+;        ; line no. 2 QTYPE != DNAME
+;        STEP 220201 QUERY
+;        ENTRY_BEGIN
+;        REPLY RD DO
+;        SECTION QUESTION
+;        example.com. IN NS
+;        ENTRY_END
+;        
+;        STEP 220202 CHECK_ANSWER
+;        ENTRY_BEGIN
+;        MATCH rcode answer
+;        REPLY QR RD RA DO
+;        SECTION QUESTION
+;        example.com. IN NS
+;        SECTION ANSWER
+;        example.com. IN NS ns1.example.com.
+;        ENTRY_END
+;        
+;        ; line no. 2 QTYPE == DNAME
+;        STEP 220203 QUERY
+;        ENTRY_BEGIN
+;        REPLY RD DO
+;        SECTION QUESTION
+;        example.com. IN DNAME
+;        ENTRY_END
+;        
+;        STEP 220204 CHECK_ANSWER
+;        ENTRY_BEGIN
+;        MATCH rcode question answer
+;        REPLY QR RD RA DO
+;        SECTION QUESTION
+;        example.com. IN DNAME
+;        SECTION ANSWER
+;        example.com. IN DNAME example.net.
+;        ENTRY_END
+;        
+;        
+;        ;#  QNAME            owner  DNAME   target         result
+;        ;-- ---------------- -------------- -------------- -----------------
+;        ;3  a.example.com.   example.com.   example.net.   a.example.net.
+;        
+;        STEP 220301 QUERY
+;        ENTRY_BEGIN
+;        REPLY RD DO
+;        SECTION QUESTION
+;        a.example.com. IN A
+;        ENTRY_END
+;        
+;        STEP 220302 CHECK_ANSWER
+;        ENTRY_BEGIN
+;        MATCH rcode question answer
+;        SECTION QUESTION
+;        a.example.com. IN A
+;        SECTION ANSWER
+;        example.com. IN DNAME example.net.
+;        a.example.com. IN CNAME a.example.net.
+;        a.example.net. IN A 10.0.0.97
+;        ENTRY_END
+;        
+;        ;#  QNAME            owner  DNAME   target         result
+;        ;-- ---------------- -------------- -------------- -----------------
+;        ;4  a.b.example.com. example.com.   example.net.   a.b.example.net.
+;        
+;        STEP 220401 QUERY
+;        ENTRY_BEGIN
+;        REPLY RD DO
+;        SECTION QUESTION
+;        a.b.example.com. IN A
+;        ENTRY_END
+;        
+;        STEP 220402 CHECK_ANSWER
+;        ENTRY_BEGIN
+;        MATCH rcode question answer
+;        SECTION QUESTION
+;        a.b.example.com. IN A
+;        SECTION ANSWER
+;        example.com. IN DNAME example.net.
+;        a.b.example.com. IN CNAME a.b.example.net.
+;        a.b.example.net. IN A 10.0.97.98
+;        ENTRY_END
+;        
+;        ;#  QNAME            owner  DNAME   target         result
+;        ;-- ---------------- -------------- -------------- -----------------
+;        ;5  ab.example.com.  b.example.com. example.net.   <no match>
+;        ;6  foo.example.com. example.com.   example.net.   foo.example.net.
+;        
+;        ; line no. 5 is mostly for authoritative server
+;        ; line no. 6 is basically the same as line no. 3
+;        
+;        ; ns1.example.com.
+;        RANGE_BEGIN 220000 220699
+;        	ADDRESS 168.192.2.2
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        example.com. IN NS
+;        SECTION ANSWER
+;        example.com. IN NS ns1.example.com.
+;        SECTION ADDITIONAL
+;        ns1.example.com. IN A 168.192.2.2
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        ns1.example.com. IN A
+;        SECTION ANSWER
+;        ns1.example.com. IN A 168.192.2.2
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        ns1.example.com. IN AAAA
+;        SECTION ANSWER
+;        ENTRY_END
+;        
+;        ; line 2 DNAME
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        example.com. IN DNAME
+;        SECTION ANSWER
+;        example.com. IN DNAME example.net.
+;        ENTRY_END
+;        
+;        ; line 3
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        a.example.com. IN A
+;        SECTION ANSWER
+;        example.com. IN DNAME example.net.
+;        a.example.com. IN CNAME a.example.net.
+;        ENTRY_END
+;        
+;        ; line 4
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        a.b.example.com. IN A
+;        SECTION ANSWER
+;        example.com. IN DNAME example.net.
+;        a.b.example.com. IN CNAME a.b.example.net.
+;        ENTRY_END
+;        RANGE_END
+;        ; end of ns1.example.com.
+;        
+;        
+;        ;#  QNAME            owner  DNAME   target         result
+;        ;-- ---------------- -------------- -------------- -----------------
+;        ;7  a.x.example.com. x.example.com. example.net.   a.example.net.
+;        
+;        STEP 220701 QUERY
+;        ENTRY_BEGIN
+;        REPLY RD DO
+;        SECTION QUESTION
+;        a.x.example.com. IN A
+;        ENTRY_END
+;        
+;        STEP 220702 CHECK_ANSWER
+;        ENTRY_BEGIN
+;        MATCH rcode question answer
+;        SECTION QUESTION
+;        a.x.example.com. IN A
+;        SECTION ANSWER
+;        x.example.com. IN DNAME example.net.
+;        a.x.example.com. IN CNAME a.example.net.
+;        a.example.net. IN A 10.0.0.97
+;        ENTRY_END
+;        
+;        ; ns1.example.com.
+;        RANGE_BEGIN 220700 220799
+;        	ADDRESS 168.192.2.2
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        example.com. IN NS
+;        SECTION ANSWER
+;        example.com. IN NS ns1.example.com.
+;        SECTION ADDITIONAL
+;        ns1.example.com. IN A 168.192.2.2
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        ns1.example.com. IN A
+;        SECTION ANSWER
+;        ns1.example.com. IN A 168.192.2.2
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        ns1.example.com. IN AAAA
+;        SECTION ANSWER
+;        ENTRY_END
+;        
+;        ; line 7 DNAME
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        example.com. IN DNAME
+;        SECTION ANSWER
+;        x.example.com. IN DNAME example.net.
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        a.x.example.com. IN A
+;        SECTION ANSWER
+;        x.example.com. IN DNAME example.net.
+;        a.x.example.com. IN CNAME a.example.net.
+;        ENTRY_END
+;        RANGE_END
+;        ; end of ns1.example.com.
+;        
+;        ;#  QNAME            owner  DNAME   target         result
+;        ;-- ---------------- -------------- -------------- -----------------
+;        ;8  a.example.com.   example.com.   y.example.net. a.y.example.net.
+;        ;
+;        ; a.example.com. was renamed to a2.example.com. to avoid cache clashes
+;        ; on the synthetized CNAME (caching CNAMEs is allowed by RFC 6672 section 3.4)
+;        
+;        STEP 220801 QUERY
+;        ENTRY_BEGIN
+;        REPLY RD DO
+;        SECTION QUESTION
+;        a2.example.com. IN A
+;        ENTRY_END
+;        
+;        STEP 220802 CHECK_ANSWER
+;        ENTRY_BEGIN
+;        MATCH rcode question answer
+;        SECTION QUESTION
+;        a2.example.com. IN A
+;        SECTION ANSWER
+;        example.com. IN DNAME y.example.net.
+;        a2.example.com. IN CNAME a2.y.example.net.
+;        a2.y.example.net. IN A 10.97.50.121
+;        ENTRY_END
+;        
+;        ; ns1.example.com.
+;        RANGE_BEGIN 220800 220899
+;        	ADDRESS 168.192.2.2
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        example.com. IN NS
+;        SECTION ANSWER
+;        example.com. IN NS ns1.example.com.
+;        SECTION ADDITIONAL
+;        ns1.example.com. IN A 168.192.2.2
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        ns1.example.com. IN A
+;        SECTION ANSWER
+;        ns1.example.com. IN A 168.192.2.2
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        ns1.example.com. IN AAAA
+;        SECTION ANSWER
+;        ENTRY_END
+;        
+;        ; line 8 DNAME
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        example.com. IN DNAME
+;        SECTION ANSWER
+;        example.com. IN DNAME y.example.net.
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        a2.example.com. IN A
+;        SECTION ANSWER
+;        example.com. IN DNAME y.example.net.
+;        a2.example.com. IN CNAME a2.y.example.net.
+;        ENTRY_END
+;        RANGE_END
+;        ; end of ns1.example.com.
+;        
+;        
+;        ;#  QNAME            owner  DNAME   target         result
+;        ;-- ---------------- -------------- -------------- -----------------
+;        ;9  cyc.example.com. example.com.   example.com.   cyc.example.com.
+;        
+;        STEP 220901 QUERY
+;        ENTRY_BEGIN
+;        REPLY RD DO
+;        SECTION QUESTION
+;        cyc.example.com. IN A
+;        ENTRY_END
+;        
+;        ; Expected result is defined by RFC 1034 section 3.6.2:
+;        ; CNAME chains should be followed and CNAME loops signalled as an error
+;        STEP 220902 CHECK_ANSWER
+;        ENTRY_BEGIN
+;        MATCH rcode question answer
+;        REPLY SERVFAIL
+;        SECTION QUESTION
+;        cyc.example.com. IN A
+;        ENTRY_END
+;        
+;        ; ns1.example.com.
+;        RANGE_BEGIN 220900 220999
+;        	ADDRESS 168.192.2.2
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        example.com. IN NS
+;        SECTION ANSWER
+;        example.com. IN NS ns1.example.com.
+;        SECTION ADDITIONAL
+;        ns1.example.com. IN A 168.192.2.2
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        ns1.example.com. IN A
+;        SECTION ANSWER
+;        ns1.example.com. IN A 168.192.2.2
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        ns1.example.com. IN AAAA
+;        SECTION ANSWER
+;        ENTRY_END
+;        
+;        ; line 9 DNAME
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        example.com. IN DNAME
+;        SECTION ANSWER
+;        example.com. IN DNAME example.com.
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        cyc.example.com. IN A
+;        SECTION ANSWER
+;        example.com. IN DNAME example.com.
+;        cyc.example.com. IN CNAME cyc.example.com.
+;        ENTRY_END
+;        RANGE_END
+;        ; end of ns1.example.com.
+;        
+;        ;#  QNAME            owner  DNAME   target         result
+;        ;-- ---------------- -------------- -------------- -----------------
+;        ;10 cyc.example.com. example.com.   c.example.com. cyc.c.example.com.
+;        ;
+;        ; cyc.example.com. was renamed to cyc2.example.com. to avoid cache clashes
+;        ; on the synthetized CNAME (caching CNAMEs is allowed by RFC 6672 section 3.4)
+;        ;
+;        ; target c.example.com. was renamed to cyc2.example.net.
+;        ; to limit number of pre-canned answers required for the test
+;        
+;        STEP 221001 QUERY
+;        ENTRY_BEGIN
+;        REPLY RD DO
+;        SECTION QUESTION
+;        cyc2.example.com. IN A
+;        ENTRY_END
+;        
+;        ; Expected result is defined by RFC 1034 section 3.6.2:
+;        ; CNAME chains should be followed and CNAME loops signalled as an error
+;        STEP 221002 CHECK_ANSWER
+;        ENTRY_BEGIN
+;        MATCH rcode question answer
+;        REPLY SERVFAIL
+;        SECTION QUESTION
+;        cyc2.example.com. IN A
+;        ENTRY_END
+;        
+;        ; ns1.example.com.
+;        RANGE_BEGIN 221000 221099
+;        	ADDRESS 168.192.2.2
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        example.com. IN NS
+;        SECTION ANSWER
+;        example.com. IN NS ns1.example.com.
+;        SECTION ADDITIONAL
+;        ns1.example.com. IN A 168.192.2.2
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        ns1.example.com. IN A
+;        SECTION ANSWER
+;        ns1.example.com. IN A 168.192.2.2
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        ns1.example.com. IN AAAA
+;        SECTION ANSWER
+;        ENTRY_END
+;        
+;        ; line 10 DNAME
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        example.com. IN DNAME
+;        SECTION ANSWER
+;        example.com. IN DNAME cyc2.example.net.
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        cyc2.example.com. IN A
+;        SECTION ANSWER
+;        example.com. IN DNAME cyc2.example.net.
+;        cyc2.example.com. IN CNAME cyc2.cyc2.example.net.
+;        ENTRY_END
+;        RANGE_END
+;        ; end of ns1.example.com.
+;        
+;        ;#  QNAME            owner  DNAME   target         result
+;        ;-- ---------------- -------------- -------------- -----------------
+;        ;11 shortloop.x.x.   x.             .              shortloop.x.
+;        
+;        STEP 221101 QUERY
+;        ENTRY_BEGIN
+;        REPLY RD DO
+;        SECTION QUESTION
+;        shortloop.x.x.	TXT
+;        ENTRY_END
+;        
+;        STEP 221102 CHECK_ANSWER
+;        ENTRY_BEGIN
+;        MATCH rcode question answer
+;        SECTION QUESTION
+;        shortloop.x.x.	IN TXT
+;        SECTION ANSWER
+;        x.		IN DNAME	.
+;        ; unbound hack
+;        x.		IN DNAME	.
+;        shortloop.x.x.	IN CNAME	shortloop.x.
+;        shortloop.x.	IN CNAME	shortloop.
+;        shortloop.	IN TXT		"shortloop end"
+;        ENTRY_END
+;        
+;        ;#  QNAME            owner  DNAME   target         result
+;        ;-- ---------------- -------------- -------------- -----------------
+;        ;12 shortloop.x.     x.             .              shortloop.
+;        
+;        ; expire potentically cached CNAMEs for shortloop.x. from cache
+;        STEP 221200 TIME_PASSES ELAPSE 10000
+;        
+;        STEP 221201 QUERY
+;        ENTRY_BEGIN
+;        REPLY RD DO
+;        SECTION QUESTION
+;        shortloop.x.	TXT
+;        ENTRY_END
+;        
+;        STEP 221202 CHECK_ANSWER
+;        ENTRY_BEGIN
+;        MATCH rcode question answer
+;        SECTION QUESTION
+;        shortloop.x.	IN TXT
+;        SECTION ANSWER
+;        x.		IN DNAME	.
+;        shortloop.x.	IN CNAME	shortloop.
+;        shortloop.	IN TXT		"shortloop end"
+;        ENTRY_END
+;        
+;        
+;        ; ns1.example.net. (data shared by whole 22xxxx range)
+;        RANGE_BEGIN 220000 229999
+;        	ADDRESS 168.192.3.3
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        example.net. IN NS
+;        SECTION ANSWER
+;        example.net. IN NS ns1.example.net.
+;        SECTION ADDITIONAL
+;        example.net. IN A 168.192.3.3
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        ns1.example.net. IN A
+;        SECTION ANSWER
+;        ns1.example.net. IN A 168.192.3.3
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        ns1.example.net. IN AAAA
+;        SECTION ANSWER
+;        ENTRY_END
+;        
+;        ; line 3
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        a.example.net. IN A
+;        SECTION ANSWER
+;        a.example.net. IN A 10.0.0.97
+;        ENTRY_END
+;        
+;        ; line 4
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        a.b.example.net. IN A
+;        SECTION ANSWER
+;        a.b.example.net. IN A 10.0.97.98
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        a2.y.example.net. IN A
+;        SECTION ANSWER
+;        a2.y.example.net. IN A 10.97.50.121
+;        ENTRY_END
+;        
+;        ; line 10
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        cyc2.example.net. IN DNAME
+;        SECTION ANSWER
+;        cyc2.example.net. IN DNAME example.com.
+;        ENTRY_END
+;        
+;        ENTRY_BEGIN
+;        MATCH opcode qtype qname
+;        ADJUST copy_id
+;        REPLY QR AA NOERROR
+;        SECTION QUESTION
+;        cyc2.cyc2.example.net. IN A
+;        SECTION ANSWER
+;        cyc2.example.net. IN DNAME example.com.
+;        cyc2.cyc2.example.com. IN CNAME cyc2.example.com.
+;        ENTRY_END
+;        RANGE_END
+;        ; end of ns1.example.net.
+;        
+;        
+;        ; RFC 6672 section 2.2: YXDOMAIN answers for too long results for substitution
+;        ; RFC 6672 section 2.3: DNAME can be at zone apex: zone apex = long.
+;        STEP 229001 QUERY
+;        ENTRY_BEGIN
+;        REPLY RD DO
+;        SECTION QUESTION
+;        x.long.	IN A
+;        ENTRY_END
+;        
+;        ; query returning maximal permissible length - should work
+;        STEP 229002 CHECK_ANSWER
+;        ENTRY_BEGIN
+;        MATCH rcode question answer
+;        SECTION QUESTION
+;        x.long.	IN A
+;        SECTION ANSWER
+;        long.			3600	IN	DNAME	63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.60o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.
+;        x.long.			3600	IN	CNAME	x.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.60o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.
+;        x.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.60o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.	3600	IN	A	192.0.2.1
+;        ENTRY_END
+
+; result of substitution has too long name
+; YXDOMAIN should be propagated to the client
+; Unbound SEVFAILs: https://www.ietf.org/mail-archive/web/dnsext/current/msg11282.html
+STEP 229003 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+too.long.	IN A
+ENTRY_END
+
+STEP 229004 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH rcode question answer
+REPLY QR YXDOMAIN
+SECTION QUESTION
+too.long.	IN A
+SECTION ANSWER
+long.			3600	IN	DNAME	63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.60o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.
+ENTRY_END
+
+    ; ; YXDOMAIN should work even if the cache is empty
+    ; STEP 229005 TIME_PASSES ELAPSE 4000
+    ; 
+    ; STEP 229006 QUERY
+    ; ENTRY_BEGIN
+    ; REPLY RD DO
+    ; SECTION QUESTION
+    ; too.long.	IN A
+    ; ENTRY_END
+    ; 
+    ; STEP 229007 CHECK_ANSWER
+    ; ENTRY_BEGIN
+    ; MATCH rcode question answer
+    ; REPLY QR YXDOMAIN
+    ; SECTION QUESTION
+    ; x.long.	IN A
+    ; SECTION ANSWER
+    ; long.			3600	IN	DNAME	63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.63o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.60o-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.
+    ; ENTRY_END
+
+
+
+
+SCENARIO_END

@@ -51,6 +51,7 @@
 #include "util/module.h"
 #include "util/net_help.h"
 #include "util/regional.h"
+#include "util/config_file.h"
 #include "sldns/keyraw.h"
 #include "sldns/sbuffer.h"
 #include "sldns/parseutil.h"
@@ -318,12 +319,17 @@ int ds_digest_match_dnskey(struct module_env* env,
 	size_t dslen;
 	uint8_t* digest; /* generated digest */
 	size_t digestlen = ds_digest_size_algo(ds_rrset, ds_idx);
-	
+
 	if(digestlen == 0) {
 		verbose(VERB_QUERY, "DS fail: not supported, or DS RR "
 			"format error");
 		return 0; /* not supported, or DS RR format error */
 	}
+#ifndef USE_SHA1
+	if(fake_sha1 && ds_get_digest_algo(ds_rrset, ds_idx)==LDNS_SHA1)
+		return 1;
+#endif
+	
 	/* check digest length in DS with length from hash function */
 	ds_get_sigdata(ds_rrset, ds_idx, &ds, &dslen);
 	if(!ds || dslen != digestlen) {

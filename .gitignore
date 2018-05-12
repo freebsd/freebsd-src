@@ -7,6 +7,7 @@
 /config.log
 /config.status
 /dnstap/dnstap_config.h
+/dnscrypt/dnscrypt_config.h
 /doc/example.conf
 /doc/libunbound.3
 /doc/unbound-anchor.8

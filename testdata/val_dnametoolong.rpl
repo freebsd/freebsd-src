@@ -5,6 +5,7 @@ server:
 	trust-anchor: "example.net.    3600    IN      DNSKEY  256 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3 ;{id = 30899 (zsk), size = 512b}"
 	val-override-date: "20070916134226"
 	target-fetch-policy: "0 0 0 0 0"
+	fake-sha1: yes
 
 stub-zone:
 	name: "."
@@ -244,10 +245,12 @@ ENTRY_END
 STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all
-REPLY QR RD RA DO SERVFAIL
+REPLY QR RD RA DO YXDOMAIN
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
+example.com. IN	DNAME	long1234567890abcdef.long1234567890abcdef.long1234567890abcdef.long1234567890abcdef.long1234567890abcdef.long1234567890abcdef.long1234567890abcdef.long1234567890abcdef.long1234567890abcdef.long1234567890abcdef.long1234567890abcdef.long1234567890abcdef.
+example.com.    3600    IN      RRSIG   DNAME 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFBdWQE6lzktCN4vdAx9HY1zZe6dYAhUAghsHM4lSJAykdvp5p0wppml03K0= ;{id = 2854}
 SECTION AUTHORITY
 SECTION ADDITIONAL
 ENTRY_END

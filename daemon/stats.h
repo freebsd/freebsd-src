@@ -43,6 +43,7 @@
 #ifndef DAEMON_STATS_H
 #define DAEMON_STATS_H
 #include "util/timehist.h"
+#include "dnscrypt/dnscrypt_config.h"
 struct worker;
 struct config_file;
 struct comm_point;
@@ -149,6 +150,16 @@ struct server_stats {
 	size_t infra_cache_count;
 	/** number of key cache entries */
 	size_t key_cache_count;
+#ifdef USE_DNSCRYPT
+    /** number of queries that used dnscrypt */
+    size_t num_query_dnscrypt_crypted;
+    /** number of queries that queried dnscrypt certificates */
+    size_t num_query_dnscrypt_cert;
+    /** number of queries in clear text and not asking for the certificates */
+    size_t num_query_dnscrypt_cleartext;
+    /** number of malformed encrypted queries */
+    size_t num_query_dnscrypt_crypted_malformed;
+#endif
 };
 
 /** 

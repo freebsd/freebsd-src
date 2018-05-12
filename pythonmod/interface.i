@@ -4,7 +4,7 @@
 %module unboundmodule
 %{
 /**
- * \file 
+ * \file
  * This is the interface between the unbound server and a python module
  * called to perform operations on queries.
  */
@@ -58,7 +58,7 @@
    }
 %}
 
-/* ************************************************************************************ * 
+/* ************************************************************************************ *
    Structure query_info
  * ************************************************************************************ */
 /* Query info */
@@ -76,24 +76,24 @@ struct query_info {
 };
 
 %inline %{
-   enum enum_rr_class  { 
+   enum enum_rr_class  {
       RR_CLASS_IN = 1,
       RR_CLASS_CH = 3,
       RR_CLASS_HS = 4,
       RR_CLASS_NONE = 254,
       RR_CLASS_ANY = 255,
    };
-   
+
    enum enum_rr_type {
-      RR_TYPE_A = 1, 
-      RR_TYPE_NS = 2, 
-      RR_TYPE_MD = 3, 
-      RR_TYPE_MF = 4, 
-      RR_TYPE_CNAME = 5, 
-      RR_TYPE_SOA = 6, 
-      RR_TYPE_MB = 7, 
-      RR_TYPE_MG = 8, 
-      RR_TYPE_MR = 9, 
+      RR_TYPE_A = 1,
+      RR_TYPE_NS = 2,
+      RR_TYPE_MD = 3,
+      RR_TYPE_MF = 4,
+      RR_TYPE_CNAME = 5,
+      RR_TYPE_SOA = 6,
+      RR_TYPE_MB = 7,
+      RR_TYPE_MG = 8,
+      RR_TYPE_MR = 9,
       RR_TYPE_NULL = 10,
       RR_TYPE_WKS = 11,
       RR_TYPE_PTR = 12,
@@ -131,7 +131,7 @@ struct query_info {
       RR_TYPE_SSHFP = 44,
       RR_TYPE_IPSECKEY = 45,
       RR_TYPE_RRSIG = 46,
-      RR_TYPE_NSEC = 47,      
+      RR_TYPE_NSEC = 47,
       RR_TYPE_DNSKEY = 48,
       RR_TYPE_DHCID = 49,
       RR_TYPE_NSEC3 = 50,
@@ -151,7 +151,7 @@ struct query_info {
 
    PyObject* _get_qname(struct query_info* q) {
       return PyBytes_FromStringAndSize((char*)q->qname, q->qname_len);
-   } 
+   }
 
    PyObject* _get_qname_components(struct query_info* q) {
       return GetNameAsLabelList((const char*)q->qname, q->qname_len);
@@ -179,7 +179,7 @@ struct query_info {
 
         __swig_getmethods__["qname"] = _unboundmodule._get_qname
         if _newclass:qname = _swig_property(_unboundmodule._get_qname)
-        
+
         __swig_getmethods__["qname_list"] = _unboundmodule._get_qname_components
         if _newclass:qname_list = _swig_property(_unboundmodule._get_qname_components)
 
@@ -189,7 +189,7 @@ struct query_info {
    %}
 }
 
-/* ************************************************************************************ * 
+/* ************************************************************************************ *
    Structure packed_rrset_key
  * ************************************************************************************ */
 %ignore packed_rrset_key::dname;
@@ -200,7 +200,7 @@ struct packed_rrset_key {
    %immutable;
    char*    dname;
    size_t   dname_len;
-   uint32_t flags; 
+   uint32_t flags;
    uint16_t type;  /* rrset type in network format */
    uint16_t rrset_class;  /* rrset class in network format */
    %mutable;
@@ -216,7 +216,7 @@ uint16_t ntohs(uint16_t netshort);
 %inline %{
    PyObject* _get_dname(struct packed_rrset_key* k) {
       return PyBytes_FromStringAndSize((char*)k->dname, k->dname_len);
-   } 
+   }
    PyObject* _get_dname_components(struct packed_rrset_key* k) {
       return GetNameAsLabelList((char*)k->dname, k->dname_len);
    }
@@ -244,11 +244,11 @@ uint16_t ntohs(uint16_t netshort);
    %}
 }
 
-#if defined(SWIGWORDSIZE64) 
+#if defined(SWIGWORDSIZE64)
 typedef long int                rrset_id_type;
-#else 
+#else
 typedef long long int           rrset_id_type;
-#endif 
+#endif
 
 struct ub_packed_rrset_key {
    struct lruhash_entry entry;
@@ -279,7 +279,7 @@ struct packed_rrset_data {
   /* number of rrsigs */
   size_t rrsig_count;
 
-  enum rrset_trust trust; 
+  enum rrset_trust trust;
   enum sec_status security;
 
   /* length of every rr's rdata */
@@ -309,26 +309,26 @@ struct packed_rrset_data {
 
 %inline %{
    PyObject* _get_data_rr_len(struct packed_rrset_data* d, int idx) {
-     if ((d != NULL) && (idx >= 0) && 
-             ((size_t)idx < (d->count+d->rrsig_count))) 
+     if ((d != NULL) && (idx >= 0) &&
+             ((size_t)idx < (d->count+d->rrsig_count)))
         return PyInt_FromLong(d->rr_len[idx]);
      return Py_None;
    }
    void _set_data_rr_ttl(struct packed_rrset_data* d, int idx, uint32_t ttl)
    {
-     if ((d != NULL) && (idx >= 0) && 
-             ((size_t)idx < (d->count+d->rrsig_count))) 
+     if ((d != NULL) && (idx >= 0) &&
+             ((size_t)idx < (d->count+d->rrsig_count)))
         d->rr_ttl[idx] = ttl;
    }
    PyObject* _get_data_rr_ttl(struct packed_rrset_data* d, int idx) {
-     if ((d != NULL) && (idx >= 0) && 
-             ((size_t)idx < (d->count+d->rrsig_count))) 
+     if ((d != NULL) && (idx >= 0) &&
+             ((size_t)idx < (d->count+d->rrsig_count)))
         return PyInt_FromLong(d->rr_ttl[idx]);
      return Py_None;
    }
    PyObject* _get_data_rr_data(struct packed_rrset_data* d, int idx) {
-     if ((d != NULL) && (idx >= 0) && 
-             ((size_t)idx < (d->count+d->rrsig_count))) 
+     if ((d != NULL) && (idx >= 0) &&
+             ((size_t)idx < (d->count+d->rrsig_count)))
         return PyBytes_FromStringAndSize((char*)d->rr_data[idx],
                 d->rr_len[idx]);
      return Py_None;
@@ -349,7 +349,7 @@ struct packed_rrset_data {
    %}
 }
 
-/* ************************************************************************************ * 
+/* ************************************************************************************ *
    Structure reply_info
  * ************************************************************************************ */
 /* Messages */
@@ -426,7 +426,7 @@ struct dns_msg {
    %}
 }
 
-/* ************************************************************************************ * 
+/* ************************************************************************************ *
    Structure mesh_state
  * ************************************************************************************ */
 struct mesh_state {
@@ -439,7 +439,7 @@ struct mesh_reply {
 };
 
 struct comm_reply {
-   
+
 };
 
 %inline %{
@@ -489,7 +489,7 @@ struct comm_reply {
    %}
 }
 
-/* ************************************************************************************ * 
+/* ************************************************************************************ *
    Structure edns_option
  * ************************************************************************************ */
 /* Rename the members to follow the python convention of marking them as
@@ -500,10 +500,10 @@ struct comm_reply {
 %rename(_opt_len) edns_option::opt_len;
 %rename(_opt_data) edns_option::opt_data;
 struct edns_option {
-	struct edns_option* next;
-	uint16_t opt_code;
-	size_t opt_len;
-	uint8_t* opt_data;
+    struct edns_option* next;
+    uint16_t opt_code;
+    size_t opt_len;
+    uint8_t* opt_data;
 };
 
 %inline %{
@@ -529,7 +529,7 @@ struct edns_option {
     %}
 }
 
-/* ************************************************************************************ * 
+/* ************************************************************************************ *
    Structure edns_data
  * ************************************************************************************ */
 /* This is ignored because we will pass a double pointer of this to Python
@@ -537,12 +537,12 @@ struct edns_option {
  * pointers as None. */
 %ignore edns_data::opt_list;
 struct edns_data {
-	int edns_present;
-	uint8_t ext_rcode;
-	uint8_t edns_version;
-	uint16_t bits;
-	uint16_t udp_size;
-	struct edns_option* opt_list;
+    int edns_present;
+    uint8_t ext_rcode;
+    uint8_t edns_version;
+    uint16_t bits;
+    uint16_t udp_size;
+    struct edns_option* opt_list;
 };
 %inline %{
     struct edns_option** _edns_data_opt_list_get(struct edns_data* edns) {
@@ -564,48 +564,47 @@ struct edns_data {
    Structure module_env
  * ************************************************************************************ */
 struct module_env {
-	struct config_file* cfg;
-	struct slabhash* msg_cache;
-	struct rrset_cache* rrset_cache;
-	struct infra_cache* infra_cache;
-	struct key_cache* key_cache;
+    struct config_file* cfg;
+    struct slabhash* msg_cache;
+    struct rrset_cache* rrset_cache;
+    struct infra_cache* infra_cache;
+    struct key_cache* key_cache;
 
-	/* --- services --- */
-	struct outbound_entry* (*send_query)(struct query_info* qinfo,
-		uint16_t flags, int dnssec, int want_dnssec, int nocaps,
-		struct sockaddr_storage* addr, socklen_t addrlen,
-		uint8_t* zone, size_t zonelen, int ssl_upstream,
-		struct module_qstate* q);
-	void (*detach_subs)(struct module_qstate* qstate);
-	int (*attach_sub)(struct module_qstate* qstate, 
-		struct query_info* qinfo, uint16_t qflags, int prime, 
-		int valrec, struct module_qstate** newq);
-	void (*kill_sub)(struct module_qstate* newq);
-	int (*detect_cycle)(struct module_qstate* qstate, 
-		struct query_info* qinfo, uint16_t flags, int prime,
-		int valrec);
+    /* --- services --- */
+    struct outbound_entry* (*send_query)(struct query_info* qinfo,
+        uint16_t flags, int dnssec, int want_dnssec, int nocaps,
+        struct sockaddr_storage* addr, socklen_t addrlen,
+        uint8_t* zone, size_t zonelen, int ssl_upstream,
+        struct module_qstate* q);
+    void (*detach_subs)(struct module_qstate* qstate);
+    int (*attach_sub)(struct module_qstate* qstate,
+        struct query_info* qinfo, uint16_t qflags, int prime,
+        int valrec, struct module_qstate** newq);
+    void (*kill_sub)(struct module_qstate* newq);
+    int (*detect_cycle)(struct module_qstate* qstate,
+        struct query_info* qinfo, uint16_t flags, int prime,
+        int valrec);
 
-	struct regional* scratch;
-	struct sldns_buffer* scratch_buffer;
-	struct worker* worker;
-	struct mesh_area* mesh;
-	struct alloc_cache* alloc;
-	struct ub_randstate* rnd;
-	time_t* now;
-	struct timeval* now_tv;
-	int need_to_validate;
-	struct val_anchors* anchors;
-	struct val_neg_cache* neg_cache;
-	struct comm_timer* probe_timer;
-	struct iter_forwards* fwds;
-	struct iter_hints* hints;
-	void* modinfo[MAX_MODULE];
+    struct regional* scratch;
+    struct sldns_buffer* scratch_buffer;
+    struct worker* worker;
+    struct mesh_area* mesh;
+    struct alloc_cache* alloc;
+    struct ub_randstate* rnd;
+    time_t* now;
+    struct timeval* now_tv;
+    int need_to_validate;
+    struct val_anchors* anchors;
+    struct val_neg_cache* neg_cache;
+    struct comm_timer* probe_timer;
+    struct iter_forwards* fwds;
+    struct iter_hints* hints;
+    void* modinfo[MAX_MODULE];
 
-	void* inplace_cb_lists[inplace_cb_types_total];
-	struct edns_known_option* edns_known_options;
-	size_t edns_known_options_num;
+    void* inplace_cb_lists[inplace_cb_types_total];
+    struct edns_known_option* edns_known_options;
+    size_t edns_known_options_num;
 };
-
 
 /* ************************************************************************************ *
    Structure module_qstate
@@ -710,14 +709,14 @@ struct module_qstate {
    enum module_ext_state _ext_state_get(struct module_qstate* q, int idx) {
      if ((q != NULL) && (idx >= 0) && (idx < MAX_MODULE)) {
         return q->ext_state[idx];
-     } 
+     }
      return 0;
    }
 
    void _ext_state_set(struct module_qstate* q, int idx, enum module_ext_state state) {
      if ((q != NULL) && (idx >= 0) && (idx < MAX_MODULE)) {
         q->ext_state[idx] = state;
-     } 
+     }
    }
 
    int edns_opt_list_is_empty(struct edns_option** opt) {
@@ -789,7 +788,7 @@ struct module_qstate {
    %}
 }
 
-/* ************************************************************************************ * 
+/* ************************************************************************************ *
    Structure config_strlist
  * ************************************************************************************ */
 struct config_strlist {
@@ -797,7 +796,7 @@ struct config_strlist {
    char* str;
 };
 
-/* ************************************************************************************ * 
+/* ************************************************************************************ *
    Structure config_str2list
  * ************************************************************************************ */
 struct config_str2list {
@@ -806,7 +805,7 @@ struct config_str2list {
    char* str2;
 };
 
-/* ************************************************************************************ * 
+/* ************************************************************************************ *
    Structure config_file
  * ************************************************************************************ */
 struct config_file {
@@ -873,7 +872,7 @@ struct config_file {
    struct config_strlist* dlv_anchor_list;
    int max_ttl;
    int32_t val_date_override;
-   int bogus_ttl; 
+   int bogus_ttl;
    int val_clean_additional;
    int val_permissive_mode;
    char* val_nsec3_key_iterations;
@@ -894,7 +893,7 @@ struct config_file {
    char* python_script;
 };
 
-/* ************************************************************************************ * 
+/* ************************************************************************************ *
    ASN: Adding structures related to forwards_lookup and dns_cache_find_delegation
  * ************************************************************************************ */
 struct delegpt_ns {
@@ -932,7 +931,7 @@ struct delegpt {
 %inline %{
    PyObject* _get_dp_dname(struct delegpt* dp) {
       return PyBytes_FromStringAndSize((char*)dp->name, dp->namelen);
-   } 
+   }
    PyObject* _get_dp_dname_components(struct delegpt* dp) {
       return GetNameAsLabelList((char*)dp->name, dp->namelen);
    }
@@ -987,7 +986,7 @@ struct delegpt {
    %}
 }
 
-/* ************************************************************************************ * 
+/* ************************************************************************************ *
    Enums
  * ************************************************************************************ */
 %rename ("MODULE_STATE_INITIAL") "module_state_initial";
@@ -1040,6 +1039,26 @@ enum verbosity_value {
    VERB_ALGO
 };
 
+enum inplace_cb_list_type {
+    /* Inplace callbacks for when a resolved reply is ready to be sent to the
+     * front.*/
+    inplace_cb_reply = 0,
+    /* Inplace callbacks for when a reply is given from the cache. */
+    inplace_cb_reply_cache,
+    /* Inplace callbacks for when a reply is given with local data
+     * (or Chaos reply). */
+    inplace_cb_reply_local,
+    /* Inplace callbacks for when the reply is servfail. */
+    inplace_cb_reply_servfail,
+    /* Inplace callbacks for when a query is ready to be sent to the back.*/
+    inplace_cb_query,
+    /* Inplace callback for when a reply is received from the back. */
+    inplace_cb_edns_back_parsed,
+    /* Total number of types. Used for array initialization.
+     * Should always be last. */
+    inplace_cb_types_total
+};
+
 %constant uint16_t PKT_QR = 1;      /* QueRy - query flag */
 %constant uint16_t PKT_AA = 2;      /* Authoritative Answer - server flag */
 %constant uint16_t PKT_TC = 4;      /* TrunCated - server flag */
@@ -1049,17 +1068,17 @@ enum verbosity_value {
 %constant uint16_t PKT_AD = 64;     /* Authenticated Data - server flag */
 
 %{
-int checkList(PyObject *l) 
+int checkList(PyObject *l)
 {
     PyObject* item;
     int i;
 
-    if (l == Py_None) 
+    if (l == Py_None)
        return 1;
 
-    if (PyList_Check(l)) 
+    if (PyList_Check(l))
     {
-       for (i=0; i < PyList_Size(l); i++) 
+       for (i=0; i < PyList_Size(l); i++)
        {
            item = PyList_GetItem(l, i);
            if (!PyBytes_Check(item))
@@ -1078,7 +1097,7 @@ int pushRRList(sldns_buffer* qb, PyObject *l, uint32_t default_ttl, int qsec,
     int i;
     size_t len;
 
-    for (i=0; i < PyList_Size(l); i++) 
+    for (i=0; i < PyList_Size(l); i++)
     {
         item = PyList_GetItem(l, i);
 
@@ -1102,9 +1121,9 @@ int pushRRList(sldns_buffer* qb, PyObject *l, uint32_t default_ttl, int qsec,
     return 1;
 }
 
-int set_return_msg(struct module_qstate* qstate, 
+int set_return_msg(struct module_qstate* qstate,
                    const char* rr_name, sldns_rr_type rr_type, sldns_rr_class rr_class , uint16_t flags, uint32_t default_ttl,
-                   PyObject* question, PyObject* answer, PyObject* authority, PyObject* additional) 
+                   PyObject* question, PyObject* answer, PyObject* authority, PyObject* additional)
 {
      sldns_buffer *qb = 0;
      int res = 1;
@@ -1116,7 +1135,7 @@ int set_return_msg(struct module_qstate* qstate,
      uint16_t PKT_CD = 16;
      uint16_t PKT_RA = 32;
      uint16_t PKT_AD = 64;
- 
+
      if ((!checkList(question)) || (!checkList(answer)) || (!checkList(authority)) || (!checkList(additional)))
         return 0;
      if ((qb = sldns_buffer_new(LDNS_RR_BUF_SIZE)) == 0) return 0;
@@ -1165,7 +1184,7 @@ int set_return_msg(struct module_qstate* qstate,
 }
 %}
 
-int set_return_msg(struct module_qstate* qstate, 
+int set_return_msg(struct module_qstate* qstate,
                    const char* rr_name, int rr_type, int rr_class , uint16_t flags, uint32_t default_ttl,
                    PyObject* question, PyObject* answer, PyObject* authority, PyObject* additional);
 
@@ -1185,17 +1204,17 @@ int set_return_msg(struct module_qstate* qstate,
 
         def set_return_msg(self, qstate):
             """Returns 1 if OK"""
-            status = _unboundmodule.set_return_msg(qstate, self.rr_name, self.rr_type, self.rr_class, 
+            status = _unboundmodule.set_return_msg(qstate, self.rr_name, self.rr_type, self.rr_class,
                                            self.query_flags, self.default_ttl,
                                            self.question, self.answer, self.authority, self.additional)
 
             if (status) and (PKT_AA & self.query_flags):
                 qstate.return_msg.rep.authoritative = 1
 
-            return status 
+            return status
 
 %}
-/* ************************************************************************************ * 
+/* ************************************************************************************ *
    ASN: Delegation pointer related functions
  * ************************************************************************************ */
 
@@ -1254,7 +1273,7 @@ struct delegpt* find_delegation(struct module_qstate* qstate, char *nm, size_t n
 }
 %}
 
-/* ************************************************************************************ * 
+/* ************************************************************************************ *
    Functions
  * ************************************************************************************ */
 /******************************
@@ -1346,7 +1365,7 @@ int edns_opt_list_append(struct edns_option** list, uint16_t code, size_t len,
     int python_inplace_cb_reply_generic(struct query_info* qinfo,
         struct module_qstate* qstate, struct reply_info* rep, int rcode,
         struct edns_data* edns, struct edns_option** opt_list_out,
-        struct regional* region, void* python_callback)
+        struct regional* region, int id, void* python_callback)
     {
         PyObject *func, *py_edns, *py_qstate, *py_opt_list_out, *py_qinfo;
         PyObject *py_rep, *py_region;
@@ -1379,56 +1398,49 @@ int edns_opt_list_append(struct edns_option** list, uint16_t code, size_t len,
         return res;
     }
 
+    /* register a callback */
+    static int python_inplace_cb_register(enum inplace_cb_list_type type,
+        PyObject* py_cb, struct module_env* env, int id)
+    {
+        int ret = inplace_cb_register(python_inplace_cb_reply_generic,
+                type, (void*) py_cb, env, id);
+        if (ret) Py_INCREF(py_cb);
+        return ret;
+    }
+
     /* Swig implementations for Python */
     static int register_inplace_cb_reply(PyObject* py_cb,
-        struct module_env* env)
+        struct module_env* env, int id)
     {
-        int ret = inplace_cb_reply_register(
-            python_inplace_cb_reply_generic, (void*) py_cb, env);
-        if (ret) Py_INCREF(py_cb);
-        return ret;
+        return python_inplace_cb_register(inplace_cb_reply, py_cb, env, id);
     }
     static int register_inplace_cb_reply_cache(PyObject* py_cb,
-        struct module_env* env)
+        struct module_env* env, int id)
     {
-        int ret = inplace_cb_reply_cache_register(
-            python_inplace_cb_reply_generic, (void*) py_cb, env);
-        if (ret) Py_INCREF(py_cb);
-        return ret;
+        return python_inplace_cb_register(inplace_cb_reply_cache, py_cb, env, id);
     }
     static int register_inplace_cb_reply_local(PyObject* py_cb,
-        struct module_env* env)
+        struct module_env* env, int id)
     {
-        int ret = inplace_cb_reply_local_register(
-            python_inplace_cb_reply_generic, (void*) py_cb, env);
-        if (ret) Py_INCREF(py_cb);
-        return ret;
+        return python_inplace_cb_register(inplace_cb_reply_local, py_cb, env, id);
     }
     static int register_inplace_cb_reply_servfail(PyObject* py_cb,
-        struct module_env* env)
+        struct module_env* env, int id)
     {
-        int ret = inplace_cb_reply_servfail_register(
-            python_inplace_cb_reply_generic, (void*) py_cb, env);
-        if (ret) Py_INCREF(py_cb);
-        return ret;
+        return python_inplace_cb_register(inplace_cb_reply_servfail,
+                py_cb, env, id);
     }
 %}
 /* C declarations */
-int inplace_cb_reply_register(
-    inplace_cb_reply_func_type* cb, void* cb_arg, struct module_env* env);
-int inplace_cb_reply_cache_register(
-    inplace_cb_reply_func_type* cb, void* cb_arg, struct module_env* env);
-int inplace_cb_reply_local_register(
-    inplace_cb_reply_func_type* cb, void* cb_arg, struct module_env* env);
-int inplace_cb_reply_servfail_register(
-    inplace_cb_reply_func_type* cb, void* cb_arg, struct module_env* env);
+int inplace_cb_register(void* cb, enum inplace_cb_list_type type, void* cbarg,
+    struct module_env* env, int id);
 
 /* Swig declarations */
 static int register_inplace_cb_reply(PyObject* py_cb,
-    struct module_env* env);
+    struct module_env* env, int id);
 static int register_inplace_cb_reply_cache(PyObject* py_cb,
-    struct module_env* env);
+    struct module_env* env, int id);
 static int register_inplace_cb_reply_local(PyObject* py_cb,
-    struct module_env* env);
+    struct module_env* env, int id);
 static int register_inplace_cb_reply_servfail(PyObject* py_cb,
-    struct module_env* env);
+    struct module_env* env, int id);

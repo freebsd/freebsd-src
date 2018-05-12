@@ -1,5 +1,187 @@
+13 April 2017: Wouter
+	- Fix #1250: inconsistent indentation in services/listen_dnsport.c.
+	- tag for 1.6.2rc1
+
+12 April 2017: Wouter
+	- subnet mem value is available in shm, also when not enabled,
+	  to make the struct easier to memmap by other applications,
+	  independent of the configuration of unbound.
+
+12 April 2017: Ralph
+	- Fix #1247: unbound does not shorten source prefix length when
+	  forwarding ECS.
+	- Properly check for allocation failure in local_data_find_tag_datas.
+	- Fix #1249: unbound doesn't return FORMERR to bogus ECS.
+	- Set SHM ECS memory usage to 0 when module not loaded.
+
+11 April 2017: Ralph
+	- Display ECS module memory usage.
+
+10 April 2017: Wouter
+	- harden-algo-downgrade: no also makes unbound more lenient about
+	  digest algorithms in DS records.
+
+10 April 2017: Ralph
+	- Remove ECS option after REFUSED answer.
+	- Fix small memory leak in edns_opt_copy_alloc.
+	- Respip dereference after NULL check.
+	- Zero initialize addrtree allocation.
+	- Use correct identifier for SHM destroy.
+
+7 April 2017: George
+	- Fix pythonmod for cb changes.
+	- Some whitespace fixup.
+
+7 April 2017: Ralph
+	- Unlock view in respip unit test
+
+6 April 2017: Ralph
+	- Generalise inplace callback (de)registration
+	- (de)register inplace callbacks for module id
+	- No unbound-control set_option for ECS options
+	- Deprecated client-subnet-opcode config option
+	- Introduced client-subnet-always-forward config option
+	- Changed max-client-subnet-ipv6 default to 56 (as in RFC)
+	- Removed extern ECS config options
+	- module_restart_next now calls clear on all following modules
+	- Also create ECS module qstate on module_event_pass event
+	- remove malloc from inplace_cb_register
+
+6 April 2017: Wouter
+	- Small fixup for documentation.
+	- iana portlist update
+	- Fix respip for braces when locks arent used.
+	- Fix pythonmod for cb changes.
+
+4 April 2017: Wouter
+	- Fix #1244: document that use of chroot requires trust anchor file to
+	  be under chroot.
+	- iana portlist update
+
+3 April 2017: Ralph
+	- Do not add current time twice to TTL before ECS cache store.
+	- Do not touch rrset cache after ECS cache message generation.
+	- Use LDNS_EDNS_CLIENT_SUBNET as default ECS opcode.
+
+3 April 2017: Wouter
+	- Fix #1217: Add metrics to unbound-control interface showing
+	  crypted, cert request, plaintext and malformed queries (from
+	  Manu Bretelle).
+	- iana portlist update
+
+27 March 2017: Wouter
+	- Remove (now unused) event2 include from dnscrypt code.
+
+24 March 2017: George
+	- Fix to prevent non-referal query from being cached as referal when the
+	  no_cache_store flag was set.
+
+23 March 2017: Wouter
+	- Fix #1239: configure fails to find python distutils if python
+	  prints warning.
+
+22 March 2017: Wouter
+	- Fix #1238: segmentation fault when adding through the remote
+	  interface a per-view local zone to a view with no previous
+	  (configured) local zones.
+	- Fix #1229: Systemd service sandboxing, options in wrong sections.
+
+21 March 2017: Ralph
+	- Merge EDNS Client subnet implementation from feature branch into main
+	  branch, using new EDNS processing framework. 
+
+21 March 2017: Wouter
+	- Fix doxygen for dnscrypt files.
+
+20 March 2017: Wouter
+	- #1217. DNSCrypt support, with --enable-dnscrypt, libsodium and then
+	  enabled in the config file from Manu Bretelle.
+	- make depend, autoconf, remove warnings about statement before var.
+	- lru_demote and lruhash_insert_or_retrieve functions for getdns.
+	- fixup for lruhash (whitespace and header file comment).
+	- dnscrypt tests.
+
+17 March 2017: Wouter
+	- Patch for view functionality for local-data-ptr from Björn Ketelaars.
+	- Fix #1237 - Wrong resolving in chain, for norec queries that get
+	  SERVFAIL returned.
+
+16 March 2017: Wouter
+	- Fix that SHM is not inited if not enabled.
+	- Add trustanchor.unbound CH TXT that gets a response with a number
+	  of TXT RRs with a string like "example.com. 2345 1234" with
+	  the trust anchors and their keytags.
+	- Fix that looped DNAMEs do not cause unbound to spend effort.
+	- trustanchor tags are sorted.  reusable routine to fetch taglist.
+
+13 March 2017: Wouter
+	- testbound understands Deckard MATCH rcode question answer commands.
+	- Fix #1235: Fix too long DNAME expansion produces SERVFAIL instead
+	  of YXDOMAIN + query loop, reported by Petr Spacek.
+
+10 March 2017: Wouter
+	- Fix #1234: shortening DNAME loop produces duplicate DNAME records
+	  in ANSWER section.
+
+9 March 2017: Wouter
+	- --disable-sha1 disables SHA1 support in RRSIG, so from DNSKEY and
+	  DS records.  NSEC3 is not disabled.
+	- fake-sha1 test option; print warning if used.  To make unit tests.
+	- unbound-control list local zone and data commands listed in the
+	  help output.
+
+8 March 2017: Wouter
+	- make depend for build dependencies.
+	- swig version 2.0.1 required.
+	- fix enum conversion warnings
+
+7 March 2017: Wouter
+	- Fix #1230: swig version 2.0.0 is required for pythonmod, with
+	  1.3.40 it crashes when running repeatly unbound-control reload.
+	- Response actions based on IP address from Jinmei Tatuya (Infoblox).
+
+6 March 2017: Wouter
+	- Fix #1229: Systemd service sandboxing in contrib/unbound.service.
+	- iana portlist update
+
+28 February 2017: Ralph
+	- Fix testpkts.c, check if DO bit is set, not only if there is an OPT
+	  record.
+
+28 February 2017: Wouter
+	- For #1227: if we have sha256, set the cipher list to have no
+	  known vulns.
+
+27 February 2017: Wouter
+	- Fix #1227: Fix that Unbound control allows weak ciphersuits.
+	- Fix #1226: provide official 32bit binary for windows.
+
+24 February 2017: Wouter
+	- include sys/time.h for new shm code on NetBSD.
+
+23 February 2017: Wouter
+	- Fix doc/CNAME-basedRedirectionDesignNotes.pdf zone static to
+	  redirect.
+	- Patch from Luiz Fernando Softov for Stats Shared Memory.
+	- unbound-control stats_shm command prints stats using shared memory,
+	  which uses less cpu.
+	- make depend, autoconf, doxygen and lint fixed up.
+
+22 February 2017: Wouter
+	- Fix #1224: Fix that defaults should not fall back to "Program Files
+	  (x86) if Unbound is 64bit by default on windows.
+
+21 February 2017: Wouter
+	- iana portlist update
+
+16 February 2017: Wouter
+	- sldns updated for vfixed and buffer resize indication from getdns.
+
+15 February 2017: Wouter
+	- sldns has ED25519 and ED448 algorithm number and name for display.
+
 14 February 2017: Wouter
-	- tag 1.6.1rc3.
+	- tag 1.6.1rc3. -- which became 1.6.1 on 21feb, trunk has 1.6.2
 
 13 February 2017: Wouter
 	- Fix autoconf of systemd check for lack of pkg-config.
