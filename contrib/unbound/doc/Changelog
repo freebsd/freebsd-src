@@ -1,8 +1,150 @@
-21 Aug 2017: Wouter
+13 September 2017: Wouter
+	- tag 1.6.6rc2
+
+12 September 2017: Wouter
+	- Add dns64 for client-subnet in unbound-checkconf.
+
+4 September 2017: Ralph
+	- Fix #1412: QNAME minimisation strict mode not honored
+	- Fix #1434: Fix windows openssl 1.1.0 linking.
+
+4 September 2017: Wouter
+	- tag 1.6.6rc1
+	- makedist fix for windows binaries, with openssl 1.1.0 windres fix,
+	  and expat 2.2.4 install target fix.
+
+1 September 2017: Wouter
+	- Recommend 1472 buffer size in unbound.conf
+
+31 August 2017: Wouter
+	- Fix #1424: cachedb:testframe is not thread safe.
+	- For #1417: escape ; in dnscrypt tests.
+	- but reverted that, tests fails with that escape.
+	- Fix #1417: [dnscrypt] shared secret cache counters, and works when
+	  dnscrypt is not enabled.  And cache size configuration option.
+	- make depend
+	- Fix #1418: [ip ratelimit] initialize slabhash using
+	  ip-ratelimit-slabs.
+
+30 August 2017: Wouter
+	- updated contrib/fastrpz.patch to apply with configparser changes.
+	- Fix 1416: qname-minimisation breaks TLSA lookups with CNAMEs.
+
+29 August 2017: Wouter
+	- Fix #1414: fix segfault on parse failure and log_replies.
+	- zero qinfo in handle_request, this zeroes local_alias and also the
+	  qname member.
+	- new keys and certs for dnscrypt tests.
+	- fixup WKS test on buildhost without servicebyname.
+
+28 August 2017: Wouter
+	- Fix #1415: patch to free dnscrypt environment on reload.
+	- iana portlist update
+	- Fix #1415: [dnscrypt] shared secret cache, patch from
+	  Manu Bretelle.
+	- Small fixes for the shared secret cache patch.
+	- Fix WKS records on kvm autobuild host, with default protobyname
+	  entries for udp and tcp.
+
+23 August 2017: Wouter
+	- Fix #1407: Add ECS options check to unbound-checkconf.
+	- make depend
+	- Fix to reclaim tcp handler when it is closed due to dnscrypt buffer
+	  allocation failure.
+
+22 August 2017: Wouter
 	- Fix install of trust anchor when two anchors are present, makes both
-	  valid.  Checks hash of DS but not signature of new key.  This fixes
-	  installs between sep11 and oct11 2017.
-	- Tag 1.6.5
+	  valid. Checks hash of DS but not signature of new key. This fixes
+	  the root.key file if created when unbound is installed between
+	  sep11 and oct11 2017.
+	- tag 1.6.5 with pointrelease 1.6.5 (1.6.4 plus 5011 fix).
+	- trunk version 1.6.6 in development.
+	- Fix issue on macOX 10.10 where TCP fast open is detected but not
+	  implemented causing TCP to fail. The fix allows fallback to regular
+	  TCP in this case and is also more robust for cases where connectx()
+	  fails for some reason.
+	- Fix #1402: squelch invalid argument error for fd_set_block on windows.
+
+10 August 2017: Wouter
+	- Patch to show DNSCrypt status in help output, from Carsten
+	  Strotmann.
+
+8 August 2017: Wouter
+	- Fix #1398: make cachedb secret configurable.
+	- Remove spaces from Makefile.
+
+7 August 2017: Wouter
+	- Fix #1397: Recursive DS lookups for AS112 zones names should recurse.
+
+3 August 2017: Ralph
+	- Remove unused iter_env member (ip6arpa_dname)
+	- Do not reset rrset.bogus stats when called using stats_noreset.
+	- Added stats for queries that have been ratelimited by domain
+	  recursion.
+	- Do not add rrset_bogus and query ratelimiting stats per thread, these
+	  module stats are global.
+
+3 August 2017: Wouter
+	- Fix #1394: mix of serve-expired and response-ip could cause a crash.
+
+24 July 2017: Wouter
+	- upgrade aclocal(pkg.m4 0.29.1), config.guess(2016-10-02),
+	  config.sub(2016-09-05).
+	- annotate case statement fallthrough for gcc 7.1.1.
+	- flex output from flex 2.6.1.
+	- snprintf of thread number does not warn about truncated string.
+	- squelch TCP fast open error on FreeBSD when kernel has it disabled,
+	  unless verbosity is high.
+	- remove warning from windows compile.
+	- Fix compile with libnettle
+	- Fix DSA configure switch (--disable dsa) for libnettle and libnss.
+	- Fix #1365: Add Ed25519 support using libnettle.
+	- iana portlist update
+
+17 July 2017: Wouter
+	- Fix #1350: make cachedb backend configurable (from JINMEI Tatuya).
+	- Fix #1349: allow suppression of pidfiles (from Daniel Kahn Gillmor).
+	  With the -p option unbound does not create a pidfile.
+
+11 July 2017: Wouter
+	- Fix #1344: RFC6761-reserved domains: test. and invalid.
+	- Redirect all localhost names to localhost address for RFC6761.
+
+6 July 2017: Wouter
+	- Fix tests to use .tdir (from Manu Bretelle) instead of .tpkg.
+	- Fix svn hooks for tdir (selected if testcode/mini_tdir.sh exists)..
+
+4 July 2017: Wouter
+	- Fix 1332: Bump verbosity of failed chown'ing of the control socket.
+
+3 July 2017: Wouter
+	- Fix for unbound-checkconf, check ipsecmod-hook if ipsecmod is turned
+	  on.
+	- Fix #1331: libunbound segfault in threaded mode when context is
+	  deleted.
+	- Fix pythonmod link line option flag.
+	- Fix openssl 1.1.0 load of ssl error strings from ssl init.
+
+29 June 2017: Wouter
+	- Fix python example0 return module wait instead of error for pass.
+	- iana portlist update
+	- enhancement for hardened-tls for DNS over TLS.  Removed duplicated
+	  security settings.
+
+27 June 2017: Wouter
+	- Tag 1.6.4 is created with the 1.6.4rc2 contents.
+	- Trunk contains 1.6.5, with changes from 26, 27 june.
+	- Remove signed unsigned warning from authzone.
+	- Fix that infra cache host hash does not change after reconfig.
+
+26 June 2017: Wouter
+	- (for 1.6.5)
+	  Better fixup of dnscrypt_cert_chacha test for different escapes.
+	- First fix for zero b64 and hex text zone format in sldns.
+	- unbound-control dump_infra prints port number for address if not 53.
+
+23 June 2017: Wouter
+	- (for 1.6.5): fixup of dnscrypt_cert_chacha test (from Manu Bretelle).
 
 22 June 2017: Wouter
 	- Tag 1.6.4rc2
