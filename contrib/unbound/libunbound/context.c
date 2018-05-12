@@ -62,6 +62,7 @@ context_finalize(struct ub_ctx* ctx)
 	config_apply(cfg);
 	if(!modstack_setup(&ctx->mods, cfg->module_conf, ctx->env))
 		return UB_INITFAIL;
+	log_edns_known_options(VERB_ALGO, ctx->env);
 	ctx->local_zones = local_zones_create();
 	if(!ctx->local_zones)
 		return UB_NOMEM;

@@ -176,7 +176,10 @@ setup_ctx(struct config_file* cfg)
 		free(c_cert);
 	} else {
 		/* Use ciphers that don't require authentication  */
-		if(!SSL_CTX_set_cipher_list(ctx, "aNULL"))
+#ifdef HAVE_SSL_CTX_SET_SECURITY_LEVEL
+		SSL_CTX_set_security_level(ctx, 0);
+#endif
+		if(!SSL_CTX_set_cipher_list(ctx, "aNULL, eNULL"))
 			ssl_err("Error setting NULL cipher!");
 	}
 	return ctx;
@@ -300,6 +303,15 @@ send_file(SSL* ssl, FILE* in, char* buf, size_t sz)
 	}
 }
 
+/** send end-of-file marker to server */
+static void
+send_eof(SSL* ssl)
+{
+	char e[] = {0x04, 0x0a};
+	if(SSL_write(ssl, e, (int)sizeof(e)) <= 0)
+		ssl_err("could not SSL_write end-of-file marker");
+}
+
 /** send command and display result */
 static int
 go_cmd(SSL* ssl, int quiet, int argc, char* argv[])
@@ -324,6 +336,13 @@ go_cmd(SSL* ssl, int quiet, int argc, char* argv[])
 
 	if(argc == 1 && strcmp(argv[0], "load_cache") == 0) {
 		send_file(ssl, stdin, buf, sizeof(buf));
+	}
+	else if(argc == 1 && (strcmp(argv[0], "local_zones") == 0 ||
+		strcmp(argv[0], "local_zones_remove") == 0 ||
+		strcmp(argv[0], "local_datas") == 0 ||
+		strcmp(argv[0], "local_datas_remove") == 0)) {
+		send_file(ssl, stdin, buf, sizeof(buf));
+		send_eof(ssl);
 	}
 
 	while(1) {

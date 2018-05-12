@@ -181,6 +181,7 @@ val_init(struct module_env* env, int id)
 		log_err("validator: could not apply configuration settings.");
 		return 0;
 	}
+
 	return 1;
 }
 
@@ -377,6 +378,7 @@ generate_request(struct module_qstate* qstate, int id, uint8_t* name,
 	ask.qname_len = namelen;
 	ask.qtype = qtype;
 	ask.qclass = qclass;
+	ask.local_alias = NULL;
 	log_query_info(VERB_ALGO, "generate request", &ask);
 	fptr_ok(fptr_whitelist_modenv_attach_sub(qstate->env->attach_sub));
 	/* enable valrec flag to avoid recursion to the same validation
@@ -2087,7 +2089,7 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 	}
 
 	/* store results in cache */
-	if(qstate->query_flags&BIT_RD) {
+	if(!qstate->no_cache_store && qstate->query_flags&BIT_RD) {
 		/* if secure, this will override cache anyway, no need
 		 * to check if from parentNS */
 		if(!dns_cache_store(qstate->env, &vq->orig_msg->qinfo, 
@@ -2280,6 +2282,7 @@ val_operate(struct module_qstate* qstate, enum module_ev event, int id,
 	(void)outbound;
 	if(event == module_event_new || 
 		(event == module_event_pass && vq == NULL)) {
+
 		/* pass request to next module, to get it */
 		verbose(VERB_ALGO, "validator: pass to next module");
 		qstate->ext_state[id] = module_wait_module;
@@ -2288,6 +2291,7 @@ val_operate(struct module_qstate* qstate, enum module_ev event, int id,
 	if(event == module_event_moddone) {
 		/* check if validation is needed */
 		verbose(VERB_ALGO, "validator: nextmodule returned");
+
 		if(!needs_validation(qstate, qstate->return_rcode, 
 			qstate->return_msg)) {
 			/* no need to validate this */

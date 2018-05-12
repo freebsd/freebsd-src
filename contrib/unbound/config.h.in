@@ -107,6 +107,9 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
+/* Define to 1 if you have the `DSA_SIG_set0' function. */
+#undef HAVE_DSA_SIG_SET0
+
 /* Define to 1 if you have the <endian.h> header file. */
 #undef HAVE_ENDIAN_H
 
@@ -142,6 +145,9 @@
 
 /* Define to 1 if you have the `EVP_cleanup' function. */
 #undef HAVE_EVP_CLEANUP
+
+/* Define to 1 if you have the `EVP_dss1' function. */
+#undef HAVE_EVP_DSS1
 
 /* Define to 1 if you have the `EVP_MD_CTX_new' function. */
 #undef HAVE_EVP_MD_CTX_NEW
@@ -344,9 +350,6 @@
 /* Define to 1 if you have the `recvmsg' function. */
 #undef HAVE_RECVMSG
 
-/* define if you have the sbrk() call */
-#undef HAVE_SBRK
-
 /* Define to 1 if you have the `sendmsg' function. */
 #undef HAVE_SENDMSG
 
@@ -394,6 +397,9 @@
 
 /* Define if you have the SSL libraries installed. */
 #undef HAVE_SSL
+
+/* Define to 1 if you have the `SSL_CTX_set_security_level' function. */
+#undef HAVE_SSL_CTX_SET_SECURITY_LEVEL
 
 /* Define to 1 if you have the <stdarg.h> header file. */
 #undef HAVE_STDARG_H

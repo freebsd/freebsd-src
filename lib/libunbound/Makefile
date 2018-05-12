@@ -26,7 +26,7 @@ SRCS=	alloc.c as112.c autotrust.c cachedb.c config_file.c configlexer.l \
 	sbuffer.c slabhash.c str2wire.c timehist.c tube.c \
 	ub_event_pluggable.c val_anchor.c val_kcache.c val_kentry.c \
 	val_neg.c val_nsec.c val_nsec3.c val_secalgo.c val_sigcrypt.c \
-	val_utils.c validator.c winsock_event.c wire2str.c
+	val_utils.c validator.c view.c winsock_event.c wire2str.c
 
 WARNS?=	3
 

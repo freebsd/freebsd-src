@@ -79,6 +79,7 @@
 #include "services/cache/rrset.h"
 #include "services/cache/infra.h"
 #include "services/localzone.h"
+#include "services/view.h"
 #include "services/modstack.h"
 #include "util/module.h"
 #include "util/random.h"
@@ -248,9 +249,16 @@ daemon_init(void)
 		free(daemon);
 		return NULL;
 	}
+	/* init edns_known_options */
+	if(!edns_known_options_init(daemon->env)) {
+		free(daemon->env);
+		free(daemon);
+		return NULL;
+	}
 	alloc_init(&daemon->superalloc, NULL, 0);
 	daemon->acl = acl_list_create();
 	if(!daemon->acl) {
+		edns_known_options_delete(daemon->env);
 		free(daemon->env);
 		free(daemon);
 		return NULL;
@@ -347,6 +355,7 @@ static void daemon_setup_modules(struct daemon* daemon)
 		daemon->env)) {
 		fatal_exit("failed to setup modules");
 	}
+	log_edns_known_options(VERB_ALGO, daemon->env);
 }
 
 /**
@@ -542,8 +551,15 @@ void
 daemon_fork(struct daemon* daemon)
 {
 	log_assert(daemon);
-	if(!acl_list_apply_cfg(daemon->acl, daemon->cfg))
+	if(!(daemon->views = views_create()))
+		fatal_exit("Could not create views: out of memory");
+	/* create individual views and their localzone/data trees */
+	if(!views_apply_cfg(daemon->views, daemon->cfg))
+		fatal_exit("Could not set up views");
+
+	if(!acl_list_apply_cfg(daemon->acl, daemon->cfg, daemon->views))
 		fatal_exit("Could not setup access control list");
+	/* create global local_zones */
 	if(!(daemon->local_zones = local_zones_create()))
 		fatal_exit("Could not create local zones: out of memory");
 	if(!local_zones_apply_cfg(daemon->local_zones, daemon->cfg))
@@ -605,6 +621,8 @@ daemon_cleanup(struct daemon* daemon)
 	slabhash_clear(daemon->env->msg_cache);
 	local_zones_delete(daemon->local_zones);
 	daemon->local_zones = NULL;
+	views_delete(daemon->views);
+	daemon->views = NULL;
 	/* key cache is cleared by module desetup during next daemon_fork() */
 	daemon_remote_clear(daemon->rc);
 	for(i=0; i<daemon->num; i++)
@@ -634,6 +652,8 @@ daemon_delete(struct daemon* daemon)
 		slabhash_delete(daemon->env->msg_cache);
 		rrset_cache_delete(daemon->env->rrset_cache);
 		infra_delete(daemon->env->infra_cache);
+		edns_known_options_delete(daemon->env);
+		inplace_cb_lists_delete(daemon->env);
 	}
 	ub_randfree(daemon->rand);
 	alloc_clear(&daemon->superalloc);
