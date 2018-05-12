@@ -111,7 +111,7 @@ size_t val_neg_get_mem(struct val_neg_cache* neg)
 
 /** clear datas on cache deletion */
 static void
-neg_clear_datas(rbnode_t* n, void* ATTR_UNUSED(arg))
+neg_clear_datas(rbnode_type* n, void* ATTR_UNUSED(arg))
 {
 	struct val_neg_data* d = (struct val_neg_data*)n;
 	free(d->name);
@@ -120,7 +120,7 @@ neg_clear_datas(rbnode_t* n, void* ATTR_UNUSED(arg))
 
 /** clear zones on cache deletion */
 static void
-neg_clear_zones(rbnode_t* n, void* ATTR_UNUSED(arg))
+neg_clear_zones(rbnode_type* n, void* ATTR_UNUSED(arg))
 {
 	struct val_neg_zone* z = (struct val_neg_zone*)n;
 	/* delete all the rrset entries in the tree */
@@ -371,7 +371,7 @@ static struct val_neg_zone* neg_closest_zone_parent(struct val_neg_cache* neg,
 {
 	struct val_neg_zone key;
 	struct val_neg_zone* result;
-	rbnode_t* res = NULL;
+	rbnode_type* res = NULL;
 	key.node.key = &key;
 	key.name = nm;
 	key.len = nm_len;
@@ -411,7 +411,7 @@ static struct val_neg_data* neg_closest_data_parent(
 {
 	struct val_neg_data key;
 	struct val_neg_data* result;
-	rbnode_t* res = NULL;
+	rbnode_type* res = NULL;
 	key.node.key = &key;
 	key.name = nm;
 	key.len = nm_len;
@@ -677,7 +677,7 @@ static void wipeout(struct val_neg_cache* neg, struct val_neg_zone* zone,
 	uint8_t* end;
 	size_t end_len;
 	int end_labs, m;
-	rbnode_t* walk, *next;
+	rbnode_type* walk, *next;
 	struct val_neg_data* cur;
 	uint8_t buf[257];
 	/* get endpoint */
@@ -911,7 +911,7 @@ static int neg_closest_data(struct val_neg_zone* zone,
 	uint8_t* qname, size_t len, int labs, struct val_neg_data** data)
 {
 	struct val_neg_data key;
-	rbnode_t* r;
+	rbnode_type* r;
 	key.node.key = &key;
 	key.name = qname;
 	key.len = len;

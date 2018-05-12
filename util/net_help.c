@@ -785,7 +785,7 @@ void* outgoing_ssl_fd(void* sslctx, int fd)
 
 #if defined(HAVE_SSL) && defined(OPENSSL_THREADS) && !defined(THREADS_DISABLED) && defined(CRYPTO_LOCK) && OPENSSL_VERSION_NUMBER < 0x10100000L
 /** global lock list for openssl locks */
-static lock_basic_t *ub_openssl_locks = NULL;
+static lock_basic_type *ub_openssl_locks = NULL;
 
 /** callback that gets thread id for openssl */
 static unsigned long
@@ -810,8 +810,8 @@ int ub_openssl_lock_init(void)
 {
 #if defined(HAVE_SSL) && defined(OPENSSL_THREADS) && !defined(THREADS_DISABLED) && defined(CRYPTO_LOCK) && OPENSSL_VERSION_NUMBER < 0x10100000L
 	int i;
-	ub_openssl_locks = (lock_basic_t*)reallocarray(
-		NULL, (size_t)CRYPTO_num_locks(), sizeof(lock_basic_t));
+	ub_openssl_locks = (lock_basic_type*)reallocarray(
+		NULL, (size_t)CRYPTO_num_locks(), sizeof(lock_basic_type));
 	if(!ub_openssl_locks)
 		return 0;
 	for(i=0; i<CRYPTO_num_locks(); i++) {

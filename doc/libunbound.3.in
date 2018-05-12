@@ -1,4 +1,4 @@
-.TH "libunbound" "3" "Dec 15, 2016" "NLnet Labs" "unbound 1.6.0"
+.TH "libunbound" "3" "Feb 21, 2017" "NLnet Labs" "unbound 1.6.1"
 .\"
 .\" libunbound.3 -- unbound library functions manual
 .\"
@@ -12,7 +12,7 @@
 .B unbound.h,
 .B ub_ctx,
 .B ub_result,
-.B ub_callback_t,
+.B ub_callback_type,
 .B ub_ctx_create,
 .B ub_ctx_delete,
 .B ub_ctx_set_option,
@@ -43,7 +43,7 @@
 .B ub_ctx_zone_remove,
 .B ub_ctx_data_add,
 .B ub_ctx_data_remove
-\- Unbound DNS validating resolver 1.6.0 functions.
+\- Unbound DNS validating resolver 1.6.1 functions.
 .SH "SYNOPSIS"
 .B #include <unbound.h>
 .LP
@@ -120,7 +120,7 @@
 .br
                  \fIint\fR rrtype, \fIint\fR rrclass, \fIvoid*\fR mydata, 
 .br
-                 \fIub_callback_t\fR callback, \fIint*\fR async_id);
+                 \fIub_callback_type\fR callback, \fIint*\fR async_id);
 .LP
 \fIint\fR
 \fBub_cancel\fR(\fIstruct ub_ctx*\fR ctx, \fIint\fR async_id);

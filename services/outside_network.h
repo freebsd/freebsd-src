@@ -123,9 +123,9 @@ struct outside_network {
 	struct pending* udp_wait_last;
 
 	/** pending udp answers. sorted by id, addr */
-	rbtree_t* pending;
+	rbtree_type* pending;
 	/** serviced queries, sorted by qbuf, addr, dnssec */
-	rbtree_t* serviced;
+	rbtree_type* serviced;
 	/** host cache, pointer but not owned by outnet. */
 	struct infra_cache* infra;
 	/** where to get random numbers */
@@ -210,7 +210,7 @@ struct port_comm {
  */
 struct pending {
 	/** redblacktree entry, key is the pending struct(id, addr). */
-	rbnode_t node;
+	rbnode_type node;
 	/** the ID for the query. int so that a value out of range can
 	 * be used to signify a pending that is for certain not present in
 	 * the rbtree. (and for which deletion is safe). */
@@ -224,7 +224,7 @@ struct pending {
 	/** timeout event */
 	struct comm_timer* timer;
 	/** callback for the timeout, error or reply to the message */
-	comm_point_callback_t* cb;
+	comm_point_callback_type* cb;
 	/** callback user argument */
 	void* cb_arg;
 	/** the outside network it is part of */
@@ -285,7 +285,7 @@ struct waiting_tcp {
 	/** length of query packet. */
 	size_t pkt_len;
 	/** callback for the timeout, error or reply to the message */
-	comm_point_callback_t* cb;
+	comm_point_callback_type* cb;
 	/** callback user argument */
 	void* cb_arg;
 	/** if it uses ssl upstream */
@@ -299,7 +299,7 @@ struct service_callback {
 	/** next in callback list */
 	struct service_callback* next;
 	/** callback function */
-	comm_point_callback_t* cb;
+	comm_point_callback_type* cb;
 	/** user argument for callback function */
 	void* cb_arg;
 };
@@ -317,7 +317,7 @@ struct service_callback {
  */
 struct serviced_query {
 	/** The rbtree node, key is this record */
-	rbnode_t node;
+	rbnode_type node;
 	/** The query that needs to be answered. Starts with flags u16,
 	 * then qdcount, ..., including qname, qtype, qclass. Does not include
 	 * EDNS record. */
@@ -443,7 +443,7 @@ void outside_network_quit_prepare(struct outside_network* outnet);
  * @return: NULL on error for malloc or socket. Else the pending query object.
  */
 struct pending* pending_udp_query(struct serviced_query* sq,
-	struct sldns_buffer* packet, int timeout, comm_point_callback_t* callback,
+	struct sldns_buffer* packet, int timeout, comm_point_callback_type* callback,
 	void* callback_arg);
 
 /**
@@ -459,7 +459,7 @@ struct pending* pending_udp_query(struct serviced_query* sq,
  * @return: false on error for malloc or socket. Else the pending TCP object.
  */
 struct waiting_tcp* pending_tcp_query(struct serviced_query* sq,
-	struct sldns_buffer* packet, int timeout, comm_point_callback_t* callback,
+	struct sldns_buffer* packet, int timeout, comm_point_callback_type* callback,
 	void* callback_arg);
 
 /**
@@ -504,7 +504,7 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 	int nocaps, int tcp_upstream, int ssl_upstream,
 	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
 	size_t zonelen, struct module_qstate* qstate,
-	comm_point_callback_t* callback, void* callback_arg,
+	comm_point_callback_type* callback, void* callback_arg,
 	struct sldns_buffer* buff, struct module_env* env);
 
 /**

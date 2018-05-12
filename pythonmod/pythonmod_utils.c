@@ -74,7 +74,7 @@ int storeQueryInCache(struct module_qstate* qstate, struct query_info* qinfo, st
 /*  Invalidate the message associated with query_info stored in message cache */
 void invalidateQueryInCache(struct module_qstate* qstate, struct query_info* qinfo)
 { 
-    hashvalue_t h;
+    hashvalue_type h;
     struct lruhash_entry* e;
     struct reply_info *r;
     size_t i, j;

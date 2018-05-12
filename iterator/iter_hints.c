@@ -67,7 +67,7 @@ static void hints_stub_free(struct iter_hints_stub* s)
 	free(s);
 }
 
-static void delhintnode(rbnode_t* n, void* ATTR_UNUSED(arg))
+static void delhintnode(rbnode_type* n, void* ATTR_UNUSED(arg))
 {
 	struct iter_hints_stub* node = (struct iter_hints_stub*)n;
 	hints_stub_free(node);

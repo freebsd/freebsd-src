@@ -412,7 +412,7 @@ nsectest(void)
 
 /** Test hash algo - NSEC3 hash it and compare result */
 static void
-nsec3_hash_test_entry(struct entry* e, rbtree_t* ct,
+nsec3_hash_test_entry(struct entry* e, rbtree_type* ct,
 	struct alloc_cache* alloc, struct regional* region, 
 	sldns_buffer* buf)
 {
@@ -468,7 +468,7 @@ nsec3_hash_test(const char* fname)
 	 *
 	 * The test does not perform canonicalization during the compare.
 	 */
-	rbtree_t ct;
+	rbtree_type ct;
 	struct regional* region = regional_create();
 	struct alloc_cache alloc;
 	sldns_buffer* buf = sldns_buffer_new(65535);

@@ -1,5 +1,103 @@
+14 February 2017: Wouter
+	- tag 1.6.1rc3.
+
+13 February 2017: Wouter
+	- Fix autoconf of systemd check for lack of pkg-config.
+
+10 February 2017: Wouter
+	- Fix pythonmod for typedef changes.
+	- Fix dnstap for warning of set but not used.
+	- tag 1.6.1rc2.
+
+9 February 2017: Wouter
+	- tag 1.6.1rc1.
+
+8 February 2017: Wouter
+	- Fix for type name change and fix warning on windows compile.
+
+7 February 2017: Wouter
+	- Include root trust anchor id 20326 in unbound-anchor.
+
+6 February 2017: Wouter
+	- Fix compile on solaris of the fix to use $host detect.
+
+4 February 2017: Wouter
+	- fix root_anchor test for updated icannbundle.pem lower certificates.
+
+26 January 2017: Wouter
+	- Fix 1211: Fix can't enable interface-automatic if no IPv6 with
+	  more helpful error message.
+
+20 January 2017: Wouter
+	- Increase MAX_MODULE to 16.
+
+19 January 2017: Wouter
+	- Fix to Rename ub_callback_t to ub_callback_type, because POSIX
+	  reserves _t typedefs.
+	- Fix to rename internally used types from _t to _type, because _t
+	  type names are reserved by POSIX.
+	- iana portlist update
+
+12 January 2017: Wouter
+	- Fix to also block meta types 128 through to 248 with formerr. 
+	- Fix #1206: Some view-related commands are missing from 'unbound-control -h'
+
+9 January 2017: Wouter
+	- Fix #1202: Fix code comment that packed_rrset_data is not always
+	  'packed'.
+
+6 January 2017: Wouter
+	- Fix #1201: Fix missing unlock in answer_from_cache error condition.
+
+5 January 2017: Wouter
+	- Fix to return formerr for queries for meta-types, to avoid
+	  packet amplification if this meta-type is sent on to upstream.
+	- Fix #1184: Log DNS replies. This includes the same logging
+	  information that DNS queries and response code and response size,
+	  patch from Larissa Feng.
+	- Fix #1185: Source IP rate limiting, patch from Larissa Feng.
+
+3 January 2017: Wouter
+	- configure --enable-systemd and lets unbound use systemd sockets if
+	  you enable use-systemd: yes in unbound.conf.
+	  Also there are contrib/unbound.socket and contrib/unbound.service:
+	  systemd files for unbound, install them in /usr/lib/systemd/system.
+	  Contributed by Sami Kerola and Pavel Odintsov.
+	- Fix reload chdir failure when also chrooted to that directory.
+
+2 January 2017: Wouter
+	- Fix #1194: Cross build fails when $host isn't `uname` for getentropy.
+
+23 December 2016: Ralph
+	- Fix #1190: Do not echo back EDNS options in local-zone error response.
+	- iana portlist update
+
+21 December 2016: Ralph
+	- Fix #1188: Unresolved symbol 'fake_dsa' in libunbound.so when built
+	  with Nettle
+
+19 December 2016: Ralph
+	- Fix #1191: remove comment about view deletion.
+
+15 December 2016: Wouter
+	- iana portlist update
+	- 64bit is default for windows builds.
+	- Fix inet_ntop and inet_pton warnings in windows compile.
+
+14 December 2016: Wouter
+	- Fix #1178: attempt to fix setup error at end, pop result values
+	  at end of install.
+
+13 December 2016: Wouter
+	- Fix #1182: Fix Resource leak (socket), at startup.
+	- Fix unbound-control and ipv6 only.
+
+9 December 2016: Wouter
+	- Fix #1176: stack size too small for Alpine Linux.
+
 8 December 2016: Wouter
 	- Fix downcast warnings from visual studio in sldns code.
+	- tag 1.6.0rc1 which became 1.6.0 on 15 dec, and trunk is 1.6.1.
 
 7 December 2016: Ralph
 	- Add DSA support for OpenSSL 1.1.0

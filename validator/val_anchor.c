@@ -113,7 +113,7 @@ assembled_rrset_delete(struct ub_packed_rrset_key* pkey)
 
 /** destroy locks in tree and delete autotrust anchors */
 static void
-anchors_delfunc(rbnode_t* elem, void* ATTR_UNUSED(arg))
+anchors_delfunc(rbnode_type* elem, void* ATTR_UNUSED(arg))
 {
 	struct trust_anchor* ta = (struct trust_anchor*)elem;
 	if(!ta) return;
@@ -198,7 +198,7 @@ anchor_find(struct val_anchors* anchors, uint8_t* name, int namelabs,
 	size_t namelen, uint16_t dclass)
 {
 	struct trust_anchor key;
-	rbnode_t* n;
+	rbnode_type* n;
 	if(!name) return NULL;
 	key.node.key = &key;
 	key.name = name;
@@ -222,7 +222,7 @@ anchor_new_ta(struct val_anchors* anchors, uint8_t* name, int namelabs,
 	size_t namelen, uint16_t dclass, int lockit)
 {
 #ifdef UNBOUND_DEBUG
-	rbnode_t* r;
+	rbnode_type* r;
 #endif
 	struct trust_anchor* ta = (struct trust_anchor*)malloc(
 		sizeof(struct trust_anchor));
@@ -990,7 +990,7 @@ anchors_assemble_rrsets(struct val_anchors* anchors)
 	size_t nods, nokey;
 	lock_basic_lock(&anchors->lock);
 	ta=(struct trust_anchor*)rbtree_first(anchors->tree);
-	while((rbnode_t*)ta != RBTREE_NULL) {
+	while((rbnode_type*)ta != RBTREE_NULL) {
 		next = (struct trust_anchor*)rbtree_next(&ta->node);
 		lock_basic_lock(&ta->lock);
 		if(ta->autr || (ta->numDS == 0 && ta->numDNSKEY == 0)) {
@@ -1164,7 +1164,7 @@ anchors_lookup(struct val_anchors* anchors,
 {
 	struct trust_anchor key;
 	struct trust_anchor* result;
-	rbnode_t* res = NULL;
+	rbnode_type* res = NULL;
 	key.node.key = &key;
 	key.name = qname;
 	key.namelabs = dname_count_labels(qname);
