@@ -38,6 +38,8 @@ extern struct sldns_struct_lookup_table* sldns_edns_flags;
 extern struct sldns_struct_lookup_table* sldns_edns_options;
 /** error string from wireparse */
 extern struct sldns_struct_lookup_table* sldns_wireparse_errors;
+/** tsig errors are the rcodes with extra (higher) values */
+extern struct sldns_struct_lookup_table* sldns_tsig_errors;
 
 /**
  * Convert wireformat packet to a string representation
@@ -805,6 +807,19 @@ int sldns_wire2str_hip_scan(uint8_t** data, size_t* data_len, char** str,
  * 	Can return -1 on failure.
  */
 int sldns_wire2str_int16_data_scan(uint8_t** data, size_t* data_len, char** str,
+	size_t* str_len);
+
+/**
+ * Scan wireformat tsigerror field to string, with user buffers.
+ * It shifts the arguments to move along (see sldns_wire2str_pkt_scan).
+ * @param data: wireformat data.
+ * @param data_len: length of data buffer.
+ * @param str: string buffer.
+ * @param str_len: length of string buffer.
+ * @return number of characters (except null) needed to print.
+ * 	Can return -1 on failure.
+ */
+int sldns_wire2str_tsigerror_scan(uint8_t** data, size_t* data_len, char** str,
 	size_t* str_len);
 
 /**

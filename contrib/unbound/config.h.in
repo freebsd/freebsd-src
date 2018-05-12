@@ -79,6 +79,10 @@
    don't. */
 #undef HAVE_DECL_INET_PTON
 
+/* Define to 1 if you have the declaration of `NID_ED25519', and to 0 if you
+   don't. */
+#undef HAVE_DECL_NID_ED25519
+
 /* Define to 1 if you have the declaration of `NID_secp384r1', and to 0 if you
    don't. */
 #undef HAVE_DECL_NID_SECP384R1
@@ -156,6 +160,9 @@
 
 /* Define to 1 if you have the `EVP_cleanup' function. */
 #undef HAVE_EVP_CLEANUP
+
+/* Define to 1 if you have the `EVP_DigestVerify' function. */
+#undef HAVE_EVP_DIGESTVERIFY
 
 /* Define to 1 if you have the `EVP_dss1' function. */
 #undef HAVE_EVP_DSS1
@@ -666,6 +673,9 @@
 /* Define to 1 to enable dnscrypt support */
 #undef USE_DNSCRYPT
 
+/* Define to 1 to enable dnscrypt with xchacha20 support */
+#undef USE_DNSCRYPT_XCHACHA20
+
 /* Define to 1 to enable dnstap support */
 #undef USE_DNSTAP
 
@@ -678,8 +688,14 @@
 /* Define this to enable an EVP workaround for older openssl */
 #undef USE_ECDSA_EVP_WORKAROUND
 
+/* Define this to enable ED25519 support. */
+#undef USE_ED25519
+
 /* Define this to enable GOST support. */
 #undef USE_GOST
+
+/* Define to 1 to use ipsecmod support. */
+#undef USE_IPSECMOD
 
 /* Define if you want to use internal select based events */
 #undef USE_MINI_EVENT

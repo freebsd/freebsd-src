@@ -261,6 +261,7 @@ respip_enter_rr(struct regional* region, struct resp_addr* raddr,
 		log_err("bad response-ip-data: %s", rrstr);
 		return 0;
 	}
+	free(nm);
 	sa = (struct sockaddr*)&raddr->node.addr;
 	if (rrtype == LDNS_RR_TYPE_CNAME && raddr->data) {
 		log_err("CNAME response-ip data (%s) can not co-exist with other "

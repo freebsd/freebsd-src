@@ -306,10 +306,10 @@ void val_reply_remove_auth(struct reply_info* rep, size_t index);
  * So that unsigned data does not get let through to clients, when we have
  * found the data to be secure.
  *
- * @param ve: validator environment with cleaning options.
+ * @param env: environment with cleaning options.
  * @param rep: reply to dump all nonsecure stuff out of.
  */
-void val_check_nonsecure(struct val_env* ve, struct reply_info* rep);
+void val_check_nonsecure(struct module_env* env, struct reply_info* rep);
 
 /**
  * Mark all unchecked rrset entries not below a trust anchor as indeterminate.

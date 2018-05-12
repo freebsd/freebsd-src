@@ -1018,7 +1018,7 @@ parse_extract_edns(struct msg_parse* msg, struct edns_data* edns,
 	edns->opt_list = NULL;
 
 	/* take the options */
-	rdata_len = found->rr_first->size;
+	rdata_len = found->rr_first->size-2;
 	rdata_ptr = found->rr_first->ttl_data+6;
 	if(!parse_edns_options(rdata_ptr, rdata_len, edns, region))
 		return 0;

@@ -1223,15 +1223,15 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 			ports->ftype == listen_type_tcp_dnscrypt ||
 			ports->ftype == listen_type_udpancil_dnscrypt) {
 			cp->dnscrypt = 1;
-            cp->dnscrypt_buffer = sldns_buffer_new(bufsize);
-            if(!cp->dnscrypt_buffer) {
-                log_err("can't alloc dnscrypt_buffer");
-                comm_point_delete(cp);
-                listen_delete(front);
-                return NULL;
-            }
-            front->dnscrypt_udp_buff = cp->dnscrypt_buffer;
-        }
+			cp->dnscrypt_buffer = sldns_buffer_new(bufsize);
+			if(!cp->dnscrypt_buffer) {
+				log_err("can't alloc dnscrypt_buffer");
+				comm_point_delete(cp);
+				listen_delete(front);
+				return NULL;
+			}
+			front->dnscrypt_udp_buff = cp->dnscrypt_buffer;
+		}
 #endif
 		if(!listen_cp_insert(cp, front)) {
 			log_err("malloc failed");
@@ -1269,10 +1269,10 @@ listen_delete(struct listen_dnsport* front)
 		return;
 	listen_list_delete(front->cps);
 #ifdef USE_DNSCRYPT
-    if(front->dnscrypt_udp_buff &&
-       front->udp_buff != front->dnscrypt_udp_buff) {
-        sldns_buffer_free(front->dnscrypt_udp_buff);
-    }
+	if(front->dnscrypt_udp_buff &&
+		front->udp_buff != front->dnscrypt_udp_buff) {
+		sldns_buffer_free(front->dnscrypt_udp_buff);
+	}
 #endif
 	sldns_buffer_free(front->udp_buff);
 	free(front);

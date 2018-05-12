@@ -116,7 +116,7 @@ struct worker {
 	/** allocation cache for this thread */
 	struct alloc_cache alloc;
 	/** per thread statistics */
-	struct server_stats stats;
+	struct ub_server_stats stats;
 	/** thread scratch regional */
 	struct regional* scratchpad;
 

@@ -234,6 +234,15 @@ int fptr_whitelist_modenv_attach_sub(int (*fptr)(
 	uint16_t qflags, int prime, int valrec, struct module_qstate** newq));
 
 /**
+ * Check function pointer whitelist for module_env add_sub callback values.
+ *
+ * @param fptr: function pointer to check.
+ * @return false if not in whitelist.
+ */
+int fptr_whitelist_modenv_add_sub(int (*fptr)(struct module_qstate* qstate,
+	struct query_info* qinfo, uint16_t qflags, int prime, int valrec,
+	struct module_qstate** newq, struct mesh_state** sub));
+/**
  * Check function pointer whitelist for module_env kill_sub callback values.
  *
  * @param fptr: function pointer to check.

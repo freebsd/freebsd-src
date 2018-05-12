@@ -601,6 +601,167 @@ int ub_ctx_data_remove(struct ub_ctx* ctx, const char *data);
  */
 const char* ub_version(void);
 
+/** 
+ * Some global statistics that are not in struct stats_info,
+ * this struct is shared on a shm segment (shm-key in unbound.conf)
+ */
+struct ub_shm_stat_info {
+	int num_threads;
+
+	struct {
+		long long now_sec, now_usec;
+		long long up_sec, up_usec;
+		long long elapsed_sec, elapsed_usec;
+	} time;
+
+	struct {
+		long long msg;
+		long long rrset;
+		long long val;
+		long long iter;
+		long long subnet;
+		long long ipsecmod;
+		long long respip;
+	} mem;
+};
+
+/** number of qtype that is stored for in array */
+#define UB_STATS_QTYPE_NUM 256
+/** number of qclass that is stored for in array */
+#define UB_STATS_QCLASS_NUM 256
+/** number of rcodes in stats */
+#define UB_STATS_RCODE_NUM 16
+/** number of opcodes in stats */
+#define UB_STATS_OPCODE_NUM 16
+/** number of histogram buckets */
+#define UB_STATS_BUCKET_NUM 40
+
+/** per worker statistics. */
+struct ub_server_stats {
+	/** number of queries from clients received. */
+	long long num_queries;
+	/** number of queries that have been dropped/ratelimited by ip. */
+	long long num_queries_ip_ratelimited;
+	/** number of queries that had a cache-miss. */
+	long long num_queries_missed_cache;
+	/** number of prefetch queries - cachehits with prefetch */
+	long long num_queries_prefetch;
+
+	/**
+	 * Sum of the querylistsize of the worker for 
+	 * every query that missed cache. To calculate average.
+	 */
+	long long sum_query_list_size;
+	/** max value of query list size reached. */
+	long long max_query_list_size;
+
+	/** Extended stats below (bool) */
+	int extended;
+
+	/** qtype stats */
+	long long qtype[UB_STATS_QTYPE_NUM];
+	/** bigger qtype values not in array */
+	long long qtype_big;
+	/** qclass stats */
+	long long qclass[UB_STATS_QCLASS_NUM];
+	/** bigger qclass values not in array */
+	long long qclass_big;
+	/** query opcodes */
+	long long qopcode[UB_STATS_OPCODE_NUM];
+	/** number of queries over TCP */
+	long long qtcp;
+	/** number of outgoing queries over TCP */
+	long long qtcp_outgoing;
+	/** number of queries over IPv6 */
+	long long qipv6;
+	/** number of queries with QR bit */
+	long long qbit_QR;
+	/** number of queries with AA bit */
+	long long qbit_AA;
+	/** number of queries with TC bit */
+	long long qbit_TC;
+	/** number of queries with RD bit */
+	long long qbit_RD;
+	/** number of queries with RA bit */
+	long long qbit_RA;
+	/** number of queries with Z bit */
+	long long qbit_Z;
+	/** number of queries with AD bit */
+	long long qbit_AD;
+	/** number of queries with CD bit */
+	long long qbit_CD;
+	/** number of queries with EDNS OPT record */
+	long long qEDNS;
+	/** number of queries with EDNS with DO flag */
+	long long qEDNS_DO;
+	/** answer rcodes */
+	long long ans_rcode[UB_STATS_RCODE_NUM];
+	/** answers with pseudo rcode 'nodata' */
+	long long ans_rcode_nodata;
+	/** answers that were secure (AD) */
+	long long ans_secure;
+	/** answers that were bogus (withheld as SERVFAIL) */
+	long long ans_bogus;
+	/** rrsets marked bogus by validator */
+	long long rrset_bogus;
+	/** unwanted traffic received on server-facing ports */
+	long long unwanted_replies;
+	/** unwanted traffic received on client-facing ports */
+	long long unwanted_queries;
+	/** usage of tcp accept list */
+	long long tcp_accept_usage;
+	/** answers served from expired cache */
+	long long zero_ttl_responses;
+	/** histogram data exported to array 
+	 * if the array is the same size, no data is lost, and
+	 * if all histograms are same size (is so by default) then
+	 * adding up works well. */
+	long long hist[UB_STATS_BUCKET_NUM];
+	
+	/** number of message cache entries */
+	long long msg_cache_count;
+	/** number of rrset cache entries */
+	long long rrset_cache_count;
+	/** number of infra cache entries */
+	long long infra_cache_count;
+	/** number of key cache entries */
+	long long key_cache_count;
+
+	/** number of queries that used dnscrypt */
+	long long num_query_dnscrypt_crypted;
+	/** number of queries that queried dnscrypt certificates */
+	long long num_query_dnscrypt_cert;
+	/** number of queries in clear text and not asking for the certificates */
+	long long num_query_dnscrypt_cleartext;
+	/** number of malformed encrypted queries */
+	long long num_query_dnscrypt_crypted_malformed;
+};
+
+/** 
+ * Statistics to send over the control pipe when asked
+ * This struct is made to be memcpied, sent in binary.
+ * shm mapped with (number+1) at num_threads+1, with first as total
+ */
+struct ub_stats_info {
+	/** the thread stats */
+	struct ub_server_stats svr;
+
+	/** mesh stats: current number of states */
+	long long mesh_num_states;
+	/** mesh stats: current number of reply (user) states */
+	long long mesh_num_reply_states;
+	/** mesh stats: number of reply states overwritten with a new one */
+	long long mesh_jostled;
+	/** mesh stats: number of incoming queries dropped */
+	long long mesh_dropped;
+	/** mesh stats: replies sent */
+	long long mesh_replies_sent;
+	/** mesh stats: sum of waiting times for the replies */
+	long long mesh_replies_sum_wait_sec, mesh_replies_sum_wait_usec;
+	/** mesh stats: median of waiting times for replies (in sec) */
+	double mesh_time_median;
+};
+
 #ifdef __cplusplus
 }
 #endif

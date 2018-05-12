@@ -171,12 +171,13 @@ static int
 cachedb_apply_cfg(struct cachedb_env* cachedb_env, struct config_file* cfg)
 {
 	const char* backend_str = "testframe"; /* TODO get from cfg */
+	(void)cfg;     /* need this until the TODO is implemented */
 	if(backend_str && backend_str[0]) {
 		cachedb_env->backend = cachedb_find_backend(backend_str);
 		if(!cachedb_env->backend) {
 			log_err("cachedb: cannot find backend name '%s",
 				backend_str);
-			return NULL;
+			return 0;
 		}
 	}
 	/* TODO see if more configuration needs to be applied or not */
@@ -374,6 +375,36 @@ good_expiry_and_qinfo(struct module_qstate* qstate, struct sldns_buffer* buf)
 	return 1;
 }
 
+static void
+packed_rrset_ttl_subtract(struct packed_rrset_data* data, time_t subtract)
+{
+        size_t i;
+        size_t total = data->count + data->rrsig_count;
+	if(data->ttl > subtract)
+		data->ttl -= subtract;
+	else	data->ttl = 0;
+        for(i=0; i<total; i++) {
+		if(data->rr_ttl[i] > subtract)
+                	data->rr_ttl[i] -= subtract;
+                else	data->rr_ttl[i] = 0;
+	}
+}
+
+static void
+adjust_msg_ttl(struct dns_msg* msg, time_t adjust)
+{
+	size_t i;
+	if(msg->rep->ttl > adjust)
+		msg->rep->ttl -= adjust;
+	else	msg->rep->ttl = 0;
+	msg->rep->prefetch_ttl = PREFETCH_TTL_CALC(msg->rep->ttl);
+
+	for(i=0; i<msg->rep->rrset_count; i++) {
+		packed_rrset_ttl_subtract((struct packed_rrset_data*)msg->
+			rep->rrsets[i]->entry.data, adjust);
+	}
+}
+
 /** convert dns message in buffer to return_msg */
 static int
 parse_data(struct module_qstate* qstate, struct sldns_buffer* buf)
@@ -420,24 +451,18 @@ parse_data(struct module_qstate* qstate, struct sldns_buffer* buf)
 	qstate->return_rcode = LDNS_RCODE_NOERROR;
 
 	/* see how much of the TTL expired, and remove it */
+	if(*qstate->env->now <= (time_t)timestamp) {
+		verbose(VERB_ALGO, "cachedb msg adjust by zero");
+		return 1; /* message from the future (clock skew?) */
+	}
 	adjust = *qstate->env->now - (time_t)timestamp;
+	if(qstate->return_msg->rep->ttl < adjust) {
+		verbose(VERB_ALGO, "cachedb msg expired");
+		return 0; /* message expired */
+	}
 	verbose(VERB_ALGO, "cachedb msg adjusted down by %d", (int)adjust);
-	/*adjust_msg(qstate->return_msg, adjust);*/
-	/* TODO:
-		msg->rep->ttl = r->ttl - adjust;
-		msg->rep->prefetch_ttl = PREFETCH_TTL_CALC(msg->rep->ttl);
-		for(i=0; i<d->count + d->rrsig_count; i++) {
-			if(d->rr_ttl[i] < adjust)
-				d->rr_ttl[i] = 0;
-			else    d->rr_ttl[i] -= adjust;
-		}
-		if(d->ttl < adjust)
-			d->ttl = 0;
-		else    d->ttl -= adjust;
-		*/
-	/* TODO */
-
-	return 0;
+	adjust_msg_ttl(qstate->return_msg, adjust);
+	return 1;
 }
 
 /**

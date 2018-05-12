@@ -208,4 +208,10 @@ int dns_msg_authadd(struct dns_msg* msg, struct regional* region,
 int dns_cache_prefetch_adjust(struct module_env* env, struct query_info* qinfo,
         time_t adjust, uint16_t flags);
 
+/** lookup message in message cache
+ * the returned nonNULL entry is locked and has to be unlocked by the caller */
+struct msgreply_entry* msg_cache_lookup(struct module_env* env,
+	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
+	uint16_t flags, time_t now, int wr);
+
 #endif /* SERVICES_CACHE_DNS_H */

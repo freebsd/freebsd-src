@@ -44,8 +44,15 @@ typedef struct KeyPair_ {
     uint8_t crypt_secretkey[crypto_box_SECRETKEYBYTES];
 } KeyPair;
 
+typedef struct cert_ {
+    uint8_t magic_query[DNSCRYPT_MAGIC_HEADER_LEN];
+    uint8_t es_version[2];
+    KeyPair *keypair;
+} dnsccert;
+
 struct dnsc_env {
 	struct SignedCert *signed_certs;
+    dnsccert *certs;
 	size_t signed_certs_count;
 	uint8_t provider_publickey[crypto_sign_ed25519_PUBLICKEYBYTES];
 	uint8_t provider_secretkey[crypto_sign_ed25519_SECRETKEYBYTES];

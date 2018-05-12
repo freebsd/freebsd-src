@@ -93,19 +93,6 @@ struct val_env {
 	 * seconds. */
 	uint32_t bogus_ttl;
 
-	/** If set, the validator should clean the additional section of
-	 * secure messages.
-	 */
-	int clean_additional;
-
-	/**
-	 * If set, the validator will not make messages bogus, instead
-	 * indeterminate is issued, so that no clients receive SERVFAIL.
-	 * This allows an operator to run validation 'shadow' without
-	 * hurting responses to clients.
-	 */
-	int permissive_mode;
-
 	/**
 	 * Number of entries in the NSEC3 maximum iteration count table.
 	 * Keep this table short, and sorted by size

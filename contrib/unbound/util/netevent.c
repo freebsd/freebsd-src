@@ -666,7 +666,7 @@ comm_point_udp_callback(int fd, short event, void* arg)
 	struct comm_reply rep;
 	ssize_t rcv;
 	int i;
-    struct sldns_buffer *buffer;
+	struct sldns_buffer *buffer;
 
 	rep.c = (struct comm_point*)arg;
 	log_assert(rep.c->type == comm_udp);
@@ -704,9 +704,9 @@ comm_point_udp_callback(int fd, short event, void* arg)
 		if((*rep.c->callback)(rep.c, rep.c->cb_arg, NETEVENT_NOERROR, &rep)) {
 			/* send back immediate reply */
 #ifdef USE_DNSCRYPT
-            buffer = rep.c->dnscrypt_buffer;
+			buffer = rep.c->dnscrypt_buffer;
 #else
-            buffer = rep.c->buffer;
+			buffer = rep.c->buffer;
 #endif
 			(void)comm_point_send_udp_msg(rep.c, buffer,
 				(struct sockaddr*)&rep.addr, rep.addrlen);
@@ -725,8 +725,8 @@ setup_tcp_handler(struct comm_point* c, int fd, int cur, int max)
 	log_assert(c->fd == -1);
 	sldns_buffer_clear(c->buffer);
 #ifdef USE_DNSCRYPT
-    if (c->dnscrypt)
-        sldns_buffer_clear(c->dnscrypt_buffer);
+	if (c->dnscrypt)
+		sldns_buffer_clear(c->dnscrypt_buffer);
 #endif
 	c->tcp_is_reading = 1;
 	c->tcp_byte_count = 0;
@@ -1407,12 +1407,34 @@ comm_point_tcp_handle_write(int fd, struct comm_point* c)
 			if(errno == EINTR || errno == EAGAIN)
 				return 1;
 			/* Not handling EISCONN here as shouldn't ever hit that case.*/
-			if(errno != 0 && verbosity < 2)
+			if(errno != EPIPE && errno != 0 && verbosity < 2)
 				return 0; /* silence lots of chatter in the logs */
-			else if(errno != 0) 
+			if(errno != EPIPE && errno != 0) {
 				log_err_addr("tcp sendmsg", strerror(errno),
 					&c->repinfo.addr, c->repinfo.addrlen);
-			return 0;
+				return 0;
+			}
+			/* fallthrough to nonFASTOPEN
+			 * (MSG_FASTOPEN on Linux 3 produces EPIPE)
+			 * we need to perform connect() */
+			if(connect(fd, (struct sockaddr *)&c->repinfo.addr, c->repinfo.addrlen) == -1) {
+#ifdef EINPROGRESS
+				if(errno == EINPROGRESS)
+					return 1; /* wait until connect done*/
+#endif
+#ifdef USE_WINSOCK
+				if(WSAGetLastError() == WSAEINPROGRESS ||
+					WSAGetLastError() == WSAEWOULDBLOCK)
+					return 1; /* wait until connect done*/
+#endif
+				if(tcp_connect_errno_needs_log(
+					(struct sockaddr *)&c->repinfo.addr, c->repinfo.addrlen)) {
+					log_err_addr("outgoing tcp: connect after EPIPE for fastopen",
+						strerror(errno), &c->repinfo.addr, c->repinfo.addrlen);
+				}
+				return 0;
+			}
+
 		} else {
 			c->tcp_byte_count += r;
 			if(c->tcp_byte_count < sizeof(uint16_t))
@@ -1525,13 +1547,13 @@ comm_point_tcp_handle_callback(int fd, short event, void* arg)
 	if(c->tcp_parent) {
 		c->dnscrypt = c->tcp_parent->dnscrypt;
 	}
-    if(c->dnscrypt && c->dnscrypt_buffer == c->buffer) {
-        c->dnscrypt_buffer = sldns_buffer_new(sldns_buffer_capacity(c->buffer));
-        if(!c->dnscrypt_buffer) {
-            log_err("Could not allocate dnscrypt buffer");
-            return;
-        }
-    }
+	if(c->dnscrypt && c->dnscrypt_buffer == c->buffer) {
+		c->dnscrypt_buffer = sldns_buffer_new(sldns_buffer_capacity(c->buffer));
+		if(!c->dnscrypt_buffer) {
+			log_err("Could not allocate dnscrypt buffer");
+			return;
+		}
+	}
 #endif
 
 	if(event&UB_EV_READ) {
@@ -1691,8 +1713,8 @@ comm_point_create_udp_ancil(struct comm_base *base, int fd,
 	c->tcp_do_close = 0;
 	c->do_not_close = 0;
 #ifdef USE_DNSCRYPT
-    c->dnscrypt = 0;
-    c->dnscrypt_buffer = buffer;
+	c->dnscrypt = 0;
+	c->dnscrypt_buffer = buffer;
 #endif
 	c->inuse = 0;
 	c->tcp_do_toggle_rw = 0;
@@ -1766,10 +1788,10 @@ comm_point_create_tcp_handler(struct comm_base *base,
 	c->tcp_do_fastopen = 0;
 #endif
 #ifdef USE_DNSCRYPT
-    c->dnscrypt = 0;
-    // We don't know just yet if this is a dnscrypt channel. Allocation
-    // will be done when handling the callback.
-    c->dnscrypt_buffer = c->buffer;
+	c->dnscrypt = 0;
+	/* We don't know just yet if this is a dnscrypt channel. Allocation
+	 * will be done when handling the callback. */
+	c->dnscrypt_buffer = c->buffer;
 #endif
 	c->repinfo.c = c;
 	c->callback = callback;
@@ -2098,11 +2120,11 @@ comm_point_delete(struct comm_point* c)
 	if(c->type == comm_tcp || c->type == comm_local) {
 		sldns_buffer_free(c->buffer);
 #ifdef USE_DNSCRYPT
-        if(c->dnscrypt && c->dnscrypt_buffer != c->buffer) {
-            sldns_buffer_free(c->dnscrypt_buffer);
-        }
+		if(c->dnscrypt && c->dnscrypt_buffer != c->buffer) {
+			sldns_buffer_free(c->dnscrypt_buffer);
+		}
 #endif
-    }
+	}
 	ub_event_free(c->ev->ev);
 	free(c->ev);
 	free(c);
@@ -2115,7 +2137,7 @@ comm_point_send_reply(struct comm_reply *repinfo)
 	log_assert(repinfo && repinfo->c);
 #ifdef USE_DNSCRYPT
 	buffer = repinfo->c->dnscrypt_buffer;
-    	if(!dnsc_handle_uncurved_request(repinfo)) {
+	if(!dnsc_handle_uncurved_request(repinfo)) {
 		return;
 	}
 #else
@@ -2239,12 +2261,12 @@ size_t comm_point_get_mem(struct comm_point* c)
 	if(c->type == comm_tcp || c->type == comm_local) {
 		s += sizeof(*c->buffer) + sldns_buffer_capacity(c->buffer);
 #ifdef USE_DNSCRYPT
-        s += sizeof(*c->dnscrypt_buffer);
-        if(c->buffer != c->dnscrypt_buffer) {
-            s += sldns_buffer_capacity(c->dnscrypt_buffer);
-        }
+		s += sizeof(*c->dnscrypt_buffer);
+		if(c->buffer != c->dnscrypt_buffer) {
+			s += sldns_buffer_capacity(c->dnscrypt_buffer);
+		}
 #endif
-    }
+	}
 	if(c->type == comm_tcp_accept) {
 		int i;
 		for(i=0; i<c->max_tcp_count; i++)

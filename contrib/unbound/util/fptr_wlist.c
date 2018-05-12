@@ -49,6 +49,7 @@
 #include "services/outside_network.h"
 #include "services/mesh.h"
 #include "services/localzone.h"
+#include "services/authzone.h"
 #include "services/cache/infra.h"
 #include "services/cache/rrset.h"
 #include "services/view.h"
@@ -82,6 +83,9 @@
 #endif
 #ifdef USE_CACHEDB
 #include "cachedb/cachedb.h"
+#endif
+#ifdef USE_IPSECMOD
+#include "ipsecmod/ipsecmod.h"
 #endif
 #ifdef CLIENT_SUBNET
 #include "edns-subnet/subnetmod.h"
@@ -209,6 +213,8 @@ fptr_whitelist_rbtree_cmp(int (*fptr) (const void *, const void *))
 	else if(fptr == &probetree_cmp) return 1;
 	else if(fptr == &replay_var_compare) return 1;
 	else if(fptr == &view_cmp) return 1;
+	else if(fptr == &auth_zone_cmp) return 1;
+	else if(fptr == &auth_data_cmp) return 1;
 	return 0;
 }
 
@@ -307,6 +313,16 @@ fptr_whitelist_modenv_attach_sub(int (*fptr)(
 }
 
 int 
+fptr_whitelist_modenv_add_sub(int (*fptr)(
+        struct module_qstate* qstate, struct query_info* qinfo,
+        uint16_t qflags, int prime, int valrec, struct module_qstate** newq,
+	struct mesh_state** sub))
+{
+	if(fptr == &mesh_add_sub) return 1;
+	return 0;
+}
+
+int 
 fptr_whitelist_modenv_kill_sub(void (*fptr)(struct module_qstate* newq))
 {
 	if(fptr == &mesh_state_delete) return 1;
@@ -335,6 +351,9 @@ fptr_whitelist_mod_init(int (*fptr)(struct module_env* env, int id))
 #ifdef USE_CACHEDB
 	else if(fptr == &cachedb_init) return 1;
 #endif
+#ifdef USE_IPSECMOD
+	else if(fptr == &ipsecmod_init) return 1;
+#endif
 #ifdef CLIENT_SUBNET
 	else if(fptr == &subnetmod_init) return 1;
 #endif
@@ -353,6 +372,9 @@ fptr_whitelist_mod_deinit(void (*fptr)(struct module_env* env, int id))
 #endif
 #ifdef USE_CACHEDB
 	else if(fptr == &cachedb_deinit) return 1;
+#endif
+#ifdef USE_IPSECMOD
+	else if(fptr == &ipsecmod_deinit) return 1;
 #endif
 #ifdef CLIENT_SUBNET
 	else if(fptr == &subnetmod_deinit) return 1;
@@ -374,6 +396,9 @@ fptr_whitelist_mod_operate(void (*fptr)(struct module_qstate* qstate,
 #ifdef USE_CACHEDB
 	else if(fptr == &cachedb_operate) return 1;
 #endif
+#ifdef USE_IPSECMOD
+	else if(fptr == &ipsecmod_operate) return 1;
+#endif
 #ifdef CLIENT_SUBNET
 	else if(fptr == &subnetmod_operate) return 1;
 #endif
@@ -393,6 +418,9 @@ fptr_whitelist_mod_inform_super(void (*fptr)(
 #endif
 #ifdef USE_CACHEDB
 	else if(fptr == &cachedb_inform_super) return 1;
+#endif
+#ifdef USE_IPSECMOD
+	else if(fptr == &ipsecmod_inform_super) return 1;
 #endif
 #ifdef CLIENT_SUBNET
 	else if(fptr == &subnetmod_inform_super) return 1;
@@ -414,6 +442,9 @@ fptr_whitelist_mod_clear(void (*fptr)(struct module_qstate* qstate,
 #ifdef USE_CACHEDB
 	else if(fptr == &cachedb_clear) return 1;
 #endif
+#ifdef USE_IPSECMOD
+	else if(fptr == &ipsecmod_clear) return 1;
+#endif
 #ifdef CLIENT_SUBNET
 	else if(fptr == &subnetmod_clear) return 1;
 #endif
@@ -432,6 +463,9 @@ fptr_whitelist_mod_get_mem(size_t (*fptr)(struct module_env* env, int id))
 #endif
 #ifdef USE_CACHEDB
 	else if(fptr == &cachedb_get_mem) return 1;
+#endif
+#ifdef USE_IPSECMOD
+	else if(fptr == &ipsecmod_get_mem) return 1;
 #endif
 #ifdef CLIENT_SUBNET
 	else if(fptr == &subnetmod_get_mem) return 1;

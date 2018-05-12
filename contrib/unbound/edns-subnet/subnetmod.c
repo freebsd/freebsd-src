@@ -135,7 +135,7 @@ ecs_opt_list_append(struct ecs_data* ecs, struct edns_option** list,
 	}
 }
 
-int ecs_whitelist_check(struct query_info* ATTR_UNUSED(qinfo),
+int ecs_whitelist_check(struct query_info* qinfo,
 	uint16_t ATTR_UNUSED(flags), struct module_qstate* qstate,
 	struct sockaddr_storage* addr, socklen_t addrlen,
 	uint8_t* ATTR_UNUSED(zone), size_t ATTR_UNUSED(zonelen),
@@ -154,8 +154,9 @@ int ecs_whitelist_check(struct query_info* ATTR_UNUSED(qinfo),
 
 	if(sq->ecs_server_out.subnet_validdata && ((sq->subnet_downstream &&
 		qstate->env->cfg->client_subnet_always_forward) ||
-		upstream_is_whitelisted(sn_env->edns_subnet_upstreams, 
-		addr, addrlen))) {
+		ecs_is_whitelisted(sn_env->whitelist, 
+		addr, addrlen, qinfo->qname, qinfo->qname_len,
+		qinfo->qclass))) {
 		/* Address on whitelist or client query contains ECS option, we
 		 * want to sent out ECS. Only add option if it is not already
 		 * set. */
@@ -199,9 +200,9 @@ subnetmod_init(struct module_env *env, int id)
 		return 0;
 	}
 	/* whitelist for edns subnet capable servers */
-	sn_env->edns_subnet_upstreams = upstream_create();
-	if(!sn_env->edns_subnet_upstreams ||
-		!upstream_apply_cfg(sn_env->edns_subnet_upstreams, env->cfg)) {
+	sn_env->whitelist = ecs_whitelist_create();
+	if(!sn_env->whitelist ||
+		!ecs_whitelist_apply_cfg(sn_env->whitelist, env->cfg)) {
 		log_err("subnet: could not create ECS whitelist");
 		slabhash_delete(sn_env->subnet_msg_cache);
 		free(sn_env);
@@ -217,7 +218,7 @@ subnetmod_init(struct module_env *env, int id)
 		env->cfg->client_subnet_always_forward /* bypass cache */,
 		0 /* no aggregation */, env)) {
 		log_err("subnet: could not register opcode");
-		upstream_delete(sn_env->edns_subnet_upstreams);
+		ecs_whitelist_delete(sn_env->whitelist);
 		slabhash_delete(sn_env->subnet_msg_cache);
 		free(sn_env);
 		env->modinfo[id] = NULL;
@@ -243,7 +244,8 @@ subnetmod_deinit(struct module_env *env, int id)
 	lock_rw_destroy(&sn_env->biglock);
 	inplace_cb_delete(env, inplace_cb_edns_back_parsed, id);
 	inplace_cb_delete(env, inplace_cb_query, id);
-	upstream_delete(sn_env->edns_subnet_upstreams);
+	inplace_cb_delete(env, inplace_cb_query_response, id);
+	ecs_whitelist_delete(sn_env->whitelist);
 	slabhash_delete(sn_env->subnet_msg_cache);
 	alloc_clear(&sn_env->alloc);
 	free(sn_env);
@@ -781,7 +783,7 @@ subnetmod_get_mem(struct module_env *env, int id)
 	if (!sn_env) return 0;
 	return sizeof(*sn_env) + 
 		slabhash_get_mem(sn_env->subnet_msg_cache) +
-		upstream_get_mem(sn_env->edns_subnet_upstreams);
+		ecs_whitelist_get_mem(sn_env->whitelist);
 }
 
 /**

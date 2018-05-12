@@ -383,6 +383,37 @@ struct module_env {
 		int valrec, struct module_qstate** newq);
 
 	/**
+	 * Add detached query.
+	 * Creates it if it does not exist already.
+	 * Does not make super/sub references.
+	 * Performs a cycle detection - for double check - and fails if there is
+	 * 	one.
+	 * Updates stat items in mesh_area structure.
+	 * Pass if it is priming query or not.
+	 * return:
+	 * 	o if error (malloc) happened.
+	 * 	o need to initialise the new state (module init; it is a new state).
+	 * 	  so that the next run of the query with this module is successful.
+	 * 	o no init needed, attachment successful.
+	 * 	o added subquery, created if it did not exist already.
+	 *
+	 * @param qstate: the state to find mesh state, and that wants to receive
+	 * 	the results from the new subquery.
+	 * @param qinfo: what to query for (copied).
+	 * @param qflags: what flags to use (RD / CD flag or not).
+	 * @param prime: if it is a (stub) priming query.
+	 * @param valrec: if it is a validation recursion query (lookup of key, DS).
+	 * @param newq: If the new subquery needs initialisation, it is returned,
+	 * 	otherwise NULL is returned.
+	 * @param sub: The added mesh state, created if it did not exist already.
+	 * @return: false on error, true if success (and init may be needed).
+	 */
+	int (*add_sub)(struct module_qstate* qstate, 
+		struct query_info* qinfo, uint16_t qflags, int prime, 
+		int valrec, struct module_qstate** newq,
+		struct mesh_state** sub);
+
+	/**
 	 * Kill newly attached sub. If attach_sub returns newq for 
 	 * initialisation, but that fails, then this routine will cleanup and
 	 * delete the fresly created sub.

@@ -1,25 +1,26 @@
 /*
- * util/shm_side/shm_main.h - control the shared memory for unbound.
+ * ipsecmod/ipsecmod-whitelist.h - White listed domains for the ipsecmod to
+ * operate on.
  *
- * Copyright (c) 2007, NLnet Labs. All rights reserved.
+ * Copyright (c) 2017, NLnet Labs. All rights reserved.
  *
  * This software is open source.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * Redistributions of source code must retain the above copyright notice,
  * this list of conditions and the following disclaimer.
- * 
+ *
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * Neither the name of the NLNET LABS nor the names of its contributors may
  * be used to endorse or promote products derived from this software without
  * specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -32,37 +33,50 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 /**
  * \file
  *
- * This file contains functions for the SHM side.
+ * Keep track of the white listed domains for ipsecmod.
  */
 
-#ifndef UTIL_SHM_SIDE_MAIN_H
-#define UTIL_SHM_SIDE_MAIN_H
-struct daemon;
-struct worker;
+#ifndef IPSECMOD_WHITELIST_H
+#define IPSECMOD_WHITELIST_H
+#include "util/storage/dnstree.h"
 
-/* get struct ub_shm_stat_info */
-#include "libunbound/unbound.h"
+struct config_file;
+struct regional;
 
 /**
- * The SHM info.
+ * Process ipsecmod_whitelist config.
+ * @param ie: ipsecmod environment.
+ * @param cfg: config options.
+ * @return 0 on error.
  */
-struct shm_main_info {
-	/** stats_info array, shared memory segment.
-	 * [0] is totals, [1..thread_num] are per-thread stats */
-	struct ub_stats_info* ptr_arr;
-	/** the global stats block, shared memory segment */
-	struct ub_shm_stat_info* ptr_ctl;
-	int key;
-	int id_ctl;
-	int id_arr;
-};
+int ipsecmod_whitelist_apply_cfg(struct ipsecmod_env* ie,
+	struct config_file* cfg);
 
-int shm_main_init(struct daemon* daemon);
-void shm_main_shutdown(struct daemon* daemon);
-void shm_main_run(struct worker *worker);
+/**
+ * Delete the ipsecmod whitelist.
+ * @param whitelist: ipsecmod whitelist.
+ */
+void ipsecmod_whitelist_delete(rbtree_type* whitelist);
 
-#endif /* UTIL_SHM_SIDE_MAIN_H */
+/**
+ * See if a domain is whitelisted.
+ * @param ie: ipsecmod environment.
+ * @param dname: domain name to check.
+ * @param dname_len: length of domain name.
+ * @param qclass: query CLASS.
+ * @return: true if the domain is whitelisted for the ipsecmod.
+ */
+int ipsecmod_domain_is_whitelisted(struct ipsecmod_env* ie, uint8_t* dname,
+	size_t dname_len, uint16_t qclass);
+
+/**
+ * Get memory used by ipsecmod whitelist.
+ * @param whitelist: structure for domain storage.
+ * @return bytes in use.
+ */
+size_t ipsecmod_whitelist_get_mem(rbtree_type* whitelist);
+
+#endif /* IPSECMOD_WHITELIST_H */
