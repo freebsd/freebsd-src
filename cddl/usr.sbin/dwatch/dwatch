@@ -47,7 +47,7 @@ DTRACE_PRAGMA="
 
 ############################################################ GLOBALS
 
-VERSION='$Version: 1.1 $' # -V
+VERSION='$Version: 1.2 $' # -V
 
 pgm="${0##*/}" # Program basename
 
@@ -490,8 +490,7 @@ list_profiles()
 			function ans(s) { return cons ? "\033[" s "m" : "" }
 			gsub(filter, ans("31;1") "&" ans("39;22"))
 		' # END-QUOTE
-		return $SUCCESS
-		# NOTREACHED
+		exit $SUCCESS
 	fi
 
 	[ "$quiet" ] || echo PROFILES:
