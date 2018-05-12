@@ -1,0 +1,21 @@
+; Signature test file
+
+; first entry is a DNSKEY answer, with the DNSKEY rrset used for verification. 
+; later entries are verified with it.
+
+ENTRY_BEGIN
+SECTION QUESTION
+nsec.0skar.cz.		IN DNSKEY
+SECTION ANSWER
+nsec.0skar.cz.		297	IN	DNSKEY	257 3 10 AwEAAcfJERXDHOSg4JsxSO8WmFdi/PPbtgB6N6xDyyaDqRzr9QCL4LXH yLYjGmriFn7xhVDQTyQQp/nox5RK8YeAFHoiglQuwQVs2TyZTAZskTRj K4NL3+TuMxtCMObzHkAxa0rYvAV5RBh5tdLHUHJLe33xrFNcVidkHMAP F+kjY/9UNi1at2LTohE8VQD0mcv3Gvm79heIjq8Xt3SuqPpk7eQm1r8m 7cIsuojbCum964/H93LeyafExa1eEMhZIIiSG+ik2jDhdeybmMyeoKsO jIL/9N/Yd6u60VkWvUMennyv9rKQTOY84yg2T9yAVjusepggcxMpCVX5 HdWxakruR80=
+ENTRY_END
+
+; entry to test ; note timestamp in 2080.
+ENTRY_BEGIN
+SECTION QUESTION
+nsec.0skar.cz.          IN DNSKEY
+SECTION ANSWER
+nsec.0skar.cz.          297     IN      DNSKEY  257 3 10 AwEAAcfJERXDHOSg4JsxSO8WmFdi/PPbtgB6N6xDyyaDqRzr9QCL4LXH yLYjGmriFn7xhVDQTyQQp/nox5RK8YeAFHoiglQuwQVs2TyZTAZskTRj K4NL3+TuMxtCMObzHkAxa0rYvAV5RBh5tdLHUHJLe33xrFNcVidkHMAP F+kjY/9UNi1at2LTohE8VQD0mcv3Gvm79heIjq8Xt3SuqPpk7eQm1r8m 7cIsuojbCum964/H93LeyafExa1eEMhZIIiSG+ik2jDhdeybmMyeoKsO jIL/9N/Yd6u60VkWvUMennyv9rKQTOY84yg2T9yAVjusepggcxMpCVX5 HdWxakruR80=
+nsec.0skar.cz.		297	IN	RRSIG	DNSKEY 10 3 300 20800101000000 20140130121330 28887 nsec.0skar.cz. Ef6Jmf/d9BR0VcRakUD8dEjrMmbAF6qqYRBllLOvibFvpgdEJ7egCO9t d8jliD2VRXhqej2lqECNOvARJ+YyYekpniueiYZsBjleU2kJAyFAS2q3 7aBIii1WdM3h+noayDnjiuhEO3GLxxHWc3kyd2yDesPddiFl09fx+rcz 9BwXaS9A/vdWv+92R1j4nijVI5jxZgkQ4lnD0ZtAVRdBRO7qDRpkRHDM pnaSq51B/9XCZEv2CW8UQ5dGd9D20a3uA2lAKHLgj2/Rcuar4o2Y4ERa ms9pyDCQDhGaveZQdx01EXX0ehe5qIKOKk7iFP95TbWPMRyk1bfKTUoT Rq5rhQ==
+ENTRY_END
+

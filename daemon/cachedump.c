@@ -79,6 +79,7 @@ dump_rrset(SSL* ssl, struct ub_packed_rrset_key* k,
 	size_t i;
 	/* rd lock held by caller */
 	if(!k || !d) return 1;
+	if(k->id == 0) return 1; /* deleted */
 	if(d->ttl < now) return 1; /* expired */
 
 	/* meta line */

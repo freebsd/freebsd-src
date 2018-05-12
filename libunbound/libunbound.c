@@ -62,6 +62,7 @@
 #include "services/localzone.h"
 #include "services/cache/infra.h"
 #include "services/cache/rrset.h"
+#include "services/authzone.h"
 #include "sldns/sbuffer.h"
 #ifdef HAVE_PTHREAD
 #include <signal.h>
@@ -88,6 +89,7 @@ static struct ub_ctx* ub_ctx_create_nopipe(void)
 	WSADATA wsa_data;
 #endif
 	
+	checklock_start();
 	log_init(NULL, 0, NULL); /* logs to stderr */
 	log_ident_set("libunbound");
 #ifdef USE_WINSOCK
@@ -134,6 +136,16 @@ static struct ub_ctx* ub_ctx_create_nopipe(void)
 	}
 	/* init edns_known_options */
 	if(!edns_known_options_init(ctx->env)) {
+		config_delete(ctx->env->cfg);
+		free(ctx->env);
+		ub_randfree(ctx->seed_rnd);
+		free(ctx);
+		errno = ENOMEM;
+		return NULL;
+	}
+	ctx->env->auth_zones = auth_zones_create();
+	if(!ctx->env->auth_zones) {
+		edns_known_options_delete(ctx->env);
 		config_delete(ctx->env->cfg);
 		free(ctx->env);
 		ub_randfree(ctx->seed_rnd);
@@ -310,6 +322,7 @@ ub_ctx_delete(struct ub_ctx* ctx)
 		infra_delete(ctx->env->infra_cache);
 		config_delete(ctx->env->cfg);
 		edns_known_options_delete(ctx->env);
+		auth_zones_delete(ctx->env->auth_zones);
 		free(ctx->env);
 	}
 	ub_randfree(ctx->seed_rnd);
