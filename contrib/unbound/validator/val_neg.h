@@ -80,6 +80,12 @@ struct val_neg_cache {
 	size_t max;
 	/** max nsec3 iterations allowed */
 	size_t nsec3_max_iter;
+	/** number of times neg cache records were used to generate NOERROR
+	 * responses. */
+	size_t num_neg_cache_noerror;
+	/** number of times neg cache records were used to generate NXDOMAIN
+	 * responses. */
+	size_t num_neg_cache_nxdomain;
 };
 
 /**

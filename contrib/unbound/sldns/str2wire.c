@@ -1225,6 +1225,17 @@ int sldns_str2wire_b32_ext_buf(const char* str, uint8_t* rd, size_t* len)
 	return LDNS_WIREPARSE_ERR_OK;
 }
 
+/** see if the string ends, or ends in whitespace */
+static int
+sldns_is_last_of_string(const char* str)
+{
+	if(*str == 0) return 1;
+	while(isspace((unsigned char)*str))
+		str++;
+	if(*str == 0) return 1;
+	return 0;
+}
+
 int sldns_str2wire_hex_buf(const char* str, uint8_t* rd, size_t* len)
 {
 	const char* s = str;
@@ -1234,7 +1245,7 @@ int sldns_str2wire_hex_buf(const char* str, uint8_t* rd, size_t* len)
 			s++;
 			continue;
 		}
-		if(dlen == 0 && *s == '0' && *(s+1) == 0) {
+		if(dlen == 0 && *s == '0' && sldns_is_last_of_string(s+1)) {
 			*len = 0;
 			return LDNS_WIREPARSE_ERR_OK;
 		}

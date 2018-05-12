@@ -77,6 +77,10 @@ struct auth_zones {
 	rbtree_type xtree;
 	/** do we have downstream enabled */
 	int have_downstream;
+	/** number of queries upstream */
+	size_t num_query_up;
+	/** number of queries downstream */
+	size_t num_query_down;
 };
 
 /**
@@ -122,6 +126,10 @@ struct auth_zone {
 	/** for upstream: this zone answers queries that unbound intends to
 	 * send upstream. */
 	int for_upstream;
+	/** zone has been deleted */
+	int zone_deleted;
+	/** deletelist pointer, unused normally except during delete */
+	struct auth_zone* delete_next;
 };
 
 /**
@@ -214,8 +222,14 @@ struct auth_xfer {
 	 * Hold the lock to access this member (and the serial).
 	 */
 	int notify_received;
+	/** true if the notify_received has a serial number */
+	int notify_has_serial;
 	/** serial number of the notify */
 	uint32_t notify_serial;
+	/** the list of masters for checking notifies.  This list is
+	 * empty on start, and a copy of the list from the probe_task when
+	 * it is done looking them up. */
+	struct auth_master* allow_notify_list;
 
 	/* protected by the lock on the structure, information about
 	 * the loaded authority zone. */
@@ -292,6 +306,9 @@ struct auth_probe {
 	struct auth_master* lookup_target;
 	/** are we looking up A or AAAA, first A, then AAAA (if ip6 enabled) */
 	int lookup_aaaa;
+	/** we only want to do lookups for making config work (for notify),
+	 * don't proceed with UDP SOA probe queries */
+	int only_lookup;
 
 	/** once notified, or the timeout has been reached. a scan starts. */
 	/** the scan specific target (notify source), or NULL if none */
@@ -400,6 +417,9 @@ struct auth_master {
 	int http;
 	/** use IXFR for this master */
 	int ixfr;
+	/** this is an allow notify member, the master can send notifies
+	 * to us, but we don't send SOA probes, or zone transfer from it */
+	int allow_notify;
 	/** use ssl for channel */
 	int ssl;
 	/** the port number (for urls) */
@@ -541,8 +561,38 @@ int auth_zone_set_fallback(struct auth_zone* z, char* fallbackstr);
 int auth_zones_can_fallback(struct auth_zones* az, uint8_t* nm, size_t nmlen,
 	uint16_t dclass);
 
+/** process notify for auth zones.
+ * first checks the access list.  Then processes the notify. This starts
+ * the probe sequence or it notes the serial number (if any)
+ * @param az: auth zones structure.
+ * @param env: module env of the worker that is handling the notify. it will
+ * 	pick up the task probe (or transfer), unless already in progress by
+ * 	another worker.
+ * @param nm: name of the zone.  Uncompressed. from query.
+ * @param nmlen: length of name.
+ * @param dclass: class of zone.
+ * @param addr: source address of notify
+ * @param addrlen: length of addr.
+ * @param has_serial: if true, the notify has a serial attached.
+ * @param serial: the serial number, if has_serial is true.
+ * @param refused: is set to true on failure to note refused access.
+ * @return fail on failures (refused is false) and when access is
+ * 	denied (refused is true).  True when processed.
+ */
+int auth_zones_notify(struct auth_zones* az, struct module_env* env,
+	uint8_t* nm, size_t nmlen, uint16_t dclass,
+	struct sockaddr_storage* addr, socklen_t addrlen, int has_serial,
+	uint32_t serial, int* refused);
+
+/** process notify packet and read serial number from SOA.
+ * returns 0 if no soa record in the notify */
+int auth_zone_parse_notify_serial(struct sldns_buffer* pkt, uint32_t *serial);
+
 /** read auth zone from zonefile. caller must lock zone. false on failure */
 int auth_zone_read_zonefile(struct auth_zone* z);
+
+/** find serial number of zone or false if none (no SOA record) */
+int auth_zone_get_serial(struct auth_zone* z, uint32_t* serial);
 
 /** compare auth_zones for sorted rbtree */
 int auth_zone_cmp(const void* z1, const void* z2);

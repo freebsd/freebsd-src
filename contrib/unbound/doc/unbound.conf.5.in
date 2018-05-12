@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Mar 15, 2018" "NLnet Labs" "unbound 1.7.0"
+.TH "unbound.conf" "5" "May  3, 2018" "NLnet Labs" "unbound 1.7.1"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -288,7 +288,7 @@ silently (unless verbosity 3) without the option.
 .B ip\-transparent: \fI<yes or no>
 If yes, then use IP_TRANSPARENT socket option on sockets where unbound
 is listening for incoming traffic.  Default no.  Allows you to bind to
-non\-local interfaces.  For example for non\-existant IP addresses that
+non\-local interfaces.  For example for non\-existent IP addresses that
 are going to exist later on, with host failover configuration.  This is
 a lot like interface\-automatic, but that one services all interfaces
 and with this option you can select which (future) interfaces unbound
@@ -399,8 +399,8 @@ change anything.  Useful for TLS service providers, that want no udp downstream
 but use udp to fetch data upstream.
 .TP
 .B tls\-upstream: \fI<yes or no>
-Enabled or disable whether the upstream queries use SSL only for transport.
-Default is no.  Useful in tunneling scenarios.  The SSL contains plain DNS in
+Enabled or disable whether the upstream queries use TLS only for transport.
+Default is no.  Useful in tunneling scenarios.  The TLS contains plain DNS in
 TCP wireformat.  The other server must support this (see
 \fBtls\-service\-key\fR).
 .TP
@@ -409,7 +409,7 @@ Alternate syntax for \fBtls\-upstream\fR.  If both are present in the config
 file the last is used.
 .TP
 .B tls\-service\-key: \fI<file>
-If enabled, the server provider SSL service on its TCP sockets.  The clients
+If enabled, the server provider TLS service on its TCP sockets.  The clients
 have to use tls\-upstream: yes.  The file is the private key for the TLS
 session.  The public certificate is in the tls\-service\-pem file.  Default
 is "", turned off.  Requires a restart (a reload is not enough) if changed,
@@ -429,8 +429,8 @@ turned off.
 Alternate syntax for \fBtls\-service\-pem\fR.
 .TP
 .B tls\-port: \fI<number>
-The port number on which to provide TCP SSL service, default 853, only
-interfaces configured with that port number as @number get the SSL service.
+The port number on which to provide TCP TLS service, default 853, only
+interfaces configured with that port number as @number get the TLS service.
 .TP
 .B ssl\-port: \fI<number>
 Alternate syntax for \fBtls\-port\fR.
@@ -443,6 +443,11 @@ urls, and also DNS over TLS connections.
 .TP
 .B ssl\-cert\-bundle: \fI<file>
 Alternate syntax for \fBtls\-cert\-bundle\fR.
+.TP
+.B additional\-tls\-port: \fI<portnr>
+List portnumbers as additional\-tls\-port, and when interfaces are defined,
+eg. with the @port suffix, as this port number, they provide dns over TLS
+service.  Can list multiple, each on a new statement.
 .TP
 .B use\-systemd: \fI<yes or no>
 Enable or disable systemd socket activation.
@@ -728,8 +733,8 @@ This option only has effect when qname-minimisation is enabled. Default is off.
 .B aggressive\-nsec: \fI<yes or no>
 Aggressive NSEC uses the DNSSEC NSEC chain to synthesize NXDOMAIN
 and other denials, using information from previous NXDOMAINs answers.
-Default is off.  It helps to reduce the query rate towards targets that get
-a very high nonexistant name lookup rate.
+Default is no.  It helps to reduce the query rate towards targets that get
+a very high nonexistent name lookup rate.
 .TP
 .B private\-address: \fI<IP address or subnet>
 Give IPv4 of IPv6 addresses or classless subnets. These are addresses
@@ -843,6 +848,9 @@ expanded on start and on reload.
 .TP
 .B trust\-anchor\-signaling: \fI<yes or no>
 Send RFC8145 key tag query after trust anchor priming. Default is on.
+.TP
+.B root\-key\-sentinel: \fI<yes or no>
+Root key trust anchor sentinel. Default is on.
 .TP
 .B dlv\-anchor\-file: \fI<filename>
 This option was used during early days DNSSEC deployment when no parent-side
@@ -1304,13 +1312,30 @@ to complete.  Default is 10, allowing 1/10 traffic to flow normally.
 This can make ordinary queries complete (if repeatedly queried for),
 and enter the cache, whilst also mitigating the traffic flow by the
 factor given.
+.TP 5
+.B low\-rtt: \fI<msec time>
+Set the time in millisecond that is considere a low ping time for fast
+server selection with the low\-rtt\-pct option, that turns this on or off.
+The default is 45 msec, a number from IPv6 quick response documents.
+.TP 5
+.B low\-rtt\-pct: \fI<number>
+Specify how many times out of 1000 to pick the fast server from the low
+rtt band.  0 turns the feature off.  A value of 900 would pick the fast
+server when such fast servers are available 90 percent of the time, and
+the remaining time perform normal exploration of random servers.
+When prefetch is enabled (or serve\-expired), such prefetches are not
+sped up, because there is no one waiting for it, and it presents a good
+moment to perform server exploration.  The low\-rtt option can be used
+to specify which servers are picked for fast server selection, servers
+with a ping roundtrip time below that value are considered.
+The default for low\-rtt\-pct is 0.
 .SS "Remote Control Options"
 In the
 .B remote\-control:
 clause are the declarations for the remote control facility.  If this is
 enabled, the \fIunbound\-control\fR(8) utility can be used to send
 commands to the running unbound server.  The server uses these clauses
-to setup SSLv3 / TLSv1 security for the connection.  The
+to setup TLSv1 security for the connection.  The
 \fIunbound\-control\fR(8) utility also reads the \fBremote\-control\fR
 section for options.  To setup the correct self\-signed certificates use the
 \fIunbound\-control\-setup\fR(8) utility.
@@ -1416,7 +1441,7 @@ the servers are unreachable, instead it is tried without this clause.
 The default is no.
 .TP
 .B stub\-tls\-upstream: \fI<yes or no>
-Enabled or disable whether the queries to this stub use SSL for transport.
+Enabled or disable whether the queries to this stub use TLS for transport.
 Default is no.
 .TP
 .B stub\-ssl\-upstream: \fI<yes or no>
@@ -1448,6 +1473,13 @@ Name of server to forward to. Is itself resolved before it is used.
 .B forward\-addr: \fI<IP address>
 IP address of server to forward to. Can be IP 4 or IP 6.
 To use a nondefault port for DNS communication append '@' with the port number.
+If tls is enabled, then you can append a '#' and a name, then it'll check
+the tls authentication certificates with that name.  If you combine
+the '@' and '#', the '@' comes first.
+.IP
+At high verbosity it logs the TLS certificate, with TLS enabled.
+If you leave out the '#' and auth name from the forward\-addr, any
+name is accepted.  The cert must also match a CA from the tls\-cert\-bundle.
 .TP
 .B forward\-first: \fI<yes or no>
 If enabled, a query is attempted without the forward clause if it fails.
@@ -1456,7 +1488,7 @@ the servers are unreachable, instead it is tried without this clause.
 The default is no.
 .TP
 .B forward\-tls\-upstream: \fI<yes or no>
-Enabled or disable whether the queries to this forwarder use SSL for transport.
+Enabled or disable whether the queries to this forwarder use TLS for transport.
 Default is no.
 .TP
 .B forward\-ssl\-upstream: \fI<yes or no>
@@ -1495,6 +1527,14 @@ see if the SOA serial number has changed, reducing the number of downloads.
 If none of the urls work, the masters are tried with IXFR and AXFR.
 For https, the \fBtls\-cert\-bundle\fR and the hostname from the url are used
 to authenticate the connection.
+.TP
+.B allow\-notify: \fI<IP address or host name or netblockIP/prefix>
+With allow\-notify you can specify additional sources of notifies.
+When notified, the server attempts to first probe and then zone transfer.
+If the notify is from a master, it first attempts that master.  Otherwise
+other masters are attempted.  If there are no masters, but only urls, the
+file is downloaded when notified.  The masters from master: statements are
+allowed notify by default.
 .TP
 .B fallback\-enabled: \fI<yes or no>
 Default no.  If enabled, unbound falls back to querying the internet as
@@ -1781,15 +1821,42 @@ If it finds a valid answer in the backend, Unbound uses it to respond
 to the query without performing iterative DNS resolution.
 If Unbound cannot even find an answer in the backend, it resolves the
 query as usual, and stores the answer in the backend.
+.P
+If Unbound was built with
+\fB\-\-with\-libhiredis\fR
+on a system that has installed the hiredis C client library of Redis,
+then the "redis" backend can be used.
+This backend communicates with the specified Redis server over a TCP
+connection to store and retrive cache data.
+It can be used as a persistent and/or shared cache backend.
+It should be noted that Unbound never removes data stored in the Redis server,
+even if some data have expired in terms of DNS TTL or the Redis server has
+cached too much data;
+if necessary the Redis server must be configured to limit the cache size,
+preferably with some kind of least-recently-used eviction policy.
+This backend uses synchronous communication with the Redis server
+based on the assumption that the communication is stable and sufficiently
+fast.
+The thread waiting for a response from the Redis server cannot handle
+other DNS queries.
+Although the backend has the ability to reconnect to the server when
+the connection is closed unexpectedly and there is a configurable timeout
+in case the server is overly slow or hangs up, these cases are assumed
+to be very rare.
+If connection close or timeout happens too often, Unbound will be
+effectively unusable with this backend.
+It's the administrator's responsibility to make the assumption hold.
+.P
 The
 .B cachedb:
 clause gives custom settings of the cache DB module.
 .TP
 .B backend: \fI<backend name>\fR
 Specify the backend database name.
-Currently, only the in-memory "testframe" backend is supported.
-As the name suggests this backend is not of any practical use.
-This option defaults to "testframe".
+The default database is the in-memory backend named "testframe", which,
+as the name suggests, is not of any practical use.
+Depending on the build-time configuration, "redis" backend may also be
+used as described above.
 .TP
 .B secret-seed: \fI<"secret string">\fR
 Specify a seed to calculate a hash value from query information.
@@ -1799,6 +1866,28 @@ operationally.
 If the backend database is shared by multiple Unbound instances,
 all instances must use the same secret seed.
 This option defaults to "default".
+.P
+The following
+.B cachedb
+otions are specific to the redis backend.
+.TP
+.B redis-server-host: \fI<server address or name>\fR
+The IP (either v6 or v4) address or domain name of the Redis server.
+In general an IP address should be specified as otherwise Unbound will have to
+resolve the name of the server every time it establishes a connection
+to the server.
+This option defaults to "127.0.0.1".
+.TP
+.B redis-server-port: \fI<port number>\fR
+The TCP port number of the Redis server.
+This option defaults to 6379.
+.TP
+.B redis-timeout: \fI<msec>\fR
+The period until when Unbound waits for a response from the Redis sever.
+If this timeout expires Unbound closes the connection, treats it as
+if the Redis server does not have the requested data, and will try to
+re-establish a new connection later.
+This option defaults to 100 milliseconds.
 .SH "MEMORY CONTROL EXAMPLE"
 In the example config settings below memory usage is reduced. Some service
 levels are lower, notable very large data and a high TCP load are no longer

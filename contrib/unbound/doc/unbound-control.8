@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Mar 15, 2018" "NLnet Labs" "unbound 1.7.0"
+.TH "unbound-control" "8" "May  3, 2018" "NLnet Labs" "unbound 1.7.1"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -144,6 +144,9 @@ Remove the name, type information from the cache.
 Remove all information at or below the name from the cache. 
 The rrsets and key entries are removed so that new lookups will be performed.
 This needs to walk and inspect the entire cache, and is a slow operation.
+The entries are set to expired in the implementation of this command (so,
+with serve\-expired enabled, it'll serve that information but schedule a
+prefetch for new information).
 .TP
 .B flush_bogus
 Remove all bogus data from the cache.
@@ -285,6 +288,10 @@ List the ip addresses that are ratelimited.  Printed one per line with current
 estimated qps and qps limit from config.  With +a it prints all ips, not
 just the ratelimited ips, with their estimated qps.  The ratelimited
 ips are dropped before checking the cache.
+.TP
+.B list_auth_zones
+List the auth zones that are configured.  Printed one per line with a
+status, indicating if the zone is expired and current serial number.
 .TP
 .B view_list_local_zones \fIview\fR
 \fIlist_local_zones\fR for given view.
@@ -598,6 +605,26 @@ dnscrypt queries replay. The client nonce must be unique for each client public
 key/server secret key pair. This cache should be able to host QPS * `replay
 window` interval keys to prevent replay of a query during `replay window`
 seconds.
+.TP
+.I num.query.authzone.up
+The number of queries answered from auth\-zone data, upstream queries.
+These queries would otherwise have been sent (with fallback enabled) to
+the internet, but are now answered from the auth zone.
+.TP
+.I num.query.authzone.down
+The number of queries for downstream answered from auth\-zone data.
+These queries are from downstream clients, and have had an answer from
+the data in the auth zone.
+.TP
+.I num.query.aggressive.NOERROR
+The number of queries answered using cached NSEC records with NODATA RCODE.
+These queries would otherwise have been sent to the internet, but are now
+answered using cached data.
+.TP
+.I num.query.aggressive.NXDOMAIN
+The number of queries answered using cached NSEC records with NXDOMAIN RCODE.
+These queries would otherwise have been sent to the internet, but are now
+answered using cached data.
 .SH "FILES"
 .TP
 .I /var/unbound/unbound.conf

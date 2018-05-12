@@ -227,4 +227,19 @@ void anchors_delete_insecure(struct val_anchors* anchors, uint16_t c,
  */
 size_t anchor_list_keytags(struct trust_anchor* ta, uint16_t* list, size_t num);
 
+/**
+ * Check if there is a trust anchor for given zone with this keytag.
+ *
+ * @param anchors: anchor storage
+ * @param name: name of trust anchor (wireformat)
+ * @param namelabs: labels in name
+ * @param namelen: length of name
+ * @param dclass: class of trust anchor
+ * @param keytag: keytag
+ * @return 1 if there is a trust anchor in the trustachor store for this zone
+ * and keytag, else 0.
+ */
+int anchor_has_keytag(struct val_anchors* anchors, uint8_t* name, int namelabs,
+	size_t namelen, uint16_t dclass, uint16_t keytag);
+
 #endif /* VALIDATOR_VAL_ANCHOR_H */

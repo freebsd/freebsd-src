@@ -342,7 +342,8 @@ worker_check_request(sldns_buffer* pkt, struct worker* worker)
 		verbose(VERB_QUERY, "request bad, has TC bit on");
 		return worker_err_ratelimit(worker, LDNS_RCODE_FORMERR);
 	}
-	if(LDNS_OPCODE_WIRE(sldns_buffer_begin(pkt)) != LDNS_PACKET_QUERY) {
+	if(LDNS_OPCODE_WIRE(sldns_buffer_begin(pkt)) != LDNS_PACKET_QUERY &&
+		LDNS_OPCODE_WIRE(sldns_buffer_begin(pkt)) != LDNS_PACKET_NOTIFY) {
 		verbose(VERB_QUERY, "request unknown opcode %d", 
 			LDNS_OPCODE_WIRE(sldns_buffer_begin(pkt)));
 		return worker_err_ratelimit(worker, LDNS_RCODE_NOTIMPL);
@@ -352,7 +353,9 @@ worker_check_request(sldns_buffer* pkt, struct worker* worker)
 			LDNS_QDCOUNT(sldns_buffer_begin(pkt)));
 		return worker_err_ratelimit(worker, LDNS_RCODE_FORMERR);
 	}
-	if(LDNS_ANCOUNT(sldns_buffer_begin(pkt)) != 0) {
+	if(LDNS_ANCOUNT(sldns_buffer_begin(pkt)) != 0 && 
+		(LDNS_ANCOUNT(sldns_buffer_begin(pkt)) != 1 ||
+		LDNS_OPCODE_WIRE(sldns_buffer_begin(pkt)) != LDNS_PACKET_NOTIFY)) {
 		verbose(VERB_QUERY, "request wrong nr an=%d", 
 			LDNS_ANCOUNT(sldns_buffer_begin(pkt)));
 		return worker_err_ratelimit(worker, LDNS_RCODE_FORMERR);
@@ -499,6 +502,7 @@ answer_norec_from_cache(struct worker* worker, struct query_info* qinfo,
 			 * let validator do that */
 			return 0;
 		case sec_status_bogus:
+		case sec_status_secure_sentinel_fail:
 			/* some rrsets are bogus, reply servfail */
 			edns->edns_version = EDNS_ADVERTISED_VERSION;
 			edns->udp_size = EDNS_ADVERTISED_SIZE;
@@ -655,7 +659,8 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 		}
 	}
 	/* check security status of the cached answer */
-	if( rep->security == sec_status_bogus && must_validate) {
+	if(must_validate && (rep->security == sec_status_bogus ||
+		rep->security == sec_status_secure_sentinel_fail)) {
 		/* BAD cached */
 		edns->edns_version = EDNS_ADVERTISED_VERSION;
 		edns->udp_size = EDNS_ADVERTISED_SIZE;
@@ -938,6 +943,66 @@ answer_chaos(struct worker* w, struct query_info* qinfo,
 	}
 
 	return 0;
+}
+
+/**
+ * Answer notify queries.  These are notifies for authoritative zones,
+ * the reply is an ack that the notify has been received.  We need to check
+ * access permission here.
+ * @param w: worker
+ * @param qinfo: query info. Pointer into packet buffer.
+ * @param edns: edns info from query.
+ * @param repinfo: reply info with source address.
+ * @param pkt: packet buffer.
+ */
+static void
+answer_notify(struct worker* w, struct query_info* qinfo, 
+	struct edns_data* edns, sldns_buffer* pkt, struct comm_reply* repinfo)
+{
+	int refused = 0;
+	int rcode = LDNS_RCODE_NOERROR;
+	uint32_t serial = 0;
+	int has_serial;
+	if(!w->env.auth_zones) return;
+	has_serial = auth_zone_parse_notify_serial(pkt, &serial);
+	if(auth_zones_notify(w->env.auth_zones, &w->env, qinfo->qname,
+		qinfo->qname_len, qinfo->qclass, &repinfo->addr,
+		repinfo->addrlen, has_serial, serial, &refused)) {
+		rcode = LDNS_RCODE_NOERROR;
+	} else {
+		if(refused)
+			rcode = LDNS_RCODE_REFUSED;
+		else	rcode = LDNS_RCODE_SERVFAIL;
+	}
+
+	if(verbosity >= VERB_DETAIL) {
+		char buf[380];
+		char zname[255+1];
+		char sr[25];
+		dname_str(qinfo->qname, zname);
+		sr[0]=0;
+		if(has_serial)
+			snprintf(sr, sizeof(sr), "serial %u ",
+				(unsigned)serial);
+		if(rcode == LDNS_RCODE_REFUSED)
+			snprintf(buf, sizeof(buf),
+				"refused NOTIFY %sfor %s from", sr, zname);
+		else if(rcode == LDNS_RCODE_SERVFAIL)
+			snprintf(buf, sizeof(buf),
+				"servfail for NOTIFY %sfor %s from", sr, zname);
+		else	snprintf(buf, sizeof(buf),
+				"received NOTIFY %sfor %s from", sr, zname);
+		log_addr(VERB_DETAIL, buf, &repinfo->addr, repinfo->addrlen);
+	}
+	edns->edns_version = EDNS_ADVERTISED_VERSION;
+	edns->udp_size = EDNS_ADVERTISED_SIZE;
+	edns->ext_rcode = 0;
+	edns->bits &= EDNS_DO;
+	edns->opt_list = NULL;
+	error_encode(pkt, rcode, qinfo,
+		*(uint16_t*)(void *)sldns_buffer_begin(pkt),
+		sldns_buffer_read_u16_at(pkt, 2), edns);
+	LDNS_OPCODE_SET(sldns_buffer_begin(pkt), LDNS_PACKET_NOTIFY);
 }
 
 static int
@@ -1235,6 +1300,12 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	if(qinfo.qclass == LDNS_RR_CLASS_CH && answer_chaos(worker, &qinfo,
 		&edns, c->buffer)) {
 		server_stats_insrcode(&worker->stats, c->buffer);
+		regional_free_all(worker->scratchpad);
+		goto send_reply;
+	}
+	if(LDNS_OPCODE_WIRE(sldns_buffer_begin(c->buffer)) ==
+		LDNS_PACKET_NOTIFY) {
+		answer_notify(worker, &qinfo, &edns, c->buffer, repinfo);
 		regional_free_all(worker->scratchpad);
 		goto send_reply;
 	}
@@ -1806,7 +1877,7 @@ struct outbound_entry*
 worker_send_query(struct query_info* qinfo, uint16_t flags, int dnssec,
 	int want_dnssec, int nocaps, struct sockaddr_storage* addr,
 	socklen_t addrlen, uint8_t* zone, size_t zonelen, int ssl_upstream,
-	struct module_qstate* q)
+	char* tls_auth_name, struct module_qstate* q)
 {
 	struct worker* worker = q->env->worker;
 	struct outbound_entry* e = (struct outbound_entry*)regional_alloc(
@@ -1816,7 +1887,7 @@ worker_send_query(struct query_info* qinfo, uint16_t flags, int dnssec,
 	e->qstate = q;
 	e->qsent = outnet_serviced_query(worker->back, qinfo, flags, dnssec,
 		want_dnssec, nocaps, q->env->cfg->tcp_upstream,
-		ssl_upstream, addr, addrlen, zone, zonelen, q,
+		ssl_upstream, tls_auth_name, addr, addrlen, zone, zonelen, q,
 		worker_handle_service_reply, e, worker->back->udp_buff, q->env);
 	if(!e->qsent) {
 		return NULL;
@@ -1863,7 +1934,8 @@ struct outbound_entry* libworker_send_query(
 	int ATTR_UNUSED(want_dnssec), int ATTR_UNUSED(nocaps),
 	struct sockaddr_storage* ATTR_UNUSED(addr), socklen_t ATTR_UNUSED(addrlen),
 	uint8_t* ATTR_UNUSED(zone), size_t ATTR_UNUSED(zonelen),
-	int ATTR_UNUSED(ssl_upstream), struct module_qstate* ATTR_UNUSED(q))
+	int ATTR_UNUSED(ssl_upstream), char* ATTR_UNUSED(tls_auth_name),
+	struct module_qstate* ATTR_UNUSED(q))
 {
 	log_assert(0);
 	return 0;

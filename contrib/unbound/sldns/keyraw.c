@@ -90,6 +90,14 @@ sldns_rr_dnskey_key_size_raw(const unsigned char* keydata,
         case LDNS_ECDSAP384SHA384:
                 return 384;
 #endif
+#ifdef USE_ED25519
+	case LDNS_ED25519:
+		return 256;
+#endif
+#ifdef USE_ED448
+	case LDNS_ED448:
+		return 456;
+#endif
 	default:
 		return 0;
 	}
@@ -408,6 +416,27 @@ sldns_ed255192pkey_raw(const unsigned char* key, size_t keylen)
 	return evp_key;
 }
 #endif /* USE_ED25519 */
+
+#ifdef USE_ED448
+EVP_PKEY*
+sldns_ed4482pkey_raw(const unsigned char* key, size_t keylen)
+{
+	/* ASN1 for ED448 is 3043300506032b6571033a00 <57byteskey> */
+	uint8_t pre[] = {0x30, 0x43, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65,
+		0x71, 0x03, 0x3a, 0x00};
+        int pre_len = 12;
+	uint8_t buf[256];
+        EVP_PKEY *evp_key;
+	/* pp gets modified by d2i() */
+        const unsigned char* pp = (unsigned char*)buf;
+	if(keylen != 57 || keylen + pre_len > sizeof(buf))
+		return NULL; /* wrong length */
+	memmove(buf, pre, pre_len);
+	memmove(buf+pre_len, key, keylen);
+	evp_key = d2i_PUBKEY(NULL, &pp, (int)(pre_len+keylen));
+        return evp_key;
+}
+#endif /* USE_ED448 */
 
 int
 sldns_digest_evp(unsigned char* data, unsigned int len, unsigned char* dest,
