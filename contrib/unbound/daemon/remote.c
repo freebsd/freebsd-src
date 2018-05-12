@@ -242,6 +242,29 @@ daemon_remote_create(struct config_file* cfg)
 		daemon_remote_delete(rc);
 		return NULL;
 	}
+#if defined(SSL_OP_NO_TLSv1) && defined(SSL_OP_NO_TLSv1_1)
+	/* if we have tls 1.1 disable 1.0 */
+	if((SSL_CTX_set_options(rc->ctx, SSL_OP_NO_TLSv1) & SSL_OP_NO_TLSv1)
+		!= SSL_OP_NO_TLSv1){
+		log_crypto_err("could not set SSL_OP_NO_TLSv1");
+		daemon_remote_delete(rc);
+		return NULL;
+	}
+#endif
+#if defined(SSL_OP_NO_TLSv1_1) && defined(SSL_OP_NO_TLSv1_2)
+	/* if we have tls 1.2 disable 1.1 */
+	if((SSL_CTX_set_options(rc->ctx, SSL_OP_NO_TLSv1_1) & SSL_OP_NO_TLSv1_1)
+		!= SSL_OP_NO_TLSv1_1){
+		log_crypto_err("could not set SSL_OP_NO_TLSv1_1");
+		daemon_remote_delete(rc);
+		return NULL;
+	}
+#endif
+#ifdef SHA256_DIGEST_LENGTH
+	/* if we have sha256, set the cipher list to have no known vulns */
+	if(!SSL_CTX_set_cipher_list(rc->ctx, "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256"))
+		log_crypto_err("coult not set cipher list with SSL_CTX_set_cipher_list");
+#endif
 
 	if (cfg->remote_control_use_cert == 0) {
 		/* No certificates are requested */
@@ -775,6 +798,16 @@ print_stats(SSL* ssl, const char* nm, struct stats_info* s)
 		(unsigned long)s->svr.zero_ttl_responses)) return 0;
 	if(!ssl_printf(ssl, "%s.num.recursivereplies"SQ"%lu\n", nm, 
 		(unsigned long)s->mesh_replies_sent)) return 0;
+#ifdef USE_DNSCRYPT
+    if(!ssl_printf(ssl, "%s.num.dnscrypt.crypted"SQ"%lu\n", nm,
+        (unsigned long)s->svr.num_query_dnscrypt_crypted)) return 0;
+    if(!ssl_printf(ssl, "%s.num.dnscrypt.cert"SQ"%lu\n", nm,
+        (unsigned long)s->svr.num_query_dnscrypt_cert)) return 0;
+    if(!ssl_printf(ssl, "%s.num.dnscrypt.cleartext"SQ"%lu\n", nm,
+        (unsigned long)s->svr.num_query_dnscrypt_cleartext)) return 0;
+    if(!ssl_printf(ssl, "%s.num.dnscrypt.malformed"SQ"%lu\n", nm,
+        (unsigned long)s->svr.num_query_dnscrypt_crypted_malformed)) return 0;
+#endif
 	if(!ssl_printf(ssl, "%s.requestlist.avg"SQ"%g\n", nm,
 		(s->svr.num_queries_missed_cache+s->svr.num_queries_prefetch)?
 			(double)s->svr.sum_query_list_size/
@@ -830,11 +863,15 @@ static int
 print_mem(SSL* ssl, struct worker* worker, struct daemon* daemon)
 {
 	int m;
-	size_t msg, rrset, val, iter;
+	size_t msg, rrset, val, iter, respip;
+#ifdef CLIENT_SUBNET
+	size_t subnet = 0;
+#endif /* CLIENT_SUBNET */
 	msg = slabhash_get_mem(daemon->env->msg_cache);
 	rrset = slabhash_get_mem(&daemon->env->rrset_cache->table);
 	val=0;
 	iter=0;
+	respip=0;
 	m = modstack_find(&worker->env.mesh->mods, "validator");
 	if(m != -1) {
 		fptr_ok(fptr_whitelist_mod_get_mem(worker->env.mesh->
@@ -849,6 +886,22 @@ print_mem(SSL* ssl, struct worker* worker, struct daemon* daemon)
 		iter = (*worker->env.mesh->mods.mod[m]->get_mem)
 			(&worker->env, m);
 	}
+	m = modstack_find(&worker->env.mesh->mods, "respip");
+	if(m != -1) {
+		fptr_ok(fptr_whitelist_mod_get_mem(worker->env.mesh->
+			mods.mod[m]->get_mem));
+		respip = (*worker->env.mesh->mods.mod[m]->get_mem)
+			(&worker->env, m);
+	}
+#ifdef CLIENT_SUBNET
+	m = modstack_find(&worker->env.mesh->mods, "subnet");
+	if(m != -1) {
+		fptr_ok(fptr_whitelist_mod_get_mem(worker->env.mesh->
+			mods.mod[m]->get_mem));
+		subnet = (*worker->env.mesh->mods.mod[m]->get_mem)
+			(&worker->env, m);
+	}
+#endif /* CLIENT_SUBNET */
 
 	if(!print_longnum(ssl, "mem.cache.rrset"SQ, rrset))
 		return 0;
@@ -858,6 +911,12 @@ print_mem(SSL* ssl, struct worker* worker, struct daemon* daemon)
 		return 0;
 	if(!print_longnum(ssl, "mem.mod.validator"SQ, val))
 		return 0;
+	if(!print_longnum(ssl, "mem.mod.respip"SQ, respip))
+		return 0;
+#ifdef CLIENT_SUBNET
+	if(!print_longnum(ssl, "mem.mod.subnet"SQ, subnet))
+		return 0;
+#endif /* CLIENT_SUBNET */
 	return 1;
 }
 
@@ -1342,6 +1401,13 @@ do_view_zone_add(SSL* ssl, struct worker* worker, char* arg)
 		ssl_printf(ssl,"no view with name: %s\n", arg);
 		return;
 	}
+	if(!v->local_zones) {
+		if(!(v->local_zones = local_zones_create())){
+			lock_rw_unlock(&v->lock);
+			ssl_printf(ssl,"error out of memory\n");
+			return;
+		}
+	}
 	do_zone_add(ssl, v->local_zones, arg2);
 	lock_rw_unlock(&v->lock);
 }
@@ -1358,6 +1424,11 @@ do_view_zone_remove(SSL* ssl, struct worker* worker, char* arg)
 		arg, 1 /* get write lock*/);
 	if(!v) {
 		ssl_printf(ssl,"no view with name: %s\n", arg);
+		return;
+	}
+	if(!v->local_zones) {
+		lock_rw_unlock(&v->lock);
+		send_ok(ssl);
 		return;
 	}
 	do_zone_remove(ssl, v->local_zones, arg2);
@@ -1378,6 +1449,13 @@ do_view_data_add(SSL* ssl, struct worker* worker, char* arg)
 		ssl_printf(ssl,"no view with name: %s\n", arg);
 		return;
 	}
+	if(!v->local_zones) {
+		if(!(v->local_zones = local_zones_create())){
+			lock_rw_unlock(&v->lock);
+			ssl_printf(ssl,"error out of memory\n");
+			return;
+		}
+	}
 	do_data_add(ssl, v->local_zones, arg2);
 	lock_rw_unlock(&v->lock);
 }
@@ -1394,6 +1472,11 @@ do_view_data_remove(SSL* ssl, struct worker* worker, char* arg)
 		arg, 1 /* get write lock*/);
 	if(!v) {
 		ssl_printf(ssl,"no view with name: %s\n", arg);
+		return;
+	}
+	if(!v->local_zones) {
+		lock_rw_unlock(&v->lock);
+		send_ok(ssl);
 		return;
 	}
 	do_data_remove(ssl, v->local_zones, arg2);
@@ -2531,7 +2614,9 @@ do_view_list_local_zones(SSL* ssl, struct worker* worker, char* arg)
 		ssl_printf(ssl,"no view with name: %s\n", arg);
 		return;
 	}
-	do_list_local_zones(ssl, v->local_zones);
+	if(v->local_zones) {
+		do_list_local_zones(ssl, v->local_zones);
+	}
 	lock_rw_unlock(&v->lock);
 }
 
@@ -2545,7 +2630,9 @@ do_view_list_local_data(SSL* ssl, struct worker* worker, char* arg)
 		ssl_printf(ssl,"no view with name: %s\n", arg);
 		return;
 	}
-	do_list_local_data(ssl, worker, v->local_zones);
+	if(v->local_zones) {
+		do_list_local_data(ssl, worker, v->local_zones);
+	}
 	lock_rw_unlock(&v->lock);
 }
 

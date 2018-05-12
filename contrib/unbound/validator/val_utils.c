@@ -495,16 +495,21 @@ val_verify_DNSKEY_with_DS(struct module_env* env, struct val_env* ve,
 		return sec_status_bogus;
 	}
 
-	digest_algo = val_favorite_ds_algo(ds_rrset);
-	if(sigalg)
+	if(sigalg) {
+		/* harden against algo downgrade is enabled */
+		digest_algo = val_favorite_ds_algo(ds_rrset);
 		algo_needs_init_ds(&needs, ds_rrset, digest_algo, sigalg);
+	} else {
+		/* accept any key algo, any digest algo */
+		digest_algo = -1;
+	}
 	num = rrset_get_count(ds_rrset);
 	for(i=0; i<num; i++) {
 		/* Check to see if we can understand this DS. 
 		 * And check it is the strongest digest */
 		if(!ds_digest_algo_is_supported(ds_rrset, i) ||
 			!ds_key_algo_is_supported(ds_rrset, i) ||
-			ds_get_digest_algo(ds_rrset, i) != digest_algo) {
+			(sigalg && (ds_get_digest_algo(ds_rrset, i) != digest_algo))) {
 			continue;
 		}
 

@@ -1056,15 +1056,25 @@ set_recvpktinfo(int s, int family)
  * @param tcp_mss: maximum segment size of tcp socket. default if zero.
  * @param freebind: set IP_FREEBIND socket option.
  * @param use_systemd: if true, fetch sockets from systemd.
+ * @param dnscrypt_port: dnscrypt service port number
  * @return: returns false on error.
  */
 static int
 ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp, 
 	struct addrinfo *hints, const char* port, struct listen_port** list,
 	size_t rcv, size_t snd, int ssl_port, int* reuseport, int transparent,
-	int tcp_mss, int freebind, int use_systemd)
+	int tcp_mss, int freebind, int use_systemd, int dnscrypt_port)
 {
 	int s, noip6=0;
+#ifdef USE_DNSCRYPT
+	int is_dnscrypt = ((strchr(ifname, '@') && 
+			atoi(strchr(ifname, '@')+1) == dnscrypt_port) ||
+			(!strchr(ifname, '@') && atoi(port) == dnscrypt_port));
+#else
+	int is_dnscrypt = 0;
+	(void)dnscrypt_port;
+#endif
+
 	if(!do_udp && !do_tcp)
 		return 0;
 	if(do_auto) {
@@ -1086,7 +1096,8 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 #endif
 			return 0;
 		}
-		if(!port_insert(list, s, listen_type_udpancil)) {
+		if(!port_insert(list, s,
+		   is_dnscrypt?listen_type_udpancil_dnscrypt:listen_type_udpancil)) {
 #ifndef USE_WINSOCK
 			close(s);
 #else
@@ -1105,7 +1116,8 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 			}
 			return 0;
 		}
-		if(!port_insert(list, s, listen_type_udp)) {
+		if(!port_insert(list, s,
+		   is_dnscrypt?listen_type_udp_dnscrypt:listen_type_udp)) {
 #ifndef USE_WINSOCK
 			close(s);
 #else
@@ -1130,7 +1142,7 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 		if(is_ssl)
 			verbose(VERB_ALGO, "setup TCP for SSL service");
 		if(!port_insert(list, s, is_ssl?listen_type_ssl:
-			listen_type_tcp)) {
+			(is_dnscrypt?listen_type_tcp_dnscrypt:listen_type_tcp))) {
 #ifndef USE_WINSOCK
 			close(s);
 #else
@@ -1172,6 +1184,9 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 		return NULL;
 	front->cps = NULL;
 	front->udp_buff = sldns_buffer_new(bufsize);
+#ifdef USE_DNSCRYPT
+	front->dnscrypt_udp_buff = NULL;
+#endif
 	if(!front->udp_buff) {
 		free(front);
 		return NULL;
@@ -1180,17 +1195,20 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 	/* create comm points as needed */
 	while(ports) {
 		struct comm_point* cp = NULL;
-		if(ports->ftype == listen_type_udp) 
+		if(ports->ftype == listen_type_udp ||
+		   ports->ftype == listen_type_udp_dnscrypt)
 			cp = comm_point_create_udp(base, ports->fd, 
 				front->udp_buff, cb, cb_arg);
-		else if(ports->ftype == listen_type_tcp)
+		else if(ports->ftype == listen_type_tcp ||
+				ports->ftype == listen_type_tcp_dnscrypt)
 			cp = comm_point_create_tcp(base, ports->fd, 
 				tcp_accept_count, bufsize, cb, cb_arg);
 		else if(ports->ftype == listen_type_ssl) {
 			cp = comm_point_create_tcp(base, ports->fd, 
 				tcp_accept_count, bufsize, cb, cb_arg);
 			cp->ssl = sslctx;
-		} else if(ports->ftype == listen_type_udpancil) 
+		} else if(ports->ftype == listen_type_udpancil ||
+				  ports->ftype == listen_type_udpancil_dnscrypt)
 			cp = comm_point_create_udp_ancil(base, ports->fd, 
 				front->udp_buff, cb, cb_arg);
 		if(!cp) {
@@ -1200,6 +1218,21 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 		}
 		cp->dtenv = dtenv;
 		cp->do_not_close = 1;
+#ifdef USE_DNSCRYPT
+		if (ports->ftype == listen_type_udp_dnscrypt ||
+			ports->ftype == listen_type_tcp_dnscrypt ||
+			ports->ftype == listen_type_udpancil_dnscrypt) {
+			cp->dnscrypt = 1;
+            cp->dnscrypt_buffer = sldns_buffer_new(bufsize);
+            if(!cp->dnscrypt_buffer) {
+                log_err("can't alloc dnscrypt_buffer");
+                comm_point_delete(cp);
+                listen_delete(front);
+                return NULL;
+            }
+            front->dnscrypt_udp_buff = cp->dnscrypt_buffer;
+        }
+#endif
 		if(!listen_cp_insert(cp, front)) {
 			log_err("malloc failed");
 			comm_point_delete(cp);
@@ -1235,6 +1268,12 @@ listen_delete(struct listen_dnsport* front)
 	if(!front) 
 		return;
 	listen_list_delete(front->cps);
+#ifdef USE_DNSCRYPT
+    if(front->dnscrypt_udp_buff &&
+       front->udp_buff != front->dnscrypt_udp_buff) {
+        sldns_buffer_free(front->dnscrypt_udp_buff);
+    }
+#endif
 	sldns_buffer_free(front->udp_buff);
 	free(front);
 }
@@ -1278,7 +1317,8 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 				cfg->so_rcvbuf, cfg->so_sndbuf,
 				cfg->ssl_port, reuseport,
 				cfg->ip_transparent,
-				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd)) {
+				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd,
+				cfg->dnscrypt_port)) {
 				listening_ports_free(list);
 				return NULL;
 			}
@@ -1291,7 +1331,8 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 				cfg->so_rcvbuf, cfg->so_sndbuf,
 				cfg->ssl_port, reuseport,
 				cfg->ip_transparent,
-				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd)) {
+				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd,
+				cfg->dnscrypt_port)) {
 				listening_ports_free(list);
 				return NULL;
 			}
@@ -1306,7 +1347,8 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 				cfg->so_rcvbuf, cfg->so_sndbuf,
 				cfg->ssl_port, reuseport,
 				cfg->ip_transparent,
-				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd)) {
+				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd,
+				cfg->dnscrypt_port)) {
 				listening_ports_free(list);
 				return NULL;
 			}
@@ -1319,7 +1361,8 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 				cfg->so_rcvbuf, cfg->so_sndbuf,
 				cfg->ssl_port, reuseport,
 				cfg->ip_transparent,
-				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd)) {
+				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd,
+				cfg->dnscrypt_port)) {
 				listening_ports_free(list);
 				return NULL;
 			}
@@ -1347,10 +1390,16 @@ void listening_ports_free(struct listen_port* list)
 
 size_t listen_get_mem(struct listen_dnsport* listen)
 {
+	struct listen_list* p;
 	size_t s = sizeof(*listen) + sizeof(*listen->base) + 
 		sizeof(*listen->udp_buff) + 
 		sldns_buffer_capacity(listen->udp_buff);
-	struct listen_list* p;
+#ifdef USE_DNSCRYPT
+	s += sizeof(*listen->dnscrypt_udp_buff);
+	if(listen->udp_buff != listen->dnscrypt_udp_buff){
+		s += sldns_buffer_capacity(listen->dnscrypt_udp_buff);
+	}
+#endif
 	for(p = listen->cps; p; p = p->next) {
 		s += sizeof(*p);
 		s += comm_point_get_mem(p->com);

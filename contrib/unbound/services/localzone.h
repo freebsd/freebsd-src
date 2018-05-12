@@ -46,6 +46,7 @@
 #include "util/storage/dnstree.h"
 #include "util/module.h"
 #include "services/view.h"
+struct packed_rrset_data;
 struct ub_packed_rrset_key;
 struct regional;
 struct config_file;
@@ -388,5 +389,112 @@ void local_zones_del_data(struct local_zones* zones,
  * @return false on error, syntax or memory. Also logged.
  */
 int parse_dname(const char* str, uint8_t** res, size_t* len, int* labs);
+
+/**
+ * Find local data tag string match for the given type (in qinfo) in the list.
+ * If found, 'r' will be filled with corresponding rrset information.
+ * @param qinfo: contains name, type, and class for the data
+ * @param list: stores local tag data to be searched
+ * @param r: rrset key to be filled for matched data
+ * @param temp: region to allocate rrset in 'r'
+ * @return 1 if a match is found and rrset is built; otherwise 0 including
+ * errors.
+ */
+int local_data_find_tag_datas(const struct query_info* qinfo,
+	struct config_strlist* list, struct ub_packed_rrset_key* r,
+	struct regional* temp);
+
+/**
+ * See if two sets of tag lists (in the form of bitmap) have the same tag that
+ * has an action.  If so, '*tag' will be set to the found tag index, and the
+ * corresponding action will be returned in the form of local zone type.
+ * Otherwise the passed type (lzt) will be returned as the default action.
+ * Pointers except tagactions must not be NULL.
+ * @param taglist: 1st list of tags
+ * @param taglen: size of taglist in bytes
+ * @param taglist2: 2nd list of tags
+ * @param taglen2: size of taglist2 in bytes
+ * @param tagactions: local data actions for tags. May be NULL.
+ * @param tagactionssize: length of the tagactions.
+ * @param lzt: default action (local zone type) if no tag action is found.
+ * @param tag: see above.
+ * @param tagname: array of tag name strings (for debug output).
+ * @param num_tags: number of items in tagname array.
+ * @return found tag action or the default action.
+ */
+enum localzone_type local_data_find_tag_action(const uint8_t* taglist,
+	size_t taglen, const uint8_t* taglist2, size_t taglen2,
+	const uint8_t* tagactions, size_t tagactionssize,
+	enum localzone_type lzt, int* tag, char* const* tagname, int num_tags);
+
+/**
+  * Parses resource record string into wire format, also returning its field values.
+  * @param str: input resource record
+  * @param nm: domain name field
+  * @param type: record type field
+  * @param dclass: record class field
+  * @param ttl: ttl field
+  * @param rr: buffer for the parsed rr in wire format
+  * @param len: buffer length
+  * @param rdata: rdata field
+  * @param rdata_len: rdata field length
+  * @return 1 on success; 0 otherwise.
+  */
+int rrstr_get_rr_content(const char* str, uint8_t** nm, uint16_t* type,
+	uint16_t* dclass, time_t* ttl, uint8_t* rr, size_t len,
+	uint8_t** rdata, size_t* rdata_len);
+
+/**
+  * Insert specified rdata into the specified resource record.
+  * @param region: allocator
+  * @param pd: data portion of the destination resource record
+  * @param rdata: source rdata
+  * @param rdata_len: source rdata length
+  * @param ttl: time to live
+  * @param rrstr: resource record in text form (for logging)
+  * @return 1 on success; 0 otherwise.
+  */
+int rrset_insert_rr(struct regional* region, struct packed_rrset_data* pd,
+	uint8_t* rdata, size_t rdata_len, time_t ttl, const char* rrstr);
+
+/**
+  * Valid response ip actions for the IP-response-driven-action feature;
+  * defined here instead of in the respip module to enable sharing of enum
+  * values with the localzone_type enum.
+  * Note that these values except 'none' are the same as localzone types of
+  * the 'same semantics'.  It's intentional as we use these values via
+  * access-control-tags, which can be shared for both response ip actions and
+  * local zones.
+  */
+enum respip_action {
+	/** no respip action */
+	respip_none = local_zone_unset,
+	/** don't answer */
+	respip_deny = local_zone_deny,
+	/** redirect as per provided data */
+	respip_redirect = local_zone_redirect,
+        /** log query source and answer query */
+	respip_inform = local_zone_inform,
+        /** log query source and don't answer query */
+	respip_inform_deny = local_zone_inform_deny,
+        /** resolve normally, even when there is response-ip data */
+	respip_always_transparent = local_zone_always_transparent,
+        /** answer with 'refused' response */
+	respip_always_refuse = local_zone_always_refuse,
+        /** answer with 'no such domain' response */
+	respip_always_nxdomain = local_zone_always_nxdomain,
+
+	/* The rest of the values are only possible as
+	 * access-control-tag-action */
+
+	/** serves response data (if any), else, drops queries. */
+	respip_refuse = local_zone_refuse,
+	/** serves response data, else, nodata answer. */
+	respip_static = local_zone_static,
+	/** gives response data (if any), else nodata answer. */
+	respip_transparent = local_zone_transparent,
+	/** gives response data (if any), else nodata answer. */
+	respip_typetransparent = local_zone_typetransparent,
+};
 
 #endif /* SERVICES_LOCALZONE_H */

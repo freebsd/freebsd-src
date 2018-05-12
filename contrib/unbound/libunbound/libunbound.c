@@ -310,7 +310,6 @@ ub_ctx_delete(struct ub_ctx* ctx)
 		infra_delete(ctx->env->infra_cache);
 		config_delete(ctx->env->cfg);
 		edns_known_options_delete(ctx->env);
-		inplace_cb_lists_delete(ctx->env);
 		free(ctx->env);
 	}
 	ub_randfree(ctx->seed_rnd);

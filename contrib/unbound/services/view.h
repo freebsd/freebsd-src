@@ -47,6 +47,7 @@
 struct regional;
 struct config_file;
 struct config_view;
+struct respip_set;
 
 
 /**
@@ -71,6 +72,8 @@ struct view {
 	char* name;
 	/** view specific local authority zones */
 	struct local_zones* local_zones;
+	/** response-ip configuration data for this view */
+	struct respip_set* respip_set;
 	/** Fallback to global local_zones when there is no match in the view
 	 * specific tree. 1 for yes, 0 for no */	
 	int isfirst;
