@@ -1289,7 +1289,7 @@ validate_cname_noanswer_response(struct module_env* env, struct val_env* ve,
 	uint8_t* ce = NULL; /* for wildcard nodata responses. This is the 
 				proven closest encloser. */
 	uint8_t* wc = NULL; /* for wildcard nodata responses. wildcard nsec */
-	int nxdomain_valid_nsec = 0; /* if true, namerror has been proven */
+	int nxdomain_valid_nsec = 0; /* if true, nameerror has been proven */
 	int nxdomain_valid_wnsec = 0;
 	int nsec3s_seen = 0; /* nsec3s seen */
 	struct ub_packed_rrset_key* s; 

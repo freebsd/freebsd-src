@@ -70,7 +70,7 @@ enum val_classification {
 	/** A NXDOMAIN response. */
 	VAL_CLASS_NAMEERROR,
 	/** A CNAME/DNAME chain, and the offset is at the end of it,
-	 * but there is no answer here, it can be NAMERROR or NODATA. */
+	 * but there is no answer here, it can be NAMEERROR or NODATA. */
 	VAL_CLASS_CNAMENOANSWER,
 	/** A referral, from cache with a nonRD query. */
 	VAL_CLASS_REFERRAL,

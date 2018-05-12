@@ -2154,7 +2154,7 @@ int autr_process_prime(struct module_env* env, struct val_env* ve,
 		verbose(VERB_ALGO, "autotrust: no dnskey rrset");
 		/* no update of query_failed, because then we would have
 		 * to write to disk. But we cannot because we maybe are
-		 * still 'initialising' with DS records, that we cannot write
+		 * still 'initializing' with DS records, that we cannot write
 		 * in the full format (which only contains KSKs). */
 		return 1; /* trust point exists */
 	}
