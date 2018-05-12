@@ -50,6 +50,8 @@ sldns_buffer_new_frm_data(sldns_buffer *buffer, void *data, size_t size)
 	buffer->_limit = buffer->_capacity = size;
 	buffer->_fixed = 0;
 	buffer->_vfixed = 0;
+	if (!buffer->_fixed && buffer->_data)
+		free(buffer->_data);
 	buffer->_data = malloc(size);
 	if(!buffer->_data) {
 		buffer->_status_err = 1;

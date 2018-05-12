@@ -120,7 +120,7 @@ struct comm_reply {
 #ifdef USE_DNSCRYPT
 	uint8_t client_nonce[crypto_box_HALF_NONCEBYTES];
 	uint8_t nmkey[crypto_box_BEFORENMBYTES];
-	const KeyPair *keypair;
+	const dnsccert *dnsc_cert;
 	int is_dnscrypted;
 #endif
 	/** the return source interface data */
@@ -133,11 +133,11 @@ struct comm_reply {
 #elif defined(IP_RECVDSTADDR)
 		struct in_addr v4addr;
 #endif
-	} 	
+	}
 		/** variable with return source data */
 		pktinfo;
-    /** max udp size for udp packets */
-    size_t max_udp_size;
+	/** max udp size for udp packets */
+	size_t max_udp_size;
 };
 
 /** 
@@ -248,7 +248,7 @@ struct comm_point {
 #endif
 
 #ifdef USE_DNSCRYPT
-    /** Is this a dnscrypt channel */
+	/** Is this a dnscrypt channel */
 	int dnscrypt;
 	/** encrypted buffer pointer. Either to perthread, or own buffer or NULL */
 	struct sldns_buffer* dnscrypt_buffer;

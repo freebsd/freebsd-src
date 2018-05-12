@@ -302,6 +302,7 @@ static int
 getbit(const addrkey_t *addr, addrlen_t addrlen, addrlen_t n)
 {
 	log_assert(addrlen > n);
+	(void)addrlen;
 	return (int)(addr[n/KEYWIDTH]>>((KEYWIDTH-1)-(n%KEYWIDTH))) & 1;
 }
 

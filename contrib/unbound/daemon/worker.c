@@ -811,7 +811,9 @@ chaos_replystr(sldns_buffer* pkt, char** str, int num, struct edns_data* edns,
 	if(!inplace_cb_reply_local_call(&worker->env, NULL, NULL, NULL,
 		LDNS_RCODE_NOERROR, edns, worker->scratchpad))
 			edns->opt_list = NULL;
-	attach_edns_record(pkt, edns);
+	if(sldns_buffer_capacity(pkt) >=
+		sldns_buffer_limit(pkt)+calc_edns_field_size(edns))
+		attach_edns_record(pkt, edns);
 }
 
 /** Reply with one string */
@@ -1014,43 +1016,48 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		return 0;
 	}
 #ifdef USE_DNSCRYPT
-    repinfo->max_udp_size = worker->daemon->cfg->max_udp_size;
-    if(!dnsc_handle_curved_request(worker->daemon->dnscenv, repinfo)) {
-        worker->stats.num_query_dnscrypt_crypted_malformed++;
-        return 0;
-    }
-    if(c->dnscrypt && !repinfo->is_dnscrypted) {
-        char buf[LDNS_MAX_DOMAINLEN+1];
-        // Check if this is unencrypted and asking for certs
-        if(worker_check_request(c->buffer, worker) != 0) {
-            verbose(VERB_ALGO, "dnscrypt: worker check request: bad query.");
-            log_addr(VERB_CLIENT,"from",&repinfo->addr, repinfo->addrlen);
-            comm_point_drop_reply(repinfo);
-            return 0;
-        }
-        if(!query_info_parse(&qinfo, c->buffer)) {
-            verbose(VERB_ALGO, "dnscrypt: worker parse request: formerror.");
-            log_addr(VERB_CLIENT,"from",&repinfo->addr, repinfo->addrlen);
-            comm_point_drop_reply(repinfo);
-            return 0;
-        }
-        dname_str(qinfo.qname, buf);
-        if(!(qinfo.qtype == LDNS_RR_TYPE_TXT &&
-             strcasecmp(buf, worker->daemon->dnscenv->provider_name) == 0)) {
-            verbose(VERB_ALGO,
-                    "dnscrypt: not TXT %s. Receive: %s %s",
-                    worker->daemon->dnscenv->provider_name,
-                    sldns_rr_descript(qinfo.qtype)->_name,
-                    buf);
-            comm_point_drop_reply(repinfo);
-            worker->stats.num_query_dnscrypt_cleartext++;
-            return 0;
-        }
-        worker->stats.num_query_dnscrypt_cert++;
-        sldns_buffer_rewind(c->buffer);
-    } else if(c->dnscrypt && repinfo->is_dnscrypted) {
-        worker->stats.num_query_dnscrypt_crypted++;
-    }
+	repinfo->max_udp_size = worker->daemon->cfg->max_udp_size;
+	if(!dnsc_handle_curved_request(worker->daemon->dnscenv, repinfo)) {
+		worker->stats.num_query_dnscrypt_crypted_malformed++;
+		return 0;
+	}
+	if(c->dnscrypt && !repinfo->is_dnscrypted) {
+		char buf[LDNS_MAX_DOMAINLEN+1];
+		/* Check if this is unencrypted and asking for certs */
+		if(worker_check_request(c->buffer, worker) != 0) {
+			verbose(VERB_ALGO,
+				"dnscrypt: worker check request: bad query.");
+			log_addr(VERB_CLIENT,"from",&repinfo->addr,
+				repinfo->addrlen);
+			comm_point_drop_reply(repinfo);
+			return 0;
+		}
+		if(!query_info_parse(&qinfo, c->buffer)) {
+			verbose(VERB_ALGO,
+				"dnscrypt: worker parse request: formerror.");
+			log_addr(VERB_CLIENT, "from", &repinfo->addr,
+				repinfo->addrlen);
+			comm_point_drop_reply(repinfo);
+			return 0;
+		}
+		dname_str(qinfo.qname, buf);
+		if(!(qinfo.qtype == LDNS_RR_TYPE_TXT &&
+			strcasecmp(buf,
+			worker->daemon->dnscenv->provider_name) == 0)) {
+			verbose(VERB_ALGO,
+				"dnscrypt: not TXT %s. Receive: %s %s",
+				worker->daemon->dnscenv->provider_name,
+				sldns_rr_descript(qinfo.qtype)->_name,
+				buf);
+			comm_point_drop_reply(repinfo);
+			worker->stats.num_query_dnscrypt_cleartext++;
+			return 0;
+		}
+		worker->stats.num_query_dnscrypt_cert++;
+		sldns_buffer_rewind(c->buffer);
+	} else if(c->dnscrypt && repinfo->is_dnscrypted) {
+		worker->stats.num_query_dnscrypt_crypted++;
+	}
 #endif
 #ifdef USE_DNSTAP
 	if(worker->dtenv.log_client_query_messages)
@@ -1182,7 +1189,9 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		error_encode(c->buffer, EDNS_RCODE_BADVERS&0xf, &qinfo,
 			*(uint16_t*)(void *)sldns_buffer_begin(c->buffer),
 			sldns_buffer_read_u16_at(c->buffer, 2), NULL);
-		attach_edns_record(c->buffer, &edns);
+		if(sldns_buffer_capacity(c->buffer) >=
+			sldns_buffer_limit(c->buffer)+calc_edns_field_size(&edns))
+			attach_edns_record(c->buffer, &edns);
 		regional_free_all(worker->scratchpad);
 		goto send_reply;
 	}
@@ -1420,9 +1429,9 @@ send_reply_rc:
 			tv, 1, c->buffer);
 	}
 #ifdef USE_DNSCRYPT
-    if(!dnsc_handle_uncurved_request(repinfo)) {
-        return 0;
-    }
+	if(!dnsc_handle_uncurved_request(repinfo)) {
+		return 0;
+	}
 #endif
 	return rc;
 }
@@ -1664,6 +1673,7 @@ worker_init(struct worker* worker, struct config_file *cfg,
 	worker->env.mesh = mesh_create(&worker->daemon->mods, &worker->env);
 	worker->env.detach_subs = &mesh_detach_subs;
 	worker->env.attach_sub = &mesh_attach_sub;
+	worker->env.add_sub = &mesh_add_sub;
 	worker->env.kill_sub = &mesh_state_delete;
 	worker->env.detect_cycle = &mesh_detect_cycle;
 	worker->env.scratch_buffer = sldns_buffer_new(cfg->msg_buffer_size);

@@ -401,7 +401,7 @@ int infra_ratelimit_exceeded(struct infra_cache* infra, uint8_t* name,
 /** find the maximum rate stored, not too old. 0 if no information. */
 int infra_rate_max(void* data, time_t now);
 
-/** find the ratelimit in qps for a domain */
+/** find the ratelimit in qps for a domain. 0 if no limit for domain. */
 int infra_find_ratelimit(struct infra_cache* infra, uint8_t* name,
 	size_t namelen);
 

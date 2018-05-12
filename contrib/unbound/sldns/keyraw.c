@@ -388,6 +388,27 @@ sldns_ecdsa2pkey_raw(unsigned char* key, size_t keylen, uint8_t algo)
 }
 #endif /* USE_ECDSA */
 
+#ifdef USE_ED25519
+EVP_PKEY*
+sldns_ed255192pkey_raw(const unsigned char* key, size_t keylen)
+{
+	/* ASN1 for ED25519 is 302a300506032b6570032100 <32byteskey> */
+	uint8_t pre[] = {0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65,
+		0x70, 0x03, 0x21, 0x00};
+	int pre_len = 12;
+	uint8_t buf[256];
+	EVP_PKEY *evp_key;
+	/* pp gets modified by d2i() */
+	const unsigned char* pp = (unsigned char*)buf;
+	if(keylen != 32 || keylen + pre_len > sizeof(buf))
+		return NULL; /* wrong length */
+	memmove(buf, pre, pre_len);
+	memmove(buf+pre_len, key, keylen);
+	evp_key = d2i_PUBKEY(NULL, &pp, (int)(pre_len+keylen));
+	return evp_key;
+}
+#endif /* USE_ED25519 */
+
 int
 sldns_digest_evp(unsigned char* data, unsigned int len, unsigned char* dest,
 	const EVP_MD* md)

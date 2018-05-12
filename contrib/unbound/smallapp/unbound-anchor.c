@@ -241,6 +241,8 @@ static const char*
 get_builtin_ds(void)
 {
 	return
+/* The anchors must start on a new line with ". IN DS and end with \n"[;]
+ * because the makedist script greps on the source here */
 /* anchor 19036 is from 2010 */
 /* anchor 20326 is from 2017 */
 ". IN DS 19036 8 2 49AAC11D7B6F6446702E54A1607371607A1A41855200FD2CE1CDDE32F24E8FB5\n"
