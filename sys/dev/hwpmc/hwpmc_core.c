@@ -2831,8 +2831,10 @@ core_intr(int cpu, struct trapframe *tf)
 	if (found_interrupt)
 		lapic_reenable_pmc();
 
-	atomic_add_int(found_interrupt ? &pmc_stats.pm_intr_processed :
-	    &pmc_stats.pm_intr_ignored, 1);
+	if (found_interrupt)
+		counter_u64_add(pmc_stats.pm_intr_processed, 1);
+	else
+		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
 
 	return (found_interrupt);
 }
@@ -2896,6 +2898,7 @@ core2_intr(int cpu, struct trapframe *tf)
 
 		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
 		    TRAPF_USERMODE(tf));
+
 		if (error)
 			intrenable &= ~flag;
 
@@ -2955,8 +2958,10 @@ core2_intr(int cpu, struct trapframe *tf)
 	if (found_interrupt)
 		lapic_reenable_pmc();
 
-	atomic_add_int(found_interrupt ? &pmc_stats.pm_intr_processed :
-	    &pmc_stats.pm_intr_ignored, 1);
+	if (found_interrupt)
+		counter_u64_add(pmc_stats.pm_intr_processed, 1);
+	else
+		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
 
 	return (found_interrupt);
 }

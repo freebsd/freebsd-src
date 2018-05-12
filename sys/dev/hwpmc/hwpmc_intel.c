@@ -94,6 +94,8 @@ pmc_intel_initialize(void)
 	model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
 	stepping = cpu_id & 0xF;
 
+	snprintf(pmc_cpuid, sizeof(pmc_cpuid), "GenuineIntel-%d-%02X",
+			 (cpu_id & 0xF00) >> 8, model);
 	switch (cpu_id & 0xF00) {
 #if	defined(__i386__)
 	case 0x500:		/* Pentium family processors */
