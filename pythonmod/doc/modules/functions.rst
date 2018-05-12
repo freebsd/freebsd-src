@@ -24,7 +24,7 @@ Cache
    :param qstate: :class:`module_qstate`
    :param qinfo: :class:`query_info`
    :param msgrep: :class:`reply_info`
-   :param is_referal: integer
+   :param is_referral: integer
    :rtype: boolean
 
 .. function:: invalidateQueryInCache(qstate, qinfo)

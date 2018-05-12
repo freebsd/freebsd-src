@@ -99,7 +99,7 @@ def inplace_cache_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
     :param rep: reply_info struct;
     :param rcode: return code for the query;
     :param edns: edns_data sent from the client side. The list with the EDNS
-                 options is accesible through edns.opt_list. It SHOULD NOT be
+                 options is accessible through edns.opt_list. It SHOULD NOT be
                  altered;
     :param opt_list_out: the list with the EDNS options that will be sent as a
                          reply. It can be populated with EDNS options;
@@ -107,7 +107,7 @@ def inplace_cache_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
                    want to append a new option to opt_list_out.
     :return: True on success, False on failure.
 
-    For demostration purposes we want to see if EDNS option 65002 is present
+    For demonstration purposes we want to see if EDNS option 65002 is present
     and reply with a new value.
     """
     log_info("python: called back while answering from cache.")
@@ -142,7 +142,7 @@ def inplace_local_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
     :param rep: reply_info struct;
     :param rcode: return code for the query;
     :param edns: edns_data sent from the client side. The list with the
-                 EDNS options is accesible through edns.opt_list. It
+                 EDNS options is accessible through edns.opt_list. It
                  SHOULD NOT be altered;
     :param opt_list_out: the list with the EDNS options that will be sent as a
                          reply. It can be populated with EDNS options;
@@ -173,7 +173,7 @@ def inplace_servfail_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
                    want to append a new option to opt_list_out.
     :return: True on success, False on failure.
 
-    For demostration purposes we want to reply with an empty EDNS code '65003'.
+    For demonstration purposes we want to reply with an empty EDNS code '65003'.
     """
     log_info("python: called back while servfail.")
     b = bytearray.fromhex("")
@@ -186,7 +186,7 @@ def init_standard(id, env):
     The function's signature is the same as the C counterpart and allows for
     extra functionality during init.
     ..note:: This function is preferred by unbound over the old init function.
-    ..note:: The previously accesible configuration options can now be found in
+    ..note:: The previously accessible configuration options can now be found in
              env.cgf.
     """
     log_info("python: inited script {}".format(env.cfg.python_script))
@@ -218,7 +218,7 @@ def init(id, cfg):
     """Previous version init function.
     ..note:: This function is still supported for backwards compatibility when
              the init_standard function is missing. When init_standard is
-             present this function SHOULD be ommited to avoid confusion to the
+             present this function SHOULD be omitted to avoid confusion to the
              reader.
     """
     return True

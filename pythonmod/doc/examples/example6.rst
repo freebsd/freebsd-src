@@ -84,7 +84,7 @@ The callback function's prototype is the following:
         :param rep: reply_info struct;
         :param rcode: return code for the query;
         :param edns: edns_data sent from the client side. The list with the EDNS
-                     options is accesible through edns.opt_list. It SHOULD NOT be
+                     options is accessible through edns.opt_list. It SHOULD NOT be
                      altered;
         :param opt_list_out: the list with the EDNS options that will be sent as a
                              reply. It can be populated with EDNS options;
@@ -120,7 +120,7 @@ The callback function's prototype is the following:
         :param rep: reply_info struct;
         :param rcode: return code for the query;
         :param edns: edns_data sent from the client side. The list with the
-                     EDNS options is accesible through edns.opt_list. It
+                     EDNS options is accessible through edns.opt_list. It
                      SHOULD NOT be altered;
         :param opt_list_out: the list with the EDNS options that will be sent as a
                              reply. It can be populated with EDNS options;

@@ -90,7 +90,7 @@ struct ub_ctx {
 	int dothread;
 	/** next thread number for new threads */
 	int thr_next_num;
-	/** if logfile is overriden */
+	/** if logfile is overridden */
 	int logfile_override;
 	/** what logfile to use instead */
 	FILE* log_out;

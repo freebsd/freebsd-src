@@ -792,6 +792,10 @@ dns64_inform_super(struct module_qstate* qstate, int id,
 					qstate->return_msg->rep))
 		return;
 
+	/* Use return code from A query in response to client. */
+	if (super->return_rcode != LDNS_RCODE_NOERROR)
+		super->return_rcode = qstate->return_rcode;
+
 	/* Generate a response suitable for the original query. */
 	if (qstate->qinfo.qtype == LDNS_RR_TYPE_A) {
 		dns64_adjust_a(id, super, qstate);

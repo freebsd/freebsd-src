@@ -36,7 +36,7 @@
 /**
  * \file
  *
- * This file contains a module that performs recusive iterative DNS query
+ * This file contains a module that performs recursive iterative DNS query
  * processing.
  */
 
@@ -62,7 +62,7 @@ struct rbtree_type;
 /** max number of queries-sent-out.  Make sure large NS set does not loop */
 #define MAX_SENT_COUNT		32
 /** max number of queries for which to perform dnsseclameness detection,
- * (rrsigs misssing detection) after that, just pick up that response */
+ * (rrsigs missing detection) after that, just pick up that response */
 #define DNSSEC_LAME_DETECT_COUNT 4
 /**
  * max number of QNAME minimisation iterations. Limits number of queries for
@@ -142,11 +142,11 @@ struct iter_env {
 enum minimisation_state {
 	/**
 	 * (Re)start minimisation. Outgoing QNAME should be set to dp->name.
-	 * State entered on new query or after following refferal or CNAME.
+	 * State entered on new query or after following referral or CNAME.
 	 */
 	INIT_MINIMISE_STATE = 0,
 	/**
-	 * QNAME minimisataion ongoing. Increase QNAME on every iteration.
+	 * QNAME minimisation ongoing. Increase QNAME on every iteration.
 	 */
 	MINIMISE_STATE,
 	/**
@@ -184,7 +184,7 @@ enum iter_state {
 	/**
 	 * Each time a delegation point changes for a given query or a 
 	 * query times out and/or wakes up, this state is (re)visited. 
-	 * This state is reponsible for iterating through a list of 
+	 * This state is responsible for iterating through a list of 
 	 * nameserver targets.
 	 */
 	QUERYTARGETS_STATE,
@@ -378,7 +378,7 @@ struct iter_qstate {
 	struct query_info qinfo_out;
 
 	/**
-	 * Count number of QNAME minisation iterations. Used to limit number of
+	 * Count number of QNAME minimisation iterations. Used to limit number of
 	 * outgoing queries when QNAME minimisation is enabled.
 	 */
 	int minimise_count;
@@ -430,7 +430,7 @@ void iter_operate(struct module_qstate* qstate, enum module_ev event, int id,
 	struct outbound_entry* outbound);
 
 /**
- * Return priming query results to interestes super querystates.
+ * Return priming query results to interested super querystates.
  * 
  * Sets the delegation point and delegation message (not nonRD queries).
  * This is a callback from walk_supers.

@@ -63,11 +63,20 @@ struct dnsc_env {
 	uint64_t nonce_ts_last;
 	unsigned char hash_key[crypto_shorthash_KEYBYTES];
 	char * provider_name;
+
+    /** Caches */
 	struct slabhash *shared_secrets_cache;
 	/** lock on shared secret cache counters */
 	lock_basic_type shared_secrets_cache_lock;
 	/** number of misses from shared_secrets_cache */
 	size_t num_query_dnscrypt_secret_missed_cache;
+
+	/** slabhash keeping track of nonce/cient pk/server sk pairs. */
+	struct slabhash *nonces_cache;
+	/** lock on nonces_cache, used to avoid race condition in updating the hash */
+	lock_basic_type nonces_cache_lock;
+	/** number of replayed queries */
+	size_t num_query_dnscrypt_replay;
 };
 
 struct dnscrypt_query_header {
@@ -138,6 +147,27 @@ void dnsc_shared_secrets_delkeyfunc(void *k, void* arg);
  * Function to delete a share secret cache value.
  */
 void dnsc_shared_secrets_deldatafunc(void* d, void* arg);
+
+/**
+ * Computes the size of the nonce cache entry.
+ */
+size_t dnsc_nonces_sizefunc(void *k, void *d);
+
+/**
+ * Compares two nonce cache keys.
+ */
+int dnsc_nonces_compfunc(void *m1, void *m2);
+
+/**
+ * Function to delete a nonce cache key.
+ */
+void dnsc_nonces_delkeyfunc(void *k, void* arg);
+
+/**
+ * Function to delete a nonce cache value.
+ */
+void dnsc_nonces_deldatafunc(void* d, void* arg);
+
 
 #endif /* USE_DNSCRYPT */
 #endif

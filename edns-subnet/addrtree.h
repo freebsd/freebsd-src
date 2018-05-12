@@ -108,7 +108,7 @@ struct addrnode {
 struct addredge {
 	/** address of connected node */
 	addrkey_t *str;
-	/** lenght in bits of str */
+	/** length in bits of str */
 	addrlen_t len;
 	/** child node this edge is connected to */
 	struct addrnode *node;

@@ -3,7 +3,7 @@ EDNS options
 
 This example shows how to interact with EDNS options.
 
-When quering unbound with the EDNS option ``65001`` and data ``0xc001`` we
+When querying unbound with the EDNS option ``65001`` and data ``0xc001`` we
 expect an answer with the same EDNS option code and data ``0xdeadbeef``.
 
 
@@ -146,7 +146,7 @@ and use a valid script path::
 
     python-script: "./examples/edns.py"
 
-Quering with EDNS option ``65001:0xc001``:
+Querying with EDNS option ``65001:0xc001``:
 
 ::
 

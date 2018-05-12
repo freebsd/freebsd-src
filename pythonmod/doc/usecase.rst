@@ -25,7 +25,7 @@ Controled by secured queries secured with private key.
 
 Dynamic translation service
 ---------------------------
-DNS request can be translated to virtualy any answer, that's easy to implement in client side
+DNS request can be translated to virtually any answer, that's easy to implement in client side
 because of many DNS libraries available.
 
 Examples :

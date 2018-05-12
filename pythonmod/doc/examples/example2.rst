@@ -46,4 +46,4 @@ Dig produces the following output::
     ;; MSG SIZE  rcvd: 54
 
 As we handle (override) in the python module only queries ending with
-``localdomain.``, unboud can still resolve host names.
+``localdomain.``, unbound can still resolve host names.
