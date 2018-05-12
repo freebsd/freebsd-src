@@ -426,6 +426,12 @@
 /* Define to 1 if you have the `SSL_CTX_set_security_level' function. */
 /* #undef HAVE_SSL_CTX_SET_SECURITY_LEVEL */
 
+/* Define to 1 if you have the `SSL_get0_peername' function. */
+/* #undef HAVE_SSL_GET0_PEERNAME */
+
+/* Define to 1 if you have the `SSL_set1_host' function. */
+/* #undef HAVE_SSL_SET1_HOST */
+
 /* Define to 1 if you have the <stdarg.h> header file. */
 #define HAVE_STDARG_H 1
 
@@ -605,7 +611,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.6.8"
+#define PACKAGE_STRING "unbound 1.7.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -614,7 +620,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.6.8"
+#define PACKAGE_VERSION "1.7.0"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -633,7 +639,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,6,8,0
+#define RSRC_PACKAGE_VERSION 1,7,0,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
@@ -646,6 +652,9 @@
 
 /* define if (v)snprintf does not return length needed, (but length used) */
 /* #undef SNPRINTF_RET_BROKEN */
+
+/* Define to 1 if libsodium supports sodium_set_misuse_handler */
+/* #undef SODIUM_MISUSE_HANDLER */
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -1148,6 +1157,7 @@ uint32_t arc4random(void);
 void arc4random_buf(void* buf, size_t n);
 void _ARC4_LOCK(void);
 void _ARC4_UNLOCK(void);
+void _ARC4_LOCK_DESTROY(void);
 #endif
 #ifndef HAVE_ARC4RANDOM_UNIFORM
 uint32_t arc4random_uniform(uint32_t upper_bound);

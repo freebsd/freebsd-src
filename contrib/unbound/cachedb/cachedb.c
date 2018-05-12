@@ -568,14 +568,17 @@ cachedb_intcache_lookup(struct module_qstate* qstate)
 	msg = dns_cache_lookup(qstate->env, qstate->qinfo.qname,
 		qstate->qinfo.qname_len, qstate->qinfo.qtype,
 		qstate->qinfo.qclass, qstate->query_flags,
-		qstate->region, qstate->env->scratch);
+		qstate->region, qstate->env->scratch,
+		1 /* no partial messages with only a CNAME */
+		);
 	if(!msg && qstate->env->neg_cache) {
 		/* lookup in negative cache; may result in 
 		 * NOERROR/NODATA or NXDOMAIN answers that need validation */
 		msg = val_neg_getmsg(qstate->env->neg_cache, &qstate->qinfo,
 			qstate->region, qstate->env->rrset_cache,
 			qstate->env->scratch_buffer,
-			*qstate->env->now, 1/*add SOA*/, NULL);
+			*qstate->env->now, 1/*add SOA*/, NULL,
+			qstate->env->cfg);
 	}
 	if(!msg)
 		return 0;

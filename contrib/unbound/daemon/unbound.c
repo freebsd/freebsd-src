@@ -421,6 +421,20 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 	w_config_adjust_directory(cfg);
 #endif
 
+	/* read ssl keys while superuser and outside chroot */
+#ifdef HAVE_SSL
+	if(!(daemon->rc = daemon_remote_create(cfg)))
+		fatal_exit("could not set up remote-control");
+	if(cfg->ssl_service_key && cfg->ssl_service_key[0]) {
+		if(!(daemon->listen_sslctx = listen_sslctx_create(
+			cfg->ssl_service_key, cfg->ssl_service_pem, NULL)))
+			fatal_exit("could not set up listen SSL_CTX");
+	}
+	if(!(daemon->connect_sslctx = connect_sslctx_create(NULL, NULL,
+		cfg->tls_cert_bundle)))
+		fatal_exit("could not set up connect SSL_CTX");
+#endif
+
 	/* init syslog (as root) if needed, before daemonize, otherwise
 	 * a fork error could not be printed since daemonize closed stderr.*/
 	if(cfg->use_syslog) {
@@ -431,19 +445,6 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 	 * we cannot chown system logfiles, so we do not open at all.
 	 * So, using a logfile, the user does not see errors unless -d is
 	 * given to unbound on the commandline. */
-
-	/* read ssl keys while superuser and outside chroot */
-#ifdef HAVE_SSL
-	if(!(daemon->rc = daemon_remote_create(cfg)))
-		fatal_exit("could not set up remote-control");
-	if(cfg->ssl_service_key && cfg->ssl_service_key[0]) {
-		if(!(daemon->listen_sslctx = listen_sslctx_create(
-			cfg->ssl_service_key, cfg->ssl_service_pem, NULL)))
-			fatal_exit("could not set up listen SSL_CTX");
-	}
-	if(!(daemon->connect_sslctx = connect_sslctx_create(NULL, NULL, NULL)))
-		fatal_exit("could not set up connect SSL_CTX");
-#endif
 
 #ifdef HAVE_KILL
 	/* true if pidfile is inside chrootdir, or nochroot */
@@ -744,5 +745,10 @@ main(int argc, char* argv[])
 
 	run_daemon(cfgfile, cmdline_verbose, debug_mode, log_ident_default, need_pidfile);
 	log_init(NULL, 0, NULL); /* close logfile */
+#ifndef unbound_testbound
+	if(log_get_lock()) {
+		lock_quick_destroy((lock_quick_type*)log_get_lock());
+	}
+#endif
 	return 0;
 }

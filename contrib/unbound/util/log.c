@@ -191,6 +191,17 @@ void log_set_time_asc(int use_asc)
 	log_time_asc = use_asc;
 }
 
+void* log_get_lock(void)
+{
+	if(!key_created)
+		return NULL;
+#ifndef THREADS_DISABLED
+	return (void*)&log_lock;
+#else
+	return NULL;
+#endif
+}
+
 void
 log_vmsg(int pri, const char* type,
 	const char *format, va_list args)

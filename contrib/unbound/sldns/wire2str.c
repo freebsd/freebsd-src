@@ -255,6 +255,12 @@ int sldns_wire2str_rr_buf(uint8_t* d, size_t dlen, char* s, size_t slen)
 	return sldns_wire2str_rr_scan(&d, &dlen, &s, &slen, NULL, 0);
 }
 
+int sldns_wire2str_rrquestion_buf(uint8_t* d, size_t dlen, char* s, size_t slen)
+{
+	/* use arguments as temporary variables */
+	return sldns_wire2str_rrquestion_scan(&d, &dlen, &s, &slen, NULL, 0);
+}
+
 int sldns_wire2str_rdata_buf(uint8_t* rdata, size_t rdata_len, char* str,
 	size_t str_len, uint16_t rrtype)
 {

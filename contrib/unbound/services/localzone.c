@@ -52,7 +52,6 @@
 #include "util/data/msgreply.h"
 #include "util/data/msgparse.h"
 #include "util/as112.h"
-#include "util/config_file.h"
 
 /* maximum RRs in an RRset, to cap possible 'endless' list RRs.
  * with 16 bytes for an A record, a 64K packet has about 4000 max */
@@ -1133,57 +1132,11 @@ void local_zones_print(struct local_zones* zones)
 	lock_rw_rdlock(&zones->lock);
 	log_info("number of auth zones %u", (unsigned)zones->ztree.count);
 	RBTREE_FOR(z, struct local_zone*, &zones->ztree) {
+		char buf[64];
 		lock_rw_rdlock(&z->lock);
-		switch(z->type) {
-		case local_zone_deny:
-			log_nametypeclass(0, "deny zone", 
-				z->name, 0, z->dclass);
-			break;
-		case local_zone_refuse:
-			log_nametypeclass(0, "refuse zone", 
-				z->name, 0, z->dclass);
-			break;
-		case local_zone_redirect:
-			log_nametypeclass(0, "redirect zone", 
-				z->name, 0, z->dclass);
-			break;
-		case local_zone_transparent:
-			log_nametypeclass(0, "transparent zone", 
-				z->name, 0, z->dclass);
-			break;
-		case local_zone_typetransparent:
-			log_nametypeclass(0, "typetransparent zone", 
-				z->name, 0, z->dclass);
-			break;
-		case local_zone_static:
-			log_nametypeclass(0, "static zone", 
-				z->name, 0, z->dclass);
-			break;
-		case local_zone_inform:
-			log_nametypeclass(0, "inform zone", 
-				z->name, 0, z->dclass);
-			break;
-		case local_zone_inform_deny:
-			log_nametypeclass(0, "inform_deny zone", 
-				z->name, 0, z->dclass);
-			break;
-		case local_zone_always_transparent:
-			log_nametypeclass(0, "always_transparent zone", 
-				z->name, 0, z->dclass);
-			break;
-		case local_zone_always_refuse:
-			log_nametypeclass(0, "always_refuse zone", 
-				z->name, 0, z->dclass);
-			break;
-		case local_zone_always_nxdomain:
-			log_nametypeclass(0, "always_nxdomain zone", 
-				z->name, 0, z->dclass);
-			break;
-		default:
-			log_nametypeclass(0, "badtyped zone", 
-				z->name, 0, z->dclass);
-			break;
-		}
+		snprintf(buf, sizeof(buf), "%s zone",
+			local_zone_type2str(z->type));
+		log_nametypeclass(0, buf, z->name, 0, z->dclass);
 		local_zone_out(z);
 		lock_rw_unlock(&z->lock);
 	}
@@ -1590,11 +1543,16 @@ local_zones_answer(struct local_zones* zones, struct module_env* env,
 			(z = local_zones_lookup(view->local_zones,
 			qinfo->qname, qinfo->qname_len, labs,
 			qinfo->qclass, qinfo->qtype))) {
-			verbose(VERB_ALGO, 
-				"using localzone from view: %s", 
-				view->name);
+			if(z->type != local_zone_noview)
+				verbose(VERB_ALGO, 
+					"using localzone from view: %s", 
+					view->name);
 			lock_rw_rdlock(&z->lock);
 			lzt = z->type;
+		}
+		if(lzt == local_zone_noview) {
+			lock_rw_unlock(&z->lock);
+			z = NULL;
 		}
 		if(view->local_zones && !z && !view->isfirst){
 			lock_rw_unlock(&view->lock);
@@ -1653,6 +1611,7 @@ const char* local_zone_type2str(enum localzone_type t)
 		case local_zone_always_transparent: return "always_transparent";
 		case local_zone_always_refuse: return "always_refuse";
 		case local_zone_always_nxdomain: return "always_nxdomain";
+		case local_zone_noview: return "noview";
 	}
 	return "badtyped"; 
 }
@@ -1681,6 +1640,8 @@ int local_zone_str2type(const char* type, enum localzone_type* t)
 		*t = local_zone_always_refuse;
 	else if(strcmp(type, "always_nxdomain") == 0)
 		*t = local_zone_always_nxdomain;
+	else if(strcmp(type, "noview") == 0)
+		*t = local_zone_noview;
 	else if(strcmp(type, "nodefault") == 0)
 		*t = local_zone_nodefault;
 	else return 0;

@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Jan 19, 2018" "NLnet Labs" "unbound 1.6.8"
+.TH "unbound.conf" "5" "Mar 15, 2018" "NLnet Labs" "unbound 1.7.0"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -293,7 +293,8 @@ are going to exist later on, with host failover configuration.  This is
 a lot like interface\-automatic, but that one services all interfaces
 and with this option you can select which (future) interfaces unbound
 provides service on.  This option needs unbound to be started with root
-permissions on some systems.  The option uses IP_BINDANY on FreeBSD systems.
+permissions on some systems.  The option uses IP_BINDANY on FreeBSD systems
+and SO_BINDANY on OpenBSD systems.
 .TP
 .B ip\-freebind: \fI<yes or no>
 If yes, then use IP_FREEBIND socket option on sockets where unbound
@@ -330,6 +331,7 @@ the data in the cache does not match up with the actual data any more.
 .B cache\-max\-negative\-ttl: \fI<seconds>
 Time to live maximum for negative responses, these have a SOA in the
 authority section that is limited in time.  Default is 3600.
+This applies to nxdomain and nodata answers.
 .TP
 .B infra\-host\-ttl: \fI<seconds>
 Time to live for entries in the host cache. The host cache contains
@@ -396,29 +398,51 @@ Enable udp upstream even if do-udp is no.  Default is no, and this does not
 change anything.  Useful for TLS service providers, that want no udp downstream
 but use udp to fetch data upstream.
 .TP
-.B ssl\-upstream: \fI<yes or no>
+.B tls\-upstream: \fI<yes or no>
 Enabled or disable whether the upstream queries use SSL only for transport.
 Default is no.  Useful in tunneling scenarios.  The SSL contains plain DNS in
 TCP wireformat.  The other server must support this (see
-\fBssl\-service\-key\fR).
+\fBtls\-service\-key\fR).
 .TP
-.B ssl\-service-key: \fI<file>
+.B ssl\-upstream: \fI<yes or no>
+Alternate syntax for \fBtls\-upstream\fR.  If both are present in the config
+file the last is used.
+.TP
+.B tls\-service\-key: \fI<file>
 If enabled, the server provider SSL service on its TCP sockets.  The clients
-have to use ssl\-upstream: yes.  The file is the private key for the TLS
-session.  The public certificate is in the ssl\-service\-pem file.  Default
+have to use tls\-upstream: yes.  The file is the private key for the TLS
+session.  The public certificate is in the tls\-service\-pem file.  Default
 is "", turned off.  Requires a restart (a reload is not enough) if changed,
 because the private key is read while root permissions are held and before
 chroot (if any).  Normal DNS TCP service is not provided and gives errors,
 this service is best run with a different \fBport:\fR config or \fI@port\fR
 suffixes in the \fBinterface\fR config.
 .TP
-.B ssl\-service\-pem: \fI<file>
-The public key certificate pem file for the ssl service.  Default is "",
+.B ssl\-service\-key: \fI<file>
+Alternate syntax for \fBtls\-service\-key\fR.
+.TP
+.B tls\-service\-pem: \fI<file>
+The public key certificate pem file for the tls service.  Default is "",
 turned off.
 .TP
-.B ssl\-port: \fI<number>
+.B ssl\-service\-pem: \fI<file>
+Alternate syntax for \fBtls\-service\-pem\fR.
+.TP
+.B tls\-port: \fI<number>
 The port number on which to provide TCP SSL service, default 853, only
 interfaces configured with that port number as @number get the SSL service.
+.TP
+.B ssl\-port: \fI<number>
+Alternate syntax for \fBtls\-port\fR.
+.TP
+.B tls\-cert\-bundle: \fI<file>
+If null or "", no file is used.  Set it to the certificate bundle file,
+for example "/etc/pki/tls/certs/ca\-bundle.crt".  These certificates are used
+for authenticating connections made to outside peers.  For example auth\-zone
+urls, and also DNS over TLS connections.
+.TP
+.B ssl\-cert\-bundle: \fI<file>
+Alternate syntax for \fBtls\-cert\-bundle\fR.
 .TP
 .B use\-systemd: \fI<yes or no>
 Enable or disable systemd socket activation.
@@ -690,7 +714,7 @@ Can be given multiple times, for different domains.
 .TP
 .B qname\-minimisation: \fI<yes or no>
 Send minimum amount of information to upstream servers to enhance privacy.
-Only sent minimum required labels of the QNAME and set QTYPE to NS when
+Only sent minimum required labels of the QNAME and set QTYPE to A when
 possible. Best effort approach; full QNAME and original QTYPE will be sent when
 upstream replies with a RCODE other than NOERROR, except when receiving
 NXDOMAIN from a DNSSEC signed zone. Default is off.
@@ -700,6 +724,12 @@ QNAME minimisation in strict mode. Do not fall-back to sending full QNAME to
 potentially broken nameservers. A lot of domains will not be resolvable when
 this option in enabled. Only use if you know what you are doing.
 This option only has effect when qname-minimisation is enabled. Default is off.
+.TP
+.B aggressive\-nsec: \fI<yes or no>
+Aggressive NSEC uses the DNSSEC NSEC chain to synthesize NXDOMAIN
+and other denials, using information from previous NXDOMAINs answers.
+Default is off.  It helps to reduce the query rate towards targets that get
+a very high nonexistant name lookup rate.
 .TP
 .B private\-address: \fI<IP address or subnet>
 Give IPv4 of IPv6 addresses or classless subnets. These are addresses
@@ -976,7 +1006,7 @@ address space are not validated.  This is usually required whenever
 Configure a local zone. The type determines the answer to give if
 there is no match from local\-data. The types are deny, refuse, static,
 transparent, redirect, nodefault, typetransparent, inform, inform_deny,
-always_transparent, always_refuse, always_nxdomain,
+always_transparent, always_refuse, always_nxdomain, noview,
 and are explained below. After that the default settings are listed. Use
 local\-data: to enter data into the local zone. Answers for local zones
 are authoritative DNS answers. By default the zones are class IN.
@@ -1046,6 +1076,13 @@ Like refuse, but ignores local data and refuses the query.
 \h'5'\fIalways_nxdomain\fR
 Like static, but ignores local data and returns nxdomain for the query.
 .TP 10
+\h'5'\fInoview\fR
+Breaks out of that view and moves towards the global local zones for answer
+to the query.  If the view first is no, it'll resolve normally.  If view first
+is enabled, it'll break perform that step and check the global answers.
+For when the view has view specific overrides but some zone has to be
+answered from global local zone contents. 
+.TP 10
 \h'5'\fInodefault\fR
 Used to turn off default contents for AS112 zones. The other types
 also turn off default contents for the zone. The 'nodefault' option
@@ -1109,7 +1146,7 @@ local\-data: "onion. 10800 IN
     SOA localhost. nobody.invalid. 1 3600 1200 604800 10800"
 .fi
 .TP 10
-\h'5'\fItest (RFC 7686)\fR
+\h'5'\fItest (RFC 2606)\fR
 Default content:
 .nf
 local\-zone: "test." static
@@ -1118,7 +1155,7 @@ local\-data: "test. 10800 IN
     SOA localhost. nobody.invalid. 1 3600 1200 604800 10800"
 .fi
 .TP 10
-\h'5'\fIinvalid (RFC 7686)\fR
+\h'5'\fIinvalid (RFC 2606)\fR
 Default content:
 .nf
 local\-zone: "invalid." static
@@ -1378,9 +1415,12 @@ The data could not be retrieved and would have caused SERVFAIL because
 the servers are unreachable, instead it is tried without this clause.
 The default is no.
 .TP
-.B stub\-ssl\-upstream: \fI<yes or no>
+.B stub\-tls\-upstream: \fI<yes or no>
 Enabled or disable whether the queries to this stub use SSL for transport.
 Default is no.
+.TP
+.B stub\-ssl\-upstream: \fI<yes or no>
+Alternate syntax for \fBstub\-tls\-upstream\fR.
 .SS "Forward Zone Options"
 .LP
 There may be multiple
@@ -1392,6 +1432,9 @@ forward the queries to. The servers listed as \fBforward\-host:\fR and
 those servers are not authority servers, but are (just like unbound is)
 recursive servers too; unbound does not perform recursion itself for the
 forward zone, it lets the remote server do it.  Class IN is assumed.
+CNAMEs are chased by unbound itself, asking the remote server for every
+name in the indirection chain, to protect the local cache from illegal
+indirect referenced items.
 A forward\-zone entry with name "." and a forward\-addr target will
 forward all queries to that other server (unless it can answer from
 the cache).
@@ -1412,9 +1455,73 @@ The data could not be retrieved and would have caused SERVFAIL because
 the servers are unreachable, instead it is tried without this clause.
 The default is no.
 .TP
-.B forward\-ssl\-upstream: \fI<yes or no>
+.B forward\-tls\-upstream: \fI<yes or no>
 Enabled or disable whether the queries to this forwarder use SSL for transport.
 Default is no.
+.TP
+.B forward\-ssl\-upstream: \fI<yes or no>
+Alternate syntax for \fBforward\-tls\-upstream\fR.
+.SS "Authority Zone Options"
+.LP
+Authority zones are configured with \fBauth\-zone:\fR, and each one must
+have a \fBname:\fR.  There can be multiple ones, by listing multiple auth\-zone clauses, each with a different name, pertaining to that part of the namespace.
+The authority zone with the name closest to the name looked up is used.
+Authority zones are processed after \fBlocal\-zones\fR and before
+cache (\fBfor\-downstream:\fR \fIyes\fR), and when used in this manner
+make unbound respond like an authority server.  Authority zones are also
+processed after cache, just before going to the network to fetch
+information for recursion (\fBfor\-upstream:\fR \fIyes\fR), and when used
+in this manner provide a local copy of an authority server that speeds up
+lookups of that data.
+.LP
+Authority zones can be read from zonefile.  And can be kept updated via
+AXFR and IXFR.  After update the zonefile is rewritten.  The update mechanism
+uses the SOA timer values and performs SOA UDP queries to detect zone changes.
+.TP
+.B name: \fI<zone name>
+Name of the authority zone.
+.TP
+.B master: \fI<IP address or host name>
+Where to download a copy of the zone from, with AXFR and IXFR.  Multiple
+masters can be specified.  They are all tried if one fails.
+.TP
+.B url: \fI<url to zonefile>
+Where to download a zonefile for the zone.  With http or https.  An example
+for the url is "http://www.example.com/example.org.zone".  Multiple url
+statements can be given, they are tried in turn.  If only urls are given
+the SOA refresh timer is used to wait for making new downloads.  If also
+masters are listed, the masters are first probed with UDP SOA queries to
+see if the SOA serial number has changed, reducing the number of downloads.
+If none of the urls work, the masters are tried with IXFR and AXFR.
+For https, the \fBtls\-cert\-bundle\fR and the hostname from the url are used
+to authenticate the connection.
+.TP
+.B fallback\-enabled: \fI<yes or no>
+Default no.  If enabled, unbound falls back to querying the internet as
+a resolver for this zone when lookups fail.  For example for DNSSEC
+validation failures.
+.TP
+.B for\-downstream: \fI<yes or no>
+Default yes.  If enabled, unbound serves authority responses to
+downstream clients for this zone.  This option makes unbound behave, for
+the queries with names in this zone, like one of the authority servers for
+that zone.  Turn it off if you want unbound to provide recursion for the
+zone but have a local copy of zone data.  If for\-downstream is no and
+for\-upstream is yes, then unbound will DNSSEC validate the contents of the
+zone before serving the zone contents to clients and store validation
+results in the cache.
+.TP
+.B for\-upstream: \fI<yes or no>
+Default yes.  If enabled, unbound fetches data from this data collection
+for answering recursion queries.  Instead of sending queries over the internet
+to the authority servers for this zone, it'll fetch the data directly from
+the zone data.  Turn it on when you want unbound to provide recursion for
+downstream clients, and use the zone data as a local copy to speed up lookups.
+.TP
+.B zonefile: \fI<filename>
+The filename where the zone is stored.  If not given then no zonefile is used.
+If the file does not exist or is empty, unbound will attempt to fetch zone
+data (eg. from the master servers).
 .SS "View Options"
 .LP
 There may be multiple
@@ -1511,6 +1618,19 @@ times.
 .TP
 .B dnscrypt\-provider\-cert: \fI<path to cert file>\fR
 Path to the certificate related to the \fBdnscrypt\-secret\-key\fRs.
+This option may be specified multiple times.
+.TP
+.B dnscrypt\-provider\-cert\-rotated: \fI<path to cert file>\fR
+Path to a certificate that we should be able to serve existing connection from
+but do not want to advertise over \fBdnscrypt\-provider\fR's TXT record certs
+distribution.
+A typical use case is when rotating certificates, existing clients may still use
+the client magic from the old cert in their queries until they fetch and update
+the new cert. Likewise, it would allow one to prime the new cert/key without
+distributing the new cert yet, this can be useful when using a network of
+servers using anycast and on which the configuration may not get updated at the
+exact same time. By priming the cert, the servers can handle both old and new
+certs traffic while distributing only one.
 This option may be specified multiple times.
 .TP
 .B dnscrypt\-shared\-secret\-cache\-size: \fI<memory size>
