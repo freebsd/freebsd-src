@@ -84,6 +84,10 @@
    don't. */
 #define HAVE_DECL_NID_ED25519 0
 
+/* Define to 1 if you have the declaration of `NID_ED448', and to 0 if you
+   don't. */
+#define HAVE_DECL_NID_ED448 0
+
 /* Define to 1 if you have the declaration of `NID_secp384r1', and to 0 if you
    don't. */
 #define HAVE_DECL_NID_SECP384R1 1
@@ -95,6 +99,10 @@
 /* Define to 1 if you have the declaration of `reallocarray', and to 0 if you
    don't. */
 /* #undef HAVE_DECL_REALLOCARRAY */
+
+/* Define to 1 if you have the declaration of `redisConnect', and to 0 if you
+   don't. */
+/* #undef HAVE_DECL_REDISCONNECT */
 
 /* Define to 1 if you have the declaration of `sk_SSL_COMP_pop_free', and to 0
    if you don't. */
@@ -234,6 +242,9 @@
 /* Define to 1 if you have the <grp.h> header file. */
 #define HAVE_GRP_H 1
 
+/* Define to 1 if you have the <hiredis/hiredis.h> header file. */
+/* #undef HAVE_HIREDIS_HIREDIS_H */
+
 /* If you have HMAC_Update */
 #define HAVE_HMAC_UPDATE 1
 
@@ -263,6 +274,9 @@
 
 /* Define to 1 if you have the `kill' function. */
 #define HAVE_KILL 1
+
+/* Define to 1 if you have the <libkern/OSByteOrder.h> header file. */
+/* #undef HAVE_LIBKERN_OSBYTEORDER_H */
 
 /* Define if we have LibreSSL */
 /* #undef HAVE_LIBRESSL */
@@ -480,6 +494,9 @@
 /* Define to 1 if systemd should be used */
 /* #undef HAVE_SYSTEMD */
 
+/* Define to 1 if you have the <sys/endian.h> header file. */
+#define HAVE_SYS_ENDIAN_H 1
+
 /* Define to 1 if you have the <sys/ipc.h> header file. */
 #define HAVE_SYS_IPC_H 1
 
@@ -611,7 +628,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.7.0"
+#define PACKAGE_STRING "unbound 1.7.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -620,7 +637,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.7.0"
+#define PACKAGE_VERSION "1.7.1"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -639,7 +656,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,7,0,0
+#define RSRC_PACKAGE_VERSION 1,7,1,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
@@ -704,6 +721,9 @@
 /* Define this to enable ED25519 support. */
 /* #undef USE_ED25519 */
 
+/* Define this to enable ED448 support. */
+/* #undef USE_ED448 */
+
 /* Define this to enable GOST support. */
 #define USE_GOST 1
 
@@ -718,6 +738,9 @@
 
 /* Define this to enable client TCP Fast Open. */
 /* #undef USE_OSX_MSG_FASTOPEN */
+
+/* Define this to use hiredis client. */
+/* #undef USE_REDIS */
 
 /* Define this to enable SHA1 support. */
 #define USE_SHA1 1
@@ -1223,6 +1246,8 @@ void *unbound_stat_realloc_log(void *ptr, size_t size, const char* file,
 
 /** default port for DNS traffic. */
 #define UNBOUND_DNS_PORT 53
+/** default port for DNS over TLS traffic. */
+#define UNBOUND_DNS_OVER_TLS_PORT 853
 /** default port for unbound control traffic, registered port with IANA,
     ub-dns-control  8953/tcp    unbound dns nameserver control */
 #define UNBOUND_CONTROL_PORT 8953

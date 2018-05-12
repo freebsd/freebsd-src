@@ -231,14 +231,16 @@ read_fwds_addr(struct config_stub* s, struct delegpt* dp)
 	struct config_strlist* p;
 	struct sockaddr_storage addr;
 	socklen_t addrlen;
+	char* tls_auth_name;
 	for(p = s->addrs; p; p = p->next) {
 		log_assert(p->str);
-		if(!extstrtoaddr(p->str, &addr, &addrlen)) {
+		if(!authextstrtoaddr(p->str, &addr, &addrlen, &tls_auth_name)) {
 			log_err("cannot parse forward %s ip address: '%s'", 
 				s->name, p->str);
 			return 0;
 		}
-		if(!delegpt_add_addr_mlc(dp, &addr, addrlen, 0, 0)) {
+		if(!delegpt_add_addr_mlc(dp, &addr, addrlen, 0, 0,
+			tls_auth_name)) {
 			log_err("out of memory");
 			return 0;
 		}

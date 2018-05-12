@@ -338,6 +338,8 @@ struct module_env {
 	 * @param zone: delegation point name.
 	 * @param zonelen: length of zone name.
 	 * @param ssl_upstream: use SSL for upstream queries.
+	 * @param tls_auth_name: if ssl_upstream, use this name with TLS
+	 * 	authentication.
 	 * @param q: wich query state to reactivate upon return.
 	 * @return: false on failure (memory or socket related). no query was
 	 *	sent. Or returns an outbound entry with qsent and qstate set.
@@ -348,7 +350,7 @@ struct module_env {
 		uint16_t flags, int dnssec, int want_dnssec, int nocaps,
 		struct sockaddr_storage* addr, socklen_t addrlen,
 		uint8_t* zone, size_t zonelen, int ssl_upstream,
-		struct module_qstate* q);
+		char* tls_auth_name, struct module_qstate* q);
 
 	/**
 	 * Detach-subqueries.

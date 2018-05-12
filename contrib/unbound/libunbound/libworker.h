@@ -75,6 +75,8 @@ struct libworker {
 	int is_bg;
 	/** is this a bg worker that is threaded (not forked)? */
 	int is_bg_thread;
+	/** want to quit, stop handling new content */
+	int want_quit;
 
 	/** copy of the module environment with worker local entries. */
 	struct module_env* env;

@@ -1056,6 +1056,26 @@ set_recvpktinfo(int s, int family)
 	return 1;
 }
 
+/** see if interface is ssl, its port number == the ssl port number */
+static int
+if_is_ssl(const char* ifname, const char* port, int ssl_port,
+	struct config_strlist* additional_tls_port)
+{
+	struct config_strlist* s;
+	char* p = strchr(ifname, '@');
+	if(!p && atoi(port) == ssl_port)
+		return 1;
+	if(p && atoi(p+1) == ssl_port)
+		return 1;
+	for(s = additional_tls_port; s; s = s->next) {
+		if(p && atoi(p+1) == atoi(s->str))
+			return 1;
+		if(!p && atoi(port) == atoi(s->str))
+			return 1;
+	}
+	return 0;
+}
+
 /**
  * Helper for ports_open. Creates one interface (or NULL for default).
  * @param ifname: The interface ip address.
@@ -1069,6 +1089,7 @@ set_recvpktinfo(int s, int family)
  * @param rcv: receive buffer size for UDP
  * @param snd: send buffer size for UDP
  * @param ssl_port: ssl service port number
+ * @param additional_tls_port: list of additional ssl service port numbers.
  * @param reuseport: try to set SO_REUSEPORT if nonNULL and true.
  * 	set to false on exit if reuseport failed due to no kernel support.
  * @param transparent: set IP_TRANSPARENT socket option.
@@ -1081,8 +1102,10 @@ set_recvpktinfo(int s, int family)
 static int
 ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp, 
 	struct addrinfo *hints, const char* port, struct listen_port** list,
-	size_t rcv, size_t snd, int ssl_port, int* reuseport, int transparent,
-	int tcp_mss, int freebind, int use_systemd, int dnscrypt_port)
+	size_t rcv, size_t snd, int ssl_port,
+	struct config_strlist* additional_tls_port, int* reuseport,
+	int transparent, int tcp_mss, int freebind, int use_systemd,
+	int dnscrypt_port)
 {
 	int s, noip6=0;
 #ifdef USE_DNSCRYPT
@@ -1146,9 +1169,8 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 		}
 	}
 	if(do_tcp) {
-		int is_ssl = ((strchr(ifname, '@') && 
-			atoi(strchr(ifname, '@')+1) == ssl_port) ||
-			(!strchr(ifname, '@') && atoi(port) == ssl_port));
+		int is_ssl = if_is_ssl(ifname, port, ssl_port,
+			additional_tls_port);
 		if((s = make_sock_port(SOCK_STREAM, ifname, port, hints, 1, 
 			&noip6, 0, 0, reuseport, transparent, tcp_mss,
 			freebind, use_systemd)) == -1) {
@@ -1334,8 +1356,8 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 				do_auto, cfg->do_udp, do_tcp, 
 				&hints, portbuf, &list,
 				cfg->so_rcvbuf, cfg->so_sndbuf,
-				cfg->ssl_port, reuseport,
-				cfg->ip_transparent,
+				cfg->ssl_port, cfg->additional_tls_port,
+				reuseport, cfg->ip_transparent,
 				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd,
 				cfg->dnscrypt_port)) {
 				listening_ports_free(list);
@@ -1348,8 +1370,8 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 				do_auto, cfg->do_udp, do_tcp, 
 				&hints, portbuf, &list,
 				cfg->so_rcvbuf, cfg->so_sndbuf,
-				cfg->ssl_port, reuseport,
-				cfg->ip_transparent,
+				cfg->ssl_port, cfg->additional_tls_port,
+				reuseport, cfg->ip_transparent,
 				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd,
 				cfg->dnscrypt_port)) {
 				listening_ports_free(list);
@@ -1364,8 +1386,8 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 			if(!ports_create_if(cfg->ifs[i], 0, cfg->do_udp, 
 				do_tcp, &hints, portbuf, &list, 
 				cfg->so_rcvbuf, cfg->so_sndbuf,
-				cfg->ssl_port, reuseport,
-				cfg->ip_transparent,
+				cfg->ssl_port, cfg->additional_tls_port,
+				reuseport, cfg->ip_transparent,
 				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd,
 				cfg->dnscrypt_port)) {
 				listening_ports_free(list);
@@ -1378,8 +1400,8 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 			if(!ports_create_if(cfg->ifs[i], 0, cfg->do_udp, 
 				do_tcp, &hints, portbuf, &list, 
 				cfg->so_rcvbuf, cfg->so_sndbuf,
-				cfg->ssl_port, reuseport,
-				cfg->ip_transparent,
+				cfg->ssl_port, cfg->additional_tls_port,
+				reuseport, cfg->ip_transparent,
 				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd,
 				cfg->dnscrypt_port)) {
 				listening_ports_free(list);

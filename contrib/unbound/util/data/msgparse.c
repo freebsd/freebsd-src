@@ -1028,6 +1028,32 @@ parse_extract_edns(struct msg_parse* msg, struct edns_data* edns,
 	return 0;
 }
 
+/** skip RR in packet */
+static int
+skip_pkt_rr(sldns_buffer* pkt)
+{
+	if(sldns_buffer_remaining(pkt) < 1) return 0;
+	if(!pkt_dname_len(pkt))
+		return 0;
+	if(sldns_buffer_remaining(pkt) < 4) return 0;
+	sldns_buffer_skip(pkt, 4); /* type and class */
+	if(!skip_ttl_rdata(pkt))
+		return 0;
+	return 1;
+}
+
+/** skip RRs from packet */
+static int
+skip_pkt_rrs(sldns_buffer* pkt, int num)
+{
+	int i;
+	for(i=0; i<num; i++) {
+		if(!skip_pkt_rr(pkt))
+			return 0;
+	}
+	return 1;
+}
+
 int 
 parse_edns_from_pkt(sldns_buffer* pkt, struct edns_data* edns,
 	struct regional* region)
@@ -1035,8 +1061,12 @@ parse_edns_from_pkt(sldns_buffer* pkt, struct edns_data* edns,
 	size_t rdata_len;
 	uint8_t* rdata_ptr;
 	log_assert(LDNS_QDCOUNT(sldns_buffer_begin(pkt)) == 1);
-	log_assert(LDNS_ANCOUNT(sldns_buffer_begin(pkt)) == 0);
-	log_assert(LDNS_NSCOUNT(sldns_buffer_begin(pkt)) == 0);
+	if(LDNS_ANCOUNT(sldns_buffer_begin(pkt)) != 0 ||
+		LDNS_NSCOUNT(sldns_buffer_begin(pkt)) != 0) {
+		if(!skip_pkt_rrs(pkt, ((int)LDNS_ANCOUNT(sldns_buffer_begin(pkt)))+
+			((int)LDNS_NSCOUNT(sldns_buffer_begin(pkt)))))
+			return 0;
+	}
 	/* check edns section is present */
 	if(LDNS_ARCOUNT(sldns_buffer_begin(pkt)) > 1) {
 		return LDNS_RCODE_FORMERR;
