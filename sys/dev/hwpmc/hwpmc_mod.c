@@ -76,6 +76,14 @@ __FBSDID("$FreeBSD$");
 
 #include "hwpmc_soft.h"
 
+#ifdef NUMA
+#define NDOMAINS vm_ndomains
+#else
+#define NDOMAINS 1
+#define malloc_domain(size, type, domain, flags) malloc((size), (type), (flags))
+#define free_domain(addr, type) free(addr, type)
+#endif
+
 /*
  * Types
  */

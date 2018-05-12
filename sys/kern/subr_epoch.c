@@ -119,7 +119,7 @@ static __read_mostly int inited;
 
 static void epoch_call_task(void *context);
 
-#if defined(__powerpc64__) || defined(__powerpc__)
+#if defined(__powerpc64__) || defined(__powerpc__) || !defined(NUMA)
 static bool usedomains = false;
 #else
 static bool usedomains = true;
