@@ -246,12 +246,6 @@ aw_mmc_attach(device_t dev)
 	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "req_timeout", CTLFLAG_RW,
 	    &sc->aw_timeout, 0, "Request timeout in seconds");
 
-	/* Hardware reset */
-	AW_MMC_WRITE_4(sc, AW_MMC_HWRST, 1);
-	DELAY(100);
-	AW_MMC_WRITE_4(sc, AW_MMC_HWRST, 0);
-	DELAY(500);
-
 	/* Soft Reset controller. */
 	if (aw_mmc_reset(sc) != 0) {
 		device_printf(dev, "cannot reset the controller\n");
