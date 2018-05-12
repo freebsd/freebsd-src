@@ -198,11 +198,15 @@
 	movl	%edx, %esp
 	.endm
 
-	.macro	MOVE_STACKS
+	.macro	LOAD_KCR3
 	call	1000f
 1000:	popl	%eax
 	movl	(tramp_idleptd - 1000b)(%eax), %eax
 	movl	%eax, %cr3
+	.endm
+
+	.macro	MOVE_STACKS
+	LOAD_KCR3
 	NMOVE_STACKS
 	.endm
 
