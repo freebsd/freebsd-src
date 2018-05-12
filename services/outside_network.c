@@ -364,9 +364,9 @@ use_free_buffer(struct outside_network* outnet)
 	}
 }
 
-/** decomission a tcp buffer, closes commpoint and frees waiting_tcp entry */
+/** decommission a tcp buffer, closes commpoint and frees waiting_tcp entry */
 static void
-decomission_pending_tcp(struct outside_network* outnet, 
+decommission_pending_tcp(struct outside_network* outnet, 
 	struct pending_tcp* pend)
 {
 	if(pend->c->ssl) {
@@ -406,7 +406,7 @@ outnet_tcp_cb(struct comm_point* c, void* arg, int error,
 	}
 	fptr_ok(fptr_whitelist_pending_tcp(pend->query->cb));
 	(void)(*pend->query->cb)(c, pend->query->cb_arg, error, reply_info);
-	decomission_pending_tcp(outnet, pend);
+	decommission_pending_tcp(outnet, pend);
 	return 0;
 }
 
@@ -1416,7 +1416,7 @@ serviced_delete(struct serviced_query* sq)
 			struct waiting_tcp* p = (struct waiting_tcp*)
 				sq->pending;
 			if(p->pkt == NULL) {
-				decomission_pending_tcp(sq->outnet, 
+				decommission_pending_tcp(sq->outnet, 
 					(struct pending_tcp*)p->next_waiting);
 			} else {
 				waiting_list_remove(sq->outnet, p);

@@ -3,6 +3,7 @@
 server:
 	trust-anchor: "example.com.    3600    IN      DS      2854 3 1 46e4ffc6e9a4793b488954bd3f0cc6af0dfb201b"
 	val-override-date: "20070916134226"
+	trust-anchor-signaling: no
 	target-fetch-policy: "0 0 0 0 0"
 	send-client-subnet: 1.2.3.4
 	max-client-subnet-ipv4: 17

@@ -10,7 +10,7 @@ As soon as the iterator module returns the response, we :
 3. rewrite the data in cache
 4. return modified packet
 
-Note that the steps 1 and 3 are neccessary only in case, the python module is the first module in the processing chain.
+Note that the steps 1 and 3 are necessary only in case, the python module is the first module in the processing chain.
 In other cases, the validator module guarantees updating data which are produced by iterator module.
 
 Complete source code

@@ -84,6 +84,8 @@ struct config_file {
 	int do_tcp;
 	/** tcp upstream queries (no UDP upstream queries) */
 	int tcp_upstream;
+	/** udp upstream enabled when no UDP downstream is enabled (do_udp no)*/
+	int udp_upstream_without_downstream;
 	/** maximum segment size of tcp socket which queries are answered */
 	int tcp_mss;
 	/** maximum segment size of tcp socket for outgoing queries */
@@ -468,7 +470,10 @@ struct config_file {
 	size_t dnscrypt_shared_secret_cache_size;
 	/** number of slabs for dnscrypt shared secrets cache */
 	size_t dnscrypt_shared_secret_cache_slabs;
-
+	/** memory size in bytes for dnscrypt nonces cache */
+	size_t dnscrypt_nonce_cache_size;
+	/** number of slabs for dnscrypt nonces cache */
+	size_t dnscrypt_nonce_cache_slabs;
 	/** IPsec module */
 #ifdef USE_IPSECMOD
 	/** false to bypass the IPsec module */
@@ -494,9 +499,9 @@ struct config_file {
 #endif
 };
 
-/** from cfg username, after daemonise setup performed */
+/** from cfg username, after daemonize setup performed */
 extern uid_t cfg_uid;
-/** from cfg username, after daemonise setup performed */
+/** from cfg username, after daemonize setup performed */
 extern gid_t cfg_gid;
 /** debug and enable small timeouts */
 extern int autr_permit_small_holddown;

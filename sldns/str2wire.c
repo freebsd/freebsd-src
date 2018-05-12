@@ -1541,7 +1541,7 @@ int sldns_str2wire_loc_buf(const char* str, uint8_t* rd, size_t* len)
 		s = strtod(my_str, &my_str);
 	}
 
-	/* skip blanks before norterness */
+	/* skip blanks before northerness */
 	while (isblank((unsigned char) *my_str)) {
 		my_str++;
 	}

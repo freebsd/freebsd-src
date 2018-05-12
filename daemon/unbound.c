@@ -400,7 +400,7 @@ detach(void)
 #endif /* HAVE_DAEMON */
 }
 
-/** daemonize, drop user priviliges and chroot if needed */
+/** daemonize, drop user privileges and chroot if needed */
 static void
 perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 	const char** cfgfile, int need_pidfile)

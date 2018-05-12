@@ -1400,7 +1400,7 @@ comm_point_tcp_handle_write(int fd, struct comm_point* c)
 		if (r == -1) {
 #if defined(EINPROGRESS) && defined(EWOULDBLOCK)
 			/* Handshake is underway, maybe because no TFO cookie available.
-			   Come back to write the messsage*/
+			   Come back to write the message*/
 			if(errno == EINPROGRESS || errno == EWOULDBLOCK)
 				return 1;
 #endif

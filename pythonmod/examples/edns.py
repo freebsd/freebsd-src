@@ -77,7 +77,7 @@ def init_standard(id, env):
     The function's signature is the same as the C counterpart and allows for
     extra functionality during init.
     ..note:: This function is preferred by unbound over the old init function.
-    ..note:: The previously accesible configuration options can now be found in
+    ..note:: The previously accessible configuration options can now be found in
              env.cgf.
     """
     log_info("python: inited script {}".format(env.cfg.python_script))
@@ -94,7 +94,7 @@ def init(id, cfg):
     """Previous version init function.
     ..note:: This function is still supported for backwards compatibility when
              the init_standard function is missing. When init_standard is
-             present this function SHOULD be ommited to avoid confusion to the
+             present this function SHOULD be omitted to avoid confusion to the
              reader.
     """
     return True

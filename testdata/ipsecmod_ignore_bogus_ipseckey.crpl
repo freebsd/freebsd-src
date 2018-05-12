@@ -8,6 +8,7 @@ server:
 	target-fetch-policy: "0 0 0 0 0"
 	# test that default value of harden-dnssec-stripped is still yes.
 	fake-sha1: yes
+	trust-anchor-signaling: no
 	access-control: 127.0.0.1 allow_snoop
 	module-config: "ipsecmod validator iterator"
 	; ../../ is there because the test runs from testdata/03-testbound.dir

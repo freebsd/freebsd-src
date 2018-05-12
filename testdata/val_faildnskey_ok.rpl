@@ -6,6 +6,7 @@ server:
 	harden-dnssec-stripped: no
 	target-fetch-policy: "0 0 0 0 0"
 	fake-sha1: yes
+	trust-anchor-signaling: no
 
 stub-zone:
 	name: "."

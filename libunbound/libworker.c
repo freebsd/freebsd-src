@@ -232,8 +232,8 @@ libworker_setup(struct ub_ctx* ctx, int is_bg, struct ub_event_base* eb)
 		cfg->do_tcp?cfg->outgoing_num_tcp:0,
 		w->env->infra_cache, w->env->rnd, cfg->use_caps_bits_for_id,
 		ports, numports, cfg->unwanted_threshold,
-		cfg->outgoing_tcp_mss,
-		&libworker_alloc_cleanup, w, cfg->do_udp, w->sslctx,
+		cfg->outgoing_tcp_mss, &libworker_alloc_cleanup, w,
+		cfg->do_udp || cfg->udp_upstream_without_downstream, w->sslctx,
 		cfg->delay_close, NULL);
 	if(!w->is_bg || w->is_bg_thread) {
 		lock_basic_unlock(&ctx->cfglock);
@@ -251,6 +251,7 @@ libworker_setup(struct ub_ctx* ctx, int is_bg, struct ub_event_base* eb)
 	w->env->send_query = &libworker_send_query;
 	w->env->detach_subs = &mesh_detach_subs;
 	w->env->attach_sub = &mesh_attach_sub;
+	w->env->add_sub = &mesh_add_sub;
 	w->env->kill_sub = &mesh_state_delete;
 	w->env->detect_cycle = &mesh_detect_cycle;
 	comm_base_timept(w->base, &w->env->now, &w->env->now_tv);

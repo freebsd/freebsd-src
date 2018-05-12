@@ -86,7 +86,7 @@
 */
 
 /* what should we check?
- * X - is it balanced? (a node with 1 child shoudl not have  
+ * X - is it balanced? (a node with 1 child should not have  
  * a node with 1 child MUST have elem
  * child must be sub of parent
  * edge must be longer than parent edge

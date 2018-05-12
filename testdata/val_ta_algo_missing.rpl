@@ -8,6 +8,7 @@ server:
 	target-fetch-policy: "0 0 0 0 0"
 	harden-algo-downgrade: yes
 	fake-sha1: yes
+	trust-anchor-signaling: no
 
 stub-zone:
 	name: "."

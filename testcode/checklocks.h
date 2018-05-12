@@ -182,7 +182,7 @@ struct checked_lock {
  * @param area: ptr to mem.
  * @param size: length of area.
  * You can call it multiple times with the same lock to give several areas.
- * Call it when you are done initialising the area, since it will be copied
+ * Call it when you are done initializing the area, since it will be copied
  * at this time and protected right away against unauthorised changes until 
  * the next lock() call is done.
  */

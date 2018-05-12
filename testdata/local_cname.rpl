@@ -3,6 +3,7 @@ server:
 	# put unbound.conf config options here.
 
 	access-control: 127.0.0.1/32 allow_snoop #allow queries with RD bit
+	trust-anchor-signaling: no
 
 	# DNSSEC trust anchor taken from a real world example.  Used for
 	# DNSSEC-signed CNAME target.

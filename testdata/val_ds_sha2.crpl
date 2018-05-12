@@ -6,6 +6,7 @@ server:
 	target-fetch-policy: "0 0 0 0 0"
 	fake-dsa: yes
 	fake-sha1: yes
+	trust-anchor-signaling: no
 
 stub-zone:
 	name: "."
