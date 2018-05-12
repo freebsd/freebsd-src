@@ -2359,7 +2359,8 @@ soshutdown(struct socket *so, int how)
 		 * both backward-compatibility and POSIX requirements by forcing
 		 * ENOTCONN but still asking protocol to perform pru_shutdown().
 		 */
-		if (so->so_type != SOCK_DGRAM)
+		if (so->so_type != SOCK_DGRAM &&
+		    !(so->so_options & SO_ACCEPTCONN))
 			return (ENOTCONN);
 		soerror_enotconn = 1;
 	}
