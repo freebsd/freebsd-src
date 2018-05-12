@@ -131,8 +131,8 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_RATELIMIT VAR_RATELIMIT_SLABS VAR_RATELIMIT_SIZE
 %token VAR_RATELIMIT_FOR_DOMAIN VAR_RATELIMIT_BELOW_DOMAIN
 %token VAR_IP_RATELIMIT_FACTOR VAR_RATELIMIT_FACTOR
-%token VAR_SEND_CLIENT_SUBNET VAR_CLIENT_SUBNET_ALWAYS_FORWARD
-%token VAR_CLIENT_SUBNET_OPCODE
+%token VAR_SEND_CLIENT_SUBNET VAR_CLIENT_SUBNET_ZONE
+%token VAR_CLIENT_SUBNET_ALWAYS_FORWARD VAR_CLIENT_SUBNET_OPCODE
 %token VAR_MAX_CLIENT_SUBNET_IPV4 VAR_MAX_CLIENT_SUBNET_IPV6
 %token VAR_CAPS_WHITELIST VAR_CACHE_MAX_NEGATIVE_TTL VAR_PERMIT_SMALL_HOLDDOWN
 %token VAR_QNAME_MINIMISATION VAR_QNAME_MINIMISATION_STRICT VAR_IP_FREEBIND
@@ -140,10 +140,12 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_LOCAL_ZONE_OVERRIDE VAR_ACCESS_CONTROL_TAG_ACTION
 %token VAR_ACCESS_CONTROL_TAG_DATA VAR_VIEW VAR_ACCESS_CONTROL_VIEW
 %token VAR_VIEW_FIRST VAR_SERVE_EXPIRED VAR_FAKE_DSA VAR_FAKE_SHA1
-%token VAR_LOG_IDENTITY VAR_HIDE_TRUSTANCHOR
+%token VAR_LOG_IDENTITY VAR_HIDE_TRUSTANCHOR VAR_TRUST_ANCHOR_SIGNALING
 %token VAR_USE_SYSTEMD VAR_SHM_ENABLE VAR_SHM_KEY
 %token VAR_DNSCRYPT VAR_DNSCRYPT_ENABLE VAR_DNSCRYPT_PORT VAR_DNSCRYPT_PROVIDER
 %token VAR_DNSCRYPT_SECRET_KEY VAR_DNSCRYPT_PROVIDER_CERT
+%token VAR_IPSECMOD_ENABLED VAR_IPSECMOD_HOOK VAR_IPSECMOD_IGNORE_BOGUS
+%token VAR_IPSECMOD_MAX_TTL VAR_IPSECMOD_WHITELIST VAR_IPSECMOD_STRICT
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -215,7 +217,7 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_ratelimit_for_domain |
 	server_ratelimit_below_domain | server_ratelimit_factor |
 	server_ip_ratelimit_factor | server_send_client_subnet |
-	server_client_subnet_always_forward |
+	server_client_subnet_zone | server_client_subnet_always_forward |
 	server_client_subnet_opcode |
 	server_max_client_subnet_ipv4 | server_max_client_subnet_ipv6 |
 	server_caps_whitelist | server_cache_max_negative_ttl |
@@ -228,7 +230,10 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_fake_dsa | server_log_identity | server_use_systemd |
 	server_response_ip_tag | server_response_ip | server_response_ip_data |
 	server_shm_enable | server_shm_key | server_fake_sha1 |
-	server_hide_trustanchor
+	server_hide_trustanchor | server_trust_anchor_signaling |
+	server_ipsecmod_enabled | server_ipsecmod_hook |
+	server_ipsecmod_ignore_bogus | server_ipsecmod_max_ttl |
+	server_ipsecmod_whitelist | server_ipsecmod_strict
 	;
 stubstart: VAR_STUB_ZONE
 	{
@@ -365,6 +370,18 @@ server_send_client_subnet: VAR_SEND_CLIENT_SUBNET STRING_ARG
 		OUTYY(("P(server_send_client_subnet:%s)\n", $2));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->client_subnet, $2))
 			fatal_exit("out of memory adding client-subnet");
+	#else
+		OUTYY(("P(Compiled without edns subnet option, ignoring)\n"));
+	#endif
+	}
+	;
+server_client_subnet_zone: VAR_CLIENT_SUBNET_ZONE STRING_ARG
+	{
+	#ifdef CLIENT_SUBNET
+		OUTYY(("P(server_client_subnet_zone:%s)\n", $2));
+		if(!cfg_strlist_insert(&cfg_parser->cfg->client_subnet_zone,
+			$2))
+			fatal_exit("out of memory adding client-subnet-zone");
 	#else
 		OUTYY(("P(Compiled without edns subnet option, ignoring)\n"));
 	#endif
@@ -781,6 +798,17 @@ server_trust_anchor: VAR_TRUST_ANCHOR STRING_ARG
 		OUTYY(("P(server_trust_anchor:%s)\n", $2));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->trust_anchor_list, $2))
 			yyerror("out of memory");
+	}
+	;
+server_trust_anchor_signaling: VAR_TRUST_ANCHOR_SIGNALING STRING_ARG
+	{
+		OUTYY(("P(server_trust_anchor_signaling:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else
+			cfg_parser->cfg->trust_anchor_signaling =
+				(strcmp($2, "yes")==0);
+		free($2);
 	}
 	;
 server_domain_insecure: VAR_DOMAIN_INSECURE STRING_ARG
@@ -1783,6 +1811,80 @@ server_qname_minimisation_strict: VAR_QNAME_MINIMISATION_STRICT STRING_ARG
 		free($2);
 	}
 	;
+server_ipsecmod_enabled: VAR_IPSECMOD_ENABLED STRING_ARG
+	{
+	#ifdef USE_IPSECMOD
+		OUTYY(("P(server_ipsecmod_enabled:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->ipsecmod_enabled = (strcmp($2, "yes")==0);
+		free($2);
+	#else
+		OUTYY(("P(Compiled without IPsec module, ignoring)\n"));
+	#endif
+	}
+	;
+server_ipsecmod_ignore_bogus: VAR_IPSECMOD_IGNORE_BOGUS STRING_ARG
+	{
+	#ifdef USE_IPSECMOD
+		OUTYY(("P(server_ipsecmod_ignore_bogus:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->ipsecmod_ignore_bogus = (strcmp($2, "yes")==0);
+		free($2);
+	#else
+		OUTYY(("P(Compiled without IPsec module, ignoring)\n"));
+	#endif
+	}
+	;
+server_ipsecmod_hook: VAR_IPSECMOD_HOOK STRING_ARG
+	{
+	#ifdef USE_IPSECMOD
+		OUTYY(("P(server_ipsecmod_hook:%s)\n", $2));
+		free(cfg_parser->cfg->ipsecmod_hook);
+		cfg_parser->cfg->ipsecmod_hook = $2;
+	#else
+		OUTYY(("P(Compiled without IPsec module, ignoring)\n"));
+	#endif
+	}
+	;
+server_ipsecmod_max_ttl: VAR_IPSECMOD_MAX_TTL STRING_ARG
+	{
+	#ifdef USE_IPSECMOD
+		OUTYY(("P(server_ipsecmod_max_ttl:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->ipsecmod_max_ttl = atoi($2);
+		free($2);
+	#else
+		OUTYY(("P(Compiled without IPsec module, ignoring)\n"));
+	#endif
+	}
+	;
+server_ipsecmod_whitelist: VAR_IPSECMOD_WHITELIST STRING_ARG
+	{
+	#ifdef USE_IPSECMOD
+		OUTYY(("P(server_ipsecmod_whitelist:%s)\n", $2));
+		if(!cfg_strlist_insert(&cfg_parser->cfg->ipsecmod_whitelist, $2))
+			yyerror("out of memory");
+	#else
+		OUTYY(("P(Compiled without IPsec module, ignoring)\n"));
+	#endif
+	}
+	;
+server_ipsecmod_strict: VAR_IPSECMOD_STRICT STRING_ARG
+	{
+	#ifdef USE_IPSECMOD
+		OUTYY(("P(server_ipsecmod_strict:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->ipsecmod_strict = (strcmp($2, "yes")==0);
+		free($2);
+	#else
+		OUTYY(("P(Compiled without IPsec module, ignoring)\n"));
+	#endif
+	}
+	;
 stub_name: VAR_NAME STRING_ARG
 	{
 		OUTYY(("P(name:%s)\n", $2));
@@ -2227,6 +2329,7 @@ dnsc_dnscrypt_enable: VAR_DNSCRYPT_ENABLE STRING_ARG
 		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
 			yyerror("expected yes or no.");
 		else cfg_parser->cfg->dnscrypt = (strcmp($2, "yes")==0);
+		free($2);
 	}
 	;
 

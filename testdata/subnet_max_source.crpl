@@ -1,0 +1,231 @@
+; When the triggering query includes ECS option, source prefix-length should
+; be set to the shorter of the incoming query or server maximum cacheable prefix
+; length
+
+server:
+	val-override-date: "20070916134226"
+	target-fetch-policy: "0 0 0 0 0"
+	send-client-subnet: 1.2.3.4
+	max-client-subnet-ipv4: 17
+	module-config: "subnetcache validator iterator"
+	verbosity: 3
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test shortest source prefix-length
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+	ENTRY_BEGIN
+		MATCH opcode qtype qname ednsdata
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			. IN NS
+		SECTION ANSWER
+			. IN NS	K.ROOT-SERVERS.NET.
+		SECTION ADDITIONAL
+			HEX_EDNSDATA_BEGIN
+				;; we expect to receive empty
+			HEX_EDNSDATA_END
+			K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			www.example.com. IN A
+		SECTION AUTHORITY
+			com.	IN NS	a.gtld-servers.net.
+		SECTION ADDITIONAL
+			a.gtld-servers.net.	IN 	A	192.5.6.30
+	ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+	ENTRY_BEGIN
+		MATCH opcode qtype qname ednsdata
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			com. IN NS
+		SECTION ANSWER
+			com.    IN NS   a.gtld-servers.net.
+		SECTION ADDITIONAL
+			HEX_EDNSDATA_BEGIN
+				;; we expect to receive empty
+			HEX_EDNSDATA_END
+			a.gtld-servers.net.     IN      A       192.5.6.30
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			www.example.com. IN A
+		SECTION AUTHORITY
+			example.com.	IN NS	ns.example.com.
+		SECTION ADDITIONAL
+			ns.example.com.		IN 	A	1.2.3.4
+	ENTRY_END
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+	ENTRY_BEGIN
+		MATCH opcode qtype qname ednsdata
+		ADJUST copy_id copy_ednsdata_assume_clientsubnet
+		REPLY QR NOERROR
+		SECTION QUESTION
+			example.com. IN NS
+		SECTION ANSWER
+			example.com.    IN NS   ns.example.com.
+		SECTION ADDITIONAL
+			HEX_EDNSDATA_BEGIN
+				;; we expect to receive empty
+			HEX_EDNSDATA_END
+			ns.example.com.         IN      A       1.2.3.4
+	ENTRY_END
+
+	; response to query of interest
+	ENTRY_BEGIN
+		MATCH opcode qtype qname ednsdata
+		ADJUST copy_id copy_ednsdata_assume_clientsubnet
+		REPLY QR NOERROR
+		SECTION QUESTION
+			www.example.com. IN A
+		SECTION ANSWER
+			www.example.com. IN A	10.20.30.40
+		SECTION AUTHORITY
+			example.com.	IN NS	ns.example.com.
+		SECTION ADDITIONAL
+			HEX_EDNSDATA_BEGIN
+							; client is 127.0.0.1
+				00 08 		; OPC
+				00 06 		; option length
+				00 01 		; Family
+				10 00 		; source mask, scopemask
+				7f 00    	; address
+			HEX_EDNSDATA_END
+			ns.example.com.		IN 	A	1.2.3.4
+	ENTRY_END
+
+	; client send /18, we expect /17
+	ENTRY_BEGIN
+		MATCH opcode qtype qname ednsdata
+		ADJUST copy_id copy_ednsdata_assume_clientsubnet
+		REPLY QR NOERROR
+		SECTION QUESTION
+			www.example.com. IN A
+		SECTION ANSWER
+			www.example.com. IN A	10.20.30.50
+		SECTION AUTHORITY
+			example.com.	IN NS	ns.example.com.
+		SECTION ADDITIONAL
+			HEX_EDNSDATA_BEGIN
+							; client is 127.1.0.1
+				00 08 		; OPC
+				00 07 		; option length
+				00 01 		; Family
+				11 00 		; source mask, scopemask
+				7f 01 00   	; address
+			HEX_EDNSDATA_END
+			ns.example.com.		IN 	A	1.2.3.4
+	ENTRY_END
+
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+	HEX_ANSWER_BEGIN;
+		00 00 01 00 00 01 00 00		;ID 0
+		00 00 00 01 03 77 77 77		; www.example.com A? (DO)
+		07 65 78 61 6d 70 6c 65 
+		03 63 6f 6d 00 00 01 00
+		01 00 00 29 10 00 00 00 
+		80 00 00 0a
+		
+		00 08 00 06			; OPC, optlen
+		00 01 10 00			; ip4, scope 16, source 0
+		7f 00   			;127.0.0.0/16
+	HEX_ANSWER_END
+ENTRY_END
+
+
+
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all ednsdata
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+		www.example.com. IN A
+	SECTION ANSWER
+		www.example.com. IN A	10.20.30.40
+	SECTION AUTHORITY
+		example.com.	IN NS	ns.example.com.
+	SECTION ADDITIONAL
+		HEX_EDNSDATA_BEGIN
+						; client is 127.0.0.1
+			00 08 		; OPC
+			00 06 		; option length
+			00 01 		; Family
+			10 10 		; source mask, scopemask
+			7f 00 	; address
+		HEX_EDNSDATA_END
+		ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+STEP 11 QUERY
+ENTRY_BEGIN
+	HEX_ANSWER_BEGIN;
+		00 00 01 00 00 01 00 00		;ID 0
+		00 00 00 01 03 77 77 77		; www.example.com A? (DO)
+		07 65 78 61 6d 70 6c 65 
+		03 63 6f 6d 00 00 01 00
+		01 00 00 29 10 00 00 00 
+		80 00 00 0b
+		
+		00 08 00 07			; OPC, optlen
+		00 01 12 00			; ip4, scope 18, source 0
+		7f 01 00  			;127.1.0.0/18
+	HEX_ANSWER_END
+ENTRY_END
+
+
+
+; recursion happens here.
+STEP 20 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all ednsdata
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+		www.example.com. IN A
+	SECTION ANSWER
+		www.example.com. IN A	10.20.30.50
+	SECTION AUTHORITY
+		example.com.	IN NS	ns.example.com.
+	SECTION ADDITIONAL
+		HEX_EDNSDATA_BEGIN
+						; client is 127.1.0.1
+			00 08 		; OPC
+			00 07 		; option length
+			00 01 		; Family
+			12 11 		; source mask, scopemask
+			7f 01 00 	; address
+		HEX_EDNSDATA_END
+		ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+
+SCENARIO_END

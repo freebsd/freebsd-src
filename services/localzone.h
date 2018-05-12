@@ -428,6 +428,15 @@ enum localzone_type local_data_find_tag_action(const uint8_t* taglist,
 	enum localzone_type lzt, int* tag, char* const* tagname, int num_tags);
 
 /**
+ * Enter defaults to local zone.
+ * @param zones: to add defaults to
+ * @param cfg: containing list of zones to exclude from default set.
+ * @return 1 on success; 0 otherwise.
+ */
+int local_zone_enter_defaults(struct local_zones* zones,
+	struct config_file* cfg);
+
+/**
   * Parses resource record string into wire format, also returning its field values.
   * @param str: input resource record
   * @param nm: domain name field

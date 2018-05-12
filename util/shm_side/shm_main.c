@@ -65,17 +65,17 @@
 #ifdef HAVE_SHMGET
 /** subtract timers and the values do not overflow or become negative */
 static void
-timeval_subtract(struct timeval* d, const struct timeval* end,
+stat_timeval_subtract(long long *d_sec, long long *d_usec, const struct timeval* end,
 	const struct timeval* start)
 {
 #ifndef S_SPLINT_S
 	time_t end_usec = end->tv_usec;
-	d->tv_sec = end->tv_sec - start->tv_sec;
+	*d_sec = end->tv_sec - start->tv_sec;
 	if(end_usec < start->tv_usec) {
 		end_usec += 1000000;
-		d->tv_sec--;
+		(*d_sec)--;
 	}
-	d->tv_usec = end_usec - start->tv_usec;
+	*d_usec = end_usec - start->tv_usec;
 #endif
 }
 #endif /* HAVE_SHMGET */
@@ -83,7 +83,7 @@ timeval_subtract(struct timeval* d, const struct timeval* end,
 int shm_main_init(struct daemon* daemon)
 {
 #ifdef HAVE_SHMGET
-	struct shm_stat_info *shm_stat;
+	struct ub_shm_stat_info *shm_stat;
 	size_t shm_size;
 	
 	/* sanitize */
@@ -95,7 +95,7 @@ int shm_main_init(struct daemon* daemon)
 		log_warn("shm-enable is yes but statistics-interval is 0");
 
 	/* Statistics to maintain the number of thread + total */
-	shm_size = (sizeof(struct stats_info) * (daemon->num + 1));
+	shm_size = (sizeof(struct ub_stats_info) * (daemon->num + 1));
 
 	/* Allocation of needed memory */
 	daemon->shm_info = (struct shm_main_info*)calloc(1, shm_size);
@@ -121,7 +121,7 @@ int shm_main_init(struct daemon* daemon)
 		shmctl(daemon->shm_info->id_arr, IPC_RMID, NULL);
 
 	/* SHM: Create the segment */
-	daemon->shm_info->id_ctl = shmget(daemon->shm_info->key, sizeof(struct shm_stat_info), IPC_CREAT | 0666);
+	daemon->shm_info->id_ctl = shmget(daemon->shm_info->key, sizeof(struct ub_shm_stat_info), IPC_CREAT | 0666);
 
 	if (daemon->shm_info->id_ctl < 0)
 	{
@@ -148,7 +148,7 @@ int shm_main_init(struct daemon* daemon)
 	}
 
 	/* SHM: attach the segment  */
-	daemon->shm_info->ptr_ctl = (struct shm_stat_info*)
+	daemon->shm_info->ptr_ctl = (struct ub_shm_stat_info*)
 		shmat(daemon->shm_info->id_ctl, NULL, 0);
 	if(daemon->shm_info->ptr_ctl == (void *) -1) {
 		log_err("SHM failed(ctl) cannot shmat(%d) %s",
@@ -160,7 +160,7 @@ int shm_main_init(struct daemon* daemon)
 		return 0;
 	}
 
-	daemon->shm_info->ptr_arr = (struct stats_info*)
+	daemon->shm_info->ptr_arr = (struct ub_stats_info*)
 		shmat(daemon->shm_info->id_arr, NULL, 0);
 
 	if (daemon->shm_info->ptr_arr == (void *) -1)
@@ -175,7 +175,7 @@ int shm_main_init(struct daemon* daemon)
 	}
 
 	/* Zero fill SHM to stand clean while is not filled by other events */
-	memset(daemon->shm_info->ptr_ctl, 0, sizeof(struct shm_stat_info));
+	memset(daemon->shm_info->ptr_ctl, 0, sizeof(struct ub_shm_stat_info));
 	memset(daemon->shm_info->ptr_arr, 0, shm_size);
 
 	shm_stat = daemon->shm_info->ptr_ctl;
@@ -218,10 +218,9 @@ void shm_main_shutdown(struct daemon* daemon)
 void shm_main_run(struct worker *worker)
 {
 #ifdef HAVE_SHMGET
-	struct shm_stat_info *shm_stat;
-	struct stats_info *stat_total;
-	struct stats_info *stat_info;
-	int modstack;
+	struct ub_shm_stat_info *shm_stat;
+	struct ub_stats_info *stat_total;
+	struct ub_stats_info *stat_info;
 	int offset;
 
 	verbose(VERB_DETAIL, "SHM run - worker [%d] - daemon [%p] - timenow(%u) - timeboot(%u)",
@@ -238,40 +237,40 @@ void shm_main_run(struct worker *worker)
 	if (worker->thread_num == 0) {
 
 		/* Copy data to the current position */
-		memset(stat_total, 0, sizeof(struct stats_info));
+		memset(stat_total, 0, sizeof(struct ub_stats_info));
 
 		/* Point to data into SHM */
 		shm_stat = worker->daemon->shm_info->ptr_ctl;
-		shm_stat->time.now = *worker->env.now_tv;
+		shm_stat->time.now_sec = (long long)worker->env.now_tv->tv_sec;
+		shm_stat->time.now_usec = (long long)worker->env.now_tv->tv_usec;
 
-		timeval_subtract(&shm_stat->time.up, &shm_stat->time.now, &worker->daemon->time_boot);
-		timeval_subtract(&shm_stat->time.elapsed, &shm_stat->time.now, &worker->daemon->time_last_stat);
+		stat_timeval_subtract(&shm_stat->time.up_sec, &shm_stat->time.up_usec, worker->env.now_tv, &worker->daemon->time_boot);
+		stat_timeval_subtract(&shm_stat->time.elapsed_sec, &shm_stat->time.elapsed_usec, worker->env.now_tv, &worker->daemon->time_last_stat);
 
-		shm_stat->mem.msg = slabhash_get_mem(worker->env.msg_cache);
-		shm_stat->mem.rrset = slabhash_get_mem(&worker->env.rrset_cache->table);
-		shm_stat->mem.val = 0;
-		shm_stat->mem.iter = 0;
+		shm_stat->mem.msg = (long long)slabhash_get_mem(worker->env.msg_cache);
+		shm_stat->mem.rrset = (long long)slabhash_get_mem(&worker->env.rrset_cache->table);
+		shm_stat->mem.val = (long long)mod_get_mem(&worker->env,
+			"validator");
+		shm_stat->mem.iter = (long long)mod_get_mem(&worker->env,
+			"iterator");
+		shm_stat->mem.respip = (long long)mod_get_mem(&worker->env,
+			"respip");
 
-		modstack = modstack_find(&worker->env.mesh->mods, "validator");
-		if(modstack != -1) {
-			fptr_ok(fptr_whitelist_mod_get_mem(worker->env.mesh->mods.mod[modstack]->get_mem));
-			shm_stat->mem.val = (*worker->env.mesh->mods.mod[modstack]->get_mem)(&worker->env, modstack);
-		}
-		modstack = modstack_find(&worker->env.mesh->mods, "iterator");
-		if(modstack != -1) {
-			fptr_ok(fptr_whitelist_mod_get_mem(worker->env.mesh->mods.mod[modstack]->get_mem));
-			shm_stat->mem.iter = (*worker->env.mesh->mods.mod[modstack]->get_mem)(&worker->env, modstack);
-		}
 		/* subnet mem value is available in shm, also when not enabled,
 		 * to make the struct easier to memmap by other applications,
 		 * independent of the configuration of unbound */
 		shm_stat->mem.subnet = 0;
 #ifdef CLIENT_SUBNET
-		modstack = modstack_find(&worker->env.mesh->mods, "subnet");
-		if(modstack != -1) {
-			fptr_ok(fptr_whitelist_mod_get_mem(worker->env.mesh->mods.mod[modstack]->get_mem));
-			shm_stat->mem.subnet = (*worker->env.mesh->mods.mod[modstack]->get_mem)(&worker->env, modstack);
-		}
+		shm_stat->mem.subnet = (long long)mod_get_mem(&worker->env,
+			"subnet");
+#endif
+		/* ipsecmod mem value is available in shm, also when not enabled,
+		 * to make the struct easier to memmap by other applications,
+		 * independent of the configuration of unbound */
+		shm_stat->mem.ipsecmod = 0;
+#ifdef USE_IPSECMOD
+		shm_stat->mem.ipsecmod = (long long)mod_get_mem(&worker->env,
+			"ipsecmod");
 #endif
 	}
 

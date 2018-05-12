@@ -57,7 +57,7 @@ struct subnet_env {
 	 * data: struct subnet_msg_cache_data* */
 	struct slabhash* subnet_msg_cache;
 	/** access control, which upstream servers we send client address */
-	struct ednssubnet_upstream* edns_subnet_upstreams;
+	struct ecs_whitelist* whitelist;
 	/** allocation service */
 	struct alloc_cache alloc;
 	lock_rw_type biglock;

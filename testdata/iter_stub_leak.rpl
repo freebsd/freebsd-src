@@ -1,0 +1,220 @@
+; config options
+server:
+        target-fetch-policy: "0 0 0 0 0"
+
+stub-zone:
+        name: "."
+	stub-addr: 193.0.14.129
+stub-zone:
+	name: "example.com"
+	stub-addr: 10.0.1.1
+stub-zone:
+	name: "example.net"
+	stub-addr: 10.0.5.1
+CONFIG_END
+
+SCENARIO_BEGIN Test stub zone leaking to the internet on last resort fallback
+
+; root server
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129
+
+; root prime
+ENTRY_BEGIN
+MATCH qname qtype
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS k.root-servers.net.
+SECTION ADDITIONAL
+k.root-servers.net. IN A 193.0.14.129
+ENTRY_END
+
+RANGE_END
+
+; stub server for example.com
+RANGE_BEGIN 0 100
+	ADDRESS 10.0.1.1
+
+; subzone is delegated
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+subzone.example.com. IN A
+SECTION AUTHORITY
+subzone.example.com. IN NS sub-ns1.example.com.
+subzone.example.com. IN NS sub-ns2.example.com.
+subzone.example.com. IN NS example.net.
+SECTION ADDITIONAL
+sub-ns1.example.com. IN A 10.0.2.3
+sub-ns2.example.com. IN A 10.0.2.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode question
+ADJUST copy_id copy_query
+REPLY QR AA NOERROR
+SECTION QUESTION
+sub-ns1.example.com. IN A
+SECTION ANSWER
+sub-ns1.example.com. IN A 10.0.2.3
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode question
+ADJUST copy_id copy_query
+REPLY QR AA NOERROR
+SECTION QUESTION
+sub-ns2.example.com. IN A
+SECTION ANSWER
+sub-ns2.example.com. IN A 10.0.2.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode question
+ADJUST copy_id copy_query
+REPLY QR AA NOERROR
+SECTION QUESTION
+sub-ns1.example.com. IN AAAA
+SECTION AUTHORITY
+example.com. 300 SOA master.example.com etc 1 2 3 4 300
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode question
+ADJUST copy_id copy_query
+REPLY QR AA NOERROR
+SECTION QUESTION
+sub-ns2.example.com. IN AAAA
+SECTION AUTHORITY
+example.com. 300 SOA master.example.com etc 1 2 3 4 300
+ENTRY_END
+
+RANGE_END
+
+; stub server for example.net
+RANGE_BEGIN 0 100
+	ADDRESS 10.0.5.1
+
+ENTRY_BEGIN
+MATCH opcode question
+ADJUST copy_id copy_query
+REPLY QR AA NOERROR
+SECTION QUESTION
+example.net. IN NS
+SECTION ANSWER
+example.net. IN NS ns.example.net.
+SECTION ADDITIONAL
+ns.example.net. IN A 10.0.5.1
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode question
+ADJUST copy_id copy_query
+REPLY QR AA NOERROR
+SECTION QUESTION
+example.net. IN A
+SECTION ANSWER
+example.net. IN A 10.0.5.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode question
+ADJUST copy_id copy_query
+REPLY QR AA NOERROR
+SECTION QUESTION
+example.net. IN AAAA
+SECTION AUTHORITY
+example.net. 300 SOA master.example.net etc 1 2 3 4 300
+ENTRY_END
+
+RANGE_END
+
+; stub server for subzone.example.com
+RANGE_BEGIN 0 100
+	ADDRESS 10.0.2.3
+; match anything, servfail
+ENTRY_BEGIN
+MATCH opcode
+ADJUST copy_id copy_query
+REPLY QR SERVFAIL
+SECTION QUESTION
+subzone.example.com. IN A
+SECTION ANSWER
+ENTRY_END
+RANGE_END
+
+; stub server for subzone.example.com
+RANGE_BEGIN 0 100
+	ADDRESS 10.0.2.4
+; match anything, servfail
+ENTRY_BEGIN
+MATCH opcode
+ADJUST copy_id copy_query
+REPLY QR SERVFAIL
+SECTION QUESTION
+subzone.example.com. IN A
+SECTION ANSWER
+ENTRY_END
+RANGE_END
+
+; stub server for subzone.example.com
+RANGE_BEGIN 0 100
+	ADDRESS 10.0.5.4
+; match anything, servfail
+ENTRY_BEGIN
+MATCH opcode
+ADJUST copy_id copy_query
+REPLY QR SERVFAIL
+SECTION QUESTION
+subzone.example.com. IN A
+SECTION ANSWER
+ENTRY_END
+RANGE_END
+
+
+; fetch the delegation point for example.net in cache.
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+example.net. IN NS
+ENTRY_END
+
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+example.net. IN NS
+SECTION ANSWER
+example.net. IN NS ns.example.net.
+SECTION ADDITIONAL
+ns.example.net. IN A 10.0.5.1
+ENTRY_END
+
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+whatever.subzone.example.com. IN A
+ENTRY_END
+
+; recursion happens here.
+; the query should not leak subzone ns queries to the internet
+STEP 30 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+whatever.subzone.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+ENTRY_END
+
+SCENARIO_END

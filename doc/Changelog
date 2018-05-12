@@ -1,12 +1,198 @@
+22 June 2017: Wouter
+	- Tag 1.6.4rc2
+
+22 June 2017: Ralph
+	- Added fastrpz patch to contrib
+
+21 June 2017: Wouter
+	- Fix #1316: heap read buffer overflow in parse_edns_options.
+
+20 June 2017: Wouter
+	- Fix warning in pythonmod under clang compiler.
+	- Tag 1.6.4rc1
+	- Fix lintian typo.
+
+16 June 2017: Ralph
+	- Fix #1277: disable domain ratelimit by setting value to 0.
+
+16 June 2017: Wouter
+	- Fix #1301: memory leak in respip and tests.
+	- Free callback in edns-subnetmod on exit and restart.
+	- Fix memory leak in sldns_buffer_new_frm_data.
+	- Fix memory leak in dnscrypt config read.
+	- Fix dnscrypt chacha cert support ifdefs.
+	- Fix dnscrypt chacha cert unit test escapes in grep.
+	- Remove asynclook tests that cause test and purifier problems.
+	- Fix to unlock view in view test.
+
+15 June 2017: Wouter
+	- Fix stub zone queries leaking to the internet for
+	  harden-referral-path ns checks.
+	- Fix query for refetch_glue of stub leaking to internet.
+
 13 June 2017: Wouter
+	- Fix #1279: Memory leak on reload when python module is enabled.
 	- Fix #1280: Unbound fails assert when response from authoritative
 	  contains malformed qname.  When 0x20 caps-for-id is enabled, when
 	  assertions are not enabled the malformed qname is handled correctly.
-	- tag for 1.6.3
+	- 1.6.3 tag created, with only #1280 fix, trunk is 1.6.4 development.
+	- More fixes in depth for buffer checks in 0x20 qname checks.
+
+12 June 2017: Wouter
+	- Fix #1278: Incomplete wildcard proof.
+
+8 June 2017: Ralph
+	- Added domain name based ECS whitelist.
+
+8 June 2017: Wouter
+	- Detect chacha for dnscrypt at configure time.
+	- dnscrypt unit tests with chacha.
+
+7 June 2017: Wouter
+	- Fix that unbound-control can set val_clean_additional and val_permissive_mode.
+	- Add dnscrypt XChaCha20 tests.
+
+6 June 2017: Wouter
+	- Add an explicit type cast for TCP FASTOPEN fix.
+	- renumbering B-Root's IPv6 address to 2001:500:200::b.
+	- Fix #1275: cached data in cachedb is never used.
+	- Fix #1276: [dnscrypt] add XChaCha20-Poly1305 cipher.
+
+1 June 2017: Ralph
+	- Fix #1274: automatically trim chroot path from dnscrypt key/cert paths
+	  (from Manu Bretelle).
+
+1 June 2017: Wouter
+	- Fix fastopen EPIPE fallthrough to perform connect.
+
+31 May 2017: Ralph
+	- Also use global local-zones when there is a matching view that does
+	  not have any local-zone specified.
+
+31 May 2017: Wouter
+	- Fix #1273: cachedb.c doesn't compile with -Wextra.
+	- If MSG_FASTOPEN gives EPIPE fallthrough to try normal tcp write.
+
+30 May 2017: Ralph
+	- Fix #1269: inconsistent use of built-in local zones with views.
+	- Add defaults for new local-zone trees added to views using
+	  unbound-control.
+
+30 May 2017: Wouter
+	- Support for openssl EVP_DigestVerify.
+	- Support for the ED25519 algorithm with openssl (from openssl 1.1.1).
+
+29 May 2017: Wouter
+	- Fix assertion for low buffer size and big edns payload when worker
+	  overrides udpsize.
+
+26 May 2017: Ralph
+	- Added redirect-bogus.patch to contrib directory.
+
+26 May 2017: Wouter
+	- Fix #1270: unitauth.c doesn't compile with higher warning level
+	  and optimization
+	- exec_prefix is by default equal to prefix.
+	- printout localzone for duplicate local-zone warnings.
+
+24 May 2017: Wouter
+	- authzone cname chain, no rrset duplicates, wildcard doesn't change
+	  rrsets added for cname chain.
+
+23 May 2017: Wouter
+	- first services/authzone check in, it compiles and reads and writes
+	  zonefiles.
+	- iana portlist update
+
+22 May 2017: Wouter
+	- Fix #1268: SIGSEGV after log_reopen.
+
+18 May 2017: Wouter
+	- Fix #1265 to use /bin/kill.
+	- Fix #1267: Libunbound validator/val_secalgo.c uses obsolete APIs,
+	  and compatibility with BoringSSL.
+
+17 May 2017: Wouter
+	- Fix #1265: contrib/unbound.service contains hardcoded path.
+
+17 May 2017: George
+	- Use qstate's region for IPSECKEY rrset (ipsecmod).
+
+16 May 2017: George
+	- Implemented opportunistic IPsec support module (ipsecmod).
+	- Some whitespace fixup.
+
+16 May 2017: Wouter
+	- updated dependencies in the makefile.
+	- document trust-anchor-signaling in example config file.
+	- updated configure, dependencies and flex output.
+	- better module memory lookup, fix of unbound-control shm names for
+	  module memory printout of statistics.
+	- Fix type AVC sldns rrdef.
+
+12 May 2017: Wouter
+	- Adjust servfail by iterator to not store in cache when serve-expired
+	  is enabled, to avoid overwriting useful information there.
+	- Fix queries for nameservers under a stub leaking to the internet.
+
+9 May 2017: Ralph
+	- Add 'c' to getopt() in testbound.
+	- iana portlist update
+
+8 May 2017: Wouter
+	- Fix tcp-mss failure printout text.
+	- Set SO_REUSEADDR on outgoing tcp connections to fix the bind before
+	  connect limited tcp connections.  With the option tcp connections
+	  can share the same source port (for different destinations).
+
+2 May 2017: Ralph
+	- Added mesh_add_sub to add detached mesh entries.
+	- Use mesh_add_sub for key tag signaling query.
+
+2 May 2017: Wouter
+	- Added test for leak of stub information.
+	- Fix sldns wire2str printout of RR type CAA tags.
+	- Fix sldns int16_data parse.
+	- Fix sldns parse and printout of TSIG RRs.
+	- sldns SMIMEA and AVC definitions, same as getdns definitions.
+
+1 May 2017: Wouter
+	- Fix #1259: "--disable-ecdsa" argument overwritten 
+	  by "#ifdef SHA256_DIGEST_LENGTH@daemon/remote.c".
+	- iana portlist update
+	- Fix #1258: Windows 10 X64 unbound 1.6.2 service will not start.
+	  and fix that 64bit getting installed in C:\Program Files (x86).
+
+26 April 2017: Ralph
+	- Implemented trust anchor signaling using key tag query.
+
+26 April 2017: Wouter
+	- Based on #1257: check parse limit before t increment in sldns RR
+	  string parse routine.
+
+24 April 2017: Wouter
+	- unbound-checkconf -o allows query of dnstap config variables.
+	  Also unbound-control get_option.  Also for dnscrypt.
+	- trunk contains 1.6.3 version number (changes from 1.6.2 back from
+	  when the 1.6.2rc1 tag has been created).
+
+21 April 2017: Ralph
+	- Fix #1254: clarify ratelimit-{for,below}-domain (from Manu Bretelle).
+	- iana portlist update
+	
+18 April 2017: Ralph
+	- Fix #1252: more indentation inconsistencies.
+	- Fix #1253: unused variable in edns-subnet/addrtree.c:getbit().
+
+13 April 2017: Ralph
+	- Added ECS unit test (from Manu Bretelle).
+	- ECS documentation fix (from Manu Bretelle).
 
 13 April 2017: Wouter
 	- Fix #1250: inconsistent indentation in services/listen_dnsport.c.
 	- tag for 1.6.2rc1
+	- (for 1.6.3:) unbound.h exports the shm stats structures.  They use
+	  type long long and no ifdefs, and ub_ before the typenames.
 
 12 April 2017: Wouter
 	- subnet mem value is available in shm, also when not enabled,
@@ -243,7 +429,7 @@
 	- Fix #1184: Log DNS replies. This includes the same logging
 	  information that DNS queries and response code and response size,
 	  patch from Larissa Feng.
-	- Fix #1185: Source IP rate limiting, patch from Larissa Feng.
+	- Fix #1187: Source IP rate limiting, patch from Larissa Feng.
 
 3 January 2017: Wouter
 	- configure --enable-systemd and lets unbound use systemd sockets if

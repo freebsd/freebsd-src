@@ -78,5 +78,7 @@ void ecs_test(void);
 #endif /* CLIENT_SUBNET */
 /** unit test for ldns functions */
 void ldns_test(void);
+/** unit test for auth zone functions */
+void authzone_test(void);
 
 #endif /* TESTCODE_UNITMAIN_H */
