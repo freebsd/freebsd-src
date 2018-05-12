@@ -1007,6 +1007,7 @@ int val_neg_dlvlookup(struct val_neg_cache* neg, uint8_t* qname, size_t len,
 	qinfo.qname = qname;
 	qinfo.qtype = LDNS_RR_TYPE_DLV;
 	qinfo.qclass = qclass;
+	qinfo.local_alias = NULL;
 	if(!nsec_proves_nodata(nsec, &qinfo, &wc) &&
 		!val_nsec_proves_name_error(nsec, qname)) {
 		/* the NSEC is not a denial for the DLV */

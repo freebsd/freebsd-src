@@ -532,6 +532,7 @@ causes_cycle(struct module_qstate* qstate, uint8_t* name, size_t namelen,
 	qinf.qname_len = namelen;
 	qinf.qtype = t;
 	qinf.qclass = c;
+	qinf.local_alias = NULL;
 	fptr_ok(fptr_whitelist_modenv_detect_cycle(
 		qstate->env->detect_cycle));
 	return (*qstate->env->detect_cycle)(qstate, &qinf, 

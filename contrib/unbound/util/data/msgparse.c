@@ -1072,3 +1072,22 @@ parse_edns_from_pkt(sldns_buffer* pkt, struct edns_data* edns,
 
 	return 0;
 }
+
+void
+log_edns_opt_list(enum verbosity_value level, const char* info_str,
+	struct edns_option* list)
+{
+	if(verbosity >= level && list) {
+		char str[128], *s;
+		size_t slen;
+		verbose(level, "%s", info_str);
+		while(list) {
+			s = str;
+			slen = sizeof(str);
+			(void)sldns_wire2str_edns_option_print(&s, &slen, list->opt_code,
+				list->opt_data, list->opt_len);
+			verbose(level, "  %s", str);
+			list = list->next;
+		}
+	}
+}

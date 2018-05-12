@@ -1180,7 +1180,7 @@ nsec3_do_prove_nodata(struct module_env* env, struct nsec3_filter* flt,
 			nsec3_has_type(rrset, rr, LDNS_RR_TYPE_NS) &&
 			!nsec3_has_type(rrset, rr, LDNS_RR_TYPE_SOA)) {
 			verbose(VERB_ALGO, "nsec3 nodata proof: matching "
-				"wilcard is a delegation, bogus");
+				"wildcard is a delegation, bogus");
 			return sec_status_bogus;
 		}
 		/* everything is peachy keen, except for optout spans */

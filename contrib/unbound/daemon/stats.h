@@ -131,7 +131,8 @@ struct server_stats {
 	size_t unwanted_queries;
 	/** usage of tcp accept list */
 	size_t tcp_accept_usage;
-
+	/** answers served from expired cache */
+	size_t zero_ttl_responses;
 	/** histogram data exported to array 
 	 * if the array is the same size, no data is lost, and
 	 * if all histograms are same size (is so by default) then
