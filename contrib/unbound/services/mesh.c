@@ -533,8 +533,22 @@ mesh_new_callback(struct mesh_area* mesh, struct query_info* qinfo,
 	return 1;
 }
 
+static void mesh_schedule_prefetch(struct mesh_area* mesh,
+	struct query_info* qinfo, uint16_t qflags, time_t leeway, int run);
+
 void mesh_new_prefetch(struct mesh_area* mesh, struct query_info* qinfo,
         uint16_t qflags, time_t leeway)
+{
+	mesh_schedule_prefetch(mesh, qinfo, qflags, leeway, 1);
+}
+
+/* Internal backend routine of mesh_new_prefetch().  It takes one additional
+ * parameter, 'run', which controls whether to run the prefetch state
+ * immediately.  When this function is called internally 'run' could be
+ * 0 (false), in which case the new state is only made runnable so it
+ * will not be run recursively on top of the current state. */
+static void mesh_schedule_prefetch(struct mesh_area* mesh,
+	struct query_info* qinfo, uint16_t qflags, time_t leeway, int run)
 {
 	struct mesh_state* s = mesh_area_find(mesh, NULL, qinfo,
 		qflags&(BIT_RD|BIT_CD), 0, 0);
@@ -589,6 +603,18 @@ void mesh_new_prefetch(struct mesh_area* mesh, struct query_info* qinfo,
 			s->list_select = mesh_jostle_list;
 		}
 	}
+
+	if(!run) {
+#ifdef UNBOUND_DEBUG
+		n =
+#else
+		(void)
+#endif
+		rbtree_insert(&mesh->run, &s->run_node);
+		log_assert(n != NULL);
+		return;
+	}
+
 	mesh_run(mesh, s, module_event_new, NULL);
 }
 
@@ -666,6 +692,8 @@ mesh_state_create(struct module_env* env, struct query_info* qinfo,
 	mstate->s.prefetch_leeway = 0;
 	mstate->s.no_cache_lookup = 0;
 	mstate->s.no_cache_store = 0;
+	mstate->s.need_refetch = 0;
+
 	/* init modules */
 	for(i=0; i<env->mesh->mods.num; i++) {
 		mstate->s.minfo[i] = NULL;
@@ -1288,9 +1316,30 @@ int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
 	return 1;
 }
 
+/* Extract the query info and flags from 'mstate' into '*qinfop' and '*qflags'.
+ * Since this is only used for internal refetch of otherwise-expired answer,
+ * we simply ignore the rare failure mode when memory allocation fails. */
+static void
+mesh_copy_qinfo(struct mesh_state* mstate, struct query_info** qinfop,
+	uint16_t* qflags)
+{
+	struct regional* region = mstate->s.env->scratch;
+	struct query_info* qinfo;
+
+	qinfo = regional_alloc_init(region, &mstate->s.qinfo, sizeof(*qinfo));
+	if(!qinfo)
+		return;
+	qinfo->qname = regional_alloc_init(region, qinfo->qname,
+		qinfo->qname_len);
+	if(!qinfo->qname)
+		return;
+	*qinfop = qinfo;
+	*qflags = mstate->s.query_flags;
+}
+
 /**
  * Continue processing the mesh state at another module.
- * Handles module to modules tranfer of control.
+ * Handles module to modules transfer of control.
  * Handles module finished.
  * @param mesh: the mesh area.
  * @param mstate: currently active mesh state.
@@ -1310,7 +1359,8 @@ mesh_continue(struct mesh_area* mesh, struct mesh_state* mstate,
 	mstate->num_activated++;
 	if(mstate->num_activated > MESH_MAX_ACTIVATION) {
 		/* module is looping. Stop it. */
-		log_err("internal error: looping module stopped");
+		log_err("internal error: looping module (%s) stopped",
+			mesh->mods.mod[mstate->s.curmod]->name);
 		log_query_info(VERB_QUERY, "pass error for qstate",
 			&mstate->s.qinfo);
 		s = module_error;
@@ -1350,11 +1400,32 @@ mesh_continue(struct mesh_area* mesh, struct mesh_state* mstate,
 		/* error is bad, handle pass back up below */
 		mstate->s.return_rcode = LDNS_RCODE_SERVFAIL;
 	}
-	if(s == module_error || s == module_finished) {
+	if(s == module_error) {
+		mesh_query_done(mstate);
+		mesh_walk_supers(mesh, mstate);
+		mesh_state_delete(&mstate->s);
+		return 0;
+	}
+	if(s == module_finished) {
 		if(mstate->s.curmod == 0) {
+			struct query_info* qinfo = NULL;
+			uint16_t qflags;
+
 			mesh_query_done(mstate);
 			mesh_walk_supers(mesh, mstate);
+
+			/* If the answer to the query needs to be refetched
+			 * from an external DNS server, we'll need to schedule
+			 * a prefetch after removing the current state, so
+			 * we need to make a copy of the query info here. */
+			if(mstate->s.need_refetch)
+				mesh_copy_qinfo(mstate, &qinfo, &qflags);
+
 			mesh_state_delete(&mstate->s);
+			if(qinfo) {
+				mesh_schedule_prefetch(mesh, qinfo, qflags,
+					0, 1);
+			}
 			return 0;
 		}
 		/* pass along the locus of control */

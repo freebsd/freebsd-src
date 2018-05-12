@@ -67,7 +67,7 @@ struct view {
 	/** rbtree node, key is name */
 	rbnode_type node;
 	/** view name.
-	 * Has to be right after rbnode_t due to pointer arithmatic in
+	 * Has to be right after rbnode_t due to pointer arithmetic in
 	 * view_create's lock protect */
 	char* name;
 	/** view specific local authority zones */

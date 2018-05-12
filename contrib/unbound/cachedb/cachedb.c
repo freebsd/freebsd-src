@@ -347,6 +347,13 @@ prep_data(struct module_qstate* qstate, struct sldns_buffer* buf)
 
 	if(!qstate->return_msg || !qstate->return_msg->rep)
 		return 0;
+	/* We don't store the reply if its TTL is 0 unless serve-expired is
+	 * enabled.  Such a reply won't be reusable and simply be a waste for
+	 * the backend.  It's also compatible with the default behavior of
+	 * dns_cache_store_msg(). */
+	if(qstate->return_msg->rep->ttl == 0 &&
+		!qstate->env->cfg->serve_expired)
+		return 0;
 	if(verbosity >= VERB_ALGO)
 		log_dns_msg("cachedb encoding", &qstate->return_msg->qinfo,
 	                qstate->return_msg->rep);
@@ -387,32 +394,37 @@ good_expiry_and_qinfo(struct module_qstate* qstate, struct sldns_buffer* buf)
 		&expiry, sizeof(expiry));
 	expiry = be64toh(expiry);
 
-	if((time_t)expiry < *qstate->env->now)
+	if((time_t)expiry < *qstate->env->now &&
+		!qstate->env->cfg->serve_expired)
 		return 0;
 
 	return 1;
 }
 
+/* Adjust the TTL of the given RRset by 'subtract'.  If 'subtract' is
+ * negative, set the TTL to 0. */
 static void
 packed_rrset_ttl_subtract(struct packed_rrset_data* data, time_t subtract)
 {
         size_t i;
         size_t total = data->count + data->rrsig_count;
-	if(data->ttl > subtract)
+	if(subtract >= 0 && data->ttl > subtract)
 		data->ttl -= subtract;
 	else	data->ttl = 0;
         for(i=0; i<total; i++) {
-		if(data->rr_ttl[i] > subtract)
+		if(subtract >= 0 && data->rr_ttl[i] > subtract)
                 	data->rr_ttl[i] -= subtract;
                 else	data->rr_ttl[i] = 0;
 	}
 }
 
+/* Adjust the TTL of a DNS message and its RRs by 'adjust'.  If 'adjust' is
+ * negative, set the TTLs to 0. */
 static void
 adjust_msg_ttl(struct dns_msg* msg, time_t adjust)
 {
 	size_t i;
-	if(msg->rep->ttl > adjust)
+	if(adjust >= 0 && msg->rep->ttl > adjust)
 		msg->rep->ttl -= adjust;
 	else	msg->rep->ttl = 0;
 	msg->rep->prefetch_ttl = PREFETCH_TTL_CALC(msg->rep->ttl);
@@ -476,10 +488,26 @@ parse_data(struct module_qstate* qstate, struct sldns_buffer* buf)
 	adjust = *qstate->env->now - (time_t)timestamp;
 	if(qstate->return_msg->rep->ttl < adjust) {
 		verbose(VERB_ALGO, "cachedb msg expired");
-		return 0; /* message expired */
+		/* If serve-expired is enabled, we still use an expired message
+		 * setting the TTL to 0. */
+		if(qstate->env->cfg->serve_expired)
+			adjust = -1;
+		else
+			return 0; /* message expired */
 	}
 	verbose(VERB_ALGO, "cachedb msg adjusted down by %d", (int)adjust);
 	adjust_msg_ttl(qstate->return_msg, adjust);
+
+	/* Similar to the unbound worker, if serve-expired is enabled and
+	 * the msg would be considered to be expired, mark the state so a
+	 * refetch will be scheduled.  The comparison between 'expiry' and
+	 * 'now' should be redundant given how these values were calculated,
+	 * but we check it just in case as does good_expiry_and_qinfo(). */
+	if(qstate->env->cfg->serve_expired &&
+		(adjust == -1 || (time_t)expiry < *qstate->env->now)) {
+		qstate->need_refetch = 1;
+	}
+
 	return 1;
 }
 
@@ -563,11 +591,15 @@ cachedb_intcache_lookup(struct module_qstate* qstate)
 static void
 cachedb_intcache_store(struct module_qstate* qstate)
 {
+	uint32_t store_flags = qstate->query_flags;
+
+	if(qstate->env->cfg->serve_expired)
+		store_flags |= DNSCACHE_STORE_ZEROTTL;
 	if(!qstate->return_msg)
 		return;
 	(void)dns_cache_store(qstate->env, &qstate->qinfo,
 		qstate->return_msg->rep, 0, qstate->prefetch_leeway, 0,
-		qstate->region, qstate->query_flags);
+		qstate->region, store_flags);
 }
 
 /**

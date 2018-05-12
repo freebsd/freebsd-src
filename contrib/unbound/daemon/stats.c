@@ -174,6 +174,21 @@ get_dnscrypt_cache_miss(struct worker* worker, int reset)
 	lock_basic_unlock(&de->shared_secrets_cache_lock);
 	return r;
 }
+
+/** get the number of replayed queries */
+static size_t
+get_dnscrypt_replay(struct worker* worker, int reset)
+{
+	size_t r;
+	struct dnsc_env* de = worker->daemon->dnscenv;
+
+	lock_basic_lock(&de->nonces_cache_lock);
+	r = de->num_query_dnscrypt_replay;
+	if(reset && !worker->env.cfg->stat_cumulative)
+		de->num_query_dnscrypt_replay = 0;
+	lock_basic_unlock(&de->nonces_cache_lock);
+	return r;
+}
 #endif /* USE_DNSCRYPT */
 
 void
@@ -225,13 +240,21 @@ server_stats_compile(struct worker* worker, struct ub_stats_info* s, int reset)
 			(long long)get_dnscrypt_cache_miss(worker, reset);
 		s->svr.shared_secret_cache_count = (long long)count_slabhash_entries(
 			worker->daemon->dnscenv->shared_secrets_cache);
+		s->svr.nonce_cache_count = (long long)count_slabhash_entries(
+			worker->daemon->dnscenv->nonces_cache);
+		s->svr.num_query_dnscrypt_replay =
+			(long long)get_dnscrypt_replay(worker, reset);
 	} else {
 		s->svr.num_query_dnscrypt_secret_missed_cache = 0;
 		s->svr.shared_secret_cache_count = 0;
+		s->svr.nonce_cache_count = 0;
+		s->svr.num_query_dnscrypt_replay = 0;
 	}
 #else
 	s->svr.num_query_dnscrypt_secret_missed_cache = 0;
 	s->svr.shared_secret_cache_count = 0;
+	s->svr.nonce_cache_count = 0;
+	s->svr.num_query_dnscrypt_replay = 0;
 #endif /* USE_DNSCRYPT */
 
 	/* get tcp accept usage */

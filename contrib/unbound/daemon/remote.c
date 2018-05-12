@@ -827,6 +827,7 @@ print_mem(SSL* ssl, struct worker* worker, struct daemon* daemon)
 #endif /* USE_IPSECMOD */
 #ifdef USE_DNSCRYPT
 	size_t dnscrypt_shared_secret = 0;
+	size_t dnscrypt_nonce = 0;
 #endif /* USE_DNSCRYPT */
 	msg = slabhash_get_mem(daemon->env->msg_cache);
 	rrset = slabhash_get_mem(&daemon->env->rrset_cache->table);
@@ -843,6 +844,7 @@ print_mem(SSL* ssl, struct worker* worker, struct daemon* daemon)
 	if(daemon->dnscenv) {
 		dnscrypt_shared_secret = slabhash_get_mem(
 			daemon->dnscenv->shared_secrets_cache);
+		dnscrypt_nonce = slabhash_get_mem(daemon->dnscenv->nonces_cache);
 	}
 #endif /* USE_DNSCRYPT */
 
@@ -867,6 +869,9 @@ print_mem(SSL* ssl, struct worker* worker, struct daemon* daemon)
 #ifdef USE_DNSCRYPT
 	if(!print_longnum(ssl, "mem.cache.dnscrypt_shared_secret"SQ,
 			dnscrypt_shared_secret))
+		return 0;
+	if(!print_longnum(ssl, "mem.cache.dnscrypt_nonce"SQ,
+			dnscrypt_nonce))
 		return 0;
 #endif /* USE_DNSCRYPT */
 	return 1;
@@ -1058,8 +1063,12 @@ print_ext(SSL* ssl, struct ub_stats_info* s)
 #ifdef USE_DNSCRYPT
 	if(!ssl_printf(ssl, "dnscrypt_shared_secret.cache.count"SQ"%u\n",
 		(unsigned)s->svr.shared_secret_cache_count)) return 0;
+	if(!ssl_printf(ssl, "dnscrypt_nonce.cache.count"SQ"%u\n",
+		(unsigned)s->svr.nonce_cache_count)) return 0;
 	if(!ssl_printf(ssl, "num.query.dnscrypt.shared_secret.cachemiss"SQ"%lu\n",
 		(unsigned long)s->svr.num_query_dnscrypt_secret_missed_cache)) return 0;
+	if(!ssl_printf(ssl, "num.query.dnscrypt.replay"SQ"%lu\n",
+		(unsigned long)s->svr.num_query_dnscrypt_replay)) return 0;
 #endif /* USE_DNSCRYPT */
 	return 1;
 }
@@ -1771,7 +1780,7 @@ negative_del_rrset(struct lruhash_entry* e, void* arg)
 	struct ub_packed_rrset_key* k = (struct ub_packed_rrset_key*)e->key;
 	struct packed_rrset_data* d = (struct packed_rrset_data*)e->data;
 	/* delete the parentside negative cache rrsets,
-	 * these are namerserver rrsets that failed lookup, rdata empty */
+	 * these are nameserver rrsets that failed lookup, rdata empty */
 	if((k->rk.flags & PACKED_RRSET_PARENT_SIDE) && d->count == 1 &&
 		d->rrsig_count == 0 && d->rr_len[0] == 0) {
 		d->ttl = inf->expired;

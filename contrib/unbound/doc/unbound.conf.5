@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Sep 18, 2017" "NLnet Labs" "unbound 1.6.6"
+.TH "unbound.conf" "5" "Oct 10, 2017" "NLnet Labs" "unbound 1.6.7"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -390,6 +390,11 @@ negotiation between Unbound and other servers.
 .B tcp\-upstream: \fI<yes or no>
 Enable or disable whether the upstream queries use TCP only for transport.
 Default is no.  Useful in tunneling scenarios.
+.TP
+.B udp\-upstream\-without\-downstream: \fI<yes or no>
+Enable udp upstream even if do-udp is no.  Default is no, and this does not
+change anything.  Useful for TLS service providers, that want no udp downstream
+but use udp to fetch data upstream.
 .TP
 .B ssl\-upstream: \fI<yes or no>
 Enabled or disable whether the upstream queries use SSL only for transport.
@@ -807,7 +812,7 @@ It is possible to use wildcards with this statement, the wildcard is
 expanded on start and on reload.
 .TP
 .B trust\-anchor\-signaling: \fI<yes or no>
-Send RFC8145 key tag query after trust anchor priming. Default is off.
+Send RFC8145 key tag query after trust anchor priming. Default is on.
 .TP
 .B dlv\-anchor\-file: \fI<filename>
 This option was used during early days DNSSEC deployment when no parent-side
@@ -1518,6 +1523,17 @@ using the same public key. It saves a substantial amount of CPU.
 Give power of 2 number of slabs, this is used to reduce lock contention
 in the dnscrypt shared secrets cache.  Close to the number of cpus is
 a fairly good setting.
+.TP
+.B dnscrypt\-nonce\-cache\-size: \fI<memory size>
+Give the size of the data structure in which the client nonces are kept in.
+Default 4m. In bytes or use m(mega), k(kilo), g(giga).
+The nonce cache is used to prevent dnscrypt message replaying. Client nonce
+should be unique for any pair of client pk/server sk.
+.TP
+.B dnscrypt\-nonce\-cache\-slabs: \fI<number>
+Give power of 2 number of slabs, this is used to reduce lock contention
+in the dnscrypt nonce cache.  Close to the number of cpus is
+a fairly good setting.
 .SS "EDNS Client Subnet Module Options"
 .LP
 The ECS module must be configured in the \fBmodule\-config:\fR "subnetcache
@@ -1531,7 +1547,7 @@ specialized cache. If the authority indicated no support, the response is
 stored in the regular cache.
 .LP
 Additionally, when a client includes the option in its queries, Unbound will
-forward the option to the authority if prensent in the whitelist, or
+forward the option to the authority if present in the whitelist, or
 \fBclient\-subnet\-always\-forward\fR is set to yes. In this case the lookup in
 the regular cache is skipped.
 .LP

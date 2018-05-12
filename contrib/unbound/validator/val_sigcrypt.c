@@ -906,7 +906,7 @@ canonical_sort(struct ub_packed_rrset_key* rrset, struct packed_rrset_data* d,
 }
 
 /**
- * Inser canonical owner name into buffer.
+ * Insert canonical owner name into buffer.
  * @param buf: buffer to insert into at current position.
  * @param k: rrset with its owner name.
  * @param sig: signature with signer name and label count.
