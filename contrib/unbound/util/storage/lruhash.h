@@ -301,6 +301,38 @@ void lru_touch(struct lruhash* table, struct lruhash_entry* entry);
  */
 void lruhash_setmarkdel(struct lruhash* table, lruhash_markdelfunc_type md);
 
+/************************* getdns functions ************************/
+/*** these are used by getdns only and not by unbound. ***/
+
+/**
+ * Demote entry, so it becomes the least recently used in the LRU list.
+ * Caller must hold hash table lock. The entry must be inserted already.
+ * @param table: hash table.
+ * @param entry: entry to make last in LRU.
+ */
+void lru_demote(struct lruhash* table, struct lruhash_entry* entry);
+
+/**
+ * Insert a new element into the hashtable, or retrieve the corresponding
+ * element of it exits.
+ *
+ * If key is already present data pointer in that entry is kept.
+ * If it is not present, a new entry is created. In that case, 
+ * the space calculation function is called with the key, data.
+ * If necessary the least recently used entries are deleted to make space.
+ * If necessary the hash array is grown up.
+ *
+ * @param table: hash table.
+ * @param hash: hash value. User calculates the hash.
+ * @param entry: identifies the entry.
+ * @param data: the data.
+ * @param cb_arg: if not null overrides the cb_arg for the deletefunc.
+ * @return: pointer to the existing entry if the key was already present,
+ *     or to the entry argument if it was not.
+ */
+struct lruhash_entry* lruhash_insert_or_retrieve(struct lruhash* table, hashvalue_type hash,
+        struct lruhash_entry* entry, void* data, void* cb_arg);
+
 /************************* Internal functions ************************/
 /*** these are only exposed for unit tests. ***/
 

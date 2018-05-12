@@ -229,9 +229,8 @@ lz_enter_zone(struct local_zones* zones, const char* name, const char* type,
 	return z;
 }
 
-/** return name and class and rdata of rr; parses string */
-static int
-get_rr_content(const char* str, uint8_t** nm, uint16_t* type,
+int
+rrstr_get_rr_content(const char* str, uint8_t** nm, uint16_t* type,
 	uint16_t* dclass, time_t* ttl, uint8_t* rr, size_t len,
 	uint8_t** rdata, size_t* rdata_len)
 {
@@ -353,8 +352,8 @@ new_local_rrset(struct regional* region, struct local_data* node,
 }
 
 /** insert RR into RRset data structure; Wastes a couple of bytes */
-static int
-insert_rr(struct regional* region, struct packed_rrset_data* pd,
+int
+rrset_insert_rr(struct regional* region, struct packed_rrset_data* pd,
 	uint8_t* rdata, size_t rdata_len, time_t ttl, const char* rrstr)
 {
 	size_t* oldlen = pd->rr_len;
@@ -456,8 +455,8 @@ lz_enter_rr_into_zone(struct local_zone* z, const char* rrstr)
 	uint8_t rr[LDNS_RR_BUF_SIZE];
 	uint8_t* rdata;
 	size_t rdata_len;
-	if(!get_rr_content(rrstr, &nm, &rrtype, &rrclass, &ttl, rr, sizeof(rr),
-		&rdata, &rdata_len)) {
+	if(!rrstr_get_rr_content(rrstr, &nm, &rrtype, &rrclass, &ttl, rr,
+		sizeof(rr), &rdata, &rdata_len)) {
 		log_err("bad local-data: %s", rrstr);
 		return 0;
 	}
@@ -513,7 +512,7 @@ lz_enter_rr_into_zone(struct local_zone* z, const char* rrstr)
 		verbose(VERB_ALGO, "ignoring duplicate RR: %s", rrstr);
 		return 1;
 	} 
-	return insert_rr(z->region, pd, rdata, rdata_len, ttl, rrstr);
+	return rrset_insert_rr(z->region, pd, rdata, rdata_len, ttl, rrstr);
 }
 
 /** enter a data RR into auth data; a zone for it must exist */
@@ -1233,9 +1232,10 @@ local_error_encode(struct query_info* qinfo, struct module_env* env,
 }
 
 /** find local data tag string match for the given type in the list */
-static int
-find_tag_datas(struct query_info* qinfo, struct config_strlist* list,
-	struct ub_packed_rrset_key* r, struct regional* temp)
+int
+local_data_find_tag_datas(const struct query_info* qinfo,
+	struct config_strlist* list, struct ub_packed_rrset_key* r,
+	struct regional* temp)
 {
 	struct config_strlist* p;
 	char buf[65536];
@@ -1312,13 +1312,24 @@ find_tag_datas(struct query_info* qinfo, struct config_strlist* list,
 			sldns_wirerr_get_rdatawl(rr, len, 1),
 			d->rr_len[d->count]);
 		if(!d->rr_data[d->count])
-			if(!d) return 0; /* out of memory */
+			return 0; /* out of memory */
 		d->count++;
 	}
+	if(r->rk.dname)
+		return 1;
+	return 0;
+}
+
+static int
+find_tag_datas(struct query_info* qinfo, struct config_strlist* list,
+	struct ub_packed_rrset_key* r, struct regional* temp)
+{
+	int result = local_data_find_tag_datas(qinfo, list, r, temp);
+
 	/* If we've found a non-exact alias type of local data, make a shallow
 	 * copy of the RRset and remember it in qinfo to complete the alias
 	 * chain later. */
-	if(r->rk.dname && qinfo->qtype != LDNS_RR_TYPE_CNAME &&
+	if(result && qinfo->qtype != LDNS_RR_TYPE_CNAME &&
 		r->rk.type == htons(LDNS_RR_TYPE_CNAME)) {
 		qinfo->local_alias =
 			regional_alloc_zero(temp, sizeof(struct local_rrset));
@@ -1329,9 +1340,7 @@ find_tag_datas(struct query_info* qinfo, struct config_strlist* list,
 		if(!qinfo->local_alias->rrset)
 			return 0; /* out of memory */
 	}
-	if(r->rk.dname)
-		return 1;
-	return 0;
+	return result;
 }
 
 /** answer local data match */
@@ -1497,8 +1506,6 @@ lz_type(uint8_t *taglist, size_t taglen, uint8_t *taglist2, size_t taglen2,
 	struct comm_reply* repinfo, struct rbtree_type* override_tree,
 	int* tag, char** tagname, int num_tags)
 {
-	size_t i, j;
-	uint8_t tagmatch;
 	struct local_zone_override* lzo;	
 	if(repinfo && override_tree) {
 		lzo = (struct local_zone_override*)addr_tree_lookup(
@@ -1511,6 +1518,19 @@ lz_type(uint8_t *taglist, size_t taglen, uint8_t *taglist2, size_t taglen2,
 	}
 	if(!taglist || !taglist2)
 		return lzt;
+	return local_data_find_tag_action(taglist, taglen, taglist2, taglen2,
+		tagactions, tagactionssize, lzt, tag, tagname, num_tags);
+}
+
+enum localzone_type
+local_data_find_tag_action(const uint8_t* taglist, size_t taglen,
+	const uint8_t* taglist2, size_t taglen2, const uint8_t* tagactions,
+	size_t tagactionssize, enum localzone_type lzt, int* tag,
+	char* const* tagname, int num_tags)
+{
+	size_t i, j;
+	uint8_t tagmatch;
+
 	for(i=0; i<taglen && i<taglen2; i++) {
 		tagmatch = (taglist[i] & taglist2[i]);
 		for(j=0; j<8 && tagmatch>0; j++) {

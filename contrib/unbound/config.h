@@ -4,6 +4,9 @@
 /* Directory to chroot to */
 #define CHROOT_DIR "/var/unbound"
 
+/* Define this to enable client subnet option. */
+/* #undef CLIENT_SUBNET */
+
 /* Do sha512 definitions in config.h */
 /* #undef COMPAT_SHA512 */
 
@@ -386,6 +389,9 @@
 /* Define to 1 if you have the `SHA512_Update' function. */
 /* #undef HAVE_SHA512_UPDATE */
 
+/* Define to 1 if you have the `shmget' function. */
+#define HAVE_SHMGET 1
+
 /* Define to 1 if you have the `sigprocmask' function. */
 #define HAVE_SIGPROCMASK 1
 
@@ -458,6 +464,9 @@
 /* Define to 1 if systemd should be used */
 /* #undef HAVE_SYSTEMD */
 
+/* Define to 1 if you have the <sys/ipc.h> header file. */
+#define HAVE_SYS_IPC_H 1
+
 /* Define to 1 if you have the <sys/param.h> header file. */
 #define HAVE_SYS_PARAM_H 1
 
@@ -466,6 +475,9 @@
 
 /* Define to 1 if you have the <sys/sha2.h> header file. */
 /* #undef HAVE_SYS_SHA2_H */
+
+/* Define to 1 if you have the <sys/shm.h> header file. */
+#define HAVE_SYS_SHM_H 1
 
 /* Define to 1 if you have the <sys/socket.h> header file. */
 #define HAVE_SYS_SOCKET_H 1
@@ -583,7 +595,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.6.1"
+#define PACKAGE_STRING "unbound 1.6.2"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -592,7 +604,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.6.1"
+#define PACKAGE_VERSION "1.6.2"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -611,7 +623,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,6,1,0
+#define RSRC_PACKAGE_VERSION 1,6,2,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
@@ -652,6 +664,9 @@
 /* Define to 1 to use cachedb support */
 /* #undef USE_CACHEDB */
 
+/* Define to 1 to enable dnscrypt support */
+/* #undef USE_DNSCRYPT */
+
 /* Define to 1 to enable dnstap support */
 /* #undef USE_DNSTAP */
 
@@ -675,6 +690,9 @@
 
 /* Define this to enable client TCP Fast Open. */
 /* #undef USE_OSX_MSG_FASTOPEN */
+
+/* Define this to enable SHA1 support. */
+#define USE_SHA1 1
 
 /* Define this to enable SHA256 and SHA512 support. */
 #define USE_SHA2 1

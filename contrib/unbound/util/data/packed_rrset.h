@@ -57,6 +57,10 @@ typedef uint64_t rrset_id_type;
  * this is set on SOA rrsets in the authority section, to keep its TTL separate
  * from the SOA in the answer section from a direct SOA query or ANY query. */
 #define PACKED_RRSET_SOA_NEG 0x4
+/** This rrset is considered to have a fixed TTL; its TTL doesn't have to be
+ * updated on encoding in a reply.  This flag is not expected to be set in
+ * cached data. */
+#define PACKED_RRSET_FIXEDTTL 0x80000000
 
 /** number of rrs and rrsets for integer overflow protection.  More than
  * this is not really possible (64K packet has much less RRs and RRsets) in
@@ -83,6 +87,7 @@ struct packed_rrset_key {
 	 * 	o PACKED_RRSET_NSEC_AT_APEX
 	 * 	o PACKED_RRSET_PARENT_SIDE
 	 * 	o PACKED_RRSET_SOA_NEG
+	 * 	o PACKED_RRSET_FIXEDTTL (not supposed to be cached)
 	 */
 	uint32_t flags;
 	/** the rrset type in network format */

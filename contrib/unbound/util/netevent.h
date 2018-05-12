@@ -60,6 +60,8 @@
 #ifndef NET_EVENT_H
 #define NET_EVENT_H
 
+#include "dnscrypt/dnscrypt.h"
+
 struct sldns_buffer;
 struct comm_point;
 struct comm_reply;
@@ -114,6 +116,13 @@ struct comm_reply {
 	socklen_t addrlen;
 	/** return type 0 (none), 4(IP4), 6(IP6) */
 	int srctype;
+	/* DnsCrypt context */
+#ifdef USE_DNSCRYPT
+	uint8_t client_nonce[crypto_box_HALF_NONCEBYTES];
+	uint8_t nmkey[crypto_box_BEFORENMBYTES];
+	const KeyPair *keypair;
+	int is_dnscrypted;
+#endif
 	/** the return source interface data */
 	union {
 #ifdef IPV6_PKTINFO
@@ -127,6 +136,8 @@ struct comm_reply {
 	} 	
 		/** variable with return source data */
 		pktinfo;
+    /** max udp size for udp packets */
+    size_t max_udp_size;
 };
 
 /** 
@@ -236,6 +247,12 @@ struct comm_point {
 	int tcp_do_fastopen;
 #endif
 
+#ifdef USE_DNSCRYPT
+    /** Is this a dnscrypt channel */
+	int dnscrypt;
+	/** encrypted buffer pointer. Either to perthread, or own buffer or NULL */
+	struct sldns_buffer* dnscrypt_buffer;
+#endif
 	/** number of queries outstanding on this socket, used by
 	 * outside network for udp ports */
 	int inuse;

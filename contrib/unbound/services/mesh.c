@@ -59,6 +59,7 @@
 #include "sldns/wire2str.h"
 #include "services/localzone.h"
 #include "util/data/dname.h"
+#include "respip/respip.h"
 
 /** subtract timers and the values do not overflow or become negative */
 static void
@@ -124,11 +125,64 @@ timeval_smaller(const struct timeval* x, const struct timeval* y)
 #endif
 }
 
+/*
+ * Compare two response-ip client info entries for the purpose of mesh state
+ * compare.  It returns 0 if ci_a and ci_b are considered equal; otherwise
+ * 1 or -1 (they mean 'ci_a is larger/smaller than ci_b', respectively, but
+ * in practice it should be only used to mean they are different).
+ * We cannot share the mesh state for two queries if different response-ip
+ * actions can apply in the end, even if those queries are otherwise identical.
+ * For this purpose we compare tag lists and tag action lists; they should be
+ * identical to share the same state.
+ * For tag data, we don't look into the data content, as it can be
+ * expensive; unless tag data are not defined for both or they point to the
+ * exact same data in memory (i.e., they come from the same ACL entry), we
+ * consider these data different.
+ * Likewise, if the client info is associated with views, we don't look into
+ * the views.  They are considered different unless they are exactly the same
+ * even if the views only differ in the names.
+ */
+static int
+client_info_compare(const struct respip_client_info* ci_a,
+	const struct respip_client_info* ci_b)
+{
+	int cmp;
+
+	if(!ci_a && !ci_b)
+		return 0;
+	if(ci_a && !ci_b)
+		return -1;
+	if(!ci_a && ci_b)
+		return 1;
+	if(ci_a->taglen != ci_b->taglen)
+		return (ci_a->taglen < ci_b->taglen) ? -1 : 1;
+	cmp = memcmp(ci_a->taglist, ci_b->taglist, ci_a->taglen);
+	if(cmp != 0)
+		return cmp;
+	if(ci_a->tag_actions_size != ci_b->tag_actions_size)
+		return (ci_a->tag_actions_size < ci_b->tag_actions_size) ?
+			-1 : 1;
+	cmp = memcmp(ci_a->tag_actions, ci_b->tag_actions,
+		ci_a->tag_actions_size);
+	if(cmp != 0)
+		return cmp;
+	if(ci_a->tag_datas != ci_b->tag_datas)
+		return ci_a->tag_datas < ci_b->tag_datas ? -1 : 1;
+	if(ci_a->view != ci_b->view)
+		return ci_a->view < ci_b->view ? -1 : 1;
+	/* For the unbound daemon these should be non-NULL and identical,
+	 * but we check that just in case. */
+	if(ci_a->respip_set != ci_b->respip_set)
+		return ci_a->respip_set < ci_b->respip_set ? -1 : 1;
+        return 0;
+}
+
 int
 mesh_state_compare(const void* ap, const void* bp)
 {
 	struct mesh_state* a = (struct mesh_state*)ap;
 	struct mesh_state* b = (struct mesh_state*)bp;
+	int cmp;
 
 	if(a->unique < b->unique)
 		return -1;
@@ -155,7 +209,10 @@ mesh_state_compare(const void* ap, const void* bp)
 	if(!(a->s.query_flags&BIT_CD) && (b->s.query_flags&BIT_CD))
 		return 1;
 
-	return query_info_compare(&a->s.qinfo, &b->s.qinfo);
+	cmp = query_info_compare(&a->s.qinfo, &b->s.qinfo);
+	if(cmp != 0)
+		return cmp;
+	return client_info_compare(a->s.client_info, b->s.client_info);
 }
 
 int
@@ -287,16 +344,16 @@ int mesh_make_new_space(struct mesh_area* mesh, sldns_buffer* qbuf)
 }
 
 void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
-        uint16_t qflags, struct edns_data* edns, struct comm_reply* rep,
-        uint16_t qid)
+	struct respip_client_info* cinfo, uint16_t qflags,
+	struct edns_data* edns, struct comm_reply* rep, uint16_t qid)
 {
 	struct mesh_state* s = NULL;
-	int unique = edns_unique_mesh_state(edns->opt_list, mesh->env);
+	int unique = unique_mesh_state(edns->opt_list, mesh->env);
 	int was_detached = 0;
 	int was_noreply = 0;
 	int added = 0;
 	if(!unique)
-		s = mesh_area_find(mesh, qinfo, qflags&(BIT_RD|BIT_CD), 0, 0);
+		s = mesh_area_find(mesh, cinfo, qinfo, qflags&(BIT_RD|BIT_CD), 0, 0);
 	/* does this create a new reply state? */
 	if(!s || s->list_select == mesh_no_list) {
 		if(!mesh_make_new_space(mesh, rep->c->buffer)) {
@@ -323,7 +380,8 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 #ifdef UNBOUND_DEBUG
 		struct rbnode_type* n;
 #endif
-		s = mesh_state_create(mesh->env, qinfo, qflags&(BIT_RD|BIT_CD), 0, 0);
+		s = mesh_state_create(mesh->env, qinfo, cinfo,
+			qflags&(BIT_RD|BIT_CD), 0, 0);
 		if(!s) {
 			log_err("mesh_state_create: out of memory; SERVFAIL");
 			if(!inplace_cb_reply_servfail_call(mesh->env, qinfo, NULL, NULL,
@@ -412,12 +470,13 @@ mesh_new_callback(struct mesh_area* mesh, struct query_info* qinfo,
 	uint16_t qid, mesh_cb_func_type cb, void* cb_arg)
 {
 	struct mesh_state* s = NULL;
-	int unique = edns_unique_mesh_state(edns->opt_list, mesh->env);
+	int unique = unique_mesh_state(edns->opt_list, mesh->env);
 	int was_detached = 0;
 	int was_noreply = 0;
 	int added = 0;
 	if(!unique)
-		s = mesh_area_find(mesh, qinfo, qflags&(BIT_RD|BIT_CD), 0, 0);
+		s = mesh_area_find(mesh, NULL, qinfo, qflags&(BIT_RD|BIT_CD), 0, 0);
+
 	/* there are no limits on the number of callbacks */
 
 	/* see if it already exists, if not, create one */
@@ -425,7 +484,8 @@ mesh_new_callback(struct mesh_area* mesh, struct query_info* qinfo,
 #ifdef UNBOUND_DEBUG
 		struct rbnode_type* n;
 #endif
-		s = mesh_state_create(mesh->env, qinfo, qflags&(BIT_RD|BIT_CD), 0, 0);
+		s = mesh_state_create(mesh->env, qinfo, NULL,
+			qflags&(BIT_RD|BIT_CD), 0, 0);
 		if(!s) {
 			return 0;
 		}
@@ -476,8 +536,8 @@ mesh_new_callback(struct mesh_area* mesh, struct query_info* qinfo,
 void mesh_new_prefetch(struct mesh_area* mesh, struct query_info* qinfo,
         uint16_t qflags, time_t leeway)
 {
-	struct mesh_state* s = mesh_area_find(mesh, qinfo, qflags&(BIT_RD|BIT_CD),
-		0, 0);
+	struct mesh_state* s = mesh_area_find(mesh, NULL, qinfo,
+		qflags&(BIT_RD|BIT_CD), 0, 0);
 #ifdef UNBOUND_DEBUG
 	struct rbnode_type* n;
 #endif
@@ -497,7 +557,8 @@ void mesh_new_prefetch(struct mesh_area* mesh, struct query_info* qinfo,
 		return;
 	}
 
-	s = mesh_state_create(mesh->env, qinfo, qflags&(BIT_RD|BIT_CD), 0, 0);
+	s = mesh_state_create(mesh->env, qinfo, NULL,
+		qflags&(BIT_RD|BIT_CD), 0, 0);
 	if(!s) {
 		log_err("prefetch mesh_state_create: out of memory");
 		return;
@@ -546,7 +607,8 @@ void mesh_report_reply(struct mesh_area* mesh, struct outbound_entry* e,
 
 struct mesh_state* 
 mesh_state_create(struct module_env* env, struct query_info* qinfo, 
-	uint16_t qflags, int prime, int valrec)
+	struct respip_client_info* cinfo, uint16_t qflags, int prime,
+	int valrec)
 {
 	struct regional* region = alloc_reg_obtain(env->alloc);
 	struct mesh_state* mstate;
@@ -581,6 +643,14 @@ mesh_state_create(struct module_env* env, struct query_info* qinfo,
 	if(!mstate->s.qinfo.qname) {
 		alloc_reg_release(env->alloc, region);
 		return NULL;
+	}
+	if(cinfo) {
+		mstate->s.client_info = regional_alloc_init(region, cinfo,
+			sizeof(*cinfo));
+		if(!mstate->s.client_info) {
+			alloc_reg_release(env->alloc, region);
+			return NULL;
+		}
 	}
 	/* remove all weird bits from qflags */
 	mstate->s.query_flags = (qflags & (BIT_RD|BIT_CD));
@@ -756,7 +826,8 @@ int mesh_attach_sub(struct module_qstate* qstate, struct query_info* qinfo,
 {
 	/* find it, if not, create it */
 	struct mesh_area* mesh = qstate->env->mesh;
-	struct mesh_state* sub = mesh_area_find(mesh, qinfo, qflags, prime, valrec);
+	struct mesh_state* sub = mesh_area_find(mesh, NULL, qinfo, qflags,
+		prime, valrec);
 	int was_detached;
 	if(mesh_detect_cycle_found(qstate, sub)) {
 		verbose(VERB_ALGO, "attach failed, cycle detected");
@@ -767,7 +838,8 @@ int mesh_attach_sub(struct module_qstate* qstate, struct query_info* qinfo,
 		struct rbnode_type* n;
 #endif
 		/* create a new one */
-		sub = mesh_state_create(qstate->env, qinfo, qflags, prime, valrec);
+		sub = mesh_state_create(qstate->env, qinfo, NULL, qflags, prime,
+			valrec);
 		if(!sub) {
 			log_err("mesh_attach_sub: out of memory");
 			return 0;
@@ -1035,8 +1107,25 @@ void mesh_query_done(struct mesh_state* mstate)
 	struct reply_info* rep = (mstate->s.return_msg?
 		mstate->s.return_msg->rep:NULL);
 	for(r = mstate->reply_list; r; r = r->next) {
-		mesh_send_reply(mstate, mstate->s.return_rcode, rep, r, prev);
-		prev = r;
+		/* if a response-ip address block has been stored the
+		 *  information should be logged for each client. */
+		if(mstate->s.respip_action_info &&
+			mstate->s.respip_action_info->addrinfo) {
+			respip_inform_print(mstate->s.respip_action_info->addrinfo,
+				r->qname, mstate->s.qinfo.qtype,
+				mstate->s.qinfo.qclass, r->local_alias,
+				&r->query_reply);
+		}
+
+		/* if this query is determined to be dropped during the
+		 * mesh processing, this is the point to take that action. */
+		if(mstate->s.is_drop)
+			comm_point_drop_reply(&r->query_reply);
+		else {
+			mesh_send_reply(mstate, mstate->s.return_rcode, rep,
+				r, prev);
+			prev = r;
+		}
 	}
 	mstate->replies_sent = 1;
 	for(c = mstate->cb_list; c; c = c->next) {
@@ -1060,7 +1149,8 @@ void mesh_walk_supers(struct mesh_area* mesh, struct mesh_state* mstate)
 }
 
 struct mesh_state* mesh_area_find(struct mesh_area* mesh,
-	struct query_info* qinfo, uint16_t qflags, int prime, int valrec)
+	struct respip_client_info* cinfo, struct query_info* qinfo,
+	uint16_t qflags, int prime, int valrec)
 {
 	struct mesh_state key;
 	struct mesh_state* result;
@@ -1074,6 +1164,7 @@ struct mesh_state* mesh_area_find(struct mesh_area* mesh,
 	 * aggregate the state. Thus unique is set to NULL. (default when we
 	 * desire aggregation).*/
 	key.unique = NULL;
+	key.s.client_info = cinfo;
 	
 	result = (struct mesh_state*)rbtree_search(&mesh->all, &key);
 	return result;
@@ -1224,11 +1315,16 @@ mesh_continue(struct mesh_area* mesh, struct mesh_state* mstate,
 			return mesh_continue(mesh, mstate, module_error, ev);
 		}
 		if(s == module_restart_next) {
-			fptr_ok(fptr_whitelist_mod_clear(
-				mesh->mods.mod[mstate->s.curmod]->clear));
-			(*mesh->mods.mod[mstate->s.curmod]->clear)
-				(&mstate->s, mstate->s.curmod);
-			mstate->s.minfo[mstate->s.curmod] = NULL;
+			int curmod = mstate->s.curmod;
+			for(; mstate->s.curmod < mesh->mods.num; 
+				mstate->s.curmod++) {
+				fptr_ok(fptr_whitelist_mod_clear(
+					mesh->mods.mod[mstate->s.curmod]->clear));
+				(*mesh->mods.mod[mstate->s.curmod]->clear)
+					(&mstate->s, mstate->s.curmod);
+				mstate->s.minfo[mstate->s.curmod] = NULL;
+			}
+			mstate->s.curmod = curmod;
 		}
 		*ev = module_event_pass;
 		return 1;
@@ -1378,7 +1474,7 @@ mesh_detect_cycle(struct module_qstate* qstate, struct query_info* qinfo,
 	struct mesh_area* mesh = qstate->env->mesh;
 	struct mesh_state* dep_m = NULL;
 	if(!mesh_state_is_unique(qstate->mesh_info))
-		dep_m = mesh_area_find(mesh, qinfo, flags, prime, valrec);
+		dep_m = mesh_area_find(mesh, NULL, qinfo, flags, prime, valrec);
 	return mesh_detect_cycle_found(qstate, dep_m);
 }
 
