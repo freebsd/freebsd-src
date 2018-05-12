@@ -212,11 +212,17 @@
 
 	.macro	KENTER
 	testl	$PSL_VM, TF_EFLAGS(%esp)
-	jnz	1f
-	testb	$SEL_RPL_MASK, TF_CS(%esp)
-	jz	2f
-1:	MOVE_STACKS
-2:
+	jz	1f
+	LOAD_KCR3
+	movl	PCPU(CURPCB), %eax
+	testl	$PCB_VM86CALL, PCB_FLAGS(%eax)
+	jnz	3f
+	NMOVE_STACKS
+	jmp	2f
+1:	testb	$SEL_RPL_MASK, TF_CS(%esp)
+	jz	3f
+2:	MOVE_STACKS
+3:
 	.endm
 
 #endif /* LOCORE */
