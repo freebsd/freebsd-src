@@ -2532,12 +2532,12 @@ machdep_init_trampoline(void)
 	gdt[GPROC0_SEL].sd.sd_lobase = (int)tss;
 	gdt[GPROC0_SEL].sd.sd_hibase = (u_int)tss >> 24;
 	gdt[GPROC0_SEL].sd.sd_type = SDT_SYS386TSS;
-	ltr(GSEL(GPROC0_SEL, SEL_KPL));
 
 	PCPU_SET(fsgs_gdt, &gdt[GUFS_SEL].sd);
 	PCPU_SET(tss_gdt, &gdt[GPROC0_SEL].sd);
 	PCPU_SET(common_tssd, *PCPU_GET(tss_gdt));
 	PCPU_SET(common_tssp, tss);
+	ltr(GSEL(GPROC0_SEL, SEL_KPL));
 
 	trampoline = pmap_trm_alloc(end_exceptions - start_exceptions,
 	    M_NOWAIT);
