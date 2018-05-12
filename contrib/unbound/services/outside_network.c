@@ -1549,7 +1549,7 @@ serviced_check_qname(sldns_buffer* pkt, uint8_t* qbuf, size_t qbuflen)
 		return 0;
 	while(len1 != 0 || len2 != 0) {
 		if(LABEL_IS_PTR(len1)) {
-			d1 = sldns_buffer_at(pkt, PTR_OFFSET(len1, *d1));
+			d1 = sldns_buffer_begin(pkt)+PTR_OFFSET(len1, *d1);
 			if(d1 >= sldns_buffer_at(pkt, sldns_buffer_limit(pkt)))
 				return 0;
 			len1 = *d1++;
