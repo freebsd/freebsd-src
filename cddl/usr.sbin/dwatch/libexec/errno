@@ -22,6 +22,7 @@
 
 ############################################################ EVENT DETAILS
 
+if [ ! "$CUSTOM_DETAILS" ]; then
 exec 9<<EOF
 	/*
 	 * Print errno details
@@ -29,6 +30,7 @@ exec 9<<EOF
 	printf("%s: %s (%i)", probefunc, strerror[errno], errno);
 EOF
 EVENT_DETAILS=$( cat <&9 )
+fi
 
 ################################################################################
 # END

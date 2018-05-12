@@ -173,6 +173,7 @@ EVENT_TEST="this->fi_mount != 0"
 
 ############################################################ EVENT DETAILS
 
+if [ ! "$CUSTOM_DETAILS" ]; then
 exec 9<<EOF
 	/*
 	 * Print full path
@@ -180,6 +181,7 @@ exec 9<<EOF
 	printf("%s", this->path);
 EOF
 EVENT_DETAILS=$( cat <&9 )
+fi
 
 ################################################################################
 # END
