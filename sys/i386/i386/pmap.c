@@ -366,6 +366,7 @@ pdpt_entry_t *IdlePDPT;	/* phys addr of kernel PDPT */
 #endif
 pt_entry_t *KPTmap;	/* address of kernel page tables */
 u_long KPTphys;		/* phys addr of kernel page tables */
+extern u_long tramp_idleptd;
 
 static u_long
 allocpages(u_int cnt, u_long *physfree)
@@ -531,6 +532,7 @@ pmap_cold(void)
 #else
 	cr3 = (u_int)IdlePTD;
 #endif
+	tramp_idleptd = cr3;
 	load_cr3(cr3);
 	load_cr0(rcr0() | CR0_PG);
 
