@@ -5,17 +5,35 @@ sinclude(acx_nlnetlabs.m4)
 
 # must be numbers. ac_defun because of later processing.
 m4_define([VERSION_MAJOR],[1])
-m4_define([VERSION_MINOR],[6])
-m4_define([VERSION_MICRO],[17])
+m4_define([VERSION_MINOR],[7])
+m4_define([VERSION_MICRO],[0])
 AC_INIT(ldns, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), libdns@nlnetlabs.nl, libdns)
 AC_CONFIG_SRCDIR([packet.c])
 # needed to build correct soname
 AC_SUBST(LDNS_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(LDNS_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(LDNS_VERSION_MICRO, [VERSION_MICRO])
-AC_SUBST(VERSION_INFO, [VERSION_MAJOR:VERSION_MINOR:VERSION_MICRO])
+
+# Library version
+# ---------------
+# current:revision:age
+# (binary-api-number):(which-binary-api-version):(how-many-nrs-backwardscompat)
+# if source code changes increment revision
+# if any interfaces have been added/removed/changed since last update then
+#   increment current and set revision to 0
+# if any interfaces have been added since the last public release then increment age
+# if any interfaces have been removed or changed since the last public release then
+#   set age to 0
+#
+# ldns-1.6.17 and before had a .so with version same as VERSION_INFO
+# ldns-1.7.0 will have libversion 2:0:0
+#
+AC_SUBST(VERSION_INFO, [2:0:0])
 
 AC_AIX
+if test "$ac_cv_header_minix_config_h" = "yes"; then
+	AC_DEFINE(_NETBSD_SOURCE,1, [Enable for compile on Minix])
+fi
 LT_INIT
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -74,7 +92,9 @@ ACX_CHECK_COMPILER_FLAG(Wall, [CFLAGS="-Wall $CFLAGS"])
 ACX_CHECK_COMPILER_FLAG(W, [CFLAGS="-W $CFLAGS"])
 ACX_CHECK_COMPILER_FLAG(Wwrite-strings, [CFLAGS="-Wwrite-strings $CFLAGS"])
 ACX_CHECK_COMPILER_FLAG(Wstrict-prototypes, [CFLAGS="-Wstrict-prototypes $CFLAGS"])
-
+#ACX_CHECK_COMPILER_FLAG(Wshadow, [CFLAGS="-Wshadow $CFLAGS"])
+ACX_CHECK_COMPILER_FLAG(Wunused-function, [CFLAGS="-Wunused-function $CFLAGS"])
+ACX_CHECK_COMPILER_FLAG(Wmissing-prototypes, [CFLAGS="-Wmissing-prototypes $CFLAGS"])
 
 AC_CHECK_HEADERS([getopt.h time.h],,, [AC_INCLUDES_DEFAULT])
 
@@ -118,14 +138,12 @@ This does not work with the --with-drill option.
 Please remove the config.h from the drill subdirectory 
 or do not use the --with-drill option.])
 	fi
-	DRILL_CONFIG=" drill/drill.1"
 else
 	AC_SUBST(DRILL,[""])
 	AC_SUBST(INSTALL_DRILL,[""])
 	AC_SUBST(UNINSTALL_DRILL,[""])
 	AC_SUBST(CLEAN_DRILL,[""])
 	AC_SUBST(LINT_DRILL,[""])
-	DRILL_CONFIG=""
 fi
 
 
@@ -145,14 +163,12 @@ This does not work with the --with-examples option.
 Please remove the config.h from the examples subdirectory 
 or do not use the --with-examples option.])
 	fi
-	EXAMPLES_CONFIG=" examples/ldns-dane.1 examples/ldns-verify-zone.1"
 else
 	AC_SUBST(EXAMPLES,[""])
 	AC_SUBST(INSTALL_EXAMPLES,[""])
 	AC_SUBST(UNINSTALL_EXAMPLES,[""])
 	AC_SUBST(CLEAN_EXAMPLES,[""])
 	AC_SUBST(LINT_EXAMPLES,[""])
-	EXAMPLES_CONFIG=""
 fi
 
 # add option to disable installation of ldns-config script
@@ -179,6 +195,13 @@ case "$enable_stderr_msgs" in
         AC_DEFINE_UNQUOTED([STDERR_MSGS], [1], [Define this to enable messages to stderr.])
         ;;
 esac
+
+AX_HAVE_POLL(
+  [AX_CONFIG_FEATURE_ENABLE(poll)],
+  [AX_CONFIG_FEATURE_DISABLE(poll)])
+AX_CONFIG_FEATURE(
+  [poll], [This platform supports poll(7)],
+  [HAVE_POLL], [This platform supports poll(7).])
 
 # check for python
 PYTHON_X_CFLAGS=""
@@ -301,8 +324,14 @@ tmp_LDFLAGS=$LDFLAGS
 tmp_LIBS=$LIBS
 
 ACX_WITH_SSL_OPTIONAL
-
-AC_CHECK_FUNCS([EVP_sha256])
+AC_MSG_CHECKING([for LibreSSL])
+if grep VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL" >/dev/null; then
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([HAVE_LIBRESSL], [1], [Define if we have LibreSSL])
+else
+	AC_MSG_RESULT([no])
+fi
+AC_CHECK_FUNCS([EVP_sha256 EVP_sha384 EVP_sha512 ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id DSA_SIG_set0 DSA_SIG_get0 EVP_dss1 DSA_get0_pqg DSA_get0_key])
 
 # for macosx, see if glibtool exists and use that
 # BSD's need to know the version...
@@ -325,6 +354,103 @@ case "$enable_sha2" in
         ;;
 esac
 
+# check wether gost also works
+AC_DEFUN([AC_CHECK_GOST_WORKS],
+[AC_REQUIRE([AC_PROG_CC])
+AC_MSG_CHECKING([if GOST works])
+if test c${cross_compiling} = cno; then
+BAKCFLAGS="$CFLAGS"
+if test -n "$ssldir"; then
+	CFLAGS="$CFLAGS -Wl,-rpath,$ssldir/lib"
+fi
+AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#include <string.h>
+#include <openssl/ssl.h>
+#include <openssl/evp.h>
+#include <openssl/engine.h>
+#include <openssl/conf.h>
+/* routine to load gost (from sldns) */
+int load_gost_id(void)
+{
+	static int gost_id = 0;
+	const EVP_PKEY_ASN1_METHOD* meth;
+	ENGINE* e;
+
+	if(gost_id) return gost_id;
+
+	/* see if configuration loaded gost implementation from other engine*/
+	meth = EVP_PKEY_asn1_find_str(NULL, "gost2001", -1);
+	if(meth) {
+		EVP_PKEY_asn1_get0_info(&gost_id, NULL, NULL, NULL, NULL, meth);
+		return gost_id;
+	}
+
+	/* see if engine can be loaded already */
+	e = ENGINE_by_id("gost");
+	if(!e) {
+		/* load it ourself, in case statically linked */
+		ENGINE_load_builtin_engines();
+		ENGINE_load_dynamic();
+		e = ENGINE_by_id("gost");
+	}
+	if(!e) {
+		/* no gost engine in openssl */
+		return 0;
+	}
+	if(!ENGINE_set_default(e, ENGINE_METHOD_ALL)) {
+		ENGINE_finish(e);
+		ENGINE_free(e);
+		return 0;
+	}
+
+	meth = EVP_PKEY_asn1_find_str(&e, "gost2001", -1);
+	if(!meth) {
+		/* algo not found */
+		ENGINE_finish(e);
+		ENGINE_free(e);
+		return 0;
+	}
+	EVP_PKEY_asn1_get0_info(&gost_id, NULL, NULL, NULL, NULL, meth);
+	return gost_id;
+}
+int main(void) { 
+	EVP_MD_CTX* ctx;
+	const EVP_MD* md;
+	unsigned char digest[64]; /* its a 256-bit digest, so uses 32 bytes */
+	const char* str = "Hello world";
+	const unsigned char check[] = {
+		0x40 , 0xed , 0xf8 , 0x56 , 0x5a , 0xc5 , 0x36 , 0xe1 ,
+		0x33 , 0x7c , 0x7e , 0x87 , 0x62 , 0x1c , 0x42 , 0xe0 ,
+		0x17 , 0x1b , 0x5e , 0xce , 0xa8 , 0x46 , 0x65 , 0x4d ,
+		0x8d , 0x3e , 0x22 , 0x9b , 0xe1 , 0x30 , 0x19 , 0x9d
+	};
+	OPENSSL_config(NULL);
+	(void)load_gost_id();
+	md = EVP_get_digestbyname("md_gost94");
+	if(!md) return 1;
+	memset(digest, 0, sizeof(digest));
+	ctx = EVP_MD_CTX_create();
+	if(!ctx) return 2;
+	if(!EVP_DigestInit_ex(ctx, md, NULL)) return 3;
+	if(!EVP_DigestUpdate(ctx, str, 10)) return 4;
+	if(!EVP_DigestFinal_ex(ctx, digest, NULL)) return 5;
+	/* uncomment to see the hash calculated.
+		{int i;
+		for(i=0; i<32; i++)
+			printf(" %2.2x", (int)digest[i]);
+		printf("\n");}
+	*/
+	if(memcmp(digest, check, sizeof(check)) != 0)
+		return 6;
+	return 0;
+}
+]])] , [eval "ac_cv_c_gost_works=yes"], [eval "ac_cv_c_gost_works=no"])
+CFLAGS="$BAKCFLAGS"
+else
+eval "ac_cv_c_gost_works=maybe"
+fi
+])dnl
+
 AC_ARG_ENABLE(gost, AC_HELP_STRING([--disable-gost], [Disable GOST support]))
 case "$enable_gost" in
     no)
@@ -336,7 +462,22 @@ case "$enable_gost" in
         AC_MSG_CHECKING(for GOST)
         AC_CHECK_FUNC(EVP_PKEY_set_type_str, [],[AC_MSG_ERROR([OpenSSL >= 1.0.0 is needed for GOST support or rerun with --disable-gost])])
         AC_CHECK_FUNC(EC_KEY_new, [], [AC_MSG_ERROR([No ECC functions found in OpenSSL: please upgrade OpenSSL or rerun with --disable-gost])])
-        AC_DEFINE_UNQUOTED([USE_GOST], [1], [Define this to enable GOST support.])
+	AC_CHECK_GOST_WORKS
+	AC_ARG_ENABLE(gost-anyway, AC_HELP_STRING([--enable-gost-anyway], [Enable GOST even whithout a GOST engine installed]))
+	if test "$ac_cv_c_gost_works" != "no" -o "$enable_gost_anyway" = "yes"; then
+		if test "$ac_cv_c_gost_works" = "no"; then
+			AC_MSG_RESULT([no, but compiling with GOST support anyway])
+		else
+			AC_MSG_RESULT([yes])
+		fi
+		use_gost="yes"
+		AC_DEFINE([USE_GOST], [1], [Define this to enable GOST support.])
+	else
+		AC_MSG_RESULT([no])
+		AC_MSG_WARN([Gost support does not work because the engine is missing.])
+		AC_MSG_WARN([Install gost-engine first or use the --enable-gost-anyway to compile with GOST support anyway])
+		AC_MSG_WARN([See also https://github.com/gost-engine/engine/wiki for information about gost-engine])
+	fi
         ;;
 esac
 
@@ -358,18 +499,102 @@ case "$enable_ecdsa" in
       ;;
 esac
 
+AC_ARG_ENABLE(dsa, AC_HELP_STRING([--disable-dsa], [Disable DSA support]))
+case "$enable_dsa" in
+    no)
+      ;;
+    *) dnl default
+      # detect if DSA is supported, and turn it off if not.
+      AC_CHECK_FUNC(DSA_SIG_new, [
+	AC_DEFINE_UNQUOTED([USE_DSA], [1], [Define this to enable DSA support.])
+      ], [if test "x$enable_dsa" = "xyes"; then AC_MSG_ERROR([OpenSSL does not support DSA and you used --enable-dsa.])
+	  fi ])
+      ;;
+esac
+
+AC_ARG_ENABLE(ed25519, AC_HELP_STRING([--enable-ed25519], [Enable ED25519 support (experimental)]))
+case "$enable_ed25519" in
+    yes)
+      if test "x$HAVE_SSL" != "xyes"; then
+        AC_MSG_ERROR([ED25519 enabled, but no SSL support])
+      fi
+      AC_CHECK_DECLS([NID_X25519], [], [AC_MSG_ERROR([OpenSSL does not support the EDDSA curve: please upgrade OpenSSL or rerun with --disable-ed25519])], [AC_INCLUDES_DEFAULT
+#include <openssl/evp.h>
+      ])
+      AC_DEFINE_UNQUOTED([USE_ED25519], [1], [Define this to enable ED25519 support.])
+      ;;
+    *|no) dnl default
+      ;;
+esac
+
+AC_ARG_ENABLE(ed448, AC_HELP_STRING([--enable-ed448], [Enable ED448 support (experimental)]))
+case "$enable_ed448" in
+    yes)
+      if test "x$HAVE_SSL" != "xyes"; then
+        AC_MSG_ERROR([ED448 enabled, but no SSL support])
+      fi
+      AC_CHECK_DECLS([NID_X448], [], [AC_MSG_ERROR([OpenSSL does not support the EDDSA curve: please upgrade OpenSSL or rerun with --disable-ed448])], [AC_INCLUDES_DEFAULT
+#include <openssl/evp.h>
+      ])
+      AC_DEFINE_UNQUOTED([USE_ED448], [1], [Define this to enable ED448 support.])
+      ;;
+    *|no) dnl default
+      ;;
+esac
+
 AC_ARG_ENABLE(dane, AC_HELP_STRING([--disable-dane], [Disable DANE support]))
+AC_ARG_ENABLE(dane-verify, AC_HELP_STRING([--disable-dane-verify], [Disable DANE verify support]))
+AC_ARG_ENABLE(dane-ta-usage, AC_HELP_STRING([--disable-dane-ta-usage], [Disable DANE-TA usage type support]))
+
+AC_ARG_ENABLE(full-dane,, [
+	enable_dane_ta_usage=yes
+	enable_dane_verify=yes
+	enable_dane=yes
+])
+AC_ARG_ENABLE(no-dane-ta-usage,, [
+	enable_dane_ta_usage=no
+	enable_dane_verify=yes
+	enable_dane=yes
+])
+AC_ARG_ENABLE(no-dane-verify,, [
+	enable_dane_ta_usage=no
+	enable_dane_verify=no
+	enable_dane=yes
+])
 case "$enable_dane" in
     no)
       AC_SUBST(ldns_build_config_use_dane, 0)
+      AC_SUBST(ldns_build_config_use_dane_verify, 0)
+      AC_SUBST(ldns_build_config_use_dane_ta_usage, 0)
       ;;
     *) dnl default
       if test "x$HAVE_SSL" != "xyes"; then
         AC_MSG_ERROR([DANE enabled, but no SSL support])
       fi
       AC_CHECK_FUNC(X509_check_ca, [], [AC_MSG_ERROR([OpenSSL does not support DANE: please upgrade OpenSSL or rerun with --disable-dane])])
-      AC_DEFINE_UNQUOTED([USE_DANE], [1], [Define this to enable DANE support.])
       AC_SUBST(ldns_build_config_use_dane, 1)
+      AC_DEFINE_UNQUOTED([USE_DANE], [1], [Define this to enable DANE support.])
+      case "$enable_dane_verify" in
+          no)
+            AC_SUBST(ldns_build_config_use_dane_verify, 0)
+            AC_SUBST(ldns_build_config_use_dane_ta_usage, 0)
+	    ;;
+	  *)
+	    AC_SUBST(ldns_build_config_use_dane_verify, 1)
+	    AC_DEFINE_UNQUOTED([USE_DANE_VERIFY], [1], [Define this to enable DANE verify support.])
+            case "$enable_dane_ta_usage" in
+                no)
+                  AC_SUBST(ldns_build_config_use_dane_ta_usage, 0)
+                  ;;
+                *) dnl default
+      	    LIBS="-lssl $LIBS"
+                  AC_CHECK_FUNC(SSL_get0_dane, [], [AC_MSG_ERROR([OpenSSL does not support offline DANE verification (Needed for the DANE-TA usage type).  Please upgrade OpenSSL to version >= 1.1.0 or rerun with --disable-dane-verify or --disable-dane-ta-usage])])
+                  LIBSSL_LIBS="$LIBSSL_LIBS -lssl"
+                  AC_SUBST(ldns_build_config_use_dane_ta_usage, 1)
+                  AC_DEFINE_UNQUOTED([USE_DANE_TA_USAGE], [1], [Define this to enable DANE-TA usage type support.])
+                  ;;
+            esac
+      esac
       ;;
 esac
 
@@ -389,26 +614,26 @@ case "$enable_rrtype_rkey" in
 	no|*)
 		;;
 esac
-AC_ARG_ENABLE(rrtype-cds, AC_HELP_STRING([--enable-rrtype-cds], [Enable draft RR type cds.]))
-case "$enable_rrtype_cds" in
-	yes)
-		AC_DEFINE_UNQUOTED([RRTYPE_CDS], [], [Define this to enable RR type CDS.])
+AC_ARG_ENABLE(rrtype-openpgpkey, AC_HELP_STRING([--disable-rrtype-openpgpkey], [Disable openpgpkey RR type.]))
+case "$enable_rrtype_openpgpkey" in
+	no)
 		;;
-	no|*)
-		;;
-esac
-AC_ARG_ENABLE(rrtype-uri, AC_HELP_STRING([--enable-rrtype-uri], [Enable draft RR type uri.]))
-case "$enable_rrtype_uri" in
-	yes)
-		AC_DEFINE_UNQUOTED([RRTYPE_URI], [], [Define this to enable RR type URI.])
-		;;
-	no|*)
+	yes|*)
+		AC_DEFINE_UNQUOTED([RRTYPE_OPENPGPKEY], [], [Define this to enable RR type OPENPGPKEY.])
 		;;
 esac
 AC_ARG_ENABLE(rrtype-ta, AC_HELP_STRING([--enable-rrtype-ta], [Enable draft RR type ta.]))
 case "$enable_rrtype_ta" in
 	yes)
 		AC_DEFINE_UNQUOTED([RRTYPE_TA], [], [Define this to enable RR type TA.])
+		;;
+	no|*)
+		;;
+esac
+AC_ARG_ENABLE(rrtype-avc, AC_HELP_STRING([--enable-rrtype-avc], [Enable draft RR type avc.]))
+case "$enable_rrtype_avc" in
+	yes)
+		AC_DEFINE_UNQUOTED([RRTYPE_AVC], [], [Define this to enable RR type AVC.])
 		;;
 	no|*)
 		;;
@@ -616,31 +841,26 @@ ACX_FUNC_IOCTLSOCKET
 ACX_CHECK_FORMAT_ATTRIBUTE
 ACX_CHECK_UNUSED_ATTRIBUTE
 
-# check OSX deployment target which is needed
+# check OSX deployment target, if needed
 if echo $build_os | grep darwin > /dev/null; then
- 	export MACOSX_DEPLOYMENT_TARGET="10.4"
+  sdk_p=`xcode-select -print-path`;
+  sdk_v="$( /usr/bin/xcrun --show-sdk-version )";
+  case $sdk_v in
+       10.9|10.8)   sdk_c="10.7";;
+       10.11|10.10|*) sdk_c="10.10";;
+  esac
+  export MACOSX_DEPLOYMENT_TARGET="${sdk_c}";
+  export CFLAGS="$CFLAGS -mmacosx-version-min=${sdk_c} -isysroot ${sdk_p}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX${sdk_v}.sdk";
 fi
 
 AC_DEFINE([SYSCONFDIR], [sysconfdir], [System configuration dir])
 
 AC_ARG_WITH(trust-anchor, AC_HELP_STRING([--with-trust-anchor=KEYFILE], [Default location of the trust anchor file for drill and ldns-dane. [default=SYSCONFDIR/unbound/root.key]]), [
- LDNS_TRUST_ANCHOR_FILE="$withval"
+ AC_SUBST([LDNS_TRUST_ANCHOR_FILE], ["$withval"])
+ AC_MSG_NOTICE([Default trust anchor: $withval])
 ],[
- if test "x$LDNS_TRUST_ANCHOR_FILE" = "x"; then
-  if test "x$sysconfdir" = 'x${prefix}/etc' ; then
-   if test "x$prefix" = 'xNONE' ; then
-    LDNS_TRUST_ANCHOR_FILE="/etc/unbound/root.key"
-   else
-    LDNS_TRUST_ANCHOR_FILE="${prefix}/etc/unbound/root.key"
-   fi
-  else
-    LDNS_TRUST_ANCHOR_FILE="${sysconfdir}/unbound/root.key"
-  fi
- fi
+ AC_SUBST([LDNS_TRUST_ANCHOR_FILE], ["\$(sysconfdir)/unbound/root.key"])
 ])
-AC_DEFINE_UNQUOTED([LDNS_TRUST_ANCHOR_FILE], ["$LDNS_TRUST_ANCHOR_FILE"], [Default trust anchor file])
-AC_SUBST(LDNS_TRUST_ANCHOR_FILE)
-AC_MSG_NOTICE([Default trust anchor: $LDNS_TRUST_ANCHOR_FILE])
 
 AC_ARG_WITH(ca-file, AC_HELP_STRING([--with-ca-file=CAFILE], [File containing CA certificates for ldns-dane]), [
  AC_DEFINE([HAVE_DANE_CA_FILE], [1], [Is a CAFILE given at configure time])
@@ -793,6 +1013,15 @@ void *memmove(void *dest, const void *src, size_t n);
 #ifndef HAVE_STRLCPY
 size_t strlcpy(char *dst, const char *src, size_t siz);
 #endif
+
+#ifdef USE_WINSOCK
+#define SOCK_INVALID INVALID_SOCKET
+#define close_socket(_s) do { if (_s > SOCK_INVALID) {closesocket(_s); _s = SOCK_INVALID;} } while(0)
+#else
+#define SOCK_INVALID -1
+#define close_socket(_s) do { if (_s > SOCK_INVALID) {close(_s); _s = SOCK_INVALID;} } while(0)
+#endif
+
 #ifdef __cplusplus
 }
 #endif
@@ -820,7 +1049,7 @@ else
   AC_SUBST(ldns_build_config_have_attr_unused, 0)
 fi
 
-CONFIG_FILES="Makefile ldns/common.h ldns/net.h ldns/util.h packaging/libldns.pc packaging/ldns-config $DRILL_CONFIG $EXAMPLES_CONFIG"
+CONFIG_FILES="Makefile ldns/common.h ldns/net.h ldns/util.h packaging/libldns.pc packaging/ldns-config"
 AC_SUBST(CONFIG_FILES)
 AC_CONFIG_FILES([$CONFIG_FILES])
 

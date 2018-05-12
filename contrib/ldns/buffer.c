@@ -38,7 +38,7 @@ ldns_buffer_new(size_t capacity)
 }
 
 void
-ldns_buffer_new_frm_data(ldns_buffer *buffer, void *data, size_t size)
+ldns_buffer_new_frm_data(ldns_buffer *buffer, const void *data, size_t size)
 {
 	assert(data != NULL);
 
@@ -165,7 +165,7 @@ ldns_bgetc(ldns_buffer *buffer)
 }
 
 void 
-ldns_buffer_copy(ldns_buffer* result, ldns_buffer* from)
+ldns_buffer_copy(ldns_buffer* result, const ldns_buffer* from)
 {
 	size_t tocopy = ldns_buffer_limit(from);
 

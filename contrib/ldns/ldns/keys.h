@@ -55,6 +55,16 @@ enum ldns_enum_algorithm
         LDNS_ECC_GOST           = 12,  /* RFC 5933 */
         LDNS_ECDSAP256SHA256    = 13,  /* RFC 6605 */
         LDNS_ECDSAP384SHA384    = 14,  /* RFC 6605 */
+#ifdef USE_ED25519
+	/* this ifdef is internal to ldns, because we do not want to export
+	 * the symbol.  Users can define it if they want access,
+	 * the feature is not fully implemented at this time and openssl
+	 * does not support it fully either (also for ED448). */
+	LDNS_ED25519		= 15,  /* draft-ietf-curdle-dnskey-ed25519 */
+#endif
+#ifdef USE_ED448
+	LDNS_ED448		= 16,  /* draft-ietf-curdle-dnskey-ed448 */
+#endif
         LDNS_INDIRECT           = 252,
         LDNS_PRIVATEDNS         = 253,
         LDNS_PRIVATEOID         = 254
@@ -88,9 +98,18 @@ enum ldns_enum_signing_algorithm
 	LDNS_SIGN_ECC_GOST       = LDNS_ECC_GOST,
         LDNS_SIGN_ECDSAP256SHA256 = LDNS_ECDSAP256SHA256,
         LDNS_SIGN_ECDSAP384SHA384 = LDNS_ECDSAP384SHA384,
+#ifdef USE_ED25519
+	LDNS_SIGN_ED25519	 = LDNS_ED25519,
+#endif
+#ifdef USE_ED448
+	LDNS_SIGN_ED448		 = LDNS_ED448,
+#endif
 	LDNS_SIGN_HMACMD5	 = 157,	/* not official! This type is for TSIG, not DNSSEC */
 	LDNS_SIGN_HMACSHA1	 = 158,	/* not official! This type is for TSIG, not DNSSEC */
-	LDNS_SIGN_HMACSHA256 = 159  /* ditto */
+	LDNS_SIGN_HMACSHA256 = 159,  /* ditto */
+	LDNS_SIGN_HMACSHA224 = 162,  /* ditto */
+	LDNS_SIGN_HMACSHA384 = 164,  /* ditto */
+	LDNS_SIGN_HMACSHA512 = 165  /* ditto */
 };
 typedef enum ldns_enum_signing_algorithm ldns_signing_algorithm;
 
@@ -553,7 +572,7 @@ ldns_key *ldns_key_list_pop_key(ldns_key_list *key_list);
 ldns_rr *ldns_key2rr(const ldns_key *k);
 
 /**
- * print a private key to the file ouput
+ * print a private key to the file output
  * 
  * \param[in] output the FILE descriptor where to print to
  * \param[in] k the ldns_key to print
@@ -598,7 +617,7 @@ ldns_rr * ldns_read_anchor_file(const char *filename);
  * \param[in] key the key to get the file name from
  * \returns A string containing the file base name
  */
-char *ldns_key_get_file_base_name(ldns_key *key);
+char *ldns_key_get_file_base_name(const ldns_key *key);
 
 /**
  * See if a key algorithm is supported

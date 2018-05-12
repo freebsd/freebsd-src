@@ -69,7 +69,7 @@ struct ldns_struct_resolver
 	/**  Round trip time; 0 -> infinity. Unit: ms? */
 	size_t *_rtt;
 
-	/**  Wether or not to be recursive */
+	/**  Whether or not to be recursive */
 	bool _recursive;
 
 	/**  Print debug information */
@@ -101,7 +101,7 @@ struct ldns_struct_resolver
 	bool _usevc;
 	/**  Whether to ignore the tc bit */
 	bool _igntc;
-	/**  Whether to use ip6, 0->does not matter, 1 is IPv4, 2 is IPv6 */
+	/**  Whether to use ip6: 0->does not matter, 1 is IPv4, 2 is IPv6 */
 	uint8_t _ip6;
 	/**  If true append the default domain */
 	bool _defnames;
@@ -128,6 +128,8 @@ struct ldns_struct_resolver
 	uint16_t _axfr_i;
 	/* EDNS0 available buffer size */
 	uint16_t _edns_udp_size;
+	/* serial for IXFR */
+	uint32_t _serial;
 
 	/* Optional tsig key for signing queries,
 	outgoing messages are signed if and only if both are set
@@ -310,21 +312,24 @@ size_t ldns_resolver_nameserver_rtt(const ldns_resolver *r, size_t pos);
 /**
  * Return the tsig keyname as used by the nameserver
  * \param[in] r the resolver
- * \return the name used.
+ * \return the name used. Still owned by the resolver - change using
+ * ldns_resolver_set_tsig_keyname().
  */
-char *ldns_resolver_tsig_keyname(const ldns_resolver *r);
+const char *ldns_resolver_tsig_keyname(const ldns_resolver *r);
 /**
  * Return the tsig algorithm as used by the nameserver
  * \param[in] r the resolver
- * \return the algorithm used.
+ * \return the algorithm used. Still owned by the resolver - change using
+ * ldns_resolver_set_tsig_algorithm().
  */
-char *ldns_resolver_tsig_algorithm(const ldns_resolver *r);
+const char *ldns_resolver_tsig_algorithm(const ldns_resolver *r);
 /**
  * Return the tsig keydata as used by the nameserver
  * \param[in] r the resolver
- * \return the keydata used.
+ * \return the keydata used. Still owned by the resolver - change using
+ * ldns_resolver_set_tsig_keydata().
  */
-char *ldns_resolver_tsig_keydata(const ldns_resolver *r);
+const char *ldns_resolver_tsig_keydata(const ldns_resolver *r);
 /**
  * pop the last nameserver from the resolver.
  * \param[in] r the resolver
@@ -519,23 +524,23 @@ void ldns_resolver_set_edns_udp_size(ldns_resolver *r, uint16_t s);
 /**
  * Set the tsig key name
  * \param[in] r the resolver
- * \param[in] tsig_keyname the tsig key name
+ * \param[in] tsig_keyname the tsig key name (copied into resolver)
  */
-void ldns_resolver_set_tsig_keyname(ldns_resolver *r, char *tsig_keyname);
+void ldns_resolver_set_tsig_keyname(ldns_resolver *r, const char *tsig_keyname);
 
 /**
  * Set the tsig algorithm
  * \param[in] r the resolver
- * \param[in] tsig_algorithm the tsig algorithm
+ * \param[in] tsig_algorithm the tsig algorithm (copied into resolver)
  */
-void ldns_resolver_set_tsig_algorithm(ldns_resolver *r, char *tsig_algorithm);
+void ldns_resolver_set_tsig_algorithm(ldns_resolver *r, const char *tsig_algorithm);
 
 /**
  * Set the tsig key data
  * \param[in] r the resolver
- * \param[in] tsig_keydata the key data
+ * \param[in] tsig_keydata the key data (copied into resolver)
  */
-void ldns_resolver_set_tsig_keydata(ldns_resolver *r, char *tsig_keydata);
+void ldns_resolver_set_tsig_keydata(ldns_resolver *r, const char *tsig_keydata);
 
 /**
  * Set round trip time for all nameservers. Note this currently
@@ -568,7 +573,7 @@ void ldns_resolver_set_random(ldns_resolver *r, bool b);
  * \param[in] n the ip address
  * \return ldns_status a status
  */
-ldns_status ldns_resolver_push_nameserver(ldns_resolver *r, ldns_rdf *n);
+ldns_status ldns_resolver_push_nameserver(ldns_resolver *r, const ldns_rdf *n);
 
 /**
  * Push a new nameserver to the resolver. It must be an
@@ -577,7 +582,7 @@ ldns_status ldns_resolver_push_nameserver(ldns_resolver *r, ldns_rdf *n);
  * \param[in] rr the resource record
  * \return ldns_status a status
  */
-ldns_status ldns_resolver_push_nameserver_rr(ldns_resolver *r, ldns_rr *rr);
+ldns_status ldns_resolver_push_nameserver_rr(ldns_resolver *r, const ldns_rr *rr);
 
 /**
  * Push a new nameserver rr_list to the resolver.
@@ -585,7 +590,7 @@ ldns_status ldns_resolver_push_nameserver_rr(ldns_resolver *r, ldns_rr *rr);
  * \param[in] rrlist the rr_list to push
  * \return ldns_status a status
  */
-ldns_status ldns_resolver_push_nameserver_rr_list(ldns_resolver *r, ldns_rr_list *rrlist);
+ldns_status ldns_resolver_push_nameserver_rr_list(ldns_resolver *r, const ldns_rr_list *rrlist);
 
 /**
  * Send the query for using the resolver and take the search list into account
@@ -639,7 +644,7 @@ ldns_status ldns_resolver_prepare_query_pkt(ldns_pkt **q, ldns_resolver *r, cons
  * \param[in] c query for this class (may be 0, default to IN)
  * \param[in] flags the query flags
  *
- * \return ldns_pkt* a packet with the reply from the nameserver
+ * \return ldns_status LDNS_STATUS_OK on success
  */
 ldns_status ldns_resolver_send(ldns_pkt **answer, ldns_resolver *r, const ldns_rdf *name, ldns_rr_type t, ldns_rr_class c, uint16_t flags);
 
@@ -684,9 +689,16 @@ ldns_pkt* ldns_resolver_query(const ldns_resolver *r, const ldns_rdf *name, ldns
 
 /**
  * Create a new resolver structure
- * \return ldns_resolver* pointer to new strcture
+ * \return ldns_resolver* pointer to new structure
  */
 ldns_resolver* ldns_resolver_new(void);
+
+/**
+ * Clone a resolver
+ * \param[in] r the resolver to clone
+ * \return ldns_resolver* pointer to new structure
+ */
+ldns_resolver* ldns_resolver_clone(ldns_resolver *r);
 
 /**
  * Create a resolver structure from a file like /etc/resolv.conf
@@ -710,7 +722,7 @@ ldns_status ldns_resolver_new_frm_fp_l(ldns_resolver **r, FILE *fp, int *line_nr
 /**
  * Configure a resolver by means of a resolv.conf file
  * The file may be NULL in which case there will  be
- * looked the RESOLV_CONF (defaults to /etc/resolv.conf
+ * looked the RESOLV_CONF (defaults to /etc/resolv.conf)
  * \param[out] r the new resolver
  * \param[in] filename the filename to use
  * \return LDNS_STATUS_OK or the error
@@ -759,6 +771,20 @@ bool ldns_axfr_complete(const ldns_resolver *resolver);
  * \return ldns_pkt the last packet sent
  */
 ldns_pkt *ldns_axfr_last_pkt(const ldns_resolver *res);
+
+/**
+ * Get the serial for requesting IXFR.
+ * \param[in] r the resolver
+ * \param[in] serial serial
+ */
+void ldns_resolver_set_ixfr_serial(ldns_resolver *r, uint32_t serial);
+
+/**
+ * Get the serial for requesting IXFR.
+ * \param[in] res the resolver
+ * \return uint32_t serial
+ */
+uint32_t ldns_resolver_get_ixfr_serial(const ldns_resolver *res);
 
 /**
  * Randomize the nameserver list in the resolver

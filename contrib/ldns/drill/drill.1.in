@@ -40,7 +40,7 @@ Send to query to this server. If not specified use the nameservers from
 .PP
 \fItype\fR
 Ask for this RR type. If type is not given on the command line it defaults
-to 'A'. Except when doing to reverse lookup when it defaults to 'PTR'.
+to 'A'. Except when doing a reverse lookup when it defaults to 'PTR'.
 
 .PP
 \fIclass\fR
@@ -51,17 +51,17 @@ Use this class when querying.
 Show the MX records of the domain miek.nl
 
 .TP
-\fBdrill -S jelte.nlnetlabs.nl\fR
+\fBdrill \-S jelte.nlnetlabs.nl\fR
 Chase any signatures in the jelte.nlnetlab.nl domain. This option is
 only available when ldns has been compiled with openssl-support.
 
 .TP
-\fBdrill -TD www.example.com\fR
-Do a DNSSEC (-D) trace (-T) from the rootservers down to www.example.com.
+\fBdrill \-TD www.example.com\fR
+Do a DNSSEC (\-D) trace (\-T) from the rootservers down to www.example.com.
 This option only works when ldns has been compiled with openssl support.
 
 .TP
-\fBdrill -s dnskey jelte.nlnetlabs.nl\fR
+\fBdrill \-s dnskey jelte.nlnetlabs.nl\fR
 Show the DNSKEY record(s) for jelte.nlnetlabs.nl. For each found DNSKEY
 record also print the DS record.
 
@@ -70,12 +70,12 @@ record also print the DS record.
 .TP
 \fB\-D
 Enable DNSSEC in the query. When querying for DNSSEC types (DNSKEY, RRSIG,
-DS and NSEC) this is \fInot\fR automaticly enabled.
+DS and NSEC) this is \fInot\fR automatically enabled.
 
 .TP
 \fB\-T
-Trace \fIname\fR from the root down. When using this option the @server and
-the type arguments are not used.
+Trace \fIname\fR from the root down. When using this option the @server
+arguments is not used.
 
 .TP
 \fB\-S
@@ -93,11 +93,11 @@ Be more verbose. Set level to 5 to see the actual query that is sent.
 
 .TP
 \fB\-Q
-Quiet mode, this overrules -V. 
+Quiet mode, this overrules \-V.
 
 .TP
 \fB\-f \fIfile\fR
-Read the query from a file. The query must be dumped with -w. 
+Read the query from a file. The query must be dumped with \-w.
 
 .TP
 \fB\-i \fIfile\fR
@@ -153,7 +153,7 @@ Use file instead of /etc/resolv.conf for nameserver configuration.
 
 .TP
 \fB\-d \fIdomain\fR
-When tracing (-T), start from this domain instead of the root.
+When tracing (\-T), start from this domain instead of the root.
 
 .TP
 \fB\-t
@@ -195,7 +195,7 @@ Use this port instead of the default of 53.
 
 .TP
 \fB\-r \fIfile\fR
-When tracing (-T), use file as a root servers hint file.
+When tracing (\-T), use file as a root servers hint file.
 
 .TP
 \fB\-s
@@ -208,11 +208,11 @@ Use UDP when querying a server. This is the default.
 .TP
 \fB\-w \fIfile\fR
 write the answer to a file. The file will contain a hexadecimal dump
-of the query. This can be used in conjunction with -f.
+of the query. This can be used in conjunction with \-f.
 
 .TP
 \fB\-x
-Do a reverse loopup. The type argument is not used, it is preset to PTR.
+Do a reverse lookup. The type argument is not used, it is preset to PTR.
 
 .TP
 \fB\-y \fI<name:key[:algo]>\fR

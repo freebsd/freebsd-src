@@ -2,7 +2,7 @@
  * higher.c
  *
  * Specify some higher level functions that would
- * be usefull to would be developers
+ * be useful to would be developers
  *
  * a Net::DNS like library for C
  *
@@ -21,8 +21,8 @@
 #endif /* HAVE_SSL */
 
 ldns_rr_list *
-ldns_get_rr_list_addr_by_name(ldns_resolver *res, ldns_rdf *name, ldns_rr_class c, 
-		uint16_t flags)
+ldns_get_rr_list_addr_by_name(ldns_resolver *res, const ldns_rdf *name,
+		ldns_rr_class c, uint16_t flags)
 {
 	ldns_pkt *pkt;
 	ldns_rr_list *aaaa;
@@ -104,8 +104,8 @@ ldns_get_rr_list_addr_by_name(ldns_resolver *res, ldns_rdf *name, ldns_rr_class 
 }
 
 ldns_rr_list *
-ldns_get_rr_list_name_by_addr(ldns_resolver *res, ldns_rdf *addr, ldns_rr_class c, 
-		uint16_t flags)
+ldns_get_rr_list_name_by_addr(ldns_resolver *res, const ldns_rdf *addr,
+		ldns_rr_class c, uint16_t flags)
 {
 	ldns_pkt *pkt;
 	ldns_rr_list *names;
@@ -216,6 +216,9 @@ ldns_get_rr_list_hosts_frm_fp_l(FILE *fp, int *line_nr)
 				}
 				(void)strlcpy(addr, word, LDNS_MAX_LINELEN+1);
 			} else {
+				/* Stop parsing line when a comment begins. */
+				if (word[0] == '#')
+					break;
 				/* la al la la */
 				if (ip6) {
 					snprintf(rr_str, LDNS_MAX_LINELEN, 
@@ -227,8 +230,8 @@ ldns_get_rr_list_hosts_frm_fp_l(FILE *fp, int *line_nr)
 				parse_result = ldns_rr_new_frm_str(&rr, rr_str, 0, NULL, NULL);
 				if (parse_result == LDNS_STATUS_OK && ldns_rr_owner(rr) && ldns_rr_rd_count(rr) > 0) {
 					ldns_rr_list_push_rr(list, ldns_rr_clone(rr));
+					ldns_rr_free(rr);
 				}
-				ldns_rr_free(rr);
 			}
 		}
 		ldns_buffer_free(linebuf);
@@ -262,8 +265,8 @@ ldns_get_rr_list_hosts_frm_file(char *filename)
 }
 
 uint16_t
-ldns_getaddrinfo(ldns_resolver *res, ldns_rdf *node, ldns_rr_class c, 
-		ldns_rr_list **ret)
+ldns_getaddrinfo(ldns_resolver *res, const ldns_rdf *node,
+		ldns_rr_class c, ldns_rr_list **ret)
 {
 	ldns_rdf_type t;
 	uint16_t names_found;
@@ -302,7 +305,7 @@ ldns_getaddrinfo(ldns_resolver *res, ldns_rdf *node, ldns_rr_class c,
 }
 
 bool
-ldns_nsec_type_check(ldns_rr *nsec, ldns_rr_type t)
+ldns_nsec_type_check(const ldns_rr *nsec, ldns_rr_type t)
 {
 	switch (ldns_rr_get_type(nsec)) {
 	case LDNS_RR_TYPE_NSEC	: if (ldns_rr_rd_count(nsec) < 2) {
