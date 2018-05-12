@@ -297,6 +297,9 @@
 /* Define to 1 if you have the <nettle/dsa-compat.h> header file. */
 /* #undef HAVE_NETTLE_DSA_COMPAT_H */
 
+/* Define to 1 if you have the <nettle/eddsa.h> header file. */
+/* #undef HAVE_NETTLE_EDDSA_H */
+
 /* Use libnss for crypto */
 /* #undef HAVE_NSS */
 
@@ -602,7 +605,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.6.4"
+#define PACKAGE_STRING "unbound 1.6.6"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -611,7 +614,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.6.4"
+#define PACKAGE_VERSION "1.6.6"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -630,7 +633,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,6,4,0
+#define RSRC_PACKAGE_VERSION 1,6,6,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"

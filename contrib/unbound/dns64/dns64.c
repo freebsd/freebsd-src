@@ -540,6 +540,7 @@ dns64_operate(struct module_qstate* qstate, enum module_ev event, int id,
 		case module_event_new:
 			/* Tag this query as being new and fall through. */
 			qstate->minfo[id] = (void*)DNS64_NEW_QUERY;
+  			/* fallthrough */
 		case module_event_pass:
 			qstate->ext_state[id] = handle_event_pass(qstate, id);
 			break;

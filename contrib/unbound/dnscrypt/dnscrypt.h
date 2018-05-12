@@ -26,6 +26,7 @@
 
 #include "config.h"
 #include "dnscrypt/cert.h"
+#include "util/locks.h"
 
 #define DNSCRYPT_QUERY_HEADER_SIZE \
     (DNSCRYPT_MAGIC_HEADER_LEN + crypto_box_PUBLICKEYBYTES + crypto_box_HALF_NONCEBYTES + crypto_box_MACBYTES)
@@ -38,6 +39,7 @@
 struct sldns_buffer;
 struct config_file;
 struct comm_reply;
+struct slabhash;
 
 typedef struct KeyPair_ {
     uint8_t crypt_publickey[crypto_box_PUBLICKEYBYTES];
@@ -52,7 +54,7 @@ typedef struct cert_ {
 
 struct dnsc_env {
 	struct SignedCert *signed_certs;
-    dnsccert *certs;
+	dnsccert *certs;
 	size_t signed_certs_count;
 	uint8_t provider_publickey[crypto_sign_ed25519_PUBLICKEYBYTES];
 	uint8_t provider_secretkey[crypto_sign_ed25519_SECRETKEYBYTES];
@@ -61,6 +63,11 @@ struct dnsc_env {
 	uint64_t nonce_ts_last;
 	unsigned char hash_key[crypto_shorthash_KEYBYTES];
 	char * provider_name;
+	struct slabhash *shared_secrets_cache;
+	/** lock on shared secret cache counters */
+	lock_basic_type shared_secrets_cache_lock;
+	/** number of misses from shared_secrets_cache */
+	size_t num_query_dnscrypt_secret_missed_cache;
 };
 
 struct dnscrypt_query_header {
@@ -71,7 +78,7 @@ struct dnscrypt_query_header {
 };
 
 /**
- * Initialize DNSCrypt enviroment.
+ * Initialize DNSCrypt environment.
  * Initialize sodium library and allocate the dnsc_env structure.
  * \return an uninitialized struct dnsc_env.
  */
@@ -87,6 +94,12 @@ struct dnsc_env * dnsc_create(void);
  * \return 0 on success.
  */
 int dnsc_apply_cfg(struct dnsc_env *env, struct config_file *cfg);
+
+/**
+ * Delete DNSCrypt environment
+ *
+ */
+void dnsc_delete(struct dnsc_env *env);
 
 /**
  * handle a crypted dnscrypt request.
@@ -105,5 +118,26 @@ int dnsc_handle_curved_request(struct dnsc_env* dnscenv,
  */
 
 int dnsc_handle_uncurved_request(struct comm_reply *repinfo);
+
+/**
+ * Computes the size of the shared secret cache entry.
+ */
+size_t dnsc_shared_secrets_sizefunc(void *k, void *d);
+
+/**
+ * Compares two shared secret cache keys.
+ */
+int dnsc_shared_secrets_compfunc(void *m1, void *m2);
+
+/**
+ * Function to delete a shared secret cache key.
+ */
+void dnsc_shared_secrets_delkeyfunc(void *k, void* arg);
+
+/**
+ * Function to delete a share secret cache value.
+ */
+void dnsc_shared_secrets_deldatafunc(void* d, void* arg);
+
 #endif /* USE_DNSCRYPT */
 #endif

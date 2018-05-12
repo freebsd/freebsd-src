@@ -628,7 +628,7 @@ rrset_add_rr(struct auth_rrset* rrset, uint32_t rr_ttl, uint8_t* rdata,
 		d->rr_len[d->count-1] = rdatalen;
 	else	d->rr_len[total-1] = rdatalen;
 	packed_rrset_ptr_fixup(d);
-	if(rr_ttl < d->ttl)
+	if((time_t)rr_ttl < d->ttl)
 		d->ttl = rr_ttl;
 
 	/* copy old values into new array */

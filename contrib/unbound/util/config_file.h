@@ -464,6 +464,10 @@ struct config_file {
 	struct config_strlist* dnscrypt_secret_key;
 	/** dnscrypt provider certs 1.cert */
 	struct config_strlist* dnscrypt_provider_cert;
+	/** memory size in bytes for dnscrypt shared secrets cache */
+	size_t dnscrypt_shared_secret_cache_size;
+	/** number of slabs for dnscrypt shared secrets cache */
+	size_t dnscrypt_shared_secret_cache_slabs;
 
 	/** IPsec module */
 #ifdef USE_IPSECMOD
@@ -479,6 +483,14 @@ struct config_file {
 	int ipsecmod_max_ttl;
 	/** false to proceed even when ipsecmod_hook fails */
 	int ipsecmod_strict;
+#endif
+
+	/* cachedb module */
+#ifdef USE_CACHEDB
+	/** backend DB name */
+	char* cachedb_backend;
+	/** secret seed for hash key calculation */
+	char* cachedb_secret;
 #endif
 };
 
