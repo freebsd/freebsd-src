@@ -1,3 +1,9 @@
+13 June 2017: Wouter
+	- Fix #1280: Unbound fails assert when response from authoritative
+	  contains malformed qname.  When 0x20 caps-for-id is enabled, when
+	  assertions are not enabled the malformed qname is handled correctly.
+	- tag for 1.6.3
+
 13 April 2017: Wouter
 	- Fix #1250: inconsistent indentation in services/listen_dnsport.c.
 	- tag for 1.6.2rc1
