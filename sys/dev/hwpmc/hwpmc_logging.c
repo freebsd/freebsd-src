@@ -837,7 +837,8 @@ pmclog_schedule_one_cond(void *arg)
 
 	spinlock_enter();
 	/* tell hardclock not to run again */
-	DPCPU_SET(pmc_sampled, 0);
+	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
+		PMC_CALL_HOOK_UNLOCKED(curthread, PMC_FN_DO_SAMPLES, NULL);
 	plb = po->po_curbuf[curcpu];
 	if (plb && plb->plb_ptr != plb->plb_base)
 		pmclog_schedule_io(po);
