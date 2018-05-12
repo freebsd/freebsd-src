@@ -149,6 +149,7 @@ compile_time_root_prime(int do_ip4, int do_ip6)
 	if(!ah(dp, "D.ROOT-SERVERS.NET.", "2001:500:2d::d")) goto failed;
 	if(!ah(dp, "E.ROOT-SERVERS.NET.", "2001:500:a8::e")) goto failed;
 	if(!ah(dp, "F.ROOT-SERVERS.NET.", "2001:500:2f::f")) goto failed;
+	if(!ah(dp, "G.ROOT-SERVERS.NET.", "2001:500:12::d0d")) goto failed;
 	if(!ah(dp, "H.ROOT-SERVERS.NET.", "2001:500:1::53")) goto failed;
 	if(!ah(dp, "I.ROOT-SERVERS.NET.", "2001:7fe::53")) goto failed;
 	if(!ah(dp, "J.ROOT-SERVERS.NET.", "2001:503:c27::2:30")) goto failed;
@@ -275,6 +276,8 @@ read_stubs(struct iter_hints* hints, struct config_file* cfg)
 		 * last resort will ask for parent-side NS record and thus
 		 * fallback to the internet name servers on a failure */
 		dp->has_parent_side_NS = (uint8_t)!s->isfirst;
+		/* ssl_upstream */
+		dp->ssl_upstream = (uint8_t)s->ssl_upstream;
 		delegpt_log(VERB_QUERY, dp);
 		if(!hints_insert(hints, LDNS_RR_CLASS_IN, dp, !s->isprime))
 			return 0;

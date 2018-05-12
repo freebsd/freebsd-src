@@ -44,6 +44,8 @@
 #include "util/rbtree.h"
 #include "util/locks.h"
 #include "util/storage/dnstree.h"
+#include "util/module.h"
+#include "services/view.h"
 struct ub_packed_rrset_key;
 struct regional;
 struct config_file;
@@ -59,8 +61,10 @@ struct config_strlist;
  * local-data directly.
  */
 enum localzone_type {
+	/** unset type, used for unset tag_action elements */
+	local_zone_unset = 0,
 	/** drop query */
-	local_zone_deny = 0,
+	local_zone_deny,
 	/** answer with error */
 	local_zone_refuse,
 	/** answer nxdomain or nodata */
@@ -264,6 +268,7 @@ void local_zones_print(struct local_zones* zones);
  * Answer authoritatively for local zones.
  * Takes care of locking.
  * @param zones: the stored zones (shared, read only).
+ * @param env: the module environment.
  * @param qinfo: query info (parsed).
  * @param edns: edns info (parsed).
  * @param buf: buffer with query ID and flags, also for reply.
@@ -277,16 +282,25 @@ void local_zones_print(struct local_zones* zones);
  * @param tag_datas_size: size of tag_datas array.
  * @param tagname: array of tag name strings (for debug output).
  * @param num_tags: number of items in tagname array.
+ * @param view: answer using this view. May be NULL.
  * @return true if answer is in buffer. false if query is not answered 
  * by authority data. If the reply should be dropped altogether, the return 
  * value is true, but the buffer is cleared (empty).
+ * It can also return true if a non-exact alias answer is found.  In this
+ * case qinfo->local_alias points to the corresponding alias RRset but the
+ * answer is NOT encoded in buffer.  It's the caller's responsibility to
+ * complete the alias chain (if needed) and encode the final set of answer.
+ * Data pointed to by qinfo->local_alias is allocated in 'temp' or refers to
+ * configuration data.  So the caller will need to make a deep copy of it
+ * if it needs to keep it beyond the lifetime of 'temp' or a dynamic update
+ * to local zone data.
  */
-int local_zones_answer(struct local_zones* zones, struct query_info* qinfo,
-	struct edns_data* edns, struct sldns_buffer* buf, struct regional* temp,
-	struct comm_reply* repinfo, uint8_t* taglist, size_t taglen,
-	uint8_t* tagactions, size_t tagactionssize,
+int local_zones_answer(struct local_zones* zones, struct module_env* env,
+	struct query_info* qinfo, struct edns_data* edns, struct sldns_buffer* buf,
+	struct regional* temp, struct comm_reply* repinfo, uint8_t* taglist,
+	size_t taglen, uint8_t* tagactions, size_t tagactionssize,
 	struct config_strlist** tag_datas, size_t tag_datas_size,
-	char** tagname, int num_tags);
+	char** tagname, int num_tags, struct view* view);
 
 /**
  * Parse the string into localzone type.

@@ -2334,6 +2334,7 @@ probe_anchor(struct module_env* env, struct trust_anchor* tp)
 	qinfo.qname_len = tp->namelen;
 	qinfo.qtype = LDNS_RR_TYPE_DNSKEY;
 	qinfo.qclass = tp->dclass;
+	qinfo.local_alias = NULL;
 	log_query_info(VERB_ALGO, "autotrust probe", &qinfo);
 	verbose(VERB_ALGO, "retry probe set in %d seconds", 
 		(int)tp->autr->next_probe_time - (int)*env->now);

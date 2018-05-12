@@ -322,4 +322,13 @@ struct rrset_parse* msgparse_hashtable_lookup(struct msg_parse* msg,
  */
 void msgparse_bucket_remove(struct msg_parse* msg, struct rrset_parse* rrset);
 
+/**
+ * Log the edns options in the edns option list.
+ * @param level: the verbosity level.
+ * @param info_str: the informational string to be printed before the options.
+ * @param list: the edns option list.
+ */
+void log_edns_opt_list(enum verbosity_value level, const char* info_str,
+	struct edns_option* list);
+
 #endif /* UTIL_DATA_MSGPARSE_H */

@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Sep 27, 2016" "NLnet Labs" "unbound 1.5.10"
+.TH "unbound-control" "8" "Dec 15, 2016" "NLnet Labs" "unbound 1.6.0"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -98,6 +98,22 @@ nothing happens.  Often results in NXDOMAIN for the name (in a static zone),
 but if the name has become an empty nonterminal (there is still data in 
 domain names below the removed name), NOERROR nodata answers are the 
 result for that name.
+.TP
+.B local_zones
+Add local zones read from stdin of unbound\-control. Input is read per line,
+with name space type on a line. For bulk additions.
+.TP
+.B local_zones_remove
+Remove local zones read from stdin of unbound\-control. Input is one name per
+line. For bulk removals.
+.TP
+.B local_datas
+Add local data RRs read from stdin of unbound\-control. Input is one RR per
+line. For bulk additions.
+.TP
+.B local_datas_remove
+Remove local data RRs read from stdin of unbound\-control. Input is one name per
+line. For bulk removals.
 .TP
 .B dump_cache
 The contents of the cache is printed in a text format to stdout. You can
@@ -263,6 +279,21 @@ estimated qps and qps limit from config.  With +a it prints all domains, not
 just the ratelimited domains, with their estimated qps.  The ratelimited
 domains return an error for uncached (new) queries, but cached queries work
 as normal.
+.TP
+.B view_list_local_zones \fIview\fR
+\fIlist_local_zones\fR for given view.
+.TP
+.B view_local_zone \fIview\fR \fIname\fR \fItype
+\fIlocal_zone\fR for given view.
+.TP
+.B view_local_zone_remove \fIview\fR \fIname
+\fIlocal_zone_remove\fR for given view.
+.TP
+.B view_local_data \fIview\fR \fIRR data...
+\fIlocal_data\fR for given view.
+.TP
+.B view_local_data_remove \fIview\fR \fIname
+\fIlocal_data_remove\fR for given view.
 .SH "EXIT CODE"
 The unbound\-control program exits with status code 1 on error, 0 on success.
 .SH "SET UP"
@@ -300,6 +331,9 @@ cachehits, as the original query had the unprefetched answer from cache,
 and resulted in recursive processing, taking a slot in the requestlist.
 Not part of the recursivereplies (or the histogram thereof) or cachemiss,
 as a cache response was sent.
+.TP
+.I threadX.num.zero_ttl
+number of replies with ttl zero, because they served an expired cache entry.
 .TP
 .I threadX.num.recursivereplies
 The number of replies sent to queries that needed recursive processing. Could be smaller than threadX.num.cachemiss if due to timeouts no replies were sent for some queries.
@@ -350,6 +384,9 @@ summed over threads.
 .I total.num.prefetch
 summed over threads.
 .TP
+.I total.num.zero_ttl
+summed over threads.
+.TP
 .I total.num.recursivereplies
 summed over threads.
 .TP
@@ -383,9 +420,6 @@ uptime since server boot in seconds.
 .I time.elapsed
 time since last statistics printout, in seconds.
 .SH EXTENDED STATISTICS
-.TP
-.I mem.total.sbrk
-If sbrk(2) is available, an estimate of the heap size of the program in number of bytes. Close to the total memory used by the program, as reported by top and ps.  Could be wrong if the OS allocates memory non\-contiguously.
 .TP
 .I mem.cache.rrset
 Memory in bytes in use by the RRset cache.
