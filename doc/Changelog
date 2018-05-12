@@ -1,3 +1,7 @@
+19 January 2018: Wouter 
+	- patch for CVE-2017-15105: vulnerability in the processing of
+	  wildcard synthesized NSEC records.
+
 10 October 2017: Wouter 
 	- tag 1.6.7
 

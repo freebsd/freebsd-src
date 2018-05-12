@@ -47,6 +47,7 @@ struct val_anchors;
 struct trust_anchor;
 struct ub_packed_rrset_key;
 struct module_env;
+struct module_qstate;
 struct val_env;
 struct sldns_buffer;
 
@@ -188,12 +189,14 @@ void autr_point_delete(struct trust_anchor* tp);
  * @param tp: trust anchor to process.
  * @param dnskey_rrset: DNSKEY rrset probed (can be NULL if bad prime result).
  * 	allocated in a region. Has not been validated yet.
+ * @param qstate: qstate with region.
  * @return false if trust anchor was revoked completely.
  * 	Otherwise logs errors to log, does not change return value.
  * 	On errors, likely the trust point has been unchanged.
  */
 int autr_process_prime(struct module_env* env, struct val_env* ve,
-	struct trust_anchor* tp, struct ub_packed_rrset_key* dnskey_rrset);
+	struct trust_anchor* tp, struct ub_packed_rrset_key* dnskey_rrset,
+	struct module_qstate* qstate);
 
 /**
  * Debug printout of rfc5011 tracked anchors
