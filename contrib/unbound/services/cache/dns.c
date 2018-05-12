@@ -479,8 +479,7 @@ gen_dns_msg(struct regional* region, struct query_info* q, size_t num)
 	return msg;
 }
 
-/** generate dns_msg from cached message */
-static struct dns_msg*
+struct dns_msg*
 tomsg(struct module_env* env, struct query_info* q, struct reply_info* r, 
 	struct regional* region, time_t now, struct regional* scratch)
 {
@@ -525,8 +524,11 @@ tomsg(struct module_env* env, struct query_info* q, struct reply_info* r,
 			return NULL;
 		}
 	}
-	rrset_array_unlock_touch(env->rrset_cache, scratch, r->ref, 
+	if(env)
+		rrset_array_unlock_touch(env->rrset_cache, scratch, r->ref, 
 		r->rrset_count);
+	else
+		rrset_array_unlock(r->ref, r->rrset_count);
 	return msg;
 }
 

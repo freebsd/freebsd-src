@@ -411,31 +411,6 @@ handle_ipv6_ptr(struct module_qstate* qstate, int id)
     return module_wait_subquery;
 }
 
-/** allocate (special) rrset keys, return 0 on error */
-static int
-repinfo_alloc_rrset_keys(struct reply_info* rep, 
-	struct regional* region)
-{
-	size_t i;
-	for(i=0; i<rep->rrset_count; i++) {
-		if(region) {
-			rep->rrsets[i] = (struct ub_packed_rrset_key*)
-				regional_alloc(region, 
-				sizeof(struct ub_packed_rrset_key));
-			if(rep->rrsets[i]) {
-				memset(rep->rrsets[i], 0, 
-					sizeof(struct ub_packed_rrset_key));
-				rep->rrsets[i]->entry.key = rep->rrsets[i];
-			}
-		}
-		else return 0;/*	rep->rrsets[i] = alloc_special_obtain(alloc);*/
-		if(!rep->rrsets[i])
-			return 0;
-		rep->rrsets[i]->entry.data = NULL;
-	}
-	return 1;
-}
-
 static enum module_ext_state
 generate_type_A_query(struct module_qstate* qstate, int id)
 {
@@ -707,7 +682,7 @@ dns64_adjust_a(int id, struct module_qstate* super, struct module_qstate* qstate
 		return;
 
 	/* allocate ub_key structures special or not */
-	if(!repinfo_alloc_rrset_keys(cp, super->region)) {
+	if(!reply_info_alloc_rrset_keys(cp, NULL, super->region)) {
 		return;
 	}
 

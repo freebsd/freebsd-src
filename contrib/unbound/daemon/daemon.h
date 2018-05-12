@@ -56,10 +56,17 @@ struct local_zones;
 struct views;
 struct ub_randstate;
 struct daemon_remote;
+struct respip_set;
+struct shm_main_info;
 
 #include "dnstap/dnstap_config.h"
 #ifdef USE_DNSTAP
 struct dt_env;
+#endif
+
+#include "dnscrypt/dnscrypt_config.h"
+#ifdef USE_DNSCRYPT
+struct dnsc_env;
 #endif
 
 /**
@@ -117,6 +124,15 @@ struct daemon {
 #ifdef USE_DNSTAP
 	/** the dnstap environment master value, copied and changed by threads*/
 	struct dt_env* dtenv;
+#endif
+	struct shm_main_info* shm_info;
+	/** response-ip set with associated actions and tags. */
+	struct respip_set* respip_set;
+	/** some response-ip tags or actions are configured if true */
+	int use_response_ip;
+#ifdef USE_DNSCRYPT
+	/** the dnscrypt environment */
+	struct dnsc_env* dnscenv;
 #endif
 };
 

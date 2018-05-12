@@ -1273,3 +1273,39 @@ anchors_delete_insecure(struct val_anchors* anchors, uint16_t c,
 	anchors_delfunc(&ta->node, NULL);
 }
 
+/** compare two keytags, return -1, 0 or 1 */
+static int
+keytag_compare(const void* x, const void* y)
+{
+	if(*(uint16_t*)x == *(uint16_t*)y)
+		return 0;
+	if(*(uint16_t*)x > *(uint16_t*)y)
+		return 1;
+	return -1;
+}
+
+size_t
+anchor_list_keytags(struct trust_anchor* ta, uint16_t* list, size_t num)
+{
+	size_t i, ret = 0;
+	if(ta->numDS == 0 && ta->numDNSKEY == 0)
+		return 0; /* insecure point */
+	if(ta->numDS != 0 && ta->ds_rrset) {
+		struct packed_rrset_data* d=(struct packed_rrset_data*)
+			ta->ds_rrset->entry.data;
+		for(i=0; i<d->count; i++) {
+			if(ret == num) continue;
+			list[ret++] = ds_get_keytag(ta->ds_rrset, i);
+		}
+	}
+	if(ta->numDNSKEY != 0 && ta->dnskey_rrset) {
+		struct packed_rrset_data* d=(struct packed_rrset_data*)
+			ta->dnskey_rrset->entry.data;
+		for(i=0; i<d->count; i++) {
+			if(ret == num) continue;
+			list[ret++] = dnskey_calc_keytag(ta->dnskey_rrset, i);
+		}
+	}
+	qsort(list, ret, sizeof(*list), keytag_compare);
+	return ret;
+}

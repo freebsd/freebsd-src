@@ -372,6 +372,8 @@ enum sldns_enum_algorithm
         LDNS_ECC_GOST           = 12,  /* RFC 5933 */
         LDNS_ECDSAP256SHA256    = 13,  /* RFC 6605 */
         LDNS_ECDSAP384SHA384    = 14,  /* RFC 6605 */
+	LDNS_ED25519		= 15,  /* RFC 8080 */
+	LDNS_ED448		= 16,  /* RFC 8080 */
         LDNS_INDIRECT           = 252,
         LDNS_PRIVATEDNS         = 253,
         LDNS_PRIVATEOID         = 254
@@ -420,7 +422,8 @@ enum sldns_enum_edns_option
 	LDNS_EDNS_DAU = 5, /* RFC6975 */
 	LDNS_EDNS_DHU = 6, /* RFC6975 */
 	LDNS_EDNS_N3U = 7, /* RFC6975 */
-	LDNS_EDNS_CLIENT_SUBNET = 8, /* draft-vandergaast-edns-client-subnet */
+	LDNS_EDNS_CLIENT_SUBNET = 8, /* RFC7871 */
+	LDNS_EDNS_KEEPALIVE = 11, /* draft-ietf-dnsop-edns-tcp-keepalive*/
 	LDNS_EDNS_PADDING = 12 /* RFC7830 */
 };
 typedef enum sldns_enum_edns_option sldns_edns_option;

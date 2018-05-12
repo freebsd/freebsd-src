@@ -351,6 +351,22 @@ int fptr_whitelist_inplace_cb_reply_generic(inplace_cb_reply_func_type* fptr,
  */
 int fptr_whitelist_inplace_cb_query(inplace_cb_query_func_type* fptr);
 
+/**
+ * Check function pointer whitelist for inplace_cb_edns_back_parsed func values.
+ * @param fptr: function pointer to check.
+ * @return false if not in whitelist.
+ */
+int fptr_whitelist_inplace_cb_edns_back_parsed(
+	inplace_cb_edns_back_parsed_func_type* fptr);
+
+/**
+ * Check function pointer whitelist for inplace_cb_query_response func values.
+ * @param fptr: function pointer to check.
+ * @return false if not in whitelist.
+ */
+int fptr_whitelist_inplace_cb_query_response(
+	inplace_cb_query_response_func_type* fptr);
+
 /** Due to module breakage by fptr wlist, these test app declarations
  * are presented here */
 /** 
