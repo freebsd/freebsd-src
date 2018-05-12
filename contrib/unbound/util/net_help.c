@@ -241,7 +241,8 @@ ipstrtoaddr(const char* ip, int port, struct sockaddr_storage* addr,
 int netblockstrtoaddr(const char* str, int port, struct sockaddr_storage* addr,
         socklen_t* addrlen, int* net)
 {
-	char* s = NULL;
+	char buf[64];
+	char* s;
 	*net = (str_is_ip6(str)?128:32);
 	if((s=strchr(str, '/'))) {
 		if(atoi(s+1) > *net) {
@@ -253,22 +254,63 @@ int netblockstrtoaddr(const char* str, int port, struct sockaddr_storage* addr,
 			log_err("cannot parse netblock: '%s'", str);
 			return 0;
 		}
-		if(!(s = strdup(str))) {
-			log_err("out of memory");
-			return 0;
-		}
-		*strchr(s, '/') = '\0';
+		strlcpy(buf, str, sizeof(buf));
+		s = strchr(buf, '/');
+		if(s) *s = 0;
+		s = buf;
 	}
 	if(!ipstrtoaddr(s?s:str, port, addr, addrlen)) {
-		free(s);
 		log_err("cannot parse ip address: '%s'", str);
 		return 0;
 	}
 	if(s) {
-		free(s);
 		addr_mask(addr, *addrlen, *net);
 	}
 	return 1;
+}
+
+int authextstrtoaddr(char* str, struct sockaddr_storage* addr, 
+	socklen_t* addrlen, char** auth_name)
+{
+	char* s;
+	int port = UNBOUND_DNS_PORT;
+	if((s=strchr(str, '@'))) {
+		char buf[MAX_ADDR_STRLEN];
+		size_t len = (size_t)(s-str);
+		char* hash = strchr(s+1, '#');
+		if(hash) {
+			*auth_name = hash+1;
+		} else {
+			*auth_name = NULL;
+		}
+		if(len >= MAX_ADDR_STRLEN) {
+			return 0;
+		}
+		(void)strlcpy(buf, str, sizeof(buf));
+		buf[len] = 0;
+		port = atoi(s+1);
+		if(port == 0) {
+			if(!hash && strcmp(s+1,"0")!=0)
+				return 0;
+			if(hash && strncmp(s+1,"0#",2)!=0)
+				return 0;
+		}
+		return ipstrtoaddr(buf, port, addr, addrlen);
+	}
+	if((s=strchr(str, '#'))) {
+		char buf[MAX_ADDR_STRLEN];
+		size_t len = (size_t)(s-str);
+		if(len >= MAX_ADDR_STRLEN) {
+			return 0;
+		}
+		(void)strlcpy(buf, str, sizeof(buf));
+		buf[len] = 0;
+		port = UNBOUND_DNS_OVER_TLS_PORT;
+		*auth_name = s+1;
+		return ipstrtoaddr(buf, port, addr, addrlen);
+	}
+	*auth_name = NULL;
+	return ipstrtoaddr(str, port, addr, addrlen);
 }
 
 /** store port number into sockaddr structure */

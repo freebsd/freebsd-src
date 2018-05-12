@@ -68,6 +68,7 @@
 #include "services/cache/infra.h"
 #include "services/mesh.h"
 #include "services/localzone.h"
+#include "services/authzone.h"
 #include "util/storage/slabhash.h"
 #include "util/fptr_wlist.h"
 #include "util/data/dname.h"
@@ -236,10 +237,15 @@ daemon_remote_create(struct config_file* cfg)
 
 	if (cfg->remote_control_use_cert == 0) {
 		/* No certificates are requested */
+#if defined(SSL_OP_NO_TLSv1_3)
+		/* in openssl 1.1.1, negotiation code for tls 1.3 does
+		 * not allow the unauthenticated aNULL and eNULL ciphers */
+		SSL_CTX_set_options(rc->ctx, SSL_OP_NO_TLSv1_3);
+#endif
 #ifdef HAVE_SSL_CTX_SET_SECURITY_LEVEL
 		SSL_CTX_set_security_level(rc->ctx, 0);
 #endif
-		if(!SSL_CTX_set_cipher_list(rc->ctx, "aNULL, eNULL")) {
+		if(!SSL_CTX_set_cipher_list(rc->ctx, "aNULL:eNULL")) {
 			log_crypto_err("Failed to set aNULL cipher list");
 			daemon_remote_delete(rc);
 			return NULL;
@@ -1046,6 +1052,10 @@ print_ext(SSL* ssl, struct ub_stats_info* s)
 		(unsigned long)s->svr.ans_bogus)) return 0;
 	if(!ssl_printf(ssl, "num.rrset.bogus"SQ"%lu\n", 
 		(unsigned long)s->svr.rrset_bogus)) return 0;
+	if(!ssl_printf(ssl, "num.query.aggressive.NOERROR"SQ"%lu\n", 
+		(unsigned long)s->svr.num_neg_cache_noerror)) return 0;
+	if(!ssl_printf(ssl, "num.query.aggressive.NXDOMAIN"SQ"%lu\n", 
+		(unsigned long)s->svr.num_neg_cache_nxdomain)) return 0;
 	/* threat detection */
 	if(!ssl_printf(ssl, "unwanted.queries"SQ"%lu\n", 
 		(unsigned long)s->svr.unwanted_queries)) return 0;
@@ -1070,6 +1080,10 @@ print_ext(SSL* ssl, struct ub_stats_info* s)
 	if(!ssl_printf(ssl, "num.query.dnscrypt.replay"SQ"%lu\n",
 		(unsigned long)s->svr.num_query_dnscrypt_replay)) return 0;
 #endif /* USE_DNSCRYPT */
+	if(!ssl_printf(ssl, "num.query.authzone.up"SQ"%lu\n",
+		(unsigned long)s->svr.num_query_authzone_up)) return 0;
+	if(!ssl_printf(ssl, "num.query.authzone.down"SQ"%lu\n",
+		(unsigned long)s->svr.num_query_authzone_down)) return 0;
 	return 1;
 }
 
@@ -1644,6 +1658,7 @@ zone_del_msg(struct lruhash_entry* e, void* arg)
 		struct reply_info* d = (struct reply_info*)e->data;
 		if(d->ttl > inf->expired) {
 			d->ttl = inf->expired;
+			d->prefetch_ttl = inf->expired;
 			inf->num_msgs++;
 		}
 	}
@@ -1927,6 +1942,7 @@ parse_delegpt(SSL* ssl, char* args, uint8_t* nm, int allow_names)
 	struct delegpt* dp = delegpt_create_mlc(nm);
 	struct sockaddr_storage addr;
 	socklen_t addrlen;
+	char* auth_name;
 	if(!dp) {
 		(void)ssl_printf(ssl, "error out of memory\n");
 		return NULL;
@@ -1939,7 +1955,7 @@ parse_delegpt(SSL* ssl, char* args, uint8_t* nm, int allow_names)
 			p = skipwhite(p); /* position at next spot */
 		}
 		/* parse address */
-		if(!extstrtoaddr(todo, &addr, &addrlen)) {
+		if(!authextstrtoaddr(todo, &addr, &addrlen, &auth_name)) {
 			if(allow_names) {
 				uint8_t* n = NULL;
 				size_t ln;
@@ -1967,7 +1983,8 @@ parse_delegpt(SSL* ssl, char* args, uint8_t* nm, int allow_names)
 			}
 		} else {
 			/* add address */
-			if(!delegpt_add_addr_mlc(dp, &addr, addrlen, 0, 0)) {
+			if(!delegpt_add_addr_mlc(dp, &addr, addrlen, 0, 0,
+				auth_name)) {
 				(void)ssl_printf(ssl, "error out of memory\n");
 				delegpt_free_mlc(dp);
 				return NULL;
@@ -2527,6 +2544,36 @@ do_list_stubs(SSL* ssl, struct worker* worker)
 	}
 }
 
+/** do the list_auth_zones command */
+static void
+do_list_auth_zones(SSL* ssl, struct auth_zones* az)
+{
+	struct auth_zone* z;
+	char buf[257], buf2[256];
+	lock_rw_rdlock(&az->lock);
+	RBTREE_FOR(z, struct auth_zone*, &az->ztree) {
+		lock_rw_rdlock(&z->lock);
+		dname_str(z->name, buf);
+		if(z->zone_expired)
+			snprintf(buf2, sizeof(buf2), "expired");
+		else {
+			uint32_t serial = 0;
+			if(auth_zone_get_serial(z, &serial))
+				snprintf(buf2, sizeof(buf2), "serial %u",
+					(unsigned)serial);
+			else	snprintf(buf2, sizeof(buf2), "no serial");
+		}
+		if(!ssl_printf(ssl, "%s\t%s\n", buf, buf2)) {
+			/* failure to print */
+			lock_rw_unlock(&z->lock);
+			lock_rw_unlock(&az->lock);
+			return;
+		}
+		lock_rw_unlock(&z->lock);
+	}
+	lock_rw_unlock(&az->lock);
+}
+
 /** do the list_local_zones command */
 static void
 do_list_local_zones(SSL* ssl, struct local_zones* zones)
@@ -2786,6 +2833,9 @@ execute_cmd(struct daemon_remote* rc, SSL* ssl, char* cmd,
 		return;
 	} else if(cmdcmp(p, "ip_ratelimit_list", 17)) {
 		do_ip_ratelimit_list(ssl, worker, p+17);
+		return;
+	} else if(cmdcmp(p, "list_auth_zones", 15)) {
+		do_list_auth_zones(ssl, worker->env.auth_zones);
 		return;
 	} else if(cmdcmp(p, "stub_add", 8)) {
 		/* must always distribute this cmd */

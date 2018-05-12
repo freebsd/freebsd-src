@@ -35,3 +35,6 @@ distribution but may be helpful.
   instead of SERVFAIL. Contributed by SIDN.
 * fastrpz.patch: fastrpz support from Farsight Security.
 * libunbound.so.conf: ltrace.conf file, see ltrace.conf(5), for libunbound.
+* unbound-querycachedb.py: utility to show data stored in cachedb backend
+  for a particular query name and type.  It requires dnspython and (for
+  redis backend) redis Python modules.

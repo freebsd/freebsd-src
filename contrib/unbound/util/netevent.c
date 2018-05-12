@@ -46,6 +46,7 @@
 #include "util/fptr_wlist.h"
 #include "sldns/pkthdr.h"
 #include "sldns/sbuffer.h"
+#include "sldns/str2wire.h"
 #include "dnstap/dnstap.h"
 #include "dnscrypt/dnscrypt.h"
 #ifdef HAVE_OPENSSL_SSL_H
@@ -1209,9 +1210,24 @@ ssl_handle_write(struct comm_point* c)
 	if(c->tcp_byte_count < sizeof(uint16_t)) {
 		uint16_t len = htons(sldns_buffer_limit(c->buffer));
 		ERR_clear_error();
-		r = SSL_write(c->ssl,
-			(void*)(((uint8_t*)&len)+c->tcp_byte_count),
-			(int)(sizeof(uint16_t)-c->tcp_byte_count));
+		if(sizeof(uint16_t)+sldns_buffer_remaining(c->buffer) <
+			LDNS_RR_BUF_SIZE) {
+			/* combine the tcp length and the query for write,
+			 * this emulates writev */
+			uint8_t buf[LDNS_RR_BUF_SIZE];
+			memmove(buf, &len, sizeof(uint16_t));
+			memmove(buf+sizeof(uint16_t),
+				sldns_buffer_current(c->buffer),
+				sldns_buffer_remaining(c->buffer));
+			r = SSL_write(c->ssl, (void*)(buf+c->tcp_byte_count),
+				(int)(sizeof(uint16_t)+
+				sldns_buffer_remaining(c->buffer)
+				- c->tcp_byte_count));
+		} else {
+			r = SSL_write(c->ssl,
+				(void*)(((uint8_t*)&len)+c->tcp_byte_count),
+				(int)(sizeof(uint16_t)-c->tcp_byte_count));
+		}
 		if(r <= 0) {
 			int want = SSL_get_error(c->ssl, r);
 			if(want == SSL_ERROR_ZERO_RETURN) {

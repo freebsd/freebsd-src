@@ -239,6 +239,8 @@ ssl-port{COLON}			{ YDVAR(1, VAR_SSL_PORT) }
 tls-port{COLON}			{ YDVAR(1, VAR_SSL_PORT) }
 ssl-cert-bundle{COLON}		{ YDVAR(1, VAR_TLS_CERT_BUNDLE) }
 tls-cert-bundle{COLON}		{ YDVAR(1, VAR_TLS_CERT_BUNDLE) }
+additional-ssl-port{COLON}	{ YDVAR(1, VAR_ADDITIONAL_TLS_PORT) }
+additional-tls-port{COLON}	{ YDVAR(1, VAR_ADDITIONAL_TLS_PORT) }
 use-systemd{COLON}		{ YDVAR(1, VAR_USE_SYSTEMD) }
 do-daemonize{COLON}		{ YDVAR(1, VAR_DO_DAEMONIZE) }
 interface{COLON}		{ YDVAR(1, VAR_INTERFACE) }
@@ -307,6 +309,7 @@ auth-zone{COLON}		{ YDVAR(0, VAR_AUTH_ZONE) }
 zonefile{COLON}			{ YDVAR(1, VAR_ZONEFILE) }
 master{COLON}			{ YDVAR(1, VAR_MASTER) }
 url{COLON}			{ YDVAR(1, VAR_URL) }
+allow-notify{COLON}		{ YDVAR(1, VAR_ALLOW_NOTIFY) }
 for-downstream{COLON}		{ YDVAR(1, VAR_FOR_DOWNSTREAM) }
 for-upstream{COLON}		{ YDVAR(1, VAR_FOR_UPSTREAM) }
 fallback-enabled{COLON}		{ YDVAR(1, VAR_FALLBACK_ENABLED) }
@@ -334,6 +337,7 @@ auto-trust-anchor-file{COLON}	{ YDVAR(1, VAR_AUTO_TRUST_ANCHOR_FILE) }
 trusted-keys-file{COLON}	{ YDVAR(1, VAR_TRUSTED_KEYS_FILE) }
 trust-anchor{COLON}		{ YDVAR(1, VAR_TRUST_ANCHOR) }
 trust-anchor-signaling{COLON}	{ YDVAR(1, VAR_TRUST_ANCHOR_SIGNALING) }
+root-key-sentinel{COLON}	{ YDVAR(1, VAR_ROOT_KEY_SENTINEL) }
 val-override-date{COLON}	{ YDVAR(1, VAR_VAL_OVERRIDE_DATE) }
 val-sig-skew-min{COLON}		{ YDVAR(1, VAR_VAL_SIG_SKEW_MIN) }
 val-sig-skew-max{COLON}		{ YDVAR(1, VAR_VAL_SIG_SKEW_MAX) }
@@ -424,6 +428,8 @@ ratelimit-for-domain{COLON}	{ YDVAR(2, VAR_RATELIMIT_FOR_DOMAIN) }
 ratelimit-below-domain{COLON}	{ YDVAR(2, VAR_RATELIMIT_BELOW_DOMAIN) }
 ip-ratelimit-factor{COLON}		{ YDVAR(1, VAR_IP_RATELIMIT_FACTOR) }
 ratelimit-factor{COLON}		{ YDVAR(1, VAR_RATELIMIT_FACTOR) }
+low-rtt{COLON}			{ YDVAR(1, VAR_LOW_RTT) }
+low-rtt-pct{COLON}		{ YDVAR(1, VAR_LOW_RTT_PCT) }
 response-ip-tag{COLON}		{ YDVAR(2, VAR_RESPONSE_IP_TAG) }
 response-ip{COLON}		{ YDVAR(2, VAR_RESPONSE_IP) }
 response-ip-data{COLON}		{ YDVAR(2, VAR_RESPONSE_IP_DATA) }
@@ -449,6 +455,9 @@ ipsecmod-strict{COLON}		{ YDVAR(1, VAR_IPSECMOD_STRICT) }
 cachedb{COLON}			{ YDVAR(0, VAR_CACHEDB) }
 backend{COLON}			{ YDVAR(1, VAR_CACHEDB_BACKEND) }
 secret-seed{COLON}		{ YDVAR(1, VAR_CACHEDB_SECRETSEED) }
+redis-server-host{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISHOST) }
+redis-server-port{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISPORT) }
+redis-timeout{COLON}		{ YDVAR(1, VAR_CACHEDB_REDISTIMEOUT) }
 udp-upstream-without-downstream{COLON} { YDVAR(1, VAR_UDP_UPSTREAM_WITHOUT_DOWNSTREAM) }
 <INITIAL,val>{NEWLINE}		{ LEXOUT(("NL\n")); cfg_parser->line++; }
 

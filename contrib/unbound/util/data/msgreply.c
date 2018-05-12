@@ -534,8 +534,9 @@ query_info_parse(struct query_info* m, sldns_buffer* query)
 	/* minimum size: header + \0 + qtype + qclass */
 	if(sldns_buffer_limit(query) < LDNS_HEADER_SIZE + 5)
 		return 0;
-	if(LDNS_OPCODE_WIRE(q) != LDNS_PACKET_QUERY || 
-		LDNS_QDCOUNT(q) != 1 || sldns_buffer_position(query) != 0)
+	if((LDNS_OPCODE_WIRE(q) != LDNS_PACKET_QUERY && LDNS_OPCODE_WIRE(q) !=
+		LDNS_PACKET_NOTIFY) || LDNS_QDCOUNT(q) != 1 ||
+		sldns_buffer_position(query) != 0)
 		return 0;
 	sldns_buffer_skip(query, LDNS_HEADER_SIZE);
 	m->qname = sldns_buffer_current(query);

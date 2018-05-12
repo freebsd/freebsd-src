@@ -736,7 +736,8 @@ mesh_state_cleanup(struct mesh_state* mstate)
 			comm_point_drop_reply(&rep->query_reply);
 			mesh->num_reply_addrs--;
 		}
-		for(cb=mstate->cb_list; cb; cb=cb->next) {
+		while((cb = mstate->cb_list)!=NULL) {
+			mstate->cb_list = cb->next;
 			fptr_ok(fptr_whitelist_mesh_cb(cb->cb));
 			(*cb->cb)(cb->cb_arg, LDNS_RCODE_SERVFAIL, NULL,
 				sec_status_unchecked, NULL);
@@ -974,7 +975,8 @@ mesh_do_callback(struct mesh_state* m, int rcode, struct reply_info* rep,
 	else	secure = 0;
 	if(!rep && rcode == LDNS_RCODE_NOERROR)
 		rcode = LDNS_RCODE_SERVFAIL;
-	if(!rcode && rep->security == sec_status_bogus) {
+	if(!rcode && (rep->security == sec_status_bogus ||
+		rep->security == sec_status_secure_sentinel_fail)) {
 		if(!(reason = errinf_to_str(&m->s)))
 			rcode = LDNS_RCODE_SERVFAIL;
 	}
@@ -1040,7 +1042,8 @@ mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
 	/* examine security status */
 	if(m->s.env->need_to_validate && (!(r->qflags&BIT_CD) ||
 		m->s.env->cfg->ignore_cd) && rep && 
-		rep->security <= sec_status_bogus) {
+		(rep->security <= sec_status_bogus ||
+		rep->security == sec_status_secure_sentinel_fail)) {
 		rcode = LDNS_RCODE_SERVFAIL;
 		if(m->s.env->cfg->stat_extended) 
 			m->s.env->mesh->ans_bogus++;
@@ -1167,7 +1170,13 @@ void mesh_query_done(struct mesh_state* mstate)
 		}
 	}
 	mstate->replies_sent = 1;
-	for(c = mstate->cb_list; c; c = c->next) {
+	while((c = mstate->cb_list) != NULL) {
+		/* take this cb off the list; so that the list can be
+		 * changed, eg. by adds from the callback routine */
+		mstate->cb_list = c->next;
+		if(!mstate->reply_list && !mstate->cb_list &&
+			mstate->super_set.count == 0)
+			mstate->s.env->mesh->num_detached_states++;
 		mesh_do_callback(mstate, mstate->s.return_rcode, rep, c);
 	}
 }

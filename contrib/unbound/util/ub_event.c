@@ -95,6 +95,7 @@ UB_EV_BITS_CB(comm_timer_callback)
 UB_EV_BITS_CB(comm_signal_callback)
 UB_EV_BITS_CB(comm_point_local_handle_callback)
 UB_EV_BITS_CB(comm_point_raw_handle_callback)
+UB_EV_BITS_CB(comm_point_http_handle_callback)
 UB_EV_BITS_CB(tube_handle_signal)
 UB_EV_BITS_CB(comm_base_handle_slow_accept)
 
@@ -116,12 +117,17 @@ static void (*NATIVE_BITS_CB(void (*cb)(int, short, void*)))(int, short, void*)
 		return my_comm_point_local_handle_callback;
 	else if(cb == comm_point_raw_handle_callback)
 		return my_comm_point_raw_handle_callback;
+	else if(cb == comm_point_http_handle_callback)
+		return my_comm_point_http_handle_callback;
 	else if(cb == tube_handle_signal)
 		return my_tube_handle_signal;
 	else if(cb == comm_base_handle_slow_accept)
 		return my_comm_base_handle_slow_accept;
-	else
+	else {
+		log_assert(0); /* this NULL callback pointer should not happen,
+			we should have the necessary routine listed above */
 		return NULL;
+	}
 }
 #else 
 #  define NATIVE_BITS(b) (b)

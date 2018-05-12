@@ -40,6 +40,7 @@
  * According to RFC 4034.
  */
 #include "config.h"
+#include <ctype.h>
 #include "validator/validator.h"
 #include "validator/val_anchor.h"
 #include "validator/val_kcache.h"
@@ -474,6 +475,31 @@ generate_keytag_query(struct module_qstate* qstate, int id,
 	 * that might be changed by generate_request() */
 	qstate->ext_state[id] = ext_state;
 
+	return 1;
+}
+
+/**
+ * Get keytag as uint16_t from string
+ *
+ * @param start: start of string containing keytag
+ * @param keytag: pointer where to store the extracted keytag
+ * @return: 1 if keytag was extracted, else 0.
+ */
+static int
+sentinel_get_keytag(char* start, uint16_t* keytag) {
+	char* keytag_str;
+	char* e = NULL;
+	keytag_str = calloc(1, SENTINEL_KEYTAG_LEN + 1 /* null byte */);
+	if(!keytag_str)
+		return 0;
+	memmove(keytag_str, start, SENTINEL_KEYTAG_LEN);
+	keytag_str[SENTINEL_KEYTAG_LEN] = '\0';
+	*keytag = (uint16_t)strtol(keytag_str, &e, 10);
+	if(!e || *e != '\0') {
+		free(keytag_str);
+		return 0;
+	}
+	free(keytag_str);
 	return 1;
 }
 
@@ -2223,6 +2249,34 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 			vq->orig_msg->rep->security = sec_status_indeterminate;
 	}
 
+	if(vq->orig_msg->rep->security == sec_status_secure &&
+		qstate->env->cfg->root_key_sentinel &&
+		(qstate->qinfo.qtype == LDNS_RR_TYPE_A ||
+		qstate->qinfo.qtype == LDNS_RR_TYPE_AAAA)) {
+		char* keytag_start;
+		uint16_t keytag;
+		if(*qstate->qinfo.qname == strlen(SENTINEL_IS) +
+			SENTINEL_KEYTAG_LEN &&
+			dname_lab_startswith(qstate->qinfo.qname, SENTINEL_IS,
+			&keytag_start)) {
+			if(sentinel_get_keytag(keytag_start, &keytag) &&
+				!anchor_has_keytag(qstate->env->anchors,
+				(uint8_t*)"", 1, 0, vq->qchase.qclass, keytag)) {
+				vq->orig_msg->rep->security =
+					sec_status_secure_sentinel_fail;
+			}
+		} else if(*qstate->qinfo.qname == strlen(SENTINEL_NOT) +
+			SENTINEL_KEYTAG_LEN &&
+			dname_lab_startswith(qstate->qinfo.qname, SENTINEL_NOT,
+			&keytag_start)) {
+			if(sentinel_get_keytag(keytag_start, &keytag) &&
+				anchor_has_keytag(qstate->env->anchors,
+				(uint8_t*)"", 1, 0, vq->qchase.qclass, keytag)) {
+				vq->orig_msg->rep->security =
+					sec_status_secure_sentinel_fail;
+			}
+		}
+	}
 	/* store results in cache */
 	if(qstate->query_flags&BIT_RD) {
 		/* if secure, this will override cache anyway, no need

@@ -21,7 +21,7 @@ Index: unbound-1.7.0~rc1/Makefile.in
 @@ -125,7 +127,7 @@ validator/val_sigcrypt.c validator/val_u
  edns-subnet/edns-subnet.c edns-subnet/subnetmod.c \
  edns-subnet/addrtree.c edns-subnet/subnet-whitelist.c \
- cachedb/cachedb.c respip/respip.c $(CHECKLOCK_SRC) \
+ cachedb/cachedb.c cachedb/redis.c respip/respip.c $(CHECKLOCK_SRC) \
 -$(DNSTAP_SRC) $(DNSCRYPT_SRC) $(IPSECMOD_SRC)
 +$(DNSTAP_SRC) $(FASTRPZ_SRC) $(DNSCRYPT_SRC) $(IPSECMOD_SRC)
  COMMON_OBJ_WITHOUT_NETCALL=dns.lo infra.lo rrset.lo dname.lo msgencode.lo \
