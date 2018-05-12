@@ -992,6 +992,9 @@ static int inplace_cb_reply_call_generic(
 {
 	struct inplace_cb* cb;
 	struct edns_option* opt_list_out = NULL;
+#if defined(EXPORT_ALL_SYMBOLS)
+	(void)type; /* param not used when fptr_ok disabled */
+#endif
 	if(qstate)
 		opt_list_out = qstate->edns_opts_front_out;
 	for(cb=callback_list; cb; cb=cb->next) {

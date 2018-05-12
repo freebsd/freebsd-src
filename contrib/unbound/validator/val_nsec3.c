@@ -1037,7 +1037,7 @@ nsec3_do_prove_nameerror(struct module_env* env, struct nsec3_filter* flt,
 				"nsec3 is an insecure delegation");
 		return sec;
 	}
-	log_nametypeclass(VERB_ALGO, "nsec3 namerror: proven ce=", ce.ce,0,0);
+	log_nametypeclass(VERB_ALGO, "nsec3 nameerror: proven ce=", ce.ce,0,0);
 
 	/* At this point, we know that qname does not exist. Now we need 
 	 * to prove that the wildcard does not exist. */

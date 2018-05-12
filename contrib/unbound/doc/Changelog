@@ -1,5 +1,55 @@
+10 October 2017: Wouter 
+	- tag 1.6.7
+
+6 October 2017: Wouter 
+	- Fix spelling in unbound-control man page.
+
+5 October 2017: Wouter 
+	- Fix trust-anchor-signaling works in libunbound.
+	- Fix some more crpls in testdata for different signaling default.
+	- tag 1.6.7rc1
+
+5 October 2017: Ralph 
+	- Set trust-anchor-signaling default to yes
+	- Use RCODE from A query on DNS64 synthesized answer.
+
+2 October 2017: Wouter
+	- Fix param unused warning for windows exportsymbol compile.
+
+25 September 2017: Ralph
+	- Fix #1450: Generate again patch contrib/aaaa-filter-iterator.patch
+	   (by Danilo G. Baio).
+
+21 September 2017: Ralph
+	- Log name of looping module
+
+19 September 2017: Wouter
+	- use a cachedb answer even if it's "expired" when serve-expired is yes
+	  (patch from Jinmei Tatuya).
+	- trigger refetching of the answer in that case (this will bypass
+	  cachedb lookup)
+	- allow storing a 0-TTL answer from cachedb in the in-memory message
+	  cache when serve-expired is yes
+	- Fix DNSCACHE_STORE_ZEROTTL to be bigger than 0xffff.
+
+18 September 2017: Ralph
+	- Fix #1400: allowing use of global cache on ECS-forwarding unless
+	  always-forward.
+
+18 September 2017: Wouter
+	- tag 1.6.6 (is 1.6.6rc2)
+	- Fix that looping modules always stop the query, and don't pass
+	  control.
+	- Fix #1435: Please allow UDP to be disabled separately upstream and
+	  downstream.
+	- Fix #1440: [dnscrypt] client nonce cache.
+
+15 September 2017: Wouter
+	- Fix unbound-host to report error for DNSSEC state of failed lookups.
+	- Spelling fixes, from Josh Soref.
+
 13 September 2017: Wouter
-	- tag 1.6.6rc2
+	- tag 1.6.6rc2, became 1.6.6 on 18 sep.  trunk 1.6.7 in development.
 
 12 September 2017: Wouter
 	- Add dns64 for client-subnet in unbound-checkconf.

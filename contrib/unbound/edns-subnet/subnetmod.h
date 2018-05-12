@@ -119,7 +119,7 @@ int ecs_whitelist_check(struct query_info* qinfo, uint16_t flags,
 	socklen_t addrlen, uint8_t* zone, size_t zonelen,
 	struct regional* region, int id, void* cbargs);
 
-/** Check whether reponse from server contains ECS record, if so, skip cache
+/** Check whether response from server contains ECS record, if so, skip cache
  * store. Called just after parsing EDNS data from server. */
 int ecs_edns_back_parsed(struct module_qstate* qstate, int id, void* cbargs);
 

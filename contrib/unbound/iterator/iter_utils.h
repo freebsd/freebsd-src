@@ -252,7 +252,7 @@ void caps_strip_reply(struct reply_info* rep);
 int caps_failed_rcode(struct reply_info* rep);
 
 /**
- * Store parent-side rrset in seperate rrset cache entries for later 
+ * Store parent-side rrset in separate rrset cache entries for later 
  * last-resort * lookups in case the child-side versions of this information 
  * fails.
  * @param env: environment with cache, time, ...

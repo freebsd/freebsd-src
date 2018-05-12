@@ -1335,7 +1335,7 @@ int sldns_wire2str_time_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 	if(*dl < 4) return -1;
 	t = sldns_read_uint32(*d);
 	date_buf[15]=0;
-	if(sldns_serial_arithmitics_gmtime_r(t, time(NULL), &tm) &&
+	if(sldns_serial_arithmetics_gmtime_r(t, time(NULL), &tm) &&
 		strftime(date_buf, 15, "%Y%m%d%H%M%S", &tm)) {
 		(*d) += 4;
 		(*dl) -= 4;

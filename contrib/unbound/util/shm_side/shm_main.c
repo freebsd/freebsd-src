@@ -254,6 +254,8 @@ void shm_main_run(struct worker *worker)
 		if(worker->daemon->dnscenv) {
 			shm_stat->mem.dnscrypt_shared_secret = (long long)slabhash_get_mem(
 				worker->daemon->dnscenv->shared_secrets_cache);
+			shm_stat->mem.dnscrypt_nonce = (long long)slabhash_get_mem(
+				worker->daemon->dnscenv->nonces_cache);
 		}
 #endif
 		shm_stat->mem.val = (long long)mod_get_mem(&worker->env,

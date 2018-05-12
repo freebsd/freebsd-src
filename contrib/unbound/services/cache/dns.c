@@ -111,7 +111,7 @@ store_rrsets(struct module_env* env, struct reply_info* rep, time_t now,
 void 
 dns_cache_store_msg(struct module_env* env, struct query_info* qinfo,
 	hashvalue_type hash, struct reply_info* rep, time_t leeway, int pside,
-	struct reply_info* qrep, struct regional* region)
+	struct reply_info* qrep, uint32_t flags, struct regional* region)
 {
 	struct msgreply_entry* e;
 	time_t ttl = rep->ttl;
@@ -127,7 +127,7 @@ dns_cache_store_msg(struct module_env* env, struct query_info* qinfo,
 	 * unnecessary, because the cache gets locked per rrset. */
 	reply_info_set_ttls(rep, *env->now);
 	store_rrsets(env, rep, *env->now, leeway, pside, qrep, region);
-	if(ttl == 0) {
+	if(ttl == 0 && !(flags & DNSCACHE_STORE_ZEROTTL)) {
 		/* we do not store the message, but we did store the RRs,
 		 * which could be useful for delegation information */
 		verbose(VERB_ALGO, "TTL 0: dropped msg from cache");
@@ -845,7 +845,7 @@ dns_cache_lookup(struct module_env* env,
 int 
 dns_cache_store(struct module_env* env, struct query_info* msgqinf,
         struct reply_info* msgrep, int is_referral, time_t leeway, int pside,
-	struct regional* region, uint16_t flags)
+	struct regional* region, uint32_t flags)
 {
 	struct reply_info* rep = NULL;
 	/* alloc, malloc properly (not in region, like msg is) */
@@ -890,9 +890,9 @@ dns_cache_store(struct module_env* env, struct query_info* msgqinf,
 		 * Not AA from cache. Not CD in cache (depends on client bit). */
 		rep->flags |= (BIT_RA | BIT_QR);
 		rep->flags &= ~(BIT_AA | BIT_CD);
-		h = query_info_hash(&qinf, flags);
+		h = query_info_hash(&qinf, (uint16_t)flags);
 		dns_cache_store_msg(env, &qinf, h, rep, leeway, pside, msgrep,
-			region);
+			flags, region);
 		/* qname is used inside query_info_entrysetup, and set to 
 		 * NULL. If it has not been used, free it. free(0) is safe. */
 		free(qinf.qname);

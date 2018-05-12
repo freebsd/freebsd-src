@@ -146,9 +146,12 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_DNSCRYPT_SECRET_KEY VAR_DNSCRYPT_PROVIDER_CERT
 %token VAR_DNSCRYPT_SHARED_SECRET_CACHE_SIZE
 %token VAR_DNSCRYPT_SHARED_SECRET_CACHE_SLABS
+%token VAR_DNSCRYPT_NONCE_CACHE_SIZE
+%token VAR_DNSCRYPT_NONCE_CACHE_SLABS
 %token VAR_IPSECMOD_ENABLED VAR_IPSECMOD_HOOK VAR_IPSECMOD_IGNORE_BOGUS
 %token VAR_IPSECMOD_MAX_TTL VAR_IPSECMOD_WHITELIST VAR_IPSECMOD_STRICT
 %token VAR_CACHEDB VAR_CACHEDB_BACKEND VAR_CACHEDB_SECRETSEED
+%token VAR_UDP_UPSTREAM_WITHOUT_DOWNSTREAM
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -237,7 +240,8 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_hide_trustanchor | server_trust_anchor_signaling |
 	server_ipsecmod_enabled | server_ipsecmod_hook |
 	server_ipsecmod_ignore_bogus | server_ipsecmod_max_ttl |
-	server_ipsecmod_whitelist | server_ipsecmod_strict
+	server_ipsecmod_whitelist | server_ipsecmod_strict |
+	server_udp_upstream_without_downstream
 	;
 stubstart: VAR_STUB_ZONE
 	{
@@ -411,7 +415,7 @@ server_client_subnet_opcode: VAR_CLIENT_SUBNET_OPCODE STRING_ARG
 	{
 	#ifdef CLIENT_SUBNET
 		OUTYY(("P(client_subnet_opcode:%s)\n", $2));
-		OUTYY(("P(Depricated option, ignoring)\n"));
+		OUTYY(("P(Deprecated option, ignoring)\n"));
 	#else
 		OUTYY(("P(Compiled without edns subnet option, ignoring)\n"));
 	#endif
@@ -603,6 +607,15 @@ server_tcp_upstream: VAR_TCP_UPSTREAM STRING_ARG
 		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
 			yyerror("expected yes or no.");
 		else cfg_parser->cfg->tcp_upstream = (strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
+server_udp_upstream_without_downstream: VAR_UDP_UPSTREAM_WITHOUT_DOWNSTREAM STRING_ARG
+	{
+		OUTYY(("P(server_udp_upstream_without_downstream:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->udp_upstream_without_downstream = (strcmp($2, "yes")==0);
 		free($2);
 	}
 	;
@@ -2327,7 +2340,9 @@ content_dnsc:
 	dnsc_dnscrypt_enable | dnsc_dnscrypt_port | dnsc_dnscrypt_provider |
 	dnsc_dnscrypt_secret_key | dnsc_dnscrypt_provider_cert |
 	dnsc_dnscrypt_shared_secret_cache_size |
-    dnsc_dnscrypt_shared_secret_cache_slabs
+	dnsc_dnscrypt_shared_secret_cache_slabs |
+	dnsc_dnscrypt_nonce_cache_size |
+	dnsc_dnscrypt_nonce_cache_slabs
 	;
 dnsc_dnscrypt_enable: VAR_DNSCRYPT_ENABLE STRING_ARG
 	{
@@ -2386,6 +2401,27 @@ dnsc_dnscrypt_shared_secret_cache_slabs: VAR_DNSCRYPT_SHARED_SECRET_CACHE_SLABS 
   	else {
   		cfg_parser->cfg->dnscrypt_shared_secret_cache_slabs = atoi($2);
   		if(!is_pow2(cfg_parser->cfg->dnscrypt_shared_secret_cache_slabs))
+  			yyerror("must be a power of 2");
+  	}
+  	free($2);
+  }
+  ;
+dnsc_dnscrypt_nonce_cache_size: VAR_DNSCRYPT_NONCE_CACHE_SIZE STRING_ARG
+  {
+  	OUTYY(("P(dnscrypt_nonce_cache_size:%s)\n", $2));
+  	if(!cfg_parse_memsize($2, &cfg_parser->cfg->dnscrypt_nonce_cache_size))
+  		yyerror("memory size expected");
+  	free($2);
+  }
+  ;
+dnsc_dnscrypt_nonce_cache_slabs: VAR_DNSCRYPT_NONCE_CACHE_SLABS STRING_ARG
+  {
+  	OUTYY(("P(dnscrypt_nonce_cache_slabs:%s)\n", $2));
+  	if(atoi($2) == 0)
+  		yyerror("number expected");
+  	else {
+  		cfg_parser->cfg->dnscrypt_nonce_cache_slabs = atoi($2);
+  		if(!is_pow2(cfg_parser->cfg->dnscrypt_nonce_cache_slabs))
   			yyerror("must be a power of 2");
   	}
   	free($2);

@@ -107,7 +107,7 @@ void slabhash_clear(struct slabhash* table);
  *	But entry->data is set to NULL before deletion, and put into
  * 	the existing entry. The data is then freed.
  * @param data: the data.
- * @param cb_override: if not NULL overrides the cb_arg for deletfunc.
+ * @param cb_override: if not NULL overrides the cb_arg for deletefunc.
  */
 void slabhash_insert(struct slabhash* table, hashvalue_type hash, 
 	struct lruhash_entry* entry, void* data, void* cb_override);

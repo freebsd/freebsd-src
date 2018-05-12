@@ -416,7 +416,7 @@ struct module_env {
 	/**
 	 * Kill newly attached sub. If attach_sub returns newq for 
 	 * initialisation, but that fails, then this routine will cleanup and
-	 * delete the fresly created sub.
+	 * delete the freshly created sub.
 	 * @param newq: the new subquery that is no longer needed.
 	 * 	It is removed.
 	 */
@@ -608,6 +608,8 @@ struct module_qstate {
 	int no_cache_lookup;
 	/** whether modules should store answer in the cache */
 	int no_cache_store;
+	/** whether to refetch a fresh answer on finishing this state*/
+	int need_refetch;
 
 	/**
 	 * Attributes of clients that share the qstate that may affect IP-based

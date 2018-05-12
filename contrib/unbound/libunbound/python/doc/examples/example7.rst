@@ -23,7 +23,7 @@ IDN converted attributes
 The :class:`unbound.ub_data` class contains attributes suffix which converts
 the dname to UTF string. These attributes have the ``_idn`` suffix.
 
-Apart from this aproach, two conversion functions exist
+Apart from this approach, two conversion functions exist
 (:func:`unbound.idn2dname` and :func:`unbound.dname2idn`).
 
 Source code

@@ -37,7 +37,7 @@
  * \file
  *
  * This file contains functions to resolve DNS queries and 
- * validate the answers. Synchonously and asynchronously.
+ * validate the answers. Synchronously and asynchronously.
  *
  */
 
