@@ -264,6 +264,11 @@ apply_settings(struct daemon* daemon, struct config_file* cfg,
 	}
 	daemon_apply_cfg(daemon, cfg);
 	checkrlimits(cfg);
+
+	if (cfg->use_systemd && cfg->do_daemonize) {
+		log_warn("use-systemd and do-daemonize should not be enabled at the same time");
+	}
+
 	log_ident_set_fromdefault(cfg, log_default_identity);
 }
 

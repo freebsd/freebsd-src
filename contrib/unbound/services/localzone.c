@@ -74,7 +74,7 @@ local_zones_create(void)
 
 /** helper traverse to delete zones */
 static void 
-lzdel(rbnode_t* n, void* ATTR_UNUSED(arg))
+lzdel(rbnode_type* n, void* ATTR_UNUSED(arg))
 {
 	struct local_zone* z = (struct local_zone*)n->key;
 	local_zone_delete(z);
@@ -165,7 +165,7 @@ local_zone_create(uint8_t* nm, size_t len, int labs,
 		return NULL;
 	}
 	rbtree_init(&z->data, &local_data_cmp);
-	lock_protect(&z->lock, &z->parent, sizeof(*z)-sizeof(rbnode_t));
+	lock_protect(&z->lock, &z->parent, sizeof(*z)-sizeof(rbnode_type));
 	/* also the zones->lock protects node, parent, name*, class */
 	return z;
 }
@@ -629,7 +629,7 @@ lz_enter_override(struct local_zones* zones, char* zname, char* netblock,
 
 	/* create netblock addr_tree if not present yet */
 	if(!z->override_tree) {
-		z->override_tree = (struct rbtree_t*)regional_alloc_zero(
+		z->override_tree = (struct rbtree_type*)regional_alloc_zero(
 			z->region, sizeof(*z->override_tree));
 		if(!z->override_tree) {
 			lock_rw_unlock(&z->lock);
@@ -1060,7 +1060,7 @@ local_zones_tags_lookup(struct local_zones* zones,
         uint8_t* name, size_t len, int labs, uint16_t dclass,
 	uint8_t* taglist, size_t taglen, int ignoretags)
 {
-	rbnode_t* res = NULL;
+	rbnode_type* res = NULL;
 	struct local_zone *result;
 	struct local_zone key;
 	int m;
@@ -1212,6 +1212,24 @@ local_encode(struct query_info* qinfo, struct module_env* env,
 			*(uint16_t*)sldns_buffer_begin(buf),
 			sldns_buffer_read_u16_at(buf, 2), edns);
 	return 1;
+}
+
+/** encode local error answer */
+static void
+local_error_encode(struct query_info* qinfo, struct module_env* env,
+	struct edns_data* edns, sldns_buffer* buf, struct regional* temp,
+	int rcode, int r)
+{
+	edns->edns_version = EDNS_ADVERTISED_VERSION;
+	edns->udp_size = EDNS_ADVERTISED_SIZE;
+	edns->ext_rcode = 0;
+	edns->bits &= EDNS_DO;
+
+	if(!inplace_cb_reply_local_call(env, qinfo, NULL, NULL,
+		rcode, edns, temp))
+		edns->opt_list = NULL;
+	error_encode(buf, r, qinfo, *(uint16_t*)sldns_buffer_begin(buf),
+		sldns_buffer_read_u16_at(buf, 2), edns);
 }
 
 /** find local data tag string match for the given type in the list */
@@ -1414,9 +1432,8 @@ lz_zone_answer(struct local_zone* z, struct module_env* env,
 		return 1;
 	} else if(lz_type == local_zone_refuse
 		|| lz_type == local_zone_always_refuse) {
-		error_encode(buf, (LDNS_RCODE_REFUSED|BIT_AA), qinfo,
-			*(uint16_t*)sldns_buffer_begin(buf),
-		       sldns_buffer_read_u16_at(buf, 2), edns);
+		local_error_encode(qinfo, env, edns, buf, temp,
+			LDNS_RCODE_REFUSED, (LDNS_RCODE_REFUSED|BIT_AA));
 		return 1;
 	} else if(lz_type == local_zone_static ||
 		lz_type == local_zone_redirect ||
@@ -1433,9 +1450,8 @@ lz_zone_answer(struct local_zone* z, struct module_env* env,
 		if(z->soa)
 			return local_encode(qinfo, env, edns, buf, temp, 
 				z->soa, 0, rcode);
-		error_encode(buf, (rcode|BIT_AA), qinfo, 
-			*(uint16_t*)sldns_buffer_begin(buf), 
-			sldns_buffer_read_u16_at(buf, 2), edns);
+		local_error_encode(qinfo, env, edns, buf, temp, rcode,
+			(rcode|BIT_AA));
 		return 1;
 	} else if(lz_type == local_zone_typetransparent
 		|| lz_type == local_zone_always_transparent) {
@@ -1451,9 +1467,8 @@ lz_zone_answer(struct local_zone* z, struct module_env* env,
 		if(z->soa)
 			return local_encode(qinfo, env, edns, buf, temp, 
 				z->soa, 0, rcode);
-		error_encode(buf, (rcode|BIT_AA), qinfo, 
-			*(uint16_t*)sldns_buffer_begin(buf), 
-			sldns_buffer_read_u16_at(buf, 2), edns);
+		local_error_encode(qinfo, env, edns, buf, temp, rcode,
+			(rcode|BIT_AA));
 		return 1;
 	}
 
@@ -1479,8 +1494,8 @@ lz_inform_print(struct local_zone* z, struct query_info* qinfo,
 static enum localzone_type
 lz_type(uint8_t *taglist, size_t taglen, uint8_t *taglist2, size_t taglen2,
 	uint8_t *tagactions, size_t tagactionssize, enum localzone_type lzt,
-	struct comm_reply* repinfo, struct rbtree_t* override_tree, int* tag,
-	char** tagname, int num_tags)
+	struct comm_reply* repinfo, struct rbtree_type* override_tree,
+	int* tag, char** tagname, int num_tags)
 {
 	size_t i, j;
 	uint8_t tagmatch;

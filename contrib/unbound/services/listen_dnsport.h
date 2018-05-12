@@ -137,7 +137,7 @@ void listening_ports_free(struct listen_port* list);
  */
 struct listen_dnsport* listen_create(struct comm_base* base,
 	struct listen_port* ports, size_t bufsize, int tcp_accept_count,
-	void* sslctx, struct dt_env *dtenv, comm_point_callback_t* cb,
+	void* sslctx, struct dt_env *dtenv, comm_point_callback_type* cb,
 	void* cb_arg);
 
 /**
@@ -191,11 +191,12 @@ void listen_start_accept(struct listen_dnsport* listen);
  * 	listening UDP port.  Set to false on return if it failed to do so.
  * @param transparent: set IP_TRANSPARENT socket option.
  * @param freebind: set IP_FREEBIND socket option.
+ * @param use_systemd: if true, fetch sockets from systemd.
  * @return: the socket. -1 on error.
  */
 int create_udp_sock(int family, int socktype, struct sockaddr* addr, 
 	socklen_t addrlen, int v6only, int* inuse, int* noproto, int rcv,
-	int snd, int listen, int* reuseport, int transparent, int freebind);
+	int snd, int listen, int* reuseport, int transparent, int freebind, int use_systemd);
 
 /**
  * Create and bind TCP listening socket
@@ -207,18 +208,20 @@ int create_udp_sock(int family, int socktype, struct sockaddr* addr,
  * @param transparent: set IP_TRANSPARENT socket option.
  * @param mss: maximum segment size of the socket. if zero, leaves the default. 
  * @param freebind: set IP_FREEBIND socket option.
+ * @param use_systemd: if true, fetch sockets from systemd.
  * @return: the socket. -1 on error.
  */
 int create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
-	int* reuseport, int transparent, int mss, int freebind);
+	int* reuseport, int transparent, int mss, int freebind, int use_systemd);
 
 /**
  * Create and bind local listening socket
  * @param path: path to the socket.
  * @param noproto: on error, this is set true if cause is that local sockets
  *	are not supported.
+ * @param use_systemd: if true, fetch sockets from systemd.
  * @return: the socket. -1 on error.
  */
-int create_local_accept_sock(const char* path, int* noproto);
+int create_local_accept_sock(const char* path, int* noproto, int use_systemd);
 
 #endif /* LISTEN_DNSPORT_H */

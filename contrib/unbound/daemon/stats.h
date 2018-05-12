@@ -63,6 +63,8 @@ struct sldns_buffer;
 struct server_stats {
 	/** number of queries from clients received. */
 	size_t num_queries;
+	/** number of queries that have been dropped/ratelimited by ip. */
+	size_t num_queries_ip_ratelimited;
 	/** number of queries that had a cache-miss. */
 	size_t num_queries_missed_cache;
 	/** number of prefetch queries - cachehits with prefetch */

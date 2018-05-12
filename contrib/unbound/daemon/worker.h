@@ -85,7 +85,7 @@ struct worker {
 	/** global shared daemon structure */
 	struct daemon* daemon;
 	/** thread id */
-	ub_thread_t thr_id;
+	ub_thread_type thr_id;
 	/** pipe, for commands for this worker */
 	struct tube* cmd;
 	/** the event base this worker works with */

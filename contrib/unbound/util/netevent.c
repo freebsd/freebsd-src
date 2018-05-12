@@ -146,7 +146,7 @@ struct internal_signal {
 /** create a tcp handler with a parent */
 static struct comm_point* comm_point_create_tcp_handler(
 	struct comm_base *base, struct comm_point* parent, size_t bufsize,
-        comm_point_callback_t* callback, void* callback_arg);
+        comm_point_callback_type* callback, void* callback_arg);
 
 /* -------- End of local definitions -------- */
 
@@ -654,7 +654,7 @@ comm_point_udp_ancil_callback(int fd, short event, void* arg)
 	(void)fd;
 	(void)event;
 	(void)arg;
-	fatal_exit("recvmsg: No support for IPV6_PKTINFO. "
+	fatal_exit("recvmsg: No support for IPV6_PKTINFO; IP_PKTINFO or IP_RECVDSTADDR. "
 		"Please disable interface-automatic");
 #endif /* AF_INET6 && IPV6_PKTINFO && HAVE_RECVMSG */
 }
@@ -1573,7 +1573,7 @@ void comm_point_raw_handle_callback(int ATTR_UNUSED(fd),
 
 struct comm_point* 
 comm_point_create_udp(struct comm_base *base, int fd, sldns_buffer* buffer,
-	comm_point_callback_t* callback, void* callback_arg)
+	comm_point_callback_type* callback, void* callback_arg)
 {
 	struct comm_point* c = (struct comm_point*)calloc(1,
 		sizeof(struct comm_point));
@@ -1628,7 +1628,7 @@ comm_point_create_udp(struct comm_base *base, int fd, sldns_buffer* buffer,
 struct comm_point* 
 comm_point_create_udp_ancil(struct comm_base *base, int fd, 
 	sldns_buffer* buffer, 
-	comm_point_callback_t* callback, void* callback_arg)
+	comm_point_callback_type* callback, void* callback_arg)
 {
 	struct comm_point* c = (struct comm_point*)calloc(1,
 		sizeof(struct comm_point));
@@ -1683,7 +1683,7 @@ comm_point_create_udp_ancil(struct comm_base *base, int fd,
 static struct comm_point* 
 comm_point_create_tcp_handler(struct comm_base *base, 
 	struct comm_point* parent, size_t bufsize,
-        comm_point_callback_t* callback, void* callback_arg)
+        comm_point_callback_type* callback, void* callback_arg)
 {
 	struct comm_point* c = (struct comm_point*)calloc(1,
 		sizeof(struct comm_point));
@@ -1749,7 +1749,7 @@ comm_point_create_tcp_handler(struct comm_base *base,
 
 struct comm_point* 
 comm_point_create_tcp(struct comm_base *base, int fd, int num, size_t bufsize,
-        comm_point_callback_t* callback, void* callback_arg)
+        comm_point_callback_type* callback, void* callback_arg)
 {
 	struct comm_point* c = (struct comm_point*)calloc(1,
 		sizeof(struct comm_point));
@@ -1820,7 +1820,7 @@ comm_point_create_tcp(struct comm_base *base, int fd, int num, size_t bufsize,
 
 struct comm_point* 
 comm_point_create_tcp_out(struct comm_base *base, size_t bufsize,
-        comm_point_callback_t* callback, void* callback_arg)
+        comm_point_callback_type* callback, void* callback_arg)
 {
 	struct comm_point* c = (struct comm_point*)calloc(1,
 		sizeof(struct comm_point));
@@ -1877,7 +1877,7 @@ comm_point_create_tcp_out(struct comm_base *base, size_t bufsize,
 
 struct comm_point* 
 comm_point_create_local(struct comm_base *base, int fd, size_t bufsize,
-        comm_point_callback_t* callback, void* callback_arg)
+        comm_point_callback_type* callback, void* callback_arg)
 {
 	struct comm_point* c = (struct comm_point*)calloc(1,
 		sizeof(struct comm_point));
@@ -1938,7 +1938,7 @@ comm_point_create_local(struct comm_base *base, int fd, size_t bufsize,
 
 struct comm_point* 
 comm_point_create_raw(struct comm_base* base, int fd, int writing, 
-	comm_point_callback_t* callback, void* callback_arg)
+	comm_point_callback_type* callback, void* callback_arg)
 {
 	struct comm_point* c = (struct comm_point*)calloc(1,
 		sizeof(struct comm_point));

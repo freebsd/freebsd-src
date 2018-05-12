@@ -71,7 +71,7 @@ struct internal_base;
 struct internal_timer; /* A sub struct of the comm_timer super struct */
 
 /** callback from communication point function type */
-typedef int comm_point_callback_t(struct comm_point*, void*, int, 
+typedef int comm_point_callback_type(struct comm_point*, void*, int, 
 	struct comm_reply*);
 
 /** to pass no_error to callback function */
@@ -264,7 +264,7 @@ struct comm_point {
 	    		For UDP this is done without changing the commpoint.
 			In TCP it sets write state.
 	*/
-	comm_point_callback_t* callback;
+	comm_point_callback_type* callback;
 	/** argument to pass to callback. */
 	void *cb_arg;
 };
@@ -382,7 +382,7 @@ struct ub_event_base* comm_base_internal(struct comm_base* b);
  */
 struct comm_point* comm_point_create_udp(struct comm_base* base,
 	int fd, struct sldns_buffer* buffer, 
-	comm_point_callback_t* callback, void* callback_arg);
+	comm_point_callback_type* callback, void* callback_arg);
 
 /**
  * Create an UDP with ancillary data comm point. Calls malloc.
@@ -398,7 +398,7 @@ struct comm_point* comm_point_create_udp(struct comm_base* base,
  */
 struct comm_point* comm_point_create_udp_ancil(struct comm_base* base,
 	int fd, struct sldns_buffer* buffer, 
-	comm_point_callback_t* callback, void* callback_arg);
+	comm_point_callback_type* callback, void* callback_arg);
 
 /**
  * Create a TCP listener comm point. Calls malloc.
@@ -419,7 +419,7 @@ struct comm_point* comm_point_create_udp_ancil(struct comm_base* base,
  */
 struct comm_point* comm_point_create_tcp(struct comm_base* base,
 	int fd, int num, size_t bufsize, 
-	comm_point_callback_t* callback, void* callback_arg);
+	comm_point_callback_type* callback, void* callback_arg);
 
 /**
  * Create an outgoing TCP commpoint. No file descriptor is opened, left at -1.
@@ -430,7 +430,7 @@ struct comm_point* comm_point_create_tcp(struct comm_base* base,
  * @return: the commpoint or NULL on error.
  */
 struct comm_point* comm_point_create_tcp_out(struct comm_base* base,
-	size_t bufsize, comm_point_callback_t* callback, void* callback_arg);
+	size_t bufsize, comm_point_callback_type* callback, void* callback_arg);
 
 /**
  * Create commpoint to listen to a local domain file descriptor.
@@ -443,7 +443,7 @@ struct comm_point* comm_point_create_tcp_out(struct comm_base* base,
  */
 struct comm_point* comm_point_create_local(struct comm_base* base,
 	int fd, size_t bufsize, 
-	comm_point_callback_t* callback, void* callback_arg);
+	comm_point_callback_type* callback, void* callback_arg);
 
 /**
  * Create commpoint to listen to a local domain pipe descriptor.
@@ -456,7 +456,7 @@ struct comm_point* comm_point_create_local(struct comm_base* base,
  */
 struct comm_point* comm_point_create_raw(struct comm_base* base,
 	int fd, int writing, 
-	comm_point_callback_t* callback, void* callback_arg);
+	comm_point_callback_type* callback, void* callback_arg);
 
 /**
  * Close a comm point fd.
