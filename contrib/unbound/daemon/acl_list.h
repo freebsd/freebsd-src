@@ -76,7 +76,7 @@ struct acl_list {
 	 * Tree of the addresses that are allowed/blocked.
 	 * contents of type acl_addr.
 	 */
-	rbtree_t tree;
+	rbtree_type tree;
 };
 
 /**

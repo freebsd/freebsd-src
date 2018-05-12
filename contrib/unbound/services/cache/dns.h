@@ -106,7 +106,7 @@ int dns_cache_store(struct module_env* env, struct query_info* qinf,
  * @param region: to allocate into for qmsg.
  */
 void dns_cache_store_msg(struct module_env* env, struct query_info* qinfo,
-	hashvalue_t hash, struct reply_info* rep, time_t leeway, int pside,
+	hashvalue_type hash, struct reply_info* rep, time_t leeway, int pside,
 	struct reply_info* qrep, struct regional* region);
 
 /**

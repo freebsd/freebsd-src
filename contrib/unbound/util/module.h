@@ -176,7 +176,7 @@ struct iter_forwards;
 struct iter_hints;
 
 /** Maximum number of modules in operation */
-#define MAX_MODULE 5
+#define MAX_MODULE 16
 
 /** Maximum number of known edns options */
 #define MAX_KNOWN_EDNS_OPTS 256
@@ -226,7 +226,7 @@ struct edns_known_option {
  *	region: region to store data.
  *	python_callback: only used for registering a python callback function.
  */
-typedef int inplace_cb_reply_func_t(struct query_info* qinfo,
+typedef int inplace_cb_reply_func_type(struct query_info* qinfo,
 	struct module_qstate* qstate, struct reply_info* rep, int rcode,
 	struct edns_data* edns, struct edns_option** opt_list_out, 
 	struct regional* region, void* python_callback);
@@ -244,7 +244,7 @@ struct inplace_cb_reply {
 	 *              opt_list_out, region, python_callback);
 	 * python_callback is only used for registering a python callback function.
 	 */
-	inplace_cb_reply_func_t* cb;
+	inplace_cb_reply_func_type* cb;
 	void* cb_arg;
 };
 
@@ -265,7 +265,7 @@ struct inplace_cb_reply {
  *	region: region to store data.
  *	python_callback: only used for registering a python callback function.
  */
-typedef int inplace_cb_query_func_t(struct query_info* qinfo, uint16_t flags,
+typedef int inplace_cb_query_func_type(struct query_info* qinfo, uint16_t flags,
 	struct module_qstate* qstate, struct sockaddr_storage* addr,
 	socklen_t addrlen, uint8_t* zone, size_t zonelen, struct regional* region,
 	void* python_callback);
@@ -283,7 +283,7 @@ struct inplace_cb_query {
 	 *              region, python_callback);
 	 * python_callback is only used for registering a python callback function.
 	 */
-	inplace_cb_query_func_t* cb;
+	inplace_cb_query_func_type* cb;
 	void* cb_arg;
 };
 
@@ -688,7 +688,7 @@ int edns_register_option(uint16_t opt_code, int bypass_cache_stage,
  * @return true on success, false on failure (out of memory or trying to
  *	register after the environment is copied to the threads.)
  */
-int inplace_cb_reply_register(inplace_cb_reply_func_t* cb, void* cb_arg,
+int inplace_cb_reply_register(inplace_cb_reply_func_type* cb, void* cb_arg,
 	struct module_env* env);
 
 /**
@@ -699,7 +699,7 @@ int inplace_cb_reply_register(inplace_cb_reply_func_t* cb, void* cb_arg,
  * @return true on success, false on failure (out of memory or trying to
  *	register after the environment is copied to the threads.)
  */
-int inplace_cb_reply_cache_register(inplace_cb_reply_func_t* cb, void* cb_arg,
+int inplace_cb_reply_cache_register(inplace_cb_reply_func_type* cb, void* cb_arg,
 	struct module_env* env);
 
 /**
@@ -711,7 +711,7 @@ int inplace_cb_reply_cache_register(inplace_cb_reply_func_t* cb, void* cb_arg,
  * @return true on success, false on failure (out of memory or trying to
  *	register after the environment is copied to the threads.)
  */
-int inplace_cb_reply_local_register(inplace_cb_reply_func_t* cb, void* cb_arg,
+int inplace_cb_reply_local_register(inplace_cb_reply_func_type* cb, void* cb_arg,
 	struct module_env* env);
 
 /**
@@ -722,7 +722,7 @@ int inplace_cb_reply_local_register(inplace_cb_reply_func_t* cb, void* cb_arg,
  * @return true on success, false on failure (out of memory or trying to
  *	register after the environment is copied to the threads.)
  */
-int inplace_cb_reply_servfail_register(inplace_cb_reply_func_t* cb,
+int inplace_cb_reply_servfail_register(inplace_cb_reply_func_type* cb,
 	void* cb_arg, struct module_env* env);
 
 /**
@@ -751,7 +751,7 @@ void inplace_cb_reply_servfail_delete(struct module_env* env);
  * @return true on success, false on failure (out of memory or trying to
  *	register after the environment is copied to the threads.)
  */
-int inplace_cb_query_register(inplace_cb_query_func_t* cb, void* cb_arg,
+int inplace_cb_query_register(inplace_cb_query_func_type* cb, void* cb_arg,
 	struct module_env* env);
 
 /**

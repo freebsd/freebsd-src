@@ -483,7 +483,7 @@ dnskeyset_verify_rrset(struct module_env* env, struct val_env* ve,
 {
 	enum sec_status sec;
 	size_t i, num;
-	rbtree_t* sortree = NULL;
+	rbtree_type* sortree = NULL;
 	/* make sure that for all DNSKEY algorithms there are valid sigs */
 	struct algo_needs needs;
 	int alg;
@@ -551,7 +551,7 @@ dnskey_verify_rrset(struct module_env* env, struct val_env* ve,
 {
 	enum sec_status sec;
 	size_t i, num, numchecked = 0;
-	rbtree_t* sortree = NULL;
+	rbtree_type* sortree = NULL;
 	int buf_canon = 0;
 	uint16_t tag = dnskey_calc_keytag(dnskey, dnskey_idx);
 	int algo = dnskey_get_algo(dnskey, dnskey_idx);
@@ -585,7 +585,7 @@ enum sec_status
 dnskeyset_verify_rrset_sig(struct module_env* env, struct val_env* ve, 
 	time_t now, struct ub_packed_rrset_key* rrset, 
 	struct ub_packed_rrset_key* dnskey, size_t sig_idx, 
-	struct rbtree_t** sortree, char** reason)
+	struct rbtree_type** sortree, char** reason)
 {
 	/* find matching keys and check them */
 	enum sec_status sec = sec_status_bogus;
@@ -627,7 +627,7 @@ dnskeyset_verify_rrset_sig(struct module_env* env, struct val_env* ve,
  */
 struct canon_rr {
 	/** rbtree node, key is this structure */
-	rbnode_t node;
+	rbnode_type node;
 	/** rrset the RR is in */
 	struct ub_packed_rrset_key* rrset;
 	/** which RR in the rrset */
@@ -885,7 +885,7 @@ canonical_tree_compare(const void* k1, const void* k2)
  */
 static void
 canonical_sort(struct ub_packed_rrset_key* rrset, struct packed_rrset_data* d,
-	rbtree_t* sortree, struct canon_rr* rrs)
+	rbtree_type* sortree, struct canon_rr* rrs)
 {
 	size_t i;
 	/* insert into rbtree to sort and detect duplicates */
@@ -1043,7 +1043,7 @@ canonicalize_rdata(sldns_buffer* buf, struct ub_packed_rrset_key* rrset,
 int rrset_canonical_equal(struct regional* region,
 	struct ub_packed_rrset_key* k1, struct ub_packed_rrset_key* k2)
 {
-	struct rbtree_t sortree1, sortree2;
+	struct rbtree_type sortree1, sortree2;
 	struct canon_rr *rrs1, *rrs2, *p1, *p2;
 	struct packed_rrset_data* d1=(struct packed_rrset_data*)k1->entry.data;
 	struct packed_rrset_data* d2=(struct packed_rrset_data*)k2->entry.data;
@@ -1120,7 +1120,7 @@ int rrset_canonical_equal(struct regional* region,
 static int
 rrset_canonical(struct regional* region, sldns_buffer* buf, 
 	struct ub_packed_rrset_key* k, uint8_t* sig, size_t siglen,
-	struct rbtree_t** sortree)
+	struct rbtree_type** sortree)
 {
 	struct packed_rrset_data* d = (struct packed_rrset_data*)k->entry.data;
 	uint8_t* can_owner = NULL;
@@ -1129,8 +1129,8 @@ rrset_canonical(struct regional* region, sldns_buffer* buf,
 	struct canon_rr* rrs;
 
 	if(!*sortree) {
-		*sortree = (struct rbtree_t*)regional_alloc(region, 
-			sizeof(rbtree_t));
+		*sortree = (struct rbtree_type*)regional_alloc(region, 
+			sizeof(rbtree_type));
 		if(!*sortree)
 			return 0;
 		if(d->count > RR_COUNT_MAX)
@@ -1312,7 +1312,7 @@ dnskey_verify_rrset_sig(struct regional* region, sldns_buffer* buf,
 	struct val_env* ve, time_t now,
         struct ub_packed_rrset_key* rrset, struct ub_packed_rrset_key* dnskey,
         size_t dnskey_idx, size_t sig_idx,
-	struct rbtree_t** sortree, int* buf_canon, char** reason)
+	struct rbtree_type** sortree, int* buf_canon, char** reason)
 {
 	enum sec_status sec;
 	uint8_t* sig;		/* RRSIG rdata */

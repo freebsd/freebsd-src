@@ -78,7 +78,7 @@ view_delete(struct view* v)
 }
 
 static void
-delviewnode(rbnode_t* n, void* ATTR_UNUSED(arg))
+delviewnode(rbnode_type* n, void* ATTR_UNUSED(arg))
 {
 	struct view* v = (struct view*)n;
 	view_delete(v);
@@ -107,7 +107,7 @@ view_create(char* name)
 		return NULL;
 	}
 	lock_rw_init(&v->lock);
-	lock_protect(&v->lock, &v->name, sizeof(*v)-sizeof(rbnode_t));
+	lock_protect(&v->lock, &v->name, sizeof(*v)-sizeof(rbnode_type));
 	return v;
 }
 

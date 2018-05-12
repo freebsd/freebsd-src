@@ -102,12 +102,14 @@ void server_stats_log(struct server_stats* stats, struct worker* worker,
 	int threadnum)
 {
 	log_info("server stats for thread %d: %u queries, "
-		"%u answers from cache, %u recursions, %u prefetch", 
+		"%u answers from cache, %u recursions, %u prefetch, %u rejected by "
+		"ip ratelimiting",
 		threadnum, (unsigned)stats->num_queries, 
 		(unsigned)(stats->num_queries - 
 			stats->num_queries_missed_cache),
 		(unsigned)stats->num_queries_missed_cache,
-		(unsigned)stats->num_queries_prefetch);
+		(unsigned)stats->num_queries_prefetch,
+		(unsigned)stats->num_queries_ip_ratelimited);
 	log_info("server stats for thread %d: requestlist max %u avg %g "
 		"exceeded %u jostled %u", threadnum,
 		(unsigned)stats->max_query_list_size,
@@ -226,6 +228,7 @@ void server_stats_reply(struct worker* worker, int reset)
 void server_stats_add(struct stats_info* total, struct stats_info* a)
 {
 	total->svr.num_queries += a->svr.num_queries;
+	total->svr.num_queries_ip_ratelimited += a->svr.num_queries_ip_ratelimited;
 	total->svr.num_queries_missed_cache += a->svr.num_queries_missed_cache;
 	total->svr.num_queries_prefetch += a->svr.num_queries_prefetch;
 	total->svr.sum_query_list_size += a->svr.sum_query_list_size;

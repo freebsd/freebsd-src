@@ -84,7 +84,7 @@
 #endif
 
 int 
-fptr_whitelist_comm_point(comm_point_callback_t *fptr)
+fptr_whitelist_comm_point(comm_point_callback_type *fptr)
 {
 	if(fptr == &worker_handle_request) return 1;
 	else if(fptr == &outnet_udp_cb) return 1;
@@ -94,7 +94,7 @@ fptr_whitelist_comm_point(comm_point_callback_t *fptr)
 }
 
 int 
-fptr_whitelist_comm_point_raw(comm_point_callback_t *fptr)
+fptr_whitelist_comm_point_raw(comm_point_callback_type *fptr)
 {
 	if(fptr == &tube_handle_listen) return 1;
 	else if(fptr == &tube_handle_write) return 1;
@@ -156,7 +156,7 @@ fptr_whitelist_event(void (*fptr)(int, short, void *))
 }
 
 int 
-fptr_whitelist_pending_udp(comm_point_callback_t *fptr)
+fptr_whitelist_pending_udp(comm_point_callback_type *fptr)
 {
 	if(fptr == &serviced_udp_callback) return 1;
 	else if(fptr == &worker_handle_reply) return 1;
@@ -165,7 +165,7 @@ fptr_whitelist_pending_udp(comm_point_callback_t *fptr)
 }
 
 int 
-fptr_whitelist_pending_tcp(comm_point_callback_t *fptr)
+fptr_whitelist_pending_tcp(comm_point_callback_type *fptr)
 {
 	if(fptr == &serviced_tcp_callback) return 1;
 	else if(fptr == &worker_handle_reply) return 1;
@@ -174,7 +174,7 @@ fptr_whitelist_pending_tcp(comm_point_callback_t *fptr)
 }
 
 int 
-fptr_whitelist_serviced_query(comm_point_callback_t *fptr)
+fptr_whitelist_serviced_query(comm_point_callback_type *fptr)
 {
 	if(fptr == &worker_handle_service_reply) return 1;
 	else if(fptr == &libworker_handle_service_reply) return 1;
@@ -209,43 +209,46 @@ fptr_whitelist_rbtree_cmp(int (*fptr) (const void *, const void *))
 }
 
 int 
-fptr_whitelist_hash_sizefunc(lruhash_sizefunc_t fptr)
+fptr_whitelist_hash_sizefunc(lruhash_sizefunc_type fptr)
 {
 	if(fptr == &msgreply_sizefunc) return 1;
 	else if(fptr == &ub_rrset_sizefunc) return 1;
 	else if(fptr == &infra_sizefunc) return 1;
 	else if(fptr == &key_entry_sizefunc) return 1;
 	else if(fptr == &rate_sizefunc) return 1;
+	else if(fptr == &ip_rate_sizefunc) return 1;
 	else if(fptr == &test_slabhash_sizefunc) return 1;
 	return 0;
 }
 
 int 
-fptr_whitelist_hash_compfunc(lruhash_compfunc_t fptr)
+fptr_whitelist_hash_compfunc(lruhash_compfunc_type fptr)
 {
 	if(fptr == &query_info_compare) return 1;
 	else if(fptr == &ub_rrset_compare) return 1;
 	else if(fptr == &infra_compfunc) return 1;
 	else if(fptr == &key_entry_compfunc) return 1;
 	else if(fptr == &rate_compfunc) return 1;
+	else if(fptr == &ip_rate_compfunc) return 1;
 	else if(fptr == &test_slabhash_compfunc) return 1;
 	return 0;
 }
 
 int 
-fptr_whitelist_hash_delkeyfunc(lruhash_delkeyfunc_t fptr)
+fptr_whitelist_hash_delkeyfunc(lruhash_delkeyfunc_type fptr)
 {
 	if(fptr == &query_entry_delete) return 1;
 	else if(fptr == &ub_rrset_key_delete) return 1;
 	else if(fptr == &infra_delkeyfunc) return 1;
 	else if(fptr == &key_entry_delkeyfunc) return 1;
 	else if(fptr == &rate_delkeyfunc) return 1;
+	else if(fptr == &ip_rate_delkeyfunc) return 1;
 	else if(fptr == &test_slabhash_delkey) return 1;
 	return 0;
 }
 
 int 
-fptr_whitelist_hash_deldatafunc(lruhash_deldatafunc_t fptr)
+fptr_whitelist_hash_deldatafunc(lruhash_deldatafunc_type fptr)
 {
 	if(fptr == &reply_info_delete) return 1;
 	else if(fptr == &rrset_data_delete) return 1;
@@ -257,7 +260,7 @@ fptr_whitelist_hash_deldatafunc(lruhash_deldatafunc_t fptr)
 }
 
 int 
-fptr_whitelist_hash_markdelfunc(lruhash_markdelfunc_t fptr)
+fptr_whitelist_hash_markdelfunc(lruhash_markdelfunc_type fptr)
 {
 	if(fptr == NULL) return 1;
 	else if(fptr == &rrset_markdel) return 1;
@@ -409,14 +412,14 @@ fptr_whitelist_alloc_cleanup(void (*fptr)(void*))
 	return 0;
 }
 
-int fptr_whitelist_tube_listen(tube_callback_t* fptr)
+int fptr_whitelist_tube_listen(tube_callback_type* fptr)
 {
 	if(fptr == &worker_handle_control_cmd) return 1;
 	else if(fptr == &libworker_handle_control_cmd) return 1;
 	return 0;
 }
 
-int fptr_whitelist_mesh_cb(mesh_cb_func_t fptr)
+int fptr_whitelist_mesh_cb(mesh_cb_func_type fptr)
 {
 	if(fptr == &libworker_fg_done_cb) return 1;
 	else if(fptr == &libworker_bg_done_cb) return 1;
@@ -433,7 +436,7 @@ int fptr_whitelist_print_func(void (*fptr)(char*,void*))
 	return 0;
 }
 
-int fptr_whitelist_inplace_cb_reply_generic(inplace_cb_reply_func_t* fptr,
+int fptr_whitelist_inplace_cb_reply_generic(inplace_cb_reply_func_type* fptr,
 	enum inplace_cb_list_type type)
 {
 #ifndef WITH_PYTHONMODULE
@@ -459,7 +462,7 @@ int fptr_whitelist_inplace_cb_reply_generic(inplace_cb_reply_func_t* fptr,
 	return 0;
 }
 
-int fptr_whitelist_inplace_cb_query(inplace_cb_query_func_t* ATTR_UNUSED(fptr))
+int fptr_whitelist_inplace_cb_query(inplace_cb_query_func_type* ATTR_UNUSED(fptr))
 {
 	return 0;
 }

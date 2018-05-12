@@ -82,7 +82,7 @@ static void fwd_zone_free(struct iter_forward_zone* n)
 	free(n);
 }
 
-static void delfwdnode(rbnode_t* n, void* ATTR_UNUSED(arg))
+static void delfwdnode(rbnode_type* n, void* ATTR_UNUSED(arg))
 {
 	struct iter_forward_zone* node = (struct iter_forward_zone*)n;
 	fwd_zone_free(node);
@@ -332,7 +332,7 @@ forwards_apply_cfg(struct iter_forwards* fwd, struct config_file* cfg)
 struct delegpt* 
 forwards_find(struct iter_forwards* fwd, uint8_t* qname, uint16_t qclass)
 {
-	rbnode_t* res = NULL;
+	rbnode_type* res = NULL;
 	struct iter_forward_zone key;
 	key.node.key = &key;
 	key.dclass = qclass;
@@ -347,7 +347,7 @@ struct delegpt*
 forwards_lookup(struct iter_forwards* fwd, uint8_t* qname, uint16_t qclass)
 {
 	/* lookup the forward zone in the tree */
-	rbnode_t* res = NULL;
+	rbnode_type* res = NULL;
 	struct iter_forward_zone *result;
 	struct iter_forward_zone key;
 	key.node.key = &key;
@@ -388,7 +388,7 @@ int
 forwards_next_root(struct iter_forwards* fwd, uint16_t* dclass)
 {
 	struct iter_forward_zone key;
-	rbnode_t* n;
+	rbnode_type* n;
 	struct iter_forward_zone* p;
 	if(*dclass == 0) {
 		/* first root item is first item in tree */

@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Dec 15, 2016" "NLnet Labs" "unbound 1.6.0"
+.TH "unbound-control" "8" "Feb 21, 2017" "NLnet Labs" "unbound 1.6.1"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -194,7 +194,7 @@ harden\-referral\-path, prefetch, prefetch\-key, log\-queries,
 hide\-identity, hide\-version, identity, version, val\-log\-level,
 val\-log\-squelch, ignore\-cd\-flag, add\-holddown, del\-holddown,
 keep\-missing, tcp\-upstream, ssl\-upstream, max\-udp\-size, ratelimit,
-cache\-max\-ttl, cache\-min\-ttl, cache\-max\-negative\-ttl.
+ip\-ratelimit, cache\-max\-ttl, cache\-min\-ttl, cache\-max\-negative\-ttl.
 .TP
 .B get_option \fIopt
 Get the value of the option.  Give the option name without a trailing ':'.
@@ -280,6 +280,12 @@ just the ratelimited domains, with their estimated qps.  The ratelimited
 domains return an error for uncached (new) queries, but cached queries work
 as normal.
 .TP
+.B ip_ratelimit_list \fR[\fI+a\fR]
+List the ip addresses that are ratelimited.  Printed one per line with current
+estimated qps and qps limit from config.  With +a it prints all ips, not
+just the ratelimited ips, with their estimated qps.  The ratelimited
+ips are dropped before checking the cache.
+.TP
 .B view_list_local_zones \fIview\fR
 \fIlist_local_zones\fR for given view.
 .TP
@@ -288,6 +294,9 @@ as normal.
 .TP
 .B view_local_zone_remove \fIview\fR \fIname
 \fIlocal_zone_remove\fR for given view.
+.TP
+.B view_list_local_data \fIview\fR
+\fIlist_local_data\fR for given view.
 .TP
 .B view_local_data \fIview\fR \fIRR data...
 \fIlocal_data\fR for given view.
@@ -318,6 +327,9 @@ The \fIstats\fR command shows a number of statistic counters.
 .TP
 .I threadX.num.queries
 number of queries received by thread
+.TP
+.I threadX.num.queries_ip_ratelimited
+number of queries rate limited by thread
 .TP
 .I threadX.num.cachehits
 number of queries that were successfully answered using a cache lookup

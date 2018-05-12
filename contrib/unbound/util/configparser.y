@@ -104,7 +104,8 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_AUTO_TRUST_ANCHOR_FILE VAR_KEEP_MISSING VAR_ADD_HOLDDOWN 
 %token VAR_DEL_HOLDDOWN VAR_SO_RCVBUF VAR_EDNS_BUFFER_SIZE VAR_PREFETCH
 %token VAR_PREFETCH_KEY VAR_SO_SNDBUF VAR_SO_REUSEPORT VAR_HARDEN_BELOW_NXDOMAIN
-%token VAR_IGNORE_CD_FLAG VAR_LOG_QUERIES VAR_TCP_UPSTREAM VAR_SSL_UPSTREAM
+%token VAR_IGNORE_CD_FLAG VAR_LOG_QUERIES VAR_LOG_REPLIES
+%token VAR_TCP_UPSTREAM VAR_SSL_UPSTREAM
 %token VAR_SSL_SERVICE_KEY VAR_SSL_SERVICE_PEM VAR_SSL_PORT VAR_FORWARD_FIRST
 %token VAR_STUB_SSL_UPSTREAM VAR_FORWARD_SSL_UPSTREAM
 %token VAR_STUB_FIRST VAR_MINIMAL_RESPONSES VAR_RRSET_ROUNDROBIN
@@ -123,8 +124,10 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES
 %token VAR_HARDEN_ALGO_DOWNGRADE VAR_IP_TRANSPARENT
 %token VAR_DISABLE_DNSSEC_LAME_CHECK
+%token VAR_IP_RATELIMIT VAR_IP_RATELIMIT_SLABS VAR_IP_RATELIMIT_SIZE
 %token VAR_RATELIMIT VAR_RATELIMIT_SLABS VAR_RATELIMIT_SIZE
-%token VAR_RATELIMIT_FOR_DOMAIN VAR_RATELIMIT_BELOW_DOMAIN VAR_RATELIMIT_FACTOR
+%token VAR_RATELIMIT_FOR_DOMAIN VAR_RATELIMIT_BELOW_DOMAIN
+%token VAR_IP_RATELIMIT_FACTOR VAR_RATELIMIT_FACTOR
 %token VAR_CAPS_WHITELIST VAR_CACHE_MAX_NEGATIVE_TTL VAR_PERMIT_SMALL_HOLDDOWN
 %token VAR_QNAME_MINIMISATION VAR_QNAME_MINIMISATION_STRICT VAR_IP_FREEBIND
 %token VAR_DEFINE_TAG VAR_LOCAL_ZONE_TAG VAR_ACCESS_CONTROL_TAG
@@ -132,6 +135,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_ACCESS_CONTROL_TAG_DATA VAR_VIEW VAR_ACCESS_CONTROL_VIEW
 %token VAR_VIEW_FIRST VAR_SERVE_EXPIRED VAR_FAKE_DSA
 %token VAR_LOG_IDENTITY
+%token VAR_USE_SYSTEMD
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -189,16 +193,19 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_del_holddown | server_keep_missing | server_so_rcvbuf |
 	server_edns_buffer_size | server_prefetch | server_prefetch_key |
 	server_so_sndbuf | server_harden_below_nxdomain | server_ignore_cd_flag |
-	server_log_queries | server_tcp_upstream | server_ssl_upstream |
+	server_log_queries | server_log_replies | server_tcp_upstream | server_ssl_upstream |
 	server_ssl_service_key | server_ssl_service_pem | server_ssl_port |
 	server_minimal_responses | server_rrset_roundrobin | server_max_udp_size |
 	server_so_reuseport | server_delay_close |
 	server_unblock_lan_zones | server_insecure_lan_zones |
 	server_dns64_prefix | server_dns64_synthall |
 	server_infra_cache_min_rtt | server_harden_algo_downgrade |
-	server_ip_transparent | server_ratelimit | server_ratelimit_slabs |
-	server_ratelimit_size | server_ratelimit_for_domain |
+	server_ip_transparent | server_ip_ratelimit | server_ratelimit |
+	server_ip_ratelimit_slabs | server_ratelimit_slabs |
+	server_ip_ratelimit_size | server_ratelimit_size |
+	server_ratelimit_for_domain |
 	server_ratelimit_below_domain | server_ratelimit_factor |
+	server_ip_ratelimit_factor |
 	server_caps_whitelist | server_cache_max_negative_ttl |
 	server_permit_small_holddown | server_qname_minimisation |
 	server_ip_freebind | server_define_tag | server_local_zone_tag |
@@ -206,7 +213,7 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_local_zone_override | server_access_control_tag_action |
 	server_access_control_tag_data | server_access_control_view |
 	server_qname_minimisation_strict | server_serve_expired |
-	server_fake_dsa | server_log_identity
+	server_fake_dsa | server_log_identity | server_use_systemd
 	;
 stubstart: VAR_STUB_ZONE
 	{
@@ -502,6 +509,15 @@ server_ssl_port: VAR_SSL_PORT STRING_ARG
 		free($2);
 	}
 	;
+server_use_systemd: VAR_USE_SYSTEMD STRING_ARG
+	{
+		OUTYY(("P(server_use_systemd:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->use_systemd = (strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
 server_do_daemonize: VAR_DO_DAEMONIZE STRING_ARG
 	{
 		OUTYY(("P(server_do_daemonize:%s)\n", $2));
@@ -543,6 +559,15 @@ server_log_queries: VAR_LOG_QUERIES STRING_ARG
 		free($2);
 	}
 	;
+server_log_replies: VAR_LOG_REPLIES STRING_ARG
+  {
+  	OUTYY(("P(server_log_replies:%s)\n", $2));
+  	if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+  		yyerror("expected yes or no.");
+  	else cfg_parser->cfg->log_replies = (strcmp($2, "yes")==0);
+  	free($2);
+  }
+  ;
 server_chroot: VAR_CHROOT STRING_ARG
 	{
 		OUTYY(("P(server_chroot:%s)\n", $2));
@@ -575,9 +600,11 @@ server_directory: VAR_DIRECTORY STRING_ARG
 				strncmp(d, cfg_parser->chroot, strlen(
 				cfg_parser->chroot)) == 0)
 				d += strlen(cfg_parser->chroot);
-			if(chdir(d))
+			if(d[0]) {
+			    if(chdir(d))
 				log_err("cannot chdir to directory: %s (%s)",
 					d, strerror(errno));
+			}
 		}
 	}
 	;
@@ -1201,9 +1228,11 @@ server_fake_dsa: VAR_FAKE_DSA STRING_ARG
 		OUTYY(("P(server_fake_dsa:%s)\n", $2));
 		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
 			yyerror("expected yes or no.");
+#ifdef HAVE_SSL
 		else fake_dsa = (strcmp($2, "yes")==0);
 		if(fake_dsa)
 			log_warn("test option fake_dsa is enabled");
+#endif
 		free($2);
 	}
 	;
@@ -1480,6 +1509,16 @@ server_access_control_view: VAR_ACCESS_CONTROL_VIEW STRING_ARG STRING_ARG
 		}
 	}
 	;
+server_ip_ratelimit: VAR_IP_RATELIMIT STRING_ARG 
+	{ 
+		OUTYY(("P(server_ip_ratelimit:%s)\n", $2)); 
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->ip_ratelimit = atoi($2);
+		free($2);
+	}
+	;
+
 server_ratelimit: VAR_RATELIMIT STRING_ARG 
 	{ 
 		OUTYY(("P(server_ratelimit:%s)\n", $2)); 
@@ -1489,6 +1528,14 @@ server_ratelimit: VAR_RATELIMIT STRING_ARG
 		free($2);
 	}
 	;
+server_ip_ratelimit_size: VAR_IP_RATELIMIT_SIZE STRING_ARG
+  {
+  	OUTYY(("P(server_ip_ratelimit_size:%s)\n", $2));
+  	if(!cfg_parse_memsize($2, &cfg_parser->cfg->ip_ratelimit_size))
+  		yyerror("memory size expected");
+  	free($2);
+  }
+  ;
 server_ratelimit_size: VAR_RATELIMIT_SIZE STRING_ARG
 	{
 		OUTYY(("P(server_ratelimit_size:%s)\n", $2));
@@ -1497,6 +1544,19 @@ server_ratelimit_size: VAR_RATELIMIT_SIZE STRING_ARG
 		free($2);
 	}
 	;
+server_ip_ratelimit_slabs: VAR_IP_RATELIMIT_SLABS STRING_ARG
+  {
+  	OUTYY(("P(server_ip_ratelimit_slabs:%s)\n", $2));
+  	if(atoi($2) == 0)
+  		yyerror("number expected");
+  	else {
+  		cfg_parser->cfg->ip_ratelimit_slabs = atoi($2);
+  		if(!is_pow2(cfg_parser->cfg->ip_ratelimit_slabs))
+  			yyerror("must be a power of 2");
+  	}
+  	free($2);
+  }
+  ;
 server_ratelimit_slabs: VAR_RATELIMIT_SLABS STRING_ARG
 	{
 		OUTYY(("P(server_ratelimit_slabs:%s)\n", $2));
@@ -1534,6 +1594,15 @@ server_ratelimit_below_domain: VAR_RATELIMIT_BELOW_DOMAIN STRING_ARG STRING_ARG
 				fatal_exit("out of memory adding "
 					"ratelimit-below-domain");
 		}
+	}
+	;
+server_ip_ratelimit_factor: VAR_IP_RATELIMIT_FACTOR STRING_ARG 
+  { 
+  	OUTYY(("P(server_ip_ratelimit_factor:%s)\n", $2)); 
+  	if(atoi($2) == 0 && strcmp($2, "0") != 0)
+  		yyerror("number expected");
+  	else cfg_parser->cfg->ip_ratelimit_factor = atoi($2);
+  	free($2);
 	}
 	;
 server_ratelimit_factor: VAR_RATELIMIT_FACTOR STRING_ARG 

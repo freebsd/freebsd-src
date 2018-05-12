@@ -234,6 +234,7 @@ ssl-upstream{COLON}		{ YDVAR(1, VAR_SSL_UPSTREAM) }
 ssl-service-key{COLON}		{ YDVAR(1, VAR_SSL_SERVICE_KEY) }
 ssl-service-pem{COLON}		{ YDVAR(1, VAR_SSL_SERVICE_PEM) }
 ssl-port{COLON}			{ YDVAR(1, VAR_SSL_PORT) }
+use-systemd{COLON}		{ YDVAR(1, VAR_USE_SYSTEMD) }
 do-daemonize{COLON}		{ YDVAR(1, VAR_DO_DAEMONIZE) }
 interface{COLON}		{ YDVAR(1, VAR_INTERFACE) }
 ip-address{COLON}		{ YDVAR(1, VAR_INTERFACE) }
@@ -334,6 +335,7 @@ use-syslog{COLON}		{ YDVAR(1, VAR_USE_SYSLOG) }
 log-identity{COLON}		{ YDVAR(1, VAR_LOG_IDENTITY) }
 log-time-ascii{COLON}		{ YDVAR(1, VAR_LOG_TIME_ASCII) }
 log-queries{COLON}		{ YDVAR(1, VAR_LOG_QUERIES) }
+log-replies{COLON}		{ YDVAR(1, VAR_LOG_REPLIES) }
 local-zone{COLON}		{ YDVAR(2, VAR_LOCAL_ZONE) }
 local-data{COLON}		{ YDVAR(1, VAR_LOCAL_DATA) }
 local-data-ptr{COLON}		{ YDVAR(1, VAR_LOCAL_DATA_PTR) }
@@ -386,11 +388,15 @@ dnstap-log-forwarder-query-messages{COLON}	{
 dnstap-log-forwarder-response-messages{COLON}	{
 		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES) }
 disable-dnssec-lame-check{COLON} { YDVAR(1, VAR_DISABLE_DNSSEC_LAME_CHECK) }
+ip-ratelimit{COLON}		{ YDVAR(1, VAR_IP_RATELIMIT) }
 ratelimit{COLON}		{ YDVAR(1, VAR_RATELIMIT) }
+ip-ratelimit-slabs{COLON}		{ YDVAR(1, VAR_IP_RATELIMIT_SLABS) }
 ratelimit-slabs{COLON}		{ YDVAR(1, VAR_RATELIMIT_SLABS) }
+ip-ratelimit-size{COLON}		{ YDVAR(1, VAR_IP_RATELIMIT_SIZE) }
 ratelimit-size{COLON}		{ YDVAR(1, VAR_RATELIMIT_SIZE) }
 ratelimit-for-domain{COLON}	{ YDVAR(2, VAR_RATELIMIT_FOR_DOMAIN) }
 ratelimit-below-domain{COLON}	{ YDVAR(2, VAR_RATELIMIT_BELOW_DOMAIN) }
+ip-ratelimit-factor{COLON}		{ YDVAR(1, VAR_IP_RATELIMIT_FACTOR) }
 ratelimit-factor{COLON}		{ YDVAR(1, VAR_RATELIMIT_FACTOR) }
 <INITIAL,val>{NEWLINE}		{ LEXOUT(("NL\n")); cfg_parser->line++; }
 

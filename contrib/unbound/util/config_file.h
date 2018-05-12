@@ -229,6 +229,8 @@ struct config_file {
 	int log_time_ascii;
 	/** log queries with one line per query */
 	int log_queries;
+	/** log replies with one line per reply */
+	int log_replies;
 	/** log identity to report */
 	char* log_identity;
 
@@ -344,6 +346,9 @@ struct config_file {
 	/** Python script file */
 	char* python_script;
 
+	/** Use systemd socket activation. */
+	int use_systemd;
+
 	/** daemonize, i.e. fork into the background. */
 	int do_daemonize;
 
@@ -391,7 +396,16 @@ struct config_file {
 	/** true to disable DNSSEC lameness check in iterator */
 	int disable_dnssec_lame_check;
 
-	/** ratelimit 0 is off, otherwise qps (unless overridden) */
+	/** ratelimit for ip addresses. 0 is off, otherwise qps (unless overridden) */
+	int ip_ratelimit;
+	/** number of slabs for ip_ratelimit cache */
+	size_t ip_ratelimit_slabs;
+	/** memory size in bytes for ip_ratelimit cache */
+	size_t ip_ratelimit_size;
+	/** ip_ratelimit factor, 0 blocks all, 10 allows 1/10 of traffic */
+	int ip_ratelimit_factor;
+
+	/** ratelimit for domains. 0 is off, otherwise qps (unless overridden) */
 	int ratelimit;
 	/** number of slabs for ratelimit cache */
 	size_t ratelimit_slabs;

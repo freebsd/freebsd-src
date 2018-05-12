@@ -127,7 +127,7 @@ find_id(struct ub_ctx* ctx, int* id)
 
 struct ctx_query* 
 context_new(struct ub_ctx* ctx, const char* name, int rrtype, int rrclass, 
-	ub_callback_t cb, void* cbarg)
+	ub_callback_type cb, void* cbarg)
 {
 	struct ctx_query* q = (struct ctx_query*)calloc(1, sizeof(*q));
 	if(!q) return NULL;

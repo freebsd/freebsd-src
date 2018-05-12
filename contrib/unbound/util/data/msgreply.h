@@ -105,7 +105,7 @@ struct rrset_ref {
 	/** the key with lock, and ptr to packed data. */
 	struct ub_packed_rrset_key* key;
 	/** id needed */
-	rrset_id_t id;
+	rrset_id_type id;
 };
 
 /**
@@ -330,7 +330,7 @@ void reply_info_delete(void* d, void* arg);
 
 /** calculate hash value of query_info, lowercases the qname,
  * uses CD flag for AAAA qtype */
-hashvalue_t query_info_hash(struct query_info *q, uint16_t flags);
+hashvalue_type query_info_hash(struct query_info *q, uint16_t flags);
 
 /**
  * Setup query info entry
@@ -340,7 +340,7 @@ hashvalue_t query_info_hash(struct query_info *q, uint16_t flags);
  * @return: newly allocated message reply cache item.
  */
 struct msgreply_entry* query_info_entrysetup(struct query_info* q,
-	struct reply_info* r, hashvalue_t h);
+	struct reply_info* r, hashvalue_type h);
 
 /**
  * Copy reply_info and all rrsets in it and allocate.
@@ -448,8 +448,25 @@ struct ub_packed_rrset_key* reply_find_rrset(struct reply_info* rep,
  * @param qinfo: query section.
  * @param rep: rest of message.
  */
-void log_dns_msg(const char* str, struct query_info* qinfo, 
+void log_dns_msg(const char* str, struct query_info* qinfo,
 	struct reply_info* rep);
+
+/**
+ * Print string with neat domain name, type, class,
+ * status code from, and size of a query response.
+ *
+ * @param v: at what verbosity level to print this.
+ * @param qinf: query section.
+ * @param addr: address of the client.
+ * @param addrlen: length of the client address.
+ * @param dur: how long it took to complete the query.
+ * @param cached: whether or not the reply is coming from
+ *                    the cache, or an outside network.
+ * @param rmsg: sldns buffer packet.
+ */
+void log_reply_info(enum verbosity_value v, struct query_info *qinf,
+	struct sockaddr_storage *addr, socklen_t addrlen, struct timeval dur,
+	int cached, struct sldns_buffer *rmsg);
 
 /**
  * Print string with neat domain name, type, class from query info.
