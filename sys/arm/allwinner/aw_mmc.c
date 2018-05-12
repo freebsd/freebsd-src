@@ -450,6 +450,7 @@ aw_mmc_prepare_dma(struct aw_mmc_softc *sc)
 	    AW_MMC_DMAC_IDMAC_IDMA_ON | AW_MMC_DMAC_IDMAC_FIX_BURST);
 
 	/* Enable RX or TX DMA interrupt */
+	val = AW_MMC_READ_4(sc, AW_MMC_IDIE);
 	if (cmd->data->flags & MMC_DATA_WRITE)
 		val |= AW_MMC_IDST_TX_INT;
 	else
