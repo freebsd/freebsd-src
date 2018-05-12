@@ -537,6 +537,11 @@ list_profiles()
 	exit $SUCCESS
 }
 
+shell_escape()
+{
+	echo "$*" | awk 'gsub(/'\''/, "&\\\\&&")||1'
+}
+
 load_profile()
 {
 	local profile="$1"
@@ -546,6 +551,44 @@ load_profile()
 
 	local oldIFS="$IFS"
 	local dir found=
+	local ARGV=
+
+	[ $COUNT -gt 0 ] &&			ARGV="$ARGV -N $COUNT"
+	[ "$DEBUG" ] &&				ARGV="$ARGV -d"
+	[ "$DESTRUCTIVE_ACTIONS" ] &&		ARGV="$ARGV -w"
+	[ "$EXIT_AFTER_COMPILE" ] &&		ARGV="$ARGV -e"
+	[ "$GROUP" ] &&				ARGV="$ARGV -g $GROUP"
+	[ "$JID" ] &&				ARGV="$ARGV -j $JID"
+	[ $MAX_ARGS -ne $_MAX_ARGS ] &&		ARGV="$ARGV -B $MAX_ARGS"
+	[ $MAX_DEPTH -ne $_MAX_DEPTH ] &&	ARGV="$ARGV -K $MAX_DEPTH"
+	[ "$ONELINE" ] &&			ARGV="$ARGV -1"
+	[ "$PID" ] &&				ARGV="$ARGV -p $PID"
+	[ "$PSTREE" ] &&			ARGV="$ARGV -R"
+	[ "$QUIET" ] &&				ARGV="$ARGV -q"
+	[ "$TIMEOUT" ] &&			ARGV="$ARGV -T $TIMEOUT"
+	[ "$TRACE" ] &&				ARGV="$ARGV -x"
+	[ "$USER" ] &&				ARGV="$ARGV -u $USER"
+	[ "$VERBOSE" ] &&			ARGV="$ARGV -v"
+
+	[ "$FILTER" ] &&
+		ARGV="$ARGV -r '$( shell_escape "$FILTER" )'"
+	[ "$EXECREGEX" ] &&
+		ARGV="$ARGV -z '$( shell_escape "$EXECREGEX" )'"
+	[ "$CUSTOM_DETAILS" ] &&
+		ARGV="$ARGV -E '$( shell_escape "$EVENT_DETAILS" )'"
+	[ "$EVENT_TEST" ] &&
+		ARGV="$ARGV -t '$( shell_escape "$EVENT_TEST" )'"
+	[ "$OUTPUT" ] &&
+		ARGV="$ARGV -o '$( shell_escape "$OUTPUT" )'"
+	[ "$OUTPUT_CMD" ] &&
+		ARGV="$ARGV -O '$( shell_escape "$OUTPUT_CMD" )'"
+
+	case "$PROBE_TYPE" in
+	provider) ARGV="$ARGV -P" ;;
+	  module) ARGV="$ARGV -m" ;;
+	function) ARGV="$ARGV -f" ;;
+	    name) ARGV="$ARGV -n" ;;
+	esac
 
 	IFS=:
 	for dir in $DWATCH_PROFILES_PATH; do
