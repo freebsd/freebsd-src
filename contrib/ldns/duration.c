@@ -75,7 +75,7 @@ ldns_duration_create(void)
  *
  */
 int
-ldns_duration_compare(ldns_duration_type* d1, ldns_duration_type* d2)
+ldns_duration_compare(const ldns_duration_type* d1, const ldns_duration_type* d2)
 {
     if (!d1 && !d2) {
         return 0;
@@ -213,7 +213,7 @@ digits_in_number(time_t duration)
  *
  */
 char*
-ldns_duration2string(ldns_duration_type* duration)
+ldns_duration2string(const ldns_duration_type* duration)
 {
     char* str = NULL, *num = NULL;
     size_t count = 2;
@@ -316,7 +316,7 @@ ldns_duration2string(ldns_duration_type* duration)
  *
  */
 time_t
-ldns_duration2time(ldns_duration_type* duration)
+ldns_duration2time(const ldns_duration_type* duration)
 {
     time_t period = 0;
 

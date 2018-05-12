@@ -131,6 +131,14 @@ enum ldns_enum_rdf_type
 	 */
 	LDNS_RDF_TYPE_LONG_STR,
 
+	/** Since RFC7218 TLSA records can be given with mnemonics,
+	 * hence these rdata field types.  But as with DNSKEYs, the output
+	 * is always numeric.
+	 */
+	LDNS_RDF_TYPE_CERTIFICATE_USAGE,
+	LDNS_RDF_TYPE_SELECTOR,
+	LDNS_RDF_TYPE_MATCHING_TYPE,
+
 	/* Aliases */
 	LDNS_RDF_TYPE_BITMAP = LDNS_RDF_TYPE_NSEC
 };
@@ -343,7 +351,7 @@ ldns_rdf *ldns_native2rdf_int16_data(size_t size, uint8_t *data);
  * \param[in] *rd rdf to be reversed
  * \return the reversed rdf (a newly created rdf)
  */
-ldns_rdf *ldns_rdf_address_reverse(ldns_rdf *rd);
+ldns_rdf *ldns_rdf_address_reverse(const ldns_rdf *rd);
 
 /**
  * returns the native uint8_t representation from the rdf.

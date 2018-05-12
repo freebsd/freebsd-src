@@ -9,6 +9,7 @@ LDFLAGS="@LDFLAGS@ @LIBSSL_LDFLAGS@ @PYTHON_LDFLAGS@"
 LIBS="@LIBS@ @LIBSSL_LIBS@"
 LIBDIR="@libdir@"
 INCLUDEDIR="@includedir@"
+LIBVERSION="@VERSION_INFO@"
 
 for arg in $@
 do
@@ -27,5 +28,9 @@ do
     if [ $arg = "--version" ]
     then
         echo "${VERSION}"
+    fi
+    if [ $arg = "--libversion" ]
+    then
+        echo "${LIBVERSION}"
     fi
 done
